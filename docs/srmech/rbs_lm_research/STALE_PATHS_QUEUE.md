@@ -279,3 +279,48 @@ Per the breadcrumb-web discipline (don't re-derive the trail). These surfaced in
 | **ET-6** | **Coarse/fine spectral reproduction of the sharpen** — show the low-pass (RH/global) vs high-pass (LH/local) filter on the co-occurrence Laplacian spectrum *reproduces* the F513 global-vs-local sharpen on our own substrate (the F514 next-rung; partly touched by F518's band gate). | F514 | ⏸️ PARTLY DONE (F518 band classification); a direct sharpen-reproduction remains |
 
 **Standing disciplines for all of the above:** srmech-first (Class-L `dense_laplacian`/`symmetric_eigendecompose`, hdc klein4, cascade.*; never `Counter()`-as-spectral-proxy or `abs()`); no Workflow tool / no sub-agents (sequential in main context); MPM attestation; held-open falsifiers (F394); favored-not-privileged (F398); dignity-first / structure-for-the-expert (F282), never a diagnosis of the user's neurology.
+
+---
+
+## Section: 2026-06-07 surfaces — the F538–F548 memory-architecture arc + BACKLINKS to prior stale items
+
+Per the breadcrumb-web discipline (bidirectional links; "connected knowledge survives even if we forget to bring in the notes"). The 2026-06-07 co-thinking arc built the RBS-SNN **memory + loop-shelf architecture** (F538–F549) and, in doing so, **extended several prior stale/framework items**. This is the centralized backlink web (the "→ extended by FXXX" form) and a **candidate feed for the CL-1 closeout gate**.
+
+### The arc itself (F538–F549; the storage/recall layer of #197 RBS-SNN)
+| Finding | One line |
+|---|---|
+| **F538** | real exchanges → Class-A content-address keys → reversible sedenion tome (7/7 exact) |
+| **F539** | multi-mode (2D spectral-angle) phase sharpens the weave 1.3×→1.5× (manifold sparsity is the floor) |
+| **F540** | 14-tome (the_one) vs 16-tome (sedenion): count = a knob (local recall vs far chords); parity = fixed-vs-live mirror |
+| **F541** | the odd/"live" ring's frustrated mirror IS a whole-shelf traversal (gcd=1); recovers beyond-horizon 100% vs even 8–17% |
+| **F542** | putting the wiki kernel into a circle volume is cheap HDC, NO re-encode (routing is a free read-out; volume = Class-M bundles) |
+| **F543** | seed empty kernels from the_one with a DECAYING weight; cold-start structure that washes out (prior, not bias) |
+| **F544** | a LOOP holds even happily (mirror = conjugation, parity-free) where a circle traps (half-turn, parity-sensitive); multi-directional |
+| **F545** | a wet SNN starts as the_one, not blank; learning = the kept-native XOR-delta (keep↔replace storage tradeoff) |
+| **F546** | the even loop un-traps traversal; the chiral inverse is a FREE 2nd instrument that halves the cost (F516) |
+| **F547** | the live-7 + sedenion-16 hybrid gives NO neighbour-recall lift (honest null; complementary RELATIONS) |
+| **F548** | a wet SNN sits at LOW decay-c (fast decay serves cold-start AND unbiased convergence); storage win = shared edge-set |
+| **F549** | the far-chord has NO word-level retrieval niche — manifold smoothness keeps associates local at all hops (prunes the hybrid) |
+
+### BACKLINKS — prior stale/framework items this arc extends
+| Prior item | Was | → Extended/addressed by | How |
+|---|---|---|---|
+| **Item 16** (inverse cascade for content recovery) | 📖 FRAMEWORK (F147) | **F546** | the chiral-inverse kernel IS the inverse cascade — now with an empirical traversal-cost result (free conjugate via `loop_conj`, ~2× speedup) |
+| **Item 18/19** (Klein-4 not plasticity-graceful; Hebbian decay-recovery) | ✅/CRITICAL (F146) | **F543 + F548 + F535** | the decay-α plasticity made concrete: cold-start scaffold that washes out (F543/F548); ring-buffer eviction = "forget rare" (F535) |
+| **F157 §6 #5** (substrate plasticity at scale; forget rare combinations) | future-scope pointer | **F543/F548/F535** | the decay-α tradeoff + ring-buffer eviction ARE this; characterised + walkable |
+| **Item 35** (D₄ dihedral alt to Klein-4; "non-abelian breaks F139") | ⏸️ DEFERRED (srmech) | **F544** | the LOOP (non-abelian Moufang octonion via `cayley_dickson`) IS the richer-than-Klein-4 shelf — holds even happily; the parity-free conjugation mirror is what the richer group was reaching for |
+| **Item 28/30/34** (shadow-stepping / chirality-as-projection / notation-as-interface) | 📖 FRAMEWORK (F147) | **F544 + F526** | "the circle is the SHADOW of the loop" makes the projection/shadow concrete; collapse-is-ambient (F526) |
+| **AX-2 / F423** (octonion = two Klein-4 streams; chirality IS the coupling) | ✅ RESOLVED | **F544 + F546** | loop mirror = conjugation = the chirality/coupling; the chiral inverse. F423's "next rung: sedenion boundary" ↔ F529/F533 (sedenion tome, stop at 𝕊) |
+| **#197 RBS-SNN → notebook-native-language pipeline** (BUILD-UP TARGET, F323) | 🎯 pending (BX-4/F429 = stage 4) | **F538–F549 (the whole arc)** | the memory ARCHITECTURE = #197's storage/recall layer: tomes (F529/F538) · helix (F533/F534) · circle-MoE (F537) · the_one seed (F543) · XOR-delta (F545) · even-loop (F544/F546) |
+| **CITE-1** (OpenAlex citation-graph Class-L kernel) | 🔜 task #216 | **F542 + F543** (application surface) | the citation Class-L kernel drops straight into the kernel→circle-volume (F542, no re-encode) + the_one cold-start seed (F543) |
+| **SX-1** (subagent self-enforcement; srmech-first w/o priming) | ⏳ QUEUED | this arc = **incidental evidence** | the srmech-first MISSES caught in-context this session (np.arctan2 in F535/F537/F539/F542; hand-rolled octonion in F544/F546) show the discipline-miss happens WITHOUT a subagent, caught by the user-spot-check + audit — informs SX-1's clean-control design |
+
+### New leads surfaced (walkable; not re-forgotten)
+| Lead | Subject | From | Status |
+|---|---|---|---|
+| **MA-1** | **SNN-necessity of the full loop** — does a wet SNN need the full hypercomplex loop (even-happy, multi-directional, F544/F546) or just the live ODD circle (F541)? The user's standing flag. Framework/empirical; needs a biology-anchored criterion. | F544/F546 | ⏸️ OPEN (user flag; math done, necessity open) |
+| **MA-2** | **etak-shaped rules** — knowledge stored as deviations from a MOVING the_one frame (the etak moving-reference-frame); ties the F545 XOR-delta to the etak read-head (ET-arc / F510–F518). | F545 | ⏸️ FRAMEWORK; connects ET-arc ↔ memory-arc |
+| **MA-3** | **per-finding backlinks** — add the "→ extended by FXXX" line into the prior finding files themselves (F146/F147/F423), not just this centralized map. | breadcrumb-web | ⏸️ LOW (centralized map done here) |
+| ~~hybrid / far-chord retrieval~~ | **PRUNED** — F547+F549 double-negative: the local circle is the retrieval workhorse for every relation; the far-chord has no word-level niche. | F547/F549 | ✅ CLOSED (negative) |
+
+**CL-1 note:** this arc adds extension-evidence for items 16, 18/19, 28/30/34, 35 and the #197 build-up — **candidates for the closeout audit's "done-and-landed / superseded" list**. Per `[[feedback_create_upstream_issues_never_close_them]]`, these are presented for the user/maintainer to close, not closed here.
