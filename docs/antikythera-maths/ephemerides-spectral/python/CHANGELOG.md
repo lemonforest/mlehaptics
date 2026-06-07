@@ -10,6 +10,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.30.0rc10] — 2026-06-07
+
+### Added — heat_flow dual-author attested-TOML backfill
+
+The 6 per-body heat-flow rows (terra / mars / io / europa / enceladus /
+titan) shipped at v0.21.8 in the hand-coded `_research/heat_flow_data.py`
+module are now **dual-authored** — encoded a second time through the AMSC
+literature_curated path at `research/attested/heat_flow/` (descriptor +
+JSON Schema + NDJSON), with a per-row byte-stable diff test
+(`tests/test_heat_flow_dual_author.py`; the saturn_rings + solar_rotation +
+tidal_migration pattern). The `HeatFlow` @dataclass gains per-row
+provenance fields (`source_doi` / `source_published_date` /
+`entered_locally_at` / `source_version`) and a `heatflow_to_data_dict`
+projection; the AMSC NDJSON is generated from those rows, so the two paths
+agree by construction and the diff test guards against future drift.
+
+This is the backfill heat_flow was **held back from at v0.30.0rc7**: the
+rc7 triality panel, sweeping heat_flow while backfilling tidal_migration,
+caught three broken citations in its shipped data (`khan_2023`,
+`tobie_2008`, `veeder_2012`), so it waited for the **v0.30.0rc9 citation
+repair** before being dual-authored over correct provenance (MPM: don't
+backfill over broken citations). All **six per-row source DOIs are
+CrossRef-verified** — the three rc9 repairs (Frizzell 2023 /
+Tobie 2005 / the Veeder 2012 title) plus the three pre-existing
+(Davies 2010 `10.5194/se-1-5-2010`, Vance 2018 `10.1002/2017JE005341`,
+Howett 2011 `10.1029/2010JE003718`), all re-confirmed against live CrossRef
+2026-06-07.
+
+One new attested source: `bridge.list_attested_sources` `n_sources`
+**31 → 32**, curated **28 → 29** (the `test_attested_collector` ratchets +
+roster keys updated). **No srmech floor change** (stays `>=0.7.4`); **no
+`ephemerides_spectral` code or ABI change** (`ES_ABI_VERSION = 10`); the
+codegen mirror + manifest were regenerated (165 files). Full local suite
+green. Rc cycles through TestPyPI only.
+
 ## [0.30.0rc9] — 2026-06-07
 
 ### Fixed — heat_flow catalogue citation repair (3 triality-flagged defects)

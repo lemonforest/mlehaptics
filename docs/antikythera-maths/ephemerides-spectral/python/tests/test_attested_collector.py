@@ -393,6 +393,7 @@ def test_discover_descriptors_finds_committed_pilots() -> None:
         "earthref_sc",
         "gmrt",
         "hawaii_chain",
+        "heat_flow",
         "loki_patera",
         "luna_dynamical_spectrum",
         "mars_dynamical_spectrum",
@@ -551,7 +552,9 @@ def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
     assert result["ok"] is True
     # v0.30.0rc4 dual-author: solar_rotation (29th) + solar_cycle (30th).
     # v0.30.0rc7 backfill: tidal_migration (31st).
-    assert result["n_sources"] == 31
+    # v0.30.0rc10 backfill: heat_flow (32nd; held back at rc7 for the
+    # citation repair, dual-authored at rc10 once corrected at rc9).
+    assert result["n_sources"] == 32
     keys = sorted(s["key"] for s in result["sources"])
     assert keys == [
         "asymptotic_calculus",
@@ -569,6 +572,7 @@ def test_bridge_list_attested_sources_returns_committed_pilots() -> None:
         "earthref_sc",
         "gmrt",
         "hawaii_chain",
+        "heat_flow",
         "loki_patera",
         "luna_dynamical_spectrum",
         "mars_dynamical_spectrum",
@@ -604,7 +608,8 @@ def test_bridge_list_attested_sources_curated_class_filter() -> None:
     assert result["ok"] is True
     # +solar_rotation +solar_cycle (v0.30.0rc4 dual-author) → 27 curated.
     # +tidal_migration (v0.30.0rc7 backfill) → 28 curated.
-    assert result["n_sources"] == 28
+    # +heat_flow (v0.30.0rc10 backfill) → 29 curated.
+    assert result["n_sources"] == 29
     assert result["adapter_class"] == "curated"
     keys = sorted(s["key"] for s in result["sources"])
     assert keys == [
@@ -621,6 +626,7 @@ def test_bridge_list_attested_sources_curated_class_filter() -> None:
         "dynamical_regime",
         "dynamical_regime_probes",
         "hawaii_chain",
+        "heat_flow",
         "loki_patera",
         "luna_dynamical_spectrum",
         "mars_dynamical_spectrum",
@@ -679,7 +685,8 @@ def test_bridge_list_attested_sources_specific_adapter_filter() -> None:
     # 0.6.0/0.7.0rc48 compatibility surface in v0.29.3rc1.
     # + solar_rotation + solar_cycle (v0.30.0rc4 dual-author) → 27.
     # + tidal_migration (v0.30.0rc7 backfill) → 28.
-    assert result["n_sources"] == 28
+    # + heat_flow (v0.30.0rc10 backfill) → 29.
+    assert result["n_sources"] == 29
     for src in result["sources"]:
         assert src["adapter"] == "literature_curated"
 

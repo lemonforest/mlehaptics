@@ -120,6 +120,18 @@
       "sha256": "88b47ea1b7d659295feddcb394a549f78b151717ad216f8022e21ff0c0b873db",
       "size_bytes": 3283
     },
+    "_research/attested/heat_flow/descriptor.toml": {
+      "sha256": "e920c20f372f7dc1d3658f7c09843814c9e55c8c25e1fb445e1e587918cfaac8",
+      "size_bytes": 3520
+    },
+    "_research/attested/heat_flow/heat_flow.ndjson": {
+      "sha256": "a56b9d16c3aa20bdde1a15f0ac9642fc6a26bd81f32b4dfc79869cbdc4337e5c",
+      "size_bytes": 4482
+    },
+    "_research/attested/heat_flow/heat_flow.schema.json": {
+      "sha256": "280997d65ff388818813a8ce3789a4d776beea86f81e1e531496daadec920c12",
+      "size_bytes": 3764
+    },
     "_research/attested/loki_patera/descriptor.toml": {
       "sha256": "5433917d08fc05c735d1335ada0c057251e3ed27df4bfeb7464350370c15b18f",
       "size_bytes": 4628
@@ -433,8 +445,8 @@
       "size_bytes": 4120
     },
     "_research/heat_flow_data.py": {
-      "sha256": "5c69fe8553ac73ca358469bd922931c098fa6126e7c63373034288f412fd91d1",
-      "size_bytes": 10994
+      "sha256": "3ee2028139a376f121ca2d6fd3a4728160fe8248ba3160c3faa1bf4c2e1475e6",
+      "size_bytes": 13664
     },
     "_research/icbm_trajectory_catalog.py": {
       "sha256": "251ace65a4556d0a23fe92aecb5d2993671b2f73871467b4ce5b80ad5e770676",
@@ -650,5 +662,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.30.0rc9"
+  "version": "0.30.0rc10"
 }
