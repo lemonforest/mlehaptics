@@ -663,12 +663,24 @@ def log1p_series_truncate(numerator: int,
 
     log(1+x) = Σ_{k=1..N} (-1)^(k+1) * x^k / k
 
-    Caller responsibility: |p/q| < 1 for convergence (the series
-    diverges otherwise). The function computes the partial sum
-    regardless; rate-of-convergence is asymptotic for |x| near 1.
+    Domain: -1 < p/q ≤ 1 — the Taylor radius of convergence (the boundary
+    x = 1, log 2, converges conditionally; x = -1 is log(0) = -∞). Outside
+    it the partial sum DIVERGES, so an out-of-domain argument (x > 1 or
+    x ≤ -1) is refused with a Class-N domain ``ValueError`` rather than
+    silently returning a divergent rational (W14 / RBS-LM bugfix wishlist;
+    the §15.1/§18 Class-K contract-error pattern). This op stays
+    EXACT-rational; there is no float-projection range-reduced log to defer
+    to, so |x| ≥ 1 simply isn't in this series' domain.
     """
     _check_series_inputs(numerator, denominator, num_terms,
                          _LOG_SERIES_MAX_TERMS, "log1p_series_truncate")
+    if numerator > denominator or numerator <= -denominator:
+        raise ValueError(
+            f"log1p_series_truncate: p/q must be in (-1, 1] (Taylor radius "
+            f"of convergence; x = -1 is log(0) = -∞); got "
+            f"{numerator}/{denominator}. The exact-rational series diverges "
+            f"outside its radius and cannot range-reduce."
+        )
     if numerator == 0 or num_terms == 0:
         return (0, 1)
     num = 0
@@ -693,11 +705,26 @@ def atan_series_truncate(numerator: int,
 
     atan(x) = Σ_{k=0..N} (-1)^k * x^(2k+1) / (2k+1)
 
-    Caller responsibility: |p/q| ≤ 1 for fast convergence. The series
-    is valid for |x| ≤ 1 (alternating series test).
+    Domain: |p/q| ≤ 1 — the Taylor radius of convergence (the boundary
+    |x| = 1, e.g. atan(1) = π/4, still converges, conditionally). Outside
+    it the partial sum DIVERGES — the term x^(2k+1)/(2k+1) grows without
+    bound — so a |p/q| > 1 argument is refused with a Class-N domain
+    ``ValueError`` rather than silently returning a divergent rational
+    (W14 / RBS-LM bugfix wishlist; the §15.1/§18 Class-K contract-error
+    pattern — refuse the out-of-domain input loudly). This op stays
+    EXACT-rational, so it cannot range-reduce via ``atan(x) = π/2 −
+    atan(1/x)`` (π is irrational); for a |x| > 1 argument use the
+    range-reduced float projection :func:`atan` (band-reduced; any real x).
     """
     _check_series_inputs(numerator, denominator, num_terms,
                          _LOG_SERIES_MAX_TERMS, "atan_series_truncate")
+    if numerator > denominator or numerator < -denominator:
+        raise ValueError(
+            f"atan_series_truncate: |p/q| must be ≤ 1 (Taylor radius of "
+            f"convergence); got {numerator}/{denominator}. The exact-rational "
+            f"series cannot range-reduce (π is irrational); for |x| > 1 use "
+            f"the range-reduced float projection srmech.amsc.rational.atan(x)."
+        )
     if numerator == 0:
         return (0, 1)
     num = 0
