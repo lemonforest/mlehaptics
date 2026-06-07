@@ -324,3 +324,20 @@ Per the breadcrumb-web discipline (bidirectional links; "connected knowledge sur
 | ~~hybrid / far-chord retrieval~~ | **PRUNED** — F547+F549 double-negative: the local circle is the retrieval workhorse for every relation; the far-chord has no word-level niche. | F547/F549 | ✅ CLOSED (negative) |
 
 **CL-1 note:** this arc adds extension-evidence for items 16, 18/19, 28/30/34, 35 and the #197 build-up — **candidates for the closeout audit's "done-and-landed / superseded" list**. Per `[[feedback_create_upstream_issues_never_close_them]]`, these are presented for the user/maintainer to close, not closed here.
+
+### CL-1 closeout disposition (2026-06-07; user-authorized "close the CL-1 note items for right now")
+
+The user authorized acting on the CL-1-note candidates. Careful audit + disposition (close-state discipline `[[feedback_create_upstream_issues_never_close_them]]` honored: vet before any state change; close only the genuinely-done):
+
+**(a) STALE-QUEUE research-notes items — CLOSED-EXTENDED (these are this file's own items; safe to close here):**
+| Item | Prior status | → Closed as | Resolving finding |
+|---|---|---|---|
+| **16** inverse cascade for content recovery | 📖 FRAMEWORK (F147) | ✅ **CLOSED — extended** | **F546** (chiral inverse = inverse cascade; empirical traversal-cost) |
+| **18/19** Klein-4 plasticity / Hebbian decay-recovery | ✅/CRITICAL (F146) | ✅ **CLOSED — extended** | **F543/F548** (decay-α characterised) + **F535** (eviction) |
+| **F157 §6 #5** substrate plasticity at scale / forget-rare | future-pointer | ✅ **CLOSED — extended** | **F543/F548/F535** |
+| **28/30/34** shadow-stepping / chirality-as-projection / notation-as-interface | 📖 FRAMEWORK (F147) | ✅ **CLOSED — extended** | **F544** (circle = shadow of the loop) + **F526** |
+| **35** D₄ dihedral alt to Klein-4 (richer group) | ⏸️ DEFERRED | ✅ **CLOSED — superseded** | **F544** (the LOOP via `cayley_dickson` IS the richer-than-Klein-4 shelf; holds even happily) |
+
+**(b) GitHub ISSUES — NONE CLOSED (honest audit result):** cross-referencing all 28 open issues against the findings corpus + the srmech/MFO notebooks found **no issue with a clean done-and-landed / superseded marker**. They are: **2 epics** (#855 RBS-SNN framework-reqs, #844 notebook-native pipeline TARGET — both explicitly "maintainer's call / build-up TARGET", advanced by the F538–F551 arc but NOT closeable); **~5 gated** (#797 srmech-gate, #791 ngspice, #789 $-gate, #787 SPICE, #850 verify-gate "pending, not run"); **~21 active research lenses** (antiquity / mass-spec / protein-fold / sentence-structure / chemistry / …). Closing any of these would repeat the 2026-05-30 #733–744 over-close error, so **no GH tracker state was changed**. The two epics are *advanced* by this arc — a **progress comment** (not a close) is the appropriate action if/when the user directs it.
+
+**Net:** the CL-1-note's *research-notes* candidates are closed-extended here (a); the GH-issue half of CL-1 found nothing responsibly closeable (b). A full per-issue GH audit remains available as a dedicated pass, but the honest finding is that the open GH set is genuinely-open research, not stale-completed.
