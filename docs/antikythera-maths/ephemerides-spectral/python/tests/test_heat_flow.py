@@ -73,10 +73,10 @@ def test_terra_radiogenic_dominated() -> None:
 
 
 def test_mars_radiogenic_dominated() -> None:
-    """Khan 2023 InSight: Mars ~0.1 TW; radiogenic-dominated."""
+    """Frizzell 2023 InSight+GRS: Mars ~1.5 TW (crustal ~3-14 mW/m^2); radiogenic-dominated."""
     by = {m.body: m for m in HEAT_FLOWS}
     mars = by["mars"]
-    assert mars.total_heat_flow_TW < 1.0  # << Earth
+    assert mars.total_heat_flow_TW < 5.0  # << Earth's 47 TW
     assert mars.radiogenic_fraction > 0.5
 
 

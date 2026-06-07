@@ -10,6 +10,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.30.0rc9] — 2026-06-07
+
+### Fixed — heat_flow catalogue citation repair (3 triality-flagged defects)
+
+The v0.30.0rc7 triality-attestation panel, while backfilling tidal_migration,
+swept the heat_flow catalogue too and caught three broken citations in shipped
+data. heat_flow was held back at rc7 ("held back for a dedicated citation-repair
+rc rather than backfilled over broken provenance"); this rc is that repair. Each
+replacement was **verified against the live CrossRef API** (DOI → exact title /
+authors / journal / volume / pages) before adoption — MPM discipline: a citation
+that can't be re-verified is not real.
+
+- **`veeder_2012` — title corrected.** The shipped citation read *"Io: heat flow
+  from small volcanic features"* (Icarus 219, 701–722, `10.1016/j.icarus.2012.04.004`)
+  — but that title belongs to a **different** Veeder paper (the 2015 one). The DOI,
+  volume, and pages were correct; only the title was wrong. CrossRef confirms
+  `10.1016/j.icarus.2012.04.004` → **"Io: Volcanic thermal sources and global heat
+  flow"** (Veeder, Davies, Matson, Johnson, Williams, Radebaugh, 2012). Title fixed;
+  full author list restored.
+- **`tobie_2008` → `tobie_2005`.** The shipped `tobie_2008` citation was the
+  **Enceladus** south-pole-hotspot paper (`10.1016/j.icarus.2008.03.008`), cited for
+  the **Titan** row with a parenthetical hand-wave ("applies in same framework").
+  Replaced by the real Titan internal-structure paper: **Tobie, Grasset, Lunine,
+  Mocquet & Sotin (2005), "Titan's internal structure inferred from a coupled
+  thermal-orbital model", Icarus 175, 496–502, `10.1016/j.icarus.2004.12.007`**
+  (CrossRef-verified). Source key renamed; the Titan row's `observation_method`,
+  notes, and comment header updated `Tobie 2008` → `Tobie 2005`.
+- **`khan_2023` → `frizzell_2023`.** The shipped `khan_2023` DOI
+  (`10.1038/s41586-023-06289-w`) resolves to an **unrelated condensed-matter physics
+  paper**, and the citation text described a **lunar** Apollo-seismic study — neither
+  matches the Mars-InSight heat-flow row it annotated. Replaced by the real
+  Mars-InSight heat-flow paper: **Frizzell, Ojha & Karunatillake (2023), "Bounding
+  the unknowns of martian crustal heat flow from a synthesis of regional geochemistry
+  and InSight mission data", Icarus 405, 115700, `10.1016/j.icarus.2023.115700`**
+  (CrossRef-verified). Source key renamed.
+
+### Changed — Mars heat-flow value aligned to the corrected source
+
+The Mars row's numbers were **internally inconsistent** (`total_heat_flow_TW = 0.1`
+against a "~25–30 mW/m² globally averaged" note — 25 mW/m² over Mars's surface is
+~3.6 TW, ~30× the stated 0.1 TW). Aligned to what Frizzell 2023 actually reports
+(crustal heat flow **3.0–13.9 mW/m²** for the endmember crustal-thickness models):
+`total_heat_flow_TW` 0.1 → **1.5** (≈ upper-end crustal flow globally), the note
+rewritten to the 3–14 mW/m² range, and `precision_flag` HIGH → MEDIUM (a synthesis
+range, not a direct measurement). `test_mars_radiogenic_dominated` and its docstring
+updated in lockstep (`< 1.0` → `< 5.0`, still ≪ Earth's 47 TW).
+
+**`SOURCES` stays 6** (two key renames, no additions). **No srmech floor change**
+(stays `>=0.7.4`); **no `ephemerides_spectral` code or ABI change**
+(`ES_ABI_VERSION = 10`); the codegen mirror + manifest were regenerated. Full local
+suite green (2291 passed, 74 skipped). The held-back heat_flow **dual-author
+attested-TOML backfill** (the tidal_migration pattern) follows in a subsequent rc,
+now that the citations it would encode are correct. Rc cycles through TestPyPI only.
+
 ## [0.30.0rc8] — 2026-06-07
 
 ### Changed — srmech dependency floor `>=0.7.1` → `>=0.7.4`
