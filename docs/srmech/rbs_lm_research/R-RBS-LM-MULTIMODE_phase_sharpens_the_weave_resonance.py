@@ -11,6 +11,7 @@ srmech 0.7.4; Class-L eigenvectors as the phase basis. No abs(); no CAD; no sub-
 import importlib.util as U
 import numpy as np
 import srmech
+from srmech.calculus import atan2 as srm_atan2   # full-circle, |x|>1 safe — NOT np.arctan2 (srmech-first, F540)
 
 _s = U.spec_from_file_location("sup", "docs/srmech/rbs_lm_research/R-RBS-LM-SUPERPOSITION_structured_spectral_gate_which_band_biology_drops.py")
 sup = U.module_from_spec(_s); _s.loader.exec_module(sup)
@@ -48,8 +49,8 @@ def main():
     N = len(vocab)
 
     phi_1 = np.argsort(np.argsort(V[:, 1])) / N                  # F531: SINGLE mode (Fiedler rank)
-    phi_2 = ((np.arctan2(V[:, 2], V[:, 1]) + 2 * np.pi) % (2 * np.pi)) / (2 * np.pi)   # 2D spectral angle (2 modes)
-    phi_3 = ((np.arctan2(V[:, 2] + 0.5 * V[:, 3], V[:, 1]) + 2 * np.pi) % (2 * np.pi)) / (2 * np.pi)  # 3-mode blend
+    phi_2 = np.array([((srm_atan2(float(V[i, 2]), float(V[i, 1])) + 2 * np.pi) % (2 * np.pi)) / (2 * np.pi) for i in range(N)])   # 2D spectral angle (2 modes; srmech.calculus.atan2)
+    phi_3 = np.array([((srm_atan2(float(V[i, 2] + 0.5 * V[i, 3]), float(V[i, 1])) + 2 * np.pi) % (2 * np.pi)) / (2 * np.pi) for i in range(N)])  # 3-mode blend (srmech.calculus.atan2)
 
     print(f"{'phase scheme':<28} | {'live coh':>9} | {'random':>8} | {'RATIO':>6}")
     print("-" * 60)

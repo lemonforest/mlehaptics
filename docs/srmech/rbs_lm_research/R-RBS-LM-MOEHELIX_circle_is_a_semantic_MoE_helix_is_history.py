@@ -15,6 +15,7 @@ srmech 0.7.4; Class-L spectral angle (the router) + co-occurrence relevance. No 
 import importlib.util as U
 import numpy as np
 import srmech
+from srmech.calculus import atan2 as srm_atan2   # full-circle, |x|>1 safe — NOT np.arctan2 (srmech-first, F540)
 
 _c = U.spec_from_file_location("circ", "docs/srmech/rbs_lm_research/R-RBS-LM-CIRCLESHELF_semantic_ring_neighbors_alike_not_global_hdc.py")
 # reuse its manifold/embedding pieces via the SUPERPOSITION build it imports
@@ -32,7 +33,7 @@ def main():
     seq = re.findall(r"[a-z]+", sup.k7.load_text().lower())
     vocab, idx, nb, V = (sup.build(seq))[:4]
     N = len(vocab)
-    ang = (np.arctan2(V[:, 2], V[:, 1]) + 2 * np.pi) % (2 * np.pi)
+    ang = np.array([(srm_atan2(float(V[i, 2]), float(V[i, 1])) + 2 * np.pi) % (2 * np.pi) for i in range(N)])  # srmech.calculus.atan2
     NT = 16
     tome_of = (ang / (2 * np.pi) * NT).astype(int) % NT
     experts = [[i for i in range(N) if tome_of[i] == t] for t in range(NT)]
