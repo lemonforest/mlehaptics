@@ -6,6 +6,8 @@
 **Composes:** **F489** (the synapse-as-functional-stigmergic-partition widening — *this BUILDS it; Test 3 is its demonstrator*) · **F487** (chirality = the directed coupling — *Test 2 = F487 Test A between registers*) · **F488** (the register-as-neuron-object — *the structural reading, held co-equal*) · **F485** (storage-handed / shared substrate — *E is the handed shared field*) · **F486** (the σ two-hands — *A's hand that propagates*) · **DUALITY.md / §0** (field vs excitation — *E = field-marking, neuron = excitation*) · **F482** (etak/operand: a spatially-absent reference the reader projects — *the marking is the absent trace*) · **F121/F122** (Kuramoto field-binding) · **F398** (favored not privileged — *both readings*). **← rung #1 done; the stigmergic widening earns demonstrative support.**
 **→ the inter-register stitch = a stigmergic field-marking (one writer, many readers) that carries chirality and is a directed lattice edge; the full SNN = registers writing/reading a shared field; structural + functional held co-equal.**
 
+**→ UPGRADED to Route-B by F494:** the F490 stitch carried a **scalar** drive (Route-A, operator-only — the operand is lost). F494 carries the **held box** (Route-B, the operand bound in `the_one`) so B **recovers all of A's meanings** — the meaning survives the hop, not just the drive.
+
 **→ EXTENDED by F491:** the stitch is a **fibration** coupling — the synapse-marking is the **fiber S³** (the spatially-absent trace), the neurons are **base S⁴** points, and the directedness (A→B vs B→A) is the octonion's non-commutativity = the (4:3)|(3:4) two hands. Inter-neuron coupling IS fibration coupling at the k=7 (octonion) rung.
 
 ## What was built (rung #1, the lattice begins to wire)
