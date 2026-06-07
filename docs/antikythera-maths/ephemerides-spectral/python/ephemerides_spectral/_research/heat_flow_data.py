@@ -77,6 +77,15 @@ class HeatFlow:
     precision_flag: str = PRECISION_HIGH
     notes: Optional[str] = None
     source_key: str = ""
+    # ---- dual-author provenance (v0.30.0rc10 attested-TOML backfill) ----
+    # Per-row citation provenance, mirrored byte-stably into the AMSC
+    # literature_curated path at research/attested/heat_flow/. All six
+    # source DOIs CrossRef-verified (the 3 rc9 repairs + the 3 pre-existing
+    # davies/vance/howett, 2026-06-07).
+    source_doi: str = ""
+    source_published_date: str = ""
+    entered_locally_at: str = ""
+    source_version: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -101,6 +110,9 @@ HEAT_FLOWS: List[HeatFlow] = [
               "cooling tail. Tidal contribution negligible (Earth's "
               "tidal Q ≈ 280 dissipates almost entirely in oceans).",
         source_key="davies_2010",
+        source_doi="10.5194/se-1-5-2010",
+        source_published_date="2010",
+        entered_locally_at="2026-06-07",
     ),
 
     # ---- Mars — Khan 2023 InSight ------------------------------------
@@ -121,6 +133,9 @@ HEAT_FLOWS: List[HeatFlow] = [
               "globally at the upper end. Radiogenic-dominated; cooled "
               "faster than Earth.",
         source_key="frizzell_2023",
+        source_doi="10.1016/j.icarus.2023.115700",
+        source_published_date="2023",
+        entered_locally_at="2026-06-07",
     ),
 
     # ---- Io — McEwen 2004 / Veeder 2012 ------------------------------
@@ -143,6 +158,9 @@ HEAT_FLOWS: List[HeatFlow] = [
               "outward migration -- the three ships close the Io "
               "tidal-energy-budget loop.",
         source_key="veeder_2012",
+        source_doi="10.1016/j.icarus.2012.04.004",
+        source_published_date="2012",
+        entered_locally_at="2026-06-07",
     ),
 
     # ---- Europa — Vance 2018 -----------------------------------------
@@ -163,6 +181,9 @@ HEAT_FLOWS: List[HeatFlow] = [
               "well constrained). Vance 2018 budget model. Cross-"
               "references v0.21.5 Saur 2015 ocean diagnostic.",
         source_key="vance_2018",
+        source_doi="10.1002/2017JE005341",
+        source_published_date="2018",
+        entered_locally_at="2026-06-07",
     ),
 
     # ---- Enceladus — Howett 2011 -------------------------------------
@@ -184,6 +205,9 @@ HEAT_FLOWS: List[HeatFlow] = [
               "venting. Cross-references v0.20.2 fluid-envelope plume "
               "column convention.",
         source_key="howett_2011",
+        source_doi="10.1029/2010JE003718",
+        source_published_date="2011",
+        entered_locally_at="2026-06-07",
     ),
 
     # ---- Titan — Tobie 2005 ------------------------------------------
@@ -205,6 +229,9 @@ HEAT_FLOWS: List[HeatFlow] = [
               "→ Titan gains orbital energy → some fraction dissipates "
               "as Titan tidal heat.",
         source_key="tobie_2005",
+        source_doi="10.1016/j.icarus.2004.12.007",
+        source_published_date="2005",
+        entered_locally_at="2026-06-07",
     ),
 ]
 
@@ -250,6 +277,38 @@ SOURCES: Dict[str, str] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Dual-author bridge (v0.30.0rc10 attested-TOML backfill)
+# ---------------------------------------------------------------------------
+
+def heatflow_to_data_dict(hf: "HeatFlow") -> Dict[str, object]:
+    """Project a ``HeatFlow`` row to the flat dict shape carried by the
+    AMSC literature_curated NDJSON at
+    ``research/attested/heat_flow/heat_flow.ndjson``.
+
+    ``tests/test_heat_flow_dual_author.py`` asserts byte-stable equality
+    between this hand-coded projection and the AMSC-path ``data`` block
+    surfaced by ``bridge.get_attested_dataset("heat_flow")`` — the
+    evidence the descriptor schema expresses what the @dataclass expresses
+    (the saturn_rings + solar_rotation + tidal_migration pattern).
+    """
+    return {
+        "body": hf.body,
+        "total_heat_flow_TW": hf.total_heat_flow_TW,
+        "tidal_fraction": hf.tidal_fraction,
+        "radiogenic_fraction": hf.radiogenic_fraction,
+        "primordial_fraction": hf.primordial_fraction,
+        "observation_method": hf.observation_method,
+        "precision_flag": hf.precision_flag,
+        "source_key": hf.source_key,
+        "source_doi": hf.source_doi,
+        "source_published_date": hf.source_published_date,
+        "entered_locally_at": hf.entered_locally_at,
+        "source_version": hf.source_version,
+        "notes": hf.notes,
+    }
+
+
 __all__ = [
     "PRECISION_HIGH",
     "PRECISION_MEDIUM",
@@ -258,4 +317,5 @@ __all__ = [
     "HEAT_FLOWS",
     "SOURCES",
     "HeatFlow",
+    "heatflow_to_data_dict",
 ]
