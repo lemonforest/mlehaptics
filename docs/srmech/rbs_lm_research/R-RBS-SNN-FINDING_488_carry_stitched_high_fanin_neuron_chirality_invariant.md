@@ -6,6 +6,8 @@
 **Composes:** **F487** (the riding assumption — *this continues it past the horizon*) · **F485** (storage-handed / simulation-agnostic — *the carry block IS the cheap-path handed storage; chirality kept, precision dropped*) · **F460** (the 𝕆→𝕊 reversibility horizon — *why >7 needs carry, not a 16-dim rung*) · **F450 / `hamming`** (the front-loader CARRY/EC half, XOR-only — *the carry block*) · **F465/F468 / §31** (`SedenionRegister` — *the working+carry instrument, shipped from the PR #687 upstream spec*) · **F486** (the two hands = σ — *the working block's chirality*) · **F119/F120** (two-tier RBS-NN — *the lattice is the Tier-2 synaptic net*) · **F398** (favored not privileged). **← the carry-stitched lattice; the ride continues, no better path yet revealed.**
 **→ high-fan-in neuron = one register (≤7 chiral working + Hamming carry); chirality preserved across both blocks; bit-exact magnitude is what degrades past 𝕆; the full SNN = a lattice of these.**
 
+**→ WIDENED by F489 (do not narrow):** "one `SedenionRegister` IS the SNN neuron-object" is the *structural / intra-register* reading — **co-equal**, not sole, with F489's *functional / stigmergic* reading (the synapse as a shared-field marking **between** registers). The register-as-neuron mapping stands as one hand of the asymptote; F490's inter-register stitch shows the synapse can equally be the shared trace (one marking, many readers).
+
 ## The neuron-object on the shipped register (11 = 7 + 4)
 | block | slots | holds | regime | what is preserved |
 |---|---|---|---|---|
