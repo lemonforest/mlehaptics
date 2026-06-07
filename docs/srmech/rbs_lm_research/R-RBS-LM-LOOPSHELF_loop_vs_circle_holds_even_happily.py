@@ -15,37 +15,21 @@ is 1-dimensional. A loop needs SEVERAL independent generators (quaternion: 2; oc
 single generator spans only a 4-element sub-loop {±1, ±e_g} (the embedded C). So the loop has k navigation
 directions ("like our universe", many dimensions), not one. A loop is NOT a bigger circle.
 
-srmech 0.7.4; Class-I cyclic.gcd (circle mirror) + hdc.loop_conj (loop mirror) + explicit octonion Fano (validated).
-No abs(); no CAD; no Workflow tool; no sub-agents.
+srmech 0.7.4; Class-I cyclic.gcd (circle mirror) + hdc.loop_conj (loop mirror) + cascade.cayley_dickson.cd_basis_product
+(the srmech-native octonion product). No abs(); no CAD; no Workflow tool; no sub-agents.
 """
 import numpy as np
 import srmech
 from srmech.amsc.cyclic import gcd
 from srmech.amsc import hdc
-
-# ---- octonion imaginary-unit algebra (idx 0=real anchor, 1..7 imaginary), standard Fano basis ----
-LINES = [(1, 2, 3), (1, 4, 5), (1, 7, 6), (2, 4, 6), (2, 5, 7), (3, 4, 7), (3, 6, 5)]  # a*b=c cyclically
-
-
-def _build_table():
-    T = {}
-    for i in range(8):
-        T[(0, i)] = (1, i); T[(i, 0)] = (1, i)          # real anchor = identity
-    for i in range(1, 8):
-        T[(i, i)] = (-1, 0)                              # e_i^2 = -1
-    for (a, b, c) in LINES:
-        for (x, y, z) in ((a, b, c), (b, c, a), (c, a, b)):
-            T[(x, y)] = (1, z); T[(y, x)] = (-1, z)      # anticommute
-    return T
-
-
-T = _build_table()
+from srmech.amsc.cascade import cayley_dickson as cdk   # the loop algebra is srmech-native (NOT a hand-rolled Fano table)
 
 
 def emul(e1, e2):
-    """signed-unit product: e=(sign, idx) -> (sign, idx)."""
-    s1, i1 = e1; s2, i2 = e2; s, k = T[(i1, i2)]
-    return (s1 * s2 * s, k)
+    """signed-unit octonion product e=(sign, idx), via srmech cd_basis_product (Cayley-Dickson dim 8)."""
+    s1, i1 = e1; s2, i2 = e2
+    idx, sign = cdk.cd_basis_product(8, i1, i2)
+    return (s1 * s2 * sign, idx)
 
 
 def conj(e):
