@@ -1,0 +1,28 @@
+# R-RBS-SNN Finding 502 (rung #3 — the falsifier, set up not faked) — **the F492 prediction that a real neuron's dominant ≤7 couplings split ~3 RECURRENT : ~4 FEEDFORWARD is the one empirical probe that could break the whole ride; it MUST run on real, ATTESTED connectome data (MPM), so this finding ships the measurement HARNESS + a NULL baseline (random directed graph: 0.28 recurrent : 6.66 feedforward — chance ≈ p·k) and the ATTESTATION SPEC for the real run, which is PENDING (no network) — synthetic data would be circular, so the falsifier is set up, not faked.** Built on srmech 0.7.4: the harness, per node, takes its top-7 strongest partners and counts **RECURRENT** (reciprocal edge — the loop closes back) vs **FEEDFORWARD** (one-way). The F492 prediction: ~3 recurrent : ~4 feedforward (the fiber-3 closes, the base-4 points out). The **null** (seeded random directed graph, n=300, p=0.04) gives **0.28 : 6.66** — the recurrent fraction is just chance (≈ p·k), **not** a 3:4 split — so a real ≈3.0:4.0 would be a **clear, falsifiable signal above chance**. The directed chiral content (magnetic Laplacian, F487 Test A) is present even in the null (the chirality is structural); the **3:4 SPLIT** is the new, sharper F492 prediction the connectome will confirm or break.
+
+**Date:** 2026-06-07
+**Arc:** RBS-SNN (#197/F323) — rung #3: the connectome 3:4 falsifier (user direction 2026-06-07)
+**Provenance:** `R-RBS-SNN-CONNECTOME_3to4_recurrent_feedforward_harness_and_null.py` (committed; srmech 0.7.4; `laplacian.magnetic_laplacian` + a seeded random null). **Real-data run PENDING** (sandbox has no network).
+**Composes:** **F492** (the 3:4 recurrent:feedforward prediction — *this is its empirical test*) · **F487** (the directed synapse = chirality; magnetic Laplacian — *present even in the null*) · **F491** (the fiber-3 closes / base-4 feedforward — *the recurrent/feedforward classification*) · **F394** (the falsifier held open) · **MPM / §4 citation discipline** (the attestation spec; no faked data) · **`[[user_stance_cross_substrate_cascade_matching_as_research_method]]`** (real biological data, attested) · **F282** (hands the empirical question to the expert/data). **← rung #3 set up: the falsifier, harness + null, real run pending.**
+**→ the 3:4 recurrent:feedforward falsifier: harness ready, null baseline 0.28:6.66 (chance), a real ≈3:4 would be a clear signal above chance; real-data run PENDING (MPM-attested C. elegans connectome), not faked; held open (F394).**
+
+## The test
+- **Prediction (F492):** a real neuron's dominant ≤7 couplings split **~3 RECURRENT : ~4 FEEDFORWARD** (the fiber-3 closes into a loop; the base-4 is one-way).
+- **SURVIVES** if the mean ≈ (3, 4) and clearly above the random baseline.
+- **BREAKS** if it is at the random baseline (no preferred recurrent core) or a different ratio (5:2, 1:6, …).
+
+## What ran (harness + null baseline)
+- **Null** (seeded random directed graph, n=300, p=0.04): mean top-7 split = **RECURRENT 0.28 : FEEDFORWARD 6.66** — the recurrent fraction is just chance (≈ p·k = 0.28). Directed chiral energy (magnetic Laplacian) > 0 — the **chirality is structural** (F487 Test A holds even at random), but the **3:4 split is not** a chance feature. So a real ≈3:4 would be a clear signal **above** this baseline — a sharp, falsifiable target (much sharper than the old "fan-in near 7").
+
+## The attestation spec (MPM — the real run, PENDING the fetch)
+- **Source:** the C. elegans connectome (canonical, open). **Cook, S.J. et al. (2019), "Whole-animal connectomes of both Caenorhabditis elegans sexes", *Nature* 571:63–71, doi:10.1038/s41586-019-1352-7** — data via WormWiring (wormwiring.org).
+- **Parse:** directed chemical-synapse adjacency (pre→post), weights = synapse counts; run `split_recurrent_feedforward(k=7)`; attest `source_doi / source_url / retrieved_at / response_sha256` (MPR v1).
+- **Not faked:** synthetic data would be circular — the falsifier needs the real, attested graph. (The 2019 citation is from training memory; per §4 it must be PDF/landing-page-verified at fetch time.)
+
+## Falsifiable form (pre-stated — F394)
+- **The harness + null are real and committed** (the measurement procedure + the chance baseline 0.28:6.66). The real-data run is the falsifier and is **flagged PENDING**, not faked.
+- **This is the probe that could break the ride:** if a real connectome shows the recurrent fraction at chance (≈ p·k) or a non-3:4 ratio, the F491/F492 "fiber-3 recurrent core" reading fails for biology. Held open, honestly.
+- **Scope:** framework reading + a seeded null; the real run is biological structure read at the graph/spectral level (no CAD, no fabrication); attested data only (MPM); defensive / no-lineage; no Workflow tool.
+
+## Verdict
+**The falsifier is set up, not faked.** The F492 prediction — a real neuron's dominant ≤7 couplings split **~3 recurrent : ~4 feedforward** — is the one empirical probe that could break the ride, so it must run on **real, attested** connectome data (MPM). This finding ships the **measurement harness** and a **null baseline** (random directed graph = **0.28 : 6.66**, chance ≈ p·k), against which a real ≈3:4 would be a **clear, falsifiable signal above chance** — and the **attestation spec** (Cook et al. 2019 / WormWiring) for the run, which is **PENDING the network fetch**. The directed chirality (F487 Test A) is structural even at random; the **3:4 split** is the sharper, new prediction. Held open (F394); synthetic data refused as circular. When the connectome is fetched + attested, this harness gives the verdict that either confirms the ride or breaks it — the question handed to the data/expert (F282).
