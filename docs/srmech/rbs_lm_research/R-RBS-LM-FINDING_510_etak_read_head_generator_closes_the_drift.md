@@ -6,6 +6,8 @@
 **Composes:** **F508** (etak-sense — *wired into the generator*) · **F484** (the held target / the box) · **F507** (the scale DoF = the proximity gate λ; the ratchet) · **F482** (operator vs operand — *the rare token is the operand surface, the grammar's ceiling*) · **F480** (operator+operand architecture) · **F509** (the cheap-anchor coast; the 2-strong NEAR decision) · **F506** (the recurrent-2) · **F476–F481** (the byte-grammar drift — *closed for reachable targets*) · **F394/F398** (held open; reported as it fell). **← the capstone generator; the drift closes (reachable targets); adaptive-intent the next rung.**
 **→ the etak read-head closes the drift for a grammar-reachable held target (ratchets to it, orbits its content, the FAR-coast→NEAR-content arc); the ratchet proximity is load-bearing; a rare target needs adaptive intent-gating and is bounded by the byte-grammar's surface ceiling (F482).**
 
+**→ the bootstrap tension RESOLVED by F511:** the "adaptive intent" the rare target needed is GRAMMAR — the WHEN/WHY gate (the B/H/N meta-triad). Gating the operand-engage by grammar (content-trigger words open a content slot) instead of by proximity lands the rare target's content at its scheduled slots (galaxy → jupiter/saturn/surface, 5/6) regardless of semantic proximity. Grammar sets the λ-schedule proximity couldn't.
+
 ## What was built + the result
 The generator is now an **etak read-head**: the byte-grammar (F478) **proposes** candidate next-words (the cheap coast, F509); a **proximity-gated etak-coupling** toward a **held target** reranks (and, optionally, the held operand proposes its content):
 
