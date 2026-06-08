@@ -357,6 +357,7 @@ The driver-library + sentence-structure arc (user: "add each of [being-told/dial
 | **SS-1** | **POS-aware bridges** — tag content as noun/verb/adj (a real POS tagger or the F564 soft-POS deepened); bridge by POS, not raw bigram. | F564/F565 |
 | **SS-2** | **Clause + sentence FRAMES** — derive POS-sequence templates (not exact-position; F564's snag) and render content into clause structure (S-V-O, subordinate clauses). | F564 §2 / F157 |
 | **SS-3** | **Subject-verb agreement** — the F311 grammar-render's agreement layer (number/tense). | F311 |
+| **SS-0** | **MARKUP-AWARE content source (F567)** — replace F566's blocklist with the markup-aware layer; feed [[links]]→relationships + <ref>→attestation into the content graph. The content source for SS-* must be markup-aware. | F567 |
 | **SS-4** | **Wire the native+delta store (F551/F538)** as the content source — the Story Teller reads real content-addressed exchanges, the grammar render shapes them. | F551/F538 |
 | **SS-5** | **The LLM moving-parts comparison (deepen)** — RBS-LM separates content/form where the LLM entangles them in attention; characterise what attention's long-range syntax would map to in the separated architecture (a syntax kernel over the form layer). | F564/F50 |
 
