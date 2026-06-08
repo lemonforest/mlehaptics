@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc16] - 2026-06-08
+
+**The matmul-kernel phase, batch 1 — `matrix_cascades` dense matmuls onto the cascade (numpy-math ratchet `matmul` 185 → 180; #928).** First `@`-callsite migration against the rc14 `dense_matmul_complex` C kernel. The 5 dense complex 2-D matmuls inside `matrix_cascades.py` — the `AᴴA` / `A·V` / `AAᴴ` / `Aᴴ·U` Gram + reconstruction products of `svd`, and the `R·Q` shifted-QR step of `eigvals` (which `qr`/`lstsq` ride) — now route through `laplacian.dense_matmul_complex` instead of numpy `@`, so numpy stays carriers-only in the matrix-decomposition cascades.
+
+- **`numpy-math` ratchet `matmul` ceiling 185 → 180** (5 callsites migrated). The `qr`/`svd`/`lstsq`/`eigvals` ops were already `composition_of_c` (they compose the `hermitian_eigendecompose` Class-L cascade); routing their internal contraction through the matmul cascade keeps that and removes the last numpy-`@` math from the SVD/eig Gram-matrix path.
+- **No behaviour change**: the 25 `matrix_cascades` / `lstsq`-`einsum`-`eig` / `numpy-optional` parity tests pass unchanged (the decomposition invariants — reconstruction, orthonormality, descending singular values — hold to the same round-off; the native triple-accumulator differs from BLAS only at the last bits, well inside the existing tolerances). ABI unchanged (no C change this rc — the kernel shipped in rc14).
+
+Pure Python-tier migration; no C change, ABI stays 3. SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
 ## [0.7.5rc15] - 2026-06-08
 
 **Bug fix — `cascade.kuramoto_step(adjacency=...)` now honors the `coupling` scalar (UPSTREAM_NOTES §32; PR#687 F636).** When an `adjacency=` matrix was passed, the global `coupling` (`K`) was dropped on the floor: `coupling=0.0` and `coupling=3.0` produced **bit-identical** trajectories over the same neighbor graph (only the all-to-all `adjacency=None` path scaled by `K` correctly). The adjacency branch built its weight from the matrix alone, behaving as if `coupling==1.0` regardless.

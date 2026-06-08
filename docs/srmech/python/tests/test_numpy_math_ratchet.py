@@ -73,11 +73,13 @@ _UFUNC = re.compile(
 
 # ---------------------------------------------------------------------------
 # DOWN-ONLY ceilings. Lower (never raise) the matching one when a callsite is
-# routed through a srmech cascade. Pinned at the v0.7.5rc13 baseline AFTER the
-# lmmse solve+matvec migration (decrement #1: -1 linalg, -1 matmul).
+# routed through a srmech cascade. Baseline pinned at v0.7.5rc13 after the lmmse
+# solve+matvec migration (decrement #1: -1 linalg, -1 matmul); rc16 routed the 5
+# dense complex 2-D matmuls in matrix_cascades.py (qr/svd/lstsq/eigvals internals)
+# through dense_matmul_complex (matmul 185 -> 180).
 # ---------------------------------------------------------------------------
 CEIL_LINALG_FFT = 126
-CEIL_MATMUL = 185
+CEIL_MATMUL = 180
 CEIL_UFUNC = 48
 
 
