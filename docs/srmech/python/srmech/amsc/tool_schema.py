@@ -949,6 +949,16 @@ def _register_primitive_class_tools() -> None:
             returns=R("np.ndarray", "length-rows complex128"),
         ),
         ToolEntry(
+            name="srmech.amsc.laplacian.dense_matmul_complex",
+            owner="srmech", category="laplacian",
+            summary="Dense complex matrix-matrix multiplication A times B "
+                    "(the Class-L contraction the QM / matrix_cascades matmul "
+                    "math routes through). Golub & Van Loan §1.1.",
+            parameters=(P("A", "np.ndarray", True, "m × k complex"),
+                        P("B", "np.ndarray", True, "k × n complex")),
+            returns=R("np.ndarray", "m × n complex128"),
+        ),
+        ToolEntry(
             name="srmech.amsc.laplacian.elementwise_multiply_complex",
             owner="srmech", category="laplacian",
             summary="Elementwise complex multiplication a * b with "
