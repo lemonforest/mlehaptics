@@ -215,6 +215,13 @@ decrements it).
   is only `np.outer` in `density_matrix` (rank-1, distinct op). No Rosetta move
   (already `composition_of_c` via `hermitian_eigendecompose`); ABI stays 3; the 27
   single_particle parity tests pass unchanged.
+- **rc18 (done) — matmul-kernel batch 3: `qm.spin` + `qm.gauge`.** `qm.spin`'s 15
+  Pauli products (Clifford anticommutator + cyclic commutator residuals) and
+  `qm.gauge`'s 6 SU(N) Lie-algebra products (structure-constant commutator,
+  quadratic Casimir `ΣTᵃTᵃ`, segment-holonomy `V·diag(eⁱᵠ)·Vᴴ`, Wilson-loop
+  path-product) now route through `dense_matmul_complex`. **numpy-math ratchet
+  `matmul` 168 → 147.** Both modules numpy-`@`-free; no Rosetta move; ABI 3; spin +
+  gauge parity tests pass unchanged.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

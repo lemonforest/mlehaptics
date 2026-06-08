@@ -21,6 +21,8 @@ from __future__ import annotations
 import numpy as np
 from typing import Tuple
 
+from srmech.amsc.laplacian import dense_matmul_complex
+
 
 def pauli_matrices() -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return the three Pauli matrices ``(σ_x, σ_y, σ_z)``.
@@ -60,19 +62,20 @@ def pauli_clifford_residuals() -> Tuple[float, float]:
     """
     sx, sy, sz = pauli_matrices()
     I = pauli_identity()
-    # Anticommutator residuals.
-    anti_off = [sx @ sy + sy @ sx,
-                sx @ sz + sz @ sx,
-                sy @ sz + sz @ sy]
-    anti_diag = [sx @ sx - I, sy @ sy - I, sz @ sz - I]
+    # Anticommutator residuals — Class-L matmul cascade for every Pauli product.
+    mm = dense_matmul_complex
+    anti_off = [mm(sx, sy) + mm(sy, sx),
+                mm(sx, sz) + mm(sz, sx),
+                mm(sy, sz) + mm(sz, sy)]
+    anti_diag = [mm(sx, sx) - I, mm(sy, sy) - I, mm(sz, sz) - I]
     max_anti = max(
         np.linalg.norm(c) for c in (anti_off + anti_diag)
     )
     # Commutator residuals (cyclic).
     comm = [
-        (sx @ sy - sy @ sx) - 2j * sz,
-        (sy @ sz - sz @ sy) - 2j * sx,
-        (sz @ sx - sx @ sz) - 2j * sy,
+        (mm(sx, sy) - mm(sy, sx)) - 2j * sz,
+        (mm(sy, sz) - mm(sz, sy)) - 2j * sx,
+        (mm(sz, sx) - mm(sx, sz)) - 2j * sy,
     ]
     max_comm = max(np.linalg.norm(c) for c in comm)
     return max_anti, max_comm
