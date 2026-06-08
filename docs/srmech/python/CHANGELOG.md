@@ -8,6 +8,17 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc18] - 2026-06-08
+
+**The matmul-kernel phase, batch 3 — `qm.spin` + `qm.gauge` Lie-algebra products onto the cascade (numpy-math `matmul` 168 → 147; #928).** Two QM modules' dense complex matmuls now route through `dense_matmul_complex` instead of numpy `@`:
+
+- **`qm.spin`** (15) — every Pauli-matrix product in `pauli_clifford_residuals`: the anticommutator residuals `{σᵢ,σⱼ}` / `σᵢ²−I` and the cyclic commutator residuals `[σᵢ,σⱼ]−2iσₖ`.
+- **`qm.gauge`** (6) — the SU(N) Lie-algebra surface: the structure-constant commutator `[Tᵃ,Tᵇ]`, the quadratic Casimir `ΣTᵃTᵃ`, the segment-holonomy `exp(M)=V·diag(eⁱᵠ)·Vᴴ`, and the path-ordered Wilson-loop product.
+
+**numpy-math ratchet `matmul` 168 → 147** (21 callsites). Both modules are now numpy-`@`-free. No Rosetta bucket move — these are diagnostic / algebra helpers already composing the Class-L primitives. No behaviour change: the `spin` + `gauge` parity tests pass unchanged (the Clifford/commutator residuals stay at machine precision; SU(2)/SU(3) Casimir eigenvalues and Wilson-loop unitarity hold). Pure Python-tier; no C change, ABI stays 3.
+
+SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
 ## [0.7.5rc17] - 2026-06-08
 
 **The matmul-kernel phase, batch 2 — `qm.single_particle` contractions onto the cascade (numpy-math `matmul` 180 → 168; #928).** The 12 dense complex contractions in `qm/single_particle.py` now route through the `dense_matmul_complex` / `dense_matvec_complex` cascades instead of numpy `@`:

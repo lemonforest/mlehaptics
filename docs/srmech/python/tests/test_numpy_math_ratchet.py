@@ -78,10 +78,12 @@ _UFUNC = re.compile(
 # dense complex 2-D matmuls in matrix_cascades.py (qr/svd/lstsq/eigvals internals)
 # through dense_matmul_complex (matmul 185 -> 180); rc17 routed qm.single_particle's
 # 12 contractions (commutator + TDSE/Heisenberg/Liouville U·…·Uᴴ) onto the
-# dense_matmul/matvec cascades (matmul 180 -> 168).
+# dense_matmul/matvec cascades (matmul 180 -> 168); rc18 routed qm.spin (15 Pauli
+# products) + qm.gauge (6 — Lie-algebra commutator/Casimir/Wilson) through
+# dense_matmul_complex (matmul 168 -> 147).
 # ---------------------------------------------------------------------------
 CEIL_LINALG_FFT = 126
-CEIL_MATMUL = 168
+CEIL_MATMUL = 147
 CEIL_UFUNC = 48
 
 
