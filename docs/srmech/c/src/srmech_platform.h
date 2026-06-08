@@ -1,4 +1,4 @@
-/* srmech_platform.h — the Platform Abstraction Layer (PAL), v0.7.5rc4.
+/* srmech_platform.h — the Platform Abstraction Layer (PAL), v0.7.5rc5.
  *
  * PAL is to the OPERATING SYSTEM what srmech_simd.{h,c} (the HAL) is to the
  * CPU: the SINGLE compilation unit where platform-specific code lives
@@ -19,9 +19,10 @@
  *     ALWAYS available, so a thread-less microcontroller keeps every
  *     capability (computed serially). First consumer: srmech_parallel.c.
  *     Tracked follow-up: the srmech_bus.c background thread.
- *   - STREAM IPC (planned rc5): listen/accept/connect/read/write over the
- *     AF_UNIX-socket (POSIX) / named-pipe (Windows) duality. Consumer:
- *     srmech_bus.c — the last raw-OS surface in the library.
+ *   - STREAM IPC (rc5): listen/accept/connect/read/write over the
+ *     AF_UNIX-socket (POSIX) / named-pipe (Windows) duality, with the
+ *     endpoint-name -> OS-path mapping absorbed into the PAL. Consumer:
+ *     srmech_bus.c — the last raw-OS surface in the library, now #ifdef-free.
  *
  * NOT exported in the public ABI (srmech.h): these are internal cross-TU
  * symbols, exactly like the srmech_simd_* HAL functions.
@@ -32,6 +33,7 @@
 #ifndef SRMECH_PLATFORM_H
 #define SRMECH_PLATFORM_H
 
+#include <stddef.h>   /* size_t (stream read/write) */
 #include "srmech.h"   /* srmech_status_t */
 
 /* The agnostic thread-entry signature — a plain void(void*) job. The PAL
@@ -65,5 +67,81 @@ srmech_status_t srmech_plat_thread_spawn(srmech_plat_thread_fn fn, void *arg,
 
 /* Join a thread previously spawned (releases its platform handle). */
 srmech_status_t srmech_plat_thread_join(srmech_plat_thread_t *handle);
+
+/* ================================================================== *
+ * STREAM IPC (rc5) — the AF_UNIX-socket / named-pipe duality.
+ *
+ * The bus calls ONLY these primitives; the name -> OS-path mapping
+ * (POSIX ~/.srmech/bus-<name>.sock, Windows \\.\pipe\srmech-<name>)
+ * lives entirely in srmech_platform.c. Framing, the Bio-TOTP cipher
+ * and handler dispatch stay in srmech_bus.c — they are OS-agnostic.
+ * ================================================================== */
+
+/* Endpoint-name cap (the short logical name, e.g. "default"). The full
+ * OS path the PAL derives from it is bounded separately in the .c. */
+#define SRMECH_PLAT_STREAM_NAME_MAX  256
+/* Max-aligned opaque storage for one OS stream handle (POSIX int fd /
+ * Windows HANDLE). Sized like the thread handle's storage. */
+#define SRMECH_PLAT_STREAM_STORAGE   16
+
+/* One bidirectional byte-stream connection (POSIX fd / Windows pipe HANDLE).
+ * No heap — lives in the caller's storage. */
+typedef struct srmech_plat_stream_conn {
+    union {
+        void         *align_ptr;
+        long double   align_ld;
+        unsigned char bytes[SRMECH_PLAT_STREAM_STORAGE];
+    } handle;
+} srmech_plat_stream_conn_t;
+
+/* A bound, listening endpoint. Carries the derived OS path (POSIX: to
+ * unlink the socket at close; Windows: to re-create pipe instances) plus
+ * one OS handle slot (POSIX: listen_fd; Windows: the pre-created pending
+ * pipe instance that the next accept() will connect). No heap. */
+typedef struct srmech_plat_stream_server {
+    char endpoint_path[SRMECH_PLAT_STREAM_NAME_MAX];
+    union {
+        void         *align_ptr;
+        long double   align_ld;
+        unsigned char bytes[SRMECH_PLAT_STREAM_STORAGE];
+    } handle;
+} srmech_plat_stream_server_t;
+
+/* 1 iff a real stream-IPC backend is compiled in; 0 on a stream-less
+ * (e.g. bare-metal) target, where the bus surface is unavailable. */
+int srmech_plat_has_streams(void);
+
+/* Bind + listen on the endpoint named `name`. *out receives the server
+ * handle (its derived OS path + listener). SRMECH_OK on success. */
+srmech_status_t srmech_plat_stream_listen(const char *name,
+                                          srmech_plat_stream_server_t *out);
+
+/* Block until exactly one client connects; return that connection in
+ * *conn_out. POSIX accept()s a fresh fd; Windows connects the pending pipe
+ * instance and pre-creates the next one (so the listener stays armed). */
+srmech_status_t srmech_plat_stream_accept(srmech_plat_stream_server_t *server,
+                                          srmech_plat_stream_conn_t *conn_out);
+
+/* Close the listener: POSIX close(listen_fd) + unlink(path); Windows close
+ * the pending pipe instance. Safe on a zero-initialised server. */
+srmech_status_t srmech_plat_stream_server_close(
+    srmech_plat_stream_server_t *server);
+
+/* Connect to the endpoint named `name` as a client (*out = connection). */
+srmech_status_t srmech_plat_stream_connect(const char *name,
+                                           srmech_plat_stream_conn_t *out);
+
+/* Read exactly n / write exactly n bytes over a connection, looping until
+ * complete. EOF mid-read is SRMECH_ERR_IO. write_all does NOT flush on
+ * Windows pipes (FlushFileBuffers deadlocks the request-reply pattern;
+ * byte-mode WriteFile is already synchronously visible to the peer). */
+srmech_status_t srmech_plat_stream_read_exact(srmech_plat_stream_conn_t *conn,
+                                              unsigned char *buf, size_t n);
+srmech_status_t srmech_plat_stream_write_all(srmech_plat_stream_conn_t *conn,
+                                             const unsigned char *buf, size_t n);
+
+/* Close one connection (POSIX close(fd) / Windows FlushFileBuffers-free
+ * DisconnectNamedPipe+CloseHandle as appropriate). */
+srmech_status_t srmech_plat_stream_conn_close(srmech_plat_stream_conn_t *conn);
 
 #endif /* SRMECH_PLATFORM_H */
