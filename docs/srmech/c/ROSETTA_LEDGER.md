@@ -92,14 +92,15 @@ by the `python/tests/test_rosetta_completeness.py` ratchet (regenerate via
 | Bucket | Count | Standalone-C? |
 |--------|------:|---------------|
 | `c_dispatched` | 78 | ✅ runs on libsrmech alone |
-| `composition_of_c` | 61 | ✅ pure composition of C-dispatched ops |
+| `composition_of_c` | 61 → **67** | ✅ pure composition of C-dispatched ops |
 | `bignum_reference` | 22 | ➖ intentional exact-rational oracle tier (not debt) |
 | `non_compute` | 56 | ➖ IO / registry / schema / introspection (no kernel) |
-| **`c_exists_unbound`** | **23** | ❌ **DEBT (cheap):** a C twin exists, Python doesn't dispatch |
+| **`c_exists_unbound`** | 23 → **17** | ❌ **DEBT (cheap):** a C twin exists, Python doesn't dispatch |
 | **`python_only_irreducible`** | **108** | ❌ **DEBT:** irreducible kernel, no C twin yet |
 
-**Total standalone-C debt = 131** (108 irreducible + 23 unbound). The ratchet's
-two ceilings start here and only move **down**.
+**Total standalone-C debt = 131 → 125** (108 irreducible + 17 unbound). The
+ratchet's two ceilings start at the rc7 baseline and only move **down**;
+rc8 took the first 6 off (the SHA-256 mint cluster, below).
 
 ### What collapses the most debt (the rc8+ work-list, by leverage)
 
@@ -118,30 +119,39 @@ The remaining irreducible are pure-Python DP/codec loops (Viterbi, Huffman,
 LZ77, RLE, arithmetic-coding, wavelet, JPEG, PSK/QAM/FSK) + the numpy-`eigh`
 Laplacian pair + the Klein-4/polar relabel ops — each its own small port.
 
-### The 23 cheap wins (`c_exists_unbound` — wire-up only)
+### The cheap wins (`c_exists_unbound` — wire-up only); 23 → 17 after rc8
 
 A bit-exact C twin **already ships**; the Python just never calls it:
 
+- ~~**SHA-256 mint cluster (6):** `mint_*` / `encode_loe_content` / `compute_content_stride` call **raw `hashlib.sha256`** instead of the C SHA-256~~ — **✅ CLOSED rc8:** routed through `format.sha256_raw` (native dispatch; bit-identical raw-32 digest), reclassified → `composition_of_c`. Also cleared the CLAUDE.md raw-`hashlib` discipline violation. *(W4-aware: these are `.digest()` raw-byte sites, so `sha256_raw` — not the hex `sha256_bytes` — is the correct twin.)*
 - **HDC Klein-4 / polar (8):** `klein4_{bind,bundle,similarity,triality_cycle,unbind}` + `polar_{bind,bundle,density}` — twins `srmech_klein4_*` / `srmech_polar_*` exported, Python is numpy-free pure-Python. **`klein4_*` gated on W5** (`klein4_bundle` even-count) per the do-not-mirror gate.
 - **Octonion einsum (4):** `octonion_{left_mult,right_mult,conjugate,mult_table}` — twins `srmech_loop_{left_op,right_op,conj_hd}_f64` + `srmech_cd_basis_product`.
 - **Hamming GF(2) (3):** `hamming_{encode,syndrome,decode_correct}` — twins `srmech_hamming_*` exported, module has **no `_native` import at all**.
-- **SHA-256 mint cluster (6):** `mint_*` / `encode_loe_content` / `compute_content_stride` call **raw `hashlib.sha256`** instead of `srmech_sha256_hex` — *also a CLAUDE.md discipline violation* (route through `sha256_bytes`).
 - **`cd_basis_product` (1)** + **`lmmse` (1)** (`np.linalg.solve` → `srmech_dense_solve_f64`).
+
+Remaining cheap wins after rc8: **17** (the four bullets above). The natural
+next sweeps are the **octonion einsum (4)** and **Hamming (3)** — both have
+exported twins and no W5 gate — then the W5-cleared klein4 family.
 
 ## Roadmap (rolling; each rc drives the debt down)
 
 - **rc4 (done) — PAL born + parallel.c retrofit + WSL2 Linux build authority.**
 - **rc5 (done) — PAL stream/IPC + `srmech_bus.c` retrofit** (last raw-OS surface closed).
 - **rc6 (done) — W17 `coupled_wave` + W18 `multiplex_streams`** (active-arc named ops; `composition_of_c`, no new C debt).
-- **rc7 (done, this) — the Rosetta-completeness AUDIT + ratchet.** 348 ops
+- **rc7 (done) — the Rosetta-completeness AUDIT + ratchet.** 348 ops
   classified; `test_rosetta_completeness.py` pins `python_only_irreducible ≤ 108`
   and `c_exists_unbound ≤ 23`, both monotone-down, plus a live↔classified
   exact-match guard so every new op must be bucketed.
-- **rc8+ — close debt by the leverage table above.** Each kernel port +
+- **rc8 (done, this) — cheap-win sweep #1: the SHA-256 mint cluster.** The 6
+  `signal_processing` mint/stride ops routed off raw `hashlib.sha256` onto
+  `format.sha256_raw` (native dispatch, bit-identical) → `composition_of_c`;
+  `c_exists_unbound` ceiling **23 → 17**. Closes the CLAUDE.md raw-`hashlib`
+  discipline gap in the same move.
+- **rc9+ — keep closing debt by the leverage tables above.** Each kernel port +
   dispatch-wire moves ops `python_only_irreducible`/`c_exists_unbound →
-  `c_dispatched`/`composition_of_c`, **lowering the ceiling in lockstep**. The
-  cheap `c_exists_unbound` wins (esp. the SHA-256 mint cluster + hamming + the
-  W5-cleared klein4 family) are the natural first sweeps.
+  `c_dispatched`/`composition_of_c`, **lowering the ceiling in lockstep**. Next
+  cheap sweeps: octonion einsum (4) + Hamming (3) (no gate), then the
+  W5-cleared klein4 family; biggest single lever is a dense complex `matmul`.
 
 **Standing tracker.** Issue [#928](https://github.com/lemonforest/mlehaptics/issues/928)
 is the consolidated srmech wishlist (bugs · schema · enhancements · new ops,
