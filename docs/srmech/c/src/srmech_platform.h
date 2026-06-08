@@ -77,9 +77,10 @@ srmech_status_t srmech_plat_thread_join(srmech_plat_thread_t *handle);
  * and handler dispatch stay in srmech_bus.c — they are OS-agnostic.
  * ================================================================== */
 
-/* Endpoint-name cap (the short logical name, e.g. "default"). The full
- * OS path the PAL derives from it is bounded separately in the .c. */
-#define SRMECH_PLAT_STREAM_NAME_MAX  256
+/* Cap for the FULL derived OS path the PAL builds from the short name
+ * (POSIX $HOME/.srmech/bus-<name>.sock / Windows \\.\pipe\srmech-<name>);
+ * matches the bus's original SRMECH_BUS_PATH_MAX. */
+#define SRMECH_PLAT_STREAM_PATH_MAX  512
 /* Max-aligned opaque storage for one OS stream handle (POSIX int fd /
  * Windows HANDLE). Sized like the thread handle's storage. */
 #define SRMECH_PLAT_STREAM_STORAGE   16
@@ -99,7 +100,7 @@ typedef struct srmech_plat_stream_conn {
  * one OS handle slot (POSIX: listen_fd; Windows: the pre-created pending
  * pipe instance that the next accept() will connect). No heap. */
 typedef struct srmech_plat_stream_server {
-    char endpoint_path[SRMECH_PLAT_STREAM_NAME_MAX];
+    char endpoint_path[SRMECH_PLAT_STREAM_PATH_MAX];
     union {
         void         *align_ptr;
         long double   align_ld;

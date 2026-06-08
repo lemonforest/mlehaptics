@@ -118,6 +118,9 @@ RULE_5_EXEMPT_FUNCTIONS: set[str] = {
     "srmech_plat_has_threads",  # PAL trivial accessor: returns a compile-time
                                 # 1/0 (is a threading backend present?). No
                                 # state to assert; see c/JPL_AUDIT.md.
+    "srmech_plat_has_streams",  # PAL trivial accessor: returns a compile-time
+                                # 1/0 (is a stream-IPC backend present?). No
+                                # state to assert; see c/JPL_AUDIT.md.
     # sha256 inline helpers — 4-7 lines each, no anomalous conditions
     "srmech_ror32",
     "srmech_ch",
@@ -126,19 +129,15 @@ RULE_5_EXEMPT_FUNCTIONS: set[str] = {
     "srmech_bigsig1",
     "srmech_smallsig0",
     "srmech_smallsig1",
-    # v0.5.0rc2: srmech_bus.c low-level helpers — each is a thin
-    # platform-call wrapper with 1 assert on its sole anomalous-
-    # condition pointer arg. Adding a second assert would be
-    # redundant (e.g., re-asserting the same pointer at top + at
-    # the end). These are static-internal-only; the public API
-    # entry points have ≥2 asserts.
-    "srmech_bus__ensure_dir",
+    # v0.5.0rc2: srmech_bus.c framing helpers — each is a 1-assert
+    # big-endian u32 (de)serialiser on its sole pointer arg; a second
+    # assert would re-assert the same pointer. Static-internal-only;
+    # the public API entry points have ≥2 asserts. (v0.7.5rc5: the
+    # platform read/write/ensure-dir wrappers moved to the PAL —
+    # srmech_platform.c — where each gained a 2nd assert and left the
+    # exempt list; the ratchet went DOWN by five entries.)
     "srmech_bus__write_u32_be",
     "srmech_bus__read_u32_be",
-    "srmech_bus__read_exact_fd",
-    "srmech_bus__write_all_fd",
-    "srmech_bus__read_exact_handle",
-    "srmech_bus__write_all_handle",
     # v0.7.0rc10 (F292 graft #1): srmech_sha256_batch.c `__ror` is a 1-line
     # rotate (like the exempt scalar srmech_ror32), no pointer/bounds invariant.
     "srmech_sha256b__ror",

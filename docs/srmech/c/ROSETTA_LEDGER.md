@@ -23,7 +23,7 @@ OS *is* part of the hardware the binary runs on, so both "qualify as hardware":
 | Layer | Abstracts | The one place its `#ifdef`s live | Consumers |
 |-------|-----------|----------------------------------|-----------|
 | **HAL** — `c/src/srmech_simd.{h,c}` | the **CPU** (SIMD tiers, cpuid, target-attrs) | `srmech_simd.c` | `srmech_sha256_batch.c`, `srmech_loopbind_hd.c` |
-| **PAL** — `c/src/srmech_platform.{h,c}` (rc4) | the **OS** (threads now; stream IPC next) | `srmech_platform.c` | `srmech_parallel.c` (rc4); `srmech_bus.c` (next) |
+| **PAL** — `c/src/srmech_platform.{h,c}` (rc4–rc5) | the **OS** (threads rc4; stream IPC rc5) | `srmech_platform.c` | `srmech_parallel.c` (rc4); `srmech_bus.c` (rc5) |
 
 Per `[[feedback_simd_optimize_path_goes_through_hal]]`, generalised from the CPU
 to the OS: *machine-specific bits go behind another `*.h`; the core stays
@@ -85,9 +85,12 @@ wrapper-surface, not compute kernels — outside the C-mirror surface entirely.
 - **rc4 (this) — PAL born + parallel.c retrofit + WSL2 Linux build authority.**
   Establishes the OS-abstraction layer (threads) so the OS-touching C becomes
   portable; the architecture for a complete standalone mirror is now in place.
-- **rc5 — PAL stream/IPC + `srmech_bus.c` retrofit.** The bus's AF_UNIX-socket /
-  named-pipe duality moves behind `srmech_plat_stream_*`; `srmech_bus.c` becomes
-  `#ifdef`-free — the last raw-OS surface closed.
+- **rc5 (done) — PAL stream/IPC + `srmech_bus.c` retrofit.** The bus's
+  AF_UNIX-socket / named-pipe duality moved behind `srmech_plat_stream_*`
+  (listen/accept/connect/read/write/close + the endpoint-name→OS-path mapping);
+  `srmech_bus.c` is now `#ifdef`-free — the **last raw-OS surface closed**.
+  Verified: WSL2 pedantic `-Werror` clean over all 32 `.c`, and a standalone-C
+  bus round-trip (serve→accept→connect→send_recv→echo) bit-exact.
 - **rc6+ — `qm.*` C kernels.** Port the irreducible linear-algebra kernels
   (complex matmul / hermitian-eig / kron / …) to C as bit-exact Rosetta twins,
   then express the `qm.*` operators as C compositions. Each lands a chunk of
@@ -98,8 +101,10 @@ wrapper-surface, not compute kernels — outside the C-mirror surface entirely.
   gate above — confirm the Python semantics first, then mirror.
 
 The exhaustive per-op cross-reference table + a `test_rosetta_completeness.py`
-ratchet (asserting `python_only_irreducible` is monotone-decreasing) lands in
-rc5 alongside the bus retrofit, once the second consumer proves the PAL shape.
+ratchet (asserting `python_only_irreducible` is monotone-decreasing) lands with
+the **first rc6 `qm.*` port** — i.e. once there is an actual debt count to
+ratchet down. (rc5 closed the OS-abstraction architecture, not a debt-bucket
+op; a monotone ratchet with no moving number would be ceremony.)
 
 **Standing tracker.** Issue [#928](https://github.com/lemonforest/mlehaptics/issues/928)
 is the consolidated srmech wishlist (bugs · schema · enhancements · new ops,
