@@ -53,7 +53,7 @@ from typing import Dict, List, Tuple
 from srmech._scientific import lazy_numpy as _lazy_numpy
 np = _lazy_numpy("srmech.amsc.cascade.matrix_cascades")
 
-from srmech.amsc.laplacian import hermitian_eigendecompose
+from srmech.amsc.laplacian import dense_matmul_complex, hermitian_eigendecompose
 from srmech.amsc.rational import hypot as _rhypot
 from srmech.amsc.rational import sqrt as _rsqrt
 
@@ -167,23 +167,23 @@ def svd(a, *, full_matrices: bool = False) -> Tuple[np.ndarray, np.ndarray, np.n
                 np.zeros(0, dtype=np.float64),
                 np.zeros((0, n), dtype=np.complex128))
     if m >= n:
-        gram = np.conj(A.T) @ A                      # AᴴA (n×n), Class M bind
+        gram = dense_matmul_complex(np.conj(A.T), A)  # AᴴA (n×n); Class-L matmul cascade
         eigvals, V = hermitian_eigendecompose(gram)  # Class L
         order = np.argsort(eigvals)[::-1]            # descending
         V = V[:, order]
         s = np.array([_rsqrt(ev) if ev > 0.0 else 0.0 for ev in eigvals[order]])
-        U = A @ V                                    # Class M
+        U = dense_matmul_complex(A, V)               # Class-L matmul cascade
         for j in range(k):
             if s[j] > 0.0:
                 U[:, j] = U[:, j] / s[j]             # Class N: U = A·V·Σ⁻¹
         Vh = np.conj(V.T)
     else:
-        gram = A @ np.conj(A.T)                      # AAᴴ (m×m)
+        gram = dense_matmul_complex(A, np.conj(A.T))  # AAᴴ (m×m); Class-L matmul cascade
         eigvals, U = hermitian_eigendecompose(gram)
         order = np.argsort(eigvals)[::-1]
         U = U[:, order]
         s = np.array([_rsqrt(ev) if ev > 0.0 else 0.0 for ev in eigvals[order]])
-        V = np.conj(A.T) @ U                         # Aᴴ·U
+        V = dense_matmul_complex(np.conj(A.T), U)    # Aᴴ·U; Class-L matmul cascade
         for j in range(k):
             if s[j] > 0.0:
                 V[:, j] = V[:, j] / s[j]
@@ -324,7 +324,8 @@ def eigvals(a, *, max_sweeps: int = 500) -> np.ndarray:
         mu = lam1 if _modulus(lam1 - dd) < _modulus(lam2 - dd) else lam2
         eye = np.eye(m, dtype=np.complex128)
         Q, R = qr(H[:m, :m] - mu * eye)               # {QR}
-        H[:m, :m] = R @ Q + mu * eye                  # Class K: A <- RQ + muI
+        # Class K: A <- RQ + muI; the RQ contraction via the Class-L matmul cascade.
+        H[:m, :m] = dense_matmul_complex(R, Q) + mu * eye
         sweeps += 1
         if sweeps > max_sweeps * n:                   # no-silent-hang backstop
             for i in range(m):

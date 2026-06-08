@@ -199,6 +199,14 @@ decrements it).
   inventory **348 → 349** (`c_dispatched`). This rc ships + **proves** the kernel
   (parity + CI build); the `@`-callsite migrations against it (decrementing the
   ratchet's `matmul` 185) are the next batches.
+- **rc16 (done) — matmul-kernel batch 1: `matrix_cascades` dense matmuls.** The 5
+  dense complex 2-D matmuls inside `matrix_cascades.py` (`AᴴA`/`A·V`/`AAᴴ`/`Aᴴ·U`
+  Gram + reconstruction products of `svd`; the `R·Q` shifted-QR step of `eigvals`
+  that `qr`/`lstsq` ride) now route through `laplacian.dense_matmul_complex`
+  instead of numpy `@`. **numpy-math ratchet `matmul` 185 → 180.** No Rosetta
+  bucket move (`qr`/`svd`/`lstsq`/`eigvals` were already `composition_of_c` via the
+  `hermitian_eigendecompose` Class-L cascade); pure Python-tier, ABI stays 3, the
+  25 decomposition parity tests pass unchanged.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each
