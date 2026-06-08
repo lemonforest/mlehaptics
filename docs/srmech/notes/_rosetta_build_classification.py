@@ -96,9 +96,9 @@ srmech.amsc.cascade.autocorrelation
 srmech.amsc.cascade.best_rational_signed
 srmech.amsc.cascade.cyclic_gcd
 srmech.amsc.cascade.kuramoto_step
+srmech.amsc.cascade.cd_basis_product
 
 ### c_exists_unbound
-srmech.qm.octonion.octonion_mult_table
 srmech.signal_processing.closed_form_ops.lmmse.op
 srmech.amsc.hdc.klein4_bind
 srmech.amsc.hdc.klein4_bundle
@@ -108,7 +108,6 @@ srmech.amsc.hdc.klein4_unbind
 srmech.amsc.hdc.polar_bind
 srmech.amsc.hdc.polar_bundle
 srmech.amsc.hdc.polar_density
-srmech.amsc.cascade.cd_basis_product
 srmech.amsc.cascade.hamming_decode_correct
 srmech.amsc.cascade.hamming_encode
 srmech.amsc.cascade.hamming_syndrome
@@ -153,6 +152,7 @@ srmech.qm.octonion.octonion_norm
 srmech.qm.octonion.octonion_conjugate
 srmech.qm.octonion.octonion_left_mult
 srmech.qm.octonion.octonion_right_mult
+srmech.qm.octonion.octonion_mult_table
 srmech.qm.hurwitz.hurwitz_matrix
 srmech.qm.hurwitz.hurwitz_planes
 srmech.qm.triality.triality_apply

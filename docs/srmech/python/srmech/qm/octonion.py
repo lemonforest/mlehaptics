@@ -85,56 +85,26 @@ _FANO_LINES: Tuple[Tuple[int, int, int], ...] = (
 )
 
 
-def _cd_conjugate(x: np.ndarray) -> np.ndarray:
-    """Recursive Cayley-Dickson conjugation ``conj((a, b)) = (conj(a), -b)``.
-
-    Operates on a real vector of length ``2^k``; the scalar (length-1) case
-    is the identity. Internal generative helper — not a public surface.
-    """
-    n = x.shape[0]
-    assert n >= 1, "conjugate input must be non-empty"
-    if n == 1:
-        return x.copy()
-    h = n // 2
-    return np.concatenate([_cd_conjugate(x[:h]), -x[h:]])
-
-
-def _cd_mul(x: np.ndarray, y: np.ndarray) -> np.ndarray:
-    """Recursive Cayley-Dickson product on real vectors of length ``2^k``.
-
-    ``(a, b) * (c, d) = (a*c - conj(d)*b, d*a + b*conj(c))``; the scalar
-    (length-1) base case is ordinary real multiplication. Internal
-    generative helper — runs once per basis pair at table-build time.
-    """
-    n = x.shape[0]
-    assert n == y.shape[0], "Cayley-Dickson factors must share length"
-    if n == 1:
-        return np.array([x[0] * y[0]])
-    h = n // 2
-    a, b = x[:h], x[h:]
-    c, d = y[:h], y[h:]
-    re = _cd_mul(a, c) - _cd_mul(_cd_conjugate(d), b)
-    im = _cd_mul(d, a) + _cd_mul(b, _cd_conjugate(c))
-    return np.concatenate([re, im])
-
-
 @functools.lru_cache(maxsize=1)
 def _build_mult_table() -> np.ndarray:
     """Generate the ``(8, 8, 8)`` int8 structure-constant tensor (cached).
 
-    The tensor is a deterministic GENERATED CONSTANT (running the recursive
-    Cayley-Dickson ``mul`` on the 8 basis vectors), so it is built exactly
-    once and memoised — the public :func:`octonion_mult_table` hands callers
-    a fresh COPY each call so the cached array can never be mutated. Caching
-    matters because the table is read on every octonion product (the
-    companion solver evaluates 64 products per generator × 28 generators).
+    rc10: built from the Cayley-Dickson basis cocycle ``e_i·e_j = sign·e_{i⊕j}``
+    via :func:`srmech.amsc.cascade.cd_basis_product` — the C primitive
+    ``srmech_cd_basis_product`` when native is present, its pure-Python loop
+    otherwise. Same fixed convention as the module docstring's generative rules
+    (``_DOUBLING_RULE`` / ``_CONJ_RULE``); the int8 bytes are **identical** to the
+    prior recursive build, so the content-address in
+    :func:`octonion_table_attestation` (a SHA-256 over the table) is unchanged.
+    Built exactly once and memoised — :func:`octonion_mult_table` hands callers a
+    fresh COPY each call so the cached array can never be mutated.
     """
+    from srmech.amsc.cascade import cd_basis_product as _cd_basis_product
     table = np.zeros((_DIM, _DIM, _DIM), dtype=np.int8)
-    basis = np.eye(_DIM)
     for i in range(_DIM):
         for j in range(_DIM):
-            prod = _cd_mul(basis[i], basis[j])
-            table[i, j, :] = np.rint(prod).astype(np.int8)
+            idx, sign = _cd_basis_product(_DIM, i, j)
+            table[i, j, idx] = np.int8(sign)
     table.flags.writeable = False
     return table
 
@@ -145,9 +115,10 @@ def octonion_mult_table() -> np.ndarray:
     ``e_i * e_j = sum_k C[i, j, k] e_k`` under the fixed Cayley-Dickson-from-H
     convention (see module docstring). ``e_0`` is the identity;
     ``e_1^2 = ... = e_7^2 = -e_0``; the off-diagonal imaginary products
-    anticommute. Built generatively by running the recursive Cayley-Dickson
-    ``mul`` on the 8 basis vectors, so the code self-documents its own
-    provenance. The generation is memoised (:func:`_build_mult_table`); each
+    anticommute. Built from the Cayley-Dickson basis cocycle
+    (:func:`srmech.amsc.cascade.cd_basis_product`; the native
+    ``srmech_cd_basis_product`` when present). The generation is memoised
+    (:func:`_build_mult_table`); each
     call returns a fresh writeable copy (two calls are byte-identical but
     independent).
 
