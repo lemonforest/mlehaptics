@@ -1,0 +1,23 @@
+# R-RBS-LM Finding 582 (Egyptian Layer-1 kernel — the license-clean spine: 1,072 Unicode hieroglyphs ↔ Gardiner code ↔ 28-category determinative taxonomy, built on srmech 0.7.5rc6, attested to Unicode 16.0) — **The user's Layer-1 build (the spine onto which the meaning-falls-out test, F581, hangs). Every hieroglyph is in Unicode (block U+13000..U+1342F, 1072 signs, Gardiner-based) and Python's stdlib `unicodedata` (Unicode 16.0) gives codepoint→name for free; the official name embeds the GARDINER CODE ("EGYPTIAN HIEROGLYPH A001" → Gardiner A1, category A). So the full sign inventory + the Gardiner CATEGORY TAXONOMY come entirely from stdlib — NO external data, NO copyrighted dictionary — and are attested (Class-A, sha256) to the Unicode license. Result: 1,072 signs enumerated; 28 Gardiner categories (D=parts of the human body 92 · A=man 80 · V=rope/baskets 78 · O=buildings 75 · M=plants 66 · F=parts-of-mammals 65 · G=birds 64 · …); a Class-M HDC anchor minted per category (deterministic mint-by-name, D=4096); an MPR-style attestation block (source = Unicode 16.0 via unicodedata; license = Unicode/UCD; response_sha256 + parser_rule_hash). THE FRAMEWORK PAYOFF (F581): the Gardiner category IS the DETERMINATIVE classifier — Egyptian's explicit, written-into-the-script semantic-class tag — so the Layer-1 taxonomy already IS the "form signal made explicit" (the F574 index / Class-E catalog, term→members; the structure-on-the-outside English hides, F569). This is the license-safe spine: bind a public-domain corpus slice (TLA / Wörterbuch) onto these category anchors and the meaning precipitates from the co-occurrence manifold (F172), no dictionary imported — and we do NOT impose a sentence grammar (held-open, F394). Built + verified on srmech 0.7.5rc6 (which also shipped W17 `coupled_wave` + W18 `multiplex_streams`).**
+
+**Date:** 2026-06-08
+**Arc:** RBS-LM — Egyptian hieroglyphics kernel, Layer 1 (the license-clean spine)
+**Provenance:** `R-RBS-LM-EGYPT_layer1_unicode_gardiner_category_spine_license_clean.py` (committed; srmech 0.7.5rc6 in a clean venv outside the source tree; sign enumeration from stdlib `unicodedata` Unicode 16.0; Gardiner-code regex parse; Class-E taxonomy; Class-M `signal_processing.mint_vector` anchors D=4096; Class-A `format.sha256_bytes` attestation). Self-corrected `mint_vector` kwarg (`D=` is keyword-only). No sub-agents.
+**Composes:** **F581** (the Egyptian-arc stance — *this is its buildable spine*) · **F574** (the determinative = the index / Class-E) · **F569** (form-signal English hides, here explicit) · **F172** (meaning = manifold; the fall-out target) · **Class-A** (attestation) / **Class-E** (catalog) / **Class-M** (anchors) · **R-RBS-LM-54i** (prior Egyptian arc) · **F398/F394**. **← the license-clean Layer-1 spine; ready for the Layer-2 corpus → meaning-falls-out test.**
+**→ 1072 signs ↔ Gardiner code ↔ 28-category taxonomy from stdlib unicodedata (Unicode 16.0); Class-M category anchors; Class-A attestation to the Unicode source (NOT a dictionary); the Gardiner category = the determinative form-signal; ready for the F581 fall-out test on a PD corpus.**
+
+## Result
+| | |
+|---|---|
+| source | stdlib `unicodedata`, Unicode 16.0 — license-clean |
+| signs | **1,072** (block U+13000–U+1342F) |
+| Gardiner categories | **28** — D (body) 92 · A (man) 80 · V (baskets) 78 · O (buildings) 75 · M (plants) 66 · F (mammal parts) 65 · G (birds) 64 · S (crowns) 54 · N (sky/earth/water) 49 · … |
+| anchors | Class-M HDC, deterministic mint-by-name, D=4096 |
+| attestation | Class-A MPR: source=Unicode 16.0; license=Unicode/UCD; `response_sha256`+`parser_rule_hash` |
+
+## Verdict
+**The license-clean spine is built** — 1,072 signs ↔ Gardiner code ↔ 28-category taxonomy, entirely from stdlib `unicodedata` (no external data, no copyrighted dictionary), attested (Class-A) to the Unicode source. The modern dictionaries / the user's book stay a **cross-check, never a source** (F581).
+
+**The Gardiner category *is* the determinative taxonomy** (F581): the category tag is Egyptian's explicit, written-into-the-script semantic classifier — the F574 index / Class-E catalog (term→members), the form-signal English hides (F569). The spine already exhibits the structure-on-the-outside.
+
+**Ready for the fall-out test** (F581 stance): bind a public-domain corpus slice (TLA / Wörterbuch) onto these category anchors → meaning precipitates from the co-occurrence manifold (F172), no dictionary imported; and we do not impose a sentence grammar — we let the compositional unit precipitate and describe it. Built on srmech 0.7.5rc6 (W17 `coupled_wave` + W18 `multiplex_streams` verified shipped). Favored not privileged (F398); held open (F394).
