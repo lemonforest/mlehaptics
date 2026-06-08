@@ -1523,3 +1523,39 @@ class SedenionRegister:                       # amsc.cascade.sedenion_register
 top of the relevant arc section. Per upstream-as-research-notes
 discipline, this file is the canonical record of catalog-gap requests
 from the RBS-LM research subtree.*
+
+## §32 BUG — `cascade.kuramoto_step(adjacency=...)` ignores the `coupling` scalar (2026-06-08; F636)
+
+**Symptom (srmech 0.7.5rc6):** when an `adjacency=` matrix is passed to
+`cascade.kuramoto_step`, the `coupling` scalar argument has NO effect — `coupling=0.0`
+and `coupling=3.0` produce **bit-identical** trajectories over the same neighbor graph.
+The all-to-all path (`adjacency=None`) is correct (`coupling` scales the term as expected).
+
+**Repro:**
+```python
+from srmech.amsc import cascade
+th=[0.0,0.4,0.9,1.3,1.8,2.2,2.7,3.0]; om=[-.1,-.07,-.03,0,.02,.05,.08,.1]; n=8
+A=[[1.0 if abs(i-j)%(n-1)==1 else 0.0 for j in range(n)] for i in range(n)]  # ring
+def run(c,adj):
+    t=list(th)
+    for _ in range(60): t=cascade.kuramoto_step(t,om,coupling=c,dt=0.05,adjacency=adj)
+    return round(max(t)-min(t),4)
+print(run(3.0,A), run(0.0,A))      # -> 0.79 0.79  (IDENTICAL -- coupling ignored on the adjacency path)
+print(run(3.0,None), run(0.0,None))# ->0.0671 3.6  (coupling honored on the all-to-all path)
+```
+
+**Likely cause:** the generalized (Kuramoto–Sakaguchi, adjacency) branch builds its
+coupling term from the adjacency weights ALONE and never multiplies by the `coupling`
+scalar (it behaves as if `coupling==1.0` regardless). The all-to-all branch multiplies
+correctly.
+
+**Ask:** in the `adjacency`-provided branch, scale the neighbor-coupling sum by the
+`coupling` scalar (i.e. effective weight = `coupling * adjacency[i][j]`), so `coupling=0`
+zeroes the term and `coupling` tunes global strength — matching the all-to-all branch's
+contract. Differential-test: `adjacency` = all-ones-off-diagonal / (n−1) with a given
+`coupling` should reproduce the all-to-all `coupling` result.
+
+**Research-side workaround (F636):** demonstrate the flock on the VALIDATED all-to-all
+uniform path (`adjacency=None`), which honestly shows the coupling-vs-no-coupling contrast
+(0.067 sync vs 3.6 drift). Neighbor-graph flocks wait on this fix. Not blocking; logged not
+routed-around-silently per upstream-as-research-notes discipline.
