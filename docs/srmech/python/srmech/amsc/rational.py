@@ -51,6 +51,7 @@ __all__ = [
     "atan",
     "atan2",
     "exp",
+    "log",
     "cexp",
     "complex_exp",
     "sqrt",
@@ -1113,36 +1114,156 @@ def atan2(y: float, x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> float:
     return base + pi if y >= 0.0 else base - pi    # x<0 quadrant shift (Class C)
 
 
-# Default Taylor terms for the float-projection real exp (|reduced| <= 1).
+# Default Taylor terms for the exact-rational (bignum REFERENCE) exp surface.
 _EXP_FLOAT_TERMS: int = 24
 
 
-def exp(x: float, *, terms: int = _EXP_FLOAT_TERMS) -> float:
-    """``e^x`` via the Class-N exp cascade with argument-halving reduction.
+# ──────────────────────────────────────────────────────────────────────
+# Q61 fixed-point exp/log/sqrt cascade — the canonical float-projection,
+# bit-exact with the native peers ``c/src/srmech_explog.c`` (srmech_{exp,log})
+# and ``c/src/srmech_sqrt.c`` (srmech_rational_sqrt). Ported line-for-line; the
+# Q61 series machinery (``_q61_fxmul`` / ``_q61_cdiv`` / ``_q61_to_double``) is
+# the same as the trig block above. exp/log are NOT cyclic, so the reduction
+# differs from trig:
+#   - exp: x = n·ln2 + r, |r| <= ln2/2 (Cody-Waite two-word LN2_HI+LN2_LO
+#     split keeps r to machine-eps; the 2^n recombine is built straight into
+#     the IEEE exponent field, no ldexp). This REPLACES the old halving-and-
+#     square reduction, which amplified error to ~345 ULP; the Cody-Waite
+#     reduction holds ~1 ULP and is what the C + notebook §exp specify.
+#   - log: x = m·2^e read EXACTLY from the bit pattern, m folded into
+#     [1/√2, √2); log(m) = 2·atanh((m−1)/(m+1)) is the Q61 series; e·ln2
+#     recombine uses the same two-word ln2.  (rational.log is NEW this rc —
+#     the notebook listed it as srmech_log's Python peer but it was missing.)
+#   - sqrt: x = M·2^e from the bit pattern, e made even; root = isqrt(M<<2K)
+#     (``math.isqrt`` == the C two-limb integer isqrt), projected by 2^(e/2−K).
+# float appears ONLY at the final projection. The exact-rational bignum
+# surfaces (``exp_series_truncate`` / ``log1p_series_truncate`` / the
+# ``precision_bits`` sqrt path) remain the separate higher-precision REFERENCE.
+# ──────────────────────────────────────────────────────────────────────
+_EXPLOG_INV_LN2 = 1.4426950408889634074
+_EXPLOG_LN2_HI = 6.93147180369123816490e-01      # two-word ln2 (fdlibm split)
+_EXPLOG_LN2_LO = 1.90821492927058770002e-10
+_EXPLOG_SQRT2 = 1.4142135623730951               # band edge (selection only)
+_EXPLOG_EXP_TERMS = 18                            # |r|<=ln2/2: r^19/19! < 2^-62
+_EXPLOG_LOG_TERMS = 13                            # |t|<=√2-edge: t^27/27 < 2^-62
+_EXPLOG_OVERFLOW = 709.782712893384              # ln(DBL_MAX)
+_EXPLOG_UNDERFLOW = -745.2                        # ln(smallest subnormal)
+_SQRT_C_K = 27                                    # root precision bits (C peer)
 
-    ``e^x = (e^(x/2^k))^(2^k)``: halve the argument until ``|x/2^k| <= 1``
-    (where the exp Taylor series converges fast), run
-    :func:`exp_series_truncate` on the exact float rational, project to
-    float, then square ``k`` times. No irrational constant is needed
-    (exp is aperiodic — unlike trig there is no π in the reduction).
-    Substrate-native replacement for ``math.exp`` / ``np.exp`` (real).
+
+def _q_pow2(p: int) -> float:
+    """``2**p`` as a double, built directly from the IEEE-754 exponent field
+    (exact, no ``ldexp``). ``p`` must keep the biased exponent in [1, 2046]."""
+    assert -1023 < p < 1024, "pow2 exponent out of normal range"
+    bits = (((p + 1023) & 0x7FF) << 52) & _Q61_MASK64
+    return struct.unpack("<d", struct.pack("<Q", bits))[0]
+
+
+def _q_scale2(m: float, n: int) -> float:
+    """``m * 2**n``, splitting ``n`` so neither power-of-two leaves the normal
+    range (mirror ``explog_scale2``). ``n//2`` is C truncate-toward-zero."""
+    nh = n // 2 if n >= 0 else -((-n) // 2)        # C trunc-toward-zero
+    nl = n - nh
+    return m * _q_pow2(nh) * _q_pow2(nl)
+
+
+def _q_exp_core(r: int) -> int:
+    """``exp(r)`` for ``|r| <= ln2/2``, Q61 → Q61 (mirror ``explog_exp_core``)."""
+    term = _Q61_ONE
+    s = _Q61_ONE
+    for k in range(1, _EXPLOG_EXP_TERMS + 1):
+        term = _q61_fxmul(term, r)
+        term = _q61_cdiv(term, k)
+        s += term
+    return s
+
+
+def _q_log_core(t: int) -> int:
+    """``2·atanh(t)`` for ``|t| <= √2-edge``, Q61 → Q61 (mirror ``explog_log_core``).
+
+    This IS ``log(m)`` for ``m = (1+t)/(1-t)``; the caller forms ``t = (m−1)/(m+1)``.
+    """
+    t2 = _q61_fxmul(t, t)
+    term = t
+    s = t
+    for k in range(1, _EXPLOG_LOG_TERMS + 1):
+        term = _q61_fxmul(term, t2)
+        s += _q61_cdiv(term, 2 * k + 1)
+    return s * 2
+
+
+def exp(x: float, *, terms: int = _EXP_FLOAT_TERMS) -> float:
+    """``e^x`` via the Q61 Class-N exp cascade with Cody-Waite ln2 reduction.
+
+    ``x = n·ln2 + r`` with ``|r| <= ln2/2``; ``exp(r)`` is the Q61 integer
+    Taylor ``1 + r + r²/2! + …`` and the ``2^n`` scale is folded into the IEEE
+    exponent. Bit-exact with the native peer ``srmech_exp``; dispatches to C
+    when available. Substrate-native replacement for ``math.exp`` / ``np.exp``
+    (real) — no ``math.exp`` in the call graph. ``terms`` selects the
+    exact-rational REFERENCE surface ``exp_series_truncate`` (used only by the
+    bignum reference, not this float projection).
     """
     x = float(x)
+    if x != x:                                     # NaN
+        return x
+    if x > _EXPLOG_OVERFLOW:
+        return float("inf")
+    if x < _EXPLOG_UNDERFLOW:
+        return 0.0
+    if _native.has_native_explog():
+        return _native.exp_c(x)
+    tn = x * _EXPLOG_INV_LN2
+    n = int(tn + (0.5 if tn >= 0.0 else -0.5))     # round half away from zero
+    r = (x - n * _EXPLOG_LN2_HI) - n * _EXPLOG_LN2_LO
+    rq = int(r * float(_Q61_ONE) + (0.5 if r >= 0.0 else -0.5))
+    m = _q61_to_double(_q_exp_core(rq))            # exp(r)
+    return _q_scale2(m, n)
+
+
+def log(x: float, *, terms: int = _EXPLOG_LOG_TERMS) -> float:
+    """``ln(x)`` (natural log, x > 0) via the Q61 Class-N atanh cascade.
+
+    ``x = m·2^e`` read from the bit pattern, ``m`` folded into ``[1/√2, √2)``;
+    ``log(m) = 2·atanh((m−1)/(m+1))`` is the Q61 series and ``e·ln2`` recombines
+    with the two-word ln2. Bit-exact with the native peer ``srmech_log``;
+    dispatches to C when available. Substrate-native replacement for
+    ``math.log`` / ``np.log`` (real). Domain (matching ``srmech_log``):
+    ``x < 0 → NaN``, ``x == 0 → −Inf``. The exact-rational REFERENCE surface is
+    ``log1p_series_truncate`` (where the W14 ``|x| <= 1`` domain guard lives).
+    """
+    x = float(x)
+    if x != x:                                     # NaN
+        return x
+    if x < 0.0:
+        return float("nan")                        # domain (Class-K refusal)
     if x == 0.0:
-        return 1.0
-    # Class-K magnitude (no abs()) to count the halvings.
-    x_mag = x if x >= 0.0 else -x
-    k = 0
-    while x_mag > 1.0:
-        x_mag = x_mag / 2.0
-        k += 1
-    reduced = x / (2 ** k)
-    rn, rd = float(reduced).as_integer_ratio()
-    en, ed = exp_series_truncate(rn, rd, terms)
-    val = en / ed
-    for _ in range(k):                            # (e^(x/2^k))^(2^k)
-        val = val * val
-    return val
+        return float("-inf")
+    if math.isinf(x):
+        return x                                   # +Inf
+    if _native.has_native_explog():
+        return _native.log_c(x)
+    bits = struct.unpack("<Q", struct.pack("<d", x))[0]
+    raw = (bits >> 52) & 0x7FF
+    frac = bits & ((1 << 52) - 1)
+    if raw == 0:                                   # subnormal — normalise
+        f = frac
+        sh = 0
+        while sh < 53 and (f & (1 << 52)) == 0:
+            f <<= 1
+            sh += 1
+        mant = f
+        e = -1022 - sh
+    else:
+        mant = frac | (1 << 52)
+        e = raw - 1023
+    m = mant / (1 << 52)                           # m in [1, 2)
+    if m >= _EXPLOG_SQRT2:                         # fold to [1/√2, √2)
+        m *= 0.5
+        e += 1
+    tt = (m - 1.0) / (m + 1.0)
+    tq = int(tt * float(_Q61_ONE) + (0.5 if tt >= 0.0 else -0.5))
+    logm = _q61_to_double(_q_log_core(tq))
+    return e * _EXPLOG_LN2_HI + (logm + e * _EXPLOG_LN2_LO)
 
 
 def cexp(theta: float, *, terms: int = _TRIG_FLOAT_TERMS) -> complex:
@@ -1168,41 +1289,62 @@ def complex_exp(z: complex, *, terms: int = _TRIG_FLOAT_TERMS) -> complex:
     return e_real * complex(cos(z.imag, terms=terms), sin(z.imag, terms=terms))
 
 
-# Default scaled-integer precision for the float sqrt projection (bits
-# below the radix point; 64 → relative error well under the float64 floor).
+# Scaled-integer precision for the bignum REFERENCE sqrt (bits below the
+# radix point; 64 → relative error well under the float64 floor). Pass
+# ``precision_bits=`` explicitly to select this higher-precision reference;
+# the default float sqrt is the bit-exact-with-C K=27 cascade below.
 _SQRT_PRECISION_BITS: int = 64
 
 
-def sqrt(x: float, *, precision_bits: int = _SQRT_PRECISION_BITS) -> float:
+def sqrt(x: float, *, precision_bits: int = None) -> float:
     """``√x`` (x ≥ 0) via the Class-N rational sqrt cascade.
 
-    Newton-Raphson realised as an **integer** floor-isqrt on a
-    scaled-bignum radicand (``_integer_sqrt``): **Class N** rational
-    arithmetic ∘ **Class K** sqrt-convergence (asymptotic-DoF). No float
+    Default (``precision_bits=None``): the IEEE-bit ``M·2^e`` decomposition
+    with ``root = isqrt(M << 2K)`` (K=27) projected by ``2^(e/2−K)`` — **Class
+    N** rational ∘ **Class K** sqrt-convergence, **bit-exact with the native
+    peer** ``srmech_rational_sqrt``; dispatches to C when available. No float
     ``math.sqrt`` / ``np.sqrt`` in the call graph. Negative ``x`` raises
     (domain error), matching ``math.sqrt``.
+
+    ``precision_bits=N`` selects the higher-precision **bignum REFERENCE**
+    path (``as_integer_ratio`` + scaled ``_integer_sqrt``), e.g. for the
+    π-cascade where >double precision is wanted.
     """
     x = float(x)
     if x < 0.0:                                   # Class-K pin-slot at zero
         raise ValueError(f"sqrt domain error: x must be >= 0; got {x}")
     if x == 0.0:
         return 0.0
-    xn, xd = x.as_integer_ratio()
-    # √(xn/xd) = isqrt(xn · 2^(2b) / xd) / 2^b  (exact float rational in,
-    # scaled integer Newton, project to float).
-    scale = 1 << (2 * precision_bits)
-    radicand = (xn * scale) // xd
-    root = _integer_sqrt(radicand)                # floor(√x · 2^b)
-    return root / (1 << precision_bits)
+    if precision_bits is not None:                # bignum reference surface
+        xn, xd = x.as_integer_ratio()
+        scale = 1 << (2 * precision_bits)
+        radicand = (xn * scale) // xd
+        root = _integer_sqrt(radicand)            # floor(√x · 2^b)
+        return root / (1 << precision_bits)
+    if _native.has_native_sqrt():
+        return _native.rational_sqrt_c(x)
+    bits = struct.unpack("<Q", struct.pack("<d", x))[0]
+    raw = (bits >> 52) & 0x7FF
+    frac = bits & ((1 << 52) - 1)
+    if raw == 0x7FF:
+        return x                                  # +Inf
+    mant = frac if raw == 0 else (frac | (1 << 52))
+    e = -1074 if raw == 0 else raw - 1075         # x = mant · 2^e
+    if e & 1:                                      # make e even
+        mant <<= 1
+        e -= 1
+    radicand = mant << (2 * _SQRT_C_K)            # 128-bit; math.isqrt == C isqrt128
+    root = math.isqrt(radicand)
+    return float(root) * _q_pow2(e // 2 - _SQRT_C_K)
 
 
-def hypot(a: float, b: float,
-          *, precision_bits: int = _SQRT_PRECISION_BITS) -> float:
+def hypot(a: float, b: float, *, precision_bits: int = None) -> float:
     """``hypot(a, b) = √(a² + b²)`` via the Class-N sqrt cascade.
 
     **Class M** (the sum-of-squares bind) ∘ **Class N∘K** (:func:`sqrt`).
     Substrate-native replacement for ``math.hypot`` / ``np.hypot`` (the
-    complex modulus ``|z| = hypot(z.real, z.imag)``).
+    complex modulus ``|z| = hypot(z.real, z.imag)``). ``precision_bits``
+    threads to :func:`sqrt` (default ``None`` = the C-bit-exact cascade).
     """
     a = float(a)
     b = float(b)

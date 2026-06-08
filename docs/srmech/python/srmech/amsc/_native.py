@@ -1259,6 +1259,17 @@ def has_native_trig() -> bool:
     return bool(HAS_NATIVE and LIB is not None and hasattr(LIB, "srmech_sin"))
 
 
+def has_native_explog() -> bool:
+    """True iff the C exp/log cascade is loaded + bound (rc46+ lib)."""
+    return bool(HAS_NATIVE and LIB is not None and hasattr(LIB, "srmech_exp"))
+
+
+def has_native_sqrt() -> bool:
+    """True iff the C integer-isqrt sqrt cascade is loaded + bound (rc45+ lib)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_rational_sqrt"))
+
+
 def _scalar_trans_c(symbol: str, x: float) -> float:
     """Call a single-arg C transcendental ``srmech_<symbol>(double, double*)``."""
     if not HAS_NATIVE or LIB is None or not hasattr(LIB, symbol):
