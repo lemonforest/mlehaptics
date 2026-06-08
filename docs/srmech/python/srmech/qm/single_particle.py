@@ -16,7 +16,11 @@ from __future__ import annotations
 import numpy as np
 from typing import Tuple
 
-from srmech.amsc.laplacian import hermitian_eigendecompose
+from srmech.amsc.laplacian import (
+    dense_matmul_complex,
+    dense_matvec_complex,
+    hermitian_eigendecompose,
+)
 
 
 def tdse_evolve(H: np.ndarray, psi: np.ndarray, t: float) -> np.ndarray:
@@ -45,9 +49,9 @@ def tdse_evolve(H: np.ndarray, psi: np.ndarray, t: float) -> np.ndarray:
     # Class-L Hermitian eigendecomposition (srmech's own primitive). H is a
     # general complex-Hermitian Hamiltonian, so V stays complex128.
     eigvals, V = hermitian_eigendecompose(H)
-    psi_eigbasis = V.conj().T @ psi
+    psi_eigbasis = dense_matvec_complex(V.conj().T, psi)   # Class-L matvec cascade
     psi_t_eigbasis = np.exp(-1j * eigvals * t) * psi_eigbasis
-    return V @ psi_t_eigbasis
+    return dense_matvec_complex(V, psi_t_eigbasis)          # Class-L matvec cascade
 
 
 def tise_solve(H: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
@@ -80,7 +84,7 @@ def commutator(A: np.ndarray, B: np.ndarray) -> np.ndarray:
             f"commutator: A and B must be square and same shape; "
             f"got {A.shape} vs {B.shape}"
         )
-    return A @ B - B @ A
+    return dense_matmul_complex(A, B) - dense_matmul_complex(B, A)  # Class-L matmul cascade
 
 
 def heisenberg_evolve(A: np.ndarray, H: np.ndarray, t: float) -> np.ndarray:
@@ -109,8 +113,9 @@ def heisenberg_evolve(A: np.ndarray, H: np.ndarray, t: float) -> np.ndarray:
     # complex-Hermitian H, so V stays complex128.
     eigvals, V = hermitian_eigendecompose(H)
     phases = np.exp(-1j * eigvals * t)
-    U = V @ np.diag(phases) @ V.conj().T
-    return U.conj().T @ A @ U
+    # U = V·diag(phases)·Vᴴ, then A_H = Uᴴ·A·U — Class-L matmul cascade throughout.
+    U = dense_matmul_complex(dense_matmul_complex(V, np.diag(phases)), V.conj().T)
+    return dense_matmul_complex(dense_matmul_complex(U.conj().T, A), U)
 
 
 def lattice_momentum(n: int, dx: float = 1.0) -> np.ndarray:
@@ -186,8 +191,9 @@ def liouville_evolve(rho: np.ndarray, H: np.ndarray, t: float) -> np.ndarray:
     # complex-Hermitian H, so V stays complex128.
     eigvals, V = hermitian_eigendecompose(H)
     phases = np.exp(-1j * eigvals * t)
-    U = V @ np.diag(phases) @ V.conj().T
-    return U @ rho @ U.conj().T
+    # U = V·diag(phases)·Vᴴ, then ρ(t) = U·ρ·Uᴴ — Class-L matmul cascade throughout.
+    U = dense_matmul_complex(dense_matmul_complex(V, np.diag(phases)), V.conj().T)
+    return dense_matmul_complex(dense_matmul_complex(U, rho), U.conj().T)
 
 
 __all__ = [

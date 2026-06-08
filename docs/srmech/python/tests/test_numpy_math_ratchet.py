@@ -76,10 +76,12 @@ _UFUNC = re.compile(
 # routed through a srmech cascade. Baseline pinned at v0.7.5rc13 after the lmmse
 # solve+matvec migration (decrement #1: -1 linalg, -1 matmul); rc16 routed the 5
 # dense complex 2-D matmuls in matrix_cascades.py (qr/svd/lstsq/eigvals internals)
-# through dense_matmul_complex (matmul 185 -> 180).
+# through dense_matmul_complex (matmul 185 -> 180); rc17 routed qm.single_particle's
+# 12 contractions (commutator + TDSE/Heisenberg/Liouville U·…·Uᴴ) onto the
+# dense_matmul/matvec cascades (matmul 180 -> 168).
 # ---------------------------------------------------------------------------
 CEIL_LINALG_FFT = 126
-CEIL_MATMUL = 180
+CEIL_MATMUL = 168
 CEIL_UFUNC = 48
 
 

@@ -207,6 +207,14 @@ decrements it).
   bucket move (`qr`/`svd`/`lstsq`/`eigvals` were already `composition_of_c` via the
   `hermitian_eigendecompose` Class-L cascade); pure Python-tier, ABI stays 3, the
   25 decomposition parity tests pass unchanged.
+- **rc17 (done) — matmul-kernel batch 2: `qm.single_particle` contractions.** The
+  12 dense complex contractions in `qm/single_particle.py` (`commutator` `AB−BA`;
+  `heisenberg_evolve` `Uᴴ·A·U` + `liouville_evolve` `U·ρ·Uᴴ` with `U=V·diag·Vᴴ`;
+  `tdse_evolve` eigenbasis change) route through `dense_matmul_complex` /
+  `dense_matvec_complex`. **numpy-math ratchet `matmul` 180 → 168.** Module residual
+  is only `np.outer` in `density_matrix` (rank-1, distinct op). No Rosetta move
+  (already `composition_of_c` via `hermitian_eigendecompose`); ABI stays 3; the 27
+  single_particle parity tests pass unchanged.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each
