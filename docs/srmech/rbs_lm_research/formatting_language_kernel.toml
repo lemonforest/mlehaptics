@@ -88,3 +88,127 @@ regex = '<math[^>]*?>.*?</math>'
 srmech_class = "N"                                          # rational-approximation / calculus
 role = "formula"
 reads = "mathematical formula -- itself a sub-language (cf F578: teach it the etak-navigation way)"
+
+# =====================================================================================================================
+# SUB-LANGUAGE ROUTER (added F607, the full-enwiki readiness audit, 2026-06-08)
+#
+# Why this section exists: the tiers above (the F579 FORM layer) carry over to full English Wikipedia (measured F607:
+# links 98% / templates 94% / emphasis 76% / headers 75% / category 71% / ref 69% present). But full wiki ALSO embeds
+# SUB-LANGUAGES the form layer would STRIP (lose -> 'not coherent'): programming code, music, chemistry, hieroglyph,
+# phonetic, and other natural languages. Each is its OWN kernel.
+#
+# THE ROUTING IS SUPPLIED, NOT GUESSED (composes F595/F585): an embedded sub-language is tagged by an ATTRIBUTE --
+# <syntaxhighlight lang="python">, {{lang|fr|...}}, <ce>... -- and that lang=/tag attribute IS THE DETERMINATIVE (the
+# explicit meaning-class, the F595 sigma_B axis). So `determinative` below names the field that ROUTES each span to its
+# sub-language kernel. A part is COHERENT iff its tag's content is handed to a kernel that READS it, not stripped.
+# =====================================================================================================================
+
+[router]
+note = "the `determinative` field is the F595 meaning-class that routes a span to its sub-language kernel; <hiero> already routes to the F582 Egyptian kernel (READY)"
+composes = ["F607", "F595", "F585", "F582", "F574"]
+
+[[sub_language]]
+name = "programming_code"
+tags = ["<syntaxhighlight lang=X>", "<source lang=X>", "<code>", "<pre>", "{{code|lang=X}}"]
+determinative = "lang"                                      # lang= attr = which programming SUB-LANGUAGE (F595 sigma_B)
+seen_langs = ["console", "c", "awk", "python", "apl", "bash", "ada", "nasm", "basic", "bf"]   # F607 sample
+srmech_class = "B+D"                                        # TLV-framing (B) + pattern-match syntax (D)
+freq_full_wiki = "~3% combined (F607)"
+kernel = "TO-BUILD: a per-language programming kernel (code = TLV-framed + pattern-matched syntax; one sub-kernel per lang=)"
+reads = "code span -> tokens/syntax of the language named by lang= (the determinative); NOT prose -- do not strip"
+
+[[sub_language]]
+name = "embedded_natural_language"
+tags = ["{{lang|xx|...}}", "{{lang-xx|...}}"]
+determinative = "xx"                                        # the ISO language code = which NL kernel
+srmech_class = "router"
+freq_full_wiki = "21.7% (F607 -- the LARGEST sub-language gap)"
+kernel = "TO-BUILD: embedded-NL router; xx routes to that language's kernel (no-privileged-language, F398)"
+reads = "a span in another natural language; xx (the determinative) selects the reading kernel"
+
+[[sub_language]]
+name = "phonetic_ipa"
+tags = ["{{IPA|...}}", "{{IPAc-en|...}}"]
+determinative = "ipa-scheme"
+srmech_class = "I"                                          # cyclic/phoneme inventory
+freq_full_wiki = "18.7% (F607 -- second-largest gap)"
+kernel = "TO-BUILD: an IPA/phonetic kernel (phoneme inventory; the spoken-form sub-language)"
+reads = "pronunciation in IPA -- a phonetic sub-language, not prose"
+
+[[sub_language]]
+name = "hieroglyph"
+tags = ["<hiero>...</hiero>"]
+determinative = "gardiner"                                  # the Gardiner sign = the meaning-class (F585)
+srmech_class = "A+M"                                        # Unicode-addressed (A) + HDC anchors (M)
+freq_full_wiki = "0.3% (F607)"
+kernel = "READY: the F582 Egyptian Gardiner/Unicode kernel (the determinative=meaning-class architecture, F595)"
+reads = "Egyptian hieroglyphs -> Gardiner/Unicode spine (F582); ALREADY a built sub-language kernel"
+
+[[sub_language]]
+name = "music"
+tags = ["<score>...</score>"]
+determinative = "notation"                                  # lilypond/ABC
+srmech_class = "I"                                          # cyclic pitch / interval
+freq_full_wiki = "0.2% (F607)"
+kernel = "TO-BUILD: a music kernel (pitch = Class-I cyclic; chord/interval = the F601 chord reading)"
+reads = "musical score (LilyPond/ABC) -- a notation sub-language"
+
+[[sub_language]]
+name = "chemistry"
+tags = ["<chem>...</chem>", "<ce>...</ce>", "<math chem>"]
+determinative = "formula-scheme"
+srmech_class = "J"                                          # composition / prime-like factorisation of formulae
+freq_full_wiki = "0.5% (F607)"
+kernel = "TO-BUILD: a chemistry kernel (formula composition; Class-J)"
+reads = "chemical formula/equation -- a composition sub-language"
+
+# --- structural / HTML / media tiers: RECOGNISE-only (mostly strip, but must be NAMED so the clean is coherent) ---
+
+[[structural]]
+name = "list"
+regex = '(?m)^[*#:;]+'
+srmech_class = "B"
+freq_full_wiki = "99.0% (F607)"
+reads = "bulleted/numbered/definition list -- structural; recognise + keep items"
+
+[[structural]]
+name = "external_link"
+regex = '\[https?://[^\]]+\]'
+srmech_class = "A"
+freq_full_wiki = "61.2% (F607)"
+reads = "external URL (+optional label) -- an off-wiki attestation/reference link"
+
+[[structural]]
+name = "media"
+regex = '\[\[(?:File|Image):[^\]]+\]\]'
+srmech_class = "B"
+freq_full_wiki = "56.7% (F607)"
+reads = "embedded media (image/file) + caption -- recognise; caption is prose"
+
+[[structural]]
+name = "html_inline"
+regex = '</?(?:div|span|sup|sub|small|br|blockquote|table|tr|td)\b[^>]*>'
+srmech_class = "B"
+freq_full_wiki = "42.7% (F607)"
+reads = "raw HTML structural/inline tag -- recognise + unwrap (text kept)"
+
+[[structural]]
+name = "comment"
+regex = '<!--.*?-->'
+srmech_class = "B"
+freq_full_wiki = "40.9% (F607)"
+reads = "editorial comment -- recognise + drop (not reader-facing)"
+
+[[structural]]
+name = "gallery"
+regex = '<gallery\b[^>]*>.*?</gallery>'
+srmech_class = "B"
+freq_full_wiki = "8.4% (F607)"
+reads = "image gallery -- recognise; captions are prose"
+
+[[structural]]
+name = "nowiki"
+regex = '<nowiki\b[^>]*>.*?</nowiki>'
+srmech_class = "B"
+freq_full_wiki = "3.8% (F607)"
+reads = "escaped literal -- recognise; content is verbatim text, not markup"

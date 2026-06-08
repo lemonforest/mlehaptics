@@ -67,7 +67,7 @@ Cleanup sweep completed in F144 → F148. Status legend:
 |---|---|---|
 | R-RBS-LM-47a (LLM input format test) | ⏸️ DEFERRED | F148 — needs real LLM + corpus pairs |
 | R-RBS-LM-46c (tie-breaking ablation) | ⏸️ DEFERRED | F148 — open methodology question |
-| R-RBS-LM-55 (pure-structure layer) | ⏸️ DEFERRED with framework reading | F148 — relationship-axis Klein-4 candidate articulated |
+| R-RBS-LM-55 (pure-structure layer) | ✅ RESOLVED (closed 2026-06-08) | F148 framework + WALKED by R-RBS-LM-110/111 + F155 (pure-structure sentence layer + chirality levels) |
 
 **Plus R-RBS-NN-4** (token encoder with variant-choice protocol) — ✅ CLOSED in earlier work via R-RBS-NN-4_token_encoding_REPORT.md.
 
@@ -392,7 +392,7 @@ The driver-library + sentence-structure arc (user: "add each of [being-told/dial
 | **ETAK MATH PEDAGOGY (F578)** | Teach trig+calculus the etak way: find a solution = NAVIGATE by deviation from a moving reference. TRIG=CORDIC (navigate to a bearing; (x,y)=(cos,sin), shift-add); CALCULUS derivative=etak progress-rate (discrete h-cascade), root-finding=Newton deviation-navigation, integration=dead reckoning. The discrete cascade under the continuous formula (continuous-number-line pedagogy); already what srmech.calculus + best_rational compute. NEXT: a teachable walkthrough / figure set (aphantasia: more figures). | F578 |
 | **ETAK vein (F575)** | core already ours (F551); cognitive-science framing (navigation=substrate-distributed computation) + progress=rate-of-bearing-change UNMINED; candidate sources flagged-from-memory, MUST PDF-verify per MPM before citing. | F575 |
 | **RE-ENCODE-TAGS DONE** | F576: Simple Wiki re-encoded WITH markup (60k pages -> simplewiki_tagged/articles_tagged.jsonl): 100% [[links]], 79% ==headers==, 97% [[Category:]], 98% {{templates}}, 50% <ref>. Explicit [[link]] graph RETIRES the F572 mention-proxy; ToC/index first-class. NEXT: point F567 markup-aware clean at the tagged source; rebuild F572 on explicit links + [[Category]] index; emergent ToC/index navigation (F574 gate). | F576 |
-| **SS-FULLWIKI** | **Encode FULL wiki for wider knowledge testing** — READY (F568: SimpleWiki is markup+markdown-clean 0.43% residual + relationship-aware; pipeline validated). Needs the full-wiki dump (data-acquisition, user-directed); the markup/markdown-aware clean + link->relationship extraction carries over directly. | F568 |
+| **SS-FULLWIKI** | **Encode FULL wiki** — dump cached (enwiki 24GB). F607 AUDITED it: FORM tiers READY (links 98%/templates 94%/emphasis 76%/header 75%/category 71%/ref 69%), but NOT ready for EMBEDDED SUB-LANGUAGES the kernel would strip: {{lang|xx}} NL 21.7%, {{IPA}} 18.7%, code ~3%, chem/music/hiero. FIX (added F607): a determinative-routed sub-language ROUTER in formatting_language_kernel.toml (lang= attr = F595 σ_B); <hiero>→F582 READY. GATE stays until per-sub-language kernels built (programming/NL/IPA/music/chem). | F568/F607 |
 | **FOUNDATION DONE** | F572: [[link]]->entity-mention relationship rebar + native+delta slab (SS-0+SS-4) held as ONE load-bearing foundation; 80,626 edges/2,393 entities (33.7/entity), 43% load-bearing long-range, exact+reversible pour, columns stand, scales. Designed on SimpleWiki to hold full EN wiki. | F572 |
 | **COUPLED WAVE (F577)** | A coupled (EM E/B quadrature) drive removes verb-direction flips a flat scalar injects (gate 7->0; telling 5->2). Flat=collapsed 1-bit chirality, coupled=full 2D-rotation (gamma5/Klein-4). STRUCTURE-correctness, not embellishment. | F577 |
 | **MULTI-STREAM RE-AIM** | F573 framed 3/7 streams as richness/breadth -- WRONG goal (user: multi-stream is for CORRECT sentence structure, not embellishment). Re-aim: assign the 3/7 streams to CLAUSE ROLES (S-V-O slots) to build correct structure. NEXT. | F573/F577 |
@@ -405,3 +405,16 @@ The driver-library + sentence-structure arc (user: "add each of [being-told/dial
 | **SS-5** | **The LLM moving-parts comparison (deepen)** — RBS-LM separates content/form where the LLM entangles them in attention; characterise what attention's long-range syntax would map to in the separated architecture (a syntax kernel over the form layer). | F564/F50 |
 
 These are walkable now (srmech 0.7.x; the form layer is plain corpus statistics + the Story Teller content). Standing disciplines unchanged.
+
+---
+
+## Session 2026-06-08 — queue reconciliation + closeout (F607 audit)
+
+Per user direction ("check stale queue items to bring forward and do if remaining; else close out closed-out stale items still listed as open"):
+
+- **Brought forward + DONE: SS-FULLWIKI** — the full-wiki dump is cached, so the gate item was actionable. Walked as **F607** (full-enwiki markup coverage audit): the FORM tiers carry over, but full wiki needs a **determinative-routed family of sub-language kernels** (programming/NL/IPA/music/chemistry; <hiero>→F582 ready). The sub-language ROUTER is now in `formatting_language_kernel.toml`. The gate stays closed until the per-sub-language kernels are built — concrete, measured blocker list lodged.
+- **Closed out: R-RBS-LM-55** (pure-structure layer) — was DEFERRED in the F148 table but had been WALKED by R-RBS-LM-110/111 + F155; marked ✅ RESOLVED above.
+- **Session rows F588–F607** (MOBIUS arc → song arc → English WSD → full-wiki audit) are all RESOLVED findings (each maps to a committed F-number); they are the historical record of this session's walk, not open items.
+- **Remaining DEFERRED items** (the F144–F148 table's 17 deferrals) stand as correctly scope-deferred: biological/pharma/linguistic/cross-natural-data (defensive-scope), srmech-upstream (D₄), real-LLM-scale, methodology-open. NOT force-walked — their scope reasons are unchanged. They remain future-scope pointers.
+
+**Queue state: operationally CLOSED again** (post-F607). No open in-scope actionable items remain that are not either resolved, defensive-scope-deferred, or upstream-deferred. New paths land in a future dated appendix.
