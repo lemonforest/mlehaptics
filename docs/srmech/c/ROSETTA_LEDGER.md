@@ -91,18 +91,20 @@ by the `python/tests/test_rosetta_completeness.py` ratchet (regenerate via
 
 | Bucket | Count | Standalone-C? |
 |--------|------:|---------------|
-| `c_dispatched` | 78 → **79** | ✅ runs on libsrmech alone |
-| `composition_of_c` | 61 → **71** | ✅ pure composition of C-dispatched ops |
+| `c_dispatched` | 78 → **81** | ✅ runs on libsrmech alone |
+| `composition_of_c` | 61 → **72** | ✅ pure composition of C-dispatched ops |
 | `bignum_reference` | 22 | ➖ intentional exact-rational oracle tier (not debt) |
 | `non_compute` | 56 | ➖ IO / registry / schema / introspection (no kernel) |
-| **`c_exists_unbound`** | 23 → **12** | ❌ **DEBT (cheap):** a C twin exists, Python doesn't dispatch |
+| **`c_exists_unbound`** | 23 → **9** | ❌ **DEBT (cheap):** a C twin exists, Python doesn't dispatch |
 | **`python_only_irreducible`** | **108** | ❌ **DEBT:** irreducible kernel, no C twin yet |
 
-**Total standalone-C debt = 131 → 120** (108 irreducible + 12 unbound). The
+**Total standalone-C debt = 131 → 117** (108 irreducible + 9 unbound). The
 ratchet's two ceilings start at the rc7 baseline and only move **down**:
 rc8 took the first 6 off (the SHA-256 mint cluster), rc9 the next 3 (octonion
 L/R-multiply + conjugate → the C-backed `hdc.loop_*` family), rc10 the next 2
-(`cd_basis_product` → `srmech_cd_basis_product`; `octonion_mult_table` composes it).
+(`cd_basis_product` → `srmech_cd_basis_product`; `octonion_mult_table` composes it),
+rc11 the next 3 (Hamming GF(2) `encode`/`syndrome` → `srmech_hamming_*`;
+`decode_correct` composes the syndrome twin).
 
 ### What collapses the most debt (the rc8+ work-list, by leverage)
 
@@ -127,13 +129,14 @@ A bit-exact C twin **already ships**; the Python just never calls it:
 
 - ~~**SHA-256 mint cluster (6):** `mint_*` / `encode_loe_content` / `compute_content_stride` call **raw `hashlib.sha256`** instead of the C SHA-256~~ — **✅ CLOSED rc8:** routed through `format.sha256_raw` (native dispatch; bit-identical raw-32 digest), reclassified → `composition_of_c`. Also cleared the CLAUDE.md raw-`hashlib` discipline violation. *(W4-aware: these are `.digest()` raw-byte sites, so `sha256_raw` — not the hex `sha256_bytes` — is the correct twin.)*
 - **HDC Klein-4 / polar (8):** `klein4_{bind,bundle,similarity,triality_cycle,unbind}` + `polar_{bind,bundle,density}` — twins `srmech_klein4_*` / `srmech_polar_*` exported, Python is numpy-free pure-Python. **`klein4_*` gated on W5** (`klein4_bundle` even-count) per the do-not-mirror gate.
-- **Octonion einsum (4):** `octonion_{left_mult,right_mult,conjugate,mult_table}` — twins `srmech_loop_{left_op,right_op,conj_hd}_f64` + `srmech_cd_basis_product`.
-- **Hamming GF(2) (3):** `hamming_{encode,syndrome,decode_correct}` — twins `srmech_hamming_*` exported, module has **no `_native` import at all**.
-- **`cd_basis_product` (1)** + **`lmmse` (1)** (`np.linalg.solve` → `srmech_dense_solve_f64`).
+- ~~**Octonion einsum (4):** `octonion_{left_mult,right_mult,conjugate,mult_table}`~~ — **✅ CLOSED rc9 (3) + rc10 (1):** L/R-mult + conjugate delegate to the C-dispatched `hdc.loop_{left_op,right_op,conj}`; `mult_table` composes the now-native `cd_basis_product` (`srmech_cd_basis_product`). Bit-exact; content-address `7f36461e…` unchanged.
+- ~~**Hamming GF(2) (3):** `hamming_{encode,syndrome,decode_correct}`~~ — **✅ CLOSED rc11:** `encode`/`syndrome` dispatch to `srmech_hamming_*` (the v0.7.2rc2 C twin; the module gained its `_native` import); `decode_correct` composes the syndrome twin. Bit-exact over `n∈{2,3,4}` + every single-bit-flip.
+- **`lmmse` (1)** (`np.linalg.solve` → `srmech_dense_solve_f64`) + **polar HDC (3):** `polar_{bind,bundle,density}` — twins `srmech_polar_*` exported (the rc12 batch).
 
-Remaining cheap wins after rc8: **17** (the four bullets above). The natural
-next sweeps are the **octonion einsum (4)** and **Hamming (3)** — both have
-exported twins and no W5 gate — then the W5-cleared klein4 family.
+Remaining cheap wins after rc11: **9** — the polar-HDC trio + `lmmse` (the rc12
+batch, no gate) and the **Klein-4 family (5; gated on W5** — `klein4_bundle`
+even-count must be confirmed before its standalone-C sector-dispatch port per the
+do-not-mirror gate). Biggest single irreducible lever is a dense complex `matmul`.
 
 ## Roadmap (rolling; each rc drives the debt down)
 
@@ -149,11 +152,23 @@ exported twins and no W5 gate — then the W5-cleared klein4 family.
   `format.sha256_raw` (native dispatch, bit-identical) → `composition_of_c`;
   `c_exists_unbound` ceiling **23 → 17**. Closes the CLAUDE.md raw-`hashlib`
   discipline gap in the same move.
-- **rc9+ — keep closing debt by the leverage tables above.** Each kernel port +
+- **rc9 (done) — cheap-win sweep #2: octonion L/R-mult + conjugate.** The three
+  `qm.octonion` einsum ops delegate to the C-dispatched `hdc.loop_*` family →
+  `composition_of_c`; `c_exists_unbound` ceiling **17 → 14**.
+- **rc10 (done) — cheap-win sweep #3: the Cayley-Dickson basis cocycle.**
+  `cascade.cd_basis_product → srmech_cd_basis_product` (`c_dispatched`);
+  `octonion_mult_table` composes it (`composition_of_c`); content-address
+  `7f36461e…` unchanged; ceiling **14 → 12**.
+- **rc11 (done, this) — cheap-win sweep #4: the Hamming GF(2) block code.**
+  `cascade.hamming_{encode,syndrome} → srmech_hamming_*` (`c_dispatched`);
+  `hamming_decode_correct` composes the syndrome twin (`composition_of_c`);
+  bit-exact over `n∈{2,3,4}` + every single-bit-flip; ceiling **12 → 9**.
+- **rc12+ — keep closing debt by the leverage tables above.** Each kernel port +
   dispatch-wire moves ops `python_only_irreducible`/`c_exists_unbound →
   `c_dispatched`/`composition_of_c`, **lowering the ceiling in lockstep**. Next
-  cheap sweeps: octonion einsum (4) + Hamming (3) (no gate), then the
-  W5-cleared klein4 family; biggest single lever is a dense complex `matmul`.
+  cheap sweep: polar HDC (3) + `lmmse` (1) (no gate) → ceiling 9 → 5, leaving
+  only the W5-gated klein4 family (5); biggest single lever is a dense complex
+  `matmul`.
 
 **Standing tracker.** Issue [#928](https://github.com/lemonforest/mlehaptics/issues/928)
 is the consolidated srmech wishlist (bugs · schema · enhancements · new ops,

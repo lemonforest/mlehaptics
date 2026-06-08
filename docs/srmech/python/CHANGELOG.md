@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc11] - 2026-06-08
+
+**Rosetta cheap-win sweep #4 — the Hamming GF(2) block code goes native (#928).** The two `srmech.amsc.cascade` Hamming primitives that ship a bit-exact C twin (the v0.7.2rc2 `srmech_hamming_*` pair) but built the codeword / syndrome in pure Python now **dispatch to native** when present: `hamming_encode → srmech_hamming_encode` (the systematic GF(2) generator) and `hamming_syndrome → srmech_hamming_syndrome` (the parity-check error position). The pure-Python GF(2) loops stay as the Pyodide / no-native fallback. With `hamming_syndrome` C-backed, `hamming_decode_correct` (which calls it, then single-bit-corrects) is now a **composition of a C-dispatched twin**.
+
+- **Bit-exact** — GF(2) integer arithmetic, no float; verified native-vs-pure agree across `n ∈ {2,3,4}` and **every** single-bit-flip codeword, so encode/syndrome/decode outputs are unchanged.
+- **Reclassify:** `hamming_encode`, `hamming_syndrome` `c_exists_unbound → c_dispatched`; `hamming_decode_correct` `c_exists_unbound → composition_of_c`.
+- **Ratchet:** ceiling **`c_exists_unbound` 12 → 9**; `python_only_irreducible` unchanged at 108. Total standalone-C debt **120 → 117.** The remaining 9 `c_exists_unbound` are the polar-HDC trio + `lmmse` (the rc12 batch) and the Klein-4 family (5; **gated on W5** — the `klein4_bundle` even-count semantics must be confirmed before its standalone-C sector-dispatch port per `[[feedback_check_known_bugs_before_mirroring_python_to_c]]`).
+
+Behaviour-preserving dispatch retrofit + docs; no new op, ABI stays 3. SSoT: issue #928; `c/ROSETTA_LEDGER.md`.
+
 ## [0.7.5rc10] - 2026-06-08
 
 **Rosetta cheap-win sweep #3 — the Cayley-Dickson basis cocycle goes native (#928).** `cascade.cd_basis_product` (the integer cocycle `e_i·e_j = sign·e_{i⊕j}`) now **dispatches to the C peer `srmech_cd_basis_product`** when native is present (the symbol was bound but never called); the pure-Python iterative doubling stays as the Pyodide / no-native fallback. With that primitive C-backed, `qm.octonion.octonion_mult_table` now **builds the (8,8,8) structure tensor through `cd_basis_product`** instead of a recursive numpy `_cd_mul`.
