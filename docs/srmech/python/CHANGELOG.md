@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc7] - 2026-06-08
+
+**Rosetta-completeness AUDIT + down-only ratchet (#928).** Stands up the measurement instrument for the C-mirror goal — every public **compute** op should dispatch to a bit-exact C twin OR be a pure composition of such twins, so `libsrmech` runs standalone (full OS *or* thread-less microcontroller, no host Python). Docs + tooling only; **no runtime/ABI change** (ABI stays 3).
+
+- **The audit.** All **348 public ops** across `srmech.amsc` / `srmech.qm` / `srmech.signal_processing` were enumerated and classified — by reading each implementation against the exported C-symbol surface — into six buckets. Committed SSoT: `python/tests/rosetta_classification.ndjson` (regenerable via `notes/_rosetta_inventory.py` → `notes/_rosetta_build_classification.py`). Baseline: **78 `c_dispatched` · 61 `composition_of_c` · 22 `bignum_reference` (oracle tier) · 56 `non_compute` · 23 `c_exists_unbound` (cheap debt) · 108 `python_only_irreducible` (debt)**. **Total standalone-C debt = 131.**
+- **The ratchet** (`python/tests/test_rosetta_completeness.py`). Enumerates the live public surface, asserts it agrees EXACTLY with the committed classification (a new op with no bucket fails → forces every addition to be classified; a removed op left in the file fails → keeps the ledger current), and pins the two debt buckets at down-only ceilings (`python_only_irreducible ≤ 108`, `c_exists_unbound ≤ 23`) — raising a ceiling is the one edit the test exists to forbid.
+- **The leverage map (rc8+ work-list).** The 108 irreducible cluster on a handful of missing C kernels — dense complex `matmul` (~15 qm ops), FFT/DFT (~20 sp+cascade), general `eig`/`SVD`/`QR`/`lstsq` (~16 so8/triality/matrix_cascades), `kron` (~6 bell/so8), `einsum`/`convolve`/`correlate` (~8). The 23 cheap wins are wire-up only (the C twin already ships): Klein-4/polar HDC (8; klein4 gated on W5), octonion einsum→`loop_*_op` (4), Hamming (3), the SHA-256 mint cluster (6; also a CLAUDE.md `hashlib.sha256`-direct-call discipline fix), `cd_basis_product` (1), `lmmse`→`dense_solve` (1). Full breakdown in `c/ROSETTA_LEDGER.md`.
+
+SSoT: issue #928; `c/ROSETTA_LEDGER.md` (measured baseline + leverage table). `[[feedback_check_known_bugs_before_mirroring_python_to_c]]`.
+
 ## [0.7.5rc6] - 2026-06-08
 
 **Coupled-wave (EM quadrature) driver + multi-stream multiplex — the sentence-structure arc's named ops (#928 W17/W18; F573/F577).** Two new public cascade ops; pure-Python **composition of existing C-backed primitives** (`calculus.{sin,cos}` + Class-K `pin_slot_at_zero` + Class-M `hdc`), so **no new primitive class, no new C kernel, ABI stays 3**:
