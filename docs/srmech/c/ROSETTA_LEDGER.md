@@ -92,22 +92,30 @@ by the `python/tests/test_rosetta_completeness.py` ratchet (regenerate via
 | Bucket | Count | Standalone-C? |
 |--------|------:|---------------|
 | `c_dispatched` | 78 → **84** | ✅ runs on libsrmech alone |
-| `composition_of_c` | 61 → **72** | ✅ pure composition of C-dispatched ops |
+| `composition_of_c` | 61 → **73** | ✅ pure composition of C-dispatched ops |
 | `bignum_reference` | 22 | ➖ intentional exact-rational oracle tier (not debt) |
 | `non_compute` | 56 | ➖ IO / registry / schema / introspection (no kernel) |
-| **`c_exists_unbound`** | 23 → **6** | ❌ **DEBT (cheap):** a C twin exists, Python doesn't dispatch |
+| **`c_exists_unbound`** | 23 → **5** | ❌ **DEBT (cheap):** a C twin exists, Python doesn't dispatch |
 | **`python_only_irreducible`** | **108** | ❌ **DEBT:** irreducible kernel, no C twin yet |
 
-**Total standalone-C debt = 131 → 114** (108 irreducible + 6 unbound). The
+**Total standalone-C debt = 131 → 113** (108 irreducible + 5 unbound). The
 ratchet's two ceilings start at the rc7 baseline and only move **down**:
 rc8 took the first 6 off (the SHA-256 mint cluster), rc9 the next 3 (octonion
 L/R-multiply + conjugate → the C-backed `hdc.loop_*` family), rc10 the next 2
 (`cd_basis_product` → `srmech_cd_basis_product`; `octonion_mult_table` composes it),
 rc11 the next 3 (Hamming GF(2) `encode`/`syndrome` → `srmech_hamming_*`;
 `decode_correct` composes the syndrome twin), rc12 the next 3 (the polar-HDC trio
-`polar_{bind,bundle,density}` → `srmech_polar_*`). The remaining **6 are NOT clean
-bit-exact wins** — `lmmse` (float dense-solve, held at the LAPACK-vs-C float
-boundary) + the Klein-4 family (5; gated on W5) — so the cheap-win sweep ends here.
+`polar_{bind,bundle,density}` → `srmech_polar_*`), rc13 the next 1 (`lmmse` routes
+its solve → `dense_solve` + its matvec → `dense_matvec_complex` cascades). The
+remaining **5 are the Klein-4 family, gated on W5.**
+
+**A sibling source-level guard** lands with rc13: the **numpy-math ratchet**
+(`python/tests/test_numpy_math_ratchet.py`) keeps numpy a *carrier*, not a *math
+engine* — it greps the srmech source for numpy-math callsites (`np.linalg`/`np.fft`
+126 · `@`/`dot`/`einsum`/`kron`/… 185 · transcendental ufuncs 48) and pins each at
+a tight down-only ceiling. It is the same debt the 108 `python_only_irreducible`
+cluster represents, seen at the source level: a new `np.linalg.solve` fails CI,
+and each migration to a cascade decrements both ledgers. (`lmmse` was decrement #1.)
 
 ### What collapses the most debt (the rc8+ work-list, by leverage)
 
@@ -135,13 +143,15 @@ A bit-exact C twin **already ships**; the Python just never calls it:
 - ~~**HDC polar (3):** `polar_{bind,bundle,density}`~~ — **✅ CLOSED rc12:** dispatch to `srmech_polar_*` (int8 sign-product / sticky-majority / informative-fraction). Bit-exact over 200 trials each.
 - ~~**Octonion einsum (4):** `octonion_{left_mult,right_mult,conjugate,mult_table}`~~ — **✅ CLOSED rc9 (3) + rc10 (1):** L/R-mult + conjugate delegate to the C-dispatched `hdc.loop_{left_op,right_op,conj}`; `mult_table` composes the now-native `cd_basis_product` (`srmech_cd_basis_product`). Bit-exact; content-address `7f36461e…` unchanged.
 - ~~**Hamming GF(2) (3):** `hamming_{encode,syndrome,decode_correct}`~~ — **✅ CLOSED rc11:** `encode`/`syndrome` dispatch to `srmech_hamming_*` (the v0.7.2rc2 C twin; the module gained its `_native` import); `decode_correct` composes the syndrome twin. Bit-exact over `n∈{2,3,4}` + every single-bit-flip.
-- **`lmmse` (1)** (`np.linalg.solve`) — the C twin `srmech_dense_solve_f64` exists, but it is **NOT bit-exact** with LAPACK (a separate LU; agrees to ~2.2e-16). Wiring it would be the arc's first non-bit-exact dispatch — a deliberate **float-boundary** decision **held for the maintainer**, NOT a clean cheap win.
+- ~~**`lmmse` (1)** (`np.linalg.solve`)~~ — **✅ CLOSED rc13:** the framing was corrected (user direction 2026-06-08) — numpy is a *carrier*, never the math engine, so the `np.linalg.solve` was a **defect**, not a convenience, and the srmech cascade (not LAPACK) is the source of truth. Routed the solve → `dense_solve` + the estimate matvec → `dense_matvec_complex`; reclassified `c_exists_unbound → composition_of_c`. Correct to machine precision (gain residual `≈4e-16`).
 
-Cheap-win sweep **ENDED at rc12**. Remaining **6** `c_exists_unbound` are both
-maintainer-gated: `lmmse` (float-boundary, held) + the **Klein-4 family (5; gated
-on W5** — `klein4_bundle` even-count must be confirmed before its standalone-C
-sector-dispatch port per the do-not-mirror gate). Beyond these, debt only falls by
-**new C kernels** for the 108 irreducible — biggest single lever a dense complex `matmul`.
+Cheap-win sweep is **done** (rc8–rc13). Remaining **5** `c_exists_unbound` are the
+**Klein-4 family — gated on W5** (`klein4_bundle` even-count must be confirmed
+before its standalone-C sector-dispatch port per the do-not-mirror gate). Beyond
+that, debt only falls by **new C kernels** for the 108 irreducible (biggest single
+lever a dense complex `matmul`) — tracked at the source level by the **numpy-math
+ratchet** (a stray `np.linalg`/`@`/ufunc now fails CI; each cascade migration
+decrements it).
 
 ## Roadmap (rolling; each rc drives the debt down)
 
@@ -168,18 +178,26 @@ sector-dispatch port per the do-not-mirror gate). Beyond these, debt only falls 
   `cascade.hamming_{encode,syndrome} → srmech_hamming_*` (`c_dispatched`);
   `hamming_decode_correct` composes the syndrome twin (`composition_of_c`);
   bit-exact over `n∈{2,3,4}` + every single-bit-flip; ceiling **12 → 9**.
-- **rc12 (done, this) — cheap-win sweep #5: the polar-HDC trio.**
+- **rc12 (done) — cheap-win sweep #5: the polar-HDC trio.**
   `hdc.polar_{bind,bundle,density} → srmech_polar_*` (`c_dispatched`); all int8,
-  bit-exact over 200 trials each; ceiling **9 → 6**. **This ends the clean
-  cheap-win sweep.**
-- **PAUSE (maintainer check-in) — the remaining 6 are not clean wins.** `lmmse`
-  (1) sits at a **float boundary**: its twin `srmech_dense_solve_f64` is NOT
-  bit-exact with LAPACK (~2.2e-16), so wiring it is a deliberate decision, not a
-  mechanical sweep. The **Klein-4 family** (5) is **gated on W5**. Both need a
-  maintainer call. Past these, the only remaining lever is **new C kernels** for
-  the 108 `python_only_irreducible` (dense complex `matmul`, FFT/DFT,
-  `eig`/`SVD`/`QR`/`lstsq`, `kron`, `einsum`/`convolve`) — substantial new C, a
-  deliberate next phase rather than a sweep.
+  bit-exact over 200 trials each; ceiling **9 → 6**.
+- **rc13 (done, this) — numpy-math ratchet + lmmse → cascade (decrement #1).**
+  Framing correction (user direction): numpy is a *carrier*, never the math
+  engine, so the `np.linalg.solve` in `lmmse` was a **defect** — the srmech
+  cascade (not LAPACK) is the truth. Routed the solve → `dense_solve` + the
+  estimate matvec → `dense_matvec_complex`; `lmmse` reclassifies
+  `c_exists_unbound → composition_of_c`, ceiling **6 → 5**. Shipped alongside the
+  new **numpy-math ratchet** (`test_numpy_math_ratchet.py`) — the source-level
+  down-only guard (`np.linalg`/`np.fft` 126 · `@`/dot/einsum/… 185 · ufuncs 48)
+  that keeps numpy a carrier, not a math engine. A stray `np.linalg.solve` now
+  fails CI.
+- **Next — the new-C-kernel phase (drives BOTH ledgers down together).** The 5
+  remaining `c_exists_unbound` are the **Klein-4 family, gated on W5**. The 108
+  `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
+  op level; each falls only by a **new C kernel** (dense complex `matmul` — top
+  single lever, ~15 ops; then FFT/DFT, `eig`/`SVD`/`QR`/`lstsq`, `kron`, `einsum`)
+  with a matching cascade that decrements the source ratchet. Substantial new C,
+  a deliberate phase rather than a sweep.
 
 **Standing tracker.** Issue [#928](https://github.com/lemonforest/mlehaptics/issues/928)
 is the consolidated srmech wishlist (bugs · schema · enhancements · new ops,
