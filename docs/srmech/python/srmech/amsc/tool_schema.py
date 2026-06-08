@@ -2549,6 +2549,78 @@ def _register_primitive_class_tools() -> None:
                       "(sector_cap 4, beyond_4_needs triality), "
                       "framework_thread_ladder_reading}"),
         ),
+        ToolEntry(
+            name="srmech.amsc.cascade.coupled.coupled_wave", owner="srmech",
+            category="cascade",
+            summary="The coupled EM-quadrature DRIVE at phase theta — the "
+                    "full-chirality (E, B) pair instead of a collapsed 1-bit "
+                    "sign (W17 / F577 verb-flip fix). A flat sign(wave) gate "
+                    "flips hard at every zero-crossing (2/cycle); the coupled "
+                    "(E=sin, B=cos, 90° apart) rotates MONOTONICALLY → 0 hard "
+                    "reversals, so a driven chiral/relational element (a verb) "
+                    "keeps a stable bearing. The four (sign E, sign B) quadrants "
+                    "ARE the four Klein-4 (γ₅, iω₇) sectors. HANDEDNESS IS A "
+                    "SETTABLE CONVENTION, never hardcoded: left/right are both "
+                    "first-class (the endianness posture — the substrate "
+                    "privileges neither byte-order nor chirality); -handedness "
+                    "is a Class-K phase sign-flip theta→-theta (no abs), and the "
+                    "chosen convention is echoed back STABLE (it does not flip "
+                    "with theta). Composition of calculus.{sin,cos} (C-dispatched) "
+                    "+ Class-K pin_slot_at_zero — no new primitive class. "
+                    "F577/F552; #928 W17." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("theta", "float", True,
+                          "phase angle in radians"),
+                        P("handedness", "int", False,
+                          "rotation-sense convention +1 or -1 (both first-class; "
+                          "default +1 is an ARBITRARY convention; -1 = Class-K "
+                          "phase flip theta→-theta)"),
+                        P("components", "sequence", False,
+                          "the (E_fn, B_fn) quadrature pair, each 'sin' or 'cos' "
+                          "and distinct; default ('sin','cos') → E=sin, B=cos")),
+            returns=R("tuple",
+                      "(E, B, handedness, klein4_quadrant) — the quadrature "
+                      "legs (float, C-dispatched), the STABLE chosen handedness, "
+                      "and (sign E, sign B) the Klein-4 sector"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.coupled.multiplex_streams", owner="srmech",
+            category="cascade",
+            summary="Recombine N steering WAVES into one driver — the multiplex "
+                    "(W18 / F573-F577). A 'stream' is a per-step real-valued "
+                    "DRIVER WAVE (a steering signal that decides which content "
+                    "gets selected downstream), NOT tokens — the output is a "
+                    "single steering driver; emission (the fluency-ear + manifold "
+                    "gate) is a SEPARATE consumer. Ideally each stream is a "
+                    "coupled (E,B) wave from coupled_wave so it carries a stable "
+                    "bearing (W17+W18 compose). Per F577 the multi-stream is for "
+                    "correct sentence STRUCTURE (S-V-O clause-role assignment), "
+                    "not richness. Modes: 'roundrobin' (default; the validated-"
+                    "best t mod N multiplex — stream t%N drives step t), "
+                    "'superpose' (real-field interference: elementwise SUM + "
+                    "renormalise by max magnitude — the weakest combiner, not "
+                    "hdc.bundle, which is a different layer), 'pickbest' "
+                    "(strongest-bearing wave each step via Class-K magnitude — a "
+                    "wave pick, distinct from a content-fluency pick). roles=("
+                    "'S','V','O') binds each stream to clause-slot k; the verb "
+                    "stream should be a coupled bearing so its which-way can't "
+                    "flip mid-clause; the role tag is stored via Class-M hdc.bind "
+                    "for unbindability. No new primitive class. F573/F577; #928 "
+                    "W18." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("streams", "sequence", True,
+                          "N equal-length real-valued sequences (the steering "
+                          "waves; ideally each a coupled_wave bearing)"),
+                        P("mode", "str", False,
+                          "'roundrobin' (default) | 'superpose' (real "
+                          "interference sum + renorm) | 'pickbest' (max-magnitude "
+                          "bearing)"),
+                        P("roles", "sequence", False,
+                          "optional N clause-role labels e.g. ('S','V','O'); role "
+                          "k steers clause-slot k, tagged via Class-M hdc.bind")),
+            returns=R("dict",
+                      "{driver (the single recombined steering wave), mode, "
+                      "n_streams, length, roles, role_bound (clause-slot tagging "
+                      "when roles given), layer}"),
+        ),
     ]
     for e in entries:
         register_tool(e)

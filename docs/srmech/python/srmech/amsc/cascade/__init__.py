@@ -121,6 +121,15 @@ from .parallel import (
     parallel_sector_dispatch,
     sectorize,
 )
+# Coupled-wave (EM quadrature) driver + multi-stream multiplex (v0.7.5rc6;
+# #928 W17/W18, F573/F577). The full-chirality (E,B) drive (handedness a
+# settable convention, never hardcoded) + the role-bound N-stream multiplex.
+# COMPOSITION of calculus.{sin,cos} + Class-K pin_slot_at_zero + Class-M hdc —
+# no new primitive class, no new C kernel.
+from .coupled import (
+    coupled_wave,
+    multiplex_streams,
+)
 # Quaternion / octonion DFT composites (v0.7.0rc31; #863, F380). The native
 # transform for a Klein-4 object — its ℍ/𝕆 coefficient algebra resolves both
 # Z₂ chirality axes the complex FFT collapses (the flat shadow). COMPOSITES
@@ -250,6 +259,9 @@ __all__ = [
     # rc12 composability (§11.3): recombine + nesting wrapper
     "COMBINE_REDUCERS",
     "sectorize",
+    # rc6 coupled-wave + multiplex (#928 W17/W18, F573/F577)
+    "coupled_wave",
+    "multiplex_streams",
     # Quaternion/octonion DFT composites (v0.7.0rc31; #863)
     "quaternion_dft",
     "octonion_dft",
