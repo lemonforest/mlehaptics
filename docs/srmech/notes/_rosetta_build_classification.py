@@ -98,10 +98,7 @@ srmech.amsc.cascade.cyclic_gcd
 srmech.amsc.cascade.kuramoto_step
 
 ### c_exists_unbound
-srmech.qm.octonion.octonion_conjugate
-srmech.qm.octonion.octonion_left_mult
 srmech.qm.octonion.octonion_mult_table
-srmech.qm.octonion.octonion_right_mult
 srmech.signal_processing.closed_form_ops.lmmse.op
 srmech.amsc.hdc.klein4_bind
 srmech.amsc.hdc.klein4_bundle
@@ -153,6 +150,9 @@ srmech.qm.spin.pauli_identity
 srmech.qm.spin.pauli_matrices
 srmech.qm.spin.pauli_spin_operator
 srmech.qm.octonion.octonion_norm
+srmech.qm.octonion.octonion_conjugate
+srmech.qm.octonion.octonion_left_mult
+srmech.qm.octonion.octonion_right_mult
 srmech.qm.hurwitz.hurwitz_matrix
 srmech.qm.hurwitz.hurwitz_planes
 srmech.qm.triality.triality_apply

@@ -92,15 +92,16 @@ by the `python/tests/test_rosetta_completeness.py` ratchet (regenerate via
 | Bucket | Count | Standalone-C? |
 |--------|------:|---------------|
 | `c_dispatched` | 78 | ✅ runs on libsrmech alone |
-| `composition_of_c` | 61 → **67** | ✅ pure composition of C-dispatched ops |
+| `composition_of_c` | 61 → **70** | ✅ pure composition of C-dispatched ops |
 | `bignum_reference` | 22 | ➖ intentional exact-rational oracle tier (not debt) |
 | `non_compute` | 56 | ➖ IO / registry / schema / introspection (no kernel) |
-| **`c_exists_unbound`** | 23 → **17** | ❌ **DEBT (cheap):** a C twin exists, Python doesn't dispatch |
+| **`c_exists_unbound`** | 23 → **14** | ❌ **DEBT (cheap):** a C twin exists, Python doesn't dispatch |
 | **`python_only_irreducible`** | **108** | ❌ **DEBT:** irreducible kernel, no C twin yet |
 
-**Total standalone-C debt = 131 → 125** (108 irreducible + 17 unbound). The
-ratchet's two ceilings start at the rc7 baseline and only move **down**;
-rc8 took the first 6 off (the SHA-256 mint cluster, below).
+**Total standalone-C debt = 131 → 122** (108 irreducible + 14 unbound). The
+ratchet's two ceilings start at the rc7 baseline and only move **down**:
+rc8 took the first 6 off (the SHA-256 mint cluster), rc9 the next 3 (octonion
+L/R-multiply + conjugate → the C-backed `hdc.loop_*` family).
 
 ### What collapses the most debt (the rc8+ work-list, by leverage)
 

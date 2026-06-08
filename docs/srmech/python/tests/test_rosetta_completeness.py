@@ -54,9 +54,10 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 # ----- the down-only debt ceilings (rc7 baseline; issue #928) -----------
 # LOWER these as ops gain C twins. NEVER raise them.
 CEIL_PYTHON_ONLY_IRREDUCIBLE = 108
-# rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw ->
-# moved c_exists_unbound -> composition_of_c, lowering this ceiling 23 -> 17.
-CEIL_C_EXISTS_UNBOUND = 17
+# rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
+# rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
+# hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.
+CEIL_C_EXISTS_UNBOUND = 14
 
 _DEBT_BUCKETS = ("python_only_irreducible", "c_exists_unbound")
 _ALL_BUCKETS = (

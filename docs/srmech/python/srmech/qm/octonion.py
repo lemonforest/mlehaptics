@@ -58,6 +58,7 @@ from typing import Tuple
 
 import numpy as np
 
+from srmech.amsc import hdc as _M  # rc9: the C-dispatched octonion loop family
 from srmech.amsc.cascade import magnitude as _magnitude
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 
@@ -250,11 +251,11 @@ def octonion_left_mult(a: np.ndarray) -> np.ndarray:
         raise ValueError(
             f"octonion_left_mult: a must be an 8-vector; got {a.shape}"
         )
-    table = octonion_mult_table().astype(float)
-    out = np.zeros((_DIM, _DIM))
-    for j in range(_DIM):
-        out[:, j] = np.einsum("i,ik->k", a, table[:, j, :])
-    return out
+    # rc9: dispatch the bind through the C-backed octonion loop operator
+    # (srmech_loop_left_op_f64, native when HAS_NATIVE; pure-Python fallback).
+    # L_a[k, j] = sum_i a_i C[i, j, k] is bit-identical to the per-basis binds
+    # that loop_left_op column-stacks (same Cayley-Dickson-from-H convention).
+    return np.asarray(_M.loop_left_op(a), dtype=float)
 
 
 def octonion_right_mult(a: np.ndarray) -> np.ndarray:
@@ -282,11 +283,9 @@ def octonion_right_mult(a: np.ndarray) -> np.ndarray:
         raise ValueError(
             f"octonion_right_mult: a must be an 8-vector; got {a.shape}"
         )
-    table = octonion_mult_table().astype(float)
-    out = np.zeros((_DIM, _DIM))
-    for j in range(_DIM):
-        out[:, j] = np.einsum("i,ik->k", a, table[j, :, :])
-    return out
+    # rc9: dispatch through the C-backed octonion loop operator
+    # (srmech_loop_right_op_f64); bit-identical to the einsum over the table.
+    return np.asarray(_M.loop_right_op(a), dtype=float)
 
 
 def octonion_conjugate(x: np.ndarray) -> np.ndarray:
@@ -311,9 +310,9 @@ def octonion_conjugate(x: np.ndarray) -> np.ndarray:
         raise ValueError(
             f"octonion_conjugate: x must be an 8-vector; got {x.shape}"
         )
-    out = x.copy()
-    out[1:] = -out[1:]
-    return out
+    # rc9: dispatch through the C-backed octonion conjugate (srmech_loop_conj_f64,
+    # the Class-C imaginary-axis sign flip); bit-identical to negating x[1:].
+    return np.asarray(_M.loop_conj(x), dtype=float).reshape(_DIM)
 
 
 def octonion_norm(x: np.ndarray) -> float:
