@@ -103,12 +103,6 @@ srmech.qm.octonion.octonion_left_mult
 srmech.qm.octonion.octonion_mult_table
 srmech.qm.octonion.octonion_right_mult
 srmech.signal_processing.closed_form_ops.lmmse.op
-srmech.signal_processing.compute_content_stride
-srmech.signal_processing.encode_loe_content
-srmech.signal_processing.mint_cascade_composition
-srmech.signal_processing.mint_class_operator
-srmech.signal_processing.mint_stance_fingerprint
-srmech.signal_processing.mint_vector
 srmech.amsc.hdc.klein4_bind
 srmech.amsc.hdc.klein4_bundle
 srmech.amsc.hdc.klein4_similarity
@@ -173,6 +167,12 @@ srmech.signal_processing.inverse_form_function_rotate
 srmech.signal_processing.verify_rotation_class_n_cycle_order
 srmech.signal_processing.path_b_ops.hdc_truncation.op
 srmech.signal_processing.decode_loe_fingerprint
+srmech.signal_processing.compute_content_stride
+srmech.signal_processing.encode_loe_content
+srmech.signal_processing.mint_cascade_composition
+srmech.signal_processing.mint_class_operator
+srmech.signal_processing.mint_stance_fingerprint
+srmech.signal_processing.mint_vector
 srmech.amsc.rational.cexp
 srmech.amsc.rational.complex_exp
 srmech.amsc.rational.hypot

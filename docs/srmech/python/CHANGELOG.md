@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc8] - 2026-06-08
+
+**Rosetta cheap-win sweep #1 — SHA-256 mint cluster routed onto native dispatch (#928; the first `c_exists_unbound` close).** The 6 `srmech.signal_processing` ops that minted HDC vectors / content strides via **raw `hashlib.sha256(...).digest()`** now route through `srmech.amsc.format.sha256_raw`, picking up the native C SHA-256 (incl. the SHA-NI / AVX2 tiers) transparently. This closes a Rosetta debt **and** a standing CLAUDE.md discipline violation (no raw `hashlib.sha256` callsites) in one sweep. **Bit-identical** — `sha256_raw(x) == hashlib.sha256(x).digest()` — so every mint output is unchanged (29 rbs-lm behaviour tests green).
+
+- Repointed: `mint_vector`, `mint_class_operator`, `mint_cascade_composition`, `mint_stance_fingerprint`, `encode_loe_content` (`rbs_hdc_instrument.py`) + `compute_content_stride` (`form_function_rotation.py`). The dead `sha256_bytes` import in `rbs_hdc_instrument` (imported, never used while the mint path bypassed it onto raw `hashlib`) is replaced with the now-used `sha256_raw`; `import hashlib` dropped from both modules.
+- **Ratchet moves down:** these 6 reclassify `c_exists_unbound → composition_of_c` (they now compose the C-dispatched `sha256_raw` + `hdc.*`). `test_rosetta_completeness.py` ceiling **`c_exists_unbound` 23 → 17**; `python_only_irreducible` unchanged at 108. Total standalone-C debt **131 → 125**.
+
+Docs/tooling + a behaviour-preserving dispatch retrofit; no new op, no ABI change (ABI stays 3). SSoT: issue #928; `c/ROSETTA_LEDGER.md`. `[[feedback_check_known_bugs_before_mirroring_python_to_c]]` (W4-aware: raw-digest sites use `sha256_raw`, not the hex `sha256_bytes`).
+
 ## [0.7.5rc7] - 2026-06-08
 
 **Rosetta-completeness AUDIT + down-only ratchet (#928).** Stands up the measurement instrument for the C-mirror goal — every public **compute** op should dispatch to a bit-exact C twin OR be a pure composition of such twins, so `libsrmech` runs standalone (full OS *or* thread-less microcontroller, no host Python). Docs + tooling only; **no runtime/ABI change** (ABI stays 3).
