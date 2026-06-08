@@ -37,13 +37,12 @@
  * element, so the dispatch is hard-capped at 4 sectors. Going past 4
  * needs the genuinely order-3 triality (F220) — NOT here.
  *
- * THREADING (portable shim, guarded like srmech_bus.c):
- *   POSIX   : pthread_create / pthread_join.
- *   Windows : CreateThread / WaitForMultipleObjects.
- *   else    : SERIAL fallback (compute the ≤4 sectors in a loop).
- * The serial fallback PRESERVES the capability — all 4 sectors are
- * computed, bit-identical to the threaded path. Thread handles live in
- * a fixed-size [4] stack array (JPL Rule 3: no malloc).
+ * THREADING goes through the PAL (srmech_platform.h) — this file carries
+ * NO platform #ifdef. srmech_plat_thread_spawn/join hide the POSIX
+ * (pthread) / Windows (CreateThread) / thread-less split; the choice is a
+ * RUNTIME srmech_plat_has_threads() branch. The SERIAL fallback PRESERVES
+ * the capability — all 4 sectors are computed, bit-identical to the
+ * threaded path. Handles live in a fixed-size [4] stack array (no malloc).
  *
  * JPL Power-of-Ten compliance:
  *   - Rule 1 (no goto)        : early returns only.
@@ -61,18 +60,11 @@
  */
 
 #include "srmech.h"
+#include "srmech_platform.h"   /* PAL: srmech_plat_thread_* — no #ifdef here */
 
 #include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
-
-#if defined(_WIN32) || defined(_WIN64)
-#  define SRMECH_PARALLEL_PLATFORM_WIN 1
-#  include <windows.h>
-#elif defined(__unix__) || defined(__APPLE__) || defined(__linux__)
-#  define SRMECH_PARALLEL_PLATFORM_POSIX 1
-#  include <pthread.h>
-#endif
 
 /* ------------------------------------------------------------------ *
  * Klein-4 sector labels — (γ₅, iω₇) sign pair per sector, mirroring
@@ -197,7 +189,9 @@ static srmech_status_t srmech_parallel__validate(
     return SRMECH_OK;
 }
 
-#if !defined(SRMECH_PARALLEL_PLATFORM_POSIX) && !defined(SRMECH_PARALLEL_PLATFORM_WIN)
+/* The SERIAL path is ALWAYS compiled: it is both the thread-less fallback
+ * AND the bit-exact reference the threaded path must match (the sectors are
+ * independent / order-free, so serial == threaded bit-for-bit). */
 static srmech_status_t srmech_parallel__serial(
     srmech_cascade_body_f64 body, void *user, const double *in, size_t n,
     uint32_t n_sectors, double *out_sectors, double *scratch)
@@ -214,17 +208,15 @@ static srmech_status_t srmech_parallel__serial(
     }
     return SRMECH_OK;
 }
-#endif
 
 /* ------------------------------------------------------------------ *
- * Threaded backend — per-sector job + the spawn-join over a fixed [4]
- * stack handle array (JPL Rule 3: no malloc). On POSIX/Windows the ≤4
- * sectors run concurrently; the disjoint-slice contract makes the
- * result identical to the serial path. The job struct + runner are only
- * compiled when a threading backend is present (the thread-less path
- * uses srmech_parallel__serial directly).
+ * Threaded backend over the PAL (srmech_plat_thread_*) — ZERO platform
+ * #ifdef here. The ≤4 sectors run concurrently when a threading backend
+ * is present (any spawn-failure falls back to serial for that sector);
+ * the disjoint-slice contract makes the result identical to the serial
+ * path. Job + handle arrays are fixed [4] stack arrays (JPL Rule 3: no
+ * malloc); each handle lives until its join, as the PAL requires.
  * ------------------------------------------------------------------ */
-#if defined(SRMECH_PARALLEL_PLATFORM_POSIX) || defined(SRMECH_PARALLEL_PLATFORM_WIN)
 typedef struct srmech_sector_job {
     srmech_cascade_body_f64 body;
     void                   *user;
@@ -244,16 +236,14 @@ static void srmech_parallel__job_run(srmech_sector_job_t *job)
         job->body, job->user, job->in, job->n, job->sector,
         job->out_slice, job->scratch_slice);
 }
-#endif
 
-#if defined(SRMECH_PARALLEL_PLATFORM_POSIX)
-static void *srmech_parallel__thread_posix(void *arg)
+/* PAL thread entry — a plain void(void*) job per the agnostic contract. */
+static void srmech_parallel__job_trampoline(void *arg)
 {
     assert(arg != NULL);
     srmech_sector_job_t *job = (srmech_sector_job_t *)arg;
     assert(job->body != NULL);
     srmech_parallel__job_run(job);
-    return NULL;
 }
 
 static srmech_status_t srmech_parallel__threaded(
@@ -262,71 +252,25 @@ static srmech_status_t srmech_parallel__threaded(
 {
     assert(body != NULL);
     assert(n_sectors >= 1u && n_sectors <= (uint32_t)SRMECH_PARALLEL_SECTOR_CAP);
-    srmech_sector_job_t jobs[SRMECH_PARALLEL_SECTOR_CAP];
-    pthread_t           threads[SRMECH_PARALLEL_SECTOR_CAP];
-    uint32_t            spawned = 0;
+    srmech_sector_job_t  jobs[SRMECH_PARALLEL_SECTOR_CAP];
+    srmech_plat_thread_t threads[SRMECH_PARALLEL_SECTOR_CAP];
+    uint8_t              live[SRMECH_PARALLEL_SECTOR_CAP] = { 0 };
     for (uint32_t s = 0; s < n_sectors; ++s) {
         jobs[s].body = body;          jobs[s].user = user;
         jobs[s].in = in;              jobs[s].n = n;
         jobs[s].sector = s;           jobs[s].status = SRMECH_ERR_INTERNAL;
         jobs[s].out_slice = out_sectors + (size_t)s * n;
         jobs[s].scratch_slice = scratch + (size_t)s * n;
-        if (pthread_create(&threads[s], NULL,
-                           srmech_parallel__thread_posix, &jobs[s]) != 0) {
-            break;  /* fall back to serial for the remaining sectors */
-        }
-        spawned = s + 1u;
-    }
-    for (uint32_t s = 0; s < spawned; ++s) {
-        (void)pthread_join(threads[s], NULL);
-    }
-    for (uint32_t s = spawned; s < n_sectors; ++s) {
-        srmech_parallel__job_run(&jobs[s]);  /* spawn-failure tail */
-    }
-    for (uint32_t s = 0; s < n_sectors; ++s) {
-        if (jobs[s].status != SRMECH_OK) {
-            return jobs[s].status;
-        }
-    }
-    return SRMECH_OK;
-}
-#elif defined(SRMECH_PARALLEL_PLATFORM_WIN)
-static DWORD WINAPI srmech_parallel__thread_win(LPVOID arg)
-{
-    assert(arg != NULL);
-    srmech_sector_job_t *job = (srmech_sector_job_t *)arg;
-    assert(job->body != NULL);
-    srmech_parallel__job_run(job);
-    return 0u;
-}
-
-static srmech_status_t srmech_parallel__threaded(
-    srmech_cascade_body_f64 body, void *user, const double *in, size_t n,
-    uint32_t n_sectors, double *out_sectors, double *scratch)
-{
-    assert(body != NULL);
-    assert(n_sectors >= 1u && n_sectors <= (uint32_t)SRMECH_PARALLEL_SECTOR_CAP);
-    srmech_sector_job_t jobs[SRMECH_PARALLEL_SECTOR_CAP];
-    HANDLE              threads[SRMECH_PARALLEL_SECTOR_CAP];
-    DWORD               spawned = 0u;
-    for (uint32_t s = 0; s < n_sectors; ++s) {
-        jobs[s].body = body;          jobs[s].user = user;
-        jobs[s].in = in;              jobs[s].n = n;
-        jobs[s].sector = s;           jobs[s].status = SRMECH_ERR_INTERNAL;
-        jobs[s].out_slice = out_sectors + (size_t)s * n;
-        jobs[s].scratch_slice = scratch + (size_t)s * n;
-        threads[spawned] = CreateThread(
-            NULL, 0, srmech_parallel__thread_win, &jobs[s], 0, NULL);
-        if (threads[spawned] == NULL) {
-            srmech_parallel__job_run(&jobs[s]);  /* spawn failure: serial */
+        if (srmech_plat_thread_spawn(srmech_parallel__job_trampoline,
+                                     &jobs[s], &threads[s]) == SRMECH_OK) {
+            live[s] = 1u;
         } else {
-            spawned++;
+            srmech_parallel__job_run(&jobs[s]);  /* spawn failed: serial */
         }
     }
-    if (spawned > 0u) {
-        (void)WaitForMultipleObjects(spawned, threads, TRUE, INFINITE);
-        for (DWORD t = 0; t < spawned; ++t) {
-            (void)CloseHandle(threads[t]);
+    for (uint32_t s = 0; s < n_sectors; ++s) {
+        if (live[s]) {
+            (void)srmech_plat_thread_join(&threads[s]);
         }
     }
     for (uint32_t s = 0; s < n_sectors; ++s) {
@@ -336,7 +280,6 @@ static srmech_status_t srmech_parallel__threaded(
     }
     return SRMECH_OK;
 }
-#endif
 
 /* ------------------------------------------------------------------ *
  * Public entry — see srmech.h for the full contract.
@@ -355,14 +298,13 @@ srmech_status_t srmech_cascade_parallel_sector_dispatch(
     }
     assert(body != NULL);
     assert(out_sectors != NULL && scratch != NULL);
-#if defined(SRMECH_PARALLEL_PLATFORM_POSIX) || defined(SRMECH_PARALLEL_PLATFORM_WIN)
-    return srmech_parallel__threaded(
-        body, user, in, n, n_sectors, out_sectors, scratch);
-#else
-    /* No threading backend (thread-less microcontroller): SERIAL
-     * fallback preserves the four-sector capability, bit-identical to
-     * the threaded path (the sectors are independent / order-free). */
+    /* RUNTIME backend choice via the PAL (no #ifdef): threaded where a
+     * backend exists, else the serial fallback — which preserves the
+     * four-sector capability bit-identically (sectors are order-free). */
+    if (srmech_plat_has_threads()) {
+        return srmech_parallel__threaded(
+            body, user, in, n, n_sectors, out_sectors, scratch);
+    }
     return srmech_parallel__serial(
         body, user, in, n, n_sectors, out_sectors, scratch);
-#endif
 }
