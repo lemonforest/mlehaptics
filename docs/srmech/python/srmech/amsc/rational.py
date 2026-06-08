@@ -866,22 +866,31 @@ _Q61_COT_PI8 = _COT_PI_8
 
 
 def _q61_cdiv(a: int, b: int) -> int:
-    """C integer division — truncate toward zero (Python ``//`` floors)."""
+    """C integer division — truncate toward zero (Python ``//`` floors).
+
+    The magnitudes are taken via the explicit **Class-K** sign-branch (never
+    ``abs()`` of the value — `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`),
+    the sign re-applied as **Class C**; mirrors ``trig_fxmul``'s C branch.
+    """
     assert b != 0, "division by zero in Q61 cascade"
-    q = abs(a) // abs(b)
-    return -q if (a < 0) != (b < 0) else q
+    ua = a if a >= 0 else -a                        # Class-K magnitude
+    ub = b if b >= 0 else -b
+    q = ua // ub
+    return -q if (a < 0) != (b < 0) else q          # Class-C re-orientation
 
 
 def _q61_fxmul(a: int, b: int) -> int:
     """Q61 signed fixed-point multiply ``(a/2^61)*(b/2^61) -> r/2^61``.
 
-    Mirrors ``trig_fxmul``: the sign is an explicit Class-K branch (the
-    magnitude product is Class-K, the sign re-application Class-C; never
-    ``abs()`` of the *value*). ``(|a|*|b|) >> 61`` is the exact product>>61.
+    Mirrors ``trig_fxmul``: the magnitude product is **Class K** (the explicit
+    sign-branch, never ``abs()`` of the value), the sign re-application
+    **Class C**. ``(|a|·|b|) >> 61`` is the exact product>>61.
     """
     neg = (a < 0) != (b < 0)
-    mag = (abs(a) * abs(b)) >> _Q61_FBITS
-    return -mag if neg else mag
+    ua = a if a >= 0 else -a                        # Class-K magnitude
+    ub = b if b >= 0 else -b
+    mag = (ua * ub) >> _Q61_FBITS
+    return -mag if neg else mag                     # Class-C re-orientation
 
 
 def _q61_reduce(x: float):
