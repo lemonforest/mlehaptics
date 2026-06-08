@@ -8,6 +8,17 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc21] - 2026-06-08
+
+**The matmul-kernel phase, batch 6 — the real-linear-algebra cascade trio + `hypercomplex_dft` octonion-rep matvecs (numpy-math `matmul` 123 → 115; #928).** The complex contraction surface was closed at rc20; the remaining ~70 sites are *real*-typed. This batch introduces the real cascade primitives and migrates the first uniform cluster.
+
+- **New `srmech.amsc.laplacian.dense_matmul_real` / `dense_matvec_real` / `dense_dot_real`** — float64 peers of the complex helpers. Each routes the real contraction through the native complex kernel (on imag-free input) and drops the exactly-zero imaginary part, so real-typed sites leave numpy `@`/`.dot` for a cascade **without a dtype change**. All three are `composition_of_c` in the Rosetta ledger (no own C symbol; the math rides the `c_dispatched` complex kernel; standalone-ready). `dense_matmul_real`/`dense_dot_real` get their first callsites in the next batches (so8 / triality).
+- **`amsc.cascade.hypercomplex_dft` (8 sites)** — the octonion regular-representation matvecs (`octonion_left/right_mult(w) @ vec`, 8×8 real × real-8) in the QDFT/ODFT core + `hypercomplex_couple` now route through `dense_matvec_real`. The F378 non-associativity bracketing is preserved exactly. Imported **lazily** inside the functions (after the numpy guard) so the cascade layer stays numpy-absent-safe (§22).
+
+**numpy-math ratchet `matmul` 123 → 115.** Pure Python-tier; no C change, ABI stays 3. QDFT/ODFT parity tests + the numpy-free import tests pass unchanged. The remaining real `so8` / `triality` / Minkowski / DSP sites land in subsequent batches.
+
+SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
 ## [0.7.5rc20] - 2026-06-08
 
 **The matmul-kernel phase, batch 5 — the complex vecmat/dot/sandwich sites onto a new `dense_dot_complex` bilinear helper (numpy-math `matmul` 135 → 123; #928).** The complex 2-D matmul surface was exhausted at rc19; this batch closes the genuinely-complex *contraction* sites by composing the existing `dense_matvec_complex` with a new bilinear inner-product helper.

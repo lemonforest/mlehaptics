@@ -215,6 +215,9 @@ def _dft_core(x, *, form, mu_axis, inverse, two_sided_right, bracketing, octonio
     """
     np = _require_numpy()
     from srmech.qm.octonion import octonion_left_mult, octonion_right_mult
+    # Lazy (numpy-absent-safe, §22): the 8×8 octonion-rep matvec rides the
+    # Class-L real-matvec cascade, never numpy `@`.
+    from srmech.amsc.laplacian import dense_matvec_real
 
     mu = _resolve_mu(mu_axis, octonion=octonion, np=np)
     # Resolve the two-sided right axis once (defaults to the left axis).
@@ -254,16 +257,16 @@ def _dft_core(x, *, form, mu_axis, inverse, two_sided_right, bracketing, octonio
                 w_r = _twiddle8(theta, mu_r, np)
                 if bracketing == "left_associated":
                     # (W_l · x) · W_r
-                    inner = wl @ xs[n]
-                    term = octonion_right_mult(w_r) @ inner
+                    inner = dense_matvec_real(wl, xs[n])
+                    term = dense_matvec_real(octonion_right_mult(w_r), inner)
                 else:
                     # W_l · (x · W_r)
-                    inner = octonion_right_mult(w_r) @ xs[n]
-                    term = wl @ inner
+                    inner = dense_matvec_real(octonion_right_mult(w_r), xs[n])
+                    term = dense_matvec_real(wl, inner)
             elif mult_left:
-                term = octonion_left_mult(w) @ xs[n]   # W · x  (left form)
+                term = dense_matvec_real(octonion_left_mult(w), xs[n])   # W·x (left)
             else:
-                term = octonion_right_mult(w) @ xs[n]   # x · W  (right form)
+                term = dense_matvec_real(octonion_right_mult(w), xs[n])  # x·W (right)
             acc = acc + term
         acc = acc * scale
         out.append(acc.tolist() if octonion else acc[:4].tolist())
@@ -450,6 +453,8 @@ def hypercomplex_couple(
     """
     np = _require_numpy()
     from srmech.qm.octonion import octonion_left_mult, octonion_right_mult
+    # Lazy (numpy-absent-safe, §22): octonion-rep matvec via the Class-L cascade.
+    from srmech.amsc.laplacian import dense_matvec_real
 
     if sigma not in (1, -1, 1.0, -1.0):
         raise ValueError(f"sigma must be +1 or -1; got {sigma!r}")
@@ -461,7 +466,7 @@ def hypercomplex_couple(
     eff = float(sigma) * (-1.0 if inverse else 1.0) * float(theta)
     w = _twiddle8(eff, mu, np)
     if form == "left":
-        out = octonion_left_mult(w) @ q
+        out = dense_matvec_real(octonion_left_mult(w), q)
     else:
-        out = octonion_right_mult(w) @ q
+        out = dense_matvec_real(octonion_right_mult(w), q)
     return out.tolist() if octonion else out[:4].tolist()

@@ -14,6 +14,8 @@ evolution ``ψ(t) = V·diag(exp(-iλt))·V^H·ψ(0)`` (Sakurai *Modern QM*
   of :func:`jacobi_eigvals` returning eigenvalues + unitary eigvecs.
 - :func:`dense_matvec_complex` — general complex ``M @ v``.
 - :func:`dense_dot_complex` — complex bilinear inner product ``Σ aᵢbᵢ``.
+- :func:`dense_matmul_real` / :func:`dense_matvec_real` / :func:`dense_dot_real`
+  — float64 peers riding the complex kernel (drop the zero imaginary part).
 - :func:`elementwise_multiply_complex` — vectorised ``a * b``.
 - :func:`elementwise_transcendental` — array-vectorised ``exp/cos/sin
   /log`` plus the TDSE-relevant ``exp_i(x) = exp(1j*x)``.
@@ -112,6 +114,9 @@ __all__ = [
     "dense_matvec_complex",
     "dense_matmul_complex",
     "dense_dot_complex",
+    "dense_matmul_real",
+    "dense_matvec_real",
+    "dense_dot_real",
     "elementwise_multiply_complex",
     "elementwise_transcendental",
     "LAPLACIAN_OPS",
@@ -1110,6 +1115,97 @@ def dense_dot_complex(a: np.ndarray, b: np.ndarray) -> complex:
     return complex(np.sum(products))
 
 
+# ---------------------------------------------------------------------------
+# Real-typed peers. The complex kernel IS the contraction engine; a real
+# matmul/matvec/dot is the complex one on imag-free input with the (exactly
+# zero) imaginary part dropped — so these ride the native complex kernel and
+# return float64. They exist so the real-typed scientific-tier sites (Spin(8)
+# / g₂ / triality octonion-rep algebra, octonion-DFT regular representation,
+# Minkowski real 4-momenta, real DSP) can leave numpy `@`/`.dot` for a cascade
+# without a dtype change. Each is `composition_of_c` (no own C symbol; the math
+# rides the c_dispatched complex kernel; standalone-ready).
+# ---------------------------------------------------------------------------
+def dense_matmul_real(A: np.ndarray, B: np.ndarray) -> np.ndarray:
+    """Dense real matrix-matrix multiplication ``A·B`` → float64.
+
+    Routes the real contraction through :func:`dense_matmul_complex` (the
+    native complex kernel on imag-free input) and drops the exactly-zero
+    imaginary part. numpy stays carriers-only — no numpy matmul engine.
+
+    Parameters
+    ----------
+    A
+        ``(m, k)`` real matrix.
+    B
+        ``(k, n)`` real matrix.
+
+    Returns
+    -------
+    out
+        ``(m, n)`` float64 array.
+
+    Canonical SSoT: Golub & Van Loan §1.1 (textbook matrix multiplication).
+    """
+    out = dense_matmul_complex(
+        np.ascontiguousarray(A, dtype=np.float64),
+        np.ascontiguousarray(B, dtype=np.float64),
+    )
+    return np.ascontiguousarray(out.real, dtype=np.float64)
+
+
+def dense_matvec_real(M: np.ndarray, v: np.ndarray) -> np.ndarray:
+    """Dense real matrix-vector multiplication ``M·v`` → float64.
+
+    Real peer of :func:`dense_matvec_complex` (rides the native complex kernel
+    on imag-free input, drops the zero imaginary part). numpy carriers-only.
+
+    Parameters
+    ----------
+    M
+        ``(rows, cols)`` real matrix.
+    v
+        Length-``cols`` real vector.
+
+    Returns
+    -------
+    out
+        Length-``rows`` float64 array.
+
+    Canonical SSoT: Golub & Van Loan §1.1 (textbook matrix-vector product).
+    """
+    out = dense_matvec_complex(
+        np.ascontiguousarray(M, dtype=np.float64),
+        np.ascontiguousarray(v, dtype=np.float64),
+    )
+    return np.ascontiguousarray(out.real, dtype=np.float64)
+
+
+def dense_dot_real(a: np.ndarray, b: np.ndarray) -> float:
+    """Dense real inner product ``Σ aᵢ bᵢ`` → Python ``float``.
+
+    Real peer of :func:`dense_dot_complex` (rides the native elementwise-bind
+    cascade on imag-free input + reduction). numpy carriers-only.
+
+    Parameters
+    ----------
+    a, b
+        Length-``n`` real vectors (same length).
+
+    Returns
+    -------
+    out
+        Python ``float`` ``Σ aᵢ bᵢ``.
+
+    Canonical SSoT: Golub & Van Loan §1.1 (textbook inner product).
+    """
+    return float(
+        dense_dot_complex(
+            np.ascontiguousarray(a, dtype=np.float64),
+            np.ascontiguousarray(b, dtype=np.float64),
+        ).real
+    )
+
+
 def elementwise_multiply_complex(
     a: np.ndarray, b: np.ndarray
 ) -> np.ndarray:
@@ -1420,6 +1516,9 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "dense_matvec_complex",
     "dense_matmul_complex",
     "dense_dot_complex",
+    "dense_matmul_real",
+    "dense_matvec_real",
+    "dense_dot_real",
     "elementwise_multiply_complex",
     "elementwise_transcendental",
     "dense_solve",
