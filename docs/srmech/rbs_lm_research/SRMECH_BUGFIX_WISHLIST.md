@@ -101,6 +101,10 @@
 - **The only thin thing missing** (built in ~10 lines on `cd_basis_product` for F544/F546): the *combinatorial* layer over the basis product — **`closure(generators)`** (the sub-loop a generator set spans, by BFS), **`orbit(element, generator)`** (the left-multiplication cycle), and **`min_generating_set(units)`** (the loop's navigation dimensionality). These are the loop analogues of the cyclic-group orbit machinery and would aid any loop-shelf / Cayley-graph traversal work (F541/F544/F546 and successors).
 - **Ask (optional):** add `cayley_dickson.closure(dim, generator_idxs) -> set`, `cayley_dickson.left_orbit(dim, start_idx, gen_idx) -> list`, `cayley_dickson.min_generating_set(dim, unit_idxs) -> int`. Low priority — trivially derivable from `cd_basis_product`, logged for completeness so the loop-shelf arc has a named home for it rather than re-deriving each time.
 
+### W16 — (optional, LOW) a `the_one`-trajectory / `the_one`⊗`kuramoto` ergonomic surface  *(NEW — F560 self-driven dynamic wave)*
+- **Context (already buildable):** F560 self-generates a substrate-native DYNAMIC driver wave by coupling `cascade.kuramoto_step` (the coupled-oscillator dynamic) to `cascade.the_one` (the wave) — k=7 oscillators evolve, their mean-field phase indexes `the_one`, and `the_one.to_numpy()[4]` is the wave. Works today; no version bump needed.
+- **Ask (optional):** a thin convenience `cascade.the_one_trajectory(sigma, theta0, omega, *, steps, coupling, dt, component=4) -> List[float]` that runs the kuramoto→the_one loop in one call (and returns the order-parameter |R| trace) — purely ergonomic, so the "the_one with dynamic waves entirely" pattern has a named home rather than being hand-wired each time. LOW priority; the primitives are all present.
+
 ---
 
 ## Priority for the maintainer (suggested)
