@@ -59,7 +59,9 @@ CEIL_PYTHON_ONLY_IRREDUCIBLE = 108
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.
 # rc10: cascade.cd_basis_product dispatches to srmech_cd_basis_product
 # (-> c_dispatched) and octonion_mult_table composes it (-> composition_of_c) -> 12.
-CEIL_C_EXISTS_UNBOUND = 12
+# rc11: cascade.hamming_encode/syndrome dispatch to srmech_hamming_* (-> c_dispatched)
+# and hamming_decode_correct composes hamming_syndrome (-> composition_of_c) -> 9.
+CEIL_C_EXISTS_UNBOUND = 9
 
 _DEBT_BUCKETS = ("python_only_irreducible", "c_exists_unbound")
 _ALL_BUCKETS = (

@@ -48,7 +48,10 @@ against this module by ``tests/test_cascade_hamming_parity.py``.
 """
 from __future__ import annotations
 
+import ctypes
 from typing import Any, Dict, List, Sequence
+
+from srmech.amsc import _native  # rc11: native srmech_hamming_* dispatch
 
 #: Upper bound on the parity-bit count ``n`` (codeword ``2ⁿ−1`` ≤ 65535). The C
 #: peer shares this ceiling so the two surfaces accept the same domain.
@@ -120,6 +123,16 @@ def hamming_encode(data_bits: Sequence[int], n: int) -> List[int]:
             f"Hamming(2^{n}-1={big}, {expected_k}) needs exactly {expected_k} "
             f"data bits; got {len(data)}"
         )
+    # rc11: dispatch the GF(2) encode to the C peer when present (lean-ALU XOR;
+    # bit-identical to the pure-Python parity build below, which remains the
+    # Pyodide / no-native fallback). Parity-attested by test_cascade_hamming_parity.
+    if (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_hamming_encode")):
+        data_arr = (ctypes.c_uint8 * expected_k)(*data)
+        out_arr = (ctypes.c_uint8 * big)()
+        rc = _native.LIB.srmech_hamming_encode(data_arr, expected_k, n, out_arr)
+        if rc == _native.SRMECH_OK:
+            return list(out_arr)
     code = [0] * big
     for slot, j in enumerate(_data_positions(n)):
         code[j - 1] = data[slot]
@@ -143,6 +156,16 @@ def hamming_syndrome(codeword: Sequence[int]) -> int:
     code = _as_bits(codeword, "codeword")
     n = _infer_n(len(code))
     big = len(code)
+    # rc11: dispatch the syndrome (the content-addressed error locator) to the C
+    # peer when present; bit-identical 1-indexed position. (hamming_decode_correct
+    # composes this, so it becomes composition_of_c for free.)
+    if (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_hamming_syndrome")):
+        code_arr = (ctypes.c_uint8 * big)(*code)
+        out_pos = ctypes.c_int()
+        rc = _native.LIB.srmech_hamming_syndrome(code_arr, big, ctypes.byref(out_pos))
+        if rc == _native.SRMECH_OK:
+            return int(out_pos.value)
     syn = 0
     for i in range(n):
         p = 1 << i

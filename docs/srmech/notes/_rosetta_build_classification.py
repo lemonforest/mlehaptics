@@ -97,6 +97,8 @@ srmech.amsc.cascade.best_rational_signed
 srmech.amsc.cascade.cyclic_gcd
 srmech.amsc.cascade.kuramoto_step
 srmech.amsc.cascade.cd_basis_product
+srmech.amsc.cascade.hamming_encode
+srmech.amsc.cascade.hamming_syndrome
 
 ### c_exists_unbound
 srmech.signal_processing.closed_form_ops.lmmse.op
@@ -108,9 +110,6 @@ srmech.amsc.hdc.klein4_unbind
 srmech.amsc.hdc.polar_bind
 srmech.amsc.hdc.polar_bundle
 srmech.amsc.hdc.polar_density
-srmech.amsc.cascade.hamming_decode_correct
-srmech.amsc.cascade.hamming_encode
-srmech.amsc.cascade.hamming_syndrome
 
 ### composition_of_c
 srmech.qm.gauge.gauge_connection_matrix
@@ -184,6 +183,7 @@ srmech.amsc.cascade.coupled_wave
 srmech.amsc.cascade.multiplex_streams
 srmech.amsc.cascade.parallel_sector_dispatch
 srmech.amsc.cascade.sectorize
+srmech.amsc.cascade.hamming_decode_correct
 
 ### python_only_irreducible
 srmech.qm.gauge.casimir_eigenvalue

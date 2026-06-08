@@ -26,6 +26,8 @@
 {"exposed_as": "srmech.amsc.cascade.chiral_dual", "defined_at": "srmech.amsc.cascade.atoms.chiral_dual", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.chiral_flip", "defined_at": "srmech.amsc.cascade.atoms.chiral_flip", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.cyclic_gcd", "defined_at": "srmech.amsc.cascade.compose.cyclic_gcd", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.cascade.hamming_encode", "defined_at": "srmech.amsc.cascade.hamming.hamming_encode", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.cascade.hamming_syndrome", "defined_at": "srmech.amsc.cascade.hamming.hamming_syndrome", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.kuramoto_step", "defined_at": "srmech.amsc.cascade.compose.kuramoto_step", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.magnitude", "defined_at": "srmech.amsc.cascade.atoms.magnitude", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.net_chirality", "defined_at": "srmech.amsc.cascade.atoms.net_chirality", "bucket": "c_dispatched"}
@@ -99,9 +101,6 @@
 {"exposed_as": "srmech.amsc.template.render", "defined_at": "srmech.amsc.template.render", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.tlv.tlv_pack", "defined_at": "srmech.amsc.tlv.tlv_pack", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.qm.bell.operator_norm", "defined_at": "srmech.qm.bell.operator_norm", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.cascade.hamming_decode_correct", "defined_at": "srmech.amsc.cascade.hamming.hamming_decode_correct", "bucket": "c_exists_unbound"}
-{"exposed_as": "srmech.amsc.cascade.hamming_encode", "defined_at": "srmech.amsc.cascade.hamming.hamming_encode", "bucket": "c_exists_unbound"}
-{"exposed_as": "srmech.amsc.cascade.hamming_syndrome", "defined_at": "srmech.amsc.cascade.hamming.hamming_syndrome", "bucket": "c_exists_unbound"}
 {"exposed_as": "srmech.amsc.hdc.klein4_bind", "defined_at": "srmech.amsc.hdc.klein4_bind", "bucket": "c_exists_unbound"}
 {"exposed_as": "srmech.amsc.hdc.klein4_bundle", "defined_at": "srmech.amsc.hdc.klein4_bundle", "bucket": "c_exists_unbound"}
 {"exposed_as": "srmech.amsc.hdc.klein4_similarity", "defined_at": "srmech.amsc.hdc.klein4_similarity", "bucket": "c_exists_unbound"}
@@ -112,6 +111,7 @@
 {"exposed_as": "srmech.amsc.hdc.polar_density", "defined_at": "srmech.amsc.hdc.polar_density", "bucket": "c_exists_unbound"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.lmmse.op", "defined_at": "srmech.signal_processing.closed_form_ops.lmmse.op", "bucket": "c_exists_unbound"}
 {"exposed_as": "srmech.amsc.cascade.coupled_wave", "defined_at": "srmech.amsc.cascade.coupled.coupled_wave", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.cascade.hamming_decode_correct", "defined_at": "srmech.amsc.cascade.hamming.hamming_decode_correct", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.multiplex_streams", "defined_at": "srmech.amsc.cascade.coupled.multiplex_streams", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.parallel_sector_dispatch", "defined_at": "srmech.amsc.cascade.parallel.parallel_sector_dispatch", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.sectorize", "defined_at": "srmech.amsc.cascade.parallel.sectorize", "bucket": "composition_of_c"}
