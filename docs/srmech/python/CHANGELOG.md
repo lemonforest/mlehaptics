@@ -8,6 +8,17 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc23] - 2026-06-08
+
+**The matmul-kernel phase, batch 8 — `qm.so8` onto the cascade, real + complex (numpy-math `matmul` 105 → 86; #928).** The g₂ / Spin(8) module's 17 contraction sites route through the cascade, split by dtype:
+
+- **15 real sites** — the `[X,Y]` commutator, the su(3)/g₂ Gram products (`su3·su3ᵀ`, `q_sd·q_sdᵀ`, …), the basis-projection matvecs (`g2[a]·e_k`, `matrix·basis[a]`, the structure-constant `pinv·bracket`), and the Gram-Schmidt `q·residual` dot → `dense_matmul_real` / `dense_matvec_real` / `dense_dot_real`.
+- **2 complex sites** — the su(3)-weight Rayleigh quotients `vᴴv` and `vᴴ·ad·v`. `v` is a **complex** eigenvector of the real `ad(H)` (eigenvalues ±i·weight), so these are genuinely complex → `dense_dot_complex` / `dense_matvec_complex`. (Routing them through the real helpers would have dropped the imaginary part and corrupted the weights.)
+
+**numpy-math ratchet `matmul` 105 → 86.** Pure Python-tier; no C change, ABI stays 3. No new public symbols (uses the rc20/rc21 helpers). The so8 parity tests pass unchanged — g₂ = Der(𝕆) dim 14, the 14 = 8 + 3 + 3̄ su(3) branching, and the su(3) weight computation (the complex Rayleigh quotients) all hold. The 2 `np.kron` (so(8) adjoint tensor) stay — a distinct op for a later batch. Minkowski / DSP real sites land next.
+
+SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
 ## [0.7.5rc22] - 2026-06-08
 
 **The matmul-kernel phase, batch 7 — `qm.triality` real products onto the real cascade (numpy-math `matmul` 115 → 105; #928).** First consumer of the rc21 real trio.

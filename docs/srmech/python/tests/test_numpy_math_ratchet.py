@@ -97,11 +97,15 @@ _UFUNC = re.compile(
 # real so8/triality/DSP/Minkowski sites land in subsequent batches; rc22 routed
 # qm.triality's 7 real products (octonion-rep matvecs + the 28×28 tau=S_B·S_C /
 # tau² / tau³ matmuls) onto dense_matmul_real/dense_matvec_real and reworded the
-# 3 docstring `@` to `·` (matmul 115 -> 105). qm.so8's ~17 real sites + the
-# Minkowski / DSP real sites land in subsequent batches.
+# 3 docstring `@` to `·` (matmul 115 -> 105); rc23 routed qm.so8's 17 sites —
+# 15 real (commutators, su(3)/g₂ Gram products, basis-projection matvecs,
+# Gram-Schmidt dot) onto dense_matmul_real/matvec_real/dot_real, and 2 COMPLEX
+# (the su(3)-weight Rayleigh quotients vᴴv / vᴴ·ad·v on the complex eigenvectors
+# of the real ad(H)) onto dense_dot_complex/dense_matvec_complex (matmul
+# 105 -> 86). The 2 np.kron stay (different op). Minkowski / DSP real sites next.
 # ---------------------------------------------------------------------------
 CEIL_LINALG_FFT = 126
-CEIL_MATMUL = 105
+CEIL_MATMUL = 86
 CEIL_UFUNC = 48
 
 
