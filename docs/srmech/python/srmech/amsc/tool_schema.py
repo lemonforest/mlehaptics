@@ -1286,10 +1286,17 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.rational.exp", owner="srmech", category="rational",
-            summary="e^x (real) via the Class-N exp cascade with argument-halving reduction (e^x = (e^(x/2^k))^(2^k); no irrational constant — exp is aperiodic). Substrate-native replacement for math.exp / np.exp (real).",
+            summary="e^x (real) via the Q61 Class-N exp cascade with Cody-Waite ln2 reduction (x = n*ln2 + r, |r| <= ln2/2; exp(r) the Q61 integer Taylor, 2^n folded into the IEEE exponent). Bit-exact with the native peer srmech_exp; dispatches to C when available. Substrate-native replacement for math.exp / np.exp (real).",
             parameters=(P("x", "float", True, "real exponent"),
-                        P("terms", "int", False, "exp Taylor terms (keyword-only); default 24")),
-            returns=R("float", "e^x projected from the exact rational"),
+                        P("terms", "int", False, "exact-rational reference Taylor terms (keyword-only); default 24")),
+            returns=R("float", "e^x projected from the Q61 cascade"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.log", owner="srmech", category="rational",
+            summary="ln(x) (natural log, x > 0) via the Q61 Class-N atanh cascade: x = m*2^e read from the bit pattern, m folded into [1/sqrt2, sqrt2), log(m) = 2*atanh((m-1)/(m+1)) the Q61 series, e*ln2 recombined with a two-word ln2. Bit-exact with the native peer srmech_log; dispatches to C when available. Domain: x < 0 -> NaN, x == 0 -> -Inf. Substrate-native replacement for math.log / np.log (real).",
+            parameters=(P("x", "float", True, "argument, x > 0"),
+                        P("terms", "int", False, "exact-rational reference Taylor terms (keyword-only); default 13")),
+            returns=R("float", "ln(x) projected from the Q61 cascade"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.cexp", owner="srmech", category="rational",
@@ -1307,10 +1314,10 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.rational.sqrt", owner="srmech", category="rational",
-            summary="sqrt(x) for x >= 0 via the Class-N rational sqrt cascade — Newton realised as integer floor-isqrt on a scaled-bignum radicand (Class-N rational + Class-K sqrt-convergence). No math.sqrt / np.sqrt in the call graph; negative x raises a domain error.",
+            summary="sqrt(x) for x >= 0 via the Class-N rational sqrt cascade — IEEE-bit x = M*2^e, root = isqrt(M << 2K) (K=27), projected by 2^(e/2 - K). Bit-exact with the native peer srmech_rational_sqrt; dispatches to C. precision_bits=N selects the higher-precision bignum reference (as_integer_ratio + scaled floor-isqrt). No math.sqrt / np.sqrt in the call graph; negative x raises a domain error.",
             parameters=(P("x", "float", True, "radicand, x >= 0"),
-                        P("precision_bits", "int", False, "scaled-integer precision (keyword-only); default 64")),
-            returns=R("float", "sqrt(x) projected from the scaled integer root"),
+                        P("precision_bits", "int", False, "higher-precision bignum reference (keyword-only); default None = C-bit-exact K=27 cascade")),
+            returns=R("float", "sqrt(x) projected from the integer root"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.hypot", owner="srmech", category="rational",

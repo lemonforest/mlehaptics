@@ -36,11 +36,23 @@ a "continuous" function value is computed as an exact Class-N rational cascade, 
 
 ## Derivations
 
-### exp `e^x` (real) — **N ∘ K** — IMPLEMENTED rc34 (`rational.exp`)
-`e^x = (e^(x/2^k))^(2^k)`. **K** = argument-halving range reduction (asymptotic-DoF;
-halve until `|x/2^k| ≤ 1`, no irrational constant — exp is aperiodic). **N** =
-`exp_series_truncate` (Taylor partial sum, exact rational), then square `k` times.
-Verified vs `math.exp` to machine ε (relative).
+### exp `e^x` (real) — **N ∘ K** — IMPLEMENTED rc34 (`rational.exp`); float path UNIFIED on the C Cody-Waite reduction v0.7.5rc3
+`e^x = e^r · 2^n` with `x = n·ln2 + r`, `|r| ≤ ln2/2`. **K** = the additive range
+reduction (asymptotic-DoF; pick the integer `n`, form `r` via the two-word
+`LN2_HI + LN2_LO` Cody-Waite split — no irrational constant survives to the series,
+exp is aperiodic). **N** = the Q61 integer exp-Taylor `1 + r + r²/2! + …`; the `2^n`
+scale folds straight into the IEEE exponent. Verified vs `math.exp` to ~1 ULP.
+This is the **bit-exact peer of `srmech_exp`** (`c/src/srmech_explog.c`) — the
+float `rational.exp` dispatches to it natively. (The earlier `(e^(x/2^k))^(2^k)`
+halve-and-square reduction amplified error to ~345 ULP and is retired; the exact-
+rational `exp_series_truncate` remains the higher-precision REFERENCE surface.)
+
+### log `ln(x)` (real) — **N ∘ K** — IMPLEMENTED v0.7.5rc3 (`rational.log`)
+`ln(x) = e·ln2 + log(m)` with `x = m·2^e` read from the bit pattern, `m` folded into
+`[1/√2, √2)`. **N** = the Q61 integer series `log(m) = 2·atanh((m−1)/(m+1))`; **K** =
+the integer `m·2^e` decomposition + the band fold. Bit-exact peer of `srmech_log`
+(`c/src/srmech_explog.c`); dispatches to C natively. Domain: `x < 0 → NaN`,
+`x == 0 → −Inf`. The exact-rational `log1p_series_truncate` is the REFERENCE surface.
 
 ### trig `cos/sin/tan/atan/atan2` — **N ∘ I ∘ C ∘ K** — IMPLEMENTED rc33 (`rational.cos…atan2`)
 **I** = range-reduce the angle mod 2π using a high-precision rational π from
