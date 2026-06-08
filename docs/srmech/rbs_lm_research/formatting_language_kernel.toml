@@ -1,0 +1,90 @@
+# formatting_language_kernel.toml
+# The formatting / markup LANGUAGE of (Simple) Wikipedia source, tracked as a srmech-style kernel.
+#
+# Why this file exists (the user's direction, 2026-06-08): "track our formatting language tier
+# items in a TOML tracked kernel the srmech way." The markup is NOT noise to strip -- it is its OWN
+# LANGUAGE that people learn and read alongside prose (F574), a separable Class-B/F form layer (F567).
+# Each TIER below is a tag pattern + its srmech primitive Class + its navigational role, so the
+# markup-aware clean (F567/GATEWALK) can emit artefact-free prose that is AWARE of why each tag did
+# what where. Modeled on the srmech cascade_catalog/*.toml descriptor idiom.
+
+[kernel]
+name = "formatting_language"
+version = "0.1.0"
+description = "the markup/formatting-language tiers of (Simple) Wikipedia source, as a srmech-tracked kernel"
+source = "simplewiki_tagged/articles_tagged.jsonl"          # the re-encoded WITH-tags corpus (F576)
+composes = ["F567", "F568", "F572", "F574", "F576", "F579"]
+note = "tiers are read, not stripped; the clean records each tier's contribution (the tag-aware stream)"
+
+# --- the two chiral-dual navigational tiers (F574): ToC = forward self-structure, index = its transpose ---
+
+[[tier]]
+name = "table_of_contents"
+tag = "==Header== ... ======"
+regex = '^(={2,6})\s*(.+?)\s*\1\s*$'
+srmech_class = "H"                                          # self-introspection
+chiral_read = "forward"                                    # document -> ordered parts
+role = "toc"
+reads = "document -> its ordered/hierarchical sections (the F574 FORWARD read; ToC-jump navigation)"
+language_note = "a RECURRING organizational language (F574): references/history/early life/... shared across articles"
+
+[[tier]]
+name = "index"
+tag = "[[Category:X]]"
+regex = '\[\[Category:([^\]|#]+)'
+srmech_class = "E"                                          # catalog enumeration
+chiral_read = "inverse"                                    # term -> locations (the transpose)
+role = "index"
+reads = "term -> member articles (the F574 INVERSE read; index-lookup navigation; 13.7x self-evidencing, F579)"
+
+# --- the relationship rebar (F572), now explicit (the entity-mention proxy is retired) ---
+
+[[tier]]
+name = "relationship"
+tag = "[[Target]] / [[Target|text]]"
+regex = '\[\[(?!Category:|File:|Image:|Wikipedia:|Template:)([^\]|#]+)(?:\|[^\]]*)?\]\]'
+srmech_class = "L"                                          # the relationship/co-occurrence graph (Laplacian input)
+role = "rebar"
+reads = "article -> linked entity (the F572 relationship rebar, EXPLICIT; ~77 edges/article, F579)"
+
+# --- the provenance + structured + render tiers ---
+
+[[tier]]
+name = "attestation"
+tag = "<ref>...</ref>"
+regex = '<ref[^>]*?/>|<ref[^>]*?>.*?</ref>'
+srmech_class = "A"                                          # content-addressing / provenance
+role = "provenance"
+reads = "claim -> source (the MPM attestation layer)"
+
+[[tier]]
+name = "structured_data"
+tag = "{{template}}"
+regex = '\{\{[^{}]*\}\}'
+srmech_class = "B"                                          # TLV framing
+role = "structured"
+reads = "infobox / structured key-value data (nested; strip iteratively)"
+
+[[tier]]
+name = "table"
+tag = "{| ... |}"
+regex = '\{\|.*?\|\}'
+srmech_class = "B"                                          # TLV framing
+role = "structured"
+reads = "wikitable -> rows/cells (structured data; the residual-artefact tail, F579)"
+
+[[tier]]
+name = "emphasis"
+tag = "'''bold''' / ''italic''"
+regex = "'''(.+?)'''|''(.+?)''"
+srmech_class = "F"                                          # render
+role = "emphasis"
+reads = "inline emphasis (text kept, marker removed)"
+
+[[tier]]
+name = "math"
+tag = "<math>...</math>"
+regex = '<math[^>]*?>.*?</math>'
+srmech_class = "N"                                          # rational-approximation / calculus
+role = "formula"
+reads = "mathematical formula -- itself a sub-language (cf F578: teach it the etak-navigation way)"
