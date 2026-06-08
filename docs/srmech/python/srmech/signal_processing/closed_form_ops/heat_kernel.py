@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from srmech.amsc.laplacian import hermitian_eigendecompose
+from srmech.amsc.laplacian import dense_matvec_complex, hermitian_eigendecompose
 
 OPERATION_NAME = "heat_kernel"
 CLASS_COMPOSITION = ("L",)
@@ -68,5 +68,6 @@ def op(signal, laplacian, *, t: float = 1.0, D: int = 8192):
         )
     # g(lambda) = exp(-t * lambda); applied elementwise on eigenvalue spectrum.
     g = np.exp(-t * eigvals)
-    coeffs = V.conj().T @ sig_arr
-    return V @ (g * coeffs)
+    # Project onto eigenbasis, filter, reconstruct — Class-L matvec cascade.
+    coeffs = dense_matvec_complex(V.conj().T, sig_arr)
+    return dense_matvec_complex(V, g * coeffs)

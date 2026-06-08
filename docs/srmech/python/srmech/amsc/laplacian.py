@@ -13,6 +13,7 @@ evolution ``ψ(t) = V·diag(exp(-iλt))·V^H·ψ(0)`` (Sakurai *Modern QM*
 - :func:`hermitian_eigendecompose` — complex Hermitian generalisation
   of :func:`jacobi_eigvals` returning eigenvalues + unitary eigvecs.
 - :func:`dense_matvec_complex` — general complex ``M @ v``.
+- :func:`dense_dot_complex` — complex bilinear inner product ``Σ aᵢbᵢ``.
 - :func:`elementwise_multiply_complex` — vectorised ``a * b``.
 - :func:`elementwise_transcendental` — array-vectorised ``exp/cos/sin
   /log`` plus the TDSE-relevant ``exp_i(x) = exp(1j*x)``.
@@ -110,6 +111,7 @@ __all__ = [
     "symmetric_eigendecompose",
     "dense_matvec_complex",
     "dense_matmul_complex",
+    "dense_dot_complex",
     "elementwise_multiply_complex",
     "elementwise_transcendental",
     "LAPLACIAN_OPS",
@@ -1063,6 +1065,51 @@ def dense_matmul_complex(A: np.ndarray, B: np.ndarray) -> np.ndarray:
     return out
 
 
+def dense_dot_complex(a: np.ndarray, b: np.ndarray) -> complex:
+    """Dense complex bilinear inner product ``a · b = Σ aᵢ bᵢ``.
+
+    The 1-D contraction the QM η-sandwiches and the ``matrix_cascades``
+    back-solves route through, so numpy stays carriers-only (no numpy
+    contraction engine). This is the **plain bilinear** form ``Σ aᵢ bᵢ``
+    (matching numpy ``a·b`` on two 1-D arrays — NOT the Hermitian ``vdot``,
+    which conjugates its first argument). Callers that want the Hermitian inner
+    product pass ``a.conj()`` explicitly (the ``.conj()`` is a carrier
+    transform, not math-engine), exactly as the ``a.conj()·eta·b`` sites
+    already spell it.
+
+    Composes the :func:`elementwise_multiply_complex` cascade (native-dispatched
+    when present) with a reduction sum — **never** a numpy contraction operator.
+    The reduction sits on the carrier⇄math boundary (the ledger's DEFERRED
+    category), so this helper adds nothing to the tight engine ceilings while
+    removing a contraction-engine callsite.
+
+    Parameters
+    ----------
+    a, b
+        Length-``n`` complex vectors (same length).
+
+    Returns
+    -------
+    out
+        Python ``complex`` scalar ``Σ aᵢ bᵢ``.
+
+    Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
+    Hopkins, 2013) §1.1 (textbook inner product).
+    """
+    a_arr = np.ascontiguousarray(a, dtype=np.complex128).reshape(-1)
+    b_arr = np.ascontiguousarray(b, dtype=np.complex128).reshape(-1)
+    if a_arr.shape[0] != b_arr.shape[0]:
+        raise ValueError(
+            f"dense_dot_complex: a length {a_arr.shape[0]} != b length "
+            f"{b_arr.shape[0]}"
+        )
+    if a_arr.shape[0] == 0:
+        return complex(0.0)
+    # Class-M elementwise bind (native dispatch) + reduction (carrier boundary).
+    products = elementwise_multiply_complex(a_arr, b_arr)
+    return complex(np.sum(products))
+
+
 def elementwise_multiply_complex(
     a: np.ndarray, b: np.ndarray
 ) -> np.ndarray:
@@ -1372,6 +1419,7 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "symmetric_eigendecompose",
     "dense_matvec_complex",
     "dense_matmul_complex",
+    "dense_dot_complex",
     "elementwise_multiply_complex",
     "elementwise_transcendental",
     "dense_solve",

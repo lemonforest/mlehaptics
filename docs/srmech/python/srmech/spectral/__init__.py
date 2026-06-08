@@ -67,7 +67,7 @@ import numpy as np
 
 from ..amsc.hdc import bind as _hdc_bind
 from ..amsc.hdc import similarity as _hdc_similarity
-from ..amsc.laplacian import hermitian_eigendecompose
+from ..amsc.laplacian import dense_matvec_complex, hermitian_eigendecompose
 
 __all__ = [
     "SpectralHandle",
@@ -224,7 +224,7 @@ def decompose(
         _cache_eigenbasis(desc_hash, eigvals, V)
     else:
         eigvals, V = cached
-    coeffs = (V.conj().T @ state_arr).astype(np.complex128)
+    coeffs = dense_matvec_complex(V.conj().T, state_arr)
     coeffs_bytes = coeffs.tobytes()
     return SpectralHandle(
         substrate_descriptor_hash=desc_hash,
@@ -329,7 +329,7 @@ def recompose(
         eigvals, V = cached
     n = handle.n_modes
     coeffs = np.frombuffer(handle.coefficients_bytes, dtype=np.complex128).reshape(n)
-    return V @ coeffs
+    return dense_matvec_complex(V, coeffs)
 
 
 def similarity(
