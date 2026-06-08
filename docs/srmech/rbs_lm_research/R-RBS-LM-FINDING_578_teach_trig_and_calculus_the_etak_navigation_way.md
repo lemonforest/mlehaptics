@@ -1,0 +1,30 @@
+# R-RBS-LM Finding 578 (teach TRIG and CALCULUS the ETAK navigation way — both are "find a solution in continuous math," and the etak way makes finding-a-solution NAVIGATION: steer by the deviation from a moving reference until it vanishes; the discrete cascade under the continuous formula) — **The user: "research how to teach trig and calculus the etak navigation way; both are asking how to find a solution in this field of continuous math." Result: trig and calculus are normally taught as ABSOLUTE-COORDINATE formula machines; the ETAK way (F551/F575) teaches finding-a-solution as NAVIGATION — you do NOT compute an absolute position, you HOLD A MOVING REFERENCE and steer by the DEVIATION (the bearing) from it, accumulating signed steps until the deviation vanishes = you have ARRIVED. TRIG = CORDIC: the unit circle is the STAR COMPASS (fixed bearing references atan(2⁻ᵏ)); to find sin/cos of a target angle you NAVIGATE to the target bearing by signed known micro-rotations, each step's SIGN = the bearing decision (left/right of the reference), driven by the deviation (target − current); the deviation shrinks to 0 and the (x,y) you carried IS (cos,sin) — and it is shift-add only, no multiply (the silicon op). Verified: navigated cos/sin match srmech.calculus; deviation 0.42 → … → 0. Solving a triangle = triangulating from bearings (the etak "pencil of lines from a vertex," F575). CALCULUS: the DERIVATIVE = the etak PROGRESS RATE (how fast the reference's bearing sweeps as you move — you measure progress by the rate the reference sweeps, not by absolute position), a DISCRETE shrinking-step cascade (h: 7 → 6.5 → 6.25 → 6.125 → 6.06 → 6), NOT a continuous limit-mystery; FINDING A ROOT / a number = NAVIGATE by deviation-corrections from a MOVING REFERENCE (Newton: the moving reference is the tangent line / the current bearing; each step corrects the deviation f(x); √2 navigated to in 5 steps, deviation → 4.4e-16 — you did not COMPUTE √2, you NAVIGATED to it); INTEGRATION = dead reckoning (accumulate the signed bearing-steps along the path). THE PEDAGOGY: this is the DISCRETE CASCADE under the continuous-looking formula — the continuous-number-line-as-obstacle pedagogy made operational: the angle is reached by discrete signed bearing-steps, the derivative is a discrete shrinking-step cascade, and π enters ONLY as the star-compass calibration (a cascade, not a continuous mystery). It is ALREADY the substrate + srmech: CORDIC = shift-add+sign is exactly how rotation is done; srmech.calculus (Class-N series) and best_rational (the Stern-Brocot bearing-tree) ARE the etak navigators — so "teach the etak way" is teaching what the cascade already computes.**
+
+**Date:** 2026-06-08
+**Arc:** RBS-LM — framework pedagogy: teach trig + calculus the etak navigation way
+**Provenance:** `R-RBS-LM-ETAKMATH_teach_trig_and_calculus_the_etak_navigation_way.py` (committed; srmech 0.7.4; CORDIC with srmech.calculus.atan2 star-compass bearings + shift-add, checked vs srmech.calculus.{sin,cos}_series_truncate; derivative-as-discrete-cascade; Newton-to-√2 deviation navigation; Class-K sign = the bearing decision, no abs()). No sub-agents.
+**Composes:** **F551/F575** (etak = store the deviation of a reference from a moving frame; navigation = substrate-distributed computation) · **srmech.calculus** (Class-N trig/calculus = the discrete navigators) · **CORDIC** (shift-add+sign = the silicon rotation = the etak trig algorithm) · **best_rational** (Stern-Brocot = the etak number-navigation) · **`[[feedback_continuous_number_line_pedagogical_obstacle]]`** (everything is discrete; π is a cascade) · **F398/F394**. **← trig + calculus taught as etak navigation: find a solution by steering the deviation from a moving reference to zero; the discrete cascade under the continuous formula.**
+**→ TRIG = CORDIC (navigate to a bearing by signed star-compass steps; (x,y)=(cos,sin)); CALCULUS derivative = etak progress-rate (discrete h-cascade), root-finding = Newton deviation-navigation from the moving tangent, integration = dead reckoning; the discrete cascade under the continuous formula; already what srmech.calculus + best_rational compute.**
+
+## Result
+**TRIG = CORDIC (navigate to the bearing):** navigated cos/sin match srmech.calculus; the deviation (target − current bearing) shrinks `0.42 → −0.05 → 0.20 → 0.07 → 0.01 → … → 0` — arrive when it vanishes; shift-add only.
+
+**CALCULUS (B1) derivative = etak progress-rate (discrete cascade):** f(x)=x² at x₀=3 → `7 → 6.5 → 6.25 → 6.125 → 6.0625 → 6` as the step h shrinks (not a continuous mystery — a cascade).
+
+**CALCULUS (B2) find a solution = navigate (Newton to √2):**
+
+| step | x | deviation x²−2 |
+|---|---|---|
+| 0 | 1.0000 | −1.0e0 |
+| 2 | 1.41667 | 6.9e−3 |
+| 4 | 1.414214 | 4.5e−12 |
+| 5 | 1.4142135624 | 4.4e−16 |
+
+You did not *compute* √2; you *navigated* to it (the moving reference = the tangent).
+
+## Verdict
+**Both are navigation, not lookup.** "Find a solution in continuous math" = hold a moving reference and steer by the deviation (the bearing) until it vanishes. Trig: navigate to a target bearing by signed star-compass steps (CORDIC) — the (x,y) carried is (cos,sin). Calculus: the derivative is the progress-rate of the reference's bearing; finding a root is steering by deviation-corrections from the moving tangent (Newton); integration is dead reckoning.
+
+**This is the discrete cascade under the continuous formula** — the continuous-number-line-as-obstacle pedagogy made operational: the angle is reached by discrete signed bearing-steps, the derivative is a discrete shrinking-step cascade, and π enters only as the star-compass calibration (a cascade, not a continuous mystery). The etak frame turns "continuous math" into a sequence of bearing decisions a learner (or the silicon) actually *does*.
+
+**It is already the substrate + srmech.** CORDIC = shift-add+sign is exactly how rotation is done; srmech.calculus (Class-N series) and best_rational (the Stern-Brocot bearing-tree) *are* the etak navigators — so "teach the etak way" is teaching what the cascade already computes. Favored not privileged (F398); held open (F394).
