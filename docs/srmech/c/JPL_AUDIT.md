@@ -12,9 +12,10 @@ baseline files below; the per-class C surfaces added since
 `srmech_rational.c`, `srmech_kepler.c`, `srmech_hdc.c`,
 `srmech_dispatch.c`, `srmech_catalog.c`, `srmech_template.c`,
 `srmech_tlv.c`, `srmech_search.c`, `srmech_cascade.c`,
-`srmech_bus.c`, `srmech_parallel.c`, `srmech_kuramoto.c`) are
-held to the same rules by the mechanical ratchet
-`tests/test_jpl_audit.py`.
+`srmech_bus.c`, `srmech_parallel.c`, `srmech_kuramoto.c`,
+`srmech_platform.c` — the PAL, rc4, the OS sibling of the
+`srmech_simd.c` HAL) are held to the same rules by the
+mechanical ratchet `tests/test_jpl_audit.py`.
 
 - `c/src/srmech_meta.c` — version + ABI accessors (Phase B3).
 - `c/src/srmech_sha256.c` — FIPS 180-4 SHA-256 (Phase B3).
@@ -215,6 +216,7 @@ Per-function assertion counts:
 | ------------------------------ | :-----: | -------------------------------------------------- |
 | `srmech_version`                |    0    | **EXEMPT** — trivial accessor returning a constant string. No preconditions to assert. |
 | `srmech_abi_version`            |    0    | **EXEMPT** — trivial accessor returning a constant integer. No preconditions to assert. |
+| `srmech_plat_has_threads`       |    0    | **EXEMPT** — PAL (`srmech_platform.c`, rc4) trivial accessor: returns a compile-time `1`/`0` (is a threading backend present?). No state/preconditions to assert. The other PAL fns (`srmech_plat_thread_spawn`/`join`) carry ≥2 asserts. |
 | sha256 inline helpers           |    0    | **EXEMPT** — `static inline` arithmetic primitives (ror32, ch, maj, big/small sigma). Per the rule's spirit (anomalous conditions in real-life), 4-line bit-rotation helpers have no real-world failure mode worth asserting; the FIPS 180-4 algorithm is the only caller, and its preconditions on these helpers are validated at the `srmech_sha256_compress` entry. |
 | `srmech_sha256_compress`        |    2    | ✅                                                  |
 | `srmech_sha256_state_to_hex`    |    2    | ✅                                                  |

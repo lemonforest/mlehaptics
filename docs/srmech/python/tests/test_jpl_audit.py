@@ -115,6 +115,9 @@ def test_rule_3_no_dynamic_allocation() -> None:
 RULE_5_EXEMPT_FUNCTIONS: set[str] = {
     "srmech_version",       # trivial accessor returning a constant
     "srmech_abi_version",   # trivial accessor returning a constant
+    "srmech_plat_has_threads",  # PAL trivial accessor: returns a compile-time
+                                # 1/0 (is a threading backend present?). No
+                                # state to assert; see c/JPL_AUDIT.md.
     # sha256 inline helpers — 4-7 lines each, no anomalous conditions
     "srmech_ror32",
     "srmech_ch",

@@ -8,6 +8,17 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc4] - 2026-06-08
+
+**Platform Abstraction Layer (PAL) — the OS sibling of the SIMD HAL** — opening the Rosetta-completeness arc (a *complete C mirror of the Python surface*, so the C partition runs standalone). Additive C only; **no new primitive class, ABI stays 3**:
+
+- **`c/src/srmech_platform.{h,c}` (the PAL):** the single compilation unit where OS-specific code lives, exactly as `c/src/srmech_simd.{h,c}` (the HAL) is the single place for CPU-specific code. In the project's framing the OS *is* part of the hardware the binary runs on, so the PAL is a second "hardware" abstraction sibling of the HAL (`[[feedback_simd_optimize_path_goes_through_hal]]`, generalised from the CPU to the OS). First surface: **threads** — `srmech_plat_thread_spawn`/`join` + `srmech_plat_has_threads()`, hiding the POSIX (pthread) / Windows (CreateThread) / thread-less split behind an agnostic `void(void*)` job API (no heap — handle lives in caller storage). JPL-clean.
+- **`srmech_parallel.c` retrofitted onto the PAL:** the Klein-4 four-sector dispatch now carries **ZERO** `#ifdef _WIN32` — it calls the agnostic PAL and chooses threaded-vs-serial at **runtime** via `srmech_plat_has_threads()`. The serial path is always compiled (the bit-exact reference + the thread-less-target capability). Behaviour-preserving: same four sector duals, same bit-exact serial==threaded contract.
+- **WSL2 Linux build authority:** the full surface builds clean on Linux (`gcc`/`cmake`, pedantic `-Werror`) — the canonical standalone-C build/test loop, verified: `libsrmech.so` links, the PAL-threaded dispatch runs and returns the correct Klein-4 sectors. The cross-OS CI matrix (Linux/macOS/Windows) remains the gate.
+- **`c/ROSETTA_LEDGER.md`:** the down-only debt ledger for the arc — classifies every public Python op as `c_dispatched` / `c_exists_unbound` / `composition_of_c` / `python_only_irreducible`, with the last (the debt: mostly the `qm.*` linear-algebra layer) driven toward 0. Bignum exact-rational references are a separate intentional tier, not debt.
+
+Next: rc5 PAL stream/IPC + `srmech_bus.c` retrofit (the last raw-OS surface) + the `test_rosetta_completeness.py` ratchet; rc6+ port the `qm.*` C kernels. SSoT: `c/src/srmech_simd.{h,c}` (the HAL precedent); `[[feedback_simd_optimize_path_goes_through_hal]]`.
+
 ## [0.7.5rc3] - 2026-06-08
 
 **Completes the v0.7.0 C-transpile for the aperiodic transcendentals — `rational.{exp,log,sqrt}` now compute the SAME algorithm as the native peers and DISPATCH to them** (the rc2 trig sibling, now for exp/log/sqrt). Pure-Python + Python-binding only; **no C source change, no new primitive class, ABI stays 3**:
