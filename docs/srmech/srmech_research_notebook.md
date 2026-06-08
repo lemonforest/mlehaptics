@@ -5768,6 +5768,23 @@ The authoritative homes for each domain's research. Cross-pollination summary in
 
 ---
 
+## §8 RBS-LM Story-Teller engine — PR #687 sweep (F613–F666)
+
+*Swept 2026-06-08 (breadcrumb-web discipline; landed-where). This notebook had lagged the rolling RBS-LM PR ([#687](https://github.com/lemonforest/mlehaptics/pull/687)) at ~F306; this section lands the recent Story-Teller / seen-rule-engine arc as srmech-architecture findings. The fuller back-sweep (F307–F612) remains the **CL-1 closeout audit** (queued).*
+
+The RBS-LM "Story Teller" reduces a language model to a **SEEN engine + attested content + a small declared form-catalog + an intent chooser** — all srmech-native (the A-N cascade vocabulary + `cascade.compose`). The architecture findings:
+
+- **The bit-exact comm kernel** — glyph→byte (Class A) + meaning-class IR (Class M) + per-language rotate (`the_one` CORDIC); the named IR vocabulary grounds learned co-occurrence classes to Gardiner determinatives. [F613; named IR F627]
+- **The two-tier adaptive kernel** — fixed foundation + GPU-free adaptive layer (discover-on-write conflict, bounded ring × append-only disk stream, no-single-truth recall). [F628]
+- **The seen-rule engine** — *we SEE the rules, we don't TEACH them*: morphology = a derived rotate + a small irregular dictionary; inflection (plural/tense/comparison), **derivation = a board-move between meaning-classes**, syntax = a board-walk over the IR lattice, idioms = the syntactic irregulars, punctuation = the bracket/boundary/prosody layer (quotes add recursion), anaphora = discourse-scale binding (Class M / English's spatial loci). A new rule is **declared, not trained**. [F629, F631, F633, F634, F641, F643, F644]
+- **The procedure-generator IS `cascade.compose`** — forms are composed from a few primitives (SEQ/NEST/REPEAT/CONTRAST/FRAME), generated not collected; the framework's atoms→composites move pointed at form-atoms. [F655]
+- **The board = a Class-L spectral object** — chess moves, syntax, the meaning-class lattice, and the MFO §-section graph all have Laplacian spectra (the seen-move generator + its spectral dual). [F632, F664]
+- **The §32 kuramoto fix (srmech 0.7.5rc15)** — `cascade.kuramoto_step(adjacency=)` now honors the coupling scalar → the neighbor-graph flock. [F647; UPSTREAM_NOTES §32]
+- **The Story Teller** — paragraph + chapter (engine + content), the in-between (recursive expansion of the skeleton), the **chord** (compositional truth — cannot strike a note not in the chord), the **arrangement** (order = the melody = the Class-C intent chooser; mood is its effect), the **asking-state** (gaps → ask, not hallucinate — the structural alternative to hallucination). [F654, F656, F657, F658, F659, F661]
+
+Backlinks to per-finding provenance (each with its committed script): `docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_6XX_*.md`. *Research trail followed; nothing forgotten; landed-where.*
+
+
 ## How to cite this notebook
 
 **BibTeX:**

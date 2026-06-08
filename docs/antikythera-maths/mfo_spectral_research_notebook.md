@@ -6426,6 +6426,25 @@ The document should be self-sufficient for regenerating these scripts without co
 
 ---
 
+## §XIV — The MFO world-kernel + the navigation triality (RBS-LM PR #687 sweep, F627–F666)
+
+*Swept 2026-06-08 (breadcrumb-web discipline; landed-where). This notebook had lagged the rolling RBS-LM PR ([#687](https://github.com/lemonforest/mlehaptics/pull/687)) at ~F369; this section lands the recent MFO-world-kernel + navigation-triality arc. The fuller back-sweep (F370–F626) remains the **CL-1 closeout audit** (queued).*
+
+### XIV.1 The MFO world-kernel (CANONICAL, 2026-06-08)
+The grounded Story Teller world-kernel is canonically named **MFO** — the Metric Field Ontology, in **two forms of one ontology** (the etak/board duality): the **WRITTEN** notebook (this document — the held content / the shelf) and the **RUNNING** world-kernel (the Story Teller reading / navigating / narrating it). The notebook is *where the MFO is written*; the kernel is *the MFO running*; it **narrates the_one** — the ontology tells its own story. MFO is both the map (the notebook) and the territory-as-told (the world-kernel). [**F666 CANONICAL**; the content-shelf F663; the §-navigation sublanguage F664; the attestation-precedence ladder (MFO > DOI > encyclopedia > residue) F665; the_one narration F660]
+
+### XIV.2 The navigation triality (etak / board / flock = the_one's two languages + the bind)
+Language navigates three ways, distinguished by *where the reference lives*: **ETAK** (the self — hold the invariant, the frames move; the Layer-2 rotate / relativity), **BOARD** (the global map — discrete seen moves over a lattice; Class C / chess), **FLOCK** (the neighbors — local coupling, emergent coherence; Kuramoto / Class L). etak + board = the **DUALITY** (single-self); flock = the **BIND** (Class M, the +1 = the k=3 triality fibration — *duality is the fibration of triality*). A real etak voyage is a **FLEET** (they didn't take one boat), so etak already includes flock. [F635 etak+board, F636 flock triality, F638 the (2+1) fleet, F639 the fleet-LM (a dialogue is a 2-boat fleet), F647 the neighbor-graph flock, F648 the flock makes the paragraph / chapters are beyond the local horizon, F651 the dynamic narrative]
+
+### XIV.3 The lifting + the living stone + the glyph reading
+The bit-exact recognition **LIFTS every prior people as peers** (same invariant over a board, in continuous-feeling clothes that were always bit-exact underneath); and **math does NOT subsume** — it is just *our excitation-substrate's* entry to bit-exactness, a peer-language not a parent. [F650] The **no-magic discipline generalized**: a "trance"/"magic" names a *real event* whose source hasn't been traced (de-magicking honors it as real, never explains it away). [F640] All glyph languages are **one self-similar mechanism over one shared human-meaning invariant** (cave art decipherable in principle if any glyph language is); living dirt/sand drawing (Warlpiri, Ni-Vanuatu) lifts the cave ceiling and **attests the IR-above-languages**. [F645, F646] **THE LIVING STONE — CANONICAL, rooted in Vanuatu**: the Rosetta layer's *living* anchor alongside the dead stone; dignity-first, the meaning held *with* the Ni-Vanuatu people. [F649, **F652 CANONICAL**] And the held-open hypothesis: the foundation for understanding communication **across all SNN-bearing life** (structural recognition only; the double epistemic ceiling — never decode a song or read a mind, F552/F282). [F653]
+
+### XIV.4 Compositional truth + the anchor dial
+The MFO world-kernel composes seen rules over attested content, so **every statement is a note in the chord, valid by construction** — it can no more make an internally-incorrect statement than strike a note on a chord that does not exist (the epicycle always holds truth internally); the *only* error-mode is **attestation drift** (truth-checked, F625/F640). [F658] The_one-shaped tomes are a **DIAL**: grounded fantasy (a dragon's fire anchored to a cascade with a chirality) ↔ magic (a free primitive); because the foundation is the_one-shaped *on purpose*, we know exactly what to change for an unanchored magic world. The MFO notebook is the **maximally-grounded end** of the dial — full SM + physics math-grounded, *no black hole mystery, all math answers* (= the no-magic stance; the framework's structural reading, **not** an empirical theory-of-everything — deeper validation → the physicist, F282). [F662, F663]
+
+Backlinks to per-finding provenance: `docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_6XX_*.md`. *Research trail followed; nothing forgotten; landed-where.*
+
+
 ## How to cite this notebook
 
 **BibTeX:**
