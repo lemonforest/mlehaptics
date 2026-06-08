@@ -8,6 +8,18 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc17] - 2026-06-08
+
+**The matmul-kernel phase, batch 2 — `qm.single_particle` contractions onto the cascade (numpy-math `matmul` 180 → 168; #928).** The 12 dense complex contractions in `qm/single_particle.py` now route through the `dense_matmul_complex` / `dense_matvec_complex` cascades instead of numpy `@`:
+
+- **`commutator`** `[A,B] = AB − BA` — two dense matmuls.
+- **`heisenberg_evolve`** `A_H = Uᴴ·A·U` and **`liouville_evolve`** `ρ(t) = U·ρ·Uᴴ` — the `U = V·diag(phases)·Vᴴ` build + the conjugation, all through the matmul cascade.
+- **`tdse_evolve`** the eigenbasis change `Vᴴ·ψ` / `V·ψ'` — through the matvec cascade.
+
+After this, the module's only matmul-category callsite is the `np.outer` rank-1 product in `density_matrix` (a distinct op, no matmul kernel involved). **numpy-math ratchet `matmul` 180 → 168.** No Rosetta bucket move — these ops were already `composition_of_c` (they compose the `hermitian_eigendecompose` Class-L cascade). No behaviour change: the 27 `single_particle` parity tests pass unchanged (the QM operator algebra holds to the same round-off; the native triple-accumulator differs from BLAS only at the last bits). Pure Python-tier; no C change, ABI stays 3.
+
+SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
 ## [0.7.5rc16] - 2026-06-08
 
 **The matmul-kernel phase, batch 1 — `matrix_cascades` dense matmuls onto the cascade (numpy-math ratchet `matmul` 185 → 180; #928).** First `@`-callsite migration against the rc14 `dense_matmul_complex` C kernel. The 5 dense complex 2-D matmuls inside `matrix_cascades.py` — the `AᴴA` / `A·V` / `AAᴴ` / `Aᴴ·U` Gram + reconstruction products of `svd`, and the `R·Q` shifted-QR step of `eigvals` (which `qr`/`lstsq` ride) — now route through `laplacian.dense_matmul_complex` instead of numpy `@`, so numpy stays carriers-only in the matrix-decomposition cascades.
