@@ -94,10 +94,14 @@ _UFUNC = re.compile(
 # (dense_matmul_real / dense_matvec_real / dense_dot_real = the complex kernel on
 # imag-free input, .real → float64) and routed hypercomplex_dft's 8 octonion-rep
 # (8×8 real) matvecs onto dense_matvec_real (matmul 123 -> 115). The remaining
-# real so8/triality/DSP/Minkowski sites land in subsequent batches.
+# real so8/triality/DSP/Minkowski sites land in subsequent batches; rc22 routed
+# qm.triality's 7 real products (octonion-rep matvecs + the 28×28 tau=S_B·S_C /
+# tau² / tau³ matmuls) onto dense_matmul_real/dense_matvec_real and reworded the
+# 3 docstring `@` to `·` (matmul 115 -> 105). qm.so8's ~17 real sites + the
+# Minkowski / DSP real sites land in subsequent batches.
 # ---------------------------------------------------------------------------
 CEIL_LINALG_FFT = 126
-CEIL_MATMUL = 115
+CEIL_MATMUL = 105
 CEIL_UFUNC = 48
 
 

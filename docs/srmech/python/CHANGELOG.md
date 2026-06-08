@@ -8,6 +8,17 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc22] - 2026-06-08
+
+**The matmul-kernel phase, batch 7 — `qm.triality` real products onto the real cascade (numpy-math `matmul` 115 → 105; #928).** First consumer of the rc21 real trio.
+
+- **`qm.triality` (7 sites)** — the octonion-rep matvecs (`operator @ octonion_mul(…)`, `g_v/g_s/g_c @ …`) route through `dense_matvec_real`; the 28×28 Spin(8) triality products `tau = S_B·S_C`, `tau²`, `tau³` route through `dense_matmul_real`. All real-typed (octonion regular rep + so(8) adjoint), so no dtype change.
+- **3 docstring `@` → `·`** — the prose `tau = S_B @ S_C` references (regex false-positives) reworded to `·`, since they are not numpy math.
+
+**numpy-math ratchet `matmul` 115 → 105.** Pure Python-tier; no C change, ABI stays 3. The triality parity tests pass unchanged (`tau³ = I₂₈`, `Fix(tau) = g₂` exactly at dim 14, the order-3 outer-automorphism structure). `qm.so8`'s ~17 real sites + the Minkowski / DSP real sites land in subsequent batches.
+
+SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
 ## [0.7.5rc21] - 2026-06-08
 
 **The matmul-kernel phase, batch 6 — the real-linear-algebra cascade trio + `hypercomplex_dft` octonion-rep matvecs (numpy-math `matmul` 123 → 115; #928).** The complex contraction surface was closed at rc20; the remaining ~70 sites are *real*-typed. This batch introduces the real cascade primitives and migrates the first uniform cluster.
