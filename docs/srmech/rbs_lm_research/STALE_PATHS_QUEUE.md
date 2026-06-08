@@ -341,3 +341,23 @@ The user authorized acting on the CL-1-note candidates. Careful audit + disposit
 **(b) GitHub ISSUES — NONE CLOSED (honest audit result):** cross-referencing all 28 open issues against the findings corpus + the srmech/MFO notebooks found **no issue with a clean done-and-landed / superseded marker**. They are: **2 epics** (#855 RBS-SNN framework-reqs, #844 notebook-native pipeline TARGET — both explicitly "maintainer's call / build-up TARGET", advanced by the F538–F551 arc but NOT closeable); **~5 gated** (#797 srmech-gate, #791 ngspice, #789 $-gate, #787 SPICE, #850 verify-gate "pending, not run"); **~21 active research lenses** (antiquity / mass-spec / protein-fold / sentence-structure / chemistry / …). Closing any of these would repeat the 2026-05-30 #733–744 over-close error, so **no GH tracker state was changed**. The two epics are *advanced* by this arc — a **progress comment** (not a close) is the appropriate action if/when the user directs it.
 
 **Net:** the CL-1-note's *research-notes* candidates are closed-extended here (a); the GH-issue half of CL-1 found nothing responsibly closeable (b). A full per-issue GH audit remains available as a dedicated pass, but the honest finding is that the open GH set is genuinely-open research, not stale-completed.
+
+---
+
+## Section: 2026-06-08 surfaces — Story Teller driver library + sentence-structure-on-story (autonomous push F563–F566)
+
+The driver-library + sentence-structure arc (user: "add each of [being-told/dialogue/choral], then figure out sentence structure on top of knowledge of the story... as an automatic task; look at current-gen LLM moving parts").
+
+**Done:** F563 (relational driver modes: being-told / dialogue / choral) · F564 (the grammar kernel — the FORM layer is separable from CONTENT, F311; honest: exact-position frames too diffuse) · F565 (the renderer — form-weaving matches corpus stats; v0 grammaticality coarse) · F566 (the clean two-layer pipeline — Story-Teller content + grammar render = sentences at 92% local grammaticality; **the architecture is proven**).
+
+**The goal is architecturally PROVEN (F566): sentence structure CAN sit on top of the story as a separate FORM layer (F311) — content (the story manifold) and form (the grammar kernel) compose.** The remaining work is the form layer's DEPTH, not the architecture:
+
+| Lead | Subject | Anchor |
+|---|---|---|
+| **SS-1** | **POS-aware bridges** — tag content as noun/verb/adj (a real POS tagger or the F564 soft-POS deepened); bridge by POS, not raw bigram. | F564/F565 |
+| **SS-2** | **Clause + sentence FRAMES** — derive POS-sequence templates (not exact-position; F564's snag) and render content into clause structure (S-V-O, subordinate clauses). | F564 §2 / F157 |
+| **SS-3** | **Subject-verb agreement** — the F311 grammar-render's agreement layer (number/tense). | F311 |
+| **SS-4** | **Wire the native+delta store (F551/F538)** as the content source — the Story Teller reads real content-addressed exchanges, the grammar render shapes them. | F551/F538 |
+| **SS-5** | **The LLM moving-parts comparison (deepen)** — RBS-LM separates content/form where the LLM entangles them in attention; characterise what attention's long-range syntax would map to in the separated architecture (a syntax kernel over the form layer). | F564/F50 |
+
+These are walkable now (srmech 0.7.x; the form layer is plain corpus statistics + the Story Teller content). Standing disciplines unchanged.
