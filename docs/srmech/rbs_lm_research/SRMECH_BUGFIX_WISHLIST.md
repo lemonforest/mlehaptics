@@ -1,5 +1,7 @@
 # srmech bug-fix wishlist — for the maintainer (2026-05-29)
 
+> **Consolidated GitHub tracker: [#928](https://github.com/lemonforest/mlehaptics/issues/928)** (`srmech` label) — one tracker for all W1–W18 (bugs · schema · enhancements · new ops), built in the separate srmech session. This file is the long-form source; #928 is the at-a-glance status board.
+
 **What this is:** a clean, prioritized, sendable distillation of `UPSTREAM_NOTES.md §10` — every srmech-mcp / package / docs issue the RBS-LM research subtree has surfaced by exercising the surface for real work. Verified against **srmech 0.5.0rc14** (TestPyPI; installed clean outside the source tree; `HAS_NATIVE=True`, ABI = 3).
 
 **Discipline note:** per `[[feedback_upstream_srmech_fixes_as_research_notes]]`, this subtree **never edits the srmech package** — issues are logged here and handed upstream. This file is the hand-off artifact. UPSTREAM_NOTES §10 is the long-form record with full repro context; this is the short list.
