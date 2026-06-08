@@ -222,6 +222,14 @@ decrements it).
   path-product) now route through `dense_matmul_complex`. **numpy-math ratchet
   `matmul` 168 → 147.** Both modules numpy-`@`-free; no Rosetta move; ABI 3; spin +
   gauge parity tests pass unchanged.
+- **rc19 (done) — matmul-kernel batch 4: `qm.relativistic` + `qm.pseudo_hermitian`.**
+  `qm.relativistic`'s 9 Dirac γ-matrix products (`γ_5=iγ0γ1γ2γ3`, Clifford
+  `{γ^μ,γ^ν}`, `γ_5²`, `{γ_5,γ^μ}`, charge-conj `C=iγ2γ0`) + `qm.pseudo_hermitian`'s
+  3 (`Oᴴη−ηO`, `η=(V·Vᴴ)⁻¹`) route through `dense_matmul_complex`. **numpy-math
+  ratchet `matmul` 147 → 135.** ABI 3; parity tests unchanged. DEFERRED: the
+  real-typed `eta@k` Minkowski matvec/dot + `vᴴηv` eta-sandwich vecmat-dot sites
+  (need a real-matmul cascade + vecmat helper); `qm.triality` is entirely real-typed
+  and awaits the same real-matmul variant.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc19] - 2026-06-08
+
+**The matmul-kernel phase, batch 4 — `qm.relativistic` γ-products + `qm.pseudo_hermitian` η-products onto the cascade (numpy-math `matmul` 147 → 135; #928).** 12 dense complex matmuls route through `dense_matmul_complex`:
+
+- **`qm.relativistic`** (9) — the Dirac γ-matrix products: `γ_5 = i·γ0γ1γ2γ3`, the Clifford anticommutator `{γ^μ,γ^ν}`, `γ_5²`, the `{γ_5,γ^μ}` chirality anticommutator, and the charge-conjugation `C = iγ2γ0`.
+- **`qm.pseudo_hermitian`** (3) — the pseudo-Hermiticity residual `Oᴴη − ηO` and the metric build `η = (V·Vᴴ)⁻¹`.
+
+**numpy-math ratchet `matmul` 147 → 135.** No Rosetta bucket move. No behaviour change: the relativistic + pseudo_hermitian parity tests pass unchanged (Cl(1,3) Clifford residuals + γ_5 relations at machine precision; pseudo-Hermiticity + η-construction hold). Pure Python-tier; no C change, ABI stays 3.
+
+**Deferred (need new primitives):** `qm.relativistic`'s `eta@k` Minkowski matvec/dot and `qm.pseudo_hermitian`'s `vᴴηv` / `vᴴηOv` eta-sandwich vecmat-dot sites — these want a *real*-matmul cascade and a vecmat/dot helper, the subject of a later batch. `qm.triality` is entirely real-typed (octonion-rep matrices) and also awaits the real-matmul variant.
+
+SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
 ## [0.7.5rc18] - 2026-06-08
 
 **The matmul-kernel phase, batch 3 — `qm.spin` + `qm.gauge` Lie-algebra products onto the cascade (numpy-math `matmul` 168 → 147; #928).** Two QM modules' dense complex matmuls now route through `dense_matmul_complex` instead of numpy `@`:

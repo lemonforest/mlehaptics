@@ -41,6 +41,8 @@ from __future__ import annotations
 import numpy as np
 from typing import Tuple
 
+from srmech.amsc.laplacian import dense_matmul_complex
+
 
 def inner_product_eta(a: np.ndarray, b: np.ndarray, eta: np.ndarray) -> complex:
     """η-deformed inner product ``⟨a|b⟩_η = ⟨a| η |b⟩``.
@@ -132,7 +134,7 @@ def is_pseudo_hermitian(
             f"is_pseudo_hermitian: O and eta must be same-shape square "
             f"matrices; got O={O.shape}, eta={eta.shape}"
         )
-    residual = O.conj().T @ eta - eta @ O
+    residual = dense_matmul_complex(O.conj().T, eta) - dense_matmul_complex(eta, O)
     return float(np.linalg.norm(residual)) < atol
 
 
@@ -176,7 +178,7 @@ def construct_eta_from_eigendecomposition(
             "positive definite"
         )
     # η = (V V†)^{-1} makes O η-pseudo-Hermitian.
-    eta = np.linalg.inv(V @ V.conj().T)
+    eta = np.linalg.inv(dense_matmul_complex(V, V.conj().T))
     # Symmetrize (rounding fixup).
     eta = (eta + eta.conj().T) / 2.0
     return eta

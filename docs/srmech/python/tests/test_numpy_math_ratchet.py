@@ -80,10 +80,13 @@ _UFUNC = re.compile(
 # 12 contractions (commutator + TDSE/Heisenberg/Liouville U·…·Uᴴ) onto the
 # dense_matmul/matvec cascades (matmul 180 -> 168); rc18 routed qm.spin (15 Pauli
 # products) + qm.gauge (6 — Lie-algebra commutator/Casimir/Wilson) through
-# dense_matmul_complex (matmul 168 -> 147).
+# dense_matmul_complex (matmul 168 -> 147); rc19 routed qm.relativistic's 9
+# gamma-matrix products + qm.pseudo_hermitian's 3 (Oᴴη/ηO + V·Vᴴ) onto the
+# matmul cascade (matmul 147 -> 135). The eta@k Minkowski matvec/dot (real-typed)
+# and the eta-sandwich vecmat/dot sites await a real-matmul + vecmat helper.
 # ---------------------------------------------------------------------------
 CEIL_LINALG_FFT = 126
-CEIL_MATMUL = 147
+CEIL_MATMUL = 135
 CEIL_UFUNC = 48
 
 
