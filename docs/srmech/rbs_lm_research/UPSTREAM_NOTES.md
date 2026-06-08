@@ -1555,6 +1555,12 @@ zeroes the term and `coupling` tunes global strength — matching the all-to-all
 contract. Differential-test: `adjacency` = all-ones-off-diagonal / (n−1) with a given
 `coupling` should reproduce the all-to-all `coupling` result.
 
+**RESOLVED in srmech 0.7.5rc15 (verified 2026-06-08):** the `adjacency=` path now honors the
+`coupling` scalar -- ring test: coupling=3.0 -> spread 0.097 (sync) vs coupling=0.0 -> 3.6
+(drift); the two now differ. native dispatching, ABI 3, native_version 0.7.5rc15. The
+local-graph (neighbor-coupled) flock is UNBLOCKED -- F636's all-to-all demo can be upgraded
+to a true neighbor-graph flock.
+
 **Research-side workaround (F636):** demonstrate the flock on the VALIDATED all-to-all
 uniform path (`adjacency=None`), which honestly shows the coupling-vs-no-coupling contrast
 (0.067 sync vs 3.6 drift). Neighbor-graph flocks wait on this fix. Not blocking; logged not
