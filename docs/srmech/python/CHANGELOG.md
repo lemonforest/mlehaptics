@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc15] - 2026-06-08
+
+**Bug fix — `cascade.kuramoto_step(adjacency=...)` now honors the `coupling` scalar (UPSTREAM_NOTES §32; PR#687 F636).** When an `adjacency=` matrix was passed, the global `coupling` (`K`) was dropped on the floor: `coupling=0.0` and `coupling=3.0` produced **bit-identical** trajectories over the same neighbor graph (only the all-to-all `adjacency=None` path scaled by `K` correctly). The adjacency branch built its weight from the matrix alone, behaving as if `coupling==1.0` regardless.
+
+- **Fix (Python + C, co-equal):** the adjacency-branch weight is now `coupling · A[i][j]` — the global `K` SCALES the matrix, matching the all-to-all branch's `K/N`. `coupling=0` zeroes the coupling term; `coupling` tunes global strength. `srmech_kuramoto__general_sum` (in `srmech_kuramoto.c`) gains a `coupling_k` parameter; `compose.kuramoto_step` multiplies in the Python fallback. **No behaviour change at the default `coupling=1.0`** (where `K·A == A`) — which is exactly why every prior adjacency test missed it.
+- **Regression tests:** new `test_adjacency_*` cases exercise `coupling≠1` on the adjacency path (the bug surface): `coupling=0` over a ring → pure drift; `coupling=3` vs `coupling=0` over the same ring **diverge**; a full `1/n` matrix at `coupling=K` reproduces the all-to-all `K` path. The `_reference_general` test spec was corrected to scale by `coupling` (it carried the same masked bug). Differential-tested against a freshly-built native lib; the native parity test FAILS against the pre-fix C and PASSES against the fixed C.
+
+Bug fix only; additive C parameter on a static helper (ABI stays 3), no public signature change. SSoT: `docs/srmech/rbs_lm_research/UPSTREAM_NOTES.md` §32.
+
 ## [0.7.5rc14] - 2026-06-08
 
 **The matmul-kernel phase opens — a native dense complex `matmul` C kernel (#928).** First kernel of the new-C-kernel phase that drives the numpy-math ratchet (and the Rosetta `python_only_irreducible` cluster) toward zero. Dense complex `matmul` is the **top single lever** — it's the contraction the QM / `matrix_cascades` layer's `@` math is built on.

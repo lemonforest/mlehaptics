@@ -489,8 +489,13 @@ def kuramoto_step(
             uniform mean-field weight ``K/n`` used when ``adjacency`` is None.
         dt: the forward-Euler time step (default ``0.01``).
         adjacency: optional ``n×n`` coupling matrix (None → all-to-all uniform
-            ``K/n``). ``A[i][j]`` weights ``sin(θ_j − θ_i − α)`` for oscillator
-            ``i``; non-symmetric → directed coupling.
+            ``K/n``). The effective weight on ``sin(θ_j − θ_i − α)`` for
+            oscillator ``i`` is ``coupling · A[i][j]`` — the global ``K`` scales
+            the matrix (matching the all-to-all ``K/n`` branch, so ``coupling=0``
+            zeroes the term and ``coupling`` tunes global strength);
+            non-symmetric → directed coupling. (§32 fix, v0.7.5rc15: prior to
+            rc15 the adjacency branch dropped ``coupling`` — ``coupling=0`` and
+            ``coupling=3`` gave identical trajectories.)
         alpha: Sakaguchi phase frustration in radians (default ``0.0``).
         pin_anchor: optional length-``n`` anchor phases ``ψ`` (None → no
             pinning).
@@ -577,7 +582,8 @@ def kuramoto_step(
     # Python fallback for the generalised step — SAME index order as the C
     # peer. No abs(): sin coupling (Class I/J) + Σ-reduce + Class-C Euler add;
     # the Sakaguchi α is a Class-C phase offset; pinning is a Class-C/M anchor.
-    inv_n = (float(coupling) / n) if n > 0 else 0.0
+    k = float(coupling)
+    inv_n = (k / n) if n > 0 else 0.0
     a = float(alpha)
     h = float(dt)
     out2: List[float] = []
@@ -585,7 +591,12 @@ def kuramoto_step(
         theta_i = float(theta_list[i])
         s = 0.0
         for j in range(n):
-            w = adj_flat[i * n + j] if adj_flat is not None else inv_n
+            # §32 fix (v0.7.5rc15): the adjacency weight is SCALED by the global
+            # coupling scalar (effective weight = K·A_ij), matching the all-to-all
+            # branch (inv_n = K/n). coupling == 0 zeroes the term; coupling tunes
+            # global strength. Prior to rc15 this used the raw A_ij, so coupling
+            # had no effect on the adjacency path.
+            w = (k * adj_flat[i * n + j]) if adj_flat is not None else inv_n
             s += w * _rsin(float(theta_list[j]) - theta_i - a)
         f = float(omega_list[i]) + s
         if psi is not None:
