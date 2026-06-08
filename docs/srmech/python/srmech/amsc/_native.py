@@ -1162,6 +1162,28 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_reverse_order.restype = ctypes.c_int
 
+    # ------------------------------------------------------------------
+    # v0.7.5rc2: bind the rc43-46 C transcendental cascade so the Python
+    # float-projection ops (``rational.{sin,cos,atan,atan2,exp,log,sqrt}``)
+    # actually DISPATCH to the executable C. The C cascade was built across
+    # rc43-46 (srmech_{sin,cos,atan,atan2,rational_sqrt,exp,log}) but never
+    # wired to Python, so the runtime ran the pure-Python bignum series on
+    # EVERY install — the v0.7.0 "C-transpile triality" was source-only, the
+    # executable never agreed with itself. NEW-symbol hasattr guards (a
+    # pre-rc43 lib still loads). ``int srmech_<fn>(double x, double *out)``;
+    # ``srmech_atan2`` takes ``(double y, double x, double *out)``.
+    # ------------------------------------------------------------------
+    for _scalar_trans in ("srmech_sin", "srmech_cos", "srmech_atan",
+                          "srmech_exp", "srmech_log", "srmech_rational_sqrt"):
+        if hasattr(lib, _scalar_trans):
+            getattr(lib, _scalar_trans).argtypes = [
+                ctypes.c_double, ctypes.POINTER(ctypes.c_double)]
+            getattr(lib, _scalar_trans).restype = ctypes.c_int
+    if hasattr(lib, "srmech_atan2"):
+        lib.srmech_atan2.argtypes = [
+            ctypes.c_double, ctypes.c_double, ctypes.POINTER(ctypes.c_double)]
+        lib.srmech_atan2.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None
@@ -1224,6 +1246,66 @@ def sha256_hex_c(data: bytes) -> str:
             f"this should not happen for valid inputs"
         )
     return out.value.decode("ascii")
+
+
+# ----------------------------------------------------------------------
+# v0.7.5rc2: scalar transcendental cascade wrappers — the Python-callable
+# face of the rc43-46 C cascade. The float-projection ops in
+# ``srmech.amsc.rational`` dispatch through these when ``has_native_trig()``.
+# ----------------------------------------------------------------------
+
+def has_native_trig() -> bool:
+    """True iff the C transcendental cascade is loaded + bound (rc43+ lib)."""
+    return bool(HAS_NATIVE and LIB is not None and hasattr(LIB, "srmech_sin"))
+
+
+def _scalar_trans_c(symbol: str, x: float) -> float:
+    """Call a single-arg C transcendental ``srmech_<symbol>(double, double*)``."""
+    if not HAS_NATIVE or LIB is None or not hasattr(LIB, symbol):
+        raise RuntimeError(
+            f"{symbol} unavailable; guard calls with _native.has_native_trig()")
+    out = ctypes.c_double()
+    rc = getattr(LIB, symbol)(ctypes.c_double(x), ctypes.byref(out))
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"{symbol} returned non-OK status {rc}")
+    return out.value
+
+
+def sin_c(x: float) -> float:
+    return _scalar_trans_c("srmech_sin", x)
+
+
+def cos_c(x: float) -> float:
+    return _scalar_trans_c("srmech_cos", x)
+
+
+def atan_c(x: float) -> float:
+    return _scalar_trans_c("srmech_atan", x)
+
+
+def exp_c(x: float) -> float:
+    return _scalar_trans_c("srmech_exp", x)
+
+
+def log_c(x: float) -> float:
+    return _scalar_trans_c("srmech_log", x)
+
+
+def rational_sqrt_c(x: float) -> float:
+    return _scalar_trans_c("srmech_rational_sqrt", x)
+
+
+def atan2_c(y: float, x: float) -> float:
+    """Call ``srmech_atan2(double y, double x, double *out)`` (rc43)."""
+    if not HAS_NATIVE or LIB is None or not hasattr(LIB, "srmech_atan2"):
+        raise RuntimeError(
+            "srmech_atan2 unavailable; guard with _native.has_native_trig()")
+    out = ctypes.c_double()
+    rc = LIB.srmech_atan2(
+        ctypes.c_double(y), ctypes.c_double(x), ctypes.byref(out))
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_atan2 returned non-OK status {rc}")
+    return out.value
 
 
 def sha256_batch_c(datas: "list[bytes]") -> "list[str]":
