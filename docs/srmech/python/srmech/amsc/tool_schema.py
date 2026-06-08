@@ -959,6 +959,17 @@ def _register_primitive_class_tools() -> None:
             returns=R("np.ndarray", "m × n complex128"),
         ),
         ToolEntry(
+            name="srmech.amsc.laplacian.dense_dot_complex",
+            owner="srmech", category="laplacian",
+            summary="Dense complex bilinear inner product sum a_i b_i (the "
+                    "1-D contraction the QM eta-sandwiches and matrix_cascades "
+                    "back-solves route through; plain bilinear, NOT the "
+                    "conjugating vdot). Golub & Van Loan §1.1.",
+            parameters=(P("a", "np.ndarray", True, "length-n complex"),
+                        P("b", "np.ndarray", True, "length-n complex")),
+            returns=R("complex", "scalar sum a_i b_i"),
+        ),
+        ToolEntry(
             name="srmech.amsc.laplacian.elementwise_multiply_complex",
             owner="srmech", category="laplacian",
             summary="Elementwise complex multiplication a * b with "
