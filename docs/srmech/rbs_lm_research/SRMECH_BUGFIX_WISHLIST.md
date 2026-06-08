@@ -105,6 +105,24 @@
 - **Context (already buildable):** F560 self-generates a substrate-native DYNAMIC driver wave by coupling `cascade.kuramoto_step` (the coupled-oscillator dynamic) to `cascade.the_one` (the wave) — k=7 oscillators evolve, their mean-field phase indexes `the_one`, and `the_one.to_numpy()[4]` is the wave. Works today; no version bump needed.
 - **Ask (optional):** a thin convenience `cascade.the_one_trajectory(sigma, theta0, omega, *, steps, coupling, dt, component=4) -> List[float]` that runs the kuramoto→the_one loop in one call (and returns the order-parameter |R| trace) — purely ergonomic, so the "the_one with dynamic waves entirely" pattern has a named home rather than being hand-wired each time. LOW priority; the primitives are all present.
 
+### W17 — (MEDIUM; user-flagged 2026-06-08) a **coupled-wave / quadrature** driver surface — the EM (E,B) full-chirality drive  *(NEW — F577 verb-flip fix)*
+- **Context (the finding):** a FLAT scalar driver gates direction by `sign(wave)`, which flips hard at every zero-crossing (2/cycle) — and the VERB is the chiral/relational element, so a flat drive injects "huge verb flips" (a STRUCTURE error). A COUPLED quadrature wave (E = sin, B = cos, 90° apart — exactly EM) rotates monotonically → **0 hard reversals**; the verb-direction is the smooth rotation, not the flipping 1-bit sign. Framework reading (F552 on the driver): flat sign = chirality-COLLAPSED 1-bit (Class-K); coupled (E,B) = FULL-chirality 2D rotation (γ₅/Klein-4 — the 4 quadrants (signE,signB) ARE the 4 sectors). Verified in F577 via `srmech.calculus.{sin,cos}_series_truncate` (degree-mod range reduction, π≈355/113) — works today but hand-wired.
+- **Ask:** a first-class coupled-wave op, e.g. `cascade.coupled_wave(theta, *, components=("sin","cos")) -> (E, B, handedness, klein4_quadrant)` — return the quadrature pair + the rotation handedness (stable) + the Klein-4 quadrant — so the full-chirality drive is a named primitive instead of being reconstructed per script. Composes with W16 (the trajectory surface) and the Klein-4 HDC ops. This is "drive with the full chirality, not its collapsed sign."
+
+### W18 — (MEDIUM; user-flagged 2026-06-08, "an efficient way to multi stream for building better sentences") an **efficient multi-stream MULTIPLEX** driver  *(NEW — F573/F577 multi-stream re-aimed at correct structure)*
+- **Context (the finding):** driving the Story Teller with N wave INSTANCES (N=3 triad / 7 heptad) and a COVERAGE combiner (MULTIPLEX — wave `t mod N` drives step `t`) reaches more of the manifold; the user's correction (F577): the multi-stream is for **correct sentence STRUCTURE** (clause-role assignment, S-V-O), NOT richness/embellishment. Currently hand-rolled per script (the multiplex loop + the N `the_one`/quadrature instances), which is the inefficient part.
+- **Ask:** an efficient multi-stream surface, e.g. `cascade.multiplex_streams(streams, *, mode="roundrobin"|"pickbest"|"superpose", roles=None) -> driver` — run N wave streams and recombine them, with an optional `roles` map binding each stream to a clause role (subject/verb/object) so the N streams BUILD correct structure rather than just covering. Pairs with W17 (each stream a coupled wave) — the verb-stream then carries a stable (non-flipping) chirality. This is the "efficient way to multi-stream for building better sentences."
+
+---
+
+## ⏩ Carried forward to the srmech-build session (user direction 2026-06-08: "we build them in another session")
+
+The maintainer/build session should pull these forward. **Resolved this session:** W14 (atan/log1p domain error + atan2 perf) ✅, W15 (Cayley closure/orbit/min-gen) ✅ — both in 0.7.5rc1. **Still open / new asks, by priority for the sentence-structure arc:**
+- **W17** (coupled-wave / EM quadrature driver) — the verb-flip / correct-structure fix (F577). Buildable today via `srmech.calculus` sin/cos; the ask is a named first-class op.
+- **W18** (efficient multi-stream multiplex, role-bound) — "an efficient way to multi-stream for building better sentences" (F573/F577). The hand-rolled multiplex is the inefficiency.
+- **W16** (the_one-trajectory ergonomic) — LOW; composes with W17/W18.
+- W1/W7 (uncallable tool + the CI parity test) and W12 (native-status recipe) remain the highest-leverage non-arc items.
+
 ---
 
 ## Priority for the maintainer (suggested)
