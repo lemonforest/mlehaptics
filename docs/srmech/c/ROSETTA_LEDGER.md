@@ -230,6 +230,18 @@ decrements it).
   real-typed `eta@k` Minkowski matvec/dot + `vᴴηv` eta-sandwich vecmat-dot sites
   (need a real-matmul cascade + vecmat helper); `qm.triality` is entirely real-typed
   and awaits the same real-matmul variant.
+- **rc20 (done) — matmul-kernel batch 5: complex vecmat/dot/sandwich → new
+  `dense_dot_complex` bilinear helper.** The complex 2-D matmul surface was
+  exhausted at rc19; rc20 adds `dense_dot_complex(a, b)` (plain bilinear
+  `Σ aᵢbᵢ` = `elementwise_multiply_complex` ⊕ reduction; **`composition_of_c`**)
+  and routes the genuinely-complex contraction sites onto `dense_matvec_complex`
+  + `dense_dot_complex`: `qm.pseudo_hermitian`'s 3 η-sandwiches (7 `@`),
+  `heat_kernel`'s 2 eigenbasis matvecs, `spectral`'s 2 decompose/recompose
+  matvecs, `music`'s `Enᴴ·A` 2-D matmul. **numpy-math ratchet `matmul`
+  135 → 123.** ABI 3; parity tests unchanged. DEFERRED: the real-typed
+  so8/triality/octonion-DFT/Minkowski/DSP sites (real-matmul + real-matvec
+  cascade) and the `matrix_cascades` QR-internal vdot/back-solves (shape-
+  polymorphic pass).
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

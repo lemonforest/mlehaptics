@@ -73,6 +73,7 @@
 {"exposed_as": "srmech.amsc.laplacian.dense_matvec_complex", "defined_at": "srmech.amsc.laplacian.dense_matvec_complex", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.dense_solve", "defined_at": "srmech.amsc.laplacian.dense_solve", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.elementwise_multiply_complex", "defined_at": "srmech.amsc.laplacian.elementwise_multiply_complex", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.laplacian.dense_dot_complex", "defined_at": "srmech.amsc.laplacian.dense_dot_complex", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.elementwise_transcendental", "defined_at": "srmech.amsc.laplacian.elementwise_transcendental", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.hermitian_eigendecompose", "defined_at": "srmech.amsc.laplacian.hermitian_eigendecompose", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.jacobi_eigvals", "defined_at": "srmech.amsc.laplacian.jacobi_eigvals", "bucket": "c_dispatched"}

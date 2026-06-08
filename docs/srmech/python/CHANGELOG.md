@@ -8,6 +8,20 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc20] - 2026-06-08
+
+**The matmul-kernel phase, batch 5 — the complex vecmat/dot/sandwich sites onto a new `dense_dot_complex` bilinear helper (numpy-math `matmul` 135 → 123; #928).** The complex 2-D matmul surface was exhausted at rc19; this batch closes the genuinely-complex *contraction* sites by composing the existing `dense_matvec_complex` with a new bilinear inner-product helper.
+
+- **New `srmech.amsc.laplacian.dense_dot_complex(a, b)`** — the plain bilinear `Σ aᵢ bᵢ` (matching numpy `a·b` on two 1-D arrays, NOT the conjugating `vdot`). Composes the native-dispatched `elementwise_multiply_complex` cascade with a reduction sum — never a numpy contraction operator. Classified `composition_of_c` in the Rosetta ledger (standalone-ready; not a debt bucket). Callers spell the Hermitian form as `dense_dot_complex(a.conj(), …)`.
+- **`qm.pseudo_hermitian` (3 sites, 7 `@` tokens)** — the η-sandwiches `⟨a|η|b⟩`, `⟨ψ|ηO|ψ⟩`, `⟨ψ|η|ψ⟩` now route each contraction through `dense_matvec_complex` + `dense_dot_complex`.
+- **`signal_processing.heat_kernel` (2)** — the eigenbasis project/reconstruct matvecs → `dense_matvec_complex`.
+- **`spectral` (2)** — the decompose/recompose eigenbasis matvecs → `dense_matvec_complex`.
+- **`signal_processing.music` (1)** — the noise-subspace projection `Enᴴ·A` (a complex 2-D matmul) → `dense_matmul_complex`.
+
+**numpy-math ratchet `matmul` 135 → 123.** Pure Python-tier; no C change, ABI stays 3. Parity tests pass unchanged (pseudo-Hermiticity + η-expectation; heat-kernel diffusion; spectral round-trip; MUSIC pseudo-spectrum). The remaining real-typed sites (so8 / triality / octonion-DFT / Minkowski / DSP) await a real-matmul + real-matvec cascade; the `matrix_cascades` QR-internal vdot/back-solves await a shape-polymorphic pass.
+
+SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
 ## [0.7.5rc19] - 2026-06-08
 
 **The matmul-kernel phase, batch 4 — `qm.relativistic` γ-products + `qm.pseudo_hermitian` η-products onto the cascade (numpy-math `matmul` 147 → 135; #928).** 12 dense complex matmuls route through `dense_matmul_complex`:

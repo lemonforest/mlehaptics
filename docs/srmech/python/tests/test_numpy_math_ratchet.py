@@ -82,11 +82,18 @@ _UFUNC = re.compile(
 # products) + qm.gauge (6 — Lie-algebra commutator/Casimir/Wilson) through
 # dense_matmul_complex (matmul 168 -> 147); rc19 routed qm.relativistic's 9
 # gamma-matrix products + qm.pseudo_hermitian's 3 (Oᴴη/ηO + V·Vᴴ) onto the
-# matmul cascade (matmul 147 -> 135). The eta@k Minkowski matvec/dot (real-typed)
-# and the eta-sandwich vecmat/dot sites await a real-matmul + vecmat helper.
+# matmul cascade (matmul 147 -> 135); rc20 added the dense_dot_complex bilinear
+# helper (Σ aᵢbᵢ via elementwise-multiply + reduction) and routed the complex
+# matvec/dot/sandwich sites onto the matvec + dot cascades — qm.pseudo_hermitian's
+# 3 η-sandwiches (⟨a|η|b⟩, ⟨ψ|ηO|ψ⟩, ⟨ψ|η|ψ⟩ = 7 `@` tokens), heat_kernel's 2
+# eigenbasis matvecs, spectral's 2 decompose/recompose matvecs, and music's
+# Enᴴ·A noise-subspace matmul (matmul 135 -> 123). The remaining real-typed
+# (so8 / triality / octonion-DFT / Minkowski / DSP) sites await a real-matmul +
+# real-matvec cascade; the matrix_cascades QR-internal vdot/back-solves await a
+# shape-polymorphic pass.
 # ---------------------------------------------------------------------------
 CEIL_LINALG_FFT = 126
-CEIL_MATMUL = 135
+CEIL_MATMUL = 123
 CEIL_UFUNC = 48
 
 
