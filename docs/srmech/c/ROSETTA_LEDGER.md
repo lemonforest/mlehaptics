@@ -252,6 +252,14 @@ decrements it).
   preserved). **numpy-math ratchet `matmul` 123 → 115.** ABI 3; QDFT/ODFT +
   numpy-free tests unchanged. `dense_matmul_real`/`dense_dot_real` get first
   callsites in the next batches (so8 / triality).
+- **rc22 (done) — matmul-kernel batch 7: `qm.triality` real products → real
+  cascade.** First consumer of the rc21 real trio. `qm.triality`'s 7 real
+  products — octonion-rep matvecs (`operator @ octonion_mul(…)`, `g_v/g_s/g_c @
+  …`) onto `dense_matvec_real`; the 28×28 Spin(8) triality `tau = S_B·S_C` /
+  `tau²` / `tau³` onto `dense_matmul_real` — plus 3 docstring `@`→`·` rewords.
+  **numpy-math ratchet `matmul` 115 → 105.** ABI 3; triality parity unchanged
+  (`tau³=I₂₈`, `Fix(tau)=g₂` dim 14). `qm.so8`'s ~17 real sites + Minkowski/DSP
+  land next.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each
