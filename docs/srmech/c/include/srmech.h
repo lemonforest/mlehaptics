@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc14"
-#define SRMECH_VERSION       "0.7.5rc14"
+#define SRMECH_VERSION_PRE   "rc15"
+#define SRMECH_VERSION       "0.7.5rc15"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -594,14 +594,18 @@ srmech_status_t srmech_cascade_kuramoto_step_f64(
 /* ------------------------------------------------------------------ *
  * GENERALISED Kuramoto-Sakaguchi forward-Euler step (v0.6.0rc14; §11.1).
  *
- *   dθ_i/dt = ω_i + Σ_j A_ij·sin(θ_j − θ_i − α) [ + p_i·sin(ψ_i − θ_i) ]
+ *   dθ_i/dt = ω_i + Σ_j K·A_ij·sin(θ_j − θ_i − α) [ + p_i·sin(ψ_i − θ_i) ]
  *   θ_i(t+dt) = θ_i(t) + dt·[ above ]
  *
  * `adjacency` is ROW-MAJOR n×n (A_ij = weight of oscillator j on i): a
  * non-symmetric matrix expresses DIRECTED / one-way coupling, a graph
- * Laplacian expresses graph-structured coupling. `adjacency == NULL` ⇒
- * every weight is the uniform mean-field K/N (so NULL adjacency + α=0 +
- * NULL pin_anchor reproduces srmech_cascade_kuramoto_step_f64 exactly).
+ * Laplacian expresses graph-structured coupling. The effective weight is
+ * `coupling_k·A_ij` — the global K SCALES the matrix (so K=0 zeroes the
+ * coupling), matching the all-to-all branch's K/N (§32 fix, v0.7.5rc15;
+ * prior to rc15 K was ignored when adjacency was provided).
+ * `adjacency == NULL` ⇒ every weight is the uniform mean-field K/N (so NULL
+ * adjacency + α=0 + NULL pin_anchor reproduces
+ * srmech_cascade_kuramoto_step_f64 exactly).
  * `alpha` is the Sakaguchi phase frustration. `pin_anchor` (NULL ⇒ no
  * pinning) is n anchor phases ψ; `pin_strength` (NULL ⇒ unit) is n
  * per-oscillator strengths p. No abs().
