@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import ctypes
 import math
+import struct
 from typing import List, Tuple
 
 from . import _native
@@ -828,111 +829,279 @@ def _principal_angle_anchor(x: float,
     return anchored_num, anchor_den
 
 
-def cos(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> float:
-    """``cos(x)`` (radians) via the Class-N rational cascade.
+# ──────────────────────────────────────────────────────────────────────
+# Q61 fixed-point trig cascade — the canonical float-projection, bit-exact
+# with the native peer ``c/src/srmech_trig.c`` (srmech_{sin,cos,atan,atan2}).
+#
+# Ported line-for-line from the C. The Class-N Taylor series runs in Q61
+# fixed-point (denominator 2**61 — a power-of-two Class-N rational); float
+# appears ONLY at the final projection ``float(v) / float(2**61)`` (the same
+# two-step int64→double cast the C does). Python's arbitrary-precision ints
+# reproduce the C int64/uint64 arithmetic exactly — the ``& _Q61_MASK64``
+# masks model C's uint64 wrap, ``_q61_cdiv`` models C's truncate-toward-zero
+# integer ``/`` — so this pure-Python path is BIT-IDENTICAL to ``srmech_sin``
+# et al. Dispatch to the native peer is therefore a transparent speedup, not
+# a different answer (the C↔Python parity test asserts the equality).
+#
+# This Q61 cascade is the deterministic, C-reproducible float contract for
+# ``sin``/``cos``/``tan``/``atan``/``atan2``. The exact-rational
+# ``*_series_truncate`` (arbitrary-denominator bignum) stays the separate
+# higher-precision REFERENCE surface (where the domain guards live).
+# ──────────────────────────────────────────────────────────────────────
+_Q61_FBITS = 61
+_Q61_ONE = 1 << _Q61_FBITS                       # 1.0 in Q61
+_Q61_MASK61 = _Q61_ONE - 1
+_Q61_MASK64 = (1 << 64) - 1
+_Q61_TWO_OVER_PI_Q64 = 11743562013128004906      # round((2/pi) * 2**64)
+_Q61_HALF_PI_Q61 = 3622009729038561421           # round((pi/2) * 2**61)
+_Q61_SIN_TERMS = 10                              # |r|<=pi/4: r^21/21! < 2^-62
+_Q61_ATAN_TERMS = 40                            # |m|<=sqrt2-1 fast band
+# atan band edges tan(pi/8)=√2−1, cot(pi/8)=√2+1 (SELECTION thresholds only —
+# they never enter the result; they keep every atan series argument at
+# |m| <= √2−1 ≈ 0.414 so the alternating series reaches full precision).
+_TAN_PI_8: float = 0.41421356237309515           # √2 − 1
+_COT_PI_8: float = 2.414213562373095             # √2 + 1
+_Q61_TAN_PI8 = _TAN_PI_8
+_Q61_COT_PI8 = _COT_PI_8
 
-    Substrate-native replacement for ``math.cos`` / ``np.cos`` — no
-    ``math.cos`` in the call graph. Matches the libm value to ≈1e-11 for
-    all real ``x`` (range reduction keeps the Taylor series cheap).
+
+def _q61_cdiv(a: int, b: int) -> int:
+    """C integer division — truncate toward zero (Python ``//`` floors)."""
+    assert b != 0, "division by zero in Q61 cascade"
+    q = abs(a) // abs(b)
+    return -q if (a < 0) != (b < 0) else q
+
+
+def _q61_fxmul(a: int, b: int) -> int:
+    """Q61 signed fixed-point multiply ``(a/2^61)*(b/2^61) -> r/2^61``.
+
+    Mirrors ``trig_fxmul``: the sign is an explicit Class-K branch (the
+    magnitude product is Class-K, the sign re-application Class-C; never
+    ``abs()`` of the *value*). ``(|a|*|b|) >> 61`` is the exact product>>61.
     """
-    a_num, a_den = _principal_angle_anchor(x)
-    c_num, c_den = cos_series_truncate(a_num, a_den, terms)
-    return c_num / c_den
+    neg = (a < 0) != (b < 0)
+    mag = (abs(a) * abs(b)) >> _Q61_FBITS
+    return -mag if neg else mag
+
+
+def _q61_reduce(x: float):
+    """Integer cyclic octant reduction (mirror ``trig_reduce``).
+
+    Returns ``(ok, octant, r_q61)`` with ``|r| <= pi/4`` in Q61. PURE
+    INTEGER except the IEEE-754 bit-read of ``x``; the octant count comes
+    from an integer wide-multiply by a Q64 ``2/pi``. ``ok`` is False for
+    Inf/NaN or ``|x| >= 2**55`` (the two-word product loses octant bits).
+    """
+    bits = struct.unpack("<Q", struct.pack("<d", float(x)))[0]
+    sign = bits >> 63
+    raw = (bits >> 52) & 0x7FF
+    frac = bits & ((1 << 52) - 1)
+    if raw == 0x7FF:
+        return (False, 0, 0)                      # Inf / NaN
+    if raw == 0 and frac == 0:
+        return (True, 0, 0)
+    mant = frac if raw == 0 else (frac | (1 << 52))
+    e = -1074 if raw == 0 else raw - 1075         # x = ± mant * 2**e
+    if e >= 3:
+        return (False, 0, 0)                      # |x| >= 2**55
+    prod = mant * _Q61_TWO_OVER_PI_Q64
+    phi = prod >> 64
+    plo = prod & _Q61_MASK64
+    s = 3 - e                                     # >= 1: right shift to Q61
+    if s >= 128:
+        return (True, 0, 0)
+    if s >= 64:
+        vhi = 0
+        vlo = phi >> (s - 64)
+    else:
+        vhi = phi >> s
+        vlo = ((plo >> s) | ((phi << (64 - s)) & _Q61_MASK64)) & _Q61_MASK64
+    q = ((vhi << 3) | (vlo >> _Q61_FBITS)) & _Q61_MASK64   # floor(V / 2^61)
+    vlo61 = vlo & _Q61_MASK61
+    if vlo61 >= (1 << (_Q61_FBITS - 1)):          # round half up
+        k = (q + 1) & _Q61_MASK64
+        fr = vlo61 - _Q61_ONE
+    else:
+        k = q
+        fr = vlo61
+    if sign:
+        fr = -fr
+        k = (-k) & _Q61_MASK64                    # negate mod 2**64
+    octant = k & 3
+    r_q61 = _q61_fxmul(fr, _Q61_HALF_PI_Q61)      # r = frac * (pi/2)
+    return (True, octant, r_q61)
+
+
+def _q61_sin_core(r: int) -> int:
+    """``sin(r)`` for ``|r| <= pi/4``, Q61 → Q61 (mirror ``trig_sin_core``)."""
+    r2 = _q61_fxmul(r, r)
+    term = r
+    s = r
+    for k in range(1, _Q61_SIN_TERMS + 1):
+        term = _q61_fxmul(term, r2)
+        term = _q61_cdiv(term, (2 * k) * (2 * k + 1))
+        s = s - term if (k & 1) else s + term
+    return s
+
+
+def _q61_cos_core(r: int) -> int:
+    """``cos(r)`` for ``|r| <= pi/4``, Q61 → Q61 (mirror ``trig_cos_core``)."""
+    r2 = _q61_fxmul(r, r)
+    term = _Q61_ONE
+    s = _Q61_ONE
+    for k in range(1, _Q61_SIN_TERMS + 1):
+        term = _q61_fxmul(term, r2)
+        term = _q61_cdiv(term, (2 * k - 1) * (2 * k))
+        s = s - term if (k & 1) else s + term
+    return s
+
+
+def _q61_atan_core(m: int) -> int:
+    """``atan(m)`` for ``0 <= m <= √2−1``, Q61 → Q61 (mirror ``trig_atan_core``)."""
+    m2 = _q61_fxmul(m, m)
+    term = m
+    s = m
+    for k in range(1, _Q61_ATAN_TERMS + 1):
+        term = _q61_fxmul(term, m2)
+        contrib = _q61_cdiv(term, 2 * k + 1)
+        s = s - contrib if (k & 1) else s + contrib
+    return s
+
+
+def _q61_to_double(q61: int) -> float:
+    """Project Q61 → float: ``float(v) / float(2**61)`` (matches the C
+    two-step ``(double)q61 / (double)SRMECH_TRIG_ONE`` cast exactly)."""
+    return float(q61) / float(_Q61_ONE)
+
+
+def _q61_atan_nonneg(m: float) -> float:
+    """``atan(m)`` for ``m >= 0`` via the three-band reduction (mirror
+    ``trig_atan_nonneg``); the band keeps every series argument ≤ √2−1."""
+    half_pi = _q61_to_double(_Q61_HALF_PI_Q61)
+    if m <= _Q61_TAN_PI8:
+        mq = int(m * float(_Q61_ONE) + 0.5)
+        return _q61_to_double(_q61_atan_core(mq))
+    if m >= _Q61_COT_PI8:                          # atan(m) = pi/2 - atan(1/m)
+        inv = 1.0 / m
+        mq = int(inv * float(_Q61_ONE) + 0.5)
+        return half_pi - _q61_to_double(_q61_atan_core(mq))
+    u = (m - 1.0) / (m + 1.0)                      # middle band: pi/4 + atan(u)
+    neg = u < 0.0
+    um = -u if neg else u
+    mq = int(um * float(_Q61_ONE) + 0.5)
+    a = _q61_to_double(_q61_atan_core(mq))
+    return half_pi / 2.0 + (-a if neg else a)
+
+
+def cos(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> float:
+    """``cos(x)`` (radians) via the Q61 Class-N cascade.
+
+    Bit-exact with the native peer ``srmech_cos`` (Q61 fixed-point); on a
+    native install this dispatches to the C and returns identical bits.
+    Substrate-native replacement for ``math.cos`` / ``np.cos`` — no
+    ``math.cos`` in the call graph. ``terms`` is retained for back-compat;
+    the Q61 cascade uses a fixed term cap. The exact-rational higher-
+    precision reference surface is ``cos_series_truncate``.
+    """
+    x = float(x)
+    if not math.isfinite(x):
+        return x - x                               # NaN for ±Inf and NaN
+    if _native.has_native_trig():
+        return _native.cos_c(x)
+    ok, octant, r = _q61_reduce(x)
+    if not ok:
+        return x - x                               # NaN for Inf/NaN
+    sc = _q61_sin_core(r)
+    cc = _q61_cos_core(r)
+    v = cc if octant == 0 else -sc if octant == 1 else -cc if octant == 2 else sc
+    return _q61_to_double(v)
 
 
 def sin(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> float:
-    """``sin(x)`` (radians) via the Class-N rational cascade.
+    """``sin(x)`` (radians) via the Q61 Class-N cascade.
 
-    Substrate-native replacement for ``math.sin`` / ``np.sin``.
+    Bit-exact with the native peer ``srmech_sin``; dispatches to C when
+    available. Substrate-native replacement for ``math.sin`` / ``np.sin``.
     """
-    a_num, a_den = _principal_angle_anchor(x)
-    s_num, s_den = sin_series_truncate(a_num, a_den, terms)
-    return s_num / s_den
+    x = float(x)
+    if not math.isfinite(x):
+        return x - x                               # NaN for ±Inf and NaN
+    if _native.has_native_trig():
+        return _native.sin_c(x)
+    ok, octant, r = _q61_reduce(x)
+    if not ok:
+        return x - x
+    sc = _q61_sin_core(r)
+    cc = _q61_cos_core(r)
+    v = sc if octant == 0 else cc if octant == 1 else -sc if octant == 2 else -cc
+    return _q61_to_double(v)
 
 
 def tan(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> float:
-    """``tan(x) = sin(x)/cos(x)`` via the Class-N cascade."""
-    a_num, a_den = _principal_angle_anchor(x)
-    s_num, s_den = sin_series_truncate(a_num, a_den, terms)
-    c_num, c_den = cos_series_truncate(a_num, a_den, terms)
-    if c_num == 0:
+    """``tan(x) = sin(x)/cos(x)`` via the Q61 cascade (no native
+    ``srmech_tan`` — composed from the Q61 ``sin``/``cos``)."""
+    c = cos(x)
+    if c == 0.0:
         raise ValueError("tan undefined: cos(x) == 0")
-    return (s_num * c_den) / (s_den * c_num)
-
-
-# tan(π/8) and cot(π/8) = √2∓1 — the band edges that keep every atan
-# series argument at |·| <= √2−1 ≈ 0.414 (term ratio ≈0.17), so the
-# alternating series reaches full float precision well within the term
-# cap (the bare series is slow only near |x|=1, which the middle band
-# below maps to a small argument).
-_TAN_PI_8: float = 0.41421356237309515       # √2 − 1
-_COT_PI_8: float = 2.414213562373095         # √2 + 1
-
-
-def _atan_nonneg(m: float, terms: int) -> float:
-    """``atan(m)`` for ``m >= 0`` via three-band Class-N reduction.
-
-    Band edges √2∓1 cap every series argument at ≤ √2−1 so the
-    alternating atan series reaches full precision; ``π`` is the
-    cascade-derived rational.
-    """
-    pi_num, pi_den = _pi_rational()
-    pi_f = pi_num / pi_den
-    if m <= _TAN_PI_8:
-        n, d = m.as_integer_ratio()
-        a_num, a_den = atan_series_truncate(n, d, terms)
-        return a_num / a_den
-    if m >= _COT_PI_8:
-        # atan(m) = π/2 − atan(1/m); 1/m ≤ √2−1
-        inv = 1.0 / m
-        n, d = inv.as_integer_ratio()
-        a_num, a_den = atan_series_truncate(n, d, terms)
-        return pi_f / 2.0 - a_num / a_den
-    # Middle band around 1: atan(m) = π/4 + atan((m−1)/(m+1)); |·| ≤ √2−1.
-    u = (m - 1.0) / (m + 1.0)
-    n, d = u.as_integer_ratio()
-    a_num, a_den = atan_series_truncate(n, d, terms)
-    return pi_f / 4.0 + a_num / a_den
+    return sin(x) / c
 
 
 def atan(x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> float:
-    """``atan(x)`` via the Class-N atan cascade with band reduction.
+    """``atan(x)`` via the Q61 three-band Class-N cascade.
 
-    Class-K magnitude (no ``abs()``) + three-band argument reduction
-    (``|x|>1`` → ``π/2 − atan(1/x)``; the slow ``|x|≈1`` band →
-    ``π/4 + atan((|x|−1)/(|x|+1))``) so every series argument stays in
-    the fast-convergence region. Substrate-native replacement for
-    ``math.atan`` / ``np.arctan``.
+    Bit-exact with ``srmech_atan``; dispatches to C when available. Class-K
+    magnitude (never ``abs()`` of the value) + Class-C re-orientation; the
+    three-band reduction keeps every series argument in the fast region.
+    Substrate-native replacement for ``math.atan`` / ``np.arctan``.
     """
     x = float(x)
-    # Class-K pin-slot: magnitude + orientation without abs().
-    x_mag = x if x >= 0.0 else -x
-    r = _atan_nonneg(x_mag, terms)
-    return r if x >= 0.0 else -r                  # Class-C re-orientation
+    if not math.isfinite(x):
+        if x != x:                                 # NaN
+            return x
+        # atan(±Inf) = ±π/2 (cascade π/2; sign re-applied — Class C)
+        half_pi = _q61_to_double(_Q61_HALF_PI_Q61)
+        return half_pi if x > 0.0 else -half_pi
+    if _native.has_native_trig():
+        return _native.atan_c(x)
+    xm = x if x >= 0.0 else -x                     # Class-K magnitude
+    r = _q61_atan_nonneg(xm)
+    return r if x >= 0.0 else -r                   # Class-C re-orientation
 
 
 def atan2(y: float, x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> float:
-    """``atan2(y, x)`` via the Class-N atan cascade with quadrant logic.
+    """``atan2(y, x)`` via the Q61 atan cascade with quadrant logic.
 
+    Bit-exact with ``srmech_atan2``; dispatches to C when available.
     Substrate-native replacement for ``math.atan2`` / ``np.arctan2``.
     """
     y = float(y)
     x = float(x)
-    pi_num, pi_den = _pi_rational()
-    pi_f = pi_num / pi_den
+    # Non-finite quadrant limits, run BEFORE dispatch so the native and
+    # pure-Python paths agree on the whole domain (the C reduces Inf via an
+    # int cast that is UB; this guard keeps both renderings identical).
+    if not (math.isfinite(y) and math.isfinite(x)):
+        if y != y or x != x:                       # any NaN → NaN
+            return float("nan")
+        half_pi = _q61_to_double(_Q61_HALF_PI_Q61)
+        pi = 2.0 * half_pi
+        if math.isinf(y) and math.isinf(x):        # both ±Inf
+            base = pi / 4.0 if x > 0.0 else 3.0 * pi / 4.0
+            return math.copysign(base, y)          # ±π/4 or ±3π/4
+        if math.isinf(y):                          # |y|=Inf, x finite
+            return math.copysign(half_pi, y)       # ±π/2
+        if x > 0.0:                                # x=+Inf, y finite
+            return math.copysign(0.0, y)           # ±0
+        return math.copysign(pi, y)                # x=−Inf, y finite → ±π
+    if _native.has_native_trig():
+        return _native.atan2_c(y, x)
+    half_pi = _q61_to_double(_Q61_HALF_PI_Q61)
+    pi = 2.0 * half_pi
     if x == 0.0:
-        if y > 0.0:
-            return pi_f / 2.0
-        if y < 0.0:
-            return -pi_f / 2.0
-        return 0.0
-    base = atan(y / x, terms=terms)
+        return half_pi if y > 0.0 else (-half_pi if y < 0.0 else 0.0)
+    base = atan(y / x)
     if x > 0.0:
         return base
-    # x < 0: shift by ±π using the sign of y (Class-C orientation).
-    if y >= 0.0:
-        return base + pi_f
-    return base - pi_f
+    return base + pi if y >= 0.0 else base - pi    # x<0 quadrant shift (Class C)
 
 
 # Default Taylor terms for the float-projection real exp (|reduced| <= 1).
