@@ -90,10 +90,14 @@ _UFUNC = re.compile(
 # Enᴴ·A noise-subspace matmul (matmul 135 -> 123). The remaining real-typed
 # (so8 / triality / octonion-DFT / Minkowski / DSP) sites await a real-matmul +
 # real-matvec cascade; the matrix_cascades QR-internal vdot/back-solves await a
-# shape-polymorphic pass.
+# shape-polymorphic pass; rc21 introduced the real-matmul cascade trio
+# (dense_matmul_real / dense_matvec_real / dense_dot_real = the complex kernel on
+# imag-free input, .real → float64) and routed hypercomplex_dft's 8 octonion-rep
+# (8×8 real) matvecs onto dense_matvec_real (matmul 123 -> 115). The remaining
+# real so8/triality/DSP/Minkowski sites land in subsequent batches.
 # ---------------------------------------------------------------------------
 CEIL_LINALG_FFT = 126
-CEIL_MATMUL = 123
+CEIL_MATMUL = 115
 CEIL_UFUNC = 48
 
 

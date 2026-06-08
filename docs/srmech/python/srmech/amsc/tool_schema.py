@@ -970,6 +970,35 @@ def _register_primitive_class_tools() -> None:
             returns=R("complex", "scalar sum a_i b_i"),
         ),
         ToolEntry(
+            name="srmech.amsc.laplacian.dense_matmul_real",
+            owner="srmech", category="laplacian",
+            summary="Dense real matrix-matrix multiplication A times B → "
+                    "float64 (rides the complex kernel; drops the zero "
+                    "imaginary part). Golub & Van Loan §1.1.",
+            parameters=(P("A", "np.ndarray", True, "m × k real"),
+                        P("B", "np.ndarray", True, "k × n real")),
+            returns=R("np.ndarray", "m × n float64"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.dense_matvec_real",
+            owner="srmech", category="laplacian",
+            summary="Dense real matrix-vector multiplication M times v → "
+                    "float64 (real peer of dense_matvec_complex; rides the "
+                    "complex kernel). Golub & Van Loan §1.1.",
+            parameters=(P("M", "np.ndarray", True, "rows × cols real"),
+                        P("v", "np.ndarray", True, "length-cols real")),
+            returns=R("np.ndarray", "length-rows float64"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.dense_dot_real",
+            owner="srmech", category="laplacian",
+            summary="Dense real inner product sum a_i b_i → float (real peer "
+                    "of dense_dot_complex). Golub & Van Loan §1.1.",
+            parameters=(P("a", "np.ndarray", True, "length-n real"),
+                        P("b", "np.ndarray", True, "length-n real")),
+            returns=R("float", "scalar sum a_i b_i"),
+        ),
+        ToolEntry(
             name="srmech.amsc.laplacian.elementwise_multiply_complex",
             owner="srmech", category="laplacian",
             summary="Elementwise complex multiplication a * b with "

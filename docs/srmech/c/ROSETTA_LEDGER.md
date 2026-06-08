@@ -242,6 +242,16 @@ decrements it).
   so8/triality/octonion-DFT/Minkowski/DSP sites (real-matmul + real-matvec
   cascade) and the `matrix_cascades` QR-internal vdot/back-solves (shape-
   polymorphic pass).
+- **rc21 (done) — matmul-kernel batch 6: real-linear-algebra cascade trio +
+  `hypercomplex_dft`.** Introduces `dense_matmul_real` / `dense_matvec_real` /
+  `dense_dot_real` (float64 peers riding the complex kernel on imag-free input,
+  `.real`; **`composition_of_c`**) so the ~70 real-typed sites can leave numpy
+  `@`/`.dot` without a dtype change. First use: `amsc.cascade.hypercomplex_dft`'s
+  8 octonion-rep (8×8 real) matvecs in the QDFT/ODFT core + `hypercomplex_couple`
+  → `dense_matvec_real` (lazy-imported, numpy-absent-safe §22; F378 bracketing
+  preserved). **numpy-math ratchet `matmul` 123 → 115.** ABI 3; QDFT/ODFT +
+  numpy-free tests unchanged. `dense_matmul_real`/`dense_dot_real` get first
+  callsites in the next batches (so8 / triality).
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each
