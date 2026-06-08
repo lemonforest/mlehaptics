@@ -62,10 +62,13 @@ CEIL_PYTHON_ONLY_IRREDUCIBLE = 108
 # rc11: cascade.hamming_encode/syndrome dispatch to srmech_hamming_* (-> c_dispatched)
 # and hamming_decode_correct composes hamming_syndrome (-> composition_of_c) -> 9.
 # rc12: hdc.polar_{bind,bundle,density} dispatch to srmech_polar_* (-> c_dispatched);
-# all int8, bit-exact -> 6. The remaining 6 are lmmse (float dense-solve; the C
-# twin srmech_dense_solve_f64 is NOT bit-exact with LAPACK -> a deliberate
-# float-boundary decision, held) + the Klein-4 family (5; gated on W5).
-CEIL_C_EXISTS_UNBOUND = 6
+# all int8, bit-exact -> 6.
+# rc13: lmmse.op routes its solve through the dense_solve cascade + its matvec
+# through dense_matvec_complex (numpy is carriers-only there now) -> composes two
+# c_dispatched ops -> composition_of_c -> 5. The remaining 5 are the Klein-4
+# family, gated on W5 (see also test_numpy_math_ratchet.py — the source-level
+# guard that keeps numpy a carrier, not a math engine).
+CEIL_C_EXISTS_UNBOUND = 5
 
 _DEBT_BUCKETS = ("python_only_irreducible", "c_exists_unbound")
 _ALL_BUCKETS = (

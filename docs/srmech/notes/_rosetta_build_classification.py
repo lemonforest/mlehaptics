@@ -104,7 +104,6 @@ srmech.amsc.cascade.hamming_encode
 srmech.amsc.cascade.hamming_syndrome
 
 ### c_exists_unbound
-srmech.signal_processing.closed_form_ops.lmmse.op
 srmech.amsc.hdc.klein4_bind
 srmech.amsc.hdc.klein4_bundle
 srmech.amsc.hdc.klein4_similarity
@@ -112,6 +111,7 @@ srmech.amsc.hdc.klein4_triality_cycle
 srmech.amsc.hdc.klein4_unbind
 
 ### composition_of_c
+srmech.signal_processing.closed_form_ops.lmmse.op
 srmech.qm.gauge.gauge_connection_matrix
 srmech.qm.gauge.su2_generators
 srmech.qm.gauge.su2_structure_constants
