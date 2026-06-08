@@ -260,6 +260,14 @@ decrements it).
   **numpy-math ratchet `matmul` 115 → 105.** ABI 3; triality parity unchanged
   (`tau³=I₂₈`, `Fix(tau)=g₂` dim 14). `qm.so8`'s ~17 real sites + Minkowski/DSP
   land next.
+- **rc23 (done) — matmul-kernel batch 8: `qm.so8` real + complex.** The
+  g₂/Spin(8) module's 17 contraction sites: 15 real (the `[X,Y]` commutator,
+  su(3)/g₂ Gram products, basis-projection matvecs, structure-constant
+  `pinv·bracket`, Gram-Schmidt dot) → `dense_matmul_real`/`matvec_real`/`dot_real`;
+  2 COMPLEX (the su(3)-weight Rayleigh quotients `vᴴv` / `vᴴ·ad·v`, where `v` is a
+  complex eigenvector of the real ad(H)) → `dense_dot_complex`/`dense_matvec_complex`.
+  **numpy-math ratchet `matmul` 105 → 86.** ABI 3; so8 parity unchanged (g₂ dim 14,
+  14 = 8+3+3̄ su(3) branching, su(3) weights). The 2 `np.kron` stay (distinct op).
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each
