@@ -57,7 +57,9 @@ CEIL_PYTHON_ONLY_IRREDUCIBLE = 108
 # rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
 # rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.
-CEIL_C_EXISTS_UNBOUND = 14
+# rc10: cascade.cd_basis_product dispatches to srmech_cd_basis_product
+# (-> c_dispatched) and octonion_mult_table composes it (-> composition_of_c) -> 12.
+CEIL_C_EXISTS_UNBOUND = 12
 
 _DEBT_BUCKETS = ("python_only_irreducible", "c_exists_unbound")
 _ALL_BUCKETS = (

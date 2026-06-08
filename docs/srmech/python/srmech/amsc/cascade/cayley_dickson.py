@@ -74,9 +74,12 @@ Canonical SSoT:
 
 from __future__ import annotations
 
+import ctypes
 from fractions import Fraction
 from itertools import combinations
 from typing import Any, Dict, List, Sequence, Set, Tuple
+
+from srmech.amsc import _native  # rc10: native srmech_cd_basis_product dispatch
 
 #: Hard ceiling on the algebra dimension (the demonstrator is not unbounded; the
 #: C peer shares this bound). 64 = the 6th doubling — enough to show the open
@@ -228,6 +231,18 @@ def cd_basis_product(dim: int, i: int, j: int) -> Tuple[int, int]:
         raise ValueError(f"dim must be a power of two ≤ {CD_MAX_DIM}; got {dim}")
     if not (0 <= i < dim and 0 <= j < dim):
         raise ValueError(f"basis indices {i}, {j} out of range [0, {dim})")
+    # rc10: dispatch the integer cocycle to the C peer when present (native,
+    # JPL-clean iterative doubling; bit-identical integer (index, sign) to the
+    # pure-Python loop below, which remains the Pyodide / no-native fallback).
+    if (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_cd_basis_product")):
+        out_index = ctypes.c_int()
+        out_sign = ctypes.c_int()
+        rc = _native.LIB.srmech_cd_basis_product(
+            int(dim), int(i), int(j),
+            ctypes.byref(out_index), ctypes.byref(out_sign))
+        if rc == _native.SRMECH_OK:
+            return int(out_index.value), int(out_sign.value)
     sign = 1
     index = 0
     p, q = i, j

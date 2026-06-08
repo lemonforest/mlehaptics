@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc10] - 2026-06-08
+
+**Rosetta cheap-win sweep #3 — the Cayley-Dickson basis cocycle goes native (#928).** `cascade.cd_basis_product` (the integer cocycle `e_i·e_j = sign·e_{i⊕j}`) now **dispatches to the C peer `srmech_cd_basis_product`** when native is present (the symbol was bound but never called); the pure-Python iterative doubling stays as the Pyodide / no-native fallback. With that primitive C-backed, `qm.octonion.octonion_mult_table` now **builds the (8,8,8) structure tensor through `cd_basis_product`** instead of a recursive numpy `_cd_mul`.
+
+- Integer-only ⇒ bit-exactness is trivial; the table's int8 bytes are **identical**, so `octonion_table_attestation`'s `response_sha256` content-address is **unchanged** (verified `7f36461e…`). The recursive `_cd_mul`/`_cd_conjugate` helpers (used only to build the table) are removed; the convention stays specified by the module docstring + `_DOUBLING_RULE`/`_CONJ_RULE` byte constants (the `parser_rule_hash`) + the C primitive.
+- **Reclassify:** `cd_basis_product` `c_exists_unbound → c_dispatched`; `octonion_mult_table` `c_exists_unbound → composition_of_c`. 142 cayley/octonion/so8/hurwitz/triality/sedenion/rosetta tests green.
+- **Ratchet:** ceiling **`c_exists_unbound` 14 → 12**; `python_only_irreducible` unchanged at 108. Total standalone-C debt **122 → 120.**
+
+Dispatch retrofit + docs; no new op, ABI stays 3. SSoT: issue #928; `c/ROSETTA_LEDGER.md`.
+
 ## [0.7.5rc9] - 2026-06-08
 
 **Rosetta cheap-win sweep #2 — octonion L/R-multiply + conjugate → native dispatch (#928).** The three `srmech.qm.octonion` ops that built the octonion left/right-multiplication operators via `np.einsum` over the structure-constant table (and the conjugate via slice-negate) now **delegate to the already-C-dispatched `hdc.loop_left_op` / `loop_right_op` / `loop_conj`** (the octonion loop family, `srmech_loop_*_f64`). Same Cayley-Dickson-from-H convention on both sides (verified bit-exact over 50 random trials + the byte-identical structure table), so output is unchanged and the so(8)/triality engine downstream is unaffected (**118 qm tests green**).
