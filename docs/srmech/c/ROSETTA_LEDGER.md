@@ -80,31 +80,68 @@ wrapper-surface, not compute kernels — outside the C-mirror surface entirely.
 
 ---
 
+## The measured baseline (rc7 audit; issue [#928](https://github.com/lemonforest/mlehaptics/issues/928))
+
+The rc7 audit enumerated the **348 public compute-or-not ops** across
+`srmech.amsc` / `srmech.qm` / `srmech.signal_processing` and classified every
+one by reading its implementation against the exported C-symbol surface. The
+result is the committed SSoT `python/tests/rosetta_classification.ndjson`, pinned
+by the `python/tests/test_rosetta_completeness.py` ratchet (regenerate via
+`notes/_rosetta_inventory.py` → `notes/_rosetta_build_classification.py`):
+
+| Bucket | Count | Standalone-C? |
+|--------|------:|---------------|
+| `c_dispatched` | 78 | ✅ runs on libsrmech alone |
+| `composition_of_c` | 61 | ✅ pure composition of C-dispatched ops |
+| `bignum_reference` | 22 | ➖ intentional exact-rational oracle tier (not debt) |
+| `non_compute` | 56 | ➖ IO / registry / schema / introspection (no kernel) |
+| **`c_exists_unbound`** | **23** | ❌ **DEBT (cheap):** a C twin exists, Python doesn't dispatch |
+| **`python_only_irreducible`** | **108** | ❌ **DEBT:** irreducible kernel, no C twin yet |
+
+**Total standalone-C debt = 131** (108 irreducible + 23 unbound). The ratchet's
+two ceilings start here and only move **down**.
+
+### What collapses the most debt (the rc8+ work-list, by leverage)
+
+The 108 irreducible are not 108 distinct problems — they cluster on a **handful
+of missing C kernels**. One kernel each clears a column:
+
+| Missing C kernel | Clears (approx) | Where |
+|------------------|-----------------|-------|
+| **dense complex `matmul`** (matrix×matrix) | ~15 | qm: `commutator`, `gamma_5`, `casimir_*`, `clifford_residuals`, `wilson_loop`, `heisenberg/liouville_evolve`, `harmonic_oscillator_hamiltonian`, … (matvec twin already exists; matmul is the gap) |
+| **FFT/DFT** (radix-2 + Bluestein) | ~20 | sp: `fft/ifft/rfft/stft/spectrogram/cross_spectral/multitaper/wiener/spectral_subtraction/ofdm` (Path A+B) + cascade `dft/fft/idft/ifft` |
+| **general dense `eig`/`SVD`/`QR`/`lstsq`** | ~16 | qm `so8.*` + `triality.*` (svd/lstsq/qr/pinv/rank), cascade `matrix_cascades.{qr,svd,lstsq,eigvals}`, sp `esprit/mimo_svd/map_ml` |
+| **`kron`** (tensor product) | ~6 | qm `bell.*` CHSH family + `so8` binders |
+| **`einsum` / `convolve` / `correlate`** | ~8 | sp `ica_jade/fir/multirate/polyphase/matched_filter`, cascade `einsum` |
+
+The remaining irreducible are pure-Python DP/codec loops (Viterbi, Huffman,
+LZ77, RLE, arithmetic-coding, wavelet, JPEG, PSK/QAM/FSK) + the numpy-`eigh`
+Laplacian pair + the Klein-4/polar relabel ops — each its own small port.
+
+### The 23 cheap wins (`c_exists_unbound` — wire-up only)
+
+A bit-exact C twin **already ships**; the Python just never calls it:
+
+- **HDC Klein-4 / polar (8):** `klein4_{bind,bundle,similarity,triality_cycle,unbind}` + `polar_{bind,bundle,density}` — twins `srmech_klein4_*` / `srmech_polar_*` exported, Python is numpy-free pure-Python. **`klein4_*` gated on W5** (`klein4_bundle` even-count) per the do-not-mirror gate.
+- **Octonion einsum (4):** `octonion_{left_mult,right_mult,conjugate,mult_table}` — twins `srmech_loop_{left_op,right_op,conj_hd}_f64` + `srmech_cd_basis_product`.
+- **Hamming GF(2) (3):** `hamming_{encode,syndrome,decode_correct}` — twins `srmech_hamming_*` exported, module has **no `_native` import at all**.
+- **SHA-256 mint cluster (6):** `mint_*` / `encode_loe_content` / `compute_content_stride` call **raw `hashlib.sha256`** instead of `srmech_sha256_hex` — *also a CLAUDE.md discipline violation* (route through `sha256_bytes`).
+- **`cd_basis_product` (1)** + **`lmmse` (1)** (`np.linalg.solve` → `srmech_dense_solve_f64`).
+
 ## Roadmap (rolling; each rc drives the debt down)
 
-- **rc4 (this) — PAL born + parallel.c retrofit + WSL2 Linux build authority.**
-  Establishes the OS-abstraction layer (threads) so the OS-touching C becomes
-  portable; the architecture for a complete standalone mirror is now in place.
-- **rc5 (done) — PAL stream/IPC + `srmech_bus.c` retrofit.** The bus's
-  AF_UNIX-socket / named-pipe duality moved behind `srmech_plat_stream_*`
-  (listen/accept/connect/read/write/close + the endpoint-name→OS-path mapping);
-  `srmech_bus.c` is now `#ifdef`-free — the **last raw-OS surface closed**.
-  Verified: WSL2 pedantic `-Werror` clean over all 32 `.c`, and a standalone-C
-  bus round-trip (serve→accept→connect→send_recv→echo) bit-exact.
-- **rc6+ — `qm.*` C kernels.** Port the irreducible linear-algebra kernels
-  (complex matmul / hermitian-eig / kron / …) to C as bit-exact Rosetta twins,
-  then express the `qm.*` operators as C compositions. Each lands a chunk of
-  `python_only_irreducible → composition_of_c`, the debt ticking toward 0.
-- **klein4 standalone-C sector dispatch (tracked follow-up; gated on W5).** rc13
-  shipped the klein4 `sectors=` splay pure-Python. Its C port is **blocked on
-  resolving W5** (`klein4_bundle` even-count semantics) per the do-not-mirror
-  gate above — confirm the Python semantics first, then mirror.
-
-The exhaustive per-op cross-reference table + a `test_rosetta_completeness.py`
-ratchet (asserting `python_only_irreducible` is monotone-decreasing) lands with
-the **first rc6 `qm.*` port** — i.e. once there is an actual debt count to
-ratchet down. (rc5 closed the OS-abstraction architecture, not a debt-bucket
-op; a monotone ratchet with no moving number would be ceremony.)
+- **rc4 (done) — PAL born + parallel.c retrofit + WSL2 Linux build authority.**
+- **rc5 (done) — PAL stream/IPC + `srmech_bus.c` retrofit** (last raw-OS surface closed).
+- **rc6 (done) — W17 `coupled_wave` + W18 `multiplex_streams`** (active-arc named ops; `composition_of_c`, no new C debt).
+- **rc7 (done, this) — the Rosetta-completeness AUDIT + ratchet.** 348 ops
+  classified; `test_rosetta_completeness.py` pins `python_only_irreducible ≤ 108`
+  and `c_exists_unbound ≤ 23`, both monotone-down, plus a live↔classified
+  exact-match guard so every new op must be bucketed.
+- **rc8+ — close debt by the leverage table above.** Each kernel port +
+  dispatch-wire moves ops `python_only_irreducible`/`c_exists_unbound →
+  `c_dispatched`/`composition_of_c`, **lowering the ceiling in lockstep**. The
+  cheap `c_exists_unbound` wins (esp. the SHA-256 mint cluster + hamming + the
+  W5-cleared klein4 family) are the natural first sweeps.
 
 **Standing tracker.** Issue [#928](https://github.com/lemonforest/mlehaptics/issues/928)
 is the consolidated srmech wishlist (bugs · schema · enhancements · new ops,
