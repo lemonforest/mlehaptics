@@ -50,6 +50,9 @@ srmech.amsc.hdc.loop_right_op
 srmech.amsc.hdc.loop_runbind_hd
 srmech.amsc.hdc.loop_unbind_hd
 srmech.amsc.hdc.permute
+srmech.amsc.hdc.polar_bind
+srmech.amsc.hdc.polar_bundle
+srmech.amsc.hdc.polar_density
 srmech.amsc.hdc.similarity
 srmech.amsc.kepler.equation_of_centre
 srmech.amsc.kepler.kepler_solve
@@ -107,9 +110,6 @@ srmech.amsc.hdc.klein4_bundle
 srmech.amsc.hdc.klein4_similarity
 srmech.amsc.hdc.klein4_triality_cycle
 srmech.amsc.hdc.klein4_unbind
-srmech.amsc.hdc.polar_bind
-srmech.amsc.hdc.polar_bundle
-srmech.amsc.hdc.polar_density
 
 ### composition_of_c
 srmech.qm.gauge.gauge_connection_matrix

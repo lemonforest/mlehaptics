@@ -366,6 +366,21 @@ def polar_bind(a, b):
     position stays uncertain after binding.
     """
     a, b = _check_polar_pair(a, b, "polar_bind")
+    # rc12: dispatch the int8 element-wise sign-product to the C peer when
+    # present (bit-identical to the ``(a * b)`` below — integer arithmetic, no
+    # float — which stays the Pyodide / no-native fallback). #928 cheap-win #5.
+    if (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_polar_bind")):
+        a_c = np.ascontiguousarray(a, dtype=np.int8)
+        b_c = np.ascontiguousarray(b, dtype=np.int8)
+        out = np.empty(a_c.size, dtype=np.int8)
+        rc = _native.LIB.srmech_polar_bind(
+            a_c.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)),
+            b_c.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)),
+            ctypes.c_uint32(a_c.size),
+            out.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)))
+        if rc == _native.SRMECH_OK:
+            return out
     return (a * b).astype(np.int8)
 
 
@@ -401,6 +416,22 @@ def polar_bundle(*vectors):
             raise ValueError(
                 f"hdc.polar_bundle: vector {i} has length {arr.size}, expected {n}"
             )
+    # rc12: dispatch the per-position sticky-majority (sign-of-sum, tie -> 0) to
+    # the C peer when present (bit-identical to the ``np.sign(sum)`` below, which
+    # stays the Pyodide / no-native fallback). #928 cheap-win #5.
+    if (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_polar_bundle")):
+        n_vectors = len(arrs)
+        bufs = [np.ascontiguousarray(v, dtype=np.int8) for v in arrs]
+        ptr_array = (ctypes.POINTER(ctypes.c_int8) * n_vectors)(
+            *(b.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)) for b in bufs)
+        )
+        out = np.empty(n, dtype=np.int8)
+        rc = _native.LIB.srmech_polar_bundle(
+            ptr_array, ctypes.c_uint32(n_vectors), ctypes.c_uint32(n),
+            out.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)))
+        if rc == _native.SRMECH_OK:
+            return out
     total = np.sum(np.stack(arrs).astype(np.int32), axis=0)
     return np.sign(total).astype(np.int8)
 
@@ -432,6 +463,18 @@ def polar_density(v) -> float:
     the Class-K dead-band / uncertain state.
     """
     arr = _as_polar(v, "polar_density")
+    # rc12: dispatch the informative-fraction (count of non-zero / n) to the C
+    # peer when present (bit-identical to ``(arr != 0).mean()`` below — the
+    # count is integer, one division — which stays the no-native fallback).
+    if (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_polar_density")):
+        arr_c = np.ascontiguousarray(arr, dtype=np.int8)
+        out = ctypes.c_double()
+        rc = _native.LIB.srmech_polar_density(
+            arr_c.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)),
+            ctypes.c_uint32(arr_c.size), ctypes.byref(out))
+        if rc == _native.SRMECH_OK:
+            return float(out.value)
     return float((arr != 0).mean())
 
 

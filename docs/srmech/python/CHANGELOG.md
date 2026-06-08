@@ -8,6 +8,17 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc12] - 2026-06-08
+
+**Rosetta cheap-win sweep #5 — the polar-HDC trio goes native (#928).** The three `srmech.amsc.hdc` polar Class-M ops that ship a bit-exact C twin but built the result in pure numpy now **dispatch to native** when present: `polar_bind → srmech_polar_bind` (int8 element-wise sign-product, 0 absorbing), `polar_bundle → srmech_polar_bundle` (per-position sticky-majority `sign(Σ)`, tie → 0), `polar_density → srmech_polar_density` (informative-fraction = count-nonzero / n). The pure-Python numpy paths stay as the Pyodide / no-native fallback.
+
+- **Bit-exact** — all three are integer int8 ops (the density is an integer count over one division); verified native-vs-pure agree over 200 random trials each, so outputs are unchanged.
+- **Reclassify:** `polar_bind`, `polar_bundle`, `polar_density` `c_exists_unbound → c_dispatched`.
+- **Ratchet:** ceiling **`c_exists_unbound` 9 → 6**; `python_only_irreducible` unchanged at 108. Total standalone-C debt **117 → 114.**
+- **Last clean cheap-win.** The remaining 6 `c_exists_unbound` are NOT clean bit-exact wins: **`lmmse`** (1) would route `np.linalg.solve` to the C `srmech_dense_solve_f64`, but that twin is **NOT bit-exact** with LAPACK (agrees to ~2.2e-16, a separate LU) — a deliberate float-boundary decision, **held**; and the **Klein-4 family** (5) stays **gated on W5** (`klein4_bundle` even-count) per `[[feedback_check_known_bugs_before_mirroring_python_to_c]]`. Both warrant a maintainer call before wiring.
+
+Behaviour-preserving dispatch retrofit + docs; no new op, ABI stays 3. SSoT: issue #928; `c/ROSETTA_LEDGER.md`.
+
 ## [0.7.5rc11] - 2026-06-08
 
 **Rosetta cheap-win sweep #4 — the Hamming GF(2) block code goes native (#928).** The two `srmech.amsc.cascade` Hamming primitives that ship a bit-exact C twin (the v0.7.2rc2 `srmech_hamming_*` pair) but built the codeword / syndrome in pure Python now **dispatch to native** when present: `hamming_encode → srmech_hamming_encode` (the systematic GF(2) generator) and `hamming_syndrome → srmech_hamming_syndrome` (the parity-check error position). The pure-Python GF(2) loops stay as the Pyodide / no-native fallback. With `hamming_syndrome` C-backed, `hamming_decode_correct` (which calls it, then single-bit-corrects) is now a **composition of a C-dispatched twin**.

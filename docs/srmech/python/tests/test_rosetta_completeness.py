@@ -61,7 +61,11 @@ CEIL_PYTHON_ONLY_IRREDUCIBLE = 108
 # (-> c_dispatched) and octonion_mult_table composes it (-> composition_of_c) -> 12.
 # rc11: cascade.hamming_encode/syndrome dispatch to srmech_hamming_* (-> c_dispatched)
 # and hamming_decode_correct composes hamming_syndrome (-> composition_of_c) -> 9.
-CEIL_C_EXISTS_UNBOUND = 9
+# rc12: hdc.polar_{bind,bundle,density} dispatch to srmech_polar_* (-> c_dispatched);
+# all int8, bit-exact -> 6. The remaining 6 are lmmse (float dense-solve; the C
+# twin srmech_dense_solve_f64 is NOT bit-exact with LAPACK -> a deliberate
+# float-boundary decision, held) + the Klein-4 family (5; gated on W5).
+CEIL_C_EXISTS_UNBOUND = 6
 
 _DEBT_BUCKETS = ("python_only_irreducible", "c_exists_unbound")
 _ALL_BUCKETS = (
