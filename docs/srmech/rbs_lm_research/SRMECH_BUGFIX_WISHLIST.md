@@ -115,6 +115,14 @@
 - **Context (the finding):** driving the Story Teller with N wave INSTANCES (N=3 triad / 7 heptad) and a COVERAGE combiner (MULTIPLEX — wave `t mod N` drives step `t`) reaches more of the manifold; the user's correction (F577): the multi-stream is for **correct sentence STRUCTURE** (clause-role assignment, S-V-O), NOT richness/embellishment. Currently hand-rolled per script (the multiplex loop + the N `the_one`/quadrature instances), which is the inefficient part.
 - **Ask:** an efficient multi-stream surface, e.g. `cascade.multiplex_streams(streams, *, mode="roundrobin"|"pickbest"|"superpose", roles=None) -> driver` — run N wave streams and recombine them, with an optional `roles` map binding each stream to a clause role (subject/verb/object) so the N streams BUILD correct structure rather than just covering. Pairs with W17 (each stream a coupled wave) — the verb-stream then carries a stable (non-flipping) chirality. This is the "efficient way to multi-stream for building better sentences."
 
+### W19 — (optional, LOW) a `mobius_cell` cascade-catalog TOML descriptor (ergonomic COMPOSITION, NOT a primitive)  *(NEW — F590/F591)*
+- **Context:** the Mobius two-tome cell (two `SedenionRegister` tomes addressed by the chiral bit sigma, walked via the half-twist = `cascade.chiral_flip`) is a COMPOSITION of EXISTING ops. The half-twist needs NO new primitive (it is conjugation, already shipped: `chiral_flip`/`chiral_dual`/`loop_conj`; = sign-flip = the F392 silicon floor).
+- **Ask (optional):** a `mobius_cell` descriptor in `_research/cascade_catalog/` composing chiral_flip + sigma-address + SedenionRegister, so the F590 two-page-per-cell pattern has a named home. LOW; the primitives all ship. Explicitly NOT a C primitive (a `mobius_*` op would re-skin conjugation).
+
+### W20 — (perf observation; VERIFY) `SedenionRegister.read` is ~0.6-1 ms/access — slow for a hot retrieval loop  *(NEW — F591)*
+- **Symptom:** in F591's timing (clean venv, srmech 0.7.5rc6), `SedenionRegister.read(slot)` measured ~0.6-1 ms/access. For a hot-path retrieval walk (the tome-shelf inference loop) that is slow.
+- **Ask:** confirm whether `read` is meant for hot-path use; if so, a perf look (the pure-Python path may dominate). Flagged as an observation, NOT a firm benchmark — verify independently before acting.
+
 ---
 
 ## ⏩ Carried forward to the srmech-build session (user direction 2026-06-08: "we build them in another session")
