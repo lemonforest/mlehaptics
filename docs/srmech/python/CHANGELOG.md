@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc9] - 2026-06-08
+
+**Rosetta cheap-win sweep #2 — octonion L/R-multiply + conjugate → native dispatch (#928).** The three `srmech.qm.octonion` ops that built the octonion left/right-multiplication operators via `np.einsum` over the structure-constant table (and the conjugate via slice-negate) now **delegate to the already-C-dispatched `hdc.loop_left_op` / `loop_right_op` / `loop_conj`** (the octonion loop family, `srmech_loop_*_f64`). Same Cayley-Dickson-from-H convention on both sides (verified bit-exact over 50 random trials + the byte-identical structure table), so output is unchanged and the so(8)/triality engine downstream is unaffected (**118 qm tests green**).
+
+- Repointed: `octonion_left_mult`, `octonion_right_mult`, `octonion_conjugate` — input validation preserved, compute delegated. These reclassify `c_exists_unbound → composition_of_c`.
+- **Ratchet moves down:** `test_rosetta_completeness.py` ceiling **`c_exists_unbound` 17 → 14**; `python_only_irreducible` unchanged at 108. Total standalone-C debt **125 → 122**.
+- `octonion_mult_table` stays `c_exists_unbound` for now — it composes `cascade.cd_basis_product`, which must itself gain native dispatch first (the natural rc10 batch; the table is content-addressed by `octonion_table_attestation`, so the bytes must stay identical — verified they do).
+
+Behaviour-preserving dispatch retrofit + docs; no new op, ABI stays 3. SSoT: issue #928; `c/ROSETTA_LEDGER.md`.
+
 ## [0.7.5rc8] - 2026-06-08
 
 **Rosetta cheap-win sweep #1 — SHA-256 mint cluster routed onto native dispatch (#928; the first `c_exists_unbound` close).** The 6 `srmech.signal_processing` ops that minted HDC vectors / content strides via **raw `hashlib.sha256(...).digest()`** now route through `srmech.amsc.format.sha256_raw`, picking up the native C SHA-256 (incl. the SHA-NI / AVX2 tiers) transparently. This closes a Rosetta debt **and** a standing CLAUDE.md discipline violation (no raw `hashlib.sha256` callsites) in one sweep. **Bit-identical** — `sha256_raw(x) == hashlib.sha256(x).digest()` — so every mint output is unchanged (29 rbs-lm behaviour tests green).
