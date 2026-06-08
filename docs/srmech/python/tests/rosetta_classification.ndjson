@@ -69,6 +69,7 @@
 {"exposed_as": "srmech.amsc.kepler.pin_slot", "defined_at": "srmech.amsc.kepler.pin_slot", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.dense_adjacency", "defined_at": "srmech.amsc.laplacian.dense_adjacency", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.dense_laplacian", "defined_at": "srmech.amsc.laplacian.dense_laplacian", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.laplacian.dense_matmul_complex", "defined_at": "srmech.amsc.laplacian.dense_matmul_complex", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.dense_matvec_complex", "defined_at": "srmech.amsc.laplacian.dense_matvec_complex", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.dense_solve", "defined_at": "srmech.amsc.laplacian.dense_solve", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.elementwise_multiply_complex", "defined_at": "srmech.amsc.laplacian.elementwise_multiply_complex", "bucket": "c_dispatched"}

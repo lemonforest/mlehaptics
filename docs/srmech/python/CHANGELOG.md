@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc14] - 2026-06-08
+
+**The matmul-kernel phase opens — a native dense complex `matmul` C kernel (#928).** First kernel of the new-C-kernel phase that drives the numpy-math ratchet (and the Rosetta `python_only_irreducible` cluster) toward zero. Dense complex `matmul` is the **top single lever** — it's the contraction the QM / `matrix_cascades` layer's `@` math is built on.
+
+- **New C symbol `srmech_dense_matmul_complex`** (`(m,k)·(k,n)=(m,n)`, interleaved real/imag, bounded ≤ 256 per dim) — a JPL-clean triple-accumulator mirroring `srmech_dense_matvec_complex`. **Additive symbol; ABI stays 3** (`hasattr`-guarded bind).
+- **`laplacian.dense_matmul_complex(A, B)`** — the Class-L contraction the matmul math will route through, so numpy stays carriers-only. Native `srmech_dense_matmul_complex` when present; the no-native fallback **composes the `dense_matvec_complex` cascade column-by-column** — itself a cascade, **never** numpy `@`. Registered in the tool schema (`describe` total **255 → 256**) and classified `c_dispatched` (Rosetta inventory 348 → 349).
+- This rc ships and **proves the kernel** (parity test + CI build); the QM / `matrix_cascades` `@`-callsite migrations that decrement the ratchet's `matmul` ceiling (185) are the next batches against this now-published kernel.
+
+New additive C kernel + Python op + parity test; no behaviour change to existing ops, ABI stays 3. SSoT: issue #928; `c/ROSETTA_LEDGER.md`.
+
 ## [0.7.5rc13] - 2026-06-08
 
 **numpy-math ratchet + lmmse → cascade (the "numpy is a *carrier*, not a *math engine*" guard; #928).** A new down-only source-level guard — sibling of the libm C-transpile ratchet (which drove `libsrmech` 23 → 0) and the Rosetta ratchet — that keeps **all math in srmech cascades and numpy in vector-packing only**. numpy bundles a full math engine (`np.linalg.*`, `np.fft.*`, the `@` matmul, the transcendental ufuncs) alongside its carrier; every one of those is libm-at-the-array-level with a srmech cascade equivalent, so a stray `np.linalg.solve` is a *defect*, not a convenience.

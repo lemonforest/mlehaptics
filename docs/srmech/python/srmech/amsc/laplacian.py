@@ -109,6 +109,7 @@ __all__ = [
     "hermitian_eigendecompose",
     "symmetric_eigendecompose",
     "dense_matvec_complex",
+    "dense_matmul_complex",
     "elementwise_multiply_complex",
     "elementwise_transcendental",
     "LAPLACIAN_OPS",
@@ -1000,6 +1001,68 @@ def dense_matvec_complex(M: np.ndarray, v: np.ndarray) -> np.ndarray:
     return (M_arr @ v_arr).astype(np.complex128)
 
 
+def dense_matmul_complex(A: np.ndarray, B: np.ndarray) -> np.ndarray:
+    """Dense complex matrix-matrix multiplication ``A·B``.
+
+    The srmech Class-L contraction the QM / ``matrix_cascades`` matmul math routes
+    through, so numpy stays carriers-only (no ``np`` matmul engine). Native
+    ``srmech_dense_matmul_complex`` when present (each dim ≤ 256); else composes
+    the :func:`dense_matvec_complex` cascade column-by-column — the no-native
+    fallback is itself a cascade, **never** numpy ``@``.
+
+    Parameters
+    ----------
+    A
+        ``(m, k)`` complex matrix.
+    B
+        ``(k, n)`` complex matrix.
+
+    Returns
+    -------
+    out
+        ``(m, n)`` complex128 array.
+
+    Canonical SSoT: Golub & Van Loan §1.1 (textbook matrix multiplication).
+    """
+    A_arr = np.ascontiguousarray(A, dtype=np.complex128)
+    B_arr = np.ascontiguousarray(B, dtype=np.complex128)
+    if A_arr.ndim != 2 or B_arr.ndim != 2:
+        raise ValueError(
+            f"A and B must be 2-D; got ndim {A_arr.ndim} and {B_arr.ndim}"
+        )
+    m, k = A_arr.shape
+    k2, n = B_arr.shape
+    if k2 != k:
+        raise ValueError(
+            f"A shape {A_arr.shape} incompatible with B shape {B_arr.shape}"
+        )
+    if (_native.HAS_NATIVE
+            and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_dense_matmul_complex")
+            and m <= MAX_NATIVE_NODES
+            and k <= MAX_NATIVE_NODES
+            and n <= MAX_NATIVE_NODES):
+        A_il = _complex_to_interleaved(A_arr)
+        B_il = _complex_to_interleaved(B_arr)
+        out_il = np.zeros(2 * m * n, dtype=np.float64)
+        rc = _native.LIB.srmech_dense_matmul_complex(
+            ctypes.c_uint32(m),
+            ctypes.c_uint32(k),
+            ctypes.c_uint32(n),
+            A_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            B_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            out_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        )
+        if rc == _native.SRMECH_OK:
+            return _interleaved_to_complex(out_il, (m, n))
+    # No-native / over-bound fallback: compose the matvec cascade per column of
+    # B (a cascade, not numpy matmul — keeps numpy carriers-only here too).
+    out = np.empty((m, n), dtype=np.complex128)
+    for j in range(n):
+        out[:, j] = dense_matvec_complex(A_arr, B_arr[:, j])
+    return out
+
+
 def elementwise_multiply_complex(
     a: np.ndarray, b: np.ndarray
 ) -> np.ndarray:
@@ -1308,6 +1371,7 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "hermitian_eigendecompose",
     "symmetric_eigendecompose",
     "dense_matvec_complex",
+    "dense_matmul_complex",
     "elementwise_multiply_complex",
     "elementwise_transcendental",
     "dense_solve",

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc13"
-#define SRMECH_VERSION       "0.7.5rc13"
+#define SRMECH_VERSION_PRE   "rc14"
+#define SRMECH_VERSION       "0.7.5rc14"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -990,6 +990,20 @@ srmech_status_t srmech_dense_matvec_complex(
     uint32_t       cols,
     const double  *M_interleaved,
     const double  *v_interleaved,
+    double        *out_interleaved);
+
+/* Dense complex matrix-matrix multiplication: out = A @ B.
+ * A_interleaved is m*k interleaved-double pairs (row-major).
+ * B_interleaved is k*n interleaved-double pairs (row-major).
+ * out_interleaved is m*n interleaved-double pairs (caller-allocated).
+ * m, k and n are each bounded by SRMECH_LAPLACIAN_MAX_NODES (256).
+ */
+srmech_status_t srmech_dense_matmul_complex(
+    uint32_t       m,
+    uint32_t       k,
+    uint32_t       n,
+    const double  *A_interleaved,
+    const double  *B_interleaved,
     double        *out_interleaved);
 
 /* Elementwise complex multiply: out[i] = a[i] * b[i].

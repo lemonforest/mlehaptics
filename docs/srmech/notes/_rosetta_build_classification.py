@@ -59,6 +59,7 @@ srmech.amsc.kepler.kepler_solve
 srmech.amsc.kepler.pin_slot
 srmech.amsc.laplacian.dense_adjacency
 srmech.amsc.laplacian.dense_laplacian
+srmech.amsc.laplacian.dense_matmul_complex
 srmech.amsc.laplacian.dense_matvec_complex
 srmech.amsc.laplacian.dense_solve
 srmech.amsc.laplacian.elementwise_multiply_complex

@@ -91,7 +91,7 @@ by the `python/tests/test_rosetta_completeness.py` ratchet (regenerate via
 
 | Bucket | Count | Standalone-C? |
 |--------|------:|---------------|
-| `c_dispatched` | 78 → **84** | ✅ runs on libsrmech alone |
+| `c_dispatched` | 78 → **85** | ✅ runs on libsrmech alone |
 | `composition_of_c` | 61 → **73** | ✅ pure composition of C-dispatched ops |
 | `bignum_reference` | 22 | ➖ intentional exact-rational oracle tier (not debt) |
 | `non_compute` | 56 | ➖ IO / registry / schema / introspection (no kernel) |
@@ -191,13 +191,21 @@ decrements it).
   down-only guard (`np.linalg`/`np.fft` 126 · `@`/dot/einsum/… 185 · ufuncs 48)
   that keeps numpy a carrier, not a math engine. A stray `np.linalg.solve` now
   fails CI.
-- **Next — the new-C-kernel phase (drives BOTH ledgers down together).** The 5
-  remaining `c_exists_unbound` are the **Klein-4 family, gated on W5**. The 108
+- **rc14 (done, this) — the new-C-kernel phase OPENS: dense complex `matmul`.**
+  New additive C symbol `srmech_dense_matmul_complex` (`(m,k)·(k,n)`, interleaved,
+  ≤256/dim; JPL-clean; ABI stays 3) + `laplacian.dense_matmul_complex` (native
+  dispatch; no-native fallback composes `dense_matvec_complex` column-by-column —
+  a cascade, never numpy `@`). Tool-schema `describe` **255 → 256**; Rosetta
+  inventory **348 → 349** (`c_dispatched`). This rc ships + **proves** the kernel
+  (parity + CI build); the `@`-callsite migrations against it (decrementing the
+  ratchet's `matmul` 185) are the next batches.
+- **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
-  op level; each falls only by a **new C kernel** (dense complex `matmul` — top
-  single lever, ~15 ops; then FFT/DFT, `eig`/`SVD`/`QR`/`lstsq`, `kron`, `einsum`)
-  with a matching cascade that decrements the source ratchet. Substantial new C,
-  a deliberate phase rather than a sweep.
+  op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each
+  migration decrements BOTH the ratchet's `matmul` ceiling AND moves a Rosetta op
+  `python_only_irreducible → composition_of_c`. After `matmul`: FFT/DFT,
+  `eig`/`SVD`/`QR`/`lstsq`, `kron`, `einsum`. The 5 remaining `c_exists_unbound`
+  stay the **Klein-4 family, gated on W5**.
 
 **Standing tracker.** Issue [#928](https://github.com/lemonforest/mlehaptics/issues/928)
 is the consolidated srmech wishlist (bugs · schema · enhancements · new ops,

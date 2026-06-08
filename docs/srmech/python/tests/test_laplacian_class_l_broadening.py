@@ -178,6 +178,48 @@ def test_dense_matvec_complex_shape_mismatch():
 
 
 # ---------------------------------------------------------------------
+# dense_matmul_complex (matmul-kernel phase; #928) — the cascade ``A @ B``.
+# ---------------------------------------------------------------------
+
+
+def test_dense_matmul_complex_matches_numpy():
+    rng = np.random.default_rng(456)
+    A = rng.standard_normal((5, 3)) + 1j * rng.standard_normal((5, 3))
+    B = rng.standard_normal((3, 4)) + 1j * rng.standard_normal((3, 4))
+    out = laplacian.dense_matmul_complex(A, B)
+    np.testing.assert_allclose(out, A @ B, atol=1e-12)
+    assert out.shape == (5, 4)
+
+
+def test_dense_matmul_complex_square_and_identity():
+    A = np.array([[1 + 0j, 2 - 1j], [0 + 1j, 3 + 0j]])
+    B = np.array([[2 + 0j, 0 + 1j], [1 - 1j, 4 + 0j]])
+    np.testing.assert_allclose(laplacian.dense_matmul_complex(A, B), A @ B, atol=1e-12)
+    eye = np.eye(2, dtype=np.complex128)
+    np.testing.assert_allclose(laplacian.dense_matmul_complex(A, eye), A, atol=1e-12)
+
+
+def test_dense_matmul_complex_shape_mismatch():
+    A = np.eye(3, dtype=np.complex128)
+    B = np.zeros((2, 2), dtype=np.complex128)
+    with pytest.raises(ValueError):
+        laplacian.dense_matmul_complex(A, B)
+
+
+def test_dense_matmul_complex_matches_matvec_per_column():
+    # The matmul cascade must agree with the matvec cascade applied column-wise
+    # (the contraction is the same op; this pins the two cascades consistent).
+    rng = np.random.default_rng(789)
+    A = rng.standard_normal((4, 4)) + 1j * rng.standard_normal((4, 4))
+    B = rng.standard_normal((4, 3)) + 1j * rng.standard_normal((4, 3))
+    out = laplacian.dense_matmul_complex(A, B)
+    for j in range(B.shape[1]):
+        np.testing.assert_allclose(
+            out[:, j], laplacian.dense_matvec_complex(A, B[:, j]), atol=1e-12
+        )
+
+
+# ---------------------------------------------------------------------
 # elementwise_multiply_complex
 # ---------------------------------------------------------------------
 

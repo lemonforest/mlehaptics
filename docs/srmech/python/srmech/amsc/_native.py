@@ -436,6 +436,23 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_dense_solve_f64.restype = ctypes.c_int
 
+    # int srmech_dense_matmul_complex(uint32_t m, uint32_t k, uint32_t n,
+    #     const double *A_il, const double *B_il, double *out_il)
+    # v0.7.5rc14 additive symbol (#928, matmul-kernel phase): the dense complex
+    # matrix-matrix product (m,k)@(k,n)=(m,n) the QM / matrix_cascades layer's
+    # ``@`` math routes through. hasattr-guarded (ABI stays 3) so a stale ABI-3
+    # lib keeps the rest of the native surface.
+    if hasattr(lib, "srmech_dense_matmul_complex"):
+        lib.srmech_dense_matmul_complex.argtypes = [
+            ctypes.c_uint32,                    # m
+            ctypes.c_uint32,                    # k
+            ctypes.c_uint32,                    # n
+            ctypes.POINTER(ctypes.c_double),    # A (m*k interleaved, row-major)
+            ctypes.POINTER(ctypes.c_double),    # B (k*n interleaved, row-major)
+            ctypes.POINTER(ctypes.c_double),    # out (m*n interleaved, row-major)
+        ]
+        lib.srmech_dense_matmul_complex.restype = ctypes.c_int
+
     # v0.7.2rc2 (#910 / §30; F442/F449): Hamming / GF(2) block-code family.
     # NEW symbols — hasattr-guarded so a stale lib (pre-rc2) keeps the rest of
     # the native surface. uint8 0/1 buffers; lean-ALU XOR (no float, no libm).
