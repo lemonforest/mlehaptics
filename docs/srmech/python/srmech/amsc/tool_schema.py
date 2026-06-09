@@ -4116,6 +4116,43 @@ def _register_dsl_tools() -> None:
             ),
         )
     )
+    register_tool(
+        ToolEntry(
+            name="srmech.dsl.list_ops",
+            owner="srmech",
+            category="dsl",
+            summary=(
+                "Unify the two op-discovery registries into ONE list (§17 U3): "
+                "BOTH the value-transform cascade ops (`list_catalog_ops`) AND "
+                "the AMSC catalog-declared operator chains "
+                "(`catalog.list_catalog_chains`), each record tagged a uniform "
+                "`kind` (`stage` | `combinator` | `catalog-chain`) and "
+                "`provenance` (`srmech` | `user` | `catalog:<source_key>`). "
+                "Before this the DSL op list and the catalog-chain registry "
+                "were disjoint — a kernel chain declared on a text-catalog was "
+                "invisible to the DSL. `source_keys` restricts the "
+                "catalog-chain half; omit to auto-discover every registered "
+                "attested source. Framework reading: Class E (catalog "
+                "enumeration) over both registries at once. "
+                "(v0.7.5rc45 — §17 U3 unified op-discovery.)"
+            ),
+            parameters=(
+                ToolParameter(
+                    "source_keys", "list", required=False,
+                    summary="restrict the catalog-chain half to these source "
+                            "keys; omit to auto-discover all registered sources.",
+                ),
+            ),
+            returns=ToolReturn(
+                type="list[dict]",
+                shape=(
+                    "[{'name': str, 'class': str, 'purpose': str, 'kind': "
+                    "'stage'|'combinator'|'catalog-chain', 'provenance': str}, "
+                    "...] sorted by (kind, name)."
+                ),
+            ),
+        )
+    )
     rc41 = " (v0.7.5rc41 — class-from-TOML surface; #962 Part 2)."
     register_tool(
         ToolEntry(

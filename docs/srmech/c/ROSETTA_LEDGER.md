@@ -531,6 +531,15 @@ decrements it).
   `list_cascade_ops` 14→15; no new `srmech.amsc.*` callable (the op already
   ships + keeps its `composition_of_c` rosetta line), so the rosetta ledger +
   `tools.total` are unchanged. ABI 3.
+- **rc45 (done) — `srmech.dsl.list_ops` unified op-discovery (RBS-LM §17 U3).**
+  Merges the two previously-disjoint discovery registries — `list_catalog_ops`
+  (value-transform cascade ops) + `catalog.list_catalog_chains` (AMSC
+  catalog-declared chains) — into ONE call with a uniform
+  `{name,class,purpose,kind,provenance}` record (`kind` adds `catalog-chain`;
+  `provenance` adds `catalog:<source_key>`). New `srmech.dsl.list_ops` ToolEntry
+  (a DSL discovery callable — no rosetta line, per the dsl-ToolEntry convention),
+  so `tools.total` 276→277 but the Rosetta op ledger is unchanged. ABI 3;
+  numpy-free.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each
