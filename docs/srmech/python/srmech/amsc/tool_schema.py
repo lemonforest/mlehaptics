@@ -849,6 +849,66 @@ def _register_primitive_class_tools() -> None:
                         P("tolerance", "float", False)),
             returns=R("np.ndarray", "n eigenvalues (unsorted)"),
         ),
+        # v0.7.1rc3 (#897 §26): the reusable dense linear solve A·X = B the
+        # Schur/DtN float path composes over (its interior solve IS an
+        # A·X = B). Native C peer srmech_dense_solve_f64 (Gauss–Jordan,
+        # partial pivoting, n,w ≤ 256) on the scientific tier; exact-rational
+        # Fraction Gauss–Jordan numpy-absent / exact=True. Golub & Van Loan §3.
+        ToolEntry(
+            name="srmech.amsc.laplacian.dense_solve", owner="srmech",
+            category="laplacian",
+            summary="Class-L dense linear solve A·X = B (A n×n; B/X n×w matrix "
+                    "or length-n vector). The reusable solve schur_complement "
+                    "composes over. Native C peer (Gauss–Jordan, partial "
+                    "pivoting, n,w ≤ 256) on the scientific tier; exact-rational "
+                    "Fraction solve (Class-N core, numpy-absent or exact=True).",
+            parameters=(P("A", "np.ndarray", True,
+                          "n × n coefficient matrix; nested JSON list over MCP"),
+                        P("B", "np.ndarray", True,
+                          "right-hand side: n × w matrix or length-n vector"),
+                        P("exact", "bool", False,
+                          "force the exact Fraction solve (default False)")),
+            returns=R("np.ndarray | list[list[Fraction]]",
+                      "X solving A·X = B (shape of B)"),
+        ),
+        # UPSTREAM §26 (#897): the Schur complement / Dirichlet-to-Neumann
+        # map — the operator|operand FUSION op (F412/F417/F419). Canonical
+        # SSoT: Zhang, *The Schur Complement and Its Applications* (2005) §0;
+        # Golub & Van Loan §3.2.
+        ToolEntry(
+            name="srmech.amsc.laplacian.schur_complement", owner="srmech",
+            category="laplacian",
+            summary="Class-L Schur complement / discrete Dirichlet-to-Neumann "
+                    "map S = L_∂∂ − L_∂i·L_ii⁻¹·L_i∂ (the bulk integrated out; "
+                    "the operator|operand FUSION op). Exact-rational Fraction "
+                    "solve (Class-N core, numpy-absent or exact=True); "
+                    "numpy.linalg.solve float realization on the scientific tier.",
+            parameters=(P("L", "np.ndarray", True,
+                          "n × n SPD operator (a graph Laplacian); nested JSON "
+                          "list over MCP"),
+                        P("boundary_idx", "list[int]", True,
+                          "boundary node indices ∂ (1 ≤ |∂| ≤ n)"),
+                        P("exact", "bool", False,
+                          "force the exact Fraction solve (default False)")),
+            returns=R("np.ndarray | list[list[Fraction]]",
+                      "|∂| × |∂| boundary effective operator (DtN map)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.dirichlet_to_neumann", owner="srmech",
+            category="laplacian",
+            summary="Alias for schur_complement — the discrete "
+                    "Dirichlet-to-Neumann map: boundary values ⟹ the boundary "
+                    "normal-derivative of their harmonic interior extension.",
+            parameters=(P("L", "np.ndarray", True,
+                          "n × n SPD operator (a graph Laplacian); nested JSON "
+                          "list over MCP"),
+                        P("boundary_idx", "list[int]", True,
+                          "boundary node indices ∂ (1 ≤ |∂| ≤ n)"),
+                        P("exact", "bool", False,
+                          "force the exact Fraction solve (default False)")),
+            returns=R("np.ndarray | list[list[Fraction]]",
+                      "|∂| × |∂| boundary effective operator (DtN map)"),
+        ),
         # ADR-0002 Phase 2 broadening: complex Hermitian + matvec +
         # elementwise complex multiply + array-vectorised transcendentals.
         # Per [[feedback_no_privileged_primitive_classes]] these dissolve
@@ -887,6 +947,56 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("M", "np.ndarray", True, "rows × cols complex"),
                         P("v", "np.ndarray", True, "length-cols complex")),
             returns=R("np.ndarray", "length-rows complex128"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.dense_matmul_complex",
+            owner="srmech", category="laplacian",
+            summary="Dense complex matrix-matrix multiplication A times B "
+                    "(the Class-L contraction the QM / matrix_cascades matmul "
+                    "math routes through). Golub & Van Loan §1.1.",
+            parameters=(P("A", "np.ndarray", True, "m × k complex"),
+                        P("B", "np.ndarray", True, "k × n complex")),
+            returns=R("np.ndarray", "m × n complex128"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.dense_dot_complex",
+            owner="srmech", category="laplacian",
+            summary="Dense complex bilinear inner product sum a_i b_i (the "
+                    "1-D contraction the QM eta-sandwiches and matrix_cascades "
+                    "back-solves route through; plain bilinear, NOT the "
+                    "conjugating vdot). Golub & Van Loan §1.1.",
+            parameters=(P("a", "np.ndarray", True, "length-n complex"),
+                        P("b", "np.ndarray", True, "length-n complex")),
+            returns=R("complex", "scalar sum a_i b_i"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.dense_matmul_real",
+            owner="srmech", category="laplacian",
+            summary="Dense real matrix-matrix multiplication A times B → "
+                    "float64 (rides the complex kernel; drops the zero "
+                    "imaginary part). Golub & Van Loan §1.1.",
+            parameters=(P("A", "np.ndarray", True, "m × k real"),
+                        P("B", "np.ndarray", True, "k × n real")),
+            returns=R("np.ndarray", "m × n float64"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.dense_matvec_real",
+            owner="srmech", category="laplacian",
+            summary="Dense real matrix-vector multiplication M times v → "
+                    "float64 (real peer of dense_matvec_complex; rides the "
+                    "complex kernel). Golub & Van Loan §1.1.",
+            parameters=(P("M", "np.ndarray", True, "rows × cols real"),
+                        P("v", "np.ndarray", True, "length-cols real")),
+            returns=R("np.ndarray", "length-rows float64"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.dense_dot_real",
+            owner="srmech", category="laplacian",
+            summary="Dense real inner product sum a_i b_i → float (real peer "
+                    "of dense_dot_complex). Golub & Van Loan §1.1.",
+            parameters=(P("a", "np.ndarray", True, "length-n real"),
+                        P("b", "np.ndarray", True, "length-n real")),
+            returns=R("float", "scalar sum a_i b_i"),
         ),
         ToolEntry(
             name="srmech.amsc.laplacian.elementwise_multiply_complex",
@@ -1226,10 +1336,17 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.rational.exp", owner="srmech", category="rational",
-            summary="e^x (real) via the Class-N exp cascade with argument-halving reduction (e^x = (e^(x/2^k))^(2^k); no irrational constant — exp is aperiodic). Substrate-native replacement for math.exp / np.exp (real).",
+            summary="e^x (real) via the Q61 Class-N exp cascade with Cody-Waite ln2 reduction (x = n*ln2 + r, |r| <= ln2/2; exp(r) the Q61 integer Taylor, 2^n folded into the IEEE exponent). Bit-exact with the native peer srmech_exp; dispatches to C when available. Substrate-native replacement for math.exp / np.exp (real).",
             parameters=(P("x", "float", True, "real exponent"),
-                        P("terms", "int", False, "exp Taylor terms (keyword-only); default 24")),
-            returns=R("float", "e^x projected from the exact rational"),
+                        P("terms", "int", False, "exact-rational reference Taylor terms (keyword-only); default 24")),
+            returns=R("float", "e^x projected from the Q61 cascade"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.log", owner="srmech", category="rational",
+            summary="ln(x) (natural log, x > 0) via the Q61 Class-N atanh cascade: x = m*2^e read from the bit pattern, m folded into [1/sqrt2, sqrt2), log(m) = 2*atanh((m-1)/(m+1)) the Q61 series, e*ln2 recombined with a two-word ln2. Bit-exact with the native peer srmech_log; dispatches to C when available. Domain: x < 0 -> NaN, x == 0 -> -Inf. Substrate-native replacement for math.log / np.log (real).",
+            parameters=(P("x", "float", True, "argument, x > 0"),
+                        P("terms", "int", False, "exact-rational reference Taylor terms (keyword-only); default 13")),
+            returns=R("float", "ln(x) projected from the Q61 cascade"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.cexp", owner="srmech", category="rational",
@@ -1247,10 +1364,10 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.rational.sqrt", owner="srmech", category="rational",
-            summary="sqrt(x) for x >= 0 via the Class-N rational sqrt cascade — Newton realised as integer floor-isqrt on a scaled-bignum radicand (Class-N rational + Class-K sqrt-convergence). No math.sqrt / np.sqrt in the call graph; negative x raises a domain error.",
+            summary="sqrt(x) for x >= 0 via the Class-N rational sqrt cascade — IEEE-bit x = M*2^e, root = isqrt(M << 2K) (K=27), projected by 2^(e/2 - K). Bit-exact with the native peer srmech_rational_sqrt; dispatches to C. precision_bits=N selects the higher-precision bignum reference (as_integer_ratio + scaled floor-isqrt). No math.sqrt / np.sqrt in the call graph; negative x raises a domain error.",
             parameters=(P("x", "float", True, "radicand, x >= 0"),
-                        P("precision_bits", "int", False, "scaled-integer precision (keyword-only); default 64")),
-            returns=R("float", "sqrt(x) projected from the scaled integer root"),
+                        P("precision_bits", "int", False, "higher-precision bignum reference (keyword-only); default None = C-bit-exact K=27 cascade")),
+            returns=R("float", "sqrt(x) projected from the integer root"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.hypot", owner="srmech", category="rational",
@@ -2028,6 +2145,348 @@ def _register_primitive_class_tools() -> None:
             ),
             returns=R("list[list[float]]", "N octonions (8-component lists)"),
         ),
+        # Bidirectional (σ,θ,μ) hypercomplex coupler (v0.7.2rc1; #908, F436/F437).
+        # Registered under its STABLE FLAT public name
+        # ``srmech.amsc.cascade.hypercomplex_couple``; the submodule-dotted
+        # ``srmech.amsc.cascade.hypercomplex_dft.hypercomplex_couple`` is the same
+        # object re-exported flat (exempt in test_tool_schema_coverage).
+        ToolEntry(
+            name="srmech.amsc.cascade.hypercomplex_couple", owner="srmech",
+            category="cascade",
+            summary="Bidirectional (σ,θ,μ) hypercomplex coupler — bind ≥3 streams "
+                    "into one quaternion/octonion + a JOINT coherence channel, and "
+                    "unbind losslessly (#908, F436/F437). Where quaternion_dft / "
+                    "octonion_dft CARRY N streams along named single axes, this "
+                    "COUPLES them: it packs `streams` into the imaginary slots of a "
+                    "carrier q and applies T=exp(σ_eff·μ·θ). A DIAGONAL μ "
+                    "((i+j+k)/√3 for ℍ, (Σeₙ)/√7 for 𝕆) folds the streams into the "
+                    "real/anchor channel as a coherence detector (F436: coherent "
+                    "add ∝ n·s, incoherent cancel ∝ √n → anchor-energy ratio ≈ n). "
+                    "Bind (sigma=+1) then unbind (sigma=-1, the CONJUGATE twiddle "
+                    "exp(-μθ)) recovers q exactly via the division-algebra identity "
+                    "x̄·(x·y)=‖x‖²·y — GUARANTEED reversible only up to 𝕆 (the "
+                    "Hurwitz boundary; sedenion zero-divisors break it) → lossless "
+                    "for ≤7 streams. forward/reverse/left/right are discrete points "
+                    "of the continuous (σ,θ,μ) family = the_one's 𝕊(σ,θ) (F420) plus "
+                    "the axis μ. Class M (octonion multiply) ∘ C (σ/conjugation "
+                    "orientation) ∘ N (rational phase θ); no new algebra, no abs(). "
+                    "Scientific tier (UPSTREAM §22): requires numpy on call."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("streams", "sequence", True,
+                  "≤3 reals → quaternion imag carrier; 4–7 → octonion imag; a "
+                  "length-4/8 sequence is a literal quaternion/octonion (feeds back "
+                  "in to unbind)"),
+                P("axis", "str", False,
+                  "coupling axis μ: 'diagonal' (default) | 'i'|'j'|'k'|'ijk' | a unit "
+                  "pure-imaginary vector. A single named axis carries, not couples"),
+                P("theta", "float", False,
+                  "continuous coupling phase; default π/2 (the F436 quarter-turn fold)"),
+                P("sigma", "int", False, "chirality σ ∈ {+1,-1}: +1 binds, -1 unbinds; default +1"),
+                P("form", "str", False, "'left' (T·q) or 'right' (q·T); default 'left'"),
+                P("inverse", "bool", False, "flip the effective sign (≡ toggling sigma); default False"),
+            ),
+            returns=R("list[float]",
+                      "the coupled value — a 4-component quaternion (≤3 streams) or "
+                      "8-component octonion"),
+        ),
+        # Hamming / GF(2) linear block-code family (v0.7.2rc2; #910 / §30,
+        # F442/F449) — the CARRY/EC half of the sedenion front-loader. Rosetta
+        # PAIR: pure-Python spec + JPL-clean srmech_hamming_* C peer, attested
+        # bit-exact by tests/test_cascade_hamming_parity.py.
+        ToolEntry(
+            name="srmech.amsc.cascade.hamming_encode", owner="srmech",
+            category="cascade",
+            summary="Encode k = 2ⁿ−1−n data bits into a Hamming(2ⁿ−1, k) "
+                    "single-error-correcting GF(2) codeword (#910 / §30). The "
+                    "CARRY/EC half of the sedenion front-loader: where "
+                    "hypercomplex_couple (COUPLE) binds ≤7 streams reversibly into "
+                    "an octonion (capped at 𝕆 by Hurwitz), the Hamming code CARRIES "
+                    ">7 data items + error-correction in one structure using the "
+                    "sedenion's CODE geometry (its Fano/PG structure, NOT its broken "
+                    "chirality). Canonical 1-indexed construction: parity bits at the "
+                    "power-of-two positions, each the even-parity XOR of the positions "
+                    "it covers. Lean-ALU XOR-native (GF(2) add = parity = XOR); no "
+                    "float, no libm, no abs(). Hamming(7,4) IS the octonion's own Fano "
+                    "plane (F441). Class B (structure framing) ∘ I (cyclic index "
+                    "arithmetic) ∘ A (content integrity). SSoT: Hamming (1950)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("data_bits", "sequence", True,
+                  "exactly 2ⁿ−1−n data bits, each 0/1 (4 for H(7,4), 11 for H(15,11))"),
+                P("n", "int", True, "parity-bit count, 2 ≤ n ≤ 16; codeword length is 2ⁿ−1"),
+            ),
+            returns=R("list[int]", "the 2ⁿ−1-bit codeword (0/1 list)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.hamming_syndrome", owner="srmech",
+            category="cascade",
+            summary="Compute the Hamming syndrome — the 1-indexed position of the "
+                    "single flipped bit (0 = clean) (#910 / §30). Recompute each "
+                    "power-of-two parity; the failed set read as a binary number IS "
+                    "the error position (Hamming's construction). Lean-ALU XOR; no "
+                    "float, no libm. Class A (content-addressed error locator)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("codeword", "sequence", True, "a 2ⁿ−1-bit codeword (0/1 list)"),
+            ),
+            returns=R("int", "1-indexed flipped-bit position; 0 if the word is clean"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.hamming_decode_correct", owner="srmech",
+            category="cascade",
+            summary="Locate + correct any single-bit error and recover the data "
+                    "payload (#910 / §30). Single-error-correcting (minimum distance "
+                    "3): a clean or single-error word recovers exactly. The located "
+                    "bit is flipped (Class K sign-flip at the syndrome slot, GF(2)). "
+                    "Lean-ALU XOR; no float, no libm, no abs()."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("codeword", "sequence", True, "a 2ⁿ−1-bit codeword (0/1 list)"),
+            ),
+            returns=R("dict",
+                      "{'data': k corrected payload bits, 'error_position': int "
+                      "(0=clean), 'corrected_codeword': the repaired 2ⁿ−1-bit word}"),
+        ),
+        # Cayley–Dickson open-exterior boundary-demonstrator (v0.7.3rc1; #915 /
+        # MFO §VII.6.23) — the deliberately NON-reversible object past the Hurwitz
+        # wall. Registered under STABLE flat names ``srmech.amsc.cascade.cd_*`` etc.;
+        # the submodule-dotted ``cascade.cayley_dickson.*`` are the same objects
+        # re-exported flat (exempt in test_tool_schema_coverage).
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_mult", owner="srmech",
+            category="cascade",
+            summary="Exact-rational Cayley–Dickson product of two equal-dimension "
+                    "elements (#915 / MFO §VII.6.23). Generic ℝ→ℂ→ℍ→𝕆→𝕊(16)→… "
+                    "doubling, numpy-free, each component a Fraction. This is the "
+                    "OPEN-EXTERIOR demonstrator, NOT a substrate extension: the_one / "
+                    "hypercomplex_couple live in the reversible interior (≤𝕆); this is "
+                    "the non-division object past the Hurwitz wall where the product "
+                    "loses its inverse. Class M (bilinear bind) ∘ C (conjugation-ordered "
+                    "cross terms) ∘ K (sign-flip; no abs())."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("a", "sequence", True, "first element — a power-of-two-length sequence of ints/Fractions"),
+                P("b", "sequence", True, "second element — same dimension as a"),
+            ),
+            returns=R("tuple", "the product, a tuple of exact Fractions"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_conjugate", owner="srmech",
+            category="cascade",
+            summary="Cayley–Dickson conjugation — negate the imaginary part (Class K "
+                    "sign-flip, no abs()). Defined at EVERY rung: x·x̄ = N(x)·1 even "
+                    "where the product has no inverse (§VII.6.23.3: chirality persists; "
+                    "its reversing power does not)." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("a", "sequence", True, "a power-of-two-length element"),
+            ),
+            returns=R("tuple", "the conjugate, a tuple of exact Fractions"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_norm_sq", owner="srmech",
+            category="cascade",
+            summary="The squared norm N(x) = Σ xᵢ² (exact rational; x·x̄ = N(x)·1). "
+                    "Positive-definite at every rung. The composition identity "
+                    "N(x·y) = N(x)·N(y) holds for dims ≤ 8 and FAILS at 16 (a "
+                    "zero-divisor pair has N(x·y)=0 while N(x)·N(y)≠0; §VII.6.23 C3)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("a", "sequence", True, "a power-of-two-length element"),
+            ),
+            returns=R("Fraction", "the squared norm Σ xᵢ²"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_basis_product", owner="srmech",
+            category="cascade",
+            summary="The integer structural core — basis-unit cocycle e_i·e_j = "
+                    "sign·e_index (the result index is i⊕j; the sign carries the Fano/"
+                    "orientation structure). Integer-only; the JPL-clean C peer "
+                    "srmech_cd_basis_product returns the identical (index, sign) "
+                    "(Rosetta-attested by test_cascade_cayley_dickson_parity.py)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("dim", "int", True, "algebra dimension (power of two ≤ 64)"),
+                P("i", "int", True, "first basis index in [0, dim)"),
+                P("j", "int", True, "second basis index in [0, dim)"),
+            ),
+            returns=R("tuple", "(index, sign) with index in [0, dim), sign in {+1,-1}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.sedenion_zero_divisor_witness", owner="srmech",
+            category="cascade",
+            summary="Exhibit a concrete sedenion (dim 16) zero divisor: x, y both "
+                    "nonzero with x·y = 0 — found from OUR OWN multiplication table "
+                    "(own-work-first, not a literature transcription). The executable "
+                    "form of '§VII.6.23: zero divisors first appear at 16 and never "
+                    "heal'. Division algebras (dims 1,2,4,8) provably have none."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(),
+            returns=R("dict",
+                      "{'dim':16, 'x','y': Fraction tuples, 'x_form','y_form': "
+                      "'e_i ± e_j' strings, 'x_norm_sq','y_norm_sq': nonzero, "
+                      "'product': all-zero, 'product_is_zero': True}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.left_mult_kernel", owner="srmech",
+            category="cascade",
+            summary="Exact-rational kernel basis of the map u ↦ x·u. NONEMPTY ⟺ x is "
+                    "a left zero divisor ⟺ multiply-by-x is non-injective ⟺ no inverse "
+                    "map exists — the 'no backward direction to point' of §VII.6.23.4 "
+                    "(anything past and unobserved is lost). Empty for every nonzero "
+                    "element of a division algebra (≤𝕆). Class L (linear-algebra rank)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True, "a power-of-two-length element"),
+            ),
+            returns=R("list", "kernel-basis vectors (Fraction tuples); empty if invertible"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.left_mult_is_invertible", owner="srmech",
+            category="cascade",
+            summary="True iff u ↦ x·u is a bijection (a backward direction exists). "
+                    "Always True for nonzero x at dims ≤ 8; False for a zero divisor at "
+                    "dim ≥ 16 — the reversibility that ends at the Hurwitz wall."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True, "a power-of-two-length element"),
+            ),
+            returns=R("bool", "True iff multiply-by-x has a (two-sided) inverse map"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.is_division_algebra_dim", owner="srmech",
+            category="cascade",
+            summary="True iff the dim-D Cayley–Dickson algebra is a normed division "
+                    "algebra (Hurwitz 1898): the reversible interior is exactly dims "
+                    "1, 2, 4, 8. The boundary between the simulable ≤𝕆 substrate and "
+                    "the open exterior (≥16)." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("dim", "int", True, "an algebra dimension"),
+            ),
+            returns=R("bool", "True for dim in {1,2,4,8}, else False"),
+        ),
+        # Sedenion-addressable hyper-loop RBS-HDC instrument (v0.7.4rc1; UPSTREAM
+        # §31 of PR #687; F465 + F468). Registered under the STABLE flat factory
+        # name ``srmech.amsc.cascade.sedenion_register``; the submodule-dotted
+        # ``cascade.sedenion_register.sedenion_register`` is the same object
+        # re-exported flat (exempt in test_tool_schema_coverage). The class
+        # SedenionRegister is not a module-level function (not coverage-walked).
+        ToolEntry(
+            name="srmech.amsc.cascade.sedenion_register", owner="srmech",
+            category="cascade",
+            summary="Construct a SedenionRegister — the sedenion (dim-16) ADDRESSABLE "
+                    "RBS-HDC instrument (UPSTREAM §31; F465/F468). The sedenion box "
+                    "made into a named-register instrument: 16 slots e0..e15 — the "
+                    "octonion block e0..e7 is the ≤7 REVERSIBLE working word "
+                    "(hypercomplex_couple, bit-exact ≤𝕆), e8..e15 the EC/CARRY block "
+                    "(Hamming GF(2), §30). HDC ops INSTEAD of ALU: random-access-by-name "
+                    "(hdc.bind + nearest-codebook clean = associative superposition, "
+                    "classical, no quantum cost). The genuinely-new surface is "
+                    ".navigate(j) — the address↔Cayley–Dickson homomorphism (right-mult "
+                    "every slot-name by e_j so addressing respects e_i·e_j=±e_k, the "
+                    "cd_basis_product cocycle) — and .is_navigable(direction) the "
+                    "reversibility gate (left_mult_is_invertible): single-basis nav is "
+                    "always a signed permutation, composite-direction nav reversible "
+                    "ONLY ≤𝕆 (the Hurwitz horizon). Pure composition of shipped "
+                    "primitives — no new algebra, no abs() (sign is Class C chiral_flip). "
+                    "Storage + coupler are the scientific tier (numpy on call); "
+                    "navigate/is_navigable/carry/correct are numpy-free."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("D", "int", False, "hypervector width in bits (default 8192; the RBS-HDC dimension)"),
+                P("codebook", "dict", False, "optional preset {name: bytes} value-vectors for read cleanup"),
+            ),
+            returns=R("SedenionRegister",
+                      "the instrument — .write/.read (addressable storage), "
+                      ".couple_working/.uncouple_working (≤7 reversible word), "
+                      ".carry/.correct (EC block), .navigate/.is_navigable (hyper-loop)"),
+        ),
+        # Three RBS-LM UPSTREAM_NOTES candidate-additions (v0.7.4rc2; PR #687
+        # §1.2 / §1.3 / rbs_nn Note 1) — pure compositions, no new primitive class.
+        # The two compose ops register under flat ``cascade.*`` names (submodule-
+        # dotted ``cascade.compose.*`` exempt in coverage); bundle_with_ties is a
+        # Class-M op registered under its real ``srmech.amsc.hdc.*`` name.
+        ToolEntry(
+            name="srmech.amsc.cascade.signed_sum_squared", owner="srmech",
+            category="cascade",
+            summary="Element-wise squared signed-sum across a stack of bit sources "
+                    "— the coupling-score composite (UPSTREAM §1.2). Per position: "
+                    "s = Σ_sources (2·bit−1) (Class K bipolar transform); out = s² "
+                    "(Class L signed-magnitude-square). Large where sources agree "
+                    "(coherent |Σ|≈N), ~0 where they cancel — the coupling score. "
+                    "No abs(): the square carries the sign boundary. Operates on a "
+                    "stack of source arrays, not a single graph." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("sources", "sequence", True,
+                  "non-empty sequence of equal-length 0/1 bit sequences"),
+            ),
+            returns=R("list[int]", "per-position squared signed-sum"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.top_k_by_score", owner="srmech",
+            category="cascade",
+            summary="Indices of the k highest- (or lowest-) scoring items — the "
+                    "catalog selection composite (UPSTREAM §1.3). Class E (sorted-key "
+                    "order) ∘ Class K (sparse truncate to top/bottom k). Stable: ties "
+                    "keep ascending index order. The band-selection / weak-coupling-"
+                    "prune step (top-K bands by magnitude; bottom-K bits by coupling-"
+                    "square)." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("scores", "sequence", True, "one comparable score per item"),
+                P("k", "int", True, "how many indices to return (0 ≤ k ≤ len(scores))"),
+                P("largest", "bool", False, "True (default) → highest k; False → lowest k"),
+            ),
+            returns=R("list[int]", "k indices, best-first"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.bundle_with_ties", owner="srmech",
+            category="hdc",
+            summary="Bitwise majority across ANY number of BSC vectors, with the tie "
+                    "state surfaced (UPSTREAM rbs_nn Note 1). Unlike bundle (odd N "
+                    "only, no ties), accepts any N and returns (majority, ties): "
+                    "majority bit = 1 where strictly >half are set (tie→0; for odd N "
+                    "equals bundle exactly); ties bit = 1 where the counts are exactly "
+                    "equal (even N only). A tie is a Class K event — the bundle "
+                    "accumulator crossing zero (the phase-boundary / derivative-sign-"
+                    "flip of MFO §VII.6.12.1), surfaced without changing the binary-"
+                    "byte storage form. No abs(); counts only." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("vectors", "sequence", True,
+                  "sequence of equal-length BSC byte vectors; any count (odd or even)"),
+            ),
+            returns=R("tuple", "(majority_bytes, ties_bytes) — each the input length"),
+        ),
+        # The One — S(σ,θ), the single generator of the 1+3+7+3 = 14 substrate
+        # (#887). Registered under its STABLE FLAT public name
+        # ``srmech.amsc.cascade.the_one``; the submodule-dotted
+        # ``srmech.amsc.cascade.one.the_one`` + its ``s_generator`` alias are the
+        # same object re-exported flat (exempt in test_tool_schema_coverage).
+        ToolEntry(
+            name="srmech.amsc.cascade.the_one", owner="srmech",
+            category="cascade",
+            summary="The One — S(σ,θ), the single generator of the 1+3+7+3 = 14 "
+                    "substrate (#887). Builds the Hurwitz division-algebra ladder "
+                    "⨁_{n=1}^{3} (ℝ·1 ⊕ σ·e^{Î_nθ}·Im 𝔸_n) (𝔸₁=ℂ, 𝔸₂=ℍ, 𝔸₃=𝕆) "
+                    "as one (σ,θ)-parameterised `One` of three Blocks tiling the A–N "
+                    "partition: the imaginary dims 1/3/7 carry A / I,C,J / "
+                    "D,E,F,G,K,L,M, and the three ℝ·1 reals are the +3 grammar "
+                    "B,H,N. e^{Î_nθ}=cosθ+Î_n sinθ is the exact-rational Class-N "
+                    "epicycle (rational.{cos,sin}_series_truncate); σ is Class K "
+                    "sign ∘ Class C apply (never abs()); ⨁ over n is Class I. At "
+                    "n=1 (Im ℂ one-dimensional) the seed coincides with the "
+                    "rotation axis so θ is inert and only σ survives. Numpy-free, "
+                    "exact-rational; the opt-in One.to_numpy()/to_matrix() float "
+                    "realisations are the scientific tier (§22). No new primitive "
+                    "class. SSoT: Hurwitz (1898); the parallelizable-sphere ladder "
+                    "S¹,S³,S⁷.",
+            parameters=(
+                P("sigma", "int", True, "chirality σ ∈ {+1,-1} (Class K·C sign-flip)"),
+                P("theta_num", "int", True, "epicycle angle numerator (radians)"),
+                P("theta_den", "int", False, "epicycle angle denominator > 0; default 1"),
+                P("terms", "int", False, "Class-N Taylor depth for cos/sin; default 24"),
+            ),
+            returns=R("One", "structured generator: three Blocks tiling 1+3+7+3 = 14"),
+        ),
         # chirality mini-set (v0.4.4): the chiral dual of an A-N operator is
         # SAME SHAPE, INVERSE (MFO §VIII.31.11; spike-verified). Compositions
         # of Class C orientation + Class K sign; no new class, no C symbol.
@@ -2139,6 +2598,78 @@ def _register_primitive_class_tools() -> None:
                       "(n_distinct/classes/label/useful 4/2/2/1), cap "
                       "(sector_cap 4, beyond_4_needs triality), "
                       "framework_thread_ladder_reading}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.coupled.coupled_wave", owner="srmech",
+            category="cascade",
+            summary="The coupled EM-quadrature DRIVE at phase theta — the "
+                    "full-chirality (E, B) pair instead of a collapsed 1-bit "
+                    "sign (W17 / F577 verb-flip fix). A flat sign(wave) gate "
+                    "flips hard at every zero-crossing (2/cycle); the coupled "
+                    "(E=sin, B=cos, 90° apart) rotates MONOTONICALLY → 0 hard "
+                    "reversals, so a driven chiral/relational element (a verb) "
+                    "keeps a stable bearing. The four (sign E, sign B) quadrants "
+                    "ARE the four Klein-4 (γ₅, iω₇) sectors. HANDEDNESS IS A "
+                    "SETTABLE CONVENTION, never hardcoded: left/right are both "
+                    "first-class (the endianness posture — the substrate "
+                    "privileges neither byte-order nor chirality); -handedness "
+                    "is a Class-K phase sign-flip theta→-theta (no abs), and the "
+                    "chosen convention is echoed back STABLE (it does not flip "
+                    "with theta). Composition of calculus.{sin,cos} (C-dispatched) "
+                    "+ Class-K pin_slot_at_zero — no new primitive class. "
+                    "F577/F552; #928 W17." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("theta", "float", True,
+                          "phase angle in radians"),
+                        P("handedness", "int", False,
+                          "rotation-sense convention +1 or -1 (both first-class; "
+                          "default +1 is an ARBITRARY convention; -1 = Class-K "
+                          "phase flip theta→-theta)"),
+                        P("components", "sequence", False,
+                          "the (E_fn, B_fn) quadrature pair, each 'sin' or 'cos' "
+                          "and distinct; default ('sin','cos') → E=sin, B=cos")),
+            returns=R("tuple",
+                      "(E, B, handedness, klein4_quadrant) — the quadrature "
+                      "legs (float, C-dispatched), the STABLE chosen handedness, "
+                      "and (sign E, sign B) the Klein-4 sector"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.coupled.multiplex_streams", owner="srmech",
+            category="cascade",
+            summary="Recombine N steering WAVES into one driver — the multiplex "
+                    "(W18 / F573-F577). A 'stream' is a per-step real-valued "
+                    "DRIVER WAVE (a steering signal that decides which content "
+                    "gets selected downstream), NOT tokens — the output is a "
+                    "single steering driver; emission (the fluency-ear + manifold "
+                    "gate) is a SEPARATE consumer. Ideally each stream is a "
+                    "coupled (E,B) wave from coupled_wave so it carries a stable "
+                    "bearing (W17+W18 compose). Per F577 the multi-stream is for "
+                    "correct sentence STRUCTURE (S-V-O clause-role assignment), "
+                    "not richness. Modes: 'roundrobin' (default; the validated-"
+                    "best t mod N multiplex — stream t%N drives step t), "
+                    "'superpose' (real-field interference: elementwise SUM + "
+                    "renormalise by max magnitude — the weakest combiner, not "
+                    "hdc.bundle, which is a different layer), 'pickbest' "
+                    "(strongest-bearing wave each step via Class-K magnitude — a "
+                    "wave pick, distinct from a content-fluency pick). roles=("
+                    "'S','V','O') binds each stream to clause-slot k; the verb "
+                    "stream should be a coupled bearing so its which-way can't "
+                    "flip mid-clause; the role tag is stored via Class-M hdc.bind "
+                    "for unbindability. No new primitive class. F573/F577; #928 "
+                    "W18." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("streams", "sequence", True,
+                          "N equal-length real-valued sequences (the steering "
+                          "waves; ideally each a coupled_wave bearing)"),
+                        P("mode", "str", False,
+                          "'roundrobin' (default) | 'superpose' (real "
+                          "interference sum + renorm) | 'pickbest' (max-magnitude "
+                          "bearing)"),
+                        P("roles", "sequence", False,
+                          "optional N clause-role labels e.g. ('S','V','O'); role "
+                          "k steers clause-slot k, tagged via Class-M hdc.bind")),
+            returns=R("dict",
+                      "{driver (the single recombined steering wave), mode, "
+                      "n_streams, length, roles, role_bound (clause-slot tagging "
+                      "when roles given), layer}"),
         ),
     ]
     for e in entries:
@@ -2929,6 +3460,49 @@ def _register_qm_tools() -> None:
         ),
 
         # ────────────────────────────────────────────────────────────
+        # srmech.qm.hurwitz — the octonion-native matrix realisation of
+        # "the One" S(σ,θ) (#887); the qm-tier Rosetta peer of the
+        # numpy-free srmech.amsc.cascade.the_one. The Fano planes of each
+        # rotation are DERIVED from octonion_mult_table (not hardcoded), so
+        # the 14×14 matrix agrees bit-for-bit with One.to_matrix.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.qm.hurwitz.hurwitz_matrix", owner="srmech",
+            category="qm.hurwitz",
+            summary="The One S(σ,θ) as a 14×14 octonion-native matrix "
+                    "G = ⨁_n (1 ⊕ σ R_n(θ)) (#887). R_n turns every Fano "
+                    "plane through Î_n=e_{2ⁿ-1} by θ — 0/1/3 planes for "
+                    "ℂ/ℍ/𝕆 (the 𝕆 block is a genuine 3-plane rotation, "
+                    "eigenvalues {1,e^{±iθ}×3}). Planes DERIVED from "
+                    "octonion_mult_table; bit-exactly equal to "
+                    "srmech.amsc.cascade.One.to_matrix (the Rosetta peer). "
+                    "Class A (planes) ∘ N (rational cos/sin) ∘ K·C (σ); no "
+                    "new class, no abs(). Scientific tier (§22): numpy. "
+                    "Baez (2002) §2." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("sigma", "int", True, "chirality σ ∈ {+1,-1}"),
+                P("theta_num", "int", True, "angle numerator (radians)"),
+                P("theta_den", "int", False, "angle denominator > 0; default 1"),
+                P("terms", "int", False, "Class-N Taylor depth; default 24"),
+            ),
+            returns=R("np.ndarray", "(14,14) float64 orthogonal-up-to-σ matrix"),
+        ),
+        ToolEntry(
+            name="srmech.qm.hurwitz.hurwitz_planes", owner="srmech",
+            category="qm.hurwitz",
+            summary="The oriented Fano planes (a,b,sign) each Hurwitz block "
+                    "(ℂ/ℍ/𝕆) turns by θ, DERIVED from octonion_mult_table — "
+                    "0/1/3 planes (the octonion epicycle). Matches the "
+                    "hardcoded srmech.amsc.cascade.one.FANO_PLANES bit-for-bit "
+                    "(the structure cross-derivation). Class A "
+                    "(content-addressing the octonion convention). Scientific "
+                    "tier (§22): numpy. Baez (2002) §2." + PUBLISH_OPT_IN_NOTE,
+            parameters=(),
+            returns=R("tuple",
+                      "((), ((1,2,1),), ((1,6,-1),(2,5,1),(3,4,1)))"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
         # srmech.qm.so8 — the 28-generator so(8) adjoint, partitioned
         # 14 (g2 = Der O) + 7 (L-type) + 7 (R-type). The 14 = the A-N
         # 1+3+7+3 partition. Class M (g2 + L/R binders); Class C (so7).
@@ -3298,7 +3872,7 @@ def _register_introspect_tools() -> None:
 def _register_dsl_tools() -> None:
     """Register the declarative cascade-DSL surface (v0.5.0rc12 — DSL voxel).
 
-    The rc8 cascade DSL (``srmech.dsl.*``) composes the 13 cascade-catalog
+    The rc8 cascade DSL (``srmech.dsl.*``) composes the 14 cascade-catalog
     ops via a fluent builder (``chain().then(...).loop(...)...``). That
     method-chaining shape is NOT LLM-tool-ergonomic — a single tool call
     can't chain builder methods. So this voxel exposes the *declarative*
@@ -3311,7 +3885,7 @@ def _register_dsl_tools() -> None:
     * ``srmech.dsl.run_toml_chain(spec, input_value)`` — author an inline
       TOML chain spec + run it atomically; an LLM composes AND runs a
       cascade in one call.
-    * ``srmech.dsl.list_catalog_ops()`` — enumerate the 13 cascade-catalog
+    * ``srmech.dsl.list_catalog_ops()`` — enumerate the 14 cascade-catalog
       ops + their A–N class + purpose, so an LLM knows which op names a
       spec may use.
 
@@ -3349,7 +3923,7 @@ def _register_dsl_tools() -> None:
                 "`sub_chain` (loop), `fold_init` + `fold_op` (fold), or "
                 "`reduce_op` (reduce); any other key forwards as a "
                 "cascade-op kwarg (e.g. `max_denominator`). Op names come "
-                "from `srmech.dsl.list_catalog_ops` (the 13-op cascade "
+                "from `srmech.dsl.list_catalog_ops` (the 14-op cascade "
                 "catalog). Example spec: `[chain]\\nname='demo'\\n\\n"
                 "[[stage]]\\nop='chiral_flip'`. Framework reading: the "
                 "DSL composes Class M (cross-class bind) over the cascade "
@@ -3396,11 +3970,12 @@ def _register_dsl_tools() -> None:
                 "class composition + 1-line purpose BEFORE authoring a "
                 "spec. Sourced from the on-disk cascade-catalog TOML "
                 "descriptors (the SSoT), so it stays in lockstep with the "
-                "ops the runner can actually resolve (13 ops: "
+                "ops the runner can actually resolve (14 ops: "
                 "autocorrelation, best_rational_signed, chiral_dual, "
                 "chiral_flip, cyclic_gcd, kuramoto_step, magnitude, "
                 "net_chirality, octonion_dft, parallel_sector_dispatch, "
-                "pin_slot_at_zero, quaternion_dft, reorient). Each record "
+                "pin_slot_at_zero, quaternion_dft, reorient, "
+                "schur_complement). Each record "
                 "also carries a `kind` "
                 "(`stage` | `combinator`) and `provenance` (`srmech` | "
                 "`user`). Framework reading: Class E (catalog enumeration) "

@@ -8,6 +8,469 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc27] - 2026-06-08
+
+**The linalg/fft phase opens — the linear-solve family onto cascades (numpy-math `linalg_fft` 126 → 122; #928).** With the dense-matmul ceiling at its floor, the arc pivots to the larger `linalg_fft` ceiling (pinned at 126 since rc13). Per user direction — **cascade + TOML for all maths; numpy is a carrier only** (with the carrier itself removed as the *final* step, after the maths sweep) — the cascades **replace** numpy math even where they are not bit-exact: `fft` (radix-2), `svd` (Gram-route), `qr` (Householder), `eig` (Jacobi) are round-off-faithful to numpy (~1e-14), not bit-identical, and that within-round-off shift is accepted (any bit-equality-vs-numpy test relaxes to a tolerance).
+
+rc27 routes the **linear-solve family**:
+
+- **`map_ml`** — the ML/MAP normal-equation `np.linalg.solve(M, …)` (×2) → `dense_solve` (bit-exact for the 1-D RHS both sites have).
+- **`qm.triality`** + **`signal_processing.esprit`** — `np.linalg.lstsq(…)` → `matrix_cascades.lstsq` (round-off-faithful ~5e-16, complex-safe). The cascade returns a **bare ndarray**, not numpy's `(x, residuals, rank, sv)` 4-tuple, so the callsite unpacking changed (`solution, _, _, _ =` → `solution =`; `[…][0]` → direct).
+
+**numpy-math ratchet `linalg_fft` 126 → 122.** Pure Python-tier; no C change, ABI stays 3. No new public symbols. **Not** migrated: the cascade ops' own internal numpy kernels (`laplacian` `eigh`/`solve` — the designated Class-L implementations, which have pure-Python fallbacks; a deeper separate pass), and the docstring / ToolEntry-summary `numpy.linalg.*` cross-reference *mentions* (precise documentation — left intact, not gamed). The map_ml / triality / esprit suites pass unchanged. Next: `np.fft` (with `n`/`axis` handling) + `np.linalg.svd`/`qr`/`eigvals` + `inv`/`pinv`.
+
+SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
+## [0.7.5rc26] - 2026-06-08
+
+**The matmul-kernel phase, batch 11 — the genuine-code tail of the dense-matmul migration (numpy-math `matmul` 60 → 55; #928).** Five remaining genuine dense-matmul *code* sites (as opposed to docstring mentions or distinct ops) route onto the cascade helpers:
+
+- **`vector_quantisation`** — the codebook cross-term `vec·cbᵀ` (both `float64`) → `dense_matmul_real`.
+- **`sinc_interp`** — the Whittaker-Shannon `K·y`, where `K` is the real sinc matrix but **`y` is `complex128`** (IQ signal) → `dense_matvec_complex` (genuinely complex — routing through the real helper would have dropped the imaginary part).
+- **`farrow`** — the Lagrange fractional-delay tap `C[k]·x` (real 4-tap dot) → `dense_dot_real`.
+- **`qm.potentials`** — the harmonic-oscillator number operator `a†·a` (complex ladder ops) → `dense_matmul_complex`.
+- **`qm.sm`** — the CKM-unitarity check `V·Vᴴ` (complex) → `dense_matmul_complex`.
+
+**numpy-math ratchet `matmul` 60 → 55.** Pure Python-tier; no C change, ABI stays 3. No new public symbols. This essentially reaches the **dense-matmul-migration floor**: of the remaining ~55, ~16 are docstring / comment / ToolEntry-summary `@` *mentions* (a cosmetic `·` reword sweep) and ~25 are **distinct ops** needing their own cascades (`np.convolve`, `np.correlate`, `np.kron`, `np.outer`, `np.einsum`). Values bit-preserved; the vector-quant / sinc / farrow / harmonic-oscillator / CKM suites pass unchanged. The `laplacian` Schur `L_pi·X` is deferred (in-helper, shape-polymorphic — its own pass).
+
+SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
+## [0.7.5rc25] - 2026-06-08
+
+**The matmul-kernel phase, batch 10 — the real DSP `closed_form_ops` cluster (numpy-math `matmul` 75 → 60; #928).** Fifteen contraction sites across the closed-form signal-processing reference ops route onto the cascade helpers:
+
+- **`dct`** (2) — the DCT-matrix products `arr·Mᵀ` (n-D) and `M·arr` (1-D), where `M` is the real cosine basis → `dense_matmul_real` / `dense_matvec_real`.
+- **`map_ml`** (6) — the ML/MAP normal-equation chain `AᵀR_v⁻¹`, `AᵀR_v⁻¹A`, `AᵀR_v⁻¹y`, and `R_x⁻¹μ` (all `float64`) → `dense_matmul_real` / `dense_matvec_real`. The `np.linalg.inv`/`solve` stay (linalg-engine surface, a separate ceiling).
+- **`ica_jade`** (6) — the `XᵀX` covariance, the whitening `diag(λ^-½)·Vᵀ` + `W·Xᵀ`, and the Givens joint-diagonalisation `V·G` / `Vᵀ·W` / `W·Xᵀ` rotations (all real) → `dense_matmul_real`. The 2 `np.einsum` cumulant-tensor rotations + the `np.linalg.eigh` stay (distinct ops).
+- **`fsk`** (1) — the M-tone correlator bank `tones·conj(window)`, where `tones` is `complex128` → `dense_matvec_complex` (genuinely complex; the result feeds `|z| = hypot(re, im)`).
+
+**numpy-math ratchet `matmul` 75 → 60.** Pure Python-tier; no C change, ABI stays 3. No new public symbols (reuses the rc20/rc21 helpers). These DSP modules import numpy at module top, so the helper import is top-level (unlike the lazy-numpy `amsc` modules in rc24). Values bit-preserved; the dct / map_ml / ica_jade / fsk suites pass unchanged. The `np.convolve`/`correlate`/`outer`/`einsum` sites stay — distinct ops for later batches.
+
+SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
+## [0.7.5rc24] - 2026-06-08
+
+**The matmul-kernel phase, batch 9 — the real "Minkowski + real-dot" sweep (numpy-math `matmul` 86 → 75; #928).** Eleven real-typed contraction sites across `qm` and `amsc` route onto the real cascade helpers:
+
+- **`qm.relativistic`** (3) — the `k_μ = η_{μν} k^ν` lowering matvec (`eta @ k`), the Klein-Gordon `⟨k_spatial, k_spatial⟩` dispersion dot, and the Lorentz-invariant `k² = kᵀ η k` bilinear → `dense_matvec_real` / `dense_dot_real`.
+- **`qm.propagators`** (1) — the photon-propagator gauge-term `eta @ k` lowering matvec → `dense_matvec_real`.
+- **`amsc.harmonics`** (3) — the `_spectral_scores` energy / mirror / three-cycle symmetry probes (`⟨x,x⟩`, `⟨x,x[::-1]⟩`, `⟨x,roll(x)⟩`), each an explicit Class-L inner product → `dense_dot_real`.
+- **`amsc.hdc`** (3) — the Moufang-inverse norm² gates in `loop_inv` / `loop_inv_hd` (per-block) and the `g2_three_form` associator `⟨x, y×z⟩` → `dense_dot_real`.
+
+**numpy-math ratchet `matmul` 86 → 75.** Pure Python-tier; no C change, ABI stays 3. No new public symbols (reuses the rc20/rc21 helpers). The `amsc` sites import `dense_dot_real` **function-locally** so `harmonics`/`hdc` stay numpy-absent-safe (§22) — numpy is already loaded by the `np.asarray(…, dtype=float)` that precedes each dot. All values bit-preserved (the helpers route imag-free input through the complex kernel and drop the exactly-zero imaginary part); the qm-relativistic/propagator + hdc-loop + harmonic suites pass unchanged. The `np.outer` (k^μ k^ν) sites stay — a distinct op for a later batch.
+
+SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
+## [0.7.5rc23] - 2026-06-08
+
+**The matmul-kernel phase, batch 8 — `qm.so8` onto the cascade, real + complex (numpy-math `matmul` 105 → 86; #928).** The g₂ / Spin(8) module's 17 contraction sites route through the cascade, split by dtype:
+
+- **15 real sites** — the `[X,Y]` commutator, the su(3)/g₂ Gram products (`su3·su3ᵀ`, `q_sd·q_sdᵀ`, …), the basis-projection matvecs (`g2[a]·e_k`, `matrix·basis[a]`, the structure-constant `pinv·bracket`), and the Gram-Schmidt `q·residual` dot → `dense_matmul_real` / `dense_matvec_real` / `dense_dot_real`.
+- **2 complex sites** — the su(3)-weight Rayleigh quotients `vᴴv` and `vᴴ·ad·v`. `v` is a **complex** eigenvector of the real `ad(H)` (eigenvalues ±i·weight), so these are genuinely complex → `dense_dot_complex` / `dense_matvec_complex`. (Routing them through the real helpers would have dropped the imaginary part and corrupted the weights.)
+
+**numpy-math ratchet `matmul` 105 → 86.** Pure Python-tier; no C change, ABI stays 3. No new public symbols (uses the rc20/rc21 helpers). The so8 parity tests pass unchanged — g₂ = Der(𝕆) dim 14, the 14 = 8 + 3 + 3̄ su(3) branching, and the su(3) weight computation (the complex Rayleigh quotients) all hold. The 2 `np.kron` (so(8) adjoint tensor) stay — a distinct op for a later batch. Minkowski / DSP real sites land next.
+
+SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
+## [0.7.5rc22] - 2026-06-08
+
+**The matmul-kernel phase, batch 7 — `qm.triality` real products onto the real cascade (numpy-math `matmul` 115 → 105; #928).** First consumer of the rc21 real trio.
+
+- **`qm.triality` (7 sites)** — the octonion-rep matvecs (`operator @ octonion_mul(…)`, `g_v/g_s/g_c @ …`) route through `dense_matvec_real`; the 28×28 Spin(8) triality products `tau = S_B·S_C`, `tau²`, `tau³` route through `dense_matmul_real`. All real-typed (octonion regular rep + so(8) adjoint), so no dtype change.
+- **3 docstring `@` → `·`** — the prose `tau = S_B @ S_C` references (regex false-positives) reworded to `·`, since they are not numpy math.
+
+**numpy-math ratchet `matmul` 115 → 105.** Pure Python-tier; no C change, ABI stays 3. The triality parity tests pass unchanged (`tau³ = I₂₈`, `Fix(tau) = g₂` exactly at dim 14, the order-3 outer-automorphism structure). `qm.so8`'s ~17 real sites + the Minkowski / DSP real sites land in subsequent batches.
+
+SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
+## [0.7.5rc21] - 2026-06-08
+
+**The matmul-kernel phase, batch 6 — the real-linear-algebra cascade trio + `hypercomplex_dft` octonion-rep matvecs (numpy-math `matmul` 123 → 115; #928).** The complex contraction surface was closed at rc20; the remaining ~70 sites are *real*-typed. This batch introduces the real cascade primitives and migrates the first uniform cluster.
+
+- **New `srmech.amsc.laplacian.dense_matmul_real` / `dense_matvec_real` / `dense_dot_real`** — float64 peers of the complex helpers. Each routes the real contraction through the native complex kernel (on imag-free input) and drops the exactly-zero imaginary part, so real-typed sites leave numpy `@`/`.dot` for a cascade **without a dtype change**. All three are `composition_of_c` in the Rosetta ledger (no own C symbol; the math rides the `c_dispatched` complex kernel; standalone-ready). `dense_matmul_real`/`dense_dot_real` get their first callsites in the next batches (so8 / triality).
+- **`amsc.cascade.hypercomplex_dft` (8 sites)** — the octonion regular-representation matvecs (`octonion_left/right_mult(w) @ vec`, 8×8 real × real-8) in the QDFT/ODFT core + `hypercomplex_couple` now route through `dense_matvec_real`. The F378 non-associativity bracketing is preserved exactly. Imported **lazily** inside the functions (after the numpy guard) so the cascade layer stays numpy-absent-safe (§22).
+
+**numpy-math ratchet `matmul` 123 → 115.** Pure Python-tier; no C change, ABI stays 3. QDFT/ODFT parity tests + the numpy-free import tests pass unchanged. The remaining real `so8` / `triality` / Minkowski / DSP sites land in subsequent batches.
+
+SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
+## [0.7.5rc20] - 2026-06-08
+
+**The matmul-kernel phase, batch 5 — the complex vecmat/dot/sandwich sites onto a new `dense_dot_complex` bilinear helper (numpy-math `matmul` 135 → 123; #928).** The complex 2-D matmul surface was exhausted at rc19; this batch closes the genuinely-complex *contraction* sites by composing the existing `dense_matvec_complex` with a new bilinear inner-product helper.
+
+- **New `srmech.amsc.laplacian.dense_dot_complex(a, b)`** — the plain bilinear `Σ aᵢ bᵢ` (matching numpy `a·b` on two 1-D arrays, NOT the conjugating `vdot`). Composes the native-dispatched `elementwise_multiply_complex` cascade with a reduction sum — never a numpy contraction operator. Classified `composition_of_c` in the Rosetta ledger (standalone-ready; not a debt bucket). Callers spell the Hermitian form as `dense_dot_complex(a.conj(), …)`.
+- **`qm.pseudo_hermitian` (3 sites, 7 `@` tokens)** — the η-sandwiches `⟨a|η|b⟩`, `⟨ψ|ηO|ψ⟩`, `⟨ψ|η|ψ⟩` now route each contraction through `dense_matvec_complex` + `dense_dot_complex`.
+- **`signal_processing.heat_kernel` (2)** — the eigenbasis project/reconstruct matvecs → `dense_matvec_complex`.
+- **`spectral` (2)** — the decompose/recompose eigenbasis matvecs → `dense_matvec_complex`.
+- **`signal_processing.music` (1)** — the noise-subspace projection `Enᴴ·A` (a complex 2-D matmul) → `dense_matmul_complex`.
+
+**numpy-math ratchet `matmul` 135 → 123.** Pure Python-tier; no C change, ABI stays 3. Parity tests pass unchanged (pseudo-Hermiticity + η-expectation; heat-kernel diffusion; spectral round-trip; MUSIC pseudo-spectrum). The remaining real-typed sites (so8 / triality / octonion-DFT / Minkowski / DSP) await a real-matmul + real-matvec cascade; the `matrix_cascades` QR-internal vdot/back-solves await a shape-polymorphic pass.
+
+SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
+## [0.7.5rc19] - 2026-06-08
+
+**The matmul-kernel phase, batch 4 — `qm.relativistic` γ-products + `qm.pseudo_hermitian` η-products onto the cascade (numpy-math `matmul` 147 → 135; #928).** 12 dense complex matmuls route through `dense_matmul_complex`:
+
+- **`qm.relativistic`** (9) — the Dirac γ-matrix products: `γ_5 = i·γ0γ1γ2γ3`, the Clifford anticommutator `{γ^μ,γ^ν}`, `γ_5²`, the `{γ_5,γ^μ}` chirality anticommutator, and the charge-conjugation `C = iγ2γ0`.
+- **`qm.pseudo_hermitian`** (3) — the pseudo-Hermiticity residual `Oᴴη − ηO` and the metric build `η = (V·Vᴴ)⁻¹`.
+
+**numpy-math ratchet `matmul` 147 → 135.** No Rosetta bucket move. No behaviour change: the relativistic + pseudo_hermitian parity tests pass unchanged (Cl(1,3) Clifford residuals + γ_5 relations at machine precision; pseudo-Hermiticity + η-construction hold). Pure Python-tier; no C change, ABI stays 3.
+
+**Deferred (need new primitives):** `qm.relativistic`'s `eta@k` Minkowski matvec/dot and `qm.pseudo_hermitian`'s `vᴴηv` / `vᴴηOv` eta-sandwich vecmat-dot sites — these want a *real*-matmul cascade and a vecmat/dot helper, the subject of a later batch. `qm.triality` is entirely real-typed (octonion-rep matrices) and also awaits the real-matmul variant.
+
+SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
+## [0.7.5rc18] - 2026-06-08
+
+**The matmul-kernel phase, batch 3 — `qm.spin` + `qm.gauge` Lie-algebra products onto the cascade (numpy-math `matmul` 168 → 147; #928).** Two QM modules' dense complex matmuls now route through `dense_matmul_complex` instead of numpy `@`:
+
+- **`qm.spin`** (15) — every Pauli-matrix product in `pauli_clifford_residuals`: the anticommutator residuals `{σᵢ,σⱼ}` / `σᵢ²−I` and the cyclic commutator residuals `[σᵢ,σⱼ]−2iσₖ`.
+- **`qm.gauge`** (6) — the SU(N) Lie-algebra surface: the structure-constant commutator `[Tᵃ,Tᵇ]`, the quadratic Casimir `ΣTᵃTᵃ`, the segment-holonomy `exp(M)=V·diag(eⁱᵠ)·Vᴴ`, and the path-ordered Wilson-loop product.
+
+**numpy-math ratchet `matmul` 168 → 147** (21 callsites). Both modules are now numpy-`@`-free. No Rosetta bucket move — these are diagnostic / algebra helpers already composing the Class-L primitives. No behaviour change: the `spin` + `gauge` parity tests pass unchanged (the Clifford/commutator residuals stay at machine precision; SU(2)/SU(3) Casimir eigenvalues and Wilson-loop unitarity hold). Pure Python-tier; no C change, ABI stays 3.
+
+SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
+## [0.7.5rc17] - 2026-06-08
+
+**The matmul-kernel phase, batch 2 — `qm.single_particle` contractions onto the cascade (numpy-math `matmul` 180 → 168; #928).** The 12 dense complex contractions in `qm/single_particle.py` now route through the `dense_matmul_complex` / `dense_matvec_complex` cascades instead of numpy `@`:
+
+- **`commutator`** `[A,B] = AB − BA` — two dense matmuls.
+- **`heisenberg_evolve`** `A_H = Uᴴ·A·U` and **`liouville_evolve`** `ρ(t) = U·ρ·Uᴴ` — the `U = V·diag(phases)·Vᴴ` build + the conjugation, all through the matmul cascade.
+- **`tdse_evolve`** the eigenbasis change `Vᴴ·ψ` / `V·ψ'` — through the matvec cascade.
+
+After this, the module's only matmul-category callsite is the `np.outer` rank-1 product in `density_matrix` (a distinct op, no matmul kernel involved). **numpy-math ratchet `matmul` 180 → 168.** No Rosetta bucket move — these ops were already `composition_of_c` (they compose the `hermitian_eigendecompose` Class-L cascade). No behaviour change: the 27 `single_particle` parity tests pass unchanged (the QM operator algebra holds to the same round-off; the native triple-accumulator differs from BLAS only at the last bits). Pure Python-tier; no C change, ABI stays 3.
+
+SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
+## [0.7.5rc16] - 2026-06-08
+
+**The matmul-kernel phase, batch 1 — `matrix_cascades` dense matmuls onto the cascade (numpy-math ratchet `matmul` 185 → 180; #928).** First `@`-callsite migration against the rc14 `dense_matmul_complex` C kernel. The 5 dense complex 2-D matmuls inside `matrix_cascades.py` — the `AᴴA` / `A·V` / `AAᴴ` / `Aᴴ·U` Gram + reconstruction products of `svd`, and the `R·Q` shifted-QR step of `eigvals` (which `qr`/`lstsq` ride) — now route through `laplacian.dense_matmul_complex` instead of numpy `@`, so numpy stays carriers-only in the matrix-decomposition cascades.
+
+- **`numpy-math` ratchet `matmul` ceiling 185 → 180** (5 callsites migrated). The `qr`/`svd`/`lstsq`/`eigvals` ops were already `composition_of_c` (they compose the `hermitian_eigendecompose` Class-L cascade); routing their internal contraction through the matmul cascade keeps that and removes the last numpy-`@` math from the SVD/eig Gram-matrix path.
+- **No behaviour change**: the 25 `matrix_cascades` / `lstsq`-`einsum`-`eig` / `numpy-optional` parity tests pass unchanged (the decomposition invariants — reconstruction, orthonormality, descending singular values — hold to the same round-off; the native triple-accumulator differs from BLAS only at the last bits, well inside the existing tolerances). ABI unchanged (no C change this rc — the kernel shipped in rc14).
+
+Pure Python-tier migration; no C change, ABI stays 3. SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
+## [0.7.5rc15] - 2026-06-08
+
+**Bug fix — `cascade.kuramoto_step(adjacency=...)` now honors the `coupling` scalar (UPSTREAM_NOTES §32; PR#687 F636).** When an `adjacency=` matrix was passed, the global `coupling` (`K`) was dropped on the floor: `coupling=0.0` and `coupling=3.0` produced **bit-identical** trajectories over the same neighbor graph (only the all-to-all `adjacency=None` path scaled by `K` correctly). The adjacency branch built its weight from the matrix alone, behaving as if `coupling==1.0` regardless.
+
+- **Fix (Python + C, co-equal):** the adjacency-branch weight is now `coupling · A[i][j]` — the global `K` SCALES the matrix, matching the all-to-all branch's `K/N`. `coupling=0` zeroes the coupling term; `coupling` tunes global strength. `srmech_kuramoto__general_sum` (in `srmech_kuramoto.c`) gains a `coupling_k` parameter; `compose.kuramoto_step` multiplies in the Python fallback. **No behaviour change at the default `coupling=1.0`** (where `K·A == A`) — which is exactly why every prior adjacency test missed it.
+- **Regression tests:** new `test_adjacency_*` cases exercise `coupling≠1` on the adjacency path (the bug surface): `coupling=0` over a ring → pure drift; `coupling=3` vs `coupling=0` over the same ring **diverge**; a full `1/n` matrix at `coupling=K` reproduces the all-to-all `K` path. The `_reference_general` test spec was corrected to scale by `coupling` (it carried the same masked bug). Differential-tested against a freshly-built native lib; the native parity test FAILS against the pre-fix C and PASSES against the fixed C.
+
+Bug fix only; additive C parameter on a static helper (ABI stays 3), no public signature change. SSoT: `docs/srmech/rbs_lm_research/UPSTREAM_NOTES.md` §32.
+
+## [0.7.5rc14] - 2026-06-08
+
+**The matmul-kernel phase opens — a native dense complex `matmul` C kernel (#928).** First kernel of the new-C-kernel phase that drives the numpy-math ratchet (and the Rosetta `python_only_irreducible` cluster) toward zero. Dense complex `matmul` is the **top single lever** — it's the contraction the QM / `matrix_cascades` layer's `@` math is built on.
+
+- **New C symbol `srmech_dense_matmul_complex`** (`(m,k)·(k,n)=(m,n)`, interleaved real/imag, bounded ≤ 256 per dim) — a JPL-clean triple-accumulator mirroring `srmech_dense_matvec_complex`. **Additive symbol; ABI stays 3** (`hasattr`-guarded bind).
+- **`laplacian.dense_matmul_complex(A, B)`** — the Class-L contraction the matmul math will route through, so numpy stays carriers-only. Native `srmech_dense_matmul_complex` when present; the no-native fallback **composes the `dense_matvec_complex` cascade column-by-column** — itself a cascade, **never** numpy `@`. Registered in the tool schema (`describe` total **255 → 256**) and classified `c_dispatched` (Rosetta inventory 348 → 349).
+- This rc ships and **proves the kernel** (parity test + CI build); the QM / `matrix_cascades` `@`-callsite migrations that decrement the ratchet's `matmul` ceiling (185) are the next batches against this now-published kernel.
+
+New additive C kernel + Python op + parity test; no behaviour change to existing ops, ABI stays 3. SSoT: issue #928; `c/ROSETTA_LEDGER.md`.
+
+## [0.7.5rc13] - 2026-06-08
+
+**numpy-math ratchet + lmmse → cascade (the "numpy is a *carrier*, not a *math engine*" guard; #928).** A new down-only source-level guard — sibling of the libm C-transpile ratchet (which drove `libsrmech` 23 → 0) and the Rosetta ratchet — that keeps **all math in srmech cascades and numpy in vector-packing only**. numpy bundles a full math engine (`np.linalg.*`, `np.fft.*`, the `@` matmul, the transcendental ufuncs) alongside its carrier; every one of those is libm-at-the-array-level with a srmech cascade equivalent, so a stray `np.linalg.solve` is a *defect*, not a convenience.
+
+- **The ratchet** (`tests/test_numpy_math_ratchet.py`). Greps the srmech **source** (not the tests) for numpy-math callsites in three categories and pins each at a TIGHT, down-only ceiling: **`linalg_fft` 126 · `matmul` 185 · `ufunc` 48** (`np.{sin,cos,exp,sqrt,sign,…}`). A new `np.linalg.*` now fails CI; closing debt = route the callsite through the cascade that backs it, then lower the matching ceiling. Carrier ops (`zeros`/`asarray`/`reshape`/`.T`/elementwise `+ - *`/indexing) are NOT counted; reductions (`sum`/`mean`/…) are a deferred boundary category. Version-stable across CPython 3.10–3.14 (regex over source, not `tokenize`).
+- **Decrement #1 — `lmmse`.** `signal_processing.closed_form_ops.lmmse` routed its gain off **`np.linalg.solve`** + its estimate off the **`@`** matmul. Both now ride srmech cascades: the solve through `laplacian.dense_solve` (native `srmech_dense_solve_f64` / exact-rational Gauss-Jordan), the matvec through `laplacian.dense_matvec_complex`. numpy is carriers-only there now (`asarray`/transpose/elementwise ±). The estimate is **correct to machine precision** (gain-equation residual `‖K·R_yy − R_xy‖ ≈ 4e-16`); the cascade — not LAPACK — is the source of truth.
+- **Rosetta ratchet:** `lmmse.op` reclassifies `c_exists_unbound → composition_of_c` (it now composes two `c_dispatched` ops). Ceiling **`c_exists_unbound` 6 → 5**; `python_only_irreducible` unchanged at 108. Total standalone-C debt **114 → 113**. The remaining 5 `c_exists_unbound` are the Klein-4 family (gated on W5).
+
+Behaviour-preserving (machine-precision) dispatch retrofit + a new source guard; no new op, ABI stays 3. SSoT: issue #928; `c/ROSETTA_LEDGER.md`. User direction 2026-06-08: "numpy is only ever for vector packing."
+
+## [0.7.5rc12] - 2026-06-08
+
+**Rosetta cheap-win sweep #5 — the polar-HDC trio goes native (#928).** The three `srmech.amsc.hdc` polar Class-M ops that ship a bit-exact C twin but built the result in pure numpy now **dispatch to native** when present: `polar_bind → srmech_polar_bind` (int8 element-wise sign-product, 0 absorbing), `polar_bundle → srmech_polar_bundle` (per-position sticky-majority `sign(Σ)`, tie → 0), `polar_density → srmech_polar_density` (informative-fraction = count-nonzero / n). The pure-Python numpy paths stay as the Pyodide / no-native fallback.
+
+- **Bit-exact** — all three are integer int8 ops (the density is an integer count over one division); verified native-vs-pure agree over 200 random trials each, so outputs are unchanged.
+- **Reclassify:** `polar_bind`, `polar_bundle`, `polar_density` `c_exists_unbound → c_dispatched`.
+- **Ratchet:** ceiling **`c_exists_unbound` 9 → 6**; `python_only_irreducible` unchanged at 108. Total standalone-C debt **117 → 114.**
+- **Last clean cheap-win.** The remaining 6 `c_exists_unbound` are NOT clean bit-exact wins: **`lmmse`** (1) would route `np.linalg.solve` to the C `srmech_dense_solve_f64`, but that twin is **NOT bit-exact** with LAPACK (agrees to ~2.2e-16, a separate LU) — a deliberate float-boundary decision, **held**; and the **Klein-4 family** (5) stays **gated on W5** (`klein4_bundle` even-count) per `[[feedback_check_known_bugs_before_mirroring_python_to_c]]`. Both warrant a maintainer call before wiring.
+
+Behaviour-preserving dispatch retrofit + docs; no new op, ABI stays 3. SSoT: issue #928; `c/ROSETTA_LEDGER.md`.
+
+## [0.7.5rc11] - 2026-06-08
+
+**Rosetta cheap-win sweep #4 — the Hamming GF(2) block code goes native (#928).** The two `srmech.amsc.cascade` Hamming primitives that ship a bit-exact C twin (the v0.7.2rc2 `srmech_hamming_*` pair) but built the codeword / syndrome in pure Python now **dispatch to native** when present: `hamming_encode → srmech_hamming_encode` (the systematic GF(2) generator) and `hamming_syndrome → srmech_hamming_syndrome` (the parity-check error position). The pure-Python GF(2) loops stay as the Pyodide / no-native fallback. With `hamming_syndrome` C-backed, `hamming_decode_correct` (which calls it, then single-bit-corrects) is now a **composition of a C-dispatched twin**.
+
+- **Bit-exact** — GF(2) integer arithmetic, no float; verified native-vs-pure agree across `n ∈ {2,3,4}` and **every** single-bit-flip codeword, so encode/syndrome/decode outputs are unchanged.
+- **Reclassify:** `hamming_encode`, `hamming_syndrome` `c_exists_unbound → c_dispatched`; `hamming_decode_correct` `c_exists_unbound → composition_of_c`.
+- **Ratchet:** ceiling **`c_exists_unbound` 12 → 9**; `python_only_irreducible` unchanged at 108. Total standalone-C debt **120 → 117.** The remaining 9 `c_exists_unbound` are the polar-HDC trio + `lmmse` (the rc12 batch) and the Klein-4 family (5; **gated on W5** — the `klein4_bundle` even-count semantics must be confirmed before its standalone-C sector-dispatch port per `[[feedback_check_known_bugs_before_mirroring_python_to_c]]`).
+
+Behaviour-preserving dispatch retrofit + docs; no new op, ABI stays 3. SSoT: issue #928; `c/ROSETTA_LEDGER.md`.
+
+## [0.7.5rc10] - 2026-06-08
+
+**Rosetta cheap-win sweep #3 — the Cayley-Dickson basis cocycle goes native (#928).** `cascade.cd_basis_product` (the integer cocycle `e_i·e_j = sign·e_{i⊕j}`) now **dispatches to the C peer `srmech_cd_basis_product`** when native is present (the symbol was bound but never called); the pure-Python iterative doubling stays as the Pyodide / no-native fallback. With that primitive C-backed, `qm.octonion.octonion_mult_table` now **builds the (8,8,8) structure tensor through `cd_basis_product`** instead of a recursive numpy `_cd_mul`.
+
+- Integer-only ⇒ bit-exactness is trivial; the table's int8 bytes are **identical**, so `octonion_table_attestation`'s `response_sha256` content-address is **unchanged** (verified `7f36461e…`). The recursive `_cd_mul`/`_cd_conjugate` helpers (used only to build the table) are removed; the convention stays specified by the module docstring + `_DOUBLING_RULE`/`_CONJ_RULE` byte constants (the `parser_rule_hash`) + the C primitive.
+- **Reclassify:** `cd_basis_product` `c_exists_unbound → c_dispatched`; `octonion_mult_table` `c_exists_unbound → composition_of_c`. 142 cayley/octonion/so8/hurwitz/triality/sedenion/rosetta tests green.
+- **Ratchet:** ceiling **`c_exists_unbound` 14 → 12**; `python_only_irreducible` unchanged at 108. Total standalone-C debt **122 → 120.**
+
+Dispatch retrofit + docs; no new op, ABI stays 3. SSoT: issue #928; `c/ROSETTA_LEDGER.md`.
+
+## [0.7.5rc9] - 2026-06-08
+
+**Rosetta cheap-win sweep #2 — octonion L/R-multiply + conjugate → native dispatch (#928).** The three `srmech.qm.octonion` ops that built the octonion left/right-multiplication operators via `np.einsum` over the structure-constant table (and the conjugate via slice-negate) now **delegate to the already-C-dispatched `hdc.loop_left_op` / `loop_right_op` / `loop_conj`** (the octonion loop family, `srmech_loop_*_f64`). Same Cayley-Dickson-from-H convention on both sides (verified bit-exact over 50 random trials + the byte-identical structure table), so output is unchanged and the so(8)/triality engine downstream is unaffected (**118 qm tests green**).
+
+- Repointed: `octonion_left_mult`, `octonion_right_mult`, `octonion_conjugate` — input validation preserved, compute delegated. These reclassify `c_exists_unbound → composition_of_c`.
+- **Ratchet moves down:** `test_rosetta_completeness.py` ceiling **`c_exists_unbound` 17 → 14**; `python_only_irreducible` unchanged at 108. Total standalone-C debt **125 → 122**.
+- `octonion_mult_table` stays `c_exists_unbound` for now — it composes `cascade.cd_basis_product`, which must itself gain native dispatch first (the natural rc10 batch; the table is content-addressed by `octonion_table_attestation`, so the bytes must stay identical — verified they do).
+
+Behaviour-preserving dispatch retrofit + docs; no new op, ABI stays 3. SSoT: issue #928; `c/ROSETTA_LEDGER.md`.
+
+## [0.7.5rc8] - 2026-06-08
+
+**Rosetta cheap-win sweep #1 — SHA-256 mint cluster routed onto native dispatch (#928; the first `c_exists_unbound` close).** The 6 `srmech.signal_processing` ops that minted HDC vectors / content strides via **raw `hashlib.sha256(...).digest()`** now route through `srmech.amsc.format.sha256_raw`, picking up the native C SHA-256 (incl. the SHA-NI / AVX2 tiers) transparently. This closes a Rosetta debt **and** a standing CLAUDE.md discipline violation (no raw `hashlib.sha256` callsites) in one sweep. **Bit-identical** — `sha256_raw(x) == hashlib.sha256(x).digest()` — so every mint output is unchanged (29 rbs-lm behaviour tests green).
+
+- Repointed: `mint_vector`, `mint_class_operator`, `mint_cascade_composition`, `mint_stance_fingerprint`, `encode_loe_content` (`rbs_hdc_instrument.py`) + `compute_content_stride` (`form_function_rotation.py`). The dead `sha256_bytes` import in `rbs_hdc_instrument` (imported, never used while the mint path bypassed it onto raw `hashlib`) is replaced with the now-used `sha256_raw`; `import hashlib` dropped from both modules.
+- **Ratchet moves down:** these 6 reclassify `c_exists_unbound → composition_of_c` (they now compose the C-dispatched `sha256_raw` + `hdc.*`). `test_rosetta_completeness.py` ceiling **`c_exists_unbound` 23 → 17**; `python_only_irreducible` unchanged at 108. Total standalone-C debt **131 → 125**.
+
+Docs/tooling + a behaviour-preserving dispatch retrofit; no new op, no ABI change (ABI stays 3). SSoT: issue #928; `c/ROSETTA_LEDGER.md`. `[[feedback_check_known_bugs_before_mirroring_python_to_c]]` (W4-aware: raw-digest sites use `sha256_raw`, not the hex `sha256_bytes`).
+
+## [0.7.5rc7] - 2026-06-08
+
+**Rosetta-completeness AUDIT + down-only ratchet (#928).** Stands up the measurement instrument for the C-mirror goal — every public **compute** op should dispatch to a bit-exact C twin OR be a pure composition of such twins, so `libsrmech` runs standalone (full OS *or* thread-less microcontroller, no host Python). Docs + tooling only; **no runtime/ABI change** (ABI stays 3).
+
+- **The audit.** All **348 public ops** across `srmech.amsc` / `srmech.qm` / `srmech.signal_processing` were enumerated and classified — by reading each implementation against the exported C-symbol surface — into six buckets. Committed SSoT: `python/tests/rosetta_classification.ndjson` (regenerable via `notes/_rosetta_inventory.py` → `notes/_rosetta_build_classification.py`). Baseline: **78 `c_dispatched` · 61 `composition_of_c` · 22 `bignum_reference` (oracle tier) · 56 `non_compute` · 23 `c_exists_unbound` (cheap debt) · 108 `python_only_irreducible` (debt)**. **Total standalone-C debt = 131.**
+- **The ratchet** (`python/tests/test_rosetta_completeness.py`). Enumerates the live public surface, asserts it agrees EXACTLY with the committed classification (a new op with no bucket fails → forces every addition to be classified; a removed op left in the file fails → keeps the ledger current), and pins the two debt buckets at down-only ceilings (`python_only_irreducible ≤ 108`, `c_exists_unbound ≤ 23`) — raising a ceiling is the one edit the test exists to forbid.
+- **The leverage map (rc8+ work-list).** The 108 irreducible cluster on a handful of missing C kernels — dense complex `matmul` (~15 qm ops), FFT/DFT (~20 sp+cascade), general `eig`/`SVD`/`QR`/`lstsq` (~16 so8/triality/matrix_cascades), `kron` (~6 bell/so8), `einsum`/`convolve`/`correlate` (~8). The 23 cheap wins are wire-up only (the C twin already ships): Klein-4/polar HDC (8; klein4 gated on W5), octonion einsum→`loop_*_op` (4), Hamming (3), the SHA-256 mint cluster (6; also a CLAUDE.md `hashlib.sha256`-direct-call discipline fix), `cd_basis_product` (1), `lmmse`→`dense_solve` (1). Full breakdown in `c/ROSETTA_LEDGER.md`.
+
+SSoT: issue #928; `c/ROSETTA_LEDGER.md` (measured baseline + leverage table). `[[feedback_check_known_bugs_before_mirroring_python_to_c]]`.
+
+## [0.7.5rc6] - 2026-06-08
+
+**Coupled-wave (EM quadrature) driver + multi-stream multiplex — the sentence-structure arc's named ops (#928 W17/W18; F573/F577).** Two new public cascade ops; pure-Python **composition of existing C-backed primitives** (`calculus.{sin,cos}` + Class-K `pin_slot_at_zero` + Class-M `hdc`), so **no new primitive class, no new C kernel, ABI stays 3**:
+
+- **`cascade.coupled_wave(theta, *, handedness=+1, components=("sin","cos"))` (W17 / F577).** The full-chirality `(E, B)` drive instead of a collapsed 1-bit sign — a flat `sign(wave)` gate flips hard at every zero-crossing (2/cycle, the "verb-flip" structure error); the coupled `E=sin, B=cos` (90° apart, exactly EM) rotates **monotonically → 0 hard reversals**, so a driven chiral element keeps a stable bearing. Returns `(E, B, handedness, klein4_quadrant)` — the four `(sign E, sign B)` quadrants ARE the four Klein-4 (γ₅, iω₇) sectors `parallel_sector_dispatch` uses. **Handedness is a settable convention, never hardcoded** — left/right are both first-class (the endianness posture; the substrate privileges neither byte-order nor chirality), related by a Class-K phase sign-flip `θ → −θ` (no `abs`), and the chosen sense is echoed back **stable** (it does not flip with θ). `[[feedback_chirality_convention_is_settable_like_endianness]]`.
+- **`cascade.multiplex_streams(streams, *, mode="roundrobin", roles=None)` (W18 / F573-F577).** Recombine N steering **waves** into one driver. A *stream* is a per-step real-valued **driver wave** (a steering signal that decides which content is selected downstream), **not** tokens — the output is a single steering driver; emission is a SEPARATE downstream consumer (the layer boundary is kept). Ideally each stream is a `coupled_wave` bearing (W17+W18 compose). Modes: **`roundrobin`** (default; the validated-best `t mod N` multiplex), **`superpose`** (real-field interference = elementwise SUM + renormalise by max magnitude — like summing E-fields; *not* `hdc.bundle`, which is a different content-vector layer), **`pickbest`** (strongest-bearing wave per step, Class-K magnitude). `roles=("S","V","O")` binds each stream to a clause slot (verb stream a coupled bearing so its which-way can't flip mid-clause), tagged via Class-M `hdc.bind` for unbindable storage.
+- Registered in the tool schema (`describe` total **253 → 255**); coverage + count-pin tests updated; new `tests/test_coupled_wave.py` (13). The DSL cascade-catalog `.toml` descriptors (for `srmech dsl` chainability) are an optional follow-up — `coupled_wave` is a generator (not a unary chain stage). The W18 wave/HV data model + the handedness convention are flagged in the PR for the parallel sentence-structure session (PR #687) to confirm.
+
+SSoT: PR #687 `rbs_lm_research/SRMECH_BUGFIX_WISHLIST.md` (W17/W18 long-form); `[[user_stance_epicycle_via_gear_plus_pin]]` + `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`.
+
+## [0.7.5rc5] - 2026-06-08
+
+**PAL stream IPC + `srmech_bus.c` retrofit — the last raw-OS surface becomes `#ifdef`-free.** rc4 born the PAL with a thread surface; this rc gives it the **stream-IPC** surface and retrofits the bus onto it, so the cross-process IPC peer carries **zero** `#ifdef _WIN32`. Additive C only; **no new primitive class, ABI stays 3** (the PAL symbols are internal cross-TU, like the HAL's; the six `srmech_bus_*` public symbols + the handler typedef are byte-unchanged):
+
+- **`srmech_plat_stream_*` (new PAL surface):** `listen` / `accept` (single-accept; `srmech_bus_server_accept_one` is public) / `server_close` / `connect` / `read_exact` / `write_all` / `conn_close`, plus `srmech_plat_has_streams()`. The **endpoint-name → OS-path** mapping moves entirely into the PAL — POSIX `$HOME/.srmech/bus-<name>.sock` (AF_UNIX socket) vs Windows `\\.\pipe\srmech-<name>` (named pipe). Opaque server+conn handles (max-aligned, no heap) mirror the rc4 thread-handle pattern. Carries forward the load-bearing **no-`FlushFileBuffers`-on-Windows-pipes** invariant (it deadlocks the request-reply pattern). Bare-metal target: a stream-less stub so `srmech.bus` cleanly reports unavailable.
+- **`srmech_bus.c` retrofitted:** the AF_UNIX-vs-named-pipe duality (path builders, `read/write`-exact, `listen`/`accept`/`connect`/`close` — ~16 platform branches across 4 helpers) collapsed onto the PAL. The 4-byte big-endian length framing + handler dispatch (the OS-*agnostic* parts) stay here; everything OS-specific is gone to `srmech_platform.c`. `srmech_bus.c` now has **zero** real platform conditionals. (The five removed `read/write`-fd/handle + `ensure_dir` helpers left the JPL Rule-5 exempt list — the ratchet went **down** five entries; their PAL replacements each carry ≥2 asserts.)
+- **WSL2 build authority (verified):** all 32 `c/src/*.c` compile pedantic `-Werror` **clean**; `libsrmech.so` links; the standalone-C **bus round-trip runs end-to-end** — `srmech_bus_serve` → a thread `accept_one` → `srmech_bus_connect` → `srmech_bus_send_recv` → echo handler returns the payload **bit-exact** over the AF_UNIX PAL path. JPL audit green; `srmech_plat_has_streams` added to the Rule-5 exempt list (a compile-time capability accessor, like `srmech_plat_has_threads`).
+
+Next: rc6+ port the `qm.*` C linear-algebra kernels (complex matmul / hermitian-eig / kron) as bit-exact Rosetta twins, ticking `python_only_irreducible` toward 0; the `test_rosetta_completeness.py` ratchet lands alongside the first qm.* port (when there is a debt count to ratchet). Per the do-not-mirror gate (#928), W5 must be confirmed before the klein4 standalone-C port. SSoT: `c/src/srmech_platform.{h,c}`; `c/ROSETTA_LEDGER.md`; `[[feedback_simd_optimize_path_goes_through_hal]]`.
+
+## [0.7.5rc4] - 2026-06-08
+
+**Platform Abstraction Layer (PAL) — the OS sibling of the SIMD HAL** — opening the Rosetta-completeness arc (a *complete C mirror of the Python surface*, so the C partition runs standalone). Additive C only; **no new primitive class, ABI stays 3**:
+
+- **`c/src/srmech_platform.{h,c}` (the PAL):** the single compilation unit where OS-specific code lives, exactly as `c/src/srmech_simd.{h,c}` (the HAL) is the single place for CPU-specific code. In the project's framing the OS *is* part of the hardware the binary runs on, so the PAL is a second "hardware" abstraction sibling of the HAL (`[[feedback_simd_optimize_path_goes_through_hal]]`, generalised from the CPU to the OS). First surface: **threads** — `srmech_plat_thread_spawn`/`join` + `srmech_plat_has_threads()`, hiding the POSIX (pthread) / Windows (CreateThread) / thread-less split behind an agnostic `void(void*)` job API (no heap — handle lives in caller storage). JPL-clean.
+- **`srmech_parallel.c` retrofitted onto the PAL:** the Klein-4 four-sector dispatch now carries **ZERO** `#ifdef _WIN32` — it calls the agnostic PAL and chooses threaded-vs-serial at **runtime** via `srmech_plat_has_threads()`. The serial path is always compiled (the bit-exact reference + the thread-less-target capability). Behaviour-preserving: same four sector duals, same bit-exact serial==threaded contract.
+- **WSL2 Linux build authority:** the full surface builds clean on Linux (`gcc`/`cmake`, pedantic `-Werror`) — the canonical standalone-C build/test loop, verified: `libsrmech.so` links, the PAL-threaded dispatch runs and returns the correct Klein-4 sectors. The cross-OS CI matrix (Linux/macOS/Windows) remains the gate.
+- **`c/ROSETTA_LEDGER.md`:** the down-only debt ledger for the arc — classifies every public Python op as `c_dispatched` / `c_exists_unbound` / `composition_of_c` / `python_only_irreducible`, with the last (the debt: mostly the `qm.*` linear-algebra layer) driven toward 0. Bignum exact-rational references are a separate intentional tier, not debt.
+
+Next: rc5 PAL stream/IPC + `srmech_bus.c` retrofit (the last raw-OS surface) + the `test_rosetta_completeness.py` ratchet; rc6+ port the `qm.*` C kernels. SSoT: `c/src/srmech_simd.{h,c}` (the HAL precedent); `[[feedback_simd_optimize_path_goes_through_hal]]`.
+
+## [0.7.5rc3] - 2026-06-08
+
+**Completes the v0.7.0 C-transpile for the aperiodic transcendentals — `rational.{exp,log,sqrt}` now compute the SAME algorithm as the native peers and DISPATCH to them** (the rc2 trig sibling, now for exp/log/sqrt). Pure-Python + Python-binding only; **no C source change, no new primitive class, ABI stays 3**:
+
+- **`exp` — unified on the Cody-Waite ln2 reduction** (`x = n·ln2 + r`, `|r| <= ln2/2`; `exp(r)` the Q61 integer Taylor; `2^n` folded into the IEEE exponent). This **replaces** the old argument-halving-and-square reduction, which amplified error to **~345 ULP** — the new path holds **~1 ULP** AND is bit-exact with `srmech_exp`. (Measured: old `rational.exp` vs libm = 7.7e-14; new = 2.2e-16.) The Rosetta discipline surfaced this: the C translation was *more correct* than the human-gated Python source, because the better ln2 reduction lived only in the C + notebook.
+- **`log` — NEW.** The notebook listed `rational.log` as `srmech_log`'s Python peer (a Rosetta pair) but **the Python half was missing**. Added it: `x = m·2^e` from the bit pattern, `m` folded into `[1/√2, √2)`, `log(m) = 2·atanh((m−1)/(m+1))` the Q61 series, `e·ln2` recombined with the two-word ln2. Bit-exact with `srmech_log`. Domain (matching the C): `x < 0 → NaN`, `x == 0 → −Inf`.
+- **`sqrt` — default unified on the C K=27 IEEE-bit cascade** (`x = M·2^e`, `root = isqrt(M << 2K)` where `math.isqrt` == the C two-limb `isqrt128`, projected by `2^(e/2 − K)`), bit-exact with `srmech_rational_sqrt`. The `precision_bits=N` argument now selects the **higher-precision bignum reference** (the prior default); `hypot` threads it through. A handful of mathematical-constant call-sites that need correctly-rounded values (e.g. the Bell/CHSH Tsirelson bound `2√2`) now pass `precision_bits=64` to use the reference path.
+- All three **dispatch to C** when `_native.has_native_explog()` / `has_native_sqrt()`; the pure-Python Q61 is the **bit-identical** fallback. `exp`/`log`/`sqrt`/`hypot` non-finite + domain cases are guarded in both paths so native and non-native agree.
+
+Verified (clean, native): C↔Q61 **0 mismatches** over 40 000 each for exp, log, sqrt; vs libm exp 2.2e-16 / log 3.6e-15 / sqrt 2.2e-16. `describe()` total **252 → 253** (the new `rational.log` ToolEntry). New `tests/test_explog_sqrt_q61_parity.py` (11). Notebook §exp reconciled (halving → Cody-Waite) + `rational.log` now exists as the listed peer. SSoT: `c/src/srmech_explog.c` (rc46; fdlibm two-word ln2) + `c/src/srmech_sqrt.c` (rc45); `[[feedback_continuous_number_line_pedagogical_obstacle]]`; `[[user_stance_bit_exact_means_not_projection_diagnostic]]`.
+
+## [0.7.5rc2] - 2026-06-08
+
+**Completes the v0.7.0 "C-transpile triality coherence" for trig — the Python float `rational.{sin,cos,tan,atan,atan2}` now compute the SAME Q61 fixed-point Class-N cascade as the native peer `c/src/srmech_trig.c`, and DISPATCH to it.** rc42–rc46 built the C cascade (`srmech_sin`/`cos`/`atan`/`atan2`, Q61 integer Taylor, no libm) and routed the *C-internal* callers onto it — but the **Python** float trig still ran an exact-rational **bignum** series and **never called the compiled C**. Two renderings, two different integer algorithms (Q61 vs arbitrary-denominator bignum), same name → **not bit-exact**. This rc makes them one cascade. Pure-Python + Python-binding only; **no C source change, no new primitive class, ABI stays 3**:
+
+- **The Python float projection IS the Q61 cascade now.** `rational.{sin,cos,atan,atan2}` were ported line-for-line from `srmech_trig.c`: the Class-N Taylor series runs in **Q61 fixed-point** (denominator 2⁶¹ — a power-of-two Class-N rational), float appears ONLY at the final `float(v)/float(2**61)` projection (the same two-step int64→double cast the C does). Python's arbitrary-precision ints reproduce the C int64/uint64 arithmetic exactly (`& MASK64` models C's uint64 wrap; an explicit truncate-toward-zero `_q61_cdiv` models C's integer `/`). Result: the pure-Python path is **bit-for-bit identical** to `srmech_sin` et al. (verified: 50 000 angles × {sin,cos,atan}, **0 mismatches**).
+- **The public functions dispatch to C** when `_native.has_native_trig()` — a transparent speedup (the per-call bignum series, incl. the `atan2` slow-path wart, is gone on a native install) that returns identical bits. When no native lib is present, the pure-Python Q61 is the **bit-identical** fallback. The exact-rational `*_series_truncate` (arbitrary-denominator bignum, where the W14 domain guards live) stays the **separate higher-precision reference** surface — it is intentionally *not* the float contract.
+- **Non-finite reconciliation (a parity gap this surfaced):** `srmech_sin(±∞)` returns a `BAD_INPUT` status (writing NaN), so a raw dispatch would *raise* while the Python fallback returned NaN. A uniform guard now runs in **both** paths before dispatch — `sin/cos(±∞)=NaN`, `atan(±∞)=±π/2` (cascade π/2), and the standard `atan2` quadrant limits — so native and non-native agree across the **whole domain incl. ±∞/NaN** (verified: 30 000 × 4 ops, 0 mismatches; the `atan2` ∞-grid matches libm).
+- The 7 C transcendentals (`srmech_{sin,cos,atan,atan2,exp,log,rational_sqrt}`) are now **bound** in `_native.py` (ctypes argtypes/restype + `sin_c`/`cos_c`/`atan_c`/`atan2_c`/`exp_c`/`log_c`/`rational_sqrt_c` wrappers + `has_native_trig()`); the trig four are dispatched this rc, the `exp`/`log`/`sqrt` dispatch follows.
+
+New `tests/test_trig_q61_parity.py` (11 tests): C↔Q61 bit-exact, native↔non-native bit-exact over the whole domain, and a libm correctness floor (~1 ULP) that holds with or without the native lib. `describe()` total **unchanged**. SSoT: `c/src/srmech_trig.c` (v0.7.0rc43, the Q61 constants from the Archimedes π-cascade); `[[feedback_continuous_number_line_pedagogical_obstacle]]` (the float is the projection-of-last-step); `[[user_stance_bit_exact_means_not_projection_diagnostic]]`.
+
+## [0.7.5rc1] - 2026-06-07
+
+**Three still-open items from the RBS-LM srmech bug-fix wishlist** (`docs/srmech/rbs_lm_research/SRMECH_BUGFIX_WISHLIST.md`; the list's top priorities W1/W2/W7/W10/W12 all already shipped across the rc18→0.7.4 arc). Pure-Python, additive — **no new primitive class; ABI stays 3**:
+
+- **W4 — `srmech.amsc.format.sha256_hex` / `sha256_raw`** (the naming companions of `sha256_bytes`). `sha256_bytes` returns a 64-char hex **str** — the `_bytes` names the INPUT type, which trips callers who read it as a return type. `sha256_hex(data)` is the value-identical, name-says-return alias; `sha256_raw(data)` returns the raw **32-byte** digest (so `int.from_bytes(sha256_raw(d), "big")` works directly instead of `int(sha256_bytes(d), 16)`). `sha256_raw` is `bytes.fromhex(sha256_bytes(...))` — same native/stdlib dispatch, **no new `hashlib.sha256` call site** (Phase B5).
+- **W14 — `atan_series_truncate` / `log1p_series_truncate` now refuse out-of-domain arguments loudly.** The naive Taylor partial sums have radius of convergence 1; past it they **silently returned a divergent rational** (`atan(2/1)` → ~3e16, `log1p(799/1)` → blow-up). They now raise a **Class-N domain `ValueError`** for `|x| > 1` (atan) / `x > 1` or `x ≤ -1` (log1p) — the §15.1/§18 Class-K contract-error pattern (refuse, don't answer wrongly). The `|x| = 1` conditional boundary (atan(1) = π/4, log1p(1) = log 2) stays allowed. These exact-rational ops cannot range-reduce (π is irrational); the float projection `rational.atan(x)` IS band-reduced and stays the path for `|x| > 1`.
+- **W15 — `srmech.amsc.cascade.cayley_dickson.{closure, left_orbit, min_generating_set}`** — the combinatorial loop-navigation layer over the registered `cd_basis_product` cocycle (the loop-shelf arc F541/F544/F546 re-derived these each time; now a named home). `closure(dim, gens)` → the sub-loop a generator set spans (a single octonion unit → 4, all 7 → the full loop 16); `left_orbit(dim, start, gen)` → one left-multiplication cycle; `min_generating_set(dim, units)` → the loop's navigation dimensionality (3 for 𝕆, 2 for ℍ, 1 for ℂ). Pure-integer, numpy-free.
+
+`describe()` total **unchanged** — the new functions are alias / companion / building-block helpers of already-registered entries, so they are tool-schema-coverage-exempt exactly like `sha256_bytes`'s `validate_mpr_record` / `write_ndjson` and `cd_basis_product`'s `cd_add` / `cd_basis`.
+
+**Plus two pre-existing `sedenion_register` fixes** (folded in to keep the lean CI green — both shipped latent in v0.7.4; neither in this rc's W4/W14/W15 surface):
+
+- **Cascade-honesty:** `SedenionRegister.read()` used `abs()` on similarities to track max-magnitude. Replaced with the explicit **Class-K pin-slot sign-branch** (`s if s >= 0 else -s`), bit-identical for every float, polarity carried separately as Class-C `best_sign` — per `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]` (closes the `test_no_abs_calls_anywhere_in_srmech` ratchet).
+- **MCP resolution (a W1-class bug):** the `srmech.amsc.cascade.sedenion_register` ToolEntry **did not resolve to a callable** once the same-named submodule was imported (Python rebinds the package attribute from the re-exported factory to the module object). The dotted-name resolver now prefers the same-named callable inside a colliding module — the "module X re-exports callable X" convention — so the registry name resolves regardless of import order (closes the W7 ratchet `test_schema_signature_alignment_no_drift`).
+
+SSoT: RBS-LM bug-fix wishlist (PR [#687](https://github.com/lemonforest/mlehaptics/pull/687)); Hurwitz (1898); Baez arXiv:math/0105155 §2; Apostol *Mathematical Analysis* 2nd ed. Theorem 12.20.
+
+## [0.7.4] - 2026-06-06
+
+**Production graduation of the rc1–rc2 arc — the sedenion-addressable RBS-HDC instrument + three RBS-LM candidate-additions** (PR [#687](https://github.com/lemonforest/mlehaptics/pull/687) UPSTREAM_NOTES §31 / §1.2 / §1.3 / rbs_nn Note 1). All compositions over the existing 14-class vocabulary — no new primitive class; ABI stays **3**:
+
+- **`srmech.amsc.cascade.sedenion_register` / `SedenionRegister`** (rc1; §31) — the sedenion box made an **addressable instrument**: 16 named slots (octonion working block `e0..e7` = the ≤7 reversible coupler word; `e8..e15` = the Hamming carry block), HDC `write`/`read`, and the genuinely-new **`navigate`** (address↔Cayley–Dickson homomorphism) + **`is_navigable`** reversibility gate (single-basis always reversible; composite-direction reversible only ≤𝕆 — the Hurwitz horizon).
+- **`cascade.signed_sum_squared`** (rc2; §1.2) — the bipolar coupling-score (Class K ∘ L; no `abs()`).
+- **`cascade.top_k_by_score`** (rc2; §1.3) — catalog top/bottom-K selection (Class E ∘ K; stable on ties).
+- **`hdc.bundle_with_ties`** (rc2; rbs_nn Note 1) — majority for any N with the Class-K bundle-tie (zero-crossing) surfaced; odd-N majority equals `bundle` exactly.
+
+`describe()` total **248 → 252** (1 + 3 ToolEntry). **No code change from rc2 — version-string graduation only**; the rc1+rc2 state was verified-green on TestPyPI (clean-venv outside the source tree: native ABI 3, sedenion read-back 8/8 + working-word bit-exact + navigate 8/8, and the three additions correct on the *core* numpy-free install). PyPI README refreshed to v0.7.4. This fully drains the actionable PR #687 upstream queue (§29/§30/§31 + §1.2/§1.3/Note 1 all delivered). SSoT: UPSTREAM_NOTES (RBS-LM, PR #687); Hurwitz (1898); Baez arXiv:math/0105155; Kanerva (2009).
+
+## [0.7.4rc2] - 2026-06-06
+
+**Three RBS-LM UPSTREAM_NOTES candidate-additions** ([#687](https://github.com/lemonforest/mlehaptics/pull/687) §1.2 / §1.3 / rbs_nn Note 1) — the still-open, non-stale gaps from the research branch, each a pure composition over the 14-class vocabulary (no new primitive class; ABI stays **3**; all numpy-free):
+
+- **`srmech.amsc.cascade.signed_sum_squared(sources)`** (§1.2) — the **coupling-score** composite: per position, `s = Σ_sources (2·bit−1)` (**Class K** bipolar) then `s²` (**Class L** signed-magnitude-square). Large where sources agree, ~0 where they cancel; no `abs()`.
+- **`srmech.amsc.cascade.top_k_by_score(scores, k, *, largest=True)`** (§1.3) — the **catalog selection** composite: **Class E** (sorted-key order) ∘ **Class K** (sparse truncate to top/bottom k). Stable on ties. The band-selection / weak-coupling-prune step.
+- **`srmech.amsc.hdc.bundle_with_ties(vectors)`** (rbs_nn Note 1) — bitwise majority across **any** N, returning `(majority, ties)`: the tie bit marks where the bundle accumulator crosses zero — a **Class K event** (the phase-boundary / derivative-sign-flip of MFO §VII.6.12.1) — surfaced without changing the binary-byte storage form. For odd N the majority byte equals `bundle` exactly.
+
+`describe()` total **249 → 252** (3 ToolEntry). Re-scan of PR #687 confirmed §31 is the last section and §29/§30/§31 are all delivered; the remaining notes are stale (superseded by the v0.6.0/v0.7.0 arcs) or explicitly non-blockers. SSoT: UPSTREAM_NOTES §1.2/§1.3 (RBS-LM) + rbs_nn Note 1; Kanerva (2009) *Hyperdimensional Computing*.
+
+## [0.7.4rc1] - 2026-06-06
+
+**Sedenion-addressable hyper-loop RBS-HDC instrument** ([#687](https://github.com/lemonforest/mlehaptics/pull/687) UPSTREAM_NOTES §31; F465 + F468) — **the sedenion box made into an RBS-HDC instrument.** A composition over shipped v0.7.3 primitives (no new primitive class, no new algebra; ABI stays **3**):
+
+- **`srmech.amsc.cascade.sedenion_register` / `SedenionRegister`** — the sedenion (dim-16) **address space**: 16 named slots `e0..e15`. The octonion block `e0..e7` is the **≤7 reversible working word** (`hypercomplex_couple`, bit-exact ≤𝕆); `e8..e15` is the **EC/carry block** (`hamming_*`, GF(2), §30). HDC ops **instead of ALU**: `write`/`read` are random-access-by-name (`hdc.bind` + nearest-codebook clean = associative superposition, classical, no quantum cost); `couple_working`/`uncouple_working` are the reversible word; `carry`/`correct` the single-error-correcting EC block.
+- **The genuinely-new surface — the operational hyper-loop (F468):** `navigate(j)` is the **address↔Cayley–Dickson homomorphism** — right-multiply every slot *name* by `e_j` so addressing respects `e_i·e_j = ±e_k` (the `cd_basis_product` cocycle); `is_navigable(direction)` is the **reversibility gate** (`left_mult_is_invertible`): single-basis navigation is always a signed permutation (reversible at every dim), composite-direction navigation is reversible **only ≤𝕆** — a sedenion zero-divisor direction breaks it. The hyper-loop's horizon IS the Hurwitz wall.
+- **Fences:** the **associative** capacity is `D`-bounded (HDC crosstalk), distinct from the **reversible** working set (≤7, the coupler) — kept distinct (F465); real-coefficient EC stays out (the §30 GF(2)-only fence); sign is **Class C** (`chiral_flip`), never `abs()`. Storage + coupler are the scientific tier (numpy on call); `navigate`/`is_navigable`/`carry`/`correct` are numpy-free.
+
+`describe()` total **248 → 249** (the `sedenion_register` factory). The class composes `hdc.{bind,bundle,similarity}` + `hypercomplex_couple` + `hamming_*` + `cd_basis_product`/`left_mult_is_invertible` + `chiral_flip`. SSoT: UPSTREAM §31 (RBS-LM, PR #687); Hurwitz (1898); Baez arXiv:math/0105155; Kanerva (2009) *Hyperdimensional Computing*.
+
+## [0.7.3] - 2026-06-06
+
+**Production graduation of the rc1 arc — the Cayley–Dickson open-exterior boundary-demonstrator** ([#915](https://github.com/lemonforest/mlehaptics/pull/915) / MFO §VII.6.23). One cascade-catalog addition, a composition over the existing 14-class A–N vocabulary (no new primitive class; ABI stays **3**):
+
+- **`srmech.amsc.cascade.cayley_dickson`** — the deliberately **non-reversible** object on the far side of the Hurwitz wall (ℝ→ℂ→ℍ→𝕆→𝕊(16)→…), exact-rational + numpy-free: `cd_mult` / `cd_conjugate` / `cd_norm_sq`, the integer cocycle `cd_basis_product` (with the JPL-clean `srmech_cd_basis_product` C peer), `sedenion_zero_divisor_witness`, and the `left_mult_kernel` / `left_mult_is_invertible` "no backward direction" detector. The executable falsifier for §VII.6.23 — zero divisors first at dim 16, composition norm fails at 16, conjugation defined every rung while the inverse dies at the wall. **NOT a substrate extension** (no `qm.*` peer, no DSL wiring; the closed sim stays ≤𝕆).
+
+`describe()` total **240 → 248** (8 ToolEntry). **No code change from rc1 — version-string graduation only**; the rc1 state was verified-green on TestPyPI (clean-venv outside the source tree: `HAS_NATIVE=True`, ABI 3, native C↔Python cocycle parity = 0 mismatches across dims 1–64, witness `(e1+e10)(e4−e15)=0`). PyPI README refreshed to v0.7.3 (numpy-optional install, the v0.7.x cascade families). SSoT: Hurwitz (1898); Schafer (1954) *Amer. J. Math.* 76; Moreno arXiv:q-alg/9710013; Baez arXiv:math/0105155 §2.
+
+## [0.7.3rc1] - 2026-06-06
+
+**Cayley–Dickson open-exterior boundary-demonstrator ([#915](https://github.com/lemonforest/mlehaptics/pull/915) / MFO §VII.6.23).** The deliberately **non-reversible** object on the *far side* of the Hurwitz wall: the generic doubling ℝ→ℂ→ℍ→𝕆→𝕊(16)→trigintaduonion(32)→… , exact-rational and numpy-free. `the_one` / `hypercomplex_couple` live in the reversible interior (≤𝕆); this exhibits the wall the closed simulation does **not** cross, converting §VII.6.23's open-exterior claims from literature-only (Moreno arXiv:q-alg/9710013) to **own-code-attested** (`[[feedback_own_work_is_primary_attestation]]`). **It is NOT a substrate extension** — no `qm.*` peer, no DSL wiring; past 𝕆 there is no division-algebra substrate to be native to.
+
+- **New `srmech.amsc.cascade.cayley_dickson`** — `cd_mult` / `cd_conjugate` / `cd_norm_sq` (exact-rational generic product, convention from Baez §2; `x·x̄ = N(x)·1` at every rung), `cd_basis` / `cd_basis_product` (the integer basis cocycle `e_i·e_j = ±e_{i⊕j}`), `sedenion_zero_divisor_witness` (a concrete dim-16 `x·y = 0`, both nonzero, found from our own table), and `left_mult_kernel` / `left_mult_is_invertible` (the map `u ↦ x·u` has a **kernel** ⟺ no inverse map — the "no backward direction to point" of §VII.6.23.4, exact-rational RREF). Composition of A–N: **M** (bilinear bind) ∘ **C** (conjugation-ordered cross terms) ∘ **K** (sign-flip; no `abs()`) + **N** (rational anchor) + **L** (kernel rank); no new primitive class.
+- **Native C peer `srmech_cd_basis_product`** (`c/src/srmech_cayley_dickson.c`) — the integer cocycle, the single doubling-recursion unrolled to a bounded loop (no recursion; JPL Power-of-Ten clean — `-Wall -Wextra -Wpedantic -Werror`, **no libm/malloc/goto**, ≥2 asserts/fn). Attested **bit-exact** against the Python `cd_basis_product` across dims 1…64 by `tests/test_cascade_cayley_dickson_parity.py`. The arbitrary-rational product stays Python by the same vendoring-scope decision that keeps TOML parsing in Python (no bignum rational in libsrmech). ABI-additive — **SRMECH_ABI_VERSION stays 3** (new symbol + two macros, ctypes `hasattr`-guarded).
+- **Attested facts (exact, re-runnable):** zero divisors first appear at 16 and are absent at ≤8 (Hurwitz); the composition norm `N(x·y)=N(x)·N(y)` holds for dims ≤ 8 and fails at 16; conjugation is defined at every rung while the product's inverse dies at the wall (§VII.6.23.3 "chirality persists, its reversing power does not").
+
+`describe()` total **240 → 248** (8 ToolEntry). SSoT: Hurwitz (1898); Schafer (1954) *Amer. J. Math.* 76; Moreno arXiv:q-alg/9710013; Baez arXiv:math/0105155 §2.
+
+## [0.7.2] - 2026-06-06
+
+**Production graduation of the rc1–rc2 arc — the (σ,θ,μ) coupler + the Hamming/GF(2) front-loader.** Two cascade-catalog additions, both composites over the existing 14-class A–N vocabulary (no new primitive class; ABI stays **3**):
+
+- **`cascade.hypercomplex_couple`** (rc1; [#908](https://github.com/lemonforest/mlehaptics/issues/908), F436/F437) — the bidirectional `(σ,θ,μ)` hypercomplex coupler (**COUPLE**): bind ≥3 streams into one quaternion/octonion + a joint coherence channel and unbind losslessly (the conjugate twiddle; reversible ≤ 𝕆 by Hurwitz). General/diagonal μ also extended `quaternion_dft` / `octonion_dft`.
+- **`cascade.hamming_encode` / `hamming_syndrome` / `hamming_decode_correct`** (rc2; [#910](https://github.com/lemonforest/mlehaptics/issues/910), §30 / F442/F449) — the Hamming/GF(2) single-error-correcting block code over the 2ⁿ−1 ladder (**CARRY/EC**): the front-loader's other half, lean-ALU XOR-native, shipped as a Rosetta pair with the JPL-clean `srmech_hamming_*` C peer (attested bit-exact).
+
+`describe()` total **236 → 240**. The shipped `libsrmech` holds no libm transcendental (the C-transpile triality ratchet baseline stays ZERO). **No code change from rc2 — version-string graduation only**; the rc1+rc2 state was verified-green on TestPyPI (clean-venv, incl. the fresh C↔Python Hamming parity = 0 mismatches). SSoT: Sangwine & Ell (2012) arXiv:1001.4379; Błaszczyk (2019) arXiv:1905.12631; Hurwitz (1898); Hamming (1950).
+
+## [0.7.2rc2] - 2026-06-06
+
+**Hamming / GF(2) linear block-code family — the CARRY/EC half of the sedenion front-loader ([#910](https://github.com/lemonforest/mlehaptics/issues/910) / §30; findings F442 + F449).** Where `hypercomplex_couple` (rc1) is **COUPLE** — bind ≤7 streams reversibly into an octonion (capped at 𝕆 by Hurwitz) — this rc ships **CARRY**: hold >7 data items + locate/correct an error in one structure, reversible *past* 𝕆 using the sedenion's CODE geometry (its Fano/PG structure), **not** its broken chirality. Shipped as a **Rosetta pair**: a pure-Python spec + a JPL-clean C peer, attested bit-exact.
+
+- **New cascade ops `hamming_encode(data_bits, n)` / `hamming_syndrome(codeword)` / `hamming_decode_correct(codeword)`** over the **2ⁿ−1 ladder** (Hamming(7,4) / (15,11) / (31,26) / …). Single-error-correcting (minimum distance 3): every single-bit error in every position is located and corrected, and the payload recovers exactly. Canonical 1-indexed construction — parity bits at the power-of-two positions, the syndrome IS the flipped-bit position. A Hamming(15,11) carrier holds 11 data + 4 EC in one structure (1.57× the octonion's 7 reversible slots, F449); **Hamming(7,4) IS the octonion's own Fano plane** (F441). **Lean-ALU XOR-native** (GF(2) add = parity = XOR); no float, no libm, no `abs()`. Class **B** (structure framing) ∘ **I** (cyclic index arithmetic) ∘ **A** (content-addressed error locator).
+- **Native C peer `srmech_hamming_{encode,syndrome,decode_correct}`** (`c/src/srmech_hamming.c`) — JPL Power-of-Ten clean (no goto/malloc, bounded loops, ≥2 asserts/fn, `-Wall -Wextra -Wpedantic -Werror`-clean), **no libm** (the C-transpile triality ratchet baseline stays ZERO). Attested **bit-exact** against the Python spec by `tests/test_cascade_hamming_parity.py` (encode vectors, syndrome, decode across the 2ⁿ−1 ladder). ABI-additive — **SRMECH_ABI_VERSION stays 3** (new symbols + one macro, ctypes `hasattr`-guarded).
+- **Fences (F449):** the code carries the GF(2) sector/structure bits + EC; real-valued coefficients ride alongside (real-field EC = RS/BCH is a separate, larger construction). No multiplicative product — bind/couple stays `hypercomplex_couple`'s job (≤𝕆). Single-error correction per rung.
+
+`describe()` total **237 → 240** (the three Hamming ops). SSoT: Hamming, R. W. (1950), Bell Syst. Tech. J. 29(2):147–160. Provenance: PR #687 §30 / F442 / F449.
+
+## [0.7.2rc1] - 2026-06-06
+
+**General/diagonal μ-axis for the QDFT/ODFT + a bidirectional `(σ,θ,μ)` hypercomplex coupler ([#908](https://github.com/lemonforest/mlehaptics/issues/908) §29; findings F436/F437).** The shipped `quaternion_dft` / `octonion_dft` exposed **named single μ-axes only** (`'i'|'j'|'k'|'ijk'`): a single axis *carries* N streams (round-trips) but does **not couple** them — perturbing the i-stream leaves the j,k spectra untouched (a complex FFT on the (1,μ) plane + an independent transform on the rest). This rc closes that gap.
+
+- **`mu_axis` (and the ODFT `two_sided_right_axis`) now accept `'diagonal'` or a general unit pure-imaginary vector** — `'diagonal'` is the equal-weight axis of the active algebra (`(i+j+k)/√3` for ℍ, `(Σ_{n=1..7}eₙ)/√7` for 𝕆). A diagonal μ **couples** all streams: `μ·Σsₙeₙ` folds them into the real/anchor channel as a **joint coherence detector** (F436: coherent streams add ∝ n·s, incoherent cancel ∝ √n → anchor-energy ratio ≈ n; measured 3.0× at k=3, 7.0× at k=7). A general vector is normalised to unit length; e0 (and e4..e7 for the quaternion scope) must be zero. `_twiddle8` now carries all seven imaginary components (was i/j/k only), so a diagonal/general octonion μ is honoured. Existing named-axis behaviour is **bit-identical** (e4..e7=0).
+- **New public op `srmech.amsc.cascade.hypercomplex_couple(streams, *, axis="diagonal", theta=π/2, sigma=1, form="left", inverse=False)`** — binds ≥3 streams into one quaternion/octonion + a joint coherence channel and **unbinds losslessly**. Bind (`sigma=+1`) applies `T=exp(σ·μ·θ)`; unbind (`sigma=-1`) applies the **conjugate** twiddle `exp(−μθ)` and recovers the input exactly via the division-algebra identity `x̄·(x·y)=‖x‖²·y` (F437) — **guaranteed reversible only up to 𝕆** (the Hurwitz boundary; sedenion zero-divisors break it) → lossless for **≤7 streams**. `form`/`inverse`/`sigma` are discrete points of the continuous `(σ,θ,μ)` family = the_one's `𝕊(σ,θ)` (F420) **plus the axis μ**. Class **M** (octonion multiply) ∘ **C** (σ/conjugation orientation) ∘ **N** (rational phase θ); **no new algebra, no abs()** — composite over the `qm.octonion` left/right-mult atoms.
+- **These remain COMPOSITES** (prototype tier per #863): the 14-class A–N vocabulary is intact. Scientific tier (UPSTREAM §22): numpy is imported lazily on call, so `import srmech.amsc.cascade` stays numpy-free. `describe()` total **236 → 237** (one new tool-schema entry, `hypercomplex_couple`). **ABI unchanged** (Python-only cascade composite; no new C symbol). SSoT for the coupling math: Sangwine & Ell (2012) arXiv:1001.4379 (QDFT); Błaszczyk (2019) arXiv:1905.12631 (ODFT); the Hurwitz reversibility cap is Hurwitz (1898).
+
+## [0.7.1] - 2026-06-05
+
+**The Class-L Schur complement / Dirichlet-to-Neumann (DtN) map — the operator|operand FUSION op ([#897](https://github.com/lemonforest/mlehaptics/issues/897) §26).** Graduation of the rc1–rc3 arc: an op that keeps BOTH a spatial boundary and its spectrum (every other Class-L cascade only projects), integrates the bulk out, and lives on the boundary — `S = L_∂∂ − L_∂i·L_ii⁻¹·L_i∂`.
+
+- **`srmech.amsc.laplacian.schur_complement(L, boundary_idx, *, exact=False)`** (alias `dirichlet_to_neumann`) — exact-rational `fractions.Fraction` solve (Class-N core; numpy-absent or `exact=True`) or the float `[scientific]`-tier realization; the area law is the dimensional reduction `n → |∂|`. (rc1)
+- **DSL chain-contract wiring** — `schur_complement` is a first-class cascade-catalog stage; `chain().then("schur_complement", boundary_idx=[…])` / TOML chains thread `boundary_idx` + `exact` as bound stage kwargs (the 14th catalog op). (rc2)
+- **Reusable native C peer `srmech_dense_solve_f64`** — the dense linear solve `A·X = B` the Schur/DtN float path composes over (the expensive interior solve IS an `A·X = B`), promoted to its own exported Class-L primitive. Gauss–Jordan with partial pivoting (Class-K magnitude sign-branch, no `fabs`/`abs()`); bounded `n,nrhs ≤ 256` thread-local workspace (no malloc, reentrant); no libm; JPL Power-of-Ten clean. New public op `srmech.amsc.laplacian.dense_solve(A, B, *, exact=False)`. (rc3)
+
+`describe()` total **233 → 236** (schur_complement + dirichlet_to_neumann + dense_solve). **ABI stays 3** (additive symbol; the Python ctypes shim `hasattr`-guards it). Canonical SSoT: Zhang, *The Schur Complement and Its Applications* (2005) §0; Golub & Van Loan §3. Production cut of the **rc3** state already verified-green on TestPyPI (the pedantic-C / 4-cell test / pure-wheel matrix re-verifies the `0.7.1` build); no code change from rc3 — version-string graduation only.
+
+## [0.7.1rc3] - 2026-06-05
+
+**Native C peer for the Schur/DtN float path — a reusable `srmech_dense_solve_f64` Class-L primitive ([#897](https://github.com/lemonforest/mlehaptics/issues/897) §26).** The expensive part of the Schur complement is the interior solve `L_ii⁻¹·L_i∂`, which IS a dense linear solve `A·X = B`. rc3 ships that solve as its own exported Class-L C symbol (the "every primitive earns a C surface" path), and `schur_complement` becomes a genuine **composition** over it.
+
+- **`c/src/srmech_dense_solve.c` → `srmech_dense_solve_f64(n, nrhs, A, B, out_X)`** — Gauss–Jordan with **partial pivoting** (the pivot magnitude is the Class-K pin-slot read — a sign *branch*, never `fabs()`/`abs()`); row-major doubles; bounded `n, nrhs ≤ 256` on a thread-local augmented workspace (the `srmech_hermitian_eigendecompose` precedent — no malloc, reentrant); a singular `A` returns `SRMECH_ERR_BAD_INPUT`. **No libm** — a solve is `+ − × ÷` only. JPL Power-of-Ten clean (no goto/malloc, ≤60-line factored helpers, ≥2 asserts each); ABI stays **3** (additive symbol, `hasattr`-guarded in the ctypes shim).
+- **New public Python op `srmech.amsc.laplacian.dense_solve(A, B, *, exact=False)`** — float path dispatches to the native C peer (numpy fallback when absent / over-bound / singular); exact path is the bit-exact `fractions.Fraction` Gauss–Jordan (Class-N, promoted from rc1's `_solve_exact`). Accepts a matrix or vector RHS. One new tool-schema entry → `describe()` total **235 → 236**.
+- **`schur_complement` now composes over `dense_solve`** for its interior solve (both exact and float paths) — the float interior solve runs native, the cheap boundary GEMM + subtract stay numpy. Same results: the rc1 worked instance `S = (1/3)[[1,−1],[−1,1]]` is unchanged. `tests/test_dense_solve_parity.py`: exact + numpy paths always run; native C parity (vs numpy + exact, `atol ≤ 1e-9`) runs where `libsrmech` is attached.
+
+## [0.7.1rc2] - 2026-06-05
+
+**Schur/DtN wired into the DSL chain contract ([#897](https://github.com/lemonforest/mlehaptics/issues/897) §26 follow-up).** The rc1 `schur_complement` op shipped only at `srmech.amsc.laplacian.schur_complement`; rc2 makes it a first-class **cascade-catalog stage** so it drives in a `chain().then(...)` / TOML chain like any other Class-L op. The chain runner resolves stage ops via `getattr(srmech.amsc.cascade, name)`, so the op is **re-exported flat** onto `srmech.amsc.cascade` (a DSL-resolution alias of the laplacian-registered op — *not* a second primitive, so it stays out of `cascade.__all__` and adds no tool-schema entry; `describe()` total holds at **235**).
+
+- **`boundary_idx` + `exact` thread through as bound stage kwargs** — the data-first pattern (`schur_complement(L, *, boundary_idx, exact=False)`; the pipe fills `L`, the kwargs bind), exactly like `reorient`'s `orientation`. `boundary_idx` is required (no default) — a chain that omits it fails loudly with `TypeError`, never silently. A new descriptor `cascade_catalog/schur_complement.toml` (`class_composition = "L"`) makes it the **14th** catalog op (`srmech dsl ops` → `14 total`); `schur_complement` + `dirichlet_to_neumann` also join the documentary `LAPLACIAN_OPS` registry.
+- **Tests** (`tests/test_schur_complement_dsl_stage.py`): `.then("schur_complement", boundary_idx=[0,3], exact=True)` and the equivalent TOML `[[stage]]` both reduce the path-4 graph Laplacian to `S = (1/3)[[1,−1],[−1,1]]` (exact `Fraction`, numpy-free); the float path is numpy-guarded. No ABI change (ABI stays **3**); the co-equal native C peer is the rc3 follow-up.
+
+## [0.7.1rc1] - 2026-06-05
+
+**Class-L Schur complement / Dirichlet-to-Neumann (DtN) map — the operator|operand FUSION op ([#897](https://github.com/lemonforest/mlehaptics/issues/897); UPSTREAM §26 / F412·F417·F419).** New `srmech.amsc.laplacian.schur_complement(L, boundary_idx)` (alias `dirichlet_to_neumann`) integrates the interior (bulk) out of a Laplacian and keeps the boundary effective operator
+
+> `S = L_∂∂ − L_∂i · L_ii⁻¹ · L_i∂`
+
+the discrete **Dirichlet-to-Neumann map** — give boundary values, it returns the boundary normal-derivative of their harmonic interior extension (*boundary data ⟹ the whole interior field*). Every other Class-L cascade only **projects** (a spatial graph → its cyclic spectrum, F417's one-way seam, dropping the spatial structure); Schur/DtN keeps **both** the spatial boundary and its spectrum — the *fusion*, not the projection. Holographic reading (F412): the bulk is integrated out, the effective theory lives on the boundary; the operator's size is `|∂|`, not `n` — the dimensional reduction `n → |∂|` **is** the area law.
+
+- **Exact-rational core (Class-N).** With numpy absent — or `exact=True` — the interior solve `L_ii⁻¹·L_i∂` is **exact Gauss–Jordan elimination in `fractions.Fraction`** (division is exact rational, never a float reciprocal — F392; no `abs()`), and `S` is returned as `list[list[Fraction]]`. With numpy present (and `exact=False`) the float realization rides the `[scientific]` tier (`numpy.linalg.solve`) and `S` is an `ndarray`. Cascade-honesty: the inverse is Class C (conjugate) → Class K (`1/‖·‖²`); a singular interior block (an interior component disconnected from the boundary) raises `ZeroDivisionError`, not a silent NaN.
+- **Area-law statement (precise).** For a pure graph Laplacian the DtN/Kron reduction inherits the all-ones null vector, so `rank(S) = |∂| − c` (`c` = connected components of the boundary-reduced graph; `= |∂| − 1` for a connected graph). The area law is the *dimensional* reduction `n → |∂|`, not a full-rank claim. Worked check: the two endpoints of a 3-edge unit-conductance path get `S = (1/3)·[[1,−1],[−1,1]]` exactly (effective conductance 1/3).
+- Two new tool-schema entries → `describe()` total **233 → 235**. No ABI change (pure-Python; ABI stays 3). The DSL/compose-engine wiring and a co-equal C peer are the natural follow-up rcs (Python-first, like the loop family). Canonical SSoT: Zhang, *The Schur Complement and Its Applications* (2005) §0; Golub & Van Loan §3.2.
+
+## [0.7.0] - 2026-06-05
+
+**Production graduation of the v0.7.0 rc1–rc51 arc to PyPI.** The clean (non-rc) tag promotes the **rc51** state already verified-green on TestPyPI — the only delta from rc51 is this version string + entry, and the full pedantic-C (gcc/clang/MSVC) + 4-cell test matrix + pure-wheel build re-verify the `0.7.0` build before the production tag. ABI **3**; `describe()` total **233**.
+
+**The v0.7.0 identity.** numpy is now **optional**: `pip install srmech` is numpy-free — the 14-class A–N cascade core (`srmech.amsc.*`) and the native C surface run with zero numpy; `pip install 'srmech[scientific]'` pulls numpy back in for the array-numerical tier (`srmech.qm.*` / `signal_processing.*` / `rbs_lm.*`). Every continuous-math op (trig, exp, sqrt, FFT, SVD, eig) is a **cascade of the 14**, and the shipped `libsrmech` holds **no libm transcendental** — the executable runs the Class-N cascade, not the C math library.
+
+The arc, voxel by voxel:
+
+- **MS #21 — the Moufang loop-bind / octonion gauge arithmetic (rc1–rc7).** `srmech.amsc.hdc` gains the octonion (Cayley–Dickson) product `loop_bind` + `loop_conj` / `loop_inv` / `loop_associator` / `loop_left_op` / `loop_right_op`; `cross7` (the 7-D cross product, `M∘C`) + the G₂ associative 3-form; the block-octonion HD tiling (`loop_bind_hd`, D=2048); compose-engine integration (the loop family resolves as `class="M"`); co-equal C peers in `c/src/srmech_loopbind.c`.
+- **Perf + attestation discipline (rc8–rc20).** The Class-L circular autocorrelation primitive (Wiener–Khinchin); the N-way SIMD SHA-256 batch (AVX2 8-way / SSE2 4-way runtime cpuid dispatch, JPL-clean) routed through the new `c/src/srmech_simd.h` HAL — all platform/cpuid/target-attr bits live in the HAL, the core stays machine-agnostic; HAL constant-attestation (MPR derive-and-assert); native C peers for the HD loop family.
+- **#797 ops + the §22 numpy-free cascade core (rc26–rc46).** `asymptotic_calculus` / `trigonometry` alias modules + a directed/signed-Laplacian eigen-op; the Klein-4 holographic-erasure code + the explicit order-3 triality-recursion corrector; the numpy-free HV carrier. The §22 arc makes **every** continuous-math op a cascade: QDFT/ODFT, laplacian-build + pure-Python Jacobi eigenvalues, dft/idft/kron, radix-2 Cooley–Tukey FFT, QR/SVD, lstsq/einsum/non-Hermitian eig; the `math.sqrt` + trig/π residue sweeps onto the Class-N rationals; the C-transpile coherence arc driving libsrmech's libm-transcendental count `23 → 0` (native C `srmech_sin`/`cos`/`atan`/`atan2`/`rational_sqrt`/`exp`/`log`).
+- **numpy → optional (rc47–rc48).** numpy demoted from a hard dependency to the `scientific` extra, with a friendly `pip install 'srmech[scientific]'` gate at the scientific-tier import boundary; the #882 lazy-numpy fix (the Klein-4 HV-carrier path runs genuinely numpy-free on a plain install).
+- **"The One" (rc49–rc50, [#887](https://github.com/lemonforest/mlehaptics/issues/887)).** `S(σ,θ) = ⨁ₙ(ℝ·1 ⊕ σ·e^{Îₙθ}·Im 𝔸ₙ)`, `dim = 2+4+8 = 14` — the single generator of the `1+3+7+3 = 14` substrate, shipped as a **Rosetta pair**: the numpy-free exact-rational `srmech.amsc.cascade.the_one` + the bit-exact `srmech.qm.hurwitz` matrix peer (`to_matrix() == hurwitz_matrix()`; `FANO_PLANES == hurwitz_planes()` derived from `octonion_mult_table`). The **0/1/3 finding**: `e^{Îₙθ}` is the algebra's own rotation → turns 0/1/3 Fano planes for ℂ/ℍ/𝕆; 𝕆 spins three planes at once (eigenvalues `{1, e^{±iθ}×3}`; the 7 = 1 fixed axis + 3×2 rotated). The ℂ/ℍ/𝕆 Hurwitz ladder = `so(8)` + Spin(8) triality (`Fix(τ) = g₂ = 14`).
+- **PyPI README + description refresh (rc51).** Cut the QM/QFT/SM framing — every continuous-math op is a cascade of the 14, so no math domain is privileged or called out (the physics worked-examples still ship and stay discoverable via `describe()` / the tool-schema).
+
+No code change from rc51; version-string graduation + this entry only.
+
+## [0.7.0rc51] - 2026-06-05
+
+**PyPI-facing README + project description refresh (pre-graduation).** Cuts the "canonical QM/QFT/SM operations" framing — every continuous-math op is a cascade of the 14, so no particular math domain is privileged or called out (it is all the same cascade). No code change; the physics worked-examples (`single_particle`/`spin`/`relativistic`/`propagators`/`gauge`/`sm`) still ship and remain discoverable via `describe()` / the tool-schema.
+
+- **`[project].description`** (both `pyproject.toml` + `pyproject-pure.toml`, kept in lockstep) — rewritten to the v0.7.0 identity: *numpy-optional 14-class A-N vocabulary in native C + Python; every continuous-math op (trig/exp/sqrt/FFT/SVD/eig) is a cascade of the 14, no libm in the native build; **the One**, `S(σ,θ)`, generates the whole `1+3+7+3 = 14` substrate (the ℂ/ℍ/𝕆 Hurwitz ladder = `so(8)` + Spin(8) triality, bit-exact cascade↔matrix); AMSC (MPR v1).* ASCII-only, 438 chars (under the 480 soft cap).
+- **`README.md`** — status banner refreshed `v0.6.0 → v0.7.0`; the QM/QFT/SM feature bullet replaced by **the continuous-math cascade + the One**; the `srmech.qm.*` section retitled **the substrate engine** (the ℂ/ℍ/𝕆 Hurwitz ladder, `so(8)` triality, the One) — `octonion`/`so8`/`triality` kept, **`hurwitz`** (the One's matrix peer, #887) added, the physics-ops enumeration dropped (with a domain-neutral note that they still ship, discoverable, un-privileged); stale `0.6.0` example outputs bumped to `0.7.0`.
+
+No ABI / API change; `describe()` total unchanged at **233**.
+
+## [0.7.0rc50] - 2026-06-05
+
+**"The One" goes octonion-native — `S(σ,θ)`'s 𝕆 block is a 3-plane rotation, with a bit-exact qm-matrix Rosetta peer ([#887](https://github.com/lemonforest/mlehaptics/issues/887)).** rc49 used the simplest single-plane epicycle for every block; rc50 makes `e^{Î_nθ}` the **algebra's own** rotation — conjugation by the unit `cos(θ/2)+Î_n sin(θ/2)`, which turns *every Fano-triple plane through `Î_n`* by θ. The plane count is `0 / 1 / 3` for ℂ / ℍ / 𝕆: the single θ-turn spins **three planes at once in 𝕆** (eigenvalues `{1, e^{±iθ}×3}` on the imaginary part — the `1 fixed axis + 3×2 rotated` split of the 7). ℂ (σ-only) and ℍ (1-plane) are unchanged.
+
+- **`srmech.amsc.cascade.one`** — the rotation now uses `FANO_PLANES` (the oriented Fano lines through each axis: ℍ `(1,2,+1)`; 𝕆 `(1,6,−1),(2,5,+1),(3,4,+1)` through `Î₃=e₇`), matching the fixed Cayley–Dickson-from-ℍ convention (Baez 2002 §2). `One.to_matrix()` is the full block-diagonal multi-plane operator; new `One.plane_counts` → `(0,1,3)` and `Block.rotated_planes`. The 𝕆 seed `e₁` now lands in its Fano plane `(1,6,−1)` → `cosθ·e₁ − sinθ·e₆` (the only rc49 behaviour change).
+- **NEW `srmech.qm.hurwitz`** — the scientific-tier matrix peer: `hurwitz_matrix(σ, θ)` builds the same `14×14` `G(σ,θ)`, and `hurwitz_planes()` **derives** the planes straight from `octonion_mult_table` (not a hardcoded list). The cascade and the qm matrix agree **bit-for-bit** (`np.array_equal`), and the hardcoded `FANO_PLANES` equals the table-derived `hurwitz_planes()` — a genuine two-language cross-derivation (continuous-Hopf matrix vs discrete-cyclic cascade), not a restatement.
+- No new primitive class (Class A planes ∘ N rational cos/sin ∘ K·C sign), no `abs()`. Two new tool-schema entries → `describe()` total **231 → 233**. No ABI change.
+
+## [0.7.0rc49] - 2026-06-05
+
+**"The One" — `S(σ,θ)`, the single generator of the 1+3+7+3 = 14 substrate ([#887](https://github.com/lemonforest/mlehaptics/issues/887)).** A new cascade-native surface `srmech.amsc.cascade.the_one` builds the unifying Hurwitz-ladder generator
+
+> `S(σ,θ) = ⨁_{n=1}^{3} ( ℝ·1 ⊕ σ·e^{Î_nθ}·Im 𝔸_n )`,  `dim = Σ 2ⁿ = 2+4+8 = 14`
+
+with `𝔸₁=ℂ, 𝔸₂=ℍ, 𝔸₃=𝕆` (the normed division algebras above ℝ). The decomposition **is** the A–N partition: the imaginary parts `Im 𝔸_n` (dims `1, 3, 7`) carry the anchor `A` / projection-triad `I,C,J` / detection-heptad `D,E,F,G,K,L,M`; the three `ℝ·1` real units are the **+3 grammar** `B, H, N`.
+
+- **Numpy-free, exact-rational.** `e^{Î_nθ} = cos θ + Î_n sin θ` is built from the **Class-N** rational Taylor partials (`rational.{cos,sin}_series_truncate`) — every entry is a reduced `(num, den)` integer pair; no float until the opt-in `One.to_numpy()` / `One.to_matrix()` realisations (the `srmech[scientific]` tier, §22). No new primitive class — `⨁` over `n` is **Class I**, `σ` is **Class K** sign ∘ **Class C** apply (never `abs()`).
+- **Structural prediction: n=1 degenerates to σ.** Fixing the rotation axis `Î_n = e_d` (the last imaginary unit) and rotating the `(e₁,e₂)` plane, at `n=1` the 1-D `Im ℂ` seed coincides with the axis → `θ` is inert and the only freedom is the chirality `σ` (the epicycle **is** the Class-K sign at the foundational algebra; richness grows `1→3→7`). Verified bit-exactly.
+- **Returns a structured `One`** of three `Block`s tiling `1+3+7+3`; `.dim`, `.partition`, `.grammar_slots`, `.n1_is_sigma_only`, `.to_flat_rational()`. The qm-matrix Rosetta peer (`srmech.qm.hurwitz`) + the bit-exact cascade↔matrix parity test follow in rc50. No ABI change; `describe()` unchanged. Python-only (the C-transpile triality ratchet stays at 0).
+
 ## [0.7.0rc48] - 2026-06-05
 
 **Fix [#882](https://github.com/lemonforest/mlehaptics/issues/882): `srmech.amsc.hdc` (Class M / Klein-4) — and three sibling `amsc` core modules — no longer crash raw on a plain (numpy-free) install.** rc47's numpy-optional capstone left four `srmech.amsc.*` modules with a top-level `import numpy as np`, so `import srmech.amsc.hdc` raised a raw `ModuleNotFoundError: No module named 'numpy'` instead of importing cleanly (the Klein-4 HV-carrier path is *designed* numpy-free) or gating like `srmech.qm`. rc47's AST ratchet used a hardcoded module list that missed them.

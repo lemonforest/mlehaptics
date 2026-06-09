@@ -107,6 +107,8 @@ from .compose import (
     best_rational_signed,
     kuramoto_step,
     autocorrelation,
+    signed_sum_squared,
+    top_k_by_score,
 )
 # The Klein-4 four-sector PARALLEL dispatch (v0.6.0rc6; F233). A Python
 # *orchestration* layer over the C-parity'd cascade.atoms — runs one cascade
@@ -119,6 +121,15 @@ from .parallel import (
     parallel_sector_dispatch,
     sectorize,
 )
+# Coupled-wave (EM quadrature) driver + multi-stream multiplex (v0.7.5rc6;
+# #928 W17/W18, F573/F577). The full-chirality (E,B) drive (handedness a
+# settable convention, never hardcoded) + the role-bound N-stream multiplex.
+# COMPOSITION of calculus.{sin,cos} + Class-K pin_slot_at_zero + Class-M hdc —
+# no new primitive class, no new C kernel.
+from .coupled import (
+    coupled_wave,
+    multiplex_streams,
+)
 # Quaternion / octonion DFT composites (v0.7.0rc31; #863, F380). The native
 # transform for a Klein-4 object — its ℍ/𝕆 coefficient algebra resolves both
 # Z₂ chirality axes the complex FFT collapses (the flat shadow). COMPOSITES
@@ -129,7 +140,80 @@ from .parallel import (
 from .hypercomplex_dft import (
     quaternion_dft,
     octonion_dft,
+    hypercomplex_couple,
 )
+# Hamming / GF(2) linear block-code family — the CARRY/EC half of the
+# sedenion front-loader (#910 / §30; F442/F449). Lean-ALU XOR-native; the
+# Rosetta C peer (srmech_hamming_*) is attested bit-exact by the parity test.
+from .hamming import (
+    hamming_encode,
+    hamming_syndrome,
+    hamming_decode_correct,
+)
+# The One — S(σ,θ), the single generator of the 1+3+7+3 = 14 substrate
+# (#887; "the One"). The Hurwitz division-algebra ladder ℂ/ℍ/𝕆 as one
+# (σ, θ)-parameterised exact-rational object: ℝ·1 anchors (the B/H/N
+# grammar) ⊕ σ e^{Î_nθ} Im 𝔸_n (the 1:3:7 imaginary, rotated by the
+# epicycle). Numpy-free at import (the e^{Îθ} = cos+Î·sin is built from the
+# Class-N rational series); float realisations (.to_numpy / .to_matrix) are
+# the opt-in scientific tier. The qm-matrix Rosetta peer lives in
+# srmech.qm.hurwitz.
+from .one import (
+    Block,
+    One,
+    the_one,
+    s_generator,
+)
+# Cayley–Dickson open-exterior boundary-demonstrator (v0.7.3rc1; #915 / MFO
+# §VII.6.23). The deliberately NON-reversible object on the far side of the
+# Hurwitz wall: generic ℝ→ℂ→ℍ→𝕆→𝕊(16)→… doubling, exact-rational + numpy-free.
+# NOT a substrate extension — the closed sim stays ≤𝕆; this exhibits the wall
+# (zero divisors at 16, no inverse map) so §VII.6.23's open-exterior claims are
+# own-code-attested. The integer cocycle cd_basis_product has a JPL-clean C peer.
+from .cayley_dickson import (
+    CD_MAX_DIM,
+    CD_DIMS,
+    DIVISION_ALGEBRA_DIMS,
+    ALGEBRA_NAMES,
+    cd_mult,
+    cd_conjugate,
+    cd_add,
+    cd_norm_sq,
+    cd_basis,
+    cd_basis_product,
+    is_division_algebra_dim,
+    sedenion_zero_divisor_witness,
+    left_mult_matrix,
+    left_mult_kernel,
+    left_mult_is_invertible,
+)
+# Sedenion-addressable hyper-loop RBS-HDC instrument (v0.7.4rc1; UPSTREAM §31 of
+# PR #687; F465 + F468). The sedenion box made into an addressable instrument:
+# 16 named slots (octonion working block e0..e7 + EC/carry block e8..e15), HDC
+# storage, the ≤7 reversible coupler working word, the Hamming carry, and the
+# address↔Cayley–Dickson `navigate` homomorphism + `is_navigable` gate (the
+# genuinely-new piece). Pure composition of shipped primitives — no new algebra.
+from .sedenion_register import (
+    SedenionRegister,
+    sedenion_register,
+    NUM_SLOTS,
+    OCT_BLOCK,
+    EC_BLOCK,
+    WORKING_WORD_CAP,
+)
+
+# ── Class-L DSL re-export: schur_complement / Dirichlet-to-Neumann ─────
+# ``schur_complement`` lives canonically in ``srmech.amsc.laplacian`` (its
+# A–N home is Class L; the tool-schema entry is registered there). The DSL
+# chain runner resolves stage ops via ``getattr(srmech.amsc.cascade, name)``
+# (srmech.dsl._catalog.lookup_cascade_op), so the cascade-catalog descriptor
+# schur_complement.toml needs the callable reachable at this flat name.
+# Re-exported here for that resolution only — deliberately NOT added to
+# ``__all__`` (it is the laplacian-registered op reached for the chain
+# contract, not a second cascade-native primitive). It is numpy-absent-safe
+# (exact-rational path), so this import keeps the rc30 numpy-free core intact.
+# See tests/test_schur_complement_dsl_stage.py.
+from ..laplacian import schur_complement  # noqa: F401  (DSL resolution alias)
 
 # ── Back-compat aliases (the precursor's call-site names) ──────────────
 # Existing cascade scripts in docs/unsolved-maths/ import these names from
@@ -163,6 +247,8 @@ __all__ = [
     "cyclic_gcd",
     "kuramoto_step",
     "autocorrelation",
+    "signed_sum_squared",
+    "top_k_by_score",
     "chiral_flip",
     "chiral_dual",
     "net_chirality",
@@ -173,9 +259,46 @@ __all__ = [
     # rc12 composability (§11.3): recombine + nesting wrapper
     "COMBINE_REDUCERS",
     "sectorize",
+    # rc6 coupled-wave + multiplex (#928 W17/W18, F573/F577)
+    "coupled_wave",
+    "multiplex_streams",
     # Quaternion/octonion DFT composites (v0.7.0rc31; #863)
     "quaternion_dft",
     "octonion_dft",
+    # Bidirectional (σ,θ,μ) hypercomplex coupler (v0.7.2rc1; #908, F436/F437)
+    "hypercomplex_couple",
+    # Hamming / GF(2) block-code family (v0.7.2rc2; #910, §30 / F442/F449)
+    "hamming_encode",
+    "hamming_syndrome",
+    "hamming_decode_correct",
+    # The One — S(σ,θ), the 1+3+7+3 = 14 generator (#887)
+    "Block",
+    "One",
+    "the_one",
+    "s_generator",
+    # Cayley–Dickson open-exterior demonstrator (v0.7.3rc1; #915 / MFO §VII.6.23)
+    "CD_MAX_DIM",
+    "CD_DIMS",
+    "DIVISION_ALGEBRA_DIMS",
+    "ALGEBRA_NAMES",
+    "cd_mult",
+    "cd_conjugate",
+    "cd_add",
+    "cd_norm_sq",
+    "cd_basis",
+    "cd_basis_product",
+    "is_division_algebra_dim",
+    "sedenion_zero_divisor_witness",
+    "left_mult_matrix",
+    "left_mult_kernel",
+    "left_mult_is_invertible",
+    # Sedenion-addressable RBS-HDC instrument (v0.7.4rc1; UPSTREAM §31; F465/F468)
+    "SedenionRegister",
+    "sedenion_register",
+    "NUM_SLOTS",
+    "OCT_BLOCK",
+    "EC_BLOCK",
+    "WORKING_WORD_CAP",
     # back-compat aliases
     "class_k_pin_slot_at_zero",
     "class_c_reorient",

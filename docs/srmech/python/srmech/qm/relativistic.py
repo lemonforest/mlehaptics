@@ -34,6 +34,11 @@ from __future__ import annotations
 import numpy as np
 from typing import Tuple
 
+from srmech.amsc.laplacian import (
+    dense_dot_real,
+    dense_matmul_complex,
+    dense_matvec_real,
+)
 from srmech.qm.spin import pauli_matrices, pauli_identity
 
 
@@ -86,7 +91,9 @@ def gamma_5() -> np.ndarray:
     Canonical SSoT: Peskin-Schroeder §3.4 eq 3.72; Bjorken-Drell §6.1.
     """
     g0, g1, g2, g3 = gamma_matrices()
-    return 1j * g0 @ g1 @ g2 @ g3
+    # γ_5 = i·γ0·γ1·γ2·γ3 — Class-L matmul cascade for the γ-matrix chain.
+    return 1j * dense_matmul_complex(
+        dense_matmul_complex(dense_matmul_complex(g0, g1), g2), g3)
 
 
 def clifford_residuals() -> Tuple[float, float, float]:
@@ -110,13 +117,15 @@ def clifford_residuals() -> Tuple[float, float, float]:
     max_clifford = 0.0
     for mu in range(4):
         for nu in range(4):
-            anti = gammas[mu] @ gammas[nu] + gammas[nu] @ gammas[mu]
+            anti = (dense_matmul_complex(gammas[mu], gammas[nu])
+                    + dense_matmul_complex(gammas[nu], gammas[mu]))
             expected = 2.0 * eta[mu, nu] * I4
             max_clifford = max(max_clifford, np.linalg.norm(anti - expected))
     g5 = gamma_5()
-    g5_sq_dev = float(np.linalg.norm(g5 @ g5 - I4))
+    g5_sq_dev = float(np.linalg.norm(dense_matmul_complex(g5, g5) - I4))
     g5_anti_dev = max(
-        np.linalg.norm(g5 @ gammas[mu] + gammas[mu] @ g5) for mu in range(4)
+        np.linalg.norm(dense_matmul_complex(g5, gammas[mu])
+                       + dense_matmul_complex(gammas[mu], g5)) for mu in range(4)
     )
     return max_clifford, g5_sq_dev, g5_anti_dev
 
@@ -149,7 +158,7 @@ def charge_conjugation_matrix() -> np.ndarray:
     Canonical SSoT: Peskin-Schroeder eq A.27; Bjorken-Drell §5.2.
     """
     g0, g1, g2, g3 = gamma_matrices()
-    return 1j * g2 @ g0
+    return 1j * dense_matmul_complex(g2, g0)
 
 
 def dirac_operator_momentum_space(k: np.ndarray, m: float) -> np.ndarray:
@@ -173,8 +182,8 @@ def dirac_operator_momentum_space(k: np.ndarray, m: float) -> np.ndarray:
         raise ValueError(f"dirac_operator_momentum_space: k must be 4-vector; got {k.shape}")
     g0, g1, g2, g3 = gamma_matrices()
     eta = minkowski_metric()
-    # k_μ = η_{μν} k^ν (mostly-minus metric)
-    k_lower = eta @ k
+    # k_μ = η_{μν} k^ν (mostly-minus metric) — real 4×4 metric times real 4-vector
+    k_lower = dense_matvec_real(eta, k)
     slash_k = k_lower[0] * g0 + k_lower[1] * g1 + k_lower[2] * g2 + k_lower[3] * g3
     return slash_k - m * np.eye(4, dtype=complex)
 
@@ -204,7 +213,7 @@ def klein_gordon_dispersion(k_spatial: np.ndarray, m: float) -> float:
         )
     if m < 0:
         raise ValueError(f"klein_gordon_dispersion: m must be ≥ 0; got {m}")
-    return float(np.sqrt(np.dot(k_spatial, k_spatial) + m * m))
+    return float(np.sqrt(dense_dot_real(k_spatial, k_spatial) + m * m))
 
 
 def four_momentum_squared(k: np.ndarray) -> float:
@@ -218,7 +227,8 @@ def four_momentum_squared(k: np.ndarray) -> float:
     if k.shape != (4,):
         raise ValueError(f"four_momentum_squared: k must be 4-vector; got {k.shape}")
     eta = minkowski_metric()
-    return float(k @ eta @ k)
+    # k² = kᵀ η k = ⟨k, η k⟩ — real matvec then real bilinear dot (no conjugation)
+    return float(dense_dot_real(k, dense_matvec_real(eta, k)))
 
 
 __all__ = [

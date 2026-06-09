@@ -104,14 +104,16 @@ def _require_numpy():
 
 
 def _twiddle8(theta: float, mu: Sequence[float], np):
-    """``exp(μθ) = cos θ·1 + sin θ·μ`` as an 8-vector in the ℍ ⊂ 𝕆 subalgebra."""
+    """``exp(μθ) = cos θ·1 + sin θ·μ`` as an 8-vector (μ a unit pure-imaginary
+    octonion). All seven imaginary components are carried — a quaternion axis
+    has ``e4..e7 == 0`` so the result is unchanged from the ℍ-only form, but a
+    general / diagonal octonion ``μ`` (e.g. ``(Σeₙ)/√7``) is now honoured."""
     c = _rcos(theta)
     s = _rsin(theta)
     w = np.zeros(8, dtype=float)
     w[0] = c
-    w[1] = s * mu[1]
-    w[2] = s * mu[2]
-    w[3] = s * mu[3]
+    for _i in range(1, 8):
+        w[_i] = s * mu[_i]
     return w
 
 
@@ -130,6 +132,77 @@ def _as8(vec, np):
     )
 
 
+def _resolve_mu(mu_axis, *, octonion, np):
+    """Resolve ``mu_axis`` to a **unit pure-imaginary** 8-vector ``μ`` (``e0==0``,
+    ``‖μ‖=1`` ⟹ ``μ²=−1``) — the transform/coupling axis (#908, §29).
+
+    Accepts:
+
+    * a **named axis** ``'i'`` / ``'j'`` / ``'k'`` / ``'ijk'`` (the shipped set);
+    * ``'diagonal'`` — the equal-weight pure-imaginary axis of the active
+      algebra: ``(i+j+k)/√3`` for a quaternion transform, ``(Σ_{n=1..7} eₙ)/√7``
+      for an octonion one. This is the axis that **couples** all streams (F436):
+      ``μ·Σ sₙeₙ`` folds them into the real/anchor coherence channel;
+    * a **sequence** (4- or 8-component) — a general unit pure-imaginary axis;
+      it is normalised to unit length, and ``e0`` (and, for a quaternion
+      transform, ``e4..e7``) must be zero.
+    """
+    if isinstance(mu_axis, str):
+        if mu_axis in _MU_AXES:
+            return _as8(_MU_AXES[mu_axis], np)
+        if mu_axis == "diagonal":
+            v = np.zeros(8, dtype=float)
+            hi = 8 if octonion else 4
+            v[1:hi] = 1.0
+            return v / _rsqrt(float(hi - 1))
+        raise ValueError(
+            f"mu_axis must be one of {sorted(_MU_AXES) + ['diagonal']}, or a unit "
+            f"pure-imaginary vector; got {mu_axis!r}"
+        )
+    # General axis: a 4- or 8-component pure-imaginary vector.
+    v = _as8(mu_axis, np)
+    if v[0] != 0.0:
+        raise ValueError("a general mu_axis must be pure-imaginary (e0 == 0)")
+    if not octonion and bool(np.any(v[4:] != 0.0)):
+        raise ValueError(
+            "a quaternion mu_axis must lie in ℍ (components e4..e7 == 0); use "
+            "octonion_dft / a quaternion-scope coupler for an octonion axis"
+        )
+    norm = _rsqrt(float(sum(c * c for c in v[1:])))
+    if norm == 0.0:
+        raise ValueError("mu_axis must be a non-zero pure-imaginary vector")
+    return v / norm
+
+
+def _pack_streams(streams, np):
+    """Coerce a coupler input to an (8-vector carrier, octonion?) pair.
+
+    A length-≤3 (resp. 4–7) real sequence is **packed as streams** into the
+    pure-imaginary slots of a quaternion (resp. octonion) carrier (real/anchor
+    = 0); a length-4 or length-8 sequence is taken as a **literal** quaternion
+    / octonion carrier (so a bound result round-trips back through the coupler).
+    """
+    a = np.asarray(streams, dtype=float).reshape(-1)
+    n = int(a.size)
+    if n == 4:
+        return _as8(a, np), False
+    if n == 8:
+        return a.astype(float, copy=True), True
+    if 1 <= n <= 3:
+        q = np.zeros(8, dtype=float)
+        q[1:1 + n] = a
+        return q, False
+    if 5 <= n <= 7:
+        q = np.zeros(8, dtype=float)
+        q[1:1 + n] = a
+        return q, True
+    raise ValueError(
+        "streams must be ≤7 real coefficients (packed into the imaginary slots) "
+        "or a 4-/8-component literal quaternion/octonion carrier; got length "
+        f"{n}"
+    )
+
+
 def _dft_core(x, *, form, mu_axis, inverse, two_sided_right, bracketing, octonion):
     """Shared (Q/O)DFT engine. Composes the qm.octonion left/right-mult atoms.
 
@@ -142,10 +215,13 @@ def _dft_core(x, *, form, mu_axis, inverse, two_sided_right, bracketing, octonio
     """
     np = _require_numpy()
     from srmech.qm.octonion import octonion_left_mult, octonion_right_mult
+    # Lazy (numpy-absent-safe, §22): the 8×8 octonion-rep matvec rides the
+    # Class-L real-matvec cascade, never numpy `@`.
+    from srmech.amsc.laplacian import dense_matvec_real
 
-    if mu_axis not in _MU_AXES:
-        raise ValueError(f"mu_axis must be one of {sorted(_MU_AXES)}; got {mu_axis!r}")
-    mu = _MU_AXES[mu_axis]
+    mu = _resolve_mu(mu_axis, octonion=octonion, np=np)
+    # Resolve the two-sided right axis once (defaults to the left axis).
+    mu_r = _resolve_mu(two_sided_right or mu_axis, octonion=octonion, np=np)
 
     xs = [_as8(v, np) for v in x]
     n_pts = len(xs)
@@ -178,20 +254,19 @@ def _dft_core(x, *, form, mu_axis, inverse, two_sided_right, bracketing, octonio
                 # Octonion two-sided: W_l · x · W_r — the bracketing of the
                 # 3-factor product is meaningful (𝕆 is NON-associative, F378).
                 wl = octonion_left_mult(w)
-                wr_axis = two_sided_right or mu_axis
-                w_r = _twiddle8(theta, _MU_AXES[wr_axis], np)
+                w_r = _twiddle8(theta, mu_r, np)
                 if bracketing == "left_associated":
                     # (W_l · x) · W_r
-                    inner = wl @ xs[n]
-                    term = octonion_right_mult(w_r) @ inner
+                    inner = dense_matvec_real(wl, xs[n])
+                    term = dense_matvec_real(octonion_right_mult(w_r), inner)
                 else:
                     # W_l · (x · W_r)
-                    inner = octonion_right_mult(w_r) @ xs[n]
-                    term = wl @ inner
+                    inner = dense_matvec_real(octonion_right_mult(w_r), xs[n])
+                    term = dense_matvec_real(wl, inner)
             elif mult_left:
-                term = octonion_left_mult(w) @ xs[n]   # W · x  (left form)
+                term = dense_matvec_real(octonion_left_mult(w), xs[n])   # W·x (left)
             else:
-                term = octonion_right_mult(w) @ xs[n]   # x · W  (right form)
+                term = dense_matvec_real(octonion_right_mult(w), xs[n])  # x·W (right)
             acc = acc + term
         acc = acc * scale
         out.append(acc.tolist() if octonion else acc[:4].tolist())
@@ -219,8 +294,11 @@ def quaternion_dft(
         Left (``W·x``) or right (``x·W``) twiddle multiplication — the two
         differ because ``ℍ`` is non-commutative. Both are invertible and
         round-trip (the twiddle lives in the commutative ``ℝ[μ]≅ℂ`` subalgebra).
-    mu_axis : {"i", "j", "k", "ijk"}
-        The unit pure-quaternion transform axis ``μ`` (``μ²=−1``).
+    mu_axis : {"i", "j", "k", "ijk", "diagonal"} or unit pure-imaginary vector
+        The transform axis ``μ`` (``μ²=−1``). ``'diagonal'`` (= ``(i+j+k)/√3``
+        here) **couples** all three axes into the real/anchor channel (F436); a
+        single named axis only **carries** them. A general unit pure-imaginary
+        quaternion vector is also accepted (#908). See :func:`_resolve_mu`.
     inverse : bool
         Inverse QDFT (conjugate twiddle + ``1/N`` scale). ``inverse(forward(x))``
         recovers ``x`` exactly (to float round-off), including **all four**
@@ -265,15 +343,20 @@ def octonion_dft(
     form : {"left", "right", "two_sided"}
         ``W·x`` / ``x·W`` / ``W_l·x·W_r``. The two-sided form is where octonion
         non-associativity bites.
-    mu_axis : {"i", "j", "k", "ijk"}
-        The left (or single) transform axis ``μ`` (``μ²=−1``).
+    mu_axis : {"i", "j", "k", "ijk", "diagonal"} or unit pure-imaginary vector
+        The left (or single) transform axis ``μ`` (``μ²=−1``). ``'diagonal'``
+        (= ``(Σ_{n=1..7} eₙ)/√7`` for octonions) **couples** all seven imaginary
+        streams into the real/anchor coherence channel (F436); a single named
+        axis only carries them. A general unit pure-imaginary octonion vector is
+        also accepted (#908). See :func:`_resolve_mu`.
     bracketing : {"left_associated", "right_associated"}
         **Only meaningful for** ``form="two_sided"``: ``(W_l·x)·W_r`` vs
         ``W_l·(x·W_r)``. These **differ** for octonions (F378) — the field is
         the concrete crystallisation of "the ODFT must declare its association
         order". Recorded (trivially) for the one-sided forms.
-    two_sided_right_axis : {"i", "j", "k", "ijk"}
-        The right twiddle axis ``μ_r`` for the two-sided form.
+    two_sided_right_axis : {"i", "j", "k", "ijk", "diagonal"} or unit vector
+        The right twiddle axis ``μ_r`` for the two-sided form (same resolution
+        as ``mu_axis``: named / ``'diagonal'`` / general unit pure-imaginary).
     inverse : bool
         Inverse ODFT (one-sided forms round-trip; the two-sided form is
         forward-only here — its inverse is open under non-associativity).
@@ -300,3 +383,90 @@ def octonion_dft(
         x, form=form, mu_axis=mu_axis, inverse=inverse,
         two_sided_right=two_sided_right_axis, bracketing=bracketing, octonion=True,
     )
+
+
+def hypercomplex_couple(
+    streams: Sequence,
+    *,
+    axis="diagonal",
+    theta: float = _PI / 2.0,
+    sigma: int = 1,
+    form: str = "left",
+    inverse: bool = False,
+) -> List[float]:
+    """Bidirectional ``(σ, θ, μ)`` hypercomplex coupler — bind ≥3 streams into
+    one quaternion/octonion + a joint coherence channel, and unbind losslessly.
+
+    This is the first-class coupler asked for in **#908 / §29** (findings
+    **F436** + **F437**). Where ``quaternion_dft`` / ``octonion_dft`` *carry* N
+    streams along named single axes, this **couples** them: it packs ``streams``
+    into the pure-imaginary slots of a carrier ``q`` and applies the twiddle
+    ``T = exp(σ_eff · μ · θ)`` (``σ_eff = σ·(−1 if inverse else +1)``):
+
+    * **Bind** (``sigma=+1``) with a **diagonal** ``μ`` folds the streams — the
+      result's **real/anchor** channel becomes a joint *coherence detector*
+      (F436: coherent streams add, incoherent cancel; ``μ·Σsₙeₙ`` collects
+      ``−Σsₙ``). The imaginaries carry the pairwise relations.
+    * **Unbind** (``sigma=-1``, or ``inverse=True``) is the **conjugate**
+      twiddle ``exp(−μθ)``; ``couple(couple(q, σ=+1), σ=-1)`` recovers ``q``
+      exactly — the division-algebra identity ``T̄·(T·q)=‖T‖²·q`` (F437). This
+      is **guaranteed reversible only up to 𝕆** (the Hurwitz boundary; the
+      sedenion's zero divisors break it) → lossless for **≤ 7 streams**.
+
+    ``form="left"``/``"right"`` and ``inverse`` are special discrete points of
+    the same continuous ``(σ, θ, μ)`` family — exactly ``the_one``'s ``𝕊(σ,θ)``
+    (F420) **plus the axis μ**. This exposes the axis + sign of the existing
+    ``exp(μθ)`` twiddle; **no new algebra** (composite over ``qm.octonion``).
+
+    Parameters
+    ----------
+    streams : sequence
+        ≤3 real coefficients → packed into a quaternion ``(0, s₀, s₁, s₂)``;
+        4–7 → packed into an octonion ``(0, s₀, …)``; a length-4 / length-8
+        sequence is taken as a **literal** quaternion / octonion carrier (so a
+        bound result feeds straight back in to unbind).
+    axis : str or sequence
+        The coupling axis ``μ`` (``'diagonal'`` default; also ``'i'``/``'j'``/
+        ``'k'``/``'ijk'`` or a unit pure-imaginary vector). See
+        :func:`_resolve_mu`. A single named axis does **not** couple across
+        axes (it only carries) — use ``'diagonal'`` for true coupling (F436).
+    theta : float
+        The continuous coupling phase (default ``π/2`` — the F436 quarter-turn
+        fold where the diagonal axis sends the streams into the anchor).
+    sigma : {+1, -1}
+        Conjugation / chirality: ``+1`` binds (forward fold), ``−1`` unbinds
+        (the conjugate twiddle; F437).
+    form : {"left", "right"}
+        ``T·q`` or ``q·T`` (``ℍ``/``𝕆`` are non-commutative).
+    inverse : bool
+        Flips the effective sign (equivalently toggles ``sigma``); provided for
+        symmetry with the DFT surface.
+
+    Returns
+    -------
+    list[float]
+        The coupled value — a 4-component quaternion (≤3 streams / literal
+        quaternion) or 8-component octonion (otherwise).
+
+    Class home: **M** (octonion multiply) ∘ **C** (the ``σ``/conjugation
+    orientation) ∘ **N** (the rational phase ``θ``). F436 / F437; §29.
+    """
+    np = _require_numpy()
+    from srmech.qm.octonion import octonion_left_mult, octonion_right_mult
+    # Lazy (numpy-absent-safe, §22): octonion-rep matvec via the Class-L cascade.
+    from srmech.amsc.laplacian import dense_matvec_real
+
+    if sigma not in (1, -1, 1.0, -1.0):
+        raise ValueError(f"sigma must be +1 or -1; got {sigma!r}")
+    if form not in _FORMS:
+        raise ValueError(f"form must be one of {_FORMS}; got {form!r}")
+
+    q, octonion = _pack_streams(streams, np)
+    mu = _resolve_mu(axis, octonion=octonion, np=np)
+    eff = float(sigma) * (-1.0 if inverse else 1.0) * float(theta)
+    w = _twiddle8(eff, mu, np)
+    if form == "left":
+        out = dense_matvec_real(octonion_left_mult(w), q)
+    else:
+        out = dense_matvec_real(octonion_right_mult(w), q)
+    return out.tolist() if octonion else out[:4].tolist()

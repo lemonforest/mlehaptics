@@ -21,7 +21,7 @@ from typing import Tuple
 
 import numpy as np
 
-from srmech.amsc.laplacian import hermitian_eigendecompose
+from srmech.amsc.laplacian import dense_matmul_complex, hermitian_eigendecompose
 
 OPERATION_NAME = "music"
 CLASS_COMPOSITION = ("L", "K")
@@ -82,7 +82,8 @@ def op(
     En = eigvecs[:, :n_noise]
     # MUSIC pseudo-spectrum: P(theta) = 1 / (a^H En En^H a)
     # Vectorise across all steering vectors.
-    proj = En.conj().T @ A  # shape (n_noise, K)
+    # Enᴴ·A — Class-L dense complex matmul (noise-subspace projection).
+    proj = dense_matmul_complex(En.conj().T, A)  # shape (n_noise, K)
     # |z|² = real²+imag² (no abs())
     denom = np.sum(proj.real ** 2 + proj.imag ** 2, axis=0)
     return 1.0 / np.maximum(denom, 1e-30)

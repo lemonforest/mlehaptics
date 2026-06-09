@@ -419,6 +419,88 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_elementwise_transcendental.restype = ctypes.c_int
 
+    # int srmech_dense_solve_f64(uint32_t n, uint32_t nrhs,
+    #     const double *A, const double *B, double *out_X)
+    # v0.7.1rc3 additive symbol (#897 §26): the reusable Class-L dense
+    # linear solve A·X = B the Schur/DtN float path composes over.
+    # hasattr-guarded because EXPECTED_ABI_VERSION stays 3 — a stale ABI-3
+    # lib built before this rc lacks the symbol; an unguarded bind would
+    # AttributeError and disable the whole native surface.
+    if hasattr(lib, "srmech_dense_solve_f64"):
+        lib.srmech_dense_solve_f64.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_uint32,                    # nrhs
+            ctypes.POINTER(ctypes.c_double),    # A (n*n, row-major)
+            ctypes.POINTER(ctypes.c_double),    # B (n*nrhs, row-major)
+            ctypes.POINTER(ctypes.c_double),    # out_X (n*nrhs, row-major)
+        ]
+        lib.srmech_dense_solve_f64.restype = ctypes.c_int
+
+    # int srmech_dense_matmul_complex(uint32_t m, uint32_t k, uint32_t n,
+    #     const double *A_il, const double *B_il, double *out_il)
+    # v0.7.5rc14 additive symbol (#928, matmul-kernel phase): the dense complex
+    # matrix-matrix product (m,k)@(k,n)=(m,n) the QM / matrix_cascades layer's
+    # ``@`` math routes through. hasattr-guarded (ABI stays 3) so a stale ABI-3
+    # lib keeps the rest of the native surface.
+    if hasattr(lib, "srmech_dense_matmul_complex"):
+        lib.srmech_dense_matmul_complex.argtypes = [
+            ctypes.c_uint32,                    # m
+            ctypes.c_uint32,                    # k
+            ctypes.c_uint32,                    # n
+            ctypes.POINTER(ctypes.c_double),    # A (m*k interleaved, row-major)
+            ctypes.POINTER(ctypes.c_double),    # B (k*n interleaved, row-major)
+            ctypes.POINTER(ctypes.c_double),    # out (m*n interleaved, row-major)
+        ]
+        lib.srmech_dense_matmul_complex.restype = ctypes.c_int
+
+    # v0.7.2rc2 (#910 / §30; F442/F449): Hamming / GF(2) block-code family.
+    # NEW symbols — hasattr-guarded so a stale lib (pre-rc2) keeps the rest of
+    # the native surface. uint8 0/1 buffers; lean-ALU XOR (no float, no libm).
+    #   int srmech_hamming_encode(const uint8_t *data, size_t k, int n,
+    #                             uint8_t *out_codeword)
+    if hasattr(lib, "srmech_hamming_encode"):
+        lib.srmech_hamming_encode.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),     # data (k bits)
+            ctypes.c_size_t,                    # k
+            ctypes.c_int,                       # n (parity-bit count)
+            ctypes.POINTER(ctypes.c_uint8),     # out_codeword (2^n-1 bits)
+        ]
+        lib.srmech_hamming_encode.restype = ctypes.c_int
+    #   int srmech_hamming_syndrome(const uint8_t *codeword, size_t len,
+    #                               int *out_pos)
+    if hasattr(lib, "srmech_hamming_syndrome"):
+        lib.srmech_hamming_syndrome.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),     # codeword (len bits)
+            ctypes.c_size_t,                    # len
+            ctypes.POINTER(ctypes.c_int),       # out_pos (1-indexed; 0 clean)
+        ]
+        lib.srmech_hamming_syndrome.restype = ctypes.c_int
+    #   int srmech_hamming_decode_correct(const uint8_t *codeword, size_t len,
+    #                                     uint8_t *out_data, int *out_pos)
+    if hasattr(lib, "srmech_hamming_decode_correct"):
+        lib.srmech_hamming_decode_correct.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),     # codeword (len bits)
+            ctypes.c_size_t,                    # len
+            ctypes.POINTER(ctypes.c_uint8),     # out_data (len-n bits)
+            ctypes.POINTER(ctypes.c_int),       # out_pos
+        ]
+        lib.srmech_hamming_decode_correct.restype = ctypes.c_int
+
+    # Cayley-Dickson basis-unit cocycle (v0.7.3rc1; #915 / MFO §VII.6.23) — the
+    # integer structural core of the open-exterior demonstrator. hasattr-guarded
+    # so a stale lib (pre-rc1) keeps the rest of the native surface.
+    #   int srmech_cd_basis_product(int dim, int i, int j,
+    #                               int *out_index, int *out_sign)
+    if hasattr(lib, "srmech_cd_basis_product"):
+        lib.srmech_cd_basis_product.argtypes = [
+            ctypes.c_int,                       # dim (power of two <= 64)
+            ctypes.c_int,                       # i (basis index)
+            ctypes.c_int,                       # j (basis index)
+            ctypes.POINTER(ctypes.c_int),       # out_index (== i ^ j)
+            ctypes.POINTER(ctypes.c_int),       # out_sign (+1 / -1)
+        ]
+        lib.srmech_cd_basis_product.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Class J — prime-factorisation / period (Task #217 Phase C1 rc3).
     # ------------------------------------------------------------------
@@ -1097,6 +1179,28 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_reverse_order.restype = ctypes.c_int
 
+    # ------------------------------------------------------------------
+    # v0.7.5rc2: bind the rc43-46 C transcendental cascade so the Python
+    # float-projection ops (``rational.{sin,cos,atan,atan2,exp,log,sqrt}``)
+    # actually DISPATCH to the executable C. The C cascade was built across
+    # rc43-46 (srmech_{sin,cos,atan,atan2,rational_sqrt,exp,log}) but never
+    # wired to Python, so the runtime ran the pure-Python bignum series on
+    # EVERY install — the v0.7.0 "C-transpile triality" was source-only, the
+    # executable never agreed with itself. NEW-symbol hasattr guards (a
+    # pre-rc43 lib still loads). ``int srmech_<fn>(double x, double *out)``;
+    # ``srmech_atan2`` takes ``(double y, double x, double *out)``.
+    # ------------------------------------------------------------------
+    for _scalar_trans in ("srmech_sin", "srmech_cos", "srmech_atan",
+                          "srmech_exp", "srmech_log", "srmech_rational_sqrt"):
+        if hasattr(lib, _scalar_trans):
+            getattr(lib, _scalar_trans).argtypes = [
+                ctypes.c_double, ctypes.POINTER(ctypes.c_double)]
+            getattr(lib, _scalar_trans).restype = ctypes.c_int
+    if hasattr(lib, "srmech_atan2"):
+        lib.srmech_atan2.argtypes = [
+            ctypes.c_double, ctypes.c_double, ctypes.POINTER(ctypes.c_double)]
+        lib.srmech_atan2.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None
@@ -1159,6 +1263,77 @@ def sha256_hex_c(data: bytes) -> str:
             f"this should not happen for valid inputs"
         )
     return out.value.decode("ascii")
+
+
+# ----------------------------------------------------------------------
+# v0.7.5rc2: scalar transcendental cascade wrappers — the Python-callable
+# face of the rc43-46 C cascade. The float-projection ops in
+# ``srmech.amsc.rational`` dispatch through these when ``has_native_trig()``.
+# ----------------------------------------------------------------------
+
+def has_native_trig() -> bool:
+    """True iff the C transcendental cascade is loaded + bound (rc43+ lib)."""
+    return bool(HAS_NATIVE and LIB is not None and hasattr(LIB, "srmech_sin"))
+
+
+def has_native_explog() -> bool:
+    """True iff the C exp/log cascade is loaded + bound (rc46+ lib)."""
+    return bool(HAS_NATIVE and LIB is not None and hasattr(LIB, "srmech_exp"))
+
+
+def has_native_sqrt() -> bool:
+    """True iff the C integer-isqrt sqrt cascade is loaded + bound (rc45+ lib)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_rational_sqrt"))
+
+
+def _scalar_trans_c(symbol: str, x: float) -> float:
+    """Call a single-arg C transcendental ``srmech_<symbol>(double, double*)``."""
+    if not HAS_NATIVE or LIB is None or not hasattr(LIB, symbol):
+        raise RuntimeError(
+            f"{symbol} unavailable; guard calls with _native.has_native_trig()")
+    out = ctypes.c_double()
+    rc = getattr(LIB, symbol)(ctypes.c_double(x), ctypes.byref(out))
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"{symbol} returned non-OK status {rc}")
+    return out.value
+
+
+def sin_c(x: float) -> float:
+    return _scalar_trans_c("srmech_sin", x)
+
+
+def cos_c(x: float) -> float:
+    return _scalar_trans_c("srmech_cos", x)
+
+
+def atan_c(x: float) -> float:
+    return _scalar_trans_c("srmech_atan", x)
+
+
+def exp_c(x: float) -> float:
+    return _scalar_trans_c("srmech_exp", x)
+
+
+def log_c(x: float) -> float:
+    return _scalar_trans_c("srmech_log", x)
+
+
+def rational_sqrt_c(x: float) -> float:
+    return _scalar_trans_c("srmech_rational_sqrt", x)
+
+
+def atan2_c(y: float, x: float) -> float:
+    """Call ``srmech_atan2(double y, double x, double *out)`` (rc43)."""
+    if not HAS_NATIVE or LIB is None or not hasattr(LIB, "srmech_atan2"):
+        raise RuntimeError(
+            "srmech_atan2 unavailable; guard with _native.has_native_trig()")
+    out = ctypes.c_double()
+    rc = LIB.srmech_atan2(
+        ctypes.c_double(y), ctypes.c_double(x), ctypes.byref(out))
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_atan2 returned non-OK status {rc}")
+    return out.value
 
 
 def sha256_batch_c(datas: "list[bytes]") -> "list[str]":

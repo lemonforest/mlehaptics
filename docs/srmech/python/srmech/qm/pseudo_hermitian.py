@@ -41,6 +41,12 @@ from __future__ import annotations
 import numpy as np
 from typing import Tuple
 
+from srmech.amsc.laplacian import (
+    dense_dot_complex,
+    dense_matmul_complex,
+    dense_matvec_complex,
+)
+
 
 def inner_product_eta(a: np.ndarray, b: np.ndarray, eta: np.ndarray) -> complex:
     """η-deformed inner product ``⟨a|b⟩_η = ⟨a| η |b⟩``.
@@ -75,7 +81,8 @@ def inner_product_eta(a: np.ndarray, b: np.ndarray, eta: np.ndarray) -> complex:
             f"inner_product_eta: eta must be ({a.shape[0]}, {a.shape[0]}); "
             f"got {eta.shape}"
         )
-    return complex(a.conj() @ eta @ b)
+    # ⟨a|η|b⟩ = aᴴ·(η·b): Class-L matvec then Class-L bilinear dot (cascade).
+    return dense_dot_complex(a.conj(), dense_matvec_complex(eta, b))
 
 
 def expectation_eta(O: np.ndarray, psi: np.ndarray, eta: np.ndarray) -> complex:
@@ -104,8 +111,11 @@ def expectation_eta(O: np.ndarray, psi: np.ndarray, eta: np.ndarray) -> complex:
         raise ValueError(
             f"expectation_eta: eta must match O shape {O.shape}; got {eta.shape}"
         )
-    numerator = psi.conj() @ eta @ O @ psi
-    denominator = psi.conj() @ eta @ psi
+    # ⟨ψ|ηO|ψ⟩ / ⟨ψ|η|ψ⟩ — each contraction is a Class-L matvec/dot cascade.
+    numerator = dense_dot_complex(
+        psi.conj(), dense_matvec_complex(eta, dense_matvec_complex(O, psi))
+    )
+    denominator = dense_dot_complex(psi.conj(), dense_matvec_complex(eta, psi))
     return complex(numerator / denominator)
 
 
@@ -132,7 +142,7 @@ def is_pseudo_hermitian(
             f"is_pseudo_hermitian: O and eta must be same-shape square "
             f"matrices; got O={O.shape}, eta={eta.shape}"
         )
-    residual = O.conj().T @ eta - eta @ O
+    residual = dense_matmul_complex(O.conj().T, eta) - dense_matmul_complex(eta, O)
     return float(np.linalg.norm(residual)) < atol
 
 
@@ -176,7 +186,7 @@ def construct_eta_from_eigendecomposition(
             "positive definite"
         )
     # η = (V V†)^{-1} makes O η-pseudo-Hermitian.
-    eta = np.linalg.inv(V @ V.conj().T)
+    eta = np.linalg.inv(dense_matmul_complex(V, V.conj().T))
     # Symmetrize (rounding fixup).
     eta = (eta + eta.conj().T) / 2.0
     return eta

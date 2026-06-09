@@ -36,11 +36,23 @@ a "continuous" function value is computed as an exact Class-N rational cascade, 
 
 ## Derivations
 
-### exp `e^x` (real) — **N ∘ K** — IMPLEMENTED rc34 (`rational.exp`)
-`e^x = (e^(x/2^k))^(2^k)`. **K** = argument-halving range reduction (asymptotic-DoF;
-halve until `|x/2^k| ≤ 1`, no irrational constant — exp is aperiodic). **N** =
-`exp_series_truncate` (Taylor partial sum, exact rational), then square `k` times.
-Verified vs `math.exp` to machine ε (relative).
+### exp `e^x` (real) — **N ∘ K** — IMPLEMENTED rc34 (`rational.exp`); float path UNIFIED on the C Cody-Waite reduction v0.7.5rc3
+`e^x = e^r · 2^n` with `x = n·ln2 + r`, `|r| ≤ ln2/2`. **K** = the additive range
+reduction (asymptotic-DoF; pick the integer `n`, form `r` via the two-word
+`LN2_HI + LN2_LO` Cody-Waite split — no irrational constant survives to the series,
+exp is aperiodic). **N** = the Q61 integer exp-Taylor `1 + r + r²/2! + …`; the `2^n`
+scale folds straight into the IEEE exponent. Verified vs `math.exp` to ~1 ULP.
+This is the **bit-exact peer of `srmech_exp`** (`c/src/srmech_explog.c`) — the
+float `rational.exp` dispatches to it natively. (The earlier `(e^(x/2^k))^(2^k)`
+halve-and-square reduction amplified error to ~345 ULP and is retired; the exact-
+rational `exp_series_truncate` remains the higher-precision REFERENCE surface.)
+
+### log `ln(x)` (real) — **N ∘ K** — IMPLEMENTED v0.7.5rc3 (`rational.log`)
+`ln(x) = e·ln2 + log(m)` with `x = m·2^e` read from the bit pattern, `m` folded into
+`[1/√2, √2)`. **N** = the Q61 integer series `log(m) = 2·atanh((m−1)/(m+1))`; **K** =
+the integer `m·2^e` decomposition + the band fold. Bit-exact peer of `srmech_log`
+(`c/src/srmech_explog.c`); dispatches to C natively. Domain: `x < 0 → NaN`,
+`x == 0 → −Inf`. The exact-rational `log1p_series_truncate` is the REFERENCE surface.
 
 ### trig `cos/sin/tan/atan/atan2` — **N ∘ I ∘ C ∘ K** — IMPLEMENTED rc33 (`rational.cos…atan2`)
 **I** = range-reduce the angle mod 2π using a high-precision rational π from
@@ -200,3 +212,107 @@ same cascade.
 At rc46 the executable runs the Class-N cascade, not libm: all three coherence
 layers agree — **full C-transpile triality coherence** (the shipped libsrmech
 holds no libm transcendental).
+
+## The One — `S(σ,θ)`: the single generator of the 14-class cascade (#887, rc49–rc50)
+
+The derivations above run *decomposition*-ward: every continuous op factors into
+the 14. **"The One" closes the loop from the generative end** — there is a single
+`(σ, θ)`-parameterised object that **IS** the whole 14-dimensional A–N space
+(user 2026-06-05, "we have the One and need to figure out how to put it into
+srmech"):
+
+> `S(σ,θ) = ⨁_{n=1}^{3} ( ℝ·1 ⊕ σ e^{Î_nθ} Im 𝔸_n )`,   `dim = Σ 2ⁿ = 2+4+8 = 14`
+
+with `𝔸₁=ℂ, 𝔸₂=ℍ, 𝔸₃=𝕆` — the Hurwitz ladder above ℝ (the parallelizable
+spheres `S¹, S³, S⁷`). The block structure is *exactly* the `1+3+7+3` partition
+this note's operator table is built on:
+
+| `n` | `𝔸ₙ` | `dim` | `ℝ·1` anchor | `Im 𝔸ₙ` | A–N slots of `Im 𝔸ₙ` |
+|---|---|---|---|---|---|
+| 1 | ℂ | 2 | 1 | 1 | **A** |
+| 2 | ℍ | 4 | 1 | 3 | **I, C, J** |
+| 3 | 𝕆 | 8 | 1 | 7 | **D, E, F, G, K, L, M** |
+
+The three `ℝ·1` real units are the **+3 grammar** `B, H, N`; `Σ Im = 1+3+7 = 11`
+(the imaginary / operator substrate) `+3` grammar = `14`. So the same `1+3+7+3`
+that organises the operator table above is **also** the grading of one turning
+object — `S` is the 14-class cascade written as a single generator, not a list.
+
+**Cascade decomposition** (no new primitive class — a composition of A–N, exactly
+like every row of the status table):
+
+- `⨁_{n=1}^{3}` the 3-fold grading → **I** (cyclic enumerate)
+- `ℝ·1` per block → the **B / H / N** grammar units
+- `e^{Î_nθ} = cos θ + Î_n sin θ` → **N** (the exact-rational `cos`/`sin` of the trig row above)
+- the Fano planes (which axes rotate) → **A** (the attested octonion convention)
+- `σ` → **K** (sign) ∘ **C** (apply); never `abs()`
+- `Im 𝔸_n` → the `1:3:7` imaginary substrate
+
+### Shipped as a Rosetta pair (the two substrate-native languages)
+
+| surface | rc | tier | language |
+|---|---|---|---|
+| `srmech.amsc.cascade.the_one(σ, θ_num, θ_den)` → `One` | rc49 | **numpy-free, exact-rational** | the discrete-cyclic cascade — `e^{Îθ}` from the Class-N `cos/sin_series_truncate`; every entry a reduced `(num, den)` |
+| `srmech.qm.hurwitz.hurwitz_matrix(σ, θ)` / `hurwitz_planes()` | rc50 | scientific (numpy) | the continuous-Hopf matrix — the same `14×14` `G(σ,θ)`, planes **derived** from `octonion_mult_table` |
+
+The two agree **bit-for-bit**: `One.to_matrix() == hurwitz_matrix()`
+(`np.array_equal`), and the cascade's hardcoded `FANO_PLANES == hurwitz_planes()`
+(read from the table). That bit-exact cross-derivation is
+`[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]`
+made executable — the cyclic cascade and the Hopf matrix compute the identical
+object two ways. (`describe()` total `230 → 233`; no ABI change.)
+
+### The finding: the octonion epicycle turns **0 / 1 / 3** Fano planes
+
+`e^{Î_nθ}` is not an abstract single-plane rotation — it is the **algebra's own**
+rotation (conjugation by the unit `cos(θ/2) + Î_n sin(θ/2)`), which fixes the axis
+`Î_n = e_{2ⁿ-1}` and turns **every Fano-triple plane through `Î_n`** by `θ` *at
+once*. The plane count is `(2ⁿ-1-1)/2`:
+
+| `n` | `𝔸ₙ` | planes turned by one θ-turn | `Im 𝔸ₙ` rotation eigenvalues |
+|---|---|---|---|
+| 1 | ℂ | **0**  → only `σ` survives | `{σ}` |
+| 2 | ℍ | **1** | `{1, e^{±iθ}}` |
+| 3 | 𝕆 | **3** (the Fano triples through `e₇`) | `{1, e^{±iθ}, e^{±iθ}, e^{±iθ}}` |
+
+So **one θ-turn spins three planes at once in 𝕆** — the `7`-D imaginary splits as
+**`1` fixed axis + `3×2` rotated**. The three planes are the Fano lines through
+`Î₃ = e₇` (Baez 2002 §2; `srmech.qm.octonion`): `{1,6,7}, {2,5,7}, {3,4,7}` →
+planes `(e₁,e₆), (e₂,e₅), (e₃,e₄)` — the first with **reversed** orientation
+(`e₁e₆ = -e₇`), which is why the seed `e₁` rotates to `cos θ·e₁ - sin θ·e₆`. The
+block-diagonal operator `G(σ,θ) = ⨁_n (1 ⊕ σ R_n(θ))`:
+
+```
+ ℂ:  [ 1 ]                              ℝ·1
+     [   σ ]                            Im (1-D: seed = axis → only σ)
+ ℍ:        [ 1 ]                        ℝ·1
+           [   R₂(θ) ]   3×3 = 1 plane (e₁,e₂) + fixed axis e₃
+ 𝕆:                  [ 1 ]             ℝ·1
+                      [   R₃(θ) ] 7×7 = 3 planes (e₁,e₆)(e₂,e₅)(e₃,e₄) + fixed axis e₇
+```
+
+Two structural reads fall out, neither imposed:
+
+1. **n=1 degenerates to σ** — at `n=1` the `Im ℂ` seed *is* the rotation axis, so
+   `θ` is inert and the only freedom is the Class-K sign `σ`. The epicycle **is**
+   the sign-flip at the foundational algebra
+   (`[[user_stance_epicycle_via_gear_plus_pin]]`); rotational richness then grows
+   `0 → 1 → 3` up the ladder.
+2. **The `7` carries a `1 + 3·2`** — the octonion imaginary is not a featureless
+   heptad under the One's rotation; it is one fixed axis plus three 2-planes
+   spinning in lockstep. The `3` of the `1:3:7` **reappears inside the `7`** as the
+   plane-count.
+
+This sharpens the §22 thesis. "Continuous math is a 14-class cascade" is, in the
+table above, a statement about *decomposition* (every op factors into the 14).
+`S(σ,θ)` adds the *generative* direction: the 14 are the block-graded pieces of
+**one** turning object, and turning its single angle `θ` is the epicycle
+(`[[user_stance_epicycle_via_gear_plus_pin]]`) realised simultaneously at three
+scales `0 / 1 / 3` — the Antikythera gear-train of the whole substrate, with the
+octonion dial driving three hands at once.
+
+**SSoT:** Hurwitz (1898) — `ℝ, ℂ, ℍ, 𝕆` is the complete normed-division list;
+Baez, J.C. (2002) *The Octonions*, Bull. Amer. Math. Soc. 39, 145–205
+(arXiv:math/0105155) — the Fano-plane convention. Surfaces:
+`srmech.amsc.cascade.one` (rc49) + `srmech.qm.hurwitz` (rc50); bit-exact parity in
+`tests/test_hurwitz_rc50.py`; `[[project_the_one_s_sigma_theta_in_srmech]]`.

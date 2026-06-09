@@ -1,0 +1,69 @@
+# Cascade catalog entry: schur_complement
+# v0.7.1rc2 — DSL wiring of the Class-L Schur-complement / Dirichlet-to-
+# Neumann boundary-reduction op (#897 §26; F412/F417/F419). The op itself
+# shipped in v0.7.1rc1 at srmech.amsc.laplacian.schur_complement; this
+# descriptor threads boundary_idx + exact through the chain contract so a
+# sector/loop/fold cascade can pipe a Laplacian into the boundary operator.
+
+[cascade]
+name = "schur_complement"
+class_composition = "L"
+purpose = "Class L Schur-complement / Dirichlet-to-Neumann boundary reduction."
+description = """
+Eliminates the interior nodes of a (graph-)Laplacian-shaped matrix L,
+returning the |∂|×|∂| operator that acts only on the boundary set ∂:
+
+    S = L_∂∂ − L_∂i · L_ii⁻¹ · L_i∂
+
+This is the operator|operand FUSION op (#897 §26): the interior block is
+not inverted-then-multiplied but SOLVED through (L_ii⁻¹·L_i∂ is the
+Dirichlet harmonic extension of the boundary data into the interior), so
+S is the discrete Dirichlet-to-Neumann (Poincaré–Steklov) map — the
+Neumann flux S·x_∂ induced on ∂ by the boundary trace x_∂. dirichlet_to_
+neumann is the alias name for the same callable.
+
+For a connected graph Laplacian S inherits the all-ones null vector, so
+its rank is |∂|−1 (row-sums zero) — the reduction is dimensional
+(n → |∂|), not full-rank. exact=True selects the exact-rational interior
+solve (Gauss–Jordan over the rationals, Class N residue-free); the float
+path needs the optional srmech[scientific] numpy extra. A singular
+interior block raises ZeroDivisionError (exact) / LinAlgError (float).
+"""
+
+[cascade.signature]
+# Data-first (cf. reorient/best_rational_signed): L is positional — the DSL
+# pipe fills it — while boundary_idx and exact are keyword-only bound stage
+# kwargs. boundary_idx is REQUIRED (the boundary set has no default); exact
+# defaults to False (float path; numpy-backed). Threading boundary_idx
+# through .then("schur_complement", boundary_idx=[...]) is the v0.7.1rc2
+# chain-contract wiring this descriptor exists for.
+input = "L: square matrix, n×n (positional); boundary_idx: list[int] boundary node indices (keyword-only, required); exact: bool exact-rational interior solve (keyword-only, default False)"
+output = "matrix, |∂|×|∂| (the Schur complement / Dirichlet-to-Neumann operator on ∂)"
+operation = "S = L_∂∂ − L_∂i · L_ii⁻¹ · L_i∂"
+type_preserving = false
+rank_is_boundary_minus_one_for_connected = true
+dsl_stage = "data-first; op=\"schur_complement\" with boundary_idx=[...] (required keyword-only bound kwarg) and optional exact=true"
+
+[cascade.native]
+# Python / srmech[scientific] only at v0.7.1rc2. The native C peer
+# (srmech_schur_complement, additive symbol → ABI stays 3, JPL-clean
+# interior solve) is the v0.7.1rc3 follow-up; this section names no
+# c_symbol until that lands.
+status = "python-only (exact-rational core numpy-free; float path via srmech[scientific]); C peer lands v0.7.1rc3"
+abi_version = 3
+
+[cascade.boundary_cases]
+no_interior = "boundary_idx covering all n nodes returns L_∂∂ unchanged (empty interior; no solve)."
+singular_interior = "A singular interior block L_ii raises ZeroDivisionError (exact path) / numpy.linalg.LinAlgError (float path) — there is no harmonic extension to fall back on."
+exact_vs_float = "exact=True is bit-exact rational (no numpy needed); exact=False needs the srmech[scientific] numpy extra and returns IEEE-754 float."
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "GPL-3.0-or-later"
+parser_version = "srmech-cascade 0.7.1rc2"
+canonical_landings = [
+  "#897 §26 — operator|operand fusion op (F412/F417/F419: 'where the breakthroughs live')",
+  "srmech.amsc.laplacian.schur_complement / dirichlet_to_neumann — the registered Class-L home (tool-schema entry lives there; this is the DSL chain-contract re-export)",
+  "MFO §VII.6.x (Class L graph-Laplacian boundary reduction; Poincaré–Steklov / Dirichlet-to-Neumann)",
+  "feedback_own_work_is_primary_attestation — the committed re-runnable op is the primary attestation; Kron 1939 / Steklov secondary",
+]

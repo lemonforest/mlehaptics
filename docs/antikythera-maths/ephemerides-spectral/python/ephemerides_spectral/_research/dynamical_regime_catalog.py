@@ -10,8 +10,10 @@ labelled training examples.
 This is **NOT machine learning** in the SGD sense
 -----------------------------------------------------
 The classifier looks like nearest-neighbour ML on the surface, but
-the "training step" is a single closed-form ``np.linalg.eigh`` call
-on the standardised covariance matrix. There is **no random
+the "training step" is a single closed-form symmetric eigendecomposition
+of the standardised covariance matrix — routed through the **Class-L
+srmech Jacobi solver** (``_cascade.symmetric_eigh``) since v0.30.0rc6,
+bit-identical to the ``np.linalg.eigh`` it replaced. There is **no random
 initialisation, no stochastic gradient descent, no hyperparameter
 search, no validation split, no pseudorandom anywhere**. The
 eigenbasis is a *property* of the labelled data, not a model fit
@@ -50,11 +52,9 @@ Reference: research notebook section 17.7.
 
 from __future__ import annotations
 
-import math
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-import numpy as np
-
+from . import _cascade
 from .dynamical_regime_data import (
     FORCING_CLASS_GRAVITATIONAL,
     FORCING_CLASS_NAMES,
@@ -91,76 +91,129 @@ FEATURE_NAMES: Tuple[str, ...] = (
 )
 
 
-def _feature_matrix() -> np.ndarray:
+def _is_finite(x: float) -> bool:
+    """``math.isfinite`` without importing ``math`` — ``True`` unless
+    ``x`` is ``±inf`` or ``NaN`` (this module is numpy-free / math-free;
+    its only continuous-math routes through :mod:`_cascade`)."""
+    return x == x and float("-inf") < x < float("inf")
+
+
+def _feature_matrix() -> List[List[float]]:
     """Stack every training example's feature vector into a
-    (n_examples, N_FEATURES) matrix."""
-    return np.array(
-        [list(e.feature_vector()) for e in REGIME_EXAMPLES],
-        dtype=np.float64,
-    )
+    (n_examples, N_FEATURES) row-major matrix (list of rows)."""
+    return [list(e.feature_vector()) for e in REGIME_EXAMPLES]
 
 
 def _standardise(
-    X: np.ndarray,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    X: Sequence[Sequence[float]],
+) -> Tuple[List[List[float]], List[float], List[float]]:
     """Centre + scale a feature matrix to mean-zero unit-variance per
-    feature. Returns (X_std, mean, scale)."""
-    mean = X.mean(axis=0)
-    centred = X - mean
-    # Use ddof=0 to match a population std; we want the basis
-    # reproducible across LAPACK pivoting, not statistically optimal.
-    scale = centred.std(axis=0, ddof=0)
-    # Guard against zero-variance features (would produce NaN). Use
-    # 1.0 in that case so the column passes through unchanged.
-    safe_scale = np.where(scale > 0.0, scale, 1.0)
-    standardised = centred / safe_scale
-    return standardised, mean, safe_scale
+    feature. Returns ``(X_std, mean, scale)`` as plain Python lists.
+
+    The per-feature ``scale`` is the **population** std (ddof = 0):
+    ``√(mean of squared deviations)``, with the square root taken via the
+    Class-N cascade (:func:`_cascade.sqrt`), not ``numpy`` — we want the
+    basis reproducible, not statistically optimal.
+    """
+    n = len(X)
+    d = len(X[0])
+    mean = [sum(X[k][j] for k in range(n)) / n for j in range(d)]
+    centred = [[X[k][j] - mean[j] for j in range(d)] for k in range(n)]
+    var = [sum(centred[k][j] ** 2 for k in range(n)) / n for j in range(d)]
+    # Guard against zero-variance features (would divide by zero). Use
+    # scale 1.0 there so the column passes through unchanged. Class-N sqrt.
+    scale = [_cascade.sqrt(v) if v > 0.0 else 1.0 for v in var]
+    standardised = [
+        [centred[k][j] / scale[j] for j in range(d)] for k in range(n)
+    ]
+    return standardised, mean, scale
 
 
 def _principal_components(
-    X_std: np.ndarray,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Compute the principal-component decomposition of a standardised
-    feature matrix.
+    X_std: Sequence[Sequence[float]],
+) -> Tuple[List[float], List[List[float]]]:
+    """Principal-component decomposition of a standardised feature matrix.
 
-    Returns (eigenvalues_desc, eigenvectors_desc), both sorted so the
-    largest-eigenvalue / largest-variance component comes first. The
-    columns of ``eigenvectors_desc`` are the principal components
-    (one per column).
+    The classifier's single "training step" — a closed-form symmetric
+    eigendecomposition of the standardised covariance — now routes through
+    the **Class-L srmech Jacobi solver** (:func:`_cascade.symmetric_eigh`),
+    not ``np.linalg.eigh``. On this small, well-conditioned covariance the
+    two are bit-identical (verified: ``max |Δ eigenvalue| = 0``).
 
-    Sign convention: each principal component is sign-flipped to make
-    its largest-magnitude entry positive. This produces a stable basis
-    across LAPACK-pivoting differences.
+    Returns ``(eigenvalues_desc, eigenvectors_desc)``, sorted so the
+    largest-variance component comes first. ``eigenvectors_desc[k]`` is
+    principal component ``k`` (a length-``d`` list).
+
+    Sign convention: each PC is sign-flipped (Class C orientation) so its
+    largest-magnitude entry is positive — a stable basis across solver
+    pivoting. The pivot is found by comparing squared entries (no
+    ``abs()`` — magnitude lives in the square, per the cascade-honesty
+    discipline).
     """
-    # Covariance is (1/n) X^T X for centred X.
-    n = X_std.shape[0]
-    cov = (X_std.T @ X_std) / n
-    eigvals, eigvecs = np.linalg.eigh(cov)
+    n = len(X_std)
+    d = len(X_std[0])
+    # Covariance is (1/n) Xᵀ X for centred X.
+    cov = [
+        [sum(X_std[k][i] * X_std[k][j] for k in range(n)) / n
+         for j in range(d)]
+        for i in range(d)
+    ]
+    eigvals, eigvecs_cols = _cascade.symmetric_eigh(cov)  # ascending
     # Sort descending by eigenvalue.
-    order = np.argsort(eigvals)[::-1]
-    eigvals_desc = eigvals[order]
-    eigvecs_desc = eigvecs[:, order]
+    order = sorted(range(d), key=lambda i: eigvals[i], reverse=True)
+    eigvals_desc = [eigvals[i] for i in order]
+    eigvecs_desc = [eigvecs_cols[i] for i in order]
     # Sign convention: largest-magnitude entry of each PC is positive.
-    for k in range(eigvecs_desc.shape[1]):
-        col = eigvecs_desc[:, k]
-        i_max = int(np.argmax(np.abs(col)))
+    for k in range(d):
+        col = eigvecs_desc[k]
+        i_max = max(range(d), key=lambda r: col[r] * col[r])
         if col[i_max] < 0.0:
-            eigvecs_desc[:, k] = -col
+            eigvecs_desc[k] = [-x for x in col]
     return eigvals_desc, eigvecs_desc
+
+
+def _standardise_vector(
+    feature_vector: Sequence[float],
+    mean: Sequence[float],
+    scale: Sequence[float],
+) -> List[float]:
+    """Centre + scale a single raw feature vector against a fitted basis."""
+    return [(feature_vector[j] - mean[j]) / scale[j] for j in range(len(mean))]
 
 
 def _project(
     feature_vector: Sequence[float],
-    mean: np.ndarray,
-    scale: np.ndarray,
-    eigvecs: np.ndarray,
+    mean: Sequence[float],
+    scale: Sequence[float],
+    eigvecs: Sequence[Sequence[float]],
     n_components: int,
-) -> np.ndarray:
-    """Project a raw feature vector into the top-k eigenbasis."""
-    raw = np.asarray(feature_vector, dtype=np.float64)
-    centred = raw - mean
-    standardised = centred / scale
-    return standardised @ eigvecs[:, :n_components]
+) -> List[float]:
+    """Project a raw feature vector into the top-k eigenbasis.
+
+    ``eigvecs`` is a list of columns (``eigvecs[k]`` = PC ``k``); the
+    coordinate on PC ``k`` is the dot product of the standardised vector
+    with that component.
+    """
+    std = _standardise_vector(feature_vector, mean, scale)
+    d = len(std)
+    return [
+        sum(std[i] * eigvecs[k][i] for i in range(d))
+        for k in range(n_components)
+    ]
+
+
+def _project_rows(
+    X_std: Sequence[Sequence[float]],
+    eigvecs: Sequence[Sequence[float]],
+    n_components: int,
+) -> List[List[float]]:
+    """Project every standardised training row into the top-k eigenbasis."""
+    d = len(X_std[0])
+    return [
+        [sum(row[i] * eigvecs[k][i] for i in range(d))
+         for k in range(n_components)]
+        for row in X_std
+    ]
 
 
 def _example_to_dict(e: RegimeExample) -> Dict[str, Any]:
@@ -215,17 +268,21 @@ def get_dynamical_regime_eigenbasis(
     X_std, mean, scale = _standardise(X)
     eigvals, eigvecs = _principal_components(X_std)
 
-    total_variance = float(eigvals.sum())
+    total_variance = sum(eigvals)
     explained_ratio = (
-        eigvals / total_variance if total_variance > 0 else
-        np.zeros_like(eigvals)
+        [v / total_variance for v in eigvals] if total_variance > 0 else
+        [0.0 for _ in eigvals]
     )
-    cumulative = np.cumsum(explained_ratio)
+    cumulative: List[float] = []
+    running = 0.0
+    for r in explained_ratio:
+        running += r
+        cumulative.append(running)
 
     top_components: List[Dict[str, Any]] = []
     for k in range(n_components):
         loadings = {
-            name: float(eigvecs[i, k])
+            name: float(eigvecs[k][i])
             for i, name in enumerate(FEATURE_NAMES)
         }
         top_components.append({
@@ -238,7 +295,7 @@ def get_dynamical_regime_eigenbasis(
 
     # Project every training example into the top-k eigenbasis.
     training_projections: List[Dict[str, Any]] = []
-    proj_matrix = X_std @ eigvecs[:, :n_components]
+    proj_matrix = _project_rows(X_std, eigvecs, n_components)
     for i, e in enumerate(REGIME_EXAMPLES):
         training_projections.append({
             "name": e.name,
@@ -339,11 +396,16 @@ def classify_dynamical_regime(
     input_proj = _project(
         feature_vector, mean, scale, eigvecs, n_components,
     )
-    training_proj = X_std @ eigvecs[:, :n_components]
+    training_proj = _project_rows(X_std, eigvecs, n_components)
 
-    # Euclidean distances in the embedding.
-    diffs = training_proj - input_proj  # (n_examples, n_components)
-    distances = np.sqrt((diffs ** 2).sum(axis=1))
+    # Euclidean distances in the embedding (Class-N cascade sqrt).
+    distances = [
+        _cascade.sqrt(sum(
+            (training_proj[i][c] - input_proj[c]) ** 2
+            for c in range(n_components)
+        ))
+        for i in range(len(REGIME_EXAMPLES))
+    ]
 
     distances_list: List[Dict[str, Any]] = []
     for i, e in enumerate(REGIME_EXAMPLES):
@@ -358,7 +420,7 @@ def classify_dynamical_regime(
         })
     distances_list.sort(key=lambda d: d["distance"])
 
-    nearest_idx = int(np.argmin(distances))
+    nearest_idx = min(range(len(distances)), key=lambda i: distances[i])
     nearest = REGIME_EXAMPLES[nearest_idx]
 
     # --- v0.24.10: calibration-ratio metric ---
@@ -369,7 +431,7 @@ def classify_dynamical_regime(
     else:
         second_nearest_distance = float("inf")
 
-    if second_nearest_distance > 0.0 and math.isfinite(second_nearest_distance):
+    if second_nearest_distance > 0.0 and _is_finite(second_nearest_distance):
         calibration_ratio = nearest_distance / second_nearest_distance
     elif nearest_distance == 0.0:
         # Both zero — degenerate case; treat as confident match.
@@ -379,7 +441,7 @@ def classify_dynamical_regime(
 
     nearest_neighbour_margin = (
         second_nearest_distance - nearest_distance
-        if math.isfinite(second_nearest_distance) else float("inf")
+        if _is_finite(second_nearest_distance) else float("inf")
     )
 
     out_of_distribution = bool(calibration_ratio > ood_threshold)

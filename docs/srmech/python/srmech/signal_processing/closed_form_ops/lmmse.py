@@ -17,6 +17,12 @@ from typing import Optional
 
 import numpy as np
 
+# The math runs through srmech cascades, not numpy: ``dense_solve`` is the
+# Class-L dense linear solve (native ``srmech_dense_solve_f64`` / exact-rational
+# Gauss-Jordan), ``dense_matvec_complex`` the Class-L matrix-vector product.
+# numpy stays carriers-only here (asarray / transpose / elementwise +/-).
+from ...amsc.laplacian import dense_matvec_complex, dense_solve
+
 OPERATION_NAME = "lmmse"
 CLASS_COMPOSITION = ("L", "N")
 PERFORMANCE_HINT = "small-D-one-shot"
@@ -78,7 +84,12 @@ def op(
         my = np.zeros(m, dtype=np.float64)
     else:
         my = np.asarray(mean_y, dtype=np.float64)
-    # Class N rational gain: K = R_xy @ R_yy^-1; computed via solve for
-    # numerical stability.
-    K = np.linalg.solve(Ryy.T, Rxy.T).T  # K @ R_yy = R_xy => K = R_xy R_yy^-1
-    return mx + K @ (y_arr - my)
+    # Class-L gain via the srmech dense-solve cascade: K @ R_yy = R_xy, i.e.
+    # solve R_yy^T · Z = R_xy^T for Z, then K = Z^T. The solve is where the cost
+    # (and the math) lives; it rides ``srmech_dense_solve_f64`` (no numpy linalg).
+    Z = dense_solve(Ryy.T, Rxy.T)
+    K = np.ascontiguousarray(Z, dtype=np.float64).T
+    # Estimate x_hat = mean_x + K · (y - mean_y) via the srmech matvec cascade
+    # (real result of the complex M·v primitive; numpy does only the ± packing).
+    estimate = dense_matvec_complex(K, y_arr - my).real
+    return mx + estimate

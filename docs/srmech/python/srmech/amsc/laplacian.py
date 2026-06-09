@@ -13,6 +13,9 @@ evolution ``ψ(t) = V·diag(exp(-iλt))·V^H·ψ(0)`` (Sakurai *Modern QM*
 - :func:`hermitian_eigendecompose` — complex Hermitian generalisation
   of :func:`jacobi_eigvals` returning eigenvalues + unitary eigvecs.
 - :func:`dense_matvec_complex` — general complex ``M @ v``.
+- :func:`dense_dot_complex` — complex bilinear inner product ``Σ aᵢbᵢ``.
+- :func:`dense_matmul_real` / :func:`dense_matvec_real` / :func:`dense_dot_real`
+  — float64 peers riding the complex kernel (drop the zero imaginary part).
 - :func:`elementwise_multiply_complex` — vectorised ``a * b``.
 - :func:`elementwise_transcendental` — array-vectorised ``exp/cos/sin
   /log`` plus the TDSE-relevant ``exp_i(x) = exp(1j*x)``.
@@ -78,6 +81,7 @@ bound.
 from __future__ import annotations
 
 import ctypes
+from fractions import Fraction  # §26: exact-rational interior solve (Class-N), no float
 from typing import Iterable, List, Optional, Sequence, Tuple
 
 from srmech.amsc.rational import sqrt as _rsqrt  # §22: scalar root via Class-N, not libm
@@ -102,9 +106,17 @@ __all__ = [
     "dense_laplacian",
     "normalized_laplacian",
     "jacobi_eigvals",
+    "dense_solve",
+    "schur_complement",
+    "dirichlet_to_neumann",
     "hermitian_eigendecompose",
     "symmetric_eigendecompose",
     "dense_matvec_complex",
+    "dense_matmul_complex",
+    "dense_dot_complex",
+    "dense_matmul_real",
+    "dense_matvec_real",
+    "dense_dot_real",
     "elementwise_multiply_complex",
     "elementwise_transcendental",
     "LAPLACIAN_OPS",
@@ -527,6 +539,304 @@ def jacobi_eigvals(
 
 
 # =====================================================================
+# UPSTREAM §26 (#897) — the Class-L Schur complement / Dirichlet-to-Neumann
+# (DtN) map: the operator|operand FUSION op (F412 / F417 / F419)
+# =====================================================================
+#
+# Every other Class-L op in the corpus PROJECTS — it maps a spatial graph
+# (operand, 2:4:8) to a cyclic spectrum (operator, 1:3:7) and DROPS the
+# spatial structure (F417, the one-way seam). The Schur complement KEEPS
+# BOTH: the spatial boundary AND its operator spectrum. That is the
+# fusion, not the projection.
+#
+# Holographic reading (F412): boundary = base, bulk = total, fiber =
+# emergent radial dim. Integrating the bulk out leaves a boundary effective
+# operator whose SIZE is |∂| (the boundary), not n (the bulk). That
+# dimensional reduction n → |∂| IS the area law.
+
+
+def _as_rows(L) -> List[list]:
+    """Coerce a matrix (ndarray / list-of-lists / sequence-of-sequences) to a
+    square list-of-lists, validating squareness. No numpy required."""
+    if np is not None and isinstance(L, np.ndarray):
+        if L.ndim != 2 or L.shape[0] != L.shape[1]:
+            raise ValueError(f"L must be square 2-D; got shape {L.shape}")
+        return L.tolist()
+    rows = [list(r) for r in L]
+    n = len(rows)
+    for r in rows:
+        if len(r) != n:
+            raise ValueError(f"L must be square n×n; got a row of length {len(r)} for n={n}")
+    return rows
+
+
+def _validate_boundary(n: int, boundary_idx: Sequence[int]) -> Tuple[List[int], List[int]]:
+    """Split {0..n-1} into the boundary list ∂ (sorted, deduped, validated) and
+    the interior list i (the complement, sorted)."""
+    b = sorted(set(int(k) for k in boundary_idx))
+    if len(b) != len(list(boundary_idx)):
+        raise ValueError("boundary_idx must not contain duplicate indices")
+    if not b:
+        raise ValueError("boundary_idx must be non-empty (1 ≤ |∂| ≤ n)")
+    if b[0] < 0 or b[-1] >= n:
+        raise ValueError(f"boundary_idx entries must be in [0, {n}); got {b}")
+    bset = set(b)
+    i = [k for k in range(n) if k not in bset]
+    return b, i
+
+
+def _solve_exact(A: List[list], B: List[list]) -> List[List[Fraction]]:
+    """Exact-rational solve of ``A · X = B`` over the rationals — Gauss–Jordan
+    elimination in :class:`fractions.Fraction` (the Class-N exact-rational
+    primitive; division here is exact, never a float reciprocal — F392). ``A``
+    is m×m, ``B`` is m×w, the returned ``X`` is m×w. No numpy, no ``abs()``:
+    the pivot is the FIRST nonzero at/below the diagonal (exact arithmetic
+    needs no magnitude-based partial pivoting for stability — only a nonzero
+    pivot). A wholly-zero pivot column ⇒ a singular interior block."""
+    m = len(A)
+    w = len(B[0]) if B else 0
+    # Augmented [A | B] in exact rationals.
+    M = [[Fraction(A[r][c]) for c in range(m)] + [Fraction(B[r][c]) for c in range(w)]
+         for r in range(m)]
+    for col in range(m):
+        pivot = None
+        for r in range(col, m):
+            if M[r][col] != 0:
+                pivot = r
+                break
+        if pivot is None:
+            raise ZeroDivisionError(
+                "singular interior block L_ii: an interior component is "
+                "disconnected from the boundary (no harmonic extension exists)."
+            )
+        if pivot != col:
+            M[col], M[pivot] = M[pivot], M[col]
+        inv_piv = M[col][col]
+        M[col] = [x / inv_piv for x in M[col]]  # exact rational division (Class-N)
+        for r in range(m):
+            if r != col and M[r][col] != 0:
+                f = M[r][col]
+                M[r] = [M[r][cc] - f * M[col][cc] for cc in range(m + w)]
+    return [[M[r][m + cc] for cc in range(w)] for r in range(m)]
+
+
+def _as_solve_rhs(B, n: int):
+    """Normalise a dense-solve right-hand side to ``(is_vector, rows)`` where
+    ``rows`` is an ``n``-row list-of-lists. A 1-D ``B`` (length ``n``) is a
+    single column (returned ``is_vector=True``); a 2-D ``B`` is used as-is.
+    Values are preserved verbatim — NO float coercion — so the exact-rational
+    path keeps ints / :class:`~fractions.Fraction` inputs exact."""
+    if np is not None and isinstance(B, np.ndarray):
+        if B.ndim == 1:
+            if B.shape[0] != n:
+                raise ValueError(f"B vector length {B.shape[0]} != A dimension {n}")
+            return True, [[v] for v in B]
+        rows = [list(row) for row in B]
+    else:
+        seq = list(B)
+        is_1d = bool(seq) and not isinstance(seq[0], (list, tuple)) and not (
+            np is not None and isinstance(seq[0], np.ndarray)
+        )
+        if is_1d:
+            if len(seq) != n:
+                raise ValueError(f"B vector length {len(seq)} != A dimension {n}")
+            return True, [[v] for v in seq]
+        rows = [list(row) for row in seq]
+    if len(rows) != n:
+        raise ValueError(f"B must have {n} rows to match A ({n}×{n}); got {len(rows)}")
+    return False, rows
+
+
+def dense_solve(A, B, *, exact: bool = False):
+    """Class-L dense linear solve ``A · X = B``
+    (v0.7.1rc3; [#897](https://github.com/lemonforest/mlehaptics/issues/897) §26).
+
+    The reusable solve the Schur-complement / Dirichlet-to-Neumann float path
+    composes over — its interior solve ``L_ii⁻¹ · L_i∂`` IS an ``A · X = B``.
+    Promoted to its own exported Class-L primitive: a dense solve is a
+    fundamental, reusable matrix op, and the solve (not the downstream matmul)
+    is where the cost lives.
+
+    ``A`` is ``n×n``; ``B`` is ``n×w`` (a matrix → ``X`` is ``n×w``) or length
+    ``n`` (a vector → ``X`` is length ``n``).
+
+    With **numpy absent** (or ``exact=True``) the solve is **exact-rational**
+    Gauss–Jordan in :class:`fractions.Fraction` (the Class-N core — division is
+    exact, never a float reciprocal, F392) and ``X`` is ``list[list[Fraction]]``
+    (or ``list[Fraction]`` for a vector RHS). With numpy present (and
+    ``exact=False``) the float realization rides the ``[scientific]`` tier: the
+    native C peer ``srmech_dense_solve_f64`` (Gauss–Jordan with partial
+    pivoting — the Class-K magnitude pivot, a sign branch not ``abs()``;
+    bounded ``n, w ≤ 256``) when available, else ``numpy.linalg.solve``.
+
+    Raises
+    ------
+    ValueError
+        Non-square ``A``; ``B`` row-count ≠ ``n``.
+    ZeroDivisionError
+        Singular ``A`` (exact path — no unique solution).
+    """
+    A_rows = _as_rows(A)
+    n = len(A_rows)
+    if n == 0:
+        raise ValueError("A must be a non-empty square matrix")
+    for r in A_rows:
+        if len(r) != n:
+            raise ValueError(
+                f"A must be square; got an {n}-row matrix with a width-{len(r)} row"
+            )
+    is_vec, B_rows = _as_solve_rhs(B, n)
+    w = len(B_rows[0]) if B_rows and B_rows[0] else 0
+
+    if exact or np is None:
+        X = _solve_exact(A_rows, B_rows)  # exact Fraction Gauss–Jordan (Class-N)
+        return [row[0] for row in X] if is_vec else X
+
+    # Float realization — native dense_solve C peer, else numpy.linalg.solve.
+    A_arr = np.ascontiguousarray(A_rows, dtype=np.float64)
+    B_arr = np.ascontiguousarray(B_rows, dtype=np.float64)
+    if (
+        _can_dispatch_native(n)
+        and w <= MAX_NATIVE_NODES
+        and hasattr(_native.LIB, "srmech_dense_solve_f64")
+    ):
+        out = np.zeros((n, w), dtype=np.float64)
+        rc = _native.LIB.srmech_dense_solve_f64(
+            ctypes.c_uint32(n),
+            ctypes.c_uint32(w),
+            A_arr.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            B_arr.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            out.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        )
+        if rc == _native.SRMECH_OK:
+            return out[:, 0] if is_vec else out
+        if rc not in (_native.SRMECH_ERR_OVERFLOW, _native.SRMECH_ERR_BAD_INPUT):
+            raise RuntimeError(f"srmech_dense_solve_f64 returned non-OK status {rc}")
+        # OVERFLOW (over the native bound) or BAD_INPUT (singular) → numpy.
+    X = np.linalg.solve(A_arr, B_arr)
+    return X[:, 0] if is_vec else X
+
+
+def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
+    """Class-L Schur complement / discrete Dirichlet-to-Neumann (DtN) map
+    (UPSTREAM §26; [#897](https://github.com/lemonforest/mlehaptics/issues/897)).
+
+    Integrate the interior (bulk) out of ``L`` and keep the boundary effective
+    operator::
+
+        S = L_∂∂ − L_∂i · L_ii⁻¹ · L_i∂
+
+    where ``∂ = boundary_idx`` and ``i`` is the interior complement. ``S`` is
+    the discrete **Dirichlet-to-Neumann map**: given boundary values ``x_∂``,
+    the unique harmonic extension into the interior solves
+    ``L_ii x_i = −L_i∂ x_∂`` and ``S x_∂`` is the boundary normal-derivative of
+    that extension. **Boundary data ⟹ the whole interior field.**
+
+    The operator|operand FUSION op (F412 / F417 / F419): every other Class-L
+    cascade PROJECTS (spatial operand → cyclic operator, F417's one-way seam),
+    dropping the spatial structure; ``schur_complement`` keeps BOTH the spatial
+    boundary and its spectrum. Holographic reading (F412): the bulk is
+    integrated out, the effective theory lives on the boundary — ``S`` has
+    ``|∂|`` modes (the boundary), not ``n`` (the bulk). That reduction
+    ``n → |∂|`` is the area law.
+
+    Cascade-honesty: the interior solve ``L_ii⁻¹`` is an inverse = Class C
+    (conjugate) → Class K (``1/‖·‖²``); no ``abs()``. With **numpy absent** (or
+    ``exact=True``) the solve is **exact-rational** Gauss–Jordan elimination in
+    :class:`fractions.Fraction` (the Class-N rational core — division is exact,
+    never a float reciprocal) and ``S`` is returned as ``list[list[Fraction]]``.
+    With numpy present (and ``exact=False``) the float realization rides the
+    ``[scientific]`` tier (``numpy.linalg.solve``) and ``S`` is an
+    ``ndarray``. Canonical SSoT: Zhang, *The Schur Complement and Its
+    Applications* (2005) §0; the DtN map is textbook (Golub & Van Loan §3.2).
+
+    Parameters
+    ----------
+    L : matrix, ``n×n``
+        ``ndarray`` (numpy present) or ``list[list]`` — a symmetric
+        positive-semidefinite operator (a graph Laplacian from
+        :func:`dense_laplacian`, or any SPD matrix).
+    boundary_idx : sequence[int]
+        The boundary node indices ``∂``; ``1 ≤ |∂| ≤ n``, no duplicates.
+    exact : bool, default ``False``
+        Force the exact-rational :class:`~fractions.Fraction` solve even when
+        numpy is present (returns ``list[list[Fraction]]``).
+
+    Returns
+    -------
+    S : ``|∂|×|∂|`` boundary effective operator
+        ``ndarray`` (float path) or ``list[list[Fraction]]`` (exact path).
+
+    Raises
+    ------
+    ValueError
+        Non-square ``L``; empty / out-of-range / duplicate ``boundary_idx``.
+    ZeroDivisionError
+        Singular interior block ``L_ii`` — an interior component disconnected
+        from the boundary, so no harmonic extension exists.
+
+    Notes
+    -----
+    For a pure graph Laplacian the DtN map (a Kron reduction) inherits the
+    all-ones null vector, so ``rank(S) = |∂| − c`` where ``c`` is the number of
+    connected components of the boundary-reduced graph (``= |∂| − 1`` for a
+    connected graph). The *area law* is the dimensional reduction ``n → |∂|``
+    (the effective operator lives on the boundary), not a full-rank claim.
+    """
+    rows = _as_rows(L)
+    n = len(rows)
+    if n == 0:
+        raise ValueError("L must be a non-empty square matrix")
+    b, i = _validate_boundary(n, boundary_idx)
+
+    # Block extraction (pure container slicing — numpy-free).
+    def _block(rs, cs):
+        return [[rows[p][q] for q in cs] for p in rs]
+
+    L_pp = _block(b, b)  # L_∂∂
+
+    if not i:
+        # No interior to integrate out — the boundary IS the whole space.
+        if exact or np is None:
+            return [[Fraction(v) for v in r] for r in L_pp]
+        return np.asarray(L_pp, dtype=np.float64)
+
+    L_pi = _block(b, i)  # L_∂i
+    L_ip = _block(i, b)  # L_i∂
+    L_ii = _block(i, i)  # L_ii
+
+    if exact or np is None:
+        # Interior solve L_ii · X = L_i∂ (X is |i|×|∂|) via the Class-L
+        # dense_solve primitive — exact-rational Gauss–Jordan (Class-N).
+        X = dense_solve(L_ii, L_ip, exact=True)
+        # S = L_∂∂ − L_∂i · X  (all exact Fraction).
+        S = [
+            [
+                Fraction(L_pp[a][c])
+                - sum(Fraction(L_pi[a][k]) * X[k][c] for k in range(len(i)))
+                for c in range(len(b))
+            ]
+            for a in range(len(b))
+        ]
+        return S
+
+    # Float realization — the [scientific] tier. The expensive interior solve
+    # rides the native dense_solve C peer (numpy fallback inside dense_solve);
+    # the cheap boundary GEMM + subtract stay numpy.
+    X = dense_solve(L_ii, L_ip)
+    S = np.asarray(L_pp, dtype=np.float64) - np.asarray(L_pi, dtype=np.float64) @ X
+    return S
+
+
+def dirichlet_to_neumann(L, boundary_idx: Sequence[int], *, exact: bool = False):
+    """Alias for :func:`schur_complement` — the discrete Dirichlet-to-Neumann
+    (DtN) map ``S = L_∂∂ − L_∂i · L_ii⁻¹ · L_i∂`` (UPSTREAM §26; #897). Given
+    boundary values, ``S`` returns the boundary normal-derivative of their
+    harmonic extension into the interior."""
+    return schur_complement(L, boundary_idx, exact=exact)
+
+
+# =====================================================================
 # ADR-0002 Phase 2 — Class L broadening
 # =====================================================================
 #
@@ -696,6 +1006,204 @@ def dense_matvec_complex(M: np.ndarray, v: np.ndarray) -> np.ndarray:
         if rc == _native.SRMECH_OK:
             return _interleaved_to_complex(out_il, (rows,))
     return (M_arr @ v_arr).astype(np.complex128)
+
+
+def dense_matmul_complex(A: np.ndarray, B: np.ndarray) -> np.ndarray:
+    """Dense complex matrix-matrix multiplication ``A·B``.
+
+    The srmech Class-L contraction the QM / ``matrix_cascades`` matmul math routes
+    through, so numpy stays carriers-only (no ``np`` matmul engine). Native
+    ``srmech_dense_matmul_complex`` when present (each dim ≤ 256); else composes
+    the :func:`dense_matvec_complex` cascade column-by-column — the no-native
+    fallback is itself a cascade, **never** numpy ``@``.
+
+    Parameters
+    ----------
+    A
+        ``(m, k)`` complex matrix.
+    B
+        ``(k, n)`` complex matrix.
+
+    Returns
+    -------
+    out
+        ``(m, n)`` complex128 array.
+
+    Canonical SSoT: Golub & Van Loan §1.1 (textbook matrix multiplication).
+    """
+    A_arr = np.ascontiguousarray(A, dtype=np.complex128)
+    B_arr = np.ascontiguousarray(B, dtype=np.complex128)
+    if A_arr.ndim != 2 or B_arr.ndim != 2:
+        raise ValueError(
+            f"A and B must be 2-D; got ndim {A_arr.ndim} and {B_arr.ndim}"
+        )
+    m, k = A_arr.shape
+    k2, n = B_arr.shape
+    if k2 != k:
+        raise ValueError(
+            f"A shape {A_arr.shape} incompatible with B shape {B_arr.shape}"
+        )
+    if (_native.HAS_NATIVE
+            and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_dense_matmul_complex")
+            and m <= MAX_NATIVE_NODES
+            and k <= MAX_NATIVE_NODES
+            and n <= MAX_NATIVE_NODES):
+        A_il = _complex_to_interleaved(A_arr)
+        B_il = _complex_to_interleaved(B_arr)
+        out_il = np.zeros(2 * m * n, dtype=np.float64)
+        rc = _native.LIB.srmech_dense_matmul_complex(
+            ctypes.c_uint32(m),
+            ctypes.c_uint32(k),
+            ctypes.c_uint32(n),
+            A_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            B_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            out_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        )
+        if rc == _native.SRMECH_OK:
+            return _interleaved_to_complex(out_il, (m, n))
+    # No-native / over-bound fallback: compose the matvec cascade per column of
+    # B (a cascade, not numpy matmul — keeps numpy carriers-only here too).
+    out = np.empty((m, n), dtype=np.complex128)
+    for j in range(n):
+        out[:, j] = dense_matvec_complex(A_arr, B_arr[:, j])
+    return out
+
+
+def dense_dot_complex(a: np.ndarray, b: np.ndarray) -> complex:
+    """Dense complex bilinear inner product ``a · b = Σ aᵢ bᵢ``.
+
+    The 1-D contraction the QM η-sandwiches and the ``matrix_cascades``
+    back-solves route through, so numpy stays carriers-only (no numpy
+    contraction engine). This is the **plain bilinear** form ``Σ aᵢ bᵢ``
+    (matching numpy ``a·b`` on two 1-D arrays — NOT the Hermitian ``vdot``,
+    which conjugates its first argument). Callers that want the Hermitian inner
+    product pass ``a.conj()`` explicitly (the ``.conj()`` is a carrier
+    transform, not math-engine), exactly as the ``a.conj()·eta·b`` sites
+    already spell it.
+
+    Composes the :func:`elementwise_multiply_complex` cascade (native-dispatched
+    when present) with a reduction sum — **never** a numpy contraction operator.
+    The reduction sits on the carrier⇄math boundary (the ledger's DEFERRED
+    category), so this helper adds nothing to the tight engine ceilings while
+    removing a contraction-engine callsite.
+
+    Parameters
+    ----------
+    a, b
+        Length-``n`` complex vectors (same length).
+
+    Returns
+    -------
+    out
+        Python ``complex`` scalar ``Σ aᵢ bᵢ``.
+
+    Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
+    Hopkins, 2013) §1.1 (textbook inner product).
+    """
+    a_arr = np.ascontiguousarray(a, dtype=np.complex128).reshape(-1)
+    b_arr = np.ascontiguousarray(b, dtype=np.complex128).reshape(-1)
+    if a_arr.shape[0] != b_arr.shape[0]:
+        raise ValueError(
+            f"dense_dot_complex: a length {a_arr.shape[0]} != b length "
+            f"{b_arr.shape[0]}"
+        )
+    if a_arr.shape[0] == 0:
+        return complex(0.0)
+    # Class-M elementwise bind (native dispatch) + reduction (carrier boundary).
+    products = elementwise_multiply_complex(a_arr, b_arr)
+    return complex(np.sum(products))
+
+
+# ---------------------------------------------------------------------------
+# Real-typed peers. The complex kernel IS the contraction engine; a real
+# matmul/matvec/dot is the complex one on imag-free input with the (exactly
+# zero) imaginary part dropped — so these ride the native complex kernel and
+# return float64. They exist so the real-typed scientific-tier sites (Spin(8)
+# / g₂ / triality octonion-rep algebra, octonion-DFT regular representation,
+# Minkowski real 4-momenta, real DSP) can leave numpy `@`/`.dot` for a cascade
+# without a dtype change. Each is `composition_of_c` (no own C symbol; the math
+# rides the c_dispatched complex kernel; standalone-ready).
+# ---------------------------------------------------------------------------
+def dense_matmul_real(A: np.ndarray, B: np.ndarray) -> np.ndarray:
+    """Dense real matrix-matrix multiplication ``A·B`` → float64.
+
+    Routes the real contraction through :func:`dense_matmul_complex` (the
+    native complex kernel on imag-free input) and drops the exactly-zero
+    imaginary part. numpy stays carriers-only — no numpy matmul engine.
+
+    Parameters
+    ----------
+    A
+        ``(m, k)`` real matrix.
+    B
+        ``(k, n)`` real matrix.
+
+    Returns
+    -------
+    out
+        ``(m, n)`` float64 array.
+
+    Canonical SSoT: Golub & Van Loan §1.1 (textbook matrix multiplication).
+    """
+    out = dense_matmul_complex(
+        np.ascontiguousarray(A, dtype=np.float64),
+        np.ascontiguousarray(B, dtype=np.float64),
+    )
+    return np.ascontiguousarray(out.real, dtype=np.float64)
+
+
+def dense_matvec_real(M: np.ndarray, v: np.ndarray) -> np.ndarray:
+    """Dense real matrix-vector multiplication ``M·v`` → float64.
+
+    Real peer of :func:`dense_matvec_complex` (rides the native complex kernel
+    on imag-free input, drops the zero imaginary part). numpy carriers-only.
+
+    Parameters
+    ----------
+    M
+        ``(rows, cols)`` real matrix.
+    v
+        Length-``cols`` real vector.
+
+    Returns
+    -------
+    out
+        Length-``rows`` float64 array.
+
+    Canonical SSoT: Golub & Van Loan §1.1 (textbook matrix-vector product).
+    """
+    out = dense_matvec_complex(
+        np.ascontiguousarray(M, dtype=np.float64),
+        np.ascontiguousarray(v, dtype=np.float64),
+    )
+    return np.ascontiguousarray(out.real, dtype=np.float64)
+
+
+def dense_dot_real(a: np.ndarray, b: np.ndarray) -> float:
+    """Dense real inner product ``Σ aᵢ bᵢ`` → Python ``float``.
+
+    Real peer of :func:`dense_dot_complex` (rides the native elementwise-bind
+    cascade on imag-free input + reduction). numpy carriers-only.
+
+    Parameters
+    ----------
+    a, b
+        Length-``n`` real vectors (same length).
+
+    Returns
+    -------
+    out
+        Python ``float`` ``Σ aᵢ bᵢ``.
+
+    Canonical SSoT: Golub & Van Loan §1.1 (textbook inner product).
+    """
+    return float(
+        dense_dot_complex(
+            np.ascontiguousarray(a, dtype=np.float64),
+            np.ascontiguousarray(b, dtype=np.float64),
+        ).real
+    )
 
 
 def elementwise_multiply_complex(
@@ -1006,6 +1514,14 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "hermitian_eigendecompose",
     "symmetric_eigendecompose",
     "dense_matvec_complex",
+    "dense_matmul_complex",
+    "dense_dot_complex",
+    "dense_matmul_real",
+    "dense_matvec_real",
+    "dense_dot_real",
     "elementwise_multiply_complex",
     "elementwise_transcendental",
+    "dense_solve",
+    "schur_complement",
+    "dirichlet_to_neumann",
 )

@@ -10,6 +10,640 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.30.0rc10] — 2026-06-07
+
+### Added — heat_flow dual-author attested-TOML backfill
+
+The 6 per-body heat-flow rows (terra / mars / io / europa / enceladus /
+titan) shipped at v0.21.8 in the hand-coded `_research/heat_flow_data.py`
+module are now **dual-authored** — encoded a second time through the AMSC
+literature_curated path at `research/attested/heat_flow/` (descriptor +
+JSON Schema + NDJSON), with a per-row byte-stable diff test
+(`tests/test_heat_flow_dual_author.py`; the saturn_rings + solar_rotation +
+tidal_migration pattern). The `HeatFlow` @dataclass gains per-row
+provenance fields (`source_doi` / `source_published_date` /
+`entered_locally_at` / `source_version`) and a `heatflow_to_data_dict`
+projection; the AMSC NDJSON is generated from those rows, so the two paths
+agree by construction and the diff test guards against future drift.
+
+This is the backfill heat_flow was **held back from at v0.30.0rc7**: the
+rc7 triality panel, sweeping heat_flow while backfilling tidal_migration,
+caught three broken citations in its shipped data (`khan_2023`,
+`tobie_2008`, `veeder_2012`), so it waited for the **v0.30.0rc9 citation
+repair** before being dual-authored over correct provenance (MPM: don't
+backfill over broken citations). All **six per-row source DOIs are
+CrossRef-verified** — the three rc9 repairs (Frizzell 2023 /
+Tobie 2005 / the Veeder 2012 title) plus the three pre-existing
+(Davies 2010 `10.5194/se-1-5-2010`, Vance 2018 `10.1002/2017JE005341`,
+Howett 2011 `10.1029/2010JE003718`), all re-confirmed against live CrossRef
+2026-06-07.
+
+One new attested source: `bridge.list_attested_sources` `n_sources`
+**31 → 32**, curated **28 → 29** (the `test_attested_collector` ratchets +
+roster keys updated). **No srmech floor change** (stays `>=0.7.4`); **no
+`ephemerides_spectral` code or ABI change** (`ES_ABI_VERSION = 10`); the
+codegen mirror + manifest were regenerated (165 files). Full local suite
+green. Rc cycles through TestPyPI only.
+
+## [0.30.0rc9] — 2026-06-07
+
+### Fixed — heat_flow catalogue citation repair (3 triality-flagged defects)
+
+The v0.30.0rc7 triality-attestation panel, while backfilling tidal_migration,
+swept the heat_flow catalogue too and caught three broken citations in shipped
+data. heat_flow was held back at rc7 ("held back for a dedicated citation-repair
+rc rather than backfilled over broken provenance"); this rc is that repair. Each
+replacement was **verified against the live CrossRef API** (DOI → exact title /
+authors / journal / volume / pages) before adoption — MPM discipline: a citation
+that can't be re-verified is not real.
+
+- **`veeder_2012` — title corrected.** The shipped citation read *"Io: heat flow
+  from small volcanic features"* (Icarus 219, 701–722, `10.1016/j.icarus.2012.04.004`)
+  — but that title belongs to a **different** Veeder paper (the 2015 one). The DOI,
+  volume, and pages were correct; only the title was wrong. CrossRef confirms
+  `10.1016/j.icarus.2012.04.004` → **"Io: Volcanic thermal sources and global heat
+  flow"** (Veeder, Davies, Matson, Johnson, Williams, Radebaugh, 2012). Title fixed;
+  full author list restored.
+- **`tobie_2008` → `tobie_2005`.** The shipped `tobie_2008` citation was the
+  **Enceladus** south-pole-hotspot paper (`10.1016/j.icarus.2008.03.008`), cited for
+  the **Titan** row with a parenthetical hand-wave ("applies in same framework").
+  Replaced by the real Titan internal-structure paper: **Tobie, Grasset, Lunine,
+  Mocquet & Sotin (2005), "Titan's internal structure inferred from a coupled
+  thermal-orbital model", Icarus 175, 496–502, `10.1016/j.icarus.2004.12.007`**
+  (CrossRef-verified). Source key renamed; the Titan row's `observation_method`,
+  notes, and comment header updated `Tobie 2008` → `Tobie 2005`.
+- **`khan_2023` → `frizzell_2023`.** The shipped `khan_2023` DOI
+  (`10.1038/s41586-023-06289-w`) resolves to an **unrelated condensed-matter physics
+  paper**, and the citation text described a **lunar** Apollo-seismic study — neither
+  matches the Mars-InSight heat-flow row it annotated. Replaced by the real
+  Mars-InSight heat-flow paper: **Frizzell, Ojha & Karunatillake (2023), "Bounding
+  the unknowns of martian crustal heat flow from a synthesis of regional geochemistry
+  and InSight mission data", Icarus 405, 115700, `10.1016/j.icarus.2023.115700`**
+  (CrossRef-verified). Source key renamed.
+
+### Changed — Mars heat-flow value aligned to the corrected source
+
+The Mars row's numbers were **internally inconsistent** (`total_heat_flow_TW = 0.1`
+against a "~25–30 mW/m² globally averaged" note — 25 mW/m² over Mars's surface is
+~3.6 TW, ~30× the stated 0.1 TW). Aligned to what Frizzell 2023 actually reports
+(crustal heat flow **3.0–13.9 mW/m²** for the endmember crustal-thickness models):
+`total_heat_flow_TW` 0.1 → **1.5** (≈ upper-end crustal flow globally), the note
+rewritten to the 3–14 mW/m² range, and `precision_flag` HIGH → MEDIUM (a synthesis
+range, not a direct measurement). `test_mars_radiogenic_dominated` and its docstring
+updated in lockstep (`< 1.0` → `< 5.0`, still ≪ Earth's 47 TW).
+
+**`SOURCES` stays 6** (two key renames, no additions). **No srmech floor change**
+(stays `>=0.7.4`); **no `ephemerides_spectral` code or ABI change**
+(`ES_ABI_VERSION = 10`); the codegen mirror + manifest were regenerated. Full local
+suite green (2291 passed, 74 skipped). The held-back heat_flow **dual-author
+attested-TOML backfill** (the tidal_migration pattern) follows in a subsequent rc,
+now that the citations it would encode are correct. Rc cycles through TestPyPI only.
+
+## [0.30.0rc8] — 2026-06-07
+
+### Changed — srmech dependency floor `>=0.7.1` → `>=0.7.4`
+
+Tracks the just-graduated **srmech v0.7.2 / v0.7.3 / v0.7.4**
+production cuts:
+
+- **v0.7.2** — the bidirectional `(σ,θ,μ)` `hypercomplex_couple`
+  (QDFT/ODFT general/diagonal μ-axis; issue #908) + the Hamming/GF(2)
+  single-error-correcting block-code front-loader (§30, Rosetta C/Python).
+- **v0.7.3** — the Cayley–Dickson open-exterior boundary-demonstrator
+  (`cascade.cayley_dickson`; PR #915 / MFO §VII.6.23) — the deliberately
+  non-reversible object past the Hurwitz wall.
+- **v0.7.4** — the sedenion-addressable RBS-HDC instrument
+  `cascade.sedenion_register` (PR #687 §31) + three RBS-LM
+  candidate-additions (`signed_sum_squared` / `top_k_by_score` /
+  `bundle_with_ties`).
+
+Every one of these is an **additive composite over the srmech 14-class
+A–N vocabulary** — no new primitive class, srmech ABI stays **3**, numpy
+stays optional. `ephemerides-spectral` consumes the `srmech.amsc.*`
+surface only — the Class-L `srmech.amsc.laplacian` + Class-N
+`srmech.amsc.rational` cascade ops the v0.30.0 `_research/_cascade.py`
+refactors route through, plus the AMSC catalog/format framework — all of
+which is unchanged and additive across 0.7.1 → 0.7.4. The 75
+`test_attested_collector` tests pass unchanged; the `n_sources` 31 /
+curated 28 AMSC-bridge ratchets hold.
+
+**Profile-floor lockstep fix.** The same sweep corrects
+`srmech_profile.toml`'s `[profile].srmech_requires`, which had been left
+at `>=0.4.2` when the v0.29.3rc3 floor bump moved the two `pyproject`
+`srmech>=…` pins to `>=0.7.1` (the field is informational for the
+plugin-profile loader and unenforced by any test, so it didn't break
+anything — but it had been silently understating the real floor since
+the v0.30.0 `_cascade.py` refactors began consuming the 0.7.x Class-L /
+Class-N ops). It now reads `>=0.7.4`, back in lockstep with the
+dependency pin (restoring the 0.29.1 / 0.29.2rc1 lockstep discipline).
+
+**No `ephemerides_spectral` code or ABI change** (`ES_ABI_VERSION = 10`
+unchanged from v0.29.0); version-only bump `0.30.0rc7` → `0.30.0rc8`
+across the SSOT locations (`pyproject.toml`, `pyproject-pure.toml`,
+`version.py`, `srmech_profile.toml`, `c/include/ephemerides_spectral.h`,
+`ephemerides_spectral/_data/manifest.json`, README banner) plus the two
+`srmech>=…` dependency lines and the profile floor. Rc cycles through
+TestPyPI only.
+
+## [0.30.0rc7] — 2026-06-06
+
+### Added — attested-TOML dual-author: tidal_migration
+
+The v0.21.6 Sol Tidal Migration catalogue (6 parent-satellite pairs:
+terra-luna, mars-phobos, jupiter-io, saturn-titan, neptune-triton,
+pluto-charon) is now **dual-authored** — its hand-coded
+`_research/tidal_migration_data.py` rows are encoded a second time
+through the AMSC literature_curated path, with a per-row byte-stable
+diff test (the saturn_rings + solar_rotation pattern; the first
+attested-TOML backfill of a v0.21.x cross-channel coupling catalogue).
+
+- **`research/attested/tidal_migration/`** — new `descriptor.toml`
+  (literature_curated, `require_per_row_source_doi`), `migration.schema.json`
+  (`tidal_migration.migration.v1`), and `migration.ndjson` (6 rows).
+- **`tidal_migration_data.py`** — the `TidalMigration` dataclass gains
+  per-row provenance (`source_doi` / `source_published_date` /
+  `entered_locally_at` / `source_version`) + a `migration_to_data_dict`
+  emitter; `migration_rate_cm_per_year` etc. unchanged.
+- **`tests/test_tidal_migration_dual_author.py`** — row-count / pair-set
+  / per-field / full-dict-equality + per-row source_doi presence + the
+  williams-year-2015 assertion.
+- Ratchets: `list_attested_sources` `n_sources` 30 → 31, curated 27 → 28.
+
+### Triality attestation — DOIs verified, and a defect found
+
+The 6 tidal_migration DOIs were **triality-attested**: haiku + sonnet +
+opus each independently verified them against live CrossRef, then an
+opus reconciler collision-detected (agreement alone insufficient — the
+three models can share a wrong training prior; our committed data is the
+reference, the model weights are what's checked). All six resolve and
+match their cited paper (Williams & Boggs 2015, Lainey 2007/2009/2020,
+Jacobson 2009, McKinnon 2017). The panel corrected the terra-luna
+`source_published_date` to **2015** (CrossRef's published year; the DOI
+suffix `2014JE004755` uses the submission-ID convention).
+
+The same panel run swept the **heat_flow** catalogue (the intended
+second backfill in this batch) and **caught provenance defects in
+shipped data** (v0.21.8):
+
+- `khan_2023` (Mars row) — DOI `10.1038/s41586-023-06289-w` resolves to
+  an **unrelated condensed-matter physics paper** (Cai et al.,
+  "Signatures of fractional quantum anomalous Hall states in twisted
+  MoTe₂", Nature 622, 63-68), not any Khan Mars/lunar heat-flow paper.
+- `tobie_2008` (Titan row) — DOI is valid but is the **Enceladus**
+  south-pole hotspot paper, cited for the **Titan** row (wrong-body).
+- `veeder_2012` (Io row) — DOI sound; title is a paraphrase of the real
+  "Io: Volcanic thermal sources and global heat flow".
+
+Per MPM / gold-is-law (a citation that can't be re-verified is not real;
+do not guess a replacement from training weights), **heat_flow is held
+back** from this backfill for a dedicated citation-repair rc rather than
+shipped over broken provenance.
+
+### Unchanged
+
+- **No ABI change** (`ES_ABI_VERSION = 10`). Version bump
+  `0.30.0rc6` → `0.30.0rc7` across the 6 SSOT locations + README banner;
+  the un-graduated 0.30.0 rc series carries the srmech `>=0.7.1` floor.
+  Rc cycles through TestPyPI only.
+
+## [0.30.0rc6] — 2026-06-06
+
+### Changed — cascade-compute refactor: dynamical_regime classifier
+
+The v0.24.9 dynamical-regime classifier's **single "training step"** — a
+closed-form symmetric eigendecomposition of the standardised covariance
+that learns the PCA eigenbasis over the 11 v0.24.x labelled regime
+examples — now routes through the **Class-L srmech Jacobi solver**
+instead of `np.linalg.eigh`. The module joins saturn_rings +
+solar_rotation + hawaii_chain + mars_tharsis in dropping `import numpy`
+/ `import math` entirely.
+
+- **`_research/_cascade.py`** — new `symmetric_eigh(matrix)`: the
+  numpy-free drop-in for `np.linalg.eigh` on a symmetric matrix,
+  wrapping `srmech.amsc.laplacian.symmetric_eigendecompose` (Class-L
+  Jacobi). Returns `(eigvals ascending, eigvecs_cols)` where
+  `eigvecs_cols[k]` is mode `k` as a plain list (a caller-friendly
+  transpose of `eigh`'s column-major `V`).
+- **`dynamical_regime_catalog.py`** — full pure-Python + cascade rewrite:
+  - `_principal_components` builds the covariance with pure-Python sums
+    and calls `_cascade.symmetric_eigh`; the descending sort + the
+    sign-convention pivot use a squared-magnitude comparison (no
+    `abs()`, per the cascade-honesty discipline — Class C orientation).
+  - `_standardise` computes the population std via the **Class-N**
+    `_cascade.sqrt`; the nearest-neighbour Euclidean distances likewise.
+  - covariance build / projection (`_project`, `_project_rows`) / argmin
+    / cumulative-variance are pure-Python list arithmetic.
+  - `math.isfinite` → a local `_is_finite` (no `math` import).
+
+Bit-identical eigendecomposition — verified `max |Δ eigenvalue| = 0` on
+the standardised covariance, and bit-identical top-3 eigenvectors after
+the sign+order convention. Bit-equivalent end-to-end: every training
+self-classification (distance < 1e-9 to itself), every OOS-probe
+calibration ratio (Vesta `0.7908 < 0.85`, Ceres `0.9584 > 0.85`), every
+nearest-regime label and OOD flag reproduce the prior numpy values to
+~1e-15 — well under the tests' `1e-9` tolerances and the `0.85`
+threshold margins — so **no test thresholds moved**. The change is
+*which engine* computes the spectral decomposition, per the srmech
+v0.7.0 thesis (every continuous-math op a cascade of the 14).
+
+### Unchanged
+
+- **No ABI change** (`ES_ABI_VERSION = 10`). Version bump
+  `0.30.0rc5` → `0.30.0rc6` across the 6 SSOT locations + README banner;
+  the un-graduated 0.30.0 rc series carries the srmech `>=0.7.1` floor.
+  Rc cycles through TestPyPI only.
+
+## [0.30.0rc5] — 2026-06-06
+
+### Changed — cascade-compute refactor: hawaii_chain + mars_tharsis
+
+The 4th + 5th catalogues to route their continuous-math through the
+shared `_research/_cascade.py` helper (srmech's 14-class ops) instead
+of raw `numpy` / `math`, after the rc3 Saturn-ring + solar-rotation
+refactor. The Hawaiian-Emperor seamount chain (v0.24.5) and Mars
+Tharsis volcanic chain (v0.24.7) are structurally identical: haversine
+distances + a Gaussian-proximity graph-Laplacian Fiedler partition + a
+degree-1 line fit.
+
+- **`_research/_cascade.py`** — new helpers:
+  - `sin` / `cos` / `atan2` (radian-input Class-N rational, re-exporting
+    `srmech.amsc.rational`).
+  - `great_circle_distance_km(lat1, lon1, lat2, lon2, radius_km)` — the
+    haversine, transcendental core via the Class-N cascade.
+  - `gaussian_eigs_from_pairs(n, pair_distances, sigma)` — the
+    distance-metric generalisation of `gaussian_proximity_eigs`
+    (Class-L `srmech.amsc.laplacian` build + `symmetric_eigendecompose`),
+    for graphs whose edge length is a great-circle distance, not a 1-D
+    coordinate difference. Replaces `np.linalg.eigh` on a hand-built `L`.
+  - `linfit(xs, ys)` — closed-form OLS `(slope, intercept)`, the
+    degree-1 `np.polyfit` replacement (normal-equation arithmetic, no
+    SVD, no numpy).
+- **`hawaii_chain_catalog.py`** — haversine → `_cascade`; the two
+  `np.linalg.eigh` Fiedler sites → `_cascade.gaussian_eigs_from_pairs`
+  (Meiji sign-pin preserved); the two `np.polyfit` slope/residual fits
+  → `_cascade.linfit`; `math.isnan` → `m == m`. Drops `import math` /
+  `import numpy`.
+- **`mars_tharsis_catalog.py`** — the same refactor (Mars radius;
+  Olympus-Mons sign-pin; ridge `lon = a·lat + b` fit → `_cascade.linfit`).
+
+Bit-equivalent to the prior values — the Fiedler partitions, λ₂/λ₃
+eigenvalue gaps, the post-bend Pacific-plate velocity slope, and the
+Olympus/Alba ridge residuals are unchanged within float round-off, so
+**no test thresholds moved**. The change is *which engine* computes the
+continuous-math, per the srmech v0.7.0 thesis (every continuous-math op
+a cascade of the 14).
+
+### Scope
+
+dynamical_regime (the covariance-PCA classifier) is **deferred to its
+own rc** — its calibration-ratio + OOS-probe tests are sensitive to the
+exact eigenbasis, a materially more delicate refactor than the
+Gaussian-Laplacian Fiedler one shipped here.
+
+### Unchanged
+
+- **No ABI change** (`ES_ABI_VERSION = 10`). Version bump
+  `0.30.0rc4` → `0.30.0rc5` across the 6 SSOT locations + README banner;
+  the un-graduated 0.30.0 rc series carries the srmech `>=0.7.1` floor.
+  Rc cycles through TestPyPI only.
+
+## [0.30.0rc4] — 2026-06-06
+
+### Added — attested-TOML dual-author for solar_rotation + solar_cycle
+
+The 2nd + 3rd applications of the saturn_rings dual-author pattern: the
+rc2 Solar Rotation and rc3 Solar Cycle catalogues now author their data
+rows TWICE — the hand-coded `_research/*_data.py` module **and** an AMSC
+`literature_curated` descriptor + JSON Schema + NDJSON — with a per-row
+diff test asserting byte-stable agreement.
+
+- **`research/attested/solar_rotation/`** (new): `descriptor.toml` +
+  `rotation_anchor.schema.json` + `rotation_anchor.ndjson` (4 anchors:
+  2 Snodgrass-Ulrich 1990 surface evaluations + 2 Schou 1998 interior
+  anchors). canonical_doi = Howe 2009 (`10.12942/lrsp-2009-1`).
+  `[gap_targeting]` intentionally omitted — rotation-as-a-spectral-
+  profile maps to no v0.24.9 classifier regime.
+- **`research/attested/solar_cycle/`** (new): `descriptor.toml` +
+  `solar_cycle.schema.json` + `solar_cycle.ndjson` (3 cycles: 23/24
+  Hathaway 2015, 25 Clette 2014). canonical_doi = Hathaway 2015
+  (`10.1007/lrsp-2015-4`). `[gap_targeting] = temporal_quasi_periodic_cycle`
+  (the activity cycle is the same regime as Axial Seamount / Loki Patera).
+- **`_research/solar_rotation_data.py`** + **`solar_cycle_data.py`** —
+  `RotationAnchor` / `SolarCycle` dataclasses gain per-row provenance
+  (`source_doi` / `source_published_date` / `entered_locally_at` /
+  `source_version`); `*_to_data_dict` emit them in schema order.
+- **`tests/test_solar_rotation_dual_author.py`** +
+  **`tests/test_solar_cycle_dual_author.py`** (new) — row-count,
+  key-set, per-field, full-dict-equality, and per-row source_doi
+  presence assertions.
+- `bridge.list_attested_sources` ratchets: `n_sources` 28 → 30,
+  curated 25 → 27 (`test_attested_collector.py`).
+
+### Provenance — triality-attested citations (MPM defense-in-depth)
+
+The per-row DOIs + published dates were verified by a **triality panel**
+(haiku + sonnet + opus), each independently attesting all 8 citations
+against NASA ADS / IOPscience / arXiv / Royal Observatory of Belgium,
+then an opus reconciler collision-detecting. Agreement alone was treated
+as insufficient — the three models can share a wrong training prior — so
+every CONFIRMED field also carries an independently-fetched external-
+evidence URL, and load-bearing `doi`/`published_date` disagreements
+demote to NEEDS_REVIEW rather than trusting consensus.
+
+- All four per-row journal DOIs confirmed resolving with OA evidence:
+  `10.1086/168467` (Snodgrass-Ulrich 1990, → `1990-03`),
+  `10.1086/306146` (Schou 1998, → `1998`),
+  `10.1007/lrsp-2015-4` (Hathaway 2015, → `2015`),
+  `10.1007/s11214-014-0074-2` (Clette 2014, → `2014`).
+- The panel **refused** the day/month precision (`1998-09-20`,
+  `2015-09-21`) that no external source pins — dates are written at the
+  granularity all three tiers confirmed (year, except Snodgrass-Ulrich's
+  unanimous month). This is the exact shared-prior over-claim the panel
+  exists to catch.
+- It flagged Schwabe 1844's Wiley DOI as paywalled (HTTP 402) —
+  unusable as a sole attestation per `[[feedback_paywalled_doi_cannot_be_attested]]`.
+  Schwabe is metadata-only (not a per-row DOI), so nothing was blocked;
+  the free ADS bibcode is the attestable route.
+
+### Unchanged
+
+- **No ABI change** (`ES_ABI_VERSION = 10`). Version bump
+  `0.30.0rc3` → `0.30.0rc4` across the 6 SSOT locations + README banner;
+  the un-graduated 0.30.0 rc series carries the srmech `>=0.7.1` floor.
+  Rc cycles through TestPyPI only.
+
+## [0.30.0rc3] — 2026-06-06
+
+### Added — Solar Cycle Spectrum (the Sun's slow magnetic clock)
+
+The third **solar-dynamics** catalogue on the v0.30.0 line, after the
+v0.24.3 Sun Dynamical Spectrum (helioseismic p-modes) and the rc2
+differential rotation. Where those read the Sun's *fast* oscillations
+and rotation, this reads its *slow* magnetic clock: the ~11-year
+Schwabe sunspot cycle, the 22-year Hale magnetic-polarity cycle, the
+~88-year Gleissberg amplitude modulation, and the butterfly-diagram
+equatorward drift.
+
+- **`_research/solar_cycle_data.py`** + **`solar_cycle_catalog.py`** (new):
+  - `get_solar_cycle_spectrum()` — the period structure: **Schwabe**
+    (~11 yr), **Hale** (22 yr = 2 Schwabe), **Gleissberg** (~88 yr), the
+    butterfly emergence latitudes, and the recent-cycle roster (23/24/25).
+  - `get_hale_polarity_closure()` — **THE closure invariant**: the Hale
+    magnetic cycle is **exactly two** Schwabe cycles. The Sun's global
+    polarity reverses each activity cycle (Hale & Nicholson 1925) and
+    returns to its original sense only after two, so `Hale = 2 × Schwabe`
+    (residual exactly 0). The integer `2:1` commensurability is the
+    polarity **Class-K sign-flip** — the same sign-flip-doubles-the-period
+    structure as an epicycle (cf. the rc1 ring `(p:q)` resonance).
+  - `get_butterfly_drift()` — Spörer's law (sunspots drift ~30° → ~8°
+    latitude over each cycle).
+  - `list_solar_cycle_spectrum()` — enumeration + citations.
+- **`bridge.py`** — 4 new public surfaces (PARITY_TARGETS `python_only`);
+  **`cli.py`** — 4 new subcommands (`solar-cycle-spectrum` /
+  `hale-polarity-closure` / `butterfly-drift` /
+  `solar-cycle-spectrum-full`);
+  **`tests/test_solar_cycle_catalog.py`** (27 tests).
+
+### Changed — cascade-compute refactor (rc1/rc2 catalog math → srmech 14-class ops)
+
+The rc1 Saturn-ring and rc2 solar-rotation catalogs now route their
+continuous-math through a shared helper **`_research/_cascade.py`** that
+calls srmech's 14-class ops instead of raw `numpy` / `math`:
+
+- **Class L** — `srmech.amsc.laplacian.{dense_laplacian,
+  symmetric_eigendecompose}` for the Saturn Gaussian-proximity Fiedler
+  partition (replaces `np.linalg.eigh`).
+- **Class N** — `srmech.amsc.rational` for `sin` / `sqrt` / `asin` and
+  the `(q/p)^(2/3)` resonance power (the `exp∘log1p` cascade, replaces
+  `**`); π from the Archimedes `pi_cascade_digits` (replaces `math.pi`).
+
+Bit-equivalent to the prior values (verified to ~1e-16; the Saturn
+Fiedler partition and λ₂ are identical), so **no test thresholds moved**
+— the change is *which engine* computes the continuous-math, per the
+srmech v0.7.0 thesis (every continuous-math op a cascade of the 14).
+`_cascade.py` is shipped via the codegen `_INCLUDED_MODULES` mirror.
+
+### Provenance
+
+4 citations: Schwabe 1844 (*Astron. Nachr.* 21:233, the sunspot
+periodicity); Hale & Nicholson 1925 (*ApJ* 62:270, DOI 10.1086/142933,
+the polarity law); Hathaway 2015 (*Living Rev. Solar Phys.* 12:4, DOI
+10.1007/lrsp-2015-4, cycle length / Gleissberg / butterfly); Clette 2014
+(*Space Sci. Rev.* 186:35, DOI 10.1007/s11214-014-0074-2, the SILSO
+sunspot-number recalibration).
+
+### Scope
+
+Period-structure catalogue (integer commensurability + a drift law),
+**not** a flux-transport dynamo simulation. The Class-K sign-flip framing
+is an honest structural reading of the polarity reversal, not a forced
+`the_one` mapping (the cycle is a scalar period structure, not a Hurwitz
+rotation — task #524).
+
+### Unchanged
+
+- **No ABI change** (`ES_ABI_VERSION = 10`). Version bump
+  `0.30.0rc2` → `0.30.0rc3` across the 6 SSOT locations + README banner;
+  the un-graduated 0.30.0 rc series carries the srmech `>=0.7.1` floor.
+  Rc cycles through TestPyPI only.
+
+## [0.30.0rc2] — 2026-06-06
+
+### Added — Solar Differential Rotation catalog (first solar-dynamics extension)
+
+The first **solar-dynamics** extension of the v0.24.3 Sun Dynamical
+Spectrum (helioseismic p-modes): the Sun's surface differential rotation
++ helioseismically-inverted internal rotation, read as a spectral
+rotation-profile. Shipped on the same v0.30.0 line as rc1 (one eventual
+graduation).
+
+- **`_research/solar_rotation_data.py`** + **`solar_rotation_catalog.py`** (new):
+  - `get_solar_differential_rotation()` — the **Snodgrass-Ulrich 1990**
+    surface law `Omega(lat) = A + B sin^2(lat) + C sin^4(lat)`
+    (`A=14.713`, `B=-2.396`, `C=-1.787` deg/day sidereal) tabulated over
+    7 latitude bands: equatorial ~24.5 d, polar ~34 d, ~86-day
+    equator-to-pole lap, plus each band's synodic period.
+  - `get_solar_rotation_closure()` — **THE closure invariant**: the 1990
+    **Doppler** law reproduces Carrington's 1863 **sunspot**-derived
+    **25.38-day** sidereal period at latitude **~26°**, inside the
+    sunspot active band (~5–35°). Two independent determinations, 127
+    years apart, agreeing where they overlap — the solar analogue of the
+    ring `(p:q)` resonance and the Sun's Tassoul asymptotic relation.
+  - `get_solar_internal_rotation()` — the helioseismic interior (Schou
+    1998 SOI/MDI; Howe 2009): a differential convection zone, a
+    near-rigid radiative interior, and the **tachocline** shear at
+    **~0.70 R_sun** (the dynamo seat).
+  - `list_solar_differential_rotation()` — enumeration + citations.
+- **`bridge.py`** — 4 new public surfaces (PARITY_TARGETS `python_only`);
+  **`cli.py`** — 4 new subcommands (`solar-differential-rotation` /
+  `solar-rotation-closure` / `solar-internal-rotation` /
+  `solar-differential-rotation-full`);
+  **`tests/test_solar_rotation_catalog.py`** (26 tests).
+
+### Provenance
+
+4 citations: Snodgrass & Ulrich 1990 (*ApJ* 351:309, DOI 10.1086/168467,
+the surface A/B/C law); Carrington 1863 (the 25.38-day sunspot
+determination, matching the package's Sol Carrington Time); Schou 1998
+(*ApJ* 505:390, DOI 10.1086/306146, internal-rotation inversion); Howe
+2009 (*Living Rev. Solar Phys.* 6:1, DOI 10.12942/lrsp-2009-1).
+
+### Scope
+
+Rotation-as-a-spectral-profile per `docs/antikythera-maths/CLAUDE.md`
+(a scalar `Omega(lat)` rate field + a 1-D radial transition). **Not** a
+3-D MHD dynamo simulation. `the_one` does not apply (task #524).
+
+### Unchanged
+
+- **No ABI change** (`ES_ABI_VERSION = 10`). Version bump
+  `0.30.0rc1` → `0.30.0rc2` across the 6 SSOT locations + README banner;
+  the un-graduated 0.30.0 rc series carries the srmech `>=0.7.1` floor.
+  Rc cycles through TestPyPI only.
+
+## [0.30.0rc1] — 2026-06-05
+
+### Added — Saturn Ring System Catalog (multi-regime body; closes task #153)
+
+The staged dual-author Saturn-ring data (the 12 `RingFeature` rows in
+`_research/saturn_rings_data.py`, already mirrored to the AMSC NDJSON at
+`research/attested/saturn_rings/`) is promoted from a dual-author parity
+fixture to a full **query surface** — the temporal-spectrum catalogue of
+a **multi-regime body**, the next entry in the v0.24.x per-body
+dynamical-spectrum family.
+
+- **`_research/saturn_rings_catalog.py`** (new) — the query surface:
+  - `get_saturn_ring_features()` — the 12 features + the **four-regime
+    partition** (the v0.24.x dynamical regimes, now spanning one body's
+    rings): `rigid_body_action_angle_stable` (Cassini Division, Encke,
+    Keeler, Pan, Daphnis, the Mimas anchor), `rigid_body_action_angle_mutual_lock`
+    (A-ring outer edge, 7:6 with the Janus–Epimetheus co-orbital pair),
+    `temporal_quasi_periodic_cycle` (F-ring core + Prometheus/Pandora
+    shepherds), `bounded_local_laplacian_family` (B/C-ring boundaries).
+  - `get_ring_resonance_closure()` — **THE closure invariant**: the
+    naïve-Kepler `(p:q)` inner-Lindblad resonance locations
+    `a_res = a_moon · (q/p)^(2/3)` predict the observed Cassini-Division
+    (2:1 Mimas, 0.59% residual) and A-ring (7:6 Janus–Epimetheus, 0.08%
+    residual) boundaries to under 1%, with each residual **bounded by the
+    leading Saturn-J₂ epicyclic-frequency correction** `(3/2) J₂ (R/a)²`
+    (the oblateness signature). The ring-system analogue of Luna's Saros
+    triple and the Sun's Tassoul asymptotic relation. The Mimas 2:1
+    resonance-anchor row cross-checks the fresh computation to < 0.1%.
+  - `get_ring_radial_laplacian()` — the **bounded-local-Laplacian**
+    eigenbasis on the radial feature graph (the v0.24.5 Hawaii machinery
+    on ring radii): the Fiedler vector bisects the system at its largest
+    radial gap (~24,930 km, the C/B inner edges vs the Cassini-and-outward
+    features), with a single sign change along the radial ordering.
+  - `list_saturn_ring_features()` — full enumeration + citations.
+- **`bridge.py`** — 4 new public surfaces (`get_saturn_ring_features` /
+  `get_ring_resonance_closure` / `get_ring_radial_laplacian` /
+  `list_saturn_ring_features`), all classified `python_only` in
+  `test_parity_smoke.PARITY_TARGETS` (computed at query time; no encoder
+  surface, no C twin).
+- **`cli.py`** — 4 new subcommands: `saturn-ring-features`,
+  `ring-resonance-closure`, `ring-radial-laplacian`,
+  `saturn-ring-features-full`.
+- **`tests/test_saturn_rings_catalog.py`** (new, 34 tests) — roster /
+  regime-partition / closure-invariant / J₂-bound / radial-Laplacian /
+  bridge / CLI ratchets.
+
+### Provenance
+
+- Saturn J₂ (`1.6290573e-2`, unnormalised) and the gravity-expansion
+  reference radius are **reused from the in-repo Geodetic Catalog**
+  (`GRAVITY_MODELS['saturn']`, Cassini-Iess-2019) — own-work-primary
+  attestation, no new external source, and the ring closure invariant can
+  never drift from the geodetic value.
+- The perturbing moons' semi-major axes (Mimas, Janus, Epimetheus) are
+  attested to JPL SSD planetary-satellite mean elements (SAT441 / SAT415,
+  epoch 2000-01-01.5 TDB); `saturn_rings_data.SOURCES` 5 → 6.
+
+### Scope
+
+Algebra / eigenbasis side per `docs/antikythera-maths/CLAUDE.md`: rational
+`(p:q)` mean-motion locks, a first-order J₂ oblateness scale, and a
+graph-Laplacian spectrum on the radial feature positions. **Not** a
+particle-collision / self-gravity-wake / viscous-spreading
+microsimulation.
+
+### Unchanged
+
+- **No ABI change** (`ES_ABI_VERSION = 10` unchanged). The dual-author
+  parity fixture (`saturn_rings_data` ↔ AMSC NDJSON) and its diff test are
+  untouched. New minor `0.29.3rc3` → `0.30.0rc1` carries the srmech
+  `>=0.7.1` dependency floor forward from the un-graduated 0.29.3 rc
+  series. Rc cycles through TestPyPI only.
+
+## [0.29.3rc3] — 2026-06-05
+
+### Changed
+- **srmech dependency floor bump `>=0.4.2` → `>=0.7.1`** — tracks the just-graduated **srmech v0.7.1** production cut (the [#897](https://github.com/lemonforest/mlehaptics/issues/897) §26 Class-L Schur-complement / Dirichlet-to-Neumann arc + the reusable `dense_solve` C peer). Updated in both `pyproject.toml` and `pyproject-pure.toml`.
+
+### Verified
+- `ephemerides-spectral` consumes only `srmech.amsc.*` (the numpy-free AMSC core), so the AMSC-bridge source counts are already 0.7.x-aligned: the 75 `tests/test_attested_collector.py` tests pass unchanged against srmech 0.7.1 (the `n_sources` 28 / 25 ratchets hold). No `bridge.*` surface change; no test ratchet changes.
+
+### Unchanged
+- **No `ephemerides_spectral` code change; no ABI change** (`ES_ABI_VERSION = 10` unchanged from v0.29.0). Version-only bump `0.29.3rc2` → `0.29.3rc3` across the SSOT locations (`pyproject.toml`, `pyproject-pure.toml`, `version.py`, `srmech_profile.toml`, `c/include/ephemerides_spectral.h`, `ephemerides_spectral/_data/manifest.json`, README banner). Rc cycles through TestPyPI only.
+
+## [0.29.3rc2] — 2026-06-05
+
+### Fix — `backend="auto"` default was rejected by `get_eclipse_probability` and `get_local_view`
+
+Two bridge facades — `get_eclipse_probability(jd_tdb)` and
+`get_local_view(jd_tdb, body, lat, lon)` — declare `backend="auto"` as
+their default, but a premature `_validate_backend(backend)` in their
+validate-tuple rejected the raw `"auto"` **before** the
+`auto → concrete` resolution two lines below. Worse, `_validate_backend`
+checks the wrong roster (`{bip, complex128, c}`) for these functions,
+whose real roster is `{auto, bip, c, fpu-ref}`. The net effect: a
+default-argument call returned `{"ok": False, "error": "backend must be
+one of ['bip', 'complex128', 'c'], got 'auto'"}`.
+
+The fix drops `_validate_backend(backend)` from both validate-tuples;
+the `chosen not in {bip, c, fpu-ref}` check **after** the `"auto"`
+resolution is the correct, roster-matching gate (it already rejected
+`complex128` and any unknown backend). `find_syzygies` and
+`get_breathing_modulation` were never affected — they resolve `"auto"`
+*before* validating. Regression test in
+`tests/test_facades.py::test_default_backend_auto_resolves`. No ABI/API
+change; surfaced by an exhaustive immolation sweep of the bridge.
+
+## [0.29.3rc1] — 2026-06-05
+
+### Compatibility rc — verifies the package against srmech `0.7.0rc48`
+
+Cuts a fresh rc to confirm `ephemerides-spectral` imports and runs
+unchanged with the srmech v0.7.0rc48 core underneath: srmech's
+numpy-optional + libm-free Class-N cascade core, plus the
+C-transpile triality and numpy-→`[scientific]` arcs. rc48
+compatibility is exercised by force-installing `srmech==0.7.0rc48`
+into a clean external venv alongside `ephemerides-spectral==0.29.3rc1`
+from TestPyPI.
+
+The srmech dependency pin `srmech>=0.4.2` is **left unchanged** — this
+is a compatibility-verification rc, not a floor bump. No code change,
+no ABI change (`ES_ABI_VERSION = 10` unchanged from v0.29.0), no
+`bridge.*` surface change, no test ratchet changes.
+
+**SSOT files bumped in lockstep:**
+
+- `pyproject.toml` `[project].version` 0.29.2 → 0.29.3rc1.
+- `pyproject-pure.toml` `[project].version` 0.29.2 → 0.29.3rc1.
+- `ephemerides_spectral/version.py` `__version__` 0.29.2 → 0.29.3rc1.
+- `ephemerides_spectral/srmech_profile.toml` `[profile].version`
+  0.29.2 → 0.29.3rc1.
+- `c/include/ephemerides_spectral.h` `ES_VERSION_PATCH` 2 → 3;
+  `ES_VERSION_STRING "0.29.2"` → `"0.29.3rc1"`.
+- `ephemerides_spectral/_data/manifest.json` `version` field
+  restamped 0.29.2 → 0.29.3rc1.
+- `README.md` Status banner + `*(current)*` marker moved to
+  v0.29.3rc1.
+
+### Versioning
+
+`0.29.2` → `0.29.3rc1`. rc routed to TestPyPI only; no production
+PyPI cut is planned for this compatibility rc.
+
 ## [0.29.2] — 2026-05-19
 
 Production graduation of v0.29.2rc1. No code changes vs `[0.29.2rc1]`.

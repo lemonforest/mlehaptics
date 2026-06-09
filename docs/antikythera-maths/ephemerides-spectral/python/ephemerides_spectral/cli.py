@@ -1128,6 +1128,64 @@ def _cmd_loki_patera_eruption_cycle_full(args: argparse.Namespace) -> int:
     )
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.30.0 — Saturn Ring System CLI handlers
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _cmd_saturn_ring_features(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_saturn_ring_features(), pretty=args.pretty)
+
+
+def _cmd_ring_resonance_closure(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_ring_resonance_closure(), pretty=args.pretty)
+
+
+def _cmd_ring_radial_laplacian(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_ring_radial_laplacian(), pretty=args.pretty)
+
+
+def _cmd_saturn_ring_features_full(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_saturn_ring_features(), pretty=args.pretty)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.30.0rc2 — Solar Rotation CLI handlers
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _cmd_solar_differential_rotation(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_solar_differential_rotation(), pretty=args.pretty)
+
+
+def _cmd_solar_rotation_closure(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_solar_rotation_closure(), pretty=args.pretty)
+
+
+def _cmd_solar_internal_rotation(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_solar_internal_rotation(), pretty=args.pretty)
+
+
+def _cmd_solar_differential_rotation_full(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_solar_differential_rotation(), pretty=args.pretty)
+
+
+def _cmd_solar_cycle_spectrum(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_solar_cycle_spectrum(), pretty=args.pretty)
+
+
+def _cmd_hale_polarity_closure(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_hale_polarity_closure(), pretty=args.pretty)
+
+
+def _cmd_butterfly_drift(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_butterfly_drift(), pretty=args.pretty)
+
+
+def _cmd_solar_cycle_spectrum_full(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_solar_cycle_spectrum(), pretty=args.pretty)
+
+
 # First cosmology-instrument pair — cmb_power_spectrum + cmb_anomalies
 
 def _cmd_cmb_power_at_ell(args: argparse.Namespace) -> int:
@@ -5056,6 +5114,241 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     lpecf.set_defaults(func=_cmd_loki_patera_eruption_cycle_full)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.30.0 — Saturn Ring System (temporal-spectrum catalog of a
+    # multi-regime body)
+    # ──────────────────────────────────────────────────────────────────
+
+    # saturn-ring-features
+    srf = sub.add_parser(
+        "saturn-ring-features",
+        help="Saturn ring system: 12 features + the four-regime partition",
+        description=(
+            "v0.30.0 -- Saturn ring system, a multi-regime body. The\n"
+            "12 catalogued ring features (boundaries, gaps, shepherd\n"
+            "moons, resonance anchors) partition across four of the\n"
+            "v0.24.x dynamical regimes:\n"
+            "\n"
+            "  rigid_body_action_angle_stable    (Cassini, Encke,\n"
+            "                                     Keeler, Pan, Daphnis)\n"
+            "  rigid_body_action_angle_mutual_lock (A-ring edge, 7:6\n"
+            "                                     Janus-Epimetheus)\n"
+            "  temporal_quasi_periodic_cycle      (F-ring core +\n"
+            "                                     Prometheus/Pandora)\n"
+            "  bounded_local_laplacian_family     (B/C-ring boundaries)\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral saturn-ring-features --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    srf.set_defaults(func=_cmd_saturn_ring_features)
+
+    # ring-resonance-closure (THE headline)
+    rrc = sub.add_parser(
+        "ring-resonance-closure",
+        help="(p:q) mean-motion resonance closure invariant (the headline)",
+        description=(
+            "v0.30.0 headline. Integer inner-Lindblad commensura-\n"
+            "bilities predict the observed ring boundaries from the\n"
+            "perturbing moons' semi-major axes:\n"
+            "\n"
+            "  a_res = a_moon * (q/p)^(2/3)\n"
+            "\n"
+            "  Cassini Division inner edge : 2:1 Mimas\n"
+            "  A-ring outer edge           : 7:6 Janus-Epimetheus\n"
+            "\n"
+            "Predicts to <1%; the sub-percent residual is bounded by\n"
+            "the leading Saturn-J2 epicyclic-frequency correction\n"
+            "(3/2) J2 (R/a)^2 -- the oblateness signature. The ring-\n"
+            "system analogue of Luna's Saros triple and the Sun's\n"
+            "Tassoul asymptotic relation.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral ring-resonance-closure --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    rrc.set_defaults(func=_cmd_ring_resonance_closure)
+
+    # ring-radial-laplacian
+    rrl = sub.add_parser(
+        "ring-radial-laplacian",
+        help="Bounded-local-Laplacian eigenbasis on the radial feature graph",
+        description=(
+            "Builds the Gaussian-proximity graph Laplacian on the 12\n"
+            "ring features ordered by radial distance and reads its\n"
+            "Fiedler eigenpair (the v0.24.5 Hawaii bounded-local\n"
+            "machinery on ring radii). The Fiedler vector bisects the\n"
+            "ring system at its largest radial gap -- the ~25,000 km\n"
+            "seam between the C/B-ring inner edges and the Cassini\n"
+            "Division and everything outward. Same eigenbasis machinery\n"
+            "as v0.18.0 body_architecture."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    rrl.set_defaults(func=_cmd_ring_radial_laplacian)
+
+    # saturn-ring-features-full
+    srff = sub.add_parser(
+        "saturn-ring-features-full",
+        help="Full Saturn ring-system feature enumeration + citations",
+        description=(
+            "Returns every ring feature + the citation dict so\n"
+            "consumers can verify the provenance (Tiscareno 2013\n"
+            "ring-structure review; Showalter 1991 Pan; Porco 2005\n"
+            "Daphnis; Spitale & Porco 2009 F-ring; Murray-Dermott 1999\n"
+            "Lindblad derivations; JPL SSD moon mean elements)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    srff.set_defaults(func=_cmd_saturn_ring_features_full)
+
+    # ──────────────────────────────────────────────────────────────────
+    # v0.30.0rc2 — Solar Rotation (surface differential + internal)
+    # ──────────────────────────────────────────────────────────────────
+
+    # solar-differential-rotation
+    sdr = sub.add_parser(
+        "solar-differential-rotation",
+        help="Sun's surface differential rotation Omega(lat) across latitude",
+        description=(
+            "v0.30.0rc2 -- the Sun's surface differential rotation, the\n"
+            "first solar-dynamics extension of the v0.24.3 Sun Dynamical\n"
+            "Spectrum. The Snodgrass-Ulrich 1990 law\n"
+            "\n"
+            "  Omega(lat) = A + B sin^2(lat) + C sin^4(lat)   [deg/day]\n"
+            "  A = 14.713,  B = -2.396,  C = -1.787  (sidereal)\n"
+            "\n"
+            "Equator ~24.5 d, poles ~34 d; the equator laps the poles\n"
+            "every ~86 days. Per-band sidereal + synodic periods.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral solar-differential-rotation --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    sdr.set_defaults(func=_cmd_solar_differential_rotation)
+
+    # solar-rotation-closure (THE headline)
+    src = sub.add_parser(
+        "solar-rotation-closure",
+        help="Doppler-1990 vs sunspot-1863 rotation closure (the headline)",
+        description=(
+            "v0.30.0rc2 headline. The Snodgrass-Ulrich 1990 Doppler\n"
+            "differential-rotation law reproduces Carrington's 1863\n"
+            "sunspot-derived 25.38-day sidereal period at latitude\n"
+            "~26 deg -- inside the sunspot active band (~5-35 deg).\n"
+            "Two independent determinations, 127 years apart, agree\n"
+            "where they overlap.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral solar-rotation-closure --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    src.set_defaults(func=_cmd_solar_rotation_closure)
+
+    # solar-internal-rotation
+    sir = sub.add_parser(
+        "solar-internal-rotation",
+        help="Helioseismic internal rotation (tachocline + rigid core)",
+        description=(
+            "The Sun's helioseismically-inverted internal rotation\n"
+            "(Schou 1998 SOI/MDI; Howe 2009 review): a differential\n"
+            "convection zone, a near-rigid radiative interior, and the\n"
+            "thin tachocline shear layer at ~0.70 R_sun -- the seat of\n"
+            "the solar dynamo."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    sir.set_defaults(func=_cmd_solar_internal_rotation)
+
+    # solar-differential-rotation-full
+    sdrf = sub.add_parser(
+        "solar-differential-rotation-full",
+        help="Full solar-rotation enumeration + citations",
+        description=(
+            "Returns the Snodgrass-Ulrich coefficients + all rotation\n"
+            "anchors + the citation dict (Snodgrass-Ulrich 1990;\n"
+            "Carrington 1863; Schou 1998; Howe 2009)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    sdrf.set_defaults(func=_cmd_solar_differential_rotation_full)
+
+    # ──────────────────────────────────────────────────────────────────
+    # Sol Solar Cycle Spectrum (v0.30.0rc3) — the Sun's slow magnetic
+    # clock: Schwabe / Hale / Gleissberg periods + the butterfly drift.
+    # ──────────────────────────────────────────────────────────────────
+
+    # solar-cycle-spectrum
+    scs = sub.add_parser(
+        "solar-cycle-spectrum",
+        help="Sun's magnetic activity-cycle periods + butterfly + roster",
+        description=(
+            "v0.30.0rc3 -- the Sun's slow magnetic clock, the third\n"
+            "solar-dynamics catalogue (after the Sun Dynamical Spectrum's\n"
+            "p-modes and the differential-rotation profile). The Schwabe\n"
+            "sunspot cycle (~11 yr), the Hale magnetic-polarity cycle\n"
+            "(22 yr = 2 Schwabe), the Gleissberg amplitude modulation\n"
+            "(~88 yr), plus the butterfly-diagram emergence latitudes and\n"
+            "the recent-cycle roster (cycles 23/24/25).\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral solar-cycle-spectrum --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    scs.set_defaults(func=_cmd_solar_cycle_spectrum)
+
+    # hale-polarity-closure (THE headline)
+    hpc = sub.add_parser(
+        "hale-polarity-closure",
+        help="Hale = 2 x Schwabe polarity-flip closure (the headline)",
+        description=(
+            "v0.30.0rc3 headline. The Hale magnetic cycle is exactly two\n"
+            "Schwabe sunspot cycles: the Sun's global polarity reverses\n"
+            "each activity cycle (Hale & Nicholson 1925) and returns to\n"
+            "its original sense only after two, so Hale = 2 x Schwabe.\n"
+            "The 2:1 commensurability is the polarity Class-K sign-flip --\n"
+            "the same sign-flip-doubles-the-period structure as an\n"
+            "epicycle (cf. the rc1 ring (p:q) resonance).\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral hale-polarity-closure --pretty"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    hpc.set_defaults(func=_cmd_hale_polarity_closure)
+
+    # butterfly-drift
+    bfd = sub.add_parser(
+        "butterfly-drift",
+        help="Spörer's law -- the butterfly-diagram equatorward drift",
+        description=(
+            "Spörer's law: sunspots emerge at ~30 deg latitude at the\n"
+            "start of a cycle and drift toward the equator (~8 deg) by\n"
+            "its end; plotting emergence latitude vs time over many\n"
+            "cycles draws the butterfly wings."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    bfd.set_defaults(func=_cmd_butterfly_drift)
+
+    # solar-cycle-spectrum-full
+    scsf = sub.add_parser(
+        "solar-cycle-spectrum-full",
+        help="Full solar-cycle enumeration + citations",
+        description=(
+            "Returns the three cycle periods + the recent-cycle roster +\n"
+            "the citation dict (Schwabe 1844; Hale & Nicholson 1925;\n"
+            "Hathaway 2015; Clette 2014)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    scsf.set_defaults(func=_cmd_solar_cycle_spectrum_full)
 
     # ──────────────────────────────────────────────────────────────────
     # First cosmology-instrument pair — cmb_power_spectrum + cmb_anomalies

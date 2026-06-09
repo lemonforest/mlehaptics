@@ -34,12 +34,13 @@ Coverage notes (v0.21.8)
 6 bodies with peer-reviewed measured surface heat flow:
 
 - terra (Davies 2010 / Lay 2008 review).
-- mars (Khan 2023 InSight basal heat-flow inversion).
+- mars (Frizzell 2023 InSight + GRS-geochemistry crustal heat-flow
+  synthesis).
 - io (McEwen 2004 / Veeder 2012 Galileo PPR + ground-based IR
   total-power measurement; the headline).
 - europa (Vance 2018 icy-shell + ocean energy budget).
 - enceladus (Howett 2011 Cassini CIRS south-polar terrain power).
-- titan (Tobie 2008 internal heat-flux model).
+- titan (Tobie 2005 coupled thermal-orbital internal-structure model).
 """
 
 from __future__ import annotations
@@ -76,6 +77,15 @@ class HeatFlow:
     precision_flag: str = PRECISION_HIGH
     notes: Optional[str] = None
     source_key: str = ""
+    # ---- dual-author provenance (v0.30.0rc10 attested-TOML backfill) ----
+    # Per-row citation provenance, mirrored byte-stably into the AMSC
+    # literature_curated path at research/attested/heat_flow/. All six
+    # source DOIs CrossRef-verified (the 3 rc9 repairs + the 3 pre-existing
+    # davies/vance/howett, 2026-06-07).
+    source_doi: str = ""
+    source_published_date: str = ""
+    entered_locally_at: str = ""
+    source_version: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -100,6 +110,9 @@ HEAT_FLOWS: List[HeatFlow] = [
               "cooling tail. Tidal contribution negligible (Earth's "
               "tidal Q ≈ 280 dissipates almost entirely in oceans).",
         source_key="davies_2010",
+        source_doi="10.5194/se-1-5-2010",
+        source_published_date="2010",
+        entered_locally_at="2026-06-07",
     ),
 
     # ---- Mars — Khan 2023 InSight ------------------------------------
@@ -109,15 +122,20 @@ HEAT_FLOWS: List[HeatFlow] = [
     # (Mars cooled faster).
     HeatFlow(
         body="mars",
-        total_heat_flow_TW=0.1,
+        total_heat_flow_TW=1.5,
         tidal_fraction=0.001,
         radiogenic_fraction=0.85,
         primordial_fraction=0.15,
-        observation_method="InSight RISE + seismometer basal heat-flow inversion",
-        precision_flag=PRECISION_HIGH,
-        notes="Khan 2023 InSight. ~25-30 mW/m^2 globally averaged. "
-              "Radiogenic-dominated; cooled faster than Earth.",
-        source_key="khan_2023",
+        observation_method="InSight crustal-thickness + GRS regional-geochemistry heat-production synthesis",
+        precision_flag=PRECISION_MEDIUM,
+        notes="Frizzell 2023 InSight + GRS synthesis: crustal heat flow "
+              "~3-14 mW/m^2 (endmember crustal-thickness models); ~1.5 TW "
+              "globally at the upper end. Radiogenic-dominated; cooled "
+              "faster than Earth.",
+        source_key="frizzell_2023",
+        source_doi="10.1016/j.icarus.2023.115700",
+        source_published_date="2023",
+        entered_locally_at="2026-06-07",
     ),
 
     # ---- Io — McEwen 2004 / Veeder 2012 ------------------------------
@@ -140,6 +158,9 @@ HEAT_FLOWS: List[HeatFlow] = [
               "outward migration -- the three ships close the Io "
               "tidal-energy-budget loop.",
         source_key="veeder_2012",
+        source_doi="10.1016/j.icarus.2012.04.004",
+        source_published_date="2012",
+        entered_locally_at="2026-06-07",
     ),
 
     # ---- Europa — Vance 2018 -----------------------------------------
@@ -160,6 +181,9 @@ HEAT_FLOWS: List[HeatFlow] = [
               "well constrained). Vance 2018 budget model. Cross-"
               "references v0.21.5 Saur 2015 ocean diagnostic.",
         source_key="vance_2018",
+        source_doi="10.1002/2017JE005341",
+        source_published_date="2018",
+        entered_locally_at="2026-06-07",
     ),
 
     # ---- Enceladus — Howett 2011 -------------------------------------
@@ -181,11 +205,14 @@ HEAT_FLOWS: List[HeatFlow] = [
               "venting. Cross-references v0.20.2 fluid-envelope plume "
               "column convention.",
         source_key="howett_2011",
+        source_doi="10.1029/2010JE003718",
+        source_published_date="2011",
+        entered_locally_at="2026-06-07",
     ),
 
-    # ---- Titan — Tobie 2008 ------------------------------------------
+    # ---- Titan — Tobie 2005 ------------------------------------------
     # ~1-3 TW; uncertain because of weak observational constraint.
-    # Tobie 2008 internal-structure model gives substantial tidal
+    # Tobie 2005 coupled thermal-orbital model gives substantial tidal
     # heating from Saturn's gravitational pull, particularly in the
     # icy outer mantle.
     HeatFlow(
@@ -194,14 +221,17 @@ HEAT_FLOWS: List[HeatFlow] = [
         tidal_fraction=0.55,
         radiogenic_fraction=0.45,
         primordial_fraction=0.0,
-        observation_method="Tobie 2008 internal-structure + tidal-heating model; Iess 2010 gravity",
+        observation_method="Tobie 2005 coupled thermal-orbital internal-structure + tidal-heating model; Iess 2010 gravity",
         precision_flag=PRECISION_LOW,
         notes="Modest tidal heating in icy outer mantle from Saturn. "
               "Cross-references v0.21.6 Lainey 2020 Saturn-Titan +11 "
               "cm/yr outward migration: Saturn loses angular momentum "
               "→ Titan gains orbital energy → some fraction dissipates "
               "as Titan tidal heat.",
-        source_key="tobie_2008",
+        source_key="tobie_2005",
+        source_doi="10.1016/j.icarus.2004.12.007",
+        source_published_date="2005",
+        entered_locally_at="2026-06-07",
     ),
 ]
 
@@ -215,15 +245,16 @@ SOURCES: Dict[str, str] = {
         "Davies J. H. & Davies D. R. (2010). Earth's surface heat "
         "flux. Solid Earth 1, 5-24. DOI: 10.5194/se-1-5-2010"
     ),
-    "khan_2023": (
-        "Khan A. et al. (2023). Imaging the upper 800 km of the "
-        "lunar mantle from Apollo seismic data. Nature 620, 318-322 "
-        "(includes Mars InSight comparison + heat-flow constraint). "
-        "DOI: 10.1038/s41586-023-06289-w"
+    "frizzell_2023": (
+        "Frizzell K. R., Ojha L. & Karunatillake S. (2023). Bounding "
+        "the unknowns of martian crustal heat flow from a synthesis of "
+        "regional geochemistry and InSight mission data. Icarus 405, "
+        "115700. DOI: 10.1016/j.icarus.2023.115700"
     ),
     "veeder_2012": (
-        "Veeder G. J. et al. (2012). Io: heat flow from small "
-        "volcanic features. Icarus 219, 701-722. "
+        "Veeder G. J., Davies A. G., Matson D. L., Johnson T. V., "
+        "Williams D. A. & Radebaugh J. (2012). Io: Volcanic thermal "
+        "sources and global heat flow. Icarus 219, 701-722. "
         "DOI: 10.1016/j.icarus.2012.04.004"
     ),
     "vance_2018": (
@@ -237,14 +268,45 @@ SOURCES: Dict[str, str] = {
         "Cassini/CIRS data. JGR Planets 116, E03003. "
         "DOI: 10.1029/2010JE003718"
     ),
-    "tobie_2008": (
-        "Tobie G. et al. (2008). Solid tidal friction above a liquid "
-        "water reservoir as the origin of the south pole hotspot on "
-        "Enceladus (Titan internal-structure + heat-balance model "
-        "applies in same framework). Icarus 196, 642-652. "
-        "DOI: 10.1016/j.icarus.2008.03.008"
+    "tobie_2005": (
+        "Tobie G., Grasset O., Lunine J. I., Mocquet A. & Sotin C. "
+        "(2005). Titan's internal structure inferred from a coupled "
+        "thermal-orbital model. Icarus 175, 496-502. "
+        "DOI: 10.1016/j.icarus.2004.12.007"
     ),
 }
+
+
+# ---------------------------------------------------------------------------
+# Dual-author bridge (v0.30.0rc10 attested-TOML backfill)
+# ---------------------------------------------------------------------------
+
+def heatflow_to_data_dict(hf: "HeatFlow") -> Dict[str, object]:
+    """Project a ``HeatFlow`` row to the flat dict shape carried by the
+    AMSC literature_curated NDJSON at
+    ``research/attested/heat_flow/heat_flow.ndjson``.
+
+    ``tests/test_heat_flow_dual_author.py`` asserts byte-stable equality
+    between this hand-coded projection and the AMSC-path ``data`` block
+    surfaced by ``bridge.get_attested_dataset("heat_flow")`` — the
+    evidence the descriptor schema expresses what the @dataclass expresses
+    (the saturn_rings + solar_rotation + tidal_migration pattern).
+    """
+    return {
+        "body": hf.body,
+        "total_heat_flow_TW": hf.total_heat_flow_TW,
+        "tidal_fraction": hf.tidal_fraction,
+        "radiogenic_fraction": hf.radiogenic_fraction,
+        "primordial_fraction": hf.primordial_fraction,
+        "observation_method": hf.observation_method,
+        "precision_flag": hf.precision_flag,
+        "source_key": hf.source_key,
+        "source_doi": hf.source_doi,
+        "source_published_date": hf.source_published_date,
+        "entered_locally_at": hf.entered_locally_at,
+        "source_version": hf.source_version,
+        "notes": hf.notes,
+    }
 
 
 __all__ = [
@@ -255,4 +317,5 @@ __all__ = [
     "HEAT_FLOWS",
     "SOURCES",
     "HeatFlow",
+    "heatflow_to_data_dict",
 ]

@@ -8,6 +8,10 @@
       "sha256": "db9aee31f02bec4b3a46a1c4cdc6ccfb8f3c978a3e1d2946d5ced260812b89c8",
       "size_bytes": 318
     },
+    "_research/_cascade.py": {
+      "sha256": "fb471568cde2ccd5175abc80c13dcdd58c4fae460853a9c50daaf0bb08492f20",
+      "size_bytes": 10658
+    },
     "_research/admittance_catalog.py": {
       "sha256": "d800d5cc13e58a640f1236a095f5f52d38580d1f12441e565509824264dfff82",
       "size_bytes": 4993
@@ -116,6 +120,18 @@
       "sha256": "88b47ea1b7d659295feddcb394a549f78b151717ad216f8022e21ff0c0b873db",
       "size_bytes": 3283
     },
+    "_research/attested/heat_flow/descriptor.toml": {
+      "sha256": "e920c20f372f7dc1d3658f7c09843814c9e55c8c25e1fb445e1e587918cfaac8",
+      "size_bytes": 3520
+    },
+    "_research/attested/heat_flow/heat_flow.ndjson": {
+      "sha256": "a56b9d16c3aa20bdde1a15f0ac9642fc6a26bd81f32b4dfc79869cbdc4337e5c",
+      "size_bytes": 4482
+    },
+    "_research/attested/heat_flow/heat_flow.schema.json": {
+      "sha256": "280997d65ff388818813a8ce3789a4d776beea86f81e1e531496daadec920c12",
+      "size_bytes": 3764
+    },
     "_research/attested/loki_patera/descriptor.toml": {
       "sha256": "5433917d08fc05c735d1335ada0c057251e3ed27df4bfeb7464350370c15b18f",
       "size_bytes": 4628
@@ -220,6 +236,30 @@
       "sha256": "88e6c28938d3eae9f581775b7f2f71edd0f23f140378af5c12f07f757832c44c",
       "size_bytes": 4847
     },
+    "_research/attested/solar_cycle/descriptor.toml": {
+      "sha256": "63d2c2b8c445e85e6c1dc57f3f6af4bff731745571d14823280d1ea116394059",
+      "size_bytes": 3276
+    },
+    "_research/attested/solar_cycle/solar_cycle.ndjson": {
+      "sha256": "7ff5da1ad275db22a697cd0f2d14f60db975c0589467120dcd6e468eca760400",
+      "size_bytes": 1436
+    },
+    "_research/attested/solar_cycle/solar_cycle.schema.json": {
+      "sha256": "78c0feb59b4982a78128d80f0e3822e4ff2ebd05689ee072a522052241e306c6",
+      "size_bytes": 2877
+    },
+    "_research/attested/solar_rotation/descriptor.toml": {
+      "sha256": "a38b2b6f93fa5204243d1c0366ec7616f8f7f42865b1f3585a961610906dcccd",
+      "size_bytes": 3376
+    },
+    "_research/attested/solar_rotation/rotation_anchor.ndjson": {
+      "sha256": "765389c8494cbf420d31fe23dc3d04d96141ba85ad74d10b2f833903911123f2",
+      "size_bytes": 2206
+    },
+    "_research/attested/solar_rotation/rotation_anchor.schema.json": {
+      "sha256": "1c09d6255ee6425bade75676a16e3402123e1d6563fde0d713f172528123561e",
+      "size_bytes": 3829
+    },
     "_research/attested/sun_dynamical_spectrum/descriptor.toml": {
       "sha256": "8988232361e844222e88917c206d6c2f8bbbf6a1ada86c1cb77d63e1574c5360",
       "size_bytes": 3059
@@ -231,6 +271,18 @@
     "_research/attested/sun_dynamical_spectrum/row.schema.json": {
       "sha256": "5a242271f02b8d5bad7f679f2802ab87d79d8bea0e467bf15f7e3ca84575b3e3",
       "size_bytes": 3371
+    },
+    "_research/attested/tidal_migration/descriptor.toml": {
+      "sha256": "22292f73209c79a87c2c18927d946daeb9c69dcf4bef7589c384b934673f0948",
+      "size_bytes": 3391
+    },
+    "_research/attested/tidal_migration/migration.ndjson": {
+      "sha256": "aadecd3ce8ac559f5c5e852626e50fab24aa96ea6a549d8d6c5ea1b869ac4275",
+      "size_bytes": 4598
+    },
+    "_research/attested/tidal_migration/migration.schema.json": {
+      "sha256": "9bc00c785d01d603128f80da3927a14a549b5c14872ab351743f27719962fabe",
+      "size_bytes": 4120
     },
     "_research/attested/toroidal_residual/descriptor.toml": {
       "sha256": "01310b58a96f0f0ee680b17ad37630d61d5f92e2803f2862b878b3f5e79ea5e6",
@@ -321,8 +373,8 @@
       "size_bytes": 27022
     },
     "_research/dynamical_regime_catalog.py": {
-      "sha256": "2dec0dd043e176379f88d6000f761cef0f87487aaa015f729edb277471221d21",
-      "size_bytes": 21563
+      "sha256": "480b92cfdbbd3aeb03bf6672c92e96cfb6d3403c38c866498babef8254b78b91",
+      "size_bytes": 24251
     },
     "_research/dynamical_regime_data.py": {
       "sha256": "e14ca6b10b90f665bc29389eab6b2db96337cff01da9267100e450adad9c6ec9",
@@ -381,8 +433,8 @@
       "size_bytes": 81546
     },
     "_research/hawaii_chain_catalog.py": {
-      "sha256": "cedc719b19a479fa0260622bf2fcfca5d2344aba767d87e581cb1490bfdadadb",
-      "size_bytes": 16066
+      "sha256": "e86c763a0a877fe4053da8a488b79361a97e491fc776ef4f14f03fe00cf25bdd",
+      "size_bytes": 15521
     },
     "_research/hawaii_chain_data.py": {
       "sha256": "1428693d0fc0747d7a2af55dcc6af51998888a4ab23eae80b4d6ae3f69412c6d",
@@ -393,8 +445,8 @@
       "size_bytes": 4120
     },
     "_research/heat_flow_data.py": {
-      "sha256": "3e821ec38493bcb699a1821b58ca6946a418a652784a360e9d6d4c748958015c",
-      "size_bytes": 10723
+      "sha256": "3ee2028139a376f121ca2d6fd3a4728160fe8248ba3160c3faa1bf4c2e1475e6",
+      "size_bytes": 13664
     },
     "_research/icbm_trajectory_catalog.py": {
       "sha256": "251ace65a4556d0a23fe92aecb5d2993671b2f73871467b4ce5b80ad5e770676",
@@ -449,8 +501,8 @@
       "size_bytes": 18121
     },
     "_research/mars_tharsis_catalog.py": {
-      "sha256": "3cbfcad601c2a91907c158fdb31fc5166f9a03816e1c23effccc557c929bc713",
-      "size_bytes": 15881
+      "sha256": "8593f92870d65f3038dd657c31155ee33776a8c7fb4ed598e3ab2a2f42c1e6d2",
+      "size_bytes": 15456
     },
     "_research/mars_tharsis_data.py": {
       "sha256": "76aef845ed8b72648ff373db99b837aba5216dff142cde86d68b8c346a6c854c",
@@ -500,9 +552,13 @@
       "sha256": "6e4ee02d5f165d0b2e1807805a520443ed4ccdb9b781df13196fc181bc01385c",
       "size_bytes": 13382
     },
+    "_research/saturn_rings_catalog.py": {
+      "sha256": "79c45585a6ded36c39b9b75019532cc32c326ea5ccf8da98adfb8f9f8435aed2",
+      "size_bytes": 18408
+    },
     "_research/saturn_rings_data.py": {
-      "sha256": "5ba6dda5757e9cfda3e3c447698826097c5b62a20b60f0ba8218d9daabe90b6e",
-      "size_bytes": 16484
+      "sha256": "571345f9ba87447e7af3506895b2e398c1e08732671cc2a07104e88b351f8178",
+      "size_bytes": 16950
     },
     "_research/secular_elements_data.py": {
       "sha256": "2e28a361027fe37d3eed145eb99a404461b6c312be2ad4485004a22ed3b9e13c",
@@ -515,6 +571,22 @@
     "_research/sensor_access_data.py": {
       "sha256": "6b6d168bbe5eaee980cd93c2c5ba043b51a9dd2bc4459ba6691e917538bcb23d",
       "size_bytes": 13483
+    },
+    "_research/solar_cycle_catalog.py": {
+      "sha256": "a2f3bbe42923d98a04e6f10b77f860ec85280b4b1f0ee86a089daf5ee232d19e",
+      "size_bytes": 6671
+    },
+    "_research/solar_cycle_data.py": {
+      "sha256": "42e07890f309ebac49e42c58454905e641a1920e83c5be1ea00dce5b1077b890",
+      "size_bytes": 7416
+    },
+    "_research/solar_rotation_catalog.py": {
+      "sha256": "3d836d8f37deb66a20aecb53688785dd482972d337a589ad7321c33e2f9c83d8",
+      "size_bytes": 9476
+    },
+    "_research/solar_rotation_data.py": {
+      "sha256": "217cba52e2ca545ea80804a4ec0ea531846c6a5254c0106d396e9c42d9747fd8",
+      "size_bytes": 9981
     },
     "_research/spherical_harmonic_catalog.py": {
       "sha256": "dcefd2f7acc0e2c6f96202df0e944747839d8b96a6ad2f1c669d8d746dc5eee2",
@@ -553,8 +625,8 @@
       "size_bytes": 4414
     },
     "_research/tidal_migration_data.py": {
-      "sha256": "e72d2c5751edb87b351d764efe0b5d2a45a70a457aa76ad0877421d6c33d410a",
-      "size_bytes": 12216
+      "sha256": "dc3f347fb652eeaeae6aef63f63269f4bdb34b6e2317c61a575f5914803a41a8",
+      "size_bytes": 15053
     },
     "_research/time_scales.py": {
       "sha256": "9309833b78a0636d5b26aed4438ea664d9c8eceecc86bfc1f94368f92c947c32",
@@ -590,5 +662,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.29.2"
+  "version": "0.30.0rc10"
 }

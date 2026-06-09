@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.19.1rc1] - 2026-06-05
+
+### Changed — TestPyPI-path proving rc (no functional change)
+
+First release-candidate cut of chess-spectral. Exercises the
+`chess-spectral-vX.Y.ZrcN` → **TestPyPI** auto-route end-to-end (the
+publish + autotag workflows were made rc-aware at v1.19.0 but never
+fired on the rc path), bringing chess-spectral in line with the
+srmech / ephemerides-spectral rc-first-to-TestPyPI discipline.
+No source change; the `srmech` dependency pin stays `>=0.3.1,<0.4`.
+
 ## [1.19.0] - 2026-05-14
 
 ### Added — srmech profile pattern (Task #211, ADR-0001 §7 Step 1)

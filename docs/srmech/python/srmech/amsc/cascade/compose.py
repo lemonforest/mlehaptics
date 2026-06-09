@@ -489,8 +489,13 @@ def kuramoto_step(
             uniform mean-field weight ``K/n`` used when ``adjacency`` is None.
         dt: the forward-Euler time step (default ``0.01``).
         adjacency: optional ``n×n`` coupling matrix (None → all-to-all uniform
-            ``K/n``). ``A[i][j]`` weights ``sin(θ_j − θ_i − α)`` for oscillator
-            ``i``; non-symmetric → directed coupling.
+            ``K/n``). The effective weight on ``sin(θ_j − θ_i − α)`` for
+            oscillator ``i`` is ``coupling · A[i][j]`` — the global ``K`` scales
+            the matrix (matching the all-to-all ``K/n`` branch, so ``coupling=0``
+            zeroes the term and ``coupling`` tunes global strength);
+            non-symmetric → directed coupling. (§32 fix, v0.7.5rc15: prior to
+            rc15 the adjacency branch dropped ``coupling`` — ``coupling=0`` and
+            ``coupling=3`` gave identical trajectories.)
         alpha: Sakaguchi phase frustration in radians (default ``0.0``).
         pin_anchor: optional length-``n`` anchor phases ``ψ`` (None → no
             pinning).
@@ -577,7 +582,8 @@ def kuramoto_step(
     # Python fallback for the generalised step — SAME index order as the C
     # peer. No abs(): sin coupling (Class I/J) + Σ-reduce + Class-C Euler add;
     # the Sakaguchi α is a Class-C phase offset; pinning is a Class-C/M anchor.
-    inv_n = (float(coupling) / n) if n > 0 else 0.0
+    k = float(coupling)
+    inv_n = (k / n) if n > 0 else 0.0
     a = float(alpha)
     h = float(dt)
     out2: List[float] = []
@@ -585,7 +591,12 @@ def kuramoto_step(
         theta_i = float(theta_list[i])
         s = 0.0
         for j in range(n):
-            w = adj_flat[i * n + j] if adj_flat is not None else inv_n
+            # §32 fix (v0.7.5rc15): the adjacency weight is SCALED by the global
+            # coupling scalar (effective weight = K·A_ij), matching the all-to-all
+            # branch (inv_n = K/n). coupling == 0 zeroes the term; coupling tunes
+            # global strength. Prior to rc15 this used the raw A_ij, so coupling
+            # had no effect on the adjacency path.
+            w = (k * adj_flat[i * n + j]) if adj_flat is not None else inv_n
             s += w * _rsin(float(theta_list[j]) - theta_i - a)
         f = float(omega_list[i]) + s
         if psi is not None:
@@ -594,10 +605,93 @@ def kuramoto_step(
     return out2
 
 
+def signed_sum_squared(sources: Sequence[Sequence[int]]) -> List[int]:
+    """Element-wise squared signed-sum across a stack of bit sources — the
+    coupling-score composite (UPSTREAM_NOTES §1.2).
+
+    For each position ``j``::
+
+        s_j = Σ_sources (2·bit − 1)         # Class K bipolar transform {0,1}→{−1,+1}
+        out_j = s_j²                         # Class L signed-magnitude-square
+
+    The squared signed-sum is the **coupling score**: it is large where the
+    sources agree (coherent, |Σ| ≈ N) and ~0 where they cancel (incoherent). It
+    is **Class K** (the bipolar sign-flip per
+    ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``) ∘ **Class L**
+    (the signed-magnitude-square / energy) — **no ``abs()``**, the square carries
+    the sign boundary. Operates on a *stack of source arrays*, not a single graph.
+
+    Args:
+        sources: a non-empty sequence of equal-length 0/1 bit sequences.
+
+    Returns:
+        ``list[int]`` — the per-position squared signed-sum.
+
+    Raises:
+        ValueError: empty ``sources``, ragged lengths, or a non-0/1 bit.
+    """
+    rows = [list(s) for s in sources]
+    if not rows:
+        raise ValueError("signed_sum_squared: sources must be non-empty")
+    width = len(rows[0])
+    if width == 0:
+        raise ValueError("signed_sum_squared: source rows must be non-empty")
+    for i, r in enumerate(rows):
+        if len(r) != width:
+            raise ValueError(
+                f"signed_sum_squared: source {i} has length {len(r)}, "
+                f"expected {width}"
+            )
+        for b in r:
+            if b != 0 and b != 1:
+                raise ValueError(f"signed_sum_squared: bits must be 0/1; got {b!r}")
+    out: List[int] = []
+    for j in range(width):
+        s = 0
+        for r in rows:
+            s += (2 * r[j] - 1)          # Class K bipolar; no abs()
+        out.append(s * s)               # Class L square
+    return out
+
+
+def top_k_by_score(scores: Sequence[float], k: int, *, largest: bool = True) -> List[int]:
+    """Indices of the ``k`` highest- (or lowest-) scoring items — the catalog
+    selection composite (UPSTREAM_NOTES §1.3).
+
+    **Class E** (sorted-key ordering, ``srmech.amsc.naming``) ∘ **Class K**
+    (sparse truncate — keep the top/bottom ``k``, drop the rest). Stable: ties in
+    score keep ascending index order. The everyday band-selection / weak-coupling-
+    prune step (top-K bands by magnitude; bottom-K bits by coupling-square).
+
+    Args:
+        scores: a sequence of comparable scores (one per item).
+        k: how many indices to return (``0 ≤ k ≤ len(scores)``).
+        largest: ``True`` (default) returns the highest ``k``; ``False`` the lowest.
+
+    Returns:
+        ``list[int]`` — ``k`` indices, ordered best-first (descending score for
+        ``largest=True``, ascending for ``largest=False``).
+
+    Raises:
+        ValueError: ``k`` not an int in ``[0, len(scores)]``.
+    """
+    sc = list(scores)
+    n = len(sc)
+    if type(k) is not int or not (0 <= k <= n):
+        raise ValueError(
+            f"top_k_by_score: k must be an int in [0, {n}]; got {k!r}"
+        )
+    order = sorted(range(n), key=lambda i: sc[i], reverse=bool(largest))
+    return order[:k]
+
+
 __all__ = [
     "DEFAULT_MAX_DENOMINATOR",
     "DEFAULT_FINE_SCALE",
     "cyclic_gcd",
     "best_rational_signed",
     "kuramoto_step",
+    "autocorrelation",
+    "signed_sum_squared",
+    "top_k_by_score",
 ]

@@ -1,0 +1,183 @@
+/*
+ * srmech_dense_solve.c — Class L primitive: dense linear solve A·X = B.
+ *
+ * v0.7.1rc3 ([#897](https://github.com/lemonforest/mlehaptics/issues/897)
+ * §26 follow-up). The reusable float64 dense linear solve that the
+ * Schur-complement / Dirichlet-to-Neumann float path composes over (the
+ * expensive interior solve L_ii⁻¹·L_i∂ IS an A·X = B). Promoted to its
+ * own exported Class-L primitive per the "every primitive earns a C
+ * surface" commitment — a dense solve is reusable (future inverse / lstsq
+ * float paths) and the solve, not the matmul, is where the cost lives.
+ *
+ * Gauss–Jordan elimination with PARTIAL PIVOTING on an augmented [A | B]
+ * working copy: at exit the augmented tail holds X directly. Partial
+ * pivoting (largest-magnitude pivot at/below the diagonal) is needed for
+ * float numerical stability — the exact-rational Python path needs no
+ * magnitude pivot (any nonzero pivot is exact), but float does. The pivot
+ * magnitude is the Class-K pin-slot read; the sign is a BRANCH, never
+ * fabs() / abs() (per [[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]
+ * and the rc46 fabs→sign-branch sweep). No transcendentals: a linear
+ * solve is + − × ÷ only, so this surface routes through NO libm and NO
+ * Class-N cascade (unlike the Jacobi eigensolver, which needs sqrt).
+ *
+ * Public API:
+ *   - srmech_dense_solve_f64  (A·X = B, A n×n, B/X n×nrhs, row-major)
+ *
+ * Conventions:
+ *   - Matrices are row-major doubles (caller-allocated). A is n×n, B is
+ *     n×nrhs, out_X is n×nrhs.
+ *   - A wholly-zero pivot column at/below the diagonal ⇒ singular A ⇒
+ *     SRMECH_ERR_BAD_INPUT (Python falls back to numpy.linalg.solve,
+ *     which raises LinAlgError).
+ *   - SRMECH_DENSE_SOLVE_MAX_N / _MAX_RHS = 256 cap the thread-local
+ *     augmented working matrix (worst case 256×512 = 1 MiB — static
+ *     duration, no malloc, the srmech_hermitian_eigendecompose
+ *     precedent). Larger systems fall back to the Python numpy path.
+ *
+ * JPL Power-of-Ten compliance:
+ *   - Rule 1 (no goto)        : OK
+ *   - Rule 2 (bounded loops)  : OK — every loop bounded by n / nrhs
+ *                              (≤ the MAX bounds, checked before the solve)
+ *   - Rule 3 (no malloc)      : OK — one thread-local static augmented
+ *                              buffer; everything else is stack scalars
+ *   - Rule 4 (≤60 lines/func) : OK — solve split into load / pivot /
+ *                              eliminate helpers
+ *   - Rule 5 (≥2 asserts/fn)  : OK
+ *   - Rule 7 (return-value)   : OK — srmech_status_t throughout
+ *   - Rule 8 (no multi-line macros) : OK — single-line #defines only
+ *   - Rule 10 (warnings clean): OK under -Wall -Wextra -Wpedantic / /W4
+ *
+ * ABI: additive — srmech_dense_solve_f64 is a NEW exported symbol, so
+ * SRMECH_ABI_VERSION stays 3 (the Python ctypes shim hasattr-guards it).
+ *
+ * License: GPL-3.0-or-later.
+ */
+
+#include "srmech.h"
+
+#include <assert.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#define SRMECH_DENSE_SOLVE_MAX_N   256
+#define SRMECH_DENSE_SOLVE_MAX_RHS 256
+#define SRMECH_DENSE_SOLVE_WS_MAX  (SRMECH_DENSE_SOLVE_MAX_N * (SRMECH_DENSE_SOLVE_MAX_N + SRMECH_DENSE_SOLVE_MAX_RHS))
+
+/* Load the augmented [A | B] matrix into the working buffer. The buffer
+ * has row stride w = n + nrhs: columns [0, n) hold A, [n, n+nrhs) hold B. */
+static void dense_solve_load_aug(uint32_t n, uint32_t nrhs,
+                                 const double *A, const double *B,
+                                 double *aug)
+{
+    assert(A != NULL);
+    assert(B != NULL);
+    assert(aug != NULL);
+    size_t w = (size_t)n + (size_t)nrhs;
+    for (uint32_t r = 0; r < n; r++) {
+        for (uint32_t c = 0; c < n; c++) {
+            aug[(size_t)r * w + c] = A[(size_t)r * n + c];
+        }
+        for (uint32_t c = 0; c < nrhs; c++) {
+            aug[(size_t)r * w + (size_t)n + c] = B[(size_t)r * nrhs + c];
+        }
+    }
+}
+
+/* Partial-pivot column `col`: find the row r >= col with the largest
+ * |aug[r][col]|, swap it up to row `col`, and return that magnitude. A
+ * returned 0.0 means the column is wholly zero at/below the diagonal — a
+ * singular system. Magnitude is the Class-K pin-slot read; sign is a
+ * branch, never fabs(). */
+static double dense_solve_pivot(uint32_t n, uint32_t nrhs,
+                                double *aug, uint32_t col)
+{
+    assert(aug != NULL);
+    assert(col < n);
+    size_t w = (size_t)n + (size_t)nrhs;
+    uint32_t best_row = col;
+    double best_mag = 0.0;
+    for (uint32_t r = col; r < n; r++) {
+        double v = aug[(size_t)r * w + col];
+        double mag = (v < 0.0) ? -v : v;
+        if (mag > best_mag) {
+            best_mag = mag;
+            best_row = r;
+        }
+    }
+    if (best_row != col) {
+        for (size_t c = 0; c < w; c++) {
+            double tmp = aug[(size_t)col * w + c];
+            aug[(size_t)col * w + c] = aug[(size_t)best_row * w + c];
+            aug[(size_t)best_row * w + c] = tmp;
+        }
+    }
+    return best_mag;
+}
+
+/* Gauss–Jordan step on pivot column `col`: normalise the pivot row by its
+ * diagonal, then eliminate column `col` from every OTHER row, so the
+ * augmented tail holds X directly at exit. Caller guarantees a non-zero
+ * pivot (checked via dense_solve_pivot's return). */
+static void dense_solve_eliminate(uint32_t n, uint32_t nrhs,
+                                  double *aug, uint32_t col)
+{
+    assert(aug != NULL);
+    assert(col < n);
+    size_t w = (size_t)n + (size_t)nrhs;
+    double piv = aug[(size_t)col * w + col];
+    assert(piv != 0.0);
+    for (size_t c = 0; c < w; c++) {
+        aug[(size_t)col * w + c] /= piv;
+    }
+    for (uint32_t r = 0; r < n; r++) {
+        if (r == col) {
+            continue;
+        }
+        double f = aug[(size_t)r * w + col];
+        if (f == 0.0) {
+            continue;
+        }
+        for (size_t c = 0; c < w; c++) {
+            aug[(size_t)r * w + c] -= f * aug[(size_t)col * w + c];
+        }
+    }
+}
+
+srmech_status_t srmech_dense_solve_f64(uint32_t      n,
+                                       uint32_t      nrhs,
+                                       const double *A,
+                                       const double *B,
+                                       double       *out_X)
+{
+    assert(A != NULL);
+    assert(B != NULL);
+    assert(out_X != NULL);
+    if (A == NULL || B == NULL || out_X == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n > SRMECH_DENSE_SOLVE_MAX_N || nrhs > SRMECH_DENSE_SOLVE_MAX_RHS) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    if (n == 0 || nrhs == 0) {
+        return SRMECH_OK;
+    }
+    /* Per-thread augmented [A | B] workspace (#772 reentrancy). Static
+     * duration (up to 1 MiB — too large to stack), thread-local so
+     * concurrent solvers don't collide. Rule-3-clean: no malloc. */
+    static SRMECH_THREAD_LOCAL double aug[SRMECH_DENSE_SOLVE_WS_MAX];
+    size_t w = (size_t)n + (size_t)nrhs;
+    dense_solve_load_aug(n, nrhs, A, B, aug);
+    for (uint32_t col = 0; col < n; col++) {
+        double mag = dense_solve_pivot(n, nrhs, aug, col);
+        if (mag == 0.0) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        dense_solve_eliminate(n, nrhs, aug, col);
+    }
+    for (uint32_t r = 0; r < n; r++) {
+        for (uint32_t c = 0; c < nrhs; c++) {
+            out_X[(size_t)r * nrhs + c] = aug[(size_t)r * w + (size_t)n + c];
+        }
+    }
+    return SRMECH_OK;
+}

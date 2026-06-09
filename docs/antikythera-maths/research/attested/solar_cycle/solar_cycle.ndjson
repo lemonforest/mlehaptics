@@ -1,0 +1,12 @@
+# Sol Solar Cycle Spectrum bootstrap catalogue.
+# Each line below is one MPR row's data block (NDJSON). Lines starting
+# with '#' or empty lines are skipped by the literature_curated adapter.
+#
+# 3 recent solar (Schwabe) cycles, minimum-to-minimum: cycles 23 & 24
+# from Hathaway 2015 (the LRSP "The Solar Cycle" review), cycle 25
+# ongoing from Clette et al. 2014 (the SILSO recalibration). Per-row
+# source DOIs triality-attested; dates at year granularity (the value
+# all three tiers externally confirmed).
+{"number": 23, "start_year": 1996.4, "length_years": 12.3, "source_key": "hathaway_2015", "source_doi": "10.1007/lrsp-2015-4", "source_published_date": "2015", "entered_locally_at": "2026-06-06", "source_version": null, "notes": "Minimum 1996.4 to 2008.96; a long cycle (~12.3 yr), the deep 2008-2009 minimum."}
+{"number": 24, "start_year": 2008.96, "length_years": 11.0, "source_key": "hathaway_2015", "source_doi": "10.1007/lrsp-2015-4", "source_published_date": "2015", "entered_locally_at": "2026-06-06", "source_version": null, "notes": "Minimum 2008.96 to 2019.96; a weak cycle (lowest peak amplitude in a century)."}
+{"number": 25, "start_year": 2019.96, "length_years": null, "source_key": "clette_2014", "source_doi": "10.1007/s11214-014-0074-2", "source_published_date": "2014", "entered_locally_at": "2026-06-06", "source_version": null, "notes": "Ongoing from the 2019.96 minimum; SILSO-tracked sunspot number."}

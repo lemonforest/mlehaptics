@@ -63,9 +63,9 @@ extern "C" {
  * ------------------------------------------------------------------ */
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
-#define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc48"
-#define SRMECH_VERSION       "0.7.0rc48"
+#define SRMECH_VERSION_PATCH 5
+#define SRMECH_VERSION_PRE   "rc27"
+#define SRMECH_VERSION       "0.7.5rc27"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -594,14 +594,18 @@ srmech_status_t srmech_cascade_kuramoto_step_f64(
 /* ------------------------------------------------------------------ *
  * GENERALISED Kuramoto-Sakaguchi forward-Euler step (v0.6.0rc14; §11.1).
  *
- *   dθ_i/dt = ω_i + Σ_j A_ij·sin(θ_j − θ_i − α) [ + p_i·sin(ψ_i − θ_i) ]
+ *   dθ_i/dt = ω_i + Σ_j K·A_ij·sin(θ_j − θ_i − α) [ + p_i·sin(ψ_i − θ_i) ]
  *   θ_i(t+dt) = θ_i(t) + dt·[ above ]
  *
  * `adjacency` is ROW-MAJOR n×n (A_ij = weight of oscillator j on i): a
  * non-symmetric matrix expresses DIRECTED / one-way coupling, a graph
- * Laplacian expresses graph-structured coupling. `adjacency == NULL` ⇒
- * every weight is the uniform mean-field K/N (so NULL adjacency + α=0 +
- * NULL pin_anchor reproduces srmech_cascade_kuramoto_step_f64 exactly).
+ * Laplacian expresses graph-structured coupling. The effective weight is
+ * `coupling_k·A_ij` — the global K SCALES the matrix (so K=0 zeroes the
+ * coupling), matching the all-to-all branch's K/N (§32 fix, v0.7.5rc15;
+ * prior to rc15 K was ignored when adjacency was provided).
+ * `adjacency == NULL` ⇒ every weight is the uniform mean-field K/N (so NULL
+ * adjacency + α=0 + NULL pin_anchor reproduces
+ * srmech_cascade_kuramoto_step_f64 exactly).
  * `alpha` is the Sakaguchi phase frustration. `pin_anchor` (NULL ⇒ no
  * pinning) is n anchor phases ψ; `pin_strength` (NULL ⇒ unit) is n
  * per-oscillator strengths p. No abs().
@@ -992,6 +996,20 @@ srmech_status_t srmech_dense_matvec_complex(
     const double  *v_interleaved,
     double        *out_interleaved);
 
+/* Dense complex matrix-matrix multiplication: out = A @ B.
+ * A_interleaved is m*k interleaved-double pairs (row-major).
+ * B_interleaved is k*n interleaved-double pairs (row-major).
+ * out_interleaved is m*n interleaved-double pairs (caller-allocated).
+ * m, k and n are each bounded by SRMECH_LAPLACIAN_MAX_NODES (256).
+ */
+srmech_status_t srmech_dense_matmul_complex(
+    uint32_t       m,
+    uint32_t       k,
+    uint32_t       n,
+    const double  *A_interleaved,
+    const double  *B_interleaved,
+    double        *out_interleaved);
+
 /* Elementwise complex multiply: out[i] = a[i] * b[i].
  * a, b, out are n interleaved-double pairs each. Bounded n only by
  * uint32_t — no stack allocation, so the SRMECH_LAPLACIAN_MAX_NODES
@@ -1015,6 +1033,23 @@ srmech_status_t srmech_elementwise_transcendental(
     const double  *arr,
     int            op_id,
     double        *out);
+
+/* Dense linear solve A·X = B (v0.7.1rc3, #897 §26). A is n×n, B and the
+ * output X are n×nrhs, all row-major doubles (caller-allocated). Gauss–
+ * Jordan with partial pivoting; the reusable Class-L float primitive the
+ * Schur-complement / DtN float path composes over for its interior solve.
+ * A singular A (a wholly-zero pivot column at/below the diagonal) returns
+ * SRMECH_ERR_BAD_INPUT. Bounded n, nrhs ≤ 256 (a thread-local augmented
+ * workspace); larger systems return SRMECH_ERR_OVERFLOW (Python falls back
+ * to numpy.linalg.solve). No libm: a solve is + − × ÷ only.
+ * ABI-additive: a new symbol, so SRMECH_ABI_VERSION stays 3.
+ */
+srmech_status_t srmech_dense_solve_f64(
+    uint32_t       n,
+    uint32_t       nrhs,
+    const double  *A,
+    const double  *B,
+    double        *out_X);
 
 /* ------------------------------------------------------------------ *
  * Class J — prime-factorisation / period (Task #217 Phase C1 rc3)
@@ -1684,6 +1719,82 @@ srmech_status_t srmech_bus_send_recv(
 
 /* Close the client + free its handle. After return, h is invalid. */
 srmech_status_t srmech_bus_client_close(srmech_bus_client_handle_t *h);
+
+/* --------------------------------------------------------------------
+ * Hamming / GF(2) linear block-code family (#910 / §30; F442/F449).
+ *
+ * The CARRY/EC half of the sedenion front-loader: a 2^n-1 single-error-
+ * correcting Hamming code, lean-ALU XOR-native (GF(2) add = parity = XOR;
+ * no float, no libm, no malloc). Canonical 1-indexed construction: codeword
+ * length N = 2^n - 1, parity bits at the power-of-two positions; the syndrome
+ * IS the 1-indexed position of the single flipped bit (0 = clean). Distance 3
+ * => corrects any single-bit error. Hamming(7,4) is the octonion's own Fano
+ * plane (F441). Rosetta peer of srmech.amsc.cascade.hamming_* — attested
+ * bit-exact by tests/test_cascade_hamming_parity.py.
+ *
+ * ABI-additive: new symbols + one macro, so SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* Upper bound on the parity-bit count n (codeword 2^n - 1 <= 65535). Shared
+ * with the Python surface (srmech.amsc.cascade.hamming.HAMMING_MAX_N). */
+#define SRMECH_HAMMING_MAX_N 16
+
+/* Encode k = (2^n - 1) - n data bits (each 0/1) into a 2^n-1-bit codeword.
+ *   data         : k input bits (0/1), caller-owned.
+ *   k            : MUST equal (2^n - 1) - n.
+ *   n            : parity-bit count, 2 <= n <= SRMECH_HAMMING_MAX_N.
+ *   out_codeword : caller-owned, length 2^n - 1; receives the codeword.
+ * Errors: SRMECH_ERR_NULL_ARG (null ptr); SRMECH_ERR_BAD_INPUT (n out of
+ * range, k mismatch, or a non-0/1 data bit). */
+srmech_status_t srmech_hamming_encode(const uint8_t *data, size_t k, int n,
+                                      uint8_t *out_codeword);
+
+/* Compute the syndrome (1-indexed flipped-bit position; 0 = clean).
+ *   codeword : len bits (0/1); len MUST be of the form 2^n - 1.
+ *   len      : codeword length.
+ *   out_pos  : receives the 1-indexed error position (0 if clean).
+ * Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (len not 2^n-1 in range,
+ * or a non-0/1 bit). */
+srmech_status_t srmech_hamming_syndrome(const uint8_t *codeword, size_t len,
+                                        int *out_pos);
+
+/* Locate + correct any single-bit error and recover the data payload.
+ *   codeword : len bits (0/1), len = 2^n - 1.
+ *   len      : codeword length.
+ *   out_data : caller-owned, length len - n; receives the k corrected data bits.
+ *   out_pos  : receives the 1-indexed error position (0 if clean).
+ * Single-error-correcting (distance 3). Errors as srmech_hamming_syndrome. */
+srmech_status_t srmech_hamming_decode_correct(const uint8_t *codeword, size_t len,
+                                              uint8_t *out_data, int *out_pos);
+
+/* ------------------------------------------------------------------
+ * Cayley-Dickson basis-unit cocycle (v0.7.3rc1; #915 / MFO §VII.6.23) — the
+ * integer structural core of the open-exterior demonstrator. The product of
+ * two unit basis elements e_i * e_j = sign * e_index in the dim-D
+ * Cayley-Dickson algebra (the result index is i XOR j; the sign carries the
+ * Fano/orientation structure). Computed by the same iterative doubling-step the
+ * Python recursion uses, unrolled to a bounded loop (no recursion; JPL Rule 1).
+ * Rosetta peer of srmech.amsc.cascade.cayley_dickson.cd_basis_product —
+ * attested bit-exact by tests/test_cascade_cayley_dickson_parity.py.
+ *
+ * ABI-additive: a new symbol + two macros, so SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* Hard ceiling on the algebra dimension (a power of two). Shared with the
+ * Python surface (srmech.amsc.cascade.cayley_dickson.CD_MAX_DIM). */
+#define SRMECH_CD_MAX_DIM 64
+/* log2(SRMECH_CD_MAX_DIM) — the doubling-loop over-bound (JPL Rule 2). */
+#define SRMECH_CD_MAX_LEVELS 6
+
+/* Product of two unit basis elements: e_i * e_j = sign * e_index.
+ *   dim        : algebra dimension, a power of two in [1, SRMECH_CD_MAX_DIM].
+ *   i, j       : basis indices in [0, dim).
+ *   out_index  : receives the result basis index in [0, dim) (== i XOR j).
+ *   out_sign   : receives the sign, +1 or -1.
+ * Errors: SRMECH_ERR_NULL_ARG (null ptr); SRMECH_ERR_BAD_INPUT (dim not a
+ * power of two in range, or i/j out of range). */
+srmech_status_t srmech_cd_basis_product(int dim, int i, int j,
+                                        int *out_index, int *out_sign);
 
 #ifdef __cplusplus
 }

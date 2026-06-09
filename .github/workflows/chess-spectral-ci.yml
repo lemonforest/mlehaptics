@@ -1,9 +1,20 @@
 name: chess-spectral-ci
 
-# Per-PR build + test for the chess-spectral package. Mirrors the
-# release matrix from chess-spectral-publish.yml at a smaller scale —
-# enough to catch regressions before merge without running the full
-# 16-cell wheel matrix on every push.
+# Per-PR build + test for the chess-spectral package — the LEAN, fast
+# feedback lane. Mirrors srmech-ci.yml + ephemerides-spectral-ci.yml:
+# the per-PR job is intentionally kept light (one Linux build + the C
+# unit tests + the Python parity/e2e suite) so test feedback isn't
+# slowed by heavy cross-OS / sanitizer builds.
+#
+# The build-env-error surface (cross-OS wheels, asan memory-sanitizer)
+# is deliberately NOT here. It lives at tag/publish time:
+#   * cross-OS build + per-wheel parity tests  → chess-spectral-publish.yml
+#     `build-wheels` (cibuildwheel 3 OS × 5 Python), feeding the rc →
+#     TestPyPI install that actually exercises the published wheel.
+#   * asan memory-sanitizer                     → chess-spectral-publish.yml
+#     `asan` job, which gates the `publish` job on a tag push.
+# That split is the project-wide pattern: lean test CI pre-publish,
+# TestPyPI (+ the publish-time heavy jobs) for build-env errors.
 #
 # Triggers: pull_request changes under docs/chess-maths/chess-spectral/
 # OR a manual workflow_dispatch.
@@ -37,6 +48,12 @@ permissions:
 
 jobs:
   build-and-test:
+    # LEAN fast lane: a single Linux release build + ctest + pytest.
+    # The previous 4-cell {ubuntu-release, ubuntu-asan, macos-14,
+    # windows-msvc} matrix moved its cross-OS coverage to the publish-
+    # time cibuildwheel matrix and its asan coverage to the publish-time
+    # `asan` job (see header). Keeping a 1-cell matrix preserves the
+    # ${{ matrix.* }} step expressions below verbatim.
     name: ${{ matrix.os }} • py${{ matrix.python }} • ${{ matrix.preset }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -44,9 +61,6 @@ jobs:
       matrix:
         include:
           - { os: ubuntu-latest,  python: "3.12", preset: "release" }
-          - { os: ubuntu-latest,  python: "3.12", preset: "asan" }
-          - { os: macos-14,       python: "3.12", preset: "release" }
-          - { os: windows-latest, python: "3.12", preset: "msvc-release" }
 
     steps:
       - uses: actions/checkout@v4

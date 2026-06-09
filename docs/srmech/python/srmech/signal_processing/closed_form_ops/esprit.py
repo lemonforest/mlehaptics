@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from srmech.amsc.cascade.matrix_cascades import lstsq as _lstsq
 from srmech.amsc.laplacian import hermitian_eigendecompose
 
 OPERATION_NAME = "esprit"
@@ -66,7 +67,7 @@ def op(R, *, n_sources: int, D: int = 8192) -> np.ndarray:
     Es1 = Es[: M - 1, :]
     Es2 = Es[1:, :]
     # Solve Es2 = Es1 @ Phi via LS: Phi = (Es1^H Es1)^-1 Es1^H Es2
-    Phi = np.linalg.lstsq(Es1, Es2, rcond=None)[0]
+    Phi = _lstsq(Es1, Es2)
     # Class K: extract rotation as eigenvalues of Phi.
     phi_eigvals = np.linalg.eigvals(Phi)
     return phi_eigvals

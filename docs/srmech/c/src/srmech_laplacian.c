@@ -641,6 +641,47 @@ srmech_status_t srmech_dense_matvec_complex(
     return SRMECH_OK;
 }
 
+srmech_status_t srmech_dense_matmul_complex(
+    uint32_t       m,
+    uint32_t       k,
+    uint32_t       n,
+    const double  *A_interleaved,
+    const double  *B_interleaved,
+    double        *out_interleaved)
+{
+    assert(A_interleaved != NULL);
+    assert(out_interleaved != NULL);
+    if (A_interleaved == NULL || B_interleaved == NULL
+        || out_interleaved == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (m > SRMECH_LAPLACIAN_MAX_NODES
+        || k > SRMECH_LAPLACIAN_MAX_NODES
+        || n > SRMECH_LAPLACIAN_MAX_NODES) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    for (uint32_t i = 0; i < m; i++) {
+        for (uint32_t j = 0; j < n; j++) {
+            double acc_re = 0.0;
+            double acc_im = 0.0;
+            for (uint32_t p = 0; p < k; p++) {
+                size_t ai = ((size_t)i * k + p) * 2;
+                size_t bi = ((size_t)p * n + j) * 2;
+                double a_re = A_interleaved[ai];
+                double a_im = A_interleaved[ai + 1];
+                double b_re = B_interleaved[bi];
+                double b_im = B_interleaved[bi + 1];
+                acc_re += a_re * b_re - a_im * b_im;
+                acc_im += a_re * b_im + a_im * b_re;
+            }
+            size_t oi = ((size_t)i * n + j) * 2;
+            out_interleaved[oi]     = acc_re;
+            out_interleaved[oi + 1] = acc_im;
+        }
+    }
+    return SRMECH_OK;
+}
+
 srmech_status_t srmech_elementwise_multiply_complex(
     uint32_t       n,
     const double  *a_interleaved,

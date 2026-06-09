@@ -44,14 +44,17 @@ from srmech.dsl import (
 
 
 class TestCatalogLoader:
-    """Cascade-catalog runtime loader covers all 13 shipped descriptors.
+    """Cascade-catalog runtime loader covers all 14 shipped descriptors.
 
     8 lean-ISA atoms/composites + the 2 v0.6.0 cascade ops
     (parallel_sector_dispatch, rc6/#778; kuramoto_step, rc9) + the
     v0.7.0rc8 autocorrelation Class-L primitive + the 2 v0.7.0rc31
-    quaternion/octonion DFT composites (#863). The non-atom ops are
-    catalogued for discovery (``srmech dsl ops`` + descriptor render) and
-    resolve to their ``srmech.amsc.cascade`` callables;
+    quaternion/octonion DFT composites (#863) + the v0.7.1rc2
+    schur_complement Class-L boundary-reduction stage (#897 §26). The
+    non-atom ops are catalogued for discovery (``srmech dsl ops`` +
+    descriptor render) and resolve to their ``srmech.amsc.cascade``
+    callables (schur_complement resolves to the laplacian-registered op
+    re-exported flat for the chain contract);
     parallel_sector_dispatch is higher-order (a body-callback orchestrator,
     not a unary ``chain().then(...)`` stage).
     """
@@ -70,13 +73,14 @@ class TestCatalogLoader:
         "autocorrelation",
         "quaternion_dft",
         "octonion_dft",
+        "schur_complement",
     }
 
     def test_list_cascade_ops_matches_expected_set(self) -> None:
         assert set(list_cascade_ops()) == self.EXPECTED_OPS
 
-    def test_list_cascade_ops_returns_thirteen(self) -> None:
-        assert len(list_cascade_ops()) == 13
+    def test_list_cascade_ops_returns_fourteen(self) -> None:
+        assert len(list_cascade_ops()) == 14
 
     def test_list_cascade_ops_sorted(self) -> None:
         names = list_cascade_ops()
@@ -449,14 +453,14 @@ def _run_cli(*args: str) -> subprocess.CompletedProcess:
 class TestCliDsl:
     """CLI subcommand surface."""
 
-    def test_ops_lists_thirteen(self) -> None:
+    def test_ops_lists_fourteen(self) -> None:
         result = _run_cli("dsl", "ops")
         assert result.returncode == 0, result.stderr
-        assert "13 total" in result.stdout
+        assert "14 total" in result.stdout
         # Each catalog name appears in the output.
         for name in ["chiral_flip", "magnitude", "cyclic_gcd",
                      "parallel_sector_dispatch", "kuramoto_step",
-                     "quaternion_dft", "octonion_dft"]:
+                     "quaternion_dft", "octonion_dft", "schur_complement"]:
             assert name in result.stdout
 
     def test_ops_json_emits_records(self) -> None:
@@ -464,7 +468,7 @@ class TestCliDsl:
         assert result.returncode == 0, result.stderr
         records = json.loads(result.stdout)
         assert isinstance(records, list)
-        assert len(records) == 13
+        assert len(records) == 14
         for rec in records:
             assert "name" in rec
             assert "class_composition" in rec

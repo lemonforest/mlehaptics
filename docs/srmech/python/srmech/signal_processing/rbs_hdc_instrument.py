@@ -83,12 +83,14 @@ Canonical SSoT
 
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from srmech.amsc import hdc as _M
-from srmech.amsc.format import sha256_bytes as _sha256_hex
+# Route the mint hash through format.sha256_raw so it picks up the native C
+# SHA-256 dispatch transparently (CLAUDE.md: no raw hashlib.sha256 callsites);
+# sha256_raw(x) is bit-identical to hashlib.sha256(x).digest() (raw 32 bytes).
+from srmech.amsc.format import sha256_raw as _sha256_raw
 
 from ._paths import D_DEFAULT, D_MIN, D_MAX
 
@@ -238,7 +240,7 @@ def mint_vector(name: str, *, D: int = D_DEFAULT) -> bytes:
     counter = 0
     name_bytes = name.encode("utf-8")
     while len(out) < n_bytes:
-        h = hashlib.sha256(name_bytes + counter.to_bytes(8, "big")).digest()
+        h = _sha256_raw(name_bytes + counter.to_bytes(8, "big"))
         out.extend(h)
         counter += 1
     return bytes(out[:n_bytes])
@@ -829,7 +831,7 @@ def encode_loe_content(
     content_vec = mint_vector(f"LoE.content.{content}", D=D)
     # Class A: content-determined stride per Spike #176 form-function
     # rotation (SHA-256[0:8] little-endian mod D).
-    digest = hashlib.sha256(content.encode("utf-8")).digest()
+    digest = _sha256_raw(content.encode("utf-8"))
     stride = int.from_bytes(digest[:8], "little") % D
     # Class C: cyclic permute by content-determined stride.
     rotated = _M.permute(content_vec, stride)

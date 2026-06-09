@@ -35,7 +35,7 @@ from __future__ import annotations
 import numpy as np
 from typing import Tuple
 
-from srmech.amsc.laplacian import hermitian_eigendecompose
+from srmech.amsc.laplacian import dense_matmul_complex, hermitian_eigendecompose
 from srmech.qm.spin import pauli_matrices
 
 
@@ -197,7 +197,8 @@ def lie_algebra_residual(
     max_residual = 0.0
     for a in range(n_gen):
         for b in range(n_gen):
-            comm = generators[a] @ generators[b] - generators[b] @ generators[a]
+            comm = (dense_matmul_complex(generators[a], generators[b])
+                    - dense_matmul_complex(generators[b], generators[a]))
             rhs = 1j * sum(
                 structure_constants[a, b, c] * generators[c] for c in range(n_gen)
             )
@@ -220,7 +221,7 @@ def casimir_operator(generators: Tuple[np.ndarray, ...]) -> np.ndarray:
     """
     if not generators:
         raise ValueError("casimir_operator: generators tuple is empty")
-    return sum(T @ T for T in generators)
+    return sum(dense_matmul_complex(T, T) for T in generators)
 
 
 def casimir_eigenvalue(generators: Tuple[np.ndarray, ...]) -> float:
@@ -299,7 +300,9 @@ def gauge_path_segment(
     # complex-Hermitian connection matrix (Gell-Mann generators are complex),
     # so V stays complex128.
     eigvals, V = hermitian_eigendecompose(M)
-    return V @ np.diag(np.exp(1j * eigvals)) @ V.conj().T
+    # exp(M) = V·diag(exp(iλ))·Vᴴ — Class-L matmul cascade.
+    return dense_matmul_complex(
+        dense_matmul_complex(V, np.diag(np.exp(1j * eigvals))), V.conj().T)
 
 
 def wilson_loop_from_segments(
@@ -333,7 +336,8 @@ def wilson_loop_from_segments(
     dim = generators[0].shape[0]
     U = np.eye(dim, dtype=complex)
     for k in range(A_segments.shape[0]):
-        U = gauge_path_segment(A_segments[k], generators, coupling) @ U
+        U = dense_matmul_complex(
+            gauge_path_segment(A_segments[k], generators, coupling), U)
     return U
 
 

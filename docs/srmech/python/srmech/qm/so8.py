@@ -53,7 +53,14 @@ import numpy as np
 
 from srmech.amsc.cascade import magnitude as _magnitude
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
-from srmech.amsc.laplacian import hermitian_eigendecompose
+from srmech.amsc.laplacian import (
+    dense_dot_complex,
+    dense_dot_real,
+    dense_matmul_real,
+    dense_matvec_complex,
+    dense_matvec_real,
+    hermitian_eigendecompose,
+)
 from srmech.qm.octonion import (
     octonion_left_mult,
     octonion_mult_table,
@@ -110,7 +117,7 @@ def _basis_vectors() -> np.ndarray:
 
 def _commutator(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     """Matrix commutator ``[X, Y] = X Y - Y X`` (Class L building block)."""
-    return x @ y - y @ x
+    return dense_matmul_real(x, y) - dense_matmul_real(y, x)
 
 
 def _derivation(a: np.ndarray, b: np.ndarray) -> np.ndarray:
@@ -200,7 +207,7 @@ def _deterministic_rank_subset(
         v = vectors[:, col].astype(float)
         residual = v.copy()
         for q in kept_basis:
-            residual = residual - float(q @ residual) * q
+            residual = residual - dense_dot_real(q, residual) * q
         if float(np.linalg.norm(residual)) > _RANK_TOL * norm_scale:
             kept_indices.append(col)
             kept_basis.append(residual / float(np.linalg.norm(residual)))
@@ -406,7 +413,9 @@ def _su3_stabiliser(g2: List[np.ndarray], k: int) -> List[np.ndarray]:
     ``M`` annihilates ``e_K``.
     """
     e_k = _basis_vectors()[k]
-    a_matrix = np.column_stack([g2[a] @ e_k for a in range(_DIM_G2)])  # (8,14)
+    a_matrix = np.column_stack(
+        [dense_matvec_real(g2[a], e_k) for a in range(_DIM_G2)]
+    )  # (8,14)
     _, singular, vh = np.linalg.svd(a_matrix)
     scale = max(1.0, float(singular[0]))
     null_coeffs: List[np.ndarray] = []
@@ -421,7 +430,7 @@ def _su3_stabiliser(g2: List[np.ndarray], k: int) -> List[np.ndarray]:
         sum(c[a] * g2[a] for a in range(_DIM_G2)) for c in null_coeffs
     ]
     for matrix in su3:
-        residual = _magnitude(float(np.linalg.norm(matrix @ e_k)))
+        residual = _magnitude(float(np.linalg.norm(dense_matvec_real(matrix, e_k))))
         assert residual < _RANK_TOL, (
             f"su(3) generator does not annihilate e_{k}: residual {residual}"
         )
@@ -453,8 +462,8 @@ def _su3_complement(
     """
     g2_coords = np.column_stack([_epq_coords(m) for m in g2])  # (28,14)
     q_g2, _ = np.linalg.qr(g2_coords)                          # (28,14) on
-    projector = su3_orthonormal @ su3_orthonormal.T
-    residual = q_g2 - projector @ q_g2                         # (28,14)
+    projector = dense_matmul_real(su3_orthonormal, su3_orthonormal.T)
+    residual = q_g2 - dense_matmul_real(projector, q_g2)       # (28,14)
     left, singular, _ = np.linalg.svd(residual, full_matrices=False)
     scale = max(1.0, float(singular[0]))
     keep = singular > _RANK_TOL * scale
@@ -480,7 +489,8 @@ def _ad_on_complement(
     matrix.
     """
     columns = [
-        complement_coords.T @ _commutator_coords(x, y) for y in complement
+        dense_matvec_real(complement_coords.T, _commutator_coords(x, y))
+        for y in complement
     ]
     return np.column_stack(columns)
 
@@ -525,7 +535,7 @@ def _invariant_complex_structure(
     antisymmetric = [0.5 * (m - m.T) for m in commutant]
     j_raw = max(antisymmetric, key=lambda a: float(np.linalg.norm(a)))
     # Normalise so J^2 = -I: J_raw^2 = -s^2 I, so J = J_raw / s.
-    j_squared = j_raw @ j_raw
+    j_squared = dense_matmul_real(j_raw, j_raw)
     s = float(np.sqrt(_magnitude(float(np.mean(np.diag(j_squared))))))
     j = j_raw / s
     # FIXED sign convention (Class C): first non-zero strict-upper-triangular
@@ -538,7 +548,8 @@ def _invariant_complex_structure(
                 j = -j
             break
     # Belt-and-suspenders: J^2 = -I and J commutes with every ad(X).
-    assert _magnitude(float(np.linalg.norm(j @ j + identity))) < _RANK_TOL, (
+    assert _magnitude(float(np.linalg.norm(
+        dense_matmul_real(j, j) + identity))) < _RANK_TOL, (
         "complex structure J does not satisfy J^2 = -I"
     )
     for ad in ad_mats:
@@ -627,9 +638,12 @@ def _complement_weights(
     weights = np.zeros((_DIM_COMPLEMENT, 2))
     for k in range(_DIM_COMPLEMENT):
         v = eigenvectors[:, k]
-        denom = complex(v.conj() @ v)
+        # v is a COMPLEX eigenvector of the real ad(H) (eigenvalues ±i·weight),
+        # so these contractions are genuinely complex (Class-L complex cascade).
+        denom = dense_dot_complex(v.conj(), v)
         for axis, ad in enumerate(ad_cartan):
-            rayleigh = complex(v.conj() @ ad @ v) / denom
+            rayleigh = dense_dot_complex(
+                v.conj(), dense_matvec_complex(ad, v)) / denom
             # ad(H) v = i * weight * v  =>  weight = -i * rayleigh.
             weights[k, axis] = float((-1j * rayleigh).real)
     return weights
@@ -996,7 +1010,10 @@ def _so4_stabiliser(
     for a in h_imag:
         for k in complement:
             rows.append(
-                np.array([(g2[c] @ basis[a])[k] for c in range(_DIM_G2)])
+                np.array(
+                    [dense_matvec_real(g2[c], basis[a])[k]
+                     for c in range(_DIM_G2)]
+                )
             )
     constraint = np.array(rows)  # (12, 14)
     _, singular, vh = np.linalg.svd(constraint)
@@ -1020,7 +1037,7 @@ def _so4_stabiliser(
     for matrix in so4:
         leak = 0.0
         for a in h_imag:
-            image = matrix @ basis[a]
+            image = dense_matvec_real(matrix, basis[a])
             for k in complement:
                 leak = leak + image[k] * image[k]
         residual = _magnitude(float(np.sqrt(leak)))
@@ -1047,7 +1064,7 @@ def _killing_form(generators: List[np.ndarray]) -> np.ndarray:
     for i in range(n):
         for j in range(n):
             bracket = _commutator_coords(generators[i], generators[j])
-            f[i, j, :] = pinv @ bracket
+            f[i, j, :] = dense_matvec_real(pinv, bracket)
     killing = np.zeros((n, n))
     for a in range(n):
         for b in range(n):
@@ -1112,12 +1129,12 @@ def _two_su2_ideals(
     sd_frame, asd_frame = _self_dual_bases()
     q_sd, _ = np.linalg.qr(sd_frame)
     q_asd, _ = np.linalg.qr(asd_frame)
-    proj_sd = q_sd @ q_sd.T
-    proj_asd = q_asd @ q_asd.T
+    proj_sd = dense_matmul_real(q_sd, q_sd.T)
+    proj_asd = dense_matmul_real(q_asd, q_asd.T)
 
     def ideal_for(cross_projector: np.ndarray) -> List[np.ndarray]:
         # generators whose block vanishes under the OTHER duality projector.
-        leak = cross_projector @ block_map  # (6, 6)
+        leak = dense_matmul_real(cross_projector, block_map)  # (6, 6)
         _, singular, vh = np.linalg.svd(leak)
         scale = max(1.0, float(singular[0]))
         coeffs = [

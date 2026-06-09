@@ -676,6 +676,69 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.30.0 Sol Saturn Ring System Catalog (temporal-spectrum
+    # catalogue of a multi-regime body; the staged dual-author ring data
+    # promoted to a query surface — four-regime partition + (p:q)
+    # resonance closure invariant + bounded-local-Laplacian on the radial
+    # feature graph). Pure-Python; computed at query time from the 12-row
+    # roster. No C twin makes sense.
+    "get_saturn_ring_features": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_ring_resonance_closure": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_ring_radial_laplacian": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_saturn_ring_features": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    # ── v0.30.0rc2 Sol Solar Rotation Catalog (surface differential
+    # rotation Omega(lat) + helioseismic internal rotation). First
+    # solar-dynamics extension of the v0.24.3 Sun Dynamical Spectrum.
+    # Pure-Python; the latitude profile + Carrington-closure are computed
+    # at query time from the Snodgrass-Ulrich coefficients. No C twin.
+    "get_solar_differential_rotation": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_solar_rotation_closure": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_solar_internal_rotation": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_solar_differential_rotation": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    # ── v0.30.0rc3 Sol Solar Cycle Spectrum (Schwabe 11-yr / Hale 22-yr
+    # polarity-flip closure / Gleissberg 88-yr / butterfly drift). The
+    # third solar-dynamics catalogue. Pure-Python period structure +
+    # integer commensurability; no transcendental, no C twin.
+    "get_solar_cycle_spectrum": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_hale_polarity_closure": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "get_butterfly_drift": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "list_solar_cycle_spectrum": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── First cosmology-instrument pair — cmb_power_spectrum +
     # cmb_anomalies. Pure-Python query surfaces over committed NDJSON;
     # no encoder-touching, no C twin makes sense.

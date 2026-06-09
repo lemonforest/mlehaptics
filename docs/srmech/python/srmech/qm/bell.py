@@ -120,12 +120,13 @@ from srmech.qm.spin import pauli_matrices
 # ---------------------------------------------------------------------------
 #
 # 2 * sqrt(2) computed at double-precision. This is the exact IEEE-754
-# binary64 representation of ``2 · √2`` produced by the libm ``sqrt`` of
-# the exact IEEE-754 ``2.0``. The framework-asserted constant matches
-# this value bit-exactly; we expose it as a module constant rather than
-# recomputing ``2 * _rsqrt(2)`` in each call site.
+# binary64 representation of ``2 · √2`` (correctly rounded). The Tsirelson
+# bound is a mathematical CONSTANT, so it uses the higher-precision bignum
+# REFERENCE sqrt (``precision_bits=64``) — bit-exact with libm — rather than
+# the default K=27 cascade (the fast, ~1-ULP, embedded-runnable path that
+# ``rational.sqrt`` dispatches to ``srmech_rational_sqrt`` as of v0.7.5rc3).
 
-TSIRELSON_BOUND: float = 2.0 * _rsqrt(2.0)
+TSIRELSON_BOUND: float = 2.0 * _rsqrt(2.0, precision_bits=64)
 """Tsirelson's upper bound for two-qubit CHSH expectation, ``2√2``.
 
 Canonical SSoT: Cirel'son [Tsirelson] (1980) *Lett. Math. Phys.* 4, 93.

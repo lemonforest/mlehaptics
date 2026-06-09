@@ -84,12 +84,14 @@ Canonical SSoT
 
 from __future__ import annotations
 
-import hashlib
 from typing import Iterable, Tuple
 
 from srmech.amsc import hdc as _M
 from srmech.amsc import cyclic as _I
 from srmech.amsc import rational as _srn
+# Route the content-stride hash through format.sha256_raw for native C dispatch
+# (CLAUDE.md: no raw hashlib.sha256); bit-identical to hashlib.sha256().digest().
+from srmech.amsc.format import sha256_raw as _sha256_raw
 
 from ._paths import D_DEFAULT, D_MIN, D_MAX
 
@@ -161,7 +163,7 @@ def compute_content_stride(content: bytes, *, D: int = D_DEFAULT) -> int:
         Stride in ``[0, D)``.
     """
     _validate_D(D)
-    digest = hashlib.sha256(content).digest()
+    digest = _sha256_raw(content)
     val = int.from_bytes(digest[:8], "little")
     return val % D
 

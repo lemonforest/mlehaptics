@@ -1,0 +1,75 @@
+# Sol Solar Cycle Spectrum Catalogue — the Sun's slow magnetic clock
+# (Schwabe / Hale / Gleissberg periods + recent-cycle roster),
+# authored through the AMSC literature_curated framework.
+#
+# v0.30.0rc4 dual-author exercise (cf. saturn_rings): the same 3
+# solar-cycle rows are encoded TWICE — once through this AMSC path
+# (descriptor + NDJSON + JSON Schema), once through the hand-coded
+# `_research/solar_cycle_data.py` module (the rc3 Sol Solar Cycle
+# Spectrum catalogue's data source). The two paths' NDJSON are
+# diff-checked by tests/test_solar_cycle_dual_author.py.
+#
+# Per-row source DOIs are triality-attested (haiku/sonnet/opus vs NASA
+# ADS / arXiv / Royal Observatory of Belgium): 10.1007/lrsp-2015-4
+# (Hathaway 2015, "The Solar Cycle" review — cycle lengths) and
+# 10.1007/s11214-014-0074-2 (Clette et al. 2014, the SILSO sunspot-
+# number recalibration). Both DOIs resolve and carry independent OA
+# evidence (arXiv 1502.07020 / arXiv 1407.3231 + ROB record 541);
+# per-row dates are written at year granularity (the value all three
+# tiers externally confirmed — the panel declined to over-claim the
+# publisher month/day).
+
+[source]
+key = "solar_cycle"
+human_readable_name = "Sol Solar Cycle Spectrum Catalogue"
+purpose = "ground-proof rows for the Sun's magnetic activity cycle (the recent Schwabe-cycle roster; periods + minimum epochs underpinning the Hale = 2 x Schwabe polarity closure)"
+license = "literature-curated; per-row source DOIs cited"
+homepage = "https://www.sidc.be/SILSO/"
+canonical_doi = "10.1007/lrsp-2015-4"
+
+# canonical_doi points at Hathaway 2015, *Living Reviews in Solar
+# Physics* 12:4 — the open-access "The Solar Cycle" review (triality-
+# attested: DOI resolves, arXiv 1502.07020, ADS 2015LRSP...12....4H).
+# homepage is WDC-SILSO (the Royal Observatory of Belgium sunspot-
+# number data centre underpinning the cycle roster).
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "solar_cycle.ndjson"
+# literature_curated does no network I/O; reads the committed NDJSON.
+
+[parse]
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "solar_cycle.solar_cycle.v1"
+data_schema_path = "solar_cycle.schema.json"
+
+[rendering]
+cite_as_template = "Sol Solar Cycle Spectrum Catalogue (curated against published literature; Hathaway 2015 *Living Rev. Solar Phys.* 12:4 + Clette et al. 2014 *Space Sci. Rev.* 186:35 + per-row source DOIs); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "ground-proof solar-cycle row (Sol; {schema.regime_label} regime — the magnetic activity cycle)"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# The ~11-yr Schwabe / 22-yr Hale / ~88-yr Gleissberg activity cycle is
+# a temporal quasi-periodic phenomenon — the same v0.24.9 classifier
+# regime as the Axial Seamount eruption chronology, the Loki Patera
+# tidal-heating cycle, and the F-ring shepherd modulation. Declared so
+# the v0.26.0 schema-gap trigger can route temporal-cycle gaps here.
+regime_labels = [
+    "temporal_quasi_periodic_cycle",
+]

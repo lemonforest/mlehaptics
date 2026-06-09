@@ -296,6 +296,24 @@ from ephemerides_spectral._research.loki_patera_catalog import (
     list_loki_patera_eruption_cycle
         as _list_loki_patera_eruption_cycle_impl,
 )
+from ephemerides_spectral._research.saturn_rings_catalog import (
+    get_saturn_ring_features as _get_saturn_ring_features_impl,
+    get_ring_resonance_closure as _get_ring_resonance_closure_impl,
+    get_ring_radial_laplacian as _get_ring_radial_laplacian_impl,
+    list_saturn_ring_features as _list_saturn_ring_features_impl,
+)
+from ephemerides_spectral._research.solar_rotation_catalog import (
+    get_solar_differential_rotation as _get_solar_differential_rotation_impl,
+    get_solar_rotation_closure as _get_solar_rotation_closure_impl,
+    get_solar_internal_rotation as _get_solar_internal_rotation_impl,
+    list_solar_differential_rotation as _list_solar_differential_rotation_impl,
+)
+from ephemerides_spectral._research.solar_cycle_catalog import (
+    get_solar_cycle_spectrum as _get_solar_cycle_spectrum_impl,
+    get_hale_polarity_closure as _get_hale_polarity_closure_impl,
+    get_butterfly_drift as _get_butterfly_drift_impl,
+    list_solar_cycle_spectrum as _list_solar_cycle_spectrum_impl,
+)
 from ephemerides_spectral._research.cmb_power_spectrum_catalog import (
     get_cmb_power_at_ell as _get_cmb_power_at_ell_impl,
     get_cmb_first_acoustic_peak as _get_cmb_first_acoustic_peak_impl,
@@ -4901,6 +4919,150 @@ def list_loki_patera_eruption_cycle() -> Dict[str, Any]:
 
 
 # ──────────────────────────────────────────────────────────────────────
+# v0.30.0 — Saturn Ring System Catalog (temporal-spectrum catalog of a
+# multi-regime body). The staged dual-author ring data (12 RingFeature
+# rows) promoted to a full query surface: the four-regime partition, the
+# (p:q) mean-motion resonance closure invariant (integer commensura-
+# bilities predict the observed ring boundaries to <1%, residual bounded
+# by the leading Saturn-J2 oblateness correction), and the bounded-local
+# Laplacian eigenbasis on the radial feature graph (v0.24.5 Hawaii
+# machinery on ring radii). Pure-Python; computed at query time. Closes
+# task #153.
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_saturn_ring_features() -> Dict[str, Any]:
+    """Saturn ring system — 12 features + the four-regime partition +
+    ring-system constants.
+
+    The multi-regime headline of v0.30.0: the ring features span four
+    of the v0.24.x dynamical regimes (rigid-body action-angle stable /
+    Janus-Epimetheus mutual-lock / temporal quasi-periodic F-ring /
+    bounded-local-Laplacian B/C boundaries), each named by the
+    feature's ``regime_label``.
+    """
+    return _get_saturn_ring_features_impl()
+
+
+def get_ring_resonance_closure() -> Dict[str, Any]:
+    """The (p:q) mean-motion resonance closure invariant — THE headline
+    of v0.30.0.
+
+    Integer inner-Lindblad commensurabilities (Cassini Division 2:1
+    Mimas; A-ring outer edge 7:6 Janus-Epimetheus) predict the observed
+    ring boundaries from the moons' semi-major axes (``a_moon ·
+    (q/p)^(2/3)``) to <1%; the sub-percent residual is bounded by the
+    leading Saturn-J2 epicyclic-frequency correction ``(3/2) J2 (R/a)^2``
+    — the oblateness signature. The ring-system analogue of Luna's Saros
+    triple and the Sun's Tassoul asymptotic relation.
+    """
+    return _get_ring_resonance_closure_impl()
+
+
+def get_ring_radial_laplacian() -> Dict[str, Any]:
+    """Bounded-local-Laplacian eigenbasis on the ring radial feature
+    graph (v0.24.5 Hawaii machinery on ring radii).
+
+    The Fiedler vector bisects the ring system at its largest radial
+    gap — the ~25 000 km seam between the C/B-ring inner edges and the
+    Cassini Division and everything outward. Same eigenbasis machinery
+    as v0.18.0 body_architecture and v0.24.5 Hawaii, on a single body's
+    ring structure.
+    """
+    return _get_ring_radial_laplacian_impl()
+
+
+def list_saturn_ring_features() -> Dict[str, Any]:
+    """Full enumeration of Saturn ring-system features + citations."""
+    return _list_saturn_ring_features_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.30.0rc2 — Solar Rotation Catalog (surface differential rotation +
+# internal rotation). First solar-dynamics extension of the v0.24.3 Sun
+# Dynamical Spectrum: the Snodgrass-Ulrich 1990 surface law Omega(lat) +
+# the helioseismic internal profile (tachocline + rigid radiative core),
+# with the closure invariant that the 1990 Doppler law reproduces
+# Carrington's 1863 sunspot-derived 25.38-day period. Pure-Python;
+# computed at query time.
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_solar_differential_rotation() -> Dict[str, Any]:
+    """Sun's surface differential rotation — the Snodgrass-Ulrich 1990
+    law Omega(lat) = A + B sin^2 + C sin^4 across latitude.
+
+    Equator ~24.5 d, poles ~34 d (sidereal); the equator laps the poles
+    every ~86 days.
+    """
+    return _get_solar_differential_rotation_impl()
+
+
+def get_solar_rotation_closure() -> Dict[str, Any]:
+    """THE closure of v0.30.0rc2: the 1990 Doppler differential-rotation
+    law reproduces Carrington's 1863 sunspot-derived 25.38-day sidereal
+    period at latitude ~26 deg, inside the sunspot active band — two
+    independent determinations 127 years apart, agreeing.
+    """
+    return _get_solar_rotation_closure_impl()
+
+
+def get_solar_internal_rotation() -> Dict[str, Any]:
+    """Sun's helioseismic internal rotation (Schou 1998 / Howe 2009):
+    differential convection zone, near-rigid radiative interior, and the
+    tachocline shear at ~0.70 R_sun (the dynamo seat).
+    """
+    return _get_solar_internal_rotation_impl()
+
+
+def list_solar_differential_rotation() -> Dict[str, Any]:
+    """Full enumeration of solar-rotation data + citations."""
+    return _list_solar_differential_rotation_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Sol Solar Cycle Spectrum (v0.30.0rc3) — the Sun's slow magnetic clock:
+# the ~11-yr Schwabe sunspot cycle, the 22-yr Hale polarity cycle, the
+# ~88-yr Gleissberg modulation, and the butterfly-diagram drift. The
+# closure is the integer Hale = 2 x Schwabe — the polarity sign-flip
+# (Class-K) doubling the period, exactly as an epicycle's sign-flip does.
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_solar_cycle_spectrum() -> Dict[str, Any]:
+    """Sun's magnetic activity cycle — the period structure: the Schwabe
+    sunspot cycle (~11 yr), the Hale magnetic-polarity cycle (22 yr = 2
+    Schwabe), the Gleissberg amplitude modulation (~88 yr), plus the
+    butterfly-diagram emergence latitudes and the recent-cycle roster.
+    """
+    return _get_solar_cycle_spectrum_impl()
+
+
+def get_hale_polarity_closure() -> Dict[str, Any]:
+    """THE closure of v0.30.0rc3: the Hale magnetic cycle is exactly two
+    Schwabe sunspot cycles. The Sun's global polarity reverses each
+    activity cycle (Hale & Nicholson 1925) and returns to its original
+    sense only after two, so Hale = 2 x Schwabe — the 2:1 commensurability
+    is the polarity Class-K sign-flip, the same sign-flip-doubles-the-
+    period structure as an epicycle.
+    """
+    return _get_hale_polarity_closure_impl()
+
+
+def get_butterfly_drift() -> Dict[str, Any]:
+    """Spörer's law — the butterfly-diagram equatorward drift: sunspots
+    emerge at ~30 deg latitude at cycle start and drift to ~8 deg by
+    cycle end.
+    """
+    return _get_butterfly_drift_impl()
+
+
+def list_solar_cycle_spectrum() -> Dict[str, Any]:
+    """Full enumeration of solar-cycle data + citations."""
+    return _list_solar_cycle_spectrum_impl()
+
+
+# ──────────────────────────────────────────────────────────────────────
 # First cosmology-instrument pair — cmb_power_spectrum + cmb_anomalies
 # (the canonical spherical-harmonic spectral observable at cosmological
 # scale + the canonical structural-anomaly catalog companion;
@@ -5425,9 +5587,13 @@ def get_local_view(
         HD vector dimension. Only used for ``backend in {"auto","bip","c"}``;
         the FPU-ref path uses the instrument's configured D.
     """
+    # NB: `backend` is validated AFTER the "auto" resolution below — this
+    # function's roster is {auto, bip, c, fpu-ref}, not _validate_backend's
+    # {bip, complex128, c}. Validating the raw value here rejected the
+    # *default* backend="auto" (the `chosen not in {...}` gate below is the
+    # correct, roster-matching check).
     for v in (_validate_jd(jd_tdb), _validate_body(body),
-              _validate_lat_lon(lat, lon), _validate_kernel(kernel),
-              _validate_backend(backend)):
+              _validate_lat_lon(lat, lon), _validate_kernel(kernel)):
         if v: return v
     from ephemerides_spectral import _native_bip
     chosen = backend
@@ -5532,8 +5698,12 @@ def get_eclipse_probability(
     dict
         ``{"ok": True, "jd_tdb": ..., "probability": [0..1], "backend": ...}``.
     """
-    for v in (_validate_jd(jd_tdb), _validate_kernel(kernel),
-              _validate_backend(backend)):
+    # NB: `backend` is validated AFTER the "auto" resolution below — this
+    # function's roster is {auto, bip, c, fpu-ref}, not _validate_backend's
+    # {bip, complex128, c}. Validating the raw value here rejected the
+    # *default* backend="auto" (the `chosen not in {...}` gate below is the
+    # correct, roster-matching check).
+    for v in (_validate_jd(jd_tdb), _validate_kernel(kernel)):
         if v: return v
     from ephemerides_spectral import _native_bip
     chosen = backend

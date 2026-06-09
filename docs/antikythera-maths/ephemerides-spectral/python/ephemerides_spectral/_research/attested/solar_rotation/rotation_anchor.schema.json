@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "solar_rotation.rotation_anchor.v1",
+  "title": "Solar rotation anchor row",
+  "description": "One internal/surface rotation anchor of the Sun. Covers the Snodgrass-Ulrich surface differential-rotation evaluations (equator/pole) and the helioseismically-inverted interior anchors (tachocline shear + near-rigid radiative interior). Required fields are the ones every anchor shares (region, sidereal_period_days, regime, source_doi, source_published_date, entered_locally_at). radius_r_sun / latitude_deg are populated where the anchor type supplies them.",
+  "type": "object",
+  "required": [
+    "region",
+    "sidereal_period_days",
+    "regime",
+    "source_doi",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "region": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Anchor region name (e.g., 'convection_zone_equator_surface', 'tachocline', 'radiative_interior')."
+    },
+    "radius_r_sun": {
+      "type": ["number", "null"],
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Fractional solar radius of the anchor (1.0 = photosphere, ~0.70 = tachocline). Null for a surface-only latitude anchor where the radius is implicitly 1.0 but not the discriminating coordinate."
+    },
+    "latitude_deg": {
+      "type": ["number", "null"],
+      "minimum": -90.0,
+      "maximum": 90.0,
+      "description": "Heliographic latitude of a surface anchor (0 = equator, 90 = pole). Null for interior anchors where rotation is read as a radial profile, not a latitude one."
+    },
+    "sidereal_period_days": {
+      "type": "number",
+      "minimum": 20.0,
+      "maximum": 40.0,
+      "description": "Local sidereal rotation period in days. The Sun's photosphere ranges ~24.5 d (equator) to ~34 d (pole); the interior settles near ~27 d."
+    },
+    "regime": {
+      "type": "string",
+      "enum": [
+        "differential_convection_zone",
+        "shear_boundary",
+        "rigid_body"
+      ],
+      "description": "Dynamical regime of the anchor. differential_convection_zone = latitude-dependent surface/CZ rotation; shear_boundary = the thin tachocline; rigid_body = the near-rigid radiative interior."
+    },
+    "source_key": {
+      "type": ["string", "null"],
+      "description": "Short citation key into the module SOURCES dict (e.g., 'snodgrass_ulrich_1990', 'schou_1998'). Redundant with source_doi; retained for cross-linking the per-row source to the module's full citation string."
+    },
+    "source_doi": {
+      "type": "string",
+      "minLength": 5,
+      "description": "DOI of the peer-reviewed paper authorising this row's numerical values. Required by the literature_curated adapter for per-row attestation."
+    },
+    "source_published_date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+      "description": "ISO 8601 date the cited paper was published. 'YYYY', 'YYYY-MM', or 'YYYY-MM-DD'. Curator-authored from the cited DOI's metadata; aligns with Dublin Core dcterms:issued. Distinct from attestation.retrieved_at."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date this row was first added or last meaningfully amended. Curator-authored; aligns with Dublin Core dcterms:dateAccessioned."
+    },
+    "source_version": {
+      "type": ["string", "null"],
+      "description": "Optional version/edition tag where it matters; null for journal papers whose DOI fully resolves the version."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Per-row free-text notes — derivation context, measurement caveats, cross-references to the rotation closure or the Sun Dynamical Spectrum."
+    }
+  }
+}

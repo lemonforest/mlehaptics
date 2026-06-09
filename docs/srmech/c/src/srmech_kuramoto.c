@@ -87,18 +87,23 @@ srmech_status_t srmech_cascade_kuramoto_step_f64(
  *   Σ_j A_ij · sin(θ_j − θ_i − α)
  * `adjacency` is row-major n×n (A_ij weights j's influence on i; a
  * non-symmetric matrix expresses DIRECTED coupling, a Laplacian expresses
- * graph-structured coupling). When `adjacency == NULL` every weight is the
- * uniform mean-field `inv_n = K/N`. `alpha` is the Sakaguchi phase
- * frustration. Reads ONLY read-only arrays; no writes (reentrant). */
+ * graph-structured coupling). The effective weight is `coupling_k · A_ij`:
+ * the global coupling scalar SCALES the matrix (so `coupling_k == 0` zeroes
+ * the term), matching the all-to-all branch (`inv_n = K/N`). When
+ * `adjacency == NULL` every weight is the uniform mean-field `inv_n = K/N`.
+ * `alpha` is the Sakaguchi phase frustration. Reads ONLY read-only arrays;
+ * no writes (reentrant). (§32 fix: prior code used the raw A_ij and ignored
+ * `coupling_k` on the adjacency path.) */
 static double srmech_kuramoto__general_sum(
     const double *theta, const double *adjacency, size_t n, size_t i,
-    double inv_n, double alpha)
+    double coupling_k, double inv_n, double alpha)
 {
     assert(theta != NULL);
     assert(i < n);
     double acc = 0.0;
     for (size_t j = 0; j < n; ++j) {
-        const double w = (adjacency != NULL) ? adjacency[i * n + j] : inv_n;
+        const double w = (adjacency != NULL)
+            ? (coupling_k * adjacency[i * n + j]) : inv_n;
         double sv;
         (void)srmech_sin(theta[j] - theta[i] - alpha, &sv);   /* Class-N cascade */
         acc += w * sv;
@@ -124,7 +129,7 @@ srmech_status_t srmech_cascade_kuramoto_step_general_f64(
     const double inv_n = (n > 0) ? (coupling_k / (double)n) : 0.0;
     for (size_t i = 0; i < n; ++i) {
         double f = omega[i] + srmech_kuramoto__general_sum(
-            theta, adjacency, n, i, inv_n, alpha);
+            theta, adjacency, n, i, coupling_k, inv_n, alpha);
         if (pin_anchor != NULL) {
             /* Per-oscillator pinning toward anchor ψ_i: + p_i·sin(ψ_i − θ_i).
              * NULL pin_strength ⇒ unit strength. No abs(). */

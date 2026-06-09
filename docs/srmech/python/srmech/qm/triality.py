@@ -20,8 +20,8 @@ THE CRUX (fully worked + bit-exact verified, residuals ``<= 4e-14``):
    whose fixed space is ``so(7)`` (dim 21). Each companion map ALONE is the
    ``Z2`` swap, **not** the order-3 element — a naive ``tau = "A -> B"``
    gives ``tau^2 = I``, ``Fix = 21`` (the WRONG answer).
-3. **The genuine order-3 ``tau`` is the PRODUCT** ``tau = S_B @ S_C``
-   (``S_C @ S_B`` is the inverse 3-cycle). Verified ``tau^3 = I``,
+3. **The genuine order-3 ``tau`` is the PRODUCT** ``tau = S_B·S_C``
+   (``S_C·S_B`` is the inverse 3-cycle). Verified ``tau^3 = I``,
    ``tau != I``, ``tau^2 != I``, and ``Fix(tau) = g2`` exactly (dim 14) —
    the ``D4 --(Z3 fold)--> G2`` theorem, the same ``14`` as the A-N
    ``1 + 3 + 7 + 3`` partition.
@@ -70,6 +70,8 @@ import numpy as np
 from srmech.amsc.cascade import magnitude as _magnitude
 from srmech.amsc.cyclic import mod_add as _mod_add
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
+from srmech.amsc.cascade.matrix_cascades import lstsq as _lstsq
+from srmech.amsc.laplacian import dense_matmul_real, dense_matvec_real
 from srmech.qm.octonion import octonion_mult_table
 from srmech.qm.so8 import (
     _DIM,
@@ -153,7 +155,7 @@ def _solve_companions(operator: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     rhs: List[float] = []
     for i in range(_DIM):
         for j in range(_DIM):
-            target = operator @ _octonion_mul(basis[i], basis[j])
+            target = dense_matvec_real(operator, _octonion_mul(basis[i], basis[j]))
             for m in range(_DIM):
                 row = np.zeros(2 * _DIM * _DIM)
                 # B(e_i)*e_j component m: sum_k B[k,i] C[k,j,m]
@@ -163,9 +165,7 @@ def _solve_companions(operator: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
                     row[_DIM * _DIM + k * _DIM + j] += table[i, k, m]
                 rows.append(row)
                 rhs.append(float(target[m]))
-    solution, _, _, _ = np.linalg.lstsq(
-        np.array(rows), np.array(rhs), rcond=None
-    )
+    solution = _lstsq(np.array(rows), np.array(rhs))
     b_companion = solution[: _DIM * _DIM].reshape(_DIM, _DIM)
     c_companion = solution[_DIM * _DIM:].reshape(_DIM, _DIM)
     return b_companion, c_companion
@@ -198,7 +198,7 @@ def _companion_maps() -> Tuple[np.ndarray, np.ndarray]:
 
 
 def triality_automorphism() -> np.ndarray:
-    """The ``28x28`` order-3 outer automorphism ``tau = S_B @ S_C``.
+    """The ``28x28`` order-3 outer automorphism ``tau = S_B·S_C``.
 
     Expressed in the shared ``E_{pq}`` coordinate frame. ``tau^3 = I``,
     ``tau != I``, ``tau^2 != I``; ``Fix(tau) = g2`` (dim 14) — the
@@ -216,7 +216,7 @@ def triality_automorphism() -> np.ndarray:
     s_b, s_c = _companion_maps()
     # ``@`` of the two cached read-only arrays yields a FRESH writeable array
     # (the cached companions are never mutated), so this is safe to return.
-    return s_b @ s_c
+    return dense_matmul_real(s_b, s_c)
 
 
 def triality_swap() -> np.ndarray:
@@ -415,9 +415,9 @@ def triality_relation_residual(
     for i in range(_DIM):
         for j in range(_DIM):
             deviation = (
-                g_v @ _octonion_mul(basis[i], basis[j])
-                - _octonion_mul(g_s @ basis[i], basis[j])
-                - _octonion_mul(basis[i], g_c @ basis[j])
+                dense_matvec_real(g_v, _octonion_mul(basis[i], basis[j]))
+                - _octonion_mul(dense_matvec_real(g_s, basis[i]), basis[j])
+                - _octonion_mul(basis[i], dense_matvec_real(g_c, basis[j]))
             )
             total += float(np.sqrt(float(np.sum(deviation * deviation))))
     # Reduce the scalar accumulator through the Class K pin-slot magnitude.
@@ -471,8 +471,8 @@ def _triality_order_residuals() -> Tuple[float, float, float]:
     """
     tau = triality_automorphism()
     identity = np.eye(_DIM_SO8)
-    tau2 = tau @ tau
-    tau3 = tau2 @ tau
+    tau2 = dense_matmul_real(tau, tau)
+    tau3 = dense_matmul_real(tau2, tau)
     residual_3 = _magnitude(float(np.linalg.norm(tau3 - identity)))
     deviation_1 = _magnitude(float(np.linalg.norm(tau - identity)))
     deviation_2 = _magnitude(float(np.linalg.norm(tau2 - identity)))

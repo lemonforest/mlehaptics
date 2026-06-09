@@ -33,11 +33,9 @@ Reference: research notebook §17.7.
 
 from __future__ import annotations
 
-import math
 from typing import Any, Dict, List, Tuple
 
-import numpy as np
-
+from . import _cascade
 from .mars_tharsis_data import (
     MARS_RADIUS_KM,
     MARS_THARSIS_VOLCANOES,
@@ -57,18 +55,13 @@ def _great_circle_distance_km(
     lat1: float, lon1: float, lat2: float, lon2: float,
 ) -> float:
     """Great-circle distance in km on Mars between two (lat, lon)
-    points in degrees. Standard haversine formula with the Mars
-    mean radius (3389.5 km), not Earth's."""
-    phi1 = math.radians(lat1)
-    phi2 = math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlam = math.radians(lon2 - lon1)
-    a = (
-        math.sin(dphi / 2.0) ** 2
-        + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2.0) ** 2
+    points in degrees (haversine), on the Mars mean radius
+    (3389.5 km), not Earth's. The transcendental core routes through
+    the Class-N cascade (:func:`_cascade.great_circle_distance_km`),
+    not ``math``."""
+    return _cascade.great_circle_distance_km(
+        lat1, lon1, lat2, lon2, MARS_RADIUS_KM,
     )
-    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
-    return MARS_RADIUS_KM * c
 
 
 def _volcano_to_dict(
@@ -102,35 +95,33 @@ def _compute_distances_from_centre_km() -> List[float]:
     ]
 
 
-def _build_proximity_laplacian(
+def _build_proximity_eigs(
     sigma_km: float = 1500.0,
-) -> Tuple[np.ndarray, List[str]]:
-    """Build a graph Laplacian on the Tharsis-volcano nodes with
-    edges weighted by Gaussian-kernel spatial proximity:
+) -> Tuple[Any, Any, List[str]]:
+    """Eigenbasis of the Gaussian-proximity graph Laplacian on the
+    Tharsis-volcano nodes (edges ``w_ij = exp(-d_ij² / (2σ²))`` with
+    d_ij the great-circle distance between volcanoes i and j on the
+    Mars surface).
 
-        w_ij = exp(-d_ij^2 / (2 sigma^2))
-
-    where d_ij is the great-circle distance between volcanoes i
-    and j on the Mars surface. This is the **bounded-local-
-    Laplacian** — same algebraic machinery as v0.24.5 Hawaii's
-    proximity Laplacian, but on a 5-volcano roster on a no-plate-
-    tectonics body. The sigma scale (~1500 km) is chosen larger
-    than Hawaii's ~500 km because the Tharsis system spans a
-    larger fraction of the body (Olympus → Alba is ~2700 km,
-    versus Hawaii's ~6500 km but on a much larger sphere).
+    The **bounded-local-Laplacian** — same algebraic machinery as
+    v0.24.5 Hawaii's proximity Laplacian, on a 5-volcano roster on a
+    no-plate-tectonics body (σ ~1500 km, larger than Hawaii's ~500 km
+    because Tharsis spans a larger fraction of the smaller body). The
+    build + eigendecomposition route through the Class-L cascade
+    (:func:`_cascade.gaussian_eigs_from_pairs` →
+    ``srmech.amsc.laplacian``), not raw ``numpy``.
 
     Returns
     -------
-    L : np.ndarray (n x n)
-        Weighted graph Laplacian L = D - W where W is the symmetric
-        weight matrix and D is its row-sum diagonal.
+    eigvals, eigvecs : ndarray
+        Ascending eigenvalues + eigenvector columns (``eigvecs[:, 1]``
+        is the Fiedler vector).
     names : list[str]
-        Volcano names in row/column order.
+        Volcano names in node order.
     """
     n = len(MARS_THARSIS_VOLCANOES)
     names = [v.name for v in MARS_THARSIS_VOLCANOES]
-    W = np.zeros((n, n), dtype=np.float64)
-    sigma_sq_2 = 2.0 * sigma_km * sigma_km
+    pairs: List[Tuple[int, int, float]] = []
     for i in range(n):
         vi = MARS_THARSIS_VOLCANOES[i]
         for j in range(i + 1, n):
@@ -139,29 +130,21 @@ def _build_proximity_laplacian(
                 vi.latitude_deg, vi.longitude_deg,
                 vj.latitude_deg, vj.longitude_deg,
             )
-            w = math.exp(-(d * d) / sigma_sq_2)
-            W[i, j] = w
-            W[j, i] = w
-    D = np.diag(W.sum(axis=1))
-    L = D - W
-    return L, names
+            pairs.append((i, j, d))
+    eigvals, eigvecs = _cascade.gaussian_eigs_from_pairs(n, pairs, sigma_km)
+    return eigvals, eigvecs, names
 
 
-def _fiedler_with_sign_convention(
-    L: np.ndarray, names: List[str],
-) -> Tuple[float, np.ndarray]:
-    """Compute the Fiedler eigenpair (lambda_2, f_2) with sign
-    convention pinned: the **Olympus Mons outlier** has positive
-    Fiedler value. This makes the sign convention reproducible
-    across LAPACK-pivoting differences — and aligns the Fiedler
-    sign with the structural distinction the eigenvector
-    discriminates (Olympus / Alba outliers from Tharsis Montes
-    ridge).
+def _fiedler_from_eigs(
+    eigvals: Any, eigvecs: Any, names: List[str],
+) -> Tuple[float, Any]:
+    """Read the Fiedler eigenpair (λ₂, f₂) from an ascending
+    eigendecomposition, with sign convention pinned so the **Olympus
+    Mons outlier** has a positive Fiedler value (reproducible across
+    pivoting; aligns the sign with the structural distinction the
+    eigenvector discriminates — Olympus / Alba outliers from the
+    Tharsis Montes ridge). Class-C sign re-application.
     """
-    eigvals, eigvecs = np.linalg.eigh(L)
-    order = np.argsort(eigvals)
-    eigvals = eigvals[order]
-    eigvecs = eigvecs[:, order]
     fiedler_value = float(eigvals[1])
     fiedler_vec = eigvecs[:, 1]
     if "olympus_mons" in names:
@@ -202,8 +185,8 @@ def get_mars_tharsis_chain() -> Dict[str, Any]:
         fiedler_eigenvalue, volcanoes: [...]}``.
     """
     distances = _compute_distances_from_centre_km()
-    L, names = _build_proximity_laplacian()
-    fiedler_value, fiedler_vec = _fiedler_with_sign_convention(L, names)
+    eigvals, eigvecs, names = _build_proximity_eigs()
+    fiedler_value, fiedler_vec = _fiedler_from_eigs(eigvals, eigvecs, names)
 
     volcanoes_out: List[Dict[str, Any]] = []
     for i, v in enumerate(MARS_THARSIS_VOLCANOES):
@@ -268,11 +251,7 @@ def get_tharsis_fiedler_signature() -> Dict[str, Any]:
         fiedler_clusters, olympus_residual_km, alba_residual_km,
         ...}``.
     """
-    L, names = _build_proximity_laplacian()
-    eigvals, eigvecs = np.linalg.eigh(L)
-    order = np.argsort(eigvals)
-    eigvals = eigvals[order]
-    eigvecs = eigvecs[:, order]
+    eigvals, eigvecs, names = _build_proximity_eigs()
     lambda_1 = float(eigvals[0])
     lambda_2 = float(eigvals[1])
     lambda_3 = float(eigvals[2])
@@ -316,10 +295,11 @@ def get_tharsis_fiedler_signature() -> Dict[str, Any]:
         # roughly NE-SW so latitude varies more than longitude does
         # not — actually both vary, but linear-in-(lat,lon) is fine
         # for this 3-point regression).
-        lats = np.array([m.latitude_deg for m in montes])
-        lons = np.array([m.longitude_deg for m in montes])
-        # Fit lon = a * lat + b (1D regression, minimal):
-        a, b = np.polyfit(lats, lons, 1)
+        lats = [m.latitude_deg for m in montes]
+        lons = [m.longitude_deg for m in montes]
+        # Fit lon = a·lat + b via the Class-N closed-form OLS cascade
+        # (_cascade.linfit), not np.polyfit.
+        a, b = _cascade.linfit(lats, lons)
         # Compute perpendicular residual for an outlier:
         def _residual_km(volc: TharsisVolcano) -> float:
             predicted_lon = a * volc.latitude_deg + b

@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import ctypes
 import math
+import struct
 from typing import List, Tuple
 
 from . import _native
@@ -50,6 +51,7 @@ __all__ = [
     "atan",
     "atan2",
     "exp",
+    "log",
     "cexp",
     "complex_exp",
     "sqrt",
@@ -663,12 +665,24 @@ def log1p_series_truncate(numerator: int,
 
     log(1+x) = Σ_{k=1..N} (-1)^(k+1) * x^k / k
 
-    Caller responsibility: |p/q| < 1 for convergence (the series
-    diverges otherwise). The function computes the partial sum
-    regardless; rate-of-convergence is asymptotic for |x| near 1.
+    Domain: -1 < p/q ≤ 1 — the Taylor radius of convergence (the boundary
+    x = 1, log 2, converges conditionally; x = -1 is log(0) = -∞). Outside
+    it the partial sum DIVERGES, so an out-of-domain argument (x > 1 or
+    x ≤ -1) is refused with a Class-N domain ``ValueError`` rather than
+    silently returning a divergent rational (W14 / RBS-LM bugfix wishlist;
+    the §15.1/§18 Class-K contract-error pattern). This op stays
+    EXACT-rational; there is no float-projection range-reduced log to defer
+    to, so |x| ≥ 1 simply isn't in this series' domain.
     """
     _check_series_inputs(numerator, denominator, num_terms,
                          _LOG_SERIES_MAX_TERMS, "log1p_series_truncate")
+    if numerator > denominator or numerator <= -denominator:
+        raise ValueError(
+            f"log1p_series_truncate: p/q must be in (-1, 1] (Taylor radius "
+            f"of convergence; x = -1 is log(0) = -∞); got "
+            f"{numerator}/{denominator}. The exact-rational series diverges "
+            f"outside its radius and cannot range-reduce."
+        )
     if numerator == 0 or num_terms == 0:
         return (0, 1)
     num = 0
@@ -693,11 +707,26 @@ def atan_series_truncate(numerator: int,
 
     atan(x) = Σ_{k=0..N} (-1)^k * x^(2k+1) / (2k+1)
 
-    Caller responsibility: |p/q| ≤ 1 for fast convergence. The series
-    is valid for |x| ≤ 1 (alternating series test).
+    Domain: |p/q| ≤ 1 — the Taylor radius of convergence (the boundary
+    |x| = 1, e.g. atan(1) = π/4, still converges, conditionally). Outside
+    it the partial sum DIVERGES — the term x^(2k+1)/(2k+1) grows without
+    bound — so a |p/q| > 1 argument is refused with a Class-N domain
+    ``ValueError`` rather than silently returning a divergent rational
+    (W14 / RBS-LM bugfix wishlist; the §15.1/§18 Class-K contract-error
+    pattern — refuse the out-of-domain input loudly). This op stays
+    EXACT-rational, so it cannot range-reduce via ``atan(x) = π/2 −
+    atan(1/x)`` (π is irrational); for a |x| > 1 argument use the
+    range-reduced float projection :func:`atan` (band-reduced; any real x).
     """
     _check_series_inputs(numerator, denominator, num_terms,
                          _LOG_SERIES_MAX_TERMS, "atan_series_truncate")
+    if numerator > denominator or numerator < -denominator:
+        raise ValueError(
+            f"atan_series_truncate: |p/q| must be ≤ 1 (Taylor radius of "
+            f"convergence); got {numerator}/{denominator}. The exact-rational "
+            f"series cannot range-reduce (π is irrational); for |x| > 1 use "
+            f"the range-reduced float projection srmech.amsc.rational.atan(x)."
+        )
     if numerator == 0:
         return (0, 1)
     num = 0
@@ -801,143 +830,440 @@ def _principal_angle_anchor(x: float,
     return anchored_num, anchor_den
 
 
-def cos(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> float:
-    """``cos(x)`` (radians) via the Class-N rational cascade.
+# ──────────────────────────────────────────────────────────────────────
+# Q61 fixed-point trig cascade — the canonical float-projection, bit-exact
+# with the native peer ``c/src/srmech_trig.c`` (srmech_{sin,cos,atan,atan2}).
+#
+# Ported line-for-line from the C. The Class-N Taylor series runs in Q61
+# fixed-point (denominator 2**61 — a power-of-two Class-N rational); float
+# appears ONLY at the final projection ``float(v) / float(2**61)`` (the same
+# two-step int64→double cast the C does). Python's arbitrary-precision ints
+# reproduce the C int64/uint64 arithmetic exactly — the ``& _Q61_MASK64``
+# masks model C's uint64 wrap, ``_q61_cdiv`` models C's truncate-toward-zero
+# integer ``/`` — so this pure-Python path is BIT-IDENTICAL to ``srmech_sin``
+# et al. Dispatch to the native peer is therefore a transparent speedup, not
+# a different answer (the C↔Python parity test asserts the equality).
+#
+# This Q61 cascade is the deterministic, C-reproducible float contract for
+# ``sin``/``cos``/``tan``/``atan``/``atan2``. The exact-rational
+# ``*_series_truncate`` (arbitrary-denominator bignum) stays the separate
+# higher-precision REFERENCE surface (where the domain guards live).
+# ──────────────────────────────────────────────────────────────────────
+_Q61_FBITS = 61
+_Q61_ONE = 1 << _Q61_FBITS                       # 1.0 in Q61
+_Q61_MASK61 = _Q61_ONE - 1
+_Q61_MASK64 = (1 << 64) - 1
+_Q61_TWO_OVER_PI_Q64 = 11743562013128004906      # round((2/pi) * 2**64)
+_Q61_HALF_PI_Q61 = 3622009729038561421           # round((pi/2) * 2**61)
+_Q61_SIN_TERMS = 10                              # |r|<=pi/4: r^21/21! < 2^-62
+_Q61_ATAN_TERMS = 40                            # |m|<=sqrt2-1 fast band
+# atan band edges tan(pi/8)=√2−1, cot(pi/8)=√2+1 (SELECTION thresholds only —
+# they never enter the result; they keep every atan series argument at
+# |m| <= √2−1 ≈ 0.414 so the alternating series reaches full precision).
+_TAN_PI_8: float = 0.41421356237309515           # √2 − 1
+_COT_PI_8: float = 2.414213562373095             # √2 + 1
+_Q61_TAN_PI8 = _TAN_PI_8
+_Q61_COT_PI8 = _COT_PI_8
 
-    Substrate-native replacement for ``math.cos`` / ``np.cos`` — no
-    ``math.cos`` in the call graph. Matches the libm value to ≈1e-11 for
-    all real ``x`` (range reduction keeps the Taylor series cheap).
+
+def _q61_cdiv(a: int, b: int) -> int:
+    """C integer division — truncate toward zero (Python ``//`` floors).
+
+    The magnitudes are taken via the explicit **Class-K** sign-branch (never
+    ``abs()`` of the value — `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`),
+    the sign re-applied as **Class C**; mirrors ``trig_fxmul``'s C branch.
     """
-    a_num, a_den = _principal_angle_anchor(x)
-    c_num, c_den = cos_series_truncate(a_num, a_den, terms)
-    return c_num / c_den
+    assert b != 0, "division by zero in Q61 cascade"
+    ua = a if a >= 0 else -a                        # Class-K magnitude
+    ub = b if b >= 0 else -b
+    q = ua // ub
+    return -q if (a < 0) != (b < 0) else q          # Class-C re-orientation
+
+
+def _q61_fxmul(a: int, b: int) -> int:
+    """Q61 signed fixed-point multiply ``(a/2^61)*(b/2^61) -> r/2^61``.
+
+    Mirrors ``trig_fxmul``: the magnitude product is **Class K** (the explicit
+    sign-branch, never ``abs()`` of the value), the sign re-application
+    **Class C**. ``(|a|·|b|) >> 61`` is the exact product>>61.
+    """
+    neg = (a < 0) != (b < 0)
+    ua = a if a >= 0 else -a                        # Class-K magnitude
+    ub = b if b >= 0 else -b
+    mag = (ua * ub) >> _Q61_FBITS
+    return -mag if neg else mag                     # Class-C re-orientation
+
+
+def _q61_reduce(x: float):
+    """Integer cyclic octant reduction (mirror ``trig_reduce``).
+
+    Returns ``(ok, octant, r_q61)`` with ``|r| <= pi/4`` in Q61. PURE
+    INTEGER except the IEEE-754 bit-read of ``x``; the octant count comes
+    from an integer wide-multiply by a Q64 ``2/pi``. ``ok`` is False for
+    Inf/NaN or ``|x| >= 2**55`` (the two-word product loses octant bits).
+    """
+    bits = struct.unpack("<Q", struct.pack("<d", float(x)))[0]
+    sign = bits >> 63
+    raw = (bits >> 52) & 0x7FF
+    frac = bits & ((1 << 52) - 1)
+    if raw == 0x7FF:
+        return (False, 0, 0)                      # Inf / NaN
+    if raw == 0 and frac == 0:
+        return (True, 0, 0)
+    mant = frac if raw == 0 else (frac | (1 << 52))
+    e = -1074 if raw == 0 else raw - 1075         # x = ± mant * 2**e
+    if e >= 3:
+        return (False, 0, 0)                      # |x| >= 2**55
+    prod = mant * _Q61_TWO_OVER_PI_Q64
+    phi = prod >> 64
+    plo = prod & _Q61_MASK64
+    s = 3 - e                                     # >= 1: right shift to Q61
+    if s >= 128:
+        return (True, 0, 0)
+    if s >= 64:
+        vhi = 0
+        vlo = phi >> (s - 64)
+    else:
+        vhi = phi >> s
+        vlo = ((plo >> s) | ((phi << (64 - s)) & _Q61_MASK64)) & _Q61_MASK64
+    q = ((vhi << 3) | (vlo >> _Q61_FBITS)) & _Q61_MASK64   # floor(V / 2^61)
+    vlo61 = vlo & _Q61_MASK61
+    if vlo61 >= (1 << (_Q61_FBITS - 1)):          # round half up
+        k = (q + 1) & _Q61_MASK64
+        fr = vlo61 - _Q61_ONE
+    else:
+        k = q
+        fr = vlo61
+    if sign:
+        fr = -fr
+        k = (-k) & _Q61_MASK64                    # negate mod 2**64
+    octant = k & 3
+    r_q61 = _q61_fxmul(fr, _Q61_HALF_PI_Q61)      # r = frac * (pi/2)
+    return (True, octant, r_q61)
+
+
+def _q61_sin_core(r: int) -> int:
+    """``sin(r)`` for ``|r| <= pi/4``, Q61 → Q61 (mirror ``trig_sin_core``)."""
+    r2 = _q61_fxmul(r, r)
+    term = r
+    s = r
+    for k in range(1, _Q61_SIN_TERMS + 1):
+        term = _q61_fxmul(term, r2)
+        term = _q61_cdiv(term, (2 * k) * (2 * k + 1))
+        s = s - term if (k & 1) else s + term
+    return s
+
+
+def _q61_cos_core(r: int) -> int:
+    """``cos(r)`` for ``|r| <= pi/4``, Q61 → Q61 (mirror ``trig_cos_core``)."""
+    r2 = _q61_fxmul(r, r)
+    term = _Q61_ONE
+    s = _Q61_ONE
+    for k in range(1, _Q61_SIN_TERMS + 1):
+        term = _q61_fxmul(term, r2)
+        term = _q61_cdiv(term, (2 * k - 1) * (2 * k))
+        s = s - term if (k & 1) else s + term
+    return s
+
+
+def _q61_atan_core(m: int) -> int:
+    """``atan(m)`` for ``0 <= m <= √2−1``, Q61 → Q61 (mirror ``trig_atan_core``)."""
+    m2 = _q61_fxmul(m, m)
+    term = m
+    s = m
+    for k in range(1, _Q61_ATAN_TERMS + 1):
+        term = _q61_fxmul(term, m2)
+        contrib = _q61_cdiv(term, 2 * k + 1)
+        s = s - contrib if (k & 1) else s + contrib
+    return s
+
+
+def _q61_to_double(q61: int) -> float:
+    """Project Q61 → float: ``float(v) / float(2**61)`` (matches the C
+    two-step ``(double)q61 / (double)SRMECH_TRIG_ONE`` cast exactly)."""
+    return float(q61) / float(_Q61_ONE)
+
+
+def _q61_atan_nonneg(m: float) -> float:
+    """``atan(m)`` for ``m >= 0`` via the three-band reduction (mirror
+    ``trig_atan_nonneg``); the band keeps every series argument ≤ √2−1."""
+    half_pi = _q61_to_double(_Q61_HALF_PI_Q61)
+    if m <= _Q61_TAN_PI8:
+        mq = int(m * float(_Q61_ONE) + 0.5)
+        return _q61_to_double(_q61_atan_core(mq))
+    if m >= _Q61_COT_PI8:                          # atan(m) = pi/2 - atan(1/m)
+        inv = 1.0 / m
+        mq = int(inv * float(_Q61_ONE) + 0.5)
+        return half_pi - _q61_to_double(_q61_atan_core(mq))
+    u = (m - 1.0) / (m + 1.0)                      # middle band: pi/4 + atan(u)
+    neg = u < 0.0
+    um = -u if neg else u
+    mq = int(um * float(_Q61_ONE) + 0.5)
+    a = _q61_to_double(_q61_atan_core(mq))
+    return half_pi / 2.0 + (-a if neg else a)
+
+
+def cos(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> float:
+    """``cos(x)`` (radians) via the Q61 Class-N cascade.
+
+    Bit-exact with the native peer ``srmech_cos`` (Q61 fixed-point); on a
+    native install this dispatches to the C and returns identical bits.
+    Substrate-native replacement for ``math.cos`` / ``np.cos`` — no
+    ``math.cos`` in the call graph. ``terms`` is retained for back-compat;
+    the Q61 cascade uses a fixed term cap. The exact-rational higher-
+    precision reference surface is ``cos_series_truncate``.
+    """
+    x = float(x)
+    if not math.isfinite(x):
+        return x - x                               # NaN for ±Inf and NaN
+    if _native.has_native_trig():
+        return _native.cos_c(x)
+    ok, octant, r = _q61_reduce(x)
+    if not ok:
+        return x - x                               # NaN for Inf/NaN
+    sc = _q61_sin_core(r)
+    cc = _q61_cos_core(r)
+    v = cc if octant == 0 else -sc if octant == 1 else -cc if octant == 2 else sc
+    return _q61_to_double(v)
 
 
 def sin(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> float:
-    """``sin(x)`` (radians) via the Class-N rational cascade.
+    """``sin(x)`` (radians) via the Q61 Class-N cascade.
 
-    Substrate-native replacement for ``math.sin`` / ``np.sin``.
+    Bit-exact with the native peer ``srmech_sin``; dispatches to C when
+    available. Substrate-native replacement for ``math.sin`` / ``np.sin``.
     """
-    a_num, a_den = _principal_angle_anchor(x)
-    s_num, s_den = sin_series_truncate(a_num, a_den, terms)
-    return s_num / s_den
+    x = float(x)
+    if not math.isfinite(x):
+        return x - x                               # NaN for ±Inf and NaN
+    if _native.has_native_trig():
+        return _native.sin_c(x)
+    ok, octant, r = _q61_reduce(x)
+    if not ok:
+        return x - x
+    sc = _q61_sin_core(r)
+    cc = _q61_cos_core(r)
+    v = sc if octant == 0 else cc if octant == 1 else -sc if octant == 2 else -cc
+    return _q61_to_double(v)
 
 
 def tan(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> float:
-    """``tan(x) = sin(x)/cos(x)`` via the Class-N cascade."""
-    a_num, a_den = _principal_angle_anchor(x)
-    s_num, s_den = sin_series_truncate(a_num, a_den, terms)
-    c_num, c_den = cos_series_truncate(a_num, a_den, terms)
-    if c_num == 0:
+    """``tan(x) = sin(x)/cos(x)`` via the Q61 cascade (no native
+    ``srmech_tan`` — composed from the Q61 ``sin``/``cos``)."""
+    c = cos(x)
+    if c == 0.0:
         raise ValueError("tan undefined: cos(x) == 0")
-    return (s_num * c_den) / (s_den * c_num)
-
-
-# tan(π/8) and cot(π/8) = √2∓1 — the band edges that keep every atan
-# series argument at |·| <= √2−1 ≈ 0.414 (term ratio ≈0.17), so the
-# alternating series reaches full float precision well within the term
-# cap (the bare series is slow only near |x|=1, which the middle band
-# below maps to a small argument).
-_TAN_PI_8: float = 0.41421356237309515       # √2 − 1
-_COT_PI_8: float = 2.414213562373095         # √2 + 1
-
-
-def _atan_nonneg(m: float, terms: int) -> float:
-    """``atan(m)`` for ``m >= 0`` via three-band Class-N reduction.
-
-    Band edges √2∓1 cap every series argument at ≤ √2−1 so the
-    alternating atan series reaches full precision; ``π`` is the
-    cascade-derived rational.
-    """
-    pi_num, pi_den = _pi_rational()
-    pi_f = pi_num / pi_den
-    if m <= _TAN_PI_8:
-        n, d = m.as_integer_ratio()
-        a_num, a_den = atan_series_truncate(n, d, terms)
-        return a_num / a_den
-    if m >= _COT_PI_8:
-        # atan(m) = π/2 − atan(1/m); 1/m ≤ √2−1
-        inv = 1.0 / m
-        n, d = inv.as_integer_ratio()
-        a_num, a_den = atan_series_truncate(n, d, terms)
-        return pi_f / 2.0 - a_num / a_den
-    # Middle band around 1: atan(m) = π/4 + atan((m−1)/(m+1)); |·| ≤ √2−1.
-    u = (m - 1.0) / (m + 1.0)
-    n, d = u.as_integer_ratio()
-    a_num, a_den = atan_series_truncate(n, d, terms)
-    return pi_f / 4.0 + a_num / a_den
+    return sin(x) / c
 
 
 def atan(x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> float:
-    """``atan(x)`` via the Class-N atan cascade with band reduction.
+    """``atan(x)`` via the Q61 three-band Class-N cascade.
 
-    Class-K magnitude (no ``abs()``) + three-band argument reduction
-    (``|x|>1`` → ``π/2 − atan(1/x)``; the slow ``|x|≈1`` band →
-    ``π/4 + atan((|x|−1)/(|x|+1))``) so every series argument stays in
-    the fast-convergence region. Substrate-native replacement for
-    ``math.atan`` / ``np.arctan``.
+    Bit-exact with ``srmech_atan``; dispatches to C when available. Class-K
+    magnitude (never ``abs()`` of the value) + Class-C re-orientation; the
+    three-band reduction keeps every series argument in the fast region.
+    Substrate-native replacement for ``math.atan`` / ``np.arctan``.
     """
     x = float(x)
-    # Class-K pin-slot: magnitude + orientation without abs().
-    x_mag = x if x >= 0.0 else -x
-    r = _atan_nonneg(x_mag, terms)
-    return r if x >= 0.0 else -r                  # Class-C re-orientation
+    if not math.isfinite(x):
+        if x != x:                                 # NaN
+            return x
+        # atan(±Inf) = ±π/2 (cascade π/2; sign re-applied — Class C)
+        half_pi = _q61_to_double(_Q61_HALF_PI_Q61)
+        return half_pi if x > 0.0 else -half_pi
+    if _native.has_native_trig():
+        return _native.atan_c(x)
+    xm = x if x >= 0.0 else -x                     # Class-K magnitude
+    r = _q61_atan_nonneg(xm)
+    return r if x >= 0.0 else -r                   # Class-C re-orientation
 
 
 def atan2(y: float, x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> float:
-    """``atan2(y, x)`` via the Class-N atan cascade with quadrant logic.
+    """``atan2(y, x)`` via the Q61 atan cascade with quadrant logic.
 
+    Bit-exact with ``srmech_atan2``; dispatches to C when available.
     Substrate-native replacement for ``math.atan2`` / ``np.arctan2``.
     """
     y = float(y)
     x = float(x)
-    pi_num, pi_den = _pi_rational()
-    pi_f = pi_num / pi_den
+    # Non-finite quadrant limits, run BEFORE dispatch so the native and
+    # pure-Python paths agree on the whole domain (the C reduces Inf via an
+    # int cast that is UB; this guard keeps both renderings identical).
+    if not (math.isfinite(y) and math.isfinite(x)):
+        if y != y or x != x:                       # any NaN → NaN
+            return float("nan")
+        half_pi = _q61_to_double(_Q61_HALF_PI_Q61)
+        pi = 2.0 * half_pi
+        if math.isinf(y) and math.isinf(x):        # both ±Inf
+            base = pi / 4.0 if x > 0.0 else 3.0 * pi / 4.0
+            return math.copysign(base, y)          # ±π/4 or ±3π/4
+        if math.isinf(y):                          # |y|=Inf, x finite
+            return math.copysign(half_pi, y)       # ±π/2
+        if x > 0.0:                                # x=+Inf, y finite
+            return math.copysign(0.0, y)           # ±0
+        return math.copysign(pi, y)                # x=−Inf, y finite → ±π
+    if _native.has_native_trig():
+        return _native.atan2_c(y, x)
+    half_pi = _q61_to_double(_Q61_HALF_PI_Q61)
+    pi = 2.0 * half_pi
     if x == 0.0:
-        if y > 0.0:
-            return pi_f / 2.0
-        if y < 0.0:
-            return -pi_f / 2.0
-        return 0.0
-    base = atan(y / x, terms=terms)
+        return half_pi if y > 0.0 else (-half_pi if y < 0.0 else 0.0)
+    base = atan(y / x)
     if x > 0.0:
         return base
-    # x < 0: shift by ±π using the sign of y (Class-C orientation).
-    if y >= 0.0:
-        return base + pi_f
-    return base - pi_f
+    return base + pi if y >= 0.0 else base - pi    # x<0 quadrant shift (Class C)
 
 
-# Default Taylor terms for the float-projection real exp (|reduced| <= 1).
+# Default Taylor terms for the exact-rational (bignum REFERENCE) exp surface.
 _EXP_FLOAT_TERMS: int = 24
 
 
-def exp(x: float, *, terms: int = _EXP_FLOAT_TERMS) -> float:
-    """``e^x`` via the Class-N exp cascade with argument-halving reduction.
+# ──────────────────────────────────────────────────────────────────────
+# Q61 fixed-point exp/log/sqrt cascade — the canonical float-projection,
+# bit-exact with the native peers ``c/src/srmech_explog.c`` (srmech_{exp,log})
+# and ``c/src/srmech_sqrt.c`` (srmech_rational_sqrt). Ported line-for-line; the
+# Q61 series machinery (``_q61_fxmul`` / ``_q61_cdiv`` / ``_q61_to_double``) is
+# the same as the trig block above. exp/log are NOT cyclic, so the reduction
+# differs from trig:
+#   - exp: x = n·ln2 + r, |r| <= ln2/2 (Cody-Waite two-word LN2_HI+LN2_LO
+#     split keeps r to machine-eps; the 2^n recombine is built straight into
+#     the IEEE exponent field, no ldexp). This REPLACES the old halving-and-
+#     square reduction, which amplified error to ~345 ULP; the Cody-Waite
+#     reduction holds ~1 ULP and is what the C + notebook §exp specify.
+#   - log: x = m·2^e read EXACTLY from the bit pattern, m folded into
+#     [1/√2, √2); log(m) = 2·atanh((m−1)/(m+1)) is the Q61 series; e·ln2
+#     recombine uses the same two-word ln2.  (rational.log is NEW this rc —
+#     the notebook listed it as srmech_log's Python peer but it was missing.)
+#   - sqrt: x = M·2^e from the bit pattern, e made even; root = isqrt(M<<2K)
+#     (``math.isqrt`` == the C two-limb integer isqrt), projected by 2^(e/2−K).
+# float appears ONLY at the final projection. The exact-rational bignum
+# surfaces (``exp_series_truncate`` / ``log1p_series_truncate`` / the
+# ``precision_bits`` sqrt path) remain the separate higher-precision REFERENCE.
+# ──────────────────────────────────────────────────────────────────────
+_EXPLOG_INV_LN2 = 1.4426950408889634074
+_EXPLOG_LN2_HI = 6.93147180369123816490e-01      # two-word ln2 (fdlibm split)
+_EXPLOG_LN2_LO = 1.90821492927058770002e-10
+_EXPLOG_SQRT2 = 1.4142135623730951               # band edge (selection only)
+_EXPLOG_EXP_TERMS = 18                            # |r|<=ln2/2: r^19/19! < 2^-62
+_EXPLOG_LOG_TERMS = 13                            # |t|<=√2-edge: t^27/27 < 2^-62
+_EXPLOG_OVERFLOW = 709.782712893384              # ln(DBL_MAX)
+_EXPLOG_UNDERFLOW = -745.2                        # ln(smallest subnormal)
+_SQRT_C_K = 27                                    # root precision bits (C peer)
 
-    ``e^x = (e^(x/2^k))^(2^k)``: halve the argument until ``|x/2^k| <= 1``
-    (where the exp Taylor series converges fast), run
-    :func:`exp_series_truncate` on the exact float rational, project to
-    float, then square ``k`` times. No irrational constant is needed
-    (exp is aperiodic — unlike trig there is no π in the reduction).
-    Substrate-native replacement for ``math.exp`` / ``np.exp`` (real).
+
+def _q_pow2(p: int) -> float:
+    """``2**p`` as a double, built directly from the IEEE-754 exponent field
+    (exact, no ``ldexp``). ``p`` must keep the biased exponent in [1, 2046]."""
+    assert -1023 < p < 1024, "pow2 exponent out of normal range"
+    bits = (((p + 1023) & 0x7FF) << 52) & _Q61_MASK64
+    return struct.unpack("<d", struct.pack("<Q", bits))[0]
+
+
+def _q_scale2(m: float, n: int) -> float:
+    """``m * 2**n``, splitting ``n`` so neither power-of-two leaves the normal
+    range (mirror ``explog_scale2``). ``n//2`` is C truncate-toward-zero."""
+    nh = n // 2 if n >= 0 else -((-n) // 2)        # C trunc-toward-zero
+    nl = n - nh
+    return m * _q_pow2(nh) * _q_pow2(nl)
+
+
+def _q_exp_core(r: int) -> int:
+    """``exp(r)`` for ``|r| <= ln2/2``, Q61 → Q61 (mirror ``explog_exp_core``)."""
+    term = _Q61_ONE
+    s = _Q61_ONE
+    for k in range(1, _EXPLOG_EXP_TERMS + 1):
+        term = _q61_fxmul(term, r)
+        term = _q61_cdiv(term, k)
+        s += term
+    return s
+
+
+def _q_log_core(t: int) -> int:
+    """``2·atanh(t)`` for ``|t| <= √2-edge``, Q61 → Q61 (mirror ``explog_log_core``).
+
+    This IS ``log(m)`` for ``m = (1+t)/(1-t)``; the caller forms ``t = (m−1)/(m+1)``.
+    """
+    t2 = _q61_fxmul(t, t)
+    term = t
+    s = t
+    for k in range(1, _EXPLOG_LOG_TERMS + 1):
+        term = _q61_fxmul(term, t2)
+        s += _q61_cdiv(term, 2 * k + 1)
+    return s * 2
+
+
+def exp(x: float, *, terms: int = _EXP_FLOAT_TERMS) -> float:
+    """``e^x`` via the Q61 Class-N exp cascade with Cody-Waite ln2 reduction.
+
+    ``x = n·ln2 + r`` with ``|r| <= ln2/2``; ``exp(r)`` is the Q61 integer
+    Taylor ``1 + r + r²/2! + …`` and the ``2^n`` scale is folded into the IEEE
+    exponent. Bit-exact with the native peer ``srmech_exp``; dispatches to C
+    when available. Substrate-native replacement for ``math.exp`` / ``np.exp``
+    (real) — no ``math.exp`` in the call graph. ``terms`` selects the
+    exact-rational REFERENCE surface ``exp_series_truncate`` (used only by the
+    bignum reference, not this float projection).
     """
     x = float(x)
+    if x != x:                                     # NaN
+        return x
+    if x > _EXPLOG_OVERFLOW:
+        return float("inf")
+    if x < _EXPLOG_UNDERFLOW:
+        return 0.0
+    if _native.has_native_explog():
+        return _native.exp_c(x)
+    tn = x * _EXPLOG_INV_LN2
+    n = int(tn + (0.5 if tn >= 0.0 else -0.5))     # round half away from zero
+    r = (x - n * _EXPLOG_LN2_HI) - n * _EXPLOG_LN2_LO
+    rq = int(r * float(_Q61_ONE) + (0.5 if r >= 0.0 else -0.5))
+    m = _q61_to_double(_q_exp_core(rq))            # exp(r)
+    return _q_scale2(m, n)
+
+
+def log(x: float, *, terms: int = _EXPLOG_LOG_TERMS) -> float:
+    """``ln(x)`` (natural log, x > 0) via the Q61 Class-N atanh cascade.
+
+    ``x = m·2^e`` read from the bit pattern, ``m`` folded into ``[1/√2, √2)``;
+    ``log(m) = 2·atanh((m−1)/(m+1))`` is the Q61 series and ``e·ln2`` recombines
+    with the two-word ln2. Bit-exact with the native peer ``srmech_log``;
+    dispatches to C when available. Substrate-native replacement for
+    ``math.log`` / ``np.log`` (real). Domain (matching ``srmech_log``):
+    ``x < 0 → NaN``, ``x == 0 → −Inf``. The exact-rational REFERENCE surface is
+    ``log1p_series_truncate`` (where the W14 ``|x| <= 1`` domain guard lives).
+    """
+    x = float(x)
+    if x != x:                                     # NaN
+        return x
+    if x < 0.0:
+        return float("nan")                        # domain (Class-K refusal)
     if x == 0.0:
-        return 1.0
-    # Class-K magnitude (no abs()) to count the halvings.
-    x_mag = x if x >= 0.0 else -x
-    k = 0
-    while x_mag > 1.0:
-        x_mag = x_mag / 2.0
-        k += 1
-    reduced = x / (2 ** k)
-    rn, rd = float(reduced).as_integer_ratio()
-    en, ed = exp_series_truncate(rn, rd, terms)
-    val = en / ed
-    for _ in range(k):                            # (e^(x/2^k))^(2^k)
-        val = val * val
-    return val
+        return float("-inf")
+    if math.isinf(x):
+        return x                                   # +Inf
+    if _native.has_native_explog():
+        return _native.log_c(x)
+    bits = struct.unpack("<Q", struct.pack("<d", x))[0]
+    raw = (bits >> 52) & 0x7FF
+    frac = bits & ((1 << 52) - 1)
+    if raw == 0:                                   # subnormal — normalise
+        f = frac
+        sh = 0
+        while sh < 53 and (f & (1 << 52)) == 0:
+            f <<= 1
+            sh += 1
+        mant = f
+        e = -1022 - sh
+    else:
+        mant = frac | (1 << 52)
+        e = raw - 1023
+    m = mant / (1 << 52)                           # m in [1, 2)
+    if m >= _EXPLOG_SQRT2:                         # fold to [1/√2, √2)
+        m *= 0.5
+        e += 1
+    tt = (m - 1.0) / (m + 1.0)
+    tq = int(tt * float(_Q61_ONE) + (0.5 if tt >= 0.0 else -0.5))
+    logm = _q61_to_double(_q_log_core(tq))
+    return e * _EXPLOG_LN2_HI + (logm + e * _EXPLOG_LN2_LO)
 
 
 def cexp(theta: float, *, terms: int = _TRIG_FLOAT_TERMS) -> complex:
@@ -963,41 +1289,62 @@ def complex_exp(z: complex, *, terms: int = _TRIG_FLOAT_TERMS) -> complex:
     return e_real * complex(cos(z.imag, terms=terms), sin(z.imag, terms=terms))
 
 
-# Default scaled-integer precision for the float sqrt projection (bits
-# below the radix point; 64 → relative error well under the float64 floor).
+# Scaled-integer precision for the bignum REFERENCE sqrt (bits below the
+# radix point; 64 → relative error well under the float64 floor). Pass
+# ``precision_bits=`` explicitly to select this higher-precision reference;
+# the default float sqrt is the bit-exact-with-C K=27 cascade below.
 _SQRT_PRECISION_BITS: int = 64
 
 
-def sqrt(x: float, *, precision_bits: int = _SQRT_PRECISION_BITS) -> float:
+def sqrt(x: float, *, precision_bits: int = None) -> float:
     """``√x`` (x ≥ 0) via the Class-N rational sqrt cascade.
 
-    Newton-Raphson realised as an **integer** floor-isqrt on a
-    scaled-bignum radicand (``_integer_sqrt``): **Class N** rational
-    arithmetic ∘ **Class K** sqrt-convergence (asymptotic-DoF). No float
+    Default (``precision_bits=None``): the IEEE-bit ``M·2^e`` decomposition
+    with ``root = isqrt(M << 2K)`` (K=27) projected by ``2^(e/2−K)`` — **Class
+    N** rational ∘ **Class K** sqrt-convergence, **bit-exact with the native
+    peer** ``srmech_rational_sqrt``; dispatches to C when available. No float
     ``math.sqrt`` / ``np.sqrt`` in the call graph. Negative ``x`` raises
     (domain error), matching ``math.sqrt``.
+
+    ``precision_bits=N`` selects the higher-precision **bignum REFERENCE**
+    path (``as_integer_ratio`` + scaled ``_integer_sqrt``), e.g. for the
+    π-cascade where >double precision is wanted.
     """
     x = float(x)
     if x < 0.0:                                   # Class-K pin-slot at zero
         raise ValueError(f"sqrt domain error: x must be >= 0; got {x}")
     if x == 0.0:
         return 0.0
-    xn, xd = x.as_integer_ratio()
-    # √(xn/xd) = isqrt(xn · 2^(2b) / xd) / 2^b  (exact float rational in,
-    # scaled integer Newton, project to float).
-    scale = 1 << (2 * precision_bits)
-    radicand = (xn * scale) // xd
-    root = _integer_sqrt(radicand)                # floor(√x · 2^b)
-    return root / (1 << precision_bits)
+    if precision_bits is not None:                # bignum reference surface
+        xn, xd = x.as_integer_ratio()
+        scale = 1 << (2 * precision_bits)
+        radicand = (xn * scale) // xd
+        root = _integer_sqrt(radicand)            # floor(√x · 2^b)
+        return root / (1 << precision_bits)
+    if _native.has_native_sqrt():
+        return _native.rational_sqrt_c(x)
+    bits = struct.unpack("<Q", struct.pack("<d", x))[0]
+    raw = (bits >> 52) & 0x7FF
+    frac = bits & ((1 << 52) - 1)
+    if raw == 0x7FF:
+        return x                                  # +Inf
+    mant = frac if raw == 0 else (frac | (1 << 52))
+    e = -1074 if raw == 0 else raw - 1075         # x = mant · 2^e
+    if e & 1:                                      # make e even
+        mant <<= 1
+        e -= 1
+    radicand = mant << (2 * _SQRT_C_K)            # 128-bit; math.isqrt == C isqrt128
+    root = math.isqrt(radicand)
+    return float(root) * _q_pow2(e // 2 - _SQRT_C_K)
 
 
-def hypot(a: float, b: float,
-          *, precision_bits: int = _SQRT_PRECISION_BITS) -> float:
+def hypot(a: float, b: float, *, precision_bits: int = None) -> float:
     """``hypot(a, b) = √(a² + b²)`` via the Class-N sqrt cascade.
 
     **Class M** (the sum-of-squares bind) ∘ **Class N∘K** (:func:`sqrt`).
     Substrate-native replacement for ``math.hypot`` / ``np.hypot`` (the
-    complex modulus ``|z| = hypot(z.real, z.imag)``).
+    complex modulus ``|z| = hypot(z.real, z.imag)``). ``precision_bits``
+    threads to :func:`sqrt` (default ``None`` = the C-bit-exact cascade).
     """
     a = float(a)
     b = float(b)

@@ -157,14 +157,19 @@ _HAS_C_GENERAL = (
 
 
 def _reference_general(theta, omega, adjacency, coupling, alpha, psi, ps, dt):
-    """Closed-form generalised one-step (the spec): the Python fallback path."""
+    """Closed-form generalised one-step (the spec): the Python fallback path.
+
+    §32 fix: the adjacency weight is SCALED by the global ``coupling`` scalar
+    (effective weight = ``K·A_ij``), matching the all-to-all branch
+    (``inv_n = K/n``). ``coupling == 0`` zeroes the coupling term.
+    """
     n = len(theta)
     inv_n = (coupling / n) if n > 0 else 0.0
     out = []
     for i in range(n):
         s = 0.0
         for j in range(n):
-            w = adjacency[i][j] if adjacency is not None else inv_n
+            w = (coupling * adjacency[i][j]) if adjacency is not None else inv_n
             s += w * math.sin(theta[j] - theta[i] - alpha)
         f = omega[i] + s
         if psi is not None:
@@ -255,3 +260,101 @@ def test_native_general_shim_direct():
         _reference_general([0.0, 1.0], [1.0, 2.0], None, 1.0, 0.2, None, None, 0.1),
         abs=1e-9,
     )
+
+
+# ----------------------------------------------------------------------
+# v0.7.5rc15 — UPSTREAM_NOTES §32 regression (PR#687 F636): the `coupling`
+# scalar MUST scale the adjacency weights (effective weight = K·A_ij). Prior
+# to rc15 the adjacency branch dropped `coupling` entirely, so coupling=0 and
+# coupling=3 gave bit-identical trajectories over the same neighbor graph
+# (the all-to-all path was always correct). These tests would have CAUGHT it:
+# every prior adjacency test happened to use coupling=1.0, where K·A == A.
+# ----------------------------------------------------------------------
+
+
+def _ring_adjacency(n):
+    """The §32 repro's ring graph: A_ij = 1 iff |i-j| mod (n-1) == 1."""
+    return [[1.0 if abs(i - j) % (n - 1) == 1 else 0.0 for j in range(n)]
+            for i in range(n)]
+
+
+def test_adjacency_zero_coupling_is_pure_drift():
+    """coupling=0 with ANY adjacency → every weight K·A_ij = 0 → pure drift
+    θ_i + dt·ω_i (bit-exact: 0·anything summed is exactly 0.0)."""
+    theta = [0.0, 0.4, 0.9, 1.3, 1.8, 2.2, 2.7, 3.0]
+    omega = [-0.1, -0.07, -0.03, 0.0, 0.02, 0.05, 0.08, 0.1]
+    A = _ring_adjacency(len(theta))
+    out = kuramoto_step(theta, omega, coupling=0.0, dt=0.05, adjacency=A)
+    assert out == pytest.approx([t + 0.05 * w for t, w in zip(theta, omega)],
+                                abs=1e-12)
+
+
+def test_adjacency_coupling_scalar_has_effect():
+    """The §32 symptom, inverted: coupling=3 and coupling=0 over the SAME ring
+    must DIVERGE (pre-rc15 they were bit-identical). Mirrors the repro's
+    60-step integration."""
+    theta0 = [0.0, 0.4, 0.9, 1.3, 1.8, 2.2, 2.7, 3.0]
+    omega = [-0.1, -0.07, -0.03, 0.0, 0.02, 0.05, 0.08, 0.1]
+    A = _ring_adjacency(len(theta0))
+
+    def run(c):
+        t = list(theta0)
+        for _ in range(60):
+            t = kuramoto_step(t, omega, coupling=c, dt=0.05, adjacency=A)
+        return max(t) - min(t)
+
+    spread_coupled = run(3.0)
+    spread_drift = run(0.0)
+    # Strong coupling pulls the ring tighter than the uncoupled drift.
+    assert abs(spread_coupled - spread_drift) > 1e-3
+    assert spread_coupled < spread_drift
+
+
+def test_adjacency_weight_is_coupling_times_matrix():
+    """The contract: effective weight = coupling · A_ij (matches the fixed
+    reference). Tested at a NON-unit coupling so K·A ≠ A."""
+    theta = [0.1, 0.5, 1.2, 2.0]
+    omega = [0.3, -0.2, 0.1, 0.0]
+    n, dt = 4, 0.05
+    Adir = [[(0.5 if j == (i + 1) % n else 0.0) for j in range(n)] for i in range(n)]
+    for K in (0.0, 0.5, 2.0, -1.5):
+        out = kuramoto_step(theta, omega, adjacency=Adir, coupling=K,
+                            alpha=0.3, dt=dt)
+        ref = _reference_general(theta, omega, Adir, K, 0.3, None, None, dt)
+        assert out == pytest.approx(ref, abs=1e-12), K
+
+
+def test_full_uniform_matrix_with_coupling_reproduces_mean_field():
+    """adjacency = full 1/n matrix (incl. diagonal) with coupling=K reproduces
+    the all-to-all coupling=K path (K·(1/n) = K/n = inv_n). The clean
+    differential-test the §32 ask names."""
+    theta = [0.1, 0.5, 1.2, 2.0, -0.7]
+    omega = [0.3, -0.2, 0.1, 0.0, 0.4]
+    n, K, dt = 5, 2.5, 0.05
+    A = [[1.0 / n for _ in range(n)] for _ in range(n)]
+    via_a = kuramoto_step(theta, omega, adjacency=A, coupling=K, dt=dt)
+    simple = kuramoto_step(theta, omega, coupling=K, dt=dt)
+    assert via_a == pytest.approx(simple, abs=1e-12)
+
+
+@pytest.mark.skipif(
+    not _HAS_C_GENERAL,
+    reason="native srmech_cascade_kuramoto_step_general_f64 unavailable",
+)
+def test_native_adjacency_coupling_scalar_parity():
+    """The native C peer honors the coupling scalar on the adjacency path too
+    (§32 fix mirrored into libsrmech): matches the fixed Python reference at a
+    non-unit coupling."""
+    theta = [0.1, 0.5, 1.2, 2.0, -0.7]
+    omega = [0.3, -0.2, 0.1, 0.0, 0.4]
+    n, dt, K = 5, 0.05, 2.5
+    Adir = [[(0.4 if j != i else 0.0) for j in range(n)] for i in range(n)]
+    Adir[0][1] = 0.9  # break symmetry → directed
+    out = kuramoto_step(theta, omega, adjacency=Adir, coupling=K, alpha=0.3,
+                        dt=dt)  # native path
+    ref = _reference_general(theta, omega, Adir, K, 0.3, None, None, dt)
+    assert out == pytest.approx(ref, abs=1e-9)
+    # And coupling=0 zeroes the coupling term natively → pure drift.
+    drift = kuramoto_step(theta, omega, adjacency=Adir, coupling=0.0, dt=dt)
+    assert drift == pytest.approx([t + dt * w for t, w in zip(theta, omega)],
+                                  abs=1e-9)

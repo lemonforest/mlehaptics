@@ -74,6 +74,7 @@ _require_numpy("srmech.qm")
 from srmech.qm import (
     bell,
     gauge,
+    hurwitz,
     octonion,
     potentials,
     propagators,
@@ -89,6 +90,7 @@ from srmech.qm import (
 __all__ = [
     "bell",
     "gauge",
+    "hurwitz",
     "octonion",
     "potentials",
     "propagators",

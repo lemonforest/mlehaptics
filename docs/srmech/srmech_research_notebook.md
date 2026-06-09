@@ -5811,6 +5811,7 @@ The RBS-LM "Story Teller" reduces a language model to a **SEEN engine + attested
 Backlinks to per-finding provenance (each with its committed script): `docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_6XX_*.md`. *Research trail followed; nothing forgotten; landed-where. CL-1 notebook back-sweep COMPLETE (the GH research-issue closeout audit is the remaining CL-1 half).*
 
 
+
 ## How to cite this notebook
 
 **BibTeX:**

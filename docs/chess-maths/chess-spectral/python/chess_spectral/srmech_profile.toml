@@ -25,7 +25,7 @@ profile_schema_version = "1.0"
 
 [profile]
 name            = "chess"
-version         = "1.19.0"
+version         = "1.19.1rc1"
 summary         = "Spectral chess encoder (2D D₄ / 4D B₄ irrep decomposition; graph-Laplacian eigenbasis; HDC)"
 package         = "chess_spectral"
 srmech_requires = ">=0.3.1,<0.4"

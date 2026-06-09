@@ -151,6 +151,66 @@ def bundle(vectors: Sequence[bytes]) -> bytes:
     return bytes(result)
 
 
+def bundle_with_ties(vectors: Sequence[bytes]) -> "tuple[bytes, bytes]":
+    """Bitwise majority across ANY number of BSC vectors, with the tie state
+    surfaced explicitly (UPSTREAM_NOTES rbs_nn Note 1).
+
+    :func:`bundle` requires an odd count so ties cannot occur. This accepts any
+    ``N`` (the even-count case is the point) and returns ``(majority, ties)``:
+
+    * ``majority`` — one bit per position, ``1`` where **strictly** more than
+      half the inputs are set, else ``0`` (a tie resolves to ``0``; for odd
+      ``N`` this byte equals :func:`bundle`'s output exactly).
+    * ``ties`` — one bit per position, ``1`` where the set / unset counts are
+      **exactly equal** (only possible for even ``N``), else ``0``.
+
+    A tie is a **Class K event**: the bundle accumulator crosses zero there (the
+    derivative-sign-flip / phase-boundary of MFO §VII.6.12.1). Surfacing it lets
+    a cascade track how close a bundled state is to a phase-boundary tie —
+    without changing the binary-byte storage form. **No ``abs()``** — counts
+    only (the sign boundary IS the tie bit).
+
+    Args:
+        vectors: Sequence of BSC vectors (all same length, non-empty). Any
+            count (odd or even) is accepted.
+
+    Returns:
+        ``(majority, ties)`` — two byte vectors, each the input length.
+
+    Raises:
+        ValueError: empty sequence, mismatched lengths, zero-length vectors, or
+            more than ``MAX_BUNDLE_N`` vectors.
+    """
+    n_vectors = len(vectors)
+    if n_vectors == 0:
+        raise ValueError("hdc.bundle_with_ties: vectors sequence must be non-empty")
+    if n_vectors > MAX_BUNDLE_N:
+        raise ValueError(
+            f"hdc.bundle_with_ties: n_vectors {n_vectors} exceeds "
+            f"MAX_BUNDLE_N {MAX_BUNDLE_N}"
+        )
+    n_bytes = len(vectors[0])
+    if n_bytes == 0:
+        raise ValueError("hdc.bundle_with_ties: vectors must be non-empty")
+    for i, v in enumerate(vectors):
+        if len(v) != n_bytes:
+            raise ValueError(
+                f"hdc.bundle_with_ties: vector {i} has length {len(v)}, "
+                f"expected {n_bytes}"
+            )
+    majority = bytearray(n_bytes)
+    ties = bytearray(n_bytes)
+    for byte_i in range(n_bytes):
+        for bit in range(8):
+            count = sum((v[byte_i] >> bit) & 1 for v in vectors)
+            two = count * 2
+            if two > n_vectors:                 # strict majority set
+                majority[byte_i] |= (1 << bit)
+            elif two == n_vectors:              # exact tie — the Class K event
+                ties[byte_i] |= (1 << bit)
+    return bytes(majority), bytes(ties)
+
+
 def permute(a: bytes, rotate_bits: int) -> bytes:
     """Cyclic bit-rotation of a BSC vector by ``rotate_bits`` positions.
 
@@ -306,6 +366,21 @@ def polar_bind(a, b):
     position stays uncertain after binding.
     """
     a, b = _check_polar_pair(a, b, "polar_bind")
+    # rc12: dispatch the int8 element-wise sign-product to the C peer when
+    # present (bit-identical to the ``(a * b)`` below — integer arithmetic, no
+    # float — which stays the Pyodide / no-native fallback). #928 cheap-win #5.
+    if (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_polar_bind")):
+        a_c = np.ascontiguousarray(a, dtype=np.int8)
+        b_c = np.ascontiguousarray(b, dtype=np.int8)
+        out = np.empty(a_c.size, dtype=np.int8)
+        rc = _native.LIB.srmech_polar_bind(
+            a_c.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)),
+            b_c.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)),
+            ctypes.c_uint32(a_c.size),
+            out.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)))
+        if rc == _native.SRMECH_OK:
+            return out
     return (a * b).astype(np.int8)
 
 
@@ -341,6 +416,22 @@ def polar_bundle(*vectors):
             raise ValueError(
                 f"hdc.polar_bundle: vector {i} has length {arr.size}, expected {n}"
             )
+    # rc12: dispatch the per-position sticky-majority (sign-of-sum, tie -> 0) to
+    # the C peer when present (bit-identical to the ``np.sign(sum)`` below, which
+    # stays the Pyodide / no-native fallback). #928 cheap-win #5.
+    if (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_polar_bundle")):
+        n_vectors = len(arrs)
+        bufs = [np.ascontiguousarray(v, dtype=np.int8) for v in arrs]
+        ptr_array = (ctypes.POINTER(ctypes.c_int8) * n_vectors)(
+            *(b.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)) for b in bufs)
+        )
+        out = np.empty(n, dtype=np.int8)
+        rc = _native.LIB.srmech_polar_bundle(
+            ptr_array, ctypes.c_uint32(n_vectors), ctypes.c_uint32(n),
+            out.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)))
+        if rc == _native.SRMECH_OK:
+            return out
     total = np.sum(np.stack(arrs).astype(np.int32), axis=0)
     return np.sign(total).astype(np.int8)
 
@@ -372,6 +463,18 @@ def polar_density(v) -> float:
     the Class-K dead-band / uncertain state.
     """
     arr = _as_polar(v, "polar_density")
+    # rc12: dispatch the informative-fraction (count of non-zero / n) to the C
+    # peer when present (bit-identical to ``(arr != 0).mean()`` below — the
+    # count is integer, one division — which stays the no-native fallback).
+    if (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_polar_density")):
+        arr_c = np.ascontiguousarray(arr, dtype=np.int8)
+        out = ctypes.c_double()
+        rc = _native.LIB.srmech_polar_density(
+            arr_c.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)),
+            ctypes.c_uint32(arr_c.size), ctypes.byref(out))
+        if rc == _native.SRMECH_OK:
+            return float(out.value)
     return float((arr != 0).mean())
 
 
@@ -1379,7 +1482,8 @@ def loop_inv(x):
     arr = np.asarray(x, dtype=float)
     _reject_hd_block_misuse(arr, "loop_inv")
     arr = _as_loop(x, "loop_inv")
-    nsq = float(np.dot(arr, arr))
+    from srmech.amsc.laplacian import dense_dot_real  # local: numpy-absent-safe (§22)
+    nsq = dense_dot_real(arr, arr)
     assert nsq > 0.0, "loop_inv: zero vector has no inverse (Moufang division)"
     native = _try_native_loop_inv(arr)
     if native is not None:
@@ -1460,8 +1564,9 @@ def g2_three_form(x, y, z):
     native = _try_native_g2_three_form(xa, ya, za)
     if native is not None:
         return native
+    from srmech.amsc.laplacian import dense_dot_real  # local: numpy-absent-safe (§22)
     yz = cross7(ya, za)
-    return float(np.dot(xa, yz))
+    return dense_dot_real(xa, yz)
 
 
 def loop_bind_hd(x, y):
@@ -1539,11 +1644,12 @@ def loop_inv_hd(x):
     native = _try_native_loop_inv_hd(a_)
     if native is not None:
         return native
+    from srmech.amsc.laplacian import dense_dot_real  # local: numpy-absent-safe (§22)
     xb = a_.reshape(-1, LOOP_DIM)
     out = []
     for k in range(xb.shape[0]):
         blk = xb[k]
-        nsq = float(np.dot(blk, blk))
+        nsq = dense_dot_real(blk, blk)
         assert nsq > 0.0, (
             f"loop_inv_hd: block {k} is the zero vector (no Moufang inverse)")
         out.append(_loop_conj_raw(blk) / nsq)
@@ -1582,6 +1688,7 @@ __all__ = [
     "KLEIN4_STATES",
     "bind",
     "bundle",
+    "bundle_with_ties",
     "permute",
     "similarity",
     "polar_random",

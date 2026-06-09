@@ -22,6 +22,8 @@ from typing import Optional
 
 import numpy as np
 
+from srmech.amsc.laplacian import dense_matmul_real, dense_matvec_real, dense_solve
+
 OPERATION_NAME = "map_ml"
 CLASS_COMPOSITION = ("L", "K")
 PERFORMANCE_HINT = "small-D-one-shot"
@@ -81,11 +83,11 @@ def op(
         raise ValueError(f"R_noise must be ({m}, {m}); got {Rv.shape}")
     # Compute A^T R_noise^{-1}
     Rv_inv = np.linalg.inv(Rv)
-    ATRinv = A_arr.T @ Rv_inv
+    ATRinv = dense_matmul_real(A_arr.T, Rv_inv)
     if R_prior is None:
         # ML: x_hat = (A^T R_v^-1 A)^-1 A^T R_v^-1 y
-        M = ATRinv @ A_arr
-        return np.linalg.solve(M, ATRinv @ y_arr)
+        M = dense_matmul_real(ATRinv, A_arr)
+        return dense_solve(M, dense_matvec_real(ATRinv, y_arr))
     # MAP
     Rx = np.asarray(R_prior, dtype=np.float64)
     if Rx.shape != (n, n):
@@ -95,6 +97,6 @@ def op(
     else:
         mu = np.asarray(mean_prior, dtype=np.float64)
     Rx_inv = np.linalg.inv(Rx)
-    M = ATRinv @ A_arr + Rx_inv
-    rhs = ATRinv @ y_arr + Rx_inv @ mu
-    return np.linalg.solve(M, rhs)
+    M = dense_matmul_real(ATRinv, A_arr) + Rx_inv
+    rhs = dense_matvec_real(ATRinv, y_arr) + dense_matvec_real(Rx_inv, mu)
+    return dense_solve(M, rhs)

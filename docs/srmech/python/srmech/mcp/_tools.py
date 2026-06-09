@@ -367,6 +367,20 @@ def _resolve_dotted_callable(name: str) -> Callable[..., Any]:
         except AttributeError:
             continue
         if not callable(obj):
+            # Name-collision case: a submodule whose name equals a
+            # re-exported callable (e.g. ``cascade.sedenion_register`` the
+            # MODULE vs the ``sedenion_register`` factory). Importing the
+            # submodule makes Python rebind the package attribute from the
+            # re-exported function to the module object, so ``getattr`` here
+            # yields a non-callable module. Prefer the same-named callable
+            # defined inside it — the "module X re-exports callable X"
+            # convention — so the registry's flat ``...sedenion_register``
+            # ToolEntry resolves regardless of import order (the W7
+            # schema/signature drift this otherwise trips post-import).
+            if inspect.ismodule(obj):
+                inner = getattr(obj, attr_path[-1], None)
+                if callable(inner):
+                    return inner
             continue
         return obj
     raise MCPToolError(
