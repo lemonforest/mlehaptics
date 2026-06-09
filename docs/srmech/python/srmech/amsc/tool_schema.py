@@ -4067,6 +4067,67 @@ def _register_dsl_tools() -> None:
             ),
         )
     )
+    rc41 = " (v0.7.5rc41 — class-from-TOML surface; #962 Part 2)."
+    register_tool(
+        ToolEntry(
+            name="srmech.dsl.list_class_surface",
+            owner="srmech",
+            category="dsl",
+            summary=(
+                "Enumerate the user-declared srmech CLASSES (the class-from-TOML "
+                "surface) — the discovery companion for class construction. A "
+                "researcher authors a [class] TOML (fields + methods-as-cascade-"
+                "op-refs) and srmech.dsl.make_class builds a generic class-aware "
+                "object; this lists each declared class as a JSON-able record "
+                "(name, kind, doc, fields, methods with their bound cascade op + "
+                "binds, provenance) so an LLM picks a class + method BEFORE "
+                "constructing it. The shipped seed is `Genome` (genome / "
+                "chromosome / telomere storage); bring-your-own classes from a "
+                "register_class_dir / SRMECH_CLASS_PATH dir surface here too. "
+                "Framework reading: Class E (catalog enumeration) ∘ Class F "
+                "(descriptor render). No parameters." + rc41
+            ),
+            parameters=(),
+            returns=ToolReturn(
+                type="list[dict]",
+                shape=(
+                    "[{'name', 'kind', 'doc', 'fields': {field: type}, "
+                    "'methods': {method: {'op', 'binds', ...}}, 'provenance'}, "
+                    "...] one record per declared class."
+                ),
+            ),
+        )
+    )
+    register_tool(
+        ToolEntry(
+            name="srmech.dsl.describe_class",
+            owner="srmech",
+            category="dsl",
+            summary=(
+                "Describe ONE user-declared srmech class by name — the focused "
+                "companion to `srmech.dsl.list_class_surface`. Returns the "
+                "JSON-able descriptor (name, kind, doc, fields, methods with each "
+                "method's bound cascade op + binds + appends/sets, provenance) "
+                "for the shipped seed `Genome` or any bring-your-own class. The "
+                "shape srmech.dsl.make_class(name) constructs and "
+                "srmech.dsl.run_class_method runs. Framework reading: Class F "
+                "(descriptor render) over the [class] catalog." + rc41
+            ),
+            parameters=(
+                ToolParameter(
+                    "name", "str", required=True,
+                    summary="the class name to describe (e.g. 'Genome').",
+                ),
+            ),
+            returns=ToolReturn(
+                type="dict",
+                shape=(
+                    "{'name', 'kind', 'doc', 'fields', 'methods', "
+                    "'provenance'} — the full class descriptor."
+                ),
+            ),
+        )
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────

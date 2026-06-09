@@ -484,6 +484,19 @@ decrements it).
   are plain dicts (MCP-grammar friendly). Lives in `srmech.dsl` (NOT amsc/qm) →
   no tool-schema / rosetta entry. CLI subcommands + tool_schema/MCP class
   registration are rc41.
+- **rc41 (done) — CLI + tool_schema/introspect class-awareness; the genome
+  surface closes (#962 Part 2).** `srmech class list` / `srmech class describe
+  NAME` (`srmech.cli.klass`; CLI token `class`, module `klass` since `class` is
+  a keyword); `introspect.describe()["classes"] = {total, names}` (the package
+  recognises its own user-class surface — sibling key, `tools.total`
+  unaffected); 2 ToolEntries `srmech.dsl.list_class_surface` / `describe_class`
+  so the LLM tool list includes class discovery (`tools.total` 270→272; 5
+  count-tests bumped). dsl ToolEntries take no rosetta line (rosetta walks
+  amsc/qm live ops). Completes rc37/rc38 (genome primitives) → rc39 (`[class]`
+  loader) → rc40 (DSL surface) → rc41 (CLI + tool_schema): a researcher reaches
+  a TOML-declared class from Python, the shell, and an LLM. NB the local-only
+  `test_introspection_version_native_matches` false-fail is the stale hand-built
+  DLL (version string vs a fresh CI build), not a regression.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each
