@@ -66,8 +66,8 @@ def genome_regression():
 
 
 def main():
-    print(f"=== R-RBS-LM-U1ACCEPTANCE (F722) — rc49 tokenize/cooccurrence_edges vs the §40 bar  (srmech {srmech.__version__}) ===\n")
-    assert srmech.__version__ == "0.7.5rc49"
+    print(f"=== R-RBS-LM-U1ACCEPTANCE (F722) — tokenize/cooccurrence_edges vs the §40 bar  (srmech {srmech.__version__}) ===\n")
+    # version-agnostic acceptance harness — re-runnable on any rc
 
     print("WHERE: tokenize + cooccurrence_edges shipped in srmech.amsc.laplacian (Option 3; §40 recommended amsc.text).\n")
 

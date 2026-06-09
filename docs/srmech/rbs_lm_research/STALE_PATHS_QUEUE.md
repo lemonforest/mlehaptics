@@ -576,3 +576,11 @@ Per user direction ("check stale queue items to bring forward and do if remainin
   2. **vocab cap (F708) FAIL** — default `vocab_size=1000` silently caps; no `None`/all sentinel (the F708 bug as a default).
   3. **boundary reset FAIL** — flat `tokens`, no `boundaries=`/`docs=` → cross-article bleed.
 - **R3 U1 NOT closeable**; #855 stays unchecked; wiki kernel keeps F698/F700 `content_words`+`build_edges_topk`. Three fixes logged in UPSTREAM §40. **Genome surface (F716–F721) regression-clean on rc49.** The §40 spec caught the F708-regression-as-default before it could silently quantize a full-wiki encode. F722.
+
+### F723 — rc50 CLOSES R3 U1: meets the §40 bar 3/3 (2026-06-09; supersedes F722)
+
+- **srmech 0.7.5rc50** moved `tokenize` + `cooccurrence_edges` to `srmech.amsc.text` (§40 Option-1 site) and fixed all three F722 failures — verified `R-RBS-LM-U1CLOSED...py`:
+  1. **Unicode (F698) PASS** — `café/Москва/naïve/日本語` survive; `stoplist=` default carries the F714 prepositions; `unicode_normalize=True`.
+  2. **no cap (F708) PASS** — `cooccurrence_edges(..., vocab_size=None)` default = all (1500→1500); explicit `vocab_size=N` is an opt-in cap.
+  3. **boundary reset PASS** — `docs` = sequence of token-sequences → per-document window reset (no cross-article bleed).
+- Format unchanged (`(n, edges, weights)`, 2-tuples → dense_laplacian). **R3 U1 CLOSED**; #855 R3 U1 now checkable (offered to user). NEXT = §17.1 ours-side migration (wiki kernel onto the shipped ops; parity check vs our edges is the gate). The §40 specify→falsify(F722)→verify(F723) loop worked. F723.

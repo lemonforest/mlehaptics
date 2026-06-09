@@ -1847,3 +1847,13 @@ Counter() is retired there. **But the §40 bar fails on all three points** (veri
 **Disposition:** R3 U1 stays OPEN (not closeable); the wiki kernel keeps F698/F700 `content_words` +
 `build_edges_topk` until the three fixes land. The **genome storage surface (F716–F721) is regression-clean on
 rc49.** These three are the remaining U1 acceptance criteria.
+
+### rc50 — ✅ CLOSED (F723, 2026-06-09): all three fixes landed; moved to `amsc.text` (the Option-1 site)
+
+rc50 **meets the §40 bar 3/3** (verified `R-RBS-LM-U1CLOSED…py`): (1) `tokenize` is **Unicode-aware**
+(`café/Москва/日本語` survive) with a `stoplist=` default carrying the F714 prepositions + `unicode_normalize=True`;
+(2) `cooccurrence_edges(docs, *, window=2, vocab=None, vocab_size=None)` defaults to **no cap** (`vocab_size=None`
+→ all; explicit `vocab_size=N` is an opt-in), (3) `docs` is a sequence of token-sequences → **per-document window
+reset** (no cross-article bleed). Ops live in **`srmech.amsc.text`** (the recommended Option-1 site); format
+unchanged (`(n, edges, weights)`, 2-tuples → `dense_laplacian`). **R3 U1 is CLOSED** — #855 R3 U1 checkable; the
+wiki kernel can migrate onto these ops (the §17.1 ours-side migration; a parity check vs our edges is the gate).
