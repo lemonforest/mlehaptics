@@ -56,9 +56,36 @@ associations are meaningful:
   for n=256 (`dense_laplacian` + `dense_adjacency` + `jacobi_eigvals` + `fiedler_vector` + content-address). That store
   step is **fixed cost** (independent of corpus size) but slower than expected for native C at n=256 — logged as a perf
   observation for UPSTREAM_NOTES (not a correctness issue).
-- **Full simplewiki** (~all articles): in progress as a background run (~30 min at this rate); numbers appended on
-  completion. **enwiki (24 GB)**: a two-pass stream is multi-hour — a deliberate background/dev-session job, not
-  interactive.
+- **Full simplewiki** (completed): **555,038 articles** → top-256 kernel. The full run surfaced wiki *furniture* (utc/
+  talk/references/edit/wikipedia + unquoted-attribute residue) the 5k sample never hit — fixed (furniture stoplist +
+  unquoted-attr/triple-brace strip; re-validated furniture → NONE). See the F703-follow-up commit.
+
+### enwiki — the big-wiki encode, COMPLETE (300k-article bound)
+
+**Done.** Real English Wikipedia, srmech 0.7.5rc28 numpy-free native C path:
+
+| metric | value |
+|---|---|
+| articles streamed | **300,000** (bounded — see below) |
+| content tokens | **169,520,915** |
+| content-word vocabulary | **1,771,172** unique → top-256 kept, **1,770,916 dropped + logged** (F640) |
+| edges | 32,640 · furniture/junk in vocab | **NONE ✅** |
+| timing | `build_edges_topk` 2 passes ≈ **4,795 s (~80 min)** · Class-L store (native eigvals) 44.7 s |
+| fingerprint | `cefa6116…` · kernel persisted outside the repo (`enwiki_kernel_256.json`, attested CC-BY-SA) |
+
+Real associations (unmistakably enwiki): `war`→world/ii/army/battle · `music`→album/band/song/film · `language`→english/
+french/official · `church`→st/century/built · `king`→son/royal/death · `city`→population/county/census/density · `river`→
+north/south/county/west.
+
+**Why bounded at 300k (F640, no silent cap):** at ~80 min per 300k articles, the *full* ~22M-article enwiki two-pass is
+**~4 days** in this pure-Python reference pipeline — and for a **top-256** kernel it adds nothing (the top frequencies are
+stable by ~50k articles). 300k is representative; the full/parallelised ingest is a dev-session job (the F579/F607 kernel +
+a multi-core streamer).
+
+**Honest observation (F573):** the enwiki top-256 is **census/geography-biased** (city/county/census/population/density/
+area) — a real characteristic of enwiki, which contains millions of auto-generated US-census-place stubs. Not an error; the
+kernel faithfully reflects enwiki's actual content distribution. A content-type filter (exclude stub/list namespaces) is the
+dev-session refinement.
 
 **Composes:** F690/F702 (the re-encoded pipeline) · F698 (Unicode `content_words`) · F172 (eigenspectrum = storage) · F628
 (build-once) · F640/F658 (grounding honesty + honest cap) · F573 (the real data caught new leaks) · F661 (asking-state on
