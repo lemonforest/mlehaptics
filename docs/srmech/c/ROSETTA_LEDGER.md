@@ -559,6 +559,15 @@ decrements it).
   store — peer to the rc43 tokenize/cooccurrence_edges projections, NOT a
   reversible store-transform like the klein4 flips, whose standalone-C twin stays
   W5-gated per the do-not-mirror rule). ABI 3.
+- **rc48 (done) — `laplacian.spectral_block_dispatch`: the 1024-node 4-sector
+  spectral one-call (RBS-LM Ask-3; F233 4-rung).** Eigendecomposes ≤4 dense
+  symmetric blocks (each n ≤ 256) on a 4-worker thread pool — the threaded-
+  Klein-4-streams pattern (the same 4-way fan-out as
+  `cascade.parallel_sector_dispatch`, but over DISTINCT blocks). 4 × 256 = 1024
+  nodes within the native dense-eig bound; 0 cross-thread reads → parallel ==
+  serial bit-for-bit. New ToolEntry → `tools.total` 278→279. Rosetta bucket
+  **`composition_of_c`** (composes the `c_dispatched` `jacobi_eigvals` + a
+  merge-sort reduction). Class L over the 4-rung; numpy-free. ABI 3.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

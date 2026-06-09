@@ -82,6 +82,7 @@
 {"exposed_as": "srmech.amsc.laplacian.elementwise_transcendental", "defined_at": "srmech.amsc.laplacian.elementwise_transcendental", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.hermitian_eigendecompose", "defined_at": "srmech.amsc.laplacian.hermitian_eigendecompose", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.jacobi_eigvals", "defined_at": "srmech.amsc.laplacian.jacobi_eigvals", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.laplacian.spectral_block_dispatch", "defined_at": "srmech.amsc.laplacian.spectral_block_dispatch", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.normalized_laplacian", "defined_at": "srmech.amsc.laplacian.normalized_laplacian", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.naming.lookup", "defined_at": "srmech.amsc.naming.lookup", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.naming.reverse_order", "defined_at": "srmech.amsc.naming.reverse_order", "bucket": "c_dispatched"}

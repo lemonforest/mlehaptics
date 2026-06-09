@@ -119,6 +119,7 @@ __all__ = [
     "dense_laplacian",
     "normalized_laplacian",
     "jacobi_eigvals",
+    "spectral_block_dispatch",
     "dense_solve",
     "schur_complement",
     "dirichlet_to_neumann",
@@ -1699,6 +1700,111 @@ def cooccurrence_edges(
     return n, edges, weights
 
 
+# The per-block dense-eig cap is MAX_NATIVE_NODES (256); 4 blocks × 256 = 1024.
+# 4 is the Klein-4 4-rung (F220/F233): 8+ sectors need the order-3 triality.
+SPECTRAL_BLOCK_CAP: int = 4
+
+
+def spectral_block_dispatch(
+    blocks: Sequence,
+    *,
+    max_sweeps: int = 100,
+    tolerance: float = 1e-12,
+    combine: bool = True,
+) -> Dict[str, object]:
+    """Eigendecompose ≤4 dense symmetric blocks in parallel — the 1024-node
+    4-sector spectral one-call (RBS-LM UPSTREAM Ask-3; F233 4-rung).
+
+    Runs :func:`jacobi_eigvals` on each of ``blocks`` (1..4 real-symmetric
+    matrices, each ``n_i ≤ MAX_NATIVE_NODES`` = 256) on its own thread of a
+    4-worker pool — the threaded-Klein-4-streams pattern (F233; the same 4-way
+    fan-out as :func:`srmech.amsc.cascade.parallel_sector_dispatch`, but over
+    DISTINCT spectral blocks rather than chirality-transforms of one input).
+    Four ≤256-node blocks reach **4 × 256 = 1024 nodes** within the native
+    dense-eig bound. Each worker reads ONLY its own block (0 cross-thread
+    reads), so the parallel spectrum equals the serial spectrum bit-for-bit;
+    wall-clock overlap depends on the native GIL-release / free-threaded build.
+
+    Class L (graph-spectral eigendecomposition) over the 4-rung parallel
+    dispatch. Numpy-free: a block may be a ``list[list[float]]`` (numpy-absent)
+    or an ``ndarray``; per-block eigenvalues are returned as ``list[float]``.
+
+    Parameters
+    ----------
+    blocks
+        A sequence of 1..4 real-symmetric matrices (each ``n_i ≤ 256``).
+    max_sweeps, tolerance
+        Forwarded to :func:`jacobi_eigvals` per block.
+    combine
+        When ``True`` (default), also return ``"combined"`` — every block's
+        eigenvalues merged and sorted ascending (the whole ≤1024-node
+        spectrum). ``False`` leaves ``"combined"`` ``None`` (per-block only).
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "n_blocks", "block_sizes": [n_i, ...], "n_nodes": Σn_i,
+        "blocks": [[eigvals_0...], ...], "combined": [sorted spectrum] | None}``.
+
+    Raises
+    ------
+    ValueError
+        If ``blocks`` is empty, has > 4 entries (the F220 Klein-4 4-cap — 8+
+        sectors need the order-3 triality, not this 4-rung), a block is not
+        square, or a block has ``n_i > 256`` (the per-block dense-eig bound).
+    """
+    blist = list(blocks)
+    if not blist:
+        raise ValueError("spectral_block_dispatch: blocks must be non-empty")
+    if len(blist) > SPECTRAL_BLOCK_CAP:
+        raise ValueError(
+            f"spectral_block_dispatch: at most {SPECTRAL_BLOCK_CAP} blocks "
+            f"(the Klein-4 4-rung; 8+ need the order-3 triality, not this "
+            f"4-cap); got {len(blist)}"
+        )
+    sizes: List[int] = []
+    for k, blk in enumerate(blist):
+        rows = blk.tolist() if hasattr(blk, "tolist") else [list(r) for r in blk]
+        nb = len(rows)
+        if nb == 0 or any(len(r) != nb for r in rows):
+            raise ValueError(
+                f"spectral_block_dispatch: block {k} must be square; got "
+                f"{nb} rows"
+            )
+        if nb > MAX_NATIVE_NODES:
+            raise ValueError(
+                f"spectral_block_dispatch: block {k} has n={nb} > the per-block "
+                f"dense-eig bound {MAX_NATIVE_NODES} (4 × {MAX_NATIVE_NODES} = "
+                f"1024 nodes max)"
+            )
+        sizes.append(nb)
+
+    def _eig(blk):
+        ev = jacobi_eigvals(blk, max_sweeps=max_sweeps, tolerance=tolerance)
+        return list(ev.tolist()) if hasattr(ev, "tolist") else list(ev)
+
+    # The F233 4-rung: each block on its own thread (0 cross-thread reads, so
+    # parallel == serial bit-for-bit).
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=SPECTRAL_BLOCK_CAP) as ex:
+        per_block = list(ex.map(_eig, blist))
+
+    combined: "Optional[List[float]]" = None
+    if combine:
+        merged = [float(x) for ev in per_block for x in ev]
+        merged.sort()
+        combined = merged
+    return {
+        "ok": True,
+        "n_blocks": len(blist),
+        "block_sizes": sizes,
+        "n_nodes": sum(sizes),
+        "blocks": per_block,
+        "combined": combined,
+    }
+
+
 # Registry of available Class L op names for the composition engine.
 # Order is documentary; consumers iterate by name not position.
 LAPLACIAN_OPS: Tuple[str, ...] = (
@@ -1711,6 +1817,7 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "magnetic_laplacian",
     "fiedler_vector",
     "jacobi_eigvals",
+    "spectral_block_dispatch",
     "hermitian_eigendecompose",
     "symmetric_eigendecompose",
     "dense_matvec_complex",
