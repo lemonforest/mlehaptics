@@ -8,6 +8,21 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc40] - 2026-06-09
+
+**DSL class-awareness — the one-shot introspect + run surface for user-declared classes (#962 Part 2).** The rc39 `[class]` loader gets the DSL-layer surface the CLI + tool_schema/MCP compose on (rc41):
+
+- **`srmech.dsl.describe_class(name)`** / **`list_class_surface()`** — a JSON-able view of a user class (fields + methods + `binds` + `appends`/`sets` + provenance), so an LLM / CLI knows what a class offers before calling. Mirrors `list_catalog_ops` for the op surface.
+- **`srmech.dsl.run_class_method(class_name, method, *, fields=None, args=None)`** — the **stateless one-shot run**: construct a fresh instance from the `fields` dict, invoke `method` with the `args` dict, return `{"class", "method", "result", "fields"}` where `fields` is the post-call state (so an `appends`/`sets` mutation is visible). The caller threads state across calls — the functional form of the name+UUID handle grammar; `fields`/`args` are plain dicts (MCP-grammar friendly, no `**kwargs`).
+
+```python
+from srmech.dsl import run_class_method
+run_class_method("Genome", "shape", fields={"the_one": one}, args={"n": 5000})
+# -> {"class": "Genome", "method": "shape", "result": {"shape": "quad_strand", ...}, "fields": {...}}
+```
+
+Lives in `srmech.dsl` (orchestration over the rc39 `CatalogClass`) — no new `srmech.amsc`/`qm` callable, no tool-schema / rosetta entry. CLI subcommands + tool_schema/MCP registration of user classes are rc41. ABI 3; numpy not required.
+
 ## [0.7.5rc39] - 2026-06-09
 
 **User-declared classes from `[class]` TOML — the cascade-catalog config-driven pattern lifted from ops to classes (#962 Part 2; user direction 2026-06-09).** A researcher authors a `[class]` descriptor (fields + methods-as-cascade-op-refs) and srmech's config-driven loader constructs a generic, class-aware object — **zero user Python, 100% declarative**. This is how an end user targets srmech for their own research domain.
