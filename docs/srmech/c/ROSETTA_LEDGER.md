@@ -373,6 +373,22 @@ decrements it).
   an **A-N-cascade sweep/ratchet** — a down-only guard flagging math not yet
   reduced to the 14 A-N class cascades (the `math.*`/`cmath.*` float-transcendental
   residue beyond the numpy-math ratchet).
+- **rc32 (done) — the A-N-cascade ratchet itself (the rc31 NEXT-ARC SEED).**
+  `tests/test_an_cascade_ratchet.py` — the bare-Python-tier sibling of the
+  C-transpile libm ratchet (23 → 0) and the numpy-math ratchet. **AST-based, not
+  regex** (the source carries ~39 *descriptive* docstring mentions of `math.cos`
+  etc. that a text grep would miscount as debt; the AST sees only genuine
+  `Call`/`Attribute`/`BinOp` nodes — the same basis as the no-abs scanner). Three
+  tight down-only categories pinned at the measured baseline: `transcendental` = 1
+  (the lone `cmath.sqrt` Wilkinson-shift discriminant in the FLOAT `eigvals`
+  complex-spectrum path — eliminated when complex-eigenvalue exact isolation lands,
+  the rc31 follow-up), `math_const` = 0 (the π-cascade discipline fully holds — zero
+  float `math.pi` in any compute path), `float_pow` = 0. Excluded + documented:
+  integer primitives (`isqrt`/`gcd`/`factorial`/…), IEEE/sign primitives
+  (`copysign`/`fabs`/`isfinite`/… — Class-K sign family; `copysign` at an IEEE ±0
+  limit is the correct idiom), and the inherently-invisible string mentions. No
+  module carve-out — a stray `math.sin` anywhere fails. Test-only; no public
+  surface, no ToolEntry, no introspect change, ABI 3.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each
