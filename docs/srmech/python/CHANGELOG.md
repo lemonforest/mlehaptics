@@ -8,6 +8,14 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc35] - 2026-06-09
+
+**numpy-free native dispatch for `jacobi_eigvals` — the C eig is reachable without numpy now (~49×; UPSTREAM §38 / F708).** The rc28 long-run bug-test session found (UPSTREAM_NOTES §36/§37/§38 on PR #687) that the numpy-free Class-L store ran ~45–68 s at n=256 because `laplacian.jacobi_eigvals` early-returned the **pure-Python** Jacobi cascade whenever numpy was absent — even though the `srmech_jacobi_eigvals` C symbol is bound in the shim and a direct ctypes call runs in **1.4 s** (~49×). The symbol was reachable; the wrapper just didn't marshal to it without numpy.
+
+rc35 adds `_jacobi_eigvals_native_listmarshal` — a numpy-free marshalling path that builds a flat `(c_double * n·n)` ctypes buffer straight from the `list[list[float]]` and calls the bound C symbol. The numpy-absent branch now dispatches to it when `HAS_NATIVE` and `n ≤ MAX_NATIVE_NODES`, falling back to the pure-Python Jacobi cascade only when there's no native lib / `n` too large / non-OK status. **No numpy required for the native eig.** This is **PHASE B** of the numpy-carrier-removal north-star (the C foundation must be numpy-free-reachable before numpy can leave as a carrier).
+
+Scope: §38's "bind the symbols" ask was already satisfied (HEAD `_native.py` declares argtypes for jacobi/laplacian/hermitian/hdc/klein4 — §38 counted the 13 `*_c` convenience wrappers, not the bindings); bytes-`hdc` already dispatches numpy-free; the `symmetric_eigendecompose` eigenvector path stays `numpy.linalg.eigh` (deliberate — eigenvector parity is non-unique); klein4→C stays deferred behind W5. ABI 3; no public-surface change.
+
 ## [0.7.5rc34] - 2026-06-09
 
 **Matmul-ledger decrement — route `np.kron` + `np.einsum` callsites onto the existing cascades.** Resumes the numpy-math matmul migration (#928) by pure *routing* — no new public op, no registry gates — onto the already-shipped, already-registered `kron` / `einsum` cascades:
