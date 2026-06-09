@@ -523,6 +523,14 @@ decrements it).
   growth). The directed sibling (`i(A−Aᵀ)` Hermitian-Laplacian builder, reusing
   the shipped `hermitian_eigendecompose`) is a separate queued Class-L
   precursor (UPSTREAM §18.1 op(b) reference F357). ABI 3; numpy not required.
+- **rc44 (done) — DSL dotted-`op=` resolver + §17 U2 (`encode_loe_content`
+  registered as a cascade-op).** `lookup_cascade_op` honours a dotted
+  `[cascade].op` entry point (mirrors the rc39 class-catalog), so the verified
+  `srmech.signal_processing.encode_loe_content` text→instrument encoder is a
+  one-line DSL stage — any catalog's text rows get a one-line kernel chain.
+  `list_cascade_ops` 14→15; no new `srmech.amsc.*` callable (the op already
+  ships + keeps its `composition_of_c` rosetta line), so the rosetta ledger +
+  `tools.total` are unchanged. ABI 3.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

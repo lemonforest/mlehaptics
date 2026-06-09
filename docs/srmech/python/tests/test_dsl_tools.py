@@ -60,6 +60,7 @@ _EXPECTED_CATALOG_OPS = {
     "quaternion_dft",
     "reorient",
     "schur_complement",
+    "encode_loe_content",   # §17 U2 (rc44): dotted-op text→instrument encoder
 }
 
 

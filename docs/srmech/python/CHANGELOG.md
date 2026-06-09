@@ -8,6 +8,13 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc44] - 2026-06-09
+
+**DSL dotted-`op=` resolver + `encode_loe_content` registered as a cascade-op (RBS-LM UPSTREAM §17 U2).** A cascade-catalog descriptor may now name a **dotted entry point** — `[cascade].op = "srmech.signal_processing.encode_loe_content"` — so an EXISTING op that lives outside `srmech.amsc.cascade` is DSL-registrable without re-exporting it. Mirrors the rc39 class-catalog's dotted-path method resolution.
+
+- The verified text→instrument encoder **`encode_loe_content`** (Class A∘C∘M, `str → D-bit fingerprint`) is now a one-line DSL stage: `chain().then("encode_loe_content", D=…)` / `[[stage]] op="encode_loe_content"`. **Any catalog's text rows get a one-line kernel chain** — the §17 U2 "cheapest, highest-leverage" win (the primitive already worked; this makes it nameable in a chain).
+- `list_cascade_ops()` 14 → **15**; the `list_catalog_ops` / `run_toml_chain` tool-schema summaries cite the live 15-op count. No new `srmech.amsc.*` callable (the op already ships; `encode_loe_content` keeps its existing `composition_of_c` rosetta line) → `describe()["tools"]["total"]` unchanged. ABI 3; numpy-tier (the encoder is `srmech[scientific]`).
+
 ## [0.7.5rc43] - 2026-06-09
 
 **Text→graph stage primitives — the K1 chain's missing front (RBS-LM UPSTREAM §17 U1).** `srmech.amsc.laplacian` gains the two ops that were the only links between raw text and the already-shipped `dense_laplacian`:
