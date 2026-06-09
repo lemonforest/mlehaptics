@@ -8,6 +8,13 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc51] - 2026-06-09
+
+**`laplacian.dense_outer_{complex,real}` — the np.outer → cascade decrement (numpy-removal PHASE A).** Resumes the numpy-math carrier-removal sweep with the deferred outer-product op. An outer product `a ⊗ b` (`out[i,j] = aᵢbⱼ`) IS the **k=1 case of a matrix product** — `a` a column, `b` a row — so `dense_outer_complex` is exactly `dense_matmul_complex` on the reshaped pair: it rides the native `srmech_dense_matmul_complex` kernel with **no inner summation** (each entry a single multiply), making it **bit-identical to numpy's outer product**. `dense_outer_real` is the complex kernel on imag-free input → float64.
+
+- Routes the 3 genuine `np.outer` callsites off numpy's contraction engine onto the cascade: `qm.propagators`' two real `kᵘkᵛ` momentum tensors (Feynman photon + massive-vector propagators) → `dense_outer_real`, and `qm.single_particle`'s complex `|ψ⟩⟨ψ|` density matrix → `dense_outer_complex`. All three are **bit-exact** (rank-1, single-multiply per entry — no round-off shift). The numpy-math ratchet's `matmul` ceiling drops **51 → 48**; the 2 remaining `np.outer` are the `matrix_cascades` QR-internal Householder updates, still on the shape-polymorphic pass.
+- 2 new `srmech.amsc.laplacian.dense_outer_{complex,real}` ToolEntries → `describe()["tools"]["total"]` 280 → **282**; both `composition_of_c` rosetta bucket (compose the `c_dispatched` dense-matmul kernel; no own C symbol). Added to `__all__` + `LAPLACIAN_OPS`. Class L (rank-1 contraction); numpy carriers-only. ABI 3.
+
 ## [0.7.5rc50] - 2026-06-09
 
 **`amsc.text.{tokenize, cooccurrence_edges}` — the §40 R3-U1 acceptance fix (was SHIPPED-but-FAILING 3/3; F722).** The rc43 text→graph leaves shipped in `srmech.amsc.laplacian` but **failed the RBS-LM §40 acceptance bar on all three points**. rc50 relocates them to a dedicated **`srmech.amsc.text`** ingestion module (so `laplacian` stays purely spectral — §40 Option 1) and fixes every point:
