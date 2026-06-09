@@ -65,7 +65,7 @@ from typing import Optional
 
 import numpy as np
 
-from srmech.amsc.laplacian import elementwise_hypot
+from srmech.amsc.laplacian import elementwise_hypot, elementwise_transcendental
 
 from ..amsc.hdc import bind as _hdc_bind
 from ..amsc.hdc import similarity as _hdc_similarity
@@ -447,7 +447,8 @@ def predict(
         handle.coefficients_bytes, dtype=np.complex128
     ).reshape(n)
     # Class C cascade-extrapolate: per-mode phase evolution.
-    phase = np.exp(-1j * np.asarray(eigvals, dtype=np.float64) * steps * dt)
+    phase = elementwise_transcendental(
+        -(np.asarray(eigvals, dtype=np.float64) * steps * dt), "exp_i")
     coeffs_pred = (coeffs * phase).astype(np.complex128)
     coeffs_bytes = coeffs_pred.tobytes()
     return SpectralHandle(

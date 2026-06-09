@@ -1664,7 +1664,7 @@ def magnetic_laplacian(
     W = _directed_adjacency(n, edges_u, edges_v, ws)
     A_s = 0.5 * (W + W.T)
     theta = W - W.T
-    phase = np.exp(1j * (2.0 * np.pi * float(q)) * theta)
+    phase = elementwise_transcendental((2.0 * np.pi * float(q)) * theta, "exp_i")
     H = A_s * phase
     diag_idx = np.arange(n)
     H[diag_idx, diag_idx] = 0.0  # no self-phase; degree carries the diagonal

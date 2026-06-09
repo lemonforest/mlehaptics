@@ -35,7 +35,11 @@ from __future__ import annotations
 import numpy as np
 from typing import Tuple
 
-from srmech.amsc.laplacian import dense_matmul_complex, hermitian_eigendecompose
+from srmech.amsc.laplacian import (
+    dense_matmul_complex,
+    elementwise_transcendental,
+    hermitian_eigendecompose,
+)
 from srmech.qm.spin import pauli_matrices
 
 
@@ -302,7 +306,8 @@ def gauge_path_segment(
     eigvals, V = hermitian_eigendecompose(M)
     # exp(M) = V·diag(exp(iλ))·Vᴴ — Class-L matmul cascade.
     return dense_matmul_complex(
-        dense_matmul_complex(V, np.diag(np.exp(1j * eigvals))), V.conj().T)
+        dense_matmul_complex(V, np.diag(elementwise_transcendental(eigvals, "exp_i"))),
+        V.conj().T)
 
 
 def wilson_loop_from_segments(

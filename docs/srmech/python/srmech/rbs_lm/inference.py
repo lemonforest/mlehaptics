@@ -28,6 +28,8 @@ from typing import Mapping, Sequence
 
 import numpy as np
 
+from srmech.amsc.laplacian import elementwise_transcendental
+
 from srmech.amsc import hdc
 
 from . import substrate as cs
@@ -36,7 +38,7 @@ from . import substrate as cs
 def _softmax(x: np.ndarray, t: float) -> np.ndarray:
     z = x / t
     z = z - z.max()
-    e = np.exp(z)
+    e = elementwise_transcendental(z, "exp")
     return e / e.sum()
 
 

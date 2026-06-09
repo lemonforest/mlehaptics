@@ -20,6 +20,7 @@ from srmech.amsc.laplacian import (
     dense_matmul_complex,
     dense_matvec_complex,
     dense_outer_complex,
+    elementwise_transcendental,
     hermitian_eigendecompose,
 )
 
@@ -51,7 +52,8 @@ def tdse_evolve(H: np.ndarray, psi: np.ndarray, t: float) -> np.ndarray:
     # general complex-Hermitian Hamiltonian, so V stays complex128.
     eigvals, V = hermitian_eigendecompose(H)
     psi_eigbasis = dense_matvec_complex(V.conj().T, psi)   # Class-L matvec cascade
-    psi_t_eigbasis = np.exp(-1j * eigvals * t) * psi_eigbasis
+    # e^{-iλt} per-mode phase via the exp_i cascade (Class-N trig ∘ Class-C i-rotation)
+    psi_t_eigbasis = elementwise_transcendental(-(eigvals * t), "exp_i") * psi_eigbasis
     return dense_matvec_complex(V, psi_t_eigbasis)          # Class-L matvec cascade
 
 
@@ -113,7 +115,7 @@ def heisenberg_evolve(A: np.ndarray, H: np.ndarray, t: float) -> np.ndarray:
     # Class-L Hermitian eigendecomposition (srmech's own primitive); general
     # complex-Hermitian H, so V stays complex128.
     eigvals, V = hermitian_eigendecompose(H)
-    phases = np.exp(-1j * eigvals * t)
+    phases = elementwise_transcendental(-(eigvals * t), "exp_i")  # e^{-iλt} exp_i cascade
     # U = V·diag(phases)·Vᴴ, then A_H = Uᴴ·A·U — Class-L matmul cascade throughout.
     U = dense_matmul_complex(dense_matmul_complex(V, np.diag(phases)), V.conj().T)
     return dense_matmul_complex(dense_matmul_complex(U.conj().T, A), U)
@@ -191,7 +193,7 @@ def liouville_evolve(rho: np.ndarray, H: np.ndarray, t: float) -> np.ndarray:
     # Class-L Hermitian eigendecomposition (srmech's own primitive); general
     # complex-Hermitian H, so V stays complex128.
     eigvals, V = hermitian_eigendecompose(H)
-    phases = np.exp(-1j * eigvals * t)
+    phases = elementwise_transcendental(-(eigvals * t), "exp_i")  # e^{-iλt} exp_i cascade
     # U = V·diag(phases)·Vᴴ, then ρ(t) = U·ρ·Uᴴ — Class-L matmul cascade throughout.
     U = dense_matmul_complex(dense_matmul_complex(V, np.diag(phases)), V.conj().T)
     return dense_matmul_complex(dense_matmul_complex(U, rho), U.conj().T)

@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc53] - 2026-06-09
+
+**The `np.exp` batch — 14 complex-phase / real-exp callsites routed off numpy's exponential ufunc (numpy-removal).** Continues the ufunc decrement opened in rc52. `np.exp(1j·x)` is the unit-modulus phase `e^{iθ} = cos θ + i sin θ`; routing it onto **`elementwise_transcendental(·, "exp_i")`** runs the real `cos`/`sin` through the native libm-free C cascade (`srmech_elementwise_transcendental`) and assembles the complex result — numpy carries the array only.
+
+- **Array `e^{iθ}` phases → `elementwise_transcendental(·, "exp_i")`** (9 sites): `qm.gauge` SU(N) time-evolution `diag(e^{iλ})`, `qm.single_particle` TDSE/Heisenberg/Liouville per-mode phases `e^{−iλt}` (×3), `fsk` tone-bank generation (×2), `psk_qam` M-PSK constellation, `spectral_subtraction` phase re-attach, `spectral` per-mode phase-extrapolation, and `laplacian`'s magnetic directed-graph phase `e^{i·2πq·θ}`.
+- **Real-array exp → `elementwise_transcendental(·, "exp")`** (2 sites): `heat_kernel` heat-decay `e^{−tλ}`, `rbs_lm.inference` softmax.
+- **Scalar `e^{iδ}` → `rational.cexp`** (2 sites): `qm.sm`'s CKM Dirac CP phase (Euler — Class-N trig ∘ Class-C i-rotation).
+- The numpy-math ratchet's `ufunc` ceiling drops **43 → 27**. Plus 2 ratchet-visible doc/summary `np.exp(` mentions de-parened. Round-off-faithful (the cascade trig is ~1 ULP off libm; never flips a unitarity / argmax / decode outcome — the full QM + DSP suites pass unchanged). The **2 remaining** `np.exp` are `elementwise_transcendental`'s OWN complex-input fallback + real no-native fallback (the documented internal kernel; deferred). Pure routing — no new public op, `tools.total` stays **283**. ABI 3; numpy carriers-only. Next: the `np.sqrt` cluster (12), then `np.sin`/`np.cos`/`np.log`/`np.sign`.
+
 ## [0.7.5rc52] - 2026-06-09
 
 **`laplacian.elementwise_hypot` — the |z| magnitude cascade opens the np.hypot ufunc decrement (numpy-removal).** With the `np.outer` contraction surface handed to the cascade (rc51), the sweep turns to the **ufunc bucket** — numpy's transcendental / magnitude engine. `np.hypot(z.real, z.imag)` is `|z| = √(re² + im²)`, a per-element libm `hypot` over the array; `elementwise_hypot(a, b)` computes the same magnitude by looping the **Class-N `rational.hypot` cascade** (isqrt-based, native `srmech_rational_sqrt`-dispatched, no libm) over the flattened pair, with numpy carrying the array only.

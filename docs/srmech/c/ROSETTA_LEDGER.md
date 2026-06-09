@@ -621,6 +621,21 @@ decrements it).
   Class-L array surface; numpy carriers-only. ABI 3. Next ufunc batches: the
   np.exp complex-phase sites onto `elementwise_transcendental`, then np.sqrt /
   np.sin / np.cos / np.log / np.sign.
+- **rc53 (done) — the `np.exp` batch: 14 callsites routed off numpy's exponential
+  ufunc (the rc52 ufunc decrement continues).** `np.exp(1j·x)` = the phase
+  `e^{iθ}`; routing onto `elementwise_transcendental(·, "exp_i")` runs the real
+  cos/sin through the native libm-free C cascade and assembles the complex result
+  (numpy carries the array only). Array phases (9): qm.gauge `diag(e^{iλ})`,
+  qm.single_particle TDSE/Heisenberg/Liouville `e^{−iλt}` (×3), fsk tone bank
+  (×2), psk_qam constellation, spectral_subtraction phase re-attach, spectral
+  phase-extrapolate, laplacian magnetic directed-phase. Real exp (2): heat_kernel
+  decay, rbs_lm softmax → `(·, "exp")`. Scalar `e^{iδ}` (2): qm.sm CKM CP phase →
+  `rational.cexp` (Euler). **numpy-math ratchet `ufunc` 43 → 27** + 2 doc/summary
+  `np.exp(` mentions de-parened. Pure routing — no new op, `tools.total` stays
+  283, no rosetta/ToolEntry change. The 2 remaining np.exp are
+  `elementwise_transcendental`'s OWN complex-input + real no-native fallbacks
+  (documented internal kernel; deferred). Round-off-faithful (~1 ULP; QM + DSP
+  suites pass unchanged). ABI 3. Next: np.sqrt (12), then sin/cos/log/sign.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

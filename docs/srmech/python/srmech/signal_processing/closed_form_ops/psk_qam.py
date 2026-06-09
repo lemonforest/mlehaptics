@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from srmech.amsc.laplacian import elementwise_hypot
+from srmech.amsc.laplacian import elementwise_hypot, elementwise_transcendental
 
 OPERATION_NAME = "psk_qam"
 CLASS_COMPOSITION = ("I", "K")
@@ -36,7 +36,7 @@ SSOT_CITATION = (
 
 def _psk_constellation(M: int) -> np.ndarray:
     """M-PSK constellation: ``exp(j * 2*pi * k / M)`` for k in 0..M-1."""
-    return np.exp(1j * 2.0 * np.pi * np.arange(M) / M)
+    return elementwise_transcendental(2.0 * np.pi * np.arange(M) / M, "exp_i")
 
 
 def _qam_constellation(M: int) -> np.ndarray:
