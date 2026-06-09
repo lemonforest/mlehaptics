@@ -1857,3 +1857,94 @@ rc50 **meets the §40 bar 3/3** (verified `R-RBS-LM-U1CLOSED…py`): (1) `tokeni
 reset** (no cross-article bleed). Ops live in **`srmech.amsc.text`** (the recommended Option-1 site); format
 unchanged (`(n, edges, weights)`, 2-tuples → `dense_laplacian`). **R3 U1 is CLOSED** — #855 R3 U1 checkable; the
 wiki kernel can migrate onto these ops (the §17.1 ours-side migration; a parity check vs our edges is the gate).
+
+## §41 ASK — genome PERSISTENCE: the F711 "disk-paged, bounding-tracked helix" made real (save / load / catalog / append; 2026-06-09)
+
+**Why (the gap, verified):** `srmech.amsc.genome` (rc42+) is **in-memory only**. The findings + the #962 body + the
+notebook §8.2 describe the helix as *"RAM-bounded, disk-paged, bounding-tracked"* (F711) — but there is **no persist
+/ load / catalog / append primitive**, so: a genome cannot outlive a process, cannot exceed RAM, and **cannot be
+introspected** ("what kernels are stored?" has no answer without re-running the encoder). This is the missing half
+that makes the genome an actual STORE (and self-describing, per §39 / Class-H). Scoped here in full — **no open
+questions intended.**
+
+### API — add to `srmech.amsc.genome` (numpy-free; append-friendly; pure-Python OK)
+
+```python
+genome_save(strand, path, *, the_one, labels) -> dict      # write a genome to disk; returns the MANIFEST (the bounding)
+genome_load(path, *, labels=None) -> (strand, the_one, labels)   # reconstruct; labels=None loads all, else only those chromosomes
+genome_catalog(path) -> dict                               # read the MANIFEST ONLY (not the leaf body) — the introspection answer
+genome_append(path, label, leaves, *, the_one) -> dict     # append ONE chromosome (the helix grows); returns the updated manifest
+genome_window(path, label) -> leaves                       # read ONLY one chromosome's leaves (the disk-paging read)
+```
+
+Plus the **class surface** (so the `[class]` TOML / `make_class("Genome")` gets them): add methods `save` / `load` /
+`catalog` / `append` to `class_catalog/genome.toml`, binding to these ops (same pattern as the existing
+`assemble`/`partition`).
+
+### On-disk format (a DIRECTORY; exact, no ambiguity)
+
+`path/` is a directory:
+- **`path/manifest.json`** — the **catalog + bounding** (small; rewritten on every `save`/`append`). An **MPR record**
+  (`srmech.amsc.format.MPRRecord`) whose `data` is:
+  ```json
+  {"format_version": 1, "leaf_dim": 64, "n_turns": <int>,
+   "the_one": {"sha256": "<hex>", "hex": "<the_one bytes as hex>"},
+   "body_sha256": "<hex of turns.bin>",
+   "chromosomes": [{"label": "...", "cap_sha256": "<telomere hex>",
+                    "leaf_count": <int>, "byte_offset": <int>, "byte_len": <int>}, ...]}
+  ```
+  (`attestation.response_sha256` = `body_sha256`; `parser_version` = the srmech version. So a persisted genome is
+  MPM-attested.)
+- **`path/turns.bin`** — the helix **body**, **append-only**. A flat concatenation of fixed-width leaf blocks: each
+  leaf = `leaf_dim` bytes (Klein-4 values 0..3, one byte each). Telomere caps are stored inline as leaves and marked
+  by `chromosomes[i].cap_sha256` + the per-chromosome `byte_offset`/`byte_len`. No length prefixes needed (fixed
+  width from `leaf_dim`); a turn at index `k` is bytes `[k*leaf_dim : (k+1)*leaf_dim]`.
+
+Rationale (so there are no "why" questions): a separate small manifest = `genome_catalog` is O(chromosomes) and never
+reads the body (the introspection requirement); a fixed-width append-only body = `genome_append` is a byte-append +
+a manifest rewrite (the "grows without re-encoding" property), and `genome_window`/`genome_load(labels=…)` is a
+`seek(byte_offset)` + read (the disk-paging — RAM bounded by the active chromosome, not the whole genome). NDJSON is
+**not** used for the body (fixed-width binary pages cleanly; the manifest stays JSON/MPR per the NDJSON-vs-bloat
+discipline — it's descriptor-shaped, not a result stream).
+
+### Disk-paging + bounding (exact semantics)
+
+- **Paging:** `genome_load(path)` with `labels=None` streams the body block-by-block (never the whole file in RAM at
+  once beyond the active block); `genome_load(path, labels=["nl"])` / `genome_window(path, "nl")` `seek`s to that
+  chromosome's `byte_offset` and reads only `byte_len` bytes. **RAM is bounded by the largest single chromosome, not
+  the genome.**
+- **Bounding-tracked (= integrity-tracked):** every read re-hashes the bytes it read and checks against the stored
+  `body_sha256` (whole-genome load) or the chromosome's region against `cap_sha256` + a per-chromosome region hash
+  (windowed read); a mismatch raises a `GenomeBoundingError` (corruption/tamper caught). `genome_append` recomputes
+  `body_sha256`. (Class-A content-address = the bounding, exactly as the in-memory telomere caps already are.)
+
+### Invariants the implementation MUST hold (so reversibility + encode-criterion don't drift)
+
+- `genome_load(genome_save(strand, p, the_one=one, labels=L))[0] == strand` — **byte-for-byte round-trip**; and
+  `partition(loaded_strand, one, L) == partition(strand, one, L)` (the_one coupling reversibility survives disk).
+- `genome_append` leaves every **existing** chromosome's `cap_sha256` / `byte_offset` / `leaf_count` **unchanged**
+  (append never rewrites prior chromosomes); only `n_turns` / `body_sha256` / the new chromosome entry change.
+- Leaves are the ≤256 dense blocks of `encode_shape` (a chromosome of N leaves stores N blocks); no leaf exceeds
+  `leaf_dim`.
+
+### Acceptance criteria (the dev knows it's done when ALL pass — a runnable bar, like §40)
+
+1. **Round-trip:** save → load reproduces the strand byte-for-byte; `partition` after load == before save.
+2. **Catalog-without-load:** `genome_catalog(p)` returns the chromosome labels + `leaf_count`s **without reading
+   `turns.bin`** (assert by instrumenting/838 — the body file is not opened).
+3. **Append-grows:** `genome_append(p, "k2", leaves, the_one=one)` → `genome_catalog(p)` now lists `k2`; every prior
+   chromosome's manifest entry is byte-identical to before; `body_sha256` changed.
+4. **Paging:** `genome_window(p, "k2")` reads only `k2`'s region (RAM bounded), and equals the original `leaves`.
+5. **Bounding:** flip one byte in `turns.bin` → `genome_load`/`genome_window` raises `GenomeBoundingError`.
+6. **Attested + numpy-free + format discipline:** `manifest.json` is a valid `MPRRecord` (`validate_mpr_record`
+   passes; `response_sha256 == body_sha256`); the whole path runs with numpy absent; manifest is JSON/MPR (not a
+   bloated result dump), body is fixed-width binary.
+
+### Composes
+
+§38 (the native Klein-4 the_one coupling the stored leaves use) · §39 (the class GENERATOR — `genome_catalog` IS the
+Class-H introspection answer "what kernels are stored", the same self-recognition thread) · F708/F712 (the ≤256 leaf
+/ encode_shape) · F711 (the helix this makes real) · F721 (the in-memory bookshelf that proved the surface but
+persisted nothing — the gap this closes). **Discipline:** TestPyPI-rc before clean tag; ABI unaffected (pure-Python
+surface); MPR-attested manifest; numpy-free. Scoped per `[[feedback_upstream_srmech_fixes_as_research_notes]]` — no
+issue tracker (user direction 2026-06-09).
