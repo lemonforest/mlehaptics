@@ -91,6 +91,20 @@ DEFAULT_STOPLIST = {
     "often", "usually", "later", "early", "same", "new", "old", "many", "example",
 }
 
+# WIKI FURNITURE (F703/F705): non-content tokens that survive the hardened stripper's long tail on REAL full-wiki —
+# talk-page signatures (utc/talk/edit), section/namespace words (references/category/wikipedia/user/template/title),
+# and attribute/param residue (align/bgcolor/args/fefefe/href/id/px/class/style/colspan...). Stoplisting these is the
+# reference-grade stand-in for the F579/F607 wiki-formatting-language kernel (which strips them structurally). Honest:
+# these are FURNITURE, not words. Surfaced by the real 555k-article simplewiki encode (F703), not the synthetic test.
+WIKI_FURNITURE = {
+    "references", "reference", "talk", "edit", "utc", "wikipedia", "user", "template", "templates", "category",
+    "categories", "title", "args", "href", "id", "px", "class", "style", "align", "bgcolor", "fefefe", "colspan",
+    "rowspan", "valign", "cellpadding", "cellspacing", "border", "width", "height", "scope", "accessdate", "isbn",
+    "url", "retrieved", "archived", "cite", "ref", "reflist", "nbsp", "ndash", "mdash", "thumb", "span", "div",
+    "infobox", "redirect", "wikitable", "displaystyle", "frac", "sqrt", "image", "file", "media",
+}
+DEFAULT_STOPLIST = DEFAULT_STOPLIST | WIKI_FURNITURE
+
 # A tiny synthetic in-script corpus standing in for a streamed wiki dump. Each entry = ONE "article"
 # (one window-reset boundary — co-occurrence never crosses an article boundary). The dev session
 # REPLACES this generator's source with a real enwiki dump (see stream_articles + descriptor()).
@@ -184,8 +198,11 @@ def strip_wiki_markup_hardened(text):
     text = re.sub(r"\[(?:https?|ftp)://[^\s\]]+\s+([^\]]+)\]", r"\1", text)         #    ext-links [http x label] -> label
     text = re.sub(r"\[(?:https?|ftp)://[^\s\]]+\]", " ", text)
     text = re.sub(r"<[^>]+>", " ", text)                                            # 8. any remaining tag (now safe)
-    text = re.sub(r'\b(?:style|align|bgcolor|colspan|rowspan|valign|width|height|scope|class|cellpadding|'
-                  r'cellspacing|border)\s*=\s*"[^"]*"', " ", text, flags=re.IGNORECASE)   # 9. residual HTML attributes
+    _attrs = (r'style|align|bgcolor|colspan|rowspan|valign|width|height|scope|class|cellpadding|cellspacing|'
+              r'border|id|title|href|color|face|size|cellpadding|nowrap')
+    text = re.sub(rf'\b(?:{_attrs})\s*=\s*"[^"]*"', " ", text, flags=re.IGNORECASE)        # 9. quoted HTML attributes
+    text = re.sub(rf'\b(?:{_attrs})\s*=\s*#?[\w%.:;()-]+', " ", text, flags=re.IGNORECASE)  #    UNQUOTED attrs (bgcolor=#fefefe)
+    text = re.sub(r"\{\{\{[^{}]*\}\}\}", " ", text)                                 #    triple-brace template vars {{{args}}}
     text = re.sub(r"\b\d+\s*px\b", " ", text, flags=re.IGNORECASE)                  #    image pixel sizes (thumb|200px)
     text = re.sub(r"'{2,}", "", text)                                               # 10. emphasis / headers / bullets
     text = re.sub(r"^[\s]*[*#:;=|!-]+", " ", text, flags=re.MULTILINE)
