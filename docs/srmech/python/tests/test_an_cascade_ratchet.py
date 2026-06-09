@@ -145,11 +145,15 @@ def _scan() -> tuple[dict[str, int], list[tuple[str, int, str]]]:
 # DOWN-ONLY ceilings. Lower (never raise) the matching one when a site is routed
 # through an A-N cascade. Baseline pinned at v0.7.5rc32 (the ratchet's
 # introduction): transcendental = 1 (the cmath.sqrt Wilkinson-shift discriminant
-# in the FLOAT eigvals complex-spectrum path; eliminated by the rc31 complex-
-# eigenvalue exact-isolation follow-up). math_const = 0 (the π-cascade discipline
-# fully holds — no float math.pi in any compute path). float_pow = 0.
+# in the FLOAT eigvals complex-spectrum path). rc33 CLOSED IT: that `cmath.sqrt`
+# was routed through `matrix_cascades._complex_sqrt` — the principal complex root
+# rebuilt from the Class-N `hypot`/`sqrt` real cascades + a Class-K sign-branch,
+# no libm `cmath`. So transcendental → 0: the bare-Python tier now joins the C
+# tier (libm 23 → 0) at ZERO continuous-math residue. math_const = 0 (the
+# π-cascade discipline fully holds — no float math.pi in any compute path);
+# float_pow = 0. All three categories at zero — the ratchet is closed.
 # ---------------------------------------------------------------------------
-CEIL_TRANSCENDENTAL = 1
+CEIL_TRANSCENDENTAL = 0
 CEIL_MATH_CONST = 0
 CEIL_FLOAT_POW = 0
 

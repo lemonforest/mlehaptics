@@ -8,6 +8,12 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc33] - 2026-06-09
+
+**A-N cascade ratchet CLOSED to zero — the bare-Python tier joins the C tier at no continuous-math residue.** The rc32 ratchet pinned one site: the `cmath.sqrt` Wilkinson-shift discriminant in the *float* `eigvals` (complex-spectrum shifted-QR path). rc33 routes it through a new `matrix_cascades._complex_sqrt` — the principal complex root rebuilt from the **Class-N** `hypot`/`sqrt` real cascades joined by a **Class-K** sign-branch (principal branch `Re ≥ 0`), with a Class-K pin-slot-at-zero floor on each radicand (the `_norm2` idiom — a tiny `<0` from float round-off pins to 0). No libm `cmath`; the `import cmath` is gone. Matches `cmath.sqrt` to ~1e-13, so the float eigvals stays round-off-faithful to numpy.
+
+All three A-N-ratchet categories are now **0** (`transcendental` 1 → 0, `math_const` 0, `float_pow` 0): the bare-Python tier reaches the same zero-residue the C-transpile arc drove `libsrmech` to (libm 23 → 0). Every continuous-math op in srmech — C, numpy-tier, and now bare-Python — is a cascade of the 14, floats only at the FPU lift. Test-only ceiling drop + one helper; no public surface change, ABI 3. SSoT: #928.
+
 ## [0.7.5rc32] - 2026-06-09
 
 **A-N cascade ratchet — the down-only guard for continuous math not yet reduced to the 14 A-N cascades.** Per user direction (*"add another code sweep to check for math that has not been reduced to cyclic algebra … A-N cascades might be the right way to put it"*), `tests/test_an_cascade_ratchet.py` is the **bare-Python-tier sibling** of the C-transpile libm ratchet (drove `libsrmech` 23 → 0) and the numpy-math ratchet (the `np.linalg`/`np.fft`/`@`/ufunc tier). It pins the **third tier**: bare-Python `math.*`/`cmath.*` float transcendentals, `math.pi`/`math.tau` float constants, and fractional `** <float>` powers — every one of which has an exact A-N cascade replacement (`srmech.amsc.rational.{sin,cos,atan,exp,log,sqrt,hypot}` / `pi_cascade_digits` / integer power). Per *"floats are for FPU lift"*, each such call where a cascade belongs is a defect.
