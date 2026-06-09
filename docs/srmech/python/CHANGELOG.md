@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc41] - 2026-06-09
+
+**CLI + tool_schema/introspect class-awareness — the genome surface closes (#962 Part 2).** The user-declared `[class]` surface (rc39/rc40) is now reachable from the shell, the package's self-description, and the LLM tool list:
+
+- **`srmech class list`** / **`srmech class describe NAME`** — the CLI discovery face (`srmech.cli.klass`; module is `klass` because `class` is a keyword, the CLI token is `class`). `list` enumerates the seed `Genome` + any bring-your-own classes; `describe` prints the full JSON descriptor.
+- **`introspect.describe()["classes"]`** — `{"total", "names"}`; the package now recognises its own user-extensible class surface (the Class-H self-recognition view). A sibling key — `tools.total` is unchanged by it.
+- **2 ToolEntries** `srmech.dsl.list_class_surface` / `describe_class` — the LLM tool list now includes class discovery (`tools.total` 270 → **272**).
+
+This completes the class-from-TOML arc: **rc37/rc38** the genome cascade primitives → **rc39** the `[class]` loader + `CatalogClass` → **rc40** the DSL one-shot run/introspect surface → **rc41** CLI + tool_schema/MCP. A researcher authors a `[class]` TOML and reaches it from Python (`make_class` / `run_class_method`), the shell (`srmech class …`), and an LLM agent (the tool list + `describe()`). ABI 3; numpy not required.
+
 ## [0.7.5rc40] - 2026-06-09
 
 **DSL class-awareness — the one-shot introspect + run surface for user-declared classes (#962 Part 2).** The rc39 `[class]` loader gets the DSL-layer surface the CLI + tool_schema/MCP compose on (rc41):
