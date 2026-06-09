@@ -436,6 +436,23 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_dense_solve_f64.restype = ctypes.c_int
 
+    # int srmech_exact_dft_i64(uint32_t n, int inverse, const int64_t *re,
+    #     const int64_t *im, int64_t *out_re, int64_t *out_im)
+    # v0.7.5rc29 additive symbol (#928): the exact cyclotomic-integer DFT —
+    # a power-of-two integer signal → exact ℤ[ζ_N] spectrum by pure integer
+    # add/subtract. out_re/out_im are length n*(n/2) int64. hasattr-guarded
+    # (EXPECTED_ABI_VERSION stays 3; a stale ABI-3 lib lacks the symbol).
+    if hasattr(lib, "srmech_exact_dft_i64"):
+        lib.srmech_exact_dft_i64.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_int,                       # inverse (0/1)
+            ctypes.POINTER(ctypes.c_int64),     # re (n)
+            ctypes.POINTER(ctypes.c_int64),     # im (n)
+            ctypes.POINTER(ctypes.c_int64),     # out_re (n*(n/2))
+            ctypes.POINTER(ctypes.c_int64),     # out_im (n*(n/2))
+        ]
+        lib.srmech_exact_dft_i64.restype = ctypes.c_int
+
     # int srmech_dense_matmul_complex(uint32_t m, uint32_t k, uint32_t n,
     #     const double *A_il, const double *B_il, double *out_il)
     # v0.7.5rc14 additive symbol (#928, matmul-kernel phase): the dense complex

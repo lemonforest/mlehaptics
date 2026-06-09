@@ -256,6 +256,9 @@
 {"exposed_as": "srmech.amsc.cascade.spectral_cascades.idft", "defined_at": "srmech.amsc.cascade.spectral_cascades.idft", "bucket": "python_only_irreducible"}
 {"exposed_as": "srmech.amsc.cascade.spectral_cascades.ifft", "defined_at": "srmech.amsc.cascade.spectral_cascades.ifft", "bucket": "python_only_irreducible"}
 {"exposed_as": "srmech.amsc.cascade.spectral_cascades.kron", "defined_at": "srmech.amsc.cascade.spectral_cascades.kron", "bucket": "python_only_irreducible"}
+{"exposed_as": "srmech.amsc.cascade.exact_dft.exact_dft", "defined_at": "srmech.amsc.cascade.exact_dft.exact_dft", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.cascade.exact_dft.exact_idft", "defined_at": "srmech.amsc.cascade.exact_dft.exact_idft", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.cascade.exact_dft.lift", "defined_at": "srmech.amsc.cascade.exact_dft.lift", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.compose.greedy_bipartite_alignment", "defined_at": "srmech.amsc.compose.greedy_bipartite_alignment", "bucket": "python_only_irreducible"}
 {"exposed_as": "srmech.amsc.coupling.signed_sum_squared", "defined_at": "srmech.amsc.coupling.signed_sum_squared", "bucket": "python_only_irreducible"}
 {"exposed_as": "srmech.amsc.harmonics.classify_chirality_harmonic", "defined_at": "srmech.amsc.harmonics.classify_chirality_harmonic", "bucket": "python_only_irreducible"}

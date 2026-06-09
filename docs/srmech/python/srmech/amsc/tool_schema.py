@@ -1411,6 +1411,26 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[list[complex]]", "Kronecker product block matrix"),
         ),
         ToolEntry(
+            name="srmech.amsc.cascade.exact_dft.exact_dft", owner="srmech", category="cascade",
+            summary="Exact cyclotomic-integer DFT of an integer / Gaussian-integer power-of-two signal: the twiddles e^(-2pi*i*j/N) are roots of unity (algebraic integers in Z[zeta_N]); for power-of-two N, zeta^(N/2) = -1 (a Class-K sign-flip) collapses the ring to the negacyclic integers Z[x]/(x^(N/2)+1), so the transform is PURE INTEGER add/subtract — no floats. Returns the exact spectrum (one integer (real_vec, imag_vec) pair of length N/2 per bin); call lift() for the single FPU rotation to complex. Class I (cyclic index) + Class K (zeta^(N/2)=-1 reduction) + Class M (integer bundle). Rides the native srmech_exact_dft_i64 int64 twin; arbitrary-precision magnitudes use the Python bignum path. Raises on non-integer / non-power-of-two input (use dft there).",
+            parameters=(P("signal", "list[complex]", True, "integer / Gaussian-integer power-of-two-length sequence (integer-valued)"),
+                        P("inverse", "bool", False, "keyword-only; conjugate exponent zeta^(-nk); default False")),
+            returns=R("list[tuple[list[int], list[int]]]", "exact Z[zeta_N] integer spectrum (per-bin (real_vec, imag_vec))"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.exact_dft.exact_idft", owner="srmech", category="cascade",
+            summary="Inverse exact cyclotomic-integer DFT — exact_dft() with the conjugate exponent zeta^(-nk). Unnormalised: the 1/N scale is a Class-N rational applied at lift() time (lift(exact_idft(x), scale=N)), keeping this core pure integer.",
+            parameters=(P("signal", "list[complex]", True, "integer / Gaussian-integer power-of-two-length sequence (integer-valued)"),),
+            returns=R("list[tuple[list[int], list[int]]]", "exact Z[zeta_N] integer inverse spectrum"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.exact_dft.lift", owner="srmech", category="cascade",
+            summary="The single FPU lift: rotate an exact Z[zeta_N] integer spectrum (from exact_dft) to complex at zeta_N = e^(-2pi*i/N). This is the ONLY place a float is produced — the projection from the exact discrete substrate to the continuous observable (floats are for the FPU lift, not the math). scale divides the result (use scale=N for a normalised inverse). Class C (i-rotation) over the Class-N substrate-native cexp.",
+            parameters=(P("spectrum", "list[tuple[list[int], list[int]]]", True, "exact Z[zeta_N] integer spectrum from exact_dft / exact_idft"),
+                        P("scale", "int", False, "keyword-only; divide the lifted result (scale=N normalises an inverse); default 1")),
+            returns=R("list[complex]", "lifted complex spectrum / samples"),
+        ),
+        ToolEntry(
             name="srmech.amsc.cascade.matrix_cascades.qr", owner="srmech", category="cascade",
             summary="Householder QR factorization A = Q*R: Q a product (Class M) of elementary reflectors H = I - beta*v*v^H, each Class K (sign-flip across a hyperplane) + Class M (outer-product bind) + Class N (1/(v^H v) scale, with the column norm a rational.sqrt). numpy as CONTAINER only — no np.linalg.qr in the call graph. mode='reduced' (default, matching numpy.linalg.qr) or 'complete'. QR is unique only up to signs; the invariants (Q*R=A, Q^H Q=I, R upper-triangular) hold to round-off.",
             parameters=(P("a", "np.ndarray", True, "(m, n) real or complex 2-D matrix"),

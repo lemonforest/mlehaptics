@@ -332,6 +332,17 @@ decrements it).
   ratchet's exact-equality `python_only_irreducible` ceiling is precisely what
   blocks adding it Python-only. General-`N` (non-power-of-two) cyclotomic
   reduction is also a follow-up.
+- **rc29 (done) — the exact ℤ[ζ_N] spectrum goes public + gets its C twin.**
+  `exact_dft` / `exact_idft` / `lift` are promoted to introspected ops, and the
+  native-C twin **`srmech_exact_dft_i64`** (`srmech_exact_dft.c`, JPL-clean,
+  caller-buffer int64) ships the integer add/subtract fast path. The Python op
+  dispatches to C when `N·max|signal|` is int64-safe, else the arbitrary-precision
+  bignum path. Rosetta: `exact_dft` / `exact_idft` → **`c_dispatched`** (they
+  HAVE the C twin), `lift` → **`composition_of_c`** (over the Class-N `cexp`) —
+  the honest "land WITH the C twin so it's not Python-only debt" the rc28 note
+  flagged. 3 ToolEntries (introspect 260 → 263), 3 rosetta lines, a
+  `list[tuple[list[int],list[int]]]` MCP coercer. ABI 3 (additive). Next:
+  general-`N` cyclotomic (Python-only `bignum_reference`).
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

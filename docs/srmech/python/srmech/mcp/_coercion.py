@@ -444,6 +444,9 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "pathlib.Path": _to_path,
     "tuple[int, int]": _to_int_tuple,
     "list[tuple[int, int]]": _identity,   # nested lists JSON-native
+    # v0.7.5rc29: exact_dft.lift `spectrum` — the exact Z[zeta_N] spectrum is a
+    # list of (real_vec, imag_vec) integer pairs; nested lists are JSON-native.
+    "list[tuple[list[int], list[int]]]": _identity,
     # ── JSON-native scalars (explicit pass-through) ──
     "int": _identity,
     "Optional[int]": _identity,

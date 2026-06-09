@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc28"
-#define SRMECH_VERSION       "0.7.5rc28"
+#define SRMECH_VERSION_PRE   "rc29"
+#define SRMECH_VERSION       "0.7.5rc29"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1050,6 +1050,26 @@ srmech_status_t srmech_dense_solve_f64(
     const double  *A,
     const double  *B,
     double        *out_X);
+
+/* Exact cyclotomic-integer DFT (v0.7.5rc29, #928) — the native twin of
+ * srmech.amsc.cascade.exact_dft. A power-of-two-length integer / Gaussian-
+ * integer signal transforms to the exact ℤ[ζ_N] spectrum by PURE INTEGER
+ * add/subtract (ζ^{N/2} = -1 is a Class-K sign-flip, never abs/fabs); the
+ * single FPU lift ζ → e^{-2πi/N} is on the Python side. re/im are length-N
+ * int64 component arrays; out_re/out_im are length N·(N/2) int64 (row k holds
+ * the N/2 cyclotomic coefficients of X[k] at [k·N/2, (k+1)·N/2)). inverse != 0
+ * uses ζ^{-nk}. N must be a power of two in [2, 4096] (else BAD_INPUT /
+ * OVERFLOW; Python falls back to the arbitrary-precision bignum path). No libm:
+ * an exact DFT is integer + − only. ABI-additive: new symbol, SRMECH_ABI_VERSION
+ * stays 3.
+ */
+srmech_status_t srmech_exact_dft_i64(
+    uint32_t        n,
+    int             inverse,
+    const int64_t  *re,
+    const int64_t  *im,
+    int64_t        *out_re,
+    int64_t        *out_im);
 
 /* ------------------------------------------------------------------ *
  * Class J — prime-factorisation / period (Task #217 Phase C1 rc3)
