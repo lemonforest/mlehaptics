@@ -354,6 +354,25 @@ decrements it).
   path), numpy-free, ABI 3. The rc28/rc29 non-pow2 "not-supported" tests update
   to the general-`N` contract. Perf: the general path is `O(N²·φ(N))` integer —
   exactness costs the `φ(N)` factor.
+- **rc31 (done) — exact-until-rotation EIGENVALUES; the ill-conditioned problem
+  HAS a cascade form.** Per user insight: the Wilkinson ill-conditioning of float
+  root-finding from char-poly coefficients is a float-perturbation artifact, NOT
+  inherent — integer-matrix eigenvalues are ALGEBRAIC and come out well-conditioned
+  if kept in exact arithmetic. Two new public ops: **`char_poly`** (exact integer
+  characteristic polynomial via Faddeev–Leverrier — exact trace/det/symmetric
+  functions; Class L∘M∘K) and **`eigvals_exact`** (exact real eigenvalues with
+  multiplicity: char_poly → Yun square-free → **Sturm** sign-sequence isolation
+  (Class C sign-count @ Class K interval boundaries) → rational **bisection**
+  (Class N anchors → the algebraic asymptote), exact `Fraction` throughout, one
+  FPU lift). Proven: Wilkinson `diag(1..10)` exact (err 0.0) vs float `np.roots`
+  9-digit loss; irrational golden-ratio exact to 15 digits; singular values via the
+  exact integer Gram `AᵀA` match numpy ~1e-9 (the svd exact substrate too). Both
+  `bignum_reference` (non-debt; `Fraction`/bignum, numpy is a container). 2
+  ToolEntries (introspect 263 → 265), 2 rosetta lines, ABI 3, ratchet untouched.
+  Follow-up: complex-eigenvalue exact isolation. NEXT-ARC SEED (user-requested):
+  an **A-N-cascade sweep/ratchet** — a down-only guard flagging math not yet
+  reduced to the 14 A-N class cascades (the `math.*`/`cmath.*` float-transcendental
+  residue beyond the numpy-math ratchet).
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc31] - 2026-06-09
+
+**Exact-until-rotation EIGENVALUES — the ill-conditioned problem *does* have a cascade form; #928.** The eig/svd "lift" looked qualitatively different from the DFT's (eigenvalues are irrational; float root-finding from char-poly coefficients is Wilkinson-ill-conditioned). But per user insight, that ill-conditioning is a **float-perturbation artifact, not inherent** — the eigenvalues of an integer matrix are **algebraic**, and kept in exact arithmetic the whole way they come out well-conditioned. Two new public cascade ops:
+
+- **`char_poly`** — the exact integer characteristic polynomial `det(xI - A)` (Faddeev–Leverrier, arbitrary-precision integer): the exact ALGEBRAIC substrate of the eigenproblem — exact trace (`= -c1`), exact determinant (`= (-1)^n·cn`), all elementary symmetric functions of the spectrum, **no floating point**. Class L ∘ M ∘ K.
+- **`eigvals_exact`** — exact REAL eigenvalues (with multiplicity) via the well-conditioned cascade: `char_poly` → Yun square-free factorisation → **Sturm** sign-sequence isolation (**Class C** sign-count at **Class K** interval boundaries) → rational **bisection** (**Class N** anchors → the algebraic asymptote), all in exact `Fraction` arithmetic, then one FPU lift. `bits` sets refinement precision; `return_intervals=True` yields exact `(lo, hi)` rational isolating intervals. Each eigenvalue stays an exact algebraic number until the rotation to the observable.
+
+Proven: Wilkinson `diag(1..10)` comes out **exact (err 0.0)** where float `np.roots` on the *same* exact char-poly loses ~9 digits; irrational golden-ratio eigenvalues exact to 15 digits; repeated eigenvalues carry correct multiplicity; and singular values via the exact integer Gram `AᵀA` match numpy to ~1e-9 — so this is the exact substrate of **svd** too. The existing float `eigvals` (shifted-QR, complex spectrum) stays; complex-eigenvalue exact isolation is the follow-up.
+
+Both ops are pure-Python arbitrary-precision (`bignum_reference` rosetta bucket — non-debt; numpy is a container only). 2 ToolEntries (introspect `tools.total` 263 → 265), 2 rosetta lines. ABI 3; the numpy-math ratchet is untouched.
+
+SSoT: issue #928; `test_eigvals_exact_rc31.py`.
+
 ## [0.7.5rc30] - 2026-06-09
 
 **The exact DFT goes general-``N`` — every integer signal, not just power-of-two; #928.** rc28/rc29 handled the power-of-two case via the negacyclic ring (``ζ^{N/2} = -1``). rc30 extends exact-until-rotation to **any** length via the full cyclotomic ring ``ℤ[ζ_N] = ℤ[x]/Φ_N(x)``:

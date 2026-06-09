@@ -354,3 +354,5 @@
 {"exposed_as": "srmech.signal_processing.path_b_ops.rfft.op", "defined_at": "srmech.signal_processing.path_b_ops.rfft.op", "bucket": "python_only_irreducible"}
 {"exposed_as": "srmech.signal_processing.path_b_ops.sign_quantise.op", "defined_at": "srmech.signal_processing.path_b_ops.sign_quantise.op", "bucket": "python_only_irreducible"}
 {"exposed_as": "srmech.signal_processing.path_b_ops.wiener.op", "defined_at": "srmech.signal_processing.path_b_ops.wiener.op", "bucket": "python_only_irreducible"}
+{"exposed_as": "srmech.amsc.cascade.matrix_cascades.char_poly", "defined_at": "srmech.amsc.cascade.matrix_cascades.char_poly", "bucket": "bignum_reference"}
+{"exposed_as": "srmech.amsc.cascade.matrix_cascades.eigvals_exact", "defined_at": "srmech.amsc.cascade.matrix_cascades.eigvals_exact", "bucket": "bignum_reference"}
