@@ -69,6 +69,7 @@ from ._class_catalog import (
 )
 from ._class_surface import (
     describe_class,
+    generate_class_descriptor,
     list_class_surface,
     run_class_method,
 )

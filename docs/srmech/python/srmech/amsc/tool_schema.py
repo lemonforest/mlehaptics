@@ -4249,6 +4249,64 @@ def _register_dsl_tools() -> None:
             ),
         )
     )
+    register_tool(
+        ToolEntry(
+            name="srmech.dsl.generate_class_descriptor",
+            owner="srmech",
+            category="dsl",
+            summary=(
+                "Render a [class] TOML descriptor string — the INVERSE of "
+                "srmech.dsl.make_class (§39). Two modes: (explicit) pass `fields` "
+                "({field: type}) + `methods` ({method: {op: dotted-cascade-op, "
+                "binds: [...], doc, appends|sets}} — the describe_class method "
+                "shape) and it renders straight from the components; "
+                "(introspection) pass ONLY `name` of a registered class (e.g. "
+                "'Genome') and it recovers the descriptor via describe_class and "
+                "re-emits it — a constructed class rendering its OWN [class] TOML "
+                "back out. The emitted string is round-trippable: drop it in a "
+                "register_class_dir dir and make_class constructs the identical "
+                "class (docs re-emit single-line with escaped newlines, so a "
+                "multi-line seed doc decodes back bit-identically). Closes the "
+                "make_class loop the other direction. Framework reading: Class E "
+                "(catalog enumeration) ∘ Class F (descriptor render) ∘ Class H "
+                "(self-introspection) — no new primitive class. "
+                "(v0.7.5rc49 — §39 make_class inverse; #962 Part 2.)"
+            ),
+            parameters=(
+                ToolParameter(
+                    "name", "str", required=True,
+                    summary="the class name (introspected if fields/methods "
+                            "omitted; else the emitted [class].name).",
+                ),
+                ToolParameter(
+                    "fields", "dict", required=False,
+                    summary="{field: type} declarations; omit (with methods) to "
+                            "introspect a registered class instead.",
+                ),
+                ToolParameter(
+                    "methods", "dict", required=False,
+                    summary="{method: {op, binds, doc, appends|sets}} — methods "
+                            "as dotted cascade-op refs.",
+                ),
+                ToolParameter(
+                    "doc", "str", required=False,
+                    summary="class docstring (overrides the introspected doc).",
+                ),
+                ToolParameter(
+                    "kind", "str", required=False,
+                    summary="class kind tag (overrides the introspected kind).",
+                ),
+            ),
+            returns=ToolReturn(
+                type="str",
+                shape=(
+                    "A [class] TOML descriptor string (name/kind/doc + "
+                    "[class.field] + [class.method.*]) round-trippable through "
+                    "srmech.dsl.make_class."
+                ),
+            ),
+        )
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────

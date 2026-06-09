@@ -8,6 +8,14 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc49] - 2026-06-09
+
+**`dsl.generate_class_descriptor` — the make_class inverse (RBS-LM UPSTREAM §39).** The genome seed proved the forward direction (a `[class]` TOML → a constructed `CatalogClass` via `make_class`); rc49 closes the loop the OTHER way — components (or a constructed class) → a valid `[class]` TOML, round-trippable straight back through `make_class`.
+
+- `generate_class_descriptor(name, *, fields=None, methods=None, doc=None, kind=None)` → a `[class]` TOML string. Two modes: **explicit** — pass `fields` (`{field: type}`) + `methods` (`{method: {op: dotted-cascade-op, binds: [...], doc, appends|sets}}`, the `describe_class` method shape) and it renders straight from the components; **introspection** — pass ONLY `name` of a registered class (e.g. `"Genome"`) and it recovers the descriptor via `describe_class` and re-emits it (a constructed class rendering its OWN `[class]` TOML back out — the Class-H self-introspection path). `doc`/`kind` override the introspected values when given.
+- Round-trip-exact: docs re-emit as single-line basic strings with escaped newlines, so a multi-line seed `doc` decodes back bit-identically; drop the emitted string in a `register_class_dir` dir and `make_class` constructs the identical class. Bare-key-safe field/method names stay unquoted; others are quoted in the table header. Validates: non-empty `name`, each method has a non-empty `op`, at most one of `appends`/`sets`.
+- New `srmech.dsl.generate_class_descriptor` ToolEntry → `describe()["tools"]["total"]` 279 → **280** (a `srmech.dsl.*` discovery/render callable — bumps the tool count, SKIPS `rosetta_classification.ndjson` like its `list_ops` / `describe_class` peers; not an `amsc` compute op). Framework reading: Class E (catalog enumeration) ∘ Class F (descriptor render) ∘ Class H (self-introspection) — no new primitive class. ABI 3; numpy-free.
+
 ## [0.7.5rc48] - 2026-06-09
 
 **`laplacian.spectral_block_dispatch` — the 1024-node 4-sector spectral one-call (RBS-LM UPSTREAM Ask-3; F233 4-rung).** Wires the threaded-Klein-4-streams pattern (the same 4-way fan-out as `cascade.parallel_sector_dispatch`, but over DISTINCT spectral blocks rather than chirality-transforms of one input) to eigendecompose **≤4 dense symmetric blocks** (each `n ≤ MAX_NATIVE_NODES` = 256) in parallel — **4 × 256 = 1024 nodes** within the native dense-eig bound.
