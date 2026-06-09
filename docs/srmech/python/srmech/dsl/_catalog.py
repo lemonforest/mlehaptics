@@ -29,6 +29,7 @@ descriptor set. The cache-once-then-reuse pattern (via
 
 from __future__ import annotations
 
+import importlib
 import os
 import sys
 from functools import lru_cache
@@ -272,6 +273,24 @@ def lookup_cascade_op(op_name: str) -> Callable:
         # A user PURE-TOML composite (F289 D2): a chain of named ops, no
         # Python. Resolve to a unary stage that builds + runs its sub-chain.
         return _make_composite_runner(op_name, desc)
+    # §17 U2: a descriptor may name a DOTTED entry point — `[cascade].op =
+    # "srmech.signal_processing.encode_loe_content"` — so an EXISTING op that
+    # lives outside `srmech.amsc.cascade` (e.g. a text→instrument encoder) is
+    # DSL-registrable without re-exporting it. Mirrors the rc39 class-catalog's
+    # dotted-path method resolution; lets a catalog's text rows get a one-line
+    # kernel chain (`[[stage]] op="encode_loe_content"`).
+    dotted = desc.get("cascade", {}).get("op")
+    if isinstance(dotted, str) and "." in dotted:
+        mod_path, _, attr = dotted.rpartition(".")
+        mod = importlib.import_module(mod_path)
+        fn = getattr(mod, attr, None)
+        if fn is None or not callable(fn):
+            raise RuntimeError(
+                f"cascade-catalog descriptor for {op_name!r} declares "
+                f"op={dotted!r} which does not resolve to a callable "
+                f"(checked {mod_path}.{attr})"
+            )
+        return fn
     # Local import to avoid an import cycle at module-load time —
     # srmech.amsc.cascade imports srmech.introspect which imports
     # srmech.dsl in some test configurations.
