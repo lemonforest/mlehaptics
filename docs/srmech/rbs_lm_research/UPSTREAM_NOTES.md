@@ -1702,3 +1702,33 @@ which is all the Fiedler/second-order layer needs) — would make large-n spectr
 (F573):** prior findings (F703 + the §36 note) called this the "native C path / native eigvals" — that was
 imprecise; the eig is pure-Python (numpy-free). The big-wiki encode's numpy-free claim stands; the
 native-C-*eigvals* claim does not. Logged per upstream-as-research-notes discipline.
+
+## §38 FOUNDATIONAL — bind the native A-N symbols in the Python shim; they exist in the .so but aren't called (2026-06-09; F708)
+
+The native `libsrmech.so` (shipped by PyPI — confirmed) exports **119 `srmech_` symbols** including the FULL A-N
+foundation: `srmech_jacobi_eigvals`, `srmech_graph_dense_laplacian`, `srmech_graph_normalized_laplacian`,
+`srmech_hermitian_eigendecompose(_ws)`, `srmech_hdc_{bind,bundle,permute,similarity}`,
+`srmech_klein4_{bind,bundle,similarity,triality_cycle}`, `srmech_cascade_parallel_sector_dispatch`,
+`srmech_cyclic_period`, `srmech_is_prime`, `srmech_dispatch_match`, … **BUT** the Python ctypes shim
+(`srmech.amsc._native`) only `_bind`s **13** `_c` symbols (sha256/ndjson/transcendentals/sector-dispatch), and
+`laplacian.jacobi_eigvals` "falls back to numpy unconditionally" — so with **numpy absent** (the numpy-free `srmech`
+install) it runs the **pure-Python Jacobi cascade** instead of the native symbol that is in the loaded `.so`.
+
+**Proven:** a direct ctypes call to `LIB.srmech_jacobi_eigvals` (n=256) runs in **1.4 s vs the wrapper's 68 s
+(~49×)**, correct eigenvalues. So the C foundation works; the wrapper under-uses it.
+
+**Asks (foundational, not blocking research — but this IS the foundation):**
+1. **Bind** `srmech_jacobi_eigvals`, `srmech_graph_dense_laplacian`, `srmech_hermitian_eigendecompose`,
+   `srmech_hdc_*`, `srmech_klein4_*` in `_native.py` (the symbols are present; add the ctypes argtypes/restype +
+   a `*_c` wrapper, same pattern as `sha256_hex_c`).
+2. **Dispatch numpy-free**: `laplacian.jacobi_eigvals` / `hdc.*` should call the native symbol when `HAS_NATIVE`,
+   marshalling from a Python `list`/`bytes` (no numpy needed — the direct ctypes proof marshals a flat
+   `(c_double * n*n)` from a list). Today the eig only takes the native path with numpy present; that should not
+   be required.
+3. **Klein-4 quad-stream for the spectral layer**: `cascade.parallel_sector_dispatch` is already bound — wire the
+   four-sector dispatch to run 4 × ≤256 = **1024**-node spectral blocks (the threaded-Klein-4-streams pattern).
+
+**Research-side already fixed (F708):** `R-RBS-LM-WIKIKERNEL.build_edges_topk` no longer clamps the vocabulary to
+`MAX_NATIVE_NODES` (`cap = min(vocab_cap, MAX_NATIVE_NODES)` was pre-encode quantization — removed; `vocab_cap=None`
+keeps all words). The 256 bound is for the dense-eig block only, never the vocabulary or the sparse adjacency.
+Logged per upstream-as-research-notes discipline.

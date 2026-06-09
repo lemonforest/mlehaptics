@@ -273,26 +273,31 @@ def stream_articles(source):
 #     MAX_NATIVE_NODES); pass 2 = windowed co-occurrence over ONLY those words -> edge weights.
 #     (A (i,j)->count dict is the prescribed EDGE-CONSTRUCTION tool — the Laplacian is the storage.)
 # ---------------------------------------------------------------------------------------------------
-def build_edges_topk(source, window=2, vocab_cap=MAX_NATIVE_NODES):
-    """Two streaming passes -> (vocab, idx, edges, weights, freq, dropped). Honest top-K cap.
+def build_edges_topk(source, window=2, vocab_cap=None):
+    """Two streaming passes -> (vocab, idx, edges, weights, freq, dropped). UNCAPPED vocabulary by default.
 
-    PASS 1 (frequency): count content-word frequency over the stream to choose the top-K vocabulary.
-            vocab_cap is clamped to MAX_NATIVE_NODES so the resulting Laplacian fits the native eigvals
-            bound. If the corpus has MORE than vocab_cap content words, the surplus is DROPPED and
-            LOGGED (returned as `dropped`) — never a silent cap (F640).
-    PASS 2 (co-occurrence): windowed co-occurrence over ONLY the kept vocab -> edge weights. The count
-            dict builds the EDGE WEIGHTS; the Laplacian (built later) is the storage (F172/STOP-list).
+    BUG FIX (F708; user: "why are we quantizing it before encoding? ... a bug we treated like canon"): the
+    vocabulary is NO LONGER clamped to MAX_NATIVE_NODES. Trimming the VOCAB before encoding was a pre-encode
+    QUANTIZATION (the exact anti-thesis, F49/F50) — a bug accepted as canon. The 256 bound applies ONLY to the
+    DENSE-EIG block (build_class_l_store), NOT to the vocabulary or the (sparse) adjacency:
+      vocab_cap=None -> keep ALL content words (the default now; no cap, no quantization).
+      vocab_cap=N    -> keep the top-N most frequent (an EXPLICIT choice; NOT silently min()'d to 256).
+    Direct-association (adjacency) queries need NO eigendecomposition -> they work at ANY vocab size. Only the
+    second-order (Fiedler) spectral layer is bounded by 256 PER BLOCK -> bucket into <=256 (or <=1024 via the
+    native Klein-4 four-sector parallel_sector_dispatch quad-stream) blocks.
+
+    PASS 1 (frequency): rank the vocabulary; surplus beyond an explicit vocab_cap is DROPPED + LOGGED
+            (`dropped`); with vocab_cap=None NOTHING is dropped. PASS 2: windowed co-occurrence -> sparse edges.
     """
-    cap = min(vocab_cap, MAX_NATIVE_NODES)
-
-    # PASS 1 — frequency (a count dict here is legitimate: it picks vocabulary, it is NOT the store).
+    # PASS 1 — frequency (a count dict here is legitimate: it RANKS vocabulary, it is NOT the store).
     freq = {}
     for art in stream_articles(source):
         for w in art:
             freq[w] = freq.get(w, 0) + 1
     ranked = sorted(freq, key=lambda w: (-freq[w], w))          # most-frequent first, tie-break a-z
-    vocab = sorted(ranked[:cap])                                # the kept top-K content words
-    dropped = sorted(ranked[cap:])                              # LOGGED, not hidden (F640)
+    cap = len(ranked) if vocab_cap is None else vocab_cap       # NO min(MAX_NATIVE_NODES) — THAT was the bug (F708)
+    vocab = sorted(ranked[:cap])                                # ALL content words when uncapped
+    dropped = sorted(ranked[cap:])                              # LOGGED, not hidden (F640); empty when uncapped
     idx = {w: i for i, w in enumerate(vocab)}
     keep = set(vocab)
 
