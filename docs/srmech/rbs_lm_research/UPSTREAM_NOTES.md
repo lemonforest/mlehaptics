@@ -1781,3 +1781,50 @@ shape; this closes the loop the other direction.
 of substrate-self-recognition (`[[user_stance_substrate_self_recognition_inevitable_per_loe]]`) — srmech *learning
 to author config-driven classes from what it already is*. It is also where Siona's learning loop closes on itself
 (srmech research notebook §8.2). The user has begun taking the §38/§39 items upstream (2026-06-09).
+
+## §40 R3 U1 — `tokenize()` / `cooccurrence_edges()` spec for srmech (answering the dev's module-path ask; 2026-06-09)
+
+The srmech dev session asked **where `tokenize()` / `cooccurrence_edges()` should land** (so R3 U1 resolves to FOUND)
+and showed the target shape `text → tokenize → cooccurrence_edges → dense_laplacian [already ships]`. This is the
+research-side spec, matched to **how the wiki kernel actually uses them today** — the dev can pull PR #687 and read
+the reference: `docs/srmech/rbs_lm_research/R-RBS-LM-WIKIKERNEL_big_wiki_word_association_class_l_kernel_reference.py`
+(functions `content_words` L218, `strip_wiki_markup_hardened` L170, `DEFAULT_STOPLIST` L74, `build_edges_topk` L278)
++ findings F698 / F700 / F708 / F714 / F681.
+
+**Module path — endorse Option 1 (`srmech.amsc.text`).** `tokenize` is not itself a spectral op, and
+`cooccurrence_edges` is the Class-L **precursor** that *produces what `srmech.amsc.laplacian.dense_laplacian`
+consumes*. Keeping both in a new `srmech.amsc.text` ingestion module (text→tokens→edge-list) and leaving
+`laplacian` purely spectral is the clean separation (Class E/G ingestion vs Class-L spectral). Option 3 (into
+laplacian) pollutes the spectral module with text concerns; Option 2 (split) adds surface for no gain. **This op
+is exactly what retires the hand-rolled `Counter()` co-occurrence the STOP-list flags** — its output is edges →
+`dense_laplacian`, NOT a `Counter` store.
+
+**`tokenize(text, *, stoplist=DEFAULT_STOPLIST, unicode_normalize=True) -> list[str]`** — must match these (each a
+real lesson):
+- **Unicode-aware** (F698): keep codepoints whose `unicodedata.category(ch)[0] in ("L","M")` (letters + combining
+  marks), casefold — NOT an ASCII `\w+`. Our `content_words` (L218/L228) does exactly this.
+- **Configurable stoplist, not a boolean** (F714): ship a `DEFAULT_STOPLIST` that includes **function words /
+  prepositions** (`around/across/along/toward/onto/within/among/against/throughout`, …) — the etak-walk drift bug
+  (F709→F714) was a *missing function word*, so a bare `drop_stopwords=True` over a thin list is insufficient. Let
+  the caller pass/extend the stoplist. (A `drop_stopwords=False` raw mode is fine to also offer.)
+- **No markup stripping inside `tokenize`** (F700): wiki/markup cleaning (`strip_wiki_markup_hardened`) is
+  **corpus-specific** and stays in the adapter/caller — `tokenize` takes already-clean text. Keeps the op general.
+
+**`cooccurrence_edges(docs, vocab, *, window=2) -> (edges, weights)`** — must match these:
+- **Window-reset at document boundaries** (CRITICAL — the preview's flat `toks` loses this): co-occurrence must
+  **not cross a document boundary** (one article = one window reset, L259/L309). Take `docs: list[list[str]]` (a
+  list of token-sequences) — or a flat list + explicit boundary indices — so a window never spans two documents.
+- **NO vocab cap baked in** (F708 — *this was the bug*): `vocab` is whatever the caller passes (the **full** ranked
+  vocab by default); never silently `min(…, MAX_NATIVE_NODES)`. The 256 native bound is for the **dense-eig block
+  only**, never the vocabulary or the sparse adjacency. A top-K cap, if wanted, is an **explicit caller choice**,
+  logged (`dropped`), not a default.
+- **Edges are 2-tuples of vocab indices + a parallel weights list** (matches `dense_laplacian(n, edges, weights)`'s
+  contract — AMSC gotcha "dense_laplacian edges are 2-tuples"). `window` is caller-set (our kernel uses 2, F681;
+  the dev preview shows 5 — both fine, don't hardcode a magic default beyond a documented one).
+- **Raw co-occurrence weights only** (F714): IDF / hub-down-weighting / frequency-ranking are **downstream**
+  ranking re-weights (a Class-N rational rescale at walk-time), NOT stored in the edges — keep them out of this op.
+
+So: `srmech.amsc.text.{tokenize, cooccurrence_edges}` → `srmech.amsc.laplacian.dense_laplacian` end-to-end makes the
+K1 presence-kernel a pure-TOML composite and **resolves R3 U1 to FOUND** (our F716 probe checks
+`amsc.text`/`amsc.laplacian` for these names). User is wiring the dev session to pull PR #687 for the reference
+scripts directly.

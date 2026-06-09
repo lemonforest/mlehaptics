@@ -107,15 +107,16 @@ def main():
 
     print("(4) STILL OPEN — R3 U1 op precursors (we still hand-roll co-occurrence edges):")
     # numpy-free probe: only the Class-N core modules (signal_processing is the scientific/numpy tier).
+    # Probe the agreed landing site srmech.amsc.text (UPSTREAM §40) + the spectral neighbours.
     for name in ("tokenize", "cooccurrence_edges"):
         found = []
-        for m in ("srmech.amsc.laplacian", "srmech.amsc.cascade"):
+        for m in ("srmech.amsc.text", "srmech.amsc.laplacian", "srmech.amsc.cascade"):
             try:
                 if hasattr(__import__(m, fromlist=["x"]), name):
                     found.append(m)
             except Exception:
                 pass
-        print(f"    {name}: {'in ' + ', '.join(found) if found else 'NOT FOUND (open)'}")
+        print(f"    {name}: {'FOUND in ' + ', '.join(found) if found else 'NOT FOUND (open — lands in srmech.amsc.text per UPSTREAM §40)'}")
 
     print("\nVERDICT (F716): F710-F715 genome model + the class-from-TOML mechanism shipped in srmech 0.7.5rc42;")
     print("  the native A-N symbols are bound/reachable and jacobi dispatches native numpy-free (#962 Part 1 ~done,")
