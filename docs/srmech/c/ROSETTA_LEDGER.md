@@ -540,6 +540,15 @@ decrements it).
   (a DSL discovery callable — no rosetta line, per the dsl-ToolEntry convention),
   so `tools.total` 276→277 but the Rosetta op ledger is unchanged. ABI 3;
   numpy-free.
+- **rc46 (done) — catalog→DSL auto-registration bridge actually routes (RBS-LM §17 U4).**
+  rc45's `list_ops()` auto-discovery read the wrong source-key field
+  (`source_key`/`name`) where `list_attested_sources()` returns each source under
+  `key`, so the catalog-chain half was silently empty. rc46 reads `key` (with the
+  alternates as fallbacks) → the 7 packaged catalog-chains (asymptotic_calculus ×5
+  + cosmos_validation + pi_digits) now surface tagged `catalog:<source_key>`, and a
+  freshly `register_attested_root`-ed catalog's declared chains too. Pure
+  registry-read fix; no new callable, `tools.total` stays 277, Rosetta op ledger
+  unchanged. ABI 3; numpy-free.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

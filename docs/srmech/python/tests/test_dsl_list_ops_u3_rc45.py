@@ -30,12 +30,17 @@ def test_list_ops_uniform_record_shape():
 
 
 def test_list_ops_superset_of_catalog_ops():
-    """The cascade-op half is exactly list_catalog_ops (base install)."""
+    """The non-catalog-chain half is exactly list_catalog_ops.
+
+    list_ops() ALSO surfaces catalog-chain records (rc46 U4 — the
+    packaged attested sources declare operator chains); those are tagged
+    ``kind == "catalog-chain"`` and excluded here. The remaining
+    (stage/combinator) records are the value-transform cascade ops, and
+    they coincide exactly with ``list_catalog_ops``.
+    """
     cat = {r["name"] for r in list_catalog_ops()}
     got = {r["name"] for r in list_ops() if r["kind"] != "catalog-chain"}
-    assert cat <= got, f"missing cascade ops: {cat - got}"
-    # No AMSC catalog is registered in the test env, so the two coincide.
-    assert got == cat
+    assert got == cat, f"cascade-op half drifted: {got ^ cat}"
 
 
 def test_list_ops_kinds_are_known():
@@ -50,11 +55,17 @@ def test_list_ops_sorted_by_kind_then_name():
 
 
 def test_list_ops_bad_source_key_is_safe():
-    """An unknown source_key yields no chains and never raises."""
-    base = list_ops()
+    """An explicit unknown source_key yields no chains and never raises.
+
+    With ``source_keys`` given, auto-discovery is skipped; an unresolvable
+    key contributes no catalog-chains, so the result is the cascade-op
+    half only (and no exception is raised).
+    """
     restricted = list_ops(source_keys=["definitely_not_a_real_source"])
-    # No catalog chains resolve → identical to the cascade-op-only base.
-    assert restricted == base
+    assert all(r["kind"] != "catalog-chain" for r in restricted)
+    assert {r["name"] for r in restricted} == {
+        r["name"] for r in list_catalog_ops()
+    }
 
 
 def test_list_ops_empty_source_keys_is_cascade_ops_only():
