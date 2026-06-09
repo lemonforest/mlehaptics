@@ -122,9 +122,22 @@ _UFUNC = re.compile(
 # (unlike the lazy-numpy amsc modules). Remaining: sinc_interp / vector_quant /
 # farrow / esprit (dtype-verify each), the matrix_cascades QR-internals, then
 # np.outer / kron / einsum / convolve / correlate (distinct ops, own cascades).
+# rc26 routed the genuine-code tail of the dense-matmul migration — vector_quant's
+# real vec·cbᵀ codebook product, sinc_interp's COMPLEX K·y (y is complex128 IQ →
+# dense_matvec_complex, NOT real), farrow's real Lagrange C[k]·x fractional-delay
+# dot, and qm.potentials' a†·a number-operator + qm.sm's V·Vᴴ CKM-unitarity (both
+# complex) (matmul 60 -> 55). The remaining ~55 are NOT genuine dense-matmul code:
+# ~16 are docstring/comment/summary-string `@` mentions (spectral / mimo_svd /
+# heat_kernel / tool_schema / lmmse / esprit / profile_loader — a cosmetic `·`
+# reword sweep), and ~25 are distinct ops needing their OWN cascades (np.convolve
+# in fir/polyphase/multirate, np.correlate in matched_filter, np.kron in so8,
+# np.outer in propagators, np.einsum in ica_jade). The dense-matmul-migration
+# floor is essentially reached; further matmul reduction is reword-sweep +
+# distinct-op cascades (separate work items). The laplacian Schur `L_pi·X` is
+# deferred (in-helper, shape-polymorphic — its own careful pass).
 # ---------------------------------------------------------------------------
 CEIL_LINALG_FFT = 126
-CEIL_MATMUL = 60
+CEIL_MATMUL = 55
 CEIL_UFUNC = 48
 
 

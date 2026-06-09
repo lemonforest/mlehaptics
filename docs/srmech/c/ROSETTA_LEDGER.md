@@ -289,6 +289,18 @@ decrements it).
   numpy, unlike the lazy-numpy amsc modules). **numpy-math ratchet `matmul`
   75 → 60.** ABI 3; dct/map_ml/ica_jade/fsk suites unchanged. `np.convolve`/
   `correlate`/`outer`/`einsum` stay (distinct ops).
+- **rc26 (done) — matmul-kernel batch 11: the genuine-code tail.** Five remaining
+  genuine dense-matmul *code* sites: `vector_quantisation` (real `vec·cbᵀ`),
+  `sinc_interp` (COMPLEX `K·y` — `y` is complex128 IQ → `dense_matvec_complex`),
+  `farrow` (real Lagrange `C[k]·x` dot), `qm.potentials` (complex `a†·a` number
+  op), `qm.sm` (complex `V·Vᴴ` CKM-unitarity) → `dense_matmul_real`/`dense_dot_real`/
+  `dense_matvec_complex`/`dense_matmul_complex`. **numpy-math ratchet `matmul`
+  60 → 55.** ABI 3. This reaches the **dense-matmul-migration floor**: of the
+  remaining ~55, ~16 are docstring/comment/summary-string `@` *mentions* (cosmetic
+  `·` reword) and ~25 are distinct ops needing own cascades (convolve / correlate /
+  kron / outer / einsum). The `laplacian` Schur `L_pi·X` is deferred (in-helper,
+  shape-polymorphic). Further matmul reduction = reword sweep + distinct-op
+  cascades (separate work items), not more dense-matmul routing.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each
