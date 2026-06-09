@@ -400,6 +400,17 @@ decrements it).
   (libm 23 → 0) at zero continuous-math residue: every continuous-math op across C,
   numpy-tier, and bare-Python is a cascade of the 14, floats only at the FPU lift.
   Test-only ceiling drop + one helper; ABI 3.
+- **rc34 (done) — matmul decrement by ROUTING np.kron + np.einsum onto existing
+  cascades** (no new public op — pure routing). `qm.so8`'s `ad⊗I − I⊗ad` su(3)
+  superoperator (×2) + `qm.bell`'s `_kron` (×1) → `spectral_cascades.kron`
+  (`np.asarray` carrier-only); `qm.triality`'s octonion-couple `np.einsum`
+  (×1) → `matrix_cascades.einsum`. Value-faithful (so8/triality bit-exact 0.0;
+  bell bit-exact on its Pauli operators). `CEIL_MATMUL` 55 → 51. Deferred:
+  `ica_jade` 2 einsum (hot Jacobi loop), the np.outer family (needs a
+  `dense_outer` cascade), the QR-internal vdot/outer/@ (shape-polymorphic pass).
+  Watch the regex ratchet: an `np.kron`/`np.einsum` MENTION in a NEW code comment
+  re-adds the token — write "the NumPy Kronecker product" / "the NumPy einsum"
+  (no `np.`/`numpy.` prefix) in routing comments.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

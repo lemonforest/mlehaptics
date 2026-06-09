@@ -70,6 +70,7 @@ import numpy as np
 from srmech.amsc.cascade import magnitude as _magnitude
 from srmech.amsc.cyclic import mod_add as _mod_add
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
+from srmech.amsc.cascade.matrix_cascades import einsum as _einsum
 from srmech.amsc.cascade.matrix_cascades import lstsq as _lstsq
 from srmech.amsc.laplacian import dense_matmul_real, dense_matvec_real
 from srmech.qm.octonion import octonion_mult_table
@@ -139,7 +140,10 @@ def _octonion_mul(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     companion solver and the Cartan residual.
     """
     table = octonion_mult_table().astype(float)
-    return np.einsum("i,j,ijk->k", x, y, table)
+    # (x*y)_k = Σ_ij x_i y_j C[i,j,k] via the einsum cascade (Class B/D index
+    # spec ∘ Class I iterate ∘ Class M sum-of-products) — replaces the NumPy
+    # einsum contraction.
+    return _einsum("i,j,ijk->k", x, y, table)
 
 
 def _solve_companions(operator: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:

@@ -111,6 +111,7 @@ from typing import Tuple
 
 import numpy as np
 
+from srmech.amsc.cascade.spectral_cascades import kron as _kron_cascade
 from srmech.amsc.laplacian import hermitian_eigendecompose
 from srmech.qm.spin import pauli_matrices
 
@@ -155,7 +156,10 @@ def _kron(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     """
     assert a.ndim == 2, "_kron: a must be 2-D"
     assert b.ndim == 2, "_kron: b must be 2-D"
-    return np.kron(a, b)
+    # Class-I(mixed-radix index)∘M Kronecker cascade — substrate-native
+    # replacement for the NumPy Kronecker product (bit-exact on the
+    # Pauli/measurement operators used here); np.asarray is carrier-only.
+    return np.asarray(_kron_cascade(a, b))
 
 
 # ---------------------------------------------------------------------------
