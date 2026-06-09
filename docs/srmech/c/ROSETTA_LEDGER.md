@@ -411,6 +411,18 @@ decrements it).
   Watch the regex ratchet: an `np.kron`/`np.einsum` MENTION in a NEW code comment
   re-adds the token — write "the NumPy Kronecker product" / "the NumPy einsum"
   (no `np.`/`numpy.` prefix) in routing comments.
+- **rc35 (done) — numpy-free native dispatch for `jacobi_eigvals` (UPSTREAM §38 /
+  F708; ~49×).** The bound `srmech_jacobi_eigvals` C symbol is now reachable
+  WITHOUT numpy: `_jacobi_eigvals_native_listmarshal` builds a flat
+  `(c_double * n·n)` ctypes buffer from the `list[list[float]]` and calls the C
+  symbol; the numpy-absent branch dispatches to it when `HAS_NATIVE` + `n ≤ 256`,
+  else the pure-Python Jacobi cascade. Fixes the rc28 finding (numpy-free Class-L
+  store ~68 s @ n=256 → ~1.4 s native). PHASE B of the numpy-carrier-removal
+  north-star — the C foundation must be numpy-free-reachable before numpy can
+  leave as a carrier. §38 "bind the symbols" was already done (HEAD binds
+  jacobi/laplacian/hermitian/hdc/klein4); bytes-hdc already numpy-free;
+  symmetric eigvec-decompose stays numpy.linalg.eigh (deliberate); klein4→C
+  deferred behind W5. ABI 3; no public-surface change.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

@@ -485,6 +485,32 @@ def normalized_laplacian(
     return np.asarray(L, dtype=np.float64) if np is not None else L
 
 
+def _jacobi_eigvals_native_listmarshal(rows, n, max_sweeps, tolerance):
+    """numpy-FREE native dispatch for :func:`jacobi_eigvals` (UPSTREAM §38).
+
+    Marshals a ``list[list[float]]`` straight into a flat ``(c_double * n*n)``
+    ctypes buffer (row-major) and calls the bound ``srmech_jacobi_eigvals`` C
+    symbol — no numpy needed. The fresh ctypes buffer is the in-place work
+    array, so the caller's ``rows`` is untouched. Returns the sorted ascending
+    eigenvalues as ``list[float]``, or ``None`` on any non-OK status (caller
+    then uses the pure-Python Jacobi cascade). ~49× faster than the cascade at
+    n=256 (1.4 s vs 68 s; F708) while staying numpy-free."""
+    work = (ctypes.c_double * (n * n))(
+        *(float(rows[i][j]) for i in range(n) for j in range(n))
+    )
+    out = (ctypes.c_double * n)()
+    rc = _native.LIB.srmech_jacobi_eigvals(
+        ctypes.c_uint32(n),
+        work,
+        ctypes.c_uint32(int(max_sweeps)),
+        ctypes.c_double(float(tolerance)),
+        out,
+    )
+    if rc != _native.SRMECH_OK:
+        return None  # OVERFLOW / non-convergence → caller's pure-Python cascade
+    return sorted(out)
+
+
 def jacobi_eigvals(
     matrix: np.ndarray,
     max_sweeps: int = 100,
@@ -502,11 +528,25 @@ def jacobi_eigvals(
     absent the input is a ``list[list[float]]`` and the return is a
     ``list[float]``; with numpy present the return is an ``ndarray``.
 
+    numpy-absent dispatch (UPSTREAM §38 / F708): the bound ``srmech_jacobi_eigvals``
+    C symbol IS reachable without numpy — when ``HAS_NATIVE`` and ``n ≤
+    MAX_NATIVE_NODES`` the numpy-free path marshals the ``list[list[float]]``
+    into a flat ctypes ``double`` buffer and calls it (~49× faster than the
+    pure-Python cascade at n=256), falling back to the cascade only when there
+    is no native lib, ``n`` is too large, or the C status is non-OK.
+
     ``matrix`` is **not** modified by the wrapper — a copy is made before the
     in-place C path runs.
     """
     if np is None:
-        # numpy absent: srmech's pure-Python Jacobi cascade on a list-of-lists.
+        # numpy absent. Try the bound native symbol via numpy-free list
+        # marshalling (UPSTREAM §38); else srmech's pure-Python Jacobi cascade.
+        rows = [[float(x) for x in row] for row in matrix]
+        n = len(rows)
+        if n > 0 and all(len(r) == n for r in rows) and _can_dispatch_native(n):
+            ev = _jacobi_eigvals_native_listmarshal(rows, n, max_sweeps, tolerance)
+            if ev is not None:
+                return ev
         return _jacobi_eigvals_py(matrix, max_sweeps, tolerance)
     M = np.ascontiguousarray(matrix, dtype=np.float64)
     if M.ndim != 2 or M.shape[0] != M.shape[1]:
