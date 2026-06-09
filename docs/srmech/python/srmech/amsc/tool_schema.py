@@ -1503,6 +1503,25 @@ def _register_primitive_class_tools() -> None:
         ),
 
         # ────────────────────────────────────────────────────────────
+        # Genome-storage surface — biological-structure names as cascade
+        # names (genome / chromosome / telomere / quad-strand). Part 2 of
+        # #962; validated as F711-F715 on the research subtree.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.genome.encode_shape", owner="srmech", category="genome",
+            summary="The genome encode CRITERION (F715): decide how to store a kernel of size n. n<=256 -> a 'tome' (one dense 2**8 leaf); n<=1024 -> a 'mobius' (one quad-turn = the 4 Klein-4 sectors); n>1024 -> a 'quad_strand' (a helix of quad-turns, a chromosome). depth = ceil(log4(ceil(n/256))) is the number of base-4 quad levels over the leaves; computed in pure integer arithmetic (Class I/N; no float log). Thresholds attested to 256=2**8 and the Klein-4 order 4 — no magic. Returns a dict {n, shape, leaves, depth, leaf_cap}.",
+            parameters=(P("n", "int", True, "kernel size (positive int — number of elements/leaves to store)"),),
+            returns=R("dict", "{n, shape: 'tome'|'mobius'|'quad_strand', leaves, depth, leaf_cap}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.quad_turn", owner="srmech", category="genome",
+            summary="Couple one helix turn through the_one — the genome's turn operation (F713). The turn is bound to the_one (the held invariant) by the REVERSIBLE Klein-4 bind (V4=(F2)^2 XOR, so quad_turn(quad_turn(t, one), one) == t): the duality held WITHOUT collapse, numpy-free. the_one is the shared invariant in every turn's coupling, so a chromosome navigates across its turns through the_one and recovers any turn by re-binding. Each turn sits in the native 4-sector biaxial '+' (cascade.parallel_sector_dispatch, CAP=4) — per F712 the 4-way is ONE chirality level, the deeper leaf-tree is base-4 radix addressing. Class M (bind) composed with Class C (the Klein-4 chirality).",
+            parameters=(P("turn", "np.ndarray", True, "a Klein-4 vector (uint8 {0,1,2,3}) — the helix turn (e.g. from hdc.klein4_random)"),
+                        P("the_one", "np.ndarray", True, "a Klein-4 vector (uint8 {0,1,2,3}) — the held invariant coupled into every turn")),
+            returns=R("np.ndarray", "the coupled turn (re-apply quad_turn with the same the_one to recover turn)"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
         # Class K — equation-of-centre / pin-slot
         # ────────────────────────────────────────────────────────────
         ToolEntry(

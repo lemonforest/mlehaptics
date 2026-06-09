@@ -438,6 +438,18 @@ decrements it).
   spectral quad-stream is sequenced into the Part-2 genome-storage surface (its
   quad-turn unit). Watch the regex ratchet: a `numpy.linalg.eigh` MENTION in a
   new comment counts — write "the LAPACK `eigh` path" (no `numpy.linalg.`).
+- **rc37 (done) — genome-storage surface, brick 1 (#962 Part 2; F711–F715).**
+  New module `srmech.amsc.genome` (biological-structure names as cascade names):
+  `encode_shape(n)` — the encode CRITERION (tome ≤256 / mobius ≤1024 / quad_strand
+  >1024; `depth = ceil(log4(ceil(n/256)))` in pure integer arithmetic, no float
+  log) → bucket `non_compute`; `quad_turn(turn, the_one)` — the reversible Klein-4
+  the_one coupling (F713; `quad_turn∘quad_turn == id`), a pure delegation to
+  `hdc.klein4_bind` → bucket `composition_of_c`. NB the delegate `klein4_bind` is
+  still `c_exists_unbound` (W5-gated); `quad_turn` adds no new debt and inherits
+  the eventual dispatch. 2 ToolEntries (category `genome`), tools.total 265→267,
+  `np.ndarray` param-type (matches the Klein-4 family + has an MCP coercer — `HV`
+  has none). No C twin yet (the quad-turn is pure-Python reversible XOR); the
+  chromosome (telomere-capped strand) + genome (multi-kernel) assemble next.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each
