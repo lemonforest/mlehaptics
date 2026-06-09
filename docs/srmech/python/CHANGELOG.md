@@ -8,6 +8,14 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc48] - 2026-06-09
+
+**`laplacian.spectral_block_dispatch` — the 1024-node 4-sector spectral one-call (RBS-LM UPSTREAM Ask-3; F233 4-rung).** Wires the threaded-Klein-4-streams pattern (the same 4-way fan-out as `cascade.parallel_sector_dispatch`, but over DISTINCT spectral blocks rather than chirality-transforms of one input) to eigendecompose **≤4 dense symmetric blocks** (each `n ≤ MAX_NATIVE_NODES` = 256) in parallel — **4 × 256 = 1024 nodes** within the native dense-eig bound.
+
+- `spectral_block_dispatch(blocks, *, max_sweeps=100, tolerance=1e-12, combine=True)` runs `jacobi_eigvals` on each block on its own thread of a 4-worker pool. Each worker reads ONLY its own block (0 cross-thread reads), so the parallel spectrum equals the serial spectrum **bit-for-bit**; wall-clock overlap depends on the native GIL-release / free-threaded build. Returns `{ok, n_blocks, block_sizes, n_nodes, blocks: [[eigvals]…], combined: [merged-sorted spectrum]}`.
+- Caps: >4 blocks → `ValueError` (the F220 Klein-4 4-cap — 8+ need the order-3 triality); each block `n > 256` → `ValueError` (the per-block dense-eig bound). Class L over the 4-rung parallel dispatch; numpy-free (blocks may be `list[list[float]]` or `ndarray`).
+- New `srmech.amsc.laplacian.spectral_block_dispatch` ToolEntry → `describe()["tools"]["total"]` 278 → **279**; `composition_of_c` rosetta bucket (composes the `c_dispatched` `jacobi_eigvals` + a merge-sort reduction). ABI 3.
+
 ## [0.7.5rc47] - 2026-06-09
 
 **`hdc.klein4_project_axis` — the iω₇-collapse / bipolar projection (RBS-LM §18 Tier-2 leaf; F350/F354).** The "asymptotic-DoF render": project a 2-DoF Klein-4 hypervector (γ₅ ⊕ iω₇) onto ONE chirality axis, collapsing it to a 1-DoF bipolar `{-1,+1}` vector. This is the F350 bipolar render that drops the OTHER axis — and with it that axis's self-error-correction (F354 axis-split: the collapsed observer is structurally blind to errors on the projected-out axis).

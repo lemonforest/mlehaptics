@@ -883,6 +883,25 @@ def _register_primitive_class_tools() -> None:
                         P("tolerance", "float", False)),
             returns=R("np.ndarray", "n eigenvalues (unsorted)"),
         ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.spectral_block_dispatch", owner="srmech",
+            category="laplacian",
+            summary="The 1024-node 4-sector spectral one-call (RBS-LM Ask-3; "
+                    "F233 4-rung): eigendecompose ≤4 dense symmetric blocks "
+                    "(each n ≤ 256) on a 4-worker thread pool — the threaded-"
+                    "Klein-4-streams pattern. 4 × 256 = 1024 nodes within the "
+                    "native dense-eig bound. Each block on its own thread (0 "
+                    "cross-thread reads → parallel == serial bit-for-bit). "
+                    "Class L over the 4-rung parallel dispatch; numpy-free.",
+            parameters=(
+                P("blocks", "list", True, "1..4 symmetric matrices, each n ≤ 256"),
+                P("max_sweeps", "int", False, "per-block, default 100"),
+                P("tolerance", "float", False),
+                P("combine", "bool", False, "also return merged-sorted spectrum"),
+            ),
+            returns=R("dict", "{ok, n_blocks, block_sizes, n_nodes, blocks, "
+                              "combined}"),
+        ),
         # v0.7.1rc3 (#897 §26): the reusable dense linear solve A·X = B the
         # Schur/DtN float path composes over (its interior solve IS an
         # A·X = B). Native C peer srmech_dense_solve_f64 (Gauss–Jordan,
