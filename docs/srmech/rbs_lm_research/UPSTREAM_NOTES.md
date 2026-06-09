@@ -1565,3 +1565,35 @@ to a true neighbor-graph flock.
 uniform path (`adjacency=None`), which honestly shows the coupling-vs-no-coupling contrast
 (0.067 sync vs 3.6 drift). Neighbor-graph flocks wait on this fix. Not blocking; logged not
 routed-around-silently per upstream-as-research-notes discipline.
+
+---
+
+## §33 FEATURE ASK (NOT blocking) — an `epub_book` AMSC adapter (EPUB → attested MPRRecord book-shelf) (2026-06-09; F677)
+
+**Context:** the Story Teller world-kernel (F660–F675) takes a *content-shelf* + the fixed
+engine and narrates a world. A BOOK is a content-shelf (F677), so an EPUB is a ready-made
+world-kernel source — *if* it can be brought in as an attested AMSC tome. This is the F669
+SECOND resolution: unknown CONTENT → AMSC-fetch (already exists); a missing OP/format →
+the "add to srmech" path (this).
+
+**Gap:** there is no EPUB adapter. The AMSC adapters today are `literature_curated`,
+`json_api`, `html_scraper`, `csv_bulk`, `netcdf_grid`, `geotiff_bbox`,
+`substrate_parameterization` (verified live, srmech 0.7.5rc15) — no `epub`.
+
+**Ask:** an `epub_book` adapter (peer to `html_scraper`) that:
+- unzips the EPUB container (an EPUB is a ZIP), reads the OPF/`content.opf` manifest +
+  spine, and walks the spine to recover reading-ordered XHTML documents;
+- extracts per-chapter text (chapter = a tome), carrying the EPUB metadata (`dc:title`,
+  `dc:creator`, `dc:rights`/`dc:license`, `dc:identifier`) into the MPR `attestation`
+  (`license` ← `dc:rights`, `source_url`/`source_doi` ← identifier) + `rendering`
+  (`human_readable_name`/`cite_as` ← title/creator);
+- emits one `MPRRecord` per chapter (or one per book with chapters in `data`), so the book
+  lands as an attested content-shelf the Story Teller engine can narrate (F671/F675).
+
+A lighter first cut: an **epub→html preprocessor** that unzips + spine-orders into a single
+HTML stream and feeds the existing `html_scraper` — gets the content path working before a
+first-class adapter. **Rights are enforced for free:** the mandatory `license` attestation
+field means a copyrighted EPUB cannot produce a legit MPRRecord without its license
+(public-domain Gutenberg EPUBs are clean). Not blocking research (the flow is demonstrated
+in F677 with a synthetic book + a hand-built attested MPRRecord); logged not
+routed-around-silently per upstream-as-research-notes discipline.
