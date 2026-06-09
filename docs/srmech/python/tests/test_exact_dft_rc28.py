@@ -109,9 +109,11 @@ def test_float_signal_is_not_exact_routed():
     assert np.max(np.abs(np.array(fft(fsig)) - ref)) <= 1e-9
 
 
-def test_non_power_of_two_integer_is_not_exact_routed():
-    isig = [1, 2, 3, 4, 5]            # length 5 -> general-N cyclotomic is a follow-up
-    assert _exact_transform(isig) is None
+def test_non_power_of_two_integer_is_now_exact_routed():
+    # rc30: general-N cyclotomic engine — non-power-of-two integer signals now
+    # route through the exact path too (was the float fallback through rc29).
+    isig = [1, 2, 3, 4, 5]
+    assert _exact_transform(isig) is not None
     ref = np.fft.fft(np.array(isig, dtype=float))
     assert np.max(np.abs(np.array(dft(isig)) - ref)) <= 1e-9
 

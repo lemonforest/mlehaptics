@@ -93,9 +93,17 @@ def test_exact_dft_rejects_float():
         exact_dft([0.5, 1.0, 2.0, 3.0])
 
 
-def test_exact_dft_rejects_non_power_of_two():
-    with pytest.raises(ValueError):
-        exact_dft([1, 2, 3])            # N=3, general-N is a follow-up
+def test_exact_dft_supports_general_n():
+    # rc30: non-power-of-two N now supported (general cyclotomic ring Z[zeta_N])
+    for n in (3, 5, 6, 9, 12):
+        sig = _int_signal(n, 5)
+        spec = exact_dft(sig)
+        assert len(spec) == n
+        for (xr, xi) in spec:
+            for c in xr + xi:
+                assert type(c) is int
+        ref = np.fft.fft(np.array(sig, dtype=float))
+        assert np.max(np.abs(np.array(lift(spec)) - ref)) <= 1e-9
 
 
 def test_exact_dft_rejects_length_one():

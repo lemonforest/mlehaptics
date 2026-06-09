@@ -343,6 +343,17 @@ decrements it).
   flagged. 3 ToolEntries (introspect 260 → 263), 3 rosetta lines, a
   `list[tuple[list[int],list[int]]]` MCP coercer. ABI 3 (additive). Next:
   general-`N` cyclotomic (Python-only `bignum_reference`).
+- **rc30 (done) — the exact DFT goes general-`N` (any length, not just pow2).**
+  A pure-integer cyclotomic engine (compute `Φ_N` from `x^N-1 = Π_{d|N} Φ_d`;
+  reduce each `ζ^j` to the length-`φ(N)` power basis, cached per `N`) extends
+  `exact_dft`/`exact_idft` to **any** `N ≥ 2`; `lift` infers the basis degree
+  from the spectrum; `dft`/`fft` route all integer signals exact (pow2 keeps the
+  negacyclic / native-C route, general uses the bignum cyclotomic path). **No new
+  public surface, no ratchet movement** — the general path is Python-only
+  (`bignum_reference` shape; the op stays `c_dispatched` for its pow2 C fast
+  path), numpy-free, ABI 3. The rc28/rc29 non-pow2 "not-supported" tests update
+  to the general-`N` contract. Perf: the general path is `O(N²·φ(N))` integer —
+  exactness costs the `φ(N)` factor.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each
