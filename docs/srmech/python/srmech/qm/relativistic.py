@@ -34,7 +34,11 @@ from __future__ import annotations
 import numpy as np
 from typing import Tuple
 
-from srmech.amsc.laplacian import dense_matmul_complex
+from srmech.amsc.laplacian import (
+    dense_dot_real,
+    dense_matmul_complex,
+    dense_matvec_real,
+)
 from srmech.qm.spin import pauli_matrices, pauli_identity
 
 
@@ -178,8 +182,8 @@ def dirac_operator_momentum_space(k: np.ndarray, m: float) -> np.ndarray:
         raise ValueError(f"dirac_operator_momentum_space: k must be 4-vector; got {k.shape}")
     g0, g1, g2, g3 = gamma_matrices()
     eta = minkowski_metric()
-    # k_μ = η_{μν} k^ν (mostly-minus metric)
-    k_lower = eta @ k
+    # k_μ = η_{μν} k^ν (mostly-minus metric) — real 4×4 metric times real 4-vector
+    k_lower = dense_matvec_real(eta, k)
     slash_k = k_lower[0] * g0 + k_lower[1] * g1 + k_lower[2] * g2 + k_lower[3] * g3
     return slash_k - m * np.eye(4, dtype=complex)
 
@@ -209,7 +213,7 @@ def klein_gordon_dispersion(k_spatial: np.ndarray, m: float) -> float:
         )
     if m < 0:
         raise ValueError(f"klein_gordon_dispersion: m must be ≥ 0; got {m}")
-    return float(np.sqrt(np.dot(k_spatial, k_spatial) + m * m))
+    return float(np.sqrt(dense_dot_real(k_spatial, k_spatial) + m * m))
 
 
 def four_momentum_squared(k: np.ndarray) -> float:
@@ -223,7 +227,8 @@ def four_momentum_squared(k: np.ndarray) -> float:
     if k.shape != (4,):
         raise ValueError(f"four_momentum_squared: k must be 4-vector; got {k.shape}")
     eta = minkowski_metric()
-    return float(k @ eta @ k)
+    # k² = kᵀ η k = ⟨k, η k⟩ — real matvec then real bilinear dot (no conjugation)
+    return float(dense_dot_real(k, dense_matvec_real(eta, k)))
 
 
 __all__ = [

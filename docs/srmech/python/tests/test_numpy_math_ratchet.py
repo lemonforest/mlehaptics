@@ -103,9 +103,18 @@ _UFUNC = re.compile(
 # (the su(3)-weight Rayleigh quotients vᴴv / vᴴ·ad·v on the complex eigenvectors
 # of the real ad(H)) onto dense_dot_complex/dense_matvec_complex (matmul
 # 105 -> 86). The 2 np.kron stay (different op). Minkowski / DSP real sites next.
+# rc24 routed the real "Minkowski + real-dot" sweep — qm.relativistic's eta@k
+# matvec + np.dot(k_spatial,k_spatial) + the kᵀηk bilinear, qm.propagators' eta@k
+# matvec, and the amsc real Class-L inner products (harmonics _spectral_scores'
+# 3 ⟨x,·⟩ symmetry probes + hdc loop_inv / loop_inv_hd / g2_three_form ⟨·,·⟩
+# norms) onto dense_matvec_real / dense_dot_real (matmul 86 -> 75). The amsc
+# helpers import dense_dot_real function-locally to keep harmonics/hdc
+# numpy-absent-safe (§22). Remaining real sites: the DSP closed_form_ops +
+# matrix_cascades QR-internal vdot/back-solves; then np.outer/kron/einsum
+# (distinct ops, own cascades).
 # ---------------------------------------------------------------------------
 CEIL_LINALG_FFT = 126
-CEIL_MATMUL = 86
+CEIL_MATMUL = 75
 CEIL_UFUNC = 48
 
 

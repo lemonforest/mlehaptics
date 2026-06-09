@@ -268,6 +268,17 @@ decrements it).
   complex eigenvector of the real ad(H)) → `dense_dot_complex`/`dense_matvec_complex`.
   **numpy-math ratchet `matmul` 105 → 86.** ABI 3; so8 parity unchanged (g₂ dim 14,
   14 = 8+3+3̄ su(3) branching, su(3) weights). The 2 `np.kron` stay (distinct op).
+- **rc24 (done) — matmul-kernel batch 9: the real "Minkowski + real-dot" sweep.**
+  Eleven real-typed sites across `qm` + `amsc`: `qm.relativistic` (3 — `η k`
+  lowering matvec, the K-G `⟨k,k⟩` dispersion dot, the `kᵀηk` bilinear),
+  `qm.propagators` (1 — gauge-term `η k` matvec), `amsc.harmonics` (3 — the
+  `_spectral_scores` energy/mirror/three-cycle ⟨x,·⟩ probes), `amsc.hdc` (3 — the
+  Moufang norm² gates in `loop_inv`/`loop_inv_hd` + the `g2_three_form` associator
+  ⟨x,y×z⟩) → `dense_matvec_real`/`dense_dot_real`. The `amsc` sites import the
+  helper **function-locally** so `harmonics`/`hdc` stay numpy-absent-safe (§22).
+  **numpy-math ratchet `matmul` 86 → 75.** ABI 3; values bit-preserved; the qm +
+  hdc-loop + harmonic suites pass unchanged. The `np.outer` k^μk^ν sites stay
+  (distinct op). DSP `closed_form_ops` + `matrix_cascades` QR-internals next.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

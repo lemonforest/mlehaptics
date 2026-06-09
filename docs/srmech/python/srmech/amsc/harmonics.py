@@ -101,20 +101,25 @@ def _spectral_scores(hv: np.ndarray) -> Tuple[float, float, float]:
     ``abs()`` and never the ``sqrt(·²)`` stealth-abs; ``⟨x, x⟩`` energy is a
     Class-L inner product.
     """
+    # Real Class-L inner products via the cascade dot (numpy is a carrier here;
+    # local import keeps this module numpy-absent-safe per §22 — numpy is already
+    # loaded by the np.asarray above).
+    from srmech.amsc.laplacian import dense_dot_real
+
     x = np.asarray(hv, dtype=float).reshape(-1)
     n = x.size
-    energy = float(np.dot(x, x))
+    energy = dense_dot_real(x, x)
     if n == 0 or energy == 0.0:
         return (0.0, 0.0, 0.0)
     # Σ|x_i| (L1 norm) via the explicit Class-K sign-branch, not sqrt(x²).
     total_mag = float(np.sum(np.where(x >= 0.0, x, -x)))
     s = float(np.sum(x))
     dc = (s if s >= 0.0 else -s) / total_mag if total_mag > 0.0 else 0.0
-    d_mirror = float(np.dot(x, x[::-1]))
+    d_mirror = dense_dot_real(x, x[::-1])
     mirror = (d_mirror if d_mirror >= 0.0 else -d_mirror) / energy
     if n % 3 == 0:
         rolled = np.roll(x, n // 3)
-        d_three = float(np.dot(x, rolled))
+        d_three = dense_dot_real(x, rolled)
         three = (d_three if d_three >= 0.0 else -d_three) / energy
     else:
         three = 0.0
