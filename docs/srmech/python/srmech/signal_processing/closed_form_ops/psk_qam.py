@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from srmech.amsc.laplacian import elementwise_hypot
+
 OPERATION_NAME = "psk_qam"
 CLASS_COMPOSITION = ("I", "K")
 PERFORMANCE_HINT = "single-token-fast"
@@ -90,7 +92,7 @@ def op(
         flat = received.ravel()
         # Class K: nearest-neighbour decision-region projection.
         _d = flat[:, None] - const[None, :]
-        dists = np.hypot(_d.real, _d.imag)  # |z| = hypot(real,imag) (no abs())
+        dists = elementwise_hypot(_d.real, _d.imag)  # |z| = hypot(real,imag) (no abs())
         idx = np.argmin(dists, axis=1)
         return idx.reshape(received.shape)
 

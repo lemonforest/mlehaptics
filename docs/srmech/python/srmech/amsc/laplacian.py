@@ -93,6 +93,7 @@ from fractions import Fraction  # §26: exact-rational interior solve (Class-N),
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from srmech.amsc.rational import sqrt as _rsqrt  # §22: scalar root via Class-N, not libm
+from srmech.amsc.rational import hypot as _rhypot  # Class-N |z| magnitude, not libm
 
 try:  # UPSTREAM §22: the real-symmetric Class-L core is numpy-absent-safe.
     import numpy as np
@@ -130,6 +131,7 @@ __all__ = [
     "dense_outer_real",
     "elementwise_multiply_complex",
     "elementwise_transcendental",
+    "elementwise_hypot",
     "LAPLACIAN_OPS",
     "MAX_NATIVE_NODES",
     "three_fold_eigvec_groups",
@@ -1502,6 +1504,47 @@ def elementwise_transcendental(
     return np.log(real_arr).reshape(np.shape(arr))
 
 
+def elementwise_hypot(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Array Euclidean magnitude ``√(aᵢ² + bᵢ²)`` via the Class-N hypot cascade.
+
+    The numpy-free magnitude op the DSP modules' ``|z| = √(re² + im²)`` sites
+    route through, so numpy stays carriers-only (no numpy ``hypot`` engine). Each
+    element runs :func:`srmech.amsc.rational.hypot` (Class M sum-of-squares ∘
+    Class N∘K :func:`~srmech.amsc.rational.sqrt`; native ``srmech_rational_sqrt``
+    -dispatched) — the math is the libm-free cascade, not numpy's. The numpy-only
+    work is array packing (``asarray`` / ``reshape`` / the output buffer).
+
+    Round-off-faithful to numpy's hypot (the rational sqrt is floor-projected vs
+    IEEE round-to-nearest — a ≤1-ULP shift, accepted per the cascades-replace-
+    numpy-math discipline; bit-exact whenever ``aᵢ² + bᵢ²`` is a perfect square).
+
+    Parameters
+    ----------
+    a, b
+        Same-shape real arrays (typically ``z.real`` / ``z.imag``).
+
+    Returns
+    -------
+    out
+        Float64 array of ``√(aᵢ² + bᵢ²)``, same shape as ``a``.
+
+    Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
+    Hopkins, 2013) §1.1 (Euclidean length).
+    """
+    a_arr = np.ascontiguousarray(a, dtype=np.float64)
+    b_arr = np.ascontiguousarray(b, dtype=np.float64)
+    if a_arr.shape != b_arr.shape:
+        raise ValueError(
+            f"elementwise_hypot: shape mismatch {a_arr.shape} vs {b_arr.shape}"
+        )
+    flat_a = a_arr.reshape(-1)
+    flat_b = b_arr.reshape(-1)
+    out = np.zeros(flat_a.shape[0], dtype=np.float64)
+    for i in range(flat_a.shape[0]):
+        out[i] = _rhypot(float(flat_a[i]), float(flat_b[i]))
+    return out.reshape(a_arr.shape)
+
+
 # =====================================================================
 # Directed / signed Laplacian (#797 op (b); the F240/F241 directed-
 # coupling gap + the dissolved Class-O signed-metric absorbed into L)
@@ -1787,6 +1830,7 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "dense_outer_real",
     "elementwise_multiply_complex",
     "elementwise_transcendental",
+    "elementwise_hypot",
     "dense_solve",
     "schur_complement",
     "dirichlet_to_neumann",

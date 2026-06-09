@@ -65,6 +65,8 @@ from typing import Optional
 
 import numpy as np
 
+from srmech.amsc.laplacian import elementwise_hypot
+
 from ..amsc.hdc import bind as _hdc_bind
 from ..amsc.hdc import similarity as _hdc_similarity
 from ..amsc.laplacian import dense_matvec_complex, hermitian_eigendecompose
@@ -577,7 +579,7 @@ def truncate_sparse(
         handle.coefficients_bytes, dtype=np.complex128
     ).reshape(n).copy()
     # |z| = hypot(real, imag) (no abs()); coeffs are complex spectral coefficients.
-    magnitudes = np.hypot(coeffs.real, coeffs.imag)
+    magnitudes = elementwise_hypot(coeffs.real, coeffs.imag)
     if keep_k is not None:
         k = int(keep_k)
         if k < 0 or k > n:

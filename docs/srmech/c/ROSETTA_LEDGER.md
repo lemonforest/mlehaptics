@@ -603,6 +603,24 @@ decrements it).
   C symbol; compose the c_dispatched dense-matmul kernel). The 2 remaining
   np.outer are the matrix_cascades QR-internal Householder updates (shape-
   polymorphic pass). Class L rank-1 contraction; numpy carriers-only. ABI 3.
+- **rc52 (done) — `laplacian.elementwise_hypot`: the np.hypot |z| magnitude
+  cascade OPENS the ufunc bucket (numpy-removal).** With the np.outer contraction
+  surface handed off (rc51), the sweep turns to the **ufunc** ceiling (pinned at
+  48 since rc13) — numpy's transcendental / magnitude engine. `np.hypot(z.real,
+  z.imag)` = `|z| = √(re²+im²)`, a per-element libm `hypot`; `elementwise_hypot(a,
+  b)` loops the **Class-N `rational.hypot` cascade** (isqrt-based, native
+  `srmech_rational_sqrt`-dispatched, no libm) over the flattened pair, numpy
+  carrying the array only. Routes all **5 DSP magnitude sites** (fsk / mlse /
+  psk_qam nearest-symbol distances, ofdm channel-mag, spectral coeff-mag) off
+  `np.hypot` — the numpy-math ratchet's `ufunc` ceiling **48 → 43**. Round-off-
+  faithful (rational sqrt floor-projected vs IEEE round-to-nearest, ≤1-ULP; never
+  flips a nearest-symbol / argmax decision) + **bit-exact** on perfect squares
+  (Pythagorean-triple constellation points decode exactly). 1 new ToolEntry →
+  `tools.total` 282→**283**; `composition_of_c` (no own C symbol; composes the
+  c_dispatched `rational.hypot`/`srmech_rational_sqrt`). Class N magnitude over a
+  Class-L array surface; numpy carriers-only. ABI 3. Next ufunc batches: the
+  np.exp complex-phase sites onto `elementwise_transcendental`, then np.sqrt /
+  np.sin / np.cos / np.log / np.sign.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

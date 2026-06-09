@@ -184,10 +184,19 @@ _UFUNC = re.compile(
 # density matrix (→ dense_outer_complex) (matmul 51 -> 48). The 2 remaining
 # np.outer are the matrix_cascades QR-internal Householder updates, still on the
 # shape-polymorphic pass with the QR-internal vdot/@.
+# rc52 OPENS the ufunc decrement: the new `laplacian.elementwise_hypot`
+# (per-element rational.hypot — the Class-N |z| cascade, native
+# srmech_rational_sqrt-dispatched, numpy carries the array only) routes the
+# 5 DSP `np.hypot(z.real, z.imag)` magnitude sites (fsk/mlse/psk_qam/ofdm/
+# spectral) off numpy's ufunc engine (ufunc 48 -> 43). Round-off-faithful
+# (rational sqrt floor-projected vs IEEE round-to-nearest; the magnitude
+# shift never flips a nearest-symbol / argmax decision). Next ufunc batches:
+# the np.exp complex-phase sites onto elementwise_transcendental, then
+# np.sqrt / np.sin / np.cos / np.log / np.sign.
 # ---------------------------------------------------------------------------
 CEIL_LINALG_FFT = 122
 CEIL_MATMUL = 48
-CEIL_UFUNC = 48
+CEIL_UFUNC = 43
 
 
 def _count_category() -> dict[str, int]:

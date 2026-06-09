@@ -8,6 +8,13 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc52] - 2026-06-09
+
+**`laplacian.elementwise_hypot` — the |z| magnitude cascade opens the np.hypot ufunc decrement (numpy-removal).** With the `np.outer` contraction surface handed to the cascade (rc51), the sweep turns to the **ufunc bucket** — numpy's transcendental / magnitude engine. `np.hypot(z.real, z.imag)` is `|z| = √(re² + im²)`, a per-element libm `hypot` over the array; `elementwise_hypot(a, b)` computes the same magnitude by looping the **Class-N `rational.hypot` cascade** (isqrt-based, native `srmech_rational_sqrt`-dispatched, no libm) over the flattened pair, with numpy carrying the array only.
+
+- Routes all **5 DSP magnitude callsites** off `np.hypot`: `fsk` / `mlse` / `psk_qam` (nearest-symbol decision-region distances), `ofdm` (channel magnitude), `spectral` (coefficient magnitude). The numpy-math ratchet's `ufunc` ceiling drops **48 → 43**. Round-off-faithful to numpy (rational sqrt is floor-projected vs IEEE round-to-nearest — a ≤1-ULP shift that never flips a nearest-symbol / argmax decision), and **bit-exact** whenever `aᵢ² + bᵢ²` is a perfect square (Pythagorean-triple constellation points decode exactly).
+- 1 new `srmech.amsc.laplacian.elementwise_hypot` ToolEntry → `describe()["tools"]["total"]` 282 → **283**; `composition_of_c` rosetta bucket (composes the `c_dispatched` `rational.hypot`/`srmech_rational_sqrt`; no own C symbol). Added to `__all__` + `LAPLACIAN_OPS`. Class N (rational magnitude) over a Class-L array surface; numpy carriers-only. ABI 3.
+
 ## [0.7.5rc51] - 2026-06-09
 
 **`laplacian.dense_outer_{complex,real}` — the np.outer → cascade decrement (numpy-removal PHASE A).** Resumes the numpy-math carrier-removal sweep with the deferred outer-product op. An outer product `a ⊗ b` (`out[i,j] = aᵢbⱼ`) IS the **k=1 case of a matrix product** — `a` a column, `b` a row — so `dense_outer_complex` is exactly `dense_matmul_complex` on the reshaped pair: it rides the native `srmech_dense_matmul_complex` kernel with **no inner summation** (each entry a single multiply), making it **bit-identical to numpy's outer product**. `dense_outer_real` is the complex kernel on imag-free input → float64.
