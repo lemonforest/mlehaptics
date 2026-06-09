@@ -423,6 +423,21 @@ decrements it).
   jacobi/laplacian/hermitian/hdc/klein4); bytes-hdc already numpy-free;
   symmetric eigvec-decompose stays numpy.linalg.eigh (deliberate); klein4→C
   deferred behind W5. ABI 3; no public-surface change.
+- **rc36 (done) — Laplacian tidy: numpy-free native dispatch for the Class-L
+  BUILD ops + header-comment accuracy (UPSTREAM §38, completing rc35).**
+  `dense_adjacency` / `dense_laplacian` / `normalized_laplacian` reach the bound
+  `srmech_graph_*` C symbol on the numpy-absent install too, via
+  `_build_matrix_native_listmarshal` (Python list → flat ctypes uint32/double
+  buffers → reshape); fall back to the pure-Python builder only when no native
+  lib / n>256 / non-OK. (O(edges)-cheap — consistency, not the perf eig.) Fixed
+  the stale "wrappers fall back to numpy unconditionally" module-header note
+  (eigvals dispatch numpy-free now; only the eigenVECTOR decompose stays the
+  LAPACK `eigh` path, by design). PHASE B of the carrier-removal north-star.
+  #962 reconciliation: the binding ask was already done at HEAD; klein4→C stays
+  behind W5 (even-count now documented: strict majority, tie→0); the Klein-4
+  spectral quad-stream is sequenced into the Part-2 genome-storage surface (its
+  quad-turn unit). Watch the regex ratchet: a `numpy.linalg.eigh` MENTION in a
+  new comment counts — write "the LAPACK `eigh` path" (no `numpy.linalg.`).
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

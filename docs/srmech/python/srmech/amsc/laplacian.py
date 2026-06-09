@@ -72,10 +72,18 @@ C-path bound
 ------------
 
 The C native path operates on ``n ≤ 256`` (caps the stack-allocated
-degree / row-scaling buffers, embedded-safe). For ``n > 256`` the
-wrappers fall back to numpy unconditionally; HAS_NATIVE doesn't
-matter. Cascade-composition use-cases typically stay well under this
-bound.
+degree / row-scaling buffers, embedded-safe). When ``HAS_NATIVE`` and
+``n ≤ 256`` the dense build + ``jacobi_eigvals`` dispatch to the C
+symbol **with or without numpy** — the numpy-absent path marshals a flat
+ctypes buffer straight from Python ``list``s (UPSTREAM §38; ``jacobi``
+~49× faster than the pure-Python cascade). For ``n > 256`` (or no native
+lib) srmech's own pure-Python Class-L cascades run. The one numpy-only
+exception is the eigen**vector** decomposition (``hermitian_`` /
+``symmetric_eigendecompose``): it stays the LAPACK ``eigh`` path by design —
+eigenvector sign / degenerate-subspace rotation is non-unique, so
+element-wise C/Python parity is not meaningful (correctness is pinned by
+eigenvalues + reconstruction + orthonormality). Cascade-composition
+use-cases typically stay well under the ``n ≤ 256`` bound.
 """
 
 from __future__ import annotations
@@ -244,6 +252,31 @@ def _build_matrix_native(
     if rc != _native.SRMECH_OK:
         raise RuntimeError(f"{fn_name} returned non-OK status {rc}")
     return out
+
+
+def _build_matrix_native_listmarshal(fn_name, n, edge_list, w_list):
+    """numpy-FREE native graph build (UPSTREAM §38): marshal Python lists into
+    ctypes arrays (edge endpoints uint32, weights double) + reshape the flat
+    output to ``list[list[float]]`` — no numpy. Returns the matrix, or ``None``
+    on a non-OK status (caller then uses the pure-Python builder). Same C symbol
+    the numpy path calls; reachable on the numpy-absent install."""
+    n_edges = len(edge_list)
+    out = (ctypes.c_double * (n * n))()
+    null_u = ctypes.cast(None, ctypes.POINTER(ctypes.c_uint32))
+    null_d = ctypes.cast(None, ctypes.POINTER(ctypes.c_double))
+    if n_edges:
+        eu = (ctypes.c_uint32 * n_edges)(*(int(u) for u, _ in edge_list))
+        ev = (ctypes.c_uint32 * n_edges)(*(int(v) for _, v in edge_list))
+        ws = (ctypes.c_double * n_edges)(*(float(w) for w in w_list))
+    else:
+        eu = ev = null_u
+        ws = null_d
+    rc = getattr(_native.LIB, fn_name)(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges), eu, ev, ws, out
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [[out[r * n + c] for c in range(n)] for r in range(n)]
 
 
 def _fallback_dense_adjacency(
@@ -438,6 +471,11 @@ def dense_adjacency(
         return _build_matrix_native(
             "srmech_graph_dense_adjacency", n, edges_u, edges_v, ws
         )
+    if np is None and _can_dispatch_native(n):  # UPSTREAM §38: numpy-free native
+        el, wl = _validate_edges_weights_py(n, edges, weights)
+        m = _build_matrix_native_listmarshal("srmech_graph_dense_adjacency", n, el, wl)
+        if m is not None:
+            return m
     # srmech's own pure-Python builder (UPSTREAM §22 + the cascade-over-numpy
     # discipline): numpy-absent → list[list[float]]; numpy-present-no-native →
     # the SAME srmech build wrapped as an ndarray for API stability (the wrap
@@ -462,6 +500,11 @@ def dense_laplacian(
         return _build_matrix_native(
             "srmech_graph_dense_laplacian", n, edges_u, edges_v, ws
         )
+    if np is None and _can_dispatch_native(n):  # UPSTREAM §38: numpy-free native
+        el, wl = _validate_edges_weights_py(n, edges, weights)
+        m = _build_matrix_native_listmarshal("srmech_graph_dense_laplacian", n, el, wl)
+        if m is not None:
+            return m
     L = _dense_laplacian_py(n, edges, weights)
     return np.asarray(L, dtype=np.float64) if np is not None else L
 
@@ -481,6 +524,13 @@ def normalized_laplacian(
         return _build_matrix_native(
             "srmech_graph_normalized_laplacian", n, edges_u, edges_v, ws
         )
+    if np is None and _can_dispatch_native(n):  # UPSTREAM §38: numpy-free native
+        el, wl = _validate_edges_weights_py(n, edges, weights)
+        m = _build_matrix_native_listmarshal(
+            "srmech_graph_normalized_laplacian", n, el, wl
+        )
+        if m is not None:
+            return m
     L = _normalized_laplacian_py(n, edges, weights)
     return np.asarray(L, dtype=np.float64) if np is not None else L
 
