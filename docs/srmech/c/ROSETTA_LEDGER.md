@@ -568,6 +568,17 @@ decrements it).
   serial bit-for-bit. New ToolEntry → `tools.total` 278→279. Rosetta bucket
   **`composition_of_c`** (composes the `c_dispatched` `jacobi_eigvals` + a
   merge-sort reduction). Class L over the 4-rung; numpy-free. ABI 3.
+- **rc49 (done) — `dsl.generate_class_descriptor`: the make_class inverse
+  (RBS-LM §39).** Renders a `[class]` TOML descriptor from components (or by
+  introspecting a registered class via `describe_class`) round-trippable straight
+  back through `make_class` — closing the class-from-TOML loop the other
+  direction. New ToolEntry → `tools.total` 279→280. A `srmech.dsl.*`
+  discovery/render callable: it bumps the tool count but is **NOT** in
+  `rosetta_classification.ndjson` (the rosetta surface is the `srmech.amsc.*`
+  compute ops; the dsl render/introspect callables — `list_ops`,
+  `describe_class`, now `generate_class_descriptor` — are out of that scope, same
+  as their peers). Class E ∘ F ∘ H; numpy-free; no C twin (pure descriptor
+  render). ABI 3.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each
