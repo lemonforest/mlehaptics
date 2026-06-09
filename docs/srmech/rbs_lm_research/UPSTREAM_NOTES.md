@@ -1732,3 +1732,11 @@ install) it runs the **pure-Python Jacobi cascade** instead of the native symbol
 `MAX_NATIVE_NODES` (`cap = min(vocab_cap, MAX_NATIVE_NODES)` was pre-encode quantization — removed; `vocab_cap=None`
 keeps all words). The 256 bound is for the dense-eig block only, never the vocabulary or the sparse adjacency.
 Logged per upstream-as-research-notes discipline.
+
+### Tracker: GH lemonforest/mlehaptics#962 (2026-06-09)
+
+§37 + §38 (native A-N binding) and the genome storage perspective (F708–F715) are tracked in
+**https://github.com/lemonforest/mlehaptics/issues/962** — the srmech dev-session checklist: bind the native A-N
+symbols in `_native.py` (lift `R-RBS-LM-NATIVEBIND.bind()`), numpy-free dispatch in `laplacian`/`hdc`, the Klein-4
+quad-stream spectral, and the genome storage model (genome → chromosomes/telomeres → helix of quad-turns → native
+4-sector "+" + base-4 leaf-tree → ≤256 leaf → coupled through the_one). Name held open (genome/chromosome/chromatin).
