@@ -22,7 +22,7 @@ from typing import Optional, Tuple
 import numpy as np
 
 from srmech.amsc import rational as _srn
-from srmech.amsc.laplacian import hermitian_eigendecompose
+from srmech.amsc.laplacian import dense_matmul_real, hermitian_eigendecompose
 
 OPERATION_NAME = "ica_jade"
 CLASS_COMPOSITION = ("L", "K")
@@ -77,7 +77,7 @@ def op(
     # own cascade primitive. ``cov`` is a REAL symmetric covariance and the
     # whitening arithmetic below is real, so take the (mathematically exact)
     # real part of the always-complex128 eigenvectors (value-preserving .real).
-    cov = (X.T @ X) / n
+    cov = dense_matmul_real(X.T, X) / n
     eigvals, eigvecs = hermitian_eigendecompose(cov)
     eigvecs = np.asarray(eigvecs).real
     # Sort by descending eigenvalue
@@ -87,8 +87,8 @@ def op(
     # Keep top n_components and whiten
     eigvals = np.maximum(eigvals[:n_components], 1e-12)
     eigvecs = eigvecs[:, :n_components]
-    W_whiten = np.diag(1.0 / np.sqrt(eigvals)) @ eigvecs.T
-    Z = (W_whiten @ X.T).T  # whitened sources
+    W_whiten = dense_matmul_real(np.diag(1.0 / np.sqrt(eigvals)), eigvecs.T)
+    Z = dense_matmul_real(W_whiten, X.T).T  # whitened sources
 
     # Fourth-order cumulant approximation: M = E[Z (Z^T C Z) Z^T] - ...
     # For JADE simplified, use Givens-rotation joint diagonalisation
@@ -135,13 +135,13 @@ def op(
                 G[j, j] = c
                 G[i, j] = -s
                 G[j, i] = s
-                V = V @ G
+                V = dense_matmul_real(V, G)
                 # Rotate cumulant tensor along i, j axes.
                 cumulants = np.einsum("ai,ijlm->ajlm", G.T, cumulants)
                 cumulants = np.einsum("bj,ijlm->ibjm" if False else "ai,ijlm->ajlm", G.T, cumulants)
         if off < tol:
             break
 
-    W = V.T @ W_whiten
-    S = (W @ X.T).T
+    W = dense_matmul_real(V.T, W_whiten)
+    S = dense_matmul_real(W, X.T).T
     return S, W

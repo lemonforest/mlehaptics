@@ -112,9 +112,19 @@ _UFUNC = re.compile(
 # numpy-absent-safe (§22). Remaining real sites: the DSP closed_form_ops +
 # matrix_cascades QR-internal vdot/back-solves; then np.outer/kron/einsum
 # (distinct ops, own cascades).
+# rc25 routed the real DSP closed_form_ops cluster — dct (M·arr / arr·Mᵀ DCT
+# matrix products), map_ml (the AᵀR⁻¹A normal-equation matmuls + matvecs; the
+# np.linalg.inv/solve stay), ica_jade (the Xᵀ·X covariance + whitening/Givens
+# rotation matmuls; the 2 np.einsum + np.linalg.eigh stay) — onto
+# dense_matmul_real / dense_matvec_real, plus fsk's complex tones·conj(window)
+# correlator-bank matvec onto dense_matvec_complex (matmul 75 -> 60). These DSP
+# modules import numpy at module top, so the helper import is top-level here
+# (unlike the lazy-numpy amsc modules). Remaining: sinc_interp / vector_quant /
+# farrow / esprit (dtype-verify each), the matrix_cascades QR-internals, then
+# np.outer / kron / einsum / convolve / correlate (distinct ops, own cascades).
 # ---------------------------------------------------------------------------
 CEIL_LINALG_FFT = 126
-CEIL_MATMUL = 75
+CEIL_MATMUL = 60
 CEIL_UFUNC = 48
 
 

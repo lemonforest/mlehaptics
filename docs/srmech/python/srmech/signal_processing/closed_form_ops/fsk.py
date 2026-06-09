@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from srmech.amsc.laplacian import dense_matvec_complex
+
 OPERATION_NAME = "fsk"
 CLASS_COMPOSITION = ("N", "I")
 PERFORMANCE_HINT = "small-D-one-shot"
@@ -79,7 +81,7 @@ def op(
         )
         for i in range(n_syms):
             window = signal[i * n : (i + 1) * n]
-            _c = tones @ np.conj(window)
+            _c = dense_matvec_complex(tones, np.conj(window))
             corrs = np.hypot(_c.real, _c.imag)  # |z| = hypot(real,imag) (no abs())
             out[i] = np.argmax(corrs)
         return out
