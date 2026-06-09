@@ -8,6 +8,13 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc46] - 2026-06-09
+
+**Catalog→DSL auto-registration bridge actually routes (RBS-LM UPSTREAM §17 U4).** rc45 shipped the U3 `list_ops()` surface with auto-discovery of registered attested sources — but the auto-discovery read the WRONG source-key field (`source_key` / `name`) when `list_attested_sources()` returns each source under `key`. So the catalog-chain half was always empty: the packaged attested sources that declare `[[catalog.operator_chain]]` entries never surfaced. rc46 fixes the field.
+
+- `list_ops()` now surfaces the **7 packaged catalog-chains** (asymptotic_calculus ×5, cosmos_validation ×1, pi_digits ×1), each tagged `provenance="catalog:<source_key>"`, `kind="catalog-chain"` — and any freshly `register_attested_root`-ed catalog's declared chains too. This is the §17 U4 "one path, not three doors" bridge realized end-to-end: `register_attested_root` → `list_ops` with no explicit `source_keys`.
+- Pure registry-read fix; no new public callable. `describe()["tools"]["total"]` unchanged at **277**. ABI 3; numpy-free. New `tests/test_dsl_list_ops_u4_rc46.py` pins the bridge (packaged chains surface, `source_keys` filter, end-to-end `register_attested_root` round-trip).
+
 ## [0.7.5rc45] - 2026-06-09
 
 **`srmech.dsl.list_ops` — unified op-discovery across BOTH registries (RBS-LM UPSTREAM §17 U3).** Until now the DSL exposed two *disjoint* op-discovery surfaces: `list_catalog_ops()` enumerated the value-transform cascade ops, while `srmech.amsc.catalog.list_catalog_chains(source_key)` enumerated the AMSC catalog-declared operator chains — a kernel chain declared on a text-catalog was **invisible** to anyone reading the DSL op list. `list_ops()` unifies them into ONE call.

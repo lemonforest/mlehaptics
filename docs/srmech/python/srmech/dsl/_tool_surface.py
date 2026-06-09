@@ -174,8 +174,15 @@ def list_ops(*, source_keys: Any = None) -> List[Dict[str, str]]:
                 if isinstance(pool, dict):
                     keys = list(pool.keys())
                 elif isinstance(pool, list):
-                    keys = [s.get("source_key", s.get("name")) if isinstance(s, dict) else s
-                            for s in pool]
+                    # The shipped shape is a list of source dicts whose
+                    # source-key field is `key` (NOT `source_key`/`name`);
+                    # fall back to the alternates for robustness.
+                    keys = [
+                        (s.get("key") or s.get("source_key") or s.get("name"))
+                        if isinstance(s, dict) else s
+                        for s in pool
+                    ]
+                    keys = [k for k in keys if k]
                 else:
                     keys = list(srcs.get("source_keys", []) or [])
             else:
