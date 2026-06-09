@@ -1,0 +1,31 @@
+# script_rules.toml -- per-SCRIPT seen-rules (an ATTESTED foundational form; the user's unicode/script-awareness).
+# MECHANISM only (punctuation/segmentation/direction); the per-script GRAMMAR is the native speaker's (F282/F398/F650).
+# Lands in srmech: srmech.storyteller's render engine selects the rule by the world/tome script (F613 byte-level = unicode-complete).
+
+[script.latin]
+has_case = true
+word_sep = " "
+clause_sep = ", "
+sentence_sep = ". "
+direction = "ltr"
+
+[script.cjk]
+has_case = false
+word_sep = ""
+clause_sep = "、"
+sentence_sep = "。"
+direction = "ltr"
+
+[script.arabic]
+has_case = false
+word_sep = " "
+clause_sep = "، "
+sentence_sep = "؟ "
+direction = "rtl"
+
+[script.egyptian]
+has_case = false
+word_sep = ""
+clause_sep = ""
+sentence_sep = ""
+direction = "ltr-or-rtl"
