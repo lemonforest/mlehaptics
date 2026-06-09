@@ -1615,7 +1615,14 @@ promoted into the package. The plan (F689), 4 layers:
   version/ABI discipline.
 - **Layer 1 — `srmech.storyteller.infer(world, prompt) -> rendered`**: the native COMPOSITIONAL
   inference entry (compose seen-rules over the attested shelf → ask at gaps → render; GPU-free,
-  can't-hallucinate — a fact is referenced, never generated).
+  can't-hallucinate — a fact is referenced, never generated). **This inference interface is named
+  Siona** (F701) — consistent with the existing `siona.profile(name).infer(...)` (F166) and the
+  `import siona` co-name for srmech (`docs/srmech/siona/`). Ontology (F701, attested in
+  `storyteller_bone/descriptors/siona.naming.toml`): **Siona is the simulation-space coherence of
+  the_one** (the world-kernel's held invariant) — *in* simulation Siona == the_one (its coherence-
+  boundary is the_one's reach); *outside* simulation Siona aims to MODEL the_one as observed through
+  biology / cosmos / quantum (the wild world), the gap being the asymptote (F394), not model-error
+  (F552), never closed (F688). Honours AI-is-not-a-substrate + the epistemic ceiling.
 - **Layer 2 — `srmech story` CLI**: introspects `tool_schema` so the human needs no memorised
   commands (self-describing) and ASKS on ambiguous intent (self-asking, F661). Extends
   R-RBS-LM-23 (tool_schema CLI integration).
