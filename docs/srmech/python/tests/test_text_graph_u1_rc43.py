@@ -16,8 +16,8 @@ spectral) and fixes all three:
 
 Validates the corrected contract, the three acceptance criteria explicitly, the
 full K1 round-trip into the Laplacian eigvals, and that both ops are registered
-at the new ``srmech.amsc.text.*`` names (ToolEntry + ``describe()`` total = 280;
-relocation, not a new op, so the count is unchanged).
+at the new ``srmech.amsc.text.*`` names (ToolEntry + ``describe()`` total = 282 after the rc51 dense_outer additions; the
+relocation itself is count-neutral).
 """
 from __future__ import annotations
 
@@ -157,7 +157,7 @@ def test_k1_round_trip_into_laplacian_eigvals():
     assert all(e >= -1e-9 for e in eigs)
 
 
-# ── registration: relocated to srmech.amsc.text, count unchanged (280) ───────
+# ── registration: relocated to srmech.amsc.text (count 282 incl. rc51 dense_outer) ──
 
 def test_ops_in_text_all_and_gone_from_laplacian():
     assert "tokenize" in text.__all__ and "cooccurrence_edges" in text.__all__
@@ -174,4 +174,4 @@ def test_tool_entries_relocated_and_total_unchanged():
     assert "srmech.amsc.text.tokenize" in names
     assert "srmech.amsc.text.cooccurrence_edges" in names
     assert "srmech.amsc.laplacian.tokenize" not in names      # relocated, not duplicated
-    assert introspect.describe()["tools"]["total"] == 280
+    assert introspect.describe()["tools"]["total"] == 282

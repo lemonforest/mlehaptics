@@ -591,6 +591,18 @@ decrements it).
   The two `ToolEntry`s move `laplacian.* → text.*` and the two rosetta lines
   re-point (`non_compute` bucket unchanged); `tools.total` stays 280 (relocation,
   not a new op). Class B/G ∘ Class-L precursor; numpy-free; no C twin. ABI 3.
+- **rc51 (done) — `laplacian.dense_outer_{complex,real}`: the np.outer → cascade
+  decrement (numpy-removal PHASE A).** An outer product is the k=1 case of a
+  matrix product, so `dense_outer_complex` = `dense_matmul_complex` on the
+  reshaped (column, row) pair — rides the native kernel, single-multiply per
+  entry, **bit-identical to numpy**. Routes the 3 genuine np.outer sites
+  (qm.propagators' two real kᵘkᵛ momentum tensors → dense_outer_real,
+  qm.single_particle's complex |ψ⟩⟨ψ| density matrix → dense_outer_complex) off
+  numpy's contraction engine — the numpy-math ratchet's `matmul` ceiling 51→48.
+  2 new ToolEntries → `tools.total` 280→**282**; both `composition_of_c` (no own
+  C symbol; compose the c_dispatched dense-matmul kernel). The 2 remaining
+  np.outer are the matrix_cascades QR-internal Householder updates (shape-
+  polymorphic pass). Class L rank-1 contraction; numpy carriers-only. ABI 3.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

@@ -19,6 +19,7 @@ from typing import Tuple
 from srmech.amsc.laplacian import (
     dense_matmul_complex,
     dense_matvec_complex,
+    dense_outer_complex,
     hermitian_eigendecompose,
 )
 
@@ -163,7 +164,7 @@ def density_matrix(psi: np.ndarray) -> np.ndarray:
     """
     if psi.ndim != 1:
         raise ValueError(f"density_matrix: psi must be 1-D; got shape {psi.shape}")
-    return np.outer(psi, psi.conj())
+    return dense_outer_complex(psi, psi.conj())
 
 
 def liouville_evolve(rho: np.ndarray, H: np.ndarray, t: float) -> np.ndarray:

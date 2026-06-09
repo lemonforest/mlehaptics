@@ -35,7 +35,7 @@ from __future__ import annotations
 import numpy as np
 from typing import Optional
 
-from srmech.amsc.laplacian import dense_matvec_real
+from srmech.amsc.laplacian import dense_matvec_real, dense_outer_real
 from srmech.qm.relativistic import (
     dirac_operator_momentum_space,
     four_momentum_squared,
@@ -178,7 +178,7 @@ def feynman_photon_propagator(
             f"gauge; got {k.shape}"
         )
     k_lower = dense_matvec_real(eta, k)  # real 4×4 metric times real 4-vector
-    kk = np.outer(k, k)  # k^μ k^ν
+    kk = dense_outer_real(k, k)  # k^μ k^ν
     gauge_term = -1j * (1.0 - gauge_xi) * kk / (denom * complex(k_squared, epsilon))
     return base - gauge_term
 
@@ -224,7 +224,7 @@ def feynman_massive_vector_propagator(
             "set epsilon > 0 for the iε prescription"
         )
     eta = minkowski_metric()
-    kk = np.outer(k, k)
+    kk = dense_outer_real(k, k)
     numerator = eta - kk / (m * m)
     return -1j * numerator / denom
 

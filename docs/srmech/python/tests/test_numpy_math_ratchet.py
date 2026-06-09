@@ -175,9 +175,18 @@ _UFUNC = re.compile(
 # DEFERRED: ica_jade's 2 einsum sit in the hot Jacobi sweep loop (a perf-careful
 # pass), the np.outer family awaits a dense_outer cascade (a new public op), and
 # the matrix_cascades QR-internal vdot/outer/@ await the shape-polymorphic pass.
+#
+# rc51 ships the dense_outer cascade (the deferred new public op): laplacian
+# gains `dense_outer_complex` / `dense_outer_real` (an outer product IS the k=1
+# case of dense_matmul_complex, so it rides the native kernel bit-identically),
+# and routes the 3 genuine np.outer sites — qm.propagators' two real k^μk^ν
+# momentum tensors (→ dense_outer_real) and qm.single_particle's complex |ψ⟩⟨ψ|
+# density matrix (→ dense_outer_complex) (matmul 51 -> 48). The 2 remaining
+# np.outer are the matrix_cascades QR-internal Householder updates, still on the
+# shape-polymorphic pass with the QR-internal vdot/@.
 # ---------------------------------------------------------------------------
 CEIL_LINALG_FFT = 122
-CEIL_MATMUL = 51
+CEIL_MATMUL = 48
 CEIL_UFUNC = 48
 
 

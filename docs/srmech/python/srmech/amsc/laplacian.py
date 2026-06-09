@@ -126,6 +126,8 @@ __all__ = [
     "dense_matmul_real",
     "dense_matvec_real",
     "dense_dot_real",
+    "dense_outer_complex",
+    "dense_outer_real",
     "elementwise_multiply_complex",
     "elementwise_transcendental",
     "LAPLACIAN_OPS",
@@ -1297,6 +1299,71 @@ def dense_dot_real(a: np.ndarray, b: np.ndarray) -> float:
     )
 
 
+def dense_outer_complex(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Dense complex outer product ``a ⊗ b`` → ``out[i, j] = aᵢ bⱼ``.
+
+    The rank-1 contraction the QM density-matrix / momentum-tensor sites route
+    through, so numpy stays carriers-only (no numpy ``outer`` engine). An outer
+    product IS a ``k = 1`` matrix product — ``a`` as a column, ``b`` as a row —
+    so this is exactly :func:`dense_matmul_complex` on the reshaped pair: it
+    rides the native ``srmech_dense_matmul_complex`` kernel directly, with no
+    inner summation (each entry is a single complex multiply), so the result is
+    **bit-identical** to numpy ``outer``.
+
+    Like numpy ``outer`` this does NOT conjugate ``b`` — the plain bilinear
+    ``aᵢ bⱼ``. Callers wanting ``|ψ⟩⟨ψ|`` pass ``b = ψ.conj()`` explicitly (the
+    ``.conj()`` is a carrier transform, not a math-engine op), exactly as the
+    ``outer(psi, psi.conj())`` sites already spell it.
+
+    Parameters
+    ----------
+    a
+        Length-``m`` complex vector (the column).
+    b
+        Length-``n`` complex vector (the row).
+
+    Returns
+    -------
+    out
+        ``(m, n)`` complex128 array ``aᵢ bⱼ``.
+
+    Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
+    Hopkins, 2013) §1.1 (rank-1 update / outer product).
+    """
+    a_col = np.ascontiguousarray(a, dtype=np.complex128).reshape(-1, 1)
+    b_row = np.ascontiguousarray(b, dtype=np.complex128).reshape(1, -1)
+    if a_col.shape[0] == 0 or b_row.shape[1] == 0:
+        return np.zeros((a_col.shape[0], b_row.shape[1]), dtype=np.complex128)
+    return dense_matmul_complex(a_col, b_row)
+
+
+def dense_outer_real(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Dense real outer product ``a ⊗ b`` → ``out[i, j] = aᵢ bⱼ`` (float64).
+
+    Real peer of :func:`dense_outer_complex` (rides the native complex kernel on
+    imag-free input, drops the exactly-zero imaginary part). numpy carriers-only;
+    bit-identical to numpy ``outer`` on real input.
+
+    Parameters
+    ----------
+    a
+        Length-``m`` real vector.
+    b
+        Length-``n`` real vector.
+
+    Returns
+    -------
+    out
+        ``(m, n)`` float64 array ``aᵢ bⱼ``.
+
+    Canonical SSoT: Golub & Van Loan §1.1 (rank-1 outer product).
+    """
+    return dense_outer_complex(
+        np.ascontiguousarray(a, dtype=np.float64),
+        np.ascontiguousarray(b, dtype=np.float64),
+    ).real
+
+
 def elementwise_multiply_complex(
     a: np.ndarray, b: np.ndarray
 ) -> np.ndarray:
@@ -1716,6 +1783,8 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "dense_matmul_real",
     "dense_matvec_real",
     "dense_dot_real",
+    "dense_outer_complex",
+    "dense_outer_real",
     "elementwise_multiply_complex",
     "elementwise_transcendental",
     "dense_solve",

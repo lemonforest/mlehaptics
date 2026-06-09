@@ -1064,6 +1064,27 @@ def _register_primitive_class_tools() -> None:
             returns=R("float", "scalar sum a_i b_i"),
         ),
         ToolEntry(
+            name="srmech.amsc.laplacian.dense_outer_complex",
+            owner="srmech", category="laplacian",
+            summary="Dense complex outer product a⊗b → out[i,j]=a_i b_j (rank-1; "
+                    "the k=1 case of dense_matmul_complex, so it rides the native "
+                    "kernel and is bit-identical to numpy outer). Does NOT "
+                    "conjugate b. Golub & Van Loan §1.1.",
+            parameters=(P("a", "np.ndarray", True, "length-m complex column"),
+                        P("b", "np.ndarray", True, "length-n complex row")),
+            returns=R("np.ndarray", "m × n complex128 a_i b_j"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.dense_outer_real",
+            owner="srmech", category="laplacian",
+            summary="Dense real outer product a⊗b → out[i,j]=a_i b_j → float64 "
+                    "(real peer of dense_outer_complex; rides the complex "
+                    "kernel). Golub & Van Loan §1.1.",
+            parameters=(P("a", "np.ndarray", True, "length-m real"),
+                        P("b", "np.ndarray", True, "length-n real")),
+            returns=R("np.ndarray", "m × n float64 a_i b_j"),
+        ),
+        ToolEntry(
             name="srmech.amsc.laplacian.elementwise_multiply_complex",
             owner="srmech", category="laplacian",
             summary="Elementwise complex multiplication a * b with "
