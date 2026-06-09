@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from srmech.amsc.laplacian import elementwise_transcendental
+
 OPERATION_NAME = "spectral_subtraction"
 CLASS_COMPOSITION = ("L", "N")
 PERFORMANCE_HINT = "small-D-one-shot"
@@ -70,5 +72,5 @@ def op(
     new_psd = np.maximum(obs_psd - alpha * n_psd, beta * n_psd)
     # Preserve phase from X; new magnitude from new_psd.
     phase = np.angle(X)
-    Y = np.sqrt(new_psd) * np.exp(1j * phase)
+    Y = np.sqrt(new_psd) * elementwise_transcendental(phase, "exp_i")
     return np.real(np.fft.ifft(Y))

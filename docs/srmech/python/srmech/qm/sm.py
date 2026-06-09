@@ -264,8 +264,8 @@ def ckm_matrix(
     c12, s12 = _srn.cos(theta_12), _srn.sin(theta_12)
     c13, s13 = _srn.cos(theta_13), _srn.sin(theta_13)
     c23, s23 = _srn.cos(theta_23), _srn.sin(theta_23)
-    phase = np.exp(1j * delta_cp)
-    inv_phase = np.exp(-1j * delta_cp)
+    phase = _srn.cexp(delta_cp)        # e^{iδ} scalar Euler cascade (Class-N)
+    inv_phase = _srn.cexp(-delta_cp)   # e^{-iδ}
     V = np.array([
         [
             c12 * c13,

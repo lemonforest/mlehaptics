@@ -1448,7 +1448,7 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.rational.cexp", owner="srmech", category="rational",
-            summary="e^(i*theta) = cos(theta) + i*sin(theta) via the Class-N cascade (Euler). Class-N trig composed with Class-C imaginary-unit rotation — the DFT twiddle factor and the quantum time-evolution phase. Substrate-native replacement for np.exp(1j*theta) / cmath.exp(1j*theta).",
+            summary="e^(i*theta) = cos(theta) + i*sin(theta) via the Class-N cascade (Euler). Class-N trig composed with Class-C imaginary-unit rotation — the DFT twiddle factor and the quantum time-evolution phase. Substrate-native replacement for np.exp / cmath.exp of 1j*theta.",
             parameters=(P("theta", "float", True, "phase angle in radians"),
                         P("terms", "int", False, "trig Taylor terms (keyword-only); default 24")),
             returns=R("complex", "e^(i*theta) on the unit circle"),

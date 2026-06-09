@@ -19,7 +19,11 @@ from __future__ import annotations
 
 import numpy as np
 
-from srmech.amsc.laplacian import dense_matvec_complex, hermitian_eigendecompose
+from srmech.amsc.laplacian import (
+    dense_matvec_complex,
+    elementwise_transcendental,
+    hermitian_eigendecompose,
+)
 
 OPERATION_NAME = "heat_kernel"
 CLASS_COMPOSITION = ("L",)
@@ -67,7 +71,7 @@ def op(signal, laplacian, *, t: float = 1.0, D: int = 8192):
             f"signal length {sig_arr.shape[0]} != laplacian size {n}"
         )
     # g(lambda) = exp(-t * lambda); applied elementwise on eigenvalue spectrum.
-    g = np.exp(-t * eigvals)
+    g = elementwise_transcendental(-t * eigvals, "exp")
     # Project onto eigenbasis, filter, reconstruct — Class-L matvec cascade.
     coeffs = dense_matvec_complex(V.conj().T, sig_arr)
     return dense_matvec_complex(V, g * coeffs)

@@ -20,7 +20,11 @@ from __future__ import annotations
 
 import numpy as np
 
-from srmech.amsc.laplacian import dense_matvec_complex, elementwise_hypot
+from srmech.amsc.laplacian import (
+    dense_matvec_complex,
+    elementwise_hypot,
+    elementwise_transcendental,
+)
 
 OPERATION_NAME = "fsk"
 CLASS_COMPOSITION = ("N", "I")
@@ -76,7 +80,7 @@ def op(
         out = np.zeros(n_syms, dtype=np.int64)
         # Class I: correlator bank over the M tones.
         tones = np.array(
-            [np.exp(1j * 2.0 * np.pi * fk * t) for fk in freqs],
+            [elementwise_transcendental(2.0 * np.pi * fk * t, "exp_i") for fk in freqs],
             dtype=np.complex128,
         )
         for i in range(n_syms):
@@ -91,5 +95,5 @@ def op(
         raise ValueError(f"symbols must be in [0, {M})")
     out = np.zeros(syms.shape[0] * n, dtype=np.complex128)
     for i, s in enumerate(syms):
-        out[i * n : (i + 1) * n] = np.exp(1j * 2.0 * np.pi * freqs[s] * t)
+        out[i * n : (i + 1) * n] = elementwise_transcendental(2.0 * np.pi * freqs[s] * t, "exp_i")
     return out

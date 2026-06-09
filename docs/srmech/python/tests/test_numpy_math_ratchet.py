@@ -193,10 +193,22 @@ _UFUNC = re.compile(
 # shift never flips a nearest-symbol / argmax decision). Next ufunc batches:
 # the np.exp complex-phase sites onto elementwise_transcendental, then
 # np.sqrt / np.sin / np.cos / np.log / np.sign.
+# rc53 continues the ufunc decrement: routes the 14 genuine `np.exp` callsites
+# onto cascades — the array e^{iθ} phases (qm.gauge time-evolution diag,
+# qm.single_particle TDSE/Heisenberg/Liouville per-mode phases, fsk tone bank,
+# psk_qam constellation, spectral_subtraction phase re-attach, spectral phase
+# extrapolate, laplacian magnetic directed-phase) onto `elementwise_transcendental
+# (·, 'exp_i')` (its real cos/sin run the native libm-free C cascade), the real
+# array exps (heat_kernel decay, rbs_lm softmax) onto `(·, 'exp')`, and the 2
+# scalar CKM phases (qm.sm) onto `rational.cexp` (Euler). Plus 2 doc/summary
+# `np.exp(` mentions de-parened (ratchet-visible). ufunc 43 -> 27. The 2
+# remaining np.exp are elementwise_transcendental's OWN complex-input fallback +
+# real no-native fallback (the documented internal kernel; deferred). Next: the
+# np.sqrt cluster (12), then np.sin/np.cos/np.log/np.sign.
 # ---------------------------------------------------------------------------
 CEIL_LINALG_FFT = 122
 CEIL_MATMUL = 48
-CEIL_UFUNC = 43
+CEIL_UFUNC = 27
 
 
 def _count_category() -> dict[str, int]:
