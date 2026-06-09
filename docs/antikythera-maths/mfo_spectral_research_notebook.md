@@ -6462,6 +6462,17 @@ The MFO world-kernel composes seen rules over attested content, so **every state
 
 Backlinks to per-finding provenance: `docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_6XX_*.md` (+ XIV.5's F667–F681). *Research trail followed; nothing forgotten; landed-where. CL-1 notebook back-sweep COMPLETE (the GH research-issue closeout audit is the remaining CL-1 half).*
 
+### XIV.7 World-coupling, the epistemic law, and the NPC application (F682–F688, 2026-06-09)
+*The most recent arc: coupling worlds through the_one, the framework's two-sided epistemics, and the world-kernel's second deliverable (game-engine NPCs).*
+
+**Coupling worlds through the_one — the duality, operational.** Two combined world-kernels can be resolved by **querying the_one** for their mathematical connection (the shared A-N operators) — and this **IS** the QDFT/ODFT coupling, **Parseval-dual**: the spectral coupling `<X_a,X_b>` = N·`<a,b>` the operator-overlap (verified ratio = N = 14 = the operator count), so the operator-basis query and the frequency-basis coupling are the *same* coupling in two bases [F683]. This **derives** the F679 bridge instead of declaring it ("CP2077-tech vs Shadowrun-magic" reconciled = "field-structure vs local-excitation" held — the DUALITY F399). The **ODFT octonion coupler** then *binds* the bridged streams into one the_one-excitation (anchor coherence √3 coupled vs 1/√3 held), **reversibly** (unbind to 2.22e-16) — two worlds → one bound object → recoverable to two: **the duality held without collapse** [F684]. A bridge has three sources, ranked (extends F665): **lore-attested** (the Witcher's *Conjunction of the Spheres* — a canonical Class-K phase-boundary world-merge; the Continent is itself a merged world) > **the_one-derived** (F683) > **declared** (F679) [F685].
+
+**The epistemic law — truth is detected by attested sources; that's the best we can do** [F688]. The framework's two-sided epistemics: **the_one DETECTS FALSITY** (a claim that contradicts attested structure is false — the falsification sieve [F686]; the_one is a coherence-detector, not a truth-oracle, F398; it can never *confirm* truth), and **ATTESTATION DETECTS the PROVISIONAL TRUE** (a claim is true iff traceable to an attested source — a valid MPRRecord, the MPM/AMSC, F669/F640/F665). Truth is *detected*, not *decreed*; an attested truth is favored-not-privileged (F398); absolute truth is the unreached asymptote (chapter N, F680; the ceiling F552; held-open F394; the unreachable → the expert F282); absence of attestation is **not** falsity. This is the no-magic discipline (F640) stated as a law.
+
+**The second deliverable — context-aware NPCs + an aware simulated world** [F687]. The grounded world-kernel is, capability-for-capability, the NPC/simulation substrate gen1 LLMs cannot be: grounded-in-lore (F663), **can't-hallucinate** (the chord, F658 — the structural cure for non-canon confabulation), asks-at-a-gap (F661), grows-by-play but holds deliberate mysteries (F672/F682/F674), couples-worlds (F683/F684), truth-filtered (F686), GPU-free on the edge (F628; a town = a fleet of etak-selves, F638/F651). **Honest guard** (AI is not a substrate — the user's stance): "aware" = *structurally* context-aware, never phenomenally conscious; the NPCs are puppets / player-piano transducers; the world *models* awareness, it does not possess it.
+
+Backlinks: `R-RBS-LM-FINDING_{682,683,684,685,686,687,688}_*.md`. *Research trail followed; nothing forgotten; landed-where.*
+
 
 ## How to cite this notebook
 
