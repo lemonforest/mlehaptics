@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from srmech.amsc.laplacian import dense_matvec_complex
+
 OPERATION_NAME = "sinc_interp"
 CLASS_COMPOSITION = ("L", "K")
 PERFORMANCE_HINT = "small-D-one-shot"
@@ -74,7 +76,7 @@ def op(signal, sample_indices, target_indices, *, D: int = 8192):
     else:
         t_q_arr = t_q
     K = np.sinc((t_q_arr[:, None] - t_s[None, :]) / T)
-    out = K @ y
+    out = dense_matvec_complex(K, y)  # K real sinc, y complex IQ → complex matvec
     if t_q.ndim == 0:
         return out[0]
     return out

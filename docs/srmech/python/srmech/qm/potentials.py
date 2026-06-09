@@ -15,7 +15,7 @@ from __future__ import annotations
 import numpy as np
 from typing import Tuple
 
-from srmech.amsc.laplacian import hermitian_eigendecompose
+from srmech.amsc.laplacian import dense_matmul_complex, hermitian_eigendecompose
 
 
 def hydrogen_radial(
@@ -127,7 +127,7 @@ def harmonic_oscillator_hamiltonian(
         Hermitian ``(n_dim, n_dim)`` Hamiltonian matrix.
     """
     a, a_dagger = harmonic_oscillator_ladder(n_dim, omega)
-    return omega * (a_dagger @ a + 0.5 * np.eye(n_dim, dtype=complex))
+    return omega * (dense_matmul_complex(a_dagger, a) + 0.5 * np.eye(n_dim, dtype=complex))
 
 
 __all__ = [

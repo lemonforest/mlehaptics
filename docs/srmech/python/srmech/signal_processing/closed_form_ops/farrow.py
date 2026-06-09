@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from srmech.amsc.laplacian import dense_dot_real
+
 OPERATION_NAME = "farrow"
 CLASS_COMPOSITION = ("N",)
 PERFORMANCE_HINT = "single-token-fast"
@@ -81,6 +83,6 @@ def op(signal, *, mu: float = 0.0, D: int = 8192):
         # Mixer: y = sum_k mu^k * (C[k] dot x)
         y = 0.0
         for k in range(4):
-            y += (mu ** k) * (_FARROW_LAGRANGE_CUBIC[k] @ x)
+            y += (mu ** k) * dense_dot_real(_FARROW_LAGRANGE_CUBIC[k], x)
         out[i] = y
     return out

@@ -21,6 +21,8 @@ from typing import List, Optional
 
 import numpy as np
 
+from srmech.amsc.laplacian import dense_matmul_real
+
 OPERATION_NAME = "vector_quantisation"
 CLASS_COMPOSITION = ("E", "M", "B")
 PERFORMANCE_HINT = "shallow-cascade-codebook-amortise"
@@ -78,6 +80,6 @@ def op(
     # |x - c|^2 = |x|^2 - 2 x.c + |c|^2
     x_sq = np.sum(vec * vec, axis=1)[:, None]
     c_sq = np.sum(cb * cb, axis=1)[None, :]
-    cross = vec @ cb.T
+    cross = dense_matmul_real(vec, cb.T)
     dists = x_sq - 2.0 * cross + c_sq
     return np.argmin(dists, axis=1)

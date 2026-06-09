@@ -40,6 +40,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from srmech.amsc.laplacian import dense_matmul_complex
+
 from srmech.amsc import rational as _srn
 
 
@@ -290,7 +292,7 @@ def ckm_unitarity_residual(V: np.ndarray) -> float:
     Canonical SSoT: PDG review §12.1.
     """
     I = np.eye(V.shape[0], dtype=complex)
-    return float(np.linalg.norm(V @ V.conj().T - I))
+    return float(np.linalg.norm(dense_matmul_complex(V, V.conj().T) - I))
 
 
 __all__ = [

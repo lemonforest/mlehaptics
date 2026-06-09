@@ -8,6 +8,20 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc26] - 2026-06-08
+
+**The matmul-kernel phase, batch 11 — the genuine-code tail of the dense-matmul migration (numpy-math `matmul` 60 → 55; #928).** Five remaining genuine dense-matmul *code* sites (as opposed to docstring mentions or distinct ops) route onto the cascade helpers:
+
+- **`vector_quantisation`** — the codebook cross-term `vec·cbᵀ` (both `float64`) → `dense_matmul_real`.
+- **`sinc_interp`** — the Whittaker-Shannon `K·y`, where `K` is the real sinc matrix but **`y` is `complex128`** (IQ signal) → `dense_matvec_complex` (genuinely complex — routing through the real helper would have dropped the imaginary part).
+- **`farrow`** — the Lagrange fractional-delay tap `C[k]·x` (real 4-tap dot) → `dense_dot_real`.
+- **`qm.potentials`** — the harmonic-oscillator number operator `a†·a` (complex ladder ops) → `dense_matmul_complex`.
+- **`qm.sm`** — the CKM-unitarity check `V·Vᴴ` (complex) → `dense_matmul_complex`.
+
+**numpy-math ratchet `matmul` 60 → 55.** Pure Python-tier; no C change, ABI stays 3. No new public symbols. This essentially reaches the **dense-matmul-migration floor**: of the remaining ~55, ~16 are docstring / comment / ToolEntry-summary `@` *mentions* (a cosmetic `·` reword sweep) and ~25 are **distinct ops** needing their own cascades (`np.convolve`, `np.correlate`, `np.kron`, `np.outer`, `np.einsum`). Values bit-preserved; the vector-quant / sinc / farrow / harmonic-oscillator / CKM suites pass unchanged. The `laplacian` Schur `L_pi·X` is deferred (in-helper, shape-polymorphic — its own pass).
+
+SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
 ## [0.7.5rc25] - 2026-06-08
 
 **The matmul-kernel phase, batch 10 — the real DSP `closed_form_ops` cluster (numpy-math `matmul` 75 → 60; #928).** Fifteen contraction sites across the closed-form signal-processing reference ops route onto the cascade helpers:
