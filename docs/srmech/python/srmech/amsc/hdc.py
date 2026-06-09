@@ -1482,7 +1482,8 @@ def loop_inv(x):
     arr = np.asarray(x, dtype=float)
     _reject_hd_block_misuse(arr, "loop_inv")
     arr = _as_loop(x, "loop_inv")
-    nsq = float(np.dot(arr, arr))
+    from srmech.amsc.laplacian import dense_dot_real  # local: numpy-absent-safe (§22)
+    nsq = dense_dot_real(arr, arr)
     assert nsq > 0.0, "loop_inv: zero vector has no inverse (Moufang division)"
     native = _try_native_loop_inv(arr)
     if native is not None:
@@ -1563,8 +1564,9 @@ def g2_three_form(x, y, z):
     native = _try_native_g2_three_form(xa, ya, za)
     if native is not None:
         return native
+    from srmech.amsc.laplacian import dense_dot_real  # local: numpy-absent-safe (§22)
     yz = cross7(ya, za)
-    return float(np.dot(xa, yz))
+    return dense_dot_real(xa, yz)
 
 
 def loop_bind_hd(x, y):
@@ -1642,11 +1644,12 @@ def loop_inv_hd(x):
     native = _try_native_loop_inv_hd(a_)
     if native is not None:
         return native
+    from srmech.amsc.laplacian import dense_dot_real  # local: numpy-absent-safe (§22)
     xb = a_.reshape(-1, LOOP_DIM)
     out = []
     for k in range(xb.shape[0]):
         blk = xb[k]
-        nsq = float(np.dot(blk, blk))
+        nsq = dense_dot_real(blk, blk)
         assert nsq > 0.0, (
             f"loop_inv_hd: block {k} is the zero vector (no Moufang inverse)")
         out.append(_loop_conj_raw(blk) / nsq)

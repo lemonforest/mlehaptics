@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc24] - 2026-06-08
+
+**The matmul-kernel phase, batch 9 — the real "Minkowski + real-dot" sweep (numpy-math `matmul` 86 → 75; #928).** Eleven real-typed contraction sites across `qm` and `amsc` route onto the real cascade helpers:
+
+- **`qm.relativistic`** (3) — the `k_μ = η_{μν} k^ν` lowering matvec (`eta @ k`), the Klein-Gordon `⟨k_spatial, k_spatial⟩` dispersion dot, and the Lorentz-invariant `k² = kᵀ η k` bilinear → `dense_matvec_real` / `dense_dot_real`.
+- **`qm.propagators`** (1) — the photon-propagator gauge-term `eta @ k` lowering matvec → `dense_matvec_real`.
+- **`amsc.harmonics`** (3) — the `_spectral_scores` energy / mirror / three-cycle symmetry probes (`⟨x,x⟩`, `⟨x,x[::-1]⟩`, `⟨x,roll(x)⟩`), each an explicit Class-L inner product → `dense_dot_real`.
+- **`amsc.hdc`** (3) — the Moufang-inverse norm² gates in `loop_inv` / `loop_inv_hd` (per-block) and the `g2_three_form` associator `⟨x, y×z⟩` → `dense_dot_real`.
+
+**numpy-math ratchet `matmul` 86 → 75.** Pure Python-tier; no C change, ABI stays 3. No new public symbols (reuses the rc20/rc21 helpers). The `amsc` sites import `dense_dot_real` **function-locally** so `harmonics`/`hdc` stay numpy-absent-safe (§22) — numpy is already loaded by the `np.asarray(…, dtype=float)` that precedes each dot. All values bit-preserved (the helpers route imag-free input through the complex kernel and drop the exactly-zero imaginary part); the qm-relativistic/propagator + hdc-loop + harmonic suites pass unchanged. The `np.outer` (k^μ k^ν) sites stay — a distinct op for a later batch.
+
+SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
 ## [0.7.5rc23] - 2026-06-08
 
 **The matmul-kernel phase, batch 8 — `qm.so8` onto the cascade, real + complex (numpy-math `matmul` 105 → 86; #928).** The g₂ / Spin(8) module's 17 contraction sites route through the cascade, split by dtype:
