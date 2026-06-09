@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from srmech.amsc.laplacian import elementwise_hypot
+
 from .viterbi import op as viterbi_op
 
 OPERATION_NAME = "mlse"
@@ -90,7 +92,7 @@ def op(
         out = np.zeros(T, dtype=np.int64)
         for t in range(T):
             _d = obs[t] - taps[0] * alpha
-            d = np.hypot(_d.real, _d.imag)  # |z| = hypot(real,imag) (no abs())
+            d = elementwise_hypot(_d.real, _d.imag)  # |z| = hypot(real,imag) (no abs())
             out[t] = int(np.argmin(d))
         return out
 

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from srmech.amsc.laplacian import dense_matvec_complex
+from srmech.amsc.laplacian import dense_matvec_complex, elementwise_hypot
 
 OPERATION_NAME = "fsk"
 CLASS_COMPOSITION = ("N", "I")
@@ -82,7 +82,7 @@ def op(
         for i in range(n_syms):
             window = signal[i * n : (i + 1) * n]
             _c = dense_matvec_complex(tones, np.conj(window))
-            corrs = np.hypot(_c.real, _c.imag)  # |z| = hypot(real,imag) (no abs())
+            corrs = elementwise_hypot(_c.real, _c.imag)  # |z| = hypot(real,imag) (no abs())
             out[i] = np.argmax(corrs)
         return out
 

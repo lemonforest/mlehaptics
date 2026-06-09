@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from srmech.amsc.laplacian import elementwise_hypot
+
 OPERATION_NAME = "ofdm"
 CLASS_COMPOSITION = ("I", "L", "K")
 PERFORMANCE_HINT = "shallow-cascade-subcarrier-amortise"
@@ -78,7 +80,7 @@ def op(
             if channel is not None:
                 # Class L equaliser: one-tap per subcarrier divide by H_k.
                 # |z| = hypot(real,imag) (no abs())
-                X = X / np.where(np.hypot(channel.real, channel.imag) > 1e-12, channel, 1.0)
+                X = X / np.where(elementwise_hypot(channel.real, channel.imag) > 1e-12, channel, 1.0)
             out[i] = X
         return out
 

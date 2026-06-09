@@ -1105,6 +1105,18 @@ def _register_primitive_class_tools() -> None:
             returns=R("np.ndarray",
                       "float64 (real ops) or complex128 (exp_i)"),
         ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.elementwise_hypot",
+            owner="srmech", category="laplacian",
+            summary="Array Euclidean magnitude sqrt(a_i^2 + b_i^2) via the "
+                    "Class-N hypot cascade (per-element rational.hypot; native "
+                    "srmech_rational_sqrt-dispatched). The numpy-free |z| = "
+                    "sqrt(re^2+im^2) op the DSP modules route through — numpy "
+                    "carries the array only. Golub & Van Loan §1.1.",
+            parameters=(P("a", "np.ndarray", True, "real array (e.g. z.real)"),
+                        P("b", "np.ndarray", True, "same-shape real (e.g. z.imag)")),
+            returns=R("np.ndarray", "float64 sqrt(a_i^2 + b_i^2)"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class J — prime-factorisation / period
