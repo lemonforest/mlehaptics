@@ -43,6 +43,7 @@ integer bundle/accumulate) ∘ a final **Class C** rotation (the FPU lift).
 """
 from __future__ import annotations
 
+import functools
 from typing import List, Optional, Sequence, Tuple
 
 __all__ = ["exact_dft", "exact_idft", "lift", "ExactSpectrum"]
@@ -84,6 +85,103 @@ def _try_int_pairs(signal: Sequence) -> Optional[Tuple[List[int], List[int]]]:
 def _is_pow2(n: int) -> bool:
     """True iff ``n`` is a positive power of two (the Class-J radix test)."""
     return n >= 1 and (n & (n - 1)) == 0
+
+
+def _poly_mul(a: List[int], b: List[int]) -> List[int]:
+    """Integer polynomial product (coefficients low→high)."""
+    out = [0] * (len(a) + len(b) - 1)
+    for i, ai in enumerate(a):
+        if ai:
+            for j, bj in enumerate(b):
+                out[i + j] += ai * bj
+    return out
+
+
+def _poly_exact_div(num: List[int], den: List[int]) -> List[int]:
+    """Exact integer polynomial division ``num / den`` (den a monic factor)."""
+    num = num[:]
+    q = [0] * (len(num) - len(den) + 1)
+    for i in range(len(q) - 1, -1, -1):
+        c = num[i + len(den) - 1] // den[-1]
+        q[i] = c
+        if c:
+            for j, dj in enumerate(den):
+                num[i + j] -= c * dj
+    return q
+
+
+@functools.lru_cache(maxsize=64)
+def _cyclotomic_reduction(n: int) -> Tuple[Tuple[Tuple[int, ...], ...], int]:
+    """The reduction table + degree for the cyclotomic ring ``ℤ[ζ_N]``.
+
+    Computes ``Φ_N`` from ``x^N - 1 = Π_{d|N} Φ_d`` (recursive exact integer
+    polynomial division — cyclotomic coefficients are integers) and builds the
+    table ``T`` where ``T[j]`` is ``ζ^j`` reduced to the power basis
+    ``{1, ζ, …, ζ^{d-1}}`` (``d = φ(N)``, the Euler totient = ``deg Φ_N``). Pure
+    integer arithmetic; cached per ``N`` (this is the general-``N`` substrate the
+    power-of-two negacyclic path specialises). For a power-of-two ``N`` this
+    yields exactly the negacyclic ``ζ^{N/2} = -1`` basis (``d = N/2``).
+    """
+    divisors = [d for d in range(1, n + 1) if n % d == 0]
+    phis: dict = {}
+    for d in divisors:
+        if d == 1:
+            phis[1] = [-1, 1]                 # Φ_1 = x - 1
+            continue
+        xnm1 = [0] * (d + 1)                  # x^d - 1
+        xnm1[0] = -1
+        xnm1[d] = 1
+        prod = [1]
+        for e in divisors:
+            if e < d and d % e == 0:
+                prod = _poly_mul(prod, phis[e])
+        phis[d] = _poly_exact_div(xnm1, prod)
+    phi = phis[n]
+    deg = len(phi) - 1                        # φ(N)
+    red_top = [-phi[i] for i in range(deg)]   # ζ^d = -(φ_0 + φ_1 ζ + … + φ_{d-1} ζ^{d-1})
+    table: List[Tuple[int, ...]] = []
+    cur = [0] * deg
+    cur[0] = 1                                # ζ^0 = 1
+    for _ in range(n):
+        table.append(tuple(cur))
+        carry = cur[deg - 1]
+        nxt = [0] * deg
+        for i in range(deg - 1, 0, -1):       # multiply by ζ (shift up)
+            nxt[i] = cur[i - 1]
+        if carry:
+            for i in range(deg):              # reduce ζ^d via Φ_N
+                nxt[i] += carry * red_top[i]
+        cur = nxt
+    return tuple(table), deg
+
+
+def _exact_dft_core_general(re: List[int], im: List[int], n: int,
+                            *, inverse: bool = False) -> ExactSpectrum:
+    """General-``N`` exact DFT over ``ℤ[ζ_N]`` (any length ≥ 2; pure integer).
+
+    For non-power-of-two ``N`` the cyclotomic ring does not collapse to the
+    simple negacyclic ``ζ^{N/2}=-1`` rule, so each ``ζ^{nk mod N}`` is reduced via
+    the :func:`_cyclotomic_reduction` table to the length-``φ(N)`` power basis and
+    accumulated. ``X[k] = Σ_n signal[n] · ζ^{±nk mod N}``. Pure-Python
+    arbitrary-precision (no fixed-width C twin) — the ``bignum_reference`` shape.
+    """
+    table, deg = _cyclotomic_reduction(n)
+    spectrum: ExactSpectrum = []
+    for k in range(n):
+        ar = [0] * deg
+        ai = [0] * deg
+        for idx in range(n):
+            j = ((idx * k) % n) if not inverse else ((-idx * k) % n)
+            t = table[j]
+            rv = re[idx]
+            iv = im[idx]
+            for i in range(deg):
+                ti = t[i]
+                if ti:
+                    ar[i] += rv * ti
+                    ai[i] += iv * ti
+        spectrum.append((ar, ai))
+    return spectrum
 
 
 def _exact_dft_core_native(re: List[int], im: List[int], n: int,
@@ -141,13 +239,17 @@ def _exact_dft_core_native(re: List[int], im: List[int], n: int,
 def _exact_dft_core(re: List[int], im: List[int], *, inverse: bool = False) -> ExactSpectrum:
     """The exact integer DFT: ``X[k] = Σ_n signal[n] · ζ^{±nk mod N}``.
 
-    Pure integer add/subtract — no floats. ``ζ = e^{-2πi/N}``, ``ζ^{N/2} = -1``
-    (the only "trig" is a sign flip, Class K). Dispatches to the native-C int64
-    twin when available and int64-safe, else runs the arbitrary-precision Python
-    bignum loop. Returns ``N`` cyclotomic-integer coefficients, each a
-    ``(real_vec, imag_vec)`` pair of length ``N/2``. Bit-for-bit deterministic.
+    Pure integer add/subtract — no floats. ``ζ = e^{-2πi/N}``. For a power-of-two
+    ``N`` the ring is negacyclic (``ζ^{N/2} = -1``, the only "trig" is a Class-K
+    sign flip) and this dispatches to the native-C int64 twin when int64-safe,
+    else the pure-Python negacyclic loop. For any other ``N`` it falls to the
+    general cyclotomic path :func:`_exact_dft_core_general` (Φ_N reduction over
+    the length-``φ(N)`` power basis). Returns ``N`` cyclotomic-integer
+    coefficients, each a ``(real_vec, imag_vec)`` pair. Bit-for-bit deterministic.
     """
     n = len(re)
+    if not _is_pow2(n):
+        return _exact_dft_core_general(re, im, n, inverse=inverse)
     native = _exact_dft_core_native(re, im, n, inverse)
     if native is not None:
         return native
@@ -181,13 +283,17 @@ def _lift_spectrum(spectrum: ExactSpectrum, n: int, *, scale: int = 1) -> List[c
     """
     from srmech.amsc.rational import cexp, pi_cascade_digits
 
-    h = n // 2
+    if not spectrum:
+        return []
+    # Basis degree d: N/2 for the power-of-two negacyclic ring, φ(N) in general.
+    # Inferred from the coefficient-vector length so the lift handles both.
+    deg = len(spectrum[0][0])
     two_pi = 2.0 * float(pi_cascade_digits(40))
-    roots = [cexp(-two_pi * j / n) for j in range(h)]  # e^{-2πi·j/N}
+    roots = [cexp(-two_pi * j / n) for j in range(deg)]  # e^{-2πi·j/N}
     out: List[complex] = []
     for (xr, xi) in spectrum:
         acc = 0j
-        for j in range(h):
+        for j in range(deg):
             acc += complex(xr[j], xi[j]) * roots[j]
         out.append(acc / scale if scale != 1 else acc)
     return out
@@ -196,16 +302,18 @@ def _lift_spectrum(spectrum: ExactSpectrum, n: int, *, scale: int = 1) -> List[c
 def exact_dft(signal: Sequence, *, inverse: bool = False) -> ExactSpectrum:
     """Exact ``ℤ[ζ_N]`` integer spectrum of an integer / Gaussian-integer signal.
 
-    ``signal`` must be an all-integer (or Gaussian-integer) sequence of
-    **power-of-two** length ``N ≥ 2``. Returns the spectrum as ``N``
+    ``signal`` must be an all-integer (or Gaussian-integer) sequence of length
+    ``N ≥ 2`` (**any** ``N`` — power-of-two or not). Returns the spectrum as ``N``
     cyclotomic-integer coefficients (an :data:`ExactSpectrum`), each a
-    ``(real_vec, imag_vec)`` integer pair of length ``N/2`` — **no floats**.
-    ``inverse=True`` uses ``ζ^{-nk}`` (apply the ``1/N`` scale at :func:`lift`
-    time). Bit-for-bit deterministic; rides the native-C int64 twin when present.
+    ``(real_vec, imag_vec)`` integer pair of length ``φ(N)`` (``= N/2`` when ``N``
+    is a power of two) — **no floats**. ``inverse=True`` uses ``ζ^{-nk}`` (apply
+    the ``1/N`` scale at :func:`lift` time). Bit-for-bit deterministic; the
+    power-of-two case rides the native-C int64 twin, the general case uses the
+    arbitrary-precision Python cyclotomic path.
 
     Raises ``ValueError`` for non-integral input (use
     :func:`~srmech.amsc.cascade.spectral_cascades.dft` for float signals) or
-    non-power-of-two length (general-``N`` is a follow-up).
+    ``N < 2``.
     """
     pairs = _try_int_pairs(signal)
     if pairs is None:
@@ -215,10 +323,10 @@ def exact_dft(signal: Sequence, *, inverse: bool = False) -> ExactSpectrum:
         )
     re, im = pairs
     n = len(re)
-    if n < 2 or not _is_pow2(n):
+    if n < 2:
         raise ValueError(
-            f"exact_dft: power-of-two length >= 2 required (cyclotomic Φ_N = "
-            f"x^(N/2)+1); got N={n}. General-N is a follow-up; use dft()."
+            f"exact_dft: length >= 2 required; got N={n}. Use dft() for the "
+            f"trivial N<2 case."
         )
     return _exact_dft_core(re, im, inverse=inverse)
 
@@ -248,16 +356,18 @@ def _exact_transform(signal: Sequence, *, inverse: bool = False) -> Optional[Lis
 
     The routing helper behind ``dft`` / ``fft``: returns the lifted
     ``List[complex]`` (exact integer spectrum + one FPU lift) when ``signal`` is
-    an all-integer / Gaussian-integer power-of-two sequence of length ``N ≥ 2``;
-    otherwise ``None`` (caller runs the float ``cexp`` path). ``inverse=True``
-    applies the ``1/N`` normalisation at lift time.
+    an all-integer / Gaussian-integer sequence of length ``N ≥ 2`` (**any** ``N``
+    — the power-of-two case rides the negacyclic / native-C path, the general
+    case the cyclotomic ``ℤ[ζ_N]`` path); otherwise ``None`` (caller runs the
+    float ``cexp`` path). ``inverse=True`` applies the ``1/N`` normalisation at
+    lift time.
     """
     pairs = _try_int_pairs(signal)
     if pairs is None:
         return None
     re, im = pairs
     n = len(re)
-    if n < 2 or not _is_pow2(n):          # N=1 has no cyclotomic basis; non-pow2 is a follow-up
+    if n < 2:                             # N < 2 is trivial — let the float path handle it
         return None
     spectrum = _exact_dft_core(re, im, inverse=inverse)
     return _lift_spectrum(spectrum, n, scale=(n if inverse else 1))

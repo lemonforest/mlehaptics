@@ -8,6 +8,17 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc30] - 2026-06-09
+
+**The exact DFT goes general-``N`` — every integer signal, not just power-of-two; #928.** rc28/rc29 handled the power-of-two case via the negacyclic ring (``ζ^{N/2} = -1``). rc30 extends exact-until-rotation to **any** length via the full cyclotomic ring ``ℤ[ζ_N] = ℤ[x]/Φ_N(x)``:
+
+- A pure-integer cyclotomic engine computes ``Φ_N`` (from ``x^N - 1 = Π_{d|N} Φ_d``, recursive exact integer polynomial division) and a reduction table mapping each ``ζ^j`` to the length-``φ(N)`` power basis (cached per ``N``). Each twiddle ``ζ^{nk mod N}`` is reduced and accumulated — still **no floats**, one FPU lift at the end.
+- **`exact_dft` / `exact_idft` now accept any ``N ≥ 2``** (the spectrum coefficient vectors have length ``φ(N)``; ``= N/2`` for power-of-two ``N``). **`lift`** infers the basis degree from the spectrum, so it handles both. **`dft` / `fft`** route all integer / Gaussian-integer signals (any ``N``) through the exact path — the power-of-two case keeps the fast negacyclic / native-C route, the general case uses the arbitrary-precision Python cyclotomic path.
+
+**No new public surface, no ratchet movement.** Python-only (the general path has no fixed-width C twin → the ``bignum_reference`` shape; the op stays ``c_dispatched`` for its power-of-two C fast path). ABI 3. The numpy-math ratchet is untouched (no numpy). The rc29 ``exact_dft`` non-power-of-two *rejection* test and the rc28 non-power-of-two *not-exact-routed* test are updated to the new general-``N`` contract (an intentional behaviour change). Performance note: the general (non-power-of-two) path is ``O(N²·φ(N))`` integer work — exactness costs the ``φ(N)`` factor; the float ``cexp`` path still serves float inputs.
+
+SSoT: issue #928; `test_exact_dft_general_n_rc30.py`.
+
 ## [0.7.5rc29] - 2026-06-09
 
 **The exact ℤ[ζ_N] spectrum goes public, with a native-C twin; #928.** rc28 introduced the exact cyclotomic-integer DFT as a *private* engine behind dft/fft. rc29 promotes it to a first-class introspected op and gives it a C peer (the "every primitive earns a C surface" commitment):
