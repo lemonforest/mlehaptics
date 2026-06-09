@@ -760,37 +760,49 @@ def _register_primitive_class_tools() -> None:
                           "None ⇒ unit weights")),
             returns=R("np.ndarray", "n × n dense matrix"),
         ),
-        # §17 U1 (rc43): the text→graph stage primitives — the K1 chain's
-        # missing front. `tokenize → cooccurrence_edges → dense_laplacian → …`
-        # is now authorable end-to-end; these two retire the hand-rolled
-        # re.findall + Counter() co-occurrence idiom. Both pure-Python.
+        # §40 (rc50): the text→graph stage primitives — the K1 chain's missing
+        # front, now in srmech.amsc.text (ingestion module; laplacian stays
+        # purely spectral). `tokenize → cooccurrence_edges → dense_laplacian → …`
+        # authorable end-to-end; retires the hand-rolled Counter() idiom. The
+        # rc43 versions FAILED the §40 acceptance bar 3/3 (ASCII tokenize /
+        # silent vocab cap / no doc-boundary reset) — rc50 fixes all three.
+        # Both pure-Python.
         ToolEntry(
-            name="srmech.amsc.laplacian.tokenize", owner="srmech",
-            category="laplacian",
-            summary="Segment text into lowercased tokens (Class B/G "
-                    "text-segmentation): apply a letter-led word pattern, drop "
-                    "tokens shorter than min_len or in stopwords. The text→tokens "
+            name="srmech.amsc.text.tokenize", owner="srmech",
+            category="text",
+            summary="Segment text into casefolded Unicode content tokens (Class "
+                    "B/G text-segmentation; §40/F698): keep runs of Unicode "
+                    "letter|mark codepoints (so café / Москва / 日本語 survive, "
+                    "NOT an ASCII word pattern), casefold, drop length<2 or "
+                    "stoplist words. NFC-normalises by default. The text→tokens "
                     "front of the K1 text→graph→spectral chain.",
             parameters=(P("text", "str", True),
-                        P("stopwords", "list", False,
-                          "tokens to drop (case-insensitive); None keeps all"),
-                        P("min_len", "int", False, "minimum token length (default 2)"),
-                        P("pattern", "Optional[str]", False,
-                          "token regex; default a letter-led word")),
-            returns=R("list[str]", "lowercased token stream"),
+                        P("stoplist", "list", False,
+                          "function words to drop (casefolded); default "
+                          "DEFAULT_STOPLIST. None/empty = raw mode"),
+                        P("unicode_normalize", "bool", False,
+                          "NFC-normalise text first (default True)")),
+            returns=R("list[str]", "casefolded Unicode content-token stream"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.cooccurrence_edges", owner="srmech",
-            category="laplacian",
-            summary="Weighted co-occurrence graph from a token stream (Class-L "
-                    "precursor): keep the vocab_size most-frequent tokens as "
-                    "nodes 0..n-1, count unordered co-occurring pairs within a "
-                    "sliding window. Returns (n, edges, weights) for "
-                    "dense_laplacian; retires the hand-rolled Counter() idiom.",
-            parameters=(P("tokens", "list", True),
-                        P("window", "int", False, "co-occurrence window (default 5)"),
+            name="srmech.amsc.text.cooccurrence_edges", owner="srmech",
+            category="text",
+            summary="Weighted co-occurrence graph from documents (Class-L "
+                    "precursor; §40): slide a window over EACH document (resets "
+                    "at every document boundary — never crosses one), count "
+                    "unordered co-occurring vocab pairs. vocab is the FULL ranked "
+                    "vocabulary by default (no silent cap — F708 fix); a top-K "
+                    "vocab_size cap is an explicit, logged opt-in. Returns "
+                    "(n, edges, weights) for dense_laplacian; retires Counter().",
+            parameters=(P("docs", "list", True,
+                          "Sequence[Sequence[str]] (one per document; window "
+                          "resets per doc) or a flat token Sequence[str]"),
+                        P("window", "int", False, "co-occurrence window (default 2)"),
+                        P("vocab", "list", False,
+                          "explicit ranked vocab (index=position); None builds "
+                          "the full vocab from frequency"),
                         P("vocab_size", "int", False,
-                          "keep this many most-frequent tokens (default 1000)")),
+                          "explicit top-K cap (logged); None = no cap (all)")),
             returns=R("tuple[int, list[tuple[int, int]], list[int]]",
                       "(n nodes, edge list, integer co-occurrence counts)"),
         ),

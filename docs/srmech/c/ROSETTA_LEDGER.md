@@ -579,6 +579,18 @@ decrements it).
   `describe_class`, now `generate_class_descriptor` — are out of that scope, same
   as their peers). Class E ∘ F ∘ H; numpy-free; no C twin (pure descriptor
   render). ABI 3.
+- **rc50 (done) — `amsc.text.{tokenize, cooccurrence_edges}`: the §40 R3-U1
+  acceptance fix (was SHIPPED-but-FAILING 3/3; F722).** The rc43 text→graph
+  leaves shipped in `laplacian` but failed §40 on Unicode (ASCII `\w+` truncated
+  café→caf, dropped Cyrillic/CJK) / silent `vocab_size=1000` cap (the F708
+  pre-encode quantization bug as a default) / no document-boundary window reset.
+  rc50 **relocates** them to a dedicated ingestion module `srmech.amsc.text`
+  (laplacian stays purely spectral) and fixes all three: Unicode-aware
+  (`unicodedata` L/M + casefold), full vocab by default (cap = explicit logged
+  opt-in), `docs: Sequence[Sequence[str]]` so the window resets per document.
+  The two `ToolEntry`s move `laplacian.* → text.*` and the two rosetta lines
+  re-point (`non_compute` bucket unchanged); `tools.total` stays 280 (relocation,
+  not a new op). Class B/G ∘ Class-L precursor; numpy-free; no C twin. ABI 3.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

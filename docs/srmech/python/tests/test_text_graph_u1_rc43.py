@@ -1,53 +1,67 @@
-"""v0.7.5rc43 — the text→graph stage primitives (§17 U1; RBS-LM #855 R3 U1).
+"""v0.7.5rc50 — text→graph stage primitives, §40 acceptance fix (supersedes rc43).
 
-`tokenize` (Class B/G text-segmentation) and `cooccurrence_edges` (Class-L
-precursor) are the only links the K1 presence-kernel build was missing between
-raw `text` and the already-shipped `dense_laplacian`. With them, K1 is an
-authorable composite end-to-end: `tokenize → cooccurrence_edges →
-dense_laplacian → eigendecompose → …`. Both pure-Python, numpy-free.
+The rc43 `tokenize` / `cooccurrence_edges` (shipped in `srmech.amsc.laplacian`)
+were SHIPPED but FAILED the RBS-LM §40 acceptance bar **3/3** (F722). rc50 moves
+them to a dedicated ingestion module `srmech.amsc.text` (laplacian stays purely
+spectral) and fixes all three:
 
-Validates: the tokenizer contract (lowercase / min_len / stopwords / custom
-pattern), the co-occurrence builder (vocab cap, window, integer weights, the
-`(n, edges, weights)` shape `dense_laplacian` consumes), the full K1 round-trip
-into the Laplacian eigvals, and that both ops are registered (ToolEntry + the
-`describe()` total bumped 274 → 277).
+1. **Unicode (F698)** — keep runs of Unicode letter|mark codepoints (café /
+   Москва / naïve / 日本語 survive), casefold; NOT an ASCII ``\\w+`` (which gave
+   ``['caf','na','ve']``).
+2. **No silent vocab cap (F708)** — the full ranked vocabulary by default; a
+   top-K cap is an explicit, logged caller opt-in (``vocab_size=``), never a
+   silent ``vocab_size=1000`` default.
+3. **Document-boundary window reset** — co-occurrence never crosses a document
+   boundary (``docs`` is a sequence of token-sequences; a flat list is one doc).
+
+Validates the corrected contract, the three acceptance criteria explicitly, the
+full K1 round-trip into the Laplacian eigvals, and that both ops are registered
+at the new ``srmech.amsc.text.*`` names (ToolEntry + ``describe()`` total = 280;
+relocation, not a new op, so the count is unchanged).
 """
 from __future__ import annotations
 
+import logging
+
 import pytest
 
-from srmech.amsc import laplacian
-from srmech.amsc.laplacian import tokenize, cooccurrence_edges
+from srmech.amsc import laplacian, text
+from srmech.amsc.text import DEFAULT_STOPLIST, cooccurrence_edges, tokenize
 
 
-# ── tokenize — Class B/G text-segmentation ───────────────────────────────────
+# ── tokenize — Class B/G Unicode text-segmentation ───────────────────────────
 
-def test_tokenize_lowercases_and_splits_on_default_pattern():
-    assert tokenize("The Cascade ROTATES at the end") == \
-        ["the", "cascade", "rotates", "at", "the", "end"]
-
-
-def test_tokenize_min_len_drops_short_tokens():
-    # the default pattern already requires >=2 chars (a letter + >=1 more), so
-    # single chars ("a", "I") never appear; min_len filters further on top of it.
-    assert tokenize("a chain is I am ok", min_len=2) == ["chain", "is", "am", "ok"]
-    assert tokenize("the cascade rotates", min_len=4) == ["cascade", "rotates"]  # "the"(3) dropped
-    # a single-char-capable pattern + min_len=1 keeps 1-char tokens
-    assert tokenize("a b cd", min_len=1, pattern=r"[A-Za-z0-9]+") == ["a", "b", "cd"]
+def test_tokenize_casefolds_and_splits():
+    assert tokenize("The Cascade ROTATES", stoplist=None) == \
+        ["the", "cascade", "rotates"]
 
 
-def test_tokenize_stopwords_are_case_insensitive():
-    out = tokenize("The cascade and THE chain", stopwords={"the", "and"})
-    assert out == ["cascade", "chain"]
+def test_tokenize_unicode_keeps_accents_cyrillic_cjk():
+    # §40 #1 / F698: the rc43 ASCII tokenizer gave ['caf','na','ve'] — every
+    # accented / non-Latin token truncated or dropped. The fix keeps them whole.
+    out = tokenize("café Москва naïve 日本語", stoplist=None)
+    assert out == ["café".casefold(), "Москва".casefold(), "naïve".casefold(),
+                   "日本語"]
 
 
-def test_tokenize_custom_pattern_is_group_safe():
-    # a pattern WITH a capture group must still yield whole matches (finditer/group(0))
-    assert tokenize("aa-bb cc", pattern=r"([a-z]+)") == ["aa", "bb", "cc"]
+def test_tokenize_drops_short_and_keeps_internal_apostrophe():
+    assert tokenize("a I don't go", stoplist=None) == ["don't", "go"]  # 'a','i' < 2 dropped
 
 
-def test_tokenize_default_pattern_keeps_internal_hyphen_underscore():
-    assert tokenize("ephemerides-spectral srmech_v0") == ["ephemerides-spectral", "srmech_v0"]
+def test_tokenize_default_stoplist_drops_function_words():
+    # default stoplist = DEFAULT_STOPLIST (function words carry no association mass)
+    assert tokenize("the cascade and the chain") == ["cascade", "chain"]
+    assert "the" in DEFAULT_STOPLIST and "throughout" in DEFAULT_STOPLIST  # F714 preposition
+
+
+def test_tokenize_custom_stoplist_extends():
+    out = tokenize("cascade chain rotates", stoplist={"chain"})
+    assert out == ["cascade", "rotates"]
+
+
+def test_tokenize_nfc_normalises_by_default():
+    # decomposed 'e' + combining acute → NFC precomposed 'é' (one token, canonical)
+    assert tokenize("café", stoplist=None) == ["café"]
 
 
 @pytest.mark.parametrize("bad", [123, None, b"bytes", ["already", "tokens"]])
@@ -56,75 +70,108 @@ def test_tokenize_rejects_non_str(bad):
         tokenize(bad)
 
 
-@pytest.mark.parametrize("bad", [0, -1, 1.5, "2"])
-def test_tokenize_rejects_bad_min_len(bad):
-    with pytest.raises((ValueError, TypeError)):
-        tokenize("text", min_len=bad)
-
-
 # ── cooccurrence_edges — Class-L precursor ───────────────────────────────────
 
 def test_cooccurrence_returns_n_edges_weights_for_dense_laplacian():
-    toks = ["a", "b", "a", "c"]
-    n, edges, weights = cooccurrence_edges(toks, window=1, vocab_size=10)
-    assert n == 3                              # 3 distinct tokens → 3 nodes
+    n, edges, weights = cooccurrence_edges(["a", "b", "a", "c"], window=1)
+    assert n == 3
     assert len(edges) == len(weights)
-    # every edge is an ordered (u < v) int pair within range
     for (u, v) in edges:
         assert isinstance(u, int) and isinstance(v, int) and 0 <= u < v < n
-    # weights are exact integer counts (floats are for the FPU lift; none here)
     assert all(isinstance(w, int) and not isinstance(w, bool) for w in weights)
 
 
 def test_cooccurrence_window_counts_repeated_pairs():
-    # "a b a b a" with window 1: pairs (a,b) occur 4× as adjacent neighbours
-    n, edges, weights = cooccurrence_edges(["a", "b", "a", "b", "a"], window=1, vocab_size=10)
+    n, edges, weights = cooccurrence_edges(["a", "b", "a", "b", "a"], window=1)
     assert n == 2 and edges == [(0, 1)] and weights == [4]
 
 
-def test_cooccurrence_vocab_cap_truncates_by_frequency():
-    toks = ["x"] * 5 + ["y"] * 3 + ["z"] * 1     # x,y kept at vocab_size=2; z dropped
-    n, edges, weights = cooccurrence_edges(toks, window=2, vocab_size=2)
-    assert n == 2
+# ── §40 #2 — no silent vocab cap (F708) ──────────────────────────────────────
+
+def test_cooccurrence_no_silent_vocab_cap_by_default():
+    words = [f"w{i}" for i in range(1500)]
+    n, _, _ = cooccurrence_edges(words)            # default: keep ALL (no cap)
+    assert n == 1500
+
+
+def test_cooccurrence_cap_is_explicit_opt_in_and_logged(caplog):
+    words = [f"w{i}" for i in range(1500)]
+    with caplog.at_level(logging.INFO, logger="srmech.amsc.text"):
+        n, _, _ = cooccurrence_edges(words, vocab_size=1000)
+    assert n == 1000
+    assert any("dropped" in r.message for r in caplog.records)  # the drop is LOGGED
+
+
+def test_cooccurrence_explicit_vocab_is_used_verbatim():
+    n, edges, _ = cooccurrence_edges([["b", "a", "b"]], window=2, vocab=["b", "a"])
+    assert n == 2                                   # caller's vocab order → b=0, a=1
+    assert edges == [(0, 1)]
+
+
+# ── §40 #3 — document-boundary window reset ──────────────────────────────────
+
+def test_cooccurrence_window_resets_at_document_boundaries():
+    # two docs: a wide window must NOT bridge the b↔c boundary
+    n2, e2, _ = cooccurrence_edges([["a", "b"], ["c", "d"]], window=5)
+    assert e2 == [(0, 1), (2, 3)]                   # no cross-doc (1,2) edge
+    # the SAME tokens as one document DO produce the bridging edges
+    n1, e1, _ = cooccurrence_edges([["a", "b", "c", "d"]], window=5)
+    assert (1, 2) in e1 and (1, 2) not in e2
+
+
+def test_cooccurrence_flat_list_is_one_document():
+    # a flat Sequence[str] is treated as a single document (back-compat path)
+    n, edges, _ = cooccurrence_edges(["a", "b", "c"], window=5)
+    assert n == 3 and (0, 2) in edges               # one doc → a–c co-occur
 
 
 def test_cooccurrence_empty_and_singleton_are_safe():
-    assert cooccurrence_edges([], window=2, vocab_size=5) == (0, [], [])
-    assert cooccurrence_edges(["solo"], window=2, vocab_size=5) == (1, [], [])
+    assert cooccurrence_edges([], window=2) == (0, [], [])
+    assert cooccurrence_edges(["solo"], window=2) == (1, [], [])
 
 
-@pytest.mark.parametrize("window,vocab", [(0, 5), (-1, 5), (5, 0), (5, -1), (1.5, 5)])
-def test_cooccurrence_rejects_bad_params(window, vocab):
+def test_cooccurrence_rejects_raw_str():
+    with pytest.raises(TypeError):
+        cooccurrence_edges("not tokenized", window=2)
+
+
+@pytest.mark.parametrize("window,vsize", [(0, None), (-1, None), (1.5, None),
+                                          (5, 0), (5, -1), (5, 1.5)])
+def test_cooccurrence_rejects_bad_params(window, vsize):
     with pytest.raises((ValueError, TypeError)):
-        cooccurrence_edges(["a", "b"], window=window, vocab_size=vocab)
+        cooccurrence_edges(["a", "b"], window=window, vocab_size=vsize)
 
 
 # ── the K1 chain front: tokenize → cooccurrence_edges → dense_laplacian ───────
 
 def test_k1_round_trip_into_laplacian_eigvals():
-    text = ("The cascade rotates at the end. A cascade is a chain; "
-            "the chain rotates, the chain holds. Cascade end.")
-    toks = tokenize(text, stopwords={"the", "a", "is", "at", "an"}, min_len=2)
-    n, edges, weights = cooccurrence_edges(toks, window=3, vocab_size=64)
-    L = laplacian.dense_laplacian(n, edges, weights)      # consumes the triple directly
+    docs = [
+        tokenize("The cascade rotates at the end. A cascade is a chain."),
+        tokenize("The chain rotates, the chain holds. Cascade end."),
+    ]
+    n, edges, weights = cooccurrence_edges(docs, window=3)
+    L = laplacian.dense_laplacian(n, edges, weights)
     eigs = list(laplacian.jacobi_eigvals(L))
     assert len(eigs) == n
-    # a graph Laplacian is PSD with a near-zero smallest eigenvalue (the constant mode)
-    assert abs(eigs[0]) < 1e-9
+    assert abs(eigs[0]) < 1e-9                       # PSD, near-zero constant mode
     assert all(e >= -1e-9 for e in eigs)
 
 
-def test_ops_registered_in_all_and_laplacian_ops():
-    for name in ("tokenize", "cooccurrence_edges", "DEFAULT_TOKEN_PATTERN"):
-        assert name in laplacian.__all__
-    assert "tokenize" in laplacian.LAPLACIAN_OPS
-    assert "cooccurrence_edges" in laplacian.LAPLACIAN_OPS
+# ── registration: relocated to srmech.amsc.text, count unchanged (280) ───────
+
+def test_ops_in_text_all_and_gone_from_laplacian():
+    assert "tokenize" in text.__all__ and "cooccurrence_edges" in text.__all__
+    assert "DEFAULT_STOPLIST" in text.__all__
+    # laplacian is purely spectral again — the text ops are NOT there
+    assert "tokenize" not in laplacian.__all__
+    assert "cooccurrence_edges" not in laplacian.__all__
 
 
-def test_tool_entries_registered_and_total_bumped():
+def test_tool_entries_relocated_and_total_unchanged():
     from srmech import introspect
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.laplacian.tokenize" in names
-    assert "srmech.amsc.laplacian.cooccurrence_edges" in names
+    assert "srmech.amsc.text.tokenize" in names
+    assert "srmech.amsc.text.cooccurrence_edges" in names
+    assert "srmech.amsc.laplacian.tokenize" not in names      # relocated, not duplicated
     assert introspect.describe()["tools"]["total"] == 280
