@@ -151,6 +151,19 @@ _UFUNC = re.compile(
 # fallbacks; a deeper separate pass) and the docstring/ToolEntry-summary
 # `numpy.linalg.*` cross-reference MENTIONS (precise docs — left intact, not gamed).
 # Next: np.fft (n/axis handling) + np.linalg.svd/qr/eigvals + inv/pinv.
+#
+# rc28 EXACTIFIES the dft/fft cascade (no ratchet movement — counts unchanged).
+# Per the sharpened user direction ("don't use floats for bit-exact math, that's
+# what ints and complex are for; floats are for FPU lift"), the dft/fft cascade
+# now routes an all-integer / Gaussian-integer power-of-two signal through an
+# exact cyclotomic-integer engine (ℤ[ζ_N], ζ^{N/2}=-1 Class-K sign-flip → pure
+# integer add/subtract) with ONE FPU lift at the end — exact-until-rotation, MORE
+# faithful than a float FFT (which rounds every butterfly). This is the FIRST
+# exact cascade and a correction to rc27's "round-off-faithful is fine" framing
+# for the integer case. It adds NO numpy, NO public surface (private engine
+# srmech.amsc.cascade.exact_dft), so all three ceilings (linalg_fft/matmul/ufunc)
+# AND the rosetta python_only_irreducible debt bucket are untouched. Exposing the
+# exact ℤ[ζ_N] spectrum as a public op belongs with its C twin (a follow-up).
 # ---------------------------------------------------------------------------
 CEIL_LINALG_FFT = 122
 CEIL_MATMUL = 55
