@@ -8,6 +8,17 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc29] - 2026-06-09
+
+**The exact ℤ[ζ_N] spectrum goes public, with a native-C twin; #928.** rc28 introduced the exact cyclotomic-integer DFT as a *private* engine behind dft/fft. rc29 promotes it to a first-class introspected op and gives it a C peer (the "every primitive earns a C surface" commitment):
+
+- **`srmech.amsc.cascade.exact_dft` / `exact_idft`** — return the **exact** ``ℤ[ζ_N]`` integer spectrum of a power-of-two integer / Gaussian-integer signal (one integer ``(real_vec, imag_vec)`` pair per bin) — **no floats**. **`lift`** is the single FPU rotation ``ℤ[ζ_N] → ℂ`` (the only float producer).
+- **Native-C twin `srmech_exact_dft_i64`** (`c/src/srmech_exact_dft.c`, JPL-clean, caller-buffer int64): the integer add/subtract fast path. The Python op dispatches to it when ``N·max|signal|`` is int64-safe, and falls back to the arbitrary-precision **bignum** path otherwise.
+
+**Rosetta:** `exact_dft` / `exact_idft` classify **`c_dispatched`** (they have the C twin); `lift` is **`composition_of_c`** (over the Class-N ``cexp``). Three new ToolEntries (introspect `tools.total` 260 → 263), three rosetta lines, a `list[tuple[list[int], list[int]]]` MCP coercer for the spectrum param. **ABI stays 3** (additive symbol). The numpy-math ratchet is untouched (no numpy). General-``N`` (non-power-of-two) cyclotomic reduction is the next follow-up.
+
+SSoT: issue #928; `test_exact_dft_public_rc29.py` (public contract + native==Python bit-exact parity).
+
 ## [0.7.5rc28] - 2026-06-08
 
 **The first exact-until-rotation cascade — the DFT/FFT goes integer (cyclotomic `ℤ[ζ_N]`) until one FPU lift; #928.** Per user direction — **"don't use floats for bit-exact math, that's what ints and complex are for; floats are for FPU lift."** A DFT's twiddles `e^{-2πi·j/N}` are *roots of unity* = algebraic integers in `ℤ[ζ_N]`; for power-of-two `N` the cyclotomic polynomial is `Φ_N(x) = x^{N/2}+1`, so `ζ^{N/2} = -1` (a **Class K** pin-slot sign-flip, never `abs`) and the ring collapses to the negacyclic integers `ℤ[x]/(x^{N/2}+1)` — a length-`N/2` integer vector. The DFT of an integer / Gaussian-integer signal is then **pure integer add/subtract**: bit-for-bit deterministic, with floats produced **exactly once** at the final FPU lift `ζ → e^{-2πi/N}` (the projection from the discrete substrate to the continuous observable). This is *more* faithful than a float FFT, which rounds at every butterfly — it rounds once.
