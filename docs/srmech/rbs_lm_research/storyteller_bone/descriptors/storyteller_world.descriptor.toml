@@ -1,0 +1,30 @@
+# storyteller_world.descriptor.toml — an ATTESTED World descriptor (foundational form).
+# Lands in srmech: a srmech.storyteller World loader reads this (peer to the F670 MFO section-descriptor).
+
+[meta]
+kernel = "storyteller"
+world = "MFO"
+descriptor_version = "0.1"
+attestation_class = "A"  # class-A: attested-through-our-math (F665/F640)
+source = "MFO spectral research notebook"
+
+[[tome]]
+key = "the_one"
+clause = "The one is the held invariant"
+anchor = "MFO §I.1"
+attestation_class = "A"  # our math (F665/F640)
+content_sha256 = "c54c0cd555183ec530863180b710600489caf56e50e9e1d2b520ddcb74e1af52"
+
+[[tome]]
+key = "chirality"
+clause = "It is seen in the handedness of matter"
+anchor = "MFO §VI"
+attestation_class = "A"  # our math (F665/F640)
+content_sha256 = "471a69ae95ae1dc81ec8ef858c961d5aa077b58980162fc3526a30fb0e35868b"
+
+[[tome]]
+key = "spectrum"
+clause = "and it rings in the spectrum"
+anchor = "MFO §III.1"
+attestation_class = "A"  # our math (F665/F640)
+content_sha256 = "69aabafc9cdddae886696fc17ad51df538c9d2c6971f1e26cfe89f4ad8e3a097"

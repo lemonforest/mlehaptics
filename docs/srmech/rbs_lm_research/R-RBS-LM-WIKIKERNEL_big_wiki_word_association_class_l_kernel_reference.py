@@ -227,9 +227,15 @@ def make_query_api(store):
     Arows = [[float(Adj[i][j]) for j in range(n)] for i in range(n)]
 
     def assoc(word, top_k=4):
-        """DIRECT association(word) = adjacency neighbors ranked by co-occurrence weight."""
+        """DIRECT association(word) = adjacency neighbors ranked by co-occurrence weight.
+
+        HONEST GAP HANDLING (F573/F661 -- audited 2026-06-09): an UNKNOWN word (not in the vocab)
+        returns None -- DISTINCT from [] (a KNOWN word with no co-occurrence neighbors). Conflating
+        them would silently hide a gap (the F694-class bug). None is the asking-state hook: the
+        caller ASKS / fetches the word via AMSC (F669) or holds it open (F394), never invents an
+        association.  ('not in vocab' != 'no associations'.)"""
         if word not in idx:
-            return []
+            return None
         i = idx[word]
         nbrs = sorted(
             ((Arows[i][j], vocab[j]) for j in range(n) if Arows[i][j] > 0.0), reverse=True
@@ -340,6 +346,9 @@ def main():
     print("    DIRECT assoc(word, top_k) = adjacency neighbors ranked by co-occurrence weight:")
     for q in ["galaxy", "spiral", "snowflake"]:
         print(f"      assoc({q!r}) -> {assoc(q, top_k=4)}")
+    # HONEST GAP (F573/F661, audited): an UNKNOWN word -> None (the asking-state), NOT a silent [] --
+    # distinct from a known word with no neighbors. None -> the caller fetches via AMSC (F669) / holds open.
+    print(f"      assoc('quark') -> {assoc('quark')}  (None = NOT in vocab -> the asking-state F661, not a silent [])")
     plus, minus = fiedler_clusters()
     print("    SECOND-ORDER (Fiedler sign-partition; shared-context, even if not adjacent):")
     print(f"      cluster + : {plus}")
