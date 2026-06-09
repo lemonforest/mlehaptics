@@ -5768,7 +5768,7 @@ The authoritative homes for each domain's research. Cross-pollination summary in
 
 ---
 
-## §8 RBS-LM Story-Teller engine — PR #687 sweep (F613–F666)
+## §8 RBS-LM Story-Teller engine — PR #687 sweep (F613–F681)
 
 *Swept 2026-06-08 (breadcrumb-web discipline; landed-where). This notebook had lagged the rolling RBS-LM PR ([#687](https://github.com/lemonforest/mlehaptics/pull/687)) at ~F306; this section lands the recent Story-Teller / seen-rule-engine arc as srmech-architecture findings. The fuller back-sweep (F307–F612) remains the **CL-1 closeout audit** (queued).*
 
@@ -5782,7 +5782,16 @@ The RBS-LM "Story Teller" reduces a language model to a **SEEN engine + attested
 - **The §32 kuramoto fix (srmech 0.7.5rc15)** — `cascade.kuramoto_step(adjacency=)` now honors the coupling scalar → the neighbor-graph flock. [F647; UPSTREAM_NOTES §32]
 - **The Story Teller** — paragraph + chapter (engine + content), the in-between (recursive expansion of the skeleton), the **chord** (compositional truth — cannot strike a note not in the chord), the **arrangement** (order = the melody = the Class-C intent chooser; mood is its effect), the **asking-state** (gaps → ask, not hallucinate — the structural alternative to hallucination). [F654, F656, F657, F658, F659, F661]
 
-Backlinks to per-finding provenance (each with its committed script): `docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_6XX_*.md`. *Research trail followed; nothing forgotten; landed-where.*
+**Continuation sweep (F667–F681, 2026-06-09)** — the mechanism findings of the world-kernel-running arc:
+
+- **AMSC IS the RBS-LM-RAG fetch-arm** — the asking-state's content-fetch resolves to a real `MPRRecord` (adapters = the fetch sources; the mandatory MPR attestation block = the attested tome; `validate_mpr_record` verified). Two gaps / two resolutions: unknown content → AMSC-fetch (exists); a missing op → the "add to srmech" path (UPSTREAM_NOTES). [F669]
+- **Build-by-dialogue on the two-tier kernel** — `AdaptiveTier` runs the full ask→tell→integrate loop: a gap fires the asking-state, a told rule is a GPU-free `adapt()` write, `foundation_digest` stays fixed (the chord grows one note). Generalizes to any world (a fantasy too). [F672, F676]
+- **A book/EPUB is a content-shelf; the EPUB format is a missing op** — an `epub_book` AMSC adapter (EPUB = ZIP-of-XHTML + OPF) is the upstream ask. [F677; UPSTREAM_NOTES §33]
+- **FFT-graft + chord-invariance** — non-world boilerplate is periodic → the srmech QDFT (`cascade.quaternion_dft` fwd/inverse; bin energy via `cd_norm_sq`, not `abs()`) grafts it out; the chord-invariance test (prune → same chord ⇒ non-world; changed ⇒ load-bearing) is the falsification. [F678]
+- **The the_one book = one chapter per A-N operator, structured 1:3:7:3** — the A-N vocabulary applied as a self-referential table of contents (the book has the substrate's own shape); turns at H, closes on N. [F680]
+- **Word-association is a Class-L co-occurrence kernel** — the co-occurrence graph → `dense_laplacian`; the eigenspectrum is the storage signature (F172, *not* a `Counter`); direct association = `dense_adjacency` neighbors, second-order = the Fiedler spectral clustering; big offline wiki is the same kernel at scale. [F681]
+
+Backlinks to per-finding provenance (each with its committed script): `docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_6XX_*.md`. *Research trail followed; nothing forgotten; landed-where. The fuller back-sweep (F307–F612) remains the CL-1 closeout audit (queued).*
 
 
 ## How to cite this notebook
