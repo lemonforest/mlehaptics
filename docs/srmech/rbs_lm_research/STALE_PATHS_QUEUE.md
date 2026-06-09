@@ -568,3 +568,11 @@ Per user direction ("check stale queue items to bring forward and do if remainin
 - **Surface exercised 3 ways, all pass:** (A) FLAT `srmech.amsc.genome` assemble→partition reversible; (B) CLASS `make_class("Genome")` add_chromosome/assemble/recall/shape/cap — class `assemble()` == flat `genome()`, recall exact; (C) BRING-YOUR-OWN `Codex` school (folio/colophon/shelve over the same ops via `register_class_dir`) yields the IDENTICAL strand, `provenance: 'user'` — F716 school-of-choice made concrete.
 - **Honest granularity note:** `encode_shape(n)` reports the block-packed minimum (n≤256 → 1 tome); the bookshelf is packed concept-granular (1 leaf/concept) for per-item recall — both valid, surface supports either.
 - **Next (optional):** shelve the F708 uncapped wiki vocab so a chromosome is a genuine `quad_strand` (depth ≥ 2) — exercises the paging/depth path the small kernels don't reach. Verified `R-RBS-LM-DNABOOKSHELF...py`. F721.
+
+### F722 — rc49 U1 acceptance: SHIPPED but fails the §40 bar 3/3 (2026-06-09; R3 U1 stays OPEN)
+
+- **srmech 0.7.5rc49** shipped `tokenize` + `cooccurrence_edges` in `srmech.amsc.laplacian`. Format correct (2-tuples + weights → dense_laplacian; `stopwords=`), retires Counter() for English/single-doc/small-vocab. BUT fails the §40 acceptance bar 3/3 (verified `R-RBS-LM-U1ACCEPTANCE...py`):
+  1. **Unicode (F698) FAIL** — ASCII-only; `café/Москва/日本語` → `caf/na/ve` (drops non-Latin; defeats R6 multilingual).
+  2. **vocab cap (F708) FAIL** — default `vocab_size=1000` silently caps; no `None`/all sentinel (the F708 bug as a default).
+  3. **boundary reset FAIL** — flat `tokens`, no `boundaries=`/`docs=` → cross-article bleed.
+- **R3 U1 NOT closeable**; #855 stays unchecked; wiki kernel keeps F698/F700 `content_words`+`build_edges_topk`. Three fixes logged in UPSTREAM §40. **Genome surface (F716–F721) regression-clean on rc49.** The §40 spec caught the F708-regression-as-default before it could silently quantize a full-wiki encode. F722.

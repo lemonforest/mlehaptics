@@ -1828,3 +1828,22 @@ So: `srmech.amsc.text.{tokenize, cooccurrence_edges}` → `srmech.amsc.laplacian
 K1 presence-kernel a pure-TOML composite and **resolves R3 U1 to FOUND** (our F716 probe checks
 `amsc.text`/`amsc.laplacian` for these names). User is wiring the dev session to pull PR #687 for the reference
 scripts directly.
+
+### rc49 ACCEPTANCE VERIFICATION (F722, 2026-06-09) — SHIPPED but FAILS the bar 3/3; R3 U1 NOT closeable
+
+`tokenize` + `cooccurrence_edges` shipped in **`srmech.amsc.laplacian`** (rc49). Format is correct (`(n, edges,
+weights)`, edges = 2-tuples → `dense_laplacian`; `stopwords=` exists), so English/single-doc/small-vocab works and
+Counter() is retired there. **But the §40 bar fails on all three points** (verified, `R-RBS-LM-U1ACCEPTANCE…py`):
+1. **Unicode (F698) — FAIL.** `tokenize` is ASCII-only: `"café Москва naïve 日本語"` → `['caf','na','ve']` (accents
+   stripped, Cyrillic+CJK dropped). Defeats R6 multilingual (#846/#847) and corrupts accented English.
+   **Fix:** Unicode tokenize via `unicodedata` L/M categories, not `\w+`.
+2. **Silent vocab cap (F708) — FAIL.** Default **`vocab_size=1000`** silently caps a 1500-word stream to 1000; no
+   `None`/`all` sentinel. The F708 pre-encode quantization re-introduced *as the default*.
+   **Fix:** default = **no cap** (`vocab_size=None`/`0` → all); a cap must be an explicit, logged opt-in.
+3. **Document-boundary window-reset — FAIL.** Flat `tokens` arg, no `boundaries=`/`docs=` param → co-occurrence
+   bleeds across article boundaries (kernel invariant = one-article-one-window-reset).
+   **Fix:** a `boundaries=`/`docs=` param (or accept `Sequence[Sequence[str]]`) so the window resets per document.
+
+**Disposition:** R3 U1 stays OPEN (not closeable); the wiki kernel keeps F698/F700 `content_words` +
+`build_edges_topk` until the three fixes land. The **genome storage surface (F716–F721) is regression-clean on
+rc49.** These three are the remaining U1 acceptance criteria.
