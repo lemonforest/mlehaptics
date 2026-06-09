@@ -549,6 +549,16 @@ decrements it).
   freshly `register_attested_root`-ed catalog's declared chains too. Pure
   registry-read fix; no new callable, `tools.total` stays 277, Rosetta op ledger
   unchanged. ABI 3; numpy-free.
+- **rc47 (done) — `hdc.klein4_project_axis`: iω₇-collapse / bipolar projection
+  (RBS-LM §18 Tier-2 leaf; F350/F354).** Projects a 2-DoF Klein-4 store onto one
+  chirality axis → bipolar `{-1,+1}` (the asymptotic-DoF render; drops the other
+  axis + its self-EC per F354 axis-split). `axis` co-equal (`gamma5` bit 1 /
+  `iomega7` bit 0; settable-chirality discipline). Class K (sign render) ∘ Class
+  C (axis select); numpy-free; no `abs()`. New ToolEntry → `tools.total` 277→278.
+  Rosetta bucket **`non_compute`** (a one-way bipolar render/readout OUT of the
+  store — peer to the rc43 tokenize/cooccurrence_edges projections, NOT a
+  reversible store-transform like the klein4 flips, whose standalone-C twin stays
+  W5-gated per the do-not-mirror rule). ABI 3.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each
