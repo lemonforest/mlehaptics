@@ -475,6 +475,15 @@ decrements it).
   loader lives in `srmech.dsl` (NOT `srmech.amsc`/`qm`) so it adds no tool-schema
   / rosetta entry — pure orchestration over already-classified ops. No C twin
   (config + dispatch). DSL stage / CLI / tool_schema class-awareness are rc40/rc41.
+- **rc40 (done) — DSL class-awareness (#962 Part 2).** `srmech.dsl` gains the
+  one-shot surface over the rc39 `CatalogClass`: `describe_class(name)` /
+  `list_class_surface()` (JSON-able introspection — fields + methods + binds +
+  provenance) and `run_class_method(class_name, method, fields=, args=)` (the
+  stateless construct-invoke-return: `{class, method, result, fields}` with the
+  post-call state, so an `appends`/`sets` mutation is visible). `fields`/`args`
+  are plain dicts (MCP-grammar friendly). Lives in `srmech.dsl` (NOT amsc/qm) →
+  no tool-schema / rosetta entry. CLI subcommands + tool_schema/MCP class
+  registration are rc41.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

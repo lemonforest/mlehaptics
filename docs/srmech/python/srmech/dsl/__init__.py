@@ -67,6 +67,11 @@ from ._class_catalog import (
     make_class,
     register_class_dir,
 )
+from ._class_surface import (
+    describe_class,
+    list_class_surface,
+    run_class_method,
+)
 from ._tool_surface import list_catalog_ops, run_toml_chain
 from ._toml_chain import (
     build_chain_from_dict,
@@ -104,4 +109,8 @@ __all__ = [
     "load_class_catalog",
     "register_class_dir",
     "CLASS_CATALOG_DIR",
+    # Class-aware DSL surface (rc40) — one-shot introspect + run for CLI / LLM
+    "describe_class",
+    "list_class_surface",
+    "run_class_method",
 ]
