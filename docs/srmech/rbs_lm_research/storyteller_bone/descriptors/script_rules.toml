@@ -1,6 +1,7 @@
-# script_rules.toml -- per-SCRIPT seen-rules (an ATTESTED foundational form; the user's unicode/script-awareness).
-# MECHANISM only (punctuation/segmentation/direction); the per-script GRAMMAR is the native speaker's (F282/F398/F650).
-# Lands in srmech: srmech.storyteller's render engine selects the rule by the world/tome script (F613 byte-level = unicode-complete).
+# script_rules.toml -- per-SCRIPT seen-rules, UNICODE-CHARACTER-AWARE (F696 + F698).
+# Every rule (the english/latin one INCLUDED) classifies characters by UNICODE CATEGORY (unicodedata), NOT ASCII:
+#   word_char = Unicode letter|mark|number ; boundary = Unicode punct|space|symbol ; terminators = the Unicode set.
+# Even 'plain English' is Unicode (café, naïve, smart quotes, em-dash, ellipsis). MECHANISM only; grammar = native speaker's (F282/F398/F650).
 
 [script.latin]
 has_case = true
@@ -8,6 +9,8 @@ word_sep = " "
 clause_sep = ", "
 sentence_sep = ". "
 direction = "ltr"
+word_segmentation = "unicode"  # runs of Unicode letter|mark|number (unicodedata), NOT ascii .split()
+sentence_terminators = ".!?…"  # Unicode terminators (not the literal ". ")
 
 [script.cjk]
 has_case = false
@@ -15,6 +18,8 @@ word_sep = ""
 clause_sep = "、"
 sentence_sep = "。"
 direction = "ltr"
+word_segmentation = "unicode"  # runs of Unicode letter|mark|number (unicodedata), NOT ascii .split()
+sentence_terminators = "。！？"  # Unicode terminators (not the literal ". ")
 
 [script.arabic]
 has_case = false
@@ -22,6 +27,8 @@ word_sep = " "
 clause_sep = "، "
 sentence_sep = "؟ "
 direction = "rtl"
+word_segmentation = "unicode"  # runs of Unicode letter|mark|number (unicodedata), NOT ascii .split()
+sentence_terminators = "؟۔"  # Unicode terminators (not the literal ". ")
 
 [script.egyptian]
 has_case = false
@@ -29,3 +36,5 @@ word_sep = ""
 clause_sep = ""
 sentence_sep = ""
 direction = "ltr-or-rtl"
+word_segmentation = "unicode"  # runs of Unicode letter|mark|number (unicodedata), NOT ascii .split()
+sentence_terminators = ""  # Unicode terminators (not the literal ". ")

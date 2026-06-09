@@ -1629,3 +1629,35 @@ promoted into the package. The plan (F689), 4 layers:
 big-wiki Class-L word-association kernel (F681) enriches the shelf. Not blocking research (the
 research scripts run today); this is the productionization roadmap. Logged per upstream-as-
 research-notes discipline.
+
+## §35 REQUIREMENT + FEATURE — wiki adapter MUST strip content-bearing markup; + a `wordmeaning` dictionary rung (2026-06-09; F698/F699/F700)
+
+Three related items from the Unicode/dictionary/corpus-cleaning pass on the Story Builder kernel:
+
+- **§35.1 — the wiki adapter MUST strip CONTENT-bearing markup, not just tags (F700, load-bearing
+  for grounding honesty).** F690's `strip_wiki_markup` is a demo that drops `<tag>`s but keeps
+  their content, so `<math>` LaTeX (`\frac`/`\sqrt`/`displaystyle`), **bare** `<ref>` citations,
+  `{| tables |}`, nested `{{templates}}`, and `[http ext-links]` **leak into the vocabulary as junk
+  tokens** — and it was only ever run on a clean demo corpus, so the path was never exercised. A
+  kernel built from un-cleaned text grounds beats in markup noise (spurious Class-L associations).
+  The real `srmech.storyteller.wordassoc` ingest (and the F579/F607 wiki-formatting-language kernel)
+  MUST clean with a hardened stripper that removes the **content** of
+  math/ref/code/score/chem/table/comment blocks + clears nested templates to fixpoint. F700 ships a
+  reference `strip_wiki_markup_hardened` (verified: 9 distinct junk tokens → 0).
+
+- **§35.2 — FEATURE: a `wordmeaning` dictionary rung (F699).** The grounding layer wants a lookup map
+  at three resolutions — **char** (the Unicode map = `unicodedata`, already exists), **word** (a
+  dictionary: word → meaning), **relation** (the big-wiki kernel: word → associations, §34/F681).
+  The word rung is a new `srmech.storyteller.wordmeaning` + an `srmech.amsc` Wiktionary/WordNet
+  adapter: each entry an attested `MPRRecord` (gloss class-A for framework vocab / class-B from the
+  attested dump). Meaning DETECTED via attestation, never decreed (F640/F688); unknown word → the
+  asking-state (F661). Wire `word_meaning()` alongside `assoc()` in `storyteller.infer`'s gap-fill.
+
+- **§35.3 — the seen-rule render must be Unicode-CHARACTER-aware AND per-script (F696/F698).** Classify
+  characters by `unicodedata.category` (letter|mark|number = word char; punct|space|symbol = boundary;
+  a Unicode sentence-terminator set), not by ASCII — even "plain English" is Unicode (café, smart
+  quotes, em-dash, ellipsis). Per-script seen-rules live in
+  `storyteller_bone/descriptors/script_rules.toml` (latin/cjk/arabic/egyptian; `word_segmentation =
+  "unicode"`). Mechanism only; the per-script grammar is the native speaker's (F282/F398/F650/#847).
+
+Not blocking research. Logged per upstream-as-research-notes discipline.
