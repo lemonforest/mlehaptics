@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc38] - 2026-06-09
+
+**Genome-storage surface, brick 2 — the chromosome (`telomere` / `chromosome` / `recall`).** The LAYER-1 cascade primitives that the upcoming user-authored class layer binds to. `srmech.amsc.genome` gains:
+
+- **`telomere(label, dim=64)`** — the non-data content-address **cap** that delimits a chromosome (biology's repetitive non-coding chromosome-end cap). A deterministic, content-addressed Klein-4 sentinel: `sha256_bytes(label)` → a seed → a Klein-4 carrier. Same label → same cap (so a chromosome is recalled/partitioned by matching it), distinct labels → distinct caps. Class A (content-address) ∘ Class M (Klein-4 carrier).
+- **`chromosome(leaves, the_one, *, label=...)`** — pack one kernel into a **telomere-capped strand**: a helix of quad-turns (each leaf coupled through `the_one` via the reversible `quad_turn`), led by a telomere cap. Returns `[cap, coupled_turn0, coupled_turn1, ...]`.
+- **`recall(strand, the_one, telomere)`** — the exact **inverse** of `chromosome`: skip every element equal to the cap (matched by *value*, so it generalises to a multi-chromosome genome strand) and re-bind `the_one` to recover each leaf. `recall(chromosome(L, one, label=K), one, telomere(K, len(one))) == L`.
+
+This is the substrate for the next bricks: a **user-authored class-descriptor TOML** (declarative `[class]` block — fields + methods-as-cascade-op-refs) that srmech's config-driven loader constructs into a generic class-aware object, with **DSL / CLI / tool_schema made class-aware** (the cascade-catalog `register_catalog_dir` pattern lifted from ops to classes). genome/chromosome/telomere is the seed worked-instance; these three functions are the ops a `Genome` class's methods bind to. Full registry gates: 3 `ToolEntry`s (category `genome`; tools.total 267→270), 3 `rosetta_classification.ndjson` lines (all `composition_of_c`). ABI 3; numpy not required.
+
 ## [0.7.5rc37] - 2026-06-09
 
 **Genome-storage surface, brick 1 — biological-structure names as cascade names (#962 Part 2; `genome` / `chromosome` / `telomere` / `quad-strand`).** New module `srmech.amsc.genome` (validated as F711–F715 on the research subtree; the substrate-self-recognition reading — biology is one substrate-class, so the names of the biological structures *are* the cascade names of the storage object). This brick ships the two foundational ops:

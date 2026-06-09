@@ -358,3 +358,6 @@
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.eigvals_exact", "defined_at": "srmech.amsc.cascade.matrix_cascades.eigvals_exact", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.amsc.genome.encode_shape", "defined_at": "srmech.amsc.genome.encode_shape", "bucket": "non_compute"}
 {"exposed_as": "srmech.amsc.genome.quad_turn", "defined_at": "srmech.amsc.genome.quad_turn", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.genome.telomere", "defined_at": "srmech.amsc.genome.telomere", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.genome.chromosome", "defined_at": "srmech.amsc.genome.chromosome", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.genome.recall", "defined_at": "srmech.amsc.genome.recall", "bucket": "composition_of_c"}

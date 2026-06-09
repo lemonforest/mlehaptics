@@ -1520,6 +1520,29 @@ def _register_primitive_class_tools() -> None:
                         P("the_one", "np.ndarray", True, "a Klein-4 vector (uint8 {0,1,2,3}) — the held invariant coupled into every turn")),
             returns=R("np.ndarray", "the coupled turn (re-apply quad_turn with the same the_one to recover turn)"),
         ),
+        ToolEntry(
+            name="srmech.amsc.genome.telomere", owner="srmech", category="genome",
+            summary="The non-data content-address CAP that delimits a chromosome (F715) — biology's repetitive non-coding chromosome-end cap. A deterministic, content-addressed Klein-4 sentinel derived from a label (Class A content-address via sha256_bytes -> a seed -> a Klein-4 carrier). Same label gives the same cap (so a chromosome is recalled / partitioned by matching its cap), distinct labels give distinct caps. It marks + protects a partition boundary and carries no kernel data. dim is the Klein-4 vector length (match the turns it caps).",
+            parameters=(P("label", "str", True, "the chromosome label — content-addressed to a deterministic cap"),
+                        P("dim", "int", False, "Klein-4 vector length (default 64); match the turns the cap delimits")),
+            returns=R("np.ndarray", "the telomere cap (a Klein-4 vector, deterministic per label)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.chromosome", owner="srmech", category="genome",
+            summary="Pack one kernel into a telomere-capped strand — a chromosome (F713/F715). The kernel's leaves (Klein-4 vectors, one tome each) become a helix of quad-turns, each coupled through the_one (reversible quad_turn), led by a telomere cap derived from label. Returns the strand [telomere_cap, quad_turn(leaf0, the_one), quad_turn(leaf1, the_one), ...]; recover the kernel with recall. The cap delimits + protects the chromosome so many chromosomes pack onto one genome strand. Class A (cap) + Class M (bind) + Class C (the Klein-4 chirality).",
+            parameters=(P("leaves", "Sequence[np.ndarray]", True, "the kernel's leaves — Klein-4 vectors, one tome (<=256) each"),
+                        P("the_one", "np.ndarray", True, "the held invariant every turn is coupled through"),
+                        P("label", "str", False, "keyword-only; the chromosome label for the telomere cap (default 'chromosome')")),
+            returns=R("list", "the strand: [telomere_cap, coupled turn, coupled turn, ...]"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.recall", owner="srmech", category="genome",
+            summary="Recover a kernel's leaves from a telomere-capped chromosome strand (F713/F715) — the exact inverse of chromosome. Walk the strand; skip every element equal to the telomere cap (the non-data delimiter) and re-bind the_one (the reversible quad_turn again) on each coupled data turn to recover the original leaf. recall(chromosome(leaves, one, label=L), one, telomere(L, len(one))) == leaves. Matching the cap by VALUE (not position) is what lets one recall reach into a multi-chromosome genome strand.",
+            parameters=(P("strand", "Sequence[np.ndarray]", True, "a telomere-capped chromosome strand (from chromosome)"),
+                        P("the_one", "np.ndarray", True, "the held invariant the turns were coupled through"),
+                        P("telomere", "np.ndarray", True, "the telomere cap delimiting the chromosome (skipped, not decoded)")),
+            returns=R("list", "the recovered kernel leaves (Klein-4 vectors), in order"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class K — equation-of-centre / pin-slot
