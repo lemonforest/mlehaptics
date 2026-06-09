@@ -70,6 +70,7 @@ import numpy as np
 from srmech.amsc.cascade import magnitude as _magnitude
 from srmech.amsc.cyclic import mod_add as _mod_add
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
+from srmech.amsc.cascade.matrix_cascades import lstsq as _lstsq
 from srmech.amsc.laplacian import dense_matmul_real, dense_matvec_real
 from srmech.qm.octonion import octonion_mult_table
 from srmech.qm.so8 import (
@@ -164,9 +165,7 @@ def _solve_companions(operator: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
                     row[_DIM * _DIM + k * _DIM + j] += table[i, k, m]
                 rows.append(row)
                 rhs.append(float(target[m]))
-    solution, _, _, _ = np.linalg.lstsq(
-        np.array(rows), np.array(rhs), rcond=None
-    )
+    solution = _lstsq(np.array(rows), np.array(rhs))
     b_companion = solution[: _DIM * _DIM].reshape(_DIM, _DIM)
     c_companion = solution[_DIM * _DIM:].reshape(_DIM, _DIM)
     return b_companion, c_companion

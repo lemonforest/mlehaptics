@@ -301,6 +301,18 @@ decrements it).
   kron / outer / einsum). The `laplacian` Schur `L_pi·X` is deferred (in-helper,
   shape-polymorphic). Further matmul reduction = reword sweep + distinct-op
   cascades (separate work items), not more dense-matmul routing.
+- **rc27 (done) — linalg/fft phase opens: the linear-solve family.** Dense-matmul
+  floored, the arc pivots to `linalg_fft` (pinned at 126 since rc13). Per user
+  direction (cascade + TOML for ALL maths; numpy carrier-only, carrier removed as
+  the FINAL step), the cascades replace numpy math even where round-off-faithful
+  not bit-exact (fft/svd/qr/eig ~1e-14; within-tolerance shift accepted). rc27:
+  `map_ml`'s 2 `np.linalg.solve` → `dense_solve` (bit-exact, 1-D RHS); `triality`
+  + `esprit`'s `np.linalg.lstsq` → `matrix_cascades.lstsq` (round-off, complex-safe;
+  bare-ndarray return replaces numpy's 4-tuple → callsite unpack changed).
+  **numpy-math ratchet `linalg_fft` 126 → 122.** ABI 3. NOT migrated: the cascade
+  ops' OWN internal numpy kernels (laplacian eigh/solve — Class-L impls w/
+  pure-Python fallbacks; deeper pass) + docstring/summary `numpy.linalg.*` MENTIONS
+  (precise docs, not gamed). Next: np.fft (n/axis) + svd/qr/eigvals + inv/pinv.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

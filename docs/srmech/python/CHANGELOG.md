@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc27] - 2026-06-08
+
+**The linalg/fft phase opens — the linear-solve family onto cascades (numpy-math `linalg_fft` 126 → 122; #928).** With the dense-matmul ceiling at its floor, the arc pivots to the larger `linalg_fft` ceiling (pinned at 126 since rc13). Per user direction — **cascade + TOML for all maths; numpy is a carrier only** (with the carrier itself removed as the *final* step, after the maths sweep) — the cascades **replace** numpy math even where they are not bit-exact: `fft` (radix-2), `svd` (Gram-route), `qr` (Householder), `eig` (Jacobi) are round-off-faithful to numpy (~1e-14), not bit-identical, and that within-round-off shift is accepted (any bit-equality-vs-numpy test relaxes to a tolerance).
+
+rc27 routes the **linear-solve family**:
+
+- **`map_ml`** — the ML/MAP normal-equation `np.linalg.solve(M, …)` (×2) → `dense_solve` (bit-exact for the 1-D RHS both sites have).
+- **`qm.triality`** + **`signal_processing.esprit`** — `np.linalg.lstsq(…)` → `matrix_cascades.lstsq` (round-off-faithful ~5e-16, complex-safe). The cascade returns a **bare ndarray**, not numpy's `(x, residuals, rank, sv)` 4-tuple, so the callsite unpacking changed (`solution, _, _, _ =` → `solution =`; `[…][0]` → direct).
+
+**numpy-math ratchet `linalg_fft` 126 → 122.** Pure Python-tier; no C change, ABI stays 3. No new public symbols. **Not** migrated: the cascade ops' own internal numpy kernels (`laplacian` `eigh`/`solve` — the designated Class-L implementations, which have pure-Python fallbacks; a deeper separate pass), and the docstring / ToolEntry-summary `numpy.linalg.*` cross-reference *mentions* (precise documentation — left intact, not gamed). The map_ml / triality / esprit suites pass unchanged. Next: `np.fft` (with `n`/`axis` handling) + `np.linalg.svd`/`qr`/`eigvals` + `inv`/`pinv`.
+
+SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
 ## [0.7.5rc26] - 2026-06-08
 
 **The matmul-kernel phase, batch 11 — the genuine-code tail of the dense-matmul migration (numpy-math `matmul` 60 → 55; #928).** Five remaining genuine dense-matmul *code* sites (as opposed to docstring mentions or distinct ops) route onto the cascade helpers:

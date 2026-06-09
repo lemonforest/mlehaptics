@@ -22,7 +22,7 @@ from typing import Optional
 
 import numpy as np
 
-from srmech.amsc.laplacian import dense_matmul_real, dense_matvec_real
+from srmech.amsc.laplacian import dense_matmul_real, dense_matvec_real, dense_solve
 
 OPERATION_NAME = "map_ml"
 CLASS_COMPOSITION = ("L", "K")
@@ -87,7 +87,7 @@ def op(
     if R_prior is None:
         # ML: x_hat = (A^T R_v^-1 A)^-1 A^T R_v^-1 y
         M = dense_matmul_real(ATRinv, A_arr)
-        return np.linalg.solve(M, dense_matvec_real(ATRinv, y_arr))
+        return dense_solve(M, dense_matvec_real(ATRinv, y_arr))
     # MAP
     Rx = np.asarray(R_prior, dtype=np.float64)
     if Rx.shape != (n, n):
@@ -99,4 +99,4 @@ def op(
     Rx_inv = np.linalg.inv(Rx)
     M = dense_matmul_real(ATRinv, A_arr) + Rx_inv
     rhs = dense_matvec_real(ATRinv, y_arr) + dense_matvec_real(Rx_inv, mu)
-    return np.linalg.solve(M, rhs)
+    return dense_solve(M, rhs)
