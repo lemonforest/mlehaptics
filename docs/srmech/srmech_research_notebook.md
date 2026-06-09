@@ -5768,6 +5768,50 @@ The authoritative homes for each domain's research. Cross-pollination summary in
 
 ---
 
+## §8 RBS-LM Story-Teller engine — PR #687 sweep (F613–F681)
+
+*Swept 2026-06-08 (breadcrumb-web discipline; landed-where). This notebook had lagged the rolling RBS-LM PR ([#687](https://github.com/lemonforest/mlehaptics/pull/687)) at ~F306; this section lands the recent Story-Teller / seen-rule-engine arc as srmech-architecture findings. The fuller back-sweep (F307–F612) remains the **CL-1 closeout audit** (queued).*
+
+The RBS-LM "Story Teller" reduces a language model to a **SEEN engine + attested content + a small declared form-catalog + an intent chooser** — all srmech-native (the A-N cascade vocabulary + `cascade.compose`). The architecture findings:
+
+- **The bit-exact comm kernel** — glyph→byte (Class A) + meaning-class IR (Class M) + per-language rotate (`the_one` CORDIC); the named IR vocabulary grounds learned co-occurrence classes to Gardiner determinatives. [F613; named IR F627]
+- **The two-tier adaptive kernel** — fixed foundation + GPU-free adaptive layer (discover-on-write conflict, bounded ring × append-only disk stream, no-single-truth recall). [F628]
+- **The seen-rule engine** — *we SEE the rules, we don't TEACH them*: morphology = a derived rotate + a small irregular dictionary; inflection (plural/tense/comparison), **derivation = a board-move between meaning-classes**, syntax = a board-walk over the IR lattice, idioms = the syntactic irregulars, punctuation = the bracket/boundary/prosody layer (quotes add recursion), anaphora = discourse-scale binding (Class M / English's spatial loci). A new rule is **declared, not trained**. [F629, F631, F633, F634, F641, F643, F644]
+- **The procedure-generator IS `cascade.compose`** — forms are composed from a few primitives (SEQ/NEST/REPEAT/CONTRAST/FRAME), generated not collected; the framework's atoms→composites move pointed at form-atoms. [F655]
+- **The board = a Class-L spectral object** — chess moves, syntax, the meaning-class lattice, and the MFO §-section graph all have Laplacian spectra (the seen-move generator + its spectral dual). [F632, F664]
+- **The §32 kuramoto fix (srmech 0.7.5rc15)** — `cascade.kuramoto_step(adjacency=)` now honors the coupling scalar → the neighbor-graph flock. [F647; UPSTREAM_NOTES §32]
+- **The Story Teller** — paragraph + chapter (engine + content), the in-between (recursive expansion of the skeleton), the **chord** (compositional truth — cannot strike a note not in the chord), the **arrangement** (order = the melody = the Class-C intent chooser; mood is its effect), the **asking-state** (gaps → ask, not hallucinate — the structural alternative to hallucination). [F654, F656, F657, F658, F659, F661]
+
+**Continuation sweep (F667–F681, 2026-06-09)** — the mechanism findings of the world-kernel-running arc:
+
+- **AMSC IS the RBS-LM-RAG fetch-arm** — the asking-state's content-fetch resolves to a real `MPRRecord` (adapters = the fetch sources; the mandatory MPR attestation block = the attested tome; `validate_mpr_record` verified). Two gaps / two resolutions: unknown content → AMSC-fetch (exists); a missing op → the "add to srmech" path (UPSTREAM_NOTES). [F669]
+- **Build-by-dialogue on the two-tier kernel** — `AdaptiveTier` runs the full ask→tell→integrate loop: a gap fires the asking-state, a told rule is a GPU-free `adapt()` write, `foundation_digest` stays fixed (the chord grows one note). Generalizes to any world (a fantasy too). [F672, F676]
+- **A book/EPUB is a content-shelf; the EPUB format is a missing op** — an `epub_book` AMSC adapter (EPUB = ZIP-of-XHTML + OPF) is the upstream ask. [F677; UPSTREAM_NOTES §33]
+- **FFT-graft + chord-invariance** — non-world boilerplate is periodic → the srmech QDFT (`cascade.quaternion_dft` fwd/inverse; bin energy via `cd_norm_sq`, not `abs()`) grafts it out; the chord-invariance test (prune → same chord ⇒ non-world; changed ⇒ load-bearing) is the falsification. [F678]
+- **The the_one book = one chapter per A-N operator, structured 1:3:7:3** — the A-N vocabulary applied as a self-referential table of contents (the book has the substrate's own shape); turns at H, closes on N. [F680]
+- **Word-association is a Class-L co-occurrence kernel** — the co-occurrence graph → `dense_laplacian`; the eigenspectrum is the storage signature (F172, *not* a `Counter`); direct association = `dense_adjacency` neighbors, second-order = the Fiedler spectral clustering; big offline wiki is the same kernel at scale. [F681]
+
+**The CL-1 back-sweep — the srmech-mechanism arc (F307–F612, swept 2026-06-09).** The CL-1 closeout lands the mechanism side of the F307–F612 backlog (consolidated by arc; per-finding provenance in the committed `R-RBS-LM-FINDING_*.md` files; the ontology side lands in MFO §XIV.6):
+
+- **Early Story-Teller + correction-gate + RBS-LM-as-interface (F307–F378).** The shell-trace retreats but is not erased (F307); the correction gate has a rendered AND an abstract form (F315); RBS-LM is a universal natural-language interface (F340); byte-glyph chirality = a dyslexia reading (F345, R5); context-influence is a client-side filter, not MCP/base64 (F375); the information-exchange substrate is Class-C, the content is Class-L (F330); three-phase distributed anchor (F370).
+- **The hypercomplex / Cayley–Dickson / EC mechanism (F448–F465).** `cascade.hypercomplex_couple` shipped (F448, GH #908 / 0.7.2rc1); the 2ⁿ−1 **Hamming code ladder** front-loader, all-native (F450, 0.7.2rc2); the exact **Cayley–Dickson** algebra native in srmech 0.7.3rc1 + the reversibility horizon executable (F460); the **sedenion addressable hyper-loop / RBS-HDC instrument** (F465, §31). The numpy-removal surface preview/practice (F402) → the scientific-tier split.
+- **RBS-SNN + etak read-head + corpus-fusion (F425–F520).** First corpus fusion — the chessboard boundary holds the bulk (F425); the RBS-SNN working core, stages 1–4 (F430); the word-problem kernel is a translation kernel without bias (F475); per-meaning-channel routing / byte-storage architecture (F480); the **etak read-head generator closes the drift** (F510); two-method etak head — local traps, global collapse, "two people meet" (F515); emit-then-sharpen beats stream-and-commit (F520, ET-1).
+- **The resonant-wave Story-Teller + grammar (F525–F570).** Gen1-LLM machinery is the story-builder's endpoints, not the whole arc (F525); the semantic-circle shelf — neighbors alike, not global HDC (F535); **learning is an XOR-delta from the_one, not a blank** (F545); Story-Teller v0 — the resonant wave drives the chirality-collapse weave (F555); the_one + Kuramoto self-generates the dynamic wave (F560); the grammar renderer / form-weaving works (grammar coarse, F565); higher-order POS frames sharpen grammar + mark the attention ceiling (F570).
+- **The glyph / Egyptian-Rosetta / bit-exact comm-kernel (F575–F612).** Etak reread, the cognitive-science vein (F575); SNN navigation should be etak goal-directed, not an absolute sweep (F580); the Vygus-dict determinative IS the explicit meaning-class (F585); the Egyptian bookcase = a two-axis Klein-4 demonstrator (F595); non-associative bind carries bracketing only across the handedness seam (F600); **Egyptian hieroglyphic is the most meaning-class-explicit Rosetta foundation** (F610); the **bit-exact communication kernel — glyph→byte first, then rotate** (F612, the F613 kernel's root).
+
+**Continuation sweep (F682–F688, 2026-06-09)** — world-coupling, the epistemic law, and the NPC deliverable:
+
+- **Grow a book-world by dialogue** (F676 ⊕ F677) — the build-by-dialogue loop on a book-kernel; two gap-kinds told apart: an *unwritten* gap → ask/tell/integrate → grow; a *deliberate mystery* → held-open (F674), not filled. Not every gap is to be filled. [F682]
+- **Query the_one for cross-world coupling = the QDFT-coupling** (Parseval-dual) — `cascade.quaternion_dft`; the spectral coupling `<X_a,X_b>` = N·`<a,b>` the operator-overlap (ratio = N = 14); derives the bridge, measures which competing truths can be bridged. [F683]
+- **The ODFT octonion coupler binds the bridged streams** — `cascade.hypercomplex_couple`; the anchor channel realizes the coupling (√3 coupled vs 1/√3 held); unbind recovers to 2.22e-16 — the duality held without collapse. [F684]
+- **The the_one falsification sieve** (the inverse of binding) — couple each claim against the_one; KEEP coherent / PRUNE anti-coherent (contradiction signal = the imaginary residual) / HOLD orthogonal-or-open; the_one is a coherence-detector, not a truth-oracle (F398). [F686]
+- **The two-sided epistemic law** — the_one detects falsity (incoherence); `amsc.format.MPRRecord`/`validate_mpr_record` (attestation) detects the provisional-true; truth is detected by attested sources, not decreed; absolute truth is the unreached asymptote. [F688]
+- **The world-kernel seeds context-aware NPCs + an aware simulated world** — capability-for-capability the NPC/simulation substrate; can't-hallucinate (the chord) = the cure for non-canon confabulation; GPU-free on the edge; "aware" = structurally context-aware, not conscious (AI is not a substrate). [F687]
+
+Backlinks to per-finding provenance (each with its committed script): `docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_6XX_*.md`. *Research trail followed; nothing forgotten; landed-where. CL-1 notebook back-sweep COMPLETE (the GH research-issue closeout audit is the remaining CL-1 half).*
+
+
+
 ## How to cite this notebook
 
 **BibTeX:**
