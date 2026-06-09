@@ -1682,3 +1682,23 @@ the 256×256 matrix per-call; (c) Jacobi sweep count / convergence threshold. **
 spectrum is content-addressed + reproducible; the kernel queries correctly) and **not blocking** (it is a
 one-time build-once cost, F628). Logged so a future srmech dev session can profile the n=256 store path.
 Repro: `R-RBS-LM-WIKIBIGENCODE` with `MAX_ARTICLES=5000` prints the per-step timing.
+
+## §37 PERF GAP (explains §36) — no native Class-L eigendecomposition in 0.7.5rc28; jacobi_eigvals is pure-Python (2026-06-09; F707)
+
+§36 observed the Class-L store step at ~45–68 s for n=256 and asked why native C is that slow. **F707 found the
+answer: there is NO native eig in this wheel.** `srmech.amsc._native` exposes `sha256_*` / `ndjson` / scalar
+transcendentals (`sin/cos/exp/log/atan/atan2/sqrt`) / `parallel_sector_dispatch` / bus callbacks — and **no
+`eig` / `jacobi` / `laplacian` symbol**. So `jacobi_eigvals` (and the Class-L Laplacian eigendecomposition that is
+the F172 storage signature) runs as srmech's **pure-Python Jacobi cascade at all n** (numpy-free — confirmed numpy
+absent from the env). Measured O(n³) timings: **33 s @ n=200, 68 s @ n=256, 120 s @ n=300** (n=300 computes fine —
+above the documented `MAX_NATIVE_NODES=256` clamp, since the clamp is a *self-imposed* perf bound in the research
+build path, F690, not a hard srmech limit). **So `MAX_NATIVE_NODES=256` is vestigial for the eig in this wheel.**
+
+**Ask (not blocking):** a **native (C) Class-L eigensolver** — a native Jacobi/Lanczos for symmetric Laplacians,
+and/or a **sparse/iterative** path (the co-occurrence Laplacian is sparse — Lanczos for the few low eigenvectors,
+which is all the Fiedler/second-order layer needs) — would make large-n spectral feasible and remove the
+~minute-scale store cost. Until then, the practical lifts are (a) the bucketed ≤256-block path (F690 route 2), and
+(b) skipping the eig for direct-adjacency associations (which need no eigendecomposition). **Honesty correction
+(F573):** prior findings (F703 + the §36 note) called this the "native C path / native eigvals" — that was
+imprecise; the eig is pure-Python (numpy-free). The big-wiki encode's numpy-free claim stands; the
+native-C-*eigvals* claim does not. Logged per upstream-as-research-notes discipline.

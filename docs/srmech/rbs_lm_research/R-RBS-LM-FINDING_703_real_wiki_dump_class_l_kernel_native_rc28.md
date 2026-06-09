@@ -70,8 +70,14 @@ associations are meaningful:
 | content tokens | **169,520,915** |
 | content-word vocabulary | **1,771,172** unique → top-256 kept, **1,770,916 dropped + logged** (F640) |
 | edges | 32,640 · furniture/junk in vocab | **NONE ✅** |
-| timing | `build_edges_topk` 2 passes ≈ **4,795 s (~80 min)** · Class-L store (native eigvals) 44.7 s |
+| timing | `build_edges_topk` 2 passes ≈ **4,795 s (~80 min)** · Class-L store eigvals ≈ 45 s |
 | fingerprint | `cefa6116…` · kernel persisted outside the repo (`enwiki_kernel_256.json`, attested CC-BY-SA) |
+
+> **Correction (F707, F573):** the encode is **numpy-free** (true — no numpy in the env), but the eigendecomposition
+> (`jacobi_eigvals`, the F172 storage signature) is **not** native-C in this rc28 wheel — `_native` ships no eig/jacobi
+> symbol, so it runs as srmech's **pure-Python Jacobi cascade** (the ~45 s store cost is O(n³) Python, not native C). Calls
+> elsewhere in this doc to a "native C path / native eigvals" are corrected by F707: the byte/sha256/transcendental ops are
+> native; the Class-L eig is pure-Python. A native/sparse eigensolver is the perf gap (UPSTREAM §37).
 
 Real associations (unmistakably enwiki): `war`→world/ii/army/battle · `music`→album/band/song/film · `language`→english/
 french/official · `church`→st/century/built · `king`→son/royal/death · `city`→population/county/census/density · `river`→
