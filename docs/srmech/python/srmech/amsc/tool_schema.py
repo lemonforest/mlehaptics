@@ -1466,6 +1466,20 @@ def _register_primitive_class_tools() -> None:
             returns=R("np.ndarray", "length-n complex eigenvalue array"),
         ),
         ToolEntry(
+            name="srmech.amsc.cascade.matrix_cascades.char_poly", owner="srmech", category="cascade",
+            summary="Exact integer characteristic polynomial det(xI - A) via Faddeev-Leverrier. For an INTEGER matrix returns the EXACT integer coefficients (monic, high->low [1, c1, ..., cn]) in arbitrary-precision integer arithmetic — the exact ALGEBRAIC substrate of the eigenproblem: exact trace = -c1, exact determinant = (-1)^n*cn, all elementary symmetric functions of the spectrum, NO floating point. The eigenvalues are the ROOTS of this exact polynomial (extract them with eigvals_exact, which avoids the Wilkinson ill-conditioning of float root-finding by staying in exact arithmetic). Non-integer matrices fall back to a float Faddeev-Leverrier. Class L (algebraic content) + Class M (matrix-product/trace accumulate) + Class K (exact //k step division).",
+            parameters=(P("a", "np.ndarray", True, "(n, n) square matrix (integer entries → exact integer coefficients)"),),
+            returns=R("list", "characteristic-polynomial coefficients, monic high→low [1, c1, ..., cn]"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.matrix_cascades.eigvals_exact", owner="srmech", category="cascade",
+            summary="Exact REAL eigenvalues of an integer matrix — the well-conditioned exact-until-rotation cascade (no Wilkinson ill-conditioning, because the eigenvalues are ALGEBRAIC and we never leave exact arithmetic). char_poly (exact integer) + Yun square-free factorization (exact multiplicities) + Sturm sign-sequence isolation (Class C sign-count at Class K interval boundaries) + rational bisection (Class N anchors → the algebraic asymptote), all in exact Fraction arithmetic, then ONE FPU lift. bits sets refinement precision; return_intervals=True yields the exact (lo, hi) rational isolating intervals. Returns the real eigenvalues ascending WITH multiplicity (symmetric matrices are all-real/complete; matrices with complex eigenvalues return only the real ones — complex isolation is a follow-up).",
+            parameters=(P("a", "np.ndarray", True, "(n, n) integer square matrix"),
+                        P("bits", "int", False, "keyword-only; bisection refinement precision in bits (default 64)"),
+                        P("return_intervals", "bool", False, "keyword-only; return exact (lo, hi) rational intervals instead of floats; default False")),
+            returns=R("list", "real eigenvalues ascending with multiplicity (floats, or (lo, hi) Fraction intervals)"),
+        ),
+        ToolEntry(
             name="srmech.amsc.rational.continued_fraction_convergents",
             owner="srmech",
             category="rational",

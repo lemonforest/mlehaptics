@@ -57,7 +57,7 @@ from srmech.amsc.laplacian import dense_matmul_complex, hermitian_eigendecompose
 from srmech.amsc.rational import hypot as _rhypot
 from srmech.amsc.rational import sqrt as _rsqrt
 
-__all__ = ["qr", "svd", "lstsq", "einsum", "eigvals"]
+__all__ = ["qr", "svd", "lstsq", "einsum", "eigvals", "char_poly", "eigvals_exact"]
 
 
 def _modulus(z: complex) -> float:
@@ -332,3 +332,245 @@ def eigvals(a, *, max_sweeps: int = 500) -> np.ndarray:
                 eigs.append(complex(H[i, i]))
             break
     return np.array(eigs, dtype=np.complex128)
+
+
+def _char_poly_int(A: List[List[int]], n: int) -> List[int]:
+    """Faddeev–LeVerrier on an integer matrix → exact integer monic char-poly.
+
+    Each ``c_k = -trace(A·M_k)/k`` is an exact integer (a Faddeev–LeVerrier
+    theorem: ``trace(A·M_k)`` is divisible by ``k`` for integer ``A``); the
+    ``% k`` assert is the Class-K exactness guard (never a float division)."""
+    M = [[1 if i == j else 0 for j in range(n)] for i in range(n)]  # M_1 = I
+    coeffs: List[int] = [1]
+    for k in range(1, n + 1):
+        AM = [[sum(A[i][t] * M[t][j] for t in range(n)) for j in range(n)]
+              for i in range(n)]
+        tr = sum(AM[i][i] for i in range(n))
+        assert tr % k == 0, "Faddeev-LeVerrier integer invariant violated"
+        ck = -(tr // k)
+        coeffs.append(ck)
+        M = [[AM[i][j] + (ck if i == j else 0) for j in range(n)] for i in range(n)]
+    return coeffs
+
+
+def _char_poly_float(rows: List[List[complex]], n: int) -> List[complex]:
+    """Faddeev–LeVerrier in complex float (the non-integer fallback)."""
+    A = [[complex(v) for v in r] for r in rows]
+    M = [[1 + 0j if i == j else 0j for j in range(n)] for i in range(n)]
+    coeffs: List[complex] = [1 + 0j]
+    for k in range(1, n + 1):
+        AM = [[sum(A[i][t] * M[t][j] for t in range(n)) for j in range(n)]
+              for i in range(n)]
+        tr = sum(AM[i][i] for i in range(n))
+        ck = -tr / k
+        coeffs.append(ck)
+        M = [[AM[i][j] + (ck if i == j else 0) for j in range(n)] for i in range(n)]
+    return coeffs
+
+
+def char_poly(a) -> List:
+    """Exact integer characteristic polynomial ``det(xI - A)`` (Faddeev–LeVerrier).
+
+    For an **integer** matrix this returns the EXACT integer coefficients of the
+    monic characteristic polynomial (high→low: ``[1, c1, …, cn]``) in
+    arbitrary-precision integer arithmetic — the exact ALGEBRAIC substrate of the
+    eigenproblem: the exact trace (``= -c1``), the exact determinant
+    (``= (-1)^n · c_n``), and all elementary symmetric functions of the spectrum,
+    with **no floating point**.
+
+    The eigenvalues are the ROOTS of this exact polynomial — but unlike the DFT's
+    well-conditioned lift, extracting roots from polynomial COEFFICIENTS is
+    ill-conditioned (Wilkinson), so :func:`eigvals` keeps its direct float
+    eigensolver and this op exposes the exact polynomial rather than rerouting the
+    eigenvalues. A non-integer (or complex) matrix falls back to a float
+    Faddeev–LeVerrier. Pure-Python; numpy is a container only.
+
+    **Class L** (spectral / algebraic content) ∘ **Class M** (the matrix-product
+    + trace accumulate) ∘ **Class K** (the exact ``// k`` step division).
+    """
+    rows = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
+    n = len(rows)
+    if n == 0:
+        return [1]
+    if any(len(r) != n for r in rows):
+        raise ValueError(f"char_poly: a must be square 2-D; got {n}x{len(rows[0])}")
+    real_integer = True
+    for r in rows:
+        for v in r:
+            vr = v.real if hasattr(v, "real") else v
+            vi = v.imag if hasattr(v, "imag") else 0
+            if vi != 0 or int(vr) != vr:
+                real_integer = False
+                break
+        if not real_integer:
+            break
+    if real_integer:
+        A = [[int(v.real) if hasattr(v, "real") else int(v) for v in r] for r in rows]
+        return _char_poly_int(A, n)
+    return _char_poly_float(rows, n)
+
+
+# ── exact real-eigenvalue cascade: char-poly → Sturm isolation → bisection ──────
+# The eigenvalues of an integer matrix are ALGEBRAIC numbers, not transcendental:
+# the Wilkinson ill-conditioning of "float root-finding from char-poly
+# coefficients" is a float-perturbation artifact, NOT inherent. Kept in EXACT
+# integer/rational arithmetic the whole way — char_poly (Class L∘M∘K) → Sturm
+# sign-sequence isolation (Class C sign-count at Class K interval pin-slots) →
+# rational bisection (Class N anchors → the algebraic asymptote) → one FPU lift —
+# the eigenvalues come out exact-to-arbitrary-precision and well-conditioned.
+
+from fractions import Fraction as _FR  # noqa: E402  (exact rational substrate)
+
+
+def _poly_trim(p: List) -> List:
+    p = list(p)
+    while len(p) > 1 and p[-1] == 0:
+        p.pop()
+    return p
+
+
+def _poly_deriv(p: List) -> List:
+    return _poly_trim([p[i] * i for i in range(1, len(p))]) if len(p) > 1 else [_FR(0)]
+
+
+def _poly_divmod(a: List, b: List) -> Tuple[List, List]:
+    """Exact polynomial division over ℚ → (quotient, remainder)."""
+    a = _poly_trim(list(a))
+    b = _poly_trim(b)
+    q = [_FR(0)] * max(len(a) - len(b) + 1, 1)
+    while len(a) >= len(b) and any(x != 0 for x in a):
+        c = a[-1] / b[-1]
+        d = len(a) - len(b)
+        q[d] = c
+        for i in range(len(b)):
+            a[d + i] -= c * b[i]
+        a = _poly_trim(a)
+        if a == [_FR(0)]:
+            break
+    return _poly_trim(q), _poly_trim(a)
+
+
+def _poly_gcd(a: List, b: List) -> List:
+    a = _poly_trim(a)
+    b = _poly_trim(b)
+    while _poly_trim(b) != [_FR(0)]:
+        _, r = _poly_divmod(a, b)
+        a, b = b, r
+    if a[-1] != 0:                                   # normalise monic
+        a = [c / a[-1] for c in a]
+    return _poly_trim(a)
+
+
+def _poly_sub(a: List, b: List) -> List:
+    n = max(len(a), len(b))
+    return _poly_trim([(a[i] if i < len(a) else _FR(0)) - (b[i] if i < len(b) else _FR(0))
+                       for i in range(n)])
+
+
+def _square_free_factors(p: List) -> List[Tuple[List, int]]:
+    """Yun square-free factorisation → ``[(factor_k, k)]`` where ``factor_k`` is
+    the product of the roots of EXACT multiplicity ``k`` (so an eigenvalue of
+    multiplicity ``k`` is a degree-1 factor at ``k``)."""
+    p = _poly_trim(p)
+    a = _poly_gcd(p, _poly_deriv(p))
+    b, _ = _poly_divmod(p, a)
+    c, _ = _poly_divmod(_poly_deriv(p), a)
+    d = _poly_sub(c, _poly_deriv(b))
+    out: List[Tuple[List, int]] = []
+    k = 1
+    while len(b) > 1:
+        g = _poly_gcd(b, d)
+        if len(g) > 1:
+            out.append((g, k))
+        b, _ = _poly_divmod(b, g)
+        c, _ = _poly_divmod(d, g)
+        d = _poly_sub(c, _poly_deriv(b))
+        k += 1
+    return out
+
+
+def _sturm_chain(p: List) -> List[List]:
+    chain = [_poly_trim(p), _poly_deriv(p)]
+    while len(chain[-1]) > 1:
+        _, r = _poly_divmod(chain[-2], chain[-1])
+        if _poly_trim(r) == [_FR(0)]:
+            break
+        chain.append([-x for x in r])
+    return chain
+
+
+def _poly_eval(p: List, x):
+    s = _FR(0)
+    for c in reversed(p):
+        s = s * x + c
+    return s
+
+
+def _sturm_V(chain: List[List], x) -> int:
+    signs = [1 if v > 0 else -1 for v in (_poly_eval(p, x) for p in chain) if v != 0]
+    return sum(1 for i in range(1, len(signs)) if signs[i] != signs[i - 1])
+
+
+def _mag(x):
+    """Class-K magnitude: the sign-branch ``x if x >= 0 else -x``, never the ALU
+    builtin. Sign is the pin-slot (Class K) re-applied as Class C — discipline."""
+    return x if x >= 0 else -x
+
+
+def _isolate_real_roots(factor: List, bits: int) -> List[Tuple]:
+    """Sturm-isolate the DISTINCT real roots of a square-free ``factor`` and
+    bisect each to width ``< 2^-bits``. Returns ``(lo, hi)`` Fraction intervals."""
+    chain = _sturm_chain(factor)
+    lead = _mag(factor[-1])
+    bound = _FR(1) + max((_mag(c) / lead for c in factor[:-1]), default=_FR(0))
+    eps = _FR(1, 1 << bits)
+    out: List[Tuple] = []
+    stack = [(-bound, bound)]
+    while stack:
+        a, b = stack.pop()
+        cnt = _sturm_V(chain, a) - _sturm_V(chain, b)
+        if cnt == 0:
+            continue
+        if cnt == 1:
+            while b - a > eps:                       # Class N anchors → asymptote
+                m = (a + b) / 2
+                if _sturm_V(chain, a) - _sturm_V(chain, m) == 1:
+                    b = m
+                else:
+                    a = m
+            out.append((a, b))
+        else:
+            m = (a + b) / 2                           # Class K pin-slot split
+            stack.append((a, m))
+            stack.append((m, b))
+    return out
+
+
+def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False):
+    """Exact REAL eigenvalues of an integer matrix — the well-conditioned
+    exact-until-rotation cascade (no Wilkinson ill-conditioning).
+
+    ``char_poly`` (exact integer) → Yun square-free factorisation (exact
+    multiplicities) → **Sturm** sign-sequence isolation (**Class C** sign-count at
+    **Class K** interval boundaries) → rational **bisection** (**Class N** anchors
+    → the algebraic asymptote), kept in exact ``Fraction`` arithmetic the whole
+    way. Each eigenvalue stays an exact algebraic number until the single FPU
+    lift. ``bits`` sets the refinement precision; ``return_intervals=True`` yields
+    the exact ``(lo, hi)`` rational isolating intervals instead of floats.
+
+    Returns the real eigenvalues ascending **with multiplicity**. A symmetric
+    integer matrix has an all-real spectrum (complete); a matrix with complex
+    eigenvalues returns only its real ones (exact complex isolation is a
+    follow-up) — compare ``len(...)`` to the matrix order to detect that case.
+    """
+    cp = char_poly(a)                                # monic, high→low
+    p = [_FR(c) for c in reversed(cp)]               # low→high over ℚ
+    eigs: List[Tuple] = []
+    for factor, mult in _square_free_factors(p):
+        for (lo, hi) in _isolate_real_roots(factor, bits):
+            for _ in range(mult):
+                eigs.append((lo, hi))
+    eigs.sort(key=lambda iv: iv[0] + iv[1])
+    if return_intervals:
+        return eigs
+    return [float((lo + hi) / 2) for (lo, hi) in eigs]
