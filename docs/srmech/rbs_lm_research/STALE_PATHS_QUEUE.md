@@ -539,3 +539,9 @@ Per user direction ("check stale queue items to bring forward and do if remainin
 - **DONE (#962 Part 1, substantially): native A-N binding.** 12/12 previously-unbound symbols reachable via `_native.LIB`; `jacobi_eigvals` dispatches native in the numpy-absent path (the F708 49× Class-L gap, closed). UPSTREAM_NOTES §38 marked ✅ DELIVERED.
 - **OPEN (R3 U1):** `tokenize()` / `cooccurrence_edges()` did NOT ship — the wiki kernel still hand-rolls co-occurrence edges. The Class-L precursor remains the gap (plus Ask-3, the wired 1024-node 4-sector spectral one-call surface).
 - **HELD for the user:** the #855 body-checkbox edits (R1.1 now true; R3 U1 + #797 still open) — recorded, not driven (create-don't-drive tracker discipline).
+
+### F717 + #855 box flips (2026-06-09, same rc42 cycle)
+
+- **DONE (#855 R1.1):** checked on the live issue — the 4-quad Klein-4 chirality ops act without a ctypes lift (rc42 / F716).
+- **DONE (#855 R5.2): F717** — the b/d/p/q mirror-confusion set IS the Klein-4 (Z₂×Z₂) orbit of one glyph shape (γ₅ swaps b↔d & p↔q; iω₇ swaps b↔p & d↔q; cpt b↔q; all native, no lift, self-inverse, group-closed). A mirror confusion lands one flip from truth, recovered by a 4-sector orbit enumeration; byte-identity has no such axis. Checked on the live issue. Verified `R-RBS-LM-GLYPHCHIRALITY...py`.
+- **NEW upstream ask (UPSTREAM_NOTES §39):** a class GENERATOR from introspection (introspection→`[class].toml`, the inverse of `make_class`) — Class-H emitting its own descriptor = substrate-self-recognition; where Siona's learning loop closes on itself (srmech notebook §8.2). User has begun taking §38/§39 upstream.

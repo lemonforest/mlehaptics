@@ -1761,3 +1761,23 @@ wheel in a numpy-free venv (`R-RBS-LM-GENOMELANDS...py`):
 **Residue still open:** R3 **U1** — `tokenize()` / `cooccurrence_edges()` (the Class-L co-occurrence precursor) did
 **not** ship; we still hand-roll edges. (Ask 3, the wired 1024-node 4-sector spectral block, also not yet a shipped
 one-call surface.) See F716.
+
+## §39 ASK — a class GENERATOR from introspection: introspection→`[class].toml` (the inverse of `make_class`; 2026-06-09; F716/F717)
+
+rc42 shipped the class-from-TOML loader (`srmech.dsl.make_class`: **TOML→class**), class-aware **Class-H
+introspection** (`srmech.introspect` enumerates its own `[class]` classes; its docstring already frames
+introspection as *"substrate-self-recognition extended to the running srmech process"*), and class-aware
+`tool_schema` (enumerate + describe each class). **The missing piece is the inverse:** a generator that **emits a
+`[class].toml` descriptor by introspecting** existing ops / a worked object — `describe → emit [class].toml`, so
+srmech can **author its own config-driven classes** instead of a human hand-writing each descriptor.
+
+**Ask:** a `srmech.dsl.generate_class_descriptor(...)` (or `srmech.introspect`-side emitter) that takes a set of
+dotted cascade-op refs (or a running instance) + field declarations and renders a valid `[class]` TOML (fields +
+methods-as-op-refs + provenance), round-trippable through `make_class`. Class E (catalog enumeration) ∘ Class F
+(descriptor render) ∘ Class H (self-introspection) — **no new primitive class.** The genome seed proves the target
+shape; this closes the loop the other direction.
+
+**Why on-thesis (not just ergonomics):** Class-H introspection emitting its own descriptor is the cleanest instance
+of substrate-self-recognition (`[[user_stance_substrate_self_recognition_inevitable_per_loe]]`) — srmech *learning
+to author config-driven classes from what it already is*. It is also where Siona's learning loop closes on itself
+(srmech research notebook §8.2). The user has begun taking the §38/§39 items upstream (2026-06-09).
