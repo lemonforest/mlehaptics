@@ -45,7 +45,7 @@ ATTESTATION (dignity-first; F630/F668/F665): the offline enwiki dump is CC BY-SA
   repo, attested-not-committed, class-B-tertiary (a measured/derived content source — F630). MFO
   stays held-over wiki (F665). Held open (F394).
 
-srmech 0.7.5rc15 surface used:
+srmech (version reported at runtime) surface used:
   amsc.laplacian.{dense_laplacian, dense_adjacency, jacobi_eigvals, fiedler_vector, MAX_NATIVE_NODES}
   amsc.format.sha256_bytes               (the kernel content-address — Class A)
   amsc.cascade.magnitude                 (Class-K real |x| — used INSTEAD of python abs(); sign is
@@ -57,6 +57,7 @@ DISCIPLINE: srmech-first (NEVER a numpy hand-rolled eig; NEVER a Counter AS the 
 """
 import sys
 import re
+import unicodedata
 
 sys.path.insert(0, "docs/srmech/rbs_lm_research")
 import srmech
@@ -93,6 +94,13 @@ SYNTHETIC_WIKI = [
     "The one sees the galaxy, the shell, the helix and the snowflake as one spiral pattern.",
     # article 6 — more rotational co-occurrence to give the Fiedler split mass
     "Spiral arms turn; coils grow; a galaxy and a shell both spiral and twist around a center.",
+    # article 7 — REAL wiki markup (math/ref/template/table/comment) to EXERCISE the hardened re-encode (F700).
+    # With the leaky demo strip this leaks 'displaystyle'/'frac'/'cite'/'wikitable' into the vocab; the hardened
+    # path keeps ONLY the content words (galaxy/rotation/curve/mass/spiral...).
+    "A '''galaxy''' rotation curve is <math>v(r)=\\sqrt{\\frac{G M(r)}{r}}</math> where <math>\\displaystyle "
+    "M(r)</math> is the enclosed mass.<ref>Hubble plain citation 1929</ref>{{Infobox galaxy|mass={{nowrap|1e12}}}}"
+    "<!-- verify mass --> The [[spiral galaxy]] coils its arms.\n{| class=\"wikitable\"\n! Type !! Count\n|-\n"
+    "| spiral || many\n|}",
 ]
 
 
@@ -117,7 +125,71 @@ def strip_wiki_markup(text):
     text = re.sub(r"\{\{[^}]*\}\}", " ", text)                       # {{template}} -> drop (demo)
     text = re.sub(r"'''?|'''", "", text)                            # bold/italic ticks
     text = re.sub(r"<[^>]+>", " ", text)                            # any HTML/<ref>/<code> tag (demo)
-    return text
+    return text  # ⚠ LEAKS content-bearing markup (F700) — kept only to illustrate; NOT used in the build path
+
+
+# F700 fix wired into the build path: remove the CONTENT of content-bearing blocks, not just the tags.
+_CONTENT_TAGS = ("math", "ref", "code", "syntaxhighlight", "score", "chem", "hiero", "gallery", "timeline")
+
+
+def strip_wiki_markup_hardened(text):
+    """The TRUSTWORTHY cleaner (F700) — used by the build path so the kernel re-encodes with CLEAN vocab.
+
+    Removes the CONTENT (not just the tags) of math/ref/code/score/chem/table/comment blocks + clears NESTED
+    templates to a fixpoint + unwraps external links — so no LaTeX/citation/markup token ever enters the vocab.
+    The user: "the kernel must be re-encoded before its vocab is trusted." Reference scaffold; the dev session's
+    real cleaner is the F579/F607 wiki-formatting-language kernel.
+    """
+    text = re.sub(r"<!--.*?-->", " ", text, flags=re.DOTALL)                       # 1. comments
+    for tag in _CONTENT_TAGS:                                                       # 2. content-bearing elements
+        text = re.sub(rf"<{tag}\b[^>]*>.*?</{tag}>", " ", text, flags=re.DOTALL | re.IGNORECASE)
+        text = re.sub(rf"<{tag}\b[^>]*/\s*>", " ", text, flags=re.IGNORECASE)       #    self-closing <ref .../>
+    prev = None                                                                     # 3. tables {| ... |} to fixpoint
+    while prev != text:
+        prev = text
+        text = re.sub(r"\{\|[^{]*?\|\}", " ", text, flags=re.DOTALL)
+    prev = None                                                                     # 4. templates to fixpoint (nested)
+    while prev != text:
+        prev = text
+        text = re.sub(r"\{\{[^{}]*\}\}", " ", text, flags=re.DOTALL)
+    text = re.sub(r"\[\[(?:[^\]|]*\|)?([^\]]+)\]\]", r"\1", text)                   # 5. wikilinks / ext-links
+    text = re.sub(r"\[(?:https?|ftp)://[^\s\]]+\s+([^\]]+)\]", r"\1", text)
+    text = re.sub(r"\[(?:https?|ftp)://[^\s\]]+\]", " ", text)
+    text = re.sub(r"<[^>]+>", " ", text)                                            # 6. any remaining tag (now safe)
+    text = re.sub(r"'{2,}", "", text)                                               # 7. emphasis / headers / bullets
+    text = re.sub(r"^[\s]*[*#:;=|!-]+", " ", text, flags=re.MULTILINE)
+    text = re.sub(r"={2,}", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+_APOS = "'’"  # ASCII + curly apostrophe (internal, e.g. don't / galaxy's)
+
+
+def content_words(text):
+    """Unicode-aware content-word tokenizer (F698): runs of Unicode letter|mark (incl. café/naïve), len>=2.
+
+    Replaces the old ASCII `[A-Za-z][A-Za-z']+` (which truncated 'café' -> 'caf' and dropped every non-Latin
+    script). Lowercased; internal apostrophes kept; length>=2 (content words, not single letters). Digits are
+    NOT content words here (matches the prior letters-only intent). CJK single-ideograph segmentation is the
+    F696 per-script concern (the native speaker's grammar) — out of scope for this English-wiki re-encode.
+    """
+    words, cur = [], []
+    for ch in text:
+        if unicodedata.category(ch)[0] in ("L", "M"):
+            cur.append(ch)
+        elif ch in _APOS and cur:                                  # internal apostrophe only
+            cur.append("'")
+        else:
+            if cur:
+                words.append("".join(cur)); cur = []
+    if cur:
+        words.append("".join(cur))
+    out = []
+    for w in words:
+        w = w.strip("'").lower()
+        if len(w) >= 2:
+            out.append(w)
+    return out
 
 
 def stream_articles(source):
@@ -136,10 +208,14 @@ def stream_articles(source):
 
     This generator yields the CLEANED CONTENT-WORD LIST per article. One article = one window-reset
     boundary (co-occurrence never crosses an article — F681's per-line boundary, generalised).
+
+    RE-ENCODE FIX (the user: "the kernel must be re-encoded before its vocab is trusted"): the build path
+    uses strip_wiki_markup_hardened (F700, kills LaTeX/ref/template/table junk) + content_words (F698,
+    Unicode-aware) — so the kernel's vocab is TRUSTWORTHY (no markup tokens, no truncated 'café'->'caf').
     """
     for raw in source:
-        cleaned = strip_wiki_markup(raw)
-        toks = [w.lower() for w in re.findall(r"[A-Za-z][A-Za-z']+", cleaned)]
+        cleaned = strip_wiki_markup_hardened(raw)              # F700: trustworthy cleaning (not the leaky demo)
+        toks = content_words(cleaned)                          # F698: Unicode-aware content words
         yield [w for w in toks if w not in DEFAULT_STOPLIST]
 
 
