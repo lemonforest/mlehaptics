@@ -1,0 +1,55 @@
+# Class catalog entry: Genome (the seed worked-instance; #962 Part 2 / #566).
+#
+# A user-authored [class] descriptor — the names of the biological structures
+# (genome / chromosome / telomere) used as the cascade names of a storage class.
+# srmech's config-driven loader (srmech.dsl.make_class) constructs a generic,
+# class-aware CatalogClass from this TOML: zero user Python, 100% declarative.
+# Each method binds to a shipped cascade op (resolved by dotted srmech path);
+# the genome surface's flat functions (srmech.amsc.genome.*) are the primitives
+# these methods compose.
+#
+# This is the built-in seed. A researcher drops their own [class].toml in a dir
+# registered via srmech.dsl.register_class_dir() / SRMECH_CLASS_PATH and gets the
+# identical class-aware surface (the cascade-catalog register_catalog_dir pattern
+# lifted from ops to classes). A user class-name may NOT shadow a shipped one.
+
+[class]
+name = "Genome"
+kind = "storage"
+doc = """
+A telomere-partitioned genome of chromosomes (F711-F715). Hold the_one (the
+shared invariant every helix turn is coupled through) and accumulate
+telomere-capped chromosome strands; recall any kernel by its strand + cap.
+The biological-structure names ARE the cascade names — substrate-self-recognition.
+"""
+
+# Instance state. A "list*"-typed field defaults to []; others default to None
+# and are supplied at construction (e.g. Genome(the_one=...)).
+[class.field]
+the_one = "hv"            # the held invariant (a Klein-4 vector)
+chromosomes = "list"      # accumulated telomere-capped strands
+
+# Methods. Each binds to a shipped cascade op by dotted path; `binds` names are
+# resolved positionally from the call kwargs first, then the instance fields;
+# any leftover call kwarg passes through (e.g. label=). `appends`/`sets` route
+# the op result back into a field.
+[class.method.shape]
+op = "srmech.amsc.genome.encode_shape"
+binds = ["n"]
+doc = "Decide the encode shape (tome / mobius / quad_strand) for a kernel of size n."
+
+[class.method.cap]
+op = "srmech.amsc.genome.telomere"
+binds = ["label"]
+doc = "Make the telomere content-address cap for a chromosome label."
+
+[class.method.add_chromosome]
+op = "srmech.amsc.genome.chromosome"
+binds = ["leaves", "the_one"]
+appends = "chromosomes"
+doc = "Pack a kernel into a telomere-capped chromosome (coupled through the_one) and append it."
+
+[class.method.recall]
+op = "srmech.amsc.genome.recall"
+binds = ["strand", "the_one", "telomere"]
+doc = "Recover a kernel's leaves from a chromosome strand (re-bind the_one; skip the cap)."

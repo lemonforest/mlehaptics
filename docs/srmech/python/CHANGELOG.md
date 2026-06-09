@@ -8,6 +8,26 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc39] - 2026-06-09
+
+**User-declared classes from `[class]` TOML — the cascade-catalog config-driven pattern lifted from ops to classes (#962 Part 2; user direction 2026-06-09).** A researcher authors a `[class]` descriptor (fields + methods-as-cascade-op-refs) and srmech's config-driven loader constructs a generic, class-aware object — **zero user Python, 100% declarative**. This is how an end user targets srmech for their own research domain.
+
+- **`srmech.dsl.make_class(name)`** → a factory for the declared class; **`CatalogClass`** is the generic runtime object (fields hold state; declared methods dispatch to cascade ops resolved by dotted srmech path). A method's `binds` names resolve positionally from the call kwargs first, then the instance fields; leftover kwargs pass through (e.g. `label=`); `appends`/`sets` route the op result back into a field.
+- **`register_class_dir(path)` / `SRMECH_CLASS_PATH`** — bring-your-own: drop a `[class]` TOML in your dir and it constructs identically to the shipped seed (B-tier, attested to the descriptor hash; a user class-name may not shadow a shipped one). Mirrors `register_catalog_dir` exactly — the op-level surface lifted to classes.
+- Plus `list_classes()` / `get_class_descriptor(name)` / `load_class_catalog()`.
+
+**genome/chromosome/telomere ships as the built-in seed worked-instance** (`_research/class_catalog/genome.toml`): `Genome(the_one=...)` with methods `shape` / `cap` / `add_chromosome` / `recall` that bind to the rc37/rc38 `srmech.amsc.genome.*` flat functions. So:
+
+```python
+from srmech.dsl import make_class
+g = make_class("Genome")(the_one=one)
+g.shape(n=5000)                                   # -> {'shape': 'quad_strand', 'depth': 3, ...}
+strand = g.add_chromosome(leaves=[...], label="astronomy")   # coupled + appended
+leaves = g.recall(strand=strand, telomere=g.cap(label="astronomy"))   # exact round-trip
+```
+
+DSL stage-awareness, the CLI surface, and tool_schema/MCP introspection of user classes are the next bricks (rc40/rc41). The loader lives in `srmech.dsl` (no new `srmech.amsc`/`qm` public callable → no tool-schema count change). ABI 3; numpy not required.
+
 ## [0.7.5rc38] - 2026-06-09
 
 **Genome-storage surface, brick 2 — the chromosome (`telomere` / `chromosome` / `recall`).** The LAYER-1 cascade primitives that the upcoming user-authored class layer binds to. `srmech.amsc.genome` gains:

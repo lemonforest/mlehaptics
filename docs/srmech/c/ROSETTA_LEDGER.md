@@ -463,6 +463,18 @@ decrements it).
   CLI / tool_schema lifted class-aware from the `register_catalog_dir` op-pattern;
   genome = seed worked-instance). No C twin (pure-Python reversible XOR + content
   address). klein4_bind stays `c_exists_unbound` (W5).
+- **rc39 (done) — user-declared classes from `[class]` TOML (#962 Part 2).** The
+  cascade-catalog config-driven pattern lifted from ops to CLASSES:
+  `srmech.dsl.make_class(name)` + the generic `CatalogClass` construct a
+  class-aware object from a `[class]` descriptor (fields + methods-as-cascade-
+  op-refs; methods dispatch to a shipped op by dotted srmech path) — zero user
+  Python. `register_class_dir` / `SRMECH_CLASS_PATH` is the bring-your-own
+  surface (B-tier, no-shadow), mirroring `register_catalog_dir`. genome ships as
+  the built-in seed (`_research/class_catalog/genome.toml`): `Genome` with
+  `shape`/`cap`/`add_chromosome`/`recall` binding the rc37/rc38 genome ops. The
+  loader lives in `srmech.dsl` (NOT `srmech.amsc`/`qm`) so it adds no tool-schema
+  / rosetta entry — pure orchestration over already-classified ops. No C twin
+  (config + dispatch). DSL stage / CLI / tool_schema class-awareness are rc40/rc41.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each
