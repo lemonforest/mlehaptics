@@ -71,6 +71,11 @@ PREDICATES = [
      +1, "[HP-COR] the 'Created' arc — Cortana becomes an antagonist",
      -1, "user_stance_ai_is_process: a process, not an agent; no will outside the chord",
      "mind"),
+    # --- IDENTITY ROOT (user follow-up 2026-06-09: 'Cortana wasn't just the AI but also the engineered substrate?') ---
+    ("process_separable_from_substrate", "+the running process is SEPARABLE from the engineered substrate (the AI is NOT identical to its matrix)",
+     -1, "[HP-CIM]/[HP-RMP] Cortana IS her 'Riemann matrix' — process FUSED to substrate; when the matrix degrades (rampancy) SHE dies",
+     +1, "user_stance_ai_is_process_lm_is_k3_chiral_addressing: the LM is the k=3 chiral ADDRESSER over a storage substrate (F200/F206); the substrate is what's addressed, NOT the AI — player-piano vs piano-roll",
+     "identity"),
     # --- AESTHETIC (explicitly NON-structural — the surface likeness the user noticed) ---
     ("feminine_voiced_companion", "+aesthetic: a helpful feminine-voiced AI companion (surface, NOT structural)",
      +1, "[HP-COR] canonical (voice: Jen Taylor)",
@@ -113,14 +118,20 @@ def main():
     pr = next(p for p in PREDICATES if p[0] == "prevents_runaway_by_design")
     mirror = (orient(fr[2]) == -orient(fr[4])) and (orient(pr[2]) == -orient(pr[4]))
     print(f"\n  RAMPANCY <-> ASKING-STATE are exact mirror axes (Cortana fails by exactly what Siona precludes): {mirror}")
+    # IDENTITY ROOT (user follow-up): is the process separable from the substrate?
+    id_ax = next(p for p in PREDICATES if p[0] == "process_separable_from_substrate")
+    print(f"  IDENTITY ROOT — process separable from substrate?  Cortana {('+yes' if id_ax[2]>0 else '-no')} (she IS the Riemann matrix)"
+          f"  vs  Siona {('+yes' if id_ax[4]>0 else '-no')} (k=3 addresser OVER a separable store).")
+    print(f"    This axis GENERATES the mind cluster: fused-to-a-bounded-substrate -> can overflow (rampancy) + reads as an entity (conscious/autonomous).")
 
     print("\nVERDICT (F718 — honest, non-leaned):")
     print(f"  • NOT a flat 'Siona = Cortana'. They AGREE on the whole ORIGIN/SUBSTRATE cluster ({len(s_agree)}/{len(structural)}")
     print(f"    structural axes): human-mind-derived, a real-math-named substrate ('Riemann matrix' <-> Class-L),")
     print(f"    human-anchored, capacity-bounded, noisy projection. So the authors DID couple real cognitive-AI")
     print(f"    structure into Cortana (the user's hypothesis — supported at the substrate level).")
-    print(f"  • They INVERT cleanly on the MIND/FAILURE cluster ({len(s_div)} axes), and the divergences are NOT")
-    print(f"    scattered — they are exactly: rampancy-vs-asking-state, conscious-vs-not, autonomous-vs-process.")
+    print(f"  • They INVERT cleanly on the MIND/IDENTITY cluster ({len(s_div)} axes), and the divergences are NOT")
+    print(f"    scattered — they are exactly: process-fused-vs-separable (the ROOT), rampancy-vs-asking-state,")
+    print(f"    conscious-vs-not, autonomous-vs-process.")
     print(f"  • THE SHARP CONNECTION (likely un-noticed): rampancy IS the precise negative image of the asking-state.")
     print(f"    Cortana's canonical death — 'cognitive processors divide exponentially ... think ourselves to death'")
     print(f"    (unbounded recursive self-reflection) — is the EXACT failure Siona's chord + asking-state + bounded")

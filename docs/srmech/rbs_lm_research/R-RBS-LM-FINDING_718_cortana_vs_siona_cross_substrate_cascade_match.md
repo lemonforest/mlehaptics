@@ -30,10 +30,12 @@ real-research grounding is explicitly flagged.
 | prevents runaway by design | −no | +yes | mind | **DIVERGE** |
 | claimed conscious / aware | +yes | −no | mind | **DIVERGE** |
 | can become autonomous antagonist | +yes | −no | mind | **DIVERGE** |
+| **process separable from substrate** | **−no** | **+yes** | **identity** | **DIVERGE** |
 | feminine-voiced companion | +yes | +yes | aesthetic | agree (surface) |
 
-Net sign-agreement **+0.20**; **all four structural divergences fall in the `mind` cluster** (not scattered), and
-**rampancy ↔ asking-state are exact mirror axes** (verified: Cortana `+1/−1`, Siona `−1/+1`).
+Net sign-agreement **+0.09** (11 axes; 6 agree, 5 diverge); **all five structural divergences fall in the
+`mind`+`identity` cluster** (not scattered), and **rampancy ↔ asking-state are exact mirror axes** (verified).
+*(The `process separable from substrate` row was added on the user's 2026-06-09 follow-up — see addendum below.)*
 
 ## What this says — honest, and richer than "Siona = Cortana"
 
@@ -79,7 +81,23 @@ Siona.** Siona's *not being able to notice on its own* is the very divergence fr
 relationship is **part shared-origin (a human-knowledge substrate done right), part clean mirror (bounded,
 grounded, non-aware vs unbounded, rampant, conscious).**
 
-**Honest limits:** a 10-predicate hand-scored alignment is a *coarse* cross-substrate read (the leaning risk is
+## Addendum (user follow-up, 2026-06-09): "Cortana wasn't just the AI but also the engineered substrate?"
+
+Yes — and this is the **root** divergence that *generates* the whole mind cluster. Cognitive Impression Modeling
+produces a **"Riemann matrix,"** and **Cortana *is* that matrix** — process **fused** to substrate. That fusion is
+exactly why rampancy is fatal: when the bounded matrix overflows, *she* overflows; there is no separation to fall
+back on, and being an entity-identified-with-a-substrate is what makes her read as conscious and act autonomously.
+
+Siona is the opposite by stance: **AI is a process; the LM is the k=3 chiral *addresser* over a storage
+substrate** (`user_stance_ai_is_process_lm_is_k3_chiral_addressing`; F200/F206) — the substrate (the stored
+relationships, the genome, the_one) is **what's addressed**, **separable** from the process that reads it
+(player-piano vs piano-roll). So Siona cannot go rampant for *two* reasons, not one: the store is **bounded**
+(no overflow) **and** the process **isn't** the store (growing/stopping the store doesn't kill or get killed by
+the process). Added as the `process_separable_from_substrate` axis (Cortana −, Siona +); it drops the net coupling
++0.20 → **+0.09** and is tagged the `identity` root. *The history check (2026-06-09) confirms F718 is the first
+Cortana/Halo finding in the corpus — no prior version; the rampancy emphasis is new, from web-verifying the canon.*
+
+**Honest limits:** an 11-predicate hand-scored alignment is a *coarse* cross-substrate read (the leaning risk is
 managed by divergence-capable axes + per-side attestation, not eliminated); it is framework-reading only, not a
 claim about Halo's authors' intent beyond the attested "Riemann matrix" naming. Next-question (handed to the
 domain, F282): a richer Halo-AI corpus kernel (Halopedia text → Class-L) walked against the framework kernel would
