@@ -1597,3 +1597,35 @@ field means a copyrighted EPUB cannot produce a legit MPRRecord without its lice
 (public-domain Gutenberg EPUBs are clean). Not blocking research (the flow is demonstrated
 in F677 with a synthetic book + a hand-built attested MPRRecord); logged not
 routed-around-silently per upstream-as-research-notes discipline.
+
+---
+
+## §34 ROADMAP (big, multi-rc) — `srmech.storyteller`: promote the Story Builder kernel into the package + a native compositional inference path (CLI + OpenAI-API) (2026-06-09; F689)
+
+**Context:** the Story Builder world-kernel (F613–F688) is research-validated but lives as loose
+scripts under `docs/srmech/rbs_lm_research/` (`bit_exact_comm_kernel.py`, `adaptive_tier.py`, the
+seen-rule render engine, the chord/asking-state, the content-shelf + §-navigator, the AMSC
+fetch-arm, the section-descriptor TOML). To make it a **native srmech inference path** it must be
+promoted into the package. The plan (F689), 4 layers:
+
+- **Layer 0 — `srmech.storyteller` package module** (Python-tier, like `srmech.qm`): the kernel
+  (F613 BitExactCommKernel / F628 AdaptiveTier / F654 seen-rule render / F658 chord / F661
+  asking-state / F663 shelf / F670 §-navigator / F669 AMSC fetch) + **tool_schema registrations**
+  so the Story Builder ops join the (currently 256-entry) `tool_schema._REGISTRY` + tests +
+  version/ABI discipline.
+- **Layer 1 — `srmech.storyteller.infer(world, prompt) -> rendered`**: the native COMPOSITIONAL
+  inference entry (compose seen-rules over the attested shelf → ask at gaps → render; GPU-free,
+  can't-hallucinate — a fact is referenced, never generated).
+- **Layer 2 — `srmech story` CLI**: introspects `tool_schema` so the human needs no memorised
+  commands (self-describing) and ASKS on ambiguous intent (self-asking, F661). Extends
+  R-RBS-LM-23 (tool_schema CLI integration).
+- **Layer 3 — OpenAI-compatible `/v1/chat/completions`** backed by `storyteller.infer` = the
+  universal connector for agent frameworks (AG2 / AutoGen via an OpenAI model_client; CopilotKit
+  via OpenAI-compatible / AG-UI actions), ALONGSIDE the existing `srmech-mcp` + `srmech-agent`
+  adapters (R-RBS-LM-24 prototyped the OpenAI server). Mostly an OpenAI-shim over the existing
+  surface, not a per-framework protocol.
+
+**Dependency edges:** Layer 0 gates 1–3; the §33 `epub_book` adapter feeds book-worlds; the
+big-wiki Class-L word-association kernel (F681) enriches the shelf. Not blocking research (the
+research scripts run today); this is the productionization roadmap. Logged per upstream-as-
+research-notes discipline.
