@@ -58,5 +58,7 @@ def test_class_surface_tools_registered():
     assert "srmech.dsl.describe_class" in names
 
 
-def test_introspect_tools_total_is_272():
-    assert introspect.describe()["tools"]["total"] == 272
+def test_introspect_tools_total_is_274():
+    # rc41 registered list_class_surface + describe_class (270→272);
+    # rc42 added genome + partition ToolEntries (272→274).
+    assert introspect.describe()["tools"]["total"] == 274

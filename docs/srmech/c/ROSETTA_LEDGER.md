@@ -497,6 +497,18 @@ decrements it).
   a TOML-declared class from Python, the shell, and an LLM. NB the local-only
   `test_introspection_version_native_matches` false-fail is the stale hand-built
   DLL (version string vs a fresh CI build), not a regression.
+- **rc42 (done) — genome-storage brick 3: multi-kernel `genome` + `partition`
+  (#962 Part 2).** `srmech.amsc.genome.genome(kernels, the_one)` packs many
+  `{label: leaves}` kernels into ONE telomere-partitioned strand (each a
+  telomere-capped `chromosome` coupled through `the_one`, concatenated); the
+  inverse `partition(strand, the_one, labels)` knows ALL caps so it never
+  mistakes one chromosome's cap for another's data — round-trips every kernel
+  exactly. The seed `Genome` `[class]` gains `assemble`/`partition` methods.
+  Closes the F715 hierarchy GENOME→CHROMOSOMES→QUAD-TURNS→LEAF≤256. 2
+  ToolEntries (`genome` / `partition`; `tools.total` 272→274; 5 count-tests
+  bumped); both **`composition_of_c`** (compose of `chromosome`/`recall` over the
+  c_dispatched `klein4_bind`, with a content-address cap from `sha256_bytes`) —
+  no debt-bucket growth. ABI 3; numpy not required.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each
