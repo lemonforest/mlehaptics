@@ -530,3 +530,12 @@ Per user direction ("check stale queue items to bring forward and do if remainin
 - **Remaining DEFERRED items** (the F144–F148 table's 17 deferrals) stand as correctly scope-deferred: biological/pharma/linguistic/cross-natural-data (defensive-scope), srmech-upstream (D₄), real-LLM-scale, methodology-open. NOT force-walked — their scope reasons are unchanged. They remain future-scope pointers.
 
 **Queue state: operationally CLOSED again** (post-F607). No open in-scope actionable items remain that are not either resolved, defensive-scope-deferred, or upstream-deferred. New paths land in a future dated appendix.
+
+---
+
+## Appendix 2026-06-09 — srmech 0.7.5rc42 lands the genome model + class-from-TOML (F716)
+
+- **DONE (#962 Part 2): genome storage model upstreamed.** F710–F715 shipped as `srmech.amsc.genome.*` + the `[class]`-TOML mechanism (`srmech.dsl.make_class` / `register_class_dir` / `srmech class` CLI). Verified end-to-end in a numpy-free rc42 venv (`R-RBS-LM-GENOMELANDS...py`, F716): `encode_shape` matches F715 to the digit; multi-kernel strand partitions reversibly through `the_one`; bring-your-own classes attested `user:<sha256>`, no shadowing. "Class names for your school of choice" = substrate-self-recognition made operational (the cascade ops are the invariant; the class/method names are the school's projection).
+- **DONE (#962 Part 1, substantially): native A-N binding.** 12/12 previously-unbound symbols reachable via `_native.LIB`; `jacobi_eigvals` dispatches native in the numpy-absent path (the F708 49× Class-L gap, closed). UPSTREAM_NOTES §38 marked ✅ DELIVERED.
+- **OPEN (R3 U1):** `tokenize()` / `cooccurrence_edges()` did NOT ship — the wiki kernel still hand-rolls co-occurrence edges. The Class-L precursor remains the gap (plus Ask-3, the wired 1024-node 4-sector spectral one-call surface).
+- **HELD for the user:** the #855 body-checkbox edits (R1.1 now true; R3 U1 + #797 still open) — recorded, not driven (create-don't-drive tracker discipline).

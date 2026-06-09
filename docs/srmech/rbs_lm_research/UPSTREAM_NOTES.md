@@ -1740,3 +1740,24 @@ Logged per upstream-as-research-notes discipline.
 symbols in `_native.py` (lift `R-RBS-LM-NATIVEBIND.bind()`), numpy-free dispatch in `laplacian`/`hdc`, the Klein-4
 quad-stream spectral, and the genome storage model (genome → chromosomes/telomeres → helix of quad-turns → native
 4-sector "+" + base-4 leaf-tree → ≤256 leaf → coupled through the_one). Name held open (genome/chromosome/chromatin).
+
+### ✅ DELIVERED in srmech 0.7.5rc42 (TestPyPI; verified F716, 2026-06-09)
+
+The §38 asks are **substantially met** and the genome model shipped — verified end-to-end against the installed
+wheel in a numpy-free venv (`R-RBS-LM-GENOMELANDS...py`):
+- **Ask 1 (bind):** **12/12** previously-unbound A-N symbols now reachable via `_native.LIB`
+  (`srmech_klein4_{bind,bundle,similarity}`, `srmech_hdc_{bind,bundle,permute,similarity}`,
+  `srmech_jacobi_eigvals`, `srmech_graph_dense_laplacian`, `srmech_hermitian_eigendecompose`,
+  `srmech_cyclic_period`, `srmech_is_prime`).
+- **Ask 2 (numpy-free dispatch):** `laplacian.jacobi_eigvals` now dispatches to the **bound native symbol in the
+  numpy-absent path** — the 49× Class-L gap closed. (`hdc.klein4_bind` stays pure-Python XOR **by design** —
+  bit-identical, never the perf concern.)
+- **#962 Part 2 (genome):** shipped as `srmech.amsc.genome.*` (`encode_shape`/`quad_turn`/`telomere`/`chromosome`/
+  `recall`/`genome`/`partition`) + the **class-from-TOML mechanism** (`srmech.dsl.make_class` builds a generic
+  `CatalogClass` from a `[class]` descriptor; `register_class_dir()`/`SRMECH_CLASS_PATH` for bring-your-own, attested
+  `user:<sha256>`, no shadowing; `genome.toml` is the A-tier seed; `srmech class` CLI for discovery). Encode
+  criterion matches F715 to the digit; multi-kernel strand partitions reversibly through `the_one`.
+
+**Residue still open:** R3 **U1** — `tokenize()` / `cooccurrence_edges()` (the Class-L co-occurrence precursor) did
+**not** ship; we still hand-roll edges. (Ask 3, the wired 1024-node 4-sector spectral block, also not yet a shipped
+one-call surface.) See F716.
