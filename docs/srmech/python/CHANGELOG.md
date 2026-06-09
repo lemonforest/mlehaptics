@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc28] - 2026-06-08
+
+**The first exact-until-rotation cascade — the DFT/FFT goes integer (cyclotomic `ℤ[ζ_N]`) until one FPU lift; #928.** Per user direction — **"don't use floats for bit-exact math, that's what ints and complex are for; floats are for FPU lift."** A DFT's twiddles `e^{-2πi·j/N}` are *roots of unity* = algebraic integers in `ℤ[ζ_N]`; for power-of-two `N` the cyclotomic polynomial is `Φ_N(x) = x^{N/2}+1`, so `ζ^{N/2} = -1` (a **Class K** pin-slot sign-flip, never `abs`) and the ring collapses to the negacyclic integers `ℤ[x]/(x^{N/2}+1)` — a length-`N/2` integer vector. The DFT of an integer / Gaussian-integer signal is then **pure integer add/subtract**: bit-for-bit deterministic, with floats produced **exactly once** at the final FPU lift `ζ → e^{-2πi/N}` (the projection from the discrete substrate to the continuous observable). This is *more* faithful than a float FFT, which rounds at every butterfly — it rounds once.
+
+This sharpens rc27's framing: the DFT/FFT cascade is no longer merely "round-off-faithful to numpy" for integer input — it is exact-until-rotation, the substrate-native pattern made concrete.
+
+- **New internal engine `srmech.amsc.cascade.exact_dft`** (private helpers `_exact_dft_core` / `_lift_spectrum` / `_try_int_pairs` / `_exact_transform`): the exact cyclotomic-integer transform + the single FPU lift (reusing the Class-N `cexp`, numpy-absent-safe).
+- **`spectral_cascades.dft` / `fft`** now route an all-integer / Gaussian-integer **power-of-two** signal through that engine (so `fft` and `dft` agree **bit-for-bit** on integer input, and both are ≤1e-15 from `numpy.fft`); float signals (already continuous) and non-power-of-two lengths keep the float `cexp` path unchanged.
+
+**Zero new public surface; ratchet untouched.** No new public introspected callable (the engine is private), so the numpy-math ratchet, the rosetta `python_only_irreducible` debt bucket, the tool-schema coverage, and the introspect tool counts are all unchanged. No numpy added; pure Python-tier; no C change, ABI stays 3. Exposing the exact `ℤ[ζ_N]` spectrum as a *public* op belongs with its native-C twin (so it lands `c_dispatched`, not Python-only debt) — the tracked follow-up; general-`N` (non-power-of-two) cyclotomic reduction is also a follow-up.
+
+SSoT: issue #928; `test_exact_dft_rc28.py`.
+
 ## [0.7.5rc27] - 2026-06-08
 
 **The linalg/fft phase opens — the linear-solve family onto cascades (numpy-math `linalg_fft` 126 → 122; #928).** With the dense-matmul ceiling at its floor, the arc pivots to the larger `linalg_fft` ceiling (pinned at 126 since rc13). Per user direction — **cascade + TOML for all maths; numpy is a carrier only** (with the carrier itself removed as the *final* step, after the maths sweep) — the cascades **replace** numpy math even where they are not bit-exact: `fft` (radix-2), `svd` (Gram-route), `qr` (Householder), `eig` (Jacobi) are round-off-faithful to numpy (~1e-14), not bit-identical, and that within-round-off shift is accepted (any bit-equality-vs-numpy test relaxes to a tolerance).

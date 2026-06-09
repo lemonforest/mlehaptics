@@ -313,6 +313,25 @@ decrements it).
   ops' OWN internal numpy kernels (laplacian eigh/solve — Class-L impls w/
   pure-Python fallbacks; deeper pass) + docstring/summary `numpy.linalg.*` MENTIONS
   (precise docs, not gamed). Next: np.fft (n/axis) + svd/qr/eigvals + inv/pinv.
+- **rc28 (done) — the first exact-until-rotation cascade: DFT/FFT goes integer.**
+  Per the sharpened user direction (*"don't use floats for bit-exact math, that's
+  what ints and complex are for; floats are for FPU lift"*), the `dft`/`fft`
+  cascade now routes an all-integer / Gaussian-integer **power-of-two** signal
+  through an exact cyclotomic-integer engine — `ℤ[ζ_N]`, `ζ^{N/2} = -1` (a Class-K
+  sign-flip) collapsing to the negacyclic integers `ℤ[x]/(x^{N/2}+1)` → **pure
+  integer add/subtract**, with ONE FPU lift at the end (`ζ → e^{-2πi/N}`). This is
+  *more* faithful than a float FFT (which rounds every butterfly) and sharpens
+  rc27's "round-off-faithful is fine" framing for the integer case. **No ratchet
+  movement, no Rosetta-bucket change**: the engine is a private module
+  (`srmech.amsc.cascade.exact_dft._exact_transform` + helpers), adds no numpy and
+  no public introspected callable, so all three numpy-math ceilings AND the
+  `python_only_irreducible` debt count are untouched. ABI 3.
+  **Follow-up C-twin candidate:** exposing the exact `ℤ[ζ_N]` spectrum as a
+  *public* op (`exact_dft` / `exact_idft` / `lift`) should land **with** its
+  native-C peer so it classifies `c_dispatched`, not Python-only debt — the
+  ratchet's exact-equality `python_only_irreducible` ceiling is precisely what
+  blocks adding it Python-only. General-`N` (non-power-of-two) cyclotomic
+  reduction is also a follow-up.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each
