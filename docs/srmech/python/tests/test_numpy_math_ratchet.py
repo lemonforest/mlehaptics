@@ -135,8 +135,24 @@ _UFUNC = re.compile(
 # floor is essentially reached; further matmul reduction is reword-sweep +
 # distinct-op cascades (separate work items). The laplacian Schur `L_pi·X` is
 # deferred (in-helper, shape-polymorphic — its own careful pass).
+# rc27 OPENS the linalg_fft decrement (pinned at 126 since rc13): the dense-matmul
+# floor reached, the arc pivots to np.linalg/np.fft → cascade. Per user direction
+# (cascade + TOML for ALL maths; numpy is a carrier only, with the carrier itself
+# removed as the FINAL step AFTER the maths sweep), the cascades REPLACE numpy math
+# even where not bit-exact — fft (radix-2) / svd (Gram-route) / qr (Householder) /
+# eig (Jacobi) are round-off-faithful to numpy (~1e-14), not bit-identical, and
+# that within-tolerance shift is accepted; any bit-equality-vs-numpy test relaxes
+# to a tolerance. rc27 routes the linear-solve family: map_ml's 2 np.linalg.solve →
+# dense_solve (bit-exact for the 1-D RHS both sites have) + triality/esprit's
+# np.linalg.lstsq → matrix_cascades.lstsq (round-off-faithful, complex-safe; the
+# bare-ndarray return replaces numpy's 4-tuple, so the callsite unpack changed)
+# (linalg_fft 126 -> 122). NOT migrated: the cascade ops' OWN internal numpy
+# kernels (laplacian eigh/solve — designated Class-L impls with pure-Python
+# fallbacks; a deeper separate pass) and the docstring/ToolEntry-summary
+# `numpy.linalg.*` cross-reference MENTIONS (precise docs — left intact, not gamed).
+# Next: np.fft (n/axis handling) + np.linalg.svd/qr/eigvals + inv/pinv.
 # ---------------------------------------------------------------------------
-CEIL_LINALG_FFT = 126
+CEIL_LINALG_FFT = 122
 CEIL_MATMUL = 55
 CEIL_UFUNC = 48
 
