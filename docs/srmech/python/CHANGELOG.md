@@ -8,6 +8,21 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc42] - 2026-06-09
+
+**Genome-storage surface, brick 3 — the multi-kernel `genome` + `partition` (the F715 hierarchy closes; #962 Part 2).** rc37/rc38 shipped the chromosome (one kernel); rc42 ships the genome itself — many kernels, telomere-partitioned, on ONE strand:
+
+- **`srmech.amsc.genome.genome(kernels, the_one)`** — packs a `{label: leaves}` mapping (or `(label, leaves)` pairs) into a single strand: each kernel becomes a telomere-capped `chromosome` (coupled through `the_one`), all concatenated — the **chromosome set**. The per-kernel telomere caps delimit + protect the partitions, so one strand holds many kernels.
+- **`srmech.amsc.genome.partition(strand, the_one, labels)`** — the inverse: knows ALL the caps, so (unlike a single-cap `recall`) it never mistakes one chromosome's cap for another's data. Returns `{label: leaves}`, each leaf re-bound through `the_one` (the reversible `quad_turn`). Round-trips every kernel exactly.
+
+```python
+from srmech.amsc.genome import genome, partition
+strand = genome({"astronomy": A, "geography": G, "music": M}, one)
+partition(strand, one, ["astronomy", "geography", "music"]) == {"astronomy": A, "geography": G, "music": M}
+```
+
+The seed **`Genome`** `[class]` (rc39) gains `assemble` (→ `genome`) + `partition` methods, so the multi-kernel genome is driven end-to-end from the declarative class surface (`g.assemble(kernels=…)` binds `the_one` from the field). This completes the F715 storage object: **GENOME** (multi-kernel) → **CHROMOSOMES** (telomere-capped) → helix of **QUAD-TURNS** → **LEAF** ≤ 256. 2 ToolEntries (`srmech.amsc.genome.genome` / `partition`; `tools.total` 272 → **274**); both `composition_of_c` in the Rosetta ledger. ABI 3; numpy not required.
+
 ## [0.7.5rc41] - 2026-06-09
 
 **CLI + tool_schema/introspect class-awareness — the genome surface closes (#962 Part 2).** The user-declared `[class]` surface (rc39/rc40) is now reachable from the shell, the package's self-description, and the LLM tool list:

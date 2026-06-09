@@ -136,3 +136,54 @@ def test_recall_skips_the_cap_by_value_not_position():
     strand = [genome.quad_turn(leaf, one), cap, genome.quad_turn(leaf, one)]
     recovered = genome.recall(strand, one, cap)
     assert len(recovered) == 2 and all(list(x) == list(leaf) for x in recovered)
+
+
+# ── brick 3 (rc42): genome (multi-kernel) + partition ────────────────────────
+
+def _kernels(one):
+    return {
+        "astronomy": [klein4_random(64, seed=s) for s in range(3)],
+        "geography": [klein4_random(64, seed=s) for s in (10, 11)],
+        "music": [klein4_random(64, seed=20)],
+    }
+
+
+def test_genome_is_concatenated_telomere_capped_chromosomes():
+    one = klein4_random(64, seed=7)
+    k = _kernels(one)
+    strand = genome.genome(k, one)
+    # 3 caps + (3+2+1) coupled turns
+    assert len(strand) == 3 + (3 + 2 + 1)
+    # the three telomere caps appear in the strand, in declared order
+    caps = [list(genome.telomere(lbl, dim=64)) for lbl in k]
+    positions = [i for i, hv in enumerate(strand) if list(hv) in caps]
+    assert positions == [0, 4, 7]              # astronomy@0, geography@4 (cap+3), music@7 (+2)
+
+
+def test_partition_round_trips_every_kernel():
+    one = klein4_random(64, seed=7)
+    k = _kernels(one)
+    strand = genome.genome(k, one)
+    back = genome.partition(strand, one, list(k))
+    assert set(back) == set(k)
+    for label, leaves in k.items():
+        assert [list(x) for x in back[label]] == [list(l) for l in leaves]
+
+
+def test_genome_accepts_pair_sequence_form():
+    one = klein4_random(64, seed=3)
+    A = [klein4_random(64, seed=1)]
+    assert [list(x) for x in genome.genome([("k", A)], one)] \
+        == [list(x) for x in genome.genome({"k": A}, one)]
+
+
+def test_genome_seed_class_assemble_and_partition():
+    # the Genome CatalogClass now drives the multi-kernel genome end-to-end
+    from srmech.dsl import make_class
+    one = klein4_random(64, seed=7)
+    g = make_class("Genome")(the_one=one)
+    k = _kernels(one)
+    strand = g.assemble(kernels=k)                 # binds the_one from the field
+    back = g.partition(strand=strand, labels=list(k))
+    for label, leaves in k.items():
+        assert [list(x) for x in back[label]] == [list(l) for l in leaves]

@@ -31,12 +31,15 @@ helix-turn **coupling** (:func:`quad_turn`).
 Brick 2 (rc38): the **chromosome** layer — :func:`telomere` (the non-data
 content-address cap), :func:`chromosome` (pack one kernel into a telomere-capped
 strand of quad-turns), :func:`recall` (recover the kernel). These flat functions
-are the cascade PRIMITIVES the later user-authored class layer binds to (a
+are the cascade PRIMITIVES the user-authored class layer binds to (a
 class-descriptor TOML declares fields + methods-as-op-refs; srmech's
-config-driven loader constructs the class; DSL/CLI/tool_schema become
-class-aware — the genome storage object as the seed worked-instance). The
-**genome** (multi-kernel, telomere-partitioned strand of chromosomes) assembles
-in a subsequent brick.
+config-driven loader constructs the class; DSL/CLI/tool_schema are class-aware —
+the genome storage object as the seed worked-instance).
+
+Brick 3 (rc42): the **genome** itself — :func:`genome` packs many kernels into
+ONE telomere-partitioned strand (the chromosome set), :func:`partition` recovers
+each kernel by its telomere. Completes the F715 hierarchy: GENOME (multi-kernel)
+-> CHROMOSOMES (telomere-capped) -> helix of QUAD-TURNS -> LEAF <= 256.
 """
 from __future__ import annotations
 
@@ -48,6 +51,7 @@ from srmech.amsc.hdc import klein4_random as _klein4_random
 
 __all__ = [
     "encode_shape", "quad_turn", "telomere", "chromosome", "recall",
+    "genome", "partition",
     "LEAF_CAP", "QUAD", "MOBIUS_CAP",
 ]
 
@@ -174,3 +178,54 @@ def recall(strand, the_one, telomere):
             continue
         leaves.append(quad_turn(hv, the_one))   # reversible uncouple (bind o bind == id)
     return leaves
+
+
+def genome(kernels, the_one):
+    """Pack many kernels into ONE telomere-partitioned strand — the genome (F715).
+
+    The top-level storage object: each ``(label, leaves)`` kernel becomes a
+    telomere-capped :func:`chromosome` (coupled through ``the_one``), and all the
+    chromosomes are concatenated into a single strand — the **chromosome set**.
+    The per-kernel telomere caps delimit + protect the partitions, so one strand
+    holds many kernels (verified in F715: ``astronomy`` / ``geography`` /
+    ``music`` on one strand). Recover any kernel — or all of them — with
+    :func:`partition`.
+
+    ``kernels`` is a mapping ``{label: leaves}`` or a sequence of
+    ``(label, leaves)`` pairs (insertion order is the strand order). ``the_one``
+    is the shared invariant every turn of every chromosome is coupled through.
+    Returns the flat strand (``list`` of Klein-4 vectors) — a genome strand IS a
+    strand, just with multiple caps.
+    """
+    items = list(kernels.items()) if isinstance(kernels, dict) else list(kernels)
+    strand = []
+    for label, leaves in items:
+        strand.extend(chromosome(leaves, the_one, label=label))
+    return strand
+
+
+def partition(strand, the_one, labels):
+    """Recover every kernel from a multi-kernel genome strand — the inverse of
+    :func:`genome` (F715).
+
+    Walk the ``strand``; each element equal to one of ``labels``' telomere caps
+    starts a new chromosome partition, and the coupled turns until the next cap
+    are that kernel's leaves (re-bound through ``the_one`` — the reversible
+    :func:`quad_turn`). Returns ``{label: leaves}``. ``partition`` knows ALL the
+    caps, so (unlike a single-cap :func:`recall`) it does not mistake one
+    chromosome's cap for another's data::
+
+        partition(genome({"a": A, "b": B}, one), one, ["a", "b"]) == {"a": A, "b": B}
+    """
+    dim = len(list(the_one))
+    cap_to_label = {tuple(int(x) for x in telomere(label, dim=dim)): label for label in labels}
+    out = {}
+    current = None
+    for hv in strand:
+        key = tuple(int(x) for x in hv)
+        if key in cap_to_label:                 # a telomere cap — start a new partition
+            current = cap_to_label[key]
+            out[current] = []
+        elif current is not None:
+            out[current].append(quad_turn(hv, the_one))   # reversible uncouple
+    return out

@@ -361,3 +361,5 @@
 {"exposed_as": "srmech.amsc.genome.telomere", "defined_at": "srmech.amsc.genome.telomere", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.chromosome", "defined_at": "srmech.amsc.genome.chromosome", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.recall", "defined_at": "srmech.amsc.genome.recall", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.genome.genome", "defined_at": "srmech.amsc.genome.genome", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.genome.partition", "defined_at": "srmech.amsc.genome.partition", "bucket": "composition_of_c"}

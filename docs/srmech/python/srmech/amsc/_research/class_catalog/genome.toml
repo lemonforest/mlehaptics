@@ -53,3 +53,13 @@ doc = "Pack a kernel into a telomere-capped chromosome (coupled through the_one)
 op = "srmech.amsc.genome.recall"
 binds = ["strand", "the_one", "telomere"]
 doc = "Recover a kernel's leaves from a chromosome strand (re-bind the_one; skip the cap)."
+
+[class.method.assemble]
+op = "srmech.amsc.genome.genome"
+binds = ["kernels", "the_one"]
+doc = "Pack many kernels {label: leaves} into ONE telomere-partitioned genome strand (the chromosome set)."
+
+[class.method.partition]
+op = "srmech.amsc.genome.partition"
+binds = ["strand", "the_one", "labels"]
+doc = "Recover {label: leaves} from a multi-kernel genome strand by its telomere labels."

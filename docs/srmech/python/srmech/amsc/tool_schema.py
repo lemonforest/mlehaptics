@@ -1543,6 +1543,21 @@ def _register_primitive_class_tools() -> None:
                         P("telomere", "np.ndarray", True, "the telomere cap delimiting the chromosome (skipped, not decoded)")),
             returns=R("list", "the recovered kernel leaves (Klein-4 vectors), in order"),
         ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome", owner="srmech", category="genome",
+            summary="Pack many kernels into ONE telomere-partitioned strand — the top-level genome / chromosome set (F715). Each (label, leaves) kernel becomes a telomere-capped chromosome (coupled through the_one), all concatenated into a single strand; the per-kernel telomere caps delimit + protect the partitions, so one strand holds many kernels (F715 verified: astronomy / geography / music). A genome strand IS a strand (list of Klein-4 vectors), just with multiple caps; recover with partition. kernels is a dict {label: leaves} or a sequence of (label, leaves) pairs (insertion order = strand order). Composes chromosome (Class A cap + Class M coupling).",
+            parameters=(P("kernels", "dict", True, "{label: leaves} — each kernel's leaves are Klein-4 vectors (one tome each)"),
+                        P("the_one", "np.ndarray", True, "the held invariant every turn of every chromosome is coupled through")),
+            returns=R("list", "the flat genome strand: concatenated [cap, turns...] per kernel"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.partition", owner="srmech", category="genome",
+            summary="Recover every kernel from a multi-kernel genome strand — the inverse of genome (F715). Walk the strand; each element equal to one of labels' telomere caps starts a new chromosome partition, and the coupled turns until the next cap are that kernel's leaves (re-bound through the_one — reversible quad_turn). Returns {label: leaves}. partition knows ALL the caps, so (unlike a single-cap recall) it does not mistake one chromosome's cap for another's data: partition(genome({a:A,b:B}, one), one, [a,b]) == {a:A, b:B}.",
+            parameters=(P("strand", "Sequence[np.ndarray]", True, "a multi-kernel genome strand (from genome)"),
+                        P("the_one", "np.ndarray", True, "the held invariant the turns were coupled through"),
+                        P("labels", "list", True, "the chromosome labels whose telomere caps partition the strand")),
+            returns=R("dict", "{label: leaves} — each kernel's recovered Klein-4 leaves, in order"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class K — equation-of-centre / pin-slot
