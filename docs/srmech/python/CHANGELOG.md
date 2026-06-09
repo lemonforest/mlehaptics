@@ -8,6 +8,13 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc47] - 2026-06-09
+
+**`hdc.klein4_project_axis` — the iω₇-collapse / bipolar projection (RBS-LM §18 Tier-2 leaf; F350/F354).** The "asymptotic-DoF render": project a 2-DoF Klein-4 hypervector (γ₅ ⊕ iω₇) onto ONE chirality axis, collapsing it to a 1-DoF bipolar `{-1,+1}` vector. This is the F350 bipolar render that drops the OTHER axis — and with it that axis's self-error-correction (F354 axis-split: the collapsed observer is structurally blind to errors on the projected-out axis).
+
+- `klein4_project_axis(v, *, axis="gamma5")` → `list[int]` of `{-1, +1}`. Per-element bit→sign: clear bit → `+1`, set bit → `-1` (the Class-K bipolar sign render; **no `abs()`**). `axis` is a CO-EQUAL, non-privileged convention per the settable-chirality discipline — both `"gamma5"` (bit 1) and `"iomega7"` (bit 0) first-class, related by a Class-K axis swap; the default `"gamma5"` is the surviving-axis of the F354 collapse (a documented convention, not a privileged truth). Class K (asymptotic-DoF render) ∘ Class C (axis select); numpy-free pure bit ops.
+- New `srmech.amsc.hdc.klein4_project_axis` ToolEntry → `describe()["tools"]["total"]` 277 → **278**; `non_compute` rosetta bucket (a one-way bipolar render/readout out of the store — peer to the rc43 `tokenize`/`cooccurrence_edges` projections, NOT a store-transform wanting a C twin). ABI 3; numpy-free.
+
 ## [0.7.5rc46] - 2026-06-09
 
 **Catalog→DSL auto-registration bridge actually routes (RBS-LM UPSTREAM §17 U4).** rc45 shipped the U3 `list_ops()` surface with auto-discovery of registered attested sources — but the auto-discovery read the WRONG source-key field (`source_key` / `name`) when `list_attested_sources()` returns each source under `key`. So the catalog-chain half was always empty: the packaged attested sources that declare `[[catalog.operator_chain]]` entries never surfaced. rc46 fixes the field.

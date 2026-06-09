@@ -127,4 +127,4 @@ def test_tool_entries_registered_and_total_bumped():
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.amsc.laplacian.tokenize" in names
     assert "srmech.amsc.laplacian.cooccurrence_edges" in names
-    assert introspect.describe()["tools"]["total"] == 277
+    assert introspect.describe()["tools"]["total"] == 278

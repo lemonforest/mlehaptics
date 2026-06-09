@@ -835,6 +835,61 @@ def klein4_cpt_mirror(v):
     return HV(_xor_const_buf(_as_klein4_buf(v, "klein4_cpt_mirror"), 3), sectors=4)
 
 
+# γ₅ = bit 1 (XOR mask 2), iω₇ = bit 0 (XOR mask 1) — the SAME bit layout the
+# chirality flips use. Projecting onto an axis extracts that one bit per element.
+_KLEIN4_PROJECT_AXIS_BITS = {"gamma5": 1, "iomega7": 0}
+
+
+def klein4_project_axis(v, *, axis="gamma5"):
+    """Project a Klein-4 hypervector onto ONE chirality axis → bipolar {-1,+1}.
+
+    The **asymptotic-DoF render** (F350/F354): the 2-DoF Klein-4 carrier
+    (γ₅ ⊕ iω₇) collapses to a 1-DoF bipolar ``{-1, +1}`` vector along the chosen
+    axis — exactly the F350 bipolar render that drops the OTHER axis (and with
+    it that axis's self-error-correction; F354 axis-split: the collapsed observer
+    is structurally blind to errors on the projected-out axis). Per-element
+    bit→sign: a clear bit (0) → ``+1``, a set bit (1) → ``-1`` (the standard
+    bipolar encoding; the Class-K sign render — no ``abs()``).
+
+    ``axis`` is a CO-EQUAL, non-privileged convention (cf. endianness): both
+    ``"gamma5"`` (bit 1) and ``"iomega7"`` (bit 0) are first-class, relating by
+    the Class-K axis swap. The default ``"gamma5"`` is the surviving-axis of the
+    F354 collapse — a documented convention, not a privileged truth.
+
+    Class K (asymptotic-DoF / bipolar sign render) ∘ Class C (chirality-axis
+    selection). Numpy-free pure bit ops.
+
+    Parameters
+    ----------
+    v
+        A Klein-4 value: an :class:`HV`, ``bytes`` / ``array('B')`` / list of
+        ints in ``{0, 1, 2, 3}``.
+    axis
+        ``"gamma5"`` (bit 1) or ``"iomega7"`` (bit 0). Co-equal.
+
+    Returns
+    -------
+    list[int]
+        The bipolar projection, one ``+1`` / ``-1`` per element.
+
+    Raises
+    ------
+    ValueError
+        If ``axis`` is neither ``"gamma5"`` nor ``"iomega7"`` (or an element is
+        outside ``{0, 1, 2, 3}``, propagated from the Klein-4 validator).
+    """
+    try:
+        shift = _KLEIN4_PROJECT_AXIS_BITS[axis]
+    except (KeyError, TypeError):
+        raise ValueError(
+            "klein4_project_axis: axis must be 'gamma5' or 'iomega7'; "
+            f"got {axis!r}"
+        )
+    buf = _as_klein4_buf(v, "klein4_project_axis")
+    # bit 0 → +1, bit 1 → -1 — the Class-K bipolar sign render (no abs()).
+    return [1 - 2 * ((x >> shift) & 1) for x in buf]
+
+
 # The order-3 triality cycle on the Klein-4 carrier (the S₃ = Aut(V₄)
 # generator). The three non-identity involutions cycle iω₇(1) → γ₅(2) →
 # CPT(3) → iω₇(1), fixing identity(0). Pure uint8 relabel via a length-4
@@ -1704,6 +1759,7 @@ __all__ = [
     "klein4_bundle",
     "klein4_similarity",
     "klein4_chirality_flip_gamma5",
+    "klein4_project_axis",
     "klein4_chirality_flip_omega7",
     "klein4_cpt_mirror",
     "klein4_triality_cycle",

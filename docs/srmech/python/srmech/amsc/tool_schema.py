@@ -1844,6 +1844,22 @@ def _register_primitive_class_tools() -> None:
             returns=R("np.ndarray", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
+            name="srmech.amsc.hdc.klein4_project_axis", owner="srmech",
+            category="hdc",
+            summary="Project a Klein-4 store onto ONE chirality axis → bipolar "
+                    "{-1,+1} (the F350/F354 asymptotic-DoF render): the 2-DoF "
+                    "γ₅⊕iω₇ carrier collapses to a 1-DoF bipolar vector, dropping "
+                    "the OTHER axis + its self-EC (F354 axis-split). `axis` is "
+                    "co-equal ('gamma5'=bit 1 / 'iomega7'=bit 0; default gamma5 "
+                    "is a documented non-privileged convention). Class K "
+                    "(bipolar sign render) ∘ Class C (axis select); no abs().",
+            parameters=(
+                P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),
+                P("axis", "str", False, "'gamma5' (bit 1) or 'iomega7' (bit 0)"),
+            ),
+            returns=R("list", "bipolar {-1,+1}, one per element"),
+        ),
+        ToolEntry(
             name="srmech.amsc.hdc.klein4_triality_cycle", owner="srmech",
             category="hdc",
             summary="Order-3 S₃=Aut(V₄) triality cycle of the three Klein-4 "
