@@ -66,6 +66,18 @@ from srmech.amsc import format as srfmt
 from srmech.amsc import cascade
 from bit_exact_comm_kernel import BitExactCommKernel
 
+# §17.1 ours-side migration (F723/F724): the text→graph stage primitives now ship in srmech.amsc.text
+# (rc50, §40 Option-1 site). tokenize is Unicode-aware (F698) + carries the DEFAULT_STOPLIST; cooccurrence_edges
+# does per-document window-reset + NO silent vocab cap (F708). Parity-verified vs the old content_words +
+# hand-rolled co-occurrence (F724: 4/4 tokenization, identical edge weights). We keep ONLY our corpus-specific
+# strip_wiki_markup_hardened (F700) in the adapter — markup-strip is correctly not tokenize's job. Graceful
+# fallback to the hand-rolled path on srmech < rc50 (so this reference still runs everywhere).
+try:
+    from srmech.amsc import text as text_ops
+    _HAS_TEXT = hasattr(text_ops, "tokenize") and hasattr(text_ops, "cooccurrence_edges")
+except Exception:
+    text_ops, _HAS_TEXT = None, False
+
 # The native eigvals node bound — the WHOLE reason the scaling story exists.
 MAX_NATIVE_NODES = laplacian.MAX_NATIVE_NODES  # 256 in rc15
 
@@ -264,9 +276,12 @@ def stream_articles(source):
     Unicode-aware) — so the kernel's vocab is TRUSTWORTHY (no markup tokens, no truncated 'café'->'caf').
     """
     for raw in source:
-        cleaned = strip_wiki_markup_hardened(raw)              # F700: trustworthy cleaning (not the leaky demo)
-        toks = content_words(cleaned)                          # F698: Unicode-aware content words
-        yield [w for w in toks if w not in DEFAULT_STOPLIST]
+        cleaned = strip_wiki_markup_hardened(raw)              # F700: trustworthy cleaning (corpus-specific; stays ours)
+        if _HAS_TEXT:                                          # §17.1 (F723/F724): SHIPPED Unicode tokenizer + stoplist
+            yield text_ops.tokenize(cleaned, stoplist=DEFAULT_STOPLIST)
+        else:                                                  # fallback (srmech < rc50): the hand-rolled path
+            toks = content_words(cleaned)                      # F698: Unicode-aware content words
+            yield [w for w in toks if w not in DEFAULT_STOPLIST]
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -305,13 +320,23 @@ def build_edges_topk(source, window=2, vocab_cap=None):
 
     # PASS 2 — windowed co-occurrence over the kept vocab only -> edge WEIGHTS.
     weights = {}                                                # (i,j)->count, i<j ; the EDGE builder
-    for art in stream_articles(source):
-        toks = [w for w in art if w in keep]                   # one article = one window reset
-        for a in range(len(toks)):
-            for b in range(a + 1, min(a + window + 1, len(toks))):
-                i, j = sorted((idx[toks[a]], idx[toks[b]]))
-                if i != j:
-                    weights[(i, j)] = weights.get((i, j), 0.0) + 1.0
+    if _HAS_TEXT:                                               # §17.1 (F724): the SHIPPED cooccurrence_edges (rc50)
+        # pre-filter to `keep` so out-of-vocab words COMPACT (window spans kept words) — matches the old path
+        # exactly (parity-verified, F724); per-doc window reset is the shipped op's job.
+        docs = [[w for w in art if w in keep] for art in stream_articles(source)]
+        _n, cc_edges, cc_w = text_ops.cooccurrence_edges(docs, window=window, vocab=vocab)
+        for (i, j), w in zip(cc_edges, cc_w):
+            a, b = sorted((i, j))
+            if a != b:
+                weights[(a, b)] = weights.get((a, b), 0.0) + float(w)
+    else:                                                       # fallback (srmech < rc50): hand-rolled windows
+        for art in stream_articles(source):
+            toks = [w for w in art if w in keep]               # one article = one window reset
+            for a in range(len(toks)):
+                for b in range(a + 1, min(a + window + 1, len(toks))):
+                    i, j = sorted((idx[toks[a]], idx[toks[b]]))
+                    if i != j:
+                        weights[(i, j)] = weights.get((i, j), 0.0) + 1.0
     edges = sorted(weights)
     return vocab, idx, edges, [weights[e] for e in edges], freq, dropped
 

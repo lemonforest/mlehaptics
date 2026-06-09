@@ -584,3 +584,10 @@ Per user direction ("check stale queue items to bring forward and do if remainin
   2. **no cap (F708) PASS** — `cooccurrence_edges(..., vocab_size=None)` default = all (1500→1500); explicit `vocab_size=N` is an opt-in cap.
   3. **boundary reset PASS** — `docs` = sequence of token-sequences → per-document window reset (no cross-article bleed).
 - Format unchanged (`(n, edges, weights)`, 2-tuples → dense_laplacian). **R3 U1 CLOSED**; #855 R3 U1 now checkable (offered to user). NEXT = §17.1 ours-side migration (wiki kernel onto the shipped ops; parity check vs our edges is the gate). The §40 specify→falsify(F722)→verify(F723) loop worked. F723.
+
+### F724 — §17.1 migration: wiki kernel now runs on shipped srmech.amsc.text ops (2026-06-09; parity-verified)
+
+- **Parity gate PASS** (`R-RBS-LM-U1PARITY...py`): our content_words+build_edges_topk vs shipped tokenize+cooccurrence_edges (rc50) — 4/4 tokenization identical (incl. café/naïve + CJK-glued edge case), identical edge-pair set + weights.
+- **Migration DONE + output-preserving:** WIKIKERNEL `stream_articles` → `text_ops.tokenize(stoplist=…)`; `build_edges_topk` PASS-2 → `text_ops.cooccurrence_edges(docs, window, vocab)` (pre-filtered to keep). PASS-1 freq/vocab_cap/dropped + return contract unchanged; `_HAS_TEXT` fallback for srmech<rc50. Toggle-comparison: shipped path == hand-rolled fallback byte-identical (incl. vocab_cap=6 compaction). Markup-strip (F700) stays ours (§40 boundary).
+- **Closes #855 R3 §17.1** (wiki kernel); Counter() genuinely retired; multilingual path open (Unicode tokenize). #855 R3 U1 box flipped. (Pre-existing: the kernel __main__'s fiedler_clusters step needs numpy — scientific tier, unrelated.) F724.
+- **#962 (native binding + genome) — closed this session per user direction** (Part 1 native A-N binding rc42/F716; Part 2 genome surface + class-from-TOML rc42/F716, bookshelf F721; all regression-clean through rc50).
