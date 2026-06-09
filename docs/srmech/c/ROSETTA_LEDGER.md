@@ -509,6 +509,20 @@ decrements it).
   bumped); both **`composition_of_c`** (compose of `chromosome`/`recall` over the
   c_dispatched `klein4_bind`, with a content-address cap from `sha256_bytes`) —
   no debt-bucket growth. ABI 3; numpy not required.
+- **rc43 (done) — text→graph stage primitives (RBS-LM UPSTREAM §17 U1; #855
+  R3 U1).** `srmech.amsc.laplacian.tokenize(text, *, stopwords=, min_len=,
+  pattern=)` (Class B/G text-segmentation) + `cooccurrence_edges(tokens, *,
+  window=, vocab_size=) -> (n, edges, weights)` (Class-L precursor) — the only
+  links between raw text and the already-shipped `dense_laplacian`. The K1
+  presence-kernel is now an authorable composite end-to-end (`tokenize →
+  cooccurrence_edges → dense_laplacian → eigendecompose → …`), retiring the
+  hand-rolled `re.findall` + `Counter()` idiom. Both pure-Python / numpy-free;
+  2 ToolEntries (`tools.total` 274→276; 5 count-tests bumped); both
+  **`non_compute`** in the ledger (string segmentation + integer graph
+  construction — no numeric/matrix compute, no c-dispatch → no debt-bucket
+  growth). The directed sibling (`i(A−Aᵀ)` Hermitian-Laplacian builder, reusing
+  the shipped `hermitian_eigendecompose`) is a separate queued Class-L
+  precursor (UPSTREAM §18.1 op(b) reference F357). ABI 3; numpy not required.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

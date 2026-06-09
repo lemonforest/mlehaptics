@@ -67,6 +67,8 @@
 {"exposed_as": "srmech.amsc.kepler.equation_of_centre", "defined_at": "srmech.amsc.kepler.equation_of_centre", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.kepler.kepler_solve", "defined_at": "srmech.amsc.kepler.kepler_solve", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.kepler.pin_slot", "defined_at": "srmech.amsc.kepler.pin_slot", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.laplacian.tokenize", "defined_at": "srmech.amsc.laplacian.tokenize", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.laplacian.cooccurrence_edges", "defined_at": "srmech.amsc.laplacian.cooccurrence_edges", "bucket": "non_compute"}
 {"exposed_as": "srmech.amsc.laplacian.dense_adjacency", "defined_at": "srmech.amsc.laplacian.dense_adjacency", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.dense_laplacian", "defined_at": "srmech.amsc.laplacian.dense_laplacian", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.dense_matmul_complex", "defined_at": "srmech.amsc.laplacian.dense_matmul_complex", "bucket": "c_dispatched"}

@@ -58,7 +58,8 @@ def test_class_surface_tools_registered():
     assert "srmech.dsl.describe_class" in names
 
 
-def test_introspect_tools_total_is_274():
+def test_introspect_tools_total_is_276():
     # rc41 registered list_class_surface + describe_class (270→272);
-    # rc42 added genome + partition ToolEntries (272→274).
-    assert introspect.describe()["tools"]["total"] == 274
+    # rc42 added genome + partition ToolEntries (272→274);
+    # rc43 added laplacian.tokenize + cooccurrence_edges (§17 U1; 274→276).
+    assert introspect.describe()["tools"]["total"] == 276

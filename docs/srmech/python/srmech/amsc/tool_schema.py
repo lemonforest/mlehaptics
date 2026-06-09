@@ -760,6 +760,40 @@ def _register_primitive_class_tools() -> None:
                           "None ⇒ unit weights")),
             returns=R("np.ndarray", "n × n dense matrix"),
         ),
+        # §17 U1 (rc43): the text→graph stage primitives — the K1 chain's
+        # missing front. `tokenize → cooccurrence_edges → dense_laplacian → …`
+        # is now authorable end-to-end; these two retire the hand-rolled
+        # re.findall + Counter() co-occurrence idiom. Both pure-Python.
+        ToolEntry(
+            name="srmech.amsc.laplacian.tokenize", owner="srmech",
+            category="laplacian",
+            summary="Segment text into lowercased tokens (Class B/G "
+                    "text-segmentation): apply a letter-led word pattern, drop "
+                    "tokens shorter than min_len or in stopwords. The text→tokens "
+                    "front of the K1 text→graph→spectral chain.",
+            parameters=(P("text", "str", True),
+                        P("stopwords", "list", False,
+                          "tokens to drop (case-insensitive); None keeps all"),
+                        P("min_len", "int", False, "minimum token length (default 2)"),
+                        P("pattern", "Optional[str]", False,
+                          "token regex; default a letter-led word")),
+            returns=R("list[str]", "lowercased token stream"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.cooccurrence_edges", owner="srmech",
+            category="laplacian",
+            summary="Weighted co-occurrence graph from a token stream (Class-L "
+                    "precursor): keep the vocab_size most-frequent tokens as "
+                    "nodes 0..n-1, count unordered co-occurring pairs within a "
+                    "sliding window. Returns (n, edges, weights) for "
+                    "dense_laplacian; retires the hand-rolled Counter() idiom.",
+            parameters=(P("tokens", "list", True),
+                        P("window", "int", False, "co-occurrence window (default 5)"),
+                        P("vocab_size", "int", False,
+                          "keep this many most-frequent tokens (default 1000)")),
+            returns=R("tuple[int, list[tuple[int, int]], list[int]]",
+                      "(n nodes, edge list, integer co-occurrence counts)"),
+        ),
         ToolEntry(
             name="srmech.amsc.laplacian.dense_laplacian", owner="srmech",
             category="laplacian",

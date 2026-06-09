@@ -8,6 +8,22 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc43] - 2026-06-09
+
+**Text→graph stage primitives — the K1 chain's missing front (RBS-LM UPSTREAM §17 U1).** `srmech.amsc.laplacian` gains the two ops that were the only links between raw text and the already-shipped `dense_laplacian`:
+
+- **`tokenize(text, *, stopwords=None, min_len=2, pattern=None)`** → `list[str]` — Class B/G text-segmentation: apply a letter-led word pattern (default `[A-Za-z][A-Za-z0-9_-]+`), lowercase, drop tokens shorter than `min_len` or in `stopwords` (case-insensitive).
+- **`cooccurrence_edges(tokens, *, window=5, vocab_size=1000)`** → `(n, edges, weights)` — Class-L precursor: keep the `vocab_size` most-frequent tokens as nodes `0..n-1`, count unordered co-occurring pairs within a sliding `window`. Returns **exactly** the triple `dense_laplacian(n, edges, weights)` consumes; weights are **integer** counts (exact — floats are for the FPU lift, none here).
+
+```python
+from srmech.amsc.laplacian import tokenize, cooccurrence_edges, dense_laplacian
+toks = tokenize(doc, stopwords={"the", "a", "is"})
+n, edges, weights = cooccurrence_edges(toks, window=5, vocab_size=1000)
+L = dense_laplacian(n, edges, weights)        # K1 text→graph→spectral, end-to-end
+```
+
+With these, the K1 presence-kernel is an authorable composite end-to-end (`tokenize → cooccurrence_edges → dense_laplacian → eigendecompose → …`), retiring the hand-rolled `re.findall` + `Counter()` co-occurrence idiom. Both pure-Python, numpy-free, deterministic. 2 ToolEntries (`tools.total` 274 → **276**; 5 count-tests bumped); both `non_compute` in the Rosetta ledger. The directed sibling (the `i(A−Aᵀ)` Hermitian-Laplacian builder, reusing the shipped `hermitian_eigendecompose`) is a separate, queued Class-L precursor. ABI 3; numpy not required.
+
 ## [0.7.5rc42] - 2026-06-09
 
 **Genome-storage surface, brick 3 — the multi-kernel `genome` + `partition` (the F715 hierarchy closes; #962 Part 2).** rc37/rc38 shipped the chromosome (one kernel); rc42 ships the genome itself — many kernels, telomere-partitioned, on ONE strand:
