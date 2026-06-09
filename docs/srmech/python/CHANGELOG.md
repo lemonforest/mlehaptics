@@ -8,6 +8,14 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc45] - 2026-06-09
+
+**`srmech.dsl.list_ops` — unified op-discovery across BOTH registries (RBS-LM UPSTREAM §17 U3).** Until now the DSL exposed two *disjoint* op-discovery surfaces: `list_catalog_ops()` enumerated the value-transform cascade ops, while `srmech.amsc.catalog.list_catalog_chains(source_key)` enumerated the AMSC catalog-declared operator chains — a kernel chain declared on a text-catalog was **invisible** to anyone reading the DSL op list. `list_ops()` unifies them into ONE call.
+
+- Every record carries a uniform `{name, class, purpose, kind, provenance}` shape. `kind` is `"stage"` / `"combinator"` (cascade-ops, from `list_catalog_ops`) or `"catalog-chain"` (catalog-declared chains); `provenance` is `"srmech"` / `"user"` / `"catalog:<source_key>"`. Sorted by `(kind, name)`.
+- `list_ops(source_keys=[...])` restricts the catalog-chain half; omit `source_keys` to auto-discover every registered attested source. A base install with no catalog registered returns just the cascade-ops (the catalog-chain half is empty — correct), and an unknown source key is tolerated (no chains, no raise).
+- New `srmech.dsl.list_ops` ToolEntry (a DSL discovery callable; no rosetta line) → `describe()["tools"]["total"]` 276 → **277**. Framework reading: Class E (catalog enumeration) over both registries at once. ABI 3; numpy-free (pure registry read).
+
 ## [0.7.5rc44] - 2026-06-09
 
 **DSL dotted-`op=` resolver + `encode_loe_content` registered as a cascade-op (RBS-LM UPSTREAM §17 U2).** A cascade-catalog descriptor may now name a **dotted entry point** — `[cascade].op = "srmech.signal_processing.encode_loe_content"` — so an EXISTING op that lives outside `srmech.amsc.cascade` is DSL-registrable without re-exporting it. Mirrors the rc39 class-catalog's dotted-path method resolution.

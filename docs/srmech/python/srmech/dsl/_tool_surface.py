@@ -134,4 +134,78 @@ def list_catalog_ops() -> List[Dict[str, str]]:
     return out
 
 
-__all__ = ["run_toml_chain", "list_catalog_ops"]
+def list_ops(*, source_keys: Any = None) -> List[Dict[str, str]]:
+    """Unify the two op-discovery registries into ONE list (RBS-LM §17 U3).
+
+    Before this, the DSL's value-transform cascade ops (:func:`list_catalog_ops`)
+    and the AMSC catalog-declared operator chains
+    (:func:`srmech.amsc.catalog.list_catalog_chains`) were **two disjoint
+    surfaces** — a kernel chain declared on a text-catalog was invisible to the
+    DSL op list. ``list_ops`` returns BOTH, every record carrying a uniform
+    ``kind`` + ``provenance`` so an LLM / CLI sees the whole authorable surface
+    in one call.
+
+    Each record is ``{"name", "class", "purpose", "kind", "provenance"}``:
+
+    * **cascade-ops** — every :func:`list_catalog_ops` record, with its existing
+      ``kind`` (``"stage"`` / ``"combinator"``) and ``provenance``
+      (``"srmech"`` A-tier / ``"user"`` B-tier BYO).
+    * **catalog-chains** — for each registered attested source (or each key in
+      ``source_keys``), every declared chain, tagged ``kind="catalog-chain"``
+      and ``provenance=f"catalog:{source_key}"`` (``class`` = the chain's A–N
+      class list, ``purpose`` = its summary).
+
+    ``source_keys`` (an iterable of source-key strings) restricts the
+    catalog-chain half; ``None`` (default) auto-discovers every registered
+    attested source. A base srmech install with no registered catalog returns
+    just the cascade-ops (the catalog-chain half is empty — correct; nothing is
+    registered). Sorted by ``(kind, name)``. Framework reading: Class E
+    (catalog enumeration) over BOTH registries at once — the unification the
+    §17 ask names.
+    """
+    out: List[Dict[str, str]] = list(list_catalog_ops())
+    keys = source_keys
+    if keys is None:
+        try:  # auto-discover every registered attested source
+            from srmech.amsc.catalog import list_attested_sources
+            srcs = list_attested_sources()
+            if isinstance(srcs, dict):
+                pool = srcs.get("sources")
+                if isinstance(pool, dict):
+                    keys = list(pool.keys())
+                elif isinstance(pool, list):
+                    keys = [s.get("source_key", s.get("name")) if isinstance(s, dict) else s
+                            for s in pool]
+                else:
+                    keys = list(srcs.get("source_keys", []) or [])
+            else:
+                keys = []
+        except Exception:  # no AMSC catalogs registered → cascade-ops only
+            keys = []
+    try:
+        from srmech.amsc.catalog import list_catalog_chains
+    except Exception:
+        list_catalog_chains = None  # type: ignore[assignment]
+    for sk in keys or []:
+        if not sk or list_catalog_chains is None:
+            continue
+        try:
+            res = list_catalog_chains(sk)
+        except Exception:
+            continue
+        if not isinstance(res, dict) or not res.get("ok"):
+            continue
+        for c in res.get("chains", []) or []:
+            classes = c.get("classes")
+            out.append({
+                "name": str(c.get("name", "")),
+                "class": ", ".join(classes) if isinstance(classes, list) else str(classes or ""),
+                "purpose": str(c.get("summary", "")),
+                "kind": "catalog-chain",
+                "provenance": f"catalog:{sk}",
+            })
+    out.sort(key=lambda r: (r.get("kind", ""), r.get("name", "")))
+    return out
+
+
+__all__ = ["run_toml_chain", "list_catalog_ops", "list_ops"]

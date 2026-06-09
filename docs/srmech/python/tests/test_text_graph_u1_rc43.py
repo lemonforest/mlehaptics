@@ -10,7 +10,7 @@ Validates: the tokenizer contract (lowercase / min_len / stopwords / custom
 pattern), the co-occurrence builder (vocab cap, window, integer weights, the
 `(n, edges, weights)` shape `dense_laplacian` consumes), the full K1 round-trip
 into the Laplacian eigvals, and that both ops are registered (ToolEntry + the
-`describe()` total bumped 274 → 276).
+`describe()` total bumped 274 → 277).
 """
 from __future__ import annotations
 
@@ -127,4 +127,4 @@ def test_tool_entries_registered_and_total_bumped():
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.amsc.laplacian.tokenize" in names
     assert "srmech.amsc.laplacian.cooccurrence_edges" in names
-    assert introspect.describe()["tools"]["total"] == 276
+    assert introspect.describe()["tools"]["total"] == 277
