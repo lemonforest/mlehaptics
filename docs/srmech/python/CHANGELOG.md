@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc34] - 2026-06-09
+
+**Matmul-ledger decrement — route `np.kron` + `np.einsum` callsites onto the existing cascades.** Resumes the numpy-math matmul migration (#928) by pure *routing* — no new public op, no registry gates — onto the already-shipped, already-registered `kron` / `einsum` cascades:
+
+- `qm.so8`'s su(3) commutant superoperator `ad⊗I − I⊗ad` (×2) and `qm.bell`'s `_kron` CHSH-operator builder (×1) → `srmech.amsc.cascade.spectral_cascades.kron` (the Class-I mixed-radix-index ∘ Class-M Kronecker cascade; `np.asarray` is carrier-only).
+- `qm.triality`'s octonion-couple `(x*y)_k = Σ x_i y_j C[i,j,k]` (×1) → `srmech.amsc.cascade.matrix_cascades.einsum`.
+
+All four are value-faithful — so8 and triality **bit-exact (err 0.0)**, bell bit-exact on the Pauli / measurement operators it actually uses. `CEIL_MATMUL` **55 → 51**. Deferred (own passes): `ica_jade`'s 2 einsum (hot Jacobi sweep loop — perf-careful), the `np.outer` family (awaits a `dense_outer` cascade), and the `matrix_cascades` QR-internal vdot/outer/@ (shape-polymorphic pass). No public surface change, ABI 3.
+
 ## [0.7.5rc33] - 2026-06-09
 
 **A-N cascade ratchet CLOSED to zero — the bare-Python tier joins the C tier at no continuous-math residue.** The rc32 ratchet pinned one site: the `cmath.sqrt` Wilkinson-shift discriminant in the *float* `eigvals` (complex-spectrum shifted-QR path). rc33 routes it through a new `matrix_cascades._complex_sqrt` — the principal complex root rebuilt from the **Class-N** `hypot`/`sqrt` real cascades joined by a **Class-K** sign-branch (principal branch `Re ≥ 0`), with a Class-K pin-slot-at-zero floor on each radicand (the `_norm2` idiom — a tiny `<0` from float round-off pins to 0). No libm `cmath`; the `import cmath` is gone. Matches `cmath.sqrt` to ~1e-13, so the float eigvals stays round-off-faithful to numpy.

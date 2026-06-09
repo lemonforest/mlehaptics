@@ -164,9 +164,20 @@ _UFUNC = re.compile(
 # srmech.amsc.cascade.exact_dft), so all three ceilings (linalg_fft/matmul/ufunc)
 # AND the rosetta python_only_irreducible debt bucket are untouched. Exposing the
 # exact ℤ[ζ_N] spectrum as a public op belongs with its C twin (a follow-up).
+#
+# rc34 resumes the matmul decrement by ROUTING distinct-op callsites onto the
+# already-shipped kron / einsum cascades (no new public op — pure routing):
+# qm.so8's `np.kron(ad.T,I) - np.kron(I,ad)` superoperator (×2) and qm.bell's
+# `_kron` (×1) → `spectral_cascades.kron` (`np.asarray` is carrier-only); and
+# qm.triality's octonion-couple `np.einsum("i,j,ijk->k")` (×1) →
+# `matrix_cascades.einsum`. All four are value-faithful (so8/triality bit-exact
+# err 0.0; bell bit-exact on its Pauli/measurement operators) (matmul 55 -> 51).
+# DEFERRED: ica_jade's 2 einsum sit in the hot Jacobi sweep loop (a perf-careful
+# pass), the np.outer family awaits a dense_outer cascade (a new public op), and
+# the matrix_cascades QR-internal vdot/outer/@ await the shape-polymorphic pass.
 # ---------------------------------------------------------------------------
 CEIL_LINALG_FFT = 122
-CEIL_MATMUL = 55
+CEIL_MATMUL = 51
 CEIL_UFUNC = 48
 
 

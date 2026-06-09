@@ -52,6 +52,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 
 from srmech.amsc.cascade import magnitude as _magnitude
+from srmech.amsc.cascade.spectral_cascades import kron as _kron
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.amsc.laplacian import (
     dense_dot_complex,
@@ -518,7 +519,11 @@ def _invariant_complex_structure(
         _ad_on_complement(x, complement, complement_coords) for x in su3
     ]
     stacked = np.vstack(
-        [np.kron(ad.T, identity) - np.kron(identity, ad) for ad in ad_mats]
+        # ad ↦ ad⊗I − I⊗ad via the Class-I(mixed-radix)∘M Kronecker cascade
+        # (substrate-native replacement for the NumPy Kronecker product;
+        # np.asarray is carrier-only).
+        [np.asarray(_kron(ad.T, identity)) - np.asarray(_kron(identity, ad))
+         for ad in ad_mats]
     )
     _, singular, vh = np.linalg.svd(stacked)
     scale = max(1.0, float(singular[0]))
