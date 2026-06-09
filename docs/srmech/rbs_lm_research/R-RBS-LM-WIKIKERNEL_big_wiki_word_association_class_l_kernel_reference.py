@@ -72,10 +72,23 @@ MAX_NATIVE_NODES = laplacian.MAX_NATIVE_NODES  # 256 in rc15
 # A small content-word stoplist (function words carry no association mass). The dev session swaps in
 # a fuller stoplist via descriptor()["stoplist"]; this is deliberately minimal for the demo.
 DEFAULT_STOPLIST = {
+    # articles / conjunctions / prepositions
     "the", "a", "an", "and", "or", "but", "of", "to", "in", "on", "at", "for", "with", "by",
-    "is", "are", "was", "were", "be", "been", "being", "as", "that", "this", "these", "those",
-    "it", "its", "from", "into", "than", "then", "so", "such", "which", "who", "whom", "whose",
-    "also", "may", "can", "has", "have", "had", "not", "no", "their", "they", "them", "he", "she",
+    "from", "into", "than", "then", "so", "as", "about", "over", "under", "after", "before",
+    "between", "during", "through", "out", "up", "down", "off", "above", "below", "near",
+    # be / have / do / modal
+    "is", "are", "was", "were", "be", "been", "being", "am", "has", "have", "had", "having",
+    "do", "does", "did", "may", "can", "could", "would", "should", "will", "shall", "must", "might",
+    # determiners / pronouns
+    "this", "that", "these", "those", "it", "its", "he", "she", "they", "them", "their", "his",
+    "her", "him", "we", "us", "our", "you", "your", "i", "me", "my", "who", "whom", "whose",
+    "which", "what", "such", "no", "not", "all", "any", "some", "each", "every", "both", "few",
+    "more", "most", "other", "another", "many", "much", "one", "two", "there", "here",
+    # high-freq function-ish verbs/adverbs/connectives (crowd raw top-K without adding association mass)
+    "also", "when", "where", "while", "how", "why", "if", "because", "however", "though",
+    "like", "just", "only", "very", "too", "now", "well", "back", "even", "still", "first",
+    "used", "use", "using", "called", "known", "made", "make", "became", "become", "including",
+    "often", "usually", "later", "early", "same", "new", "old", "many", "example",
 }
 
 # A tiny synthetic in-script corpus standing in for a streamed wiki dump. Each entry = ONE "article"
@@ -132,31 +145,49 @@ def strip_wiki_markup(text):
 _CONTENT_TAGS = ("math", "ref", "code", "syntaxhighlight", "score", "chem", "hiero", "gallery", "timeline")
 
 
-def strip_wiki_markup_hardened(text):
-    """The TRUSTWORTHY cleaner (F700) — used by the build path so the kernel re-encodes with CLEAN vocab.
+_NS_LINK = re.compile(
+    r"\[\[\s*(?:category|file|image|media|wikt|wiktionary|w|wikipedia|commons|template|help|portal|"
+    r"[a-z]{2,3}(?:-[a-z]{2,4})?)\s*:[^\[\]]*(?:\[\[[^\]]*\]\][^\[\]]*)*\]\]",
+    re.IGNORECASE | re.DOTALL)
 
-    Removes the CONTENT (not just the tags) of math/ref/code/score/chem/table/comment blocks + clears NESTED
-    templates to a fixpoint + unwraps external links — so no LaTeX/citation/markup token ever enters the vocab.
-    The user: "the kernel must be re-encoded before its vocab is trusted." Reference scaffold; the dev session's
-    real cleaner is the F579/F607 wiki-formatting-language kernel.
+
+def strip_wiki_markup_hardened(text):
+    """The TRUSTWORTHY cleaner (F700, extended F703) — used by the build path so the kernel re-encodes with CLEAN vocab.
+
+    Removes the CONTENT (not just the tags) of math/ref/code/score/chem/table/comment blocks; clears NESTED templates
+    + tables to a fixpoint; strips HTML ENTITIES (&ndash; &nbsp; ...), NAMESPACE links ([[Category:]]/[[File:]]/[[xx:]]),
+    #REDIRECT, and residual HTML ATTRIBUTES (style=/align=/Npx) — so no LaTeX/citation/entity/markup token enters the
+    vocab. (F703 extended this after the REAL simplewiki encode surfaced 'ndash'/'category'/'thumb'/'px'/'redirect' as
+    leak classes the synthetic test never had — the F573 lesson again.) The user: "the kernel must be re-encoded before
+    its vocab is trusted." Reference scaffold; the dev session's real cleaner is the F579/F607 wiki-formatting-language
+    kernel (this handles the dominant real-wiki leak classes, not every edge case).
     """
     text = re.sub(r"<!--.*?-->", " ", text, flags=re.DOTALL)                       # 1. comments
+    text = re.sub(r"^#\s*redirect.*$", " ", text, flags=re.IGNORECASE | re.MULTILINE)  # 1b. #REDIRECT pages
     for tag in _CONTENT_TAGS:                                                       # 2. content-bearing elements
         text = re.sub(rf"<{tag}\b[^>]*>.*?</{tag}>", " ", text, flags=re.DOTALL | re.IGNORECASE)
         text = re.sub(rf"<{tag}\b[^>]*/\s*>", " ", text, flags=re.IGNORECASE)       #    self-closing <ref .../>
-    prev = None                                                                     # 3. tables {| ... |} to fixpoint
-    while prev != text:
-        prev = text
-        text = re.sub(r"\{\|[^{]*?\|\}", " ", text, flags=re.DOTALL)
-    prev = None                                                                     # 4. templates to fixpoint (nested)
+    prev = None                                                                     # 3. templates to fixpoint (nested)
     while prev != text:
         prev = text
         text = re.sub(r"\{\{[^{}]*\}\}", " ", text, flags=re.DOTALL)
-    text = re.sub(r"\[\[(?:[^\]|]*\|)?([^\]]+)\]\]", r"\1", text)                   # 5. wikilinks / ext-links
-    text = re.sub(r"\[(?:https?|ftp)://[^\s\]]+\s+([^\]]+)\]", r"\1", text)
+    prev = None                                                                     # 4. tables {| ... |} to fixpoint
+    while prev != text:                                                             #    (templates gone first -> no inner {)
+        prev = text
+        text = re.sub(r"\{\|[^{}]*?\|\}", " ", text, flags=re.DOTALL)
+    text = re.sub(r"&[a-zA-Z]+;|&#\d+;|&#x[0-9a-fA-F]+;", " ", text)               # 5. HTML entities (&ndash; &nbsp; ...)
+    prev = None                                                                     # 6. NAMESPACE links (Category/File/xx:)
+    while prev != text:
+        prev = text
+        text = _NS_LINK.sub(" ", text)
+    text = re.sub(r"\[\[(?:[^\]|]*\|)?([^\]]+)\]\]", r"\1", text)                   # 7. ordinary wikilinks [[a|b]] -> b
+    text = re.sub(r"\[(?:https?|ftp)://[^\s\]]+\s+([^\]]+)\]", r"\1", text)         #    ext-links [http x label] -> label
     text = re.sub(r"\[(?:https?|ftp)://[^\s\]]+\]", " ", text)
-    text = re.sub(r"<[^>]+>", " ", text)                                            # 6. any remaining tag (now safe)
-    text = re.sub(r"'{2,}", "", text)                                               # 7. emphasis / headers / bullets
+    text = re.sub(r"<[^>]+>", " ", text)                                            # 8. any remaining tag (now safe)
+    text = re.sub(r'\b(?:style|align|bgcolor|colspan|rowspan|valign|width|height|scope|class|cellpadding|'
+                  r'cellspacing|border)\s*=\s*"[^"]*"', " ", text, flags=re.IGNORECASE)   # 9. residual HTML attributes
+    text = re.sub(r"\b\d+\s*px\b", " ", text, flags=re.IGNORECASE)                  #    image pixel sizes (thumb|200px)
+    text = re.sub(r"'{2,}", "", text)                                               # 10. emphasis / headers / bullets
     text = re.sub(r"^[\s]*[*#:;=|!-]+", " ", text, flags=re.MULTILINE)
     text = re.sub(r"={2,}", " ", text)
     return re.sub(r"\s+", " ", text).strip()

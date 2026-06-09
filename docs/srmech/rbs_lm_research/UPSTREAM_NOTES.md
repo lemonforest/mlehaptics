@@ -1668,3 +1668,17 @@ Three related items from the Unicode/dictionary/corpus-cleaning pass on the Stor
   "unicode"`). Mechanism only; the per-script grammar is the native speaker's (F282/F398/F650/#847).
 
 Not blocking research. Logged per upstream-as-research-notes discipline.
+
+## §36 PERF OBSERVATION (not blocking) — Class-L store ~49s at n=256 on the native rc28 path (2026-06-09; F703)
+
+During the real simplewiki encode (F703) on srmech **0.7.5rc28** (native, numpy-free —
+`native_status().has_native=True`, `numpy` absent from the env), the **Class-L store build was ~49 s for
+n=256**, a FIXED cost (independent of corpus size — the 5k and bounded runs both showed it). The store step
+is `dense_laplacian` + `dense_adjacency` + `jacobi_eigvals` + `fiedler_vector` + content-address over a
+256×256 matrix. ~49 s is slower than expected for a single native-C Jacobi eigendecomposition at n=256
+(which should be sub-second to low-seconds in C). Possible causes to check upstream: (a) `fiedler_vector`
+re-running a full eigendecomposition rather than reusing `jacobi_eigvals`; (b) the Python wrapper marshalling
+the 256×256 matrix per-call; (c) Jacobi sweep count / convergence threshold. **Not a correctness issue** (the
+spectrum is content-addressed + reproducible; the kernel queries correctly) and **not blocking** (it is a
+one-time build-once cost, F628). Logged so a future srmech dev session can profile the n=256 store path.
+Repro: `R-RBS-LM-WIKIBIGENCODE` with `MAX_ARTICLES=5000` prints the per-step timing.
