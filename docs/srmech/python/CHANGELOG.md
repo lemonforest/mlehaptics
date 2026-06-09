@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc50] - 2026-06-09
+
+**`amsc.text.{tokenize, cooccurrence_edges}` — the §40 R3-U1 acceptance fix (was SHIPPED-but-FAILING 3/3; F722).** The rc43 text→graph leaves shipped in `srmech.amsc.laplacian` but **failed the RBS-LM §40 acceptance bar on all three points**. rc50 relocates them to a dedicated **`srmech.amsc.text`** ingestion module (so `laplacian` stays purely spectral — §40 Option 1) and fixes every point:
+
+- **#1 Unicode (F698)** — `tokenize` now keeps runs of Unicode **letter|mark** codepoints (`unicodedata.category(ch)[0] in ("L","M")`) and casefolds, so `café` / `Москва` / `naïve` / `日本語` survive intact. The rc43 ASCII `\w+` gave `['caf','na','ve']` (accents stripped, Cyrillic/CJK dropped) — fixed. NFC-normalises by default; word-internal apostrophes kept.
+- **#2 No silent vocab cap (F708)** — `cooccurrence_edges` keeps the **full** ranked vocabulary by default; the rc43 silent `vocab_size=1000` default (the pre-encode quantization bug, re-introduced as a default) is gone. A top-K cap is now an **explicit, logged** caller opt-in (`vocab_size=N` → logs the dropped count). The 256 native bound is for the dense-eig *block* only, never the vocabulary.
+- **#3 Document-boundary window reset** — co-occurrence **never crosses a document boundary**. `docs` is a `Sequence[Sequence[str]]` (one inner sequence per document → the window resets per document); a flat `Sequence[str]` is treated as a single document (back-compat). A new `vocab=` param accepts an explicit ranked vocabulary.
+- **Signatures**: `tokenize(text, *, stoplist=DEFAULT_STOPLIST, unicode_normalize=True) -> list[str]` (new `DEFAULT_STOPLIST` of function words incl. the F714-leaked prepositions; pass `stoplist=None` for raw mode) and `cooccurrence_edges(docs, *, window=2, vocab=None, vocab_size=None) -> (n, edges, weights)`.
+- **Relocation, not addition**: the two `ToolEntry`s move `srmech.amsc.laplacian.* → srmech.amsc.text.*` (category `text`); the two `rosetta_classification.ndjson` lines re-point (`non_compute` bucket unchanged). `describe()["tools"]["total"]` stays **280** (no new op). The rc43 `laplacian` `tokenize`/`cooccurrence_edges`/`DEFAULT_TOKEN_PATTERN` + their `re`/`collections` imports are removed; `laplacian` is purely spectral again. Class B/G ∘ Class-L precursor; pure-Python, numpy-free. ABI 3.
+
 ## [0.7.5rc49] - 2026-06-09
 
 **`dsl.generate_class_descriptor` — the make_class inverse (RBS-LM UPSTREAM §39).** The genome seed proved the forward direction (a `[class]` TOML → a constructed `CatalogClass` via `make_class`); rc49 closes the loop the OTHER way — components (or a constructed class) → a valid `[class]` TOML, round-trippable straight back through `make_class`.

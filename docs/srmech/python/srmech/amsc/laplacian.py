@@ -88,9 +88,7 @@ use-cases typically stay well under the ``n ≤ 256`` bound.
 
 from __future__ import annotations
 
-import collections  # §17 U1: Counter for the cooccurrence_edges Class-L precursor
 import ctypes
-import re  # §17 U1: token-segmentation regex for tokenize (Class B/G)
 from fractions import Fraction  # §26: exact-rational interior solve (Class-N), no float
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -112,9 +110,6 @@ except ImportError:  # pragma: no cover - exercised in the numpy-absent path onl
 from . import _native
 
 __all__ = [
-    "tokenize",
-    "cooccurrence_edges",
-    "DEFAULT_TOKEN_PATTERN",
     "dense_adjacency",
     "dense_laplacian",
     "normalized_laplacian",
@@ -1597,109 +1592,6 @@ def fiedler_vector(matrix: np.ndarray) -> np.ndarray:
     return V[:, 1].copy()
 
 
-# ── §17 U1: the text→graph stage primitives — the K1 chain's missing front ───
-#
-# The K1 presence-kernel build is `tokenize → cooccurrence_edges →
-# dense_laplacian → eigendecompose → topk_eigvec_tokens → mint → bundle`. Every
-# stage past `dense_laplacian` already ships; these two are the only links
-# between raw `text` and the Class-L graph ops above. Shipping them retires the
-# hand-rolled `re.findall` + `Counter()` co-occurrence idiom in the research
-# scripts (the exact idiom the CLAUDE.md STOP-list flags) and makes K1 an
-# authorable pure-TOML composite end-to-end. Both pure-Python (numpy-free).
-
-#: Default token pattern — a letter-led word of letters/digits/_/- (F147 lexicon
-#: encoder convention). One regex, no magic; override via ``pattern=``.
-DEFAULT_TOKEN_PATTERN: str = r"[A-Za-z][A-Za-z0-9_\-]+"
-
-
-def tokenize(
-    text: str,
-    *,
-    stopwords: Optional[Iterable[str]] = None,
-    min_len: int = 2,
-    pattern: Optional[str] = None,
-) -> List[str]:
-    """Segment ``text`` into lowercased tokens — the text→tokens front of the K1
-    text→graph→spectral chain (§17 U1; Class B/G text-segmentation).
-
-    Apply ``pattern`` (default :data:`DEFAULT_TOKEN_PATTERN`, a letter-led
-    word), lowercase each match, drop any shorter than ``min_len``, and drop any
-    in ``stopwords`` (compared case-insensitively; ``None`` → keep all). Returns
-    the token stream :func:`cooccurrence_edges` consumes.
-
-    Pure-Python, numpy-free, deterministic. ``stopwords`` is kept short by
-    convention so user-lexicon outliers stay visible (long stop-lists kill
-    structural signal). Class B/G: framing/segmentation of the text substrate,
-    no numeric compute (the FPU sits idle — there is nothing continuous here).
-    """
-    if not isinstance(text, str):
-        raise TypeError(f"tokenize: text must be str; got {type(text).__name__}")
-    if not isinstance(min_len, int) or isinstance(min_len, bool) or min_len < 1:
-        raise ValueError(f"tokenize: min_len must be a positive int; got {min_len!r}")
-    rx = re.compile(DEFAULT_TOKEN_PATTERN if pattern is None else pattern)
-    stop = frozenset(s.lower() for s in stopwords) if stopwords is not None else frozenset()
-    out: List[str] = []
-    for m in rx.finditer(text):                       # finditer → group(0): group-safe
-        tok = m.group(0).lower()
-        if len(tok) < min_len or tok in stop:
-            continue
-        out.append(tok)
-    return out
-
-
-def cooccurrence_edges(
-    tokens: Sequence[str],
-    *,
-    window: int = 5,
-    vocab_size: int = 1000,
-) -> Tuple[int, List[Tuple[int, int]], List[int]]:
-    """Build the weighted co-occurrence graph from a token stream — the
-    tokens→edges **Class-L precursor** that feeds :func:`dense_laplacian` (§17 U1).
-
-    Keep the ``vocab_size`` most-frequent tokens as contiguous node ids
-    ``0..n-1`` (Class-K frequency truncation), then count, within a sliding
-    ``window``, each unordered co-occurring pair ``(u, v)`` with ``u < v``.
-    Returns ``(n, edges, weights)`` — exactly the triple
-    ``dense_laplacian(n, edges, weights)`` consumes: ``n`` = node count,
-    ``edges`` = list of ``(u, v)`` int pairs, ``weights`` = list of **integer**
-    co-occurrence counts (counts are exact — floats are for the FPU lift, and
-    there is none here; :func:`dense_laplacian` widens them at the matrix build).
-
-    Pure-Python, numpy-free, deterministic. Retires the hand-rolled ``Counter()``
-    co-occurrence idiom. Tokens outside the kept vocabulary (and self-pairs) are
-    skipped; the graph is undirected (the directed sibling — the ``i(A−Aᵀ)``
-    Hermitian-Laplacian builder — is a separate Class-L precursor).
-    """
-    if not isinstance(window, int) or isinstance(window, bool) or window < 1:
-        raise ValueError(f"cooccurrence_edges: window must be a positive int; got {window!r}")
-    if not isinstance(vocab_size, int) or isinstance(vocab_size, bool) or vocab_size < 1:
-        raise ValueError(
-            f"cooccurrence_edges: vocab_size must be a positive int; got {vocab_size!r}")
-    toks = list(tokens)
-    freq = collections.Counter(toks)
-    vocab: Dict[str, int] = {
-        tok: i for i, (tok, _) in enumerate(freq.most_common(vocab_size))
-    }
-    n = len(vocab)
-    indices = [vocab.get(t, -1) for t in toks]
-    counts: "collections.Counter[Tuple[int, int]]" = collections.Counter()
-    m = len(indices)
-    for i in range(m):
-        ai = indices[i]
-        if ai < 0:
-            continue
-        jmax = min(m, i + window + 1)
-        for j in range(i + 1, jmax):
-            bj = indices[j]
-            if bj < 0 or bj == ai:
-                continue
-            pair = (ai, bj) if ai < bj else (bj, ai)
-            counts[pair] += 1
-    edges = list(counts.keys())
-    weights = [counts[e] for e in edges]              # int counts — exact, no float
-    return n, edges, weights
-
-
 # The per-block dense-eig cap is MAX_NATIVE_NODES (256); 4 blocks × 256 = 1024.
 # 4 is the Klein-4 4-rung (F220/F233): 8+ sectors need the order-3 triality.
 SPECTRAL_BLOCK_CAP: int = 4
@@ -1808,8 +1700,6 @@ def spectral_block_dispatch(
 # Registry of available Class L op names for the composition engine.
 # Order is documentary; consumers iterate by name not position.
 LAPLACIAN_OPS: Tuple[str, ...] = (
-    "tokenize",
-    "cooccurrence_edges",
     "dense_adjacency",
     "dense_laplacian",
     "normalized_laplacian",
