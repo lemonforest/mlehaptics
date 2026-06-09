@@ -279,6 +279,16 @@ decrements it).
   **numpy-math ratchet `matmul` 86 → 75.** ABI 3; values bit-preserved; the qm +
   hdc-loop + harmonic suites pass unchanged. The `np.outer` k^μk^ν sites stay
   (distinct op). DSP `closed_form_ops` + `matrix_cascades` QR-internals next.
+- **rc25 (done) — matmul-kernel batch 10: the real DSP `closed_form_ops`
+  cluster.** Fifteen sites: `dct` (2 — DCT-matrix `arr·Mᵀ`/`M·arr`), `map_ml`
+  (6 — the `AᵀR⁻¹A` normal-equation matmuls + matvecs; `np.linalg.inv/solve`
+  stay), `ica_jade` (6 — `XᵀX` covariance + whitening + Givens `V·G` rotations;
+  2 `np.einsum` + `eigh` stay) → `dense_matmul_real`/`dense_matvec_real`; plus
+  `fsk` (1 — the complex `tones·conj(window)` correlator bank) →
+  `dense_matvec_complex`. Top-level helper import (these DSP modules hard-import
+  numpy, unlike the lazy-numpy amsc modules). **numpy-math ratchet `matmul`
+  75 → 60.** ABI 3; dct/map_ml/ica_jade/fsk suites unchanged. `np.convolve`/
+  `correlate`/`outer`/`einsum` stay (distinct ops).
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

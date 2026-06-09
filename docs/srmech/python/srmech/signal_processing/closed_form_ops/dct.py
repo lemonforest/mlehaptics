@@ -20,6 +20,8 @@ from typing import Optional
 
 import numpy as np
 
+from srmech.amsc.laplacian import dense_matmul_real, dense_matvec_real
+
 from srmech.amsc import rational as _srn
 
 OPERATION_NAME = "dct"
@@ -91,8 +93,8 @@ def op(signal, *, dct_type: int = 2, axis: int = -1, D: int = 8192):
             arr_2d = np.moveaxis(arr, axis, -1)
             n = arr_2d.shape[-1]
             M = _dct_matrix(n, dct_type=dct_type)
-            out_2d = 2.0 * (arr_2d @ M.T)
+            out_2d = 2.0 * dense_matmul_real(arr_2d, M.T)
             return np.moveaxis(out_2d, -1, axis)
         n = arr.shape[0]
         M = _dct_matrix(n, dct_type=dct_type)
-        return 2.0 * (M @ arr)
+        return 2.0 * dense_matvec_real(M, arr)

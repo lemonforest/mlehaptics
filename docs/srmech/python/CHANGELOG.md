@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc25] - 2026-06-08
+
+**The matmul-kernel phase, batch 10 — the real DSP `closed_form_ops` cluster (numpy-math `matmul` 75 → 60; #928).** Fifteen contraction sites across the closed-form signal-processing reference ops route onto the cascade helpers:
+
+- **`dct`** (2) — the DCT-matrix products `arr·Mᵀ` (n-D) and `M·arr` (1-D), where `M` is the real cosine basis → `dense_matmul_real` / `dense_matvec_real`.
+- **`map_ml`** (6) — the ML/MAP normal-equation chain `AᵀR_v⁻¹`, `AᵀR_v⁻¹A`, `AᵀR_v⁻¹y`, and `R_x⁻¹μ` (all `float64`) → `dense_matmul_real` / `dense_matvec_real`. The `np.linalg.inv`/`solve` stay (linalg-engine surface, a separate ceiling).
+- **`ica_jade`** (6) — the `XᵀX` covariance, the whitening `diag(λ^-½)·Vᵀ` + `W·Xᵀ`, and the Givens joint-diagonalisation `V·G` / `Vᵀ·W` / `W·Xᵀ` rotations (all real) → `dense_matmul_real`. The 2 `np.einsum` cumulant-tensor rotations + the `np.linalg.eigh` stay (distinct ops).
+- **`fsk`** (1) — the M-tone correlator bank `tones·conj(window)`, where `tones` is `complex128` → `dense_matvec_complex` (genuinely complex; the result feeds `|z| = hypot(re, im)`).
+
+**numpy-math ratchet `matmul` 75 → 60.** Pure Python-tier; no C change, ABI stays 3. No new public symbols (reuses the rc20/rc21 helpers). These DSP modules import numpy at module top, so the helper import is top-level (unlike the lazy-numpy `amsc` modules in rc24). Values bit-preserved; the dct / map_ml / ica_jade / fsk suites pass unchanged. The `np.convolve`/`correlate`/`outer`/`einsum` sites stay — distinct ops for later batches.
+
+SSoT: issue #928; the numpy-math ratchet (`test_numpy_math_ratchet.py`).
+
 ## [0.7.5rc24] - 2026-06-08
 
 **The matmul-kernel phase, batch 9 — the real "Minkowski + real-dot" sweep (numpy-math `matmul` 86 → 75; #928).** Eleven real-typed contraction sites across `qm` and `amsc` route onto the real cascade helpers:
