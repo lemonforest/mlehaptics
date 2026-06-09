@@ -99,3 +99,40 @@ def test_quad_turn_distinct_one_gives_distinct_coupling():
     one_a = klein4_random(64, seed=10)
     one_b = klein4_random(64, seed=11)
     assert list(genome.quad_turn(t, one_a)) != list(genome.quad_turn(t, one_b))
+
+
+# ── brick 2 (rc38): telomere / chromosome / recall ───────────────────────────
+
+def test_telomere_is_deterministic_per_label():
+    assert list(genome.telomere("astronomy", dim=64)) == list(genome.telomere("astronomy", dim=64))
+
+
+def test_telomere_distinct_labels_distinct_caps():
+    assert list(genome.telomere("astronomy", dim=64)) != list(genome.telomere("geography", dim=64))
+
+
+def test_chromosome_is_telomere_capped_strand():
+    one = klein4_random(64, seed=7)
+    leaves = [klein4_random(64, seed=s) for s in range(5)]
+    strand = genome.chromosome(leaves, one, label="astronomy")
+    assert len(strand) == len(leaves) + 1                  # one cap + N coupled turns
+    assert list(strand[0]) == list(genome.telomere("astronomy", dim=64))   # leading cap
+
+
+def test_recall_round_trips_the_kernel():
+    one = klein4_random(64, seed=7)
+    leaves = [klein4_random(64, seed=s) for s in range(5)]
+    strand = genome.chromosome(leaves, one, label="astronomy")
+    cap = genome.telomere("astronomy", dim=64)
+    recovered = genome.recall(strand, one, cap)
+    assert [list(x) for x in recovered] == [list(l) for l in leaves]   # exact inverse
+
+
+def test_recall_skips_the_cap_by_value_not_position():
+    # a cap appearing anywhere (the multi-chromosome genome shape) is skipped
+    one = klein4_random(64, seed=2)
+    cap = genome.telomere("k", dim=64)
+    leaf = klein4_random(64, seed=9)
+    strand = [genome.quad_turn(leaf, one), cap, genome.quad_turn(leaf, one)]
+    recovered = genome.recall(strand, one, cap)
+    assert len(recovered) == 2 and all(list(x) == list(leaf) for x in recovered)

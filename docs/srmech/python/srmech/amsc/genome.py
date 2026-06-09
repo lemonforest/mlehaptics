@@ -25,17 +25,31 @@ threads-from-threads). So the native quad-stream is **one** chirality level (the
 biaxial "+"); the deeper leaf-tree is **base-4 radix *addressing*** (index math,
 ``4^k``), **not** more chirality dispatch. Only the first quad is chirality.
 
-Brick 1 (this increment): the encode **criterion** (:func:`encode_shape`) and the
-helix-turn **coupling** (:func:`quad_turn`). The chromosome (telomere-capped
-strand) and the genome (multi-kernel) assemble in subsequent increments.
+Brick 1 (rc37): the encode **criterion** (:func:`encode_shape`) and the
+helix-turn **coupling** (:func:`quad_turn`).
+
+Brick 2 (rc38): the **chromosome** layer — :func:`telomere` (the non-data
+content-address cap), :func:`chromosome` (pack one kernel into a telomere-capped
+strand of quad-turns), :func:`recall` (recover the kernel). These flat functions
+are the cascade PRIMITIVES the later user-authored class layer binds to (a
+class-descriptor TOML declares fields + methods-as-op-refs; srmech's
+config-driven loader constructs the class; DSL/CLI/tool_schema become
+class-aware — the genome storage object as the seed worked-instance). The
+**genome** (multi-kernel, telomere-partitioned strand of chromosomes) assembles
+in a subsequent brick.
 """
 from __future__ import annotations
 
 from typing import Dict
 
+from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.amsc.hdc import klein4_bind as _klein4_bind
+from srmech.amsc.hdc import klein4_random as _klein4_random
 
-__all__ = ["encode_shape", "quad_turn", "LEAF_CAP", "QUAD", "MOBIUS_CAP"]
+__all__ = [
+    "encode_shape", "quad_turn", "telomere", "chromosome", "recall",
+    "LEAF_CAP", "QUAD", "MOBIUS_CAP",
+]
 
 #: One dense block — a "tome". 256 = 2**8 (one byte of address); F708/F640.
 LEAF_CAP = 256
@@ -104,3 +118,59 @@ def quad_turn(turn, the_one):
     caveat the 4-way is ONE chirality level, the deeper tree is radix addressing.
     """
     return _klein4_bind(turn, the_one)
+
+
+def telomere(label, dim=64):
+    """The non-data content-address CAP that delimits a chromosome (F715).
+
+    A telomere is biology's repetitive non-coding chromosome-end cap — here a
+    deterministic, content-addressed Klein-4 sentinel derived from ``label``
+    (Class A content-address -> Class M Klein-4 carrier). It marks and protects a
+    partition boundary and carries no kernel data. Same ``label`` -> same cap (so
+    a chromosome is recalled / partitioned by matching its cap), distinct labels
+    -> distinct caps. ``dim`` is the Klein-4 vector length — match the turns it
+    caps (:func:`chromosome` passes ``len(the_one)`` automatically).
+    """
+    raw = label.encode("utf-8") if isinstance(label, str) else bytes(label)
+    seed = int(_sha256_bytes(raw)[:16], 16)   # content-address -> deterministic seed
+    return _klein4_random(dim, seed=seed)
+
+
+def chromosome(leaves, the_one, *, label="chromosome"):
+    """Pack one kernel into a telomere-capped strand — a chromosome (F713/F715).
+
+    The kernel's ``leaves`` (each a Klein-4 vector, one tome) become a helix of
+    QUAD-TURNS, each coupled through ``the_one`` (the reversible :func:`quad_turn`),
+    led by a :func:`telomere` cap derived from ``label``. The returned strand is::
+
+        [telomere(label, dim), quad_turn(leaf0, the_one), quad_turn(leaf1, the_one), ...]
+
+    Recover the kernel with :func:`recall`. The cap delimits and protects the
+    chromosome, so many chromosomes pack onto one genome strand (a later brick).
+    ``the_one`` is the shared invariant every turn is coupled through.
+    """
+    dim = len(list(the_one))
+    cap = telomere(label, dim=dim)
+    return [cap] + [quad_turn(leaf, the_one) for leaf in leaves]
+
+
+def recall(strand, the_one, telomere):
+    """Recover the kernel's leaves from a telomere-capped chromosome strand (F713/F715).
+
+    Walk the ``strand``; skip every element equal to the ``telomere`` cap (the
+    non-data delimiter) and re-bind ``the_one`` (the reversible :func:`quad_turn`
+    again) on each coupled data turn to recover the original leaf. The exact
+    inverse of :func:`chromosome`::
+
+        recall(chromosome(leaves, one, label=L), one, telomere(L, len(one))) == leaves
+
+    Matching the cap by value (not by position) is what lets one ``recall`` /
+    partition reach into a multi-chromosome genome strand in a later brick.
+    """
+    cap = list(telomere)
+    leaves = []
+    for hv in strand:
+        if list(hv) == cap:            # the content-address cap — a delimiter, not data
+            continue
+        leaves.append(quad_turn(hv, the_one))   # reversible uncouple (bind o bind == id)
+    return leaves

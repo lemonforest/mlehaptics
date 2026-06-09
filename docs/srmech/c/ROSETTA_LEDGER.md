@@ -450,6 +450,19 @@ decrements it).
   `np.ndarray` param-type (matches the Klein-4 family + has an MCP coercer — `HV`
   has none). No C twin yet (the quad-turn is pure-Python reversible XOR); the
   chromosome (telomere-capped strand) + genome (multi-kernel) assemble next.
+- **rc38 (done) — genome-storage surface, brick 2: the chromosome (#962 Part 2).**
+  `srmech.amsc.genome` gains the LAYER-1 cascade primitives: `telomere(label,
+  dim)` — the non-data content-address cap (sha256_bytes → seed → Klein-4
+  sentinel; Class A ∘ M) → `composition_of_c`; `chromosome(leaves, the_one,
+  label=)` — pack a kernel into a telomere-capped strand of quad-turns →
+  `composition_of_c`; `recall(strand, the_one, telomere)` — the exact inverse
+  (cap matched by VALUE so it generalises to a multi-chromosome genome) →
+  `composition_of_c`. 3 ToolEntries (category `genome`), tools.total 267→270.
+  These are the ops the upcoming USER-AUTHORED class layer binds to (declarative
+  `[class]` TOML → generic class-aware object via the config-driven loader; DSL /
+  CLI / tool_schema lifted class-aware from the `register_catalog_dir` op-pattern;
+  genome = seed worked-instance). No C twin (pure-Python reversible XOR + content
+  address). klein4_bind stays `c_exists_unbound` (W5).
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each
