@@ -42,7 +42,6 @@ there is no ``np.linalg.{qr,svd,eig,eigh,lstsq}`` anywhere in the call graph.
 """
 from __future__ import annotations
 
-import cmath
 import itertools
 from collections import Counter
 from typing import Dict, List, Tuple
@@ -63,6 +62,25 @@ __all__ = ["qr", "svd", "lstsq", "einsum", "eigvals", "char_poly", "eigvals_exac
 def _modulus(z: complex) -> float:
     """|z| via the Class-N hypot cascade (no ``abs()`` — discipline)."""
     return _rhypot(float(z.real), float(z.imag))
+
+
+def _complex_sqrt(w: complex) -> complex:
+    """Principal complex square root via the Class-N real cascades — no
+    ``cmath.sqrt``. For ``w = a + i·b``: ``|w|`` is the Class-N hypot cascade,
+    and ``√w = √((|w|+a)/2) + i·sign(b)·√((|w|-a)/2)`` is two Class-N real
+    ``sqrt`` cascades joined by a Class-K sign-branch (principal branch, ``Re ≥
+    0``). Matches ``cmath.sqrt`` to ~1e-13; the continuous root stays a cascade
+    of the 14 even on this float (round-off-faithful) path."""
+    a = float(w.real)
+    b = float(w.imag)
+    if a == 0.0 and b == 0.0:
+        return 0j
+    m = _rhypot(a, b)                       # Class-N |w|  (≥ |a| exactly)
+    re_arg = (m + a) / 2.0                  # both radicands ≥ 0 mathematically;
+    im_arg = (m - a) / 2.0                  # a tiny <0 is float round-off →
+    re = _rsqrt(re_arg) if re_arg > 0.0 else 0.0   # Class-K pin-slot at zero
+    im = _rsqrt(im_arg) if im_arg > 0.0 else 0.0   # (the _norm2 idiom)
+    return complex(re, im if b >= 0.0 else -im)    # Class-K sign-branch (no copysign)
 
 
 def _norm2(v: np.ndarray) -> float:
@@ -318,7 +336,7 @@ def eigvals(a, *, max_sweeps: int = 500) -> np.ndarray:
         cc, dd = H[m - 1, m - 2], H[m - 1, m - 1]
         tr = aa + dd
         det = aa * dd - bb * cc
-        disc = cmath.sqrt(tr * tr - 4.0 * det)        # Class C: complex shift root
+        disc = _complex_sqrt(tr * tr - 4.0 * det)     # Class C: complex shift root (Class-N cascade)
         lam1 = (tr + disc) / 2.0
         lam2 = (tr - disc) / 2.0
         mu = lam1 if _modulus(lam1 - dd) < _modulus(lam2 - dd) else lam2

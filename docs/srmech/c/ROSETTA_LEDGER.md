@@ -389,6 +389,17 @@ decrements it).
   limit is the correct idiom), and the inherently-invisible string mentions. No
   module carve-out — a stray `math.sin` anywhere fails. Test-only; no public
   surface, no ToolEntry, no introspect change, ABI 3.
+- **rc33 (done) — A-N ratchet CLOSED to zero.** The one rc32 `transcendental`
+  site (the `cmath.sqrt` Wilkinson-shift discriminant in the float `eigvals`
+  complex-spectrum path) routed through `matrix_cascades._complex_sqrt` — the
+  principal complex root rebuilt from the Class-N `hypot`/`sqrt` real cascades + a
+  Class-K sign-branch (principal branch `Re ≥ 0`) + a Class-K pin-slot-at-zero
+  floor on each radicand (the `_norm2` idiom; tiny `<0` round-off → 0). No libm
+  `cmath` (the import is removed); matches `cmath.sqrt` ~1e-13. `CEIL_TRANSCENDENTAL`
+  1 → 0 — all three A-N categories now ZERO. The bare-Python tier joins the C tier
+  (libm 23 → 0) at zero continuous-math residue: every continuous-math op across C,
+  numpy-tier, and bare-Python is a cascade of the 14, floats only at the FPU lift.
+  Test-only ceiling drop + one helper; ABI 3.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each
