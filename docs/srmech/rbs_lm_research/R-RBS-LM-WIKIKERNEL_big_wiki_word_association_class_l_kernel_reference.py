@@ -76,6 +76,8 @@ DEFAULT_STOPLIST = {
     "the", "a", "an", "and", "or", "but", "of", "to", "in", "on", "at", "for", "with", "by",
     "from", "into", "than", "then", "so", "as", "about", "over", "under", "after", "before",
     "between", "during", "through", "out", "up", "down", "off", "above", "below", "near",
+    "around", "across", "along", "toward", "towards", "onto", "upon", "within", "without",
+    "behind", "beyond", "beside", "among", "amongst", "against", "throughout",  # F714: function words that leaked into etak hops
     # be / have / do / modal
     "is", "are", "was", "were", "be", "been", "being", "am", "has", "have", "had", "having",
     "do", "does", "did", "may", "can", "could", "would", "should", "will", "shall", "must", "might",
