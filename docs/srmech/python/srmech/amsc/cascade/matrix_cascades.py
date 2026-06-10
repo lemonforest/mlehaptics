@@ -52,7 +52,13 @@ from typing import Dict, List, Tuple
 from srmech._scientific import lazy_numpy as _lazy_numpy
 np = _lazy_numpy("srmech.amsc.cascade.matrix_cascades")
 
-from srmech.amsc.laplacian import dense_matmul_complex, hermitian_eigendecompose
+from srmech.amsc.laplacian import (
+    dense_dot_complex,
+    dense_matmul_complex,
+    dense_matvec_complex,
+    dense_outer_complex,
+    hermitian_eigendecompose,
+)
 from srmech.amsc.rational import hypot as _rhypot
 from srmech.amsc.rational import sqrt as _rsqrt
 
@@ -85,9 +91,11 @@ def _complex_sqrt(w: complex) -> complex:
 
 def _norm2(v: np.ndarray) -> float:
     """Euclidean norm ‖v‖ = √(vᴴv) via the Class-N sqrt cascade. The
-    sum-of-squares ``vᴴv`` is a Class-M bind (the Class-M self-bind); the root is
-    :func:`srmech.amsc.rational.sqrt` — no ``np.linalg.norm`` / ``abs``."""
-    sq = float(np.vdot(v, v).real)
+    sum-of-squares ``vᴴv`` is a Class-M bind (the Class-M self-bind) routed
+    through :func:`dense_dot_complex` (``conj(v)`` passed explicitly — the
+    Hermitian inner product); the root is :func:`srmech.amsc.rational.sqrt` —
+    no ``np.linalg.norm`` / ``abs`` / numpy contraction engine."""
+    sq = float(dense_dot_complex(np.conj(v), v).real)
     return _rsqrt(sq) if sq > 0.0 else 0.0
 
 
@@ -132,13 +140,17 @@ def qr(a, *, mode: str = "reduced") -> Tuple[np.ndarray, np.ndarray]:
         alpha = -phase * normx                       # Class K: pin-slot phase
         v = x.astype(np.complex128)
         v[0] = x0 - alpha
-        vhv = float(np.vdot(v, v).real)
+        vhv = float(dense_dot_complex(np.conj(v), v).real)
         if vhv == 0.0:
             continue
         beta = 2.0 / vhv                              # Class N: 1/(vᴴv) scale
-        # H = I − β v vᴴ applied to the trailing block (Class M outer bind).
-        R[j:, :] -= beta * np.outer(v, np.conj(v) @ R[j:, :])
-        Q[:, j:] -= beta * np.outer(Q[:, j:] @ v, np.conj(v))
+        # H = I − β v vᴴ applied to the trailing block (Class M outer bind),
+        # each matvec/outer routed through the dense_* kernel cascade (numpy
+        # carriers-only — no numpy contraction/outer engine here).
+        vh_R = dense_matvec_complex(R[j:, :].T, np.conj(v))   # conj(v)·R = Rᵀ·conj(v)
+        R[j:, :] -= beta * dense_outer_complex(v, vh_R)
+        Q_v = dense_matvec_complex(Q[:, j:], v)               # Q·v
+        Q[:, j:] -= beta * dense_outer_complex(Q_v, np.conj(v))
     if mode == "reduced":
         Q = Q[:, :k].copy()
         R = R[:k, :].copy()
@@ -236,10 +248,21 @@ def lstsq(a, b) -> np.ndarray:
             "QR path; the underdetermined min-norm case is the follow-on."
         )
     Q, R = qr(A)                                      # reduced: Q (m,n), R (n,n)
-    rhs = np.conj(Q.T) @ B                            # Class M: Qᴴ b
+    Qh = np.conj(Q.T)                                 # Qᴴ (carrier transpose+conj)
+    # Class M: Qᴴ·b routed through the dense_* kernel cascade (matvec for a 1-D
+    # rhs, matmul for a multi-column rhs — numpy carriers-only, no numpy matmul).
+    rhs = (dense_matvec_complex(Qh, B) if B.ndim == 1
+           else dense_matmul_complex(Qh, B))
     x = np.zeros((n,) + B.shape[1:], dtype=np.complex128)
     for i in range(n - 1, -1, -1):                    # Class I: back-substitution
-        x[i] = (rhs[i] - R[i, i + 1:] @ x[i + 1:]) / R[i, i]
+        tail = R[i, i + 1:]                           # the already-solved span
+        if tail.shape[0] == 0:
+            acc = 0.0                                 # nothing solved above row i
+        elif x.ndim == 1:
+            acc = dense_dot_complex(tail, x[i + 1:])  # 1-D rhs: a Class-M dot
+        else:
+            acc = dense_matvec_complex(x[i + 1:].T, tail)  # k-col rhs: xᵀ·tail
+        x[i] = (rhs[i] - acc) / R[i, i]
     if not np.iscomplexobj(a) and not np.iscomplexobj(b) and np.allclose(x.imag, 0.0):
         return x.real.copy()
     return x

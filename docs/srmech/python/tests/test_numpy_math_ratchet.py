@@ -263,9 +263,25 @@ _UFUNC = re.compile(
 # promote it WITH a C twin). matmul 18 -> 12. The remaining 12 are the
 # matrix_cascades QR-internals (8) + ica_jade einsum hot loop (2) + laplacian
 # Schur/dense_matvec (2). Next: the QR shape-polymorphic pass, then linalg_fft.
+# rc59 — the QR shape-polymorphic pass (the documented next step). The 8
+# matrix_cascades QR-internal sites route onto the EXISTING value-faithful
+# dense_* kernels (no new kernel): the 2 `np.vdot(v,v)` (the _norm2 / vhv
+# Hermitian self-bind) -> `dense_dot_complex(conj(v), v)` (plain bilinear, so
+# conj passed explicitly); the 2 `np.outer` (the Householder reflector v vᴴ) ->
+# `dense_outer_complex`; the `conj(v) @ R` / `Q @ v` reflector matvecs ->
+# `dense_matvec_complex`; and the lstsq back-solve `Qᴴ·b` + `R[i,i+1:]·x[i+1:]`
+# -> dense_matvec/matmul (branch on rhs ndim) / dense_dot (1-D) / dense_matvec
+# (k-col) — the shape-polymorphic case. The kernels are value-faithful, so the
+# QR/SVD/lstsq/eig INVARIANTS (reconstruction, orthonormal Q, upper-tri R,
+# singular values, eigenvalue multiset) are preserved — verified vs numpy
+# across real+complex, 1-D + multi-column rhs. matmul 12 -> 4. The final 4 are
+# genuinely deferred: ica_jade np.einsum (the hot JADE cumulant loop) + the
+# laplacian Schur `L_pi·X` + the `dense_matvec_complex` kernel-INTERNAL `@`
+# fallback (a kernel can't route onto itself). Next numpy-math front: the
+# `linalg_fft` ledger (122 — np.linalg.* / np.fft.*).
 # ---------------------------------------------------------------------------
 CEIL_LINALG_FFT = 122
-CEIL_MATMUL = 12
+CEIL_MATMUL = 4
 CEIL_UFUNC = 0
 
 

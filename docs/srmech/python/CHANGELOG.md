@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc59] - 2026-06-10
+
+**The QR shape-polymorphic pass (numpy-removal matmul decrement).** rc58 dropped the matmul ledger to 12 genuine compute callsites; rc59 routes the **8 `matrix_cascades` QR-internal sites** onto the *existing* value-faithful `dense_*` kernels in `srmech.amsc.laplacian` — **no new kernel**, so the decompositions keep riding the native `srmech_dense_matmul_complex` path.
+
+- **Householder reflectors** (`qr`): the two `np.vdot(v, v)` Hermitian self-binds → `dense_dot_complex(np.conj(v), v)` (plain bilinear, `conj` passed explicitly); the two reflector applications `np.outer(v, conj(v)·R)` / `np.outer(Q·v, conj(v))` → `dense_outer_complex` over `dense_matvec_complex` (the `conj(v)·R` and `Q·v` matvecs).
+- **lstsq back-solve** (the shape-polymorphic case): `Qᴴ·b` → `dense_matvec_complex` (1-D rhs) / `dense_matmul_complex` (k-column rhs); the triangular `R[i,i+1:]·x[i+1:]` → `dense_dot_complex` (1-D `x`) / `dense_matvec_complex` (k-column `x`). `_norm2`'s `np.vdot` → `dense_dot_complex` too.
+- The kernels are value-faithful, so the **QR/SVD/lstsq/eig INVARIANTS** (reconstruction, orthonormal `Q`, upper-triangular `R`, singular-value set, eigenvalue multiset) are preserved — verified vs numpy across real+complex and 1-D + multi-column right-hand sides. New `test_qr_householder_cascade_routing_rc59.py`.
+- numpy-math ratchet `matmul` ceiling **12 → 4**. The final 4 are genuinely deferred: `ica_jade`'s `np.einsum` (the hot JADE cumulant loop) + `laplacian`'s Schur `L_pi·X` + the `dense_matvec_complex` kernel-INTERNAL `@` fallback (a kernel can't route onto itself). `tools.total` stays **284**; no public-op / rosetta / ToolEntry change. ABI 3. Next numpy-math front: the `linalg_fft` ledger (122 — `np.linalg.*` / `np.fft.*`).
+
 ## [0.7.5rc58] - 2026-06-10
 
 **The convolution / correlation cascade (numpy-removal matmul decrement).** With the matmul ledger reword-swept to its 18 genuine compute callsites (rc57), rc58 takes the documented next batch: the six `np.convolve` / `np.correlate` DSP sites. A length-`N` convolution is a rank-1 accumulate — a small matrix product in disguise — so it lives on the matmul ledger; rc58 replaces it with the substrate-native cascade.
