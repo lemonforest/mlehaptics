@@ -21,6 +21,8 @@ from typing import Optional
 
 import numpy as np
 
+from srmech.amsc.laplacian import dense_norm
+
 from srmech.amsc import rational as _srn
 
 OPERATION_NAME = "multitaper"
@@ -88,7 +90,7 @@ def op(
         tapers = np.zeros((n_tapers, n))
         for k in range(n_tapers):
             tapers[k] = _csin(np.pi * (k + 1) * (np.arange(n) + 1) / (n + 1))
-            tapers[k] /= np.linalg.norm(tapers[k])
+            tapers[k] /= dense_norm(tapers[k])
     acc = np.zeros(n, dtype=np.float64)
     for k in range(n_tapers):
         tapered = arr * tapers[k]

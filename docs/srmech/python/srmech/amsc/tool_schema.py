@@ -1064,6 +1064,18 @@ def _register_primitive_class_tools() -> None:
             returns=R("float", "scalar sum a_i b_i"),
         ),
         ToolEntry(
+            name="srmech.amsc.laplacian.dense_norm",
+            owner="srmech", category="laplacian",
+            summary="Euclidean (2-norm) / Frobenius norm sqrt(sum |x_i|^2) → float: "
+                    "Class N (rational sqrt) of the Class M self-bind sum|x|^2 via "
+                    "dense_dot_complex (numpy carriers-only, no norm engine). "
+                    "Value-faithful to the NumPy 2-norm / Frobenius norm. Golub & "
+                    "Van Loan §2.3.",
+            parameters=(P("x", "np.ndarray", True,
+                          "real or complex array of any shape (flattened)"),),
+            returns=R("float", "sqrt(sum |x_i|^2)"),
+        ),
+        ToolEntry(
             name="srmech.amsc.laplacian.dense_outer_complex",
             owner="srmech", category="laplacian",
             summary="Dense complex outer product a⊗b → out[i,j]=a_i b_j (rank-1; "

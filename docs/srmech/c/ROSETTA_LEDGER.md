@@ -727,6 +727,19 @@ decrements it).
   ica_jade np.einsum (hot JADE cumulant loop) + laplacian Schur `L_pi·X` + the
   `dense_matvec_complex` kernel-internal `@` fallback (a kernel can't route onto
   itself). Next: the `linalg_fft` ledger (122 — np.linalg.* / np.fft.*).
+- **rc60 (done) — the dense_norm cascade (linalg_fft decrement).** Opens the
+  `linalg_fft` ledger (122) at its biggest cluster: the 20 default
+  `np.linalg.norm` callsites (QM self-consistency residuals + signal-processing
+  taper normalisations) — the Euclidean 2-norm / Frobenius norm √(Σ|x|²). New
+  public `laplacian.dense_norm(x)` = Class N (rational.sqrt) ∘ Class M
+  (dense_dot_complex self-bind Σ|x|²); numpy a carrier only. Value-faithful to
+  the NumPy norm (real+complex, 1-D + n-D). Routes 20 sites across qm/{so8 ×7,
+  relativistic ×3, spin ×3, triality ×3, gauge, sm, pseudo_hermitian} +
+  signal_processing multitaper. **numpy-math ratchet `linalg_fft` 122 → 102.**
+  New public op ⟹ describe tools.total 284 → 285 (+1 ToolEntry, +1 rosetta
+  composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
+  the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
+  (→ matrix_cascades / laplacian decompositions).
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

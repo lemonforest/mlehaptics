@@ -133,6 +133,7 @@ __all__ = [
     "dense_matmul_real",
     "dense_matvec_real",
     "dense_dot_real",
+    "dense_norm",
     "dense_outer_complex",
     "dense_outer_real",
     "elementwise_multiply_complex",
@@ -1308,6 +1309,41 @@ def dense_dot_real(a: np.ndarray, b: np.ndarray) -> float:
     )
 
 
+def dense_norm(x: np.ndarray) -> float:
+    """Euclidean (2-norm) / Frobenius norm ``‖x‖ = √(Σ|xᵢ|²)`` → ``float``.
+
+    The default vector 2-norm and matrix Frobenius norm the QM self-consistency
+    residuals + signal-processing taper normalisations route through, so numpy
+    stays carriers-only (no numpy norm engine). It is **Class N (the
+    :func:`srmech.amsc.rational.sqrt` root) ∘ Class M (the
+    :func:`dense_dot_complex` self-bind ``Σ|xᵢ|²``)** — the array is flattened
+    (a carrier reshape), the sum-of-squares rides the native elementwise-bind
+    cascade, and the root is the libm-free Class-N sqrt. Value-faithful to the
+    NumPy 2-norm / Frobenius norm to round-off (~1 ULP) for every shape and
+    dtype; for ``ord=None`` it is exactly that flat √(Σ|·|²).
+
+    Parameters
+    ----------
+    x
+        Real or complex array of any shape (flattened to a vector).
+
+    Returns
+    -------
+    out
+        Python ``float`` ``√(Σ|xᵢ|²)`` (``0.0`` for an empty array).
+
+    Canonical SSoT: Golub & Van Loan §2.3 (vector / Frobenius norms).
+    """
+    arr = np.ascontiguousarray(x).reshape(-1)
+    if arr.shape[0] == 0:
+        return 0.0
+    if np.iscomplexobj(arr):
+        sq = float(dense_dot_complex(np.conj(arr), arr).real)   # Σ conj(x)·x = Σ|x|²
+    else:
+        sq = dense_dot_real(arr, arr)                           # Σ x·x = Σ|x|²
+    return _rsqrt(sq) if sq > 0.0 else 0.0
+
+
 def dense_outer_complex(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     """Dense complex outer product ``a ⊗ b`` → ``out[i, j] = aᵢ bⱼ``.
 
@@ -1917,6 +1953,7 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "dense_matmul_real",
     "dense_matvec_real",
     "dense_dot_real",
+    "dense_norm",
     "dense_outer_complex",
     "dense_outer_real",
     "elementwise_multiply_complex",

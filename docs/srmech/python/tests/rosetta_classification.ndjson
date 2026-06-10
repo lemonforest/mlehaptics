@@ -79,6 +79,7 @@
 {"exposed_as": "srmech.amsc.laplacian.dense_matmul_real", "defined_at": "srmech.amsc.laplacian.dense_matmul_real", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.dense_matvec_real", "defined_at": "srmech.amsc.laplacian.dense_matvec_real", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.dense_dot_real", "defined_at": "srmech.amsc.laplacian.dense_dot_real", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.laplacian.dense_norm", "defined_at": "srmech.amsc.laplacian.dense_norm", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.dense_outer_complex", "defined_at": "srmech.amsc.laplacian.dense_outer_complex", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.dense_outer_real", "defined_at": "srmech.amsc.laplacian.dense_outer_real", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.elementwise_transcendental", "defined_at": "srmech.amsc.laplacian.elementwise_transcendental", "bucket": "c_dispatched"}

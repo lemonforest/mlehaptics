@@ -62,6 +62,7 @@ from srmech.amsc.laplacian import (
     dense_matmul_real,
     dense_matvec_complex,
     dense_matvec_real,
+    dense_norm,
     hermitian_eigendecompose,
 )
 from srmech.qm.octonion import (
@@ -205,15 +206,15 @@ def _deterministic_rank_subset(
     )
     kept_indices: List[int] = []
     kept_basis: List[np.ndarray] = []  # orthonormal span of kept columns
-    norm_scale = max(1.0, float(np.linalg.norm(vectors)))
+    norm_scale = max(1.0, float(dense_norm(vectors)))
     for col in range(vectors.shape[1]):
         v = vectors[:, col].astype(float)
         residual = v.copy()
         for q in kept_basis:
             residual = residual - dense_dot_real(q, residual) * q
-        if float(np.linalg.norm(residual)) > _RANK_TOL * norm_scale:
+        if float(dense_norm(residual)) > _RANK_TOL * norm_scale:
             kept_indices.append(col)
-            kept_basis.append(residual / float(np.linalg.norm(residual)))
+            kept_basis.append(residual / float(dense_norm(residual)))
             if len(kept_indices) == n_keep:
                 break
     assert len(kept_indices) == n_keep, (
@@ -433,7 +434,7 @@ def _su3_stabiliser(g2: List[np.ndarray], k: int) -> List[np.ndarray]:
         sum(c[a] * g2[a] for a in range(_DIM_G2)) for c in null_coeffs
     ]
     for matrix in su3:
-        residual = _magnitude(float(np.linalg.norm(dense_matvec_real(matrix, e_k))))
+        residual = _magnitude(float(dense_norm(dense_matvec_real(matrix, e_k))))
         assert residual < _RANK_TOL, (
             f"su(3) generator does not annihilate e_{k}: residual {residual}"
         )
@@ -540,7 +541,7 @@ def _invariant_complex_structure(
     )
     # The antisymmetric member of {aI + bJ} is J (up to scale); I is symmetric.
     antisymmetric = [0.5 * (m - m.T) for m in commutant]
-    j_raw = max(antisymmetric, key=lambda a: float(np.linalg.norm(a)))
+    j_raw = max(antisymmetric, key=lambda a: float(dense_norm(a)))
     # Normalise so J^2 = -I: J_raw^2 = -s^2 I, so J = J_raw / s.
     j_squared = dense_matmul_real(j_raw, j_raw)
     s = float(_srn.sqrt(_magnitude(float(np.mean(np.diag(j_squared))))))
@@ -555,12 +556,12 @@ def _invariant_complex_structure(
                 j = -j
             break
     # Belt-and-suspenders: J^2 = -I and J commutes with every ad(X).
-    assert _magnitude(float(np.linalg.norm(
+    assert _magnitude(float(dense_norm(
         dense_matmul_real(j, j) + identity))) < _RANK_TOL, (
         "complex structure J does not satisfy J^2 = -I"
     )
     for ad in ad_mats:
-        commute = _magnitude(float(np.linalg.norm(_commutator(j, ad))))
+        commute = _magnitude(float(dense_norm(_commutator(j, ad))))
         assert commute < _RANK_TOL, (
             f"complex structure J does not commute with ad(su3): {commute}"
         )

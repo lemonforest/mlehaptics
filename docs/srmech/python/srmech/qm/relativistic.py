@@ -40,6 +40,7 @@ from srmech.amsc.laplacian import (
     dense_dot_real,
     dense_matmul_complex,
     dense_matvec_real,
+    dense_norm,
 )
 from srmech.qm.spin import pauli_matrices, pauli_identity
 
@@ -122,11 +123,11 @@ def clifford_residuals() -> Tuple[float, float, float]:
             anti = (dense_matmul_complex(gammas[mu], gammas[nu])
                     + dense_matmul_complex(gammas[nu], gammas[mu]))
             expected = 2.0 * eta[mu, nu] * I4
-            max_clifford = max(max_clifford, np.linalg.norm(anti - expected))
+            max_clifford = max(max_clifford, dense_norm(anti - expected))
     g5 = gamma_5()
-    g5_sq_dev = float(np.linalg.norm(dense_matmul_complex(g5, g5) - I4))
+    g5_sq_dev = float(dense_norm(dense_matmul_complex(g5, g5) - I4))
     g5_anti_dev = max(
-        np.linalg.norm(dense_matmul_complex(g5, gammas[mu])
+        dense_norm(dense_matmul_complex(g5, gammas[mu])
                        + dense_matmul_complex(gammas[mu], g5)) for mu in range(4)
     )
     return max_clifford, g5_sq_dev, g5_anti_dev
