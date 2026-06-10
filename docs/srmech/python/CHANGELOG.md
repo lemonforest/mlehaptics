@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc66] - 2026-06-10
+
+**Complex `inv` → real 2n×2n block embedding of the native `dense_solve` (numpy-removal — `linalg_fft` decrement).** rc65 hit the trivial *carrier-swap* floor of the `linalg_fft` sweep; rc66 is its first **new-capability** step. The lone complex `np.linalg.inv` site — `qm/pseudo_hermitian.py`'s `η = (V·Vᴴ)⁻¹` (the Mostafazadeh η-metric) — routes onto a new private Class-L helper **`laplacian._dense_solve_complex`**.
+
+- A complex system `(Aᵣ + i Aᵢ)(u + i v) = (bᵣ + i bᵢ)` is, splitting real/imaginary parts, the **real** `2n×2n` system `[[Aᵣ, −Aᵢ], [Aᵢ, Aᵣ]]·[u; v] = [bᵣ; bᵢ]` (so `X = u + i v`). The embedding is **exact** (NumPy a carrier only — `concatenate`/slice/`.real`/`.imag`) and rides the shipped *native* real `dense_solve`; for a well-conditioned `A` (the Gram matrix `V·Vᴴ` is HPD) it is value-faithful to NumPy's complex `inv`/`solve` to ~1e-9. The complex inverse is just `_dense_solve_complex(A, eye(n))`.
+- Verified `== numpy` for HPD inv + `M·M⁻¹=I` + general complex `solve` (vector & matrix RHS); the η construction still yields a valid metric (`O†η = ηO`). **52 pseudo_hermitian tests pass.** Private (underscore) helper ⟹ no registry-gate / ToolEntry overhead; `describe()["tools"]["total"]` stays **285**. ABI 3. New `test_complex_solve_block_embed_rc66.py`.
+- numpy-math ratchet `linalg_fft` **29 → 28**. **`np.linalg.inv` → 0.**
+- **Route-safe floor reached.** The remaining 20 genuine `np.linalg.*` sites are *not* carrier-swaps: **numpy-as-accuracy** (6 `matrix_rank` + 7 so8 `svd`, all small-singular-value / null-space), **irreducible numpy fallbacks inside the cascade ops** (`dense_solve`'s `solve` + `hermitian_eigendecompose`'s `eigh`), or **need eigenvector-sign-canonicalization** (`eig` ×3 / `eigh`-1062 / `mimo_svd` public-API convention). The maths-sweep residual is a *legitimate* mix, not unfinished carrier work.
+
 ## [0.7.5rc65] - 2026-06-10
 
 **`np.linalg.pinv` → cascade SVD reconstruct (numpy-removal — `linalg_fft` decrement).** rc64 noted the cascade SVD is value-faithful for *large* singular values; rc65 cashes that in on the lone genuine `np.linalg.pinv` site — the `qm/so8.py` `_killing_form` structure-constant least-squares solve. A new `_pinv` helper reconstructs the Moore-Penrose pseudoinverse from the cascade SVD, `A⁺ = V·diag(1/s)·Uᴴ`, with NumPy's `rcond = 1e-15` small-singular-value cutoff.

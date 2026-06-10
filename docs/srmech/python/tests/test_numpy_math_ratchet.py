@@ -337,10 +337,15 @@ _UFUNC = re.compile(
 # linalg_fft 32 -> 30. rc65: pinv (so8 Killing-form structure-constant solve) ->
 # _pinv svd-reconstruct A+ = V.diag(1/s).Uh via dense_matmul_real; sign-invariant
 # (pinv unique), full-column-rank coords -> well-conditioned -> ~1e-7 faithful.
-# linalg_fft 30 -> 29. Deferred: complex inv (needs a complex solve), eigh
-# (hermitian_eigendecompose, eigenvector-sign-delicate), eig/svd-direct;
-# matrix_rank stays on numpy permanently (numpy-as-accuracy).
-CEIL_LINALG_FFT = 29
+# linalg_fft 30 -> 29. rc66: complex inv (pseudo_hermitian (V·V†)⁻¹) ->
+# laplacian._dense_solve_complex — the real 2n×2n block embedding [[Aᵣ,-Aᵢ],
+# [Aᵢ,Aᵣ]]·[u;v]=[bᵣ;bᵢ] of the native real dense_solve (exact embedding; HPD
+# Gram ⟹ well-conditioned ⟹ ~1e-9 faithful). linalg_fft 29 -> 28.
+# Route-safe FLOOR reached: the remaining genuine sites are numpy-as-accuracy
+# (6 matrix_rank + 7 so8 svd, all small-singular-value/nullspace), irreducible
+# numpy fallbacks inside the cascade ops (dense_solve / hermitian_eigendecompose),
+# or need eigenvector-sign-canonicalization (eig/eigh-1062/mimo svd).
+CEIL_LINALG_FFT = 28
 CEIL_MATMUL = 4
 CEIL_UFUNC = 0
 

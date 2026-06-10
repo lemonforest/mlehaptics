@@ -43,6 +43,7 @@ from srmech.amsc.cascade import matrix_cascades as _mc
 from typing import Tuple
 
 from srmech.amsc.laplacian import (
+    _dense_solve_complex,
     dense_dot_complex,
     dense_matmul_complex,
     dense_matvec_complex,
@@ -187,8 +188,12 @@ def construct_eta_from_eigendecomposition(
             f"(max |Im λ| = {np.max(_im_mag)}); η would not be "
             "positive definite"
         )
-    # η = (V V†)^{-1} makes O η-pseudo-Hermitian.
-    eta = np.linalg.inv(dense_matmul_complex(V, V.conj().T))
+    # η = (V V†)^{-1} makes O η-pseudo-Hermitian. The complex inverse is the
+    # complex solve (V V†)·η = I — routed onto the real 2n×2n block embedding
+    # of the native Class-L dense_solve (V V† is HPD ⟹ well-conditioned ⟹
+    # value-faithful to NumPy's inv).
+    gram = dense_matmul_complex(V, V.conj().T)
+    eta = _dense_solve_complex(gram, np.eye(gram.shape[0], dtype=np.complex128))
     # Symmetrize (rounding fixup).
     eta = (eta + eta.conj().T) / 2.0
     return eta
