@@ -22,7 +22,11 @@ from typing import Optional, Tuple
 import numpy as np
 
 from srmech.amsc import rational as _srn
-from srmech.amsc.laplacian import dense_matmul_real, hermitian_eigendecompose
+from srmech.amsc.laplacian import (
+    dense_matmul_real,
+    elementwise_sqrt,
+    hermitian_eigendecompose,
+)
 
 OPERATION_NAME = "ica_jade"
 CLASS_COMPOSITION = ("L", "K")
@@ -87,7 +91,7 @@ def op(
     # Keep top n_components and whiten
     eigvals = np.maximum(eigvals[:n_components], 1e-12)
     eigvecs = eigvecs[:, :n_components]
-    W_whiten = dense_matmul_real(np.diag(1.0 / np.sqrt(eigvals)), eigvecs.T)
+    W_whiten = dense_matmul_real(np.diag(1.0 / elementwise_sqrt(eigvals)), eigvecs.T)
     Z = dense_matmul_real(W_whiten, X.T).T  # whitened sources
 
     # Fourth-order cumulant approximation: M = E[Z (Z^T C Z) Z^T] - ...

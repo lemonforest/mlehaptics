@@ -51,6 +51,8 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
+from srmech.amsc import rational as _srn
+
 from srmech.amsc.cascade import magnitude as _magnitude
 from srmech.amsc.cascade.spectral_cascades import kron as _kron
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
@@ -541,7 +543,7 @@ def _invariant_complex_structure(
     j_raw = max(antisymmetric, key=lambda a: float(np.linalg.norm(a)))
     # Normalise so J^2 = -I: J_raw^2 = -s^2 I, so J = J_raw / s.
     j_squared = dense_matmul_real(j_raw, j_raw)
-    s = float(np.sqrt(_magnitude(float(np.mean(np.diag(j_squared))))))
+    s = float(_srn.sqrt(_magnitude(float(np.mean(np.diag(j_squared))))))
     j = j_raw / s
     # FIXED sign convention (Class C): first non-zero strict-upper-triangular
     # entry positive. Documented as a CHOICE; only J^2 = -I is a fact.
@@ -1045,7 +1047,7 @@ def _so4_stabiliser(
             image = dense_matvec_real(matrix, basis[a])
             for k in complement:
                 leak = leak + image[k] * image[k]
-        residual = _magnitude(float(np.sqrt(leak)))
+        residual = _magnitude(float(_srn.sqrt(leak)))
         assert residual < _RANK_TOL, (
             f"so(4) generator leaks H into H^perp: residual {residual}"
         )

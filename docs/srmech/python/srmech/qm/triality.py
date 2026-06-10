@@ -67,6 +67,8 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
+from srmech.amsc import rational as _srn
+
 from srmech.amsc.cascade import magnitude as _magnitude
 from srmech.amsc.cyclic import mod_add as _mod_add
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
@@ -423,7 +425,7 @@ def triality_relation_residual(
                 - _octonion_mul(dense_matvec_real(g_s, basis[i]), basis[j])
                 - _octonion_mul(basis[i], dense_matvec_real(g_c, basis[j]))
             )
-            total += float(np.sqrt(float(np.sum(deviation * deviation))))
+            total += float(_srn.sqrt(float(np.sum(deviation * deviation))))
     # Reduce the scalar accumulator through the Class K pin-slot magnitude.
     return _magnitude(total)
 

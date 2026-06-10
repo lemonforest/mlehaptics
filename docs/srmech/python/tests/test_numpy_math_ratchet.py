@@ -205,10 +205,21 @@ _UFUNC = re.compile(
 # remaining np.exp are elementwise_transcendental's OWN complex-input fallback +
 # real no-native fallback (the documented internal kernel; deferred). Next: the
 # np.sqrt cluster (12), then np.sin/np.cos/np.log/np.sign.
+# rc54 continues the ufunc decrement: the new `laplacian.elementwise_sqrt`
+# (per-element rational.sqrt — the Class-N√ cascade, native
+# srmech_rational_sqrt-dispatched, numpy carries the array only) routes the 2
+# array `np.sqrt` sites (spectral_subtraction PSD magnitude, ica_jade
+# whitening eigenvalues), and the 10 SCALAR np.sqrt sites (gauge Gell-Mann
+# 1/√3 ×3, potentials √n ladder, relativistic on-shell energy, so8 ×2,
+# triality, psk_qam √M, wavelet 1/√2) route onto `rational.sqrt`. ufunc
+# 27 -> 15. Round-off-faithful (rational sqrt floor-projected vs IEEE
+# round-to-nearest, ≤1-ULP; bit-exact on perfect squares). Next: np.sin (3)
+# + np.cos (3) onto elementwise_transcendental, np.log (5), np.sign (2); then
+# the 2 internal exp fallbacks (the deferred cascade kernel).
 # ---------------------------------------------------------------------------
 CEIL_LINALG_FFT = 122
 CEIL_MATMUL = 48
-CEIL_UFUNC = 27
+CEIL_UFUNC = 15
 
 
 def _count_category() -> dict[str, int]:

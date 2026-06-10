@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from srmech.amsc import rational as _srn
+
 OPERATION_NAME = "wavelet"
 CLASS_COMPOSITION = ("L", "N")
 PERFORMANCE_HINT = "shallow-cascade-dyadic"
@@ -65,7 +67,7 @@ def op(signal, *, levels: int = 3, wavelet: str = "haar", D: int = 8192):
     arr = np.asarray(signal, dtype=np.float64).copy()
     if arr.ndim != 1:
         raise ValueError(f"wavelet expects 1-D signal; got shape {arr.shape}")
-    inv_sqrt2 = 1.0 / np.sqrt(2.0)
+    inv_sqrt2 = 1.0 / _srn.sqrt(2.0)
     details = []
     current = arr
     for _ in range(levels):

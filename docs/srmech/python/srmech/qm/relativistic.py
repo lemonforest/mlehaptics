@@ -32,6 +32,8 @@ Canonical SSoT:
 from __future__ import annotations
 
 import numpy as np
+
+from srmech.amsc import rational as _srn
 from typing import Tuple
 
 from srmech.amsc.laplacian import (
@@ -213,7 +215,7 @@ def klein_gordon_dispersion(k_spatial: np.ndarray, m: float) -> float:
         )
     if m < 0:
         raise ValueError(f"klein_gordon_dispersion: m must be ≥ 0; got {m}")
-    return float(np.sqrt(dense_dot_real(k_spatial, k_spatial) + m * m))
+    return float(_srn.sqrt(dense_dot_real(k_spatial, k_spatial) + m * m))
 
 
 def four_momentum_squared(k: np.ndarray) -> float:

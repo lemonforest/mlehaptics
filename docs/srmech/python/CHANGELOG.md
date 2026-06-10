@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc54] - 2026-06-09
+
+**`laplacian.elementwise_sqrt` — the `np.sqrt` batch (numpy-removal ufunc decrement).** Continues the ufunc sweep (rc52 hypot → rc53 exp). The new **`elementwise_sqrt(arr)`** computes `√arrᵢ` per element via the Class-N `rational.sqrt` cascade (isqrt-based, native `srmech_rational_sqrt`-dispatched, no libm) — the companion to `elementwise_hypot`, so numpy carries the array only.
+
+- **Array `np.sqrt` → `elementwise_sqrt`** (2): `spectral_subtraction` PSD magnitude `√(new_psd)`, `ica_jade` whitening `1/√(eigvals)`.
+- **Scalar `np.sqrt` → `rational.sqrt`** (10): `qm.gauge` Gell-Mann `1/√3` (×3), `qm.potentials` `√n` harmonic-oscillator ladder, `qm.relativistic` Klein-Gordon on-shell energy, `qm.so8` (×2), `qm.triality`, `psk_qam` `√M`, `wavelet` `1/√2`.
+- The numpy-math ratchet's `ufunc` ceiling drops **27 → 15**. Round-off-faithful (rational sqrt floor-projected vs IEEE round-to-nearest — a ≤1-ULP shift; **bit-exact** on perfect squares — the QM ladder/dispersion + DSP whitening/decode suites pass unchanged). 7 modules gain a `from srmech.amsc import rational as _srn` import.
+- 1 new `srmech.amsc.laplacian.elementwise_sqrt` ToolEntry → `describe()["tools"]["total"]` 283 → **284**; `composition_of_c` rosetta bucket (composes the `c_dispatched` `rational.sqrt`/`srmech_rational_sqrt`; no own C symbol). Added to `__all__` + `LAPLACIAN_OPS`. Class N (rational √) over a Class-L array surface; numpy carriers-only. ABI 3.
+
 ## [0.7.5rc53] - 2026-06-09
 
 **The `np.exp` batch — 14 complex-phase / real-exp callsites routed off numpy's exponential ufunc (numpy-removal).** Continues the ufunc decrement opened in rc52. `np.exp(1j·x)` is the unit-modulus phase `e^{iθ} = cos θ + i sin θ`; routing it onto **`elementwise_transcendental(·, "exp_i")`** runs the real `cos`/`sin` through the native libm-free C cascade (`srmech_elementwise_transcendental`) and assembles the complex result — numpy carries the array only.

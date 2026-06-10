@@ -132,6 +132,7 @@ __all__ = [
     "elementwise_multiply_complex",
     "elementwise_transcendental",
     "elementwise_hypot",
+    "elementwise_sqrt",
     "LAPLACIAN_OPS",
     "MAX_NATIVE_NODES",
     "three_fold_eigvec_groups",
@@ -1545,6 +1546,49 @@ def elementwise_hypot(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     return out.reshape(a_arr.shape)
 
 
+def elementwise_sqrt(arr: np.ndarray) -> np.ndarray:
+    """Array element-wise ``√arrᵢ`` via the Class-N rational sqrt cascade.
+
+    The numpy-free square-root op for non-negative real arrays — the companion
+    to :func:`elementwise_hypot`, so numpy stays carriers-only (no numpy ``sqrt``
+    ufunc). Each element runs :func:`srmech.amsc.rational.sqrt` (Class-N∘K
+    integer-``isqrt`` cascade; native ``srmech_rational_sqrt``-dispatched) — the
+    math is the libm-free cascade, not numpy's. The numpy-only work is array
+    packing (``asarray`` / ``reshape`` / the output buffer).
+
+    Round-off-faithful to numpy's sqrt (the rational sqrt is floor-projected vs
+    IEEE round-to-nearest — a ≤1-ULP shift, accepted per the cascades-replace-
+    numpy-math discipline; bit-exact whenever ``arrᵢ`` is a perfect square).
+
+    Parameters
+    ----------
+    arr
+        Real array with all entries ``>= 0`` (square-root domain).
+
+    Returns
+    -------
+    out
+        Float64 array of ``√arrᵢ``, same shape as ``arr``.
+
+    Raises
+    ------
+    ValueError
+        If any ``arrᵢ < 0`` (matches the C path's domain contract; numpy's
+        ``sqrt`` would silently emit ``nan`` with a RuntimeWarning).
+
+    Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
+    Hopkins, 2013) §1.1.
+    """
+    a_arr = np.ascontiguousarray(arr, dtype=np.float64)
+    flat = a_arr.reshape(-1)
+    if flat.shape[0] and float(flat.min()) < 0.0:
+        raise ValueError("elementwise_sqrt requires all arr[i] >= 0")
+    out = np.zeros(flat.shape[0], dtype=np.float64)
+    for i in range(flat.shape[0]):
+        out[i] = _rsqrt(float(flat[i]))
+    return out.reshape(a_arr.shape)
+
+
 # =====================================================================
 # Directed / signed Laplacian (#797 op (b); the F240/F241 directed-
 # coupling gap + the dissolved Class-O signed-metric absorbed into L)
@@ -1831,6 +1875,7 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "elementwise_multiply_complex",
     "elementwise_transcendental",
     "elementwise_hypot",
+    "elementwise_sqrt",
     "dense_solve",
     "schur_complement",
     "dirichlet_to_neumann",
