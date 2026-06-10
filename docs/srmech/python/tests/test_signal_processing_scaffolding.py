@@ -916,7 +916,16 @@ def test_path_registry_registered_ops_iteration():
     try:
         for name in ("alpha", "beta", "gamma"):
             register(name, path="A", impl=lambda *a, **k: None)
-        assert tuple(registered_ops()) == ("alpha", "beta", "gamma")
+        ops = tuple(registered_ops())
+        # Eagerly-registered ops appear first, in registration order.
+        assert ops[:3] == ("alpha", "beta", "gamma")
+        # rc71: registered_ops() is declarative — the package's lazily-
+        # registrable numpy Path-B ops (matched_filter / sign_quantise /
+        # wiener) are listed as PENDING (no numpy-pulling import forced) after
+        # the loaded ops. clear_registry() wipes _REGISTRY, not the lazy
+        # loaders, so they trail the three we just registered.
+        for extra in ops[3:]:
+            assert extra in {"matched_filter", "sign_quantise", "wiener"}, extra
     finally:
         clear_registry()
 

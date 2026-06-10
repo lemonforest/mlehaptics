@@ -38,49 +38,28 @@ the module-level constants.
 
 from __future__ import annotations
 
-from . import (
-    allpass,
-    arithmetic_coding,
-    beamforming_fixed,
-    cross_spectral,
-    dct,
-    esprit,
-    farrow,
-    fft,
-    fir,
-    fsk,
-    hdc_truncation,
-    heat_kernel,
-    huffman,
-    ica_jade,
-    ifft,
-    iir,
-    jpeg,
-    lmmse,
-    lz77,
-    map_ml,
-    matched_filter,
-    mimo_svd,
-    mlse,
-    multirate,
-    multitaper,
-    music,
-    ofdm,
-    pi_cascade,
-    polyphase,
-    psk_qam,
-    rfft,
-    rle,
-    sign_quantise,
-    sinc_interp,
-    spectral_subtraction,
-    spectrogram,
-    stft,
-    vector_quantisation,
-    viterbi,
-    wavelet,
-    wiener,
+from srmech._scientific import make_lazy_op_getattr as _make_lazy_op_getattr
+
+#: Every op submodule, imported LAZILY (rc71): the numpy-free ops (the FFT
+#: family) import + run with no numpy; the numpy ops import numpy only when
+#: accessed. Eager ``from . import (…all 41…)`` previously forced numpy onto
+#: ``import srmech.signal_processing`` even for the numpy-free ops.
+_OP_MODULES = (
+    "allpass", "arithmetic_coding", "beamforming_fixed", "cross_spectral",
+    "dct", "esprit", "farrow", "fft", "fir", "fsk", "hdc_truncation",
+    "heat_kernel", "huffman", "ica_jade", "ifft", "iir", "jpeg", "lmmse",
+    "lz77", "map_ml", "matched_filter", "mimo_svd", "mlse", "multirate",
+    "multitaper", "music", "ofdm", "pi_cascade", "polyphase", "psk_qam",
+    "rfft", "rle", "sign_quantise", "sinc_interp", "spectral_subtraction",
+    "spectrogram", "stft", "vector_quantisation", "viterbi", "wavelet",
+    "wiener",
 )
+
+__getattr__ = _make_lazy_op_getattr(__name__, _OP_MODULES)
+
+
+def __dir__():
+    return sorted(set(globals()) | set(_OP_MODULES))
 
 #: Canonical list of all 38 Path A op module names. Used by tests and the
 #: post-merge registration script (Phase 1 integration).

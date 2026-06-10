@@ -60,3 +60,39 @@ class _LazyNumpy:
 def lazy_numpy(feature: str) -> "_LazyNumpy":
     """Return a lazy numpy proxy for ``feature`` (see :class:`_LazyNumpy`)."""
     return _LazyNumpy(feature)
+
+
+def make_lazy_op_getattr(package_name: str, op_modules):
+    """Build a PEP-562 module ``__getattr__`` for an op-package ``__init__``.
+
+    The scientific-tier op packages (``signal_processing.closed_form_ops`` /
+    ``.path_b_ops``) historically did ``from . import (…every op…)`` at package
+    import — which transitively imports every op's ``import numpy`` and makes
+    ``import srmech.signal_processing`` need numpy even for the numpy-FREE ops
+    (rc71). Replacing the eager block with ``__getattr__ = make_lazy_op_getattr(
+    __name__, _OP_MODULES)`` defers each op-module import to first attribute
+    access — so the package imports with NO numpy, the numpy-free ops
+    (the FFT family) import + run numpy-free, and a numpy op imports numpy only
+    when *it* is accessed. A numpy ``ModuleNotFoundError`` is re-raised as the
+    clean ``[scientific]`` hint (one chokepoint, not a per-module guard).
+    """
+    import importlib
+    import sys
+
+    op_set = frozenset(op_modules)
+
+    def __getattr__(name):
+        if name not in op_set:
+            raise AttributeError(
+                f"module {package_name!r} has no attribute {name!r}"
+            )
+        try:
+            mod = importlib.import_module(f".{name}", package_name)
+        except ModuleNotFoundError as exc:
+            if (exc.name or "").split(".")[0] == "numpy":
+                require_numpy(f"{package_name}.{name}")  # raises the clean hint
+            raise
+        setattr(sys.modules[package_name], name, mod)  # cache; skip next time
+        return mod
+
+    return __getattr__
