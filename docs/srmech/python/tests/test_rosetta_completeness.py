@@ -53,7 +53,10 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 
 # ----- the down-only debt ceilings (rc7 baseline; issue #928) -----------
 # LOWER these as ops gain C twins. NEVER raise them.
-CEIL_PYTHON_ONLY_IRREDUCIBLE = 108
+# rc67: symmetric_eigendecompose stopped being Python-only-irreducible — it now
+# delegates to the c_dispatched hermitian_eigendecompose + phase-canon, so it
+# moved to composition_of_c. python_only_irreducible 108 -> 107.
+CEIL_PYTHON_ONLY_IRREDUCIBLE = 107
 # rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
 # rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.

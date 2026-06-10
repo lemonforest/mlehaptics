@@ -338,14 +338,19 @@ _UFUNC = re.compile(
 # _pinv svd-reconstruct A+ = V.diag(1/s).Uh via dense_matmul_real; sign-invariant
 # (pinv unique), full-column-rank coords -> well-conditioned -> ~1e-7 faithful.
 # linalg_fft 30 -> 29. rc66: complex inv (pseudo_hermitian (V·V†)⁻¹) ->
-# laplacian._dense_solve_complex — the real 2n×2n block embedding [[Aᵣ,-Aᵢ],
-# [Aᵢ,Aᵣ]]·[u;v]=[bᵣ;bᵢ] of the native real dense_solve (exact embedding; HPD
-# Gram ⟹ well-conditioned ⟹ ~1e-9 faithful). linalg_fft 29 -> 28.
-# Route-safe FLOOR reached: the remaining genuine sites are numpy-as-accuracy
-# (6 matrix_rank + 7 so8 svd, all small-singular-value/nullspace), irreducible
-# numpy fallbacks inside the cascade ops (dense_solve / hermitian_eigendecompose),
-# or need eigenvector-sign-canonicalization (eig/eigh-1062/mimo svd).
-CEIL_LINALG_FFT = 28
+# laplacian._dense_solve_complex — the real 2n×2n block embedding of the native
+# real dense_solve. linalg_fft 29 -> 28.
+# rc67: symmetric_eigendecompose (real-symmetric eigh) -> the C-backed
+# hermitian_eigendecompose + _canonicalize_eigenvector_signs (Class-K per-column
+# phase pin: rotate so the largest-|·| entry is real-positive, then .real). The
+# native Jacobi peer keeps real input real; verified real + reconstruction-exact
+# on degenerate cases (4-cycle / identity / block-degen). 1 genuine call + 2
+# textual docstring mentions removed. linalg_fft 28 -> 25.
+# Remaining: numpy-as-accuracy (6 matrix_rank + 7 so8 svd, small-s/nullspace),
+# the irreducible numpy fallbacks INSIDE dense_solve / hermitian_eigendecompose,
+# the eig×3 eigenvector sites (non-Hermitian; sign/scale non-unique), the mimo
+# svd public-API op, plus precise docstring mentions of those.
+CEIL_LINALG_FFT = 25
 CEIL_MATMUL = 4
 CEIL_UFUNC = 0
 
