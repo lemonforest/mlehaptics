@@ -8,6 +8,13 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc61] - 2026-06-10
+
+**The `np.fft.*` family, first batch (numpy-removal — `linalg_fft` decrement).** rc60 opened the `linalg_fft` ledger on the `np.linalg.norm` cluster (122 → 102); rc61 takes the `np.fft.*` side. The **15 one-dimensional `np.fft.fft(x)` / `np.fft.ifft(x)` callsites** across `signal_processing` route onto the *existing* value-faithful **`srmech.amsc.cascade.spectral_cascades.fft` / `.ifft`** cascade (the rc36/rc37 radix-2 Cooley–Tukey FFT with a `dft` fallback for non-power-of-2 N — exact-until-rotation). **No new public op**: the FFT cascade already shipped; rc61 only swaps the *carrier* (NumPy's FFT → the cascade), value-for-value, wrapping `np.asarray(...)` so the result stays an ndarray.
+
+- **15 callsites routed** across `signal_processing/closed_form_ops/{cross_spectral ×4, ofdm ×2, spectral_subtraction ×2, multitaper ×1, stft ×2, wiener ×2}` + `path_b_ops/wiener ×2` — each `np.fft.fft(x)` → `np.asarray(_sc.fft(x))`, `np.fft.ifft(x)` → `np.asarray(_sc.ifft(x))`. The cascade is verified `== numpy` across real + complex inputs at power-of-2 AND non-power-of-2 N (2…100, ~1e-9). The DSP-op **invariants** (Welch coherence, Wiener gain, OFDM modulate↔demodulate round-trip, spectral-subtraction floor, STFT frames, multitaper PSD) are preserved — **447 signal_processing tests pass** post-route.
+- numpy-math ratchet `linalg_fft` ceiling **102 → 87**. No new public op ⟹ `describe()["tools"]["total"]` unchanged (285). ABI 3. New `test_fft_cascade_routing_rc61.py`. The remaining `np.fft.*` sites are the `n=`/`axis=` Path-A reference ops (`fft.py`/`ifft.py`/`rfft.py` + `fftfreq`), which need an array-aware (n-pad + axis) wrapper over the 1-D cascade — next batch; then the `np.linalg.{svd,qr,eig,solve,inv}` decomposition cluster (~36 sites, mostly `qm/so8.py`).
+
 ## [0.7.5rc60] - 2026-06-10
 
 **The `dense_norm` cascade (numpy-removal — opening the `linalg_fft` ledger).** With the `matmul` ledger down to its 4 deferred callsites (rc59), the sweep turns to the `linalg_fft` ledger (122 — `np.linalg.*` / `np.fft.*`). rc60 takes its single biggest cluster: the **20 default `np.linalg.norm` callsites** (the QM self-consistency residuals + the signal-processing taper normalisations), all the Euclidean 2-norm / Frobenius norm `√(Σ|xᵢ|²)`.

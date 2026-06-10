@@ -48,6 +48,7 @@ from __future__ import annotations
 from typing import Optional
 
 import numpy as np
+from srmech.amsc.cascade import spectral_cascades as _sc
 
 OPERATION_NAME = "wiener"
 CLASS_COMPOSITION = ("L", "N", "M")
@@ -115,7 +116,7 @@ def op(
             f"noise_psd shape {n_psd.shape} != signal shape {sig.shape}"
         )
     # Class L: transform to cyclic-graph Laplacian eigenbasis (== FFT basis).
-    X = np.fft.fft(sig)
+    X = np.asarray(_sc.fft(sig))
     obs_psd = X.real ** 2 + X.imag ** 2  # |z|² = real²+imag² (no abs())
     if signal_psd is None:
         s_psd = np.maximum(obs_psd - n_psd, 1e-30)
@@ -133,7 +134,7 @@ def op(
     # cyclic-substrate Class M bind dual via convolution theorem).
     filtered_spectrum = H * X
     # Inverse Class L: map back from eigenbasis to sample domain.
-    return np.real(np.fft.ifft(filtered_spectrum))
+    return np.real(np.asarray(_sc.ifft(filtered_spectrum)))
 
 
 def _register() -> None:

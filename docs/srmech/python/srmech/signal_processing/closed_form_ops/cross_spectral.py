@@ -20,6 +20,7 @@ from typing import Optional, Tuple
 import numpy as np
 
 from srmech.amsc import rational as _srn
+from srmech.amsc.cascade import spectral_cascades as _sc
 
 OPERATION_NAME = "cross_spectral"
 CLASS_COMPOSITION = ("M", "A")
@@ -93,8 +94,8 @@ def op(
         yy = np.zeros(frame_size, dtype=np.float64)
         xx[:n] = x
         yy[:n] = y
-        X = np.fft.fft(xx)
-        Y = np.fft.fft(yy)
+        X = np.asarray(_sc.fft(xx))
+        Y = np.asarray(_sc.fft(yy))
         S_xy = X * np.conj(Y)
         if coherence:
             S_xx = X.real ** 2 + X.imag ** 2  # |z|² = real²+imag² (no abs())
@@ -117,8 +118,8 @@ def op(
         start = i * hop_size
         xf = x[start : start + frame_size] * window
         yf = y[start : start + frame_size] * window
-        X = np.fft.fft(xf)
-        Y = np.fft.fft(yf)
+        X = np.asarray(_sc.fft(xf))
+        Y = np.asarray(_sc.fft(yf))
         S_xy_acc += X * np.conj(Y)
         S_xx_acc += X.real ** 2 + X.imag ** 2  # |z|² = real²+imag² (no abs())
         S_yy_acc += Y.real ** 2 + Y.imag ** 2  # |z|² = real²+imag² (no abs())
