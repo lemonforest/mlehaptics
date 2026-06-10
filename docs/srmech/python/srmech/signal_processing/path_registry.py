@@ -50,6 +50,7 @@ __all__ = [
     "DuplicateRegistrationError",
     "UnknownOperationError",
     "register",
+    "register_lazy_loader",
     "lookup",
     "has_path",
     "registered_ops",
@@ -122,6 +123,36 @@ class OperationEntry:
 
 
 _REGISTRY: Dict[str, OperationEntry] = {}
+
+#: Lazy registration (rc71): op_name → a loader callable that imports the op's
+#: module (which self-registers via its module-load ``_register()``). Ops whose
+#: module pulls numpy (e.g. ``matched_filter``) register a loader at the
+#: numpy-free ``path_b_ops`` import instead of importing eagerly — so
+#: ``import srmech.signal_processing`` stays numpy-free, yet ``lookup`` /
+#: ``has_path`` / ``dispatch`` still resolve the op by importing-on-demand.
+_LAZY_LOADERS: Dict[str, Callable[[], None]] = {}
+
+
+def register_lazy_loader(op_name: str, loader: Callable[[], None]) -> None:
+    """Register a deferred loader for ``op_name`` (rc71 lazy op-registration).
+
+    ``loader`` imports the op's module on first :func:`lookup` / :func:`has_path`
+    of ``op_name`` (the import self-registers the op). Idempotent; a later eager
+    self-registration simply makes the loader a no-op."""
+    assert isinstance(op_name, str) and op_name, (
+        "register_lazy_loader: op_name must be a non-empty string"
+    )
+    assert callable(loader), "register_lazy_loader: loader must be callable"
+    _LAZY_LOADERS[op_name] = loader
+
+
+def _ensure_loaded(op_name: str) -> None:
+    """If ``op_name`` is not yet in ``_REGISTRY`` but has a lazy loader, run it
+    (imports + self-registers the op). No-op once loaded."""
+    if op_name not in _REGISTRY:
+        loader = _LAZY_LOADERS.get(op_name)
+        if loader is not None:
+            loader()
 
 
 def register(
@@ -226,6 +257,7 @@ def lookup(op_name: str) -> OperationEntry:
     assert isinstance(op_name, str) and op_name, (
         "lookup: op_name must be non-empty string"
     )
+    _ensure_loaded(op_name)  # rc71: import-on-demand for lazily-registered ops
     entry = _REGISTRY.get(op_name)
     if entry is None:
         raise UnknownOperationError(
@@ -243,6 +275,7 @@ def has_path(op_name: str, path: str) -> bool:
         raise ValueError(
             f"has_path: path must be {PATH_A!r} or {PATH_B!r}; got {path!r}"
         )
+    _ensure_loaded(op_name)  # rc71: import-on-demand for lazily-registered ops
     entry = _REGISTRY.get(op_name)
     if entry is None:
         return False
@@ -252,8 +285,15 @@ def has_path(op_name: str, path: str) -> bool:
 
 
 def registered_ops() -> Iterator[str]:
-    """Iterate over all registered op_names in registration order."""
-    return iter(tuple(_REGISTRY.keys()))
+    """Iterate over all known op_names — eagerly-registered first (in
+    registration order), then any lazily-registrable ops not yet loaded.
+
+    rc71: declarative — a lazily-registrable op (e.g. ``matched_filter``) is
+    listed as a known op without forcing its (numpy-pulling) import. The op
+    materialises in ``_REGISTRY`` on first :func:`lookup` / :func:`has_path`."""
+    loaded = tuple(_REGISTRY.keys())
+    pending = tuple(name for name in _LAZY_LOADERS if name not in _REGISTRY)
+    return iter(loaded + pending)
 
 
 def clear_registry() -> None:

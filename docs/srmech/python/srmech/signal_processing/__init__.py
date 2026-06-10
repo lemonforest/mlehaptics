@@ -101,10 +101,13 @@ Spike anchors
 from __future__ import annotations
 
 # Scientific tier: numpy is optional as of v0.7.0 (the cascade core is numpy-
-# free). Fail with an actionable [scientific] hint, not a bare numpy error.
-from srmech._scientific import require_numpy as _require_numpy
-
-_require_numpy("srmech.signal_processing")
+# free). As of rc71 the eager package-level ``_require_numpy`` gate is GONE:
+# op-registration is now lazy (the FFT family imports + runs numpy-free; numpy
+# ops import numpy only on first access, raising the clean ``[scientific]`` hint
+# then via ``closed_form_ops`` / ``path_b_ops`` ``__getattr__``). So
+# ``import srmech.signal_processing`` succeeds with numpy ABSENT — the infra
+# surface (dispatcher / registry / profiling / Path-B core) + the numpy-free
+# FFT family are reachable, and only a numpy op forces the hint.
 
 # Re-export the locked architectural constants for ergonomic access.
 from ._paths import (

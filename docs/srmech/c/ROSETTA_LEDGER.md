@@ -740,6 +740,29 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc71 (done, v0.7.5rc71) — lazy op-registration: `signal_processing` is
+  IMPORT-reachable numpy-FREE (CEIL_NUMPY_CARRIER stays 53; reachability, not a
+  flip).** rc70 made the FFT family's MATH numpy-free, but a fresh
+  `import srmech.signal_processing` on a numpy-absent install still raised: two
+  layers ABOVE the carrier ratchet. (1) the eager `_require_numpy(...)` package
+  gate (rc47), and (2) eager all-op registration (`from . import path_b_ops` →
+  every op imported for registry population → the numpy ops' `import numpy`
+  fired transitively, even for numpy-free ops). rc71 dissolves both:
+  `closed_form_ops`/`path_b_ops` swap their eager `from . import (…every op…)`
+  for a PEP-562 `__getattr__` (`_scientific.make_lazy_op_getattr`) deferring each
+  op-module import to first attribute access; numpy-free Path-B ops still
+  eager-register, numpy Path-B ops (`matched_filter`/`sign_quantise`/`wiener`)
+  register a deferred LOADER with `path_registry` so `lookup`/`has_path`/
+  `dispatch` resolve them on-demand; `registered_ops()` is declarative
+  (lists pending lazy ops without importing). Eager `__init__` gate removed.
+  SUBPROCESS-proven: `test_signal_processing_numpy_free_reachable_rc71.py`
+  blocks numpy at `sys.meta_path` before the first import (a real numpy-absent
+  install — `monkeypatch` can't prove fresh-import-numpy-freedom) and asserts
+  import + FFT-family run + dispatch succeed numpy-free, a numpy op raises the
+  clean `[scientific]` hint, plus a down-only static guard the eager gate stays
+  gone. No carrier flip (ceiling 53) / no public op (describe stays 285); maths
+  ratchets at floor. ABI 3. Next: the `Mat`↔native-dense-kernel bridge (the 2-D
+  qm/* foundation).
 - **rc70 (done, v0.7.5rc70) — carrier-flip #1: the FFT op-family runs 1-D
   numpy-FREE (CEIL_NUMPY_CARRIER 61 → 53).** First real module flip of the
   carrier arc. `_fft_carrier`'s numpy was pure carrier-shaping (asarray /
