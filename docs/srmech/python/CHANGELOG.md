@@ -8,6 +8,13 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc64] - 2026-06-10
+
+**`map_ml` covariance inverse → `dense_solve` (numpy-removal — `linalg_fft` decrement).** The 2 real `np.linalg.inv` covariance-inverse sites in `signal_processing/closed_form_ops/map_ml.py` (`R_noise⁻¹` / `R_prior⁻¹` in the ML / MAP estimators) route onto the already-exported Class-L solve **`laplacian.dense_solve(M, np.eye(n))`** — the inverse *is* the linear solve `M·X = I` (unique; for well-conditioned covariances bit-faithful to `numpy.linalg.inv` to ~1e-9).
+
+- **Important boundary found + recorded:** the `qm/so8.py` `np.linalg.matrix_rank` sites were investigated and **kept on numpy**. The cascade SVD is value-faithful for *large* singular values (reconstruction / `Q@Qᵀ` projectors / `pinv`) but its *nullspace* (small-singular-value) accuracy is too low for an **absolute-tol rank count on a rank-deficient matrix** — routing them over-counted `rank_with_so4` (6 → 9). That is a legitimate **numpy-as-accuracy** site (deferred with the `dense_solve` numpy fallback + the matmul-4 kernel-internal tail), not numpy-as-carrier.
+- numpy-math ratchet `linalg_fft` **32 → 30**. No new public op ⟹ `describe()["tools"]["total"]` stays **285**. ABI 3. New `test_map_ml_inv_dense_solve_rc64.py`. Deferred to later sub-rcs: `pinv` (svd-reconstruct, sign-invariant), complex `inv` (needs a complex solve), `eigh` (`hermitian_eigendecompose`), `eig`/`svd`-direct.
+
 ## [0.7.5rc63] - 2026-06-10
 
 **The `np.linalg.*` cluster, first sub-batch (numpy-removal — `linalg_fft` decrement).** With `np.fft.*` drained (rc62), the final `linalg_fft` front is the `np.linalg.*` decomposition cluster. rc63a takes the sites whose downstream use is invariant to the decompositions' inherent ambiguities, routing them onto the already-shipped value-faithful **`srmech.amsc.cascade.matrix_cascades`** cascades (`qr`/`eigvals`, rc38/rc39).
