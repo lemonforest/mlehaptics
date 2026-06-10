@@ -32,7 +32,7 @@ import srmech
 # lazy n-D fallback). 8 modules drop their top-level `import numpy`:
 # _fft_carrier + closed_form_ops.{fft,ifft,rfft,spectrogram} +
 # path_b_ops.{fft,ifft,rfft}. 61 -> 53.
-CEIL_NUMPY_CARRIER = 53
+CEIL_NUMPY_CARRIER = 52
 
 
 def _srmech_root() -> pathlib.Path:

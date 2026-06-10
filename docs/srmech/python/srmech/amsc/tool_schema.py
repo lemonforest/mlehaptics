@@ -3735,27 +3735,6 @@ def _register_qm_tools() -> None:
         # the 14×14 matrix agrees bit-for-bit with One.to_matrix.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.qm.hurwitz.hurwitz_matrix", owner="srmech",
-            category="qm.hurwitz",
-            summary="The One S(σ,θ) as a 14×14 octonion-native matrix "
-                    "G = ⨁_n (1 ⊕ σ R_n(θ)) (#887). R_n turns every Fano "
-                    "plane through Î_n=e_{2ⁿ-1} by θ — 0/1/3 planes for "
-                    "ℂ/ℍ/𝕆 (the 𝕆 block is a genuine 3-plane rotation, "
-                    "eigenvalues {1,e^{±iθ}×3}). Planes DERIVED from "
-                    "octonion_mult_table; bit-exactly equal to "
-                    "srmech.amsc.cascade.One.to_matrix (the Rosetta peer). "
-                    "Class A (planes) ∘ N (rational cos/sin) ∘ K·C (σ); no "
-                    "new class, no abs(). Scientific tier (§22): numpy. "
-                    "Baez (2002) §2." + PUBLISH_OPT_IN_NOTE,
-            parameters=(
-                P("sigma", "int", True, "chirality σ ∈ {+1,-1}"),
-                P("theta_num", "int", True, "angle numerator (radians)"),
-                P("theta_den", "int", False, "angle denominator > 0; default 1"),
-                P("terms", "int", False, "Class-N Taylor depth; default 24"),
-            ),
-            returns=R("np.ndarray", "(14,14) float64 orthogonal-up-to-σ matrix"),
-        ),
-        ToolEntry(
             name="srmech.qm.hurwitz.hurwitz_planes", owner="srmech",
             category="qm.hurwitz",
             summary="The oriented Fano planes (a,b,sign) each Hurwitz block "
