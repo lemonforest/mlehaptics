@@ -569,6 +569,30 @@ def _invariant_complex_structure(
     return j
 
 
+def _eig_real_skew(skew: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """Eigenpairs of a REAL skew-symmetric matrix via the C-backed Hermitian path.
+
+    For real antisymmetric ``S`` (``Sᵀ = −S``), ``iS`` is Hermitian — so
+    :func:`~srmech.amsc.laplacian.hermitian_eigendecompose` (native Jacobi peer;
+    numpy ``eigh`` only as its own fallback) yields real eigenvalues ``μ``
+    (ascending) and a unitary eigenvector matrix ``V``. Then ``S``'s eigenvalues
+    are the purely-imaginary ``λ = −i·μ`` and its eigenvectors are the **same**
+    ``V`` — routing a real non-Hermitian ``eig`` onto the existing Hermitian
+    cascade (no NumPy ``eig``). Returns ``(eigenvalues, V)`` matching the
+    NumPy ``eig`` shape contract (``eigenvalues`` complex with the weight in
+    ``.imag``; ``V`` complex columns). ``iS`` is built by the scalar carrier
+    ``1j * S`` (no linalg/fft/matmul/ufunc).
+
+    The eigenvector phase and the basis WITHIN a degenerate eigenspace are
+    solver-chosen (non-unique) — exactly as NumPy's ``eig`` already left
+    them — so callers must consume ``V`` invariantly (Rayleigh quotient, or the
+    eigenspace SPAN, both verified basis-invariant), never as fixed columns.
+    """
+    S = np.ascontiguousarray(skew, dtype=np.float64)
+    mu, V = hermitian_eigendecompose(1j * S)        # iS Hermitian; μ real, ascending
+    return (-1j * mu), V                             # λ(S) = −i·μ (purely imaginary)
+
+
 def _triplet_from_eigenspace(
     j: np.ndarray, complement: List[np.ndarray]
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
@@ -581,7 +605,7 @@ def _triplet_from_eigenspace(
     the antitriplet (its conjugate). With this J-eigenspace fundamental,
     ``[su3, triplet] ⊆ triplet`` is bit-exact (``~3e-14``).
     """
-    eigenvalues, eigenvectors = np.linalg.eig(j)
+    eigenvalues, eigenvectors = _eig_real_skew(j)  # J real-antisymmetric → iS-Hermitian route
     plus = [k for k in range(j.shape[0]) if eigenvalues[k].imag > 0.5]
     minus = [k for k in range(j.shape[0]) if eigenvalues[k].imag < -0.5]
     assert len(plus) == _DIM_TRIPLET and len(minus) == _DIM_TRIPLET, (
@@ -643,7 +667,7 @@ def _complement_weights(
     ad_cartan = [
         _ad_on_complement(h, complement, complement_coords) for h in cartan
     ]
-    _, eigenvectors = np.linalg.eig(ad_cartan[0])
+    _, eigenvectors = _eig_real_skew(ad_cartan[0])  # ad(H) real-antisymmetric → iS-Hermitian route
     weights = np.zeros((_DIM_COMPLEMENT, 2))
     for k in range(_DIM_COMPLEMENT):
         v = eigenvectors[:, k]

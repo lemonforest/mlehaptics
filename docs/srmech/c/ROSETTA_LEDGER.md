@@ -740,6 +740,26 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc68 (done, v0.7.5rc68) — real-antisymmetric eig → iS-Hermitian cascade
+  route (linalg_fft decrement; the maths-engine sweep's last bulletproof step).**
+  Both `np.linalg.eig` sites in `qm/so8.py` take a REAL antisymmetric matrix —
+  the `J` complex-structure op (584) and `ad(H)` for a Cartan element (646),
+  each with a purely-imaginary `±i·weight` spectrum. For real skew `S`, `iS` is
+  Hermitian, so eigenpairs come from the shipped C-backed
+  `hermitian_eigendecompose(iS)`: `λ_S = −i·μ` (μ real, ascending), SAME `V`.
+  New PRIVATE `so8._eig_real_skew` routes both — no `np.linalg.eig`. Sound under
+  degeneracy ONLY because so8 consumes `V` invariantly: 584 rebuilds the triplet
+  from the `+i` eigenspace SPAN (projector basis-invariant, even for `J`'s mult-3
+  eigenspace), 646 reads scale/phase-invariant Rayleigh-quotient weights. Both
+  differential-tested vs `np.linalg.eig` on a degenerate (mult-3) real-skew
+  matrix; the full so8/triality/an_embedding/quaternion/killing/semisimple suite
+  (80 tests) stays green with BOTH sites routed. **numpy-math ratchet linalg_fft
+  25 → 23** (2 genuine eig calls; helper docstrings `numpy.linalg.`-free).
+  Private helper ⟹ no ToolEntry gate (describe stays 285). ABI 3. The 1 remaining
+  `np.linalg.eig` (pseudo_hermitian:182, general `O` — NOT skew, so iS trick N/A)
+  needs a general non-Hermitian eigenvector cascade that does not exist; rest of
+  linalg_fft is numpy-as-accuracy or cascade-internal fallbacks. **Maths-engine
+  sweep floored; next numpy removal is the carrier layer.**
 - **rc67 (done, v0.7.5rc67) — real-symmetric eigh → C-backed hermitian +
   eigenvector sign-canon (linalg_fft decrement; lane 1 past the floor).**
   `laplacian.symmetric_eigendecompose`'s `np.linalg.eigh` routes onto the
