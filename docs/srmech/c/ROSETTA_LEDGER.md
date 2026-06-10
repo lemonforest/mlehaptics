@@ -740,6 +740,28 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc75 (done, v0.7.5rc75) — the numpy-Rosetta-peer DISSOLUTION: delete
+  `qm.hurwitz.hurwitz_matrix`; declare the Hurwitz operator as a `[class]` over
+  the EXACT `the_one`; FIRST carrier-ceiling decrement CEIL_NUMPY_CARRIER
+  53 → 52.** Carrier-removal #564. rc50's `hurwitz_matrix` was a numpy 14×14
+  FLOAT builder (np.zeros + cos/sin float-divided) DUPLICATING `One.to_matrix` —
+  both float-cast the SAME exact cascade `the_one`. There was never supposed to
+  be a continuous-float peer (chained float ops SUM rounding error every op; not
+  correct-for-science). The exact `One` (14 exact (num,den) rationals) is the
+  correct realisation; the float 14×14 is a lossy projection, legitimate only as
+  the opt-in `One.to_matrix` export. The Hurwitz operator is now declared the
+  class-from-TOML way (`make_class`): new `class_catalog/hurwitz.toml` `[class]`
+  whose method `generate` BINDS `op="srmech.amsc.cascade.the_one"` → returns the
+  EXACT `One`, bit-for-bit `to_flat_rational()`-identical, zero Python/numpy.
+  `qm/hurwitz.py` is now numpy-free at top level (no `import numpy`) ⟹
+  CEIL_NUMPY_CARRIER 53 → 52 (FIRST flip of the carrier arc). `hurwitz_planes`
+  survives — the GENUINE Fano-plane cross-derivation from `octonion_mult_table`
+  (exact integer-tuple structure, matches `One.FANO_PLANES`; still octonion-gated
+  numpy until `qm.octonion` flips). New `[class]` ⟹ describe classes.total 1 → 2
+  (Hurwitz joins Genome); deleted ToolEntry + rosetta line ⟹ describe tools.total
+  288 → 287 (7 count-tests). Maths ratchets at floor; ABI 3; no C change.
+  `test_hurwitz_rc50.py` rewritten (class-is-the-exact-the_one + dissolution +
+  surviving plane cross-derivation).
 - **rc74 (done, v0.7.5rc74) — Mat bridge primitive #3 (the LAST): numpy-FREE
   Hermitian eigendecomposition (`mat_hermitian_eigendecompose`;
   CEIL_NUMPY_CARRIER stays 53; new capability, not a flip).** Completes the

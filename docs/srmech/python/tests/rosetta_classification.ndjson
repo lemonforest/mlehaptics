@@ -143,7 +143,6 @@
 {"exposed_as": "srmech.qm.gauge.su3_gell_mann_matrices", "defined_at": "srmech.qm.gauge.su3_gell_mann_matrices", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.gauge.su3_generators", "defined_at": "srmech.qm.gauge.su3_generators", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.gauge.su3_structure_constants", "defined_at": "srmech.qm.gauge.su3_structure_constants", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.qm.hurwitz.hurwitz_matrix", "defined_at": "srmech.qm.hurwitz.hurwitz_matrix", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.hurwitz.hurwitz_planes", "defined_at": "srmech.qm.hurwitz.hurwitz_planes", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.octonion.octonion_conjugate", "defined_at": "srmech.qm.octonion.octonion_conjugate", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.octonion.octonion_left_mult", "defined_at": "srmech.qm.octonion.octonion_left_mult", "bucket": "composition_of_c"}

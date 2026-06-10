@@ -1,27 +1,61 @@
-"""qm.hurwitz — the octonion-native matrix peer of "the One" (v0.7.0rc50; #887).
+"""qm.hurwitz — the Hurwitz Fano-plane cross-derivation + the Hurwitz [class].
 
-The Rosetta cross-check: srmech.qm.hurwitz builds S(σ,θ) as a 14×14 matrix
-with the Fano planes DERIVED from octonion_mult_table, and it must agree
-bit-for-bit with the numpy-free cascade srmech.amsc.cascade.the_one.
+History: rc50 shipped qm.hurwitz.hurwitz_matrix, a numpy 14×14 float builder
+that DUPLICATED srmech.amsc.cascade.One.to_matrix (both float-cast the SAME
+exact cascade the_one). rc75 (#564) DISSOLVED that numpy-Rosetta-peer: there
+was never supposed to be a continuous-float peer (float SUMS error every op).
+The Hurwitz operator is now declared the class-from-TOML way (`Hurwitz` [class],
+method `generate` binding the EXACT op srmech.amsc.cascade.the_one); the float
+14×14 is the opt-in lossy One.to_matrix export, never a separate named op.
 
-The whole module is the scientific tier (srmech.qm requires numpy), so it is
-skipped wholesale where numpy is absent.
+What survives in srmech.qm.hurwitz: `hurwitz_planes` — the GENUINE
+cross-derivation of the oriented Fano planes from octonion_mult_table (not a
+float restatement; an exact integer-tuple structure read from the attested
+table). hurwitz.py is now numpy-free at the top level (carrier ratchet
+decrement); hurwitz_planes' full numpy-free reachability follows when
+qm.octonion flips (the octonion table is still numpy until then).
 """
 
 import pytest
 
-pytest.importorskip("numpy")  # qm tier; skip the file on a numpy-free install
-
-import numpy as np
-
-from srmech.amsc.cascade import the_one
 from srmech.amsc.cascade.one import FANO_PLANES
-from srmech.qm.hurwitz import hurwitz_matrix, hurwitz_planes
 
 
-# ── the planes are DERIVED from the octonion table (not hardcoded) ────
+# ── the Hurwitz [class] over the EXACT the_one (numpy-free, zero Python) ──
+
+def test_hurwitz_class_is_the_exact_the_one():
+    from srmech.dsl import make_class
+    from srmech.amsc.cascade import the_one
+
+    Hurwitz = make_class("Hurwitz")
+    one_via_class = Hurwitz().generate(sigma=1, theta_num=1, theta_den=4, terms=24)
+    one_direct = the_one(1, 1, 4, terms=24)
+    # The 14 EXACT (num,den) rationals are bit-for-bit identical — no float, no
+    # numpy, no error summation; the class IS the exact op under the Hurwitz name.
+    assert one_via_class.to_flat_rational() == one_direct.to_flat_rational()
+    assert type(one_via_class).__name__ == "One"
+
+
+def test_hurwitz_class_registered_in_catalog():
+    from srmech.dsl._class_catalog import load_class_catalog
+    load_class_catalog.cache_clear()
+    assert "Hurwitz" in load_class_catalog()
+
+
+def test_hurwitz_matrix_op_dissolved():
+    # The numpy float duplicate is gone (the dissolution); only the exact peers
+    # remain (the_one / One.to_matrix as the opt-in float export).
+    import srmech.qm.hurwitz as h
+    assert not hasattr(h, "hurwitz_matrix")
+    assert h.__all__ == ["hurwitz_planes"]
+
+
+# ── the planes are DERIVED from the octonion table (the genuine op) ────
+# (octonion_mult_table is still numpy until qm.octonion flips → skip numpy-free.)
 
 def test_hurwitz_planes_derived_from_octonion_table():
+    pytest.importorskip("numpy")  # octonion table is numpy until qm.octonion flips
+    from srmech.qm.hurwitz import hurwitz_planes
     planes = hurwitz_planes()
     # ℂ: none; ℍ: {1,2,3} → (1,2,+1); 𝕆: the 3 Fano triples through e₇.
     assert planes == ((), ((1, 2, 1),), ((1, 6, -1), (2, 5, 1), (3, 4, 1)))
@@ -29,66 +63,8 @@ def test_hurwitz_planes_derived_from_octonion_table():
 
 
 def test_cascade_fano_planes_match_table_derived_bit_exact():
-    # The cascade form HARDCODES FANO_PLANES; the qm peer DERIVES them from
-    # octonion_mult_table. They must be identical (the bit-exact structure
-    # cross-derivation).
+    pytest.importorskip("numpy")
+    from srmech.qm.hurwitz import hurwitz_planes
+    # The cascade form HARDCODES FANO_PLANES; the qm op DERIVES them from
+    # octonion_mult_table. They must be identical (the structure cross-derivation).
     assert FANO_PLANES == hurwitz_planes()
-
-
-# ── the matrix realisation ────────────────────────────────────────────
-
-def test_hurwitz_matrix_shape_and_anchors():
-    g = hurwitz_matrix(+1, 1, 1)
-    assert g.shape == (14, 14)
-    # the three ℝ·1 anchors (rows/cols 0, 2, 6) are fixed.
-    for r in (0, 2, 6):
-        e = np.zeros(14); e[r] = 1.0
-        assert np.allclose(g @ e, e)
-
-
-@pytest.mark.parametrize("sigma", [+1, -1])
-@pytest.mark.parametrize("theta", [(0, 1), (1, 1), (3, 5), (-2, 3), (314, 100)])
-def test_bit_exact_parity_cascade_vs_qm(sigma, theta):
-    # The headline: cascade One.to_matrix() == qm hurwitz_matrix(), bit-exact
-    # (same exact-rational cos/sin, same Fano planes → identical float64).
-    terms = 24
-    cascade = the_one(sigma, theta[0], theta[1], terms=terms).to_matrix()
-    qm = hurwitz_matrix(sigma, theta[0], theta[1], terms=terms)
-    assert np.array_equal(cascade, qm)
-
-
-def test_octonion_block_is_three_plane_rotation():
-    g = hurwitz_matrix(+1, 6, 10, terms=26)        # θ = 0.6
-    o_block = g[6:14, 6:14]
-    ang = np.sort(np.round(np.angle(np.linalg.eigvals(o_block)), 3))
-    assert list(ang).count(0.0) == 2               # e₀ and Î₃=e₇ fixed
-    assert len([a for a in ang if a > 1e-6]) == 3  # 3 planes at +θ
-    assert len([a for a in ang if a < -1e-6]) == 3  # 3 planes at -θ
-
-
-def test_quaternion_block_is_single_plane_rotation():
-    g = hurwitz_matrix(+1, 6, 10, terms=26)
-    h_block = g[2:6, 2:6]                           # ℍ block (1 ⊕ R₂)
-    ang = np.sort(np.round(np.angle(np.linalg.eigvals(h_block)), 3))
-    assert list(ang).count(0.0) == 2               # e₀ and Î₂=e₃ fixed
-    assert len([a for a in ang if abs(a) > 1e-6]) == 2  # one ±θ plane
-
-
-@pytest.mark.parametrize("sigma", [+1, -1])
-def test_proper_sign_orthogonality(sigma):
-    g = hurwitz_matrix(sigma, 1, 1, terms=24)
-    # σ·R is orthogonal either way (G Gᵀ = I); det reflects the chirality.
-    assert np.allclose(g @ g.T, np.eye(14), atol=1e-9)
-
-
-# ── validation ────────────────────────────────────────────────────────
-
-@pytest.mark.parametrize("bad", [0, 2, -2])
-def test_bad_sigma_rejected(bad):
-    with pytest.raises(ValueError):
-        hurwitz_matrix(bad, 1, 1)
-
-
-def test_nonpositive_theta_den_rejected():
-    with pytest.raises(ValueError):
-        hurwitz_matrix(+1, 1, 0)
