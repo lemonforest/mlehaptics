@@ -17,6 +17,7 @@ Kailath (1989) ESPRIT original paper.
 from __future__ import annotations
 
 import numpy as np
+from srmech.amsc.cascade import matrix_cascades as _mc
 
 from srmech.amsc.cascade.matrix_cascades import lstsq as _lstsq
 from srmech.amsc.laplacian import hermitian_eigendecompose
@@ -69,5 +70,5 @@ def op(R, *, n_sources: int, D: int = 8192) -> np.ndarray:
     # Solve Es2 = Es1·Phi via LS: Phi = (Es1^H Es1)^-1 Es1^H Es2
     Phi = _lstsq(Es1, Es2)
     # Class K: extract rotation as eigenvalues of Phi.
-    phi_eigvals = np.linalg.eigvals(Phi)
+    phi_eigvals = _mc.eigvals(Phi)
     return phi_eigvals

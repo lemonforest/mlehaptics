@@ -740,6 +740,19 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc63a (done) — np.linalg.* cluster, first sub-batch (linalg_fft
+  decrement).** Route the sign/order-invariant decompositions onto the
+  already-shipped value-faithful `matrix_cascades` cascades. 5
+  `q, _ = np.linalg.qr(X)` (qm/so8.py) → `matrix_cascades.qr`: Q consumed only
+  via `Q @ Qᵀ` projectors / column span / sum-of-squares leak (all invariant to
+  QR per-column sign; verified Q@Qᵀ == numpy ~1e-9). 2 `np.linalg.eigvals(X)`
+  (pseudo_hermitian max|imag|, esprit rotation set) → `.eigvals` (multiset,
+  set-faithful ~1e-12). 83 op-tests pass. ~22 textual `numpy.linalg.X` mentions
+  in matrix_cascades / tool_schema / triality (no genuine calls) reworded to
+  "NumPy X". **numpy-math ratchet linalg_fft 61 → 32.** No rosetta / ToolEntry
+  change (describe tools.total stays 285). ABI 3. rc63b/c: the delicate svd /
+  matrix_rank / inv / eig / eigh / solve / lstsq / pinv (mostly qm/so8.py +
+  amsc/laplacian.py), with sign/order handling per callsite.
 - **rc62 (done) — DRAIN the np.fft.* family (linalg_fft decrement).** New
   `signal_processing/_fft_carrier.py` lifts the 1-D `spectral_cascades` fft/ifft
   to NumPy's ndarray + n= (zero-pad / truncate) + axis= contract (NumPy a

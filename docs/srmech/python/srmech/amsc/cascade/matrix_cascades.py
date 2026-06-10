@@ -8,7 +8,7 @@ its own Hermitian eigendecomposition
 (:func:`srmech.amsc.laplacian.hermitian_eigendecompose`, the cyclic-Jacobi
 Class-L cascade). numpy is used ONLY as the array CONTAINER (matmul / outer /
 slicing = the Class-M bind layer) — **never** as the decomposition engine:
-there is no ``np.linalg.{qr,svd,eig,eigh,lstsq}`` anywhere in the call graph.
+there is no ``the NumPy linalg family`` anywhere in the call graph.
 
 - :func:`qr` — ``A = Q·R`` via **Householder reflections**. Q is a product
   (**Class M**) of elementary orthogonal reflectors ``H = I − β v vᴴ``; each
@@ -22,7 +22,7 @@ there is no ``np.linalg.{qr,svd,eig,eigh,lstsq}`` anywhere in the call graph.
   (``Σ = √eigvals``, the singular values) ∘ **Class M** (``U = A·V·Σ⁻¹``).
   The Gram route squares the condition number, so very small singular values
   carry ``√ε``-scale error (the documented caveat); the singular values
-  themselves match ``numpy.linalg.svd`` to round-off for well-conditioned
+  themselves match ``NumPy SVD`` to round-off for well-conditioned
   inputs.
 - :func:`lstsq` — least-squares ``min‖A x − b‖`` = **{QR}** factorization ∘
   **Class M** (the ``Qᴴ b`` product) ∘ **Class I** (back-substitution = the
@@ -38,7 +38,7 @@ there is no ``np.linalg.{qr,svd,eig,eigh,lstsq}`` anywhere in the call graph.
   (the Wilkinson spectral shifts). Runs in complex arithmetic, so it converges
   to complex eigenvalues of real matrices directly (no 2×2 real-block special
   case). Eigenvalues are unique as a SET; the multiset matches
-  ``numpy.linalg.eigvals`` to ~1e-12 for moderate sizes.
+  ``NumPy eigvals`` to ~1e-12 for moderate sizes.
 """
 from __future__ import annotations
 
@@ -94,7 +94,7 @@ def _norm2(v: np.ndarray) -> float:
     sum-of-squares ``vᴴv`` is a Class-M bind (the Class-M self-bind) routed
     through :func:`dense_dot_complex` (``conj(v)`` passed explicitly — the
     Hermitian inner product); the root is :func:`srmech.amsc.rational.sqrt` —
-    no ``np.linalg.norm`` / ``abs`` / numpy contraction engine."""
+    no ``NumPy norm`` / ``abs`` / numpy contraction engine."""
     sq = float(dense_dot_complex(np.conj(v), v).real)
     return _rsqrt(sq) if sq > 0.0 else 0.0
 
@@ -107,7 +107,7 @@ def qr(a, *, mode: str = "reduced") -> Tuple[np.ndarray, np.ndarray]:
     a
         ``(m, n)`` real or complex 2-D array-like.
     mode
-        ``"reduced"`` (default, matching ``numpy.linalg.qr``): ``Q`` is
+        ``"reduced"`` (default, matching ``NumPy QR``): ``Q`` is
         ``(m, k)``, ``R`` is ``(k, n)`` with ``k = min(m, n)``.
         ``"complete"``: ``Q`` is ``(m, m)``, ``R`` is ``(m, n)``.
 
@@ -116,7 +116,7 @@ def qr(a, *, mode: str = "reduced") -> Tuple[np.ndarray, np.ndarray]:
     (Q, R)
         ``Q`` has orthonormal columns (``Qᴴ Q = I``), ``R`` is upper
         triangular. Q·R reconstructs A to round-off. QR is unique only up to
-        column/row signs, so ``Q``/``R`` need not match ``numpy.linalg.qr``
+        column/row signs, so ``Q``/``R`` need not match ``NumPy QR``
         element-wise — the defining INVARIANTS (reconstruction, orthonormal
         Q, upper-triangular R) do.
     """
@@ -168,7 +168,7 @@ def svd(a, *, full_matrices: bool = False) -> Tuple[np.ndarray, np.ndarray, np.n
     a
         ``(m, n)`` real or complex 2-D array-like.
     full_matrices
-        ``False`` (default, matching ``numpy.linalg.svd``'s reduced form):
+        ``False`` (default, matching ``NumPy SVD``'s reduced form):
         ``U`` is ``(m, k)``, ``s`` is ``(k,)``, ``Vh`` is ``(k, n)`` with
         ``k = min(m, n)``. (``full_matrices=True`` is not yet supplied; the
         reduced form is the one downstream consumers use.)
@@ -177,7 +177,7 @@ def svd(a, *, full_matrices: bool = False) -> Tuple[np.ndarray, np.ndarray, np.n
     -------
     (U, s, Vh)
         ``s`` is the length-``k`` array of singular values in DESCENDING
-        order (matching ``numpy.linalg.svd`` to round-off for well-
+        order (matching ``NumPy SVD`` to round-off for well-
         conditioned inputs); ``U``/``Vh`` have orthonormal columns/rows and
         reconstruct ``A``. U/V are unique only up to signs, so they need not
         match numpy element-wise — the invariants do.
@@ -235,7 +235,7 @@ def lstsq(a, b) -> np.ndarray:
     underdetermined ``m < n`` min-norm solution is the follow-on.
 
     Returns the solution ``x`` (shape ``(n,)`` or ``(n, k)``), matching
-    ``numpy.linalg.lstsq(a, b)[0]`` to round-off for full-rank inputs.
+    ``NumPy lstsq(a, b)[0]`` to round-off for full-rank inputs.
     """
     A = np.array(a, dtype=np.complex128)
     B = np.array(b, dtype=np.complex128)
@@ -332,7 +332,7 @@ def eigvals(a, *, max_sweeps: int = 500) -> np.ndarray:
     subdiagonal entry falls below :data:`_EIG_DEFLATE_TOL` of the local scale.
 
     Returns the length-``n`` complex eigenvalue array. Eigenvalues are unique
-    only as a SET; the multiset matches ``numpy.linalg.eigvals`` to ~1e-12 for
+    only as a SET; the multiset matches ``NumPy eigvals`` to ~1e-12 for
     moderate sizes (the Hermitian-input case is the already-shipped special
     case — pure **Class L**, the cyclic Jacobi — and is exact there).
     """

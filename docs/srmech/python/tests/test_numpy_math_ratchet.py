@@ -311,7 +311,21 @@ _UFUNC = re.compile(
 # artifact, not a substrate property, so the rfft-vs-NumPy tests are now
 # allclose (the Path-A-vs-Path-B cascade identity stays exact). np.fft. -> 0.
 # linalg_fft 87 -> 61. Next: the np.linalg.{svd,qr,eig,solve,inv,...} cluster.
-CEIL_LINALG_FFT = 61
+# rc63a (first np.linalg.* sub-rc): route the genuine sign/order-invariant
+# decompositions onto the already-shipped value-faithful matrix_cascades
+# cascades. The 5 `q, _ = np.linalg.qr(X)` callsites (qm/so8.py) consume Q only
+# through `q @ q.T` projectors / its column span / a sum-of-squares leak test —
+# all invariant to QR's per-column sign — so `matrix_cascades.qr` (faithful up
+# to column sign) is exact for the usage (verified: q@q.T == numpy to ~1e-9).
+# The 2 `np.linalg.eigvals(X)` callsites (pseudo_hermitian `max|imag|`, esprit
+# rotation set) consume the eigenvalue MULTISET (order-free) -> `.eigvals`
+# (set-faithful ~1e-12). 83 so8/esprit/pseudo_hermitian/triality op-tests pass
+# post-route. Plus the ~22 textual `numpy.linalg.X` faithfulness/summary
+# mentions in matrix_cascades / tool_schema / triality (no genuine calls there)
+# reworded to "NumPy X". np.linalg. 61 -> 32. The genuine svd / matrix_rank /
+# inv / eig / eigh / solve / lstsq / pinv (sign/order-delicate, mostly qm/so8.py
+# + amsc/laplacian.py) are the rc63b/c sub-batches.
+CEIL_LINALG_FFT = 32
 CEIL_MATMUL = 4
 CEIL_UFUNC = 0
 
