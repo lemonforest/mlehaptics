@@ -1048,6 +1048,21 @@ def _register_primitive_class_tools() -> None:
             returns=R("Mat", "n × w real Mat solution X"),
         ),
         ToolEntry(
+            name="srmech.amsc.laplacian.mat_hermitian_eigendecompose",
+            owner="srmech", category="laplacian",
+            summary="Numpy-FREE Hermitian eigendecomposition H = V diag(λ) V^H "
+                    "over the Mat carrier (carrier-removal #564, bridge #3): "
+                    "Mat.buffer feeds the native srmech_hermitian_eigendecompose "
+                    "zero-copy; pure-Python cyclic-Jacobi fallback with no native "
+                    "lib (real-symmetric direct, complex-Hermitian via the real "
+                    "2n×2n embedding). Golub & Van Loan §8.5.",
+            parameters=(P("h", "Mat", True,
+                          "n × n Hermitian Mat (real-symmetric or complex)"),),
+            returns=R("tuple[Mat, Mat]",
+                      "(eigvals (n,1) real Mat ascending, eigvecs (n,n) "
+                      "complex unitary Mat)"),
+        ),
+        ToolEntry(
             name="srmech.amsc.laplacian.dense_dot_complex",
             owner="srmech", category="laplacian",
             summary="Dense complex bilinear inner product sum a_i b_i (the "
