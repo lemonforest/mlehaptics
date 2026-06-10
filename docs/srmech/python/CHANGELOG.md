@@ -8,6 +8,14 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc77] - 2026-06-10
+
+**Carrier-flip batch #1 — `signal_processing` `allpass` + `sign_quantise` go numpy-FREE (`CEIL_NUMPY_CARRIER` 52 → 50).** Carrier-removal #564, the first of the pure carrier-flip phase (the dissolution track closed at rc76 — `hurwitz_matrix` was the only float-restatement-of-an-exact-op; a full re-review confirmed zero further dissolutions). The numpy-MATH sweep already cascade-routed these ops; what remained was numpy as a **carrier**. Both modules drop their top-level `import numpy`:
+
+- **`closed_form_ops/sign_quantise`** (Class K) — the `np.where` sign-quantiser becomes an explicit per-element **Class-K threshold sign-branch** over a plain Python list (no `abs()`); returns `list[int]` of `{-1, 0, +1}`. Exact integer comparisons — value-identical to the numpy logic.
+- **`closed_form_ops/allpass`** (Class N) — carriers become plain lists; the optional scipy `lfilter` accelerator is lazy (scipy needs numpy, so a numpy-absent install falls through) and its result is coerced to a list; the no-scipy path is the existing **direct-form-I difference-equation reference** running on lists. Returns `list[float]`.
+- The two smoke tests move from `.shape == (N,)` to `len(...) == N` (the numpy-free list carrier), with `sign_quantise` pinned to its exact `{-1,0,+1}` output. `CEIL_NUMPY_CARRIER` 52 → 50 (the down-only ratchet). No new public op (`describe()["tools"]["total"]` stays **287**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc76] - 2026-06-10
 
 **The scalar-export layer — `One.to_scalar`: matrix/vector → scalar, EXACT by default, opt-in numpy-free float export.** Carrier-removal #564, the follow-on to the rc75 Hurwitz TOML-class reframe (so a TOML class can chain matrix-math → scalar output). The user's rule (2026-06-10): *return float sometimes, never receive float*. `One.to_scalar(mode='trace'|'sqnorm'|'component', index=None, *, as_float=False)` (plus the bindable module-level `srmech.amsc.cascade.to_scalar`) is the scalar member of the One's projection family — the scalar peer of `to_flat_rational`.

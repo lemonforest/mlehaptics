@@ -740,6 +740,19 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc77 (done, v0.7.5rc77) — carrier-flip batch #1: `signal_processing`
+  `allpass` + `sign_quantise` go numpy-FREE (CEIL_NUMPY_CARRIER 52 → 50).**
+  Carrier-removal #564, the first of the pure carrier-flip phase (the
+  dissolution track closed at rc76 — `hurwitz_matrix` was the only
+  float-restatement-of-an-exact-op; the rc76 re-review confirmed zero further
+  dissolutions, so what's left is numpy-as-CARRIER, not numpy-as-duplicate).
+  Both ops drop their top-level `import numpy`: `sign_quantise` (Class K) —
+  `np.where` → explicit per-element Class-K threshold sign-branch over a list
+  (no abs()), returns `list[int]` of {-1,0,+1}, exact; `allpass` (Class N) —
+  carriers → lists, optional scipy `lfilter` lazy (numpy-absent falls through),
+  the no-scipy path is the existing direct-form-I difference-equation reference
+  on lists, returns `list[float]`. Smoke tests `.shape==(N,)` → `len()==N`. No
+  new public op (describe tools.total stays 287, classes 2); ABI 3; no C change.
 - **rc76 (done, v0.7.5rc76) — the scalar-export layer `One.to_scalar`
   (matrix/vector → scalar; EXACT (num,den) default + opt-in numpy-FREE float
   export).** Carrier-removal #564, follow-on to the rc75 Hurwitz TOML-class
