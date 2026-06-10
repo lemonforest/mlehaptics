@@ -62,4 +62,4 @@ def test_introspect_tools_total_is_276():
     # rc41 registered list_class_surface + describe_class (270→272);
     # rc42 added genome + partition ToolEntries (272→274);
     # rc43 added laplacian.tokenize + cooccurrence_edges (§17 U1; 274→276).
-    assert introspect.describe()["tools"]["total"] == 286
+    assert introspect.describe()["tools"]["total"] == 287

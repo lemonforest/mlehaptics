@@ -740,6 +740,22 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc73 (done, v0.7.5rc73) — Mat bridge primitive #2: numpy-FREE dense solve
+  (`mat_solve`; CEIL_NUMPY_CARRIER stays 53; new capability, not a flip).** The
+  peer of rc72 `mat_matmul`. `laplacian.mat_solve(A: Mat, B: Mat) -> Mat` solves
+  `A·X = B`: the real `Mat.buffer`s (row-major f64) feed the native
+  `srmech_dense_solve_f64(n, nrhs, A, B, out)` ZERO-COPY via
+  `(c_double*n²).from_buffer(...)` (C side const → Mats not mutated), output
+  `array('d')` → Mat. Unconditionally numpy-free: no-native / dim>256 / singular
+  falls back to srmech's own exact-rational Gauss–Jordan (`_solve_exact`, Class-N
+  Fraction) → float64. REAL-f64 only (complex = real 2n×2n block embedding,
+  later rc → NotImplementedError). SUBPROCESS-proven numpy-free (native +
+  forced-fallback); value-faithful vs `numpy.linalg.solve` ~1e-15. New public
+  callable ⟹ ToolEntry + rosetta `c_dispatched` + __all__/LAPLACIAN_OPS; describe
+  tools.total 286 → 287. rc72 Mat MCP coercer + sample already cover it (no
+  ratchet change). Maths ratchets at floor; ABI 3. New
+  `test_mat_solve_bridge_rc73.py` (8 tests). rc74 = `mat_hermitian_eigendecompose`
+  completes the bridge family.
 - **rc72 (done, v0.7.5rc72) — the Mat↔native-dense-kernel bridge: numpy-FREE
   2-D matmul (`mat_matmul`; CEIL_NUMPY_CARRIER stays 53; new capability, not a
   flip).** Carrier-removal foundation #2. rc69 built the numpy-free 2-D `Mat`
