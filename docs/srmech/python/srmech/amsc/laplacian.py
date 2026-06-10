@@ -94,6 +94,12 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from srmech.amsc.rational import sqrt as _rsqrt  # §22: scalar root via Class-N, not libm
 from srmech.amsc.rational import hypot as _rhypot  # Class-N |z| magnitude, not libm
+from srmech.amsc.rational import exp as _rexp  # Class-N exp cascade, not libm
+from srmech.amsc.rational import cos as _rcos  # Class-N cos cascade, not libm
+from srmech.amsc.rational import sin as _rsin  # Class-N sin cascade, not libm
+from srmech.amsc.rational import log as _rlog  # Class-N log cascade, not libm
+from srmech.amsc.rational import atan2 as _ratan2  # Class-N atan2 cascade, not libm
+from srmech.amsc.rational import complex_exp as _rcomplex_exp  # Class-N e^z, not libm
 
 try:  # UPSTREAM §22: the real-symmetric Class-L core is numpy-absent-safe.
     import numpy as np
@@ -1406,6 +1412,61 @@ _TRANS_OP_IDS = {
 }
 
 
+def _real_transcendental_loop(flat_real: np.ndarray, op_name: str) -> np.ndarray:
+    """numpy-free real ``exp``/``cos``/``sin``/``log`` via the Class-N scalar cascades.
+
+    The pure-Python / no-native fallback for :func:`elementwise_transcendental`
+    (the native path runs ``srmech_elementwise_transcendental``). numpy carries
+    the flat float64 buffer only; every element runs the libm-free
+    :mod:`srmech.amsc.rational` cascade. ``flat_real`` is a 1-D float64 array.
+    """
+    if op_name == "log" and flat_real.shape[0] and float(flat_real.min()) <= 0.0:
+        raise ValueError("log requires all arr[i] > 0")
+    fn = {"exp": _rexp, "cos": _rcos, "sin": _rsin, "log": _rlog}[op_name]
+    out = np.zeros(flat_real.shape[0], dtype=np.float64)
+    for i in range(flat_real.shape[0]):
+        out[i] = fn(float(flat_real[i]))
+    return out
+
+
+def _complex_transcendental_loop(arr: np.ndarray, op_name: str) -> np.ndarray:
+    """numpy-free complex ``exp``/``cos``/``sin``/``log`` via Class-N real cascades.
+
+    The complex-input path for :func:`elementwise_transcendental`, numpy-free
+    (numpy carries the complex128 buffer only). Each entry ``z = a + bi`` runs:
+
+    * ``exp(z)`` = :func:`rational.complex_exp` (``e^a (cos b + i sin b)``);
+    * ``cos(z)`` = ``cos a · cosh b − i · sin a · sinh b``;
+    * ``sin(z)`` = ``sin a · cosh b + i · cos a · sinh b``  (``cosh``/``sinh``
+      built from ``rational.exp``: ``cosh b = (e^b + e^{-b})/2`` etc.);
+    * ``log(z)`` = ``log|z| + i·arg z`` = ``rational.log(rational.hypot(a, b))
+      + i·rational.atan2(b, a)`` (principal branch; ``z ≠ 0``).
+    """
+    flat = np.ascontiguousarray(arr, dtype=np.complex128).reshape(-1)
+    out = np.zeros(flat.shape[0], dtype=np.complex128)
+    for i in range(flat.shape[0]):
+        z = complex(flat[i])
+        a, b = z.real, z.imag
+        if op_name == "exp":
+            out[i] = _rcomplex_exp(z)
+        elif op_name == "log":
+            mag = _rhypot(a, b)
+            if mag <= 0.0:
+                raise ValueError("log requires arr[i] != 0")
+            out[i] = complex(_rlog(mag), _ratan2(b, a))
+        else:
+            eb = _rexp(b)
+            enb = _rexp(-b)
+            cosh_b = (eb + enb) / 2.0
+            sinh_b = (eb - enb) / 2.0
+            ca, sa = _rcos(a), _rsin(a)
+            if op_name == "cos":
+                out[i] = complex(ca * cosh_b, -(sa * sinh_b))
+            else:  # sin
+                out[i] = complex(sa * cosh_b, ca * sinh_b)
+    return out.reshape(np.shape(arr))
+
+
 def elementwise_transcendental(
     arr: np.ndarray, op_name: str
 ) -> np.ndarray:
@@ -1452,8 +1513,9 @@ def elementwise_transcendental(
             if rc_c == _native.SRMECH_OK and rc_s == _native.SRMECH_OK:
                 used_native = True
         if not used_native:
-            cos_out = np.cos(real_arr)
-            sin_out = np.sin(real_arr)
+            # numpy-free Class-N cos/sin cascade (the no-native / Pyodide path)
+            cos_out = _real_transcendental_loop(real_arr, "cos")
+            sin_out = _real_transcendental_loop(real_arr, "sin")
         result = (cos_out + 1j * sin_out).astype(np.complex128)
         return result.reshape(np.shape(arr))
     if op_name not in _TRANS_OP_IDS:
@@ -1461,17 +1523,12 @@ def elementwise_transcendental(
             f"unknown op_name {op_name!r}; legal: "
             f"{sorted(set(_TRANS_OP_IDS) | {'exp_i'})}"
         )
-    # Complex inputs always fall back to numpy (libm scalar path
-    # doesn't handle complex elementwise — would need C complex
-    # ops, out of scope for the v1 broadening).
+    # Complex inputs run the numpy-free per-element Class-N complex cascades
+    # (exp via rational.complex_exp; cos/sin via cosh/sinh from rational.exp;
+    # log via rational.log(hypot) + i·rational.atan2). numpy carries the
+    # complex128 buffer only — no numpy transcendental engine.
     if np.iscomplexobj(arr):
-        if op_name == "exp":
-            return np.exp(arr).astype(np.complex128)
-        if op_name == "cos":
-            return np.cos(arr).astype(np.complex128)
-        if op_name == "sin":
-            return np.sin(arr).astype(np.complex128)
-        return np.log(arr).astype(np.complex128)
+        return _complex_transcendental_loop(arr, op_name)
     real_arr = np.ascontiguousarray(arr, dtype=np.float64).reshape(-1)
     n = int(real_arr.size)
     if n == 0:
@@ -1489,20 +1546,10 @@ def elementwise_transcendental(
             return out.reshape(np.shape(arr))
         if rc == _native.SRMECH_ERR_BAD_INPUT and op_name == "log":
             raise ValueError("log requires all arr[i] > 0")
-    if op_name == "exp":
-        return np.exp(real_arr).reshape(np.shape(arr))
-    if op_name == "cos":
-        return np.cos(real_arr).reshape(np.shape(arr))
-    if op_name == "sin":
-        return np.sin(real_arr).reshape(np.shape(arr))
-    # log: defensive precondition check (parity with C native path).
-    # numpy 2.x changed behaviour: np.log of 0 returns -inf with a
-    # RuntimeWarning rather than raising. Enforce the same domain
-    # contract as the C path (srmech_elementwise_transcendental
-    # returns SRMECH_ERR_BAD_INPUT for non-positive inputs).
-    if not np.all(real_arr > 0.0):
-        raise ValueError("log requires all arr[i] > 0")
-    return np.log(real_arr).reshape(np.shape(arr))
+    # numpy-free Class-N scalar cascade (the no-native / Pyodide path). The
+    # log domain check (all arr[i] > 0, parity with the C BAD_INPUT contract)
+    # lives inside _real_transcendental_loop.
+    return _real_transcendental_loop(real_arr, op_name).reshape(np.shape(arr))
 
 
 def elementwise_hypot(a: np.ndarray, b: np.ndarray) -> np.ndarray:
