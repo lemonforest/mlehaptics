@@ -334,9 +334,13 @@ _UFUNC = re.compile(
 # too low for an absolute-tol rank count on a RANK-DEFICIENT matrix (it over-
 # counted so8 `rank_with_so4` 6 -> 9) — a legitimate numpy-as-ACCURACY site, not
 # numpy-as-carrier (deferred with the dense_solve fallback + matmul-4 tail).
-# linalg_fft 32 -> 30. rc63c/d: pinv (svd-reconstruct, sign-invariant), complex
-# inv (needs a complex solve), eigh (hermitian_eigendecompose), eig/svd-direct.
-CEIL_LINALG_FFT = 30
+# linalg_fft 32 -> 30. rc65: pinv (so8 Killing-form structure-constant solve) ->
+# _pinv svd-reconstruct A+ = V.diag(1/s).Uh via dense_matmul_real; sign-invariant
+# (pinv unique), full-column-rank coords -> well-conditioned -> ~1e-7 faithful.
+# linalg_fft 30 -> 29. Deferred: complex inv (needs a complex solve), eigh
+# (hermitian_eigendecompose, eigenvector-sign-delicate), eig/svd-direct;
+# matrix_rank stays on numpy permanently (numpy-as-accuracy).
+CEIL_LINALG_FFT = 29
 CEIL_MATMUL = 4
 CEIL_UFUNC = 0
 

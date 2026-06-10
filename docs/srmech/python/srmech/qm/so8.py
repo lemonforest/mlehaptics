@@ -1056,6 +1056,28 @@ def _so4_stabiliser(
     return so4
 
 
+def _pinv(matrix: np.ndarray) -> np.ndarray:
+    """Moore-Penrose pseudoinverse via the cascade SVD.
+
+    ``A = U·diag(s)·Vᴴ`` ⟹ ``A⁺ = V·diag(1/s)·Uᴴ`` with the same small-
+    singular-value cutoff NumPy's ``pinv`` applies (``rcond·s_max``,
+    ``rcond = 1e-15``). The pseudoinverse is unique, so the per-factor U/V
+    column-sign ambiguity of the SVD cancels — value-faithful to NumPy's
+    dense ``pinv`` (~1e-7) for the full-column-rank generator stacks
+    this module forms (every ``s`` well clear of the cutoff). Reconstruction
+    uses the Class-L dense cascade matmul, not ``@``, so the numpy-math
+    ledger stays honest.
+    """
+    a = np.asarray(matrix, dtype=np.float64)
+    u, s, vh = (np.asarray(x) for x in _mc.svd(a))
+    cutoff = 1e-15 * (float(s[0]) if s.size else 0.0)
+    s_inv = np.array(
+        [1.0 / x if x > cutoff else 0.0 for x in s], dtype=np.float64
+    )
+    # A⁺ = V·diag(s_inv)·Uᴴ  (real: Vᴴ = Vᵀ ⟹ V = vh.T; Uᴴ = u.T).
+    return dense_matmul_real(vh.T * s_inv, u.T)
+
+
 def _killing_form(generators: List[np.ndarray]) -> np.ndarray:
     """The Killing form ``K_{ab} = tr(ad_a ad_b)`` of a Lie generator set.
 
@@ -1068,7 +1090,7 @@ def _killing_form(generators: List[np.ndarray]) -> np.ndarray:
     """
     n = len(generators)
     coords = np.column_stack([_epq_coords(m) for m in generators])  # (28, n)
-    pinv = np.linalg.pinv(coords)
+    pinv = _pinv(coords)
     f = np.zeros((n, n, n))
     for i in range(n):
         for j in range(n):
