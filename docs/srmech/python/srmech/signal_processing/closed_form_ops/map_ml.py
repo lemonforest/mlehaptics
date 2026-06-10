@@ -82,7 +82,7 @@ def op(
     if Rv.shape != (m, m):
         raise ValueError(f"R_noise must be ({m}, {m}); got {Rv.shape}")
     # Compute A^T R_noise^{-1}
-    Rv_inv = np.linalg.inv(Rv)
+    Rv_inv = dense_solve(Rv, np.eye(Rv.shape[0]))
     ATRinv = dense_matmul_real(A_arr.T, Rv_inv)
     if R_prior is None:
         # ML: x_hat = (A^T R_v^-1 A)^-1 A^T R_v^-1 y
@@ -96,7 +96,7 @@ def op(
         mu = np.zeros(n, dtype=np.float64)
     else:
         mu = np.asarray(mean_prior, dtype=np.float64)
-    Rx_inv = np.linalg.inv(Rx)
+    Rx_inv = dense_solve(Rx, np.eye(Rx.shape[0]))
     M = dense_matmul_real(ATRinv, A_arr) + Rx_inv
     rhs = dense_matvec_real(ATRinv, y_arr) + dense_matvec_real(Rx_inv, mu)
     return dense_solve(M, rhs)

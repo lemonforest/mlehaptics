@@ -325,7 +325,18 @@ _UFUNC = re.compile(
 # reworded to "NumPy X". np.linalg. 61 -> 32. The genuine svd / matrix_rank /
 # inv / eig / eigh / solve / lstsq / pinv (sign/order-delicate, mostly qm/so8.py
 # + amsc/laplacian.py) are the rc63b/c sub-batches.
-CEIL_LINALG_FFT = 32
+# rc63b (v0.7.5rc64): the 2 real `np.linalg.inv` covariance-inverse sites in
+# signal_processing/closed_form_ops/map_ml.py route onto the already-exported
+# `laplacian.dense_solve(M, np.eye(n))` (a unique, well-conditioned solve — the
+# inverse IS A·X=I; verified == numpy ~1e-9). The so8 `np.linalg.matrix_rank`
+# sites were investigated and KEPT ON NUMPY: the cascade SVD is value-faithful
+# for large singular values but its nullspace (small-singular-value) accuracy is
+# too low for an absolute-tol rank count on a RANK-DEFICIENT matrix (it over-
+# counted so8 `rank_with_so4` 6 -> 9) — a legitimate numpy-as-ACCURACY site, not
+# numpy-as-carrier (deferred with the dense_solve fallback + matmul-4 tail).
+# linalg_fft 32 -> 30. rc63c/d: pinv (svd-reconstruct, sign-invariant), complex
+# inv (needs a complex solve), eigh (hermitian_eigendecompose), eig/svd-direct.
+CEIL_LINALG_FFT = 30
 CEIL_MATMUL = 4
 CEIL_UFUNC = 0
 

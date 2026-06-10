@@ -740,6 +740,19 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc63b (done, v0.7.5rc64) — map_ml real inv → dense_solve (linalg_fft
+  decrement).** The 2 real `np.linalg.inv` covariance-inverse sites in
+  signal_processing/closed_form_ops/map_ml.py route onto
+  `laplacian.dense_solve(M, np.eye(n))` (the inverse IS A·X=I; unique, well-
+  conditioned; == numpy ~1e-9). The so8 `np.linalg.matrix_rank` sites were
+  INVESTIGATED and KEPT ON NUMPY — the cascade SVD's nullspace (small-singular-
+  value) accuracy is too low for an absolute-tol rank count on a rank-deficient
+  matrix (over-counted rank_with_so4 6→9); a numpy-as-ACCURACY site, deferred
+  with the dense_solve numpy fallback + matmul-4 kernel-internal tail.
+  **numpy-math ratchet linalg_fft 32 → 30.** No rosetta / ToolEntry change
+  (describe tools.total stays 285). ABI 3. Later sub-rcs: pinv (svd-reconstruct,
+  sign-invariant), complex inv (complex solve), eigh (hermitian_eigendecompose),
+  eig/svd-direct.
 - **rc63a (done) — np.linalg.* cluster, first sub-batch (linalg_fft
   decrement).** Route the sign/order-invariant decompositions onto the
   already-shipped value-faithful `matrix_cascades` cascades. 5
