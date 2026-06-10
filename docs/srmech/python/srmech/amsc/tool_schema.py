@@ -1036,6 +1036,18 @@ def _register_primitive_class_tools() -> None:
             returns=R("Mat", "m × n Mat (complex iff either input is)"),
         ),
         ToolEntry(
+            name="srmech.amsc.laplacian.mat_solve",
+            owner="srmech", category="laplacian",
+            summary="Numpy-FREE dense linear solve A·X = B over the Mat carrier "
+                    "(carrier-removal #564): real Mat.buffers feed the native "
+                    "srmech_dense_solve_f64 zero-copy; exact-rational "
+                    "Gauss-Jordan fallback with no native lib. Real-f64 only. "
+                    "Golub & Van Loan §3.4.",
+            parameters=(P("a", "Mat", True, "n × n real Mat (square)"),
+                        P("b", "Mat", True, "n × w real Mat (right-hand side)")),
+            returns=R("Mat", "n × w real Mat solution X"),
+        ),
+        ToolEntry(
             name="srmech.amsc.laplacian.dense_dot_complex",
             owner="srmech", category="laplacian",
             summary="Dense complex bilinear inner product sum a_i b_i (the "

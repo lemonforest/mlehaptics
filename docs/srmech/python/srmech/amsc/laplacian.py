@@ -131,6 +131,7 @@ __all__ = [
     "dense_matvec_complex",
     "dense_matmul_complex",
     "mat_matmul",
+    "mat_solve",
     "dense_dot_complex",
     "dense_matmul_real",
     "dense_matvec_real",
@@ -1357,6 +1358,75 @@ def mat_matmul(a: "Mat", b: "Mat") -> "Mat":
     return Mat(out, m, n, is_complex=is_complex)
 
 
+def mat_solve(a: "Mat", b: "Mat") -> "Mat":
+    """Numpy-free dense linear solve ``A·X = B`` over the
+    :class:`~srmech.amsc.mat.Mat` carrier — bridge primitive #2 of the
+    numpy-CARRIER removal arc (#564), the peer of :func:`mat_matmul`.
+
+    ``A`` ``(n, n)`` real `Mat` · solves for ``X`` ``(n, w)`` given ``B``
+    ``(n, w)`` real `Mat`. ``Mat.buffer`` is already the flat row-major float64
+    the native ``srmech_dense_solve_f64`` reads, so both operands feed the kernel
+    **zero-copy** (``from_buffer``) with **NO numpy** (the C side takes them
+    ``const``, so the `Mat`\\ s are not mutated); the output is a fresh
+    ``array('d')`` wrapped back into a `Mat`. With no native lib — or any dim >
+    ``MAX_NATIVE_NODES`` (256), or the native path flagging singular — the
+    fallback is srmech's own **exact-rational Gauss–Jordan**
+    (:func:`_solve_exact`, Class-N ``Fraction`` division, numpy-free) coerced to
+    float64, so the op is unconditionally numpy-free.
+
+    ``srmech_dense_solve_f64`` is **real-f64 only**; a complex `Mat` raises
+    ``NotImplementedError`` (the complex solve is the real ``2n×2n`` block
+    embedding — a later carrier-removal rc, cf. :func:`_dense_solve_complex`).
+
+    Raises ``ValueError`` (non-square ``A`` / ``B`` row mismatch / empty ``A``),
+    ``ZeroDivisionError`` (singular ``A``, exact-path signal).
+
+    Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
+    Hopkins, 2013) §3.4 (Gaussian elimination with partial pivoting).
+    """
+    from .mat import Mat
+    assert isinstance(a, Mat) and isinstance(b, Mat), (
+        "mat_solve operands must be Mat (the numpy-free 2-D carrier)"
+    )
+    if a.is_complex or b.is_complex:
+        raise NotImplementedError(
+            "mat_solve is real-f64 only; the complex solve (real 2n×2n block "
+            "embedding) is a later carrier-removal rc"
+        )
+    n = a.n_rows
+    if n == 0:
+        raise ValueError("mat_solve: A must be a non-empty square matrix")
+    if a.n_cols != n:
+        raise ValueError(f"mat_solve: A must be square; got {a.shape}")
+    if b.n_rows != n:
+        raise ValueError(
+            f"mat_solve: B row-count {b.n_rows} incompatible with A size {n}"
+        )
+    w = b.n_cols
+    if w == 0:
+        return Mat(array("d"), n, 0)  # n×0 solve → n×0 X (degenerate but valid)
+    # Native zero-copy path (n, w ≤ 256): real Mat buffers → C kernel → Mat.
+    if (_native.HAS_NATIVE
+            and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_dense_solve_f64")
+            and n <= MAX_NATIVE_NODES
+            and w <= MAX_NATIVE_NODES):
+        a_buf = (ctypes.c_double * (n * n)).from_buffer(a.buffer)  # zero-copy (real)
+        b_buf = (ctypes.c_double * (n * w)).from_buffer(b.buffer)  # zero-copy (real)
+        out = (ctypes.c_double * (n * w))()
+        rc = _native.LIB.srmech_dense_solve_f64(
+            ctypes.c_uint32(n), ctypes.c_uint32(w), a_buf, b_buf, out,
+        )
+        if rc == _native.SRMECH_OK:
+            return Mat(array("d", out), n, w)
+        if rc not in (_native.SRMECH_ERR_OVERFLOW, _native.SRMECH_ERR_BAD_INPUT):
+            raise RuntimeError(f"srmech_dense_solve_f64 returned non-OK status {rc}")
+        # OVERFLOW (over the native bound) / BAD_INPUT (singular) → exact fallback.
+    # numpy-free fallback: srmech's own exact-rational Gauss–Jordan (Class-N).
+    X = _solve_exact(a.tolist(), b.tolist())  # list[list[Fraction]]; raises if singular
+    return Mat.from_rows([[float(x) for x in row] for row in X])
+
+
 def dense_dot_complex(a: np.ndarray, b: np.ndarray) -> complex:
     """Dense complex bilinear inner product ``a · b = Σ aᵢ bᵢ``.
 
@@ -2134,6 +2204,7 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "dense_matvec_complex",
     "dense_matmul_complex",
     "mat_matmul",
+    "mat_solve",
     "dense_dot_complex",
     "dense_matmul_real",
     "dense_matvec_real",
