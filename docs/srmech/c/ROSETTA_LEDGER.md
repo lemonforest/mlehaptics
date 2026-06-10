@@ -712,6 +712,21 @@ decrements it).
   rosetta/ToolEntry change. ABI 3. The remaining 12 matmul: matrix_cascades
   QR-internals (8) + ica_jade einsum (2) + laplacian Schur/dense_matvec (2). Next:
   the QR shape-polymorphic pass; then the `linalg_fft` ledger (122).
+- **rc59 (done) — the QR shape-polymorphic pass (matmul decrement).** The 8
+  matrix_cascades QR-internal sites route onto the EXISTING value-faithful
+  dense_* kernels (no new kernel): `np.vdot(v,v)` ×2 (the _norm2/vhv Hermitian
+  self-bind) → `dense_dot_complex(conj(v), v)`; `np.outer` ×2 (the Householder
+  reflector v vᴴ) → `dense_outer_complex`; the `conj(v)·R` / `Q·v` reflector
+  matvecs → `dense_matvec_complex`; the lstsq back-solve `Qᴴ·b` →
+  `dense_matvec/matmul_complex` (branch rhs ndim) and `R[i,i+1:]·x[i+1:]` →
+  `dense_dot_complex` (1-D x) / `dense_matvec_complex` (k-col x — the
+  shape-polymorphic case). Kernels are value-faithful → QR/SVD/lstsq/eig
+  INVARIANTS preserved (verified vs numpy, real+complex, 1-D + multi-col rhs).
+  **numpy-math ratchet `matmul` 12 → 4.** `tools.total` stays 284; no public-op /
+  rosetta / ToolEntry change. ABI 3. The final 4 are genuinely deferred:
+  ica_jade np.einsum (hot JADE cumulant loop) + laplacian Schur `L_pi·X` + the
+  `dense_matvec_complex` kernel-internal `@` fallback (a kernel can't route onto
+  itself). Next: the `linalg_fft` ledger (122 — np.linalg.* / np.fft.*).
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each
