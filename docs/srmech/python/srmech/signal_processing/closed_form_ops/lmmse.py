@@ -84,7 +84,7 @@ def op(
         my = np.zeros(m, dtype=np.float64)
     else:
         my = np.asarray(mean_y, dtype=np.float64)
-    # Class-L gain via the srmech dense-solve cascade: K @ R_yy = R_xy, i.e.
+    # Class-L gain via the srmech dense-solve cascade: K·R_yy = R_xy, i.e.
     # solve R_yy^T · Z = R_xy^T for Z, then K = Z^T. The solve is where the cost
     # (and the math) lives; it rides ``srmech_dense_solve_f64`` (no numpy linalg).
     Z = dense_solve(Ryy.T, Rxy.T)

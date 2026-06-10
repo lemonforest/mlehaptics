@@ -236,9 +236,22 @@ _UFUNC = re.compile(
 # `rational.log(hypot)+i*atan2` (log) per element. numpy is now PURELY a
 # carrier across the entire transcendental + magnitude surface. Next numpy-
 # math front: the `linalg_fft` ledger (122 — np.linalg.* / np.fft.*).
+# rc57 — the matmul-ledger REWORD SWEEP (the ledger's documented next step:
+# 'reword sweep + distinct-op cascades = separate work items'). The ufunc
+# bucket is 0 (rc52-rc56); turning to matmul, ~30 of its 48 matches were
+# TEXTUAL ` @ ` / np.{vdot,einsum,convolve,correlate,kron} mentions in
+# docstrings / comments / ToolEntry summaries (+ one profile_loader f-string
+# ` @ ` false positive), not compute. rc57 strips them all (write the NumPy
+# op name / `·` without the dotted-paren form, per the rc34 convention) — ZERO
+# behaviour change. matmul 48 -> 18. The remaining 18 ARE genuine deferred
+# compute: matrix_cascades QR-internals (vdot/outer/@/back-solve, shape-
+# polymorphic), ica_jade einsum hot loop, fir/multirate/polyphase np.convolve
+# + matched_filter np.correlate (distinct-op cascades — own future work),
+# laplacian Schur L_pi·X + the dense_matvec kernel-internal @. Next: the
+# convolve/correlate cascades, then the QR shape-polymorphic pass, then linalg_fft.
 # ---------------------------------------------------------------------------
 CEIL_LINALG_FFT = 122
-CEIL_MATMUL = 48
+CEIL_MATMUL = 18
 CEIL_UFUNC = 0
 
 

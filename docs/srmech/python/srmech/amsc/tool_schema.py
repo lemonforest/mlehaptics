@@ -1007,7 +1007,7 @@ def _register_primitive_class_tools() -> None:
         ToolEntry(
             name="srmech.amsc.laplacian.dense_matvec_complex",
             owner="srmech", category="laplacian",
-            summary="Dense complex matrix-vector multiplication M @ v. "
+            summary="Dense complex matrix-vector multiplication M·v. "
                     "Golub & Van Loan §1.1.",
             parameters=(P("M", "np.ndarray", True, "rows × cols complex"),
                         P("v", "np.ndarray", True, "length-cols complex")),
@@ -1515,7 +1515,7 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.cascade.spectral_cascades.kron", owner="srmech", category="cascade",
-            summary="Kronecker product A (x) B of two 2-D matrices: (A(x)B)[i*p+k, j*q+l] = A[i,j]*B[k,l] — Class I (mixed-radix index) + Class M (element products). Pure-Python; substrate-native replacement for numpy.kron.",
+            summary="Kronecker product A (x) B of two 2-D matrices: (A(x)B)[i*p+k, j*q+l] = A[i,j]*B[k,l] — Class I (mixed-radix index) + Class M (element products). Pure-Python; substrate-native replacement for the NumPy Kronecker product.",
             parameters=(P("a", "list[list[complex]]", True, "left matrix (list of rows)"),
                         P("b", "list[list[complex]]", True, "right matrix (list of rows)")),
             returns=R("list[list[complex]]", "Kronecker product block matrix"),
@@ -1563,7 +1563,7 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.cascade.matrix_cascades.einsum", owner="srmech", category="cascade",
-            summary="Einstein-summation tensor contraction via the general index-iteration definition: Class B/D (the subscript spec is a typed index-pattern) + Class I (iterate over free + summed index tuples) + Class M (sum-of-products bundle). Handles any subscript string (matmul ij,jk->ik / trace ii-> / transpose ij->ji / dot i,i-> / outer i,j->ij / arbitrary contraction), implicit output supported. Value-faithful to numpy.einsum.",
+            summary="Einstein-summation tensor contraction via the general index-iteration definition: Class B/D (the subscript spec is a typed index-pattern) + Class I (iterate over free + summed index tuples) + Class M (sum-of-products bundle). Handles any subscript string (matmul ij,jk->ik / trace ii-> / transpose ij->ji / dot i,i-> / outer i,j->ij / arbitrary contraction), implicit output supported. Value-faithful to the NumPy einsum.",
             parameters=(P("subscripts", "str", True, "einsum subscript string, e.g. 'ij,jk->ik'"),
                         P("operands", "tuple[np.ndarray, ...]", False, "the input arrays (variadic)")),
             returns=R("np.ndarray", "the contracted tensor"),
@@ -2958,7 +2958,7 @@ def _register_spectral_runtime_tools() -> None:
             name="srmech.spectral.recompose", owner="srmech",
             category="spectral",
             summary="Reconstruct the node-domain state from a SpectralHandle "
-                    "via inverse projection ``V @ coeffs``. Class chain: "
+                    "via inverse projection ``V·coeffs``. Class chain: "
                     "Class L (inverse eigendecomposition; Chung 1997) ∘ "
                     "Class M (SHA-256 content integrity check on handle)."
                     + PUBLISH_OPT_IN_NOTE,
@@ -3809,7 +3809,7 @@ def _register_qm_tools() -> None:
 
         # ────────────────────────────────────────────────────────────
         # srmech.qm.triality — the Spin(8) triality engine. The 28×28
-        # order-3 outer automorphism τ = S_B @ S_C (Fix(τ) = g2 = 14),
+        # order-3 outer automorphism τ = S_B·S_C (Fix(τ) = g2 = 14),
         # the Z2 swap, Cartan companions + residual. Class I (cyclic),
         # Class C (swap), Class M (companions), Class K∘C (residual).
         # ────────────────────────────────────────────────────────────

@@ -5,7 +5,7 @@ coefficient table) ∘ Class C (cyclic streaming over the signal-tap product
 cascade) composition. Class N is the closed-form home for the impulse
 response, and Class C is the cyclic streaming that produces the output.
 
-The closed-form reference uses numpy's ``np.convolve`` (linear convolution).
+The closed-form reference uses NumPy linear convolution.
 
 Path B dual in Phase 6 (FIR via Class N rational + bundle convolution).
 
@@ -38,7 +38,7 @@ def op(signal, coefficients, *, mode: str = "full", D: int = 8192):
     coefficients:
         FIR filter taps ``[b_0, b_1, ..., b_{M-1}]`` (Class N rational table).
     mode:
-        ``"full"`` (default), ``"same"``, or ``"valid"`` per ``np.convolve``.
+        ``"full"`` (default), ``"same"``, or ``"valid"`` per NumPy convolution.
     D:
         Path B dimensionality (Path A unused).
 

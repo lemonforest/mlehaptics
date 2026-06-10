@@ -85,7 +85,7 @@ def _complex_sqrt(w: complex) -> complex:
 
 def _norm2(v: np.ndarray) -> float:
     """Euclidean norm ‖v‖ = √(vᴴv) via the Class-N sqrt cascade. The
-    sum-of-squares ``vᴴv`` is a Class-M bind (``np.vdot``); the root is
+    sum-of-squares ``vᴴv`` is a Class-M bind (the Class-M self-bind); the root is
     :func:`srmech.amsc.rational.sqrt` — no ``np.linalg.norm`` / ``abs``."""
     sq = float(np.vdot(v, v).real)
     return _rsqrt(sq) if sq > 0.0 else 0.0
@@ -255,7 +255,7 @@ def einsum(subscripts: str, *operands) -> np.ndarray:
     transpose, ``'i,i->'`` dot, ``'i,j->ij'`` outer, arbitrary contractions),
     just unoptimised (no path planning). Implicit output (no ``->``) follows
     numpy's rule: free labels (appearing once) in sorted order. Value-faithful
-    to ``numpy.einsum``.
+    to the NumPy einsum contraction.
     """
     ops = [np.asarray(o, dtype=np.complex128) for o in operands]
     inspec, arrow, outspec = subscripts.replace(" ", "").partition("->")

@@ -8,6 +8,13 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc57] - 2026-06-10
+
+**The matmul-ledger reword sweep (numpy-removal — docs only, zero behavior change).** With the ufunc bucket closed (rc52–rc56), the numpy-math sweep turns to the `matmul` ledger. Auditing its 48 matches revealed **~30 are textual** ` @ ` / `np.{vdot,einsum,convolve,correlate,kron}` references in docstrings, comments and `ToolEntry` summaries (plus one genuine false positive — `profile_loader`'s `entry-point[…] @ …` f-string) — **not compute**. rc57 strips them all (writing the NumPy op name / `·` without the dotted-paren form, per the established convention), so the ratchet count reflects only real callsites.
+
+- numpy-math ratchet `matmul` ceiling **48 → 18**. The remaining 18 ARE genuine deferred compute, each tracked for its own future cascade work: `matrix_cascades` QR-internals (`vdot`/`outer`/`@`/back-solve — the shape-polymorphic pass), `ica_jade`'s `np.einsum` (the hot JADE Jacobi loop), `fir`/`multirate`/`polyphase` `np.convolve` + `matched_filter` `np.correlate` (distinct-op convolution/correlation cascades), `laplacian`'s Schur `L_pi·X` + the `dense_matvec_complex` kernel-internal `@`.
+- Pure documentation/comment/summary rewording — no code-logic change, `tools.total` stays **284**, no rosetta/ToolEntry-count change. ABI 3. Next matmul work: the convolve/correlate cascades, then the QR shape-polymorphic pass; then the `linalg_fft` ledger (122).
+
 ## [0.7.5rc56] - 2026-06-10
 
 **`elementwise_transcendental` is numpy-free — the ufunc bucket CLOSES to zero (numpy-removal).** rc52→rc55 routed every *external* numpy-math ufunc callsite onto srmech cascades; the last 10 were `elementwise_transcendental`'s OWN internal numpy fallback (its complex-input path + its no-native real path). rc56 drives those to zero — numpy is now **purely a carrier** across the entire transcendental + magnitude surface.

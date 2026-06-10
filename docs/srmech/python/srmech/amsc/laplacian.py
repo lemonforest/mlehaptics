@@ -12,7 +12,7 @@ evolution ``ψ(t) = V·diag(exp(-iλt))·V^H·ψ(0)`` (Sakurai *Modern QM*
 
 - :func:`hermitian_eigendecompose` — complex Hermitian generalisation
   of :func:`jacobi_eigvals` returning eigenvalues + unitary eigvecs.
-- :func:`dense_matvec_complex` — general complex ``M @ v``.
+- :func:`dense_matvec_complex` — general complex ``M·v``.
 - :func:`dense_dot_complex` — complex bilinear inner product ``Σ aᵢbᵢ``.
 - :func:`dense_matmul_real` / :func:`dense_matvec_real` / :func:`dense_dot_real`
   — float64 peers riding the complex kernel (drop the zero imaginary part).
@@ -1064,7 +1064,7 @@ def symmetric_eigendecompose(
 
 
 def dense_matvec_complex(M: np.ndarray, v: np.ndarray) -> np.ndarray:
-    """Dense complex matrix-vector multiplication: ``M @ v``.
+    """Dense complex matrix-vector multiplication: ``M·v``.
 
     Parameters
     ----------

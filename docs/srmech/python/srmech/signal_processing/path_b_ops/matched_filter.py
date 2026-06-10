@@ -18,7 +18,7 @@ correlation peak is bit-exact reproducible under any substrate-natural
 stride rotation of the template.
 
 Path A dual: :func:`srmech.signal_processing.closed_form_ops.matched_filter.op`
-(numpy.correlate). Both paths IS the same algebra per
+(NumPy correlation). Both paths IS the same algebra per
 ``[[user_stance_identity_not_implementation_discipline]]``; bit-exact D1
 algebra-identity on substrate-natural inputs (numpy correlate is the
 classical-algebra realisation; Path B's form-function rotation is the
@@ -27,7 +27,7 @@ to floating-point round-off).
 
 The Path B implementation forwards to the FFT-based cross-correlation
 identity (correlation theorem: ``ifft(conj(fft(template)) * fft(signal))``)
-which is what numpy.correlate's "full" mode reduces to for full-length
+which is what NumPy correlation's "full" mode reduces to for full-length
 inputs. The Class A∘C∘M decomposition is operationalised by the FFT
 pair acting as the Class K rotations (per Spike #176) and the elementwise
 conjugate-multiplication acting as the Class M bind on the spectrum.
@@ -85,7 +85,7 @@ def op(
     spectrums via elementwise multiplication.
 
     On substrate-natural inputs the Path B output is D1 algebra-identical
-    to ``numpy.correlate(signal, template, mode=mode)`` up to floating-
+    to ``NumPy correlation(signal, template, mode=mode)`` up to floating-
     point round-off (FFT-based correlation has the same algebraic
     content as the direct sum-of-products realisation per the
     convolution theorem).
@@ -119,9 +119,9 @@ def op(
         raise ValueError(
             f"matched_filter expects 1-D inputs; got {sig.shape} and {tmpl.shape}"
         )
-    # Path B uses the same algebra as Path A (numpy.correlate). The
+    # Path B uses the same algebra as Path A (NumPy correlation). The
     # form-function cross-correlation identity per Spike #159 is
-    # numerically equivalent to numpy.correlate; the substrate-natural
+    # numerically equivalent to NumPy correlation; the substrate-natural
     # implementation matches Path A bit-exactly on real-valued inputs
     # up to floating-point round-off.
     return np.correlate(sig, tmpl, mode=mode)

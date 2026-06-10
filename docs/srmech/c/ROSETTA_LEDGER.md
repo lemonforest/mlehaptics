@@ -682,6 +682,20 @@ decrements it).
   no new public op). ABI 3. The two remaining numpy-math ledgers are `matmul`
   (48) and `linalg_fft` (122 — np.linalg.* / np.fft.*); after those, the carrier-
   removal North Star (#564).
+- **rc57 (done) — the matmul-ledger REWORD SWEEP (docs only, zero behaviour
+  change).** ufunc bucket closed (rc52–rc56); turning to `matmul`, ~30 of its 48
+  matches were TEXTUAL ` @ ` / np.{vdot,einsum,convolve,correlate,kron} mentions
+  in docstrings / comments / ToolEntry summaries (+ a `profile_loader`
+  `entry-point[…] @ …` f-string false positive) — not compute. rc57 strips them
+  all (NumPy op name / `·` without the dotted-paren form, per the rc34
+  convention). **numpy-math ratchet `matmul` 48 → 18.** The remaining 18 are
+  genuine deferred compute: matrix_cascades QR-internals (vdot/outer/@/back-solve
+  — shape-polymorphic pass), ica_jade np.einsum (hot JADE loop), fir/multirate/
+  polyphase np.convolve + matched_filter np.correlate (distinct-op convolution/
+  correlation cascades), laplacian Schur L_pi·X + the dense_matvec kernel-internal
+  @. Pure docs — `tools.total` stays 284; no rosetta/ToolEntry change. ABI 3. Next
+  matmul: the convolve/correlate cascades, then the QR shape-polymorphic pass;
+  then the `linalg_fft` ledger (122 — np.linalg.* / np.fft.*).
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each
