@@ -346,11 +346,17 @@ _UFUNC = re.compile(
 # native Jacobi peer keeps real input real; verified real + reconstruction-exact
 # on degenerate cases (4-cycle / identity / block-degen). 1 genuine call + 2
 # textual docstring mentions removed. linalg_fft 28 -> 25.
+# rc68: the 2 so8 np.linalg.eig sites (J / ad(H) — both REAL antisymmetric, so
+# iS is Hermitian) route onto _eig_real_skew = hermitian_eigendecompose(iS)
+# (λ_S = −i·μ, same eigenvectors). Verified the +i-eigenspace PROJECTOR + the
+# Rayleigh-quotient weights are basis-invariant (so the degenerate mult-3 584
+# triplet span is preserved); full so8/triality/an_embedding suite green.
+# linalg_fft 25 -> 23.
 # Remaining: numpy-as-accuracy (6 matrix_rank + 7 so8 svd, small-s/nullspace),
 # the irreducible numpy fallbacks INSIDE dense_solve / hermitian_eigendecompose,
-# the eig×3 eigenvector sites (non-Hermitian; sign/scale non-unique), the mimo
-# svd public-API op, plus precise docstring mentions of those.
-CEIL_LINALG_FFT = 25
+# pseudo_hermitian:182 eig (O NOT skew → iS trick N/A; needs general non-Hermitian
+# eigenvector cascade), the mimo svd public-API op, plus precise docstring mentions.
+CEIL_LINALG_FFT = 23
 CEIL_MATMUL = 4
 CEIL_UFUNC = 0
 
