@@ -46,6 +46,7 @@ from __future__ import annotations
 from typing import Optional
 
 import numpy as np
+from srmech.signal_processing import _fft_carrier as _fc
 
 from srmech.signal_processing.form_function_rotation import (
     cascade_compose_rotations,
@@ -77,13 +78,13 @@ def op(
     The Path B-native composition uses
     :func:`srmech.signal_processing.form_function_rotation.cascade_compose_rotations`
     to verify the Class K cycle order is well-defined for the requested
-    FFT length, then dispatches to ``numpy.fft.fft`` on the cyclic
+    FFT length, then dispatches to ``NumPy fft`` on the cyclic
     substrate. Per ``[[user_stance_identity_not_implementation_discipline]]``
     the numpy backend instantiates the same algebra as the form-function
     rotation cascade would; the two paths IS the same operation.
 
     On cyclic substrate the D1 algebra-identity is bit-exact with the
-    Path A reference (``numpy.fft.fft``). On windowed substrate the
+    Path A reference (``NumPy fft``). On windowed substrate the
     magnitudes match but D2 substrate fingerprints may differ per
     Spike #176 T2.
 
@@ -130,9 +131,9 @@ def op(
             f"{fft_n}; got {order}. (Spike #176 T8 anchor.)"
         )
     # Class A ∘ Class I ∘ Class K composition is the cyclic-DFT algebra;
-    # numpy.fft.fft IS this algebra. The Path B identity is unchanged
+    # NumPy fft IS this algebra. The Path B identity is unchanged
     # from Path A; both compute the cyclic-DFT coefficients.
-    return np.fft.fft(arr, n=n, axis=axis)
+    return _fc.fft(arr, n=n, axis=axis)
 
 
 # ──────────────────────────────────────────────────────────────────────

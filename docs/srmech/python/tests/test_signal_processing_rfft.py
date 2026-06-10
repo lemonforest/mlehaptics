@@ -38,10 +38,19 @@ def _real_signal(n: int, seed: int = 0) -> np.ndarray:
 # ----------------------------------------------------------------------
 
 
+# rc62: the rfft op now rides the substrate-native FFT cascade
+# (srmech.amsc.cascade.spectral_cascades via _fft_carrier), value-faithful to
+# NumPy's rfft but not bit-identical to it — NumPy's specialised real-FFT
+# (pocketfft) rounds differently from the cascade's full-transform-then-slice,
+# and even np.fft.fft(real)[:n//2+1] is not bit-equal to np.fft.rfft. Matching
+# pocketfft's exact float rounding was an artifact of the old NumPy backend, not
+# a substrate property, so these op-vs-NumPy checks are ~1 ULP (allclose), like
+# the fft-slice identities below. The Path-A-vs-Path-B cascade identity stays
+# exact (both ride the same cascade).
 @pytest.mark.parametrize("n", [16, 17, 64, 128])
 def test_path_a_matches_numpy_rfft(n: int):
     x = _real_signal(n, seed=n)
-    np.testing.assert_array_equal(a_rfft.op(x), np.fft.rfft(x))
+    np.testing.assert_allclose(a_rfft.op(x), np.fft.rfft(x), atol=1e-9)
 
 
 def test_path_a_output_length_is_half_plus_one():
@@ -53,8 +62,9 @@ def test_path_a_output_length_is_half_plus_one():
 def test_path_a_explicit_n_truncate_and_pad():
     x = _real_signal(40, seed=2)
     # n shorter than signal (truncate) and longer (zero-pad).
-    np.testing.assert_array_equal(a_rfft.op(x, n=32), np.fft.rfft(x, n=32))
-    np.testing.assert_array_equal(a_rfft.op(x, n=64), np.fft.rfft(x, n=64))
+    # rc62: cascade backend, value-faithful (~1 ULP), see note above.
+    np.testing.assert_allclose(a_rfft.op(x, n=32), np.fft.rfft(x, n=32), atol=1e-9)
+    np.testing.assert_allclose(a_rfft.op(x, n=64), np.fft.rfft(x, n=64), atol=1e-9)
 
 
 # ----------------------------------------------------------------------
@@ -111,7 +121,8 @@ def test_bipolar_bitstring_rfft():
     rng = np.random.default_rng(5)
     bits = rng.integers(0, 2, 256)
     bipolar = (2 * bits - 1).astype(np.float64)  # {-1, +1}
-    np.testing.assert_array_equal(b_rfft.op(bipolar), np.fft.rfft(bipolar))
+    # rc62: cascade backend, value-faithful (~1 ULP), see note above.
+    np.testing.assert_allclose(b_rfft.op(bipolar), np.fft.rfft(bipolar), atol=1e-9)
 
 
 # ----------------------------------------------------------------------

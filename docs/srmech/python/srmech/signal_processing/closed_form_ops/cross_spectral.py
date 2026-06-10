@@ -21,6 +21,7 @@ import numpy as np
 
 from srmech.amsc import rational as _srn
 from srmech.amsc.cascade import spectral_cascades as _sc
+from srmech.signal_processing import _fft_carrier as _fc
 
 OPERATION_NAME = "cross_spectral"
 CLASS_COMPOSITION = ("M", "A")
@@ -104,7 +105,7 @@ def op(
             S_out = (S_xy.real ** 2 + S_xy.imag ** 2) / np.maximum(S_xx * S_yy, 1e-30)
         else:
             S_out = S_xy
-        freqs = np.fft.fftfreq(frame_size)
+        freqs = _fc.fftfreq(frame_size)
         return freqs, S_out
 
     n_frames = 1 + (n - frame_size) // hop_size
@@ -131,5 +132,5 @@ def op(
         out = (S_xy.real ** 2 + S_xy.imag ** 2) / np.maximum(S_xx * S_yy, 1e-30)
     else:
         out = S_xy
-    freqs = np.fft.fftfreq(frame_size)
+    freqs = _fc.fftfreq(frame_size)
     return freqs, out

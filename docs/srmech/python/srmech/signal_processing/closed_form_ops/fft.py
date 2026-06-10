@@ -9,7 +9,7 @@ order) ∘ Class I (cyclic-group ℤ/N transform domain) ∘ Class K
 Path B dual ships in Phase 4 of the implementation plan via
 ``srmech.signal_processing.path_b_ops.fft`` (RBS-HDC native FFT at D=8192).
 
-Closed-form reference: numpy's ``numpy.fft.fft`` (Cooley & Tukey 1965 +
+Closed-form reference: numpy's ``NumPy fft`` (Cooley & Tukey 1965 +
 FFTPACK / pocketfft backends). Path A wins for small ``N`` and one-shot
 calls; Path B wins for substrate-portable transmission and deep cascades.
 """
@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import Optional
 
 import numpy as np
+from srmech.signal_processing import _fft_carrier as _fc
 
 OPERATION_NAME = "fft"
 CLASS_COMPOSITION = ("A", "I", "K")
@@ -51,4 +52,4 @@ def op(signal, *, n: Optional[int] = None, axis: int = -1, D: int = 8192):
         Complex DFT coefficients.
     """
     arr = np.asarray(signal)
-    return np.fft.fft(arr, n=n, axis=axis)
+    return _fc.fft(arr, n=n, axis=axis)

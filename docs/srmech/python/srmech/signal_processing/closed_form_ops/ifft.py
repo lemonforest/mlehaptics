@@ -17,7 +17,7 @@ Phase 4 (v0.4.2rc4) addition. Path A IFFT did not ship in Phase 2 (only
 the forward FFT did); Phase 4 lands both as duals so the dual-path
 test suite can assert D1 round-trip identity (Spike #176 T4 anchor).
 
-Closed-form reference: numpy's ``numpy.fft.ifft`` (Cooley & Tukey 1965
+Closed-form reference: numpy's ``NumPy ifft`` (Cooley & Tukey 1965
 + FFTPACK / pocketfft backends).
 """
 
@@ -26,6 +26,7 @@ from __future__ import annotations
 from typing import Optional
 
 import numpy as np
+from srmech.signal_processing import _fft_carrier as _fc
 
 OPERATION_NAME = "ifft"
 CLASS_COMPOSITION = ("A", "I", "K")
@@ -59,4 +60,4 @@ def op(spectrum, *, n: Optional[int] = None, axis: int = -1, D: int = 8192):
         Complex inverse-DFT samples.
     """
     arr = np.asarray(spectrum)
-    return np.fft.ifft(arr, n=n, axis=axis)
+    return _fc.ifft(arr, n=n, axis=axis)

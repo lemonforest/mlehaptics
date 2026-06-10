@@ -45,6 +45,7 @@ from __future__ import annotations
 from typing import Optional
 
 import numpy as np
+from srmech.signal_processing import _fft_carrier as _fc
 
 from srmech.signal_processing.form_function_rotation import (
     verify_rotation_class_n_cycle_order,
@@ -74,7 +75,7 @@ def op(
     """Path B forward rFFT via Class A ∘ Class I ∘ Class K on the real half.
 
     Verifies the Class K cycle order is well-defined for the FFT length
-    (Spike #176 T8), then dispatches to ``numpy.fft.rfft`` on the cyclic
+    (Spike #176 T8), then dispatches to ``NumPy rfft`` on the cyclic
     substrate. Per ``[[user_stance_identity_not_implementation_discipline]]``
     the numpy backend instantiates the same algebra the form-function
     rotation cascade would, restricted to the non-redundant half.
@@ -122,8 +123,8 @@ def op(
             f"{fft_n}; got {order}. (Spike #176 T8 anchor.)"
         )
     # Class A ∘ Class I ∘ Class K composition on the real-symmetric half:
-    # numpy.fft.rfft IS this algebra restricted to the non-redundant bins.
-    return np.fft.rfft(arr, n=n, axis=axis)
+    # NumPy rfft IS this algebra restricted to the non-redundant bins.
+    return _fc.rfft(arr, n=n, axis=axis)
 
 
 # ──────────────────────────────────────────────────────────────────────
