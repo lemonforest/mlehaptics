@@ -8,6 +8,14 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc65] - 2026-06-10
+
+**`np.linalg.pinv` → cascade SVD reconstruct (numpy-removal — `linalg_fft` decrement).** rc64 noted the cascade SVD is value-faithful for *large* singular values; rc65 cashes that in on the lone genuine `np.linalg.pinv` site — the `qm/so8.py` `_killing_form` structure-constant least-squares solve. A new `_pinv` helper reconstructs the Moore-Penrose pseudoinverse from the cascade SVD, `A⁺ = V·diag(1/s)·Uᴴ`, with NumPy's `rcond = 1e-15` small-singular-value cutoff.
+
+- **Why it's route-safe (unlike `matrix_rank`):** the pseudoinverse is **unique**, so the per-factor U/V column-sign ambiguity of the SVD cancels; and the generator stack `_killing_form` forms is **full column rank** (the docstring's semisimplicity certificate), so *every* singular value sits well clear of the cutoff — no nullspace/small-`s` accuracy is exercised. Verified `_pinv == numpy.linalg.pinv` (~1e-7) across the `(28, n)` shapes the module forms, including the actual `pinv·bracket` matvec usage and the defining `A·A⁺·A = A` identity. The reconstruction uses **`laplacian.dense_matmul_real`** (the Class-L cascade), *not* `@`, so the matmul ledger is untouched.
+- **23 so8 / Killing-form / quaternion-stabiliser tests pass** post-route (incl. the g₂ full-rank-14 Cartan semisimplicity check that the rc63b `matrix_rank` route had broken — `_pinv` does not touch `matrix_rank`). 1 textual `numpy.linalg.pinv` reworded to "NumPy's `pinv`".
+- numpy-math ratchet `linalg_fft` **30 → 29**. No new public op ⟹ `describe()["tools"]["total"]` stays **285**. ABI 3. New `test_pinv_cascade_routing_rc65.py`. Still deferred: complex `inv` (needs a complex solve), `eigh`/`eigvalsh` (`hermitian_eigendecompose`, eigenvector-sign-delicate), `eig`/`svd`-direct. `matrix_rank` stays on numpy **permanently** (numpy-as-accuracy).
+
 ## [0.7.5rc64] - 2026-06-10
 
 **`map_ml` covariance inverse → `dense_solve` (numpy-removal — `linalg_fft` decrement).** The 2 real `np.linalg.inv` covariance-inverse sites in `signal_processing/closed_form_ops/map_ml.py` (`R_noise⁻¹` / `R_prior⁻¹` in the ML / MAP estimators) route onto the already-exported Class-L solve **`laplacian.dense_solve(M, np.eye(n))`** — the inverse *is* the linear solve `M·X = I` (unique; for well-conditioned covariances bit-faithful to `numpy.linalg.inv` to ~1e-9).

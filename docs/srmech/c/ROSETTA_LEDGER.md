@@ -740,6 +740,24 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc65 (done, v0.7.5rc65) — np.linalg.pinv → cascade SVD reconstruct
+  (linalg_fft decrement).** Cashes in rc64's "value-faithful for LARGE singular
+  values" on the lone genuine `np.linalg.pinv` site — the qm/so8.py
+  `_killing_form` structure-constant least-squares solve. New `_pinv` helper:
+  `A⁺ = V·diag(1/s)·Uᴴ` from `matrix_cascades.svd`, NumPy's `rcond=1e-15`
+  cutoff. Route-safe BECAUSE (a) the pseudoinverse is UNIQUE → the per-factor
+  U/V column-sign ambiguity cancels, and (b) the generator stack is
+  full-column-rank (the semisimplicity certificate) → every `s` well clear of
+  the cutoff (no nullspace/small-`s` accuracy exercised — the exact regime rc64
+  flagged as numpy-as-accuracy for matrix_rank). Verified `_pinv == numpy.pinv`
+  (~1e-7) incl. the `pinv·bracket` matvec usage + the `A·A⁺·A=A` identity;
+  reconstruction uses `dense_matmul_real` (NOT `@`, matmul ledger untouched).
+  23 so8/Killing/stabiliser tests pass (incl. g₂ full-rank-14 Cartan check the
+  rc63b matrix_rank route had broken). 1 textual `numpy.linalg.pinv` reworded.
+  **numpy-math ratchet linalg_fft 30 → 29.** No rosetta / ToolEntry change
+  (describe tools.total stays 285). ABI 3. Deferred: complex inv (complex
+  solve), eigh/eigvalsh (eigenvector-sign-delicate), eig/svd-direct;
+  matrix_rank stays on numpy PERMANENTLY (numpy-as-accuracy).
 - **rc63b (done, v0.7.5rc64) — map_ml real inv → dense_solve (linalg_fft
   decrement).** The 2 real `np.linalg.inv` covariance-inverse sites in
   signal_processing/closed_form_ops/map_ml.py route onto
