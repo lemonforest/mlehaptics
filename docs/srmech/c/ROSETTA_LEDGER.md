@@ -696,6 +696,22 @@ decrements it).
   @. Pure docs — `tools.total` stays 284; no rosetta/ToolEntry change. ABI 3. Next
   matmul: the convolve/correlate cascades, then the QR shape-polymorphic pass;
   then the `linalg_fft` ledger (122 — np.linalg.* / np.fft.*).
+- **rc58 (done) — the convolve/correlate cascade (matmul decrement).** A length-N
+  convolution is a rank-1 accumulate (a small matrix product), so it sits on the
+  matmul ledger. rc58 adds a numpy-free helper
+  `signal_processing._dsp_cascades.{convolve,correlate}` — Class I shift ∘ Class M
+  scaled-accumulate (`full[i:i+nb] = full[i:i+nb] + a[i]*b`; numpy a carrier only),
+  full/same/valid modes; `correlate = convolve(a, conj(v)[::-1])` with NumPy's exact
+  same-mode crop (floor for na>=nv, ceil for na<nv). Value-faithful across 15
+  length-combos × 3 dtypes × 3 modes. Routes the 6 DSP sites (fir / multirate /
+  polyphase ×2 / closed_form + path_b matched_filter). **numpy-math ratchet
+  `matmul` 18 → 12.** NOT a public `srmech.amsc` op — it composes carrier
+  arithmetic with no own C symbol, so a public peer would only add
+  `python_only_irreducible` debt (down-only ratchet forbids it without a C twin);
+  a future rc can promote it WITH a native C twin. `tools.total` stays 284; no
+  rosetta/ToolEntry change. ABI 3. The remaining 12 matmul: matrix_cascades
+  QR-internals (8) + ica_jade einsum (2) + laplacian Schur/dense_matvec (2). Next:
+  the QR shape-polymorphic pass; then the `linalg_fft` ledger (122).
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

@@ -249,9 +249,23 @@ _UFUNC = re.compile(
 # + matched_filter np.correlate (distinct-op cascades — own future work),
 # laplacian Schur L_pi·X + the dense_matvec kernel-internal @. Next: the
 # convolve/correlate cascades, then the QR shape-polymorphic pass, then linalg_fft.
+# rc58 — the convolve/correlate cascade (the documented next step). The 6
+# DSP callsites (fir / multirate / polyphase ×2 np.convolve + closed_form /
+# path_b matched_filter np.correlate) route onto a new signal_processing-
+# internal helper `_dsp_cascades.{convolve,correlate}`: direct linear
+# convolution as Class-I shift ∘ Class-M scaled-accumulate (`full[i:i+nb] =
+# full[i:i+nb] + a[i]*b`, numpy a carrier only — no convolve/matmul/ufunc),
+# with full/same/valid edge modes; correlate = convolve(a, conj(v)[::-1])
+# with NumPy's exact same-mode crop (floor for na>=nv, ceil for na<nv).
+# Value-faithful to NumPy across 15 length-combos × 3 dtypes × 3 modes.
+# NOT a public srmech.amsc op (it composes carrier arithmetic, no own C
+# symbol → would only add python_only_irreducible debt; a future rc can
+# promote it WITH a C twin). matmul 18 -> 12. The remaining 12 are the
+# matrix_cascades QR-internals (8) + ica_jade einsum hot loop (2) + laplacian
+# Schur/dense_matvec (2). Next: the QR shape-polymorphic pass, then linalg_fft.
 # ---------------------------------------------------------------------------
 CEIL_LINALG_FFT = 122
-CEIL_MATMUL = 18
+CEIL_MATMUL = 12
 CEIL_UFUNC = 0
 
 
