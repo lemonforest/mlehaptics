@@ -21,6 +21,7 @@ from typing import Optional
 import numpy as np
 
 from srmech.amsc import rational as _srn
+from srmech.amsc.cascade import spectral_cascades as _sc
 
 OPERATION_NAME = "stft"
 CLASS_COMPOSITION = ("C", "A", "I", "K")
@@ -95,11 +96,11 @@ def op(
         # Zero-pad so we still get one frame
         padded = np.zeros(frame_size, dtype=sig.dtype)
         padded[:n_samples] = sig
-        return np.fft.fft(padded * window)[np.newaxis, :]
+        return np.asarray(_sc.fft(padded * window))[np.newaxis, :]
     n_frames = 1 + (n_samples - frame_size) // hop_size
     out = np.zeros((n_frames, frame_size), dtype=np.complex128)
     for i in range(n_frames):
         start = i * hop_size
         frame = sig[start : start + frame_size] * window
-        out[i] = np.fft.fft(frame)
+        out[i] = np.asarray(_sc.fft(frame))
     return out

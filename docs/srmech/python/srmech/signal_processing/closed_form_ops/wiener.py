@@ -17,6 +17,7 @@ from __future__ import annotations
 from typing import Optional
 
 import numpy as np
+from srmech.amsc.cascade import spectral_cascades as _sc
 
 OPERATION_NAME = "wiener"
 CLASS_COMPOSITION = ("L", "N")
@@ -65,7 +66,7 @@ def op(
         raise ValueError(
             f"noise_psd shape {n_psd.shape} != signal shape {sig.shape}"
         )
-    X = np.fft.fft(sig)
+    X = np.asarray(_sc.fft(sig))
     obs_psd = X.real ** 2 + X.imag ** 2  # |z|² = real²+imag² (no abs())
     if signal_psd is None:
         s_psd = np.maximum(obs_psd - n_psd, 1e-30)
@@ -77,4 +78,4 @@ def op(
             )
     # Class N rational gain: H_W(k) = S_xx(k) / (S_xx(k) + S_nn(k))
     H = s_psd / np.maximum(s_psd + n_psd, 1e-30)
-    return np.real(np.fft.ifft(H * X))
+    return np.real(np.asarray(_sc.ifft(H * X)))

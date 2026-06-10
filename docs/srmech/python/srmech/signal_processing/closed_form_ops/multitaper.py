@@ -24,6 +24,7 @@ import numpy as np
 from srmech.amsc.laplacian import dense_norm
 
 from srmech.amsc import rational as _srn
+from srmech.amsc.cascade import spectral_cascades as _sc
 
 OPERATION_NAME = "multitaper"
 CLASS_COMPOSITION = ("L", "M")
@@ -94,7 +95,7 @@ def op(
     acc = np.zeros(n, dtype=np.float64)
     for k in range(n_tapers):
         tapered = arr * tapers[k]
-        _F = np.fft.fft(tapered)
+        _F = np.asarray(_sc.fft(tapered))
         spectrum = _F.real ** 2 + _F.imag ** 2  # |z|² = real²+imag² (no abs())
         acc += spectrum
     return acc / n_tapers

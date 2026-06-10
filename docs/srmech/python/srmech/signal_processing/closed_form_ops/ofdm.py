@@ -19,6 +19,7 @@ from __future__ import annotations
 import numpy as np
 
 from srmech.amsc.laplacian import elementwise_hypot
+from srmech.amsc.cascade import spectral_cascades as _sc
 
 OPERATION_NAME = "ofdm"
 CLASS_COMPOSITION = ("I", "L", "K")
@@ -76,7 +77,7 @@ def op(
         for i in range(n_symbols):
             start = i * samples_per_ofdm + cp_length  # skip CP
             frame = rx[start : start + n]
-            X = np.fft.fft(frame)
+            X = np.asarray(_sc.fft(frame))
             if channel is not None:
                 # Class L equaliser: one-tap per subcarrier divide by H_k.
                 # |z| = hypot(real,imag) (no abs())
@@ -94,7 +95,7 @@ def op(
     for i in range(n_symbols):
         block = syms[i * n : (i + 1) * n]
         # Class I IFFT
-        time_block = np.fft.ifft(block)
+        time_block = np.asarray(_sc.ifft(block))
         # Class K cyclic-prefix (Class K guard-interval projection)
         prefix = time_block[-cp_length:] if cp_length > 0 else np.array([], dtype=time_block.dtype)
         out[

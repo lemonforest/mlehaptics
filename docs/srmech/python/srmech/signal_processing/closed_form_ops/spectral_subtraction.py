@@ -16,6 +16,7 @@ from __future__ import annotations
 import numpy as np
 
 from srmech.amsc.laplacian import elementwise_sqrt, elementwise_transcendental
+from srmech.amsc.cascade import spectral_cascades as _sc
 
 OPERATION_NAME = "spectral_subtraction"
 CLASS_COMPOSITION = ("L", "N")
@@ -66,11 +67,11 @@ def op(
         raise ValueError(
             f"noise_psd shape {n_psd.shape} != signal shape {sig.shape}"
         )
-    X = np.fft.fft(sig)
+    X = np.asarray(_sc.fft(sig))
     obs_psd = X.real ** 2 + X.imag ** 2  # |z|² = real²+imag² (no abs())
     # Class N rational floor: max(|X|^2 - alpha*N, beta*N)
     new_psd = np.maximum(obs_psd - alpha * n_psd, beta * n_psd)
     # Preserve phase from X; new magnitude from new_psd.
     phase = np.angle(X)
     Y = elementwise_sqrt(new_psd) * elementwise_transcendental(phase, "exp_i")
-    return np.real(np.fft.ifft(Y))
+    return np.real(np.asarray(_sc.ifft(Y)))

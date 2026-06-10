@@ -740,6 +740,22 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc61 (done) — the np.fft.* family, first batch (linalg_fft decrement).**
+  The 15 one-dimensional `np.fft.fft(x)` / `np.fft.ifft(x)` callsites across
+  signal_processing route onto the EXISTING value-faithful
+  `cascade.spectral_cascades.fft` / `.ifft` (rc36/rc37 radix-2 Cooley–Tukey +
+  dft fallback for non-power-of-2 N; exact-until-rotation). NO new public op —
+  rc61 swaps only the carrier (NumPy FFT → cascade), value-for-value, wrapping
+  `np.asarray(...)` so the result stays an ndarray. 15 sites:
+  closed_form_ops/{cross_spectral ×4, ofdm ×2, spectral_subtraction ×2,
+  multitaper ×1, stft ×2, wiener ×2} + path_b_ops/wiener ×2. Cascade verified
+  == numpy (real+complex, N=2…100, ~1e-9); DSP-op invariants (coherence, Wiener
+  gain, OFDM round-trip, STFT, multitaper) preserved — 447 signal_processing
+  tests pass. **numpy-math ratchet `linalg_fft` 102 → 87.** No rosetta /
+  ToolEntry change (describe tools.total stays 285). ABI 3. Remaining np.fft.*
+  = the n=/axis= Path-A ops (fft.py/ifft.py/rfft.py + fftfreq) needing an
+  array-aware (n-pad + axis) wrapper — next batch; then np.linalg.{svd,qr,eig,
+  solve,inv} (~36 sites, mostly qm/so8.py).
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

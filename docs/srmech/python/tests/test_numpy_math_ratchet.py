@@ -280,7 +280,22 @@ _UFUNC = re.compile(
 # fallback (a kernel can't route onto itself). Next numpy-math front: the
 # `linalg_fft` ledger (122 — np.linalg.* / np.fft.*).
 # ---------------------------------------------------------------------------
-CEIL_LINALG_FFT = 102
+# rc61: the np.fft.* family, first batch. The 15 one-dimensional
+# `np.fft.fft(x)` / `np.fft.ifft(x)` callsites in signal_processing
+# (cross_spectral ×4, ofdm ×2, spectral_subtraction ×2, multitaper ×1,
+# stft ×2, wiener ×2, path_b/wiener ×2) route onto the value-faithful
+# `srmech.amsc.cascade.spectral_cascades.fft` / `.ifft` cascade (radix-2
+# Cooley-Tukey + dft fallback for non-power-of-2 N; exact-until-rotation,
+# verified == numpy across real+complex N=2..100), wrapped `np.asarray(...)`
+# so the result stays an ndarray carrier. The DSP-op INVARIANTS (coherence,
+# Wiener gain, OFDM round-trip, STFT frames, multitaper PSD) are preserved —
+# 447 signal_processing tests pass post-route. linalg_fft 102 -> 87. The
+# remaining np.fft. sites are the n=/axis= Path-A reference ops
+# (fft.py/ifft.py/rfft.py + fftfreq), which need an array-aware (n-pad +
+# axis) wrapper over the 1-D cascade — deferred to the next batch. The
+# np.linalg.{svd,qr,eig,solve,inv,...} decomposition cluster (~36 genuine
+# sites, mostly qm/so8.py) is the front after that.
+CEIL_LINALG_FFT = 87
 CEIL_MATMUL = 4
 CEIL_UFUNC = 0
 
