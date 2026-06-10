@@ -33,7 +33,6 @@ from __future__ import annotations
 
 from typing import Optional
 
-import numpy as np
 from srmech.signal_processing import _fft_carrier as _fc
 
 from srmech.signal_processing.form_function_rotation import (
@@ -85,8 +84,10 @@ def op(
         Complex inverse-DFT samples. D1 algebra-identical to
         :func:`srmech.signal_processing.closed_form_ops.ifft.op`.
     """
-    arr = np.asarray(spectrum)
-    ifft_n = n if n is not None else arr.shape[axis]
+    # numpy-free length: a numpy array carries its own ``.shape``; a plain
+    # sequence uses ``len`` (no numpy import needed at this layer).
+    _len = spectrum.shape[axis] if hasattr(spectrum, "shape") else len(spectrum)
+    ifft_n = n if n is not None else _len
     if ifft_n >= 256 and ifft_n <= (1 << 16) and ifft_n % 8 == 0:
         # Class K negated-stride cycle order verification — identical
         # cycle structure to forward FFT (Class N rational order is
@@ -99,7 +100,7 @@ def op(
             f"Class K negated-stride cycle order for IFFT len {ifft_n} "
             f"must equal {ifft_n}; got {order}. (Spike #176 T8 anchor.)"
         )
-    return _fc.ifft(arr, n=n, axis=axis)
+    return _fc.ifft(spectrum, n=n, axis=axis)
 
 
 def _register() -> None:

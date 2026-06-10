@@ -13,9 +13,7 @@ Schafer (2010, 3rd ed.) §10.4 (spectrogram as time-frequency energy density).
 
 from __future__ import annotations
 
-from typing import Optional
-
-import numpy as np
+from typing import Optional, Sequence
 
 from .stft import op as stft_op
 
@@ -34,7 +32,7 @@ def op(
     *,
     frame_size: int = 256,
     hop_size: Optional[int] = None,
-    window: Optional[np.ndarray] = None,
+    window: Optional[Sequence[float]] = None,
     D: int = 8192,
 ):
     """Spectrogram of ``signal``: ``|STFT(signal)|^2``.

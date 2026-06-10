@@ -25,7 +25,6 @@ from __future__ import annotations
 
 from typing import Optional
 
-import numpy as np
 from srmech.signal_processing import _fft_carrier as _fc
 
 OPERATION_NAME = "ifft"
@@ -59,5 +58,4 @@ def op(spectrum, *, n: Optional[int] = None, axis: int = -1, D: int = 8192):
     numpy.ndarray
         Complex inverse-DFT samples.
     """
-    arr = np.asarray(spectrum)
-    return _fc.ifft(arr, n=n, axis=axis)
+    return _fc.ifft(spectrum, n=n, axis=axis)

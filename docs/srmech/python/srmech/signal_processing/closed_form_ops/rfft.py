@@ -29,7 +29,6 @@ from __future__ import annotations
 
 from typing import Optional
 
-import numpy as np
 from srmech.signal_processing import _fft_carrier as _fc
 
 OPERATION_NAME = "rfft"
@@ -66,5 +65,4 @@ def op(signal, *, n: Optional[int] = None, axis: int = -1, D: int = 8192):
         Complex DFT coefficients for the non-redundant bins
         ``0 .. N//2`` (length ``N//2 + 1``).
     """
-    arr = np.asarray(signal)
-    return _fc.rfft(arr, n=n, axis=axis)
+    return _fc.rfft(signal, n=n, axis=axis)

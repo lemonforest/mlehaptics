@@ -28,7 +28,11 @@ import srmech
 # rc69: maths-engine sweep floored; carrier arc Phase 0 (infra only — Mat carrier
 # + this ratchet, no module flips). Mat itself is numpy-free (its to_numpy bridge
 # is a lazy import inside the method), so it does not bump the count.
-CEIL_NUMPY_CARRIER = 61
+# rc70: carrier-flip #1 — the FFT op-family goes numpy-free (1-D cascade path +
+# lazy n-D fallback). 8 modules drop their top-level `import numpy`:
+# _fft_carrier + closed_form_ops.{fft,ifft,rfft,spectrogram} +
+# path_b_ops.{fft,ifft,rfft}. 61 -> 53.
+CEIL_NUMPY_CARRIER = 53
 
 
 def _srmech_root() -> pathlib.Path:
