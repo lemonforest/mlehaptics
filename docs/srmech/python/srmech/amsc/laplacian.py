@@ -820,6 +820,45 @@ def dense_solve(A, B, *, exact: bool = False):
     return X[:, 0] if is_vec else X
 
 
+def _dense_solve_complex(A, B):
+    """Complex dense solve ``A · X = B`` via the real 2n×2n block embedding of
+    the (real, native) :func:`dense_solve`.
+
+    A complex linear system ``(Aᵣ + i Aᵢ)(u + i v) = (bᵣ + i bᵢ)`` is, splitting
+    real and imaginary parts, the **real** ``2n×2n`` system ::
+
+        ⎡ Aᵣ  −Aᵢ ⎤ ⎡ u ⎤   ⎡ bᵣ ⎤
+        ⎣ Aᵢ   Aᵣ ⎦ ⎣ v ⎦ = ⎣ bᵢ ⎦
+
+    so ``X = u + i v``. The embedding is exact (pure ``concatenate`` / slice —
+    NumPy a carrier only) and rides the shipped native real ``dense_solve``;
+    for a well-conditioned ``A`` (e.g. an HPD Gram matrix ``V·Vᴴ``) it is
+    value-faithful to NumPy's complex solve / ``inv`` to ~1e-9. The complex
+    inverse is just ``_dense_solve_complex(A, eye(n))`` (``A · X = I``).
+
+    Private (underscore) — an internal Class-L helper, not a public catalog op.
+    Requires numpy (the ``[scientific]`` tier); complex linear algebra has no
+    numpy-absent exact-rational path here.
+    """
+    A = np.asarray(A, dtype=np.complex128)
+    B = np.asarray(B, dtype=np.complex128)
+    n = A.shape[0]
+    is_vec = (B.ndim == 1)
+    B_mat = B.reshape(n, 1) if is_vec else B
+    A_re, A_im = A.real, A.imag
+    block = np.concatenate(
+        [
+            np.concatenate([A_re, -A_im], axis=1),
+            np.concatenate([A_im, A_re], axis=1),
+        ],
+        axis=0,
+    )                                                            # (2n, 2n) real
+    rhs = np.concatenate([B_mat.real, B_mat.imag], axis=0)       # (2n, w) real
+    sol = np.asarray(dense_solve(block, rhs))                    # [u; v]
+    X = sol[:n, :] + 1j * sol[n:, :]
+    return X[:, 0] if is_vec else X
+
+
 def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
     """Class-L Schur complement / discrete Dirichlet-to-Neumann (DtN) map
     (UPSTREAM §26; [#897](https://github.com/lemonforest/mlehaptics/issues/897)).

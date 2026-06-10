@@ -740,6 +740,22 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc66 (done, v0.7.5rc66) — complex inv → real 2n×2n block embedding of the
+  native dense_solve (linalg_fft decrement; FIRST new-capability step past the
+  carrier-swap floor).** The lone complex `np.linalg.inv` — pseudo_hermitian's
+  `η = (V·Vᴴ)⁻¹` Mostafazadeh metric — routes onto a new PRIVATE Class-L helper
+  `laplacian._dense_solve_complex`. `(Aᵣ+iAᵢ)(u+iv)=(bᵣ+ibᵢ)` ⟺ the real 2n×2n
+  `[[Aᵣ,-Aᵢ],[Aᵢ,Aᵣ]]·[u;v]=[bᵣ;bᵢ]` (X=u+iv); EXACT embedding (concatenate /
+  slice / .real / .imag — numpy a carrier only) riding the shipped NATIVE real
+  dense_solve. HPD Gram `V·Vᴴ` → well-conditioned → `== numpy` inv/solve ~1e-9
+  (verified incl. `M·M⁻¹=I`, general vector+matrix complex solve, η-metric
+  `O†η=ηO`). Underscore-private ⟹ NO registry/ToolEntry gate (describe stays
+  285). **numpy-math ratchet linalg_fft 29 → 28; np.linalg.inv → 0.** ABI 3.
+  **ROUTE-SAFE FLOOR reached** — the remaining 20 genuine sites are
+  numpy-as-accuracy (6 matrix_rank + 7 so8 svd nullspace), irreducible numpy
+  fallbacks inside the cascade ops (dense_solve / hermitian_eigendecompose), or
+  need eigenvector-sign-canonicalization (eig×3 / eigh-1062 / mimo svd) — a
+  legitimate residual, not unfinished carrier work.
 - **rc65 (done, v0.7.5rc65) — np.linalg.pinv → cascade SVD reconstruct
   (linalg_fft decrement).** Cashes in rc64's "value-faithful for LARGE singular
   values" on the lone genuine `np.linalg.pinv` site — the qm/so8.py
