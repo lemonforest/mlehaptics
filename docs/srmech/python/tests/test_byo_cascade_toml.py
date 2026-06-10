@@ -157,4 +157,4 @@ def test_shipped_catalog_intact_and_describe_unchanged():
     for o in dsl.list_catalog_ops():
         assert o["provenance"] == "srmech"
     import srmech.introspect as introspect
-    assert introspect.describe()["tools"]["total"] == 287
+    assert introspect.describe()["tools"]["total"] == 288

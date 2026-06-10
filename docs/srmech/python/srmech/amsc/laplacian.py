@@ -132,6 +132,7 @@ __all__ = [
     "dense_matmul_complex",
     "mat_matmul",
     "mat_solve",
+    "mat_hermitian_eigendecompose",
     "dense_dot_complex",
     "dense_matmul_real",
     "dense_matvec_real",
@@ -469,6 +470,85 @@ def _jacobi_eigvals_py(
                     a[p][k] = c * apk - s * aqk
                     a[q][k] = s * apk + c * aqk
     return sorted(a[i][i] for i in range(n))
+
+
+def _jacobi_eig_py(
+    matrix: Sequence[Sequence[float]],
+    max_sweeps: int = 100,
+    tolerance: float = 1e-12,
+) -> Tuple[List[float], List[List[float]]]:
+    """Pure-Python cyclic Jacobi eigenVALUES **and** eigenVECTORS of a real
+    symmetric matrix — the eigenvector-accumulating sibling of
+    :func:`_jacobi_eigvals_py`, the numpy-free fallback the Hermitian ``Mat``
+    bridge (:func:`mat_hermitian_eigendecompose`) leans on.
+
+    Returns ``(eigvals, V)`` with ``eigvals`` ascending and ``V`` the matching
+    orthogonal eigenvector matrix (``V[i][j]`` = i-th component of the j-th
+    eigenvector; columns are eigenvectors), so ``A = V·diag(eigvals)·Vᵀ`` to
+    Jacobi round-off. Same engine as :func:`_jacobi_eigvals_py` (the similarity
+    transform ``A ← JᵀAJ``) plus the standard eigenvector accumulation
+    ``V ← V·J`` — only columns ``p, q`` of ``V`` change per rotation. No LAPACK,
+    no numpy, no ``abs()`` (off-diagonal magnitude is a sum of squares; the
+    rotation tangent's sign is the explicit ``tau >= 0`` Class-K branch).
+
+    Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
+    Hopkins, 2013) §8.5.3 (cyclic-Jacobi eigenvector accumulation).
+    """
+    rows = [list(r) for r in matrix]
+    n = len(rows)
+    for r in rows:
+        if len(r) != n:
+            raise ValueError(
+                f"matrix must be square 2-D; got a {n}-row matrix with a "
+                f"width-{len(r)} row"
+            )
+    if n == 0:
+        return [], []
+    a = [[float(rows[i][j]) for j in range(n)] for i in range(n)]
+    v = [[1.0 if i == j else 0.0 for j in range(n)] for i in range(n)]
+    if n == 1:
+        return [a[0][0]], [[1.0]]
+    for _sweep in range(max_sweeps):
+        off = _rsqrt(
+            sum(a[p][q] * a[p][q] for p in range(n) for q in range(p + 1, n))
+        )
+        if off <= tolerance:
+            break
+        for p in range(n - 1):
+            for q in range(p + 1, n):
+                apq = a[p][q]
+                if apq == 0.0:
+                    continue
+                tau = (a[q][q] - a[p][p]) / (2.0 * apq)
+                if tau >= 0.0:
+                    t = 1.0 / (tau + _rsqrt(1.0 + tau * tau))
+                else:
+                    t = -1.0 / (-tau + _rsqrt(1.0 + tau * tau))
+                c = 1.0 / _rsqrt(1.0 + t * t)
+                s = t * c
+                # A ← Jᵀ A J  (Givens rotation in the (p, q) plane)
+                for k in range(n):
+                    akp = a[k][p]
+                    akq = a[k][q]
+                    a[k][p] = c * akp - s * akq
+                    a[k][q] = s * akp + c * akq
+                for k in range(n):
+                    apk = a[p][k]
+                    aqk = a[q][k]
+                    a[p][k] = c * apk - s * aqk
+                    a[q][k] = s * apk + c * aqk
+                # V ← V J  (eigenvector accumulation; only columns p, q change)
+                for k in range(n):
+                    vkp = v[k][p]
+                    vkq = v[k][q]
+                    v[k][p] = c * vkp - s * vkq
+                    v[k][q] = s * vkp + c * vkq
+    # Sort eigenpairs ascending by eigenvalue, permuting V columns to match.
+    eig = [a[i][i] for i in range(n)]
+    order = sorted(range(n), key=lambda j: eig[j])
+    eigvals = [eig[j] for j in order]
+    V = [[v[i][order[j]] for j in range(n)] for i in range(n)]
+    return eigvals, V
 
 
 def dense_adjacency(
@@ -1427,6 +1507,137 @@ def mat_solve(a: "Mat", b: "Mat") -> "Mat":
     return Mat.from_rows([[float(x) for x in row] for row in X])
 
 
+def _hermitian_eig_py(h: "Mat") -> Tuple["Mat", "Mat"]:
+    """Numpy-free Hermitian eigendecomposition fallback for
+    :func:`mat_hermitian_eigendecompose`.
+
+    A **real-symmetric** input is diagonalised directly by
+    :func:`_jacobi_eig_py`. A **complex-Hermitian** input ``H = A + iB`` is
+    diagonalised through its real ``2n×2n`` symmetric embedding
+    ``M = [[A, -B], [B, A]]`` (whose spectrum is ``H``'s, each eigenvalue
+    doubled); the complex eigenvectors are reconstructed ``vⱼ = topⱼ + i·botⱼ``
+    from one embedding eigenvector per equal-eigenvalue pair (``|topⱼ + i·botⱼ|``
+    is already 1 — it equals the embedding vector's ℝ²ⁿ norm), then
+    same-eigenvalue modified Gram–Schmidt re-orthonormalised (a no-op for a
+    non-degenerate spectrum; it pins a unitary basis inside a degenerate
+    eigenspace). Returns ``(eigvals (n, 1) real Mat, eigvecs (n, n) complex
+    Mat)``.
+    """
+    from .mat import Mat
+    n = h.n_rows
+    if not h.is_complex:
+        evals, V = _jacobi_eig_py(h.tolist())
+        ev_mat = Mat(array("d", (float(e) for e in evals)), n, 1)
+        vc = array("d")  # real eigenvectors → complex Mat (imag 0), native-shape
+        for i in range(n):
+            for j in range(n):
+                vc.append(float(V[i][j]))
+                vc.append(0.0)
+        return ev_mat, Mat(vc, n, n, is_complex=True)
+    # Complex Hermitian: H = A + iB → real symmetric embedding M = [[A,-B],[B,A]].
+    A = [[h[i, j].real for j in range(n)] for i in range(n)]
+    B = [[h[i, j].imag for j in range(n)] for i in range(n)]
+    m = 2 * n
+    M = [[0.0] * m for _ in range(m)]
+    for i in range(n):
+        for j in range(n):
+            M[i][j] = A[i][j]
+            M[i][j + n] = -B[i][j]
+            M[i + n][j] = B[i][j]
+            M[i + n][j + n] = A[i][j]
+    evals2, V2 = _jacobi_eig_py(M)
+    # 2n eigenvalues come in equal pairs (ascending) → take every other for n;
+    # reconstruct vⱼ = top + i·bot, then same-eigenvalue Gram–Schmidt → unitary.
+    cols: List[Tuple[float, List[complex]]] = []
+    for k in range(n):
+        col = 2 * k
+        ev = evals2[col]
+        w = [complex(V2[i][col], V2[i + n][col]) for i in range(n)]
+        for ev_prev, w_prev in cols:
+            if _rsqrt((ev - ev_prev) * (ev - ev_prev)) <= 1e-9:  # same eigenvalue
+                proj = sum(w_prev[i].conjugate() * w[i] for i in range(n))
+                w = [w[i] - proj * w_prev[i] for i in range(n)]
+        norm2 = sum(x.real * x.real + x.imag * x.imag for x in w)
+        inv = 1.0 / _rsqrt(norm2)
+        w = [x * inv for x in w]
+        cols.append((ev, w))
+    ev_mat = Mat(array("d", (float(ev) for ev, _ in cols)), n, 1)
+    vc = array("d")
+    for i in range(n):        # row i
+        for k in range(n):    # column k = eigenvector k
+            z = cols[k][1][i]
+            vc.append(z.real)
+            vc.append(z.imag)
+    return ev_mat, Mat(vc, n, n, is_complex=True)
+
+
+def mat_hermitian_eigendecompose(h: "Mat") -> Tuple["Mat", "Mat"]:
+    """Numpy-free Hermitian eigendecomposition ``H = V·diag(λ)·Vᴴ`` over the
+    :class:`~srmech.amsc.mat.Mat` carrier — bridge primitive **#3** (the last) of
+    the numpy-CARRIER removal arc (#564), completing the family with
+    :func:`mat_matmul` (#1) and :func:`mat_solve` (#2).
+
+    ``H`` is an ``(n, n)`` Hermitian `Mat` (real-symmetric or complex-Hermitian).
+    Returns ``(eigvals, eigvecs)``:
+
+    * ``eigvals`` — ``(n, 1)`` **real** `Mat`, the eigenvalues ascending;
+    * ``eigvecs`` — ``(n, n)`` **complex** `Mat`, the unitary matrix whose columns
+      are the eigenvectors (**always** complex, mirroring
+      :func:`hermitian_eigendecompose`; a caller that knows the input is
+      real-symmetric takes ``.real``, exactly as :func:`symmetric_eigendecompose`
+      does).
+
+    ``Mat.buffer`` is already the flat interleaved-``(re, im)`` row-major layout
+    the native ``srmech_hermitian_eigendecompose`` reads, so a complex `Mat` feeds
+    the kernel **zero-copy** (``from_buffer``) and a real `Mat` is interleaved
+    ``(re, 0)`` once — **NO numpy** on the native path. With no native lib — or
+    ``n`` > ``MAX_NATIVE_NODES`` (256), or a native convergence miss — the fallback
+    is srmech's own pure-Python **cyclic Jacobi** (:func:`_hermitian_eig_py`,
+    real-symmetric directly / complex-Hermitian via the real ``2n×2n`` embedding),
+    so the op is unconditionally numpy-free.
+
+    Correctness is pinned by eigenvalues + reconstruction (``H ≈ V·diag(λ)·Vᴴ``)
+    + unitarity (``Vᴴ·V ≈ I``), NOT element-wise parity — an eigenvector is fixed
+    only up to a unit-modulus phase, and a degenerate eigenspace's basis is
+    solver-chosen.
+
+    Once :func:`mat_matmul` + :func:`mat_solve` + this op exist, a ``qm.*`` module
+    can hold its working matrices in `Mat` and flip numpy-free — the first
+    ``CEIL_NUMPY_CARRIER`` decrement.
+
+    Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
+    Hopkins, 2013) §8.5 (Hermitian eigenproblem via unitary Jacobi rotations).
+    """
+    from .mat import Mat
+    assert isinstance(h, Mat), (
+        "mat_hermitian_eigendecompose operand must be Mat (numpy-free 2-D carrier)"
+    )
+    n = h.n_rows
+    if h.n_cols != n:
+        raise ValueError(
+            f"mat_hermitian_eigendecompose: H must be square; got {h.shape}"
+        )
+    if n == 0:
+        return Mat(array("d"), 0, 1), Mat(array("d"), 0, 0, is_complex=True)
+    # Native zero-copy path (n ≤ 256): Mat interleaved buffer → C kernel → Mats.
+    if (_native.HAS_NATIVE
+            and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_hermitian_eigendecompose")
+            and n <= MAX_NATIVE_NODES):
+        h_il = _mat_to_interleaved_cbuf(h, n * n)
+        eigvals_buf = (ctypes.c_double * n)()
+        v_il = (ctypes.c_double * (2 * n * n))()
+        rc = _native.LIB.srmech_hermitian_eigendecompose(
+            ctypes.c_uint32(n), h_il, eigvals_buf, v_il,
+        )
+        if rc == _native.SRMECH_OK:
+            eigvals = Mat(array("d", eigvals_buf), n, 1)
+            eigvecs = _mat_from_interleaved_cbuf(v_il, n, n, want_complex=True)
+            return eigvals, eigvecs
+        # Non-OK (convergence miss / over-bound) → numpy-free Jacobi fallback.
+    return _hermitian_eig_py(h)
+
+
 def dense_dot_complex(a: np.ndarray, b: np.ndarray) -> complex:
     """Dense complex bilinear inner product ``a · b = Σ aᵢ bᵢ``.
 
@@ -2205,6 +2416,7 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "dense_matmul_complex",
     "mat_matmul",
     "mat_solve",
+    "mat_hermitian_eigendecompose",
     "dense_dot_complex",
     "dense_matmul_real",
     "dense_matvec_real",

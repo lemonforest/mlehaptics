@@ -740,6 +740,33 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc74 (done, v0.7.5rc74) — Mat bridge primitive #3 (the LAST): numpy-FREE
+  Hermitian eigendecomposition (`mat_hermitian_eigendecompose`;
+  CEIL_NUMPY_CARRIER stays 53; new capability, not a flip).** Completes the
+  bridge family with rc72 `mat_matmul` + rc73 `mat_solve`.
+  `laplacian.mat_hermitian_eigendecompose(H: Mat) -> (eigvals, eigvecs)`
+  diagonalises `H = V·diag(λ)·Vᴴ`: the real/complex `Mat.buffer`
+  (interleaved-(re,im) row-major) feeds the native
+  `srmech_hermitian_eigendecompose(n, H_il, out_eigvals, out_eigvecs_il)`
+  ZERO-COPY (complex Mat) / interleaved-(re,0) once (real Mat); `eigvals` →
+  (n,1) REAL Mat ascending, `eigvecs` → (n,n) COMPLEX unitary Mat (always
+  complex, mirroring `hermitian_eigendecompose`). Unconditionally numpy-free:
+  no-native / n>256 / convergence-miss falls back to srmech's own cyclic Jacobi
+  (`_jacobi_eig_py`, the eigenvector-accumulating sibling of
+  `_jacobi_eigvals_py`) — real-symmetric directly, complex-Hermitian via the
+  real 2n×2n embedding `[[A,-B],[B,A]]` with `vⱼ = topⱼ + i·botⱼ` reconstruction
+  + same-eigenvalue Gram–Schmidt (unitary inside a degenerate eigenspace). No
+  abs() / libm (Class-K sign-branch; Class-N rational.sqrt). SUBPROCESS-proven
+  numpy-free (native + forced-embedding-fallback); reconstruction +
+  unitarity-pinned (NOT element-wise — eigenvector phase / degenerate basis is
+  solver-chosen); eigenvalues match `numpy.linalg.eigvalsh` ~1e-13 both paths.
+  New public callable ⟹ ToolEntry + rosetta `c_dispatched` + __all__/LAPLACIAN_OPS;
+  describe tools.total 287 → 288. rc72 Mat MCP coercer + sample already cover it
+  (no ratchet change). Maths ratchets at floor; ABI 3; no C change. New
+  `test_mat_hermitian_eig_bridge_rc74.py` (8 tests). **The Mat↔native-dense-kernel
+  bridge family (matmul + solve + eig) is now COMPLETE — a `qm.*` module's full
+  numpy surface has Mat-native peers; the first module flip can now decrement
+  the carrier ceiling.**
 - **rc73 (done, v0.7.5rc73) — Mat bridge primitive #2: numpy-FREE dense solve
   (`mat_solve`; CEIL_NUMPY_CARRIER stays 53; new capability, not a flip).** The
   peer of rc72 `mat_matmul`. `laplacian.mat_solve(A: Mat, B: Mat) -> Mat` solves
