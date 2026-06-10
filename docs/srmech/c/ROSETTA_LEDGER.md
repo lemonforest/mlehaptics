@@ -740,6 +740,20 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc69 (done, v0.7.5rc69) — carrier-removal arc Phase 0 (infra): numpy-free
+  2-D `Mat` carrier + down-only carrier ratchet.** The numpy-MATH sweep
+  (rc53–rc68) is floored; what's left is numpy-as-CARRIER — 61 submodules still
+  `import numpy` at module level (lazy submodule imports; the package imports
+  numpy-free). New `srmech.amsc.mat.Mat`: the 2-D peer of the `HV` carrier — a
+  dense matrix over a flat `array('d')`, **row-major, interleaved `(re,im)`**
+  for complex (C99 `double _Complex` layout → `.buffer` directly ctypes-castable
+  to the native dense kernels, no copy/no numpy on HAS_NATIVE). numpy-free at
+  import (lazy `.to_numpy()` bridge; numpy-free path is `.tolist()`/`.buffer`).
+  New down-only ratchet `test_numpy_carrier_ratchet.py` (`CEIL_NUMPY_CARRIER=61`)
+  + a guard that `mat.py` stays numpy-free. NO module flips this rc (ratchet
+  stays 61; mat.py doesn't bump it). Unregistered handle (like `HV`) ⟹ no
+  ToolEntry/introspect/rosetta gate (describe stays 285). ABI 3. rc70+ flips
+  modules onto `Mat` one cluster per rc, lowering the ceiling toward 0.
 - **rc68 (done, v0.7.5rc68) — real-antisymmetric eig → iS-Hermitian cascade
   route (linalg_fft decrement; the maths-engine sweep's last bulletproof step).**
   Both `np.linalg.eig` sites in `qm/so8.py` take a REAL antisymmetric matrix —
