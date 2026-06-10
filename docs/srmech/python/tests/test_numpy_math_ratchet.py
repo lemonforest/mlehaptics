@@ -295,7 +295,23 @@ _UFUNC = re.compile(
 # axis) wrapper over the 1-D cascade — deferred to the next batch. The
 # np.linalg.{svd,qr,eig,solve,inv,...} decomposition cluster (~36 genuine
 # sites, mostly qm/so8.py) is the front after that.
-CEIL_LINALG_FFT = 87
+# rc62: DRAIN the np.fft.* family. New signal_processing/_fft_carrier.py lifts
+# the 1-D spectral_cascades fft/ifft to NumPy's ndarray + n= (zero-pad /
+# truncate) + axis= contract (NumPy a carrier only: moveaxis / reshape / pad /
+# slice), plus a real-input rfft (full-transform-then-slice, with a complex-
+# input TypeError raise mirroring NumPy) and an fftfreq carrier (integer bin
+# indices / (n*d); no transcendentals). All 8 remaining genuine np.fft.* calls
+# route onto it — the 6 Path-A/Path-B fft/ifft/rfft ops (closed_form_ops +
+# path_b_ops) + the 2 cross_spectral fftfreq sites — and the ~18 textual
+# `numpy.fft.X` doc/summary mentions are reworded to "NumPy fft". The carriers
+# are bit-faithful to NumPy across real+complex, 1-D + n-D, every axis, and n
+# pad/truncate (~1e-9). rfft is value-faithful (~1 ULP) NOT bit-identical to
+# NumPy's pocketfft real-FFT (even np.fft.fft(real)[:n//2+1] != np.fft.rfft
+# bit-for-bit) — matching pocketfft's exact rounding was a NumPy-backend
+# artifact, not a substrate property, so the rfft-vs-NumPy tests are now
+# allclose (the Path-A-vs-Path-B cascade identity stays exact). np.fft. -> 0.
+# linalg_fft 87 -> 61. Next: the np.linalg.{svd,qr,eig,solve,inv,...} cluster.
+CEIL_LINALG_FFT = 61
 CEIL_MATMUL = 4
 CEIL_UFUNC = 0
 

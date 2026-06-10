@@ -34,6 +34,7 @@ from __future__ import annotations
 from typing import Optional
 
 import numpy as np
+from srmech.signal_processing import _fft_carrier as _fc
 
 from srmech.signal_processing.form_function_rotation import (
     verify_rotation_class_n_cycle_order,
@@ -98,7 +99,7 @@ def op(
             f"Class K negated-stride cycle order for IFFT len {ifft_n} "
             f"must equal {ifft_n}; got {order}. (Spike #176 T8 anchor.)"
         )
-    return np.fft.ifft(arr, n=n, axis=axis)
+    return _fc.ifft(arr, n=n, axis=axis)
 
 
 def _register() -> None:

@@ -10,13 +10,13 @@ of the 14 A-N class operations. This module ships them as **pure-Python
   ``X_k = Σ_n x_n · e^(∓2πi·(k·n mod N)/N)``. **Class I** (the cyclic index
   ``k·n mod N`` on ℤ/N) ∘ **Class N** (the twiddle cos/sin) ∘ **Class C** (the
   imaginary unit = 90° rotation) ∘ **Class M** (the bundle/superposition sum).
-  A direct ``O(N²)`` transform — value-faithful to ``numpy.fft.fft`` to
+  A direct ``O(N²)`` transform — value-faithful to ``NumPy fft`` to
   round-off.
 - :func:`fft` / :func:`ifft` — the **radix-2 Cooley–Tukey** butterfly: the SAME
   value as :func:`dft`, but ``O(N log N)`` when ``N`` is a power of two, by
   adding **Class J** (the radix ``N = 2·(N/2)`` factorization) + **Class K**
   (the butterfly recursion depth) on top of the DFT cascade. For non-power-of-2
-  ``N`` it falls back to :func:`dft`, so it is a drop-in for ``numpy.fft.fft``
+  ``N`` it falls back to :func:`dft`, so it is a drop-in for ``NumPy fft``
   at ANY length.
 - :func:`kron` — the Kronecker product ``(A⊗B)`` = **Class I** (the mixed-radix
   index ``i·p+k``) ∘ **Class M** (the element products).
@@ -50,7 +50,7 @@ def dft(x: Sequence[complex], *, inverse: bool = False) -> List[complex]:
 
     ``X_k = Σ_n x_n · e^(∓2πi·(k·n mod N)/N)`` (``+`` and a ``1/N`` scale when
     ``inverse=True``). Pure-Python; substrate-native replacement for
-    ``numpy.fft.fft`` / ``ifft`` on a 1-D sequence. ``O(N²)``.
+    ``NumPy fft`` / ``ifft`` on a 1-D sequence. ``O(N²)``.
 
     For an all-integer / Gaussian-integer power-of-two signal this runs the
     **exact-until-rotation** cyclotomic-integer engine (``ℤ[ζ_N]`` integer math,
@@ -117,10 +117,10 @@ def fft(x: Sequence[complex], *, inverse: bool = False) -> List[complex]:
     """Fast Fourier transform — the radix-2 Cooley–Tukey butterfly.
 
     Bit-for-bit the same MATHEMATICS as :func:`dft` (and value-faithful to
-    ``numpy.fft.fft`` / ``ifft`` to round-off), but ``O(N log N)`` when ``N``
+    ``NumPy fft`` / ``ifft`` to round-off), but ``O(N log N)`` when ``N``
     is a power of two, via the radix-2 split. For every other ``N`` this falls
     back to the direct ``O(N²)`` :func:`dft`, so :func:`fft` is a drop-in for
-    ``numpy.fft.fft`` at ANY length. The fast path adds **Class J** (the radix
+    ``NumPy fft`` at ANY length. The fast path adds **Class J** (the radix
     ``N = 2·(N/2)`` factorization) + **Class K** (the butterfly recursion
     depth) on top of the rc36 DFT cascade.
 

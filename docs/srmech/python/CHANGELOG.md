@@ -8,6 +8,14 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc62] - 2026-06-10
+
+**Draining the `np.fft.*` family (numpy-removal — `linalg_fft` decrement).** rc61 routed the 1-D `np.fft.fft`/`ifft` callsites; rc62 finishes the `np.fft.*` side. New **`srmech.signal_processing._fft_carrier`** lifts the 1-D `spectral_cascades` FFT cascade to NumPy's full **ndarray + `n=` (zero-pad / truncate) + `axis=`** contract — NumPy is a *carrier only* (`moveaxis` / `reshape` / zero-pad / slice), the transform rides the cascade. It adds a real-input **`rfft`** (full transform then slice; complex input raises `TypeError`, mirroring NumPy) and an **`fftfreq`** carrier (integer bin indices `/(n·d)`; no transcendentals).
+
+- **8 genuine `np.fft.*` callsites routed** — the 6 Path-A / Path-B reference ops `closed_form_ops/{fft,ifft,rfft}` + `path_b_ops/{fft,ifft,rfft}` + the 2 `cross_spectral` `fftfreq` sites — and the **~18 textual `numpy.fft.X`** doc/summary mentions reworded to "NumPy fft". `np.fft.` → **0**.
+- Carriers verified bit-faithful to NumPy across real + complex, 1-D + n-D, every axis, and `n` pad/truncate (~1e-9). **`rfft` is value-faithful (~1 ULP), NOT bit-identical** to NumPy's pocketfft real-FFT — even `np.fft.fft(real)[:n//2+1]` ≠ `np.fft.rfft` bit-for-bit, so matching pocketfft's exact rounding was a NumPy-backend artifact, not a substrate property. The 4 `rfft`-vs-NumPy assertions move to `allclose`; the **Path-A == Path-B cascade identity stays exact** (both ride the same cascade).
+- numpy-math ratchet `linalg_fft` **87 → 61**. No new public op ⟹ `describe()["tools"]["total"]` stays **285**. ABI 3. New `test_fft_carrier_rc62.py`. Next `linalg_fft` front: the `np.linalg.{svd,qr,eig,solve,inv,...}` decomposition cluster (~36 sites, mostly `qm/so8.py`).
+
 ## [0.7.5rc61] - 2026-06-10
 
 **The `np.fft.*` family, first batch (numpy-removal — `linalg_fft` decrement).** rc60 opened the `linalg_fft` ledger on the `np.linalg.norm` cluster (122 → 102); rc61 takes the `np.fft.*` side. The **15 one-dimensional `np.fft.fft(x)` / `np.fft.ifft(x)` callsites** across `signal_processing` route onto the *existing* value-faithful **`srmech.amsc.cascade.spectral_cascades.fft` / `.ifft`** cascade (the rc36/rc37 radix-2 Cooley–Tukey FFT with a `dft` fallback for non-power-of-2 N — exact-until-rotation). **No new public op**: the FFT cascade already shipped; rc61 only swaps the *carrier* (NumPy's FFT → the cascade), value-for-value, wrapping `np.asarray(...)` so the result stays an ndarray.

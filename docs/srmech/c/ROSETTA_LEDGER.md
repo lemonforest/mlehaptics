@@ -740,6 +740,22 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc62 (done) — DRAIN the np.fft.* family (linalg_fft decrement).** New
+  `signal_processing/_fft_carrier.py` lifts the 1-D `spectral_cascades` fft/ifft
+  to NumPy's ndarray + n= (zero-pad / truncate) + axis= contract (NumPy a
+  carrier only: moveaxis / reshape / pad / slice), plus a real-input rfft
+  (full-transform-then-slice; complex input raises TypeError mirroring NumPy)
+  and an fftfreq carrier (integer bin indices / (n*d); no transcendentals). The
+  8 remaining genuine np.fft.* calls route onto it — the 6 Path-A/Path-B
+  fft/ifft/rfft ops (closed_form_ops + path_b_ops) + the 2 cross_spectral
+  fftfreq sites — and the ~18 textual `numpy.fft.X` doc/summary mentions are
+  reworded to "NumPy fft". Carriers bit-faithful to NumPy (real+complex, 1-D +
+  n-D, every axis, n pad/truncate, ~1e-9); rfft is value-faithful (~1 ULP) NOT
+  bit-identical to pocketfft (even np.fft.fft(real)[:n//2+1] != np.fft.rfft),
+  so the rfft-vs-NumPy tests are now allclose (Path-A == Path-B cascade identity
+  stays exact). **np.fft. -> 0. numpy-math ratchet linalg_fft 87 -> 61.** No
+  rosetta / ToolEntry change (describe tools.total stays 285). ABI 3. Next: the
+  np.linalg.{svd,qr,eig,solve,inv,...} cluster (~36 sites, mostly qm/so8.py).
 - **rc61 (done) — the np.fft.* family, first batch (linalg_fft decrement).**
   The 15 one-dimensional `np.fft.fft(x)` / `np.fft.ifft(x)` callsites across
   signal_processing route onto the EXISTING value-faithful
