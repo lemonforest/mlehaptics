@@ -8,6 +8,14 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc70] - 2026-06-10
+
+**Carrier-removal flip #1 — the FFT op-family runs 1-D numpy-FREE.** rc69 built the carrier ratchet + the `Mat` carrier; rc70 is the first real **module flip**, lowering `CEIL_NUMPY_CARRIER` **61 → 53**. `_fft_carrier`'s numpy was pure carrier-shaping (`asarray` / `moveaxis` / `reshape` / zero-pad / output-alloc) while the transform already rode the numpy-free 1-D `spectral_cascades`. Now the **common 1-D / default-axis** path is numpy-free (a stdlib list flows straight through the cascade and comes back a list — the framework-native carrier when numpy is absent, an `ndarray` for parity when present); only the **n-D / non-default-axis** case still uses numpy as a carrier, and it imports numpy **lazily**.
+
+- **8 modules drop their top-level `import numpy`** (loadable AND 1-D-runnable numpy-free, not merely loadable): the leaf `_fft_carrier` + the pass-through wrappers `closed_form_ops.{fft,ifft,rfft}` (their redundant `np.asarray` removed — `_fc` already coerces) + `closed_form_ops.spectrogram` (its only numpy was an annotation-only import) + `path_b_ops.{fft,ifft,rfft}` (numpy-free length via the input's own `.shape`/`len`).
+- **Honest, not theater:** a new `test_fft_family_numpy_absent_rc70.py` HIDES numpy (`sys.modules["numpy"]=None`) and proves `fft`/`ifft`/`rfft`/`fftfreq` + `n=` pad/truncate still compute, value-faithful (~1e-9) to the DFT oracle, returning the framework-native list. The values are identical on both paths because both ride the same `spectral_cascades` cascade — the existing bit-faithful FFT suite (788 tests) stays green.
+- `CEIL_NUMPY_CARRIER` **61 → 53** (down-only carrier ratchet). No public-op change ⟹ `describe()["tools"]["total"]` stays **285**; all three maths ratchets unchanged at floor. ABI 3. The 2-D `qm/*` matrix modules come in a later rc behind a `Mat`↔native-dense-kernel bridge.
+
 ## [0.7.5rc69] - 2026-06-10
 
 **Carrier-removal arc — Phase 0 (infra): the numpy-free 2-D `Mat` carrier + a down-only carrier ratchet.** The numpy-*math* sweep (rc53–rc68) drove the `linalg_fft` / `matmul` / `ufunc` ledgers to their floor — numpy is gone as a *math engine*. What remains is numpy as a **carrier** (array container / shaping): 61 submodules still `import numpy` at module level, so they can't load on a numpy-free install (the package itself already imports numpy-free; these are lazy submodule imports). This rc lays the foundation to delete that — **no module is flipped yet**.

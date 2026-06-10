@@ -45,7 +45,6 @@ from __future__ import annotations
 
 from typing import Optional
 
-import numpy as np
 from srmech.signal_processing import _fft_carrier as _fc
 
 from srmech.signal_processing.form_function_rotation import (
@@ -111,7 +110,9 @@ def op(
         Complex DFT coefficients. D1 algebra-identical to
         :func:`srmech.signal_processing.closed_form_ops.fft.op`.
     """
-    arr = np.asarray(signal)
+    # numpy-free length along the transformed axis: a numpy array carries its
+    # own ``.shape`` (no numpy import needed); a plain sequence uses ``len``.
+    _len = signal.shape[axis] if hasattr(signal, "shape") else len(signal)
     # Class K cycle order verification on the FFT length: this confirms
     # the cyclic substrate's pin-slot has well-defined additive order in
     # ℤ/N (Spike #176 T8 anchor). For N a positive integer the order is
@@ -121,7 +122,7 @@ def op(
     # non-aligned FFT lengths skip the structural assertion but still
     # execute the same cyclic-DFT algebra (Class K identity holds
     # algebraically for any positive integer N).
-    fft_n = n if n is not None else arr.shape[axis]
+    fft_n = n if n is not None else _len
     if fft_n >= 256 and fft_n <= (1 << 16) and fft_n % 8 == 0:
         # Verify cycle order is well-defined for stride=1 (the unit
         # rotation that generates ℤ/N). Identity: order(1, N) = N.
@@ -133,7 +134,7 @@ def op(
     # Class A ∘ Class I ∘ Class K composition is the cyclic-DFT algebra;
     # NumPy fft IS this algebra. The Path B identity is unchanged
     # from Path A; both compute the cyclic-DFT coefficients.
-    return _fc.fft(arr, n=n, axis=axis)
+    return _fc.fft(signal, n=n, axis=axis)
 
 
 # ──────────────────────────────────────────────────────────────────────

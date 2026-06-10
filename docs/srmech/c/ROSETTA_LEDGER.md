@@ -740,6 +740,22 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc70 (done, v0.7.5rc70) — carrier-flip #1: the FFT op-family runs 1-D
+  numpy-FREE (CEIL_NUMPY_CARRIER 61 → 53).** First real module flip of the
+  carrier arc. `_fft_carrier`'s numpy was pure carrier-shaping (asarray /
+  moveaxis / reshape / pad / output-alloc) while the transform already rode the
+  numpy-free 1-D `spectral_cascades`. The common 1-D/default-axis path is now
+  numpy-free (list → cascade → list; framework-native list when numpy absent,
+  ndarray for parity when present); n-D/non-default-axis still uses numpy lazily.
+  8 modules drop their top-level `import numpy` — leaf `_fft_carrier` +
+  `closed_form_ops.{fft,ifft,rfft}` (redundant `np.asarray` removed; `_fc`
+  coerces) + `closed_form_ops.spectrogram` (annotation-only import) +
+  `path_b_ops.{fft,ifft,rfft}` (numpy-free length via the input's own
+  `.shape`/`len`). HONEST-not-theater: `test_fft_family_numpy_absent_rc70.py`
+  hides numpy and proves fft/ifft/rfft/fftfreq + n-pad/truncate still compute
+  value-faithful (~1e-9). Same cascade ⟹ existing 788-test FFT suite green. No
+  public-op change (describe stays 285); maths ratchets unchanged at floor.
+  ABI 3. 2-D qm/* matrix modules come later behind a Mat↔native-kernel bridge.
 - **rc69 (done, v0.7.5rc69) — carrier-removal arc Phase 0 (infra): numpy-free
   2-D `Mat` carrier + down-only carrier ratchet.** The numpy-MATH sweep
   (rc53–rc68) is floored; what's left is numpy-as-CARRIER — 61 submodules still

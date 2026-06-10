@@ -44,7 +44,6 @@ from __future__ import annotations
 
 from typing import Optional
 
-import numpy as np
 from srmech.signal_processing import _fft_carrier as _fc
 
 from srmech.signal_processing.form_function_rotation import (
@@ -108,14 +107,16 @@ def op(
         D1 algebra-identical to
         :func:`srmech.signal_processing.closed_form_ops.rfft.op`.
     """
-    arr = np.asarray(signal)
+    # numpy-free length: a numpy array carries its own ``.shape``; a plain
+    # sequence uses ``len`` (no numpy import needed at this layer).
+    _len = signal.shape[axis] if hasattr(signal, "shape") else len(signal)
     # Class K cycle-order verification on the FFT length (Spike #176 T8):
     # for stride=1 the additive order in ℤ/N is exactly N. Only invoked
     # inside the form_function_rotation validation envelope (256 ≤ N ≤
     # 2^16, multiple of 8); other lengths skip the structural assertion
     # but execute the same cyclic-DFT algebra (Class K identity holds for
     # any positive integer N).
-    fft_n = n if n is not None else arr.shape[axis]
+    fft_n = n if n is not None else _len
     if fft_n >= 256 and fft_n <= (1 << 16) and fft_n % 8 == 0:
         order = verify_rotation_class_n_cycle_order(1, D=fft_n)
         assert order == fft_n, (
@@ -124,7 +125,7 @@ def op(
         )
     # Class A ∘ Class I ∘ Class K composition on the real-symmetric half:
     # NumPy rfft IS this algebra restricted to the non-redundant bins.
-    return _fc.rfft(arr, n=n, axis=axis)
+    return _fc.rfft(signal, n=n, axis=axis)
 
 
 # ──────────────────────────────────────────────────────────────────────

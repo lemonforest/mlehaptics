@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from typing import Optional
 
-import numpy as np
 from srmech.signal_processing import _fft_carrier as _fc
 
 OPERATION_NAME = "fft"
@@ -48,8 +47,8 @@ def op(signal, *, n: Optional[int] = None, axis: int = -1, D: int = 8192):
 
     Returns
     -------
-    numpy.ndarray
-        Complex DFT coefficients.
+    numpy.ndarray | list
+        Complex DFT coefficients (``list`` when numpy is absent — ``_fc``
+        coerces the input, so no numpy is needed at this layer).
     """
-    arr = np.asarray(signal)
-    return _fc.fft(arr, n=n, axis=axis)
+    return _fc.fft(signal, n=n, axis=axis)
