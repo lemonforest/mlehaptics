@@ -33,6 +33,8 @@ Canonical SSoT:
 from __future__ import annotations
 
 import numpy as np
+
+from srmech.amsc import rational as _srn
 from typing import Tuple
 
 from srmech.amsc.laplacian import (
@@ -110,7 +112,7 @@ def su3_gell_mann_matrices() -> Tuple[np.ndarray, ...]:
     # λ^7: (2,3) imaginary
     lam.append(np.array([[0, 0, 0], [0, 0, -1j], [0, 1j, 0]], dtype=complex))
     # λ^8: diagonal hypercharge-like
-    lam.append((1.0 / np.sqrt(3.0)) * np.array(
+    lam.append((1.0 / _srn.sqrt(3.0)) * np.array(
         [[1, 0, 0], [0, 1, 0], [0, 0, -2]], dtype=complex
     ))
     return tuple(lam)
@@ -151,8 +153,8 @@ def su3_structure_constants() -> np.ndarray:
         (2, 3, 4, 0.5),
         (0, 4, 5, -0.5),
         (2, 5, 6, -0.5),
-        (3, 4, 7, np.sqrt(3.0) / 2.0),
-        (5, 6, 7, np.sqrt(3.0) / 2.0),
+        (3, 4, 7, _srn.sqrt(3.0) / 2.0),
+        (5, 6, 7, _srn.sqrt(3.0) / 2.0),
     ]
     for a, b, c, val in seed_values:
         # Fill via total antisymmetry: f[π(abc)] = sign(π) val.

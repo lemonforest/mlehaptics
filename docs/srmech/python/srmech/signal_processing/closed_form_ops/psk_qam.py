@@ -22,6 +22,10 @@ from __future__ import annotations
 
 import numpy as np
 
+from srmech.amsc import rational as _srn
+
+from srmech.amsc import rational as _srn
+
 from srmech.amsc.laplacian import elementwise_hypot, elementwise_transcendental
 
 OPERATION_NAME = "psk_qam"
@@ -41,7 +45,7 @@ def _psk_constellation(M: int) -> np.ndarray:
 
 def _qam_constellation(M: int) -> np.ndarray:
     """Square M-QAM constellation; requires sqrt(M) to be integer."""
-    sqrt_m = int(round(np.sqrt(M)))
+    sqrt_m = int(round(_srn.sqrt(float(M))))
     if sqrt_m * sqrt_m != M:
         raise ValueError(f"square QAM requires M = K^2; got M={M}")
     # Gray-coded levels: {-(sqrt_m-1), ..., -1, 1, ..., (sqrt_m-1)}

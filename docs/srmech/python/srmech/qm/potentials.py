@@ -13,6 +13,8 @@ Class M (binding of ladder-operator states).
 from __future__ import annotations
 
 import numpy as np
+
+from srmech.amsc import rational as _srn
 from typing import Tuple
 
 from srmech.amsc.laplacian import dense_matmul_complex, hermitian_eigendecompose
@@ -103,7 +105,7 @@ def harmonic_oscillator_ladder(
         raise ValueError(f"harmonic_oscillator_ladder: omega must be positive; got {omega}")
     a = np.zeros((n_dim, n_dim), dtype=complex)
     for n in range(1, n_dim):
-        a[n - 1, n] = np.sqrt(n)
+        a[n - 1, n] = _srn.sqrt(float(n))
     a_dagger = a.conj().T.copy()
     return a, a_dagger
 

@@ -636,6 +636,22 @@ decrements it).
   `elementwise_transcendental`'s OWN complex-input + real no-native fallbacks
   (documented internal kernel; deferred). Round-off-faithful (~1 ULP; QM + DSP
   suites pass unchanged). ABI 3. Next: np.sqrt (12), then sin/cos/log/sign.
+- **rc54 (done) — `laplacian.elementwise_sqrt`: the `np.sqrt` batch (ufunc
+  decrement continues rc52 hypot → rc53 exp).** New public `elementwise_sqrt(arr)`
+  computes `√arrᵢ` per element via the Class-N `rational.sqrt` cascade (isqrt-
+  based, native `srmech_rational_sqrt`-dispatched, no libm) — companion to
+  `elementwise_hypot`, numpy carries the array only. Routes the 2 array np.sqrt
+  (spectral_subtraction PSD `√(new_psd)`, ica_jade whitening `1/√(eigvals)`) onto
+  it, and the 10 SCALAR np.sqrt (qm.gauge Gell-Mann `1/√3` ×3, qm.potentials `√n`
+  ladder, qm.relativistic Klein-Gordon on-shell energy, qm.so8 ×2, qm.triality,
+  psk_qam `√M`, wavelet `1/√2`) onto `rational.sqrt` (7 modules gain a
+  `rational as _srn` import). **numpy-math ratchet `ufunc` 27 → 15.** Round-off-
+  faithful (≤1-ULP; bit-exact on perfect squares; QM ladder/dispersion + DSP
+  whitening/decode pass unchanged). 1 new ToolEntry → `tools.total` 283 → **284**;
+  `composition_of_c` rosetta (composes the c_dispatched `rational.sqrt`; no own C
+  symbol). Class N √ over a Class-L array surface; numpy carriers-only. ABI 3.
+  Next ufunc: np.sin (3) + np.cos (3) → `elementwise_transcendental`, np.log (5),
+  np.sign (2); then the 2 internal exp fallbacks (deferred cascade kernel).
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

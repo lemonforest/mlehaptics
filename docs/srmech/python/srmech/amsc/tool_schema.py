@@ -1117,6 +1117,18 @@ def _register_primitive_class_tools() -> None:
                         P("b", "np.ndarray", True, "same-shape real (e.g. z.imag)")),
             returns=R("np.ndarray", "float64 sqrt(a_i^2 + b_i^2)"),
         ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.elementwise_sqrt",
+            owner="srmech", category="laplacian",
+            summary="Array element-wise sqrt(arr_i) via the Class-N rational "
+                    "sqrt cascade (per-element rational.sqrt; native "
+                    "srmech_rational_sqrt-dispatched). The numpy-free array "
+                    "square-root op (companion to elementwise_hypot) for "
+                    "non-negative reals — numpy carries the array only. Rejects "
+                    "arr_i < 0. Golub & Van Loan §1.1.",
+            parameters=(P("arr", "np.ndarray", True, "real array, all entries >= 0"),),
+            returns=R("np.ndarray", "float64 sqrt(arr_i), same shape"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class J — prime-factorisation / period
