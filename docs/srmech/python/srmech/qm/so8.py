@@ -50,6 +50,7 @@ import functools
 from typing import Dict, List, Tuple
 
 import numpy as np
+from srmech.amsc.cascade import matrix_cascades as _mc
 
 from srmech.amsc import rational as _srn
 
@@ -448,7 +449,7 @@ def _orthonormal_coords(matrices: List[np.ndarray]) -> np.ndarray:
     orthonormalisation (no scipy, no RNG).
     """
     coords = np.column_stack([_epq_coords(m) for m in matrices])
-    q, _ = np.linalg.qr(coords)
+    q, _ = _mc.qr(coords)
     return q
 
 
@@ -465,7 +466,7 @@ def _su3_complement(
     Asserts ``dim == 6``.
     """
     g2_coords = np.column_stack([_epq_coords(m) for m in g2])  # (28,14)
-    q_g2, _ = np.linalg.qr(g2_coords)                          # (28,14) on
+    q_g2, _ = _mc.qr(g2_coords)                          # (28,14) on
     projector = dense_matmul_real(su3_orthonormal, su3_orthonormal.T)
     residual = q_g2 - dense_matmul_real(projector, q_g2)       # (28,14)
     left, singular, _ = np.linalg.svd(residual, full_matrices=False)
@@ -1040,7 +1041,7 @@ def _so4_stabiliser(
     # invariant (two distinct eigenvalues, multiplicity 3 each = su(2) ⊕ su(2)).
     # Without this the spectrum scales with the arbitrary SVD-nullspace basis.
     raw_coords = np.column_stack([_epq_coords(m) for m in raw])  # (28, 6)
-    q_ortho, _ = np.linalg.qr(raw_coords)
+    q_ortho, _ = _mc.qr(raw_coords)
     so4 = [_epq_to_matrix(q_ortho[:, c]) for c in range(_DIM_SO4)]
     for matrix in so4:
         leak = 0.0
@@ -1135,8 +1136,8 @@ def _two_su2_ideals(
 
     block_map = np.column_stack([block_vec(m) for m in so4])  # (6, 6)
     sd_frame, asd_frame = _self_dual_bases()
-    q_sd, _ = np.linalg.qr(sd_frame)
-    q_asd, _ = np.linalg.qr(asd_frame)
+    q_sd, _ = _mc.qr(sd_frame)
+    q_asd, _ = _mc.qr(asd_frame)
     proj_sd = dense_matmul_real(q_sd, q_sd.T)
     proj_asd = dense_matmul_real(q_asd, q_asd.T)
 

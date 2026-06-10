@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc63] - 2026-06-10
+
+**The `np.linalg.*` cluster, first sub-batch (numpy-removal — `linalg_fft` decrement).** With `np.fft.*` drained (rc62), the final `linalg_fft` front is the `np.linalg.*` decomposition cluster. rc63a takes the sites whose downstream use is invariant to the decompositions' inherent ambiguities, routing them onto the already-shipped value-faithful **`srmech.amsc.cascade.matrix_cascades`** cascades (`qr`/`eigvals`, rc38/rc39).
+
+- **5 `q, _ = np.linalg.qr(X)` callsites** (`qm/so8.py`) → `matrix_cascades.qr`. Each consumes `Q` only through `Q @ Qᵀ` projectors / its column span / a sum-of-squares leak test — all invariant to QR's per-column **sign**, so `matrix_cascades.qr` (faithful up to column sign) is exact for the usage (verified `Q @ Qᵀ == numpy` to ~1e-9).
+- **2 `np.linalg.eigvals(X)` callsites** (`qm/pseudo_hermitian` `max|imag|`, `signal_processing/.../esprit` rotation set) → `matrix_cascades.eigvals`. Both consume the eigenvalue **multiset** (order-free); the cascade is set-faithful to ~1e-12.
+- **83 so8/esprit/pseudo_hermitian/triality op-tests pass** post-route. Plus **~22 textual `numpy.linalg.X`** faithfulness/summary mentions (in `matrix_cascades` / `tool_schema` / `triality` — none have genuine calls) reworded to "NumPy X".
+- numpy-math ratchet `linalg_fft` **61 → 32**. No new public op ⟹ `describe()["tools"]["total"]` stays **285**. ABI 3. New `test_linalg_qr_eigvals_routing_rc63.py`. Deferred to rc63b/c: the sign/order-delicate `svd` / `matrix_rank` / `inv` / `eig` / `eigh` / `solve` / `lstsq` / `pinv` (mostly `qm/so8.py` + `amsc/laplacian.py`).
+
 ## [0.7.5rc62] - 2026-06-10
 
 **Draining the `np.fft.*` family (numpy-removal — `linalg_fft` decrement).** rc61 routed the 1-D `np.fft.fft`/`ifft` callsites; rc62 finishes the `np.fft.*` side. New **`srmech.signal_processing._fft_carrier`** lifts the 1-D `spectral_cascades` FFT cascade to NumPy's full **ndarray + `n=` (zero-pad / truncate) + `axis=`** contract — NumPy is a *carrier only* (`moveaxis` / `reshape` / zero-pad / slice), the transform rides the cascade. It adds a real-input **`rfft`** (full transform then slice; complex input raises `TypeError`, mirroring NumPy) and an **`fftfreq`** carrier (integer bin indices `/(n·d)`; no transcendentals).

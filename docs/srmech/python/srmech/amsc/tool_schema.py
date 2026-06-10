@@ -947,7 +947,7 @@ def _register_primitive_class_tools() -> None:
                     "map S = L_∂∂ − L_∂i·L_ii⁻¹·L_i∂ (the bulk integrated out; "
                     "the operator|operand FUSION op). Exact-rational Fraction "
                     "solve (Class-N core, numpy-absent or exact=True); "
-                    "numpy.linalg.solve float realization on the scientific tier.",
+                    "NumPy solve float realization on the scientific tier.",
             parameters=(P("L", "np.ndarray", True,
                           "n × n SPD operator (a graph Laplacian); nested JSON "
                           "list over MCP"),
@@ -984,7 +984,7 @@ def _register_primitive_class_tools() -> None:
             owner="srmech", category="laplacian",
             summary="Hermitian eigendecomposition H = V diag(eigvals) V^H "
                     "via complex-Jacobi rotations. Native C dispatch when "
-                    "n ≤ 256; numpy.linalg.eigh fallback. Sakurai §2.1.5; "
+                    "n ≤ 256; NumPy eigh fallback. Sakurai §2.1.5; "
                     "Golub & Van Loan §8.5.",
             parameters=(P("H", "np.ndarray", True,
                           "n × n complex Hermitian matrix"),),
@@ -995,7 +995,7 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.laplacian.symmetric_eigendecompose",
             owner="srmech", category="laplacian",
             summary="Real-symmetric eigendecomposition L = V diag(eigvals) "
-                    "Vᵀ via numpy.linalg.eigh. Real-input specialisation of "
+                    "Vᵀ via NumPy eigh. Real-input specialisation of "
                     "hermitian_eigendecompose: guarantees real float64 "
                     "eigvals AND eigvecs (no ComplexWarning for a real "
                     "Laplacian). Golub & Van Loan §8.3.",
@@ -1554,21 +1554,21 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.cascade.matrix_cascades.qr", owner="srmech", category="cascade",
-            summary="Householder QR factorization A = Q*R: Q a product (Class M) of elementary reflectors H = I - beta*v*v^H, each Class K (sign-flip across a hyperplane) + Class M (outer-product bind) + Class N (1/(v^H v) scale, with the column norm a rational.sqrt). numpy as CONTAINER only — no np.linalg.qr in the call graph. mode='reduced' (default, matching numpy.linalg.qr) or 'complete'. QR is unique only up to signs; the invariants (Q*R=A, Q^H Q=I, R upper-triangular) hold to round-off.",
+            summary="Householder QR factorization A = Q*R: Q a product (Class M) of elementary reflectors H = I - beta*v*v^H, each Class K (sign-flip across a hyperplane) + Class M (outer-product bind) + Class N (1/(v^H v) scale, with the column norm a rational.sqrt). numpy as CONTAINER only — no NumPy QR in the call graph. mode='reduced' (default, matching NumPy QR) or 'complete'. QR is unique only up to signs; the invariants (Q*R=A, Q^H Q=I, R upper-triangular) hold to round-off.",
             parameters=(P("a", "np.ndarray", True, "(m, n) real or complex 2-D matrix"),
                         P("mode", "str", False, "keyword-only; 'reduced' (default) or 'complete'")),
             returns=R("tuple[np.ndarray, np.ndarray]", "(Q, R): orthonormal-column Q + upper-triangular R"),
         ),
         ToolEntry(
             name="srmech.amsc.cascade.matrix_cascades.svd", owner="srmech", category="cascade",
-            summary="Singular value decomposition A = U*diag(s)*V^H via the Gram-matrix Hermitian eigendecomposition: Class L (eig of A^H A or A A^H, srmech's hermitian_eigendecompose) + Class N+K (s = sqrt(eigvals), via rational.sqrt) + Class M (U = A*V*Sigma^-1). numpy as CONTAINER only — no np.linalg.svd. full_matrices=False (reduced form). Singular values match numpy.linalg.svd to round-off for well-conditioned inputs (the Gram route squares the condition number); U/V unique only up to signs.",
+            summary="Singular value decomposition A = U*diag(s)*V^H via the Gram-matrix Hermitian eigendecomposition: Class L (eig of A^H A or A A^H, srmech's hermitian_eigendecompose) + Class N+K (s = sqrt(eigvals), via rational.sqrt) + Class M (U = A*V*Sigma^-1). numpy as CONTAINER only — no NumPy SVD. full_matrices=False (reduced form). Singular values match NumPy SVD to round-off for well-conditioned inputs (the Gram route squares the condition number); U/V unique only up to signs.",
             parameters=(P("a", "np.ndarray", True, "(m, n) real or complex 2-D matrix"),
                         P("full_matrices", "bool", False, "keyword-only; only False (reduced form) is supplied")),
             returns=R("tuple[np.ndarray, np.ndarray, np.ndarray]", "(U, s, Vh): singular vectors + descending singular values"),
         ),
         ToolEntry(
             name="srmech.amsc.cascade.matrix_cascades.lstsq", owner="srmech", category="cascade",
-            summary="Least-squares solution of A x = b (minimising ||A x - b||): {QR} factorization + Class M (the Qᴴ b product) + Class I (back-substitution = the ordered triangular solve). Overdetermined/square m>=n, full column rank; b a vector or stack of RHS. numpy as CONTAINER only — no np.linalg.lstsq. Matches numpy.linalg.lstsq(a,b)[0] to round-off.",
+            summary="Least-squares solution of A x = b (minimising ||A x - b||): {QR} factorization + Class M (the Qᴴ b product) + Class I (back-substitution = the ordered triangular solve). Overdetermined/square m>=n, full column rank; b a vector or stack of RHS. numpy as CONTAINER only — no NumPy lstsq. Matches NumPy lstsq(a,b)[0] to round-off.",
             parameters=(P("a", "np.ndarray", True, "(m, n) coefficient matrix, m>=n"),
                         P("b", "np.ndarray", True, "(m,) or (m, k) right-hand side(s)")),
             returns=R("np.ndarray", "least-squares solution x, shape (n,) or (n, k)"),
@@ -1582,7 +1582,7 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.cascade.matrix_cascades.eigvals", owner="srmech", category="cascade",
-            summary="Eigenvalues of a general (non-Hermitian) square matrix via the shifted-QR iteration: Class K (iterate-to-convergence asymptotic-DoF) + Class L (spectral content) + {QR} (per-step Householder factorization) + Class C (Wilkinson spectral shifts). Runs in complex arithmetic so complex eigenvalues of real matrices fall out directly. numpy as CONTAINER only — no np.linalg.eig/eigvals. Eigenvalues unique as a SET; the multiset matches numpy.linalg.eigvals to ~1e-12 for moderate sizes.",
+            summary="Eigenvalues of a general (non-Hermitian) square matrix via the shifted-QR iteration: Class K (iterate-to-convergence asymptotic-DoF) + Class L (spectral content) + {QR} (per-step Householder factorization) + Class C (Wilkinson spectral shifts). Runs in complex arithmetic so complex eigenvalues of real matrices fall out directly. numpy as CONTAINER only — no NumPy eig/eigvals. Eigenvalues unique as a SET; the multiset matches NumPy eigvals to ~1e-12 for moderate sizes.",
             parameters=(P("a", "np.ndarray", True, "(n, n) real or complex square matrix"),
                         P("max_sweeps", "int", False, "keyword-only; per-eigenvalue iteration cap factor (default 500)")),
             returns=R("np.ndarray", "length-n complex eigenvalue array"),

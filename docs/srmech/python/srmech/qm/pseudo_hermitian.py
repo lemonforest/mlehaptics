@@ -39,6 +39,7 @@ Canonical SSoT:
 from __future__ import annotations
 
 import numpy as np
+from srmech.amsc.cascade import matrix_cascades as _mc
 from typing import Tuple
 
 from srmech.amsc.laplacian import (
@@ -211,7 +212,7 @@ def pseudo_hermitian_eigenvalues_real(
     """
     if not is_pseudo_hermitian(O, eta, atol=atol):
         return False
-    eigvals = np.linalg.eigvals(O)
+    eigvals = _mc.eigvals(O)
     # Class-K magnitude via explicit sign-branch (no abs()); .imag is real.
     _im_mag = np.where(eigvals.imag >= 0.0, eigvals.imag, -eigvals.imag)
     return bool(np.max(_im_mag) < atol)

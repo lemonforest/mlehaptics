@@ -11,7 +11,7 @@ THE CRUX (fully worked + bit-exact verified, residuals ``<= 4e-14``):
 
 1. **Companion solver.** For ``A`` in ``so(8)`` acting on ``8_v``, solve
    Cartan's relation ``A(x*y) = B(x)*y + x*C(y)`` for all ``x, y`` in ``O``
-   by deterministic least-squares (``np.linalg.lstsq``) over the 64 basis
+   by deterministic least-squares (``NumPy lstsq``) over the 64 basis
    pairs. ``B`` is the ``8_s`` companion, ``C`` the ``8_c`` companion. For a
    derivation ``D`` in ``g2`` the solver returns ``B = C = D`` (derivations
    are triality-fixed).
