@@ -740,6 +740,23 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc76 (done, v0.7.5rc76) — the scalar-export layer `One.to_scalar`
+  (matrix/vector → scalar; EXACT (num,den) default + opt-in numpy-FREE float
+  export).** Carrier-removal #564, follow-on to the rc75 Hurwitz TOML-class
+  reframe (lets a TOML class chain matrix-math → scalar output). User rule:
+  *return float sometimes, never receive float* — `the_one` stays integer-only
+  (no float input), and `as_float=True` does the single terminal `num/den` cast
+  to a plain Python float with **no numpy** (pointedly UNLIKE the numpy-tier
+  `One.to_numpy`/`to_matrix` exports #564 is retiring). Three exact modes:
+  `trace` = `3+3σ+8σ·cosθ` (uses the SAME `rational.cos_series_truncate` the
+  trigonometry/asymptotic_calculus catalogs validate — those catalogs are the
+  target test), `sqnorm` = `Σ(num/den)²` (sign-free), `component` = the i-th of
+  the 14 rationals. New public callable ⟹ rosetta `bignum_reference` (exact
+  oracle tier, outside the debt ceilings) + `__all__`; takes a structured `One`
+  (no MCP coercer) so it is tool-schema-coverage-EXEMPT (like `the_one`),
+  bindable for TOML classes by dotted path. describe tools.total stays 287,
+  classes stays 2; CEIL_NUMPY_CARRIER stays 52. ABI 3; no C change. New
+  `test_to_scalar_rc76.py` (15 tests).
 - **rc75 (done, v0.7.5rc75) — the numpy-Rosetta-peer DISSOLUTION: delete
   `qm.hurwitz.hurwitz_matrix`; declare the Hurwitz operator as a `[class]` over
   the EXACT `the_one`; FIRST carrier-ceiling decrement CEIL_NUMPY_CARRIER
