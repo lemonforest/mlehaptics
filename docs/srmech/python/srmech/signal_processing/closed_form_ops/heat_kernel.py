@@ -3,7 +3,7 @@
 Identity per the implementation plan §1: heat kernel denoising IS a Class L
 (graph-Laplacian eigendecomposition) ∘ ``g(lambda) = exp(-t*lambda)``
 elementwise transcendental on the eigenvalue spectrum. The denoised signal
-is ``V @ diag(exp(-t*lambda)) @ V^H @ signal``.
+is ``V·diag(exp(-t*lambda))·V^H·signal``.
 
 This composes directly with ``srmech.amsc.laplacian.hermitian_eigendecompose``
 which already provides the Class L primitive.

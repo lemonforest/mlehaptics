@@ -434,7 +434,7 @@ def _enumerate_profiles() -> Dict[str, _EnumeratedDescriptor]:
         entry_points = entry_points[:MAX_ENUMERATED_PROFILES]
 
     for ep in entry_points:
-        source_hint = f"entry-point[{ep.name!r}] @ {ep.value!r}"
+        source_hint = f"entry-point[{ep.name!r}] at {ep.value!r}"
         try:
             toml_path = _resolve_entry_point_toml(ep)
             raw = _read_descriptor(toml_path, source_hint)

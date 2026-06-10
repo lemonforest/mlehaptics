@@ -43,7 +43,7 @@ def op(signal, template, *, mode: str = "full", D: int = 8192):
     template:
         1-D real or complex template (the matched filter impulse).
     mode:
-        Correlation mode passed to ``numpy.correlate``: ``"full"`` (default;
+        Correlation mode passed to NumPy correlation: ``"full"`` (default;
         length = ``n + m - 1``), ``"same"``, or ``"valid"``.
     D:
         Path B dimensionality (Path A unused).
@@ -60,6 +60,6 @@ def op(signal, template, *, mode: str = "full", D: int = 8192):
         raise ValueError(
             f"matched_filter expects 1-D inputs; got {sig.shape} and {tmpl.shape}"
         )
-    # numpy.correlate(a, v) computes sum_n a[n+k] * conj(v[n]) — exactly
+    # NumPy correlation of (a, v) computes sum_n a[n+k] * conj(v[n]) — exactly
     # the matched-filter output. Mode controls boundary handling.
     return np.correlate(sig, tmpl, mode=mode)

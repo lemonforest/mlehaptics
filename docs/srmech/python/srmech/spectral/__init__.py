@@ -14,7 +14,7 @@ per ``[[feedback_no_privileged_primitive_classes]]``:
 - :func:`delta` — Class M (HDC bind / XOR self-inverse) per Spike #114
   Option B (direct bind on already-encoded coefficient bytes; 1.22× faster
   than wrapper variant).
-- :func:`recompose` — Class L (inverse eigendecomposition via V @ coeffs)
+- :func:`recompose` — Class L (inverse eigendecomposition via V·coeffs)
   ∘ Class M (handle integrity check).
 - :func:`similarity` — Class M (HDC similarity = 1 − 2·hamming(a,b)/D in
   [−1, 1]).
@@ -106,7 +106,7 @@ class SpectralHandle:
         encoder identity + any hyperparameters). Eigenbasis cache key.
     coefficients_bytes:
         Per-state encoded coefficients. For numeric substrates: typically
-        ``V.T @ state`` projected onto eigenbasis, packed to bytes. For
+        ``V.T·state`` projected onto eigenbasis, packed to bytes. For
         binary HDC substrates: BSC vector bytes directly.
     content_sha:
         SHA-256 hex of ``coefficients_bytes``; integrity check on
@@ -201,7 +201,7 @@ def decompose(
     Returns
     -------
     SpectralHandle
-        With ``coefficients_bytes = (V.conj().T @ state).tobytes()``.
+        With ``coefficients_bytes = (V.conj().T·state).tobytes()``.
 
     Raises
     ------
@@ -286,7 +286,7 @@ def recompose(
 ) -> np.ndarray:
     """Reconstruct node-domain state from ``handle`` via inverse projection.
 
-    Class chain: Class L (inverse eigendecomposition ``state = V @ coeffs``)
+    Class chain: Class L (inverse eigendecomposition ``state = V·coeffs``)
     ∘ Class M (SHA-256 content integrity check on handle).
 
     Parameters

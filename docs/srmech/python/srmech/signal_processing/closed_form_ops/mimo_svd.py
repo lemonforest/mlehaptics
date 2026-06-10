@@ -44,7 +44,7 @@ def op(channel_matrix, *, D: int = 8192) -> Tuple[np.ndarray, np.ndarray, np.nda
     Returns
     -------
     tuple
-        ``(U, S, Vh)`` such that ``H = U @ diag(S) @ Vh``.
+        ``(U, S, Vh)`` such that ``H = U·diag(S)·Vh``.
         ``U`` is unitary ``(n_rx, n_rx)``, ``S`` is real non-negative
         ``(min(n_rx, n_tx),)``, ``Vh`` is unitary ``(n_tx, n_tx)``.
     """
