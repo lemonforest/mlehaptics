@@ -1058,6 +1058,33 @@ def hermitian_eigendecompose(
     return eigvals, V
 
 
+def _canonicalize_eigenvector_signs(V):
+    """Pin each real eigenvector column's sign (Class K) deterministically.
+
+    An eigenvector is defined only up to a ``±`` sign (a ``Z₂`` gauge for a
+    real-symmetric problem); LAPACK and the native Jacobi peer pick it
+    arbitrarily — a *hidden, non-settable* convention. This flips each column so
+    its largest-magnitude entry is positive: a deterministic, **settable**
+    convention (the endianness precedent), reconstruction-invariant. The flip IS
+    the Class-K sign boundary; the magnitude pivot is selected via ``col²`` so
+    there is **no** ``abs()`` and **no** float square root. NumPy is a carrier
+    only (``argmax`` + slice + negate) — no ``linalg``/``fft``/matmul/ufunc/
+    float-power. (Within a degenerate eigenspace the larger ``U(k)`` basis
+    freedom is solver-chosen and reconstruction-invariant; this pins only the
+    per-column ``Z₂``.)
+    """
+    arr = np.asarray(V)
+    if arr.ndim != 2 or arr.shape[1] == 0:
+        return arr
+    out = arr.copy()
+    for j in range(arr.shape[1]):
+        col = arr[:, j]
+        k = int(np.argmax(col * col))     # largest-|·| entry via col² (no abs/sqrt)
+        if col[k] < 0.0:                  # Class-K sign pin: pivot → positive
+            out[:, j] = -col
+    return out
+
+
 def symmetric_eigendecompose(
     L: np.ndarray,
 ) -> Tuple[np.ndarray, np.ndarray]:
@@ -1073,8 +1100,7 @@ def symmetric_eigendecompose(
     ----------
     L
         ``(n, n)`` real symmetric matrix (dtype castable to float64).
-        Symmetry is not enforced (caller's responsibility); only the
-        lower triangle is referenced by ``numpy.linalg.eigh``.
+        Symmetry is not enforced (caller's responsibility).
 
     Returns
     -------
@@ -1086,10 +1112,16 @@ def symmetric_eigendecompose(
     Class L. Canonical SSoT: Golub & Van Loan, *Matrix Computations*
     (4th ed., Johns Hopkins, 2013) §8.3 (symmetric eigenproblem).
 
-    Computed via ``numpy.linalg.eigh``; no native C dispatch (eigvector
-    sign / degenerate-subspace rotation is non-unique, so C/Python
-    element-wise parity is not meaningful — correctness is pinned by
-    eigenvalues + reconstruction + orthonormality instead).
+    Computed by delegating to the **C-backed** :func:`hermitian_
+    eigendecompose` (real-symmetric IS complex-Hermitian — native Jacobi
+    peer when available; NumPy ``eigh`` only as that op's OWN shared
+    fallback). The eigenvectors of a real-symmetric matrix are real (the
+    Hermitian path returns them with imaginary part ~0), so we take
+    ``.real`` and sign-canonicalise each column (Class-K,
+    :func:`_canonicalize_eigenvector_signs`). Eigenvalues come out
+    ascending. Correctness is pinned by eigenvalues + reconstruction +
+    orthonormality (the eigenvector sign / degenerate-subspace basis is
+    non-unique), not element-wise C/Python parity.
     """
     L_arr = np.ascontiguousarray(np.real(np.asarray(L)), dtype=np.float64)
     if L_arr.ndim != 2 or L_arr.shape[0] != L_arr.shape[1]:
@@ -1098,7 +1130,8 @@ def symmetric_eigendecompose(
     if n == 0:
         return (np.zeros(0, dtype=np.float64),
                 np.zeros((0, 0), dtype=np.float64))
-    eigvals, V = np.linalg.eigh(L_arr)
+    eigvals, V_complex = hermitian_eigendecompose(L_arr.astype(np.complex128))
+    V = _canonicalize_eigenvector_signs(np.real(V_complex))
     return (np.ascontiguousarray(eigvals, dtype=np.float64),
             np.ascontiguousarray(V, dtype=np.float64))
 

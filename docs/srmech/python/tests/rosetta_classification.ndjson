@@ -285,7 +285,7 @@
 {"exposed_as": "srmech.amsc.hdc.polar_random", "defined_at": "srmech.amsc.hdc.polar_random", "bucket": "python_only_irreducible"}
 {"exposed_as": "srmech.amsc.hdc.polar_similarity", "defined_at": "srmech.amsc.hdc.polar_similarity", "bucket": "python_only_irreducible"}
 {"exposed_as": "srmech.amsc.hdc.polar_unbind", "defined_at": "srmech.amsc.hdc.polar_unbind", "bucket": "python_only_irreducible"}
-{"exposed_as": "srmech.amsc.laplacian.symmetric_eigendecompose", "defined_at": "srmech.amsc.laplacian.symmetric_eigendecompose", "bucket": "python_only_irreducible"}
+{"exposed_as": "srmech.amsc.laplacian.symmetric_eigendecompose", "defined_at": "srmech.amsc.laplacian.symmetric_eigendecompose", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.three_fold_eigvec_groups", "defined_at": "srmech.amsc.laplacian.three_fold_eigvec_groups", "bucket": "python_only_irreducible"}
 {"exposed_as": "srmech.qm.bell.chsh_operator", "defined_at": "srmech.qm.bell.chsh_operator", "bucket": "python_only_irreducible"}
 {"exposed_as": "srmech.qm.bell.chsh_operator_norm", "defined_at": "srmech.qm.bell.chsh_operator_norm", "bucket": "python_only_irreducible"}

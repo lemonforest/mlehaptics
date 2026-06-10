@@ -740,6 +740,26 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc67 (done, v0.7.5rc67) — real-symmetric eigh → C-backed hermitian +
+  eigenvector sign-canon (linalg_fft decrement; lane 1 past the floor).**
+  `laplacian.symmetric_eigendecompose`'s `np.linalg.eigh` routes onto the
+  already-shipped, C-backed `hermitian_eigendecompose` (real-symmetric IS
+  complex-Hermitian — native Jacobi peer when present; numpy eigh only as THAT
+  op's own shared fallback). Real-symmetric eigenvectors come back real
+  (imag ~0), so we take `.real` and a new PRIVATE
+  `_canonicalize_eigenvector_signs` pins each column's ±1 sign (Class-K: flip
+  so the largest-|·| entry is positive, magnitude via `col²` — no `abs()`, no
+  float sqrt; the `re²+im²`+√ draft tripped the A-N `float_pow` ratchet).
+  LAPACK's arbitrary eigenvector sign was a HIDDEN non-settable convention;
+  this makes it a deterministic SETTABLE one (endianness precedent).
+  Degenerate-subspace U(k) basis stays solver-chosen + reconstruction-invariant;
+  sign-canon pins the per-column Z₂. Correctness via basis-INVARIANT props (ascending eigvals == eigvalsh,
+  reconstruction, orthonormality) on degenerate cases (4-cycle / identity /
+  block-degen), real V on both native + numpy-fallback paths. **numpy-math
+  ratchet linalg_fft 28 → 25** (1 genuine call + 2 textual docstring mentions).
+  Rosetta: symmetric_eigendecompose python_only_irreducible → composition_of_c
+  (now composes c_dispatched hermitian), CEIL_PYTHON_ONLY_IRREDUCIBLE 108 → 107
+  (debt closed). Private helper ⟹ no ToolEntry gate (describe stays 285). ABI 3.
 - **rc66 (done, v0.7.5rc66) — complex inv → real 2n×2n block embedding of the
   native dense_solve (linalg_fft decrement; FIRST new-capability step past the
   carrier-swap floor).** The lone complex `np.linalg.inv` — pseudo_hermitian's
