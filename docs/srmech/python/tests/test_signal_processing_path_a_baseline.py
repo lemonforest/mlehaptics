@@ -279,7 +279,8 @@ def test_allpass_smoke():
 
     x = np.random.RandomState(0).randn(16)
     y = m.op(x, 0.5, order=1)
-    assert y.shape == (16,)
+    # rc77 carrier-flip: numpy-free list carrier (was np.ndarray).
+    assert len(y) == 16
 
 
 def test_sign_quantise_smoke():
@@ -287,7 +288,10 @@ def test_sign_quantise_smoke():
 
     x = np.array([-1.0, 0.0, 1.0, 0.1, -0.1])
     y = m.op(x, threshold=0.0, dead_band=0.05)
-    assert y.shape == (5,)
+    # rc77 carrier-flip: numpy-free list carrier (was np.ndarray).
+    assert len(y) == 5
+    # exact Class-K threshold values: 0.0 lands in the dead-band [-0.05, 0.05].
+    assert list(y) == [-1, 0, 1, 1, -1]
 
 
 def test_heat_kernel_smoke():

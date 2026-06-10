@@ -32,7 +32,12 @@ import srmech
 # lazy n-D fallback). 8 modules drop their top-level `import numpy`:
 # _fft_carrier + closed_form_ops.{fft,ifft,rfft,spectrogram} +
 # path_b_ops.{fft,ifft,rfft}. 61 -> 53.
-CEIL_NUMPY_CARRIER = 52
+# rc75: qm/hurwitz.py flips numpy-free (hurwitz_matrix dissolved into the Hurwitz
+# [class] over the exact the_one). 53 -> 52.
+# rc77: signal_processing carrier-flip batch #1 — allpass + sign_quantise drop
+# their top-level `import numpy` (pure-Python list carriers; the math is the
+# existing Class-K sign-branch / Class-N direct-form-I reference). 52 -> 50.
+CEIL_NUMPY_CARRIER = 50
 
 
 def _srmech_root() -> pathlib.Path:

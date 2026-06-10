@@ -202,6 +202,13 @@ def _assert_d1_equivalent(a: Any, b: Any, op_name: str) -> None:
     algebra-content is bit-exact (numpy arrays equal up to floating-
     point round-off; bytes / scalar outputs literally equal).
     """
+    # rc77 carrier-flip: a numpy-free op may return a plain list carrier
+    # (e.g. sign_quantise / allpass). Coerce list carriers to arrays here so the
+    # D1 comparison stays shape/dtype-aware (the values are identical).
+    if isinstance(a, list):
+        a = np.asarray(a)
+    if isinstance(b, list):
+        b = np.asarray(b)
     if isinstance(a, np.ndarray) and isinstance(b, np.ndarray):
         assert a.shape == b.shape, (
             f"{op_name}: Path A shape {a.shape} != Path B shape {b.shape}"
@@ -359,8 +366,10 @@ def test_spike_174_sign_quantise_sha256_ber_preservation():
     noise = 0.1 * rng.standard_normal(N)
     noisy = clean + noise
     for path in (PATH_A, PATH_B):
-        quantised = dispatch("sign_quantise", noisy, path=path)
-        q_sha = hashlib.sha256(quantised.astype(np.int8).tobytes()).hexdigest()
+        # rc77 carrier-flip: Path A sign_quantise returns a numpy-free list
+        # carrier; coerce at the test boundary (values are the same {-1,0,+1}).
+        quantised = np.asarray(dispatch("sign_quantise", noisy, path=path), dtype=np.int8)
+        q_sha = hashlib.sha256(quantised.tobytes()).hexdigest()
         ber = float(np.sum(quantised != clean.astype(np.int8))) / N
         assert ber == 0.0, (
             f"Spike #174 BER preservation failure (path={path}): "

@@ -19,8 +19,6 @@ BER preservation result.
 
 from __future__ import annotations
 
-import numpy as np
-
 OPERATION_NAME = "sign_quantise"
 CLASS_COMPOSITION = ("K",)
 PERFORMANCE_HINT = "single-token-fast"
@@ -49,17 +47,26 @@ def op(signal, *, threshold: float = 0.0, dead_band: float = 0.0, D: int = 8192)
 
     Returns
     -------
-    numpy.ndarray
-        Integer-valued ``{-1, 0, +1}`` array with the same shape as input.
+    list[int]
+        Integer-valued ``{-1, 0, +1}`` list, one entry per input sample
+        (the framework-native numpy-free carrier; #564 carrier-flip).
     """
-    arr = np.asarray(signal, dtype=np.float64)
-    out = np.zeros_like(arr, dtype=np.int8)
+    # Carrier: a plain Python list of floats (numpy-free; iterating an
+    # ndarray input yields scalars, so an array_like still works).
+    arr = [float(x) for x in signal]
+    out = []
     if dead_band <= 0.0:
-        out[:] = np.where(arr >= threshold, 1, -1)
+        # Class K pin-slot: the threshold IS the sign boundary (no abs()).
+        for x in arr:
+            out.append(1 if x >= threshold else -1)
     else:
-        out[:] = np.where(
-            arr > threshold + dead_band,
-            1,
-            np.where(arr < threshold - dead_band, -1, 0),
-        )
+        hi = threshold + dead_band
+        lo = threshold - dead_band
+        for x in arr:
+            if x > hi:
+                out.append(1)
+            elif x < lo:
+                out.append(-1)
+            else:
+                out.append(0)          # the dead-band (acceptance) zone
     return out
