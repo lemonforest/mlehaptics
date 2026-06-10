@@ -740,6 +740,25 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc72 (done, v0.7.5rc72) — the Mat↔native-dense-kernel bridge: numpy-FREE
+  2-D matmul (`mat_matmul`; CEIL_NUMPY_CARRIER stays 53; new capability, not a
+  flip).** Carrier-removal foundation #2. rc69 built the numpy-free 2-D `Mat`
+  carrier (flat array('d'), row-major, interleaved-(re,im) = C99 double
+  _Complex); this rc adds `laplacian.mat_matmul(a: Mat, b: Mat) -> Mat`, the
+  numpy-free `@` the 2-D qm.* matmul callsites flip onto. Because Mat.buffer IS
+  already the exact layout `srmech_dense_matmul_complex` reads, a complex operand
+  feeds the kernel ZERO-COPY via `(c_double*2n).from_buffer(mat.buffer)` (C side
+  const); a real operand is interleaved (re,0) once; output is a fresh array('d')
+  → Mat. Follows the rc#563 numpy-free ctypes-marshalling precedent
+  (`_jacobi_eigvals_native_listmarshal`) — HAS_NATIVE True with numpy absent.
+  Unconditionally numpy-free: no-native / dim>256 falls back to a pure-Python
+  triple loop (cascade, never numpy @). SUBPROCESS-proven (numpy blocked at
+  sys.meta_path): computes on native + forced-fallback + real paths numpy-free;
+  native complex kernel BIT-EXACT vs numpy (max-err 0.0). New public callable ⟹
+  ToolEntry + rosetta `c_dispatched` + __all__/LAPLACIAN_OPS; describe tools.total
+  285 → 286. Maths ratchets at floor; ABI 3. New `test_mat_matmul_bridge_rc72.py`
+  (9 tests). rc73+ flips the qm.* matmul callsites onto it (lowering the carrier
+  ceiling); `mat_solve` / `mat_hermitian_eigendecompose` are the follow-on rcs.
 - **rc71 (done, v0.7.5rc71) — lazy op-registration: `signal_processing` is
   IMPORT-reachable numpy-FREE (CEIL_NUMPY_CARRIER stays 53; reachability, not a
   flip).** rc70 made the FFT family's MATH numpy-free, but a fresh

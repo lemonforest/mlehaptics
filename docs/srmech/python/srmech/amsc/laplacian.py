@@ -89,6 +89,7 @@ use-cases typically stay well under the ``n ≤ 256`` bound.
 from __future__ import annotations
 
 import ctypes
+from array import array  # §564: numpy-free 2-D Mat carrier buffer (interleaved-complex)
 from fractions import Fraction  # §26: exact-rational interior solve (Class-N), no float
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -129,6 +130,7 @@ __all__ = [
     "symmetric_eigendecompose",
     "dense_matvec_complex",
     "dense_matmul_complex",
+    "mat_matmul",
     "dense_dot_complex",
     "dense_matmul_real",
     "dense_matvec_real",
@@ -1245,6 +1247,116 @@ def dense_matmul_complex(A: np.ndarray, B: np.ndarray) -> np.ndarray:
     return out
 
 
+# =====================================================================
+# §564 — the Mat↔native-dense-kernel bridge (carrier-removal foundation #2)
+# =====================================================================
+#
+# The numpy-using dense_* kernels above marshal via numpy (`_complex_to_
+# interleaved` = np.view) — they need numpy on the input/marshal path even on
+# the native dispatch. The Mat carrier (rc69; flat array('d'), row-major,
+# interleaved-(re,im) for complex = C99 double _Complex) IS already the exact
+# layout the C symbols read, so it feeds them with ZERO numpy. mat_matmul is
+# foundation #2 of the carrier-removal arc (#564): the numpy-free 2-D `@` the
+# qm.* matmul callsites flip onto. mat_solve / mat_hermitian_eigendecompose are
+# the follow-on rcs (each its own numpy-free fallback).
+
+
+def _mat_to_interleaved_cbuf(m: "Mat", n_elems: int):
+    """A ``(c_double * 2*n_elems)`` ctypes buffer of ``m``'s elements as
+    interleaved ``(re, im)`` doubles — numpy-free.
+
+    When ``m`` is complex its ``array('d')`` buffer IS already the interleaved
+    ``(re, im)`` layout, so this is a **zero-copy** ``from_buffer`` view (the C
+    kernel reads it ``const``). When ``m`` is real the buffer is one double per
+    element, so a fresh interleaved buffer is filled ``(re, 0.0)`` once."""
+    buf = m.buffer  # array('d')
+    if m.is_complex:
+        return (ctypes.c_double * (2 * n_elems)).from_buffer(buf)  # zero-copy
+    cbuf = (ctypes.c_double * (2 * n_elems))()
+    for idx in range(n_elems):
+        cbuf[2 * idx] = buf[idx]  # imag slot stays 0.0
+    return cbuf
+
+
+def _mat_from_interleaved_cbuf(cbuf, n_rows: int, n_cols: int, *, want_complex: bool):
+    """Wrap an interleaved ``(re, im)`` ctypes buffer back into a ``Mat``
+    (numpy-free). ``want_complex`` keeps the interleaved layout; otherwise the
+    real parts (every even slot) form a real ``Mat``."""
+    from .mat import Mat  # numpy-free carrier; local import keeps load-order clean
+    if want_complex:
+        return Mat(array("d", cbuf), n_rows, n_cols, is_complex=True)
+    n = n_rows * n_cols
+    return Mat(array("d", (cbuf[2 * i] for i in range(n))), n_rows, n_cols)
+
+
+def mat_matmul(a: "Mat", b: "Mat") -> "Mat":
+    """Numpy-free dense matrix multiply ``A·B`` over the
+    :class:`~srmech.amsc.mat.Mat` carrier — the 2-D ``@`` replacement for the
+    numpy-CARRIER removal arc (#564, foundation #2).
+
+    ``A`` ``(m, k)`` · ``B`` ``(k, n)`` → ``Mat`` ``(m, n)``. The ``Mat`` buffer
+    is already flat row-major interleaved-complex (= C99 ``double _Complex``), so
+    the native ``srmech_dense_matmul_complex`` reads/writes it with **NO numpy**:
+    a complex operand feeds the kernel **zero-copy** (``from_buffer``), a real
+    operand is interleaved ``(re, 0)`` once, and the output is a fresh
+    ``array('d')`` wrapped back into a ``Mat`` (complex iff either input is). With
+    no native lib — or any dim > ``MAX_NATIVE_NODES`` (256) — the fallback is a
+    pure-Python triple loop over the ``Mat`` (a cascade, **never** numpy ``@``),
+    so the op is unconditionally numpy-free.
+
+    rc69 built ``Mat``; rc71 made signal_processing import-reachable numpy-free;
+    this is the bridge the 2-D ``qm.*`` matmul callsites flip onto (rc73+) to
+    compute numpy-free on the native path.
+
+    Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
+    Hopkins, 2013) §1.1 (textbook matrix multiplication).
+    """
+    from .mat import Mat
+    assert isinstance(a, Mat) and isinstance(b, Mat), (
+        "mat_matmul operands must be Mat (the numpy-free 2-D carrier)"
+    )
+    m, k = a.n_rows, a.n_cols
+    k2, n = b.n_rows, b.n_cols
+    if k2 != k:
+        raise ValueError(f"mat_matmul: A {a.shape} incompatible with B {b.shape}")
+    is_complex = a.is_complex or b.is_complex
+    # Native zero-copy path (each dim ≤ 256, nonzero): Mat buffer → C kernel → Mat.
+    if (m and k and n
+            and _native.HAS_NATIVE
+            and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_dense_matmul_complex")
+            and m <= MAX_NATIVE_NODES
+            and k <= MAX_NATIVE_NODES
+            and n <= MAX_NATIVE_NODES):
+        a_il = _mat_to_interleaved_cbuf(a, m * k)
+        b_il = _mat_to_interleaved_cbuf(b, k * n)
+        out_il = (ctypes.c_double * (2 * m * n))()
+        rc = _native.LIB.srmech_dense_matmul_complex(
+            ctypes.c_uint32(m), ctypes.c_uint32(k), ctypes.c_uint32(n),
+            a_il, b_il, out_il,
+        )
+        if rc == _native.SRMECH_OK:
+            return _mat_from_interleaved_cbuf(out_il, m, n, want_complex=is_complex)
+    # numpy-free pure-Python fallback (triple loop; never numpy @).
+    out = array("d")
+    if is_complex:
+        for i in range(m):
+            for j in range(n):
+                s = 0j
+                for t in range(k):
+                    s += complex(a[i, t]) * complex(b[t, j])
+                out.append(s.real)
+                out.append(s.imag)
+    else:
+        for i in range(m):
+            for j in range(n):
+                s = 0.0
+                for t in range(k):
+                    s += float(a[i, t]) * float(b[t, j])
+                out.append(s)
+    return Mat(out, m, n, is_complex=is_complex)
+
+
 def dense_dot_complex(a: np.ndarray, b: np.ndarray) -> complex:
     """Dense complex bilinear inner product ``a · b = Σ aᵢ bᵢ``.
 
@@ -2021,6 +2133,7 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "symmetric_eigendecompose",
     "dense_matvec_complex",
     "dense_matmul_complex",
+    "mat_matmul",
     "dense_dot_complex",
     "dense_matmul_real",
     "dense_matvec_real",

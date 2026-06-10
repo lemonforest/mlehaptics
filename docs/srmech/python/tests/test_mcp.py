@@ -1675,6 +1675,9 @@ def _synth_value_for_type(type_string: str) -> Any:
         # any shape complaint is a tolerated DOMAIN error).
         "np.ndarray": mat2,
         "Optional[np.ndarray]": mat2,
+        # v0.7.5rc72 Mat carrier (mat_matmul): a 2x2 list-of-rows -> real Mat;
+        # square so mat_matmul(a, b) returns cleanly.
+        "Mat": mat2,
         # container element-recursions (minimal valid shapes).
         "Sequence[bytes]": [b64, b64],
         "list[bytes]": [b64, b64],   # v0.7.0rc10: format.sha256_batch `datas`

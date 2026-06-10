@@ -1024,6 +1024,18 @@ def _register_primitive_class_tools() -> None:
             returns=R("np.ndarray", "m × n complex128"),
         ),
         ToolEntry(
+            name="srmech.amsc.laplacian.mat_matmul",
+            owner="srmech", category="laplacian",
+            summary="Numpy-FREE dense matrix multiply A times B over the Mat "
+                    "carrier (carrier-removal #564): Mat.buffer feeds the native "
+                    "srmech_dense_matmul_complex zero-copy (real interleaved "
+                    "once), pure-Python triple-loop fallback with no native lib. "
+                    "Golub & Van Loan §1.1.",
+            parameters=(P("a", "Mat", True, "m × k (real or complex) Mat"),
+                        P("b", "Mat", True, "k × n (real or complex) Mat")),
+            returns=R("Mat", "m × n Mat (complex iff either input is)"),
+        ),
+        ToolEntry(
             name="srmech.amsc.laplacian.dense_dot_complex",
             owner="srmech", category="laplacian",
             summary="Dense complex bilinear inner product sum a_i b_i (the "
