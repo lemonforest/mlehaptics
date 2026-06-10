@@ -11,6 +11,7 @@
 {"exposed_as": "srmech.amsc.cascade.left_mult_matrix", "defined_at": "srmech.amsc.cascade.cayley_dickson.left_mult_matrix", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.amsc.cascade.sedenion_zero_divisor_witness", "defined_at": "srmech.amsc.cascade.cayley_dickson.sedenion_zero_divisor_witness", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.amsc.cascade.the_one", "defined_at": "srmech.amsc.cascade.one.the_one", "bucket": "bignum_reference"}
+{"exposed_as": "srmech.amsc.cascade.to_scalar", "defined_at": "srmech.amsc.cascade.one.to_scalar", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.amsc.rational.atan_series_truncate", "defined_at": "srmech.amsc.rational.atan_series_truncate", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.amsc.rational.cos_series_truncate", "defined_at": "srmech.amsc.rational.cos_series_truncate", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.amsc.rational.exp_series_truncate", "defined_at": "srmech.amsc.rational.exp_series_truncate", "bucket": "bignum_reference"}

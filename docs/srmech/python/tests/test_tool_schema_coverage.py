@@ -150,6 +150,14 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # like the hypercomplex_dft / parallel re-exports above.
     "srmech.amsc.cascade.one.the_one",
     "srmech.amsc.cascade.one.s_generator",
+    # cascade.one.to_scalar (v0.7.5rc76, #564) — the matrix/vector→scalar export
+    # of the exact One: takes a structured ``One`` object (no MCP coercer for a
+    # One param, so it cannot cross the JSON-RPC boundary) → NOT an MCP tool,
+    # exempt on the callable/structured-arg rationale (like greedy_bipartite_
+    # alignment above). It is a public, tested ``bignum_reference``-tier exact-
+    # rational projection, reachable via Python AND dotted-path TOML-class
+    # binding (op = "srmech.amsc.cascade.to_scalar"), not via the MCP tool list.
+    "srmech.amsc.cascade.one.to_scalar",
     # cascade.cayley_dickson.* — the open-exterior boundary-demonstrator
     # (v0.7.3rc1 / #915 / MFO §VII.6.23). The discoverable surface is registered
     # under STABLE flat names ``srmech.amsc.cascade.{cd_mult,cd_conjugate,
