@@ -8,6 +8,14 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc55] - 2026-06-10
+
+**The `np.log` + `np.sign` external residue → cascade (numpy-removal ufunc decrement).** Clears the last genuinely-external ufunc-math callsites (rc52 hypot → rc53 exp → rc54 sqrt → rc55 log/sign). Pure routing — no new public op.
+
+- **Scalar `np.log` → `rational.log`** (2): `mlse`'s uniform-prior `A_log` and `pi_log` (`−log(A)` / `−log(n_states)`) now run the Class-N log cascade (no libm).
+- **Array `np.sign` → Class-K comparison sign** (1): `hdc.polar_bundle`'s Pyodide / no-native fallback (the C peer `srmech_polar_bundle` handles the native path) computes the per-position sticky-majority sign via `(total > 0) − (total < 0)` — carrier comparisons (the Class-K pin-slot at zero: + sector / 0 boundary / − sector), **no `np.sign` ufunc, no `abs()`, bit-identical** to `np.sign` for the real int sum.
+- The numpy-math ratchet's `ufunc` ceiling drops **15 → 10**, plus 2 ratchet-visible comment mentions de-parened. The **remaining 10** are ALL `elementwise_transcendental`'s OWN internal numpy fallback (2 exp + 3 sin + 3 cos + 2 log — its complex-input path + its no-native real path); driving those to zero is the deferred cascade-kernel work (needs complex-input trig/exp/log cascades), tracked separately. Pure routing — `tools.total` stays **284**; no rosetta/ToolEntry change. ABI 3; numpy carriers-only.
+
 ## [0.7.5rc54] - 2026-06-09
 
 **`laplacian.elementwise_sqrt` — the `np.sqrt` batch (numpy-removal ufunc decrement).** Continues the ufunc sweep (rc52 hypot → rc53 exp). The new **`elementwise_sqrt(arr)`** computes `√arrᵢ` per element via the Class-N `rational.sqrt` cascade (isqrt-based, native `srmech_rational_sqrt`-dispatched, no libm) — the companion to `elementwise_hypot`, so numpy carries the array only.

@@ -417,7 +417,7 @@ def polar_bundle(*vectors):
                 f"hdc.polar_bundle: vector {i} has length {arr.size}, expected {n}"
             )
     # rc12: dispatch the per-position sticky-majority (sign-of-sum, tie -> 0) to
-    # the C peer when present (bit-identical to the ``np.sign(sum)`` below, which
+    # the C peer when present (bit-identical to the ``np.sign`` of the sum below, which
     # stays the Pyodide / no-native fallback). #928 cheap-win #5.
     if (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_polar_bundle")):
@@ -433,7 +433,10 @@ def polar_bundle(*vectors):
         if rc == _native.SRMECH_OK:
             return out
     total = np.sum(np.stack(arrs).astype(np.int32), axis=0)
-    return np.sign(total).astype(np.int8)
+    # Class-K sign (pin-slot at zero): + sector / 0 boundary / - sector,
+    # via comparisons (carrier ops, no np.sign ufunc) — bit-identical to
+    # np.sign for the real int sum. No abs().
+    return ((total > 0).astype(np.int8) - (total < 0).astype(np.int8))
 
 
 def polar_similarity(a, b, skip_zero: bool = True) -> float:
