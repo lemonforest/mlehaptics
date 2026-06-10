@@ -39,6 +39,7 @@ from typing import Tuple
 
 from srmech.amsc.laplacian import (
     dense_matmul_complex,
+    dense_norm,
     elementwise_transcendental,
     hermitian_eigendecompose,
 )
@@ -208,7 +209,7 @@ def lie_algebra_residual(
             rhs = 1j * sum(
                 structure_constants[a, b, c] * generators[c] for c in range(n_gen)
             )
-            max_residual = max(max_residual, float(np.linalg.norm(comm - rhs)))
+            max_residual = max(max_residual, float(dense_norm(comm - rhs)))
     return max_residual
 
 

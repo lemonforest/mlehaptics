@@ -280,7 +280,7 @@ _UFUNC = re.compile(
 # fallback (a kernel can't route onto itself). Next numpy-math front: the
 # `linalg_fft` ledger (122 — np.linalg.* / np.fft.*).
 # ---------------------------------------------------------------------------
-CEIL_LINALG_FFT = 122
+CEIL_LINALG_FFT = 102
 CEIL_MATMUL = 4
 CEIL_UFUNC = 0
 

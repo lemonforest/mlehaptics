@@ -21,7 +21,7 @@ from __future__ import annotations
 import numpy as np
 from typing import Tuple
 
-from srmech.amsc.laplacian import dense_matmul_complex
+from srmech.amsc.laplacian import dense_matmul_complex, dense_norm
 
 
 def pauli_matrices() -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -69,7 +69,7 @@ def pauli_clifford_residuals() -> Tuple[float, float]:
                 mm(sy, sz) + mm(sz, sy)]
     anti_diag = [mm(sx, sx) - I, mm(sy, sy) - I, mm(sz, sz) - I]
     max_anti = max(
-        np.linalg.norm(c) for c in (anti_off + anti_diag)
+        dense_norm(c) for c in (anti_off + anti_diag)
     )
     # Commutator residuals (cyclic).
     comm = [
@@ -77,7 +77,7 @@ def pauli_clifford_residuals() -> Tuple[float, float]:
         (mm(sy, sz) - mm(sz, sy)) - 2j * sx,
         (mm(sz, sx) - mm(sx, sz)) - 2j * sy,
     ]
-    max_comm = max(np.linalg.norm(c) for c in comm)
+    max_comm = max(dense_norm(c) for c in comm)
     return max_anti, max_comm
 
 
@@ -105,7 +105,7 @@ def pauli_spin_operator(direction: np.ndarray) -> np.ndarray:
             f"pauli_spin_operator: direction must be a 3-vector; "
             f"got shape {direction.shape}"
         )
-    norm = np.linalg.norm(direction)
+    norm = dense_norm(direction)
     if norm == 0.0:
         raise ValueError("pauli_spin_operator: direction must be non-zero")
     nhat = direction / norm

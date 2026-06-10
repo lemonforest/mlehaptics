@@ -45,6 +45,7 @@ from srmech.amsc.laplacian import (
     dense_dot_complex,
     dense_matmul_complex,
     dense_matvec_complex,
+    dense_norm,
 )
 
 
@@ -143,7 +144,7 @@ def is_pseudo_hermitian(
             f"matrices; got O={O.shape}, eta={eta.shape}"
         )
     residual = dense_matmul_complex(O.conj().T, eta) - dense_matmul_complex(eta, O)
-    return float(np.linalg.norm(residual)) < atol
+    return float(dense_norm(residual)) < atol
 
 
 def construct_eta_from_eigendecomposition(

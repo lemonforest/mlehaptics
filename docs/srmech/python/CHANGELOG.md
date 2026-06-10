@@ -8,6 +8,14 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc60] - 2026-06-10
+
+**The `dense_norm` cascade (numpy-removal — opening the `linalg_fft` ledger).** With the `matmul` ledger down to its 4 deferred callsites (rc59), the sweep turns to the `linalg_fft` ledger (122 — `np.linalg.*` / `np.fft.*`). rc60 takes its single biggest cluster: the **20 default `np.linalg.norm` callsites** (the QM self-consistency residuals + the signal-processing taper normalisations), all the Euclidean 2-norm / Frobenius norm `√(Σ|xᵢ|²)`.
+
+- **New public op `srmech.amsc.laplacian.dense_norm(x)`** — **Class N (the `rational.sqrt` root) ∘ Class M (the `dense_dot_complex` self-bind `Σ|xᵢ|²`)**: the array is flattened (a carrier reshape), the sum-of-squares rides the native elementwise-bind cascade, and the root is the libm-free Class-N sqrt. numpy is a **carrier only** (no norm engine). Value-faithful to the NumPy 2-norm / Frobenius norm (~1 ULP) across every shape and dtype — verified real + complex, 1-D + n-D.
+- **20 callsites routed** across `qm/{so8 ×7, relativistic ×3, spin ×3, triality ×3, gauge, sm, pseudo_hermitian}` + `signal_processing/closed_form_ops/multitaper`.
+- numpy-math ratchet `linalg_fft` ceiling **122 → 102**. New public op ⟹ `describe()["tools"]["total"]` **284 → 285** (`+1 ToolEntry`, `+1` rosetta `composition_of_c` line, `__all__` + `LAPLACIAN_OPS`). ABI 3. New `test_dense_norm_cascade_rc60.py`. Next `linalg_fft` batches: the `np.fft.*` family (→ the `spectral_cascades` FFT/DFT cascades) and the `np.linalg.{svd,qr,eig,solve,inv}` cluster (→ the `matrix_cascades` / `laplacian` decompositions).
+
 ## [0.7.5rc59] - 2026-06-10
 
 **The QR shape-polymorphic pass (numpy-removal matmul decrement).** rc58 dropped the matmul ledger to 12 genuine compute callsites; rc59 routes the **8 `matrix_cascades` QR-internal sites** onto the *existing* value-faithful `dense_*` kernels in `srmech.amsc.laplacian` — **no new kernel**, so the decompositions keep riding the native `srmech_dense_matmul_complex` path.

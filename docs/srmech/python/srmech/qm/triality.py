@@ -75,6 +75,7 @@ from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.amsc.cascade.matrix_cascades import einsum as _einsum
 from srmech.amsc.cascade.matrix_cascades import lstsq as _lstsq
 from srmech.amsc.laplacian import dense_matmul_real, dense_matvec_real
+from srmech.amsc.laplacian import dense_norm
 from srmech.qm.octonion import octonion_mult_table
 from srmech.qm.so8 import (
     _DIM,
@@ -479,9 +480,9 @@ def _triality_order_residuals() -> Tuple[float, float, float]:
     identity = np.eye(_DIM_SO8)
     tau2 = dense_matmul_real(tau, tau)
     tau3 = dense_matmul_real(tau2, tau)
-    residual_3 = _magnitude(float(np.linalg.norm(tau3 - identity)))
-    deviation_1 = _magnitude(float(np.linalg.norm(tau - identity)))
-    deviation_2 = _magnitude(float(np.linalg.norm(tau2 - identity)))
+    residual_3 = _magnitude(float(dense_norm(tau3 - identity)))
+    deviation_1 = _magnitude(float(dense_norm(tau - identity)))
+    deviation_2 = _magnitude(float(dense_norm(tau2 - identity)))
     return residual_3, deviation_1, deviation_2
 
 
