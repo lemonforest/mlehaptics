@@ -18,6 +18,7 @@ from typing import Optional
 import numpy as np
 
 from srmech.amsc import rational as _srn
+from srmech.signal_processing import _dsp_cascades as _dsp
 
 OPERATION_NAME = "multirate"
 CLASS_COMPOSITION = ("N", "C")
@@ -98,7 +99,7 @@ def op(
         w = 0.54 - 0.46 * _ccos(2.0 * np.pi * np.arange(N_taps) / (N_taps - 1))
         filter_taps = taps * w
         filter_taps = filter_taps / np.sum(filter_taps)
-    filtered = np.convolve(upsampled, filter_taps, mode="same")
+    filtered = _dsp.convolve(upsampled, filter_taps, mode="same")
     # Down-sample
     if down > 1:
         return filtered[::down] * up

@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from srmech.signal_processing import _dsp_cascades as _dsp
+
 OPERATION_NAME = "matched_filter"
 CLASS_COMPOSITION = ("A", "C", "M")
 PERFORMANCE_HINT = "shallow-cascade-cross-correlation"
@@ -62,4 +64,4 @@ def op(signal, template, *, mode: str = "full", D: int = 8192):
         )
     # NumPy correlation of (a, v) computes sum_n a[n+k] * conj(v[n]) — exactly
     # the matched-filter output. Mode controls boundary handling.
-    return np.correlate(sig, tmpl, mode=mode)
+    return _dsp.correlate(sig, tmpl, mode=mode)

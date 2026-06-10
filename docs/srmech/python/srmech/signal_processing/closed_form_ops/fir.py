@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from srmech.signal_processing import _dsp_cascades as _dsp
+
 OPERATION_NAME = "fir"
 CLASS_COMPOSITION = ("N", "C")
 PERFORMANCE_HINT = "small-D-one-shot"
@@ -53,4 +55,4 @@ def op(signal, coefficients, *, mode: str = "full", D: int = 8192):
         raise ValueError(
             f"fir expects 1-D inputs; got {sig.shape} and {b.shape}"
         )
-    return np.convolve(sig, b, mode=mode)
+    return _dsp.convolve(sig, b, mode=mode)

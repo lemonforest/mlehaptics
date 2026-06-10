@@ -20,6 +20,8 @@ from typing import List
 
 import numpy as np
 
+from srmech.signal_processing import _dsp_cascades as _dsp
+
 OPERATION_NAME = "polyphase"
 CLASS_COMPOSITION = ("L", "N")
 PERFORMANCE_HINT = "shallow-cascade-component-amortise"
@@ -91,14 +93,14 @@ def op(
             x_k = sig[k::L] if k < sig.shape[0] else np.array([], dtype=np.float64)
             if x_k.shape[0] == 0:
                 continue
-            filtered = np.convolve(x_k, e_k, mode="full")
+            filtered = _dsp.convolve(x_k, e_k, mode="full")
             out[: filtered.shape[0]] += filtered
         return out
     if mode == "interpolation":
         # Interpolation: filter each input through component then interleave.
         per_component = []
         for k, e_k in enumerate(components):
-            filtered = np.convolve(sig, e_k, mode="full")
+            filtered = _dsp.convolve(sig, e_k, mode="full")
             per_component.append(filtered)
         # Interleave outputs.
         max_len = max(c.shape[0] for c in per_component)
