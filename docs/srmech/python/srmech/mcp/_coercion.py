@@ -192,6 +192,27 @@ def _to_ndarray(value: Any, *, param: str = "") -> np.ndarray:
     return np.asarray(value)
 
 
+def _to_mat(value: Any, *, param: str = "") -> Any:
+    """Coerce a nested JSON list-of-rows to a real :class:`srmech.amsc.mat.Mat`
+    (the numpy-free 2-D carrier; v0.7.5rc72 ``mat_matmul`` bridge). A value
+    already a ``Mat`` passes through unchanged.
+
+    Same real-only caveat as :func:`_to_ndarray`: a nested list of plain numbers
+    builds a REAL ``Mat`` (a 2-column real matrix is shape-indistinguishable from
+    a length-2 complex vector, so the generic JSON path never guesses imaginary
+    parts); genuine-complex ``Mat`` work rides the in-process / by-reference
+    handle path, not the JSON MCP path."""
+    from srmech.amsc.mat import Mat  # numpy-free carrier; lazy to avoid a cycle
+    if isinstance(value, Mat):
+        return value
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"expected a list of rows for param {param or '<mat>'!r}; "
+            f"got {type(value).__name__}"
+        )
+    return Mat.from_rows([list(r) for r in value], is_complex=False)
+
+
 def _complex_pairs_to_ndarray(value: Any, *, param: str = "") -> np.ndarray:
     """Build a ``complex128`` array from nested ``[re, im]`` leaves — the
     inverse of the outbound complex-array serialisation (each scalar is a
@@ -430,6 +451,7 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "complex": _to_complex,
     "np.ndarray": _to_ndarray,
     "Optional[np.ndarray]": _to_ndarray,
+    "Mat": _to_mat,  # v0.7.5rc72: numpy-free 2-D carrier (mat_matmul bridge)
     # ── container element-recursion ──
     "Sequence[bytes]": _seq_bytes,
     "list[bytes]": _seq_bytes,   # v0.7.0rc10: format.sha256_batch `datas`
