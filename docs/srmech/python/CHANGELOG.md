@@ -8,6 +8,14 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc56] - 2026-06-10
+
+**`elementwise_transcendental` is numpy-free — the ufunc bucket CLOSES to zero (numpy-removal).** rc52→rc55 routed every *external* numpy-math ufunc callsite onto srmech cascades; the last 10 were `elementwise_transcendental`'s OWN internal numpy fallback (its complex-input path + its no-native real path). rc56 drives those to zero — numpy is now **purely a carrier** across the entire transcendental + magnitude surface.
+
+- **Real no-native fallback → `rational.{exp,cos,sin,log}` loop** (`_real_transcendental_loop`): the Pyodide / pure-Python path now runs the Class-N scalar cascades (bit-exact vs numpy over the tested range; the log domain guard `arr > 0` is preserved). The native path still dispatches `srmech_elementwise_transcendental` (the libm-free C cascade) — unchanged.
+- **Complex-input path → per-element Class-N complex cascades** (`_complex_transcendental_loop`): `exp(z)` = `rational.complex_exp`; `cos(z)` / `sin(z)` via `cosh`/`sinh` built from `rational.exp` (`cos(a+bi)=cos a·cosh b − i·sin a·sinh b`, etc.); `log(z)` = `rational.log(rational.hypot(a,b)) + i·rational.atan2(b,a)` (principal branch; rejects `z=0`). Previously this branch was the documented "out-of-scope-for-v1" numpy fallback.
+- The numpy-math ratchet's `ufunc` ceiling drops **10 → 0**. Across rc52–rc56 the ufunc bucket went **48 → 0**: every transcendental / magnitude / sign op in the package — `hypot`, `exp`, `sqrt`, `log`, `sin`, `cos`, `sign` — now runs a libm-free srmech cascade, with numpy only ever packing the array. Pure routing + numpy-free kernels — `tools.total` stays **284**; no new public op / rosetta / ToolEntry. ABI 3. Next numpy-math front: the `linalg_fft` ledger (122 — `np.linalg.*` / `np.fft.*`).
+
 ## [0.7.5rc55] - 2026-06-10
 
 **The `np.log` + `np.sign` external residue → cascade (numpy-removal ufunc decrement).** Clears the last genuinely-external ufunc-math callsites (rc52 hypot → rc53 exp → rc54 sqrt → rc55 log/sign). Pure routing — no new public op.

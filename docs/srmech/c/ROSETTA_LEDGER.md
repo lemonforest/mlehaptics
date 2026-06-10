@@ -668,6 +668,20 @@ decrements it).
   The external ufunc surface (hypot/exp/sqrt/log/sign) is now CLEAR — only the
   cascade's own fallback kernel + the `linalg_fft` (122) ledger remain before
   the carrier-removal North Star.
+- **rc56 (done) — `elementwise_transcendental` numpy-free: the ufunc bucket
+  CLOSES to ZERO.** The last 10 ufunc sites were `elementwise_transcendental`'s
+  OWN internal numpy fallback (complex-input path + no-native real path). rc56
+  makes both numpy-free: `_real_transcendental_loop` loops `rational.{exp,cos,
+  sin,log}` (Class-N scalar cascades, bit-exact vs numpy; log domain guard kept);
+  `_complex_transcendental_loop` runs `rational.complex_exp` (exp) / cosh-sinh-
+  from-`rational.exp` (cos/sin) / `rational.log(hypot)+i·atan2` (log) per element
+  (principal branch, rejects z=0). **numpy-math ratchet `ufunc` 10 → 0.** Across
+  rc52–rc56 the ufunc bucket went **48 → 0** — every transcendental / magnitude /
+  sign op (hypot/exp/sqrt/log/sin/cos/sign) now runs a libm-free srmech cascade,
+  numpy only ever packing the array. `tools.total` stays 284 (numpy-free kernels,
+  no new public op). ABI 3. The two remaining numpy-math ledgers are `matmul`
+  (48) and `linalg_fft` (122 — np.linalg.* / np.fft.*); after those, the carrier-
+  removal North Star (#564).
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

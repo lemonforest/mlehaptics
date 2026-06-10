@@ -226,10 +226,20 @@ _UFUNC = re.compile(
 # fallback (2 exp + 3 sin + 3 cos + 2 log — the complex-input path + the
 # no-native real path); driving those to zero is the deferred cascade-kernel
 # work (needs complex-input trig/exp/log cascades), tracked separately.
+# rc56 CLOSES the ufunc bucket to ZERO (rc52 hypot 48->43, rc53 exp ->27,
+# rc54 sqrt ->15, rc55 log/sign ->10, rc56 ->0). The last 10 were
+# `elementwise_transcendental`'s OWN internal numpy fallback (its complex-
+# input path + its no-native real path). rc56 makes both numpy-free: the
+# real fallback loops `rational.exp/cos/sin/log` (Class-N scalar cascades,
+# bit-exact vs numpy over the tested range), the complex path runs
+# `rational.complex_exp` (exp) / cosh-sinh-from-rational.exp (cos/sin) /
+# `rational.log(hypot)+i*atan2` (log) per element. numpy is now PURELY a
+# carrier across the entire transcendental + magnitude surface. Next numpy-
+# math front: the `linalg_fft` ledger (122 — np.linalg.* / np.fft.*).
 # ---------------------------------------------------------------------------
 CEIL_LINALG_FFT = 122
 CEIL_MATMUL = 48
-CEIL_UFUNC = 10
+CEIL_UFUNC = 0
 
 
 def _count_category() -> dict[str, int]:
