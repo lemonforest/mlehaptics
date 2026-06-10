@@ -20,6 +20,7 @@ from __future__ import annotations
 import numpy as np
 
 from srmech.amsc.laplacian import elementwise_hypot
+from srmech.amsc import rational as _srn
 
 from .viterbi import op as viterbi_op
 
@@ -129,7 +130,7 @@ def op(
             new_s = tuple_to_state(new_tup)
             # Uniform input prior -> log(1/A); branch metric folded into
             # emission later.
-            A_log[prev_s, new_s] = -np.log(A)
+            A_log[prev_s, new_s] = -_srn.log(float(A))  # Class-N log cascade (not libm)
 
     # Emission matrix: B_log[state, t] = -|obs[t] - expected_signal|^2,
     # where expected_signal = sum_k taps[k] * alpha[state_tup[k]]
@@ -152,7 +153,7 @@ def op(
             B_log[s, t] = -(_d.real ** 2 + _d.imag ** 2)
 
     # Initial state log-prob: uniform.
-    pi_log = np.full(n_states, -np.log(n_states), dtype=np.float64)
+    pi_log = np.full(n_states, -_srn.log(float(n_states)), dtype=np.float64)
 
     # Use viterbi with observations as time indices [0..T-1] and an
     # emission matrix indexed by [state, t]. viterbi expects

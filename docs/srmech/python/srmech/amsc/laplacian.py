@@ -1496,7 +1496,7 @@ def elementwise_transcendental(
     if op_name == "sin":
         return np.sin(real_arr).reshape(np.shape(arr))
     # log: defensive precondition check (parity with C native path).
-    # numpy 2.x changed behaviour: np.log(0) returns -inf with a
+    # numpy 2.x changed behaviour: np.log of 0 returns -inf with a
     # RuntimeWarning rather than raising. Enforce the same domain
     # contract as the C path (srmech_elementwise_transcendental
     # returns SRMECH_ERR_BAD_INPUT for non-positive inputs).

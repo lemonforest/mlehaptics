@@ -652,6 +652,22 @@ decrements it).
   symbol). Class N √ over a Class-L array surface; numpy carriers-only. ABI 3.
   Next ufunc: np.sin (3) + np.cos (3) → `elementwise_transcendental`, np.log (5),
   np.sign (2); then the 2 internal exp fallbacks (deferred cascade kernel).
+- **rc55 (done) — the `np.log` + `np.sign` external residue (ufunc decrement
+  closeout; rc52 hypot → rc53 exp → rc54 sqrt → rc55 log/sign).** Pure routing,
+  no new op. 2 scalar `np.log` (mlse uniform-prior A_log `−log(A)` / pi_log
+  `−log(n_states)`) → `rational.log` (Class-N, no libm). 1 array `np.sign`
+  (hdc.polar_bundle's Pyodide fallback — the C peer `srmech_polar_bundle` owns
+  the native path) → Class-K comparison sign `(total>0)−(total<0)` (carrier
+  comparisons, the pin-slot at zero: + / 0 / − sector; no `np.sign` ufunc, no
+  abs(), bit-identical to np.sign for the real int sum). Plus 2 comment mentions
+  de-parened. **numpy-math ratchet `ufunc` 15 → 10.** The remaining 10 are ALL
+  `elementwise_transcendental`'s OWN internal numpy fallback (2 exp + 3 sin + 3
+  cos + 2 log — the complex-input path + the no-native real path); zeroing those
+  is the deferred cascade-kernel work (complex-input trig/exp/log cascades),
+  tracked separately. `tools.total` stays 284; no rosetta/ToolEntry change. ABI 3.
+  The external ufunc surface (hypot/exp/sqrt/log/sign) is now CLEAR — only the
+  cascade's own fallback kernel + the `linalg_fft` (122) ledger remain before
+  the carrier-removal North Star.
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
   `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each

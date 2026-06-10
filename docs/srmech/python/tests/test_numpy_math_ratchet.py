@@ -216,10 +216,20 @@ _UFUNC = re.compile(
 # round-to-nearest, ≤1-ULP; bit-exact on perfect squares). Next: np.sin (3)
 # + np.cos (3) onto elementwise_transcendental, np.log (5), np.sign (2); then
 # the 2 internal exp fallbacks (the deferred cascade kernel).
+# rc55 clears the EXTERNAL ufunc residue: the 2 scalar `np.log` (mlse
+# uniform-prior A_log / pi_log) route onto `rational.log`, and the 1 array
+# `np.sign` (hdc.polar_bundle's Pyodide fallback for srmech_polar_bundle)
+# routes onto a Class-K comparison sign `(x>0)-(x<0)` (carrier comparisons,
+# no np.sign ufunc; bit-identical to np.sign for the real int sum; no abs()).
+# Plus 2 ratchet-visible comment mentions de-parened. ufunc 15 -> 10. The
+# remaining 10 are ALL `elementwise_transcendental`'s OWN internal numpy
+# fallback (2 exp + 3 sin + 3 cos + 2 log — the complex-input path + the
+# no-native real path); driving those to zero is the deferred cascade-kernel
+# work (needs complex-input trig/exp/log cascades), tracked separately.
 # ---------------------------------------------------------------------------
 CEIL_LINALG_FFT = 122
 CEIL_MATMUL = 48
-CEIL_UFUNC = 15
+CEIL_UFUNC = 10
 
 
 def _count_category() -> dict[str, int]:
