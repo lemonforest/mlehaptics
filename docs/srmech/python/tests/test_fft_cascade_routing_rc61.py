@@ -70,8 +70,8 @@ def test_wiener_op_value_faithful():
     sig = rng.standard_normal(64)
     noise_psd = np.full(64, 0.1)
     out = wiener.op(sig, noise_psd)
-    # routed op stays finite, real, and shape-preserving
-    assert out.shape == sig.shape
+    # routed op stays finite, real, and shape-preserving (rc87: numpy-free list)
+    assert len(out) == len(sig)
     assert np.all(np.isfinite(out))
     assert np.isrealobj(out) or np.allclose(out.imag, 0.0, atol=1e-9)
 

@@ -253,7 +253,7 @@ def test_wiener_smoke():
     x = np.random.RandomState(0).randn(64)
     noise_psd = np.ones(64) * 0.1
     y = m.op(x, noise_psd)
-    assert y.shape == (64,)
+    assert len(y) == 64
 
 
 def test_fir_smoke():
