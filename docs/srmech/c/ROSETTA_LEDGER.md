@@ -821,6 +821,20 @@ decrements it).
   `out.real[1]`→`out[1].real` (baseline smoke + rc33 diffuse-toward-mean). Math
   ledger UNTOUCHED. No new public op (tools.total 289); ABI 3; no C change.
   Next: lmmse/map_ml, dct/fsk, then the mat_svd foundation for mimo_svd.
+- **rc101 (done, v0.7.5rc101) — FOURTH CONSUMER flip: `lmmse` numpy-FREE
+  (`CEIL_NUMPY_CARRIER` 29 → 28).** Carrier-removal #564. A DIFFERENT sub-shape:
+  the real-valued linear MMSE estimator `x_hat = mean_x + R_xy·R_yy⁻¹·(y−mean_y)`
+  — a real dense SOLVE, not an eigendecomposition. Routes the Class-L gain solve
+  off `dense_solve` onto native `mat_solve` over a real `Mat` (`R_yyᵀ·Z=R_xyᵀ` →
+  `K=Zᵀ`), and the `K·(y−mean_y)` estimate becomes a pure-Python matvec
+  `mx[i]+Σ_j Z[j,i]·(y_j−my_j)`. Inputs coerce numpy-free via `tolist()`; dropped
+  `import numpy as np`; `op` returns `list[float]`. RIPPLE: the single
+  `x_hat.shape==(1,)` smoke → `len(x_hat)==1` (lmmse is NOT in
+  rosetta_classification.ndjson — that tracks amsc callables — and the
+  test_rosetta_completeness rc13 line is a narration comment, so no source-scan
+  breaks). Math ledger UNTOUCHED. No new public op (tools.total 289); ABI 3; no C
+  change. Next: map_ml (same real-solve family), dct/fsk, then mat_svd for
+  mimo_svd.
 - **rc95 (done, v0.7.5rc95) — Mat-return FOUNDATION: `mat_solve` handles
   COMPLEX numpy-free (unblocks the matrix-heavy DSP carrier-flips).**
   Carrier-removal #564. The matrix-heavy sigproc ops (esprit/dct/fsk/ica_jade/
