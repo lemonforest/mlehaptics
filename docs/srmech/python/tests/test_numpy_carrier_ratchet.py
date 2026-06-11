@@ -220,7 +220,15 @@ import srmech
 # A·v/σ + orthonormal null completion), inputs coerce via tolist(), op returns
 # python lists (drops `import numpy as np` + `np.linalg.svd`). The np.linalg.svd
 # removal ALSO decrements the math ratchet (linalg_fft 23 → 22). 22 -> 21.
-CEIL_NUMPY_CARRIER = 21
+# rc110: the two Path B DSP duals of already-flipped Path A ops go numpy-FREE —
+# `path_b_ops/matched_filter` (delegates to the rc79 numpy-free `_dsp.correlate`,
+# drops its `np.asarray` coerce + return-wrap) and `path_b_ops/wiener` (the rc87
+# closed-form Wiener list-comprehension form: `_sc.fft` List[complex] → per-bin
+# |X|²=real²+imag² → Class-N rational MMSE gain S/(S+N) with the builtin `max`
+# eps-floor → `_sc.ifft` → real part). Both drop `import numpy as np` and return
+# python lists (were ndarrays); the math ledger is untouched (the math was already
+# cascade-routed; only the carrier `np.asarray`/`np.maximum`/`np.real` go). 21 -> 19.
+CEIL_NUMPY_CARRIER = 19
 
 
 def _srmech_root() -> pathlib.Path:
