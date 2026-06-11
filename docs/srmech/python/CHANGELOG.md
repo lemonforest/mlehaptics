@@ -8,6 +8,17 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc94] - 2026-06-11
+
+**Carrier-flip batch #18 — `path_b_ops/sign_quantise` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 33 → 32).** Carrier-removal #564. The Path-B sign-quantise (Class K pin-slot threshold ∘ Class M dispatch tag; Spike #174 sign-quantise BER anchor) drops its top-level `import numpy`:
+
+- It was a **pure carrier** — `np.asarray`/`np.zeros_like`/`np.where` with no helper dependencies, and the `np.where` **is** the Class-K decision. The flip coerces the signal to a `list` of `float` and makes the decision an explicit per-element sign-branch (no `abs()`): `v >= threshold → +1 else -1`, with the optional dead-band as a three-level `+1`/`-1`/`0` branch.
+- `op` now returns a `list` of `int` `{-1, 0, +1}` (was an `int8` ndarray). The Spike #174 `path_b_mvp` BER test already wraps the dispatch result in `np.asarray(..., dtype=np.int8)` before `.tobytes()`/`.astype()`, so it is robust to the list return.
+
+**Differential-verified BIT-EXACT** (a pure sign decision; identical `{-1,0,+1}` to the old `np.where`). Full local suite green.
+
+`CEIL_NUMPY_CARRIER` 33 → 32 (down-only ratchet). No new public op (`describe()["tools"]["total"]` stays **287**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc93] - 2026-06-11
 
 **Carrier-flip batch #17 — `sinc_interp` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 34 → 33).** Carrier-removal #564. `closed_form_ops/sinc_interp` (Class L band-limit eigenbasis ∘ Class K pin-slot threshold; Whittaker-Shannon, Oppenheim & Schafer §4.1) drops its top-level `import numpy`:
