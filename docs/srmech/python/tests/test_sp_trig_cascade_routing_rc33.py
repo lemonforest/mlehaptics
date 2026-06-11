@@ -77,9 +77,12 @@ def test_cross_spectral_hann_window_matches_numpy(frame_size):
 def test_stft_hann_window_matches_numpy(frame_size):
     from srmech.signal_processing.closed_form_ops import stft as m
 
-    n = np.arange(frame_size)
-    cascade = 0.5 * (1.0 - m._ccos(2.0 * np.pi * n / max(frame_size - 1, 1)))
+    # rc89: stft._ccos is numpy-free now — takes an iterable of angles,
+    # returns a plain list of rational.cos values.
+    angles = [2.0 * np.pi * nn / max(frame_size - 1, 1) for nn in range(frame_size)]
+    cascade = [0.5 * (1.0 - c) for c in m._ccos(angles)]
     reference = _np_hann(frame_size)
+    assert len(cascade) == reference.shape[0]
     assert np.allclose(cascade, reference, atol=1e-9, rtol=0.0)
 
 
@@ -162,7 +165,9 @@ def test_stft_op_matches_numpy_reference():
         start = i * hop
         frame = x[start : start + frame_size].astype(np.complex128) * window
         ref[i] = np.fft.fft(frame)
-    assert cascade_out.shape == ref.shape
+    # rc89: stft.op is numpy-free now — returns a list of per-frame lists.
+    assert len(cascade_out) == ref.shape[0]
+    assert len(cascade_out[0]) == ref.shape[1]
     assert np.allclose(cascade_out, ref, atol=1e-9, rtol=0.0)
 
 

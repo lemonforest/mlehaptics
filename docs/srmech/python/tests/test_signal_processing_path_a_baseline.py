@@ -187,8 +187,9 @@ def test_stft_smoke():
 
     x = np.random.RandomState(0).randn(256)
     Y = m.op(x, frame_size=64, hop_size=32)
-    assert Y.ndim == 2
-    assert Y.shape[1] == 64
+    # rc89: stft.op is numpy-free now — returns a list of per-frame lists.
+    assert isinstance(Y, list) and isinstance(Y[0], list)
+    assert len(Y[0]) == 64
 
 
 def test_dct_smoke():
@@ -213,8 +214,11 @@ def test_spectrogram_smoke():
 
     x = np.random.RandomState(0).randn(256)
     S = m.op(x, frame_size=64, hop_size=32)
-    assert S.ndim == 2
-    assert np.all(S >= 0)
+    # rc89: spectrogram.op is numpy-free now — list of per-frame lists of
+    # real |z|^2 energy density.
+    assert isinstance(S, list) and isinstance(S[0], list)
+    assert len(S[0]) == 64
+    assert all(v >= 0 for row in S for v in row)
 
 
 def test_cross_spectral_smoke():

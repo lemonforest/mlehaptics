@@ -10,15 +10,21 @@ two-view (cyclic + windowed) STFT per the implementation plan §1 / Spike #178.
 
 Path B dual in Phase 4 / Phase 6 (per-frame FFT with windowed bundle).
 
+Carrier-free since v0.7.5rc89 (#564): plain Python ``list`` carriers (the STFT
+matrix is a ``list`` of per-frame ``list``s). The default Hann window uses the
+**Class-N π cascade** (``float(pi_cascade_digits(30))``, Archimedes
+hexagon-doubling — same π source the rc88 cross_spectral flip validated
+bit-faithful) fed to ``rational.cos`` via ``_ccos``. ``_sc.fft`` already returns
+``List[complex]`` numpy-absent; per-frame ``signal·window`` is an explicit list
+comprehension.
+
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Allen (1977)
 + Oppenheim & Schafer (2010, 3rd ed.) §10.3.
 """
 
 from __future__ import annotations
 
-from typing import Optional
-
-import numpy as np
+from typing import List, Optional
 
 from srmech.amsc import rational as _srn
 from srmech.amsc.cascade import spectral_cascades as _sc
@@ -33,18 +39,18 @@ SSOT_CITATION = (
     "Prentice Hall, §10.3."
 )
 
+# Class-N π geometric cascade (Archimedes hexagon-doubling; Spike #32), numpy-free.
+_PI = float(_srn.pi_cascade_digits(30))
+
 
 def _ccos(a):
-    """Elementwise substrate-native cosine (Class-N rational cascade).
+    """Elementwise substrate-native cosine (Class-N rational cascade), numpy-free.
 
     Replaces ``np.cos`` on the Hann-window angle array — routes each angle
-    through ``srmech.amsc.rational.cos`` (pi-free range reduction); numpy is
-    used only as the array container.
+    through ``srmech.amsc.rational.cos`` (pi-free range reduction); no ``np.cos``
+    / ``math.cos`` in the call graph. Returns a plain ``list`` of ``float``.
     """
-    a = np.asarray(a, dtype=float)
-    return np.array(
-        [_srn.cos(float(v)) for v in a.ravel()], dtype=float
-    ).reshape(a.shape)
+    return [_srn.cos(float(v)) for v in a]
 
 
 def op(
@@ -52,15 +58,15 @@ def op(
     *,
     frame_size: int = 256,
     hop_size: Optional[int] = None,
-    window: Optional[np.ndarray] = None,
+    window=None,
     D: int = 8192,
-):
+) -> List[list]:
     """Short-time Fourier transform of ``signal`` via windowed frame FFTs.
 
     Parameters
     ----------
     signal:
-        1-D real or complex array.
+        1-D real or complex sequence.
     frame_size:
         Number of samples per frame.
     hop_size:
@@ -72,35 +78,43 @@ def op(
 
     Returns
     -------
-    numpy.ndarray
-        Complex ``(n_frames, frame_size)`` STFT matrix.
+    list
+        Complex STFT matrix as a ``list`` of ``n_frames`` per-frame ``list``s,
+        each of length ``frame_size``.
     """
-    sig = np.asarray(signal, dtype=np.complex128)
-    if sig.ndim != 1:
-        raise ValueError(f"stft expects 1-D signal; got shape {sig.shape}")
+    seq = list(signal)
+    if seq and hasattr(seq[0], "__len__") and not isinstance(seq[0], (str, bytes)):
+        raise ValueError("stft expects 1-D signal")
+    sig = [complex(v) for v in seq]
     if hop_size is None:
         hop_size = frame_size // 2
     if hop_size <= 0:
         raise ValueError("hop_size must be positive")
     if window is None:
-        # Closed-form Hann window: 0.5 (1 - cos(2 pi n / (N - 1)))
-        n = np.arange(frame_size)
-        window = 0.5 * (1.0 - _ccos(2.0 * np.pi * n / max(frame_size - 1, 1)))
-    window = np.asarray(window, dtype=np.float64)
-    if window.shape[0] != frame_size:
+        # Closed-form Hann window: 0.5 (1 - cos(2 pi n / (N - 1))) via Class-N cascade.
+        denom = max(frame_size - 1, 1)
+        window = [
+            0.5 * (1.0 - c)
+            for c in _ccos([2.0 * _PI * nn / denom for nn in range(frame_size)])
+        ]
+    else:
+        window = [float(v) for v in window]
+    if len(window) != frame_size:
         raise ValueError(
-            f"window length {window.shape[0]} != frame_size {frame_size}"
+            f"window length {len(window)} != frame_size {frame_size}"
         )
-    n_samples = sig.shape[0]
+    n_samples = len(sig)
     if n_samples < frame_size:
-        # Zero-pad so we still get one frame
-        padded = np.zeros(frame_size, dtype=sig.dtype)
-        padded[:n_samples] = sig
-        return np.asarray(_sc.fft(padded * window))[np.newaxis, :]
+        # Zero-pad so we still get one frame.
+        padded = [complex(0)] * frame_size
+        for k in range(n_samples):
+            padded[k] = sig[k]
+        framed = [padded[k] * window[k] for k in range(frame_size)]
+        return [list(_sc.fft(framed))]
     n_frames = 1 + (n_samples - frame_size) // hop_size
-    out = np.zeros((n_frames, frame_size), dtype=np.complex128)
+    out = []
     for i in range(n_frames):
         start = i * hop_size
-        frame = sig[start : start + frame_size] * window
-        out[i] = np.asarray(_sc.fft(frame))
+        framed = [sig[start + k] * window[k] for k in range(frame_size)]
+        out.append(list(_sc.fft(framed)))
     return out
