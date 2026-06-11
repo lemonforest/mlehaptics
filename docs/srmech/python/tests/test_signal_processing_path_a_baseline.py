@@ -237,8 +237,9 @@ def test_multitaper_smoke():
 
     x = np.random.RandomState(0).randn(64)
     psd = m.op(x, n_tapers=3, nw=2.0)
-    assert psd.shape == (64,)
-    assert np.all(psd >= 0)
+    # rc91: multitaper.op is numpy-free now — returns a list of float.
+    assert isinstance(psd, list) and len(psd) == 64
+    assert all(v >= 0 for v in psd)
 
 
 def test_matched_filter_smoke():

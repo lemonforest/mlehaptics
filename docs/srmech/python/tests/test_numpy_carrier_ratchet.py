@@ -122,7 +122,16 @@ import srmech
 # sin}` so the op runs numpy-ABSENT. `np.maximum` floor -> builtin `max`; `_sc.fft`/`_sc.ifft`
 # return List[complex]. Value-faithful to machine eps (maxerr 6.7e-16, the rational cascades
 # match libm to <=1 ULP), NOT bit-exact. Returns a list of float; smoke `.shape` -> len. 37 -> 36.
-CEIL_NUMPY_CARRIER = 36
+# rc91: multitaper flips numpy-free (Class-L DPSS eigenbasis ∘ Class-M tapered-periodogram
+# bundle-average). scipy.signal.windows.dpss is an EXTERNAL accelerator (needs numpy) → kept
+# LAZY inside the try; numpy-absent it raises ImportError and the op falls to the fully
+# numpy-free cosine-taper fallback (`_PI`+`_csin`→rational.sin; ℓ²-norm inline
+# `rational.sqrt(Σvᵢ²)` since the old `dense_norm` helper is numpy-carrier INTERNALLY). The
+# per-taper |F|²=real²+imag² (no abs()) bundle-average is an explicit list comp; `_sc.fft`
+# returns List[complex]. Differential dpss-path BIT-EXACT (maxerr 0.0); the rc60 `np.linalg.norm`
+# absence ratchet + rc61 routed assert stay green (no np.linalg.norm, keeps `_sc`). Returns a
+# list of float; the 3 op-smoke `.shape` asserts (rc33 ×2 + baseline) move to isinstance/len. 36 -> 35.
+CEIL_NUMPY_CARRIER = 35
 
 
 def _srmech_root() -> pathlib.Path:
