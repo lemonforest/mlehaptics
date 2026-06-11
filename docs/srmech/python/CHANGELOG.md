@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc96] - 2026-06-11
+
+**Mat-return foundation #2 — `mat_lstsq`, numpy-free least-squares over the Mat carrier.** Carrier-removal #564, the second foundation op unblocking the matrix-heavy DSP carrier-flips. New public `amsc.laplacian.mat_lstsq(a: Mat, b: Mat) -> Mat`:
+
+- Solves the overdetermined / square (`m ≥ n`, full column rank) least-squares `A·X ≈ B` as the **normal equations** `X = (Aᴴ·A)⁻¹·Aᴴ·B`, composed entirely from the native `mat_*` trio: `mat_solve(mat_matmul(Aᴴ, A), mat_matmul(Aᴴ, B))` with `Aᴴ = A.conj().T`. Fully numpy-free for **real and complex** `A` (rc95 made `mat_solve` complex-capable). The result is complex iff `A` is.
+- Differential-verified value-faithful to `numpy.linalg.lstsq` to ~1e-13 (real + complex) for well-conditioned `A`; `m < n` raises `ValueError`. The normal equations square the condition number — fine for the orthonormal signal-subspace projections esprit/the matrix-heavy DSP ops feed it.
+- Also corrects the `mat_solve` ToolEntry summary (it still said "Real-f64 only" after the rc95 complex support).
+
+**New public op** → `describe()["tools"]["total"]` **287 → 288** (`classes` stays 2); ToolEntry + rosetta `composition_of_c` bucket + `__all__`/`LAPLACIAN_OPS` added; `CEIL_NUMPY_CARRIER` unchanged at **32**; ABI 3; no C change. Next: `mat_eigvals` (Mat-carrier shifted-QR), then route esprit through the three `mat_*` ops.
+
 ## [0.7.5rc95] - 2026-06-11
 
 **Mat-return foundation — `mat_solve` now handles COMPLEX (numpy-free), unblocking the matrix-heavy DSP carrier-flips.** Carrier-removal #564. The matrix-heavy `signal_processing` ops (esprit, dct, fsk, ica_jade, lmmse, map_ml, mimo_svd, music, psk_qam, vector_quantisation) can't be flipped numpy-free as leaves because they receive numpy arrays from `hermitian_eigendecompose` / `matrix_cascades.lstsq` / `matrix_cascades.eigvals` (all numpy-carrier-internal). The genuinely numpy-free path is the **native `mat_*` bridge** (rc72–74). This rc closes the first gap:
