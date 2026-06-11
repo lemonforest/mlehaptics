@@ -131,7 +131,16 @@ import srmech
 # returns List[complex]. Differential dpss-path BIT-EXACT (maxerr 0.0); the rc60 `np.linalg.norm`
 # absence ratchet + rc61 routed assert stay green (no np.linalg.norm, keeps `_sc`). Returns a
 # list of float; the 3 op-smoke `.shape` asserts (rc33 ×2 + baseline) move to isinstance/len. 36 -> 35.
-CEIL_NUMPY_CARRIER = 35
+# rc92: multirate flips numpy-free (Class-N rational rate ∘ Class-C cyclic streaming). The
+# windowed-sinc low-pass taps use a substrate-native `_sinc` (sin(πx)/(πx) over the Class-N
+# `_PI`; the x=0 removable singularity is a Class-K branch returning 1.0, NO division, no abs())
+# + a numpy-free `_ccos` Hamming window; `np.arange`->range, `np.zeros`->[0.0]*, `np.sum`->sum,
+# strided upsample insert is a plain loop, `_dsp.convolve` already returns a list, downsample is
+# a `[::down]` slice scaled by `up`. Value-faithful to machine eps (maxerr 7.1e-15, the rational
+# sinc/cos cascades match libm to <=1 ULP), NOT bit-exact. op returns a list of float; the rc33
+# `_ccos` Hamming test moves `.ndim`/broadcast -> list-comp + isinstance/len, and the baseline
+# smoke `.ndim` -> isinstance(list). 35 -> 34.
+CEIL_NUMPY_CARRIER = 34
 
 
 def _srmech_root() -> pathlib.Path:

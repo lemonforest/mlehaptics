@@ -89,11 +89,13 @@ def test_stft_hann_window_matches_numpy(frame_size):
 def test_multirate_hamming_window_matches_numpy():
     from srmech.signal_processing.closed_form_ops import multirate as m
 
+    # rc92: multirate._ccos is numpy-free now — takes an iterable of angles,
+    # returns a plain list of rational.cos values.
     n_taps = 41
-    cascade = 0.54 - 0.46 * m._ccos(
-        2.0 * np.pi * np.arange(n_taps) / (n_taps - 1)
-    )
+    angles = [2.0 * np.pi * nn / (n_taps - 1) for nn in range(n_taps)]
+    cascade = [0.54 - 0.46 * c for c in m._ccos(angles)]
     reference = _np_hamming(n_taps)
+    assert len(cascade) == reference.shape[0]
     assert np.allclose(cascade, reference, atol=1e-9, rtol=0.0)
 
 
@@ -236,7 +238,8 @@ def test_multirate_op_matches_numpy_reference():
     taps = taps / np.sum(taps)
     filtered = np.convolve(upsampled, taps, mode="same")
     ref = filtered * up
-    assert cascade_out.shape == ref.shape
+    # rc92: multirate is numpy-free now — op returns a plain list of float.
+    assert isinstance(cascade_out, list) and len(cascade_out) == ref.shape[0]
     assert np.allclose(cascade_out, ref, atol=1e-9, rtol=0.0)
 
 

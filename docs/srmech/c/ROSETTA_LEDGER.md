@@ -740,6 +740,21 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc92 (done, v0.7.5rc92) — carrier-flip batch #16: `multirate` goes
+  numpy-FREE (CEIL_NUMPY_CARRIER 35 → 34).** Carrier-removal #564.
+  `closed_form_ops/multirate` (Class N rational rate `up/down` ∘ Class C cyclic
+  streaming; Vaidyanathan 1993 §4) drops top-level `import numpy`. The default
+  windowed-sinc taps use a substrate-native `_sinc(x)=sin(πx)/(πx)`
+  (`rational.sin` over the Class-N `_PI`) + a numpy-free `_ccos` Hamming window;
+  the x=0 sinc singularity is a Class-K branch (returns 1.0, NO division, no
+  abs()), matching `np.sinc(0)=1`. `np.arange`→range, `np.zeros`→[0.0]*,
+  `np.pi`→`_PI`, `np.sum`→sum; up-sample zero-insert is a plain loop;
+  `_dsp.convolve` already returns a list (rc79); down-sample is a `[::down]`
+  slice scaled by `up`. op returns a list of float. Differential value-faithful
+  to maxerr 7.1e-15 (rational sinc/cos ≤1 ULP; up==down==1 identity bit-exact
+  0.0). The rc33 `_ccos` Hamming test moves off ndarray-broadcast → list-comp +
+  isinstance/len; the baseline smoke `.ndim` → isinstance(list). No new public
+  op (describe tools.total stays 287, classes 2); ABI 3; no C change.
 - **rc91 (done, v0.7.5rc91) — carrier-flip batch #15: `multitaper` goes
   numpy-FREE (CEIL_NUMPY_CARRIER 36 → 35).** Carrier-removal #564.
   `closed_form_ops/multitaper` (Class L DPSS eigenbasis ∘ Class M tapered-

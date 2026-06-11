@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc92] - 2026-06-11
+
+**Carrier-flip batch #16 — `multirate` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 35 → 34).** Carrier-removal #564. `closed_form_ops/multirate` (Class N rational rate-conversion `up/down` ∘ Class C cyclic streaming; Vaidyanathan 1993 §4) drops its top-level `import numpy`:
+
+- The default windowed-sinc low-pass taps are built with a substrate-native **`_sinc(x) = sin(πx)/(πx)`** (`rational.sin` over the Class-N **`_PI`** cascade) and a numpy-free **`_ccos`** Hamming window. The `x = 0` removable singularity of `_sinc` is a **Class-K branch** (returns `1.0`, **no division**, never an `abs()`), matching `np.sinc(0) = 1`.
+- `np.arange` → `range`/list-comp; `np.zeros` → `[0.0]*n`; `np.pi` → `_PI`; `np.sum` → builtin `sum`; the up-sample zero-insert is a plain index loop; `_dsp.convolve` already returns a `list` (rc79); the down-sample is a `[::down]` slice scaled by `up`. `op` now returns a `list` of `float` (was an ndarray).
+- Differential-verified **value-faithful to maxerr 7.1e-15** (the rational `sinc`/`cos` cascades match libm to ≤1 ULP; the `up==down==1` identity path is bit-exact 0.0) — well within the op's tolerance. The rc33 `_ccos` Hamming test moves off ndarray-broadcast to a list-comp (`isinstance`/`len`); the baseline smoke moves `.ndim` → `isinstance(list)`.
+
+`CEIL_NUMPY_CARRIER` 35 → 34 (down-only ratchet). No new public op (`describe()["tools"]["total"]` stays **287**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc91] - 2026-06-11
 
 **Carrier-flip batch #15 — `multitaper` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 36 → 35).** Carrier-removal #564. `closed_form_ops/multitaper` (Class L DPSS eigenbasis ∘ Class M tapered-periodogram bundle-average; Thomson 1982) drops its top-level `import numpy`:
