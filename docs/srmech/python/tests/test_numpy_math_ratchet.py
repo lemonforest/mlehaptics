@@ -355,8 +355,10 @@ _UFUNC = re.compile(
 # Remaining: numpy-as-accuracy (6 matrix_rank + 7 so8 svd, small-s/nullspace),
 # the irreducible numpy fallbacks INSIDE dense_solve / hermitian_eigendecompose,
 # pseudo_hermitian:182 eig (O NOT skew → iS trick N/A; needs general non-Hermitian
-# eigenvector cascade), the mimo svd public-API op, plus precise docstring mentions.
-CEIL_LINALG_FFT = 23
+# eigenvector cascade), plus precise docstring mentions. (rc109: the mimo_svd
+# public-API op routed onto the numpy-free `mat_svd` Mat foundation — its
+# `np.linalg.svd` is gone, so linalg_fft 23 → 22.)
+CEIL_LINALG_FFT = 22
 CEIL_MATMUL = 4
 CEIL_UFUNC = 0
 

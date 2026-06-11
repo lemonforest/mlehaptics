@@ -432,9 +432,10 @@ def test_mimo_svd_smoke():
 
     H = np.random.RandomState(0).randn(3, 2) + 1j * np.random.RandomState(1).randn(3, 2)
     U, S, Vh = m.op(H)
-    assert U.shape == (3, 3)
-    assert S.shape == (2,)
-    assert Vh.shape == (2, 2)
+    # rc109: mimo_svd is numpy-free now (mat_svd Mat foundation) — returns lists.
+    assert isinstance(U, list) and len(U) == 3 and len(U[0]) == 3
+    assert isinstance(S, list) and len(S) == 2
+    assert isinstance(Vh, list) and len(Vh) == 2 and len(Vh[0]) == 2
 
 
 def test_viterbi_smoke():

@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc109] - 2026-06-11
+
+**Eleventh CONSUMER carrier-flip — `mimo_svd` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 22 → 21).** Carrier-removal #564. The first consumer to route onto the rc108 `mat_svd` Mat-carrier foundation:
+
+- The MIMO channel-matrix SVD (`H = U·S·Vᴴ`, Class L) drops `import numpy as np` and `np.linalg.svd` entirely. It coerces the channel matrix numpy-free (`tolist()` covers ndarray AND `Mat`), wraps it in `Mat.from_rows(..., is_complex=True)`, calls `laplacian.mat_svd` (Gram `AᴴA` → `mat_hermitian_eigendecompose` → `√λ` + `A·v/σ` + orthonormal null completion), and returns plain Python `list`s — `U` `(n_rx, n_rx)` list-of-rows, `S` descending `list`, `Vh` `(n_tx, n_tx)` list-of-rows (were ndarrays).
+- **Value-faithful, NOT bit-identical** (per `[[feedback_cascade_svd_nullspace_accuracy_not_route_matrix_rank]]`): SVD is non-unique in the per-pair phase and the degenerate / null subspace, so correctness is the reconstruction `H ≈ U·diag(S)·Vᴴ` + unitarity of `U` / `Vh` + singular-value match to NumPy. Differential-verified over 100 cases (real/complex × square/tall/wide × full/rank-deficient): 0 reconstruction failures, 0 singular-value failures.
+
+Because the op also removes its `np.linalg.svd`, this decrements **both** ledgers: `CEIL_NUMPY_CARRIER` 22 → 21 and the math-ratchet `CEIL_LINALG_FFT` 23 → 22. The `test_mimo_svd_smoke` `.shape` checks move to `isinstance(U, list)` / `len`. The rc71 numpy-free-reachable exemplar (the still-numpy op that must raise the clean `[scientific]` hint) moves `mimo_svd → ica_jade` — `ica_jade`'s `np.linalg.eigh` is numpy-as-ACCURACY (not just a carrier), so it stays gated. No new public op (`describe()["tools"]["total"]` stays **290**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc108] - 2026-06-11
 
 **`mat_svd` foundation — numpy-free FULL SVD over the Mat carrier (carrier-removal #564, Mat-bridge foundation #5).** The op `mimo_svd` has waited on this; it does NOT decrement `CEIL_NUMPY_CARRIER` (still 22) — it's the foundation the next consumer flip routes onto:
