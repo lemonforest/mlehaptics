@@ -474,7 +474,8 @@ def test_farrow_smoke():
 
     x = np.arange(16, dtype=np.float64)
     y = m.op(x, mu=0.25)
-    assert y.shape == (16,)
+    # rc78: farrow is numpy-free now (plain-list carrier per #564) -> len, not .shape
+    assert len(y) == 16
 
 
 def test_sinc_interp_smoke():

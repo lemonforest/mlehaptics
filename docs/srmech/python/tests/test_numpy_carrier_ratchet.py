@@ -37,7 +37,12 @@ import srmech
 # rc77: signal_processing carrier-flip batch #1 — allpass + sign_quantise drop
 # their top-level `import numpy` (pure-Python list carriers; the math is the
 # existing Class-K sign-branch / Class-N direct-form-I reference). 52 -> 50.
-CEIL_NUMPY_CARRIER = 50
+# rc78: signal_processing carrier-flip batch #2 — farrow drops its top-level
+# `import numpy`. The cubic-Lagrange sub-filter is a plain-tuple constant table
+# and each C[k]·x is an explicit length-4 Class-M micro-reduction (no longer a
+# numpy-bound dense_dot_real, which fed numpy carriers into the native kernel
+# only to contract four reals). The op runs numpy-absent on a list carrier. 50 -> 49.
+CEIL_NUMPY_CARRIER = 49
 
 
 def _srmech_root() -> pathlib.Path:
