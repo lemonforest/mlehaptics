@@ -10,15 +10,18 @@ guard interval as a Class K time-domain projection) decomposition.
 
 Path B dual in Phase 6 (Path B IFFT/FFT with subcarrier bundle).
 
+Carrier-free since v0.7.5rc84 (#564): plain Python ``list`` / ``list``-of-
+``list`` carriers; ``_sc.fft`` / ``_sc.ifft`` already return ``List[complex]``;
+the per-subcarrier ``|H_k|`` equaliser guard uses the numpy-free Class-N
+``rational.hypot`` and an explicit Class-K pin-slot sign-branch (no ``abs()``).
+
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Bingham
 (1990) + Cimini (1985) + Proakis & Salehi (2008, 5th ed.) §11.5.
 """
 
 from __future__ import annotations
 
-import numpy as np
-
-from srmech.amsc.laplacian import elementwise_hypot
+from srmech.amsc.rational import hypot as _rhypot
 from srmech.amsc.cascade import spectral_cascades as _sc
 
 OPERATION_NAME = "ofdm"
@@ -40,7 +43,7 @@ def op(
     n_subcarriers: int = 64,
     cp_length: int = 16,
     demodulate: bool = False,
-    channel: np.ndarray = None,
+    channel=None,
     D: int = 8192,
 ):
     """OFDM modulate complex subcarrier symbols or demodulate baseband OFDM samples.
@@ -48,7 +51,7 @@ def op(
     Parameters
     ----------
     symbols:
-        Modulate: complex array of length ``n_symbols * n_subcarriers``
+        Modulate: complex sequence of length ``n_symbols * n_subcarriers``
         (sequential subcarrier values per OFDM symbol).
         Demodulate: complex baseband sample stream.
     n_subcarriers:
@@ -65,40 +68,48 @@ def op(
 
     Returns
     -------
-    Modulate: complex baseband sample stream.
-    Demodulate: ``(n_symbols, n_subcarriers)`` complex subcarrier matrix.
+    Modulate: complex baseband sample stream as a ``list``.
+    Demodulate: ``(n_symbols, n_subcarriers)`` complex subcarrier matrix as a
+    ``list`` of ``list`` (rows are subcarrier values per OFDM symbol).
     """
     n = n_subcarriers
     if demodulate:
-        rx = np.asarray(symbols, dtype=np.complex128)
+        rx = [complex(v) for v in symbols]
         samples_per_ofdm = n + cp_length
-        n_symbols = rx.shape[0] // samples_per_ofdm
-        out = np.zeros((n_symbols, n), dtype=np.complex128)
+        n_symbols = len(rx) // samples_per_ofdm
+        out = []
+        ch = list(channel) if channel is not None else None
         for i in range(n_symbols):
             start = i * samples_per_ofdm + cp_length  # skip CP
             frame = rx[start : start + n]
-            X = np.asarray(_sc.fft(frame))
-            if channel is not None:
+            X = list(_sc.fft(frame))
+            if ch is not None:
                 # Class L equaliser: one-tap per subcarrier divide by H_k.
-                # |z| = hypot(real,imag) (no abs())
-                X = X / np.where(elementwise_hypot(channel.real, channel.imag) > 1e-12, channel, 1.0)
-            out[i] = X
+                # |H_k| = hypot(real, imag) (Class N sqrt cascade, no abs()).
+                # Class K pin-slot: the > 1e-12 guard is the phase-boundary;
+                # the conditional divisor select is the Class C reorientation.
+                X = [
+                    X[k]
+                    / (ch[k] if _rhypot(ch[k].real, ch[k].imag) > 1e-12 else complex(1.0))
+                    for k in range(n)
+                ]
+            out.append(X)
         return out
 
-    syms = np.asarray(symbols, dtype=np.complex128)
-    if syms.shape[0] % n != 0:
+    syms = [complex(v) for v in symbols]
+    if len(syms) % n != 0:
         raise ValueError(
-            f"symbols length {syms.shape[0]} not multiple of n_subcarriers {n}"
+            f"symbols length {len(syms)} not multiple of n_subcarriers {n}"
         )
-    n_symbols = syms.shape[0] // n
-    out = np.zeros(n_symbols * (n + cp_length), dtype=np.complex128)
+    n_symbols = len(syms) // n
+    out = [complex(0)] * (n_symbols * (n + cp_length))
     for i in range(n_symbols):
         block = syms[i * n : (i + 1) * n]
         # Class I IFFT
-        time_block = np.asarray(_sc.ifft(block))
+        time_block = list(_sc.ifft(block))
         # Class K cyclic-prefix (Class K guard-interval projection)
-        prefix = time_block[-cp_length:] if cp_length > 0 else np.array([], dtype=time_block.dtype)
-        out[
-            i * (n + cp_length) : (i + 1) * (n + cp_length)
-        ] = np.concatenate([prefix, time_block])
+        prefix = time_block[-cp_length:] if cp_length > 0 else []
+        frame = prefix + time_block
+        start = i * (n + cp_length)
+        out[start : start + (n + cp_length)] = frame
     return out

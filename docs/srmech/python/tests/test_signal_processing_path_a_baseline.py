@@ -416,7 +416,7 @@ def test_ofdm_smoke():
     syms = (np.random.RandomState(0).randn(n_sub * n_sym) +
             1j * np.random.RandomState(1).randn(n_sub * n_sym))
     waveform = m.op(syms, n_subcarriers=n_sub, cp_length=4)
-    assert waveform.shape == (n_sym * (n_sub + 4),)
+    assert len(waveform) == n_sym * (n_sub + 4)
 
 
 def test_mimo_svd_smoke():

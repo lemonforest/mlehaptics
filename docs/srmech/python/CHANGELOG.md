@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc84] - 2026-06-10
+
+**Carrier-flip batch #8 — `ofdm` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 43 → 42).** Carrier-removal #564, the second of the workflow-scoped batch. `closed_form_ops/ofdm` (Class I IFFT ∘ Class L per-subcarrier equaliser ∘ Class K cyclic-prefix) drops its top-level `import numpy`:
+
+- The **modulate** path returns a 1-D `list`: the `np.zeros(...)` baseband buffer becomes `[complex(0)] * N`, the cyclic-prefix `np.concatenate([prefix, time_block])` becomes a `prefix + time_block` list concat, and the per-OFDM-symbol write becomes a list slice-assign. `_sc.ifft` already returns `List[complex]`.
+- The **demodulate** path returns a **list-of-lists** (one row per OFDM symbol). The Class-L one-tap equaliser inlines the numpy-bound `laplacian.elementwise_hypot` via the numpy-free Class-N `rational.hypot` in a per-subcarrier comprehension, and the `np.where(|H_k| > 1e-12, H_k, 1.0)` guard becomes an explicit **Class-K pin-slot sign-branch** (`> 1e-12 → H_k else 1.0`; no `abs()`). `_sc.fft` already returns `List[complex]`.
+- Smoke tests move `.shape`/`.reshape` → `len`/list-flatten at the test boundary (baseline `test_ofdm_smoke` + rc61-routing `test_ofdm_round_trip_value_faithful`). The rc61 `np.fft.` residual-callsite assertion still passes (ofdm uses `_sc.fft`/`_sc.ifft`).
+
+`CEIL_NUMPY_CARRIER` 43 → 42 (down-only ratchet). No new public op (`describe()["tools"]["total"]` stays **287**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc83] - 2026-06-10
 
 **Carrier-flip batch #7 — `viterbi` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 44 → 43).** Carrier-removal #564, the first of the workflow-scoped batch (a `carrier-flip-scoping` multi-agent run classified the remaining signal_processing carrier files: 8 flippable-now, 16 blocked behind `dense_*`/`np.linalg`/`np.fft`). `closed_form_ops/viterbi` (Class L trellis-graph Laplacian ∘ Class K argmax pin-slot) drops its top-level `import numpy`:

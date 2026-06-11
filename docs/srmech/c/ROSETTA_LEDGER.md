@@ -740,6 +740,19 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc84 (done, v0.7.5rc84) — carrier-flip batch #8: `ofdm` goes numpy-FREE
+  (CEIL_NUMPY_CARRIER 43 → 42).** Carrier-removal #564, second of the
+  workflow-scoped batch. `closed_form_ops/ofdm` (Class I IFFT ∘ Class L
+  per-subcarrier equaliser ∘ Class K cyclic-prefix) drops top-level `import
+  numpy`: the modulate path returns a 1-D list (`[complex(0)]*N` buffer, prefix
+  `+` time_block concat, list slice-assign); the demodulate path returns a
+  list-of-lists. The Class-L one-tap equaliser inlines the numpy-bound
+  `laplacian.elementwise_hypot` via the numpy-free Class-N `rational.hypot` in a
+  per-subcarrier comprehension, and the `np.where(|H_k|>1e-12, H_k, 1.0)` guard
+  becomes an explicit Class-K pin-slot sign-branch (no abs()). `_sc.fft`/`_sc.ifft`
+  already return List[complex]. Smoke tests move `.shape`/`.reshape` → len/flatten;
+  the rc61 np.fft.-residual assertion still passes (ofdm uses `_sc`). No new
+  public op (describe tools.total stays 287, classes 2); ABI 3; no C change.
 - **rc83 (done, v0.7.5rc83) — carrier-flip batch #7: `viterbi` goes numpy-FREE
   (CEIL_NUMPY_CARRIER 44 → 43).** Carrier-removal #564, first of the
   workflow-scoped batch (a `carrier-flip-scoping` multi-agent run classified the

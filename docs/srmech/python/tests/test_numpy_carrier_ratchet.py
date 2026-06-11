@@ -71,7 +71,15 @@ import srmech
 # are the Class-K pin-slot as Python max(range, key=) (first-maximal tie-break,
 # matching np.argmax). Self-contained — no scipy/helper delegation. Returns list;
 # the smoke test moves .shape -> len. 44 -> 43.
-CEIL_NUMPY_CARRIER = 43
+# rc84: ofdm flips numpy-free (workflow-scoped batch). The modulate path returns a
+# 1-D list ([complex(0)]*N buffer; prefix + time_block concat via +; slice-assign);
+# the demodulate path returns a list-of-lists (one row per OFDM symbol). The Class-L
+# one-tap equaliser inlines the numpy-bound elementwise_hypot via the numpy-free
+# Class-N rational.hypot in a per-subcarrier comprehension, and the np.where |H_k|
+# guard becomes an explicit Class-K pin-slot sign-branch (> 1e-12 → H_k else 1.0; no
+# abs()). _sc.fft/_sc.ifft already return List[complex]. Returns list / list-of-list;
+# the baseline + rc61-routing smoke tests move .shape/.reshape -> len/flatten. 43 -> 42.
+CEIL_NUMPY_CARRIER = 42
 
 
 def _srmech_root() -> pathlib.Path:
