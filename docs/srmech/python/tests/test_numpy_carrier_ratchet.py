@@ -263,7 +263,21 @@ def _is_numpy_import(line: str) -> bool:
 # scanner is hardened to a real-import regex (`_is_numpy_import`) that ignores
 # such prose; the_one drops out of the count. Honest decrement (correcting a
 # measurement, not removing a carrier — there was none). 18 -> 17.
-CEIL_NUMPY_CARRIER = 17
+# rc113 (#564): the RBS-LM subpackage flips numpy-free — `rbs_lm/substrate.py`
+# + `rbs_lm/inference.py` both drop `import numpy as np`. numpy was only ever an
+# INCIDENTAL deterministic source here (not a correctness oracle): the per-token
+# Klein-4 vector seed (`np.random.default_rng(token_seed)` -> stdlib
+# `klein4_random(D, seed=…)`), the learn-memory subsample (`rng.choice(...,
+# replace=False)` -> `random.Random(seed).sample`), and the infer sampler
+# (`gr.choice(..., p=p)` -> `random.Random(seed).choices(weights=p)`). The encode
+# path now returns the framework-native HV carrier end-to-end and `_softmax`
+# routes its per-element exp through the Class-N `rational.exp` cascade (NOT the
+# numpy-carrier `elementwise_transcendental`). Per `[[feedback_carrier_ratchet_
+# misses_require_numpy_subpackage_gates]]` the eager `_require_numpy("srmech.
+# rbs_lm")` gate in `__init__.py` is also REMOVED (the whole subpackage is
+# numpy-free, so `import srmech.rbs_lm` succeeds numpy-absent). Authorized one-
+# time RNG re-base (values change, structural tests are RNG-independent). 17 -> 15.
+CEIL_NUMPY_CARRIER = 15
 
 
 def _srmech_root() -> pathlib.Path:

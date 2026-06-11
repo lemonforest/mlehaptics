@@ -821,6 +821,25 @@ decrements it).
   `out.real[1]`→`out[1].real` (baseline smoke + rc33 diffuse-toward-mean). Math
   ledger UNTOUCHED. No new public op (tools.total 289); ABI 3; no C change.
   Next: lmmse/map_ml, dct/fsk, then the mat_svd foundation for mimo_svd.
+- **rc113 (done, v0.7.5rc113) — RBS-LM subpackage numpy-FREE; incidental-source RNG
+  re-based onto our own (`CEIL_NUMPY_CARRIER` 17 → 15).** Carrier-removal #564.
+  `srmech.rbs_lm` (F166 inference substrate) carried numpy only as an INCIDENTAL
+  deterministic source (not an oracle) — per user direction ("use our own rng …
+  rbs_lm is ours") the 3 numpy-RNG sites swap to the framework-native stdlib stream
+  + the values re-base ONCE. `substrate.py`: per-token seed `np.random.default_rng(
+  token_seed)`→`hdc.klein4_random(D, seed=…)`, `np.full(D, sector)`→`bytes([sector])
+  *D`, encode helpers + `ContextSubstrate` return the **HV** carrier (no `.to_numpy`),
+  `sim_k4_batch`→`hdc.klein4_similarity` per HV. `inference.py`: `_softmax` per-element
+  exp via Class-N `rational.exp` (NOT numpy-carrier `elementwise_transcendental`),
+  `vocab_vecs`→`list[HV]`, learn subsample `rng.choice(...,replace=False)`→
+  `random.Random(seed).sample`, infer sampler `gr.choice(...,p=p)`→`.choices(weights=p)`.
+  `__init__.py`: eager `_require_numpy` gate REMOVED (whole subpackage numpy-free →
+  import succeeds numpy-absent). Authorized one-time RNG re-base (structural tests
+  RNG-independent; `test_rbs_lm.py` migrates ndarray→HV assertions). No C twin
+  (Python-only). Math ledger UNTOUCHED; tools.total 290; ABI 3; no C change. The 15
+  remaining: qm matrix layer (TOML `[class]` reframe) + mcp/_coercion + spectral/
+  __init__ + ica_jade (numpy-as-accuracy `eigh`) + so8/triality (numpy-as-accuracy
+  `matrix_rank`).
 - **rc112 (done, v0.7.5rc112) — carrier-ratchet ACCURACY fix (`CEIL_NUMPY_CARRIER`
   18 → 17); opens the qm-layer phase.** Carrier-removal #564. NOT a removal — a
   measurement correction: `amsc/cascade/one.py` (the_one) is numpy-FREE at import
