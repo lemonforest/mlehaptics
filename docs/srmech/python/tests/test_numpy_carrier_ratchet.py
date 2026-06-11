@@ -97,7 +97,16 @@ import srmech
 # become the builtin `max(x, 1e-30)` per bin. `_sc.fft`/`_sc.ifft` already return
 # List[complex]; np.asarray/np.real wraps drop. Returns a list of float; the baseline +
 # rc61 smoke tests move `.shape` -> len (the rc61 finite/real checks pass on the list). 40 -> 39.
-CEIL_NUMPY_CARRIER = 39
+# rc88: cross_spectral flips numpy-free (workflow-scoped batch; MODERATE — the FIRST
+# sigproc carrier-flip to need π). The Hann window uses a module-level
+# `_PI = float(pi_cascade_digits(30))` (Class-N Archimedes hexagon-doubling cascade,
+# already the numpy-free π source in exact_dft/spectral_cascades) fed to `rational.cos`;
+# the cross-product X·conj(Y), per-bin |z|²=real²+imag² (no abs()) and the
+# np.maximum(...,1e-30) coherence floor (builtin max) are explicit list comprehensions.
+# `_sc.fft` returns List[complex], `_fc.fftfreq` returns a plain list numpy-absent.
+# Returns (list, list); the baseline smoke moves `.shape` -> len (rc61 wraps coh in
+# np.asarray, resilient). 39 -> 38.
+CEIL_NUMPY_CARRIER = 38
 
 
 def _srmech_root() -> pathlib.Path:

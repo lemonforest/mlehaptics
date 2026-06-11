@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc88] - 2026-06-10
+
+**Carrier-flip batch #12 — `cross_spectral` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 39 → 38).** Carrier-removal #564, the sixth of the workflow-scoped batch — and the **first sigproc carrier-flip to need π** (a *moderate* flip). `closed_form_ops/cross_spectral` (Class M HDC bundle-average ∘ Class A FFT cross-product; Welch's method) drops its top-level `import numpy`:
+
+- The Hann window `0.5·(1 − cos(2π·n/(N−1)))` uses a module-level **`_PI = float(pi_cascade_digits(30))`** (Class-N Archimedes hexagon-doubling cascade — already the numpy-free π source in `exact_dft`/`spectral_cascades`) fed to `rational.cos`.
+- The cross-product `X·conj(Y)`, the per-bin power `|z|² = real²+imag²` (no `abs()`), and the `np.maximum(..., 1e-30)` coherence floor (builtin `max`) become explicit elementwise list comprehensions. `_sc.fft` returns `List[complex]`; `_fc.fftfreq` returns a plain list numpy-absent.
+- `op` now returns `(list, list)` (was two ndarrays). The baseline smoke moves `.shape` → `len`; the rc61 coherence test already wraps `coh` in `np.asarray` (resilient).
+
+`CEIL_NUMPY_CARRIER` 39 → 38 (down-only ratchet). No new public op (`describe()["tools"]["total"]` stays **287**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc87] - 2026-06-10
 
 **Carrier-flip batch #11 — `wiener` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 40 → 39).** Carrier-removal #564, the fifth of the workflow-scoped batch and a clean leaf. `closed_form_ops/wiener` (Class L power-spectrum Laplacian eigenbasis ∘ Class N rational MMSE gain) drops its top-level `import numpy`:

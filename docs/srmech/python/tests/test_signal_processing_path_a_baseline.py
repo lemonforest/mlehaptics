@@ -224,8 +224,8 @@ def test_cross_spectral_smoke():
     x = rs.randn(256)
     y = rs.randn(256)
     freqs, S = m.op(x, y, frame_size=64)
-    assert freqs.shape == (64,)
-    assert S.shape == (64,)
+    assert len(freqs) == 64
+    assert len(S) == 64
 
 
 def test_multitaper_smoke():
