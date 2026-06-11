@@ -821,6 +821,22 @@ decrements it).
   `out.real[1]`→`out[1].real` (baseline smoke + rc33 diffuse-toward-mean). Math
   ledger UNTOUCHED. No new public op (tools.total 289); ABI 3; no C change.
   Next: lmmse/map_ml, dct/fsk, then the mat_svd foundation for mimo_svd.
+- **rc107 (done, v0.7.5rc107) — TENTH CONSUMER flip: `mlse` numpy-FREE
+  (`CEIL_NUMPY_CARRIER` 23 → 22).** Carrier-removal #564. The Viterbi-trellis
+  channel equaliser (Class L∘K, no np.linalg). The trellis tables (transition /
+  emission / initial log-prob) become pure-Python list-of-lists built with the
+  Class-N `rational.log` cascade; the per-branch metric is an explicit
+  `−|obs − expected|²` multiply-add (squared distance, monotone in `|·|`, so no
+  sqrt/abs). The no-ISI path is a per-sample squared-distance argmin (replacing
+  `elementwise_hypot`). The trellis search delegates to the already-numpy-free
+  `viterbi.op` (rc83), which returns a list. Inputs coerce via `tolist()`; op
+  returns `list[int]` (was ndarray). Dropped `import numpy as np` +
+  `elementwise_hypot`. Differential-verified BIT-IDENTICAL to numpy over 180
+  cases (BPSK+QPSK × memory{0,1,2} × random; 0 mismatches). RIPPLE:
+  `syms.shape==(4,)` → `isinstance list`/`len`. Math ledger UNTOUCHED; rosetta
+  bucket unchanged. No new public op (tools.total 289); ABI 3; no C change.
+  Remaining matrix-heavy: mimo_svd (needs the `mat_svd` foundation), ica_jade
+  (np.linalg.eigh = numpy-as-accuracy, likely stays gated).
 - **rc106 (done, v0.7.5rc106) — NINTH CONSUMER flip: `psk_qam` numpy-FREE
   (`CEIL_NUMPY_CARRIER` 24 → 23).** Carrier-removal #564. The fsk-cousin
   constellation mapper (Class I∘K, no np.linalg). PSK points `e^{i·2π·k/M}` route

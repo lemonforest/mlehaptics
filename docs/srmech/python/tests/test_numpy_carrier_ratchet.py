@@ -209,7 +209,13 @@ import srmech
 # is argmin over the squared Euclidean distance |received − const|² (monotone in
 # |·|, so no hypot/sqrt/abs); inputs coerce via tolist(); op returns python lists
 # (drops `import numpy as np`). 24 -> 23.
-CEIL_NUMPY_CARRIER = 23
+# rc107: mlse (Viterbi-trellis channel equaliser) goes numpy-FREE — the trellis
+# tables (transition/emission/initial log-prob) become pure-Python list-of-lists
+# built with the Class-N rational.log cascade, the per-branch metric is an
+# explicit |obs − expected|² multiply-add (no hypot/sqrt/abs), the no-ISI path is
+# a squared-distance argmin, and the search delegates to the already-numpy-free
+# viterbi.op (returns a list); drops `import numpy as np` + elementwise_hypot. 23 -> 22.
+CEIL_NUMPY_CARRIER = 22
 
 
 def _srmech_root() -> pathlib.Path:
