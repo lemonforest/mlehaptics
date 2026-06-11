@@ -114,7 +114,15 @@ import srmech
 # uncounted) consumes the list-of-lists and computes |z|²=real²+imag² (no abs()) elementwise.
 # stft's baseline + rc33 window/op tests move `.ndim`/`.shape` -> isinstance/len; only stft
 # carries a top-level import, so the count drops by one. 38 -> 37.
-CEIL_NUMPY_CARRIER = 37
+# rc90: spectral_subtraction flips numpy-free (Class-L FFT-PSD ∘ Class-N rational floor).
+# The FIRST flip whose numpy-free output is NOT bit-exact-0.0: `np.angle` (libm atan2) routes
+# through `rational.atan2` and the phasor/magnitude — previously the NUMPY-CARRIER helpers
+# `elementwise_transcendental(phase, "exp_i")` + `elementwise_sqrt` (both use np.zeros/reshape
+# INTERNALLY, the rc70 "runnable!=loadable" trap) — are inlined per-bin as `rational.{sqrt,cos,
+# sin}` so the op runs numpy-ABSENT. `np.maximum` floor -> builtin `max`; `_sc.fft`/`_sc.ifft`
+# return List[complex]. Value-faithful to machine eps (maxerr 6.7e-16, the rational cascades
+# match libm to <=1 ULP), NOT bit-exact. Returns a list of float; smoke `.shape` -> len. 37 -> 36.
+CEIL_NUMPY_CARRIER = 36
 
 
 def _srmech_root() -> pathlib.Path:

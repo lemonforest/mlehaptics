@@ -325,7 +325,8 @@ def test_spectral_subtraction_smoke():
     x = np.random.RandomState(0).randn(64)
     npsd = np.ones(64) * 0.1
     y = m.op(x, npsd)
-    assert y.shape == (64,)
+    # rc90: spectral_subtraction.op is numpy-free now — returns a list of float.
+    assert isinstance(y, list) and len(y) == 64
 
 
 def test_huffman_smoke():
