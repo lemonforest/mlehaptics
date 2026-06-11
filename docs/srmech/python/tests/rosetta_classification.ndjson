@@ -78,6 +78,7 @@
 {"exposed_as": "srmech.amsc.laplacian.mat_lstsq", "defined_at": "srmech.amsc.laplacian.mat_lstsq", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.mat_hermitian_eigendecompose", "defined_at": "srmech.amsc.laplacian.mat_hermitian_eigendecompose", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.mat_eigvals", "defined_at": "srmech.amsc.laplacian.mat_eigvals", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.laplacian.mat_svd", "defined_at": "srmech.amsc.laplacian.mat_svd", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.dense_matvec_complex", "defined_at": "srmech.amsc.laplacian.dense_matvec_complex", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.dense_solve", "defined_at": "srmech.amsc.laplacian.dense_solve", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.elementwise_multiply_complex", "defined_at": "srmech.amsc.laplacian.elementwise_multiply_complex", "bucket": "c_dispatched"}

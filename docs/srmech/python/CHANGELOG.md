@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc108] - 2026-06-11
+
+**`mat_svd` foundation — numpy-free FULL SVD over the Mat carrier (carrier-removal #564, Mat-bridge foundation #5).** The op `mimo_svd` has waited on this; it does NOT decrement `CEIL_NUMPY_CARRIER` (still 22) — it's the foundation the next consumer flip routes onto:
+
+- `laplacian.mat_svd(A: Mat) -> (U: Mat, S: list[float], Vh: Mat)` mirrors the `svd(A, full_matrices=True)` shape contract: `U` `(m,m)` complex, `S` descending `min(m,n)`, `Vh` `(n,n)` complex, so `A = U[:, :k]·diag(S)·Vh[:k, :]`. The right vectors are eigenvectors of the Hermitian PSD Gram `AᴴA` via `mat_hermitian_eigendecompose` (reordered descending); `S = √λ` (the Class-N `rational.sqrt`, libm-free); the left vectors are `uⱼ = A·vⱼ/σⱼ` for `σⱼ` above the rank tolerance, with an orthonormal modified-Gram–Schmidt completion of the left-nullspace block. **Unconditionally numpy-free** (composes the native-backed `mat_matmul` + `mat_hermitian_eigendecompose`; pure-Python completion).
+- **Value-faithful, NOT bit-identical** (per `[[feedback_cascade_svd_nullspace_accuracy_not_route_matrix_rank]]`): SVD is non-unique (a per-pair phase, and a free unitary basis inside a degenerate-σ / null subspace), so correctness is pinned by **reconstruction** (`A ≈ U·diag(S)·Vᴴ`), **unitarity** (`UᴴU ≈ I`, `Vh·Vhᴴ ≈ I`), and **singular-value match** to NumPy — verified across real/complex × square/tall/wide × full-rank/rank-deficient. The rank tolerance is `σ_max·max(m,n)·1e-6` (relative to the Gram eigen-route's ~1e-7·σ_max small-σ floor, NOT machine-eps) so a sub-floor σ routes its U column through the completion instead of letting `A·v/σ` amplify the error.
+
+Registered as a `ToolEntry` (like its `mat_*` siblings) — `describe()["tools"]["total"]` **289 → 290** (the five count-tests bump in lockstep); `__all__` + rosetta `composition_of_c` bucket added. `CEIL_NUMPY_CARRIER` unchanged at **22**; math-ratchet ledger untouched; ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc107] - 2026-06-11
 
 **Tenth CONSUMER carrier-flip — `mlse` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 23 → 22).** Carrier-removal #564. The Viterbi-trellis channel equaliser (Class L ∘ K), no `np.linalg`:
