@@ -15,6 +15,7 @@ kept on numpy.)
 
 from __future__ import annotations
 
+import math
 import re
 import pathlib
 
@@ -45,13 +46,13 @@ def test_map_ml_ml_and_map_estimators_run():
     y = A @ x_true + rng.standard_normal(m) * 0.05
 
     x_ml = map_ml.op(y, A, Rv)
-    assert x_ml.shape == (n,)
-    assert np.all(np.isfinite(x_ml))
+    assert isinstance(x_ml, list) and len(x_ml) == n  # rc102: numpy-free list return
+    assert all(math.isfinite(v) for v in x_ml)
 
     Rx = np.eye(n) * 2.0
     x_map = map_ml.op(y, A, Rv, R_prior=Rx)
-    assert x_map.shape == (n,)
-    assert np.all(np.isfinite(x_map))
+    assert isinstance(x_map, list) and len(x_map) == n  # rc102: numpy-free list return
+    assert all(math.isfinite(v) for v in x_map)
 
 
 def test_no_residual_np_linalg_inv_in_map_ml():
@@ -60,4 +61,9 @@ def test_no_residual_np_linalg_inv_in_map_ml():
     pkg = pathlib.Path(srmech.__file__).parent
     txt = (pkg / "signal_processing/closed_form_ops/map_ml.py").read_text(encoding="utf-8")
     assert not re.search(r"\bnp\.linalg\.inv\s*\(", txt)
-    assert "dense_solve(" in txt
+    # rc102 (carrier-removal #564): the covariance inverse now routes through the
+    # numpy-free Mat-carrier ``mat_solve`` (was ``dense_solve``); op is numpy-free.
+    # (The column-0 `import numpy` ratchet in test_numpy_carrier_ratchet.py is the
+    # authoritative numpy-free gate; here we just confirm the routing target.)
+    assert "mat_solve(" in txt
+    assert not re.search(r"(?m)^import numpy", txt)

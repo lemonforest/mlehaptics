@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc102] - 2026-06-11
+
+**Fifth CONSUMER carrier-flip — `map_ml` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 28 → 27).** Carrier-removal #564. The same real-solve family as `lmmse`: the linear-Gaussian MAP / ML estimator `x_hat = (Aᵀ R_v⁻¹ A + R_x⁻¹)⁻¹ (Aᵀ R_v⁻¹ y + R_x⁻¹ μ)` (Kay 1993 §7 / §11):
+
+- The two covariance inverses (`R_v⁻¹`, and `R_x⁻¹` on the MAP branch) route off the numpy-carrier `dense_solve(M, np.eye(n))` onto the native `mat_solve(Mat, identity_Mat)` over real `Mat`s (the inverse IS the solve against the identity; rides `srmech_dense_solve_f64`). `Aᵀ R_v⁻¹` rides `mat_matmul`, the normal-equation matrix `Aᵀ R_v⁻¹ A` rides `mat_matmul`, and the `Aᵀ R_v⁻¹ y` / `R_x⁻¹ μ` matvecs + the `M + R_x⁻¹` precision add are pure-Python sums. Inputs (`y`, `A`, `R_noise`, optional `R_prior` / `mean_prior`) coerce numpy-free via `tolist()`. The top-level `import numpy as np` is **gone**; both branches return `list[float]` (was an ndarray).
+- **Differential-verified** value-faithful to the numpy-present closed-form reference over 200 random `(m, n)` trials (ML max-err ~7e-12 — the normal-equations conditioning — and MAP max-err ~5e-14). The `x_hat.shape == (2,)` smoke (baseline) and `x_ml.shape`/`x_map.shape == (n,)` + `np.all(np.isfinite(...))` asserts (rc64 test) move to `len(...)` + `all(math.isfinite(v) ...)`; the rc64 residual-check `"dense_solve(" in txt` becomes `"mat_solve(" in txt`.
+
+`CEIL_NUMPY_CARRIER` 28 → 27 (down-only ratchet). The math-ratchet ledger is untouched (`mat_solve`/`mat_matmul` + `np.asarray` analogues are not counted linalg/fft/matmul/ufunc patterns — here the op uses none of numpy at all). No new public op (`describe()["tools"]["total"]` stays **289**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc101] - 2026-06-11
 
 **Fourth CONSUMER carrier-flip — `lmmse` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 29 → 28).** Carrier-removal #564. A different sub-shape from the eigendecomposition consumers: the real-valued linear MMSE estimator `x_hat = mean_x + R_xy·R_yy⁻¹·(y − mean_y)`:

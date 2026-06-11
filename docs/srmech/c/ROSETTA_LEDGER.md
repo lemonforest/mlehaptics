@@ -821,6 +821,22 @@ decrements it).
   `out.real[1]`→`out[1].real` (baseline smoke + rc33 diffuse-toward-mean). Math
   ledger UNTOUCHED. No new public op (tools.total 289); ABI 3; no C change.
   Next: lmmse/map_ml, dct/fsk, then the mat_svd foundation for mimo_svd.
+- **rc102 (done, v0.7.5rc102) — FIFTH CONSUMER flip: `map_ml` numpy-FREE
+  (`CEIL_NUMPY_CARRIER` 28 → 27).** Carrier-removal #564. Same real-solve family
+  as lmmse: the linear-Gaussian MAP/ML estimator `x_hat = (Aᵀ R_v⁻¹ A + R_x⁻¹)⁻¹
+  (Aᵀ R_v⁻¹ y + R_x⁻¹ μ)` (Kay 1993 §7/§11). Routes the two covariance inverses
+  off `dense_solve(M, np.eye(n))` onto native `mat_solve(Mat, identity_Mat)` over
+  real `Mat`s (the inverse IS the solve against I); `Aᵀ R_v⁻¹` and the normal-eq
+  matrix `Aᵀ R_v⁻¹ A` ride `mat_matmul`; the `Aᵀ R_v⁻¹ y` / `R_x⁻¹ μ` matvecs +
+  the `M + R_x⁻¹` precision add are pure-Python sums. Inputs coerce numpy-free via
+  `tolist()`; dropped `import numpy as np`; both branches return `list[float]`.
+  Differential-verified over 200 random `(m,n)` trials (ML max-err ~7e-12 — normal-
+  eq conditioning — MAP ~5e-14). RIPPLES: `x_hat.shape==(2,)` smoke → `len`;
+  `test_map_ml_inv_dense_solve_rc64.py` `x_ml.shape/x_map.shape==(n,)` → `len` +
+  `np.all(np.isfinite(...))` → `all(math.isfinite(v) ...)`, and its residual-check
+  `"dense_solve(" in txt` → `"mat_solve(" in txt`. Math ledger UNTOUCHED. No new
+  public op (tools.total 289); ABI 3; no C change. Next: fsk (cleanest, 1 ripple),
+  then dct (+ jpeg consumer), then mat_svd for mimo_svd.
 - **rc101 (done, v0.7.5rc101) — FOURTH CONSUMER flip: `lmmse` numpy-FREE
   (`CEIL_NUMPY_CARRIER` 29 → 28).** Carrier-removal #564. A DIFFERENT sub-shape:
   the real-valued linear MMSE estimator `x_hat = mean_x + R_xy·R_yy⁻¹·(y−mean_y)`
