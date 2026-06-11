@@ -61,7 +61,10 @@ def su2_generators() -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         ``(T1, T2, T3)``: three 2×2 Hermitian traceless matrices
         satisfying ``[T^a, T^b] = i ε^{abc} T^c`` and ``tr(T^a T^b) = δ^{ab}/2``.
     """
-    sx, sy, sz = pauli_matrices()
+    # spin.pauli_matrices returns numpy-free `Mat` as of v0.7.5rc115; this
+    # module is still a numpy carrier (flips in a later #564 rc), so coerce the
+    # Mat producer to ndarray at the boundary via the lossy export bridge.
+    sx, sy, sz = (p.to_numpy() for p in pauli_matrices())
     return 0.5 * sx, 0.5 * sy, 0.5 * sz
 
 

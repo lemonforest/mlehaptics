@@ -7,6 +7,21 @@ across Spike #21C / #58.P / #106 / #128 reproduces the same L+I+M+C+K+A
 cascade at four scales in quantum substrate; Spike #128.1 ships the
 framework-internal validation as runnable code.
 
+numpy-FREE end to end (v0.7.5rc115, #564): ``chsh_pauli_combination`` /
+``chsh_operator`` return :class:`~srmech.amsc.mat.Mat`; ``operator_norm`` is
+polymorphic. **These tests use no numpy** — eigenvalues come from the
+framework's own Class-L numpy-free Hermitian eigendecomposition
+(:func:`srmech.amsc.laplacian.mat_hermitian_eigendecompose`), the Kronecker
+binds from the :func:`srmech.amsc.cascade.spectral_cascades.kron` cascade, the
+``1/√2`` phase from the Class-N :func:`srmech.amsc.rational.sqrt`, and every
+matrix check is a direct ``Mat``-entry comparison. A test for a numpy-free
+module must itself run with numpy genuinely absent — there is no ``.to_numpy()``
+here (numpy is not a validation reference;
+``[[feedback_no_numpy_rosetta_peer_continuous_float_error_collecting]]``). The
+cascade math already happened numpy-free inside bell.py
+(``chsh_pauli_combination_norm`` via ``eigvals_exact`` on the exact integer 4×4;
+``chsh_operator_norm`` via ``mat_hermitian_eigendecompose``).
+
 Class chain attestation (per
 ``[[user_stance_bell_inequality_as_canonical_identity_signature]]``):
 
@@ -29,10 +44,55 @@ from __future__ import annotations
 
 import math
 
-import numpy as np
 import pytest
 
+from srmech.amsc.cascade.spectral_cascades import kron as _kron_cascade
+from srmech.amsc.laplacian import mat_hermitian_eigendecompose
+from srmech.amsc.mat import Mat
+from srmech.amsc.rational import sqrt as _rsqrt
 from srmech.qm import bell, spin
+
+
+# ---------------------------------------------------------------------------
+# numpy-free Mat helpers (no numpy oracle).
+# ---------------------------------------------------------------------------
+
+
+def _entries(m):
+    """Flat row-major list of a ``Mat``'s plain (complex) entries."""
+    return [m[i, j] for i in range(m.n_rows) for j in range(m.n_cols)]
+
+
+def _max_abs_combo(*signed):
+    """``max_k |Σ coeff·entry_k|`` over aligned entries of equal-shape Mats."""
+    flats = [_entries(m) for _, m in signed]
+    coeffs = [c for c, _ in signed]
+    n = len(flats[0])
+    return max(
+        abs(sum(c * fl[k] for c, fl in zip(coeffs, flats))) for k in range(n)
+    )
+
+
+def _combine(*signed):
+    """Entrywise ``Σ coeff·Mat`` → a new complex ``Mat`` (all same shape)."""
+    rows = signed[0][1].n_rows
+    cols = signed[0][1].n_cols
+    out = [
+        [sum(c * m[i, j] for c, m in signed) for j in range(cols)]
+        for i in range(rows)
+    ]
+    return Mat.from_rows(out, is_complex=True)
+
+
+def _kron_mat(a, b):
+    """Kronecker product of two ``Mat`` → ``Mat`` (numpy-free kron cascade)."""
+    return Mat.from_rows(_kron_cascade(a.tolist(), b.tolist()), is_complex=True)
+
+
+def _eigvals_ascending(m):
+    """Ascending real eigenvalues of a Hermitian ``Mat`` (Class-L, numpy-free)."""
+    evals, _vecs = mat_hermitian_eigendecompose(m)
+    return [evals[i, 0] for i in range(evals.n_rows)]
 
 
 # =========================================================================
@@ -60,11 +120,8 @@ def test_tsirelson_strictly_exceeds_classical_bound():
     """Tsirelson 2√2 > Bell classical bound 2 (the QM violation signature)."""
     assert bell.TSIRELSON_BOUND > bell.CLASSICAL_CHSH_BOUND
     # The Tsirelson-over-classical violation is exactly √2 ≈ 1.414.
-    np.testing.assert_allclose(
-        bell.TSIRELSON_BOUND / bell.CLASSICAL_CHSH_BOUND,
-        math.sqrt(2.0),
-        atol=1e-15,
-    )
+    ratio = bell.TSIRELSON_BOUND / bell.CLASSICAL_CHSH_BOUND
+    assert abs(ratio - math.sqrt(2.0)) < 1e-15
 
 
 # =========================================================================
@@ -73,16 +130,16 @@ def test_tsirelson_strictly_exceeds_classical_bound():
 
 
 def test_chsh_pauli_combination_shape_and_dtype():
-    """The two-Pauli combination is a 4×4 complex matrix."""
+    """The two-Pauli combination is a 4×4 complex ``Mat``."""
     M = bell.chsh_pauli_combination()
     assert M.shape == (4, 4)
-    assert np.iscomplexobj(M)
+    assert M.is_complex
 
 
 def test_chsh_pauli_combination_is_hermitian():
     """``σ_x ⊗ σ_x + σ_z ⊗ σ_z`` is Hermitian (sum of Hermitians)."""
     M = bell.chsh_pauli_combination()
-    np.testing.assert_allclose(M, M.conj().T, atol=1e-15)
+    assert _max_abs_combo((1, M), (-1, M.conj().T)) < 1e-15
 
 
 def test_chsh_pauli_combination_closed_form_eigenvalues():
@@ -91,17 +148,18 @@ def test_chsh_pauli_combination_closed_form_eigenvalues():
     Even-parity block ``[[1,1],[1,1]]`` has eigenvalues ``{0, +2}``;
     odd-parity block ``[[−1,+1],[+1,−1]]`` has eigenvalues ``{0, −2}``.
     """
-    M = bell.chsh_pauli_combination()
-    eigvals = np.sort(np.linalg.eigvalsh(M))
-    expected = np.array([-2.0, 0.0, 0.0, 2.0])
-    np.testing.assert_allclose(eigvals, expected, atol=1e-14)
+    eigvals = _eigvals_ascending(bell.chsh_pauli_combination())
+    expected = [-2.0, 0.0, 0.0, 2.0]
+    for got, exp in zip(eigvals, expected):
+        assert abs(got - exp) < 1e-13
 
 
 def test_chsh_pauli_combination_norm_is_exactly_2():
     """Primary identity: ``‖σ_x ⊗ σ_x + σ_z ⊗ σ_z‖ = 2`` bit-exact.
 
     Integer-eigenvalue Hermitian operator — no rounding floor at any
-    achievable double-precision Jacobi tolerance.
+    achievable double-precision Jacobi tolerance (numpy-free path:
+    ``eigvals_exact`` on the exact integer 4×4).
     """
     norm = bell.chsh_pauli_combination_norm()
     residual = abs(norm - 2.0)
@@ -117,16 +175,16 @@ def test_chsh_pauli_combination_explicit_construction():
     # σ_x ⊗ σ_x: anti-diagonal of ones (flips both bits).
     # σ_z ⊗ σ_z: diag(+1, -1, -1, +1).
     # Sum in |00⟩, |01⟩, |10⟩, |11⟩ basis:
-    expected = np.array(
+    expected = Mat.from_rows(
         [
-            [1.0, 0.0, 0.0, 1.0],
-            [0.0, -1.0, 1.0, 0.0],
-            [0.0, 1.0, -1.0, 0.0],
-            [1.0, 0.0, 0.0, 1.0],
+            [1, 0, 0, 1],
+            [0, -1, 1, 0],
+            [0, 1, -1, 0],
+            [1, 0, 0, 1],
         ],
-        dtype=complex,
+        is_complex=True,
     )
-    np.testing.assert_allclose(M, expected, atol=1e-15)
+    assert _max_abs_combo((1, M), (-1, expected)) < 1e-15
 
 
 # =========================================================================
@@ -135,16 +193,16 @@ def test_chsh_pauli_combination_explicit_construction():
 
 
 def test_chsh_operator_shape_and_dtype():
-    """``B_CHSH`` is a 4×4 complex matrix."""
+    """``B_CHSH`` is a 4×4 complex ``Mat``."""
     B = bell.chsh_operator()
     assert B.shape == (4, 4)
-    assert np.iscomplexobj(B)
+    assert B.is_complex
 
 
 def test_chsh_operator_is_hermitian():
     """``B_CHSH`` is Hermitian (sum of Hermitian tensor products)."""
     B = bell.chsh_operator()
-    np.testing.assert_allclose(B, B.conj().T, atol=1e-14)
+    assert _max_abs_combo((1, B), (-1, B.conj().T)) < 1e-14
 
 
 def test_chsh_operator_algebraic_reduction():
@@ -155,17 +213,17 @@ def test_chsh_operator_algebraic_reduction():
     """
     B = bell.chsh_operator()
     M = bell.chsh_pauli_combination()
-    np.testing.assert_allclose(B, math.sqrt(2.0) * M, atol=1e-14)
+    root2 = _rsqrt(2.0)  # Class-N scalar root (same path bell.py uses)
+    assert _max_abs_combo((1, B), (-root2, M)) < 1e-14
 
 
 def test_chsh_operator_closed_form_eigenvalues():
     """Spectrum of ``B_CHSH``: ``{+2√2, 0, 0, −2√2}``."""
-    B = bell.chsh_operator()
-    eigvals = np.sort(np.linalg.eigvalsh(B))
-    expected = np.array(
-        [-bell.TSIRELSON_BOUND, 0.0, 0.0, bell.TSIRELSON_BOUND]
-    )
-    np.testing.assert_allclose(eigvals, expected, atol=1e-14)
+    eigvals = _eigvals_ascending(bell.chsh_operator())
+    T = bell.TSIRELSON_BOUND
+    expected = [-T, 0.0, 0.0, T]
+    for got, exp in zip(eigvals, expected):
+        assert abs(got - exp) < 1e-13
 
 
 def test_chsh_operator_norm_equals_tsirelson_bound():
@@ -248,33 +306,43 @@ def test_operator_norm_pauli_x():
     """``‖σ_x‖ = 1`` (single-qubit baseline)."""
     sigma_x, _sy, _sz = spin.pauli_matrices()
     norm = bell.operator_norm(sigma_x)
-    np.testing.assert_allclose(norm, 1.0, atol=1e-15)
+    assert abs(norm - 1.0) < 1e-14
 
 
 def test_operator_norm_pauli_z():
     """``‖σ_z‖ = 1`` (single-qubit baseline)."""
     _sx, _sy, sigma_z = spin.pauli_matrices()
     norm = bell.operator_norm(sigma_z)
-    np.testing.assert_allclose(norm, 1.0, atol=1e-15)
+    assert abs(norm - 1.0) < 1e-14
 
 
 def test_operator_norm_identity():
-    """``‖I_n‖ = 1`` for any n."""
+    """``‖I_n‖ = 1`` for any n (numpy-free identity ``Mat``)."""
     for n in (1, 2, 3, 4, 5):
-        I_n = np.eye(n, dtype=complex)
-        np.testing.assert_allclose(bell.operator_norm(I_n), 1.0, atol=1e-14)
+        I_n = Mat.from_rows(
+            [[1 if i == j else 0 for j in range(n)] for i in range(n)],
+            is_complex=True,
+        )
+        assert abs(bell.operator_norm(I_n) - 1.0) < 1e-14
 
 
 def test_operator_norm_rejects_non_square():
-    """``operator_norm`` asserts square 2-D input."""
+    """``operator_norm`` asserts a square ``Mat``."""
+    non_square = Mat.from_rows(
+        [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], is_complex=True
+    )
     with pytest.raises(AssertionError):
-        bell.operator_norm(np.zeros((3, 4), dtype=complex))
+        bell.operator_norm(non_square)
 
 
 def test_operator_norm_rejects_non_2d():
-    """``operator_norm`` asserts 2-D input."""
+    """``operator_norm`` asserts 2-D input for array-likes carrying ``ndim``."""
+
+    class _Fake1D:
+        ndim = 1
+
     with pytest.raises(AssertionError):
-        bell.operator_norm(np.zeros(4, dtype=complex))
+        bell.operator_norm(_Fake1D())
 
 
 # =========================================================================
@@ -286,27 +354,31 @@ def test_chsh_pauli_combination_uses_canonical_pauli_matrices():
     """The CHSH combination uses :func:`srmech.qm.spin.pauli_matrices`.
 
     Cross-references the canonical SSoT (Pauli 1927) for the underlying
-    matrices, per ``[[feedback_science_is_ssot_not_project]]``.
+    matrices, per ``[[feedback_science_is_ssot_not_project]]`` — rebuilt here
+    via the numpy-free Kronecker cascade and compared entrywise.
     """
     sigma_x, _sy, sigma_z = spin.pauli_matrices()
-    M_manual = np.kron(sigma_x, sigma_x) + np.kron(sigma_z, sigma_z)
+    kxx = _kron_mat(sigma_x, sigma_x)
+    kzz = _kron_mat(sigma_z, sigma_z)
     M_module = bell.chsh_pauli_combination()
-    np.testing.assert_array_equal(M_manual, M_module)
+    assert _max_abs_combo((1, M_module), (-1, kxx), (-1, kzz)) < 1e-15
 
 
 def test_chsh_operator_uses_canonical_pauli_matrices():
     """The full CHSH operator uses :func:`srmech.qm.spin.pauli_matrices`."""
     sigma_x, _sy, sigma_z = spin.pauli_matrices()
-    inv_sqrt2 = 1.0 / math.sqrt(2.0)
-    A0 = sigma_z
-    A1 = sigma_x
-    B0 = inv_sqrt2 * (sigma_z + sigma_x)
-    B1 = inv_sqrt2 * (sigma_z - sigma_x)
-    B_manual = (
-        np.kron(A0, B0) + np.kron(A0, B1) + np.kron(A1, B0) - np.kron(A1, B1)
+    inv_sqrt2 = 1.0 / _rsqrt(2.0)  # same Class-N path bell.chsh_operator uses
+    A0, A1 = sigma_z, sigma_x
+    B0 = _combine((inv_sqrt2, sigma_z), (inv_sqrt2, sigma_x))   # inv·(σz+σx)
+    B1 = _combine((inv_sqrt2, sigma_z), (-inv_sqrt2, sigma_x))  # inv·(σz−σx)
+    B_manual = _combine(
+        (1, _kron_mat(A0, B0)),
+        (1, _kron_mat(A0, B1)),
+        (1, _kron_mat(A1, B0)),
+        (-1, _kron_mat(A1, B1)),
     )
     B_module = bell.chsh_operator()
-    np.testing.assert_allclose(B_manual, B_module, atol=1e-15)
+    assert _max_abs_combo((1, B_module), (-1, B_manual)) < 1e-13
 
 
 # =========================================================================
@@ -326,4 +398,4 @@ def test_chsh_operator_norm_violates_bell_classical_bound():
     classical_max = bell.CLASSICAL_CHSH_BOUND
     assert qm_max > classical_max
     violation_factor = qm_max / classical_max
-    np.testing.assert_allclose(violation_factor, math.sqrt(2.0), atol=1e-14)
+    assert abs(violation_factor - math.sqrt(2.0)) < 1e-14

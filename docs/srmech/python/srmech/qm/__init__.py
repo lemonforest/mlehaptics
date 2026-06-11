@@ -66,26 +66,16 @@ Canonical SSoT:
 """
 
 # Scientific tier: numpy is optional as of v0.7.0 (the cascade core is numpy-
-# free). Fail with an actionable [scientific] hint, not a bare numpy error.
-from srmech._scientific import require_numpy as _require_numpy
+# free). The qm submodules are flipping numpy-free one-by-one (#564 carrier arc:
+# rc115 spin/bell, rc116+ the rest). Rather than an EAGER subpackage-wide
+# `_require_numpy("srmech.qm")` gate (which would block the already-numpy-free
+# modules from importing on a numpy-absent install — the rc70 runnable≠loadable
+# trap / [[feedback_carrier_ratchet_misses_require_numpy_subpackage_gates]]),
+# each submodule is loaded LAZILY on first access (the rc71 signal_processing
+# precedent): a flipped module imports numpy-free; an as-yet-numpy module still
+# surfaces the actionable [scientific] hint (not a bare numpy ImportError).
 
-_require_numpy("srmech.qm")
-
-from srmech.qm import (
-    bell,
-    gauge,
-    hurwitz,
-    octonion,
-    potentials,
-    propagators,
-    pseudo_hermitian,
-    relativistic,
-    single_particle,
-    sm,
-    so8,
-    spin,
-    triality,
-)
+import importlib
 
 __all__ = [
     "bell",
@@ -102,3 +92,24 @@ __all__ = [
     "spin",
     "triality",
 ]
+
+_SUBMODULES = frozenset(__all__)
+
+
+def __getattr__(name):
+    """Lazily import a qm submodule on first attribute access (PEP 562)."""
+    if name in _SUBMODULES:
+        try:
+            mod = importlib.import_module(f"{__name__}.{name}")
+        except ImportError as exc:  # pragma: no cover - numpy-absent path
+            if "numpy" in str(exc).lower():
+                from srmech._scientific import require_numpy
+                require_numpy(f"srmech.qm.{name}")  # raises the [scientific] hint
+            raise
+        globals()[name] = mod
+        return mod
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__():
+    return sorted(set(globals()) | _SUBMODULES)
