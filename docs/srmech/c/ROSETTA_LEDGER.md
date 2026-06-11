@@ -740,6 +740,18 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc96 (done, v0.7.5rc96) — Mat-return FOUNDATION #2: `mat_lstsq` numpy-free
+  least-squares over the Mat carrier.** Carrier-removal #564. New PUBLIC op
+  `amsc.laplacian.mat_lstsq(a: Mat, b: Mat) -> Mat`: the overdetermined/square
+  (m>=n) normal equations `X = (Aᴴ·A)⁻¹·Aᴴ·B` = `mat_solve(mat_matmul(Aᴴ,A),
+  mat_matmul(Aᴴ,B))` with `Aᴴ = a.conj().T` — fully numpy-free for real AND
+  complex (rc95 made mat_solve complex-capable). Value-faithful to
+  numpy.linalg.lstsq to ~1e-13; m<n raises ValueError. Also fixes the mat_solve
+  ToolEntry summary (still said "Real-f64 only" post-rc95). NEW public op →
+  describe tools.total 287 → 288 (classes stays 2); ToolEntry + rosetta
+  `composition_of_c` bucket + `__all__`/`LAPLACIAN_OPS` + the 7 count-tests
+  bumped 287→288; CEIL stays 32; ABI 3; no C change. Next: `mat_eigvals`
+  (Mat-carrier shifted-QR), then route esprit.
 - **rc95 (done, v0.7.5rc95) — Mat-return FOUNDATION: `mat_solve` handles
   COMPLEX numpy-free (unblocks the matrix-heavy DSP carrier-flips).**
   Carrier-removal #564. The matrix-heavy sigproc ops (esprit/dct/fsk/ica_jade/

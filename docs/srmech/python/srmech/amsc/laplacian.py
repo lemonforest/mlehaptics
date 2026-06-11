@@ -133,6 +133,7 @@ __all__ = [
     "mat_matmul",
     "mat_solve",
     "mat_hermitian_eigendecompose",
+    "mat_lstsq",
     "dense_dot_complex",
     "dense_matmul_real",
     "dense_matvec_real",
@@ -1555,6 +1556,48 @@ def _mat_solve_complex(a: "Mat", b: "Mat") -> "Mat":
     return Mat.from_rows(out_rows, is_complex=True)
 
 
+def mat_lstsq(a: "Mat", b: "Mat") -> "Mat":
+    """Numpy-free least-squares solution of ``A·X ≈ B`` (minimising
+    ``‖A·X − B‖``) over the :class:`~srmech.amsc.mat.Mat` carrier — the
+    Mat-return peer of ``matrix_cascades.lstsq`` (rc96, carrier-removal #564).
+
+    Overdetermined / square ``A`` ``(m, n)`` with ``m ≥ n`` (full column rank).
+    Built as the **normal equations** ``X = (Aᴴ·A)⁻¹·Aᴴ·B``, composed entirely
+    from the native ``mat_*`` trio: ``mat_solve(mat_matmul(Aᴴ, A),
+    mat_matmul(Aᴴ, B))`` with ``Aᴴ = A.conj().T`` — fully numpy-free for real
+    **and** complex ``A`` (rc95 made :func:`mat_solve` complex-capable via the
+    real 2n×2n block embedding). Value-faithful to NumPy's ``lstsq(A, B)[0]``
+    to ~1e-9 for a well-conditioned ``A`` (the normal equations square the
+    condition number — fine for the orthonormal signal-subspace projections the
+    DSP ops feed it; an ill-conditioned ``A`` wants the QR path of
+    ``matrix_cascades.lstsq`` instead). The result is complex iff ``A`` is.
+
+    Raises ``ValueError`` (underdetermined ``m < n`` / ``A``-``B`` row mismatch),
+    ``ZeroDivisionError`` (rank-deficient ``A``, surfaced by the solve).
+
+    Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
+    Hopkins, 2013) §5.3 (normal-equations least squares).
+    """
+    from .mat import Mat
+    assert isinstance(a, Mat) and isinstance(b, Mat), (
+        "mat_lstsq operands must be Mat (the numpy-free 2-D carrier)"
+    )
+    m, n = a.n_rows, a.n_cols
+    if m < n:
+        raise ValueError(
+            f"mat_lstsq supplies the overdetermined/square (m>=n) normal-"
+            f"equations path; got A {a.shape} (underdetermined)"
+        )
+    if b.n_rows != m:
+        raise ValueError(
+            f"mat_lstsq: B row-count {b.n_rows} incompatible with A rows {m}"
+        )
+    ah = a.conj().T                       # Aᴴ (n, m) — Class-K conjugate ∘ transpose
+    aha = mat_matmul(ah, a)               # (n, n) Hermitian, PD if A full column rank
+    ahb = mat_matmul(ah, b)               # (n, w)
+    return mat_solve(aha, ahb)            # numpy-free (complex via the rc95 embedding)
+
+
 def _hermitian_eig_py(h: "Mat") -> Tuple["Mat", "Mat"]:
     """Numpy-free Hermitian eigendecomposition fallback for
     :func:`mat_hermitian_eigendecompose`.
@@ -2465,6 +2508,7 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "mat_matmul",
     "mat_solve",
     "mat_hermitian_eigendecompose",
+    "mat_lstsq",
     "dense_dot_complex",
     "dense_matmul_real",
     "dense_matvec_real",

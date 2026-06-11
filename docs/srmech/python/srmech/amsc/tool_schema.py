@@ -1041,11 +1041,25 @@ def _register_primitive_class_tools() -> None:
             summary="Numpy-FREE dense linear solve A·X = B over the Mat carrier "
                     "(carrier-removal #564): real Mat.buffers feed the native "
                     "srmech_dense_solve_f64 zero-copy; exact-rational "
-                    "Gauss-Jordan fallback with no native lib. Real-f64 only. "
-                    "Golub & Van Loan §3.4.",
-            parameters=(P("a", "Mat", True, "n × n real Mat (square)"),
-                        P("b", "Mat", True, "n × w real Mat (right-hand side)")),
-            returns=R("Mat", "n × w real Mat solution X"),
+                    "Gauss-Jordan fallback with no native lib. Complex A/B route "
+                    "through the real 2n×2n block embedding (rc95), riding the "
+                    "same native real solve. Golub & Van Loan §3.4.",
+            parameters=(P("a", "Mat", True, "n × n real or complex Mat (square)"),
+                        P("b", "Mat", True, "n × w real or complex Mat (rhs)")),
+            returns=R("Mat", "n × w Mat solution X (complex iff inputs are)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.mat_lstsq",
+            owner="srmech", category="laplacian",
+            summary="Numpy-FREE least-squares A·X ≈ B over the Mat carrier "
+                    "(carrier-removal #564): the normal equations "
+                    "X = solve(A^H·A, A^H·B) composed from the native mat_matmul "
+                    "and mat_solve trio (complex-capable via rc95), real and "
+                    "complex. Overdetermined/square m>=n, full column rank. "
+                    "Golub & Van Loan §5.3.",
+            parameters=(P("a", "Mat", True, "m × n real or complex Mat (m >= n)"),
+                        P("b", "Mat", True, "m × w real or complex Mat (rhs)")),
+            returns=R("Mat", "n × w Mat solution X (complex iff inputs are)"),
         ),
         ToolEntry(
             name="srmech.amsc.laplacian.mat_hermitian_eigendecompose",
