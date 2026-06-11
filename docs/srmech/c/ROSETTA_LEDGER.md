@@ -821,6 +821,21 @@ decrements it).
   `out.real[1]`→`out[1].real` (baseline smoke + rc33 diffuse-toward-mean). Math
   ledger UNTOUCHED. No new public op (tools.total 289); ABI 3; no C change.
   Next: lmmse/map_ml, dct/fsk, then the mat_svd foundation for mimo_svd.
+- **rc103 (done, v0.7.5rc103) — SIXTH CONSUMER flip: `fsk` numpy-FREE
+  (`CEIL_NUMPY_CARRIER` 27 → 26).** Carrier-removal #564. The FSK modulator/
+  demodulator (educational civilian-comms; trauma-informed defensive scope).
+  Tone phases `e^{i·2π·f·t}` route off `elementwise_transcendental(·,"exp_i")`
+  onto a per-element `_exp_i(θ)=complex(rational.cos(θ),rational.sin(θ))` over
+  the Class-N `_PI` source (native libm-free, bit-faithful); the demod
+  correlator bank is a pure-Python complex matvec `Σ_j tone[k][j]·conj(w[j])`
+  deciding on `argmax|corr|²` (monotone in `|corr|` → no sqrt / no abs, drops
+  `dense_matvec_complex`+`elementwise_hypot`). Coerce numpy-free via `tolist()`;
+  dropped `import numpy as np`; modulate → `list[complex]`, demod → `list[int]`.
+  Differential-verified: modulate bit-faithful to `e^{i2πft}` (max-err ~1e-16),
+  noiseless demod round-trips exactly, 0.01-noise sweep <0.1% symbol error.
+  RIPPLE: `waveform.shape==(4*8,)` → `len`. Math ledger UNTOUCHED; rosetta bucket
+  stays `python_only_irreducible`. No new public op (tools.total 289); ABI 3; no
+  C change. Next: dct (+ jpeg consumer), then mat_svd for mimo_svd.
 - **rc102 (done, v0.7.5rc102) — FIFTH CONSUMER flip: `map_ml` numpy-FREE
   (`CEIL_NUMPY_CARRIER` 28 → 27).** Carrier-removal #564. Same real-solve family
   as lmmse: the linear-Gaussian MAP/ML estimator `x_hat = (Aᵀ R_v⁻¹ A + R_x⁻¹)⁻¹
