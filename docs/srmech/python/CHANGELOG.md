@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc81] - 2026-06-10
+
+**Carrier-flip batch #5 — `wavelet` (Haar DWT) goes numpy-FREE (`CEIL_NUMPY_CARRIER` 46 → 45).** Carrier-removal #564. `closed_form_ops/wavelet` (Class L multi-scale 2-point Laplacian ∘ Class N dyadic 2^k scaling) drops its top-level `import numpy`:
+
+- Its only numpy was `np.asarray` / `np.zeros` carriers — the `1/√2` normaliser was already the libm-free Class-N `rational.sqrt`. The op now runs on a plain Python `list`: each level is an explicit **elementwise Class-L 2-point band** (`approx = [(e+o)/√2]`, `detail = [(e-o)/√2]` over `zip(evens, odds)`) on the **Class-N dyadic decimation** (`current[0::2]` / `current[1::2]`), with a one-zero pad for odd lengths. Value-faithful (same `rational.sqrt` constant, same float64 arithmetic).
+- Returns `(approx, [detail_level_k, …])` as `list`s (was ndarrays). **Zero test ripple** — the smoke test already asserts `isinstance(details, list)` + `len(details) == 2`, both unchanged.
+
+`CEIL_NUMPY_CARRIER` 46 → 45 (down-only ratchet). No new public op (`describe()["tools"]["total"]` stays **287**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc80] - 2026-06-10
 
 **Carrier-flip batch #4 — `fir` + `matched_filter` go numpy-FREE (`CEIL_NUMPY_CARRIER` 48 → 46).** Carrier-removal #564, the follow-on rc79 unblocked: now that `_dsp_cascades` is numpy-free, the two convolution/correlation leaf ops flip trivially. Both `closed_form_ops/fir` (Class N ∘ Class C) and `closed_form_ops/matched_filter` (Class A ∘ Class C ∘ Class M) drop their top-level `import numpy`:

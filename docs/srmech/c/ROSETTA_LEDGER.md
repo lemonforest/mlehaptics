@@ -740,6 +740,17 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc81 (done, v0.7.5rc81) — carrier-flip batch #5: `wavelet` (Haar DWT) goes
+  numpy-FREE (CEIL_NUMPY_CARRIER 46 → 45).** Carrier-removal #564.
+  `closed_form_ops/wavelet` (Class L 2-point Laplacian ∘ Class N dyadic 2^k)
+  drops its top-level `import numpy`; its only numpy was np.asarray/np.zeros
+  carriers (the 1/√2 normaliser was already the libm-free Class-N
+  `rational.sqrt`). Now a plain-list carrier: each level is an explicit
+  elementwise Class-L sum/difference band over the Class-N dyadic decimation
+  (`current[0::2]`/`[1::2]`), one-zero pad for odd lengths. Returns
+  `(approx, [details])` as lists; the smoke test already checks
+  `isinstance(details, list)`+`len`, so ZERO test ripple. No new public op
+  (describe tools.total stays 287, classes 2); ABI 3; no C change.
 - **rc80 (done, v0.7.5rc80) — carrier-flip batch #4: `fir` + `matched_filter`
   go numpy-FREE (CEIL_NUMPY_CARRIER 48 → 46).** Carrier-removal #564, the rc79
   follow-on it unblocked. With `_dsp_cascades` numpy-free, the two
