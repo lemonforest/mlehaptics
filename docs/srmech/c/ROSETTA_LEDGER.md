@@ -740,6 +740,18 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc87 (done, v0.7.5rc87) — carrier-flip batch #11: `wiener` goes numpy-FREE
+  (CEIL_NUMPY_CARRIER 40 → 39).** Carrier-removal #564, fifth of the
+  workflow-scoped batch; a clean leaf. `closed_form_ops/wiener` (Class L
+  power-spectrum Laplacian eigenbasis ∘ Class N rational MMSE gain) drops
+  top-level `import numpy`: `_sc.fft`/`_sc.ifft` already return List[complex]
+  (np.asarray/np.real wraps drop); the per-bin power |X|²=X.real²+X.imag² (no
+  abs()), the Class-N gain S_xx/(S_xx+S_nn), and the IFFT→real-part are explicit
+  elementwise list comprehensions; the two np.maximum(...,1e-30) ε-floors become
+  the builtin max(x,1e-30) per bin. `op` returns a list of float; the baseline +
+  rc61 smoke tests move `.shape` → len (the rc61 finite/real checks pass on the
+  list). No new public op (describe tools.total stays 287, classes 2); ABI 3; no
+  C change.
 - **rc86 (done, v0.7.5rc86) — carrier-flip batch #10: `beamforming_fixed` goes
   numpy-FREE (CEIL_NUMPY_CARRIER 41 → 40).** Carrier-removal #564, fourth of the
   workflow-scoped batch; a clean leaf. `closed_form_ops/beamforming_fixed`

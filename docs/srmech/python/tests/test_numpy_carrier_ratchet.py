@@ -91,7 +91,13 @@ import srmech
 # integer delays (Class-L reduce, no abs()); the per-mic delay-and-sum is an explicit
 # scale-and-accumulate (Class-M) index loop `out[i] += w[m]*sig[m][delay+i]`. Returns a
 # list of complex; the smoke test moves `y.ndim==1`/`y.shape[0]` -> isinstance/len. 41 -> 40.
-CEIL_NUMPY_CARRIER = 40
+# rc87: wiener flips numpy-free (workflow-scoped batch; clean leaf). FFT -> per-bin
+# |X|²=X.real²+X.imag² -> Class-N rational MMSE gain S/(S+N) -> IFFT -> real part, all
+# explicit elementwise list comprehensions; the np.maximum(..., 1e-30) eps floors
+# become the builtin `max(x, 1e-30)` per bin. `_sc.fft`/`_sc.ifft` already return
+# List[complex]; np.asarray/np.real wraps drop. Returns a list of float; the baseline +
+# rc61 smoke tests move `.shape` -> len (the rc61 finite/real checks pass on the list). 40 -> 39.
+CEIL_NUMPY_CARRIER = 39
 
 
 def _srmech_root() -> pathlib.Path:

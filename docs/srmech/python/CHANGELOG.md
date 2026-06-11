@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc87] - 2026-06-10
+
+**Carrier-flip batch #11 — `wiener` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 40 → 39).** Carrier-removal #564, the fifth of the workflow-scoped batch and a clean leaf. `closed_form_ops/wiener` (Class L power-spectrum Laplacian eigenbasis ∘ Class N rational MMSE gain) drops its top-level `import numpy`:
+
+- `_sc.fft`/`_sc.ifft` already return `List[complex]`; the `np.asarray`/`np.real` wraps drop. The per-bin power `|X|² = X.real² + X.imag²` (no `abs()`), the Class-N rational gain `H_W(k) = S_xx/(S_xx+S_nn)`, and the IFFT-then-real-part are explicit elementwise list comprehensions.
+- The two `np.maximum(..., 1e-30)` ε-floors become the builtin **`max(x, 1e-30)`** per bin.
+- `op` now returns a `list` of `float` (was float64 ndarray). The baseline + rc61 smoke tests move `.shape` → `len`; the rc61 finite/real checks pass on the list.
+
+`CEIL_NUMPY_CARRIER` 40 → 39 (down-only ratchet). No new public op (`describe()["tools"]["total"]` stays **287**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc86] - 2026-06-10
 
 **Carrier-flip batch #10 — `beamforming_fixed` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 41 → 40).** Carrier-removal #564, the fourth of the workflow-scoped batch and a clean leaf. `closed_form_ops/beamforming_fixed` (Class L microphone-array combiner ∘ Class N rational delay coefficients; trauma-informed civilian-acoustics scope) drops its top-level `import numpy`:
