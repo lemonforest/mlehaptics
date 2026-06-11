@@ -821,6 +821,20 @@ decrements it).
   `out.real[1]`→`out[1].real` (baseline smoke + rc33 diffuse-toward-mean). Math
   ledger UNTOUCHED. No new public op (tools.total 289); ABI 3; no C change.
   Next: lmmse/map_ml, dct/fsk, then the mat_svd foundation for mimo_svd.
+- **rc105 (done, v0.7.5rc105) — EIGHTH CONSUMER flip: `vector_quantisation`
+  numpy-FREE (`CEIL_NUMPY_CARRIER` 25 → 24).** Carrier-removal #564. The cleanest
+  remaining consumer (nearest-codebook lookup, Class E∘M∘B, no np.linalg). The
+  nearest-neighbour query becomes a pure-Python argmin over the squared Euclidean
+  distance `Σ_j (x_j − c_j)²` (the `|x|²−2x·c+|c|²` matmul cross-term trick is
+  unnecessary for an argmin, so `dense_matmul_real` is dropped). Inputs coerce via
+  `tolist()` (single 1-D vector accepted as one row); dropped `import numpy as
+  np`; encode → `list[int]`, decode → list-of-rows. Differential-verified:
+  encode argmin BIT-IDENTICAL to numpy over 200 random configs (0/1262
+  mismatches); decode round-trips. RIPPLE: `idx.shape==(10,)` → `len`. Math ledger
+  UNTOUCHED; rosetta bucket `python_only_irreducible` stays. No new public op
+  (tools.total 289); ABI 3; no C change. Remaining matrix-heavy: psk_qam (fsk-like
+  constellation), mlse, mimo_svd (needs the `mat_svd` foundation), ica_jade
+  (np.linalg.eigh = numpy-as-accuracy, likely stays gated).
 - **rc104 (done, v0.7.5rc104) — SEVENTH CONSUMER flip: `dct` (+jpeg consumer)
   numpy-FREE (`CEIL_NUMPY_CARRIER` 26 → 25).** Carrier-removal #564. The DCT-II/
   DCT-III cosine transform — the INVOLVED one (it has a `jpeg` consumer). The

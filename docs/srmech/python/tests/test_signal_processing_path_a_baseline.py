@@ -392,7 +392,7 @@ def test_vector_quantisation_smoke():
     cb = rs.randn(8, 4)
     vecs = rs.randn(10, 4)
     idx = m.op(vecs, cb)
-    assert idx.shape == (10,)
+    assert isinstance(idx, list) and len(idx) == 10  # rc105: numpy-free list return
 
 
 def test_psk_qam_smoke():

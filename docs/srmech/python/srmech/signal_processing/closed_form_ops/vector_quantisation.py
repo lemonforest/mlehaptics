@@ -8,6 +8,12 @@ stream) composition.
 The closed-form reference uses Euclidean distance to find the nearest
 codebook entry for each input vector.
 
+Carrier-removal #564 (rc105): numpy-FREE — the nearest-neighbour query is a
+pure-Python argmin over the squared Euclidean distance ``Σ_j (x_j − c_j)²``
+(the matmul cross-term trick is unnecessary for an argmin). Inputs coerce
+numpy-free via ``tolist()``; encode returns ``list[int]``, decode returns a
+list-of-rows. No top-level ``import numpy``.
+
 Path B dual in Phase 6 (Path B codebook as bound-vector address space).
 
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Linde,
@@ -17,11 +23,7 @@ Quantization and Signal Compression*.
 
 from __future__ import annotations
 
-from typing import List, Optional
-
-import numpy as np
-
-from srmech.amsc.laplacian import dense_matmul_real
+from typing import List
 
 OPERATION_NAME = "vector_quantisation"
 CLASS_COMPOSITION = ("E", "M", "B")
@@ -34,6 +36,12 @@ SSOT_CITATION = (
 )
 
 
+def _as_rows(a) -> List[List[float]]:
+    """Coerce a 2-D array-like to a list-of-rows of float (numpy-free)."""
+    raw = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
+    return [[float(x) for x in r] for r in raw]
+
+
 def op(
     vectors,
     codebook,
@@ -41,16 +49,16 @@ def op(
     decode: bool = False,
     D: int = 8192,
 ):
-    """Vector quantise ``vectors`` against ``codebook``.
+    """Vector quantise ``vectors`` against ``codebook`` (numpy-free).
 
-    Encode: returns an array of codebook indices (one per input vector).
-    Decode: returns the reconstructed vectors (codebook[indices]).
+    Encode: returns a ``list[int]`` of codebook indices (one per input vector).
+    Decode: returns the reconstructed vectors (``[codebook[i] for i in idx]``).
 
     Parameters
     ----------
     vectors:
-        Encode: ``(n_vec, d)`` array of input vectors. Decode: array of
-        integer indices into ``codebook``.
+        Encode: ``(n_vec, d)`` array of input vectors (a single ``(d,)`` vector
+        is accepted and treated as one row). Decode: array of integer indices.
     codebook:
         ``(n_codes, d)`` array of codebook entries.
     decode:
@@ -60,26 +68,42 @@ def op(
 
     Returns
     -------
-    Encode: 1-D integer array of length ``n_vec``.
-    Decode: ``(n_vec, d)`` array of reconstructed vectors.
+    Encode: ``list[int]`` of length ``n_vec``.
+    Decode: list-of-rows ``(n_vec, d)`` of reconstructed vectors.
     """
-    cb = np.asarray(codebook, dtype=np.float64)
+    cb = _as_rows(codebook)
+    if not cb:
+        raise ValueError("codebook must be non-empty 2-D")
+    d = len(cb[0])
+
     if decode:
-        idx = np.asarray(vectors, dtype=np.int64)
-        return cb[idx]
-    vec = np.asarray(vectors, dtype=np.float64)
-    if vec.ndim == 1:
-        vec = vec[np.newaxis, :]
-    if cb.ndim != 2:
-        raise ValueError(f"codebook must be 2-D; got {cb.shape}")
-    if vec.shape[1] != cb.shape[1]:
-        raise ValueError(
-            f"vector dimension {vec.shape[1]} != codebook dimension {cb.shape[1]}"
-        )
-    # Compute pairwise squared Euclidean distances.
-    # |x - c|^2 = |x|^2 - 2 x.c + |c|^2
-    x_sq = np.sum(vec * vec, axis=1)[:, None]
-    c_sq = np.sum(cb * cb, axis=1)[None, :]
-    cross = dense_matmul_real(vec, cb.T)
-    dists = x_sq - 2.0 * cross + c_sq
-    return np.argmin(dists, axis=1)
+        idx_raw = vectors.tolist() if hasattr(vectors, "tolist") else list(vectors)
+        return [list(cb[int(i)]) for i in idx_raw]
+
+    raw = vectors.tolist() if hasattr(vectors, "tolist") else list(vectors)
+    if not raw:
+        return []
+    # Accept a single 1-D vector as one row.
+    rows = [[float(x) for x in raw]] if not isinstance(raw[0], (list, tuple)) else _as_rows(raw)
+    for r in rows:
+        if len(r) != d:
+            raise ValueError(
+                f"vector dimension {len(r)} != codebook dimension {d}"
+            )
+
+    # Class E codebook lookup via Class M nearest-neighbour: argmin of the
+    # squared Euclidean distance (no sqrt needed; argmin is invariant under it).
+    out: List[int] = []
+    for x in rows:
+        best_k = 0
+        best = None
+        for k, c in enumerate(cb):
+            dist = 0.0
+            for j in range(d):
+                diff = x[j] - c[j]
+                dist += diff * diff
+            if best is None or dist < best:
+                best = dist
+                best_k = k
+        out.append(best_k)
+    return out

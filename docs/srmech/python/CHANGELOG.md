@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc105] - 2026-06-11
+
+**Eighth CONSUMER carrier-flip — `vector_quantisation` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 25 → 24).** Carrier-removal #564. The cleanest remaining consumer — nearest-codebook lookup (Class E ∘ M ∘ B), no `np.linalg`:
+
+- The nearest-neighbour query becomes a **pure-Python argmin** over the squared Euclidean distance `Σ_j (x_j − c_j)²` (the `|x|² − 2x·c + |c|²` matmul cross-term trick is unnecessary for an argmin, so `dense_matmul_real` is dropped). Inputs coerce numpy-free via `tolist()` (a single 1-D vector is accepted as one row). The top-level `import numpy as np` is **gone**; encode returns `list[int]`, decode returns a list-of-rows (were ndarrays).
+- **Differential-verified**: the encode argmin is **bit-identical** to numpy's `argmin(Σ(x−c)², axis=1)` over 200 random `(n_codes, d, n_vec)` configs (0/1262 mismatches); decode round-trips.
+
+The single `idx.shape == (10,)` smoke moves to `len(idx) == 10`. `CEIL_NUMPY_CARRIER` 25 → 24 (down-only ratchet). The math-ratchet ledger is untouched (`np.sum`/`np.argmin`/`np.asarray` + the named `dense_matmul_real` match no counted pattern — and the op now uses no numpy at all). `vector_quantisation`'s `rosetta_classification.ndjson` bucket stays `python_only_irreducible`. No new public op (`describe()["tools"]["total"]` stays **289**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc104] - 2026-06-11
 
 **Seventh CONSUMER carrier-flip — `dct` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 26 → 25).** Carrier-removal #564. The DCT-II / DCT-III (the JPEG / audio-codec cosine transform) flips numpy-free — the involved one of the batch, because it also has a `jpeg` consumer:
