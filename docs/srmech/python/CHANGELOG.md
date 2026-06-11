@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc89] - 2026-06-11
+
+**Carrier-flip batch #13 — `stft` (+ its `spectrogram` consumer) go numpy-FREE (`CEIL_NUMPY_CARRIER` 38 → 37).** Carrier-removal #564, the seventh of the workflow-scoped batch and the second windowed follower of `cross_spectral` — reusing the rc88-codified **`_PI = float(pi_cascade_digits(30))`** (Class-N Archimedes hexagon-doubling) + `_ccos` → `rational.cos` π source. `closed_form_ops/stft` (Class C ∘ A ∘ I ∘ K windowed-frame FFT) drops its top-level `import numpy`:
+
+- The signal coerces to a `list` of `complex` (a `hasattr(seq[0], "__len__")` guard preserves the old 1-D `ValueError`); the default Hann window `0.5·(1 − cos(2π·n/(N−1)))` is the same `_PI`-formed `_ccos` cascade; per-frame `signal·window` + `_sc.fft` build a **list-of-lists** STFT matrix (no `np.zeros` stack).
+- `op` now returns a `list` of per-frame `list`s (was a complex128 ndarray). `spectrogram` (already top-level-numpy-free since rc70) consumes the list-of-lists and computes `|z|² = real²+imag²` (no `abs()`) elementwise, returning a `list` of `list`s of `float`.
+- The rc33 window/op trig-routing tests + the baseline `stft`/`spectrogram` smoke tests move `.ndim`/`.shape` → `isinstance`/`len`; differential-verified bit-exact (maxerr 0.0) against the pre-change numpy path.
+
+`CEIL_NUMPY_CARRIER` 38 → 37 (down-only ratchet; only `stft` carried a top-level import, so the count drops by one). No new public op (`describe()["tools"]["total"]` stays **287**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc88] - 2026-06-10
 
 **Carrier-flip batch #12 — `cross_spectral` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 39 → 38).** Carrier-removal #564, the sixth of the workflow-scoped batch — and the **first sigproc carrier-flip to need π** (a *moderate* flip). `closed_form_ops/cross_spectral` (Class M HDC bundle-average ∘ Class A FFT cross-product; Welch's method) drops its top-level `import numpy`:

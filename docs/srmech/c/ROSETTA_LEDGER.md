@@ -740,6 +740,22 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc89 (done, v0.7.5rc89) — carrier-flip batch #13: `stft` (+ `spectrogram`
+  consumer) go numpy-FREE (CEIL_NUMPY_CARRIER 38 → 37).** Carrier-removal #564,
+  seventh of the workflow-scoped batch and the SECOND windowed follower of
+  `cross_spectral` — reusing the rc88-codified `_PI = float(pi_cascade_digits(30))`
+  (Class-N Archimedes hexagon-doubling) + `_ccos` → `rational.cos` π source.
+  `closed_form_ops/stft` (Class C ∘ A ∘ I ∘ K windowed-frame FFT) drops top-level
+  `import numpy`: the signal coerces to a list of complex (a `hasattr(seq[0],
+  "__len__")` guard preserves the 1-D ValueError); the default Hann window is the
+  same `_PI`-formed `_ccos` cascade; per-frame signal·window + `_sc.fft` build a
+  list-of-lists STFT matrix (no np.zeros stack). `op` returns a list of per-frame
+  lists; `spectrogram` (already top-level-numpy-free since rc70) consumes it and
+  computes |z|²=real²+imag² (no abs()) elementwise → list-of-lists of float. The
+  rc33 window/op + baseline smoke tests move `.ndim`/`.shape` → isinstance/len;
+  differential-verified bit-exact (maxerr 0.0) vs the pre-change numpy path. Only
+  `stft` carried a top-level import, so the count drops by one. No new public op
+  (describe tools.total stays 287, classes 2); ABI 3; no C change.
 - **rc88 (done, v0.7.5rc88) — carrier-flip batch #12: `cross_spectral` goes
   numpy-FREE (CEIL_NUMPY_CARRIER 39 → 38).** Carrier-removal #564, sixth of the
   workflow-scoped batch — the FIRST sigproc carrier-flip to need π (moderate).

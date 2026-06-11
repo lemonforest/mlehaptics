@@ -106,7 +106,15 @@ import srmech
 # `_sc.fft` returns List[complex], `_fc.fftfreq` returns a plain list numpy-absent.
 # Returns (list, list); the baseline smoke moves `.shape` -> len (rc61 wraps coh in
 # np.asarray, resilient). 39 -> 38.
-CEIL_NUMPY_CARRIER = 38
+# rc89: stft flips numpy-free (workflow-scoped batch; windowed follower of cross_spectral,
+# reusing the codified `_PI = float(pi_cascade_digits(30))` + `_ccos` -> rational.cos π
+# source). The signal coerces to a list of complex; the default Hann window is the same
+# `_PI`-formed `_ccos` cascade; per-frame `signal·window` + `_sc.fft` build a list-of-lists
+# STFT matrix (no np.zeros stack). spectrogram (already top-level-numpy-free since rc70 —
+# uncounted) consumes the list-of-lists and computes |z|²=real²+imag² (no abs()) elementwise.
+# stft's baseline + rc33 window/op tests move `.ndim`/`.shape` -> isinstance/len; only stft
+# carries a top-level import, so the count drops by one. 38 -> 37.
+CEIL_NUMPY_CARRIER = 37
 
 
 def _srmech_root() -> pathlib.Path:
