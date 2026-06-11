@@ -1164,6 +1164,39 @@ def _register_primitive_class_tools() -> None:
             returns=R("float", "sqrt(sum |x_i|^2)"),
         ),
         ToolEntry(
+            name="srmech.amsc.laplacian.mat_norm",
+            owner="srmech", category="laplacian",
+            summary="numpy-FREE Euclidean (2-norm) / Frobenius norm sqrt(sum "
+                    "|x_i|^2) → float over the Mat / HV carrier: Class N (rational "
+                    "sqrt) of the Class M self-bind sum|x|^2 (pure-Python reduction, "
+                    "complex |z|^2 = re^2+im^2, no abs). The numpy-absent peer of "
+                    "dense_norm (which is a numpy carrier). Golub & Van Loan §2.3.",
+            parameters=(P("x", "Mat", True,
+                          "Mat / HV / flat real-or-complex sequence (flattened)"),),
+            returns=R("float", "sqrt(sum |x_i|^2)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.mat_dot_real",
+            owner="srmech", category="laplacian",
+            summary="numpy-FREE real inner product sum a_i b_i → float over the "
+                    "Mat / HV carrier (pure-Python reduction; the numpy-absent peer "
+                    "of dense_dot_real). Golub & Van Loan §1.1.",
+            parameters=(P("a", "Mat", True, "Mat / HV / flat real sequence"),
+                        P("b", "Mat", True, "Mat / HV / flat real sequence")),
+            returns=R("float", "scalar sum a_i b_i"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.mat_dot_complex",
+            owner="srmech", category="laplacian",
+            summary="numpy-FREE complex bilinear inner product sum a_i b_i → "
+                    "complex over the Mat / HV carrier (plain bilinear, NOT the "
+                    "conjugating vdot; the numpy-absent peer of dense_dot_complex). "
+                    "Golub & Van Loan §1.1.",
+            parameters=(P("a", "Mat", True, "Mat / HV / flat complex sequence"),
+                        P("b", "Mat", True, "Mat / HV / flat complex sequence")),
+            returns=R("complex", "scalar sum a_i b_i"),
+        ),
+        ToolEntry(
             name="srmech.amsc.laplacian.dense_outer_complex",
             owner="srmech", category="laplacian",
             summary="Dense complex outer product a⊗b → out[i,j]=a_i b_j (rank-1; "

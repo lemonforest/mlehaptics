@@ -821,6 +821,19 @@ decrements it).
   `out.real[1]`→`out[1].real` (baseline smoke + rc33 diffuse-toward-mean). Math
   ledger UNTOUCHED. No new public op (tools.total 289); ABI 3; no C change.
   Next: lmmse/map_ml, dct/fsk, then the mat_svd foundation for mimo_svd.
+- **rc114 (done, v0.7.5rc114) — FOUNDATION: numpy-free `mat_norm` / `mat_dot_real` /
+  `mat_dot_complex` (CEIL_NUMPY_CARRIER stays 15).** Carrier-removal #564, first of 3
+  spine foundations gating the qm/so8/spectral consumer-flips (rc115+). A workflow
+  ground-truthed the remaining 15 carriers + caught the trap: `dense_norm`/`dense_dot_*`
+  are numpy CARRIERS (np.ascontiguousarray/iscomplexobj) that RAISE numpy-absent (rc70
+  runnable≠loadable). Add to `amsc/laplacian.py` (+`__all__`×2): `mat_norm` = √(Σ|xᵢ|²)
+  pure-Python (complex |z|²=re²+im², no abs/hypot) ∘ Class-N rational.sqrt; `mat_dot_real`
+  /`mat_dot_complex` = plain bilinear Σaᵢbᵢ (matches numpy a·b, NOT vdot) over a shared
+  `_iter_mat_scalars` (Mat interleaved-complex / HV / sequence). Value-faithful to dense_*/
+  numpy ~1 ULP; verified numpy-present AND in a numpy-blocked meta-path subprocess. No
+  consumer flip → CEIL stays 15; math ledger untouched. Registered public laplacian
+  callables like their dense_* peers → 3 ToolEntries + 3 `composition_of_c` rosetta lines;
+  tools.total 290→293 (7 count-tests bumped); ABI 3; no C change.
 - **rc113 (done, v0.7.5rc113) — RBS-LM subpackage numpy-FREE; incidental-source RNG
   re-based onto our own (`CEIL_NUMPY_CARRIER` 17 → 15).** Carrier-removal #564.
   `srmech.rbs_lm` (F166 inference substrate) carried numpy only as an INCIDENTAL
