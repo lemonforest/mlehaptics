@@ -215,7 +215,12 @@ import srmech
 # explicit |obs − expected|² multiply-add (no hypot/sqrt/abs), the no-ISI path is
 # a squared-distance argmin, and the search delegates to the already-numpy-free
 # viterbi.op (returns a list); drops `import numpy as np` + elementwise_hypot. 23 -> 22.
-CEIL_NUMPY_CARRIER = 22
+# rc109: mimo_svd (MIMO channel SVD) goes numpy-FREE — routes through the rc108
+# `mat_svd` Mat-carrier foundation (Gram AᴴA → mat_hermitian_eigendecompose → √λ +
+# A·v/σ + orthonormal null completion), inputs coerce via tolist(), op returns
+# python lists (drops `import numpy as np` + `np.linalg.svd`). The np.linalg.svd
+# removal ALSO decrements the math ratchet (linalg_fft 23 → 22). 22 -> 21.
+CEIL_NUMPY_CARRIER = 21
 
 
 def _srmech_root() -> pathlib.Path:

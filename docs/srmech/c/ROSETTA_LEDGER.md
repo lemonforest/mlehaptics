@@ -821,6 +821,23 @@ decrements it).
   `out.real[1]`→`out[1].real` (baseline smoke + rc33 diffuse-toward-mean). Math
   ledger UNTOUCHED. No new public op (tools.total 289); ABI 3; no C change.
   Next: lmmse/map_ml, dct/fsk, then the mat_svd foundation for mimo_svd.
+- **rc109 (done, v0.7.5rc109) — ELEVENTH CONSUMER flip: `mimo_svd` numpy-FREE
+  (`CEIL_NUMPY_CARRIER` 22 → 21; math `CEIL_LINALG_FFT` 23 → 22).**
+  Carrier-removal #564. The MIMO channel-matrix SVD (`H = U·S·Vᴴ`, Class L) is
+  the FIRST consumer to route onto the rc108 `mat_svd` Mat-carrier foundation:
+  drops `import numpy as np` + `np.linalg.svd`, coerces numpy-free (`tolist()`
+  covers ndarray AND `Mat`), `Mat.from_rows(..., is_complex=True)` → `mat_svd`,
+  returns plain Python `list`s (`U` `(n_rx,n_rx)` rows / `S` desc / `Vh`
+  `(n_tx,n_tx)` rows; were ndarrays). VALUE-FAITHFUL not bit-identical (inherits
+  the mat_svd null/degenerate-basis freedom): differential-verified over 100
+  cases (real/complex × square/tall/wide × full/rank-deficient) — 0
+  reconstruction + 0 singular-value failures. Removing the `np.linalg.svd`
+  decrements BOTH ledgers (CEIL_NUMPY_CARRIER 22→21, CEIL_LINALG_FFT 23→22). The
+  rc71 numpy-free-reachable exemplar (the still-numpy op that must raise the
+  clean `[scientific]` hint) moves `mimo_svd → ica_jade` — `ica_jade`'s
+  `np.linalg.eigh` is numpy-as-ACCURACY (not just a carrier), so it stays gated.
+  `test_mimo_svd_smoke` `.shape`→`len`. No new public op (tools.total 290);
+  ABI 3; no C change.
 - **rc108 (done, v0.7.5rc108) — `mat_svd` FOUNDATION: numpy-free full SVD over
   the Mat carrier (Mat-bridge foundation #5; does NOT decrement CEIL — still
   22).** Carrier-removal #564. `mat_svd(A) -> (U (m,m), S desc len min(m,n),
