@@ -11,14 +11,17 @@ delay coefficients matching the array geometry) composition.
 
 Path B dual in Phase 6 (Path B mic-array bound vectors).
 
+Carrier-free since v0.7.5rc86 (#564): plain Python ``list`` / ``list``-of-
+``list`` carriers; the ``max_delay`` is the builtin ``max`` (Class-L reduce, no
+``abs()``), and the per-mic combine is an explicit scale-and-accumulate
+(Class-M) index loop.
+
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Van Veen
 & Buckley (1988) educational IEEE ASSP Mag. survey + Brandstein & Ward
 (2001) *Microphone Arrays: Signal Processing Techniques*.
 """
 
 from __future__ import annotations
-
-import numpy as np
 
 OPERATION_NAME = "beamforming_fixed"
 CLASS_COMPOSITION = ("L", "N")
@@ -37,7 +40,7 @@ def op(array_signals, *, delays_samples, weights=None, D: int = 8192):
     Parameters
     ----------
     array_signals:
-        ``(n_mics, n_samples)`` real or complex array of per-microphone
+        ``(n_mics, n_samples)`` real or complex 2-D sequence of per-microphone
         recordings.
     delays_samples:
         Per-microphone integer delay in samples; sequence of length n_mics.
@@ -49,33 +52,39 @@ def op(array_signals, *, delays_samples, weights=None, D: int = 8192):
 
     Returns
     -------
-    numpy.ndarray
-        Beamformer output of length ``n_samples`` minus delay padding.
+    list
+        Beamformer output (``list`` of ``complex``) of length ``n_samples``
+        minus delay padding.
     """
-    sig = np.asarray(array_signals, dtype=np.complex128)
-    if sig.ndim != 2:
-        raise ValueError(f"beamforming expects 2-D array; got {sig.shape}")
-    n_mics, n_samples = sig.shape
-    d = np.asarray(delays_samples, dtype=np.int64)
-    if d.shape[0] != n_mics:
-        raise ValueError(
-            f"delays_samples length {d.shape[0]} != n_mics {n_mics}"
-        )
+    rows = list(array_signals)
+    n_mics = len(rows)
+    # 2-D guard: each microphone row must itself be a sized sequence of samples.
+    if n_mics > 0 and not hasattr(rows[0], "__len__"):
+        raise ValueError(f"beamforming expects 2-D array; got 1-D length {n_mics}")
+    sig = [[complex(v) for v in row] for row in rows]
+    n_samples = len(sig[0]) if n_mics > 0 else 0
+    if any(len(row) != n_samples for row in sig):
+        raise ValueError("beamforming expects 2-D array; rows have unequal length")
+    d = [int(x) for x in delays_samples]
+    if len(d) != n_mics:
+        raise ValueError(f"delays_samples length {len(d)} != n_mics {n_mics}")
     if weights is None:
-        w = np.full(n_mics, 1.0 / n_mics, dtype=np.complex128)
+        w = [complex(1.0 / n_mics)] * n_mics if n_mics > 0 else []
     else:
-        w = np.asarray(weights, dtype=np.complex128)
-        if w.shape[0] != n_mics:
-            raise ValueError(
-                f"weights length {w.shape[0]} != n_mics {n_mics}"
-            )
-    max_delay = int(np.max(d)) if d.shape[0] > 0 else 0
+        w = [complex(v) for v in weights]
+        if len(w) != n_mics:
+            raise ValueError(f"weights length {len(w)} != n_mics {n_mics}")
+    # Class-L reduce: the largest delay is a plain max over the integer delays.
+    max_delay = max(d) if d else 0
     out_len = n_samples - max_delay
     if out_len <= 0:
-        return np.zeros(0, dtype=np.complex128)
-    out = np.zeros(out_len, dtype=np.complex128)
+        return []
+    out = [complex(0)] * out_len
     for m in range(n_mics):
-        delay = int(d[m])
-        # Take signal[m, delay : delay + out_len] aligned to t=0
-        out += w[m] * sig[m, delay : delay + out_len]
+        delay = d[m]
+        wm = w[m]
+        row = sig[m]
+        # Class-M scale-and-accumulate of the delay-aligned window onto t=0.
+        for i in range(out_len):
+            out[i] += wm * row[delay + i]
     return out

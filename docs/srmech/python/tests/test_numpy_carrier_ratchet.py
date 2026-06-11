@@ -85,7 +85,13 @@ import srmech
 # list slices, and the per-component accumulate (`out[:n] += filtered`) + the strided
 # interleave write (`out[k::L][:m] = c`) become explicit Class-M elementwise index
 # loops. `decompose` returns list-of-lists, `op` returns a list. 42 -> 41.
-CEIL_NUMPY_CARRIER = 41
+# rc86: beamforming_fixed flips numpy-free (workflow-scoped batch; clean leaf). The
+# array_signals coerce to a list-of-lists of complex; np.full/np.zeros -> plain lists;
+# np.complex/np.int -> complex()/int(); the `max_delay` is the builtin `max` over the
+# integer delays (Class-L reduce, no abs()); the per-mic delay-and-sum is an explicit
+# scale-and-accumulate (Class-M) index loop `out[i] += w[m]*sig[m][delay+i]`. Returns a
+# list of complex; the smoke test moves `y.ndim==1`/`y.shape[0]` -> isinstance/len. 41 -> 40.
+CEIL_NUMPY_CARRIER = 40
 
 
 def _srmech_root() -> pathlib.Path:

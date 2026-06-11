@@ -740,6 +740,19 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc86 (done, v0.7.5rc86) — carrier-flip batch #10: `beamforming_fixed` goes
+  numpy-FREE (CEIL_NUMPY_CARRIER 41 → 40).** Carrier-removal #564, fourth of the
+  workflow-scoped batch; a clean leaf. `closed_form_ops/beamforming_fixed`
+  (Class L mic-array combiner ∘ Class N rational delay coefficients;
+  trauma-informed civilian-acoustics scope) drops top-level `import numpy`:
+  `array_signals` → list-of-lists of complex (np.complex128/np.full/np.zeros/
+  np.int64 → complex()/plain lists/int(); a `hasattr(row,"__len__")` guard keeps
+  the 2-D ValueError); `max_delay=int(np.max(d))` → builtin `max(d)` (Class-L
+  reduce, no abs()); the per-mic delay-and-sum `out += w[m]*sig[m,delay:...]`
+  becomes an explicit Class-M scale-and-accumulate index loop. `op` returns a
+  list of complex (empty → []); the smoke test moves `y.ndim==1`/`y.shape[0]` →
+  isinstance/len. No new public op (describe tools.total stays 287, classes 2);
+  ABI 3; no C change.
 - **rc85 (done, v0.7.5rc85) — carrier-flip batch #9: `polyphase` goes numpy-FREE
   (CEIL_NUMPY_CARRIER 42 → 41).** Carrier-removal #564, third of the
   workflow-scoped batch; a clean leaf (same shape as fir/matched_filter rc80).
