@@ -821,6 +821,26 @@ decrements it).
   `out.real[1]`→`out[1].real` (baseline smoke + rc33 diffuse-toward-mean). Math
   ledger UNTOUCHED. No new public op (tools.total 289); ABI 3; no C change.
   Next: lmmse/map_ml, dct/fsk, then the mat_svd foundation for mimo_svd.
+- **rc104 (done, v0.7.5rc104) — SEVENTH CONSUMER flip: `dct` (+jpeg consumer)
+  numpy-FREE (`CEIL_NUMPY_CARRIER` 26 → 25).** Carrier-removal #564. The DCT-II/
+  DCT-III cosine transform — the INVOLVED one (it has a `jpeg` consumer). The
+  cosine basis `_dct_matrix` is built as a list-of-lists via `rational.cos` over
+  `_PI` (no np.cos/np.pi); the transform is a pure-Python matvec (1-D) / per-axis
+  row|column transform (2-D, axis 0/1/-1 — the jpeg block case); the
+  `scipy.fft.dct` fast-path is DROPPED (needed numpy as a carrier). DCT-III PARITY
+  FIX: scipy's norm=None DCT-III weights the x_0 term by 1 not 2 (`y_k = x_0 +
+  2·Σ_{j≥1}…`, the exact inverse of DCT-II) — the old blanket `2.0·Σ` doubled it,
+  a latent bug masked by preferring the scipy path; `_transform` now matches
+  scipy for both types. JPEG CONSUMER: jpeg stays a numpy carrier (flips its own
+  rc) and coerces dct's list return to ndarray at a `_dct()` boundary wrapper
+  (np.asarray). Differential-verified: dct 1-D + 2-D both axes, both types, ~1e-14
+  vs scipy norm=None; jpeg round-trip RMSE 1.2/0.25/0.025 at q=50/90/99. RIPPLES:
+  baseline test_dct_smoke + rc33 test_dct_op_stable_and_invertible (X.shape→len,
+  np.all(np.isfinite)→all(math.isfinite), `M @ x`→explicit matvec); rc33
+  dct2/dct3 basis tests (cascade.shape→len-based, np.allclose still coerces the
+  list). Math ledger UNTOUCHED. No new public op (tools.total 289); ABI 3; no C
+  change. Next: mat_svd FOUNDATION op (Gram AᴴA hermitian-eig → singular
+  values/vectors) so mimo_svd flips + the rc71 exemplar moves off mimo_svd.
 - **rc103 (done, v0.7.5rc103) — SIXTH CONSUMER flip: `fsk` numpy-FREE
   (`CEIL_NUMPY_CARRIER` 27 → 26).** Carrier-removal #564. The FSK modulator/
   demodulator (educational civilian-comms; trauma-informed defensive scope).

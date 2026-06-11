@@ -22,6 +22,8 @@ margin. Per rc33 discipline: NO ``abs()`` here — agreement is checked with
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 import pytest
 
@@ -103,9 +105,10 @@ def test_multirate_hamming_window_matches_numpy():
 def test_dct2_basis_matches_numpy(n):
     from srmech.signal_processing.closed_form_ops import dct as m
 
-    cascade = m._dct_matrix(n, dct_type=2)
+    cascade = m._dct_matrix(n, dct_type=2)  # rc104: numpy-free list-of-lists
     reference = _np_dct2_matrix(n)
-    assert cascade.shape == reference.shape == (n, n)
+    assert len(cascade) == n and all(len(r) == n for r in cascade)
+    assert reference.shape == (n, n)
     assert np.allclose(cascade, reference, atol=1e-9, rtol=0.0)
 
 
@@ -113,9 +116,10 @@ def test_dct2_basis_matches_numpy(n):
 def test_dct3_basis_matches_numpy(n):
     from srmech.signal_processing.closed_form_ops import dct as m
 
-    cascade = m._dct_matrix(n, dct_type=3)
+    cascade = m._dct_matrix(n, dct_type=3)  # rc104: numpy-free list-of-lists
     reference = _np_dct3_matrix(n)
-    assert cascade.shape == reference.shape == (n, n)
+    assert len(cascade) == n and all(len(r) == n for r in cascade)
+    assert reference.shape == (n, n)
     assert np.allclose(cascade, reference, atol=1e-9, rtol=0.0)
 
 
@@ -202,14 +206,16 @@ def test_dct_op_stable_and_invertible():
 
     x = np.arange(8, dtype=np.float64)
     X = m.op(x, dct_type=2)
-    assert X.shape == (8,)
-    assert np.all(np.isfinite(X))
+    assert isinstance(X, list) and len(X) == 8  # rc104: numpy-free list return
+    assert all(math.isfinite(v) for v in X)
 
     # The routed _dct_matrix reconstructs the original signal: x ≈ (M3 @ M2 x)
     # up to the standard DCT-II/III normalisation. We instead validate the
     # routed basis directly reproduces scipy's DCT-II coefficients.
+    # rc104: _dct_matrix is now a numpy-free list-of-lists, so the M @ x matvec
+    # is an explicit pure-Python sum (matches the old 2.0 * (M @ x)).
     M = m._dct_matrix(8, dct_type=2)
-    routed_coeffs = 2.0 * (M @ x)
+    routed_coeffs = [2.0 * sum(M[k][j] * x[j] for j in range(8)) for k in range(8)]
     try:
         from scipy.fft import dct as scipy_dct
 

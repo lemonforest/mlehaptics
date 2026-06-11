@@ -190,7 +190,15 @@ import srmech
 # the demod correlator bank is a pure-Python complex matvec deciding on
 # argmax|corr|² (no sqrt / no abs); modulate returns list[complex], demod returns
 # list[int] (drops `import numpy as np`). 27 -> 26.
-CEIL_NUMPY_CARRIER = 26
+# rc104: dct (DCT-II / DCT-III) goes numpy-FREE — the cosine basis is built as a
+# list-of-lists through the Class-N rational.cos cascade over `_PI`, the transform
+# is a pure-Python matvec (1-D) / per-axis row|column transform (2-D), DCT-III
+# weights the j=0 term by 1 (exact scipy parity, the inverse of DCT-II), and the
+# old scipy.fft.dct fast-path is dropped (it needed numpy as a carrier). The jpeg
+# CONSUMER stays numpy (flips in its own later rc) and coerces dct's list return
+# back to ndarray at the `_dct` boundary wrapper. dct drops `import numpy as np`;
+# returns list / list-of-lists. 26 -> 25.
+CEIL_NUMPY_CARRIER = 25
 
 
 def _srmech_root() -> pathlib.Path:

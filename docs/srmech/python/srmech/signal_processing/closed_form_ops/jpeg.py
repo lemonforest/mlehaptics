@@ -25,6 +25,16 @@ import numpy as np
 
 from .dct import op as dct_op
 
+
+def _dct(block, *, dct_type, axis):
+    """jpeg-side boundary wrapper: ``dct`` went numpy-free (rc104) and now
+    returns a ``list`` / list-of-lists. jpeg is still a numpy carrier (it flips
+    in its own later rc), so coerce dct's result back to an ndarray here. The
+    values are bit-identical to the prior matrix-path output; this is purely a
+    container coercion at the consumer boundary (#564)."""
+    return np.asarray(dct_op(block, dct_type=dct_type, axis=axis), dtype=np.float64)
+
+
 OPERATION_NAME = "jpeg"
 CLASS_COMPOSITION = ("L", "K", "B")
 PERFORMANCE_HINT = "shallow-cascade-block-amortise"
@@ -104,8 +114,8 @@ def op(
                 # Dequantise: multiply by quant_table
                 dequant = qb * qt
                 # Inverse DCT-II via DCT-III (closed-form Class L)
-                block_recovered = dct_op(dct_op(dequant, dct_type=3, axis=0),
-                                          dct_type=3, axis=1)
+                block_recovered = _dct(_dct(dequant, dct_type=3, axis=0),
+                                       dct_type=3, axis=1)
                 # Apply DCT-III normalization (1/(2N))
                 norm = 1.0 / (2.0 * block_size) ** 2
                 out[
@@ -129,7 +139,7 @@ def op(
                 j * block_size : (j + 1) * block_size,
             ]
             # Class L: DCT-II on rows then columns
-            block_dct = dct_op(dct_op(block, dct_type=2, axis=0), dct_type=2, axis=1)
+            block_dct = _dct(_dct(block, dct_type=2, axis=0), dct_type=2, axis=1)
             # Class K: quantise via element-wise division + rounding
             quantised = np.round(block_dct / qt).astype(np.int32)
             quant_blocks.append(quantised)
