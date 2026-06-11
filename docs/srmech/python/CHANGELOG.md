@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc95] - 2026-06-11
+
+**Mat-return foundation — `mat_solve` now handles COMPLEX (numpy-free), unblocking the matrix-heavy DSP carrier-flips.** Carrier-removal #564. The matrix-heavy `signal_processing` ops (esprit, dct, fsk, ica_jade, lmmse, map_ml, mimo_svd, music, psk_qam, vector_quantisation) can't be flipped numpy-free as leaves because they receive numpy arrays from `hermitian_eigendecompose` / `matrix_cascades.lstsq` / `matrix_cascades.eigvals` (all numpy-carrier-internal). The genuinely numpy-free path is the **native `mat_*` bridge** (rc72–74). This rc closes the first gap:
+
+- `amsc.laplacian.mat_solve` previously **raised** `NotImplementedError` on a complex `Mat`. It now routes complex inputs through the new private `_mat_solve_complex`, which builds the real **2n×2n block embedding** `[[Aᵣ,−Aᵢ],[Aᵢ,Aᵣ]]·[u;v] = [bᵣ;bᵢ]` from plain `Mat` indexing (no numpy) and rides the shipped **native real** `mat_solve` — so `X = u + iv` is computed with numpy genuinely absent. This is the `Mat`-carrier peer of the existing numpy-carrier `_dense_solve_complex`.
+- Differential-verified **value-faithful to ~1e-16** (machine eps) vs `numpy.linalg.solve` for well-conditioned `A` (the signal-subspace projections the DSP ops feed it). The rc73 `test_mat_solve_complex_rejected` flips to `test_mat_solve_complex_via_block_embedding` (asserts the solve + residual).
+
+No new public op (`describe()["tools"]["total"]` stays **287**, `classes` **2**; `mat_solve` was already a public op — this enhances it); `CEIL_NUMPY_CARRIER` unchanged at **32** (foundation-op enhancement, not a carrier flip); ABI 3; no C change. Next: `mat_lstsq` (normal-equations via `mat_solve`∘`mat_matmul`) + `mat_eigvals` (Mat-carrier shifted-QR), then route esprit.
+
 ## [0.7.5rc94] - 2026-06-11
 
 **Carrier-flip batch #18 — `path_b_ops/sign_quantise` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 33 → 32).** Carrier-removal #564. The Path-B sign-quantise (Class K pin-slot threshold ∘ Class M dispatch tag; Spike #174 sign-quantise BER anchor) drops its top-level `import numpy`:

@@ -740,6 +740,23 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc95 (done, v0.7.5rc95) — Mat-return FOUNDATION: `mat_solve` handles
+  COMPLEX numpy-free (unblocks the matrix-heavy DSP carrier-flips).**
+  Carrier-removal #564. The matrix-heavy sigproc ops (esprit/dct/fsk/ica_jade/
+  lmmse/map_ml/mimo_svd/music/psk_qam/vector_quantisation) receive numpy arrays
+  from `hermitian_eigendecompose`/`matrix_cascades.{lstsq,eigvals}` (numpy-
+  carrier-internal) — the numpy-free path is the native `mat_*` bridge (rc72-74).
+  `amsc.laplacian.mat_solve` previously raised `NotImplementedError` on complex;
+  it now routes complex `Mat` through the new private `_mat_solve_complex`, which
+  builds the real 2n×2n block embedding `[[Aᵣ,−Aᵢ],[Aᵢ,Aᵣ]]·[u;v]=[bᵣ;bᵢ]` from
+  plain `Mat` indexing (no numpy) and rides the native real `mat_solve` → `X=u+iv`,
+  numpy-absent. Mat-carrier peer of the numpy-carrier `_dense_solve_complex`.
+  Value-faithful to ~1e-16 vs numpy for well-conditioned A. The rc73
+  `test_mat_solve_complex_rejected` flips to `_via_block_embedding`. No new public
+  op (describe tools.total stays 287, classes 2; mat_solve already public — this
+  enhances it); CEIL stays 32 (foundation enhancement, not a carrier flip); ABI 3;
+  no C change. Next: `mat_lstsq` (normal-eqns via mat_solve∘mat_matmul) +
+  `mat_eigvals` (Mat-carrier shifted-QR), then route esprit.
 - **rc94 (done, v0.7.5rc94) — carrier-flip batch #18: `path_b_ops/sign_quantise`
   goes numpy-FREE (CEIL_NUMPY_CARRIER 33 → 32).** Carrier-removal #564. The
   Path-B sign-quantise (Class K pin-slot ∘ Class M dispatch tag; Spike #174 BER
