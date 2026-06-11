@@ -460,7 +460,8 @@ def test_mlse_smoke():
     alphabet = np.array([-1 + 0j, 1 + 0j])
     obs = np.array([0.9, -0.95, 1.1, -0.85])
     syms = m.op(obs, taps, alphabet)
-    assert syms.shape == (4,)
+    # rc107: mlse is numpy-free now — op returns a plain list of int.
+    assert isinstance(syms, list) and len(syms) == 4
 
 
 def test_multirate_smoke():

@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc107] - 2026-06-11
+
+**Tenth CONSUMER carrier-flip — `mlse` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 23 → 22).** Carrier-removal #564. The Viterbi-trellis channel equaliser (Class L ∘ K), no `np.linalg`:
+
+- The trellis tables — transition / emission / initial log-prob — become pure-Python **list-of-lists** built with the Class-N `rational.log` cascade (uniform `−log A` transition priors; uniform `−log n_states` initial). The per-branch metric is an explicit `−|obs − expected|²` multiply-add (squared distance, monotone in `|·|`, so no `sqrt` and no `abs()`).
+- The **no-ISI** fast path (`memory == 0`) is a per-sample squared-distance argmin over `obs − taps[0]·alpha` (strict `<`, first-minimum tie-break matching `np.argmin`), replacing the `elementwise_hypot` carrier.
+- The trellis search itself delegates to the already-numpy-free `viterbi.op` (rc83), which returns a plain `list`. Inputs coerce numpy-free via `tolist()`; the op now returns `list[int]` (was an ndarray).
+
+Differential-verified **BIT-IDENTICAL** to the numpy reference over 180 cases (BPSK + QPSK × channel-memory {0, 1, 2} × random observations; 0 sequence mismatches). The `test_mlse_smoke` `.shape == (4,)` moves to `isinstance(syms, list) and len(syms) == 4`. `CEIL_NUMPY_CARRIER` 23 → 22 (down-only ratchet). The math-ratchet ledger is untouched (the op now uses no numpy; `mlse` only appears in math-ratchet *comments*, none enforced). `mlse`'s `rosetta_classification.ndjson` bucket is unchanged. No new public op (`describe()["tools"]["total"]` stays **289**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc106] - 2026-06-11
 
 **Ninth CONSUMER carrier-flip — `psk_qam` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 24 → 23).** Carrier-removal #564. The fsk-cousin constellation mapper (Class I ∘ K), no `np.linalg`:
