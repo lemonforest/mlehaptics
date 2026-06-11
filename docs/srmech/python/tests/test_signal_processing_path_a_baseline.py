@@ -496,7 +496,8 @@ def test_sinc_interp_smoke():
     y = np.sin(0.5 * t_s)
     t_q = np.array([0.5, 1.5, 2.5])
     y_q = m.op(y, t_s, t_q)
-    assert y_q.shape == (3,)
+    # rc93: sinc_interp is numpy-free now — op returns a list of complex.
+    assert isinstance(y_q, list) and len(y_q) == 3
 
 
 def test_beamforming_fixed_smoke():

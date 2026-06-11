@@ -140,7 +140,16 @@ import srmech
 # sinc/cos cascades match libm to <=1 ULP), NOT bit-exact. op returns a list of float; the rc33
 # `_ccos` Hamming test moves `.ndim`/broadcast -> list-comp + isinstance/len, and the baseline
 # smoke `.ndim` -> isinstance(list). 35 -> 34.
-CEIL_NUMPY_CARRIER = 34
+# rc93: sinc_interp flips numpy-free (Class-L band-limit eigenbasis ∘ Class-K pin-slot;
+# Whittaker-Shannon). The sinc kernel reuses the rc92 `_sinc` (sin(πx)/(πx) over `_PI`,
+# x=0 Class-K branch → 1.0, no division, no abs()) + a pure-Python `_median` of the
+# sample-spacing diffs. The complex matvec out[q]=Σ_s sinc((t_q−t_s)/T)·y[s] is an inline
+# nested sum over plain lists — NOT `dense_matvec_complex` (numpy-carrier INTERNALLY, the
+# rc70 trap; also a matmul-ledger site, but the math ratchet is `<=` so its removal stays
+# green). Value-faithful to machine eps (maxerr 1.1e-16; identity/scalar paths bit-exact
+# 0.0). op returns a list of complex (or a single complex for a scalar target); the
+# baseline smoke `.shape` -> isinstance/len. 34 -> 33.
+CEIL_NUMPY_CARRIER = 33
 
 
 def _srmech_root() -> pathlib.Path:
