@@ -821,6 +821,19 @@ decrements it).
   `out.real[1]`→`out[1].real` (baseline smoke + rc33 diffuse-toward-mean). Math
   ledger UNTOUCHED. No new public op (tools.total 289); ABI 3; no C change.
   Next: lmmse/map_ml, dct/fsk, then the mat_svd foundation for mimo_svd.
+- **rc110 (done, v0.7.5rc110) — TWELFTH + THIRTEENTH CONSUMER flips: the two
+  Path B DSP duals numpy-FREE (`CEIL_NUMPY_CARRIER` 21 → 19).** Carrier-removal
+  #564. Both are clean leaf flips of ops whose Path A twins already went numpy-
+  free: `path_b_ops/matched_filter` (A∘C∘M cross-correlation) drops `import
+  numpy as np` and delegates to the rc79 numpy-free `_dsp.correlate` (drops the
+  `np.asarray` coerce + return-wrap, returns a list); `path_b_ops/wiener` (L∘N
+  cyclic-graph-Laplacian eigenbasis + rational MMSE gain) takes the rc87 closed-
+  form list-comprehension form (`_sc.fft` List[complex] → per-bin |X|²=real²+
+  imag² no abs() → Class-N gain S/(S+N) with builtin `max` eps-floor → `_sc.ifft`
+  → real part). CARRIER-ONLY (the math was already cascade-routed; only the
+  np.asarray/np.maximum/np.real carriers go) → math ledger UNTOUCHED. Path A↔B
+  D1-equivalence smoke keeps passing (list vs list). No new public op (tools.total
+  290); ABI 3; no C change.
 - **rc109 (done, v0.7.5rc109) — ELEVENTH CONSUMER flip: `mimo_svd` numpy-FREE
   (`CEIL_NUMPY_CARRIER` 22 → 21; math `CEIL_LINALG_FFT` 23 → 22).**
   Carrier-removal #564. The MIMO channel-matrix SVD (`H = U·S·Vᴴ`, Class L) is

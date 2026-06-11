@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc110] - 2026-06-11
+
+**Twelfth + thirteenth CONSUMER carrier-flips — the two Path B DSP duals go numpy-FREE (`CEIL_NUMPY_CARRIER` 21 → 19).** Carrier-removal #564. Both are clean leaf flips of ops whose Path A counterparts already went numpy-free (rc80 `matched_filter`, rc87 `wiener`):
+
+- **`path_b_ops/matched_filter`** (Class A∘C∘M form-function cross-correlation) drops `import numpy as np` and delegates straight to the rc79 numpy-free `_dsp.correlate` (the FFT-convolution-theorem correlation `sum_n a[n+k]·conj(v[n])`, which coerces both inputs to 1-D lists and returns a list). The prior `np.asarray` input-coerce + return-wrap are gone; the op returns a `list` (was an ndarray).
+- **`path_b_ops/wiener`** (Class L∘N cyclic-graph-Laplacian eigenbasis + rational MMSE gain) takes the rc87 closed-form list-comprehension form: `_sc.fft` returns `List[complex]` numpy-free, the per-bin power is `|X|² = X.real² + X.imag²` (no `abs()`), the `np.maximum(·, 1e-30)` eps-floors become the builtin `max`, the Class-N rational gain `S/(S+N)` and the spectral product are explicit comprehensions, `_sc.ifft` → real part. Returns a `list` of float.
+
+Both flips are **carrier-only** — the math was already cascade-routed (`_dsp.correlate` / `_sc.fft`/`_sc.ifft`), so only the numpy carriers (`np.asarray` / `np.maximum` / `np.real`) go. The math-ratchet ledger is **untouched**. The Path A↔Path B D1-equivalence smoke (`test_signal_processing_path_b_mvp`) keeps passing (list vs list). No new public op (`describe()["tools"]["total"]` stays **290**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc109] - 2026-06-11
 
 **Eleventh CONSUMER carrier-flip — `mimo_svd` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 22 → 21).** Carrier-removal #564. The first consumer to route onto the rc108 `mat_svd` Mat-carrier foundation:

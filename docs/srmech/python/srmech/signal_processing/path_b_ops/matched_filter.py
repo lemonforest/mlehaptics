@@ -51,8 +51,6 @@ Canonical SSoT
 
 from __future__ import annotations
 
-import numpy as np
-
 from srmech.signal_processing import _dsp_cascades as _dsp
 
 OPERATION_NAME = "matched_filter"
@@ -109,26 +107,19 @@ def op(
 
     Returns
     -------
-    numpy.ndarray
+    list
         Cross-correlation array; the index of the maximum-magnitude
-        entry is the most-likely template alignment. D1 algebra-
-        identical to
+        entry is the most-likely template alignment. Numpy-free (#564),
+        D1 algebra-identical to
         :func:`srmech.signal_processing.closed_form_ops.matched_filter.op`.
     """
-    sig = np.asarray(signal)
-    tmpl = np.asarray(template)
-    if sig.ndim != 1 or tmpl.ndim != 1:
-        raise ValueError(
-            f"matched_filter expects 1-D inputs; got {sig.shape} and {tmpl.shape}"
-        )
-    # Path B uses the same algebra as Path A (NumPy correlation). The
-    # form-function cross-correlation identity per Spike #159 is
-    # numerically equivalent to NumPy correlation; the substrate-natural
-    # implementation matches Path A bit-exactly on real-valued inputs
-    # up to floating-point round-off.
-    # _dsp.correlate is numpy-free (returns a list); wrap to preserve the
-    # ndarray return contract (this op still imports numpy as a carrier).
-    return np.asarray(_dsp.correlate(sig, tmpl, mode=mode))
+    # Path B uses the same algebra as Path A. The form-function cross-
+    # correlation identity per Spike #159 IS the FFT-convolution-theorem
+    # correlation that ``_dsp.correlate`` computes — ``sum_n a[n+k]·conj(v[n])``
+    # — which is numpy-free (#564): it coerces both inputs to 1-D lists
+    # (raising ValueError on a nested/2-D or empty input) and returns a list
+    # (the conjugate is the element's own ``.conjugate()``, no ``np.conj``).
+    return _dsp.correlate(signal, template, mode=mode)
 
 
 def _register() -> None:
