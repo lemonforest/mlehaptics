@@ -1,13 +1,30 @@
-"""Tests for srmech.qm.sm (electroweak, Higgs, Yukawa, CKM)."""
+"""Tests for srmech.qm.sm (electroweak, Higgs, Yukawa, CKM).
+
+numpy-FREE (v0.7.5rc116, #564): ``ckm_matrix`` returns a numpy-free
+:class:`~srmech.amsc.mat.Mat`; these tests use no numpy — unitarity is
+checked via the native :func:`~srmech.amsc.laplacian.mat_matmul` and direct
+``Mat``-entry comparison (numpy is not a validation reference per
+``[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]``).
+"""
 
 from __future__ import annotations
 
 import math
 
-import numpy as np
 import pytest
 
+from srmech.amsc.laplacian import mat_matmul
 from srmech.qm import sm
+
+
+def _max_dev_from_identity(m) -> float:
+    """max |m[i,j] − δ_ij| over a square ``Mat`` (numpy-free)."""
+    n = m.n_rows
+    return max(
+        abs(m[i, j] - (1.0 if i == j else 0.0))
+        for i in range(n)
+        for j in range(m.n_cols)
+    )
 
 
 # ----------------------------------------------------------------------
@@ -130,15 +147,17 @@ def test_fermion_mass_invalid_vev():
 
 
 def test_ckm_identity_for_zero_angles():
-    """CKM(0,0,0,0) = I_3."""
+    """CKM(0,0,0,0) = I_3 (direct Mat-entry comparison, numpy-free)."""
     V = sm.ckm_matrix(0.0, 0.0, 0.0, 0.0)
-    np.testing.assert_allclose(V, np.eye(3, dtype=complex), atol=1e-14)
+    assert V.shape == (3, 3) and V.is_complex
+    assert _max_dev_from_identity(V) < 1e-14
 
 
 def test_ckm_unitary():
-    """V V† = I for any mixing angles + CP phase."""
+    """V V† = I for any mixing angles + CP phase (via native mat_matmul)."""
     V = sm.ckm_matrix(theta_12=0.227, theta_13=0.003, theta_23=0.042, delta_cp=1.20)
-    np.testing.assert_allclose(V @ V.conj().T, np.eye(3, dtype=complex), atol=1e-13)
+    vvh = mat_matmul(V, V.conj().T)
+    assert _max_dev_from_identity(vvh) < 1e-13
 
 
 def test_ckm_unitarity_residual_small():
@@ -150,10 +169,13 @@ def test_ckm_unitarity_residual_small():
 def test_ckm_only_cabibbo_2x2_block():
     """If θ_13 = θ_23 = 0, V reduces to a Cabibbo-like 2×2 block."""
     V = sm.ckm_matrix(theta_12=0.4, theta_13=0.0, theta_23=0.0, delta_cp=0.5)
-    # Top-left 2x2 block should be the Cabibbo rotation matrix.
+    # Top-left 2×2 block should be the Cabibbo rotation [[c, s], [-s, c]];
+    # direct Mat-entry comparison (numpy-free).
     c12 = math.cos(0.4)
     s12 = math.sin(0.4)
-    expected_2x2 = np.array([[c12, s12], [-s12, c12]], dtype=complex)
-    np.testing.assert_allclose(V[:2, :2], expected_2x2, atol=1e-13)
+    assert abs(V[0, 0] - c12) < 1e-13
+    assert abs(V[0, 1] - s12) < 1e-13
+    assert abs(V[1, 0] - (-s12)) < 1e-13
+    assert abs(V[1, 1] - c12) < 1e-13
     # Bottom-right should be 1.
     assert abs(V[2, 2] - 1.0) < 1e-14

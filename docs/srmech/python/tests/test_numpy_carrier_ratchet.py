@@ -293,7 +293,19 @@ def _is_numpy_import(line: str) -> bool:
 # test_bell_chsh.py were rewritten numpy-FREE (no np oracle, no `.to_numpy()` —
 # eigenvalues via `mat_hermitian_eigendecompose`, equality via direct `Mat`
 # entry comparison) so the numpy-absent install runs its own tests. 15 -> 13.
-CEIL_NUMPY_CARRIER = 13
+# rc116 (#564): `qm/sm.py` (Standard Model — electroweak / Higgs / Yukawa / CKM)
+# flips numpy-free. Every scalar op already routed through the Class-N `rational`
+# cascade (Higgs VEV / W,Z masses / Weinberg residual / Yukawa); the only numpy
+# was the CKM 3×3 matrix + its unitarity check. `ckm_matrix` now returns an
+# exact-cascade `Mat` (cos/sin via `rational`, CP phase via `rational.cexp`),
+# and `ckm_unitarity_residual` does `V·Vᴴ` via the native `mat_matmul` + the
+# Class-N `mat_norm` of the entrywise `− I` (no numpy). `sm` is a leaf (no
+# consumers — no producer-flip boundary needed). test_qm_sm.py rewritten
+# numpy-FREE (no np oracle: unitarity via `mat_matmul` + direct `Mat`-entry
+# comparison). The roadmap-paired `single_particle` is SPLIT to its own later
+# rc (design-heavy: matrix-exponential `V·diag(e^{−iEₜ})·V†` via the complex
+# diagonal from `rational` trig — "don't rush, split on wobble"). 13 -> 12.
+CEIL_NUMPY_CARRIER = 12
 
 
 def _srmech_root() -> pathlib.Path:
