@@ -740,6 +740,20 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc93 (done, v0.7.5rc93) — carrier-flip batch #17: `sinc_interp` goes
+  numpy-FREE (CEIL_NUMPY_CARRIER 34 → 33).** Carrier-removal #564.
+  `closed_form_ops/sinc_interp` (Class L band-limit eigenbasis ∘ Class K
+  pin-slot; Whittaker-Shannon, Oppenheim & Schafer §4.1) drops top-level
+  `import numpy`. The sinc kernel reuses the rc92 `_sinc(x)=sin(πx)/(πx)` over
+  `_PI`/`rational.sin` (x=0 Class-K branch → 1.0, no division, no abs()) + a
+  pure-Python `_median` of the sample-spacing diffs. The complex matvec
+  out[q]=Σ_s sinc((t_q−t_s)/T)·y[s] is an inline nested sum over lists — NOT
+  `dense_matvec_complex` (numpy-carrier INTERNALLY, rc70 trap; also a matmul-
+  ledger site, but the math ratchet is `<=` so its removal stays green). op
+  returns a list of complex (or a single complex for a scalar target).
+  Differential value-faithful to maxerr 1.1e-16 (integer-grid + scalar paths
+  bit-exact 0.0). Baseline smoke `.shape` → isinstance/len. No new public op
+  (describe tools.total stays 287, classes 2); ABI 3; no C change.
 - **rc92 (done, v0.7.5rc92) — carrier-flip batch #16: `multirate` goes
   numpy-FREE (CEIL_NUMPY_CARRIER 35 → 34).** Carrier-removal #564.
   `closed_form_ops/multirate` (Class N rational rate `up/down` ∘ Class C cyclic

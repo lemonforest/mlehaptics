@@ -8,6 +8,18 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc93] - 2026-06-11
+
+**Carrier-flip batch #17 — `sinc_interp` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 34 → 33).** Carrier-removal #564. `closed_form_ops/sinc_interp` (Class L band-limit eigenbasis ∘ Class K pin-slot threshold; Whittaker-Shannon, Oppenheim & Schafer §4.1) drops its top-level `import numpy`:
+
+- The sinc kernel reuses the rc92 substrate-native **`_sinc(x) = sin(πx)/(πx)`** (`rational.sin` over the Class-N **`_PI`** cascade; the `x = 0` removable singularity is a **Class-K branch** returning `1.0`, no division, no `abs()`) plus a pure-Python `_median` of the consecutive sample-spacing differences (was `np.median(np.diff(...))`).
+- The complex Whittaker-Shannon matvec `out[q] = Σ_s sinc((t_q−t_s)/T)·y[s]` is an **inline nested sum** over plain `list`s — **not** `dense_matvec_complex` (which is numpy-carrier **internally**, the rc70 "runnable ≠ loadable" trap; it was also a matmul-ledger site, but the math ratchet asserts `total <= ceil`, so removing it stays green).
+- `op` now returns a `list` of `complex` (or a single `complex` for a scalar `target_indices`), preserving the old scalar-vs-array return shape.
+
+**Differential-verified value-faithful to maxerr 1.1e-16** (the rational `sinc` matches libm to ≤1 ULP; the integer-grid + scalar-target paths are bit-exact 0.0) — well within the op's tolerance. The baseline smoke moves `.shape` → `isinstance`/`len`.
+
+`CEIL_NUMPY_CARRIER` 34 → 33 (down-only ratchet). No new public op (`describe()["tools"]["total"]` stays **287**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc92] - 2026-06-11
 
 **Carrier-flip batch #16 — `multirate` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 35 → 34).** Carrier-removal #564. `closed_form_ops/multirate` (Class N rational rate-conversion `up/down` ∘ Class C cyclic streaming; Vaidyanathan 1993 §4) drops its top-level `import numpy`:
