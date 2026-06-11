@@ -560,7 +560,7 @@ def test_lmmse_smoke():
     R_yy = np.eye(2)
     R_xy = np.array([[1.0, 0.5]])
     x_hat = m.op(y, R_yy, R_xy)
-    assert x_hat.shape == (1,)
+    assert isinstance(x_hat, list) and len(x_hat) == 1  # rc101: numpy-free list return
 
 
 def test_map_ml_smoke():

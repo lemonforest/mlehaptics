@@ -173,7 +173,13 @@ import srmech
 # rational.exp cascade (real eigenvalues), the project/reconstruct matvecs as
 # pure-Python sums over the eigenvector Mat (drops `import numpy as np`; returns
 # list of complex). 30 -> 29.
-CEIL_NUMPY_CARRIER = 29
+# rc101 (#564): FOURTH CONSUMER flip — closed_form_ops/lmmse (real-valued linear
+# MMSE estimator, a DIFFERENT sub-shape: a real dense SOLVE, not an
+# eigendecomposition) goes numpy-FREE: the Class-L gain solve routes off the
+# numpy-carrier dense_solve onto native mat_solve over a real Mat (Ryyᵀ·Z=Rxyᵀ),
+# and the K·(y-mean_y) estimate is a pure-Python matvec (drops `import numpy as
+# np`; returns list of float). 29 -> 28.
+CEIL_NUMPY_CARRIER = 28
 
 
 def _srmech_root() -> pathlib.Path:
