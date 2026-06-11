@@ -41,7 +41,9 @@ def _make(n, kind, seed):
 def test_convolve_matches_numpy(na, nb, kind, mode):
     a = _make(na, kind, seed=na * 100 + nb)
     b = _make(nb, kind, seed=nb * 100 + na + 1)
-    got = dsp.convolve(a, b, mode)
+    # rc79: dsp.convolve is numpy-free (returns a list); wrap at the test
+    # boundary to compare shape/values against the numpy oracle.
+    got = np.asarray(dsp.convolve(a, b, mode))
     ref = np.convolve(a, b, mode)
     assert got.shape == ref.shape
     assert np.allclose(got, ref, atol=1e-12)
@@ -53,7 +55,9 @@ def test_convolve_matches_numpy(na, nb, kind, mode):
 def test_correlate_matches_numpy(na, nb, kind, mode):
     a = _make(na, kind, seed=na * 200 + nb)
     v = _make(nb, kind, seed=nb * 200 + na + 1)
-    got = dsp.correlate(a, v, mode)
+    # rc79: dsp.correlate is numpy-free (returns a list); wrap at the test
+    # boundary to compare shape/values against the numpy oracle.
+    got = np.asarray(dsp.correlate(a, v, mode))
     ref = np.correlate(a, v, mode)
     assert got.shape == ref.shape
     assert np.allclose(got, ref, atol=1e-12)
@@ -69,7 +73,9 @@ def test_correlate_conjugates_v():
 def test_convolve_dtype_preserved_for_integers():
     a = np.array([1, 2, 3], dtype=np.int64)
     b = np.array([1, 1], dtype=np.int64)
-    out = dsp.convolve(a, b, "full")
+    # rc79: numpy-free dsp.convolve preserves int-ness (int*int+int stays int);
+    # coercing the list at the boundary yields an integer dtype (no spurious float).
+    out = np.asarray(dsp.convolve(a, b, "full"))
     assert np.issubdtype(out.dtype, np.integer)
     assert list(out) == list(np.convolve(a, b, "full"))
 

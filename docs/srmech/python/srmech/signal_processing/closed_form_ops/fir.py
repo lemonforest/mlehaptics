@@ -55,4 +55,6 @@ def op(signal, coefficients, *, mode: str = "full", D: int = 8192):
         raise ValueError(
             f"fir expects 1-D inputs; got {sig.shape} and {b.shape}"
         )
-    return _dsp.convolve(sig, b, mode=mode)
+    # _dsp.convolve is numpy-free (returns a list); wrap to preserve the
+    # ndarray return contract (this op still imports numpy as a carrier).
+    return np.asarray(_dsp.convolve(sig, b, mode=mode))

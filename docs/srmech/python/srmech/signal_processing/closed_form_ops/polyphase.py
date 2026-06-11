@@ -93,14 +93,14 @@ def op(
             x_k = sig[k::L] if k < sig.shape[0] else np.array([], dtype=np.float64)
             if x_k.shape[0] == 0:
                 continue
-            filtered = _dsp.convolve(x_k, e_k, mode="full")
+            filtered = np.asarray(_dsp.convolve(x_k, e_k, mode="full"))
             out[: filtered.shape[0]] += filtered
         return out
     if mode == "interpolation":
         # Interpolation: filter each input through component then interleave.
         per_component = []
         for k, e_k in enumerate(components):
-            filtered = _dsp.convolve(sig, e_k, mode="full")
+            filtered = np.asarray(_dsp.convolve(sig, e_k, mode="full"))
             per_component.append(filtered)
         # Interleave outputs.
         max_len = max(c.shape[0] for c in per_component)

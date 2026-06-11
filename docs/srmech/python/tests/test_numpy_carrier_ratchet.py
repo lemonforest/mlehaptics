@@ -42,7 +42,13 @@ import srmech
 # and each C[k]·x is an explicit length-4 Class-M micro-reduction (no longer a
 # numpy-bound dense_dot_real, which fed numpy carriers into the native kernel
 # only to contract four reals). The op runs numpy-absent on a list carrier. 50 -> 49.
-CEIL_NUMPY_CARRIER = 49
+# rc79: the DSP convolution foundation — `_dsp_cascades` drops its last numpy
+# carrier (np.ascontiguousarray/np.zeros/np.conj). convolve/correlate now run on
+# a plain-list buffer ([0]*N promotes int->float->complex exactly), the shift is
+# a list slice, the conjugate is the element's own .conjugate(). The 5 consumer
+# callsites (fir/matched_filter/multirate/polyphase/path_b matched_filter) wrap
+# the list result in np.asarray, preserving their ndarray contracts. 49 -> 48.
+CEIL_NUMPY_CARRIER = 48
 
 
 def _srmech_root() -> pathlib.Path:
