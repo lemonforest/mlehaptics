@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc80] - 2026-06-10
+
+**Carrier-flip batch #4 — `fir` + `matched_filter` go numpy-FREE (`CEIL_NUMPY_CARRIER` 48 → 46).** Carrier-removal #564, the follow-on rc79 unblocked: now that `_dsp_cascades` is numpy-free, the two convolution/correlation leaf ops flip trivially. Both `closed_form_ops/fir` (Class N ∘ Class C) and `closed_form_ops/matched_filter` (Class A ∘ Class C ∘ Class M) drop their top-level `import numpy`:
+
+- Each had only one remaining numpy use — the `np.asarray(...)` return-wrap added at rc79 plus the `np.asarray` + `.ndim` input guard. Both now **delegate straight to the numpy-free `_dsp.convolve` / `_dsp.correlate`**, which coerce both inputs to 1-D lists (raising `ValueError` on a nested/2-D or empty input — same exception type as the prior `.ndim` guard) and return a `list`. No numpy anywhere in the op.
+- `fir.op` / `matched_filter.op` now return a `list`. The two smoke tests move `.shape == (N,)` → `len(...) == N`. Value-faithful (same `_dsp` cascade).
+
+`CEIL_NUMPY_CARRIER` 48 → 46 (down-only ratchet, two files). No new public op (`describe()["tools"]["total"]` stays **287**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc79] - 2026-06-10
 
 **Carrier-flip batch #3 — the DSP convolution foundation `_dsp_cascades` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 49 → 48).** Carrier-removal #564. `signal_processing/_dsp_cascades` (the internal `convolve` / `correlate` Class I ∘ Class M cascade) was already numpy-free as a *math engine* (rc58) but still used numpy as a **carrier** (`np.ascontiguousarray` / `np.zeros` / `np.conj` / `np.result_type`). It now runs with **no numpy at all**:

@@ -18,8 +18,6 @@ Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: North
 
 from __future__ import annotations
 
-import numpy as np
-
 from srmech.signal_processing import _dsp_cascades as _dsp
 
 OPERATION_NAME = "matched_filter"
@@ -52,17 +50,12 @@ def op(signal, template, *, mode: str = "full", D: int = 8192):
 
     Returns
     -------
-    numpy.ndarray
+    list
         Cross-correlation array; the index of the maximum-magnitude entry
-        is the most-likely template alignment.
+        is the most-likely template alignment. Numpy-free (#564).
     """
-    sig = np.asarray(signal)
-    tmpl = np.asarray(template)
-    if sig.ndim != 1 or tmpl.ndim != 1:
-        raise ValueError(
-            f"matched_filter expects 1-D inputs; got {sig.shape} and {tmpl.shape}"
-        )
     # _dsp.correlate computes sum_n a[n+k] * conj(v[n]) — exactly the
-    # matched-filter output. It is numpy-free (returns a list); wrap to preserve
-    # the ndarray return contract (this op still imports numpy as a carrier).
-    return np.asarray(_dsp.correlate(sig, tmpl, mode=mode))
+    # matched-filter output. It is numpy-free: it coerces both inputs to 1-D
+    # lists (raising ValueError on a nested/2-D or empty input) and returns a
+    # list (the conjugate is the element's own .conjugate(), no np.conj).
+    return _dsp.correlate(signal, template, mode=mode)

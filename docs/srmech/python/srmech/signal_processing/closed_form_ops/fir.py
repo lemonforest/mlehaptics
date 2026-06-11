@@ -15,8 +15,6 @@ Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Oppenheim
 
 from __future__ import annotations
 
-import numpy as np
-
 from srmech.signal_processing import _dsp_cascades as _dsp
 
 OPERATION_NAME = "fir"
@@ -46,15 +44,9 @@ def op(signal, coefficients, *, mode: str = "full", D: int = 8192):
 
     Returns
     -------
-    numpy.ndarray
-        Filtered output.
+    list
+        Filtered output (length per ``mode``); numpy-free (#564).
     """
-    sig = np.asarray(signal)
-    b = np.asarray(coefficients)
-    if sig.ndim != 1 or b.ndim != 1:
-        raise ValueError(
-            f"fir expects 1-D inputs; got {sig.shape} and {b.shape}"
-        )
-    # _dsp.convolve is numpy-free (returns a list); wrap to preserve the
-    # ndarray return contract (this op still imports numpy as a carrier).
-    return np.asarray(_dsp.convolve(sig, b, mode=mode))
+    # _dsp.convolve is numpy-free: it coerces both inputs to 1-D lists (raising
+    # ValueError on a nested/2-D input or an empty input) and returns a list.
+    return _dsp.convolve(signal, coefficients, mode=mode)
