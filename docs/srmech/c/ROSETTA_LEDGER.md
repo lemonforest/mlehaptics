@@ -740,6 +740,22 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc90 (done, v0.7.5rc90) — carrier-flip batch #14: `spectral_subtraction`
+  goes numpy-FREE (CEIL_NUMPY_CARRIER 37 → 36).** Carrier-removal #564 — the
+  FIRST flip whose numpy-free output is NOT bit-exact-0.0 (value-faithful to
+  machine eps). `closed_form_ops/spectral_subtraction` (Class L FFT-PSD ∘ Class N
+  rational floor; Boll 1979) drops top-level `import numpy`: signal/noise → lists
+  of float; `np.maximum(|X|²−αN, βN)` Class-N floor → builtin `max` per bin;
+  `|z|²=real²+imag²` (no abs()). `np.angle(X)` (libm atan2) → `rational.atan2`
+  (bit-exact here); the phasor + magnitude — previously the NUMPY-CARRIER helpers
+  `elementwise_transcendental(phase, "exp_i")` + `elementwise_sqrt` (both use
+  np.zeros/reshape INTERNALLY — the rc70 "runnable≠loadable" trap) — are inlined
+  per-bin as `rational.{sqrt,cos,sin}` so the op runs numpy-ABSENT. `_sc.fft`/
+  `_sc.ifft` return List[complex]. Differential-verified value-faithful to
+  maxerr 6.7e-16 (the rational cascades match libm atan2/cos/sin + sqrt to ≤1 ULP)
+  — within the op's 1e-9 tolerance. Returns a list of float; baseline smoke
+  `.shape` → len. No new public op (describe tools.total stays 287, classes 2);
+  ABI 3; no C change.
 - **rc89 (done, v0.7.5rc89) — carrier-flip batch #13: `stft` (+ `spectrogram`
   consumer) go numpy-FREE (CEIL_NUMPY_CARRIER 38 → 37).** Carrier-removal #564,
   seventh of the workflow-scoped batch and the SECOND windowed follower of

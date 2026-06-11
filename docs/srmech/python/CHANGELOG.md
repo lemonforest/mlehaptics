@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc90] - 2026-06-11
+
+**Carrier-flip batch #14 — `spectral_subtraction` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 37 → 36).** Carrier-removal #564 — the **first flip whose numpy-free output is not bit-exact-0.0** (it is value-faithful to machine eps). `closed_form_ops/spectral_subtraction` (Class L FFT-domain PSD ∘ Class N rational floor; Boll 1979) drops its top-level `import numpy`:
+
+- The signal/noise coerce to `list`s of `float`; the `np.maximum(|X|²−αN, βN)` Class-N floor becomes the builtin **`max`** per bin; `|z|² = real²+imag²` (no `abs()`).
+- `np.angle(X)` (libm `atan2`) routes through **`rational.atan2`** (bit-exact to libm here). The phasor + magnitude — previously the numpy-CARRIER helpers `elementwise_transcendental(phase, "exp_i")` + `elementwise_sqrt` (both use `np.zeros`/`reshape` **internally** — the rc70 "runnable ≠ loadable" trap) — are inlined per-bin as `rational.{sqrt,cos,sin}`, so the op runs with numpy **absent**.
+- `_sc.fft`/`_sc.ifft` already return `List[complex]`. `op` now returns a `list` of `float` (was an ndarray). Differential-verified **value-faithful to maxerr 6.7e-16** (the rational cascades match libm `atan2`/`cos`/`sin` and `sqrt` to ≤1 ULP) — well within the op's `1e-9` tolerance. The baseline smoke moves `.shape` → `len`.
+
+`CEIL_NUMPY_CARRIER` 37 → 36 (down-only ratchet). No new public op (`describe()["tools"]["total"]` stays **287**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc89] - 2026-06-11
 
 **Carrier-flip batch #13 — `stft` (+ its `spectrogram` consumer) go numpy-FREE (`CEIL_NUMPY_CARRIER` 38 → 37).** Carrier-removal #564, the seventh of the workflow-scoped batch and the second windowed follower of `cross_spectral` — reusing the rc88-codified **`_PI = float(pi_cascade_digits(30))`** (Class-N Archimedes hexagon-doubling) + `_ccos` → `rational.cos` π source. `closed_form_ops/stft` (Class C ∘ A ∘ I ∘ K windowed-frame FFT) drops its top-level `import numpy`:

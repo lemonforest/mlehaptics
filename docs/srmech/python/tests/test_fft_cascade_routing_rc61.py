@@ -97,7 +97,8 @@ def test_spectral_subtraction_value_faithful():
     sig = rng.standard_normal(128)
     noise_psd = np.full(128, 0.05)
     out = spectral_subtraction.op(sig, noise_psd)
-    assert out.shape == sig.shape
+    # rc90: spectral_subtraction.op is numpy-free now — returns a list of float.
+    assert isinstance(out, list) and len(out) == sig.shape[0]
     assert np.all(np.isfinite(out))
 
 

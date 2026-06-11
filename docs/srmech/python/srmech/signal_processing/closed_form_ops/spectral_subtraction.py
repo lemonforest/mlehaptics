@@ -7,15 +7,26 @@ subtraction factor) composition. The closed-form reference applies
 
 Path B dual in Phase 6 (Path B floor in bound-vector pipeline).
 
+Carrier-free since v0.7.5rc90 (#564): plain Python ``list`` carriers. The
+``np.maximum`` Class-N floor becomes the builtin ``max`` per bin; ``np.angle``
+(libm ``atan2``) routes through **``rational.atan2``** (bit-exact to libm for
+the phase domain), and the phasor / magnitude — previously the numpy-carrier
+``elementwise_transcendental(phase, "exp_i")`` + ``elementwise_sqrt`` helpers —
+are inlined per-bin as ``rational.{sqrt,cos,sin}`` so the op runs with numpy
+genuinely ABSENT (the helpers stay numpy-carrier internally, so they cannot be
+called numpy-free). ``_sc.fft``/``_sc.ifft`` already return ``List[complex]``.
+Value-faithful to the pre-change output to machine eps (the rational cascades
+match libm ``atan2``/``cos``/``sin`` and ``sqrt`` to ≤1 ULP).
+
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Boll (1979)
 + Berouti, Schwartz & Makhoul (1979).
 """
 
 from __future__ import annotations
 
-import numpy as np
+from typing import List
 
-from srmech.amsc.laplacian import elementwise_sqrt, elementwise_transcendental
+from srmech.amsc import rational as _srn
 from srmech.amsc.cascade import spectral_cascades as _sc
 
 OPERATION_NAME = "spectral_subtraction"
@@ -36,7 +47,7 @@ def op(
     alpha: float = 1.0,
     beta: float = 0.01,
     D: int = 8192,
-):
+) -> List[float]:
     """Spectral subtraction denoising.
 
     Parameters
@@ -56,22 +67,29 @@ def op(
 
     Returns
     -------
-    numpy.ndarray
-        Real denoised signal.
+    list
+        Real denoised signal as a ``list`` of ``float``.
     """
-    sig = np.asarray(signal, dtype=np.float64)
-    n_psd = np.asarray(noise_psd, dtype=np.float64)
-    if sig.ndim != 1:
-        raise ValueError(f"spectral_subtraction expects 1-D signal; got {sig.shape}")
-    if n_psd.shape != sig.shape:
+    sig = list(signal)
+    if sig and hasattr(sig[0], "__len__") and not isinstance(sig[0], (str, bytes)):
+        raise ValueError("spectral_subtraction expects 1-D signal")
+    sig = [float(v) for v in sig]
+    n_psd = [float(v) for v in noise_psd]
+    if len(n_psd) != len(sig):
         raise ValueError(
-            f"noise_psd shape {n_psd.shape} != signal shape {sig.shape}"
+            f"noise_psd length {len(n_psd)} != signal length {len(sig)}"
         )
-    X = np.asarray(_sc.fft(sig))
-    obs_psd = X.real ** 2 + X.imag ** 2  # |z|² = real²+imag² (no abs())
-    # Class N rational floor: max(|X|^2 - alpha*N, beta*N)
-    new_psd = np.maximum(obs_psd - alpha * n_psd, beta * n_psd)
-    # Preserve phase from X; new magnitude from new_psd.
-    phase = np.angle(X)
-    Y = elementwise_sqrt(new_psd) * elementwise_transcendental(phase, "exp_i")
-    return np.real(np.asarray(_sc.ifft(Y)))
+    X = list(_sc.fft(sig))
+    n = len(X)
+    Y = [complex(0)] * n
+    for k in range(n):
+        re = X[k].real
+        im = X[k].imag
+        obs_psd = re * re + im * im  # |z|² = real²+imag² (no abs())
+        # Class N rational floor: max(|X|^2 - alpha*N, beta*N).
+        new_psd = max(obs_psd - alpha * n_psd[k], beta * n_psd[k])
+        # New magnitude from new_psd; phase preserved from X (= np.angle(X)).
+        mag = _srn.sqrt(new_psd)
+        phase = _srn.atan2(im, re)
+        Y[k] = complex(mag * _srn.cos(phase), mag * _srn.sin(phase))
+    return [v.real for v in _sc.ifft(Y)]
