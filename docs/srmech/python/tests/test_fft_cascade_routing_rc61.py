@@ -84,8 +84,10 @@ def test_ofdm_round_trip_value_faithful():
     symbols = rng.standard_normal(32) + 1j * rng.standard_normal(32)
     mod = ofdm.op(symbols, n_subcarriers=16, cp_length=4)
     demod = ofdm.op(mod, n_subcarriers=16, cp_length=4, demodulate=True)
-    assert demod.shape == (2, 16)
-    assert np.allclose(demod.reshape(-1), symbols, atol=1e-8)
+    # rc84: ofdm demodulate returns a numpy-free list-of-lists (2 OFDM symbols
+    # x 16 subcarriers); flatten via a comprehension at the test boundary.
+    assert len(demod) == 2 and len(demod[0]) == 16
+    assert np.allclose([v for row in demod for v in row], symbols, atol=1e-8)
 
 
 def test_spectral_subtraction_value_faithful():
