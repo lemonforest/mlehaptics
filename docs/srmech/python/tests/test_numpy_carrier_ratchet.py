@@ -22,8 +22,27 @@ the pre-arc count.
 from __future__ import annotations
 
 import pathlib
+import re
 
 import srmech
+
+# A column-0 (module-level) numpy IMPORT STATEMENT — not arbitrary prose that
+# merely begins with the words "import numpy". The naive ``startswith("import
+# numpy")`` over-counted a docstring line in ``amsc/cascade/one.py`` ("import
+# numpy lazily (the [scientific] tier…") even though the_one is numpy-FREE at
+# import (its only numpy is a LAZY ``require_numpy`` inside ``to_numpy`` /
+# ``to_matrix``). This regex matches only a real statement: ``import numpy`` /
+# ``import numpy as np`` / ``import numpy.sub`` / ``from numpy[.sub] import …``
+# (optionally trailed by a comment), and crucially NOT ``import numpy <word>…``.
+_NUMPY_IMPORT_RE = re.compile(
+    r"^(?:import numpy(?:\.\w+)*(?:\s+as\s+\w+)?\s*(?:#.*)?$"
+    r"|from numpy(?:\.\w+)*\s+import\s)"
+)
+
+
+def _is_numpy_import(line: str) -> bool:
+    """True iff ``line`` is a real column-0 numpy import statement."""
+    return _NUMPY_IMPORT_RE.match(line) is not None
 
 # rc69: maths-engine sweep floored; carrier arc Phase 0 (infra only — Mat carrier
 # + this ratchet, no module flips). Mat itself is numpy-free (its to_numpy bridge
@@ -237,7 +256,14 @@ import srmech
 # loops. Drops `import numpy as np` + the `_dct` np.asarray wrapper; encode returns
 # list-of-list-of-lists, decode returns a 2-D list (were ndarrays). Math ledger
 # untouched (the DCT was already cascade-routed). 19 -> 18.
-CEIL_NUMPY_CARRIER = 18
+# rc112: ratchet-ACCURACY fix — `amsc/cascade/one.py` (the_one) was a FALSE
+# POSITIVE: the_one is numpy-FREE at import (its only numpy is a LAZY
+# `require_numpy` inside `to_numpy`/`to_matrix`), but a docstring line wrapping to
+# "import numpy lazily (the…" at column 0 tripped the naive `startswith` scan. The
+# scanner is hardened to a real-import regex (`_is_numpy_import`) that ignores
+# such prose; the_one drops out of the count. Honest decrement (correcting a
+# measurement, not removing a carrier — there was none). 18 -> 17.
+CEIL_NUMPY_CARRIER = 17
 
 
 def _srmech_root() -> pathlib.Path:
@@ -249,7 +275,7 @@ def _hard_numpy_import_files():
     hits = []
     for p in sorted(_srmech_root().rglob("*.py")):
         for line in p.read_text(encoding="utf-8").splitlines():
-            if line.startswith("import numpy") or line.startswith("from numpy"):
+            if _is_numpy_import(line):
                 hits.append(p)
                 break
     return hits
@@ -271,6 +297,6 @@ def test_mat_carrier_is_itself_numpy_free():
     bump the very ratchet it exists to drive down)."""
     src = (_srmech_root() / "amsc" / "mat.py").read_text(encoding="utf-8")
     for line in src.splitlines():
-        assert not (line.startswith("import numpy") or line.startswith("from numpy")), (
+        assert not _is_numpy_import(line), (
             "srmech.amsc.mat must stay numpy-free at import (lazy bridge only)"
         )

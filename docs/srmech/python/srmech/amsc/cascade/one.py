@@ -81,7 +81,8 @@ The generator is **numpy-free at import** and **exact-rational** in its core
 (every entry a reduced ``(num, den)`` integer pair via the Class-N
 ``cos_series_truncate`` / ``sin_series_truncate`` Taylor partials). The
 optional :meth:`One.to_numpy` / :meth:`One.to_matrix` float realisations
-import numpy lazily (the ``srmech[scientific]`` tier, §22).
+lazily import numpy (the ``srmech[scientific]`` tier, §22) — never at module
+load (so the carrier ratchet must not count this module).
 
 Canonical SSoT:
 - Hurwitz (1898), *Über die Composition der quadratischen Formen* — the
