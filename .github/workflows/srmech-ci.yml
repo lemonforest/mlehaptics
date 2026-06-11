@@ -174,13 +174,22 @@ jobs:
           # the Class-N cascade core must work numpy-free
           from srmech.amsc import rational
           assert rational.best_rational(22, 7, 100) == (22, 7)
-          # the scientific tier must fail with the actionable [scientific] hint
+          # the srmech.qm SUBPACKAGE imports numpy-free as of v0.7.5rc115 (the
+          # eager _require_numpy gate was relaxed to a per-submodule LAZY
+          # __getattr__): the flipped qm submodules (spin/bell) run numpy-free,
+          # while the as-yet-numpy submodules still raise the [scientific] hint.
+          import srmech.qm  # noqa: F401  (subpackage import must NOT require numpy)
+          from srmech.qm import spin, bell
+          assert type(spin.pauli_matrices()[0]).__name__ == 'Mat', 'spin not numpy-free'
+          verified, primary, _ = bell.verify_chsh()
+          assert verified and primary == 0.0, (verified, primary)
+          # an as-yet-numpy qm submodule must still fail with the [scientific] hint:
           try:
-              import srmech.qm  # noqa: F401
-              raise SystemExit('srmech.qm imported without numpy (guard missing)')
+              from srmech.qm import single_particle  # noqa: F401
+              raise SystemExit('srmech.qm.single_particle imported without numpy (guard missing)')
           except ImportError as exc:
               assert 'srmech[scientific]' in str(exc), exc
-          print(f'srmech {__version__} OK (numpy-optional)')
+          print(f'srmech {__version__} OK (numpy-optional; qm lazy-gated)')
           "
 
   pedantic-build:
