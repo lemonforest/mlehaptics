@@ -277,7 +277,23 @@ def _is_numpy_import(line: str) -> bool:
 # rbs_lm")` gate in `__init__.py` is also REMOVED (the whole subpackage is
 # numpy-free, so `import srmech.rbs_lm` succeeds numpy-absent). Authorized one-
 # time RNG re-base (values change, structural tests are RNG-independent). 17 -> 15.
-CEIL_NUMPY_CARRIER = 15
+# rc115 (#564): the first two qm submodules flip numpy-free — `qm/spin.py`
+# (Pauli matrices + Clifford Cl(0,3)) and `qm/bell.py` (Bell-CHSH + Tsirelson
+# 2√2). Both drop `import numpy as np`: spin's `pauli_matrices`/`pauli_identity`/
+# `pauli_spin_operator` now return exact 2×2 complex `Mat` (entries in {0,±1,±i};
+# the Clifford residuals combine via `mat_matmul` + the rc114 `mat_norm`); bell's
+# `chsh_pauli_combination`/`chsh_operator` return `Mat` built via the numpy-free
+# `kron` cascade, `chsh_pauli_combination_norm` uses the EXACT integer
+# `eigvals_exact` (residual exactly 0), and `operator_norm`/`chsh_operator_norm`
+# go through the unconditionally-numpy-free `mat_hermitian_eigendecompose`. The
+# eager `_require_numpy("srmech.qm")` subpackage gate in `qm/__init__.py` is
+# relaxed to LAZY per-submodule `__getattr__` (the rc71 signal_processing
+# precedent) so spin/bell import numpy-absent while the not-yet-flipped qm
+# modules still surface the actionable [scientific] hint. test_qm_spin.py +
+# test_bell_chsh.py were rewritten numpy-FREE (no np oracle, no `.to_numpy()` —
+# eigenvalues via `mat_hermitian_eigendecompose`, equality via direct `Mat`
+# entry comparison) so the numpy-absent install runs its own tests. 15 -> 13.
+CEIL_NUMPY_CARRIER = 13
 
 
 def _srmech_root() -> pathlib.Path:

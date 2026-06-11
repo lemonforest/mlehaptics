@@ -106,13 +106,13 @@ Verdict shape: BIT-EXACT-VERIFIED at machine precision (residual ``<
 
 from __future__ import annotations
 
-from srmech.amsc.rational import sqrt as _rsqrt  # §22: scalar root via Class-N
 from typing import Tuple
 
-import numpy as np
-
+from srmech.amsc.rational import sqrt as _rsqrt  # §22: scalar root via Class-N
 from srmech.amsc.cascade.spectral_cascades import kron as _kron_cascade
-from srmech.amsc.laplacian import hermitian_eigendecompose
+from srmech.amsc.cascade.matrix_cascades import eigvals_exact as _eigvals_exact
+from srmech.amsc.laplacian import mat_hermitian_eigendecompose
+from srmech.amsc.mat import Mat
 from srmech.qm.spin import pauli_matrices
 
 
@@ -145,21 +145,19 @@ Canonical SSoT: Bell (1964) *Physics* 1, 195; CHSH (1969) *PRL* 23, 880.
 # ---------------------------------------------------------------------------
 
 
-def _kron(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-    """Kronecker product ``a ⊗ b`` — the Class M tensor-product bind
-    instantiated as dense complex matrix multiplication.
+def _kron(a, b):
+    """Kronecker product ``a ⊗ b`` → a numpy-free list-of-rows.
 
-    Composes two single-qubit operators into a two-qubit operator. Per
-    ``[[user_stance_1d_collapse_to_loe_identity_not_action]]`` this is
-    the substrate-coupling operation that uncompresses single-qubit Pauli
-    LoE-content into the bipartite operator space.
+    The Class-I(mixed-radix index) ∘ M (element products) Kronecker cascade
+    (``spectral_cascades.kron``, pure-Python). Composes two single-qubit
+    operators (each a ``Mat`` or list-of-rows) into a two-qubit operator. Per
+    ``[[user_stance_1d_collapse_to_loe_identity_not_action]]`` this is the
+    substrate-coupling operation that uncompresses single-qubit Pauli LoE-
+    content into the bipartite operator space.
     """
-    assert a.ndim == 2, "_kron: a must be 2-D"
-    assert b.ndim == 2, "_kron: b must be 2-D"
-    # Class-I(mixed-radix index)∘M Kronecker cascade — substrate-native
-    # replacement for the NumPy Kronecker product (bit-exact on the
-    # Pauli/measurement operators used here); np.asarray is carrier-only.
-    return np.asarray(_kron_cascade(a, b))
+    al = a.tolist() if isinstance(a, Mat) else [list(r) for r in a]
+    bl = b.tolist() if isinstance(b, Mat) else [list(r) for r in b]
+    return _kron_cascade(al, bl)
 
 
 # ---------------------------------------------------------------------------
@@ -167,8 +165,8 @@ def _kron(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 
-def chsh_pauli_combination() -> np.ndarray:
-    """Return ``M = σ_x ⊗ σ_x + σ_z ⊗ σ_z`` as 4×4 Hermitian matrix.
+def chsh_pauli_combination() -> "Mat":
+    """Return ``M = σ_x ⊗ σ_x + σ_z ⊗ σ_z`` as a 4×4 Hermitian ``Mat``.
 
     Closed-form spectrum: ``{+2, 0, 0, −2}`` from block decomposition
     into even-parity ``[[1,1],[1,1]]`` (eigenvalues ``{0, +2}``) and odd-
@@ -181,8 +179,10 @@ def chsh_pauli_combination() -> np.ndarray:
         (bit-exact representable in IEEE-754 binary64).
     """
     sigma_x, _sigma_y, sigma_z = pauli_matrices()
-    M = _kron(sigma_x, sigma_x) + _kron(sigma_z, sigma_z)
-    return M
+    xx = _kron(sigma_x, sigma_x)
+    zz = _kron(sigma_z, sigma_z)
+    M = [[xx[i][j] + zz[i][j] for j in range(4)] for i in range(4)]
+    return Mat.from_rows(M, is_complex=True)
 
 
 # ---------------------------------------------------------------------------
@@ -190,9 +190,9 @@ def chsh_pauli_combination() -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 
-def chsh_operator() -> np.ndarray:
-    """Return the Tsirelson-optimal Bell-CHSH operator ``B_CHSH`` as 4×4
-    Hermitian matrix.
+def chsh_operator() -> "Mat":
+    """Return the Tsirelson-optimal Bell-CHSH operator ``B_CHSH`` as a 4×4
+    Hermitian ``Mat``.
 
     With the Tsirelson-optimal measurement settings:
 
@@ -217,15 +217,19 @@ def chsh_operator() -> np.ndarray:
         ``{+2√2, 0, 0, −2√2}`` modulo double-precision floor.
     """
     sigma_x, _sigma_y, sigma_z = pauli_matrices()
+    sxl, szl = sigma_x.tolist(), sigma_z.tolist()
     inv_sqrt2 = 1.0 / _rsqrt(2.0)
-    A0 = sigma_z
-    A1 = sigma_x
-    B0 = inv_sqrt2 * (sigma_z + sigma_x)
-    B1 = inv_sqrt2 * (sigma_z - sigma_x)
-    B_CHSH = (
-        _kron(A0, B0) + _kron(A0, B1) + _kron(A1, B0) - _kron(A1, B1)
-    )
-    return B_CHSH
+    A0, A1 = szl, sxl
+    # Class-I π/4 rotation phase factor (1/√2) over the Class-M tensor binds;
+    # entrywise numpy-free list arithmetic (no numpy, no abs()).
+    B0 = [[inv_sqrt2 * (szl[i][j] + sxl[i][j]) for j in range(2)] for i in range(2)]
+    B1 = [[inv_sqrt2 * (szl[i][j] - sxl[i][j]) for j in range(2)] for i in range(2)]
+    t = [_kron(A0, B0), _kron(A0, B1), _kron(A1, B0), _kron(A1, B1)]
+    B_CHSH = [
+        [t[0][i][j] + t[1][i][j] + t[2][i][j] - t[3][i][j] for j in range(4)]
+        for i in range(4)
+    ]
+    return Mat.from_rows(B_CHSH, is_complex=True)
 
 
 # ---------------------------------------------------------------------------
@@ -233,11 +237,13 @@ def chsh_operator() -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 
-def operator_norm(H: np.ndarray) -> float:
+def operator_norm(H) -> float:
     """Operator (spectral) norm of a Hermitian matrix: ``max_i |λ_i|``.
 
-    Computed via :func:`srmech.amsc.laplacian.hermitian_eigendecompose`
-    (Class L primitive, native C path when available). For a Hermitian
+    numpy-FREE (v0.7.5rc115) — accepts a :class:`~srmech.amsc.mat.Mat`, an
+    ``ndarray``, or a list-of-rows. Computed via the unconditionally numpy-free
+    native :func:`srmech.amsc.laplacian.mat_hermitian_eigendecompose` (Class L
+    primitive — native Jacobi C path + pure-Python fallback). For a Hermitian
     operator this equals the L²-induced operator norm ``‖H‖``.
 
     Args:
@@ -246,20 +252,33 @@ def operator_norm(H: np.ndarray) -> float:
     Returns:
         Largest absolute eigenvalue (non-negative float).
     """
-    assert H.ndim == 2, "operator_norm: H must be 2-D"
-    assert H.shape[0] == H.shape[1], "operator_norm: H must be square"
-    eigvals, _V = hermitian_eigendecompose(H)
+    if isinstance(H, Mat):
+        Hm = H
+    else:
+        ndim = getattr(H, "ndim", None)
+        assert ndim is None or ndim == 2, "operator_norm: H must be 2-D"
+        Hm = Mat.from_rows([list(row) for row in H], is_complex=True)
+    assert Hm.n_rows == Hm.n_cols, "operator_norm: H must be square"
+    evals, _V = mat_hermitian_eigendecompose(Hm)   # (n,1) REAL Mat, ascending
     # Class-K magnitude via explicit sign-branch (no abs()); eigvals real (Hermitian).
-    return float(np.max(np.where(eigvals >= 0.0, eigvals, -eigvals)))
+    eigs = [evals[i, 0] for i in range(evals.n_rows)]
+    return max((e if e >= 0.0 else -e) for e in eigs)
 
 
 def chsh_pauli_combination_norm() -> float:
-    """Compute ``‖σ_x ⊗ σ_x + σ_z ⊗ σ_z‖`` via Class L eigendecomp.
+    """Compute ``‖σ_x ⊗ σ_x + σ_z ⊗ σ_z‖``.
 
-    Bit-exact algebraic identity: this equals exactly ``2`` (integer-
-    eigenvalue Hermitian operator).
-    """
-    return operator_norm(chsh_pauli_combination())
+    Bit-exact algebraic identity: this equals **exactly** ``2``. The operator
+    has all-real INTEGER entries (σ_y is absent), so the spectrum ``{+2,0,0,−2}``
+    comes from the numpy-free EXACT eigenvalue cascade
+    (:func:`srmech.amsc.cascade.matrix_cascades.eigvals_exact` — char_poly
+    integer Faddeev-LeVerrier → Sturm isolation → rational bisection), giving a
+    residual of exactly ``0`` (not the ~1e-15 Jacobi floor). Max ``|λ|`` via
+    Class-K sign-branch (no abs())."""
+    M = chsh_pauli_combination()   # Mat; complex layout, real-integer entries
+    real_int = [[int(round(M[i, j].real)) for j in range(4)] for i in range(4)]
+    eigs = _eigvals_exact(real_int)
+    return max((e if e >= 0.0 else -e) for e in eigs)
 
 
 def chsh_operator_norm() -> float:
@@ -303,8 +322,8 @@ def verify_chsh(tolerance: float = 1e-14) -> Tuple[bool, float, float]:
 
     Args:
         tolerance: Maximum acceptable residual for "bit-exact verified".
-            Default ``1e-14`` is at numpy's typical Jacobi-rotation floor
-            for 4×4 Hermitian eigendecomposition.
+            Default ``1e-14`` is at the cascade Jacobi-rotation floor for
+            4×4 Hermitian eigendecomposition (the Class-L native path).
 
     Returns:
         ``(verified, primary_residual, tsirelson_residual)``:

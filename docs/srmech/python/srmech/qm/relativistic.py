@@ -71,9 +71,13 @@ def gamma_matrices() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         ``(g0, g1, g2, g3)``: four 4×4 complex matrices satisfying the
         Clifford algebra ``{γ^μ, γ^ν} = 2 η^{μν} I_4``.
     """
-    I2 = pauli_identity()
+    # spin.pauli_* return numpy-free `Mat` as of v0.7.5rc115; this module is
+    # still a numpy carrier (flips in a later #564 rc), so coerce the Mat
+    # producer to ndarray at the boundary via the lossy export bridge. The
+    # bridge disappears when relativistic.py itself goes numpy-free.
+    I2 = pauli_identity().to_numpy()
     Z2 = np.zeros((2, 2), dtype=complex)
-    sx, sy, sz = pauli_matrices()
+    sx, sy, sz = (p.to_numpy() for p in pauli_matrices())
     g0 = np.block([[I2, Z2], [Z2, -I2]])
     g1 = np.block([[Z2, sx], [-sx, Z2]])
     g2 = np.block([[Z2, sy], [-sy, Z2]])
