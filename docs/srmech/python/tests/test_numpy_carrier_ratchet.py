@@ -162,7 +162,12 @@ import srmech
 # (drops `import numpy as np`; argsort -> pure-Python sorted; returns list of
 # complex). The Mat foundation (rc74/95/96/97) is what made this runnable, not
 # just loadable (the rc70 trap). 32 -> 31.
-CEIL_NUMPY_CARRIER = 31
+# rc99 (#564): SECOND CONSUMER flip — closed_form_ops/music (the ESPRIT sibling)
+# goes numpy-FREE by routing its covariance eigendecomp + noise-subspace
+# projection through native mat_hermitian_eigendecompose + mat_matmul (drops
+# `import numpy as np`; argsort -> pure-Python sorted; returns list of float).
+# 31 -> 30.
+CEIL_NUMPY_CARRIER = 30
 
 
 def _srmech_root() -> pathlib.Path:

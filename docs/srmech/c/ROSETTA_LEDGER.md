@@ -789,6 +789,24 @@ decrements it).
   matrix-heavy consumers (dct/fsk/music/mlse/psk_qam/heat_kernel/ica_jade/lmmse/
   map_ml/vector_quantisation; mimo_svd needs a `mat_svd` foundation op first)
   reuse the same mat_* trio, each decrementing CEIL.
+- **rc99 (done, v0.7.5rc99) — SECOND CONSUMER flip: `music` numpy-FREE
+  (`CEIL_NUMPY_CARRIER` 31 → 30).** Carrier-removal #564. The ESPRIT sibling.
+  `signal_processing/closed_form_ops/music` routes its covariance eigendecomp off
+  `hermitian_eigendecompose` onto native `mat_hermitian_eigendecompose` (noise
+  subspace = smallest M−n_sources eigvecs via pure-Python `sorted`, no
+  `np.argsort`), the noise-subspace projection `Enᴴ·A` off `dense_matmul_complex`
+  onto native `mat_matmul` (`Enᴴ` = `Mat.from_rows` of `conj(eigvecs[i,col])`),
+  and the pseudospectrum `1/Σ|proj|²` as a pure-Python column loop. Dropped
+  `import numpy as np`; `op` returns `list[float]`. RIPPLES: `psd.shape`→`len`,
+  `np.all(psd>0)`→`all(v>0 ...)`, `np.argmax`→pure-Python argmax (in
+  test_signal_processing_path_a_baseline + test_sp_eigh_cascade_routing_rc33);
+  the rc71 clean-`[scientific]`-hint exemplar moved `music`→`mimo_svd` (the
+  long-lived numpy-requiring op — needs a `mat_svd` foundation first). Math-ratchet
+  ledger UNTOUCHED (music's numpy matched none of the linalg/fft/matmul/ufunc
+  patterns; the named `dense_matmul_complex` is not a counted matmul pattern).
+  No new public op (tools.total 289); ABI 3; no C change. Next: heat_kernel
+  (graph heat-kernel exp(−tL) via the hermitian eig), then lmmse/map_ml,
+  dct/fsk, then the mat_svd foundation for mimo_svd.
 - **rc95 (done, v0.7.5rc95) — Mat-return FOUNDATION: `mat_solve` handles
   COMPLEX numpy-free (unblocks the matrix-heavy DSP carrier-flips).**
   Carrier-removal #564. The matrix-heavy sigproc ops (esprit/dct/fsk/ica_jade/

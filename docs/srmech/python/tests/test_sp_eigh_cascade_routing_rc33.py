@@ -130,9 +130,9 @@ def test_music_peak_at_true_angle():
     grid = np.linspace(-1.0, 1.0, 401)
     A = np.exp(1j * np.pi * np.arange(M)[:, None] * grid[None, :])
     psd = music.op(R, A, n_sources=1)
-    assert psd.shape == grid.shape
-    assert np.all(psd > 0)
-    peak_omega = grid[int(np.argmax(psd))]
+    assert isinstance(psd, list) and len(psd) == grid.shape[0]  # rc99: numpy-free list
+    assert all(v > 0 for v in psd)
+    peak_omega = grid[max(range(len(psd)), key=lambda i: psd[i])]  # pure-Python argmax
     d = peak_omega - omega_true
     assert (d if d >= 0 else -d) < 2e-2  # within one grid bin
 
