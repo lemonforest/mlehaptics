@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc99] - 2026-06-11
+
+**Second CONSUMER carrier-flip — `music` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 31 → 30).** Carrier-removal #564. The ESPRIT sibling on the completed Mat foundation: the MUSIC pseudospectrum DOA estimator flips numpy-free:
+
+- The covariance eigendecomposition routes off the numpy-carrier `hermitian_eigendecompose` onto the native `mat_hermitian_eigendecompose` (ascending eigenvalues → the noise subspace is the smallest `M − n_sources` eigenvectors via a pure-Python `sorted`, no `np.argsort`); the noise-subspace projection `Enᴴ·A` routes off `dense_matmul_complex` onto the native `mat_matmul` (`Enᴴ` built as a fresh `Mat` over `conj(eigvecs[i, noise_col])`); the pseudospectrum `1 / Σ_s |proj[s,k]|²` is a pure-Python column loop (`|z|² = re²+im²`, no `abs()`). The top-level `import numpy as np` is **gone**; `op` returns a `list[float]` (was an ndarray).
+- **Differential-verified**: the pseudospectrum peak lands at the true source spatial frequency (within one grid bin); all values positive. The `psd.shape == (...)` smoke asserts move to `len(psd) == ...`, `np.all(psd > 0)` → `all(v > 0 for v in psd)`, `np.argmax` → a pure-Python argmax. The rc71 "numpy op raises the clean `[scientific]` hint" exemplar moves from `music` to `mimo_svd` (which still needs a `mat_svd` foundation op, so it stays the long-lived numpy-requiring exemplar).
+
+`CEIL_NUMPY_CARRIER` 31 → 30 (down-only ratchet). The math-ratchet ledger is untouched (music's numpy — `np.asarray`/`np.sum`/`np.argsort` + the named `dense_matmul_complex` — matches none of the linalg/fft/matmul/ufunc patterns). No new public op (`describe()["tools"]["total"]` stays **289**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc98] - 2026-06-11
 
 **First CONSUMER carrier-flip on the completed Mat foundation — `esprit` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 32 → 31).** Carrier-removal #564. The Mat foundation is now complete (Hermitian rc74 + linear-system rc95/rc96 + general-eig rc97), so the matrix-heavy DSP ops can finally flip. `esprit` (the ESPRIT rotational-invariance DOA/frequency estimator) is the first:

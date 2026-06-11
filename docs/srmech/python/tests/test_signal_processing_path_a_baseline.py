@@ -537,8 +537,8 @@ def test_music_smoke():
     angles = np.linspace(-0.5, 0.5, 64)
     A = np.exp(1j * np.pi * np.arange(M)[:, None] * angles[None, :])
     psd = m.op(R, A, n_sources=1)
-    assert psd.shape == (64,)
-    assert np.all(psd > 0)
+    assert isinstance(psd, list) and len(psd) == 64  # rc99: numpy-free list return
+    assert all(v > 0 for v in psd)
 
 
 def test_esprit_smoke():

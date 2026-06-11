@@ -11,17 +11,22 @@ steering vectors) composition.
 
 Path B dual in Phase 6 (Path B correlation eigendecomposition).
 
+Carrier-removal #564 (rc99): numpy-FREE — the eigendecomposition + noise-subspace
+projection route through the native Mat-carrier foundation
+(:func:`~srmech.amsc.laplacian.mat_hermitian_eigendecompose` +
+:func:`~srmech.amsc.laplacian.mat_matmul`), so MUSIC runs with numpy genuinely
+absent. No top-level ``import numpy``.
+
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Schmidt
 (1986) original MUSIC paper.
 """
 
 from __future__ import annotations
 
-from typing import Tuple
+from typing import List
 
-import numpy as np
-
-from srmech.amsc.laplacian import dense_matmul_complex, hermitian_eigendecompose
+from srmech.amsc.laplacian import mat_hermitian_eigendecompose, mat_matmul
+from srmech.amsc.mat import Mat
 
 OPERATION_NAME = "music"
 CLASS_COMPOSITION = ("L", "K")
@@ -39,13 +44,14 @@ def op(
     *,
     n_sources: int,
     D: int = 8192,
-) -> np.ndarray:
+) -> List[float]:
     """MUSIC pseudo-spectrum for ``steering_vectors`` given covariance ``R``.
 
     Parameters
     ----------
     R:
-        ``(M, M)`` Hermitian covariance matrix.
+        ``(M, M)`` Hermitian covariance matrix (a :class:`~srmech.amsc.mat.Mat`,
+        a nested sequence, or anything with ``tolist()`` — coerced numpy-free).
     steering_vectors:
         ``(M, K)`` candidate array-manifold vectors (one per angle bin).
     n_sources:
@@ -55,35 +61,55 @@ def op(
 
     Returns
     -------
-    numpy.ndarray
+    list[float]
         Real-valued MUSIC pseudo-spectrum of length K (one per steering
         vector); peaks correspond to source directions.
     """
-    R_arr = np.asarray(R, dtype=np.complex128)
-    if R_arr.ndim != 2 or R_arr.shape[0] != R_arr.shape[1]:
-        raise ValueError(f"R must be square; got {R_arr.shape}")
-    A = np.asarray(steering_vectors, dtype=np.complex128)
-    if A.ndim != 2:
-        raise ValueError(f"steering_vectors must be 2-D; got {A.shape}")
-    M = R_arr.shape[0]
-    if A.shape[0] != M:
-        raise ValueError(
-            f"steering_vectors first dim {A.shape[0]} != M {M}"
-        )
-    # Class L: Hermitian eigendecomposition via srmech's own cascade primitive.
+    # Coerce R + steering vectors to numpy-free complex Mats (tolist() covers
+    # ndarray AND Mat).
+    r_rows = R.tolist() if hasattr(R, "tolist") else [list(r) for r in R]
+    M = len(r_rows)
+    if M == 0 or any(len(r) != M for r in r_rows):
+        cols = len(r_rows[0]) if r_rows else 0
+        raise ValueError(f"R must be square; got {M}x{cols}")
+    a_rows = (
+        steering_vectors.tolist()
+        if hasattr(steering_vectors, "tolist")
+        else [list(r) for r in steering_vectors]
+    )
+    if len(a_rows) != M:
+        raise ValueError(f"steering_vectors first dim {len(a_rows)} != M {M}")
+    K = len(a_rows[0]) if a_rows else 0
+    # Class L: Hermitian eigendecomposition via the native Mat-carrier solver.
     # R is complex-Hermitian; MUSIC uses the noise-subspace projection
-    # (phase/sign-invariant), so the complex128 eigenvectors are kept.
-    eigvals, eigvecs = hermitian_eigendecompose(R_arr)
-    # Sort by ascending eigenvalue; noise subspace = smallest M - n_sources.
-    order = np.argsort(eigvals)
-    eigvecs = eigvecs[:, order]
-    # Class K: subspace partition threshold.
+    # (phase/sign-invariant), so the complex eigenvectors are kept.
+    R_mat = Mat.from_rows([[complex(v) for v in r] for r in r_rows], is_complex=True)
+    eigvals_mat, eigvecs_mat = mat_hermitian_eigendecompose(R_mat)
+    evals = [float(eigvals_mat[i, 0]) for i in range(M)]
+    # Class K: subspace partition threshold. Noise subspace = the smallest
+    # M - n_sources eigenvectors (ascending argsort — pure-Python, no np.argsort).
+    order = sorted(range(M), key=lambda k: evals[k])
     n_noise = M - n_sources
-    En = eigvecs[:, :n_noise]
-    # MUSIC pseudo-spectrum: P(theta) = 1 / (a^H En En^H a)
-    # Vectorise across all steering vectors.
-    # Enᴴ·A — Class-L dense complex matmul (noise-subspace projection).
-    proj = dense_matmul_complex(En.conj().T, A)  # shape (n_noise, K)
-    # |z|² = real²+imag² (no abs())
-    denom = np.sum(proj.real ** 2 + proj.imag ** 2, axis=0)
-    return 1.0 / np.maximum(denom, 1e-30)
+    if n_noise <= 0:
+        # Degenerate (no noise subspace): denom ≡ 0 → 1/eps everywhere.
+        return [1.0 / 1e-30] * K
+    noise_cols = order[:n_noise]
+    # Enᴴ = conj-transpose of the noise eigenvectors → (n_noise, M); built numpy-
+    # free as a fresh Mat over conj(eigvecs[i, noise_col]).
+    enh_rows = [
+        [eigvecs_mat[i, noise_cols[s]].conjugate() for i in range(M)]
+        for s in range(n_noise)
+    ]
+    EnH = Mat.from_rows(enh_rows, is_complex=True)
+    A_mat = Mat.from_rows([[complex(v) for v in r] for r in a_rows], is_complex=True)
+    # Enᴴ·A — Class-L dense complex matmul via the native Mat kernel, (n_noise, K).
+    proj = mat_matmul(EnH, A_mat)
+    # P(theta) = 1 / Σ_s |proj[s, k]|²  (|z|² = re²+im², no abs()).
+    out: List[float] = []
+    for k in range(K):
+        denom = 0.0
+        for s in range(n_noise):
+            z = complex(proj[s, k])
+            denom += z.real * z.real + z.imag * z.imag
+        out.append(1.0 / (denom if denom > 1e-30 else 1e-30))
+    return out

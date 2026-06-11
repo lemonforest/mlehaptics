@@ -107,19 +107,23 @@ def test_dispatch_fft_numpy_free():
 
 
 def test_numpy_op_raises_clean_scientific_hint_numpy_free():
-    """A numpy op (``music``) raises the clean ``[scientific]`` hint, not a bare
-    ``ModuleNotFoundError`` — on first attribute access, numpy-free."""
+    """A still-numpy op (``mimo_svd``) raises the clean ``[scientific]`` hint, not
+    a bare ``ModuleNotFoundError`` — on first attribute access, numpy-free.
+
+    (rc99: the exemplar moved from ``music`` to ``mimo_svd`` — music flipped
+    numpy-free over the Mat foundation; mimo_svd still needs a ``mat_svd``
+    foundation op, so it stays numpy-requiring and is the long-lived exemplar.)"""
     proc = _run_numpy_free(
         """
         import srmech.signal_processing as sp
         try:
-            _ = sp.closed_form_ops.music
+            _ = sp.closed_form_ops.mimo_svd
         except ImportError as e:
             assert "scientific tier" in str(e), str(e)
             assert "srmech[scientific]" in str(e), str(e)
             print("HINT_OK")
         else:
-            raise SystemExit("music unexpectedly importable numpy-free")
+            raise SystemExit("mimo_svd unexpectedly importable numpy-free")
         """
     )
     assert proc.returncode == 0, f"clean-hint path failed:\n{proc.stderr}"
