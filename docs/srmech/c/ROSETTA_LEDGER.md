@@ -740,6 +740,19 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc85 (done, v0.7.5rc85) — carrier-flip batch #9: `polyphase` goes numpy-FREE
+  (CEIL_NUMPY_CARRIER 42 → 41).** Carrier-removal #564, third of the
+  workflow-scoped batch; a clean leaf (same shape as fir/matched_filter rc80).
+  `closed_form_ops/polyphase` (Class L subband Laplacian ∘ Class N rational FIR
+  decomposition) drops top-level `import numpy`: the only delegate `_dsp.convolve`
+  is already numpy-free (List return), so the `np.asarray` wrap drops. The strided
+  polyphase split `E_k[n]=h[k+n·L]` + interleave are native list `[::L]` slices;
+  the per-component accumulate (`out[:n]+=filtered`) and strided interleave write
+  (`out[k::L][:m]=c`) become explicit Class-M elementwise index loops;
+  `np.zeros`/`np.concatenate`/`np.array([])` → plain lists. `decompose` returns
+  list-of-lists, `op` returns a list; the smoke test moves `y.ndim==1` →
+  `isinstance(y, list)`. No new public op (describe tools.total stays 287, classes
+  2); ABI 3; no C change.
 - **rc84 (done, v0.7.5rc84) — carrier-flip batch #8: `ofdm` goes numpy-FREE
   (CEIL_NUMPY_CARRIER 43 → 42).** Carrier-removal #564, second of the
   workflow-scoped batch. `closed_form_ops/ofdm` (Class I IFFT ∘ Class L

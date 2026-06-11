@@ -470,7 +470,7 @@ def test_polyphase_smoke():
     x = np.arange(32, dtype=np.float64)
     taps = np.array([0.25, 0.5, 0.25])
     y = m.op(x, taps, L=2, mode="decimation")
-    assert y.ndim == 1
+    assert isinstance(y, list) and len(y) >= 1
 
 
 def test_farrow_smoke():

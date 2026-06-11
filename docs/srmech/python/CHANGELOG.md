@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc85] - 2026-06-10
+
+**Carrier-flip batch #9 — `polyphase` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 42 → 41).** Carrier-removal #564, the third of the workflow-scoped batch and a clean leaf (same shape as fir/matched_filter rc80). `closed_form_ops/polyphase` (Class L subband Laplacian ∘ Class N rational FIR decomposition) drops its top-level `import numpy`:
+
+- Its only delegate is the already-numpy-free `_dsp.convolve` (returns `List[float]`); the `np.asarray(...)` wrap around it drops.
+- The strided polyphase split `E_k[n] = h[k+n·L]` and the interpolation interleave are native list `[::L]` slices; the per-component accumulate (`out[:n] += filtered`) and the strided interleave write (`out[k::L][:m] = c`) become explicit **Class-M elementwise index loops**. `np.zeros`/`np.concatenate`/`np.array([])` → plain lists.
+- `decompose` now returns a `list` of `list` (was list-of-ndarray); `op` returns a `list` (was ndarray). The smoke test moves `y.ndim == 1` → `isinstance(y, list)`.
+
+`CEIL_NUMPY_CARRIER` 42 → 41 (down-only ratchet). No new public op (`describe()["tools"]["total"]` stays **287**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc84] - 2026-06-10
 
 **Carrier-flip batch #8 — `ofdm` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 43 → 42).** Carrier-removal #564, the second of the workflow-scoped batch. `closed_form_ops/ofdm` (Class I IFFT ∘ Class L per-subcarrier equaliser ∘ Class K cyclic-prefix) drops its top-level `import numpy`:

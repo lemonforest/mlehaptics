@@ -79,7 +79,13 @@ import srmech
 # guard becomes an explicit Class-K pin-slot sign-branch (> 1e-12 → H_k else 1.0; no
 # abs()). _sc.fft/_sc.ifft already return List[complex]. Returns list / list-of-list;
 # the baseline + rc61-routing smoke tests move .shape/.reshape -> len/flatten. 43 -> 42.
-CEIL_NUMPY_CARRIER = 42
+# rc85: polyphase flips numpy-free (workflow-scoped batch; clean leaf like fir/
+# matched_filter). Its only delegate is the numpy-free `_dsp.convolve` (List return);
+# the np.asarray wrap drops. The strided polyphase split/interleave `[::L]` are native
+# list slices, and the per-component accumulate (`out[:n] += filtered`) + the strided
+# interleave write (`out[k::L][:m] = c`) become explicit Class-M elementwise index
+# loops. `decompose` returns list-of-lists, `op` returns a list. 42 -> 41.
+CEIL_NUMPY_CARRIER = 41
 
 
 def _srmech_root() -> pathlib.Path:
