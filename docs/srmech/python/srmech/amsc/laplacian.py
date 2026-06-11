@@ -134,6 +134,7 @@ __all__ = [
     "mat_solve",
     "mat_hermitian_eigendecompose",
     "mat_lstsq",
+    "mat_eigvals",
     "dense_dot_complex",
     "dense_matmul_real",
     "dense_matvec_real",
@@ -1729,6 +1730,177 @@ def mat_hermitian_eigendecompose(h: "Mat") -> Tuple["Mat", "Mat"]:
     return _hermitian_eig_py(h)
 
 
+# ---------------------------------------------------------------------------
+# mat_eigvals — Mat-carrier general (non-Hermitian) eigenvalue multiset.
+# Foundation op #4 of the numpy-CARRIER removal arc (#564): the numpy-free peer
+# of matrix_cascades.eigvals, so esprit's general-eig route can flip off the
+# numpy-carrier matrix_cascades stack onto the Mat path. mat_matmul/mat_solve/
+# mat_hermitian_eigendecompose handle the Hermitian + linear-system cases; this
+# closes the general non-Hermitian eigenproblem.
+# ---------------------------------------------------------------------------
+
+_MAT_EIG_DEFLATE_TOL = 1e-14   # subdiagonal/scale below this → Schur deflation
+
+
+def _modulus_c(z: complex) -> float:
+    """|z| via the Class-N hypot cascade (no ``abs()`` — discipline)."""
+    return _rhypot(float(z.real), float(z.imag))
+
+
+def _complex_sqrt_local(w: complex) -> complex:
+    """Principal complex square root via the Class-N real cascades
+    (:func:`srmech.amsc.rational.hypot` + ``sqrt``) — no ``cmath.sqrt``. The
+    laplacian-local twin of ``matrix_cascades._complex_sqrt``, redefined here so
+    :func:`mat_eigvals` needs **no** import from ``matrix_cascades`` (which
+    imports THIS module — that would be a circular import). For ``w = a + i·b``,
+    ``√w = √((|w|+a)/2) + i·sign(b)·√((|w|−a)/2)`` (principal branch, ``Re ≥ 0``):
+    two Class-N real ``sqrt`` cascades joined by a **Class-K** sign-branch."""
+    a = float(w.real)
+    b = float(w.imag)
+    if a == 0.0 and b == 0.0:
+        return 0j
+    mod = _rhypot(a, b)                             # Class-N |w| (≥ |a| exactly)
+    re_arg = (mod + a) / 2.0                        # both radicands ≥ 0
+    im_arg = (mod - a) / 2.0                        # mathematically; a tiny <0 is
+    re = _rsqrt(re_arg) if re_arg > 0.0 else 0.0    # float round-off → Class-K
+    im = _rsqrt(im_arg) if im_arg > 0.0 else 0.0    # pin-slot at zero
+    return complex(re, im if b >= 0.0 else -im)     # Class-K sign-branch (no copysign)
+
+
+def _eig2x2(aa: complex, bb: complex, cc: complex, dd: complex) -> Tuple[complex, complex]:
+    """Both eigenvalues of the 2×2 ``[[aa,bb],[cc,dd]]`` in closed form:
+    ``λ = (tr ± √(tr²−4·det))/2`` (Class-C complex shift root via the Class-N
+    :func:`_complex_sqrt_local` cascade)."""
+    tr = aa + dd
+    det = aa * dd - bb * cc
+    disc = _complex_sqrt_local(tr * tr - 4.0 * det)   # Class-C complex shift root
+    return (tr + disc) / 2.0, (tr - disc) / 2.0
+
+
+def _qr_complex_list(
+    rows: List[List[complex]],
+) -> Tuple[List[List[complex]], List[List[complex]]]:
+    """Householder QR of a square complex list-of-lists → ``(Q, R)`` lists,
+    numpy-free (the pure-``complex`` twin of ``matrix_cascades.qr`` so the
+    shifted-QR sweep in :func:`mat_eigvals` needs no numpy carrier). ``Q``
+    unitary, ``R`` upper-triangular, ``Q·R = A`` — exactly the invariant a
+    shifted-QR eigen-step requires (``RQ = Qᴴ·A·Q`` is the similarity that
+    preserves the spectrum). Reflector phase is a **Class-K** pin-slot."""
+    m = len(rows)
+    R = [[complex(rows[i][j]) for j in range(m)] for i in range(m)]
+    Q = [[1 + 0j if i == j else 0j for j in range(m)] for i in range(m)]
+    for k in range(m):
+        normx2 = 0.0
+        for i in range(k, m):
+            normx2 += (R[i][k].conjugate() * R[i][k]).real
+        if normx2 <= 0.0:
+            continue
+        normx = _rsqrt(normx2)                       # Class-N ‖x‖
+        x0 = R[k][k]
+        modx0 = _rhypot(x0.real, x0.imag)
+        phase = (x0 / modx0) if modx0 > 0.0 else complex(1.0, 0.0)
+        alpha = -phase * normx                       # Class-K pin-slot phase
+        v = [R[i][k] for i in range(k, m)]
+        v[0] = v[0] - alpha
+        vhv = 0.0
+        for vi in v:
+            vhv += (vi.conjugate() * vi).real
+        if vhv == 0.0:
+            continue
+        beta = 2.0 / vhv                             # Class-N 1/(vᴴv) scale
+        for j in range(m):                           # R ← (I − β v vᴴ) R
+            s = 0j
+            for idx, i in enumerate(range(k, m)):
+                s += v[idx].conjugate() * R[i][j]
+            s *= beta
+            for idx, i in enumerate(range(k, m)):
+                R[i][j] -= v[idx] * s
+        for i in range(m):                           # Q ← Q (I − β v vᴴ)
+            s = 0j
+            for idx, jj in enumerate(range(k, m)):
+                s += Q[i][jj] * v[idx]
+            s *= beta
+            for idx, jj in enumerate(range(k, m)):
+                Q[i][jj] -= s * v[idx].conjugate()
+    return Q, R
+
+
+def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
+    """Eigenvalue MULTISET of a general (non-Hermitian) square matrix over the
+    :class:`~srmech.amsc.mat.Mat` carrier — foundation op #4 of the numpy-CARRIER
+    removal arc (#564), the numpy-free peer of ``matrix_cascades.eigvals``.
+
+    The shifted-QR iteration — **Class K** (iterate-to-convergence asymptotic-DoF)
+    ∘ **Class L** (the spectral content) ∘ ``{QR}`` (per-step Householder, the
+    numpy-free :func:`_qr_complex_list`) ∘ **Class C** (Wilkinson spectral shift)
+    — runs in plain ``complex`` lists with the ``RQ`` recombination routed through
+    the native :func:`mat_matmul`, so it is **unconditionally numpy-free**. Small
+    sizes take a closed form: ``n=1`` is the scalar, the trailing-``2×2`` block
+    deflates via :func:`_eig2x2` (the quadratic over :func:`_complex_sqrt_local`).
+    The iteration is complex throughout, so it converges to the complex
+    eigenvalues of a real matrix directly (e.g. the 2×2 rotation yields ``±i``).
+
+    Returns the length-``n`` ``list[complex]`` eigenvalue multiset — unique only
+    as a SET; the multiset matches NumPy ``eigvals`` to ~1e-9 for moderate sizes.
+    For a Hermitian ``A`` prefer :func:`mat_hermitian_eigendecompose` (exact
+    Jacobi — pure Class L). Raises ``ValueError`` on a non-square ``A``.
+
+    Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
+    Hopkins, 2013) §7.5 (the practical QR algorithm with Wilkinson shifts).
+    """
+    from .mat import Mat
+    assert isinstance(a, Mat), (
+        "mat_eigvals operand must be Mat (the numpy-free 2-D carrier)"
+    )
+    n = a.n_rows
+    if a.n_cols != n:
+        raise ValueError(f"mat_eigvals: A must be square; got {a.shape}")
+    if n == 0:
+        return []
+    H = [[complex(a[i, j]) for j in range(n)] for i in range(n)]
+    if n == 1:
+        return [H[0][0]]
+    eigs: List[complex] = []
+    m = n
+    sweeps = 0
+    while m > 0:
+        if m == 1:
+            eigs.append(H[0][0])                      # Class-L: last eigenvalue
+            break
+        scale = _modulus_c(H[m - 2][m - 2]) + _modulus_c(H[m - 1][m - 1])
+        if _modulus_c(H[m - 1][m - 2]) <= _MAT_EIG_DEFLATE_TOL * (scale + 1e-300):
+            eigs.append(H[m - 1][m - 1])              # Class-L: deflate eigenvalue
+            m -= 1
+            continue
+        if m == 2:
+            lam1, lam2 = _eig2x2(H[0][0], H[0][1], H[1][0], H[1][1])  # closed form
+            eigs.append(lam1)
+            eigs.append(lam2)
+            break
+        # Wilkinson shift: the trailing-2×2 eigenvalue closest to H[m-1][m-1].
+        lam1, lam2 = _eig2x2(
+            H[m - 2][m - 2], H[m - 2][m - 1], H[m - 1][m - 2], H[m - 1][m - 1]
+        )
+        dd = H[m - 1][m - 1]
+        mu = lam1 if _modulus_c(lam1 - dd) < _modulus_c(lam2 - dd) else lam2
+        # QR of the leading m×m block minus μI; then H[:m,:m] ← R·Q + μI, the RQ
+        # contraction routed through the native Mat-carrier mat_matmul (Class K).
+        sub = [[H[i][j] - (mu if i == j else 0j) for j in range(m)] for i in range(m)]
+        Q, R = _qr_complex_list(sub)                  # {QR} numpy-free
+        rq = mat_matmul(
+            Mat.from_rows(R, is_complex=True), Mat.from_rows(Q, is_complex=True)
+        )
+        for i in range(m):
+            for j in range(m):
+                H[i][j] = complex(rq[i, j]) + (mu if i == j else 0j)
+        sweeps += 1
+        if sweeps > max_sweeps * n:                   # no-silent-hang backstop
+            for i in range(m):
+                eigs.append(H[i][i])
+            break
+    return eigs
+
+
 def dense_dot_complex(a: np.ndarray, b: np.ndarray) -> complex:
     """Dense complex bilinear inner product ``a · b = Σ aᵢ bᵢ``.
 
@@ -2509,6 +2681,7 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "mat_solve",
     "mat_hermitian_eigendecompose",
     "mat_lstsq",
+    "mat_eigvals",
     "dense_dot_complex",
     "dense_matmul_real",
     "dense_matvec_real",

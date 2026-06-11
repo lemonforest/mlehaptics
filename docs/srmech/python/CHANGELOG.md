@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc97] - 2026-06-11
+
+**Mat-return foundation #3 — `mat_eigvals`, numpy-free general (non-Hermitian) eigenvalues over the Mat carrier.** Carrier-removal #564. `mat_hermitian_eigendecompose` (rc74) + `mat_solve` (rc95) + `mat_lstsq` (rc96) cover the Hermitian + linear-system cases; this closes the **general non-Hermitian** eigenproblem so esprit's general-eig route can flip off the numpy-carrier `matrix_cascades` stack. New public `amsc.laplacian.mat_eigvals(a: Mat) -> list[complex]`:
+
+- Computes the eigenvalue **multiset** of a general square `Mat` via a **Wilkinson-shifted QR iteration** — Class K (iterate-to-convergence) ∘ Class L (the spectral content) ∘ Householder QR ∘ Class C (the complex Wilkinson shift) — running in plain `complex` lists with the `RQ` recombination routed through the **native `mat_matmul`**, so it is unconditionally numpy-free. Small sizes take a closed form (`n=1` scalar; trailing-`2×2` block via the quadratic over the Class-N `_complex_sqrt`). The iteration is complex throughout, so it converges to the complex eigenvalues of a real matrix directly (e.g. a rotation block yields `±i`).
+- **Differential-verified value-faithful to NumPy `eigvals`** to machine eps (~5e-14, *multiset* / nearest-neighbour distance — eigenvalues are unique only as a set) across real-symmetric, real non-symmetric with complex-conjugate pairs, complex, upper-triangular and defective (Jordan-block) inputs. For a Hermitian `A` prefer `mat_hermitian_eigendecompose` (exact Jacobi). `mat_eigvals` matches the shipped numpy-carrier `matrix_cascades.eigvals` bit-for-bit (same Wilkinson-shifted-QR).
+
+**New public op** → `describe()["tools"]["total"]` **288 → 289** (`classes` stays 2); ToolEntry + rosetta `composition_of_c` bucket + `__all__`/`LAPLACIAN_OPS` added; `CEIL_NUMPY_CARRIER` unchanged at **32**; ABI 3; no C change. Next: route esprit through the three `mat_*` ops (`hermitian_eigendecompose`→`mat_hermitian_eigendecompose`, `lstsq`→`mat_lstsq`, `eigvals`→`mat_eigvals`).
+
 ## [0.7.5rc96] - 2026-06-11
 
 **Mat-return foundation #2 — `mat_lstsq`, numpy-free least-squares over the Mat carrier.** Carrier-removal #564, the second foundation op unblocking the matrix-heavy DSP carrier-flips. New public `amsc.laplacian.mat_lstsq(a: Mat, b: Mat) -> Mat`:

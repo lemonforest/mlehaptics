@@ -752,6 +752,25 @@ decrements it).
   `composition_of_c` bucket + `__all__`/`LAPLACIAN_OPS` + the 7 count-tests
   bumped 287→288; CEIL stays 32; ABI 3; no C change. Next: `mat_eigvals`
   (Mat-carrier shifted-QR), then route esprit.
+- **rc97 (done, v0.7.5rc97) — Mat-return FOUNDATION #3: `mat_eigvals` numpy-free
+  general (non-Hermitian) eigenvalues over the Mat carrier.** Carrier-removal
+  #564. New PUBLIC op `amsc.laplacian.mat_eigvals(a: Mat) -> list[complex]`: the
+  eigenvalue MULTISET of a general square `Mat` via a Wilkinson-shifted QR
+  iteration — Class K (iterate) ∘ Class L (spectrum) ∘ Householder QR ∘ Class C
+  (complex Wilkinson shift) — in plain `complex` lists with the RQ recombine
+  routed through the native `mat_matmul`, so unconditionally numpy-free. Closed
+  form for n=1 (scalar) and the trailing 2×2 (the quadratic over the Class-N
+  `_complex_sqrt`). Value-faithful to numpy `eigvals` to ~5e-14 (MULTISET /
+  nearest-neighbour distance — eigenvalues unique only as a set) over real-sym /
+  real-nonsym-with-complex-pairs / complex / upper-tri / defective Jordan inputs;
+  matches the shipped numpy-carrier `matrix_cascades.eigvals` bit-for-bit. The
+  `_complex_sqrt`/QR helpers are laplacian-local to avoid the circular import
+  with `matrix_cascades` (which imports laplacian). NEW public op → describe
+  tools.total 288 → 289 (classes stays 2); ToolEntry + rosetta `composition_of_c`
+  bucket + `__all__`/`LAPLACIAN_OPS` + the 7 count-tests bumped 288→289; CEIL
+  stays 32; ABI 3; no C change. Closes the Hermitian (rc74) + linear-system
+  (rc95/96) + general-eig (rc97) Mat foundation — next: ROUTE esprit through the
+  three `mat_*` ops.
 - **rc95 (done, v0.7.5rc95) — Mat-return FOUNDATION: `mat_solve` handles
   COMPLEX numpy-free (unblocks the matrix-heavy DSP carrier-flips).**
   Carrier-removal #564. The matrix-heavy sigproc ops (esprit/dct/fsk/ica_jade/
