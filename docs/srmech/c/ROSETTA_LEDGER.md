@@ -740,6 +740,17 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc80 (done, v0.7.5rc80) — carrier-flip batch #4: `fir` + `matched_filter`
+  go numpy-FREE (CEIL_NUMPY_CARRIER 48 → 46).** Carrier-removal #564, the rc79
+  follow-on it unblocked. With `_dsp_cascades` numpy-free, the two
+  convolution/correlation leaf ops flip trivially: both `closed_form_ops/fir`
+  (Class N ∘ Class C) and `closed_form_ops/matched_filter` (Class A ∘ C ∘ M)
+  drop their top-level `import numpy` and delegate straight to the numpy-free
+  `_dsp.convolve` / `_dsp.correlate` (which coerce + 1-D-check — same ValueError
+  type as the prior `.ndim` guard — and return a list). Their only remaining
+  numpy was the rc79 `np.asarray` return-wrap, now removed. They return lists;
+  the 2 smoke tests move `.shape` → `len`. No new public op (describe tools.total
+  stays 287, classes 2); ABI 3; no C change.
 - **rc79 (done, v0.7.5rc79) — carrier-flip batch #3: the DSP convolution
   foundation `_dsp_cascades` goes numpy-FREE (CEIL_NUMPY_CARRIER 49 → 48).**
   Carrier-removal #564. `signal_processing/_dsp_cascades` (internal `convolve` /

@@ -48,7 +48,12 @@ import srmech
 # a list slice, the conjugate is the element's own .conjugate(). The 5 consumer
 # callsites (fir/matched_filter/multirate/polyphase/path_b matched_filter) wrap
 # the list result in np.asarray, preserving their ndarray contracts. 49 -> 48.
-CEIL_NUMPY_CARRIER = 48
+# rc80: fir + matched_filter flip (now trivial — _dsp_cascades is numpy-free).
+# Both drop their top-level `import numpy` and delegate straight to the numpy-free
+# _dsp.convolve / _dsp.correlate (which coerce + 1-D-check + return a list); their
+# only prior numpy was the np.asarray return-wrap, now removed. They return lists;
+# the 2 smoke tests move .shape -> len. 48 -> 46.
+CEIL_NUMPY_CARRIER = 46
 
 
 def _srmech_root() -> pathlib.Path:

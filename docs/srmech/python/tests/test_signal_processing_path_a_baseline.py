@@ -243,7 +243,8 @@ def test_matched_filter_smoke():
     x = np.array([0, 0, 1, 2, 3, 2, 1, 0, 0], dtype=np.float64)
     h = np.array([1, 2, 1], dtype=np.float64)
     y = m.op(x, h)
-    assert y.shape == (x.shape[0] + h.shape[0] - 1,)
+    # rc80: matched_filter is numpy-free now (list carrier per #564) -> len
+    assert len(y) == x.shape[0] + h.shape[0] - 1
 
 
 def test_wiener_smoke():
@@ -261,7 +262,8 @@ def test_fir_smoke():
     x = np.arange(16, dtype=np.float64)
     b = np.array([0.5, 0.5])
     y = m.op(x, b)
-    assert y.shape == (17,)  # full convolution
+    # rc80: fir is numpy-free now (list carrier per #564) -> len, not .shape
+    assert len(y) == 17  # full convolution
 
 
 def test_iir_smoke():
