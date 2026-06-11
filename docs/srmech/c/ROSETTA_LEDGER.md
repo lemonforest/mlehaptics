@@ -740,6 +740,18 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc83 (done, v0.7.5rc83) — carrier-flip batch #7: `viterbi` goes numpy-FREE
+  (CEIL_NUMPY_CARRIER 44 → 43).** Carrier-removal #564, first of the
+  workflow-scoped batch (a `carrier-flip-scoping` multi-agent run classified the
+  24 remaining signal_processing carrier files: 8 flippable-now, 16 blocked
+  behind dense_*/np.linalg/np.fft). `closed_form_ops/viterbi` (Class L trellis
+  Laplacian ∘ Class K argmax pin-slot) drops its top-level `import numpy`: the
+  2-D trellis tables (delta/psi) become list-of-lists, branch metrics
+  `delta[t-1]+A[:,s]` an explicit Class-M list-comp multiply-add, and the two
+  np.argmax merges the Class-K `max(range, key=)` (first-maximal tie-break =
+  np.argmax). Self-contained — no scipy/helper. Returns a list of int; the smoke
+  test moves `.shape` → `len`. No new public op (describe tools.total stays 287,
+  classes 2); ABI 3; no C change.
 - **rc82 (done, v0.7.5rc82) — carrier-flip batch #6: `iir` goes numpy-FREE
   (CEIL_NUMPY_CARRIER 45 → 44).** Carrier-removal #564, same shape as rc77
   `allpass`. `closed_form_ops/iir` (Class N rational b/a ∘ Class C recursive

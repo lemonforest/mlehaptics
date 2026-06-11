@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc83] - 2026-06-10
+
+**Carrier-flip batch #7 — `viterbi` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 44 → 43).** Carrier-removal #564, the first of the workflow-scoped batch (a `carrier-flip-scoping` multi-agent run classified the remaining signal_processing carrier files: 8 flippable-now, 16 blocked behind `dense_*`/`np.linalg`/`np.fft`). `closed_form_ops/viterbi` (Class L trellis-graph Laplacian ∘ Class K argmax pin-slot) drops its top-level `import numpy`:
+
+- The 2-D trellis tables `delta` / `psi` become **list-of-lists** (`[[float('-inf')] * n_states for _ in range(T)]`); the branch metrics `delta[t-1] + A[:, s]` become an explicit **Class-M multiply-add list comprehension** over the transition column; and the two `np.argmax` merge points are the **Class-K pin-slot** as Python `max(range(n_states), key=lambda i: scores[i])` — first-maximal tie-break, matching `np.argmax`. Self-contained: no scipy, no helper delegation.
+- `viterbi.op` now returns a `list` of `int` (was an int64 ndarray). The smoke test moves `path.shape == (5,)` → `len(path) == 5`. Value-faithful (same DP, same tie-break).
+
+`CEIL_NUMPY_CARRIER` 44 → 43 (down-only ratchet). No new public op (`describe()["tools"]["total"]` stays **287**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc82] - 2026-06-10
 
 **Carrier-flip batch #6 — `iir` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 45 → 44).** Carrier-removal #564, the same shape as the rc77 `allpass` flip. `closed_form_ops/iir` (Class N rational `b/a` ∘ Class C recursive biquad cascade) drops its top-level `import numpy`:

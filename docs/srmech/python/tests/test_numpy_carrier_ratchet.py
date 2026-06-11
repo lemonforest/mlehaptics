@@ -65,7 +65,13 @@ import srmech
 # no-scipy path is the pure-Python direct-form-II difference equation (Class-C
 # recursive cascade of the Class-N b/a rational) over lists. Returns list; the
 # smoke test moves .shape -> len. 45 -> 44.
-CEIL_NUMPY_CARRIER = 44
+# rc83: viterbi flips numpy-free (workflow-scoped batch). The trellis DP tables
+# (delta/psi) become list-of-lists, the branch metrics are explicit Class-M
+# multiply-adds over the column A[:,s] (list comp), and the two np.argmax merges
+# are the Class-K pin-slot as Python max(range, key=) (first-maximal tie-break,
+# matching np.argmax). Self-contained — no scipy/helper delegation. Returns list;
+# the smoke test moves .shape -> len. 44 -> 43.
+CEIL_NUMPY_CARRIER = 43
 
 
 def _srmech_root() -> pathlib.Path:
