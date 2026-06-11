@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc82] - 2026-06-10
+
+**Carrier-flip batch #6 — `iir` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 45 → 44).** Carrier-removal #564, the same shape as the rc77 `allpass` flip. `closed_form_ops/iir` (Class N rational `b/a` ∘ Class C recursive biquad cascade) drops its top-level `import numpy`:
+
+- The optional **scipy accelerator stays lazy** (`scipy.signal.lfilter` / `sosfilt`); scipy needs numpy, so a numpy-absent install falls through to the pure-Python path. The scipy branch now passes the `list` inputs straight to `lfilter`/`sosfilt` (scipy coerces) and wraps the result in `list(...)` so the return type matches the fallback.
+- The no-scipy path is the **direct-form-II transposed difference equation** (`_lfilter_direct`) — the Class-C recursive cascade of the Class-N `b/a` rational — now running on plain Python `list`s (explicit multiply-add accumulation of `y[i]` and the state `z`; coefficient normalisation by `a[0]` as a list comprehension). The biquad-cascade branch chains sections on lists.
+- `iir.op` now returns a `list` (was ndarray). The smoke test moves `.shape == (16,)` → `len(...) == 16`. Value-faithful (same difference equation).
+
+`CEIL_NUMPY_CARRIER` 45 → 44 (down-only ratchet). No new public op (`describe()["tools"]["total"]` stays **287**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc81] - 2026-06-10
 
 **Carrier-flip batch #5 — `wavelet` (Haar DWT) goes numpy-FREE (`CEIL_NUMPY_CARRIER` 46 → 45).** Carrier-removal #564. `closed_form_ops/wavelet` (Class L multi-scale 2-point Laplacian ∘ Class N dyadic 2^k scaling) drops its top-level `import numpy`:

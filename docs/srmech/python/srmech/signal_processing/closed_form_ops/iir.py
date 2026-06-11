@@ -12,6 +12,12 @@ hand-rolled direct-form-II implementation. Biquad cascade is supported via the
 Path B dual in Phase 6 (IIR via Class N rational + Class C cascade in bound-
 vector substrate).
 
+Carrier note (#564): numpy-free. The optional scipy accelerator is a lazy
+import (scipy needs numpy, so a numpy-absent install falls through to the
+pure-Python direct-form-II difference-equation reference, which runs on plain
+``list``\\s — the Class-C recursive cascade of the Class-N ``b/a`` rational).
+The op returns a ``list``.
+
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Oppenheim
 & Schafer (2010, 3rd ed.) §6 + Proakis & Manolakis (2007, 4th ed.) §10.
 RBJ EQ Cookbook for biquad-design forms.
@@ -19,9 +25,7 @@ RBJ EQ Cookbook for biquad-design forms.
 
 from __future__ import annotations
 
-from typing import Iterable, Optional, Sequence
-
-import numpy as np
+from typing import Optional, Sequence
 
 OPERATION_NAME = "iir"
 CLASS_COMPOSITION = ("N", "C")
@@ -35,21 +39,28 @@ SSOT_CITATION = (
 )
 
 
-def _lfilter_direct(b: np.ndarray, a: np.ndarray, x: np.ndarray) -> np.ndarray:
-    """Direct-form-II transposed IIR filter (closed-form reference)."""
-    b = b / a[0]
-    a = a / a[0]
-    n = x.shape[0]
-    y = np.zeros(n, dtype=np.float64)
-    z = np.zeros(max(len(a), len(b)) - 1, dtype=np.float64)
+def _lfilter_direct(b: Sequence[float], a: Sequence[float], x: Sequence[float]):
+    """Direct-form-II transposed IIR filter (closed-form reference), numpy-free.
+
+    The Class-C recursive cascade of the Class-N ``b/a`` rational over a plain
+    ``list`` carrier; ``y[i]`` and the state ``z`` are accumulated by explicit
+    multiply-adds (no numpy).
+    """
+    a0 = a[0]
+    b = [bi / a0 for bi in b]
+    a = [ai / a0 for ai in a]
+    n = len(x)
+    y = [0.0] * n
+    nz = max(len(a), len(b)) - 1
+    z = [0.0] * nz
     for i in range(n):
-        y[i] = b[0] * x[i] + (z[0] if z.shape[0] > 0 else 0.0)
+        y[i] = b[0] * x[i] + (z[0] if nz > 0 else 0.0)
         for j in range(1, len(b)):
-            if j - 1 < z.shape[0]:
+            if j - 1 < nz:
                 z[j - 1] = (
                     b[j] * x[i]
                     - (a[j] * y[i] if j < len(a) else 0.0)
-                    + (z[j] if j < z.shape[0] else 0.0)
+                    + (z[j] if j < nz else 0.0)
                 )
     return y
 
@@ -80,40 +91,33 @@ def op(
 
     Returns
     -------
-    numpy.ndarray
-        Filtered output.
+    list
+        Filtered output; numpy-free (#564).
     """
-    sig = np.asarray(signal, dtype=np.float64)
-    if sig.ndim != 1:
-        raise ValueError(f"iir expects 1-D signal; got {sig.shape}")
+    try:
+        sig = [float(x) for x in signal]
+    except TypeError as exc:  # nested sequence -> not 1-D
+        raise ValueError("iir expects a 1-D real signal") from exc
 
     try:
         from scipy.signal import lfilter, sosfilt  # type: ignore[import-untyped]
 
+        # scipy coerces the list inputs internally; wrap the ndarray result in a
+        # list so the return type matches the numpy-free fallback path.
         if biquad_sections is not None:
-            sos = np.asarray(biquad_sections, dtype=np.float64)
-            return sosfilt(sos, sig)
-        return lfilter(
-            np.asarray(b, dtype=np.float64),
-            np.asarray(a, dtype=np.float64),
-            sig,
-        )
+            return list(sosfilt(biquad_sections, sig))
+        return list(lfilter(b, a, sig))
     except ImportError:
         if biquad_sections is not None:
-            out = sig.copy()
+            out = list(sig)
             for section in biquad_sections:
-                section_arr = np.asarray(section, dtype=np.float64)
-                if section_arr.shape[0] != 6:
+                if len(section) != 6:
                     raise ValueError(
                         f"biquad section requires 6 coefficients; got "
-                        f"{section_arr.shape}"
+                        f"{len(section)}"
                     )
-                b_s = section_arr[:3]
-                a_s = section_arr[3:]
+                b_s = list(section[:3])
+                a_s = list(section[3:])
                 out = _lfilter_direct(b_s, a_s, out)
             return out
-        return _lfilter_direct(
-            np.asarray(b, dtype=np.float64),
-            np.asarray(a, dtype=np.float64),
-            sig,
-        )
+        return _lfilter_direct(list(b), list(a), sig)

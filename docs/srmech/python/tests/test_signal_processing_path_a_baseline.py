@@ -273,7 +273,8 @@ def test_iir_smoke():
     b = [1.0, 0.0]
     a = [1.0, -0.5]
     y = m.op(x, b, a)
-    assert y.shape == (16,)
+    # rc82: iir is numpy-free now (list carrier per #564) -> len, not .shape
+    assert len(y) == 16
 
 
 def test_allpass_smoke():
