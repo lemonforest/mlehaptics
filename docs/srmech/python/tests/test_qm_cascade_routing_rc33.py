@@ -196,16 +196,24 @@ def test_weinberg_relations_match_pre_change():
 
 
 def test_ckm_matrix_matches_pre_change():
-    """ckm_matrix (now _srn.cos/sin) matches the element-by-element math.*
-    construction within 1e-9 for a representative parameter point."""
+    """ckm_matrix (numpy-free `Mat` as of rc116) matches the element-by-element
+    construction within 1e-9 for a representative parameter point.
+
+    numpy-FREE: the reference is built with the stdlib `math`/`cmath` (an
+    INDEPENDENT oracle, NOT the framework's own `rational.cexp`, so it's a
+    genuine cross-check), compared via direct `Mat`-entry access, and unitarity
+    is checked via the native `mat_matmul` — no numpy (the flipped op's test is
+    itself numpy-free per the carrier-removal discipline).
+    """
+    import cmath
+    from srmech.amsc.laplacian import mat_matmul
     th12, th13, th23, delta = 0.227, 0.003, 0.042, 1.20
-    # Pre-change reference built with math.* exactly as the old code did.
     c12, s12 = math.cos(th12), math.sin(th12)
     c13, s13 = math.cos(th13), math.sin(th13)
     c23, s23 = math.cos(th23), math.sin(th23)
-    phase = np.exp(1j * delta)
-    inv_phase = np.exp(-1j * delta)
-    V_ref = np.array([
+    phase = cmath.exp(1j * delta)
+    inv_phase = cmath.exp(-1j * delta)
+    ref = [
         [c12 * c13, s12 * c13, s13 * inv_phase],
         [
             -s12 * c23 - c12 * s23 * s13 * phase,
@@ -217,11 +225,16 @@ def test_ckm_matrix_matches_pre_change():
             -c12 * s23 - s12 * c23 * s13 * phase,
             c23 * c13,
         ],
-    ], dtype=complex)
+    ]
     V = sm.ckm_matrix(th12, th13, th23, delta)
-    np.testing.assert_allclose(V, V_ref, atol=1e-9)
-    # Still unitary.
-    np.testing.assert_allclose(V @ V.conj().T, np.eye(3), atol=1e-9)
+    for i in range(3):
+        for j in range(3):
+            assert abs(V[i, j] - ref[i][j]) < 1e-9, (i, j)
+    # Still unitary: V·Vᴴ = I (numpy-free, via the native mat_matmul).
+    vvh = mat_matmul(V, V.conj().T)
+    for i in range(3):
+        for j in range(3):
+            assert abs(vvh[i, j] - (1.0 if i == j else 0.0)) < 1e-9, (i, j)
 
 
 # ----------------------------------------------------------------------
