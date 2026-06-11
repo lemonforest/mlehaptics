@@ -740,6 +740,21 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc78 (done, v0.7.5rc78) — carrier-flip batch #2: `signal_processing`
+  `farrow` goes numpy-FREE (CEIL_NUMPY_CARRIER 50 → 49).** Carrier-removal #564.
+  `closed_form_ops/farrow` (Class N — cubic-Lagrange fractional-delay Farrow
+  structure) drops its top-level `import numpy`: the 4-tap Lagrange sub-filter
+  `_FARROW_LAGRANGE_CUBIC` becomes a plain-tuple constant table and each
+  per-output-sample `C[k]·x` mixer term becomes an explicit length-4 Class-M
+  micro-reduction (`c[0]·x[0]+…+c[3]·x[3]`, left-to-right). rc26 had ROUTED that
+  dot onto `dense_dot_real` to retire a numpy matmul site — but `dense_dot_real`
+  feeds numpy carriers (`np.ascontiguousarray`+`np.sum`) into the native kernel,
+  so a farrow calling it could not run numpy-absent (the two-layer-gate trap).
+  Inlining the four-term dot is bit-faithful (same IEEE-754 multiply-adds, same
+  order) and adds NO numpy matmul site, so the math ratchet stays floored.
+  Carriers → lists (`padded=[0.0]+sig+[0.0,0.0]`); returns `list[float]`; smoke
+  test `.shape==(16,)` → `len()==16`. No new public op (describe tools.total
+  stays 287, classes 2); ABI 3; no C change.
 - **rc77 (done, v0.7.5rc77) — carrier-flip batch #1: `signal_processing`
   `allpass` + `sign_quantise` go numpy-FREE (CEIL_NUMPY_CARRIER 52 → 50).**
   Carrier-removal #564, the first of the pure carrier-flip phase (the

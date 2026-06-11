@@ -8,6 +8,13 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc78] - 2026-06-10
+
+**Carrier-flip batch #2 — `signal_processing` `farrow` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 50 → 49).** Carrier-removal #564, continuing the pure carrier-flip phase. `closed_form_ops/farrow` (Class N — cubic-Lagrange fractional-delay Farrow structure) drops its top-level `import numpy`:
+
+- The 4-tap Lagrange sub-filter `_FARROW_LAGRANGE_CUBIC` becomes a **plain-tuple constant table** of exact-rational floats (was an `np.array`), and each per-output-sample `C[k]·x` mixer term becomes an **explicit length-4 Class-M micro-reduction** (`c[0]·x[0] + … + c[3]·x[3]`, left-to-right). At rc26 this dot was *routed onto* `dense_dot_real` to retire a numpy matmul site — but `dense_dot_real` feeds numpy carriers (`np.ascontiguousarray` + `np.sum`) into the native kernel, so a farrow that called it could not run numpy-absent. Inlining the four-term dot is **bit-faithful** (same IEEE-754 multiply-adds, same order) and adds **no** numpy matmul site, so the math ratchet stays floored.
+- Carriers become plain lists (`padded = [0.0] + sig + [0.0, 0.0]`; `out` accumulates by `append`); the op now returns `list[float]`. The smoke test moves from `.shape == (16,)` to `len(...) == 16`. `CEIL_NUMPY_CARRIER` 50 → 49 (down-only ratchet). No new public op (`describe()["tools"]["total"]` stays **287**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc77] - 2026-06-10
 
 **Carrier-flip batch #1 — `signal_processing` `allpass` + `sign_quantise` go numpy-FREE (`CEIL_NUMPY_CARRIER` 52 → 50).** Carrier-removal #564, the first of the pure carrier-flip phase (the dissolution track closed at rc76 — `hurwitz_matrix` was the only float-restatement-of-an-exact-op; a full re-review confirmed zero further dissolutions). The numpy-MATH sweep already cascade-routed these ops; what remained was numpy as a **carrier**. Both modules drop their top-level `import numpy`:
