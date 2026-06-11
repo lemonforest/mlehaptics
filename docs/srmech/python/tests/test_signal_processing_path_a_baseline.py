@@ -467,7 +467,8 @@ def test_multirate_smoke():
     x = np.arange(32, dtype=np.float64)
     # Up 2 down 3 -> length ~ 32 * 2 / 3 ≈ 21
     y = m.op(x, up=2, down=3)
-    assert y.ndim == 1
+    # rc92: multirate is numpy-free now — op returns a plain list of float.
+    assert isinstance(y, list) and len(y) >= 1
 
 
 def test_polyphase_smoke():
