@@ -498,8 +498,8 @@ def test_beamforming_fixed_smoke():
     arr = np.random.RandomState(0).randn(4, 32)
     delays = [0, 1, 2, 1]
     y = m.op(arr, delays_samples=delays)
-    assert y.ndim == 1
-    assert y.shape[0] == 32 - 2  # 32 - max_delay
+    assert isinstance(y, list)
+    assert len(y) == 32 - 2  # 32 - max_delay
 
 
 def test_ica_jade_smoke():

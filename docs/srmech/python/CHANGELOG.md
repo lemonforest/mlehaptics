@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc86] - 2026-06-10
+
+**Carrier-flip batch #10 — `beamforming_fixed` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 41 → 40).** Carrier-removal #564, the fourth of the workflow-scoped batch and a clean leaf. `closed_form_ops/beamforming_fixed` (Class L microphone-array combiner ∘ Class N rational delay coefficients; trauma-informed civilian-acoustics scope) drops its top-level `import numpy`:
+
+- `array_signals` coerces to a `list`-of-`list` of `complex` (`np.complex128`/`np.full`/`np.zeros`/`np.int64` → `complex()`/plain lists/`int()`); a `hasattr(row, "__len__")` guard preserves the old 2-D `ValueError`.
+- `max_delay = int(np.max(d))` → the builtin **`max(d)`** (Class-L reduce, no `abs()`); the per-mic delay-and-sum `out += w[m] * sig[m, delay:delay+out_len]` becomes an explicit **Class-M scale-and-accumulate** index loop `out[i] += w[m]*row[delay+i]`.
+- `op` now returns a `list` of `complex` (was complex128 ndarray; empty result is `[]`). The smoke test moves `y.ndim == 1`/`y.shape[0]` → `isinstance(y, list)`/`len(y)`.
+
+`CEIL_NUMPY_CARRIER` 41 → 40 (down-only ratchet). No new public op (`describe()["tools"]["total"]` stays **287**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc85] - 2026-06-10
 
 **Carrier-flip batch #9 — `polyphase` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 42 → 41).** Carrier-removal #564, the third of the workflow-scoped batch and a clean leaf (same shape as fir/matched_filter rc80). `closed_form_ops/polyphase` (Class L subband Laplacian ∘ Class N rational FIR decomposition) drops its top-level `import numpy`:
