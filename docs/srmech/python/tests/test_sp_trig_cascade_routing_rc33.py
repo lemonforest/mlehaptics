@@ -64,12 +64,12 @@ def _np_cosine_taper(k: int, n: int) -> np.ndarray:
 def test_cross_spectral_hann_window_matches_numpy(frame_size):
     from srmech.signal_processing.closed_form_ops import cross_spectral as m
 
-    nn = np.arange(frame_size)
-    cascade = 0.5 * (
-        1.0 - m._ccos(2.0 * np.pi * nn / max(frame_size - 1, 1))
-    )
+    # rc88: cross_spectral._ccos is numpy-free now — takes an iterable of angles,
+    # returns a plain list of rational.cos values.
+    angles = [2.0 * np.pi * nn / max(frame_size - 1, 1) for nn in range(frame_size)]
+    cascade = [0.5 * (1.0 - c) for c in m._ccos(angles)]
     reference = _np_hann(frame_size)
-    assert cascade.shape == reference.shape
+    assert len(cascade) == reference.shape[0]
     assert np.allclose(cascade, reference, atol=1e-9, rtol=0.0)
 
 
