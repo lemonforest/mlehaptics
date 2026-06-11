@@ -740,6 +740,17 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc82 (done, v0.7.5rc82) — carrier-flip batch #6: `iir` goes numpy-FREE
+  (CEIL_NUMPY_CARRIER 45 → 44).** Carrier-removal #564, same shape as rc77
+  `allpass`. `closed_form_ops/iir` (Class N rational b/a ∘ Class C recursive
+  biquad cascade) drops its top-level `import numpy`: the optional scipy
+  accelerator (`lfilter`/`sosfilt`) stays lazy (scipy needs numpy → numpy-absent
+  falls through), now passing list inputs straight in and wrapping the result in
+  `list(...)`; the no-scipy path is the pure-Python direct-form-II transposed
+  difference equation (`_lfilter_direct`, the Class-C recursive cascade of the
+  Class-N b/a rational) over lists, plus the biquad-cascade branch. Returns a
+  list; the smoke test moves `.shape` → `len`. No new public op (describe
+  tools.total stays 287, classes 2); ABI 3; no C change.
 - **rc81 (done, v0.7.5rc81) — carrier-flip batch #5: `wavelet` (Haar DWT) goes
   numpy-FREE (CEIL_NUMPY_CARRIER 46 → 45).** Carrier-removal #564.
   `closed_form_ops/wavelet` (Class L 2-point Laplacian ∘ Class N dyadic 2^k)

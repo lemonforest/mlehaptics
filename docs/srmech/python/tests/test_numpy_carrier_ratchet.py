@@ -59,7 +59,13 @@ import srmech
 # over the dyadic Class-N decimation, one-zero pad for odd lengths. Returns
 # (approx_list, [detail_lists]); the smoke test already checks isinstance(details,
 # list)+len, so zero test ripple. 46 -> 45.
-CEIL_NUMPY_CARRIER = 45
+# rc82: iir flips numpy-free (same pattern as allpass rc77). The optional scipy
+# accelerator stays lazy (scipy needs numpy → numpy-absent falls through), passing
+# list inputs straight to lfilter/sosfilt and wrapping the result in list(); the
+# no-scipy path is the pure-Python direct-form-II difference equation (Class-C
+# recursive cascade of the Class-N b/a rational) over lists. Returns list; the
+# smoke test moves .shape -> len. 45 -> 44.
+CEIL_NUMPY_CARRIER = 44
 
 
 def _srmech_root() -> pathlib.Path:
