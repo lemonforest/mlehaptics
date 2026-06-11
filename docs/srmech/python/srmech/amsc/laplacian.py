@@ -135,6 +135,7 @@ __all__ = [
     "mat_hermitian_eigendecompose",
     "mat_lstsq",
     "mat_eigvals",
+    "mat_svd",
     "dense_dot_complex",
     "dense_matmul_real",
     "dense_matvec_real",
@@ -1901,6 +1902,108 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
     return eigs
 
 
+def mat_svd(a: "Mat") -> Tuple["Mat", List[float], "Mat"]:
+    """Numpy-free **full** singular-value decomposition ``A = U·diag(S)·Vᴴ`` over
+    the :class:`~srmech.amsc.mat.Mat` carrier — foundation op **#5** of the
+    numpy-CARRIER removal arc (#564), composed from the native-backed
+    :func:`mat_matmul` + :func:`mat_hermitian_eigendecompose` trio (plus a
+    pure-Python orthonormal completion), so it is **unconditionally numpy-free**.
+
+    ``A`` is an ``(m, n)`` real or complex `Mat`. Returns ``(U, S, Vh)`` matching
+    NumPy's full-matrices ``svd(A, full_matrices=True)`` shape contract:
+
+    * ``U`` — ``(m, m)`` **complex** `Mat`, unitary (left singular vectors);
+    * ``S`` — ``list[float]`` of length ``min(m, n)``, the singular values
+      **descending** (non-negative);
+    * ``Vh`` — ``(n, n)`` **complex** `Mat`, unitary (``= Vᴴ``).
+
+    so ``A = U[:, :k]·diag(S)·Vh[:k, :]`` with ``k = min(m, n)``.
+
+    **Method (Gram / eigen-SVD).** The right singular vectors are the
+    eigenvectors of the Hermitian PSD ``AᴴA`` (``n×n``) via
+    :func:`mat_hermitian_eigendecompose` (ascending → reordered descending);
+    the singular values are ``σⱼ = √λⱼ`` (the Class-N :func:`rational.sqrt`,
+    libm-free; tiny negative ``λ`` from round-off clamped to 0). The left
+    singular vectors are ``uⱼ = A·vⱼ / σⱼ`` for ``σⱼ`` above the rank tolerance
+    ``σ_max · max(m, n) · 1e-6`` (relative to the Gram eigen-route's small-σ
+    floor ~1e-7·σ_max, NOT machine-eps); ``U`` is then completed from ``rank`` to ``m``
+    orthonormal columns by modified Gram–Schmidt against the standard basis
+    (the left-nullspace block).
+
+    **Accuracy contract (per ``[[feedback_cascade_svd_nullspace_accuracy_not_route_matrix_rank]]``).**
+    SVD is non-unique (a per-pair phase, and an arbitrary unitary basis inside a
+    degenerate-σ or null subspace), so this is **value-faithful, NOT bit-
+    identical** to NumPy: the *reconstruction* ``U·diag(S)·Vᴴ ≈ A`` and the
+    *singular values* ``S`` are accurate to ~1e-9 for the large σ; the small/zero
+    singular values (and the U/V null-space columns they pair with) sit ~1e-7 —
+    fine for the dominant-mode MIMO precoder/combiner the DSP layer feeds it, but
+    do **not** route a ``matrix_rank`` / null-space-accuracy consumer through it.
+
+    Raises ``ValueError`` on a non-2-D / empty ``A``.
+
+    Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
+    Hopkins, 2013) §8.6 (SVD) + §5.4 (the AᴴA eigen-route and its conditioning).
+    """
+    from .mat import Mat
+    assert isinstance(a, Mat), (
+        "mat_svd operand must be Mat (the numpy-free 2-D carrier)"
+    )
+    m, n = a.n_rows, a.n_cols
+    if m == 0 or n == 0:
+        raise ValueError(f"mat_svd: A must be a non-empty 2-D matrix; got {a.shape}")
+
+    # Right singular vectors = eigenvectors of the Hermitian PSD Gram AᴴA (n×n).
+    ah = a.conj().T                                   # Aᴴ (n, m) — Class-K conj ∘ T
+    aha = mat_matmul(ah, a)                           # (n, n) Hermitian PSD
+    evals, V = mat_hermitian_eigendecompose(aha)      # λ (n,1) ascending; V (n,n) unitary
+    lam = [float(evals[i, 0]) for i in range(n)]
+    order = sorted(range(n), key=lambda i: lam[i], reverse=True)   # descending λ → σ
+    # V columns reordered descending; vcols[j] is the j-th right singular vector.
+    vcols = [[V[i, order[j]] for i in range(n)] for j in range(n)]
+    sigma = [_rsqrt(lam[order[j]] if lam[order[j]] > 0.0 else 0.0) for j in range(n)]
+    k = min(m, n)
+    S = [sigma[j] for j in range(k)]
+
+    # Left singular vectors: uⱼ = A·vⱼ / σⱼ for σⱼ above the rank tolerance.
+    # The gate is RELATIVE to σ_max at the cascade's small-σ floor (~1e-6·σ_max),
+    # NOT machine-eps: the Gram eigen-route resolves a null σ only to ~√(λ-floor)
+    # ≈ 1e-7·σ_max (per [[feedback_cascade_svd_nullspace_accuracy_not_route_matrix_rank]]),
+    # so a sub-floor σ would make uⱼ = A·vⱼ/σⱼ amplify that error into a non-unit
+    # column. Such columns route through the orthonormal completion below instead.
+    smax = sigma[0] if n else 0.0
+    tol = smax * float(max(m, n)) * 1e-6
+    arows = [[complex(a[i, j]) for j in range(n)] for i in range(m)]
+    ucols: List[List[complex]] = []
+    for j in range(k):
+        if sigma[j] > tol:
+            vj = vcols[j]
+            av = [sum(arows[i][t] * vj[t] for t in range(n)) for i in range(m)]
+            inv = 1.0 / sigma[j]
+            ucols.append([x * inv for x in av])
+        else:
+            break                                     # σ descending → rest are ≤ tol
+
+    # Orthonormal completion of U (left-nullspace block) via modified Gram–Schmidt
+    # against the standard basis — arbitrary-but-valid (SVD null basis is free).
+    e = 0
+    while len(ucols) < m and e < m:
+        cand = [(1.0 + 0j) if i == e else 0j for i in range(m)]
+        for u in ucols:
+            proj = sum(u[i].conjugate() * cand[i] for i in range(m))
+            cand = [cand[i] - proj * u[i] for i in range(m)]
+        norm = _rsqrt(sum(x.real * x.real + x.imag * x.imag for x in cand))
+        if norm > 1e-12:
+            inv = 1.0 / norm
+            ucols.append([x * inv for x in cand])
+        e += 1
+
+    u_rows = [[ucols[c][i] for c in range(m)] for i in range(m)]   # column c = ucols[c]
+    U = Mat.from_rows(u_rows, is_complex=True)
+    v_rows = [[vcols[j][i] for j in range(n)] for i in range(n)]   # V (n,n): col j = vcols[j]
+    Vh = Mat.from_rows(v_rows, is_complex=True).conj().T           # Vᴴ
+    return U, S, Vh
+
+
 def dense_dot_complex(a: np.ndarray, b: np.ndarray) -> complex:
     """Dense complex bilinear inner product ``a · b = Σ aᵢ bᵢ``.
 
@@ -2682,6 +2785,7 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "mat_hermitian_eigendecompose",
     "mat_lstsq",
     "mat_eigvals",
+    "mat_svd",
     "dense_dot_complex",
     "dense_matmul_real",
     "dense_matvec_real",

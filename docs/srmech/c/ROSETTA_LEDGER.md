@@ -821,6 +821,22 @@ decrements it).
   `out.real[1]`→`out[1].real` (baseline smoke + rc33 diffuse-toward-mean). Math
   ledger UNTOUCHED. No new public op (tools.total 289); ABI 3; no C change.
   Next: lmmse/map_ml, dct/fsk, then the mat_svd foundation for mimo_svd.
+- **rc108 (done, v0.7.5rc108) — `mat_svd` FOUNDATION: numpy-free full SVD over
+  the Mat carrier (Mat-bridge foundation #5; does NOT decrement CEIL — still
+  22).** Carrier-removal #564. `mat_svd(A) -> (U (m,m), S desc len min(m,n),
+  Vh (n,n))` matching `full_matrices=True`: right vectors = eigenvectors of the
+  Hermitian PSD Gram `AᴴA` via `mat_hermitian_eigendecompose`; `S = √λ` (Class-N
+  `rational.sqrt`); left vectors `uⱼ = A·vⱼ/σⱼ` + orthonormal Gram-Schmidt
+  completion of the null block. Unconditionally numpy-free (composes the native
+  `mat_matmul` + `mat_hermitian_eigendecompose`). VALUE-FAITHFUL not bit-identical
+  (SVD null/degenerate basis is free; per [[feedback_cascade_svd_nullspace_accuracy_not_route_matrix_rank]]):
+  pinned by reconstruction + unitarity + S-match across real/complex ×
+  square/tall/wide × ranks. Rank tol `σ_max·max(m,n)·1e-6` (cascade small-σ floor
+  ~1e-7·σ_max, NOT eps) so a sub-floor σ routes its U column through completion.
+  REGISTERED ToolEntry (like the mat_* siblings) → tools.total 289 → 290 (five
+  count-tests bump); __all__ + rosetta `composition_of_c` added. ABI 3; no C
+  change. Next: rc109 routes `mimo_svd` onto mat_svd (CEIL 22→21) + moves the
+  rc71 reachable-test exemplar to ica_jade.
 - **rc107 (done, v0.7.5rc107) — TENTH CONSUMER flip: `mlse` numpy-FREE
   (`CEIL_NUMPY_CARRIER` 23 → 22).** Carrier-removal #564. The Viterbi-trellis
   channel equaliser (Class L∘K, no np.linalg). The trellis tables (transition /

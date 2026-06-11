@@ -1093,6 +1093,25 @@ def _register_primitive_class_tools() -> None:
                       "length-n eigenvalue multiset (unique only as a set)"),
         ),
         ToolEntry(
+            name="srmech.amsc.laplacian.mat_svd",
+            owner="srmech", category="laplacian",
+            summary="Numpy-FREE FULL singular-value decomposition A = U diag(S) "
+                    "V^H over the Mat carrier (carrier-removal #564, foundation "
+                    "#5): the right vectors are eigenvectors of the Hermitian PSD "
+                    "Gram A^H·A via mat_hermitian_eigendecompose, S = sqrt(lambda) "
+                    "(Class-N rational.sqrt), the left vectors are u_j = A·v_j/s_j "
+                    "with an orthonormal Gram-Schmidt completion of the null block. "
+                    "Value-faithful (reconstruction + S match) NOT bit-identical "
+                    "(SVD null/degenerate basis is free); large S ~1e-9, small ~1e-7 "
+                    "— do not route a matrix_rank consumer here. Golub & Van Loan "
+                    "§8.6.",
+            parameters=(P("a", "Mat", True,
+                          "m × n real or complex Mat (the matrix to decompose)"),),
+            returns=R("tuple",
+                      "(U (m,m) complex Mat, S list[float] descending len min(m,n), "
+                      "Vh (n,n) complex Mat) matching full_matrices=True"),
+        ),
+        ToolEntry(
             name="srmech.amsc.laplacian.dense_dot_complex",
             owner="srmech", category="laplacian",
             summary="Dense complex bilinear inner product sum a_i b_i (the "
