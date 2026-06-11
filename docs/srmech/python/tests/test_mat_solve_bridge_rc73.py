@@ -63,10 +63,20 @@ def test_mat_solve_singular_raises():
         mat_solve(A, Mat.from_rows([[1.0], [1.0]]))
 
 
-def test_mat_solve_complex_rejected():
-    A = Mat.from_rows([[1 + 1j, 0 + 0j], [0 + 0j, 1 + 0j]])
-    with pytest.raises(NotImplementedError, match="real-f64 only"):
-        mat_solve(A, Mat.from_rows([[1 + 0j], [1 + 0j]]))
+def test_mat_solve_complex_via_block_embedding():
+    # rc95: complex mat_solve now solves via the real 2n×2n block embedding
+    # (riding the native real solve) — numpy-free, value-faithful.
+    A = Mat.from_rows([[2 + 1j, 1 - 1j, 0 + 0j],
+                       [0 + 1j, 3 + 0j, 1 + 2j],
+                       [1 + 0j, 0 - 1j, 2 + 1j]])
+    B = Mat.from_rows([[1 + 1j], [2 - 1j], [0 + 3j]])
+    X = mat_solve(A, B)
+    assert isinstance(X, Mat) and X.is_complex and X.shape == (3, 1)
+    ref = np.linalg.solve(np.array(A.tolist()), np.array(B.tolist()))
+    assert np.max(np.abs(np.array(X.tolist()) - ref)) < 1e-9
+    # A·X = B residual check
+    AX = np.array(A.tolist()) @ np.array(X.tolist())
+    assert np.allclose(AX, np.array(B.tolist()), atol=1e-9)
 
 
 def test_mat_solve_shape_errors():

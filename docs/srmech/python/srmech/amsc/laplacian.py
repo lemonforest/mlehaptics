@@ -1454,9 +1454,10 @@ def mat_solve(a: "Mat", b: "Mat") -> "Mat":
     (:func:`_solve_exact`, Class-N ``Fraction`` division, numpy-free) coerced to
     float64, so the op is unconditionally numpy-free.
 
-    ``srmech_dense_solve_f64`` is **real-f64 only**; a complex `Mat` raises
-    ``NotImplementedError`` (the complex solve is the real ``2n×2n`` block
-    embedding — a later carrier-removal rc, cf. :func:`_dense_solve_complex`).
+    ``srmech_dense_solve_f64`` is **real-f64 only**; a complex `Mat` (rc95)
+    routes through :func:`_mat_solve_complex` — the real ``2n×2n`` block
+    embedding ``[[Aᵣ,−Aᵢ],[Aᵢ,Aᵣ]]·[u;v]=[bᵣ;bᵢ]`` over this same native real
+    solve (numpy-free), so ``mat_solve`` now handles complex too.
 
     Raises ``ValueError`` (non-square ``A`` / ``B`` row mismatch / empty ``A``),
     ``ZeroDivisionError`` (singular ``A``, exact-path signal).
@@ -1469,10 +1470,10 @@ def mat_solve(a: "Mat", b: "Mat") -> "Mat":
         "mat_solve operands must be Mat (the numpy-free 2-D carrier)"
     )
     if a.is_complex or b.is_complex:
-        raise NotImplementedError(
-            "mat_solve is real-f64 only; the complex solve (real 2n×2n block "
-            "embedding) is a later carrier-removal rc"
-        )
+        # Complex solve via the real 2n×2n block embedding (rc95), riding the
+        # native real path below — numpy-free, value-faithful for well-
+        # conditioned A. cf. the same embedding in _hermitian_eig_py.
+        return _mat_solve_complex(a, b)
     n = a.n_rows
     if n == 0:
         raise ValueError("mat_solve: A must be a non-empty square matrix")
@@ -1505,6 +1506,53 @@ def mat_solve(a: "Mat", b: "Mat") -> "Mat":
     # numpy-free fallback: srmech's own exact-rational Gauss–Jordan (Class-N).
     X = _solve_exact(a.tolist(), b.tolist())  # list[list[Fraction]]; raises if singular
     return Mat.from_rows([[float(x) for x in row] for row in X])
+
+
+def _mat_solve_complex(a: "Mat", b: "Mat") -> "Mat":
+    """Numpy-free complex dense solve ``A·X = B`` (``A`` complex ``n×n``, ``B``
+    complex ``n×w``) via the real ``2n×2n`` block embedding of the native real
+    :func:`mat_solve` — the Mat-carrier peer of :func:`_dense_solve_complex`
+    (rc95, carrier-removal #564).
+
+    Splitting ``(Aᵣ + iAᵢ)(u + iv) = (bᵣ + ibᵢ)`` into real/imag parts gives the
+    **real** ``2n×2n`` system ``[[Aᵣ,−Aᵢ],[Aᵢ,Aᵣ]]·[u;v] = [bᵣ;bᵢ]``, so
+    ``X = u + iv``. The embedding is built from plain ``Mat`` indexing (no numpy)
+    and rides the shipped native real :func:`mat_solve`; value-faithful to
+    NumPy's complex solve to ~1e-9 for a well-conditioned ``A`` (the
+    signal-subspace projections esprit/the matrix-heavy DSP ops feed it).
+    """
+    from .mat import Mat
+    n = a.n_rows
+    if n == 0:
+        raise ValueError("mat_solve: A must be a non-empty square matrix")
+    if a.n_cols != n:
+        raise ValueError(f"mat_solve: A must be square; got {a.shape}")
+    if b.n_rows != n:
+        raise ValueError(
+            f"mat_solve: B row-count {b.n_rows} incompatible with A size {n}"
+        )
+    w = b.n_cols
+    if w == 0:
+        return Mat(array("d"), n, 0, is_complex=True)  # n×0 → n×0 (degenerate)
+    av = [[complex(a[i, j]) for j in range(n)] for i in range(n)]
+    block_rows = (
+        [[av[i][j].real for j in range(n)] + [-av[i][j].imag for j in range(n)]
+         for i in range(n)]
+        + [[av[i][j].imag for j in range(n)] + [av[i][j].real for j in range(n)]
+           for i in range(n)]
+    )                                                      # (2n, 2n) real
+    block = Mat.from_rows(block_rows, is_complex=False)
+    bv = [[complex(b[i, j]) for j in range(w)] for i in range(n)]
+    rhs_rows = (
+        [[bv[i][j].real for j in range(w)] for i in range(n)]
+        + [[bv[i][j].imag for j in range(w)] for i in range(n)]
+    )                                                      # (2n, w) real
+    rhs = Mat.from_rows(rhs_rows, is_complex=False)
+    sol = mat_solve(block, rhs)                            # [u; v] (native, real)
+    out_rows = [
+        [complex(sol[i, j], sol[i + n, j]) for j in range(w)] for i in range(n)
+    ]
+    return Mat.from_rows(out_rows, is_complex=True)
 
 
 def _hermitian_eig_py(h: "Mat") -> Tuple["Mat", "Mat"]:
