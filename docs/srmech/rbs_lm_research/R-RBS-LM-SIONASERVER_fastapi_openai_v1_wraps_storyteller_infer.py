@@ -17,6 +17,7 @@ Binds 0.0.0.0:8000 -> the siona-chat CopilotKit runtime reaches it at http://192
 No abs(); no CAD. Reference scaffold for the srmech dev session (the FastAPI ASGI app F726 called for).
 """
 import importlib.util as U
+import itertools
 import json
 import sys
 import time
@@ -76,6 +77,78 @@ async def chat_completions(req: Request):
         }
         yield f"data: {json.dumps(last)}\n\n"
         yield "data: [DONE]\n\n"
+
+    return StreamingResponse(sse(), media_type="text/event-stream")
+
+
+# ---------------------------------------------------------------------------------------------------
+# /v1/responses — the NEWER OpenAI Responses API. CopilotKit 1.59.5 (react-core v2 / @ag-ui / @ai-sdk)
+# drives the backend through this endpoint, NOT /v1/chat/completions. We reuse the same storyteller.infer
+# content and emit it in the Responses request/response shape (stream = the typed-event SSE sequence).
+# ---------------------------------------------------------------------------------------------------
+_resp_counter = itertools.count(1)
+
+
+def _messages_from_responses_input(body):
+    """Flatten the Responses `input` (+ `instructions`) into chat-style messages for storyteller.infer."""
+    msgs = []
+    instr = body.get("instructions")
+    if instr:
+        msgs.append({"role": "system", "content": str(instr)})
+    inp = body.get("input")
+    if isinstance(inp, str):
+        msgs.append({"role": "user", "content": inp})
+    elif isinstance(inp, list):
+        for item in inp:
+            if not isinstance(item, dict):
+                continue
+            c = item.get("content")
+            if isinstance(c, str):
+                text = c
+            elif isinstance(c, list):
+                text = " ".join(p.get("text", "") for p in c if isinstance(p, dict) and p.get("text"))
+            else:
+                text = ""
+            if text:
+                msgs.append({"role": item.get("role", "user"), "content": text})
+    return msgs or [{"role": "user", "content": ""}]
+
+
+@app.post("/v1/responses")
+async def responses(req: Request):
+    body = await req.json()
+    msgs = _messages_from_responses_input(body)
+    inner = storyapi.chat_completion({"model": body.get("model", "siona:MFO"), "messages": msgs})
+    content = inner["choices"][0]["message"]["content"] or ""
+    n = next(_resp_counter)
+    rid, mid = f"resp_{n}", f"msg_{n}"
+    created = int(time.time())
+    model = body.get("model", "siona:MFO")
+
+    def resp_obj(status, output):
+        return {"id": rid, "object": "response", "created_at": created, "status": status, "model": model,
+                "output": output, "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}}
+
+    full_item = {"id": mid, "type": "message", "status": "completed", "role": "assistant",
+                 "content": [{"type": "output_text", "text": content, "annotations": []}]}
+
+    if not body.get("stream"):
+        return JSONResponse(resp_obj("completed", [full_item]))
+
+    def sse():
+        def ev(o):
+            return f"data: {json.dumps(o)}\n\n"
+        yield ev({"type": "response.created", "response": resp_obj("in_progress", [])})
+        yield ev({"type": "response.output_item.added", "output_index": 0,
+                  "item": {"id": mid, "type": "message", "status": "in_progress", "role": "assistant", "content": []}})
+        yield ev({"type": "response.content_part.added", "item_id": mid, "output_index": 0, "content_index": 0,
+                  "part": {"type": "output_text", "text": "", "annotations": []}})
+        yield ev({"type": "response.output_text.delta", "item_id": mid, "output_index": 0, "content_index": 0, "delta": content})
+        yield ev({"type": "response.output_text.done", "item_id": mid, "output_index": 0, "content_index": 0, "text": content})
+        yield ev({"type": "response.content_part.done", "item_id": mid, "output_index": 0, "content_index": 0,
+                  "part": {"type": "output_text", "text": content, "annotations": []}})
+        yield ev({"type": "response.output_item.done", "output_index": 0, "item": full_item})
+        yield ev({"type": "response.completed", "response": resp_obj("completed", [full_item])})
 
     return StreamingResponse(sse(), media_type="text/event-stream")
 
