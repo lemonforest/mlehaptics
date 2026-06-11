@@ -570,11 +570,11 @@ def test_map_ml_smoke():
     A = np.array([[1.0, 0.0], [1.0, 1.0], [1.0, 2.0]])
     R_noise = np.eye(3) * 0.1
     x_hat = m.op(y, A, R_noise)
-    assert x_hat.shape == (2,)
+    assert isinstance(x_hat, list) and len(x_hat) == 2  # rc102: numpy-free list return
     # MAP with prior
     R_prior = np.eye(2)
     x_hat_map = m.op(y, A, R_noise, R_prior=R_prior)
-    assert x_hat_map.shape == (2,)
+    assert isinstance(x_hat_map, list) and len(x_hat_map) == 2  # rc102: numpy-free list return
 
 
 # ---------------------------------------------------------------------------

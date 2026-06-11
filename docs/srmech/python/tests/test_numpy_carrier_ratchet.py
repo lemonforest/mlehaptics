@@ -179,7 +179,12 @@ import srmech
 # numpy-carrier dense_solve onto native mat_solve over a real Mat (Ryyᵀ·Z=Rxyᵀ),
 # and the K·(y-mean_y) estimate is a pure-Python matvec (drops `import numpy as
 # np`; returns list of float). 29 -> 28.
-CEIL_NUMPY_CARRIER = 28
+# rc102: map_ml (the linear-Gaussian MAP/ML estimator) goes numpy-FREE — the
+# covariance inverse (R_v^{-1}/R_x^{-1}) + normal-equation solve route off the
+# numpy-carrier dense_solve onto native mat_solve over real Mats, A^T R_v^{-1}
+# rides mat_matmul, and the matvecs are pure-Python sums (drops `import numpy as
+# np`; returns list of float). 28 -> 27.
+CEIL_NUMPY_CARRIER = 27
 
 
 def _srmech_root() -> pathlib.Path:
