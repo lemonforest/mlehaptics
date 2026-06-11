@@ -26,6 +26,7 @@ relationship to srmech-mcp (MCP = tools; this = a chat model). The dev session w
 srmech 0.7.5rc15: storyteller.infer (F692, loaded live) ; amsc.format.sha256_bytes. No abs(); no CAD; no Workflow; no
 sub-agents. Reference scaffold for the srmech dev session.
 """
+import re
 import sys
 import importlib.util
 sys.path.insert(0, "docs/srmech/rbs_lm_research")
@@ -37,42 +38,124 @@ _spec = importlib.util.spec_from_file_location(
 storymodule = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(storymodule)
 World, StoryTeller = storymodule.World, storymodule.StoryTeller
 
-# a tiny world registry (the dev session loads worlds from the MFO descriptor F670 / book-shelves F677/F691)
+# a tiny world registry (the dev session loads worlds from the MFO descriptor F670 / book-shelves F677/F691).
+# NOTE: this is the STARTER shelf -- the 3 MFO demo tomes + a Siona SELF-IDENTITY shelf so "who/what is Siona"
+# renders instead of hitting the asking-state. The real big kernels (DNA-bookshelf / wiki / code / latex, all on
+# disk) are loaded by a richer world-loader; this scaffold proves the wiring + the build-by-dialogue teach loop.
 WORLDS = {
     "storyteller:MFO": World("MFO", {
         "the_one":   ("The one is the held invariant", "MFO §I.1"),
         "chirality": ("It is seen in the handedness of matter", "MFO §VI"),
         "spectrum":  ("and it rings in the spectrum", "MFO §III.1"),
+        # --- Siona self-identity shelf (F726): so she can introduce herself, not ask about her own name ---
+        "siona": ("I am Siona, the grounded interface to the stored-relationship kernel -- I compose answers from "
+                  "attested tomes and ask when a thing is not yet on my shelf, so I cannot hallucinate", "F726/F658"),
+        "help":  ("tell me 'X is Y' and I will learn it, or ask me about a word I already hold", "F672/F661"),
     }),
 }
 _ST = StoryTeller()
 
 
-def _prompt_keys(messages):
-    """reference prompt parse: the last user turn -> the keys present in the world (dev session: a richer parser/F693)."""
-    last = next((m["content"] for m in reversed(messages) if m.get("role") == "user"), "")
-    return [w.strip(".,!?").lower() for w in last.split()]
+# Glue-words carry no tome -- their ABSENCE from the shelf is NOT a hallucination gap (F658), so they must not trigger
+# the asking-state. We drop them BEFORE infer (this is honest: we only ask about CONTENT words we genuinely lack).
+STOPWORDS = {
+    "the", "a", "an", "of", "to", "in", "on", "at", "and", "or", "but", "is", "are", "am", "was", "were", "be", "been",
+    "being", "do", "does", "did", "have", "has", "had", "it", "its", "this", "that", "these", "those", "i", "me", "my",
+    "mine", "we", "us", "our", "he", "she", "him", "her", "they", "them", "for", "with", "as", "by", "from", "so", "if",
+    "then", "than", "about", "can", "could", "would", "should", "will", "shall", "may", "might", "must", "please",
+    "what", "which", "when", "where", "why", "how", "who", "you", "your", "yourself", "tell", "ask", "mean", "means",
+    "know", "there", "here", "just", "also", "okay", "ok", "hey",
+}
+# Asking any of these (on the RAW tokens, before stopword-strip) is an identity question -> render Siona's self-tome.
+IDENTITY = {"siona", "who", "you", "yourself", "name", "cortana"}
+# A bare greeting should be met warmly, not with the asking-state.
+GREETING = {"hi", "hello", "hey", "greetings", "yo", "sup", "howdy", "hiya"}
+
+
+def _last_user(messages):
+    return next((m.get("content") or "" for m in reversed(messages) if m.get("role") == "user"), "")
+
+
+def _tokens(text):
+    return re.findall(r"[a-z0-9_]+", (text or "").lower())
+
+
+def _content_keys(messages):
+    """the last user turn -> CONTENT keys (glue-words dropped). Reference parser; dev session swaps in F693."""
+    return [t for t in _tokens(_last_user(messages)) if t not in STOPWORDS]
+
+
+def _pending_ask_keys(messages):
+    """if Siona's LAST turn was the asking-state ('I have no tome for [...]'), return the keys she asked about."""
+    last_assistant = next((m.get("content") or "" for m in reversed(messages) if m.get("role") == "assistant"), "")
+    m = re.search(r"no tome for \[(.*?)\]", last_assistant)
+    return re.findall(r"'([^']+)'", m.group(1)) if m else []
+
+
+def _learn_from_messages(world, messages):
+    """BUILD-BY-DIALOGUE (F672), now WIRED INTO THE API: turn what the user TELLS Siona into shelf tomes via world.tell().
+    Two shapes land: an explicit 'X is/are/means Y', and an ANSWER to Siona's own pending 'What is it?' ask."""
+    text = _last_user(messages).strip()
+    taught = []
+    # (a) explicit declaration: 'X is Y' / 'X are Y' / 'X means Y' -> key = head noun, clause = the whole sentence.
+    for mt in re.finditer(r"\b([a-z][a-z0-9_\- ]*?)\s+(?:is|are|means)\s+(.+?)(?:[.;!?]|$)", text, re.I):
+        head, body = mt.group(1).strip(), mt.group(2).strip()
+        toks = _tokens(head)
+        key = toks[-1] if toks else None
+        # the head-noun must be a CONTENT word -- a glue/question word ('who is...', 'what are...') is a QUESTION, not a
+        # declaration, so it must NOT be read as teaching (else 'who are you?' would 'learn who'). STOPWORDS holds them.
+        if key and key not in STOPWORDS and body:
+            world.tell(key, f"{head} is {body}", attestation="told (build-by-dialogue, F672)")
+            taught.append(key)
+    # (b) answering Siona's pending ask: she asked 'What is <k>?' -> this whole turn IS the definition of <k>.
+    if not taught:
+        for k in _pending_ask_keys(messages):
+            world.tell(k, f"{k} is {text.rstrip('.')}", attestation="told (answered the asking-state, F672)")
+            taught.append(k)
+    return taught
+
+
+def _completion(model, content, chord, n_keys, status):
+    return {
+        "id": "chatcmpl-srmech-" + (chord[:12] if chord else status[:9]),
+        "object": "chat.completion", "model": model,
+        "choices": [{"index": 0, "message": {"role": "assistant", "content": content}, "finish_reason": "stop"}],
+        "usage": {"prompt_tokens": n_keys, "completion_tokens": len((content or "").split()), "total_tokens": 0},
+        "srmech": {"status": status, "chord": chord, "compositional": True, "gpu_free": True},  # extension: attestation/audit
+    }
 
 
 def chat_completion(request):
-    """REFERENCE /v1/chat/completions handler -> OpenAI response dict, backed by storyteller.infer (F692)."""
+    """REFERENCE /v1/chat/completions handler -> OpenAI response dict, backed by storyteller.infer (F692).
+    Now: (1) LEARNS from the turn (F672), (2) answers identity questions, (3) composes over content keys, asking on a gap."""
     model = request.get("model", "storyteller:MFO")
     world = WORLDS.get(model) or next(iter(WORLDS.values()))
-    # HONEST (F573/F658): pass the parsed prompt-keys straight to infer -- do NOT pre-filter unknowns, or a gap would be
-    # silently hidden (exactly the hallucination the kernel prevents). infer() detects the gap -> the asking-state (F661).
-    keys = _prompt_keys(request.get("messages", []))
+    messages = request.get("messages", [])
+
+    # (1) build-by-dialogue: did the user TEACH Siona this turn? If so, learn it and confirm (F672) -- the fix for
+    #     "I told it what something is and it still didn't know": the teach loop is now wired into the API, not just main().
+    taught = _learn_from_messages(world, messages)
+    if taught:
+        learned = ", ".join(sorted(set(taught)))
+        content = f"Thank you -- I have learned {learned}. Ask me about {sorted(set(taught))[0]} and I will compose what you told me."
+        return _completion(model, content, None, len(taught), "rendered")
+
+    raw = set(_tokens(_last_user(messages)))
+    # (2a) a greeting -> warm hello + identity (never interrogate a 'hi').
+    if raw & GREETING:
+        return _completion(model, "Hello -- I am Siona. Ask me about a word I hold, or tell me 'X is Y' and I will learn it.", None, 1, "rendered")
+    # (2b) identity question -> render Siona's self-tome (so "who are you" / "what is siona" never hits the asking-state).
+    if raw & IDENTITY:
+        return _completion(model, world.clause("siona"), None, 1, "rendered")
+
+    # (3) compose over the content keys; HONEST gap -> the asking-state (F661): she asks rather than invent (F658).
+    keys = _content_keys(messages)
+    if not keys:
+        return _completion(model, world.clause("help") or "Ask me about a word I hold, or tell me 'X is Y'.", None, 0, "rendered")
     result = _ST.infer(world, keys)
     if result["status"] == "rendered":
-        content, finish, chord = result["text"], "stop", result["chord"]
-    else:                                                        # the asking-state (F661) becomes an assistant turn that ASKS
-        content, finish, chord = result["ask"], "stop", None
-    return {
-        "id": "chatcmpl-srmech-" + (chord[:12] if chord else "ask"),
-        "object": "chat.completion", "model": model,
-        "choices": [{"index": 0, "message": {"role": "assistant", "content": content}, "finish_reason": finish}],
-        "usage": {"prompt_tokens": len(keys), "completion_tokens": len((content or "").split()), "total_tokens": 0},
-        "srmech": {"status": result["status"], "chord": chord, "compositional": True, "gpu_free": True},  # extension: attestation/audit
-    }
+        return _completion(model, result["text"], result["chord"], len(keys), "rendered")
+    return _completion(model, result["ask"], None, len(keys), "asking")
 
 
 def main():
