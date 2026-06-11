@@ -198,7 +198,12 @@ import srmech
 # CONSUMER stays numpy (flips in its own later rc) and coerces dct's list return
 # back to ndarray at the `_dct` boundary wrapper. dct drops `import numpy as np`;
 # returns list / list-of-lists. 26 -> 25.
-CEIL_NUMPY_CARRIER = 25
+# rc105: vector_quantisation (nearest-codebook lookup) goes numpy-FREE — the
+# nearest-neighbour query becomes a pure-Python argmin over the squared Euclidean
+# distance Σ_j (x_j − c_j)² (the matmul cross-term trick is unnecessary for an
+# argmin); inputs coerce via tolist(); encode returns list[int], decode returns a
+# list-of-rows (drops `import numpy as np` + dense_matmul_real). 25 -> 24.
+CEIL_NUMPY_CARRIER = 24
 
 
 def _srmech_root() -> pathlib.Path:
