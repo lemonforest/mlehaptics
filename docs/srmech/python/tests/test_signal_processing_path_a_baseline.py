@@ -400,9 +400,11 @@ def test_psk_qam_smoke():
 
     syms = np.array([0, 1, 2, 3], dtype=np.int64)
     points = m.op(syms, modulation="psk", M=4)
-    assert points.shape == (4,)
-    assert np.iscomplexobj(points)
+    # rc106: numpy-free list return
+    assert isinstance(points, list) and len(points) == 4
+    assert all(isinstance(z, complex) for z in points)
     recovered = m.op(points, modulation="psk", M=4, demodulate=True)
+    assert isinstance(recovered, list)
     assert np.array_equal(recovered, syms)
 
 

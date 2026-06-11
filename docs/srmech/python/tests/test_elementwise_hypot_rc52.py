@@ -99,5 +99,6 @@ def test_psk_qam_demod_still_correct():
     idx = np.array([0, 1, 2, 3])
     symbols = op(idx, M=4, modulation="psk")             # modulate QPSK
     recovered = op(symbols, M=4, modulation="psk", demodulate=True)
-    # the nearest-symbol decision now runs through elementwise_hypot
+    # rc106: psk_qam is numpy-free; the nearest-symbol decision is the
+    # squared-distance argmin (monotone in |·|, so no hypot/sqrt/abs).
     assert np.array_equal(recovered, idx)

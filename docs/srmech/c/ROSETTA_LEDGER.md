@@ -821,6 +821,24 @@ decrements it).
   `out.real[1]`→`out[1].real` (baseline smoke + rc33 diffuse-toward-mean). Math
   ledger UNTOUCHED. No new public op (tools.total 289); ABI 3; no C change.
   Next: lmmse/map_ml, dct/fsk, then the mat_svd foundation for mimo_svd.
+- **rc106 (done, v0.7.5rc106) — NINTH CONSUMER flip: `psk_qam` numpy-FREE
+  (`CEIL_NUMPY_CARRIER` 24 → 23).** Carrier-removal #564. The fsk-cousin
+  constellation mapper (Class I∘K, no np.linalg). PSK points `e^{i·2π·k/M}` route
+  through `_exp_i` (Class-N `rational.cos`/`sin` over substrate-native `_PI`,
+  native libm-free) — bit-faithful to the prior `elementwise_transcendental(·,
+  'exp_i')`. QAM grid built from pure-Python Gray levels (`√M` via `rational.sqrt`),
+  replacing `np.meshgrid(...).flatten()` with a row-major
+  `complex(levels[col],levels[row])` comprehension (byte-faithful order). Demod
+  decision is argmin over the squared Euclidean distance `|received − const|²`
+  (monotone in `|·|`, so identical to the prior `argmin(hypot)` — now no
+  sqrt/hypot/abs; strict `<` keeps first-min, matching np.argmin). Dropped `import
+  numpy as np`; inputs coerce via `tolist()`; modulate → `list[complex]`, demod →
+  `list[int]`. RIPPLE: `points.shape==(4,)`/`np.iscomplexobj` → `isinstance`/`len`;
+  rc52 demod round-trip unchanged (decision identical). Math ledger UNTOUCHED
+  (op now uses no numpy; `psk_qam` only in math-ratchet *comments*, none enforced);
+  rosetta bucket unchanged. No new public op (tools.total 289); ABI 3; no C change.
+  Remaining matrix-heavy: mlse, mimo_svd (needs the `mat_svd` foundation),
+  ica_jade (np.linalg.eigh = numpy-as-accuracy, likely stays gated).
 - **rc105 (done, v0.7.5rc105) — EIGHTH CONSUMER flip: `vector_quantisation`
   numpy-FREE (`CEIL_NUMPY_CARRIER` 25 → 24).** Carrier-removal #564. The cleanest
   remaining consumer (nearest-codebook lookup, Class E∘M∘B, no np.linalg). The

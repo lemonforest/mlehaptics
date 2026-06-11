@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc106] - 2026-06-11
+
+**Ninth CONSUMER carrier-flip — `psk_qam` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 24 → 23).** Carrier-removal #564. The fsk-cousin constellation mapper (Class I ∘ K), no `np.linalg`:
+
+- The **PSK** constellation points `e^{i·2π·k/M}` route through `_exp_i` (the Class-N `rational.cos` / `rational.sin` cascade over the substrate-native `_PI` = `pi_cascade_digits(30)`, native libm-free) — bit-faithful to the prior `elementwise_transcendental(·, 'exp_i')` path. The **QAM** grid is built from pure-Python Gray-coded levels (`√M` via the Class-N `rational.sqrt`), replacing `np.meshgrid(...).flatten()` with a row-major `complex(levels[col], levels[row])` comprehension (byte-faithful ordering).
+- The **demod** nearest-neighbour decision is an **argmin over the squared Euclidean distance** `|received − const|²` (squared distance is monotone in `|·|`, so the decision is identical to the prior `argmin(hypot(re, im))` — and now needs no `sqrt` / no `hypot` / no `abs()`; strict `<` keeps the first-minimum index, matching the prior `np.argmin` tie-break). The top-level `import numpy as np` is **gone**; inputs coerce numpy-free via `tolist()`; modulate returns `list[complex]`, demodulate returns `list[int]` (were ndarrays).
+
+The `test_psk_qam_smoke` `.shape == (4,)` / `np.iscomplexobj` checks move to `isinstance(points, list)` / `len` / `isinstance(z, complex)`; the rc52 demod round-trip is unchanged (decision is identical). `CEIL_NUMPY_CARRIER` 24 → 23 (down-only ratchet). The math-ratchet ledger is untouched (the op now uses no numpy at all; `psk_qam` only appears in math-ratchet *comments*, none of which are enforced counts). `psk_qam`'s `rosetta_classification.ndjson` bucket is unchanged. No new public op (`describe()["tools"]["total"]` stays **289**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc105] - 2026-06-11
 
 **Eighth CONSUMER carrier-flip — `vector_quantisation` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 25 → 24).** Carrier-removal #564. The cleanest remaining consumer — nearest-codebook lookup (Class E ∘ M ∘ B), no `np.linalg`:
