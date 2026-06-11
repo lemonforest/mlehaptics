@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc100] - 2026-06-11
+
+**Third CONSUMER carrier-flip — `heat_kernel` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 30 → 29).** Carrier-removal #564. The graph heat-kernel denoiser `exp(−tL)·signal = V·diag(exp(−tλ))·Vᴴ·signal` flips numpy-free:
+
+- The Laplacian eigendecomposition routes off the numpy-carrier `hermitian_eigendecompose` onto the native `mat_hermitian_eigendecompose`; the spectral filter `g(λ) = exp(−t·λ)` (real eigenvalues) routes off the numpy-carrier `elementwise_transcendental(…, "exp")` onto a per-bin Class-N `rational.exp(−t·λ_k)` cascade (the scalar float-returning `exp`, which dispatches to native `srmech_exp`); the project (`Vᴴ·signal`) and reconstruct (`V·(g ⊙ coeffs)`) matvecs become pure-Python nested sums over the eigenvector `Mat`. The top-level `import numpy as np` is **gone**; `op` returns `list[complex]` (was ndarray).
+- **Differential-verified**: mass conservation (the graph-Laplacian null-vector preserves the sum) holds to <1e-9, the output stays real for a real Laplacian + real signal, and an impulse diffuses onto its neighbour. The `out.shape` smoke asserts move to `len(out)`, `out.real.sum()` → `sum(v.real for v in out)`, `np.max(out.imag**2)` → `max(v.imag**2 for v in out)`, `out.real[1]` → `out[1].real`.
+
+`CEIL_NUMPY_CARRIER` 30 → 29 (down-only ratchet). The math-ratchet ledger is untouched (`dense_matvec_complex`/`elementwise_transcendental`/`np.asarray` match none of the linalg/fft/matmul/ufunc patterns). No new public op (`describe()["tools"]["total"]` stays **289**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc99] - 2026-06-11
 
 **Second CONSUMER carrier-flip — `music` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 31 → 30).** Carrier-removal #564. The ESPRIT sibling on the completed Mat foundation: the MUSIC pseudospectrum DOA estimator flips numpy-free:

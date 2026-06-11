@@ -807,6 +807,20 @@ decrements it).
   No new public op (tools.total 289); ABI 3; no C change. Next: heat_kernel
   (graph heat-kernel exp(−tL) via the hermitian eig), then lmmse/map_ml,
   dct/fsk, then the mat_svd foundation for mimo_svd.
+- **rc100 (done, v0.7.5rc100) — THIRD CONSUMER flip: `heat_kernel` numpy-FREE
+  (`CEIL_NUMPY_CARRIER` 30 → 29).** Carrier-removal #564. The graph heat-kernel
+  denoiser `exp(−tL)·signal = V·diag(exp(−tλ))·Vᴴ·signal`: eigendecomp off
+  `hermitian_eigendecompose` onto native `mat_hermitian_eigendecompose`; the
+  `exp(−tλ)` spectral filter off the numpy-carrier `elementwise_transcendental`
+  onto a per-bin Class-N `rational.exp(−t·λ_k)` cascade (real eigvals; scalar
+  float `exp`, dispatches to native `srmech_exp` — the rc90 INLINE-don't-call-
+  elementwise_* lesson); the two `dense_matvec_complex` (Vᴴ·signal, V·(g⊙coeffs))
+  → pure-Python nested sums over `eigvecs_mat[i,k]`. Dropped `import numpy as np`;
+  `op` returns `list[complex]`. RIPPLES: `out.shape`→`len`, `out.real.sum()`→
+  `sum(v.real for v in out)`, `np.max(out.imag**2)`→`max(v.imag**2 ...)`,
+  `out.real[1]`→`out[1].real` (baseline smoke + rc33 diffuse-toward-mean). Math
+  ledger UNTOUCHED. No new public op (tools.total 289); ABI 3; no C change.
+  Next: lmmse/map_ml, dct/fsk, then the mat_svd foundation for mimo_svd.
 - **rc95 (done, v0.7.5rc95) — Mat-return FOUNDATION: `mat_solve` handles
   COMPLEX numpy-free (unblocks the matrix-heavy DSP carrier-flips).**
   Carrier-removal #564. The matrix-heavy sigproc ops (esprit/dct/fsk/ica_jade/

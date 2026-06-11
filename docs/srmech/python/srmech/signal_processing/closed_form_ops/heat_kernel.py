@@ -5,8 +5,12 @@ Identity per the implementation plan §1: heat kernel denoising IS a Class L
 elementwise transcendental on the eigenvalue spectrum. The denoised signal
 is ``V·diag(exp(-t*lambda))·V^H·signal``.
 
-This composes directly with ``srmech.amsc.laplacian.hermitian_eigendecompose``
-which already provides the Class L primitive.
+Carrier-removal #564 (rc100): numpy-FREE — the eigendecomposition routes through
+the native :func:`~srmech.amsc.laplacian.mat_hermitian_eigendecompose`, the
+spectral filter ``exp(-t*lambda)`` through the Class-N
+:func:`srmech.amsc.rational.exp` cascade (real eigenvalues; dispatches to native
+``srmech_exp``), and the project / reconstruct matvecs are pure-Python sums over
+the eigenvector ``Mat``. No top-level ``import numpy``.
 
 Path B dual in Phase 6 (Path B Laplacian g(lambda) bound-vector lookup).
 
@@ -17,13 +21,11 @@ spectral graph wavelets / heat kernel diffusion.
 
 from __future__ import annotations
 
-import numpy as np
+from typing import List
 
-from srmech.amsc.laplacian import (
-    dense_matvec_complex,
-    elementwise_transcendental,
-    hermitian_eigendecompose,
-)
+from srmech.amsc.laplacian import mat_hermitian_eigendecompose
+from srmech.amsc.mat import Mat
+from srmech.amsc.rational import exp as _rexp  # Class-N exp cascade, not libm
 
 OPERATION_NAME = "heat_kernel"
 CLASS_COMPOSITION = ("L",)
@@ -37,15 +39,17 @@ SSOT_CITATION = (
 )
 
 
-def op(signal, laplacian, *, t: float = 1.0, D: int = 8192):
+def op(signal, laplacian, *, t: float = 1.0, D: int = 8192) -> List[complex]:
     """Heat-kernel diffusion denoising on a graph substrate.
 
     Parameters
     ----------
     signal:
-        ``(n,)`` real or complex node-domain state.
+        ``(n,)`` real or complex node-domain state (a 1-D sequence / ndarray /
+        anything with ``tolist()`` — coerced numpy-free).
     laplacian:
-        ``(n, n)`` Hermitian graph Laplacian.
+        ``(n, n)`` Hermitian graph Laplacian (a :class:`~srmech.amsc.mat.Mat`,
+        nested sequence, or ``tolist()``-able).
     t:
         Diffusion time (larger ``t`` -> more smoothing). Default 1.0.
     D:
@@ -53,25 +57,29 @@ def op(signal, laplacian, *, t: float = 1.0, D: int = 8192):
 
     Returns
     -------
-    numpy.ndarray
+    list[complex]
         Denoised node-domain state, same length as ``signal``.
     """
-    # Compose with the existing Class L primitive in srmech.amsc.laplacian.
-    # The Laplacian is treated as complex-Hermitian; ``V`` is complex128 and
-    # the downstream spectral-filter arithmetic (``V.conj().T``) keeps it so.
-    L_arr = np.asarray(laplacian, dtype=np.complex128)
-    eigvals, V = hermitian_eigendecompose(L_arr)
-
-    sig_arr = np.asarray(signal, dtype=np.complex128)
-    if sig_arr.ndim != 1:
-        raise ValueError(f"heat_kernel expects 1-D signal; got {sig_arr.shape}")
-    n = L_arr.shape[0]
-    if sig_arr.shape[0] != n:
-        raise ValueError(
-            f"signal length {sig_arr.shape[0]} != laplacian size {n}"
-        )
-    # g(lambda) = exp(-t * lambda); applied elementwise on eigenvalue spectrum.
-    g = elementwise_transcendental(-t * eigvals, "exp")
-    # Project onto eigenbasis, filter, reconstruct — Class-L matvec cascade.
-    coeffs = dense_matvec_complex(V.conj().T, sig_arr)
-    return dense_matvec_complex(V, g * coeffs)
+    # Coerce L → complex Mat; signal → a 1-D list of complex (numpy-free).
+    l_rows = laplacian.tolist() if hasattr(laplacian, "tolist") else [list(r) for r in laplacian]
+    n = len(l_rows)
+    if n == 0 or any(len(r) != n for r in l_rows):
+        cols = len(l_rows[0]) if l_rows else 0
+        raise ValueError(f"laplacian must be square; got {n}x{cols}")
+    sig_raw = signal.tolist() if hasattr(signal, "tolist") else list(signal)
+    if sig_raw and isinstance(sig_raw[0], (list, tuple)):
+        raise ValueError("heat_kernel expects 1-D signal")
+    if len(sig_raw) != n:
+        raise ValueError(f"signal length {len(sig_raw)} != laplacian size {n}")
+    sig = [complex(v) for v in sig_raw]
+    L_mat = Mat.from_rows([[complex(v) for v in r] for r in l_rows], is_complex=True)
+    # Class L: Hermitian eigendecomposition via the native Mat-carrier solver.
+    eigvals_mat, V = mat_hermitian_eigendecompose(L_mat)
+    # g(λ) = exp(-t·λ) — eigenvalues are REAL, so a per-bin Class-N rational.exp
+    # cascade (inlined, not the numpy-carrier elementwise_transcendental).
+    g = [_rexp(-t * float(eigvals_mat[k, 0])) for k in range(n)]
+    # coeffs = Vᴴ·signal (project onto the eigenbasis); pure-Python matvec.
+    coeffs = [sum(V[i, k].conjugate() * sig[i] for i in range(n)) for k in range(n)]
+    # out = V·(g ⊙ coeffs) (filter + reconstruct); pure-Python matvec.
+    gc = [g[k] * coeffs[k] for k in range(n)]
+    return [sum(V[i, k] * gc[k] for k in range(n)) for i in range(n)]
