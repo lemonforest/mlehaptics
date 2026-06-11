@@ -1077,6 +1077,22 @@ def _register_primitive_class_tools() -> None:
                       "complex unitary Mat)"),
         ),
         ToolEntry(
+            name="srmech.amsc.laplacian.mat_eigvals",
+            owner="srmech", category="laplacian",
+            summary="Numpy-FREE eigenvalue multiset of a general (non-Hermitian) "
+                    "square matrix over the Mat carrier (carrier-removal #564, "
+                    "foundation #4): a Wilkinson-shifted QR iteration in plain "
+                    "complex with per-step Householder QR and the RQ recombine "
+                    "routed through the native mat_matmul; n=1/2 closed form. "
+                    "Multiset matches NumPy eigvals to ~1e-9. Prefer "
+                    "mat_hermitian_eigendecompose for Hermitian A. Golub & Van "
+                    "Loan §7.5.",
+            parameters=(P("a", "Mat", True,
+                          "n × n real or complex Mat (square, any non-Hermitian)"),),
+            returns=R("list[complex]",
+                      "length-n eigenvalue multiset (unique only as a set)"),
+        ),
+        ToolEntry(
             name="srmech.amsc.laplacian.dense_dot_complex",
             owner="srmech", category="laplacian",
             summary="Dense complex bilinear inner product sum a_i b_i (the "
