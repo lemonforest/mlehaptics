@@ -5,10 +5,17 @@ shape + determinism, end-to-end learn → next_token_distribution → infer over
 tiny token stream, attestation block keys, and infer determinism. The substrate
 is built via the in-memory ``from_params`` path (no TOML), with one test
 exercising ``from_catalog`` through a tmp descriptor.toml.
+
+numpy-free (v0.7.5rc113, #564): the encode path returns the framework-native
+``srmech.amsc.hv.HV`` carrier and the substrate runs with numpy absent, so these
+assertions are HV-native (``len`` / ``.tolist`` / ``==``) rather than ndarray
+(``.shape`` / ``np.array_equal``). The structural properties under test
+(determinism, the XOR-sector relationship, self-similarity == 1.0, bigram-
+legality, same-seed determinism) are RNG-independent, so the rc113 RNG re-base
+changes the underlying bytes but pins no test to a specific byte value.
 """
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
 from srmech.rbs_lm import (
@@ -54,11 +61,11 @@ def test_token_seed_deterministic():
 def test_encode_word_k4_deterministic_and_klein4():
     a = encode_word_k4("cat", D=D, sector=0, hex_chars=HEX_CHARS)
     b = encode_word_k4("cat", D=D, sector=0, hex_chars=HEX_CHARS)
-    assert np.array_equal(a, b)
-    assert a.shape == (D,)
-    assert a.dtype == np.uint8
+    assert a == b
+    assert len(a) == D
+    assert a.sectors == 4
     # Klein-4 alphabet only.
-    assert set(np.unique(a)).issubset({0, 1, 2, 3})
+    assert set(a.tolist()).issubset({0, 1, 2, 3})
 
 
 def test_encode_word_k4_respects_sector():
@@ -66,38 +73,40 @@ def test_encode_word_k4_respects_sector():
     s1 = encode_word_k4("cat", D=D, sector=1, hex_chars=HEX_CHARS)
     s2 = encode_word_k4("cat", D=D, sector=2, hex_chars=HEX_CHARS)
     # Sector is a constant XOR-bind, so a different sector → a different vector,
-    # and sector-1 is exactly the iω₇ (XOR 1) flip of sector-0.
-    assert not np.array_equal(s0, s1)
-    assert not np.array_equal(s0, s2)
-    assert np.array_equal(s1, np.bitwise_xor(s0, 1))
-    assert np.array_equal(s2, np.bitwise_xor(s0, 2))
+    # and sector-1 is exactly the iω₇ (XOR 1) flip of sector-0 (sector-2 the γ₅
+    # XOR 2). Structural — holds independent of the per-token RNG.
+    assert s0 != s1
+    assert s0 != s2
+    base = s0.tolist()
+    assert s1 == [x ^ 1 for x in base]
+    assert s2 == [x ^ 2 for x in base]
 
 
 def test_encode_bigram_skeleton_sentence_deterministic():
     b1 = encode_bigram_l1("the", "cat", D=D, hex_chars=HEX_CHARS)
     b2 = encode_bigram_l1("the", "cat", D=D, hex_chars=HEX_CHARS)
-    assert np.array_equal(b1, b2)
-    assert b1.shape == (D,) and b1.dtype == np.uint8
+    assert b1 == b2
+    assert len(b1) == D and b1.sectors == 4
 
     sk = encode_skeleton_l2(("the", "cat"), ("dog", "sat"), D=D, hex_chars=HEX_CHARS)
     sk2 = encode_skeleton_l2(("the", "cat"), ("dog", "sat"), D=D, hex_chars=HEX_CHARS)
-    assert np.array_equal(sk, sk2)
-    assert sk.shape == (D,)
+    assert sk == sk2
+    assert len(sk) == D
 
     se = encode_sentence_l3(["the", "cat", "sat"], D=D, hex_chars=HEX_CHARS)
     se2 = encode_sentence_l3(["the", "cat", "sat"], D=D, hex_chars=HEX_CHARS)
-    assert np.array_equal(se, se2)
-    assert se.shape == (D,)
+    assert se == se2
+    assert len(se) == D
 
 
 def test_sim_k4_batch_self_is_one():
     q = encode_word_k4("cat", D=D, sector=0, hex_chars=HEX_CHARS)
-    cands = np.stack([
+    cands = [
         encode_word_k4("cat", D=D, sector=0, hex_chars=HEX_CHARS),
         encode_word_k4("dog", D=D, sector=0, hex_chars=HEX_CHARS),
-    ])
+    ]
     sims = sim_k4_batch(q, cands)
-    assert sims.shape == (2,)
+    assert len(sims) == 2
     assert sims[0] == pytest.approx(1.0)
     assert 0.0 <= sims[1] <= 1.0
     assert sims[1] < sims[0]
@@ -109,15 +118,12 @@ def test_context_substrate_encode_shape_and_determinism():
     ctx = ContextSubstrate(D=D, hex_chars=HEX_CHARS)
     s1 = ctx.encode_context(["the", "cat"])
     s2 = ctx.encode_context(["the", "cat"])
-    assert s1.shape == (D,)
-    assert s1.dtype == np.uint8
-    assert set(np.unique(s1)).issubset({0, 1, 2, 3})
-    assert np.array_equal(s1, s2)
+    assert len(s1) == D
+    assert s1.sectors == 4
+    assert set(s1.tolist()).issubset({0, 1, 2, 3})
+    assert s1 == s2
     # Order matters (positional role-filler binding).
-    assert not np.array_equal(
-        ctx.encode_context(["the", "cat"]),
-        ctx.encode_context(["cat", "the"]),
-    )
+    assert ctx.encode_context(["the", "cat"]) != ctx.encode_context(["cat", "the"])
 
 
 def test_context_substrate_even_window_uses_pad_not_drop():
@@ -126,7 +132,7 @@ def test_context_substrate_even_window_uses_pad_not_drop():
     # is an odd bundle. Both produce a valid Klein-4 vector of length D.
     one = ctx.encode_context(["the"])
     three = ctx.encode_context(["the", "cat", "sat"])
-    assert one.shape == (D,) and three.shape == (D,)
+    assert len(one) == D and len(three) == D
 
 
 # ----------------------------------------------------------- build + end-to-end
@@ -151,7 +157,7 @@ def test_from_params_constructor():
 def test_learn_builds_bigram_structure_and_memory():
     sub = RBSLMInferenceSubstrate.from_params(PARAMS).learn(TINY_STREAM)
     assert sub.M is not None
-    assert sub.M.shape == (D,)
+    assert len(sub.M) == D
     assert sub.n_learned > 0
     assert sub.vocab == sorted(set(TINY_STREAM))
     # "the" is followed by cat, cat, dog in the stream → candidates {cat, dog}.
@@ -166,8 +172,8 @@ def test_next_token_distribution_probs_and_legal_candidates():
     # Candidates must be the bigram-legal successors of the LAST token ("cat").
     assert set(cands) == {"sat", "ran"}
     assert len(probs) == len(cands)
-    assert float(np.sum(probs)) == pytest.approx(1.0)
-    assert np.all(probs >= 0.0)
+    assert float(sum(probs)) == pytest.approx(1.0)
+    assert all(p >= 0.0 for p in probs)
 
 
 def test_next_token_distribution_single_candidate_and_dead_end():
@@ -175,7 +181,7 @@ def test_next_token_distribution_single_candidate_and_dead_end():
     # "dog" is followed only by "sat" → single candidate, prob 1.0.
     cands, probs = sub.next_token_distribution(["the", "dog"])
     assert cands == ["sat"]
-    assert np.array_equal(probs, np.array([1.0]))
+    assert probs == [1.0]
     # A last token that never appears as a left-token → no candidates (dead end).
     cands2, probs2 = sub.next_token_distribution(["the", "neverseen"])
     assert cands2 == []
@@ -287,4 +293,4 @@ def test_from_catalog_builds_substrate(tmp_path):
     sub.learn(TINY_STREAM)
     cands, probs = sub.next_token_distribution(["the", "cat"])
     assert set(cands) == {"sat", "ran"}
-    assert float(np.sum(probs)) == pytest.approx(1.0)
+    assert float(sum(probs)) == pytest.approx(1.0)

@@ -16,15 +16,19 @@ rolling context state, and the next-token distribution is a Class M associative
 retrieve over the bigram-legal candidate set, temperature-sampled. Iterating
 that loop IS autoregressive inference.
 
-Bit-exactness
--------------
-The encode helpers compose the SAME Klein-4 sector algebra as
+Determinism + numpy-free (v0.7.5rc113)
+--------------------------------------
+The encode helpers compose the Klein-4 sector algebra of
 :mod:`srmech.amsc.hdc` (``klein4_random`` / ``klein4_bind`` / ``klein4_bundle``
-/ the fractional-agreement similarity), but at **numpy-array granularity** —
-the research code uses its own numpy-level encode helpers rather than the
-bytes-based ``hdc.klein4_*`` public API surface, and that numpy semantics is
-preserved here verbatim so a generated sequence is re-derivable: same corpus +
-same params + same ``srmech_version`` + same seed → bit-identical output.
+/ the fractional-agreement ``klein4_similarity``) over the framework-native
+:class:`~srmech.amsc.hv.HV` carrier — **numpy-free end-to-end** (#564). numpy
+was only ever an *incidental* deterministic source here (the per-token vector
+seed + the memory subsample + the infer sampler), never a correctness oracle,
+so as of rc113 those three sites run on the stdlib ``random.Random`` stream and
+the softmax on the Class-N ``rational.exp`` cascade. The values were
+re-baselined onto our own RNG ONCE; a generated sequence is re-derivable
+forever after: same corpus + params + ``srmech_version`` + seed → bit-identical
+output, now with **no numpy present at all** (no eager ``[scientific]`` gate).
 
 Public surface
 --------------
@@ -39,12 +43,10 @@ Public surface
 """
 from __future__ import annotations
 
-# Scientific tier: numpy is optional as of v0.7.0 (the cascade core is numpy-
-# free). Fail with an actionable [scientific] hint, not a bare numpy error.
-from srmech._scientific import require_numpy as _require_numpy
-
-_require_numpy("srmech.rbs_lm")
-
+# numpy-free as of v0.7.5rc113 (#564 carrier arc): the encode path is the
+# framework-native HV surface, and the three former numpy-RNG sites run on the
+# stdlib `random` stream. No eager `_require_numpy` gate — `import
+# srmech.rbs_lm` succeeds with numpy genuinely absent.
 from .substrate import (
     ContextSubstrate,
     encode_bigram_l1,
