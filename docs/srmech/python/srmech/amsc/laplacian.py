@@ -136,6 +136,9 @@ __all__ = [
     "mat_lstsq",
     "mat_eigvals",
     "mat_svd",
+    "mat_norm",
+    "mat_dot_real",
+    "mat_dot_complex",
     "dense_dot_complex",
     "dense_matmul_real",
     "dense_matvec_real",
@@ -2004,6 +2007,88 @@ def mat_svd(a: "Mat") -> Tuple["Mat", List[float], "Mat"]:
     return U, S, Vh
 
 
+# ── Mat-carrier numpy-FREE norm + dot (rc114 foundation; #564) ───────────────
+#
+# ``dense_norm`` / ``dense_dot_real`` / ``dense_dot_complex`` are numpy CARRIERS
+# (they call ``np.ascontiguousarray`` / ``np.iscomplexobj`` / the elementwise-
+# multiply cascade over numpy arrays) and RAISE on a numpy-absent install — the
+# rc70 *runnable ≠ loadable* trap. Nothing in the tree computed ‖x‖ or a·b over
+# the numpy-free :class:`Mat` / :class:`HV` carriers. These three close that gap:
+# the consumer-flips (qm Clifford / unitarity / η-Hermiticity residuals, so8
+# Gram-Schmidt) route their norms / dots through these instead of the dense_*
+# carriers, so they run with **no numpy present at all**. Value-faithful to the
+# dense_* / numpy peers to ~1 ULP (same float sum-of-products), NOT bit-exact.
+
+
+def _iter_mat_scalars(v):
+    """Yield plain ``float`` / ``complex`` scalars from a :class:`Mat` / :class:`HV`
+    / flat sequence (row-major, flattened) — numpy-FREE. The single coercion the
+    Mat-carrier norm / dot reductions share."""
+    from .mat import Mat
+    if isinstance(v, Mat):
+        buf = v.buffer
+        if v.is_complex:
+            for k in range(0, len(buf), 2):
+                yield complex(buf[k], buf[k + 1])
+        else:
+            for x in buf:
+                yield float(x)
+        return
+    seq = v.tolist() if hasattr(v, "tolist") else v  # HV / list / tuple / array / 1-D ndarray
+    for x in seq:
+        yield x
+
+
+def mat_norm(x) -> float:
+    """Euclidean (vector 2-norm) / Frobenius (matrix) norm ``‖x‖ = √(Σ|xᵢ|²)`` →
+    ``float`` — the **numpy-FREE** peer of :func:`dense_norm`.
+
+    Accepts a :class:`Mat` (Frobenius over all elements), an :class:`HV`, or a
+    flat real/complex sequence (vector 2-norm). Sums ``|xᵢ|²`` over a pure-Python
+    reduction — for complex ``z`` the squared modulus is ``z.real² + z.imag²``
+    (NO ``abs()``, NO ``math.hypot``) — then takes the libm-free **Class-N**
+    :func:`srmech.amsc.rational.sqrt` root. Value-faithful to :func:`dense_norm`
+    / the NumPy 2-norm to round-off (~1 ULP); empty → ``0.0``.
+
+    **Class N** (``rational.sqrt`` root) ∘ **Class M** (the ``Σ|xᵢ|²`` self-bind).
+    Canonical SSoT: Golub & Van Loan §2.3 (vector / Frobenius norms)."""
+    total = 0.0
+    for s in _iter_mat_scalars(x):
+        if isinstance(s, complex):
+            total += s.real * s.real + s.imag * s.imag
+        else:
+            sv = float(s)
+            total += sv * sv
+    return _rsqrt(total) if total > 0.0 else 0.0
+
+
+def mat_dot_real(a, b) -> float:
+    """Real bilinear inner product ``Σ aᵢ bᵢ`` → ``float`` — the **numpy-FREE**
+    peer of :func:`dense_dot_real` over :class:`Mat` / :class:`HV` / flat
+    sequences (pure-Python reduction; the elements are flattened row-major).
+
+    Canonical SSoT: Golub & Van Loan §1.1 (textbook inner product)."""
+    total = 0.0
+    for x, y in zip(_iter_mat_scalars(a), _iter_mat_scalars(b)):
+        total += float(x.real if isinstance(x, complex) else x) * float(
+            y.real if isinstance(y, complex) else y
+        )
+    return total
+
+
+def mat_dot_complex(a, b) -> complex:
+    """Complex **bilinear** inner product ``a · b = Σ aᵢ bᵢ`` → ``complex`` — the
+    **numpy-FREE** peer of :func:`dense_dot_complex`. Plain bilinear (matching
+    NumPy ``a·b`` on two 1-D arrays, **NOT** the Hermitian ``vdot`` that
+    conjugates its first argument — callers wanting the Hermitian form pass
+    ``a.conj()`` explicitly, exactly as the η-sandwich sites already spell it).
+    Pure-Python reduction over the flattened :class:`Mat` / :class:`HV` / sequence."""
+    total = 0j
+    for x, y in zip(_iter_mat_scalars(a), _iter_mat_scalars(b)):
+        total += complex(x) * complex(y)
+    return total
+
+
 def dense_dot_complex(a: np.ndarray, b: np.ndarray) -> complex:
     """Dense complex bilinear inner product ``a · b = Σ aᵢ bᵢ``.
 
@@ -2786,6 +2871,9 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "mat_lstsq",
     "mat_eigvals",
     "mat_svd",
+    "mat_norm",
+    "mat_dot_real",
+    "mat_dot_complex",
     "dense_dot_complex",
     "dense_matmul_real",
     "dense_matvec_real",
