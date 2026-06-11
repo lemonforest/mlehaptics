@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc103] - 2026-06-11
+
+**Sixth CONSUMER carrier-flip — `fsk` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 27 → 26).** Carrier-removal #564. The FSK (frequency-shift-keying) modulator/demodulator — educational civilian-comms textbook reference per the trauma-informed defensive scope — flips numpy-free:
+
+- The per-symbol tone phases `e^{i·2π·f·t}` route off the numpy-carrier `elementwise_transcendental(·, "exp_i")` onto a per-element Class-N `_exp_i(θ) = complex(rational.cos(θ), rational.sin(θ))` over the substrate-native `_PI = pi_cascade_digits(30)` source (native libm-free, bit-faithful to the prior path). The demodulator correlator bank becomes a pure-Python complex matvec `corr_k = Σ_j tone[k][j]·conj(window[j])` whose nearest-tone decision is `argmax|corr|²` — monotone in `|corr|`, so **no `sqrt` and no `abs()`** (drops the `dense_matvec_complex` + `elementwise_hypot` carriers too). Inputs coerce numpy-free via `tolist()`. The top-level `import numpy as np` is **gone**; modulate returns `list[complex]`, demodulate returns `list[int]` (was ndarrays).
+- **Differential-verified**: modulate is bit-faithful to the `e^{i2πft}` reference (max-err ~1e-16); a noiseless demod round-trip recovers the symbol stream exactly, and a 0.01-noise sweep over 300 random `(M, samples_per_symbol)` configs misclassifies <0.1% of symbols (noise-edge, not the routing). The one `waveform.shape == (4*8,)` smoke moves to `len(waveform) == 4*8`.
+
+`CEIL_NUMPY_CARRIER` 27 → 26 (down-only ratchet). The math-ratchet ledger is untouched (fsk's `np.pi` constant / `np.conj` / `np.argmax` + the named `elementwise_*`/`dense_matvec_complex` helpers match none of the counted linalg/fft/matmul/ufunc patterns — and the op now uses no numpy at all). fsk's `rosetta_classification.ndjson` bucket stays `python_only_irreducible` (still a Python op with no C peer). No new public op (`describe()["tools"]["total"]` stays **289**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc102] - 2026-06-11
 
 **Fifth CONSUMER carrier-flip — `map_ml` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 28 → 27).** Carrier-removal #564. The same real-solve family as `lmmse`: the linear-Gaussian MAP / ML estimator `x_hat = (Aᵀ R_v⁻¹ A + R_x⁻¹)⁻¹ (Aᵀ R_v⁻¹ y + R_x⁻¹ μ)` (Kay 1993 §7 / §11):

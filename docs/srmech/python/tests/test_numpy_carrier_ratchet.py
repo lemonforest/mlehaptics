@@ -184,7 +184,13 @@ import srmech
 # numpy-carrier dense_solve onto native mat_solve over real Mats, A^T R_v^{-1}
 # rides mat_matmul, and the matvecs are pure-Python sums (drops `import numpy as
 # np`; returns list of float). 28 -> 27.
-CEIL_NUMPY_CARRIER = 27
+# rc103: fsk (the FSK modulator/demodulator) goes numpy-FREE — the per-symbol
+# tone phases e^{i·2π·f·t} route off the numpy-carrier elementwise_transcendental
+# onto the Class-N rational.cos/sin cascade over `_PI` (the `_exp_i` helper), and
+# the demod correlator bank is a pure-Python complex matvec deciding on
+# argmax|corr|² (no sqrt / no abs); modulate returns list[complex], demod returns
+# list[int] (drops `import numpy as np`). 27 -> 26.
+CEIL_NUMPY_CARRIER = 26
 
 
 def _srmech_root() -> pathlib.Path:

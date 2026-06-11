@@ -10,6 +10,13 @@ for the symbol-period quantisation) composition.
 The closed-form reference synthesises a complex baseband FSK waveform
 with rational frequency-ratio shifts.
 
+Carrier-removal #564 (rc103): numpy-FREE — the per-symbol tone phases
+``e^{i·2π·f·t}`` route through the Class-N ``rational.cos`` / ``rational.sin``
+cascade over the substrate-native ``_PI`` source (``_exp_i``, native
+libm-free), and the demodulator correlator bank is a pure-Python complex
+matvec whose nearest-tone decision is ``argmax|corr|²`` (monotone in ``|corr|``,
+so no ``sqrt`` and no ``abs()``). No top-level ``import numpy``.
+
 Path B dual in Phase 6 (Path B Class N rational frequency).
 
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Proakis &
@@ -18,13 +25,9 @@ Salehi (2008, 5th ed.) *Digital Communications* §4.5 (FSK).
 
 from __future__ import annotations
 
-import numpy as np
+from typing import List
 
-from srmech.amsc.laplacian import (
-    dense_matvec_complex,
-    elementwise_hypot,
-    elementwise_transcendental,
-)
+from srmech.amsc import rational as _srn
 
 OPERATION_NAME = "fsk"
 CLASS_COMPOSITION = ("N", "I")
@@ -33,6 +36,25 @@ SSOT_CITATION = (
     "Proakis & Salehi (2008, 5th ed.), 'Digital Communications', McGraw-Hill, "
     "§4.5 (FSK modulation). Educational civilian-comms textbook reference."
 )
+
+# Class-N π cascade (Archimedes hexagon-doubling, Spike #32) — the substrate-
+# native π source for the FSK tone phases; NOT math.pi / np.pi.
+_PI = float(_srn.pi_cascade_digits(30))
+
+
+def _exp_i(theta: float) -> complex:
+    """``e^{iθ} = cos θ + i·sin θ`` via the Class-N rational trig cascade.
+
+    Bit-faithful to the prior ``elementwise_transcendental(·, 'exp_i')`` path
+    (both run the same native libm-free ``rational.cos`` / ``rational.sin``
+    range-reduced cascade); numpy-free.
+    """
+    return complex(_srn.cos(theta), _srn.sin(theta))
+
+
+def _as_list(v) -> list:
+    """Coerce an array-like to a plain Python list (numpy-free)."""
+    return v.tolist() if hasattr(v, "tolist") else list(v)
 
 
 def op(
@@ -64,36 +86,45 @@ def op(
 
     Returns
     -------
-    Modulate: complex baseband waveform of length ``len(symbols) *
+    Modulate: ``list`` of complex baseband samples of length ``len(symbols) *
     samples_per_symbol``.
-    Demodulate: integer symbol-index array of length ``len(samples) /
+    Demodulate: ``list`` of integer symbol indices of length ``len(samples) /
     samples_per_symbol``.
     """
-    freqs = np.asarray(frequencies, dtype=np.float64)
-    M = freqs.shape[0]
-    n = samples_per_symbol
-    t = np.arange(n) / fs
+    freqs = [float(f) for f in _as_list(frequencies)]
+    M = len(freqs)
+    n = int(samples_per_symbol)
+    t = [k / fs for k in range(n)]
 
     if demodulate:
-        signal = np.asarray(symbols, dtype=np.complex128)
-        n_syms = signal.shape[0] // n
-        out = np.zeros(n_syms, dtype=np.int64)
-        # Class I: correlator bank over the M tones.
-        tones = np.array(
-            [elementwise_transcendental(2.0 * np.pi * fk * t, "exp_i") for fk in freqs],
-            dtype=np.complex128,
-        )
+        signal = [complex(z) for z in _as_list(symbols)]
+        n_syms = len(signal) // n
+        # Class I: correlator bank over the M tones (M × n).
+        tones = [[_exp_i(2.0 * _PI * fk * tk) for tk in t] for fk in freqs]
+        out: List[int] = []
         for i in range(n_syms):
             window = signal[i * n : (i + 1) * n]
-            _c = dense_matvec_complex(tones, np.conj(window))
-            corrs = elementwise_hypot(_c.real, _c.imag)  # |z| = hypot(real,imag) (no abs())
-            out[i] = np.argmax(corrs)
+            # corr_k = Σ_j tones[k][j]·conj(window[j]); decide on argmax|corr|²
+            # (monotone in |corr| = hypot(re, im), so no sqrt / no abs()).
+            best_k = 0
+            best_mag2 = -1.0
+            for k in range(M):
+                c = 0j
+                for j in range(n):
+                    c += tones[k][j] * window[j].conjugate()
+                mag2 = c.real * c.real + c.imag * c.imag
+                if mag2 > best_mag2:
+                    best_mag2 = mag2
+                    best_k = k
+            out.append(best_k)
         return out
 
-    syms = np.asarray(symbols, dtype=np.int64)
-    if np.any(syms < 0) or np.any(syms >= M):
-        raise ValueError(f"symbols must be in [0, {M})")
-    out = np.zeros(syms.shape[0] * n, dtype=np.complex128)
-    for i, s in enumerate(syms):
-        out[i * n : (i + 1) * n] = elementwise_transcendental(2.0 * np.pi * freqs[s] * t, "exp_i")
-    return out
+    syms = [int(s) for s in _as_list(symbols)]
+    for s in syms:
+        if s < 0 or s >= M:
+            raise ValueError(f"symbols must be in [0, {M})")
+    out_c: List[complex] = []
+    for s in syms:
+        fk = freqs[s]
+        out_c.extend(_exp_i(2.0 * _PI * fk * tk) for tk in t)
+    return out_c

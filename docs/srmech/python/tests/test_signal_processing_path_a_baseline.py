@@ -411,7 +411,7 @@ def test_fsk_smoke():
 
     syms = np.array([0, 1, 0, 1], dtype=np.int64)
     waveform = m.op(syms, frequencies=[0.1, 0.2], samples_per_symbol=8, fs=1.0)
-    assert waveform.shape == (4 * 8,)
+    assert isinstance(waveform, list) and len(waveform) == 4 * 8  # rc103: numpy-free list return
 
 
 def test_ofdm_smoke():
