@@ -228,7 +228,16 @@ import srmech
 # eps-floor → `_sc.ifft` → real part). Both drop `import numpy as np` and return
 # python lists (were ndarrays); the math ledger is untouched (the math was already
 # cascade-routed; only the carrier `np.asarray`/`np.maximum`/`np.real` go). 21 -> 19.
-CEIL_NUMPY_CARRIER = 19
+# rc111: jpeg (block-DCT image compression) goes numpy-FREE — the LAST clean DSP
+# carrier flip. The block transform already ran numpy-free via the rc104 `dct.op`
+# (list-of-lists); jpeg now carries the 2-D image as nested Python lists end-to-
+# end: list-of-lists quant table, per-element Wallace quality scaling (`int(...)`
+# = exact floor for the non-negative `(luma·scale+50)/100`), Class-K quantise via
+# `round` (round-half-to-even, == np.round), and nested-list encode/decode block
+# loops. Drops `import numpy as np` + the `_dct` np.asarray wrapper; encode returns
+# list-of-list-of-lists, decode returns a 2-D list (were ndarrays). Math ledger
+# untouched (the DCT was already cascade-routed). 19 -> 18.
+CEIL_NUMPY_CARRIER = 18
 
 
 def _srmech_root() -> pathlib.Path:

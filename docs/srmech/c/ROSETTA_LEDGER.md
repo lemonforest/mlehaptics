@@ -821,6 +821,23 @@ decrements it).
   `out.real[1]`→`out[1].real` (baseline smoke + rc33 diffuse-toward-mean). Math
   ledger UNTOUCHED. No new public op (tools.total 289); ABI 3; no C change.
   Next: lmmse/map_ml, dct/fsk, then the mat_svd foundation for mimo_svd.
+- **rc111 (done, v0.7.5rc111) — FOURTEENTH CONSUMER flip: `jpeg` numpy-FREE, the
+  LAST clean DSP carrier flip (`CEIL_NUMPY_CARRIER` 19 → 18).** Carrier-removal
+  #564. The block-DCT image compressor (Class L∘K∘B): the block transform already
+  ran numpy-free via the rc104 `dct.op` (list-of-lists), so jpeg now carries the
+  2-D image as nested Python lists end-to-end — list-of-lists quant table,
+  per-element Wallace quality scaling (`int(...)` = exact floor for the non-
+  negative `(luma·scale+50)/100`), Class-K quantise via `round` (round-half-to-
+  even == np.round), nested-list encode/decode block loops (drops the `_dct`
+  np.asarray wrapper). Drops `import numpy as np`; encode returns list-of-list-of-
+  lists, decode returns a 2-D list (were ndarrays). VALUE-FAITHFUL (DCT basis is
+  the Class-N rational.cos cascade, ~1e-9): verified by an encode→decode round-
+  trip (RMS≈0.58 @ q=75) + numpy-absent subprocess run. CARRIER-ONLY → math
+  ledger untouched. No new public op (tools.total 290); ABI 3; no C change.
+  **The clean-DSP carrier-flip phase of #564 is now COMPLETE.** Remaining: the qm
+  matrix layer (TOML `[class]` reframe / lossy-peer delete, rc75 Hurwitz precedent
+  — NOT per-module flips) + a linalg-consolidation pass to retire the duplicate
+  `mat_*` / `matrix_cascades` SVD paths.
 - **rc110 (done, v0.7.5rc110) — TWELFTH + THIRTEENTH CONSUMER flips: the two
   Path B DSP duals numpy-FREE (`CEIL_NUMPY_CARRIER` 21 → 19).** Carrier-removal
   #564. Both are clean leaf flips of ops whose Path A twins already went numpy-

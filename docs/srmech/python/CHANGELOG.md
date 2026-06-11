@@ -8,6 +8,17 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc111] - 2026-06-11
+
+**Fourteenth CONSUMER carrier-flip — `jpeg` goes numpy-FREE, the LAST clean DSP carrier flip (`CEIL_NUMPY_CARRIER` 19 → 18).** Carrier-removal #564. The block-DCT image compressor (Class L ∘ K ∘ B):
+
+- The block transform already ran numpy-free through the rc104 `dct.op` (returns a list-of-lists); `jpeg` now carries the 2-D image as **nested Python `list`s end-to-end**. The canonical luminance quantisation table becomes a plain list-of-lists; the Wallace quality scaling is per-element (`int(...)` is exact floor for the non-negative `(luma·scale + 50)/100`); the Class-K quantise is `round(coeff / qt)` (Python `round` is round-half-to-even — bit-identical to `np.round`); and the encode/decode block loops index nested lists directly (the `_dct` `np.asarray` consumer-boundary wrapper is removed).
+- Drops `import numpy as np`. **Encode** returns `(quant_blocks, shape, quant_table)` with `quant_blocks` a `list` of 8×8 integer list-of-lists and `quant_table` a list-of-lists; **decode** returns a 2-D `list` (both were ndarrays). Inputs coerce numpy-free via `tolist()`.
+
+Value-faithful to the prior matrix path (the DCT basis is the Class-N `rational.cos` cascade, value-faithful to ~1e-9): verified by an encode→decode round-trip (RMS ≈ 0.58 at quality 75, quantisation-bounded) and a numpy-absent subprocess run. The `test_jpeg_smoke` `len(quant_blocks) == 4` assertion is unchanged. **Carrier-only** — the math was already cascade-routed, so the math-ratchet ledger is **untouched**. No new public op (`describe()["tools"]["total"]` stays **290**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
+With `jpeg` flipped, the clean-DSP carrier-flip phase of #564 is complete; the remaining carriers are the qm matrix layer (resolved via the TOML `[class]` reframe / lossy-peer deletion, the rc75 Hurwitz precedent — *not* per-module flips) plus a linalg-consolidation pass to retire the duplicate `mat_*` / `matrix_cascades` SVD paths.
+
 ## [0.7.5rc110] - 2026-06-11
 
 **Twelfth + thirteenth CONSUMER carrier-flips — the two Path B DSP duals go numpy-FREE (`CEIL_NUMPY_CARRIER` 21 → 19).** Carrier-removal #564. Both are clean leaf flips of ops whose Path A counterparts already went numpy-free (rc80 `matched_filter`, rc87 `wiener`):
