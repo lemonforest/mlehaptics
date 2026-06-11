@@ -53,7 +53,13 @@ import srmech
 # _dsp.convolve / _dsp.correlate (which coerce + 1-D-check + return a list); their
 # only prior numpy was the np.asarray return-wrap, now removed. They return lists;
 # the 2 smoke tests move .shape -> len. 48 -> 46.
-CEIL_NUMPY_CARRIER = 46
+# rc81: wavelet (Haar DWT) flips numpy-free. Its only numpy was np.asarray/np.zeros
+# carriers (the 1/sqrt(2) normaliser was already the libm-free Class-N rational.sqrt);
+# now a plain-list carrier with explicit elementwise Class-L 2-point sum/difference
+# over the dyadic Class-N decimation, one-zero pad for odd lengths. Returns
+# (approx_list, [detail_lists]); the smoke test already checks isinstance(details,
+# list)+len, so zero test ripple. 46 -> 45.
+CEIL_NUMPY_CARRIER = 45
 
 
 def _srmech_root() -> pathlib.Path:
