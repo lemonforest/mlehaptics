@@ -550,7 +550,7 @@ def test_esprit_smoke():
     a = np.exp(1j * np.pi * np.arange(M) * 0.3)
     R += np.outer(a, a.conj())
     eigs = m.op(R, n_sources=1)
-    assert eigs.shape == (1,)
+    assert isinstance(eigs, list) and len(eigs) == 1  # rc98: numpy-free list return
 
 
 def test_lmmse_smoke():

@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc98] - 2026-06-11
+
+**First CONSUMER carrier-flip on the completed Mat foundation — `esprit` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 32 → 31).** Carrier-removal #564. The Mat foundation is now complete (Hermitian rc74 + linear-system rc95/rc96 + general-eig rc97), so the matrix-heavy DSP ops can finally flip. `esprit` (the ESPRIT rotational-invariance DOA/frequency estimator) is the first:
+
+- Its three matrix steps route off the numpy-carrier `matrix_cascades` stack onto the **native Mat trio**: the Hermitian eigendecomposition → `mat_hermitian_eigendecompose`, the signal-subspace least-squares `Phi` → `mat_lstsq`, and the rotation-extraction eigenvalues → `mat_eigvals`. The signal-subspace column-select / shifted-subarray row-slices become plain `Mat.from_rows` over `mat[i, j]`; `np.argsort` becomes a pure-Python `sorted(range, key=…, reverse=True)`. The top-level `import numpy as np` is **gone**, so esprit runs with numpy genuinely absent (a runnable flip riding the native foundation, not the load-only rc70 trap). `op` now returns a `list[complex]` (was an ndarray).
+- **Differential-verified value-faithful** to the numpy-present reference: clean single-tone DOA recovery within 1e-3, and the trace/determinant invariants of the recovered rotation spectrum match. The two `eigs.shape == (1,)` smoke tests move to `len(eigs) == 1`; esprit graduates out of the rc63 "cascade-routed" check (it's now numpy-free, a strictly stronger guarantee).
+
+`CEIL_NUMPY_CARRIER` 32 → 31 (down-only ratchet). No new public op (`describe()["tools"]["total"]` stays **289**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc97] - 2026-06-11
 
 **Mat-return foundation #3 — `mat_eigvals`, numpy-free general (non-Hermitian) eigenvalues over the Mat carrier.** Carrier-removal #564. `mat_hermitian_eigendecompose` (rc74) + `mat_solve` (rc95) + `mat_lstsq` (rc96) cover the Hermitian + linear-system cases; this closes the **general non-Hermitian** eigenproblem so esprit's general-eig route can flip off the numpy-carrier `matrix_cascades` stack. New public `amsc.laplacian.mat_eigvals(a: Mat) -> list[complex]`:

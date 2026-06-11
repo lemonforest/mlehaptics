@@ -74,10 +74,14 @@ def test_eigvals_max_imag_matches_numpy():
 # 2. no residual np.linalg.qr / np.linalg.eigvals callsites in routed modules
 # ---------------------------------------------------------------------------
 
+# NOTE (rc98, carrier-removal #564): esprit GRADUATED off the matrix_cascades
+# (_mc) cascade route onto the NATIVE Mat-carrier foundation — it now routes
+# through mat_hermitian_eigendecompose / mat_lstsq / mat_eigvals and is numpy-FREE
+# (no top-level ``import numpy`` at all), a strictly stronger guarantee than the
+# rc63 "cascade-routed" check below. So esprit is no longer in this dict.
 _ROUTED = {
     "qm/so8.py": r"\bnp\.linalg\.qr\s*\(",
     "qm/pseudo_hermitian.py": r"\bnp\.linalg\.eigvals\s*\(",
-    "signal_processing/closed_form_ops/esprit.py": r"\bnp\.linalg\.eigvals\s*\(",
 }
 
 

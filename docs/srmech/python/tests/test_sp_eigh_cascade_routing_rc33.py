@@ -113,7 +113,7 @@ def test_esprit_recovers_single_tone_frequency():
     # Rank-1 signal covariance + small white floor (clean single source).
     R = np.outer(a, a.conj()) + 0.01 * np.eye(M, dtype=np.complex128)
     eigs = esprit.op(R, n_sources=1)
-    assert eigs.shape == (1,)
+    assert isinstance(eigs, list) and len(eigs) == 1  # rc98: numpy-free list return
     # Phi-eigenvalue phase == exp(j*pi*omega); recover omega from its angle.
     est_omega = np.angle(eigs[0]) / np.pi
     # Class-K sign-branch (no abs()): both signs are valid ESPRIT roots.

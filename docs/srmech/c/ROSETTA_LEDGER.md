@@ -771,6 +771,24 @@ decrements it).
   stays 32; ABI 3; no C change. Closes the Hermitian (rc74) + linear-system
   (rc95/96) + general-eig (rc97) Mat foundation — next: ROUTE esprit through the
   three `mat_*` ops.
+- **rc98 (done, v0.7.5rc98) — FIRST CONSUMER flip on the completed Mat
+  foundation: `esprit` numpy-FREE (`CEIL_NUMPY_CARRIER` 32 → 31).**
+  Carrier-removal #564. With the Mat trio complete (rc74/95/96/97), the
+  matrix-heavy `signal_processing/closed_form_ops/esprit` flips: its three matrix
+  steps route off the numpy-carrier `matrix_cascades` stack onto the native
+  `mat_hermitian_eigendecompose` (Class L eig) + `mat_lstsq` (signal-subspace LS
+  Phi) + `mat_eigvals` (Class K rotation eigenvalues); the column-select /
+  row-slice are plain `Mat.from_rows` over `mat[i,j]`, `np.argsort` → pure-Python
+  `sorted(...,reverse=True)`. Top-level `import numpy as np` GONE → runs numpy
+  genuinely absent (a runnable flip on the native foundation, NOT the load-only
+  rc70 trap). `op` returns `list[complex]` (was ndarray). Differential-verified:
+  single-tone DOA within 1e-3 + trace/det invariants match. The two `eigs.shape
+  == (1,)` smoke tests → `len(eigs) == 1`; esprit graduates out of the rc63
+  cascade-routed `_ROUTED` check (now numpy-free, strictly stronger). No new
+  public op (tools.total stays 289); ABI 3; no C change. Next: the remaining
+  matrix-heavy consumers (dct/fsk/music/mlse/psk_qam/heat_kernel/ica_jade/lmmse/
+  map_ml/vector_quantisation; mimo_svd needs a `mat_svd` foundation op first)
+  reuse the same mat_* trio, each decrementing CEIL.
 - **rc95 (done, v0.7.5rc95) — Mat-return FOUNDATION: `mat_solve` handles
   COMPLEX numpy-free (unblocks the matrix-heavy DSP carrier-flips).**
   Carrier-removal #564. The matrix-heavy sigproc ops (esprit/dct/fsk/ica_jade/

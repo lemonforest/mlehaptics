@@ -156,7 +156,13 @@ import srmech
 # {-1,0,+1} (was an int8 ndarray); bit-exact to the old decision. The Spike #174
 # path_b_mvp BER test already wraps the dispatch result in np.asarray(dtype=int8)
 # before .tobytes()/.astype(), so it's robust to the list return. 33 -> 32.
-CEIL_NUMPY_CARRIER = 32
+# rc98 (#564): FIRST CONSUMER flip riding the completed Mat foundation —
+# closed_form_ops/esprit goes numpy-FREE by routing its three matrix steps
+# through the native mat_hermitian_eigendecompose / mat_lstsq / mat_eigvals trio
+# (drops `import numpy as np`; argsort -> pure-Python sorted; returns list of
+# complex). The Mat foundation (rc74/95/96/97) is what made this runnable, not
+# just loadable (the rc70 trap). 32 -> 31.
+CEIL_NUMPY_CARRIER = 31
 
 
 def _srmech_root() -> pathlib.Path:
