@@ -203,7 +203,13 @@ import srmech
 # distance Σ_j (x_j − c_j)² (the matmul cross-term trick is unnecessary for an
 # argmin); inputs coerce via tolist(); encode returns list[int], decode returns a
 # list-of-rows (drops `import numpy as np` + dense_matmul_real). 25 -> 24.
-CEIL_NUMPY_CARRIER = 24
+# rc106: psk_qam (PSK/QAM constellation map) goes numpy-FREE — the PSK points
+# route through _exp_i (rational.cos/sin over the substrate-native _PI), the QAM
+# grid is pure-Python Gray levels (√M via rational.sqrt), and the demod decision
+# is argmin over the squared Euclidean distance |received − const|² (monotone in
+# |·|, so no hypot/sqrt/abs); inputs coerce via tolist(); op returns python lists
+# (drops `import numpy as np`). 24 -> 23.
+CEIL_NUMPY_CARRIER = 23
 
 
 def _srmech_root() -> pathlib.Path:
