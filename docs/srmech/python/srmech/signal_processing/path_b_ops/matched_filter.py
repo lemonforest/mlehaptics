@@ -126,7 +126,9 @@ def op(
     # numerically equivalent to NumPy correlation; the substrate-natural
     # implementation matches Path A bit-exactly on real-valued inputs
     # up to floating-point round-off.
-    return _dsp.correlate(sig, tmpl, mode=mode)
+    # _dsp.correlate is numpy-free (returns a list); wrap to preserve the
+    # ndarray return contract (this op still imports numpy as a carrier).
+    return np.asarray(_dsp.correlate(sig, tmpl, mode=mode))
 
 
 def _register() -> None:

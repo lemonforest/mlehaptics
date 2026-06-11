@@ -740,6 +740,20 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc79 (done, v0.7.5rc79) — carrier-flip batch #3: the DSP convolution
+  foundation `_dsp_cascades` goes numpy-FREE (CEIL_NUMPY_CARRIER 49 → 48).**
+  Carrier-removal #564. `signal_processing/_dsp_cascades` (internal `convolve` /
+  `correlate`, the Class I ∘ Class M cascade) was numpy-free as a MATH engine
+  since rc58 but still carried numpy (`np.ascontiguousarray` / `np.zeros` /
+  `np.conj` / `np.result_type`). Now a plain-`list` buffer (`[0]*N` promotes
+  int→float→complex exactly; the shift is a list slice; the conjugate is the
+  element's own `.conjugate()`), accumulation order unchanged → floats
+  bit-faithful (rc58 bit-test still green). `convolve`/`correlate` return a
+  `list`; the 5 consumers (`fir`/`matched_filter`/`multirate`/`polyphase` +
+  `path_b matched_filter`) wrap in `np.asarray` at their own boundary,
+  preserving ndarray behaviour (zero value change). Unblocks `fir`+
+  `matched_filter` to flip next. No new public op (describe tools.total stays
+  287, classes 2); ABI 3; no C change.
 - **rc78 (done, v0.7.5rc78) — carrier-flip batch #2: `signal_processing`
   `farrow` goes numpy-FREE (CEIL_NUMPY_CARRIER 50 → 49).** Carrier-removal #564.
   `closed_form_ops/farrow` (Class N — cubic-Lagrange fractional-delay Farrow
