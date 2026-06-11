@@ -438,7 +438,8 @@ def test_viterbi_smoke():
     pi = np.log(np.array([0.5, 0.5]))
     obs = np.array([0, 0, 1, 1, 1])
     path = m.op(obs, A, B, pi)
-    assert path.shape == (5,)
+    # rc83: viterbi is numpy-free now (list carrier per #564) -> len, not .shape
+    assert len(path) == 5
     # Expected: states track observations.
     assert np.array_equal(path, np.array([0, 0, 1, 1, 1]))
 
