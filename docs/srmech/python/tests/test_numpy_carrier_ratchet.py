@@ -149,7 +149,14 @@ import srmech
 # green). Value-faithful to machine eps (maxerr 1.1e-16; identity/scalar paths bit-exact
 # 0.0). op returns a list of complex (or a single complex for a scalar target); the
 # baseline smoke `.shape` -> isinstance/len. 34 -> 33.
-CEIL_NUMPY_CARRIER = 33
+# rc94: path_b_ops/sign_quantise flips numpy-free (Class-K pin-slot ∘ Class-M
+# dispatch tag; Spike #174 sign-quantise BER anchor). Pure carrier — np.asarray/
+# np.zeros_like/np.where with NO helper deps; the np.where IS the Class-K sign-
+# branch, now an explicit per-element if/else (no abs()). Returns a list of int
+# {-1,0,+1} (was an int8 ndarray); bit-exact to the old decision. The Spike #174
+# path_b_mvp BER test already wraps the dispatch result in np.asarray(dtype=int8)
+# before .tobytes()/.astype(), so it's robust to the list return. 33 -> 32.
+CEIL_NUMPY_CARRIER = 32
 
 
 def _srmech_root() -> pathlib.Path:

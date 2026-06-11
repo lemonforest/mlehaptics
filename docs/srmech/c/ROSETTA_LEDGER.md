@@ -740,6 +740,16 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc94 (done, v0.7.5rc94) — carrier-flip batch #18: `path_b_ops/sign_quantise`
+  goes numpy-FREE (CEIL_NUMPY_CARRIER 33 → 32).** Carrier-removal #564. The
+  Path-B sign-quantise (Class K pin-slot ∘ Class M dispatch tag; Spike #174 BER
+  anchor) drops top-level `import numpy`. Pure carrier — `np.asarray`/
+  `np.zeros_like`/`np.where`, no helper deps; the `np.where` IS the Class-K sign-
+  branch, now an explicit per-element if/else (no abs()). op returns a list of
+  int {-1,0,+1} (was int8 ndarray). BIT-EXACT to the old decision. The Spike #174
+  path_b_mvp BER test already wraps the dispatch result in np.asarray(dtype=int8)
+  before .tobytes()/.astype(), so it's robust. No new public op (describe
+  tools.total stays 287, classes 2); ABI 3; no C change.
 - **rc93 (done, v0.7.5rc93) — carrier-flip batch #17: `sinc_interp` goes
   numpy-FREE (CEIL_NUMPY_CARRIER 34 → 33).** Carrier-removal #564.
   `closed_form_ops/sinc_interp` (Class L band-limit eigenbasis ∘ Class K
