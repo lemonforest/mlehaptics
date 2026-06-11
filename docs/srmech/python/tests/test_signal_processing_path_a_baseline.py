@@ -197,7 +197,7 @@ def test_dct_smoke():
 
     x = np.arange(8, dtype=np.float64)
     X = m.op(x)
-    assert X.shape == (8,)
+    assert isinstance(X, list) and len(X) == 8  # rc104: numpy-free list return
 
 
 def test_wavelet_smoke():

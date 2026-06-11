@@ -8,6 +8,17 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc104] - 2026-06-11
+
+**Seventh CONSUMER carrier-flip — `dct` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 26 → 25).** Carrier-removal #564. The DCT-II / DCT-III (the JPEG / audio-codec cosine transform) flips numpy-free — the involved one of the batch, because it also has a `jpeg` consumer:
+
+- The cosine basis matrix `_dct_matrix` is built directly as a **list-of-lists** through the Class-N `rational.cos` cascade over the substrate-native `_PI = pi_cascade_digits(30)` source (no `np.cos` / `np.pi`); value-faithful to the `np.cos` matrix to ~1e-9. The transform is a pure-Python matvec (1-D) / per-axis row|column transform (2-D, `axis` 0/1/-1 — the jpeg block case). The old `scipy.fft.dct` fast-path is **dropped** (it required numpy as a carrier); the cascade DCT-matrix path IS the substrate-native realisation.
+- **DCT-III parity fix**: scipy's `norm=None` DCT-III weights the `x_0` term by **1**, not 2 (`y_k = x_0 + 2·Σ_{j≥1} M[k][j] x_j`), making it the exact inverse of DCT-II. The prior matrix-fallback's blanket `2.0·Σ` doubled it — a latent inconsistency that was masked because the op *preferred* the scipy path. The numpy-free `_transform` now matches scipy exactly for both types.
+- **`jpeg` consumer**: `jpeg` calls `dct_op` for its block DCT-II encode / DCT-III decode and expects ndarrays. jpeg is still a numpy carrier (it flips in its own later rc), so it now coerces dct's list return back to ndarray at a thin `_dct(...)` boundary wrapper (`np.asarray`). Values are bit-identical to the prior matrix path.
+- **Differential-verified**: dct 1-D and 2-D (both axes), DCT-II and DCT-III, all ~1e-14 vs `scipy.fft.dct(..., norm=None)`; the `jpeg` encode→decode round-trip recovers the image with RMSE 1.2 / 0.25 / 0.025 at quality 50 / 90 / 99 (clean lossy-quant behaviour). Ripples: `test_dct_smoke` / `test_dct_op_stable_and_invertible` `X.shape == (8,)` → `len`, `np.all(np.isfinite)` → `all(math.isfinite)`, `M @ x` → an explicit pure-Python matvec; the rc33 `_dct_matrix` basis tests' `cascade.shape` → `len`-based checks (`np.allclose(cascade, reference)` still coerces the list).
+
+`CEIL_NUMPY_CARRIER` 26 → 25 (down-only ratchet; only `dct` drops its `import numpy`, `jpeg` keeps its own). The math-ratchet ledger is untouched (`rational.cos` + pure-Python; no counted linalg/fft/matmul/ufunc patterns). No new public op (`describe()["tools"]["total"]` stays **289**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc103] - 2026-06-11
 
 **Sixth CONSUMER carrier-flip — `fsk` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 27 → 26).** Carrier-removal #564. The FSK (frequency-shift-keying) modulator/demodulator — educational civilian-comms textbook reference per the trauma-informed defensive scope — flips numpy-free:
