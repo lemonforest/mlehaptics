@@ -43,6 +43,16 @@ SSOT_CITATION = (
 _PI = float(_srn.pi_cascade_digits(30))
 
 
+def _ccos(a):
+    """Elementwise substrate-native cosine (Class-N rational cascade), numpy-free.
+
+    Replaces ``np.cos`` on the window-angle array — routes each angle through
+    ``srmech.amsc.rational.cos`` (pi-free range reduction); no ``np.cos`` /
+    ``math.cos`` in the call graph. Returns a plain ``list`` of ``float``.
+    """
+    return [_srn.cos(float(v)) for v in a]
+
+
 def _coherence(s_xy, s_xx, s_yy):
     """``|S_xy|² / max(S_xx·S_yy, eps)`` per bin (no ``abs()``; eps-floor is the
     builtin ``max``)."""
@@ -118,7 +128,8 @@ def op(
     # Hann window per segment: 0.5·(1 − cos(2π·nn/(N−1))) via the Class-N cascade.
     denom = max(frame_size - 1, 1)
     window = [
-        0.5 * (1.0 - _srn.cos(2.0 * _PI * nn / denom)) for nn in range(frame_size)
+        0.5 * (1.0 - c)
+        for c in _ccos([2.0 * _PI * nn / denom for nn in range(frame_size)])
     ]
     for i in range(n_frames):
         start = i * hop_size
