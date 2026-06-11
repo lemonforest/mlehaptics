@@ -317,7 +317,7 @@ def test_heat_kernel_smoke():
     )
     x = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.complex128)
     y = m.op(x, L, t=0.5)
-    assert y.shape == (4,)
+    assert isinstance(y, list) and len(y) == 4  # rc100: numpy-free list return
 
 
 def test_spectral_subtraction_smoke():

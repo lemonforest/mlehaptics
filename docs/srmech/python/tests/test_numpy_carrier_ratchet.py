@@ -167,7 +167,13 @@ import srmech
 # projection through native mat_hermitian_eigendecompose + mat_matmul (drops
 # `import numpy as np`; argsort -> pure-Python sorted; returns list of float).
 # 31 -> 30.
-CEIL_NUMPY_CARRIER = 30
+# rc100 (#564): THIRD CONSUMER flip — closed_form_ops/heat_kernel (graph
+# heat-kernel exp(-tL)·signal) goes numpy-FREE: eigendecomp through native
+# mat_hermitian_eigendecompose, the exp(-tλ) spectral filter through the Class-N
+# rational.exp cascade (real eigenvalues), the project/reconstruct matvecs as
+# pure-Python sums over the eigenvector Mat (drops `import numpy as np`; returns
+# list of complex). 30 -> 29.
+CEIL_NUMPY_CARRIER = 29
 
 
 def _srmech_root() -> pathlib.Path:

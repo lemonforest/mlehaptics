@@ -150,13 +150,13 @@ def test_heat_kernel_diffuses_toward_mean():
     sig = np.zeros(n, dtype=np.complex128)
     sig[0] = 1.0
     out = heat_kernel.op(sig, L, t=0.5)
-    assert out.shape == (n,)
+    assert isinstance(out, list) and len(out) == n  # rc100: numpy-free list return
     # Mass conservation: graph-Laplacian constant null-vector => sum preserved.
-    mass_err = out.real.sum() - sig.real.sum()
+    mass_err = sum(v.real for v in out) - sig.real.sum()
     assert mass_err * mass_err < 1e-18
     # Output is real (real Laplacian + real signal) and the impulse spread.
-    assert np.max(out.imag ** 2) < 1e-20
-    assert out.real[1] > 0.0  # diffused onto the neighbour
+    assert max(v.imag ** 2 for v in out) < 1e-20
+    assert out[1].real > 0.0  # diffused onto the neighbour
 
 
 def _abs_corr(u: np.ndarray, v: np.ndarray) -> float:
