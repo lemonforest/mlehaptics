@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc112] - 2026-06-11
+
+**Carrier-ratchet ACCURACY fix — `the_one` was a false positive (`CEIL_NUMPY_CARRIER` 19 → 18 → 17).** Carrier-removal #564, opening the qm-layer phase. NOT a carrier removal — a correction to the ratchet's *measurement*:
+
+- `amsc/cascade/one.py` (the exact-rational `the_one` generator) is **numpy-FREE at import** — its only numpy is a LAZY `require_numpy` inside the opt-in `One.to_numpy` / `One.to_matrix` float exports. But the ratchet's scanner used a naive `line.startswith("import numpy")` over *every* line, and a docstring that wrapped to `"import numpy lazily (the …"` at column 0 tripped it, so `the_one` was wrongly counted as a carrier.
+- The scanner is hardened to a real-import regex (`_is_numpy_import`): it matches `import numpy` / `import numpy as np` / `import numpy.sub` / `from numpy[.sub] import …` (optionally trailed by a comment) and **not** `import numpy <word>…` prose. `the_one` drops out of the count; the 17 genuine carriers (all real `import numpy as np`) are unchanged. The `one.py` docstring is also reworded defensively.
+
+Honest down-only decrement (the ratchet now reflects reality — `the_one` was never a carrier). No source op changed; `describe()["tools"]["total"]` stays **290**, `classes` **2**; ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin. The remaining **17** are the real carriers: the qm matrix layer (TOML `[class]` reframe / lossy-peer delete) + `rbs_lm` + `mcp/_coercion` + `spectral/__init__` + `ica_jade`.
+
 ## [0.7.5rc111] - 2026-06-11
 
 **Fourteenth CONSUMER carrier-flip — `jpeg` goes numpy-FREE, the LAST clean DSP carrier flip (`CEIL_NUMPY_CARRIER` 19 → 18).** Carrier-removal #564. The block-DCT image compressor (Class L ∘ K ∘ B):

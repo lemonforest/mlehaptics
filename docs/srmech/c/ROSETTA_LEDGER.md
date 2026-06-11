@@ -821,6 +821,19 @@ decrements it).
   `out.real[1]`→`out[1].real` (baseline smoke + rc33 diffuse-toward-mean). Math
   ledger UNTOUCHED. No new public op (tools.total 289); ABI 3; no C change.
   Next: lmmse/map_ml, dct/fsk, then the mat_svd foundation for mimo_svd.
+- **rc112 (done, v0.7.5rc112) — carrier-ratchet ACCURACY fix (`CEIL_NUMPY_CARRIER`
+  18 → 17); opens the qm-layer phase.** Carrier-removal #564. NOT a removal — a
+  measurement correction: `amsc/cascade/one.py` (the_one) is numpy-FREE at import
+  (its only numpy is a LAZY `require_numpy` inside `to_numpy`/`to_matrix`), but the
+  scanner's naive `startswith("import numpy")` over every line tripped on a
+  docstring that wrapped to "import numpy lazily (the…" at column 0. The scanner is
+  hardened to a real-import regex (`_is_numpy_import`: `import numpy[.sub][ as x]` /
+  `from numpy[.sub] import …`, NOT `import numpy <word>…` prose); the_one drops out.
+  The 17 genuine carriers (all real `import numpy as np`) are unchanged: the qm
+  matrix layer + rbs_lm{inference,substrate} + mcp/_coercion + spectral/__init__ +
+  ica_jade. Honest down-only (the ratchet now reflects reality). No source op
+  changed; tools.total 290; ABI 3; no C change. The qm layer is next via the TOML
+  `[class]` reframe (rc75 Hurwitz precedent), not per-module flips.
 - **rc111 (done, v0.7.5rc111) — FOURTEENTH CONSUMER flip: `jpeg` numpy-FREE, the
   LAST clean DSP carrier flip (`CEIL_NUMPY_CARRIER` 19 → 18).** Carrier-removal
   #564. The block-DCT image compressor (Class L∘K∘B): the block transform already
