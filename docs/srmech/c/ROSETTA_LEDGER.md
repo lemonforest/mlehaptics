@@ -740,6 +740,21 @@ decrements it).
   composition_of_c, __all__ + LAPLACIAN_OPS). ABI 3. Next linalg_fft batches:
   the np.fft.* family (→ spectral_cascades) and np.linalg.{svd,qr,eig,solve,inv}
   (→ matrix_cascades / laplacian decompositions).
+- **rc91 (done, v0.7.5rc91) — carrier-flip batch #15: `multitaper` goes
+  numpy-FREE (CEIL_NUMPY_CARRIER 36 → 35).** Carrier-removal #564.
+  `closed_form_ops/multitaper` (Class L DPSS eigenbasis ∘ Class M tapered-
+  periodogram bundle-average; Thomson 1982) drops top-level `import numpy`:
+  `scipy.signal.windows.dpss` is an EXTERNAL accelerator (needs numpy) → kept
+  LAZY inside the try; numpy-absent it raises ImportError and the op falls to the
+  fully numpy-free cosine-taper fallback (`_PI`+`_csin`→rational.sin tapers,
+  ℓ²-norm inline `rational.sqrt(Σvᵢ²)` since the old `dense_norm` helper is
+  numpy-carrier INTERNALLY). Per-taper |F|²=real²+imag² (no abs()) bundle-average
+  is an explicit list comp; `_sc.fft` returns List[complex]. Differential
+  scipy-dpss path BIT-EXACT (maxerr 0.0); fallback runs numpy-free → non-neg
+  floats. rc60 `np.linalg.norm`-absence + rc61 routed asserts stay green; the 3
+  op-smoke `.shape` asserts (rc33 ×2 + baseline) move to isinstance/len. Returns
+  a list of float. No new public op (describe tools.total stays 287, classes 2);
+  ABI 3; no C change.
 - **rc90 (done, v0.7.5rc90) — carrier-flip batch #14: `spectral_subtraction`
   goes numpy-FREE (CEIL_NUMPY_CARRIER 37 → 36).** Carrier-removal #564 — the
   FIRST flip whose numpy-free output is NOT bit-exact-0.0 (value-faithful to

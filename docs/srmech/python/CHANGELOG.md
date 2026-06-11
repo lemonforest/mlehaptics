@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc91] - 2026-06-11
+
+**Carrier-flip batch #15 — `multitaper` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 36 → 35).** Carrier-removal #564. `closed_form_ops/multitaper` (Class L DPSS eigenbasis ∘ Class M tapered-periodogram bundle-average; Thomson 1982) drops its top-level `import numpy`:
+
+- `scipy.signal.windows.dpss` is an **external accelerator** (it needs numpy), so it stays a **lazy** import inside the `try`. numpy-absent it raises `ImportError` and the op falls through to the fully numpy-free cosine-taper fallback — whose tapers use the **Class-N π cascade** (`_PI`) fed to `rational.sin` via `_csin`, ℓ²-normalised by the inline `rational.sqrt(Σvᵢ²)` (the old `dense_norm` helper is numpy-carrier **internally**, so it cannot be called numpy-free).
+- The per-taper periodogram `|F|² = real²+imag²` (no `abs()`) and the bundle average are explicit elementwise list comprehensions; `_sc.fft` returns `List[complex]`. `op` now returns a `list` of `float` (was an ndarray).
+- Differential-verified **bit-exact (maxerr 0.0)** on the scipy-dpss path (the primary path locally); the fallback path runs numpy-free returning non-negative floats. The rc60 `np.linalg.norm`-absence ratchet + rc61 routed assertion stay green; the 3 op-smoke `.shape` asserts (rc33 ×2 + baseline) move to `isinstance`/`len`.
+
+`CEIL_NUMPY_CARRIER` 36 → 35 (down-only ratchet). No new public op (`describe()["tools"]["total"]` stays **287**, `classes` **2**); ABI 3; no C change. Version bumped at all 5 SSOT locations incl. the scaffolding pin.
+
 ## [0.7.5rc90] - 2026-06-11
 
 **Carrier-flip batch #14 — `spectral_subtraction` goes numpy-FREE (`CEIL_NUMPY_CARRIER` 37 → 36).** Carrier-removal #564 — the **first flip whose numpy-free output is not bit-exact-0.0** (it is value-faithful to machine eps). `closed_form_ops/spectral_subtraction` (Class L FFT-domain PSD ∘ Class N rational floor; Boll 1979) drops its top-level `import numpy`:
