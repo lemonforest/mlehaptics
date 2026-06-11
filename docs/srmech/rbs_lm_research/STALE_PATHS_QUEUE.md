@@ -601,3 +601,9 @@ Per user direction ("check stale queue items to bring forward and do if remainin
 ### rc78 regression spot-check — NOTHING BROKEN (2026-06-11; user: numpy removal in-progress, just confirm we aren't breaking anything)
 
 - Re-runnable harness `R-RBS-LM-REGRESSION_srmech_surfaces_our_findings_use.py` resolves + RUNS every srmech surface our committed findings depend on, against rc78 (numpy-free): **49/49 OK, 0 BREAK** + the migrated WIKIKERNEL builds and stays output-preserving (shipped==fallback). The cascade→package de-dup re-exports every op we call; klein4 reversibility/self-inverse hold; text tokenize/cooccurrence_edges + jacobi numpy-free work; genome/dsl/format/cyclic/rational intact. The only numpy-tier item (fiedler_vector) is the known in-progress numpy-removal sweep, not a regression. Run this harness on each rc to confirm no breakage.
+
+### F726 — name the front end Siona (interface) vs Story-Teller (engine) (2026-06-11; user direction)
+
+- **Siona = the interactive INTERFACE** (the OpenAI-compatible /v1 surface, the model namespace, the deployment face — what CopilotKit/AG2/clients talk to; F701). **Story-Teller = the generative ENGINE** Siona drives (storyteller.infer). One-and-the-same in simulation; the SURFACE is Siona because it's BACK-AND-FORTH — the asking-state (F661) is the two-way property "storyteller" (one-way) undersold. Demonstrated on `model='siona:MFO'` (render + ask-back, verified rc78).
+- **Applies (surface/namespace only):** /v1 endpoint = the Siona API; model convention `siona:<world>` (was `storyteller:<world>`); CopilotKit talks to Siona. `storyteller.infer` (engine) unchanged.
+- **Still to build (OpenAI surface only begun):** FastAPI/ASGI wrap + full-`messages`-array read (CopilotKit readable-context) + streaming (etak-walk hop stream); plus broader RBS-LM TODO. Verified `R-RBS-LM-SIONASURFACE...py`. F726.
