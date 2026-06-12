@@ -1963,6 +1963,163 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
                                             srmech_json_value_t **vals,
                                             uint32_t n);
 
+/* ------------------------------------------------------------------
+ * §41 genome persistence — the C mirror of srmech.amsc.genome's
+ * disk save / load / catalog / append / window. A genome directory is
+ *
+ *   <dir>/manifest.json   an MPRRecord (MPR v1) catalogue of the
+ *                         chromosome set (leaf_dim, per-chromosome
+ *                         cap_sha256 / leaf_count / byte_offset /
+ *                         byte_len, body_sha256, the_one hash+hex).
+ *   <dir>/turns.bin       the append-only flat body: every strand
+ *                         element (a telomere cap or a coupled turn)
+ *                         is a FIXED-WIDTH leaf_dim-byte block. No
+ *                         length prefixes — chromosome boundaries live
+ *                         in the manifest as byte_offset / byte_len.
+ *
+ * The manifest is built with the JSON builder above and serialised with
+ * srmech_json_write, so it is BYTE-IDENTICAL to the Python genome_save's
+ * json.dumps(payload, sort_keys=True, ensure_ascii=False). turns.bin is
+ * the body bytes verbatim (no transformation). All hashing routes through
+ * srmech_sha256_hex (Class A); bounding == integrity (every read re-hashes
+ * the bytes it touched and compares the hex against the manifest — no abs,
+ * no float). The §41 format version is 1.
+ *
+ * File I/O is stdio (fopen / fread / fwrite / fseek); JPL Rule 3 bans
+ * malloc, not file I/O. The caller arena `ws` is for the JSON tree only;
+ * directory-path strings are built into bounded stack buffers.
+ *
+ * ABI-additive: new symbols + a struct + macros, so SRMECH_ABI_VERSION
+ * stays 3.
+ * ------------------------------------------------------------------ */
+
+/* §41 on-disk format version (1 == fixed-width leaf_dim-byte blocks,
+ * manifest-described boundaries). Mirrors GENOME_FORMAT_VERSION. */
+#define SRMECH_GENOME_FORMAT_VERSION 1
+
+/* Max chromosomes a genome directory may hold (bounds the manifest
+ * builder's per-chromosome arrays; single-token object-like macro). */
+#define SRMECH_GENOME_MAX_CHROMS 256
+
+/* Max label byte length (NUL-terminated) for one chromosome. */
+#define SRMECH_GENOME_MAX_LABEL 256
+
+/* One chromosome layout descriptor for srmech_genome_save. `label` is a
+ * NUL-terminated UTF-8 string the caller keeps alive across the call;
+ * `leaf_count` is the DATA-turn count — the chromosome's on-disk region
+ * is leaf_count + 1 blocks (the telomere cap leads the region). */
+typedef struct {
+    const char *label;
+    uint32_t    leaf_count;
+} srmech_genome_chrom_t;
+
+/* SAVE: write <dir>/turns.bin (= `body` verbatim, body_len bytes) and
+ * <dir>/manifest.json (byte-identical to the Python genome_save manifest).
+ *   body / body_len : the flat fixed-width body (n_chroms regions,
+ *                     concatenated cap-led blocks; n_turns = body_len /
+ *                     leaf_dim).
+ *   leaf_dim        : the fixed block width in bytes (> 0).
+ *   the_one / the_one_len : the_one's single leaf_dim-byte block
+ *                     (the_one_len MUST equal leaf_dim).
+ *   chroms / n_chroms : the chromosome layout IN STRAND ORDER. The byte
+ *                     regions are derived from the per-chromosome
+ *                     (leaf_count + 1) block counts; they must tile the
+ *                     whole body exactly.
+ *   ws / ws_len     : arena for the JSON builder (>= a few hundred KiB
+ *                     for a typical genome; SRMECH_ERR_OVERFLOW if short).
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — dir / body(when body_len>0) / the_one /
+ *                           chroms(when n_chroms>0) / ws is NULL.
+ *   SRMECH_ERR_BAD_INPUT   — leaf_dim == 0, the_one_len != leaf_dim,
+ *                           n_chroms > SRMECH_GENOME_MAX_CHROMS, a label
+ *                           too long, or the chromosome regions do not
+ *                           tile body_len exactly.
+ *   SRMECH_ERR_IO          — fopen / fwrite failed.
+ *   SRMECH_ERR_OVERFLOW    — the JSON arena ws is too small.
+ */
+srmech_status_t srmech_genome_save(
+    const char *dir,
+    const unsigned char *body, size_t body_len,
+    uint32_t leaf_dim,
+    const unsigned char *the_one, size_t the_one_len,
+    const srmech_genome_chrom_t *chroms, uint32_t n_chroms,
+    void *ws, size_t ws_len);
+
+/* CATALOG: parse <dir>/manifest.json ONLY (never opens turns.bin) into a
+ * JSON value tree allocated from the caller arena `ws`. On success
+ * *out_manifest points at the parsed root object (the full MPRRecord; its
+ * "data" child is the catalog). Use srmech_json_object_get to walk it.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — dir / ws / out_manifest is NULL.
+ *   SRMECH_ERR_IO          — manifest.json could not be opened / read.
+ *   SRMECH_ERR_OVERFLOW    — the manifest or its parse tree exceeds ws.
+ *   SRMECH_ERR_BAD_INPUT   — manifest.json is malformed JSON.
+ */
+srmech_status_t srmech_genome_catalog(
+    const char *dir, void *ws, size_t ws_len,
+    srmech_json_value_t **out_manifest);
+
+/* LOAD: read <dir>/turns.bin into `out` (capacity out_cap bytes), re-hash
+ * the whole body and compare its hex against the manifest's
+ * data.body_sha256. On a mismatch returns SRMECH_ERR_BAD_INPUT (the
+ * GenomeBoundingError analogue). *out_len receives the body length.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — dir / out / out_len / ws is NULL.
+ *   SRMECH_ERR_IO          — turns.bin / manifest.json I/O failed.
+ *   SRMECH_ERR_OVERFLOW    — out_cap < body length, or ws too small.
+ *   SRMECH_ERR_BAD_INPUT   — body hash != manifest body_sha256 (bound
+ *                           failed) or the manifest is malformed.
+ */
+srmech_status_t srmech_genome_load(
+    const char *dir, unsigned char *out, size_t out_cap, size_t *out_len,
+    void *ws, size_t ws_len);
+
+/* WINDOW: seek to one chromosome's byte_offset, read its byte_len bytes
+ * into `out` (capacity out_cap), re-hash the leading cap block and compare
+ * its hex against that chromosome's cap_sha256. On a mismatch returns
+ * SRMECH_ERR_BAD_INPUT (the bounding error). *out_len receives byte_len.
+ * The returned bytes include the leading cap block (the whole region).
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — dir / label / out / out_len / ws is NULL.
+ *   SRMECH_ERR_IO          — turns.bin / manifest.json I/O failed.
+ *   SRMECH_ERR_OVERFLOW    — out_cap < byte_len, or ws too small.
+ *   SRMECH_ERR_BAD_INPUT   — label absent, cap hash != cap_sha256, or a
+ *                           malformed manifest.
+ */
+srmech_status_t srmech_genome_window(
+    const char *dir, const char *label,
+    unsigned char *out, size_t out_cap, size_t *out_len,
+    void *ws, size_t ws_len);
+
+/* APPEND: append one chromosome's region (`region`, region_len bytes = the
+ * cap block + its data turns, all leaf_dim-byte blocks) to the END of
+ * <dir>/turns.bin (append-only; prior body bytes are never rewritten), then
+ * rewrite manifest.json with the new chromosome entry + recomputed n_turns /
+ * body_sha256. Every EXISTING chromosome entry (cap_sha256 / byte_offset /
+ * leaf_count / byte_len) is carried through byte-identically.
+ *   the_one / the_one_len : the_one block (the_one_len == leaf_dim), re-used
+ *                     for the manifest the_one hash+hex (must match the stored
+ *                     leaf_dim; the prior body is bound-checked before growth).
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — dir / label / region(when region_len>0) /
+ *                           the_one / ws is NULL.
+ *   SRMECH_ERR_IO          — turns.bin / manifest.json I/O failed.
+ *   SRMECH_ERR_OVERFLOW    — ws too small, or too many chromosomes.
+ *   SRMECH_ERR_BAD_INPUT   — leaf_dim mismatch, label already present,
+ *                           region_len not a whole multiple of leaf_dim,
+ *                           prior body bound failed, or malformed manifest.
+ */
+srmech_status_t srmech_genome_append(
+    const char *dir, const char *label,
+    const unsigned char *region, size_t region_len, uint32_t leaf_dim,
+    const unsigned char *the_one, size_t the_one_len,
+    void *ws, size_t ws_len);
+
 #ifdef __cplusplus
 }
 #endif
