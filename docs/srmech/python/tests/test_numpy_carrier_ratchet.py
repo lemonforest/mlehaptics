@@ -358,7 +358,32 @@ def _is_numpy_import(line: str) -> bool:
 # (still a numpy carrier — gauge ≠ propagators); gauge ADDED to the pure-wheel
 # flipped-and-exercised list (su2_generators[0] is Mat + casimir_eigenvalue ≈ 0.75).
 # 10 -> 9.
-CEIL_NUMPY_CARRIER = 9
+#
+# rc121 (#564): `qm/potentials.py` (hydrogen radial + harmonic oscillator) flips
+# numpy-free, enabled by the rc120 native-bound raise (Hermitian-eig now native to
+# n ≤ 2048, so the grid sizes potentials needs use the FAST native C Jacobi).
+# `hydrogen_radial` builds its real-symmetric tridiagonal Hamiltonian as a nested
+# list → complex `Mat` and eigensolves through `mat_hermitian_eigendecompose`; the
+# radial grid `r` and the eigen-energies are plain Python lists, and the
+# eigenvectors are returned as a REAL `Mat` (the value-preserving real part of the
+# complex unitary — H is real-symmetric). The ladder operator `a[n-1,n] = √n` uses
+# the Class-N libm-free `rational.sqrt` and is a complex `Mat` (a† = a.conj().T);
+# the oscillator Hamiltonian H = ω(a†a + ½I) is assembled through `mat_matmul` +
+# numpy-free Mat add/scale. potentials is a leaf consumer (no srmech-side CALL
+# consumer — chess-spectral / ephemerides-spectral are downstream packages).
+# test_qm_potentials.py rewritten numpy-FREE (commutator/spectrum via mat_matmul /
+# mat_hermitian_eigendecompose, hydrogen orthonormality via mat_matmul, the TDSE
+# cross-check now passes the `Mat` Hamiltonian DIRECTLY to single_particle.tdse_evolve
+# — no numpy→Mat bridge; the test grids reduced to n_grid=250/r_max=45 for a fast
+# native eig still inside the unchanged accuracy bands). The potentials cell in
+# test_qm_cascade_routing_rc33.py is numpy-free too (real-Mat Vᵀ V = I via the
+# native mat_matmul + direct `energies` list indexing); numpy stays in that file
+# only for the still-unflipped GENERIC hermitian_eigen routing cells (so8 / eigvalsh
+# differential oracle). CI-GUARD: the must-raise example stays `propagators` (still a
+# numpy carrier — potentials ≠ propagators); potentials ADDED to the pure-wheel
+# flipped-and-exercised list (hydrogen_radial returns (list, list, real Mat)).
+# 9 -> 8.
+CEIL_NUMPY_CARRIER = 8
 
 
 def _srmech_root() -> pathlib.Path:
