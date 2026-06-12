@@ -1829,6 +1829,140 @@ srmech_status_t srmech_hamming_decode_correct(const uint8_t *codeword, size_t le
 srmech_status_t srmech_cd_basis_product(int dim, int i, int j,
                                         int *out_index, int *out_sign);
 
+/* ------------------------------------------------------------------
+ * JSON value-tree — parser + canonical writer (§41 genome-persistence
+ * C mirror; the wider AMSC provenance C surface).
+ *
+ * A malloc-free JSON module: the parser builds a value tree from a
+ * caller-supplied arena/workspace (bump allocator — the same
+ * `void *ws, size_t ws_len` convention the TOML parser uses), and the
+ * writer emits bytes BYTE-IDENTICAL to CPython's
+ *   json.dumps(obj, sort_keys=True, ensure_ascii=False)
+ * for any tree of null / bool / int / string / object / array — which
+ * is exactly what an MPR manifest / a genome catalog is (they are
+ * float-free). See the byte-parity rules at srmech_json_write below.
+ *
+ * Strings (and object keys) in the value tree are stored DECODED (the
+ * raw UTF-8 bytes, escapes already resolved) and are NOT NUL-
+ * terminated — each carries an explicit length. The writer re-escapes
+ * them on output.
+ *
+ * No recursion: both the parser and the writer use an explicit depth-
+ * bounded stack (<= SRMECH_JSON_MAX_DEPTH), so JPL Rule 1 (no direct
+ * or indirect recursion) holds.
+ *
+ * ABI-additive: new symbols + a struct + macros, so SRMECH_ABI_VERSION
+ * stays 3.
+ * ------------------------------------------------------------------ */
+
+/* Per-node cap on children (object pairs / array items) and on nesting
+ * depth — match the TOML parser's caps (single-token object-like
+ * macros; JPL Rule 8 clean). */
+#define SRMECH_JSON_MAX_CHILDREN 256
+#define SRMECH_JSON_MAX_DEPTH    64
+
+typedef enum {
+    SRMECH_JSON_NULL = 0,
+    SRMECH_JSON_BOOL,
+    SRMECH_JSON_INT,      /* int64 */
+    SRMECH_JSON_DOUBLE,
+    SRMECH_JSON_STRING,
+    SRMECH_JSON_ARRAY,
+    SRMECH_JSON_OBJECT
+} srmech_json_type_t;
+
+typedef struct srmech_json_value srmech_json_value_t;
+struct srmech_json_value {
+    srmech_json_type_t type;
+    union {
+        struct { const char *ptr; uint32_t len; } str;   /* UTF-8, decoded (NOT escaped); keys + string values */
+        int64_t i;
+        double  f;
+        int     b;                                       /* 0/1 */
+        struct { srmech_json_value_t **items; uint32_t n; } arr;
+        struct { const char **keys; srmech_json_value_t **vals; uint32_t n; } obj;
+    } u;
+};
+
+/* Parse `len` JSON bytes at `src` into a value tree allocated from the
+ * caller-supplied workspace `ws` (length `ws_len` bytes). On success
+ * *out points at the root node (inside the workspace) and SRMECH_OK is
+ * returned. Trailing non-whitespace after the top-level value is an
+ * error. Arena exhaustion → SRMECH_ERR_OVERFLOW; malformed input →
+ * SRMECH_ERR_BAD_INPUT; a NULL required pointer → SRMECH_ERR_NULL_ARG.
+ *
+ * String decoding handles \" \\ \/ \b \f \n \r \t and \uXXXX
+ * (including UTF-16 surrogate pairs → UTF-8 bytes). Numbers with a
+ * '.', 'e', or 'E' parse to SRMECH_JSON_DOUBLE; otherwise to
+ * SRMECH_JSON_INT (int64). */
+srmech_status_t srmech_json_parse(const char *src, size_t len,
+                                  void *ws, size_t ws_len,
+                                  srmech_json_value_t **out);
+
+/* Write `v` as canonical JSON into `buf` (capacity `buf_len` bytes,
+ * NO trailing NUL written) and set *out_len to the byte count. If
+ * `buf` is NULL this is a SIZE-QUERY: nothing is written and *out_len
+ * receives the exact length a full write would produce (callers can
+ * two-pass: query, allocate, fill). When writing, a too-small buffer
+ * returns SRMECH_ERR_OVERFLOW (never overflows). *out_len is always
+ * set on SRMECH_OK.
+ *
+ * The output is byte-identical to CPython
+ * json.dumps(obj, sort_keys=True, ensure_ascii=False) for null / bool
+ * / int / string / object / array trees. DOUBLE values are best-effort
+ * (%.17g shortest-ish) and are NOT guaranteed byte-identical to
+ * Python's repr(float) — float parity is explicitly out of scope (MPR
+ * / genome manifests are float-free). */
+srmech_status_t srmech_json_write(const srmech_json_value_t *v,
+                                  char *buf, size_t buf_len,
+                                  size_t *out_len);
+
+/* Look up `key` (NUL-terminated) in an OBJECT value; returns the value
+ * node or NULL if `obj` is not an object or the key is absent. */
+const srmech_json_value_t *srmech_json_object_get(
+    const srmech_json_value_t *obj, const char *key);
+
+/* ------------------------------------------------------------------
+ * JSON builder — construct a value tree in the SAME arena, for the
+ * §41 genome-manifest C mirror (nested objects / arrays / strings /
+ * int64s). Init a builder over a workspace, then allocate nodes from
+ * it; the resulting root can be handed straight to srmech_json_write.
+ *
+ * Strings passed to srmech_json_new_string are NOT copied — the caller
+ * must keep the bytes alive for the lifetime of the tree (the manifest
+ * builder holds its key/value byte buffers across the build → write).
+ * The keys/vals/items arrays passed to new_object / new_array ARE
+ * copied into the arena, so the caller's temporary arrays may be
+ * reused after the call.
+ * ------------------------------------------------------------------ */
+typedef struct {
+    unsigned char *base;   /* workspace base                         */
+    size_t         len;    /* workspace capacity (bytes)             */
+    size_t         used;   /* bump offset                            */
+    int            failed; /* 1 once any allocation overflowed       */
+} srmech_json_builder_t;
+
+/* Initialise a builder over `ws` (length `ws_len`). */
+srmech_status_t srmech_json_builder_init(srmech_json_builder_t *b,
+                                         void *ws, size_t ws_len);
+
+/* Node constructors. Each returns a node allocated from the builder's
+ * arena, or NULL on arena exhaustion / NULL builder (the builder's
+ * `failed` flag latches so a caller can check once at the end). */
+srmech_json_value_t *srmech_json_new_null(srmech_json_builder_t *b);
+srmech_json_value_t *srmech_json_new_bool(srmech_json_builder_t *b, int truth);
+srmech_json_value_t *srmech_json_new_int(srmech_json_builder_t *b, int64_t i);
+srmech_json_value_t *srmech_json_new_double(srmech_json_builder_t *b, double f);
+srmech_json_value_t *srmech_json_new_string(srmech_json_builder_t *b,
+                                            const char *ptr, uint32_t len);
+srmech_json_value_t *srmech_json_new_array(srmech_json_builder_t *b,
+                                           srmech_json_value_t **items,
+                                           uint32_t n);
+srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
+                                            const char **keys,
+                                            srmech_json_value_t **vals,
+                                            uint32_t n);
+
 #ifdef __cplusplus
 }
 #endif

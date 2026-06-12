@@ -154,6 +154,12 @@ RULE_5_EXEMPT_FUNCTIONS: set[str] = {
     # `__ror` is the 1-line rotate (like srmech_ror32 / srmech_sha256b__ror).
     "srmech_simd_has_shani",
     "srmech_sha256ni__ror",
+    # srmech_json.c (§41 genome-persistence C mirror): trivial char
+    # classifiers — 4-line predicates returning 0/1 over a single char,
+    # no pointer/bounds invariant to assert (same kind as the TOML
+    # parser's toml_is_ws). See c/JPL_AUDIT.md.
+    "json_is_ws",
+    "json_is_digit",
 }
 
 # Maximum allowed function length (JPL Rule 4).
