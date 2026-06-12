@@ -69,13 +69,13 @@ def _fano_planes(axis: int, dim: int) -> List[Tuple[int, int, int]]:
     both ``< dim``, neither the axis). Internal: the public
     :func:`hurwitz_planes` wraps the three algebra axes.
     """
-    table = octonion_mult_table()  # numpy-free indexing: int() per entry, no astype
+    table = octonion_mult_table()  # rc122: nested list — index [a][b][axis], not [a,b,axis]
     out: List[Tuple[int, int, int]] = []
     for a in range(1, dim):
         for b in range(a + 1, dim):
             if a == axis or b == axis:
                 continue
-            sign = int(table[a, b, axis])
+            sign = int(table[a][b][axis])
             if sign != 0:
                 out.append((a, b, sign))
     return out

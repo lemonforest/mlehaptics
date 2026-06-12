@@ -14,9 +14,10 @@ float restatement; an exact integer-tuple structure read from the attested
 table). hurwitz.py is now numpy-free at the top level (carrier ratchet
 decrement); hurwitz_planes' full numpy-free reachability follows when
 qm.octonion flips (the octonion table is still numpy until then).
-"""
 
-import pytest
+rc123 (#564): qm.octonion + qm.hurwitz are now numpy-FREE, so the
+planes-derivation tests run numpy-absent (the prior numpy skip is dropped).
+"""
 
 from srmech.amsc.cascade.one import FANO_PLANES
 
@@ -51,10 +52,10 @@ def test_hurwitz_matrix_op_dissolved():
 
 
 # ── the planes are DERIVED from the octonion table (the genuine op) ────
-# (octonion_mult_table is still numpy until qm.octonion flips → skip numpy-free.)
+# (rc123 #564: qm.octonion + qm.hurwitz are now numpy-FREE, so these run
+#  numpy-absent — the prior ``importorskip("numpy")`` is dropped.)
 
 def test_hurwitz_planes_derived_from_octonion_table():
-    pytest.importorskip("numpy")  # octonion table is numpy until qm.octonion flips
     from srmech.qm.hurwitz import hurwitz_planes
     planes = hurwitz_planes()
     # ℂ: none; ℍ: {1,2,3} → (1,2,+1); 𝕆: the 3 Fano triples through e₇.
@@ -63,7 +64,6 @@ def test_hurwitz_planes_derived_from_octonion_table():
 
 
 def test_cascade_fano_planes_match_table_derived_bit_exact():
-    pytest.importorskip("numpy")
     from srmech.qm.hurwitz import hurwitz_planes
     # The cascade form HARDCODES FANO_PLANES; the qm op DERIVES them from
     # octonion_mult_table. They must be identical (the structure cross-derivation).

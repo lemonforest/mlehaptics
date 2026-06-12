@@ -18,27 +18,45 @@ This voxel:
 
 All per-block ops are the shipped single-element op applied block-wise, so they
 agree with ``loop_bind`` by construction (no convention guess). NO new class.
+
+rc125 (numpy-free, #564): this test is itself numpy-FREE — the HD ops return
+``list[float]``; block math is explicit, norms ride ``mat_norm``, and the
+random unit blocks come from stdlib ``random.Random`` (no numpy oracle, per
+`[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]`).
 """
 
-import numpy as np
+import random
+
 import pytest
 
+from srmech.amsc.laplacian import mat_norm
 from srmech.amsc import hdc
 from srmech.amsc.hdc import LOOP_DIM
 
 NB = 64  # blocks; D = NB * 8 = 512 (an HD width, > one octonion)
 
 
+def _vsub(u, v):
+    return [u[i] - v[i] for i in range(len(u))]
+
+
+def _unit_block(rng):
+    v = [rng.gauss(0.0, 1.0) for _ in range(LOOP_DIM)]
+    nrm = sum(x * x for x in v) ** 0.5
+    return [x / nrm for x in v]
+
+
 def _unit_blocks(seed):
     """NB unit-norm dim-8 octonion blocks, flattened to one HD vector."""
-    rng = np.random.default_rng(seed)
-    b = rng.standard_normal((NB, LOOP_DIM))
-    b /= np.linalg.norm(b, axis=1, keepdims=True)
-    return b.reshape(-1)
+    rng = random.Random(seed)
+    out = []
+    for _ in range(NB):
+        out.extend(_unit_block(rng))
+    return out
 
 
 def _blocks(v):
-    return np.asarray(v, dtype=float).reshape(-1, LOOP_DIM)
+    return [v[k * LOOP_DIM:(k + 1) * LOOP_DIM] for k in range(len(v) // LOOP_DIM)]
 
 
 # ----------------------------------------------------------------------
@@ -49,36 +67,37 @@ def _blocks(v):
 def test_loop_conj_hd_is_single_loop_conj_per_block():
     x = _unit_blocks(12345)
     got = _blocks(hdc.loop_conj_hd(x))
-    want = np.stack([hdc.loop_conj(xb) for xb in _blocks(x)])
-    assert np.array_equal(got, want)
+    want = [hdc.loop_conj(xb) for xb in _blocks(x)]
+    assert got == want
 
 
 def test_loop_inv_hd_is_single_loop_inv_per_block():
     # non-unit blocks too: scale each block by a distinct factor.
     x = _unit_blocks(777)
-    xb = _blocks(x).copy()
+    xb = _blocks(x)
     for k in range(NB):
-        xb[k] *= (1.0 + 0.1 * k)
-    x = xb.reshape(-1)
+        xb[k] = [v * (1.0 + 0.1 * k) for v in xb[k]]
+    x = [v for blk in xb for v in blk]
     got = _blocks(hdc.loop_inv_hd(x))
-    want = np.stack([hdc.loop_inv(b) for b in _blocks(x)])
-    assert np.allclose(got, want, atol=1e-15)
+    want = [hdc.loop_inv(b) for b in _blocks(x)]
+    worst = max(mat_norm(_vsub(got[k], want[k])) for k in range(NB))
+    assert worst < 1e-15
 
 
 def test_loop_inv_hd_equals_loop_conj_hd_on_unit_blocks():
     # unit octonion: x⁻¹ = x̄ exactly.
     x = _unit_blocks(23)
-    assert np.allclose(hdc.loop_inv_hd(x), hdc.loop_conj_hd(x), atol=1e-14)
+    assert mat_norm(_vsub(hdc.loop_inv_hd(x), hdc.loop_conj_hd(x))) < 1e-14
 
 
 def test_loop_inv_hd_is_the_per_block_bind_identity():
     # loop_bind_hd(x, loop_inv_hd(x)) == per-block e0 (the unbind key).
     x = _unit_blocks(99)
     prod = _blocks(hdc.loop_bind_hd(x, hdc.loop_inv_hd(x)))
-    e0 = np.zeros(LOOP_DIM)
+    e0 = [0.0] * LOOP_DIM
     e0[0] = 1.0
     for k in range(NB):
-        assert np.allclose(prod[k], e0, atol=1e-13)
+        assert mat_norm(_vsub(prod[k], e0)) < 1e-13
 
 
 # ----------------------------------------------------------------------
@@ -92,7 +111,7 @@ def test_loop_runbind_hd_recovers_right_factor():
     v = _unit_blocks(812)
     b = hdc.loop_bind_hd(v, a)
     rec = hdc.loop_runbind_hd(a, b)
-    assert np.allclose(rec, v, atol=1e-12)
+    assert mat_norm(_vsub(rec, v)) < 1e-12
 
 
 def test_loop_unbind_hd_recovers_left_built_factor():
@@ -101,7 +120,7 @@ def test_loop_unbind_hd_recovers_left_built_factor():
     v = _unit_blocks(814)
     b = hdc.loop_bind_hd(a, v)
     rec = hdc.loop_unbind_hd(a, b)
-    assert np.allclose(rec, v, atol=1e-12)
+    assert mat_norm(_vsub(rec, v)) < 1e-12
 
 
 def test_left_and_right_unbind_are_distinct():
@@ -111,9 +130,9 @@ def test_left_and_right_unbind_are_distinct():
     v = _unit_blocks(816)
     b_right_built = hdc.loop_bind_hd(v, a)   # v on the LEFT, a on the RIGHT
     wrong = hdc.loop_unbind_hd(a, b_right_built)  # left-division: wrong factor
-    assert not np.allclose(wrong, v, atol=1e-6)
+    assert mat_norm(_vsub(wrong, v)) > 1e-6
     # the right-division recovers it:
-    assert np.allclose(hdc.loop_runbind_hd(a, b_right_built), v, atol=1e-12)
+    assert mat_norm(_vsub(hdc.loop_runbind_hd(a, b_right_built), v)) < 1e-12
 
 
 def test_loop_runbind_hd_left_fold_sequence_peel():
@@ -123,7 +142,7 @@ def test_loop_runbind_hd_left_fold_sequence_peel():
     s2 = _unit_blocks(3)
     c = hdc.loop_bind_hd(hdc.loop_bind_hd(s0, s1), s2)
     peeled = hdc.loop_runbind_hd(s2, c)              # recovers (s0·s1)
-    assert np.allclose(peeled, hdc.loop_bind_hd(s0, s1), atol=1e-12)
+    assert mat_norm(_vsub(peeled, hdc.loop_bind_hd(s0, s1))) < 1e-12
 
 
 # ----------------------------------------------------------------------
@@ -145,16 +164,15 @@ def test_loop_conj_raises_on_hd_block_vector():
 
 def test_single_octonion_loop_inv_conj_unchanged():
     # dim-8 (one octonion) is NOT guarded; the existing behaviour holds.
-    rng = np.random.default_rng(42)
-    u = rng.standard_normal(LOOP_DIM)
-    u /= np.linalg.norm(u)
-    e0 = np.zeros(LOOP_DIM)
+    rng = random.Random(42)
+    u = _unit_block(rng)
+    e0 = [0.0] * LOOP_DIM
     e0[0] = 1.0
-    assert np.allclose(hdc.loop_bind(u, hdc.loop_inv(u)), e0, atol=1e-14)
-    assert np.allclose(hdc.loop_inv(u), hdc.loop_conj(u), atol=1e-14)
+    assert mat_norm(_vsub(hdc.loop_bind(u, hdc.loop_inv(u)), e0)) < 1e-14
+    assert mat_norm(_vsub(hdc.loop_inv(u), hdc.loop_conj(u))) < 1e-14
     # dims 1,2,4 (real/complex/quaternion) are also single elements — not guarded.
-    q = rng.standard_normal(4)
-    assert hdc.loop_conj(q).shape == (4,)
+    q = [rng.gauss(0.0, 1.0) for _ in range(4)]
+    assert len(hdc.loop_conj(q)) == 4
 
 
 # ----------------------------------------------------------------------
@@ -164,13 +182,13 @@ def test_single_octonion_loop_inv_conj_unchanged():
 
 @pytest.mark.parametrize("fn", ["loop_conj_hd", "loop_inv_hd"])
 def test_hd_unary_requires_multiple_of_8(fn):
-    bad = np.ones(8 * 3 + 1)  # 25, not a multiple of 8
+    bad = [1.0] * (8 * 3 + 1)  # 25, not a multiple of 8
     with pytest.raises(AssertionError, match="positive multiple"):
         getattr(hdc, fn)(bad)
 
 
 def test_loop_runbind_hd_requires_multiple_of_8_and_equal_length():
-    bad = np.ones(8 * 3 + 1)
+    bad = [1.0] * (8 * 3 + 1)
     with pytest.raises(AssertionError, match="positive multiple"):
         hdc.loop_runbind_hd(bad, bad)
     a = _unit_blocks(7)

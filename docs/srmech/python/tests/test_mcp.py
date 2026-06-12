@@ -1185,17 +1185,26 @@ def test_polar_random_seed_reproducible() -> None:
 def test_random_ops_rng_takes_precedence_over_seed() -> None:
     """When BOTH ``rng`` and ``seed`` are given, the explicit ``rng`` wins
     (documented precedence), and the legacy ``rng=`` path stays back-compat
-    for in-process Python callers."""
+    for in-process Python callers.
+
+    rc125 (#564): the hdc random ops are numpy-FREE — the ``rng=`` path now
+    accepts a stdlib ``random.Random`` (a numpy ``Generator`` is still honoured
+    via duck-typing), and the polar op returns an ``array('b')`` (was an int8
+    ndarray). This test is itself numpy-free (a cluster-module test, per
+    `[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]`)."""
+    import random
+
     from srmech.amsc import hdc
 
-    # rng= path still works (back-compat).
-    assert len(hdc.klein4_random(8, rng=np.random.default_rng(0))) == 8
-    assert hdc.polar_random(8, rng=np.random.default_rng(0)).shape == (8,)
+    # rng= path still works (back-compat) — stdlib Random.
+    assert len(hdc.klein4_random(8, rng=random.Random(0))) == 8
+    p = hdc.polar_random(8, rng=random.Random(0))
+    assert p.typecode == "b" and len(p) == 8
 
     # rng wins over seed: the rng-built vector differs from the seed-only one.
-    rng_out = hdc.klein4_random(8, rng=np.random.default_rng(999), seed=1)
+    rng_out = hdc.klein4_random(8, rng=random.Random(999), seed=1)
     seed_out = hdc.klein4_random(8, seed=1)
-    assert not np.array_equal(rng_out, seed_out)
+    assert list(rng_out.buffer) != list(seed_out.buffer)
 
 
 def test_random_ops_schema_drops_unserialisable_rng() -> None:

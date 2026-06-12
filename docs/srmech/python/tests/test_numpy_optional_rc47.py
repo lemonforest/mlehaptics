@@ -109,8 +109,9 @@ def test_cascade_core_modules_do_not_import_numpy_at_top_level():
 def test_amsc_core_modules_import_without_numpy(monkeypatch):
     """Behavioral guard (#882): with numpy unavailable, the mixed amsc modules
     (hdc / coupling / harmonics / cascade.matrix_cascades) still IMPORT, the
-    Klein-4 HV-carrier path runs numpy-free, and an ndarray op raises the clean
-    ``[scientific]`` hint (not a raw ``ModuleNotFoundError``)."""
+    Klein-4 HV-carrier path runs numpy-free, AND (rc125 #564) the polar
+    {-1,0,+1} family now runs numpy-free too — the whole ``hdc`` module is
+    numpy-FREE (no lazy proxy left)."""
     import builtins
     import importlib
 
@@ -140,8 +141,8 @@ def test_amsc_core_modules_import_without_numpy(monkeypatch):
     assert hdc.klein4_similarity(hv, hv) == 1.0
     assert type(hdc.klein4_bind(hv, hdc.klein4_random(64, seed=2))).__name__ == "HV"
 
-    # A bipolar (ndarray) op raises the actionable [scientific] hint, not a raw
-    # numpy ModuleNotFoundError.
-    with pytest.raises(ImportError) as exc:
-        hdc.polar_random(16, seed=1)
-    assert "srmech[scientific]" in str(exc.value)
+    # rc125 (#564): the polar {-1,0,+1} family is now numpy-FREE — it RUNS
+    # numpy-absent on the stdlib ``array('b')`` carrier (was a [scientific] hint).
+    p = hdc.polar_random(16, seed=1)
+    assert p.typecode == "b" and len(p) == 16
+    assert set(hdc.polar_bind(p, p)) <= {-1, 0, 1}

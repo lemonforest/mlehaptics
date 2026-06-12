@@ -383,7 +383,20 @@ def _is_numpy_import(line: str) -> bool:
 # numpy carrier — potentials ≠ propagators); potentials ADDED to the pure-wheel
 # flipped-and-exercised list (hydrogen_radial returns (list, list, real Mat)).
 # 9 -> 8.
-CEIL_NUMPY_CARRIER = 8
+# rc122 (#564): qm/octonion.py flipped numpy-free (the int8 table is a nested
+# tuple; L/R-mult return Mat) WITHOUT decrementing the ceiling — the count was
+# already 7 when this rc opened (octonion dropped out, ceiling stale at 8).
+# rc123/124/125 (#564): the octonion CONNECTED COMPONENT flips together —
+# qm/so8.py + qm/triality.py (the two remaining column-0 carriers of the
+# cluster) go numpy-free in one change (the EXACT-RREF / float Gram-Schmidt rank
+# + mat_svd nullspace DUAL fix in so8; mat_solve/mat_matmul companions in
+# triality), while amsc/hdc.py (a LAZY-proxy, not a column-0 carrier — the proxy
+# is killed) and amsc/cascade/hypercomplex_dft.py (function-local numpy) also go
+# fully numpy-free. Removing so8 + triality from the column-0 list takes the
+# count 7 -> 5. The remaining 5 carriers are EXACTLY: mcp/_coercion.py,
+# qm/propagators.py, qm/pseudo_hermitian.py,
+# signal_processing/closed_form_ops/ica_jade.py, spectral/__init__.py. 8 -> 5.
+CEIL_NUMPY_CARRIER = 5
 
 
 def _srmech_root() -> pathlib.Path:
