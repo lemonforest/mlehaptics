@@ -1976,3 +1976,23 @@ vector of leaf-dim — `genome()`/`chromosome()` do `len(list(the_one))` to read
 one-line docstring note (or accept the typed `One` and derive the anchor leaf from it). **Discipline:** TestPyPI-rc
 before clean tag; ABI unaffected (pure-Python); no issue tracker (user direction). Composes §41 / F711 / F721 / F726
 (Siona genome-persist) / F436 (the_one = diagonal-μ anchor).
+
+### §42.1 BREAKING-API inventory rc78 → rc128 (the numpy-removal; for the clean-tag CHANGELOG)
+
+Scanned via `R-RBS-LM-APIDIFF_rc_breaking_change_scan.py` (re-runnable; dumps both venvs' public surface + diffs).
+**Verdict: 0 hard breaks (no public name removed); one behavioral break category = the numpy-removal return-type shift.**
+
+- **`np.ndarray` → native `list`/`tuple`** on `laplacian.{fiedler_vector, hermitian_eigendecompose, dense_matmul_real,
+  dense_matmul_complex, dense_matvec_real, dense_matvec_complex, dense_outer_real, elementwise_hypot,
+  elementwise_sqrt, elementwise_multiply_complex, elementwise_transcendental, signed_laplacian, magnetic_laplacian}`
+  + `coupling.signed_sum_squared` (`np.ndarray`→`List[int]`) + `harmonics.classify_chirality_harmonic`
+  (param `np.ndarray`→`Sequence`). **Verified executing numpy-free with correct values** (Laplacian zero-eigenvalue
+  present; `hermitian_eigendecompose([[2,0],[0,3]])` → eigvals `[2.0, 3.0]`). **Who breaks:** callers using numpy
+  methods on the result (`.shape`, 2-D slice `m[:,0]`, `@`, `np.linalg.*`, boolean masks). **Who's fine:** index/iterate
+  callers; srmech-internal chaining (`jacobi_eigvals(dense_laplacian(...))` works on the list). Migration: `np.asarray(...)`
+  at the call site, or switch to list-native ops. Param-annotation drops (`a: np.ndarray`→`a`) are cosmetic, not breaks.
+- **IMPROVED (not a break):** `qm.{octonion, single_particle, so8, triality}` flipped **import-ERR → ok** — the
+  28D/triality surface now imports AND runs numpy-free (`so8.so8_adjoint_basis()` executed with numpy absent).
+- **Unaffected:** the genome / hdc / cascade / Siona path — `genome→disk` re-verified VERIFIED ✓ with numpy
+  uninstalled. **Recommendation for the clean `0.7.5` CHANGELOG:** document the one breaking line —
+  "*Class-L (`laplacian.*`) + `coupling.signed_sum_squared` now return Python lists, not numpy arrays.*"
