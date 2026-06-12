@@ -231,13 +231,23 @@ jobs:
           assert abs(_G - 1j/9.0) < 1e-12, 'propagators scalar pole wrong'
           _SF = propagators.feynman_fermion_propagator([3.0,1.0,0.0,0.0], m=1.0)
           assert type(_SF).__name__ == 'Mat' and _SF.shape == (4, 4), 'propagators not numpy-free'
-          # an as-yet-numpy qm submodule must still fail with the [scientific] hint:
+          # pseudo_hermitian (rc124) is numpy-free: η = (V V†)⁻¹ built from the
+          # general non-Hermitian eigenvectors of a real-spectrum O (null vectors
+          # of O − λI off mat_eigvals) makes O η-pseudo-Hermitian (O† η = η O).
+          # This is the LAST qm carrier — srmech.qm is now fully numpy-free.
+          from srmech.qm import pseudo_hermitian
+          _O = Mat.from_rows([[1.0,0.5,0.0],[0.0,2.0,0.5],[0.0,0.0,3.0]], is_complex=True)
+          _eta = pseudo_hermitian.construct_eta_from_eigendecomposition(_O)
+          assert type(_eta).__name__ == 'Mat' and pseudo_hermitian.is_pseudo_hermitian(_O, _eta, atol=1e-8), 'pseudo_hermitian not numpy-free'
+          # a still-numpy CARRIER must still fail with the [scientific] hint —
+          # ica_jade imports through the closed_form_ops lazy package gate, which
+          # re-raises the numpy ModuleNotFoundError as the clean hint:
           try:
-              from srmech.qm import pseudo_hermitian  # noqa: F401  (still a numpy carrier)
-              raise SystemExit('srmech.qm.pseudo_hermitian imported without numpy (guard missing)')
+              from srmech.signal_processing.closed_form_ops import ica_jade  # noqa: F401  (still a numpy carrier)
+              raise SystemExit('ica_jade imported without numpy (guard missing)')
           except ImportError as exc:
               assert 'srmech[scientific]' in str(exc), exc
-          print(f'srmech {__version__} OK (numpy-optional; qm lazy-gated)')
+          print(f'srmech {__version__} OK (numpy-optional; qm fully numpy-free)')
           "
 
   pedantic-build:

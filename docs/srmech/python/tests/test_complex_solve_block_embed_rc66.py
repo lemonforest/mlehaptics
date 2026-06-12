@@ -58,27 +58,37 @@ def test_block_solve_matches_numpy_general_solve():
 
 
 def test_construct_eta_still_pseudo_hermitian():
-    """The routed η construction still produces a valid η-metric (O†η = ηO)."""
+    """The η construction still produces a valid η-metric (O†η = ηO).
+
+    numpy-FREE since rc124 — pseudo_hermitian flipped onto the Mat carrier, so the
+    η = (V·Vᴴ)⁻¹ solve routes through ``mat_solve`` (not ``_dense_solve_complex``);
+    the operator + oracle are numpy-free here too."""
+    from srmech.amsc.mat import Mat
     from srmech.qm.pseudo_hermitian import (
         construct_eta_from_eigendecomposition,
         is_pseudo_hermitian,
     )
 
     # A real-spectrum non-Hermitian operator (PT-symmetric-style 2×2).
-    O = np.array([[2.0, 1.0], [0.0, 3.0]], dtype=np.complex128)
+    O = Mat.from_rows([[2.0, 1.0], [0.0, 3.0]], is_complex=True)
     eta = construct_eta_from_eigendecomposition(O)
-    # η Hermitian
-    np.testing.assert_allclose(eta, eta.conj().T, atol=1e-9)
+    # η Hermitian (direct Mat-entry check, no numpy oracle).
+    n = eta.shape[0]
+    herm_dev = max(
+        abs(eta[i, j] - eta[j, i].conjugate()) for i in range(n) for j in range(n)
+    )
+    assert herm_dev < 1e-9
     # O is η-pseudo-Hermitian: O† η = η O
     assert is_pseudo_hermitian(O, eta, atol=1e-9)
 
 
 def test_no_residual_np_linalg_inv_in_pseudo_hermitian():
-    """No `np.linalg.inv(` survives in pseudo_hermitian; the route is in place."""
+    """No `np.linalg.inv(` survives in pseudo_hermitian; the numpy-free route is
+    in place (rc124: the η solve now rides the Mat-carrier ``mat_solve``)."""
     import srmech
 
     src = (
         pathlib.Path(srmech.__file__).parent / "qm" / "pseudo_hermitian.py"
     ).read_text(encoding="utf-8")
     assert not re.search(r"\b(?:np|numpy)\.linalg\.inv\s*\(", src)
-    assert "_dense_solve_complex(" in src
+    assert "mat_solve(" in src

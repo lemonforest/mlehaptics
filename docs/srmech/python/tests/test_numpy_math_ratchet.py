@@ -366,7 +366,13 @@ _UFUNC = re.compile(
 # lstsq/matmul move to `mat_solve`/`mat_matmul`; hdc's loop/polar families drop
 # numpy entirely. The live linalg_fft count falls to 9 (8 in laplacian's own
 # irreducible numpy fallbacks + 1 pseudo_hermitian general-eig). 22 → 9.
-CEIL_LINALG_FFT = 9
+# rc124 (#564 carrier removal): qm/pseudo_hermitian.py flips fully numpy-free —
+# its lone `np.linalg.eig` (the general non-Hermitian eigendecomposition for the
+# η = (V V†)⁻¹ construction) is replaced by `mat_eigvals` + a deterministic
+# Gaussian-elimination null-vector eigenvector cascade, so the last non-laplacian
+# linalg_fft callsite is gone. 9 → 8 (now all in laplacian's irreducible numpy
+# fallbacks).
+CEIL_LINALG_FFT = 8
 CEIL_MATMUL = 4
 CEIL_UFUNC = 0
 

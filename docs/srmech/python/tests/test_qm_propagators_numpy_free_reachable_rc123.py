@@ -111,21 +111,22 @@ def test_propagators_imports_and_runs_numpy_free():
     assert "PROPAGATORS_OK" in proc.stdout, proc.stdout
 
 
-def test_pseudo_hermitian_still_raises_scientific_hint_numpy_free():
-    """``qm.pseudo_hermitian`` (the NEW pure-wheel must-raise example) still
-    raises the clean ``[scientific]`` hint numpy-blocked — confirming the CI-guard
-    move (propagators -> pseudo_hermitian) is honest: pseudo_hermitian is still a
-    numpy carrier, so it must NOT import numpy-absent."""
+def test_a_still_numpy_carrier_raises_scientific_hint_numpy_free():
+    """A still-numpy CARRIER must still raise the clean ``[scientific]`` hint
+    numpy-blocked. ``pseudo_hermitian`` flipped numpy-free at rc124, so the
+    pure-wheel must-raise example moved to ``ica_jade`` (which imports through the
+    ``closed_form_ops`` lazy package gate that re-raises the numpy
+    ModuleNotFoundError as the clean hint)."""
     proc = _run_numpy_free(
         """
         try:
-            from srmech.qm import pseudo_hermitian  # noqa: F401
+            from srmech.signal_processing.closed_form_ops import ica_jade  # noqa: F401
         except ImportError as exc:
             assert "srmech[scientific]" in str(exc), str(exc)
             print("HINT_OK")
         else:
-            raise SystemExit("pseudo_hermitian unexpectedly importable numpy-free")
+            raise SystemExit("ica_jade unexpectedly importable numpy-free")
         """
     )
-    assert proc.returncode == 0, f"pseudo_hermitian guard failed:\n{proc.stderr}"
+    assert proc.returncode == 0, f"ica_jade hint guard failed:\n{proc.stderr}"
     assert "HINT_OK" in proc.stdout, proc.stdout
