@@ -13,9 +13,11 @@ baseline files below; the per-class C surfaces added since
 `srmech_dispatch.c`, `srmech_catalog.c`, `srmech_template.c`,
 `srmech_tlv.c`, `srmech_search.c`, `srmech_cascade.c`,
 `srmech_bus.c`, `srmech_parallel.c`, `srmech_kuramoto.c`,
-`srmech_platform.c` — the PAL, rc4, the OS sibling of the
-`srmech_simd.c` HAL) are held to the same rules by the
-mechanical ratchet `tests/test_jpl_audit.py`.
+`srmech_platform.c`, `srmech_json.c`, `srmech_genome.c` — the PAL, rc4,
+the OS sibling of the `srmech_simd.c` HAL, plus the §41 genome-persistence
+JSON mirror and the §41 genome-persistence disk surface itself)
+are held to the same rules by the mechanical ratchet
+`tests/test_jpl_audit.py`.
 
 - `c/src/srmech_meta.c` — version + ABI accessors (Phase B3).
 - `c/src/srmech_sha256.c` — FIPS 180-4 SHA-256 (Phase B3).
@@ -278,6 +280,33 @@ table parsers, the builder-tree allocators, the finaliser recursion, and the
 public `srmech_toml_parse` / `srmech_toml_table_get` entries) carries ≥ 2
 asserts (an entry-pointer/contract assert + a structural-invariant assert).
 
+**Rule 5 EXEMPT (srmech_json.c, §41 genome-persistence JSON mirror):**
+`json_is_ws` + `json_is_digit` — 4-line char classifiers returning 0/1 over a
+single `char`, no pointer/bounds invariant to assert (the same exemption class
+as the TOML parser's `toml_is_ws`). Every other function in `srmech_json.c` —
+the arena bump allocator, the explicit-stack parser/emitter, the string
+escape/decode helpers, the canonical writer, the builder constructors — carries
+≥ 2 asserts. The parser + writer are NON-recursive (Rule 1): both walk the value
+tree with an explicit depth-bounded stack capped at `SRMECH_JSON_MAX_DEPTH`.
+Mirrored in `tests/test_jpl_audit.py::RULE_5_EXEMPT_FUNCTIONS`.
+
+**Rule 5 — `srmech_genome.c` (§41 genome-persistence disk surface) adds NO
+new exemptions.** Every function in `srmech_genome.c` — the path/file stdio
+helpers (`genome_join` / `genome_write_file` / `genome_read_file` /
+`genome_read_region`), the manifest builders (`genome_build_the_one` /
+`_chrom` / `_data` / `_attest` / `_render` / `_manifest`), the string-block
+fill (`genome_fill_strings`, `genome_hex`), the catalog/load/window/append
+entries + their accessors (`genome_data_get` / `genome_str_eq` /
+`genome_find_chrom` / `genome_collect_chroms` / `genome_grow_body` /
+`genome_save_validate`) — carries ≥ 2 asserts and is ≤ 60 lines. No
+recursion (the JSON tree is built/walked by the non-recursive
+`srmech_json` builder/parser/writer); every loop is bounded by
+`n_chroms` (≤ `SRMECH_GENOME_MAX_CHROMS` = 256) or a caller `size_t`
+(the file-read loop carries an explicit `pass <= cap` over-bound, Rule 2).
+File I/O is stdio (Rule 3 bans malloc, not files); the caller arena is for
+the JSON tree only; path strings + digests live in fixed stack/static
+buffers.
+
 The Hermitian-eigendecomp `_ws` entry additionally validates the new
 workspace parameters at runtime (`workspace != NULL` →
 `SRMECH_ERR_NULL_ARG`; `ws_len < 2*n*n` → `SRMECH_ERR_OVERFLOW`) in
@@ -395,6 +424,14 @@ Return-value checks at every internal-callsite:
   pasting macros, not all parameterised constants). `SRMECH_HERMITIAN_WS_MAX`
   is its object-like `n = MAX_NODES` specialisation, also single-line.
 - No multi-line macros. No recursive / token-pasting macros.
+- `srmech_json.c` (§41 JSON mirror) adds `SRMECH_JSON_MAX_CHILDREN`,
+  `SRMECH_JSON_MAX_DEPTH` (object-like int constants) and the four
+  structural-byte constants `JSON_LBRACE` / `JSON_RBRACE` / `JSON_LBRACK`
+  / `JSON_RBRACK` (single-token ASCII-code object-like macros, `0x7B` /
+  `0x7D` / `0x5B` / `0x5D`). They exist so no brace/bracket char literal
+  (`'{'` `'}'` `'['` `']'`) appears in a function body — keeping
+  brace-balance unambiguous for tooling and readers. All single-line, no
+  token-paste, no varargs.
 - `#ifdef __cplusplus` only for `extern "C"` block — standard.
 
 ✅ **Pass.**
@@ -551,10 +588,64 @@ the toolchain-level Rule-10 ratchet.
   Python path runs Python). `SRMECH_ABI_VERSION` unchanged at 3 (new symbol
   only). No new mechanical violations; ratchet stays at 0.
 
+- **§41 genome-persistence JSON mirror — `srmech_json.c`.** A malloc-free
+  JSON parser + canonical writer: the parser builds a value tree from a
+  caller-supplied arena/workspace (the same `void *ws, size_t ws_len` bump
+  allocator the TOML parser uses); the writer emits bytes BYTE-IDENTICAL to
+  CPython `json.dumps(obj, sort_keys=True, ensure_ascii=False)` for null /
+  bool / int / string / object / array trees (exactly what an MPR manifest /
+  genome catalog is — they are float-free). DOUBLE values are best-effort
+  (`%.17g`, normalised to carry a `.`); float byte-parity with Python's
+  `repr(float)` is explicitly NOT guaranteed (out of scope; manifests are
+  float-free). Both the parser and the writer are NON-recursive (Rule 1):
+  each walks the tree with an explicit stack of frames bounded by
+  `SRMECH_JSON_MAX_DEPTH` (64), allocated off the call stack (parser frames
+  in the arena; the writer's emit-frame stack a `static SRMECH_THREAD_LOCAL`
+  array — Rule-3-clean static storage, per-thread reentrant). Per-node
+  children capped at `SRMECH_JSON_MAX_CHILDREN` (256). Every loop has a fixed
+  bound (Rule 2): the container loops are bounded by the input length / the
+  child cap. No malloc (Rule 3 — caller arena), no libm, no `<complex.h>`.
+  Two char classifiers (`json_is_ws` / `json_is_digit`) are Rule-5 exempt
+  (see the Rule 5 section); every other function carries ≥ 2 asserts and is
+  ≤ 60 lines. `SRMECH_ABI_VERSION` unchanged at 3 (new symbols + a struct +
+  macros only). No new mechanical violations; ratchet stays at 0.
+
+- **§41 genome-persistence disk surface — `srmech_genome.c`.** The C mirror
+  of `srmech.amsc.genome`'s disk `save` / `load` / `catalog` / `append` /
+  `window`. A genome directory holds `manifest.json` (an MPRRecord, MPR v1,
+  built with the `srmech_json` BUILDER + serialised with `srmech_json_write`,
+  BYTE-IDENTICAL to the Python `genome_save` manifest's
+  `json.dumps(payload, sort_keys=True, ensure_ascii=False)`) and `turns.bin`
+  (the append-only flat body — every strand element a FIXED-WIDTH
+  `leaf_dim`-byte block, verbatim). Bounding == integrity: every read
+  re-hashes the bytes it touched (via `srmech_sha256_hex`, Class A) and
+  compares the lowercase-hex digest against the manifest's stored hex
+  (whole-body `body_sha256`, a windowed chromosome's `cap_sha256`); a
+  mismatch is `SRMECH_ERR_BAD_INPUT` — the `GenomeBoundingError` analogue.
+  No abs(), no float, no libm. The §41 attestation / rendering constants
+  (`source_doi` / `source_url` / `license` / `retrieved_at` /
+  `collector_descriptor_path` + `human_readable_name` / `cite_as` /
+  `purpose`) are copied VERBATIM from `genome.py` `_manifest_record`; the
+  `cite_as` carries the U+00A7 `§` as the 2-byte UTF-8 sequence
+  `0xC2 0xA7` (`ensure_ascii=False`). The `parser_rule_hash` is
+  `sha256("genome_persistence/v1")` and `collector_descriptor_hash` is
+  `sha256("srmech://schema/genome_manifest/v1")`. File I/O is stdio
+  (Rule 3 bans malloc, not file I/O); the caller arena `ws` is for the JSON
+  tree only; path strings + digests + the manifest-write buffer + the
+  append body scratch live in fixed stack / `static SRMECH_THREAD_LOCAL`
+  buffers (Rule-3-clean static storage; per-thread reentrant). No
+  recursion (the JSON tree is built/walked by the non-recursive
+  `srmech_json` builder/parser/writer); every loop bounded (Rule 2 — the
+  file-read loop carries an explicit `pass <= cap` over-bound). Every
+  function carries ≥ 2 asserts and is ≤ 60 lines — NO new Rule-5 exemptions.
+  `SRMECH_ABI_VERSION` unchanged at 3 (new symbols + a struct + macros
+  only). No new mechanical violations; ratchet stays at 0.
+
 Both `srmech_parallel.c` (rc6) and `srmech_kuramoto.c` (rc9 + rc14) pass the
 `tests/test_jpl_audit.py` mechanical ratchet (Rules 1 / 3 / 4 / 5 / 8)
 and the 3-cell pedantic `-Werror` / `-Wpedantic` build (Linux gcc /
-macOS clang / Windows MSVC), verified green in CI.
+macOS clang / Windows MSVC), verified green in CI. `srmech_json.c` and
+`srmech_genome.c` are held to the same ratchet + pedantic build.
 
 **Total mechanically-detectable violations: 1 → 0 (held at 0 through
 v0.6.0rc14).**

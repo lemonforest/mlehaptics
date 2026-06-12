@@ -162,6 +162,12 @@ RULE_5_EXEMPT_FUNCTIONS: set[str] = {
     # same shape as the exempt sha256 ch/maj inline primitives.
     "toml_is_ws",
     "toml_is_bare_key_char",
+    # srmech_json.c (§41 genome-persistence C mirror): trivial char
+    # classifiers — 4-line predicates returning 0/1 over a single char,
+    # no pointer/bounds invariant to assert (same kind as the TOML
+    # parser's toml_is_ws). See c/JPL_AUDIT.md.
+    "json_is_ws",
+    "json_is_digit",
 }
 
 # Maximum allowed function length (JPL Rule 4).

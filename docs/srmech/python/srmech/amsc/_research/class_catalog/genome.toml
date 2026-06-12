@@ -63,3 +63,28 @@ doc = "Pack many kernels {label: leaves} into ONE telomere-partitioned genome st
 op = "srmech.amsc.genome.partition"
 binds = ["strand", "the_one", "labels"]
 doc = "Recover {label: leaves} from a multi-kernel genome strand by its telomere labels."
+
+# ── UPSTREAM §41 — genome persistence (disk save / load / catalog / append) ──
+# The helix grows ON DISK: a genome directory holds a fixed-width append-only
+# body (turns.bin) plus an MPR-attested manifest catalog. Reads are paged +
+# bounded (every read re-hashes the bytes it touched vs the manifest).
+
+[class.method.save]
+op = "srmech.amsc.genome.genome_save"
+binds = ["strand", "path", "the_one", "labels"]
+doc = "Persist a genome strand to path/ (turns.bin body + MPR manifest catalog); the_one bound from the field. Returns the manifest dict."
+
+[class.method.load]
+op = "srmech.amsc.genome.genome_load"
+binds = ["path"]
+doc = "Reconstruct (strand, the_one, labels) from path/; labels=None loads all (streamed), else only those chromosomes (paged). Bounded by re-hash."
+
+[class.method.catalog]
+op = "srmech.amsc.genome.genome_catalog"
+binds = ["path"]
+doc = "Read ONLY the manifest catalog at path/ (leaf_dim, per-chromosome cap_sha256/leaf_count/byte_offset/byte_len, body_sha256) — never opens turns.bin."
+
+[class.method.append]
+op = "srmech.amsc.genome.genome_append"
+binds = ["path", "label", "leaves", "the_one"]
+doc = "Append ONE chromosome to the genome at path/ (the helix grows; append-only body; prior entries unchanged); the_one bound from the field. Returns the updated manifest."

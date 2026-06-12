@@ -1803,6 +1803,51 @@ def _register_primitive_class_tools() -> None:
         ),
 
         # ────────────────────────────────────────────────────────────
+        # Genome persistence — UPSTREAM §41. The helix grows ON DISK: a
+        # genome directory holds a fixed-width append-only body (turns.bin)
+        # + an MPR-attested manifest catalog. Reads are paged + BOUNDED
+        # (every read re-hashes the bytes it touched vs the manifest).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.genome.genome_save", owner="srmech", category="genome",
+            summary="Persist a genome strand to a directory (UPSTREAM §41). Splits the flat strand into its telomere-delimited chromosomes (by labels, the way partition does), writes a FIXED-WIDTH append-only body to path/turns.bin (every strand element — a cap or a coupled turn — is a leaf_dim-byte Klein-4 block, values 0..3, no length prefixes), and writes an MPR-attested catalog to path/manifest.json (format_version, leaf_dim, n_turns, the_one hash+hex, body_sha256, and per-chromosome cap_sha256 / leaf_count / byte_offset / byte_len). the_one (the held invariant) is content-addressed into the manifest so a load re-anchors without re-deriving it. Returns the manifest data dict. numpy-free; hashes via sha256_bytes.",
+            parameters=(P("strand", "Sequence[np.ndarray]", True, "the flat genome strand to persist (from genome)"),
+                        P("path", "str", True, "the genome DIRECTORY to write (created if absent; gets manifest.json + turns.bin)"),
+                        P("the_one", "np.ndarray", True, "the held invariant every turn is coupled through (content-addressed into the manifest)"),
+                        P("labels", "list", True, "the chromosome labels whose telomere caps delimit the strand")),
+            returns=R("dict", "the manifest data {format_version, leaf_dim, n_turns, the_one, body_sha256, chromosomes}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_load", owner="srmech", category="genome",
+            summary="Reconstruct a genome from a directory (UPSTREAM §41) — returns (strand, the_one, labels). labels=None loads the WHOLE genome: streams turns.bin block-by-block (RAM bounded by the active block, not the whole file) and re-hashes the streamed body against the manifest body_sha256. A subset labels=[...] is a PAGED read: it seeks to each requested chromosome's byte_offset and reads only its byte_len bytes (RAM bounded by the largest single chromosome), re-hashing that region's cap against cap_sha256. Bounding IS integrity — a flipped / truncated / re-ordered byte raises GenomeBoundingError. The returned strand is byte-for-byte the saved strand for the requested chromosomes; the_one is rebuilt from the manifest's stored block and verified against its hash.",
+            parameters=(P("path", "str", True, "the genome directory written by genome_save"),
+                        P("labels", "list", False, "keyword-only; chromosome subset to page in (None = load all, streamed)")),
+            returns=R("tuple", "(strand, the_one, labels) — the reconstructed genome (byte-exact for the requested chromosomes)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_catalog", owner="srmech", category="genome",
+            summary="Read ONLY the manifest catalog of a genome (UPSTREAM §41) — the cheap, body-free read. Returns the manifest data dict (leaf_dim, n_turns, body_sha256, the_one hash+hex, and per-chromosome cap_sha256 / leaf_count / byte_offset / byte_len). This NEVER opens turns.bin, so you can enumerate a genome's chromosomes, sizes, and integrity hashes without paging in any body bytes. The manifest is an MPRRecord (MPR v1) that passes validate_mpr_record (its response_sha256 IS the body hash). numpy-free.",
+            parameters=(P("path", "str", True, "the genome directory written by genome_save"),),
+            returns=R("dict", "the manifest data (chromosome index + integrity hashes; no body bytes)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_append", owner="srmech", category="genome",
+            summary="Append ONE chromosome to an existing genome (UPSTREAM §41) — the helix grows. Packs leaves into a telomere-capped chromosome (coupled through the_one), appends its fixed-width blocks to the END of turns.bin (APPEND-ONLY — prior chromosomes' body bytes are never rewritten), and rewrites the manifest with the new chromosome entry plus a recomputed body_sha256 / n_turns. Every EXISTING chromosome's manifest entry (cap_sha256 / byte_offset / leaf_count / byte_len) stays byte-identical. Verifies the body it appends TO against body_sha256 first (never grows a corrupt body). Returns the updated manifest data dict. numpy-free.",
+            parameters=(P("path", "str", True, "the genome directory written by genome_save"),
+                        P("label", "str", True, "the new chromosome's label (must not already exist in the genome)"),
+                        P("leaves", "Sequence[np.ndarray]", True, "the new kernel's Klein-4 leaf vectors"),
+                        P("the_one", "np.ndarray", True, "the held invariant the new turns are coupled through (dim must match leaf_dim)")),
+            returns=R("dict", "the updated manifest data (with the appended chromosome + recomputed body_sha256)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_window", owner="srmech", category="genome",
+            summary="Page in ONLY one chromosome's leaves from a genome (UPSTREAM §41). Seeks to the chromosome label's byte_offset and reads only its byte_len bytes (RAM bounded by that one chromosome), re-hashing the region's cap against the manifest cap_sha256 — a mismatch raises GenomeBoundingError. Returns the chromosome's stored leaves (the coupled data turns, the cap excluded) as a list of Klein-4 vectors, in order — the disk-paging counterpart of reaching into one partition of the genome without loading the rest.",
+            parameters=(P("path", "str", True, "the genome directory written by genome_save"),
+                        P("label", "str", True, "the chromosome label whose leaves to page in")),
+            returns=R("list", "the chromosome's stored leaves (coupled turns, cap excluded), in order"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
         # Class K — equation-of-centre / pin-slot
         # ────────────────────────────────────────────────────────────
         ToolEntry(
