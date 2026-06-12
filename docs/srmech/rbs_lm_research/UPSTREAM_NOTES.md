@@ -1948,3 +1948,31 @@ Class-H introspection answer "what kernels are stored", the same self-recognitio
 persisted nothing — the gap this closes). **Discipline:** TestPyPI-rc before clean tag; ABI unaffected (pure-Python
 surface); MPR-attested manifest; numpy-free. Scoped per `[[feedback_upstream_srmech_fixes_as_research_notes]]` — no
 issue tracker (user direction 2026-06-09).
+
+## §42 DELIVERED + ergonomics — §41 genome PERSISTENCE shipped in 0.7.5rc128; one read-path asymmetry (2026-06-11; F727)
+
+**Status: §41 DELIVERED, to spec.** `srmech.amsc.genome` in 0.7.5rc128 (test.pypi.org) ships `genome_save` /
+`genome_load` / `genome_catalog` / `genome_append` / `genome_window` + `GENOME_FORMAT_VERSION=1` +
+`GENOME_MANIFEST_SCHEMA_ID="srmech://schema/genome_manifest/v1"`. On-disk layout is exactly the §41 spec:
+`path/manifest.json` (`format_version`/`leaf_dim`/`n_turns`/`the_one`/`body_sha256`/`chromosomes[{label,cap_sha256,
+byte_offset,byte_len,…}]`) + `path/turns.bin` (append-only helix body). **VERIFIED** (provenance
+`R-RBS-LM-GENOMEDISK_rc128_save_load_roundtrip_verify.py`, VERDICT ✓): round-trip is bit-exact (recall
+before==after; the_one+labels survive); `body_sha256` is deterministic across independent saves;
+`genome_window` seeks `byte_offset`, reads one chromosome, and cap-integrity-checks the telomere
+(`cap_sha256`, raises `GenomeBoundingError` on mismatch); `genome_append` grows the helix. **Nothing broken.**
+
+**Ergonomic ask 1 (read-path asymmetry — not a bug, a docs/symmetry gap).** The two "read a chromosome's leaves"
+paths return DIFFERENT layers: `recall(strand, the_one, telomere)` returns **decoded** leaves
+(`recall(chromosome(L)) == L` verbatim), but `genome_window(path,label)` returns the **on-disk STORED form** — each
+leaf **bound to `the_one`**: verified `window == [klein4_bind(L_i, the_one)]` and `klein4_unbind(window, the_one)
+== L` (4/4). A caller reaching for `genome_window` to "get my kernels back" gets bound vectors and reads it as
+corruption (0/4 raw match) until they un-bind. **Fix:** either have `genome_window` un-bind before returning
+(symmetry with `recall`), or document "returns the stored/encoded form; `klein4_unbind(·, the_one)` to decode" +
+optionally a `decode=True` flag.
+
+**Ergonomic ask 2 (param name collision).** The `the_one` PARAM here is the **coherence-anchor LEAF** (a Klein-4
+vector of leaf-dim — `genome()`/`chromosome()` do `len(list(the_one))` to read the dim), NOT the typed `One`
+`S(σ,θ)` from `cascade.the_one`. Passing the typed `One` raises `TypeError: 'One' object is not iterable`. Worth a
+one-line docstring note (or accept the typed `One` and derive the anchor leaf from it). **Discipline:** TestPyPI-rc
+before clean tag; ABI unaffected (pure-Python); no issue tracker (user direction). Composes §41 / F711 / F721 / F726
+(Siona genome-persist) / F436 (the_one = diagonal-μ anchor).
