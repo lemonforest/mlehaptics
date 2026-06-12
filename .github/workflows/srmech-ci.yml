@@ -180,7 +180,7 @@ jobs:
           # (spin/bell/sm/single_particle/relativistic/gauge) run numpy-free,
           # while the as-yet-numpy submodules still raise the [scientific] hint.
           import srmech.qm  # noqa: F401  (subpackage import must NOT require numpy)
-          from srmech.qm import spin, bell, single_particle, relativistic, gauge
+          from srmech.qm import spin, bell, single_particle, relativistic, gauge, potentials
           assert type(spin.pauli_matrices()[0]).__name__ == 'Mat', 'spin not numpy-free'
           verified, primary, _ = bell.verify_chsh()
           assert verified and primary == 0.0, (verified, primary)
@@ -199,6 +199,10 @@ jobs:
           _g2 = gauge.su2_generators()
           assert type(_g2[0]).__name__ == 'Mat', 'gauge not numpy-free'
           assert abs(gauge.casimir_eigenvalue(_g2) - 0.75) < 1e-12, 'gauge casimir wrong'
+          # potentials (rc121) is numpy-free: hydrogen_radial returns (list, list, Mat) via the native eig.
+          _r, _e, _V = potentials.hydrogen_radial(n_grid=40, r_max=30.0)
+          assert type(_V).__name__ == 'Mat' and not _V.is_complex, 'potentials not numpy-free'
+          assert -0.7 < _e[0] < -0.3, 'potentials hydrogen ground state off'
           # an as-yet-numpy qm submodule must still fail with the [scientific] hint:
           try:
               from srmech.qm import propagators  # noqa: F401  (still a numpy carrier)

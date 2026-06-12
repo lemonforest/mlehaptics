@@ -5,10 +5,14 @@ own A-N cascade primitives:
 
 - Hermitian eigendecomposition (``np.linalg.eigh`` / ``eigvalsh``) ->
   the Class-L primitive ``srmech.amsc.laplacian.hermitian_eigendecompose``
-  (potentials / so8). ``single_particle`` (rc117, #564) and ``gauge``
-  (rc119, #564) have since been flipped fully numpy-free onto the ``Mat``
-  carrier (``mat_hermitian_eigendecompose`` + the Class-N ``rational.cexp``
-  phase), so their tests below build inputs and assert WITHOUT numpy.
+  (the generic so8 / eigvalsh routing path). ``single_particle`` (rc117),
+  ``gauge`` (rc119) and ``potentials`` (rc121) have since been flipped fully
+  numpy-free onto the ``Mat`` carrier (``mat_hermitian_eigendecompose`` + the
+  Class-N ``rational.cexp`` phase), so their cells below build inputs and
+  assert WITHOUT numpy. numpy stays the sanctioned differential oracle only
+  for the still-unflipped GENERIC ``hermitian_eigendecompose`` routing cells
+  (``_assert_eig_parity`` / the eigvalsh-match cell — the so8 use-site that has
+  not been flipped to ``Mat``).
 - Standard-Model trig (``math.cos`` / ``math.sin`` / ``math.atan2``) ->
   the substrate-native Class-N rational trig ``srmech.amsc.rational.*``
   (sm).
@@ -39,9 +43,10 @@ from srmech.qm import gauge, potentials, sm, single_particle as sp
 # numpy-free fixtures for the FLIPPED single_particle op (rc117, #564):
 # single_particle now holds its matrices in `Mat` and is numpy-free, so its
 # tests below build inputs + assert WITHOUT numpy (numpy stays the sanctioned
-# oracle only for the still-unflipped potentials / hermitian_eigen routing
-# tests in this file; gauge flipped numpy-free at rc119 and its test below is
-# numpy-free too).
+# differential oracle only for the still-unflipped GENERIC hermitian_eigen
+# routing cells in this file — the so8 / eigvalsh use-site that has not been
+# flipped to `Mat`; gauge flipped numpy-free at rc119 and potentials at rc121,
+# so their cells below are numpy-free too).
 # ----------------------------------------------------------------------
 
 
@@ -141,16 +146,22 @@ def test_hermitian_eigendecompose_eigenvalues_match_eigvalsh():
 
 
 def test_potentials_hydrogen_eigenvectors_real_and_orthonormal():
-    """hydrogen_radial (real-symmetric H) returns REAL eigenvectors after the
-    value-preserving .real, and they stay orthonormal (V.T @ V = I)."""
-    r, eigvals, V = potentials.hydrogen_radial(n_grid=120, r_max=40.0)
-    assert np.isrealobj(V), "real-symmetric eigenvectors must be real dtype"
-    np.testing.assert_allclose(V.T @ V, np.eye(V.shape[1]), atol=1e-9)
-    # Eigenvalues match a direct eigvalsh of the same Hamiltonian.
-    # (rebuild H from the documented discretization is overkill; assert the
-    # returned eigvals are ascending real and the ground state is physical.)
-    assert np.all(np.diff(eigvals) >= -1e-9)
-    assert -0.6 < eigvals[0] < -0.4
+    """hydrogen_radial (rc121, numpy-free) returns ``(list, list, Mat)``: a REAL
+    eigenvector ``Mat`` (after the value-preserving .real) that stays orthonormal
+    (Vᵀ V = I) — numpy-FREE (real-Mat compare via the native mat_matmul)."""
+    r, energies, V = potentials.hydrogen_radial(n_grid=120, r_max=40.0)
+    assert V.is_complex is False, "real-symmetric eigenvectors must be a real Mat"
+    # Vᵀ·V = I by direct Mat-entry check (native mat_matmul, real Mat).
+    gram = mat_matmul(V.T, V)
+    n = gram.n_rows
+    assert max(
+        abs(gram[i, j] - (1.0 if i == j else 0.0)) for i in range(n) for j in range(n)
+    ) < 1e-9
+    # Eigen-energies ascending real and the ground state physical (the `energies`
+    # list indexes directly; no numpy).
+    for i in range(len(energies) - 1):
+        assert energies[i + 1] - energies[i] >= -1e-9
+    assert -0.6 < energies[0] < -0.4
 
 
 def test_single_particle_tise_subspace_parity():
