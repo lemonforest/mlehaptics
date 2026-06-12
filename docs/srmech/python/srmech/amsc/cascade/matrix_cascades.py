@@ -46,18 +46,18 @@ import itertools
 from collections import Counter
 from typing import Dict, List, Tuple
 
-# numpy is the [scientific] extra (v0.7.0). This module mixes a numpy-free
-# path with ndarray-typed ops; the lazy proxy keeps the module importable
-# on a plain install and only the ndarray ops raise the [scientific] hint.
-from srmech._scientific import lazy_numpy as _lazy_numpy
-np = _lazy_numpy("srmech.amsc.cascade.matrix_cascades")
-
+# numpy-FREE (#564): the matrix factorisations operate on, and return, plain
+# nested Python lists (matrices) / flat lists (vectors / eigenvalues). The heavy
+# numpy-free engines live in :mod:`srmech.amsc.laplacian` over the
+# :class:`~srmech.amsc.mat.Mat` carrier (native-dispatched, no numpy): ``svd`` /
+# ``lstsq`` / ``eigvals`` delegate to ``mat_svd`` / ``mat_lstsq`` / ``mat_eigvals``;
+# ``qr`` is a list-based Householder; ``einsum`` is the nested-list
+# index-iteration definition. There is NO ``import numpy`` anywhere here.
+from srmech.amsc.mat import Mat as _Mat
 from srmech.amsc.laplacian import (
-    dense_dot_complex,
-    dense_matmul_complex,
-    dense_matvec_complex,
-    dense_outer_complex,
-    hermitian_eigendecompose,
+    mat_eigvals as _mat_eigvals,
+    mat_lstsq as _mat_lstsq,
+    mat_svd as _mat_svd,
 )
 from srmech.amsc.rational import hypot as _rhypot
 from srmech.amsc.rational import sqrt as _rsqrt
@@ -70,37 +70,56 @@ def _modulus(z: complex) -> float:
     return _rhypot(float(z.real), float(z.imag))
 
 
-def _complex_sqrt(w: complex) -> complex:
-    """Principal complex square root via the Class-N real cascades — no
-    ``cmath.sqrt``. For ``w = a + i·b``: ``|w|`` is the Class-N hypot cascade,
-    and ``√w = √((|w|+a)/2) + i·sign(b)·√((|w|-a)/2)`` is two Class-N real
-    ``sqrt`` cascades joined by a Class-K sign-branch (principal branch, ``Re ≥
-    0``). Matches ``cmath.sqrt`` to ~1e-13; the continuous root stays a cascade
-    of the 14 even on this float (round-off-faithful) path."""
-    a = float(w.real)
-    b = float(w.imag)
-    if a == 0.0 and b == 0.0:
-        return 0j
-    m = _rhypot(a, b)                       # Class-N |w|  (≥ |a| exactly)
-    re_arg = (m + a) / 2.0                  # both radicands ≥ 0 mathematically;
-    im_arg = (m - a) / 2.0                  # a tiny <0 is float round-off →
-    re = _rsqrt(re_arg) if re_arg > 0.0 else 0.0   # Class-K pin-slot at zero
-    im = _rsqrt(im_arg) if im_arg > 0.0 else 0.0   # (the _norm2 idiom)
-    return complex(re, im if b >= 0.0 else -im)    # Class-K sign-branch (no copysign)
+# ── numpy-free nested-list helpers (shape / index / build / collapse) ──────────
+def _to_rows(a) -> List[List[complex]]:
+    """A 2-D array-like → a nested ``list[list[complex]]`` (rows), numpy-free."""
+    rows = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
+    return [[complex(v) for v in r] for r in rows]
 
 
-def _norm2(v: np.ndarray) -> float:
-    """Euclidean norm ‖v‖ = √(vᴴv) via the Class-N sqrt cascade. The
-    sum-of-squares ``vᴴv`` is a Class-M bind (the Class-M self-bind) routed
-    through :func:`dense_dot_complex` (``conj(v)`` passed explicitly — the
-    Hermitian inner product); the root is :func:`srmech.amsc.rational.sqrt` —
-    no ``NumPy norm`` / ``abs`` / numpy contraction engine."""
-    sq = float(dense_dot_complex(np.conj(v), v).real)
+def _input_is_complex(a) -> bool:
+    """True iff any leaf of the (possibly nested) array-like is a Python
+    ``complex`` — the numpy-free stand-in for ``np.iscomplexobj`` (dtype-, not
+    value-, based: ``complex(1, 0)`` still counts as complex INPUT)."""
+    def _walk(x):
+        if isinstance(x, complex):
+            return True
+        if isinstance(x, (list, tuple)):
+            return any(_walk(e) for e in x)
+        if hasattr(x, "tolist"):
+            return _walk(x.tolist())
+        return False
+    return _walk(a)
+
+
+def _all_imag_zero(nested, tol: float = 1e-12) -> bool:
+    """True iff every complex leaf has ``|imag| <= tol`` (real-collapse gate)."""
+    if isinstance(nested, (list, tuple)):
+        return all(_all_imag_zero(e, tol) for e in nested)
+    z = complex(nested)
+    return -tol <= z.imag <= tol
+
+
+def _real_of(nested):
+    """Map every complex leaf to its real part (used after the imag-zero gate)."""
+    if isinstance(nested, (list, tuple)):
+        return [_real_of(e) for e in nested]
+    return complex(nested).real
+
+
+def _norm2(v: List[complex]) -> float:
+    """Euclidean norm ‖v‖ = √(vᴴv) via the Class-N sqrt cascade — numpy-free.
+    The sum-of-squares ``vᴴv = Σ|vᵢ|²`` is a Class-M self-bind; the root is
+    :func:`srmech.amsc.rational.sqrt` (no ``abs``, no numpy norm engine)."""
+    sq = 0.0
+    for vi in v:
+        z = complex(vi)
+        sq += z.real * z.real + z.imag * z.imag
     return _rsqrt(sq) if sq > 0.0 else 0.0
 
 
-def qr(a, *, mode: str = "reduced") -> Tuple[np.ndarray, np.ndarray]:
-    """Householder QR factorization ``A = Q·R``.
+def qr(a, *, mode: str = "reduced") -> Tuple[List[List], List[List]]:
+    """Householder QR factorization ``A = Q·R`` (numpy-free, list-based).
 
     Parameters
     ----------
@@ -114,54 +133,66 @@ def qr(a, *, mode: str = "reduced") -> Tuple[np.ndarray, np.ndarray]:
     Returns
     -------
     (Q, R)
-        ``Q`` has orthonormal columns (``Qᴴ Q = I``), ``R`` is upper
-        triangular. Q·R reconstructs A to round-off. QR is unique only up to
-        column/row signs, so ``Q``/``R`` need not match ``NumPy QR``
-        element-wise — the defining INVARIANTS (reconstruction, orthonormal
-        Q, upper-triangular R) do.
+        Nested Python lists. ``Q`` has orthonormal columns (``Qᴴ Q = I``),
+        ``R`` is upper triangular; Q·R reconstructs A to round-off. QR is
+        unique only up to column/row signs, so ``Q``/``R`` need not match
+        ``NumPy QR`` element-wise — the defining INVARIANTS (reconstruction,
+        orthonormal Q, upper-triangular R) do. Real input with a real result
+        collapses to real-valued (``float``) leaves.
     """
     if mode not in ("reduced", "complete"):
         raise ValueError(f"mode must be 'reduced' or 'complete'; got {mode!r}")
-    A = np.array(a, dtype=np.complex128)
-    if A.ndim != 2:
-        raise ValueError(f"a must be 2-D; got shape {A.shape}")
-    m, n = A.shape
-    R = A.copy()
-    Q = np.eye(m, dtype=np.complex128)
+    R = _to_rows(a)
+    m = len(R)
+    n = len(R[0]) if m else 0
+    if any(len(r) != n for r in R):
+        raise ValueError("qr: a must be a rectangular 2-D array-like")
+    Q = [[1 + 0j if i == j else 0j for j in range(m)] for i in range(m)]
     k = min(m, n)
     for j in range(k):
-        x = R[j:, j].copy()
+        x = [R[i][j] for i in range(j, m)]            # column j, rows j..m-1
         normx = _norm2(x)
         if normx == 0.0:
             continue
-        x0 = complex(x[0])
+        x0 = x[0]
         modx0 = _modulus(x0)
         phase = (x0 / modx0) if modx0 > 0.0 else complex(1.0, 0.0)
-        alpha = -phase * normx                       # Class K: pin-slot phase
-        v = x.astype(np.complex128)
+        alpha = -phase * normx                        # Class K: pin-slot phase
+        v = list(x)
         v[0] = x0 - alpha
-        vhv = float(dense_dot_complex(np.conj(v), v).real)
+        vhv = 0.0
+        for vi in v:
+            vhv += (vi.conjugate() * vi).real         # Class N: vᴴv (real)
         if vhv == 0.0:
             continue
         beta = 2.0 / vhv                              # Class N: 1/(vᴴv) scale
-        # H = I − β v vᴴ applied to the trailing block (Class M outer bind),
-        # each matvec/outer routed through the dense_* kernel cascade (numpy
-        # carriers-only — no numpy contraction/outer engine here).
-        vh_R = dense_matvec_complex(R[j:, :].T, np.conj(v))   # conj(v)·R = Rᵀ·conj(v)
-        R[j:, :] -= beta * dense_outer_complex(v, vh_R)
-        Q_v = dense_matvec_complex(Q[:, j:], v)               # Q·v
-        Q[:, j:] -= beta * dense_outer_complex(Q_v, np.conj(v))
+        # R[j:, :] ← (I − β v vᴴ) R[j:, :]  (Class M outer bind, numpy-free).
+        vh_R = [sum(v[idx].conjugate() * R[j + idx][col] for idx in range(len(v)))
+                for col in range(n)]                  # conj(v)·R over trailing rows
+        for idx in range(len(v)):
+            i = j + idx
+            for col in range(n):
+                R[i][col] -= beta * v[idx] * vh_R[col]
+        # Q[:, j:] ← Q[:, j:] (I − β v vᴴ).
+        Q_v = [sum(Q[row][j + t] * v[t] for t in range(len(v))) for row in range(m)]
+        for row in range(m):
+            for t in range(len(v)):
+                Q[row][j + t] -= beta * Q_v[row] * v[t].conjugate()
     if mode == "reduced":
-        Q = Q[:, :k].copy()
-        R = R[:k, :].copy()
-    if not np.iscomplexobj(a) and np.allclose(R.imag, 0.0) and np.allclose(Q.imag, 0.0):
-        return Q.real.copy(), R.real.copy()
+        Q = [[Q[i][c] for c in range(k)] for i in range(m)]
+        R = [R[i][:n] for i in range(k)]
+    real_input = not _input_is_complex(a)
+    if real_input and _all_imag_zero(Q) and _all_imag_zero(R):
+        return _real_of(Q), _real_of(R)
     return Q, R
 
 
-def svd(a, *, full_matrices: bool = False) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Singular value decomposition ``A = U·diag(s)·Vᴴ`` via the Gram-matrix
-    Hermitian eigendecomposition.
+def svd(a, *, full_matrices: bool = False) -> Tuple[List[List], List[float], List[List]]:
+    """Singular value decomposition ``A = U·diag(s)·Vᴴ`` (numpy-free).
+
+    Delegates to the Mat-carrier :func:`srmech.amsc.laplacian.mat_svd` (Gram
+    ``AᴴA`` Hermitian-eigen route, native-dispatched, numpy-free) and slices its
+    full ``(m, m)`` / ``(n, n)`` factors down to the reduced form.
 
     Parameters
     ----------
@@ -170,117 +201,95 @@ def svd(a, *, full_matrices: bool = False) -> Tuple[np.ndarray, np.ndarray, np.n
     full_matrices
         ``False`` (default, matching ``NumPy SVD``'s reduced form):
         ``U`` is ``(m, k)``, ``s`` is ``(k,)``, ``Vh`` is ``(k, n)`` with
-        ``k = min(m, n)``. (``full_matrices=True`` is not yet supplied; the
-        reduced form is the one downstream consumers use.)
+        ``k = min(m, n)``.
 
     Returns
     -------
     (U, s, Vh)
-        ``s`` is the length-``k`` array of singular values in DESCENDING
-        order (matching ``NumPy SVD`` to round-off for well-
-        conditioned inputs); ``U``/``Vh`` have orthonormal columns/rows and
-        reconstruct ``A``. U/V are unique only up to signs, so they need not
-        match numpy element-wise — the invariants do.
+        Nested Python lists for ``U`` / ``Vh`` and a ``list[float]`` ``s`` of
+        singular values DESCENDING. ``U``/``Vh`` have orthonormal columns/rows
+        and reconstruct ``A`` (value-faithful, not bit-identical, to NumPy — the
+        Gram route squares the condition number; see
+        ``[[feedback_cascade_svd_nullspace_accuracy_not_route_matrix_rank]]``).
+        Real input with a real result collapses to real-valued leaves.
     """
     if full_matrices:
         raise NotImplementedError(
             "matrix_cascades.svd supplies the reduced form (full_matrices="
             "False); the full orthonormal completion is the follow-on."
         )
-    A = np.array(a, dtype=np.complex128)
-    if A.ndim != 2:
-        raise ValueError(f"a must be 2-D; got shape {A.shape}")
-    m, n = A.shape
+    rows = _to_rows(a)
+    m = len(rows)
+    n = len(rows[0]) if m else 0
     k = min(m, n)
     if k == 0:
-        return (np.zeros((m, 0), dtype=np.complex128),
-                np.zeros(0, dtype=np.float64),
-                np.zeros((0, n), dtype=np.complex128))
-    if m >= n:
-        gram = dense_matmul_complex(np.conj(A.T), A)  # AᴴA (n×n); Class-L matmul cascade
-        eigvals, V = hermitian_eigendecompose(gram)  # Class L
-        order = np.argsort(eigvals)[::-1]            # descending
-        V = V[:, order]
-        s = np.array([_rsqrt(ev) if ev > 0.0 else 0.0 for ev in eigvals[order]])
-        U = dense_matmul_complex(A, V)               # Class-L matmul cascade
-        for j in range(k):
-            if s[j] > 0.0:
-                U[:, j] = U[:, j] / s[j]             # Class N: U = A·V·Σ⁻¹
-        Vh = np.conj(V.T)
-    else:
-        gram = dense_matmul_complex(A, np.conj(A.T))  # AAᴴ (m×m); Class-L matmul cascade
-        eigvals, U = hermitian_eigendecompose(gram)
-        order = np.argsort(eigvals)[::-1]
-        U = U[:, order]
-        s = np.array([_rsqrt(ev) if ev > 0.0 else 0.0 for ev in eigvals[order]])
-        V = dense_matmul_complex(np.conj(A.T), U)    # Aᴴ·U; Class-L matmul cascade
-        for j in range(k):
-            if s[j] > 0.0:
-                V[:, j] = V[:, j] / s[j]
-        Vh = np.conj(V.T)
-    U = U[:, :k].copy()
-    Vh = Vh[:k, :].copy()
-    if not np.iscomplexobj(a) and np.allclose(U.imag, 0.0) and np.allclose(Vh.imag, 0.0):
-        return U.real.copy(), s, Vh.real.copy()
+        return ([[] for _ in range(m)] if m else [], [], [r[:] for r in ([] )])
+    is_cx = _input_is_complex(a)
+    U_full, S, Vh_full = _mat_svd(_Mat.from_rows(rows, is_complex=is_cx))
+    U_rows = U_full.tolist()                           # (m, m)
+    Vh_rows = Vh_full.tolist()                         # (n, n)
+    U = [[complex(U_rows[i][c]) for c in range(k)] for i in range(m)]   # (m, k)
+    Vh = [[complex(Vh_rows[i][c]) for c in range(n)] for i in range(k)]  # (k, n)
+    s = [float(S[j]) for j in range(k)]
+    if not is_cx and _all_imag_zero(U) and _all_imag_zero(Vh):
+        return _real_of(U), s, _real_of(Vh)
     return U, s, Vh
 
 
-def lstsq(a, b) -> np.ndarray:
-    """Least-squares solution of ``A x = b`` (minimising ``‖A x − b‖``).
+def lstsq(a, b) -> List:
+    """Least-squares solution of ``A x = b`` (minimising ``‖A x − b‖``), numpy-free.
 
-    **{QR}** factorization ∘ **Class M** (the ``Qᴴ b`` product) ∘ **Class I**
-    (back-substitution = the ordered triangular solve). Supports the
+    Delegates to the Mat-carrier :func:`srmech.amsc.laplacian.mat_lstsq` (the
+    normal-equations ``(AᴴA)⁻¹Aᴴb`` over the native ``mat_*`` trio). Supports the
     overdetermined / square case ``m ≥ n`` (full column rank); ``b`` may be a
-    vector ``(m,)`` or a stack of right-hand sides ``(m, k)``. The
-    underdetermined ``m < n`` min-norm solution is the follow-on.
+    vector ``(m,)`` or a stack of right-hand sides ``(m, k)``.
 
-    Returns the solution ``x`` (shape ``(n,)`` or ``(n, k)``), matching
-    ``NumPy lstsq(a, b)[0]`` to round-off for full-rank inputs.
+    Returns the solution ``x`` as a flat ``list`` (vector ``b``) or a nested
+    ``list`` (matrix ``b``), matching ``NumPy lstsq(a, b)[0]`` to round-off for
+    full-rank inputs. Real input with a real result collapses to real leaves.
     """
-    A = np.array(a, dtype=np.complex128)
-    B = np.array(b, dtype=np.complex128)
-    if A.ndim != 2:
-        raise ValueError(f"a must be 2-D; got shape {A.shape}")
-    m, n = A.shape
+    arows = _to_rows(a)
+    m = len(arows)
+    n = len(arows[0]) if m else 0
     if m < n:
         raise NotImplementedError(
             "matrix_cascades.lstsq supplies the overdetermined/square (m>=n) "
-            "QR path; the underdetermined min-norm case is the follow-on."
+            "normal-equations path; the underdetermined min-norm case is the "
+            "follow-on."
         )
-    Q, R = qr(A)                                      # reduced: Q (m,n), R (n,n)
-    Qh = np.conj(Q.T)                                 # Qᴴ (carrier transpose+conj)
-    # Class M: Qᴴ·b routed through the dense_* kernel cascade (matvec for a 1-D
-    # rhs, matmul for a multi-column rhs — numpy carriers-only, no numpy matmul).
-    rhs = (dense_matvec_complex(Qh, B) if B.ndim == 1
-           else dense_matmul_complex(Qh, B))
-    x = np.zeros((n,) + B.shape[1:], dtype=np.complex128)
-    for i in range(n - 1, -1, -1):                    # Class I: back-substitution
-        tail = R[i, i + 1:]                           # the already-solved span
-        if tail.shape[0] == 0:
-            acc = 0.0                                 # nothing solved above row i
-        elif x.ndim == 1:
-            acc = dense_dot_complex(tail, x[i + 1:])  # 1-D rhs: a Class-M dot
-        else:
-            acc = dense_matvec_complex(x[i + 1:].T, tail)  # k-col rhs: xᵀ·tail
-        x[i] = (rhs[i] - acc) / R[i, i]
-    if not np.iscomplexobj(a) and not np.iscomplexobj(b) and np.allclose(x.imag, 0.0):
-        return x.real.copy()
-    return x
+    b_list = b.tolist() if hasattr(b, "tolist") else b
+    b_is_1d = not (b_list and isinstance(b_list[0], (list, tuple)))
+    if b_is_1d:
+        b_rows = [[complex(v)] for v in b_list]        # (m, 1) column
+    else:
+        b_rows = [[complex(v) for v in r] for r in b_list]
+    is_cx = _input_is_complex(a) or _input_is_complex(b)
+    A_mat = _Mat.from_rows(arows, is_complex=is_cx)
+    B_mat = _Mat.from_rows(b_rows, is_complex=is_cx)
+    X = _mat_lstsq(A_mat, B_mat)                        # Mat (n, w)
+    x_rows = [[complex(X[i, j]) for j in range(X.n_cols)] for i in range(X.n_rows)]
+    if b_is_1d:
+        result = [row[0] for row in x_rows]            # flat (n,)
+    else:
+        result = x_rows                                # (n, k)
+    if not _input_is_complex(a) and not _input_is_complex(b) and _all_imag_zero(result):
+        return _real_of(result)
+    return result
 
 
-def einsum(subscripts: str, *operands) -> np.ndarray:
-    """Einstein-summation tensor contraction via the index-iteration definition.
+def einsum(subscripts: str, *operands) -> List:
+    """Einstein-summation tensor contraction via the index-iteration definition
+    (numpy-free, nested-list operands).
 
     **Class B/D** (the subscript string is a typed index-pattern spec) ∘
     **Class I** (iterate over every free + summed index tuple) ∘ **Class M**
-    (the sum-of-products bundle). This is the *general* definition — it handles
-    any subscript string (``'ij,jk->ik'`` matmul, ``'ii->'`` trace, ``'ij->ji'``
-    transpose, ``'i,i->'`` dot, ``'i,j->ij'`` outer, arbitrary contractions),
-    just unoptimised (no path planning). Implicit output (no ``->``) follows
-    numpy's rule: free labels (appearing once) in sorted order. Value-faithful
-    to the NumPy einsum contraction.
+    (the sum-of-products bundle). Handles any subscript string (``'ij,jk->ik'``
+    matmul, ``'ii->'`` trace, ``'ij->ji'`` transpose, ``'i,i->'`` dot,
+    ``'i,j->ij'`` outer, arbitrary contractions), unoptimised. Implicit output
+    (no ``->``) follows numpy's rule: free labels (appearing once) in sorted
+    order. Returns a nested ``list`` (or a bare scalar for a rank-0 result).
     """
-    ops = [np.asarray(o, dtype=np.complex128) for o in operands]
+    ops = [_nd_to_lists(o) for o in operands]
     inspec, arrow, outspec = subscripts.replace(" ", "").partition("->")
     in_labels = inspec.split(",")
     if len(in_labels) != len(ops):
@@ -288,91 +297,110 @@ def einsum(subscripts: str, *operands) -> np.ndarray:
             f"einsum: {len(in_labels)} operand specs but {len(ops)} operands"
         )
     sizes: Dict[str, int] = {}
-    for labels, op in zip(in_labels, ops):
-        if len(labels) != op.ndim:
+    shapes = [_nd_shape(op) for op in ops]
+    for labels, shape in zip(in_labels, shapes):
+        if len(labels) != len(shape):
             raise ValueError(
-                f"einsum: spec {labels!r} rank {len(labels)} != operand ndim {op.ndim}"
+                f"einsum: spec {labels!r} rank {len(labels)} != operand ndim "
+                f"{len(shape)}"
             )
         for axis, lab in enumerate(labels):
-            sizes[lab] = op.shape[axis]
+            sizes[lab] = shape[axis]
     if arrow == "":                                   # implicit output (Class B/D)
         counts = Counter("".join(in_labels))
         outspec = "".join(sorted(lab for lab in counts if counts[lab] == 1))
     summed = [lab for lab in sizes if lab not in outspec]
-    out = np.zeros(tuple(sizes[lab] for lab in outspec), dtype=np.complex128)
+    out_shape = tuple(sizes[lab] for lab in outspec)
+    out = _nd_zeros(out_shape)
+    any_cx = any(_input_is_complex(o) for o in operands)
     free_ranges = [range(sizes[lab]) for lab in outspec]
     sum_ranges = [range(sizes[lab]) for lab in summed]
-    for free_idx in itertools.product(*free_ranges):  # Class I: free indices
+
+    def _accumulate(free_idx):
         index_map = dict(zip(outspec, free_idx))
         acc = 0j
         for sum_idx in itertools.product(*sum_ranges):  # Class I: summed indices
             index_map.update(zip(summed, sum_idx))
             term = complex(1.0, 0.0)
             for labels, op in zip(in_labels, ops):
-                term *= op[tuple(index_map[lab] for lab in labels)]  # Class M
+                term *= _nd_get(op, tuple(index_map[lab] for lab in labels))  # Class M
             acc += term
-        out[free_idx] = acc
-    if not any(np.iscomplexobj(o) for o in operands) and np.allclose(out.imag, 0.0):
-        return out.real.copy()
+        return acc
+
+    if not out_shape:                                 # rank-0 output (trace / dot)
+        scalar = _accumulate(())
+        return scalar.real if (not any_cx and _all_imag_zero(scalar)) else scalar
+    for free_idx in itertools.product(*free_ranges):  # Class I: free indices
+        _nd_set(out, free_idx, _accumulate(free_idx))
+    if not any_cx and _all_imag_zero(out):
+        return _real_of(out)
     return out
 
 
-_EIG_DEFLATE_TOL = 1e-14
+# ── nested-list N-D tensor helpers for einsum (numpy-free) ─────────────────────
+def _nd_to_lists(o):
+    """An array-like (ndarray / nested list / scalar) → nested ``list``s."""
+    if hasattr(o, "tolist"):
+        return o.tolist()
+    if isinstance(o, (list, tuple)):
+        return [_nd_to_lists(e) for e in o]
+    return o
 
 
-def eigvals(a, *, max_sweeps: int = 500) -> np.ndarray:
-    """Eigenvalues of a general (non-Hermitian) square matrix via shifted QR.
+def _nd_shape(o) -> Tuple[int, ...]:
+    """Shape of a (possibly ragged-free) nested list — rank from nesting depth."""
+    shape: List[int] = []
+    cur = o
+    while isinstance(cur, (list, tuple)):
+        shape.append(len(cur))
+        cur = cur[0] if len(cur) else None
+    return tuple(shape)
 
-    **Class K** (iterate-to-convergence asymptotic-DoF) ∘ **Class L** (the
-    spectral content) ∘ **{QR}** (the per-step factorization, srmech's
-    Householder :func:`qr`) ∘ **Class C** (the Wilkinson spectral shifts). The
-    iteration runs in complex arithmetic, so it converges to complex
-    eigenvalues of real matrices directly (the 2×2 rotation ``[[0,−1],[1,0]]``
-    yields ``±i``). Deflates a Schur eigenvalue whenever the trailing
-    subdiagonal entry falls below :data:`_EIG_DEFLATE_TOL` of the local scale.
 
-    Returns the length-``n`` complex eigenvalue array. Eigenvalues are unique
-    only as a SET; the multiset matches ``NumPy eigvals`` to ~1e-12 for
-    moderate sizes (the Hermitian-input case is the already-shipped special
-    case — pure **Class L**, the cyclic Jacobi — and is exact there).
+def _nd_zeros(shape: Tuple[int, ...]):
+    """A nested-list zero tensor of the given shape (rank-0 → a bare ``0j``)."""
+    if not shape:
+        return 0j
+    return [_nd_zeros(shape[1:]) for _ in range(shape[0])]
+
+
+def _nd_get(o, idx: Tuple[int, ...]):
+    """Multi-index read into a nested list (empty idx → the scalar itself)."""
+    cur = o
+    for i in idx:
+        cur = cur[i]
+    return cur
+
+
+def _nd_set(o, idx: Tuple[int, ...], value) -> None:
+    """Multi-index write into a nested list. A rank-0 ``out`` cannot be set in
+    place; the caller handles that by reading the single accumulated value."""
+    if not idx:
+        raise ValueError("_nd_set: cannot set a rank-0 tensor in place")
+    cur = o
+    for i in idx[:-1]:
+        cur = cur[i]
+    cur[idx[-1]] = value
+
+
+def eigvals(a, *, max_sweeps: int = 500) -> List[complex]:
+    """Eigenvalue MULTISET of a general (non-Hermitian) square matrix (numpy-free).
+
+    Delegates to the Mat-carrier :func:`srmech.amsc.laplacian.mat_eigvals` — the
+    shifted-QR iteration (**Class K** iterate-to-convergence ∘ **Class L**
+    spectral content ∘ ``{QR}`` Householder ∘ **Class C** Wilkinson shift) in
+    plain ``complex`` lists, native-dispatched ``RQ`` recombination, no numpy.
+
+    Returns the length-``n`` ``list[complex]`` eigenvalue multiset — unique only
+    as a SET; the multiset matches ``NumPy eigvals`` to ~1e-9 for moderate sizes.
     """
-    H = np.array(a, dtype=np.complex128)
-    if H.ndim != 2 or H.shape[0] != H.shape[1]:
-        raise ValueError(f"a must be square 2-D; got shape {H.shape}")
-    n = H.shape[0]
+    rows = _to_rows(a)
+    n = len(rows)
+    if any(len(r) != n for r in rows):
+        raise ValueError(f"a must be square 2-D; got {n} rows")
     if n == 0:
-        return np.zeros(0, dtype=np.complex128)
-    eigs: List[complex] = []
-    m = n
-    sweeps = 0
-    while m > 0:
-        if m == 1:
-            eigs.append(complex(H[0, 0]))
-            break
-        scale = _modulus(H[m - 2, m - 2]) + _modulus(H[m - 1, m - 1])
-        if _modulus(H[m - 1, m - 2]) <= _EIG_DEFLATE_TOL * (scale + 1e-300):
-            eigs.append(complex(H[m - 1, m - 1]))     # Class L: deflate eigenvalue
-            m -= 1
-            continue
-        # Wilkinson shift: the trailing-2×2 eigenvalue closest to H[m-1,m-1].
-        aa, bb = H[m - 2, m - 2], H[m - 2, m - 1]
-        cc, dd = H[m - 1, m - 2], H[m - 1, m - 1]
-        tr = aa + dd
-        det = aa * dd - bb * cc
-        disc = _complex_sqrt(tr * tr - 4.0 * det)     # Class C: complex shift root (Class-N cascade)
-        lam1 = (tr + disc) / 2.0
-        lam2 = (tr - disc) / 2.0
-        mu = lam1 if _modulus(lam1 - dd) < _modulus(lam2 - dd) else lam2
-        eye = np.eye(m, dtype=np.complex128)
-        Q, R = qr(H[:m, :m] - mu * eye)               # {QR}
-        # Class K: A <- RQ + muI; the RQ contraction via the Class-L matmul cascade.
-        H[:m, :m] = dense_matmul_complex(R, Q) + mu * eye
-        sweeps += 1
-        if sweeps > max_sweeps * n:                   # no-silent-hang backstop
-            for i in range(m):
-                eigs.append(complex(H[i, i]))
-            break
-    return np.array(eigs, dtype=np.complex128)
+        return []
+    return _mat_eigvals(_Mat.from_rows(rows, is_complex=True), max_sweeps=max_sweeps)
 
 
 def _char_poly_int(A: List[List[int]], n: int) -> List[int]:
