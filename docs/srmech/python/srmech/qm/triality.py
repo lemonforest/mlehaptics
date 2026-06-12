@@ -238,9 +238,13 @@ def _solve_companions(operator) -> Tuple[List[List[float]], List[List[float]]]:
     Gram matrix ``G = AᵀA`` and ``Aᵀ·rhs`` accumulate over only those ~16
     nonzeros per row (the prior dense ``mat_lstsq`` 512-wide contraction fell
     off the 256 native bound into a pure-Python triple loop — minutes; the
-    sparse Gram is sub-second). Value-identical: the normal equations are the
-    same least-squares solution, and the brackets close exactly in the span
-    (the residual is 0, so the conditioning of ``AᵀA`` is irrelevant here).
+    sparse Gram is sub-second). The Gram is rank-deficient (the B/C companion
+    split carries a gauge freedom, so ``A`` has a non-trivial nullspace): the
+    native ``mat_solve`` tolerates the singular block, but the pure-Python
+    (pure-wheel / WASM) solve rejects it — so on that failure ONLY a tiny
+    Tikhonov ridge ``λI`` is applied, recovering the same consistent
+    least-squares solution to O(λ) ≈ 6e-11 (the system is consistent and
+    ``c = Aᵀ·rhs`` has no nullspace component, so the ridge does not bias it).
     The table is consumed as a nested list. ``operator`` is a :class:`Mat` /
     nested-list ``8×8``.
     """
@@ -272,7 +276,23 @@ def _solve_companions(operator) -> Tuple[List[List[float]], List[List[float]]]:
                     ga = g[col_a]
                     for col_b, val_b in entries:
                         ga[col_b] += val_a * val_b
-    solution = mat_solve(Mat.from_rows(g), Mat.from_rows([[x] for x in c]))
+    c_mat = Mat.from_rows([[x] for x in c])
+    try:
+        solution = mat_solve(Mat.from_rows(g), c_mat)
+    except ZeroDivisionError:
+        # The Gram G = AᵀA is rank-deficient (the B/C companion split carries a
+        # gauge freedom, so A has a non-trivial nullspace). The native solve
+        # tolerates the singular block; the pure-Python (pure-wheel / WASM)
+        # block-solve rejects it as a "singular interior block". A tiny Tikhonov
+        # ridge λI makes G+λI positive-definite. The normal equations are
+        # CONSISTENT (∃ exact x, residual 0) and c = Aᵀ·rhs has NO component in
+        # G's nullspace, so the ridged solution IS the same least-squares
+        # solution to O(λ): at λ = 1e-12·max(diag G) the order-3 τ closes to
+        # ‖τ³−I‖ ~ 6e-11 and matches the native-path τ to ~2e-11 (both ≪ 1e-9).
+        lam = 1e-12 * max((g[i][i] for i in range(nvar)), default=1.0)
+        for i in range(nvar):
+            g[i][i] += lam
+        solution = mat_solve(Mat.from_rows(g), c_mat)
     sol = [float(solution[r, 0]) for r in range(nvar)]
     b_companion = [[sol[i * _DIM + j] for j in range(_DIM)] for i in range(_DIM)]
     c_companion = [[sol[_DIM * _DIM + i * _DIM + j] for j in range(_DIM)]
