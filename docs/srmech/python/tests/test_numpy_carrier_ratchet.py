@@ -337,7 +337,28 @@ def _is_numpy_import(line: str) -> bool:
 # `.to_numpy()`. CI-GUARD: rc117 named `relativistic` as the pure-wheel must-raise
 # example — moved it to `propagators` (still numpy) and added relativistic to the
 # flipped-and-exercised list. 11 -> 10.
-CEIL_NUMPY_CARRIER = 10
+#
+# rc119 (#564): `qm/gauge.py` (Yang-Mills SU(2)/SU(3) generators + Gell-Mann
+# matrices + structure constants + Casimirs + Wilson loops) flips numpy-free. The
+# SU(2) generators consume the numpy-free Pauli 2×2 `Mat` blocks directly (the
+# rc115 `.to_numpy()` boundary coercion this module CARRIED is REMOVED — gauge was
+# the last consumer of spin's Pauli producer), the eight Gell-Mann matrices are
+# exact small-integer `Mat` (λ⁸ via the Class-N rational.sqrt 1/√3), every product
+# routes through `mat_matmul`, residual norms through `mat_norm`, and the
+# path-segment holonomy `exp(i g A^a T^a)` through `mat_hermitian_eigendecompose`
+# (V·diag(e^{iλ})·Vᴴ, the e^{+iλ} phase the Class-N `rational.cexp` Euler cascade).
+# The structure constants f^{abc} become plain nested Python lists (rank-3; `Mat`
+# is 2-D only), so `lie_algebra_residual` reads `f[a][b][c]` and shape-checks by
+# nested `len`. No srmech-side CALL consumer (sm/so8 only mention gauge in
+# comments). test_qm_gauge.py rewritten numpy-FREE (Hermiticity/trace/unitarity by
+# direct Mat-entry arithmetic, deterministic LCG for the multi-segment Wilson loop,
+# an analytic diagonal-λ³ exp oracle — no np); the gauge cell in
+# test_qm_cascade_routing_rc33.py is numpy-free too (independent analytic oracle +
+# native mat_matmul unitarity). CI-GUARD: the must-raise example stays `propagators`
+# (still a numpy carrier — gauge ≠ propagators); gauge ADDED to the pure-wheel
+# flipped-and-exercised list (su2_generators[0] is Mat + casimir_eigenvalue ≈ 0.75).
+# 10 -> 9.
+CEIL_NUMPY_CARRIER = 9
 
 
 def _srmech_root() -> pathlib.Path:
