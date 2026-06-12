@@ -309,11 +309,20 @@ def test_serialise_result_handles_bytes_tuples_paths() -> None:
     assert parsed["tup"] == [1, 2]
 
 
-def test_serialise_result_numpy_arrays() -> None:
-    """numpy arrays are tolist'd through the fallback."""
-    import numpy as np
-    out = serialise_result(np.array([1.0, 2.0, 3.0]))
-    assert json.loads(out) == [1.0, 2.0, 3.0]
+def test_serialise_result_matrices_and_lists() -> None:
+    """numpy-free (#564): ops return ``Mat`` / nested lists, not ndarrays.
+    ``serialise_result`` renders a ``Mat`` via ``.tolist()`` and a nested
+    list straight to JSON text — the wire form is identical to what the old
+    ndarray ``tolist()`` fallback produced."""
+    from srmech.amsc.mat import Mat
+
+    # A Mat (numpy-free dense matrix) is .tolist()'d to nested JSON arrays.
+    out = serialise_result(Mat.from_rows([[1.0, 2.0, 3.0]]))
+    assert json.loads(out) == [[1.0, 2.0, 3.0]]
+
+    # A plain nested list rides straight through.
+    out2 = serialise_result([1.0, 2.0, 3.0])
+    assert json.loads(out2) == [1.0, 2.0, 3.0]
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -1346,9 +1355,16 @@ def test_all_param_types_json_coercible() -> None:
 
 def test_coercion_roundtrips_scalar_leaf_types() -> None:
     """``coerce_param(serialise_native(x)) == x`` for representative
-    bytes / complex / real-ndarray values (the documented round-trip
-    guarantee). Complex arrays use the explicit ``complex_pairs_to_ndarray``
-    builder (the generic ndarray path stays real per its dtype caveat)."""
+    bytes / complex / array-shaped values (the documented round-trip
+    guarantee).
+
+    numpy-free (#564): the ``"np.ndarray"`` wire-form NAME survives (it is
+    the JSON-RPC type-string key), but there are no ndarrays. The matrix
+    wire form is a nested list of plain floats; ``coerce_param(.., "np.ndarray")``
+    returns that nested list UNCHANGED. Complex matrices serialise as
+    ``[re, im]`` leaves and rebuild via the explicit
+    ``complex_pairs_to_ndarray`` (now returning a ``list[complex]``)."""
+    from srmech.amsc.mat import Mat
     from srmech.mcp._coercion import (
         coerce_param,
         complex_pairs_to_ndarray,
@@ -1365,37 +1381,46 @@ def test_coercion_roundtrips_scalar_leaf_types() -> None:
     # A bare JSON number decodes to complex(n, 0).
     assert coerce_param(5, "complex") == complex(5, 0)
 
-    # real ndarray <-> nested list (EXACT — values + shape).
-    arr = np.array([[1.0, 2.0], [3.0, 4.0]])
-    back = coerce_param(serialise_native(arr), "np.ndarray")
-    assert np.array_equal(back, arr)
+    # real matrix <-> nested list (EXACT — values + shape). A Mat serialises
+    # to a nested list; the "np.ndarray" inbound coercion returns it unchanged
+    # (the numpy-free wire form).
+    rows = [[1.0, 2.0], [3.0, 4.0]]
+    back = coerce_param(serialise_native(Mat.from_rows(rows)), "np.ndarray")
+    assert back == rows
 
-    # complex ndarray: serialised as [re, im] leaves, rebuilt via the
-    # explicit complex builder (documented dtype caveat — the generic
-    # np.ndarray inbound path does NOT auto-promote).
-    carr = np.array([1 + 2j, 3 - 4j])
-    assert np.array_equal(
-        complex_pairs_to_ndarray(serialise_native(carr)), carr
-    )
+    # complex matrix: serialised as [re, im] leaves, rebuilt via the explicit
+    # complex builder which now returns a flat list[complex]. A 1xN complex Mat
+    # serialises to [[[re,im],[re,im]]]; the builder takes the [re,im] pair list,
+    # so pass the single row.
+    cvals = [1 + 2j, 3 - 4j]
+    row = serialise_native(Mat.from_rows([cvals]))[0]
+    assert list(complex_pairs_to_ndarray(row)) == cvals
+    # The bare pair-list form round-trips directly to list[complex].
+    assert list(complex_pairs_to_ndarray([[1.0, 2.0], [3.0, -4.0]])) == [1 + 2j, 3 - 4j]
 
 
 def test_serialise_native_emits_json_serialisable() -> None:
     """``serialise_native`` output is always JSON-serialisable for the
-    awkward Python types ops return (bytes / complex / ndarray (real +
-    complex) / numpy scalars / nested tuples / dict with bytes key)."""
+    awkward Python types ops return.
+
+    numpy-free (#564): there is no ndarray branch in ``serialise_native``.
+    The matrix carrier is ``Mat`` (``.tolist()``'d, complex entries → ``[re,
+    im]`` leaves); scalars are plain Python ``int`` / ``float`` / ``complex``;
+    containers (tuple / list / dict, incl. bytes keys) recurse."""
+    from srmech.amsc.mat import Mat
     from srmech.mcp._coercion import serialise_native
 
     samples: List[Any] = [
         b"\x00\xff",
         complex(1, 2),
-        np.array([1.0, 2.0, 3.0]),
-        np.array([[1 + 1j, 2 - 2j]]),
-        np.int64(7),
-        np.float64(1.5),
-        np.uint8(255),
+        Mat.from_rows([[1.0, 2.0, 3.0]]),         # real Mat
+        Mat.from_rows([[1 + 1j, 2 - 2j]]),        # complex Mat
+        7,
+        1.5,
+        255,
         (1, 2, b"ab"),
-        {b"key": np.array([1, 2])},
-        {"nested": [np.int64(3), complex(0, 1)]},
+        {b"key": [1, 2]},
+        {"nested": [3, complex(0, 1)]},
     ]
     for s in samples:
         # Must not raise — the load-bearing guarantee for the tool_result.

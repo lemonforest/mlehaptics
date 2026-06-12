@@ -1,42 +1,28 @@
 """Parity tests for ``srmech.amsc.cascade.chiral_dual``.
 
 v0.4.5rc8 — the LAST cascade op in the C-parity + TOML retrofit arc
-and the ONLY higher-order one. The C peer ``srmech_cascade_chiral_dual_f64``
-uses a function-pointer callback ABI
-(``srmech_cascade_op_callback_f64_t``); the Python dispatch wraps the
-user's callable via ``ctypes.CFUNCTYPE``. Tests cover:
+and the ONLY higher-order one.
 
-- identity / negation / non-trivial ops produce the expected
-  conjugation result;
-- ndarray / list / tuple inputs (homogeneous float64) take the native
-  path;
-- empty + singleton boundary cases;
-- random sweep agreement between native and Python composition;
-- callback exception propagation (Python ZeroDivisionError surfaces
-  through the trampoline);
-- callback wrong-length-output guard (ValueError);
-- mixed-type sequences / strings / non-callable ops fall back to
-  Python composition.
+numpy-free (#564): numpy has been removed entirely from srmech. The old
+native ``srmech_cascade_chiral_dual_f64`` fast-path marshalled C buffers
+through numpy views for the Python callback, so it is GONE with numpy. The
+public ``chiral_dual`` is now the pure-Python composition
+``chiral_flip(op(chiral_flip(x)))`` — the cascade IS the composition
+(Class C ∘ op ∘ Class C). Consequences these tests now encode:
+
+- there is no ndarray input/output path (feed lists / tuples / strings);
+- type preservation flows through ``op`` (the final ``chiral_flip`` is
+  type-preserving, so the result type matches whatever ``op`` returns);
+- there is no native callback trampoline, so the old wrong-length-output
+  ValueError guard no longer exists (pure composition does not length-check);
+- Python exceptions raised by ``op`` propagate directly (no trampoline).
 """
 
 from __future__ import annotations
 
-import math
 import random
 
-import numpy as np
-import pytest
-
-from srmech.amsc import _native
 from srmech.amsc.cascade import chiral_dual, chiral_flip
-
-
-SKIP_IF_NO_CHIRAL_DUAL_NATIVE = pytest.mark.skipif(
-    not _native.HAS_NATIVE
-    or _native.LIB is None
-    or not hasattr(_native.LIB, "srmech_cascade_chiral_dual_f64"),
-    reason="chiral_dual native symbol not available",
-)
 
 
 # ---------------------------------------------------------------------
@@ -72,45 +58,24 @@ def test_chiral_dual_non_trivial_op_agrees_with_python():
     assert list(result) == list(py_ref)
 
 
-def test_chiral_dual_tuple_preserves_type():
-    """A tuple input should return a tuple."""
+def test_chiral_dual_tuple_input_op_returns_list():
+    """A tuple input with an op that RETURNS A LIST yields a list — the
+    result type follows op's output type (the final chiral_flip preserves
+    op's list output), not the input container type. This is the numpy-free
+    pure-composition contract (#564): there is no native callback to
+    reimpose the input container type."""
     result = chiral_dual(lambda v: [x * 2.0 for x in v], (1.0, 2.0, 3.0))
+    assert isinstance(result, list)
+    assert result == [2.0, 4.0, 6.0]
+
+
+def test_chiral_dual_tuple_preserved_when_op_preserves_type():
+    """When op preserves the container type, chiral_dual returns a tuple
+    for a tuple input — type flows through op + the type-preserving
+    chiral_flip composition."""
+    result = chiral_dual(lambda v: type(v)(x * 2.0 for x in v), (1.0, 2.0, 3.0))
     assert isinstance(result, tuple)
     assert result == (2.0, 4.0, 6.0)
-
-
-# ---------------------------------------------------------------------
-# ndarray input
-# ---------------------------------------------------------------------
-
-
-def test_chiral_dual_ndarray_returns_ndarray():
-    """An ndarray input should return an ndarray."""
-    result = chiral_dual(np.negative, np.array([1.0, 2.0, 3.0]))
-    assert isinstance(result, np.ndarray)
-    np.testing.assert_array_equal(result, np.array([-1.0, -2.0, -3.0]))
-
-
-def test_chiral_dual_ndarray_non_trivial_op():
-    """Non-trivial op on ndarray agrees with Python composition."""
-    def op(v):
-        # Reverse + add 10 (not order-preserving)
-        return v[::-1] + 10.0
-    x = np.array([1.0, 2.0, 3.0, 4.0])
-    py_ref = np.asarray(chiral_flip(op(chiral_flip(x))))
-    result = chiral_dual(op, x)
-    np.testing.assert_array_equal(np.asarray(result), py_ref)
-
-
-def test_chiral_dual_ndarray_non_float64_falls_back():
-    """An int64 ndarray should fall back to Python (no native int path)."""
-    x = np.array([1, 2, 3], dtype=np.int64)
-    # Identity-style op working on int sequences.
-    result = chiral_dual(lambda v: v, x)
-    # Python fallback returns whatever chiral_flip(op(chiral_flip(x)))
-    # returns; for an int64 ndarray that's still an int64 ndarray.
-    assert isinstance(result, np.ndarray)
-    np.testing.assert_array_equal(result, np.array([1, 2, 3], dtype=np.int64))
 
 
 # ---------------------------------------------------------------------
@@ -131,21 +96,16 @@ def test_chiral_dual_singleton_list():
     assert list(result) == [10.0]
 
 
-def test_chiral_dual_empty_ndarray():
-    """Empty ndarray: returns empty ndarray."""
-    result = chiral_dual(lambda v: v, np.array([], dtype=np.float64))
-    assert isinstance(result, np.ndarray)
-    assert result.size == 0
-
-
 # ---------------------------------------------------------------------
-# Random sweep — native vs Python
+# Random sweep — pure composition self-consistency
 # ---------------------------------------------------------------------
 
 
-def test_chiral_dual_random_sweep_native_matches_python():
-    """50-sample random sweep with a fixed op: native and Python
-    composition agree to machine precision."""
+def test_chiral_dual_random_sweep_matches_composition():
+    """50-sample random sweep with a fixed op: chiral_dual agrees exactly
+    with the pure-Python composition chiral_flip(op(chiral_flip(x))) — they
+    are now the same code path, so equality is exact (no machine-precision
+    slack needed)."""
     rng = random.Random(0xC0FFEE)
     for _ in range(50):
         n = rng.randint(0, 20)
@@ -154,107 +114,60 @@ def test_chiral_dual_random_sweep_native_matches_python():
         py_ref = chiral_flip(op(chiral_flip(x)))
         result = chiral_dual(op, x)
         assert list(result) == list(py_ref), (
-            f"native/Python divergence at n={n}: native={result} ref={py_ref}"
+            f"composition divergence at n={n}: result={result} ref={py_ref}"
         )
 
 
 # ---------------------------------------------------------------------
-# Exception propagation through the callback trampoline
+# Exception propagation (now direct — no trampoline)
 # ---------------------------------------------------------------------
 
 
-@SKIP_IF_NO_CHIRAL_DUAL_NATIVE
-def test_chiral_dual_callback_exception_propagates():
-    """Python exception raised inside the op callback must surface as the
-    same exception on the Python side — proving the trampoline captures
-    the error and re-raises after the C function returns. Critical: a
-    bare except + silent fall-through would let the failing op run a
-    SECOND time on the Python path."""
+def test_chiral_dual_op_exception_propagates():
+    """A Python exception raised inside the op surfaces as the same
+    exception — the pure composition simply evaluates op(...) so the error
+    propagates directly (no native callback to swallow it)."""
     def bad_op(v):
-        return 1 / 0  # noqa: E501 — intentional ZeroDivisionError
-    with pytest.raises(ZeroDivisionError):
+        return 1 / 0  # intentional ZeroDivisionError
+    try:
         chiral_dual(bad_op, [1.0, 2.0])
-
-
-@SKIP_IF_NO_CHIRAL_DUAL_NATIVE
-def test_chiral_dual_callback_wrong_length_raises():
-    """If the op returns a sequence with the wrong length, the trampoline
-    must surface a ValueError (not silently truncate or extend)."""
-    with pytest.raises(ValueError, match="length"):
-        chiral_dual(lambda v: [v[0]], [1.0, 2.0])
+    except ZeroDivisionError:
+        pass
+    else:  # pragma: no cover
+        raise AssertionError("ZeroDivisionError did not propagate")
 
 
 # ---------------------------------------------------------------------
-# Fallback paths (Python composition)
+# String + mixed-type paths (always pure composition)
 # ---------------------------------------------------------------------
 
 
-def test_chiral_dual_mixed_type_list_falls_back():
-    """A mixed-int+float list falls back to Python composition."""
+def test_chiral_dual_mixed_type_list():
+    """A mixed-int+float list: chiral_flip(op(chiral_flip([1, 2.0, 3]))) with
+    an identity op is an identity round-trip."""
     result = chiral_dual(lambda v: v, [1, 2.0, 3])
-    # Python fallback: chiral_flip(op(chiral_flip([1, 2.0, 3]))) =
-    # chiral_flip([3, 2.0, 1]) = [1, 2.0, 3] (identity round-trip).
     assert list(result) == [1, 2.0, 3]
 
 
-def test_chiral_dual_string_falls_back():
-    """A string falls back to Python composition (str[::-1] in / out)."""
-    # Identity op on the reversed string returns "cba"; reversing again
-    # gives "abc".
+def test_chiral_dual_string_identity():
+    """A string with an identity op: str[::-1] in / out round-trips."""
     result = chiral_dual(lambda s: s, "abc")
     assert result == "abc"
 
 
 def test_chiral_dual_string_uppercase_op():
-    """A string with a transforming op exercises the Python fallback."""
-    # chiral_flip("abc") = "cba"; op.upper() = "CBA"; chiral_flip("CBA")
-    # = "ABC".
+    """A string with a transforming op: chiral_flip("abc") = "cba";
+    op.upper() = "CBA"; chiral_flip("CBA") = "ABC"."""
     result = chiral_dual(lambda s: s.upper(), "abc")
     assert result == "ABC"
 
 
 def test_chiral_dual_non_callable_op_raises():
-    """Passing a non-callable op falls back to Python which raises
-    TypeError when Python tries to invoke it."""
-    with pytest.raises(TypeError):
+    """Passing a non-callable op raises TypeError when the composition
+    tries to invoke it."""
+    try:
         chiral_dual(None, [1.0, 2.0, 3.0])
-
-
-# ---------------------------------------------------------------------
-# Native-symbol exposure
-# ---------------------------------------------------------------------
-
-
-@SKIP_IF_NO_CHIRAL_DUAL_NATIVE
-def test_chiral_dual_native_symbol_available():
-    """Sanity-check the C symbol + ctypes callback typedef are exposed."""
-    assert hasattr(_native.LIB, "srmech_cascade_chiral_dual_f64")
-    assert hasattr(_native, "CASCADE_OP_CALLBACK_F64")
-    # The CFUNCTYPE should have the expected return type.
-    cb_type = _native.CASCADE_OP_CALLBACK_F64
-    # ctypes CFUNCTYPE objects don't expose argtypes directly but the
-    # creation should not have raised; existence is the contract.
-    assert cb_type is not None
-
-
-@SKIP_IF_NO_CHIRAL_DUAL_NATIVE
-def test_chiral_dual_native_path_returns_correct_type_for_list():
-    """The native path returns a list when given a list."""
-    result = chiral_dual(lambda v: v, [1.0, 2.0, 3.0])
-    assert isinstance(result, list)
-
-
-@SKIP_IF_NO_CHIRAL_DUAL_NATIVE
-def test_chiral_dual_native_path_returns_tuple_for_tuple():
-    """The native path returns a tuple when given a tuple."""
-    result = chiral_dual(lambda v: v, (1.0, 2.0, 3.0))
-    assert isinstance(result, tuple)
-
-
-@SKIP_IF_NO_CHIRAL_DUAL_NATIVE
-def test_chiral_dual_native_ndarray_dtype_preserved():
-    """The native path returns a float64 ndarray when given one."""
-    x = np.array([1.0, 2.0, 3.0])
-    result = chiral_dual(lambda v: v, x)
-    assert isinstance(result, np.ndarray)
-    assert result.dtype == np.float64
+    except TypeError:
+        pass
+    else:  # pragma: no cover
+        raise AssertionError("TypeError not raised for non-callable op")

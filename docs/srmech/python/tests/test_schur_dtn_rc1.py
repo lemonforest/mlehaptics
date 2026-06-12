@@ -3,7 +3,13 @@
 The operator|operand FUSION op (F412/F417/F419):
 ``S = L_∂∂ − L_∂i · L_ii⁻¹ · L_i∂`` — the boundary effective Laplacian with the
 interior (bulk) integrated out. Exact-rational (Class-N Fraction core) where
-tractable; float realization on the `[scientific]` tier.
+tractable; float realization composes over the same Class-L solve.
+
+numpy-FREE (#564): numpy is GONE from srmech. ``schur_complement`` now returns a
+plain Python ``list[list[float]]`` (exact=True → ``list[list[Fraction]]``); the
+float path is verified against the EXACT-Fraction reference (the framework's own
+oracle), not numpy. The DtN-property and area-law invariants are checked with the
+exact Class-L ``dense_solve`` + stdlib list arithmetic.
 """
 from fractions import Fraction
 
@@ -13,12 +19,8 @@ from srmech.amsc.laplacian import (
     dense_laplacian,
     schur_complement,
     dirichlet_to_neumann,
+    dense_solve,
 )
-
-try:
-    import numpy as np
-except ImportError:  # pragma: no cover
-    np = None
 
 
 # A 3-edge path graph 0—1—2—3; boundary {0,3}, interior {1,2}. The Schur
@@ -30,6 +32,11 @@ S_PATH4_EXACT = [
     [Fraction(1, 3), Fraction(-1, 3)],
     [Fraction(-1, 3), Fraction(1, 3)],
 ]
+
+
+def _matvec(M, v):
+    """Plain-list matrix·vector (numpy-free)."""
+    return [sum(M[i][j] * v[j] for j in range(len(v))) for i in range(len(M))]
 
 
 def test_exact_rational_matches_effective_conductance() -> None:
@@ -46,39 +53,56 @@ def test_dirichlet_to_neumann_alias_agrees() -> None:
     assert dirichlet_to_neumann(L, [0, 3], exact=True) == S_PATH4_EXACT
 
 
-@pytest.mark.skipif(np is None, reason="float path needs numpy")
 def test_float_path_matches_exact() -> None:
+    """The default float path equals the exact-Fraction reference (numpy-free:
+    the EXACT path is the oracle, not numpy)."""
     L = dense_laplacian(*PATH4)
-    S = schur_complement(L, [0, 3])  # default: float / scientific tier
-    assert isinstance(S, np.ndarray)
-    assert np.allclose(S, np.array([[1 / 3, -1 / 3], [-1 / 3, 1 / 3]]))
+    S = schur_complement(L, [0, 3])  # default: plain list[list[float]]
+    assert isinstance(S, list) and isinstance(S[0], list)
+    for i in range(2):
+        for j in range(2):
+            assert abs(S[i][j] - float(S_PATH4_EXACT[i][j])) < 1e-12
 
 
-@pytest.mark.skipif(np is None, reason="needs numpy for the harmonic solve")
 def test_dtn_property_boundary_normal_derivative() -> None:
     """S·x_∂ == (L·x)_∂ when x_i is the harmonic extension (L·x)_i = 0 —
-    the defining Dirichlet-to-Neumann property."""
-    L = np.asarray(dense_laplacian(*PATH4), dtype=float)
-    xb = np.array([5.0, -2.0])
-    Lii = L[np.ix_([1, 2], [1, 2])]
-    Lip = L[np.ix_([1, 2], [0, 3])]
-    xi = -np.linalg.solve(Lii, Lip @ xb)  # harmonic interior extension
-    x = np.array([xb[0], xi[0], xi[1], xb[1]])
-    S = np.asarray(schur_complement(L, [0, 3]), dtype=float)
-    assert np.allclose(S @ xb, (L @ x)[[0, 3]])
+    the defining Dirichlet-to-Neumann property. Harmonic interior solve via the
+    exact Class-L ``dense_solve`` (Fraction); list arithmetic; numpy-free."""
+    L = dense_laplacian(*PATH4)
+    Lf = [[Fraction(int(round(L[i][j]))) for j in range(4)] for i in range(4)]
+    xb = [Fraction(5), Fraction(-2)]
+    interior, boundary = [1, 2], [0, 3]
+    # Lii · xi = -Lip · xb  →  harmonic interior extension (exact).
+    Lii = [[Lf[i][j] for j in interior] for i in interior]
+    Lip = [[Lf[i][j] for j in boundary] for i in interior]
+    rhs = [[-v] for v in _matvec(Lip, xb)]
+    xi_col = dense_solve(Lii, rhs, exact=True)
+    xi = [xi_col[0][0], xi_col[1][0]]
+    x = [xb[0], xi[0], xi[1], xb[1]]
+    # S (exact) · x_∂ must equal (L · x) restricted to the boundary.
+    S = schur_complement(L, boundary, exact=True)
+    lhs = _matvec(S, xb)
+    Lx = _matvec(Lf, x)
+    for k, node in enumerate(boundary):
+        assert lhs[k] == Lx[node]
 
 
-@pytest.mark.skipif(np is None, reason="rank via numpy eigvals")
 def test_area_law_dimension_and_rank() -> None:
     """Area law: the effective operator lives on the boundary — dim(S) = |∂|
     (not the bulk n). For a connected graph the DtN/Kron reduction inherits the
-    all-ones null vector, so rank(S) = |∂| − 1 and the row sums vanish."""
+    all-ones null vector, so the row sums vanish and rank(S) = |∂| − 1. Checked
+    over the exact-Fraction Schur complement; numpy-free."""
     L = dense_laplacian(*PATH4)
-    S = np.asarray(schur_complement(L, [0, 3]), dtype=float)
-    assert S.shape == (2, 2)  # |∂| = 2, not n = 4 — the dimensional reduction
-    ev = np.linalg.eigvalsh(S)
-    assert int(np.sum(ev > 1e-9)) == 1  # rank = |∂| − 1 (connected graph)
-    assert np.allclose(S.sum(axis=1), 0.0)  # all-ones null vector preserved
+    S = schur_complement(L, [0, 3], exact=True)
+    assert len(S) == 2 and len(S[0]) == 2  # |∂| = 2, not n = 4
+    # all-ones null vector preserved: every row sums to exactly 0 (Fraction).
+    for row in S:
+        assert sum(row) == Fraction(0)
+    # rank = |∂| − 1 = 1: S is rank-deficient (rows are proportional) but not
+    # the zero matrix. The 2×2 determinant vanishes; some entry is nonzero.
+    det = S[0][0] * S[1][1] - S[0][1] * S[1][0]
+    assert det == Fraction(0)
+    assert any(x != Fraction(0) for row in S for x in row)
 
 
 def test_singular_interior_raises() -> None:

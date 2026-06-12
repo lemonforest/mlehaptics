@@ -23,8 +23,6 @@ from __future__ import annotations
 
 import random
 
-import numpy as np
-
 from srmech.amsc import laplacian, naming, _native
 
 
@@ -110,24 +108,30 @@ def test_reverse_order_involution():
 # Class L — three_fold_eigvec_groups
 # ---------------------------------------------------------------------
 
-def _band_shapes(d):
-    return (
-        d["low"].shape[1] if d["low"].ndim == 2 else 0,
-        d["mid"].shape[1] if d["mid"].ndim == 2 else 0,
-        d["high"].shape[1] if d["high"].ndim == 2 else 0,
-    )
+def _band_widths(d):
+    """Return the (low, mid, high) band COLUMN counts.
+
+    numpy-free (#564): the three bands are now nested lists shaped
+    ``(n_rows, k)`` (the eigenvector COLUMNS sliced into each band), not
+    ndarrays. The band width is the number of columns = ``len(row)`` for
+    any row; an empty band (no columns, or no rows) has width 0.
+    """
+    def width(band):
+        return len(band[0]) if band and band[0] is not None else 0
+    return (width(d["low"]), width(d["mid"]), width(d["high"]))
 
 
 def test_three_fold_eigvec_groups_sweep():
-    rng = np.random.default_rng(_SEED)
+    rng = random.Random(_SEED)
     for n in (1, 2, 3, 4, 5, 8, 16, 17):
-        A = rng.standard_normal((n, n))
-        L = A + A.T
+        # Build a real-symmetric matrix L = A + Aᵀ as a nested list, numpy-free.
+        A = [[rng.gauss(0.0, 1.0) for _ in range(n)] for _ in range(n)]
+        L = [[A[i][j] + A[j][i] for j in range(n)] for i in range(n)]
         native, python = _both_paths(
             lambda L=L: laplacian.three_fold_eigvec_groups(L)
         )
-        nat_shapes = _band_shapes(native)
-        py_shapes = _band_shapes(python)
+        nat_shapes = _band_widths(native)
+        py_shapes = _band_widths(python)
         assert nat_shapes == py_shapes, (n, nat_shapes, py_shapes)
         low, mid, high = nat_shapes
         assert low + mid + high == n, (n, nat_shapes)

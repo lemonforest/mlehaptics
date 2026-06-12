@@ -1,17 +1,16 @@
 """rc114 foundation (#564 carrier-arc): numpy-FREE Mat norm + dot.
 
-``dense_norm`` / ``dense_dot_real`` / ``dense_dot_complex`` are numpy CARRIERS
-(``np.ascontiguousarray`` / ``np.iscomplexobj`` / the elementwise-multiply
-cascade over numpy arrays) and RAISE on a numpy-absent install — the rc70
-*runnable ≠ loadable* trap. ``mat_norm`` / ``mat_dot_real`` / ``mat_dot_complex``
-are the numpy-free peers over the :class:`Mat` / :class:`HV` carriers that the
-qm/so8 consumer-flips (rc115+) route their residual norms + Gram-Schmidt dots
-through. These tests pin (a) value-faithfulness to the dense_* / numpy peers
-(numpy present), and (b) that they run with numpy GENUINELY blocked at the
-meta-path (the real "numpy-absent" gate, not a monkeypatch).
+With numpy removed entirely (#564), ``mat_norm`` / ``mat_dot_real`` /
+``mat_dot_complex`` are the numpy-free peers over the :class:`Mat` / :class:`HV`
+/ ``list`` carriers that the qm/so8 consumer-flips route their residual norms +
+Gram-Schmidt dots through. These tests pin (a) value-faithfulness to a
+hand-computed / stdlib oracle (``math.hypot`` / ``math.sqrt`` / Σ aᵢbᵢ — NO
+numpy), and (b) that they run with numpy GENUINELY blocked at the meta-path (the
+real "numpy-absent" gate, proving fresh-import-numpy-free in a child process).
 """
 from __future__ import annotations
 
+import math
 import subprocess
 import sys
 
@@ -20,35 +19,37 @@ import pytest
 from srmech.amsc.laplacian import mat_norm, mat_dot_real, mat_dot_complex
 from srmech.amsc.mat import Mat
 
-np = pytest.importorskip("numpy")  # the value-oracle (test-side only)
+_TOL = 1e-9
 
-from srmech.amsc.laplacian import dense_norm, dense_dot_real, dense_dot_complex
+
+def _norm_oracle(values):
+    # ‖x‖ = √(Σ |xᵢ|²), stdlib (Σ over real or complex entries).
+    return math.sqrt(sum(abs(complex(v)) ** 2 for v in values))
 
 
 # ---------------------------------------------------------------- value match
 
-def test_mat_norm_real_vector_matches_numpy():
+def test_mat_norm_real_vector_matches_oracle():
     v = [3.0, -4.0, 12.0]
-    assert mat_norm(v) == pytest.approx(float(np.linalg.norm(v)))
-    assert mat_norm(v) == pytest.approx(dense_norm(np.array(v)))
+    assert mat_norm(v) == pytest.approx(_norm_oracle(v))
+    assert mat_norm(v) == pytest.approx(13.0)  # √(9+16+144) = 13
 
 
-def test_mat_norm_complex_vector_matches_numpy():
+def test_mat_norm_complex_vector_matches_oracle():
     c = [1 + 2j, -3 + 0.5j, 0 - 1j]
-    assert mat_norm(c) == pytest.approx(float(np.linalg.norm(c)))
-    assert mat_norm(c) == pytest.approx(dense_norm(np.array(c)))
+    assert mat_norm(c) == pytest.approx(_norm_oracle(c))
 
 
 def test_mat_norm_real_mat_is_frobenius():
     M = Mat.from_rows([[1, 2], [3, 4]])
-    assert mat_norm(M) == pytest.approx(
-        float(np.linalg.norm(np.array([[1, 2], [3, 4]], dtype=float)))
-    )
+    # Frobenius norm = √(Σ entryᵢⱼ²) = √(1+4+9+16) = √30
+    assert mat_norm(M) == pytest.approx(math.sqrt(30.0))
 
 
 def test_mat_norm_complex_mat_is_frobenius():
     Mc = Mat.from_rows([[1 + 1j, 2], [0, 1j]], is_complex=True)
-    assert mat_norm(Mc) == pytest.approx(float(np.linalg.norm(Mc.to_numpy())))
+    # √(|1+1j|² + |2|² + |0|² + |1j|²) = √(2 + 4 + 0 + 1) = √7
+    assert mat_norm(Mc) == pytest.approx(math.sqrt(7.0))
 
 
 def test_mat_norm_empty_is_zero():
@@ -56,26 +57,25 @@ def test_mat_norm_empty_is_zero():
     assert mat_norm(Mat.from_rows([])) == 0.0
 
 
-def test_mat_dot_real_matches_numpy():
+def test_mat_dot_real_matches_oracle():
     a, b = [1.0, 2.0, 3.0], [4.0, 5.0, 6.0]
-    assert mat_dot_real(a, b) == pytest.approx(float(np.dot(a, b)))
-    assert mat_dot_real(a, b) == pytest.approx(dense_dot_real(np.array(a), np.array(b)))
+    expect = sum(ai * bi for ai, bi in zip(a, b))  # 4 + 10 + 18 = 32
+    assert mat_dot_real(a, b) == pytest.approx(expect)
+    assert mat_dot_real(a, b) == pytest.approx(32.0)
 
 
 def test_mat_dot_complex_is_plain_bilinear_not_hermitian():
     ca, cb = [1 + 1j, 2 - 1j], [3 + 0j, 1 + 2j]
-    # plain bilinear Σ aᵢbᵢ (numpy a·b on 1-D), NOT vdot (which conjugates a).
-    expect = complex(np.array(ca) @ np.array(cb))
+    # plain bilinear Σ aᵢbᵢ (NOT vdot, which would conjugate a).
+    expect = sum(ai * bi for ai, bi in zip(ca, cb))
     assert mat_dot_complex(ca, cb) == pytest.approx(expect)
-    assert mat_dot_complex(ca, cb) == pytest.approx(
-        dense_dot_complex(np.array(ca), np.array(cb))
-    )
-    # explicitly NOT the Hermitian vdot (conjugates first arg)
-    assert mat_dot_complex(ca, cb) != pytest.approx(complex(np.vdot(ca, cb)))
+    # explicitly NOT the Hermitian vdot (which conjugates the first arg)
+    hermitian = sum(ai.conjugate() * bi for ai, bi in zip(ca, cb))
+    assert mat_dot_complex(ca, cb) != pytest.approx(hermitian)
 
 
 def test_mat_norm_self_dot_identity():
-    # ‖x‖² == Re(conj(x)·x) for complex; == dot(x,x) for real.
+    # ‖x‖² == dot(x, x) for real.
     v = [3.0, -4.0]
     assert mat_norm(v) ** 2 == pytest.approx(mat_dot_real(v, v))
 

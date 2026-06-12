@@ -11,8 +11,13 @@ op-module import to first attribute access via a PEP-562 ``__getattr__``; the
 numpy Path-B ops register a deferred loader with the ``path_registry`` so
 ``lookup`` / ``has_path`` / ``dispatch`` still resolve them by importing-on-
 demand) and removes the eager ``__init__`` gate. Net: the package imports with
-numpy ABSENT, the FFT family is reachable + runnable numpy-free, and a numpy op
-raises the clean ``[scientific]`` hint only when *it* is touched.
+numpy ABSENT and the FFT family is reachable + runnable numpy-free.
+
+(#564 capstone: numpy has been removed entirely from srmech — there is no
+``[scientific]`` extra and nothing raises the old hint, so the former
+``test_numpy_op_raises_clean_scientific_hint_numpy_free`` guard has been
+deleted. ``registered_ops()`` still lists the former numpy Path-B ops, which
+now resolve numpy-free.)
 
 The in-process ``monkeypatch.setitem(sys.modules, "numpy", None)`` pattern (see
 ``test_fft_family_numpy_absent_rc70``) proves runtime-math numpy-freedom but
@@ -104,33 +109,6 @@ def test_dispatch_fft_numpy_free():
     )
     assert proc.returncode == 0, f"dispatch failed numpy-free:\n{proc.stderr}"
     assert "DISPATCH_OK" in proc.stdout, proc.stdout
-
-
-def test_numpy_op_raises_clean_scientific_hint_numpy_free():
-    """The scientific tier raises the clean ``[scientific]`` hint, not a bare
-    ``ModuleNotFoundError`` — at a numpy export boundary, numpy-free.
-
-    (rc99: exemplar moved music→mimo_svd; rc109: moved mimo_svd→ica_jade.
-    rc126: ``ica_jade`` flipped numpy-free — the LAST signal_processing carrier
-    — so the exemplar moves to the DURABLE numpy export boundary
-    ``One.to_numpy()``: a lossy ndarray export that intrinsically needs numpy
-    and is NOT a carrier to be flipped, so it stays the long-lived
-    numpy-requiring exemplar past the carrier-removal capstone.)"""
-    proc = _run_numpy_free(
-        """
-        from srmech.amsc.cascade.one import the_one
-        try:
-            the_one(1, 0, 1).to_numpy()
-        except ImportError as e:
-            assert "scientific tier" in str(e), str(e)
-            assert "srmech[scientific]" in str(e), str(e)
-            print("HINT_OK")
-        else:
-            raise SystemExit("One.to_numpy() unexpectedly succeeded numpy-free")
-        """
-    )
-    assert proc.returncode == 0, f"clean-hint path failed:\n{proc.stderr}"
-    assert "HINT_OK" in proc.stdout, proc.stdout
 
 
 def test_registered_ops_declarative_numpy_free():

@@ -9,77 +9,96 @@ the store across `replicas` blocks; any one surviving replica-subregion
 F353 measured tolerances, pinned here:
   * known-location erasure: (replicas-1)/replicas = 3/4 at the default;
   * blind correction: 1 error guaranteed (1/4); fails at 3 errors.
+
+numpy-FREE (#564): Klein-4 vectors are stdlib ``list[int]`` in {0,1,2,3}
+(generated with ``random.Random``), the store is the framework-native ``HV``
+carrier (``.tolist()`` / ``.buffer`` / ``==`` / ``len``), erasure masks are
+``list[bool]``, and equality is the ``HV`` value-compare — no numpy oracle.
 """
-import numpy as np
+import random
+
 import pytest
 
 from srmech.amsc import hdc as H
 
 
 def _v(seed=0, D=64):
-    return np.random.default_rng(seed).integers(0, 4, size=D).astype(np.uint8)
+    """A random Klein-4 vector: ``list[int]`` in {0, 1, 2, 3}, length D."""
+    rng = random.Random(seed)
+    return [rng.randrange(4) for _ in range(D)]
+
+
+def _blocks(store, replicas, D):
+    """Split a store into ``replicas`` blocks of length ``D`` (replica-major)."""
+    flat = store.tolist() if hasattr(store, "tolist") else list(store)
+    return [flat[r * D : (r + 1) * D] for r in range(replicas)]
 
 
 def test_encode_shape_and_replica_major():
     v = _v()
     store = H.klein4_holographic_encode(v, replicas=4)
-    assert len(store) == v.size * 4
+    assert len(store) == len(v) * 4
     # replica-major: each block is a full copy.
-    assert np.array_equal(store.to_numpy().reshape(4, v.size)[0], v)
+    assert _blocks(store, 4, len(v))[0] == v
 
 
 def test_round_trip_no_error():
     v = _v()
     store = H.klein4_holographic_encode(v, replicas=4)
-    assert np.array_equal(H.klein4_holographic_decode(store), v)
+    assert H.klein4_holographic_decode(store) == v
 
 
 def test_known_erasure_three_quarters_recovers_exactly():
     """Drop 3 of 4 replica-blocks (3/4 of the store) → exact recovery."""
     v = _v()
     store = H.klein4_holographic_encode(v, replicas=4)
-    erased = np.zeros(len(store), dtype=bool)
-    erased[: v.size * 3] = True            # wipe first 3 replicas
-    assert np.array_equal(H.klein4_holographic_decode(store, erased=erased), v)
+    erased = [False] * len(store)
+    for i in range(len(v) * 3):           # wipe first 3 replicas
+        erased[i] = True
+    assert H.klein4_holographic_decode(store, erased=erased) == v
 
 
 def test_known_erasure_any_single_surviving_block_reconstructs():
     """Any one of the four replica-subregions suffices (holographic)."""
     v = _v(seed=3)
     store = H.klein4_holographic_encode(v, replicas=4)
+    D = len(v)
     for keep in range(4):
-        erased = np.ones(len(store), dtype=bool)
-        erased[keep * v.size : (keep + 1) * v.size] = False
-        assert np.array_equal(
-            H.klein4_holographic_decode(store, erased=erased), v
-        ), keep
+        erased = [True] * len(store)
+        for i in range(keep * D, (keep + 1) * D):
+            erased[i] = False
+        assert H.klein4_holographic_decode(store, erased=erased) == v, keep
 
 
 def test_blind_one_error_corrected():
     """1 of 4 copies corrupted per position → 3-of-4 majority recovers (1/4)."""
     v = _v()
-    blocks = H.klein4_holographic_encode(v, replicas=4).to_numpy().reshape(4, v.size)
-    blocks[0] = (blocks[0] + 1) % 4
-    assert np.array_equal(H.klein4_holographic_decode(blocks.reshape(-1)), v)
+    D = len(v)
+    blocks = _blocks(H.klein4_holographic_encode(v, replicas=4), 4, D)
+    blocks[0] = [(x + 1) % 4 for x in blocks[0]]
+    flat = [x for blk in blocks for x in blk]
+    assert H.klein4_holographic_decode(flat) == v
 
 
 def test_blind_three_errors_fails_past_capacity():
     """3 of 4 corrupted to the same wrong value → majority lost (no silent claim)."""
     v = _v()
-    blocks = H.klein4_holographic_encode(v, replicas=4).to_numpy().reshape(4, v.size)
-    wrong = (v + 1) % 4
-    blocks[0] = wrong
-    blocks[1] = wrong
-    blocks[2] = wrong
-    rec = H.klein4_holographic_decode(blocks.reshape(-1))
-    assert not np.array_equal(rec, v)      # past the 1/4 blind capacity
+    D = len(v)
+    blocks = _blocks(H.klein4_holographic_encode(v, replicas=4), 4, D)
+    wrong = [(x + 1) % 4 for x in v]
+    blocks[0] = list(wrong)
+    blocks[1] = list(wrong)
+    blocks[2] = list(wrong)
+    flat = [x for blk in blocks for x in blk]
+    rec = H.klein4_holographic_decode(flat)
+    assert rec != v      # past the 1/4 blind capacity
 
 
 def test_all_replicas_erased_raises():
     v = _v()
     store = H.klein4_holographic_encode(v, replicas=4)
     with pytest.raises(ValueError):
-        H.klein4_holographic_decode(store, erased=np.ones(len(store), dtype=bool))
+        H.klein4_holographic_decode(store, erased=[True] * len(store))
 
 
 def test_rejects_bad_replicas():
@@ -91,15 +110,14 @@ def test_rejects_bad_replicas():
 
 def test_decode_rejects_misshaped_store():
     with pytest.raises(ValueError):
-        H.klein4_holographic_decode(np.zeros(7, dtype=np.uint8), replicas=4)
+        H.klein4_holographic_decode([0] * 7, replicas=4)
 
 
 def test_replicas_three_gives_two_thirds_erasure():
     """Tolerance scales with replicas: replicas=3 → 2/3 known-erasure."""
     v = _v(seed=5)
     store = H.klein4_holographic_encode(v, replicas=3)
-    erased = np.zeros(len(store), dtype=bool)
-    erased[: v.size * 2] = True            # drop 2 of 3
-    assert np.array_equal(
-        H.klein4_holographic_decode(store, replicas=3, erased=erased), v
-    )
+    erased = [False] * len(store)
+    for i in range(len(v) * 2):           # drop 2 of 3
+        erased[i] = True
+    assert H.klein4_holographic_decode(store, replicas=3, erased=erased) == v

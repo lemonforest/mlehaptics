@@ -1,16 +1,16 @@
 """rc69 — the numpy-free 2-D ``Mat`` carrier (carrier-removal arc Phase 0, #564).
 
 ``Mat`` is the 2-D peer of ``HV``: a flat ``array('d')`` (row-major; interleaved
-``(re, im)`` for complex, C99 ``double _Complex`` order) with an opt-in
-``to_numpy()`` bridge and **no numpy at import**. These tests pin: construction
-(rows / flat, real / complex), plain-scalar element access, round-trip out
-(tolist / tobytes / buffer), transpose + conj, value-equality, the numpy bridge
-correctness when numpy is present, and the clean ImportError when it is absent.
+``(re, im)`` for complex, C99 ``double _Complex`` order) and **no numpy at all**.
+With numpy removed entirely (#564) the opt-in ``to_numpy()`` bridge is DELETED —
+``tolist`` / ``tobytes`` / ``buffer`` are the conversion surface. These tests
+pin: construction (rows / flat, real / complex), plain-scalar element access,
+round-trip out (tolist / tobytes / buffer), transpose + conj, and
+value-equality against another Mat / a list-of-rows.
 """
 
 from __future__ import annotations
 
-import sys
 from array import array
 
 import pytest
@@ -60,7 +60,7 @@ def test_conj_is_class_k_sign_flip_on_imag():
     assert rc.tolist() == [[1.0, 2.0]] and rc.buffer is not r.buffer
 
 
-def test_equality_against_mat_list_and_numpy():
+def test_equality_against_mat_and_list():
     m = Mat.from_rows([[1.0, 2.0], [3.0, 4.0]])
     assert m == Mat.from_rows([[1.0, 2.0], [3.0, 4.0]])
     assert m == [[1.0, 2.0], [3.0, 4.0]]
@@ -79,25 +79,10 @@ def test_buffer_is_contiguous_array_d():
     assert m.tobytes() == m.buffer.tobytes()
 
 
-def test_to_numpy_real_and_complex_when_present():
-    np = pytest.importorskip("numpy")
-    m = Mat.from_rows([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
-    arr = m.to_numpy()
-    assert arr.shape == (2, 3) and arr.dtype == np.float64
-    assert np.array_equal(arr, np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]))
-    c = Mat.from_rows([[1 + 2j, 3 - 1j], [0 + 0j, 4 + 4j]])
-    carr = c.to_numpy()
-    assert carr.dtype == np.complex128 and carr.shape == (2, 2)
-    assert np.array_equal(carr, np.array([[1 + 2j, 3 - 1j], [0, 4 + 4j]]))
-    # equality bridge accepts the numpy array back
-    assert m == arr
-
-
-def test_to_numpy_raises_cleanly_when_absent(monkeypatch):
-    monkeypatch.setitem(sys.modules, "numpy", None)  # `import numpy` → ImportError
+def test_no_to_numpy_attribute():
+    # #564: numpy removed entirely — the opt-in bridge is DELETED; tolist /
+    # tobytes / buffer are the conversion surface.
     m = Mat.from_rows([[1.0, 2.0], [3.0, 4.0]])
-    # the numpy-free path still works with numpy hidden
+    assert not hasattr(m, "to_numpy")
     assert m.tolist() == [[1.0, 2.0], [3.0, 4.0]]
     assert list(m.buffer) == [1.0, 2.0, 3.0, 4.0]
-    with pytest.raises(ImportError, match="numpy-free path is Mat.tolist"):
-        m.to_numpy()
