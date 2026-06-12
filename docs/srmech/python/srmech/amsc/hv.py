@@ -134,16 +134,3 @@ class HV:
         HV; use :meth:`tolist` / :meth:`tobytes` for a copy."""
         return self._buf
 
-    def to_numpy(self):
-        """Opt-in numpy bridge (lazy import). Returns a ``uint8`` copy.
-
-        Raises ``ImportError`` if numpy is absent — the numpy-free path is
-        :meth:`tolist` / :meth:`tobytes`."""
-        try:
-            import numpy as np
-        except ImportError as exc:  # pragma: no cover - numpy-absent path
-            raise ImportError(
-                "HV.to_numpy() requires numpy (install 'srmech[scientific]'); "
-                "the numpy-free path is HV.tolist() / HV.tobytes()"
-            ) from exc
-        return np.frombuffer(self._buf, dtype=np.uint8).copy()
