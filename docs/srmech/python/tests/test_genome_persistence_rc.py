@@ -25,7 +25,6 @@ The six points (each a test below):
 """
 from __future__ import annotations
 
-import io
 import json
 import sys
 from pathlib import Path
@@ -100,13 +99,18 @@ def test_catalog_reads_manifest_without_opening_body(tmp_path, monkeypatch):
     genome.genome_save(strand, p, the_one=one, labels=labels)
 
     opened_paths = []
-    real_open = io.open
+    real_open = Path.open
 
-    def _recording_open(file, *args, **kwargs):
-        opened_paths.append(str(file))
-        return real_open(file, *args, **kwargs)
+    def _recording_open(self, *args, **kwargs):
+        opened_paths.append(str(self))
+        return real_open(self, *args, **kwargs)
 
-    monkeypatch.setattr(io, "open", _recording_open)
+    # Patch ``Path.open`` (NOT ``io.open``): the genome reads funnel through
+    # ``Path.read_text`` / ``Path.open`` on every CPython, and ``Path.open`` is
+    # resolved on the instance at call time. ``io.open`` is captured into
+    # pathlib's accessor at import time on 3.10, so a late ``io.open`` patch is
+    # invisible there (the manifest open went unrecorded → spurious failure).
+    monkeypatch.setattr(Path, "open", _recording_open)
     cat = genome.genome_catalog(p)
     monkeypatch.undo()
 
@@ -183,11 +187,11 @@ def test_window_pages_one_chromosome(tmp_path, monkeypatch):
     # paging reads ONLY the requested region, not the whole body. Count the bytes
     # read from turns.bin during the window call.
     read_byte_counts = []
-    real_open = io.open
+    real_open = Path.open
 
-    def _measuring_open(file, *args, **kwargs):
-        fh = real_open(file, *args, **kwargs)
-        if "turns.bin" in str(file):
+    def _measuring_open(self, *args, **kwargs):
+        fh = real_open(self, *args, **kwargs)
+        if "turns.bin" in str(self):
             original_read = fh.read
 
             def _counting_read(size=-1, *a, **kw):
@@ -198,7 +202,8 @@ def test_window_pages_one_chromosome(tmp_path, monkeypatch):
             fh.read = _counting_read
         return fh
 
-    monkeypatch.setattr(io, "open", _measuring_open)
+    # Patch ``Path.open`` (version-robust; see catalog test for the 3.10 note).
+    monkeypatch.setattr(Path, "open", _measuring_open)
     genome.genome_window(p, "geography")
     monkeypatch.undo()
 
