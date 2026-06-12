@@ -396,7 +396,22 @@ def _is_numpy_import(line: str) -> bool:
 # count 7 -> 5. The remaining 5 carriers are EXACTLY: mcp/_coercion.py,
 # qm/propagators.py, qm/pseudo_hermitian.py,
 # signal_processing/closed_form_ops/ica_jade.py, spectral/__init__.py. 8 -> 5.
-CEIL_NUMPY_CARRIER = 5
+# rc123 (#564): qm/propagators.py (Feynman scalar/fermion/photon/massive-vector
+# propagators) flips numpy-free. A LEAF (only tool_schema metadata strings +
+# qm/__init__ re-export consume it). The scalar propagator i/(k²−m²+iε) is a
+# plain complex; the 4×4 numerators are held in `Mat` (consumed straight from
+# the numpy-free relativistic producers minkowski_metric / dirac_operator_
+# momentum_space — the rc118 `.to_numpy()` bridges DELETED); the kᵘkᵛ outer
+# product rides the column·row Class-L mat_matmul cascade (dropping the numpy-
+# carrier dense_matvec_real / dense_outer_real). test_qm_propagators.py rewritten
+# numpy-FREE (pole structure / the (p̸+m)(p̸−m)=(k²−m²)I Clifford identity /
+# photon transversality via Mat-entry + mat_matmul + complex arithmetic; the two
+# relativistic-producer calls consume `Mat` directly). CI-GUARD: the pure-wheel
+# must-raise example moved propagators -> pseudo_hermitian (still a numpy
+# carrier); propagators ADDED to the flipped-and-exercised list. The remaining 4
+# carriers are EXACTLY: mcp/_coercion.py, qm/pseudo_hermitian.py,
+# signal_processing/closed_form_ops/ica_jade.py, spectral/__init__.py. 5 -> 4.
+CEIL_NUMPY_CARRIER = 4
 
 
 def _srmech_root() -> pathlib.Path:

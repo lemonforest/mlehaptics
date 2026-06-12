@@ -91,12 +91,15 @@ def test_dense_outer_tool_entries_registered():
 # ── the routed qm callsites still compute correctly ──────────────────────────
 
 def test_propagators_momentum_tensor_routed():
+    from srmech.amsc.mat import Mat
     from srmech.qm.propagators import feynman_photon_propagator
-    # general covariant gauge (ξ≠1) → the (1-ξ) kᵘkᵛ term is active, now built
-    # via dense_outer_real instead of np.outer
-    k = np.array([1.0, 0.5, 0.0, 0.0])
+    # general covariant gauge (ξ≠1) → the (1-ξ) kᵘkᵛ term is active. propagators
+    # flipped numpy-free at rc123 (#564): the kᵘkᵛ outer product now rides the
+    # column·row Class-L mat_matmul cascade (NOT dense_outer_real / np.outer),
+    # and the propagator is returned as a numpy-free `Mat`. Pass a plain-list k.
+    k = [1.0, 0.5, 0.0, 0.0]
     P = feynman_photon_propagator(k_squared=1.0, gauge_xi=0.5, epsilon=1e-9, k=k)
-    assert P.shape == (4, 4)              # propagator built without numpy outer
+    assert isinstance(P, Mat) and P.shape == (4, 4)   # propagator built numpy-free
 
 
 def test_single_particle_density_matrix_routed():
