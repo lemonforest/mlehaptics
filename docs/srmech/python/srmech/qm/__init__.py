@@ -97,15 +97,13 @@ _SUBMODULES = frozenset(__all__)
 
 
 def __getattr__(name):
-    """Lazily import a qm submodule on first attribute access (PEP 562)."""
+    """Lazily import a qm submodule on first attribute access (PEP 562).
+
+    The whole ``srmech.qm`` subpackage is numpy-free (#564), so this is a plain
+    lazy import — no ``[scientific]`` gate.
+    """
     if name in _SUBMODULES:
-        try:
-            mod = importlib.import_module(f"{__name__}.{name}")
-        except ImportError as exc:  # pragma: no cover - numpy-absent path
-            if "numpy" in str(exc).lower():
-                from srmech._scientific import require_numpy
-                require_numpy(f"srmech.qm.{name}")  # raises the [scientific] hint
-            raise
+        mod = importlib.import_module(f"{__name__}.{name}")
         globals()[name] = mod
         return mod
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

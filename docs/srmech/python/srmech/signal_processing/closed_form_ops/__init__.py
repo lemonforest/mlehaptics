@@ -38,12 +38,12 @@ the module-level constants.
 
 from __future__ import annotations
 
-from srmech._scientific import make_lazy_op_getattr as _make_lazy_op_getattr
+import importlib
 
-#: Every op submodule, imported LAZILY (rc71): the numpy-free ops (the FFT
-#: family) import + run with no numpy; the numpy ops import numpy only when
-#: accessed. Eager ``from . import (…all 41…)`` previously forced numpy onto
-#: ``import srmech.signal_processing`` even for the numpy-free ops.
+#: Every op submodule, imported LAZILY (PEP 562): kept lazy so ``import
+#: srmech.signal_processing`` doesn't eager-import all ~41 op modules. Every op
+#: is numpy-free (#564), so this is a plain lazy import — no ``[scientific]``
+#: gate.
 _OP_MODULES = (
     "allpass", "arithmetic_coding", "beamforming_fixed", "cross_spectral",
     "dct", "esprit", "farrow", "fft", "fir", "fsk", "hdc_truncation",
@@ -55,7 +55,13 @@ _OP_MODULES = (
     "wiener",
 )
 
-__getattr__ = _make_lazy_op_getattr(__name__, _OP_MODULES)
+
+def __getattr__(name):
+    if name in _OP_MODULES:
+        mod = importlib.import_module(f".{name}", __name__)
+        globals()[name] = mod
+        return mod
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def __dir__():
