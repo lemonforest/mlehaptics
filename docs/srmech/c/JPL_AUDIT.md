@@ -267,6 +267,17 @@ leaf7-bit29 probe). The `SRMECH_{SHA256,LOOP_HD,SHANI}_FORCE_TIER` env overrides
 + bounded-tier clamp live in the non-exempt `srmech_simd_tier`. Mirrored in
 `tests/test_jpl_audit.py::RULE_5_EXEMPT_FUNCTIONS`.
 
+**Rule 5 EXEMPT:** `toml_is_ws` + `toml_is_bare_key_char` (`srmech_toml.c`)
+— pure `char -> bool` predicates over a single value argument (is the char
+ASCII whitespace / a bare-key char). No pointer, no bounds, no state; every
+`char` is a valid input, so there is no anomalous condition to assert and a
+tautology assert would be cargo-cult per the exemption policy below. Same
+shape as the exempt sha256 `ch`/`maj` inline primitives. Every OTHER function
+in `srmech_toml.c` (the arena allocator, the lexer skips, the value/array/
+table parsers, the builder-tree allocators, the finaliser recursion, and the
+public `srmech_toml_parse` / `srmech_toml_table_get` entries) carries ≥ 2
+asserts (an entry-pointer/contract assert + a structural-invariant assert).
+
 The Hermitian-eigendecomp `_ws` entry additionally validates the new
 workspace parameters at runtime (`workspace != NULL` →
 `SRMECH_ERR_NULL_ARG`; `ws_len < 2*n*n` → `SRMECH_ERR_OVERFLOW`) in
