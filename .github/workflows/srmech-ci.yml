@@ -248,6 +248,39 @@ jobs:
           from srmech.amsc.cascade.one import the_one
           _G = the_one(1, 0, 1).to_matrix()
           assert type(_G).__name__ == 'Mat' and _G.shape == (14, 14), 'the_one not numpy-free'
+          # COMPREHENSIVE registry walk (#564 / rc127): prove the SHIPPED WHEEL
+          # exposes EVERY registered tool's module + EVERY shipped catalog class
+          # with numpy absent — not just the curated subset above. A tool whose
+          # module was omitted from the wheel (packaging gap), or a class that
+          # fails to describe, fails HERE on the real install rather than silently.
+          import importlib
+          from srmech.amsc import tool_schema as _ts
+          from srmech.introspect import describe as _describe
+          from srmech import dsl as _dsl
+          _tools = _ts.tool_schema_view()['tools']
+          assert len(_tools) == _describe()['tools']['total'], 'tool registry / describe() drift'
+          _unresolved = []
+          for _t in _tools:
+              _parts = _t['name'].split('.'); _mod = None; _idx = 0
+              for _i in range(len(_parts), 0, -1):
+                  try:
+                      _mod = importlib.import_module('.'.join(_parts[:_i])); _idx = _i; break
+                  except ImportError:
+                      continue
+              if _mod is None:
+                  _unresolved.append(_t['name']); continue
+              _obj = _mod
+              for _p in _parts[_idx:]:
+                  if not hasattr(_obj, _p):
+                      _unresolved.append(_t['name']); break
+                  _obj = getattr(_obj, _p)
+          assert not _unresolved, f'{len(_unresolved)} registered tools unresolved on the installed wheel: {_unresolved[:10]}'
+          _cls = list(_dsl.list_classes())
+          assert _cls == _describe()['classes']['names'], 'class registry / describe() drift'
+          for _nm in _cls:
+              _info = _dsl.describe_class(_nm)
+              assert _info['name'] == _nm and (_info['fields'] or _info['methods']), f'shipped class {_nm} empty/broken'
+          print(f'registry walk OK: {len(_tools)} tools + {len(_cls)} catalog classes all reachable numpy-free')
           print(f'srmech {__version__} OK (numpy-FREE: whole package imports + runs with numpy absent)')
           "
 
