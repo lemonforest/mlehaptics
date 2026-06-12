@@ -321,7 +321,23 @@ def _is_numpy_import(line: str) -> bool:
 # cross-module test_qm_potentials.py harmonic-oscillator TDSE test (potentials'
 # numpy H bridged to `Mat` at the flipped-op boundary, assertion numpy-free).
 # 12 -> 11.
-CEIL_NUMPY_CARRIER = 11
+#
+# rc118 (#564): `qm/relativistic.py` (Dirac γ-matrix algebra / Klein-Gordon / Weyl
+# / charge-conjugation) flips numpy-free. The γ-matrices are assembled from the
+# numpy-free Pauli 2×2 `Mat` blocks (a `_block4` numpy-free `np.block` replacement
+# — no `.to_numpy()` boundary coercion needed now), products route through the
+# native `mat_matmul`, residual norms through `mat_norm`, and the Klein-Gordon
+# dispersion through the Class-N `rational.sqrt`; 4-momenta are plain float
+# sequences. PRODUCER-FLIP: `propagators` (still a numpy carrier) consumes
+# `dirac_operator_momentum_space` + `minkowski_metric`, so those 3 callsites coerce
+# `.to_numpy()` at the boundary (the legit bridge inside a still-numpy carrier).
+# test_qm_relativistic.py rewritten numpy-FREE (Clifford-algebra / chirality /
+# charge-conjugation identities via `mat_matmul`/`mat_solve`/`mat_norm`, no np
+# oracle); the two relativistic-producer calls in test_qm_propagators.py bridge
+# `.to_numpy()`. CI-GUARD: rc117 named `relativistic` as the pure-wheel must-raise
+# example — moved it to `propagators` (still numpy) and added relativistic to the
+# flipped-and-exercised list. 11 -> 10.
+CEIL_NUMPY_CARRIER = 10
 
 
 def _srmech_root() -> pathlib.Path:

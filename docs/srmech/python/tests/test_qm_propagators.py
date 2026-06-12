@@ -62,7 +62,10 @@ def test_fermion_propagator_inverse_is_dirac_operator():
     k = np.array([3.0, 1.0, 0.0, 0.0])
     m = 1.0
     S = prop.feynman_fermion_propagator(k, m)
-    D = rel.dirac_operator_momentum_space(k, m)
+    # relativistic.* return numpy-free `Mat` as of rc118; this test exercises the
+    # still-numpy `propagators`, so bridge the Mat producer to ndarray at the
+    # boundary (the legit `.to_numpy()` until propagators itself flips, #564).
+    D = rel.dirac_operator_momentum_space(k, m).to_numpy()
     np.testing.assert_allclose(D @ S, 1j * np.eye(4), atol=1e-12)
 
 
@@ -82,7 +85,7 @@ def test_photon_propagator_feynman_gauge_shape():
     """In Feynman gauge: D^{μν} = -i g^{μν} / k²; 4×4 matrix."""
     D = prop.feynman_photon_propagator(k_squared=2.0)
     assert D.shape == (4, 4)
-    expected = -1j * rel.minkowski_metric() / 2.0
+    expected = -1j * rel.minkowski_metric().to_numpy() / 2.0  # rc118 Mat→ndarray boundary
     np.testing.assert_allclose(D, expected, atol=1e-14)
 
 
