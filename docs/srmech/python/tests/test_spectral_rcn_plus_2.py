@@ -14,11 +14,13 @@ introduced.
 
 from __future__ import annotations
 
-import numpy as np
+import random
+
 import pytest
 
 from srmech.spectral import (
     SpectralHandle,
+    _unpack_complex128,
     clear_eigenbasis_cache,
     decompose,
     delta,
@@ -33,31 +35,35 @@ from srmech.spectral import (
 # Helpers — small Hermitian Laplacian fixtures (matches test_spectral.py)
 # ---------------------------------------------------------------------------
 
-def _path_laplacian(n: int) -> np.ndarray:
-    """Path-graph Laplacian on n nodes (Hermitian, PSD)."""
-    L = np.zeros((n, n), dtype=np.float64)
+def _path_laplacian(n: int) -> list:
+    """Path-graph Laplacian on n nodes (Hermitian, PSD).
+
+    Returns a list-of-lists of floats: diagonal = node degree, off-diagonal
+    -1.0 for adjacent path nodes (numpy-free).
+    """
+    L = [[0.0 for _ in range(n)] for _ in range(n)]
     for i in range(n - 1):
-        L[i, i] += 1
-        L[i + 1, i + 1] += 1
-        L[i, i + 1] -= 1
-        L[i + 1, i] -= 1
+        L[i][i] += 1.0
+        L[i + 1][i + 1] += 1.0
+        L[i][i + 1] -= 1.0
+        L[i + 1][i] -= 1.0
     return L
 
 
-def _cycle_laplacian(n: int) -> np.ndarray:
+def _cycle_laplacian(n: int) -> list:
     """Cycle-graph Laplacian on n nodes (eigenvalues are clean cosines)."""
-    L = np.zeros((n, n), dtype=np.float64)
+    L = [[0.0 for _ in range(n)] for _ in range(n)]
     for i in range(n):
-        L[i, i] = 2.0
-        L[i, (i + 1) % n] = -1.0
-        L[(i + 1) % n, i] = -1.0
+        L[i][i] = 2.0
+        L[i][(i + 1) % n] = -1.0
+        L[(i + 1) % n][i] = -1.0
     return L
 
 
-def _random_state(n: int, seed: int = 0) -> np.ndarray:
-    """Reproducible real-valued state vector."""
-    rng = np.random.default_rng(seed)
-    return rng.standard_normal(n).astype(np.float64)
+def _random_state(n: int, seed: int = 0) -> list:
+    """Reproducible real-valued state vector (deterministic, stdlib-only)."""
+    r = random.Random(seed)
+    return [r.uniform(-1.0, 1.0) for _ in range(n)]
 
 
 # ---------------------------------------------------------------------------
@@ -96,9 +102,12 @@ class TestPredict:
         L = _path_laplacian(7)
         h = decompose(_random_state(7, seed=4), L)
         p = predict(h, L, steps=5, dt=1.3)
-        c_h = np.frombuffer(h.coefficients_bytes, dtype=np.complex128)
-        c_p = np.frombuffer(p.coefficients_bytes, dtype=np.complex128)
-        np.testing.assert_allclose(np.abs(c_h), np.abs(c_p), atol=1e-12)
+        c_h = _unpack_complex128(h.coefficients_bytes, h.n_modes)
+        c_p = _unpack_complex128(p.coefficients_bytes, p.n_modes)
+        residual = max(
+            abs(abs(c_h[i]) - abs(c_p[i])) for i in range(len(c_h))
+        )
+        assert residual < 1e-12, (c_h, c_p)
 
     def test_period_2pi_at_unit_lambda(self):
         """On a substrate where the largest eigenvalue is ~λ_max, evolving
@@ -114,12 +123,16 @@ class TestPredict:
         # finite. We don't expect a clean period (eigenvalues are not
         # commensurate) — just non-trivial evolution + magnitude preserved.
         p = predict(h, L, steps=2, dt=0.7)
-        c_h = np.frombuffer(h.coefficients_bytes, dtype=np.complex128)
-        c_p = np.frombuffer(p.coefficients_bytes, dtype=np.complex128)
+        c_h = _unpack_complex128(h.coefficients_bytes, h.n_modes)
+        c_p = _unpack_complex128(p.coefficients_bytes, p.n_modes)
         # Magnitudes still bit-exact (Class L unitary).
-        np.testing.assert_allclose(np.abs(c_h), np.abs(c_p), atol=1e-12)
+        residual = max(
+            abs(abs(c_h[i]) - abs(c_p[i])) for i in range(len(c_h))
+        )
+        assert residual < 1e-12, (c_h, c_p)
         # Phase has rotated — not equal to h (except at λ=0 mode).
-        assert not np.allclose(c_h, c_p)
+        max_diff = max(abs(c_h[i] - c_p[i]) for i in range(len(c_h)))
+        assert max_diff > 1e-9
 
     def test_recompose_predicted(self):
         """recompose(predict(h, L)) returns a real-valued (numerical) state
@@ -130,7 +143,8 @@ class TestPredict:
         h = decompose(state, L)
         p = predict(h, L, steps=0)
         recovered = recompose(p, L)
-        np.testing.assert_allclose(recovered.real, state, atol=1e-10)
+        residual = max(abs(recovered[i] - state[i]) for i in range(len(state)))
+        assert residual < 1e-10, (recovered, state)
 
     def test_corruption_detected(self):
         clear_eigenbasis_cache()
@@ -253,16 +267,19 @@ class TestTruncateSparse:
         clear_eigenbasis_cache()
         L = _path_laplacian(8)
         h = decompose(_random_state(8, seed=22), L)
-        coeffs = np.frombuffer(h.coefficients_bytes, dtype=np.complex128)
+        coeffs = _unpack_complex128(h.coefficients_bytes, h.n_modes)
         k = 3
         t = truncate_sparse(h, keep_k=k)
-        out = np.frombuffer(t.coefficients_bytes, dtype=np.complex128)
+        out = _unpack_complex128(t.coefficients_bytes, t.n_modes)
         # Exactly k modes non-zero.
-        nonzero = np.where(np.abs(out) > 0)[0]
+        nonzero = [i for i in range(len(out)) if abs(out[i]) > 0]
         assert len(nonzero) == k
         # The k highest-magnitude modes of the input are preserved bit-exactly.
-        expected_keep = set(int(i) for i in np.argsort(-np.abs(coeffs))[:k])
-        actual_keep = set(int(i) for i in nonzero)
+        order = sorted(
+            range(len(coeffs)), key=lambda i: abs(coeffs[i]), reverse=True
+        )
+        expected_keep = set(order[:k])
+        actual_keep = set(nonzero)
         assert expected_keep == actual_keep
         for i in nonzero:
             assert out[i] == coeffs[i]
@@ -271,12 +288,18 @@ class TestTruncateSparse:
         clear_eigenbasis_cache()
         L = _path_laplacian(8)
         h = decompose(_random_state(8, seed=23), L)
-        coeffs = np.frombuffer(h.coefficients_bytes, dtype=np.complex128)
+        coeffs = _unpack_complex128(h.coefficients_bytes, h.n_modes)
         # Pick a threshold between the median and the max.
-        magnitudes = np.abs(coeffs)
-        thr = float(np.median(magnitudes))
+        magnitudes = [abs(c) for c in coeffs]
+        srt = sorted(magnitudes)
+        m = len(srt)
+        # Median (matches the prior numpy mean-of-two-middle convention).
+        if m % 2 == 1:
+            thr = srt[m // 2]
+        else:
+            thr = (srt[m // 2 - 1] + srt[m // 2]) / 2.0
         t = truncate_sparse(h, threshold=thr)
-        out = np.frombuffer(t.coefficients_bytes, dtype=np.complex128)
+        out = _unpack_complex128(t.coefficients_bytes, t.n_modes)
         for i in range(8):
             if magnitudes[i] >= thr:
                 assert out[i] == coeffs[i]
@@ -337,11 +360,14 @@ class TestTruncateSparse:
         t = truncate_sparse(h, keep_k=4)
         recovered = recompose(t, L)
         # Recovered state is non-trivial real-valued vector (Hermitian L).
-        assert np.all(np.isfinite(recovered.real))
+        import math
+        assert all(math.isfinite(v.real) for v in recovered)
         # The k-mode approximation is closer to the original than the
         # all-zeros baseline.
-        truncated_err = float(np.linalg.norm(state - recovered.real))
-        zero_baseline_err = float(np.linalg.norm(state))
+        truncated_err = math.sqrt(
+            sum(abs(state[i] - recovered[i].real) ** 2 for i in range(len(state)))
+        )
+        zero_baseline_err = math.sqrt(sum(v * v for v in state))
         assert truncated_err < zero_baseline_err
 
 
