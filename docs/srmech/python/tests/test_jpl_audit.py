@@ -154,6 +154,14 @@ RULE_5_EXEMPT_FUNCTIONS: set[str] = {
     # `__ror` is the 1-line rotate (like srmech_ror32 / srmech_sha256b__ror).
     "srmech_simd_has_shani",
     "srmech_sha256ni__ror",
+    # srmech_toml.c char classifiers — pure `char -> bool` predicates over a
+    # single value argument (is-whitespace / is-bare-key-char). No pointer,
+    # no bounds, no state: the only "input" is a char, which has no anomalous
+    # value to assert (every char is a valid input). Asserting a tautology
+    # would be cargo-cult per the Rule 5 exemption policy in c/JPL_AUDIT.md;
+    # same shape as the exempt sha256 ch/maj inline primitives.
+    "toml_is_ws",
+    "toml_is_bare_key_char",
 }
 
 # Maximum allowed function length (JPL Rule 4).

@@ -1829,6 +1829,108 @@ srmech_status_t srmech_hamming_decode_correct(const uint8_t *codeword, size_t le
 srmech_status_t srmech_cd_basis_product(int dim, int i, int j,
                                         int *out_index, int *out_sign);
 
+/* ------------------------------------------------------------------ *
+ * TOML parser (malloc-free; caller arena)
+ *
+ * A self-contained reader for the TOML subset srmech's descriptor /
+ * cascade-catalog files actually use. NOT a full TOML 1.0 parser: it
+ * implements exactly the grammar the corpus exercises and rejects the
+ * rest with SRMECH_ERR_BAD_INPUT so a silent mis-parse can never slip
+ * through (no datetimes — they do not appear in the corpus).
+ *
+ * Supported grammar:
+ *   - tables [a], [a.b.c] (dotted -> nested; reopening a path allowed);
+ *   - arrays of tables [[a]], [[a.b]] (each appends a new table);
+ *   - key/value: bare or dotted bare keys ([A-Za-z0-9_-]); the value is
+ *       basic "..." (escapes \" \\ \n \t \r \uXXXX -> UTF-8),
+ *       literal '...', multiline """...""" / '''...''' (leading newline
+ *       after the opener trimmed), integer (+/-, underscores), float
+ *       (decimal point and/or e/E exponent, underscores), bool
+ *       true/false, array [ ... ] (multi-line, trailing comma, nested),
+ *       inline table { k = v, ... };
+ *   - comments: '#' to end of line, outside strings.
+ *
+ * Memory model: the WHOLE parse tree (values, key strings, child
+ * pointer arrays) is built inside the caller-supplied arena `ws`
+ * (ws_len bytes), used as an 8-byte-aligned bump allocator. There is
+ * NO malloc and no global state — the parser is reentrant. Strings are
+ * copied into the arena NUL-terminated, so srmech_toml_value_t::u.str.ptr
+ * is always a C string (the `len` field is the byte length, excluding
+ * the NUL). The arena content must outlive any use of *out.
+ *
+ * Bounded build cap: a single table or array may hold at most
+ * SRMECH_TOML_MAX_CHILDREN entries (the parser collects child pointers
+ * in a fixed local array before copying them right-sized into the
+ * arena); exceeding the cap returns SRMECH_ERR_OVERFLOW. Nesting depth
+ * is likewise bounded by SRMECH_TOML_MAX_DEPTH.
+ *
+ * ABI-additive: new symbols + types + macros only, so
+ * SRMECH_ABI_VERSION stays 3. No libm, no <complex.h>, no malloc.
+ * ------------------------------------------------------------------ */
+
+/* Per-table / per-array element cap (collected in a bounded local array
+ * before being copied right-sized into the arena). A table/array with
+ * more than this many direct entries returns SRMECH_ERR_OVERFLOW. */
+#define SRMECH_TOML_MAX_CHILDREN 256
+
+/* Maximum table/array/inline-table nesting depth (recursion guard for
+ * the value parser; JPL Rule 2 bound). Exceeding it -> SRMECH_ERR_OVERFLOW. */
+#define SRMECH_TOML_MAX_DEPTH 64
+
+/* The dynamic type of a parsed TOML value. */
+typedef enum srmech_toml_type {
+    SRMECH_TOML_STRING = 0,
+    SRMECH_TOML_INT,
+    SRMECH_TOML_FLOAT,
+    SRMECH_TOML_BOOL,
+    SRMECH_TOML_ARRAY,
+    SRMECH_TOML_TABLE
+} srmech_toml_type_t;
+
+typedef struct srmech_toml_value srmech_toml_value_t;
+
+/* A parsed TOML value. All pointers refer into the caller's arena. For
+ * a STRING, `str.ptr` is NUL-terminated and `str.len` is its byte
+ * length. For ARRAY / TABLE, the child pointer arrays (`arr.items`,
+ * `tbl.keys`, `tbl.vals`) also live in the arena. */
+struct srmech_toml_value {
+    srmech_toml_type_t type;
+    union {
+        struct { const char *ptr; uint32_t len; } str;
+        int64_t i;
+        double  f;
+        int     b;
+        struct { srmech_toml_value_t **items; uint32_t n; } arr;
+        struct {
+            const char           **keys;
+            srmech_toml_value_t  **vals;
+            uint32_t               n;
+        } tbl;
+    } u;
+};
+
+/* Parse src[0..len) into a TOML tree built ENTIRELY inside the caller's
+ * arena `ws` (ws_len bytes, used as an 8-byte-aligned bump allocator).
+ * On success *out is the root TABLE value (which lives in ws). No malloc.
+ *
+ * Returns:
+ *   SRMECH_OK             — success (*out set)
+ *   SRMECH_ERR_NULL_ARG   — src (with len > 0), ws, or out is NULL
+ *   SRMECH_ERR_OVERFLOW   — arena too small, or a table/array exceeds
+ *                           SRMECH_TOML_MAX_CHILDREN, or nesting exceeds
+ *                           SRMECH_TOML_MAX_DEPTH
+ *   SRMECH_ERR_BAD_INPUT  — a syntax error / unsupported construct
+ */
+srmech_status_t srmech_toml_parse(const char *src, size_t len,
+                                  void *ws, size_t ws_len,
+                                  srmech_toml_value_t **out);
+
+/* Look up `key` in a TABLE value; returns the matching child value, or
+ * NULL if `table`/`key` is NULL, `table` is not a TABLE, or the key is
+ * absent. The returned pointer aliases into the same arena as `table`. */
+const srmech_toml_value_t *srmech_toml_table_get(
+    const srmech_toml_value_t *table, const char *key);
+
 #ifdef __cplusplus
 }
 #endif
