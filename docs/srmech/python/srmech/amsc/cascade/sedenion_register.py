@@ -46,10 +46,13 @@ Two distinct boundaries, kept distinct (F465): the register's **associative**
 capacity is ``D``-bounded (HDC crosstalk), separate from the **reversible** working
 set (≤7, the coupler). Real-coefficient EC stays out (the §30 GF(2)-only fence).
 
-The minter + HDC storage are the **scientific tier** (numpy on call): the module
-imports numpy-free; :meth:`write` / :meth:`read` / :meth:`couple_working` import
-numpy lazily. :meth:`navigate` / :meth:`is_navigable` / :meth:`carry` /
-:meth:`correct` are numpy-free.
+numpy-FREE (#564): the WHOLE instrument is numpy-free. The minter + HDC storage
+(:meth:`write` / :meth:`read` / :meth:`materialize`) route through
+:func:`srmech.signal_processing.mint_vector` + the Class-M
+:func:`srmech.amsc.hdc.bind` / ``bundle`` / ``similarity`` cascades; the ≤7
+working word (:meth:`couple_working`) routes through
+:func:`hypercomplex_couple`; :meth:`navigate` / :meth:`is_navigable` /
+:meth:`carry` / :meth:`correct` are pure address-algebra. Nothing imports numpy.
 
 SSoT / provenance: UPSTREAM_NOTES §31 (RBS-LM, PR #687); F465
 (`R-RBS-LM-SEDENION_addressable_hdc_instrument`) + F468
@@ -82,13 +85,14 @@ WORKING_WORD_CAP = 7
 
 
 def _lazy_hdc():
-    """Import the Class-M HDC byte ops on demand (storage is the scientific tier)."""
+    """Import the Class-M HDC byte ops on demand (numpy-free; defers the import
+    so the module loads without touching signal_processing)."""
     from ..hdc import bind, bundle, similarity
     return bind, bundle, similarity
 
 
 def _lazy_mint():
-    """Import the RBS-HDC minter on demand (numpy-backed scientific tier)."""
+    """Import the RBS-HDC minter on demand (numpy-free cascade; deferred import)."""
     from ...signal_processing import mint_vector
     return mint_vector
 
@@ -111,7 +115,7 @@ class SedenionRegister:
         self._addr_cache: Dict[int, bytes] = {}
         self._slots: Dict[int, Tuple[str, int]] = {}   # slot -> (key, sign∈{+1,-1})
 
-    # ── address + codebook minting (scientific tier) ──────────────────────
+    # ── address + codebook minting (numpy-free cascade; deferred import) ──
     def _mint(self, name: str) -> bytes:
         if self._minter is None:
             self._minter = _lazy_mint()

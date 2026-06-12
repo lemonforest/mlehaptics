@@ -7,10 +7,16 @@ and adds the native-C twin srmech_exact_dft_i64 (int64 fast path; arbitrary-
 precision magnitudes use the Python bignum path). These tests pin the public
 contract, the native==Python bit-exact parity (skipped when the native symbol
 is absent, e.g. a stale local DLL), and the int64-safe vs bignum dispatch.
+
+numpy is GONE from srmech — these tests run and pass with numpy NOT installed.
+The lift oracle is a pure-cmath DFT-by-definition; the exact-spectrum oracle is
+the pure-Python bignum cyclotomic reference below (bit-exact).
 """
 from __future__ import annotations
 
-import numpy as np
+import cmath
+import math
+
 import pytest
 
 from srmech.amsc import _native
@@ -34,7 +40,24 @@ _HAVE_NATIVE_EXACT = (
 
 
 def _int_signal(n, seed):
-    return [int(v) for v in ((np.arange(n) * seed + 3) % 11 - 5)]
+    return [(i * seed + 3) % 11 - 5 for i in range(n)]
+
+
+def _dft_ref(x, inverse=False):
+    """DFT by definition via cmath: X[k] = Σ_n x[n]·e^{∓2πi·kn/N} (÷N if inverse)."""
+    n = len(x)
+    sign = 1.0 if inverse else -1.0
+    out = []
+    for k in range(n):
+        acc = 0j
+        for idx in range(n):
+            acc += complex(x[idx]) * cmath.exp(sign * 2j * math.pi * k * idx / n)
+        out.append(acc / n if inverse else acc)
+    return out
+
+
+def _max_abs_diff(got, want):
+    return max((abs(complex(g) - complex(w)) for g, w in zip(got, want)), default=0.0)
 
 
 def _py_reference(re, im, n, inverse):
@@ -70,20 +93,19 @@ def test_exact_dft_public_returns_integer_spectrum(n):
 
 
 @pytest.mark.parametrize("n", POW2)
-def test_lift_matches_numpy(n):
+def test_lift_matches_definition(n):
     sig = _int_signal(n, 3)
     got = lift(exact_dft(sig))
-    ref = np.fft.fft(np.array(sig, dtype=float))
-    assert np.max(np.abs(np.array(got) - ref)) <= 1e-9
+    assert _max_abs_diff(got, _dft_ref(sig)) <= 1e-9
 
 
 @pytest.mark.parametrize("n", [4, 8, 16, 32])
 def test_exact_idft_roundtrip(n):
     sig = _int_signal(n, 4)
-    # the lifted spectrum is float; the exact round trip is forward-then-numpy-inverse
+    # the lifted spectrum is float; the exact round trip is forward-then-inverse
     fwd = lift(exact_dft(sig))
-    rt = np.fft.ifft(np.array(fwd))
-    assert np.max(np.abs(rt.real - np.array(sig, dtype=float))) <= 1e-9
+    rt = _dft_ref(fwd, inverse=True)
+    assert _max_abs_diff([v.real for v in rt], [float(v) for v in sig]) <= 1e-9
     # and exact_idft is exact_dft with the conjugate exponent (integer spectrum)
     assert exact_idft(sig) == _exact_dft_core(*_try_int_pairs(sig), inverse=True)
 
@@ -102,8 +124,7 @@ def test_exact_dft_supports_general_n():
         for (xr, xi) in spec:
             for c in xr + xi:
                 assert type(c) is int
-        ref = np.fft.fft(np.array(sig, dtype=float))
-        assert np.max(np.abs(np.array(lift(spec)) - ref)) <= 1e-9
+        assert _max_abs_diff(lift(spec), _dft_ref(sig)) <= 1e-9
 
 
 def test_exact_dft_rejects_length_one():
@@ -114,8 +135,7 @@ def test_exact_dft_rejects_length_one():
 def test_gaussian_integer_signal():
     sig = [1 + 2j, 3 - 1j, -2 + 0j, 0 + 4j]
     got = lift(exact_dft(sig))
-    ref = np.fft.fft(np.array(sig))
-    assert np.max(np.abs(np.array(got) - ref)) <= 1e-9
+    assert _max_abs_diff(got, _dft_ref(sig)) <= 1e-9
 
 
 # --- native == Python bit-exact parity (CI; skipped on stale/absent native) ------

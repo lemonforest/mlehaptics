@@ -17,9 +17,9 @@ already bound at collection time — see
 with the meta-path finder installed up front, so numpy is absent from the very
 first import, reproducing a clean numpy-absent install.
 
-The companion guard: ``qm/pseudo_hermitian`` is now the pure-wheel CI must-raise
-example (still a numpy carrier) — this file pins that it STILL raises the clean
-``[scientific]`` hint numpy-blocked, so the CI-guard move is honest.
+(#564 capstone: numpy has been removed entirely from srmech — there is no
+``[scientific]`` extra and nothing raises the old hint, so the former
+companion must-raise guard has been deleted.)
 """
 
 from __future__ import annotations
@@ -109,26 +109,3 @@ def test_propagators_imports_and_runs_numpy_free():
     )
     assert proc.returncode == 0, f"propagators not numpy-free:\n{proc.stderr}"
     assert "PROPAGATORS_OK" in proc.stdout, proc.stdout
-
-
-def test_a_still_numpy_carrier_raises_scientific_hint_numpy_free():
-    """A scientific-tier numpy export boundary must still raise the clean
-    ``[scientific]`` hint numpy-blocked. ``ica_jade`` flipped numpy-free at rc126
-    (the LAST signal_processing carrier), so the pure-wheel must-raise exemplar
-    moved to the DURABLE ``One.to_numpy()`` — a lossy ndarray export that
-    intrinsically needs numpy and is NOT a carrier to be flipped, so it stays
-    the long-lived numpy-requiring exemplar past the carrier-removal capstone."""
-    proc = _run_numpy_free(
-        """
-        from srmech.amsc.cascade.one import the_one
-        try:
-            the_one(1, 0, 1).to_numpy()
-        except ImportError as exc:
-            assert "srmech[scientific]" in str(exc), str(exc)
-            print("HINT_OK")
-        else:
-            raise SystemExit("One.to_numpy() unexpectedly succeeded numpy-free")
-        """
-    )
-    assert proc.returncode == 0, f"scientific export-boundary hint guard failed:\n{proc.stderr}"
-    assert "HINT_OK" in proc.stdout, proc.stdout

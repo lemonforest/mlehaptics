@@ -3,9 +3,14 @@
 fft = the rc36 DFT cascade (I o N o C o M) + Class J (the radix N=2*(N/2)
 parity split) + Class K (the butterfly recursion depth). Power-of-2 sizes take
 the O(N log N) butterfly; every other N falls back to the direct O(N^2) dft, so
-fft is a drop-in for numpy.fft.fft at ANY length. Verified vs numpy.fft.
+fft is a drop-in for the DFT-by-definition at ANY length. Verified vs a cmath
+DFT-by-definition oracle (numpy is GONE from srmech — these tests run and pass
+with numpy NOT installed).
 """
-import numpy as np
+import cmath
+import math
+import random
+
 import pytest
 
 from srmech.amsc.cascade.spectral_cascades import (
@@ -16,39 +21,56 @@ from srmech.amsc.cascade.spectral_cascades import (
 )
 
 
-def test_fft_matches_numpy_all_lengths():
+def _dft_ref(x, inverse=False):
+    """DFT by definition via cmath: X[k] = Σ_n x[n]·e^{∓2πi·kn/N} (÷N if inverse)."""
+    n = len(x)
+    sign = 1.0 if inverse else -1.0
+    out = []
+    for k in range(n):
+        acc = 0j
+        for idx in range(n):
+            acc += complex(x[idx]) * cmath.exp(sign * 2j * math.pi * k * idx / n)
+        out.append(acc / n if inverse else acc)
+    return out
+
+
+def _max_abs_diff(got, want):
+    return max((abs(complex(g) - complex(w)) for g, w in zip(got, want)), default=0.0)
+
+
+def _rand_complex(rng, n):
+    return [complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(n)]
+
+
+def test_fft_matches_definition_all_lengths():
     """Power-of-2 (butterfly) AND non-power-of-2 (dft fallback) both match."""
-    rng = np.random.default_rng(11)
+    rng = random.Random(11)
     for n in (1, 2, 3, 4, 5, 7, 8, 13, 16, 32, 64):
-        x = (rng.standard_normal(n) + 1j * rng.standard_normal(n)).tolist()
-        got = np.array(fft(x))
-        want = np.fft.fft(np.array(x))
-        assert np.max(np.abs(got - want)) <= 1e-9, n
+        x = _rand_complex(rng, n)
+        assert _max_abs_diff(fft(x), _dft_ref(x)) <= 1e-9, n
 
 
-def test_ifft_matches_numpy():
-    rng = np.random.default_rng(12)
+def test_ifft_matches_definition():
+    rng = random.Random(12)
     for n in (1, 2, 4, 6, 8, 16):
-        spec = (rng.standard_normal(n) + 1j * rng.standard_normal(n)).tolist()
-        got = np.array(ifft(spec))
-        want = np.fft.ifft(np.array(spec))
-        assert np.max(np.abs(got - want)) <= 1e-9, n
+        spec = _rand_complex(rng, n)
+        assert _max_abs_diff(ifft(spec), _dft_ref(spec, inverse=True)) <= 1e-9, n
 
 
 def test_fft_equals_dft():
     """The fast path must be value-faithful to the direct DFT (same maths)."""
-    rng = np.random.default_rng(13)
+    rng = random.Random(13)
     for n in (4, 8, 16, 32):
-        x = (rng.standard_normal(n) + 1j * rng.standard_normal(n)).tolist()
-        assert np.max(np.abs(np.array(fft(x)) - np.array(dft(x)))) <= 1e-9, n
+        x = _rand_complex(rng, n)
+        assert _max_abs_diff(fft(x), dft(x)) <= 1e-9, n
 
 
 def test_ifft_inverts_fft():
-    rng = np.random.default_rng(14)
+    rng = random.Random(14)
     for n in (1, 8, 16, 64):
-        x = (rng.standard_normal(n) + 1j * rng.standard_normal(n))
-        rt = np.array(ifft(fft(x.tolist())))
-        assert np.max(np.abs(rt - x)) <= 1e-9, n
+        x = _rand_complex(rng, n)
+        rt = ifft(fft(x))
+        assert _max_abs_diff(rt, x) <= 1e-9, n
 
 
 def test_fft_empty():

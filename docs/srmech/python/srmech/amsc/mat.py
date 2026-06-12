@@ -205,20 +205,3 @@ class Mat:
         :meth:`tolist` / :meth:`tobytes` for a copy."""
         return self._buf
 
-    def to_numpy(self):
-        """Opt-in numpy bridge (lazy import). Returns a 2-D ``float64`` /
-        ``complex128`` copy with shape ``(n_rows, n_cols)``.
-
-        Raises ``ImportError`` if numpy is absent — the numpy-free path is
-        :meth:`tolist`."""
-        try:
-            import numpy as np
-        except ImportError as exc:  # pragma: no cover - numpy-absent path
-            raise ImportError(
-                "Mat.to_numpy() requires numpy (install 'srmech[scientific]'); "
-                "the numpy-free path is Mat.tolist()"
-            ) from exc
-        flat = np.frombuffer(self._buf, dtype=np.float64)
-        if self._complex:
-            flat = flat.view(np.complex128)
-        return flat.reshape(self.n_rows, self.n_cols).copy()

@@ -103,13 +103,17 @@ exact = true
     _assert_exact_equals(run_toml_chain(spec, _PATH4_L), _EXPECTED_S)
 
 
-# ── float path (default; needs the srmech[scientific] numpy extra) ────
+# ── float path (default; numpy-free §564 — Mat-engine dense_solve) ────
 
 
-def test_schur_then_stage_float_path_when_numpy_present():
-    np = pytest.importorskip("numpy")
-    # Default exact=False → numpy-backed float Schur complement. Same matrix.
+def test_schur_then_stage_float_path():
+    # Default exact=False → the numpy-FREE Mat-engine float Schur complement
+    # (§564; dense_solve rides mat_solve). It returns a plain list[list[float]];
+    # verify against the exact-Fraction path element-wise, NO numpy.
     ch = Chain("dtn-f").then("schur_complement", boundary_idx=[0, 3])
     S = ch.run([[float(x) for x in row] for row in _PATH4_L])
-    expected = np.array([[1.0, -1.0], [-1.0, 1.0]]) / 3.0
-    assert np.allclose(np.asarray(S, dtype=float), expected)
+    assert isinstance(S, list) and all(isinstance(row, list) for row in S)
+    assert len(S) == 2 and all(len(row) == 2 for row in S)
+    for i in range(2):
+        for j in range(2):
+            assert abs(float(S[i][j]) - float(_EXPECTED_S[i][j])) < 1e-12

@@ -1,20 +1,21 @@
 """rc108 — the `mat_svd` foundation: numpy-free **full** singular-value
 decomposition over the Mat carrier (carrier-removal #564, foundation op #5).
 
-`laplacian.mat_svd(A: Mat) -> (U: Mat, S: list[float], Vh: Mat)` mirrors
-NumPy's ``numpy.linalg.svd(A, full_matrices=True)`` shape contract (U (m,m),
-S (min(m,n),), Vh (n,n)) with **NO numpy**: it composes the native-backed
-`mat_matmul` + `mat_hermitian_eigendecompose` on the Hermitian PSD Gram AᴴA
-(right vectors = eigvecs, σ = √λ via the Class-N `rational.sqrt`), then
-`uⱼ = A·vⱼ/σⱼ` + a pure-Python orthonormal Gram–Schmidt completion of the
-left-nullspace block.
+`laplacian.mat_svd(A: Mat) -> (U: Mat, S: list[float], Vh: Mat)` returns the
+full-matrices SVD shape contract (U (m,m), S (min(m,n),) descending, Vh (n,n))
+with **NO numpy**: it composes the native-backed `mat_matmul` +
+`mat_hermitian_eigendecompose` on the Hermitian PSD Gram AᴴA (right vectors =
+eigvecs, σ = √λ via the Class-N `rational.sqrt`), then `uⱼ = A·vⱼ/σⱼ` + a
+pure-Python orthonormal Gram–Schmidt completion of the left-nullspace block.
 
-Per ``[[feedback_cascade_svd_nullspace_accuracy_not_route_matrix_rank]]`` the
-contract is **value-faithful, NOT bit-identical**: SVD is non-unique (a per-pair
-phase, and an arbitrary unitary basis inside a degenerate-σ / null subspace), so
-correctness is pinned by **reconstruction** (`A ≈ U[:, :k]·diag(S)·Vh[:k, :]`),
-**unitarity** (`UᴴU ≈ I`, `Vh·Vhᴴ ≈ I`), and **singular-value match** to NumPy
-(the large σ; the small ones carry the documented ~1e-7 caveat) — never
+numpy was REMOVED ENTIRELY from srmech (#564): these tests run + PASS with numpy
+absent. Per ``[[feedback_cascade_svd_nullspace_accuracy_not_route_matrix_rank]]``
+the contract is **value-faithful, NOT bit-identical**: SVD is non-unique (a
+per-pair phase, and an arbitrary unitary basis inside a degenerate-σ / null
+subspace), so correctness is pinned by **reconstruction**
+(`A ≈ U[:, :k]·diag(S)·Vh[:k, :]`), **unitarity** (`UᴴU ≈ I`, `Vh·Vhᴴ ≈ I`), and
+the **singular-value identity** `s² = eigenvalues of the Gram AᴴA` (computed via
+the numpy-free `mat_hermitian_eigendecompose`) — never `numpy.linalg.svd`, never
 element-wise parity. The numpy-free claim is pinned by a subprocess that blocks
 numpy at `sys.meta_path` before the first import.
 """
@@ -27,10 +28,13 @@ import textwrap
 
 import pytest
 
-from srmech.amsc.laplacian import mat_svd, mat_matmul, LAPLACIAN_OPS
+from srmech.amsc.laplacian import (
+    mat_svd,
+    mat_matmul,
+    mat_hermitian_eigendecompose,
+    LAPLACIAN_OPS,
+)
 from srmech.amsc.mat import Mat
-
-np = pytest.importorskip("numpy")
 
 
 # ── numpy-free correctness helpers (no numpy in the asserts themselves) ──
@@ -61,6 +65,16 @@ def _unitarity(M: Mat) -> float:
     return worst
 
 
+def _gram_eigvals_desc(A: Mat) -> list:
+    """Eigenvalues of the Hermitian PSD Gram AᴴA, descending — the numpy-free
+    oracle for ``s²`` (σ are the square roots of these). Computed via the
+    cascade `mat_hermitian_eigendecompose`, NOT numpy."""
+    gram = mat_matmul(A.conj().T, A)  # n×n Hermitian PSD
+    ev, _ = mat_hermitian_eigendecompose(gram)  # ascending real (n,1)
+    vals = [float(ev[i, 0]) for i in range(ev.n_rows)]
+    return sorted(vals, reverse=True)
+
+
 # ── the matrices under test: real/complex × square/tall/wide × ranks ──
 
 def _cases():
@@ -86,7 +100,7 @@ def test_mat_svd_reconstructs_and_is_unitary(rows):
     A = Mat.from_rows(rows)
     m, n = A.n_rows, A.n_cols
     U, S, Vh = mat_svd(A)
-    # shapes match numpy full_matrices=True
+    # shapes match the full_matrices=True contract
     assert U.shape == (m, m)
     assert Vh.shape == (n, n)
     assert len(S) == min(m, n)
@@ -101,17 +115,18 @@ def test_mat_svd_reconstructs_and_is_unitary(rows):
 
 
 @pytest.mark.parametrize("rows", _cases())
-def test_mat_svd_singular_values_match_numpy(rows):
+def test_mat_svd_singular_values_squared_are_gram_eigvals(rows):
+    # The singular-value identity: σ_k² are the top-k eigenvalues of the
+    # Hermitian PSD Gram AᴴA (descending). Oracle via the numpy-free
+    # mat_hermitian_eigendecompose, NOT numpy.linalg.svd.
     A = Mat.from_rows(rows)
     _, S, _ = mat_svd(A)
-    s_np = np.linalg.svd(np.asarray(rows, dtype=np.complex128), compute_uv=False)
-    # singular values are unique (unlike the U/V bases) — compare sorted desc.
-    s_np = sorted([float(x) for x in s_np], reverse=True)
-    assert len(S) == len(s_np)
-    for got, ref in zip(S, s_np):
+    gram_eigs = _gram_eigvals_desc(A)  # length n, descending
+    assert len(S) == min(A.n_rows, A.n_cols)
+    for k in range(len(S)):
         # large σ ~1e-9; the smallest (near-zero / nullspace) carry the
         # documented ~1e-7 caveat — an absolute tolerance covers both.
-        assert abs(got - ref) < 1e-6
+        assert abs(S[k] * S[k] - gram_eigs[k]) < 1e-6
 
 
 def test_mat_svd_registered_and_rejects_empty():
@@ -133,10 +148,9 @@ def test_mat_svd_numpy_free_on_blocked_import():
                     raise ImportError("numpy blocked for the test")
                 return None
         sys.meta_path.insert(0, _Block())
-        import importlib.util as u
-        assert u.find_spec is not None
         from srmech.amsc.laplacian import mat_svd
         from srmech.amsc.mat import Mat
+        assert "numpy" not in sys.modules, "import pulled numpy in"
         A = Mat.from_rows([[2.0, 0.0, 1.0], [0.0, 3.0, 0.0], [1.0, 0.0, 2.0]])
         U, S, Vh = mat_svd(A)
         assert len(S) == 3 and S[0] >= S[1] >= S[2] >= -1e-12

@@ -2,55 +2,54 @@
 
 The np.sqrt-bucket decrement: `laplacian.elementwise_sqrt(arr)` computes
 ``√arrᵢ`` per element via the Class-N `rational.sqrt` cascade (native
-`srmech_rational_sqrt`-dispatched), so numpy carries the array only — the math
-is the libm-free cascade, not numpy's `sqrt` ufunc. This lets the 2 array
-`np.sqrt` sites (`spectral_subtraction` PSD magnitude, `ica_jade` whitening)
-leave numpy's sqrt engine; the 10 scalar sites route onto `rational.sqrt`.
+`srmech_rational_sqrt`-dispatched). With numpy removed entirely (#564), the
+input is a plain list and the result is a FLAT ``list[float]`` — the math is the
+libm-free cascade, not numpy's `sqrt` ufunc. This lets the 2 array `np.sqrt`
+sites (`spectral_subtraction` PSD magnitude, `ica_jade` whitening) leave numpy's
+sqrt engine; the 10 scalar sites route onto `rational.sqrt`.
 
-It is round-off-faithful to numpy (rational sqrt is floor-projected vs IEEE
-round-to-nearest — a ≤1-ULP shift), and **bit-exact** whenever ``arrᵢ`` is a
-perfect square. These tests pin close-agreement, perfect-square exactness,
-shape/empty handling, the negative-domain guard, registration, and that the
-routed DSP surfaces still decode/whiten correctly.
+It is round-off-faithful to ``math.sqrt`` (rational sqrt is floor-projected vs
+IEEE round-to-nearest — a ≤1-ULP shift), and **bit-exact** whenever ``arrᵢ`` is
+a perfect square. These tests pin close-agreement (stdlib ``math.sqrt`` oracle),
+perfect-square exactness, empty handling, the negative-domain guard,
+registration, and that the routed DSP surfaces still decode/whiten correctly.
 """
 from __future__ import annotations
 
-import numpy as np
+import math
+
 import pytest
 
 from srmech.amsc import laplacian
 from srmech.amsc.laplacian import elementwise_sqrt
 
+_TOL = 1e-9
 
-def test_sqrt_close_to_numpy():
-    a = np.array([2.0, 3.0, 5.0, 7.5, 10.0, 0.0])
+
+def test_sqrt_close_to_stdlib():
+    a = [2.0, 3.0, 5.0, 7.5, 10.0, 0.0]
     out = elementwise_sqrt(a)
-    assert out.dtype == np.float64
-    assert out.shape == a.shape
-    assert np.allclose(out, np.sqrt(a), rtol=0, atol=1e-9)
+    assert isinstance(out, list)
+    assert len(out) == len(a)
+    assert all(isinstance(x, float) for x in out)
+    for got, ai in zip(out, a):
+        assert abs(got - math.sqrt(ai)) < _TOL
 
 
 def test_sqrt_perfect_squares_are_exact():
-    a = np.array([0.0, 1.0, 4.0, 9.0, 16.0, 25.0, 144.0])
+    a = [0.0, 1.0, 4.0, 9.0, 16.0, 25.0, 144.0]
     out = elementwise_sqrt(a)
-    assert np.array_equal(out, np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 12.0]))
-
-
-def test_sqrt_preserves_2d_shape():
-    a = np.array([[4.0, 9.0], [16.0, 2.0]])
-    out = elementwise_sqrt(a)
-    assert out.shape == (2, 2)
-    assert np.allclose(out, np.sqrt(a), rtol=0, atol=1e-9)
+    assert out == [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 12.0]
 
 
 def test_sqrt_empty_is_safe():
-    out = elementwise_sqrt(np.array([]))
-    assert out.shape == (0,)
+    out = elementwise_sqrt([])
+    assert out == []
 
 
 def test_sqrt_negative_rejected():
     with pytest.raises(ValueError):
-        elementwise_sqrt(np.array([1.0, -2.0, 3.0]))
+        elementwise_sqrt([1.0, -2.0, 3.0])
 
 
 # ── registration gates ───────────────────────────────────────────────────────

@@ -15,11 +15,9 @@ first import (the in-process ``monkeypatch`` only proves runtime-math-free, not
 fresh-IMPORT-free — see
 ``[[feedback_carrier_ratchet_misses_require_numpy_subpackage_gates]]``).
 
-The companion guard: a scientific-tier numpy export boundary must STILL raise the
-clean ``[scientific]`` hint numpy-blocked. ``ica_jade`` (the prior exemplar)
-flipped numpy-free at rc126 — the LAST signal_processing carrier — so this file
-pins the DURABLE ``One.to_numpy()`` export boundary instead (a lossy ndarray
-export that intrinsically needs numpy; NOT a carrier to be flipped).
+(#564 capstone: numpy has been removed entirely from srmech — there is no
+``[scientific]`` extra and nothing raises the old hint, so the former
+companion must-raise guard has been deleted.)
 """
 
 from __future__ import annotations
@@ -121,25 +119,3 @@ def test_full_qm_subpackage_imports_numpy_free():
     )
     assert proc.returncode == 0, f"srmech.qm not fully numpy-free:\n{proc.stderr}"
     assert "QM_ALL_OK" in proc.stdout, proc.stdout
-
-
-def test_scientific_export_boundary_raises_hint_numpy_free():
-    """A scientific-tier numpy export boundary still raises the clean
-    ``[scientific]`` hint numpy-blocked. ``ica_jade`` (the prior exemplar)
-    flipped numpy-free at rc126 — the LAST signal_processing carrier — so the
-    durable exemplar is now ``One.to_numpy()``, a lossy ndarray export that
-    intrinsically needs numpy and is NOT a carrier to be flipped."""
-    proc = _run_numpy_free(
-        """
-        from srmech.amsc.cascade.one import the_one
-        try:
-            the_one(1, 0, 1).to_numpy()
-        except ImportError as exc:
-            assert "srmech[scientific]" in str(exc), str(exc)
-            print("HINT_OK")
-        else:
-            raise SystemExit("One.to_numpy() unexpectedly succeeded numpy-free")
-        """
-    )
-    assert proc.returncode == 0, f"scientific export-boundary hint guard failed:\n{proc.stderr}"
-    assert "HINT_OK" in proc.stdout, proc.stdout

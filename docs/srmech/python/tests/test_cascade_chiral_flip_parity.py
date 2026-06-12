@@ -3,8 +3,16 @@
 v0.4.5rc1 corrects the v0.4.3rc6 / v0.4.4rc1 carve-out that shipped
 cascade ops Python-only. This test confirms native + Python paths produce
 bit-identical outputs across the supported input types.
+
+numpy-free: ``chiral_flip`` is an orientation reversal, so the reference is
+``seq[::-1]`` (the textbook reversal). Inputs are plain Python lists/tuples/
+strings; the op returns the same plain container reversed. The old
+ndarray-dtype parity cases were deleted — they only asserted numpy
+``.dtype``/``np.testing`` behaviour that no longer exists now that numpy is
+out of srmech and the op returns plain lists.
 """
-import numpy as np
+import random
+
 import pytest
 
 from srmech.amsc import _native, cascade
@@ -35,7 +43,7 @@ SKIP_IF_NO_CHIRAL_FLIP_NATIVE = pytest.mark.skipif(
 
 
 # Construct several sequences of different shapes and types.
-RNG = np.random.default_rng(seed=42)
+RNG = random.Random(42)
 
 
 def test_python_path_basic():
@@ -47,7 +55,7 @@ def test_python_path_basic():
 
 @SKIP_IF_NO_NATIVE
 def test_parity_int64_list():
-    seq = [int(x) for x in RNG.integers(-1_000_000, 1_000_000, size=17)]
+    seq = [RNG.randint(-1_000_000, 1_000_000) for _ in range(17)]
     native = cascade.chiral_flip(seq)
     python_ref = seq[::-1]
     assert native == python_ref
@@ -55,37 +63,15 @@ def test_parity_int64_list():
 
 @SKIP_IF_NO_NATIVE
 def test_parity_float64_list():
-    seq = [float(x) for x in RNG.normal(size=17)]
+    seq = [RNG.gauss(0.0, 1.0) for _ in range(17)]
     native = cascade.chiral_flip(seq)
     python_ref = seq[::-1]
     assert native == python_ref  # bit-exact reversal preserves equality
 
 
 @SKIP_IF_NO_NATIVE
-def test_parity_int64_ndarray():
-    arr = RNG.integers(-1_000_000, 1_000_000, size=33, dtype=np.int64)
-    native = cascade.chiral_flip(arr)
-    python_ref = arr[::-1]
-    np.testing.assert_array_equal(native, python_ref)
-    assert native.dtype == np.int64
-
-
-@SKIP_IF_NO_NATIVE
-def test_parity_float64_ndarray():
-    arr = RNG.normal(size=33).astype(np.float64)
-    native = cascade.chiral_flip(arr)
-    python_ref = arr[::-1]
-    np.testing.assert_array_equal(native, python_ref)
-    assert native.dtype == np.float64
-
-
-@SKIP_IF_NO_NATIVE
 def test_parity_empty():
     assert cascade.chiral_flip([]) == []
-    np.testing.assert_array_equal(
-        cascade.chiral_flip(np.array([], dtype=np.int64)),
-        np.array([], dtype=np.int64),
-    )
 
 
 @SKIP_IF_NO_NATIVE

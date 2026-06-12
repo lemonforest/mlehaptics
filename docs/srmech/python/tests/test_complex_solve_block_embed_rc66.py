@@ -11,50 +11,91 @@ imaginary parts, the **real** ``2n×2n`` system::
 
     [[Aᵣ, −Aᵢ], [Aᵢ, Aᵣ]] · [u; v] = [bᵣ; bᵢ]
 
-so ``X = u + i v``. The embedding is exact (NumPy a carrier only — ``concatenate``
-/ slice / ``.real`` / ``.imag``) and rides the shipped *native* real
+so ``X = u + i v``. The embedding is exact and rides the shipped *native* real
 ``dense_solve``; for a well-conditioned ``A`` (the Gram matrix ``V·Vᴴ`` is HPD)
-it is value-faithful to NumPy's complex ``inv`` / ``solve`` to ~1e-9. The
-complex inverse is ``_dense_solve_complex(A, eye(n))`` (``A·X = I``).
+the complex inverse is ``_dense_solve_complex(A, eye(n))`` (``A·X = I``).
+
+numpy-FREE (#564): numpy is GONE from srmech, so this test runs with numpy NOT
+installed. The solve oracle is the DEFINING IDENTITY (``M·M⁻¹ = I`` / ``A·x = b``)
+checked via plain-list COMPLEX matmul — never ``np.linalg.solve``/``inv``. Inputs
+are stdlib ``random.Random`` complex nested lists, never ndarrays.
 """
 
 from __future__ import annotations
 
+import random
 import re
 import pathlib
-
-import numpy as np
 
 from srmech.amsc.laplacian import _dense_solve_complex
 
 
-def test_block_solve_matches_numpy_inv_hpd():
-    """_dense_solve_complex(M, I) == numpy.linalg.inv(M) for HPD Gram M = V·Vᴴ."""
-    rng = np.random.default_rng(0)
+def _cmatmul(a, b):
+    """Plain-list complex matrix product a·b (b is a matrix)."""
+    n, k, m = len(a), len(b), len(b[0])
+    return [
+        [sum(a[i][p] * b[p][j] for p in range(k)) for j in range(m)]
+        for i in range(n)
+    ]
+
+
+def _cmatvec(a, x):
+    """Plain-list complex matrix·vector a·x."""
+    n, k = len(a), len(x)
+    return [sum(a[i][p] * x[p] for p in range(k)) for i in range(n)]
+
+
+def _rand_cmat(n, m, rng):
+    return [
+        [complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(m)]
+        for _ in range(n)
+    ]
+
+
+def _hpd_gram(n, rng):
+    """An HPD Gram matrix M = V·Vᴴ (Hermitian positive-definite)."""
+    v = _rand_cmat(n, n, rng)
+    return [
+        [sum(v[i][p] * v[j][p].conjugate() for p in range(n)) for j in range(n)]
+        for i in range(n)
+    ]
+
+
+def test_block_solve_inverse_satisfies_defining_identity():
+    """_dense_solve_complex(M, I) is M⁻¹ for HPD Gram M = V·Vᴴ — verified by the
+    defining identity M·M⁻¹ = I via plain-list complex matmul (no np.linalg.inv
+    oracle)."""
+    rng = random.Random(0)
     for n in (2, 3, 5, 8):
-        V = rng.standard_normal((n, n)) + 1j * rng.standard_normal((n, n))
-        M = V @ V.conj().T  # Hermitian positive-definite
-        inv_blk = _dense_solve_complex(M, np.eye(n, dtype=np.complex128))
-        np.testing.assert_allclose(inv_blk, np.linalg.inv(M), atol=1e-9)
-        # defining identity M·M⁻¹ = I
-        np.testing.assert_allclose(M @ inv_blk, np.eye(n), atol=1e-9)
+        m = _hpd_gram(n, rng)
+        eye = [[complex(1.0 if i == j else 0.0) for j in range(n)] for i in range(n)]
+        inv_blk = _dense_solve_complex(m, eye)
+        prod = _cmatmul(m, inv_blk)
+        for i in range(n):
+            for j in range(n):
+                want = complex(1.0 if i == j else 0.0)
+                assert abs(prod[i][j] - want) < 1e-9
 
 
-def test_block_solve_matches_numpy_general_solve():
-    """_dense_solve_complex(A, b) == numpy.linalg.solve(A, b) (general complex)."""
-    rng = np.random.default_rng(7)
+def test_block_solve_general_residual_is_zero():
+    """_dense_solve_complex(A, b) solves A·x = b (general complex) — verified by
+    the residual ``A·x − b ≈ 0`` over plain-list complex matmul, vector AND
+    matrix RHS (no np.linalg.solve oracle)."""
+    rng = random.Random(7)
     for n in (2, 4, 6):
-        A = rng.standard_normal((n, n)) + 1j * rng.standard_normal((n, n))
+        A = _rand_cmat(n, n, rng)
         # vector RHS
-        b = rng.standard_normal(n) + 1j * rng.standard_normal(n)
-        np.testing.assert_allclose(
-            _dense_solve_complex(A, b), np.linalg.solve(A, b), atol=1e-9
-        )
+        b = [complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(n)]
+        x = _dense_solve_complex(A, b)
+        resid = [(_cmatvec(A, x)[i] - b[i]) for i in range(n)]
+        assert max(abs(r) for r in resid) < 1e-9
         # matrix RHS
-        B = rng.standard_normal((n, 3)) + 1j * rng.standard_normal((n, 3))
-        np.testing.assert_allclose(
-            _dense_solve_complex(A, B), np.linalg.solve(A, B), atol=1e-9
-        )
+        B = _rand_cmat(n, 3, rng)
+        X = _dense_solve_complex(A, B)
+        prod = _cmatmul(A, X)
+        for i in range(n):
+            for j in range(3):
+                assert abs(prod[i][j] - B[i][j]) < 1e-9
 
 
 def test_construct_eta_still_pseudo_hermitian():

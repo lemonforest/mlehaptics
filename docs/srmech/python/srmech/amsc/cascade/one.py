@@ -282,20 +282,9 @@ class One:
             out.extend(blk.imag)
         return tuple(out)
 
-    def to_numpy(self):
-        """The 14-vector state as a ``numpy`` float array (opt-in / lazy).
-
-        Requires the ``srmech[scientific]`` extra (numpy). The exact
-        rationals are float-cast at the boundary, never before.
-        """
-        from srmech._scientific import require_numpy
-
-        np = require_numpy("srmech.amsc.cascade.one.One.to_numpy")
-        flat = self.to_flat_rational()
-        return np.array([num / den for (num, den) in flat], dtype=float)
-
-    def to_matrix(self):
-        """The 14×14 block-diagonal operator ``G(σ,θ)`` (opt-in / lazy).
+    def to_matrix(self) -> "Mat":
+        """The 14×14 block-diagonal operator ``G(σ,θ)`` as a numpy-free
+        :class:`~srmech.amsc.mat.Mat` (real).
 
         ``G`` is ``⨁_n (1 ⊕ σ R_n(θ))`` — the identity on each ``ℝ·1`` axis
         and ``σ`` times the octonion-native rotation ``R_n(θ)`` on each
@@ -303,33 +292,31 @@ class One:
         and the real axis). Applying ``G`` to the canonical seed (real ``1``,
         imaginary ``e₁``) reproduces :meth:`to_flat_rational`. For 𝕆 this is
         a genuine **3-plane** rotation (eigenvalues ``{1, e^{±iθ}×3}`` on the
-        imaginary part). This is the matrix that the qm-peer
+        imaginary part). This is the matrix the qm-peer
         :mod:`srmech.qm.hurwitz` must agree with (the Rosetta parity).
-        Requires the ``srmech[scientific]`` extra (numpy).
         """
-        from srmech._scientific import require_numpy
+        from srmech.amsc.mat import Mat
 
-        np = require_numpy("srmech.amsc.cascade.one.One.to_matrix")
         cn, cd = cos_series_truncate(self.theta[0], self.theta[1], self.terms)
         sn, sd = sin_series_truncate(self.theta[0], self.theta[1], self.terms)
         cos_t = cn / cd
         sin_t = sn / sd
-        s = self.sigma
-        g = np.zeros((DIM, DIM), dtype=float)
+        s = float(self.sigma)
+        g = [[0.0] * DIM for _ in range(DIM)]
         offset = 0
         for idx, d in enumerate(IMAG_DIMS):      # d = 1, 3, 7
-            g[offset, offset] = 1.0              # ℝ·1 anchor — fixed
+            g[offset][offset] = 1.0              # ℝ·1 anchor — fixed
             imo = offset + 1                     # imaginary axes e₁..e_d
             for i in range(d):                   # default σ·identity on Im
-                g[imo + i, imo + i] = s
+                g[imo + i][imo + i] = s
             for (a, b, sgn) in FANO_PLANES[idx]:  # turn each Fano plane by θ
                 ia, ib = imo + (a - 1), imo + (b - 1)
-                g[ia, ia] = s * cos_t
-                g[ib, ib] = s * cos_t
-                g[ib, ia] = s * sgn * sin_t      # e_a → cosθ e_a + sgn sinθ e_b
-                g[ia, ib] = -s * sgn * sin_t     # e_b → -sgn sinθ e_a + cosθ e_b
+                g[ia][ia] = s * cos_t
+                g[ib][ib] = s * cos_t
+                g[ib][ia] = s * sgn * sin_t      # e_a → cosθ e_a + sgn sinθ e_b
+                g[ia][ib] = -s * sgn * sin_t     # e_b → -sgn sinθ e_a + cosθ e_b
             offset += 1 + d
-        return g
+        return Mat.from_rows(g, is_complex=False)
 
     def to_scalar(self, mode: str = "trace", index: int = None,
                   *, as_float: bool = False):

@@ -449,11 +449,15 @@ def _is_numpy_import(line: str) -> bool:
 # the covariance eig through mat_hermitian_eigendecompose (NOT the carrier
 # hermitian_eigendecompose / dense_matmul_real / elementwise_sqrt); the 4-D
 # cumulant tensor + Givens rotations are explicit numpy-free loops; op returns
-# (S, W) as Mats. The pure-wheel must-raise [scientific]-hint exemplar MOVED
-# from ica_jade (now numpy-free) to the DURABLE export boundary One.to_numpy()
-# (a lossy ndarray export, NOT a carrier — survives the capstone). 2 -> 1.
-# The lone remaining carrier is mcp/_coercion (the rc127 CAPSTONE).
-CEIL_NUMPY_CARRIER = 1
+# (S, W) as Mats. 2 -> 1.
+# rc127 CAPSTONE (#564): numpy is GONE. mcp/_coercion (the last top-level carrier)
+# is flipped numpy-free (nested-list wire form + a Mat branch in serialise_native);
+# the export boundary to_numpy() methods are DELETED; _scientific.py is deleted;
+# the [scientific] extra is removed. The WHOLE package — including the qm.* /
+# signal_processing.* scientific tier — imports + RUNS with numpy not installed.
+# This ceiling is now ZERO and is the permanent "no numpy carrier anywhere in
+# srmech/" guard. 1 -> 0.
+CEIL_NUMPY_CARRIER = 0
 
 
 def _srmech_root() -> pathlib.Path:

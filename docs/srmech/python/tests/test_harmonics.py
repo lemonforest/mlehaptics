@@ -7,7 +7,6 @@ plus §2.2 greedy_bipartite_alignment. Per-class placement (no privileged
 namespace, per [[feedback_no_privileged_primitive_classes]]); siona is a
 co-name alias so these live in srmech.amsc.*.
 """
-import numpy as np
 import pytest
 
 from srmech.amsc import harmonics, dispatch, naming, search, cyclic, laplacian, compose
@@ -48,24 +47,25 @@ def test_deferred_rungs_logged():
 
 # ── spectral chirality classifier (§6.2) ──────────────────────────────────
 def test_classify_chirality_harmonic_dc_is_h1():
-    assert harmonics.classify_chirality_harmonic(np.ones(16)) == 1
-    assert harmonics.classify_chirality_harmonic(np.full(9, 3.0)) == 1
+    assert harmonics.classify_chirality_harmonic([1.0] * 16) == 1
+    assert harmonics.classify_chirality_harmonic([3.0] * 9) == 1
 
 
 def test_classify_chirality_harmonic_zero_mean_mirror_is_h2():
     # palindromic, zero-mean → mirror self-agreement dominates
-    assert harmonics.classify_chirality_harmonic(np.array([1., -1, -1, 1])) == 2
-    assert harmonics.classify_chirality_harmonic(np.array([2., 1, -1, -1, 1, 2]) - 2/3) == 2
+    assert harmonics.classify_chirality_harmonic([1., -1, -1, 1]) == 2
+    assert harmonics.classify_chirality_harmonic(
+        [x - 2 / 3 for x in (2., 1, -1, -1, 1, 2)]) == 2
 
 
 def test_classify_chirality_harmonic_three_periodic_is_h3():
-    v = np.array([2., -1, -1, 2, -1, -1, 2, -1, -1])  # period-3, zero-mean
+    v = [2., -1, -1, 2, -1, -1, 2, -1, -1]  # period-3, zero-mean
     assert harmonics.classify_chirality_harmonic(v) == 3
 
 
 def test_classify_chirality_harmonic_empty_raises():
     with pytest.raises(ValueError):
-        harmonics.classify_chirality_harmonic(np.zeros(0))
+        harmonics.classify_chirality_harmonic([])
 
 
 # ── harmonic-2 mirror ops (period-2 involutions) ──────────────────────────
@@ -114,15 +114,19 @@ def test_three_cycle_wraps_mod_3():
 
 def test_three_fold_eigvec_groups_band_split():
     n = 8
-    A = np.zeros((n, n))
+    # Path-graph adjacency + Laplacian L = D − A as plain nested lists (numpy-free).
+    A = [[0.0] * n for _ in range(n)]
     for i in range(n - 1):
-        A[i, i + 1] = A[i + 1, i] = 1.0
-    L = np.diag(A.sum(1)) - A
+        A[i][i + 1] = A[i + 1][i] = 1.0
+    L = [[(sum(A[i]) if i == j else 0.0) - A[i][j] for j in range(n)] for i in range(n)]
     g = laplacian.three_fold_eigvec_groups(L)
-    sizes = (g["low"].shape[1], g["mid"].shape[1], g["high"].shape[1])
+    # Each band is an n×k nested list (k = number of eigenvector COLUMNS).
+    def _cols(band):
+        return len(band[0]) if band else 0
+    sizes = (_cols(g["low"]), _cols(g["mid"]), _cols(g["high"]))
     assert sum(sizes) == n
     assert sizes[0] <= sizes[1] <= sizes[2]      # remainder to later bands
-    assert all(v.shape[0] == n for v in g.values())  # full eigvec columns
+    assert all(len(band) == n for band in g.values())  # full eigvec columns (n rows)
 
 
 # ── §2.2 greedy bipartite alignment ───────────────────────────────────────

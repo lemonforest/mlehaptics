@@ -2,53 +2,93 @@
 
 dft = Class I (cyclic index) o Class N (twiddle) o Class C (i-rotation) o
 Class M (bundle); kron = Class I (mixed-radix index) o Class M (products).
-Pure-Python on rc34's cexp; verified vs numpy.fft / numpy.kron.
+Pure-Python on rc34's cexp; verified vs a cmath DFT-by-definition oracle and a
+hand-rolled Kronecker oracle (numpy is GONE from srmech — these tests run and
+pass with numpy NOT installed).
 """
-import numpy as np
+import cmath
+import math
+import random
+
 import pytest
 
 from srmech.amsc.cascade.spectral_cascades import dft, idft, kron
 
 
-def test_dft_matches_numpy_fft():
-    rng = np.random.default_rng(0)
+# --- numpy-free oracles ---------------------------------------------------------
+
+def _dft_ref(x, inverse=False):
+    """DFT by definition via cmath: X[k] = Σ_n x[n]·e^{∓2πi·kn/N} (÷N if inverse)."""
+    n = len(x)
+    sign = 1.0 if inverse else -1.0
+    out = []
+    for k in range(n):
+        acc = 0j
+        for idx in range(n):
+            acc += complex(x[idx]) * cmath.exp(sign * 2j * math.pi * k * idx / n)
+        out.append(acc / n if inverse else acc)
+    return out
+
+
+def _kron_ref(a, b):
+    """Kronecker product by definition: (A⊗B)[i·p+k, j·q+l] = A[i,j]·B[k,l]."""
+    ma, na = len(a), len(a[0])
+    mb, nb = len(b), len(b[0])
+    out = [[0j for _ in range(na * nb)] for _ in range(ma * mb)]
+    for i in range(ma):
+        for j in range(na):
+            for k in range(mb):
+                for ell in range(nb):
+                    out[i * mb + k][j * nb + ell] = complex(a[i][j]) * complex(b[k][ell])
+    return out
+
+
+def _max_abs_diff(got, want):
+    return max((abs(complex(g) - complex(w)) for g, w in zip(got, want)), default=0.0)
+
+
+def _rand_complex(rng, n):
+    return [complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(n)]
+
+
+def test_dft_matches_definition():
+    rng = random.Random(0)
     for n in (1, 2, 4, 8, 13):
-        x = (rng.standard_normal(n) + 1j * rng.standard_normal(n)).tolist()
-        got = np.array(dft(x))
-        want = np.fft.fft(np.array(x))
-        assert np.max(np.abs(got - want)) <= 1e-9, n
+        x = _rand_complex(rng, n)
+        assert _max_abs_diff(dft(x), _dft_ref(x)) <= 1e-9, n
 
 
 def test_idft_inverts_dft():
-    rng = np.random.default_rng(1)
+    rng = random.Random(1)
     for n in (1, 3, 8, 16):
-        x = (rng.standard_normal(n) + 1j * rng.standard_normal(n))
-        rt = np.array(idft(dft(x.tolist())))
-        assert np.max(np.abs(rt - x)) <= 1e-9, n
+        x = _rand_complex(rng, n)
+        rt = idft(dft(x))
+        assert _max_abs_diff(rt, x) <= 1e-9, n
 
 
 def test_dft_empty():
     assert dft([]) == []
 
 
-def test_idft_matches_numpy_ifft():
-    rng = np.random.default_rng(2)
-    spec = (rng.standard_normal(8) + 1j * rng.standard_normal(8))
-    got = np.array(idft(spec.tolist()))
-    want = np.fft.ifft(spec)
-    assert np.max(np.abs(got - want)) <= 1e-9
+def test_idft_matches_definition():
+    rng = random.Random(2)
+    spec = _rand_complex(rng, 8)
+    assert _max_abs_diff(idft(spec), _dft_ref(spec, inverse=True)) <= 1e-9
 
 
-def test_kron_matches_numpy():
+def test_kron_matches_definition():
     cases = [
         ([[1, 2], [3, 4]], [[0, 5], [6, 7]]),
         ([[1]], [[2, 3], [4, 5]]),
         ([[1 + 1j, 2], [0, -1j]], [[1, 0], [0, 1]]),
     ]
     for a, b in cases:
-        got = np.array(kron(a, b), dtype=complex)
-        want = np.kron(np.array(a, dtype=complex), np.array(b, dtype=complex))
-        assert np.max(np.abs(got - want)) == 0.0, (a, b)
+        got = kron(a, b)
+        want = _kron_ref(a, b)
+        # Kronecker is exact integer/Gaussian-integer multiplication — bit-exact.
+        for grow, wrow in zip(got, want):
+            for g, w in zip(grow, wrow):
+                assert complex(g) == complex(w), (a, b)
 
 
 def test_dft_no_libm_pi_in_call_graph():

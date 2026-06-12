@@ -53,9 +53,10 @@ from __future__ import annotations
 
 import importlib
 import hashlib
+import math
+import random
 from typing import Any
 
-import numpy as np
 import pytest
 
 from srmech.signal_processing import (
@@ -193,72 +194,76 @@ def test_dispatcher_routes_explicit_path_b(op_name: str):
 # ──────────────────────────────────────────────────────────────────────
 
 
+def _max_abs_diff(a, b):
+    """max |aᵢ - bᵢ| over two equal-length sequences (stdlib, complex-safe)."""
+    return max((abs(complex(x) - complex(y)) for x, y in zip(a, b)), default=0.0)
+
+
+def _max_abs(a):
+    return max((abs(complex(x)) for x in a), default=0.0)
+
+
 def _assert_d1_equivalent(a: Any, b: Any, op_name: str) -> None:
     """Assert Path A output equals Path B output at D1 algebra-content level.
 
     Per ``[[feedback_algebra_not_magnitude]]`` +
     ``[[user_stance_identity_not_implementation_discipline]]``: Path A
     and Path B IS the same algebra on substrate-natural inputs; D1
-    algebra-content is bit-exact (numpy arrays equal up to floating-
-    point round-off; bytes / scalar outputs literally equal).
+    algebra-content is bit-exact (numeric lists equal up to floating-point
+    round-off; bytes / scalar outputs literally equal). With numpy removed
+    (#564) the carriers are plain Python lists / bytes — no numpy oracle.
     """
-    # rc77 carrier-flip: a numpy-free op may return a plain list carrier
-    # (e.g. sign_quantise / allpass). Coerce list carriers to arrays here so the
-    # D1 comparison stays shape/dtype-aware (the values are identical).
-    if isinstance(a, list):
-        a = np.asarray(a)
-    if isinstance(b, list):
-        b = np.asarray(b)
-    if isinstance(a, np.ndarray) and isinstance(b, np.ndarray):
-        assert a.shape == b.shape, (
-            f"{op_name}: Path A shape {a.shape} != Path B shape {b.shape}"
+    if isinstance(a, (bytes, bytearray)) and isinstance(b, (bytes, bytearray)):
+        assert bytes(a) == bytes(b), (
+            f"{op_name}: D1 algebra-identity failure on bytes outputs"
         )
-        if np.issubdtype(a.dtype, np.complexfloating) or \
-           np.issubdtype(a.dtype, np.floating):
-            # Floating-point: allow machine-ε round-off (D1 algebra-
-            # identity holds up to fp round-off per Spike #176 T4 anchor).
-            max_diff = float(np.max(np.abs(a - b)))
-            tol = 1e-12 * max(1.0, float(np.max(np.abs(a))))
+        return
+    if isinstance(a, list) and isinstance(b, list):
+        assert len(a) == len(b), (
+            f"{op_name}: Path A length {len(a)} != Path B length {len(b)}"
+        )
+        if a and isinstance(a[0], (int,)) and not isinstance(a[0], bool):
+            # integer carrier (e.g. sign_quantise / viterbi) — bit-exact.
+            assert list(a) == list(b), (
+                f"{op_name}: D1 algebra-identity failure: integer lists "
+                f"not bit-exact equal"
+            )
+        else:
+            # floating / complex carrier: allow machine-ε round-off
+            # (D1 algebra-identity holds up to fp round-off; Spike #176 T4).
+            max_diff = _max_abs_diff(a, b)
+            tol = 1e-12 * max(1.0, _max_abs(a))
             assert max_diff <= tol, (
                 f"{op_name}: D1 algebra-identity failure: "
                 f"max(|A - B|) = {max_diff:.6e} > {tol:.6e}"
             )
-        else:
-            assert np.array_equal(a, b), (
-                f"{op_name}: D1 algebra-identity failure: integer arrays "
-                f"not bit-exact equal"
-            )
-    elif isinstance(a, (bytes, bytearray)) and isinstance(b, (bytes, bytearray)):
-        assert bytes(a) == bytes(b), (
-            f"{op_name}: D1 algebra-identity failure on bytes outputs"
-        )
-    else:
-        assert a == b, (
-            f"{op_name}: D1 algebra-identity failure on scalar outputs"
-        )
+        return
+    assert a == b, (
+        f"{op_name}: D1 algebra-identity failure on scalar outputs"
+    )
 
 
 def _sample_inputs(op_name: str):
-    """Substrate-natural sample inputs for each op."""
-    rng = np.random.default_rng(42)
+    """Substrate-natural sample inputs for each op (plain Python carriers)."""
+    rng = random.Random(42)
     if op_name == "fft":
-        return (rng.standard_normal(64),), {}
+        return ([rng.gauss(0, 1) for _ in range(64)],), {}
     if op_name == "ifft":
-        return (rng.standard_normal(64) + 1j * rng.standard_normal(64),), {}
+        return ([complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(64)],), {}
     if op_name == "sign_quantise":
-        return (rng.standard_normal(128),), {"threshold": 0.0}
+        return ([rng.gauss(0, 1) for _ in range(128)],), {"threshold": 0.0}
     if op_name == "matched_filter":
-        sig = rng.standard_normal(128)
-        tmpl = rng.standard_normal(16)
+        sig = [rng.gauss(0, 1) for _ in range(128)]
+        tmpl = [rng.gauss(0, 1) for _ in range(16)]
         return (sig, tmpl), {"mode": "full"}
     if op_name == "wiener":
-        sig = rng.standard_normal(64)
-        n_psd = 0.01 * np.ones(64)
+        sig = [rng.gauss(0, 1) for _ in range(64)]
+        n_psd = [0.01] * 64
         return (sig, n_psd), {}
     if op_name == "hdc_truncation":
-        v1 = bytes(rng.integers(0, 256, size=64, dtype=np.uint8))
-        v2 = bytes(rng.integers(0, 256, size=64, dtype=np.uint8))
-        v3 = bytes(rng.integers(0, 256, size=64, dtype=np.uint8))
+        v1 = bytes(rng.randrange(256) for _ in range(64))
+        v2 = bytes(rng.randrange(256) for _ in range(64))
+        v3 = bytes(rng.randrange(256) for _ in range(64))
         return ([v1, v2, v3],), {"truncate_popcount": 32}
     raise ValueError(f"Unknown op {op_name!r}")
 
@@ -322,21 +327,28 @@ def test_path_b_mvp_class_composition_valid():
 # ──────────────────────────────────────────────────────────────────────
 
 
+def _max_real_err(recovered, x):
+    """max |Re(recoveredᵢ) - xᵢ| (stdlib, numpy-free)."""
+    return max(
+        (abs(complex(r).real - xi) for r, xi in zip(recovered, x)), default=0.0
+    )
+
+
 def test_spike_176_t4_round_trip_recovery():
     """Spike #176 T4 anchor — ifft(fft(x)) == x bit-exact at machine ε.
 
     Per Spike #176 T4: forward + inverse FFT together produce bit-exact
     recovery on real-valued inputs; recovery error = 0.0 at machine ε.
     """
-    rng = np.random.default_rng(0)
+    rng = random.Random(0)
     for N in (8, 16, 32, 64, 128, 256, 512):
-        x = rng.standard_normal(N)
+        x = [rng.gauss(0, 1) for _ in range(N)]
         # Path B forward + Path B inverse
         spec_b = dispatch("fft", x, path=PATH_B)
         recovered_b = dispatch("ifft", spec_b, path=PATH_B)
-        max_err_b = float(np.max(np.abs(np.real(recovered_b) - x)))
+        max_err_b = _max_real_err(recovered_b, x)
         # Spike #176 T4 — machine ε tolerance.
-        tol = 1e-12 * max(1.0, float(np.max(np.abs(x))))
+        tol = 1e-12 * max(1.0, max(abs(v) for v in x))
         assert max_err_b <= tol, (
             f"Spike #176 T4 round-trip failure at N={N}: "
             f"max_err={max_err_b:.6e} > {tol:.6e}"
@@ -345,8 +357,13 @@ def test_spike_176_t4_round_trip_recovery():
         spec_a = dispatch("fft", x, path=PATH_A)
         recovered_ab = dispatch("ifft", spec_a, path=PATH_B)
         recovered_ba = dispatch("ifft", spec_b, path=PATH_A)
-        assert float(np.max(np.abs(np.real(recovered_ab) - x))) <= tol
-        assert float(np.max(np.abs(np.real(recovered_ba) - x))) <= tol
+        assert _max_real_err(recovered_ab, x) <= tol
+        assert _max_real_err(recovered_ba, x) <= tol
+
+
+def _int8_bytes(values):
+    """Pack a sequence of int-valued samples as signed int8 bytes (numpy-free)."""
+    return bytes((int(v) & 0xFF) for v in values)
 
 
 def test_spike_174_sign_quantise_sha256_ber_preservation():
@@ -358,19 +375,20 @@ def test_spike_174_sign_quantise_sha256_ber_preservation():
     threshold preserves the SHA-256 bit-discrete content of the
     underlying clean signal. Kalman destroys 19.79% BER at the same SNR.
     """
-    rng = np.random.default_rng(0)
+    rng = random.Random(0)
     N = 1024
-    clean = rng.choice([-1.0, 1.0], size=N)  # bit-discrete signal
-    clean_sha = hashlib.sha256(clean.astype(np.int8).tobytes()).hexdigest()
+    clean = [rng.choice([-1.0, 1.0]) for _ in range(N)]  # bit-discrete signal
+    clean_int8 = [int(v) for v in clean]
+    clean_sha = hashlib.sha256(_int8_bytes(clean_int8)).hexdigest()
     # +20 dB SNR
-    noise = 0.1 * rng.standard_normal(N)
-    noisy = clean + noise
+    noise = [0.1 * rng.gauss(0, 1) for _ in range(N)]
+    noisy = [c + nz for c, nz in zip(clean, noise)]
     for path in (PATH_A, PATH_B):
-        # rc77 carrier-flip: Path A sign_quantise returns a numpy-free list
-        # carrier; coerce at the test boundary (values are the same {-1,0,+1}).
-        quantised = np.asarray(dispatch("sign_quantise", noisy, path=path), dtype=np.int8)
-        q_sha = hashlib.sha256(quantised.tobytes()).hexdigest()
-        ber = float(np.sum(quantised != clean.astype(np.int8))) / N
+        # rc77 carrier-flip: sign_quantise returns a numpy-free list carrier
+        # of ints in {-1,0,+1}.
+        quantised = [int(v) for v in dispatch("sign_quantise", noisy, path=path)]
+        q_sha = hashlib.sha256(_int8_bytes(quantised)).hexdigest()
+        ber = sum(1 for q, c in zip(quantised, clean_int8) if q != c) / N
         assert ber == 0.0, (
             f"Spike #174 BER preservation failure (path={path}): "
             f"BER = {ber:.6f}; expected 0.0 at +20 dB SNR"
@@ -390,15 +408,17 @@ def test_spike_159_matched_filter_separation():
     asserted here as a robust anchor; Spike #159 specifies the exact
     scenario producing 31.6×.
     """
-    rng = np.random.default_rng(0)
+    rng = random.Random(0)
     N = 256
-    template = rng.choice([-1.0, 1.0], size=32)
-    signal = 0.5 * rng.standard_normal(N)
-    signal[100:132] += template * 3.0
+    template = [rng.choice([-1.0, 1.0]) for _ in range(32)]
+    signal = [0.5 * rng.gauss(0, 1) for _ in range(N)]
+    for i in range(32):
+        signal[100 + i] += template[i] * 3.0
     for path in (PATH_A, PATH_B):
         mf = dispatch("matched_filter", signal, template, path=path)
-        peak = float(np.max(np.abs(mf)))
-        floor = float(np.mean(np.abs(mf)))
+        mags = [abs(complex(v)) for v in mf]
+        peak = max(mags)
+        floor = sum(mags) / len(mags)
         ratio = peak / floor
         assert ratio >= 5.0, (
             f"Spike #159 matched-filter separation failure (path={path}): "
@@ -414,11 +434,11 @@ def test_spike_117_hdc_truncation_threshold_recovery():
     bundle truncation produces bit-exact identical output between
     Path A and Path B at the substrate-natural sparsity rate.
     """
-    rng = np.random.default_rng(0)
+    rng = random.Random(0)
     n_vecs = 5  # odd count for bundle
     D_bytes = 256  # D = 2048 bits, > D/18 ≈ 113 sparsity threshold
     vectors = [
-        bytes(rng.integers(0, 256, size=D_bytes, dtype=np.uint8))
+        bytes(rng.randrange(256) for _ in range(D_bytes))
         for _ in range(n_vecs)
     ]
     # Substrate-natural sparsity rate: keep ~D/18 set bits per Spike #179 T6.
@@ -457,8 +477,8 @@ def test_default_path_routing_per_class():
     function rotation, and any call inside a begin_cascade context.
     """
     # sign_quantise primary class = K -> default Path B
-    rng = np.random.default_rng(0)
-    s = rng.standard_normal(32)
+    rng = random.Random(0)
+    s = [rng.gauss(0, 1) for _ in range(32)]
     res_default = dispatch("sign_quantise", s)
     res_explicit_b = dispatch("sign_quantise", s, path=PATH_B)
     # Default routing should produce same output as explicit Path B
@@ -466,7 +486,7 @@ def test_default_path_routing_per_class():
     assert DEFAULT_PATH_PER_CLASS["K"] == PATH_B, (
         "DEFAULT_PATH_PER_CLASS['K'] expected PATH_B per plan §3.4"
     )
-    assert np.array_equal(res_default, res_explicit_b), (
+    assert list(res_default) == list(res_explicit_b), (
         "sign_quantise default-routing should equal explicit Path B "
         "(Class K primary => Path B per plan §3.4)"
     )
@@ -477,7 +497,7 @@ def test_default_path_routing_per_class():
     )
     res_fft_default = dispatch("fft", s)
     res_fft_explicit_a = dispatch("fft", s, path=PATH_A)
-    max_diff = float(np.max(np.abs(res_fft_default - res_fft_explicit_a)))
+    max_diff = _max_abs_diff(res_fft_default, res_fft_explicit_a)
     assert max_diff == 0.0, (
         f"fft default-routing should equal explicit Path A; max_diff={max_diff}"
     )

@@ -109,18 +109,9 @@ from srmech.amsc.rational import log as _rlog  # Class-N log cascade, not libm
 from srmech.amsc.rational import atan2 as _ratan2  # Class-N atan2 cascade, not libm
 from srmech.amsc.rational import complex_exp as _rcomplex_exp  # Class-N e^z, not libm
 
-try:  # UPSTREAM §22: the real-symmetric Class-L core is numpy-absent-safe.
-    import numpy as np
-except ImportError:  # pragma: no cover - exercised in the numpy-absent path only
-    # The real-symmetric build → eigvals chain (dense_adjacency / dense_laplacian
-    # / normalized_laplacian / jacobi_eigvals) has a pure-Python fallback that
-    # runs without numpy/LAPACK (it returns list[list[float]] / list[float]).
-    # The complex-Hermitian / signed / magnetic ops are scientific tier (§22) and
-    # raise a clear ImportError (via _require_np at the _complex_to_interleaved /
-    # _normalize_edges_weights chokepoints) when called with numpy absent; the
-    # remaining numpy-tier ops (symmetric_eigendecompose / fiedler_vector /
-    # elementwise_transcendental) require numpy and fail at their first numpy use.
-    np = None  # type: ignore[assignment]
+from math import pi as _PI  # §564: numpy-free π (stdlib math.pi — NOT np.pi)
+
+from .mat import Mat  # §564: the numpy-free 2-D carrier the mat_* engine returns
 
 from . import _native
 
@@ -187,8 +178,9 @@ def three_fold_eigvec_groups(L: "np.ndarray") -> dict:
     ``(n, k)`` float64 array of the eigenvector COLUMNS in that band; the
     chirality-aware companion to :func:`symmetric_eigendecompose`.
     """
-    _eigvals, V = symmetric_eigendecompose(L)
-    n = int(V.shape[1]) if V.ndim == 2 else 0
+    _eigvals, V = symmetric_eigendecompose(L)  # V nested list, columns = eigenvectors
+    n_rows = len(V)
+    n = len(V[0]) if n_rows else 0  # number of eigenvector COLUMNS
     if (
         _native.HAS_NATIVE
         and _native.LIB is not None
@@ -216,46 +208,12 @@ def three_fold_eigvec_groups(L: "np.ndarray") -> dict:
         n_mid = base + (1 if rem >= 2 else 0)
         n_high = n - n_low - n_mid
     assert n_low + n_mid + n_high == n
+    # Slice COLUMNS of V (nested list) into the three contiguous bands.
     return {
-        "low": V[:, :n_low],
-        "mid": V[:, n_low:n_low + n_mid],
-        "high": V[:, n_low + n_mid:],
+        "low": [[V[i][c] for c in range(n_low)] for i in range(n_rows)],
+        "mid": [[V[i][c] for c in range(n_low, n_low + n_mid)] for i in range(n_rows)],
+        "high": [[V[i][c] for c in range(n_low + n_mid, n)] for i in range(n_rows)],
     }
-
-
-def _normalize_edges_weights(
-    n: int,
-    edges: Iterable[Tuple[int, int]],
-    weights: Optional[Iterable[float]],
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    # The numpy edge/weight arrays feed the native-C builders + the scientific
-    # signed/magnetic Laplacians (§22). The numpy-FREE real builds use the
-    # pure-Python _validate_edges_weights_py path and never reach here.
-    _require_np("a numpy-tier graph-Laplacian build")
-    if not isinstance(n, int) or n < 0:
-        raise ValueError(f"n must be non-negative int; got {n!r}")
-    if n > 0xFFFF_FFFF:
-        raise ValueError(f"n exceeds uint32 range; got {n}")
-    edge_list = [tuple(e) for e in edges]
-    n_edges = len(edge_list)
-    edges_u = np.empty(n_edges, dtype=np.uint32)
-    edges_v = np.empty(n_edges, dtype=np.uint32)
-    for i, (uu, vv) in enumerate(edge_list):
-        if not (0 <= uu < n and 0 <= vv < n):
-            raise ValueError(
-                f"edge {i} = ({uu}, {vv}) outside node range [0, {n})"
-            )
-        edges_u[i] = uu
-        edges_v[i] = vv
-    if weights is None:
-        ws = np.ones(n_edges, dtype=np.float64)
-    else:
-        ws = np.asarray(list(weights), dtype=np.float64)
-        if ws.shape != (n_edges,):
-            raise ValueError(
-                f"weights length {ws.shape[0]} != n_edges {n_edges}"
-            )
-    return edges_u, edges_v, ws
 
 
 def _can_dispatch_native(n: int) -> bool:
@@ -264,36 +222,6 @@ def _can_dispatch_native(n: int) -> bool:
         and _native.LIB is not None
         and n <= MAX_NATIVE_NODES
     )
-
-
-def _build_matrix_native(
-    fn_name: str,
-    n: int,
-    edges_u: np.ndarray,
-    edges_v: np.ndarray,
-    weights: np.ndarray,
-) -> np.ndarray:
-    assert _native.LIB is not None
-    out = np.zeros((n, n), dtype=np.float64)
-    fn = getattr(_native.LIB, fn_name)
-    n_edges = int(edges_u.shape[0])
-    eu_ptr = edges_u.ctypes.data_as(ctypes.POINTER(ctypes.c_uint32))
-    ev_ptr = edges_v.ctypes.data_as(ctypes.POINTER(ctypes.c_uint32))
-    w_ptr = weights.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-    out_ptr = out.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-    rc = fn(
-        ctypes.c_uint32(n),
-        ctypes.c_uint32(n_edges),
-        eu_ptr if n_edges > 0 else ctypes.cast(None, ctypes.POINTER(ctypes.c_uint32)),
-        ev_ptr if n_edges > 0 else ctypes.cast(None, ctypes.POINTER(ctypes.c_uint32)),
-        w_ptr if n_edges > 0 else ctypes.cast(None, ctypes.POINTER(ctypes.c_double)),
-        out_ptr,
-    )
-    if rc == _native.SRMECH_ERR_OVERFLOW:
-        raise OverflowError(f"{fn_name} requires n <= {MAX_NATIVE_NODES}; got {n}")
-    if rc != _native.SRMECH_OK:
-        raise RuntimeError(f"{fn_name} returned non-OK status {rc}")
-    return out
 
 
 def _build_matrix_native_listmarshal(fn_name, n, edge_list, w_list):
@@ -321,41 +249,13 @@ def _build_matrix_native_listmarshal(fn_name, n, edge_list, w_list):
     return [[out[r * n + c] for c in range(n)] for r in range(n)]
 
 
-def _fallback_dense_adjacency(
-    n: int,
-    edges_u: np.ndarray,
-    edges_v: np.ndarray,
-    weights: np.ndarray,
-) -> np.ndarray:
-    A = np.zeros((n, n), dtype=np.float64)
-    for u, v, w in zip(edges_u, edges_v, weights):
-        u_i, v_i = int(u), int(v)
-        # Both writes always execute; for self-loops (u == v) they hit
-        # the same cell and naturally accumulate 2*w on the diagonal
-        # (standard graph-theory convention; matches the C path).
-        A[u_i, v_i] += float(w)
-        A[v_i, u_i] += float(w)
-    return A
-
-
-# ── UPSTREAM §22: numpy-absent-safe real-symmetric Class-L core ────────
-# When numpy is unavailable the build → eigvals chain runs in pure Python
-# (``list[list[float]]`` matrices, ``list[float]`` eigenvalues). The native C
-# path marshals its buffers via numpy, so numpy-absent ⇒ pure-Python (the
-# stdlib-array native marshalling is a tracked later voxel). The complex-
-# Hermitian / vectorised-transcendental ops stay numpy (scientific tier) and
-# raise a clear ImportError via ``_require_np`` when called with numpy absent.
-
-def _require_np(op_name: str) -> None:
-    if np is None:  # pragma: no cover - exercised only in the numpy-absent path
-        raise ImportError(
-            f"srmech.amsc.laplacian.{op_name} is a scientific-tier op "
-            "(complex-Hermitian / vectorised linear algebra) and requires "
-            "numpy (UPSTREAM §22: the heavy linear algebra keeps numpy). The "
-            "real-symmetric core — dense_adjacency / dense_laplacian / "
-            "normalized_laplacian / jacobi_eigvals — runs without numpy."
-        )
-
+# ── §564: numpy-FREE Class-L core ─────────────────────────────────────
+# The whole module is numpy-free (#564): the build → eigvals chain returns
+# ``list[list[float]]`` matrices / ``list[float]`` eigenvalues, the complex /
+# Hermitian / vectorised ops delegate to the numpy-free ``mat_*`` engine + the
+# Class-N rational cascades, and the native C symbols are reached via the
+# list-marshal / ctypes-buffer paths (NO numpy on the marshal path). All matrix
+# returns are plain nested Python ``list``; vectors / eigenvalues are flat lists.
 
 def _validate_edges_weights_py(
     n: int,
@@ -586,23 +486,16 @@ def dense_adjacency(
 
     Self-loops add ``2*w`` to the diagonal (standard graph-theory
     convention). Parallel edges accumulate weights additively.
+
+    Numpy-free (§564): returns a ``list[list[float]]`` — the native list-marshal
+    path when ``HAS_NATIVE`` and ``n ≤ 256``, else srmech's own pure-Python build.
     """
-    if np is not None and _can_dispatch_native(n):
-        edges_u, edges_v, ws = _normalize_edges_weights(n, edges, weights)
-        return _build_matrix_native(
-            "srmech_graph_dense_adjacency", n, edges_u, edges_v, ws
-        )
-    if np is None and _can_dispatch_native(n):  # UPSTREAM §38: numpy-free native
+    if _can_dispatch_native(n):  # UPSTREAM §38: numpy-free native list-marshal
         el, wl = _validate_edges_weights_py(n, edges, weights)
         m = _build_matrix_native_listmarshal("srmech_graph_dense_adjacency", n, el, wl)
         if m is not None:
             return m
-    # srmech's own pure-Python builder (UPSTREAM §22 + the cascade-over-numpy
-    # discipline): numpy-absent → list[list[float]]; numpy-present-no-native →
-    # the SAME srmech build wrapped as an ndarray for API stability (the wrap
-    # is container layout, NOT numpy math).
-    A = _dense_adjacency_py(n, edges, weights)
-    return np.asarray(A, dtype=np.float64) if np is not None else A
+    return _dense_adjacency_py(n, edges, weights)
 
 
 def dense_laplacian(
@@ -615,19 +508,15 @@ def dense_laplacian(
     Returns an ``n×n`` symmetric positive-semidefinite matrix. For a
     connected graph the smallest eigenvalue is 0 with multiplicity 1
     (Fiedler vector spans the complement).
+
+    Numpy-free (§564): returns a ``list[list[float]]``.
     """
-    if np is not None and _can_dispatch_native(n):
-        edges_u, edges_v, ws = _normalize_edges_weights(n, edges, weights)
-        return _build_matrix_native(
-            "srmech_graph_dense_laplacian", n, edges_u, edges_v, ws
-        )
-    if np is None and _can_dispatch_native(n):  # UPSTREAM §38: numpy-free native
+    if _can_dispatch_native(n):  # UPSTREAM §38: numpy-free native list-marshal
         el, wl = _validate_edges_weights_py(n, edges, weights)
         m = _build_matrix_native_listmarshal("srmech_graph_dense_laplacian", n, el, wl)
         if m is not None:
             return m
-    L = _dense_laplacian_py(n, edges, weights)
-    return np.asarray(L, dtype=np.float64) if np is not None else L
+    return _dense_laplacian_py(n, edges, weights)
 
 
 def normalized_laplacian(
@@ -639,21 +528,17 @@ def normalized_laplacian(
 
     Isolated vertices (degree 0) have diagonal entry 0 by convention
     (not 1; the ``I`` term only applies where ``D > 0``).
+
+    Numpy-free (§564): returns a ``list[list[float]]``.
     """
-    if np is not None and _can_dispatch_native(n):
-        edges_u, edges_v, ws = _normalize_edges_weights(n, edges, weights)
-        return _build_matrix_native(
-            "srmech_graph_normalized_laplacian", n, edges_u, edges_v, ws
-        )
-    if np is None and _can_dispatch_native(n):  # UPSTREAM §38: numpy-free native
+    if _can_dispatch_native(n):  # UPSTREAM §38: numpy-free native list-marshal
         el, wl = _validate_edges_weights_py(n, edges, weights)
         m = _build_matrix_native_listmarshal(
             "srmech_graph_normalized_laplacian", n, el, wl
         )
         if m is not None:
             return m
-    L = _normalized_laplacian_py(n, edges, weights)
-    return np.asarray(L, dtype=np.float64) if np is not None else L
+    return _normalized_laplacian_py(n, edges, weights)
 
 
 def _jacobi_eigvals_native_listmarshal(rows, n, max_sweeps, tolerance):
@@ -706,47 +591,21 @@ def jacobi_eigvals(
     pure-Python cascade at n=256), falling back to the cascade only when there
     is no native lib, ``n`` is too large, or the C status is non-OK.
 
-    ``matrix`` is **not** modified by the wrapper — a copy is made before the
-    in-place C path runs.
+    ``matrix`` is **not** modified by the wrapper — the native path marshals into
+    a fresh ctypes buffer; the pure-Python cascade copies its rows.
+
+    Numpy-free (§564): the input is a ``list[list[float]]`` (or any nested
+    sequence) and the return is a ``list[float]`` (ascending). When ``HAS_NATIVE``
+    and ``n ≤ 256`` the numpy-free list-marshal native path runs; else srmech's
+    own pure-Python Jacobi cascade.
     """
-    if np is None:
-        # numpy absent. Try the bound native symbol via numpy-free list
-        # marshalling (UPSTREAM §38); else srmech's pure-Python Jacobi cascade.
-        rows = [[float(x) for x in row] for row in matrix]
-        n = len(rows)
-        if n > 0 and all(len(r) == n for r in rows) and _can_dispatch_native(n):
-            ev = _jacobi_eigvals_native_listmarshal(rows, n, max_sweeps, tolerance)
-            if ev is not None:
-                return ev
-        return _jacobi_eigvals_py(matrix, max_sweeps, tolerance)
-    M = np.ascontiguousarray(matrix, dtype=np.float64)
-    if M.ndim != 2 or M.shape[0] != M.shape[1]:
-        raise ValueError(f"matrix must be square 2-D; got shape {M.shape}")
-    n = M.shape[0]
-    if _can_dispatch_native(n):
-        work = np.ascontiguousarray(M.copy(), dtype=np.float64)
-        out = np.zeros(n, dtype=np.float64)
-        rc = _native.LIB.srmech_jacobi_eigvals(
-            ctypes.c_uint32(n),
-            work.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-            ctypes.c_uint32(int(max_sweeps)),
-            ctypes.c_double(float(tolerance)),
-            out.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-        )
-        if rc == _native.SRMECH_ERR_OVERFLOW:
-            # srmech's OWN Jacobi cascade — never numpy's LAPACK eigvalsh.
-            return np.asarray(
-                _jacobi_eigvals_py(M.tolist(), max_sweeps, tolerance),
-                dtype=np.float64,
-            )
-        if rc != _native.SRMECH_OK:
-            raise RuntimeError(f"srmech_jacobi_eigvals returned non-OK status {rc}")
-        return np.sort(out)
-    # No native: srmech's OWN Jacobi cascade — never numpy's LAPACK eigvalsh.
-    return np.asarray(
-        _jacobi_eigvals_py(M.tolist(), max_sweeps, tolerance),
-        dtype=np.float64,
-    )
+    rows = [[float(x) for x in r] for r in matrix]
+    n = len(rows)
+    if n > 0 and all(len(r) == n for r in rows) and _can_dispatch_native(n):
+        ev = _jacobi_eigvals_native_listmarshal(rows, n, max_sweeps, tolerance)
+        if ev is not None:
+            return ev
+    return _jacobi_eigvals_py(matrix, max_sweeps, tolerance)
 
 
 # =====================================================================
@@ -767,18 +626,27 @@ def jacobi_eigvals(
 
 
 def _as_rows(L) -> List[list]:
-    """Coerce a matrix (ndarray / list-of-lists / sequence-of-sequences) to a
-    square list-of-lists, validating squareness. No numpy required."""
-    if np is not None and isinstance(L, np.ndarray):
-        if L.ndim != 2 or L.shape[0] != L.shape[1]:
-            raise ValueError(f"L must be square 2-D; got shape {L.shape}")
-        return L.tolist()
+    """Coerce a matrix (ndarray-like / list-of-lists / sequence-of-sequences) to
+    a square list-of-lists, validating squareness. No numpy required — an
+    ndarray-like is coerced via its ``.tolist()`` (a carrier convert, not math)."""
+    if hasattr(L, "tolist") and not isinstance(L, Mat):
+        L = L.tolist()
     rows = [list(r) for r in L]
     n = len(rows)
     for r in rows:
         if len(r) != n:
             raise ValueError(f"L must be square n×n; got a row of length {len(r)} for n={n}")
     return rows
+
+
+def _has_complex(rows) -> bool:
+    """True iff any leaf of ``rows`` is a ``complex`` with a nonzero imaginary
+    part — the layout selector for :func:`Mat.from_rows`."""
+    for r in rows:
+        for x in r:
+            if isinstance(x, complex) and x.imag != 0.0:
+                return True
+    return False
 
 
 def _validate_boundary(n: int, boundary_idx: Sequence[int]) -> Tuple[List[int], List[int]]:
@@ -837,22 +705,15 @@ def _as_solve_rhs(B, n: int):
     single column (returned ``is_vector=True``); a 2-D ``B`` is used as-is.
     Values are preserved verbatim — NO float coercion — so the exact-rational
     path keeps ints / :class:`~fractions.Fraction` inputs exact."""
-    if np is not None and isinstance(B, np.ndarray):
-        if B.ndim == 1:
-            if B.shape[0] != n:
-                raise ValueError(f"B vector length {B.shape[0]} != A dimension {n}")
-            return True, [[v] for v in B]
-        rows = [list(row) for row in B]
-    else:
-        seq = list(B)
-        is_1d = bool(seq) and not isinstance(seq[0], (list, tuple)) and not (
-            np is not None and isinstance(seq[0], np.ndarray)
-        )
-        if is_1d:
-            if len(seq) != n:
-                raise ValueError(f"B vector length {len(seq)} != A dimension {n}")
-            return True, [[v] for v in seq]
-        rows = [list(row) for row in seq]
+    if hasattr(B, "tolist") and not isinstance(B, Mat):
+        B = B.tolist()  # ndarray-like → nested list (carrier convert, not math)
+    seq = list(B)
+    is_1d = bool(seq) and not isinstance(seq[0], (list, tuple))
+    if is_1d:
+        if len(seq) != n:
+            raise ValueError(f"B vector length {len(seq)} != A dimension {n}")
+        return True, [[v] for v in seq]
+    rows = [list(row) for row in seq]
     if len(rows) != n:
         raise ValueError(f"B must have {n} rows to match A ({n}×{n}); got {len(rows)}")
     return False, rows
@@ -871,14 +732,16 @@ def dense_solve(A, B, *, exact: bool = False):
     ``A`` is ``n×n``; ``B`` is ``n×w`` (a matrix → ``X`` is ``n×w``) or length
     ``n`` (a vector → ``X`` is length ``n``).
 
-    With **numpy absent** (or ``exact=True``) the solve is **exact-rational**
-    Gauss–Jordan in :class:`fractions.Fraction` (the Class-N core — division is
-    exact, never a float reciprocal, F392) and ``X`` is ``list[list[Fraction]]``
-    (or ``list[Fraction]`` for a vector RHS). With numpy present (and
-    ``exact=False``) the float realization rides the ``[scientific]`` tier: the
-    native C peer ``srmech_dense_solve_f64`` (Gauss–Jordan with partial
-    pivoting — the Class-K magnitude pivot, a sign branch not ``abs()``;
-    bounded ``n, w ≤ 256``) when available, else ``numpy.linalg.solve``.
+    With ``exact=True`` the solve is **exact-rational** Gauss–Jordan in
+    :class:`fractions.Fraction` (the Class-N core — division is exact, never a
+    float reciprocal, F392) and ``X`` is ``list[list[Fraction]]`` (or
+    ``list[Fraction]`` for a vector RHS). With ``exact=False`` (the default) the
+    float realization rides the numpy-free Mat engine (:func:`mat_solve` — native
+    ``srmech_dense_solve_f64`` Gauss–Jordan with partial pivoting, the Class-K
+    magnitude pivot — a sign branch, not ``abs()``; else srmech's own exact
+    Fraction fallback coerced to float). ``X`` is ``list[list[float]]`` (or
+    ``list[float]`` for a vector RHS); a complex system rides the real 2n×2n
+    block embedding inside :func:`mat_solve`.
 
     Raises
     ------
@@ -897,35 +760,28 @@ def dense_solve(A, B, *, exact: bool = False):
                 f"A must be square; got an {n}-row matrix with a width-{len(r)} row"
             )
     is_vec, B_rows = _as_solve_rhs(B, n)
-    w = len(B_rows[0]) if B_rows and B_rows[0] else 0
 
-    if exact or np is None:
+    if exact:
         X = _solve_exact(A_rows, B_rows)  # exact Fraction Gauss–Jordan (Class-N)
         return [row[0] for row in X] if is_vec else X
 
-    # Float realization — native dense_solve C peer, else numpy.linalg.solve.
-    A_arr = np.ascontiguousarray(A_rows, dtype=np.float64)
-    B_arr = np.ascontiguousarray(B_rows, dtype=np.float64)
-    if (
-        _can_dispatch_native(n)
-        and w <= MAX_NATIVE_NODES
-        and hasattr(_native.LIB, "srmech_dense_solve_f64")
-    ):
-        out = np.zeros((n, w), dtype=np.float64)
-        rc = _native.LIB.srmech_dense_solve_f64(
-            ctypes.c_uint32(n),
-            ctypes.c_uint32(w),
-            A_arr.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-            B_arr.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-            out.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-        )
-        if rc == _native.SRMECH_OK:
-            return out[:, 0] if is_vec else out
-        if rc not in (_native.SRMECH_ERR_OVERFLOW, _native.SRMECH_ERR_BAD_INPUT):
-            raise RuntimeError(f"srmech_dense_solve_f64 returned non-OK status {rc}")
-        # OVERFLOW (over the native bound) or BAD_INPUT (singular) → numpy.
-    X = np.linalg.solve(A_arr, B_arr)
-    return X[:, 0] if is_vec else X
+    # Float realization — the numpy-FREE Mat engine (§564). A complex system is
+    # carried complex through mat_solve (real 2n×2n block embedding internally).
+    cx = _has_complex(A_rows) or _has_complex(B_rows)
+    X_mat = mat_solve(
+        Mat.from_rows(A_rows, is_complex=cx),
+        Mat.from_rows(B_rows, is_complex=cx),
+    )
+
+    def _leaf(v):
+        # Real-collapse a complex leaf whose imaginary part is ~0 to a float.
+        if isinstance(v, complex):
+            return complex(v) if cx else float(v.real)
+        return float(v)
+
+    rows_out = [[_leaf(X_mat[i, j]) for j in range(X_mat.n_cols)]
+                for i in range(X_mat.n_rows)]
+    return [r[0] for r in rows_out] if is_vec else rows_out
 
 
 def _dense_solve_complex(A, B):
@@ -945,26 +801,20 @@ def _dense_solve_complex(A, B):
     inverse is just ``_dense_solve_complex(A, eye(n))`` (``A · X = I``).
 
     Private (underscore) — an internal Class-L helper, not a public catalog op.
-    Requires numpy (the ``[scientific]`` tier); complex linear algebra has no
-    numpy-absent exact-rational path here.
+    Numpy-free (§564): rides the numpy-free :func:`mat_solve` (which carries the
+    real 2n×2n block embedding internally), returning ``list[list[complex]]`` (or
+    a flat ``list[complex]`` for a vector ``B``).
     """
-    A = np.asarray(A, dtype=np.complex128)
-    B = np.asarray(B, dtype=np.complex128)
-    n = A.shape[0]
-    is_vec = (B.ndim == 1)
-    B_mat = B.reshape(n, 1) if is_vec else B
-    A_re, A_im = A.real, A.imag
-    block = np.concatenate(
-        [
-            np.concatenate([A_re, -A_im], axis=1),
-            np.concatenate([A_im, A_re], axis=1),
-        ],
-        axis=0,
-    )                                                            # (2n, 2n) real
-    rhs = np.concatenate([B_mat.real, B_mat.imag], axis=0)       # (2n, w) real
-    sol = np.asarray(dense_solve(block, rhs))                    # [u; v]
-    X = sol[:n, :] + 1j * sol[n:, :]
-    return X[:, 0] if is_vec else X
+    A_rows = _as_rows(A)
+    n = len(A_rows)
+    is_vec, B_rows = _as_solve_rhs(B, n)
+    X_mat = mat_solve(
+        Mat.from_rows(A_rows, is_complex=True),
+        Mat.from_rows(B_rows, is_complex=True),
+    )
+    rows_out = [[complex(X_mat[i, j]) for j in range(X_mat.n_cols)]
+                for i in range(X_mat.n_rows)]
+    return [r[0] for r in rows_out] if is_vec else rows_out
 
 
 def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
@@ -1047,15 +897,15 @@ def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
 
     if not i:
         # No interior to integrate out — the boundary IS the whole space.
-        if exact or np is None:
+        if exact:
             return [[Fraction(v) for v in r] for r in L_pp]
-        return np.asarray(L_pp, dtype=np.float64)
+        return [[float(v) for v in r] for r in L_pp]
 
     L_pi = _block(b, i)  # L_∂i
     L_ip = _block(i, b)  # L_i∂
     L_ii = _block(i, i)  # L_ii
 
-    if exact or np is None:
+    if exact:
         # Interior solve L_ii · X = L_i∂ (X is |i|×|∂|) via the Class-L
         # dense_solve primitive — exact-rational Gauss–Jordan (Class-N).
         X = dense_solve(L_ii, L_ip, exact=True)
@@ -1070,11 +920,19 @@ def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
         ]
         return S
 
-    # Float realization — the [scientific] tier. The expensive interior solve
-    # rides the native dense_solve C peer (numpy fallback inside dense_solve);
-    # the cheap boundary GEMM + subtract stay numpy.
-    X = dense_solve(L_ii, L_ip)
-    S = np.asarray(L_pp, dtype=np.float64) - np.asarray(L_pi, dtype=np.float64) @ X
+    # Float realization (§564, numpy-FREE). The expensive interior solve rides
+    # the numpy-free Mat-engine dense_solve (returns list[list[float]]); the
+    # cheap boundary matmul + subtract is a pure-Python list loop:
+    #   S[a][c] = L_∂∂[a][c] − Σ_k L_∂i[a][k] · X[k][c].
+    X = dense_solve(L_ii, L_ip)  # |i|×|∂| list[list[float]]
+    S = [
+        [
+            float(L_pp[a][c])
+            - sum(float(L_pi[a][k]) * X[k][c] for k in range(len(i)))
+            for c in range(len(b))
+        ]
+        for a in range(len(b))
+    ]
     return S
 
 
@@ -1090,79 +948,43 @@ def dirichlet_to_neumann(L, boundary_idx: Sequence[int], *, exact: bool = False)
 # ADR-0002 Phase 2 — Class L broadening
 # =====================================================================
 #
-# Complex numbers travel as interleaved-double pairs (re, im) on the
-# C boundary. The helpers below convert between numpy complex arrays
-# and the interleaved-double representation.
+# §564: these delegate to the numpy-free Mat eigen-engine
+# (:func:`mat_hermitian_eigendecompose`) and return plain Python lists.
 
 
-def _complex_to_interleaved(arr: np.ndarray) -> np.ndarray:
-    """View a complex128 array as interleaved float64 (re, im pairs).
-
-    Returns a 1-D contiguous float64 array of length 2*arr.size.
-    """
-    _require_np("a complex-valued Class-L operation")  # scientific tier (§22)
-    c = np.ascontiguousarray(arr, dtype=np.complex128)
-    return c.view(np.float64).reshape(-1).copy()
-
-
-def _interleaved_to_complex(arr: np.ndarray, shape: Tuple[int, ...]) -> np.ndarray:
-    """Reconstruct complex128 array of the given shape from interleaved
-    float64 (re, im pairs).
-    """
-    a = np.ascontiguousarray(arr, dtype=np.float64).reshape(-1)
-    return a.view(np.complex128).reshape(shape).copy()
-
-
-def hermitian_eigendecompose(
-    H: np.ndarray,
-) -> Tuple[np.ndarray, np.ndarray]:
+def hermitian_eigendecompose(H):
     """Hermitian eigendecomposition: ``H = V · diag(eigvals) · V^H``.
 
     Parameters
     ----------
     H
-        ``(n, n)`` complex Hermitian matrix (dtype castable to
-        complex128). Hermiticity is not enforced (caller's
-        responsibility); a non-Hermitian input will produce undefined
-        rotation behaviour in the C path.
+        ``(n, n)`` complex Hermitian matrix (list-of-lists / ndarray-like).
+        Hermiticity is not enforced (caller's responsibility).
 
     Returns
     -------
     (eigvals, V)
-        ``eigvals`` is a length-``n`` float64 array of real eigenvalues
-        in ascending order. ``V`` is an ``(n, n)`` complex128 unitary
-        matrix whose columns are the corresponding eigenvectors.
+        ``eigvals`` is a length-``n`` ``list[float]`` of real eigenvalues in
+        ascending order. ``V`` is an ``n×n`` nested ``list[list[complex]]`` —
+        the unitary matrix whose COLUMNS are the corresponding eigenvectors.
+
+    Numpy-free (§564): delegates to the Mat engine
+    :func:`mat_hermitian_eigendecompose` (native Jacobi when ``HAS_NATIVE``,
+    else srmech's own pure-Python cyclic Jacobi).
 
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed.,
     Johns Hopkins, 2013) §8.5 (Hermitian eigendecomposition via
     unitary Jacobi rotations).
-
-    Dispatch: native C path for ``n ≤ MAX_NATIVE_NODES`` when
-    ``HAS_NATIVE``; falls back to ``numpy.linalg.eigh`` otherwise.
     """
-    _require_np("hermitian_eigendecompose")  # complex scientific tier (§22)
-    H_arr = np.ascontiguousarray(H, dtype=np.complex128)
-    if H_arr.ndim != 2 or H_arr.shape[0] != H_arr.shape[1]:
-        raise ValueError(f"H must be square 2-D; got shape {H_arr.shape}")
-    n = H_arr.shape[0]
+    rows = _as_rows(H)
+    n = len(rows)
     if n == 0:
-        return (np.zeros(0, dtype=np.float64),
-                np.zeros((0, 0), dtype=np.complex128))
-    if _can_dispatch_native(n):
-        H_il = _complex_to_interleaved(H_arr)
-        eigvals = np.zeros(n, dtype=np.float64)
-        V_il = np.zeros(2 * n * n, dtype=np.float64)
-        rc = _native.LIB.srmech_hermitian_eigendecompose(
-            ctypes.c_uint32(n),
-            H_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-            eigvals.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-            V_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-        )
-        if rc == _native.SRMECH_OK:
-            V = _interleaved_to_complex(V_il, (n, n))
-            return eigvals, V
-        # Convergence failure or other non-OK: fall back to numpy.
-    eigvals, V = np.linalg.eigh(H_arr)
+        return ([], [])
+    Hm = Mat.from_rows([[complex(v) for v in r] for r in rows], is_complex=True)
+    evals_mat, V_mat = mat_hermitian_eigendecompose(Hm)
+    eigvals = [float(evals_mat[i, 0]) for i in range(evals_mat.n_rows)]
+    V = [[complex(V_mat[i, j]) for j in range(V_mat.n_cols)]
+         for i in range(V_mat.n_rows)]
     return eigvals, V
 
 
@@ -1170,27 +992,34 @@ def _canonicalize_eigenvector_signs(V):
     """Pin each real eigenvector column's sign (Class K) deterministically.
 
     An eigenvector is defined only up to a ``±`` sign (a ``Z₂`` gauge for a
-    real-symmetric problem); LAPACK and the native Jacobi peer pick it
-    arbitrarily — a *hidden, non-settable* convention. This flips each column so
-    its largest-magnitude entry is positive: a deterministic, **settable**
+    real-symmetric problem); the native Jacobi peer / pure-Python cascade picks
+    it arbitrarily — a *hidden, non-settable* convention. This flips each column
+    so its largest-magnitude entry is positive: a deterministic, **settable**
     convention (the endianness precedent), reconstruction-invariant. The flip IS
-    the Class-K sign boundary; the magnitude pivot is selected via ``col²`` so
-    there is **no** ``abs()`` and **no** float square root. NumPy is a carrier
-    only (``argmax`` + slice + negate) — no ``linalg``/``fft``/matmul/ufunc/
-    float-power. (Within a degenerate eigenspace the larger ``U(k)`` basis
+    the Class-K sign boundary; the magnitude pivot is selected via ``v*v`` so
+    there is **no** ``abs()`` and **no** float square root. ``V`` is a nested
+    ``list`` (columns = eigenvectors); the result is the (possibly modified)
+    nested list. (Within a degenerate eigenspace the larger ``U(k)`` basis
     freedom is solver-chosen and reconstruction-invariant; this pins only the
     per-column ``Z₂``.)
     """
-    arr = np.asarray(V)
-    if arr.ndim != 2 or arr.shape[1] == 0:
-        return arr
-    out = arr.copy()
-    for j in range(arr.shape[1]):
-        col = arr[:, j]
-        k = int(np.argmax(col * col))     # largest-|·| entry via col² (no abs/sqrt)
-        if col[k] < 0.0:                  # Class-K sign pin: pivot → positive
-            out[:, j] = -col
-    return out
+    n_rows = len(V)
+    if n_rows == 0:
+        return V
+    n_cols = len(V[0])
+    for j in range(n_cols):
+        # Largest-|·| entry of column j via v*v (no abs/sqrt).
+        k = 0
+        best = V[0][j] * V[0][j]
+        for r in range(1, n_rows):
+            cur = V[r][j] * V[r][j]
+            if cur > best:
+                best = cur
+                k = r
+        if V[k][j] < 0.0:  # Class-K sign pin: pivot → positive
+            for r in range(n_rows):
+                V[r][j] = -V[r][j]
+    return V
 
 
 def symmetric_eigendecompose(
@@ -1199,158 +1028,145 @@ def symmetric_eigendecompose(
     """Real-symmetric eigendecomposition: ``L = V · diag(eigvals) · Vᵀ``.
 
     Real-input specialisation of :func:`hermitian_eigendecompose`.
-    Guarantees real float64 ``eigvals`` AND real float64 eigenvectors
-    ``V`` (the Hermitian path returns complex128 ``V``, which triggers
-    a ``ComplexWarning`` when a caller knows the input is real-symmetric
-    — e.g. a graph Laplacian).
+    Guarantees real ``eigvals`` AND real eigenvectors ``V`` (the Hermitian path
+    returns complex ``V`` with imaginary part ~0).
 
     Parameters
     ----------
     L
-        ``(n, n)`` real symmetric matrix (dtype castable to float64).
+        ``(n, n)`` real symmetric matrix (list-of-lists / ndarray-like).
         Symmetry is not enforced (caller's responsibility).
 
     Returns
     -------
     (eigvals, V)
-        ``eigvals`` is a length-``n`` float64 array of real eigenvalues
-        in ascending order. ``V`` is an ``(n, n)`` float64 orthogonal
-        matrix whose columns are the corresponding eigenvectors.
+        ``eigvals`` is a length-``n`` ``list[float]`` of real eigenvalues
+        in ascending order. ``V`` is an ``n×n`` nested ``list[list[float]]``
+        whose COLUMNS are the corresponding eigenvectors.
 
     Class L. Canonical SSoT: Golub & Van Loan, *Matrix Computations*
     (4th ed., Johns Hopkins, 2013) §8.3 (symmetric eigenproblem).
 
-    Computed by delegating to the **C-backed** :func:`hermitian_
-    eigendecompose` (real-symmetric IS complex-Hermitian — native Jacobi
-    peer when available; NumPy ``eigh`` only as that op's OWN shared
-    fallback). The eigenvectors of a real-symmetric matrix are real (the
-    Hermitian path returns them with imaginary part ~0), so we take
-    ``.real`` and sign-canonicalise each column (Class-K,
-    :func:`_canonicalize_eigenvector_signs`). Eigenvalues come out
+    Numpy-free (§564): delegates to :func:`hermitian_eigendecompose`
+    (real-symmetric IS complex-Hermitian — native Jacobi peer when available,
+    else srmech's own pure-Python cyclic Jacobi). The eigenvectors of a
+    real-symmetric matrix are real (the Hermitian path returns them with
+    imaginary part ~0), so we take ``.real`` and sign-canonicalise each column
+    (Class-K, :func:`_canonicalize_eigenvector_signs`). Eigenvalues come out
     ascending. Correctness is pinned by eigenvalues + reconstruction +
     orthonormality (the eigenvector sign / degenerate-subspace basis is
-    non-unique), not element-wise C/Python parity.
+    non-unique), not element-wise parity.
     """
-    L_arr = np.ascontiguousarray(np.real(np.asarray(L)), dtype=np.float64)
-    if L_arr.ndim != 2 or L_arr.shape[0] != L_arr.shape[1]:
-        raise ValueError(f"L must be square 2-D; got shape {L_arr.shape}")
-    n = L_arr.shape[0]
+    rows = _as_rows(L)
+    real_rows = [[float(v.real) if isinstance(v, complex) else float(v) for v in r]
+                 for r in rows]
+    n = len(real_rows)
     if n == 0:
-        return (np.zeros(0, dtype=np.float64),
-                np.zeros((0, 0), dtype=np.float64))
-    eigvals, V_complex = hermitian_eigendecompose(L_arr.astype(np.complex128))
-    V = _canonicalize_eigenvector_signs(np.real(V_complex))
-    return (np.ascontiguousarray(eigvals, dtype=np.float64),
-            np.ascontiguousarray(V, dtype=np.float64))
+        return ([], [])
+    eigvals, V_complex = hermitian_eigendecompose(real_rows)
+    V_real = [[x.real for x in r] for r in V_complex]
+    V = _canonicalize_eigenvector_signs(V_real)
+    return eigvals, V
 
 
-def dense_matvec_complex(M: np.ndarray, v: np.ndarray) -> np.ndarray:
+def _rows(x) -> List[list]:
+    """Coerce a matrix (ndarray-like / list-of-lists / :class:`Mat`) to a nested
+    ``list`` — numpy-free (``.tolist()`` is a carrier convert, not math)."""
+    if hasattr(x, "tolist"):
+        x = x.tolist()
+    return [list(r) for r in x]
+
+
+def _vec(x) -> list:
+    """Coerce a vector (ndarray-like / list / :class:`Mat` row) to a flat
+    ``list`` — numpy-free."""
+    if hasattr(x, "tolist"):
+        x = x.tolist()
+    return list(x)
+
+
+def dense_matvec_complex(M, v) -> list:
     """Dense complex matrix-vector multiplication: ``M·v``.
 
     Parameters
     ----------
     M
-        ``(rows, cols)`` complex matrix.
+        ``(rows, cols)`` complex matrix (list-of-lists / ndarray-like / Mat).
     v
         Length-``cols`` complex vector.
 
     Returns
     -------
     out
-        Length-``rows`` complex128 array.
+        Length-``rows`` ``list[complex]``.
 
-    Canonical SSoT: Golub & Van Loan §1.1 (textbook matrix-vector
-    multiplication).
+    Numpy-free (§564): wraps ``v`` as a column ``Mat`` and rides
+    :func:`mat_matmul` (native zero-copy when present, else a pure-Python
+    triple loop). Canonical SSoT: Golub & Van Loan §1.1.
     """
-    M_arr = np.ascontiguousarray(M, dtype=np.complex128)
-    v_arr = np.ascontiguousarray(v, dtype=np.complex128).reshape(-1)
-    if M_arr.ndim != 2:
-        raise ValueError(f"M must be 2-D; got ndim {M_arr.ndim}")
-    rows, cols = M_arr.shape
-    if v_arr.shape[0] != cols:
+    M_rows = _rows(M)
+    v_list = _vec(v)
+    rows = len(M_rows)
+    cols = len(M_rows[0]) if rows else 0
+    for r in M_rows:
+        if len(r) != cols:
+            raise ValueError("M must be a rectangular 2-D matrix")
+    if len(v_list) != cols:
         raise ValueError(
-            f"M shape {M_arr.shape} incompatible with v length "
-            f"{v_arr.shape[0]}"
+            f"M shape ({rows}, {cols}) incompatible with v length {len(v_list)}"
         )
-    if (_native.HAS_NATIVE
-            and _native.LIB is not None
-            and rows <= MAX_NATIVE_NODES
-            and cols <= MAX_NATIVE_NODES):
-        M_il = _complex_to_interleaved(M_arr)
-        v_il = _complex_to_interleaved(v_arr)
-        out_il = np.zeros(2 * rows, dtype=np.float64)
-        rc = _native.LIB.srmech_dense_matvec_complex(
-            ctypes.c_uint32(rows),
-            ctypes.c_uint32(cols),
-            M_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-            v_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-            out_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-        )
-        if rc == _native.SRMECH_OK:
-            return _interleaved_to_complex(out_il, (rows,))
-    return (M_arr @ v_arr).astype(np.complex128)
+    if rows == 0:
+        return []
+    col = Mat.from_rows([[complex(x)] for x in v_list], is_complex=True)
+    out = mat_matmul(Mat.from_rows(M_rows, is_complex=True), col)
+    return [complex(out[i, 0]) for i in range(out.n_rows)]
 
 
-def dense_matmul_complex(A: np.ndarray, B: np.ndarray) -> np.ndarray:
+def dense_matmul_complex(A, B) -> list:
     """Dense complex matrix-matrix multiplication ``A·B``.
 
-    The srmech Class-L contraction the QM / ``matrix_cascades`` matmul math routes
-    through, so numpy stays carriers-only (no ``np`` matmul engine). Native
-    ``srmech_dense_matmul_complex`` when present (each dim ≤ 256); else composes
-    the :func:`dense_matvec_complex` cascade column-by-column — the no-native
-    fallback is itself a cascade, **never** numpy ``@``.
+    The srmech Class-L contraction the QM / ``matrix_cascades`` matmul math
+    routes through. Numpy-free (§564): rides :func:`mat_matmul` over the
+    :class:`~srmech.amsc.mat.Mat` carrier (native zero-copy when present, else a
+    pure-Python triple loop — **never** numpy ``@``).
 
     Parameters
     ----------
     A
-        ``(m, k)`` complex matrix.
+        ``(m, k)`` complex matrix (list-of-lists / ndarray-like / Mat).
     B
         ``(k, n)`` complex matrix.
 
     Returns
     -------
     out
-        ``(m, n)`` complex128 array.
+        ``(m, n)`` nested ``list[list[complex]]``.
 
     Canonical SSoT: Golub & Van Loan §1.1 (textbook matrix multiplication).
     """
-    A_arr = np.ascontiguousarray(A, dtype=np.complex128)
-    B_arr = np.ascontiguousarray(B, dtype=np.complex128)
-    if A_arr.ndim != 2 or B_arr.ndim != 2:
-        raise ValueError(
-            f"A and B must be 2-D; got ndim {A_arr.ndim} and {B_arr.ndim}"
-        )
-    m, k = A_arr.shape
-    k2, n = B_arr.shape
+    A_rows = _rows(A)
+    B_rows = _rows(B)
+    m = len(A_rows)
+    k = len(A_rows[0]) if m else 0
+    for r in A_rows:
+        if len(r) != k:
+            raise ValueError("A must be a rectangular 2-D matrix")
+    k2 = len(B_rows)
+    n = len(B_rows[0]) if k2 else 0
+    for r in B_rows:
+        if len(r) != n:
+            raise ValueError("B must be a rectangular 2-D matrix")
     if k2 != k:
         raise ValueError(
-            f"A shape {A_arr.shape} incompatible with B shape {B_arr.shape}"
+            f"A shape ({m}, {k}) incompatible with B shape ({k2}, {n})"
         )
-    if (_native.HAS_NATIVE
-            and _native.LIB is not None
-            and hasattr(_native.LIB, "srmech_dense_matmul_complex")
-            and m <= MAX_NATIVE_NODES
-            and k <= MAX_NATIVE_NODES
-            and n <= MAX_NATIVE_NODES):
-        A_il = _complex_to_interleaved(A_arr)
-        B_il = _complex_to_interleaved(B_arr)
-        out_il = np.zeros(2 * m * n, dtype=np.float64)
-        rc = _native.LIB.srmech_dense_matmul_complex(
-            ctypes.c_uint32(m),
-            ctypes.c_uint32(k),
-            ctypes.c_uint32(n),
-            A_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-            B_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-            out_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-        )
-        if rc == _native.SRMECH_OK:
-            return _interleaved_to_complex(out_il, (m, n))
-    # No-native / over-bound fallback: compose the matvec cascade per column of
-    # B (a cascade, not numpy matmul — keeps numpy carriers-only here too).
-    out = np.empty((m, n), dtype=np.complex128)
-    for j in range(n):
-        out[:, j] = dense_matvec_complex(A_arr, B_arr[:, j])
-    return out
+    if m == 0 or n == 0:
+        return [[] for _ in range(m)]
+    out = mat_matmul(
+        Mat.from_rows(A_rows, is_complex=True),
+        Mat.from_rows(B_rows, is_complex=True),
+    )
+    return out.tolist()
 
 
 # =====================================================================
@@ -2167,18 +1983,14 @@ def dense_dot_complex(a: np.ndarray, b: np.ndarray) -> complex:
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §1.1 (textbook inner product).
     """
-    a_arr = np.ascontiguousarray(a, dtype=np.complex128).reshape(-1)
-    b_arr = np.ascontiguousarray(b, dtype=np.complex128).reshape(-1)
-    if a_arr.shape[0] != b_arr.shape[0]:
+    a_list = _vec(a)
+    b_list = _vec(b)
+    if len(a_list) != len(b_list):
         raise ValueError(
-            f"dense_dot_complex: a length {a_arr.shape[0]} != b length "
-            f"{b_arr.shape[0]}"
+            f"dense_dot_complex: a length {len(a_list)} != b length {len(b_list)}"
         )
-    if a_arr.shape[0] == 0:
-        return complex(0.0)
-    # Class-M elementwise bind (native dispatch) + reduction (carrier boundary).
-    products = elementwise_multiply_complex(a_arr, b_arr)
-    return complex(np.sum(products))
+    # Plain BILINEAR Σ aᵢ bᵢ (NOT conjugated) — numpy-free pure-Python reduction.
+    return complex(sum(complex(ai) * complex(bi) for ai, bi in zip(a_list, b_list)))
 
 
 # ---------------------------------------------------------------------------
@@ -2191,12 +2003,11 @@ def dense_dot_complex(a: np.ndarray, b: np.ndarray) -> complex:
 # without a dtype change. Each is `composition_of_c` (no own C symbol; the math
 # rides the c_dispatched complex kernel; standalone-ready).
 # ---------------------------------------------------------------------------
-def dense_matmul_real(A: np.ndarray, B: np.ndarray) -> np.ndarray:
-    """Dense real matrix-matrix multiplication ``A·B`` → float64.
+def dense_matmul_real(A, B) -> list:
+    """Dense real matrix-matrix multiplication ``A·B`` → nested ``list[float]``.
 
-    Routes the real contraction through :func:`dense_matmul_complex` (the
-    native complex kernel on imag-free input) and drops the exactly-zero
-    imaginary part. numpy stays carriers-only — no numpy matmul engine.
+    Real peer of :func:`dense_matmul_complex` (the same Mat-carrier matmul on
+    imag-free input, dropping the exactly-zero imaginary part). Numpy-free (§564).
 
     Parameters
     ----------
@@ -2208,22 +2019,19 @@ def dense_matmul_real(A: np.ndarray, B: np.ndarray) -> np.ndarray:
     Returns
     -------
     out
-        ``(m, n)`` float64 array.
+        ``(m, n)`` nested ``list[list[float]]``.
 
     Canonical SSoT: Golub & Van Loan §1.1 (textbook matrix multiplication).
     """
-    out = dense_matmul_complex(
-        np.ascontiguousarray(A, dtype=np.float64),
-        np.ascontiguousarray(B, dtype=np.float64),
-    )
-    return np.ascontiguousarray(out.real, dtype=np.float64)
+    out = dense_matmul_complex(A, B)
+    return [[v.real if isinstance(v, complex) else float(v) for v in r] for r in out]
 
 
-def dense_matvec_real(M: np.ndarray, v: np.ndarray) -> np.ndarray:
-    """Dense real matrix-vector multiplication ``M·v`` → float64.
+def dense_matvec_real(M, v) -> list:
+    """Dense real matrix-vector multiplication ``M·v`` → ``list[float]``.
 
-    Real peer of :func:`dense_matvec_complex` (rides the native complex kernel
-    on imag-free input, drops the zero imaginary part). numpy carriers-only.
+    Real peer of :func:`dense_matvec_complex` (the same Mat-carrier matvec on
+    imag-free input, dropping the zero imaginary part). Numpy-free (§564).
 
     Parameters
     ----------
@@ -2235,22 +2043,19 @@ def dense_matvec_real(M: np.ndarray, v: np.ndarray) -> np.ndarray:
     Returns
     -------
     out
-        Length-``rows`` float64 array.
+        Length-``rows`` ``list[float]``.
 
     Canonical SSoT: Golub & Van Loan §1.1 (textbook matrix-vector product).
     """
-    out = dense_matvec_complex(
-        np.ascontiguousarray(M, dtype=np.float64),
-        np.ascontiguousarray(v, dtype=np.float64),
-    )
-    return np.ascontiguousarray(out.real, dtype=np.float64)
+    out = dense_matvec_complex(M, v)
+    return [x.real if isinstance(x, complex) else float(x) for x in out]
 
 
-def dense_dot_real(a: np.ndarray, b: np.ndarray) -> float:
+def dense_dot_real(a, b) -> float:
     """Dense real inner product ``Σ aᵢ bᵢ`` → Python ``float``.
 
-    Real peer of :func:`dense_dot_complex` (rides the native elementwise-bind
-    cascade on imag-free input + reduction). numpy carriers-only.
+    Real peer of :func:`dense_dot_complex` (the same bilinear reduction on
+    imag-free input). Numpy-free (§564).
 
     Parameters
     ----------
@@ -2264,15 +2069,24 @@ def dense_dot_real(a: np.ndarray, b: np.ndarray) -> float:
 
     Canonical SSoT: Golub & Van Loan §1.1 (textbook inner product).
     """
-    return float(
-        dense_dot_complex(
-            np.ascontiguousarray(a, dtype=np.float64),
-            np.ascontiguousarray(b, dtype=np.float64),
-        ).real
-    )
+    return float(dense_dot_complex(a, b).real)
 
 
-def dense_norm(x: np.ndarray) -> float:
+def _flatten_scalars(x) -> list:
+    """Flatten a matrix (nested list / ndarray-like / Mat) OR a vector to a flat
+    ``list`` of plain scalars — numpy-free. ``.tolist()`` is a carrier convert."""
+    if hasattr(x, "tolist"):
+        x = x.tolist()
+    flat = []
+    for elem in x:
+        if isinstance(elem, (list, tuple)):
+            flat.extend(elem)
+        else:
+            flat.append(elem)
+    return flat
+
+
+def dense_norm(x) -> float:
     """Euclidean (2-norm) / Frobenius norm ``‖x‖ = √(Σ|xᵢ|²)`` → ``float``.
 
     The default vector 2-norm and matrix Frobenius norm the QM self-consistency
@@ -2297,13 +2111,17 @@ def dense_norm(x: np.ndarray) -> float:
 
     Canonical SSoT: Golub & Van Loan §2.3 (vector / Frobenius norms).
     """
-    arr = np.ascontiguousarray(x).reshape(-1)
-    if arr.shape[0] == 0:
+    flat = _flatten_scalars(x)
+    if not flat:
         return 0.0
-    if np.iscomplexobj(arr):
-        sq = float(dense_dot_complex(np.conj(arr), arr).real)   # Σ conj(x)·x = Σ|x|²
-    else:
-        sq = dense_dot_real(arr, arr)                           # Σ x·x = Σ|x|²
+    # Σ|xᵢ|² over a pure-Python reduction (re²+im² for complex; NO abs()).
+    sq = 0.0
+    for v in flat:
+        if isinstance(v, complex):
+            sq += v.real * v.real + v.imag * v.imag
+        else:
+            fv = float(v)
+            sq += fv * fv
     return _rsqrt(sq) if sq > 0.0 else 0.0
 
 
@@ -2333,24 +2151,22 @@ def dense_outer_complex(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     Returns
     -------
     out
-        ``(m, n)`` complex128 array ``aᵢ bⱼ``.
+        ``(m, n)`` nested ``list[list[complex]]`` ``aᵢ bⱼ``.
 
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §1.1 (rank-1 update / outer product).
     """
-    a_col = np.ascontiguousarray(a, dtype=np.complex128).reshape(-1, 1)
-    b_row = np.ascontiguousarray(b, dtype=np.complex128).reshape(1, -1)
-    if a_col.shape[0] == 0 or b_row.shape[1] == 0:
-        return np.zeros((a_col.shape[0], b_row.shape[1]), dtype=np.complex128)
-    return dense_matmul_complex(a_col, b_row)
+    a_list = _vec(a)
+    b_list = _vec(b)
+    # Plain bilinear outer aᵢ·bⱼ (NO conjugation) — numpy-free nested loop.
+    return [[complex(ai) * complex(bj) for bj in b_list] for ai in a_list]
 
 
-def dense_outer_real(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-    """Dense real outer product ``a ⊗ b`` → ``out[i, j] = aᵢ bⱼ`` (float64).
+def dense_outer_real(a, b) -> list:
+    """Dense real outer product ``a ⊗ b`` → ``out[i, j] = aᵢ bⱼ`` (float).
 
-    Real peer of :func:`dense_outer_complex` (rides the native complex kernel on
-    imag-free input, drops the exactly-zero imaginary part). numpy carriers-only;
-    bit-identical to numpy ``outer`` on real input.
+    Real peer of :func:`dense_outer_complex` (same bilinear outer on imag-free
+    input, dropping the exactly-zero imaginary part). Numpy-free (§564).
 
     Parameters
     ----------
@@ -2362,45 +2178,28 @@ def dense_outer_real(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     Returns
     -------
     out
-        ``(m, n)`` float64 array ``aᵢ bⱼ``.
+        ``(m, n)`` nested ``list[list[float]]`` ``aᵢ bⱼ``.
 
     Canonical SSoT: Golub & Van Loan §1.1 (rank-1 outer product).
     """
-    return dense_outer_complex(
-        np.ascontiguousarray(a, dtype=np.float64),
-        np.ascontiguousarray(b, dtype=np.float64),
-    ).real
+    out = dense_outer_complex(a, b)
+    return [[v.real if isinstance(v, complex) else float(v) for v in r] for r in out]
 
 
-def elementwise_multiply_complex(
-    a: np.ndarray, b: np.ndarray
-) -> np.ndarray:
+def elementwise_multiply_complex(a, b) -> list:
     """Elementwise complex multiplication: ``a * b``.
 
-    Both arrays must be the same shape (after broadcasting via
-    ``numpy.broadcast``). Returns complex128.
+    Equal-shape 1-D only (numpy-free, §564 — no broadcasting; the callers pass
+    equal-length flat lists). Returns a flat ``list[complex]``.
     """
-    a_arr = np.ascontiguousarray(np.broadcast_to(a,
-                                  np.broadcast_shapes(np.shape(a), np.shape(b))),
-                                 dtype=np.complex128)
-    b_arr = np.ascontiguousarray(np.broadcast_to(b, a_arr.shape),
-                                 dtype=np.complex128)
-    n = int(a_arr.size)
-    if n == 0:
-        return np.zeros_like(a_arr)
-    if _native.HAS_NATIVE and _native.LIB is not None:
-        a_il = _complex_to_interleaved(a_arr.reshape(-1))
-        b_il = _complex_to_interleaved(b_arr.reshape(-1))
-        out_il = np.zeros(2 * n, dtype=np.float64)
-        rc = _native.LIB.srmech_elementwise_multiply_complex(
-            ctypes.c_uint32(n),
-            a_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-            b_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-            out_il.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+    a_list = _vec(a)
+    b_list = _vec(b)
+    if len(a_list) != len(b_list):
+        raise ValueError(
+            f"elementwise_multiply_complex: length mismatch "
+            f"{len(a_list)} vs {len(b_list)}"
         )
-        if rc == _native.SRMECH_OK:
-            return _interleaved_to_complex(out_il, a_arr.shape)
-    return (a_arr * b_arr).astype(np.complex128)
+    return [complex(ai) * complex(bi) for ai, bi in zip(a_list, b_list)]
 
 
 _TRANS_OP_IDS = {
@@ -2411,28 +2210,46 @@ _TRANS_OP_IDS = {
 }
 
 
-def _real_transcendental_loop(flat_real: np.ndarray, op_name: str) -> np.ndarray:
+def _real_transcendental_native(flat_real: list, op_id: int):
+    """numpy-free native ``srmech_elementwise_transcendental`` over a flat list of
+    real scalars — marshals into a ``(c_double * n)`` ctypes buffer (numpy-free,
+    exactly as :func:`_jacobi_eigvals_native_listmarshal` does) and reads the
+    result back into a ``list[float]``. Returns ``(ok, out_list, rc)``; ``ok`` is
+    False when there is no native lib (caller runs the pure-Python cascade)."""
+    n = len(flat_real)
+    if n == 0 or not (_native.HAS_NATIVE and _native.LIB is not None):
+        return False, None, None
+    inp = (ctypes.c_double * n)(*(float(x) for x in flat_real))
+    out = (ctypes.c_double * n)()
+    rc = _native.LIB.srmech_elementwise_transcendental(
+        ctypes.c_uint32(n), inp, ctypes.c_int(op_id), out,
+    )
+    if rc == _native.SRMECH_OK:
+        return True, [out[i] for i in range(n)], rc
+    return True, None, rc
+
+
+def _real_transcendental_loop(flat_real: list, op_name: str) -> list:
     """numpy-free real ``exp``/``cos``/``sin``/``log`` via the Class-N scalar cascades.
 
-    The pure-Python / no-native fallback for :func:`elementwise_transcendental`
-    (the native path runs ``srmech_elementwise_transcendental``). numpy carries
-    the flat float64 buffer only; every element runs the libm-free
-    :mod:`srmech.amsc.rational` cascade. ``flat_real`` is a 1-D float64 array.
+    The pure-Python / no-native fallback for :func:`elementwise_transcendental`.
+    ``flat_real`` is a flat ``list`` of real scalars; returns a flat
+    ``list[float]``. Every element runs the libm-free
+    :mod:`srmech.amsc.rational` cascade.
     """
-    if op_name == "log" and flat_real.shape[0] and float(flat_real.min()) <= 0.0:
+    flat = [float(x) for x in flat_real]
+    if op_name == "log" and flat and min(flat) <= 0.0:
         raise ValueError("log requires all arr[i] > 0")
     fn = {"exp": _rexp, "cos": _rcos, "sin": _rsin, "log": _rlog}[op_name]
-    out = np.zeros(flat_real.shape[0], dtype=np.float64)
-    for i in range(flat_real.shape[0]):
-        out[i] = fn(float(flat_real[i]))
-    return out
+    return [fn(x) for x in flat]
 
 
-def _complex_transcendental_loop(arr: np.ndarray, op_name: str) -> np.ndarray:
+def _complex_transcendental_loop(flat, op_name: str) -> list:
     """numpy-free complex ``exp``/``cos``/``sin``/``log`` via Class-N real cascades.
 
-    The complex-input path for :func:`elementwise_transcendental`, numpy-free
-    (numpy carries the complex128 buffer only). Each entry ``z = a + bi`` runs:
+    The complex-input path for :func:`elementwise_transcendental`. ``flat`` is a
+    flat sequence of (complex) scalars; returns a flat ``list[complex]``. Each
+    entry ``z = a + bi`` runs:
 
     * ``exp(z)`` = :func:`rational.complex_exp` (``e^a (cos b + i sin b)``);
     * ``cos(z)`` = ``cos a · cosh b − i · sin a · sinh b``;
@@ -2441,18 +2258,17 @@ def _complex_transcendental_loop(arr: np.ndarray, op_name: str) -> np.ndarray:
     * ``log(z)`` = ``log|z| + i·arg z`` = ``rational.log(rational.hypot(a, b))
       + i·rational.atan2(b, a)`` (principal branch; ``z ≠ 0``).
     """
-    flat = np.ascontiguousarray(arr, dtype=np.complex128).reshape(-1)
-    out = np.zeros(flat.shape[0], dtype=np.complex128)
-    for i in range(flat.shape[0]):
-        z = complex(flat[i])
+    out = []
+    for elem in flat:
+        z = complex(elem)
         a, b = z.real, z.imag
         if op_name == "exp":
-            out[i] = _rcomplex_exp(z)
+            out.append(_rcomplex_exp(z))
         elif op_name == "log":
             mag = _rhypot(a, b)
             if mag <= 0.0:
                 raise ValueError("log requires arr[i] != 0")
-            out[i] = complex(_rlog(mag), _ratan2(b, a))
+            out.append(complex(_rlog(mag), _ratan2(b, a)))
         else:
             eb = _rexp(b)
             enb = _rexp(-b)
@@ -2460,106 +2276,94 @@ def _complex_transcendental_loop(arr: np.ndarray, op_name: str) -> np.ndarray:
             sinh_b = (eb - enb) / 2.0
             ca, sa = _rcos(a), _rsin(a)
             if op_name == "cos":
-                out[i] = complex(ca * cosh_b, -(sa * sinh_b))
+                out.append(complex(ca * cosh_b, -(sa * sinh_b)))
             else:  # sin
-                out[i] = complex(sa * cosh_b, ca * sinh_b)
-    return out.reshape(np.shape(arr))
+                out.append(complex(sa * cosh_b, ca * sinh_b))
+    return out
 
 
-def elementwise_transcendental(
-    arr: np.ndarray, op_name: str
-) -> np.ndarray:
-    """Array-vectorised transcendental operation.
+def _flat_has_complex(flat) -> bool:
+    """True iff any scalar in the flat sequence is a complex with nonzero imag."""
+    for x in flat:
+        if isinstance(x, complex) and x.imag != 0.0:
+            return True
+    return False
+
+
+def elementwise_transcendental(arr, op_name: str) -> list:
+    """Array-vectorised transcendental operation (numpy-free, §564).
 
     Parameters
     ----------
     arr
-        Real or complex array.
+        Real or complex 1-D / flat sequence (nested arrays are flattened).
     op_name
         One of ``"exp"``, ``"cos"``, ``"sin"``, ``"log"``, ``"exp_i"``.
-        ``"exp_i"`` returns ``exp(1j * arr)`` (the TDSE-relevant
-        complex exponential of a real argument); the C path
-        implements this via ``cos`` + ``sin`` over the real argument.
+        ``"exp_i"`` returns ``exp(1j * arr)`` (the TDSE-relevant complex
+        exponential of a real argument); implemented via ``cos`` + ``sin``.
 
     Returns
     -------
     out
-        Array of the same shape as ``arr``. dtype is complex128 for
-        ``"exp_i"`` (or when ``arr`` itself is complex); float64
-        otherwise.
+        A FLAT ``list`` (the callers pass flat / 1-D arrays). It is a
+        ``list[complex]`` for ``"exp_i"`` (or complex input) and a
+        ``list[float]`` otherwise.
+
+    Numpy-free (§564): the native ``srmech_elementwise_transcendental`` path
+    marshals the flat list into a ctypes ``(c_double * n)`` buffer (numpy-free);
+    the no-native / complex paths run the Class-N rational cascades per element.
 
     Canonical SSoT: ANSI C99 §7.12 libm.
     """
+    flat = _flatten_scalars(arr)
     if op_name == "exp_i":
-        real_arr = np.ascontiguousarray(arr, dtype=np.float64).reshape(-1)
-        n = int(real_arr.size)
-        cos_out = np.zeros(n, dtype=np.float64)
-        sin_out = np.zeros(n, dtype=np.float64)
-        used_native = False
-        if n > 0 and _native.HAS_NATIVE and _native.LIB is not None:
-            rc_c = _native.LIB.srmech_elementwise_transcendental(
-                ctypes.c_uint32(n),
-                real_arr.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-                ctypes.c_int(_native.SRMECH_TRANS_COS),
-                cos_out.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-            )
-            rc_s = _native.LIB.srmech_elementwise_transcendental(
-                ctypes.c_uint32(n),
-                real_arr.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-                ctypes.c_int(_native.SRMECH_TRANS_SIN),
-                sin_out.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-            )
-            if rc_c == _native.SRMECH_OK and rc_s == _native.SRMECH_OK:
-                used_native = True
-        if not used_native:
+        real_flat = [float(x.real if isinstance(x, complex) else x) for x in flat]
+        n = len(real_flat)
+        if n == 0:
+            return []
+        ok_c, cos_out, _ = _real_transcendental_native(
+            real_flat, _native.SRMECH_TRANS_COS
+        )
+        ok_s, sin_out, _ = _real_transcendental_native(
+            real_flat, _native.SRMECH_TRANS_SIN
+        )
+        if not (ok_c and ok_s and cos_out is not None and sin_out is not None):
             # numpy-free Class-N cos/sin cascade (the no-native / Pyodide path)
-            cos_out = _real_transcendental_loop(real_arr, "cos")
-            sin_out = _real_transcendental_loop(real_arr, "sin")
-        result = (cos_out + 1j * sin_out).astype(np.complex128)
-        return result.reshape(np.shape(arr))
+            cos_out = _real_transcendental_loop(real_flat, "cos")
+            sin_out = _real_transcendental_loop(real_flat, "sin")
+        return [complex(cos_out[i], sin_out[i]) for i in range(n)]
     if op_name not in _TRANS_OP_IDS:
         raise ValueError(
             f"unknown op_name {op_name!r}; legal: "
             f"{sorted(set(_TRANS_OP_IDS) | {'exp_i'})}"
         )
-    # Complex inputs run the numpy-free per-element Class-N complex cascades
-    # (exp via rational.complex_exp; cos/sin via cosh/sinh from rational.exp;
-    # log via rational.log(hypot) + i·rational.atan2). numpy carries the
-    # complex128 buffer only — no numpy transcendental engine.
-    if np.iscomplexobj(arr):
-        return _complex_transcendental_loop(arr, op_name)
-    real_arr = np.ascontiguousarray(arr, dtype=np.float64).reshape(-1)
-    n = int(real_arr.size)
+    # Complex inputs run the numpy-free per-element Class-N complex cascades.
+    if _flat_has_complex(flat):
+        return _complex_transcendental_loop(flat, op_name)
+    real_flat = [float(x.real if isinstance(x, complex) else x) for x in flat]
+    n = len(real_flat)
     if n == 0:
-        return np.zeros(np.shape(arr), dtype=np.float64)
+        return []
     op_id = _TRANS_OP_IDS[op_name]
-    if _native.HAS_NATIVE and _native.LIB is not None:
-        out = np.zeros(n, dtype=np.float64)
-        rc = _native.LIB.srmech_elementwise_transcendental(
-            ctypes.c_uint32(n),
-            real_arr.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-            ctypes.c_int(op_id),
-            out.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-        )
-        if rc == _native.SRMECH_OK:
-            return out.reshape(np.shape(arr))
+    ok, out, rc = _real_transcendental_native(real_flat, op_id)
+    if ok:
+        if out is not None:
+            return out
         if rc == _native.SRMECH_ERR_BAD_INPUT and op_name == "log":
             raise ValueError("log requires all arr[i] > 0")
     # numpy-free Class-N scalar cascade (the no-native / Pyodide path). The
     # log domain check (all arr[i] > 0, parity with the C BAD_INPUT contract)
     # lives inside _real_transcendental_loop.
-    return _real_transcendental_loop(real_arr, op_name).reshape(np.shape(arr))
+    return _real_transcendental_loop(real_flat, op_name)
 
 
-def elementwise_hypot(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+def elementwise_hypot(a, b) -> list:
     """Array Euclidean magnitude ``√(aᵢ² + bᵢ²)`` via the Class-N hypot cascade.
 
     The numpy-free magnitude op the DSP modules' ``|z| = √(re² + im²)`` sites
-    route through, so numpy stays carriers-only (no numpy ``hypot`` engine). Each
-    element runs :func:`srmech.amsc.rational.hypot` (Class M sum-of-squares ∘
-    Class N∘K :func:`~srmech.amsc.rational.sqrt`; native ``srmech_rational_sqrt``
-    -dispatched) — the math is the libm-free cascade, not numpy's. The numpy-only
-    work is array packing (``asarray`` / ``reshape`` / the output buffer).
+    route through. Each element runs :func:`srmech.amsc.rational.hypot` (Class M
+    sum-of-squares ∘ Class N∘K :func:`~srmech.amsc.rational.sqrt`; native
+    ``srmech_rational_sqrt``-dispatched) — the math is the libm-free cascade.
 
     Round-off-faithful to numpy's hypot (the rational sqrt is floor-projected vs
     IEEE round-to-nearest — a ≤1-ULP shift, accepted per the cascades-replace-
@@ -2568,39 +2372,32 @@ def elementwise_hypot(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     Parameters
     ----------
     a, b
-        Same-shape real arrays (typically ``z.real`` / ``z.imag``).
+        Equal-length flat real sequences (typically ``z.real`` / ``z.imag``).
 
     Returns
     -------
     out
-        Float64 array of ``√(aᵢ² + bᵢ²)``, same shape as ``a``.
+        Flat ``list[float]`` of ``√(aᵢ² + bᵢ²)``.
 
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §1.1 (Euclidean length).
     """
-    a_arr = np.ascontiguousarray(a, dtype=np.float64)
-    b_arr = np.ascontiguousarray(b, dtype=np.float64)
-    if a_arr.shape != b_arr.shape:
+    flat_a = _flatten_scalars(a)
+    flat_b = _flatten_scalars(b)
+    if len(flat_a) != len(flat_b):
         raise ValueError(
-            f"elementwise_hypot: shape mismatch {a_arr.shape} vs {b_arr.shape}"
+            f"elementwise_hypot: length mismatch {len(flat_a)} vs {len(flat_b)}"
         )
-    flat_a = a_arr.reshape(-1)
-    flat_b = b_arr.reshape(-1)
-    out = np.zeros(flat_a.shape[0], dtype=np.float64)
-    for i in range(flat_a.shape[0]):
-        out[i] = _rhypot(float(flat_a[i]), float(flat_b[i]))
-    return out.reshape(a_arr.shape)
+    return [_rhypot(float(ai), float(bi)) for ai, bi in zip(flat_a, flat_b)]
 
 
-def elementwise_sqrt(arr: np.ndarray) -> np.ndarray:
+def elementwise_sqrt(arr) -> list:
     """Array element-wise ``√arrᵢ`` via the Class-N rational sqrt cascade.
 
     The numpy-free square-root op for non-negative real arrays — the companion
-    to :func:`elementwise_hypot`, so numpy stays carriers-only (no numpy ``sqrt``
-    ufunc). Each element runs :func:`srmech.amsc.rational.sqrt` (Class-N∘K
-    integer-``isqrt`` cascade; native ``srmech_rational_sqrt``-dispatched) — the
-    math is the libm-free cascade, not numpy's. The numpy-only work is array
-    packing (``asarray`` / ``reshape`` / the output buffer).
+    to :func:`elementwise_hypot`. Each element runs
+    :func:`srmech.amsc.rational.sqrt` (Class-N∘K integer-``isqrt`` cascade;
+    native ``srmech_rational_sqrt``-dispatched) — the math is the libm-free cascade.
 
     Round-off-faithful to numpy's sqrt (the rational sqrt is floor-projected vs
     IEEE round-to-nearest — a ≤1-ULP shift, accepted per the cascades-replace-
@@ -2609,30 +2406,25 @@ def elementwise_sqrt(arr: np.ndarray) -> np.ndarray:
     Parameters
     ----------
     arr
-        Real array with all entries ``>= 0`` (square-root domain).
+        Flat real sequence with all entries ``>= 0`` (square-root domain).
 
     Returns
     -------
     out
-        Float64 array of ``√arrᵢ``, same shape as ``arr``.
+        Flat ``list[float]`` of ``√arrᵢ``.
 
     Raises
     ------
     ValueError
-        If any ``arrᵢ < 0`` (matches the C path's domain contract; numpy's
-        ``sqrt`` would silently emit ``nan`` with a RuntimeWarning).
+        If any ``arrᵢ < 0`` (matches the C path's domain contract).
 
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §1.1.
     """
-    a_arr = np.ascontiguousarray(arr, dtype=np.float64)
-    flat = a_arr.reshape(-1)
-    if flat.shape[0] and float(flat.min()) < 0.0:
+    flat = [float(x) for x in _flatten_scalars(arr)]
+    if flat and min(flat) < 0.0:
         raise ValueError("elementwise_sqrt requires all arr[i] >= 0")
-    out = np.zeros(flat.shape[0], dtype=np.float64)
-    for i in range(flat.shape[0]):
-        out[i] = _rsqrt(float(flat[i]))
-    return out.reshape(a_arr.shape)
+    return [_rsqrt(x) for x in flat]
 
 
 # =====================================================================
@@ -2666,18 +2458,19 @@ def elementwise_sqrt(arr: np.ndarray) -> np.ndarray:
 
 def _directed_adjacency(
     n: int,
-    edges_u: np.ndarray,
-    edges_v: np.ndarray,
-    weights: np.ndarray,
-) -> np.ndarray:
-    """Build the dense ``n×n`` **directed** adjacency ``W[u, v] += w``.
+    edges_u: Sequence[int],
+    edges_v: Sequence[int],
+    weights: Sequence[float],
+) -> List[List[float]]:
+    """Build the dense ``n×n`` **directed** adjacency ``W[u, v] += w`` as a nested
+    ``list[list[float]]`` — numpy-free.
 
-    Unlike :func:`_fallback_dense_adjacency` this does NOT mirror the
-    transpose — direction is preserved (``W`` is generally asymmetric).
+    Unlike the undirected build this does NOT mirror the transpose — direction is
+    preserved (``W`` is generally asymmetric).
     """
-    W = np.zeros((n, n), dtype=np.float64)
+    W = [[0.0] * n for _ in range(n)]
     for u, v, w in zip(edges_u, edges_v, weights):
-        W[int(u), int(v)] += float(w)
+        W[int(u)][int(v)] += float(w)
     return W
 
 
@@ -2685,7 +2478,7 @@ def signed_laplacian(
     n: int,
     edges: Iterable[Tuple[int, int]],
     weights: Optional[Iterable[float]] = None,
-) -> np.ndarray:
+) -> List[List[float]]:
     """Signed graph Laplacian ``L = D̄ − A`` (real-symmetric, PSD).
 
     The off-diagonal weights may be **negative** — this is the
@@ -2698,22 +2491,26 @@ def signed_laplacian(
     edges (Kunegis, J. et al. (2010) "Spectral Analysis of Signed
     Graphs", SDM 2010).
 
-    Returns an ``n×n`` real-symmetric matrix; pair with
+    Returns an ``n×n`` real-symmetric ``list[list[float]]``; pair with
     :func:`symmetric_eigendecompose` or :func:`fiedler_vector` for the
     signed navigation embedding.
     """
-    edges_u, edges_v, ws = _normalize_edges_weights(n, edges, weights)
-    A = _fallback_dense_adjacency(n, edges_u, edges_v, ws)  # symmetric, signed
-    diag_idx = np.arange(n)
-    A_off = A.copy()
-    A_off[diag_idx, diag_idx] = 0.0
-    # Class-K magnitude of the signed couplings → the signed degree. Expressed
-    # as an EXPLICIT sign-branch (pin-slot + re-orientation), NOT an ALU abs():
-    # |A_ij| = A_ij where A_ij >= 0 else -A_ij. (Honours "abs() is never fine".)
-    A_mag = np.where(A_off >= 0.0, A_off, -A_off)
-    deg = A_mag.sum(axis=1)
-    L = -A_off
-    L[diag_idx, diag_idx] = deg
+    _validate_edges_weights_py(n, edges, weights)  # validate (raises on bad input)
+    A = _dense_adjacency_py(n, edges, weights)  # symmetric, signed (list[list])
+    L = [[0.0] * n for _ in range(n)]
+    deg = [0.0] * n
+    for r in range(n):
+        for c in range(n):
+            if c == r:
+                continue
+            a = A[r][c]
+            # Class-K magnitude of the signed coupling → the signed degree.
+            # EXPLICIT sign-branch (pin-slot + re-orientation), NOT an ALU abs():
+            # |a| = a where a >= 0 else -a. (Honours "abs() is never fine".)
+            deg[r] += a if a >= 0.0 else -a
+            L[r][c] = -a
+    for r in range(n):
+        L[r][r] = deg[r]
     return L
 
 
@@ -2723,12 +2520,12 @@ def magnetic_laplacian(
     weights: Optional[Iterable[float]] = None,
     *,
     q: float = 0.25,
-) -> np.ndarray:
+) -> List[List[complex]]:
     """Magnetic (Hermitian) Laplacian of a **directed** graph.
 
     Direction is encoded as a complex phase so the result stays
     **Hermitian** and the existing :func:`hermitian_eigendecompose`
-    (C-backed) diagonalises it — the complex eigenpair is the
+    diagonalises it — the complex eigenpair is the
     directed-navigation signature (#797 op (b)). For directed edges
     ``u → v`` with magnitude ``w``:
 
@@ -2746,25 +2543,34 @@ def magnetic_laplacian(
     attested citation belongs in the research notebook under the MPM
     discipline.
 
-    Returns an ``n×n`` complex128 Hermitian matrix.
+    Numpy-free (§564): the ``2π`` is stdlib ``math.pi`` (not ``np.pi``); the
+    per-element phase ``exp(i·2π·q·Θ)`` is the libm-free Class-N
+    ``cos``/``sin`` cascade. Returns an ``n×n`` Hermitian
+    ``list[list[complex]]``.
     """
     if not isinstance(q, (int, float)):
         raise TypeError(f"q must be a real number; got {type(q).__name__}")
-    edges_u, edges_v, ws = _normalize_edges_weights(n, edges, weights)
-    W = _directed_adjacency(n, edges_u, edges_v, ws)
-    A_s = 0.5 * (W + W.T)
-    theta = W - W.T
-    phase = elementwise_transcendental((2.0 * np.pi * float(q)) * theta, "exp_i")
-    H = A_s * phase
-    diag_idx = np.arange(n)
-    H[diag_idx, diag_idx] = 0.0  # no self-phase; degree carries the diagonal
-    deg = A_s.sum(axis=1)
-    L = -H
-    L[diag_idx, diag_idx] = deg.astype(np.complex128)
+    el, wl = _validate_edges_weights_py(n, edges, weights)
+    W = _directed_adjacency(n, [u for u, _ in el], [v for _, v in el], wl)
+    A_s = [[0.5 * (W[r][c] + W[c][r]) for c in range(n)] for r in range(n)]
+    # phase[r][c] = exp(i·2π·q·(W[r][c] − W[c][r])); 2π via stdlib math.pi.
+    two_pi_q = 2.0 * _PI * float(q)
+    L = [[0j] * n for _ in range(n)]
+    deg = [0.0] * n
+    for r in range(n):
+        for c in range(n):
+            deg[r] += A_s[r][c]
+            if c == r:
+                continue  # no self-phase; degree carries the diagonal
+            ang = two_pi_q * (W[r][c] - W[c][r])
+            phase = complex(_rcos(ang), _rsin(ang))
+            L[r][c] = -(A_s[r][c] * phase)
+    for r in range(n):
+        L[r][r] = complex(deg[r])
     return L
 
 
-def fiedler_vector(matrix: np.ndarray) -> np.ndarray:
+def fiedler_vector(matrix) -> list:
     """The Fiedler navigation embedding — eigenvector of ``λ₂``.
 
     Returns the eigenvector of the **second-smallest** eigenvalue of a
@@ -2773,23 +2579,23 @@ def fiedler_vector(matrix: np.ndarray) -> np.ndarray:
     (F348). Dispatches to :func:`hermitian_eigendecompose` for complex
     input (e.g. a :func:`magnetic_laplacian`) and
     :func:`symmetric_eigendecompose` for real input (e.g.
-    :func:`signed_laplacian` / :func:`dense_laplacian`) — so the heavy
-    eigendecomposition runs on the existing C-backed path.
+    :func:`signed_laplacian` / :func:`dense_laplacian`).
 
-    For ``n < 2`` there is no second eigenvector; raises ``ValueError``.
+    Numpy-free (§564): returns the λ₂ eigenvector as a flat ``list`` (``complex``
+    for a Hermitian input, ``float`` for a real one). For ``n < 2`` there is no
+    second eigenvector; raises ``ValueError``.
     """
-    M = np.asarray(matrix)
-    if M.ndim != 2 or M.shape[0] != M.shape[1]:
-        raise ValueError(f"matrix must be square 2-D; got shape {M.shape}")
-    if M.shape[0] < 2:
+    rows = _as_rows(matrix)
+    n = len(rows)
+    if n < 2:
         raise ValueError("fiedler_vector requires n >= 2")
-    if np.iscomplexobj(M):
-        _eigvals, V = hermitian_eigendecompose(M)
+    if _has_complex(rows):
+        _eigvals, V = hermitian_eigendecompose(rows)
     else:
-        _eigvals, V = symmetric_eigendecompose(M)
+        _eigvals, V = symmetric_eigendecompose(rows)
     # Eigenvalues are ascending; column 0 is the trivial λ₁≈0, column 1
     # is the Fiedler vector (λ₂).
-    return V[:, 1].copy()
+    return [V[i][1] for i in range(len(V))]
 
 
 # The per-block dense-eig cap is MAX_NATIVE_NODES (256); 4 blocks × 256 = 1024.

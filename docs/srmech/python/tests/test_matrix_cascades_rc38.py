@@ -2,80 +2,151 @@
 
 qr = Householder reflectors (Class M product of K-sign-flip o M-outer o N-scale);
 svd = Gram-matrix hermitian_eigendecompose (Class L) o sqrt (Class N+K) o
-A*V*Sigma^-1 (Class M). numpy as CONTAINER only — no np.linalg.qr/svd.
+A*V*Sigma^-1 (Class M).
 
-QR/SVD are unique only up to signs, so U/V/Q/R need not match numpy element-
-wise; the DEFINING INVARIANTS do (reconstruction, orthonormality, upper-
-triangular R), and the singular VALUES (unique) match numpy.linalg.svd.
+QR/SVD are unique only up to signs, so U/V/Q/R need not match element-wise; the
+DEFINING INVARIANTS do (reconstruction, orthonormality, upper-triangular R), and
+the singular VALUES (unique) equal sqrt of the eigenvalues of the Gram matrix
+``AᴴA``.
+
+numpy-FREE (#564): numpy is GONE from srmech — ``qr``/``svd`` return plain Python
+lists. Fixtures use stdlib ``random``; invariants are checked with plain-list
+matrix arithmetic; the singular-value oracle is the framework's own
+``hermitian_eigendecompose`` on the Gram matrix (no ``np.linalg.svd``).
 """
-import numpy as np
+import cmath
+import math
+import random
+
 import pytest
 
 from srmech.amsc.cascade.matrix_cascades import qr, svd
+from srmech.amsc.laplacian import hermitian_eigendecompose
 
 _SHAPES = [(4, 4), (6, 3), (3, 6), (1, 1), (5, 2), (2, 5), (7, 7)]
 
 
-def _mats(shape, rng):
-    """A real and a complex matrix of the given shape."""
-    yield rng.standard_normal(shape)
-    yield rng.standard_normal(shape) + 1j * rng.standard_normal(shape)
+# ── numpy-free list helpers ────────────────────────────────────────────
+
+
+def _conjT(M):
+    return [[complex(M[i][j]).conjugate() for i in range(len(M))]
+            for j in range(len(M[0]))]
+
+
+def _matmul(A, B):
+    m, k, n = len(A), len(B), len(B[0])
+    return [[sum(A[i][p] * B[p][j] for p in range(k)) for j in range(n)]
+            for i in range(m)]
+
+
+def _mag2(z):
+    z = complex(z)
+    return z.real * z.real + z.imag * z.imag
+
+
+def _max_recon_err2(C, A):
+    """max |C[i][j] - A[i][j]|² over the grid."""
+    return max(_mag2(complex(C[i][j]) - complex(A[i][j]))
+               for i in range(len(A)) for j in range(len(A[0])))
+
+
+def _max_off_identity_err2(G):
+    """max |G[i][j] - δ_ij|² (orthonormality residual)."""
+    n = len(G)
+    return max(_mag2(complex(G[i][j]) - (1.0 if i == j else 0.0))
+               for i in range(n) for j in range(n))
+
+
+def _mats(shape, rs):
+    """A real and a complex matrix of the given shape (numpy-free)."""
+    m, n = shape
+    yield [[rs.gauss(0.0, 1.0) for _ in range(n)] for _ in range(m)]
+    yield [[complex(rs.gauss(0.0, 1.0), rs.gauss(0.0, 1.0)) for _ in range(n)]
+           for _ in range(m)]
+
+
+def _gram_singular_values(A):
+    """Reference singular values: sqrt of the (nonneg) eigenvalues of the
+    smaller Gram matrix (AᴴA if n<=m else AAᴴ) via hermitian_eigendecompose."""
+    m, n = len(A), len(A[0])
+    Ah = _conjT(A)
+    G = _matmul(Ah, A) if n <= m else _matmul(A, Ah)
+    w, _ = hermitian_eigendecompose(G)
+    # clamp tiny negatives from rounding (Class-K sign-branch, no abs()).
+    return sorted((math.sqrt(x) if x > 0.0 else 0.0) for x in w)
 
 
 def test_qr_invariants():
-    rng = np.random.default_rng(101)
+    rs = random.Random(101)
     for shape in _SHAPES:
-        for A in _mats(shape, rng):
+        for A in _mats(shape, rs):
             Q, R = qr(A)
-            m, n = A.shape
+            m, n = shape
             k = min(m, n)
-            assert Q.shape == (m, k) and R.shape == (k, n), shape
-            assert np.max(np.abs(Q @ R - A)) <= 1e-9, ("recon", shape)
-            assert np.max(np.abs(np.conj(Q.T) @ Q - np.eye(k))) <= 1e-9, ("orth", shape)
-            if R.size:
-                assert np.max(np.abs(np.tril(R, -1))) <= 1e-9, ("upper", shape)
+            assert len(Q) == m and len(Q[0]) == k, shape
+            assert len(R) == k and len(R[0]) == n, shape
+            # reconstruction Q·R ≈ A
+            assert _max_recon_err2(_matmul(Q, R), A) <= 1e-18, ("recon", shape)
+            # orthonormal Q: Qᴴ·Q ≈ I
+            assert _max_off_identity_err2(_matmul(_conjT(Q), Q)) <= 1e-18, ("orth", shape)
+            # R upper-triangular: strictly-lower entries ≈ 0
+            for i in range(k):
+                for j in range(i):
+                    assert _mag2(R[i][j]) <= 1e-18, ("upper", shape)
 
 
 def test_qr_complete_mode():
-    rng = np.random.default_rng(102)
-    A = rng.standard_normal((6, 3))
+    rs = random.Random(102)
+    A = [[rs.gauss(0.0, 1.0) for _ in range(3)] for _ in range(6)]
     Q, R = qr(A, mode="complete")
-    assert Q.shape == (6, 6) and R.shape == (6, 3)
-    assert np.max(np.abs(Q @ R - A)) <= 1e-9
-    assert np.max(np.abs(Q.T @ Q - np.eye(6))) <= 1e-9
+    assert len(Q) == 6 and len(Q[0]) == 6
+    assert len(R) == 6 and len(R[0]) == 3
+    assert _max_recon_err2(_matmul(Q, R), A) <= 1e-18
+    assert _max_off_identity_err2(_matmul(_conjT(Q), Q)) <= 1e-18
 
 
 def test_qr_invalid_mode():
     with pytest.raises(ValueError):
-        qr(np.eye(3), mode="banana")
+        qr([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], mode="banana")
 
 
 def test_svd_invariants_and_singular_values():
-    rng = np.random.default_rng(103)
+    rs = random.Random(103)
     for shape in _SHAPES:
-        for A in _mats(shape, rng):
+        for A in _mats(shape, rs):
             U, s, Vh = svd(A)
-            m, n = A.shape
+            m, n = shape
             k = min(m, n)
-            assert U.shape == (m, k) and s.shape == (k,) and Vh.shape == (k, n), shape
-            # descending
-            assert np.all(np.diff(s) <= 1e-12), ("descending", shape)
-            assert np.max(np.abs(U @ np.diag(s) @ Vh - A)) <= 1e-8, ("recon", shape)
-            assert np.max(np.abs(np.conj(U.T) @ U - np.eye(k))) <= 1e-8, ("U-orth", shape)
-            assert np.max(np.abs(Vh @ np.conj(Vh.T) - np.eye(k))) <= 1e-8, ("V-orth", shape)
-            # singular VALUES are unique → match numpy
-            s_np = np.linalg.svd(A, compute_uv=False)
-            assert np.max(np.abs(s - s_np)) <= 1e-8, ("sval", shape)
+            assert len(U) == m and len(U[0]) == k, shape
+            assert len(s) == k, shape
+            assert len(Vh) == k and len(Vh[0]) == n, shape
+            # descending, non-negative
+            for i in range(k - 1):
+                assert s[i] - s[i + 1] >= -1e-12, ("descending", shape)
+            assert all(v >= -1e-12 for v in s), ("nonneg", shape)
+            # reconstruction U·diag(s)·Vh ≈ A
+            Us = [[U[i][p] * s[p] for p in range(k)] for i in range(m)]
+            assert _max_recon_err2(_matmul(Us, Vh), A) <= 1e-16, ("recon", shape)
+            # U columns orthonormal: Uᴴ·U ≈ I
+            assert _max_off_identity_err2(_matmul(_conjT(U), U)) <= 1e-16, ("U-orth", shape)
+            # V rows orthonormal: Vh·Vhᴴ ≈ I
+            assert _max_off_identity_err2(_matmul(Vh, _conjT(Vh))) <= 1e-16, ("V-orth", shape)
+            # singular VALUES are unique → match the Gram-eigenvalue oracle.
+            s_ref = _gram_singular_values(A)
+            for a, b in zip(sorted(s), s_ref):
+                assert (a - b) ** 2 <= 1e-16, ("sval", shape)
 
 
 def test_svd_empty():
-    U, s, Vh = svd(np.zeros((0, 3)))
-    assert U.shape == (0, 0) and s.shape == (0,) and Vh.shape == (0, 3)
+    """An empty input returns three empty lists (numpy-free)."""
+    U, s, Vh = svd([])
+    assert U == [] and s == [] and Vh == []
 
 
 def test_svd_full_matrices_not_implemented():
     with pytest.raises(NotImplementedError):
-        svd(np.eye(3), full_matrices=True)
+        svd([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], full_matrices=True)
 
 
 def test_matrix_cascades_no_abs_no_nplinalg():

@@ -7,10 +7,15 @@ length-phi(N) power basis with pure integer arithmetic, and the single FPU lift
 evaluates zeta = e^{-2pi i/N}. Python-only arbitrary-precision (no fixed-width C
 twin) — the bignum_reference shape. dft/fft now route ALL integer / Gaussian-
 integer signals (any N >= 2) through the exact path.
+
+numpy is GONE from srmech — these tests run and pass with numpy NOT installed.
+The lift oracle is a pure-cmath DFT-by-definition; the totient uses math.gcd.
 """
 from __future__ import annotations
 
-import numpy as np
+import cmath
+import math
+
 import pytest
 
 from srmech.amsc.cascade.exact_dft import (
@@ -26,11 +31,28 @@ GENERAL_N = [3, 5, 6, 7, 9, 10, 11, 12, 14, 15, 18, 24]
 
 
 def _int_signal(n, seed):
-    return [int(v) for v in ((np.arange(n) * seed + 3) % 11 - 5)]
+    return [(i * seed + 3) % 11 - 5 for i in range(n)]
 
 
 def _totient(n):
-    return sum(1 for k in range(1, n + 1) if np.gcd(k, n) == 1)
+    return sum(1 for k in range(1, n + 1) if math.gcd(k, n) == 1)
+
+
+def _dft_ref(x, inverse=False):
+    """DFT by definition via cmath: X[k] = Σ_n x[n]·e^{∓2πi·kn/N} (÷N if inverse)."""
+    n = len(x)
+    sign = 1.0 if inverse else -1.0
+    out = []
+    for k in range(n):
+        acc = 0j
+        for idx in range(n):
+            acc += complex(x[idx]) * cmath.exp(sign * 2j * math.pi * k * idx / n)
+        out.append(acc / n if inverse else acc)
+    return out
+
+
+def _max_abs_diff(got, want):
+    return max((abs(complex(g) - complex(w)) for g, w in zip(got, want)), default=0.0)
 
 
 # --- the cyclotomic machinery ---------------------------------------------------
@@ -71,15 +93,13 @@ def test_exact_dft_general_integer_spectrum(n):
         assert len(xr) == deg and len(xi) == deg
         for c in xr + xi:
             assert type(c) is int        # exact integers, no float
-    ref = np.fft.fft(np.array(sig, dtype=float))
-    assert np.max(np.abs(np.array(lift(spec)) - ref)) <= 1e-9
+    assert _max_abs_diff(lift(spec), _dft_ref(sig)) <= 1e-9
 
 
 @pytest.mark.parametrize("n", [6, 9, 10, 12, 15])
 def test_exact_dft_general_gaussian_integer(n):
     sig = [complex(a, b) for a, b in zip(_int_signal(n, 2), _int_signal(n, 7))]
-    ref = np.fft.fft(np.array(sig))
-    assert np.max(np.abs(np.array(lift(exact_dft(sig))) - ref)) <= 1e-9
+    assert _max_abs_diff(lift(exact_dft(sig)), _dft_ref(sig)) <= 1e-9
 
 
 @pytest.mark.parametrize("n", [6, 9, 12, 15])
@@ -91,8 +111,8 @@ def test_exact_dft_general_determinism(n):
 @pytest.mark.parametrize("n", [6, 9, 12])
 def test_general_n_roundtrip(n):
     sig = _int_signal(n, 3)
-    rt = np.fft.ifft(np.array(lift(exact_dft(sig))))
-    assert np.max(np.abs(rt.real - np.array(sig, dtype=float))) <= 1e-9
+    rt = _dft_ref(lift(exact_dft(sig)), inverse=True)
+    assert _max_abs_diff([v.real for v in rt], [float(v) for v in sig]) <= 1e-9
     # exact_idft is exact_dft with the conjugate exponent
     assert exact_idft(sig) == exact_dft(sig, inverse=True)
 
@@ -103,17 +123,15 @@ def test_general_n_roundtrip(n):
 def test_dft_fft_route_general_integer_exact(n):
     sig = _int_signal(n, 6)
     assert _exact_transform(sig) is not None
-    ref = np.fft.fft(np.array(sig, dtype=float))
-    assert np.max(np.abs(np.array(dft(sig)) - ref)) <= 1e-9
+    assert _max_abs_diff(dft(sig), _dft_ref(sig)) <= 1e-9
     # fft falls back to dft for non-power-of-2, so they agree
-    assert np.max(np.abs(np.array(fft(sig)) - np.array(dft(sig)))) <= 1e-12
+    assert _max_abs_diff(fft(sig), dft(sig)) <= 1e-12
 
 
 def test_float_general_n_still_float_path():
     fsig = [0.5, 1.5, 2.5, 3.5, 4.5]       # non-integer N=5 -> float path
     assert _exact_transform(fsig) is None
-    ref = np.fft.fft(np.array(fsig))
-    assert np.max(np.abs(np.array(dft(fsig)) - ref)) <= 1e-9
+    assert _max_abs_diff(dft(fsig), _dft_ref(fsig)) <= 1e-9
 
 
 def test_exact_dft_still_rejects_length_one():

@@ -9,11 +9,12 @@ shot ``(re, 0)`` interleave for real) with **no numpy** on the dispatch path,
 and falls back to a pure-Python triple loop (a cascade, never numpy ``@``) when
 there is no native lib — so the op is unconditionally numpy-free.
 
-These tests pin (a) value correctness vs numpy when numpy is present (the native
-complex kernel is bit-exact), and (b) — the load-bearing claim — that the op
-COMPUTES with numpy genuinely absent, on BOTH the native and fallback paths,
-proved in a subprocess that blocks numpy at ``sys.meta_path`` before the first
-import.
+numpy was REMOVED ENTIRELY from srmech (#564): these tests run + PASS with numpy
+absent. The differential oracle is the textbook triple-loop product over the
+input rows (``Σ_t A[i][t]·B[t][j]``), NOT numpy ``matmul`` / ``@``. The load-bearing
+claim — that the op COMPUTES with numpy genuinely absent, on BOTH the native and
+fallback paths — is proved in a subprocess that blocks numpy at ``sys.meta_path``
+before the first import.
 """
 
 from __future__ import annotations
@@ -29,16 +30,24 @@ from srmech.amsc.laplacian import mat_matmul, LAPLACIAN_OPS
 from srmech.amsc import laplacian as _lap
 from srmech.amsc.mat import Mat
 
-np = pytest.importorskip("numpy")  # the differential checks need numpy present
-
 
 def _oracle(A_rows, B_rows):
+    """Textbook triple-loop product Σ_t A[i][t]·B[t][j] (numpy-free oracle)."""
     m, k, n = len(A_rows), len(A_rows[0]), len(B_rows[0])
     return [
         [sum(complex(A_rows[i][t]) * complex(B_rows[t][j]) for t in range(k))
          for j in range(n)]
         for i in range(m)
     ]
+
+
+def _max_abs_diff(C: Mat, ref) -> float:
+    """max |C[i,j] − ref[i][j]| over a Mat and a list-of-lists oracle."""
+    worst = 0.0
+    for i in range(C.n_rows):
+        for j in range(C.n_cols):
+            worst = max(worst, abs(complex(C[i, j]) - complex(ref[i][j])))
+    return worst
 
 
 def test_mat_matmul_real_value():
@@ -50,23 +59,44 @@ def test_mat_matmul_real_value():
     assert C.tolist() == [[4.0, 5.0], [10.0, 11.0]]
 
 
-def test_mat_matmul_complex_bit_exact_vs_numpy():
+def test_mat_matmul_complex_value_vs_oracle():
     Ac = Mat.from_rows([[1 + 1j, 2 + 0j], [0 + 1j, 1 - 1j]])
     Bc = Mat.from_rows([[1 + 0j, 0 + 1j], [2 - 1j, 1 + 1j]])
     C = mat_matmul(Ac, Bc)
     assert isinstance(C, Mat) and C.is_complex
-    ref = np.array(Ac.tolist()) @ np.array(Bc.tolist())
-    got = np.array(C.tolist())
-    assert np.max(np.abs(got - ref)) < 1e-12  # native complex kernel
+    ref = _oracle(Ac.tolist(), Bc.tolist())  # textbook triple loop, NOT @
+    assert _max_abs_diff(C, ref) < 1e-12
 
 
-def test_mat_matmul_rectangular_random_vs_numpy():
+def test_mat_matmul_rectangular_random_vs_oracle():
     rng_a = [[float((i * 7 + j * 3) % 11 - 5) for j in range(5)] for i in range(4)]
     rng_b = [[float((i * 5 + j * 2) % 9 - 4) for j in range(6)] for i in range(5)]
     C = mat_matmul(Mat.from_rows(rng_a), Mat.from_rows(rng_b))
-    ref = np.array(rng_a) @ np.array(rng_b)
-    assert np.max(np.abs(np.array(C.tolist()) - ref)) < 1e-9
+    ref = _oracle(rng_a, rng_b)
+    assert _max_abs_diff(C, ref) < 1e-9
     assert C.shape == (4, 6)
+
+
+def test_mat_matmul_associativity():
+    # (A·B)·C == A·(B·C) — the defining structural property, oracle-free.
+    A = Mat.from_rows([[1.0, 2.0], [0.0, 1.0], [3.0, -1.0]])  # 3x2
+    B = Mat.from_rows([[2.0, 0.0, 1.0], [1.0, 1.0, 0.0]])     # 2x3
+    C = Mat.from_rows([[1.0, -1.0], [0.0, 2.0], [1.0, 1.0]])  # 3x2
+    left = mat_matmul(mat_matmul(A, B), C)
+    right = mat_matmul(A, mat_matmul(B, C))
+    assert left.shape == right.shape == (3, 2)
+    for i in range(3):
+        for j in range(2):
+            assert abs(left[i, j] - right[i, j]) < 1e-12
+
+
+def test_mat_matmul_identity_is_neutral():
+    # A·I == A and I·A == A.
+    A = Mat.from_rows([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])  # 2x3
+    I3 = Mat.from_rows([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
+    I2 = Mat.from_rows([[1.0, 0.0], [0.0, 1.0]])
+    assert mat_matmul(A, I3).tolist() == A.tolist()
+    assert mat_matmul(I2, A).tolist() == A.tolist()
 
 
 def test_mat_matmul_fallback_matches_native(monkeypatch):
@@ -78,8 +108,10 @@ def test_mat_matmul_fallback_matches_native(monkeypatch):
     monkeypatch.setattr(_lap._native, "HAS_NATIVE", False)
     fallback = mat_matmul(Ac, Bc)
     assert isinstance(fallback, Mat) and fallback.is_complex
-    g, r = np.array(fallback.tolist()), np.array(native.tolist())
-    assert np.max(np.abs(g - r)) < 1e-12
+    assert fallback.shape == native.shape
+    for i in range(native.n_rows):
+        for j in range(native.n_cols):
+            assert abs(complex(fallback[i, j]) - complex(native[i, j])) < 1e-12
 
 
 def test_mat_matmul_shape_mismatch_raises():
@@ -133,9 +165,12 @@ def _run_numpy_free(body: str) -> subprocess.CompletedProcess:
 def test_mat_matmul_computes_numpy_free_native_and_fallback():
     proc = _run_numpy_free(
         """
+        import sys
+        assert "numpy" not in sys.modules
         from srmech.amsc.laplacian import mat_matmul
         from srmech.amsc import laplacian as lap
         from srmech.amsc.mat import Mat
+        assert "numpy" not in sys.modules, "import pulled numpy in"
 
         Ac = Mat.from_rows([[1+1j, 2+0j],[0+1j, 1-1j]])
         Bc = Mat.from_rows([[1+0j, 0+1j],[2-1j, 1+1j]])

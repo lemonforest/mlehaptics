@@ -3,37 +3,34 @@
 v0.7.0rc33 routes the numpy-math calls in the QM layer through srmech's
 own A-N cascade primitives:
 
-- Hermitian eigendecomposition (``np.linalg.eigh`` / ``eigvalsh``) ->
-  the Class-L primitive ``srmech.amsc.laplacian.hermitian_eigendecompose``
-  (the generic so8 / eigvalsh routing path). ``single_particle`` (rc117),
-  ``gauge`` (rc119) and ``potentials`` (rc121) have since been flipped fully
-  numpy-free onto the ``Mat`` carrier (``mat_hermitian_eigendecompose`` + the
-  Class-N ``rational.cexp`` phase), so their cells below build inputs and
-  assert WITHOUT numpy. numpy stays the sanctioned differential oracle only
-  for the still-unflipped GENERIC ``hermitian_eigendecompose`` routing cells
-  (``_assert_eig_parity`` / the eigvalsh-match cell — the so8 use-site that has
-  not been flipped to ``Mat``).
+- Hermitian eigendecomposition -> the Class-L primitive
+  ``srmech.amsc.laplacian.hermitian_eigendecompose`` (the generic so8 /
+  eigvalsh routing path). ``single_particle`` (rc117), ``gauge`` (rc119) and
+  ``potentials`` (rc121) have since been flipped fully numpy-free onto the
+  ``Mat`` carrier (``mat_hermitian_eigendecompose`` + the Class-N
+  ``rational.cexp`` phase), so their cells below build inputs and assert WITHOUT
+  numpy.
 - Standard-Model trig (``math.cos`` / ``math.sin`` / ``math.atan2``) ->
   the substrate-native Class-N rational trig ``srmech.amsc.rational.*``
   (sm).
 
-These tests assert API-level parity: the cascade primitive's eigenvalues
-match ``np.linalg.eigvalsh`` and its eigenvector SUBSPACES match (compared
-by |overlap| and by ``V diag(w) V^H`` reconstruction, since eigenvectors
-are only defined up to sign/phase), and the substrate-native trig matches
-libm at the actual electroweak / CKM angles to within 1e-9. The public QM
-functions that were re-routed are exercised against their pre-change
-(``math`` / ``np.linalg.eigh``) outputs captured live in each test.
+numpy-FREE (#564): numpy is GONE from srmech. ``hermitian_eigendecompose``
+returns plain Python lists; the generic-routing cells therefore use the
+framework's own EXACT ``eigvals_exact`` (integer-entried Hermitian fixtures, so
+its char-poly stays over ℤ) / general ``eigvals`` (complex case) as the
+eigenvalue oracle, and pin the eigenvectors by the basis-INVARIANT
+reconstruction ``H = V·diag(w)·Vᴴ`` and orthonormality — no numpy anywhere.
 """
 
 from __future__ import annotations
 
 import math
+import random
 
-import numpy as np
 import pytest
 
 from srmech.amsc import rational as _srn
+from srmech.amsc.cascade.matrix_cascades import eigvals, eigvals_exact
 from srmech.amsc.laplacian import hermitian_eigendecompose, mat_matmul
 from srmech.amsc.mat import Mat
 from srmech.qm import gauge, potentials, sm, single_particle as sp
@@ -85,42 +82,69 @@ def _matvec_mat(m: "Mat", v):
 # ----------------------------------------------------------------------
 
 
-def _real_symmetric(n: int, seed: int) -> np.ndarray:
-    rng = np.random.default_rng(seed)
-    A = rng.standard_normal((n, n))
-    return (A + A.T) / 2.0
+def _real_symmetric(n: int, seed: int):
+    """Integer-entried real-symmetric matrix (exact-oracle friendly)."""
+    rs = random.Random(seed)
+    A = [[rs.randint(-4, 4) for _ in range(n)] for _ in range(n)]
+    return [[A[i][j] + A[j][i] for j in range(n)] for i in range(n)]
 
 
-def _complex_hermitian(n: int, seed: int) -> np.ndarray:
-    rng = np.random.default_rng(seed)
-    A = rng.standard_normal((n, n)) + 1j * rng.standard_normal((n, n))
-    return (A + A.conj().T) / 2.0
+def _complex_hermitian(n: int, seed: int):
+    """Integer-entried complex-Hermitian matrix (Gaussian-integer entries)."""
+    rs = random.Random(seed)
+    A = [[complex(rs.randint(-4, 4), rs.randint(-4, 4)) for _ in range(n)]
+         for _ in range(n)]
+    return [[(A[i][j] + A[j][i].conjugate()) for j in range(n)] for i in range(n)]
 
 
-def _assert_eig_parity(H: np.ndarray) -> None:
-    """Eigenvalues match eigvalsh; eigenvector subspaces match (phase-free)."""
+def _eig_oracle(H):
+    """Sorted real eigenvalue multiset via the framework's own exact /
+    cascade path (numpy-free). ``eigvals_exact`` is real-only; for a complex
+    Hermitian H its char-poly carries complex-typed coefficients, so the general
+    ``eigvals`` (Class-K shifted-QR, real roots for Hermitian) is the oracle."""
+    is_complex = any(isinstance(x, complex) and x.imag != 0
+                     for row in H for x in row)
+    if is_complex:
+        return sorted(z.real for z in eigvals(H))
+    return sorted(eigvals_exact(H))
+
+
+def _matmul(A, B):
+    m, k, n = len(A), len(B), len(B[0])
+    return [[sum(A[i][p] * B[p][j] for p in range(k)) for j in range(n)]
+            for i in range(m)]
+
+
+def _conj_transpose(A):
+    return [[complex(A[i][j]).conjugate() for i in range(len(A))]
+            for j in range(len(A[0]))]
+
+
+def _assert_eig_parity(H) -> None:
+    """Eigenvalues match the exact/cascade oracle; eigenvectors pinned by the
+    basis-INVARIANT reconstruction + orthonormality (phase/sign-free)."""
+    n = len(H)
     w, V = hermitian_eigendecompose(H)
-    w_ref = np.linalg.eigvalsh(H)
-    # Eigenvalues: ascending, match reference within 1e-9.
-    np.testing.assert_allclose(w, w_ref, atol=1e-9)
-    # Reconstruction H = V diag(w) V^H is phase/sign-invariant.
-    H_rebuilt = V @ np.diag(w) @ V.conj().T
-    np.testing.assert_allclose(H_rebuilt, np.asarray(H, dtype=complex), atol=1e-9)
-    # Columns are orthonormal.
-    np.testing.assert_allclose(V.conj().T @ V, np.eye(H.shape[0]), atol=1e-9)
-    # Subspace overlap with a reference eigenbasis: |V^H V_ref| has ~1 on the
-    # diagonal up to degeneracy. Use eigh's own basis as the reference.
-    _, V_ref = np.linalg.eigh(H)
-    overlap = np.asarray(V).conj().T @ V_ref
-    # squared-magnitudes of the diagonal (value-preserving; no abs()) ~ 1.
-    diag = np.diagonal(overlap)
-    diag_sq = (diag * diag.conj()).real
-    # Non-degenerate eigenvalues -> |overlap| ~ 1 on the diagonal.
-    gaps = np.diff(w)
-    nondegen = np.concatenate(([True], gaps > 1e-6)) & np.concatenate(
-        (gaps > 1e-6, [True])
-    )
-    np.testing.assert_allclose(diag_sq[nondegen], 1.0, atol=1e-7)
+    w_ref = _eig_oracle(H)
+    # Eigenvalues: ascending, match the framework's own oracle within 1e-9.
+    for i in range(n - 1):
+        assert w[i + 1] - w[i] >= -1e-9
+    for i in range(n):
+        assert abs(w[i] - w_ref[i]) < 1e-9
+    # Reconstruction H = V·diag(w)·Vᴴ is phase/sign-invariant.
+    Vd = [[V[i][k] * w[k] for k in range(n)] for i in range(n)]
+    rec = _matmul(Vd, _conj_transpose(V))
+    for i in range(n):
+        for j in range(n):
+            e = rec[i][j] - complex(H[i][j])
+            assert e.real * e.real + e.imag * e.imag < 1e-18
+    # Columns are orthonormal: Vᴴ·V = I.
+    gram = _matmul(_conj_transpose(V), V)
+    for i in range(n):
+        for j in range(n):
+            t = gram[i][j] - (1.0 if i == j else 0.0)
+            tc = complex(t)
+            assert tc.real * tc.real + tc.imag * tc.imag < 1e-18
 
 
 # ----------------------------------------------------------------------
@@ -139,10 +163,13 @@ def test_eig_parity_complex_hermitian(seed):
 
 
 def test_hermitian_eigendecompose_eigenvalues_match_eigvalsh():
-    """Eigenvalues alone (the eigvalsh use-site, e.g. so8) match within 1e-9."""
+    """Eigenvalues alone (the eigvalsh use-site, e.g. so8) match the exact /
+    cascade oracle within 1e-9 — numpy-free."""
     for H in (_real_symmetric(10, 11), _complex_hermitian(9, 12)):
         w, _ = hermitian_eigendecompose(H)
-        np.testing.assert_allclose(np.sort(w), np.linalg.eigvalsh(H), atol=1e-9)
+        w_ref = _eig_oracle(H)
+        for a, b in zip(sorted(w), w_ref):
+            assert abs(a - b) < 1e-9
 
 
 def test_potentials_hydrogen_eigenvectors_real_and_orthonormal():
