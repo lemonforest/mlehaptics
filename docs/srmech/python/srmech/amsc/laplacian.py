@@ -71,19 +71,26 @@ op names for the composition-engine registry.
 C-path bound
 ------------
 
-The C native path operates on ``n ≤ 256`` (caps the stack-allocated
-degree / row-scaling buffers, embedded-safe). When ``HAS_NATIVE`` and
-``n ≤ 256`` the dense build + ``jacobi_eigvals`` dispatch to the C
-symbol **with or without numpy** — the numpy-absent path marshals a flat
-ctypes buffer straight from Python ``list``s (UPSTREAM §38; ``jacobi``
-~49× faster than the pure-Python cascade). For ``n > 256`` (or no native
-lib) srmech's own pure-Python Class-L cascades run. The one numpy-only
-exception is the eigen**vector** decomposition (``hermitian_`` /
-``symmetric_eigendecompose``): it stays the LAPACK ``eigh`` path by design —
-eigenvector sign / degenerate-subspace rotation is non-unique, so
-element-wise C/Python parity is not meaningful (correctness is pinned by
-eigenvalues + reconstruction + orthonormality). Cascade-composition
-use-cases typically stay well under the ``n ≤ 256`` bound.
+Most of the C native surface operates on ``n ≤ MAX_NATIVE_NODES`` (256),
+which caps the stack-allocated / static degree / row-scaling / augmented
+buffers (embedded-safe). When ``HAS_NATIVE`` and ``n ≤ 256`` the dense build
++ ``jacobi_eigvals`` + ``dense_solve`` + ``dense_matvec``/``matmul`` dispatch
+to the C symbol **with or without numpy** — the numpy-absent path marshals a
+flat ctypes buffer straight from Python ``list``s (UPSTREAM §38; ``jacobi``
+~49× faster than the pure-Python cascade). For ``n > 256`` (or no native lib)
+srmech's own pure-Python Class-L cascades run.
+
+The numpy-free Hermitian eigen**vector** decomposition
+(:func:`mat_hermitian_eigendecompose`) is the one path with a HIGHER native
+bound — ``n ≤ MAX_NATIVE_HERMITIAN_NODES`` (2048). It routes through the
+reentrant ``srmech_hermitian_eigendecompose_ws`` C entry, which takes a
+caller-supplied ``2*n*n``-double workspace (allocated as a ctypes buffer here)
+and so has NO 256-sized static/stack array — only a sanity cap. This keeps the
+fast native Jacobi (not the minutes-long pure-Python fallback) reachable for
+QM grid sizes (e.g. a hydrogen radial grid up to ~1000). Eigenvector sign /
+degenerate-subspace rotation is non-unique, so element-wise C/Python parity is
+not meaningful (correctness is pinned by eigenvalues + reconstruction +
+orthonormality).
 """
 
 from __future__ import annotations
@@ -152,10 +159,22 @@ __all__ = [
     "elementwise_sqrt",
     "LAPLACIAN_OPS",
     "MAX_NATIVE_NODES",
+    "MAX_NATIVE_HERMITIAN_NODES",
     "three_fold_eigvec_groups",
 ]
 
 MAX_NATIVE_NODES: int = 256
+
+# Hermitian-eig-only native bound. The reentrant C entry
+# ``srmech_hermitian_eigendecompose_ws`` takes a CALLER-SUPPLIED 2*n*n-double
+# workspace (allocated here as a ctypes buffer), so its native Jacobi path has
+# NO 256-sized stack/static array — it is bounded only by this sanity cap
+# (== C-side SRMECH_HERMITIAN_WS_MAX_NODES = 2048). Every OTHER native path in
+# this module (jacobi_eigvals, dense_solve, dense_matvec/matmul, the non-ws
+# hermitian wrapper) DOES rely on a 256-sized fixed buffer or hard cap and so
+# stays gated by ``MAX_NATIVE_NODES`` = 256. Used ONLY in
+# :func:`mat_hermitian_eigendecompose`'s native-dispatch gate.
+MAX_NATIVE_HERMITIAN_NODES: int = 2048
 
 
 def three_fold_eigvec_groups(L: "np.ndarray") -> dict:
@@ -1684,13 +1703,18 @@ def mat_hermitian_eigendecompose(h: "Mat") -> Tuple["Mat", "Mat"]:
       does).
 
     ``Mat.buffer`` is already the flat interleaved-``(re, im)`` row-major layout
-    the native ``srmech_hermitian_eigendecompose`` reads, so a complex `Mat` feeds
-    the kernel **zero-copy** (``from_buffer``) and a real `Mat` is interleaved
-    ``(re, 0)`` once — **NO numpy** on the native path. With no native lib — or
-    ``n`` > ``MAX_NATIVE_NODES`` (256), or a native convergence miss — the fallback
-    is srmech's own pure-Python **cyclic Jacobi** (:func:`_hermitian_eig_py`,
-    real-symmetric directly / complex-Hermitian via the real ``2n×2n`` embedding),
-    so the op is unconditionally numpy-free.
+    the native ``srmech_hermitian_eigendecompose_ws`` reads, so a complex `Mat`
+    feeds the kernel **zero-copy** (``from_buffer``) and a real `Mat` is
+    interleaved ``(re, 0)`` once — **NO numpy** on the native path. The reentrant
+    ``_ws`` entry takes a caller-supplied ``2*n*n``-double workspace (allocated
+    here as a ctypes buffer), so the fast native Jacobi serves ``n`` up to
+    ``MAX_NATIVE_HERMITIAN_NODES`` (2048) without a 256-sized static/stack
+    buffer; on a lib predating the ``_ws`` symbol it falls back to the older
+    non-ws ``srmech_hermitian_eigendecompose`` for ``n ≤ MAX_NATIVE_NODES``
+    (256). With no native lib — or ``n`` > 2048, or a native convergence miss —
+    the fallback is srmech's own pure-Python **cyclic Jacobi**
+    (:func:`_hermitian_eig_py`, real-symmetric directly / complex-Hermitian via
+    the real ``2n×2n`` embedding), so the op is unconditionally numpy-free.
 
     Correctness is pinned by eigenvalues + reconstruction (``H ≈ V·diag(λ)·Vᴴ``)
     + unitarity (``Vᴴ·V ≈ I``), NOT element-wise parity — an eigenvector is fixed
@@ -1715,9 +1739,32 @@ def mat_hermitian_eigendecompose(h: "Mat") -> Tuple["Mat", "Mat"]:
         )
     if n == 0:
         return Mat(array("d"), 0, 1), Mat(array("d"), 0, 0, is_complex=True)
-    # Native zero-copy path (n ≤ 256): Mat interleaved buffer → C kernel → Mats.
-    if (_native.HAS_NATIVE
-            and _native.LIB is not None
+    # Native zero-copy paths: Mat interleaved buffer → C kernel → Mats.
+    # Preferred: the reentrant ``_ws`` entry takes a caller-supplied 2*n*n
+    # workspace, so the FAST native Jacobi serves n up to
+    # MAX_NATIVE_HERMITIAN_NODES (2048) with no 256-sized static buffer. The
+    # older non-ws ``srmech_hermitian_eigendecompose`` (1 MiB thread-local
+    # static) stays the fallback for n ≤ 256 on libs built before the _ws
+    # symbol existed.
+    have_native = _native.HAS_NATIVE and _native.LIB is not None
+    if (have_native
+            and hasattr(_native.LIB, "srmech_hermitian_eigendecompose_ws")
+            and n <= MAX_NATIVE_HERMITIAN_NODES):
+        h_il = _mat_to_interleaved_cbuf(h, n * n)
+        eigvals_buf = (ctypes.c_double * n)()
+        v_il = (ctypes.c_double * (2 * n * n))()
+        ws_len = 2 * n * n
+        workspace = (ctypes.c_double * ws_len)()
+        rc = _native.LIB.srmech_hermitian_eigendecompose_ws(
+            ctypes.c_uint32(n), h_il, eigvals_buf, v_il,
+            workspace, ctypes.c_size_t(ws_len),
+        )
+        if rc == _native.SRMECH_OK:
+            eigvals = Mat(array("d", eigvals_buf), n, 1)
+            eigvecs = _mat_from_interleaved_cbuf(v_il, n, n, want_complex=True)
+            return eigvals, eigvecs
+        # Non-OK (convergence miss / over-bound) → numpy-free Jacobi fallback.
+    elif (have_native
             and hasattr(_native.LIB, "srmech_hermitian_eigendecompose")
             and n <= MAX_NATIVE_NODES):
         h_il = _mat_to_interleaved_cbuf(h, n * n)

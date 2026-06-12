@@ -388,6 +388,25 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_hermitian_eigendecompose.restype = ctypes.c_int
 
+    # int srmech_hermitian_eigendecompose_ws(uint32_t n,
+    #     const double *H_il, double *out_eigvals,
+    #     double *out_eigvecs_il, double *workspace, size_t ws_len)
+    # Reentrant variant taking a caller-supplied 2*n*n-double workspace,
+    # so the native Jacobi path serves n up to SRMECH_HERMITIAN_WS_MAX_NODES
+    # (2048) without a static/stack buffer. hasattr-guarded (ABI stays 3 —
+    # additive symbol) so a stale ABI-3 lib built before this rc keeps the
+    # rest of the native surface instead of AttributeError-ing here.
+    if hasattr(lib, "srmech_hermitian_eigendecompose_ws"):
+        lib.srmech_hermitian_eigendecompose_ws.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.POINTER(ctypes.c_double),    # H_il
+            ctypes.POINTER(ctypes.c_double),    # out_eigvals (n doubles)
+            ctypes.POINTER(ctypes.c_double),    # out_eigvecs_il (2*n*n)
+            ctypes.POINTER(ctypes.c_double),    # workspace (ws_len doubles)
+            ctypes.c_size_t,                    # ws_len
+        ]
+        lib.srmech_hermitian_eigendecompose_ws.restype = ctypes.c_int
+
     # int srmech_dense_matvec_complex(uint32_t rows, uint32_t cols,
     #     const double *M_il, const double *v_il, double *out_il)
     lib.srmech_dense_matvec_complex.argtypes = [
