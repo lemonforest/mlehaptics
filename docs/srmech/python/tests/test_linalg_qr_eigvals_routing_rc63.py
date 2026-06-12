@@ -84,10 +84,16 @@ def test_eigvals_max_imag_matches_numpy():
 # (so8._orthonormalise), its rank counts the EXACT RREF / float Gram-Schmidt
 # rank, and its nullspace/SVD geometry the numpy-free `mat_svd`; so8 no longer
 # imports `matrix_cascades as _mc` at all (the strictly-stronger numpy-absent
-# guarantee). So so8 is no longer in this dict — only pseudo_hermitian remains.
-_ROUTED = {
-    "qm/pseudo_hermitian.py": r"\bnp\.linalg\.eigvals\s*\(",
-}
+# guarantee). So so8 is no longer in this dict.
+# NOTE (rc124, carrier-removal #564): qm/pseudo_hermitian.py was the LAST entry
+# and likewise GRADUATED to fully numpy-FREE — its general non-Hermitian eig (for
+# the η = (V V†)⁻¹ construction) now routes through the Mat-carrier `mat_eigvals`
+# + a deterministic Gaussian-elimination null-vector eigenvector cascade, and it
+# no longer imports `matrix_cascades as _mc`. With every formerly-routed module
+# now numpy-absent, this dict is empty — the residual-callsite guard is satisfied
+# vacuously, and the per-module numpy-free guarantee is enforced by the carrier
+# ratchet + the per-op numpy-free-reachable tests instead.
+_ROUTED: dict = {}
 
 
 def test_routed_modules_have_no_residual_callsites():

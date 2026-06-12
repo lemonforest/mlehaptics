@@ -27,6 +27,17 @@ commuting with the antiunitary PT operator. Under unbroken PT symmetry,
 PT-symmetric Hamiltonians have real spectra and admit an η of the form
 η = C P (with C the "C operator").
 
+**Carrier (v0.7.5rc124, #564):** numpy-free. Matrices are the framework-native
+2-D :class:`srmech.amsc.mat.Mat`; state vectors are plain ``complex`` lists
+(``Mat`` is 2-D only). Every linear-algebra step routes through the Class-L
+``mat_*`` family — ``mat_matmul`` for the matvec/sandwich/Gram contractions,
+``mat_eigvals`` for the spectrum, ``mat_solve`` for the (well-conditioned HPD)
+metric inverse — and ``mat_norm`` for residuals. The η construction needs the
+eigen*vectors* of a general (non-Hermitian, real-spectrum) operator: each is the
+null vector of ``O − λI`` computed by deterministic Gaussian elimination (no
+ill-conditioned shifted solve). Class-K magnitudes use an explicit sign-branch
+(no ``abs()``).
+
 Canonical SSoT:
 
 - Bender, C.M. & Boettcher, S. (1998) *Phys. Rev. Lett.* 80, 5243-5246.
@@ -38,20 +49,48 @@ Canonical SSoT:
 
 from __future__ import annotations
 
-import numpy as np
-from srmech.amsc.cascade import matrix_cascades as _mc
-from typing import Tuple
+from typing import List, Sequence
 
-from srmech.amsc.laplacian import (
-    _dense_solve_complex,
-    dense_dot_complex,
-    dense_matmul_complex,
-    dense_matvec_complex,
-    dense_norm,
-)
+from srmech.amsc.mat import Mat
+from srmech.amsc.laplacian import mat_eigvals, mat_matmul, mat_norm, mat_solve
 
 
-def inner_product_eta(a: np.ndarray, b: np.ndarray, eta: np.ndarray) -> complex:
+def _as_mat(m) -> "Mat":
+    """Coerce a ``Mat`` (passthrough) or a list-of-rows into a complex ``Mat``."""
+    if isinstance(m, Mat):
+        return m
+    return Mat.from_rows([[complex(x) for x in row] for row in m], is_complex=True)
+
+
+def _sqmod(z: complex) -> float:
+    """Squared modulus |z|² = re²+im² — a Class-K magnitude with no ``abs()``."""
+    re = z.real
+    im = z.imag
+    return re * re + im * im
+
+
+def _matvec(m: "Mat", v: Sequence[complex]) -> List[complex]:
+    """Class-L matvec ``m·v`` over a plain complex list (Mat is 2-D only)."""
+    n_rows, n_cols = m.shape
+    assert n_cols == len(v), "matvec: shape mismatch"
+    return [sum((m[i, j] * v[j] for j in range(n_cols)), 0j) for i in range(n_rows)]
+
+
+def _dagger_dot(a: Sequence[complex], w: Sequence[complex]) -> complex:
+    """Class-L sesquilinear dot ``aᴴ·w = Σ conj(aᵢ)·wᵢ``."""
+    assert len(a) == len(w), "dot: length mismatch"
+    return sum((a[i].conjugate() * w[i] for i in range(len(a))), 0j)
+
+
+def _im_magnitude(z: complex) -> float:
+    """|Im z| via an explicit Class-K sign-branch (no ``abs()``)."""
+    im = z.imag
+    return im if im >= 0.0 else -im
+
+
+def inner_product_eta(
+    a: Sequence[complex], b: Sequence[complex], eta
+) -> complex:
     """η-deformed inner product ``⟨a|b⟩_η = ⟨a| η |b⟩``.
 
     For ``η = I`` reduces to the standard Hilbert-space inner product.
@@ -62,165 +101,226 @@ def inner_product_eta(a: np.ndarray, b: np.ndarray, eta: np.ndarray) -> complex:
     eq 2.6.
 
     Args:
-        a, b: State vectors (same length).
-        eta: Positive operator (n × n).
+        a, b: State vectors (plain complex sequences, same length).
+        eta: Positive operator (n × n :class:`Mat` or list-of-rows).
 
     Returns:
-        Complex scalar ``a^† η b``.
+        Complex scalar ``aᴴ η b``.
 
     Raises:
         ValueError: shape mismatch.
     """
-    a = np.asarray(a)
-    b = np.asarray(b)
-    eta = np.asarray(eta)
-    if a.shape != b.shape or a.ndim != 1:
+    eta = _as_mat(eta)
+    if len(a) != len(b):
         raise ValueError(
-            f"inner_product_eta: a, b must be 1-D vectors of same length; "
-            f"got a={a.shape}, b={b.shape}"
+            f"inner_product_eta: a, b must be vectors of same length; "
+            f"got a={len(a)}, b={len(b)}"
         )
-    if eta.shape != (a.shape[0], a.shape[0]):
+    n = len(a)
+    if eta.shape != (n, n):
         raise ValueError(
-            f"inner_product_eta: eta must be ({a.shape[0]}, {a.shape[0]}); "
-            f"got {eta.shape}"
+            f"inner_product_eta: eta must be ({n}, {n}); got {eta.shape}"
         )
-    # ⟨a|η|b⟩ = aᴴ·(η·b): Class-L matvec then Class-L bilinear dot (cascade).
-    return dense_dot_complex(a.conj(), dense_matvec_complex(eta, b))
+    # ⟨a|η|b⟩ = aᴴ·(η·b): Class-L matvec then Class-L sesquilinear dot.
+    return _dagger_dot(a, _matvec(eta, b))
 
 
-def expectation_eta(O: np.ndarray, psi: np.ndarray, eta: np.ndarray) -> complex:
+def expectation_eta(O, psi: Sequence[complex], eta) -> complex:
     """η-expectation value ``⟨O⟩_η = ⟨ψ|η O|ψ⟩ / ⟨ψ|η|ψ⟩``.
 
     Canonical SSoT: Mostafazadeh (2002) *J. Math. Phys.* 43, 205-214,
     eq 3.6.
 
     Args:
-        O: Operator (n × n).
-        psi: State vector (n).
+        O: Operator (n × n :class:`Mat` or list-of-rows).
+        psi: State vector (plain complex sequence, length n).
         eta: Metric operator (n × n).
 
     Returns:
         Complex expectation value (real for η-pseudo-Hermitian O).
     """
-    psi = np.asarray(psi)
-    O = np.asarray(O)
-    eta = np.asarray(eta)
-    if psi.ndim != 1 or O.shape != (psi.shape[0], psi.shape[0]):
+    O = _as_mat(O)
+    eta = _as_mat(eta)
+    n = len(psi)
+    if O.shape != (n, n):
         raise ValueError(
-            f"expectation_eta: psi must be 1-D and O must be ({psi.shape[0]}, "
-            f"{psi.shape[0]}); got O={O.shape}, psi={psi.shape}"
+            f"expectation_eta: psi length {n} and O must be ({n}, {n}); "
+            f"got O={O.shape}"
         )
     if eta.shape != O.shape:
         raise ValueError(
             f"expectation_eta: eta must match O shape {O.shape}; got {eta.shape}"
         )
     # ⟨ψ|ηO|ψ⟩ / ⟨ψ|η|ψ⟩ — each contraction is a Class-L matvec/dot cascade.
-    numerator = dense_dot_complex(
-        psi.conj(), dense_matvec_complex(eta, dense_matvec_complex(O, psi))
-    )
-    denominator = dense_dot_complex(psi.conj(), dense_matvec_complex(eta, psi))
+    numerator = _dagger_dot(psi, _matvec(eta, _matvec(O, psi)))
+    denominator = _dagger_dot(psi, _matvec(eta, psi))
     return complex(numerator / denominator)
 
 
-def is_pseudo_hermitian(
-    O: np.ndarray, eta: np.ndarray, atol: float = 1e-10
-) -> bool:
+def is_pseudo_hermitian(O, eta, atol: float = 1e-10) -> bool:
     """Check ``O† η = η O`` (η-pseudo-Hermiticity).
 
     Canonical SSoT: Mostafazadeh (2002) *J. Math. Phys.* 43, 205-214,
     eq 2.4 (definition).
 
     Args:
-        O: Operator (n × n).
+        O: Operator (n × n :class:`Mat` or list-of-rows).
         eta: Metric operator (n × n).
         atol: Frobenius-norm absolute tolerance for the residual.
 
     Returns:
         True if ``‖O† η - η O‖ < atol``.
     """
-    O = np.asarray(O)
-    eta = np.asarray(eta)
-    if O.shape != eta.shape or O.ndim != 2 or O.shape[0] != O.shape[1]:
+    O = _as_mat(O)
+    eta = _as_mat(eta)
+    if O.shape != eta.shape or O.shape[0] != O.shape[1]:
         raise ValueError(
             f"is_pseudo_hermitian: O and eta must be same-shape square "
             f"matrices; got O={O.shape}, eta={eta.shape}"
         )
-    residual = dense_matmul_complex(O.conj().T, eta) - dense_matmul_complex(eta, O)
-    return float(dense_norm(residual)) < atol
+    n = O.shape[0]
+    lhs = mat_matmul(O.conj().T, eta)   # O† η
+    rhs = mat_matmul(eta, O)            # η O
+    residual = Mat.from_rows(
+        [[lhs[i, j] - rhs[i, j] for j in range(n)] for i in range(n)],
+        is_complex=True,
+    )
+    return float(mat_norm(residual)) < atol
 
 
-def construct_eta_from_eigendecomposition(
-    O: np.ndarray, atol: float = 1e-10
-) -> np.ndarray:
+def _null_vector(rows: List[List[complex]], n: int) -> List[complex]:
+    """A null vector of the (rank-(n−1)) matrix ``rows`` via Gaussian elimination.
+
+    For an operator with a simple eigenvalue λ, ``O − λI`` has a one-dimensional
+    null space spanned by the eigenvector. Reduced row echelon form over ℂ with
+    squared-modulus pivot selection (Class-K magnitude, no ``abs()``) identifies
+    the single free column; back-substitution yields the eigenvector. Avoids the
+    ill-conditioned shifted-inverse solve entirely (the matrix is reduced, not
+    inverted).
+    """
+    a = [list(r) for r in rows]
+    # Pivot-acceptance threshold relative to the matrix scale.
+    scale = max((_sqmod(a[i][j]) for i in range(n) for j in range(n)), default=1.0)
+    tol = scale * (1e-9 ** 2)
+    pivot_cols: List[int] = []
+    row = 0
+    for col in range(n):
+        if row >= n:
+            break
+        best = row
+        best_mag = _sqmod(a[row][col])
+        for r in range(row + 1, n):
+            mag = _sqmod(a[r][col])
+            if mag > best_mag:
+                best_mag = mag
+                best = r
+        if best_mag <= tol:
+            continue  # no usable pivot in this column → free variable
+        a[row], a[best] = a[best], a[row]
+        piv = a[row][col]
+        a[row] = [x / piv for x in a[row]]
+        for r in range(n):
+            if r != row and _sqmod(a[r][col]) > 0.0:
+                f = a[r][col]
+                a[r] = [a[r][j] - f * a[row][j] for j in range(n)]
+        pivot_cols.append(col)
+        row += 1
+    free = [c for c in range(n) if c not in pivot_cols]
+    fc = free[0] if free else n - 1
+    v: List[complex] = [0j] * n
+    v[fc] = 1.0 + 0j
+    for i, col in enumerate(pivot_cols):
+        v[col] = -a[i][fc]
+    return v
+
+
+def construct_eta_from_eigendecomposition(O, atol: float = 1e-10):
     """Construct η so that ``O`` is η-pseudo-Hermitian via eigendecomposition.
 
     For diagonalizable ``O`` with eigenvectors ``V`` (columns), the
-    canonical positive η is ``η = (V V^†)^{-1}``. Then ``O† η = η O``
-    by direct computation when O has a complete eigenbasis.
+    canonical positive η is ``η = (V V†)^{-1}``. Then ``O† η = η O``
+    by direct computation when O has a complete eigenbasis (and the identity
+    holds for any column scaling of V).
 
     Canonical SSoT: Mostafazadeh (2002) *J. Math. Phys.* 43, 2814-2816
     eq 2.7-2.10 (η construction from eigenbasis).
 
     Args:
-        O: Diagonalizable operator (n × n). Must have all eigenvalues
-            real for η to be positive.
-        atol: Tolerance for accepting the result as η-pseudo-Hermitian.
+        O: Diagonalizable operator (n × n :class:`Mat` or list-of-rows). Must
+            have all eigenvalues real for η to be positive.
+        atol: Tolerance for accepting an eigenvalue's imaginary part as zero.
 
     Returns:
-        Hermitian η satisfying ``O† η = η O`` (verified up to atol).
+        Hermitian η (:class:`Mat`) satisfying ``O† η = η O``.
 
     Raises:
-        ValueError: O is defective or has complex spectrum (rejects;
-            non-positive η would not produce a usable inner product).
+        ValueError: O has complex spectrum (rejects; non-positive η would not
+            produce a usable inner product).
     """
-    O = np.asarray(O)
-    if O.ndim != 2 or O.shape[0] != O.shape[1]:
+    O = _as_mat(O)
+    if O.shape[0] != O.shape[1]:
         raise ValueError(
             f"construct_eta_from_eigendecomposition: O must be square; "
             f"got {O.shape}"
         )
-    eigvals, V = np.linalg.eig(O)
-    # Class-K magnitude via explicit sign-branch (no abs()); .imag is real.
-    _im_mag = np.where(eigvals.imag >= 0.0, eigvals.imag, -eigvals.imag)
-    if np.max(_im_mag) > atol:
+    n = O.shape[0]
+    eigvals = mat_eigvals(O)
+    max_im = max((_im_magnitude(lam) for lam in eigvals), default=0.0)
+    if max_im > atol:
         raise ValueError(
             f"construct_eta_from_eigendecomposition: O has complex spectrum "
-            f"(max |Im λ| = {np.max(_im_mag)}); η would not be "
-            "positive definite"
+            f"(max |Im λ| = {max_im}); η would not be positive definite"
         )
-    # η = (V V†)^{-1} makes O η-pseudo-Hermitian. The complex inverse is the
-    # complex solve (V V†)·η = I — routed onto the real 2n×2n block embedding
-    # of the native Class-L dense_solve (V V† is HPD ⟹ well-conditioned ⟹
-    # value-faithful to NumPy's inv).
-    gram = dense_matmul_complex(V, V.conj().T)
-    eta = _dense_solve_complex(gram, np.eye(gram.shape[0], dtype=np.complex128))
-    # Symmetrize (rounding fixup).
-    eta = (eta + eta.conj().T) / 2.0
-    return eta
+    o_rows = [[O[i, j] for j in range(n)] for i in range(n)]
+    # V columns = eigenvectors (null vector of O − λI, real part of λ used —
+    # the spectrum is real to within atol).
+    cols: List[List[complex]] = []
+    for lam in eigvals:
+        shifted = [
+            [o_rows[i][j] - (lam.real if i == j else 0.0) for j in range(n)]
+            for i in range(n)
+        ]
+        cols.append(_null_vector(shifted, n))
+    v = Mat.from_rows(
+        [[cols[j][i] for j in range(n)] for i in range(n)], is_complex=True
+    )
+    # η = (V V†)^{-1}: V V† is HPD (simple spectrum ⟹ V invertible) ⟹ the solve
+    # is well-conditioned (no rank-deficiency, unlike a general companion solve).
+    gram = mat_matmul(v, v.conj().T)
+    identity = Mat.from_rows(
+        [[1.0 + 0j if i == j else 0j for j in range(n)] for i in range(n)],
+        is_complex=True,
+    )
+    eta = mat_solve(gram, identity)
+    # Symmetrize (rounding fixup): η ← (η + η†)/2.
+    eta_h = eta.conj().T
+    return Mat.from_rows(
+        [[(eta[i, j] + eta_h[i, j]) / 2.0 for j in range(n)] for i in range(n)],
+        is_complex=True,
+    )
 
 
-def pseudo_hermitian_eigenvalues_real(
-    O: np.ndarray, eta: np.ndarray, atol: float = 1e-10
-) -> bool:
+def pseudo_hermitian_eigenvalues_real(O, eta, atol: float = 1e-10) -> bool:
     """Verify η-pseudo-Hermitian ``O`` has all real eigenvalues.
 
     Theorem (Mostafazadeh 2002): if ``O† η = η O`` with positive η, then
     O has real eigenvalues. This function checks the spectrum directly.
 
     Args:
-        O: Operator (n × n).
+        O: Operator (n × n :class:`Mat` or list-of-rows).
         eta: Metric operator.
         atol: Maximum allowed imaginary part for any eigenvalue.
 
     Returns:
         True if the spectrum is real (and O is η-pseudo-Hermitian).
     """
+    O = _as_mat(O)
+    eta = _as_mat(eta)
     if not is_pseudo_hermitian(O, eta, atol=atol):
         return False
-    eigvals = _mc.eigvals(O)
-    # Class-K magnitude via explicit sign-branch (no abs()); .imag is real.
-    _im_mag = np.where(eigvals.imag >= 0.0, eigvals.imag, -eigvals.imag)
-    return bool(np.max(_im_mag) < atol)
+    eigvals = mat_eigvals(O)
+    max_im = max((_im_magnitude(lam) for lam in eigvals), default=0.0)
+    return bool(max_im < atol)
 
 
 __all__ = [

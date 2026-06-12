@@ -411,7 +411,22 @@ def _is_numpy_import(line: str) -> bool:
 # carrier); propagators ADDED to the flipped-and-exercised list. The remaining 4
 # carriers are EXACTLY: mcp/_coercion.py, qm/pseudo_hermitian.py,
 # signal_processing/closed_form_ops/ica_jade.py, spectral/__init__.py. 5 -> 4.
-CEIL_NUMPY_CARRIER = 4
+# rc124 (#564): qm/pseudo_hermitian.py (η-pseudo-Hermitian / PT-symmetric
+# framework) flips numpy-free — the LAST qm carrier, so `srmech.qm` is now fully
+# numpy-free. Matrices ride the Mat carrier, vectors are plain complex lists; the
+# η = (V V†)⁻¹ construction needs the general non-Hermitian eigenVECTORS, each
+# computed as the null vector of `O − λI` (deterministic Gaussian elimination,
+# squared-modulus pivots, no abs()) over the eigenvalues from `mat_eigvals`, with
+# the HPD Gram inverse via `mat_solve` (well-conditioned, no singular-solve). It
+# is a LEAF (only tool_schema metadata + qm/__init__ re-export consume it).
+# test_qm_pseudo_hermitian.py rewritten numpy-FREE. CI-GUARD: the pure-wheel
+# must-raise [scientific]-hint example moved pseudo_hermitian -> ica_jade
+# (`from srmech.signal_processing.closed_form_ops import ica_jade`, which still
+# emits the hint via the closed_form_ops lazy package gate — a real remaining
+# carrier); pseudo_hermitian ADDED to the flipped-and-exercised list. The
+# remaining 3 carriers are EXACTLY: mcp/_coercion.py,
+# signal_processing/closed_form_ops/ica_jade.py, spectral/__init__.py. 4 -> 3.
+CEIL_NUMPY_CARRIER = 3
 
 
 def _srmech_root() -> pathlib.Path:
