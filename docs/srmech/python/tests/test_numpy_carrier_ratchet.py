@@ -305,7 +305,23 @@ def _is_numpy_import(line: str) -> bool:
 # comparison). The roadmap-paired `single_particle` is SPLIT to its own later
 # rc (design-heavy: matrix-exponential `V·diag(e^{−iEₜ})·V†` via the complex
 # diagonal from `rational` trig — "don't rush, split on wobble"). 13 -> 12.
-CEIL_NUMPY_CARRIER = 12
+#
+# rc117 (#564): `qm/single_particle.py` (TDSE/TISE/Heisenberg/commutator/density-
+# matrix/Liouville-vN) flips numpy-free — the design-heavy one split out of rc116.
+# Working matrices are held in `Mat`; every linear-algebra step routes through the
+# Class-L `mat_*` family (`mat_matmul` for matmul / matvec-via-column / outer-via-
+# column·row, `mat_hermitian_eigendecompose` for the eigenbasis), and the per-mode
+# time-evolution phase `e^{-iλt}` is the Class-N Euler cascade `rational.cexp`
+# (NOT `np.exp`). State vectors are plain `complex` lists (`Mat` is 2-D only).
+# The only srmech-side consumer is `tool_schema` registration metadata (strings,
+# no call — no boundary coercion). Three test files rewritten numpy-FREE:
+# test_qm_single_particle.py (physical-identity assertions — norm / energy / trace
+# / hermiticity / unitarity preservation, deterministic PRNG, `rational` oracle);
+# the two single_particle tests in test_qm_cascade_routing_rc33.py; and the
+# cross-module test_qm_potentials.py harmonic-oscillator TDSE test (potentials'
+# numpy H bridged to `Mat` at the flipped-op boundary, assertion numpy-free).
+# 12 -> 11.
+CEIL_NUMPY_CARRIER = 11
 
 
 def _srmech_root() -> pathlib.Path:

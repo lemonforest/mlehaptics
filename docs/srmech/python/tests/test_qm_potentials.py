@@ -5,6 +5,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from srmech.amsc import rational as _srn
+from srmech.amsc.mat import Mat
 from srmech.qm import potentials, single_particle
 
 
@@ -106,15 +108,24 @@ def test_hydrogen_radial_invalid_n_grid():
 
 
 def test_harmonic_oscillator_tdse_consistency():
-    """Eigenstate evolves with phase exp(-iE_n t) under TDSE on H."""
+    """Eigenstate evolves with phase exp(-iE_n t) under TDSE on H.
+
+    ``potentials`` is still a numpy carrier (unflipped), so its Hamiltonian
+    comes back as numpy and is bridged to a ``Mat`` at the flipped
+    ``single_particle.tdse_evolve`` boundary (numpy → Mat once); the TDSE
+    exercise + assertion are then numpy-FREE (the Class-N ``rational.cexp``
+    phase as the reference, direct list compare) per the carrier-removal
+    discipline (single_particle is numpy-free as of rc117, #564)."""
     n_dim = 20
     omega = 1.5
-    H = potentials.harmonic_oscillator_hamiltonian(n_dim=n_dim, omega=omega)
-    # Use the n=3 Fock state.
-    psi = np.zeros(n_dim, dtype=complex)
-    psi[3] = 1.0
+    H_np = potentials.harmonic_oscillator_hamiltonian(n_dim=n_dim, omega=omega)
+    H = Mat.from_rows(H_np.tolist(), is_complex=True)   # numpy→Mat at the flipped-op boundary
+    # Use the n=3 Fock state, as a plain complex vector.
+    psi = [0j] * n_dim
+    psi[3] = 1.0 + 0j
     E_expected = omega * (3 + 0.5)
     for t in (0.5, 1.0, 2.5):
         psi_t = single_particle.tdse_evolve(H, psi, t)
-        expected = np.exp(-1j * E_expected * t) * psi
-        np.testing.assert_allclose(psi_t, expected, atol=1e-12)
+        phase = _srn.cexp(-(E_expected * t))            # e^{-iE t} (Class-N cascade)
+        expected = [phase * psi[i] for i in range(n_dim)]
+        assert max(abs(psi_t[i] - expected[i]) for i in range(n_dim)) < 1e-9
