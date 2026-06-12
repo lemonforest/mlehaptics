@@ -30,7 +30,7 @@ version = "0.7.5rc126"
 # Keep this string ASCII-only and under ~480 chars to leave headroom.
 # A guard in `.github/workflows/srmech-publish.yml` pins this at
 # build time. Must agree with `pyproject-pure.toml`.
-description = "Stored-Relationship Mechanism: the 14-class A-N primitive vocabulary in native C + Python, numpy-optional. Every continuous-math op (trig, exp, sqrt, FFT, SVD, eig) is a cascade of the 14; the native build holds no libm. The One, S(sigma,theta), generates the 1+3+7+3 = 14 substrate -- the C/H/O Hurwitz ladder = so(8) + Spin(8) triality (Fix(tau)=g_2=14), bit-exact cascade-vs-matrix. Full C/Python cascade-catalog parity; AMSC (MPR v1)."
+description = "Stored-Relationship Mechanism: the 14-class A-N primitive vocabulary in native C + Python, numpy-FREE. Every continuous-math op (trig, exp, sqrt, FFT, SVD, eig) is a cascade of the 14; the native build holds no libm. The One, S(sigma,theta), generates the 1+3+7+3 = 14 substrate -- the C/H/O Hurwitz ladder = so(8) + Spin(8) triality (Fix(tau)=g_2=14), bit-exact cascade-vs-matrix. Full C/Python cascade-catalog parity; AMSC (MPR v1)."
 # The PyPI long-description (readme) is assembled dynamically by the
 # fancy-pypi-readme hook (block below): full README.md + a Changelog
 # section sliced to the CURRENT-MINOR (0.7.0) entries only + a
@@ -70,19 +70,16 @@ classifiers = [
 # 3.10 path requires `tomli` (declared as a conditional dep here).
 dependencies = [
     "tomli>=2.0; python_version<'3.11'",
-    # numpy is OPTIONAL as of v0.7.0 (the `scientific` extra below). The §22 +
-    # C-transpile arcs made the Class-N cascade core (srmech.amsc.* + the native
-    # C surface) numpy-free; numpy now backs only the scientific tier
-    # (srmech.qm.* / srmech.signal_processing.*). `pip install 'srmech'` is
-    # numpy-free; `pip install 'srmech[scientific]'` pulls it back in.
+    # numpy is GONE (#564, v0.7.5): the WHOLE package — the Class-N cascade core,
+    # qm.* / signal_processing.* / rbs_lm.*, and the native C surface — is
+    # numpy-free. Every continuous-math op is a cascade of the 14 over plain
+    # Python lists / the numpy-free `Mat` carrier (native-dispatched via ctypes,
+    # no numpy). `pip install srmech` pulls NO numpy, and `import srmech` + the
+    # whole API run with numpy not installed at all.
 ]
 
 [project.optional-dependencies]
-# Scientific extra (v0.7.0rc48 — the numpy-optional capstone): numpy backs the
-# array-numerical scientific tier (srmech.qm.* + srmech.signal_processing.* +
-# srmech.rbs_lm.*). The Class-N cascade core runs without it; importing a
-# scientific-tier subpackage without this extra raises an actionable hint.
-scientific = ["numpy>=1.24"]
+# (#564: the `scientific = ["numpy"]` extra is GONE — there is no numpy tier.)
 # Validation extra: enables strict per-source JSON Schema checks
 # inside `validate_mpr_record` when `data_schemas` is supplied.
 validation = ["jsonschema>=4.0"]
@@ -94,9 +91,9 @@ collectors = [
     "requests>=2.28",
     "beautifulsoup4>=4.11",
 ]
-# Tests extra: runs srmech's own pytest suite (which exercises the scientific
-# tier, so it pulls numpy — keep the suite runnable from this extra alone).
-tests = ["pytest>=7.0", "numpy>=1.24"]
+# Tests extra: runs srmech's own pytest suite. numpy-FREE (#564) — the suite
+# itself runs with numpy NOT installed (no numpy oracle, no numpy fixtures).
+tests = ["pytest>=7.0"]
 # Crypto extra (v0.5.0rc7): enables UTLP-exact AES-128-CTR Bio-TOTP
 # backend for the bus wire cipher (Claim 255). Without this extra
 # the bus falls back to a stdlib HMAC-SHA-256 keystream of the same
@@ -112,11 +109,10 @@ crypto = ["cryptography>=41.0"]
 # (no API key, billing handled by Claude Code Max plan) and never
 # need this extra. Install with ``pip install srmech[anthropic]``.
 anthropic = ["anthropic>=0.40.0"]
-# Dev extra: everything plus build tooling. Includes numpy because the full
-# pytest suite exercises the scientific tier (srmech.qm.* / signal_processing.*).
+# Dev extra: everything plus build tooling. numpy-FREE (#564) — the full pytest
+# suite runs numpy-absent, so no numpy here either.
 dev = [
     "pytest>=7.0",
-    "numpy>=1.24",
     "build",
     "twine",
     "scikit-build-core>=0.10",
