@@ -324,52 +324,6 @@ def magnitude(x: float) -> float:
     return pin_slot_at_zero(x)[1]
 
 
-def _try_native_chiral_flip_ndarray(arr):
-    """Native dispatch for numpy int64 / float64 ndarrays.
-
-    Returns the reversed ndarray on success, or ``None`` if the native
-    path is unavailable / the dtype is unsupported / a status error
-    surfaced (in which case the caller falls back to Python).
-    """
-    if not (_native.HAS_NATIVE and _native.LIB is not None):
-        return None
-    if not (hasattr(arr, "dtype") and hasattr(arr, "ndim")):
-        return None
-    if arr.ndim != 1:
-        return None
-    dtype = arr.dtype
-    if dtype.itemsize != 8 or dtype.kind not in ("i", "f"):
-        return None
-    # numpy is a hard dep from v0.4.0rc2 onward; import is safe here.
-    import numpy as _np
-    if dtype.kind == "i" and dtype != _np.int64:
-        return None
-    if dtype.kind == "f" and dtype != _np.float64:
-        return None
-    if not hasattr(_native.LIB, "srmech_cascade_chiral_flip_i64"):
-        return None
-    n = int(arr.shape[0])
-    # Ensure C-contiguous so the ctypes pointer addresses element-stride
-    # rather than the original (potentially non-contiguous) layout.
-    src = _np.ascontiguousarray(arr)
-    out = _np.empty_like(src)
-    if dtype.kind == "i":
-        c_in = src.ctypes.data_as(ctypes.POINTER(ctypes.c_int64))
-        c_out = out.ctypes.data_as(ctypes.POINTER(ctypes.c_int64))
-        rc = _native.LIB.srmech_cascade_chiral_flip_i64(
-            c_in, ctypes.c_size_t(n), c_out,
-        )
-    else:
-        c_in = src.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-        c_out = out.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-        rc = _native.LIB.srmech_cascade_chiral_flip_f64(
-            c_in, ctypes.c_size_t(n), c_out,
-        )
-    if rc != _native.SRMECH_OK:
-        return None
-    return out
-
-
 def _try_native_chiral_flip_list(seq):
     """Native dispatch for homogeneous list[int] / list[float] / tuple.
 
@@ -450,119 +404,14 @@ def chiral_flip(seq):
         ``seq[::-1]`` — the orientation-reversed sequence, type preserved.
     """
     if _is_pub(): _emit("cascade.chiral_flip", class_="C", input_shape=_shape(seq))
-    # Native path 1: numpy ndarray. Detect via duck-typing on dtype/ndim so
-    # we don't pay an unconditional numpy import for non-array callers.
-    if hasattr(seq, "dtype") and hasattr(seq, "ndim"):
-        native = _try_native_chiral_flip_ndarray(seq)
-        if native is not None:
-            return native
-    # Native path 2: homogeneous int64 / float64 list / tuple.
-    elif isinstance(seq, (list, tuple)):
+    # Native path: homogeneous int64 / float64 list / tuple → numpy-free ctypes
+    # marshal (#564: numpy gone — no ndarray inputs, so no ndarray fast-path).
+    if isinstance(seq, (list, tuple)):
         native = _try_native_chiral_flip_list(seq)
         if native is not None:
             return native
     # Python fallback — preserves the original public API exactly.
     return seq[::-1]
-
-
-def _try_native_chiral_dual(op, x):
-    """Native dispatch for chiral_dual (Class C ∘ op ∘ Class C).
-
-    Dispatches through the rc8 callback ABI when ``x`` is a homogeneous
-    float64 sequence (list / tuple / 1-D ndarray). The Python ``op``
-    callable is wrapped as a ctypes CFUNCTYPE; the callback marshals
-    Python ↔ C via numpy view + ctypes.memmove.
-
-    Returns the chirally-dual result on success or ``None`` to signal
-    the caller to fall through to the Python composition path. If the
-    Python op raises an exception inside the callback, the exception is
-    captured and re-raised on the Python side (after the C function
-    returns); the native path is NOT silently treated as a fall-through
-    in that case.
-    """
-    if not (_native.HAS_NATIVE and _native.LIB is not None):
-        return None
-    if not hasattr(_native.LIB, "srmech_cascade_chiral_dual_f64"):
-        return None
-    if not callable(op):
-        return None
-    # The native chiral_dual marshals C buffers through numpy views for the
-    # Python callback, so this accel path needs numpy. With numpy ABSENT
-    # (UPSTREAM §22 numpy-optional core), degrade to the pure-Python fallback
-    # rather than crash — the other ``_try_native_*`` helpers already return
-    # None before touching numpy for non-array input.
-    try:
-        import numpy as _np  # noqa: F401 - presence probe; re-imported below
-    except ImportError:
-        return None
-    # Detect 1-D float64 ndarray input.
-    is_ndarray = hasattr(x, "dtype") and hasattr(x, "ndim")
-    if is_ndarray:
-        import numpy as _np
-        if x.ndim != 1 or x.dtype != _np.float64:
-            return None
-        n = int(x.shape[0])
-        in_buf = _np.ascontiguousarray(x, dtype=_np.float64)
-    elif isinstance(x, (list, tuple)):
-        # Homogeneous float-only sequences route through native; mixed
-        # int+float and other shapes fall through to Python.
-        if not all(isinstance(v, float) for v in x):
-            return None
-        import numpy as _np
-        n = len(x)
-        in_buf = _np.asarray(x, dtype=_np.float64)
-    else:
-        return None
-
-    import numpy as _np
-    workspace = _np.empty(n, dtype=_np.float64)
-    out_buf = _np.empty(n, dtype=_np.float64)
-
-    # Callback: marshal C pointer + length back into a numpy view,
-    # invoke the Python op, copy result into the C output buffer. The
-    # GIL is held inside CFUNCTYPE callbacks automatically; no extra
-    # threading discipline needed.
-    callback_error: list = [None]
-
-    def _op_trampoline(in_ptr, in_n, out_ptr, _user_data):
-        try:
-            # Wrap C in/out buffers as numpy views (no copy).
-            in_view = _np.ctypeslib.as_array(in_ptr, shape=(int(in_n),))
-            out_view = _np.ctypeslib.as_array(out_ptr, shape=(int(in_n),))
-            result = op(in_view)
-            # Coerce to ndarray; verify length matches.
-            result_arr = _np.asarray(result, dtype=_np.float64).ravel()
-            if result_arr.shape != (int(in_n),):
-                callback_error[0] = ValueError(
-                    f"chiral_dual callback returned length "
-                    f"{result_arr.shape[0]}; expected {int(in_n)}"
-                )
-                return -1  # any nonzero status; reported via callback_error
-            out_view[:] = result_arr
-            return 0  # SRMECH_OK
-        except Exception as exc:
-            callback_error[0] = exc
-            return -1
-
-    c_callback = _native.CASCADE_OP_CALLBACK_F64(_op_trampoline)
-
-    rc = _native.LIB.srmech_cascade_chiral_dual_f64(
-        c_callback,
-        None,  # user_data unused (the Python op is captured by closure)
-        in_buf.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-        ctypes.c_size_t(n),
-        out_buf.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-        workspace.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-    )
-    # If the Python op raised, surface it — never silently fall back to
-    # Python composition (which would re-execute the failing op).
-    if callback_error[0] is not None:
-        raise callback_error[0]
-    if rc != _native.SRMECH_OK:
-        return None
-    if is_ndarray:
-        return out_buf
-    return out_buf.tolist() if isinstance(x, list) else tuple(out_buf.tolist())
 
 
 def chiral_dual(op, x):
@@ -604,9 +453,9 @@ def chiral_dual(op, x):
         reversed Class-C orientation.
     """
     if _is_pub(): _emit("cascade.chiral_dual", class_="C∘op∘C", input_shape=_shape(x))
-    native = _try_native_chiral_dual(op, x)
-    if native is not None:
-        return native
+    # numpy-free (#564): the native chiral_dual fast-path marshalled C buffers
+    # through numpy views for the Python callback, so it is gone with numpy. The
+    # pure-Python composition IS the cascade (Class C ∘ op ∘ Class C).
     return chiral_flip(op(chiral_flip(x)))
 
 
@@ -629,33 +478,8 @@ def _try_native_net_chirality(orientations):
     if not hasattr(_native.LIB, "srmech_cascade_net_chirality_i8"):
         return None
 
-    # Path A: ndarray.
-    if hasattr(orientations, "dtype") and hasattr(orientations, "ndim"):
-        import numpy as _np
-        if orientations.ndim != 1:
-            return None
-        if orientations.dtype.kind not in ("i", "u"):
-            return None
-        # Bound-check: every value must fit in int8 (we use int8 ABI
-        # so values outside [-128, 127] would silently wrap).
-        if orientations.size > 0:
-            mn = int(orientations.min())
-            mx = int(orientations.max())
-            if mn < -128 or mx > 127:
-                return None
-        # Convert to int8 contiguous buffer.
-        buf = _np.ascontiguousarray(orientations, dtype=_np.int8)
-        n = int(buf.size)
-        c_in = buf.ctypes.data_as(ctypes.POINTER(ctypes.c_int8))
-        out_val = ctypes.c_int8(0)
-        rc = _native.LIB.srmech_cascade_net_chirality_i8(
-            c_in, ctypes.c_size_t(n), ctypes.byref(out_val),
-        )
-        if rc != _native.SRMECH_OK:
-            return None
-        return int(out_val.value)
-
-    # Path B: list / tuple of pure-Python ints (no bools).
+    # numpy-free (#564): no ndarray inputs with numpy gone — only the list /
+    # tuple path of pure-Python ints (no bools) routes through native.
     if isinstance(orientations, (list, tuple)):
         n = len(orientations)
         if n == 0:

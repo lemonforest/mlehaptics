@@ -30,16 +30,6 @@ from typing import List, Optional
 from srmech.amsc.cascade import spectral_cascades as _sc
 
 
-def _maybe_numpy():
-    """Return the numpy module if importable, else ``None`` (numpy-free path)."""
-    try:
-        import numpy as np
-
-        return np
-    except ImportError:  # pragma: no cover - numpy-absent path
-        return None
-
-
 def _is_nested(seq) -> bool:
     """True if the first element is itself a sequence (→ caller passed n-D)."""
     return bool(seq) and (
@@ -83,44 +73,22 @@ def _try_1d_sequence(arr):
 
 
 def _transform_nd(arr, n: Optional[int], axis: int, inverse: bool):
-    """Apply the 1-D cascade ``fft``/``ifft`` along ``axis`` with ``n`` semantics.
+    """Apply the 1-D cascade ``fft``/``ifft`` along the default axis with ``n``
+    semantics — numpy-free (#564), returns a ``List[complex]``.
 
-    1-D / default-axis runs numpy-free; n-D / non-default-axis uses numpy as a
-    carrier (lazy import). With numpy present the 1-D path returns an
-    ``ndarray`` for API parity; with numpy absent it returns the list."""
+    Only the **1-D / default-axis** case is supported: numpy is gone, so the n-D
+    ``moveaxis`` / ``reshape`` / zero-pad carrier (and any non-default ``axis``)
+    raises a clean ``ValueError``."""
     cascade = _sc.ifft if inverse else _sc.fft
     if axis in (-1, 0):
         seq = _try_1d_sequence(arr)
         if seq is not None:
-            result = _transform_1d(seq, n, cascade)
-            np = _maybe_numpy()
-            return np.asarray(result) if np is not None else result
-    # n-D / non-default axis → numpy carrier (lazy)
-    np = _maybe_numpy()
-    if np is None:  # pragma: no cover - numpy-absent path
-        raise ImportError(
-            "n-D / non-default-axis FFT needs numpy (install 'srmech[scientific]'); "
-            "the numpy-free path is a 1-D sequence with the default axis"
-        )
-    a = np.asarray(arr)
-    if a.ndim == 0:
-        a = a.reshape(1)
-    a = np.moveaxis(a, axis, -1)
-    length = a.shape[-1]
-    if n is None:
-        n = length
-    if n < length:  # truncate (Class K pin-slot on the transformed axis)
-        a = a[..., :n]
-    elif n > length:  # zero-pad carrier
-        pad_shape = list(a.shape)
-        pad_shape[-1] = n - length
-        a = np.concatenate([a, np.zeros(pad_shape, dtype=a.dtype)], axis=-1)
-    flat = np.ascontiguousarray(a).reshape(-1, n)
-    out = np.empty((flat.shape[0], n), dtype=np.complex128)
-    for i in range(flat.shape[0]):
-        out[i] = np.asarray(cascade(flat[i]))
-    out = out.reshape(a.shape[:-1] + (n,))
-    return np.moveaxis(out, -1, axis)
+            return _transform_1d(seq, n, cascade)
+    raise ValueError(
+        "numpy-free FFT supports a 1-D sequence with the default axis only "
+        "(#564: numpy removed); got an n-D input or a non-default axis "
+        f"(axis={axis}). Transform each 1-D slice with the default axis."
+    )
 
 
 def fft(arr, n: Optional[int] = None, axis: int = -1):
@@ -149,37 +117,20 @@ def rfft(arr, n: Optional[int] = None, axis: int = -1):
                 )
             effective = n if n is not None else len(seq)
             full = _transform_1d(seq, n, _sc.fft)
-            half = full[: effective // 2 + 1]
-            np = _maybe_numpy()
-            return np.asarray(half) if np is not None else half
-    np = _maybe_numpy()
-    if np is None:  # pragma: no cover - numpy-absent path
-        raise ImportError(
-            "n-D / non-default-axis rfft needs numpy; the numpy-free path is 1-D"
-        )
-    a = np.asarray(arr)
-    if np.iscomplexobj(a):
-        raise TypeError(
-            "rfft does not accept complex input (use fft); "
-            "matches NumPy rfft which raises on complex dtype"
-        )
-    length = a.shape[axis] if a.ndim else 1
-    effective = n if n is not None else length
-    full = _transform_nd(a, n, axis, inverse=False)
-    keep = range(effective // 2 + 1)
-    return np.take(full, keep, axis=axis)
+            return full[: effective // 2 + 1]
+    raise ValueError(
+        "numpy-free rfft supports a 1-D sequence with the default axis only "
+        f"(#564: numpy removed); got an n-D input or a non-default axis (axis={axis})."
+    )
 
 
 def fftfreq(n: int, d: float = 1.0):
-    """``NumPy fftfreq``-faithful DFT sample frequencies (numpy-free carrier).
+    """``NumPy fftfreq``-faithful DFT sample frequencies (numpy-free, #564).
 
     Returns ``[0, 1, ..., n//2-1, -(n//2), ..., -1] / (n*d)`` — integer bin
-    indices (Class I cyclic-group positions on the transformed axis) scaled
-    by the carrier ``1/(n*d)``. No transcendentals; a plain list when numpy is
-    absent, an ``ndarray`` for parity when present."""
+    indices (Class I cyclic-group positions on the transformed axis) scaled by
+    the carrier ``1/(n*d)``. No transcendentals; a plain ``List[float]``."""
     val = 1.0 / (n * d)
     half = (n - 1) // 2 + 1
     idx = list(range(0, half)) + list(range(-(n // 2), 0))
-    result = [i * val for i in idx]
-    np = _maybe_numpy()
-    return np.asarray(result) if np is not None else result
+    return [i * val for i in idx]
