@@ -119,7 +119,11 @@ def feynman_fermion_propagator(
             f"feynman_fermion_propagator: on-shell pole at k² = m² = {m*m}; "
             "set epsilon > 0 for the iε prescription"
         )
-    numerator = dirac_operator_momentum_space(k, -m)  # γ^μ k_μ + m
+    # relativistic.* return numpy-free `Mat` as of v0.7.5rc118; this module is
+    # still a numpy carrier (flips in a later #564 rc), so coerce the Mat
+    # producer to ndarray at the boundary via the lossy export bridge. The
+    # bridge disappears when propagators.py itself goes numpy-free.
+    numerator = dirac_operator_momentum_space(k, -m).to_numpy()  # γ^μ k_μ + m
     return 1j * numerator / denom
 
 
@@ -165,7 +169,7 @@ def feynman_photon_propagator(
             "feynman_photon_propagator: on-shell pole at k² = 0; "
             "set epsilon > 0 for the iε prescription"
         )
-    eta = minkowski_metric()
+    eta = minkowski_metric().to_numpy()  # rc118 Mat→ndarray boundary coercion (#564)
     # g^{μν} (raised-index Minkowski metric). With mostly-minus, η^{μν} = η_{μν}.
     g_upper = eta
     base = -1j * g_upper / denom
@@ -223,7 +227,7 @@ def feynman_massive_vector_propagator(
             f"feynman_massive_vector_propagator: on-shell pole at k² = m² = {m*m}; "
             "set epsilon > 0 for the iε prescription"
         )
-    eta = minkowski_metric()
+    eta = minkowski_metric().to_numpy()  # rc118 Mat→ndarray boundary coercion (#564)
     kk = dense_outer_real(k, k)
     numerator = eta - kk / (m * m)
     return -1j * numerator / denom

@@ -605,8 +605,8 @@ def test_version_is_0_7_0rc10():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.7.5rc117", (
-        f"expected srmech.__version__ == '0.7.5rc117'; got "
+    assert srmech.__version__ == "0.7.5rc118", (
+        f"expected srmech.__version__ == '0.7.5rc118'; got "
         f"{srmech.__version__!r}"
     )
 

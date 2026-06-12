@@ -1,7 +1,15 @@
-"""Relativistic QM: Dirac γ-matrix algebra + Klein-Gordon + Weyl + Majorana.
+"""Relativistic QM: Dirac γ-matrix algebra + Klein-Gordon + Weyl + Majorana (numpy-free).
 
 Per ``[[feedback_science_is_ssot_not_project]]``: each operation cites
 canonical relativistic QM / QFT literature.
+
+numpy-FREE (v0.7.5rc118, #564): the γ-matrices and derived 4×4 operators are
+held in the framework-native :class:`~srmech.amsc.mat.Mat` carrier (assembled
+from the numpy-free Pauli 2×2 ``Mat`` blocks), every matrix product routes
+through the Class-L :func:`~srmech.amsc.laplacian.mat_matmul`, residual norms
+through :func:`~srmech.amsc.laplacian.mat_norm`, and the Klein-Gordon
+dispersion through the Class-N :func:`srmech.amsc.rational.sqrt` — **no numpy**.
+4-momenta are plain Python sequences of floats.
 
 Metric convention: **mostly-minus** ``η^{μν} = diag(+1, -1, -1, -1)``
 (Peskin-Schroeder convention; the standard QFT-side choice).
@@ -31,29 +39,84 @@ Canonical SSoT:
 
 from __future__ import annotations
 
-import numpy as np
+from typing import Sequence, Tuple
 
 from srmech.amsc import rational as _srn
-from typing import Tuple
-
-from srmech.amsc.laplacian import (
-    dense_dot_real,
-    dense_matmul_complex,
-    dense_matvec_real,
-    dense_norm,
-)
+from srmech.amsc.laplacian import mat_matmul, mat_norm
+from srmech.amsc.mat import Mat
 from srmech.qm.spin import pauli_matrices, pauli_identity
 
 
-def minkowski_metric() -> np.ndarray:
+# ----------------------------------------------------------------------
+# numpy-free Mat helpers
+# ----------------------------------------------------------------------
+
+
+def _eye4() -> "Mat":
+    """The 4×4 complex identity ``I_4`` as a ``Mat`` (numpy-free)."""
+    return Mat.from_rows(
+        [[1.0 if i == j else 0.0 for j in range(4)] for i in range(4)],
+        is_complex=True,
+    )
+
+
+def _scale(s, m: "Mat") -> "Mat":
+    """``s · M`` (scalar × ``Mat``) as a new complex ``Mat`` (numpy-free)."""
+    rows = [[s * m[i, j] for j in range(m.n_cols)] for i in range(m.n_rows)]
+    return Mat.from_rows(rows, is_complex=True)
+
+
+def _mat_add(a: "Mat", b: "Mat") -> "Mat":
+    rows = [[a[i, j] + b[i, j] for j in range(a.n_cols)] for i in range(a.n_rows)]
+    return Mat.from_rows(rows, is_complex=True)
+
+
+def _mat_sub(a: "Mat", b: "Mat") -> "Mat":
+    rows = [[a[i, j] - b[i, j] for j in range(a.n_cols)] for i in range(a.n_rows)]
+    return Mat.from_rows(rows, is_complex=True)
+
+
+def _block4(tl, tr, bl, br) -> "Mat":
+    """Assemble a 4×4 complex ``Mat`` from four 2×2 blocks.
+
+    Each block is a 2×2 ``Mat`` or ``None`` (the 2×2 zero block) — the numpy-free
+    ``np.block`` replacement for the Dirac γ-matrix 2×2-block construction.
+    """
+    blocks = [[tl, tr], [bl, br]]
+    rows = []
+    for bi in range(2):
+        for i in range(2):
+            row = []
+            for bj in range(2):
+                b = blocks[bi][bj]
+                for j in range(2):
+                    row.append(0j if b is None else b[i, j])
+            rows.append(row)
+    return Mat.from_rows(rows, is_complex=True)
+
+
+# ----------------------------------------------------------------------
+# operations
+# ----------------------------------------------------------------------
+
+
+def minkowski_metric() -> "Mat":
     """Mostly-minus Minkowski metric ``η^{μν} = diag(+1, -1, -1, -1)``.
+
+    Returned as a 4×4 **real** ``Mat`` (numpy-free).
 
     Canonical SSoT: Peskin-Schroeder §3.1 eq 3.4 (mostly-minus convention).
     """
-    return np.diag([1.0, -1.0, -1.0, -1.0])
+    return Mat.from_rows(
+        [[1.0, 0.0, 0.0, 0.0],
+         [0.0, -1.0, 0.0, 0.0],
+         [0.0, 0.0, -1.0, 0.0],
+         [0.0, 0.0, 0.0, -1.0]],
+        is_complex=False,
+    )
 
 
-def gamma_matrices() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def gamma_matrices() -> Tuple["Mat", "Mat", "Mat", "Mat"]:
     """Dirac γ-matrices ``(γ^0, γ^1, γ^2, γ^3)`` in the Dirac representation.
 
     In ``2 × 2`` block form using Pauli σ-matrices and the 2×2 identity::
@@ -68,24 +131,21 @@ def gamma_matrices() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     Bjorken-Drell §3.2 eq 3.8.
 
     Returns:
-        ``(g0, g1, g2, g3)``: four 4×4 complex matrices satisfying the
+        ``(g0, g1, g2, g3)``: four 4×4 complex ``Mat`` satisfying the
         Clifford algebra ``{γ^μ, γ^ν} = 2 η^{μν} I_4``.
     """
-    # spin.pauli_* return numpy-free `Mat` as of v0.7.5rc115; this module is
-    # still a numpy carrier (flips in a later #564 rc), so coerce the Mat
-    # producer to ndarray at the boundary via the lossy export bridge. The
-    # bridge disappears when relativistic.py itself goes numpy-free.
-    I2 = pauli_identity().to_numpy()
-    Z2 = np.zeros((2, 2), dtype=complex)
-    sx, sy, sz = (p.to_numpy() for p in pauli_matrices())
-    g0 = np.block([[I2, Z2], [Z2, -I2]])
-    g1 = np.block([[Z2, sx], [-sx, Z2]])
-    g2 = np.block([[Z2, sy], [-sy, Z2]])
-    g3 = np.block([[Z2, sz], [-sz, Z2]])
+    # spin.pauli_* return numpy-free `Mat` (rc115); consume them directly as the
+    # 2×2 blocks — no numpy, no boundary coercion (this module flipped at rc118).
+    I2 = pauli_identity()
+    sx, sy, sz = pauli_matrices()
+    g0 = _block4(I2, None, None, _scale(-1.0, I2))
+    g1 = _block4(None, sx, _scale(-1.0, sx), None)
+    g2 = _block4(None, sy, _scale(-1.0, sy), None)
+    g3 = _block4(None, sz, _scale(-1.0, sz), None)
     return g0, g1, g2, g3
 
 
-def gamma_5() -> np.ndarray:
+def gamma_5() -> "Mat":
     """``γ_5 = i γ^0 γ^1 γ^2 γ^3`` — chirality matrix.
 
     In the Dirac representation::
@@ -98,9 +158,9 @@ def gamma_5() -> np.ndarray:
     Canonical SSoT: Peskin-Schroeder §3.4 eq 3.72; Bjorken-Drell §6.1.
     """
     g0, g1, g2, g3 = gamma_matrices()
-    # γ_5 = i·γ0·γ1·γ2·γ3 — Class-L matmul cascade for the γ-matrix chain.
-    return 1j * dense_matmul_complex(
-        dense_matmul_complex(dense_matmul_complex(g0, g1), g2), g3)
+    # γ_5 = i·γ0·γ1·γ2·γ3 — Class-L mat_matmul cascade for the γ-matrix chain.
+    chain = mat_matmul(mat_matmul(mat_matmul(g0, g1), g2), g3)
+    return _scale(1j, chain)
 
 
 def clifford_residuals() -> Tuple[float, float, float]:
@@ -120,24 +180,26 @@ def clifford_residuals() -> Tuple[float, float, float]:
     """
     gammas = gamma_matrices()
     eta = minkowski_metric()
-    I4 = np.eye(4, dtype=complex)
+    I4 = _eye4()
     max_clifford = 0.0
     for mu in range(4):
         for nu in range(4):
-            anti = (dense_matmul_complex(gammas[mu], gammas[nu])
-                    + dense_matmul_complex(gammas[nu], gammas[mu]))
-            expected = 2.0 * eta[mu, nu] * I4
-            max_clifford = max(max_clifford, dense_norm(anti - expected))
+            anti = _mat_add(
+                mat_matmul(gammas[mu], gammas[nu]),
+                mat_matmul(gammas[nu], gammas[mu]),
+            )
+            expected = _scale(2.0 * eta[mu, nu], I4)
+            max_clifford = max(max_clifford, mat_norm(_mat_sub(anti, expected)))
     g5 = gamma_5()
-    g5_sq_dev = float(dense_norm(dense_matmul_complex(g5, g5) - I4))
+    g5_sq_dev = mat_norm(_mat_sub(mat_matmul(g5, g5), I4))
     g5_anti_dev = max(
-        dense_norm(dense_matmul_complex(g5, gammas[mu])
-                       + dense_matmul_complex(gammas[mu], g5)) for mu in range(4)
+        mat_norm(_mat_add(mat_matmul(g5, gammas[mu]), mat_matmul(gammas[mu], g5)))
+        for mu in range(4)
     )
     return max_clifford, g5_sq_dev, g5_anti_dev
 
 
-def weyl_left_projector() -> np.ndarray:
+def weyl_left_projector() -> "Mat":
     """Left-chirality projector ``P_L = (I - γ_5) / 2``.
 
     Projects a Dirac spinor onto its left-handed Weyl component.
@@ -145,18 +207,18 @@ def weyl_left_projector() -> np.ndarray:
 
     Canonical SSoT: Peskin-Schroeder §3.4 eq 3.71.
     """
-    return 0.5 * (np.eye(4, dtype=complex) - gamma_5())
+    return _scale(0.5, _mat_sub(_eye4(), gamma_5()))
 
 
-def weyl_right_projector() -> np.ndarray:
+def weyl_right_projector() -> "Mat":
     """Right-chirality projector ``P_R = (I + γ_5) / 2``.
 
     Canonical SSoT: Peskin-Schroeder §3.4 eq 3.71.
     """
-    return 0.5 * (np.eye(4, dtype=complex) + gamma_5())
+    return _scale(0.5, _mat_add(_eye4(), gamma_5()))
 
 
-def charge_conjugation_matrix() -> np.ndarray:
+def charge_conjugation_matrix() -> "Mat":
     """Charge-conjugation matrix ``C = i γ^2 γ^0`` (Dirac representation).
 
     Used to define charge conjugation ``ψ_c = C ψ̄^T`` and the Majorana
@@ -165,10 +227,10 @@ def charge_conjugation_matrix() -> np.ndarray:
     Canonical SSoT: Peskin-Schroeder eq A.27; Bjorken-Drell §5.2.
     """
     g0, g1, g2, g3 = gamma_matrices()
-    return 1j * dense_matmul_complex(g2, g0)
+    return _scale(1j, mat_matmul(g2, g0))
 
 
-def dirac_operator_momentum_space(k: np.ndarray, m: float) -> np.ndarray:
+def dirac_operator_momentum_space(k: Sequence[float], m: float) -> "Mat":
     """Dirac operator in momentum space: ``γ^μ k_μ - m I_4``.
 
     With mostly-minus metric, ``γ^μ k_μ = γ^0 k_0 - γ^1 k_1 - γ^2 k_2 - γ^3 k_3``.
@@ -178,24 +240,29 @@ def dirac_operator_momentum_space(k: np.ndarray, m: float) -> np.ndarray:
     Canonical SSoT: Peskin-Schroeder §3.2 eq 3.45 + 3.46.
 
     Args:
-        k: 4-momentum ``(k_0, k_1, k_2, k_3)``.
+        k: 4-momentum ``(k_0, k_1, k_2, k_3)`` as a length-4 sequence of floats.
         m: Mass (rest energy in natural units).
 
     Returns:
-        ``(γ^μ k_μ - m I_4)`` as a 4×4 complex matrix.
+        ``(γ^μ k_μ - m I_4)`` as a 4×4 complex ``Mat``.
     """
-    k = np.asarray(k, dtype=float)
-    if k.shape != (4,):
-        raise ValueError(f"dirac_operator_momentum_space: k must be 4-vector; got {k.shape}")
+    k = [float(x) for x in k]
+    if len(k) != 4:
+        raise ValueError(
+            f"dirac_operator_momentum_space: k must be 4-vector; got length {len(k)}"
+        )
     g0, g1, g2, g3 = gamma_matrices()
     eta = minkowski_metric()
-    # k_μ = η_{μν} k^ν (mostly-minus metric) — real 4×4 metric times real 4-vector
-    k_lower = dense_matvec_real(eta, k)
-    slash_k = k_lower[0] * g0 + k_lower[1] * g1 + k_lower[2] * g2 + k_lower[3] * g3
-    return slash_k - m * np.eye(4, dtype=complex)
+    # k_μ = η_{μν} k^ν (mostly-minus metric); η diagonal real → k_lower[i] = η_ii k_i.
+    k_lower = [sum(eta[i, j] * k[j] for j in range(4)) for i in range(4)]
+    slash_k = _mat_add(
+        _mat_add(_scale(k_lower[0], g0), _scale(k_lower[1], g1)),
+        _mat_add(_scale(k_lower[2], g2), _scale(k_lower[3], g3)),
+    )
+    return _mat_sub(slash_k, _scale(m, _eye4()))
 
 
-def klein_gordon_dispersion(k_spatial: np.ndarray, m: float) -> float:
+def klein_gordon_dispersion(k_spatial: Sequence[float], m: float) -> float:
     """Klein-Gordon on-shell energy ``E = +sqrt(|k|² + m²)``.
 
     Positive-frequency solution of the relativistic dispersion
@@ -206,36 +273,39 @@ def klein_gordon_dispersion(k_spatial: np.ndarray, m: float) -> float:
     Peskin-Schroeder §2.3 eq 2.39.
 
     Args:
-        k_spatial: 3-momentum vector.
+        k_spatial: 3-momentum vector as a length-3 sequence of floats.
         m: Mass.
 
     Returns:
         Positive-frequency on-shell energy.
     """
-    k_spatial = np.asarray(k_spatial, dtype=float)
-    if k_spatial.shape != (3,):
+    k_spatial = [float(x) for x in k_spatial]
+    if len(k_spatial) != 3:
         raise ValueError(
             f"klein_gordon_dispersion: k_spatial must be 3-vector; "
-            f"got {k_spatial.shape}"
+            f"got length {len(k_spatial)}"
         )
     if m < 0:
         raise ValueError(f"klein_gordon_dispersion: m must be ≥ 0; got {m}")
-    return float(_srn.sqrt(dense_dot_real(k_spatial, k_spatial) + m * m))
+    k_sq = sum(x * x for x in k_spatial)   # |k|² — Class-N plain dot
+    return _srn.sqrt(k_sq + m * m)
 
 
-def four_momentum_squared(k: np.ndarray) -> float:
+def four_momentum_squared(k: Sequence[float]) -> float:
     """Lorentz-invariant squared 4-momentum ``k² = k_μ k^μ = k_0² - |k|²``.
 
     Mostly-minus convention. On-shell: ``k² = m²``.
 
     Canonical SSoT: Peskin-Schroeder §3.1 eq 3.4.
     """
-    k = np.asarray(k, dtype=float)
-    if k.shape != (4,):
-        raise ValueError(f"four_momentum_squared: k must be 4-vector; got {k.shape}")
+    k = [float(x) for x in k]
+    if len(k) != 4:
+        raise ValueError(
+            f"four_momentum_squared: k must be 4-vector; got length {len(k)}"
+        )
     eta = minkowski_metric()
-    # k² = kᵀ η k = ⟨k, η k⟩ — real matvec then real bilinear dot (no conjugation)
-    return float(dense_dot_real(k, dense_matvec_real(eta, k)))
+    # k² = kᵀ η k (η diagonal real) — numpy-free double-sum bilinear.
+    return sum(k[i] * eta[i, j] * k[j] for i in range(4) for j in range(4))
 
 
 __all__ = [
