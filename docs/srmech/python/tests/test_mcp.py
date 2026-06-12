@@ -21,7 +21,6 @@ import urllib.request
 from http.client import HTTPConnection
 from typing import Any, Dict, Iterator, List, Tuple
 
-import numpy as np
 import pytest
 
 # Force bus tools to register so coverage matches the runtime baseline.
@@ -237,9 +236,10 @@ def test_invoke_tool_polar_bundle_variadic_dispatches() -> None:
     from srmech.amsc import hdc
     from srmech.mcp._tools import MCPToolError
 
-    rng = np.random.default_rng(11)
-    # JSON arrays decode to Python lists; emulate that wire form.
-    vectors = [hdc.polar_random(16, rng).tolist() for _ in range(3)]
+    # JSON arrays decode to Python lists; emulate that wire form (numpy-free:
+    # the seeded random ops + bundle are numpy-free; ``.tolist()`` flattens the
+    # array('b') / HV carrier to the plain-list wire form).
+    vectors = [hdc.polar_random(16, seed=11 + i).tolist() for i in range(3)]
     try:
         result = invoke_tool(
             "srmech.amsc.hdc.polar_bundle", {"vectors": vectors}
@@ -247,12 +247,12 @@ def test_invoke_tool_polar_bundle_variadic_dispatches() -> None:
     except (TypeError, MCPToolError) as exc:  # pragma: no cover
         pytest.fail(f"variadic dispatch broke: {type(exc).__name__}: {exc}")
     # A real bundled result: a length-16 polar vector over {-1, 0, +1}.
-    arr = np.asarray(result)
-    assert arr.shape == (16,)
-    assert set(np.unique(arr).tolist()) <= {-1, 0, 1}
-    # Bit-exact against calling the reference directly with *args.
-    expected = hdc.polar_bundle(*[np.asarray(v) for v in vectors])
-    assert np.array_equal(arr, expected)
+    res = list(result)
+    assert len(res) == 16
+    assert set(res) <= {-1, 0, 1}
+    # Bit-exact against calling the reference directly with *args (plain lists).
+    expected = list(hdc.polar_bundle(*[list(v) for v in vectors]))
+    assert res == expected
 
 
 def test_invoke_tool_klein4_bundle_variadic_dispatches() -> None:
@@ -261,19 +261,20 @@ def test_invoke_tool_klein4_bundle_variadic_dispatches() -> None:
     from srmech.amsc import hdc
     from srmech.mcp._tools import MCPToolError
 
-    rng = np.random.default_rng(11)
-    vectors = [hdc.klein4_random(16, rng).tolist() for _ in range(3)]
+    # numpy-free wire form: seeded klein4 vectors, ``.tolist()``'d off the HV
+    # carrier to plain lists (the JSON-array shape an MCP client sends).
+    vectors = [hdc.klein4_random(16, seed=11 + i).tolist() for i in range(3)]
     try:
         result = invoke_tool(
             "srmech.amsc.hdc.klein4_bundle", {"vectors": vectors}
         )
     except (TypeError, MCPToolError) as exc:  # pragma: no cover
         pytest.fail(f"variadic dispatch broke: {type(exc).__name__}: {exc}")
-    arr = np.asarray(result)
-    assert arr.shape == (16,)
-    assert set(np.unique(arr).tolist()) <= {0, 1, 2, 3}
-    expected = hdc.klein4_bundle(*[np.asarray(v) for v in vectors])
-    assert np.array_equal(arr, expected)
+    res = list(result)
+    assert len(res) == 16
+    assert set(res) <= {0, 1, 2, 3}
+    expected = list(hdc.klein4_bundle(*[list(v) for v in vectors]))
+    assert res == expected
 
 
 def test_invoke_tool_variadic_tolerates_legacy_sigil_key() -> None:
@@ -282,15 +283,14 @@ def test_invoke_tool_variadic_tolerates_legacy_sigil_key() -> None:
     falls back to it), so no in-flight client breaks on the rename."""
     from srmech.amsc import hdc
 
-    rng = np.random.default_rng(7)
-    vectors = [hdc.polar_random(8, rng).tolist() for _ in range(3)]
+    vectors = [hdc.polar_random(8, seed=7 + i).tolist() for i in range(3)]
     result = invoke_tool(
         "srmech.amsc.hdc.polar_bundle", {"*vectors": vectors}
     )
-    arr = np.asarray(result)
-    assert arr.shape == (8,)
-    expected = hdc.polar_bundle(*[np.asarray(v) for v in vectors])
-    assert np.array_equal(arr, expected)
+    res = list(result)
+    assert len(res) == 8
+    expected = list(hdc.polar_bundle(*[list(v) for v in vectors]))
+    assert res == expected
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -1156,22 +1156,23 @@ def test_klein4_random_seed_reproducible() -> None:
     test."""
     from srmech.amsc import hdc
 
-    # Direct: identical vectors for the same seed.
-    a = hdc.klein4_random(8, seed=42)
-    b = hdc.klein4_random(8, seed=42)
-    assert np.array_equal(a, b)
-    assert set(np.unique(a).tolist()) <= {0, 1, 2, 3}
+    # Direct: identical vectors for the same seed (numpy-free — compare the
+    # plain-list contents of the HV carrier).
+    a = list(hdc.klein4_random(8, seed=42))
+    b = list(hdc.klein4_random(8, seed=42))
+    assert a == b
+    assert set(a) <= {0, 1, 2, 3}
 
     # Through invoke_tool twice (the wire path): also identical.
-    r1 = invoke_tool("srmech.amsc.hdc.klein4_random", {"D": 8, "seed": 42})
-    r2 = invoke_tool("srmech.amsc.hdc.klein4_random", {"D": 8, "seed": 42})
-    assert np.array_equal(np.asarray(r1), np.asarray(r2))
+    r1 = list(invoke_tool("srmech.amsc.hdc.klein4_random", {"D": 8, "seed": 42}))
+    r2 = list(invoke_tool("srmech.amsc.hdc.klein4_random", {"D": 8, "seed": 42}))
+    assert r1 == r2
     # And invoke_tool agrees bit-exactly with the direct seeded call.
-    assert np.array_equal(np.asarray(r1), a)
+    assert r1 == a
 
     # A different seed gives a different vector (the seed is load-bearing).
-    c = hdc.klein4_random(8, seed=43)
-    assert not np.array_equal(a, c)
+    c = list(hdc.klein4_random(8, seed=43))
+    assert a != c
 
 
 def test_polar_random_seed_reproducible() -> None:
@@ -1180,15 +1181,15 @@ def test_polar_random_seed_reproducible() -> None:
     for BUG A)."""
     from srmech.amsc import hdc
 
-    a = hdc.polar_random(8, seed=7)
-    b = hdc.polar_random(8, seed=7)
-    assert np.array_equal(a, b)
-    assert set(np.unique(a).tolist()) <= {-1, 0, 1}
+    a = list(hdc.polar_random(8, seed=7))
+    b = list(hdc.polar_random(8, seed=7))
+    assert a == b
+    assert set(a) <= {-1, 0, 1}
 
-    r1 = invoke_tool("srmech.amsc.hdc.polar_random", {"D": 8, "seed": 7})
-    r2 = invoke_tool("srmech.amsc.hdc.polar_random", {"D": 8, "seed": 7})
-    assert np.array_equal(np.asarray(r1), np.asarray(r2))
-    assert np.array_equal(np.asarray(r1), a)
+    r1 = list(invoke_tool("srmech.amsc.hdc.polar_random", {"D": 8, "seed": 7}))
+    r2 = list(invoke_tool("srmech.amsc.hdc.polar_random", {"D": 8, "seed": 7}))
+    assert r1 == r2
+    assert r1 == a
 
 
 def test_random_ops_rng_takes_precedence_over_seed() -> None:
@@ -1526,11 +1527,17 @@ def test_invoke_jacobi_eigvals_nested_list_matrix() -> None:
     raw = invoke_tool(
         "srmech.amsc.laplacian.jacobi_eigvals", {"matrix": matrix}
     )
-    arr = np.asarray(raw)
-    assert arr.shape == (3,)
-    # Known spectrum of the path-graph-3 Laplacian-like tridiagonal matrix.
-    expected = np.sort(np.linalg.eigvalsh(np.asarray(matrix)))
-    assert np.allclose(np.sort(arr), expected)
+    vals = sorted(raw)
+    assert len(vals) == 3
+    # Oracle = the substrate-native EXACT real-symmetric eigvals cascade
+    # (``eigvals_exact``, numpy-free), NOT np.linalg.eigvalsh. (The closed form
+    # of this tridiagonal is 2 ± √2, 2: {0.5858…, 2.0, 3.4142…}.)
+    from srmech.amsc.cascade.matrix_cascades import eigvals_exact
+
+    expected = sorted(eigvals_exact(matrix))
+    assert len(expected) == 3
+    for got, want in zip(vals, expected):
+        assert abs(got - want) < 1e-9
     text = serialise_result(raw)
     assert isinstance(json.loads(text), list)
 
@@ -1667,8 +1674,9 @@ def _synth_spectral_handle_envelope() -> Dict[str, Any]:
     from srmech.spectral import decompose
     from srmech.mcp._coercion import serialise_native
 
-    state = np.array([1.0, 0.0])
-    laplacian = np.array([[1.0, -1.0], [-1.0, 1.0]])
+    # numpy-free: decompose accepts plain lists.
+    state = [1.0, 0.0]
+    laplacian = [[1.0, -1.0], [-1.0, 1.0]]
     handle = decompose(state, laplacian)
     return serialise_native(handle)
 
@@ -1943,8 +1951,8 @@ def test_spectral_handle_param_coercer_resolves() -> None:
     from srmech.spectral import SpectralHandle, decompose
     from srmech.mcp._coercion import coerce_param, serialise_native
 
-    state = np.array([1.0, 2.0])
-    laplacian = np.array([[1.0, -1.0], [-1.0, 1.0]])
+    state = [1.0, 2.0]
+    laplacian = [[1.0, -1.0], [-1.0, 1.0]]
     handle = decompose(state, laplacian)
 
     env = serialise_native(handle)
@@ -1966,9 +1974,7 @@ def test_spectral_handle_or_bytes_discriminates() -> None:
     from srmech.spectral import SpectralHandle, decompose
     from srmech.mcp._coercion import coerce_param, serialise_native
 
-    handle = decompose(
-        np.array([1.0, 2.0]), np.array([[1.0, -1.0], [-1.0, 1.0]])
-    )
+    handle = decompose([1.0, 2.0], [[1.0, -1.0], [-1.0, 1.0]])
     env = serialise_native(handle)
 
     # Handle arm.

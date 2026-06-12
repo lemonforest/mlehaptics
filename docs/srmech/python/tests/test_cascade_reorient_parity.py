@@ -25,6 +25,7 @@ out, float in → float out. Boundary cases:
 """
 import math
 import random
+from fractions import Fraction
 
 import pytest
 
@@ -63,17 +64,53 @@ def _py_ref(orientation, value):
 
 
 # ──────────────────────────────────────────────────────────────────────
-# Python-path tests (numpy / list / mixed — must stay on Python).
+# Python-path tests (non-native value / list / mixed — must stay on Python).
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_python_path_numpy_ndarray():
-    """numpy ndarray stays on Python; numpy negation applies."""
-    np = pytest.importorskip("numpy")
-    arr = np.array([1.0, 2.0, 3.0])
-    result = cascade.reorient(arr, orientation=-1)
-    assert isinstance(result, np.ndarray)
-    assert np.array_equal(result, np.array([-1.0, -2.0, -3.0]))
+class _NegVec:
+    """A minimal numpy-free element-wise-negating sequence.
+
+    Stands in for the prior ``np.ndarray`` reference: a non-int / non-float
+    value that supports ``__neg__`` (so the reorient Python fallback's
+    ``-value`` branch runs) and element-wise equality — proving the op routes
+    array-like values onto the Python ``-value`` path (it never tries the
+    int8/int64 native dispatch). #564: numpy is gone; the op's defining
+    property is verified against a stdlib-only negatable carrier."""
+
+    __slots__ = ("data",)
+
+    def __init__(self, data):
+        self.data = tuple(data)
+
+    def __neg__(self):
+        return _NegVec(-x for x in self.data)
+
+    def __eq__(self, other):
+        return isinstance(other, _NegVec) and self.data == other.data
+
+    __hash__ = None
+
+
+def test_python_path_non_native_value_negates():
+    """A non-int/non-float array-like value stays on Python; ``-value``
+    (element-wise negation) applies — the numpy-free stand-in for the old
+    ``np.ndarray`` parity check."""
+    vec = _NegVec([1.0, 2.0, 3.0])
+    result = cascade.reorient(vec, orientation=-1)
+    assert isinstance(result, _NegVec)
+    assert result == _NegVec([-1.0, -2.0, -3.0])
+    # orientation >= 0 passes the value through unchanged.
+    assert cascade.reorient(vec, orientation=0) == vec
+    assert cascade.reorient(vec, orientation=1) == vec
+
+
+def test_python_path_fraction_value_negates():
+    """A ``fractions.Fraction`` is non-int / non-float (exact rational): it
+    stays on the Python path and negates exactly under orientation < 0."""
+    assert cascade.reorient(Fraction(3, 4), orientation=-1) == Fraction(-3, 4)
+    assert cascade.reorient(Fraction(3, 4), orientation=0) == Fraction(3, 4)
+    assert cascade.reorient(Fraction(-5, 2), orientation=-1) == Fraction(5, 2)
 
 
 def test_python_path_list_raises():

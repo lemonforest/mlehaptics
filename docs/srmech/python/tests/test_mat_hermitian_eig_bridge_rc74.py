@@ -11,12 +11,17 @@ pure-Python cyclic Jacobi (`_hermitian_eig_py` — real-symmetric directly /
 complex-Hermitian via the real 2n×2n embedding), so it is unconditionally
 numpy-free.
 
-Correctness is pinned by eigenvalues + reconstruction (`H ≈ V·diag(λ)·Vᴴ`) +
-unitarity (`Vᴴ·V ≈ I`), NOT element-wise parity (an eigenvector is fixed only
-up to a phase; a degenerate eigenspace's basis is solver-chosen). The
-load-bearing claim — that it computes with numpy genuinely absent on BOTH the
-native and the forced-fallback paths — is pinned by a subprocess that blocks
-numpy at `sys.meta_path` before the first import.
+numpy was REMOVED ENTIRELY from srmech (#564): these tests run + PASS with numpy
+absent. The eigenvalue oracle is the exact-algebraic `eigvals_exact` (char_poly →
+Sturm → rational bisection) on the integer-symmetric input (a complex-Hermitian
+input goes through its real 2n×2n symmetric embedding, whose spectrum is each
+eigenvalue DOUBLED) — NEVER `numpy.linalg.eigh`. Correctness is otherwise pinned
+by reconstruction (`H ≈ V·diag(λ)·Vᴴ`) + unitarity (`Vᴴ·V ≈ I`) via list/Mat
+arithmetic, NOT element-wise parity (an eigenvector is fixed only up to a phase;
+a degenerate eigenspace's basis is solver-chosen). The load-bearing claim — that
+it computes with numpy genuinely absent on BOTH the native and the forced-fallback
+paths — is pinned by a subprocess that blocks numpy at `sys.meta_path` before the
+first import.
 """
 
 from __future__ import annotations
@@ -31,8 +36,7 @@ import pytest
 from srmech.amsc.laplacian import mat_hermitian_eigendecompose, LAPLACIAN_OPS
 from srmech.amsc import laplacian as _lap
 from srmech.amsc.mat import Mat
-
-np = pytest.importorskip("numpy")
+from srmech.amsc.cascade.matrix_cascades import eigvals_exact
 
 
 # ── numpy-free correctness helpers (no numpy in the asserts themselves) ──
@@ -61,25 +65,51 @@ def _unitarity(V: Mat) -> float:
     return worst
 
 
-def test_mat_herm_eig_real_symmetric_vs_numpy():
+def _herm_eigvals_exact(H_int_rows):
+    """Exact ascending eigenvalues of an integer Hermitian matrix.
+
+    A real-symmetric integer matrix goes straight through ``eigvals_exact``.
+    A complex-Hermitian integer matrix is diagonalised via its real 2n×2n
+    symmetric embedding ``[[Re, -Im], [Im, Re]]`` whose spectrum is each
+    eigenvalue DOUBLED — taking every other ascending value recovers the n
+    Hermitian eigenvalues exactly. NEVER numpy.
+    """
+    n = len(H_int_rows)
+    has_imag = any(complex(v).imag != 0 for row in H_int_rows for v in row)
+    if not has_imag:
+        return eigvals_exact([[int(complex(v).real) for v in row] for row in H_int_rows])
+    emb = [[0] * (2 * n) for _ in range(2 * n)]
+    for i in range(n):
+        for j in range(n):
+            re = int(complex(H_int_rows[i][j]).real)
+            im = int(complex(H_int_rows[i][j]).imag)
+            emb[i][j] = re
+            emb[i + n][j + n] = re
+            emb[i][j + n] = -im
+            emb[i + n][j] = im
+    doubled = eigvals_exact(emb)  # ascending, each eigenvalue twice
+    return [doubled[2 * k] for k in range(n)]
+
+
+def test_mat_herm_eig_real_symmetric_vs_exact():
     A = Mat.from_rows([[2.0, 1.0, 0.0], [1.0, 3.0, 1.0], [0.0, 1.0, 2.0]])
     ev, V = mat_hermitian_eigendecompose(A)
     assert isinstance(ev, Mat) and isinstance(V, Mat)
     assert ev.shape == (3, 1) and not ev.is_complex      # eigvals real (n,1)
     assert V.shape == (3, 3) and V.is_complex             # eigvecs ALWAYS complex
-    ref = np.linalg.eigvalsh(np.array(A.tolist()))
+    ref = _herm_eigvals_exact(A.tolist())                # exact algebraic, NOT numpy
     mine = [ev[i, 0] for i in range(3)]
     assert max(abs(mine[i] - ref[i]) for i in range(3)) < 1e-9
     assert _recon_resid(A, ev, V) < 1e-9
     assert _unitarity(V) < 1e-9
 
 
-def test_mat_herm_eig_complex_hermitian_vs_numpy():
+def test_mat_herm_eig_complex_hermitian_vs_exact():
     H = Mat.from_rows([[2.0 + 0j, 1.0 + 1j, 0 + 0j],
                        [1.0 - 1j, 3.0 + 0j, 0 - 2j],
                        [0 + 0j, 0 + 2j, 1.0 + 0j]])
     ev, V = mat_hermitian_eigendecompose(H)
-    ref = np.linalg.eigvalsh(np.array(H.tolist()))
+    ref = _herm_eigvals_exact(H.tolist())                # exact via real embedding
     mine = [ev[i, 0] for i in range(3)]
     assert max(abs(mine[i] - ref[i]) for i in range(3)) < 1e-9
     assert _recon_resid(H, ev, V) < 1e-9
@@ -158,9 +188,11 @@ def _run_numpy_free(body: str) -> subprocess.CompletedProcess:
 def test_mat_herm_eig_computes_numpy_free_native_and_fallback():
     proc = _run_numpy_free(
         """
+        import sys
         from srmech.amsc.laplacian import mat_hermitian_eigendecompose
         from srmech.amsc import laplacian as lap
         from srmech.amsc.mat import Mat
+        assert "numpy" not in sys.modules, "import pulled numpy in"
 
         H = Mat.from_rows([[2.0+0j, 1.0+1j, 0+0j],
                            [1.0-1j, 3.0+0j, 0-2j],

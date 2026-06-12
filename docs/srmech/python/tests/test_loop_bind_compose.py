@@ -10,15 +10,27 @@ ordering) composes after it, and the K associator residue resolves — the
 M∘C-with-K-residue cascade #813 describes, runnable end-to-end. The compose-engine
 registration #813 also mentions (a shipped cascade-catalog descriptor) carries a C
 symbol, so it rides with the C-transpile step at the end of the v0.7.0 arc.
-"""
-import numpy as np
 
+numpy-free: octonion basis vectors are plain length-8 Python lists with a single
+1.0 (``_e(i)``); the ops take and return plain lists; equality is an element-wise
+``abs(a-b) < tol`` loop.
+"""
 from srmech.amsc import compose
 from srmech.amsc import hdc
 
 
 def _e(i):
-    return np.eye(8)[i]
+    """The i-th octonion basis vector as a plain length-8 list."""
+    v = [0.0] * 8
+    v[i] = 1.0
+    return v
+
+
+def _allclose(a, b, atol=1e-9):
+    """Element-wise |a - b| < atol over two equal-length octonion vectors."""
+    a = list(a)
+    b = list(b)
+    return len(a) == len(b) and all(abs(x - y) < atol for x, y in zip(a, b))
 
 
 def _spec(name, *steps):
@@ -38,7 +50,7 @@ def test_loop_bind_resolves_and_runs_in_compose_engine():
          "args": {"x": "@input.x", "y": "@input.y"}},
     )
     out = compose.run_chain(spec, inputs={"x": _e(1), "y": _e(2)})
-    assert np.allclose(out, hdc.loop_bind(_e(1), _e(2)))
+    assert _allclose(out, hdc.loop_bind(_e(1), _e(2)))
 
 
 def test_loop_associator_K_residue_resolves_in_compose_engine():
@@ -50,7 +62,7 @@ def test_loop_associator_K_residue_resolves_in_compose_engine():
     )
     out = compose.run_chain(
         spec, inputs={"a": _e(1), "b": _e(2), "c": _e(4)})
-    assert np.allclose(out, hdc.loop_associator(_e(1), _e(2), _e(4)))
+    assert _allclose(out, hdc.loop_associator(_e(1), _e(2), _e(4)))
 
 
 def test_cross7_and_g2_three_form_resolve_in_compose_engine():
@@ -59,7 +71,7 @@ def test_cross7_and_g2_three_form_resolve_in_compose_engine():
         _spec("cross7", {"class": "M", "op": "cross7",
                          "args": {"x": "@input.x", "y": "@input.y"}}),
         inputs={"x": _e(1), "y": _e(2)})
-    assert np.allclose(cross, hdc.cross7(_e(1), _e(2)))
+    assert _allclose(cross, hdc.cross7(_e(1), _e(2)))
     phi = compose.run_chain(
         _spec("g2", {"class": "M", "op": "g2_three_form",
                      "args": {"x": "@input.x", "y": "@input.y", "z": "@input.z"}}),
@@ -76,4 +88,4 @@ def test_two_step_M_then_C_composition():
         {"class": "M", "op": "loop_conj", "args": {"x": "@step[0]"}},
     )
     out = compose.run_chain(spec, inputs={"x": _e(1), "y": _e(2)})
-    assert np.allclose(out, hdc.loop_conj(hdc.loop_bind(_e(1), _e(2))))
+    assert _allclose(out, hdc.loop_conj(hdc.loop_bind(_e(1), _e(2))))

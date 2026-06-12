@@ -24,9 +24,17 @@ Boundary cases:
   - Out-of-int8 values: Python fallback (the native ABI is int8).
   - Bool elements: Python fallback (Python iteration handles False == 0).
   - Generators: Python fallback (no len(); can't pre-size the C buffer).
-  - Mixed types (int + float / numpy scalar): Python fallback.
+  - Mixed types (int + float): Python fallback.
+
+numpy-free: inputs are plain Python lists/tuples/generators; the random
+sweep uses ``random.Random``; the reference oracle is the hand-written
+product-of-signs ``_python_ref``. The old ndarray-dtype dispatch cases
+(``np.int8``…``np.uint32`` sweeps + empty/out-of-int8 ndarray) were deleted
+— they only exercised numpy ndarray inputs that no longer reach srmech now
+that numpy is out; the equivalent list-input fallbacks are retained.
 """
-import numpy as np
+import random
+
 import pytest
 
 from srmech.amsc import _native, cascade
@@ -79,11 +87,6 @@ def test_empty_tuple_returns_one():
     assert cascade.net_chirality(()) == 1
 
 
-@SKIP_IF_NO_NATIVE
-def test_empty_ndarray_returns_one():
-    assert cascade.net_chirality(np.array([], dtype=np.int8)) == 1
-
-
 def test_single_positive():
     assert cascade.net_chirality([+1]) == 1
 
@@ -132,25 +135,6 @@ def test_tuple_input_parity_with_list():
 
 
 # ──────────────────────────────────────────────────────────────────────
-# ndarray dtype sweep — every integer dtype dispatches when values fit
-# ──────────────────────────────────────────────────────────────────────
-
-@SKIP_IF_NO_NATIVE
-@pytest.mark.parametrize("dtype", [np.int8, np.int16, np.int32, np.int64])
-def test_ndarray_signed_dtypes_dispatch(dtype):
-    arr = np.array([-1, +1, -1, +1, -1], dtype=dtype)
-    assert cascade.net_chirality(arr) == _python_ref(list(arr))
-
-
-@SKIP_IF_NO_NATIVE
-@pytest.mark.parametrize("dtype", [np.uint8, np.uint16, np.uint32])
-def test_ndarray_unsigned_dtypes_dispatch(dtype):
-    # uint dtypes can carry 0 and +1 (values that fit signed int8).
-    arr = np.array([1, 1, 0, 1], dtype=dtype)
-    assert cascade.net_chirality(arr) == 0
-
-
-# ──────────────────────────────────────────────────────────────────────
 # Python-fallback paths (generator / bool / out-of-int8 / mixed types)
 # ──────────────────────────────────────────────────────────────────────
 
@@ -172,13 +156,6 @@ def test_bool_list_all_true():
     """[True, True]: Python iteration; True != 0; True < 0 is False;
     so net stays at 1 throughout."""
     assert cascade.net_chirality([True, True]) == 1
-
-
-def test_out_of_int8_ndarray_falls_back():
-    """np.array([200], dtype=np.int32): 200 > 127 -> Python fallback.
-    Python ref: 200 < 0 is False, so net stays at 1."""
-    arr = np.array([200], dtype=np.int32)
-    assert cascade.net_chirality(arr) == 1
 
 
 def test_out_of_int8_list_falls_back():
@@ -205,20 +182,20 @@ def test_mixed_with_zero_float():
 
 
 # ──────────────────────────────────────────────────────────────────────
-# Random parity sweep (native vs Python ref)
+# Random parity sweep (op result vs Python ref)
 # ──────────────────────────────────────────────────────────────────────
 
 @SKIP_IF_NO_NATIVE
 def test_random_sweep_parity():
-    """50-sample random sweep: native and Python-ref agree everywhere."""
-    rng = np.random.default_rng(seed=20260528)
+    """50-sample random sweep: the op and Python-ref agree everywhere."""
+    rng = random.Random(20260528)
     for _ in range(50):
-        n = int(rng.integers(0, 12))
-        orientations = [int(rng.choice([-1, 0, +1])) for _ in range(n)]
-        native_result = cascade.net_chirality(orientations)
+        n = rng.randint(0, 11)
+        orientations = [rng.choice([-1, 0, +1]) for _ in range(n)]
+        op_result = cascade.net_chirality(orientations)
         ref_result = _python_ref(orientations)
-        assert native_result == ref_result, (
-            f"net_chirality({orientations!r}) -> native={native_result}, "
+        assert op_result == ref_result, (
+            f"net_chirality({orientations!r}) -> op={op_result}, "
             f"ref={ref_result}"
         )
 

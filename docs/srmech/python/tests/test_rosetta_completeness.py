@@ -42,9 +42,11 @@ from pathlib import Path
 
 import pytest
 
-# The qm / signal_processing surfaces need numpy to import. When numpy is absent
-# (a deliberately-minimal install) this completeness audit simply doesn't apply.
-pytest.importorskip("numpy")
+# #564 (numpy out the door): the qm / signal_processing surfaces are numpy-free
+# now, and this audit walks them with stdlib importlib / inspect / pkgutil only
+# (a submodule that still fails to import is simply skipped by ``_iter_submodules``
+# — it contributes no live ops). So the completeness ratchet runs numpy-ABSENT
+# (no ``importorskip``; the test must PASS, not skip, with numpy uninstalled).
 
 _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 

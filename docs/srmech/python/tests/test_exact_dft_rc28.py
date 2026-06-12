@@ -10,12 +10,17 @@ exactly once at the final FPU lift zeta -> e^{-2pi i/N}.
 These tests pin: (1) the exact integer core is bit-deterministic and produces an
 all-Python-int spectrum (no floats); (2) the public dft/fft route integer/
 Gaussian-integer power-of-two signals through that engine and agree bit-for-bit;
-(3) the result is value-faithful to numpy.fft to round-off; (4) float and
-non-power-of-two signals are NOT exact-routed (they keep the float cexp path).
+(3) the result is value-faithful to a cmath DFT-by-definition oracle to round-off;
+(4) float and non-power-of-two signals are routed appropriately.
+
+numpy is GONE from srmech — these tests run and pass with numpy NOT installed.
+The oracle is a pure-cmath DFT-by-definition (no numpy.fft).
 """
 from __future__ import annotations
 
-import numpy as np
+import cmath
+import math
+
 import pytest
 
 from srmech.amsc.cascade.exact_dft import (
@@ -31,7 +36,24 @@ POW2 = [2, 4, 8, 16, 32, 64]
 
 
 def _int_signal(n, seed):
-    return [int(v) for v in ((np.arange(n) * seed + 3) % 11 - 5)]
+    return [(i * seed + 3) % 11 - 5 for i in range(n)]
+
+
+def _dft_ref(x, inverse=False):
+    """DFT by definition via cmath: X[k] = Σ_n x[n]·e^{∓2πi·kn/N} (÷N if inverse)."""
+    n = len(x)
+    sign = 1.0 if inverse else -1.0
+    out = []
+    for k in range(n):
+        acc = 0j
+        for idx in range(n):
+            acc += complex(x[idx]) * cmath.exp(sign * 2j * math.pi * k * idx / n)
+        out.append(acc / n if inverse else acc)
+    return out
+
+
+def _max_abs_diff(got, want):
+    return max((abs(complex(g) - complex(w)) for g, w in zip(got, want)), default=0.0)
 
 
 # --- (1) the exact integer core -------------------------------------------------
@@ -79,34 +101,31 @@ def test_integer_signal_takes_exact_path_fft_equals_dft_bitwise(n):
     f = fft(sig)
     # both route the same exact engine -> identical bit-for-bit
     assert d == f
-    # value-faithful to numpy.fft to round-off (the single FPU lift)
-    ref = np.fft.fft(np.array(sig, dtype=float))
-    assert np.max(np.abs(np.array(d) - ref)) <= 1e-9
+    # value-faithful to the cmath DFT-by-definition oracle to round-off (the lift)
+    assert _max_abs_diff(d, _dft_ref(sig)) <= 1e-9
 
 
 @pytest.mark.parametrize("n", POW2)
 def test_gaussian_integer_signal_exact(n):
     sig = [complex(a, b) for a, b in zip(_int_signal(n, 2), _int_signal(n, 9))]
-    ref = np.fft.fft(np.array(sig))
-    assert np.max(np.abs(np.array(fft(sig)) - ref)) <= 1e-9
+    assert _max_abs_diff(fft(sig), _dft_ref(sig)) <= 1e-9
 
 
 @pytest.mark.parametrize("n", [4, 8, 16, 32])
 def test_roundtrip_ifft_fft_recovers_integer_signal(n):
     sig = _int_signal(n, 3)
     rt = ifft(fft(sig))
-    assert np.max(np.abs(np.array(rt) - np.array(sig, dtype=float))) <= 1e-9
+    assert _max_abs_diff(rt, sig) <= 1e-9
     rt2 = idft(dft(sig))
-    assert np.max(np.abs(np.array(rt2) - np.array(sig, dtype=float))) <= 1e-9
+    assert _max_abs_diff(rt2, sig) <= 1e-9
 
 
-# --- (4) float / non-pow2 keep the float path (NOT exact-routed) ----------------
+# --- (4) float / non-pow2 routing -----------------------------------------------
 
 def test_float_signal_is_not_exact_routed():
     fsig = [0.5, -1.25, 2.0, 3.7]
     assert _exact_transform(fsig) is None
-    ref = np.fft.fft(np.array(fsig))
-    assert np.max(np.abs(np.array(fft(fsig)) - ref)) <= 1e-9
+    assert _max_abs_diff(fft(fsig), _dft_ref(fsig)) <= 1e-9
 
 
 def test_non_power_of_two_integer_is_now_exact_routed():
@@ -114,8 +133,7 @@ def test_non_power_of_two_integer_is_now_exact_routed():
     # route through the exact path too (was the float fallback through rc29).
     isig = [1, 2, 3, 4, 5]
     assert _exact_transform(isig) is not None
-    ref = np.fft.fft(np.array(isig, dtype=float))
-    assert np.max(np.abs(np.array(dft(isig)) - ref)) <= 1e-9
+    assert _max_abs_diff(dft(isig), _dft_ref(isig)) <= 1e-9
 
 
 def test_length_one_and_empty_are_not_exact_routed():
@@ -129,8 +147,8 @@ def test_inverse_of_float_spectrum_uses_float_path():
     # a spectrum is generally complex-float; its inverse must run the float path
     spectrum = fft([1, 0, 0, 0, 1, 0, 0, 0])     # exact (integer input)
     back = ifft(spectrum)                          # spectrum is float -> float path
-    want = np.fft.ifft(np.array(spectrum))
-    assert np.max(np.abs(np.array(back) - want)) <= 1e-9
+    want = _dft_ref(spectrum, inverse=True)
+    assert _max_abs_diff(back, want) <= 1e-9
 
 
 def test_lift_applies_scale():
