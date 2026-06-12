@@ -239,15 +239,24 @@ jobs:
           _O = Mat.from_rows([[1.0,0.5,0.0],[0.0,2.0,0.5],[0.0,0.0,3.0]], is_complex=True)
           _eta = pseudo_hermitian.construct_eta_from_eigendecomposition(_O)
           assert type(_eta).__name__ == 'Mat' and pseudo_hermitian.is_pseudo_hermitian(_O, _eta, atol=1e-8), 'pseudo_hermitian not numpy-free'
-          # a still-numpy CARRIER must still fail with the [scientific] hint —
-          # ica_jade imports through the closed_form_ops lazy package gate, which
-          # re-raises the numpy ModuleNotFoundError as the clean hint:
+          # ica_jade (rc126) is numpy-free — the LAST signal_processing carrier,
+          # so the whole subpackage now imports + runs numpy-absent. JADE
+          # whitening routes the covariance eig through mat_hermitian_eigendecompose
+          # and returns the sources / unmixing matrix as Mats.
+          from srmech.signal_processing.closed_form_ops import ica_jade
+          _S, _W = ica_jade.op([[1.0,0.5],[0.5,1.0],[-1.0,0.2],[0.3,-0.7]], n_components=2, max_iter=3)
+          assert type(_S).__name__ == 'Mat' and type(_W).__name__ == 'Mat' and _W.shape == (2, 2), 'ica_jade not numpy-free'
+          # the scientific tier must STILL raise the clean [scientific] hint at a
+          # numpy export boundary — One.to_numpy() is the DURABLE exemplar (a
+          # lossy ndarray export that intrinsically needs numpy; it is not a
+          # carrier to be flipped, so it survives the carrier-removal capstone):
+          from srmech.amsc.cascade.one import the_one
           try:
-              from srmech.signal_processing.closed_form_ops import ica_jade  # noqa: F401  (still a numpy carrier)
-              raise SystemExit('ica_jade imported without numpy (guard missing)')
+              the_one(1, 0, 1).to_numpy()
+              raise SystemExit('One.to_numpy() without numpy (guard missing)')
           except ImportError as exc:
               assert 'srmech[scientific]' in str(exc), exc
-          print(f'srmech {__version__} OK (numpy-optional; qm fully numpy-free)')
+          print(f'srmech {__version__} OK (numpy-optional; qm + signal_processing fully numpy-free)')
           "
 
   pedantic-build:

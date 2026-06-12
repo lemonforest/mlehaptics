@@ -515,15 +515,20 @@ def test_beamforming_fixed_smoke():
 
 
 def test_ica_jade_smoke():
+    # rc126: ica_jade is numpy-free, so its test is too — no numpy as the
+    # input-builder or oracle (per the numpy-free-test discipline).
+    import random
+
     from srmech.signal_processing.closed_form_ops import ica_jade as m
 
-    rs = np.random.RandomState(0)
-    # 2 independent uniform-distributed sources, mixed.
+    # 2 independent uniform-distributed sources, mixed (X = S @ A.T).
+    rng = random.Random(0)
     n = 200
-    S_true = rs.uniform(-1, 1, (n, 2))
-    A_mix = np.array([[1.0, 0.5], [0.3, 1.0]])
-    X = S_true @ A_mix.T
+    s_true = [[rng.uniform(-1.0, 1.0), rng.uniform(-1.0, 1.0)] for _ in range(n)]
+    a_mix = [[1.0, 0.5], [0.3, 1.0]]  # rows = sensors
+    X = [[s[0] * a_mix[r][0] + s[1] * a_mix[r][1] for r in range(2)] for s in s_true]
     S_hat, W = m.op(X, n_components=2, max_iter=10)
+    assert type(S_hat).__name__ == "Mat" and type(W).__name__ == "Mat"
     assert S_hat.shape == (n, 2)
     assert W.shape == (2, 2)
 

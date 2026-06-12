@@ -112,21 +112,23 @@ def test_propagators_imports_and_runs_numpy_free():
 
 
 def test_a_still_numpy_carrier_raises_scientific_hint_numpy_free():
-    """A still-numpy CARRIER must still raise the clean ``[scientific]`` hint
-    numpy-blocked. ``pseudo_hermitian`` flipped numpy-free at rc124, so the
-    pure-wheel must-raise example moved to ``ica_jade`` (which imports through the
-    ``closed_form_ops`` lazy package gate that re-raises the numpy
-    ModuleNotFoundError as the clean hint)."""
+    """A scientific-tier numpy export boundary must still raise the clean
+    ``[scientific]`` hint numpy-blocked. ``ica_jade`` flipped numpy-free at rc126
+    (the LAST signal_processing carrier), so the pure-wheel must-raise exemplar
+    moved to the DURABLE ``One.to_numpy()`` — a lossy ndarray export that
+    intrinsically needs numpy and is NOT a carrier to be flipped, so it stays
+    the long-lived numpy-requiring exemplar past the carrier-removal capstone."""
     proc = _run_numpy_free(
         """
+        from srmech.amsc.cascade.one import the_one
         try:
-            from srmech.signal_processing.closed_form_ops import ica_jade  # noqa: F401
+            the_one(1, 0, 1).to_numpy()
         except ImportError as exc:
             assert "srmech[scientific]" in str(exc), str(exc)
             print("HINT_OK")
         else:
-            raise SystemExit("ica_jade unexpectedly importable numpy-free")
+            raise SystemExit("One.to_numpy() unexpectedly succeeded numpy-free")
         """
     )
-    assert proc.returncode == 0, f"ica_jade hint guard failed:\n{proc.stderr}"
+    assert proc.returncode == 0, f"scientific export-boundary hint guard failed:\n{proc.stderr}"
     assert "HINT_OK" in proc.stdout, proc.stdout

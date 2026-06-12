@@ -170,37 +170,73 @@ def _abs_corr(u: np.ndarray, v: np.ndarray) -> float:
     return c if c >= 0 else -c  # Class-K sign-branch (no abs())
 
 
+def _corr_lists(u, v):
+    """|Pearson correlation| of two float lists via a Class-K sign-branch
+    (no abs()) — numpy-free."""
+    import math
+
+    m = len(u)
+    mu = sum(u) / m
+    mv = sum(v) / m
+    du = [x - mu for x in u]
+    dv = [x - mv for x in v]
+    denom = math.sqrt(sum(x * x for x in du) * sum(x * x for x in dv))
+    if denom == 0.0:
+        return 0.0
+    c = sum(du[i] * dv[i] for i in range(m)) / denom
+    return c if c >= 0 else -c  # Class-K sign-branch (no abs())
+
+
 def test_ica_jade_decorrelates_and_reconstructs():
     """ICA-JADE decorrelates two mixed sources and the unmixing reconstructs X.
 
+    rc126: ica_jade is numpy-free (returns `Mat` sources / unmixing matrix), so
+    this routing test is too — numpy-free fixtures, `Mat`-entry access, and a
+    closed-form 2x2 inverse (= pinv for the invertible square `W`) for the
+    reconstruction check.
+
     The simplified JADE reference here sweeps a single cumulant slice with a
     fixed iteration cap, so the converged rotation is chaotically sensitive to
-    machine-epsilon angle perturbations (the cascade trig matches libm to
-    ~1e-16, so this is an algorithm property, not a routing defect). The
-    stable, routing-invariant contract is therefore asserted: (1) the recovered
-    sources are mutually decorrelated, and (2) the unmixing reconstructs the
-    centred observations.
+    machine-epsilon angle perturbations. The stable, routing-invariant contract
+    is therefore asserted: (1) the recovered sources are mutually decorrelated,
+    and (2) the unmixing reconstructs the centred observations.
     """
-    rs = np.random.RandomState(7)
+    import math
+    import random
+
+    rng = random.Random(7)
     n = 400
-    s1 = rs.uniform(-1.0, 1.0, n)
-    s2 = np.sign(np.sin(np.linspace(0, 20 * np.pi, n)))  # square wave
-    S_true = np.column_stack([s1, s2])
-    A_mix = np.array([[1.0, 0.6], [0.4, 1.0]])
-    X = S_true @ A_mix.T
+    s1 = [rng.uniform(-1.0, 1.0) for _ in range(n)]
+    # square wave: sign(sin(20π · t/(n-1))) over the grid.
+    s2 = []
+    for t in range(n):
+        sv = math.sin(20.0 * math.pi * (t / (n - 1)))
+        s2.append(1.0 if sv > 0 else (-1.0 if sv < 0 else 0.0))
+    a_mix = [[1.0, 0.6], [0.4, 1.0]]  # rows = sensors; X = S @ A.T
+    X = [[s1[t] * a_mix[r][0] + s2[t] * a_mix[r][1] for r in range(2)] for t in range(n)]
     S_hat, W = ica_jade.op(X, n_components=2, max_iter=200)
     assert S_hat.shape == (n, 2)
     assert W.shape == (2, 2)
 
     # (1) Mixed channels are correlated; recovered sources are decorrelated.
-    mixed_corr = _abs_corr(X[:, 0], X[:, 1])
-    source_corr = _abs_corr(S_hat[:, 0], S_hat[:, 1])
-    assert mixed_corr > 0.5  # genuinely-mixed fixture
-    assert source_corr < 1e-6  # sources whitened/decorrelated
+    x0 = [X[t][0] for t in range(n)]
+    x1 = [X[t][1] for t in range(n)]
+    sh0 = [S_hat[t, 0] for t in range(n)]
+    sh1 = [S_hat[t, 1] for t in range(n)]
+    assert _corr_lists(x0, x1) > 0.5  # genuinely-mixed fixture
+    assert _corr_lists(sh0, sh1) < 1e-6  # sources whitened/decorrelated
 
-    # (2) The unmixing reconstructs the centred observations exactly.
-    Xc = X - X.mean(axis=0, keepdims=True)
-    A_est = np.linalg.pinv(W)
-    X_rec = (A_est @ S_hat.T).T
-    err = Xc - X_rec
-    assert np.max(err ** 2) < 1e-18
+    # (2) The unmixing reconstructs the centred observations exactly. `W` is a
+    # 2x2 `Mat`; its inverse (= pinv for the invertible square) is closed-form.
+    a, b = W[0, 0], W[0, 1]
+    c, d = W[1, 0], W[1, 1]
+    det = a * d - b * c
+    inv = [[d / det, -b / det], [-c / det, a / det]]  # A_est = W⁻¹
+    means = [sum(X[t][j] for t in range(n)) / n for j in range(2)]
+    max_err2 = 0.0
+    for t in range(n):
+        for i in range(2):
+            rec = inv[i][0] * S_hat[t, 0] + inv[i][1] * S_hat[t, 1]
+            e = (X[t][i] - means[i]) - rec
+            max_err2 = max(max_err2, e * e)
+    assert max_err2 < 1e-18
