@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc119"
-#define SRMECH_VERSION       "0.7.5rc119"
+#define SRMECH_VERSION_PRE   "rc120"
+#define SRMECH_VERSION       "0.7.5rc120"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -958,6 +958,19 @@ srmech_status_t srmech_hermitian_eigendecompose(
 #define SRMECH_HERMITIAN_WS_LEN(n) ((size_t)(n) * (size_t)(n) * 2u)
 #define SRMECH_HERMITIAN_WS_MAX SRMECH_HERMITIAN_WS_LEN(SRMECH_LAPLACIAN_MAX_NODES)
 
+/* Max node count for the WORKSPACE-based srmech_hermitian_
+ * eigendecompose_ws entry. Because the caller supplies the entire
+ * 2*n*n-double working buffer (heap-allocated), n is bounded only by
+ * this sanity cap, NOT by stack or static storage — the whole _ws
+ * hermitian-eig path uses only O(1)/O(n) scratch on top of the
+ * caller's workspace + output. 2048 keeps 2*n*n well within size_t and
+ * covers QM grid sizes (e.g. a hydrogen radial grid n_grid up to
+ * ~1000). The convenience wrapper srmech_hermitian_eigendecompose
+ * stays bounded by SRMECH_LAPLACIAN_MAX_NODES (256) via its 1 MiB
+ * thread-local static buffer (it passes ws_len = SRMECH_HERMITIAN_WS_
+ * MAX, so the ws_len < 2*n*n check rejects n > 256 for it on its own). */
+#define SRMECH_HERMITIAN_WS_MAX_NODES 2048u
+
 /* Reentrant variant of srmech_hermitian_eigendecompose (#772).
  *
  * Identical numerics + output contract, but takes a CALLER-SUPPLIED
@@ -969,7 +982,7 @@ srmech_status_t srmech_hermitian_eigendecompose(
  *
  * `workspace` must be non-NULL with `ws_len >= SRMECH_HERMITIAN_WS_LEN(n)`
  * = 2*n*n doubles; returns SRMECH_ERR_OVERFLOW if too small or n
- * exceeds SRMECH_LAPLACIAN_MAX_NODES, SRMECH_ERR_NULL_ARG if any
+ * exceeds SRMECH_HERMITIAN_WS_MAX_NODES, SRMECH_ERR_NULL_ARG if any
  * required pointer is NULL.
  *
  * ABI-additive: a new symbol, so SRMECH_ABI_VERSION is unchanged. The

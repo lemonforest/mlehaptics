@@ -337,7 +337,7 @@ static double srmech_hermitian_off_diag_sq(uint32_t n,
                                            const double *mat_il)
 {
     assert(mat_il != NULL);
-    assert(n <= SRMECH_LAPLACIAN_MAX_NODES);
+    assert(n <= SRMECH_HERMITIAN_WS_MAX_NODES);
     double s = 0.0;
     for (uint32_t r = 0; r < n; r++) {
         for (uint32_t c = r + 1; c < n; c++) {
@@ -460,7 +460,7 @@ static void srmech_hermitian_apply_rotation(uint32_t n, double *H,
 static void srmech_hermitian_init_identity(uint32_t n, double *V_il)
 {
     assert(V_il != NULL);
-    assert(n <= SRMECH_LAPLACIAN_MAX_NODES);
+    assert(n <= SRMECH_HERMITIAN_WS_MAX_NODES);
     size_t total = (size_t)n * n * 2;
     for (size_t i = 0; i < total; i++) {
         V_il[i] = 0.0;
@@ -518,7 +518,7 @@ static srmech_status_t srmech_hermitian_run_sweeps(uint32_t n,
 {
     assert(Hwork != NULL);
     assert(V != NULL);
-    assert(n <= SRMECH_LAPLACIAN_MAX_NODES);
+    assert(n <= SRMECH_HERMITIAN_WS_MAX_NODES);
     /* Convergence target = 1e-12² × initial off-diagonal norm. */
     double target = 1e-24 * srmech_hermitian_off_diag_sq(n, Hwork);
     uint32_t sweep;
@@ -550,12 +550,12 @@ srmech_status_t srmech_hermitian_eigendecompose_ws(
 {
     assert(out_eigvals != NULL);
     assert(out_eigvecs_interleaved != NULL);
-    assert(n <= SRMECH_LAPLACIAN_MAX_NODES);
+    assert(n <= SRMECH_HERMITIAN_WS_MAX_NODES);
     if (H_interleaved == NULL || out_eigvals == NULL
         || out_eigvecs_interleaved == NULL || workspace == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (n > SRMECH_LAPLACIAN_MAX_NODES) {
+    if (n > SRMECH_HERMITIAN_WS_MAX_NODES) {
         return SRMECH_ERR_OVERFLOW;
     }
     if (n == 0) {
