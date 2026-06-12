@@ -426,7 +426,25 @@ def _is_numpy_import(line: str) -> bool:
 # carrier); pseudo_hermitian ADDED to the flipped-and-exercised list. The
 # remaining 3 carriers are EXACTLY: mcp/_coercion.py,
 # signal_processing/closed_form_ops/ica_jade.py, spectral/__init__.py. 4 -> 3.
-CEIL_NUMPY_CARRIER = 3
+# rc125 (#564): spectral/__init__.py (Spike #115 runtime spectral decompose /
+# delta / recompose / similarity / predict / prediction_error / truncate_sparse)
+# flips numpy-free. A LEAF for its public ops — the only srmech-side importer is
+# mcp/_coercion.py which imports the SpectralHandle TYPE (not a function); nothing
+# in srmech calls the ops. The math routes onto the Mat carrier:
+# hermitian_eigendecompose(L) -> mat_hermitian_eigendecompose(Mat) (the prior
+# dense_matvec_complex / hermitian_eigendecompose are numpy CARRIERS that raise
+# numpy-absent), projection Vᴴ·state / V·coeffs as explicit numpy-free matvecs.
+# The complex128 coefficient bytes (np.frombuffer / .tobytes) -> struct
+# pack/unpack of interleaved native-endian (re,im) float64 pairs (BYTE-IDENTICAL
+# to the old layout, so descriptor / content hashes are stable); np.argsort ->
+# `sorted(reverse=True)` (stable, same tie order); the per-mode predict phase
+# e^{-iλt} -> rational.cexp; truncate magnitudes -> squared-modulus (no abs/sqrt).
+# recompose now returns List[complex] (was np.ndarray); the MCP path serialises
+# via the JSON wire so the return-type change is transparent. test_spectral.py +
+# test_spectral_rcn_plus_2.py rewritten numpy-FREE (struct unpack, max(abs()),
+# random.Random fixtures). ica_jade STAYS the pure-wheel must-raise example
+# (spectral != ica_jade) -> NO CI-guard move. 3 -> 2.
+CEIL_NUMPY_CARRIER = 2
 
 
 def _srmech_root() -> pathlib.Path:
