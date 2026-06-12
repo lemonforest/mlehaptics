@@ -223,10 +223,18 @@ jobs:
           assert hdc.polar_random(8, seed=1).typecode == 'b', 'hdc polar not numpy-free'
           from srmech.amsc.cascade import quaternion_dft
           assert len(quaternion_dft([[1.0,0,0,0]])) == 1, 'hypercomplex_dft not numpy-free'
+          # propagators (rc123) is numpy-free: the Feynman propagators are built
+          # over the numpy-free Mat carrier (scalar -> complex, the 4x4 numerators
+          # -> Mat via mat_matmul outer / the relativistic Dirac+metric producers).
+          from srmech.qm import propagators
+          _G = propagators.feynman_scalar_propagator(k_squared=10.0, m=1.0)
+          assert abs(_G - 1j/9.0) < 1e-12, 'propagators scalar pole wrong'
+          _SF = propagators.feynman_fermion_propagator([3.0,1.0,0.0,0.0], m=1.0)
+          assert type(_SF).__name__ == 'Mat' and _SF.shape == (4, 4), 'propagators not numpy-free'
           # an as-yet-numpy qm submodule must still fail with the [scientific] hint:
           try:
-              from srmech.qm import propagators  # noqa: F401  (still a numpy carrier)
-              raise SystemExit('srmech.qm.propagators imported without numpy (guard missing)')
+              from srmech.qm import pseudo_hermitian  # noqa: F401  (still a numpy carrier)
+              raise SystemExit('srmech.qm.pseudo_hermitian imported without numpy (guard missing)')
           except ImportError as exc:
               assert 'srmech[scientific]' in str(exc), exc
           print(f'srmech {__version__} OK (numpy-optional; qm lazy-gated)')
