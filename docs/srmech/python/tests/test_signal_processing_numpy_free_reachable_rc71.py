@@ -107,24 +107,26 @@ def test_dispatch_fft_numpy_free():
 
 
 def test_numpy_op_raises_clean_scientific_hint_numpy_free():
-    """A still-numpy op (``ica_jade``) raises the clean ``[scientific]`` hint, not
-    a bare ``ModuleNotFoundError`` — on first attribute access, numpy-free.
+    """The scientific tier raises the clean ``[scientific]`` hint, not a bare
+    ``ModuleNotFoundError`` — at a numpy export boundary, numpy-free.
 
-    (rc99: exemplar moved music→mimo_svd; rc109: moved mimo_svd→ica_jade —
-    mimo_svd flipped numpy-free over the rc108 ``mat_svd`` foundation, so
-    ``ica_jade`` — whose ``np.linalg.eigh`` is numpy-as-ACCURACY, not just a
-    carrier — is the long-lived numpy-requiring exemplar.)"""
+    (rc99: exemplar moved music→mimo_svd; rc109: moved mimo_svd→ica_jade.
+    rc126: ``ica_jade`` flipped numpy-free — the LAST signal_processing carrier
+    — so the exemplar moves to the DURABLE numpy export boundary
+    ``One.to_numpy()``: a lossy ndarray export that intrinsically needs numpy
+    and is NOT a carrier to be flipped, so it stays the long-lived
+    numpy-requiring exemplar past the carrier-removal capstone.)"""
     proc = _run_numpy_free(
         """
-        import srmech.signal_processing as sp
+        from srmech.amsc.cascade.one import the_one
         try:
-            _ = sp.closed_form_ops.ica_jade
+            the_one(1, 0, 1).to_numpy()
         except ImportError as e:
             assert "scientific tier" in str(e), str(e)
             assert "srmech[scientific]" in str(e), str(e)
             print("HINT_OK")
         else:
-            raise SystemExit("ica_jade unexpectedly importable numpy-free")
+            raise SystemExit("One.to_numpy() unexpectedly succeeded numpy-free")
         """
     )
     assert proc.returncode == 0, f"clean-hint path failed:\n{proc.stderr}"

@@ -444,7 +444,16 @@ def _is_numpy_import(line: str) -> bool:
 # test_spectral_rcn_plus_2.py rewritten numpy-FREE (struct unpack, max(abs()),
 # random.Random fixtures). ica_jade STAYS the pure-wheel must-raise example
 # (spectral != ica_jade) -> NO CI-guard move. 3 -> 2.
-CEIL_NUMPY_CARRIER = 2
+# rc126: ica_jade flipped numpy-FREE — the LAST signal_processing carrier, so
+# the whole subpackage now imports + runs numpy-absent. JADE whitening routes
+# the covariance eig through mat_hermitian_eigendecompose (NOT the carrier
+# hermitian_eigendecompose / dense_matmul_real / elementwise_sqrt); the 4-D
+# cumulant tensor + Givens rotations are explicit numpy-free loops; op returns
+# (S, W) as Mats. The pure-wheel must-raise [scientific]-hint exemplar MOVED
+# from ica_jade (now numpy-free) to the DURABLE export boundary One.to_numpy()
+# (a lossy ndarray export, NOT a carrier — survives the capstone). 2 -> 1.
+# The lone remaining carrier is mcp/_coercion (the rc127 CAPSTONE).
+CEIL_NUMPY_CARRIER = 1
 
 
 def _srmech_root() -> pathlib.Path:

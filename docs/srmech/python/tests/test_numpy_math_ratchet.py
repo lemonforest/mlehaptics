@@ -372,8 +372,13 @@ _UFUNC = re.compile(
 # Gaussian-elimination null-vector eigenvector cascade, so the last non-laplacian
 # linalg_fft callsite is gone. 9 → 8 (now all in laplacian's irreducible numpy
 # fallbacks).
+# rc126 (#564 carrier removal): signal_processing/closed_form_ops/ica_jade.py
+# flips fully numpy-free (the LAST signal_processing carrier) — its 2 cumulant-
+# rotation `np.einsum` calls become explicit numpy-free first-axis-contraction
+# loops, and the `a·b` matmul docstring is de-`@`-ed. matmul 4 → 2 (the
+# remaining 2 are laplacian's own irreducible internal products).
 CEIL_LINALG_FFT = 8
-CEIL_MATMUL = 4
+CEIL_MATMUL = 2
 CEIL_UFUNC = 0
 
 
