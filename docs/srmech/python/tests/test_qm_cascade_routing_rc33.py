@@ -5,7 +5,10 @@ own A-N cascade primitives:
 
 - Hermitian eigendecomposition (``np.linalg.eigh`` / ``eigvalsh``) ->
   the Class-L primitive ``srmech.amsc.laplacian.hermitian_eigendecompose``
-  (potentials / gauge / single_particle / so8).
+  (potentials / gauge / so8). ``single_particle`` has since (rc117, #564)
+  been flipped fully numpy-free onto the ``Mat`` carrier
+  (``mat_hermitian_eigendecompose`` + the Class-N ``rational.cexp`` phase),
+  so its two tests below build inputs and assert WITHOUT numpy.
 - Standard-Model trig (``math.cos`` / ``math.sin`` / ``math.atan2``) ->
   the substrate-native Class-N rational trig ``srmech.amsc.rational.*``
   (sm).
@@ -27,8 +30,48 @@ import numpy as np
 import pytest
 
 from srmech.amsc import rational as _srn
-from srmech.amsc.laplacian import hermitian_eigendecompose
+from srmech.amsc.laplacian import hermitian_eigendecompose, mat_matmul
+from srmech.amsc.mat import Mat
 from srmech.qm import gauge, potentials, sm, single_particle as sp
+
+
+# ----------------------------------------------------------------------
+# numpy-free fixtures for the FLIPPED single_particle op (rc117, #564):
+# single_particle now holds its matrices in `Mat` and is numpy-free, so its
+# tests below build inputs + assert WITHOUT numpy (numpy stays the sanctioned
+# oracle only for the still-unflipped gauge / potentials / hermitian_eigen
+# routing tests in this file).
+# ----------------------------------------------------------------------
+
+
+def _lcg(seed: int):
+    state = (seed * 2654435761 + 12345) & 0x7FFFFFFF
+    while True:
+        state = (1103515245 * state + 12345) & 0x7FFFFFFF
+        yield (state / 0x3FFFFFFF) - 1.0
+
+
+def _hermitian_mat(n: int, seed: int) -> "Mat":
+    g = _lcg(seed)
+    a = [[complex(next(g), next(g)) for _ in range(n)] for _ in range(n)]
+    h = [
+        [(a[i][j] + complex(a[j][i]).conjugate()) / 2.0 for j in range(n)]
+        for i in range(n)
+    ]
+    return Mat.from_rows(h, is_complex=True)
+
+
+def _unit_vec(n: int, seed: int):
+    g = _lcg(seed + 777)
+    v = [complex(next(g), next(g)) for _ in range(n)]
+    nrm = _srn.sqrt(sum(x.real * x.real + x.imag * x.imag for x in v))
+    return [x / nrm for x in v]
+
+
+def _matvec_mat(m: "Mat", v):
+    col = Mat.from_rows([[x] for x in v], is_complex=True)
+    out = mat_matmul(m, col)
+    return [out[i, 0] for i in range(out.n_rows)]
 
 
 # ----------------------------------------------------------------------
@@ -110,29 +153,50 @@ def test_potentials_hydrogen_eigenvectors_real_and_orthonormal():
 
 
 def test_single_particle_tise_subspace_parity():
-    """tise_solve (complex-Hermitian) reconstructs H within 1e-9; eigenvectors
-    stay complex128 and orthonormal (subspace parity, phase-free)."""
-    H = _complex_hermitian(6, 30)
+    """tise_solve (complex-Hermitian) returns the ``(n,1)`` real eigval ``Mat`` +
+    complex unitary eigvec ``Mat``; reconstruction ``H ≈ V·diag(w)·Vᴴ`` and
+    unitarity ``Vᴴ·V ≈ I`` both hold — numpy-FREE (single_particle is a
+    numpy-free ``Mat`` op as of rc117; an eigenvector is fixed only up to phase,
+    so correctness is reconstruction + unitarity, not element-wise parity)."""
+    n = 6
+    H = _hermitian_mat(n, 30)
     w, V = sp.tise_solve(H)
-    assert np.iscomplexobj(V)
-    np.testing.assert_allclose(V.conj().T @ V, np.eye(6), atol=1e-9)
-    np.testing.assert_allclose(V @ np.diag(w) @ V.conj().T, H, atol=1e-9)
-    np.testing.assert_allclose(w, np.linalg.eigvalsh(H), atol=1e-9)
+    assert V.is_complex and w.shape == (n, 1)
+    # Unitarity: Vᴴ·V = I (via the native mat_matmul).
+    vhv = mat_matmul(V.conj().T, V)
+    assert max(
+        abs(vhv[i, j] - (1.0 if i == j else 0.0)) for i in range(n) for j in range(n)
+    ) < 1e-9
+    # Reconstruction: H = V·diag(w)·Vᴴ.
+    D = Mat.from_rows(
+        [[w[i, 0] if i == j else 0.0 for j in range(n)] for i in range(n)],
+        is_complex=True,
+    )
+    H_rebuilt = mat_matmul(mat_matmul(V, D), V.conj().T)
+    assert max(
+        abs(H_rebuilt[i, j] - H[i, j]) for i in range(n) for j in range(n)
+    ) < 1e-9
+    # Eigenvalues ascending.
+    for i in range(n - 1):
+        assert w[i + 1, 0] - w[i, 0] >= -1e-9
 
 
 def test_single_particle_tdse_matches_reference():
-    """tdse_evolve result matches a numpy.linalg.eigh-built reference (the
-    pre-change closed form) within 1e-9 — independent of eigvec phase."""
-    H = _complex_hermitian(5, 31)
-    rng = np.random.default_rng(99)
-    psi = rng.standard_normal(5) + 1j * rng.standard_normal(5)
-    psi = psi / np.linalg.norm(psi)
+    """tdse_evolve matches the hand-composed closed form ``V·diag(e^{-iλt})·Vᴴ·ψ``
+    built from ``tise_solve`` + the Class-N ``rational.cexp`` — numpy-FREE
+    (the reference is the framework's own eigendecomposition + Euler cascade,
+    NOT a numpy oracle, so the flipped op's test is itself numpy-free)."""
+    n = 5
+    H = _hermitian_mat(n, 31)
+    psi = _unit_vec(n, 99)
     t = 1.7
-    # Pre-change reference: numpy eigh closed form.
-    w_ref, V_ref = np.linalg.eigh(H)
-    ref = V_ref @ (np.exp(-1j * w_ref * t) * (V_ref.conj().T @ psi))
+    w, V = sp.tise_solve(H)
+    # Reference: V·diag(e^{-iλt})·Vᴴ·ψ via Mat ops + Class-N cexp.
+    vh_psi = _matvec_mat(V.conj().T, psi)
+    phased = [_srn.cexp(-(w[k, 0] * t)) * vh_psi[k] for k in range(n)]
+    ref = _matvec_mat(V, phased)
     got = sp.tdse_evolve(H, psi, t)
-    np.testing.assert_allclose(got, ref, atol=1e-9)
+    assert max(abs(got[i] - ref[i]) for i in range(n)) < 1e-9
 
 
 def test_gauge_path_segment_matches_reference():
