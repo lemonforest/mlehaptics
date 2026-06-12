@@ -154,18 +154,18 @@ jobs:
           python -m twine check --strict dist/*
           echo "pure-wheel sanity checks passed"
 
-      - name: Verify wheel installs + imports (numpy-optional capstone)
+      - name: Verify wheel installs + imports (numpy-ZERO capstone)
         working-directory: docs/srmech/python
         run: |
           set -euo pipefail
-          # Install ONLY the wheel (no extras) — numpy is optional as of v0.7.0,
-          # so a bare install must import the cascade core with numpy absent.
+          # Install ONLY the wheel (no extras) — numpy is GONE (#564), so a bare
+          # install must import + RUN the whole package with numpy absent.
           python -m pip install --quiet dist/*.whl
           cd /tmp
           python -c "
           import importlib.util
           assert importlib.util.find_spec('numpy') is None, \
-              'numpy leaked into the base install — it must be the [scientific] extra'
+              'numpy leaked into the install — numpy is removed entirely (#564)'
           from srmech import __version__
           from srmech.amsc import (
               MPRRecord, Descriptor, get_attested_dataset,
@@ -174,11 +174,8 @@ jobs:
           # the Class-N cascade core must work numpy-free
           from srmech.amsc import rational
           assert rational.best_rational(22, 7, 100) == (22, 7)
-          # the srmech.qm SUBPACKAGE imports numpy-free as of v0.7.5rc115 (the
-          # eager _require_numpy gate was relaxed to a per-submodule LAZY
-          # __getattr__): the flipped qm submodules
-          # (spin/bell/sm/single_particle/relativistic/gauge) run numpy-free,
-          # while the as-yet-numpy submodules still raise the [scientific] hint.
+          # the srmech.qm SUBPACKAGE is fully numpy-free (#564): every submodule
+          # imports + runs with numpy absent, over the Mat carrier + cascades.
           import srmech.qm  # noqa: F401  (subpackage import must NOT require numpy)
           from srmech.qm import spin, bell, single_particle, relativistic, gauge, potentials
           assert type(spin.pauli_matrices()[0]).__name__ == 'Mat', 'spin not numpy-free'
@@ -246,17 +243,12 @@ jobs:
           from srmech.signal_processing.closed_form_ops import ica_jade
           _S, _W = ica_jade.op([[1.0,0.5],[0.5,1.0],[-1.0,0.2],[0.3,-0.7]], n_components=2, max_iter=3)
           assert type(_S).__name__ == 'Mat' and type(_W).__name__ == 'Mat' and _W.shape == (2, 2), 'ica_jade not numpy-free'
-          # the scientific tier must STILL raise the clean [scientific] hint at a
-          # numpy export boundary — One.to_numpy() is the DURABLE exemplar (a
-          # lossy ndarray export that intrinsically needs numpy; it is not a
-          # carrier to be flipped, so it survives the carrier-removal capstone):
+          # #564: numpy is GONE — there is no [scientific] tier and no numpy export
+          # boundary. The_one generates the 14 substrate as a real Mat (no to_numpy).
           from srmech.amsc.cascade.one import the_one
-          try:
-              the_one(1, 0, 1).to_numpy()
-              raise SystemExit('One.to_numpy() without numpy (guard missing)')
-          except ImportError as exc:
-              assert 'srmech[scientific]' in str(exc), exc
-          print(f'srmech {__version__} OK (numpy-optional; qm + signal_processing fully numpy-free)')
+          _G = the_one(1, 0, 1).to_matrix()
+          assert type(_G).__name__ == 'Mat' and _G.shape == (14, 14), 'the_one not numpy-free'
+          print(f'srmech {__version__} OK (numpy-FREE: whole package imports + runs with numpy absent)')
           "
 
   pedantic-build:
