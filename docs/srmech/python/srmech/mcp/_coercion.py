@@ -83,7 +83,10 @@ import base64
 import binascii
 from typing import Any, Callable, Dict, List, Tuple
 
-import numpy as np
+# numpy-FREE (#564): the wire form for a former ``np.ndarray`` param/return is a
+# plain nested JSON ``list`` (the numpy-free ops consume/return plain Python
+# lists / :class:`srmech.amsc.mat.Mat` / :class:`srmech.amsc.hv.HV` / ``complex``
+# now). No ``import numpy`` here — this was the LAST top-level numpy carrier.
 
 # ``binascii.Error`` is what ``base64.b64decode(validate=True)`` raises on
 # malformed input.
@@ -162,34 +165,25 @@ def _to_complex(value: Any, *, param: str = "") -> complex:
     )
 
 
-def _to_ndarray(value: Any, *, param: str = "") -> np.ndarray:
-    """Coerce a nested JSON list to a **real** ``np.ndarray`` (the
-    natural numpy dtype: ``float64`` for any float, ``int64`` for all
-    ints). A value already an ndarray passes through unchanged.
+def _to_ndarray(value: Any, *, param: str = "") -> list:
+    """Coerce a nested JSON list to a **real nested Python list** — the
+    numpy-free (#564) wire form for the historical ``np.ndarray`` param.
 
-    DTYPE CAVEAT (the documented round-trip caveat). A nested list of
-    plain numbers is built as a *real* array; the generic ``np.ndarray``
-    path does NOT auto-promote ``[re, im]`` leaves to a complex array,
-    because a real 2-column matrix (e.g. ``[[1, 2], [3, 4]]``) is
-    shape-indistinguishable from a length-2 complex vector — guessing
-    would corrupt the far more common real-matrix ops (graph-Laplacian,
-    real symmetric eigendecomposition, real 3-/4-vectors). This makes the
-    real-array round-trip ``coerce_param(serialise_native(x)) == x``
-    EXACT, and is lossless for the complex-input ops too: every complex
-    op internally casts via ``np.ascontiguousarray(value,
-    dtype=complex128)`` and a real symmetric matrix IS a valid Hermitian
-    input. The only thing the generic path cannot accept on input is an
-    array carrying genuine *imaginary* parts — express those explicitly
-    with :func:`_complex_pairs_to_ndarray` (the ``complex`` element coercer
-    handles single complex scalars; bulk complex array work is the bus
-    by-reference handle path, not the JSON MCP path).
-    """
-    if isinstance(value, np.ndarray):
-        return value
-    # np.asarray picks float64 for any float present, int64 for all-ints.
-    # Force float64 when the value is (nested) numeric with any float so a
-    # mixed int/float matrix is uniform; np.asarray already does this.
-    return np.asarray(value)
+    DTYPE CAVEAT (the documented round-trip caveat). A nested list of plain
+    numbers stays REAL; the generic path does NOT auto-promote ``[re, im]``
+    leaves to complex, because a real 2-column matrix (e.g.
+    ``[[1, 2], [3, 4]]``) is shape-indistinguishable from a length-2 complex
+    vector — guessing would corrupt the far more common real-matrix ops
+    (graph-Laplacian, real symmetric eigendecomposition, real 3-/4-vectors).
+    This makes the round-trip ``coerce_param(serialise_native(x)) == x``
+    EXACT. The only thing the generic path cannot accept on input is a nested
+    list carrying genuine *imaginary* parts — express those explicitly with
+    :func:`_complex_pairs_to_ndarray` (the ``complex`` element coercer handles
+    single complex scalars; bulk complex array work is the by-reference handle
+    path, not the JSON MCP path)."""
+    if isinstance(value, tuple):
+        return [list(v) if isinstance(v, (list, tuple)) else v for v in value]
+    return value
 
 
 def _to_mat(value: Any, *, param: str = "") -> Any:
@@ -213,23 +207,32 @@ def _to_mat(value: Any, *, param: str = "") -> Any:
     return Mat.from_rows([list(r) for r in value], is_complex=False)
 
 
-def _complex_pairs_to_ndarray(value: Any, *, param: str = "") -> np.ndarray:
-    """Build a ``complex128`` array from nested ``[re, im]`` leaves — the
-    inverse of the outbound complex-array serialisation (each scalar is a
-    2-list ``[re, im]``). Used by round-trip tests and any future op that
-    declares an explicitly-complex array param; the generic
-    :func:`_to_ndarray` deliberately does NOT call this (see its dtype
-    caveat). A value already a complex ndarray passes through.
+def _is_re_im_leaf(value: Any) -> bool:
+    """True iff ``value`` is a ``[re, im]`` leaf — a length-2 sequence of
+    plain numbers (not a nested container)."""
+    return (
+        isinstance(value, (list, tuple))
+        and len(value) == 2
+        and all(isinstance(x, (int, float)) and not isinstance(x, bool)
+                for x in value)
+    )
+
+
+def _complex_pairs_to_ndarray(value: Any, *, param: str = "") -> Any:
+    """Build a nested list of ``complex`` from nested ``[re, im]`` leaves — the
+    numpy-free (#564) inverse of the outbound complex serialisation (each
+    scalar rides as a 2-list ``[re, im]``). Used by round-trip tests and any
+    op declaring an explicitly-complex array param; the generic
+    :func:`_to_ndarray` deliberately does NOT call this (see its dtype caveat).
     """
-    if isinstance(value, np.ndarray):
-        return value.astype(np.complex128)
-    real = np.asarray(value, dtype=np.float64)
-    if real.ndim == 0 or real.shape[-1] != 2:
-        raise ValueError(
-            f"complex ndarray param {param or '<ndarray>'!r}: innermost "
-            f"axis must be [re, im] (length 2); got shape {real.shape}"
-        )
-    return real[..., 0] + 1j * real[..., 1]
+    if _is_re_im_leaf(value):
+        return complex(float(value[0]), float(value[1]))
+    if isinstance(value, (list, tuple)):
+        return [_complex_pairs_to_ndarray(v, param=param) for v in value]
+    raise ValueError(
+        f"complex ndarray param {param or '<ndarray>'!r}: innermost axis must "
+        f"be [re, im] (length 2); got {type(value).__name__}"
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -260,9 +263,9 @@ def _seq_bytes(value: Any, *, param: str = "") -> List[bytes]:
     return [_b64_to_bytes(v, param=param) for v in value]
 
 
-def _seq_ndarray(value: Any, *, param: str = "") -> List[np.ndarray]:
-    """``Sequence[np.ndarray]`` -> list of ndarrays (each from a nested
-    list)."""
+def _seq_ndarray(value: Any, *, param: str = "") -> List[list]:
+    """``Sequence[np.ndarray]`` -> list of nested lists (each from a nested
+    JSON list; numpy-free wire form, #564)."""
     if not isinstance(value, (list, tuple)):
         raise ValueError(
             f"expected a list of nested arrays for param "
@@ -271,8 +274,8 @@ def _seq_ndarray(value: Any, *, param: str = "") -> List[np.ndarray]:
     return [_to_ndarray(v, param=param) for v in value]
 
 
-def _tuple_ndarray(value: Any, *, param: str = "") -> Tuple[np.ndarray, ...]:
-    """``tuple[np.ndarray, ...]`` -> tuple of ndarrays (the QM gauge ops
+def _tuple_ndarray(value: Any, *, param: str = "") -> Tuple[list, ...]:
+    """``tuple[np.ndarray, ...]`` -> tuple of nested lists (the QM gauge ops
     take a *tuple* of generator matrices)."""
     return tuple(_seq_ndarray(value, param=param))
 
@@ -541,28 +544,21 @@ def coerce_param(value: Any, type_string: str, *, param: str = "") -> Any:
 # ──────────────────────────────────────────────────────────────────────
 
 
-def _ndarray_to_json(arr: np.ndarray) -> Any:
-    """Serialise an ndarray to a nested JSON list. Complex arrays carry
-    each element as ``[re, im]`` (the inverse of :func:`_to_ndarray`)."""
-    if np.iscomplexobj(arr):
-        # Stack real/imag on a new trailing axis so each scalar becomes
-        # [re, im]; .tolist() then yields nested [re, im] leaves.
-        stacked = np.stack([arr.real, arr.imag], axis=-1)
-        return stacked.tolist()
-    return arr.tolist()
-
-
 def serialise_native(value: Any) -> Any:
     """Recursively convert a native Python result to a JSON-serialisable
     value.
 
     * ``bytes`` -> base64 ``str``
-    * ``np.ndarray`` -> nested list (complex -> ``[re, im]`` leaves)
+    * :class:`srmech.amsc.mat.Mat` -> nested list (complex -> ``[re, im]`` leaves)
     * ``complex`` -> ``[re, im]``
-    * numpy scalars -> Python ``int`` / ``float`` / ``bool``
     * tuples / lists / sets -> list (recursed)
     * dicts -> dict (values recursed; keys base64'd if bytes)
     * ``pathlib.PurePath`` -> ``str``
+
+    numpy-FREE (#564): the core ops return :class:`Mat` / :class:`HV` / nested
+    ``list`` / ``complex`` — never ``np.ndarray`` — so there is no ndarray
+    branch. A ``complex`` leaf (whether bare or inside a nested list) rides as
+    ``[re, im]`` via the recursion.
 
     Anything else is returned unchanged for ``json.dumps`` to handle (or
     for the caller's ``default=`` fallback to catch).
@@ -587,20 +583,16 @@ def serialise_native(value: Any) -> Any:
     if isinstance(value, complex):
         return [value.real, value.imag]
     # srmech HV handle (numpy-free Klein-4 carrier, v0.7.0rc29) -> list[int].
-    # The core ops return HV, not np.ndarray; cross JSON-RPC by value as a
-    # plain integer list (the same shape an ndarray result would serialise to).
+    # The core ops return HV; cross JSON-RPC by value as a plain integer list.
     from srmech.amsc.hv import HV as _HV
     if isinstance(value, _HV):
         return value.tolist()
-    # numpy ndarray -> nested list
-    if isinstance(value, np.ndarray):
-        return _ndarray_to_json(value)
-    # numpy scalar -> python scalar (np.bool_ -> bool, integer -> int, ...)
-    if isinstance(value, np.generic):
-        item = value.item()
-        if isinstance(item, complex):
-            return [item.real, item.imag]
-        return item
+    # srmech Mat (numpy-free 2-D carrier, v0.7.5rc72) -> nested list. A complex
+    # Mat serialises each entry as a ``[re, im]`` leaf via the recursion on the
+    # nested list (Mat.tolist() yields a list[list[complex]]).
+    from srmech.amsc.mat import Mat as _Mat
+    if isinstance(value, _Mat):
+        return serialise_native(value.tolist())
     # dict -> recurse (a bytes key serialises to its base64 string)
     if isinstance(value, dict):
         out: Dict[Any, Any] = {}
