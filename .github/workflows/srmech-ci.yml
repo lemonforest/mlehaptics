@@ -177,10 +177,10 @@ jobs:
           # the srmech.qm SUBPACKAGE imports numpy-free as of v0.7.5rc115 (the
           # eager _require_numpy gate was relaxed to a per-submodule LAZY
           # __getattr__): the flipped qm submodules
-          # (spin/bell/sm/single_particle/relativistic) run numpy-free, while the
-          # as-yet-numpy submodules still raise the [scientific] hint.
+          # (spin/bell/sm/single_particle/relativistic/gauge) run numpy-free,
+          # while the as-yet-numpy submodules still raise the [scientific] hint.
           import srmech.qm  # noqa: F401  (subpackage import must NOT require numpy)
-          from srmech.qm import spin, bell, single_particle, relativistic
+          from srmech.qm import spin, bell, single_particle, relativistic, gauge
           assert type(spin.pauli_matrices()[0]).__name__ == 'Mat', 'spin not numpy-free'
           verified, primary, _ = bell.verify_chsh()
           assert verified and primary == 0.0, (verified, primary)
@@ -194,6 +194,11 @@ jobs:
           # the Clifford residuals {γ^μ,γ^ν}=2η^{μν}I are ~0, no numpy.
           assert type(relativistic.gamma_matrices()[0]).__name__ == 'Mat', 'relativistic not numpy-free'
           assert max(relativistic.clifford_residuals()) < 1e-12, 'relativistic clifford residual too large'
+          # gauge (rc119) is numpy-free: SU(2) generators are Mats and the
+          # fundamental Casimir eigenvalue is 3/4, no numpy.
+          _g2 = gauge.su2_generators()
+          assert type(_g2[0]).__name__ == 'Mat', 'gauge not numpy-free'
+          assert abs(gauge.casimir_eigenvalue(_g2) - 0.75) < 1e-12, 'gauge casimir wrong'
           # an as-yet-numpy qm submodule must still fail with the [scientific] hint:
           try:
               from srmech.qm import propagators  # noqa: F401  (still a numpy carrier)

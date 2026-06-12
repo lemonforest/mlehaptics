@@ -5,10 +5,10 @@ own A-N cascade primitives:
 
 - Hermitian eigendecomposition (``np.linalg.eigh`` / ``eigvalsh``) ->
   the Class-L primitive ``srmech.amsc.laplacian.hermitian_eigendecompose``
-  (potentials / gauge / so8). ``single_particle`` has since (rc117, #564)
-  been flipped fully numpy-free onto the ``Mat`` carrier
-  (``mat_hermitian_eigendecompose`` + the Class-N ``rational.cexp`` phase),
-  so its two tests below build inputs and assert WITHOUT numpy.
+  (potentials / so8). ``single_particle`` (rc117, #564) and ``gauge``
+  (rc119, #564) have since been flipped fully numpy-free onto the ``Mat``
+  carrier (``mat_hermitian_eigendecompose`` + the Class-N ``rational.cexp``
+  phase), so their tests below build inputs and assert WITHOUT numpy.
 - Standard-Model trig (``math.cos`` / ``math.sin`` / ``math.atan2``) ->
   the substrate-native Class-N rational trig ``srmech.amsc.rational.*``
   (sm).
@@ -39,8 +39,9 @@ from srmech.qm import gauge, potentials, sm, single_particle as sp
 # numpy-free fixtures for the FLIPPED single_particle op (rc117, #564):
 # single_particle now holds its matrices in `Mat` and is numpy-free, so its
 # tests below build inputs + assert WITHOUT numpy (numpy stays the sanctioned
-# oracle only for the still-unflipped gauge / potentials / hermitian_eigen
-# routing tests in this file).
+# oracle only for the still-unflipped potentials / hermitian_eigen routing
+# tests in this file; gauge flipped numpy-free at rc119 and its test below is
+# numpy-free too).
 # ----------------------------------------------------------------------
 
 
@@ -200,20 +201,33 @@ def test_single_particle_tdse_matches_reference():
 
 
 def test_gauge_path_segment_matches_reference():
-    """gauge_path_segment (complex-Hermitian SU(3) connection) matches the
-    numpy.linalg.eigh reference unitary within 1e-9 (phase-invariant: the
-    holonomy U = exp(iM) is basis-independent)."""
+    """gauge_path_segment (now numpy-free, rc119) — the path-segment holonomy
+    U = exp(i g M) matches an INDEPENDENT analytic oracle for a diagonal
+    connection (M ∝ λ^3 = diag(1, -1, 0): exp is diag(e^{igc}, e^{-igc}, 1),
+    built from rational.cexp on scalars — no eigendecomposition in the
+    reference), and is unitary for a general SU(3) connection. numpy-free:
+    direct Mat-entry compare + native mat_matmul unitarity (no np)."""
     gens = gauge.su3_gell_mann_matrices()
-    rng = np.random.default_rng(7)
-    A = rng.standard_normal(len(gens))
-    U = gauge.gauge_path_segment(A, gens, coupling=0.8)
-    # Reference: numpy eigh of the same M.
-    M = 0.8 * sum(A[a] * gens[a] for a in range(len(gens)))
-    w_ref, V_ref = np.linalg.eigh(M)
-    U_ref = V_ref @ np.diag(np.exp(1j * w_ref)) @ V_ref.conj().T
-    np.testing.assert_allclose(U, U_ref, atol=1e-9)
-    # And it is unitary.
-    np.testing.assert_allclose(U @ U.conj().T, np.eye(M.shape[0]), atol=1e-9)
+    # (1) Diagonal connection: only λ^3 = diag(1, -1, 0). exp(i·g·c·λ^3) is
+    #     analytic — an independent oracle (no eig in the reference).
+    g, c = 0.8, 0.41
+    A_diag = [0.0] * 8
+    A_diag[2] = c
+    U = gauge.gauge_path_segment(A_diag, gens, coupling=g)
+    phase = _srn.cexp(g * c)            # e^{+i g c}
+    expected = [phase, phase.conjugate(), 1.0 + 0j]
+    for i in range(3):
+        for j in range(3):
+            want = expected[i] if i == j else 0j
+            assert abs(U[i, j] - want) < 1e-9
+    # (2) General connection: U·Uᴴ = I (unitary) via the native mat_matmul.
+    A_gen = [0.1, -0.2, 0.3, 0.4, -0.5, 0.6, -0.7, 0.2]
+    U2 = gauge.gauge_path_segment(A_gen, gens, coupling=0.8)
+    prod = mat_matmul(U2, U2.conj().T)
+    for i in range(3):
+        for j in range(3):
+            want = 1.0 if i == j else 0.0
+            assert abs(prod[i, j] - want) < 1e-9
 
 
 # ----------------------------------------------------------------------
