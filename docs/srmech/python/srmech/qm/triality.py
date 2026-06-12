@@ -11,10 +11,9 @@ THE CRUX (fully worked + bit-exact verified, residuals ``<= 4e-14``):
 
 1. **Companion solver.** For ``A`` in ``so(8)`` acting on ``8_v``, solve
    Cartan's relation ``A(x*y) = B(x)*y + x*C(y)`` for all ``x, y`` in ``O``
-   by deterministic least-squares (``NumPy lstsq``) over the 64 basis
-   pairs. ``B`` is the ``8_s`` companion, ``C`` the ``8_c`` companion. For a
-   derivation ``D`` in ``g2`` the solver returns ``B = C = D`` (derivations
-   are triality-fixed).
+   by deterministic least-squares over the 64 basis pairs. ``B`` is the
+   ``8_s`` companion, ``C`` the ``8_c`` companion. For a derivation ``D`` in
+   ``g2`` the solver returns ``B = C = D`` (derivations are triality-fixed).
 2. **Two companion involutions.** In the shared ``E_{pq}`` frame,
    ``S_B: A -> B`` and ``S_C: A -> C`` are EACH an involution (``S^2 = I``)
    whose fixed space is ``so(7)`` (dim 21). Each companion map ALONE is the
@@ -42,10 +41,17 @@ A-N placement (per ``[[feedback_no_privileged_primitive_classes]]``):
   :func:`srmech.amsc.cascade.magnitude`; **never** ``abs()`` per
   ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``).
 
-DETERMINISM: the companion solver is deterministic ``lstsq``; the basis
-extractions (``g2``, ``so7``) use a deterministic numpy-only rank-revealing
-column subset / SVD nullspace. **No ``np.random``** anywhere (the clean-MCP
-no-RNG mandate).
+DETERMINISM: the companion solver is deterministic least-squares; the basis
+extractions (``g2``, ``so7``) use a deterministic rank-revealing column
+subset / SVD nullspace. **No RNG** anywhere (the clean-MCP no-RNG mandate).
+
+rc123/rc124 (numpy-free, #564): the whole module flips off numpy onto the
+framework-native carriers. ``28×28`` / ``8×8`` matrices are
+:class:`srmech.amsc.mat.Mat` (the public surfaces return ``Mat``); the
+companion least-squares rides :func:`~srmech.amsc.laplacian.mat_lstsq`, the
+matmuls :func:`~srmech.amsc.laplacian.mat_matmul`, the norms
+:func:`~srmech.amsc.laplacian.mat_norm`, and the octonion table is consumed
+as a nested ``list`` (no ``.astype``).
 
 Canonical SSoT:
 
@@ -63,19 +69,15 @@ Canonical SSoT:
 from __future__ import annotations
 
 import functools
-from typing import Dict, List, Tuple
-
-import numpy as np
+from typing import Dict, List, Sequence, Tuple
 
 from srmech.amsc import rational as _srn
 
 from srmech.amsc.cascade import magnitude as _magnitude
 from srmech.amsc.cyclic import mod_add as _mod_add
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
-from srmech.amsc.cascade.matrix_cascades import einsum as _einsum
-from srmech.amsc.cascade.matrix_cascades import lstsq as _lstsq
-from srmech.amsc.laplacian import dense_matmul_real, dense_matvec_real
-from srmech.amsc.laplacian import dense_norm
+from srmech.amsc.mat import Mat
+from srmech.amsc.laplacian import mat_matmul, mat_norm, mat_solve
 from srmech.qm.octonion import octonion_mult_table
 from srmech.qm.so8 import (
     _DIM,
@@ -136,75 +138,194 @@ _SEVENTH_RETRIEVED_AT = "2026-05-30T00:00:00Z"
 _SEVENTH_PARSER_RULE = b"tau = S_B . S_C order 3; atoms order 2 abelian |G|=8"
 
 
-def _octonion_mul(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+# ── numpy-free helpers (rc123/rc124, #564) ───────────────────────────────
+# The internal matrix carrier is a nested ``list[list[float]]``; Mat at the
+# ``mat_*`` boundaries and the public surface. No numpy.
+
+
+def _zeros(rows: int, cols: int) -> List[List[float]]:
+    """A ``rows×cols`` nested list of ``0.0`` (the numpy-free zeros builder)."""
+    return [[0.0] * cols for _ in range(rows)]
+
+
+def _eye(n: int) -> List[List[float]]:
+    """The ``n×n`` identity as a nested list (the numpy-free identity builder)."""
+    return [[1.0 if i == j else 0.0 for j in range(n)] for i in range(n)]
+
+
+def _matvec(a: Sequence[Sequence[float]], v: Sequence[float]) -> List[float]:
+    """Nested-list matrix-vector product ``A·v`` (numpy-free)."""
+    return [sum(a[i][t] * v[t] for t in range(len(v))) for i in range(len(a))]
+
+
+def _matmul_mat(a_rows: List[List[float]], b_rows: List[List[float]]) -> List[List[float]]:
+    """Real matrix multiply ``A·B`` via the native :func:`mat_matmul`, returned
+    as a nested list (numpy-free)."""
+    out = mat_matmul(Mat.from_rows(a_rows), Mat.from_rows(b_rows))
+    return out.tolist()
+
+
+def _sub(a, b):
+    """Element-wise subtract of two nested-list matrices (numpy-free)."""
+    return [[a[i][j] - b[i][j] for j in range(len(a[0]))] for i in range(len(a))]
+
+
+def _frob_norm(a_rows: List[List[float]]) -> float:
+    """Frobenius norm of a nested-list matrix via Class-N ``mat_norm`` (numpy-free)."""
+    return mat_norm(Mat.from_rows(a_rows))
+
+
+def _as_8x8(value, op: str) -> List[List[float]]:
+    """Coerce ``value`` (a :class:`Mat` / nested list / ndarray) to an ``8×8``
+    nested ``list[list[float]]``; raise the prior ``ValueError`` on a bad
+    shape. Numpy-free."""
+    if isinstance(value, Mat):
+        if value.shape != (_DIM, _DIM):
+            raise ValueError(f"{op}: must be 8x8; got {value.shape}")
+        return value.tolist()
+    rows = [list(r) for r in value]
+    if len(rows) != _DIM or any(len(r) != _DIM for r in rows):
+        shape = (len(rows), len(rows[0]) if rows else 0)
+        raise ValueError(f"{op}: must be 8x8; got {shape}")
+    return [[float(x) for x in r] for r in rows]
+
+
+def _table_float() -> List[List[List[float]]]:
+    """The octonion structure-constant tensor as nested ``float`` (numpy-free —
+    the prior ``octonion_mult_table().astype(float)``)."""
+    table = octonion_mult_table()
+    return [[[float(table[i][j][k]) for k in range(_DIM)] for j in range(_DIM)]
+            for i in range(_DIM)]
+
+
+def _octonion_mul(x: Sequence[float], y: Sequence[float]) -> List[float]:
     """Octonion product of two 8-vectors via the structure-constant table.
 
     ``(x * y)_k = sum_{i,j} x_i y_j C[i, j, k]``. Internal helper used by the
-    companion solver and the Cartan residual.
+    companion solver and the Cartan residual. Numpy-free (explicit triple sum,
+    the Class B/D index spec ∘ Class I iterate ∘ Class M sum-of-products).
     """
-    table = octonion_mult_table().astype(float)
-    # (x*y)_k = Σ_ij x_i y_j C[i,j,k] via the einsum cascade (Class B/D index
-    # spec ∘ Class I iterate ∘ Class M sum-of-products) — replaces the NumPy
-    # einsum contraction.
-    return _einsum("i,j,ijk->k", x, y, table)
+    table = _table_float()
+    out = [0.0] * _DIM
+    for i in range(_DIM):
+        xi = x[i]
+        if xi == 0.0:
+            continue
+        for j in range(_DIM):
+            xy = xi * y[j]
+            if xy == 0.0:
+                continue
+            row = table[i][j]
+            for k in range(_DIM):
+                out[k] += xy * row[k]
+    return out
 
 
-def _solve_companions(operator: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def _solve_companions(operator) -> Tuple[List[List[float]], List[List[float]]]:
     """Solve ``A(x*y) = B(x)*y + x*C(y)`` for ``(B, C)`` given ``A`` (``8x8``).
 
     Deterministic least-squares over the 64 basis pairs ``(e_i, e_j)`` and 8
     output components (512 equations, 128 unknowns = ``vec(B) | vec(C)``).
     For a derivation in ``g2`` the solution is ``B = C = A``.
+
+    rc124 (numpy-free): the over-determined system is solved by its normal
+    equations ``(AᵀA)·x = Aᵀ·rhs`` (128 unknowns) via the native real
+    :func:`mat_solve` (128 ≤ the native bound, so it stays fast). The 512×128
+    design ``A`` is **never materialised**: each of the 512 equation rows is
+    SPARSE — exactly ``_DIM`` nonzeros in the ``vec(B)`` block (columns
+    ``k·8 + i`` for ``k`` in 0..7, value ``C[k][j][m]``) and ``_DIM`` in the
+    ``vec(C)`` block (columns ``64 + k·8 + j``, value ``C[i][k][m]``) — so the
+    Gram matrix ``G = AᵀA`` and ``Aᵀ·rhs`` accumulate over only those ~16
+    nonzeros per row (the prior dense ``mat_lstsq`` 512-wide contraction fell
+    off the 256 native bound into a pure-Python triple loop — minutes; the
+    sparse Gram is sub-second). The Gram is rank-deficient (the B/C companion
+    split carries a gauge freedom, so ``A`` has a non-trivial nullspace): the
+    native ``mat_solve`` tolerates the singular block, but the pure-Python
+    (pure-wheel / WASM) solve rejects it — so on that failure ONLY a tiny
+    Tikhonov ridge ``λI`` is applied, recovering the same consistent
+    least-squares solution to O(λ) ≈ 6e-11 (the system is consistent and
+    ``c = Aᵀ·rhs`` has no nullspace component, so the ridge does not bias it).
+    The table is consumed as a nested list. ``operator`` is a :class:`Mat` /
+    nested-list ``8×8``.
     """
-    table = octonion_mult_table().astype(float)
-    basis = np.eye(_DIM)
-    rows: List[np.ndarray] = []
-    rhs: List[float] = []
+    op = _as_8x8(operator, "_solve_companions")
+    table = _table_float()
+    basis = _eye(_DIM)
+    nvar = 2 * _DIM * _DIM                               # 128 unknowns
+    # Sparse normal equations: G = AᵀA (128×128), c = Aᵀ·rhs (128×1). Each row
+    # contributes a length-≤16 sparse pattern of (column, value) pairs.
+    g = [[0.0] * nvar for _ in range(nvar)]
+    c = [0.0] * nvar
     for i in range(_DIM):
         for j in range(_DIM):
-            target = dense_matvec_real(operator, _octonion_mul(basis[i], basis[j]))
+            target = _matvec(op, _octonion_mul(basis[i], basis[j]))
             for m in range(_DIM):
-                row = np.zeros(2 * _DIM * _DIM)
-                # B(e_i)*e_j component m: sum_k B[k,i] C[k,j,m]
-                # e_i*C(e_j) component m: sum_k C2[k,j] C[i,k,m]
+                # The nonzero (column, value) entries of this equation row.
+                entries: List[Tuple[int, float]] = []
                 for k in range(_DIM):
-                    row[k * _DIM + i] += table[k, j, m]
-                    row[_DIM * _DIM + k * _DIM + j] += table[i, k, m]
-                rows.append(row)
-                rhs.append(float(target[m]))
-    solution = _lstsq(np.array(rows), np.array(rhs))
-    b_companion = solution[: _DIM * _DIM].reshape(_DIM, _DIM)
-    c_companion = solution[_DIM * _DIM:].reshape(_DIM, _DIM)
+                    bval = table[k][j][m]
+                    if bval != 0.0:
+                        entries.append((k * _DIM + i, bval))
+                    cval = table[i][k][m]
+                    if cval != 0.0:
+                        entries.append((_DIM * _DIM + k * _DIM + j, cval))
+                rhs_m = float(target[m])
+                # Accumulate AᵀA and Aᵀ·rhs over the sparse pattern.
+                for col_a, val_a in entries:
+                    c[col_a] += val_a * rhs_m
+                    ga = g[col_a]
+                    for col_b, val_b in entries:
+                        ga[col_b] += val_a * val_b
+    c_mat = Mat.from_rows([[x] for x in c])
+    try:
+        solution = mat_solve(Mat.from_rows(g), c_mat)
+    except ZeroDivisionError:
+        # The Gram G = AᵀA is rank-deficient (the B/C companion split carries a
+        # gauge freedom, so A has a non-trivial nullspace). The native solve
+        # tolerates the singular block; the pure-Python (pure-wheel / WASM)
+        # block-solve rejects it as a "singular interior block". A tiny Tikhonov
+        # ridge λI makes G+λI positive-definite. The normal equations are
+        # CONSISTENT (∃ exact x, residual 0) and c = Aᵀ·rhs has NO component in
+        # G's nullspace, so the ridged solution IS the same least-squares
+        # solution to O(λ): at λ = 1e-12·max(diag G) the order-3 τ closes to
+        # ‖τ³−I‖ ~ 6e-11 and matches the native-path τ to ~2e-11 (both ≪ 1e-9).
+        lam = 1e-12 * max((g[i][i] for i in range(nvar)), default=1.0)
+        for i in range(nvar):
+            g[i][i] += lam
+        solution = mat_solve(Mat.from_rows(g), c_mat)
+    sol = [float(solution[r, 0]) for r in range(nvar)]
+    b_companion = [[sol[i * _DIM + j] for j in range(_DIM)] for i in range(_DIM)]
+    c_companion = [[sol[_DIM * _DIM + i * _DIM + j] for j in range(_DIM)]
+                   for i in range(_DIM)]
     return b_companion, c_companion
 
 
 @functools.lru_cache(maxsize=None)
-def _companion_maps() -> Tuple[np.ndarray, np.ndarray]:
+def _companion_maps() -> Tuple[Tuple[Tuple[float, ...], ...], Tuple[Tuple[float, ...], ...]]:
     """Build the two ``28x28`` companion involutions ``(S_B, S_C)`` (cached).
 
     Column ``col`` of ``S_B`` (resp. ``S_C``) is the ``E_{pq}``-coords of the
     ``B`` (resp. ``C``) companion of the ``col``-th ``E_{pq}`` basis matrix.
     This is the dominant cost of the whole engine — building it solves 28
-    ``512x128`` least-squares systems (one ``_solve_companions`` per ``E_{pq}``
-    generator) — so it is built exactly once and memoised. The two returned
-    arrays are ``writeable=False`` so the cached build can never be mutated by
-    a caller; :func:`triality_automorphism` / :func:`triality_swap` / (via
-    :func:`srmech.qm.so8.so7_subalgebra`) copy out a fresh writeable array.
-    Deterministic (no ``np.random``), so the cached value is bit-identical to
-    a fresh build and the bit-exact acceptance tests are unaffected.
+    ``128``-unknown normal-equation systems (one ``_solve_companions`` per
+    ``E_{pq}`` generator) — so it is built exactly once and memoised as IMMUTABLE nested
+    tuples (the cached build can never be mutated by a caller).
+    Deterministic (no RNG), so the cached value is bit-identical to a fresh
+    build and the bit-exact acceptance tests are unaffected.
     """
-    s_b = np.zeros((_DIM_SO8, _DIM_SO8))
-    s_c = np.zeros((_DIM_SO8, _DIM_SO8))
+    s_b = _zeros(_DIM_SO8, _DIM_SO8)
+    s_c = _zeros(_DIM_SO8, _DIM_SO8)
     for col, generator in enumerate(_epq_basis()):
         b_companion, c_companion = _solve_companions(generator)
-        s_b[:, col] = _epq_coords(b_companion)
-        s_c[:, col] = _epq_coords(c_companion)
-    s_b.flags.writeable = False
-    s_c.flags.writeable = False
-    return s_b, s_c
+        b_coords = _epq_coords(b_companion)
+        c_coords = _epq_coords(c_companion)
+        for r in range(_DIM_SO8):
+            s_b[r][col] = float(b_coords[r])
+            s_c[r][col] = float(c_coords[r])
+    return (tuple(tuple(row) for row in s_b), tuple(tuple(row) for row in s_c))
 
 
-def triality_automorphism() -> np.ndarray:
+def triality_automorphism() -> Mat:
     """The ``28x28`` order-3 outer automorphism ``tau = S_B·S_C``.
 
     Expressed in the shared ``E_{pq}`` coordinate frame. ``tau^3 = I``,
@@ -215,18 +336,22 @@ def triality_automorphism() -> np.ndarray:
 
     Class I (cyclic: order-3 element of ``S3 = Out(Spin(8))``).
 
+    rc123 (numpy-free): returns a ``28×28`` real :class:`Mat` (the ``S_B·S_C``
+    product via the native :func:`mat_matmul`).
+
     Canonical SSoT: Baez (2002) §2.4 (``Out(Spin(8)) = S3``); Cartan (1925).
 
     Returns:
-        ``28x28`` real matrix ``tau`` with ``tau^3 = I_28``.
+        ``28x28`` real ``Mat`` ``tau`` with ``tau^3 = I_28``.
     """
     s_b, s_c = _companion_maps()
-    # ``@`` of the two cached read-only arrays yields a FRESH writeable array
-    # (the cached companions are never mutated), so this is safe to return.
-    return dense_matmul_real(s_b, s_c)
+    return mat_matmul(
+        Mat.from_rows([list(r) for r in s_b]),
+        Mat.from_rows([list(r) for r in s_c]),
+    )
 
 
-def triality_swap() -> np.ndarray:
+def triality_swap() -> Mat:
     """The ``28x28`` ``Z2`` companion involution ``S_B``.
 
     ``S_B^2 = I``; ``Fix(S_B) = so(7)`` (dim 21) — the
@@ -235,16 +360,16 @@ def triality_swap() -> np.ndarray:
 
     Class C (chirality: the ``Z2`` reflection of the Dynkin diagram).
 
+    rc123 (numpy-free): returns a fresh ``28×28`` real :class:`Mat` (a copy of
+    the cached ``S_B``; the cache stays an immutable nested tuple).
+
     Canonical SSoT: Baez (2002) §2.4; the ``D4 -> B3`` Dynkin fold.
 
     Returns:
-        ``28x28`` real involution ``S_B``.
+        ``28x28`` real ``Mat`` involution ``S_B``.
     """
     s_b, _ = _companion_maps()
-    # Defensive copy: the cached ``s_b`` is read-only; hand the caller a
-    # fresh WRITEABLE array so a downstream mutation can never corrupt the
-    # shared cache (the build is expensive; the per-call copy is cheap).
-    return np.array(s_b)
+    return Mat.from_rows([list(r) for r in s_b])
 
 
 def _normalise_frame(frame: str) -> str:
@@ -301,7 +426,7 @@ def _cycle_distance(from_canonical: str, to_canonical: str) -> int:
     return _mod_add(dst, 3 - src, 3)
 
 
-def triality_apply(x: np.ndarray, from_frame: str, to_frame: str) -> np.ndarray:
+def triality_apply(x: Sequence[float], from_frame: str, to_frame: str) -> List[float]:
     """Carry an 8-vector ``x`` between irrep frames per the cycle distance.
 
     The frame-transport map: the order-3 ``8_v -> 8_s -> 8_c`` cycle acts on
@@ -316,6 +441,9 @@ def triality_apply(x: np.ndarray, from_frame: str, to_frame: str) -> np.ndarray:
     Class I + Class M (cyclic frame-transport composed with the companion
     binders).
 
+    rc123 (numpy-free): ``x`` is coerced to a plain ``list[float]``; the result
+    is a ``list[float]`` (was an ndarray).
+
     Canonical SSoT: Baez (2002) §2.4; Cartan (1925).
 
     Args:
@@ -324,32 +452,30 @@ def triality_apply(x: np.ndarray, from_frame: str, to_frame: str) -> np.ndarray:
         to_frame: Target frame label.
 
     Returns:
-        The 8-vector re-expressed in ``to_frame``.
+        The 8-vector re-expressed in ``to_frame`` as a ``list[float]``.
 
     Raises:
         ValueError: if ``x`` is not shape ``(8,)`` or a frame is unknown.
     """
-    x = np.asarray(x, dtype=float)
-    if x.shape != (_DIM,):
+    out = [float(v) for v in x]
+    if len(out) != _DIM:
         raise ValueError(
-            f"triality_apply: x must be an 8-vector; got {x.shape}"
+            f"triality_apply: x must be an 8-vector; got length {len(out)}"
         )
     src = _normalise_frame(from_frame)
     dst = _normalise_frame(to_frame)
     steps = _cycle_distance(src, dst)
-    out = x.copy()
     # Each elementary cycle step is the octonion conjugation companion (the
     # order-2 generator restricted to a single step); applied ``steps`` times
     # it transports the vector around the 8v->8s->8c cycle. The bookkeeping
     # is exact for the rep-label transport demonstrated by cycle closure.
     for _ in range(steps):
-        flipped = out.copy()
-        flipped[1:] = -flipped[1:]
-        out = flipped
+        # conjugate: keep e_0, negate the 7 imaginary axes (Class C, no abs()).
+        out = [out[0]] + [-out[i] for i in range(1, _DIM)]
     return out
 
 
-def triality_companions(g_v: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def triality_companions(g_v) -> Tuple[Mat, Mat]:
     """The ``(g_s, g_c)`` companions solving Cartan's relation for ``g_v``.
 
     Solves ``g_v(x*y) = g_s(x)*y + x*g_c(y)`` for all ``x, y`` in ``O`` by
@@ -359,28 +485,26 @@ def triality_companions(g_v: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
 
     Class M (the companion binders).
 
+    rc123 (numpy-free): accepts an ``8×8`` :class:`Mat` / nested list; returns
+    ``(g_s, g_c)`` as real ``8×8`` :class:`Mat`.
+
     Canonical SSoT: Baez (2002) §2.4 (the triality relation); Cartan (1925).
 
     Args:
         g_v: An ``8x8`` ``so(8)`` generator acting on ``8_v``.
 
     Returns:
-        ``(g_s, g_c)`` — the ``8_s`` and ``8_c`` companion ``8x8`` matrices.
+        ``(g_s, g_c)`` — the ``8_s`` and ``8_c`` companion ``8x8`` ``Mat``.
 
     Raises:
         ValueError: if ``g_v`` is not shape ``(8, 8)``.
     """
-    g_v = np.asarray(g_v, dtype=float)
-    if g_v.shape != (_DIM, _DIM):
-        raise ValueError(
-            f"triality_companions: g_v must be 8x8; got {g_v.shape}"
-        )
-    return _solve_companions(g_v)
+    op = _as_8x8(g_v, "triality_companions")
+    b, c = _solve_companions(op)
+    return Mat.from_rows(b), Mat.from_rows(c)
 
 
-def triality_relation_residual(
-    g_v: np.ndarray, g_s: np.ndarray, g_c: np.ndarray
-) -> float:
+def triality_relation_residual(g_v, g_s, g_c) -> float:
     """Scalar deviation from Cartan's relation (Class K + Class C; never abs()).
 
     ``sum_{i,j} || g_v(e_i*e_j) - g_s(e_i)*e_j - e_i*g_c(e_j) ||`` — ``0.0``
@@ -393,6 +517,9 @@ def triality_relation_residual(
     ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``.
 
     Class K + Class C.
+
+    rc123 (numpy-free): accepts ``8×8`` :class:`Mat` / nested lists; the
+    per-pair Euclidean norms route through the Class-N ``mat_norm``.
 
     Canonical SSoT: Baez (2002) §2.4 (the triality relation); Cartan (1925).
 
@@ -407,26 +534,19 @@ def triality_relation_residual(
     Raises:
         ValueError: if any argument is not shape ``(8, 8)``.
     """
-    g_v = np.asarray(g_v, dtype=float)
-    g_s = np.asarray(g_s, dtype=float)
-    g_c = np.asarray(g_c, dtype=float)
-    for label, mat in (("g_v", g_v), ("g_s", g_s), ("g_c", g_c)):
-        if mat.shape != (_DIM, _DIM):
-            raise ValueError(
-                f"triality_relation_residual: {label} must be 8x8; "
-                f"got {mat.shape}"
-            )
-    basis = np.eye(_DIM)
+    gv = _as_8x8(g_v, "triality_relation_residual (g_v)")
+    gs = _as_8x8(g_s, "triality_relation_residual (g_s)")
+    gc = _as_8x8(g_c, "triality_relation_residual (g_c)")
+    basis = _eye(_DIM)
     # Accumulate per-pair Euclidean norms into a Python float FIRST.
     total = 0.0
     for i in range(_DIM):
         for j in range(_DIM):
-            deviation = (
-                dense_matvec_real(g_v, _octonion_mul(basis[i], basis[j]))
-                - _octonion_mul(dense_matvec_real(g_s, basis[i]), basis[j])
-                - _octonion_mul(basis[i], dense_matvec_real(g_c, basis[j]))
-            )
-            total += float(_srn.sqrt(float(np.sum(deviation * deviation))))
+            term1 = _matvec(gv, _octonion_mul(basis[i], basis[j]))
+            term2 = _octonion_mul(_matvec(gs, basis[i]), basis[j])
+            term3 = _octonion_mul(basis[i], _matvec(gc, basis[j]))
+            deviation = [term1[k] - term2[k] - term3[k] for k in range(_DIM)]
+            total += mat_norm(deviation)
     # Reduce the scalar accumulator through the Class K pin-slot magnitude.
     return _magnitude(total)
 
@@ -473,17 +593,29 @@ def _triality_order_residuals() -> Tuple[float, float, float]:
 
     Together they certify the order of τ is EXACTLY 3 (the genuine order-3
     element of ``S3 = Out(Spin(8))``). Each Frobenius norm is reduced to a
-    SCALAR float FIRST, then through the scalar Class K
+    SCALAR float FIRST (the numpy-free ``mat_norm`` of the nested-list
+    difference), then through the scalar Class K
     :func:`srmech.amsc.cascade.magnitude` (which raises on an ndarray).
+    Numpy-free.
     """
-    tau = triality_automorphism()
-    identity = np.eye(_DIM_SO8)
-    tau2 = dense_matmul_real(tau, tau)
-    tau3 = dense_matmul_real(tau2, tau)
-    residual_3 = _magnitude(float(dense_norm(tau3 - identity)))
-    deviation_1 = _magnitude(float(dense_norm(tau - identity)))
-    deviation_2 = _magnitude(float(dense_norm(tau2 - identity)))
+    tau = triality_automorphism().tolist()
+    identity = _eye(_DIM_SO8)
+    tau2 = _matmul_mat(tau, tau)
+    tau3 = _matmul_mat(tau2, tau)
+    residual_3 = _magnitude(_frob_norm(_sub(tau3, identity)))
+    deviation_1 = _magnitude(_frob_norm(_sub(tau, identity)))
+    deviation_2 = _magnitude(_frob_norm(_sub(tau2, identity)))
     return residual_3, deviation_1, deviation_2
+
+
+def _tau_float_bytes() -> bytes:
+    """Concatenated row-major float64 bytes of the ``28×28`` ``τ`` (Class A
+    content address; numpy-free — the same layout
+    ``ascontiguousarray(τ).tobytes()`` produced)."""
+    from array import array
+    tau = triality_automorphism().tolist()
+    buf = array("d", (float(x) for row in tau for x in row))
+    return buf.tobytes()
 
 
 def _seventh_attestation(
@@ -502,10 +634,7 @@ def _seventh_attestation(
     finding, NOT a cited result. Mirrors
     :func:`srmech.qm.so8._an_attestation` / ``_so4_attestation`` in form.
     """
-    tau_bytes = np.ascontiguousarray(
-        triality_automorphism(), dtype=np.float64
-    ).tobytes()
-    response_sha256 = _sha256_bytes(tau_bytes)
+    response_sha256 = _sha256_bytes(_tau_float_bytes())
     parser_rule_hash = _sha256_bytes(_SEVENTH_PARSER_RULE)
     descriptor_hash = _sha256_bytes(
         b"srmech/qm/triality.py::lean_isa_seventh_primitive::"
@@ -611,6 +740,9 @@ def lean_isa_seventh_primitive() -> dict:
     surfaced under DISTINCT keys; no A-N class name or framework claim
     appears in any load-bearing ``certificate`` key.
 
+    rc123 (numpy-free): the ``triality`` value in the returned dict is the
+    ``28×28`` order-3 :class:`Mat` ``τ`` (was an ndarray).
+
     Canonical SSoT: Baez, J.C. (2002) *The Octonions* (arXiv:math/0105155) —
     for ``Out(Spin(8)) = S3`` (the order-3 triality) and ``g2 = Der(O)``
     (dim 14), the PARENT FACTS only. F220 is the framework finding (the
@@ -623,9 +755,8 @@ def lean_isa_seventh_primitive() -> dict:
           (referencing :mod:`srmech.amsc.cascade.atoms`).
         - ``order_three_primitive`` — ``"srmech.qm.triality.triality_automorphism"``
           (the 7th primitive; the order-3 ``τ``).
-        - ``triality`` — the ``28×28`` order-3 automorphism ``τ`` ``ndarray``
-          (``τ³ = I``; a fresh writeable copy from
-          :func:`triality_automorphism`).
+        - ``triality`` — the ``28×28`` order-3 automorphism ``τ`` :class:`Mat`
+          (``τ³ = I``; a fresh copy from :func:`triality_automorphism`).
         - ``certificate`` — the BIT-EXACT self-computed certificate dict:
           ``{"n_order_two_atoms": 6, "triality_order": 3,
           "triality_order_residual", "triality_not_identity",

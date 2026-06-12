@@ -79,8 +79,13 @@ def test_eigvals_max_imag_matches_numpy():
 # through mat_hermitian_eigendecompose / mat_lstsq / mat_eigvals and is numpy-FREE
 # (no top-level ``import numpy`` at all), a strictly stronger guarantee than the
 # rc63 "cascade-routed" check below. So esprit is no longer in this dict.
+# NOTE (rc123, carrier-removal #564): qm/so8.py likewise GRADUATED to fully
+# numpy-FREE — its QR projectors are the numpy-free Gram-Schmidt
+# (so8._orthonormalise), its rank counts the EXACT RREF / float Gram-Schmidt
+# rank, and its nullspace/SVD geometry the numpy-free `mat_svd`; so8 no longer
+# imports `matrix_cascades as _mc` at all (the strictly-stronger numpy-absent
+# guarantee). So so8 is no longer in this dict — only pseudo_hermitian remains.
 _ROUTED = {
-    "qm/so8.py": r"\bnp\.linalg\.qr\s*\(",
     "qm/pseudo_hermitian.py": r"\bnp\.linalg\.eigvals\s*\(",
 }
 

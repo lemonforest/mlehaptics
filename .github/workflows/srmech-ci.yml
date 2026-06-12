@@ -203,6 +203,26 @@ jobs:
           _r, _e, _V = potentials.hydrogen_radial(n_grid=40, r_max=30.0)
           assert type(_V).__name__ == 'Mat' and not _V.is_complex, 'potentials not numpy-free'
           assert -0.7 < _e[0] < -0.3, 'potentials hydrogen ground state off'
+          # octonion / so8 / triality (rc122-124) are numpy-free: the octonion
+          # connected component flips together. octonion L-mult is a real Mat;
+          # the 14 g2 derivations are real 8x8 Mats; the order-3 triality tau is
+          # a 28x28 real Mat with tau^3 = I (~0). No numpy on any path.
+          from srmech.qm import octonion, so8, triality
+          assert type(octonion.octonion_left_mult([1.0,0,0,0,0,0,0,0])).__name__ == 'Mat', 'octonion not numpy-free'
+          _g2 = so8.g2_subalgebra()
+          assert len(_g2) == 14 and type(_g2[0]).__name__ == 'Mat', 'so8 not numpy-free'
+          _tau = triality.triality_automorphism()
+          from srmech.amsc.laplacian import mat_matmul, mat_norm
+          _t3 = mat_matmul(mat_matmul(_tau, _tau), _tau)
+          _id = Mat.from_rows([[1.0 if i==j else 0.0 for j in range(28)] for i in range(28)])
+          _d = Mat.from_rows([[_t3[i,j]-_id[i,j] for j in range(28)] for i in range(28)])
+          assert _tau.shape == (28, 28) and mat_norm(_d) < 1e-9, 'triality tau^3 != I'
+          # hdc loop family + hypercomplex_dft (rc125) are numpy-free too.
+          from srmech.amsc import hdc
+          assert type(hdc.loop_bind([1.0,0,0,0,0,0,0,0],[0,1.0,0,0,0,0,0,0])).__name__ == 'list', 'hdc loop not numpy-free'
+          assert hdc.polar_random(8, seed=1).typecode == 'b', 'hdc polar not numpy-free'
+          from srmech.amsc.cascade import quaternion_dft
+          assert len(quaternion_dft([[1.0,0,0,0]])) == 1, 'hypercomplex_dft not numpy-free'
           # an as-yet-numpy qm submodule must still fail with the [scientific] hint:
           try:
               from srmech.qm import propagators  # noqa: F401  (still a numpy carrier)

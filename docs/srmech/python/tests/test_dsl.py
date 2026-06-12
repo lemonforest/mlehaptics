@@ -446,6 +446,12 @@ def _run_cli(*args: str) -> subprocess.CompletedProcess:
         cmd,
         capture_output=True,
         text=True,
+        # The CLI emits UTF-8 (op descriptions carry unicode: τ, σ, ⊕, …).
+        # Decode the captured streams as UTF-8 explicitly so the harness is
+        # locale-robust — without this, a cp1252-default Windows box raises
+        # UnicodeDecodeError in the subprocess reader thread and stdout is None.
+        encoding="utf-8",
+        errors="replace",
         timeout=_TIMEOUT_S,
         check=False,
     )

@@ -33,14 +33,15 @@ import random as _random
 from array import array
 from typing import Sequence
 
-# numpy is the [scientific] extra (v0.7.0). This module mixes a numpy-free
-# path with ndarray-typed ops; the lazy proxy keeps the module importable
-# on a plain install and only the ndarray ops raise the [scientific] hint.
-from srmech._scientific import lazy_numpy as _lazy_numpy
-np = _lazy_numpy("srmech.amsc.hdc")
+# rc125 (#564): this module is numpy-FREE. The polar {-1,0,+1} ops carry their
+# vectors as stdlib ``array('b')`` (int8) buffers, the Klein-4 family as
+# ``array('B')`` / :class:`HV`, and the Moufang loop family as ``list[float]`` /
+# :class:`Mat` — every kernel a pure-Python / ctypes-marshalled cascade, no
+# top-level numpy import and no lazy numpy proxy.
 
 from . import _native
 from .hv import HV
+from .mat import Mat
 
 
 # Canonical HDC dimension default. Higher D = better noise tolerance;
@@ -311,23 +312,37 @@ def similarity(a: bytes, b: bytes) -> float:
 POLAR_STATES = (-1, 0, 1)
 
 
-def _as_polar(v, op: str):
-    arr = np.asarray(v, dtype=np.int8)
-    if arr.ndim != 1:
-        raise ValueError(f"hdc.{op}: polar vector must be 1-D (got ndim {arr.ndim})")
-    if arr.size == 0:
+#: ctypes int8 pointer alias for the native polar-op marshalling (numpy-free).
+_I8P = ctypes.POINTER(ctypes.c_int8)
+
+
+def _as_polar(v, op: str) -> "array":
+    """Validate + copy a polar value into an ``array('b')`` (int8) buffer.
+
+    Accepts any 1-D sequence (``array('b')`` / list / tuple / ndarray);
+    elements must be in ``{-1, 0, +1}``. The numpy-free path — ``np`` is never
+    imported or touched here (rc125)."""
+    src = v.buffer if isinstance(v, HV) else v
+    buf = array("b")
+    try:
+        for x in src:
+            xi = int(x)
+            if xi not in (-1, 0, 1):
+                raise ValueError(f"hdc.{op}: polar elements must be in {{-1, 0, +1}}")
+            buf.append(xi)
+    except (TypeError, OverflowError) as exc:
+        raise ValueError(f"hdc.{op}: polar vector must be a 1-D sequence of ints") from exc
+    if len(buf) == 0:
         raise ValueError(f"hdc.{op}: polar vector must be non-empty")
-    if not bool(np.isin(arr, (-1, 0, 1)).all()):
-        raise ValueError(f"hdc.{op}: polar elements must be in {{-1, 0, +1}}")
-    return arr
+    return buf
 
 
 def _check_polar_pair(a, b, op: str):
     a = _as_polar(a, op)
     b = _as_polar(b, op)
-    if a.shape != b.shape:
+    if len(a) != len(b):
         raise ValueError(
-            f"hdc.{op}: vector lengths must match (got {a.size} vs {b.size})"
+            f"hdc.{op}: vector lengths must match (got {len(a)} vs {len(b)})"
         )
     return a, b
 
@@ -337,24 +352,27 @@ def polar_random(D: int, rng=None, seed: "int | None" = None):
 
     Args:
         D: Vector dimension (positive).
-        rng: Optional ``numpy.random.Generator`` for in-process Python
-            callers. A ``Generator`` cannot cross JSON-RPC nor be expressed
-            in an Anthropic tool schema; use ``seed`` from those callers.
+        rng: Optional ``random.Random`` (or numpy ``Generator``) for in-process
+            callers. A generator cannot cross JSON-RPC nor be expressed in an
+            Anthropic tool schema; use ``seed`` from those callers.
         seed: Optional integer seed. When given (and ``rng`` is not), the
-            generator is built internally as ``np.random.default_rng(seed)``,
-            so MCP / Anthropic callers can obtain a DETERMINISTIC vector
-            (srmech's bit-exact / attestation discipline). **Precedence:**
-            an explicit ``rng`` wins over ``seed`` if both are supplied.
+            generator is built internally as ``random.Random(seed)``, so MCP /
+            Anthropic callers can obtain a DETERMINISTIC vector (srmech's
+            bit-exact / attestation discipline). **Precedence:** an explicit
+            ``rng`` wins over ``seed`` if both are supplied.
 
     Returns:
-        ``int8`` array of shape ``(D,)`` with elements drawn uniformly from
-        ``{-1, 0, +1}``.
+        An ``array('b')`` of length ``D`` with elements drawn uniformly from
+        ``{-1, 0, +1}`` (rc125: numpy-free stdlib ``random``).
     """
     if D <= 0:
         raise ValueError("hdc.polar_random: D must be positive")
-    if rng is None:
-        rng = np.random.default_rng(seed)
-    return rng.integers(-1, 2, size=D, dtype=np.int8)
+    if rng is not None and hasattr(rng, "integers"):
+        # Back-compat numpy ``Generator`` path: the caller already holds numpy,
+        # so this branch may use it (coerced to a stdlib int8 buffer).
+        return array("b", (int(x) for x in rng.integers(-1, 2, size=D)))
+    r = rng if rng is not None else _random.Random(seed)
+    return array("b", (r.randrange(-1, 2) for _ in range(D)))
 
 
 def polar_bind(a, b):
@@ -364,24 +382,28 @@ def polar_bind(a, b):
     sign-product as bipolar bind (commutative, associative, self-inverse). The
     0 state is absorbing — ``0 * x = 0`` — so an "uncertain" (dead-band)
     position stays uncertain after binding.
+
+    rc125 (numpy-free): the int8 sign-product is a pure-Python comprehension
+    over ``array('b')`` buffers; the native peer is fed those buffers directly
+    (buffer-protocol ctypes cast, no numpy contiguous-array copy). Returns an
+    ``array('b')``.
     """
     a, b = _check_polar_pair(a, b, "polar_bind")
+    n = len(a)
     # rc12: dispatch the int8 element-wise sign-product to the C peer when
-    # present (bit-identical to the ``(a * b)`` below — integer arithmetic, no
+    # present (bit-identical to the ``a[i]*b[i]`` below — integer arithmetic, no
     # float — which stays the Pyodide / no-native fallback). #928 cheap-win #5.
     if (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_polar_bind")):
-        a_c = np.ascontiguousarray(a, dtype=np.int8)
-        b_c = np.ascontiguousarray(b, dtype=np.int8)
-        out = np.empty(a_c.size, dtype=np.int8)
+        a_c = (ctypes.c_int8 * n).from_buffer_copy(a)
+        b_c = (ctypes.c_int8 * n).from_buffer_copy(b)
+        out = (ctypes.c_int8 * n)()
         rc = _native.LIB.srmech_polar_bind(
-            a_c.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)),
-            b_c.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)),
-            ctypes.c_uint32(a_c.size),
-            out.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)))
+            ctypes.cast(a_c, _I8P), ctypes.cast(b_c, _I8P),
+            ctypes.c_uint32(n), ctypes.cast(out, _I8P))
         if rc == _native.SRMECH_OK:
-            return out
-    return (a * b).astype(np.int8)
+            return array("b", out)
+    return array("b", (a[i] * b[i] for i in range(n)))
 
 
 def polar_unbind(c, a):
@@ -391,9 +413,10 @@ def polar_unbind(c, a):
     ``unbind(bind(a, b), a) == b`` wherever ``a[i] != 0``. Where ``a[i] == 0``
     the original is **not** recoverable (0 is destructive) — matching the
     dead-band semantics: anything bound through an uncertain position is gone.
-    """
+
+    rc125 (numpy-free): pure-Python int8 product over ``array('b')``."""
     c, a = _check_polar_pair(c, a, "polar_unbind")
-    return (c * a).astype(np.int8)
+    return array("b", (c[i] * a[i] for i in range(len(c))))
 
 
 def polar_bundle(*vectors):
@@ -404,39 +427,42 @@ def polar_bundle(*vectors):
     odd-count restriction is needed: the 0 state absorbs ties as a first-class
     "uncertain" output rather than forcing a hard ±1 choice.
 
+    rc125 (numpy-free): the per-position sign-of-sum is a Class-K pin-slot
+    branch over a pure-Python column sum (no sign ufunc); returns ``array('b')``.
+
     Raises:
         ValueError: empty call or mismatched lengths.
     """
     if len(vectors) == 0:
         raise ValueError("hdc.polar_bundle: requires at least one vector")
     arrs = [_as_polar(v, "polar_bundle") for v in vectors]
-    n = arrs[0].size
+    n = len(arrs[0])
     for i, arr in enumerate(arrs):
-        if arr.size != n:
+        if len(arr) != n:
             raise ValueError(
-                f"hdc.polar_bundle: vector {i} has length {arr.size}, expected {n}"
+                f"hdc.polar_bundle: vector {i} has length {len(arr)}, expected {n}"
             )
     # rc12: dispatch the per-position sticky-majority (sign-of-sum, tie -> 0) to
-    # the C peer when present (bit-identical to the ``np.sign`` of the sum below, which
+    # the C peer when present (bit-identical to the sign-of-sum below, which
     # stays the Pyodide / no-native fallback). #928 cheap-win #5.
     if (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_polar_bundle")):
         n_vectors = len(arrs)
-        bufs = [np.ascontiguousarray(v, dtype=np.int8) for v in arrs]
-        ptr_array = (ctypes.POINTER(ctypes.c_int8) * n_vectors)(
-            *(b.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)) for b in bufs)
-        )
-        out = np.empty(n, dtype=np.int8)
+        bufs = [(ctypes.c_int8 * n).from_buffer_copy(v) for v in arrs]
+        ptr_array = (_I8P * n_vectors)(*(ctypes.cast(b, _I8P) for b in bufs))
+        out = (ctypes.c_int8 * n)()
         rc = _native.LIB.srmech_polar_bundle(
             ptr_array, ctypes.c_uint32(n_vectors), ctypes.c_uint32(n),
-            out.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)))
+            ctypes.cast(out, _I8P))
         if rc == _native.SRMECH_OK:
-            return out
-    total = np.sum(np.stack(arrs).astype(np.int32), axis=0)
-    # Class-K sign (pin-slot at zero): + sector / 0 boundary / - sector,
-    # via comparisons (carrier ops, no np.sign ufunc) — bit-identical to
-    # np.sign for the real int sum. No abs().
-    return ((total > 0).astype(np.int8) - (total < 0).astype(np.int8))
+            return array("b", out)
+    # Class-K sign (pin-slot at zero): + sector / 0 boundary / - sector, via the
+    # sign of the integer column sum — bit-identical to the sign ufunc. No abs().
+    out = array("b", bytes(n))
+    for i in range(n):
+        total = sum(arr[i] for arr in arrs)
+        out[i] = 1 if total > 0 else (-1 if total < 0 else 0)
+    return out
 
 
 def polar_similarity(a, b, skip_zero: bool = True) -> float:
@@ -448,15 +474,18 @@ def polar_similarity(a, b, skip_zero: bool = True) -> float:
 
     ``skip_zero=False``: plain match-fraction over all positions (``0 == 0``
     counts as a match — neutral-credit semantics).
-    """
+
+    rc125 (numpy-free): pure-Python counting over ``array('b')`` buffers."""
     a, b = _check_polar_pair(a, b, "polar_similarity")
+    n = len(a)
     if skip_zero:
-        mask = (a != 0) & (b != 0)
-        n = int(mask.sum())
-        if n == 0:
+        informative = [i for i in range(n) if a[i] != 0 and b[i] != 0]
+        if not informative:
             return 0.0
-        return float((a[mask] == b[mask]).sum()) / n
-    return float((a == b).mean())
+        matches = sum(1 for i in informative if a[i] == b[i])
+        return float(matches) / len(informative)
+    matches = sum(1 for i in range(n) if a[i] == b[i])
+    return float(matches) / n
 
 
 def polar_density(v) -> float:
@@ -464,21 +493,22 @@ def polar_density(v) -> float:
 
     ``1.0`` = fully bipolar (no dead-band); lower = more positions resting in
     the Class-K dead-band / uncertain state.
-    """
+
+    rc125 (numpy-free): pure-Python count over ``array('b')`` / native peer."""
     arr = _as_polar(v, "polar_density")
+    n = len(arr)
     # rc12: dispatch the informative-fraction (count of non-zero / n) to the C
-    # peer when present (bit-identical to ``(arr != 0).mean()`` below — the
-    # count is integer, one division — which stays the no-native fallback).
+    # peer when present (bit-identical to the count/n below — one division —
+    # which stays the no-native fallback).
     if (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_polar_density")):
-        arr_c = np.ascontiguousarray(arr, dtype=np.int8)
+        arr_c = (ctypes.c_int8 * n).from_buffer_copy(arr)
         out = ctypes.c_double()
         rc = _native.LIB.srmech_polar_density(
-            arr_c.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)),
-            ctypes.c_uint32(arr_c.size), ctypes.byref(out))
+            ctypes.cast(arr_c, _I8P), ctypes.c_uint32(n), ctypes.byref(out))
         if rc == _native.SRMECH_OK:
             return float(out.value)
-    return float((arr != 0).mean())
+    return float(sum(1 for x in arr if x != 0)) / n
 
 
 def polar_from_real(arr, threshold: float = 0.0, dead_band: float = 0.0):
@@ -490,11 +520,13 @@ def polar_from_real(arr, threshold: float = 0.0, dead_band: float = 0.0):
     zone maps to 0 (the asymptotic-DOF pin-slot rejection zone); with
     ``dead_band == 0`` the output is strict bipolar (ties favour +1 per
     ``sign_quantise``).
-    """
+
+    rc125 (numpy-free): ``sign_quantise.op`` returns a numpy-free list (the
+    rc94 flip); it is collected into an ``array('b')`` (was an int8 ndarray)."""
     from ..signal_processing.path_b_ops import sign_quantise
 
     out = sign_quantise.op(arr, threshold=threshold, dead_band=dead_band)
-    return np.asarray(out, dtype=np.int8)
+    return array("b", (int(x) for x in out))
 
 
 # ---------------------------------------------------------------------------
@@ -516,20 +548,18 @@ KLEIN4_STATES = (0, 1, 2, 3)
 
 
 def _as_klein4(v, op: str):
-    arr = np.asarray(v, dtype=np.uint8)
-    if arr.ndim != 1:
-        raise ValueError(f"hdc.{op}: klein-4 vector must be 1-D (got ndim {arr.ndim})")
-    if arr.size == 0:
-        raise ValueError(f"hdc.{op}: klein-4 vector must be non-empty")
-    if not bool(np.isin(arr, (0, 1, 2, 3)).all()):
-        raise ValueError(f"hdc.{op}: klein-4 elements must be in {{0, 1, 2, 3}}")
-    return arr
+    """Validate a Klein-4 value into an ``array('B')`` buffer (numpy-free).
+
+    rc125: the prior numpy ``asarray(..., uint8)`` path is the stdlib
+    :func:`_as_klein4_buf` — kept as a thin alias for the few legacy callers
+    of this name (elements in ``{0, 1, 2, 3}``)."""
+    return _as_klein4_buf(v, op)
 
 
 # ── numpy-free Klein-4 core (v0.7.0rc29; UPSTREAM §22/§22b) ───────────────
 # The Klein-4 carrier is the first family to go numpy-free: ops validate to a
 # stdlib ``array('B')`` working buffer and return an :class:`HV` handle (no
-# implicit ``np.ndarray`` escapes — the §22 boundary-type lever). The kernels
+# implicit ndarray escapes — the §22 boundary-type lever). The kernels
 # below are pure-Python byte ops; no ``np`` is touched on this path.
 
 def _as_klein4_buf(v, op: str) -> "array":
@@ -559,7 +589,7 @@ def _as_klein4_buf(v, op: str) -> "array":
 
 
 def _store_buf(store, op: str) -> "array":
-    """Copy a 1-D uint8 store (HV / bytes / array / list / np.ndarray) into an
+    """Copy a 1-D uint8 store (HV / bytes / array / list / ndarray) into an
     ``array('B')`` — the lenient buffer used by the holographic decode (elements
     are any uint8, not restricted to ``{0, 1, 2, 3}``). Numpy-free."""
     src = store.buffer if isinstance(store, HV) else store
@@ -617,19 +647,21 @@ def klein4_random(D: int, rng=None, seed: "int | None" = None):
             callers. A ``Generator`` cannot cross JSON-RPC nor be expressed
             in an Anthropic tool schema; use ``seed`` from those callers.
         seed: Optional integer seed. When given (and ``rng`` is not), the
-            generator is built internally as ``np.random.default_rng(seed)``,
-            so MCP / Anthropic callers can obtain a DETERMINISTIC vector
-            (srmech's bit-exact / attestation discipline). **Precedence:**
-            an explicit ``rng`` wins over ``seed`` if both are supplied.
+            generator is built internally as ``random.Random(seed)`` (rc125:
+            stdlib, numpy-free), so MCP / Anthropic callers can obtain a
+            DETERMINISTIC vector (srmech's bit-exact / attestation discipline).
+            **Precedence:** an explicit ``rng`` wins over ``seed`` if both are
+            supplied.
     """
     if D <= 0:
         raise ValueError("hdc.klein4_random: D must be positive")
-    if rng is not None:
+    if rng is not None and hasattr(rng, "integers"):
         # Back-compat numpy ``Generator`` path: the caller already holds numpy,
-        # so this branch may use it. The default (seed / None) path below is
+        # so this branch may use it (coerced to a stdlib uint8 buffer — no numpy
+        # name in THIS module). The default (seed / None) path below is
         # numpy-free (stdlib ``random``) — the §22 numpy-optional core.
-        return HV.from_sequence(rng.integers(0, 4, size=D, dtype=np.uint8))
-    r = _random.Random(seed)
+        return HV(array("B", (int(x) for x in rng.integers(0, 4, size=D))), sectors=4)
+    r = rng if rng is not None else _random.Random(seed)
     return HV(array("B", (r.randrange(4) for _ in range(D))), sectors=4)
 
 
@@ -1207,29 +1239,52 @@ LOOP_DIM = 8  # the octonion / k=7 carrier (division holds at dim ≤ 8)
 
 
 def _loop_conj_raw(arr):
-    """Bare octonion conjugate (no validation; for internal recursion)."""
-    y = -arr.copy()
-    y[0] = arr[0]
-    return y
+    """Bare octonion conjugate (no validation; for internal recursion).
+
+    rc125 (numpy-free): operates on a plain ``list[float]`` — negate the seven
+    imaginary axes, keep the real anchor ``arr[0]`` (Class C, no ``abs()``)."""
+    return [arr[0]] + [-arr[i] for i in range(1, len(arr))]
 
 
 def _loop_bind_raw(a_, b_):
-    """Bare Cayley-Dickson product (no validation; the recursion engine)."""
+    """Bare Cayley-Dickson product (no validation; the recursion engine).
+
+    rc125 (numpy-free): operates on plain ``list[float]`` — the half-splits are
+    list slices and the assembly is list ``+`` concatenation (the prior
+    concatenation of two halves)."""
     n = len(a_) // 2
     if n == 0:
-        return a_ * b_
+        return [a_[0] * b_[0]]
     a, b = a_[:n], a_[n:]
     c, d = b_[:n], b_[n:]
-    return np.concatenate([_loop_bind_raw(a, c) - _loop_bind_raw(_loop_conj_raw(d), b),
-                           _loop_bind_raw(d, a) + _loop_bind_raw(b, _loop_conj_raw(c))])
+    lo = _vsub(_loop_bind_raw(a, c), _loop_bind_raw(_loop_conj_raw(d), b))
+    hi = _vadd(_loop_bind_raw(d, a), _loop_bind_raw(b, _loop_conj_raw(c)))
+    return lo + hi
+
+
+def _vadd(u, v):
+    """Element-wise add of two equal-length float lists (numpy-free)."""
+    return [u[i] + v[i] for i in range(len(u))]
+
+
+def _vsub(u, v):
+    """Element-wise subtract of two equal-length float lists (numpy-free)."""
+    return [u[i] - v[i] for i in range(len(u))]
+
+
+def _vscale(u, s):
+    """Scalar-multiply a float list (numpy-free)."""
+    return [x * s for x in u]
 
 
 def _as_loop(v, op: str):
-    """Coerce to a 1-D float ndarray whose length is a power of two (the
-    Cayley-Dickson recursion bottoms out at length 1)."""
-    arr = np.asarray(v, dtype=float)
-    assert arr.ndim == 1, f"{op}: expected a 1-D vector, got ndim {arr.ndim}"
-    n = arr.shape[0]
+    """Coerce to a 1-D ``list[float]`` whose length is a power of two (the
+    Cayley-Dickson recursion bottoms out at length 1). Numpy-free."""
+    try:
+        arr = [float(x) for x in v]
+    except TypeError as exc:  # 0-D scalar / non-iterable
+        raise AssertionError(f"{op}: expected a 1-D vector") from exc
+    n = len(arr)
     assert n >= 1 and (n & (n - 1)) == 0, (
         f"{op}: length {n} is not a power of two (Cayley-Dickson carrier)"
     )
@@ -1237,7 +1292,8 @@ def _as_loop(v, op: str):
 
 
 def _loop_basis(i, dim):
-    v = np.zeros(dim)
+    """The ``i``-th standard basis vector of length ``dim`` as a ``list[float]``."""
+    v = [0.0] * dim
     v[i] = 1.0
     return v
 
@@ -1250,10 +1306,12 @@ def _reject_hd_block_misuse(arr, op):
     silently passes ``_as_loop`` — 2048 = 256·8 is also a power of two — and
     would be treated as a single 2048-D element, so the GLOBAL conj/inv is NOT
     the per-block octonion result the HD layout means (err ≈ ‖·‖, no exception).
-    Raise instead, and point at the per-block ``*_hd`` op."""
-    if arr.ndim == 1 and arr.size > LOOP_DIM and arr.size % LOOP_DIM == 0:
+    Raise instead, and point at the per-block ``*_hd`` op. ``arr`` is a
+    ``list[float]`` (numpy-free)."""
+    size = len(arr)
+    if size > LOOP_DIM and size % LOOP_DIM == 0:
         raise ValueError(
-            f"{op}: length {arr.size} is a multiple of LOOP_DIM ({LOOP_DIM}) "
+            f"{op}: length {size} is a multiple of LOOP_DIM ({LOOP_DIM}) "
             f"wider than one octonion — this is an HD block-octonion vector, "
             f"not one element. The single-element {op} is silently wrong here; "
             f"use {op}_hd for the per-block result (F-§12.1).")
@@ -1274,174 +1332,185 @@ def _loop_native_ready(symbol):
             and hasattr(_native.LIB, symbol))
 
 
+def _cbuf(seq, n):
+    """A ``(c_double * n)`` ctypes buffer filled from ``seq`` (numpy-free
+    marshalling for the native loop ops — no numpy contiguous-array copy)."""
+    return (ctypes.c_double * n)(*(float(v) for v in seq))
+
+
+def _from_cbuf(c_out, n):
+    """A ``list[float]`` copy of a ``(c_double * n)`` native output buffer."""
+    return [float(c_out[i]) for i in range(n)]
+
+
 def _try_native_loop_conj(arr):
-    if arr.size != LOOP_DIM or not _loop_native_ready("srmech_loop_conj_f64"):
+    if len(arr) != LOOP_DIM or not _loop_native_ready("srmech_loop_conj_f64"):
         return None
-    Arr = ctypes.c_double * LOOP_DIM
-    c_x = Arr(*(float(v) for v in arr))
-    c_out = Arr()
+    c_x = _cbuf(arr, LOOP_DIM)
+    c_out = (ctypes.c_double * LOOP_DIM)()
     rc = _native.LIB.srmech_loop_conj_f64(
         ctypes.cast(c_x, _DBLP), ctypes.c_size_t(LOOP_DIM),
         ctypes.cast(c_out, _DBLP))
     if rc != _native.SRMECH_OK:
         return None
-    return np.array([float(c_out[i]) for i in range(LOOP_DIM)])
+    return _from_cbuf(c_out, LOOP_DIM)
 
 
 def _try_native_loop_bind(a_, b_):
-    if (a_.size != LOOP_DIM or b_.size != LOOP_DIM
+    if (len(a_) != LOOP_DIM or len(b_) != LOOP_DIM
             or not _loop_native_ready("srmech_loop_bind_f64")):
         return None
-    Arr = ctypes.c_double * LOOP_DIM
-    c_x = Arr(*(float(v) for v in a_))
-    c_y = Arr(*(float(v) for v in b_))
-    c_out = Arr()
+    c_x = _cbuf(a_, LOOP_DIM)
+    c_y = _cbuf(b_, LOOP_DIM)
+    c_out = (ctypes.c_double * LOOP_DIM)()
     rc = _native.LIB.srmech_loop_bind_f64(
         ctypes.cast(c_x, _DBLP), ctypes.cast(c_y, _DBLP),
         ctypes.c_size_t(LOOP_DIM), ctypes.cast(c_out, _DBLP))
     if rc != _native.SRMECH_OK:
         return None
-    return np.array([float(c_out[i]) for i in range(LOOP_DIM)])
+    return _from_cbuf(c_out, LOOP_DIM)
 
 
 def _try_native_loop_bind_hd(a_, b_):
     """Whole-array native HD bind — ONE ``srmech_loop_bind_hd_f64`` call binds
     ALL NB 8-blocks (internally N-way-SIMD across blocks: AVX W=4 / SSE2 W=2 /
     scalar remainder), replacing the Python per-block ``loop_bind`` loop. a_,
-    b_ are flat float arrays of equal length, a positive multiple of LOOP_DIM.
-    Returns the flat result (NB·8), or None to fall back to the per-block path
-    (lib absent / symbol missing / non-OK). No per-element Python loop — pointers
-    cross once (this IS the F292 graft's win). ``out`` is a fresh buffer, so it
-    never aliases the inputs (the C contract)."""
-    n = a_.size
-    if (n == 0 or n % LOOP_DIM != 0 or b_.size != n
+    b_ are flat float ``list``\\ s of equal length, a positive multiple of
+    LOOP_DIM. Returns the flat result (NB·8) as a ``list[float]``, or None to
+    fall back to the per-block path (lib absent / symbol missing / non-OK).
+    rc125 (numpy-free): marshals via ``(c_double * n)`` ctypes buffers — pointers
+    cross once (the F292 graft's win); ``out`` is a fresh buffer, so it never
+    aliases the inputs (the C contract)."""
+    n = len(a_)
+    if (n == 0 or n % LOOP_DIM != 0 or len(b_) != n
             or not _loop_native_ready("srmech_loop_bind_hd_f64")):
         return None
     nb = n // LOOP_DIM
-    xc = np.ascontiguousarray(a_, dtype=np.float64)
-    yc = np.ascontiguousarray(b_, dtype=np.float64)
-    out = np.empty(n, dtype=np.float64)
+    xc = _cbuf(a_, n)
+    yc = _cbuf(b_, n)
+    out = (ctypes.c_double * n)()
     rc = _native.LIB.srmech_loop_bind_hd_f64(
-        xc.ctypes.data_as(_DBLP), yc.ctypes.data_as(_DBLP),
-        ctypes.c_size_t(nb), out.ctypes.data_as(_DBLP))
+        ctypes.cast(xc, _DBLP), ctypes.cast(yc, _DBLP),
+        ctypes.c_size_t(nb), ctypes.cast(out, _DBLP))
     if rc != _native.SRMECH_OK:
         return None
-    return out
+    return _from_cbuf(out, n)
 
 
 def _try_native_loop_conj_hd(a_):
     """Whole-array native HD conjugate — ONE ``srmech_loop_conj_hd_f64`` call
     conjugates ALL NB 8-blocks, replacing the Python per-block ``_loop_conj_raw``
-    loop. a_ is a flat float array, a positive multiple of LOOP_DIM. Returns the
-    flat result, or None to fall back (lib absent / symbol missing / non-OK)."""
-    n = a_.size
+    loop. a_ is a flat float ``list``, a positive multiple of LOOP_DIM. Returns
+    the flat result as a ``list[float]``, or None to fall back (numpy-free
+    ctypes marshalling)."""
+    n = len(a_)
     if (n == 0 or n % LOOP_DIM != 0
             or not _loop_native_ready("srmech_loop_conj_hd_f64")):
         return None
     nb = n // LOOP_DIM
-    xc = np.ascontiguousarray(a_, dtype=np.float64)
-    out = np.empty(n, dtype=np.float64)
+    xc = _cbuf(a_, n)
+    out = (ctypes.c_double * n)()
     rc = _native.LIB.srmech_loop_conj_hd_f64(
-        xc.ctypes.data_as(_DBLP), ctypes.c_size_t(nb), out.ctypes.data_as(_DBLP))
+        ctypes.cast(xc, _DBLP), ctypes.c_size_t(nb), ctypes.cast(out, _DBLP))
     if rc != _native.SRMECH_OK:
         return None
-    return out
+    return _from_cbuf(out, n)
 
 
 def _try_native_loop_inv_hd(a_):
     """Whole-array native HD Moufang inverse — ONE ``srmech_loop_inv_hd_f64`` call
     inverts ALL NB 8-blocks. None on fall-back; a zero block makes the C peer
-    return BAD_INPUT → None here → the Python fallback raises (the contract)."""
-    n = a_.size
+    return BAD_INPUT → None here → the Python fallback raises (the contract).
+    rc125 (numpy-free): ctypes-buffer marshalling, ``list[float]`` out."""
+    n = len(a_)
     if (n == 0 or n % LOOP_DIM != 0
             or not _loop_native_ready("srmech_loop_inv_hd_f64")):
         return None
     nb = n // LOOP_DIM
-    xc = np.ascontiguousarray(a_, dtype=np.float64)
-    out = np.empty(n, dtype=np.float64)
+    xc = _cbuf(a_, n)
+    out = (ctypes.c_double * n)()
     rc = _native.LIB.srmech_loop_inv_hd_f64(
-        xc.ctypes.data_as(_DBLP), ctypes.c_size_t(nb), out.ctypes.data_as(_DBLP))
+        ctypes.cast(xc, _DBLP), ctypes.c_size_t(nb), ctypes.cast(out, _DBLP))
     if rc != _native.SRMECH_OK:
         return None
-    return out
+    return _from_cbuf(out, n)
 
 
 def _try_native_loop_unbind_hd(a_, b_):
     """Whole-array native HD LEFT-unbind — ONE ``srmech_loop_unbind_hd_f64`` call
-    computes conj(aₖ)·bₖ over ALL NB blocks. None on fall-back."""
-    n = a_.size
-    if (n == 0 or n % LOOP_DIM != 0 or b_.size != n
+    computes conj(aₖ)·bₖ over ALL NB blocks. None on fall-back. rc125
+    (numpy-free): ctypes-buffer marshalling, ``list[float]`` out."""
+    n = len(a_)
+    if (n == 0 or n % LOOP_DIM != 0 or len(b_) != n
             or not _loop_native_ready("srmech_loop_unbind_hd_f64")):
         return None
     nb = n // LOOP_DIM
-    ac = np.ascontiguousarray(a_, dtype=np.float64)
-    bc = np.ascontiguousarray(b_, dtype=np.float64)
-    out = np.empty(n, dtype=np.float64)
+    ac = _cbuf(a_, n)
+    bc = _cbuf(b_, n)
+    out = (ctypes.c_double * n)()
     rc = _native.LIB.srmech_loop_unbind_hd_f64(
-        ac.ctypes.data_as(_DBLP), bc.ctypes.data_as(_DBLP),
-        ctypes.c_size_t(nb), out.ctypes.data_as(_DBLP))
+        ctypes.cast(ac, _DBLP), ctypes.cast(bc, _DBLP),
+        ctypes.c_size_t(nb), ctypes.cast(out, _DBLP))
     if rc != _native.SRMECH_OK:
         return None
-    return out
+    return _from_cbuf(out, n)
 
 
 def _try_native_loop_runbind_hd(a_, b_):
     """Whole-array native HD RIGHT-unbind — ONE ``srmech_loop_runbind_hd_f64``
-    call computes bₖ·conj(aₖ) over ALL NB blocks. None on fall-back."""
-    n = a_.size
-    if (n == 0 or n % LOOP_DIM != 0 or b_.size != n
+    call computes bₖ·conj(aₖ) over ALL NB blocks. None on fall-back. rc125
+    (numpy-free): ctypes-buffer marshalling, ``list[float]`` out."""
+    n = len(a_)
+    if (n == 0 or n % LOOP_DIM != 0 or len(b_) != n
             or not _loop_native_ready("srmech_loop_runbind_hd_f64")):
         return None
     nb = n // LOOP_DIM
-    ac = np.ascontiguousarray(a_, dtype=np.float64)
-    bc = np.ascontiguousarray(b_, dtype=np.float64)
-    out = np.empty(n, dtype=np.float64)
+    ac = _cbuf(a_, n)
+    bc = _cbuf(b_, n)
+    out = (ctypes.c_double * n)()
     rc = _native.LIB.srmech_loop_runbind_hd_f64(
-        ac.ctypes.data_as(_DBLP), bc.ctypes.data_as(_DBLP),
-        ctypes.c_size_t(nb), out.ctypes.data_as(_DBLP))
+        ctypes.cast(ac, _DBLP), ctypes.cast(bc, _DBLP),
+        ctypes.c_size_t(nb), ctypes.cast(out, _DBLP))
     if rc != _native.SRMECH_OK:
         return None
-    return out
+    return _from_cbuf(out, n)
 
 
 def _try_native_loop_inv(arr):
-    if arr.size != LOOP_DIM or not _loop_native_ready("srmech_loop_inv_f64"):
+    if len(arr) != LOOP_DIM or not _loop_native_ready("srmech_loop_inv_f64"):
         return None
-    Arr = ctypes.c_double * LOOP_DIM
-    c_x = Arr(*(float(v) for v in arr))
-    c_out = Arr()
+    c_x = _cbuf(arr, LOOP_DIM)
+    c_out = (ctypes.c_double * LOOP_DIM)()
     rc = _native.LIB.srmech_loop_inv_f64(
         ctypes.cast(c_x, _DBLP), ctypes.c_size_t(LOOP_DIM),
         ctypes.cast(c_out, _DBLP))
     if rc != _native.SRMECH_OK:
         return None
-    return np.array([float(c_out[i]) for i in range(LOOP_DIM)])
+    return _from_cbuf(c_out, LOOP_DIM)
 
 
 def _try_native_cross7(a_, b_):
-    if (a_.size != LOOP_DIM or b_.size != LOOP_DIM
+    if (len(a_) != LOOP_DIM or len(b_) != LOOP_DIM
             or not _loop_native_ready("srmech_cross7_f64")):
         return None
-    Arr = ctypes.c_double * LOOP_DIM
-    c_x = Arr(*(float(v) for v in a_))
-    c_y = Arr(*(float(v) for v in b_))
-    c_out = Arr()
+    c_x = _cbuf(a_, LOOP_DIM)
+    c_y = _cbuf(b_, LOOP_DIM)
+    c_out = (ctypes.c_double * LOOP_DIM)()
     rc = _native.LIB.srmech_cross7_f64(
         ctypes.cast(c_x, _DBLP), ctypes.cast(c_y, _DBLP),
         ctypes.c_size_t(LOOP_DIM), ctypes.cast(c_out, _DBLP))
     if rc != _native.SRMECH_OK:
         return None
-    return np.array([float(c_out[i]) for i in range(LOOP_DIM)])
+    return _from_cbuf(c_out, LOOP_DIM)
 
 
 def _try_native_g2_three_form(xa, ya, za):
-    if (xa.size != LOOP_DIM or ya.size != LOOP_DIM or za.size != LOOP_DIM
+    if (len(xa) != LOOP_DIM or len(ya) != LOOP_DIM or len(za) != LOOP_DIM
             or not _loop_native_ready("srmech_g2_three_form_f64")):
         return None
-    Arr = ctypes.c_double * LOOP_DIM
-    c_x = Arr(*(float(v) for v in xa))
-    c_y = Arr(*(float(v) for v in ya))
-    c_z = Arr(*(float(v) for v in za))
+    c_x = _cbuf(xa, LOOP_DIM)
+    c_y = _cbuf(ya, LOOP_DIM)
+    c_z = _cbuf(za, LOOP_DIM)
     c_out = ctypes.c_double(0.0)
     rc = _native.LIB.srmech_g2_three_form_f64(
         ctypes.cast(c_x, _DBLP), ctypes.cast(c_y, _DBLP),
@@ -1453,50 +1522,53 @@ def _try_native_g2_three_form(xa, ya, za):
 
 
 def _try_native_loop_associator(aa, bb, cc):
-    if (aa.size != LOOP_DIM or bb.size != LOOP_DIM or cc.size != LOOP_DIM
+    if (len(aa) != LOOP_DIM or len(bb) != LOOP_DIM or len(cc) != LOOP_DIM
             or not _loop_native_ready("srmech_loop_associator_f64")):
         return None
-    Arr = ctypes.c_double * LOOP_DIM
-    c_a = Arr(*(float(v) for v in aa))
-    c_b = Arr(*(float(v) for v in bb))
-    c_c = Arr(*(float(v) for v in cc))
-    c_out = Arr()
+    c_a = _cbuf(aa, LOOP_DIM)
+    c_b = _cbuf(bb, LOOP_DIM)
+    c_c = _cbuf(cc, LOOP_DIM)
+    c_out = (ctypes.c_double * LOOP_DIM)()
     rc = _native.LIB.srmech_loop_associator_f64(
         ctypes.cast(c_a, _DBLP), ctypes.cast(c_b, _DBLP), ctypes.cast(c_c, _DBLP),
         ctypes.c_size_t(LOOP_DIM), ctypes.cast(c_out, _DBLP))
     if rc != _native.SRMECH_OK:
         return None
-    return np.array([float(c_out[i]) for i in range(LOOP_DIM)])
+    return _from_cbuf(c_out, LOOP_DIM)
+
+
+def _flat_to_mat(flat):
+    """A ``LOOP_DIM × LOOP_DIM`` real :class:`Mat` from a row-major flat list
+    (the native loop-operator output; numpy-free)."""
+    rows = [[flat[k * LOOP_DIM + j] for j in range(LOOP_DIM)]
+            for k in range(LOOP_DIM)]
+    return Mat.from_rows(rows, is_complex=False)
 
 
 def _try_native_loop_left_op(arr):
-    if arr.size != LOOP_DIM or not _loop_native_ready("srmech_loop_left_op_f64"):
+    if len(arr) != LOOP_DIM or not _loop_native_ready("srmech_loop_left_op_f64"):
         return None
-    Arr = ctypes.c_double * LOOP_DIM
-    Mat = ctypes.c_double * (LOOP_DIM * LOOP_DIM)
-    c_a = Arr(*(float(v) for v in arr))
-    c_out = Mat()
+    c_a = _cbuf(arr, LOOP_DIM)
+    c_out = (ctypes.c_double * (LOOP_DIM * LOOP_DIM))()
     rc = _native.LIB.srmech_loop_left_op_f64(
         ctypes.cast(c_a, _DBLP), ctypes.c_size_t(LOOP_DIM), ctypes.cast(c_out, _DBLP))
     if rc != _native.SRMECH_OK:
         return None
     flat = [float(c_out[i]) for i in range(LOOP_DIM * LOOP_DIM)]
-    return np.array(flat).reshape(LOOP_DIM, LOOP_DIM)
+    return _flat_to_mat(flat)
 
 
 def _try_native_loop_right_op(arr):
-    if arr.size != LOOP_DIM or not _loop_native_ready("srmech_loop_right_op_f64"):
+    if len(arr) != LOOP_DIM or not _loop_native_ready("srmech_loop_right_op_f64"):
         return None
-    Arr = ctypes.c_double * LOOP_DIM
-    Mat = ctypes.c_double * (LOOP_DIM * LOOP_DIM)
-    c_a = Arr(*(float(v) for v in arr))
-    c_out = Mat()
+    c_a = _cbuf(arr, LOOP_DIM)
+    c_out = (ctypes.c_double * (LOOP_DIM * LOOP_DIM))()
     rc = _native.LIB.srmech_loop_right_op_f64(
         ctypes.cast(c_a, _DBLP), ctypes.c_size_t(LOOP_DIM), ctypes.cast(c_out, _DBLP))
     if rc != _native.SRMECH_OK:
         return None
     flat = [float(c_out[i]) for i in range(LOOP_DIM * LOOP_DIM)]
-    return np.array(flat).reshape(LOOP_DIM, LOOP_DIM)
+    return _flat_to_mat(flat)
 
 
 def loop_conj(x):
@@ -1504,9 +1576,8 @@ def loop_conj(x):
     ``x[0]``. The Class-C orientation flip that powers the unbind. Single
     element only — an HD block-octonion vector raises (use ``loop_conj_hd``).
     Dispatches to the native ``srmech_loop_conj_f64`` for the dim-8 octonion."""
-    arr = np.asarray(x, dtype=float)
-    _reject_hd_block_misuse(arr, "loop_conj")
     arr = _as_loop(x, "loop_conj")
+    _reject_hd_block_misuse(arr, "loop_conj")
     native = _try_native_loop_conj(arr)
     if native is not None:
         return native
@@ -1522,10 +1593,13 @@ def loop_bind(x, y):
     residue (``loop_associator``). The gauge *arithmetic* triality is blind to
     (F271). NO new class. Operands must share a power-of-two length (dim 8 = the
     octonion).
+
+    rc125 (numpy-free): operands are coerced to ``list[float]`` and the result is
+    a ``list[float]`` (was an ndarray).
     """
     a_ = _as_loop(x, "loop_bind")
     b_ = _as_loop(y, "loop_bind")
-    assert a_.shape == b_.shape, "loop_bind: operands must have equal length"
+    assert len(a_) == len(b_), "loop_bind: operands must have equal length"
     native = _try_native_loop_bind(a_, b_)
     if native is not None:
         return native
@@ -1536,39 +1610,51 @@ def loop_inv(x):
     """Moufang inverse x⁻¹ = x̄ / ⟨x,x⟩ — the unbind key. For a unit octonion
     (⟨x,x⟩ = 1) this is just the conjugate; ``loop_bind(x, loop_inv(x))`` = e₀.
     Class-K clean: the norm² gate, never ``abs()``. Single element only — an HD
-    block-octonion vector raises (use ``loop_inv_hd``)."""
-    arr = np.asarray(x, dtype=float)
-    _reject_hd_block_misuse(arr, "loop_inv")
+    block-octonion vector raises (use ``loop_inv_hd``).
+
+    rc125 (numpy-free): the norm² gate is the numpy-free ``mat_dot_real`` (the
+    prior numpy-carrier ``dense_dot_real``); returns a ``list[float]``."""
     arr = _as_loop(x, "loop_inv")
-    from srmech.amsc.laplacian import dense_dot_real  # local: numpy-absent-safe (§22)
-    nsq = dense_dot_real(arr, arr)
+    _reject_hd_block_misuse(arr, "loop_inv")
+    from srmech.amsc.laplacian import mat_dot_real  # numpy-free inner product
+    nsq = mat_dot_real(arr, arr)
     assert nsq > 0.0, "loop_inv: zero vector has no inverse (Moufang division)"
     native = _try_native_loop_inv(arr)
     if native is not None:
         return native
-    return _loop_conj_raw(arr) / nsq
+    return _vscale(_loop_conj_raw(arr), 1.0 / nsq)
 
 
 def loop_left_op(a):
     """Left-multiplication operator L_a(x) = a·x (the (4:3) ordering) as a
-    dim×dim matrix. L_a ≠ R_a ≠ R_aᵀ — the operational chirality."""
+    dim×dim :class:`Mat`. L_a ≠ R_a ≠ R_aᵀ — the operational chirality.
+
+    rc125 (numpy-free): returns a real ``Mat`` (was an ndarray); the fallback
+    column-stacks the per-basis binds into a row-major nested list."""
     arr = _as_loop(a, "loop_left_op")
-    dim = arr.shape[0]
+    dim = len(arr)
     native = _try_native_loop_left_op(arr)
     if native is not None:
         return native
-    return np.column_stack([_loop_bind_raw(arr, _loop_basis(k, dim)) for k in range(dim)])
+    cols = [_loop_bind_raw(arr, _loop_basis(k, dim)) for k in range(dim)]
+    # column-stack: row i, column k is cols[k][i].
+    rows = [[cols[k][i] for k in range(dim)] for i in range(dim)]
+    return Mat.from_rows(rows, is_complex=False)
 
 
 def loop_right_op(a):
     """Right-multiplication operator R_a(x) = x·a (the (3:4) mirror ordering) as
-    a dim×dim matrix."""
+    a dim×dim :class:`Mat`.
+
+    rc125 (numpy-free): returns a real ``Mat`` (was an ndarray)."""
     arr = _as_loop(a, "loop_right_op")
-    dim = arr.shape[0]
+    dim = len(arr)
     native = _try_native_loop_right_op(arr)
     if native is not None:
         return native
-    return np.column_stack([_loop_bind_raw(_loop_basis(k, dim), arr) for k in range(dim)])
+    cols = [_loop_bind_raw(_loop_basis(k, dim), arr) for k in range(dim)]
+    rows = [[cols[k][i] for k in range(dim)] for i in range(dim)]
+    return Mat.from_rows(rows, is_complex=False)
 
 
 def loop_associator(a, b, c):
@@ -1578,15 +1664,16 @@ def loop_associator(a, b, c):
     outside = the (4:3)|(3:4) boundary. Identity: ``loop_associator(a, x, b)`` =
     −(``[L_a, R_b]`` · x). The K-residue is what makes the loop bind carry order
     / nesting / direction the commutative ``klein4_bind`` XOR washes out (F274).
-    """
+
+    rc125 (numpy-free): returns a ``list[float]`` (was an ndarray)."""
     aa = _as_loop(a, "loop_associator")
     bb = _as_loop(b, "loop_associator")
     cc = _as_loop(c, "loop_associator")
     native = _try_native_loop_associator(aa, bb, cc)
     if native is not None:
         return native
-    return (_loop_bind_raw(_loop_bind_raw(aa, bb), cc)
-            - _loop_bind_raw(aa, _loop_bind_raw(bb, cc)))
+    return _vsub(_loop_bind_raw(_loop_bind_raw(aa, bb), cc),
+                 _loop_bind_raw(aa, _loop_bind_raw(bb, cc)))
 
 
 def cross7(x, y):
@@ -1595,10 +1682,12 @@ def cross7(x, y):
     ½(x·y − y·x). Antisymmetric (x×y = −y×x); the Class-M bind ∘ Class-C
     ordering with the symmetric part Re(x·y) = −⟨x,y⟩ projected off. Identity:
     ‖x×y‖² = ‖x‖²‖y‖² − ⟨x,y⟩². Ground-truth derived FROM the shipped loop_bind
-    (F281); NO new class."""
+    (F281); NO new class.
+
+    rc125 (numpy-free): returns a ``list[float]`` (was an ndarray)."""
     a_ = _as_loop(x, "cross7")
     b_ = _as_loop(y, "cross7")
-    assert a_.shape == b_.shape, "cross7: operands must have equal length"
+    assert len(a_) == len(b_), "cross7: operands must have equal length"
     native = _try_native_cross7(a_, b_)
     if native is not None:
         return native
@@ -1613,18 +1702,46 @@ def g2_three_form(x, y, z):
     the 7 Fano associative 3-planes, zero on the other 28 of the C(7,3)=35 basis
     triples. The sign/orientation convention is fixed BY the shipped loop_bind
     (not imposed externally; F281). Class (M∘C) ∘ ⟨·,·⟩ contraction (Class-L/M);
-    NO new class. Returns a scalar."""
+    NO new class. Returns a scalar.
+
+    rc125 (numpy-free): the contraction is the numpy-free ``mat_dot_real`` (the
+    prior numpy-carrier ``dense_dot_real``)."""
     xa = _as_loop(x, "g2_three_form")
     ya = _as_loop(y, "g2_three_form")
     za = _as_loop(z, "g2_three_form")
-    assert xa.shape == ya.shape and xa.shape == za.shape, (
+    assert len(xa) == len(ya) and len(xa) == len(za), (
         "g2_three_form: operands must have equal length")
     native = _try_native_g2_three_form(xa, ya, za)
     if native is not None:
         return native
-    from srmech.amsc.laplacian import dense_dot_real  # local: numpy-absent-safe (§22)
+    from srmech.amsc.laplacian import mat_dot_real  # numpy-free inner product
     yz = cross7(ya, za)
-    return dense_dot_real(xa, yz)
+    return mat_dot_real(xa, yz)
+
+
+def _as_hd(v, op: str) -> "list":
+    """Coerce ``v`` to a flat ``list[float]`` whose length is a positive
+    multiple of LOOP_DIM (the HD block-octonion carrier). Numpy-free."""
+    arr = [float(x) for x in v]
+    n = len(arr)
+    assert n and n % LOOP_DIM == 0, (
+        f"{op}: length must be a positive multiple of {LOOP_DIM}")
+    return arr
+
+
+def _hd_blocks(arr):
+    """Split a flat HD ``list[float]`` into NB length-LOOP_DIM block lists."""
+    return [arr[k * LOOP_DIM:(k + 1) * LOOP_DIM]
+            for k in range(len(arr) // LOOP_DIM)]
+
+
+def _concat(blocks):
+    """Concatenate a list of float-list blocks into one flat ``list[float]``
+    (the numpy-free concatenation)."""
+    out = []
+    for b in blocks:
+        out.extend(b)
+    return out
 
 
 def loop_bind_hd(x, y):
@@ -1635,18 +1752,18 @@ def loop_bind_hd(x, y):
     (the F274 non-commutative structure) at NO capacity cost vs the commutative
     Klein-4 XOR bind (capacity-free, #812/F277). Class M (per-block loop_bind =
     M∘C with a Class-K residue) over a direct-sum TILE layout — NO new class.
-    Operand length must be a positive multiple of LOOP_DIM (8)."""
-    a_ = np.asarray(x, dtype=float)
-    b_ = np.asarray(y, dtype=float)
-    assert a_.shape == b_.shape, "loop_bind_hd: operands must have equal length"
-    assert a_.ndim == 1 and a_.size and a_.size % LOOP_DIM == 0, (
-        f"loop_bind_hd: length must be a positive multiple of {LOOP_DIM}")
+    Operand length must be a positive multiple of LOOP_DIM (8).
+
+    rc125 (numpy-free): operates on ``list[float]`` (was an ndarray)."""
+    a_ = _as_hd(x, "loop_bind_hd")
+    b_ = _as_hd(y, "loop_bind_hd")
+    assert len(a_) == len(b_), "loop_bind_hd: operands must have equal length"
     native = _try_native_loop_bind_hd(a_, b_)
     if native is not None:
         return native
-    xb = a_.reshape(-1, LOOP_DIM)
-    yb = b_.reshape(-1, LOOP_DIM)
-    return np.concatenate([loop_bind(xb[k], yb[k]) for k in range(xb.shape[0])])
+    xb = _hd_blocks(a_)
+    yb = _hd_blocks(b_)
+    return _concat([loop_bind(xb[k], yb[k]) for k in range(len(xb))])
 
 
 def loop_unbind_hd(a, b):
@@ -1654,19 +1771,18 @@ def loop_unbind_hd(a, b):
     built from unit-per-block octonions (the HD regime), this recovers v from
     ``loop_bind_hd(a, v)`` exactly: conj(a)·(a·v) = v by alternativity. Uses the
     shipped ``loop_conj`` + ``loop_bind`` block-wise; Class-K clean (conjugate +
-    bind, no abs()). #811/F289."""
-    a_ = np.asarray(a, dtype=float)
-    b_ = np.asarray(b, dtype=float)
-    assert a_.shape == b_.shape, "loop_unbind_hd: operands must have equal length"
-    assert a_.ndim == 1 and a_.size and a_.size % LOOP_DIM == 0, (
-        f"loop_unbind_hd: length must be a positive multiple of {LOOP_DIM}")
+    bind, no abs()). #811/F289.
+
+    rc125 (numpy-free): operates on ``list[float]`` (was an ndarray)."""
+    a_ = _as_hd(a, "loop_unbind_hd")
+    b_ = _as_hd(b, "loop_unbind_hd")
+    assert len(a_) == len(b_), "loop_unbind_hd: operands must have equal length"
     native = _try_native_loop_unbind_hd(a_, b_)
     if native is not None:
         return native
-    ab = a_.reshape(-1, LOOP_DIM)
-    bb = b_.reshape(-1, LOOP_DIM)
-    return np.concatenate(
-        [loop_bind(loop_conj(ab[k]), bb[k]) for k in range(ab.shape[0])])
+    ab = _hd_blocks(a_)
+    bb = _hd_blocks(b_)
+    return _concat([loop_bind(loop_conj(ab[k]), bb[k]) for k in range(len(ab))])
 
 
 def loop_conj_hd(x):
@@ -1676,15 +1792,15 @@ def loop_conj_hd(x):
     (one Cayley-Dickson element) and silently wrong on an HD block-octonion
     vector (F-§12.1) — this is the per-block form. Class C (orientation flip)
     over the direct-sum TILE layout; NO new class. Length must be a positive
-    multiple of LOOP_DIM (8)."""
-    a_ = np.asarray(x, dtype=float)
-    assert a_.ndim == 1 and a_.size and a_.size % LOOP_DIM == 0, (
-        f"loop_conj_hd: length must be a positive multiple of {LOOP_DIM}")
+    multiple of LOOP_DIM (8).
+
+    rc125 (numpy-free): operates on ``list[float]`` (was an ndarray)."""
+    a_ = _as_hd(x, "loop_conj_hd")
     native = _try_native_loop_conj_hd(a_)
     if native is not None:
         return native
-    xb = a_.reshape(-1, LOOP_DIM)
-    return np.concatenate([_loop_conj_raw(xb[k]) for k in range(xb.shape[0])])
+    xb = _hd_blocks(a_)
+    return _concat([_loop_conj_raw(xb[k]) for k in range(len(xb))])
 
 
 def loop_inv_hd(x):
@@ -1695,23 +1811,24 @@ def loop_inv_hd(x):
     single-element ``loop_inv`` is GLOBAL and silently wrong on an HD vector
     (F-§12.1); this is the per-block form. Class-K clean (per-block norm² gate,
     never abs()); NO new class. Length must be a positive multiple of
-    LOOP_DIM (8)."""
-    a_ = np.asarray(x, dtype=float)
-    assert a_.ndim == 1 and a_.size and a_.size % LOOP_DIM == 0, (
-        f"loop_inv_hd: length must be a positive multiple of {LOOP_DIM}")
+    LOOP_DIM (8).
+
+    rc125 (numpy-free): the per-block norm² gate is the numpy-free
+    ``mat_dot_real``; operates on ``list[float]`` (was an ndarray)."""
+    a_ = _as_hd(x, "loop_inv_hd")
     native = _try_native_loop_inv_hd(a_)
     if native is not None:
         return native
-    from srmech.amsc.laplacian import dense_dot_real  # local: numpy-absent-safe (§22)
-    xb = a_.reshape(-1, LOOP_DIM)
+    from srmech.amsc.laplacian import mat_dot_real  # numpy-free inner product
+    xb = _hd_blocks(a_)
     out = []
-    for k in range(xb.shape[0]):
+    for k in range(len(xb)):
         blk = xb[k]
-        nsq = dense_dot_real(blk, blk)
+        nsq = mat_dot_real(blk, blk)
         assert nsq > 0.0, (
             f"loop_inv_hd: block {k} is the zero vector (no Moufang inverse)")
-        out.append(_loop_conj_raw(blk) / nsq)
-    return np.concatenate(out)
+        out.append(_vscale(_loop_conj_raw(blk), 1.0 / nsq))
+    return _concat(out)
 
 
 def loop_runbind_hd(a, b):
@@ -1724,19 +1841,18 @@ def loop_runbind_hd(a, b):
     right-division is what peels the most-recent element off the right (F-§12.2).
     Uses the shipped ``loop_conj`` + ``loop_bind`` block-wise; Class-K clean
     (conjugate + bind, no abs()). NO new class. Length must be a positive
-    multiple of LOOP_DIM (8)."""
-    a_ = np.asarray(a, dtype=float)
-    b_ = np.asarray(b, dtype=float)
-    assert a_.shape == b_.shape, "loop_runbind_hd: operands must have equal length"
-    assert a_.ndim == 1 and a_.size and a_.size % LOOP_DIM == 0, (
-        f"loop_runbind_hd: length must be a positive multiple of {LOOP_DIM}")
+    multiple of LOOP_DIM (8).
+
+    rc125 (numpy-free): operates on ``list[float]`` (was an ndarray)."""
+    a_ = _as_hd(a, "loop_runbind_hd")
+    b_ = _as_hd(b, "loop_runbind_hd")
+    assert len(a_) == len(b_), "loop_runbind_hd: operands must have equal length"
     native = _try_native_loop_runbind_hd(a_, b_)
     if native is not None:
         return native
-    ab = a_.reshape(-1, LOOP_DIM)
-    bb = b_.reshape(-1, LOOP_DIM)
-    return np.concatenate(
-        [loop_bind(bb[k], loop_conj(ab[k])) for k in range(ab.shape[0])])
+    ab = _hd_blocks(a_)
+    bb = _hd_blocks(b_)
+    return _concat([loop_bind(bb[k], loop_conj(ab[k])) for k in range(len(ab))])
 
 
 __all__ = [

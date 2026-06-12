@@ -358,7 +358,15 @@ _UFUNC = re.compile(
 # eigenvector cascade), plus precise docstring mentions. (rc109: the mimo_svd
 # public-API op routed onto the numpy-free `mat_svd` Mat foundation — its
 # `np.linalg.svd` is gone, so linalg_fft 23 → 22.)
-CEIL_LINALG_FFT = 22
+# rc123/124/125 (#564 carrier removal): qm/so8.py, qm/triality.py,
+# amsc/hdc.py + amsc/cascade/hypercomplex_dft.py flip fully numpy-free. so8 was
+# the dominant numpy-as-accuracy holder (its ~13 np.linalg.{svd,matrix_rank}
+# sites): the rank COUNTS move to the EXACT rational RREF / float Gram-Schmidt
+# rank, and the nullspace/SVD GEOMETRY rides the numpy-free `mat_svd`; triality's
+# lstsq/matmul move to `mat_solve`/`mat_matmul`; hdc's loop/polar families drop
+# numpy entirely. The live linalg_fft count falls to 9 (8 in laplacian's own
+# irreducible numpy fallbacks + 1 pseudo_hermitian general-eig). 22 → 9.
+CEIL_LINALG_FFT = 9
 CEIL_MATMUL = 4
 CEIL_UFUNC = 0
 

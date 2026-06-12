@@ -28,19 +28,20 @@ def _dec(q):
     return bit0 | (bit1 << 1)
 
 
-# --- the cascade import stays numpy-free (rc30 core intact) -------------------
+# --- the whole module is numpy-free (rc125 #564) -----------------------------
 
 def test_cascade_import_is_numpy_free():
-    """Importing the cascade package must NOT pull numpy (the DFT composites
-    import it lazily inside the ops; §22 scientific tier)."""
-    # If numpy is already loaded by another test, we can't re-check the import
-    # side-effect — but we CAN assert the module source defers the import.
+    """The hypercomplex_dft module is numpy-FREE (rc125 #564): the DFT
+    composites carry their octonion vectors as ``list[float]`` and the
+    octonion-rep operators as the numpy-free :class:`srmech.amsc.mat.Mat`, so
+    the module source has ZERO numpy — no top-level import, no ``np.`` callsite,
+    no lazy proxy."""
     import inspect
+    import re
     from srmech.amsc.cascade import hypercomplex_dft
     src = inspect.getsource(hypercomplex_dft)
-    # No top-level `import numpy` — only the lazy `_require_numpy` helper.
-    top = src.split("def _require_numpy")[0]
-    assert "import numpy" not in top, "hypercomplex_dft imports numpy at module load"
+    assert "import numpy" not in src, "hypercomplex_dft imports numpy"
+    assert not re.search(r"\bnp\.", src), "hypercomplex_dft has an np. callsite"
 
 
 # --- QDFT round-trip recovers ALL FOUR components (both Z₂ axes) --------------
@@ -331,15 +332,18 @@ def test_unknown_named_axis_message_lists_diagonal():
         quaternion_dft([[0.0, 1.0, 0.0, 0.0]], mu_axis="z")
 
 
-# --- numpy-absent: scientific-tier ops raise a clear ImportError -------------
+# --- numpy-absent: the ops RUN (rc125 #564 flipped them numpy-free) ----------
 
-def test_dft_requires_numpy_clear_error(monkeypatch):
+def test_dft_runs_numpy_absent(monkeypatch):
+    """rc125 (#564): ``quaternion_dft`` is numpy-FREE — it RUNS with numpy
+    blocked at the meta-path (the prior scientific-tier ImportError is gone)."""
     monkeypatch.setitem(sys.modules, "numpy", None)  # `import numpy` -> ImportError
-    with pytest.raises(ImportError):
-        quaternion_dft([[0, 1, 0, 0]])
+    out = quaternion_dft([[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0]])
+    assert len(out) == 2 and len(out[0]) == 4   # N quaternions, 4 components each
 
 
-def test_couple_requires_numpy_clear_error(monkeypatch):
+def test_couple_runs_numpy_absent(monkeypatch):
+    """rc125 (#564): ``hypercomplex_couple`` is numpy-FREE — it RUNS numpy-absent."""
     monkeypatch.setitem(sys.modules, "numpy", None)
-    with pytest.raises(ImportError):
-        hypercomplex_couple([1.0, 2.0, 3.0])
+    out = hypercomplex_couple([1.0, 2.0, 3.0])
+    assert len(out) == 4   # a quaternion carrier (≤3 streams)

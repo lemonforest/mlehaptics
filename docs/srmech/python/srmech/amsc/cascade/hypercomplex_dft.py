@@ -35,11 +35,13 @@ The 14-class A–N vocabulary is intact (``[[feedback_no_privileged_primitive_cl
 No ``abs()`` — the octonion norm/conjugate route through Class K+C, never an
 ALU absolute value.
 
-**Scientific tier (UPSTREAM §22).** numpy is imported **lazily inside each
-op**, so ``import srmech.amsc.cascade`` stays numpy-free (the numpy-absent-safe
-core, v0.7.0rc30); the qm-algebra transforms use numpy on call, consistent
-with §22 ("leaving numpy for the python-side triality/qm maths is correct").
-Calling a transform with numpy absent raises a clear ``ImportError``.
+**Numpy-free (rc125, #564).** The whole module runs with **zero numpy** —
+the octonion samples / twiddles / accumulators are plain ``list[float]`` of
+length 8, the ``octonion_{left,right}_mult`` operators are consumed as the
+numpy-free :class:`srmech.amsc.mat.Mat` they now return, and the per-term
+matvec rides a numpy-free :class:`Mat`-column ``mat_matmul`` (the pattern
+``qm.single_particle`` used in rc117) — never numpy ``@`` / ``dense_matvec``.
+``import srmech.amsc.cascade`` and every transform import + run numpy-absent.
 
 This is the **prototype tier** per #863: a composite over existing primitives.
 A graduation to a first-class C/Python primitive (a native ``srmech_*_dft``
@@ -90,49 +92,33 @@ _OCTONION_FORMS = ("left", "right", "two_sided")
 _BRACKETINGS = ("left_associated", "right_associated")
 
 
-def _require_numpy():
-    """Lazy numpy import (scientific tier, §22). Raises a clear error if absent."""
-    try:
-        import numpy as _np
-    except ImportError as exc:  # pragma: no cover - exercised in numpy-absent CI only
-        raise ImportError(
-            "quaternion_dft / octonion_dft are scientific-tier qm-algebra ops "
-            "and require numpy (UPSTREAM §22: numpy stays for the python-side "
-            "qm maths). Install srmech with numpy available."
-        ) from exc
-    return _np
-
-
-def _twiddle8(theta: float, mu: Sequence[float], np):
+def _twiddle8(theta: float, mu: Sequence[float]) -> List[float]:
     """``exp(μθ) = cos θ·1 + sin θ·μ`` as an 8-vector (μ a unit pure-imaginary
     octonion). All seven imaginary components are carried — a quaternion axis
     has ``e4..e7 == 0`` so the result is unchanged from the ℍ-only form, but a
-    general / diagonal octonion ``μ`` (e.g. ``(Σeₙ)/√7``) is now honoured."""
+    general / diagonal octonion ``μ`` (e.g. ``(Σeₙ)/√7``) is now honoured.
+    rc125 (numpy-free): a plain ``list[float]``."""
     c = _rcos(theta)
     s = _rsin(theta)
-    w = np.zeros(8, dtype=float)
-    w[0] = c
-    for _i in range(1, 8):
-        w[_i] = s * mu[_i]
-    return w
+    return [c] + [s * mu[i] for i in range(1, 8)]
 
 
-def _as8(vec, np):
-    """Coerce a 4- or 8-component quaternion/octonion sample to an 8-vector."""
-    a = np.asarray(vec, dtype=float).reshape(-1)
-    if a.size == 4:
-        out = np.zeros(8, dtype=float)
-        out[:4] = a
-        return out
-    if a.size == 8:
-        return a.astype(float, copy=True)
+def _as8(vec) -> List[float]:
+    """Coerce a 4- or 8-component quaternion/octonion sample to an 8-vector
+    ``list[float]`` (numpy-free)."""
+    a = [float(x) for x in vec]
+    n = len(a)
+    if n == 4:
+        return a + [0.0, 0.0, 0.0, 0.0]
+    if n == 8:
+        return list(a)
     raise ValueError(
         f"hypercomplex sample must have 4 (quaternion) or 8 (octonion) "
-        f"components; got {a.size}"
+        f"components; got {n}"
     )
 
 
-def _resolve_mu(mu_axis, *, octonion, np):
+def _resolve_mu(mu_axis, *, octonion) -> List[float]:
     """Resolve ``mu_axis`` to a **unit pure-imaginary** 8-vector ``μ`` (``e0==0``,
     ``‖μ‖=1`` ⟹ ``μ²=−1``) — the transform/coupling axis (#908, §29).
 
@@ -146,24 +132,25 @@ def _resolve_mu(mu_axis, *, octonion, np):
     * a **sequence** (4- or 8-component) — a general unit pure-imaginary axis;
       it is normalised to unit length, and ``e0`` (and, for a quaternion
       transform, ``e4..e7``) must be zero.
+
+    rc125 (numpy-free): a plain ``list[float]``.
     """
     if isinstance(mu_axis, str):
         if mu_axis in _MU_AXES:
-            return _as8(_MU_AXES[mu_axis], np)
+            return _as8(_MU_AXES[mu_axis])
         if mu_axis == "diagonal":
-            v = np.zeros(8, dtype=float)
             hi = 8 if octonion else 4
-            v[1:hi] = 1.0
-            return v / _rsqrt(float(hi - 1))
+            inv = 1.0 / _rsqrt(float(hi - 1))
+            return [0.0] + [inv if 1 <= i < hi else 0.0 for i in range(1, 8)]
         raise ValueError(
             f"mu_axis must be one of {sorted(_MU_AXES) + ['diagonal']}, or a unit "
             f"pure-imaginary vector; got {mu_axis!r}"
         )
     # General axis: a 4- or 8-component pure-imaginary vector.
-    v = _as8(mu_axis, np)
+    v = _as8(mu_axis)
     if v[0] != 0.0:
         raise ValueError("a general mu_axis must be pure-imaginary (e0 == 0)")
-    if not octonion and bool(np.any(v[4:] != 0.0)):
+    if not octonion and any(v[i] != 0.0 for i in range(4, 8)):
         raise ValueError(
             "a quaternion mu_axis must lie in ℍ (components e4..e7 == 0); use "
             "octonion_dft / a quaternion-scope coupler for an octonion axis"
@@ -171,29 +158,31 @@ def _resolve_mu(mu_axis, *, octonion, np):
     norm = _rsqrt(float(sum(c * c for c in v[1:])))
     if norm == 0.0:
         raise ValueError("mu_axis must be a non-zero pure-imaginary vector")
-    return v / norm
+    inv = 1.0 / norm
+    return [x * inv for x in v]
 
 
-def _pack_streams(streams, np):
+def _pack_streams(streams) -> "tuple":
     """Coerce a coupler input to an (8-vector carrier, octonion?) pair.
 
     A length-≤3 (resp. 4–7) real sequence is **packed as streams** into the
     pure-imaginary slots of a quaternion (resp. octonion) carrier (real/anchor
     = 0); a length-4 or length-8 sequence is taken as a **literal** quaternion
     / octonion carrier (so a bound result round-trips back through the coupler).
+    rc125 (numpy-free): a plain ``list[float]``.
     """
-    a = np.asarray(streams, dtype=float).reshape(-1)
-    n = int(a.size)
+    a = [float(x) for x in streams]
+    n = len(a)
     if n == 4:
-        return _as8(a, np), False
+        return _as8(a), False
     if n == 8:
-        return a.astype(float, copy=True), True
+        return list(a), True
     if 1 <= n <= 3:
-        q = np.zeros(8, dtype=float)
+        q = [0.0] * 8
         q[1:1 + n] = a
         return q, False
     if 5 <= n <= 7:
-        q = np.zeros(8, dtype=float)
+        q = [0.0] * 8
         q[1:1 + n] = a
         return q, True
     raise ValueError(
@@ -201,6 +190,15 @@ def _pack_streams(streams, np):
         "or a 4-/8-component literal quaternion/octonion carrier; got length "
         f"{n}"
     )
+
+
+def _matvec8(op, v: Sequence[float]) -> List[float]:
+    """The octonion-rep matvec ``op · v`` — ``op`` an ``8×8`` :class:`Mat`
+    (``octonion_left_mult`` / ``octonion_right_mult``), ``v`` an 8-vector list.
+    rc125 (numpy-free): a pure-Python matvec over the ``Mat`` rows (never numpy
+    ``@`` / ``dense_matvec_real``; the rc117 single_particle pattern)."""
+    rows = op.tolist()
+    return [sum(rows[i][j] * v[j] for j in range(8)) for i in range(8)]
 
 
 def _dft_core(x, *, form, mu_axis, inverse, two_sided_right, bracketing, octonion):
@@ -212,18 +210,18 @@ def _dft_core(x, *, form, mu_axis, inverse, two_sided_right, bracketing, octonio
     = 1/N for the inverse (else 1), and ``T`` is left- or right-multiplication
     by the twiddle (``octonion_left_mult`` / ``octonion_right_mult``) — the
     non-commutative choice that distinguishes the left/right forms.
+
+    rc125 (numpy-free): the operators are the :class:`Mat` ``octonion_*_mult``
+    now returns; the matvec is :func:`_matvec8` (pure Python); the accumulator
+    is a ``list[float]``.
     """
-    np = _require_numpy()
     from srmech.qm.octonion import octonion_left_mult, octonion_right_mult
-    # Lazy (numpy-absent-safe, §22): the 8×8 octonion-rep matvec rides the
-    # Class-L real-matvec cascade, never numpy `@`.
-    from srmech.amsc.laplacian import dense_matvec_real
 
-    mu = _resolve_mu(mu_axis, octonion=octonion, np=np)
+    mu = _resolve_mu(mu_axis, octonion=octonion)
     # Resolve the two-sided right axis once (defaults to the left axis).
-    mu_r = _resolve_mu(two_sided_right or mu_axis, octonion=octonion, np=np)
+    mu_r = _resolve_mu(two_sided_right or mu_axis, octonion=octonion)
 
-    xs = [_as8(v, np) for v in x]
+    xs = [_as8(v) for v in x]
     n_pts = len(xs)
     if n_pts == 0:
         return []
@@ -231,9 +229,8 @@ def _dft_core(x, *, form, mu_axis, inverse, two_sided_right, bracketing, octonio
         # ℍ-closure guard: a quaternion DFT requires quaternion samples
         # (e4..e7 == 0); a non-zero octonion tail would silently leak.
         for v in xs:
-            # ℍ-closure guard: the octonion tail e4..e7 must be all-zero. A
-            # presence test (any nonzero) — no magnitude / no abs() needed.
-            if bool(np.any(v[4:] != 0.0)):
+            # presence test (any nonzero tail) — no magnitude / no abs() needed.
+            if any(v[i] != 0.0 for i in range(4, 8)):
                 raise ValueError(
                     "quaternion_dft requires quaternion samples (components "
                     "e4..e7 must be zero); use octonion_dft for full octonions"
@@ -246,30 +243,30 @@ def _dft_core(x, *, form, mu_axis, inverse, two_sided_right, bracketing, octonio
     mult_left = form == "left"
     out: List = []
     for k in range(n_pts):
-        acc = np.zeros(8, dtype=float)
+        acc = [0.0] * 8
         for n in range(n_pts):
             theta = sigma * two_pi * k * n / n_pts
-            w = _twiddle8(theta, mu, np)
+            w = _twiddle8(theta, mu)
             if form == "two_sided":
                 # Octonion two-sided: W_l · x · W_r — the bracketing of the
                 # 3-factor product is meaningful (𝕆 is NON-associative, F378).
                 wl = octonion_left_mult(w)
-                w_r = _twiddle8(theta, mu_r, np)
+                w_r = _twiddle8(theta, mu_r)
                 if bracketing == "left_associated":
                     # (W_l · x) · W_r
-                    inner = dense_matvec_real(wl, xs[n])
-                    term = dense_matvec_real(octonion_right_mult(w_r), inner)
+                    inner = _matvec8(wl, xs[n])
+                    term = _matvec8(octonion_right_mult(w_r), inner)
                 else:
                     # W_l · (x · W_r)
-                    inner = dense_matvec_real(octonion_right_mult(w_r), xs[n])
-                    term = dense_matvec_real(wl, inner)
+                    inner = _matvec8(octonion_right_mult(w_r), xs[n])
+                    term = _matvec8(wl, inner)
             elif mult_left:
-                term = dense_matvec_real(octonion_left_mult(w), xs[n])   # W·x (left)
+                term = _matvec8(octonion_left_mult(w), xs[n])   # W·x (left)
             else:
-                term = dense_matvec_real(octonion_right_mult(w), xs[n])  # x·W (right)
-            acc = acc + term
-        acc = acc * scale
-        out.append(acc.tolist() if octonion else acc[:4].tolist())
+                term = _matvec8(octonion_right_mult(w), xs[n])  # x·W (right)
+            acc = [acc[i] + term[i] for i in range(8)]
+        acc = [a * scale for a in acc]
+        out.append(list(acc) if octonion else acc[:4])
     return out
 
 
@@ -451,22 +448,21 @@ def hypercomplex_couple(
     Class home: **M** (octonion multiply) ∘ **C** (the ``σ``/conjugation
     orientation) ∘ **N** (the rational phase ``θ``). F436 / F437; §29.
     """
-    np = _require_numpy()
     from srmech.qm.octonion import octonion_left_mult, octonion_right_mult
-    # Lazy (numpy-absent-safe, §22): octonion-rep matvec via the Class-L cascade.
-    from srmech.amsc.laplacian import dense_matvec_real
 
     if sigma not in (1, -1, 1.0, -1.0):
         raise ValueError(f"sigma must be +1 or -1; got {sigma!r}")
     if form not in _FORMS:
         raise ValueError(f"form must be one of {_FORMS}; got {form!r}")
 
-    q, octonion = _pack_streams(streams, np)
-    mu = _resolve_mu(axis, octonion=octonion, np=np)
+    q, octonion = _pack_streams(streams)
+    mu = _resolve_mu(axis, octonion=octonion)
     eff = float(sigma) * (-1.0 if inverse else 1.0) * float(theta)
-    w = _twiddle8(eff, mu, np)
+    w = _twiddle8(eff, mu)
+    # rc125 (numpy-free): octonion-rep matvec via the pure-Python _matvec8 (the
+    # Mat octonion_*_mult, never numpy `@` / dense_matvec_real).
     if form == "left":
-        out = dense_matvec_real(octonion_left_mult(w), q)
+        out = _matvec8(octonion_left_mult(w), q)
     else:
-        out = dense_matvec_real(octonion_right_mult(w), q)
-    return out.tolist() if octonion else out[:4].tolist()
+        out = _matvec8(octonion_right_mult(w), q)
+    return list(out) if octonion else out[:4]
