@@ -624,3 +624,9 @@ Per user direction ("check stale queue items to bring forward and do if remainin
 - rc132 verified: carrier gained m[i] row / m[i][j] / `@` matmul (rc129 gaps closed). rc129->rc132 API diff = 0/0/0; R-RBS-LM-REGRESSION 49/0; genome->disk VERIFIED. RBS-LM + genome kernel storage transparent to the carrier swap.
 - Goal (user 2026-06-13): carrier keeps the *spirit* of numpy WITHOUT being numpy, so a current-gen LLM's numpy reflex routes through srmech. Carrier numpy-idiom coverage = reflex-absorption score. `R-RBS-LM-CARRIERAUDIT...py` (re-runnable): rc132 = 8/17 absorbed.
 - **Reflex-bail GAP (UPSTREAM §42.2, goal-completing, not a break):** elementwise/scalar (+,-,*), slicing (m[:2]/m[:,j]/v[:2]), negative indices. Each raises -> LLM falls back to np.asarray(.tolist()) -> numpy. Adds: __add__/__sub__/__mul__/__rmul__/__neg__/__truediv__ + slice-aware __getitem__ + negative indices. F728.
+
+### F729 — rc133: carrier gap CLOSED (17/17) + genome read-between-telomeres introspection (2026-06-13)
+
+- rc133 closes the F728 reflex-bail gap: Mat/Vec elementwise (+,-,*,scalar), slicing (m[:2]/m[:,j]/v[:2]), negative indices all work with correct values (spot-checked 11/11). CARRIERAUDIT 17/17, 0 gaps. rc132->rc133 diff 0/0/0; REGRESSION 49/0; genome->disk VERIFIED. The carrier is now a near-total numpy-reflex sink (the §2 reflex-override at the type level).
+- `R-RBS-LM-GENOMEREAD_introspect_between_telomeres.py`: how the genome is READ. genome_catalog = the introspection (per-chromosome label + tome-count + telomere cap_sha256 + byte-range, body untouched); raw-strand walk shows the [○telomere · · ·] helix physically; genome_window pages one chromosome; recall/unbind decodes tomes. Label = meaning-key; between two telomeres = one kernel. F729.
+- **Possible future ask:** optional per-chromosome `description` in the genome manifest so the human gloss travels with the genome (currently meaning = the label).

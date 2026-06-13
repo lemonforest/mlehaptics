@@ -2020,3 +2020,8 @@ data-TYPE level). Audited via `R-RBS-LM-CARRIERAUDIT_numpy_idiom_coverage.py` (r
   columns `m[:,j]`, sub-blocks), and **negative indices**. With those, `Mat`/`Vec` becomes a near-total numpy-reflex
   sink and the §2 STOP-list is enforced *by the type*, not just by discipline. **Discipline:** TestPyPI-rc before clean
   tag; additive (no ABI/public-name change); no issue tracker (user direction). Composes §42.1 / F727 / F728 / CLAUDE §2.
+
+  **✅ DELIVERED in 0.7.5rc133 (2026-06-13, F729):** all 9 gap idioms now work with correct values — `Mat`/`Vec` add/
+  sub/mul/rmul, slicing (`m[:2]` / `m[:,j]` column / `v[:2]`), negative indices. **Carrier audit: 17/17 absorbed, 0
+  gaps.** rc132→rc133 API diff = 0/0/0 (dunder additions); `R-RBS-LM-REGRESSION` 49/0; `genome→disk` VERIFIED. The
+  carrier is now a near-total numpy-reflex sink. (Spot-checked values: `m+m`=[[2,4],[6,8]], `m[:,0]`=[1,3], `v+v`=[2,4,6], …)
