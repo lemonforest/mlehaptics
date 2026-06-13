@@ -1453,16 +1453,38 @@ def _hermitian_eig_py(h: "Mat") -> Tuple["Mat", "Mat"]:
     evals2, V2 = _jacobi_eig_py(M)
     # 2n eigenvalues come in equal pairs (ascending) → take every other for n;
     # reconstruct vⱼ = top + i·bot, then same-eigenvalue Gram–Schmidt → unitary.
+    def _mgs(vec, ev_cur):
+        """Modified Gram–Schmidt: subtract the projection of ``vec`` onto every
+        already-accepted eigenvector in the SAME degenerate eigenspace."""
+        for ev_prev, w_prev in cols:
+            if _rsqrt((ev_cur - ev_prev) * (ev_cur - ev_prev)) <= 1e-9:
+                proj = sum(w_prev[i].conjugate() * vec[i] for i in range(n))
+                vec = [vec[i] - proj * w_prev[i] for i in range(n)]
+        return vec
+
     cols: List[Tuple[float, List[complex]]] = []
     for k in range(n):
         col = 2 * k
         ev = evals2[col]
-        w = [complex(V2[i][col], V2[i + n][col]) for i in range(n)]
-        for ev_prev, w_prev in cols:
-            if _rsqrt((ev - ev_prev) * (ev - ev_prev)) <= 1e-9:  # same eigenvalue
-                proj = sum(w_prev[i].conjugate() * w[i] for i in range(n))
-                w = [w[i] - proj * w_prev[i] for i in range(n)]
+        w = _mgs([complex(V2[i][col], V2[i + n][col]) for i in range(n)], ev)
         norm2 = sum(x.real * x.real + x.imag * x.imag for x in w)
+        if _rsqrt(norm2) <= 1e-12:
+            # Degenerate eigenvalue: this embedding column reconstructed onto an
+            # eigenvector we already accepted (the real 2n-embedding DOUBLES each
+            # complex eigenvector via the J-rotation i·z, so the "every other
+            # column" pick can land on a linearly-dependent direction — e.g. the
+            # identity matrix, eigenvalue 1 with full multiplicity). Scan every
+            # embedding column at the SAME eigenvalue for one whose reconstruction
+            # survives Gram–Schmidt; the eigenspace still has more independent
+            # directions than we have accepted, so one must exist.
+            for j in range(m):
+                if _rsqrt((evals2[j] - ev) * (evals2[j] - ev)) > 1e-9:
+                    continue
+                cand = _mgs([complex(V2[i][j], V2[i + n][j]) for i in range(n)], ev)
+                cn2 = sum(x.real * x.real + x.imag * x.imag for x in cand)
+                if _rsqrt(cn2) > 1e-12:
+                    w, norm2 = cand, cn2
+                    break
         inv = 1.0 / _rsqrt(norm2)
         w = [x * inv for x in w]
         cols.append((ev, w))

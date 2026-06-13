@@ -160,21 +160,7 @@ class Channel:
         transport: Optional[Transport] = None,
         broadcast_queue_max: int = DEFAULT_BROADCAST_QUEUE_MAX,
         dna: Optional[bytes] = None,
-        seed: Optional[bytes] = None,  # rc7: deprecated alias for dna
     ) -> None:
-        # v0.5.0rc7: ``seed`` is a deprecated alias for ``dna`` (UTLP
-        # Bio-TOTP naming alignment). Accept either for one rc cycle.
-        if seed is not None:
-            import warnings as _warnings
-            _warnings.warn(
-                "srmech.bus.connect / Channel(seed=...) is deprecated "
-                "as of v0.5.0rc7; use dna=... (UTLP Bio-TOTP naming, "
-                "Claim 255). The seed kwarg will be removed in v0.5.0 "
-                "final.",
-                DeprecationWarning, stacklevel=3,
-            )
-            if dna is None:
-                dna = seed
         self._name: str = name
         self._transport: Transport = transport or open_client_transport()
         self._conn: Optional[Connection] = None
@@ -544,7 +530,6 @@ def connect(
     *,
     broadcast_queue_max: int = DEFAULT_BROADCAST_QUEUE_MAX,
     dna: Optional[bytes] = None,
-    seed: Optional[bytes] = None,  # rc7: deprecated alias for dna
 ) -> Channel:
     """Open a connected :class:`Channel` to the named endpoint.
 
@@ -572,11 +557,6 @@ def connect(
         rc6 back-compat) UNLESS one of the other two DNA sources
         is populated — in which case the cascade auto-activates
         encryption.
-    seed
-        Deprecated alias for ``dna`` (rc7 → v0.5.0 final). Emits
-        :class:`DeprecationWarning`; ignored when ``dna`` is also
-        supplied.
-
     Returns
     -------
     Channel
@@ -591,7 +571,6 @@ def connect(
         name,
         broadcast_queue_max=broadcast_queue_max,
         dna=dna,
-        seed=seed,
     )
     ch.connect()
     return ch

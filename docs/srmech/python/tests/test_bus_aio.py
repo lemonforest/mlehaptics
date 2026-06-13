@@ -572,14 +572,14 @@ def test_async_send_cancellation(unique_name):
 
 
 def test_async_encrypted_channel_seed_propagates(unique_name):
-    """A seed kwarg threaded through ``aio.connect`` enables encryption."""
+    """A dna kwarg threaded through ``aio.connect`` enables encryption."""
     seed = secrets.token_bytes(32)
 
     async def main():
         # Build the sync server with the seed (so it accepts encrypted frames).
-        with serve(unique_name, handler=_echo_handler, seed=seed):
+        with serve(unique_name, handler=_echo_handler, dna=seed):
             _wait_for_endpoint(unique_name)
-            async with aio_connect(unique_name, seed=seed) as ch:
+            async with aio_connect(unique_name, dna=seed) as ch:
                 assert ch.encrypted is True
                 reply = await ch.send(
                     {"type": "ping", "payload": {"enc": True}},
@@ -595,10 +595,10 @@ def test_async_endpoint_encrypted_property(unique_name):
     seed = secrets.token_bytes(32)
 
     async def main():
-        async with aio_serve(unique_name, _echo_handler, seed=seed) as ep:
+        async with aio_serve(unique_name, _echo_handler, dna=seed) as ep:
             assert ep.encrypted is True
             _wait_for_endpoint(unique_name)
-            async with aio_connect(unique_name, seed=seed) as ch:
+            async with aio_connect(unique_name, dna=seed) as ch:
                 assert ch.encrypted is True
                 reply = await ch.send(
                     {"type": "ping", "payload": {"k": 1}},

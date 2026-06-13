@@ -112,22 +112,7 @@ class Endpoint:
         transport: Optional[Transport] = None,
         accept_backlog: int = 8,
         dna: Optional[bytes] = None,
-        seed: Optional[bytes] = None,  # rc7: deprecated alias for dna
     ) -> None:
-        # v0.5.0rc7: ``seed`` is a deprecated alias for ``dna`` (UTLP
-        # Bio-TOTP naming alignment, Claim 255). Accept either for
-        # one rc cycle.
-        if seed is not None:
-            import warnings as _warnings
-            _warnings.warn(
-                "srmech.bus.serve / Endpoint(seed=...) is deprecated "
-                "as of v0.5.0rc7; use dna=... (UTLP Bio-TOTP naming, "
-                "Claim 255). The seed kwarg will be removed in v0.5.0 "
-                "final.",
-                DeprecationWarning, stacklevel=3,
-            )
-            if dna is None:
-                dna = seed
         self._name: str = name
         self._handler: Handler = handler
         self._transport: Transport = transport or open_server_transport()
@@ -740,7 +725,6 @@ def serve(
     *,
     accept_backlog: int = 8,
     dna: Optional[bytes] = None,
-    seed: Optional[bytes] = None,  # rc7: deprecated alias for dna
 ) -> Endpoint:
     """Create + start an :class:`Endpoint` listening at ``name``.
 
@@ -772,11 +756,6 @@ def serve(
         populated — in which case the cascade auto-activates
         encryption AND the resolved DNA is written to the discovery
         file for subsequent clients.
-    seed
-        Deprecated alias for ``dna`` (rc7 → v0.5.0 final). Emits
-        :class:`DeprecationWarning`; ignored when ``dna`` is also
-        supplied.
-
     Returns
     -------
     Endpoint
@@ -788,7 +767,6 @@ def serve(
         handler,
         accept_backlog=accept_backlog,
         dna=dna,
-        seed=seed,
     )
     ep.start()
     return ep
