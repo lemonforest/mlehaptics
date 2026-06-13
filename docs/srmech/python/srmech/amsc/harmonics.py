@@ -35,7 +35,7 @@ framework-level composition over the existing A–N primitives). Class-L
 """
 from __future__ import annotations
 
-from typing import Dict, Sequence, Tuple
+from typing import Dict, Tuple
 
 # F150 operator → chirality-harmonic partition (the 1-2-3 reading of the 14).
 HARMONIC_1: Tuple[str, ...] = ("A", "B", "F", "H", "N")
@@ -80,7 +80,7 @@ def classify_harmonic(class_letter: str) -> int:
     return _LETTER_TO_HARMONIC[upper]
 
 
-def _spectral_scores(hv: Sequence) -> Tuple[float, float, float]:
+def _spectral_scores(hv) -> Tuple[float, float, float]:
     """Three symmetry scores (dc, mirror, three_cycle) in [0, 1] for a vector.
 
     - dc: DC-dominance = |Σx| / Σ|x| — a constant / chirality-invariant signal
@@ -117,9 +117,13 @@ def _spectral_scores(hv: Sequence) -> Tuple[float, float, float]:
     return (dc, mirror, three)
 
 
-def classify_chirality_harmonic(hv: Sequence, dc_threshold: float = 0.5) -> int:
+def classify_chirality_harmonic(hv, dc_threshold: float = 0.5) -> int:
     """Classify an encoded hypervector into chirality-harmonic 1/2/3 by its
     spectral symmetry signature (F150 §6.2).
+
+    ``hv`` may be a :class:`~srmech.amsc.vec.Vec` / :class:`~srmech.amsc.mat.Mat`
+    / any flat ``Sequence`` (rc129); it is read element-by-element (iterating a
+    ``Vec`` yields scalars), so the carrier flip is transparent.
 
     Procedure: compute three symmetry scores (DC-dominance, mirror reflection,
     3-fold rotation). A DC-dominant signal (score ≥ `dc_threshold`) is

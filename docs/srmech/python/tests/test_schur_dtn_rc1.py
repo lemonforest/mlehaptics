@@ -68,7 +68,7 @@ def test_dtn_property_boundary_normal_derivative() -> None:
     """S·x_∂ == (L·x)_∂ when x_i is the harmonic extension (L·x)_i = 0 —
     the defining Dirichlet-to-Neumann property. Harmonic interior solve via the
     exact Class-L ``dense_solve`` (Fraction); list arithmetic; numpy-free."""
-    L = dense_laplacian(*PATH4)
+    L = dense_laplacian(*PATH4).tolist()   # rc129: dense_laplacian → Mat; nested
     Lf = [[Fraction(int(round(L[i][j]))) for j in range(4)] for i in range(4)]
     xb = [Fraction(5), Fraction(-2)]
     interior, boundary = [1, 2], [0, 3]
@@ -117,8 +117,9 @@ def test_singular_interior_raises() -> None:
 def test_no_interior_returns_full_block() -> None:
     """If every node is a boundary node, S = L (nothing to integrate out)."""
     L = dense_laplacian(*PATH4)
+    Ln = L.tolist()                        # rc129: dense_laplacian → Mat; nested
     S = schur_complement(L, [0, 1, 2, 3], exact=True)
-    assert S == [[Fraction(L[a][b]) for b in range(4)] for a in range(4)]
+    assert S == [[Fraction(Ln[a][b]) for b in range(4)] for a in range(4)]
 
 
 def test_validation_errors() -> None:

@@ -112,6 +112,7 @@ from srmech.amsc.rational import complex_exp as _rcomplex_exp  # Class-N e^z, no
 from math import pi as _PI  # §564: numpy-free π (stdlib math.pi — NOT np.pi)
 
 from .mat import Mat  # §564: the numpy-free 2-D carrier the mat_* engine returns
+from .vec import Vec  # rc129: the numpy-free 1-D carrier (vectors / eigenvalues)
 
 from . import _native
 
@@ -168,19 +169,20 @@ MAX_NATIVE_NODES: int = 256
 MAX_NATIVE_HERMITIAN_NODES: int = 2048
 
 
-def three_fold_eigvec_groups(L: "np.ndarray") -> dict:
+def three_fold_eigvec_groups(L) -> dict:
     """Harmonic-3 three-fold spectral reading of a real-symmetric Laplacian
     (F150): partition the ``n`` eigenvectors (ascending eigenvalue) into three
     contiguous LOW / MID / HIGH bands. Class L is harmonic-3 (chiral rotation /
     3-cycle) per F150 §6.1 — the order-3 reading of the Class-L spectrum. When
     ``n`` is not divisible by 3 the remainder rows go to the later bands so
     ``|low| <= |mid| <= |high|``. Returns ``{"low", "mid", "high"}`` each an
-    ``(n, k)`` float64 array of the eigenvector COLUMNS in that band; the
+    ``(n, k)`` real :class:`~srmech.amsc.mat.Mat` of the eigenvector COLUMNS in
+    that band (rc129; ``.shape`` + ``m[i, j]``, NOT a bare nested list); the
     chirality-aware companion to :func:`symmetric_eigendecompose`.
     """
-    _eigvals, V = symmetric_eigendecompose(L)  # V nested list, columns = eigenvectors
-    n_rows = len(V)
-    n = len(V[0]) if n_rows else 0  # number of eigenvector COLUMNS
+    _eigvals, V = symmetric_eigendecompose(L)  # V real Mat, columns = eigenvectors
+    n_rows = V.n_rows
+    n = V.n_cols  # number of eigenvector COLUMNS
     if (
         _native.HAS_NATIVE
         and _native.LIB is not None
@@ -208,11 +210,16 @@ def three_fold_eigvec_groups(L: "np.ndarray") -> dict:
         n_mid = base + (1 if rem >= 2 else 0)
         n_high = n - n_low - n_mid
     assert n_low + n_mid + n_high == n
-    # Slice COLUMNS of V (nested list) into the three contiguous bands.
+    # Slice COLUMNS of V (real Mat) into the three contiguous bands → real Mats.
+    def _band(c_lo: int, c_hi: int) -> "Mat":
+        return Mat.from_rows(
+            [[V[i, c] for c in range(c_lo, c_hi)] for i in range(n_rows)],
+            is_complex=False,
+        )
     return {
-        "low": [[V[i][c] for c in range(n_low)] for i in range(n_rows)],
-        "mid": [[V[i][c] for c in range(n_low, n_low + n_mid)] for i in range(n_rows)],
-        "high": [[V[i][c] for c in range(n_low + n_mid, n)] for i in range(n_rows)],
+        "low": _band(0, n_low),
+        "mid": _band(n_low, n_low + n_mid),
+        "high": _band(n_low + n_mid, n),
     }
 
 
@@ -480,56 +487,60 @@ def dense_adjacency(
     n: int,
     edges: Iterable[Tuple[int, int]],
     weights: Optional[Iterable[float]] = None,
-) -> np.ndarray:
+) -> "Mat":
     """Build the dense ``n×n`` adjacency matrix from an undirected edge
     list.
 
     Self-loops add ``2*w`` to the diagonal (standard graph-theory
     convention). Parallel edges accumulate weights additively.
 
-    Numpy-free (§564): returns a ``list[list[float]]`` — the native list-marshal
-    path when ``HAS_NATIVE`` and ``n ≤ 256``, else srmech's own pure-Python build.
+    Numpy-free (rc129): returns a real :class:`~srmech.amsc.mat.Mat` (``.shape``
+    + ``m[i, j]`` + a native C interleaved-buffer wire form), NOT a bare
+    ``list[list[float]]`` — the native list-marshal path when ``HAS_NATIVE`` and
+    ``n ≤ 256``, else srmech's own pure-Python build.
     """
     if _can_dispatch_native(n):  # UPSTREAM §38: numpy-free native list-marshal
         el, wl = _validate_edges_weights_py(n, edges, weights)
         m = _build_matrix_native_listmarshal("srmech_graph_dense_adjacency", n, el, wl)
         if m is not None:
-            return m
-    return _dense_adjacency_py(n, edges, weights)
+            return Mat.from_rows(m, is_complex=False)
+    return Mat.from_rows(_dense_adjacency_py(n, edges, weights), is_complex=False)
 
 
 def dense_laplacian(
     n: int,
     edges: Iterable[Tuple[int, int]],
     weights: Optional[Iterable[float]] = None,
-) -> np.ndarray:
+) -> "Mat":
     """Combinatorial graph Laplacian ``L = D − A``.
 
     Returns an ``n×n`` symmetric positive-semidefinite matrix. For a
     connected graph the smallest eigenvalue is 0 with multiplicity 1
     (Fiedler vector spans the complement).
 
-    Numpy-free (§564): returns a ``list[list[float]]``.
+    Numpy-free (rc129): returns a real :class:`~srmech.amsc.mat.Mat` (``.shape``
+    + ``m[i, j]`` + a native C wire form), NOT a bare ``list[list[float]]``.
     """
     if _can_dispatch_native(n):  # UPSTREAM §38: numpy-free native list-marshal
         el, wl = _validate_edges_weights_py(n, edges, weights)
         m = _build_matrix_native_listmarshal("srmech_graph_dense_laplacian", n, el, wl)
         if m is not None:
-            return m
-    return _dense_laplacian_py(n, edges, weights)
+            return Mat.from_rows(m, is_complex=False)
+    return Mat.from_rows(_dense_laplacian_py(n, edges, weights), is_complex=False)
 
 
 def normalized_laplacian(
     n: int,
     edges: Iterable[Tuple[int, int]],
     weights: Optional[Iterable[float]] = None,
-) -> np.ndarray:
+) -> "Mat":
     """Symmetric normalised Laplacian ``L_sym = I − D^(−1/2) A D^(−1/2)``.
 
     Isolated vertices (degree 0) have diagonal entry 0 by convention
     (not 1; the ``I`` term only applies where ``D > 0``).
 
-    Numpy-free (§564): returns a ``list[list[float]]``.
+    Numpy-free (rc129): returns a real :class:`~srmech.amsc.mat.Mat` (``.shape``
+    + ``m[i, j]`` + a native C wire form), NOT a bare ``list[list[float]]``.
     """
     if _can_dispatch_native(n):  # UPSTREAM §38: numpy-free native list-marshal
         el, wl = _validate_edges_weights_py(n, edges, weights)
@@ -537,8 +548,8 @@ def normalized_laplacian(
             "srmech_graph_normalized_laplacian", n, el, wl
         )
         if m is not None:
-            return m
-    return _normalized_laplacian_py(n, edges, weights)
+            return Mat.from_rows(m, is_complex=False)
+    return Mat.from_rows(_normalized_laplacian_py(n, edges, weights), is_complex=False)
 
 
 def _jacobi_eigvals_native_listmarshal(rows, n, max_sweeps, tolerance):
@@ -568,10 +579,10 @@ def _jacobi_eigvals_native_listmarshal(rows, n, max_sweeps, tolerance):
 
 
 def jacobi_eigvals(
-    matrix: np.ndarray,
+    matrix,
     max_sweeps: int = 100,
     tolerance: float = 1e-12,
-) -> np.ndarray:
+) -> "Vec":
     """Symmetric Jacobi eigendecomposition.
 
     Returns the sorted (ascending) eigenvalues of a real symmetric matrix.
@@ -594,18 +605,22 @@ def jacobi_eigvals(
     ``matrix`` is **not** modified by the wrapper — the native path marshals into
     a fresh ctypes buffer; the pure-Python cascade copies its rows.
 
-    Numpy-free (§564): the input is a ``list[list[float]]`` (or any nested
-    sequence) and the return is a ``list[float]`` (ascending). When ``HAS_NATIVE``
-    and ``n ≤ 256`` the numpy-free list-marshal native path runs; else srmech's
-    own pure-Python Jacobi cascade.
+    Numpy-free (rc129): the input is a :class:`~srmech.amsc.mat.Mat` /
+    ``list[list[float]]`` (or any nested sequence) and the return is a 1-D
+    :class:`~srmech.amsc.vec.Vec` of the ascending eigenvalues (``.shape == (n,)``
+    + scalar ``v[i]``), NOT a bare ``list[float]``. When ``HAS_NATIVE`` and
+    ``n ≤ 256`` the numpy-free list-marshal native path runs; else srmech's own
+    pure-Python Jacobi cascade.
     """
     rows = [[float(x) for x in r] for r in matrix]
     n = len(rows)
     if n > 0 and all(len(r) == n for r in rows) and _can_dispatch_native(n):
         ev = _jacobi_eigvals_native_listmarshal(rows, n, max_sweeps, tolerance)
         if ev is not None:
-            return ev
-    return _jacobi_eigvals_py(matrix, max_sweeps, tolerance)
+            return Vec.from_sequence(ev, is_complex=False)
+    return Vec.from_sequence(
+        _jacobi_eigvals_py(matrix, max_sweeps, tolerance), is_complex=False
+    )
 
 
 # =====================================================================
@@ -964,13 +979,15 @@ def hermitian_eigendecompose(H):
     Returns
     -------
     (eigvals, V)
-        ``eigvals`` is a length-``n`` ``list[float]`` of real eigenvalues in
-        ascending order. ``V`` is an ``n×n`` nested ``list[list[complex]]`` —
-        the unitary matrix whose COLUMNS are the corresponding eigenvectors.
+        ``eigvals`` is a length-``n`` real :class:`~srmech.amsc.vec.Vec` of
+        eigenvalues in ascending order (``.shape == (n,)`` + scalar ``v[i]``).
+        ``V`` is an ``n×n`` complex :class:`~srmech.amsc.mat.Mat` — the unitary
+        matrix whose COLUMNS are the corresponding eigenvectors (``V[i, j]``).
 
-    Numpy-free (§564): delegates to the Mat engine
+    Numpy-free (rc129): delegates to the Mat engine
     :func:`mat_hermitian_eigendecompose` (native Jacobi when ``HAS_NATIVE``,
-    else srmech's own pure-Python cyclic Jacobi).
+    else srmech's own pure-Python cyclic Jacobi) and returns the carriers
+    (``Vec`` eigenvalues + ``Mat`` eigenvectors), NOT bare Python lists.
 
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed.,
     Johns Hopkins, 2013) §8.5 (Hermitian eigendecomposition via
@@ -979,13 +996,13 @@ def hermitian_eigendecompose(H):
     rows = _as_rows(H)
     n = len(rows)
     if n == 0:
-        return ([], [])
+        return (Vec(array("d"), 0), Mat(array("d"), 0, 0, is_complex=True))
     Hm = Mat.from_rows([[complex(v) for v in r] for r in rows], is_complex=True)
     evals_mat, V_mat = mat_hermitian_eigendecompose(Hm)
-    eigvals = [float(evals_mat[i, 0]) for i in range(evals_mat.n_rows)]
-    V = [[complex(V_mat[i, j]) for j in range(V_mat.n_cols)]
-         for i in range(V_mat.n_rows)]
-    return eigvals, V
+    eigvals = Vec.from_sequence(
+        [float(evals_mat[i, 0]) for i in range(evals_mat.n_rows)], is_complex=False
+    )
+    return eigvals, V_mat
 
 
 def _canonicalize_eigenvector_signs(V):
@@ -998,10 +1015,12 @@ def _canonicalize_eigenvector_signs(V):
     convention (the endianness precedent), reconstruction-invariant. The flip IS
     the Class-K sign boundary; the magnitude pivot is selected via ``v*v`` so
     there is **no** ``abs()`` and **no** float square root. ``V`` is a nested
-    ``list`` (columns = eigenvectors); the result is the (possibly modified)
-    nested list. (Within a degenerate eigenspace the larger ``U(k)`` basis
-    freedom is solver-chosen and reconstruction-invariant; this pins only the
-    per-column ``Z₂``.)
+    ``list`` (columns = eigenvectors) — the **internal** sign-pin worked on by
+    :func:`symmetric_eigendecompose` before it wraps the result in a real
+    :class:`~srmech.amsc.mat.Mat`; the result is the (possibly modified) nested
+    list. (Within a degenerate eigenspace the larger ``U(k)`` basis freedom is
+    solver-chosen and reconstruction-invariant; this pins only the per-column
+    ``Z₂``.)
     """
     n_rows = len(V)
     if n_rows == 0:
@@ -1023,8 +1042,8 @@ def _canonicalize_eigenvector_signs(V):
 
 
 def symmetric_eigendecompose(
-    L: np.ndarray,
-) -> Tuple[np.ndarray, np.ndarray]:
+    L,
+) -> Tuple["Vec", "Mat"]:
     """Real-symmetric eigendecomposition: ``L = V · diag(eigvals) · Vᵀ``.
 
     Real-input specialisation of :func:`hermitian_eigendecompose`.
@@ -1034,39 +1053,41 @@ def symmetric_eigendecompose(
     Parameters
     ----------
     L
-        ``(n, n)`` real symmetric matrix (list-of-lists / ndarray-like).
+        ``(n, n)`` real symmetric matrix (Mat / list-of-lists / ndarray-like).
         Symmetry is not enforced (caller's responsibility).
 
     Returns
     -------
     (eigvals, V)
-        ``eigvals`` is a length-``n`` ``list[float]`` of real eigenvalues
-        in ascending order. ``V`` is an ``n×n`` nested ``list[list[float]]``
-        whose COLUMNS are the corresponding eigenvectors.
+        ``eigvals`` is a length-``n`` real :class:`~srmech.amsc.vec.Vec` of
+        eigenvalues in ascending order (``.shape == (n,)`` + scalar ``v[i]``).
+        ``V`` is an ``n×n`` **real** :class:`~srmech.amsc.mat.Mat` whose COLUMNS
+        are the corresponding eigenvectors (``V[i, j]``).
 
     Class L. Canonical SSoT: Golub & Van Loan, *Matrix Computations*
     (4th ed., Johns Hopkins, 2013) §8.3 (symmetric eigenproblem).
 
-    Numpy-free (§564): delegates to :func:`hermitian_eigendecompose`
+    Numpy-free (rc129): delegates to :func:`hermitian_eigendecompose`
     (real-symmetric IS complex-Hermitian — native Jacobi peer when available,
     else srmech's own pure-Python cyclic Jacobi). The eigenvectors of a
     real-symmetric matrix are real (the Hermitian path returns them with
     imaginary part ~0), so we take ``.real`` and sign-canonicalise each column
-    (Class-K, :func:`_canonicalize_eigenvector_signs`). Eigenvalues come out
-    ascending. Correctness is pinned by eigenvalues + reconstruction +
-    orthonormality (the eigenvector sign / degenerate-subspace basis is
-    non-unique), not element-wise parity.
+    (Class-K, :func:`_canonicalize_eigenvector_signs`) before wrapping in a real
+    ``Mat``. Eigenvalues come out ascending as a ``Vec``. Correctness is pinned
+    by eigenvalues + reconstruction + orthonormality (the eigenvector sign /
+    degenerate-subspace basis is non-unique), not element-wise parity.
     """
     rows = _as_rows(L)
     real_rows = [[float(v.real) if isinstance(v, complex) else float(v) for v in r]
                  for r in rows]
     n = len(real_rows)
     if n == 0:
-        return ([], [])
+        return (Vec(array("d"), 0), Mat(array("d"), 0, 0))
     eigvals, V_complex = hermitian_eigendecompose(real_rows)
+    # V_complex is a complex Mat (imag ~0 for real-symmetric input); take .real.
     V_real = [[x.real for x in r] for r in V_complex]
-    V = _canonicalize_eigenvector_signs(V_real)
-    return eigvals, V
+    V_canon = _canonicalize_eigenvector_signs(V_real)
+    return eigvals, Mat.from_rows(V_canon, is_complex=False)
 
 
 def _rows(x) -> List[list]:
@@ -1085,22 +1106,23 @@ def _vec(x) -> list:
     return list(x)
 
 
-def dense_matvec_complex(M, v) -> list:
+def dense_matvec_complex(M, v) -> "Vec":
     """Dense complex matrix-vector multiplication: ``M·v``.
 
     Parameters
     ----------
     M
-        ``(rows, cols)`` complex matrix (list-of-lists / ndarray-like / Mat).
+        ``(rows, cols)`` complex matrix (Mat / list-of-lists / ndarray-like).
     v
-        Length-``cols`` complex vector.
+        Length-``cols`` complex vector (Vec / list / ndarray-like).
 
     Returns
     -------
     out
-        Length-``rows`` ``list[complex]``.
+        Length-``rows`` complex :class:`~srmech.amsc.vec.Vec` (``.shape ==
+        (rows,)`` + scalar ``v[i]``), NOT a bare ``list[complex]`` (rc129).
 
-    Numpy-free (§564): wraps ``v`` as a column ``Mat`` and rides
+    Numpy-free (rc129): wraps ``v`` as a column ``Mat`` and rides
     :func:`mat_matmul` (native zero-copy when present, else a pure-Python
     triple loop). Canonical SSoT: Golub & Van Loan §1.1.
     """
@@ -1116,31 +1138,34 @@ def dense_matvec_complex(M, v) -> list:
             f"M shape ({rows}, {cols}) incompatible with v length {len(v_list)}"
         )
     if rows == 0:
-        return []
+        return Vec(array("d"), 0, is_complex=True)
     col = Mat.from_rows([[complex(x)] for x in v_list], is_complex=True)
     out = mat_matmul(Mat.from_rows(M_rows, is_complex=True), col)
-    return [complex(out[i, 0]) for i in range(out.n_rows)]
+    return Vec.from_sequence(
+        [complex(out[i, 0]) for i in range(out.n_rows)], is_complex=True
+    )
 
 
-def dense_matmul_complex(A, B) -> list:
+def dense_matmul_complex(A, B) -> "Mat":
     """Dense complex matrix-matrix multiplication ``A·B``.
 
     The srmech Class-L contraction the QM / ``matrix_cascades`` matmul math
-    routes through. Numpy-free (§564): rides :func:`mat_matmul` over the
+    routes through. Numpy-free (rc129): rides :func:`mat_matmul` over the
     :class:`~srmech.amsc.mat.Mat` carrier (native zero-copy when present, else a
     pure-Python triple loop — **never** numpy ``@``).
 
     Parameters
     ----------
     A
-        ``(m, k)`` complex matrix (list-of-lists / ndarray-like / Mat).
+        ``(m, k)`` complex matrix (Mat / list-of-lists / ndarray-like).
     B
         ``(k, n)`` complex matrix.
 
     Returns
     -------
     out
-        ``(m, n)`` nested ``list[list[complex]]``.
+        ``(m, n)`` complex :class:`~srmech.amsc.mat.Mat` (``.shape`` + ``m[i,
+        j]``), NOT a bare ``list[list[complex]]`` (rc129).
 
     Canonical SSoT: Golub & Van Loan §1.1 (textbook matrix multiplication).
     """
@@ -1161,12 +1186,11 @@ def dense_matmul_complex(A, B) -> list:
             f"A shape ({m}, {k}) incompatible with B shape ({k2}, {n})"
         )
     if m == 0 or n == 0:
-        return [[] for _ in range(m)]
-    out = mat_matmul(
+        return Mat(array("d"), m, n, is_complex=True)
+    return mat_matmul(
         Mat.from_rows(A_rows, is_complex=True),
         Mat.from_rows(B_rows, is_complex=True),
     )
-    return out.tolist()
 
 
 # =====================================================================
@@ -1209,6 +1233,37 @@ def _mat_from_interleaved_cbuf(cbuf, n_rows: int, n_cols: int, *, want_complex: 
         return Mat(array("d", cbuf), n_rows, n_cols, is_complex=True)
     n = n_rows * n_cols
     return Mat(array("d", (cbuf[2 * i] for i in range(n))), n_rows, n_cols)
+
+
+def _vec_to_interleaved_cbuf(v: "Vec", n_elems: int):
+    """The 1-D twin of :func:`_mat_to_interleaved_cbuf`: a
+    ``(c_double * 2*n_elems)`` ctypes buffer of ``v``'s elements as interleaved
+    ``(re, im)`` doubles — numpy-free. A `Vec` IS something in C — a contiguous
+    ``double _Complex`` buffer — so this marshals it to the native layer exactly
+    like a `Mat`.
+
+    When ``v`` is complex its ``array('d')`` buffer IS already the interleaved
+    ``(re, im)`` layout, so this is a **zero-copy** ``from_buffer`` view (the C
+    kernel reads it ``const``). When ``v`` is real the buffer is one double per
+    element, so a fresh interleaved buffer is filled ``(re, 0.0)`` once."""
+    buf = v.buffer  # array('d')
+    if v.is_complex:
+        return (ctypes.c_double * (2 * n_elems)).from_buffer(buf)  # zero-copy
+    cbuf = (ctypes.c_double * (2 * n_elems))()
+    for idx in range(n_elems):
+        cbuf[2 * idx] = buf[idx]  # imag slot stays 0.0
+    return cbuf
+
+
+def _vec_from_interleaved_cbuf(cbuf, n: int, *, want_complex: bool):
+    """The 1-D twin of :func:`_mat_from_interleaved_cbuf`: wrap an interleaved
+    ``(re, im)`` ctypes buffer back into a ``Vec`` (numpy-free). ``want_complex``
+    keeps the interleaved layout; otherwise the real parts (every even slot)
+    form a real ``Vec``."""
+    from .vec import Vec  # numpy-free carrier; local import keeps load-order clean
+    if want_complex:
+        return Vec(array("d", cbuf), n, is_complex=True)
+    return Vec(array("d", (cbuf[2 * i] for i in range(n))), n)
 
 
 def mat_matmul(a: "Mat", b: "Mat") -> "Mat":
@@ -1952,7 +2007,7 @@ def mat_dot_complex(a, b) -> complex:
     return total
 
 
-def dense_dot_complex(a: np.ndarray, b: np.ndarray) -> complex:
+def dense_dot_complex(a, b) -> complex:
     """Dense complex bilinear inner product ``a · b = Σ aᵢ bᵢ``.
 
     The 1-D contraction the QM η-sandwiches and the ``matrix_cascades``
@@ -2003,11 +2058,11 @@ def dense_dot_complex(a: np.ndarray, b: np.ndarray) -> complex:
 # without a dtype change. Each is `composition_of_c` (no own C symbol; the math
 # rides the c_dispatched complex kernel; standalone-ready).
 # ---------------------------------------------------------------------------
-def dense_matmul_real(A, B) -> list:
-    """Dense real matrix-matrix multiplication ``A·B`` → nested ``list[float]``.
+def dense_matmul_real(A, B) -> "Mat":
+    """Dense real matrix-matrix multiplication ``A·B`` → real :class:`Mat`.
 
     Real peer of :func:`dense_matmul_complex` (the same Mat-carrier matmul on
-    imag-free input, dropping the exactly-zero imaginary part). Numpy-free (§564).
+    imag-free input, dropping the exactly-zero imaginary part). Numpy-free.
 
     Parameters
     ----------
@@ -2019,19 +2074,22 @@ def dense_matmul_real(A, B) -> list:
     Returns
     -------
     out
-        ``(m, n)`` nested ``list[list[float]]``.
+        ``(m, n)`` real :class:`~srmech.amsc.mat.Mat` (``.shape`` + ``m[i, j]``),
+        NOT a bare ``list[list[float]]`` (rc129).
 
     Canonical SSoT: Golub & Van Loan §1.1 (textbook matrix multiplication).
     """
-    out = dense_matmul_complex(A, B)
-    return [[v.real if isinstance(v, complex) else float(v) for v in r] for r in out]
+    out = dense_matmul_complex(A, B)  # complex Mat
+    real_rows = [[v.real if isinstance(v, complex) else float(v) for v in r]
+                 for r in out]
+    return Mat.from_rows(real_rows, is_complex=False)
 
 
-def dense_matvec_real(M, v) -> list:
-    """Dense real matrix-vector multiplication ``M·v`` → ``list[float]``.
+def dense_matvec_real(M, v) -> "Vec":
+    """Dense real matrix-vector multiplication ``M·v`` → real :class:`Vec`.
 
     Real peer of :func:`dense_matvec_complex` (the same Mat-carrier matvec on
-    imag-free input, dropping the zero imaginary part). Numpy-free (§564).
+    imag-free input, dropping the zero imaginary part). Numpy-free.
 
     Parameters
     ----------
@@ -2043,12 +2101,16 @@ def dense_matvec_real(M, v) -> list:
     Returns
     -------
     out
-        Length-``rows`` ``list[float]``.
+        Length-``rows`` real :class:`~srmech.amsc.vec.Vec` (``.shape ==
+        (rows,)`` + scalar ``v[i]``), NOT a bare ``list[float]`` (rc129).
 
     Canonical SSoT: Golub & Van Loan §1.1 (textbook matrix-vector product).
     """
-    out = dense_matvec_complex(M, v)
-    return [x.real if isinstance(x, complex) else float(x) for x in out]
+    out = dense_matvec_complex(M, v)  # complex Vec; iterates scalars
+    return Vec.from_sequence(
+        [x.real if isinstance(x, complex) else float(x) for x in out],
+        is_complex=False,
+    )
 
 
 def dense_dot_real(a, b) -> float:
@@ -2125,16 +2187,14 @@ def dense_norm(x) -> float:
     return _rsqrt(sq) if sq > 0.0 else 0.0
 
 
-def dense_outer_complex(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+def dense_outer_complex(a, b) -> "Mat":
     """Dense complex outer product ``a ⊗ b`` → ``out[i, j] = aᵢ bⱼ``.
 
     The rank-1 contraction the QM density-matrix / momentum-tensor sites route
     through, so numpy stays carriers-only (no numpy ``outer`` engine). An outer
     product IS a ``k = 1`` matrix product — ``a`` as a column, ``b`` as a row —
-    so this is exactly :func:`dense_matmul_complex` on the reshaped pair: it
-    rides the native ``srmech_dense_matmul_complex`` kernel directly, with no
-    inner summation (each entry is a single complex multiply), so the result is
-    **bit-identical** to numpy ``outer``.
+    so this is exactly :func:`dense_matmul_complex` on the reshaped pair, each
+    entry a single complex multiply (no inner summation).
 
     Like numpy ``outer`` this does NOT conjugate ``b`` — the plain bilinear
     ``aᵢ bⱼ``. Callers wanting ``|ψ⟩⟨ψ|`` pass ``b = ψ.conj()`` explicitly (the
@@ -2144,14 +2204,15 @@ def dense_outer_complex(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     Parameters
     ----------
     a
-        Length-``m`` complex vector (the column).
+        Length-``m`` complex vector (the column; Vec / list / ndarray-like).
     b
         Length-``n`` complex vector (the row).
 
     Returns
     -------
     out
-        ``(m, n)`` nested ``list[list[complex]]`` ``aᵢ bⱼ``.
+        ``(m, n)`` complex :class:`~srmech.amsc.mat.Mat` ``aᵢ bⱼ`` (``.shape`` +
+        ``m[i, j]``), NOT a bare ``list[list[complex]]`` (rc129).
 
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §1.1 (rank-1 update / outer product).
@@ -2159,14 +2220,17 @@ def dense_outer_complex(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     a_list = _vec(a)
     b_list = _vec(b)
     # Plain bilinear outer aᵢ·bⱼ (NO conjugation) — numpy-free nested loop.
-    return [[complex(ai) * complex(bj) for bj in b_list] for ai in a_list]
+    rows = [[complex(ai) * complex(bj) for bj in b_list] for ai in a_list]
+    if not rows:  # m == 0 → empty (0, n) complex Mat
+        return Mat(array("d"), 0, len(b_list), is_complex=True)
+    return Mat.from_rows(rows, is_complex=True)
 
 
-def dense_outer_real(a, b) -> list:
-    """Dense real outer product ``a ⊗ b`` → ``out[i, j] = aᵢ bⱼ`` (float).
+def dense_outer_real(a, b) -> "Mat":
+    """Dense real outer product ``a ⊗ b`` → ``out[i, j] = aᵢ bⱼ`` (real :class:`Mat`).
 
     Real peer of :func:`dense_outer_complex` (same bilinear outer on imag-free
-    input, dropping the exactly-zero imaginary part). Numpy-free (§564).
+    input, dropping the exactly-zero imaginary part). Numpy-free.
 
     Parameters
     ----------
@@ -2178,28 +2242,86 @@ def dense_outer_real(a, b) -> list:
     Returns
     -------
     out
-        ``(m, n)`` nested ``list[list[float]]`` ``aᵢ bⱼ``.
+        ``(m, n)`` real :class:`~srmech.amsc.mat.Mat` ``aᵢ bⱼ`` (``.shape`` +
+        ``m[i, j]``), NOT a bare ``list[list[float]]`` (rc129).
 
     Canonical SSoT: Golub & Van Loan §1.1 (rank-1 outer product).
     """
-    out = dense_outer_complex(a, b)
-    return [[v.real if isinstance(v, complex) else float(v) for v in r] for r in out]
+    out = dense_outer_complex(a, b)  # complex Mat
+    real_rows = [[v.real if isinstance(v, complex) else float(v) for v in r]
+                 for r in out]
+    if not real_rows:
+        return Mat(array("d"), 0, out.n_cols, is_complex=False)
+    return Mat.from_rows(real_rows, is_complex=False)
 
 
-def elementwise_multiply_complex(a, b) -> list:
-    """Elementwise complex multiplication: ``a * b``.
+# ── rc129 shape-polymorphic elementwise rank detection ──────────────────────
+# The elementwise ops preserve INPUT RANK: a Mat / 2-D nested input → a Mat out;
+# a Vec / 1-D flat input → a Vec out. Rank is read off the input shape — a Mat
+# (or a nested list whose first element is itself a sequence) is rank-2; a Vec
+# (or a flat list / 1-D ndarray) is rank-1. The element math is unchanged; only
+# the output CARRIER tracks the input rank.
 
-    Equal-shape 1-D only (numpy-free, §564 — no broadcasting; the callers pass
-    equal-length flat lists). Returns a flat ``list[complex]``.
-    """
-    a_list = _vec(a)
-    b_list = _vec(b)
+
+def _ew_is_matrix(x) -> bool:
+    """True iff ``x`` is a rank-2 elementwise input (a :class:`Mat` or a nested
+    list-of-rows). A :class:`Vec`, a flat list / sequence, or a 1-D ndarray-like
+    is rank-1 (False)."""
+    if isinstance(x, Mat):
+        return True
+    if isinstance(x, Vec):
+        return False
+    seq = x.tolist() if hasattr(x, "tolist") else x  # ndarray-like → nested/flat
+    try:
+        first = next(iter(seq))
+    except (TypeError, StopIteration):
+        return False  # empty / non-iterable → treat as a (degenerate) vector
+    return isinstance(first, (list, tuple))
+
+
+def _ew_mat_shape(x) -> Tuple[int, int]:
+    """``(n_rows, n_cols)`` of a rank-2 elementwise input (Mat / nested list)."""
+    if isinstance(x, Mat):
+        return x.shape
+    rows = x.tolist() if hasattr(x, "tolist") and not isinstance(x, Mat) else x
+    rows = list(rows)
+    n_rows = len(rows)
+    n_cols = len(rows[0]) if n_rows else 0
+    return (n_rows, n_cols)
+
+
+def _ew_pack(flat: list, *, matrix: bool, shape, is_complex: bool):
+    """Rebuild an elementwise result from a FLAT list into the rank-preserving
+    carrier — a :class:`Mat` (``matrix=True``, reshaped to ``shape``) or a 1-D
+    :class:`Vec` (``matrix=False``). ``is_complex`` pins the carrier dtype."""
+    if matrix:
+        n_rows, n_cols = shape
+        rows = [flat[r * n_cols:(r + 1) * n_cols] for r in range(n_rows)]
+        if not rows:
+            return Mat(array("d"), 0, n_cols, is_complex=is_complex)
+        return Mat.from_rows(rows, is_complex=is_complex)
+    return Vec.from_sequence(flat, is_complex=is_complex)
+
+
+def elementwise_multiply_complex(a, b):
+    """Elementwise complex multiplication: ``a * b`` — SHAPE-POLYMORPHIC (rc129).
+
+    Equal-shape inputs (numpy-free — no broadcasting; the callers pass
+    equal-length operands). Preserves input rank: a :class:`Mat` / 2-D ``a`` →
+    a complex :class:`~srmech.amsc.mat.Mat` out; a :class:`Vec` / 1-D flat ``a``
+    → a complex :class:`~srmech.amsc.vec.Vec` out (rc129 — NOT a bare
+    ``list[complex]``). The shape is read off ``a``."""
+    a_mat = _ew_is_matrix(a)
+    shape = _ew_mat_shape(a) if a_mat else None
+    a_list = _flatten_scalars(a) if a_mat else _vec(a)
+    b_list = _flatten_scalars(b) if _ew_is_matrix(b) else _vec(b)
     if len(a_list) != len(b_list):
         raise ValueError(
             f"elementwise_multiply_complex: length mismatch "
             f"{len(a_list)} vs {len(b_list)}"
         )
-    return [complex(ai) * complex(bi) for ai, bi in zip(a_list, b_list)]
+    flat = [complex(ai) * complex(bi) for ai, bi in zip(a_list, b_list)]
+    return _ew_pack(flat, matrix=a_mat, shape=shape, is_complex=True)
 
 
 _TRANS_OP_IDS = {
@@ -2290,13 +2412,14 @@ def _flat_has_complex(flat) -> bool:
     return False
 
 
-def elementwise_transcendental(arr, op_name: str) -> list:
-    """Array-vectorised transcendental operation (numpy-free, §564).
+def elementwise_transcendental(arr, op_name: str):
+    """Array-vectorised transcendental operation — SHAPE-POLYMORPHIC (rc129).
 
     Parameters
     ----------
     arr
-        Real or complex 1-D / flat sequence (nested arrays are flattened).
+        Real or complex input — a :class:`Mat` / 2-D nested sequence, or a
+        :class:`Vec` / 1-D flat sequence.
     op_name
         One of ``"exp"``, ``"cos"``, ``"sin"``, ``"log"``, ``"exp_i"``.
         ``"exp_i"`` returns ``exp(1j * arr)`` (the TDSE-relevant complex
@@ -2305,22 +2428,25 @@ def elementwise_transcendental(arr, op_name: str) -> list:
     Returns
     -------
     out
-        A FLAT ``list`` (the callers pass flat / 1-D arrays). It is a
-        ``list[complex]`` for ``"exp_i"`` (or complex input) and a
-        ``list[float]`` otherwise.
+        Rank-preserving (rc129): a :class:`~srmech.amsc.mat.Mat` for a 2-D
+        input, a :class:`~srmech.amsc.vec.Vec` for a 1-D input (NOT a bare
+        list). Complex carrier for ``"exp_i"`` (or complex input), real
+        otherwise.
 
-    Numpy-free (§564): the native ``srmech_elementwise_transcendental`` path
-    marshals the flat list into a ctypes ``(c_double * n)`` buffer (numpy-free);
-    the no-native / complex paths run the Class-N rational cascades per element.
+    Numpy-free: the native ``srmech_elementwise_transcendental`` path marshals
+    the flat list into a ctypes ``(c_double * n)`` buffer (numpy-free); the
+    no-native / complex paths run the Class-N rational cascades per element.
 
     Canonical SSoT: ANSI C99 §7.12 libm.
     """
+    is_mat = _ew_is_matrix(arr)
+    shape = _ew_mat_shape(arr) if is_mat else None
     flat = _flatten_scalars(arr)
     if op_name == "exp_i":
         real_flat = [float(x.real if isinstance(x, complex) else x) for x in flat]
         n = len(real_flat)
         if n == 0:
-            return []
+            return _ew_pack([], matrix=is_mat, shape=shape, is_complex=True)
         ok_c, cos_out, _ = _real_transcendental_native(
             real_flat, _native.SRMECH_TRANS_COS
         )
@@ -2331,7 +2457,8 @@ def elementwise_transcendental(arr, op_name: str) -> list:
             # numpy-free Class-N cos/sin cascade (the no-native / Pyodide path)
             cos_out = _real_transcendental_loop(real_flat, "cos")
             sin_out = _real_transcendental_loop(real_flat, "sin")
-        return [complex(cos_out[i], sin_out[i]) for i in range(n)]
+        flat_out = [complex(cos_out[i], sin_out[i]) for i in range(n)]
+        return _ew_pack(flat_out, matrix=is_mat, shape=shape, is_complex=True)
     if op_name not in _TRANS_OP_IDS:
         raise ValueError(
             f"unknown op_name {op_name!r}; legal: "
@@ -2339,26 +2466,29 @@ def elementwise_transcendental(arr, op_name: str) -> list:
         )
     # Complex inputs run the numpy-free per-element Class-N complex cascades.
     if _flat_has_complex(flat):
-        return _complex_transcendental_loop(flat, op_name)
+        flat_out = _complex_transcendental_loop(flat, op_name)
+        return _ew_pack(flat_out, matrix=is_mat, shape=shape, is_complex=True)
     real_flat = [float(x.real if isinstance(x, complex) else x) for x in flat]
     n = len(real_flat)
     if n == 0:
-        return []
+        return _ew_pack([], matrix=is_mat, shape=shape, is_complex=False)
     op_id = _TRANS_OP_IDS[op_name]
     ok, out, rc = _real_transcendental_native(real_flat, op_id)
     if ok:
         if out is not None:
-            return out
+            return _ew_pack(out, matrix=is_mat, shape=shape, is_complex=False)
         if rc == _native.SRMECH_ERR_BAD_INPUT and op_name == "log":
             raise ValueError("log requires all arr[i] > 0")
     # numpy-free Class-N scalar cascade (the no-native / Pyodide path). The
     # log domain check (all arr[i] > 0, parity with the C BAD_INPUT contract)
     # lives inside _real_transcendental_loop.
-    return _real_transcendental_loop(real_flat, op_name)
+    flat_out = _real_transcendental_loop(real_flat, op_name)
+    return _ew_pack(flat_out, matrix=is_mat, shape=shape, is_complex=False)
 
 
-def elementwise_hypot(a, b) -> list:
-    """Array Euclidean magnitude ``√(aᵢ² + bᵢ²)`` via the Class-N hypot cascade.
+def elementwise_hypot(a, b):
+    """Array Euclidean magnitude ``√(aᵢ² + bᵢ²)`` via the Class-N hypot cascade —
+    SHAPE-POLYMORPHIC (rc129).
 
     The numpy-free magnitude op the DSP modules' ``|z| = √(re² + im²)`` sites
     route through. Each element runs :func:`srmech.amsc.rational.hypot` (Class M
@@ -2372,27 +2502,34 @@ def elementwise_hypot(a, b) -> list:
     Parameters
     ----------
     a, b
-        Equal-length flat real sequences (typically ``z.real`` / ``z.imag``).
+        Equal-length real inputs (typically ``z.real`` / ``z.imag``) — a
+        :class:`Mat` / 2-D nested, or a :class:`Vec` / 1-D flat sequence.
 
     Returns
     -------
     out
-        Flat ``list[float]`` of ``√(aᵢ² + bᵢ²)``.
+        Rank-preserving (rc129): a real :class:`~srmech.amsc.mat.Mat` for a 2-D
+        ``a``, a real :class:`~srmech.amsc.vec.Vec` for a 1-D ``a`` — ``√(aᵢ² +
+        bᵢ²)`` (NOT a bare ``list[float]``). The shape is read off ``a``.
 
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §1.1 (Euclidean length).
     """
+    is_mat = _ew_is_matrix(a)
+    shape = _ew_mat_shape(a) if is_mat else None
     flat_a = _flatten_scalars(a)
     flat_b = _flatten_scalars(b)
     if len(flat_a) != len(flat_b):
         raise ValueError(
             f"elementwise_hypot: length mismatch {len(flat_a)} vs {len(flat_b)}"
         )
-    return [_rhypot(float(ai), float(bi)) for ai, bi in zip(flat_a, flat_b)]
+    flat = [_rhypot(float(ai), float(bi)) for ai, bi in zip(flat_a, flat_b)]
+    return _ew_pack(flat, matrix=is_mat, shape=shape, is_complex=False)
 
 
-def elementwise_sqrt(arr) -> list:
-    """Array element-wise ``√arrᵢ`` via the Class-N rational sqrt cascade.
+def elementwise_sqrt(arr):
+    """Array element-wise ``√arrᵢ`` via the Class-N rational sqrt cascade —
+    SHAPE-POLYMORPHIC (rc129).
 
     The numpy-free square-root op for non-negative real arrays — the companion
     to :func:`elementwise_hypot`. Each element runs
@@ -2406,12 +2543,15 @@ def elementwise_sqrt(arr) -> list:
     Parameters
     ----------
     arr
-        Flat real sequence with all entries ``>= 0`` (square-root domain).
+        Real input with all entries ``>= 0`` (square-root domain) — a
+        :class:`Mat` / 2-D nested, or a :class:`Vec` / 1-D flat sequence.
 
     Returns
     -------
     out
-        Flat ``list[float]`` of ``√arrᵢ``.
+        Rank-preserving (rc129): a real :class:`~srmech.amsc.mat.Mat` for a 2-D
+        input, a real :class:`~srmech.amsc.vec.Vec` for a 1-D input — ``√arrᵢ``
+        (NOT a bare ``list[float]``).
 
     Raises
     ------
@@ -2421,10 +2561,13 @@ def elementwise_sqrt(arr) -> list:
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §1.1.
     """
+    is_mat = _ew_is_matrix(arr)
+    shape = _ew_mat_shape(arr) if is_mat else None
     flat = [float(x) for x in _flatten_scalars(arr)]
     if flat and min(flat) < 0.0:
         raise ValueError("elementwise_sqrt requires all arr[i] >= 0")
-    return [_rsqrt(x) for x in flat]
+    out = [_rsqrt(x) for x in flat]
+    return _ew_pack(out, matrix=is_mat, shape=shape, is_complex=False)
 
 
 # =====================================================================
@@ -2478,7 +2621,7 @@ def signed_laplacian(
     n: int,
     edges: Iterable[Tuple[int, int]],
     weights: Optional[Iterable[float]] = None,
-) -> List[List[float]]:
+) -> "Mat":
     """Signed graph Laplacian ``L = D̄ − A`` (real-symmetric, PSD).
 
     The off-diagonal weights may be **negative** — this is the
@@ -2491,7 +2634,8 @@ def signed_laplacian(
     edges (Kunegis, J. et al. (2010) "Spectral Analysis of Signed
     Graphs", SDM 2010).
 
-    Returns an ``n×n`` real-symmetric ``list[list[float]]``; pair with
+    Returns an ``n×n`` real-symmetric :class:`~srmech.amsc.mat.Mat` (rc129;
+    ``.shape`` + ``m[i, j]``, NOT a bare ``list[list[float]]``); pair with
     :func:`symmetric_eigendecompose` or :func:`fiedler_vector` for the
     signed navigation embedding.
     """
@@ -2511,7 +2655,7 @@ def signed_laplacian(
             L[r][c] = -a
     for r in range(n):
         L[r][r] = deg[r]
-    return L
+    return Mat.from_rows(L, is_complex=False)
 
 
 def magnetic_laplacian(
@@ -2520,7 +2664,7 @@ def magnetic_laplacian(
     weights: Optional[Iterable[float]] = None,
     *,
     q: float = 0.25,
-) -> List[List[complex]]:
+) -> "Mat":
     """Magnetic (Hermitian) Laplacian of a **directed** graph.
 
     Direction is encoded as a complex phase so the result stays
@@ -2543,10 +2687,11 @@ def magnetic_laplacian(
     attested citation belongs in the research notebook under the MPM
     discipline.
 
-    Numpy-free (§564): the ``2π`` is stdlib ``math.pi`` (not ``np.pi``); the
+    Numpy-free (rc129): the ``2π`` is stdlib ``math.pi`` (not ``np.pi``); the
     per-element phase ``exp(i·2π·q·Θ)`` is the libm-free Class-N
-    ``cos``/``sin`` cascade. Returns an ``n×n`` Hermitian
-    ``list[list[complex]]``.
+    ``cos``/``sin`` cascade. Returns an ``n×n`` Hermitian complex
+    :class:`~srmech.amsc.mat.Mat` (``.shape`` + ``m[i, j]``, NOT a bare
+    ``list[list[complex]]``).
     """
     if not isinstance(q, (int, float)):
         raise TypeError(f"q must be a real number; got {type(q).__name__}")
@@ -2567,10 +2712,12 @@ def magnetic_laplacian(
             L[r][c] = -(A_s[r][c] * phase)
     for r in range(n):
         L[r][r] = complex(deg[r])
-    return L
+    # Always complex layout (a Hermitian Laplacian is genuinely complex even
+    # when q=0 collapses the imaginary part — pin the carrier dtype explicitly).
+    return Mat.from_rows(L, is_complex=True)
 
 
-def fiedler_vector(matrix) -> list:
+def fiedler_vector(matrix) -> "Vec":
     """The Fiedler navigation embedding — eigenvector of ``λ₂``.
 
     Returns the eigenvector of the **second-smallest** eigenvalue of a
@@ -2581,21 +2728,27 @@ def fiedler_vector(matrix) -> list:
     :func:`symmetric_eigendecompose` for real input (e.g.
     :func:`signed_laplacian` / :func:`dense_laplacian`).
 
-    Numpy-free (§564): returns the λ₂ eigenvector as a flat ``list`` (``complex``
-    for a Hermitian input, ``float`` for a real one). For ``n < 2`` there is no
-    second eigenvector; raises ``ValueError``.
+    Numpy-free (rc129): returns the λ₂ eigenvector as a 1-D
+    :class:`~srmech.amsc.vec.Vec` (``.shape == (n,)`` + scalar ``v[i]``;
+    ``complex`` carrier for a Hermitian input, ``float`` for a real one), NOT a
+    bare ``list``. For ``n < 2`` there is no second eigenvector; raises
+    ``ValueError``.
     """
     rows = _as_rows(matrix)
     n = len(rows)
     if n < 2:
         raise ValueError("fiedler_vector requires n >= 2")
     if _has_complex(rows):
-        _eigvals, V = hermitian_eigendecompose(rows)
+        _eigvals, V = hermitian_eigendecompose(rows)  # V complex Mat
+        is_cx = True
     else:
-        _eigvals, V = symmetric_eigendecompose(rows)
+        _eigvals, V = symmetric_eigendecompose(rows)  # V real Mat
+        is_cx = False
     # Eigenvalues are ascending; column 0 is the trivial λ₁≈0, column 1
     # is the Fiedler vector (λ₂).
-    return [V[i][1] for i in range(len(V))]
+    return Vec.from_sequence(
+        [V[i, 1] for i in range(V.n_rows)], is_complex=is_cx
+    )
 
 
 # The per-block dense-eig cap is MAX_NATIVE_NODES (256); 4 blocks × 256 = 1024.
@@ -2624,8 +2777,10 @@ def spectral_block_dispatch(
     wall-clock overlap depends on the native GIL-release / free-threaded build.
 
     Class L (graph-spectral eigendecomposition) over the 4-rung parallel
-    dispatch. Numpy-free: a block may be a ``list[list[float]]`` (numpy-absent)
-    or an ``ndarray``; per-block eigenvalues are returned as ``list[float]``.
+    dispatch. Numpy-free (rc129): a block may be a :class:`~srmech.amsc.mat.Mat`,
+    a ``list[list[float]]`` (numpy-absent) or an ``ndarray``; per-block
+    eigenvalues are returned as a 1-D :class:`~srmech.amsc.vec.Vec` (``.shape ==
+    (n_i,)``), the combined spectrum as a single ``Vec`` — NOT bare lists.
 
     Parameters
     ----------
@@ -2642,7 +2797,8 @@ def spectral_block_dispatch(
     -------
     dict
         ``{"ok": True, "n_blocks", "block_sizes": [n_i, ...], "n_nodes": Σn_i,
-        "blocks": [[eigvals_0...], ...], "combined": [sorted spectrum] | None}``.
+        "blocks": [Vec(eigvals_0), ...], "combined": Vec(sorted spectrum) |
+        None}`` — each eigenvalue collection a 1-D ``Vec`` (rc129).
 
     Raises
     ------
@@ -2677,9 +2833,13 @@ def spectral_block_dispatch(
             )
         sizes.append(nb)
 
-    def _eig(blk):
+    def _eig(blk) -> "Vec":
         ev = jacobi_eigvals(blk, max_sweeps=max_sweeps, tolerance=tolerance)
-        return list(ev.tolist()) if hasattr(ev, "tolist") else list(ev)
+        # jacobi_eigvals returns a Vec (rc129); keep it as the per-block carrier.
+        return ev if isinstance(ev, Vec) else Vec.from_sequence(
+            list(ev.tolist()) if hasattr(ev, "tolist") else list(ev),
+            is_complex=False,
+        )
 
     # The F233 4-rung: each block on its own thread (0 cross-thread reads, so
     # parallel == serial bit-for-bit).
@@ -2688,11 +2848,11 @@ def spectral_block_dispatch(
     with ThreadPoolExecutor(max_workers=SPECTRAL_BLOCK_CAP) as ex:
         per_block = list(ex.map(_eig, blist))
 
-    combined: "Optional[List[float]]" = None
+    combined: "Optional[Vec]" = None
     if combine:
-        merged = [float(x) for ev in per_block for x in ev]
+        merged = [float(x) for ev in per_block for x in ev]  # Vec iterates scalars
         merged.sort()
-        combined = merged
+        combined = Vec.from_sequence(merged, is_complex=False)
     return {
         "ok": True,
         "n_blocks": len(blist),

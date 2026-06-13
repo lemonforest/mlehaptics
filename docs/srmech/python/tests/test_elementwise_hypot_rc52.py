@@ -28,12 +28,13 @@ _TOL = 1e-9
 
 
 def test_hypot_close_to_stdlib():
+    from srmech.amsc.vec import Vec
     a = [3.0, -5.0, 0.0, 1.5, 8.0]
     b = [4.0, 12.0, 7.0, 2.0, 15.0]
     out = elementwise_hypot(a, b)
-    assert isinstance(out, list)
-    assert len(out) == len(a)
-    assert all(isinstance(x, float) for x in out)
+    assert isinstance(out, Vec)                  # rc129: 1-D input → Vec carrier
+    assert out.shape == (len(a),)
+    assert all(isinstance(x, float) for x in out)  # Vec iterates SCALARS
     for got, ai, bi in zip(out, a, b):
         assert abs(got - math.hypot(ai, bi)) < _TOL
 

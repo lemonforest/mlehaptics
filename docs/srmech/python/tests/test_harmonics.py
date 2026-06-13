@@ -120,13 +120,13 @@ def test_three_fold_eigvec_groups_band_split():
         A[i][i + 1] = A[i + 1][i] = 1.0
     L = [[(sum(A[i]) if i == j else 0.0) - A[i][j] for j in range(n)] for i in range(n)]
     g = laplacian.three_fold_eigvec_groups(L)
-    # Each band is an n×k nested list (k = number of eigenvector COLUMNS).
+    # rc129: each band is an n×k real Mat (k = number of eigenvector COLUMNS).
     def _cols(band):
-        return len(band[0]) if band else 0
+        return band.n_cols
     sizes = (_cols(g["low"]), _cols(g["mid"]), _cols(g["high"]))
     assert sum(sizes) == n
     assert sizes[0] <= sizes[1] <= sizes[2]      # remainder to later bands
-    assert all(len(band) == n for band in g.values())  # full eigvec columns (n rows)
+    assert all(band.n_rows == n for band in g.values())  # full eigvec columns (n rows)
 
 
 # ── §2.2 greedy bipartite alignment ───────────────────────────────────────

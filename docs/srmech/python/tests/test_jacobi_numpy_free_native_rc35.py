@@ -47,11 +47,12 @@ def test_native_listmarshal_diag_exact():
 
 
 def test_numpy_free_branch_dispatches_and_is_correct():
-    """Post-#564 the public ``jacobi_eigvals`` is numpy-free by default; it
-    returns correct (sorted, ``list[float]``) eigenvalues — via the native
-    list-marshal when ``HAS_NATIVE``, else srmech's pure-Python Jacobi cascade.
-    Either way: no numpy, correct."""
+    """Post-#564 the public ``jacobi_eigvals`` is numpy-free by default; rc129 it
+    returns the ascending eigenvalues as a numpy-free 1-D ``Vec`` (``.shape`` +
+    scalar ``v[i]``) — via the native list-marshal when ``HAS_NATIVE``, else
+    srmech's pure-Python Jacobi cascade. Either way: no numpy, correct."""
+    from srmech.amsc.vec import Vec
     assert not hasattr(_lap, "np")     # numpy is gone, not merely monkeypatched
     ev = _lap.jacobi_eigvals([row[:] for row in _S], 100, 1e-12)
-    assert isinstance(ev, list)
+    assert isinstance(ev, Vec) and ev.shape == (3,)   # rc129: Vec eigenvalues
     assert max(abs(ev[i] - _REF[i]) for i in range(3)) < 1e-9

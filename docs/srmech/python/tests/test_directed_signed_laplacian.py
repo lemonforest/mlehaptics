@@ -11,25 +11,33 @@ spec'd:
   the existing ``hermitian_eigendecompose`` diagonalises it. ``q=0``
   collapses to the real symmetrised Laplacian (the undirected control).
 
-Post-#564 numpy is GONE from srmech: the builders return plain Python lists
-(``list[list[float]]`` / ``list[list[complex]]``) and the eigen-checks ride
-srmech's OWN cascades (``jacobi_eigvals`` for real-symmetric, the Hermitian
-eigendecompose for the magnetic Laplacian) — never numpy LAPACK.
+Post-#564 numpy is GONE from srmech; rc129 restores the numpy-carrier FORMAT:
+the builders return a numpy-free ``Mat`` (``.shape`` + ``m[i, j]``) — real for
+``signed_laplacian``, complex for ``magnetic_laplacian`` — and the eigen-checks
+ride srmech's OWN cascades (``jacobi_eigvals`` → ``Vec`` for real-symmetric, the
+Hermitian eigendecompose for the magnetic Laplacian) — never numpy LAPACK.
 """
 import pytest
 
 from srmech.amsc import laplacian as L
 
 
-# ── plain-list matrix helpers (no numpy) ────────────────────────────────
+# ── matrix helpers (no numpy; rc129 Mat-carrier aware) ──────────────────
+
+
+def _nested(M):
+    """rc129: the builders return a ``Mat``; ``.tolist()`` → nested list."""
+    return M.tolist() if hasattr(M, "tolist") else M
 
 
 def _is_symmetric(M, tol=1e-12):
+    M = _nested(M)
     n = len(M)
     return all(abs(M[i][j] - M[j][i]) <= tol for i in range(n) for j in range(n))
 
 
 def _is_hermitian(M, tol=1e-12):
+    M = _nested(M)
     n = len(M)
     return all(
         abs(M[i][j] - M[j][i].conjugate()) <= tol
@@ -40,7 +48,7 @@ def _is_hermitian(M, tol=1e-12):
 
 def _max_abs_imag(M):
     out = 0.0
-    for row in M:
+    for row in _nested(M):
         for v in row:
             iv = v.imag if isinstance(v, complex) else 0.0
             out = iv if iv > out else (-iv if -iv > out else out)
@@ -50,7 +58,7 @@ def _max_abs_imag(M):
 def _all_real_entries(M):
     return all(
         (not isinstance(v, complex)) or v.imag == 0.0
-        for row in M for v in row
+        for row in _nested(M) for v in row
     )
 
 
@@ -75,17 +83,17 @@ def test_signed_laplacian_all_positive_matches_dense_laplacian():
     edges, w = [(0, 1), (1, 2), (0, 2)], [2.0, 3.0, 1.5]
     Ls = L.signed_laplacian(3, edges, w)
     Ld = L.dense_laplacian(3, edges, w)
-    n = len(Ld)
+    n = Ld.n_rows                                  # rc129: Mat carriers
     for i in range(n):
         for j in range(n):
-            assert abs(Ls[i][j] - Ld[i][j]) < 1e-12
+            assert abs(Ls[i, j] - Ld[i, j]) < 1e-12
 
 
 def test_signed_degree_uses_magnitude_not_signed_sum():
     """Signed degree D̄_ii = Σ|w| (Class-K magnitude), not Σw."""
     # node 0 has edges of weight +1 and -1 → |.|-sum = 2, signed-sum = 0.
     Ls = L.signed_laplacian(3, [(0, 1), (0, 2)], [1.0, -1.0])
-    assert Ls[0][0] == pytest.approx(2.0)
+    assert Ls[0, 0] == pytest.approx(2.0)          # rc129: Mat carrier, m[i, j]
 
 
 # ── magnetic (directed) Laplacian ──────────────────────────────────────

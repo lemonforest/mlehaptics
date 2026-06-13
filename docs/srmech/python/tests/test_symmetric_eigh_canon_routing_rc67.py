@@ -82,22 +82,27 @@ def _cases():
 
 def test_symmetric_eigendecompose_real_and_reconstructs_incl_degenerate():
     """Real float V, ascending eigvals == eigvals_exact, exact reconstruction."""
+    from srmech.amsc.mat import Mat
+    from srmech.amsc.vec import Vec
     for label, L in _cases():
         n = len(L)
         w, V = laplacian.symmetric_eigendecompose(L)
-        # plain float lists (no numpy dtype), eigenvectors real.
-        assert isinstance(w, list) and isinstance(V, list), label
-        assert all(isinstance(x, float) for x in w), label
+        # rc129: Vec eigenvalues + real Mat eigenvectors (no numpy dtype).
+        assert isinstance(w, Vec) and isinstance(V, Mat), label
+        assert V.is_complex is False, label
+        wl = w.tolist()
+        V = V.tolist()
+        assert all(isinstance(x, float) for x in wl), label
         assert all(isinstance(x, float) for row in V for x in row), label
         # ascending
         for i in range(n - 1):
-            assert w[i + 1] - w[i] >= -1e-12, f"{label}: ascending"
+            assert wl[i + 1] - wl[i] >= -1e-12, f"{label}: ascending"
         # eigenvalues match the framework's own EXACT oracle (sorted ascending).
         w_ref = sorted(eigvals_exact(L))
         for i in range(n):
-            assert abs(w[i] - w_ref[i]) < 1e-9, f"{label}: eigvals"
+            assert abs(wl[i] - w_ref[i]) < 1e-9, f"{label}: eigvals"
         # reconstruction V·diag(w)·Vᵀ ≈ L (basis-invariant; holds on degenerate).
-        Vd = [[V[i][k] * w[k] for k in range(n)] for i in range(n)]
+        Vd = [[V[i][k] * wl[k] for k in range(n)] for i in range(n)]
         rec = _matmul(Vd, _transpose(V))
         for i in range(n):
             for j in range(n):

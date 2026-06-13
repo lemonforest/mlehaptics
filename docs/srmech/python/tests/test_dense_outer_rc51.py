@@ -6,11 +6,12 @@ reshaped pair — each entry is a single multiply ``aᵢ·bⱼ`` (NO conjugate).
 lets the genuine outer-product callsites (qm.propagators' ``kᵘkᵛ`` momentum
 tensor, qm.single_particle's ``|ψ⟩⟨ψ|`` density matrix) leave numpy entirely.
 
-Post-#564 numpy is GONE from srmech: ``dense_outer_*`` take plain Python
-sequences and return ``list[list[...]]``. These tests pin the closed-form
-``[[aᵢbⱼ]]`` value (hand-computed oracle), the no-conjugate contract, shape /
-empty handling, the registration, and that the routed qm surfaces still
-compute their tensors correctly (as numpy-free ``Mat`` outputs).
+Post-#564 numpy is GONE from srmech; rc129 restores the numpy-carrier FORMAT:
+``dense_outer_*`` take plain Python sequences and return a numpy-free ``Mat``
+(``.shape`` + ``m[i, j]``), NOT a bare ``list[list[...]]``. These tests pin the
+closed-form ``[[aᵢbⱼ]]`` value (hand-computed oracle), the no-conjugate
+contract, shape / empty handling, the registration, and that the routed qm
+surfaces still compute their tensors correctly (as numpy-free ``Mat`` outputs).
 """
 from __future__ import annotations
 
@@ -19,6 +20,7 @@ import math
 import pytest
 
 from srmech.amsc import laplacian
+from srmech.amsc.mat import Mat
 from srmech.amsc.laplacian import dense_outer_complex, dense_outer_real
 
 
@@ -28,6 +30,7 @@ def _expected_outer(a, b):
 
 
 def _assert_outer_equal(got, exp, tol=0.0):
+    got = got.tolist() if hasattr(got, "tolist") else got   # rc129: Mat → nested
     assert len(got) == len(exp)
     for i in range(len(exp)):
         assert len(got[i]) == len(exp[i])
@@ -42,10 +45,10 @@ def test_outer_real_closed_form():
     a = [1.0, -2.0, 3.5, 0.0]
     b = [4.0, 0.5, -1.0]
     out = dense_outer_real(a, b)
-    assert len(out) == 4 and len(out[0]) == 3        # (4, 3)
+    assert isinstance(out, Mat) and out.shape == (4, 3)   # rc129: real Mat
     _assert_outer_equal(out, _expected_outer(a, b))
     # real peer drops the zero imaginary part — entries are plain floats.
-    for row in out:
+    for row in out.tolist():
         for v in row:
             assert isinstance(v, float)
 
@@ -54,7 +57,7 @@ def test_outer_complex_closed_form():
     a = [1 + 2j, 3 - 1j, 0 + 0j]
     b = [2 - 1j, 0 + 4j]
     out = dense_outer_complex(a, b)
-    assert len(out) == 3 and len(out[0]) == 2        # (3, 2)
+    assert isinstance(out, Mat) and out.shape == (3, 2)   # rc129: complex Mat
     _assert_outer_equal(out, _expected_outer(a, b))
 
 
@@ -65,12 +68,12 @@ def test_outer_does_not_conjugate_b():
     psi_conj = [z.conjugate() for z in psi]
     rho = dense_outer_complex(psi, psi_conj)
     _assert_outer_equal(rho, _expected_outer(psi, psi_conj))
-    # Hermitian: rho[i][j] == conj(rho[j][i]).
+    # Hermitian: rho[i, j] == conj(rho[j, i]) (rc129: Mat carrier, m[i, j]).
     for i in range(2):
         for j in range(2):
-            assert abs(rho[i][j] - rho[j][i].conjugate()) < 1e-12
+            assert abs(rho[i, j] - rho[j, i].conjugate()) < 1e-12
     # trace == ⟨ψ|ψ⟩ = Σ conj(ψ)·ψ.
-    trace = rho[0][0] + rho[1][1]
+    trace = rho[0, 0] + rho[1, 1]
     inner = sum(z.conjugate() * z for z in psi)
     assert abs(trace - inner) < 1e-12
 
@@ -78,7 +81,7 @@ def test_outer_does_not_conjugate_b():
 def test_outer_real_rides_complex_kernel_drops_zero_imag():
     a = [2.0, 5.0]
     out = dense_outer_real(a, a)
-    for row in out:
+    for row in out.tolist():
         for v in row:
             assert isinstance(v, float)       # real peer returns floats, imag dropped
     _assert_outer_equal(out, _expected_outer(a, a))
@@ -86,9 +89,9 @@ def test_outer_real_rides_complex_kernel_drops_zero_imag():
 
 def test_outer_empty_inputs_safe():
     out_r = dense_outer_real([], [1.0, 2.0])
-    assert len(out_r) == 0                    # (0, 2): no rows
+    assert isinstance(out_r, Mat) and out_r.shape == (0, 2)   # (0, 2): no rows
     out_c = dense_outer_complex([1j], [])
-    assert len(out_c) == 1 and len(out_c[0]) == 0   # (1, 0): one empty row
+    assert isinstance(out_c, Mat) and out_c.shape == (1, 0)   # (1, 0): one empty row
 
 
 # ── registration: __all__ + LAPLACIAN_OPS + ToolEntries ──────────────────────

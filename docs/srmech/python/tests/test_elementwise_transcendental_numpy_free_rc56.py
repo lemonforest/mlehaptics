@@ -91,11 +91,13 @@ def test_complex_path_matches_stdlib(op):
         assert _close(g, _CPLX_OP[op](zi))
 
 
-def test_complex_input_returns_complex_list():
+def test_complex_input_returns_complex_vec():
+    from srmech.amsc.vec import Vec
     z = [1 + 1j, 2 - 0.5j, -0.3 + 0.8j, 0.6 + 0.0j]
     out = et(z, "exp")
-    assert isinstance(out, list) and len(out) == 4
-    assert all(isinstance(x, complex) for x in out)
+    # rc129: 1-D complex input → complex Vec carrier (NOT a bare list)
+    assert isinstance(out, Vec) and out.shape == (4,) and out.is_complex
+    assert all(isinstance(x, complex) for x in out)  # Vec iterates SCALARS
 
 
 def test_complex_log_zero_rejected():

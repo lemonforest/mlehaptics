@@ -28,8 +28,10 @@ from __future__ import annotations
 
 from typing import List, Sequence
 
+from .vec import Vec  # rc129: the numpy-free 1-D carrier (restores .shape)
 
-def signed_sum_squared(sources: Sequence) -> List[int]:
+
+def signed_sum_squared(sources: Sequence) -> "Vec":
     """Squared signed-sum coupling score across a stack of bit-arrays.
 
     Args:
@@ -37,11 +39,15 @@ def signed_sum_squared(sources: Sequence) -> List[int]:
             holding bits in ``{0, 1}``.
 
     Returns:
-        A ``list[int]`` (same length as each source): per position,
+        A real :class:`~srmech.amsc.vec.Vec` (same length as each source;
+        ``.shape == (n,)`` + scalar ``v[i]``) — per position,
         ``(Σ_sources (2·bit − 1))²`` — the squared signed-sum, i.e. the
         Class-L magnitude-square of the Class-K bipolar-projected sum.
         Range ``[0, n_sources²]``; ``n_sources²`` = full agreement,
-        ``0`` = balanced (equal +1 / −1 across sources).
+        ``0`` = balanced (equal +1 / −1 across sources). rc129: the carrier is
+        a ``Vec``, NOT a bare ``list[int]`` — the small non-negative integer
+        scores are exact as float64 doubles (well within the 2⁵³ exact-integer
+        range; the buffer carries them losslessly).
 
     Raises:
         ValueError: empty ``sources``, mismatched lengths, or values
@@ -75,7 +81,9 @@ def signed_sum_squared(sources: Sequence) -> List[int]:
             signed_sum += 2 * a[pos] - 1
         # Class L — signed-magnitude-squared (no abs(); the square is sign-agnostic).
         out.append(signed_sum * signed_sum)
-    return out
+    # rc129: return the numpy-free 1-D Vec carrier (the small ints are exact as
+    # doubles). Iterating it yields scalars; v.tolist() recovers the int values.
+    return Vec.from_sequence(out, is_complex=False)
 
 
 __all__ = ["signed_sum_squared"]

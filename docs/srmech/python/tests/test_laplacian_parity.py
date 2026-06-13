@@ -7,10 +7,11 @@ against hand-computed reference values. When
 parity sweep runs (toggling the flag to force the pure-Python fallback
 path and comparing outputs to ~1e-12 tolerance).
 
-Post-#564 numpy is GONE from srmech: the build ops return
-``list[list[float]]`` and ``jacobi_eigvals`` returns ``list[float]``
-(ascending). Reference values are hand-computed or supplied by srmech's
-OWN pure-Python Jacobi cascade — never numpy LAPACK.
+Post-#564 numpy is GONE from srmech; rc129 restores the numpy-carrier FORMAT:
+the build ops return a numpy-free ``Mat`` (``.shape`` + ``m[i, j]``) and
+``jacobi_eigvals`` returns a 1-D ``Vec`` (ascending eigenvalues). Reference
+values are hand-computed or supplied by srmech's OWN pure-Python Jacobi
+cascade — never numpy LAPACK.
 """
 
 from __future__ import annotations
@@ -27,7 +28,15 @@ from srmech.amsc import _native, laplacian
 # plain-list helpers (no numpy)
 # ---------------------------------------------------------------------
 
+def _as_nested(M):
+    """rc129: the dense_* builders now return a numpy-free ``Mat`` carrier;
+    ``.tolist()`` recovers the nested list these helpers compare against."""
+    return M.tolist() if hasattr(M, "tolist") else M
+
+
 def _assert_matrix_equal(M, expected, tol=0.0):
+    M = _as_nested(M)
+    expected = _as_nested(expected)
     assert len(M) == len(expected)
     for i in range(len(expected)):
         assert len(M[i]) == len(expected[i])
@@ -39,10 +48,12 @@ def _assert_matrix_equal(M, expected, tol=0.0):
 
 
 def _transpose(M):
+    M = _as_nested(M)
     return [[M[j][i] for j in range(len(M))] for i in range(len(M[0]))] if M else []
 
 
 def _is_symmetric(M, tol=1e-12):
+    M = _as_nested(M)
     n = len(M)
     return all(abs(M[i][j] - M[j][i]) <= tol for i in range(n) for j in range(n))
 
@@ -162,8 +173,8 @@ def test_normalized_laplacian_triangle():
 def test_normalized_laplacian_isolated_vertex_zero_diagonal():
     # 2 nodes, edge (0,1); vertex 2 isolated
     Lsym = laplacian.normalized_laplacian(3, [(0, 1)])
-    # Node 2 has degree 0; L_sym[2,2] should be 0
-    assert Lsym[2][2] == 0.0
+    # Node 2 has degree 0; L_sym[2,2] should be 0 (rc129: Mat carrier, m[i, j])
+    assert Lsym[2, 2] == 0.0
 
 
 def test_normalized_laplacian_eigvals_in_0_2():
