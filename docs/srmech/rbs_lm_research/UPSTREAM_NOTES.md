@@ -2025,3 +2025,50 @@ data-TYPE level). Audited via `R-RBS-LM-CARRIERAUDIT_numpy_idiom_coverage.py` (r
   sub/mul/rmul, slicing (`m[:2]` / `m[:,j]` column / `v[:2]`), negative indices. **Carrier audit: 17/17 absorbed, 0
   gaps.** rc132→rc133 API diff = 0/0/0 (dunder additions); `R-RBS-LM-REGRESSION` 49/0; `genome→disk` VERIFIED. The
   carrier is now a near-total numpy-reflex sink. (Spot-checked values: `m+m`=[[2,4],[6,8]], `m[:,0]`=[1,3], `v+v`=[2,4,6], …)
+
+## §43 ASK — genome FILE-MANAGEMENT: several genes/chromosome + chromosome-as-bundleable-unit, COMPOSED from existing AMSC (2026-06-13; F730)
+
+**Goal (user direction, three turns):** a genome storage layer that reads like a **library → tarballable chromosome →
+framed genes**: (a) several KERNELS (genes) per chromosome, not 1:1; (b) a chromosome is a **bundleable unit** you can
+tarball / catalog / ship; (c) each level content-addressed + attested; (d) the meaning travels with each chromosome.
+This is git's **loose vs packed** object model: today's `turns.bin`+`manifest.json` IS a packfile+index; the ask adds
+the **loose** (one-file-per-chromosome) layout + converters.
+
+**REUSE-FIRST — verified 13/13 requirements already map to an AMSC op** (`R-RBS-LM-AMSCREUSE_…py`; do NOT build a
+parallel system):
+
+| requirement | existing AMSC piece to compose |
+|---|---|
+| per-chromosome attestation (self-verifying bundle) | `format.MPRRecord` + `validate_mpr_record` (the manifest already IS an MPRRecord) |
+| content-address (cap / body) | `format.sha256_bytes` (Class-A; already the telomere cap + `body_sha256`) |
+| loose body read/write | `format.write_ndjson` / `read_ndjson` |
+| **library index / catalog-by-chromosome** | `catalog.register_attested_root` + `list_attested_sources` — a genome = an attested ROOT, a chromosome ≈ an attested SOURCE |
+| page / stream one chromosome | `catalog.get_attested_dataset` / `iter_attested_dataset` (cf. `genome_window`) |
+| discover chromosomes on disk | `catalog.discover_descriptors` (walks `<source>/descriptor.toml` — that IS the loose layout) |
+| verify provenance on import | `catalog.attestation_audit` |
+| per-chromosome **description** + meta | `descriptor.Descriptor` / `load_descriptor` / `descriptor_hash` — the description = a `descriptor.toml` (no new field) |
+| **several genes / chromosome** (intra-chromosome framing) | `tlv.tlv_pack` — Class-B TLV `(tag,value)` per gene |
+
+**GENUINELY-NEW surface (small; everything else composes the above):**
+1. `chromosome(genes=[(label, leaves), …], the_one)` — pack SEVERAL genes into one telomere-capped strand, each gene
+   framed with `tlv_pack`. Plus `genes(strand, the_one) -> [(label, leaves)]` reader. **Needs `tlv.tlv_unpack`** (the
+   inverse reader — `tlv_pack` ships, the reader does NOT; add it, Class-B). Telomere stays the chromosome END cap;
+   the gene-frame is the cheaper internal delimiter.
+2. `genome_export(path, label) -> Path(.chr)` / `genome_import(path, chr_file)` — one chromosome as a **self-contained,
+   MPR-attested file** (the tarball unit). `genome_export` = `MPRRecord(data=tlv-framed genes, attestation=cap/body
+   sha + the_one ref)` → one file; `genome_import` = `validate_mpr_record` then register. Self-verifying on import.
+3. `genome_explode(path)` / `genome_pack(path)` — convert between the packed (`turns.bin`+`manifest.json`) and loose
+   (`<label>/descriptor.toml` + body per chromosome) layouts. Pure orchestration over `write_ndjson` + `descriptor` +
+   `MPRRecord` + `sha256_bytes` + `discover_descriptors`. (git `gc`/unpack precedent.)
+4. **Unify the catalog (consider):** genome ships its OWN `manifest.json` + `genome_catalog()` — a mild reinvention of
+   `catalog.register_attested_root` / `list_attested_sources`. Either delegate `genome_catalog` to the AMSC catalog, or
+   register an exploded genome as an attested root so `list_attested_sources` IS "catalog by chromosome." Don't keep two
+   catalog surfaces.
+
+**HONEST impedance (the 'don't force it' caveat):** the AMSC catalog is NDJSON/MPR-row + `descriptor.toml` oriented;
+the genome body is fixed-width Klein-4 **binary** (`turns.bin`). Reuse the catalog's **registry / discovery /
+attestation** layer; KEEP the binary body (a chromosome's body is a `.bin` the descriptor points at) — OR store leaves
+as NDJSON MPR rows only if catalog-nativeness is judged to beat the binary compactness/streaming (a real tradeoff, not
+forced). Layered model: **library = attested root, chromosome = attested source (`descriptor.toml` + body) = the
+tarball unit, gene = a TLV frame inside.** **Discipline:** TestPyPI-rc before clean tag; additive; MPR-attested; no
+issue tracker (user direction). Composes §41 / §42 / F715 / F721 / F729 / CLAUDE §2 (Class A/B + catalog/descriptor).
