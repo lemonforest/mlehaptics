@@ -881,7 +881,7 @@ def _register_primitive_class_tools() -> None:
                     "second-smallest eigenvalue (λ₂) of a Laplacian. "
                     "Dispatches real→symmetric_eigendecompose, "
                     "complex→hermitian_eigendecompose (both native).",
-            parameters=(P("matrix", "np.ndarray", True,
+            parameters=(P("matrix", "Mat", True,
                           "n × n real-symmetric or complex-Hermitian Laplacian"),),
             returns=R("Vec", "length-n λ₂ eigenvector (numpy-free 1-D carrier)"),
         ),
@@ -890,7 +890,7 @@ def _register_primitive_class_tools() -> None:
             category="laplacian",
             summary="Symmetric Jacobi eigendecomposition; pi-free closed-form "
                     "c/s computation. Native C dispatch when n ≤ 256.",
-            parameters=(P("matrix", "np.ndarray", True, "n × n symmetric"),
+            parameters=(P("matrix", "Mat", True, "n × n symmetric"),
                         P("max_sweeps", "int", False, "default 100"),
                         P("tolerance", "float", False)),
             returns=R("Vec", "n eigenvalues ascending (numpy-free 1-D carrier)"),
@@ -927,9 +927,9 @@ def _register_primitive_class_tools() -> None:
                     "composes over. Native C peer (Gauss–Jordan, partial "
                     "pivoting, n,w ≤ 256) on the scientific tier; exact-rational "
                     "Fraction solve (Class-N core, numpy-absent or exact=True).",
-            parameters=(P("A", "np.ndarray", True,
+            parameters=(P("A", "Mat", True,
                           "n × n coefficient matrix; nested JSON list over MCP"),
-                        P("B", "np.ndarray", True,
+                        P("B", "Mat | Vec", True,
                           "right-hand side: n × w matrix or length-n vector"),
                         P("exact", "bool", False,
                           "force the exact Fraction solve (default False)")),
@@ -948,7 +948,7 @@ def _register_primitive_class_tools() -> None:
                     "the operator|operand FUSION op). Exact-rational Fraction "
                     "solve (Class-N core, numpy-absent or exact=True); "
                     "NumPy solve float realization on the scientific tier.",
-            parameters=(P("L", "np.ndarray", True,
+            parameters=(P("L", "Mat", True,
                           "n × n SPD operator (a graph Laplacian); nested JSON "
                           "list over MCP"),
                         P("boundary_idx", "list[int]", True,
@@ -964,7 +964,7 @@ def _register_primitive_class_tools() -> None:
             summary="Alias for schur_complement — the discrete "
                     "Dirichlet-to-Neumann map: boundary values ⟹ the boundary "
                     "normal-derivative of their harmonic interior extension.",
-            parameters=(P("L", "np.ndarray", True,
+            parameters=(P("L", "Mat", True,
                           "n × n SPD operator (a graph Laplacian); nested JSON "
                           "list over MCP"),
                         P("boundary_idx", "list[int]", True,
@@ -986,7 +986,7 @@ def _register_primitive_class_tools() -> None:
                     "via complex-Jacobi rotations. Native C dispatch when "
                     "n ≤ 256; NumPy eigh fallback. Sakurai §2.1.5; "
                     "Golub & Van Loan §8.5.",
-            parameters=(P("H", "np.ndarray", True,
+            parameters=(P("H", "Mat", True,
                           "n × n complex Hermitian matrix"),),
             returns=R("tuple[Vec, Mat]",
                       "(eigvals_ascending Vec, V_unitary complex Mat)"),
@@ -999,7 +999,7 @@ def _register_primitive_class_tools() -> None:
                     "hermitian_eigendecompose: guarantees real float64 "
                     "eigvals AND eigvecs (no ComplexWarning for a real "
                     "Laplacian). Golub & Van Loan §8.3.",
-            parameters=(P("L", "np.ndarray", True,
+            parameters=(P("L", "Mat", True,
                           "n × n real symmetric matrix"),),
             returns=R("tuple[Vec, Mat]",
                       "(eigvals_ascending Vec, V_orthogonal real Mat)"),
@@ -1009,8 +1009,8 @@ def _register_primitive_class_tools() -> None:
             owner="srmech", category="laplacian",
             summary="Dense complex matrix-vector multiplication M·v. "
                     "Golub & Van Loan §1.1.",
-            parameters=(P("M", "np.ndarray", True, "rows × cols complex"),
-                        P("v", "np.ndarray", True, "length-cols complex")),
+            parameters=(P("M", "Mat", True, "rows × cols complex"),
+                        P("v", "Vec", True, "length-cols complex")),
             returns=R("Vec", "length-rows complex (numpy-free 1-D carrier)"),
         ),
         ToolEntry(
@@ -1019,8 +1019,8 @@ def _register_primitive_class_tools() -> None:
             summary="Dense complex matrix-matrix multiplication A times B "
                     "(the Class-L contraction the QM / matrix_cascades matmul "
                     "math routes through). Golub & Van Loan §1.1.",
-            parameters=(P("A", "np.ndarray", True, "m × k complex"),
-                        P("B", "np.ndarray", True, "k × n complex")),
+            parameters=(P("A", "Mat", True, "m × k complex"),
+                        P("B", "Mat", True, "k × n complex")),
             returns=R("Mat", "m × n complex (numpy-free 2-D carrier)"),
         ),
         ToolEntry(
@@ -1118,8 +1118,8 @@ def _register_primitive_class_tools() -> None:
                     "1-D contraction the QM eta-sandwiches and matrix_cascades "
                     "back-solves route through; plain bilinear, NOT the "
                     "conjugating vdot). Golub & Van Loan §1.1.",
-            parameters=(P("a", "np.ndarray", True, "length-n complex"),
-                        P("b", "np.ndarray", True, "length-n complex")),
+            parameters=(P("a", "Vec", True, "length-n complex"),
+                        P("b", "Vec", True, "length-n complex")),
             returns=R("complex", "scalar sum a_i b_i"),
         ),
         ToolEntry(
@@ -1128,8 +1128,8 @@ def _register_primitive_class_tools() -> None:
             summary="Dense real matrix-matrix multiplication A times B → "
                     "float64 (rides the complex kernel; drops the zero "
                     "imaginary part). Golub & Van Loan §1.1.",
-            parameters=(P("A", "np.ndarray", True, "m × k real"),
-                        P("B", "np.ndarray", True, "k × n real")),
+            parameters=(P("A", "Mat", True, "m × k real"),
+                        P("B", "Mat", True, "k × n real")),
             returns=R("Mat", "m × n real (numpy-free 2-D carrier)"),
         ),
         ToolEntry(
@@ -1138,8 +1138,8 @@ def _register_primitive_class_tools() -> None:
             summary="Dense real matrix-vector multiplication M times v → "
                     "float (real peer of dense_matvec_complex; rides the "
                     "complex kernel). Golub & Van Loan §1.1.",
-            parameters=(P("M", "np.ndarray", True, "rows × cols real"),
-                        P("v", "np.ndarray", True, "length-cols real")),
+            parameters=(P("M", "Mat", True, "rows × cols real"),
+                        P("v", "Vec", True, "length-cols real")),
             returns=R("Vec", "length-rows real (numpy-free 1-D carrier)"),
         ),
         ToolEntry(
@@ -1147,8 +1147,8 @@ def _register_primitive_class_tools() -> None:
             owner="srmech", category="laplacian",
             summary="Dense real inner product sum a_i b_i → float (real peer "
                     "of dense_dot_complex). Golub & Van Loan §1.1.",
-            parameters=(P("a", "np.ndarray", True, "length-n real"),
-                        P("b", "np.ndarray", True, "length-n real")),
+            parameters=(P("a", "Vec", True, "length-n real"),
+                        P("b", "Vec", True, "length-n real")),
             returns=R("float", "scalar sum a_i b_i"),
         ),
         ToolEntry(
@@ -1159,7 +1159,7 @@ def _register_primitive_class_tools() -> None:
                     "dense_dot_complex (numpy carriers-only, no norm engine). "
                     "Value-faithful to the NumPy 2-norm / Frobenius norm. Golub & "
                     "Van Loan §2.3.",
-            parameters=(P("x", "np.ndarray", True,
+            parameters=(P("x", "Mat | Vec", True,
                           "real or complex array of any shape (flattened)"),),
             returns=R("float", "sqrt(sum |x_i|^2)"),
         ),
@@ -1203,8 +1203,8 @@ def _register_primitive_class_tools() -> None:
                     "the k=1 case of dense_matmul_complex, so it rides the native "
                     "kernel and is bit-identical to numpy outer). Does NOT "
                     "conjugate b. Golub & Van Loan §1.1.",
-            parameters=(P("a", "np.ndarray", True, "length-m complex column"),
-                        P("b", "np.ndarray", True, "length-n complex row")),
+            parameters=(P("a", "Vec", True, "length-m complex column"),
+                        P("b", "Vec", True, "length-n complex row")),
             returns=R("Mat", "m × n complex a_i b_j (numpy-free 2-D carrier)"),
         ),
         ToolEntry(
@@ -1213,8 +1213,8 @@ def _register_primitive_class_tools() -> None:
             summary="Dense real outer product a⊗b → out[i,j]=a_i b_j → real Mat "
                     "(real peer of dense_outer_complex; rides the complex "
                     "kernel). Golub & Van Loan §1.1.",
-            parameters=(P("a", "np.ndarray", True, "length-m real"),
-                        P("b", "np.ndarray", True, "length-n real")),
+            parameters=(P("a", "Vec", True, "length-m real"),
+                        P("b", "Vec", True, "length-n real")),
             returns=R("Mat", "m × n real a_i b_j (numpy-free 2-D carrier)"),
         ),
         ToolEntry(
@@ -1222,8 +1222,8 @@ def _register_primitive_class_tools() -> None:
             owner="srmech", category="laplacian",
             summary="Elementwise complex multiplication a * b (equal-shape; "
                     "shape-polymorphic — Mat in → Mat out, Vec in → Vec out).",
-            parameters=(P("a", "np.ndarray", True, "Mat (2-D) or Vec (1-D) complex"),
-                        P("b", "np.ndarray", True, "same-shape complex operand")),
+            parameters=(P("a", "Mat | Vec", True, "Mat (2-D) or Vec (1-D) complex"),
+                        P("b", "Mat | Vec", True, "same-shape complex operand")),
             returns=R("Mat", "Mat (2-D in) or Vec (1-D in), complex; rank-preserving"),
         ),
         ToolEntry(
@@ -1233,7 +1233,7 @@ def _register_primitive_class_tools() -> None:
                     "log over real input, or exp_i(x) = exp(1j*x) "
                     "(TDSE-relevant complex exponential). Shape-polymorphic "
                     "(Mat in → Mat out, Vec in → Vec out). ANSI C99 §7.12.",
-            parameters=(P("arr", "np.ndarray", True, "Mat (2-D) or Vec (1-D) real/complex"),
+            parameters=(P("arr", "Mat | Vec", True, "Mat (2-D) or Vec (1-D) real/complex"),
                         P("op_name", "str", True,
                           "exp / cos / sin / log / exp_i")),
             returns=R("Mat",
@@ -1247,8 +1247,8 @@ def _register_primitive_class_tools() -> None:
                     "srmech_rational_sqrt-dispatched). The numpy-free |z| = "
                     "sqrt(re^2+im^2) op the DSP modules route through — numpy "
                     "carries the array only. Golub & Van Loan §1.1.",
-            parameters=(P("a", "np.ndarray", True, "Mat (2-D) or Vec (1-D) real (e.g. z.real)"),
-                        P("b", "np.ndarray", True, "same-shape real (e.g. z.imag)")),
+            parameters=(P("a", "Mat | Vec", True, "Mat (2-D) or Vec (1-D) real (e.g. z.real)"),
+                        P("b", "Mat | Vec", True, "same-shape real (e.g. z.imag)")),
             returns=R("Mat", "Mat/Vec sqrt(a_i^2 + b_i^2) (rank-preserving real carrier)"),
         ),
         ToolEntry(
@@ -1260,7 +1260,7 @@ def _register_primitive_class_tools() -> None:
                     "square-root op (companion to elementwise_hypot) for "
                     "non-negative reals — numpy carries the array only. Rejects "
                     "arr_i < 0. Golub & Van Loan §1.1.",
-            parameters=(P("arr", "np.ndarray", True,
+            parameters=(P("arr", "Mat | Vec", True,
                           "Mat (2-D) or Vec (1-D) real, all entries >= 0"),),
             returns=R("Mat", "Mat/Vec sqrt(arr_i), rank-preserving real carrier"),
         ),
@@ -1362,7 +1362,7 @@ def _register_primitive_class_tools() -> None:
             category="harmonics",
             summary="Classify an encoded hypervector into chirality-harmonic 1/2/3 "
                     "by its spectral symmetry signature (F150 §6.2).",
-            parameters=(P("hv", "np.ndarray", True, "encoded vector"),
+            parameters=(P("hv", "HV", True, "encoded vector"),
                         P("dc_threshold", "float", False)),
             returns=R("int", "harmonic order 1, 2, or 3"),
         ),
@@ -1402,7 +1402,7 @@ def _register_primitive_class_tools() -> None:
             category="laplacian",
             summary="Harmonic-3 three-fold spectral reading (F150): partition the "
                     "eigenvectors of a real-symmetric Laplacian into low/mid/high.",
-            parameters=(P("L", "np.ndarray", True, "real-symmetric matrix"),),
+            parameters=(P("L", "Mat", True, "real-symmetric matrix"),),
             returns=R("dict", "low/mid/high eigenvector bands (each a real Mat)"),
         ),
         # NOTE: srmech.amsc.compose.greedy_bipartite_alignment (§2.2) is NOT
@@ -1678,48 +1678,48 @@ def _register_primitive_class_tools() -> None:
         ToolEntry(
             name="srmech.amsc.cascade.matrix_cascades.qr", owner="srmech", category="cascade",
             summary="Householder QR factorization A = Q*R: Q a product (Class M) of elementary reflectors H = I - beta*v*v^H, each Class K (sign-flip across a hyperplane) + Class M (outer-product bind) + Class N (1/(v^H v) scale, with the column norm a rational.sqrt). numpy as CONTAINER only — no NumPy QR in the call graph. mode='reduced' (default, matching NumPy QR) or 'complete'. QR is unique only up to signs; the invariants (Q*R=A, Q^H Q=I, R upper-triangular) hold to round-off.",
-            parameters=(P("a", "np.ndarray", True, "(m, n) real or complex 2-D matrix"),
+            parameters=(P("a", "Mat", True, "(m, n) real or complex 2-D matrix"),
                         P("mode", "str", False, "keyword-only; 'reduced' (default) or 'complete'")),
             returns=R("tuple[Mat, Mat]", "(Q, R): orthonormal-column Q + upper-triangular R"),
         ),
         ToolEntry(
             name="srmech.amsc.cascade.matrix_cascades.svd", owner="srmech", category="cascade",
             summary="Singular value decomposition A = U*diag(s)*V^H via the Gram-matrix Hermitian eigendecomposition: Class L (eig of A^H A or A A^H, srmech's hermitian_eigendecompose) + Class N+K (s = sqrt(eigvals), via rational.sqrt) + Class M (U = A*V*Sigma^-1). numpy as CONTAINER only — no NumPy SVD. full_matrices=False (reduced form). Singular values match NumPy SVD to round-off for well-conditioned inputs (the Gram route squares the condition number); U/V unique only up to signs.",
-            parameters=(P("a", "np.ndarray", True, "(m, n) real or complex 2-D matrix"),
+            parameters=(P("a", "Mat", True, "(m, n) real or complex 2-D matrix"),
                         P("full_matrices", "bool", False, "keyword-only; only False (reduced form) is supplied")),
             returns=R("tuple[Mat, Vec, Mat]", "(U, s, Vh): singular vectors + descending singular values"),
         ),
         ToolEntry(
             name="srmech.amsc.cascade.matrix_cascades.lstsq", owner="srmech", category="cascade",
             summary="Least-squares solution of A x = b (minimising ||A x - b||): {QR} factorization + Class M (the Qᴴ b product) + Class I (back-substitution = the ordered triangular solve). Overdetermined/square m>=n, full column rank; b a vector or stack of RHS. numpy as CONTAINER only — no NumPy lstsq. Matches NumPy lstsq(a,b)[0] to round-off.",
-            parameters=(P("a", "np.ndarray", True, "(m, n) coefficient matrix, m>=n"),
-                        P("b", "np.ndarray", True, "(m,) or (m, k) right-hand side(s)")),
+            parameters=(P("a", "Mat", True, "(m, n) coefficient matrix, m>=n"),
+                        P("b", "Mat | Vec", True, "(m,) or (m, k) right-hand side(s)")),
             returns=R("Mat | Vec", "least-squares solution x, shape (n,) or (n, k)"),
         ),
         ToolEntry(
             name="srmech.amsc.cascade.matrix_cascades.einsum", owner="srmech", category="cascade",
             summary="Einstein-summation tensor contraction via the general index-iteration definition: Class B/D (the subscript spec is a typed index-pattern) + Class I (iterate over free + summed index tuples) + Class M (sum-of-products bundle). Handles any subscript string (matmul ij,jk->ik / trace ii-> / transpose ij->ji / dot i,i-> / outer i,j->ij / arbitrary contraction), implicit output supported. Value-faithful to the NumPy einsum.",
             parameters=(P("subscripts", "str", True, "einsum subscript string, e.g. 'ij,jk->ik'"),
-                        P("operands", "tuple[np.ndarray, ...]", False, "the input arrays (variadic)")),
+                        P("operands", "tuple[Mat, ...]", False, "the input arrays (variadic)")),
             returns=R("Mat | Vec | complex | float | list", "the contracted tensor"),
         ),
         ToolEntry(
             name="srmech.amsc.cascade.matrix_cascades.eigvals", owner="srmech", category="cascade",
             summary="Eigenvalues of a general (non-Hermitian) square matrix via the shifted-QR iteration: Class K (iterate-to-convergence asymptotic-DoF) + Class L (spectral content) + {QR} (per-step Householder factorization) + Class C (Wilkinson spectral shifts). Runs in complex arithmetic so complex eigenvalues of real matrices fall out directly. numpy as CONTAINER only — no NumPy eig/eigvals. Eigenvalues unique as a SET; the multiset matches NumPy eigvals to ~1e-12 for moderate sizes.",
-            parameters=(P("a", "np.ndarray", True, "(n, n) real or complex square matrix"),
+            parameters=(P("a", "Mat", True, "(n, n) real or complex square matrix"),
                         P("max_sweeps", "int", False, "keyword-only; per-eigenvalue iteration cap factor (default 500)")),
             returns=R("Vec", "length-n complex eigenvalue array"),
         ),
         ToolEntry(
             name="srmech.amsc.cascade.matrix_cascades.char_poly", owner="srmech", category="cascade",
             summary="Exact integer characteristic polynomial det(xI - A) via Faddeev-Leverrier. For an INTEGER matrix returns the EXACT integer coefficients (monic, high->low [1, c1, ..., cn]) in arbitrary-precision integer arithmetic — the exact ALGEBRAIC substrate of the eigenproblem: exact trace = -c1, exact determinant = (-1)^n*cn, all elementary symmetric functions of the spectrum, NO floating point. The eigenvalues are the ROOTS of this exact polynomial (extract them with eigvals_exact, which avoids the Wilkinson ill-conditioning of float root-finding by staying in exact arithmetic). Non-integer matrices fall back to a float Faddeev-Leverrier. Class L (algebraic content) + Class M (matrix-product/trace accumulate) + Class K (exact //k step division).",
-            parameters=(P("a", "np.ndarray", True, "(n, n) square matrix (integer entries → exact integer coefficients)"),),
+            parameters=(P("a", "Mat", True, "(n, n) square matrix (integer entries → exact integer coefficients)"),),
             returns=R("list", "characteristic-polynomial coefficients, monic high→low [1, c1, ..., cn]"),
         ),
         ToolEntry(
             name="srmech.amsc.cascade.matrix_cascades.eigvals_exact", owner="srmech", category="cascade",
             summary="Exact REAL eigenvalues of an integer matrix — the well-conditioned exact-until-rotation cascade (no Wilkinson ill-conditioning, because the eigenvalues are ALGEBRAIC and we never leave exact arithmetic). char_poly (exact integer) + Yun square-free factorization (exact multiplicities) + Sturm sign-sequence isolation (Class C sign-count at Class K interval boundaries) + rational bisection (Class N anchors → the algebraic asymptote), all in exact Fraction arithmetic, then ONE FPU lift. bits sets refinement precision; return_intervals=True yields the exact (lo, hi) rational isolating intervals. Returns the real eigenvalues ascending WITH multiplicity (symmetric matrices are all-real/complete; matrices with complex eigenvalues return only the real ones — complex isolation is a follow-up).",
-            parameters=(P("a", "np.ndarray", True, "(n, n) integer square matrix"),
+            parameters=(P("a", "Mat", True, "(n, n) integer square matrix"),
                         P("bits", "int", False, "keyword-only; bisection refinement precision in bits (default 64)"),
                         P("return_intervals", "bool", False, "keyword-only; return exact (lo, hi) rational intervals instead of floats; default False")),
             returns=R("list", "real eigenvalues ascending with multiplicity (floats, or (lo, hi) Fraction intervals)"),
@@ -1761,8 +1761,8 @@ def _register_primitive_class_tools() -> None:
         ToolEntry(
             name="srmech.amsc.genome.quad_turn", owner="srmech", category="genome",
             summary="Couple one helix turn through the_one — the genome's turn operation (F713). The turn is bound to the_one (the held invariant) by the REVERSIBLE Klein-4 bind (V4=(F2)^2 XOR, so quad_turn(quad_turn(t, one), one) == t): the duality held WITHOUT collapse, numpy-free. the_one is the shared invariant in every turn's coupling, so a chromosome navigates across its turns through the_one and recovers any turn by re-binding. Each turn sits in the native 4-sector biaxial '+' (cascade.parallel_sector_dispatch, CAP=4) — per F712 the 4-way is ONE chirality level, the deeper leaf-tree is base-4 radix addressing. Class M (bind) composed with Class C (the Klein-4 chirality).",
-            parameters=(P("turn", "np.ndarray", True, "a Klein-4 vector (uint8 {0,1,2,3}) — the helix turn (e.g. from hdc.klein4_random)"),
-                        P("the_one", "np.ndarray", True, "a Klein-4 vector (uint8 {0,1,2,3}) — the held invariant coupled into every turn")),
+            parameters=(P("turn", "HV", True, "a Klein-4 vector (uint8 {0,1,2,3}) — the helix turn (e.g. from hdc.klein4_random)"),
+                        P("the_one", "HV", True, "a Klein-4 vector (uint8 {0,1,2,3}) — the held invariant coupled into every turn")),
             returns=R("HV", "the coupled turn (re-apply quad_turn with the same the_one to recover turn)"),
         ),
         ToolEntry(
@@ -1775,31 +1775,31 @@ def _register_primitive_class_tools() -> None:
         ToolEntry(
             name="srmech.amsc.genome.chromosome", owner="srmech", category="genome",
             summary="Pack one kernel into a telomere-capped strand — a chromosome (F713/F715). The kernel's leaves (Klein-4 vectors, one tome each) become a helix of quad-turns, each coupled through the_one (reversible quad_turn), led by a telomere cap derived from label. Returns the strand [telomere_cap, quad_turn(leaf0, the_one), quad_turn(leaf1, the_one), ...]; recover the kernel with recall. The cap delimits + protects the chromosome so many chromosomes pack onto one genome strand. Class A (cap) + Class M (bind) + Class C (the Klein-4 chirality).",
-            parameters=(P("leaves", "Sequence[np.ndarray]", True, "the kernel's leaves — Klein-4 vectors, one tome (<=256) each"),
-                        P("the_one", "np.ndarray", True, "the held invariant every turn is coupled through"),
+            parameters=(P("leaves", "Sequence[HV]", True, "the kernel's leaves — Klein-4 vectors, one tome (<=256) each"),
+                        P("the_one", "HV", True, "the held invariant every turn is coupled through"),
                         P("label", "str", False, "keyword-only; the chromosome label for the telomere cap (default 'chromosome')")),
             returns=R("list", "the strand: [telomere_cap, coupled turn, coupled turn, ...]"),
         ),
         ToolEntry(
             name="srmech.amsc.genome.recall", owner="srmech", category="genome",
             summary="Recover a kernel's leaves from a telomere-capped chromosome strand (F713/F715) — the exact inverse of chromosome. Walk the strand; skip every element equal to the telomere cap (the non-data delimiter) and re-bind the_one (the reversible quad_turn again) on each coupled data turn to recover the original leaf. recall(chromosome(leaves, one, label=L), one, telomere(L, len(one))) == leaves. Matching the cap by VALUE (not position) is what lets one recall reach into a multi-chromosome genome strand.",
-            parameters=(P("strand", "Sequence[np.ndarray]", True, "a telomere-capped chromosome strand (from chromosome)"),
-                        P("the_one", "np.ndarray", True, "the held invariant the turns were coupled through"),
-                        P("telomere", "np.ndarray", True, "the telomere cap delimiting the chromosome (skipped, not decoded)")),
+            parameters=(P("strand", "Sequence[HV]", True, "a telomere-capped chromosome strand (from chromosome)"),
+                        P("the_one", "HV", True, "the held invariant the turns were coupled through"),
+                        P("telomere", "HV", True, "the telomere cap delimiting the chromosome (skipped, not decoded)")),
             returns=R("list", "the recovered kernel leaves (Klein-4 vectors), in order"),
         ),
         ToolEntry(
             name="srmech.amsc.genome.genome", owner="srmech", category="genome",
             summary="Pack many kernels into ONE telomere-partitioned strand — the top-level genome / chromosome set (F715). Each (label, leaves) kernel becomes a telomere-capped chromosome (coupled through the_one), all concatenated into a single strand; the per-kernel telomere caps delimit + protect the partitions, so one strand holds many kernels (F715 verified: astronomy / geography / music). A genome strand IS a strand (list of Klein-4 vectors), just with multiple caps; recover with partition. kernels is a dict {label: leaves} or a sequence of (label, leaves) pairs (insertion order = strand order). Composes chromosome (Class A cap + Class M coupling).",
             parameters=(P("kernels", "dict", True, "{label: leaves} — each kernel's leaves are Klein-4 vectors (one tome each)"),
-                        P("the_one", "np.ndarray", True, "the held invariant every turn of every chromosome is coupled through")),
+                        P("the_one", "HV", True, "the held invariant every turn of every chromosome is coupled through")),
             returns=R("list", "the flat genome strand: concatenated [cap, turns...] per kernel"),
         ),
         ToolEntry(
             name="srmech.amsc.genome.partition", owner="srmech", category="genome",
             summary="Recover every kernel from a multi-kernel genome strand — the inverse of genome (F715). Walk the strand; each element equal to one of labels' telomere caps starts a new chromosome partition, and the coupled turns until the next cap are that kernel's leaves (re-bound through the_one — reversible quad_turn). Returns {label: leaves}. partition knows ALL the caps, so (unlike a single-cap recall) it does not mistake one chromosome's cap for another's data: partition(genome({a:A,b:B}, one), one, [a,b]) == {a:A, b:B}.",
-            parameters=(P("strand", "Sequence[np.ndarray]", True, "a multi-kernel genome strand (from genome)"),
-                        P("the_one", "np.ndarray", True, "the held invariant the turns were coupled through"),
+            parameters=(P("strand", "Sequence[HV]", True, "a multi-kernel genome strand (from genome)"),
+                        P("the_one", "HV", True, "the held invariant the turns were coupled through"),
                         P("labels", "list", True, "the chromosome labels whose telomere caps partition the strand")),
             returns=R("dict", "{label: leaves} — each kernel's recovered Klein-4 leaves, in order"),
         ),
@@ -1813,9 +1813,9 @@ def _register_primitive_class_tools() -> None:
         ToolEntry(
             name="srmech.amsc.genome.genome_save", owner="srmech", category="genome",
             summary="Persist a genome strand to a directory (UPSTREAM §41). Splits the flat strand into its telomere-delimited chromosomes (by labels, the way partition does), writes a FIXED-WIDTH append-only body to path/turns.bin (every strand element — a cap or a coupled turn — is a leaf_dim-byte Klein-4 block, values 0..3, no length prefixes), and writes an MPR-attested catalog to path/manifest.json (format_version, leaf_dim, n_turns, the_one hash+hex, body_sha256, and per-chromosome cap_sha256 / leaf_count / byte_offset / byte_len). the_one (the held invariant) is content-addressed into the manifest so a load re-anchors without re-deriving it. Returns the manifest data dict. numpy-free; hashes via sha256_bytes.",
-            parameters=(P("strand", "Sequence[np.ndarray]", True, "the flat genome strand to persist (from genome)"),
+            parameters=(P("strand", "Sequence[HV]", True, "the flat genome strand to persist (from genome)"),
                         P("path", "str", True, "the genome DIRECTORY to write (created if absent; gets manifest.json + turns.bin)"),
-                        P("the_one", "np.ndarray", True, "the held invariant every turn is coupled through (content-addressed into the manifest)"),
+                        P("the_one", "HV", True, "the held invariant every turn is coupled through (content-addressed into the manifest)"),
                         P("labels", "list", True, "the chromosome labels whose telomere caps delimit the strand")),
             returns=R("dict", "the manifest data {format_version, leaf_dim, n_turns, the_one, body_sha256, chromosomes}"),
         ),
@@ -1837,8 +1837,8 @@ def _register_primitive_class_tools() -> None:
             summary="Append ONE chromosome to an existing genome (UPSTREAM §41) — the helix grows. Packs leaves into a telomere-capped chromosome (coupled through the_one), appends its fixed-width blocks to the END of turns.bin (APPEND-ONLY — prior chromosomes' body bytes are never rewritten), and rewrites the manifest with the new chromosome entry plus a recomputed body_sha256 / n_turns. Every EXISTING chromosome's manifest entry (cap_sha256 / byte_offset / leaf_count / byte_len) stays byte-identical. Verifies the body it appends TO against body_sha256 first (never grows a corrupt body). Returns the updated manifest data dict. numpy-free.",
             parameters=(P("path", "str", True, "the genome directory written by genome_save"),
                         P("label", "str", True, "the new chromosome's label (must not already exist in the genome)"),
-                        P("leaves", "Sequence[np.ndarray]", True, "the new kernel's Klein-4 leaf vectors"),
-                        P("the_one", "np.ndarray", True, "the held invariant the new turns are coupled through (dim must match leaf_dim)")),
+                        P("leaves", "Sequence[HV]", True, "the new kernel's Klein-4 leaf vectors"),
+                        P("the_one", "HV", True, "the held invariant the new turns are coupled through (dim must match leaf_dim)")),
             returns=R("dict", "the updated manifest data (with the appended chromosome + recomputed body_sha256)"),
         ),
         ToolEntry(
@@ -1942,16 +1942,16 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.hdc.polar_bind", owner="srmech", category="hdc",
             summary="Polar bind: element-wise sign-product with 0 absorbing "
                     "(0·x = 0). Commutative, associative; self-inverse on ±1.",
-            parameters=(P("a", "np.ndarray", True, "int8 {-1,0,+1}"),
-                        P("b", "np.ndarray", True, "same length")),
+            parameters=(P("a", "HV", True, "int8 {-1,0,+1}"),
+                        P("b", "HV", True, "same length")),
             returns=R("array", "int8 {-1,0,+1}"),
         ),
         ToolEntry(
             name="srmech.amsc.hdc.polar_unbind", owner="srmech", category="hdc",
             summary="Polar unbind (= sign-product). Recovers b from "
                     "bind(a,b) where a≠0; 0 is destructive.",
-            parameters=(P("c", "np.ndarray", True, "int8 {-1,0,+1}"),
-                        P("a", "np.ndarray", True)),
+            parameters=(P("c", "HV", True, "int8 {-1,0,+1}"),
+                        P("a", "HV", True)),
             returns=R("array", "int8 {-1,0,+1}"),
         ),
         ToolEntry(
@@ -1966,7 +1966,7 @@ def _register_primitive_class_tools() -> None:
             # ``^[a-zA-Z0-9_.-]{1,64}$``). Sequence type matches the
             # sibling ``srmech.amsc.hdc.bundle`` convention; the dispatcher
             # (``srmech.mcp._tools.invoke_tool``) unpacks it positionally.
-            parameters=(P("vectors", "Sequence[np.ndarray]", True,
+            parameters=(P("vectors", "Sequence[HV]", True,
                           "one or more int8 {-1,0,+1} vectors of equal "
                           "length"),),
             returns=R("array", "int8 {-1,0,+1}"),
@@ -1976,7 +1976,7 @@ def _register_primitive_class_tools() -> None:
             summary="Polar match-fraction in [0,1]. skip_zero=True (default) "
                     "counts only jointly non-zero positions; False counts all "
                     "(0==0 a match).",
-            parameters=(P("a", "np.ndarray", True), P("b", "np.ndarray", True),
+            parameters=(P("a", "HV", True), P("b", "HV", True),
                         P("skip_zero", "bool", False, "default True")),
             returns=R("float", "in [0, 1]"),
         ),
@@ -1984,7 +1984,7 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.hdc.polar_density", owner="srmech", category="hdc",
             summary="Fraction of non-zero (informative) positions in [0,1]; "
                     "1.0 = fully bipolar, lower = more dead-band.",
-            parameters=(P("v", "np.ndarray", True, "int8 {-1,0,+1}"),),
+            parameters=(P("v", "HV", True, "int8 {-1,0,+1}"),),
             returns=R("float", "in [0, 1]"),
         ),
         ToolEntry(
@@ -1992,7 +1992,7 @@ def _register_primitive_class_tools() -> None:
             summary="Bridge real data to a polar HDC vector via sign_quantise "
                     "(Class-K threshold projection); dead_band>0 maps the "
                     "near-threshold zone to 0.",
-            parameters=(P("arr", "np.ndarray", True),
+            parameters=(P("arr", "HV", True),
                         P("threshold", "float", False, "default 0.0"),
                         P("dead_band", "float", False, "default 0.0")),
             returns=R("array", "int8 {-1,0,+1}"),
@@ -2023,8 +2023,8 @@ def _register_primitive_class_tools() -> None:
                     "(default-ON at ≥4 cores; value-preserving). mode='chunk' "
                     "(default) splits positions, bit-identical; mode='chirality' "
                     "runs the F233 4-sector dispatch.",
-            parameters=(P("a", "np.ndarray", True, "uint8 {0,1,2,3}"),
-                        P("b", "np.ndarray", True, "same length"),
+            parameters=(P("a", "HV", True, "uint8 {0,1,2,3}"),
+                        P("b", "HV", True, "same length"),
                         P("sectors", "int", False, "lanes 1..4; default-on (4 "
                           "at ≥4 cores, else 1)"),
                         P("parallel", "bool", False, "True→4 lanes / False→1 "
@@ -2037,7 +2037,7 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.hdc.klein4_unbind", owner="srmech", category="hdc",
             summary="Klein-4 unbind (= self-inverse XOR): recovers b from "
                     "bind(a,b).",
-            parameters=(P("c", "np.ndarray", True), P("a", "np.ndarray", True)),
+            parameters=(P("c", "HV", True), P("a", "HV", True)),
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
@@ -2052,7 +2052,7 @@ def _register_primitive_class_tools() -> None:
             # Variadic ``klein4_bundle(*vectors)``: exposed under the clean
             # name ``vectors`` (the ``*`` sigil is illegal in an Anthropic
             # property key). See polar_bundle note above.
-            parameters=(P("vectors", "Sequence[np.ndarray]", True,
+            parameters=(P("vectors", "Sequence[HV]", True,
                           "one or more uint8 {0,1,2,3} vectors of equal "
                           "length"),
                         P("sectors", "int", False, "lanes 1..4; default-on (4 "
@@ -2070,7 +2070,7 @@ def _register_primitive_class_tools() -> None:
                     "mode= fans the comparison across ≤4 lanes (default-ON at ≥4 "
                     "cores); ALWAYS returns the serial float (chunk sums "
                     "per-slice matches; chirality recombines via sector-0).",
-            parameters=(P("a", "np.ndarray", True), P("b", "np.ndarray", True),
+            parameters=(P("a", "HV", True), P("b", "HV", True),
                         P("sectors", "int", False, "lanes 1..4; default-on (4 "
                           "at ≥4 cores, else 1)"),
                         P("parallel", "bool", False, "True→4 lanes / False→1 "
@@ -2083,20 +2083,20 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.hdc.klein4_chirality_flip_gamma5", owner="srmech",
             category="hdc",
             summary="Flip the γ₅ chirality axis (XOR with sector mask 2).",
-            parameters=(P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),),
+            parameters=(P("v", "HV", True, "uint8 {0,1,2,3}"),),
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
             name="srmech.amsc.hdc.klein4_chirality_flip_omega7", owner="srmech",
             category="hdc",
             summary="Flip the iω₇ chirality axis (XOR with sector mask 1).",
-            parameters=(P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),),
+            parameters=(P("v", "HV", True, "uint8 {0,1,2,3}"),),
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
             name="srmech.amsc.hdc.klein4_cpt_mirror", owner="srmech", category="hdc",
             summary="CPT mirror: flip BOTH chirality axes (XOR with 3).",
-            parameters=(P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),),
+            parameters=(P("v", "HV", True, "uint8 {0,1,2,3}"),),
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
@@ -2110,7 +2110,7 @@ def _register_primitive_class_tools() -> None:
                     "is a documented non-privileged convention). Class K "
                     "(bipolar sign render) ∘ Class C (axis select); no abs().",
             parameters=(
-                P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),
+                P("v", "HV", True, "uint8 {0,1,2,3}"),
                 P("axis", "str", False, "'gamma5' (bit 1) or 'iomega7' (bit 0)"),
             ),
             returns=R("list", "bipolar {-1,+1}, one per element"),
@@ -2122,7 +2122,7 @@ def _register_primitive_class_tools() -> None:
                     "involutions (iω₇→γ₅→CPT, identity fixed); the V₄-carrier "
                     "image of the so(8) 8v→8s→8c triality. Class I; T∘T∘T=id.",
             parameters=(
-                P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),
+                P("v", "HV", True, "uint8 {0,1,2,3}"),
                 P("inverse", "bool", False, "reverse the 3-cycle (T⁻¹ = T²)"),
             ),
             returns=R("HV", "uint8 {0,1,2,3}"),
@@ -2131,7 +2131,7 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.hdc.klein4_sector_count", owner="srmech", category="hdc",
             summary="Per-sector occupancy [n0,n1,n2,n3] — chirality-sector "
                     "distribution attestation.",
-            parameters=(P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),),
+            parameters=(P("v", "HV", True, "uint8 {0,1,2,3}"),),
             returns=R("list[int]", "int64 length-4 counts"),
         ),
         # #797 op (a2): holographic erasure code (rc27; F353 substitute).
@@ -2143,7 +2143,7 @@ def _register_primitive_class_tools() -> None:
                     "copies (#797 op (a2), F353): any one replica-subregion "
                     "(1/replicas) reconstructs the whole — k=3-CORRECT with no "
                     "Z3. replicas=4 → 3/4 known-erasure, 1/4 blind correction.",
-            parameters=(P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),
+            parameters=(P("v", "HV", True, "uint8 {0,1,2,3}"),
                         P("replicas", "int", False, "redundant copies; default 4")),
             returns=R("HV", "uint8 store of length len(v)*replicas"),
         ),
@@ -2154,9 +2154,9 @@ def _register_primitive_class_tools() -> None:
                     "encoding. erased=mask → first-surviving-replica (exact up "
                     "to (replicas-1)/replicas known erasure); erased=None → "
                     "per-position majority (blind, corrects ≤floor((r-1)/2)).",
-            parameters=(P("store", "np.ndarray", True, "uint8; len % replicas == 0"),
+            parameters=(P("store", "HV", True, "uint8; len % replicas == 0"),
                         P("replicas", "int", False, "replica count from encode"),
-                        P("erased", "Optional[np.ndarray]", False,
+                        P("erased", "Optional[HV]", False,
                           "bool mask over store; True = erased")),
             returns=R("HV", "uint8 reconstructed length len(store)//replicas"),
         ),
@@ -2170,7 +2170,7 @@ def _register_primitive_class_tools() -> None:
                     "[v,T(v),T²(v)] (#797 op (a1), F359): the third block T²v is "
                     "the order-3 third vote past the order-2 4-cap, NOT an "
                     "external 3rd render. Paired with klein4_triality_correct.",
-            parameters=(P("v", "np.ndarray", True, "uint8 {0,1,2,3}"),),
+            parameters=(P("v", "HV", True, "uint8 {0,1,2,3}"),),
             returns=R("HV", "uint8 store of length len(v)*3 = [v|T(v)|T²(v)]"),
         ),
         ToolEntry(
@@ -2181,7 +2181,7 @@ def _register_primitive_class_tools() -> None:
                     "common v-frame (T⁻¹/T) then majority-vote — k=3-CORRECT vs "
                     "the bare order-2 k=2-DETECT. depth!=1 raises (width-only; the "
                     "continuum count-recursion is open math, F359 bar 5).",
-            parameters=(P("store", "np.ndarray", True, "uint8; len % 3 == 0"),
+            parameters=(P("store", "HV", True, "uint8; len % 3 == 0"),
                         P("depth", "int", False, "only 1 (the width-step) in-domain")),
             returns=R("HV", "uint8 reconstructed length len(store)//3"),
         ),
@@ -2196,8 +2196,8 @@ def _register_primitive_class_tools() -> None:
                     "the k=7 gauge ARITHMETIC triality is blind to (F271). M∘C "
                     "with a Class-K associator residue; NO new class. Baez 2002.",
             parameters=(
-                P("x", "np.ndarray", True, "power-of-two vector (dim 8 = octonion)"),
-                P("y", "np.ndarray", True, "same length as x"),
+                P("x", "HV", True, "power-of-two vector (dim 8 = octonion)"),
+                P("y", "HV", True, "same length as x"),
             ),
             returns=R("list[float]", "the product x·y, same length"),
         ),
@@ -2205,28 +2205,28 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.hdc.loop_conj", owner="srmech", category="hdc",
             summary="Octonion conjugate x̄ — negate the imaginary part, keep the "
                     "real anchor x[0]. The Class-C flip powering the unbind.",
-            parameters=(P("x", "np.ndarray", True, "power-of-two vector"),),
+            parameters=(P("x", "HV", True, "power-of-two vector"),),
             returns=R("list[float]", "conjugate, same length"),
         ),
         ToolEntry(
             name="srmech.amsc.hdc.loop_inv", owner="srmech", category="hdc",
             summary="Moufang inverse x⁻¹ = x̄/⟨x,x⟩ — the unbind key; "
                     "loop_bind(x, loop_inv(x))=e₀. Class-K norm² gate, no abs().",
-            parameters=(P("x", "np.ndarray", True, "nonzero power-of-two vector"),),
+            parameters=(P("x", "HV", True, "nonzero power-of-two vector"),),
             returns=R("list[float]", "inverse, same length"),
         ),
         ToolEntry(
             name="srmech.amsc.hdc.loop_left_op", owner="srmech", category="hdc",
             summary="Left-multiplication operator L_a(x)=a·x (the (4:3) "
                     "ordering) as a dim×dim matrix. L_a≠R_a≠R_aᵀ.",
-            parameters=(P("a", "np.ndarray", True, "power-of-two vector"),),
+            parameters=(P("a", "HV", True, "power-of-two vector"),),
             returns=R("Mat", "dim×dim matrix"),
         ),
         ToolEntry(
             name="srmech.amsc.hdc.loop_right_op", owner="srmech", category="hdc",
             summary="Right-multiplication operator R_a(x)=x·a (the (3:4) mirror "
                     "ordering) as a dim×dim matrix.",
-            parameters=(P("a", "np.ndarray", True, "power-of-two vector"),),
+            parameters=(P("a", "HV", True, "power-of-two vector"),),
             returns=R("Mat", "dim×dim matrix"),
         ),
         ToolEntry(
@@ -2235,9 +2235,9 @@ def _register_primitive_class_tools() -> None:
                     "loop bind (zero on a Fano line, nonzero off it = the "
                     "(4:3)|(3:4) boundary). =−([L_a,R_b]·c-style residue).",
             parameters=(
-                P("a", "np.ndarray", True, "power-of-two vector"),
-                P("b", "np.ndarray", True, "same length"),
-                P("c", "np.ndarray", True, "same length"),
+                P("a", "HV", True, "power-of-two vector"),
+                P("b", "HV", True, "same length"),
+                P("c", "HV", True, "same length"),
             ),
             returns=R("list[float]", "the associator, same length"),
         ),
@@ -2252,8 +2252,8 @@ def _register_primitive_class_tools() -> None:
                     "M (bind) ∘ C (imaginary-part ordering). Identity "
                     "‖x×y‖²=‖x‖²‖y‖²−⟨x,y⟩². Baez 2002 §4.",
             parameters=(
-                P("x", "np.ndarray", True, "power-of-two vector (dim 8 = octonion)"),
-                P("y", "np.ndarray", True, "same length as x"),
+                P("x", "HV", True, "power-of-two vector (dim 8 = octonion)"),
+                P("y", "HV", True, "same length as x"),
             ),
             returns=R("list[float]", "x×y, same length (e₀ component zero)"),
         ),
@@ -2264,9 +2264,9 @@ def _register_primitive_class_tools() -> None:
                     "7 Fano associative 3-planes, 0 on the other 28 triples. "
                     "(M∘C)∘⟨·,·⟩ contraction (Class-L/M). Harvey–Lawson 1982.",
             parameters=(
-                P("x", "np.ndarray", True, "power-of-two vector"),
-                P("y", "np.ndarray", True, "same length"),
-                P("z", "np.ndarray", True, "same length"),
+                P("x", "HV", True, "power-of-two vector"),
+                P("y", "HV", True, "same length"),
+                P("z", "HV", True, "same length"),
             ),
             returns=R("float", "the 3-form value (scalar)"),
         ),
@@ -2283,8 +2283,8 @@ def _register_primitive_class_tools() -> None:
                     "bind (capacity-free, #812). M over a direct-sum tile; no new "
                     "class. F289.",
             parameters=(
-                P("x", "np.ndarray", True, "length = positive multiple of 8"),
-                P("y", "np.ndarray", True, "same length as x"),
+                P("x", "HV", True, "length = positive multiple of 8"),
+                P("y", "HV", True, "same length as x"),
             ),
             returns=R("list[float]", "the block-wise product, same length"),
         ),
@@ -2295,8 +2295,8 @@ def _register_primitive_class_tools() -> None:
                     "(conj(a)·(a·v)=v by alternativity). Class-K clean; no abs(). "
                     "F289.",
             parameters=(
-                P("a", "np.ndarray", True, "length = positive multiple of 8"),
-                P("b", "np.ndarray", True, "same length as a"),
+                P("a", "HV", True, "length = positive multiple of 8"),
+                P("b", "HV", True, "same length as a"),
             ),
             returns=R("list[float]", "the unbound vector, same length"),
         ),
@@ -2308,7 +2308,7 @@ def _register_primitive_class_tools() -> None:
                     "silently wrong on an HD block vector; this is per-block. "
                     "Class C; no new class. F-§12.1.",
             parameters=(
-                P("x", "np.ndarray", True, "length = positive multiple of 8"),
+                P("x", "HV", True, "length = positive multiple of 8"),
             ),
             returns=R("list[float]", "the per-block conjugate, same length"),
         ),
@@ -2320,7 +2320,7 @@ def _register_primitive_class_tools() -> None:
                     "wrong on an HD block vector; this is per-block. Class-K "
                     "clean (per-block norm² gate, no abs()). F-§12.1.",
             parameters=(
-                P("x", "np.ndarray", True, "length = positive multiple of 8"),
+                P("x", "HV", True, "length = positive multiple of 8"),
             ),
             returns=R("list[float]", "the per-block inverse, same length"),
         ),
@@ -2333,8 +2333,8 @@ def _register_primitive_class_tools() -> None:
                     "Right-division for a left-fold sequence store. Class-K "
                     "clean; no abs(). F-§12.2.",
             parameters=(
-                P("a", "np.ndarray", True, "length = positive multiple of 8"),
-                P("b", "np.ndarray", True, "same length as a"),
+                P("a", "HV", True, "length = positive multiple of 8"),
+                P("b", "HV", True, "same length as a"),
             ),
             returns=R("list[float]", "the right-unbound vector, same length"),
         ),
@@ -2348,7 +2348,7 @@ def _register_primitive_class_tools() -> None:
                     "bit-arrays. Class K (bipolar sign-projection) ∘ Class L "
                     "(signed-magnitude-squared) composition; squared coupling "
                     "strength in [0, n_sources²].",
-            parameters=(P("sources", "Sequence[np.ndarray]", True,
+            parameters=(P("sources", "Sequence[Vec]", True,
                           "non-empty, equal-length 1-D arrays of bits {0,1}"),),
             returns=R("Vec", "squared signed-sum per position (numpy-free 1-D "
                              "carrier; integer scores exact as float64)"),
@@ -3118,8 +3118,8 @@ def _register_spectral_runtime_tools() -> None:
                     "Class L (Hermitian eigendecomposition; Chung 1997) ∘ "
                     "Class A (SHA-256 content-addressing for cache + "
                     "integrity)." + PUBLISH_OPT_IN_NOTE,
-            parameters=(P("state", "np.ndarray", True, "(n,) state vector"),
-                        P("laplacian", "np.ndarray", True, "(n, n) Hermitian"),
+            parameters=(P("state", "Vec", True, "(n,) state vector"),
+                        P("laplacian", "Mat", True, "(n, n) Hermitian"),
                         P("encoder_tag", "str", False, "default 'default'")),
             returns=R("SpectralHandle", "frozen dataclass"),
         ),
@@ -3144,7 +3144,7 @@ def _register_spectral_runtime_tools() -> None:
                     "Class M (SHA-256 content integrity check on handle)."
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(P("handle", "SpectralHandle", True),
-                        P("laplacian", "np.ndarray", True),
+                        P("laplacian", "Mat", True),
                         P("encoder_tag", "str", False, "default 'default'")),
             returns=R("list[complex]", "(n_modes,) complex128"),
         ),
@@ -3174,7 +3174,7 @@ def _register_spectral_runtime_tools() -> None:
                     "MS #14 rcN+2 anchor. Magnitudes preserved (unitary); "
                     "phase evolves per eigenmode." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("handle", "SpectralHandle", True),
-                        P("laplacian", "np.ndarray", True),
+                        P("laplacian", "Mat", True),
                         P("steps", "int", False, "default 1; ticks forward"),
                         P("dt", "float", False, "default 1.0; tick magnitude"),
                         P("encoder_tag", "str", False, "default 'default'")),
@@ -3242,8 +3242,8 @@ def _register_qm_tools() -> None:
             category="qm.single_particle",
             summary="Closed-form TDSE evolution ψ(t) = V·diag(exp(-iλt))·V^H ψ(0) "
                     "via Hermitian eigenbasis. Schrödinger (1926); Sakurai §2.1.5.",
-            parameters=(P("H", "np.ndarray", True, "Hermitian (n, n)"),
-                        P("psi", "np.ndarray", True, "(n,)"),
+            parameters=(P("H", "Mat", True, "Hermitian (n, n)"),
+                        P("psi", "Vec", True, "(n,)"),
                         P("t", "float", True)),
             returns=R("list[complex]", "(n,) complex"),
         ),
@@ -3252,7 +3252,7 @@ def _register_qm_tools() -> None:
             category="qm.single_particle",
             summary="Time-Independent Schrödinger H ψ_n = E_n ψ_n. "
                     "Schrödinger (1926); Sakurai §2.1.3.",
-            parameters=(P("H", "np.ndarray", True, "Hermitian (n, n)"),),
+            parameters=(P("H", "Mat", True, "Hermitian (n, n)"),),
             returns=R("tuple[Mat, Mat]",
                       "(eigenvalues, eigenvectors)"),
         ),
@@ -3260,7 +3260,7 @@ def _register_qm_tools() -> None:
             name="srmech.qm.single_particle.commutator", owner="srmech",
             category="qm.single_particle",
             summary="Operator commutator [A, B] = AB − BA. Sakurai §1.4.",
-            parameters=(P("A", "np.ndarray", True), P("B", "np.ndarray", True)),
+            parameters=(P("A", "Mat", True), P("B", "Mat", True)),
             returns=R("Mat", "(n, n)"),
         ),
         ToolEntry(
@@ -3268,7 +3268,7 @@ def _register_qm_tools() -> None:
             category="qm.single_particle",
             summary="Heisenberg-picture operator evolution A_H(t) = U†(t) A U(t). "
                     "Heisenberg (1925); Sakurai §2.2.",
-            parameters=(P("A", "np.ndarray", True), P("H", "np.ndarray", True),
+            parameters=(P("A", "Mat", True), P("H", "Mat", True),
                         P("t", "float", True)),
             returns=R("Mat", "(n, n) complex"),
         ),
@@ -3286,7 +3286,7 @@ def _register_qm_tools() -> None:
             category="qm.single_particle",
             summary="Pure-state density matrix ρ = |ψ⟩⟨ψ|. "
                     "von Neumann (1932); Sakurai §3.4.",
-            parameters=(P("psi", "np.ndarray", True, "(n,)"),),
+            parameters=(P("psi", "Vec", True, "(n,)"),),
             returns=R("Mat", "(n, n) Hermitian PSD"),
         ),
         ToolEntry(
@@ -3294,7 +3294,7 @@ def _register_qm_tools() -> None:
             category="qm.single_particle",
             summary="Liouville-von Neumann ρ(t) = U(t) ρ(0) U†(t). "
                     "von Neumann (1932); Sakurai §3.4.2.",
-            parameters=(P("rho", "np.ndarray", True), P("H", "np.ndarray", True),
+            parameters=(P("rho", "Mat", True), P("H", "Mat", True),
                         P("t", "float", True)),
             returns=R("Mat", "(n, n)"),
         ),
@@ -3330,7 +3330,7 @@ def _register_qm_tools() -> None:
             category="qm.spin",
             summary="Spin-½ projection S_n = (1/2) σ · n̂ for arbitrary axis. "
                     "Sakurai §3.2 eq 3.2.51.",
-            parameters=(P("direction", "np.ndarray", True, "3-vector"),),
+            parameters=(P("direction", "Vec", True, "3-vector"),),
             returns=R("Mat", "2×2 Hermitian, eigenvalues ±½"),
         ),
 
@@ -3362,7 +3362,7 @@ def _register_qm_tools() -> None:
             category="qm.bell",
             summary="Spectral norm max|λ_i| of a Hermitian matrix via Class L "
                     "hermitian_eigendecompose. Golub & Van Loan §8.5.",
-            parameters=(P("H", "np.ndarray", True, "Hermitian square"),),
+            parameters=(P("H", "Mat", True, "Hermitian square"),),
             returns=R("float", "largest absolute eigenvalue"),
         ),
         ToolEntry(
@@ -3504,7 +3504,7 @@ def _register_qm_tools() -> None:
             owner="srmech", category="qm.relativistic",
             summary="Dirac operator (γ^μ k_μ − m I_4) in momentum space. "
                     "Dirac (1928); Peskin-Schroeder §3.2.",
-            parameters=(P("k", "np.ndarray", True, "4-vector"),
+            parameters=(P("k", "Vec", True, "4-vector"),
                         P("m", "float", True, "mass")),
             returns=R("Mat", "4×4 complex"),
         ),
@@ -3513,7 +3513,7 @@ def _register_qm_tools() -> None:
             owner="srmech", category="qm.relativistic",
             summary="Klein-Gordon dispersion E = +√(|k|² + m²). "
                     "Klein/Gordon (1926); Peskin-Schroeder §2.3.",
-            parameters=(P("k_spatial", "np.ndarray", True, "3-vector"),
+            parameters=(P("k_spatial", "Vec", True, "3-vector"),
                         P("m", "float", True, "≥ 0")),
             returns=R("float", "positive on-shell energy"),
         ),
@@ -3521,7 +3521,7 @@ def _register_qm_tools() -> None:
             name="srmech.qm.relativistic.four_momentum_squared", owner="srmech",
             category="qm.relativistic",
             summary="Lorentz-invariant k² = k_μ k^μ (mostly-minus convention).",
-            parameters=(P("k", "np.ndarray", True, "4-vector"),),
+            parameters=(P("k", "Vec", True, "4-vector"),),
             returns=R("float", "may be negative for spacelike k"),
         ),
 
@@ -3543,7 +3543,7 @@ def _register_qm_tools() -> None:
             owner="srmech", category="qm.propagators",
             summary="Fermion Feynman propagator S_F(k) = i(γ^μ k_μ + m) / "
                     "(k² − m² + iε). Peskin-Schroeder §4.7.",
-            parameters=(P("k", "np.ndarray", True, "4-vector"),
+            parameters=(P("k", "Vec", True, "4-vector"),
                         P("m", "float", True),
                         P("epsilon", "float", False)),
             returns=R("Mat", "4×4 complex"),
@@ -3556,7 +3556,7 @@ def _register_qm_tools() -> None:
             parameters=(P("k_squared", "float", True),
                         P("gauge_xi", "float", False, "default 0 ⇒ Feynman"),
                         P("epsilon", "float", False),
-                        P("k", "Optional[np.ndarray]", False)),
+                        P("k", "Optional[Vec]", False)),
             returns=R("Mat", "4×4 complex"),
         ),
         ToolEntry(
@@ -3564,7 +3564,7 @@ def _register_qm_tools() -> None:
             owner="srmech", category="qm.propagators",
             summary="Massive vector propagator D^{μν}(k) = -i (g^{μν} − k^μ k^ν/m²) "
                     "/ (k² − m² + iε). Peskin-Schroeder §20.1.",
-            parameters=(P("k", "np.ndarray", True),
+            parameters=(P("k", "Vec", True),
                         P("m", "float", True, "> 0"),
                         P("epsilon", "float", False)),
             returns=R("Mat", "4×4 complex"),
@@ -3578,8 +3578,8 @@ def _register_qm_tools() -> None:
             category="qm.pseudo_hermitian",
             summary="η-deformed inner product ⟨a|b⟩_η = a^† η b. "
                     "Mostafazadeh (2002).",
-            parameters=(P("a", "np.ndarray", True), P("b", "np.ndarray", True),
-                        P("eta", "np.ndarray", True)),
+            parameters=(P("a", "Vec", True), P("b", "Vec", True),
+                        P("eta", "Mat", True)),
             returns=R("complex", ""),
         ),
         ToolEntry(
@@ -3587,8 +3587,8 @@ def _register_qm_tools() -> None:
             category="qm.pseudo_hermitian",
             summary="η-expectation ⟨O⟩_η = ⟨ψ|η O|ψ⟩ / ⟨ψ|η|ψ⟩. "
                     "Mostafazadeh (2002).",
-            parameters=(P("O", "np.ndarray", True), P("psi", "np.ndarray", True),
-                        P("eta", "np.ndarray", True)),
+            parameters=(P("O", "Mat", True), P("psi", "Vec", True),
+                        P("eta", "Mat", True)),
             returns=R("complex", ""),
         ),
         ToolEntry(
@@ -3596,7 +3596,7 @@ def _register_qm_tools() -> None:
             category="qm.pseudo_hermitian",
             summary="Check O† η = η O (η-pseudo-Hermiticity). "
                     "Mostafazadeh (2002).",
-            parameters=(P("O", "np.ndarray", True), P("eta", "np.ndarray", True),
+            parameters=(P("O", "Mat", True), P("eta", "Mat", True),
                         P("atol", "float", False)),
             returns=R("bool", ""),
         ),
@@ -3605,7 +3605,7 @@ def _register_qm_tools() -> None:
             owner="srmech", category="qm.pseudo_hermitian",
             summary="Construct positive η = (V V†)^{-1} from O's eigendecomposition "
                     "so that O is η-pseudo-Hermitian. Mostafazadeh (2002).",
-            parameters=(P("O", "np.ndarray", True),
+            parameters=(P("O", "Mat", True),
                         P("atol", "float", False)),
             returns=R("Mat", "Hermitian η"),
         ),
@@ -3614,7 +3614,7 @@ def _register_qm_tools() -> None:
             owner="srmech", category="qm.pseudo_hermitian",
             summary="Verify η-pseudo-Hermitian O has real eigenvalues (Mostafazadeh "
                     "theorem). Bender-Boettcher (1998); Mostafazadeh (2002).",
-            parameters=(P("O", "np.ndarray", True), P("eta", "np.ndarray", True),
+            parameters=(P("O", "Mat", True), P("eta", "Mat", True),
                         P("atol", "float", False)),
             returns=R("bool", ""),
         ),
@@ -3663,15 +3663,15 @@ def _register_qm_tools() -> None:
             category="qm.gauge",
             summary="Max Frobenius violation of [T^a, T^b] = i f^{abc} T^c. "
                     "Peskin-Schroeder §15.1.",
-            parameters=(P("generators", "tuple[np.ndarray, ...]", True),
-                        P("structure_constants", "np.ndarray", True)),
+            parameters=(P("generators", "tuple[Mat, ...]", True),
+                        P("structure_constants", "list[list[list[float]]]", True)),
             returns=R("float", ""),
         ),
         ToolEntry(
             name="srmech.qm.gauge.casimir_operator", owner="srmech",
             category="qm.gauge",
             summary="Quadratic Casimir C_2 = T^a T^a (sum). Peskin-Schroeder §15.4.",
-            parameters=(P("generators", "tuple[np.ndarray, ...]", True),),
+            parameters=(P("generators", "tuple[Mat, ...]", True),),
             returns=R("Mat", "= C_2(R) · I by Schur"),
         ),
         ToolEntry(
@@ -3679,15 +3679,15 @@ def _register_qm_tools() -> None:
             category="qm.gauge",
             summary="Scalar Casimir eigenvalue C_2(R) for irreducible rep. "
                     "Fundamental: 3/4 (SU(2)), 4/3 (SU(3)).",
-            parameters=(P("generators", "tuple[np.ndarray, ...]", True),),
+            parameters=(P("generators", "tuple[Mat, ...]", True),),
             returns=R("float", "≥ 0"),
         ),
         ToolEntry(
             name="srmech.qm.gauge.gauge_connection_matrix", owner="srmech",
             category="qm.gauge",
             summary="Lie-algebra connection A = A^a T^a (Hermitian).",
-            parameters=(P("A_components", "np.ndarray", True),
-                        P("generators", "tuple[np.ndarray, ...]", True)),
+            parameters=(P("A_components", "Vec", True),
+                        P("generators", "tuple[Mat, ...]", True)),
             returns=R("Mat", ""),
         ),
         ToolEntry(
@@ -3695,8 +3695,8 @@ def _register_qm_tools() -> None:
             category="qm.gauge",
             summary="Path-segment holonomy U = exp(i g A^a T^a) via Hermitian "
                     "eigendecomp (no scipy). Wilson (1974); Peskin-Schroeder §15.3.",
-            parameters=(P("A_components", "np.ndarray", True),
-                        P("generators", "tuple[np.ndarray, ...]", True),
+            parameters=(P("A_components", "Vec", True),
+                        P("generators", "tuple[Mat, ...]", True),
                         P("coupling", "float", False, "default 1.0")),
             returns=R("Mat", "unitary"),
         ),
@@ -3705,9 +3705,9 @@ def _register_qm_tools() -> None:
             category="qm.gauge",
             summary="Discrete Wilson loop U(C) = ∏_k exp(i g A_k^a T^a) in path "
                     "order. Wilson (1974).",
-            parameters=(P("A_segments", "np.ndarray", True,
+            parameters=(P("A_segments", "Mat", True,
                           "(n_segments, n_gen)"),
-                        P("generators", "tuple[np.ndarray, ...]", True),
+                        P("generators", "tuple[Mat, ...]", True),
                         P("coupling", "float", False)),
             returns=R("Mat", "unitary"),
         ),
@@ -3791,7 +3791,7 @@ def _register_qm_tools() -> None:
             name="srmech.qm.sm.ckm_unitarity_residual", owner="srmech",
             category="qm.sm",
             summary="Frobenius norm of V V† − I. PDG §12.1.",
-            parameters=(P("V", "np.ndarray", True),),
+            parameters=(P("V", "Mat", True),),
             returns=R("float", "~0"),
         ),
 
@@ -3826,7 +3826,7 @@ def _register_qm_tools() -> None:
             summary="Left-multiplication matrix L_a (x → a·x) as 8×8 real; "
                     "L_{e_i} (i≥1) is antisymmetric ∈ so(8). Class M "
                     "(binding). Baez (2002) §2.3-2.4.",
-            parameters=(P("a", "np.ndarray", True, "8-vector octonion"),),
+            parameters=(P("a", "HV", True, "8-vector octonion"),),
             returns=R("Mat", "8×8 L_a"),
         ),
         ToolEntry(
@@ -3835,7 +3835,7 @@ def _register_qm_tools() -> None:
             summary="Right-multiplication matrix R_a (x → x·a) as 8×8 real; "
                     "R_{e_i} (i≥1) is antisymmetric ∈ so(8). Class M "
                     "(binding). Baez (2002) §2.3-2.4.",
-            parameters=(P("a", "np.ndarray", True, "8-vector octonion"),),
+            parameters=(P("a", "HV", True, "8-vector octonion"),),
             returns=R("Mat", "8×8 R_a"),
         ),
         ToolEntry(
@@ -3844,7 +3844,7 @@ def _register_qm_tools() -> None:
             summary="Octonion conjugate conj(x) = (x_0, -x_1, …, -x_7); flips "
                     "the imaginary-axis signs. Class C (orientation). "
                     "Baez (2002) §2.1.",
-            parameters=(P("x", "np.ndarray", True, "8-vector"),),
+            parameters=(P("x", "HV", True, "8-vector"),),
             returns=R("list[float]", "8-vector"),
         ),
         ToolEntry(
@@ -3853,7 +3853,7 @@ def _register_qm_tools() -> None:
             summary="Octonion norm √(Σ x_i²) via the scalar Class K pin-slot "
                     "magnitude (cascade.magnitude) then sqrt — never abs(). "
                     "Class K∘C. Baez (2002) §2.1.",
-            parameters=(P("x", "np.ndarray", True, "8-vector"),),
+            parameters=(P("x", "HV", True, "8-vector"),),
             returns=R("float", "≥ 0; Class K+C, never abs()"),
         ),
 
@@ -4009,7 +4009,7 @@ def _register_qm_tools() -> None:
                     "distance (Class I frame-transport ∘ Class M companions). "
                     "Raises on a wrong shape or unknown frame. "
                     "Baez (2002) §2.4; Cartan (1925).",
-            parameters=(P("x", "np.ndarray", True, "8-vector"),
+            parameters=(P("x", "HV", True, "8-vector"),
                         P("from_frame", "str", True, "source frame label"),
                         P("to_frame", "str", True, "target frame label")),
             returns=R("list[float]", "8-vector in to_frame"),
@@ -4021,7 +4021,7 @@ def _register_qm_tools() -> None:
                     "g_v(x·y) = g_s(x)·y + x·g_c(y) by deterministic "
                     "least-squares; for a g2 derivation g_s = g_c = g_v. "
                     "Class M. Baez (2002) §2.4.",
-            parameters=(P("g_v", "np.ndarray", True, "8×8 so(8) generator"),),
+            parameters=(P("g_v", "Mat", True, "8×8 so(8) generator"),),
             returns=R("tuple[Mat, ...]", "(g_s, g_c) companions"),
         ),
         ToolEntry(
@@ -4031,9 +4031,9 @@ def _register_qm_tools() -> None:
                     "g_s(e_i)·e_j − e_i·g_c(e_j)‖ via the scalar Class K "
                     "pin-slot magnitude (never abs()); 0 when correct. "
                     "Class K∘C. Baez (2002) §2.4.",
-            parameters=(P("g_v", "np.ndarray", True, "8×8 generator"),
-                        P("g_s", "np.ndarray", True, "8×8 8_s companion"),
-                        P("g_c", "np.ndarray", True, "8×8 8_c companion")),
+            parameters=(P("g_v", "Mat", True, "8×8 generator"),
+                        P("g_s", "Mat", True, "8×8 8_s companion"),
+                        P("g_c", "Mat", True, "8×8 8_c companion")),
             returns=R("float", "0 when the Cartan relation holds"),
         ),
         ToolEntry(

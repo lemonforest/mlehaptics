@@ -319,9 +319,9 @@ _I8P = ctypes.POINTER(ctypes.c_int8)
 def _as_polar(v, op: str) -> "array":
     """Validate + copy a polar value into an ``array('b')`` (int8) buffer.
 
-    Accepts any 1-D sequence (``array('b')`` / list / tuple / ndarray);
-    elements must be in ``{-1, 0, +1}``. The numpy-free path — ``np`` is never
-    imported or touched here (rc125)."""
+    Accepts any 1-D sequence (``array('b')`` / list / tuple — the carrier is
+    agnostic about the source shape); elements must be in ``{-1, 0, +1}``. The
+    numpy-free path — ``np`` is never imported or touched here (rc125)."""
     src = v.buffer if isinstance(v, HV) else v
     buf = array("b")
     try:
@@ -565,10 +565,10 @@ def _as_klein4(v, op: str):
 def _as_klein4_buf(v, op: str) -> "array":
     """Validate + copy a Klein-4 value into an ``array('B')`` working buffer.
 
-    Accepts an :class:`HV`, ``bytes`` / ``bytearray`` / ``array('B')``, a
-    ``list`` / ``tuple`` / generator of ints, or a 1-D ``numpy.ndarray``
-    (back-compat for research callers). Elements must be in ``{0, 1, 2, 3}``.
-    The numpy-free path — ``np`` is never imported or touched here."""
+    Accepts an :class:`HV`, ``bytes`` / ``bytearray`` / ``array('B')``, or a
+    ``list`` / ``tuple`` / generator of ints (the carrier is agnostic about the
+    source shape). Elements must be in ``{0, 1, 2, 3}``. The numpy-free path —
+    ``np`` is never imported or touched here."""
     src = v.buffer if isinstance(v, HV) else v
     buf = array("B")
     try:
@@ -589,7 +589,7 @@ def _as_klein4_buf(v, op: str) -> "array":
 
 
 def _store_buf(store, op: str) -> "array":
-    """Copy a 1-D uint8 store (HV / bytes / array / list / ndarray) into an
+    """Copy a 1-D uint8 store (HV / bytes / array / list — agnostic source) into an
     ``array('B')`` — the lenient buffer used by the holographic decode (elements
     are any uint8, not restricted to ``{0, 1, 2, 3}``). Numpy-free."""
     src = store.buffer if isinstance(store, HV) else store

@@ -207,6 +207,93 @@ def _to_mat(value: Any, *, param: str = "") -> Any:
     return Mat.from_rows([list(r) for r in value], is_complex=False)
 
 
+def _to_vec(value: Any, *, param: str = "") -> Any:
+    """Coerce a flat JSON list to the **natural flat Python list** — the
+    numpy-free wire form for a ``Vec``-typed (1-D carrier) param (v0.7.5rc132).
+
+    The carrier is AGNOSTIC about input: every numpy-free op that takes a 1-D
+    operand iterates it (``[float(x) for x in v]`` / ``Vec.from_sequence(v)`` /
+    a length-n scan), so a flat ``list`` / ``tuple`` / ``array.array`` / ``Vec``
+    are all accepted. The honest, minimal coercer therefore produces the flat
+    Python structure (a ``list``) and lets the op's own acceptance handle the
+    final carrier — never wraps numpy. A value already a ``Vec`` (an in-process
+    caller) passes through unchanged."""
+    from srmech.amsc.vec import Vec  # numpy-free 1-D carrier; lazy to avoid a cycle
+    if isinstance(value, Vec):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return value
+
+
+def _to_hv(value: Any, *, param: str = "") -> Any:
+    """Coerce a flat JSON int list to the **natural flat Python list** — the
+    numpy-free wire form for an ``HV``-typed (hypervector byte carrier) param
+    (v0.7.5rc132).
+
+    The carrier is AGNOSTIC about input: the hdc / genome / octonion ops that
+    take a hypervector validate it through their own ``_as_klein4_buf`` /
+    ``_as_polar`` / ``_as_loop`` (each iterates a ``list`` / ``tuple`` /
+    ``array.array`` / ``HV`` / ``bytes`` and casts per-element), so the honest,
+    minimal coercer produces the flat Python structure (a ``list``) and lets the
+    op's own acceptance build the final ``HV`` / ``array('B')`` / ``list[float]``.
+    A value already an ``HV`` (an in-process caller) passes through unchanged."""
+    from srmech.amsc.hv import HV  # numpy-free hypervector carrier; lazy
+    if isinstance(value, HV):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return value
+
+
+def _to_mat_or_vec(value: Any, *, param: str = "") -> Any:
+    """Coerce a ``Mat | Vec`` (shape-polymorphic) param: a nested list rides as
+    a 2-D matrix, a flat list as a 1-D vector — both pass through as the natural
+    Python structure (the numpy-free op's ``_as_rows`` / shape-polymorphic kernel
+    inspects nesting). A ``Mat`` / ``Vec`` / tuple is accepted too; the op is the
+    canonical validator (v0.7.5rc132)."""
+    if isinstance(value, tuple):
+        return list(value)
+    return value
+
+
+def _seq_vec(value: Any, *, param: str = "") -> List[Any]:
+    """``Sequence[Vec]`` -> list of flat lists (each a 1-D operand; numpy-free
+    wire form). The op iterates each element, so a flat ``list`` / ``tuple`` /
+    ``Vec`` per slot is accepted (v0.7.5rc132)."""
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"expected a list of 1-D vectors for param "
+            f"{param or '<seq-vec>'!r}; got {type(value).__name__}"
+        )
+    return [_to_vec(v, param=param) for v in value]
+
+
+def _seq_hv(value: Any, *, param: str = "") -> List[Any]:
+    """``Sequence[HV]`` -> list of flat lists (each a hypervector; numpy-free
+    wire form). The genome / hdc ops iterate each element, so a flat ``list`` /
+    ``tuple`` / ``HV`` per slot is accepted (v0.7.5rc132)."""
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"expected a list of hypervectors for param "
+            f"{param or '<seq-hv>'!r}; got {type(value).__name__}"
+        )
+    return [_to_hv(v, param=param) for v in value]
+
+
+def _tuple_mat(value: Any, *, param: str = "") -> Tuple[Any, ...]:
+    """``tuple[Mat, ...]`` -> tuple of nested lists (the QM gauge / einsum ops
+    take a *tuple* of matrices / arrays). Each element passes through as its
+    natural nested-list structure; the op is the canonical validator. JSON has
+    no tuple, so a list arrives and is re-tupled (v0.7.5rc132)."""
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"expected a list of matrices for param "
+            f"{param or '<tuple-mat>'!r}; got {type(value).__name__}"
+        )
+    return tuple(value)
+
+
 def _is_re_im_leaf(value: Any) -> bool:
     """True iff ``value`` is a ``[re, im]`` leaf — a length-2 sequence of
     plain numbers (not a nested container)."""
@@ -452,12 +539,29 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # ── non-JSON scalar types (the core of the 65/158 fix) ──
     "bytes": _b64_to_bytes,
     "complex": _to_complex,
+    # ── numpy-free carrier-spirit param types (v0.7.5rc132). The carrier is
+    #    AGNOSTIC about input — the coercer produces the natural Python structure
+    #    (nested list for Mat, flat list for Vec/HV) and the op's own acceptance
+    #    builds the final carrier. NO numpy is ever named where a caller sees it. ──
+    "Mat": _to_mat,            # v0.7.5rc72: numpy-free 2-D carrier (mat_matmul bridge)
+    "Vec": _to_vec,            # v0.7.5rc132: numpy-free 1-D carrier
+    "HV": _to_hv,              # v0.7.5rc132: numpy-free hypervector byte carrier
+    "Optional[Vec]": _to_vec,
+    "Optional[HV]": _to_hv,
+    "Mat | Vec": _to_mat_or_vec,   # shape-polymorphic 2-D-or-1-D operand
+    # ── the legacy ``np.ndarray`` keys are KEPT (no param advertises them any
+    #    more, but the round-trip / wire-form tests still key off the historical
+    #    type-string) — both map to the numpy-free nested-list coercer. ──
     "np.ndarray": _to_ndarray,
     "Optional[np.ndarray]": _to_ndarray,
-    "Mat": _to_mat,  # v0.7.5rc72: numpy-free 2-D carrier (mat_matmul bridge)
     # ── container element-recursion ──
     "Sequence[bytes]": _seq_bytes,
     "list[bytes]": _seq_bytes,   # v0.7.0rc10: format.sha256_batch `datas`
+    "Sequence[Vec]": _seq_vec,   # v0.7.5rc132: coupling.signed_sum_squared sources
+    "Sequence[HV]": _seq_hv,     # v0.7.5rc132: genome / hdc bundle hypervector lists
+    "tuple[Mat, ...]": _tuple_mat,  # v0.7.5rc132: gauge generators / einsum operands
+    "list[list[list[float]]]": _identity,  # rank-3 nested list, JSON-native (gauge f^abc)
+    # ── legacy numpy-free Sequence/tuple keys kept for wire-form tests ──
     "Sequence[np.ndarray]": _seq_ndarray,
     "tuple[np.ndarray, ...]": _tuple_ndarray,
     "list[complex]": _seq_complex,            # v0.7.0rc36: spectral_cascades.{dft,idft}
