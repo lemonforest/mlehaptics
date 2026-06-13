@@ -121,23 +121,65 @@ class Mat:
         assert 0 <= i < self.n_rows and 0 <= j < self.n_cols, "Mat index out of range"
         return i * self.n_cols + j
 
-    def __getitem__(self, idx):
-        """``mat[i, j]`` → a PLAIN ``float`` / ``complex`` scalar (never a numpy
-        scalar); ``mat[i]`` (a single int) → row ``i`` as a :class:`~srmech.amsc.vec.Vec`
-        — the numpy single-index idiom, format-preserving (a ``Vec``, not a bare
-        list). For an explicit stdlib list use :meth:`row`."""
-        if isinstance(idx, tuple):
-            assert len(idx) == 2, "Mat index must be (i, j) or a single row int"
-            i, j = idx
-            flat = self._flat_index(i, j)
-            if self._complex:
-                return complex(self._buf[2 * flat], self._buf[2 * flat + 1])
-            return float(self._buf[flat])
-        from .vec import Vec  # local: vec.py is a sibling carrier, avoid import cycle
-        i = int(idx)
-        assert -self.n_rows <= i < self.n_rows, "Mat row index out of range"
+    def _norm_row(self, i: int) -> int:
         if i < 0:
             i += self.n_rows
+        assert 0 <= i < self.n_rows, "Mat row index out of range"
+        return i
+
+    def _norm_col(self, j: int) -> int:
+        if j < 0:
+            j += self.n_cols
+        assert 0 <= j < self.n_cols, "Mat column index out of range"
+        return j
+
+    def _scalar_at(self, i: int, j: int) -> Number:
+        """Element ``(i, j)`` (already-normalised, non-negative) → plain scalar."""
+        flat = i * self.n_cols + j
+        if self._complex:
+            return complex(self._buf[2 * flat], self._buf[2 * flat + 1])
+        return float(self._buf[flat])
+
+    def __getitem__(self, idx):
+        """numpy 2-D indexing — format-preserving + negative-aware (the rc133
+        numpy-reflex sink, so an LLM's ``m[...]`` routes through srmech, never
+        bails to ``np.asarray(m.tolist())``):
+
+        * ``m[i, j]`` → a PLAIN ``float`` / ``complex`` scalar (negatives OK);
+        * ``m[i]`` (single int) → row ``i`` as a :class:`~srmech.amsc.vec.Vec`;
+        * ``m[a:b]`` (row slice) → a :class:`Mat`;
+        * ``m[i, c:d]`` → that row's column-slice as a :class:`Vec`;
+        * ``m[a:b, j]`` — a column, incl. ``m[:, j]`` — → a :class:`Vec`;
+        * ``m[a:b, c:d]`` (sub-block) → a :class:`Mat`.
+
+        For an explicit stdlib list use :meth:`row`."""
+        from .vec import Vec  # local: vec.py is a sibling carrier, avoid cycle
+        if isinstance(idx, tuple):
+            assert len(idx) == 2, "Mat index must be (i, j) or a single row int/slice"
+            r, c = idx
+            r_slice = isinstance(r, slice)
+            c_slice = isinstance(c, slice)
+            if not r_slice and not c_slice:
+                return self._scalar_at(self._norm_row(int(r)), self._norm_col(int(c)))
+            if not r_slice:  # one row, a column-slice of it → Vec
+                i = self._norm_row(int(r))
+                cols = range(*c.indices(self.n_cols))
+                return Vec.from_sequence(
+                    [self._scalar_at(i, j) for j in cols], is_complex=self._complex)
+            if not c_slice:  # a column (rows-slice at fixed j) → Vec
+                j = self._norm_col(int(c))
+                rows = range(*r.indices(self.n_rows))
+                return Vec.from_sequence(
+                    [self._scalar_at(i, j) for i in rows], is_complex=self._complex)
+            rows = range(*r.indices(self.n_rows))  # both slices → sub-block Mat
+            cols = range(*c.indices(self.n_cols))
+            return Mat.from_rows(
+                [[self._scalar_at(i, j) for j in cols] for i in rows],
+                is_complex=self._complex)
+        if isinstance(idx, slice):  # row slice → Mat
+            rows = range(*idx.indices(self.n_rows))
+            return Mat.from_rows([self.row(i) for i in rows], is_complex=self._complex)
+        i = self._norm_row(int(idx))  # single int → row Vec (negative-aware)
         return Vec.from_sequence(self.row(i), is_complex=self._complex)
 
     def row(self, i: int) -> List[Number]:
@@ -188,6 +230,64 @@ class Mat:
             return (_L.dense_matmul_complex if cplx else _L.dense_matmul_real)(other, self)
         # row-vector · matrix = (Aᵀ · v): the left flat vector contracts rows.
         return (_L.dense_matvec_complex if cplx else _L.dense_matvec_real)(self.transpose(), other)
+
+    # ── elementwise / scalar arithmetic (the numpy ``+ - * /`` reflex sink) ───
+    def _elementwise(self, other, op, *, reflected: bool = False):
+        """``self ⊙ other`` (or ``other ⊙ self`` when reflected), elementwise,
+        for ``other`` a scalar (numpy-broadcast), a :class:`Mat`, or a 2-D
+        sequence of the SAME shape. Numpy-free; format-preserving. Note ``*`` is
+        the **elementwise** (Hadamard) product, exactly like numpy — matrix
+        multiply is ``@`` (:meth:`__matmul__`). Class-K sign lives in the values;
+        no ``abs()``."""
+        if isinstance(other, (int, float, complex)):
+            cplx = self._complex or (isinstance(other, complex) and other.imag != 0.0)
+            rows = [[(op(other, self._scalar_at(i, j)) if reflected
+                      else op(self._scalar_at(i, j), other))
+                     for j in range(self.n_cols)] for i in range(self.n_rows)]
+            return Mat.from_rows(rows, is_complex=cplx)
+        if isinstance(other, Mat):
+            o = other
+        elif _is_matrix_like(other):
+            o = Mat.from_rows(other.tolist() if hasattr(other, "tolist")
+                              else [list(r) for r in other])
+        else:
+            return NotImplemented  # e.g. a Vec → cross-rank broadcast unsupported
+        if o.shape != self.shape:
+            raise ValueError(f"Mat elementwise shape mismatch {self.shape} vs {o.shape}")
+        cplx = self._complex or o._complex
+        rows = [[(op(o._scalar_at(i, j), self._scalar_at(i, j)) if reflected
+                  else op(self._scalar_at(i, j), o._scalar_at(i, j)))
+                 for j in range(self.n_cols)] for i in range(self.n_rows)]
+        return Mat.from_rows(rows, is_complex=cplx)
+
+    def __add__(self, other):
+        return self._elementwise(other, lambda a, b: a + b)
+
+    def __radd__(self, other):
+        return self._elementwise(other, lambda a, b: a + b)
+
+    def __sub__(self, other):
+        return self._elementwise(other, lambda a, b: a - b)
+
+    def __rsub__(self, other):
+        return self._elementwise(other, lambda a, b: a - b, reflected=True)
+
+    def __mul__(self, other):
+        return self._elementwise(other, lambda a, b: a * b)
+
+    def __rmul__(self, other):
+        return self._elementwise(other, lambda a, b: a * b)
+
+    def __truediv__(self, other):
+        return self._elementwise(other, lambda a, b: a / b)
+
+    def __rtruediv__(self, other):
+        return self._elementwise(other, lambda a, b: a / b, reflected=True)
+
+    def __neg__(self):  # the Class-K sign-flip over every element
+        rows = [[-self._scalar_at(i, j) for j in range(self.n_cols)]
+                for i in range(self.n_rows)]
+        return Mat.from_rows(rows, is_complex=self._complex)
 
     def __eq__(self, other) -> bool:
         """Value-equality → a scalar ``bool`` (never an elementwise array).

@@ -109,9 +109,14 @@ class Vec:
     def __len__(self) -> int:
         return self._n
 
-    def __getitem__(self, i: int) -> Number:
-        """``vec[i]`` → a PLAIN ``float`` / ``complex`` (never a numpy scalar)."""
-        assert isinstance(i, int), "Vec index must be a plain int"
+    def __getitem__(self, i):
+        """``vec[i]`` → a PLAIN ``float`` / ``complex`` scalar (negatives OK);
+        ``vec[a:b]`` → a sub-:class:`Vec` (the rc133 slice idiom — so ``v[:2]`` /
+        ``v[-1]`` route through srmech instead of bailing to numpy)."""
+        if isinstance(i, slice):
+            return Vec.from_sequence(
+                [self[k] for k in range(*i.indices(self._n))], is_complex=self._complex)
+        i = int(i)
         if i < 0:
             i += self._n
         assert 0 <= i < self._n, "Vec index out of range"
@@ -160,6 +165,59 @@ class Vec:
         if _is_matrix_like(other):
             return (_L.dense_matvec_complex if cplx else _L.dense_matvec_real)(other, self)
         return (_L.dense_dot_complex if cplx else _L.dense_dot_real)(other, self)
+
+    # ── elementwise / scalar arithmetic (the numpy ``+ - * /`` reflex sink) ───
+    def _elementwise(self, other, op, *, reflected: bool = False):
+        """``self ⊙ other`` (or ``other ⊙ self`` when reflected), elementwise,
+        for ``other`` a scalar (numpy-broadcast), a :class:`Vec`, or a flat
+        sequence of the SAME length. Numpy-free; format-preserving; no ``abs()``
+        (Class-K sign lives in the values)."""
+        if isinstance(other, (int, float, complex)):
+            cplx = self._complex or (isinstance(other, complex) and other.imag != 0.0)
+            items = [(op(other, self[k]) if reflected else op(self[k], other))
+                     for k in range(self._n)]
+            return Vec.from_sequence(items, is_complex=cplx)
+        if isinstance(other, Vec):
+            o = other
+        elif hasattr(other, "shape") and len(getattr(other, "shape")) >= 2:
+            return NotImplemented  # a Mat / 2-D — cross-rank broadcast unsupported
+        elif hasattr(other, "__len__") and not isinstance(other, (str, bytes)):
+            o = Vec.from_sequence(other.tolist() if hasattr(other, "tolist") else list(other))
+        else:
+            return NotImplemented
+        if o._n != self._n:
+            raise ValueError(f"Vec elementwise length mismatch {self._n} vs {o._n}")
+        cplx = self._complex or o._complex
+        items = [(op(o[k], self[k]) if reflected else op(self[k], o[k]))
+                 for k in range(self._n)]
+        return Vec.from_sequence(items, is_complex=cplx)
+
+    def __add__(self, other):
+        return self._elementwise(other, lambda a, b: a + b)
+
+    def __radd__(self, other):
+        return self._elementwise(other, lambda a, b: a + b)
+
+    def __sub__(self, other):
+        return self._elementwise(other, lambda a, b: a - b)
+
+    def __rsub__(self, other):
+        return self._elementwise(other, lambda a, b: a - b, reflected=True)
+
+    def __mul__(self, other):
+        return self._elementwise(other, lambda a, b: a * b)
+
+    def __rmul__(self, other):
+        return self._elementwise(other, lambda a, b: a * b)
+
+    def __truediv__(self, other):
+        return self._elementwise(other, lambda a, b: a / b)
+
+    def __rtruediv__(self, other):
+        return self._elementwise(other, lambda a, b: a / b, reflected=True)
+
+    def __neg__(self):  # the Class-K sign-flip over every element
+        return Vec.from_sequence([-self[k] for k in range(self._n)], is_complex=self._complex)
 
     def __eq__(self, other) -> bool:
         """Value-equality → a scalar ``bool`` (never an elementwise array).
