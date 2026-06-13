@@ -1,8 +1,9 @@
 """Class B — tagged-tuple (TLV) byte-canonical form (Task #217 Phase C1).
 
-Single operation: :func:`tlv_pack` produces a deterministic
-``[tag][length BE-u32][value]`` byte sequence suitable for hashing /
-fingerprinting tagged records.
+:func:`tlv_pack` produces a deterministic ``[tag][length BE-u32][value]``
+byte sequence suitable for hashing / fingerprinting tagged records;
+:func:`tlv_unpack` is its inverse reader (returns ``(tag, value,
+next_offset)`` so a concatenation of frames is walked frame-by-frame).
 
 Format
 ------
@@ -29,6 +30,7 @@ from . import _native
 
 __all__ = [
     "tlv_pack",
+    "tlv_unpack",
     "TLV_PREFIX_BYTES",
 ]
 
@@ -79,3 +81,47 @@ def tlv_pack(tag: int, value: bytes) -> bytes:
         return bytes(out_buffer[: out_written.value])
     # Pure-Python fallback: struct.pack big-endian length + value.
     return struct.pack(">BI", tag, len(value_bytes)) + value_bytes
+
+
+def tlv_unpack(buffer: bytes, offset: int = 0) -> "tuple[int, bytes, int]":
+    """Read one TLV frame back out — the inverse of :func:`tlv_pack` (Class B).
+
+    Reads the ``[tag][length BE-u32][value]`` frame that begins at ``offset``
+    in ``buffer`` and returns ``(tag, value, next_offset)`` where
+    ``next_offset`` is the index just past this frame — so a concatenation of
+    frames is walked by feeding ``next_offset`` back in::
+
+        off = 0
+        while off < len(buf):
+            tag, value, off = tlv_unpack(buf, off)
+            ...
+
+    ``tlv_pack`` ships the writer half; this is its missing reader. Exact
+    round-trip: ``tlv_unpack(tlv_pack(t, v)) == (t, v, 5 + len(v))``. Raises
+    ``ValueError`` on a truncated prefix or a length that runs past the end of
+    ``buffer`` (a malformed / clipped frame), never returning partial data.
+    """
+    if not isinstance(buffer, (bytes, bytearray, memoryview)):
+        raise TypeError(
+            f"buffer must be bytes-like; got {type(buffer).__name__}"
+        )
+    if not isinstance(offset, int) or isinstance(offset, bool):
+        raise TypeError(f"offset must be a plain int; got {offset!r}")
+    buf = bytes(buffer)
+    if offset < 0 or offset > len(buf):
+        raise ValueError(f"offset {offset} out of range [0, {len(buf)}]")
+    if len(buf) - offset < TLV_PREFIX_BYTES:
+        raise ValueError(
+            f"truncated TLV prefix: need {TLV_PREFIX_BYTES} bytes at "
+            f"offset {offset}, have {len(buf) - offset}"
+        )
+    tag = buf[offset]
+    (length,) = struct.unpack_from(">I", buf, offset + 1)
+    value_start = offset + TLV_PREFIX_BYTES
+    value_end = value_start + length
+    if value_end > len(buf):
+        raise ValueError(
+            f"truncated TLV value: frame claims {length} bytes but only "
+            f"{len(buf) - value_start} remain after offset {offset}"
+        )
+    return tag, buf[value_start:value_end], value_end

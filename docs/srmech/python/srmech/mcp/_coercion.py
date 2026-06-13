@@ -294,6 +294,20 @@ def _tuple_mat(value: Any, *, param: str = "") -> Tuple[Any, ...]:
     return tuple(value)
 
 
+def _seq_tuple(value: Any, *, param: str = "") -> List[tuple]:
+    """``Sequence[tuple]`` -> list of re-tupled pairs (v0.7.5rc134). JSON has no
+    tuple, so a list of ``[label, payload]`` pairs arrives and each is re-tupled
+    so the op's ``for a, b in seq`` unpacking sees genuine tuples. Used by
+    ``genome.chromosome(genes=[(label, leaves), ...])``; the op is the canonical
+    validator of the pair contents (label str + leaves hypervector list)."""
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"expected a list of pairs for param "
+            f"{param or '<seq-tuple>'!r}; got {type(value).__name__}"
+        )
+    return [tuple(v) for v in value]
+
+
 def _is_re_im_leaf(value: Any) -> bool:
     """True iff ``value`` is a ``[re, im]`` leaf — a length-2 sequence of
     plain numbers (not a nested container)."""
@@ -560,6 +574,7 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "Sequence[Vec]": _seq_vec,   # v0.7.5rc132: coupling.signed_sum_squared sources
     "Sequence[HV]": _seq_hv,     # v0.7.5rc132: genome / hdc bundle hypervector lists
     "tuple[Mat, ...]": _tuple_mat,  # v0.7.5rc132: gauge generators / einsum operands
+    "Sequence[tuple]": _seq_tuple,  # v0.7.5rc134: genome.chromosome(genes=[(label, leaves), ...])
     "list[list[list[float]]]": _identity,  # rank-3 nested list, JSON-native (gauge f^abc)
     # ── legacy numpy-free Sequence/tuple keys kept for wire-form tests ──
     "Sequence[np.ndarray]": _seq_ndarray,
