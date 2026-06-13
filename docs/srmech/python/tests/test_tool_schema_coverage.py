@@ -172,6 +172,27 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     "srmech.amsc.cascade.one.one_grammar_slots",
     "srmech.amsc.cascade.one.one_flat_rational",
     "srmech.amsc.cascade.one.one_matrix",
+    # cascade.sedenion_register.sed_* (v0.7.5rc140, #564 / PR #687 §31 /
+    # [[feedback_prefer_config_driven_toml_classes]]) — the flat cascade-op
+    # adapter layer that the packaged ``sedenion_register.toml`` ([class]
+    # SedenionRegister) binds its methods to (the genome two-layer pattern: each
+    # adapter rehydrates a transient register from the declarative D/codebook/slots
+    # fields + delegates to the existing method, no logic duplication). Each takes
+    # structured ``slots``/``codebook``/``D`` args → no MCP coercer, reachable ONLY
+    # via the make_class class surface, NOT the MCP tool list — exempt exactly like
+    # the ``one.one_*`` accessors above.
+    "srmech.amsc.cascade.sedenion_register.sed_write",
+    "srmech.amsc.cascade.sedenion_register.sed_materialize",
+    "srmech.amsc.cascade.sedenion_register.sed_read_unbind",
+    "srmech.amsc.cascade.sedenion_register.sed_clean",
+    "srmech.amsc.cascade.sedenion_register.sed_slots",
+    "srmech.amsc.cascade.sedenion_register.sed_couple_working",
+    "srmech.amsc.cascade.sedenion_register.sed_uncouple_working",
+    "srmech.amsc.cascade.sedenion_register.sed_carry",
+    "srmech.amsc.cascade.sedenion_register.sed_correct",
+    "srmech.amsc.cascade.sedenion_register.sed_navmap",
+    "srmech.amsc.cascade.sedenion_register.sed_navigate",
+    "srmech.amsc.cascade.sedenion_register.sed_is_navigable",
     # cascade.cayley_dickson.* — the open-exterior boundary-demonstrator
     # (v0.7.3rc1 / #915 / MFO §VII.6.23). The discoverable surface is registered
     # under STABLE flat names ``srmech.amsc.cascade.{cd_mult,cd_conjugate,
