@@ -121,14 +121,24 @@ class Mat:
         assert 0 <= i < self.n_rows and 0 <= j < self.n_cols, "Mat index out of range"
         return i * self.n_cols + j
 
-    def __getitem__(self, idx: Tuple[int, int]) -> Number:
-        """``mat[i, j]`` → a PLAIN ``float`` / ``complex`` (never a numpy scalar)."""
-        assert isinstance(idx, tuple) and len(idx) == 2, "Mat index must be (i, j)"
-        i, j = idx
-        flat = self._flat_index(i, j)
-        if self._complex:
-            return complex(self._buf[2 * flat], self._buf[2 * flat + 1])
-        return float(self._buf[flat])
+    def __getitem__(self, idx):
+        """``mat[i, j]`` → a PLAIN ``float`` / ``complex`` scalar (never a numpy
+        scalar); ``mat[i]`` (a single int) → row ``i`` as a :class:`~srmech.amsc.vec.Vec`
+        — the numpy single-index idiom, format-preserving (a ``Vec``, not a bare
+        list). For an explicit stdlib list use :meth:`row`."""
+        if isinstance(idx, tuple):
+            assert len(idx) == 2, "Mat index must be (i, j) or a single row int"
+            i, j = idx
+            flat = self._flat_index(i, j)
+            if self._complex:
+                return complex(self._buf[2 * flat], self._buf[2 * flat + 1])
+            return float(self._buf[flat])
+        from .vec import Vec  # local: vec.py is a sibling carrier, avoid import cycle
+        i = int(idx)
+        assert -self.n_rows <= i < self.n_rows, "Mat row index out of range"
+        if i < 0:
+            i += self.n_rows
+        return Vec.from_sequence(self.row(i), is_complex=self._complex)
 
     def row(self, i: int) -> List[Number]:
         """Row ``i`` as a stdlib ``list`` of plain numbers (numpy-free)."""
@@ -154,6 +164,30 @@ class Mat:
         for k in range(1, len(out), 2):  # negate every imaginary slot (Class K sign)
             out[k] = -out[k]
         return Mat(out, self.n_rows, self.n_cols, is_complex=True)
+
+    # ── matmul (the numpy ``@`` idiom, routed onto the Class-L cascade) ───
+    def __matmul__(self, other):
+        """``A·B`` — the numpy ``@`` matmul idiom, routed onto the srmech Class-L
+        cascade (``laplacian.dense_matmul_*`` / ``dense_matvec_*``), **never**
+        numpy's own contraction. ``Mat·Mat`` → :class:`Mat`; ``Mat·Vec`` (or a
+        flat 1-D sequence) → :class:`~srmech.amsc.vec.Vec`. Format-preserving
+        (rc130): real ⊗ real → real carrier, complex anywhere → complex carrier."""
+        from . import laplacian as _L  # lazy: laplacian imports Mat (avoid cycle)
+        cplx = self._complex or _carrier_is_complex(other)
+        if _is_matrix_like(other):
+            return (_L.dense_matmul_complex if cplx else _L.dense_matmul_real)(self, other)
+        return (_L.dense_matvec_complex if cplx else _L.dense_matvec_real)(self, other)
+
+    def __rmatmul__(self, other):
+        """``other·A`` for a non-:class:`Mat` left operand (a left-side flat
+        sequence / :class:`~srmech.amsc.vec.Vec` → ``Vec·Mat``; a left-side
+        2-D sequence → ``M·A``). Routes onto the Class-L cascade."""
+        from . import laplacian as _L  # lazy (avoid cycle)
+        cplx = self._complex or _carrier_is_complex(other)
+        if _is_matrix_like(other):
+            return (_L.dense_matmul_complex if cplx else _L.dense_matmul_real)(other, self)
+        # row-vector · matrix = (Aᵀ · v): the left flat vector contracts rows.
+        return (_L.dense_matvec_complex if cplx else _L.dense_matvec_real)(self.transpose(), other)
 
     def __eq__(self, other) -> bool:
         """Value-equality → a scalar ``bool`` (never an elementwise array).
@@ -204,4 +238,41 @@ class Mat:
         ``(re, im)`` for complex). Mutating it mutates the ``Mat``; use
         :meth:`tolist` / :meth:`tobytes` for a copy."""
         return self._buf
+
+
+# ── shared carrier shape/dtype detectors (the ``@`` operands may be Mat / Vec /
+#    raw sequences; Vec reuses these too — numpy-free, no laplacian import) ────
+def _is_matrix_like(x) -> bool:
+    """``True`` if ``x`` is 2-D matrix-like (a :class:`Mat` or a nested
+    sequence), ``False`` if it is a 1-D vector-like (a ``Vec`` / flat sequence /
+    scalar). The disambiguator the carrier ``@`` uses to pick matmul vs matvec."""
+    if isinstance(x, Mat):
+        return True
+    if hasattr(x, "shape"):  # Vec / ndarray-like — trust the rank
+        return len(x.shape) >= 2
+    try:
+        first = x[0]
+    except (TypeError, IndexError, KeyError):
+        return False
+    return isinstance(first, (list, tuple)) or (
+        hasattr(first, "__len__") and not isinstance(first, (str, bytes))
+    )
+
+
+def _carrier_is_complex(x) -> bool:
+    """``True`` if any element of ``x`` carries a non-zero imaginary part (or its
+    carrier is complex-typed) — the dtype gate the carrier ``@`` uses to choose
+    the real vs complex Class-L peer. Numpy-free."""
+    if hasattr(x, "is_complex"):
+        return bool(x.is_complex)
+    try:
+        flat = []
+        for el in x:
+            if isinstance(el, (list, tuple)):
+                flat.extend(el)
+            else:
+                flat.append(el)
+    except TypeError:
+        return False
+    return any(isinstance(v, complex) and v.imag != 0.0 for v in flat)
 

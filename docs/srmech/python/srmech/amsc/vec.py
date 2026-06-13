@@ -132,6 +132,35 @@ class Vec:
             out[k] = -out[k]
         return Vec(out, self._n, is_complex=True)
 
+    # ── matmul (the numpy ``@`` idiom, routed onto the Class-L cascade) ───
+    def __matmul__(self, other):
+        """``v·B`` — the numpy ``@`` matmul idiom, routed onto the srmech Class-L
+        cascade (``laplacian.dense_dot_*`` / ``dense_matvec_*``), **never**
+        numpy's own contraction. ``Vec·Vec`` (or a flat 1-D sequence) → a scalar
+        inner product ``Σ aᵢ bᵢ``; ``Vec·Mat`` (row-vector · matrix) →
+        :class:`Vec`. Format-preserving (rc130)."""
+        from . import laplacian as _L  # lazy (avoid import cycle)
+        from .mat import Mat, _is_matrix_like, _carrier_is_complex
+        cplx = self._complex or _carrier_is_complex(other)
+        if _is_matrix_like(other):
+            M = other if isinstance(other, Mat) else Mat.from_rows(
+                [list(r) for r in other], is_complex=cplx
+            )
+            # row-vector · matrix = (Mᵀ · v): the vector contracts the rows.
+            return (_L.dense_matvec_complex if cplx else _L.dense_matvec_real)(M.transpose(), self)
+        return (_L.dense_dot_complex if cplx else _L.dense_dot_real)(self, other)
+
+    def __rmatmul__(self, other):
+        """``B·v`` for a non-:class:`Vec` left operand: a 2-D sequence →
+        ``M·v`` (a :class:`Vec`); a flat 1-D sequence → the scalar inner
+        product. (``Mat·Vec`` is served by :meth:`Mat.__matmul__`.)"""
+        from . import laplacian as _L  # lazy (avoid import cycle)
+        from .mat import _is_matrix_like, _carrier_is_complex
+        cplx = self._complex or _carrier_is_complex(other)
+        if _is_matrix_like(other):
+            return (_L.dense_matvec_complex if cplx else _L.dense_matvec_real)(other, self)
+        return (_L.dense_dot_complex if cplx else _L.dense_dot_real)(other, self)
+
     def __eq__(self, other) -> bool:
         """Value-equality → a scalar ``bool`` (never an elementwise array).
 
