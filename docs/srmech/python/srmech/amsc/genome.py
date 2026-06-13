@@ -53,16 +53,27 @@ from srmech.amsc.format import validate_mpr_record as _validate_mpr_record
 from srmech.amsc.hdc import klein4_bind as _klein4_bind
 from srmech.amsc.hdc import klein4_random as _klein4_random
 from srmech.amsc.hv import HV as _HV
+from srmech.amsc.tlv import tlv_pack as _tlv_pack
+from srmech.amsc.tlv import tlv_unpack as _tlv_unpack
 from srmech.version import __version__ as _SRMECH_VERSION
 
 __all__ = [
     "encode_shape", "quad_turn", "telomere", "chromosome", "recall",
+    "genes",
     "genome", "partition",
     "genome_save", "genome_load", "genome_catalog", "genome_append",
     "genome_window",
     "GenomeBoundingError",
-    "LEAF_CAP", "QUAD", "MOBIUS_CAP",
+    "LEAF_CAP", "QUAD", "MOBIUS_CAP", "GENE_FRAME_TAG",
 ]
+
+#: Class-B TLV tag marking an intra-chromosome GENE-frame header (F730/S43). A
+#: Klein-4 turn/cap only ever holds sector indices ``{0, 1, 2, 3}`` (``HV``
+#: sectors=4), so any strand element whose first byte is this tag (``> 3``) is
+#: unambiguously a gene header, never a data turn or a telomere cap. ``0x47``
+#: = ASCII ``'G'`` (Gene). The cheaper internal delimiter — the telomere stays
+#: the chromosome boundary cap, the tlv frame delimits genes inside it.
+GENE_FRAME_TAG = 0x47
 
 #: One dense block — a "tome". 256 = 2**8 (one byte of address); F708/F640.
 LEAF_CAP = 256
@@ -149,22 +160,55 @@ def telomere(label, dim=64):
     return _klein4_random(dim, seed=seed)
 
 
-def chromosome(leaves, the_one, *, label="chromosome"):
-    """Pack one kernel into a telomere-capped strand — a chromosome (F713/F715).
+def _gene_header(gene_label):
+    """The intra-chromosome GENE delimiter (F730/S43): a tlv-framed header ``HV``.
 
-    The kernel's ``leaves`` (each a Klein-4 vector, one tome) become a helix of
-    QUAD-TURNS, each coupled through ``the_one`` (the reversible :func:`quad_turn`),
-    led by a :func:`telomere` cap derived from ``label``. The returned strand is::
+    ``tlv_pack(GENE_FRAME_TAG, label-bytes)`` (Class-B) carried as a byte ``HV``
+    (``sectors=256``). Its first byte is :data:`GENE_FRAME_TAG` (``> 3``), so it
+    is distinguishable from any Klein-4 data turn / telomere cap (bytes ``≤ 3``),
+    and — unlike the one-way content-address cap — the **label is recoverable**
+    verbatim via :func:`tlv_unpack` (that is why a gene is tlv-framed, not capped)."""
+    raw = gene_label.encode("utf-8") if isinstance(gene_label, str) else bytes(gene_label)
+    return _HV.from_sequence(_tlv_pack(GENE_FRAME_TAG, raw), sectors=256)
+
+
+def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None):
+    """Pack a kernel — or SEVERAL genes — into a telomere-capped strand (F713/F715/F730).
+
+    **Single kernel (shipped F713/F715 behaviour, unchanged).** Pass ``leaves``
+    (each a Klein-4 vector, one tome). They become a helix of QUAD-TURNS, each
+    coupled through ``the_one`` (the reversible :func:`quad_turn`), led by a
+    :func:`telomere` cap derived from ``label``::
 
         [telomere(label, dim), quad_turn(leaf0, the_one), quad_turn(leaf1, the_one), ...]
 
-    Recover the kernel with :func:`recall`. The cap delimits and protects the
-    chromosome, so many chromosomes pack onto one genome strand (a later brick).
-    ``the_one`` is the shared invariant every turn is coupled through.
+    Recover with :func:`recall`.
+
+    **Several genes (F730/S43).** Pass ``genes=[(gene_label, gene_leaves), …]``
+    instead of ``leaves``: each gene's leaves are framed by a tlv :func:`_gene_header`
+    (the cheaper internal delimiter), all inside ONE telomere-capped chromosome::
+
+        [telomere(label, dim),
+         gene_header('rules'), quad_turn(r0, one), quad_turn(r1, one),
+         gene_header('board'), quad_turn(b0, one), ...]
+
+    Recover the ``[(gene_label, gene_leaves), …]`` list with :func:`genes`. Pass
+    **exactly one** of ``leaves`` or ``genes``; ``the_one`` is always required
+    (the shared invariant every turn is coupled through).
     """
+    if the_one is None:
+        raise ValueError("chromosome: the_one is required")
+    if (leaves is None) == (genes is None):
+        raise ValueError("chromosome: pass exactly one of leaves= or genes=")
     dim = len(list(the_one))
     cap = telomere(label, dim=dim)
-    return [cap] + [quad_turn(leaf, the_one) for leaf in leaves]
+    if genes is None:
+        return [cap] + [quad_turn(leaf, the_one) for leaf in leaves]
+    strand = [cap]
+    for gene_label, gene_leaves in genes:
+        strand.append(_gene_header(gene_label))
+        strand.extend(quad_turn(leaf, the_one) for leaf in gene_leaves)
+    return strand
 
 
 def recall(strand, the_one, telomere):
@@ -187,6 +231,45 @@ def recall(strand, the_one, telomere):
             continue
         leaves.append(quad_turn(hv, the_one))   # reversible uncouple (bind o bind == id)
     return leaves
+
+
+def genes(strand, the_one):
+    """Recover ``[(gene_label, gene_leaves), …]`` from a multi-gene chromosome (F730/S43).
+
+    The exact inverse of ``chromosome(genes=…, the_one)``. Walk the ``strand``:
+    a :data:`GENE_FRAME_TAG` header (first byte ``> 3`` — never a Klein-4 turn)
+    opens a new gene whose label is read back with :func:`tlv_unpack`; every
+    coupled data turn until the next header (or the end) is re-bound through
+    ``the_one`` (the reversible :func:`quad_turn`) to recover that gene's leaf.
+    Leading element(s) before the first gene header are the chromosome's
+    telomere cap (a delimiter, not data) and are skipped — so ``genes`` needs
+    only the strand + ``the_one``, no cap argument::
+
+        genes(chromosome(genes=[("a", la), ("b", lb)], one), one) == [("a", la), ("b", lb)]
+
+    Use :func:`genes` (not :func:`recall`) on a multi-gene chromosome; ``recall``
+    would treat the gene headers as data turns.
+    """
+    out = []
+    cur_label = None
+    cur_leaves = []
+    started = False
+    for hv in strand:
+        first = int(hv[0]) if len(hv) else -1   # Klein-4 turns are bytes <= 3
+        if first == GENE_FRAME_TAG:
+            if started:
+                out.append((cur_label, cur_leaves))
+            _tag, value, _next = _tlv_unpack(hv.tobytes())
+            cur_label = value.decode("utf-8")
+            cur_leaves = []
+            started = True
+        elif not started:
+            continue                            # leading telomere cap — skip the delimiter
+        else:
+            cur_leaves.append(quad_turn(hv, the_one))   # reversible uncouple
+    if started:
+        out.append((cur_label, cur_leaves))
+    return out
 
 
 def genome(kernels, the_one):

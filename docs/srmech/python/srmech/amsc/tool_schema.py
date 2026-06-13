@@ -1301,6 +1301,13 @@ def _register_primitive_class_tools() -> None:
                         P("value", "bytes", True)),
             returns=R("bytes", "5 + len(value) bytes"),
         ),
+        ToolEntry(
+            name="srmech.amsc.tlv.tlv_unpack", owner="srmech", category="tlv",
+            summary="Read one TLV frame back out — the inverse of tlv_pack (Class B). Reads the [u8 tag][u32 length BE][value] frame beginning at offset and returns (tag, value, next_offset); feed next_offset back in to walk a concatenation of frames. Exact round-trip with tlv_pack: tlv_unpack(tlv_pack(t, v)) == (t, v, 5 + len(v)). Raises on a truncated prefix or a claimed length that runs past the end of the buffer — never returns partial data.",
+            parameters=(P("buffer", "bytes", True, "the byte buffer holding one or more TLV frames"),
+                        P("offset", "int", False, "where the frame begins (default 0); pass the returned next_offset to read the following frame")),
+            returns=R("tuple", "(tag:int, value:bytes, next_offset:int)"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class G — discovery / search
@@ -1774,11 +1781,12 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.genome.chromosome", owner="srmech", category="genome",
-            summary="Pack one kernel into a telomere-capped strand — a chromosome (F713/F715). The kernel's leaves (Klein-4 vectors, one tome each) become a helix of quad-turns, each coupled through the_one (reversible quad_turn), led by a telomere cap derived from label. Returns the strand [telomere_cap, quad_turn(leaf0, the_one), quad_turn(leaf1, the_one), ...]; recover the kernel with recall. The cap delimits + protects the chromosome so many chromosomes pack onto one genome strand. Class A (cap) + Class M (bind) + Class C (the Klein-4 chirality).",
-            parameters=(P("leaves", "Sequence[HV]", True, "the kernel's leaves — Klein-4 vectors, one tome (<=256) each"),
+            summary="Pack a kernel — or SEVERAL genes — into a telomere-capped strand (F713/F715/F730). Single kernel (unchanged): pass leaves (Klein-4 vectors, one tome each); they become a helix of quad-turns coupled through the_one, led by a telomere cap from label; recover with recall. Several genes (F730/S43): pass genes=[(gene_label, gene_leaves), ...] instead — each gene's leaves are framed by a tlv gene-header (the cheaper internal delimiter, label recoverable via tlv_unpack) inside ONE telomere-capped chromosome; recover with genes(). Pass exactly one of leaves or genes; the_one is always required. Class A (cap) + Class B (gene frame) + Class M (bind) + Class C (the Klein-4 chirality).",
+            parameters=(P("leaves", "Sequence[HV]", False, "single-kernel mode: the kernel's leaves — Klein-4 vectors, one tome (<=256) each (pass leaves OR genes)"),
                         P("the_one", "HV", True, "the held invariant every turn is coupled through"),
-                        P("label", "str", False, "keyword-only; the chromosome label for the telomere cap (default 'chromosome')")),
-            returns=R("list", "the strand: [telomere_cap, coupled turn, coupled turn, ...]"),
+                        P("label", "str", False, "keyword-only; the chromosome label for the telomere cap (default 'chromosome')"),
+                        P("genes", "Sequence[tuple]", False, "keyword-only; multi-gene mode (F730): [(gene_label, gene_leaves), ...] — each gene tlv-framed inside one telomere-capped chromosome (pass leaves OR genes)")),
+            returns=R("list", "the strand: [telomere_cap, coupled turn, ...] (single-kernel) or [telomere_cap, gene_header, coupled turn, ..., gene_header, ...] (multi-gene)"),
         ),
         ToolEntry(
             name="srmech.amsc.genome.recall", owner="srmech", category="genome",
@@ -1787,6 +1795,13 @@ def _register_primitive_class_tools() -> None:
                         P("the_one", "HV", True, "the held invariant the turns were coupled through"),
                         P("telomere", "HV", True, "the telomere cap delimiting the chromosome (skipped, not decoded)")),
             returns=R("list", "the recovered kernel leaves (Klein-4 vectors), in order"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.genes", owner="srmech", category="genome",
+            summary="Recover [(gene_label, gene_leaves), ...] from a multi-gene chromosome (F730/S43) — the inverse of chromosome(genes=..., the_one). Walk the strand: a GENE_FRAME_TAG header (first byte > 3, so never a Klein-4 turn whose bytes are all <= 3) opens a new gene whose label is read back with tlv_unpack; each coupled data turn until the next header (or the end) is re-bound through the_one (the reversible quad_turn) to recover that gene's leaf. Leading element(s) before the first gene header are the chromosome's telomere cap (a delimiter, not data) and are skipped — so genes needs only the strand + the_one, no cap argument. Use genes (not recall) on a multi-gene chromosome.",
+            parameters=(P("strand", "Sequence[HV]", True, "a multi-gene chromosome strand (from chromosome(genes=...))"),
+                        P("the_one", "HV", True, "the held invariant the gene turns were coupled through")),
+            returns=R("list", "[(gene_label:str, gene_leaves:list[HV]), ...] in strand order"),
         ),
         ToolEntry(
             name="srmech.amsc.genome.genome", owner="srmech", category="genome",

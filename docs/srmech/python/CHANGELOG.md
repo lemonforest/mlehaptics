@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc134] - 2026-06-13
+
+**Genome file-management increment #1 (F730 / UPSTREAM S43): several genes per chromosome — `tlv.tlv_unpack` + `genome.chromosome(genes=…)` / `genome.genes()`.** The genome reads like a library → tarballable chromosome → framed genes; this rc adds the **intra-chromosome** level: many genes inside one telomere-capped chromosome, each gene a Class-B `tlv_pack` frame (the cheaper internal delimiter; the telomere stays the chromosome boundary cap). Composed from existing AMSC — *compose, don't reinvent* (the research-env reuse audit mapped 13/13 requirements to existing ops).
+
+- **`tlv.tlv_unpack(buffer, offset=0) → (tag, value, next_offset)`** — the missing inverse of `tlv_pack` (the writer shipped; the reader did not). Feed `next_offset` back in to walk a concatenation of frames; exact round-trip; raises on a truncated prefix or a length running past the buffer. (Rosetta `non_compute` — a byte-frame reader, no numeric kernel; its C twin is a tracked Rosetta follow-up.)
+- **`genome.chromosome(genes=[(label, leaves), …], the_one)`** — pack several genes into ONE telomere-capped strand, each gene introduced by a tlv gene-header `HV`. The single-kernel `chromosome(leaves, the_one)` path is **unchanged** (pass exactly one of `leaves=` or `genes=`).
+- **`genome.genes(strand, the_one) → [(label, leaves), …]`** — the inverse reader. A gene-header's first byte is `GENE_FRAME_TAG` (0x47, `> 3`), and a Klein-4 turn/cap only ever holds bytes `≤ 3`, so headers are unambiguous; the label is recovered verbatim via `tlv_unpack` (a content-address cap is one-way — that is why a gene is tlv-framed, not capped). The leading telomere cap is skipped, so `genes` needs only the strand + `the_one`.
+- **Additive only** — no ABI change (ABI stays **3**), numpy-free, native build holds no libm; `describe()["tools"]["total"]` **298 → 300** (`tlv_unpack` + `genes`). 5 SSOT bumped. Next in the arc: `genome_export`/`import` (.chr unit) then `genome_explode`/`pack` + catalog unify (register an exploded genome as an attested root; binary body kept).
+
 ## [0.7.5rc133] - 2026-06-13
 
 **`Mat` / `Vec` become a near-total numpy-reflex SINK — the last 9 numpy idioms an LLM reflexively writes now route through srmech instead of bailing to numpy (research-env F728 carrier audit, 8/17 → 17/17).** The carrier exists to stop an LLM dropping srmech and reaching for numpy: every numpy idiom the carrier ANSWERS routes through srmech silently; every idiom that RAISES bails the LLM to `np.asarray(m.tolist())` → numpy, defeating the carrier. rc129/rc130 closed `m[0]` + `@`; rc133 closes the remaining 9 — and pins **17/17** so a regression that re-arms the numpy bail-out fails loudly.
