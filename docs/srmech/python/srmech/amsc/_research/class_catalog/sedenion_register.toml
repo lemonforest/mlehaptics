@@ -1,0 +1,94 @@
+# The SedenionRegister — the sedenion (dim-16) addressable RBS-HDC instrument
+# (srmech.amsc.cascade.sedenion_register, UPSTREAM §31 / F465 + F468) declared
+# DECLARATIVELY as a config-driven [class] over the shipped cascade.
+#
+# Per [[feedback_prefer_config_driven_toml_classes]] this is the FIRST
+# multi-field / dict-state / chain / self-returning conversion — the make_class
+# contract extensions rc137 (dict fields + `mutates`) + rc139 (`chain` +
+# `returns="self"`) exist exactly so this rich domain object converts. The
+# methods bind to the flat cascade-op adapters in
+# srmech.amsc.cascade.sedenion_register (the genome two-layer pattern — ship each
+# method as a flat op that rehydrates a transient register + delegates, bind it
+# here; no logic duplication, byte-identical to the Python class).
+#
+# Declarative state = D (the HV width) / codebook (key → minted vec) / slots
+# (slot → (key, sign)). The private _minter / _addr_cache caches are DROPPED —
+# minting is deterministic from (name, D), so the declarative form recomputes.
+#
+#   from srmech.dsl import make_class
+#   R = make_class("SedenionRegister")(D=8192)   # the HV width (no scalar field
+#                                                #  default in the contract — pass D)
+#   R.write(slot=0, key="alpha")                 # mutates slots + codebook in place
+#   R.write(slot=3, key="beta", sign=-1)
+#   R.read(slot=0)            # ("alpha", 1)  — the 2-stage unbind→clean CHAIN
+#   R.materialize()          # the associative-superposition bytes
+#   R2 = R.navigate(j=1)     # returns="self": a NEW register (R untouched)
+
+[class]
+name = "SedenionRegister"
+kind = "storage"
+doc = "The sedenion (dim-16) addressable RBS-HDC instrument — 16 named slots e0..e15 (the octonion block e0..e7 is the ≤7 reversible working set, e8..e15 the Hamming EC/carry block), content-keyed associative storage, and a Cayley–Dickson-respecting navigate (the address↔CD homomorphism). Construct with D= (the HV width). Composes shipped v0.7.3 primitives; no new algebra. Prefer this declarative [class] TOML over hand-coding the domain class — the methods bind to the flat cascade-op adapters in srmech.amsc.cascade.sedenion_register."
+
+[class.field]
+D = "int"
+codebook = "dict"
+slots = "dict"
+
+[class.method.write]
+op = "srmech.amsc.cascade.sedenion_register.sed_write"
+binds = ["slot", "key", "slots", "codebook", "D"]
+mutates = ["slots", "codebook"]
+doc = "Store content name `key` at sedenion slot e{slot} with a Class-C `sign` (∈{+1,-1}); minting the value vec grows the codebook, the slot-map records the assignment. Mutates `slots` + `codebook` in place."
+
+[class.method.materialize]
+op = "srmech.amsc.cascade.sedenion_register.sed_materialize"
+binds = ["slots", "codebook", "D"]
+doc = "The associative superposition bytes — bundle_k bind(ADDR[k], value_k) (Class-M; raises if the register is empty)."
+
+[class.method.read]
+chain = [
+  { op = "srmech.amsc.cascade.sedenion_register.sed_read_unbind", binds = ["slot", "slots", "codebook", "D"], as = "noisy" },
+  { op = "srmech.amsc.cascade.sedenion_register.sed_clean", binds = ["noisy", "codebook"] },
+]
+doc = "Recover (key, sign) at slot e{slot} — a VISIBLE 2-stage cascade: stage 1 unbinds the slot's sedenion address from the bundle → the noisy vector; stage 2 nearest-codebook cleans it. ((None, +1) if the register is empty.)"
+
+[class.method.slots]
+op = "srmech.amsc.cascade.sedenion_register.sed_slots"
+binds = ["slots"]
+doc = "A copy of the current slot → (key, sign) assignment."
+
+[class.method.couple_working]
+op = "srmech.amsc.cascade.sedenion_register.sed_couple_working"
+binds = ["vals"]
+doc = "Bind ≤7 values into one octonion working word (bit-exact reversible ≤𝕆; raises past the Hurwitz cap — spill the 8th to .carry())."
+
+[class.method.uncouple_working]
+op = "srmech.amsc.cascade.sedenion_register.sed_uncouple_working"
+binds = ["octonion"]
+doc = "Inverse of couple_working — recover the ≤7 working-word streams bit-exactly."
+
+[class.method.carry]
+op = "srmech.amsc.cascade.sedenion_register.sed_carry"
+binds = ["overflow_bits"]
+doc = "Hamming(2ⁿ−1)-encode overflow bits (past the ≤7 working set) into the e8..e15 EC block (single-error-correcting; n defaults to 3)."
+
+[class.method.correct]
+op = "srmech.amsc.cascade.sedenion_register.sed_correct"
+binds = ["codeword"]
+doc = "Locate + correct a single-bit error in an EC-block codeword and recover the carried payload."
+
+[class.method.navmap]
+op = "srmech.amsc.cascade.sedenion_register.sed_navmap"
+binds = ["j"]
+doc = "The signed pointer-advance permutation for right-multiply-by-e_j — maps slot i → (k, sign) where e_i·e_j = sign·e_k (the cd_basis_product cocycle; always a signed permutation)."
+
+[class.method.navigate]
+op = "srmech.amsc.cascade.sedenion_register.sed_navigate"
+binds = ["j", "D", "codebook", "slots"]
+returns = "self"
+doc = "Walk the hyper-loop — right-multiply every slot name by e_j (the address↔Cayley–Dickson homomorphism) → a NEW register with the routed assignment (shares the codebook, composes the Class-C signs). `self` is untouched; single-basis navigation is exactly reversible (e_j² = −1, a Class-C sign)."
+
+[class.method.is_navigable]
+op = "srmech.amsc.cascade.sedenion_register.sed_is_navigable"
+binds = ["direction"]
+doc = "True iff navigation along `direction` is reversible (left-multiplication is invertible). A single basis e_j is always navigable; a composite direction is navigable only ≤𝕆 (a sedenion zero-divisor direction is NOT — the operational hyper-loop's Hurwitz horizon)."
