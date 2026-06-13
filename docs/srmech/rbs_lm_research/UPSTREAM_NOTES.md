@@ -1977,22 +1977,27 @@ one-line docstring note (or accept the typed `One` and derive the anchor leaf fr
 before clean tag; ABI unaffected (pure-Python); no issue tracker (user direction). Composes §41 / F711 / F721 / F726
 (Siona genome-persist) / F436 (the_one = diagonal-μ anchor).
 
-### §42.1 BREAKING-API inventory rc78 → rc128 (the numpy-removal; for the clean-tag CHANGELOG)
+### §42.1 BREAKING-API inventory — numpy-removal return types: rc128 list-REGRESSION → rc129 `Mat`/`Vec` carriers (F727)
 
 Scanned via `R-RBS-LM-APIDIFF_rc_breaking_change_scan.py` (re-runnable; dumps both venvs' public surface + diffs).
-**Verdict: 0 hard breaks (no public name removed); one behavioral break category = the numpy-removal return-type shift.**
 
-- **`np.ndarray` → native `list`/`tuple`** on `laplacian.{fiedler_vector, hermitian_eigendecompose, dense_matmul_real,
-  dense_matmul_complex, dense_matvec_real, dense_matvec_complex, dense_outer_real, elementwise_hypot,
-  elementwise_sqrt, elementwise_multiply_complex, elementwise_transcendental, signed_laplacian, magnetic_laplacian}`
-  + `coupling.signed_sum_squared` (`np.ndarray`→`List[int]`) + `harmonics.classify_chirality_harmonic`
-  (param `np.ndarray`→`Sequence`). **Verified executing numpy-free with correct values** (Laplacian zero-eigenvalue
-  present; `hermitian_eigendecompose([[2,0],[0,3]])` → eigvals `[2.0, 3.0]`). **Who breaks:** callers using numpy
-  methods on the result (`.shape`, 2-D slice `m[:,0]`, `@`, `np.linalg.*`, boolean masks). **Who's fine:** index/iterate
-  callers; srmech-internal chaining (`jacobi_eigvals(dense_laplacian(...))` works on the list). Migration: `np.asarray(...)`
-  at the call site, or switch to list-native ops. Param-annotation drops (`a: np.ndarray`→`a`) are cosmetic, not breaks.
+- **rc128 was a REGRESSION (user-confirmed):** the numpy-removal returned **bare Python `list`/`tuple`**, dropping all
+  numpy *shape* semantics. The intent was numpy-SHAPED carriers, not bare lists.
+- **rc129 FIXES it:** the Class-L / coupling / spectral ops now return **`srmech.amsc.mat.Mat` / `srmech.amsc.vec.Vec`**
+  — numpy-free **shaped carriers**. `Mat`: `.shape`/`n_rows`/`n_cols`/`.T`/`transpose`/`row(i)`/`from_rows`/`from_flat`/
+  `conj`/`is_complex`/`tolist`/`tobytes`/`buffer`; `Vec`: `.shape`/`from_flat`/`from_sequence`/`conj`/`tolist`/`tobytes`.
+  Affected returns (rc78 `np.ndarray` → rc129 `Mat`/`Vec`): `laplacian.{dense_laplacian, dense_adjacency,
+  dense_matmul_real/complex, dense_matvec_real/complex, dense_outer_real, elementwise_*, fiedler_vector,
+  hermitian_eigendecompose, jacobi_eigvals, signed_laplacian, magnetic_laplacian, normalized_laplacian}` +
+  `coupling.signed_sum_squared` (→ `Vec`). **Verified numpy-free, values correct** (Laplacian zero-eigenvalue present;
+  `hermitian_eigendecompose([[2,0],[0,3]])` → `[2.0, 3.0]`; genome→disk VERIFIED ✓ with numpy uninstalled).
+- **Carrier is numpy-SHAPED, not full-numpy-API.** ✅ `.shape`, 2-D index `m[i,j]`, `len`, iterate, `.T`, `.tolist()`,
+  `.conj()`, `.tobytes()`. ❌ single-index row `m[0]` (raises "index must be (i, j)" → use `m.row(0)`), `@` operator
+  (`Mat @ Mat` → TypeError → use `laplacian.dense_matmul_*`), and presumably `np.linalg.*`/broadcasting/boolean masks.
+  So a caller doing `.shape`/`[i,j]`/`.tolist()` is a drop-in vs the old ndarray; a caller doing `@`/`m[0]`/`np.linalg`
+  must switch to the srmech op or `np.asarray(m.tolist())`. **Net rc78→rc129: 0 hard breaks** (no public name removed).
 - **IMPROVED (not a break):** `qm.{octonion, single_particle, so8, triality}` flipped **import-ERR → ok** — the
   28D/triality surface now imports AND runs numpy-free (`so8.so8_adjoint_basis()` executed with numpy absent).
-- **Unaffected:** the genome / hdc / cascade / Siona path — `genome→disk` re-verified VERIFIED ✓ with numpy
-  uninstalled. **Recommendation for the clean `0.7.5` CHANGELOG:** document the one breaking line —
-  "*Class-L (`laplacian.*`) + `coupling.signed_sum_squared` now return Python lists, not numpy arrays.*"
+- **Recommendation for the clean `0.7.5` CHANGELOG:** one breaking line — "*Class-L (`laplacian.*`) +
+  `coupling.signed_sum_squared` now return numpy-free shaped carriers `Mat`/`Vec` (with `.shape`/2-D-indexing/`.tolist()`),
+  not numpy arrays; use `laplacian.dense_matmul_*` instead of `@`, or `np.asarray(x.tolist())` to lift to numpy.*"
