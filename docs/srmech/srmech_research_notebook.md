@@ -5576,6 +5576,39 @@ Synthesis (F181): the disposition is **one operator, ≥2 band-specific actors �
 
 **Cross-references:** §3.27 / §3.28 (the recursive-Hopf + two-tier arcs this sits just below; §3.27 is the 28D=𝔰𝔬(8) chiral-hyper-loop home that F174 is the literature anchor for); §3.30.3 / F291 (F170's attested-and-corrected cross-match is an early twin-discipline instance); §3.33–§3.35 (the F183+ work this immediately precedes); the no-magic discipline (F151 PARTIAL, F163/F175 nulls kept). Per-finding docs `R-RBS-LM-FINDING_151…181`. **Status:** meaning-tier catch-up; the F166/F167 inference-walk capstone + the H177 falsification arc were the most under-surfaced and are the load-bearing additions. Honest nulls/partials preserved (F151, F163, F175, F178). k=3 triality pending (Phase 14).
 
+## §3.38 The A–N reversibility / lossy audit — reversible-rotation vs irreversible-projection (per-operator)
+
+A per-operator audit of the 14 A–N primitive classes, prompted by the carrier-removal arc's *exact-until-rotation* results (the integer-cyclotomic exact DFT and the char-poly + Sturm exact eigenvalues). The organizing reading: **a "lossy" operator projects information *out*, and the projected-out part is the fiber — the irrational rotation the discrete substrate can only approach.** Two corrections to a naïve first reading proved load-bearing and are recorded here.
+
+**Correction 1 — Class L is NOT partial-lossy; it is reversible.** For the symmetric Laplacian, eigendecomposition `M = Q·Λ·Qᵀ` (Q orthogonal) is a *bijective similarity transform* — `M` reconstructs exactly from `(Q, Λ)`; no information is destroyed. The eigenvalues `Λ` are the bit-exact scaffold (roots of an integer char-poly, Sturm-bracketable to arbitrary precision); the eigenvectors `Q` are the *rotation = the fiber*, irrational (no closed radical form for n ≥ 5, Abel–Ruffini), so only a **float carrier** loses precision (the ~1e-7 nullspace floor). L doesn't lose the fiber — **L reads the fiber.** "Partial-lossy" was a carrier artifact, not a property of the operator. And **Class K (pin-slot) is the operator that pins the continuous fiber-rotation back to exact ±1 — K *is* "the rotation of the bit-exact."**
+
+**Correction 2 — a class can hold operators on both sides of the line; Class M is the proof.** `bind` is reversible (an exact inverse exists — `loop_inv` / `unbind`); `bundle` is irreversible — superposition is a many→one sum, there is **no `unbundle`**, only the cleanup query `similarity` (capacity-limited; the capacity number *is* bundle's lossiness — the "capacity-free vs Klein-4" reading). So the audit must be **per-operator, not per-class.**
+
+The organizing axis is therefore **reversible-rotation-into-a-fiber** (exact; only carrier-limited) **vs many→one projection** (genuinely information-destroying; dual is at best a partial re-projection / query):
+
+| Class | core op(s) | reversible? | dual |
+|---|---|---|---|
+| **A** hash | `sha256_*` | **irreversible** | none — the archetypal projection |
+| **I** cyclic | `mod_mul`↔`mod_inv`, `mod_pow`, `three_cycle` | reversible | ✅ `mod_inv`; **`gcd`/`lcm` irreversible** (reduce to a divisor) |
+| **C** orient | stream + flip | reversible | flip self-inverse ✅ |
+| **J** primes | `factor`, `is_prime`, `cyclic_period` | factor reversible (↔multiply) | **`is_prime`/`period` = lossy readouts** |
+| **D** dispatch | `match`, `mirror_pattern` | **match irreversible** | `mirror_pattern` is the chiral *mirror*, not the inverse |
+| **E** catalog | `get`↔`register`, `list_*` | reversible | ✅ lookup↔register; `list_*` readout |
+| **F** template | **`render` only** | reversible-in-principle | ❌ **no `parse`/unrender — gap** |
+| **G** search | `byte_search`(`_backward`) | **irreversible** | chiral mirror (backward); true dual = located content (= E) |
+| **K** pin/kepler | `equation_of_centre`↔`kepler_solve`, `pin_slot` | reversible | ✅ paired; `pin_slot` self-inverse (the exact-izer) |
+| **L** laplacian | build + eigendecompose | **reversible** (the fiber-reader) | ✅ inverse-transform; loss is float-carrier only |
+| **M** hdc | `bind`↔`unbind`, **`bundle`**, `permute`, `similarity` | **MIXED** | `bind`✅/`permute`✅; **`bundle` irreversible** (dual = `similarity`-query only) |
+| **B** tlv | `tlv_pack`↔`tlv_unpack` | reversible | ✅ complete (rc134) |
+| **H** introspect | `describe` / `native_status` | **readout (lossy)** | dual = reconstruct-from-description = genome `recall` |
+| **N** rational | `exp`↔`log`, `atan`, `sin`/`cos`, `best_rational` | reversible | `exp`/`log`✅, `atan`✅; **`sin`/`cos` have no `arcsin`/`arccos` — gap**; `best_rational` lossy |
+
+**Two genuine "missing inverse" gaps** (fillable — the next `tlv_pack→tlv_unpack`): **F** has `render` but no `parse`; **N** has `atan` but no `arcsin`/`arccos`. Everything else is either paired ✅ or fundamentally one-way (A hash, `gcd`, D `match`, search, `bundle`, `is_prime`, `similarity`, `best_rational`, H readout), where the dual can only ever be a partial query — `tlv_pack↔tlv_unpack` (rc134) was one acted-on output of this audit.
+
+**Operator-multiplicity is mostly interpretive, with one irrep candidate.** Raw per-class op-counts are dominated by *carrier-replication* (the numpy-removal arc's `dense_*` / `mat_*` / `_real` / `_complex` near-duplicates in L; the `polar` / `klein4` / `loop` carrier-triple in M; the function / `series_truncate` twins in N) — interpretive, not structural. The structural skeleton underneath is **reversibility-parity**: reversible classes come as op + inverse *pairs* (B, G, K, I), irreversible as an *unpaired* forward (A, F, D-match). The one *forced*-looking multiplicity is M's carrier-stripped core `{bind, bundle, permute, similarity}` = **4 = |V₄|**, replicated by **triality = 3** carriers → `so(8) = V₄-sector × triality`. Whether the other classes' carrier-stripped counts fall on `{1, 3, 7}` is an open spike. *(The carrier-replication this audit exposed is the same duplication the numpy-removal-consolidation arc removes.)*
+
+**Cross-references:** §3.27 (28D = 𝔰𝔬(8) = 14 g₂ ⊕ 14, the V₄ × triality home); `[[user_stance_chirality_is_local_sign_flip_through_metric_fiber]]` (chirality = Class C local sign-flip through the fiber; K traces it); `spike_chiral_an_spectral_shape.py` (the `chiral_dual = C∘op∘C` spectral-shape sweep — the shape-level twin of this inverse-level audit). **Status:** dev-audit; the two gaps (F `parse`, N `arcsin`/`arccos`) are queued; the carrier-stripped-irrep claim is an open research spike.
+
 ---
 
 ## §4 Open research questions
