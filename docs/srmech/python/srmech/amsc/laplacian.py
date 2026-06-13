@@ -1873,7 +1873,11 @@ def _iter_mat_scalars(v):
         return
     seq = v.tolist() if hasattr(v, "tolist") else v  # HV / list / tuple / array / 1-D ndarray
     for x in seq:
-        yield x
+        if isinstance(x, (list, tuple)):  # nested list = matrix rows → flatten one level
+            for y in x:
+                yield y
+        else:
+            yield x
 
 
 def mat_norm(x) -> float:

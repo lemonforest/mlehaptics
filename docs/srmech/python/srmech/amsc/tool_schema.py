@@ -1005,25 +1005,6 @@ def _register_primitive_class_tools() -> None:
                       "(eigvals_ascending Vec, V_orthogonal real Mat)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.dense_matvec_complex",
-            owner="srmech", category="laplacian",
-            summary="Dense complex matrix-vector multiplication M·v. "
-                    "Golub & Van Loan §1.1.",
-            parameters=(P("M", "Mat", True, "rows × cols complex"),
-                        P("v", "Vec", True, "length-cols complex")),
-            returns=R("Vec", "length-rows complex (numpy-free 1-D carrier)"),
-        ),
-        ToolEntry(
-            name="srmech.amsc.laplacian.dense_matmul_complex",
-            owner="srmech", category="laplacian",
-            summary="Dense complex matrix-matrix multiplication A times B "
-                    "(the Class-L contraction the QM / matrix_cascades matmul "
-                    "math routes through). Golub & Van Loan §1.1.",
-            parameters=(P("A", "Mat", True, "m × k complex"),
-                        P("B", "Mat", True, "k × n complex")),
-            returns=R("Mat", "m × n complex (numpy-free 2-D carrier)"),
-        ),
-        ToolEntry(
             name="srmech.amsc.laplacian.mat_matmul",
             owner="srmech", category="laplacian",
             summary="Numpy-FREE dense matrix multiply A times B over the Mat "
@@ -1112,58 +1093,6 @@ def _register_primitive_class_tools() -> None:
                       "Vh (n,n) complex Mat) matching full_matrices=True"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.dense_dot_complex",
-            owner="srmech", category="laplacian",
-            summary="Dense complex bilinear inner product sum a_i b_i (the "
-                    "1-D contraction the QM eta-sandwiches and matrix_cascades "
-                    "back-solves route through; plain bilinear, NOT the "
-                    "conjugating vdot). Golub & Van Loan §1.1.",
-            parameters=(P("a", "Vec", True, "length-n complex"),
-                        P("b", "Vec", True, "length-n complex")),
-            returns=R("complex", "scalar sum a_i b_i"),
-        ),
-        ToolEntry(
-            name="srmech.amsc.laplacian.dense_matmul_real",
-            owner="srmech", category="laplacian",
-            summary="Dense real matrix-matrix multiplication A times B → "
-                    "float64 (rides the complex kernel; drops the zero "
-                    "imaginary part). Golub & Van Loan §1.1.",
-            parameters=(P("A", "Mat", True, "m × k real"),
-                        P("B", "Mat", True, "k × n real")),
-            returns=R("Mat", "m × n real (numpy-free 2-D carrier)"),
-        ),
-        ToolEntry(
-            name="srmech.amsc.laplacian.dense_matvec_real",
-            owner="srmech", category="laplacian",
-            summary="Dense real matrix-vector multiplication M times v → "
-                    "float (real peer of dense_matvec_complex; rides the "
-                    "complex kernel). Golub & Van Loan §1.1.",
-            parameters=(P("M", "Mat", True, "rows × cols real"),
-                        P("v", "Vec", True, "length-cols real")),
-            returns=R("Vec", "length-rows real (numpy-free 1-D carrier)"),
-        ),
-        ToolEntry(
-            name="srmech.amsc.laplacian.dense_dot_real",
-            owner="srmech", category="laplacian",
-            summary="Dense real inner product sum a_i b_i → float (real peer "
-                    "of dense_dot_complex). Golub & Van Loan §1.1.",
-            parameters=(P("a", "Vec", True, "length-n real"),
-                        P("b", "Vec", True, "length-n real")),
-            returns=R("float", "scalar sum a_i b_i"),
-        ),
-        ToolEntry(
-            name="srmech.amsc.laplacian.dense_norm",
-            owner="srmech", category="laplacian",
-            summary="Euclidean (2-norm) / Frobenius norm sqrt(sum |x_i|^2) → float: "
-                    "Class N (rational sqrt) of the Class M self-bind sum|x|^2 via "
-                    "dense_dot_complex (numpy carriers-only, no norm engine). "
-                    "Value-faithful to the NumPy 2-norm / Frobenius norm. Golub & "
-                    "Van Loan §2.3.",
-            parameters=(P("x", "Mat | Vec", True,
-                          "real or complex array of any shape (flattened)"),),
-            returns=R("float", "sqrt(sum |x_i|^2)"),
-        ),
-        ToolEntry(
             name="srmech.amsc.laplacian.mat_norm",
             owner="srmech", category="laplacian",
             summary="numpy-FREE Euclidean (2-norm) / Frobenius norm sqrt(sum "
@@ -1176,46 +1105,41 @@ def _register_primitive_class_tools() -> None:
             returns=R("float", "sqrt(sum |x_i|^2)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.mat_dot_real",
+            name="srmech.amsc.laplacian.mat_dot",
             owner="srmech", category="laplacian",
-            summary="numpy-FREE real inner product sum a_i b_i → float over the "
-                    "Mat / HV carrier (pure-Python reduction; the numpy-absent peer "
-                    "of dense_dot_real). Golub & Van Loan §1.1.",
-            parameters=(P("a", "Mat", True, "Mat / HV / flat real sequence"),
-                        P("b", "Mat", True, "Mat / HV / flat real sequence")),
-            returns=R("float", "scalar sum a_i b_i"),
-        ),
-        ToolEntry(
-            name="srmech.amsc.laplacian.mat_dot_complex",
-            owner="srmech", category="laplacian",
-            summary="numpy-FREE complex bilinear inner product sum a_i b_i → "
-                    "complex over the Mat / HV carrier (plain bilinear, NOT the "
-                    "conjugating vdot; the numpy-absent peer of dense_dot_complex). "
+            summary="numpy-FREE dtype-polymorphic bilinear inner product sum "
+                    "a_i b_i over the Mat / Vec / HV carriers: float for real "
+                    "operands, complex if either is complex (plain bilinear, NOT "
+                    "the conjugating vdot). The single consolidated dot (v0.7.6 "
+                    "carrier consolidation, unifies the rc114 real/complex split). "
                     "Golub & Van Loan §1.1.",
-            parameters=(P("a", "Mat", True, "Mat / HV / flat complex sequence"),
-                        P("b", "Mat", True, "Mat / HV / flat complex sequence")),
-            returns=R("complex", "scalar sum a_i b_i"),
+            parameters=(P("a", "Mat", True, "Mat / Vec / HV / flat sequence"),
+                        P("b", "Mat", True, "Mat / Vec / HV / flat sequence")),
+            returns=R("complex", "scalar sum a_i b_i (float for real operands)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.dense_outer_complex",
+            name="srmech.amsc.laplacian.mat_matvec",
             owner="srmech", category="laplacian",
-            summary="Dense complex outer product a⊗b → out[i,j]=a_i b_j (rank-1; "
-                    "the k=1 case of dense_matmul_complex, so it rides the native "
-                    "kernel and is bit-identical to numpy outer). Does NOT "
-                    "conjugate b. Golub & Van Loan §1.1.",
-            parameters=(P("a", "Vec", True, "length-m complex column"),
-                        P("b", "Vec", True, "length-n complex row")),
-            returns=R("Mat", "m × n complex a_i b_j (numpy-free 2-D carrier)"),
+            summary="numpy-FREE dtype-polymorphic dense matrix-vector product "
+                    "M times v over the Mat / Vec carriers (complex iff either "
+                    "operand is): rides mat_matmul over a column Mat. The single "
+                    "consolidated matvec (v0.7.6 carrier consolidation). Golub & "
+                    "Van Loan §1.1.",
+            parameters=(P("m", "Mat", True, "rows x cols (real or complex)"),
+                        P("v", "Vec", True, "length-cols (real or complex)")),
+            returns=R("Vec", "length-rows Vec (complex iff either input is)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.dense_outer_real",
+            name="srmech.amsc.laplacian.mat_outer",
             owner="srmech", category="laplacian",
-            summary="Dense real outer product a⊗b → out[i,j]=a_i b_j → real Mat "
-                    "(real peer of dense_outer_complex; rides the complex "
-                    "kernel). Golub & Van Loan §1.1.",
-            parameters=(P("a", "Vec", True, "length-m real"),
-                        P("b", "Vec", True, "length-n real")),
-            returns=R("Mat", "m × n real a_i b_j (numpy-free 2-D carrier)"),
+            summary="numpy-FREE dtype-polymorphic outer product a-tensor-b -> "
+                    "out[i,j]=a_i b_j over the Mat / Vec carriers (complex iff "
+                    "either operand is). Plain bilinear, does NOT conjugate b. The "
+                    "single consolidated outer (v0.7.6 carrier consolidation). "
+                    "Golub & Van Loan §1.1.",
+            parameters=(P("a", "Vec", True, "length-m (real or complex) column"),
+                        P("b", "Vec", True, "length-n (real or complex) row")),
+            returns=R("Mat", "m x n a_i b_j (complex iff either input is)"),
         ),
         ToolEntry(
             name="srmech.amsc.laplacian.elementwise_multiply_complex",
