@@ -56,8 +56,9 @@ class HV:
     # ── construction ──────────────────────────────────────────────────────
     @classmethod
     def from_sequence(cls, seq: HVLike, *, sectors: int = 4) -> "HV":
-        """Build an ``HV`` from an HV / bytes / ``array`` / ``np.ndarray`` /
-        iterable-of-ints. Copies the data (the new HV owns its buffer)."""
+        """Build an ``HV`` from an HV / bytes / ``array.array`` /
+        iterable-of-ints (the carrier is agnostic about the source shape).
+        Copies the data (the new HV owns its buffer)."""
         if isinstance(seq, HV):
             return cls(array("B", seq._buf), sectors=seq.sectors)
         if isinstance(seq, (bytes, bytearray)):
@@ -65,7 +66,7 @@ class HV:
         if isinstance(seq, array) and seq.typecode == "B":
             return cls(array("B", seq), sectors=sectors)
         buf = array("B")
-        for x in seq:  # list / tuple / np.ndarray (1-D) / generator
+        for x in seq:  # list / tuple / array.array (1-D) / generator
             xi = int(x)
             if xi < 0 or xi > 255:
                 raise ValueError(f"HV element out of byte range [0, 255]: {x!r}")

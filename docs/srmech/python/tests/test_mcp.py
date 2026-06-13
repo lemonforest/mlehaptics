@@ -1720,9 +1720,29 @@ def _synth_value_for_type(type_string: str) -> Any:
         # v0.7.5rc72 Mat carrier (mat_matmul): a 2x2 list-of-rows -> real Mat;
         # square so mat_matmul(a, b) returns cleanly.
         "Mat": mat2,
+        # v0.7.5rc132 carrier-spirit param types. The carrier is AGNOSTIC about
+        # input, so each synth is the DEGENERATE Python form (flat list / nested
+        # list); the op's own acceptance builds the final carrier.
+        #   Vec  -> a short flat vector (valid for matvec / state / k / dot ops).
+        #   HV   -> a length-8 hypervector valid for BOTH the Klein-4 byte ops
+        #           ({0,1,2,3}) AND the power-of-two octonion ops (length 8 is a
+        #           power of two; polar/int8 ops tolerate a tolerated domain error
+        #           on a 2/3 element, but length-8 {0,1,2,3} is in-domain for the
+        #           dominant klein4 / octonion families).
+        "Vec": vec,
+        "HV": [0, 1, 2, 3, 0, 1, 2, 3],
+        "Optional[Vec]": vec,
+        "Optional[HV]": [0, 1, 2, 3, 0, 1, 2, 3],
+        "Mat | Vec": mat2,   # the 2-D arm satisfies the most ops; 1-D is tolerated
         # container element-recursions (minimal valid shapes).
         "Sequence[bytes]": [b64, b64],
         "list[bytes]": [b64, b64],   # v0.7.0rc10: format.sha256_batch `datas`
+        "Sequence[Vec]": [vec, vec],
+        "Sequence[HV]": [[0, 1, 2, 3], [0, 1, 2, 3]],
+        "tuple[Mat, ...]": [mat2, mat2],
+        # rank-3 nested list (gauge structure constants f^abc); a minimal 1x1x1.
+        "list[list[list[float]]]": [[[0.0]]],
+        # legacy numpy-free wire-form keys (no param advertises them now).
         "Sequence[np.ndarray]": [vec, vec],
         "tuple[np.ndarray, ...]": [mat2, mat2],
         # v0.7.0rc36 spectral_cascades: each complex scalar rides as [re, im].

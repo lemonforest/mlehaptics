@@ -127,8 +127,7 @@ def test_no_advertised_return_type_names_ndarray() -> None:
     """numpy was DELETED from srmech (#564) — NO advertised ``returns.type`` may
     contain the token ``ndarray``. A permanent down-only guard: the tool schema
     is the package's self-recognition surface and must never claim a carrier it
-    cannot produce. (Parameter ``np.ndarray`` type strings are a SEPARATE,
-    synth-coupled concern and are out of scope for this guard.)"""
+    cannot produce."""
     schema = get_tool_schema()
     offenders = [
         e.name for e in schema.tools
@@ -137,6 +136,30 @@ def test_no_advertised_return_type_names_ndarray() -> None:
     assert offenders == [], (
         "advertised RETURN types still naming the gone numpy ndarray:\n"
         + "\n".join(f"  - {n}" for n in offenders)
+    )
+
+
+def test_no_advertised_param_type_names_ndarray() -> None:
+    """numpy was DELETED from srmech (#564) — NO advertised PARAMETER type may
+    contain the token ``ndarray`` either (the rc132 lock closing the OTHER half
+    of every tool signature). A ``np.ndarray`` in a ``P(...)`` type string is the
+    same numpy-inviting lie the return-type guard forbids: it tells a caller / LLM
+    / introspection "it's just a numpy array, do the math in numpy". The carrier
+    (``Mat`` / ``Vec`` / ``HV`` and their ``Optional`` / ``Sequence`` / ``tuple``
+    forms) is the lock — the numpy *spirit* without numpy. A permanent down-only
+    ratchet: both sides of every tool signature stay numpy-name-free forever."""
+    schema = get_tool_schema()
+    offenders = [
+        (e.name, p.name, p.type)
+        for e in schema.tools
+        for p in e.parameters
+        if "ndarray" in p.type
+    ]
+    assert offenders == [], (
+        "advertised PARAMETER types still naming the gone numpy ndarray "
+        "(an LLM-side invitation to drop srmech and reach for numpy):\n"
+        + "\n".join(f"  - {name}.{pname}: {ptype!r}"
+                    for name, pname, ptype in offenders)
     )
 
 
@@ -294,6 +317,91 @@ def test_carrier_returning_ops_expose_numpy_idioms_numpy_free():
 
 
 # ──────────────────────────────────────────────────────────────────────
+# 3b. The carrier is AGNOSTIC about input (rc132): a carrier-typed param
+#     accepts the carrier OR its degenerate list / tuple / Vec / array form,
+#     and the op returns the SAME value either way. This is what makes the
+#     advertised carrier honest — it is the numpy *spirit* (accepts every shape
+#     the no-math plan used) without numpy.
+# ──────────────────────────────────────────────────────────────────────
+def test_carrier_typed_params_accept_degenerate_forms_numpy_free():
+    """A representative carrier-returning op (per carrier kind) gives the SAME
+    result whether fed the CARRIER or its degenerate list / tuple form — proving
+    the advertised ``Mat`` / ``Vec`` / ``HV`` param genuinely ACCEPTS the looser
+    shapes (list-of-lists, tuple-of-rows, flat list, ``array.array``). numpy-free."""
+    from array import array as _array
+    from srmech.amsc.hv import HV
+    from srmech.amsc import hdc
+
+    # ── Mat-typed param (A): a Mat OR list-of-lists OR tuple-of-rows ──
+    rows = [[2.0, 0.0], [0.0, 3.0]]
+    rhs = [[1.0, 0.0], [0.0, 1.0]]
+    as_mat = L.dense_solve(Mat.from_rows(rows), Mat.from_rows(rhs))
+    as_list = L.dense_solve(rows, rhs)                       # list-of-lists
+    as_tuple = L.dense_solve(tuple(tuple(r) for r in rows),  # tuple-of-rows
+                             tuple(tuple(r) for r in rhs))
+    assert isinstance(as_mat, Mat) and isinstance(as_list, Mat)
+    assert as_mat.tolist() == as_list.tolist() == as_tuple.tolist()
+
+    # ── Mat | Vec-typed RHS (B): a Vec OR a flat list as a 1-D right-hand side ──
+    b_vec = L.dense_solve(rows, Vec.from_sequence([1.0, 1.0]))
+    b_flat = L.dense_solve(rows, [1.0, 1.0])
+    assert isinstance(b_vec, Vec) and isinstance(b_flat, Vec)
+    assert b_vec.tolist() == b_flat.tolist()
+
+    # ── Vec-typed param (matvec v): a Vec OR flat list OR tuple OR array.array ──
+    M = Mat.from_rows([[1.0, 2.0], [3.0, 4.0]])
+    base = L.dense_matvec_real(M, Vec.from_sequence([1.0, 1.0]))
+    flat = L.dense_matvec_real(M, [1.0, 1.0])               # flat list
+    tup = L.dense_matvec_real(M, (1.0, 1.0))                # flat tuple
+    arr = L.dense_matvec_real(M, _array("d", [1.0, 1.0]))   # array.array
+    assert isinstance(base, Vec)
+    assert base.tolist() == flat.tolist() == tup.tolist() == arr.tolist()
+
+    # ── HV-typed param (klein4 byte carrier): an HV OR flat int list OR
+    #    array.array OR tuple — bind is value-identical across all forms ──
+    a_list = [0, 1, 2, 3, 0, 1, 2, 3]
+    b_list = [1, 1, 1, 1, 0, 0, 0, 0]
+    r_list = hdc.klein4_bind(a_list, b_list)                # flat int lists
+    r_hv = hdc.klein4_bind(HV.from_sequence(a_list),        # HV carriers
+                           HV.from_sequence(b_list))
+    r_tup = hdc.klein4_bind(tuple(a_list), tuple(b_list))   # flat tuples
+    r_arr = hdc.klein4_bind(_array("B", a_list), _array("B", b_list))  # array
+    assert isinstance(r_list, HV)
+    assert r_list.tolist() == r_hv.tolist() == r_tup.tolist() == r_arr.tolist()
+
+    # ── HV-typed param (octonion power-of-two float carrier): an HV/list/tuple
+    #    of the same length-8 vector binds identically (the loop_bind family) ──
+    x = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]   # the octonion identity e0
+    y = [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    p_list = hdc.loop_bind(x, y)
+    p_tup = hdc.loop_bind(tuple(x), tuple(y))
+    p_vec = hdc.loop_bind(Vec.from_sequence(x), Vec.from_sequence(y))
+    assert p_list == p_tup == p_vec  # e0 · e1 = e1, same for every input form
+
+
+def test_carrier_coercers_produce_op_accepted_structures_numpy_free():
+    """The MCP inbound coercer for each carrier type produces a structure the
+    underlying numpy-free op ACCEPTS — the wire-path proof that the advertised
+    carrier is callable end-to-end. ``Vec`` / ``HV`` coercers yield a flat list,
+    ``Mat`` a nested list, all of which the agnostic ops consume. numpy-free."""
+    from srmech.mcp._coercion import coerce_param
+
+    # Vec wire form (flat JSON list) -> a flat Python list the matvec op accepts.
+    v = coerce_param([1.0, 1.0], "Vec")
+    assert isinstance(v, list) and v == [1.0, 1.0]
+    # HV wire form (flat JSON int list) -> a flat list the klein4 op accepts.
+    h = coerce_param([0, 1, 2, 3], "HV")
+    assert isinstance(h, list) and h == [0, 1, 2, 3]
+    # Mat wire form (nested JSON list) -> a real Mat carrier.
+    m = coerce_param([[1.0, 0.0], [0.0, 1.0]], "Mat")
+    assert isinstance(m, Mat) and m.shape == (2, 2)
+    # the produced structures drive a real op cleanly via the SAME wire forms.
+    M = coerce_param([[1.0, 2.0], [3.0, 4.0]], "Mat")
+    out = L.dense_matvec_real(M, coerce_param([1.0, 1.0], "Vec"))
+    assert isinstance(out, Vec) and out.tolist() == [3.0, 7.0]
+
+
+# ──────────────────────────────────────────────────────────────────────
 # 4. The whole gate runs with numpy HARD-BLOCKED at import
 # ──────────────────────────────────────────────────────────────────────
 def test_immolation_is_itself_numpy_free():
@@ -311,11 +419,16 @@ def test_immolation_is_itself_numpy_free():
 
     builtins.__import__ = _blocked
     try:
-        # (a) immolation guard holds numpy-absent
+        # (a) immolation guard holds numpy-absent — BOTH halves of every tool
+        #     signature: no advertised RETURN nor PARAMETER type names ndarray.
         schema = get_tool_schema()
         assert not any(
             e.returns is not None and "ndarray" in e.returns.type
             for e in schema.tools
+        )
+        assert not any(
+            "ndarray" in p.type
+            for e in schema.tools for p in e.parameters
         )
         # (b) a carrier-flipped op invoked via the wire path returns the carrier,
         #     and the observed type AGREES with the advertised type — numpy-absent.
