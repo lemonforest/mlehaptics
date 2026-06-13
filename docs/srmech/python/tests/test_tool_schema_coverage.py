@@ -158,6 +158,20 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # rational projection, reachable via Python AND dotted-path TOML-class
     # binding (op = "srmech.amsc.cascade.to_scalar"), not via the MCP tool list.
     "srmech.amsc.cascade.one.to_scalar",
+    # cascade.one.one_* (v0.7.5rc138, #564 / [[feedback_prefer_config_driven_toml_classes]])
+    # — the flat cascade-op accessor layer that the packaged ``one.toml``
+    # ([class] One) binds its methods to (the genome two-layer pattern: ship each
+    # accessor as a flat op, bind in the [class] TOML). Each takes a structured
+    # ``One`` object → no MCP coercer for a One param, reachable ONLY via the
+    # make_class class surface, NOT the MCP tool list — exempt exactly like
+    # ``one.to_scalar`` above.
+    "srmech.amsc.cascade.one.one_dim",
+    "srmech.amsc.cascade.one.one_imag_dims",
+    "srmech.amsc.cascade.one.one_partition",
+    "srmech.amsc.cascade.one.one_plane_counts",
+    "srmech.amsc.cascade.one.one_grammar_slots",
+    "srmech.amsc.cascade.one.one_flat_rational",
+    "srmech.amsc.cascade.one.one_matrix",
     # cascade.cayley_dickson.* — the open-exterior boundary-demonstrator
     # (v0.7.3rc1 / #915 / MFO §VII.6.23). The discoverable surface is registered
     # under STABLE flat names ``srmech.amsc.cascade.{cd_mult,cd_conjugate,
