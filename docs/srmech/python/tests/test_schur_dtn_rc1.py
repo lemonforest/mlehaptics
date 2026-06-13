@@ -55,13 +55,15 @@ def test_dirichlet_to_neumann_alias_agrees() -> None:
 
 def test_float_path_matches_exact() -> None:
     """The default float path equals the exact-Fraction reference (numpy-free:
-    the EXACT path is the oracle, not numpy)."""
+    the EXACT path is the oracle, not numpy). The float ``S`` returns in the
+    numpy-free ``Mat`` carrier (rc131 carrier-format law), NOT a bare list."""
+    from srmech.amsc.mat import Mat
     L = dense_laplacian(*PATH4)
-    S = schur_complement(L, [0, 3])  # default: plain list[list[float]]
-    assert isinstance(S, list) and isinstance(S[0], list)
+    S = schur_complement(L, [0, 3])  # default: numpy-free Mat carrier
+    assert isinstance(S, Mat) and S.shape == (2, 2)
     for i in range(2):
         for j in range(2):
-            assert abs(S[i][j] - float(S_PATH4_EXACT[i][j])) < 1e-12
+            assert abs(S[i, j] - float(S_PATH4_EXACT[i][j])) < 1e-12
 
 
 def test_dtn_property_boundary_normal_derivative() -> None:

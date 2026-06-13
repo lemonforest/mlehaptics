@@ -55,8 +55,12 @@ def test_dense_solve_inverse_satisfies_defining_identity():
         m = _spd(n, rng)
         eye = [[1.0 if i == j else 0.0 for j in range(n)] for i in range(n)]
         inv_cascade = dense_solve(m, eye)
-        assert isinstance(inv_cascade, list) and len(inv_cascade) == n
-        prod = _matmul(m, inv_cascade)
+        # rc131 carrier-format law: a matrix RHS yields the Mat carrier, NOT a
+        # bare list — flatten via .tolist() (carrier convert, not numpy) for the
+        # pure-list matmul cross-check.
+        from srmech.amsc.mat import Mat
+        assert isinstance(inv_cascade, Mat) and len(inv_cascade) == n
+        prod = _matmul(m, inv_cascade.tolist())
         for i in range(n):
             for j in range(n):
                 want = 1.0 if i == j else 0.0

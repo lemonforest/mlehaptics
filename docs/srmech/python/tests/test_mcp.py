@@ -1872,11 +1872,30 @@ def test_every_advertised_tool_invocable() -> None:
                  f"RESULT not serialisable {type(exc).__name__}: {exc}")
             )
             continue
+
+        # rc131 — RETURN-TYPE AGREEMENT. The harness already holds ``raw``; the
+        # gap §10.1 historically left open was never asserting that ``type(raw)``
+        # AGREES with the advertised ``returns.type``. Assert it here too (the
+        # immolation gate owns the canonical guard; this folds the inspection
+        # into the existing every-tool harness). ``None`` agreement (an
+        # unassertable handle / unknown type) is skipped, exactly as the
+        # immolation gate skips it.
+        if entry.returns is not None:
+            from conftest import return_type_agrees
+            agrees = return_type_agrees(raw, entry.returns.type)
+            if agrees is False:
+                failures.append(
+                    (entry.name, synth,
+                     f"RETURN-TYPE mismatch: observed "
+                     f"{type(raw).__name__!r} does not match advertised "
+                     f"{entry.returns.type!r}")
+                )
+                continue
         invoked_ok += 1
 
     print(
         f"\n{invoked_ok}/{len(advertised)} advertised tools invocable "
-        f"(binding+coercion clean)"
+        f"(binding+coercion+return-type clean)"
     )
     assert not failures, (
         "every-tool invocation smoke found tools that are advertised but "
