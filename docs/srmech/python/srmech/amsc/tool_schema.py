@@ -1115,7 +1115,7 @@ def _register_primitive_class_tools() -> None:
                     "Golub & Van Loan §1.1.",
             parameters=(P("a", "Mat", True, "Mat / Vec / HV / flat sequence"),
                         P("b", "Mat", True, "Mat / Vec / HV / flat sequence")),
-            returns=R("complex", "scalar sum a_i b_i (float for real operands)"),
+            returns=R("float", "scalar sum a_i b_i (complex when either operand is complex)"),
         ),
         ToolEntry(
             name="srmech.amsc.laplacian.mat_matvec",
