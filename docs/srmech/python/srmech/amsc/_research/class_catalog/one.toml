@@ -1,0 +1,65 @@
+# The One — S(σ,θ), as a config-driven [class] over the shipped cascade.
+#
+# This is the substrate generator (srmech.amsc.cascade.the_one, #887) declared
+# DECLARATIVELY: a [class] TOML whose methods bind to the module-level flat
+# accessor ops in srmech.amsc.cascade.one (the genome two-layer pattern — ship
+# each accessor as a flat op, bind it here). Per
+# [[feedback_prefer_config_driven_toml_classes]], the immutable accessor-shaped
+# One fits the make_class contract with NO new directives (single `one` field
+# holding the constructed S(σ,θ); each method a one-bind cascade-op ref).
+#
+#   from srmech.amsc.cascade import the_one
+#   from srmech.dsl import make_class
+#   O = make_class("One")(one=the_one(+1, 0, 1))   # σ=+1, θ=0
+#   O.partition()   # (1, 3, 7, 3)
+#   O.flat()        # the 14 exact (num, den) rationals
+#   O.matrix()      # the 14×14 numpy-free Mat operator G(σ,θ)
+#   O.scalar(mode="trace")          # exact rotation character (num, den)
+
+[class]
+name = "One"
+kind = "substrate"
+doc = "S(σ,θ) — the single generator of the 1+3+7+3 = 14-D A–N substrate (the Hurwitz ℂ/ℍ/𝕆 division-algebra ladder; #887). Construct the field value with srmech.amsc.cascade.the_one(σ, θ_num, θ_den[, terms]); the methods expose the One's exact-rational accessors + realisations as a declarative, config-driven class — prefer this [class] TOML over hand-coding the domain class."
+
+[class.field]
+one = "any"
+
+[class.method.dim]
+op = "srmech.amsc.cascade.one.one_dim"
+binds = ["one"]
+doc = "The substrate dimension — always 14 (= 2 + 4 + 8)."
+
+[class.method.imag_dims]
+op = "srmech.amsc.cascade.one.one_imag_dims"
+binds = ["one"]
+doc = "(1, 3, 7) — the imaginary dimensions (the operator substrate)."
+
+[class.method.partition]
+op = "srmech.amsc.cascade.one.one_partition"
+binds = ["one"]
+doc = "(1, 3, 7, 3) — the canonical A–N partition (imaginary + grammar)."
+
+[class.method.plane_counts]
+op = "srmech.amsc.cascade.one.one_plane_counts"
+binds = ["one"]
+doc = "(0, 1, 3) — planes each block turns by θ (the octonion-native epicycle)."
+
+[class.method.grammar_slots]
+op = "srmech.amsc.cascade.one.one_grammar_slots"
+binds = ["one"]
+doc = "('B', 'H', 'N') — the three ℝ·1 grammar / translation units."
+
+[class.method.flat]
+op = "srmech.amsc.cascade.one.one_flat_rational"
+binds = ["one"]
+doc = "The 14 exact (num, den) rationals of the state ([ℝ·1, Im] per block; ℂ then ℍ then 𝕆)."
+
+[class.method.matrix]
+op = "srmech.amsc.cascade.one.one_matrix"
+binds = ["one"]
+doc = "The 14×14 block-diagonal operator G(σ,θ) as a numpy-free Mat (the qm.hurwitz Rosetta peer)."
+
+[class.method.scalar]
+op = "srmech.amsc.cascade.to_scalar"
+binds = ["one"]
+doc = "Project to one scalar — mode='trace' (rotation character) | 'sqnorm' | 'component' (index=); exact (num, den), or as_float=True for the terminal cast."

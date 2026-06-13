@@ -519,6 +519,58 @@ def to_scalar(one: "One",
     return (num, den)
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Flat cascade-op accessors — the make_class two-layer binding surface.
+#
+# ``one.toml`` (the packaged ``[class] One``) binds its methods to these by
+# dotted path — the genome **two-layer pattern**: ship each accessor as a
+# module-level flat op, then bind it in the ``[class]`` TOML. Each takes the
+# constructed :class:`One` as its sole bind (the descriptor's ``one`` field),
+# mirroring the module-level :func:`to_scalar` above. They are reachable ONLY
+# through the class TOML (a :func:`~srmech.dsl.make_class` method), NOT the MCP
+# tool list — exempt in the tool-schema coverage gate exactly like
+# :func:`to_scalar`. This realises "prefer config-driven ``[class]`` TOML over
+# hand-coding domain classes" (``[[feedback_prefer_config_driven_toml_classes]]``)
+# for the substrate generator itself: ``One`` becomes a declarative class whose
+# accessors are cascade-op refs.
+# ──────────────────────────────────────────────────────────────────────
+
+def one_dim(one: "One") -> int:
+    """Flat-op accessor — the substrate dimension (always 14). See :attr:`One.dim`."""
+    return one.dim
+
+
+def one_imag_dims(one: "One") -> Tuple[int, int, int]:
+    """Flat-op accessor — ``(1, 3, 7)`` imaginary dims. See :attr:`One.imag_dims`."""
+    return one.imag_dims
+
+
+def one_partition(one: "One") -> Tuple[int, int, int, int]:
+    """Flat-op accessor — the ``(1, 3, 7, 3)`` A–N partition. See :attr:`One.partition`."""
+    return one.partition
+
+
+def one_plane_counts(one: "One") -> Tuple[int, int, int]:
+    """Flat-op accessor — ``(0, 1, 3)`` planes per block. See :attr:`One.plane_counts`."""
+    return one.plane_counts
+
+
+def one_grammar_slots(one: "One") -> Tuple[str, str, str]:
+    """Flat-op accessor — ``('B','H','N')`` grammar units. See :attr:`One.grammar_slots`."""
+    return one.grammar_slots
+
+
+def one_flat_rational(one: "One") -> Tuple[Tuple[int, int], ...]:
+    """Flat-op accessor — the 14 exact rationals. See :meth:`One.to_flat_rational`."""
+    return one.to_flat_rational()
+
+
+def one_matrix(one: "One"):
+    """Flat-op accessor — the 14×14 numpy-free :class:`~srmech.amsc.mat.Mat`
+    operator ``G(σ,θ)``. See :meth:`One.to_matrix`."""
+    return one.to_matrix()
+
+
 __all__ = [
     "ALGEBRAS",
     "IMAG_DIMS",
@@ -533,4 +585,12 @@ __all__ = [
     "the_one",
     "s_generator",
     "to_scalar",
+    # flat cascade-op accessors — the one.toml ([class] One) binding surface
+    "one_dim",
+    "one_imag_dims",
+    "one_partition",
+    "one_plane_counts",
+    "one_grammar_slots",
+    "one_flat_rational",
+    "one_matrix",
 ]
