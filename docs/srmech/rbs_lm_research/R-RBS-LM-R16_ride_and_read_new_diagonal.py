@@ -18,8 +18,15 @@ from pathlib import Path
 import numpy as np
 import srmech
 from srmech.amsc import laplacian as L
+from srmech.amsc import mat as M, vec as V
 
 HERE = Path(__file__).parent
+
+
+def _matvec(A, v):
+    # srmech-native matvec via the Mat/Vec carrier — replaces laplacian.dense_matvec_complex, which was
+    # removed in srmech 0.7.5rc138 as a duplicate of the carrier `@` operator (Mat @ Vec). Verified identical.
+    return (M.Mat.from_rows(np.asarray(A).tolist()) @ V.Vec.from_sequence(np.asarray(v).tolist())).tolist()
 
 # A small directed tree/DAG so "ride to the spot, read its local structure" is legible.
 N = 8
@@ -47,29 +54,29 @@ def main():
     e = np.zeros(N, dtype=complex); e[anchor] = 1.0
 
     # --- ride one directed step (transport via srmech dense_matvec_complex) ---
-    x1 = L.dense_matvec_complex(A, e)
+    x1 = _matvec(A, e)
     reached = support(x1)
     print(f"\n  anchor = node {anchor}; ride 1 directed step -> reached {reached}  (true out-neighbours {out_nbr[anchor]})")
     relocated_ok = reached == out_nbr[anchor]
 
     # --- read the NEW diagonal: out-structure at the reached nodes (ride again from the new frame) ---
-    x2 = L.dense_matvec_complex(A, x1)
+    x2 = _matvec(A, x1)
     reached2 = support(x2)
     expect2 = sorted({c for b in reached for c in out_nbr[b]})
     print(f"  read new diagonal: ride again -> {reached2}  (out-neighbours of {reached} = {expect2})")
     new_diag_ok = reached2 == expect2
 
     # --- one-way check: directed does NOT bleed back to the anchor; symmetric DOES ---
-    back_directed = anchor in support(L.dense_matvec_complex(A, x1))      # A²·e : returns to 1?
-    xs1 = L.dense_matvec_complex(A_sym, e)
-    xs2 = L.dense_matvec_complex(A_sym, xs1)
+    back_directed = anchor in support(_matvec(A, x1))      # A²·e : returns to 1?
+    xs1 = _matvec(A_sym, e)
+    xs2 = _matvec(A_sym, xs1)
     back_symmetric = anchor in support(xs2)                               # A_sym²·e : returns to 1?
     print(f"  one-way: directed A²·e returns to anchor {anchor}? {back_directed}   |   symmetric A_sym²·e returns? {back_symmetric}")
 
     # --- composability: ride k steps -> depth-k frontier ---
     xk = e.copy(); frontier = []
     for k in range(1, 5):
-        xk = L.dense_matvec_complex(A, xk)
+        xk = _matvec(A, xk)
         frontier.append(support(xk))
     print(f"  composability (ride further): depth-1..4 frontiers = {frontier}")
 

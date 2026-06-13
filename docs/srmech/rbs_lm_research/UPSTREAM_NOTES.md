@@ -2000,7 +2000,10 @@ Scanned via `R-RBS-LM-APIDIFF_rc_breaking_change_scan.py` (re-runnable; dumps bo
   28D/triality surface now imports AND runs numpy-free (`so8.so8_adjoint_basis()` executed with numpy absent).
 - **Recommendation for the clean `0.7.5` CHANGELOG:** one breaking line — "*Class-L (`laplacian.*`) +
   `coupling.signed_sum_squared` now return numpy-free shaped carriers `Mat`/`Vec` (with `.shape`/2-D-indexing/`.tolist()`),
-  not numpy arrays; use `laplacian.dense_matmul_*` instead of `@`, or `np.asarray(x.tolist())` to lift to numpy.*"
+  not numpy arrays; use the carrier `@` operator for matmul/matvec, or `np.asarray(x.tolist())` to lift to numpy.*"
+  **(UPDATED rc138, F731): the standalone `laplacian.{dense_matmul_*, dense_matvec_*, dense_dot_*, dense_norm,
+  dense_outer_*, mat_dot_*}` helpers were REMOVED as duplicates of the carrier operators — use `Mat @ Vec` / `Mat @ Mat`
+  (verified identical). Earlier advice to "use dense_matmul_*" is superseded.)
 
 ### §42.2 CARRIER-COMPLETENESS ask — make `Mat`/`Vec` a full numpy-reflex sink (rc132 audit; F728)
 

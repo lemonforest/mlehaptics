@@ -636,3 +636,10 @@ Per user direction ("check stale queue items to bring forward and do if remainin
 - User wants: library -> tarballable chromosome -> several framed genes; chromosome as a bundleable unit (git loose/packed model; today turns.bin+manifest.json IS a packfile+index).
 - `R-RBS-LM-AMSCREUSE...py` (re-runnable introspection): **13/13 requirements already map to an AMSC op** — MPRRecord/sha256/write_ndjson/validate (attestation), catalog.register_attested_root/list_attested_sources/get_attested_dataset/discover_descriptors/attestation_audit (the LIBRARY/registry — don't build a parallel catalog), descriptor.load_descriptor/descriptor_hash (per-chromosome description = a descriptor.toml), tlv.tlv_pack (Class-B gene framing).
 - **Genuinely-new (small):** tlv_unpack reader (tlv_pack ships, inverse doesn't); chromosome(genes=[...]) + genes() reader; genome_export(.chr)/import + genome_explode/pack (loose<->packed converters, pure orchestration); unify genome_catalog with the AMSC catalog (mild existing reinvention). Honest impedance: catalog is NDJSON/MPR-row oriented, genome body is binary turns.bin -> reuse registry/discovery/attestation, keep binary body (or NDJSON if catalog-nativeness wins). Scoped fully in UPSTREAM §43. F730.
+
+### F731 — rc138 verify: the_one TOML-driven (faster), 11-helper de-dup, §43 genes-per-chromosome landed (2026-06-13)
+
+- the_one now TOML/config-driven (internal; public sig unchanged) + FASTER: the_one(1,1,2) 423us->247us, the_one(1,3,7) 495->290us (cached, not per-call parse). Class-L path unchanged. No slowdown.
+- regression 49/0, genome->disk VERIFIED, carrier 17/17 — all green on rc138.
+- DE-DUP: 11 laplacian helpers REMOVED as Mat/Vec carrier-`@` duplicates (dense_matmul/matvec/dot/norm/outer_*, mat_dot_*). Migration verified identical: dense_matvec_complex(A,v) -> Mat(A)@Vec(v). Fixed R-RBS-LM-R16 (F363, numpy-era) -> carrier _matvec helper. Corrected stale UPSTREAM §42.1 advice.
+- §43 LANDED (part): chromosome(genes=[...]) + genes() reader = several kernels per chromosome (round-trips exact, GENE_FRAME_TAG=71); tlv_unpack shipped (the §43 reader gap). F731.
