@@ -643,3 +643,8 @@ Per user direction ("check stale queue items to bring forward and do if remainin
 - regression 49/0, genome->disk VERIFIED, carrier 17/17 — all green on rc138.
 - DE-DUP: 11 laplacian helpers REMOVED as Mat/Vec carrier-`@` duplicates (dense_matmul/matvec/dot/norm/outer_*, mat_dot_*). Migration verified identical: dense_matvec_complex(A,v) -> Mat(A)@Vec(v). Fixed R-RBS-LM-R16 (F363, numpy-era) -> carrier _matvec helper. Corrected stale UPSTREAM §42.1 advice.
 - §43 LANDED (part): chromosome(genes=[...]) + genes() reader = several kernels per chromosome (round-trips exact, GENE_FRAME_TAG=71); tlv_unpack shipped (the §43 reader gap). F731.
+
+### F732 — chromosome gene-introspection extended; genome()+disk multi-gene gap (§43.1) (2026-06-13)
+
+- Extended R-RBS-LM-GENOMEREAD with chromosome-LEVEL introspection: chromosome(genes=[...]) + genes() lists the gene-frames WITHIN a chromosome (intro/history/refs, round-trips exact, GENE_FRAME_TAG=71='G'). Two-level read now: genome->chromosomes (between telomeres) + chromosome->genes (gene-frames inside).
+- GAP found (UPSTREAM §43.1): genome() + disk do NOT yet accept multi-gene chromosomes — genome() re-binds each leaf via quad_turn/klein4_bind and chokes on the TLV frame bytes, so no genome->save->window->genes round-trip. Multi-gene chromosomes are in-memory only. Ask: genome(chromosomes=[(label, genes=[...])]) + genome_genes(path,label). F732.

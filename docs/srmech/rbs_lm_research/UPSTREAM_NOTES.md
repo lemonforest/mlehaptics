@@ -2075,3 +2075,16 @@ as NDJSON MPR rows only if catalog-nativeness is judged to beat the binary compa
 forced). Layered model: **library = attested root, chromosome = attested source (`descriptor.toml` + body) = the
 tarball unit, gene = a TLV frame inside.** **Discipline:** TestPyPI-rc before clean tag; additive; MPR-attested; no
 issue tracker (user direction). Composes §41 / §42 / F715 / F721 / F729 / CLAUDE §2 (Class A/B + catalog/descriptor).
+
+### §43.1 GAP (rc138, F732) — `genome()` + disk do NOT yet accept multi-gene chromosomes
+
+rc138 shipped the chromosome-level gene-frame: `chromosome(genes=[(label, leaves), …])` + `genes(strand, the_one)`
+reader + `GENE_FRAME_TAG=71` + `tlv_unpack` — verified round-trips EXACT, but **in memory only**. The two levels do
+NOT compose through the packer/disk path: `genome(kernels, the_one)` re-binds every "leaf" via `quad_turn`→
+`klein4_bind`, so passing a gene-framed chromosome strand as a kernel's leaves raises `klein4_bind: elements must be
+in {0,1,2,3}` (the TLV frame bytes aren't Klein-4 values). **So there is no `genome → save → window → genes`
+round-trip** — multi-gene chromosomes can't persist to disk. **Ask:** let the genome packer + disk layer carry
+gene-framed chromosomes — e.g. `genome(chromosomes=[(label, genes=[(gl, leaves), …]), …], the_one)` that frames genes
+WITHOUT re-binding the frame bytes, and have `genome_window` return a gene-framed strand `genes()` can read (or add
+`genome_genes(path, label)` that pages + unpacks in one call). This is the wiring that makes "several kernels per
+chromosome" persist, not just live in RAM. Additive; composes §43 / F730 / F732.

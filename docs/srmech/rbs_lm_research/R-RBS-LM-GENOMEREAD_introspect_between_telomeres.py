@@ -72,6 +72,22 @@ def main():
     raw = [hdc.klein4_unbind(x, ONE) for x in g.genome_window(d, "mfo_the_one")]
     print(f"\n  TARGETED READ  genome_window('mfo_the_one') -> {len(raw)} tomes; decode==stored: "
           f"{raw == SHELF['mfo_the_one'][0]}")
+
+    # (4) CHROMOSOME INTROSPECTION — the genes WITHIN one chromosome (F730/§43; rc138 gene-frame, tag=GENE_FRAME_TAG).
+    print(f"\n  CHROMOSOME INTROSPECTION — several genes WITHIN a chromosome (gene-frame tag={g.GENE_FRAME_TAG}='{chr(g.GENE_FRAME_TAG)}'):")
+    chrom_genes = [("intro",   [hdc.klein4_random(DIM, seed=200 + i) for i in range(2)]),
+                   ("history", [hdc.klein4_random(DIM, seed=210 + i) for i in range(3)]),
+                   ("refs",    [hdc.klein4_random(DIM, seed=220 + i) for i in range(1)])]
+    multi = g.chromosome(genes=chrom_genes, the_one=ONE, label="siona_identity")
+    inner = g.genes(multi, ONE)
+    print(f"    chromosome 'siona_identity' (strand len {len(multi)}) holds {len(inner)} genes:")
+    for gl, lv in inner:
+        print(f"      ⟨gene:{gl:8}⟩  {len(lv)} tomes")
+    print(f"    genes() round-trips the gene-frames exact: {inner == chrom_genes}  (several kernels per chromosome — §43)")
+    print("    NOTE (honest gap): this is the chromosome-LEVEL read (in-memory). genome() + the disk path do NOT")
+    print("      yet accept multi-gene chromosomes (genome() re-binds each leaf and chokes on the TLV frame bytes),")
+    print("      so there is no genome->disk->window->genes round-trip yet. §43 follow-up (UPSTREAM §43.1).")
+
     print("\nVERDICT: the genome reads as a telomere-delimited helix. genome_catalog = the 'what's stored + what it")
     print("  means' introspection (label + tome-count + cap + byte-range, body untouched); genome_window pages one")
     print("  chromosome; recall/unbind decodes the tomes. The LABEL is the meaning-key; between two telomeres is")
