@@ -181,12 +181,17 @@ class CatalogClass:
         strand = g.add_chromosome(leaves=[...], label="astronomy")  # appended
         leaves = g.recall(strand=strand, telomere=g.cap(label="astronomy"))
 
-    A method's ``binds`` names are resolved positionally from the call kwargs
-    first, then the instance fields; leftover call kwargs pass through to the op
-    (e.g. ``label=``). State routing is mutually exclusive, at most one of:
-    ``appends`` (``list.append`` one field), ``sets`` (replace one field), or
-    ``mutates`` (a field-name list — the op returns ``(return_value, {field:
-    new})`` and each named field is replaced; the richer multi-field contract).
+    A method has ONE op-source — either ``op`` (a single cascade op, ``binds``
+    resolved positionally from call kwargs then fields; leftover call kwargs pass
+    through, e.g. ``label=``) or ``chain`` (a VISIBLE multi-op pipeline: a list of
+    ``{op, binds, as}`` stages, each stage's ``binds`` from a prior stage's ``as``
+    / call kwargs / fields; the method returns the last stage's result). State
+    routing is mutually exclusive, at most one of: ``appends`` (``list.append``
+    one field), ``sets`` (replace one field), ``mutates`` (a field-name list — the
+    op returns ``(return_value, {field: new})`` and each named field is replaced),
+    or ``returns = "self"`` (a self-returning method — the op/chain returns the new
+    instance's ``{field: value}`` state-dict and a FRESH same-class instance is
+    constructed; ``self`` is untouched).
     """
 
     def __init__(self, descriptor: Dict[str, Any], **fields: Any) -> None:
@@ -236,34 +241,120 @@ class CatalogClass:
 
     def _invoke(self, mname: str, **call_kwargs: Any) -> Any:
         spec = self._descriptor["class"]["method"][mname]
-        op = _resolve_op(spec["op"])
-        args: List[Any] = []
-        for b in spec.get("binds", []):
-            if b in call_kwargs:
-                args.append(call_kwargs.pop(b))
-            elif b in self._fields:
-                args.append(self._fields[b])
-            else:
-                raise ValueError(
-                    f"{self._class_name}.{mname}: cannot resolve bind {b!r} "
-                    f"(not a call kwarg, not a field)"
-                )
-        result = op(*args, **call_kwargs)   # leftover kwargs pass through (e.g. label=)
-        appends = spec.get("appends")
-        sets = spec.get("sets")
-        mutates = spec.get("mutates")
-        if sum(x is not None for x in (appends, sets, mutates)) > 1:
+        chain = spec.get("chain")
+        has_op = "op" in spec
+        if has_op == (chain is not None):
             raise ValueError(
-                f"{self._class_name}.{mname}: a method may route its result via "
-                f"at most one of 'appends' / 'sets' / 'mutates'"
+                f"{self._class_name}.{mname}: a method needs exactly one of "
+                f"'op' (single cascade op) or 'chain' (a visible multi-op pipeline)"
             )
-        if mutates is not None:
-            return self._apply_mutates(mname, mutates, result)
-        if appends is not None:
-            self._fields.setdefault(appends, []).append(result)
-        elif sets is not None:
-            self._fields[sets] = result
+        if chain is not None:
+            result = self._run_chain(mname, chain, call_kwargs)
+        else:
+            op = _resolve_op(spec["op"])
+            args: List[Any] = []
+            for b in spec.get("binds", []):
+                if b in call_kwargs:
+                    args.append(call_kwargs.pop(b))
+                elif b in self._fields:
+                    args.append(self._fields[b])
+                else:
+                    raise ValueError(
+                        f"{self._class_name}.{mname}: cannot resolve bind {b!r} "
+                        f"(not a call kwarg, not a field)"
+                    )
+            result = op(*args, **call_kwargs)   # leftover kwargs pass through (e.g. label=)
+        # ── state routing: at most one of appends / sets / mutates / returns ──
+        routes = {k: spec.get(k) for k in ("appends", "sets", "mutates", "returns")}
+        active = {k: v for k, v in routes.items() if v is not None}
+        if len(active) > 1:
+            raise ValueError(
+                f"{self._class_name}.{mname}: a method may route its result via at "
+                f"most one of 'appends' / 'sets' / 'mutates' / 'returns'; "
+                f"declared {sorted(active)}"
+            )
+        if "returns" in active:
+            return self._apply_returns(mname, active["returns"], result)
+        if "mutates" in active:
+            return self._apply_mutates(mname, active["mutates"], result)
+        if "appends" in active:
+            self._fields.setdefault(active["appends"], []).append(result)
+        elif "sets" in active:
+            self._fields[active["sets"]] = result
         return result
+
+    def _run_chain(self, mname: str, chain: Any, call_kwargs: Dict[str, Any]) -> Any:
+        """Run a method declared as a VISIBLE multi-op pipeline — a list of
+        ``{op, binds, as}`` stages. Each stage resolves its ``binds`` positionally
+        from (1) a prior stage's ``as`` result, then (2) the call kwargs, then (3)
+        the instance fields; its non-(op/binds/as) keys are static stage kwargs;
+        its result is stashed under ``as`` (if given) for later stages. The method
+        returns the LAST stage's result (then state-routed like a single op).
+
+        This is the multi-op generalisation of the single-``op`` method — the
+        cascade composition is declared IN THE TOML (the config-driven point),
+        not buried inside one flat op. (The linear ``srmech.dsl.Chain`` threads a
+        single field-free value; a class method needs per-stage field binds, so
+        this is the class-aware engine.)"""
+        if not isinstance(chain, list) or not chain:
+            raise ValueError(
+                f"{self._class_name}.{mname}: 'chain' must be a non-empty list of "
+                f"{{op, binds, as}} stage tables; got {chain!r}"
+            )
+        scope: Dict[str, Any] = {}
+        last: Any = None
+        for idx, stage in enumerate(chain):
+            if not isinstance(stage, dict) or "op" not in stage:
+                raise ValueError(
+                    f"{self._class_name}.{mname}: chain stage {idx} must be a table "
+                    f"with an 'op' dotted-path; got {stage!r}"
+                )
+            sop = _resolve_op(stage["op"])
+            args: List[Any] = []
+            for b in stage.get("binds", []):
+                if b in scope:
+                    args.append(scope[b])
+                elif b in call_kwargs:
+                    args.append(call_kwargs[b])      # read (not pop) — stages may share
+                elif b in self._fields:
+                    args.append(self._fields[b])
+                else:
+                    raise ValueError(
+                        f"{self._class_name}.{mname}: chain stage {idx} cannot "
+                        f"resolve bind {b!r} (not a prior 'as', call kwarg, or field)"
+                    )
+            static = {k: v for k, v in stage.items()
+                      if k not in ("op", "binds", "as")}
+            last = sop(*args, **static)
+            name = stage.get("as")
+            if name is not None:
+                scope[str(name)] = last
+        return last
+
+    def _apply_returns(self, mname: str, returns: Any, result: Any) -> Any:
+        """Self-returning method: the op/chain returns the NEW instance's full
+        ``{field: value}`` state-dict, and this constructs a FRESH instance of the
+        same class from it (the SedenionRegister ``navigate`` shape — a method that
+        yields a new register rather than mutating in place). ``self`` is NOT
+        touched. ``returns`` currently supports only the literal ``"self"``."""
+        if returns != "self":
+            raise ValueError(
+                f"{self._class_name}.{mname}: 'returns' supports only the literal "
+                f"\"self\" (a new same-class instance); got {returns!r}"
+            )
+        if not isinstance(result, dict):
+            raise TypeError(
+                f"{self._class_name}.{mname}: a returns=\"self\" method's op must "
+                f"return a {{field: value}} dict (the new instance's fields); got "
+                f"{type(result).__name__}"
+            )
+        unknown = sorted(set(result) - set(self._fields))
+        if unknown:
+            raise ValueError(
+                f"{self._class_name}.{mname}: returns=\"self\" field-dict names "
+                f"undeclared field(s) {unknown}; declared: {sorted(self._fields)}"
+            )
+        return CatalogClass(self._descriptor, **result)
 
     def _apply_mutates(self, mname: str, mutates: Any, result: Any) -> Any:
         """Multi-field state routing: a ``mutates`` op returns

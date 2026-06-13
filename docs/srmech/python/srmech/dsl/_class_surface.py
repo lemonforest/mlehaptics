@@ -108,18 +108,25 @@ def _render_class_toml(
                 f"dict; got {type(mspec).__name__}"
             )
         op = mspec.get("op")
-        if not isinstance(op, str) or not op:
+        chain = mspec.get("chain")
+        if (op is None) == (chain is None):
             raise ValueError(
-                f"generate_class_descriptor: method {mname!r} needs a non-empty "
-                f"'op' dotted-path; got {op!r}"
+                f"generate_class_descriptor: method {mname!r} needs exactly one "
+                f"of 'op' (a dotted-path) or 'chain' (a list of stage tables)"
+            )
+        if op is not None and (not isinstance(op, str) or not op):
+            raise ValueError(
+                f"generate_class_descriptor: method {mname!r} 'op' must be a "
+                f"non-empty dotted-path; got {op!r}"
             )
         appends = mspec.get("appends")
         sets = mspec.get("sets")
         mutates = mspec.get("mutates")
-        if sum(x is not None for x in (appends, sets, mutates)) > 1:
+        returns = mspec.get("returns")
+        if sum(x is not None for x in (appends, sets, mutates, returns)) > 1:
             raise ValueError(
-                f"generate_class_descriptor: method {mname!r} may route its "
-                f"result to at most one of 'appends'/'sets'/'mutates'"
+                f"generate_class_descriptor: method {mname!r} may route its result "
+                f"to at most one of 'appends'/'sets'/'mutates'/'returns'"
             )
         if mutates is not None and not (
             isinstance(mutates, list) and all(isinstance(f, str) for f in mutates)
@@ -128,13 +135,41 @@ def _render_class_toml(
                 f"generate_class_descriptor: method {mname!r} 'mutates' must be "
                 f"a list of field-name strings; got {mutates!r}"
             )
+        if returns is not None and returns != "self":
+            raise ValueError(
+                f"generate_class_descriptor: method {mname!r} 'returns' supports "
+                f"only the literal \"self\"; got {returns!r}"
+            )
         binds = mspec.get("binds", []) or []
         lines.append("")
         lines.append("[class.method." + _toml_key(mname) + "]")
-        lines.append("op = " + _toml_basic_str(op))
-        lines.append(
-            "binds = [" + ", ".join(_toml_basic_str(str(b)) for b in binds) + "]"
-        )
+        if op is not None:
+            lines.append("op = " + _toml_basic_str(op))
+            lines.append(
+                "binds = [" + ", ".join(_toml_basic_str(str(b)) for b in binds) + "]"
+            )
+        else:
+            if not isinstance(chain, list) or not chain:
+                raise ValueError(
+                    f"generate_class_descriptor: method {mname!r} 'chain' must be "
+                    f"a non-empty list of stage tables; got {chain!r}"
+                )
+            items: List[str] = []
+            for idx, st in enumerate(chain):
+                if not isinstance(st, dict) or not st.get("op"):
+                    raise ValueError(
+                        f"generate_class_descriptor: method {mname!r} chain stage "
+                        f"{idx} needs an 'op' dotted-path; got {st!r}"
+                    )
+                parts = ["op = " + _toml_basic_str(str(st["op"]))]
+                sb = st.get("binds", []) or []
+                parts.append(
+                    "binds = [" + ", ".join(_toml_basic_str(str(b)) for b in sb) + "]"
+                )
+                if "as" in st:
+                    parts.append("as = " + _toml_basic_str(str(st["as"])))
+                items.append("{" + ", ".join(parts) + "}")
+            lines.append("chain = [" + ", ".join(items) + "]")
         if appends is not None:
             lines.append("appends = " + _toml_basic_str(str(appends)))
         if sets is not None:
@@ -145,6 +180,8 @@ def _render_class_toml(
                 + ", ".join(_toml_basic_str(str(f)) for f in mutates)
                 + "]"
             )
+        if returns is not None:
+            lines.append("returns = " + _toml_basic_str(str(returns)))
         mdoc = mspec.get("doc", "")
         if mdoc:
             lines.append("doc = " + _toml_basic_str(str(mdoc)))
@@ -156,21 +193,35 @@ def describe_class(name: str) -> Dict[str, Any]:
     """Return a JSON-able description of the user-declared class ``name``.
 
     ``{"name", "kind", "doc", "fields": {field: type}, "methods": {method:
-    {"op", "binds", "doc", ["appends"|"sets"|"mutates"]}}, "provenance"}``. The
-    ``mutates`` entry (a field-name list) marks a multi-field state-routing
-    method. Sourced from
-    the on-disk ``[class]`` descriptor (the SSoT), so it's always in lockstep
-    with what :func:`run_class_method` can actually construct + invoke.
+    {"binds", "doc", "op" | "chain", ["appends"|"sets"|"mutates"|"returns"]}},
+    "provenance"}``. A method has either ``op`` (single cascade op) or ``chain``
+    (a list of ``{op, binds, as}`` stages — a visible multi-op pipeline); the
+    ``mutates`` entry (a field-name list) marks multi-field state routing and
+    ``returns`` (``"self"``) marks a self-returning method. Sourced from the
+    on-disk ``[class]`` descriptor (the SSoT), so it's always in lockstep with
+    what :func:`run_class_method` can actually construct + invoke.
     """
     desc = get_class_descriptor(name)
     cls = desc.get("class", {})
     methods: Dict[str, Any] = {}
     for mname, mspec in cls.get("method", {}).items():
         entry: Dict[str, Any] = {
-            "op": str(mspec.get("op", "")),
             "binds": [str(b) for b in mspec.get("binds", [])],
             "doc": str(mspec.get("doc", "")),
         }
+        if "op" in mspec:                       # single-op method
+            entry["op"] = str(mspec["op"])
+        if "chain" in mspec:                    # visible multi-op pipeline
+            entry["chain"] = [
+                {
+                    "op": str(st.get("op", "")),
+                    "binds": [str(b) for b in st.get("binds", [])],
+                    **({"as": str(st["as"])} if "as" in st else {}),
+                }
+                for st in mspec["chain"]
+            ]
+        if "returns" in mspec:                  # self-returning (returns="self")
+            entry["returns"] = str(mspec["returns"])
         if "appends" in mspec:
             entry["appends"] = str(mspec["appends"])
         if "sets" in mspec:
