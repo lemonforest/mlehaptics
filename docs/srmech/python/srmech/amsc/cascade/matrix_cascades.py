@@ -54,6 +54,7 @@ from typing import Dict, List, Tuple
 # ``qr`` is a list-based Householder; ``einsum`` is the nested-list
 # index-iteration definition. There is NO ``import numpy`` anywhere here.
 from srmech.amsc.mat import Mat as _Mat
+from srmech.amsc.vec import Vec as _Vec  # rc131: 1-D carrier for singular values / vector solutions / eigenvalues
 from srmech.amsc.laplacian import (
     mat_eigvals as _mat_eigvals,
     mat_lstsq as _mat_lstsq,
@@ -118,7 +119,7 @@ def _norm2(v: List[complex]) -> float:
     return _rsqrt(sq) if sq > 0.0 else 0.0
 
 
-def qr(a, *, mode: str = "reduced") -> Tuple[List[List], List[List]]:
+def qr(a, *, mode: str = "reduced") -> Tuple["_Mat", "_Mat"]:
     """Householder QR factorization ``A = Q·R`` (numpy-free, list-based).
 
     Parameters
@@ -133,12 +134,14 @@ def qr(a, *, mode: str = "reduced") -> Tuple[List[List], List[List]]:
     Returns
     -------
     (Q, R)
-        Nested Python lists. ``Q`` has orthonormal columns (``Qᴴ Q = I``),
-        ``R`` is upper triangular; Q·R reconstructs A to round-off. QR is
-        unique only up to column/row signs, so ``Q``/``R`` need not match
-        ``NumPy QR`` element-wise — the defining INVARIANTS (reconstruction,
-        orthonormal Q, upper-triangular R) do. Real input with a real result
-        collapses to real-valued (``float``) leaves.
+        A ``tuple`` of two numpy-free :class:`~srmech.amsc.mat.Mat` carriers
+        (rc131; ``.shape`` + ``m[i, j]`` + a native C interleaved-buffer wire
+        form), NOT bare nested lists — a Mat IS a C dense buffer, a list is not.
+        ``Q`` has orthonormal columns (``Qᴴ Q = I``), ``R`` is upper triangular;
+        Q·R reconstructs A to round-off. QR is unique only up to column/row
+        signs, so ``Q``/``R`` need not match ``NumPy QR`` element-wise — the
+        defining INVARIANTS (reconstruction, orthonormal Q, upper-triangular R)
+        do. Real input with a real result yields real Mats (else complex Mats).
     """
     if mode not in ("reduced", "complete"):
         raise ValueError(f"mode must be 'reduced' or 'complete'; got {mode!r}")
@@ -182,12 +185,15 @@ def qr(a, *, mode: str = "reduced") -> Tuple[List[List], List[List]]:
         Q = [[Q[i][c] for c in range(k)] for i in range(m)]
         R = [R[i][:n] for i in range(k)]
     real_input = not _input_is_complex(a)
+    # rc131 carrier-format law: return Mat carriers, not bare nested lists.
     if real_input and _all_imag_zero(Q) and _all_imag_zero(R):
-        return _real_of(Q), _real_of(R)
-    return Q, R
+        return (_Mat.from_rows(_real_of(Q), is_complex=False),
+                _Mat.from_rows(_real_of(R), is_complex=False))
+    return (_Mat.from_rows(Q, is_complex=True),
+            _Mat.from_rows(R, is_complex=True))
 
 
-def svd(a, *, full_matrices: bool = False) -> Tuple[List[List], List[float], List[List]]:
+def svd(a, *, full_matrices: bool = False) -> Tuple["_Mat", "_Vec", "_Mat"]:
     """Singular value decomposition ``A = U·diag(s)·Vᴴ`` (numpy-free).
 
     Delegates to the Mat-carrier :func:`srmech.amsc.laplacian.mat_svd` (Gram
@@ -206,12 +212,15 @@ def svd(a, *, full_matrices: bool = False) -> Tuple[List[List], List[float], Lis
     Returns
     -------
     (U, s, Vh)
-        Nested Python lists for ``U`` / ``Vh`` and a ``list[float]`` ``s`` of
-        singular values DESCENDING. ``U``/``Vh`` have orthonormal columns/rows
+        A ``tuple`` of numpy-free carriers (rc131): ``U`` / ``Vh`` as
+        :class:`~srmech.amsc.mat.Mat` (``.shape`` + ``m[i, j]``) and the
+        DESCENDING singular values ``s`` as a 1-D :class:`~srmech.amsc.vec.Vec`
+        (``.shape == (k,)`` + scalar ``v[i]``) — NOT bare lists (a Mat/Vec IS a C
+        dense buffer, a list is not). ``U``/``Vh`` have orthonormal columns/rows
         and reconstruct ``A`` (value-faithful, not bit-identical, to NumPy — the
         Gram route squares the condition number; see
         ``[[feedback_cascade_svd_nullspace_accuracy_not_route_matrix_rank]]``).
-        Real input with a real result collapses to real-valued leaves.
+        Real input with a real result yields real ``U``/``Vh`` Mats.
     """
     if full_matrices:
         raise NotImplementedError(
@@ -223,7 +232,9 @@ def svd(a, *, full_matrices: bool = False) -> Tuple[List[List], List[float], Lis
     n = len(rows[0]) if m else 0
     k = min(m, n)
     if k == 0:
-        return ([[] for _ in range(m)] if m else [], [], [r[:] for r in ([] )])
+        return (_Mat.from_rows([[] for _ in range(m)] if m else [], is_complex=False),
+                _Vec.from_sequence([], is_complex=False),
+                _Mat.from_rows([], is_complex=False))
     is_cx = _input_is_complex(a)
     U_full, S, Vh_full = _mat_svd(_Mat.from_rows(rows, is_complex=is_cx))
     U_rows = U_full.tolist()                           # (m, m)
@@ -231,12 +242,16 @@ def svd(a, *, full_matrices: bool = False) -> Tuple[List[List], List[float], Lis
     U = [[complex(U_rows[i][c]) for c in range(k)] for i in range(m)]   # (m, k)
     Vh = [[complex(Vh_rows[i][c]) for c in range(n)] for i in range(k)]  # (k, n)
     s = [float(S[j]) for j in range(k)]
+    # rc131 carrier-format law: Mat for U/Vh, Vec for the 1-D singular values.
+    s_vec = _Vec.from_sequence(s, is_complex=False)
     if not is_cx and _all_imag_zero(U) and _all_imag_zero(Vh):
-        return _real_of(U), s, _real_of(Vh)
-    return U, s, Vh
+        return (_Mat.from_rows(_real_of(U), is_complex=False), s_vec,
+                _Mat.from_rows(_real_of(Vh), is_complex=False))
+    return (_Mat.from_rows(U, is_complex=True), s_vec,
+            _Mat.from_rows(Vh, is_complex=True))
 
 
-def lstsq(a, b) -> List:
+def lstsq(a, b):
     """Least-squares solution of ``A x = b`` (minimising ``‖A x − b‖``), numpy-free.
 
     Delegates to the Mat-carrier :func:`srmech.amsc.laplacian.mat_lstsq` (the
@@ -244,9 +259,12 @@ def lstsq(a, b) -> List:
     overdetermined / square case ``m ≥ n`` (full column rank); ``b`` may be a
     vector ``(m,)`` or a stack of right-hand sides ``(m, k)``.
 
-    Returns the solution ``x`` as a flat ``list`` (vector ``b``) or a nested
-    ``list`` (matrix ``b``), matching ``NumPy lstsq(a, b)[0]`` to round-off for
-    full-rank inputs. Real input with a real result collapses to real leaves.
+    Returns the solution ``x`` in the numpy-free **carrier** (rc131): a 1-D
+    :class:`~srmech.amsc.vec.Vec` for a vector ``b`` (``.shape == (n,)`` + scalar
+    ``v[i]``) or a :class:`~srmech.amsc.mat.Mat` for a matrix ``b`` (``.shape`` +
+    ``m[i, j]``) — NOT a bare list (a Mat/Vec IS a C dense buffer, a list is not).
+    Matches ``NumPy lstsq(a, b)[0]`` to round-off for full-rank inputs. Real
+    input with a real result yields a real carrier.
     """
     arows = _to_rows(a)
     m = len(arows)
@@ -268,16 +286,19 @@ def lstsq(a, b) -> List:
     B_mat = _Mat.from_rows(b_rows, is_complex=is_cx)
     X = _mat_lstsq(A_mat, B_mat)                        # Mat (n, w)
     x_rows = [[complex(X[i, j]) for j in range(X.n_cols)] for i in range(X.n_rows)]
+    real_out = (not _input_is_complex(a) and not _input_is_complex(b)
+                and _all_imag_zero(x_rows))
+    # rc131 carrier-format law: 1-D solution → Vec, 2-D stack of solutions → Mat.
     if b_is_1d:
-        result = [row[0] for row in x_rows]            # flat (n,)
-    else:
-        result = x_rows                                # (n, k)
-    if not _input_is_complex(a) and not _input_is_complex(b) and _all_imag_zero(result):
-        return _real_of(result)
-    return result
+        flat = [row[0] for row in x_rows]              # (n,)
+        if real_out:
+            flat = _real_of(flat)
+        return _Vec.from_sequence(flat, is_complex=not real_out)
+    rows_out = _real_of(x_rows) if real_out else x_rows
+    return _Mat.from_rows(rows_out, is_complex=not real_out)
 
 
-def einsum(subscripts: str, *operands) -> List:
+def einsum(subscripts: str, *operands):
     """Einstein-summation tensor contraction via the index-iteration definition
     (numpy-free, nested-list operands).
 
@@ -287,7 +308,13 @@ def einsum(subscripts: str, *operands) -> List:
     matmul, ``'ii->'`` trace, ``'ij->ji'`` transpose, ``'i,i->'`` dot,
     ``'i,j->ij'`` outer, arbitrary contractions), unoptimised. Implicit output
     (no ``->``) follows numpy's rule: free labels (appearing once) in sorted
-    order. Returns a nested ``list`` (or a bare scalar for a rank-0 result).
+    order.
+
+    Returns the numpy-free carrier matching the result rank (rc131): a 2-D result
+    is a :class:`~srmech.amsc.mat.Mat`, a 1-D result is a
+    :class:`~srmech.amsc.vec.Vec`, a rank-0 result is a plain ``float`` /
+    ``complex`` scalar; a genuine rank-3+ tensor stays a nested ``list`` (no
+    higher-rank carrier exists). A Mat/Vec IS a C dense buffer; a list is not.
     """
     ops = [_nd_to_lists(o) for o in operands]
     inspec, arrow, outspec = subscripts.replace(" ", "").partition("->")
@@ -332,9 +359,15 @@ def einsum(subscripts: str, *operands) -> List:
         return scalar.real if (not any_cx and _all_imag_zero(scalar)) else scalar
     for free_idx in itertools.product(*free_ranges):  # Class I: free indices
         _nd_set(out, free_idx, _accumulate(free_idx))
-    if not any_cx and _all_imag_zero(out):
-        return _real_of(out)
-    return out
+    real_out = not any_cx and _all_imag_zero(out)
+    result = _real_of(out) if real_out else out
+    # rc131 carrier-format law: rank-1 → Vec, rank-2 → Mat, rank-3+ → nested list.
+    rank = len(out_shape)
+    if rank == 1:
+        return _Vec.from_sequence(result, is_complex=not real_out)
+    if rank == 2:
+        return _Mat.from_rows(result, is_complex=not real_out)
+    return result
 
 
 # ── nested-list N-D tensor helpers for einsum (numpy-free) ─────────────────────
@@ -383,7 +416,7 @@ def _nd_set(o, idx: Tuple[int, ...], value) -> None:
     cur[idx[-1]] = value
 
 
-def eigvals(a, *, max_sweeps: int = 500) -> List[complex]:
+def eigvals(a, *, max_sweeps: int = 500) -> "_Vec":
     """Eigenvalue MULTISET of a general (non-Hermitian) square matrix (numpy-free).
 
     Delegates to the Mat-carrier :func:`srmech.amsc.laplacian.mat_eigvals` — the
@@ -391,16 +424,21 @@ def eigvals(a, *, max_sweeps: int = 500) -> List[complex]:
     spectral content ∘ ``{QR}`` Householder ∘ **Class C** Wilkinson shift) in
     plain ``complex`` lists, native-dispatched ``RQ`` recombination, no numpy.
 
-    Returns the length-``n`` ``list[complex]`` eigenvalue multiset — unique only
-    as a SET; the multiset matches ``NumPy eigvals`` to ~1e-9 for moderate sizes.
+    Returns the length-``n`` eigenvalue multiset as a 1-D complex
+    :class:`~srmech.amsc.vec.Vec` (rc131; ``.shape == (n,)`` + scalar ``v[i]``),
+    NOT a bare ``list[complex]`` — a Vec IS a C dense buffer, a list is not. The
+    eigenvalues are unique only as a SET; the multiset matches ``NumPy eigvals``
+    to ~1e-9 for moderate sizes.
     """
     rows = _to_rows(a)
     n = len(rows)
     if any(len(r) != n for r in rows):
         raise ValueError(f"a must be square 2-D; got {n} rows")
     if n == 0:
-        return []
-    return _mat_eigvals(_Mat.from_rows(rows, is_complex=True), max_sweeps=max_sweeps)
+        return _Vec.from_sequence([], is_complex=True)
+    eigs = _mat_eigvals(_Mat.from_rows(rows, is_complex=True), max_sweeps=max_sweeps)
+    # rc131 carrier-format law: the 1-D eigenvalue multiset returns as a Vec.
+    return _Vec.from_sequence(eigs, is_complex=True)
 
 
 def _char_poly_int(A: List[List[int]], n: int) -> List[int]:

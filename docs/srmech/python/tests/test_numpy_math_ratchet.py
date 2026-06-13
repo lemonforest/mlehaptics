@@ -380,15 +380,18 @@ _UFUNC = re.compile(
 # rc127 (#564 carrier removal COMPLETE): numpy is GONE from srmech entirely —
 # no `import numpy`, no `srmech._scientific`, no `[scientific]` extra, no
 # to_numpy() bridge, no `np` module attribute. The executable numpy-MATH surface
-# this ratchet guards is therefore ZERO across all three categories. The last 3
-# `numpy.linalg.*` matches are TEXTUAL DOCSTRING mentions in amsc/laplacian.py
-# (lines ~347/581/849: "Matches the native-C / ``numpy.linalg.eigvalsh`` path to
-# Jacobi round-off", "NOT ``numpy.linalg.eigvalsh``", "the old ``numpy.linalg.
-# solve`` ``[scientific]`` tier") — precise historical cross-references in prose,
-# NOT compute. matmul + ufunc are 0. The ratchet now measures only docstring
-# residue; the ceilings are pinned at the exact residual counts so the down-only
-# guard still passes (and still catches any NEW np. token re-entering the source).
-CEIL_LINALG_FFT = 3  # textual `numpy.linalg.*` docstring mentions in laplacian.py
+# this ratchet guards is therefore ZERO across all three categories. The
+# remaining `numpy.linalg.*` matches are TEXTUAL DOCSTRING mentions in
+# amsc/laplacian.py ("Matches the native-C / ``numpy.linalg.eigvalsh`` path to
+# Jacobi round-off", "NOT ``numpy.linalg.eigvalsh``") — precise historical
+# cross-references in prose, NOT compute. matmul + ufunc are 0. The ratchet now
+# measures only docstring residue; the ceilings are pinned at the exact residual
+# counts so the down-only guard still passes (and still catches any NEW np. token
+# re-entering the source).
+# rc131: the introspection-honesty sweep rewrote schur_complement's docstring
+# (dropping its stale "``numpy.linalg.solve`` ``[scientific]`` tier" reference,
+# which described a numpy path that no longer exists), so linalg_fft 3 → 2.
+CEIL_LINALG_FFT = 2  # textual `numpy.linalg.*` docstring mentions in laplacian.py
 CEIL_MATMUL = 0
 CEIL_UFUNC = 0
 

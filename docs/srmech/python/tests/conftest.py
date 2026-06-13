@@ -8,9 +8,113 @@ the html_scraper parse test exercises the same field-map structure.
 
 from __future__ import annotations
 
+from array import array as _stdlib_array
 from pathlib import Path
+from typing import Any, List
 
 import pytest
+
+
+# ──────────────────────────────────────────────────────────────────────
+# rc131 — shared return-type AGREEMENT helper (used by both the immolation
+# gate `test_immolation.py` and the §10.1 every-tool smoke `test_mcp.py`).
+# Lives here so neither test module has to import the other (no cross-test
+# import cycle). Carrier-aware: the advertised `returns.type` string is a
+# possibly-union (`A | B`), possibly-parameterised (`tuple[Mat, Vec, Mat]`)
+# handle; we check the RAW return matches AT LEAST ONE arm of the union.
+# ──────────────────────────────────────────────────────────────────────
+
+_SCALAR_TOKENS = {
+    "complex": complex,
+    "float": float,
+    "int": int,
+    "bool": bool,
+    "str": str,
+    "bytes": bytes,
+}
+
+
+def _tuple_elem_types(arm: str):
+    """For a ``tuple[...]`` arm, the element-type tokens, or ``None`` if not a
+    parameterised tuple. ``tuple[Mat, ...]`` → ``['Mat', '...']``."""
+    arm = arm.strip()
+    if not (arm.startswith("tuple[") and arm.endswith("]")):
+        return None
+    inner = arm[len("tuple["):-1]
+    depth = 0
+    parts: List[str] = []
+    cur = ""
+    for ch in inner:
+        if ch == "[":
+            depth += 1
+        elif ch == "]":
+            depth -= 1
+        if ch == "," and depth == 0:
+            parts.append(cur.strip())
+            cur = ""
+        else:
+            cur += ch
+    if cur.strip():
+        parts.append(cur.strip())
+    return parts
+
+
+def _matches_token(raw: Any, token: str):
+    """Does ``raw`` match ONE simple advertised type token (carrier-aware)?
+    Returns ``True`` / ``False``, or ``None`` if the token is not assertable."""
+    # Lazy import so conftest stays cheap and srmech-load-order clean.
+    from srmech.amsc.mat import Mat
+    from srmech.amsc.vec import Vec
+    from srmech.amsc.hv import HV
+
+    token = token.strip()
+    if token == "...":
+        return True
+    if token.startswith("Mat"):
+        return isinstance(raw, Mat)
+    if token.startswith("Vec"):
+        return isinstance(raw, Vec)
+    if token.startswith("HV"):
+        return isinstance(raw, HV)
+    if token.startswith("array"):
+        return isinstance(raw, _stdlib_array)
+    if token.startswith("tuple"):
+        elems = _tuple_elem_types(token)
+        if not isinstance(raw, tuple):
+            return False
+        if elems is None:
+            return True
+        if len(elems) == 2 and elems[1] == "...":
+            return all(_matches_token(e, elems[0]) for e in raw)
+        if len(elems) != len(raw):
+            return False
+        return all(_matches_token(e, t) for e, t in zip(raw, elems))
+    if token.startswith("list"):
+        return isinstance(raw, list)
+    if token.startswith("dict") or token.startswith("Mapping"):
+        return isinstance(raw, dict)
+    for tok, ty in _SCALAR_TOKENS.items():
+        if token.startswith(tok):
+            if tok == "int":
+                return isinstance(raw, int) and not isinstance(raw, bool)
+            return isinstance(raw, ty)
+    return None
+
+
+def return_type_agrees(raw: Any, advertised: str):
+    """True/False if ``type(raw)`` (dis)agrees with the advertised type; ``None``
+    when no arm of the advertised union carries an assertable token (so the
+    caller skips — never a false failure on an unknown handle type)."""
+    arms = [a.strip() for a in advertised.split("|")]
+    any_assertable = False
+    for arm in arms:
+        m = _matches_token(raw, arm)
+        if m is None:
+            continue
+        any_assertable = True
+        if m:
+            return True
+    return False if any_assertable else None
 
 # Mirror of EarthRef SC's html_scraper descriptor — self-contained,
 # usable from tmp_path without touching any external catalog.

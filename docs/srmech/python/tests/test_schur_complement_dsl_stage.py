@@ -108,12 +108,13 @@ exact = true
 
 def test_schur_then_stage_float_path():
     # Default exact=False → the numpy-FREE Mat-engine float Schur complement
-    # (§564; dense_solve rides mat_solve). It returns a plain list[list[float]];
-    # verify against the exact-Fraction path element-wise, NO numpy.
+    # (§564; dense_solve rides mat_solve). It returns the numpy-free Mat carrier
+    # (rc131 carrier-format law); verify against the exact-Fraction path
+    # element-wise via Mat indexing, NO numpy.
+    from srmech.amsc.mat import Mat
     ch = Chain("dtn-f").then("schur_complement", boundary_idx=[0, 3])
     S = ch.run([[float(x) for x in row] for row in _PATH4_L])
-    assert isinstance(S, list) and all(isinstance(row, list) for row in S)
-    assert len(S) == 2 and all(len(row) == 2 for row in S)
+    assert isinstance(S, Mat) and S.shape == (2, 2)
     for i in range(2):
         for j in range(2):
-            assert abs(float(S[i][j]) - float(_EXPECTED_S[i][j])) < 1e-12
+            assert abs(float(S[i, j]) - float(_EXPECTED_S[i][j])) < 1e-12

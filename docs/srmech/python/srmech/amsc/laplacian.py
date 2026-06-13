@@ -750,13 +750,18 @@ def dense_solve(A, B, *, exact: bool = False):
     With ``exact=True`` the solve is **exact-rational** Gauss–Jordan in
     :class:`fractions.Fraction` (the Class-N core — division is exact, never a
     float reciprocal, F392) and ``X`` is ``list[list[Fraction]]`` (or
-    ``list[Fraction]`` for a vector RHS). With ``exact=False`` (the default) the
-    float realization rides the numpy-free Mat engine (:func:`mat_solve` — native
-    ``srmech_dense_solve_f64`` Gauss–Jordan with partial pivoting, the Class-K
-    magnitude pivot — a sign branch, not ``abs()``; else srmech's own exact
-    Fraction fallback coerced to float). ``X`` is ``list[list[float]]`` (or
-    ``list[float]`` for a vector RHS); a complex system rides the real 2n×2n
-    block embedding inside :func:`mat_solve`.
+    ``list[Fraction]`` for a vector RHS) — the exact path keeps the rational
+    leaves. With ``exact=False`` (the default) the float realization rides the
+    numpy-free Mat engine (:func:`mat_solve` — native ``srmech_dense_solve_f64``
+    Gauss–Jordan with partial pivoting, the Class-K magnitude pivot — a sign
+    branch, not ``abs()``; else srmech's own exact Fraction fallback coerced to
+    float). The float ``X`` is returned in the numpy-free **carrier** (rc131):
+    a :class:`~srmech.amsc.mat.Mat` for a matrix RHS (``.shape`` + ``m[i, j]``)
+    or a 1-D :class:`~srmech.amsc.vec.Vec` for a vector RHS (``.shape == (n,)``
+    + scalar ``v[i]``), NOT a bare ``list`` — a list has no honest C
+    representation, a Mat/Vec is a contiguous double buffer. A complex system
+    rides the real 2n×2n block embedding inside :func:`mat_solve`, so the carrier
+    comes back complex.
 
     Raises
     ------
@@ -796,7 +801,11 @@ def dense_solve(A, B, *, exact: bool = False):
 
     rows_out = [[_leaf(X_mat[i, j]) for j in range(X_mat.n_cols)]
                 for i in range(X_mat.n_rows)]
-    return [r[0] for r in rows_out] if is_vec else rows_out
+    # rc131 carrier-format law: return the numpy-free Vec (vector RHS) / Mat
+    # (matrix RHS), NOT a bare list — a Mat/Vec IS a C dense buffer, a list is not.
+    if is_vec:
+        return Vec.from_sequence([r[0] for r in rows_out], is_complex=cx)
+    return Mat.from_rows(rows_out, is_complex=cx)
 
 
 def _dense_solve_complex(A, B):
@@ -856,31 +865,34 @@ def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
     ``n → |∂|`` is the area law.
 
     Cascade-honesty: the interior solve ``L_ii⁻¹`` is an inverse = Class C
-    (conjugate) → Class K (``1/‖·‖²``); no ``abs()``. With **numpy absent** (or
-    ``exact=True``) the solve is **exact-rational** Gauss–Jordan elimination in
+    (conjugate) → Class K (``1/‖·‖²``); no ``abs()``. With ``exact=True`` the
+    solve is **exact-rational** Gauss–Jordan elimination in
     :class:`fractions.Fraction` (the Class-N rational core — division is exact,
     never a float reciprocal) and ``S`` is returned as ``list[list[Fraction]]``.
-    With numpy present (and ``exact=False``) the float realization rides the
-    ``[scientific]`` tier (``numpy.linalg.solve``) and ``S`` is an
-    ``ndarray``. Canonical SSoT: Zhang, *The Schur Complement and Its
+    With ``exact=False`` (the default) the float realization rides the numpy-free
+    Mat engine (:func:`dense_solve` → :func:`mat_solve`) and ``S`` is returned in
+    the numpy-free **carrier** — a ``|∂|×|∂|`` :class:`~srmech.amsc.mat.Mat`
+    (rc131; ``.shape`` + ``m[i, j]``), NOT a bare ``list`` (a Mat IS a C dense
+    buffer, a list is not). Canonical SSoT: Zhang, *The Schur Complement and Its
     Applications* (2005) §0; the DtN map is textbook (Golub & Van Loan §3.2).
 
     Parameters
     ----------
     L : matrix, ``n×n``
-        ``ndarray`` (numpy present) or ``list[list]`` — a symmetric
+        A :class:`~srmech.amsc.mat.Mat` or ``list[list]`` — a symmetric
         positive-semidefinite operator (a graph Laplacian from
         :func:`dense_laplacian`, or any SPD matrix).
     boundary_idx : sequence[int]
         The boundary node indices ``∂``; ``1 ≤ |∂| ≤ n``, no duplicates.
     exact : bool, default ``False``
-        Force the exact-rational :class:`~fractions.Fraction` solve even when
-        numpy is present (returns ``list[list[Fraction]]``).
+        Force the exact-rational :class:`~fractions.Fraction` solve (returns
+        ``list[list[Fraction]]``).
 
     Returns
     -------
     S : ``|∂|×|∂|`` boundary effective operator
-        ``ndarray`` (float path) or ``list[list[Fraction]]`` (exact path).
+        a real :class:`~srmech.amsc.mat.Mat` (float path) or
+        ``list[list[Fraction]]`` (exact path).
 
     Raises
     ------
@@ -914,7 +926,7 @@ def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
         # No interior to integrate out — the boundary IS the whole space.
         if exact:
             return [[Fraction(v) for v in r] for r in L_pp]
-        return [[float(v) for v in r] for r in L_pp]
+        return Mat.from_rows([[float(v) for v in r] for r in L_pp], is_complex=False)
 
     L_pi = _block(b, i)  # L_∂i
     L_ip = _block(i, b)  # L_i∂
@@ -923,7 +935,7 @@ def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
     if exact:
         # Interior solve L_ii · X = L_i∂ (X is |i|×|∂|) via the Class-L
         # dense_solve primitive — exact-rational Gauss–Jordan (Class-N).
-        X = dense_solve(L_ii, L_ip, exact=True)
+        X = dense_solve(L_ii, L_ip, exact=True)  # list[list[Fraction]]
         # S = L_∂∂ − L_∂i · X  (all exact Fraction).
         S = [
             [
@@ -936,26 +948,29 @@ def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
         return S
 
     # Float realization (§564, numpy-FREE). The expensive interior solve rides
-    # the numpy-free Mat-engine dense_solve (returns list[list[float]]); the
-    # cheap boundary matmul + subtract is a pure-Python list loop:
-    #   S[a][c] = L_∂∂[a][c] − Σ_k L_∂i[a][k] · X[k][c].
-    X = dense_solve(L_ii, L_ip)  # |i|×|∂| list[list[float]]
+    # the numpy-free Mat-engine dense_solve (returns a Mat — rc131 carrier law);
+    # the cheap boundary matmul + subtract is a pure-Python list loop reading the
+    # Mat via X[k, c]:  S[a][c] = L_∂∂[a][c] − Σ_k L_∂i[a][k] · X[k][c].
+    X = dense_solve(L_ii, L_ip)  # |i|×|∂| Mat
     S = [
         [
             float(L_pp[a][c])
-            - sum(float(L_pi[a][k]) * X[k][c] for k in range(len(i)))
+            - sum(float(L_pi[a][k]) * X[k, c] for k in range(len(i)))
             for c in range(len(b))
         ]
         for a in range(len(b))
     ]
-    return S
+    # rc131 carrier-format law: the float boundary operator returns as a Mat.
+    return Mat.from_rows(S, is_complex=False)
 
 
 def dirichlet_to_neumann(L, boundary_idx: Sequence[int], *, exact: bool = False):
     """Alias for :func:`schur_complement` — the discrete Dirichlet-to-Neumann
     (DtN) map ``S = L_∂∂ − L_∂i · L_ii⁻¹ · L_i∂`` (UPSTREAM §26; #897). Given
     boundary values, ``S`` returns the boundary normal-derivative of their
-    harmonic extension into the interior."""
+    harmonic extension into the interior. Returns the same carrier as
+    :func:`schur_complement`: a real :class:`~srmech.amsc.mat.Mat` (float path)
+    or ``list[list[Fraction]]`` (``exact=True``)."""
     return schur_complement(L, boundary_idx, exact=exact)
 
 

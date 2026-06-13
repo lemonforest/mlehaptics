@@ -169,6 +169,10 @@ def _iter_indices(idx_letters, dims):
 
 
 def _flat(x):
+    # rc131: einsum / lstsq now return the numpy-free Mat / Vec carriers (not
+    # bare lists). Flatten them via .tolist() (a carrier convert, NOT numpy).
+    if hasattr(x, "tolist") and not isinstance(x, list):
+        x = x.tolist()
     if isinstance(x, list):
         for e in x:
             yield from _flat(e)

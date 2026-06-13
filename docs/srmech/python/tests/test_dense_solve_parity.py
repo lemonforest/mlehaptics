@@ -123,12 +123,15 @@ def test_dense_solve_float_matches_exact():
 
 
 def test_dense_solve_vector_rhs_shape():
-    """A 1-D RHS yields a flat list of the right length; values match exact."""
+    """A 1-D RHS yields a 1-D ``Vec`` carrier of the right length (rc131 carrier-
+    format law — NOT a bare list); values match exact."""
+    from srmech.amsc.vec import Vec
     A = [[3.0, 1.0], [1.0, 2.0]]
     b = [9.0, 8.0]
     x = dense_solve(A, b)
-    assert isinstance(x, list) and len(x) == 2
-    assert not isinstance(x[0], list)  # flat, not nested
+    assert isinstance(x, Vec) and len(x) == 2
+    assert x.shape == (2,)
+    assert isinstance(x[0], float)  # scalar element, 1-D carrier
     want = dense_solve([[Fraction(3), Fraction(1)], [Fraction(1), Fraction(2)]],
                        [Fraction(9), Fraction(8)], exact=True)
     for i in range(2):
