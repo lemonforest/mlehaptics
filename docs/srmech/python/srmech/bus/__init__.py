@@ -122,6 +122,7 @@ from ._transport import (
     is_posix_uds,
     transport_kind,
 )
+from ._params import secret_kwargs
 
 # Tool-schema registration fires at import time (registers
 # ``srmech.bus.decode_splice`` as a ToolEntry). Kept after the public
@@ -167,6 +168,7 @@ __all__ = [
     "list_endpoints",
     "new_correlation_id",
     "pipe",
+    "secret_kwargs",
     "serve",
     "transport_kind",
 ]
