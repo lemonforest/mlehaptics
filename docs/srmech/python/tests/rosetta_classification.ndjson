@@ -12,6 +12,13 @@
 {"exposed_as": "srmech.amsc.cascade.sedenion_zero_divisor_witness", "defined_at": "srmech.amsc.cascade.cayley_dickson.sedenion_zero_divisor_witness", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.amsc.cascade.the_one", "defined_at": "srmech.amsc.cascade.one.the_one", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.amsc.cascade.to_scalar", "defined_at": "srmech.amsc.cascade.one.to_scalar", "bucket": "bignum_reference"}
+{"exposed_as": "srmech.amsc.cascade.one.one_dim", "defined_at": "srmech.amsc.cascade.one.one_dim", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.cascade.one.one_imag_dims", "defined_at": "srmech.amsc.cascade.one.one_imag_dims", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.cascade.one.one_partition", "defined_at": "srmech.amsc.cascade.one.one_partition", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.cascade.one.one_plane_counts", "defined_at": "srmech.amsc.cascade.one.one_plane_counts", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.cascade.one.one_grammar_slots", "defined_at": "srmech.amsc.cascade.one.one_grammar_slots", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.cascade.one.one_flat_rational", "defined_at": "srmech.amsc.cascade.one.one_flat_rational", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.cascade.one.one_matrix", "defined_at": "srmech.amsc.cascade.one.one_matrix", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.amsc.rational.atan_series_truncate", "defined_at": "srmech.amsc.rational.atan_series_truncate", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.amsc.rational.cos_series_truncate", "defined_at": "srmech.amsc.rational.cos_series_truncate", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.amsc.rational.exp_series_truncate", "defined_at": "srmech.amsc.rational.exp_series_truncate", "bucket": "bignum_reference"}
