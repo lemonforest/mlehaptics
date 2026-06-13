@@ -21,7 +21,7 @@ import pytest
 
 from srmech.amsc import laplacian
 from srmech.amsc.mat import Mat
-from srmech.amsc.laplacian import dense_outer_complex, dense_outer_real
+from srmech.amsc.laplacian import mat_outer, mat_outer
 
 
 def _expected_outer(a, b):
@@ -44,7 +44,7 @@ def _assert_outer_equal(got, exp, tol=0.0):
 def test_outer_real_closed_form():
     a = [1.0, -2.0, 3.5, 0.0]
     b = [4.0, 0.5, -1.0]
-    out = dense_outer_real(a, b)
+    out = mat_outer(a, b)
     assert isinstance(out, Mat) and out.shape == (4, 3)   # rc129: real Mat
     _assert_outer_equal(out, _expected_outer(a, b))
     # real peer drops the zero imaginary part — entries are plain floats.
@@ -56,7 +56,7 @@ def test_outer_real_closed_form():
 def test_outer_complex_closed_form():
     a = [1 + 2j, 3 - 1j, 0 + 0j]
     b = [2 - 1j, 0 + 4j]
-    out = dense_outer_complex(a, b)
+    out = mat_outer(a, b)
     assert isinstance(out, Mat) and out.shape == (3, 2)   # rc129: complex Mat
     _assert_outer_equal(out, _expected_outer(a, b))
 
@@ -66,7 +66,7 @@ def test_outer_does_not_conjugate_b():
     # matrix is the caller passing b = conj(ψ) explicitly.
     psi = [1 + 1j, 2 - 3j]
     psi_conj = [z.conjugate() for z in psi]
-    rho = dense_outer_complex(psi, psi_conj)
+    rho = mat_outer(psi, psi_conj)
     _assert_outer_equal(rho, _expected_outer(psi, psi_conj))
     # Hermitian: rho[i, j] == conj(rho[j, i]) (rc129: Mat carrier, m[i, j]).
     for i in range(2):
@@ -80,7 +80,7 @@ def test_outer_does_not_conjugate_b():
 
 def test_outer_real_rides_complex_kernel_drops_zero_imag():
     a = [2.0, 5.0]
-    out = dense_outer_real(a, a)
+    out = mat_outer(a, a)
     for row in out.tolist():
         for v in row:
             assert isinstance(v, float)       # real peer returns floats, imag dropped
@@ -88,16 +88,16 @@ def test_outer_real_rides_complex_kernel_drops_zero_imag():
 
 
 def test_outer_empty_inputs_safe():
-    out_r = dense_outer_real([], [1.0, 2.0])
+    out_r = mat_outer([], [1.0, 2.0])
     assert isinstance(out_r, Mat) and out_r.shape == (0, 2)   # (0, 2): no rows
-    out_c = dense_outer_complex([1j], [])
+    out_c = mat_outer([1j], [])
     assert isinstance(out_c, Mat) and out_c.shape == (1, 0)   # (1, 0): one empty row
 
 
 # ── registration: __all__ + LAPLACIAN_OPS + ToolEntries ──────────────────────
 
 def test_dense_outer_in_all_and_laplacian_ops():
-    for name in ("dense_outer_complex", "dense_outer_real"):
+    for name in ("mat_outer", "mat_outer"):
         assert name in laplacian.__all__
         assert name in laplacian.LAPLACIAN_OPS
 
@@ -106,8 +106,8 @@ def test_dense_outer_tool_entries_registered():
     from srmech.amsc.tool_schema import get_tool_schema
 
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.laplacian.dense_outer_complex" in names
-    assert "srmech.amsc.laplacian.dense_outer_real" in names
+    assert "srmech.amsc.laplacian.mat_outer" in names
+    assert "srmech.amsc.laplacian.mat_outer" in names
 
 
 # ── the routed qm callsites still compute correctly (numpy-free Mat) ──────────

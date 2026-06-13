@@ -17,16 +17,20 @@ beyond a single-file read.
 **srmech** is short for **Stored-Relationship Mechanism**. It is:
 
 - A Python research package, published as **`srmech`** on PyPI.
-  Last graduated release: **`v0.5.0`** (production graduation of
-  the rc9–rc22 voxel arc — srmech.bus IPC bus, DSL operator-chain
-  runner, MCP / agent adapters, profile-plugin loader, the
-  𝔰𝔬(8) / g₂ embedding + triality read-out). The **current dev
-  head is `v0.6.0rc10`** (on TestPyPI, graduating to a clean
-  `v0.6.0`) — the cascade.atoms / cascade.compose two-tier
-  lean-ISA arc. Earlier `v0.4.0` (full 14-class C-parity primitive
-  vocabulary + canonical QM/QFT/SM operations layer), `v0.2.0`
-  (native-C-accelerated AMSC build-out) and `v0.1.0` (pure-Python
-  AMSC) remain in PyPI history.
+  Last graduated release: **`v0.7.4`** (production PyPI). The
+  **current dev head is `v0.7.5rc134`** (a long carrier-arc rc run
+  on TestPyPI); the **active arc is `v0.7.6` "carrier
+  consolidation"** (see the dedicated section below). Earlier
+  graduations — `v0.7.3` / `v0.7.1` / `v0.7.0` (the One `S(σ,θ)` +
+  the numpy-optional cascade graduation), `v0.5.0` (bus / DSL /
+  MCP / so(8)+triality voxel arc), `v0.4.0` (14-class C-parity
+  vocabulary + QM/QFT/SM), `v0.2.0`, `v0.1.0` — remain in PyPI
+  history. **numpy is no longer a dependency**: every continuous-math
+  op is a cascade of the 14 primitives over the numpy-free
+  `Mat` / `Vec` / `HV` carriers (the rc69–rc134 carrier-removal arc;
+  see the numpy section below). This top "What srmech IS" narrative is
+  kept current under user direction — **this file is NOT hygiene-gated**,
+  so update it freely whenever srmech's surface moves.
 - The home of the **Attested Multi-Source Collector/Catalog
   (AMSC) framework** — every ground-proof datum carries a mandatory
   attestation block (`source_doi`, `source_url`, `license`,
@@ -113,6 +117,82 @@ beyond a single-file read.
   standalone-C symbol `srmech_cascade_kuramoto_step_general_f64`
   (additive → ABI stays 3; JPL-clean; no Python callback), differential-
   tested. Defaults reproduce the plain step byte-for-byte.
+
+**What shipped after v0.6.0 — the v0.7.x graduations + the numpy-zero carrier arc:**
+
+- **v0.7.0 → v0.7.4 (all graduated to production PyPI)** — the
+  octonion / Cayley–Dickson + "the One" `S(σ,θ)` arc, the
+  C-transpile of the transcendental cascade, the Hamming/GF(2)
+  Rosetta pair, the Schur-complement / Dirichlet-to-Neumann Class-L
+  op, `sedenion_register`, and the **numpy→optional capstone**
+  (`v0.7.0rc47`): numpy left `install_requires`. Every continuous-math
+  op became a cascade of the 14 primitives; `libsrmech` carries no
+  `libm`.
+- **v0.7.5 (long rc run rc1 → rc134, TestPyPI; current dev head)** —
+  the **carrier-removal arc (#564)**. numpy went from *optional* to
+  *gone*: a numpy-free **`Mat`** (2-D, `srmech/amsc/mat.py`) + **`Vec`**
+  (1-D, `srmech/amsc/vec.py`) + **`HV`** carrier replaced every
+  ndarray, with the native dense kernels fed **zero-copy** from the
+  `array('d')` interleaved-complex buffers. A down-only
+  **`CEIL_NUMPY_CARRIER`** ratchet drove top-level `import numpy`
+  to **0**, and the rc129–rc133 "carrier-spirit lockdown" made the
+  carriers numpy-idiom-faithful (`m[0]→Vec`, `·`/`@`, slicing,
+  elementwise arithmetic, `.conj` as Class-K). rc134 = genome
+  several-genes-per-chromosome (`tlv_unpack` + `chromosome(genes=)`).
+  See `[[project_carrier_ratchet_to_zero_15rc_roadmap]]` +
+  `[[feedback_numpy_removal_must_preserve_carrier_format_mat_vec_not_lists]]`.
+
+### v0.7.6 "carrier consolidation" — ACTIVE ARC (execution spec)
+
+The carrier-removal arc, done one-rc-per-module, **left a duplication
+debt**: it was meant to be *numpy-spirited* (one dtype-transparent
+carrier op per operation), but each flip *added* a kernel. The
+`srmech.amsc.laplacian` Class-L surface ended up with the same op in
+two-to-four forms. v0.7.6 hard-removes the redundancy down to one
+dtype-polymorphic `mat_*` op each (user 2026-06-13: "we messed up big
+time with numpy-removal inflation … fix this pollution"; **hard
+removals**, breaking is fine — correct version-jumping happens before
+the next live-PyPI cut). The full plan also lives in
+`[[project_srmech_carrier_consolidation_remove_numpy_removal_duplication]]`.
+
+**Remove 11 redundant ops** (dtype-split `_real`/`_complex` + the
+superseded loose-input `dense_*` generation):
+`dense_matvec_complex`, `dense_matmul_complex`, `dense_dot_complex`,
+`dense_matmul_real`, `dense_matvec_real`, `dense_dot_real`,
+`dense_norm`, `dense_outer_complex`, `dense_outer_real`,
+`mat_dot_real`, `mat_dot_complex`.
+
+**Keep / add 3 dtype-poly `mat_*` ops** (the canonical carrier surface):
+`mat_matmul` (exists, dtype-poly, native-dispatched), `mat_norm`
+(exists), `mat_solve`/`mat_lstsq`/`mat_eigvals`/`mat_svd`/
+`mat_hermitian_eigendecompose` (exist) — **plus new** `mat_dot`
+(unify the 4 dot forms), `mat_matvec` (column-`Mat` over `mat_matmul`),
+`mat_outer`. Net public-callable delta: **−11 + 3 = −8**.
+
+VERIFY-FIRST (user requirement): `dense_matmul_complex`/`dense_matvec_complex`
+are already thin coercion-shims that ride `mat_matmul`; `dense_*_real`
+wrap their `_complex` twins; `mat_dot_real`/`mat_norm` use
+`_iter_mat_scalars`. So the unified ops are value-identical — prove it
+with a real+complex equivalence check before deleting.
+
+Consumers to repoint (NOT external — internal + tests only):
+`mat.py` `__matmul__`/`__rmatmul__` (→ `mat_matmul`/`mat_matvec`),
+`vec.py` `__matmul__`/`__rmatmul__` (→ `mat_matvec`/`mat_dot`),
+`hdc.py` 3 sites (`mat_dot_real` → `mat_dot`). `_flatten_scalars`
+STAYS (elementwise ops use it). Each removal also touches: laplacian
+`__all__` (×2: the top list + `LAPLACIAN_OPS`), the `ToolEntry` in
+`tool_schema.py`, the `rosetta_classification.ndjson` ledger, the
+**#928 down-only Rosetta ratchet**, the `describe()["tools"]["total"]`
+count in the **five** duplicated count-tests, and `_native.py` (leave
+the C symbol bound — `srmech_dense_matmul_complex` still backs
+`mat_matmul`; the now-unused `srmech_dense_matvec_complex` binding is
+harmless).
+
+**Also overdue (directive "check other aliases left over"):** the v0.5.0
+bus deprecation shims still present at v0.7.5 — HARD-REMOVE
+`srmech/bus/_chain.py` ("removed in v0.5.0 final") and the `seed=`
+kwarg in `bus/_client.py` + `_server.py` (the `seed→dna` rename;
+updates `test_bus_aio.py`).
 
 The package directory layout:
 
@@ -217,16 +297,24 @@ Each class follows the same ratchet — parity test + JPL Power-of-Ten
 audit + cibuildwheel matrix update + TestPyPI rc verification per
 `[[feedback_always_rc_first_for_downstream_publishes]]`.
 
-**Hard dependencies have evolved with Phase C1:**
+**Hard dependencies (current — numpy is GONE):**
 
 - v0.3.x and earlier: stdlib only (plus `tomli` on Python 3.10).
-- **v0.4.0rc2 onward**: numpy added as a hard dependency. Class L
-  (graph Laplacian) and Class M (HDC bind/bundle, planned) are
-  fundamentally array-numerical; numpy provides the ergonomic
-  Python surface + fallback path. Pyodide environments install
-  numpy via micropip. The C native surface itself does NOT depend
-  on numpy or LAPACK (Jacobi eigvals are implemented in C with
-  algebraic c/s computation, pi-free).
+- **v0.4.0rc2 → v0.7.0rc46**: numpy was a hard dependency (Class L /
+  Class M array math). *(historical)*
+- **v0.7.0rc47**: numpy moved to an optional `[scientific]` extra.
+- **v0.7.5 carrier arc (rc69 → rc134)**: numpy was **removed entirely**.
+  There is no `[scientific]` extra and no `import numpy` anywhere in
+  `srmech/`. The array carriers are the numpy-free **`Mat`** / **`Vec`**
+  / **`HV`** (`array('d')`, row-major, interleaved-`(re,im)` for complex
+  = C99 `double _Complex`), fed **zero-copy** to the native dense
+  kernels. Install pulls **no numpy**; a fresh numpy-absent venv imports
+  + runs the whole package. The C native surface never depended on numpy
+  or LAPACK (Jacobi eigvals in C, algebraic c/s, pi-free). **Verify every
+  numpy-removal rc in a numpy-ABSENT clean venv** — never reinstall numpy
+  to exercise a carrier path (`[[feedback_numpy_is_out_the_door_not_optional]]`).
+  A test for a numpy-free module must itself be numpy-free
+  (`[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]`).
 
 **The current Phase B state (Class A + Class C implemented)** is
 Phase B's stopping point and Task #217's starting point. Per
@@ -366,10 +454,21 @@ for the post-mortem.
 
 ### Versioning + tag-push routing
 
-- Version SSOT lives in **three places** that must agree:
+- Version SSOT lives in **FIVE places** that must agree (bump version
+  FIRST, then run the suite, or the pin passes spuriously —
+  `[[feedback_srmech_version_bump_hits_five_locations_run_suite_after]]`):
   `python/pyproject.toml`, `python/pyproject-pure.toml`,
-  `python/srmech/version.py`. **Plus** `c/include/srmech.h`
-  (`SRMECH_VERSION_PRE` / `SRMECH_VERSION`).
+  `python/srmech/version.py`, `c/include/srmech.h`
+  (`SRMECH_VERSION_PRE` / `SRMECH_VERSION`), **and** the hard-pinned
+  version-string test in
+  `python/tests/test_signal_processing_scaffolding.py`
+  (stale name `test_version_is_0_7_0rcN`; asserts the exact current
+  version). `grep -rn "X.Y.ZrcN" tests/ srmech/` at every bump.
+- **rc tags are pushed MANUALLY** — `srmech-autotag.yml` only auto-tags
+  strict-semver (clean) tags; an `rcN` suffix is non-strict-semver and
+  is SKIPPED, so push `git tag srmech-vX.Y.ZrcN HEAD && git push origin
+  <tag>` by hand. Clean `srmech-vX.Y.Z` tags auto-route to PyPI (the
+  human-in-loop production gate) — do NOT hand-push those.
 - **rc-suffix auto-routing** in `.github/workflows/srmech-publish.yml`:
   - Tag `srmech-vX.Y.ZrcN` (lowercase `rc`, no separator) →
     **TestPyPI** auto-publish.

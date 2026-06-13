@@ -293,14 +293,14 @@ def test_carrier_returning_ops_expose_numpy_idioms_numpy_free():
     # dense contraction ops → Mat / Vec / scalar
     A = Mat.from_rows([[1.0, 2.0], [3.0, 4.0]])
     B = Mat.from_rows([[5.0, 6.0], [7.0, 8.0]])
-    _assert_mat_idioms(L.dense_matmul_real(A, B), expect_shape=(2, 2))
+    _assert_mat_idioms(L.mat_matmul(A, B), expect_shape=(2, 2))
     _assert_vec_idioms(
-        L.dense_matvec_real(A, Vec.from_sequence([1.0, 1.0])), expect_len=2
+        L.mat_matvec(A, Vec.from_sequence([1.0, 1.0])), expect_len=2
     )
     _assert_mat_idioms(
-        L.dense_outer_real([1.0, 2.0, 3.0], [4.0, 5.0]), expect_shape=(3, 2)
+        L.mat_outer([1.0, 2.0, 3.0], [4.0, 5.0]), expect_shape=(3, 2)
     )
-    assert isinstance(L.dense_dot_real([1.0, 2.0], [3.0, 4.0]), float)
+    assert isinstance(L.mat_dot([1.0, 2.0], [3.0, 4.0]), float)
 
     # the rc131 straggler flips return carriers too — dense_solve → Mat / Vec.
     _assert_mat_idioms(
@@ -350,10 +350,10 @@ def test_carrier_typed_params_accept_degenerate_forms_numpy_free():
 
     # ── Vec-typed param (matvec v): a Vec OR flat list OR tuple OR array.array ──
     M = Mat.from_rows([[1.0, 2.0], [3.0, 4.0]])
-    base = L.dense_matvec_real(M, Vec.from_sequence([1.0, 1.0]))
-    flat = L.dense_matvec_real(M, [1.0, 1.0])               # flat list
-    tup = L.dense_matvec_real(M, (1.0, 1.0))                # flat tuple
-    arr = L.dense_matvec_real(M, _array("d", [1.0, 1.0]))   # array.array
+    base = L.mat_matvec(M, Vec.from_sequence([1.0, 1.0]))
+    flat = L.mat_matvec(M, [1.0, 1.0])               # flat list
+    tup = L.mat_matvec(M, (1.0, 1.0))                # flat tuple
+    arr = L.mat_matvec(M, _array("d", [1.0, 1.0]))   # array.array
     assert isinstance(base, Vec)
     assert base.tolist() == flat.tolist() == tup.tolist() == arr.tolist()
 
@@ -397,7 +397,7 @@ def test_carrier_coercers_produce_op_accepted_structures_numpy_free():
     assert isinstance(m, Mat) and m.shape == (2, 2)
     # the produced structures drive a real op cleanly via the SAME wire forms.
     M = coerce_param([[1.0, 2.0], [3.0, 4.0]], "Mat")
-    out = L.dense_matvec_real(M, coerce_param([1.0, 1.0], "Vec"))
+    out = L.mat_matvec(M, coerce_param([1.0, 1.0], "Vec"))
     assert isinstance(out, Vec) and out.tolist() == [3.0, 7.0]
 
 

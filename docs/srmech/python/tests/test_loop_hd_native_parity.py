@@ -25,7 +25,7 @@ import random
 
 import pytest
 
-from srmech.amsc.laplacian import mat_dot_real, mat_norm
+from srmech.amsc.laplacian import mat_dot, mat_norm
 from srmech.amsc import hdc
 from srmech.amsc.hdc import LOOP_DIM
 
@@ -90,7 +90,7 @@ def test_native_inv_hd_matches_python_recursion():
     native = hdc._try_native_loop_inv_hd(x)
     assert native is not None
     want = _concat([
-        [c / mat_dot_real(b, b) for c in hdc._loop_conj_raw(b)]
+        [c / mat_dot(b, b) for c in hdc._loop_conj_raw(b)]
         for b in _blocks(x)
     ])
     assert mat_norm(_vsub(native, want)) < 1e-13

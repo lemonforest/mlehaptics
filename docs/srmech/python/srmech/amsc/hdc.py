@@ -1612,12 +1612,12 @@ def loop_inv(x):
     Class-K clean: the norm² gate, never ``abs()``. Single element only — an HD
     block-octonion vector raises (use ``loop_inv_hd``).
 
-    rc125 (numpy-free): the norm² gate is the numpy-free ``mat_dot_real`` (the
+    rc125 (numpy-free): the norm² gate is the numpy-free ``mat_dot`` (the
     prior numpy-carrier ``dense_dot_real``); returns a ``list[float]``."""
     arr = _as_loop(x, "loop_inv")
     _reject_hd_block_misuse(arr, "loop_inv")
-    from srmech.amsc.laplacian import mat_dot_real  # numpy-free inner product
-    nsq = mat_dot_real(arr, arr)
+    from srmech.amsc.laplacian import mat_dot  # numpy-free inner product
+    nsq = mat_dot(arr, arr)
     assert nsq > 0.0, "loop_inv: zero vector has no inverse (Moufang division)"
     native = _try_native_loop_inv(arr)
     if native is not None:
@@ -1704,7 +1704,7 @@ def g2_three_form(x, y, z):
     (not imposed externally; F281). Class (M∘C) ∘ ⟨·,·⟩ contraction (Class-L/M);
     NO new class. Returns a scalar.
 
-    rc125 (numpy-free): the contraction is the numpy-free ``mat_dot_real`` (the
+    rc125 (numpy-free): the contraction is the numpy-free ``mat_dot`` (the
     prior numpy-carrier ``dense_dot_real``)."""
     xa = _as_loop(x, "g2_three_form")
     ya = _as_loop(y, "g2_three_form")
@@ -1714,9 +1714,9 @@ def g2_three_form(x, y, z):
     native = _try_native_g2_three_form(xa, ya, za)
     if native is not None:
         return native
-    from srmech.amsc.laplacian import mat_dot_real  # numpy-free inner product
+    from srmech.amsc.laplacian import mat_dot  # numpy-free inner product
     yz = cross7(ya, za)
-    return mat_dot_real(xa, yz)
+    return mat_dot(xa, yz)
 
 
 def _as_hd(v, op: str) -> "list":
@@ -1814,17 +1814,17 @@ def loop_inv_hd(x):
     LOOP_DIM (8).
 
     rc125 (numpy-free): the per-block norm² gate is the numpy-free
-    ``mat_dot_real``; operates on ``list[float]`` (was an ndarray)."""
+    ``mat_dot``; operates on ``list[float]`` (was an ndarray)."""
     a_ = _as_hd(x, "loop_inv_hd")
     native = _try_native_loop_inv_hd(a_)
     if native is not None:
         return native
-    from srmech.amsc.laplacian import mat_dot_real  # numpy-free inner product
+    from srmech.amsc.laplacian import mat_dot  # numpy-free inner product
     xb = _hd_blocks(a_)
     out = []
     for k in range(len(xb)):
         blk = xb[k]
-        nsq = mat_dot_real(blk, blk)
+        nsq = mat_dot(blk, blk)
         assert nsq > 0.0, (
             f"loop_inv_hd: block {k} is the zero vector (no Moufang inverse)")
         out.append(_vscale(_loop_conj_raw(blk), 1.0 / nsq))

@@ -14,7 +14,7 @@ Skips when the native lib is unavailable (pure-Python / Pyodide); CI's
 native test cells exercise it.
 
 rc125 (numpy-free, #564): this test is itself numpy-FREE — the loop family
-operates on ``list[float]``; norms ride ``mat_norm`` / ``mat_dot_real``, random
+operates on ``list[float]``; norms ride ``mat_norm`` / ``mat_dot``, random
 vectors come from stdlib ``random.Random`` (no numpy oracle, per
 `[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]`).
 """
@@ -23,7 +23,7 @@ import random
 
 import pytest
 
-from srmech.amsc.laplacian import mat_dot_real, mat_norm
+from srmech.amsc.laplacian import mat_dot, mat_norm
 from srmech.amsc import _native, hdc
 
 _HAS_C = (
@@ -76,7 +76,7 @@ def test_loop_conj_native_matches_python():
 def test_loop_inv_native_matches_python():
     for _ in range(256):
         a = _rand8()
-        nsq = mat_dot_real(a, a)
+        nsq = mat_dot(a, a)
         ref = [c / nsq for c in hdc._loop_conj_raw(a)]
         got = hdc.loop_inv(a)
         assert mat_norm(_vsub(got, ref)) < 1e-15
@@ -98,7 +98,7 @@ def test_g2_three_form_native_matches_python():
         a, b, c = _rand8(), _rand8(), _rand8()
         yz = hdc._loop_bind_raw(b, c)
         yz[0] = 0.0
-        ref = mat_dot_real(a, yz)
+        ref = mat_dot(a, yz)
         got = hdc.g2_three_form(a, b, c)
         assert got == pytest.approx(ref, abs=1e-12)
 

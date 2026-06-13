@@ -26,6 +26,8 @@ import random
 
 import pytest
 
+from srmech.amsc.mat import Mat
+
 from srmech.amsc import _native, laplacian
 
 
@@ -234,7 +236,7 @@ def test_dense_matvec_complex_matches_hand_computed():
     M = [[complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(3)]
          for _ in range(5)]
     v = [complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(3)]
-    out = laplacian.dense_matvec_complex(M, v)
+    out = laplacian.mat_matvec(M, v)
     expected = _matvec(M, v)
     assert len(out) == 5
     for a, b in zip(out, expected):
@@ -244,7 +246,7 @@ def test_dense_matvec_complex_matches_hand_computed():
 def test_dense_matvec_complex_square():
     M = [[1 + 0j, 2 - 1j], [0 + 1j, 3 + 0j]]
     v = [1 - 1j, 2 + 0j]
-    out = laplacian.dense_matvec_complex(M, v)
+    out = laplacian.mat_matvec(M, v)
     for a, b in zip(out, _matvec(M, v)):
         assert abs(a - b) < 1e-12
 
@@ -253,7 +255,7 @@ def test_dense_matvec_complex_shape_mismatch():
     M = [[1 + 0j if i == j else 0j for j in range(3)] for i in range(3)]
     v = [0j, 0j]
     with pytest.raises(ValueError):
-        laplacian.dense_matvec_complex(M, v)
+        laplacian.mat_matvec(M, v)
 
 
 # ---------------------------------------------------------------------
@@ -273,7 +275,7 @@ def test_dense_matmul_complex_matches_hand_computed():
          for _ in range(5)]
     B = [[complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(4)]
          for _ in range(3)]
-    out = laplacian.dense_matmul_complex(A, B)
+    out = laplacian.mat_matmul(Mat.from_rows(A, is_complex=True), Mat.from_rows(B, is_complex=True))
     expected = _matmul(A, B)
     assert out.shape == (5, 4)                       # rc129: complex Mat carrier
     for i in range(5):
@@ -284,12 +286,12 @@ def test_dense_matmul_complex_matches_hand_computed():
 def test_dense_matmul_complex_square_and_identity():
     A = [[1 + 0j, 2 - 1j], [0 + 1j, 3 + 0j]]
     B = [[2 + 0j, 0 + 1j], [1 - 1j, 4 + 0j]]
-    out = laplacian.dense_matmul_complex(A, B)
+    out = laplacian.mat_matmul(Mat.from_rows(A, is_complex=True), Mat.from_rows(B, is_complex=True))
     for i in range(2):
         for j in range(2):
             assert abs(out[i, j] - _matmul(A, B)[i][j]) < 1e-12
     eye = [[1 + 0j if i == j else 0j for j in range(2)] for i in range(2)]
-    out2 = laplacian.dense_matmul_complex(A, eye)
+    out2 = laplacian.mat_matmul(Mat.from_rows(A, is_complex=True), Mat.from_rows(eye, is_complex=True))
     for i in range(2):
         for j in range(2):
             assert abs(out2[i, j] - A[i][j]) < 1e-12
@@ -299,7 +301,7 @@ def test_dense_matmul_complex_shape_mismatch():
     A = [[1 + 0j if i == j else 0j for j in range(3)] for i in range(3)]
     B = [[0j, 0j], [0j, 0j]]
     with pytest.raises(ValueError):
-        laplacian.dense_matmul_complex(A, B)
+        laplacian.mat_matmul(Mat.from_rows(A, is_complex=True), Mat.from_rows(B, is_complex=True))
 
 
 def test_dense_matmul_complex_matches_matvec_per_column():
@@ -310,11 +312,11 @@ def test_dense_matmul_complex_matches_matvec_per_column():
          for _ in range(4)]
     B = [[complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(3)]
          for _ in range(4)]
-    out = laplacian.dense_matmul_complex(A, B)   # complex Mat
+    out = laplacian.mat_matmul(Mat.from_rows(A, is_complex=True), Mat.from_rows(B, is_complex=True))   # complex Mat
     ncols = len(B[0])
     for j in range(ncols):
         col = [B[i][j] for i in range(len(B))]
-        mv = laplacian.dense_matvec_complex(A, col)  # complex Vec
+        mv = laplacian.mat_matvec(A, col)  # complex Vec
         for i in range(out.n_rows):
             assert abs(out[i, j] - mv[i]) < 1e-12
 
@@ -392,7 +394,7 @@ def test_elementwise_transcendental_unknown_op_rejected():
 def test_class_l_ops_registry_includes_new_ops():
     expected_new = {
         "hermitian_eigendecompose",
-        "dense_matvec_complex",
+        "mat_matvec",
         "elementwise_multiply_complex",
         "elementwise_transcendental",
     }
@@ -424,10 +426,10 @@ def test_tdse_evolve_composition_end_to_end():
     # Compose via the Class L ops.
     w, V = laplacian.hermitian_eigendecompose(H)
     VH = _conj_transpose(V)
-    psi_eig = laplacian.dense_matvec_complex(VH, psi0)
+    psi_eig = laplacian.mat_matvec(VH, psi0)
     phase = laplacian.elementwise_transcendental([-wi * t for wi in w], "exp_i")
     psi_eig_t = laplacian.elementwise_multiply_complex(phase, psi_eig)
-    psi_t = laplacian.dense_matvec_complex(V, psi_eig_t)
+    psi_t = laplacian.mat_matvec(V, psi_eig_t)
 
     # Reference: direct spectral expm via stdlib cmath (V · diag(e^{-iwt}) · Vᴴ · psi0).
     ref_eig = _matvec(VH, psi0)

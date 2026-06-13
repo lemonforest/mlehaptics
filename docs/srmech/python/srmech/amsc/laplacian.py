@@ -12,10 +12,9 @@ evolution ``ψ(t) = V·diag(exp(-iλt))·V^H·ψ(0)`` (Sakurai *Modern QM*
 
 - :func:`hermitian_eigendecompose` — complex Hermitian generalisation
   of :func:`jacobi_eigvals` returning eigenvalues + unitary eigvecs.
-- :func:`dense_matvec_complex` — general complex ``M·v``.
-- :func:`dense_dot_complex` — complex bilinear inner product ``Σ aᵢbᵢ``.
-- :func:`dense_matmul_real` / :func:`dense_matvec_real` / :func:`dense_dot_real`
-  — float64 peers riding the complex kernel (drop the zero imaginary part).
+- :func:`mat_matvec` — dtype-polymorphic ``M·v`` over the Mat/Vec carriers.
+- :func:`mat_dot` — dtype-polymorphic bilinear inner product ``Σ aᵢbᵢ``.
+- :func:`mat_outer` — dtype-polymorphic rank-1 outer product ``aᵢbⱼ``.
 - :func:`elementwise_multiply_complex` — vectorised ``a * b``.
 - :func:`elementwise_transcendental` — array-vectorised ``exp/cos/sin
   /log`` plus the TDSE-relevant ``exp_i(x) = exp(1j*x)``.
@@ -61,7 +60,7 @@ Graph-Laplacian specialisations (original Class L surface):
 Phase 2 broadening (dense-matrix linear algebra):
 
 - :func:`hermitian_eigendecompose` — Hermitian eigendecomposition.
-- :func:`dense_matvec_complex` — complex matrix-vector multiplication.
+- :func:`mat_matvec` — dtype-polymorphic matrix-vector multiplication.
 - :func:`elementwise_multiply_complex` — pointwise complex multiply.
 - :func:`elementwise_transcendental` — vectorised transcendentals.
 
@@ -74,7 +73,7 @@ C-path bound
 Most of the C native surface operates on ``n ≤ MAX_NATIVE_NODES`` (256),
 which caps the stack-allocated / static degree / row-scaling / augmented
 buffers (embedded-safe). When ``HAS_NATIVE`` and ``n ≤ 256`` the dense build
-+ ``jacobi_eigvals`` + ``dense_solve`` + ``dense_matvec``/``matmul`` dispatch
++ ``jacobi_eigvals`` + ``dense_solve`` + ``mat_matvec``/``mat_matmul`` dispatch
 to the C symbol **with or without numpy** — the numpy-absent path marshals a
 flat ctypes buffer straight from Python ``list``s (UPSTREAM §38; ``jacobi``
 ~49× faster than the pure-Python cascade). For ``n > 256`` (or no native lib)
@@ -127,8 +126,6 @@ __all__ = [
     "dirichlet_to_neumann",
     "hermitian_eigendecompose",
     "symmetric_eigendecompose",
-    "dense_matvec_complex",
-    "dense_matmul_complex",
     "mat_matmul",
     "mat_solve",
     "mat_hermitian_eigendecompose",
@@ -136,15 +133,9 @@ __all__ = [
     "mat_eigvals",
     "mat_svd",
     "mat_norm",
-    "mat_dot_real",
-    "mat_dot_complex",
-    "dense_dot_complex",
-    "dense_matmul_real",
-    "dense_matvec_real",
-    "dense_dot_real",
-    "dense_norm",
-    "dense_outer_complex",
-    "dense_outer_real",
+    "mat_dot",
+    "mat_matvec",
+    "mat_outer",
     "elementwise_multiply_complex",
     "elementwise_transcendental",
     "elementwise_hypot",
@@ -162,7 +153,7 @@ MAX_NATIVE_NODES: int = 256
 # workspace (allocated here as a ctypes buffer), so its native Jacobi path has
 # NO 256-sized stack/static array — it is bounded only by this sanity cap
 # (== C-side SRMECH_HERMITIAN_WS_MAX_NODES = 2048). Every OTHER native path in
-# this module (jacobi_eigvals, dense_solve, dense_matvec/matmul, the non-ws
+# this module (jacobi_eigvals, dense_solve, mat_matvec/mat_matmul, the non-ws
 # hermitian wrapper) DOES rely on a 256-sized fixed buffer or hard cap and so
 # stays gated by ``MAX_NATIVE_NODES`` = 256. Used ONLY in
 # :func:`mat_hermitian_eigendecompose`'s native-dispatch gate.
@@ -1121,93 +1112,6 @@ def _vec(x) -> list:
     return list(x)
 
 
-def dense_matvec_complex(M, v) -> "Vec":
-    """Dense complex matrix-vector multiplication: ``M·v``.
-
-    Parameters
-    ----------
-    M
-        ``(rows, cols)`` complex matrix (Mat / list-of-lists / ndarray-like).
-    v
-        Length-``cols`` complex vector (Vec / list / ndarray-like).
-
-    Returns
-    -------
-    out
-        Length-``rows`` complex :class:`~srmech.amsc.vec.Vec` (``.shape ==
-        (rows,)`` + scalar ``v[i]``), NOT a bare ``list[complex]`` (rc129).
-
-    Numpy-free (rc129): wraps ``v`` as a column ``Mat`` and rides
-    :func:`mat_matmul` (native zero-copy when present, else a pure-Python
-    triple loop). Canonical SSoT: Golub & Van Loan §1.1.
-    """
-    M_rows = _rows(M)
-    v_list = _vec(v)
-    rows = len(M_rows)
-    cols = len(M_rows[0]) if rows else 0
-    for r in M_rows:
-        if len(r) != cols:
-            raise ValueError("M must be a rectangular 2-D matrix")
-    if len(v_list) != cols:
-        raise ValueError(
-            f"M shape ({rows}, {cols}) incompatible with v length {len(v_list)}"
-        )
-    if rows == 0:
-        return Vec(array("d"), 0, is_complex=True)
-    col = Mat.from_rows([[complex(x)] for x in v_list], is_complex=True)
-    out = mat_matmul(Mat.from_rows(M_rows, is_complex=True), col)
-    return Vec.from_sequence(
-        [complex(out[i, 0]) for i in range(out.n_rows)], is_complex=True
-    )
-
-
-def dense_matmul_complex(A, B) -> "Mat":
-    """Dense complex matrix-matrix multiplication ``A·B``.
-
-    The srmech Class-L contraction the QM / ``matrix_cascades`` matmul math
-    routes through. Numpy-free (rc129): rides :func:`mat_matmul` over the
-    :class:`~srmech.amsc.mat.Mat` carrier (native zero-copy when present, else a
-    pure-Python triple loop — **never** numpy ``@``).
-
-    Parameters
-    ----------
-    A
-        ``(m, k)`` complex matrix (Mat / list-of-lists / ndarray-like).
-    B
-        ``(k, n)`` complex matrix.
-
-    Returns
-    -------
-    out
-        ``(m, n)`` complex :class:`~srmech.amsc.mat.Mat` (``.shape`` + ``m[i,
-        j]``), NOT a bare ``list[list[complex]]`` (rc129).
-
-    Canonical SSoT: Golub & Van Loan §1.1 (textbook matrix multiplication).
-    """
-    A_rows = _rows(A)
-    B_rows = _rows(B)
-    m = len(A_rows)
-    k = len(A_rows[0]) if m else 0
-    for r in A_rows:
-        if len(r) != k:
-            raise ValueError("A must be a rectangular 2-D matrix")
-    k2 = len(B_rows)
-    n = len(B_rows[0]) if k2 else 0
-    for r in B_rows:
-        if len(r) != n:
-            raise ValueError("B must be a rectangular 2-D matrix")
-    if k2 != k:
-        raise ValueError(
-            f"A shape ({m}, {k}) incompatible with B shape ({k2}, {n})"
-        )
-    if m == 0 or n == 0:
-        return Mat(array("d"), m, n, is_complex=True)
-    return mat_matmul(
-        Mat.from_rows(A_rows, is_complex=True),
-        Mat.from_rows(B_rows, is_complex=True),
-    )
-
-
 # =====================================================================
 # §564 — the Mat↔native-dense-kernel bridge (carrier-removal foundation #2)
 # =====================================================================
@@ -1940,17 +1844,17 @@ def mat_svd(a: "Mat") -> Tuple["Mat", List[float], "Mat"]:
     return U, S, Vh
 
 
-# ── Mat-carrier numpy-FREE norm + dot (rc114 foundation; #564) ───────────────
+# ── Mat-carrier numpy-FREE norm + dot (#564 carrier arc; v0.7.6 consolidation) ─
 #
-# ``dense_norm`` / ``dense_dot_real`` / ``dense_dot_complex`` are numpy CARRIERS
-# (they call ``np.ascontiguousarray`` / ``np.iscomplexobj`` / the elementwise-
-# multiply cascade over numpy arrays) and RAISE on a numpy-absent install — the
-# rc70 *runnable ≠ loadable* trap. Nothing in the tree computed ‖x‖ or a·b over
-# the numpy-free :class:`Mat` / :class:`HV` carriers. These three close that gap:
-# the consumer-flips (qm Clifford / unitarity / η-Hermiticity residuals, so8
-# Gram-Schmidt) route their norms / dots through these instead of the dense_*
-# carriers, so they run with **no numpy present at all**. Value-faithful to the
-# dense_* / numpy peers to ~1 ULP (same float sum-of-products), NOT bit-exact.
+# :func:`mat_norm`, :func:`mat_dot`, :func:`mat_matvec` and :func:`mat_outer` are
+# THE numpy-free ‖x‖ / a·b / M·v / a⊗b over the :class:`Mat` / :class:`Vec` /
+# :class:`HV` carriers — the qm Clifford / unitarity / η-Hermiticity residuals +
+# so8 Gram-Schmidt route their norms / dots / products through them. The v0.7.6
+# carrier consolidation removed the redundant loose-input ``dense_norm`` /
+# ``dense_dot_*`` / ``dense_matvec_*`` / ``dense_outer_*`` generation AND the
+# rc114 ``mat_dot_real`` / ``mat_dot_complex`` dtype-split: these dtype-
+# polymorphic ops ARE the single carrier surface now. Pure-Python float
+# sum-of-products (≈1 ULP vs the NumPy 2-norm / dot), NOT bit-exact.
 
 
 def _iter_mat_scalars(v):
@@ -1969,19 +1873,23 @@ def _iter_mat_scalars(v):
         return
     seq = v.tolist() if hasattr(v, "tolist") else v  # HV / list / tuple / array / 1-D ndarray
     for x in seq:
-        yield x
+        if isinstance(x, (list, tuple)):  # nested list = matrix rows → flatten one level
+            for y in x:
+                yield y
+        else:
+            yield x
 
 
 def mat_norm(x) -> float:
     """Euclidean (vector 2-norm) / Frobenius (matrix) norm ``‖x‖ = √(Σ|xᵢ|²)`` →
-    ``float`` — the **numpy-FREE** peer of :func:`dense_norm`.
+    ``float`` — numpy-FREE over the Mat / Vec / HV carriers.
 
     Accepts a :class:`Mat` (Frobenius over all elements), an :class:`HV`, or a
     flat real/complex sequence (vector 2-norm). Sums ``|xᵢ|²`` over a pure-Python
     reduction — for complex ``z`` the squared modulus is ``z.real² + z.imag²``
     (NO ``abs()``, NO ``math.hypot``) — then takes the libm-free **Class-N**
-    :func:`srmech.amsc.rational.sqrt` root. Value-faithful to :func:`dense_norm`
-    / the NumPy 2-norm to round-off (~1 ULP); empty → ``0.0``.
+    :func:`srmech.amsc.rational.sqrt` root. Value-faithful to the NumPy 2-norm /
+    Frobenius norm to round-off (~1 ULP); empty → ``0.0``.
 
     **Class N** (``rational.sqrt`` root) ∘ **Class M** (the ``Σ|xᵢ|²`` self-bind).
     Canonical SSoT: Golub & Van Loan §2.3 (vector / Frobenius norms)."""
@@ -1995,72 +1903,98 @@ def mat_norm(x) -> float:
     return _rsqrt(total) if total > 0.0 else 0.0
 
 
-def mat_dot_real(a, b) -> float:
-    """Real bilinear inner product ``Σ aᵢ bᵢ`` → ``float`` — the **numpy-FREE**
-    peer of :func:`dense_dot_real` over :class:`Mat` / :class:`HV` / flat
-    sequences (pure-Python reduction; the elements are flattened row-major).
+def _operand_is_complex(x) -> bool:
+    """True iff ``x`` carries complex scalars — reads the carrier ``is_complex``
+    flag when present (Mat / Vec / HV), else scans the flat scalars. The dtype
+    gate the consolidated dtype-polymorphic ``mat_*`` ops share (numpy-free)."""
+    if hasattr(x, "is_complex"):
+        return bool(x.is_complex)
+    return any(isinstance(s, complex) for s in _iter_mat_scalars(x))
+
+
+def mat_dot(a, b):
+    """Dtype-polymorphic bilinear inner product ``a · b = Σ aᵢ bᵢ`` over the
+    numpy-free :class:`Mat` / :class:`Vec` / :class:`HV` / flat-sequence carriers
+    — **complex** when either operand is complex, else **float**. The single
+    consolidated dot the carrier ``·`` idiom and the QM η-sandwiches route
+    through (v0.7.6 carrier consolidation: unifies the rc114
+    ``mat_dot_real`` / ``mat_dot_complex`` split **and** the superseded
+    loose-input ``dense_dot_real`` / ``dense_dot_complex`` pair into one op).
+
+    Plain **bilinear** ``Σ aᵢ bᵢ`` (matching NumPy ``a·b`` on two 1-D arrays,
+    **NOT** the Hermitian ``vdot`` that conjugates its first argument — callers
+    wanting the Hermitian form pass ``a.conj()`` explicitly). Pure-Python
+    reduction over the flattened scalars.
 
     Canonical SSoT: Golub & Van Loan §1.1 (textbook inner product)."""
+    if _operand_is_complex(a) or _operand_is_complex(b):
+        total = 0j
+        for x, y in zip(_iter_mat_scalars(a), _iter_mat_scalars(b)):
+            total += complex(x) * complex(y)
+        return total
     total = 0.0
     for x, y in zip(_iter_mat_scalars(a), _iter_mat_scalars(b)):
-        total += float(x.real if isinstance(x, complex) else x) * float(
-            y.real if isinstance(y, complex) else y
+        total += float(x) * float(y)
+    return total
+
+
+def mat_matvec(m, v) -> "Vec":
+    """Dtype-polymorphic dense matrix-vector product ``M·v`` → :class:`Vec`
+    (complex iff either operand is) over the numpy-free carriers — rides
+    :func:`mat_matmul` over a column :class:`Mat` (native zero-copy when present,
+    else a pure-Python triple loop). v0.7.6 carrier consolidation: unifies the
+    rc129 ``dense_matvec_real`` / ``dense_matvec_complex`` pair.
+
+    Canonical SSoT: Golub & Van Loan §1.1 (textbook matrix-vector product)."""
+    M_rows = _rows(m)
+    v_list = _vec(v)
+    rows = len(M_rows)
+    cols = len(M_rows[0]) if rows else 0
+    for r in M_rows:
+        if len(r) != cols:
+            raise ValueError("M must be a rectangular 2-D matrix")
+    if len(v_list) != cols:
+        raise ValueError(
+            f"M shape ({rows}, {cols}) incompatible with v length {len(v_list)}"
         )
-    return total
+    cplx = (getattr(m, "is_complex", False) or getattr(v, "is_complex", False)
+            or any(isinstance(x, complex) for row in M_rows for x in row)
+            or any(isinstance(x, complex) for x in v_list))
+    if rows == 0:
+        return Vec(array("d"), 0, is_complex=cplx)
+    col = Mat.from_rows(
+        [[(complex(x) if cplx else float(x))] for x in v_list], is_complex=cplx
+    )
+    out = mat_matmul(Mat.from_rows(M_rows, is_complex=cplx), col)
+    if cplx:
+        return Vec.from_sequence(
+            [complex(out[i, 0]) for i in range(out.n_rows)], is_complex=True
+        )
+    return Vec.from_sequence(
+        [float(out[i, 0]) for i in range(out.n_rows)], is_complex=False
+    )
 
 
-def mat_dot_complex(a, b) -> complex:
-    """Complex **bilinear** inner product ``a · b = Σ aᵢ bᵢ`` → ``complex`` — the
-    **numpy-FREE** peer of :func:`dense_dot_complex`. Plain bilinear (matching
-    NumPy ``a·b`` on two 1-D arrays, **NOT** the Hermitian ``vdot`` that
-    conjugates its first argument — callers wanting the Hermitian form pass
-    ``a.conj()`` explicitly, exactly as the η-sandwich sites already spell it).
-    Pure-Python reduction over the flattened :class:`Mat` / :class:`HV` / sequence."""
-    total = 0j
-    for x, y in zip(_iter_mat_scalars(a), _iter_mat_scalars(b)):
-        total += complex(x) * complex(y)
-    return total
+def mat_outer(a, b) -> "Mat":
+    """Dtype-polymorphic outer product ``a ⊗ b`` → :class:`Mat` ``out[i,j]=aᵢbⱼ``
+    (complex iff either operand is) over the numpy-free carriers. Plain bilinear
+    ``aᵢ bⱼ`` (NO conjugation — like NumPy ``outer``; callers wanting
+    ``|ψ⟩⟨ψ|`` pass ``b = ψ.conj()``). v0.7.6 carrier consolidation: unifies the
+    rc129 ``dense_outer_real`` / ``dense_outer_complex`` pair.
 
-
-def dense_dot_complex(a, b) -> complex:
-    """Dense complex bilinear inner product ``a · b = Σ aᵢ bᵢ``.
-
-    The 1-D contraction the QM η-sandwiches and the ``matrix_cascades``
-    back-solves route through, so numpy stays carriers-only (no numpy
-    contraction engine). This is the **plain bilinear** form ``Σ aᵢ bᵢ``
-    (matching numpy ``a·b`` on two 1-D arrays — NOT the Hermitian ``vdot``,
-    which conjugates its first argument). Callers that want the Hermitian inner
-    product pass ``a.conj()`` explicitly (the ``.conj()`` is a carrier
-    transform, not math-engine), exactly as the ``a.conj()·eta·b`` sites
-    already spell it.
-
-    Composes the :func:`elementwise_multiply_complex` cascade (native-dispatched
-    when present) with a reduction sum — **never** a numpy contraction operator.
-    The reduction sits on the carrier⇄math boundary (the ledger's DEFERRED
-    category), so this helper adds nothing to the tight engine ceilings while
-    removing a contraction-engine callsite.
-
-    Parameters
-    ----------
-    a, b
-        Length-``n`` complex vectors (same length).
-
-    Returns
-    -------
-    out
-        Python ``complex`` scalar ``Σ aᵢ bᵢ``.
-
-    Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
-    Hopkins, 2013) §1.1 (textbook inner product).
-    """
+    Canonical SSoT: Golub & Van Loan §1.1 (rank-1 outer product)."""
     a_list = _vec(a)
     b_list = _vec(b)
-    if len(a_list) != len(b_list):
-        raise ValueError(
-            f"dense_dot_complex: a length {len(a_list)} != b length {len(b_list)}"
-        )
-    # Plain BILINEAR Σ aᵢ bᵢ (NOT conjugated) — numpy-free pure-Python reduction.
-    return complex(sum(complex(ai) * complex(bi) for ai, bi in zip(a_list, b_list)))
+    cplx = (getattr(a, "is_complex", False) or getattr(b, "is_complex", False)
+            or any(isinstance(x, complex) for x in a_list)
+            or any(isinstance(x, complex) for x in b_list))
+    if not a_list:
+        return Mat(array("d"), 0, len(b_list), is_complex=cplx)
+    if cplx:
+        rows = [[complex(ai) * complex(bj) for bj in b_list] for ai in a_list]
+        return Mat.from_rows(rows, is_complex=True)
+    rows = [[float(ai) * float(bj) for bj in b_list] for ai in a_list]
+    return Mat.from_rows(rows, is_complex=False)
 
 
 # ---------------------------------------------------------------------------
@@ -2073,82 +2007,6 @@ def dense_dot_complex(a, b) -> complex:
 # without a dtype change. Each is `composition_of_c` (no own C symbol; the math
 # rides the c_dispatched complex kernel; standalone-ready).
 # ---------------------------------------------------------------------------
-def dense_matmul_real(A, B) -> "Mat":
-    """Dense real matrix-matrix multiplication ``A·B`` → real :class:`Mat`.
-
-    Real peer of :func:`dense_matmul_complex` (the same Mat-carrier matmul on
-    imag-free input, dropping the exactly-zero imaginary part). Numpy-free.
-
-    Parameters
-    ----------
-    A
-        ``(m, k)`` real matrix.
-    B
-        ``(k, n)`` real matrix.
-
-    Returns
-    -------
-    out
-        ``(m, n)`` real :class:`~srmech.amsc.mat.Mat` (``.shape`` + ``m[i, j]``),
-        NOT a bare ``list[list[float]]`` (rc129).
-
-    Canonical SSoT: Golub & Van Loan §1.1 (textbook matrix multiplication).
-    """
-    out = dense_matmul_complex(A, B)  # complex Mat
-    real_rows = [[v.real if isinstance(v, complex) else float(v) for v in r]
-                 for r in out]
-    return Mat.from_rows(real_rows, is_complex=False)
-
-
-def dense_matvec_real(M, v) -> "Vec":
-    """Dense real matrix-vector multiplication ``M·v`` → real :class:`Vec`.
-
-    Real peer of :func:`dense_matvec_complex` (the same Mat-carrier matvec on
-    imag-free input, dropping the zero imaginary part). Numpy-free.
-
-    Parameters
-    ----------
-    M
-        ``(rows, cols)`` real matrix.
-    v
-        Length-``cols`` real vector.
-
-    Returns
-    -------
-    out
-        Length-``rows`` real :class:`~srmech.amsc.vec.Vec` (``.shape ==
-        (rows,)`` + scalar ``v[i]``), NOT a bare ``list[float]`` (rc129).
-
-    Canonical SSoT: Golub & Van Loan §1.1 (textbook matrix-vector product).
-    """
-    out = dense_matvec_complex(M, v)  # complex Vec; iterates scalars
-    return Vec.from_sequence(
-        [x.real if isinstance(x, complex) else float(x) for x in out],
-        is_complex=False,
-    )
-
-
-def dense_dot_real(a, b) -> float:
-    """Dense real inner product ``Σ aᵢ bᵢ`` → Python ``float``.
-
-    Real peer of :func:`dense_dot_complex` (the same bilinear reduction on
-    imag-free input). Numpy-free (§564).
-
-    Parameters
-    ----------
-    a, b
-        Length-``n`` real vectors (same length).
-
-    Returns
-    -------
-    out
-        Python ``float`` ``Σ aᵢ bᵢ``.
-
-    Canonical SSoT: Golub & Van Loan §1.1 (textbook inner product).
-    """
-    return float(dense_dot_complex(a, b).real)
-
-
 def _flatten_scalars(x) -> list:
     """Flatten a matrix (nested list / ndarray-like / Mat) OR a vector to a flat
     ``list`` of plain scalars — numpy-free. ``.tolist()`` is a carrier convert."""
@@ -2161,113 +2019,6 @@ def _flatten_scalars(x) -> list:
         else:
             flat.append(elem)
     return flat
-
-
-def dense_norm(x) -> float:
-    """Euclidean (2-norm) / Frobenius norm ``‖x‖ = √(Σ|xᵢ|²)`` → ``float``.
-
-    The default vector 2-norm and matrix Frobenius norm the QM self-consistency
-    residuals + signal-processing taper normalisations route through, so numpy
-    stays carriers-only (no numpy norm engine). It is **Class N (the
-    :func:`srmech.amsc.rational.sqrt` root) ∘ Class M (the
-    :func:`dense_dot_complex` self-bind ``Σ|xᵢ|²``)** — the array is flattened
-    (a carrier reshape), the sum-of-squares rides the native elementwise-bind
-    cascade, and the root is the libm-free Class-N sqrt. Value-faithful to the
-    NumPy 2-norm / Frobenius norm to round-off (~1 ULP) for every shape and
-    dtype; for ``ord=None`` it is exactly that flat √(Σ|·|²).
-
-    Parameters
-    ----------
-    x
-        Real or complex array of any shape (flattened to a vector).
-
-    Returns
-    -------
-    out
-        Python ``float`` ``√(Σ|xᵢ|²)`` (``0.0`` for an empty array).
-
-    Canonical SSoT: Golub & Van Loan §2.3 (vector / Frobenius norms).
-    """
-    flat = _flatten_scalars(x)
-    if not flat:
-        return 0.0
-    # Σ|xᵢ|² over a pure-Python reduction (re²+im² for complex; NO abs()).
-    sq = 0.0
-    for v in flat:
-        if isinstance(v, complex):
-            sq += v.real * v.real + v.imag * v.imag
-        else:
-            fv = float(v)
-            sq += fv * fv
-    return _rsqrt(sq) if sq > 0.0 else 0.0
-
-
-def dense_outer_complex(a, b) -> "Mat":
-    """Dense complex outer product ``a ⊗ b`` → ``out[i, j] = aᵢ bⱼ``.
-
-    The rank-1 contraction the QM density-matrix / momentum-tensor sites route
-    through, so numpy stays carriers-only (no numpy ``outer`` engine). An outer
-    product IS a ``k = 1`` matrix product — ``a`` as a column, ``b`` as a row —
-    so this is exactly :func:`dense_matmul_complex` on the reshaped pair, each
-    entry a single complex multiply (no inner summation).
-
-    Like numpy ``outer`` this does NOT conjugate ``b`` — the plain bilinear
-    ``aᵢ bⱼ``. Callers wanting ``|ψ⟩⟨ψ|`` pass ``b = ψ.conj()`` explicitly (the
-    ``.conj()`` is a carrier transform, not a math-engine op), exactly as the
-    ``outer(psi, psi.conj())`` sites already spell it.
-
-    Parameters
-    ----------
-    a
-        Length-``m`` complex vector (the column; Vec / list / ndarray-like).
-    b
-        Length-``n`` complex vector (the row).
-
-    Returns
-    -------
-    out
-        ``(m, n)`` complex :class:`~srmech.amsc.mat.Mat` ``aᵢ bⱼ`` (``.shape`` +
-        ``m[i, j]``), NOT a bare ``list[list[complex]]`` (rc129).
-
-    Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
-    Hopkins, 2013) §1.1 (rank-1 update / outer product).
-    """
-    a_list = _vec(a)
-    b_list = _vec(b)
-    # Plain bilinear outer aᵢ·bⱼ (NO conjugation) — numpy-free nested loop.
-    rows = [[complex(ai) * complex(bj) for bj in b_list] for ai in a_list]
-    if not rows:  # m == 0 → empty (0, n) complex Mat
-        return Mat(array("d"), 0, len(b_list), is_complex=True)
-    return Mat.from_rows(rows, is_complex=True)
-
-
-def dense_outer_real(a, b) -> "Mat":
-    """Dense real outer product ``a ⊗ b`` → ``out[i, j] = aᵢ bⱼ`` (real :class:`Mat`).
-
-    Real peer of :func:`dense_outer_complex` (same bilinear outer on imag-free
-    input, dropping the exactly-zero imaginary part). Numpy-free.
-
-    Parameters
-    ----------
-    a
-        Length-``m`` real vector.
-    b
-        Length-``n`` real vector.
-
-    Returns
-    -------
-    out
-        ``(m, n)`` real :class:`~srmech.amsc.mat.Mat` ``aᵢ bⱼ`` (``.shape`` +
-        ``m[i, j]``), NOT a bare ``list[list[float]]`` (rc129).
-
-    Canonical SSoT: Golub & Van Loan §1.1 (rank-1 outer product).
-    """
-    out = dense_outer_complex(a, b)  # complex Mat
-    real_rows = [[v.real if isinstance(v, complex) else float(v) for v in r]
-                 for r in out]
-    if not real_rows:
-        return Mat(array("d"), 0, out.n_cols, is_complex=False)
-    return Mat.from_rows(real_rows, is_complex=False)
 
 
 # ── rc129 shape-polymorphic elementwise rank detection ──────────────────────
@@ -2891,8 +2642,6 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "spectral_block_dispatch",
     "hermitian_eigendecompose",
     "symmetric_eigendecompose",
-    "dense_matvec_complex",
-    "dense_matmul_complex",
     "mat_matmul",
     "mat_solve",
     "mat_hermitian_eigendecompose",
@@ -2900,15 +2649,9 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "mat_eigvals",
     "mat_svd",
     "mat_norm",
-    "mat_dot_real",
-    "mat_dot_complex",
-    "dense_dot_complex",
-    "dense_matmul_real",
-    "dense_matvec_real",
-    "dense_dot_real",
-    "dense_norm",
-    "dense_outer_complex",
-    "dense_outer_real",
+    "mat_dot",
+    "mat_matvec",
+    "mat_outer",
     "elementwise_multiply_complex",
     "elementwise_transcendental",
     "elementwise_hypot",

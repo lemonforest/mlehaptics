@@ -210,15 +210,18 @@ class Mat:
     # ── matmul (the numpy ``@`` idiom, routed onto the Class-L cascade) ───
     def __matmul__(self, other):
         """``A·B`` — the numpy ``@`` matmul idiom, routed onto the srmech Class-L
-        cascade (``laplacian.dense_matmul_*`` / ``dense_matvec_*``), **never**
+        cascade (``laplacian.mat_matmul`` / ``mat_matvec``), **never**
         numpy's own contraction. ``Mat·Mat`` → :class:`Mat`; ``Mat·Vec`` (or a
         flat 1-D sequence) → :class:`~srmech.amsc.vec.Vec`. Format-preserving
         (rc130): real ⊗ real → real carrier, complex anywhere → complex carrier."""
         from . import laplacian as _L  # lazy: laplacian imports Mat (avoid cycle)
         cplx = self._complex or _carrier_is_complex(other)
         if _is_matrix_like(other):
-            return (_L.dense_matmul_complex if cplx else _L.dense_matmul_real)(self, other)
-        return (_L.dense_matvec_complex if cplx else _L.dense_matvec_real)(self, other)
+            B = other if isinstance(other, Mat) else Mat.from_rows(
+                [list(r) for r in (other.tolist() if hasattr(other, "tolist") else other)],
+                is_complex=cplx)
+            return _L.mat_matmul(self, B)
+        return _L.mat_matvec(self, other)
 
     def __rmatmul__(self, other):
         """``other·A`` for a non-:class:`Mat` left operand (a left-side flat
@@ -227,9 +230,12 @@ class Mat:
         from . import laplacian as _L  # lazy (avoid cycle)
         cplx = self._complex or _carrier_is_complex(other)
         if _is_matrix_like(other):
-            return (_L.dense_matmul_complex if cplx else _L.dense_matmul_real)(other, self)
+            A = other if isinstance(other, Mat) else Mat.from_rows(
+                [list(r) for r in (other.tolist() if hasattr(other, "tolist") else other)],
+                is_complex=cplx)
+            return _L.mat_matmul(A, self)
         # row-vector · matrix = (Aᵀ · v): the left flat vector contracts rows.
-        return (_L.dense_matvec_complex if cplx else _L.dense_matvec_real)(self.transpose(), other)
+        return _L.mat_matvec(self.transpose(), other)
 
     # ── elementwise / scalar arithmetic (the numpy ``+ - * /`` reflex sink) ───
     def _elementwise(self, other, op, *, reflected: bool = False):

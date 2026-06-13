@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.6rc1] - 2026-06-13
+
+**Carrier consolidation (#564 follow-up): collapse 11 redundant Class-L matrix ops into 3 dtype-polymorphic `mat_*` ops — fix the numpy-removal duplication debt.** The rc69–rc134 numpy-removal arc was meant to be *numpy-spirited* (one dtype-transparent carrier op per operation), but each per-module flip *added* a kernel, leaving the same operation in two-to-four forms. This is a **breaking** cleanup (minor bump): the redundant surface is hard-removed.
+
+- **Removed 11 ops** from `srmech.amsc.laplacian`: `dense_matmul_{real,complex}`, `dense_matvec_{real,complex}`, `dense_dot_{real,complex}`, `dense_norm`, `dense_outer_{real,complex}`, `mat_dot_{real,complex}` (the dtype-split `_real`/`_complex` pairs + the superseded loose-input `dense_*` generation).
+- **Added 3 dtype-polymorphic `mat_*` ops** (peers of the existing `mat_matmul` / `mat_norm` / `mat_solve` / …): **`mat_dot`** (unifies the 4 dot forms), **`mat_matvec`** (column-`Mat` over `mat_matmul`), **`mat_outer`** — each returns float for real operands, complex for complex. The carrier `@` / `·` idiom (`Mat` / `Vec`) and the `hdc` loop ops were repointed onto the unified surface; `mat_norm` / `mat_dot` now flatten nested-list matrices (parity with the old `dense_norm`).
+- **Verify-first**: proved the unified ops are value-identical to the 11 they replace (real + complex, list + carrier) before deleting anything.
+- **Additive ABI** (no wire-format change — `srmech_dense_matmul_complex` still backs `mat_matmul`; ABI stays **3**), numpy-free; `describe()["tools"]["total"]` **300 → 292** (−11 ToolEntries + 3); the #928 Rosetta ledger + 7 duplicated count-tests updated. The overdue v0.5.0 bus deprecation shims (`bus/_chain.py` + the `seed=` kwarg) are a tracked follow-up rc (test-entangled). 5 SSOT bumped.
+
 ## [0.7.5rc134] - 2026-06-13
 
 **Genome file-management increment #1 (F730 / UPSTREAM S43): several genes per chromosome — `tlv.tlv_unpack` + `genome.chromosome(genes=…)` / `genome.genes()`.** The genome reads like a library → tarballable chromosome → framed genes; this rc adds the **intra-chromosome** level: many genes inside one telomere-capped chromosome, each gene a Class-B `tlv_pack` frame (the cheaper internal delimiter; the telomere stays the chromosome boundary cap). Composed from existing AMSC — *compose, don't reinvent* (the research-env reuse audit mapped 13/13 requirements to existing ops).
