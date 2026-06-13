@@ -255,6 +255,24 @@ descriptors under `srmech/amsc/_research/cascade_catalog/` — now
 `net_chirality`, `cyclic_gcd`, `best_rational_signed`,
 `chiral_dual`) plus `parallel_sector_dispatch` and `kuramoto_step`.
 
+**Discipline — PREFER config-driven `[class]` TOML over hand-coded
+domain classes** (`[[feedback_prefer_config_driven_toml_classes]]`,
+user direction 2026-06-13). When a domain object is a
+cascade-of-the-14 composition (state + cascade-op-chain methods),
+declare it as a `[class]` TOML descriptor consumed by
+`srmech.dsl.make_class` / `register_class_dir` (descriptors live
+under `srmech/amsc/_research/class_catalog/`; the seeds are
+`genome.toml` + `hurwitz.toml`). The `Mat`/`Vec`/`HV` carriers,
+`srmech.bus`, the `adapters/`, and the `srmech.qm.*` physics
+op-families STAY hand-coded Python. **Conversion follows the genome
+two-layer pattern** — ship each method as a flat cascade op, then
+bind it in the TOML; the `make_class` contract is one-op-per-method
++ a single `appends`/`sets` field, so dict/multi-field-state classes
+(e.g. `SedenionRegister`) need a contract extension first, while
+immutable accessor-shaped classes (e.g. `One`) are cleaner first
+targets. Prove every conversion with a DSL-class-vs-Python
+equivalence test.
+
 ---
 
 ## What srmech IS NOT
