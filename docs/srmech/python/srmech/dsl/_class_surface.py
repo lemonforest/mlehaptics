@@ -115,10 +115,18 @@ def _render_class_toml(
             )
         appends = mspec.get("appends")
         sets = mspec.get("sets")
-        if appends is not None and sets is not None:
+        mutates = mspec.get("mutates")
+        if sum(x is not None for x in (appends, sets, mutates)) > 1:
             raise ValueError(
                 f"generate_class_descriptor: method {mname!r} may route its "
-                f"result to at most one of 'appends'/'sets', not both"
+                f"result to at most one of 'appends'/'sets'/'mutates'"
+            )
+        if mutates is not None and not (
+            isinstance(mutates, list) and all(isinstance(f, str) for f in mutates)
+        ):
+            raise ValueError(
+                f"generate_class_descriptor: method {mname!r} 'mutates' must be "
+                f"a list of field-name strings; got {mutates!r}"
             )
         binds = mspec.get("binds", []) or []
         lines.append("")
@@ -131,6 +139,12 @@ def _render_class_toml(
             lines.append("appends = " + _toml_basic_str(str(appends)))
         if sets is not None:
             lines.append("sets = " + _toml_basic_str(str(sets)))
+        if mutates is not None:
+            lines.append(
+                "mutates = ["
+                + ", ".join(_toml_basic_str(str(f)) for f in mutates)
+                + "]"
+            )
         mdoc = mspec.get("doc", "")
         if mdoc:
             lines.append("doc = " + _toml_basic_str(str(mdoc)))
@@ -142,7 +156,9 @@ def describe_class(name: str) -> Dict[str, Any]:
     """Return a JSON-able description of the user-declared class ``name``.
 
     ``{"name", "kind", "doc", "fields": {field: type}, "methods": {method:
-    {"op", "binds", "doc", ["appends"|"sets"]}}, "provenance"}``. Sourced from
+    {"op", "binds", "doc", ["appends"|"sets"|"mutates"]}}, "provenance"}``. The
+    ``mutates`` entry (a field-name list) marks a multi-field state-routing
+    method. Sourced from
     the on-disk ``[class]`` descriptor (the SSoT), so it's always in lockstep
     with what :func:`run_class_method` can actually construct + invoke.
     """
@@ -159,6 +175,8 @@ def describe_class(name: str) -> Dict[str, Any]:
             entry["appends"] = str(mspec["appends"])
         if "sets" in mspec:
             entry["sets"] = str(mspec["sets"])
+        if "mutates" in mspec:
+            entry["mutates"] = [str(f) for f in mspec["mutates"]]
         methods[mname] = entry
     prov = str(desc.get("_provenance", "srmech"))
     return {

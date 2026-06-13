@@ -157,8 +157,14 @@ def _resolve_op(dotted: str) -> Callable:
 
 
 def _field_default(ftype: Any) -> Any:
-    """Default for a declared field type: ``[]`` for a ``list*`` type, else None."""
-    return [] if isinstance(ftype, str) and ftype.startswith("list") else None
+    """Default for a declared field type: ``[]`` for a ``list*`` type, ``{}`` for
+    a ``dict*`` type, else None (a scalar/object supplied at construction)."""
+    if isinstance(ftype, str):
+        if ftype.startswith("list"):
+            return []
+        if ftype.startswith("dict"):
+            return {}
+    return None
 
 
 class CatalogClass:
@@ -177,7 +183,10 @@ class CatalogClass:
 
     A method's ``binds`` names are resolved positionally from the call kwargs
     first, then the instance fields; leftover call kwargs pass through to the op
-    (e.g. ``label=``). ``appends`` / ``sets`` route the result back into a field.
+    (e.g. ``label=``). State routing is mutually exclusive, at most one of:
+    ``appends`` (``list.append`` one field), ``sets`` (replace one field), or
+    ``mutates`` (a field-name list — the op returns ``(return_value, {field:
+    new})`` and each named field is replaced; the richer multi-field contract).
     """
 
     def __init__(self, descriptor: Dict[str, Any], **fields: Any) -> None:
@@ -242,11 +251,61 @@ class CatalogClass:
         result = op(*args, **call_kwargs)   # leftover kwargs pass through (e.g. label=)
         appends = spec.get("appends")
         sets = spec.get("sets")
+        mutates = spec.get("mutates")
+        if sum(x is not None for x in (appends, sets, mutates)) > 1:
+            raise ValueError(
+                f"{self._class_name}.{mname}: a method may route its result via "
+                f"at most one of 'appends' / 'sets' / 'mutates'"
+            )
+        if mutates is not None:
+            return self._apply_mutates(mname, mutates, result)
         if appends is not None:
             self._fields.setdefault(appends, []).append(result)
         elif sets is not None:
             self._fields[sets] = result
         return result
+
+    def _apply_mutates(self, mname: str, mutates: Any, result: Any) -> Any:
+        """Multi-field state routing: a ``mutates`` op returns
+        ``(return_value, {field: new_value})``. Validate the update keys against
+        the declared ``mutates`` field-list (⊆ declared fields), apply each, and
+        return only the ``return_value``. This is the contract richer classes
+        (e.g. a register whose ``write`` touches two fields) need beyond the
+        single-field ``appends`` / ``sets`` routing."""
+        if not isinstance(mutates, list) or not all(
+            isinstance(f, str) for f in mutates
+        ):
+            raise ValueError(
+                f"{self._class_name}.{mname}: 'mutates' must be a list of "
+                f"field-name strings; got {mutates!r}"
+            )
+        undeclared = [f for f in mutates if f not in self._fields]
+        if undeclared:
+            raise ValueError(
+                f"{self._class_name}.{mname}: 'mutates' names undeclared "
+                f"field(s) {sorted(undeclared)}; declared: {sorted(self._fields)}"
+            )
+        if not (
+            isinstance(result, tuple)
+            and len(result) == 2
+            and isinstance(result[1], dict)
+        ):
+            raise TypeError(
+                f"{self._class_name}.{mname}: a 'mutates' method's op must return "
+                f"(return_value, {{field: new_value}}); got "
+                f"{type(result).__name__}"
+            )
+        ret, updates = result
+        allowed = set(mutates)
+        not_allowed = sorted(set(updates) - allowed)
+        if not_allowed:
+            raise ValueError(
+                f"{self._class_name}.{mname}: op updated field(s) {not_allowed} "
+                f"not in declared mutates={sorted(allowed)}"
+            )
+        for fname, value in updates.items():
+            self._fields[fname] = value
+        return ret
 
     def __repr__(self) -> str:  # pragma: no cover — display only
         return f"<CatalogClass {self._class_name} fields={sorted(self._fields)}>"
