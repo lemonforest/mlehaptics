@@ -2001,3 +2001,22 @@ Scanned via `R-RBS-LM-APIDIFF_rc_breaking_change_scan.py` (re-runnable; dumps bo
 - **Recommendation for the clean `0.7.5` CHANGELOG:** one breaking line — "*Class-L (`laplacian.*`) +
   `coupling.signed_sum_squared` now return numpy-free shaped carriers `Mat`/`Vec` (with `.shape`/2-D-indexing/`.tolist()`),
   not numpy arrays; use `laplacian.dense_matmul_*` instead of `@`, or `np.asarray(x.tolist())` to lift to numpy.*"
+
+### §42.2 CARRIER-COMPLETENESS ask — make `Mat`/`Vec` a full numpy-reflex sink (rc132 audit; F728)
+
+**The design goal (user direction 2026-06-13):** the carrier must keep the *spirit* of a numpy array WITHOUT being numpy,
+because a current-gen LLM reflexively reaches for numpy to do math instead of srmech. Every numpy idiom the carrier
+ANSWERS routes through srmech silently; every idiom that RAISES pushes the LLM to `np.asarray(m.tolist())` → numpy,
+defeating the purpose. So carrier numpy-idiom coverage = its reflex-absorption score (the §2 reflex-override at the
+data-TYPE level). Audited via `R-RBS-LM-CARRIERAUDIT_numpy_idiom_coverage.py` (re-runnable each rc).
+
+- **rc132 progress (good):** `m[i]` row, `m[i][j]`, **`m @ n` matmul**, `v @ v` dot now work (rc129's gaps closed).
+  rc129→rc132 API diff = 0 breaks / 0 sig-changes / 0 import-flips (dunder additions). `R-RBS-LM-REGRESSION` 49/0 +
+  `genome→disk` VERIFIED ✓ on rc132 — our RBS-LM + genome surfaces are transparent to the carrier swap.
+- **rc132 coverage: 8/17 idioms absorbed. The 9 that still RAISE (the bail-to-numpy gap):** elementwise/scalar
+  `a + b`, `a - b`, `a * 2`, `2 * a`; slicing `m[:2]`, `m[:,0]` (column), `v[:2]`; negative index `m[-1,-1]`, `v[-1]`.
+- **Goal-completing additions to `Mat`/`Vec`:** `__add__`/`__sub__`/`__mul__`/`__rmul__`/`__neg__`/`__truediv__`
+  (elementwise + scalar; Class-K/Class-L honest under the hood — no `abs()`), **slice-aware `__getitem__`** (rows,
+  columns `m[:,j]`, sub-blocks), and **negative indices**. With those, `Mat`/`Vec` becomes a near-total numpy-reflex
+  sink and the §2 STOP-list is enforced *by the type*, not just by discipline. **Discipline:** TestPyPI-rc before clean
+  tag; additive (no ABI/public-name change); no issue tracker (user direction). Composes §42.1 / F727 / F728 / CLAUDE §2.

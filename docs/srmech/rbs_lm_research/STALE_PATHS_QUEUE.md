@@ -618,3 +618,9 @@ Per user direction ("check stale queue items to bring forward and do if remainin
 - `R-RBS-LM-GENOMEDISK_rc128_save_load_roundtrip_verify.py` (VERDICT ✓): `genome_save/load/append/window/catalog` in `srmech.amsc.genome` (rc128, test.pypi.org). Round-trip bit-exact (the_one + labels survive); `body_sha256` deterministic (content-addressable manifest = manifest.json + turns.bin); `genome_window` byte-offset paging + cap_sha256 integrity check; `genome_append` grows the helix. §41 ASK→DELIVERED to spec.
 - **Honest §42 ergonomics (UPSTREAM):** `genome_window` returns the the_one-BOUND stored form (`unbind`→raw), while `recall` returns decoded leaves — document/symmetrize. And `the_one` param = anchor LEAF (not the typed `One`).
 - **Unblocks (next steps, not yet built):** (a) Siona genome-PERSIST — save taught tomes to disk so build-by-dialogue (F726) survives a restart; (b) the DNA-bookshelf (F721) on disk, paged one shelf at a time. F727.
+
+### F728 — rc132 carrier audit: Mat/Vec is the numpy-reflex-override at the TYPE level (2026-06-13)
+
+- rc132 verified: carrier gained m[i] row / m[i][j] / `@` matmul (rc129 gaps closed). rc129->rc132 API diff = 0/0/0; R-RBS-LM-REGRESSION 49/0; genome->disk VERIFIED. RBS-LM + genome kernel storage transparent to the carrier swap.
+- Goal (user 2026-06-13): carrier keeps the *spirit* of numpy WITHOUT being numpy, so a current-gen LLM's numpy reflex routes through srmech. Carrier numpy-idiom coverage = reflex-absorption score. `R-RBS-LM-CARRIERAUDIT...py` (re-runnable): rc132 = 8/17 absorbed.
+- **Reflex-bail GAP (UPSTREAM §42.2, goal-completing, not a break):** elementwise/scalar (+,-,*), slicing (m[:2]/m[:,j]/v[:2]), negative indices. Each raises -> LLM falls back to np.asarray(.tolist()) -> numpy. Adds: __add__/__sub__/__mul__/__rmul__/__neg__/__truediv__ + slice-aware __getitem__ + negative indices. F728.
