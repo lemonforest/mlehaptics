@@ -140,7 +140,7 @@ class Vec:
     # ── matmul (the numpy ``@`` idiom, routed onto the Class-L cascade) ───
     def __matmul__(self, other):
         """``v·B`` — the numpy ``@`` matmul idiom, routed onto the srmech Class-L
-        cascade (``laplacian.dense_dot_*`` / ``dense_matvec_*``), **never**
+        cascade (``laplacian.mat_dot`` / ``mat_matvec``), **never**
         numpy's own contraction. ``Vec·Vec`` (or a flat 1-D sequence) → a scalar
         inner product ``Σ aᵢ bᵢ``; ``Vec·Mat`` (row-vector · matrix) →
         :class:`Vec`. Format-preserving (rc130)."""
@@ -152,8 +152,8 @@ class Vec:
                 [list(r) for r in other], is_complex=cplx
             )
             # row-vector · matrix = (Mᵀ · v): the vector contracts the rows.
-            return (_L.dense_matvec_complex if cplx else _L.dense_matvec_real)(M.transpose(), self)
-        return (_L.dense_dot_complex if cplx else _L.dense_dot_real)(self, other)
+            return _L.mat_matvec(M.transpose(), self)
+        return _L.mat_dot(self, other)
 
     def __rmatmul__(self, other):
         """``B·v`` for a non-:class:`Vec` left operand: a 2-D sequence →
@@ -163,8 +163,8 @@ class Vec:
         from .mat import _is_matrix_like, _carrier_is_complex
         cplx = self._complex or _carrier_is_complex(other)
         if _is_matrix_like(other):
-            return (_L.dense_matvec_complex if cplx else _L.dense_matvec_real)(other, self)
-        return (_L.dense_dot_complex if cplx else _L.dense_dot_real)(other, self)
+            return _L.mat_matvec(other, self)
+        return _L.mat_dot(other, self)
 
     # ── elementwise / scalar arithmetic (the numpy ``+ - * /`` reflex sink) ───
     def _elementwise(self, other, op, *, reflected: bool = False):
