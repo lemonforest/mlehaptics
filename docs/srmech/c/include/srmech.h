@@ -63,9 +63,9 @@ extern "C" {
  * ------------------------------------------------------------------ */
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
-#define SRMECH_VERSION_PATCH 6
-#define SRMECH_VERSION_PRE   "rc1"
-#define SRMECH_VERSION       "0.7.6rc1"
+#define SRMECH_VERSION_PATCH 5
+#define SRMECH_VERSION_PRE   "rc135"
+#define SRMECH_VERSION       "0.7.5rc135"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -995,19 +995,6 @@ srmech_status_t srmech_hermitian_eigendecompose_ws(
     double        *out_eigvecs_interleaved,
     double        *workspace,
     size_t         ws_len);
-
-/* Dense complex matrix-vector multiplication: out = M @ v.
- * M_interleaved is rows*cols interleaved-double pairs (row-major).
- * v_interleaved is cols interleaved-double pairs.
- * out_interleaved is rows interleaved-double pairs (caller-allocated).
- * rows and cols are bounded by SRMECH_LAPLACIAN_MAX_NODES (256).
- */
-srmech_status_t srmech_dense_matvec_complex(
-    uint32_t       rows,
-    uint32_t       cols,
-    const double  *M_interleaved,
-    const double  *v_interleaved,
-    double        *out_interleaved);
 
 /* Dense complex matrix-matrix multiplication: out = A @ B.
  * A_interleaved is m*k interleaved-double pairs (row-major).

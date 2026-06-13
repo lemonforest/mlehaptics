@@ -3,7 +3,7 @@
 Three sources, in priority order (the higher source wins):
 
 1. **Explicit argument** to :func:`srmech.bus.connect` /
-   :func:`srmech.bus.serve` (``seed=b"..."``). Caller responsibility.
+   :func:`srmech.bus.serve` (``dna=b"..."``). Caller responsibility.
 2. **Environment variable** ``SRMECH_BUS_SEED`` — hex-encoded 32+
    byte seed; both ends must have it set to the same value.
 3. **0o600 discovery file** at ``~/.srmech/bus-{name}.seed``

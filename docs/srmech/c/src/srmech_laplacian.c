@@ -307,12 +307,11 @@ srmech_status_t srmech_jacobi_eigvals(uint32_t  n,
 /* ================================================================ *
  * Class L broadening — ADR-0002 Phase 2 (v0.4.1rc5)
  *
- * Four new ops extending Class L from "graph Laplacian" to
+ * Three new ops extending Class L from "graph Laplacian" to
  * "dense-matrix linear algebra including eigendecomposition +
- * matrix-vector multiplication + elementwise operations":
+ * elementwise operations":
  *
  *   - srmech_hermitian_eigendecompose
- *   - srmech_dense_matvec_complex
  *   - srmech_elementwise_multiply_complex
  *   - srmech_elementwise_transcendental
  *
@@ -603,42 +602,6 @@ srmech_status_t srmech_hermitian_eigendecompose(
     return srmech_hermitian_eigendecompose_ws(
         n, H_interleaved, out_eigvals, out_eigvecs_interleaved,
         Hwork, SRMECH_HERMITIAN_WS_MAX);
-}
-
-srmech_status_t srmech_dense_matvec_complex(
-    uint32_t       rows,
-    uint32_t       cols,
-    const double  *M_interleaved,
-    const double  *v_interleaved,
-    double        *out_interleaved)
-{
-    assert(M_interleaved != NULL);
-    assert(out_interleaved != NULL);
-    if (M_interleaved == NULL || v_interleaved == NULL
-        || out_interleaved == NULL) {
-        return SRMECH_ERR_NULL_ARG;
-    }
-    if (rows > SRMECH_LAPLACIAN_MAX_NODES
-        || cols > SRMECH_LAPLACIAN_MAX_NODES) {
-        return SRMECH_ERR_OVERFLOW;
-    }
-    for (uint32_t r = 0; r < rows; r++) {
-        double acc_re = 0.0;
-        double acc_im = 0.0;
-        for (uint32_t c = 0; c < cols; c++) {
-            size_t mi = ((size_t)r * cols + c) * 2;
-            size_t vi = (size_t)c * 2;
-            double m_re = M_interleaved[mi];
-            double m_im = M_interleaved[mi + 1];
-            double v_re = v_interleaved[vi];
-            double v_im = v_interleaved[vi + 1];
-            acc_re += m_re * v_re - m_im * v_im;
-            acc_im += m_re * v_im + m_im * v_re;
-        }
-        out_interleaved[(size_t)r * 2]     = acc_re;
-        out_interleaved[(size_t)r * 2 + 1] = acc_im;
-    }
-    return SRMECH_OK;
 }
 
 srmech_status_t srmech_dense_matmul_complex(

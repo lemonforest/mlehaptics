@@ -18,9 +18,13 @@ beyond a single-file read.
 
 - A Python research package, published as **`srmech`** on PyPI.
   Last graduated release: **`v0.7.4`** (production PyPI). The
-  **current dev head is `v0.7.5rc134`** (a long carrier-arc rc run
-  on TestPyPI); the **active arc is `v0.7.6` "carrier
-  consolidation"** (see the dedicated section below). Earlier
+  **current dev head is `v0.7.5rc135`** (a long carrier-arc rc run
+  on TestPyPI); the most recent rc is the **"carrier
+  consolidation"** ship (see the dedicated section below — it
+  collapses the numpy-removal duplication debt and removes the
+  overdue bus shims; the version-jump decision is the user's, to be
+  made before the next live-PyPI cut, so it rides the `0.7.5rcN`
+  line for now). Earlier
   graduations — `v0.7.3` / `v0.7.1` / `v0.7.0` (the One `S(σ,θ)` +
   the numpy-optional cascade graduation), `v0.5.0` (bus / DSL /
   MCP / so(8)+triality voxel arc), `v0.4.0` (14-class C-parity
@@ -142,17 +146,19 @@ beyond a single-file read.
   See `[[project_carrier_ratchet_to_zero_15rc_roadmap]]` +
   `[[feedback_numpy_removal_must_preserve_carrier_format_mat_vec_not_lists]]`.
 
-### v0.7.6 "carrier consolidation" — ACTIVE ARC (execution spec)
+### "carrier consolidation" — ships on the `0.7.5rcN` line (rc135)
 
 The carrier-removal arc, done one-rc-per-module, **left a duplication
 debt**: it was meant to be *numpy-spirited* (one dtype-transparent
 carrier op per operation), but each flip *added* a kernel. The
 `srmech.amsc.laplacian` Class-L surface ended up with the same op in
-two-to-four forms. v0.7.6 hard-removes the redundancy down to one
-dtype-polymorphic `mat_*` op each (user 2026-06-13: "we messed up big
-time with numpy-removal inflation … fix this pollution"; **hard
-removals**, breaking is fine — correct version-jumping happens before
-the next live-PyPI cut). The full plan also lives in
+two-to-four forms. The consolidation hard-removes the redundancy down
+to one dtype-polymorphic `mat_*` op each (user 2026-06-13: "we messed
+up big time with numpy-removal inflation … fix this pollution"; **hard
+removals**, breaking is fine). **Version note:** this is the user's
+call to make before the next live-PyPI cut, so the consolidation rides
+the `0.7.5rcN` line as **rc135** — do NOT mint a `0.7.6`/`0.8.0` bump
+yourself. The full plan also lives in
 `[[project_srmech_carrier_consolidation_remove_numpy_removal_duplication]]`.
 
 **Remove 11 redundant ops** (dtype-split `_real`/`_complex` + the
@@ -183,10 +189,16 @@ STAYS (elementwise ops use it). Each removal also touches: laplacian
 `__all__` (×2: the top list + `LAPLACIAN_OPS`), the `ToolEntry` in
 `tool_schema.py`, the `rosetta_classification.ndjson` ledger, the
 **#928 down-only Rosetta ratchet**, the `describe()["tools"]["total"]`
-count in the **five** duplicated count-tests, and `_native.py` (leave
-the C symbol bound — `srmech_dense_matmul_complex` still backs
-`mat_matmul`; the now-unused `srmech_dense_matvec_complex` binding is
-harmless).
+count in the **five** duplicated count-tests, and `_native.py`.
+**C/Python 1:1 parity (user directive):** `srmech_dense_matmul_complex`
+stays — it still backs `mat_matmul`; but the now-orphaned
+`srmech_dense_matvec_complex` kernel is **removed** from the C surface
+to keep it 1:1 with Python (matvec is now a composition over
+`mat_matmul`, so the dedicated C kernel has no caller). Removed from
+`c/include/srmech.h` (prototype + doc), `c/src/srmech_laplacian.c`
+(definition + ADR-0002-Phase-2 doc bullet), and the `_native.py`
+ctypes binding. Additive/subtractive of a dead symbol does **not**
+bump ABI (stays 3; the ctypes shim binds via `hasattr`).
 
 **Also overdue (directive "check other aliases left over"):** the v0.5.0
 bus deprecation shims still present at v0.7.5 — HARD-REMOVE

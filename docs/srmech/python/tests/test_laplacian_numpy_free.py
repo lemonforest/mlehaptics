@@ -104,6 +104,39 @@ def test_scientific_tier_ops_run_without_numpy():
     assert Ls[1, 1] == pytest.approx(1.0)
 
 
+def test_hermitian_eigendecompose_degenerate_numpy_free():
+    """REGRESSION (carrier-consolidation rc135): the pure-Python complex-Hermitian
+    eigendecompose used to ``ZeroDivisionError`` on a DEGENERATE eigenvalue — the
+    2n real-embedding doubles each complex eigenvector via the J-rotation ``i·z``,
+    so the "every other column" pick collapses to a zero vector after Gram–Schmidt
+    (the identity matrix is the minimal trigger). The fallback now scans the
+    embedding columns at the same eigenvalue for an independent reconstruction.
+    Pin: a unitary basis + exact reconstruction ``V·diag(λ)·Vᴴ = H`` on three
+    degenerate complex-Hermitian matrices, numpy-free."""
+    from srmech.amsc.mat import Mat
+
+    cases = [
+        [[1.0, 0.0], [0.0, 1.0]],                       # identity: λ = {1, 1}
+        [[2.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 5.0]],   # λ = {2, 2, 5}
+        [[2.0, 0.0, 0.0], [0.0, 3.0, 1j], [0.0, -1j, 3.0]],    # complex, λ = {2, 2, 4}
+    ]
+    for rows in cases:
+        H = Mat.from_rows(rows)
+        n = H.n_rows
+        w, V = L.hermitian_eigendecompose(H)
+        lam = list(w)
+        for a in range(n):                              # Vᴴ V = I (unitary basis)
+            for b in range(n):
+                s = sum(V[i, a].conjugate() * V[i, b] for i in range(n))
+                tgt = 1.0 if a == b else 0.0
+                # abs() allowed in TESTS (tolerance), not in shipped cascades.
+                assert abs(s - tgt) < 1e-9              # noqa
+        for i in range(n):                              # V·diag(λ)·Vᴴ = H
+            for j in range(n):
+                s = sum(V[i, a] * lam[a] * V[j, a].conjugate() for a in range(n))
+                assert abs(s - complex(rows[i][j])) < 1e-9  # noqa
+
+
 # --- the "abs() is never fine" codebase ratchet ------------------------------
 
 _PKG_ROOT = pathlib.Path(L.__file__).resolve().parents[1]  # .../srmech/

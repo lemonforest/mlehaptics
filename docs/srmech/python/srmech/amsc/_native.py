@@ -407,17 +407,6 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_hermitian_eigendecompose_ws.restype = ctypes.c_int
 
-    # int srmech_dense_matvec_complex(uint32_t rows, uint32_t cols,
-    #     const double *M_il, const double *v_il, double *out_il)
-    lib.srmech_dense_matvec_complex.argtypes = [
-        ctypes.c_uint32,
-        ctypes.c_uint32,
-        ctypes.POINTER(ctypes.c_double),
-        ctypes.POINTER(ctypes.c_double),
-        ctypes.POINTER(ctypes.c_double),
-    ]
-    lib.srmech_dense_matvec_complex.restype = ctypes.c_int
-
     # int srmech_elementwise_multiply_complex(uint32_t n,
     #     const double *a_il, const double *b_il, double *out_il)
     lib.srmech_elementwise_multiply_complex.argtypes = [

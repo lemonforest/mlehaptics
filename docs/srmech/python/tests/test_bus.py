@@ -1452,36 +1452,6 @@ def test_decode_splice_callable_via_public_namespace():
     assert plaintext == b"abc"
 
 
-# ----- _chain deprecation-shim back-compat --------------------------------
-
-
-def test_chain_shim_imports_emit_deprecation_warning():
-    """Importing srmech.bus._chain or constructing ChainState fires a
-    DeprecationWarning (one-rc shim before removal in v0.5.0 final)."""
-    import importlib
-    import sys as _sys
-    # Force a fresh import of the shim to trigger the module-level
-    # warning.
-    _sys.modules.pop("srmech.bus._chain", None)
-    with pytest.warns(DeprecationWarning):
-        importlib.import_module("srmech.bus._chain")
-
-
-def test_chain_shim_chain_state_still_round_trips():
-    """rc6-era code using ChainState(seed, channel_id, direction)
-    must still work for one rc cycle."""
-    import warnings
-    from srmech.bus._chain import ChainState as _ChainState
-    from srmech.bus._chain import DIRECTION_OUT as _DIR_OUT
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        seed = b"k" * 32
-        sender = _ChainState(seed, b"ch", _DIR_OUT)
-        receiver = _ChainState(seed, b"ch", _DIR_OUT)
-        body = sender.encrypt(b"legacy frame")
-        assert receiver.decrypt(body) == b"legacy frame"
-
-
 # ----- Seed-resolution cascade -------------------------------------------
 
 
@@ -1622,45 +1592,6 @@ def test_encrypted_end_to_end_inproc(unique_name, monkeypatch):
                 assert reply["payload"]["echo"] == {"x": 1}
         finally:
             discard_seed_file(unique_name)
-
-
-def test_encrypted_seed_kwarg_deprecation_warning(unique_name, monkeypatch):
-    """rc7: passing ``seed=`` (rather than ``dna=``) still works but
-    fires a DeprecationWarning — one-rc back-compat for callers using
-    the rc3-era kwarg name."""
-    monkeypatch.delenv(ENV_VAR, raising=False)
-    try:
-        seed_path(unique_name).unlink()
-    except OSError:
-        pass
-    dna = _secrets.token_bytes(32)
-    import warnings as _warnings
-    with _warnings.catch_warnings(record=True) as caught:
-        _warnings.simplefilter("always")
-        with serve(unique_name, _make_chain_handler(), seed=dna) as ep:
-            assert ep.encrypted is True
-            _wait_for_endpoint(unique_name)
-            try:
-                with connect(unique_name, seed=dna) as ch:
-                    assert ch.encrypted is True
-                    reply = ch.send(
-                        {"type": "ping", "payload": {"x": 1}},
-                        timeout=5.0,
-                    )
-                    assert reply is not None
-                    assert reply["payload"]["echo"] == {"x": 1}
-            finally:
-                discard_seed_file(unique_name)
-        # Both serve() and connect() seed= path should have warned.
-        seed_warnings = [
-            w for w in caught
-            if issubclass(w.category, DeprecationWarning)
-            and "seed" in str(w.message)
-        ]
-        assert len(seed_warnings) >= 2, (
-            f"expected ≥2 seed= DeprecationWarnings; got "
-            f"{[str(w.message) for w in seed_warnings]}"
-        )
 
 
 def test_encrypted_end_to_end_many_requests(unique_name, monkeypatch):
