@@ -27,11 +27,12 @@ _TOL = 1e-9
 
 
 def test_sqrt_close_to_stdlib():
+    from srmech.amsc.vec import Vec
     a = [2.0, 3.0, 5.0, 7.5, 10.0, 0.0]
     out = elementwise_sqrt(a)
-    assert isinstance(out, list)
-    assert len(out) == len(a)
-    assert all(isinstance(x, float) for x in out)
+    assert isinstance(out, Vec)                  # rc129: 1-D input → Vec carrier
+    assert out.shape == (len(a),)
+    assert all(isinstance(x, float) for x in out)  # Vec iterates SCALARS
     for got, ai in zip(out, a):
         assert abs(got - math.sqrt(ai)) < _TOL
 

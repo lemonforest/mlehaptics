@@ -8,12 +8,14 @@ Four ops added per the Phase 1 spike finding (TDSE non-fitting case):
 - ``elementwise_multiply_complex`` — pointwise ``a * b``.
 - ``elementwise_transcendental`` — vectorised ``exp/cos/sin/log/exp_i``.
 
-Post-#564 numpy is GONE from srmech: every op takes plain Python sequences and
-returns plain Python lists (``hermitian_eigendecompose`` →
-``(list[float], list[list[complex]])`` with V's COLUMNS the eigenvectors:
-``V[i][k]`` = i-th component of k-th eigenvector). Parity is against
-hand-computed values, reconstruction identities (``H = V·diag(w)·Vᴴ``,
-``VᴴV = I``), and stdlib ``cmath``/``math`` references — never numpy LAPACK.
+Post-#564 numpy is GONE from srmech; rc129 restores the numpy-carrier FORMAT:
+``hermitian_eigendecompose`` / ``symmetric_eigendecompose`` return ``(Vec, Mat)``
+(eigenVALUES a 1-D ``Vec``; eigenVECTORS a ``Mat`` whose COLUMNS are the
+eigenvectors — ``V[i, k]`` = i-th component of k-th eigenvector), ``dense_matvec_*``
+return a ``Vec``, ``dense_matmul_*`` / ``elementwise_*`` (rank-2) a ``Mat``.
+Parity is against hand-computed values, reconstruction identities
+(``H = V·diag(w)·Vᴴ``, ``VᴴV = I``), and stdlib ``cmath``/``math`` references —
+never numpy LAPACK.
 """
 
 from __future__ import annotations
@@ -28,8 +30,18 @@ from srmech.amsc import _native, laplacian
 
 
 # ---------------------------------------------------------------------
-# plain-list helpers (no numpy)
+# carrier-aware helpers (no numpy; rc129 Mat/Vec aware)
 # ---------------------------------------------------------------------
+
+def _nested(M):
+    """rc129: a ``Mat`` carrier → nested list (``.tolist()``); pass lists thru."""
+    return M.tolist() if hasattr(M, "tolist") else M
+
+
+def _flat(v):
+    """rc129: a ``Vec`` carrier → flat list (``.tolist()``); pass lists thru."""
+    return v.tolist() if hasattr(v, "tolist") else v
+
 
 def _make_hermitian(n, seed=0):
     rng = random.Random(seed)
@@ -46,10 +58,13 @@ def _make_symmetric(n, seed=0):
 
 
 def _matvec(M, v):
+    M = _nested(M)
+    v = _flat(v)
     return [sum(M[i][k] * v[k] for k in range(len(v))) for i in range(len(M))]
 
 
 def _conj_transpose(M):
+    M = _nested(M)
     if not M:
         return []
     rows, cols = len(M), len(M[0])
@@ -59,6 +74,7 @@ def _conj_transpose(M):
 
 def _max_recon_err(H, w, V):
     """max |H[i][j] − Σ_k V[i][k]·w[k]·conj(V[j][k])| (H = V diag(w) Vᴴ)."""
+    H, V, w = _nested(H), _nested(V), _flat(w)
     n = len(H)
     err = 0.0
     for i in range(n):
@@ -70,6 +86,7 @@ def _max_recon_err(H, w, V):
 
 def _max_unitary_err(V):
     """max |δ_ij − Σ_k conj(V[k][i])·V[k][j]| (columns orthonormal: VᴴV = I)."""
+    V = _nested(V)
     n = len(V)
     err = 0.0
     for i in range(n):
@@ -137,14 +154,17 @@ def test_symmetric_eigendecompose_returns_real():
     eigvecs (no complex V for real-symmetric L)."""
     L = laplacian.dense_laplacian(4, [(0, 1), (1, 2), (2, 3), (3, 0)])
     eigvals, V = laplacian.symmetric_eigendecompose(L)
-    assert all(not isinstance(e, complex) for e in eigvals)
-    assert all(not isinstance(V[i][j], complex)
-               for i in range(len(V)) for j in range(len(V[i])))
+    assert all(not isinstance(e, complex) for e in eigvals)  # Vec iterates scalars
+    Vl = V.tolist()                                          # rc129: real Mat
+    assert all(not isinstance(Vl[i][j], complex)
+               for i in range(len(Vl)) for j in range(len(Vl[i])))
 
 
 def test_symmetric_eigendecompose_reconstruction():
     L = _make_symmetric(5, seed=42)
     w, V = laplacian.symmetric_eigendecompose(L)
+    w = w.tolist()                                  # rc129: Vec eigenvalues
+    V = V.tolist()                                  # rc129: real Mat eigenvectors
     assert all(w[i] <= w[i + 1] + 1e-12 for i in range(len(w) - 1))
     # Reconstruction L = V diag(w) Vᵀ (real ⇒ conj is identity).
     n = len(L)
@@ -159,6 +179,7 @@ def test_symmetric_eigendecompose_reconstruction():
 def test_symmetric_eigendecompose_orthonormal():
     L = _make_symmetric(6, seed=7)
     _, V = laplacian.symmetric_eigendecompose(L)
+    V = V.tolist()                                  # rc129: real Mat eigenvectors
     # VᵀV = I.
     n = len(V)
     err = 0.0
@@ -254,10 +275,10 @@ def test_dense_matmul_complex_matches_hand_computed():
          for _ in range(3)]
     out = laplacian.dense_matmul_complex(A, B)
     expected = _matmul(A, B)
-    assert len(out) == 5 and len(out[0]) == 4
+    assert out.shape == (5, 4)                       # rc129: complex Mat carrier
     for i in range(5):
         for j in range(4):
-            assert abs(out[i][j] - expected[i][j]) < 1e-12
+            assert abs(out[i, j] - expected[i][j]) < 1e-12
 
 
 def test_dense_matmul_complex_square_and_identity():
@@ -266,12 +287,12 @@ def test_dense_matmul_complex_square_and_identity():
     out = laplacian.dense_matmul_complex(A, B)
     for i in range(2):
         for j in range(2):
-            assert abs(out[i][j] - _matmul(A, B)[i][j]) < 1e-12
+            assert abs(out[i, j] - _matmul(A, B)[i][j]) < 1e-12
     eye = [[1 + 0j if i == j else 0j for j in range(2)] for i in range(2)]
     out2 = laplacian.dense_matmul_complex(A, eye)
     for i in range(2):
         for j in range(2):
-            assert abs(out2[i][j] - A[i][j]) < 1e-12
+            assert abs(out2[i, j] - A[i][j]) < 1e-12
 
 
 def test_dense_matmul_complex_shape_mismatch():
@@ -289,13 +310,13 @@ def test_dense_matmul_complex_matches_matvec_per_column():
          for _ in range(4)]
     B = [[complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(3)]
          for _ in range(4)]
-    out = laplacian.dense_matmul_complex(A, B)
+    out = laplacian.dense_matmul_complex(A, B)   # complex Mat
     ncols = len(B[0])
     for j in range(ncols):
         col = [B[i][j] for i in range(len(B))]
-        mv = laplacian.dense_matvec_complex(A, col)
-        for i in range(len(out)):
-            assert abs(out[i][j] - mv[i]) < 1e-12
+        mv = laplacian.dense_matvec_complex(A, col)  # complex Vec
+        for i in range(out.n_rows):
+            assert abs(out[i, j] - mv[i]) < 1e-12
 
 
 # ---------------------------------------------------------------------

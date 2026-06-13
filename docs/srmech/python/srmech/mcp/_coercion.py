@@ -593,6 +593,12 @@ def serialise_native(value: Any) -> Any:
     from srmech.amsc.mat import Mat as _Mat
     if isinstance(value, _Mat):
         return serialise_native(value.tolist())
+    # srmech Vec (numpy-free 1-D carrier, rc129) -> flat list. A complex Vec
+    # serialises each entry as a ``[re, im]`` leaf via the recursion (Vec.tolist()
+    # yields a flat list[float] / list[complex]). The 1-D peer of the Mat branch.
+    from srmech.amsc.vec import Vec as _Vec
+    if isinstance(value, _Vec):
+        return serialise_native(value.tolist())
     # dict -> recurse (a bytes key serialises to its base64 string)
     if isinstance(value, dict):
         out: Dict[Any, Any] = {}

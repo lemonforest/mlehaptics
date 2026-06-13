@@ -68,11 +68,14 @@ def _rand_int_sym(n, seed, complex_=False):
 
 def test_hermitian_eig_real_symmetric_parity():
     """Eigenvalues match the exact ``eigvals_exact`` oracle; H reconstructs."""
+    from srmech.amsc.mat import Mat
+    from srmech.amsc.vec import Vec
     H = _rand_int_sym(6, seed=1)
     n = len(H)
     ev_ref = sorted(eigvals_exact(H))
     ev, V = hermitian_eigendecompose(H)
-    assert isinstance(ev, list) and isinstance(V, list)
+    assert isinstance(ev, Vec) and isinstance(V, Mat)   # rc129: Vec eigvals, Mat eigvecs
+    V = V.tolist()                                       # nested for the [i][k] recon
     # ascending + parity vs the framework's own exact eigenvalues.
     for i in range(n - 1):
         assert ev[i + 1] - ev[i] >= -1e-12
@@ -96,8 +99,9 @@ def test_hermitian_eig_complex_hermitian_parity():
     H = _rand_int_sym(6, seed=2, complex_=True)
     n = len(H)
     ev_ref = sorted(z.real for z in eigvals(H))
-    ev, V = hermitian_eigendecompose(H)
-    # eigenvalues are real (Hermitian) and complex eigenvectors carried as lists.
+    ev, V = hermitian_eigendecompose(H)   # rc129: Vec eigvals, complex Mat eigvecs
+    V = V.tolist()                        # nested list for the [i][k] reconstruction
+    # eigenvalues are real (Hermitian) and complex eigenvectors carried in the Mat.
     for i in range(n - 1):
         assert ev[i + 1] - ev[i] >= -1e-12
     for i in range(n):

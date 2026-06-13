@@ -79,13 +79,14 @@ def test_listmarshal_matches_hand_computed_native_build():
 
 
 def test_numpy_free_build_dispatches_and_is_correct():
-    """Post-#564 the public builders are numpy-free by default → each returns a
-    ``list[list[float]]`` (native list-marshal when HAS_NATIVE, else pure
-    Python) matching the hand-computed closed-form matrix."""
+    """Post-#564 the public builders are numpy-free by default; rc129 each
+    returns a numpy-free ``Mat`` (``.shape`` + ``m[i, j]``) — native list-marshal
+    when HAS_NATIVE, else pure Python — matching the hand-computed matrix."""
+    from srmech.amsc.mat import Mat
     assert not hasattr(_lap, "np")     # numpy is gone, not merely monkeypatched
     for fn, pub in _FNS.items():
         out = pub(_N, _EDGES, _WTS)
-        assert isinstance(out, list) and isinstance(out[0], list)
+        assert isinstance(out, Mat) and out.shape == (_N, _N)   # rc129: Mat carrier
         ref = _REFS[fn]
-        err = max(abs(out[i][j] - ref[i][j]) for i in range(_N) for j in range(_N))
+        err = max(abs(out[i, j] - ref[i][j]) for i in range(_N) for j in range(_N))
         assert err < 1e-12, (fn, err)

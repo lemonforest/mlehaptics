@@ -5,15 +5,18 @@
 projection) ∘ Class L (signed-magnitude-squared) over a stack of bit-arrays;
 no dedicated native symbol.
 
-numpy-FREE (#564): ``signed_sum_squared`` takes plain ``list[int]`` bit-arrays
-and returns a ``list[int]`` — the reference values are hand-computed and the
-property checks are stdlib integer arithmetic; no numpy oracle.
+numpy-FREE (#564); rc129 restores the numpy-carrier FORMAT: ``signed_sum_squared``
+takes plain ``list[int]`` bit-arrays and returns a numpy-free 1-D ``Vec``
+(``.shape`` + scalar ``v[i]``; the small non-negative integer scores are exact
+as float64 doubles) — NOT a bare ``list[int]``. The reference values are
+hand-computed and the property checks are stdlib arithmetic; no numpy oracle.
 """
 import random
 
 import pytest
 
 from srmech.amsc import coupling
+from srmech.amsc.vec import Vec
 
 
 def _ref_signed_sum_squared(sources):
@@ -57,13 +60,18 @@ def test_matches_reference_formula_random():
     assert coupling.signed_sum_squared(srcs) == _ref_signed_sum_squared(srcs)
 
 
-def test_output_is_int_list_nonnegative():
+def test_output_is_vec_nonnegative():
     rng = random.Random(1)
     srcs = [[rng.randrange(2) for _ in range(32)] for _ in range(5)]
     out = coupling.signed_sum_squared(srcs)
-    assert isinstance(out, list)
-    assert all(isinstance(x, int) for x in out)
-    assert all(0 <= x <= 25 for x in out)  # in [0, n_sources²]
+    assert isinstance(out, Vec)                      # rc129: numpy-free Vec carrier
+    assert out.shape == (32,)
+    # the integer scores are exact as float64 doubles (value-faithful)
+    vals = out.tolist()
+    assert all(x == int(x) for x in vals)            # integral-valued
+    assert all(0 <= x <= 25 for x in vals)           # in [0, n_sources²]
+    for x in out:                                    # Vec iterates SCALARS
+        assert isinstance(x, float)
 
 
 def test_validation():

@@ -111,13 +111,12 @@ def test_reverse_order_involution():
 def _band_widths(d):
     """Return the (low, mid, high) band COLUMN counts.
 
-    numpy-free (#564): the three bands are now nested lists shaped
-    ``(n_rows, k)`` (the eigenvector COLUMNS sliced into each band), not
-    ndarrays. The band width is the number of columns = ``len(row)`` for
-    any row; an empty band (no columns, or no rows) has width 0.
+    rc129: the three bands are now real ``Mat`` carriers shaped ``(n_rows, k)``
+    (the eigenvector COLUMNS sliced into each band). The band width is the
+    number of columns = ``band.n_cols`` (0 for an empty band).
     """
     def width(band):
-        return len(band[0]) if band and band[0] is not None else 0
+        return band.n_cols
     return (width(d["low"]), width(d["mid"]), width(d["high"]))
 
 

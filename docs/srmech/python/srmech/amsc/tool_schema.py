@@ -758,7 +758,7 @@ def _register_primitive_class_tools() -> None:
                         P("edges", "list[tuple[int, int]]", True),
                         P("weights", "Optional[list[float]]", False,
                           "None ⇒ unit weights")),
-            returns=R("np.ndarray", "n × n dense matrix"),
+            returns=R("Mat", "n × n dense matrix (numpy-free 2-D carrier)"),
         ),
         # §40 (rc50): the text→graph stage primitives — the K1 chain's missing
         # front, now in srmech.amsc.text (ingestion module; laplacian stays
@@ -822,7 +822,7 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("n", "int", True),
                         P("edges", "list[tuple[int, int]]", True),
                         P("weights", "Optional[list[float]]", False)),
-            returns=R("np.ndarray", "n × n symmetric matrix"),
+            returns=R("Mat", "n × n symmetric matrix (numpy-free 2-D carrier)"),
         ),
         ToolEntry(
             name="srmech.amsc.laplacian.normalized_laplacian", owner="srmech",
@@ -836,7 +836,7 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("n", "int", True),
                         P("edges", "list[tuple[int, int]]", True),
                         P("weights", "Optional[list[float]]", False)),
-            returns=R("np.ndarray", "n × n symmetric matrix"),
+            returns=R("Mat", "n × n symmetric matrix (numpy-free 2-D carrier)"),
         ),
         # #797 op (b): directed / signed Laplacian (rc26). The dissolved
         # Class-O signed-metric absorbed into L + the directed-navigation
@@ -855,7 +855,7 @@ def _register_primitive_class_tools() -> None:
                         P("edges", "list[tuple[int, int]]", True),
                         P("weights", "Optional[list[float]]", False,
                           "may be negative")),
-            returns=R("np.ndarray", "n × n real-symmetric PSD signed Laplacian"),
+            returns=R("Mat", "n × n real-symmetric PSD signed Laplacian (numpy-free Mat)"),
         ),
         ToolEntry(
             name="srmech.amsc.laplacian.magnetic_laplacian", owner="srmech",
@@ -872,7 +872,7 @@ def _register_primitive_class_tools() -> None:
                         P("weights", "Optional[list[float]]", False),
                         P("q", "float", False,
                           "flux in turns per unit net flow; default 0.25")),
-            returns=R("np.ndarray", "n × n complex128 Hermitian matrix"),
+            returns=R("Mat", "n × n complex Hermitian matrix (numpy-free Mat)"),
         ),
         ToolEntry(
             name="srmech.amsc.laplacian.fiedler_vector", owner="srmech",
@@ -883,7 +883,7 @@ def _register_primitive_class_tools() -> None:
                     "complex→hermitian_eigendecompose (both native).",
             parameters=(P("matrix", "np.ndarray", True,
                           "n × n real-symmetric or complex-Hermitian Laplacian"),),
-            returns=R("np.ndarray", "length-n λ₂ eigenvector"),
+            returns=R("Vec", "length-n λ₂ eigenvector (numpy-free 1-D carrier)"),
         ),
         ToolEntry(
             name="srmech.amsc.laplacian.jacobi_eigvals", owner="srmech",
@@ -893,7 +893,7 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("matrix", "np.ndarray", True, "n × n symmetric"),
                         P("max_sweeps", "int", False, "default 100"),
                         P("tolerance", "float", False)),
-            returns=R("np.ndarray", "n eigenvalues (unsorted)"),
+            returns=R("Vec", "n eigenvalues ascending (numpy-free 1-D carrier)"),
         ),
         ToolEntry(
             name="srmech.amsc.laplacian.spectral_block_dispatch", owner="srmech",
@@ -911,8 +911,8 @@ def _register_primitive_class_tools() -> None:
                 P("tolerance", "float", False),
                 P("combine", "bool", False, "also return merged-sorted spectrum"),
             ),
-            returns=R("dict", "{ok, n_blocks, block_sizes, n_nodes, blocks, "
-                              "combined}"),
+            returns=R("dict", "{ok, n_blocks, block_sizes, n_nodes, "
+                              "blocks (per-block Vec spectra), combined (Vec)}"),
         ),
         # v0.7.1rc3 (#897 §26): the reusable dense linear solve A·X = B the
         # Schur/DtN float path composes over (its interior solve IS an
@@ -988,8 +988,8 @@ def _register_primitive_class_tools() -> None:
                     "Golub & Van Loan §8.5.",
             parameters=(P("H", "np.ndarray", True,
                           "n × n complex Hermitian matrix"),),
-            returns=R("tuple[np.ndarray, np.ndarray]",
-                      "(eigvals_ascending, V_unitary)"),
+            returns=R("tuple[Vec, Mat]",
+                      "(eigvals_ascending Vec, V_unitary complex Mat)"),
         ),
         ToolEntry(
             name="srmech.amsc.laplacian.symmetric_eigendecompose",
@@ -1001,8 +1001,8 @@ def _register_primitive_class_tools() -> None:
                     "Laplacian). Golub & Van Loan §8.3.",
             parameters=(P("L", "np.ndarray", True,
                           "n × n real symmetric matrix"),),
-            returns=R("tuple[np.ndarray, np.ndarray]",
-                      "(eigvals_ascending, V_orthogonal); both float64"),
+            returns=R("tuple[Vec, Mat]",
+                      "(eigvals_ascending Vec, V_orthogonal real Mat)"),
         ),
         ToolEntry(
             name="srmech.amsc.laplacian.dense_matvec_complex",
@@ -1011,7 +1011,7 @@ def _register_primitive_class_tools() -> None:
                     "Golub & Van Loan §1.1.",
             parameters=(P("M", "np.ndarray", True, "rows × cols complex"),
                         P("v", "np.ndarray", True, "length-cols complex")),
-            returns=R("np.ndarray", "length-rows complex128"),
+            returns=R("Vec", "length-rows complex (numpy-free 1-D carrier)"),
         ),
         ToolEntry(
             name="srmech.amsc.laplacian.dense_matmul_complex",
@@ -1021,7 +1021,7 @@ def _register_primitive_class_tools() -> None:
                     "math routes through). Golub & Van Loan §1.1.",
             parameters=(P("A", "np.ndarray", True, "m × k complex"),
                         P("B", "np.ndarray", True, "k × n complex")),
-            returns=R("np.ndarray", "m × n complex128"),
+            returns=R("Mat", "m × n complex (numpy-free 2-D carrier)"),
         ),
         ToolEntry(
             name="srmech.amsc.laplacian.mat_matmul",
@@ -1130,17 +1130,17 @@ def _register_primitive_class_tools() -> None:
                     "imaginary part). Golub & Van Loan §1.1.",
             parameters=(P("A", "np.ndarray", True, "m × k real"),
                         P("B", "np.ndarray", True, "k × n real")),
-            returns=R("np.ndarray", "m × n float64"),
+            returns=R("Mat", "m × n real (numpy-free 2-D carrier)"),
         ),
         ToolEntry(
             name="srmech.amsc.laplacian.dense_matvec_real",
             owner="srmech", category="laplacian",
             summary="Dense real matrix-vector multiplication M times v → "
-                    "float64 (real peer of dense_matvec_complex; rides the "
+                    "float (real peer of dense_matvec_complex; rides the "
                     "complex kernel). Golub & Van Loan §1.1.",
             parameters=(P("M", "np.ndarray", True, "rows × cols real"),
                         P("v", "np.ndarray", True, "length-cols real")),
-            returns=R("np.ndarray", "length-rows float64"),
+            returns=R("Vec", "length-rows real (numpy-free 1-D carrier)"),
         ),
         ToolEntry(
             name="srmech.amsc.laplacian.dense_dot_real",
@@ -1205,38 +1205,39 @@ def _register_primitive_class_tools() -> None:
                     "conjugate b. Golub & Van Loan §1.1.",
             parameters=(P("a", "np.ndarray", True, "length-m complex column"),
                         P("b", "np.ndarray", True, "length-n complex row")),
-            returns=R("np.ndarray", "m × n complex128 a_i b_j"),
+            returns=R("Mat", "m × n complex a_i b_j (numpy-free 2-D carrier)"),
         ),
         ToolEntry(
             name="srmech.amsc.laplacian.dense_outer_real",
             owner="srmech", category="laplacian",
-            summary="Dense real outer product a⊗b → out[i,j]=a_i b_j → float64 "
+            summary="Dense real outer product a⊗b → out[i,j]=a_i b_j → real Mat "
                     "(real peer of dense_outer_complex; rides the complex "
                     "kernel). Golub & Van Loan §1.1.",
             parameters=(P("a", "np.ndarray", True, "length-m real"),
                         P("b", "np.ndarray", True, "length-n real")),
-            returns=R("np.ndarray", "m × n float64 a_i b_j"),
+            returns=R("Mat", "m × n real a_i b_j (numpy-free 2-D carrier)"),
         ),
         ToolEntry(
             name="srmech.amsc.laplacian.elementwise_multiply_complex",
             owner="srmech", category="laplacian",
-            summary="Elementwise complex multiplication a * b with "
-                    "broadcasting.",
-            parameters=(P("a", "np.ndarray", True),
-                        P("b", "np.ndarray", True)),
-            returns=R("np.ndarray", "complex128, broadcasted shape"),
+            summary="Elementwise complex multiplication a * b (equal-shape; "
+                    "shape-polymorphic — Mat in → Mat out, Vec in → Vec out).",
+            parameters=(P("a", "np.ndarray", True, "Mat (2-D) or Vec (1-D) complex"),
+                        P("b", "np.ndarray", True, "same-shape complex operand")),
+            returns=R("Mat", "Mat (2-D in) or Vec (1-D in), complex; rank-preserving"),
         ),
         ToolEntry(
             name="srmech.amsc.laplacian.elementwise_transcendental",
             owner="srmech", category="laplacian",
             summary="Array-vectorised transcendental: exp / cos / sin / "
                     "log over real input, or exp_i(x) = exp(1j*x) "
-                    "(TDSE-relevant complex exponential). ANSI C99 §7.12.",
-            parameters=(P("arr", "np.ndarray", True),
+                    "(TDSE-relevant complex exponential). Shape-polymorphic "
+                    "(Mat in → Mat out, Vec in → Vec out). ANSI C99 §7.12.",
+            parameters=(P("arr", "np.ndarray", True, "Mat (2-D) or Vec (1-D) real/complex"),
                         P("op_name", "str", True,
                           "exp / cos / sin / log / exp_i")),
-            returns=R("np.ndarray",
-                      "float64 (real ops) or complex128 (exp_i)"),
+            returns=R("Mat",
+                      "Mat/Vec (rank-preserving); complex for exp_i/complex input"),
         ),
         ToolEntry(
             name="srmech.amsc.laplacian.elementwise_hypot",
@@ -1246,9 +1247,9 @@ def _register_primitive_class_tools() -> None:
                     "srmech_rational_sqrt-dispatched). The numpy-free |z| = "
                     "sqrt(re^2+im^2) op the DSP modules route through — numpy "
                     "carries the array only. Golub & Van Loan §1.1.",
-            parameters=(P("a", "np.ndarray", True, "real array (e.g. z.real)"),
+            parameters=(P("a", "np.ndarray", True, "Mat (2-D) or Vec (1-D) real (e.g. z.real)"),
                         P("b", "np.ndarray", True, "same-shape real (e.g. z.imag)")),
-            returns=R("np.ndarray", "float64 sqrt(a_i^2 + b_i^2)"),
+            returns=R("Mat", "Mat/Vec sqrt(a_i^2 + b_i^2) (rank-preserving real carrier)"),
         ),
         ToolEntry(
             name="srmech.amsc.laplacian.elementwise_sqrt",
@@ -1259,8 +1260,9 @@ def _register_primitive_class_tools() -> None:
                     "square-root op (companion to elementwise_hypot) for "
                     "non-negative reals — numpy carries the array only. Rejects "
                     "arr_i < 0. Golub & Van Loan §1.1.",
-            parameters=(P("arr", "np.ndarray", True, "real array, all entries >= 0"),),
-            returns=R("np.ndarray", "float64 sqrt(arr_i), same shape"),
+            parameters=(P("arr", "np.ndarray", True,
+                          "Mat (2-D) or Vec (1-D) real, all entries >= 0"),),
+            returns=R("Mat", "Mat/Vec sqrt(arr_i), rank-preserving real carrier"),
         ),
 
         # ────────────────────────────────────────────────────────────
@@ -1401,7 +1403,7 @@ def _register_primitive_class_tools() -> None:
             summary="Harmonic-3 three-fold spectral reading (F150): partition the "
                     "eigenvectors of a real-symmetric Laplacian into low/mid/high.",
             parameters=(P("L", "np.ndarray", True, "real-symmetric matrix"),),
-            returns=R("dict", "low/mid/high eigenvector bands"),
+            returns=R("dict", "low/mid/high eigenvector bands (each a real Mat)"),
         ),
         # NOTE: srmech.amsc.compose.greedy_bipartite_alignment (§2.2) is NOT
         # registered — it takes a Python `similarity_fn` callable that cannot
@@ -2348,7 +2350,8 @@ def _register_primitive_class_tools() -> None:
                     "strength in [0, n_sources²].",
             parameters=(P("sources", "Sequence[np.ndarray]", True,
                           "non-empty, equal-length 1-D arrays of bits {0,1}"),),
-            returns=R("np.ndarray", "int64 squared signed-sum per position"),
+            returns=R("Vec", "squared signed-sum per position (numpy-free 1-D "
+                             "carrier; integer scores exact as float64)"),
         ),
         # ────────────────────────────────────────────────────────────
         # Foundational cross-domain cascade catalog (v0.4.3rc6).

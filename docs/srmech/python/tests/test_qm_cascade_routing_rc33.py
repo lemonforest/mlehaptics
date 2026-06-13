@@ -124,7 +124,8 @@ def _assert_eig_parity(H) -> None:
     """Eigenvalues match the exact/cascade oracle; eigenvectors pinned by the
     basis-INVARIANT reconstruction + orthonormality (phase/sign-free)."""
     n = len(H)
-    w, V = hermitian_eigendecompose(H)
+    w, V = hermitian_eigendecompose(H)   # rc129: w is a Vec, V a complex Mat
+    V = V.tolist()                       # nested list for the [i][k] reconstruction
     w_ref = _eig_oracle(H)
     # Eigenvalues: ascending, match the framework's own oracle within 1e-9.
     for i in range(n - 1):

@@ -62,23 +62,25 @@ def test_real_core_numpy_absent():
     ``{0, 0.690983, 1.909830, 3.0, 3.690983}`` (Spielman, Spectral Graph
     Theory, path-graph eigenpairs)."""
     # numpy is absent: there is NO laplacian.np attribute.
+    from srmech.amsc.mat import Mat
+    from srmech.amsc.vec import Vec
     assert not hasattr(L, "np")
 
     edges = _ref_path_graph_laplacian(5)
-    Lp = L.dense_laplacian(5, edges)         # -> list[list[float]]
-    assert isinstance(Lp, list) and isinstance(Lp[0], list)
-    eig = L.jacobi_eigvals(Lp)               # -> list[float] via the cascade
-    assert isinstance(eig, list)
+    Lp = L.dense_laplacian(5, edges)         # rc129: -> real Mat (.shape + m[i,j])
+    assert isinstance(Lp, Mat) and Lp.shape == (5, 5)
+    eig = L.jacobi_eigvals(Lp)               # rc129: -> Vec via the cascade
+    assert isinstance(eig, Vec)
 
     # Closed-form path-graph P5 spectrum (hand-computed, no numpy oracle).
     import math
     expected = sorted(2.0 - 2.0 * math.cos(k * math.pi / 5) for k in range(5))
     assert len(eig) == 5
-    for a, b in zip(sorted(eig), expected):
+    for a, b in zip(sorted(eig), expected):    # Vec → sorted(list of scalars)
         assert abs(a - b) < 1e-9
-    # adjacency + normalized also build numpy-free (plain lists).
-    assert isinstance(L.dense_adjacency(5, edges), list)
-    assert isinstance(L.normalized_laplacian(5, edges), list)
+    # adjacency + normalized also build numpy-free (Mat carriers).
+    assert isinstance(L.dense_adjacency(5, edges), Mat)
+    assert isinstance(L.normalized_laplacian(5, edges), Mat)
 
 
 def test_scientific_tier_ops_run_without_numpy():
@@ -89,15 +91,17 @@ def test_scientific_tier_ops_run_without_numpy():
     (The old ``test_scientific_tier_raises_clean_without_numpy`` asserted a
     ``_require_np`` ImportError guard; that guard was deleted with numpy, so
     this now pins the inverse contract: the ops succeed numpy-free.)"""
+    from srmech.amsc.mat import Mat
+    from srmech.amsc.vec import Vec
     w, V = L.hermitian_eigendecompose([[1.0, 0.0], [0.0, 1.0]])
-    assert list(w) == [1.0, 1.0]
-    assert isinstance(V, list) and isinstance(V[0], list)
+    assert isinstance(w, Vec) and list(w) == [1.0, 1.0]   # rc129: Vec eigenvalues
+    assert isinstance(V, Mat) and V.shape == (2, 2)        # rc129: Mat eigenvectors
 
     Ls = L.signed_laplacian(2, [(0, 1)], [-1.0])
-    assert isinstance(Ls, list) and isinstance(Ls[0], list)
+    assert isinstance(Ls, Mat) and Ls.shape == (2, 2)      # rc129: Mat carrier
     # |−1|-degree on each node is 1 → L = [[1, 1], [1, 1]] (sign on off-diagonal).
-    assert Ls[0][0] == pytest.approx(1.0)
-    assert Ls[1][1] == pytest.approx(1.0)
+    assert Ls[0, 0] == pytest.approx(1.0)
+    assert Ls[1, 1] == pytest.approx(1.0)
 
 
 # --- the "abs() is never fine" codebase ratchet ------------------------------
