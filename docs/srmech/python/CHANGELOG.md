@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc136] - 2026-06-13
+
+**SSoT: the `srmech bus` CLI now derives the connection-secret keyword from the live API signature instead of hardcoding it.** rc135 renamed the bus pre-shared-secret kwarg `seed=` → `dna=` and had to fix it in two hand-maintained places — `srmech.bus.connect`/`serve` *and* the CLI, which spelled the keyword itself (and broke when the API renamed it). This rc removes that duplication: the CLI asks the API what its secret keyword is.
+
+- **New `srmech.bus.secret_kwargs(secret) -> dict`** (`srmech/bus/_params.py`): returns the `connect()`/`serve()` keyword arguments carrying a resolved per-channel pre-shared `secret`, **keyed by whatever the live `connect` signature names that parameter** — identified by role (the sole `Optional[bytes]` keyword), resolved via `typing.get_type_hints` (PEP-563-safe). Returns `{}` for `None`, so callers always splat: `connect(name, **secret_kwargs(secret))`. Fails loudly (no silent guess) if the secret keyword is ambiguous or absent.
+- **`srmech/cli/bus.py` repointed**: all 5 `connect(…, dna=…)` / `serve(…, dna=…)` call sites (`tap` / `pipe` ×2 / `send` / `serve`) now use `**_bus.secret_kwargs(…)`. The CLI no longer contains the secret keyword as a literal — a future rename of the API parameter propagates to the CLI with **zero edits**. The CLI's user-facing `--seed` flag + `_seed.py` discovery cascade (`SRMECH_BUS_SEED` / `~/.srmech/bus-{name}.seed`) are unchanged.
+- **Regression-pinned** (`tests/test_bus_secret_kwarg_ssot.py`): derivation is keyed to the live `connect`/`serve`/`aio` signatures; a simulated rename is *followed* automatically; ambiguous/missing secret raises; and a ratchet asserts the CLI source never hardcodes the keyword again.
+- **Additive only** — no ABI change (ABI stays **3**), numpy-free, native build holds no libm; `describe()["tools"]["total"]` unchanged at **292** (`secret_kwargs` is a bus helper, not an AMSC ToolEntry). 5 SSOT bumped.
+
 ## [0.7.5rc135] - 2026-06-13
 
 **Carrier consolidation (#564 follow-up): collapse 11 redundant Class-L matrix ops into 3 dtype-polymorphic `mat_*` ops, hard-remove the overdue v0.5.0 bus shims, and bring the C surface back to 1:1 with Python — fix the numpy-removal duplication debt.** The rc69–rc134 numpy-removal arc was meant to be *numpy-spirited* (one dtype-transparent carrier op per operation), but each per-module flip *added* a kernel, leaving the same operation in two-to-four forms. The redundant surface is hard-removed. (This is a breaking cleanup; per user direction the version-jump decision is deferred to the next live-PyPI cut, so it ships on the `0.7.5rcN` line.)

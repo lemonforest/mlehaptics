@@ -350,7 +350,7 @@ def run_tap(args: argparse.Namespace) -> int:
         print(str(exc), file=sys.stderr)
         return 2
     try:
-        ch = _bus.connect(args.name, dna=seed)
+        ch = _bus.connect(args.name, **_bus.secret_kwargs(seed))
     except FileNotFoundError as exc:
         print(f"endpoint not found: {args.name} ({exc})", file=sys.stderr)
         return 1
@@ -417,8 +417,8 @@ def run_pipe(args: argparse.Namespace) -> int:
     )
     count = 0
     try:
-        with _bus.connect(args.src, dna=seed_src) as src_ch, \
-                _bus.connect(args.dst, dna=seed_dst) as dst_ch:
+        with _bus.connect(args.src, **_bus.secret_kwargs(seed_src)) as src_ch, \
+                _bus.connect(args.dst, **_bus.secret_kwargs(seed_dst)) as dst_ch:
             for event in src_ch.subscribe():
                 out = event
                 if transform_callable is not None:
@@ -500,7 +500,7 @@ def run_send(args: argparse.Namespace) -> int:
         return 2
 
     try:
-        ch = _bus.connect(args.name, dna=seed)
+        ch = _bus.connect(args.name, **_bus.secret_kwargs(seed))
     except FileNotFoundError as exc:
         print(f"endpoint not found: {args.name} ({exc})", file=sys.stderr)
         return 1
@@ -602,7 +602,7 @@ def run_serve(args: argparse.Namespace) -> int:
         handler = _echo_handler
 
     try:
-        ep = _bus.serve(args.name, handler=handler, dna=seed)
+        ep = _bus.serve(args.name, handler=handler, **_bus.secret_kwargs(seed))
     except OSError as exc:
         print(f"serve failed: {exc}", file=sys.stderr)
         return 1
