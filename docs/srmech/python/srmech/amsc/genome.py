@@ -64,16 +64,28 @@ __all__ = [
     "genome_save", "genome_load", "genome_catalog", "genome_append",
     "genome_window", "genome_genes",
     "GenomeBoundingError",
-    "LEAF_CAP", "QUAD", "MOBIUS_CAP", "GENE_FRAME_TAG",
+    "LEAF_CAP", "QUAD", "MOBIUS_CAP",
+    "CHROM_CAP_MARKER", "GENE_CAP_MARKER", "GENE_FRAME_TAG",
 ]
 
-#: Class-B TLV tag marking an intra-chromosome GENE-frame header (F730/S43). A
-#: Klein-4 turn/cap only ever holds sector indices ``{0, 1, 2, 3}`` (``HV``
-#: sectors=4), so any strand element whose first byte is this tag (``> 3``) is
-#: unambiguously a gene header, never a data turn or a telomere cap. ``0x47``
-#: = ASCII ``'G'`` (Gene). The cheaper internal delimiter — the telomere stays
-#: the chromosome boundary cap, the tlv frame delimits genes inside it.
-GENE_FRAME_TAG = 0x47
+#: §44 (F733) — INLINE FIXED-WIDTH cap markers. The genome body is a uniformly
+#: fixed-width strand of ``leaf_dim``-byte blocks; a block's FIRST BYTE classifies
+#: it. A Klein-4 data turn only ever holds sector indices ``{0, 1, 2, 3}`` (``HV``
+#: sectors=4), so any first byte ``> 3`` is a CAP, scanned for (never a data turn).
+#: Both caps carry their label INLINE (``[marker] + utf-8 label, NUL-padded to
+#: leaf_dim``) so the strand SELF-DESCRIBES — structure + labels recover by SCAN,
+#: no offset/label sidecar (biology has no offset table: scan TTAGGG repeats /
+#: ATG-stop codons). This REPLACES the §43 TLV gene-frame (variable-length, which
+#: forced the rc141 manifest sidecar) and the §41 content-address telomere cap
+#: (klein4_random of a label-hash — bytes 0..3, NOT scan-recognisable without the
+#: label) with marker caps.
+#: The chromosome boundary cap (telomere-analog). ``0x43`` = ASCII ``'C'``.
+CHROM_CAP_MARKER = 0x43
+#: The intra-chromosome gene boundary cap. ``0x47`` = ASCII ``'G'`` (Gene).
+GENE_CAP_MARKER = 0x47
+#: Back-compat alias for the pre-§44 name (the §43 TLV tag value, now the gene cap
+#: marker). Deprecated; prefer :data:`GENE_CAP_MARKER`.
+GENE_FRAME_TAG = GENE_CAP_MARKER
 
 #: One dense block — a "tome". 256 = 2**8 (one byte of address); F708/F640.
 LEAF_CAP = 256
@@ -144,32 +156,65 @@ def quad_turn(turn, the_one):
     return _klein4_bind(turn, the_one)
 
 
-def telomere(label, dim=64):
-    """The non-data content-address CAP that delimits a chromosome (F715).
-
-    A telomere is biology's repetitive non-coding chromosome-end cap — here a
-    deterministic, content-addressed Klein-4 sentinel derived from ``label``
-    (Class A content-address -> Class M Klein-4 carrier). It marks and protects a
-    partition boundary and carries no kernel data. Same ``label`` -> same cap (so
-    a chromosome is recalled / partitioned by matching its cap), distinct labels
-    -> distinct caps. ``dim`` is the Klein-4 vector length — match the turns it
-    caps (:func:`chromosome` passes ``len(the_one)`` automatically).
-    """
+def _pack_cap(marker, label, dim):
+    """A fixed-width ``dim``-byte cap leaf: ``[marker] + utf-8 label, NUL-padded``
+    (§44). ``marker`` (``> 3``) classifies it (CHROM / GENE) and distinguishes it
+    from any Klein-4 data turn (bytes ``0..3``); the label is recoverable inline by
+    reading bytes ``[1:]`` up to the first NUL. Same width as a data turn (one
+    ``leaf_dim``-byte block) so the strand stays uniformly fixed-width. The label
+    must fit ``dim - 1`` bytes (~63 at ``leaf_dim = 64``)."""
     raw = label.encode("utf-8") if isinstance(label, str) else bytes(label)
-    seed = int(_sha256_bytes(raw)[:16], 16)   # content-address -> deterministic seed
-    return _klein4_random(dim, seed=seed)
+    if len(raw) > dim - 1:
+        raise ValueError(
+            f"cap label {label!r} is {len(raw)} bytes; max {dim - 1} at leaf_dim={dim} "
+            f"(a label must fit one fixed-width cap leaf — §44 inline encoding)"
+        )
+    block = bytes([marker]) + raw + b"\x00" * (dim - 1 - len(raw))
+    return _HV.from_sequence(block, sectors=256)
 
 
-def _gene_header(gene_label):
-    """The intra-chromosome GENE delimiter (F730/S43): a tlv-framed header ``HV``.
+def _cap_kind(hv):
+    """The cap marker (``CHROM_CAP_MARKER`` / ``GENE_CAP_MARKER``) of a strand
+    element, or ``None`` for a Klein-4 data turn (first byte ``0..3``) — the §44
+    scan classifier."""
+    first = int(hv[0]) if len(hv) else -1
+    return first if first in (CHROM_CAP_MARKER, GENE_CAP_MARKER) else None
 
-    ``tlv_pack(GENE_FRAME_TAG, label-bytes)`` (Class-B) carried as a byte ``HV``
-    (``sectors=256``). Its first byte is :data:`GENE_FRAME_TAG` (``> 3``), so it
-    is distinguishable from any Klein-4 data turn / telomere cap (bytes ``≤ 3``),
-    and — unlike the one-way content-address cap — the **label is recoverable**
-    verbatim via :func:`tlv_unpack` (that is why a gene is tlv-framed, not capped)."""
-    raw = gene_label.encode("utf-8") if isinstance(gene_label, str) else bytes(gene_label)
-    return _HV.from_sequence(_tlv_pack(GENE_FRAME_TAG, raw), sectors=256)
+
+def _unpack_cap(hv):
+    """``(marker, label)`` from a fixed-width cap leaf — the inverse of
+    :func:`_pack_cap`; the label is bytes ``[1:]`` up to the first NUL."""
+    raw = hv.tobytes()
+    return raw[0], raw[1:].split(b"\x00", 1)[0].decode("utf-8")
+
+
+def telomere(label, dim=64):
+    """The chromosome boundary cap — a fixed-width INLINE CHROM cap (F715 / §44).
+
+    A telomere is biology's repetitive non-coding chromosome-end cap. Here (§44) it
+    is a fixed-width ``dim``-byte leaf ``[CHROM_CAP_MARKER] + label, NUL-padded`` —
+    **scannable** (first byte ``> 3``, so it is found by walking the strand, never
+    mistaken for a Klein-4 data turn) and **label-recoverable inline** (the strand
+    self-describes; chromosome labels recover by scan, no manifest). Same ``label``
+    -> same cap; distinct labels -> distinct caps. ``dim`` is the leaf width — match
+    the turns it caps (:func:`chromosome` passes ``len(the_one)`` automatically).
+
+    §44 REPLACES the pre-§43.1 content-address cap (``klein4_random`` of a label
+    hash — bytes ``0..3``, NOT scan-recognisable without already knowing the label,
+    which forced a label↔cap sidecar). Integrity (the old cap's one-way hash) moves
+    to the optional derived manifest, not the body.
+    """
+    return _pack_cap(CHROM_CAP_MARKER, label, dim)
+
+
+def _gene_cap(gene_label, dim):
+    """The intra-chromosome GENE boundary cap — a fixed-width INLINE leaf (§44,
+    replaces the §43 TLV ``_gene_header``). ``[GENE_CAP_MARKER] + label, NUL-padded``
+    to ``dim``: scanned for (first byte ``> 3``, distinct from the CHROM cap marker
+    and from data turns), label recoverable inline. Telomere caps the chromosome,
+    the gene-cap caps the gene — nested fixed-width inline framing, no length prefix
+    (so no offset sidecar; biology's own wire-format)."""
+    return _pack_cap(GENE_CAP_MARKER, gene_label, dim)
 
 
 def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None):
@@ -184,17 +229,20 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None):
 
     Recover with :func:`recall`.
 
-    **Several genes (F730/S43).** Pass ``genes=[(gene_label, gene_leaves), …]``
-    instead of ``leaves``: each gene's leaves are framed by a tlv :func:`_gene_header`
-    (the cheaper internal delimiter), all inside ONE telomere-capped chromosome::
+    **Several genes (F730/S43.1 / §44).** Pass ``genes=[(gene_label, gene_leaves),
+    …]`` instead of ``leaves``: each gene is opened by a fixed-width INLINE
+    :func:`_gene_cap` (telomere-analog for the gene), all inside ONE telomere-capped
+    chromosome — every element a ``leaf_dim``-byte block, the strand SELF-DESCRIBES::
 
         [telomere(label, dim),
-         gene_header('rules'), quad_turn(r0, one), quad_turn(r1, one),
-         gene_header('board'), quad_turn(b0, one), ...]
+         gene_cap('rules'), quad_turn(r0, one), quad_turn(r1, one),
+         gene_cap('board'), quad_turn(b0, one), ...]
 
     Recover the ``[(gene_label, gene_leaves), …]`` list with :func:`genes`. Pass
     **exactly one** of ``leaves`` or ``genes``; ``the_one`` is always required
-    (the shared invariant every turn is coupled through).
+    (the shared invariant every turn is coupled through). §44: the gene boundary is
+    a scanned-for fixed-width cap, NOT a variable-length TLV frame (no offset
+    sidecar — biology's nested inline framing).
     """
     if the_one is None:
         raise ValueError("chromosome: the_one is required")
@@ -206,28 +254,29 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None):
         return [cap] + [quad_turn(leaf, the_one) for leaf in leaves]
     strand = [cap]
     for gene_label, gene_leaves in genes:
-        strand.append(_gene_header(gene_label))
+        strand.append(_gene_cap(gene_label, dim))
         strand.extend(quad_turn(leaf, the_one) for leaf in gene_leaves)
     return strand
 
 
-def recall(strand, the_one, telomere):
-    """Recover the kernel's leaves from a telomere-capped chromosome strand (F713/F715).
+def recall(strand, the_one, telomere=None):
+    """Recover the kernel's leaves from a capped chromosome strand (F713/F715/§44).
 
-    Walk the ``strand``; skip every element equal to the ``telomere`` cap (the
-    non-data delimiter) and re-bind ``the_one`` (the reversible :func:`quad_turn`
-    again) on each coupled data turn to recover the original leaf. The exact
-    inverse of :func:`chromosome`::
+    Walk the ``strand``; skip every CAP leaf — CHROM or GENE, recognised by its
+    inline marker (first byte ``> 3``), §44 — and re-bind ``the_one`` (the reversible
+    :func:`quad_turn` again) on each coupled data turn to recover the original leaf.
+    The exact inverse of :func:`chromosome`::
 
-        recall(chromosome(leaves, one, label=L), one, telomere(L, len(one))) == leaves
+        recall(chromosome(leaves, one, label=L), one) == leaves
 
-    Matching the cap by value (not by position) is what lets one ``recall`` /
-    partition reach into a multi-chromosome genome strand in a later brick.
+    §44: caps are recognised by their inline marker (the strand self-describes), not
+    matched by value — so ``recall`` no longer needs the cap handed to it; the
+    ``telomere`` parameter is accepted for back-compat and ignored. (Use :func:`genes`
+    on a multi-gene chromosome to keep the per-gene split; ``recall`` flattens.)
     """
-    cap = list(telomere)
     leaves = []
     for hv in strand:
-        if list(hv) == cap:            # the content-address cap — a delimiter, not data
+        if _cap_kind(hv) is not None:   # a CHROM/GENE cap — a delimiter, not data
             continue
         leaves.append(quad_turn(hv, the_one))   # reversible uncouple (bind o bind == id)
     return leaves
@@ -237,34 +286,34 @@ def genes(strand, the_one):
     """Recover ``[(gene_label, gene_leaves), …]`` from a multi-gene chromosome (F730/S43).
 
     The exact inverse of ``chromosome(genes=…, the_one)``. Walk the ``strand``:
-    a :data:`GENE_FRAME_TAG` header (first byte ``> 3`` — never a Klein-4 turn)
-    opens a new gene whose label is read back with :func:`tlv_unpack`; every
-    coupled data turn until the next header (or the end) is re-bound through
-    ``the_one`` (the reversible :func:`quad_turn`) to recover that gene's leaf.
-    Leading element(s) before the first gene header are the chromosome's
-    telomere cap (a delimiter, not data) and are skipped — so ``genes`` needs
-    only the strand + ``the_one``, no cap argument::
+    a :func:`_gene_cap` (first byte :data:`GENE_CAP_MARKER` — never a Klein-4 turn)
+    opens a new gene whose label is read back INLINE (:func:`_unpack_cap`, no TLV);
+    every coupled data turn until the next gene-cap (or the end) is re-bound through
+    ``the_one`` (the reversible :func:`quad_turn`) to recover that gene's leaf. The
+    leading CHROM cap (the chromosome telomere) is skipped — so ``genes`` needs only
+    the strand + ``the_one``, no cap argument::
 
         genes(chromosome(genes=[("a", la), ("b", lb)], one), one) == [("a", la), ("b", lb)]
 
     Use :func:`genes` (not :func:`recall`) on a multi-gene chromosome; ``recall``
-    would treat the gene headers as data turns.
+    flattens across the gene boundaries (§44: scanned by inline marker).
     """
     out = []
     cur_label = None
     cur_leaves = []
     started = False
     for hv in strand:
-        first = int(hv[0]) if len(hv) else -1   # Klein-4 turns are bytes <= 3
-        if first == GENE_FRAME_TAG:
+        kind = _cap_kind(hv)
+        if kind == GENE_CAP_MARKER:
             if started:
                 out.append((cur_label, cur_leaves))
-            _tag, value, _next = _tlv_unpack(hv.tobytes())
-            cur_label = value.decode("utf-8")
+            _marker, cur_label = _unpack_cap(hv)
             cur_leaves = []
             started = True
+        elif kind == CHROM_CAP_MARKER:
+            continue                            # the chromosome telomere cap — skip
         elif not started:
-            continue                            # leading telomere cap — skip the delimiter
+            continue                            # any leading cap before the first gene
         else:
             cur_leaves.append(quad_turn(hv, the_one))   # reversible uncouple
     if started:
@@ -288,17 +337,15 @@ def genome(kernels=None, the_one=None, *, chromosomes=None):
     is the strand order). Returns the flat strand (``list`` of Klein-4 vectors) — a
     genome strand IS a strand, just with multiple caps.
 
-    **Several genes per chromosome that PERSIST (F732/S43.1).** Pass
+    **Several genes per chromosome that PERSIST (F732/S43.1 / §44).** Pass
     ``chromosomes=[(label, [(gene_label, gene_leaves), …]), …]`` instead of
-    ``kernels``: each chromosome's genes are FLATTENED into one telomere-capped
-    region, so the body is byte-identical to the single-kernel genome of the
-    concatenated leaves — the gene boundaries are NOT stored as data turns / gene
-    headers (unlike in-memory :func:`chromosome` ``genes=``). Returns the 2-tuple
-    ``(strand, gene_index)`` where ``gene_index = {label: [(gene_label,
-    leaf_count), …]}`` records where each gene's leaves sit. Persist BOTH:
-    ``genome_save(strand, path, the_one, labels, gene_index=gene_index)`` writes the
-    index into the manifest (the body unchanged), and :func:`genome_genes` pages one
-    chromosome's genes back. ``the_one`` is always required.
+    ``kernels``: each chromosome becomes a telomere-capped region whose genes are
+    opened by fixed-width INLINE :func:`_gene_cap` boundaries (§44). Returns ONE
+    self-describing strand (NO ``gene_index`` sidecar, no 2-tuple — the gene
+    boundaries + labels live INLINE in the strand, recovered by scanning). Persist
+    with ``genome_save(strand, path, the_one)`` and page one chromosome's genes back
+    with :func:`genome_genes` (which scans the region for gene-caps). ``the_one`` is
+    always required.
     """
     if the_one is None:
         raise ValueError("genome: the_one is required")
@@ -310,44 +357,47 @@ def genome(kernels=None, the_one=None, *, chromosomes=None):
         for label, leaves in items:
             strand.extend(chromosome(leaves, the_one, label=label))
         return strand
-    # Multi-gene: flatten each chromosome's genes into one telomere-capped region
-    # (no gene-header turns in the body) + a parallel gene_index. The body is
-    # byte-identical to genome([(label, concat-of-all-gene-leaves)], the_one); the
-    # gene boundaries live ONLY in the manifest (genome_save gene_index=).
+    # §44 multi-gene: ONE self-describing strand — each chromosome a telomere-capped
+    # region with INLINE fixed-width gene-caps (no gene_index sidecar; the gene
+    # boundaries + labels are recovered by scanning the strand).
     strand = []
-    gene_index: Dict[str, List[Tuple[str, int]]] = {}
     for label, genes_list in chromosomes:
-        per_gene = [(gl, list(gleaves)) for gl, gleaves in genes_list]
-        all_leaves = [leaf for _gl, gleaves in per_gene for leaf in gleaves]
-        strand.extend(chromosome(all_leaves, the_one, label=label))
-        gene_index[label] = [(str(gl), len(gleaves)) for gl, gleaves in per_gene]
-    return strand, gene_index
+        strand.extend(chromosome(the_one=the_one, label=label, genes=genes_list))
+    return strand
 
 
-def partition(strand, the_one, labels):
+def partition(strand, the_one, labels=None):
     """Recover every kernel from a multi-kernel genome strand — the inverse of
-    :func:`genome` (F715).
+    :func:`genome` (F715 / §44).
 
-    Walk the ``strand``; each element equal to one of ``labels``' telomere caps
-    starts a new chromosome partition, and the coupled turns until the next cap
-    are that kernel's leaves (re-bound through ``the_one`` — the reversible
-    :func:`quad_turn`). Returns ``{label: leaves}``. ``partition`` knows ALL the
-    caps, so (unlike a single-cap :func:`recall`) it does not mistake one
-    chromosome's cap for another's data::
+    Walk the ``strand``; each CHROM cap (inline marker :data:`CHROM_CAP_MARKER`,
+    §44) starts a new chromosome partition and its label is read back INLINE
+    (:func:`_unpack_cap` — no sidecar). The coupled data turns until the next CHROM
+    cap are that kernel's leaves (re-bound through ``the_one`` — the reversible
+    :func:`quad_turn`); intervening GENE caps are skipped as gene delimiters, so a
+    multi-gene chromosome FLATTENS to its concatenated leaves (use :func:`genes` to
+    keep the per-gene split). Returns ``{label: leaves}``::
 
-        partition(genome({"a": A, "b": B}, one), one, ["a", "b"]) == {"a": A, "b": B}
+        partition(genome({"a": A, "b": B}, one), one) == {"a": A, "b": B}
+
+    §44: chromosomes are DISCOVERED by scanning inline CHROM caps — ``partition`` no
+    longer needs the label set handed to it (the strand self-describes). ``labels``
+    is accepted for back-compat: when given, it FILTERS the result to that subset
+    (and orders it), so old call-sites that passed the full list still round-trip.
     """
-    dim = len(list(the_one))
-    cap_to_label = {tuple(int(x) for x in telomere(label, dim=dim)): label for label in labels}
     out = {}
     current = None
     for hv in strand:
-        key = tuple(int(x) for x in hv)
-        if key in cap_to_label:                 # a telomere cap — start a new partition
-            current = cap_to_label[key]
+        kind = _cap_kind(hv)
+        if kind == CHROM_CAP_MARKER:            # a telomere cap — start a new partition
+            _marker, current = _unpack_cap(hv)
             out[current] = []
+        elif kind == GENE_CAP_MARKER:           # a gene delimiter — not data; flatten
+            continue
         elif current is not None:
             out[current].append(quad_turn(hv, the_one))   # reversible uncouple
+    if labels is not None:
+        return {label: out[label] for label in labels if label in out}
     return out
 
 
@@ -371,8 +421,11 @@ def partition(strand, the_one, labels):
 # ─────────────────────────────────────────────────────────────────────────────
 
 #: MPR on-disk format version for a genome directory (bumped on a body layout
-#: change). 1 == fixed-width leaf_dim-byte blocks, manifest-described boundaries.
-GENOME_FORMAT_VERSION = 1
+#: change). 1 == content-address telomere caps + manifest-described boundaries.
+#: 2 (§44) == self-describing fixed-width strand: chromosome + gene boundaries are
+#: INLINE packed caps scanned-for in the body (the strand is the SSoT; the manifest
+#: is an optional derived ``.fai``-style cache, rebuildable by scanning the body).
+GENOME_FORMAT_VERSION = 2
 
 #: The data_schema_id the genome manifest's MPRRecord carries (resolves to the
 #: genome-manifest data shape — format_version / leaf_dim / chromosomes / hashes).
@@ -414,47 +467,59 @@ def _leaf_blocks(strand) -> List[bytes]:
 
 
 def _hv_from_block(block: bytes) -> _HV:
-    """Reconstruct one Klein-4 vector (an :class:`HV`) from a ``leaf_dim``-byte
-    block — the numpy-free inverse of :meth:`HV.tobytes` (Klein-4 sectors=4)."""
-    return _HV.from_sequence(block, sectors=QUAD)
+    """Reconstruct one strand element (an :class:`HV`) from a ``leaf_dim``-byte
+    block — the numpy-free inverse of :meth:`HV.tobytes`.
+
+    §44: a block is one of two kinds, told apart by its FIRST byte. A CHROM/GENE
+    cap (first byte a marker ``> 3``) is a packed ``sectors=256`` cap leaf (matching
+    :func:`_pack_cap`, so it reconstructs byte-AND-sectors identical); every other
+    block is a Klein-4 data turn (``sectors=QUAD``, bytes ``0..3``). Reading the
+    first byte suffices because the marker bytes are out of the Klein-4 range —
+    that IS the self-describing-strand property."""
+    first = block[0] if block else -1
+    sectors = 256 if first in (CHROM_CAP_MARKER, GENE_CAP_MARKER) else QUAD
+    return _HV.from_sequence(block, sectors=sectors)
 
 
-def _split_into_chromosomes(strand, labels) -> List[Tuple[str, list]]:
-    """Walk a flat genome strand and split it into ``[(label, [cap, *turns]), …]``
-    by its telomere caps (the on-disk chromosome layout), preserving strand order.
+def _block_is_cap(block: bytes) -> bool:
+    """True if a ``leaf_dim``-byte block is a CHROM/GENE cap (first byte a marker
+    ``> 3``) rather than a Klein-4 data turn — §44's scan predicate over raw bytes."""
+    return bool(block) and block[0] in (CHROM_CAP_MARKER, GENE_CAP_MARKER)
 
-    Uses the SAME cap-matching as :func:`partition` (a block equal to a known
-    label's telomere starts a new chromosome). Validates the strand actually
-    decomposes against the supplied ``labels`` (no orphan turns before the first
-    cap; every label present once)."""
+
+def _split_into_chromosomes(strand, labels=None) -> List[Tuple[str, list]]:
+    """Walk a flat genome strand and split it into ``[(label, [cap, *blocks]), …]``
+    by SCANNING its inline CHROM caps (§44), preserving strand order.
+
+    §44: a chromosome starts at each CHROM cap (inline marker
+    :data:`CHROM_CAP_MARKER`); its label is read back inline (:func:`_unpack_cap`)
+    — the strand self-describes, no label set is needed. Intervening GENE caps stay
+    WITH their chromosome (gene boundaries are intra-chromosome). ``labels`` is
+    accepted for back-compat: when given, it VALIDATES the scanned set matches (no
+    orphan turns before the first cap; the scanned labels equal the requested set).
+    """
     if not strand:
         raise ValueError("genome persistence: empty strand has no chromosomes")
-    leaf_dim = len(list(strand[0]))
-    cap_to_label = {
-        tuple(int(x) for x in telomere(label, dim=leaf_dim)): label
-        for label in labels
-    }
     chroms: List[Tuple[str, list]] = []
     current_label: Optional[str] = None
     current_blocks: Optional[list] = None
     for hv in strand:
-        key = tuple(int(x) for x in hv)
-        if key in cap_to_label:
+        if _cap_kind(hv) == CHROM_CAP_MARKER:
             if current_label is not None:
                 chroms.append((current_label, current_blocks))
-            current_label = cap_to_label[key]
+            _marker, current_label = _unpack_cap(hv)
             current_blocks = [hv]            # the cap leads the chromosome region
         else:
             if current_label is None:
                 raise ValueError(
-                    "genome persistence: strand has data turns before its first "
-                    "telomere cap — labels do not match the strand"
+                    "genome persistence: strand has turns before its first CHROM "
+                    "cap — not a well-formed §44 genome strand"
                 )
-            current_blocks.append(hv)
+            current_blocks.append(hv)        # a data turn OR an intra-chrom GENE cap
     if current_label is not None:
         chroms.append((current_label, current_blocks))
     seen = [lbl for lbl, _ in chroms]
-    if sorted(seen) != sorted(set(labels)):
+    if labels is not None and sorted(seen) != sorted(set(labels)):
         raise ValueError(
             f"genome persistence: strand chromosomes {seen!r} do not match the "
             f"requested labels {list(labels)!r}"
@@ -462,21 +527,19 @@ def _split_into_chromosomes(strand, labels) -> List[Tuple[str, list]]:
     return chroms
 
 
-def _build_manifest_data(leaf_dim, the_one_blocks, chrom_specs, body_bytes,
-                         gene_index=None):
-    """Assemble the manifest ``data`` block (the §41 catalog payload).
+def _build_manifest_data(leaf_dim, the_one_blocks, chrom_specs, body_bytes):
+    """Assemble the manifest ``data`` block — §44's optional DERIVED catalog.
 
     ``chrom_specs`` is a list of ``(label, cap_sha256, leaf_count, byte_offset,
-    byte_len)`` tuples (byte_offset/byte_len index into ``turns.bin``).
-    ``the_one_blocks`` is the single ``leaf_dim``-byte block of the_one.
+    byte_len)`` tuples (byte_offset/byte_len index into ``turns.bin``;
+    ``leaf_count`` counts DATA turns only, excluding the chromosome's CHROM cap and
+    any intra-chromosome GENE caps). ``the_one_blocks`` is the single
+    ``leaf_dim``-byte block of the_one.
 
-    ``gene_index`` (F732/S43.1, optional) is ``{label: [(gene_label, leaf_count),
-    …]}`` — for a multi-gene chromosome it adds an optional ``"genes"`` field
-    (``[[gene_label, leaf_count], …]``) to that chromosome's entry, recording the
-    intra-chromosome gene boundaries WITHOUT touching the fixed-width body. A
-    single-gene chromosome omits the field entirely (the on-disk shape of a
-    single-kernel genome is byte-identical to before)."""
-    gene_index = gene_index or {}
+    §44: this manifest is a derived ``.fai``-style cache — every field is
+    rebuildable by scanning the self-describing body (the strand is the SSoT).
+    The intra-chromosome gene structure lives INLINE in the body (GENE caps), NOT
+    here, so there is no gene-index sidecar."""
     return {
         "format_version": GENOME_FORMAT_VERSION,
         "leaf_dim": int(leaf_dim),
@@ -493,10 +556,6 @@ def _build_manifest_data(leaf_dim, the_one_blocks, chrom_specs, body_bytes,
                 "leaf_count": int(leaf_count),
                 "byte_offset": int(byte_offset),
                 "byte_len": int(byte_len),
-                **(
-                    {"genes": [[str(gl), int(n)] for gl, n in gene_index[label]]}
-                    if label in gene_index else {}
-                ),
             }
             for (label, cap_sha256, leaf_count, byte_offset, byte_len) in chrom_specs
         ],
@@ -574,27 +633,23 @@ def _write_manifest(path, record) -> None:
     manifest_path.write_text(text + "\n", encoding="utf-8", newline="\n")
 
 
-def genome_save(strand, path, the_one, labels, *, gene_index=None) -> dict:
-    """Persist a genome ``strand`` to ``path/`` (a DIRECTORY) — UPSTREAM §41.
+def genome_save(strand, path, the_one, labels=None) -> dict:
+    """Persist a genome ``strand`` to ``path/`` (a DIRECTORY) — UPSTREAM §41 / §44.
 
-    Splits the flat genome ``strand`` into its telomere-delimited chromosomes
-    (by ``labels``, the same way :func:`partition` does), writes the fixed-width
-    body to ``path/turns.bin`` (every strand element a ``leaf_dim``-byte block,
-    cap inline as a leaf), and writes the MPR-attested catalog to
-    ``path/manifest.json``. ``the_one`` (the held invariant) is content-addressed
-    into the manifest (its hash + hex) so a load can re-anchor without re-deriving
-    it. Returns the manifest ``data`` dict.
+    Splits the flat genome ``strand`` into its chromosomes by SCANNING its inline
+    CHROM caps (§44 — the strand self-describes; labels are recovered inline),
+    writes the self-describing fixed-width body to ``path/turns.bin`` (every strand
+    element a ``leaf_dim``-byte block — a CHROM/GENE cap or a coupled data turn),
+    and writes the DERIVED catalog to ``path/manifest.json``. ``the_one`` (the held
+    invariant) is content-addressed into the manifest (its hash + hex) so a load can
+    re-anchor without re-deriving it. Returns the manifest ``data`` dict.
 
-    ``labels`` are the chromosome labels whose telomere caps partition the strand
-    (in any order; the strand's own order is preserved on disk).
-
-    ``gene_index`` (F732/S43.1, optional) is the ``{label: [(gene_label,
-    leaf_count), …]}`` returned alongside the strand by ``genome(chromosomes=…)``:
-    it records each multi-gene chromosome's intra-chromosome gene boundaries in
-    the manifest (an optional ``genes`` field per chromosome) WITHOUT changing the
-    fixed-width body — page the genes back with :func:`genome_genes`. Each named
-    chromosome's gene leaf-counts must sum to its stored ``leaf_count`` (the body
-    turns it actually holds), else a ``ValueError``.
+    §44: the strand (``turns.bin``) is the SSoT — the manifest is an optional
+    ``.fai``-style cache, every field rebuildable by scanning the body. Multi-gene
+    chromosomes (from ``genome(chromosomes=…)``) carry their gene boundaries INLINE
+    as GENE caps in the body; there is NO gene-index sidecar (page the genes back by
+    SCANNING with :func:`genome_genes`). ``labels`` is optional and back-compat: when
+    given it VALIDATES the scanned chromosome set matches.
     """
     path = Path(path)
     path.mkdir(parents=True, exist_ok=True)
@@ -611,13 +666,15 @@ def genome_save(strand, path, the_one, labels, *, gene_index=None) -> dict:
             if len(blk) != leaf_dim:
                 raise ValueError(
                     f"genome_save: leaf block width {len(blk)} != leaf_dim "
-                    f"{leaf_dim} (every leaf is a fixed-width Klein-4 vector)"
+                    f"{leaf_dim} (every leaf is a fixed-width block)"
                 )
             body.extend(blk)
         byte_len = len(body) - byte_offset
-        cap_block = leaf_blocks[0]                # the telomere cap leads the region
+        cap_block = leaf_blocks[0]                # the CHROM cap leads the region
         cap_sha256 = _sha256_bytes(cap_block)
-        leaf_count = len(leaf_blocks) - 1         # data turns (excludes the cap)
+        # §44: leaf_count = DATA turns only — exclude the CHROM cap AND any inline
+        # GENE caps (the gene structure lives inline, not as a turn count).
+        leaf_count = sum(1 for blk in leaf_blocks if not _block_is_cap(blk))
         chrom_specs.append(
             (label, cap_sha256, leaf_count, byte_offset, byte_len)
         )
@@ -625,26 +682,8 @@ def genome_save(strand, path, the_one, labels, *, gene_index=None) -> dict:
     body_bytes = bytes(body)
     (path / _BODY_NAME).write_bytes(body_bytes)
 
-    if gene_index:
-        spec_leaf_count = {lbl: int(lc) for (lbl, _c, lc, _o, _l) in chrom_specs}
-        for lbl, gidx in gene_index.items():
-            if lbl not in spec_leaf_count:
-                raise ValueError(
-                    f"genome_save: gene_index label {lbl!r} is not a chromosome "
-                    f"of this strand ({list(spec_leaf_count)!r})"
-                )
-            total = sum(int(n) for _gl, n in gidx)
-            if total != spec_leaf_count[lbl]:
-                raise ValueError(
-                    f"genome_save: chromosome {lbl!r} gene leaf-counts sum to "
-                    f"{total} but the strand holds {spec_leaf_count[lbl]} data "
-                    f"turns (the genes must tile the chromosome exactly)"
-                )
-
     the_one_block = _leaf_blocks([the_one])[0]
-    data = _build_manifest_data(
-        leaf_dim, the_one_block, chrom_specs, body_bytes, gene_index=gene_index
-    )
+    data = _build_manifest_data(leaf_dim, the_one_block, chrom_specs, body_bytes)
     record = _manifest_record(data)
     _write_manifest(path, record)
     return data
@@ -674,8 +713,26 @@ def _verify_body_hash(body_bytes, expected_sha) -> None:
         )
 
 
-def genome_load(path, *, labels=None):
-    """Reconstruct a genome from ``path/`` — UPSTREAM §41. Returns
+def _resolve_the_one(data, override=None):
+    """Recover ``the_one`` for a load — §44's "manifest cache + load-param fallback".
+
+    Prefer a caller-supplied ``override`` (an :class:`HV` / sequence — for when the
+    manifest cache is absent or a different anchor is held); otherwise rebuild it
+    from the manifest's stored block and verify its content-address bound (a
+    mismatch is a :class:`GenomeBoundingError`)."""
+    if override is not None:
+        return override if isinstance(override, _HV) else _HV.from_sequence(override)
+    one_block = bytes.fromhex(data["the_one"]["hex"])
+    if _sha256_bytes(one_block) != data["the_one"]["sha256"]:
+        raise GenomeBoundingError(
+            "genome the_one integrity bound failed: stored hex does not hash to "
+            "the manifest the_one.sha256"
+        )
+    return _hv_from_block(one_block)
+
+
+def genome_load(path, *, labels=None, the_one=None):
+    """Reconstruct a genome from ``path/`` — UPSTREAM §41 / §44. Returns
     ``(strand, the_one, labels)``.
 
     ``labels=None`` loads the WHOLE genome: streams ``turns.bin`` block-by-block
@@ -686,22 +743,18 @@ def genome_load(path, *, labels=None):
     ``byte_offset`` and reads only its ``byte_len`` bytes (RAM bounded by the
     largest single chromosome), re-hashing that region's cap against
     ``cap_sha256``. The returned strand is byte-for-byte the saved strand for the
-    requested chromosomes (in manifest order); ``the_one`` is rebuilt from the
-    manifest's stored block (and verified against its stored hash).
+    requested chromosomes (in manifest order). ``the_one`` is rebuilt from the
+    manifest's stored block (and verified against its stored hash) unless a
+    ``the_one=`` override is supplied (§44 — the manifest is an optional cache).
     """
     path = Path(path)
     data = _read_manifest(path)
     leaf_dim = int(data["leaf_dim"])
     body_path = path / _BODY_NAME
 
-    # Rebuild the_one from the manifest (verify its own content-address bound).
-    one_block = bytes.fromhex(data["the_one"]["hex"])
-    if _sha256_bytes(one_block) != data["the_one"]["sha256"]:
-        raise GenomeBoundingError(
-            "genome the_one integrity bound failed: stored hex does not hash to "
-            "the manifest the_one.sha256"
-        )
-    the_one = _hv_from_block(one_block)
+    # §44: the_one from the manifest cache (verify its content-address bound) or
+    # the caller-supplied override.
+    the_one = _resolve_the_one(data, the_one)
 
     chrom_entries = list(data["chromosomes"])
     all_labels = [c["label"] for c in chrom_entries]
@@ -760,15 +813,47 @@ def genome_load(path, *, labels=None):
     return out_strand, the_one, [c["label"] for c in ordered]
 
 
+def _read_region(path, entry, leaf_dim) -> bytes:
+    """Page in ONE chromosome's region bytes (seek + bounded read + cap-hash
+    check). Shared by :func:`genome_window` / :func:`genome_genes` — RAM is bounded
+    by the single chromosome; the leading CHROM cap is re-hashed against the
+    manifest's ``cap_sha256`` (a mismatch is a :class:`GenomeBoundingError`)."""
+    with (path / _BODY_NAME).open("rb") as f:
+        f.seek(int(entry["byte_offset"]))
+        region = f.read(int(entry["byte_len"]))
+    if len(region) != int(entry["byte_len"]):
+        raise GenomeBoundingError(
+            f"genome region {entry['label']!r} truncated "
+            f"({len(region)} of {entry['byte_len']} bytes)"
+        )
+    cap_block = region[:leaf_dim]
+    if _sha256_bytes(cap_block) != entry["cap_sha256"]:
+        raise GenomeBoundingError(
+            f"genome chromosome {entry['label']!r}: cap integrity bound failed"
+        )
+    return region
+
+
+def _region_strand(region, leaf_dim) -> List["_HV"]:
+    """Reconstruct a region's full HV strand (every block — caps + data turns)."""
+    return [
+        _hv_from_block(region[k:k + leaf_dim])
+        for k in range(0, len(region), leaf_dim)
+    ]
+
+
 def genome_window(path, label):
-    """Page in ONLY one chromosome's leaves from ``path/`` — UPSTREAM §41.
+    """Page in ONLY one chromosome's leaves from ``path/`` — UPSTREAM §41 / §44.
 
     Seeks to the chromosome ``label``'s ``byte_offset`` and reads only its
     ``byte_len`` bytes (RAM bounded by that one chromosome), re-hashing the region
     cap against the manifest's ``cap_sha256`` — a mismatch is a
-    :class:`GenomeBoundingError`. Returns the chromosome's stored leaves (the
-    coupled data turns, the cap excluded) as a list of Klein-4 vectors, in order
-    — the disk-paging counterpart of reaching into one partition of the genome.
+    :class:`GenomeBoundingError`. Returns the chromosome's stored DATA turns (the
+    coupled leaves) as a list of Klein-4 vectors, in order — §44 skips EVERY cap by
+    its inline marker (the leading CHROM cap AND any intra-chromosome GENE caps), so
+    a multi-gene chromosome's window FLATTENS to its data turns (use
+    :func:`genome_genes` to keep the per-gene split). The disk-paging counterpart of
+    reaching into one partition of the genome.
     """
     path = Path(path)
     data = _read_manifest(path)
@@ -779,81 +864,52 @@ def genome_window(path, label):
             f"genome_window: label {label!r} not in the genome "
             f"(have {list(by_label)!r})"
         )
-    entry = by_label[label]
-    with (path / _BODY_NAME).open("rb") as f:
-        f.seek(int(entry["byte_offset"]))
-        region = f.read(int(entry["byte_len"]))
-    if len(region) != int(entry["byte_len"]):
-        raise GenomeBoundingError(
-            f"genome_window {label!r}: region truncated "
-            f"({len(region)} of {entry['byte_len']} bytes)"
-        )
-    cap_block = region[:leaf_dim]
-    if _sha256_bytes(cap_block) != entry["cap_sha256"]:
-        raise GenomeBoundingError(
-            f"genome_window {label!r}: cap integrity bound failed"
-        )
+    region = _read_region(path, by_label[label], leaf_dim)
     leaves: List[_HV] = []
-    for k in range(leaf_dim, len(region), leaf_dim):   # skip the leading cap block
-        leaves.append(_hv_from_block(region[k:k + leaf_dim]))
+    for k in range(0, len(region), leaf_dim):
+        block = region[k:k + leaf_dim]
+        if _block_is_cap(block):                # skip CHROM lead cap + GENE caps
+            continue
+        leaves.append(_hv_from_block(block))
     return leaves
 
 
-def genome_genes(path, label):
-    """Page ONE multi-gene chromosome's genes back from ``path/`` — F732/S43.1.
+def genome_genes(path, label, *, the_one=None):
+    """Page ONE multi-gene chromosome's genes back from ``path/`` — F732/S43.1 / §44.
 
-    The disk counterpart of the in-memory :func:`genes`: reads the manifest's
-    per-chromosome gene index (the optional ``genes`` field written by
-    :func:`genome_save` with ``gene_index=``), pages in only that chromosome's
-    window (:func:`genome_window` — RAM-bounded + cap-integrity-checked),
-    uncouples each stored turn through ``the_one`` (rebuilt + hash-verified from
-    the manifest), and slices the leaves by the index into ``[(gene_label,
-    gene_leaves), …]`` — exactly what ``genes(chromosome(genes=…, one), one)``
-    returns in memory. Raises ``ValueError`` if the chromosome carries no gene
-    index (it is a single-kernel chromosome — use :func:`genome_window` /
-    :func:`partition` for those), and :class:`GenomeBoundingError` if the index
-    leaf-counts disagree with the paged turns (manifest/body mismatch)::
+    The disk counterpart of the in-memory :func:`genes`: pages in only that
+    chromosome's region (RAM-bounded + cap-integrity-checked), then SCANS it for the
+    inline GENE caps (§44 — no gene-index sidecar; the gene boundaries + labels live
+    in the body) and re-binds ``the_one`` (rebuilt + hash-verified from the manifest
+    cache, or a ``the_one=`` override) to recover ``[(gene_label, gene_leaves), …]``
+    — exactly what ``genes(chromosome(genes=…, one), one)`` returns in memory.
+    Raises ``ValueError`` if the chromosome has NO inline GENE caps (it is a
+    single-kernel chromosome — use :func:`genome_window` / :func:`partition`)::
 
-        s, gi = genome(chromosomes=[("g", [("rules", R), ("board", B)])], one)
-        genome_save(s, path, one, ["g"], gene_index=gi)
+        s = genome(chromosomes=[("g", [("rules", R), ("board", B)])], one)
+        genome_save(s, path, one)
         genome_genes(path, "g") == [("rules", R), ("board", B)]
     """
     path = Path(path)
     data = _read_manifest(path)
+    leaf_dim = int(data["leaf_dim"])
     by_label = {c["label"]: c for c in data["chromosomes"]}
     if label not in by_label:
         raise ValueError(
             f"genome_genes: label {label!r} not in the genome "
             f"(have {list(by_label)!r})"
         )
-    gene_idx = by_label[label].get("genes")
-    if gene_idx is None:
+    the_one = _resolve_the_one(data, the_one)
+    region = _read_region(path, by_label[label], leaf_dim)
+    region_strand = _region_strand(region, leaf_dim)
+    if not any(_cap_kind(hv) == GENE_CAP_MARKER for hv in region_strand):
         raise ValueError(
-            f"genome_genes: chromosome {label!r} carries no gene index — it is a "
+            f"genome_genes: chromosome {label!r} has no inline GENE caps — it is a "
             f"single-kernel chromosome; use genome_window / partition"
         )
-    # Rebuild the_one from the manifest (verify its own content-address bound).
-    one_block = bytes.fromhex(data["the_one"]["hex"])
-    if _sha256_bytes(one_block) != data["the_one"]["sha256"]:
-        raise GenomeBoundingError(
-            "genome the_one integrity bound failed: stored hex does not hash to "
-            "the manifest the_one.sha256"
-        )
-    the_one = _hv_from_block(one_block)
-    coupled = genome_window(path, label)               # cap-integrity-checked turns
-    leaves = [quad_turn(t, the_one) for t in coupled]  # reversible uncouple
-    total = sum(int(n) for _gl, n in gene_idx)
-    if total != len(leaves):
-        raise GenomeBoundingError(
-            f"genome_genes {label!r}: gene index leaf-count {total} != "
-            f"{len(leaves)} paged turns (manifest / body disagree)"
-        )
-    out: List[Tuple[str, list]] = []
-    pos = 0
-    for gene_label, n in gene_idx:
-        n = int(n)
-        out.append((str(gene_label), leaves[pos:pos + n]))
-        pos += n
+    # §44: scan the inline gene structure — genes() skips the leading CHROM cap and
+    # splits on the GENE caps, uncoupling each data turn through the_one.
+    return genes(region_strand, the_one)
     return out
 
 

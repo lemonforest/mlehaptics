@@ -13,6 +13,8 @@ import pytest
 
 from srmech.amsc.tlv import TLV_PREFIX_BYTES, tlv_pack, tlv_unpack
 from srmech.amsc.genome import (
+    CHROM_CAP_MARKER,
+    GENE_CAP_MARKER,
     GENE_FRAME_TAG,
     chromosome,
     genes,
@@ -75,13 +77,17 @@ def test_chromosome_genes_round_trips_labels_and_leaves():
 def test_gene_headers_are_distinguishable_from_klein4_turns():
     one = _one()
     strand = chromosome(genes=[("g", [klein4_random(16, seed=3)])], the_one=one)
-    # The cap + the data turn are Klein-4 (every byte <= 3); the gene header is a
-    # tlv frame whose first byte is GENE_FRAME_TAG (> 3) — the unambiguous marker.
-    headers = [hv for hv in strand if len(hv) and int(hv[0]) == GENE_FRAME_TAG]
-    assert len(headers) == 1
+    # §44: EVERY cap — the CHROM telomere AND the GENE cap — is a fixed-width packed
+    # leaf whose first byte is a marker (> 3); only the DATA turns are Klein-4 (every
+    # byte <= 3). So caps are scanned-for by their first byte, never mistaken for data.
+    markers = (CHROM_CAP_MARKER, GENE_CAP_MARKER)
+    caps = [hv for hv in strand if len(hv) and int(hv[0]) in markers]
+    assert len(caps) == 2                         # one CHROM telomere + one GENE cap
+    assert int(strand[0][0]) == CHROM_CAP_MARKER  # the telomere leads
+    assert int(strand[1][0]) == GENE_CAP_MARKER   # then the gene cap
     for hv in strand:
-        if int(hv[0]) != GENE_FRAME_TAG:
-            assert max(hv.tolist()) <= 3, "a Klein-4 turn/cap must stay in {0,1,2,3}"
+        if int(hv[0]) not in markers:             # a data turn — must stay Klein-4
+            assert max(hv.tolist()) <= 3, "a Klein-4 turn must stay in {0,1,2,3}"
 
 
 def test_empty_gene_and_single_gene():
