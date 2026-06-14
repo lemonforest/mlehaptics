@@ -9,10 +9,13 @@ WHAT THIS DOES:
      then RENDERS, or ASKS on a gap (F661 carries). This is STORYMODULE's World, genome-backed (the SIONASERVER /v1
      would import THIS instead of its hardcoded demo shelf).
 
-ETAK-WALK (F704 "thinking is a grounded walk, not a trace"): the walk = introspect -> page the chromosome
-(genome_genes) -> navigate to the nearest landmark (here: the section whose heading/summary best matches the query
-terms — a legible placeholder for the spectral etak-head F510; the SEMANTIC nearest-section is the WIKIKERNEL
-co-occurrence-Laplacian follow-on). The genome supplies the *navigable structure*; etak supplies the *walk*.
+ETAK-WALK (F704 "thinking is a grounded walk, not a trace") — inference, NOT retrieval: a co-occurrence surface
+(Class-L adjacency, srmech.amsc.text.cooccurrence_edges + laplacian.dense_adjacency) is built over ALL content
+kernels — that IS the LM surface. The input is INVERSE-ETAK located on it (its tokens = landmarks = the fixed
+frame), then a FORWARD-ETAK walk (IDF-gated, no-revisit — the F510 etak-head / F166 ride) hops the co-occurrence
+graph, and the answer COMPOSES from the sections the walk converges on. Routing is EMERGENT (no keyword if-else;
+'MFO' walks to MFO sections, 'awful' to the dict). Remaining follow-on: walk the Laplacian EIGENVECTORS (Fiedler /
+spectral etak-head), not just the adjacency neighbours — and deep per-paragraph encoding (the WIKIKERNEL pipeline).
 
 NOTEBOOKS-AS-KERNELS (honest scope): each notebook's `## ` sections become GENES (content-addressed leaves); the
 renderable text (heading + first content line) is MPR-attested payload (NDJSON, the AMSC content layer). So the
@@ -28,7 +31,8 @@ import tempfile
 import os
 from pathlib import Path
 import srmech
-from srmech.amsc import genome as g, hdc
+from srmech.amsc import genome as g, hdc, text as T
+from srmech.amsc.laplacian import dense_adjacency
 from srmech.amsc.format import sha256_raw, write_ndjson, read_ndjson, MPRRecord
 
 DIM = 64
@@ -50,6 +54,14 @@ SIONA_SELF = ("I am Siona — a grounded interface to the stored-relationship ke
               "attested kernels in my genome: my identity, SignWriting, era-dictionaries (modern + 1600s English), "
               "and the MFO and srmech research notebooks. I introspect my own genome to find what I hold, and I ask "
               "when something is not on my shelf — I do not hallucinate.")
+
+# --- etak-walk inference knobs ----------------------------------------------------------------------------------
+META_KERNELS = {"siona_identity"}            # introspective/meta: served by the landmark-free intent layer, NOT walked
+ERA_ALIASES = {"dict-en-1600": "archaic old olde historical antiquity century 1600 1600s",
+               "dict-en-2026": "modern current present today contemporary 2026"}
+ARCHAIC_RE = re.compile(r"\b(1[0-8]\d{2}s?|archaic|olde?|historical|antiquity|centur\w*)\b")  # era signal (raw prompt)
+WALK_STEPS = 5                               # forward-etak hops past the input landmarks
+LANDMARK_WEIGHT = 3.0                        # convergence stays anchored to the query frame, not the walk's drift
 
 
 def parse_sections(path, cap=48, maxchars=700):
@@ -104,74 +116,119 @@ def build_genepool(path):
 
 
 class SionaGenepool:
-    """STORYMODULE's World, genome-backed: introspect / route / etak-walk / render / ask."""
+    """STORYMODULE's World, genome-backed. Inference is an ETAK-WALK over the genome's co-occurrence surface
+    (Class-L), NOT a keyword route to a stored section: the input is INVERSE-ETAK located on the surface (its
+    tokens = landmarks = the fixed frame; "meaning falls out of the supplied rules", F583), then a FORWARD-ETAK
+    walk (IDF-gated, no-revisit — the F510 etak-head / F166 ride) explores the relationship structure, and the
+    answer COMPOSES from wherever the walk converges (attested content only — F661, can't hallucinate). Routing is
+    EMERGENT (the walk from 'MFO' terms lands in MFO sections); the only pre-baked replies are the landmark-free
+    meta intents (greeting / identity / capabilities = genome introspection about Siona herself)."""
     def __init__(self, path):
         self.path = path
         self._text = {(r.data["kernel"], r.data["key"]): r.data["text"]
                       for r in read_ndjson(Path(path) / "genepool.ndjson")}
+        self._build_surface()
+
+    def _build_surface(self):
+        """The LM surface: ONE co-occurrence graph (Class L) over every CONTENT kernel (meta kernels excluded)."""
+        self.keys, docs = [], []
+        for (kernel, key), txt in self._text.items():
+            if kernel in META_KERNELS:
+                continue
+            tag = ERA_ALIASES.get(kernel, kernel.replace("_", " ").replace("-", " "))
+            docs.append(T.tokenize(f"{tag} {key} {txt}"))    # doc = kernel/era tag + key + content (routing emerges)
+            self.keys.append((kernel, key))
+        self.vocab = sorted({t for d in docs for t in d})
+        self.vix = {t: i for i, t in enumerate(self.vocab)}
+        n, edges, weights = T.cooccurrence_edges(docs, window=4, vocab=self.vocab)
+        self.A = dense_adjacency(n, edges, weights)           # term×term co-occurrence = the navigable surface
+        self.df, self.sec = [0] * n, []
+        for d in docs:
+            st = {self.vix[t] for t in d}
+            self.sec.append(st)
+            for i in st:
+                self.df[i] += 1
+        self.ndocs = len(docs)
+
+    def _idf(self, i):                                        # rarer term = sharper landmark (Class-N corpus ratio)
+        return self.ndocs / (1.0 + self.df[i])
+
+    @staticmethod
+    def _modern_pref(kernel):                                # tie-break dict era toward modern absent an era signal
+        return 1 if kernel == "dict-en-2026" else (0 if kernel == "dict-en-1600" else 0.5)
 
     def introspect(self):
         return [(c["label"], c["leaf_count"]) for c in g.genome_catalog(self.path, the_one=ONE)["chromosomes"]]
 
-    def _route(self, prompt):                                # which chromosome does this prompt land in?
-        p = prompt.lower()
-        if "mfo" in p or "ontolog" in p or "chirality" in p: return "mfo_notebook"
-        if "srmech" in p or "cascade" in p or "a-n" in p or "class" in p: return "srmech_notebook"
-        yrs = [int(y) for y in re.findall(r"\b(1[0-9]{3}|20[0-2][0-9])s?\b", p)]
-        if re.search(r"\b(archaic|olde?|old|historical|centur)\b", p) or any(y < 1900 for y in yrs): return "dict-en-1600"
-        return "dict-en-2026"
-
-    def etak_walk(self, kernel, prompt):                     # page the chromosome, navigate to the nearest section
-        genes = [lab for lab, _ in g.genome_genes(self.path, kernel, the_one=ONE)]   # page IN (the genome supplies structure)
-        q = set(re.findall(r"[a-z0-9]+", prompt.lower()))
-        def score(lab):                                       # proximity gate: term-overlap with the section text (etak landmark)
-            txt = self._text.get((kernel, lab), lab).lower()
-            return len(q & set(re.findall(r"[a-z0-9]+", txt)))
-        best = max(genes, key=score) if genes else None
-        return best, (score(best) if best else 0)
+    def etak_walk(self, prompt, steps=WALK_STEPS):
+        """INVERSE-ETAK (locate the input on the surface) + FORWARD-ETAK (walk the co-occurrence graph from the
+        landmarks, IDF-gated, no-revisit). Returns (walk_path_terms, ranked_[(kernel,key)]) or None if the input
+        touches no kernel term (-> the asking-state)."""
+        q = T.tokenize(prompt)
+        landmarks = list(dict.fromkeys(self.vix[t] for t in q if t in self.vix))      # inverse-etak: input -> surface
+        if not landmarks:
+            return None
+        lmset, visited, path = set(landmarks), set(landmarks), list(landmarks)
+        anchor, last = list(landmarks), landmarks[-1]         # etak: the frame (landmarks) stays; islands move past
+        for _ in range(steps):
+            nbr = {}
+            for i in dict.fromkeys(anchor + [last]):
+                for j, wt in enumerate(self.A[i].tolist()):   # proximity gate = the co-occurrence row
+                    if wt and j not in visited:
+                        nbr[j] = nbr.get(j, 0.0) + wt * self._idf(j)
+            if not nbr:
+                break
+            nxt = max(nbr, key=nbr.get)
+            path.append(nxt); visited.add(nxt); last = nxt
+        walk = set(path)
+        ranked = []
+        for idx, (kernel, key) in enumerate(self.keys):
+            score = (sum(self._idf(t) for t in (self.sec[idx] & lmset)) * LANDMARK_WEIGHT     # the query frame
+                     + sum(self._idf(t) for t in (self.sec[idx] & walk)))                     # walked context
+            if score > 0:
+                ranked.append((score, self._modern_pref(kernel), idx))
+        ranked.sort(reverse=True)
+        return [self.vocab[t] for t in path], [self.keys[i] for _, _, i in ranked]
 
     def _capabilities(self):
         """genome-introspection-driven capabilities answer (distinct from identity)."""
         inv = ", ".join(lab for lab, _ in self.introspect())
-        return ("[siona] I answer from the kernels in my genome — currently: " + inv + ". So I can: introduce "
-                "myself; explain the MFO and srmech research notebooks (try 'what is MFO', 'the srmech A-N classes', "
-                "or name a §section); define a word in modern OR 1600s English (nice, awful, computer, meat, silly); "
-                "and describe SignWriting and its 7 symbol classes. I introspect my own genome to find what I hold, "
-                "and I ask when something is not on my shelf — I do not hallucinate.")
+        return ("[siona] I answer from the kernels in my genome — currently: " + inv + ". I don't look up a "
+                "pre-written reply: I locate your question on my co-occurrence surface and ETAK-WALK it to compose "
+                "an answer from where the walk lands. So I can explain the MFO and srmech notebooks (name a topic or "
+                "a §section), define a word in modern OR 1600s English (nice, awful, computer, meat, silly), and "
+                "describe SignWriting's 7 symbol classes. I ask when your question touches nothing I hold — I do "
+                "not hallucinate.")
 
     def infer(self, prompt):
         p = prompt.lower()
         toks = set(re.findall(r"[a-z0-9]+", p))
-        # CAPABILITIES (what can you do / help / what do you know) — BEFORE identity, since both match who/what…you
+        # --- meta intents (landmark-free / introspective) — the ONLY non-walk replies -------------------------
         if (re.search(r"\b(can|do) you\b", p) or "you can do" in p or "capabilit" in p or "what do you know" in p
                 or "what can i ask" in p or ("longer" in p and "you" in p) or toks & {"help", "abilities"}):
             return self._capabilities()
-        # GREETING -> warm hello + identity
         if toks & {"hi", "hello", "hey", "greetings", "yo", "howdy", "hiya", "sup"}:
             return f"[siona_identity] Hello — {self._text.get(('siona_identity', 'self'), 'I am Siona.')}"
-        # IDENTITY (who/what are you, your name, about you, siona)
         if (toks & {"siona", "yourself"} or "your name" in p or "about you" in p
                 or re.search(r"\b(who|what)\s+(are|is|r)\s+(you|siona)\b", p)):
             return f"[siona_identity] {self._text.get(('siona_identity', 'self'), 'I am Siona.')}"
-        # SIGNWRITING question — a named class renders that class; otherwise the overview
-        if "signwriting" in p or "sign writing" in p or "sign language" in p:
-            cls = next((c for c in SW_CLASSES if c.replace("_", " ") in p or c in p), None)
-            if cls:
-                return f"[signwriting] {self._text.get(('signwriting', cls), cls)}"
-            return ("[signwriting] SignWriting is a 2D-spatial featural writing system for signed languages — "
-                    "7 symbol classes: hands, movement, dynamics, head/faces, body, punctuation, location.")
-        kernel = self._route(prompt)
-        if kernel.startswith("dict-en-"):                    # a definition lookup (era-correct)
-            words = [w for w, _ in g.genome_genes(self.path, kernel, the_one=ONE)]
-            hit = next((w for w in words if re.search(rf"\b{re.escape(w)}\b", p)), None)
-            if hit: return f"[{kernel}] {hit}: {self._text[(kernel, hit)]}"
-            return ("[siona] I can introduce myself, explain MFO or srmech, define a word (modern or 1600s English), "
-                    "or describe SignWriting — ask me one of those, or give me a word to define.")   # helpful, not a dead-end
-        lab, sc = self.etak_walk(kernel, prompt)             # a notebook walk
-        if lab and sc > 0:
-            return f"[{kernel} -> §{lab}] {self._text.get((kernel, lab), lab)}"
-        return ("[siona] I walked my genome but found no matching section. I hold the MFO + srmech notebooks, "
-                "era-dictionaries, SignWriting, and my identity — ask me about one of those.")
+        # --- everything substantive: ETAK-WALK the surface (inference, not retrieval) --------------------------
+        walked = self.etak_walk(prompt)
+        if not walked or not walked[1]:
+            return ("[siona] I walked toward my genome but your question touched none of my kernels. I hold the MFO "
+                    "+ srmech notebooks, era-dictionaries, and SignWriting — ask me about one of those, or give me a "
+                    "word to define.")
+        trace, ranked = walked
+        path_str = " → ".join(trace[:8])
+        top_kernel, top_key = ranked[0]
+        if top_kernel.startswith("dict-en-"):                # era-resolve the WORD the walk found (F739 disambig)
+            era = "dict-en-1600" if ARCHAIC_RE.search(p) else "dict-en-2026"
+            defn = self._text.get((era, top_key), self._text[(top_kernel, top_key)])
+            return f"[etak: {path_str}]\n[{era}] {top_key}: {defn}"
+        body = self._text.get((top_kernel, top_key), top_key)
+        see = [f"§{k[:24]}" for kk, k in ranked[1:3] if kk == top_kernel]   # sibling landmarks the same walk passed
+        tail = f"\n  (the walk also passed: {', '.join(see)})" if see else ""
+        return f"[etak: {path_str}]\n[{top_kernel} → §{top_key}] {body}{tail}"
 
 
 def main():
@@ -183,17 +240,21 @@ def main():
     print("Siona INTROSPECTS her genepool (genome_catalog):")
     for lab, n in s.introspect():
         print(f"    {lab:16} ({n} genes)")
-    print("\n--- the storyteller etak-walks the genome to answer ---")
+    print(f"\nthe LM surface: {len(s.vocab)} terms over {len(s.keys)} content sections (Class-L co-occurrence graph)")
+    print("\n--- INFERENCE = etak-walk the surface (inverse-etak locate -> forward-etak walk -> compose) ---")
     for q in ["what is MFO about chirality?",
               "explain the srmech A-N classes",
-              "translate this 1600s line: a nice and awful sight  (define awful)",
+              "what is the metric field",
+              "define awful in 1600s english",
               "in modern english, define awful",
+              "what does meat mean",
+              "tell me about signwriting hands",
               "what is qwérty?"]:
-        print(f"  Q: {q}\n   A: {s.infer(q)}")
-    print("\nVERDICT: storyteller World is GENOME-BACKED (introspect genome_catalog -> route -> etak-walk genome_genes")
-    print("  -> render MPR payload / ask). MFO + srmech notebooks are in the genepool as section-gene chromosomes.")
-    print("  etak-walk = page the chromosome + navigate to the matching section (legible placeholder; semantic")
-    print("  nearest-section = the WIKIKERNEL spectral follow-on). The SIONASERVER /v1 imports THIS as its World.")
+        print(f"  Q: {q}\n   A: {s.infer(q)}\n")
+    print("VERDICT: inference is an ETAK-WALK over the genome's co-occurrence surface — NOT a keyword route to a")
+    print("  stored section. The input is located on the surface (landmarks), the walk hops the relationship graph,")
+    print("  and the answer composes from where it converges. Routing is emergent; meta intents (identity / greeting")
+    print("  / capabilities) are the only landmark-free non-walk replies. Follow-on: walk the Laplacian eigenvectors.")
 
 
 if __name__ == "__main__":
