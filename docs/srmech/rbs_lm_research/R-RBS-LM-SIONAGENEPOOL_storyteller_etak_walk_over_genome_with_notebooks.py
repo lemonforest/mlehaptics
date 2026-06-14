@@ -52,18 +52,27 @@ SIONA_SELF = ("I am Siona — a grounded interface to the stored-relationship ke
               "when something is not on my shelf — I do not hallucinate.")
 
 
-def parse_sections(path, cap=48):
-    """## headings -> [(section_label, heading_text, summary_line)]; the notebook's sectional structure."""
+def parse_sections(path, cap=48, maxchars=700):
+    """## headings -> [(section_label, heading, summary)]; summary = the section's first paragraph(s), trimmed to a
+    sentence boundary (~maxchars) so renders are not cut mid-word."""
     lines = Path(path).read_text(errors="replace").splitlines()
     secs = []
     for idx, ln in enumerate(lines):
         if ln.startswith("## "):
             heading = ln[3:].strip()
-            summ = ""
-            for j in range(idx + 1, min(idx + 10, len(lines))):
+            buf = []
+            for j in range(idx + 1, len(lines)):
                 t = lines[j].strip()
-                if t and not t.startswith("#"):
-                    summ = t[:160]; break
+                if t.startswith("## "):
+                    break                                 # next section
+                if t and not t.startswith(("#", "|", "```", "<!--")):
+                    buf.append(t)
+                if sum(len(x) + 1 for x in buf) > maxchars:
+                    break
+            summ = " ".join(buf)[:maxchars]
+            cut = max(summ.rfind(". "), summ.rfind("? "), summ.rfind("! "))
+            if cut > 120:
+                summ = summ[:cut + 1]                     # trim to a clean sentence end
             secs.append((f"{len(secs):02d}_{_slug(heading)}", heading, summ))
     return secs[:cap]
 
@@ -121,13 +130,28 @@ class SionaGenepool:
         best = max(genes, key=score) if genes else None
         return best, (score(best) if best else 0)
 
+    def _capabilities(self):
+        """genome-introspection-driven capabilities answer (distinct from identity)."""
+        inv = ", ".join(lab for lab, _ in self.introspect())
+        return ("[siona] I answer from the kernels in my genome — currently: " + inv + ". So I can: introduce "
+                "myself; explain the MFO and srmech research notebooks (try 'what is MFO', 'the srmech A-N classes', "
+                "or name a §section); define a word in modern OR 1600s English (nice, awful, computer, meat, silly); "
+                "and describe SignWriting and its 7 symbol classes. I introspect my own genome to find what I hold, "
+                "and I ask when something is not on my shelf — I do not hallucinate.")
+
     def infer(self, prompt):
         p = prompt.lower()
         toks = set(re.findall(r"[a-z0-9]+", p))
-        # GREETING / IDENTITY -> Siona introduces herself from the siona_identity kernel (before any dict fallthrough)
-        if (toks & {"hi", "hello", "hey", "greetings", "yo", "howdy", "hiya", "sup"}
-                or toks & {"siona", "yourself"} or "your name" in p or "about you" in p
-                or re.search(r"\b(who|what)\b[^.?!]*\byou\b", p)):
+        # CAPABILITIES (what can you do / help / what do you know) — BEFORE identity, since both match who/what…you
+        if (re.search(r"\b(can|do) you\b", p) or "you can do" in p or "capabilit" in p or "what do you know" in p
+                or "what can i ask" in p or ("longer" in p and "you" in p) or toks & {"help", "abilities"}):
+            return self._capabilities()
+        # GREETING -> warm hello + identity
+        if toks & {"hi", "hello", "hey", "greetings", "yo", "howdy", "hiya", "sup"}:
+            return f"[siona_identity] Hello — {self._text.get(('siona_identity', 'self'), 'I am Siona.')}"
+        # IDENTITY (who/what are you, your name, about you, siona)
+        if (toks & {"siona", "yourself"} or "your name" in p or "about you" in p
+                or re.search(r"\b(who|what)\s+(are|is|r)\s+(you|siona)\b", p)):
             return f"[siona_identity] {self._text.get(('siona_identity', 'self'), 'I am Siona.')}"
         # SIGNWRITING question — a named class renders that class; otherwise the overview
         if "signwriting" in p or "sign writing" in p or "sign language" in p:
