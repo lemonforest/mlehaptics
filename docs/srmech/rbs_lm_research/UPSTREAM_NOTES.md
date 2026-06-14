@@ -2124,3 +2124,17 @@ as a unit (the §43 chromosome-as-file goal) WITHOUT a sidecar. **Discipline:** 
 WIRE-FORMAT change to the genome body (telomere caps already inline; add fixed-width gene-caps + inline labels) — the
 manifest goes from mandatory→optional-derived; coordinate as a genome `format_version` bump. Composes §41/§42/§43/§43.1
 / F715 (telomere) / F730/F732 (genes) / CLAUDE §0 (biology IS a wire-format: nested fixed-width inline framing = Class B).
+
+### §44 STATUS rc143 (F734) — strand SELF-DESCRIBES; only the disk loader still needs the manifest
+**Delivered in rc143:** (a) `genome_save` **dropped the `gene_index=` sidecar** param; (b) `recall`/`partition`/
+`genome_load`/`genome_genes` made `telomere`/`labels`/`the_one` OPTIONAL → they **scan-derive**; (c) **§43.1 multi-gene
+persists** — `genome(chromosomes=[(label, genes=[…])])` → `genome_save` → `genome_genes(path,label,the_one=…)` round-trips
+(the rc141 `TypeError` is fixed); (d) **the strand is genuinely INLINE-self-describing**: `partition(plain_leaf_list,
+the_one)` recovers the real label text `['alpha','beta']` from the leaves ALONE (verified on a rebuilt plain `list`, no
+attached metadata; strand = 2 caps + 5 tomes = 7 leaves, so labels are encoded IN the telomere cap leaves, recovered by
+scanning). This is the §44 biology-faithful property *working* — no sidecar needed to read structure from the strand.
+**REMAINING (last mile):** `genome_load` still **hard-requires `manifest.json`** (deleting it → `FileNotFoundError`); it
+does not yet reconstruct from `turns.bin` alone by scanning. Fix: have `genome_load` scan the fixed-width body (the
+strand is already there) + `partition`-recover, and demote `manifest.json` to an OPTIONAL derived `.fai`/faidx cache.
+Then the on-disk genome matches the in-memory self-describing strand. Core green on rc143: regression 49/0, genome→disk
+VERIFIED, carrier 17/17, apidiff 0 hard breaks (5 signature relaxations = params made optional).
