@@ -77,28 +77,30 @@ int main(void)
     /* the_one: one 4-byte Klein-4 block (values 0..3). */
     unsigned char the_one[4] = { 1u, 2u, 3u, 0u };
 
-    /* Body: 2 chromosomes. chrom A = cap + 2 turns (3 blocks); chrom B =
-     * cap + 1 turn (2 blocks). 5 blocks * 4 bytes = 20 bytes. */
-    unsigned char body[20] = {
-        /* A cap   */ 3u, 1u, 0u, 2u,
-        /* A turn0 */ 0u, 1u, 2u, 3u,
-        /* A turn1 */ 2u, 2u, 1u, 1u,
-        /* B cap   */ 1u, 3u, 3u, 0u,
-        /* B turn0 */ 3u, 0u, 2u, 1u,
+    /* §44 self-describing body (leaf_dim=4, so labels are <= 3 bytes). Two
+     * chromosomes; the save SCANS the inline caps (no caller layout).
+     *   chrom "A": CHROM cap + a GENE cap "g" + 2 data turns  (4 blocks)
+     *   chrom "B": CHROM cap + 1 data turn                     (2 blocks)
+     * The GENE cap is in the region (byte_len) but NOT a data turn
+     * (leaf_count) — so A.leaf_count == 2. 6 blocks * 4 = 24 bytes. */
+    const unsigned char CC = (unsigned char)SRMECH_GENOME_CHROM_CAP_MARKER;
+    const unsigned char GC = (unsigned char)SRMECH_GENOME_GENE_CAP_MARKER;
+    unsigned char body[24] = {
+        /* A CHROM cap */ CC, (unsigned char)'A', 0u, 0u,
+        /* A GENE cap  */ GC, (unsigned char)'g', 0u, 0u,
+        /* A turn0     */ 0u, 1u, 2u, 3u,
+        /* A turn1     */ 2u, 2u, 1u, 1u,
+        /* B CHROM cap */ CC, (unsigned char)'B', 0u, 0u,
+        /* B turn0     */ 3u, 0u, 2u, 1u,
     };
-    srmech_genome_chrom_t chroms[2];
-    chroms[0].label = "alpha";
-    chroms[0].leaf_count = 2u;     /* region = 3 blocks */
-    chroms[1].label = "beta";
-    chroms[1].leaf_count = 1u;     /* region = 2 blocks */
 
     const char *dir = temp_dir();
     ensure_dir(dir);
 
     srmech_status_t st = srmech_genome_save(
         dir, body, sizeof(body), leaf_dim, the_one, sizeof(the_one),
-        chroms, 2u, g_ws, sizeof(g_ws));
-    check_true(st == SRMECH_OK, "genome_save OK");
+        g_ws, sizeof(g_ws));
+    check_true(st == SRMECH_OK, "genome_save OK (scans inline caps)");
 
     /* CATALOG: manifest parses, data.body_sha256 present. */
     {
@@ -115,8 +117,8 @@ int main(void)
                    bsha->u.str.len == 64u, "data.body_sha256 is 64-hex");
         const srmech_json_value_t *nt =
             srmech_json_object_get(data, "n_turns");
-        check_true(nt != NULL && nt->type == SRMECH_JSON_INT && nt->u.i == 5,
-                   "data.n_turns == 5");
+        check_true(nt != NULL && nt->type == SRMECH_JSON_INT && nt->u.i == 6,
+                   "data.n_turns == 6 (blocks: 4 + 2)");
         const srmech_json_value_t *ld =
             srmech_json_object_get(data, "leaf_dim");
         check_true(ld != NULL && ld->type == SRMECH_JSON_INT && ld->u.i == 4,
@@ -135,31 +137,32 @@ int main(void)
                    "loaded body == saved body");
     }
 
-    /* WINDOW: chromosome 'alpha' region bytes (cap + 2 turns = 12 bytes). */
+    /* WINDOW: chromosome 'A' region bytes (CHROM cap + GENE cap + 2 turns =
+     * 4 blocks = 16 bytes). The region includes the caps (caller flattens). */
     {
         unsigned char out[64];
         size_t olen = 0u;
-        st = srmech_genome_window(dir, "alpha", out, sizeof(out), &olen,
+        st = srmech_genome_window(dir, "A", out, sizeof(out), &olen,
                                   g_ws, sizeof(g_ws));
-        check_true(st == SRMECH_OK, "genome_window('alpha') OK");
-        check_true(olen == 12u && memcmp(out, body, 12u) == 0,
-                   "window('alpha') == first 12 body bytes");
+        check_true(st == SRMECH_OK, "genome_window('A') OK");
+        check_true(olen == 16u && memcmp(out, body, 16u) == 0,
+                   "window('A') == first 16 body bytes");
         /* WINDOW on a missing label is rejected. */
         st = srmech_genome_window(dir, "nope", out, sizeof(out), &olen,
                                   g_ws, sizeof(g_ws));
         check_true(st != SRMECH_OK, "genome_window('nope') rejected");
     }
 
-    /* APPEND: add chromosome 'gamma' (cap + 1 turn). */
+    /* APPEND: add chromosome 'C' (CHROM cap + 1 turn = 2 blocks = 8 bytes). */
     {
         unsigned char region[8] = {
-            /* gamma cap   */ 2u, 0u, 3u, 1u,
-            /* gamma turn0 */ 1u, 1u, 0u, 3u,
+            /* C CHROM cap */ CC, (unsigned char)'C', 0u, 0u,
+            /* C turn0     */ 1u, 1u, 0u, 3u,
         };
-        st = srmech_genome_append(dir, "gamma", region, sizeof(region),
+        st = srmech_genome_append(dir, "C", region, sizeof(region),
                                   leaf_dim, the_one, sizeof(the_one),
                                   g_ws, sizeof(g_ws));
-        check_true(st == SRMECH_OK, "genome_append('gamma') OK");
+        check_true(st == SRMECH_OK, "genome_append('C') OK");
 
         srmech_json_value_t *man = NULL;
         st = srmech_genome_catalog(dir, g_ws, sizeof(g_ws), &man);
@@ -167,12 +170,13 @@ int main(void)
             srmech_json_object_get(man, "data");
         const srmech_json_value_t *nt =
             srmech_json_object_get(data, "n_turns");
-        check_true(nt != NULL && nt->u.i == 7, "n_turns grew 5 -> 7");
+        check_true(nt != NULL && nt->u.i == 8, "n_turns grew 6 -> 8");
         const srmech_json_value_t *chr =
             srmech_json_object_get(data, "chromosomes");
         check_true(chr != NULL && chr->type == SRMECH_JSON_ARRAY &&
                    chr->u.arr.n == 3u, "chromosomes now 3");
-        /* Prior entry 'alpha' (index 0) byte_offset/leaf_count unchanged. */
+        /* Prior entry 'A' (index 0) byte_offset/leaf_count unchanged (the GENE
+         * cap is in the region but excluded from leaf_count). */
         const srmech_json_value_t *a0 = chr->u.arr.items[0];
         const srmech_json_value_t *a_off =
             srmech_json_object_get(a0, "byte_offset");
@@ -180,17 +184,17 @@ int main(void)
             srmech_json_object_get(a0, "leaf_count");
         check_true(a_off != NULL && a_off->u.i == 0 &&
                    a_lc != NULL && a_lc->u.i == 2,
-                   "prior 'alpha' entry unchanged (offset 0, leaf_count 2)");
-        /* New 'gamma' entry at index 2, offset 20, leaf_count 1. */
+                   "prior 'A' entry unchanged (offset 0, leaf_count 2)");
+        /* New 'C' entry at index 2, offset 24 (the prior 24-byte body). */
         const srmech_json_value_t *g2 = chr->u.arr.items[2];
         const srmech_json_value_t *g_lbl =
             srmech_json_object_get(g2, "label");
         const srmech_json_value_t *g_off =
             srmech_json_object_get(g2, "byte_offset");
-        check_true(g_lbl != NULL && g_lbl->u.str.len == 5u &&
-                   memcmp(g_lbl->u.str.ptr, "gamma", 5) == 0 &&
-                   g_off != NULL && g_off->u.i == 20,
-                   "new 'gamma' entry at offset 20");
+        check_true(g_lbl != NULL && g_lbl->u.str.len == 1u &&
+                   memcmp(g_lbl->u.str.ptr, "C", 1) == 0 &&
+                   g_off != NULL && g_off->u.i == 24,
+                   "new 'C' entry at offset 24");
     }
 
     /* BOUNDING: corrupt one byte of turns.bin -> load returns the error. */
