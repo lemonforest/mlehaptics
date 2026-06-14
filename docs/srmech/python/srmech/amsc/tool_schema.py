@@ -1811,6 +1811,23 @@ def _register_primitive_class_tools() -> None:
                         P("the_one", "HV", True, "the held invariant the new turns are coupled through (dim must match leaf_dim)")),
             returns=R("dict", "the updated manifest data (the chromosome's content replaced in place, body_sha256 recomputed)"),
         ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_export", owner="srmech", category="genome",
+            summary="Export ONE chromosome as a single self-contained .chr file (UPSTREAM §43). Reads the chromosome label's fixed-width region (CHROM cap + coupled data turns; the cap re-hashed against the manifest cap_sha256) and writes it — together with the_one — to out as ONE MPR-attested record (MPR v1; response_sha256 IS the region hash). So a chromosome becomes a self-contained, content-addressed unit: tar it, ship it, genome_import it self-verifying — realising the §43 'chromosome as a bundleable file' goal on top of the §44 self-describing strand. Composes srmech.amsc.format (the MPRRecord + sha256 content-address), NOT a parallel attestation. §44: pass the_one= to export from a manifest-less source genome. Raises ValueError if the label is absent. numpy-free.",
+            parameters=(P("path", "str", True, "the genome directory written by genome_save"),
+                        P("label", "str", True, "the chromosome label to export as a .chr bundle"),
+                        P("out", "str", True, "the output file path for the .chr (one MPR-attested JSON record)"),
+                        P("the_one", "HV", False, "the held invariant (only required when the source genome's manifest.json is absent — its length is the leaf width for the §44 rebuild-by-scan)")),
+            returns=R("dict", "the .chr data block (format_version / leaf_dim / label / leaf_count / cap_sha256 / the_one hash+hex / region hash+hex)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_import", owner="srmech", category="genome",
+            summary="Import a .chr chromosome bundle into a genome at dest (UPSTREAM §43). Reads the MPR-attested .chr (genome_export's output), RE-HASHES its region and its the_one and compares them against the bundle's own attestation — a mismatch is a GenomeBoundingError (self-verifying). Then: if dest has no genome yet, the .chr SEEDS a fresh one (its region becomes turns.bin verbatim, its the_one the coupling invariant); if dest already holds a genome, the chromosome is APPENDED byte-for-byte — which REQUIRES the same coupling invariant (the dest the_one must match the .chr the_one) and a fresh label. The manifest is re-derived by scanning the grown body (§44 — the strand is the SSoT). numpy-free.",
+            parameters=(P("chr_path", "str", True, "the .chr bundle file written by genome_export"),
+                        P("dest", "str", True, "the dest genome directory (seeded fresh if it has no genome, else appended to)"),
+                        P("the_one", "HV", False, "the held invariant (only consulted for a manifest-less EXISTING dest — the §44 rebuild width; the bundle carries its own the_one)")),
+            returns=R("dict", "the dest manifest data (the seeded genome, or the existing genome with the imported chromosome appended)"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class K — equation-of-centre / pin-slot

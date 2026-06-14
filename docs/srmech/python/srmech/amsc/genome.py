@@ -64,6 +64,7 @@ __all__ = [
     "genome_save", "genome_load", "genome_catalog", "genome_append",
     "genome_window", "genome_genes",
     "genome_remove", "genome_replace",
+    "genome_export", "genome_import",
     "GenomeBoundingError",
     "LEAF_CAP", "QUAD", "MOBIUS_CAP",
     "CHROM_CAP_MARKER", "GENE_CAP_MARKER", "GENE_FRAME_TAG",
@@ -431,6 +432,11 @@ GENOME_FORMAT_VERSION = 2
 #: The data_schema_id the genome manifest's MPRRecord carries (resolves to the
 #: genome-manifest data shape — format_version / leaf_dim / chromosomes / hashes).
 GENOME_MANIFEST_SCHEMA_ID = "srmech://schema/genome_manifest/v1"
+
+# §43: the data_schema_id of a single-chromosome .chr bundle (genome_export). A .chr
+# is one self-contained MPR record (MPR v1) carrying the chromosome's region +
+# the_one — re-importable self-verifying.
+GENOME_CHR_SCHEMA_ID = "srmech://schema/genome_chromosome/v1"
 
 _MANIFEST_NAME = "manifest.json"
 _BODY_NAME = "turns.bin"
@@ -1159,3 +1165,204 @@ def genome_replace(path, label, leaves, the_one) -> dict:
     new_region = b"".join(_leaf_blocks(chromosome(leaves, the_one, label=label)))
     new_body = body[:off] + new_region + body[off + byte_len:]
     return _write_body_and_manifest(path, new_body, leaf_dim, the_one)
+
+
+# ────────────────────────────────────────────────────────────────────────
+# §43 file-management — the chromosome as a single bundleable .chr file.
+#
+# A .chr is ONE self-contained MPR-attested file (MPR v1) carrying a
+# chromosome's fixed-width region (CHROM cap + coupled data turns) + the_one
+# (the width the body lacks inline). It composes srmech.amsc.format (the
+# MPRRecord + sha256 content-address) — NOT a parallel attestation: tar it, ship
+# it, genome_import it self-verifying. The strand stays the SSoT (§44); a .chr
+# round-trips byte-identically.
+# ────────────────────────────────────────────────────────────────────────
+
+
+def _chr_data(label, leaf_dim, leaf_count, cap_sha256, the_one_block, region):
+    """Assemble the .chr ``data`` block for ONE chromosome region — §43.
+
+    Carries the chromosome's identity (label / leaf_dim / leaf_count / the cap
+    hash), the_one (sha256 + hex — so the bundle is re-couplable standalone), and
+    the region itself (sha256 + hex — the CHROM cap + coupled turns, the body
+    bytes verbatim). The region hex makes the .chr a single self-contained file."""
+    return {
+        "format_version": GENOME_FORMAT_VERSION,
+        "leaf_dim": int(leaf_dim),
+        "label": label,
+        "leaf_count": int(leaf_count),
+        "cap_sha256": cap_sha256,
+        "the_one": {"sha256": _sha256_bytes(the_one_block), "hex": the_one_block.hex()},
+        "region": {"sha256": _sha256_bytes(bytes(region)), "hex": bytes(region).hex()},
+    }
+
+
+def _chr_record(data) -> _MPRRecord:
+    """Wrap a .chr ``data`` block in an MPRRecord (MPR v1) — §43.
+
+    ``attestation.response_sha256`` IS the chromosome region hash
+    (``region.sha256``), so :func:`genome_import` re-hashes the region and
+    self-verifies. Mirrors :func:`_manifest_record`; the record satisfies
+    :func:`srmech.amsc.format.validate_mpr_record`."""
+    region_sha = data["region"]["sha256"]
+    parser_version = f"srmech {_SRMECH_VERSION}"
+    rule_hash = _sha256_bytes(
+        f"genome_chromosome/v{GENOME_FORMAT_VERSION}".encode("utf-8")
+    )
+    descriptor_hash = _sha256_bytes(GENOME_CHR_SCHEMA_ID.encode("utf-8"))
+    record = _MPRRecord(
+        mpr_version="1.0",
+        data=data,
+        data_schema_id=GENOME_CHR_SCHEMA_ID,
+        attestation={
+            "source_doi": "10.0/srmech.genome.chromosome",
+            "source_url": "https://srmech.net/genome/chromosome",
+            "license": "CC0",
+            "retrieved_at": "1970-01-01T00:00:00Z",
+            "response_sha256": region_sha,
+            "parser_version": parser_version,
+            "parser_rule_hash": rule_hash,
+            "collector_descriptor_path": "srmech/amsc/genome.py",
+            "collector_descriptor_hash": descriptor_hash,
+        },
+        rendering={
+            "human_readable_name": f"srmech chromosome bundle ({data['label']})",
+            "cite_as": "srmech genome chromosome bundle (UPSTREAM §43)",
+            "purpose": (
+                "One self-contained, MPR-attested chromosome: its fixed-width "
+                "region (CHROM cap + coupled turns) + the_one, re-importable "
+                "self-verifying."
+            ),
+        },
+    )
+    _validate_mpr_record(record)
+    return record
+
+
+def _write_mpr_file(path, record) -> None:
+    """Serialise an MPRRecord to ``path`` (one JSON object + LF) — byte-stable,
+    the same canonical form :func:`_write_manifest` uses for manifest.json."""
+    payload = json.loads(record.to_json_line())
+    text = json.dumps(payload, sort_keys=True, ensure_ascii=False)
+    Path(path).write_text(text + "\n", encoding="utf-8", newline="\n")
+
+
+def _read_chr(path) -> _MPRRecord:
+    """Read + validate a .chr file into its MPRRecord — §43. Raises
+    :class:`GenomeBoundingError` if it is not a chromosome bundle (wrong
+    data_schema_id) or fails MPR-v1 structure validation."""
+    text = Path(path).read_text(encoding="utf-8")
+    payload = json.loads(text)
+    record = _MPRRecord(
+        mpr_version=str(payload.get("mpr_version", "")),
+        data=dict(payload.get("data", {})),
+        data_schema_id=str(payload.get("data_schema_id", "")),
+        attestation=dict(payload.get("attestation", {})),
+        rendering=dict(payload.get("rendering", {})),
+    )
+    _validate_mpr_record(record)
+    if record.data_schema_id != GENOME_CHR_SCHEMA_ID:
+        raise GenomeBoundingError(
+            f"genome_import: {str(path)!r} is not a chromosome bundle "
+            f"(data_schema_id {record.data_schema_id!r} != {GENOME_CHR_SCHEMA_ID!r})"
+        )
+    return record
+
+
+def genome_export(path, label, out, *, the_one=None) -> dict:
+    """Export ONE chromosome as a single self-contained ``.chr`` file — UPSTREAM §43.
+
+    Reads the chromosome ``label``'s fixed-width region (CHROM cap + coupled data
+    turns; cap re-hashed against the manifest ``cap_sha256``) and writes it — together
+    with ``the_one`` — to ``out`` as ONE MPR-attested record (MPR v1; the
+    ``response_sha256`` IS the region hash). So a chromosome is a self-contained,
+    content-addressed unit: ``tar`` it, ship it, :func:`genome_import` it
+    self-verifying — realising the §43 "chromosome as a bundleable file" goal on top of
+    the §44 self-describing strand. Returns the ``.chr`` ``data`` block. §44: pass
+    ``the_one=`` to export from a manifest-less source genome (the catalog is rebuilt by
+    scanning ``turns.bin``).
+
+    Raises ``ValueError`` if ``label`` is not in the genome.
+    """
+    path = Path(path)
+    data = _catalog_data(path, the_one)
+    leaf_dim = int(data["leaf_dim"])
+    by_label = {c["label"]: c for c in data["chromosomes"]}
+    if label not in by_label:
+        raise ValueError(
+            f"genome_export: label {label!r} not in the genome "
+            f"(have {list(by_label)!r})"
+        )
+    entry = by_label[label]
+    region = _read_region(path, entry, leaf_dim)            # cap-integrity checked
+    one_block = bytes.fromhex(data["the_one"]["hex"])
+    chr_data = _chr_data(label, leaf_dim, int(entry["leaf_count"]),
+                         entry["cap_sha256"], one_block, region)
+    _write_mpr_file(Path(out), _chr_record(chr_data))
+    return chr_data
+
+
+def genome_import(chr_path, dest, *, the_one=None) -> dict:
+    """Import a ``.chr`` chromosome bundle into a genome at ``dest`` — UPSTREAM §43.
+
+    Reads the MPR-attested ``.chr`` (:func:`genome_export`'s output), RE-HASHES its
+    region and its ``the_one`` and compares them against the bundle's own attestation —
+    a mismatch is a :class:`GenomeBoundingError` (self-verifying). Then:
+
+    * if ``dest`` has NO genome yet, the ``.chr`` SEEDS a fresh one (its region becomes
+      ``turns.bin`` verbatim, its ``the_one`` the coupling invariant);
+    * if ``dest`` already holds a genome, the chromosome is APPENDED byte-for-byte —
+      which REQUIRES the same coupling invariant (the dest ``the_one`` must match the
+      ``.chr`` ``the_one``) and a fresh ``label``. The manifest is re-derived by scanning
+      the grown body (§44 — the strand is the SSoT).
+
+    Returns the dest manifest ``data`` dict. ``the_one=`` is only consulted for a
+    manifest-less existing ``dest`` (§44 rebuild width); the bundle carries its own.
+    """
+    dest = Path(dest)
+    record = _read_chr(chr_path)
+    cdata = record.data
+    region = bytes.fromhex(cdata["region"]["hex"])
+    if (_sha256_bytes(region) != cdata["region"]["sha256"] or
+            record.attestation.get("response_sha256") != cdata["region"]["sha256"]):
+        raise GenomeBoundingError(
+            "genome_import: chromosome region integrity bound failed — the .chr's "
+            "region does not hash to its attested response_sha256 (a flipped byte)"
+        )
+    one_block = bytes.fromhex(cdata["the_one"]["hex"])
+    if _sha256_bytes(one_block) != cdata["the_one"]["sha256"]:
+        raise GenomeBoundingError(
+            "genome_import: the_one integrity bound failed in the .chr (stored hex "
+            "does not hash to the_one.sha256)"
+        )
+    leaf_dim = int(cdata["leaf_dim"])
+    label = cdata["label"]
+    one = _hv_from_block(one_block)
+    body_path = dest / _BODY_NAME
+    if not body_path.exists():
+        # SEED a fresh genome — the region IS the whole body (byte-for-byte).
+        dest.mkdir(parents=True, exist_ok=True)
+        strand = [
+            _hv_from_block(region[k:k + leaf_dim])
+            for k in range(0, len(region), leaf_dim)
+        ]
+        return genome_save(strand, dest, one)
+    # APPEND into the existing genome — same coupling invariant + fresh label.
+    dest_data = _catalog_data(dest, the_one if the_one is not None else one)
+    if int(dest_data["leaf_dim"]) != leaf_dim:
+        raise GenomeBoundingError(
+            f"genome_import: dest leaf_dim {dest_data['leaf_dim']} != .chr leaf_dim "
+            f"{leaf_dim}"
+        )
+    if dest_data["the_one"]["sha256"] != cdata["the_one"]["sha256"]:
+        raise GenomeBoundingError(
+            "genome_import: the_one mismatch — the chromosome is coupled to a "
+            "different invariant than the dest genome (re-couple before importing)"
+        )
+    if any(c["label"] == label for c in dest_data["chromosomes"]):
+        raise ValueError(
+            f"genome_import: chromosome {label!r} already exists in the dest genome"
+        )
+    dest_body = body_path.read_bytes()
+    _verify_body_hash(dest_body, dest_data["body_sha256"])   # bound before grow
+    return _write_body_and_manifest(dest, dest_body + region, leaf_dim, one)

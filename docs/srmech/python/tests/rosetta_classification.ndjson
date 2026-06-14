@@ -399,6 +399,8 @@
 {"exposed_as": "srmech.amsc.genome.genome_genes", "defined_at": "srmech.amsc.genome.genome_genes", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.genome_remove", "defined_at": "srmech.amsc.genome.genome_remove", "bucket": "non_compute"}
 {"exposed_as": "srmech.amsc.genome.genome_replace", "defined_at": "srmech.amsc.genome.genome_replace", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.genome.genome_export", "defined_at": "srmech.amsc.genome.genome_export", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.genome.genome_import", "defined_at": "srmech.amsc.genome.genome_import", "bucket": "non_compute"}
 {"exposed_as": "srmech.amsc.laplacian.mat_norm", "defined_at": "srmech.amsc.laplacian.mat_norm", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.mat_dot", "defined_at": "srmech.amsc.laplacian.mat_dot", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.mat_matvec", "defined_at": "srmech.amsc.laplacian.mat_matvec", "bucket": "composition_of_c"}
