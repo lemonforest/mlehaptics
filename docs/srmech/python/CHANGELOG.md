@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc148] - 2026-06-14
+
+**§43 file-management — the chromosome as a single bundleable, MPR-attested `.chr` file (UPSTREAM GENOMEPLAN Stage 2).** Now that §44 made the strand self-describing and §45 made it editable in place, a chromosome can be EXPORTED as one self-contained, content-addressed file, shipped, and re-IMPORTED into a genome self-verifying — the "tar one chromosome, ship it" goal. This is the Stage 2 keystone (export/import); explode/pack + the AMSC catalog/descriptor compose follow.
+
+- **New `genome_export(path, label, out, *, the_one=None)`** — reads the chromosome's fixed-width region (CHROM cap + coupled data turns; the cap re-hashed against the manifest `cap_sha256`) and writes it — with `the_one` — to `out` as ONE MPR record (MPR v1; `response_sha256` IS the region hash). **Composes `srmech.amsc.format`** (the `MPRRecord` + `sha256_bytes` content-address) — NOT a parallel attestation. `ValueError` on a missing label; `the_one=` exports from a manifest-less source (§44).
+- **New `genome_import(chr_path, dest, *, the_one=None)`** — reads the `.chr`, RE-HASHES its region and `the_one` against the bundle's own attestation (self-verifying — a flipped byte is a `GenomeBoundingError`). If `dest` has no genome yet the `.chr` SEEDS a fresh one (its region becomes `turns.bin` verbatim); if `dest` already holds a genome the chromosome is APPENDED byte-for-byte — which REQUIRES the same coupling invariant (`the_one` match) and a fresh label. The manifest is re-derived by scanning the grown body (§44).
+- A `.chr` is byte-stable (the canonical `json.dumps(sort_keys=True, ensure_ascii=False)` + LF the manifest uses) and round-trips byte-identically: the seeded/appended `turns.bin` equals the exported region verbatim.
+- **Regression-pinned** (`tests/test_genome_chr_bundle_rc148.py`, 8 cases): the `.chr` is a valid MPR-v1 record tagged as a chromosome bundle with `response_sha256 == region hash`; export→import SEEDS a byte-identical genome; export→import APPENDS byte-for-byte (same `the_one`); a tampered region self-verifies to `GenomeBoundingError`; the `the_one`-mismatch + duplicate-label guards; manifest-less export. numpy-free.
+- **Two new public callables** (`genome_export` / `genome_import`, `non_compute` Rosetta bucket): `describe()["tools"]["total"]` **295 → 297** (2 ToolEntries + 2 Rosetta-ledger rows + 7 count-tests bumped). ABI stays **3**, numpy-free. C 1:1 mirror + `genome_explode`/`genome_pack` (loose↔packed) + the AMSC `catalog.register_attested_root` compose are the planned §43 follow-ups. 5 SSOT bumped.
+
 ## [0.7.5rc147] - 2026-06-14
 
 **§45 in-place genome edit — C 1:1 mirror of the rc146 `genome_remove` / `genome_replace`.** rc146 made the PYTHON in-place edits a pure byte-splice on the §44 self-describing body; this brings the C surface to parity so the on-disk `turns.bin` + `manifest.json` are byte-identical whether the edit ran in Python or C.
