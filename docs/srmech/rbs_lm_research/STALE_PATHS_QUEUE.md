@@ -758,3 +758,12 @@ Per user direction ("check stale queue items to bring forward and do if remainin
 - AUDIT (#5): 256 was srmech's MAX_NATIVE_NODES Class-L bound — now LIFTED (n=300 eigendecomposes fine); nothing re-capped; enwiki_kernel_256.json is just the STALE pre-uncap encode. Full 1.77M vocab dense = impossible (3e12 cells) -> F690 bucketed/sparse; "uncapped" = thousands dense.
 - CLARIFY (#3): wiki kernel = words + co-occurrence RELATIONSHIPS (relational knowing); NOT definitions. A full-vocab DICTIONARY (Wiktionary, CC) is the separate definitional kernel. They compose.
 - ORDER: c done -> recommend a-lite (re-encode richer vocab, now uncapped, dense-feasible) -> b (wire bookshelf into Siona) -> a-full (F690 bucketed) + dictionary. See F747.
+
+### F747 add-on — loop-tome near:far at NT=11/14/16 on simplewiki (user: "what does the loop tome look like capped at 11") (2026-06-14)
+
+- R-RBS-LM-NEARFAR sweep on simplewiki_kernel_256 (reuses TOMECMP; add-on, did NOT interrupt the running uncapped encode):
+  NT=11: near 88% / far 11% / near:far 8.0 / 10-11 tomes / ODD (live-frustrated mirror, F544)
+  NT=14: near 86% / far 13% / near:far 6.5 / 12-14 / even (static antipode)
+  NT=16: near 84% / far 16% / near:far 5.4 / 13-16 / even
+- MONOTONE: fewer tomes -> tighter locality (wider arc/tome). NT=11 = most local (near:far 8.0) AND odd -> live/frustrated mirror (no antipode pairs; chirality never lands, F516/F540). 11 = the 11D observer-frame count = tightest-recall + live-chiral simultaneously. The F540 14-vs-16 split (TIED on census-heavy enwiki-256, F747) shows CLEARLY on simplewiki.
+- Honest: on the OLD capped simplewiki_256; re-check NT=11 on a LOAD-TIME top-N from the uncapped kernel (F748) once it lands.
