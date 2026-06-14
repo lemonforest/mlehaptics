@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc146"
-#define SRMECH_VERSION       "0.7.5rc146"
+#define SRMECH_VERSION_PRE   "rc147"
+#define SRMECH_VERSION       "0.7.5rc147"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2119,6 +2119,59 @@ srmech_status_t srmech_genome_window(
  *                           prior body bound failed, or malformed manifest.
  */
 srmech_status_t srmech_genome_append(
+    const char *dir, const char *label,
+    const unsigned char *region, size_t region_len, uint32_t leaf_dim,
+    const unsigned char *the_one, size_t the_one_len,
+    void *ws, size_t ws_len);
+
+/* §45 IN-PLACE EDIT — biology excises, it does not re-synthesize. With the §44
+ * self-describing body an edit is a pure BYTE splice on turns.bin (no kernel is
+ * decoded / re-coupled — the surviving chromosomes' coupled bytes stay
+ * byte-identical, only relocated). The spliced body is committed via
+ * srmech_genome_save, which re-derives the manifest by scanning it, so the
+ * on-disk turns.bin + manifest.json are byte-identical to the Python
+ * genome_remove / genome_replace output. Like APPEND (a write op), `the_one` is
+ * REQUIRED (srmech_genome_save needs it for the manifest the_one hash+hex) and
+ * the_one_len IS leaf_dim. The whole body is re-hashed against the committed
+ * body_sha256 BEFORE the edit (the GenomeBoundingError analogue). */
+
+/* REMOVE: excise chromosome `label` IN PLACE — find its region in the
+ * self-describing body, splice the [byte_offset, byte_offset+byte_len) span out
+ * of turns.bin, and rewrite manifest.json (DERIVED by scanning the spliced
+ * body). Mirrors the Python genome_remove. the_one_len MUST equal the stored
+ * leaf_dim.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — dir / label / the_one / ws is NULL.
+ *   SRMECH_ERR_IO          — turns.bin / manifest.json I/O failed.
+ *   SRMECH_ERR_OVERFLOW    — ws too small, or body exceeds the scratch.
+ *   SRMECH_ERR_BAD_INPUT   — the_one_len 0 / > 256 or != stored leaf_dim, label
+ *                           absent, `label` is the genome's ONLY chromosome,
+ *                           prior body bound failed, or malformed manifest.
+ */
+srmech_status_t srmech_genome_remove(
+    const char *dir, const char *label,
+    const unsigned char *the_one, size_t the_one_len,
+    void *ws, size_t ws_len);
+
+/* REPLACE: swap chromosome `label`'s content IN PLACE — splice its old span out
+ * of turns.bin and `region` (region_len bytes = a fresh telomere-capped
+ * chromosome's cap block + data turns, all leaf_dim-byte blocks) IN at the same
+ * position, then rewrite manifest.json (DERIVED by scanning the new body). Every
+ * OTHER chromosome's body bytes stay byte-identical. Mirrors the Python
+ * genome_replace (whose `leaves` are coupled into the region by the caller).
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — dir / label / region(when region_len>0) / the_one /
+ *                           ws is NULL.
+ *   SRMECH_ERR_IO          — turns.bin / manifest.json I/O failed.
+ *   SRMECH_ERR_OVERFLOW    — ws too small, or the new body exceeds the scratch.
+ *   SRMECH_ERR_BAD_INPUT   — leaf_dim 0 / the_one_len != leaf_dim / != stored
+ *                           leaf_dim, region_len not a whole multiple of
+ *                           leaf_dim, label absent, prior body bound failed, or
+ *                           malformed manifest.
+ */
+srmech_status_t srmech_genome_replace(
     const char *dir, const char *label,
     const unsigned char *region, size_t region_len, uint32_t leaf_dim,
     const unsigned char *the_one, size_t the_one_len,

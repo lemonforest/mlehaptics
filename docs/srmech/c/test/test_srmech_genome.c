@@ -281,6 +281,92 @@ int main(void)
                    "append re-wrote the .fai cache (n_turns 6 -> 8)");
     }
 
+    /* §45 (rc147): IN-PLACE EDIT — biology excises, it does not re-synthesize.
+     * An edit is a pure BYTE splice on the self-describing body; the survivors'
+     * coupled bytes stay byte-identical (only relocated). */
+    {
+        /* clean 2-chromosome body (A + B). */
+        st = srmech_genome_save(dir, body, sizeof(body), leaf_dim,
+                                the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_OK, "re-save clean A+B for the §45 section");
+
+        /* REMOVE the FIRST chromosome 'A' (16 bytes) — B slides to the front. */
+        st = srmech_genome_remove(dir, "A", the_one, sizeof(the_one),
+                                  g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_OK, "genome_remove('A') OK");
+        {
+            unsigned char out[64];
+            size_t olen = 0u;
+            st = srmech_genome_load(dir, out, sizeof(out), &olen,
+                                    NULL, 0u, g_ws, sizeof(g_ws));
+            /* the new body == the original B region (last 8 bytes), VERBATIM. */
+            check_true(st == SRMECH_OK && olen == 8u &&
+                       memcmp(out, body + 16, 8u) == 0,
+                       "remove('A') is a pure byte splice (B verbatim, relocated)");
+            st = srmech_genome_window(dir, "B", out, sizeof(out), &olen,
+                                      NULL, 0u, g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_OK && olen == 8u, "window('B') after remove OK");
+            st = srmech_genome_window(dir, "A", out, sizeof(out), &olen,
+                                      NULL, 0u, g_ws, sizeof(g_ws));
+            check_true(st != SRMECH_OK, "window('A') gone after remove");
+        }
+
+        /* REMOVE the only chromosome -> BAD_INPUT (a genome keeps >= 1). */
+        st = srmech_genome_remove(dir, "B", the_one, sizeof(the_one),
+                                  g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_ERR_BAD_INPUT, "remove the only chromosome rejected");
+        /* REMOVE a missing label -> BAD_INPUT. */
+        st = srmech_genome_remove(dir, "nope", the_one, sizeof(the_one),
+                                  g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_ERR_BAD_INPUT, "remove('nope') rejected");
+
+        /* REPLACE: re-save A+B, then replace 'B' (8 bytes) with a fresh region
+         * (CHROM cap 'B' + 2 turns = 3 blocks = 12 bytes). A stays byte-identical. */
+        st = srmech_genome_save(dir, body, sizeof(body), leaf_dim,
+                                the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_OK, "re-save A+B for the replace case");
+        {
+            unsigned char nregion[12] = {
+                /* B CHROM cap */ CC, (unsigned char)'B', 0u, 0u,
+                /* B turn0     */ 2u, 0u, 1u, 3u,
+                /* B turn1     */ 1u, 3u, 2u, 0u,
+            };
+            unsigned char out[64];
+            size_t olen = 0u;
+            st = srmech_genome_replace(dir, "B", nregion, sizeof(nregion),
+                                       leaf_dim, the_one, sizeof(the_one),
+                                       g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_OK, "genome_replace('B') OK");
+            st = srmech_genome_load(dir, out, sizeof(out), &olen,
+                                    NULL, 0u, g_ws, sizeof(g_ws));
+            /* new body == A's original 16 bytes (untouched) + the 12-byte region. */
+            check_true(st == SRMECH_OK && olen == 28u &&
+                       memcmp(out, body, 16u) == 0 &&
+                       memcmp(out + 16, nregion, 12u) == 0,
+                       "replace('B') splices in place (A verbatim + new B)");
+            st = srmech_genome_window(dir, "B", out, sizeof(out), &olen,
+                                      NULL, 0u, g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_OK && olen == 12u, "window('B') == new region");
+        }
+
+        /* CORRUPT-body integrity bound fires BEFORE an in-place edit. */
+        {
+            char body_path[1200];
+            snprintf(body_path, sizeof(body_path), "%s/turns.bin", dir);
+            FILE *f = fopen(body_path, "r+b");
+            check_true(f != NULL, "open turns.bin to flip a byte");
+            if (f != NULL) {
+                int c = fgetc(f);
+                if (fseek(f, 0L, SEEK_SET) == 0) { fputc(c ^ 0x01, f); }
+                fclose(f);
+            }
+            st = srmech_genome_remove(dir, "A", the_one, sizeof(the_one),
+                                      g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_ERR_BAD_INPUT,
+                       "remove on a corrupt body -> BAD_INPUT (bound fires)");
+        }
+    }
+
     printf("== %d passed, %d failed ==\n", g_passed, g_failed);
     return (g_failed == 0) ? 0 : 1;
 }
