@@ -63,6 +63,11 @@ ERA_ALIASES = {"dict-en-1600": "archaic old olde historical antiquity century 16
 ARCHAIC_RE = re.compile(r"\b(1[0-8]\d{2}s?|archaic|olde?|historical|antiquity|centur\w*)\b")  # era signal (raw prompt)
 WALK_STEPS = 5                               # forward-etak hops past the input landmarks
 LANDMARK_WEIGHT = 3.0                        # convergence stays anchored to the query frame, not the walk's drift
+# a section whose rendered text is notebook-MAINTENANCE (sweep/cite/appendix/milestone prose, not framework content)
+# is demoted as an answer-landing — that prose reads as "fractured" and is about the document, not the subject.
+MAINTENANCE_RE = re.compile(r"swept|back-?sweep|breadcrumb|closeout|how to cite|regenerat|milestone|queued|lagged"
+                            r"|cross-?referenc|landed-where|roadmap|open thread", re.I)
+MAINT_PENALTY = 0.15
 
 
 def parse_sections(path, cap=48, maxchars=700):
@@ -150,6 +155,7 @@ class SionaGenepool:
             for i in st:
                 self.df[i] += 1
         self.ndocs = len(docs)
+        self.maint = [bool(MAINTENANCE_RE.search(self._text[k])) for k in self.keys]   # demote maintenance prose
 
     def _idf(self, i):                                        # rarer term = sharper landmark (Class-N corpus ratio)
         return self.ndocs / (1.0 + self.df[i])
@@ -185,6 +191,8 @@ class SionaGenepool:
         for idx, (kernel, key) in enumerate(self.keys):
             score = (sum(self._idf(t) for t in (self.sec[idx] & lmset)) * LANDMARK_WEIGHT     # the query frame
                      + sum(self._idf(t) for t in (self.sec[idx] & walk)))                     # walked context
+            if self.maint[idx]:
+                score *= MAINT_PENALTY                        # maintenance prose is not a good answer landing
             if score > 0:
                 ranked.append((score, self._modern_pref(kernel), idx))
         ranked.sort(reverse=True)
