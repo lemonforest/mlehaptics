@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc144"
-#define SRMECH_VERSION       "0.7.5rc144"
+#define SRMECH_VERSION_PRE   "rc145"
+#define SRMECH_VERSION       "0.7.5rc145"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2035,53 +2035,68 @@ srmech_status_t srmech_genome_save(
     const unsigned char *the_one, size_t the_one_len,
     void *ws, size_t ws_len);
 
-/* CATALOG: parse <dir>/manifest.json ONLY (never opens turns.bin) into a
- * JSON value tree allocated from the caller arena `ws`. On success
- * *out_manifest points at the parsed root object (the full MPRRecord; its
- * "data" child is the catalog). Use srmech_json_object_get to walk it.
+/* CATALOG: obtain the manifest catalog as a JSON value tree from the caller
+ * arena `ws`. When <dir>/manifest.json is PRESENT this parses it ONLY (never
+ * opens turns.bin) — the cheap catalog read. §44: when it is ABSENT the catalog
+ * is REBUILT by scanning the self-describing turns.bin (the strand is the SSoT,
+ * the manifest an optional .fai cache); that rebuild needs `the_one`
+ * (the_one_len IS the leaf width). On success *out_manifest points at the root
+ * object (the full MPRRecord; its "data" child is the catalog).
+ * Pass the_one=NULL,the_one_len=0 when a manifest is known to be present.
  *
  * Error returns:
  *   SRMECH_ERR_NULL_ARG   — dir / ws / out_manifest is NULL.
- *   SRMECH_ERR_IO          — manifest.json could not be opened / read.
- *   SRMECH_ERR_OVERFLOW    — the manifest or its parse tree exceeds ws.
- *   SRMECH_ERR_BAD_INPUT   — manifest.json is malformed JSON.
+ *   SRMECH_ERR_IO          — turns.bin could not be opened / read on rebuild.
+ *   SRMECH_ERR_OVERFLOW    — the manifest or its tree exceeds ws / turns.bin
+ *                           exceeds the rebuild scratch.
+ *   SRMECH_ERR_BAD_INPUT   — manifest.json is malformed JSON, OR it is absent
+ *                           and no the_one was supplied (cannot scan).
  */
 srmech_status_t srmech_genome_catalog(
-    const char *dir, void *ws, size_t ws_len,
-    srmech_json_value_t **out_manifest);
+    const char *dir, const unsigned char *the_one, size_t the_one_len,
+    void *ws, size_t ws_len, srmech_json_value_t **out_manifest);
 
 /* LOAD: read <dir>/turns.bin into `out` (capacity out_cap bytes), re-hash
  * the whole body and compare its hex against the manifest's
  * data.body_sha256. On a mismatch returns SRMECH_ERR_BAD_INPUT (the
- * GenomeBoundingError analogue). *out_len receives the body length.
+ * GenomeBoundingError analogue). *out_len receives the body length. §44: when
+ * manifest.json is absent the catalog is rebuilt by scanning turns.bin, which
+ * needs `the_one` (the_one_len IS the leaf width); pass the_one=NULL,0 when a
+ * manifest is present.
  *
  * Error returns:
  *   SRMECH_ERR_NULL_ARG   — dir / out / out_len / ws is NULL.
- *   SRMECH_ERR_IO          — turns.bin / manifest.json I/O failed.
+ *   SRMECH_ERR_IO          — turns.bin I/O failed.
  *   SRMECH_ERR_OVERFLOW    — out_cap < body length, or ws too small.
  *   SRMECH_ERR_BAD_INPUT   — body hash != manifest body_sha256 (bound
- *                           failed) or the manifest is malformed.
+ *                           failed), a malformed manifest, OR no manifest and
+ *                           no the_one.
  */
 srmech_status_t srmech_genome_load(
     const char *dir, unsigned char *out, size_t out_cap, size_t *out_len,
+    const unsigned char *the_one, size_t the_one_len,
     void *ws, size_t ws_len);
 
 /* WINDOW: seek to one chromosome's byte_offset, read its byte_len bytes
  * into `out` (capacity out_cap), re-hash the leading cap block and compare
  * its hex against that chromosome's cap_sha256. On a mismatch returns
  * SRMECH_ERR_BAD_INPUT (the bounding error). *out_len receives byte_len.
- * The returned bytes include the leading cap block (the whole region).
+ * The returned bytes include the leading cap block (the whole region). §44:
+ * when manifest.json is absent the offsets are rebuilt by scanning turns.bin,
+ * which needs `the_one` (the_one_len IS the leaf width); pass the_one=NULL,0
+ * when a manifest is present.
  *
  * Error returns:
  *   SRMECH_ERR_NULL_ARG   — dir / label / out / out_len / ws is NULL.
- *   SRMECH_ERR_IO          — turns.bin / manifest.json I/O failed.
+ *   SRMECH_ERR_IO          — turns.bin I/O failed.
  *   SRMECH_ERR_OVERFLOW    — out_cap < byte_len, or ws too small.
- *   SRMECH_ERR_BAD_INPUT   — label absent, cap hash != cap_sha256, or a
- *                           malformed manifest.
+ *   SRMECH_ERR_BAD_INPUT   — label absent, cap hash != cap_sha256, a
+ *                           malformed manifest, OR no manifest and no the_one.
  */
 srmech_status_t srmech_genome_window(
     const char *dir, const char *label,
     unsigned char *out, size_t out_cap, size_t *out_len,
+    const unsigned char *the_one, size_t the_one_len,
     void *ws, size_t ws_len);
 
 /* APPEND: append one chromosome's region (`region`, region_len bytes = the
