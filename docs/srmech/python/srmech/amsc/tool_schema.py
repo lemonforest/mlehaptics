@@ -1767,9 +1767,9 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.genome.genome_catalog", owner="srmech", category="genome",
-            summary="Read ONLY the manifest catalog of a genome (UPSTREAM §41) — the cheap, body-free read. Returns the manifest data dict (leaf_dim, n_turns, body_sha256, the_one hash+hex, and per-chromosome cap_sha256 / leaf_count / byte_offset / byte_len). This NEVER opens turns.bin, so you can enumerate a genome's chromosomes, sizes, and integrity hashes without paging in any body bytes. The manifest is an MPRRecord (MPR v1) that passes validate_mpr_record (its response_sha256 IS the body hash). numpy-free.",
+            summary="Read the catalog of a genome (UPSTREAM §41 / §44). When manifest.json is present this is the cheap, body-free read — it returns the manifest data dict (leaf_dim, n_turns, body_sha256, the_one hash+hex, and per-chromosome cap_sha256 / leaf_count / byte_offset / byte_len) WITHOUT opening turns.bin. §44: when the manifest is ABSENT the catalog is REBUILT by scanning the self-describing body (the strand is the SSoT, the manifest an optional .fai cache); that rebuild needs the_one= (its length is the leaf width) and reads turns.bin once. The manifest is an MPRRecord (MPR v1) that passes validate_mpr_record (its response_sha256 IS the body hash). numpy-free.",
             parameters=(P("path", "str", True, "the genome directory written by genome_save"),),
-            returns=R("dict", "the manifest data (chromosome index + integrity hashes; no body bytes)"),
+            returns=R("dict", "the manifest data (chromosome index + integrity hashes), read from manifest.json or rebuilt by scanning turns.bin"),
         ),
         ToolEntry(
             name="srmech.amsc.genome.genome_append", owner="srmech", category="genome",

@@ -689,16 +689,84 @@ def genome_save(strand, path, the_one, labels=None) -> dict:
     return data
 
 
-def genome_catalog(path) -> dict:
-    """Read ONLY the manifest catalog of a genome at ``path`` — UPSTREAM §41.
+def _rebuild_manifest_from_body(body_bytes, leaf_dim, the_one):
+    """Reconstruct the manifest ``data`` block by SCANNING ``turns.bin`` alone — §44.
+
+    The strand is the SSoT: every manifest field (the per-chromosome ``label`` /
+    ``byte_offset`` / ``byte_len`` / ``cap_sha256`` / ``leaf_count``, the
+    ``body_sha256`` and ``n_turns``) is derivable by walking the self-describing
+    fixed-width body. ``leaf_dim`` — the block width — is the one thing the body does
+    NOT carry inline; it comes from ``the_one`` (``len(the_one)``), the genome's
+    identity key. The returned dict is byte-for-byte what :func:`genome_save` wrote
+    (same scan + spec accumulation), so a regenerated manifest is identical — that is
+    what makes ``manifest.json`` a true optional ``.fai``-style cache (drop it, ship
+    ``turns.bin`` alone, rebuild on load)."""
+    leaf_dim = int(leaf_dim)
+    if leaf_dim <= 0 or len(body_bytes) % leaf_dim != 0:
+        raise GenomeBoundingError(
+            f"genome turns.bin length {len(body_bytes)} is not a whole multiple of "
+            f"leaf_dim {leaf_dim} — cannot scan the fixed-width strand (is the_one's "
+            f"width right?)"
+        )
+    strand = [
+        _hv_from_block(body_bytes[k:k + leaf_dim])
+        for k in range(0, len(body_bytes), leaf_dim)
+    ]
+    chroms = _split_into_chromosomes(strand)          # scans inline CHROM caps
+    chrom_specs: List[Tuple[str, str, int, int, int]] = []
+    offset = 0
+    for label, blocks in chroms:
+        leaf_blocks = _leaf_blocks(blocks)
+        byte_len = sum(len(b) for b in leaf_blocks)
+        cap_sha256 = _sha256_bytes(leaf_blocks[0])
+        leaf_count = sum(1 for b in leaf_blocks if not _block_is_cap(b))
+        chrom_specs.append((label, cap_sha256, leaf_count, offset, byte_len))
+        offset += byte_len
+    one = the_one if isinstance(the_one, _HV) else _HV.from_sequence(the_one)
+    the_one_block = _leaf_blocks([one])[0]
+    return _build_manifest_data(leaf_dim, the_one_block, chrom_specs, bytes(body_bytes))
+
+
+def _catalog_data(path, the_one=None) -> dict:
+    """The manifest ``data`` for a genome at ``path`` — §44's "manifest is an
+    optional ``.fai`` cache; the strand is the SSoT".
+
+    Fast path: when ``manifest.json`` exists, read it (cheap — never opens
+    ``turns.bin``). Fallback: when it is ABSENT, REBUILD the catalog by scanning
+    ``turns.bin`` (:func:`_rebuild_manifest_from_body`) — which needs ``the_one``
+    (its length IS ``leaf_dim``, the block width the body does not carry inline), so
+    a missing-manifest load with no ``the_one=`` raises a helpful
+    :class:`GenomeBoundingError` rather than a bare ``FileNotFoundError``. So a
+    genome can be shipped as ``turns.bin`` ALONE (tar one file) and loaded with its
+    ``the_one`` — no sidecar required."""
+    path = Path(path)
+    if (path / _MANIFEST_NAME).exists():
+        return _read_manifest(path)
+    if the_one is None:
+        raise GenomeBoundingError(
+            f"genome at {str(path)!r} has no {_MANIFEST_NAME} and no the_one= was "
+            f"given: §44 makes the manifest an optional .fai cache, but rebuilding it "
+            f"by scanning {_BODY_NAME} needs the leaf width (= len(the_one)) — pass "
+            f"the genome's the_one="
+        )
+    body_bytes = (path / _BODY_NAME).read_bytes()
+    return _rebuild_manifest_from_body(body_bytes, len(list(the_one)), the_one)
+
+
+def genome_catalog(path, *, the_one=None) -> dict:
+    """Read the catalog of a genome at ``path`` — UPSTREAM §41 / §44.
 
     Returns the manifest ``data`` dict (``leaf_dim`` / ``n_turns`` /
     ``body_sha256`` / per-chromosome ``cap_sha256`` / ``leaf_count`` /
-    ``byte_offset`` / ``byte_len`` / ``the_one`` hash+hex). This NEVER opens
-    ``turns.bin`` — it is the cheap catalog read (you can enumerate a genome's
-    chromosomes, sizes, and integrity hashes without paging in any body bytes).
+    ``byte_offset`` / ``byte_len`` / ``the_one`` hash+hex). When ``manifest.json``
+    is present this is the cheap catalog read — it NEVER opens ``turns.bin`` (you can
+    enumerate a genome's chromosomes, sizes, and integrity hashes without paging in
+    any body bytes). §44: when the manifest is ABSENT, the catalog is REBUILT by
+    scanning the self-describing body (the strand is the SSoT, the manifest an
+    optional ``.fai`` cache); that rebuild needs ``the_one=`` (its length is the leaf
+    width) and reads ``turns.bin`` once.
     """
-    return _read_manifest(path)
+    return _catalog_data(path, the_one)
 
 
 def _verify_body_hash(body_bytes, expected_sha) -> None:
@@ -745,10 +813,13 @@ def genome_load(path, *, labels=None, the_one=None):
     ``cap_sha256``. The returned strand is byte-for-byte the saved strand for the
     requested chromosomes (in manifest order). ``the_one`` is rebuilt from the
     manifest's stored block (and verified against its stored hash) unless a
-    ``the_one=`` override is supplied (§44 — the manifest is an optional cache).
+    ``the_one=`` override is supplied (§44 — the manifest is an optional cache). When
+    ``manifest.json`` is ABSENT the catalog is reconstructed by scanning
+    ``turns.bin`` (§44 — the strand is the SSoT); that rebuild REQUIRES ``the_one=``
+    (its length is the leaf width), so you can load a tar of ``turns.bin`` alone.
     """
     path = Path(path)
-    data = _read_manifest(path)
+    data = _catalog_data(path, the_one)
     leaf_dim = int(data["leaf_dim"])
     body_path = path / _BODY_NAME
 
@@ -842,7 +913,7 @@ def _region_strand(region, leaf_dim) -> List["_HV"]:
     ]
 
 
-def genome_window(path, label):
+def genome_window(path, label, *, the_one=None):
     """Page in ONLY one chromosome's leaves from ``path/`` — UPSTREAM §41 / §44.
 
     Seeks to the chromosome ``label``'s ``byte_offset`` and reads only its
@@ -853,10 +924,12 @@ def genome_window(path, label):
     its inline marker (the leading CHROM cap AND any intra-chromosome GENE caps), so
     a multi-gene chromosome's window FLATTENS to its data turns (use
     :func:`genome_genes` to keep the per-gene split). The disk-paging counterpart of
-    reaching into one partition of the genome.
+    reaching into one partition of the genome. §44: when ``manifest.json`` is ABSENT
+    the offsets are reconstructed by scanning ``turns.bin`` (the strand is the SSoT);
+    pass ``the_one=`` (its length is the leaf width) for that manifest-less path.
     """
     path = Path(path)
-    data = _read_manifest(path)
+    data = _catalog_data(path, the_one)
     leaf_dim = int(data["leaf_dim"])
     by_label = {c["label"]: c for c in data["chromosomes"]}
     if label not in by_label:
@@ -889,9 +962,13 @@ def genome_genes(path, label, *, the_one=None):
         s = genome(chromosomes=[("g", [("rules", R), ("board", B)])], one)
         genome_save(s, path, one)
         genome_genes(path, "g") == [("rules", R), ("board", B)]
+
+    §44: when ``manifest.json`` is ABSENT the offsets are reconstructed by scanning
+    ``turns.bin`` (the strand is the SSoT) — ``the_one=`` is required there (and is
+    needed anyway to uncouple the genes).
     """
     path = Path(path)
-    data = _read_manifest(path)
+    data = _catalog_data(path, the_one)
     leaf_dim = int(data["leaf_dim"])
     by_label = {c["label"]: c for c in data["chromosomes"]}
     if label not in by_label:
@@ -910,7 +987,6 @@ def genome_genes(path, label, *, the_one=None):
     # §44: scan the inline gene structure — genes() skips the leading CHROM cap and
     # splits on the GENE caps, uncoupling each data turn through the_one.
     return genes(region_strand, the_one)
-    return out
 
 
 def genome_append(path, label, leaves, the_one) -> dict:
@@ -926,7 +1002,9 @@ def genome_append(path, label, leaves, the_one) -> dict:
     ``leaf_count`` / ``byte_len``) stays byte-identical.
     """
     path = Path(path)
-    data = _read_manifest(path)
+    # §44: the_one (required here anyway) supplies the leaf width, so an append
+    # works against a manifest-less genome too — the catalog is rebuilt by scanning.
+    data = _catalog_data(path, the_one)
     leaf_dim = int(data["leaf_dim"])
     if len(list(the_one)) != leaf_dim:
         raise ValueError(
