@@ -648,3 +648,9 @@ Per user direction ("check stale queue items to bring forward and do if remainin
 
 - Extended R-RBS-LM-GENOMEREAD with chromosome-LEVEL introspection: chromosome(genes=[...]) + genes() lists the gene-frames WITHIN a chromosome (intro/history/refs, round-trips exact, GENE_FRAME_TAG=71='G'). Two-level read now: genome->chromosomes (between telomeres) + chromosome->genes (gene-frames inside).
 - GAP found (UPSTREAM §43.1): genome() + disk do NOT yet accept multi-gene chromosomes — genome() re-binds each leaf via quad_turn/klein4_bind and chokes on the TLV frame bytes, so no genome->save->window->genes round-trip. Multi-gene chromosomes are in-memory only. Ask: genome(chromosomes=[(label, genes=[...])]) + genome_genes(path,label). F732.
+
+### F733 — genome diverged from biology: fixed-width == no-sidecar (UPSTREAM §44) (2026-06-14)
+
+- rc141: flat genome path GREEN (regression 49/0, genome VERIFIED, carrier 17/17). Multi-gene path is the §43.1 wiring but BROKEN: genome(chromosomes=[...]) builds composite HV elements, genome_save raises TypeError int()...not 'HV' in _split_into_chromosomes. New: genome_genes(path,label) + genome_save(...,gene_index=) — the SIDECAR direction.
+- DIAGNOSIS (F733/§44): the dev's "fixed-width" and the user's "no sidecar manifest" are the SAME ask — fixed-width records + inline fixed-width caps => arithmetic seek (index×width) + boundary-by-scan => NO offset sidecar needed. Biology has no offset table; you scan for TTAGGG/ATG/stop. ROOT CAUSE (owned): §43 scoped the gene-frame as TLV (Class B, VARIABLE-length), which forces a sidecar offset table -> rc141's gene_index.
+- FIX (§44, replaces TLV): gene boundary = fixed-width inline GENE-CAP leaf (telomere-analog), scanned for; label inline; window/genes/catalog SCAN not seek; manifest.json -> optional DERIVED faidx-style index (strand is SSoT). Fix the rc141 breakage the fixed-width way, not by extending gene_index. F733.

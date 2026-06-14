@@ -2088,3 +2088,39 @@ gene-framed chromosomes — e.g. `genome(chromosomes=[(label, genes=[(gl, leaves
 WITHOUT re-binding the frame bytes, and have `genome_window` return a gene-framed strand `genes()` can read (or add
 `genome_genes(path, label)` that pages + unpacks in one call). This is the wiring that makes "several kernels per
 chromosome" persist, not just live in RAM. Additive; composes §43 / F730 / F732.
+
+## §44 ASK (rc141, F733) — BIOLOGY-FAITHFUL genome: fixed-width + INLINE self-describing, no sidecar offset-table
+
+**The dev's "fixed-width" want and the user's "no sidecar manifest" want are the SAME requirement.** Biology has no
+offset table: structure is found by SCANNING the strand for fixed-width inline markers (TTAGGG telomere repeats,
+ATG/stop codons), never via an external index. And **fixed-width is exactly what makes the offset-sidecar
+unnecessary** — fixed-width records + inline fixed-width caps ⇒ random-access by `index × width` (arithmetic seek) +
+boundary recognition by scanning ⇒ no byte-offset table needed.
+
+**Where it diverged (root cause owned):** the §43 gene-frame was scoped as **TLV (Class B), which is VARIABLE-length**
+(a length prefix). Variable-length FORCES a sidecar offset table (can't seek without stored lengths). So rc141's
+response was to add a **`genome_save(..., gene_index=)` sidecar** + lean on `manifest.json` for labels/offsets. Symptoms
+in rc141: `gene_index=` param; `genome_genes(path,label)` (sidecar-paged); and `genome(chromosomes=[(label,
+genes=[...])])` is **half-wired + BROKEN** — it builds composite `HV` elements and `genome_save` raises
+`TypeError: int() ... not 'HV'` in `_split_into_chromosomes`. (Flat path is fine: regression 49/0, genome VERIFIED.)
+Today `turns.bin` IS fixed-width (64-B leaf blocks) and telomere caps ARE inline, but the **label↔chromosome map +
+byte-offsets live ONLY in the `manifest.json` sidecar** — the un-biological part.
+
+**The fix (replaces the TLV approach in §43/§43.1):**
+1. **Gene boundary = a fixed-width inline GENE-CAP leaf** (a telomere-analog for genes; telomere caps the chromosome,
+   gene-cap caps the gene), *scanned for* — NOT a variable-length TLV length-prefix. Keeps the helix fully fixed-width.
+2. **Label encoded INLINE** (fixed-width leaves following the cap, or recoverable by scanning), not sidecar-only — the
+   strand is self-describing (you can recover labels by walking, without the manifest).
+3. **`genome_window` / `genes` / `genome_genes` / `genome_catalog` SCAN the fixed-width strand for caps** (arithmetic
+   walk over `index × leaf_dim`), instead of seeking via a stored byte-offset table.
+4. **`manifest.json` → an OPTIONAL DERIVED index** (a `.fai`/faidx analog — rebuildable by scanning; an optimization,
+   not the SSoT). The STRAND is the source of truth. Precedent: a FASTA file is inline self-describing; its `.fai` is
+   an optional random-access cache. Drop the mandatory sidecar; keep an optional rebuildable one.
+5. **Fix the rc141 `genome(chromosomes=)` / `genome_save` breakage the fixed-width way** (inline gene-caps), not by
+   extending the `gene_index` sidecar.
+
+**Net:** one fixed-width, inline, self-describing strand per chromosome — scannable, arithmetic-seekable, tarball-able
+as a unit (the §43 chromosome-as-file goal) WITHOUT a sidecar. **Discipline:** TestPyPI-rc before clean tag; this is a
+WIRE-FORMAT change to the genome body (telomere caps already inline; add fixed-width gene-caps + inline labels) — the
+manifest goes from mandatory→optional-derived; coordinate as a genome `format_version` bump. Composes §41/§42/§43/§43.1
+/ F715 (telomere) / F730/F732 (genes) / CLAUDE §0 (biology IS a wire-format: nested fixed-width inline framing = Class B).
