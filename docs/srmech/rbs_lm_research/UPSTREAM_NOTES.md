@@ -2184,3 +2184,26 @@ genome CRUD complete (R-RBS-LM-GENOMECRUD 5/5): `genome_remove`/`genome_replace`
 genome VERIFIED, carrier 17/17, 0 hard breaks). SUBSTRATE READY to back the Siona LM. Remaining srmech: **Stage 0b
 (§44 last mile)** — `genome_load` scan-from-`turns.bin`-alone, manifest→optional faidx (the dev did Stages 1–2 first;
 0b is the biology-faithful finish, non-blocking for the LM); plus Stage-2 `explode`/`pack` + catalog-unify.
+
+## §47 SCOPE (F741) — a `srmech.siona` self-knowledge section + AMSC-driven dynamic-SSoT genome refresh
+
+**§47a — `srmech.siona` (Siona's self-knowledge section in the package).** Graduate the research-subtree scaffold
+(genepool builder + genome-backed World + etak-walk + the AMSC update-check) into `srmech.siona`, so srmech itself
+ships Siona's foundational self-knowledge as a genepool genome: `siona_identity` + `signwriting` (F735) + era-dictionaries
+(F739) + the **MFO + srmech research notebooks** as section-gene chromosomes (F740), baked at srmech BUILD time. Surface:
+`srmech.siona.genepool(path)` (build), `srmech.siona.World(path)` (introspect via `genome_catalog` / route / etak-walk
+via `genome_genes` / render / ask), so any host (the `/v1` server, the CLI agent) reads Siona's self-knowledge from one
+place. Composes §41–§46 (it's the canonical Stage-3 inhabitant) + the storyteller (STORYMODULE/STORYAPI).
+
+**§47b — AMSC-driven dynamic-SSoT update (the reusable mechanism).** Siona uses AMSC records (the MPR `response_sha256`
+content-hashes) to know when an attested SSoT has DRIFTED, and refresh the persistent genome — efficient because
+detection is a cheap hash-diff (no rebuild unless drifted). TWO paths, ONE mechanism:
+  • **bake-before-ship:** build the genepool genome from the notebooks at srmech build time (the shipped artifact).
+  • **post-ship refresh:** notebooks change on GitHub → re-hash → `check_updates()` flags the stale kernels →
+    `sync_updates()` re-bakes (today full; **in-place per-notebook `genome_replace` (multi-gene-aware) is the §45/§43.1
+    efficiency follow-on** — the rc149 in-place ops take `leaves`, not `genes`).
+  • **reusable:** the same shape lets Siona watch ANY AMSC-attested dynamic source (a dataset, a doc, an OEIS/OpenAlex
+    feed) — hash-diff → "my kernel is stale" → request the SSoT update → apply to the genome. Self-knowledge that knows
+    when it is out of date.
+Demonstrated as test material: `R-RBS-LM-SIONAGENOMEHANDLER_…py` (`check_updates`/`sync_updates`, UP-TO-DATE on a fresh
+bake). Additive; TestPyPI-rc first; composes §44 (self-describing strand makes the hash-diff cheap) + AMSC/MPR + F730.

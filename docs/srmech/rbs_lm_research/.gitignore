@@ -14,3 +14,4 @@ vocab_table.npy
 # R-RBS-LM-29 distill_cron.sh log directory — transient per-run logs
 # and PID tracking; do NOT commit
 log/
+.siona_genepool/

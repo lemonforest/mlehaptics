@@ -22,12 +22,17 @@ import json
 import sys
 import time
 
-# Load the F689 STORYAPI handler (the request->infer->OpenAI-shape mapping), backed by storyteller.infer.
+# Load Siona's request->answer handler. DEFAULT: the GENOME-BACKED handler (F740/F741) — reads the genepool genome
+# (identity + signwriting + era-dictionaries + MFO/srmech notebooks) and runs an AMSC update-check at import.
+# Set SIONA_BACKEND=demo for the old hardcoded STORYAPI shelf. Either exposes chat_completion(request) + WORLDS.
+import os  # noqa: E402
 sys.path.insert(0, "docs/srmech/rbs_lm_research")
-_spec = U.spec_from_file_location(
-    "storyapi",
-    "docs/srmech/rbs_lm_research/R-RBS-LM-STORYAPI_openai_compatible_endpoint_reference_ag2_copilotkit.py",
+_handler_file = (
+    "R-RBS-LM-STORYAPI_openai_compatible_endpoint_reference_ag2_copilotkit.py"
+    if os.environ.get("SIONA_BACKEND") == "demo"
+    else "R-RBS-LM-SIONAGENOMEHANDLER_v1_backed_by_genepool_plus_amsc_update_check.py"
 )
+_spec = U.spec_from_file_location("storyapi", "docs/srmech/rbs_lm_research/" + _handler_file)
 storyapi = U.module_from_spec(_spec)
 _spec.loader.exec_module(storyapi)
 
