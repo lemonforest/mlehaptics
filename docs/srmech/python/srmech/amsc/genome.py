@@ -65,6 +65,7 @@ __all__ = [
     "genome_window", "genome_genes",
     "genome_remove", "genome_replace",
     "genome_export", "genome_import",
+    "genome_explode", "genome_pack",
     "GenomeBoundingError",
     "LEAF_CAP", "QUAD", "MOBIUS_CAP",
     "CHROM_CAP_MARKER", "GENE_CAP_MARKER", "GENE_FRAME_TAG",
@@ -1366,3 +1367,75 @@ def genome_import(chr_path, dest, *, the_one=None) -> dict:
     dest_body = body_path.read_bytes()
     _verify_body_hash(dest_body, dest_data["body_sha256"])   # bound before grow
     return _write_body_and_manifest(dest, dest_body + region, leaf_dim, one)
+
+
+def genome_explode(path, out_dir, *, the_one=None) -> list:
+    """Explode a packed genome into a directory of loose ``.chr`` files — UPSTREAM §43.
+
+    The packed→loose half of git's object model: a genome's ``turns.bin`` (the
+    "packfile") is written out as ONE self-contained, content-addressed ``.chr``
+    bundle per chromosome (the "loose objects"), named ``<out_dir>/<label>.chr``.
+    Each ``.chr`` is :func:`genome_export`'s output — an MPR-attested, self-verifying
+    bundle — so the loose form is inspectable and shippable chromosome-by-chromosome.
+    :func:`genome_pack` is the inverse.
+
+    Returns a list of ``{"label", "path", "region_sha256"}`` dicts (in the genome's
+    chromosome order). ``the_one=`` explodes from a manifest-less source (§44).
+    Raises ``ValueError`` if a chromosome label is not filename-safe (would not make
+    a clean ``<label>.chr`` loose object).
+    """
+    path = Path(path)
+    out_dir = Path(out_dir)
+    data = _catalog_data(path, the_one)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    written = []
+    for entry in data["chromosomes"]:
+        label = entry["label"]
+        if "/" in label or "\\" in label or label in ("", ".", ".."):
+            raise ValueError(
+                f"genome_explode: chromosome label {label!r} is not filename-safe "
+                f"(cannot become a <label>.chr loose object)"
+            )
+        chr_path = out_dir / f"{label}.chr"
+        cdata = genome_export(path, label, chr_path, the_one=the_one)
+        written.append({
+            "label": label,
+            "path": str(chr_path),
+            "region_sha256": cdata["region"]["sha256"],
+        })
+    return written
+
+
+def genome_pack(loose_dir, dest, *, the_one=None) -> dict:
+    """Pack a directory of loose ``.chr`` files into one packed genome — UPSTREAM §43.
+
+    The loose→packed inverse of :func:`genome_explode` (git ``repack``-like). Every
+    ``*.chr`` bundle in ``loose_dir`` is :func:`genome_import`-ed into ``dest`` in
+    CANONICAL sorted-label order, so the packed ``turns.bin`` is a well-defined
+    function of the chromosome SET — like a content-addressed packfile, insertion
+    order is not preserved (a packed genome is canonicalised to sorted-label order).
+    The first import SEEDS ``dest`` (when it has no genome yet); the rest APPEND
+    byte-for-byte; all the bundles MUST share one coupling invariant (the same
+    ``the_one``) — a mismatched ``.chr`` is a :class:`GenomeBoundingError`, and a
+    duplicate label is a ``ValueError``.
+
+    A packed genome is byte-identical to its source iff the source was already in
+    canonical sorted-label order; otherwise pack re-canonicalises while preserving
+    every chromosome's bytes (round-trips by content, verifiable per-chromosome with
+    :func:`genome_window`). Returns the dest manifest ``data`` dict. ``the_one=`` is
+    only the §44 rebuild width for a manifest-less existing ``dest``.
+
+    Raises ``ValueError`` if ``loose_dir`` holds no ``.chr`` files.
+    """
+    loose_dir = Path(loose_dir)
+    dest = Path(dest)
+    chr_files = sorted(loose_dir.glob("*.chr"))
+    if not chr_files:
+        raise ValueError(f"genome_pack: no .chr files in {str(loose_dir)!r}")
+    # Canonical order: sort by the label stored INSIDE each bundle (robust to
+    # externally-named .chr files; agrees with filename order for explode output).
+    keyed = sorted((_read_chr(cf).data["label"], cf) for cf in chr_files)
+    result = None
+    for _label, cf in keyed:
+        result = genome_import(cf, dest, the_one=the_one)
+    return result
