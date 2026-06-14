@@ -1828,6 +1828,22 @@ def _register_primitive_class_tools() -> None:
                         P("the_one", "HV", False, "the held invariant (only consulted for a manifest-less EXISTING dest — the §44 rebuild width; the bundle carries its own the_one)")),
             returns=R("dict", "the dest manifest data (the seeded genome, or the existing genome with the imported chromosome appended)"),
         ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_explode", owner="srmech", category="genome",
+            summary="Explode a packed genome into a directory of loose .chr files (UPSTREAM §43; the packed->loose half of git's object model). A genome's turns.bin (the 'packfile') is written out as ONE self-contained, content-addressed .chr bundle per chromosome (the 'loose objects'), named <out_dir>/<label>.chr — each is genome_export's MPR-attested, self-verifying output, so the loose form is inspectable and shippable chromosome-by-chromosome. genome_pack is the inverse. Returns a list of {label, path, region_sha256} dicts in chromosome order. §44: pass the_one= to explode a manifest-less source. Raises ValueError if a chromosome label is not filename-safe. numpy-free.",
+            parameters=(P("path", "str", True, "the packed genome directory written by genome_save"),
+                        P("out_dir", "str", True, "the output directory for the loose <label>.chr bundles (created if absent)"),
+                        P("the_one", "HV", False, "the held invariant (only required when the source genome's manifest.json is absent — the §44 rebuild width)")),
+            returns=R("list", "a list of {label, path, region_sha256} dicts, one per chromosome (in the genome's chromosome order)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_pack", owner="srmech", category="genome",
+            summary="Pack a directory of loose .chr files into one packed genome (UPSTREAM §43; the loose->packed inverse of genome_explode, git repack-like). Every *.chr bundle in loose_dir is genome_import-ed into dest in CANONICAL sorted-label order, so the packed turns.bin is a well-defined function of the chromosome SET — like a content-addressed packfile, insertion order is NOT preserved (a packed genome is canonicalised to sorted-label order). The first import SEEDS dest (when it has no genome yet); the rest APPEND byte-for-byte; all the bundles MUST share one coupling invariant (the same the_one) — a mismatched .chr is a GenomeBoundingError, a duplicate label a ValueError. Byte-identical to the source iff the source was already in canonical sorted-label order; otherwise re-canonicalises while preserving every chromosome's bytes. Raises ValueError if loose_dir holds no .chr files. numpy-free.",
+            parameters=(P("loose_dir", "str", True, "the directory of loose .chr bundles (e.g. genome_explode's output)"),
+                        P("dest", "str", True, "the dest packed genome directory (seeded fresh if it has no genome, else appended/merged into)"),
+                        P("the_one", "HV", False, "the held invariant (only consulted for a manifest-less EXISTING dest — the §44 rebuild width; each .chr carries its own the_one)")),
+            returns=R("dict", "the dest manifest data (the assembled packed genome)"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class K — equation-of-centre / pin-slot

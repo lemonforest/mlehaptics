@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc150] - 2026-06-14
+
+**§43 file-management — loose↔packed (`genome_explode` / `genome_pack`; git's object model).** A genome's `turns.bin` (the "packfile") can now be exploded into a directory of loose, content-addressed `.chr` bundles — one per chromosome — and packed back into a single genome. Composes the rc148 `genome_export` / `genome_import` keystone; the next §43 unit is the AMSC `catalog.register_attested_root` + per-chromosome `descriptor.toml` compose.
+
+- **New `genome_explode(path, out_dir, *, the_one=None)`** — writes one self-contained, MPR-attested `.chr` bundle per chromosome to `<out_dir>/<label>.chr` (the packed→loose half, like `git unpack-objects`). Each `.chr` is `genome_export`'s self-verifying output, so the loose form is inspectable and shippable chromosome-by-chromosome. Returns a list of `{label, path, region_sha256}` dicts. `the_one=` explodes a manifest-less source (§44); `ValueError` on a non-filename-safe label.
+- **New `genome_pack(loose_dir, dest, *, the_one=None)`** — `genome_import`s every `*.chr` in `loose_dir` into `dest` in CANONICAL sorted-label order (the loose→packed inverse, like `git repack`), so the packed `turns.bin` is a well-defined function of the chromosome SET — insertion order is not preserved (a packed genome is canonicalised to sorted-label order). All bundles MUST share one coupling invariant (`the_one`); a mismatched `.chr` is a `GenomeBoundingError`, a duplicate label a `ValueError`; an empty dir a `ValueError`.
+- **Round-trip**: `genome_pack(genome_explode(G))` reproduces `G`'s `turns.bin` AND `manifest.json` **byte-identically** when `G` is already in canonical sorted-label order; for any `G`, pack re-canonicalises while preserving every chromosome's bytes (verifiable per-chromosome with `genome_window`).
+- **Regression-pinned** (`tests/test_genome_pack_explode_rc150.py`, 8 cases): explode writes one `.chr` per chromosome; explode→pack byte-identical round-trip; pack canonicalises a non-sorted genome (content-preserving); mixed-`the_one` + empty-dir + duplicate-label + unsafe-label guards; manifest-less explode; pack ignores non-`.chr` files. numpy-free.
+- **Two new public callables** (`genome_explode` / `genome_pack`, `non_compute` Rosetta bucket): `describe()["tools"]["total"]` **297 → 299** (2 ToolEntries + 2 Rosetta-ledger rows + 7 count-tests bumped). ABI stays **3**, numpy-free. The C 1:1 mirror is the planned follow-up. 5 SSOT bumped.
+
 ## [0.7.5rc149] - 2026-06-14
 
 **§43 file-management — C 1:1 mirror of the chromosome `.chr` bundle (`srmech_genome_export` / `srmech_genome_import`).** Completes the Python `genome_export` / `genome_import` (rc148) with their native peers, so the "tar one chromosome, ship it" surface is C/Python parity. GENOMEPLAN Stage 2 is now closed across both languages.
