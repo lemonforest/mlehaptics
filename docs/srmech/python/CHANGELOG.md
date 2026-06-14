@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc152] - 2026-06-14
+
+**§43 bundling↔AMSC compose — `genome_register_attested` (F729).** A genome's exploded `.chr` dir can now be registered with the AMSC catalog: each chromosome becomes its own attested source, discoverable through `list_attested_sources`. This composes the EXISTING AMSC framework — it does **not** mint a parallel attestation (F730).
+
+- **New `genome_register_attested(chr_dir, amsc_root, *, source)`** — for every `<label>.chr` in `chr_dir` (a `genome_explode` output), writes a per-chromosome `<amsc_root>/<label>/descriptor.toml` (the `literature_curated` adapter — no live fetch, NDJSON committed directly) + `row.ndjson`, then calls `srmech.amsc.catalog.register_attested_root`. After it, `srmech.amsc.catalog.list_attested_sources()` surfaces one source **per chromosome** (keyed by its label, `data_schema_id = "srmech.genome_chromosome.row.v1"`). Returns `{ok, amsc_root, source, chromosomes:[{label, source_key, descriptor_path, row_path, region_sha256}], register}`.
+- **No parallel attestation (F730).** The chromosome's OWN MPR attestation — carried in its `.chr` (`attestation.response_sha256` == the region hash) and echoed into its `row.ndjson` `region_sha256` — IS the provenance. The descriptor registers it; it does not re-hash or re-attest. The generated `descriptor.toml` validates under the AMSC `load_descriptor` contract (all six required sections + fields).
+- **Regression-pinned** (`tests/test_genome_amsc_register_rc152.py`, 5 cases): each chromosome surfaces in `list_attested_sources` (keyed by label, `literature_curated`); the generated descriptors validate under `load_descriptor`; the row's `region_sha256` IS the `.chr`'s existing `attestation.response_sha256` (composed, not re-minted); empty-dir guard; idempotent re-registration. numpy-free.
+- **One new public callable** (`genome_register_attested`, `non_compute` Rosetta bucket): `describe()["tools"]["total"]` **299 → 300** (1 ToolEntry + 1 Rosetta-ledger row + 7 count-tests bumped). Python-only (the AMSC catalog/descriptor layer is Python by scope); ABI stays **3**. 5 SSOT bumped.
+
 ## [0.7.5rc151] - 2026-06-14
 
 **§43 loose↔packed — C 1:1 mirror (`srmech_genome_explode` / `srmech_genome_pack`).** The rc150 Python loose↔packed surface now has its byte-for-byte C twin, keeping the genome C library 1:1 with Python.
