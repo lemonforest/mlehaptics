@@ -1794,6 +1794,23 @@ def _register_primitive_class_tools() -> None:
                         P("label", "str", True, "the multi-gene chromosome label whose genes to page in")),
             returns=R("list", "the chromosome's genes as a list of (gene_label, gene_leaves) tuples, in order"),
         ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_remove", owner="srmech", category="genome",
+            summary="Excise ONE chromosome from a genome IN PLACE (UPSTREAM §45) — biology excises, it does not re-synthesize. Finds the chromosome label's region in the self-describing body (§44 — its CHROM cap + data turns occupy [byte_offset, byte_offset+byte_len)) and splices THAT byte span out of turns.bin, leaving every OTHER chromosome's coupled body bytes byte-identical (no kernel is decoded / re-coupled — the survivors are the same bytes, only relocated). The derived .fai manifest is then rebuilt by scanning the spliced body (§44 — body_sha256 / n_turns and every survivor's byte_offset recomputed; the manifest stays an optional cache). Re-hashes the whole on-disk body against the committed body_sha256 BEFORE the edit (never splice a corrupt body — GenomeBoundingError). the_one= is needed only when manifest.json is absent (its length is the leaf width for the rebuild-by-scan). Raises ValueError if the label is absent or is the genome's only chromosome. numpy-free.",
+            parameters=(P("path", "str", True, "the genome directory written by genome_save"),
+                        P("label", "str", True, "the chromosome label to excise (must not be the genome's only chromosome)"),
+                        P("the_one", "HV", False, "the held invariant (only required when manifest.json is absent — its length is the leaf width for the §44 rebuild-by-scan)")),
+            returns=R("dict", "the updated manifest data (the excised chromosome gone, survivors' byte_offsets + body_sha256 recomputed)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_replace", owner="srmech", category="genome",
+            summary="Replace ONE chromosome's content IN PLACE (UPSTREAM §45). Splices the chromosome label's old byte span out of turns.bin and a FRESH telomere-capped chromosome (leaves coupled through the_one, same label) IN at the same position — every OTHER chromosome's coupled body bytes stay byte-identical (an in-place edit, NOT a whole-genome re-pack). The derived manifest is rebuilt by scanning the new body (§44 — the strand is the SSoT). the_one is REQUIRED (it both re-couples the new leaves AND supplies the leaf width for the §44 rebuild) and must match the genome's leaf_dim. Re-hashes the on-disk body against body_sha256 before the edit (GenomeBoundingError on mismatch). Raises ValueError if the label is absent. numpy-free.",
+            parameters=(P("path", "str", True, "the genome directory written by genome_save"),
+                        P("label", "str", True, "the chromosome label whose content to replace"),
+                        P("leaves", "Sequence[HV]", True, "the replacement kernel's Klein-4 leaf vectors"),
+                        P("the_one", "HV", True, "the held invariant the new turns are coupled through (dim must match leaf_dim)")),
+            returns=R("dict", "the updated manifest data (the chromosome's content replaced in place, body_sha256 recomputed)"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class K — equation-of-centre / pin-slot

@@ -63,6 +63,7 @@ __all__ = [
     "genome", "partition",
     "genome_save", "genome_load", "genome_catalog", "genome_append",
     "genome_window", "genome_genes",
+    "genome_remove", "genome_replace",
     "GenomeBoundingError",
     "LEAF_CAP", "QUAD", "MOBIUS_CAP",
     "CHROM_CAP_MARKER", "GENE_CAP_MARKER", "GENE_FRAME_TAG",
@@ -1054,3 +1055,107 @@ def genome_append(path, label, leaves, the_one) -> dict:
     record = _manifest_record(new_data)
     _write_manifest(path, record)
     return new_data
+
+
+def _write_body_and_manifest(path, body_bytes, leaf_dim, the_one) -> dict:
+    """Commit a spliced body to ``turns.bin`` + re-derive its ``.fai`` manifest — §44/§45.
+
+    The shared write-path for the in-place edits (:func:`genome_remove` /
+    :func:`genome_replace`): the genome's chromosomes have already been excised /
+    replaced at the BYTE level (no kernel is decoded or re-coupled — biology excises,
+    it does not re-synthesize), so all that is left is to commit the new ``body_bytes``
+    and rebuild the DERIVED manifest by SCANNING it (§44 — the strand is the SSoT). The
+    rebuild (:func:`_rebuild_manifest_from_body`) runs FIRST so a bad splice raises
+    before either file is touched; the returned ``data`` dict is byte-for-byte what
+    :func:`genome_save` would write for the same body."""
+    leaf_dim = int(leaf_dim)
+    body_bytes = bytes(body_bytes)
+    # §44: rebuild-by-scan validates the splice (whole multiple of leaf_dim, cap-led
+    # regions) BEFORE anything is written — a corrupt edit never lands on disk.
+    data = _rebuild_manifest_from_body(body_bytes, leaf_dim, the_one)
+    (Path(path) / _BODY_NAME).write_bytes(body_bytes)
+    _write_manifest(path, _manifest_record(data))
+    return data
+
+
+def genome_remove(path, label, *, the_one=None) -> dict:
+    """Excise ONE chromosome from a genome IN PLACE — UPSTREAM §45.
+
+    Biology excises; it does not re-synthesize. Finds the chromosome ``label``'s region
+    in the self-describing body (§44 — its CHROM cap + data turns occupy
+    ``[byte_offset, byte_offset + byte_len)``), splices THAT byte span out of
+    ``turns.bin``, and leaves every OTHER chromosome's coupled body bytes byte-identical
+    (no kernel is decoded / re-coupled — the surviving turns are the same bytes, only
+    relocated). The derived ``.fai`` manifest is rebuilt by scanning the spliced body
+    (§44 — ``body_sha256`` / ``n_turns`` and every survivor's ``byte_offset`` are
+    recomputed; the manifest stays an optional cache). Returns the updated manifest
+    ``data`` dict.
+
+    The whole on-disk body is re-hashed against the committed ``body_sha256`` BEFORE the
+    edit (never splice a corrupt body — a :class:`GenomeBoundingError`). ``the_one`` is
+    needed only when ``manifest.json`` is ABSENT (§44 — its length is the leaf width for
+    the rebuild-by-scan); with the manifest present it may be omitted. Raises
+    ``ValueError`` if ``label`` is not in the genome, or if it is the genome's ONLY
+    chromosome (a genome keeps >= 1 chromosome — remove the directory instead).
+    """
+    path = Path(path)
+    data = _catalog_data(path, the_one)
+    leaf_dim = int(data["leaf_dim"])
+    chrom_entries = list(data["chromosomes"])
+    by_label = {c["label"]: c for c in chrom_entries}
+    if label not in by_label:
+        raise ValueError(
+            f"genome_remove: label {label!r} not in the genome "
+            f"(have {list(by_label)!r})"
+        )
+    if len(chrom_entries) == 1:
+        raise ValueError(
+            f"genome_remove: {label!r} is the genome's only chromosome — a genome "
+            f"keeps >= 1 chromosome; remove the genome directory instead"
+        )
+    entry = by_label[label]
+    off, byte_len = int(entry["byte_offset"]), int(entry["byte_len"])
+    body = (path / _BODY_NAME).read_bytes()
+    _verify_body_hash(body, data["body_sha256"])         # integrity bound before edit
+    new_body = body[:off] + body[off + byte_len:]        # splice the span out in place
+    one = _resolve_the_one(data, the_one)
+    return _write_body_and_manifest(path, new_body, leaf_dim, one)
+
+
+def genome_replace(path, label, leaves, the_one) -> dict:
+    """Replace ONE chromosome's content IN PLACE — UPSTREAM §45.
+
+    Splices the chromosome ``label``'s old byte span out of ``turns.bin`` and a FRESH
+    telomere-capped :func:`chromosome` (``leaves`` coupled through ``the_one``, same
+    ``label``) IN at the same position — every OTHER chromosome's coupled body bytes
+    stay byte-identical (an in-place edit, NOT a whole-genome re-pack). The derived
+    manifest is rebuilt by scanning the new body (§44 — the strand is the SSoT). Returns
+    the updated manifest ``data`` dict.
+
+    ``the_one`` is REQUIRED here — it both re-couples the new ``leaves`` into the
+    chromosome AND supplies the leaf width for the §44 rebuild — and must match the
+    genome's ``leaf_dim``. The on-disk body is re-hashed against the committed
+    ``body_sha256`` before the edit (a :class:`GenomeBoundingError` on mismatch). Raises
+    ``ValueError`` if ``label`` is not in the genome.
+    """
+    path = Path(path)
+    data = _catalog_data(path, the_one)
+    leaf_dim = int(data["leaf_dim"])
+    if len(list(the_one)) != leaf_dim:
+        raise ValueError(
+            f"genome_replace: the_one dim {len(list(the_one))} != genome leaf_dim "
+            f"{leaf_dim}"
+        )
+    by_label = {c["label"]: c for c in data["chromosomes"]}
+    if label not in by_label:
+        raise ValueError(
+            f"genome_replace: label {label!r} not in the genome "
+            f"(have {list(by_label)!r})"
+        )
+    entry = by_label[label]
+    off, byte_len = int(entry["byte_offset"]), int(entry["byte_len"])
+    body = (path / _BODY_NAME).read_bytes()
+    _verify_body_hash(body, data["body_sha256"])         # integrity bound before edit
+    new_region = b"".join(_leaf_blocks(chromosome(leaves, the_one, label=label)))
+    new_body = body[:off] + new_region + body[off + byte_len:]
+    return _write_body_and_manifest(path, new_body, leaf_dim, the_one)
