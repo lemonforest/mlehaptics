@@ -1751,11 +1751,11 @@ def _register_primitive_class_tools() -> None:
         # ────────────────────────────────────────────────────────────
         ToolEntry(
             name="srmech.amsc.genome.genome_save", owner="srmech", category="genome",
-            summary="Persist a genome strand to a directory (UPSTREAM §41). Splits the flat strand into its telomere-delimited chromosomes (by labels, the way partition does), writes a FIXED-WIDTH append-only body to path/turns.bin (every strand element — a cap or a coupled turn — is a leaf_dim-byte Klein-4 block, values 0..3, no length prefixes), and writes an MPR-attested catalog to path/manifest.json (format_version, leaf_dim, n_turns, the_one hash+hex, body_sha256, and per-chromosome cap_sha256 / leaf_count / byte_offset / byte_len). the_one (the held invariant) is content-addressed into the manifest so a load re-anchors without re-deriving it. Returns the manifest data dict. numpy-free; hashes via sha256_bytes.",
+            summary="Persist a genome strand to a directory (UPSTREAM §41 / §44). SCANS the strand for its inline CHROM caps (§44 — the strand self-describes; chromosome labels are recovered inline), writes a SELF-DESCRIBING fixed-width body to path/turns.bin (every strand element is a leaf_dim-byte block — a CHROM/GENE cap or a coupled data turn — no length prefixes), and writes a DERIVED MPR-attested catalog to path/manifest.json (format_version, leaf_dim, n_turns, the_one hash+hex, body_sha256, and per-chromosome cap_sha256 / leaf_count / byte_offset / byte_len). The strand is the SSoT; the manifest is an optional .fai-style cache, rebuildable by scanning the body. Multi-gene chromosomes carry their gene boundaries INLINE as GENE caps (no gene-index sidecar). the_one (the held invariant) is content-addressed into the manifest so a load re-anchors without re-deriving it. Returns the manifest data dict. numpy-free; hashes via sha256_bytes.",
             parameters=(P("strand", "Sequence[HV]", True, "the flat genome strand to persist (from genome)"),
                         P("path", "str", True, "the genome DIRECTORY to write (created if absent; gets manifest.json + turns.bin)"),
                         P("the_one", "HV", True, "the held invariant every turn is coupled through (content-addressed into the manifest)"),
-                        P("labels", "list", True, "the chromosome labels whose telomere caps delimit the strand")),
+                        P("labels", "list", False, "optional, back-compat; when given VALIDATES the scanned chromosome set (labels are discovered inline)")),
             returns=R("dict", "the manifest data {format_version, leaf_dim, n_turns, the_one, body_sha256, chromosomes}"),
         ),
         ToolEntry(
@@ -1789,8 +1789,8 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.genome.genome_genes", owner="srmech", category="genome",
-            summary="Page ONE multi-gene chromosome's genes back from a genome (F732 / UPSTREAM §43.1) — the disk counterpart of the in-memory genes(). Reads the manifest's per-chromosome gene index (the optional genes field written by genome_save with gene_index=), pages in only that chromosome's window (genome_window, RAM-bounded + cap-integrity-checked), uncouples each stored turn through the_one (rebuilt + hash-verified from the manifest), and slices the leaves by the index into a list of (gene_label, gene_leaves) — exactly what genes(chromosome(genes=…)) returns in memory. Raises ValueError on a single-kernel chromosome (no gene index) and GenomeBoundingError if the index disagrees with the paged turns. numpy-free.",
-            parameters=(P("path", "str", True, "the genome directory written by genome_save (with gene_index=)"),
+            summary="Page ONE multi-gene chromosome's genes back from a genome (F732 / UPSTREAM §44) — the disk counterpart of the in-memory genes(). Pages in only that chromosome's region (RAM-bounded + cap-integrity-checked), then SCANS it for the inline GENE caps (§44 — no gene-index sidecar; the gene boundaries + labels live in the body) and re-binds the_one (rebuilt + hash-verified from the manifest cache, or a the_one override) to recover a list of (gene_label, gene_leaves) — exactly what genes(chromosome(genes=…)) returns in memory. Raises ValueError on a single-kernel chromosome (no inline GENE caps; use genome_window / partition). numpy-free.",
+            parameters=(P("path", "str", True, "the genome directory written by genome_save"),
                         P("label", "str", True, "the multi-gene chromosome label whose genes to page in")),
             returns=R("list", "the chromosome's genes as a list of (gene_label, gene_leaves) tuples, in order"),
         ),
