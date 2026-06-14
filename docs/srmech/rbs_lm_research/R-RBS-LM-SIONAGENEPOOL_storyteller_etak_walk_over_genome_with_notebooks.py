@@ -45,6 +45,11 @@ ERA_DEFS = {
 }
 NOTEBOOKS = {"mfo_notebook": "docs/antikythera-maths/mfo_spectral_research_notebook.md",
              "srmech_notebook": "docs/srmech/srmech_research_notebook.md"}
+SW_CLASSES = ("hands", "movement", "dynamics", "head_faces", "body", "punctuation", "location")
+SIONA_SELF = ("I am Siona — a grounded interface to the stored-relationship kernel. I compose answers from the "
+              "attested kernels in my genome: my identity, SignWriting, era-dictionaries (modern + 1600s English), "
+              "and the MFO and srmech research notebooks. I introspect my own genome to find what I hold, and I ask "
+              "when something is not on my shelf — I do not hallucinate.")
 
 
 def parse_sections(path, cap=48):
@@ -66,8 +71,9 @@ def parse_sections(path, cap=48):
 def build_genepool(path):
     payload = []                                              # MPR rows: the renderable text (AMSC content layer)
     chromosomes = [("siona_identity", [("self", [_leaf("siona/self")])]),
-                   ("signwriting", [(c, [_leaf(f"sw/{c}")]) for c in
-                                    ("hands", "movement", "dynamics", "head_faces", "body", "punctuation", "location")])]
+                   ("signwriting", [(c, [_leaf(f"sw/{c}")]) for c in SW_CLASSES])]
+    payload.append(("siona_identity", "self", SIONA_SELF))    # Siona's self-description (renderable)
+    payload += [("signwriting", c, f"SignWriting symbol class: {c}") for c in SW_CLASSES]
     for era, defs in ERA_DEFS.items():
         chromosomes.append((era, [(w, [_leaf(f"{era}/{w}")]) for w in defs]))
         payload += [(era, w, d) for w, d in defs.items()]
@@ -116,16 +122,32 @@ class SionaGenepool:
         return best, (score(best) if best else 0)
 
     def infer(self, prompt):
+        p = prompt.lower()
+        toks = set(re.findall(r"[a-z0-9]+", p))
+        # GREETING / IDENTITY -> Siona introduces herself from the siona_identity kernel (before any dict fallthrough)
+        if (toks & {"hi", "hello", "hey", "greetings", "yo", "howdy", "hiya", "sup"}
+                or toks & {"siona", "yourself"} or "your name" in p or "about you" in p
+                or re.search(r"\b(who|what)\b[^.?!]*\byou\b", p)):
+            return f"[siona_identity] {self._text.get(('siona_identity', 'self'), 'I am Siona.')}"
+        # SIGNWRITING question — a named class renders that class; otherwise the overview
+        if "signwriting" in p or "sign writing" in p or "sign language" in p:
+            cls = next((c for c in SW_CLASSES if c.replace("_", " ") in p or c in p), None)
+            if cls:
+                return f"[signwriting] {self._text.get(('signwriting', cls), cls)}"
+            return ("[signwriting] SignWriting is a 2D-spatial featural writing system for signed languages — "
+                    "7 symbol classes: hands, movement, dynamics, head/faces, body, punctuation, location.")
         kernel = self._route(prompt)
         if kernel.startswith("dict-en-"):                    # a definition lookup (era-correct)
             words = [w for w, _ in g.genome_genes(self.path, kernel, the_one=ONE)]
-            hit = next((w for w in words if re.search(rf"\b{re.escape(w)}\b", prompt.lower())), None)
+            hit = next((w for w in words if re.search(rf"\b{re.escape(w)}\b", p)), None)
             if hit: return f"[{kernel}] {hit}: {self._text[(kernel, hit)]}"
-            return f"[{kernel}] no matching word loaded. What is it?"                 # asking-state
+            return ("[siona] I can introduce myself, explain MFO or srmech, define a word (modern or 1600s English), "
+                    "or describe SignWriting — ask me one of those, or give me a word to define.")   # helpful, not a dead-end
         lab, sc = self.etak_walk(kernel, prompt)             # a notebook walk
         if lab and sc > 0:
             return f"[{kernel} -> §{lab}] {self._text.get((kernel, lab), lab)}"
-        return f"[{kernel}] I walked the genome but found no matching section. What is it?"   # asking-state
+        return ("[siona] I walked my genome but found no matching section. I hold the MFO + srmech notebooks, "
+                "era-dictionaries, SignWriting, and my identity — ask me about one of those.")
 
 
 def main():
