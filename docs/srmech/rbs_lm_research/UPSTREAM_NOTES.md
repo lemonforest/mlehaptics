@@ -2138,3 +2138,22 @@ does not yet reconstruct from `turns.bin` alone by scanning. Fix: have `genome_l
 strand is already there) + `partition`-recover, and demote `manifest.json` to an OPTIONAL derived `.fai`/faidx cache.
 Then the on-disk genome matches the in-memory self-describing strand. Core green on rc143: regression 49/0, genome→disk
 VERIFIED, carrier 17/17, apidiff 0 hard breaks (5 signature relaxations = params made optional).
+
+## §45 ASK (rc145, F736) — genome EDITING: in-place remove/replace a chromosome by cap-span excision
+
+**Today:** there is NO dedicated remove/delete op (`genome` surface: genome/chromosome/genes/append/save/load/
+catalog/window/genome_genes/partition/recall — none excise). A clean remove COMPOSES without manual cap surgery —
+`genome_drop(strand, the_one, label) = genome([(l,lv) for l,lv in partition(strand,the_one).items() if l!=label],
+the_one)` — `partition` reads the cap-delimited structure, `genome` re-frames the survivors. Verified rc145: drops a
+kernel, survivors byte-intact, survives disk. **BUT it RE-PACKS the whole genome** (re-binds every surviving leaf,
+rewrites `turns.bin` + manifest) — O(whole genome) for a one-chromosome edit.
+
+**Ask:** an IN-PLACE editor that matches biology (CRISPR / gene knockout excises a span, leaves the rest):
+`genome_remove(path, label)` (on-disk) + `genome_drop(strand, the_one, label)` (in-memory) that **find the
+chromosome's cap-delimited span and splice it out** — no re-pack of the untouched chromosomes. rc145 now exposes
+`CHROM_CAP_MARKER` / `GENE_CAP_MARKER` (the §44 inline fixed-width caps), which makes this tractable: scan for the
+label's chrom-cap, cut `[cap_start, next_cap_start)` from `turns.bin`, drop its manifest row, recompute
+`body_sha256`. Add `genome_replace(path, label, leaves|genes)` the same way (splice + insert). Composes §41/§43/§44
+(the self-describing scannable strand is exactly what makes in-place excision possible). Additive; TestPyPI-rc first;
+the composed `genome_drop` workaround above is the interim. (Biology angle: a genome you can edit in place — knock out
+a gene — without re-synthesizing the whole chromosome.)
