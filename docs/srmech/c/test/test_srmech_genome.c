@@ -367,6 +367,133 @@ int main(void)
         }
     }
 
+    /* §43 (rc149): FILE-MANAGEMENT — the chromosome as a bundleable .chr file.
+     * Export one chromosome to a self-contained MPR-attested .chr, then import
+     * it (SEED a fresh genome / APPEND byte-for-byte) self-verifying. */
+    {
+        /* clean 2-chromosome body (A + B) to export from (the §45 section left
+         * turns.bin corrupt after its last remove-on-corrupt-body test). */
+        st = srmech_genome_save(dir, body, sizeof(body), leaf_dim,
+                                the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_OK, "re-save clean A+B for the §43 section");
+
+        const char *tbase = getenv("TMPDIR");
+        if (tbase == NULL) { tbase = getenv("TMP"); }
+        if (tbase == NULL) { tbase = "/tmp"; }
+        char chr_path[1024], seed_dir[1024], app_dir[1024], mism_dir[1024];
+        snprintf(chr_path, sizeof(chr_path), "%s/srmech_genome_A.chr", tbase);
+        snprintf(seed_dir, sizeof(seed_dir), "%s/srmech_genome_seed", tbase);
+        snprintf(app_dir, sizeof(app_dir), "%s/srmech_genome_app", tbase);
+        snprintf(mism_dir, sizeof(mism_dir), "%s/srmech_genome_mism", tbase);
+
+        /* EXPORT 'A' to A.chr; a missing label is rejected. */
+        st = srmech_genome_export(dir, "A", chr_path, NULL, 0u, g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_OK, "genome_export('A') OK");
+        st = srmech_genome_export(dir, "nope", chr_path, NULL, 0u, g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_ERR_BAD_INPUT, "export('nope') rejected");
+        st = srmech_genome_export(dir, "A", chr_path, NULL, 0u, g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_OK, "re-export('A') OK");
+
+        /* the .chr is a valid MPR-v1 record tagged as a chromosome bundle. */
+        {
+            unsigned char txt[8192];
+            size_t tn = 0u;
+            FILE *cf = fopen(chr_path, "rb");
+            check_true(cf != NULL, "open A.chr");
+            if (cf != NULL) { tn = fread(txt, 1u, sizeof(txt) - 1u, cf); fclose(cf); }
+            while (tn > 0u && (txt[tn - 1u] == '\n' || txt[tn - 1u] == '\r')) { tn--; }
+            srmech_json_value_t *rec = NULL;
+            st = srmech_json_parse((const char *)txt, tn, g_ws, sizeof(g_ws), &rec);
+            check_true(st == SRMECH_OK && rec != NULL, "A.chr parses as JSON");
+            const char *chr_sid = "srmech://schema/genome_chromosome/v1";
+            const srmech_json_value_t *sid =
+                (rec != NULL) ? srmech_json_object_get(rec, "data_schema_id") : NULL;
+            check_true(sid != NULL && sid->type == SRMECH_JSON_STRING &&
+                       sid->u.str.len == (uint32_t)strlen(chr_sid) &&
+                       memcmp(sid->u.str.ptr, chr_sid, sid->u.str.len) == 0,
+                       "A.chr data_schema_id == chromosome bundle");
+            const srmech_json_value_t *d =
+                (rec != NULL) ? srmech_json_object_get(rec, "data") : NULL;
+            const srmech_json_value_t *reg =
+                (d != NULL) ? srmech_json_object_get(d, "region") : NULL;
+            check_true(reg != NULL && reg->type == SRMECH_JSON_OBJECT,
+                       "A.chr data.region present");
+        }
+
+        /* IMPORT SEED: into a fresh empty dest -> turns.bin == A's region (16 B). */
+        ensure_dir(seed_dir);
+        st = srmech_genome_import(chr_path, seed_dir, NULL, 0u, g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_OK, "genome_import SEED OK");
+        {
+            unsigned char out[64];
+            size_t olen = 0u;
+            st = srmech_genome_load(seed_dir, out, sizeof(out), &olen,
+                                    NULL, 0u, g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_OK && olen == 16u &&
+                       memcmp(out, body, 16u) == 0,
+                       "seeded body == A's region verbatim (16 B)");
+            st = srmech_genome_window(seed_dir, "A", out, sizeof(out), &olen,
+                                      NULL, 0u, g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_OK, "window('A') on the seeded genome OK");
+        }
+
+        /* IMPORT APPEND: a dest coupled to the SAME the_one with a different
+         * 1-chromosome body -> A is appended byte-for-byte; a dup label fails. */
+        ensure_dir(app_dir);
+        {
+            unsigned char solo[8] = { CC, (unsigned char)'S', 0u, 0u, 3u, 2u, 1u, 0u };
+            unsigned char out[64];
+            size_t olen = 0u;
+            st = srmech_genome_save(app_dir, solo, sizeof(solo), leaf_dim,
+                                    the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_OK, "save solo dest for the APPEND case");
+            st = srmech_genome_import(chr_path, app_dir, NULL, 0u, g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_OK, "genome_import APPEND OK");
+            st = srmech_genome_load(app_dir, out, sizeof(out), &olen,
+                                    NULL, 0u, g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_OK && olen == 24u &&
+                       memcmp(out, solo, 8u) == 0 &&
+                       memcmp(out + 8, body, 16u) == 0,
+                       "appended body == solo + A's region (byte-for-byte)");
+            st = srmech_genome_import(chr_path, app_dir, NULL, 0u, g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_ERR_BAD_INPUT, "import dup label rejected");
+        }
+
+        /* IMPORT into a dest coupled to a DIFFERENT the_one -> BAD_INPUT. */
+        ensure_dir(mism_dir);
+        {
+            unsigned char one_b[4] = { 2u, 1u, 0u, 3u };
+            unsigned char solo[8] = { CC, (unsigned char)'S', 0u, 0u, 1u, 0u, 3u, 2u };
+            st = srmech_genome_save(mism_dir, solo, sizeof(solo), leaf_dim,
+                                    one_b, sizeof(one_b), g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_OK, "save the_one-mismatch dest");
+            st = srmech_genome_import(chr_path, mism_dir, NULL, 0u, g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_ERR_BAD_INPUT, "import the_one-mismatch rejected");
+        }
+
+        /* SELF-VERIFY: flip the first region hex digit in A.chr -> import fails. */
+        {
+            unsigned char txt[8192];
+            size_t tn = 0u;
+            FILE *cf = fopen(chr_path, "rb");
+            if (cf != NULL) { tn = fread(txt, 1u, sizeof(txt) - 1u, cf); fclose(cf); }
+            txt[tn] = '\0';
+            char *p = strstr((char *)txt, "\"hex\"");   /* region's hex (sorted first) */
+            check_true(p != NULL, "locate region hex in A.chr");
+            if (p != NULL) {
+                p += 5;
+                while (*p != '"' && *p != '\0') { p++; }
+                if (*p == '"') { p++; *p = (*p == '0') ? '1' : '0'; }
+                cf = fopen(chr_path, "wb");
+                if (cf != NULL) { fwrite(txt, 1u, tn, cf); fclose(cf); }
+            }
+            ensure_dir(seed_dir);
+            st = srmech_genome_import(chr_path, seed_dir, NULL, 0u, g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_ERR_BAD_INPUT,
+                       "tampered region -> import self-verify BAD_INPUT");
+        }
+    }
+
     printf("== %d passed, %d failed ==\n", g_passed, g_failed);
     return (g_failed == 0) ? 0 : 1;
 }

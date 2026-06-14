@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc148"
-#define SRMECH_VERSION       "0.7.5rc148"
+#define SRMECH_VERSION_PRE   "rc149"
+#define SRMECH_VERSION       "0.7.5rc149"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2174,6 +2174,66 @@ srmech_status_t srmech_genome_remove(
 srmech_status_t srmech_genome_replace(
     const char *dir, const char *label,
     const unsigned char *region, size_t region_len, uint32_t leaf_dim,
+    const unsigned char *the_one, size_t the_one_len,
+    void *ws, size_t ws_len);
+
+/* §43 FILE-MANAGEMENT — the chromosome as a bundleable .chr file. Now that §44
+ * made the strand self-describing and §45 made it editable in place, a
+ * chromosome can be EXPORTED as ONE self-contained, content-addressed file
+ * (.chr), shipped, and re-IMPORTED into a genome self-verifying — the "tar one
+ * chromosome, ship it" goal. A .chr is ONE MPR record built with the SAME json
+ * builder + writer the manifest uses, so it is BYTE-IDENTICAL to the Python
+ * genome_export's json.dumps(sort_keys=True, ensure_ascii=False) + LF; its
+ * attestation.response_sha256 IS the region hash, so an import re-hashes the
+ * region and self-verifies. This COMPOSES the §41 MPR surface — it is NOT a
+ * parallel attestation. Mirrors srmech.amsc.genome genome_export / genome_import.
+ *
+ * The single-chromosome region the C surface can bundle is bounded by
+ * SRMECH_GENOME_CHR_REGION_MAX (the Python is unbounded; the C mirror bounds the
+ * .chr scratch like the body / manifest / chroms). */
+#define SRMECH_GENOME_CHR_REGION_MAX (1u * 1024u * 1024u)
+
+/* EXPORT: write chromosome `label`'s region (CHROM cap + coupled turns; the
+ * leading cap re-hashed against the manifest cap_sha256) + the_one to `out_path`
+ * as ONE MPR-attested .chr record. `the_one` is OPTIONAL — pass it (length ==
+ * leaf_dim) to export from a MANIFEST-LESS source (§44; the catalog is rebuilt
+ * by scanning turns.bin), else NULL when manifest.json is present. The .chr
+ * round-trips byte-identically.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — dir / label / out_path / ws is NULL.
+ *   SRMECH_ERR_IO          — turns.bin / the .chr I/O failed.
+ *   SRMECH_ERR_OVERFLOW    — ws too small, or the region exceeds
+ *                           SRMECH_GENOME_CHR_REGION_MAX.
+ *   SRMECH_ERR_BAD_INPUT   — the_one_len 0 / > 256, label absent, cap integrity
+ *                           bound failed, or a malformed manifest. */
+srmech_status_t srmech_genome_export(
+    const char *dir, const char *label, const char *out_path,
+    const unsigned char *the_one, size_t the_one_len,
+    void *ws, size_t ws_len);
+
+/* IMPORT: read a .chr bundle (genome_export's output), RE-HASH its region and
+ * its the_one against the bundle's own attestation (self-verifying — a flipped
+ * byte is SRMECH_ERR_BAD_INPUT), then either SEED a fresh genome at `dest` when
+ * it has no turns.bin yet (the region becomes turns.bin VERBATIM) or APPEND the
+ * chromosome byte-for-byte into the existing dest (which REQUIRES the same
+ * coupling invariant — dest the_one.sha256 == the .chr's — and a fresh label).
+ * `the_one` is only consulted as the rebuild width for a manifest-less existing
+ * dest (§44); the bundle carries its own the_one. The dest directory must exist
+ * (the C surface does not mkdir — turns.bin is written into an existing dir,
+ * like save / append). Mirrors the Python genome_import.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — chr_path / dest / ws is NULL.
+ *   SRMECH_ERR_IO          — the .chr / turns.bin / manifest.json I/O failed.
+ *   SRMECH_ERR_OVERFLOW    — ws too small, the .chr text exceeds the scratch, or
+ *                           the region exceeds SRMECH_GENOME_CHR_REGION_MAX.
+ *   SRMECH_ERR_BAD_INPUT   — not a chromosome bundle (wrong data_schema_id),
+ *                           a region / the_one integrity bound failed, the dest
+ *                           leaf_dim / the_one mismatches, the label already
+ *                           exists in dest, or a malformed bundle / manifest. */
+srmech_status_t srmech_genome_import(
+    const char *chr_path, const char *dest,
     const unsigned char *the_one, size_t the_one_len,
     void *ws, size_t ws_len);
 
