@@ -1844,6 +1844,14 @@ def _register_primitive_class_tools() -> None:
                         P("the_one", "HV", False, "the held invariant (only consulted for a manifest-less EXISTING dest — the §44 rebuild width; each .chr carries its own the_one)")),
             returns=R("dict", "the dest manifest data (the assembled packed genome)"),
         ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_register_attested", owner="srmech", category="genome",
+            summary="Register a directory of loose .chr bundles as AMSC attested sources (UPSTREAM §43; the bundling->AMSC compose, F729). For every <label>.chr in chr_dir (a genome_explode output) it writes a per-chromosome <amsc_root>/<label>/descriptor.toml + row.ndjson, then calls srmech.amsc.catalog.register_attested_root so each chromosome appears in srmech.amsc.catalog.list_attested_sources (one AMSC source per chromosome, keyed by its label, literature_curated adapter). The chromosome's OWN MPR attestation — carried in its .chr (attestation.response_sha256 == the region hash) and echoed into its row.ndjson — IS the provenance; this surfaces it through the AMSC catalog, it does NOT mint a parallel attestation (F730). Returns {ok, amsc_root, source, chromosomes:[{label, source_key, descriptor_path, row_path, region_sha256}], register}. Raises ValueError if chr_dir holds no .chr files or a label is not a filename-safe source key. numpy-free.",
+            parameters=(P("chr_dir", "str", True, "the directory of loose .chr bundles to register (e.g. genome_explode's output)"),
+                        P("amsc_root", "str", True, "where the per-chromosome <label>/descriptor.toml + row.ndjson AMSC root is written"),
+                        P("source", "str", True, "the AMSC source identifier recorded for the registration (e.g. 'srmech.genome.<name>')")),
+            returns=R("dict", "{ok, amsc_root, source, chromosomes, register} — the per-chromosome AMSC sources registered"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class K — equation-of-centre / pin-slot
