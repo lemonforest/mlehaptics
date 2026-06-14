@@ -55,6 +55,10 @@ SIONA_NAME = "Siona"
 # committed learned items (git-trackable, folded into the genome as a `learned` chromosome by build_genepool);
 # temporary learned items live in a gitignored `learned_temp.json` inside the genome dir (ephemeral, this-session).
 LEARNED_KERNEL_FILE = Path(__file__).parent / "siona_learned_kernel.json"
+# the WIKI knowledge chromosome (title -> abstract, attested CC-BY-SA per-article; built by R-RBS-LM-WIKIINGEST).
+# It is a SCALABLE side-store (term-index lookup, Class-E style), NOT on the dense O(vocab^2) etak-walk surface —
+# that is how it scales from this first batch to the full enwiki abstracts dump. Lives outside the repo.
+WIKI_KERNEL_FILE = Path.home() / "corpora" / "wikipedia" / "wiki_knowledge_kernel.ndjson"
 
 # NOTE (F743 experiment): there is NO hard-coded SIONA_SELF blurb, no _capabilities() prose, and no identity/
 # greeting/capabilities regexes. Siona's self-knowledge is read from STRUCTURE at runtime — srmech.describe()
@@ -152,6 +156,19 @@ class SionaGenepool:
         self.learned = {key: txt for (k, key), txt in self._text.items() if k == "learned"}   # committed
         if self._temp_file.exists():
             self.learned.update(json.loads(self._temp_file.read_text() or "{}"))               # + temporary
+        # WIKI knowledge chromosome — a scalable side-store (term-index), loaded from its own ndjson (not the strand)
+        self.wiki, self.wiki_title, self.wiki_cite, self.wiki_toks, self.wiki_idx = {}, {}, {}, {}, {}
+        if WIKI_KERNEL_FILE.exists():
+            for r in read_ndjson(WIKI_KERNEL_FILE):
+                k = r.data["key"]
+                self.wiki[k] = r.data["text"]
+                self.wiki_title[k] = r.data.get("title", k)
+                self.wiki_cite[k] = (r.rendering or {}).get("cite_as", f"Wikipedia: {self.wiki_title[k]}")
+                tt = {self._norm(w) for w in T.tokenize(self.wiki_title[k])}
+                xt = {self._norm(w) for w in T.tokenize(r.data["text"])}
+                self.wiki_toks[k] = (tt, xt)
+                for w in tt | xt:
+                    self.wiki_idx.setdefault(w, set()).add(k)
 
     def _build_surface(self):
         """The LM surface: ONE co-occurrence graph (Class L) over every kernel Siona holds — nothing excluded."""
@@ -181,7 +198,29 @@ class SionaGenepool:
         return 1 if kernel == "dict-en-2026" else (0 if kernel == "dict-en-1600" else 0.5)
 
     def introspect(self):
-        return [(c["label"], c["leaf_count"]) for c in g.genome_catalog(self.path, the_one=ONE)["chromosomes"]]
+        cat = [(c["label"], c["leaf_count"]) for c in g.genome_catalog(self.path, the_one=ONE)["chromosomes"]]
+        if getattr(self, "wiki", None):                       # the wiki side-store presents as a held chromosome
+            cat.append(("wiki", len(self.wiki)))
+        return cat
+
+    @staticmethod
+    def _norm(w):                                             # crude singular fold so 'dragons' matches 'dragon'
+        return w[:-1] if w.endswith("s") and len(w) > 3 else w
+
+    def wiki_lookup(self, prompt):
+        """Scalable broad-knowledge lookup over the WIKI side-store: query terms -> article via the term-index,
+        scored title-overlap×3 + text-overlap (Class-E catalog style; never the dense etak-walk)."""
+        q = {self._norm(w) for w in T.tokenize(prompt)}
+        if not q or not self.wiki:
+            return None
+        cand = set().union(*(self.wiki_idx.get(t, set()) for t in q)) if q else set()
+        best, best_sc = None, 0
+        for k in cand:
+            tt, xt = self.wiki_toks[k]
+            sc = 3 * len(q & tt) + len(q & xt)
+            if sc > best_sc:
+                best_sc, best = sc, k
+        return best if best_sc >= 3 else None                 # require a real title/term hit, not one stray word
 
     def _walk(self, landmarks, steps=WALK_STEPS):
         """FORWARD-ETAK: walk the co-occurrence graph from `landmarks` (IDF-gated, no-revisit; the landmarks held
@@ -355,7 +394,12 @@ class SionaGenepool:
             see = [f"§{k[:24]}" for kk, k in ranked[1:3] if kk == top_kernel]   # siblings the same walk passed
             tail = f"\n  (the walk also passed: {', '.join(see)})" if see else ""
             return f"[etak: {path_str}]\n[{top_kernel} → §{top_key}] {body}{tail}"
-        if content:                                            # named something specific NOT on the surface -> ASK
+        # not in the DEEP kernels -> try the broad WIKI knowledge chromosome (scalable lookup) before asking
+        wk = self.wiki_lookup(prompt)
+        if wk:
+            return (f"[siona · wiki] {self.wiki_title[wk]}: {self.wiki[wk]}\n"
+                    f"  (source: {self.wiki_cite[wk]}, CC-BY-SA — attested in my wiki chromosome)")
+        if content:                                            # named something specific in NO kernel -> ASK
             subject = max(content, key=len)                   # the salient term (so a follow-up answer binds to it)
             return (f"[siona · asking-state] You asked about “{subject}”, which touches none of my kernels — I won't "
                     f"invent it. Tell me (“remember {subject} is …”, or just answer) and I'll learn it. "
