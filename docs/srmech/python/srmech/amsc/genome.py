@@ -62,7 +62,7 @@ __all__ = [
     "genes",
     "genome", "partition",
     "genome_save", "genome_load", "genome_catalog", "genome_append",
-    "genome_window",
+    "genome_window", "genome_genes",
     "GenomeBoundingError",
     "LEAF_CAP", "QUAD", "MOBIUS_CAP", "GENE_FRAME_TAG",
 ]
@@ -272,7 +272,7 @@ def genes(strand, the_one):
     return out
 
 
-def genome(kernels, the_one):
+def genome(kernels=None, the_one=None, *, chromosomes=None):
     """Pack many kernels into ONE telomere-partitioned strand — the genome (F715).
 
     The top-level storage object: each ``(label, leaves)`` kernel becomes a
@@ -283,17 +283,45 @@ def genome(kernels, the_one):
     ``music`` on one strand). Recover any kernel — or all of them — with
     :func:`partition`.
 
-    ``kernels`` is a mapping ``{label: leaves}`` or a sequence of
-    ``(label, leaves)`` pairs (insertion order is the strand order). ``the_one``
-    is the shared invariant every turn of every chromosome is coupled through.
-    Returns the flat strand (``list`` of Klein-4 vectors) — a genome strand IS a
-    strand, just with multiple caps.
+    **Single gene per chromosome (F715, unchanged).** Pass ``kernels`` — a mapping
+    ``{label: leaves}`` or a sequence of ``(label, leaves)`` pairs (insertion order
+    is the strand order). Returns the flat strand (``list`` of Klein-4 vectors) — a
+    genome strand IS a strand, just with multiple caps.
+
+    **Several genes per chromosome that PERSIST (F732/S43.1).** Pass
+    ``chromosomes=[(label, [(gene_label, gene_leaves), …]), …]`` instead of
+    ``kernels``: each chromosome's genes are FLATTENED into one telomere-capped
+    region, so the body is byte-identical to the single-kernel genome of the
+    concatenated leaves — the gene boundaries are NOT stored as data turns / gene
+    headers (unlike in-memory :func:`chromosome` ``genes=``). Returns the 2-tuple
+    ``(strand, gene_index)`` where ``gene_index = {label: [(gene_label,
+    leaf_count), …]}`` records where each gene's leaves sit. Persist BOTH:
+    ``genome_save(strand, path, the_one, labels, gene_index=gene_index)`` writes the
+    index into the manifest (the body unchanged), and :func:`genome_genes` pages one
+    chromosome's genes back. ``the_one`` is always required.
     """
-    items = list(kernels.items()) if isinstance(kernels, dict) else list(kernels)
+    if the_one is None:
+        raise ValueError("genome: the_one is required")
+    if (kernels is None) == (chromosomes is None):
+        raise ValueError("genome: pass exactly one of kernels= or chromosomes=")
+    if chromosomes is None:
+        items = list(kernels.items()) if isinstance(kernels, dict) else list(kernels)
+        strand = []
+        for label, leaves in items:
+            strand.extend(chromosome(leaves, the_one, label=label))
+        return strand
+    # Multi-gene: flatten each chromosome's genes into one telomere-capped region
+    # (no gene-header turns in the body) + a parallel gene_index. The body is
+    # byte-identical to genome([(label, concat-of-all-gene-leaves)], the_one); the
+    # gene boundaries live ONLY in the manifest (genome_save gene_index=).
     strand = []
-    for label, leaves in items:
-        strand.extend(chromosome(leaves, the_one, label=label))
-    return strand
+    gene_index: Dict[str, List[Tuple[str, int]]] = {}
+    for label, genes_list in chromosomes:
+        per_gene = [(gl, list(gleaves)) for gl, gleaves in genes_list]
+        all_leaves = [leaf for _gl, gleaves in per_gene for leaf in gleaves]
+        strand.extend(chromosome(all_leaves, the_one, label=label))
+        gene_index[label] = [(str(gl), len(gleaves)) for gl, gleaves in per_gene]
+    return strand, gene_index
 
 
 def partition(strand, the_one, labels):
@@ -434,12 +462,21 @@ def _split_into_chromosomes(strand, labels) -> List[Tuple[str, list]]:
     return chroms
 
 
-def _build_manifest_data(leaf_dim, the_one_blocks, chrom_specs, body_bytes):
+def _build_manifest_data(leaf_dim, the_one_blocks, chrom_specs, body_bytes,
+                         gene_index=None):
     """Assemble the manifest ``data`` block (the §41 catalog payload).
 
     ``chrom_specs`` is a list of ``(label, cap_sha256, leaf_count, byte_offset,
     byte_len)`` tuples (byte_offset/byte_len index into ``turns.bin``).
-    ``the_one_blocks`` is the single ``leaf_dim``-byte block of the_one."""
+    ``the_one_blocks`` is the single ``leaf_dim``-byte block of the_one.
+
+    ``gene_index`` (F732/S43.1, optional) is ``{label: [(gene_label, leaf_count),
+    …]}`` — for a multi-gene chromosome it adds an optional ``"genes"`` field
+    (``[[gene_label, leaf_count], …]``) to that chromosome's entry, recording the
+    intra-chromosome gene boundaries WITHOUT touching the fixed-width body. A
+    single-gene chromosome omits the field entirely (the on-disk shape of a
+    single-kernel genome is byte-identical to before)."""
+    gene_index = gene_index or {}
     return {
         "format_version": GENOME_FORMAT_VERSION,
         "leaf_dim": int(leaf_dim),
@@ -456,6 +493,10 @@ def _build_manifest_data(leaf_dim, the_one_blocks, chrom_specs, body_bytes):
                 "leaf_count": int(leaf_count),
                 "byte_offset": int(byte_offset),
                 "byte_len": int(byte_len),
+                **(
+                    {"genes": [[str(gl), int(n)] for gl, n in gene_index[label]]}
+                    if label in gene_index else {}
+                ),
             }
             for (label, cap_sha256, leaf_count, byte_offset, byte_len) in chrom_specs
         ],
@@ -533,7 +574,7 @@ def _write_manifest(path, record) -> None:
     manifest_path.write_text(text + "\n", encoding="utf-8", newline="\n")
 
 
-def genome_save(strand, path, the_one, labels) -> dict:
+def genome_save(strand, path, the_one, labels, *, gene_index=None) -> dict:
     """Persist a genome ``strand`` to ``path/`` (a DIRECTORY) — UPSTREAM §41.
 
     Splits the flat genome ``strand`` into its telomere-delimited chromosomes
@@ -546,6 +587,14 @@ def genome_save(strand, path, the_one, labels) -> dict:
 
     ``labels`` are the chromosome labels whose telomere caps partition the strand
     (in any order; the strand's own order is preserved on disk).
+
+    ``gene_index`` (F732/S43.1, optional) is the ``{label: [(gene_label,
+    leaf_count), …]}`` returned alongside the strand by ``genome(chromosomes=…)``:
+    it records each multi-gene chromosome's intra-chromosome gene boundaries in
+    the manifest (an optional ``genes`` field per chromosome) WITHOUT changing the
+    fixed-width body — page the genes back with :func:`genome_genes`. Each named
+    chromosome's gene leaf-counts must sum to its stored ``leaf_count`` (the body
+    turns it actually holds), else a ``ValueError``.
     """
     path = Path(path)
     path.mkdir(parents=True, exist_ok=True)
@@ -576,8 +625,26 @@ def genome_save(strand, path, the_one, labels) -> dict:
     body_bytes = bytes(body)
     (path / _BODY_NAME).write_bytes(body_bytes)
 
+    if gene_index:
+        spec_leaf_count = {lbl: int(lc) for (lbl, _c, lc, _o, _l) in chrom_specs}
+        for lbl, gidx in gene_index.items():
+            if lbl not in spec_leaf_count:
+                raise ValueError(
+                    f"genome_save: gene_index label {lbl!r} is not a chromosome "
+                    f"of this strand ({list(spec_leaf_count)!r})"
+                )
+            total = sum(int(n) for _gl, n in gidx)
+            if total != spec_leaf_count[lbl]:
+                raise ValueError(
+                    f"genome_save: chromosome {lbl!r} gene leaf-counts sum to "
+                    f"{total} but the strand holds {spec_leaf_count[lbl]} data "
+                    f"turns (the genes must tile the chromosome exactly)"
+                )
+
     the_one_block = _leaf_blocks([the_one])[0]
-    data = _build_manifest_data(leaf_dim, the_one_block, chrom_specs, body_bytes)
+    data = _build_manifest_data(
+        leaf_dim, the_one_block, chrom_specs, body_bytes, gene_index=gene_index
+    )
     record = _manifest_record(data)
     _write_manifest(path, record)
     return data
@@ -730,6 +797,64 @@ def genome_window(path, label):
     for k in range(leaf_dim, len(region), leaf_dim):   # skip the leading cap block
         leaves.append(_hv_from_block(region[k:k + leaf_dim]))
     return leaves
+
+
+def genome_genes(path, label):
+    """Page ONE multi-gene chromosome's genes back from ``path/`` — F732/S43.1.
+
+    The disk counterpart of the in-memory :func:`genes`: reads the manifest's
+    per-chromosome gene index (the optional ``genes`` field written by
+    :func:`genome_save` with ``gene_index=``), pages in only that chromosome's
+    window (:func:`genome_window` — RAM-bounded + cap-integrity-checked),
+    uncouples each stored turn through ``the_one`` (rebuilt + hash-verified from
+    the manifest), and slices the leaves by the index into ``[(gene_label,
+    gene_leaves), …]`` — exactly what ``genes(chromosome(genes=…, one), one)``
+    returns in memory. Raises ``ValueError`` if the chromosome carries no gene
+    index (it is a single-kernel chromosome — use :func:`genome_window` /
+    :func:`partition` for those), and :class:`GenomeBoundingError` if the index
+    leaf-counts disagree with the paged turns (manifest/body mismatch)::
+
+        s, gi = genome(chromosomes=[("g", [("rules", R), ("board", B)])], one)
+        genome_save(s, path, one, ["g"], gene_index=gi)
+        genome_genes(path, "g") == [("rules", R), ("board", B)]
+    """
+    path = Path(path)
+    data = _read_manifest(path)
+    by_label = {c["label"]: c for c in data["chromosomes"]}
+    if label not in by_label:
+        raise ValueError(
+            f"genome_genes: label {label!r} not in the genome "
+            f"(have {list(by_label)!r})"
+        )
+    gene_idx = by_label[label].get("genes")
+    if gene_idx is None:
+        raise ValueError(
+            f"genome_genes: chromosome {label!r} carries no gene index — it is a "
+            f"single-kernel chromosome; use genome_window / partition"
+        )
+    # Rebuild the_one from the manifest (verify its own content-address bound).
+    one_block = bytes.fromhex(data["the_one"]["hex"])
+    if _sha256_bytes(one_block) != data["the_one"]["sha256"]:
+        raise GenomeBoundingError(
+            "genome the_one integrity bound failed: stored hex does not hash to "
+            "the manifest the_one.sha256"
+        )
+    the_one = _hv_from_block(one_block)
+    coupled = genome_window(path, label)               # cap-integrity-checked turns
+    leaves = [quad_turn(t, the_one) for t in coupled]  # reversible uncouple
+    total = sum(int(n) for _gl, n in gene_idx)
+    if total != len(leaves):
+        raise GenomeBoundingError(
+            f"genome_genes {label!r}: gene index leaf-count {total} != "
+            f"{len(leaves)} paged turns (manifest / body disagree)"
+        )
+    out: List[Tuple[str, list]] = []
+    pos = 0
+    for gene_label, n in gene_idx:
+        n = int(n)
+        out.append((str(gene_label), leaves[pos:pos + n]))
+        pos += n
+    return out
 
 
 def genome_append(path, label, leaves, the_one) -> dict:
