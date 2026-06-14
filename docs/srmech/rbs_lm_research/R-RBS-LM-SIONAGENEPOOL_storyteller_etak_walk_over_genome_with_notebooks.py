@@ -77,6 +77,15 @@ LANDMARK_WEIGHT = 3.0                        # convergence stays anchored to the
 MAINTENANCE_RE = re.compile(r"swept|back-?sweep|breadcrumb|closeout|how to cite|regenerat|milestone|queued|lagged"
                             r"|cross-?referenc|landed-where|roadmap|open thread", re.I)
 MAINT_PENALTY = 0.15
+# DELEXICAL / function words that must NOT ROUTE a query (F751): in a tiny corpus a word like "made" can look rare
+# (df=1) and so IDF-amplify into a sharp-but-meaningless landmark (e.g. "how is kombucha made" -> the one section
+# with "made"). These stay in the kernels (knowledge), they just can't be the routing anchor. (Principled successor:
+# judge salience against the big wiki corpus once wired; this hand-set is the immediate, honest fix.)
+ROUTING_STOPLIST = frozenset(
+    "made make makes making made use used uses using call called calls know known knows knew based base find found "
+    "finds given give gives gave get gets got getting way ways thing things kind sort type types lot like likes "
+    "also well much many more most some any other another how why does did doing done need needs want wants let "
+    "tell told say said see seen look looks put take takes go goes come comes work works".split())
 
 
 def parse_sections(path, cap=48, maxchars=700):
@@ -210,7 +219,7 @@ class SionaGenepool:
     def wiki_lookup(self, prompt):
         """Scalable broad-knowledge lookup over the WIKI side-store: query terms -> article via the term-index,
         scored title-overlap×3 + text-overlap (Class-E catalog style; never the dense etak-walk)."""
-        q = {self._norm(w) for w in T.tokenize(prompt)}
+        q = {self._norm(w) for w in T.tokenize(prompt) if w not in ROUTING_STOPLIST}   # F751: no delexical match
         if not q or not self.wiki:
             return None
         cand = set().union(*(self.wiki_idx.get(t, set()) for t in q)) if q else set()
@@ -255,7 +264,8 @@ class SionaGenepool:
 
     def etak_walk(self, prompt, steps=WALK_STEPS):
         """INVERSE-ETAK: locate the input's tokens on the surface, then forward-walk from them."""
-        return self._walk([self.vix[t] for t in T.tokenize(prompt) if t in self.vix], steps)
+        return self._walk([self.vix[t] for t in T.tokenize(prompt)
+                           if t in self.vix and t not in ROUTING_STOPLIST], steps)
 
     # --- write-mode: the learning loop (ask -> accept -> temp -> commit-to-kernel) -----------------------------
     @staticmethod
@@ -381,7 +391,7 @@ class SionaGenepool:
 
         # === ETAK-WALK the surface (inference, not retrieval) =============================================
         content = T.tokenize(prompt)
-        landmarks = [self.vix[t] for t in content if t in self.vix]
+        landmarks = [self.vix[t] for t in content if t in self.vix and t not in ROUTING_STOPLIST]   # F751: no delexical routing
         if landmarks:
             trace, ranked = self._walk(landmarks)
             path_str = " → ".join(trace[:8])
