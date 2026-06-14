@@ -1787,6 +1787,13 @@ def _register_primitive_class_tools() -> None:
                         P("label", "str", True, "the chromosome label whose leaves to page in")),
             returns=R("list", "the chromosome's stored leaves (coupled turns, cap excluded), in order"),
         ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_genes", owner="srmech", category="genome",
+            summary="Page ONE multi-gene chromosome's genes back from a genome (F732 / UPSTREAM §43.1) — the disk counterpart of the in-memory genes(). Reads the manifest's per-chromosome gene index (the optional genes field written by genome_save with gene_index=), pages in only that chromosome's window (genome_window, RAM-bounded + cap-integrity-checked), uncouples each stored turn through the_one (rebuilt + hash-verified from the manifest), and slices the leaves by the index into a list of (gene_label, gene_leaves) — exactly what genes(chromosome(genes=…)) returns in memory. Raises ValueError on a single-kernel chromosome (no gene index) and GenomeBoundingError if the index disagrees with the paged turns. numpy-free.",
+            parameters=(P("path", "str", True, "the genome directory written by genome_save (with gene_index=)"),
+                        P("label", "str", True, "the multi-gene chromosome label whose genes to page in")),
+            returns=R("list", "the chromosome's genes as a list of (gene_label, gene_leaves) tuples, in order"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class K — equation-of-centre / pin-slot
