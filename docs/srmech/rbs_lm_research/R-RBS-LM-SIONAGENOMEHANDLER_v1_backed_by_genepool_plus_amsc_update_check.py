@@ -86,8 +86,10 @@ _WORLD = _ensure_genome()
 def chat_completion(request):
     """OpenAI /v1/chat/completions handler, backed by the genepool genome."""
     model = request.get("model", "siona:genepool")
-    last = next((m.get("content") or "" for m in reversed(request.get("messages", [])) if m.get("role") == "user"), "")
-    answer = _WORLD.infer(last)
+    msgs = request.get("messages", [])
+    last = next((m.get("content") or "" for m in reversed(msgs) if m.get("role") == "user"), "")
+    prev_assistant = next((m.get("content") or "" for m in reversed(msgs) if m.get("role") == "assistant"), "")
+    answer = _WORLD.infer(last, prev_assistant)   # prev_assistant lets a reply to an asking-state be LEARNED (write-mode)
     return {"id": "chatcmpl-siona-genepool", "object": "chat.completion", "created": int(time.time()), "model": model,
             "choices": [{"index": 0, "message": {"role": "assistant", "content": answer}, "finish_reason": "stop"}],
             "usage": {"prompt_tokens": len(last.split()), "completion_tokens": len(answer.split()), "total_tokens": 0},
