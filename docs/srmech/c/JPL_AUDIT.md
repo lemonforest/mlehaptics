@@ -300,7 +300,9 @@ string-block fill (`genome_fill_strings`, `genome_hex`), the §44 manifest-optio
 acquirer (`genome_obtain_manifest` — parse if present, else rebuild by scan), the
 catalog/load/window/append entries + their accessors (`genome_data_get` /
 `genome_str_eq` / `genome_find_chrom` / `genome_check_new_label` /
-`genome_grow_body` / `genome_save_validate`) — carries ≥ 2 asserts and is ≤ 60 lines. No
+`genome_read_bound_body` / `genome_grow_body` / `genome_save_validate`), and the §45
+in-place edits (`srmech_genome_remove` / `srmech_genome_replace` — splice a
+chromosome's byte span out of / into the body, then re-save) — carries ≥ 2 asserts and is ≤ 60 lines. No
 recursion (the JSON tree is built/walked by the non-recursive
 `srmech_json` builder/parser/writer); every loop is bounded by
 `n_chroms` (≤ `SRMECH_GENOME_MAX_CHROMS` = 256) or a caller `size_t`

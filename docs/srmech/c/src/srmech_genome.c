@@ -761,6 +761,30 @@ static srmech_status_t genome_check_new_label(
     return SRMECH_OK;
 }
 
+/* §44/§45: read <dir>/turns.bin into `out` (cap out_cap) and bound-check the
+ * whole body against the manifest's body_sha256 — the GenomeBoundingError
+ * analogue (never grow OR splice a corrupt body). *len gets the body length.
+ * Shared by APPEND (grow) and the §45 in-place edits (remove / replace). */
+static srmech_status_t genome_read_bound_body(const char *dir,
+                                              const srmech_json_value_t *manifest,
+                                              unsigned char *out, size_t out_cap,
+                                              size_t *len)
+{
+    assert(dir != NULL && manifest != NULL);
+    assert(out != NULL && len != NULL);
+    char body_path[SRMECH_GENOME_PATH_MAX];
+    srmech_status_t st = genome_join(dir, SRMECH_GENOME_BODY,
+                                     body_path, sizeof(body_path));
+    if (st != SRMECH_OK) { return st; }
+    st = genome_read_file(body_path, out, out_cap, len);
+    if (st != SRMECH_OK) { return st; }
+    const srmech_json_value_t *bsha = genome_data_get(manifest, "body_sha256");
+    char got[65];
+    st = srmech_sha256_hex(out, *len, got);
+    if (st != SRMECH_OK) { return st; }
+    return genome_str_eq(bsha, got) ? SRMECH_OK : SRMECH_ERR_BAD_INPUT;
+}
+
 /* Read the existing body, bound-check it against the manifest body_sha256,
  * then append `region` into `out`; *new_len gets the grown length. */
 static srmech_status_t genome_grow_body(const char *dir,
@@ -771,18 +795,10 @@ static srmech_status_t genome_grow_body(const char *dir,
 {
     assert(dir != NULL && manifest != NULL && out != NULL && new_len != NULL);
     assert(region != NULL || region_len == 0u);
-    char body_path[SRMECH_GENOME_PATH_MAX];
-    srmech_status_t st = genome_join(dir, SRMECH_GENOME_BODY,
-                                     body_path, sizeof(body_path));
-    if (st != SRMECH_OK) { return st; }
     size_t old_len = 0u;
-    st = genome_read_file(body_path, out, out_cap, &old_len);
+    srmech_status_t st = genome_read_bound_body(dir, manifest, out, out_cap,
+                                                &old_len);
     if (st != SRMECH_OK) { return st; }
-    const srmech_json_value_t *bsha = genome_data_get(manifest, "body_sha256");
-    char got[65];
-    st = srmech_sha256_hex(out, old_len, got);
-    if (st != SRMECH_OK) { return st; }
-    if (!genome_str_eq(bsha, got)) { return SRMECH_ERR_BAD_INPUT; }
     if (old_len + region_len > out_cap) { return SRMECH_ERR_OVERFLOW; }
     if (region_len != 0u) { memcpy(out + old_len, region, region_len); }
     *new_len = old_len + region_len;
@@ -827,6 +843,102 @@ srmech_status_t srmech_genome_append(const char *dir, const char *label,
      * the appended region, so turns.bin is byte-identical to a true append and
      * every prior chromosome entry re-derives byte-identically (same body
      * bytes, order-stable inline-cap scan). */
+    return srmech_genome_save(dir, genome_body_scratch, new_len, leaf_dim,
+                              the_one, the_one_len, ws, ws_len);
+}
+
+/* ------------------------------------------------------------------ *
+ * §45 IN-PLACE EDIT — remove / replace one chromosome by a BYTE splice.
+ *
+ * Biology excises; it does not re-synthesize. With the §44 self-describing
+ * body an edit is a pure byte-level splice on turns.bin — no kernel is decoded
+ * or re-coupled, so the surviving chromosomes' coupled bytes stay byte-identical
+ * (only relocated). The spliced body is committed via srmech_genome_save, which
+ * re-derives the manifest by scanning it (the strand is the SSoT), so the
+ * on-disk turns.bin + manifest.json are byte-identical to the Python
+ * genome_remove / genome_replace output. Like APPEND (a write op) the_one is
+ * REQUIRED here (srmech_genome_save needs it for the manifest the_one hash+hex);
+ * the_one_len IS leaf_dim. The whole body is bound-checked against body_sha256
+ * BEFORE the edit (genome_read_bound_body).
+ * ------------------------------------------------------------------ */
+
+srmech_status_t srmech_genome_remove(const char *dir, const char *label,
+                                     const unsigned char *the_one,
+                                     size_t the_one_len, void *ws, size_t ws_len)
+{
+    assert(the_one != NULL || the_one_len == 0u);
+    assert(dir != NULL || label == NULL);
+    if (dir == NULL || label == NULL || the_one == NULL || ws == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (the_one_len == 0u || the_one_len > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    srmech_json_value_t *manifest = NULL;
+    srmech_status_t st = genome_obtain_manifest(dir, the_one, the_one_len,
+                                                ws, ws_len, &manifest);
+    if (st != SRMECH_OK) { return st; }
+    const srmech_json_value_t *ld = genome_data_get(manifest, "leaf_dim");
+    const srmech_json_value_t *arr = genome_data_get(manifest, "chromosomes");
+    if (ld == NULL || ld->type != SRMECH_JSON_INT ||
+        (size_t)ld->u.i != the_one_len ||
+        arr == NULL || arr->type != SRMECH_JSON_ARRAY) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (arr->u.arr.n <= 1u) { return SRMECH_ERR_BAD_INPUT; }   /* the only chrom */
+    size_t off = 0u, len = 0u;
+    if (genome_find_chrom(manifest, label, &off, &len) == NULL) {
+        return SRMECH_ERR_BAD_INPUT;                           /* label absent */
+    }
+    size_t body_len = 0u;
+    st = genome_read_bound_body(dir, manifest, genome_body_scratch,
+                                sizeof(genome_body_scratch), &body_len);
+    if (st != SRMECH_OK) { return st; }
+    /* splice [off, off+len) out IN PLACE: slide the tail down over the span. */
+    memmove(genome_body_scratch + off, genome_body_scratch + off + len,
+            body_len - off - len);
+    return srmech_genome_save(dir, genome_body_scratch, body_len - len,
+                              (uint32_t)the_one_len, the_one, the_one_len,
+                              ws, ws_len);
+}
+
+srmech_status_t srmech_genome_replace(const char *dir, const char *label,
+                                      const unsigned char *region,
+                                      size_t region_len, uint32_t leaf_dim,
+                                      const unsigned char *the_one,
+                                      size_t the_one_len, void *ws, size_t ws_len)
+{
+    assert(the_one != NULL || the_one_len == 0u);
+    assert(dir != NULL || label == NULL);
+    if (dir == NULL || label == NULL || the_one == NULL || ws == NULL ||
+        (region == NULL && region_len != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (leaf_dim == 0u || the_one_len != (size_t)leaf_dim ||
+        region_len % (size_t)leaf_dim != 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    srmech_json_value_t *manifest = NULL;
+    srmech_status_t st = genome_obtain_manifest(dir, the_one, the_one_len,
+                                                ws, ws_len, &manifest);
+    if (st != SRMECH_OK) { return st; }
+    const srmech_json_value_t *ld = genome_data_get(manifest, "leaf_dim");
+    if (ld == NULL || ld->type != SRMECH_JSON_INT ||
+        (uint32_t)ld->u.i != leaf_dim) { return SRMECH_ERR_BAD_INPUT; }
+    size_t off = 0u, len = 0u;
+    if (genome_find_chrom(manifest, label, &off, &len) == NULL) {
+        return SRMECH_ERR_BAD_INPUT;                           /* label absent */
+    }
+    size_t body_len = 0u;
+    st = genome_read_bound_body(dir, manifest, genome_body_scratch,
+                                sizeof(genome_body_scratch), &body_len);
+    if (st != SRMECH_OK) { return st; }
+    size_t tail = body_len - off - len;
+    size_t new_len = body_len - len + region_len;
+    if (new_len > sizeof(genome_body_scratch)) { return SRMECH_ERR_OVERFLOW; }
+    /* splice old span out + new region in, IN PLACE: shift the tail to its new
+     * home, then write the (external) region into the gap. */
+    memmove(genome_body_scratch + off + region_len,
+            genome_body_scratch + off + len, tail);
+    if (region_len != 0u) { memcpy(genome_body_scratch + off, region, region_len); }
     return srmech_genome_save(dir, genome_body_scratch, new_len, leaf_dim,
                               the_one, the_one_len, ws, ws_len);
 }
