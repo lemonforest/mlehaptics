@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc151] - 2026-06-14
+
+**§43 loose↔packed — C 1:1 mirror (`srmech_genome_explode` / `srmech_genome_pack`).** The rc150 Python loose↔packed surface now has its byte-for-byte C twin, keeping the genome C library 1:1 with Python.
+
+- **New `srmech_genome_explode(dir, out_dir, the_one, the_one_len, ws, ws_len)`** — writes one `<out_dir>/<label>.chr` per chromosome via `srmech_genome_export` (the packed→loose half). Collects every label out of the obtained manifest FIRST (export reuses the workspace, so the manifest tree would be clobbered mid-loop), then exports each; a non-filename-safe label (`/` `\\` `.` `..`) is `SRMECH_ERR_BAD_INPUT`.
+- **New `srmech_genome_pack(loose_dir, dest, the_one, the_one_len, ws, ws_len)`** — enumerates `*.chr` in `loose_dir` (the one platform-specific touch: POSIX `dirent` / Win32 `FindFirstFile`, ifdef'd like `srmech_platform.c`; no malloc, JPL Rule 3), peeks each bundle's inner `data.label`, sorts by label (canonical order; UTF-8 byte order == code-point order, so `strcmp` agrees with Python's `str` sort), then `srmech_genome_import`s each in order. An empty dir / no `.chr` files is `SRMECH_ERR_BAD_INPUT`.
+- **Byte-parity verified** (WSL2 ctypes harness): C `explode` emits `.chr` bundles byte-identical to Python `genome_explode`, and C `pack` emits `turns.bin` + `manifest.json` byte-identical to Python `genome_pack` — including the re-canonicalisation of a non-sorted source (insertion order `gamma`/`alpha`/`beta` → packed `alpha`/`beta`/`gamma`).
+- **Standalone C smoke** (`test_srmech_genome.c`, 67/67): explode writes `A.chr` + `B.chr`; pack reproduces the source `turns.bin` byte-for-byte; both chromosomes window-addressable in the packed genome; empty-dir pack → `BAD_INPUT`. Pedantic `-Werror` clean; JPL audit 6/6 (every new function ≤ 60 lines, ≥ 2 asserts; the directory scan carries an explicit `guard < 65536` over-bound, Rule 2).
+- **No new Python callable** — `describe()["tools"]["total"]` stays **299**. The genome C symbols are not ctypes-bound in `_native.py`, so adding them does **not** bump ABI (stays **3**). 5 SSOT bumped.
+
 ## [0.7.5rc150] - 2026-06-14
 
 **§43 file-management — loose↔packed (`genome_explode` / `genome_pack`; git's object model).** A genome's `turns.bin` (the "packfile") can now be exploded into a directory of loose, content-addressed `.chr` bundles — one per chromosome — and packed back into a single genome. Composes the rc148 `genome_export` / `genome_import` keystone; the next §43 unit is the AMSC `catalog.register_attested_root` + per-chromosome `descriptor.toml` compose.

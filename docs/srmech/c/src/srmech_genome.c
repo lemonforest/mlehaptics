@@ -51,6 +51,16 @@
 #include <stdio.h>
 #include <string.h>
 
+/* §43 loose<->packed (genome_pack) enumerates *.chr in a directory — the one
+ * platform-specific touch in this file (POSIX dirent / Win32 FindFirstFile;
+ * mirrors the PAL pattern in srmech_platform.c). JPL Rule 3 bans malloc, not
+ * directory I/O; the listing is collected into a caller's fixed array. */
+#if defined(_WIN32)
+#  include <windows.h>
+#else
+#  include <dirent.h>
+#endif
+
 /* On-disk filenames (mirror genome.py _MANIFEST_NAME / _BODY_NAME). */
 #define SRMECH_GENOME_MANIFEST "manifest.json"
 #define SRMECH_GENOME_BODY     "turns.bin"
@@ -1433,4 +1443,258 @@ srmech_status_t srmech_genome_import(const char *chr_path, const char *dest,
     }
     return genome_chr_append(dest, label, genome_chr_region, region_len, leaf_dim,
                              oneblk, one_len, the_one, the_one_len, ws, ws_len);
+}
+
+/* ================================================================== *
+ * §43 LOOSE<->PACKED — git's object model for genomes.
+ *
+ *   explode: packed turns.bin  ->  dir of loose <label>.chr bundles
+ *            (like `git unpack-objects`).
+ *   pack:    dir of <label>.chr -> one packed genome in CANONICAL
+ *            sorted-label order (like `git repack`; content-preserving,
+ *            re-canonicalises byte order). Mirrors the Python
+ *            genome_explode / genome_pack.
+ * ================================================================== */
+
+/* A loose-bundle basename "<label>.chr" needs room for the label + ".chr"
+ * + NUL on top of the longest label. */
+#define SRMECH_GENOME_CHR_NAME_MAX (SRMECH_GENOME_MAX_LABEL + 8u)
+
+/* Is `label` filename-safe to become "<label>.chr"? (no path separator,
+ * not "" / "." / ".."). Mirrors the Python genome_explode guard. */
+static int genome_label_filename_safe(const char *label)
+{
+    assert(label != NULL);
+    size_t n = strlen(label);
+    assert(n < SRMECH_GENOME_MAX_LABEL);
+    if (n == 0u) { return 0; }
+    if (strcmp(label, ".") == 0 || strcmp(label, "..") == 0) { return 0; }
+    for (size_t i = 0; i < n; i++) {
+        if (label[i] == '/' || label[i] == '\\') { return 0; }
+    }
+    return 1;
+}
+
+/* Copy every chromosome label out of a parsed manifest into the stable
+ * `labels` array (each must be filename-safe — explode turns it into
+ * "<label>.chr"). Done BEFORE any export, because srmech_genome_export
+ * REUSES ws (re-obtains the manifest, clobbering this tree). */
+static srmech_status_t genome_collect_labels(const srmech_json_value_t *manifest,
+    char labels[][SRMECH_GENOME_MAX_LABEL], uint32_t *count)
+{
+    assert(manifest != NULL && labels != NULL);
+    assert(count != NULL);
+    const srmech_json_value_t *arr = genome_data_get(manifest, "chromosomes");
+    if (arr == NULL || arr->type != SRMECH_JSON_ARRAY) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (arr->u.arr.n > SRMECH_GENOME_MAX_CHROMS) { return SRMECH_ERR_OVERFLOW; }
+    for (uint32_t i = 0; i < arr->u.arr.n; i++) {
+        const srmech_json_value_t *lv =
+            srmech_json_object_get(arr->u.arr.items[i], "label");
+        if (lv == NULL || lv->type != SRMECH_JSON_STRING ||
+            (size_t)lv->u.str.len + 1u > SRMECH_GENOME_MAX_LABEL) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        memcpy(labels[i], lv->u.str.ptr, lv->u.str.len);
+        labels[i][lv->u.str.len] = '\0';
+        if (!genome_label_filename_safe(labels[i])) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+    }
+    *count = arr->u.arr.n;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_genome_explode(const char *dir, const char *out_dir,
+                                      const unsigned char *the_one,
+                                      size_t the_one_len, void *ws, size_t ws_len)
+{
+    assert(dir != NULL || ws == NULL);
+    assert(the_one != NULL || the_one_len == 0u);
+    if (dir == NULL || out_dir == NULL || ws == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (the_one != NULL && (the_one_len == 0u || the_one_len > 256u)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    srmech_json_value_t *manifest = NULL;
+    srmech_status_t st = genome_obtain_manifest(dir, the_one, the_one_len,
+                                                ws, ws_len, &manifest);
+    if (st != SRMECH_OK) { return st; }
+    static SRMECH_THREAD_LOCAL char labels[SRMECH_GENOME_MAX_CHROMS]
+                                          [SRMECH_GENOME_MAX_LABEL];
+    uint32_t n = 0u;
+    st = genome_collect_labels(manifest, labels, &n);    /* before any export */
+    if (st != SRMECH_OK) { return st; }
+    for (uint32_t i = 0; i < n; i++) {                   /* export reuses ws */
+        char name[SRMECH_GENOME_CHR_NAME_MAX];
+        size_t ll = strlen(labels[i]);
+        memcpy(name, labels[i], ll);
+        memcpy(name + ll, ".chr", 5u);                   /* incl NUL */
+        char out_path[SRMECH_GENOME_PATH_MAX];
+        st = genome_join(out_dir, name, out_path, sizeof(out_path));
+        if (st != SRMECH_OK) { return st; }
+        st = srmech_genome_export(dir, labels[i], out_path, the_one,
+                                  the_one_len, ws, ws_len);
+        if (st != SRMECH_OK) { return st; }
+    }
+    return SRMECH_OK;
+}
+
+/* Does `name` end in ".chr" (with a non-empty label) and fit a loose-bundle
+ * basename slot? (the *.chr filter for pack's directory scan). */
+static int genome_chr_name_ok(const char *name)
+{
+    assert(name != NULL);
+    size_t len = strlen(name);
+    assert(len < SRMECH_GENOME_PATH_MAX);
+    if (len < 5u || len + 1u > SRMECH_GENOME_CHR_NAME_MAX) { return 0; }
+    return strcmp(name + len - 4u, ".chr") == 0 ? 1 : 0;
+}
+
+/* List "*.chr" basenames in `dir` into `names` (cap max_n). The one
+ * platform-specific touch (POSIX dirent / Win32 FindFirstFile). A
+ * missing/empty dir yields count 0 (not an error — the Python glob simply
+ * finds nothing; the caller turns 0 into the "no .chr files" error). The
+ * scan is bounded (JPL Rule 2): >max_n matches is OVERFLOW, and a flood of
+ * 65536 non-matching entries stops. */
+static srmech_status_t genome_list_chr(const char *dir,
+    char names[][SRMECH_GENOME_CHR_NAME_MAX], uint32_t max_n, uint32_t *count)
+{
+    assert(dir != NULL && names != NULL && count != NULL);
+    assert(max_n > 0u);
+    uint32_t n = 0u;
+#if defined(_WIN32)
+    char pattern[SRMECH_GENOME_PATH_MAX];
+    srmech_status_t st = genome_join(dir, "*.chr", pattern, sizeof(pattern));
+    if (st != SRMECH_OK) { return st; }
+    WIN32_FIND_DATAA fd;
+    HANDLE h = FindFirstFileA(pattern, &fd);
+    if (h == INVALID_HANDLE_VALUE) { *count = 0u; return SRMECH_OK; }
+    int more = 1;
+    for (uint32_t guard = 0u; more != 0 && guard < 65536u; guard++) {
+        if (genome_chr_name_ok(fd.cFileName)) {
+            if (n >= max_n) { FindClose(h); return SRMECH_ERR_OVERFLOW; }
+            memcpy(names[n], fd.cFileName, strlen(fd.cFileName) + 1u);
+            n++;
+        }
+        more = (FindNextFileA(h, &fd) != 0);
+    }
+    FindClose(h);
+#else
+    DIR *d = opendir(dir);
+    if (d == NULL) { *count = 0u; return SRMECH_OK; }    /* no dir -> none */
+    struct dirent *e = readdir(d);
+    for (uint32_t guard = 0u; e != NULL && guard < 65536u; guard++) {
+        if (genome_chr_name_ok(e->d_name)) {
+            if (n >= max_n) { closedir(d); return SRMECH_ERR_OVERFLOW; }
+            memcpy(names[n], e->d_name, strlen(e->d_name) + 1u);
+            n++;
+        }
+        e = readdir(d);
+    }
+    closedir(d);
+#endif
+    *count = n;
+    return SRMECH_OK;
+}
+
+/* Read+parse a .chr bundle at `chr_path` and copy its inner data.label out
+ * to `label_out` (the canonical-sort key for pack). Uses the shared
+ * genome_chr_io scratch (overwritten per call — peek all before importing). */
+static srmech_status_t genome_chr_peek_label(const char *chr_path,
+    void *ws, size_t ws_len, char *label_out)
+{
+    assert(chr_path != NULL && label_out != NULL);
+    assert(ws != NULL);
+    size_t tlen = 0u;
+    srmech_status_t st = genome_read_file(chr_path,
+        (unsigned char *)genome_chr_io, sizeof(genome_chr_io), &tlen);
+    if (st != SRMECH_OK) { return st; }
+    while (tlen > 0u && (genome_chr_io[tlen - 1u] == '\n' ||
+                         genome_chr_io[tlen - 1u] == '\r')) { tlen--; }
+    srmech_json_value_t *rec = NULL;
+    st = srmech_json_parse(genome_chr_io, tlen, ws, ws_len, &rec);
+    if (st != SRMECH_OK) { return st; }
+    const srmech_json_value_t *sid =
+        srmech_json_object_get(rec, "data_schema_id");
+    if (sid == NULL || !genome_str_eq(sid, SRMECH_GENOME_CHR_SCHEMA_ID)) {
+        return SRMECH_ERR_BAD_INPUT;                  /* not a chromosome bundle */
+    }
+    const srmech_json_value_t *data = srmech_json_object_get(rec, "data");
+    const srmech_json_value_t *lbl =
+        (data != NULL) ? srmech_json_object_get(data, "label") : NULL;
+    if (lbl == NULL || lbl->type != SRMECH_JSON_STRING ||
+        (size_t)lbl->u.str.len + 1u > SRMECH_GENOME_MAX_LABEL) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    memcpy(label_out, lbl->u.str.ptr, lbl->u.str.len);
+    label_out[lbl->u.str.len] = '\0';
+    return SRMECH_OK;
+}
+
+/* Insertion-sort the (label, basename) pairs by label, ascending — the
+ * canonical pack order (Python sorts by data.label; labels are unique, so
+ * the secondary key never engages). UTF-8 byte order == code-point order,
+ * so strcmp agrees with Python's str sort. Bounded by n. */
+static void genome_sort_by_label(char labels[][SRMECH_GENOME_MAX_LABEL],
+    char names[][SRMECH_GENOME_CHR_NAME_MAX], uint32_t n)
+{
+    assert(labels != NULL && names != NULL);
+    assert(n <= SRMECH_GENOME_MAX_CHROMS);
+    for (uint32_t i = 1u; i < n; i++) {
+        char lbl[SRMECH_GENOME_MAX_LABEL];
+        char nm[SRMECH_GENOME_CHR_NAME_MAX];
+        memcpy(lbl, labels[i], sizeof(lbl));
+        memcpy(nm, names[i], sizeof(nm));
+        uint32_t j = i;
+        while (j > 0u && strcmp(labels[j - 1u], lbl) > 0) {
+            memcpy(labels[j], labels[j - 1u], sizeof(lbl));
+            memcpy(names[j], names[j - 1u], sizeof(nm));
+            j--;
+        }
+        memcpy(labels[j], lbl, sizeof(lbl));
+        memcpy(names[j], nm, sizeof(nm));
+    }
+}
+
+srmech_status_t srmech_genome_pack(const char *loose_dir, const char *dest,
+                                   const unsigned char *the_one,
+                                   size_t the_one_len, void *ws, size_t ws_len)
+{
+    assert(loose_dir != NULL || ws == NULL);
+    assert(the_one != NULL || the_one_len == 0u);
+    if (loose_dir == NULL || dest == NULL || ws == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (the_one != NULL && (the_one_len == 0u || the_one_len > 256u)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    static SRMECH_THREAD_LOCAL char names[SRMECH_GENOME_MAX_CHROMS]
+                                         [SRMECH_GENOME_CHR_NAME_MAX];
+    static SRMECH_THREAD_LOCAL char labels[SRMECH_GENOME_MAX_CHROMS]
+                                          [SRMECH_GENOME_MAX_LABEL];
+    uint32_t n = 0u;
+    srmech_status_t st = genome_list_chr(loose_dir, names,
+                                         SRMECH_GENOME_MAX_CHROMS, &n);
+    if (st != SRMECH_OK) { return st; }
+    if (n == 0u) { return SRMECH_ERR_BAD_INPUT; }        /* no .chr files */
+    for (uint32_t i = 0; i < n; i++) {                   /* peek inner labels */
+        char chr_path[SRMECH_GENOME_PATH_MAX];
+        st = genome_join(loose_dir, names[i], chr_path, sizeof(chr_path));
+        if (st != SRMECH_OK) { return st; }
+        st = genome_chr_peek_label(chr_path, ws, ws_len, labels[i]);
+        if (st != SRMECH_OK) { return st; }
+    }
+    genome_sort_by_label(labels, names, n);              /* canonical order */
+    for (uint32_t i = 0; i < n; i++) {                   /* import in order */
+        char chr_path[SRMECH_GENOME_PATH_MAX];
+        st = genome_join(loose_dir, names[i], chr_path, sizeof(chr_path));
+        if (st != SRMECH_OK) { return st; }
+        st = srmech_genome_import(chr_path, dest, the_one, the_one_len,
+                                  ws, ws_len);
+        if (st != SRMECH_OK) { return st; }
+    }
+    return SRMECH_OK;
 }
