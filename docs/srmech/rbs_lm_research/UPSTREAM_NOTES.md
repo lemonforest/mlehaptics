@@ -2177,3 +2177,10 @@ bundled identically → the silos are bridged from the bottom up by the shared s
 Minor-but-load-bearing folded in: the rc145 `the_one=`-optional loaders (scan-derive plumbing, nearly enough for 0b);
 `GenomeBoundingError`-on-missing-manifest → turn into scan-and-reconstruct; per-chromosome `description` → Stage-2
 `descriptor.toml`; §37 native Class-L eigendecomp = orthogonal perf ask. Additive; TestPyPI-rc first.
+
+### §46 STATUS rc149 (F738) — Stages 1+2 DELIVERED; 0b keystone still the finish
+genome CRUD complete (R-RBS-LM-GENOMECRUD 5/5): `genome_remove`/`genome_replace` (§45 in-place edit, Stage 1) +
+`genome_export`/`genome_import` `.chr` bundles (§43, Stage 2) all verified on rc149. Core green (regression 49/0,
+genome VERIFIED, carrier 17/17, 0 hard breaks). SUBSTRATE READY to back the Siona LM. Remaining srmech: **Stage 0b
+(§44 last mile)** — `genome_load` scan-from-`turns.bin`-alone, manifest→optional faidx (the dev did Stages 1–2 first;
+0b is the biology-faithful finish, non-blocking for the LM); plus Stage-2 `explode`/`pack` + catalog-unify.

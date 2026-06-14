@@ -675,3 +675,9 @@ Per user direction ("check stale queue items to bring forward and do if remainin
 
 - F737: SignWriting (built, F735) + ni-Vanuatu (pending) ELEVATED to the foundational, language-AGNOSTIC anchors of the language kernel — both 2D-spatial 'draw-it' pole, English-privilege-free (composes R-RBS-LM-25), accessibility-native. Linear tongues (text/speech) project OFF this foundation.
 - GENOMEPLAN (UPSTREAM §46): consolidated bottom-up srmech build for the biology-faithful genome as the ONE substrate bridging all domain silos. Critical path: Stage 0b (§44 last mile = the rc145 gap: genome_load scans turns.bin alone, manifest→optional faidx — KEYSTONE) → Stage 1 (§45 in-place edit) → Stage 2 (§43 file-mgmt, compose AMSC) → Stage 3 (domain silos; foundational language layer first). All minor rc145 items folded in (the_one=-optional loaders, GenomeBoundingError, per-chrom description, §37 perf).
+
+### F738 — rc149: genome CRUD COMPLETE; substrate READY for Siona LM (2026-06-14)
+
+- rc149 delivered GENOMEPLAN Stage 1 (§45 in-place edit: genome_remove/genome_replace) + Stage 2 (§43 export/import .chr bundles, GENOME_CHR_SCHEMA_ID). R-RBS-LM-GENOMECRUD = 5/5 (create/read/update-in-place/delete-in-place/bundle-out/bundle-in). Core green (49/0, genome VERIFIED, carrier 17/17, 0 hard breaks).
+- READINESS: substrate READY to back the Siona LM (full CRUD + bundle on genome-stored kernels). Next for LM progress = RESEARCH-SUBTREE wiring: build foundational language kernel (SignWriting F735 + grammar + wiki) into a genome + point storyteller World (STORYMODULE/STORYAPI) at genome_load/window/genes (not the hardcoded demo). NOT a srmech gap.
+- Open srmech (non-blocking): Stage 0b §44 last mile (genome_load needs manifest.json); Stage-2 explode/pack + catalog-unify. F738.

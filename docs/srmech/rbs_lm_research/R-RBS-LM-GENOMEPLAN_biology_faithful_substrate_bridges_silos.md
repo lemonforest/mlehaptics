@@ -40,3 +40,10 @@ Every domain kernel we build — SignWriting (F735), ni-Vanuatu (pending), wiki 
 
 ## Dependency order (the bottom-up critical path)
 **0b (§44 last mile) → 1 (§45 in-place edit) → 2 (§43 bundling) → 3 (domain silos).** Start at 0b: it's the smallest change with the largest unblock — once the loader scans `turns.bin` and the manifest is optional-derived, in-place excision (1) and chromosome-bundling (2) both become natural, and the domain silos (3) get a uniform substrate for free.
+
+---
+## rc149 STATUS UPDATE (F738)
+- **Stage 1 (§45 in-place edit): DELIVERED** — `genome_remove` (excise in place), `genome_replace` (in place). Verified.
+- **Stage 2 (§43 chromosome-as-bundle): DELIVERED (export/import)** — `genome_export -> .chr`, `genome_import` byte-intact (`GENOME_CHR_SCHEMA_ID`). Remaining Stage-2 bits: `explode`/`pack` (loose↔packed) + unify `genome_catalog` with the AMSC catalog.
+- **Stage 0b (§44 last mile): STILL OPEN** — `genome_load` requires `manifest.json` (the keystone; biology-faithful polish, non-blocking).
+- **Stage 3 (domain silos / Siona LM): UNBLOCKED** — genome CRUD complete (`R-RBS-LM-GENOMECRUD` 5/5). Next = research-subtree wiring of the storyteller World to genome-backed foundational kernels (SignWriting F735 + language/grammar + wiki). NOTE the dev did Stages 1–2 before 0b; 0b remains the cleanest biology-faithful finish.
