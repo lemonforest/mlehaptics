@@ -105,7 +105,7 @@ int main(void)
     /* CATALOG: manifest parses, data.body_sha256 present. */
     {
         srmech_json_value_t *man = NULL;
-        st = srmech_genome_catalog(dir, g_ws, sizeof(g_ws), &man);
+        st = srmech_genome_catalog(dir, NULL, 0u, g_ws, sizeof(g_ws), &man);
         check_true(st == SRMECH_OK && man != NULL, "genome_catalog parses");
         const srmech_json_value_t *data =
             srmech_json_object_get(man, "data");
@@ -130,7 +130,7 @@ int main(void)
         unsigned char out[64];
         size_t olen = 0u;
         st = srmech_genome_load(dir, out, sizeof(out), &olen,
-                                g_ws, sizeof(g_ws));
+                                NULL, 0u, g_ws, sizeof(g_ws));
         check_true(st == SRMECH_OK, "genome_load OK (bounding passes)");
         check_true(olen == sizeof(body) &&
                    memcmp(out, body, sizeof(body)) == 0,
@@ -143,13 +143,13 @@ int main(void)
         unsigned char out[64];
         size_t olen = 0u;
         st = srmech_genome_window(dir, "A", out, sizeof(out), &olen,
-                                  g_ws, sizeof(g_ws));
+                                  NULL, 0u, g_ws, sizeof(g_ws));
         check_true(st == SRMECH_OK, "genome_window('A') OK");
         check_true(olen == 16u && memcmp(out, body, 16u) == 0,
                    "window('A') == first 16 body bytes");
         /* WINDOW on a missing label is rejected. */
         st = srmech_genome_window(dir, "nope", out, sizeof(out), &olen,
-                                  g_ws, sizeof(g_ws));
+                                  NULL, 0u, g_ws, sizeof(g_ws));
         check_true(st != SRMECH_OK, "genome_window('nope') rejected");
     }
 
@@ -165,7 +165,7 @@ int main(void)
         check_true(st == SRMECH_OK, "genome_append('C') OK");
 
         srmech_json_value_t *man = NULL;
-        st = srmech_genome_catalog(dir, g_ws, sizeof(g_ws), &man);
+        st = srmech_genome_catalog(dir, NULL, 0u, g_ws, sizeof(g_ws), &man);
         const srmech_json_value_t *data =
             srmech_json_object_get(man, "data");
         const srmech_json_value_t *nt =
@@ -216,9 +216,69 @@ int main(void)
         unsigned char out[64];
         size_t olen = 0u;
         st = srmech_genome_load(dir, out, sizeof(out), &olen,
-                                g_ws, sizeof(g_ws));
+                                NULL, 0u, g_ws, sizeof(g_ws));
         check_true(st == SRMECH_ERR_BAD_INPUT,
                    "corrupted body -> load bounding error");
+    }
+
+    /* §44 (rc145): manifest.json is the OPTIONAL .fai cache — the loaders
+     * reconstruct from turns.bin ALONE (scan), given the_one for the leaf
+     * width. So a genome can be shipped as turns.bin only (the §43 goal). */
+    {
+        /* Re-save a clean genome (the BOUNDING test corrupted turns.bin). */
+        st = srmech_genome_save(dir, body, sizeof(body), leaf_dim,
+                                the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_OK, "re-save clean genome for the §44 section");
+        /* Delete manifest.json — the strand is now the sole source of truth. */
+        char man_path[1200];
+        snprintf(man_path, sizeof(man_path), "%s/manifest.json", dir);
+        check_true(remove(man_path) == 0, "delete manifest.json");
+
+        /* CATALOG rebuilt by scanning turns.bin (needs the_one for the width). */
+        srmech_json_value_t *man = NULL;
+        st = srmech_genome_catalog(dir, the_one, sizeof(the_one),
+                                   g_ws, sizeof(g_ws), &man);
+        check_true(st == SRMECH_OK && man != NULL,
+                   "catalog rebuilt manifest-less (the_one)");
+        const srmech_json_value_t *data = srmech_json_object_get(man, "data");
+        const srmech_json_value_t *nt = srmech_json_object_get(data, "n_turns");
+        check_true(nt != NULL && nt->u.i == 6,
+                   "rebuilt n_turns == 6 (the original 2-chrom body)");
+
+        /* LOAD manifest-less -> body bytes match the saved body. */
+        unsigned char out[64];
+        size_t olen = 0u;
+        st = srmech_genome_load(dir, out, sizeof(out), &olen,
+                                the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_OK && olen == sizeof(body) &&
+                   memcmp(out, body, sizeof(body)) == 0,
+                   "load manifest-less == saved body");
+
+        /* WINDOW manifest-less -> chromosome 'A' region (first 16 bytes). */
+        st = srmech_genome_window(dir, "A", out, sizeof(out), &olen,
+                                  the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_OK && olen == 16u &&
+                   memcmp(out, body, 16u) == 0,
+                   "window('A') manifest-less == first 16 bytes");
+
+        /* HELPFUL error: no manifest AND no the_one -> BAD_INPUT (not IO). */
+        st = srmech_genome_catalog(dir, NULL, 0u, g_ws, sizeof(g_ws), &man);
+        check_true(st == SRMECH_ERR_BAD_INPUT,
+                   "no manifest + no the_one -> BAD_INPUT (helpful, not IO)");
+
+        /* APPEND manifest-less -> rebuilds, appends, re-writes the .fai cache. */
+        unsigned char region[8] = {
+            /* Z CHROM cap */ CC, (unsigned char)'Z', 0u, 0u,
+            /* Z turn0     */ 1u, 1u, 0u, 3u,
+        };
+        st = srmech_genome_append(dir, "Z", region, sizeof(region), leaf_dim,
+                                  the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_OK, "append manifest-less OK (rebuild + grow)");
+        st = srmech_genome_catalog(dir, NULL, 0u, g_ws, sizeof(g_ws), &man);
+        data = srmech_json_object_get(man, "data");
+        nt = srmech_json_object_get(data, "n_turns");
+        check_true(st == SRMECH_OK && nt != NULL && nt->u.i == 8,
+                   "append re-wrote the .fai cache (n_turns 6 -> 8)");
     }
 
     printf("== %d passed, %d failed ==\n", g_passed, g_failed);
