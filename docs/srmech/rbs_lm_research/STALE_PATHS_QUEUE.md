@@ -767,3 +767,10 @@ Per user direction ("check stale queue items to bring forward and do if remainin
   NT=16: near 84% / far 16% / near:far 5.4 / 13-16 / even
 - MONOTONE: fewer tomes -> tighter locality (wider arc/tome). NT=11 = most local (near:far 8.0) AND odd -> live/frustrated mirror (no antipode pairs; chirality never lands, F516/F540). 11 = the 11D observer-frame count = tightest-recall + live-chiral simultaneously. The F540 14-vs-16 split (TIED on census-heavy enwiki-256, F747) shows CLEARLY on simplewiki.
 - Honest: on the OLD capped simplewiki_256; re-check NT=11 on a LOAD-TIME top-N from the uncapped kernel (F748) once it lands.
+
+### F749 — per-NOW encoding cap + the fractal-stretch research program (user: "how do we begin to research this?") (2026-06-14)
+
+- Question: biology's addressing space has real per-NOW caps; the scale-invariant universe should stretch it over a larger surface fractally; how to research?
+- Step 1 (DONE): per-NOW cap is two-layered. SedenionRegister clean-recall over 16 slots vs D: 6/16 @ D=256, 13/16 @ 512, 16/16 @ >=1024. SOFT cap = substrate width D (BCI knob: narrow substrate = small NOW). HARD cap = 16 slots / 7 exact (octonion coupler); CD ladder STOPS at sedenion (zero divisors, F460/F594) -> a NOW cannot exceed 16 (reversibility horizon, not a soft wall).
+- Program (instruments exist): step2 = recurse the cap (tome-of-tomes F532, 7^depth) measure surface-vs-depth (falsifier: crosstalk accumulates with depth); step3 = SCALE-INVARIANCE test = near:far ratio (F747 sweep) stable across recursion levels (falsifier: drifts); step4 = measure d_S of recursed structure (~2, the space-time fractal F708) + hand to expert (does cap match 7±2 / 4:3:7? does genome/cortex use 7^depth recursion? F552 cap = substrate feature not noise).
+- You don't beat the NOW-cap, you RECURSE it; scale-invariance says the recursion is fractal. Framework reading + measurement; deliverable = next question to expert (F282). See F749.
