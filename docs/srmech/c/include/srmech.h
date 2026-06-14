@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc150"
-#define SRMECH_VERSION       "0.7.5rc150"
+#define SRMECH_VERSION_PRE   "rc151"
+#define SRMECH_VERSION       "0.7.5rc151"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2234,6 +2234,51 @@ srmech_status_t srmech_genome_export(
  *                           exists in dest, or a malformed bundle / manifest. */
 srmech_status_t srmech_genome_import(
     const char *chr_path, const char *dest,
+    const unsigned char *the_one, size_t the_one_len,
+    void *ws, size_t ws_len);
+
+/* §43 LOOSE<->PACKED — git's object model for genomes.
+ *
+ * EXPLODE: write one loose <label>.chr bundle per chromosome of the packed
+ * genome at `dir` into `out_dir` (which must exist; the C surface does not
+ * mkdir), each via srmech_genome_export (so each .chr self-verifies). Like
+ * `git unpack-objects`. `the_one` is only consulted as the rebuild width
+ * for a manifest-less source (§44); when the source has a manifest.json it
+ * may be NULL. Every chromosome label must be filename-safe (no '/' / '\\',
+ * not "" / "." / "..") — else SRMECH_ERR_BAD_INPUT. Mirrors the Python
+ * genome_explode.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — dir / out_dir / ws is NULL.
+ *   SRMECH_ERR_IO          — turns.bin / a .chr write failed.
+ *   SRMECH_ERR_OVERFLOW    — ws too small, a region exceeds
+ *                           SRMECH_GENOME_CHR_REGION_MAX, or a path too long.
+ *   SRMECH_ERR_BAD_INPUT   — the_one_len 0 / > 256, an unsafe label, a cap
+ *                           integrity bound failed, or a malformed manifest. */
+srmech_status_t srmech_genome_explode(
+    const char *dir, const char *out_dir,
+    const unsigned char *the_one, size_t the_one_len,
+    void *ws, size_t ws_len);
+
+/* PACK: read every <label>.chr in `loose_dir` (a *.chr directory scan), sort
+ * them by their inner data.label (CANONICAL order — content-preserving, not
+ * byte-order-preserving: it re-canonicalises), and srmech_genome_import each
+ * in order into `dest` (the first SEEDS dest, the rest APPEND — so they must
+ * share one the_one). Like `git repack`. `dest` must exist (no mkdir); an
+ * empty `loose_dir` (or no *.chr files) is SRMECH_ERR_BAD_INPUT. `the_one` is
+ * only the rebuild width for a manifest-less existing dest (§44). Mirrors the
+ * Python genome_pack.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — loose_dir / dest / ws is NULL.
+ *   SRMECH_ERR_IO          — a .chr / turns.bin / manifest.json I/O failed.
+ *   SRMECH_ERR_OVERFLOW    — ws too small, a region exceeds the scratch, or a
+ *                           path too long, or > SRMECH_GENOME_MAX_CHROMS .chr.
+ *   SRMECH_ERR_BAD_INPUT   — the_one_len 0 / > 256, no .chr files, a bundle is
+ *                           not a chromosome / fails its integrity bound, or
+ *                           the dest leaf_dim / the_one / label invariant. */
+srmech_status_t srmech_genome_pack(
+    const char *loose_dir, const char *dest,
     const unsigned char *the_one, size_t the_one_len,
     void *ws, size_t ws_len);
 

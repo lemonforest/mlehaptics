@@ -494,6 +494,69 @@ int main(void)
         }
     }
 
+    /* §43 (rc151): LOOSE<->PACKED — explode the packed genome to a dir of
+     * <label>.chr bundles, then pack them back (canonical sorted-label order)
+     * into a fresh genome whose turns.bin is byte-identical to the source. */
+    {
+        /* re-save clean A+B (the §43 section above tampered A.chr, not dir). */
+        st = srmech_genome_save(dir, body, sizeof(body), leaf_dim,
+                                the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_OK, "re-save clean A+B for the loose<->packed section");
+
+        const char *tbase = getenv("TMPDIR");
+        if (tbase == NULL) { tbase = getenv("TMP"); }
+        if (tbase == NULL) { tbase = "/tmp"; }
+        char loose_dir[1024], packed_dir[1024], a_chr[1100], b_chr[1100];
+        snprintf(loose_dir, sizeof(loose_dir), "%s/srmech_genome_loose", tbase);
+        snprintf(packed_dir, sizeof(packed_dir), "%s/srmech_genome_packed", tbase);
+        snprintf(a_chr, sizeof(a_chr), "%s/A.chr", loose_dir);
+        snprintf(b_chr, sizeof(b_chr), "%s/B.chr", loose_dir);
+
+        /* EXPLODE: dir -> loose_dir/{A.chr, B.chr}. */
+        ensure_dir(loose_dir);
+        st = srmech_genome_explode(dir, loose_dir, NULL, 0u, g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_OK, "genome_explode OK");
+        {
+            FILE *fa = fopen(a_chr, "rb");
+            FILE *fb = fopen(b_chr, "rb");
+            check_true(fa != NULL && fb != NULL, "explode wrote A.chr + B.chr");
+            if (fa != NULL) { fclose(fa); }
+            if (fb != NULL) { fclose(fb); }
+        }
+
+        /* PACK: loose_dir -> packed_dir; turns.bin == the original body
+         * (canonical A<B order seeds with A then appends B = source layout). */
+        ensure_dir(packed_dir);
+        st = srmech_genome_pack(loose_dir, packed_dir, NULL, 0u, g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_OK, "genome_pack OK");
+        {
+            unsigned char out[64];
+            size_t olen = 0u;
+            st = srmech_genome_load(packed_dir, out, sizeof(out), &olen,
+                                    NULL, 0u, g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_OK && olen == sizeof(body) &&
+                       memcmp(out, body, sizeof(body)) == 0,
+                       "packed body == source body (byte-for-byte, A<B order)");
+            st = srmech_genome_window(packed_dir, "A", out, sizeof(out), &olen,
+                                      NULL, 0u, g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_OK && olen == 16u, "packed window('A') OK (16 B)");
+            st = srmech_genome_window(packed_dir, "B", out, sizeof(out), &olen,
+                                      NULL, 0u, g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_OK && olen == 8u, "packed window('B') OK (8 B)");
+        }
+
+        /* PACK of an empty dir (no .chr files) -> BAD_INPUT (not IO). */
+        {
+            char empty_dir[1024], dst[1024];
+            snprintf(empty_dir, sizeof(empty_dir), "%s/srmech_genome_empty", tbase);
+            snprintf(dst, sizeof(dst), "%s/srmech_genome_packed_empty", tbase);
+            ensure_dir(empty_dir);
+            ensure_dir(dst);
+            st = srmech_genome_pack(empty_dir, dst, NULL, 0u, g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_ERR_BAD_INPUT, "pack of empty dir -> BAD_INPUT");
+        }
+    }
+
     printf("== %d passed, %d failed ==\n", g_passed, g_failed);
     return (g_failed == 0) ? 0 : 1;
 }

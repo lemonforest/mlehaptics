@@ -302,20 +302,29 @@ catalog/load/window/append entries + their accessors (`genome_data_get` /
 `genome_str_eq` / `genome_find_chrom` / `genome_check_new_label` /
 `genome_read_bound_body` / `genome_grow_body` / `genome_save_validate`), the §45
 in-place edits (`srmech_genome_remove` / `srmech_genome_replace` — splice a
-chromosome's byte span out of / into the body, then re-save), and the §43
+chromosome's byte span out of / into the body, then re-save), the §43
 file-management surface (`srmech_genome_export` / `srmech_genome_import` — bundle a
 chromosome as a self-contained MPR-attested `.chr`, re-import it self-verifying,
 with the `.chr` builders `genome_jstr` / `genome_find_chrom_obj` / `genome_chr_subobj`
 / `_build_data` / `_build_attest` / `_build_render` / `_build_file` / `genome_chr_meta`
 / `genome_chr_consts`, and the import helpers `genome_unhex` / `genome_chr_decode_verify`
-/ `genome_chr_verify_extract` / `genome_body_exists` / `genome_chr_append`) — carries ≥ 2 asserts and is ≤ 60 lines. No
+/ `genome_chr_verify_extract` / `genome_body_exists` / `genome_chr_append`), and the
+§43 loose↔packed surface (`srmech_genome_explode` / `srmech_genome_pack` — git's
+object model: explode a packed genome to a dir of `<label>.chr` loose bundles,
+pack a `*.chr` dir back into one genome in canonical sorted-label order, with the
+helpers `genome_label_filename_safe` / `genome_collect_labels` / `genome_chr_name_ok`
+/ `genome_list_chr` / `genome_chr_peek_label` / `genome_sort_by_label`) — carries ≥ 2 asserts and is ≤ 60 lines. No
 recursion (the JSON tree is built/walked by the non-recursive
 `srmech_json` builder/parser/writer); every loop is bounded by
 `n_chroms` (≤ `SRMECH_GENOME_MAX_CHROMS` = 256) or a caller `size_t`
-(the file-read loop carries an explicit `pass <= cap` over-bound, Rule 2).
-File I/O is stdio (Rule 3 bans malloc, not files); the caller arena is for
-the JSON tree only; path strings + digests live in fixed stack/static
-buffers.
+(the file-read loop carries an explicit `pass <= cap` over-bound, Rule 2;
+the §43 `genome_list_chr` directory scan carries an explicit `guard < 65536`
+over-bound on top of the `≤ max_n` collected-`.chr` cap, Rule 2). File I/O
+is stdio (Rule 3 bans malloc, not files) — the §43 pack's `*.chr` directory
+enumeration is the one platform-specific touch (POSIX `dirent` / Win32
+`FindFirstFile`, ifdef'd like `srmech_platform.c`; no malloc); the caller
+arena is for the JSON tree only; path strings + digests live in fixed
+stack/static buffers.
 
 The Hermitian-eigendecomp `_ws` entry additionally validates the new
 workspace parameters at runtime (`workspace != NULL` →
