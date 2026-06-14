@@ -2157,3 +2157,23 @@ label's chrom-cap, cut `[cap_start, next_cap_start)` from `turns.bin`, drop its 
 (the self-describing scannable strand is exactly what makes in-place excision possible). Additive; TestPyPI-rc first;
 the composed `genome_drop` workaround above is the interim. (Biology angle: a genome you can edit in place — knock out
 a gene — without re-synthesizing the whole chromosome.)
+
+## §46 PLAN — biology-faithful genome substrate, bottom-up bridge across the domain silos (consolidates §41–§45; F737/GENOMEPLAN)
+
+Full staged build: `R-RBS-LM-GENOMEPLAN_biology_faithful_substrate_bridges_silos.md`. The one storage substrate under
+ALL domain kernels (SignWriting / ni-Vanuatu / wiki / religious / code / latex / language-grammar) — biology-faithful
+(fixed-width, inline, self-describing, scannable, in-place-editable) so every silo is paged / introspected / excised /
+bundled identically → the silos are bridged from the bottom up by the shared substrate. **Critical path (do in order):**
+- **Stage 0b = §44 last mile (KEYSTONE, the rc145 gap):** `genome_load`/`window`/`genes`/`catalog` reconstruct from
+  `turns.bin` ALONE (scan the fixed-width strand + `partition`-recover); `manifest.json` → optional derived `.fai`/faidx.
+  (rc145 already self-describes IN-MEMORY — `partition` recovers labels from the cap leaves; `CHROM_CAP_MARKER`/
+  `GENE_CAP_MARKER` landed — so on-disk scan-reconstruct is the small remaining change that unblocks the rest.)
+- **Stage 1 = §45 in-place edit:** `genome_remove`/`genome_drop`/`genome_replace` by cap-span excision (no re-pack;
+  CRISPR-like). Interim: composed `genome_drop` (F736) re-packs.
+- **Stage 2 = §43 file-management:** `genome_export(.chr)`/`import`, `explode`/`pack`, unify `genome_catalog` with the
+  AMSC `catalog` (F730 reuse map — compose `MPRRecord`/`descriptor`/`register_attested_root`, don't reinvent).
+- **Stage 3 = domain silos on the substrate:** foundational language-kernel layer first — SignWriting (built, F735) +
+  ni-Vanuatu (pending), the two language-AGNOSTIC 2D-spatial anchors (F737).
+Minor-but-load-bearing folded in: the rc145 `the_one=`-optional loaders (scan-derive plumbing, nearly enough for 0b);
+`GenomeBoundingError`-on-missing-manifest → turn into scan-and-reconstruct; per-chromosome `description` → Stage-2
+`descriptor.toml`; §37 native Class-L eigendecomp = orthogonal perf ask. Additive; TestPyPI-rc first.

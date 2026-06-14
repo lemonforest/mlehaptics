@@ -670,3 +670,8 @@ Per user direction ("check stale queue items to bring forward and do if remainin
 
 - NO dedicated remove/delete op. Composable remove WORKS w/o manual cap surgery: genome_drop(strand,the_one,label) = genome([(l,lv) for l,lv in partition(strand,the_one).items() if l!=label], the_one). Verified rc145: dropped 'beta', alpha+gamma byte-intact, survived disk save/load. R-RBS-LM-GENOMEEDIT...py.
 - LIMITATION (UPSTREAM §45): it RE-PACKS the whole genome (rewrites turns.bin). Ask: in-place genome_remove(path,label)/genome_drop + genome_replace that splice the cap-delimited span (rc145 added CHROM_CAP_MARKER/GENE_CAP_MARKER -> tractable). Biology excises in place (CRISPR), no full re-synthesis. F736.
+
+### F737 + GENOMEPLAN — SignWriting+ni-Vanuatu foundational; biology-faithful substrate plan (2026-06-14)
+
+- F737: SignWriting (built, F735) + ni-Vanuatu (pending) ELEVATED to the foundational, language-AGNOSTIC anchors of the language kernel — both 2D-spatial 'draw-it' pole, English-privilege-free (composes R-RBS-LM-25), accessibility-native. Linear tongues (text/speech) project OFF this foundation.
+- GENOMEPLAN (UPSTREAM §46): consolidated bottom-up srmech build for the biology-faithful genome as the ONE substrate bridging all domain silos. Critical path: Stage 0b (§44 last mile = the rc145 gap: genome_load scans turns.bin alone, manifest→optional faidx — KEYSTONE) → Stage 1 (§45 in-place edit) → Stage 2 (§43 file-mgmt, compose AMSC) → Stage 3 (domain silos; foundational language layer first). All minor rc145 items folded in (the_one=-optional loaders, GenomeBoundingError, per-chrom description, §37 perf).
