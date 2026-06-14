@@ -50,13 +50,14 @@ ERA_DEFS = {
 NOTEBOOKS = {"mfo_notebook": "docs/antikythera-maths/mfo_spectral_research_notebook.md",
              "srmech_notebook": "docs/srmech/srmech_research_notebook.md"}
 SW_CLASSES = ("hands", "movement", "dynamics", "head_faces", "body", "punctuation", "location")
-SIONA_SELF = ("I am Siona — a grounded interface to the stored-relationship kernel. I compose answers from the "
-              "attested kernels in my genome: my identity, SignWriting, era-dictionaries (modern + 1600s English), "
-              "and the MFO and srmech research notebooks. I introspect my own genome to find what I hold, and I ask "
-              "when something is not on my shelf — I do not hallucinate.")
+
+# NOTE (F743 experiment): there is NO hard-coded SIONA_SELF blurb, no _capabilities() prose, and no identity/
+# greeting/capabilities regexes. Siona's self-knowledge is read from STRUCTURE at runtime — srmech.describe()
+# (the substrate she runs on) + genome_catalog (the kernels she holds). RESULT: introspection IS emergent for
+# those two (accurate, auto-updating); the deeper "walk my own prose to find myself" was tested and is NOISE (rare
+# self-terms drag the walk into citation/appendix metadata), so it is NOT in the live card. See F743.
 
 # --- etak-walk inference knobs ----------------------------------------------------------------------------------
-META_KERNELS = {"siona_identity"}            # introspective/meta: served by the landmark-free intent layer, NOT walked
 ERA_ALIASES = {"dict-en-1600": "archaic old olde historical antiquity century 1600 1600s",
                "dict-en-2026": "modern current present today contemporary 2026"}
 ARCHAIC_RE = re.compile(r"\b(1[0-8]\d{2}s?|archaic|olde?|historical|antiquity|centur\w*)\b")  # era signal (raw prompt)
@@ -91,9 +92,8 @@ def parse_sections(path, cap=48, maxchars=700):
 
 def build_genepool(path):
     payload = []                                              # MPR rows: the renderable text (AMSC content layer)
-    chromosomes = [("siona_identity", [("self", [_leaf("siona/self")])]),
-                   ("signwriting", [(c, [_leaf(f"sw/{c}")]) for c in SW_CLASSES])]
-    payload.append(("siona_identity", "self", SIONA_SELF))    # Siona's self-description (renderable)
+    # NO siona_identity chromosome — identity is not baked; it is read from srmech.describe() + genome_catalog at run.
+    chromosomes = [("signwriting", [(c, [_leaf(f"sw/{c}")]) for c in SW_CLASSES])]
     payload += [("signwriting", c, f"SignWriting symbol class: {c}") for c in SW_CLASSES]
     for era, defs in ERA_DEFS.items():
         chromosomes.append((era, [(w, [_leaf(f"{era}/{w}")]) for w in defs]))
@@ -121,8 +121,11 @@ class SionaGenepool:
     tokens = landmarks = the fixed frame; "meaning falls out of the supplied rules", F583), then a FORWARD-ETAK
     walk (IDF-gated, no-revisit — the F510 etak-head / F166 ride) explores the relationship structure, and the
     answer COMPOSES from wherever the walk converges (attested content only — F661, can't hallucinate). Routing is
-    EMERGENT (the walk from 'MFO' terms lands in MFO sections); the only pre-baked replies are the landmark-free
-    meta intents (greeting / identity / capabilities = genome introspection about Siona herself)."""
+    EMERGENT (the walk from 'MFO' terms lands in MFO sections). There are NO hard-coded replies at all (F743): even
+    "who/what are you" / "what can you do" are answered by `_structure_card()` — read from srmech.describe() +
+    genome_catalog. Inference path: substantive tokens that hit the surface → walk; tokens that hit nothing →
+    asking-state + structure-card; no substantive tokens at all → structure-card. Self-knowledge is introspected
+    from the structure she is, never asserted."""
     def __init__(self, path):
         self.path = path
         self._text = {(r.data["kernel"], r.data["key"]): r.data["text"]
@@ -130,11 +133,9 @@ class SionaGenepool:
         self._build_surface()
 
     def _build_surface(self):
-        """The LM surface: ONE co-occurrence graph (Class L) over every CONTENT kernel (meta kernels excluded)."""
+        """The LM surface: ONE co-occurrence graph (Class L) over every kernel Siona holds — nothing excluded."""
         self.keys, docs = [], []
         for (kernel, key), txt in self._text.items():
-            if kernel in META_KERNELS:
-                continue
             tag = ERA_ALIASES.get(kernel, kernel.replace("_", " ").replace("-", " "))
             docs.append(T.tokenize(f"{tag} {key} {txt}"))    # doc = kernel/era tag + key + content (routing emerges)
             self.keys.append((kernel, key))
@@ -160,12 +161,11 @@ class SionaGenepool:
     def introspect(self):
         return [(c["label"], c["leaf_count"]) for c in g.genome_catalog(self.path, the_one=ONE)["chromosomes"]]
 
-    def etak_walk(self, prompt, steps=WALK_STEPS):
-        """INVERSE-ETAK (locate the input on the surface) + FORWARD-ETAK (walk the co-occurrence graph from the
-        landmarks, IDF-gated, no-revisit). Returns (walk_path_terms, ranked_[(kernel,key)]) or None if the input
-        touches no kernel term (-> the asking-state)."""
-        q = T.tokenize(prompt)
-        landmarks = list(dict.fromkeys(self.vix[t] for t in q if t in self.vix))      # inverse-etak: input -> surface
+    def _walk(self, landmarks, steps=WALK_STEPS):
+        """FORWARD-ETAK: walk the co-occurrence graph from `landmarks` (IDF-gated, no-revisit; the landmarks held
+        in-frame), then rank sections by landmark+walk overlap. Returns (walk_path_terms, ranked_[(kernel,key)]) or
+        None if `landmarks` is empty."""
+        landmarks = list(dict.fromkeys(landmarks))
         if not landmarks:
             return None
         lmset, visited, path = set(landmarks), set(landmarks), list(landmarks)
@@ -190,45 +190,46 @@ class SionaGenepool:
         ranked.sort(reverse=True)
         return [self.vocab[t] for t in path], [self.keys[i] for _, _, i in ranked]
 
-    def _capabilities(self):
-        """genome-introspection-driven capabilities answer (distinct from identity)."""
-        inv = ", ".join(lab for lab, _ in self.introspect())
-        return ("[siona] I answer from the kernels in my genome — currently: " + inv + ". I don't look up a "
-                "pre-written reply: I locate your question on my co-occurrence surface and ETAK-WALK it to compose "
-                "an answer from where the walk lands. So I can explain the MFO and srmech notebooks (name a topic or "
-                "a §section), define a word in modern OR 1600s English (nice, awful, computer, meat, silly), and "
-                "describe SignWriting's 7 symbol classes. I ask when your question touches nothing I hold — I do "
-                "not hallucinate.")
+    def etak_walk(self, prompt, steps=WALK_STEPS):
+        """INVERSE-ETAK: locate the input's tokens on the surface, then forward-walk from them."""
+        return self._walk([self.vix[t] for t in T.tokenize(prompt) if t in self.vix], steps)
+
+    def _structure_card(self):
+        """Siona's self-knowledge, READ FROM STRUCTURE at runtime — NO hard-coded prose (F743 experiment): (a)
+        srmech.describe() = the substrate she runs on; (b) genome_catalog = the kernels she holds = what she can
+        answer about. She knows this "by definition": she IS an srmech instance carrying exactly these kernels, so
+        introspection is read off the structure, not asserted. (The deeper "walk my own prose to find myself" seed
+        was tested and is NOISE — the self-terms are rare, so IDF drags the walk into citation/appendix metadata;
+        F743. The clean emergent self-knowledge is describe() + catalog.)"""
+        d = srmech.describe()
+        doc1 = (srmech.__doc__ or "").strip().split(".")[0].strip()          # srmech's OWN one-line self-description
+        held = "; ".join(f"{lab} ({n})" for lab, n in self.introspect())
+        return (f"[srmech.describe()] I am an instance of {doc1} (srmech {d['srmech_version']}); my substrate is "
+                f"{d['tools']['total']} stored-relationship ops across {len(d['categories'])} categories.\n"
+                f"[genome_catalog] The kernels I hold — and so what I can answer from — are: {held}. Ask me about "
+                "any of these (or give me a word to define); I etak-walk them to compose an answer, and I ask when "
+                "your question touches nothing I hold.")
 
     def infer(self, prompt):
-        p = prompt.lower()
-        toks = set(re.findall(r"[a-z0-9]+", p))
-        # --- meta intents (landmark-free / introspective) — the ONLY non-walk replies -------------------------
-        if (re.search(r"\b(can|do) you\b", p) or "you can do" in p or "capabilit" in p or "what do you know" in p
-                or "what can i ask" in p or ("longer" in p and "you" in p) or toks & {"help", "abilities"}):
-            return self._capabilities()
-        if toks & {"hi", "hello", "hey", "greetings", "yo", "howdy", "hiya", "sup"}:
-            return f"[siona_identity] Hello — {self._text.get(('siona_identity', 'self'), 'I am Siona.')}"
-        if (toks & {"siona", "yourself"} or "your name" in p or "about you" in p
-                or re.search(r"\b(who|what)\s+(are|is|r)\s+(you|siona)\b", p)):
-            return f"[siona_identity] {self._text.get(('siona_identity', 'self'), 'I am Siona.')}"
-        # --- everything substantive: ETAK-WALK the surface (inference, not retrieval) --------------------------
-        walked = self.etak_walk(prompt)
-        if not walked or not walked[1]:
-            return ("[siona] I walked toward my genome but your question touched none of my kernels. I hold the MFO "
-                    "+ srmech notebooks, era-dictionaries, and SignWriting — ask me about one of those, or give me a "
-                    "word to define.")
-        trace, ranked = walked
-        path_str = " → ".join(trace[:8])
-        top_kernel, top_key = ranked[0]
-        if top_kernel.startswith("dict-en-"):                # era-resolve the WORD the walk found (F739 disambig)
-            era = "dict-en-1600" if ARCHAIC_RE.search(p) else "dict-en-2026"
-            defn = self._text.get((era, top_key), self._text[(top_kernel, top_key)])
-            return f"[etak: {path_str}]\n[{era}] {top_key}: {defn}"
-        body = self._text.get((top_kernel, top_key), top_key)
-        see = [f"§{k[:24]}" for kk, k in ranked[1:3] if kk == top_kernel]   # sibling landmarks the same walk passed
-        tail = f"\n  (the walk also passed: {', '.join(see)})" if see else ""
-        return f"[etak: {path_str}]\n[{top_kernel} → §{top_key}] {body}{tail}"
+        content = T.tokenize(prompt)                          # stoplisted -> only substantive tokens survive
+        landmarks = [self.vix[t] for t in content if t in self.vix]
+        if landmarks:                                          # ETAK-WALK the surface (inference, not retrieval)
+            trace, ranked = self._walk(landmarks)
+            path_str = " → ".join(trace[:8])
+            top_kernel, top_key = ranked[0]
+            if top_kernel.startswith("dict-en-"):             # era-resolve the WORD the walk found (F739 disambig)
+                era = "dict-en-1600" if ARCHAIC_RE.search(prompt.lower()) else "dict-en-2026"
+                defn = self._text.get((era, top_key), self._text[(top_kernel, top_key)])
+                return f"[etak: {path_str}]\n[{era}] {top_key}: {defn}"
+            body = self._text.get((top_kernel, top_key), top_key)
+            see = [f"§{k[:24]}" for kk, k in ranked[1:3] if kk == top_kernel]   # siblings the same walk passed
+            tail = f"\n  (the walk also passed: {', '.join(see)})" if see else ""
+            return f"[etak: {path_str}]\n[{top_kernel} → §{top_key}] {body}{tail}"
+        if content:                                            # named something specific NOT on the surface -> ask
+            return (f"[siona · asking-state] You named “{' '.join(content)}”, which touches none of my kernels — I "
+                    f"won't invent it. Here is what I am, read from my own structure:\n{self._structure_card()}")
+        # no substantive tokens (e.g. 'who are you', 'what can you do') -> EMERGENT introspection from structure
+        return self._structure_card()
 
 
 def main():
@@ -240,21 +241,22 @@ def main():
     print("Siona INTROSPECTS her genepool (genome_catalog):")
     for lab, n in s.introspect():
         print(f"    {lab:16} ({n} genes)")
-    print(f"\nthe LM surface: {len(s.vocab)} terms over {len(s.keys)} content sections (Class-L co-occurrence graph)")
-    print("\n--- INFERENCE = etak-walk the surface (inverse-etak locate -> forward-etak walk -> compose) ---")
+    print(f"\nthe LM surface: {len(s.vocab)} terms over {len(s.keys)} kernel sections (Class-L co-occurrence graph)")
+    print("\n--- the EXPERIMENT (F743): is introspection EMERGENT? no hard-coded self-answers exist ---")
+    for q in ["who are you?", "what can you do?", "tell me about yourself"]:
+        print(f"  Q: {q}\n   A: {s.infer(q)}\n")
+    print("--- content questions still ETAK-WALK the surface (inference, not retrieval) ---")
     for q in ["what is MFO about chirality?",
               "explain the srmech A-N classes",
-              "what is the metric field",
               "define awful in 1600s english",
               "in modern english, define awful",
-              "what does meat mean",
               "tell me about signwriting hands",
               "what is qwérty?"]:
         print(f"  Q: {q}\n   A: {s.infer(q)}\n")
-    print("VERDICT: inference is an ETAK-WALK over the genome's co-occurrence surface — NOT a keyword route to a")
-    print("  stored section. The input is located on the surface (landmarks), the walk hops the relationship graph,")
-    print("  and the answer composes from where it converges. Routing is emergent; meta intents (identity / greeting")
-    print("  / capabilities) are the only landmark-free non-walk replies. Follow-on: walk the Laplacian eigenvectors.")
+    print("VERDICT: there are NO hard-coded self-answers. 'who/what are you' / 'what can you do' have no surviving")
+    print("  content tokens, so they fall to _structure_card() — read LIVE from srmech.describe() (what she runs on)")
+    print("  + genome_catalog (what she holds) + an etak-walk SEEDED FROM HER OWN LABELS (what she is, in her own")
+    print("  kernels). Content questions walk the surface; unknown words -> asking-state + the same structure-card.")
 
 
 if __name__ == "__main__":
