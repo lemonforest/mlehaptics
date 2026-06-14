@@ -294,10 +294,11 @@ Mirrored in `tests/test_jpl_audit.py::RULE_5_EXEMPT_FUNCTIONS`.
 new exemptions.** Every function in `srmech_genome.c` — the path/file stdio
 helpers (`genome_join` / `genome_write_file` / `genome_read_file` /
 `genome_read_region`), the manifest builders (`genome_build_the_one` /
-`_chrom` / `_data` / `_attest` / `_render` / `_manifest`), the string-block
+`_chrom` / `_data` / `_attest` / `_render` / `_manifest`), the §44 inline-cap
+body scan (`genome_decode_label` / `genome_scan_chroms`) + the string-block
 fill (`genome_fill_strings`, `genome_hex`), the catalog/load/window/append
 entries + their accessors (`genome_data_get` / `genome_str_eq` /
-`genome_find_chrom` / `genome_collect_chroms` / `genome_grow_body` /
+`genome_find_chrom` / `genome_check_new_label` / `genome_grow_body` /
 `genome_save_validate`) — carries ≥ 2 asserts and is ≤ 60 lines. No
 recursion (the JSON tree is built/walked by the non-recursive
 `srmech_json` builder/parser/writer); every loop is bounded by

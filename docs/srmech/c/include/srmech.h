@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc142"
-#define SRMECH_VERSION       "0.7.5rc142"
+#define SRMECH_VERSION_PRE   "rc143"
+#define SRMECH_VERSION       "0.7.5rc143"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1980,9 +1980,19 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
  * stays 3.
  * ------------------------------------------------------------------ */
 
-/* §41 on-disk format version (1 == fixed-width leaf_dim-byte blocks,
- * manifest-described boundaries). Mirrors GENOME_FORMAT_VERSION. */
-#define SRMECH_GENOME_FORMAT_VERSION 1
+/* §41/§44 on-disk format version. 1 == content-address telomere caps +
+ * manifest-described boundaries; 2 (§44) == SELF-DESCRIBING fixed-width
+ * strand: chromosome + gene boundaries are INLINE packed caps scanned-for in
+ * the body (the strand is the SSoT; the manifest is a derived cache, every
+ * field rebuildable by scanning the body). Mirrors GENOME_FORMAT_VERSION. */
+#define SRMECH_GENOME_FORMAT_VERSION 2
+
+/* §44 inline cap markers — the FIRST byte of a fixed-width cap leaf. Both are
+ * > 3 so a cap is told apart from a Klein-4 data turn (bytes 0..3) by its
+ * first byte alone; the label follows, NUL-padded to leaf_dim. Mirror
+ * CHROM_CAP_MARKER / GENE_CAP_MARKER in srmech.amsc.genome. */
+#define SRMECH_GENOME_CHROM_CAP_MARKER 0x43u   /* 'C' — opens a chromosome */
+#define SRMECH_GENOME_GENE_CAP_MARKER  0x47u   /* 'G' — opens a gene */
 
 /* Max chromosomes a genome directory may hold (bounds the manifest
  * builder's per-chromosome arrays; single-token object-like macro). */
@@ -1991,46 +2001,38 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
 /* Max label byte length (NUL-terminated) for one chromosome. */
 #define SRMECH_GENOME_MAX_LABEL 256
 
-/* One chromosome layout descriptor for srmech_genome_save. `label` is a
- * NUL-terminated UTF-8 string the caller keeps alive across the call;
- * `leaf_count` is the DATA-turn count — the chromosome's on-disk region
- * is leaf_count + 1 blocks (the telomere cap leads the region). */
-typedef struct {
-    const char *label;
-    uint32_t    leaf_count;
-} srmech_genome_chrom_t;
-
 /* SAVE: write <dir>/turns.bin (= `body` verbatim, body_len bytes) and
  * <dir>/manifest.json (byte-identical to the Python genome_save manifest).
- *   body / body_len : the flat fixed-width body (n_chroms regions,
- *                     concatenated cap-led blocks; n_turns = body_len /
- *                     leaf_dim).
- *   leaf_dim        : the fixed block width in bytes (> 0).
+ *
+ * §44: the chromosome layout is DERIVED by SCANNING the self-describing body
+ * — there is no caller-supplied layout. Every CHROM cap (first byte
+ * SRMECH_GENOME_CHROM_CAP_MARKER) opens a chromosome whose label is read INLINE
+ * from the cap, whose leaf_count is the DATA-turn count (blocks that are NOT a
+ * CHROM/GENE cap), and whose byte_offset/byte_len span up to the next CHROM cap
+ * (or EOF). The derived manifest is byte-identical to the Python genome_save's
+ * (the strand is the SSoT; the manifest is a derived cache).
+ *   body / body_len : the self-describing fixed-width body (CHROM/GENE caps +
+ *                     coupled turns; n_turns = body_len / leaf_dim).
+ *   leaf_dim        : the fixed block width in bytes (> 0, <= 256).
  *   the_one / the_one_len : the_one's single leaf_dim-byte block
  *                     (the_one_len MUST equal leaf_dim).
- *   chroms / n_chroms : the chromosome layout IN STRAND ORDER. The byte
- *                     regions are derived from the per-chromosome
- *                     (leaf_count + 1) block counts; they must tile the
- *                     whole body exactly.
  *   ws / ws_len     : arena for the JSON builder (>= a few hundred KiB
  *                     for a typical genome; SRMECH_ERR_OVERFLOW if short).
  *
  * Error returns:
- *   SRMECH_ERR_NULL_ARG   — dir / body(when body_len>0) / the_one /
- *                           chroms(when n_chroms>0) / ws is NULL.
- *   SRMECH_ERR_BAD_INPUT   — leaf_dim == 0, the_one_len != leaf_dim,
- *                           n_chroms > SRMECH_GENOME_MAX_CHROMS, a label
- *                           too long, or the chromosome regions do not
- *                           tile body_len exactly.
+ *   SRMECH_ERR_NULL_ARG   — dir / body(when body_len>0) / the_one / ws NULL.
+ *   SRMECH_ERR_BAD_INPUT   — leaf_dim == 0 / > 256, the_one_len != leaf_dim,
+ *                           body_len not a whole multiple of leaf_dim, a turn
+ *                           before the first CHROM cap, or a label too long.
  *   SRMECH_ERR_IO          — fopen / fwrite failed.
- *   SRMECH_ERR_OVERFLOW    — the JSON arena ws is too small.
+ *   SRMECH_ERR_OVERFLOW    — the JSON arena ws is too small, or more than
+ *                           SRMECH_GENOME_MAX_CHROMS chromosomes.
  */
 srmech_status_t srmech_genome_save(
     const char *dir,
     const unsigned char *body, size_t body_len,
     uint32_t leaf_dim,
     const unsigned char *the_one, size_t the_one_len,
-    const srmech_genome_chrom_t *chroms, uint32_t n_chroms,
     void *ws, size_t ws_len);
 
 /* CATALOG: parse <dir>/manifest.json ONLY (never opens turns.bin) into a
