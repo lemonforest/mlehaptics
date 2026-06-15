@@ -331,7 +331,7 @@ static double srmech_hermitian_off_diag_sq(uint32_t n,
                                            const double *mat_il)
 {
     assert(mat_il != NULL);
-    assert(n <= SRMECH_HERMITIAN_WS_MAX_NODES);
+    assert(n <= srmech_config_hermitian_max_nodes());
     double s = 0.0;
     for (uint32_t r = 0; r < n; r++) {
         for (uint32_t c = r + 1; c < n; c++) {
@@ -454,7 +454,7 @@ static void srmech_hermitian_apply_rotation(uint32_t n, double *H,
 static void srmech_hermitian_init_identity(uint32_t n, double *V_il)
 {
     assert(V_il != NULL);
-    assert(n <= SRMECH_HERMITIAN_WS_MAX_NODES);
+    assert(n <= srmech_config_hermitian_max_nodes());
     size_t total = (size_t)n * n * 2;
     for (size_t i = 0; i < total; i++) {
         V_il[i] = 0.0;
@@ -512,7 +512,6 @@ static srmech_status_t srmech_hermitian_run_sweeps(uint32_t n,
 {
     assert(Hwork != NULL);
     assert(V != NULL);
-    assert(n <= SRMECH_HERMITIAN_WS_MAX_NODES);
     /* Convergence target = 1e-12² × initial off-diagonal norm. */
     double target = 1e-24 * srmech_hermitian_off_diag_sq(n, Hwork);
     uint32_t sweep;
@@ -544,12 +543,13 @@ srmech_status_t srmech_hermitian_eigendecompose_ws(
 {
     assert(out_eigvals != NULL);
     assert(out_eigvecs_interleaved != NULL);
-    assert(n <= SRMECH_HERMITIAN_WS_MAX_NODES);
     if (H_interleaved == NULL || out_eigvals == NULL
         || out_eigvecs_interleaved == NULL || workspace == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (n > SRMECH_HERMITIAN_WS_MAX_NODES) {
+    /* Compute-guard ceiling is CONFIG-DRIVEN (rc161): default 2048, settable
+     * via srmech_config_load_toml/_file. The real bound is ws_len >= 2*n*n. */
+    if (n > srmech_config_hermitian_max_nodes()) {
         return SRMECH_ERR_OVERFLOW;
     }
     if (n == 0) {
@@ -579,25 +579,11 @@ srmech_status_t srmech_hermitian_eigendecompose_ws(
     return SRMECH_OK;
 }
 
-srmech_status_t srmech_hermitian_eigendecompose(
-    uint32_t       n,
-    const double  *H_interleaved,
-    double        *out_eigvals,
-    double        *out_eigvecs_interleaved)
-{
-    assert(out_eigvals != NULL);
-    assert(out_eigvecs_interleaved != NULL);
-    /* Per-thread workspace (#772 reentrancy). Static duration (a
-     * complex 256×256 working matrix is ~1 MiB — too large to stack)
-     * but thread-local, so concurrent callers on different threads
-     * each get a private copy. Rule-3-clean: static duration, no
-     * malloc. Routes through the _ws core so both entries share one
-     * numeric path. */
-    static SRMECH_THREAD_LOCAL double Hwork[SRMECH_HERMITIAN_WS_MAX];
-    return srmech_hermitian_eigendecompose_ws(
-        n, H_interleaved, out_eigvals, out_eigvecs_interleaved,
-        Hwork, SRMECH_HERMITIAN_WS_MAX);
-}
+/* (rc161) The no-`_ws` convenience overload srmech_hermitian_eigendecompose
+ * was REMOVED — it self-buffered a 1 MiB thread-local static (the last
+ * compiled-in-buffer + its own n<=256 cap) and had no live caller on a
+ * current build. Callers use srmech_hermitian_eigendecompose_ws with a
+ * caller-sized workspace; the config getter is the (overridable) ceiling. */
 
 srmech_status_t srmech_dense_matmul_complex(
     uint32_t       m,

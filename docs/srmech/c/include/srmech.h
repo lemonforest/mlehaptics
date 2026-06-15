@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc160"
-#define SRMECH_VERSION       "0.7.5rc160"
+#define SRMECH_VERSION_PRE   "rc161"
+#define SRMECH_VERSION       "0.7.5rc161"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -933,63 +933,77 @@ srmech_status_t srmech_three_fold_bands(uint32_t n, uint32_t *out_low,
 #define SRMECH_TRANS_SIN 2
 #define SRMECH_TRANS_LOG 3
 
-/* Hermitian eigendecomposition via complex-Jacobi rotations.
- * Input: H_interleaved is n*n interleaved-doubles (re, im pairs),
- *   row-major; MUST be Hermitian (caller's responsibility — checked
- *   only via assert in debug builds).
- * Output: out_eigvals = n real ascending-sorted eigenvalues;
- *   out_eigvecs_interleaved = n*n complex unitary matrix V (columns
- *   are eigenvectors). H = V * diag(eigvals) * V^H.
- * n is bounded by SRMECH_LAPLACIAN_MAX_NODES (256). Iteration count
- * bounded by SRMECH_LAPLACIAN_JACOBI_MAX_SWEEPS (100); returns
- * SRMECH_ERR_OVERFLOW on non-convergence.
- * Pi-free: phase factor for complex-Jacobi computed algebraically
- * from matrix entries (atan2-free).
- */
-srmech_status_t srmech_hermitian_eigendecompose(
-    uint32_t       n,
-    const double  *H_interleaved,
-    double        *out_eigvals,
-    double        *out_eigvecs_interleaved);
-
 /* Required workspace length (in doubles) for srmech_hermitian_
  * eigendecompose_ws at a given node count `n`: a working copy of the
  * n×n complex Hermitian matrix in interleaved-double form = 2*n*n
- * doubles. Use SRMECH_HERMITIAN_WS_MAX to size a worst-case
- * (n == SRMECH_LAPLACIAN_MAX_NODES) buffer. */
+ * doubles. */
 #define SRMECH_HERMITIAN_WS_LEN(n) ((size_t)(n) * (size_t)(n) * 2u)
-#define SRMECH_HERMITIAN_WS_MAX SRMECH_HERMITIAN_WS_LEN(SRMECH_LAPLACIAN_MAX_NODES)
 
-/* Max node count for the WORKSPACE-based srmech_hermitian_
- * eigendecompose_ws entry. Because the caller supplies the entire
- * 2*n*n-double working buffer (heap-allocated), n is bounded only by
- * this sanity cap, NOT by stack or static storage — the whole _ws
- * hermitian-eig path uses only O(1)/O(n) scratch on top of the
- * caller's workspace + output. 2048 keeps 2*n*n well within size_t and
- * covers QM grid sizes (e.g. a hydrogen radial grid n_grid up to
- * ~1000). The convenience wrapper srmech_hermitian_eigendecompose
- * stays bounded by SRMECH_LAPLACIAN_MAX_NODES (256) via its 1 MiB
- * thread-local static buffer (it passes ws_len = SRMECH_HERMITIAN_WS_
- * MAX, so the ws_len < 2*n*n check rejects n > 256 for it on its own). */
-#define SRMECH_HERMITIAN_WS_MAX_NODES 2048u
+/* DEFAULT compute-guard ceiling for the Hermitian eigendecomposition's
+ * node count — a reasonableness limit on the O(n³) dense complex Jacobi,
+ * NOT a scratch-buffer cap (the caller owns the 2*n*n workspace). As of
+ * rc161 this is the *built-in default* of a CONFIG-DRIVEN value: read the
+ * live ceiling with srmech_config_hermitian_max_nodes() (settable via
+ * srmech_config_load_toml/_file, key `[hermitian] max_nodes`), not from a
+ * compiled-in cap. The real architectural bound is still `ws_len >= 2*n*n`.
+ * (rc161 removed the no-`_ws` convenience wrapper + its 1 MiB thread-local
+ * static; callers use srmech_hermitian_eigendecompose_ws with a sized
+ * workspace, the Python `mat_hermitian_eigendecompose` being one.) */
+#define SRMECH_HERMITIAN_DEFAULT_MAX_NODES 2048u
 
-/* Reentrant variant of srmech_hermitian_eigendecompose (#772).
+/* ------------------------------------------------------------------ *
+ * Runtime config (rc161) — config-FILE-driven library limits, so a
+ * compute-guard ceiling tunes per-deployment with NO recompile (the
+ * "config-driven, not hard-coded" direction). Defined in srmech_config.c.
  *
- * Identical numerics + output contract, but takes a CALLER-SUPPLIED
- * working buffer `workspace` (length `ws_len` doubles) instead of an
- * internal shared-static scratch matrix. This makes the eigendecomp
- * safe to drive concurrently from many threads (the #771 plugin),
- * each passing its own workspace, with no malloc (JPL Rule 3) and no
- * large per-call stack frame.
- *
+ * Set ONCE at startup (before concurrent use); read-only thereafter.
+ * Un-set / missing keys keep the built-in default, so behaviour is
+ * unchanged until a config overrides it. ABI-additive — new symbols, so
+ * SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* Parse a caller-held TOML blob (MCU-safe — a flash image, no filesystem
+ * needed) into the live config, using the caller arena `ws` (ws_len bytes;
+ * no malloc). Recognised today: `[hermitian] max_nodes`. Unknown keys are
+ * ignored. SRMECH_ERR_BAD_INPUT on a syntax error, OVERFLOW if `ws` is too
+ * small for the document. */
+srmech_status_t srmech_config_load_toml(const char *toml, size_t len,
+                                        void *ws, size_t ws_len);
+
+/* Read `path` THROUGH THE PAL (the single OS file surface) into a buffer
+ * carved from `ws`, then srmech_config_load_toml it. On a no-filesystem
+ * target the PAL returns SRMECH_ERR_IO; use the bytes form instead. */
+srmech_status_t srmech_config_load_file(const char *path,
+                                        void *ws, size_t ws_len);
+
+/* The live Hermitian-eig node ceiling (default SRMECH_HERMITIAN_DEFAULT_
+ * MAX_NODES; overridden by a loaded config). Always > 0. */
+uint32_t srmech_config_hermitian_max_nodes(void);
+
+/* Reset every config value to its built-in default (mainly for tests). */
+void srmech_config_reset_defaults(void);
+
+/* Hermitian eigendecomposition via complex-Jacobi rotations (caller-
+ * workspace entry — the only entry as of rc161; the no-`_ws` convenience
+ * overload was removed). Identical numerics + output contract regardless
+ * of who owns the workspace; safe to drive concurrently from many threads
+ * (the #771 plugin), each passing its own workspace, with no malloc (JPL
+ * Rule 3) and no large per-call stack frame.
+ * Input: H_interleaved is n*n interleaved-doubles (re, im pairs),
+ *   row-major; MUST be Hermitian (caller's responsibility — asserted in
+ *   debug builds).
+ * Output: out_eigvals = n real ascending-sorted eigenvalues;
+ *   out_eigvecs_interleaved = n*n complex unitary matrix V (columns are
+ *   eigenvectors). H = V * diag(eigvals) * V^H.
  * `workspace` must be non-NULL with `ws_len >= SRMECH_HERMITIAN_WS_LEN(n)`
- * = 2*n*n doubles; returns SRMECH_ERR_OVERFLOW if too small or n
- * exceeds SRMECH_HERMITIAN_WS_MAX_NODES, SRMECH_ERR_NULL_ARG if any
- * required pointer is NULL.
+ * = 2*n*n doubles (the real architectural bound). `n` is additionally
+ * compute-guarded by srmech_config_hermitian_max_nodes() (config-driven,
+ * default 2048). Returns SRMECH_ERR_OVERFLOW if `ws_len` is too small, n
+ * exceeds the configured ceiling, or the Jacobi sweep
+ * (SRMECH_LAPLACIAN_JACOBI_MAX_SWEEPS) does not converge; SRMECH_ERR_NULL_
+ * ARG if any required pointer is NULL. Pi-free (atan2-free phase factor).
  *
- * ABI-additive: a new symbol, so SRMECH_ABI_VERSION is unchanged. The
- * original srmech_hermitian_eigendecompose remains and now routes
- * through this core using a thread-local workspace. */
+ * ABI-additive: SRMECH_ABI_VERSION unchanged. */
 srmech_status_t srmech_hermitian_eigendecompose_ws(
     uint32_t       n,
     const double  *H_interleaved,

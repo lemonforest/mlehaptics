@@ -379,25 +379,18 @@ def _bind(lib: ctypes.CDLL) -> None:
     # Class L broadening (ADR-0002 Phase 2 / v0.4.1rc5).
     # Complex numbers travel as interleaved-double pairs (re, im).
     # ------------------------------------------------------------------
-    # int srmech_hermitian_eigendecompose(uint32_t n,
-    #     const double *H_il, double *out_eigvals,
-    #     double *out_eigvecs_il)
-    lib.srmech_hermitian_eigendecompose.argtypes = [
-        ctypes.c_uint32,
-        ctypes.POINTER(ctypes.c_double),
-        ctypes.POINTER(ctypes.c_double),
-        ctypes.POINTER(ctypes.c_double),
-    ]
-    lib.srmech_hermitian_eigendecompose.restype = ctypes.c_int
-
     # int srmech_hermitian_eigendecompose_ws(uint32_t n,
     #     const double *H_il, double *out_eigvals,
     #     double *out_eigvecs_il, double *workspace, size_t ws_len)
-    # Reentrant variant taking a caller-supplied 2*n*n-double workspace,
-    # so the native Jacobi path serves n up to SRMECH_HERMITIAN_WS_MAX_NODES
-    # (2048) without a static/stack buffer. hasattr-guarded (ABI stays 3 —
-    # additive symbol) so a stale ABI-3 lib built before this rc keeps the
-    # rest of the native surface instead of AttributeError-ing here.
+    # Reentrant variant taking a caller-supplied 2*n*n-double workspace, so the
+    # native Jacobi path serves n up to the CONFIG-DRIVEN ceiling
+    # (srmech_config_hermitian_max_nodes(), default 2048) with no static/stack
+    # buffer. (rc161 removed the older no-`_ws` srmech_hermitian_eigendecompose
+    # — it self-buffered a 1 MiB thread-local static + an n≤256 cap and had no
+    # live caller; the `_ws` entry is the only native Hermitian path now.)
+    # hasattr-guarded (ABI stays 3 — additive symbol) so a stale ABI-3 lib
+    # built before this rc keeps the rest of the native surface instead of
+    # AttributeError-ing here.
     if hasattr(lib, "srmech_hermitian_eigendecompose_ws"):
         lib.srmech_hermitian_eigendecompose_ws.argtypes = [
             ctypes.c_uint32,                    # n
@@ -408,6 +401,36 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.c_size_t,                    # ws_len
         ]
         lib.srmech_hermitian_eigendecompose_ws.restype = ctypes.c_int
+
+    # ------------------------------------------------------------------
+    # Config layer (rc161) — the Hermitian-eig compute-guard ceiling is a
+    # RUNTIME config value, not a compiled-in #define. The getter is the
+    # authority for the native dispatch gate in laplacian.py; load_toml /
+    # load_file / reset let a caller tune it (a TOML blob in RAM, or a file
+    # read through the PAL). All hasattr-guarded → additive, ABI stays 3.
+    # ------------------------------------------------------------------
+    if hasattr(lib, "srmech_config_hermitian_max_nodes"):
+        # uint32_t srmech_config_hermitian_max_nodes(void)
+        lib.srmech_config_hermitian_max_nodes.argtypes = []
+        lib.srmech_config_hermitian_max_nodes.restype = ctypes.c_uint32
+    if hasattr(lib, "srmech_config_reset_defaults"):
+        # void srmech_config_reset_defaults(void)
+        lib.srmech_config_reset_defaults.argtypes = []
+        lib.srmech_config_reset_defaults.restype = None
+    if hasattr(lib, "srmech_config_load_toml"):
+        # int srmech_config_load_toml(const char *toml, size_t len,
+        #     void *ws, size_t ws_len)
+        lib.srmech_config_load_toml.argtypes = [
+            ctypes.c_char_p, ctypes.c_size_t,
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_config_load_toml.restype = ctypes.c_int
+    if hasattr(lib, "srmech_config_load_file"):
+        # int srmech_config_load_file(const char *path, void *ws, size_t ws_len)
+        lib.srmech_config_load_file.argtypes = [
+            ctypes.c_char_p, ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_config_load_file.restype = ctypes.c_int
 
     # int srmech_elementwise_multiply_complex(uint32_t n,
     #     const double *a_il, const double *b_il, double *out_il)
@@ -1408,6 +1431,80 @@ def has_native_sqrt() -> bool:
     """True iff the C integer-isqrt sqrt cascade is loaded + bound (rc45+ lib)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_rational_sqrt"))
+
+
+# ---------------------------------------------------------------------------
+# Config layer (rc161). The Hermitian-eig compute-guard ceiling is a runtime
+# config value in the C library (default 2048, raisable), not a compiled-in
+# cap. These thin wrappers expose the getter (the authority for the native
+# dispatch gate) + the TOML loaders. A config set here is process-wide native
+# policy; with no native lib it is a no-op (the pure-Python Jacobi fallback
+# has no ceiling), and the getter returns the built-in default.
+# ---------------------------------------------------------------------------
+HERMITIAN_DEFAULT_MAX_NODES: int = 2048  # mirrors C SRMECH_HERMITIAN_DEFAULT_MAX_NODES
+
+
+def has_native_config() -> bool:
+    """True iff the C config layer is loaded + bound (rc161+ lib)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_config_hermitian_max_nodes"))
+
+
+def config_hermitian_max_nodes() -> int:
+    """The live config-driven Hermitian-eig node ceiling.
+
+    Native authority when present (``srmech_config_hermitian_max_nodes()``);
+    otherwise the built-in default (the native ceiling is irrelevant with no
+    native lib — pure-Python Jacobi has no cap)."""
+    if has_native_config():
+        return int(LIB.srmech_config_hermitian_max_nodes())
+    return HERMITIAN_DEFAULT_MAX_NODES
+
+
+def config_reset_defaults() -> None:
+    """Reset the native config to built-in defaults (no-op with no native lib)."""
+    if HAS_NATIVE and LIB is not None and hasattr(LIB, "srmech_config_reset_defaults"):
+        LIB.srmech_config_reset_defaults()
+
+
+def _config_ws(extra: int = 0):
+    """A 64 KiB ctypes scratch arena for a config parse (caller-arena, no malloc
+    in C). 64 KiB dwarfs any realistic limits TOML; `extra` pads the file form
+    where the front half also buffers the file bytes."""
+    return (ctypes.c_char * (65536 + extra))()
+
+
+def config_load_toml(toml_text: str) -> None:
+    """Apply a TOML config blob to the native limits (no-op with no native lib).
+
+    Raises RuntimeError on a parse/apply failure (non-OK C status)."""
+    if not (HAS_NATIVE and LIB is not None and hasattr(LIB, "srmech_config_load_toml")):
+        return
+    raw = toml_text.encode("utf-8")
+    ws = _config_ws()
+    rc = LIB.srmech_config_load_toml(
+        raw, ctypes.c_size_t(len(raw)),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(len(ws)),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_config_load_toml returned non-OK status {rc}")
+
+
+def config_load_file(path: str) -> None:
+    """Read + apply a TOML config FILE through the PAL (no-op with no native lib).
+
+    Raises RuntimeError on read/parse failure (non-OK C status)."""
+    if not (HAS_NATIVE and LIB is not None and hasattr(LIB, "srmech_config_load_file")):
+        return
+    # The C side carves the file-read buffer from the front half of ws; size it
+    # generously so even a large descriptor file fits alongside the parse arena.
+    ws = _config_ws(extra=65536)
+    rc = LIB.srmech_config_load_file(
+        path.encode("utf-8"),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(len(ws)),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_config_load_file returned non-OK status {rc}")
 
 
 def _scalar_trans_c(symbol: str, x: float) -> float:

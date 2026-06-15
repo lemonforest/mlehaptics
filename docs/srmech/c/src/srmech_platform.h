@@ -145,4 +145,41 @@ srmech_status_t srmech_plat_stream_write_all(srmech_plat_stream_conn_t *conn,
  * DisconnectNamedPipe+CloseHandle as appropriate). */
 srmech_status_t srmech_plat_stream_conn_close(srmech_plat_stream_conn_t *conn);
 
+/* ================================================================== *
+ * FILE I/O (rc161) — the last raw-OS surface in the library.
+ *
+ * File access is portable stdio (fopen/fread/fwrite/fseek), so POSIX and
+ * Windows share ONE implementation; only the presence of a filesystem
+ * differs. Callers that read/write files (srmech_config, and — retrofit
+ * follow-up — srmech_genome / srmech_ndjson) go through these primitives
+ * instead of carrying their own fopen, so the OS file surface lives in
+ * exactly one TU, like threads + streams above. A bare-metal target with
+ * no filesystem reports has_filesystem() == 0 and every call returns
+ * SRMECH_ERR_IO; such a target feeds bytes directly (e.g. a flash blob to
+ * srmech_config_load_toml) instead.
+ * ================================================================== */
+
+/* 1 iff a filesystem-backed file backend is compiled in (POSIX / Windows);
+ * 0 on a bare-metal target with no filesystem. */
+int srmech_plat_has_filesystem(void);
+
+/* Read up to `buf_cap` bytes of `path` into `buf`; *out_len gets the count.
+ * A file larger than buf_cap is SRMECH_ERR_OVERFLOW (nothing partial is
+ * relied upon). Missing / unreadable file → SRMECH_ERR_IO. */
+srmech_status_t srmech_plat_file_read(const char *path, unsigned char *buf,
+                                      size_t buf_cap, size_t *out_len);
+
+/* Read exactly `len` bytes from `path` starting at byte `offset` into `buf`.
+ * Short read (offset+len past EOF) → SRMECH_ERR_IO. */
+srmech_status_t srmech_plat_file_read_region(const char *path, size_t offset,
+                                             unsigned char *buf, size_t len);
+
+/* Write `len` bytes of `data` to `path`. `append` != 0 opens in append mode
+ * ("ab"); else truncate ("wb"). fopen/fwrite/fclose failure → SRMECH_ERR_IO. */
+srmech_status_t srmech_plat_file_write(const char *path, int append,
+                                       const unsigned char *data, size_t len);
+
+/* Byte length of `path` into *out_size. Missing / unstattable → SRMECH_ERR_IO. */
+srmech_status_t srmech_plat_file_size(const char *path, size_t *out_size);
+
 #endif /* SRMECH_PLATFORM_H */

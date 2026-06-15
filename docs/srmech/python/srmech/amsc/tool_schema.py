@@ -1048,7 +1048,7 @@ def _register_primitive_class_tools() -> None:
             owner="srmech", category="laplacian",
             summary="Numpy-FREE Hermitian eigendecomposition H = V diag(λ) V^H "
                     "over the Mat carrier (carrier-removal #564, bridge #3): "
-                    "Mat.buffer feeds the native srmech_hermitian_eigendecompose "
+                    "Mat.buffer feeds the native srmech_hermitian_eigendecompose_ws "
                     "zero-copy; pure-Python cyclic-Jacobi fallback with no native "
                     "lib (real-symmetric direct, complex-Hermitian via the real "
                     "2n×2n embedding). Golub & Van Loan §8.5.",
