@@ -966,6 +966,22 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.c_size_t,
             ]
             lib.srmech_klein4_bundle_resolve.restype = ctypes.c_int
+        # int srmech_klein4_cooccurrence_fold(const uint8_t *codes,
+        #     uint32_t n_codes, const uint32_t *tok_idx, uint32_t n_tokens,
+        #     uint32_t window, size_t dim, uint32_t *out_accs)  — UPSTREAM §50
+        #     (rc165): the corpus-linear windowed fold, fully in C. NEW — its own
+        #     hasattr so a pre-rc165 klein4 lib doesn't AttributeError here.
+        if hasattr(lib, "srmech_klein4_cooccurrence_fold"):
+            lib.srmech_klein4_cooccurrence_fold.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8),   # codes (n_codes * dim)
+                ctypes.c_uint32,                   # n_codes
+                ctypes.POINTER(ctypes.c_uint32),  # tok_idx (n_tokens)
+                ctypes.c_uint32,                   # n_tokens
+                ctypes.c_uint32,                   # window
+                ctypes.c_size_t,                   # dim
+                ctypes.POINTER(ctypes.c_uint32),  # out_accs (n_codes*(1+2*dim))
+            ]
+            lib.srmech_klein4_cooccurrence_fold.restype = ctypes.c_int
 
     # ------------------------------------------------------------------
     # Cascade catalog — v0.4.5rc1 C-parity + TOML retrofit.
@@ -1431,6 +1447,17 @@ def has_native_sqrt() -> bool:
     """True iff the C integer-isqrt sqrt cascade is loaded + bound (rc45+ lib)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_rational_sqrt"))
+
+
+def has_native_klein4_fold() -> bool:
+    """True iff the §50 native Klein-4 co-occurrence fold is loaded + bound
+    (rc165+ lib): the corpus-linear windowed accumulation runs in C, so
+    :func:`srmech.amsc.hdc.cooccurrence_fold` builds the holographic store at
+    corpus scale (the §50.1 loopshelf/tome-leaf precondition). False on a no-C
+    or pre-rc165 lib — the pure-Python fold is the complete alternative."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_klein4_cooccurrence_fold")
+                and hasattr(LIB, "srmech_klein4_bundle_accumulate"))
 
 
 # ---------------------------------------------------------------------------

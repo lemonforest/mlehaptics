@@ -979,6 +979,38 @@ def cooccurrence_fold(tokens, *, window, dim, seed=0):
 
     for tok in toks:               # stable vocab order = first appearance
         code_for(tok)
+
+    # Native fast-path (rc165): the corpus-linear windowed fold runs in ONE C
+    # call — the per-token string→code mapping above stays Python (vocab-scale,
+    # sublinear), only the O(n·window·dim) accumulation goes native. Same
+    # accumulators, so the resolved bundles are bit-identical to the loop below.
+    if _native.has_native_klein4_fold() and n >= 2:
+        m = len(vocab)
+        stride = 1 + 2 * dim
+        vocab_index = {t: k for k, t in enumerate(vocab)}
+        codes_buf = array("B")
+        for t in vocab:            # flat m*dim code table, vocab order
+            codes_buf.frombytes(bytes(_as_klein4_buf(codes[t],
+                                                     "hdc.cooccurrence_fold")))
+        tok_arr = array("I", (vocab_index[t] for t in toks))
+        out_accs = array("I", bytes(4 * m * stride))
+        codes_c = (ctypes.c_uint8 * len(codes_buf)).from_buffer(codes_buf)
+        tok_c = (ctypes.c_uint32 * n).from_buffer(tok_arr)
+        accs_c = (ctypes.c_uint32 * len(out_accs)).from_buffer(out_accs)
+        rc = _native.LIB.srmech_klein4_cooccurrence_fold(
+            codes_c, m, tok_c, n, window, dim, accs_c)
+        if rc != _native.SRMECH_OK:
+            raise ValueError(
+                f"srmech_klein4_cooccurrence_fold returned status {rc}")
+        bundles = {}
+        for k, t in enumerate(vocab):
+            base = k * stride
+            if out_accs[base] > 0:          # token folded >= 1 neighbour
+                bundles[t] = klein4_bundle_resolve(out_accs[base:base + stride])
+        return {"bundles": bundles, "codes": codes, "vocab": vocab,
+                "n_tokens": n}
+
+    # Pure-Python alternative (no C / pre-rc165 lib): the windowed fold loop.
     accs = {}
     for i, t in enumerate(toks):
         lo = i - window if i - window > 0 else 0
