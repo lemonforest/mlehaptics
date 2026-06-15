@@ -23,7 +23,8 @@ from srmech.amsc.format import sha256_raw
 HERE = Path(__file__).parent
 ART = Path.home() / "corpora" / "wikipedia" / "simplewiki_extracted" / "articles.jsonl"
 OUTDIR = Path.home() / "corpora" / "wikipedia"
-N = int(os.environ.get("MAX_ARTICLES", "15000"))
+N = int(os.environ.get("MAX_ARTICLES", "0"))      # 0 = ALL articles. The sparse tier has NO capacity cap (bounded-heap
+#                                                   build, uncapped vocab F708); MAX_ARTICLES is a TEST dial, not a limit.
 K = int(os.environ.get("ASSOC_K", "16"))          # neighbours kept per word
 M = int(os.environ.get("SUBGRAPH_M", "400"))      # dense-eig subgraph size (eig-tractable)
 
@@ -32,11 +33,11 @@ wk = U.module_from_spec(_spec); _spec.loader.exec_module(wk)
 
 
 def main():
-    print(f"=== R-RBS-LM-WIKIASSOC — streaming compact build (N={N} articles, K={K}, M={M}; srmech {srmech.__version__}) ===")
+    print(f"=== R-RBS-LM-WIKIASSOC — streaming compact build (N={N or 'ALL'} articles, K={K}, M={M}; srmech {srmech.__version__}) ===")
     texts = []
     with open(ART) as f:
         for i, line in enumerate(f):
-            if i >= N:
+            if N and i >= N:                       # N==0 -> read the WHOLE corpus
                 break
             try:
                 texts.append(json.loads(line).get("text", ""))

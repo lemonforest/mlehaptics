@@ -24,7 +24,7 @@ from srmech.amsc.format import sha256_raw
 
 ART = Path.home() / "corpora" / "wikipedia" / "simplewiki_extracted" / "articles.jsonl"
 OUT = Path.home() / "corpora" / "wikipedia" / "simplewiki_relations.json"
-N = int(os.environ.get("MAX_ARTICLES", "3000"))
+N = int(os.environ.get("MAX_ARTICLES", "0"))          # 0 = ALL articles (no capacity cap; MAX_ARTICLES is a TEST dial)
 K = int(os.environ.get("REL_K", "8"))                 # directed-typed out-edges kept per subject
 # frame words = relation-label vocabulary (F753/F751). DETERMINERS are dropped (the "X of the Y" noise, F756).
 FUNC = frozenset("""a an the is are was were be been being of in on to by with from as at for and or that which who
@@ -35,7 +35,7 @@ DET = frozenset("a an the this that these those its his her their it".split())
 
 
 def main():
-    print(f"=== R-RBS-LM-WIKIRELATIONS — streaming directed/typed relation store (N={N} articles, K={K}; "
+    print(f"=== R-RBS-LM-WIKIRELATIONS — streaming directed/typed relation store (N={N or 'ALL'} articles, K={K}; "
           f"srmech {srmech.__version__}) ===")
     t0 = time.time()
     # edge[(s,o)] = [count, {clean_rel: count}]  — clean_rel dict is usually empty (most edges are adjacency)
@@ -44,7 +44,7 @@ def main():
     n_art = 0
     with open(ART) as f:
         for i, line in enumerate(f):
-            if i >= N:
+            if N and i >= N:                          # N==0 -> read the WHOLE corpus
                 break
             try:
                 text = json.loads(line).get("text", "")
