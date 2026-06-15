@@ -24,9 +24,12 @@
  *     cyclotomic coefficients of X[k] at [k·(N/2), (k+1)·(N/2))).
  *   - inverse != 0 uses ζ^{-nk} (the Python lift applies the 1/N scale).
  *   - N must be a power of two ≥ 2 (general-N cyclotomic reduction is a Python
- *     bignum follow-up). N > SRMECH_EXACT_DFT_MAX_N ⇒ SRMECH_ERR_OVERFLOW.
- *   - The caller (Python) only dispatches here when N·max|signal| is int64-safe;
- *     larger magnitudes fall back to the arbitrary-precision Python path.
+ *     bignum follow-up). There is NO compiled-in N size cap: the kernel writes
+ *     straight into the caller's out_re/out_im (length N·(N/2)), so the bound is
+ *     the caller's own buffers, not a hardcoded limit (standalone-complete honor).
+ *   - The int64 element domain is a genuine fixed-width-integer bound, not a size
+ *     cap: the caller must keep N·max|signal| int64-safe (the Python wrapper
+ *     enforces this and routes larger magnitudes to its arbitrary-precision path).
  *
  * JPL Power-of-Ten compliance:
  *   - Rule 1 (no goto)        : OK
@@ -49,8 +52,6 @@
 #include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
-
-#define SRMECH_EXACT_DFT_MAX_N 4096u
 
 /* Accumulate one spectrum row X[k] into row_re/row_im (length h = N/2). Pure
  * integer add/subtract; the j ≥ h case is the ζ^{N/2} = -1 Class-K sign-flip
@@ -98,9 +99,9 @@ srmech_status_t srmech_exact_dft_i64(uint32_t      n,
     if (n < 2u || (n & (n - 1u)) != 0u) {
         return SRMECH_ERR_BAD_INPUT;        /* need power-of-two ≥ 2 */
     }
-    if (n > SRMECH_EXACT_DFT_MAX_N) {
-        return SRMECH_ERR_OVERFLOW;
-    }
+    /* No N size cap: out_re/out_im are caller-sized (length N·N/2), so the
+     * bound is the caller's RAM, not a compiled limit. The int64 element
+     * magnitude is the caller's documented contract (see file header). */
     uint32_t h = n / 2u;
     for (uint32_t k = 0; k < n; k++) {
         exact_dft_row(n, h, inverse, re, im, k,
