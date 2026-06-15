@@ -813,9 +813,12 @@ Per user direction ("check stale queue items to bring forward and do if remainin
 - **F755 (viewport re-run):** RESOLVED on a SEED-ANCHORED solar surface. near:far is a local section; locality dominates at every scale on both axes (NT + surface-N); far tail holographically held. See F755.
 - **F756 (relation-edges rung):** RESOLVED first-cut. directed+typed relations = a Class-L magnetic-Laplacian Hermitian object (real spectrum); the F754 undirected tier is its chirality-collapsed symmetric projection (F552). See F756.
 
+### F757 — directed/typed relation tier wired into Siona; the input-ride FLIPS it (2026-06-15)
+- RESOLVED the "wire a directed read into Siona" rung. simplewiki_relations.json (7MB, 86788 subjects) is a live tier; infer answers "X →(relation) Y" (what X does/leads to/has) above the undirected assoc; the abstract is enriched with directed relations; introspect reports wiki-relations. The input-ride FLIPS it: "tea come FROM" -> from→bowl first (vs →ceremony unsteered) — confirmed live over /v1. Two bugs fixed: steer must allow relation-label words (not just vix); steer must read the RAW prompt (T.tokenize strips function words). See F757.
+
 ### Next rungs surfaced by the trio (queued, not walked)
 - **Multi-cluster viewport** (F755 honest gap): the solar surface is ONE tight cluster, so step-1 center-relativity is weak. A stronger test seeds from SEVERAL unrelated domains (solar + cooking + music) so centers land in genuinely different regions and near:far re-assigns visibly by center.
-- **Wire a DIRECTED read into Siona** (F756 next): Siona currently answers undirected relations ("volcano near lava"); the rung is relation-TYPED answers ("volcano —erupts→ lava") from the directed/typed graph.
+- **Directed read that COMPOSES a path** (F757 next): the directed tier lists a subject's out-edges; the rung beyond is composing a multi-edge path (X→Y→Z) — a directed etak-walk over the relation graph (relation chains, not single edges).
 - **Dependency-parsed relation extractor** (F756 honest gap): the reading-order=direction + function-words-between-content-words extractor is crude (breaks on passive/OSV; "of the" multiword labels dropped). A real parser (or a learned head) would give clean typed triples.
 - **Net-normalised magnetic Laplacian** (UPSTREAM_NOTES §48): the q-phase aliases for large net weights; an additive normalised variant (or auto-q) makes the directed Hermitian a drop-in over real co-occurrence graphs.
 - **Full 240k simplewiki assoc** (F754 scope): the assoc tier is 15k-article (213k vocab); the full 240,881-article run is the same code, longer (background it) — would likely pull in kombucha + the long tail.

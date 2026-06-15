@@ -62,6 +62,10 @@ WIKI_KERNEL_FILE = Path.home() / "corpora" / "wikipedia" / "wiki_knowledge_kerne
 # the UNCAPPED relational tier (F754): word -> top-K co-occurrence neighbours for ALL ~213k vocab (compact, 32MB,
 # built by R-RBS-LM-WIKIASSOC). Siona "knows the words" relationally; the input-ride (F753) steers over it.
 ASSOC_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_assoc.json"
+# the DIRECTED + TYPED relation tier (F757): subject -> its strongest directed out-edges (objects that FOLLOW it =
+# what it does / leads to / has) with the FRAME word labelling the edge. The rung beyond the undirected assoc: the
+# input-ride (F753) can FLIP the answer by relation (a steer word matching a stored relation label surfaces those edges).
+RELATIONS_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_relations.json"
 
 # NOTE (F743 experiment): there is NO hard-coded SIONA_SELF blurb, no _capabilities() prose, and no identity/
 # greeting/capabilities regexes. Siona's self-knowledge is read from STRUCTURE at runtime — srmech.describe()
@@ -203,6 +207,15 @@ class SionaGenepool:
             _a = json.loads(ASSOC_FILE.read_text())
             self.assoc = _a.get("assoc", {})
             self.assoc_freq = _a.get("freq", {})
+        # DIRECTED + TYPED relation tier (F757): subject -> [[object, count, relation], ...] top-K directed out-edges.
+        self.relations = {}
+        self.rel_labels = set()                               # the relation-label vocabulary (for the input-ride steer)
+        if RELATIONS_FILE.exists():
+            self.relations = json.loads(RELATIONS_FILE.read_text()).get("subjects", {})
+            for edges in self.relations.values():
+                for _o, _c, r in edges:
+                    if r != "→":
+                        self.rel_labels.add(r)
 
     def _build_surface(self):
         """The LM surface: ONE co-occurrence graph (Class L) over every kernel Siona holds — nothing excluded."""
@@ -237,6 +250,8 @@ class SionaGenepool:
             cat.append(("wiki", len(self.wiki)))
         if getattr(self, "assoc", None):                      # the uncapped relational tier (F754)
             cat.append(("wiki-assoc", len(self.assoc)))
+        if getattr(self, "relations", None):                  # the directed/typed relation tier (F757)
+            cat.append(("wiki-relations", len(self.relations)))
         return cat
 
     @staticmethod
@@ -267,6 +282,22 @@ class SionaGenepool:
         if shared:
             nbrs = sorted(nbrs, key=lambda n: n not in shared)   # stable: steer-shared neighbours first
         return nbrs[:k]
+
+    def _directed_relations(self, word, steer=(), k=6):
+        """The DIRECTED + TYPED tier (F757): subject -> its strongest directed out-edges [[object, count, relation], …]
+        (objects that FOLLOW it = what it does / leads to / has), the FRAME word naming each. The input-ride (F753)
+        can FLIP it: a steer word matching a stored relation label surfaces those edges first."""
+        edges = self.relations.get(word) or self.relations.get(self._norm(word)) or []
+        if not edges:
+            return []
+        st = set(steer) | {self._norm(s) for s in steer}
+        if st:                                               # input-ride: edges whose relation IS the query's relation, first
+            edges = sorted(edges, key=lambda e: e[2] not in st)
+        return edges[:k]
+
+    @staticmethod
+    def _fmt_rel(edges):                                      # render directed-typed out-edges: "rel→obj" or "→obj"
+        return ", ".join(f"{r}→{o}" if r != "→" else f"→{o}" for o, _c, r in edges)
 
     def wiki_lookup(self, prompt, steer=()):
         """Scalable broad-knowledge lookup over the WIKI side-store: query terms -> article via the term-index,
@@ -453,8 +484,12 @@ class SionaGenepool:
         recognized = [t for t in salient if self._recognized(t)]                 # topics with a kernel home
         unrecognized = [t for t in salient if t not in recognized]
         intent = self._intent(pl)                                               # the question TYPE (frame channel)
-        steer_terms = [t for t in content if t not in salient and t in self.vix]  # F753: in-vocab relation/frame words
-        steer_idx = [self.vix[t] for t in steer_terms]
+        # F753 steer = relation/frame words from the RAW prompt (T.tokenize strips function words, so the topic channel
+        # never sees "from"/"than"; the steer channel must read raw). A steer word is in the deep-kernel vocab OR a known
+        # relation label (F757, so "from"/"than" flip the directed tier even though they aren't deep-kernel tokens).
+        raw = re.findall(r"[a-z]+", prompt.lower())
+        steer_terms = [t for t in raw if t not in salient and (t in self.vix or t in self.rel_labels)]
+        steer_idx = [self.vix[t] for t in steer_terms if t in self.vix]           # kernel-walk seeds need a vix index
         parse = (f"[input-ride: {intent} · topic {recognized or '—'}"
                  + (f" · steer {steer_terms}" if steer_terms else "") + "]")
         new_note = f"\n  (not on my shelf: {', '.join(unrecognized)})" if unrecognized else ""
@@ -480,13 +515,26 @@ class SionaGenepool:
             see = [f"§{k[:24]}" for kk, k in ranked[1:3] if kk == top_kernel]   # siblings the same walk passed
             tail = f"\n  (the walk also passed: {', '.join(see)})" if see else ""
             return f"{parse}\n[etak: {path_str}]\n[{top_kernel} → §{top_key}] {body}{tail}{proc_note}{new_note}"
-        # not in the DEEP kernels -> the broad WIKI abstract (definition), ENRICHED with assoc relations
+        # not in the DEEP kernels -> the broad WIKI abstract (definition), ENRICHED with relations (directed if held, F757)
         wk = self.wiki_lookup(prompt, steer=steer_terms)
         if wk:
-            rel = self._assoc_related(self.wiki_title[wk].lower(), steer_terms)
-            rel_note = f"\n  (related: {', '.join(rel)})" if rel else ""
+            title = self.wiki_title[wk].lower()
+            drel = self._directed_relations(title, steer_terms)          # F757: directed/typed enrichment beats undirected
+            if drel:
+                rel_note = f"\n  (relations: {self._fmt_rel(drel)})"
+            else:
+                arel = self._assoc_related(title, steer_terms)
+                rel_note = f"\n  (related: {', '.join(arel)})" if arel else ""
             return (f"{parse}\n[siona · wiki] {self.wiki_title[wk]}: {self.wiki[wk]}\n"
                     f"  (source: {self.wiki_cite[wk]}, CC-BY-SA){proc_note}{new_note}{rel_note}")
+        # the DIRECTED + TYPED tier (F757): subject -> what it does/leads to/has, the relation NAMED; steer can flip it
+        dsub = next((t for t in sorted(salient, key=len, reverse=True)
+                     if t in self.relations or self._norm(t) in self.relations), None)
+        if dsub:
+            key = dsub if dsub in self.relations else self._norm(dsub)
+            edges = self._directed_relations(key, steer_terms)
+            return (f"{parse}\n[siona · relations (directed)] “{key}” {self._fmt_rel(edges)}{proc_note}{new_note}\n"
+                    f"  (directed/typed out-edges — what follows {key} = what it does/leads to/has; simplewiki, CC-BY-SA)")
         # the UNCAPPED relational tier (F754): subject in the ~213k assoc graph -> its neighbours, steered (input-ride)
         asub = next((t for t in sorted(salient, key=len, reverse=True)
                      if t in self.assoc or self._norm(t) in self.assoc), None)
