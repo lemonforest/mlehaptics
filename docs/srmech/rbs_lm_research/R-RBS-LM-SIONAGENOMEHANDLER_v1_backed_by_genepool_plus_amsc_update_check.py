@@ -72,9 +72,16 @@ def sync_updates():
     return False
 
 
+def _schema_stale():
+    """F764: has the genepool CHROMOSOME SET changed since the persisted bake? (notebook-drift check misses this.)"""
+    stamp = Path(GENOME_DIR) / "genepool.schema"
+    have = stamp.read_text().strip() if stamp.exists() else ""
+    return have != getattr(_gp, "GENEPOOL_SCHEMA_VERSION", "")
+
+
 def _ensure_genome():
-    if not (Path(GENOME_DIR) / "genepool.ndjson").exists():
-        _gp.build_genepool(GENOME_DIR)
+    if not (Path(GENOME_DIR) / "genepool.ndjson").exists() or _schema_stale():
+        _gp.build_genepool(GENOME_DIR)          # missing OR the chromosome-set schema changed (F764) -> full rebake
     else:
         sync_updates()                          # refresh if the notebooks drifted since last bake
     return _gp.SionaGenepool(GENOME_DIR)

@@ -17,7 +17,7 @@ We already built markup-*understanding* — `R-RBS-LM-CLEANGATE`: a unified gram
 ## Queued (acknowledged, not yet built)
 - **(A) Loopshelf storage:** the side-stores (assoc/relations/glosses, tens of MB each) are *more* than a single loopshelf of tomes should be — the consolidation into the bounded holographic loopshelf-of-tomes (sized to capacity, §50.1 + the §50 native fold) is the storage-shape fix. **(still queued; this IS the F758/§50.1 lossless principle realized — store tome-leaves, not item-leaves)**
 - **(C) Elaboration understanding:** ✅ **DONE → F763.** Siona now comprehends "tell me more / in detail" (deepen) and "briefly / tl;dr" (trim) as an answer-DEPTH meta-signal — the markup principle applied to answer length; meta-words are consumed, not routed as content.
-- **(B) markup-kernel-into-genome** (above).
+- **(B) markup-kernel-into-genome:** ✅ **DONE → F764.** A shared "understand, don't strip" grammar (`R-RBS-LM-MARKUPGRAMMAR`): WIKIGLOSS routes through it (B1), and `markup` is now a genome language-layer chromosome (13 form-classes, sibling to SignWriting) (B2). Also fixed the persisted-genome staleness gap that had kept F761's ni-Vanuatu off the live server (a chromosome-set schema sentinel).
 
 ## Verdict
 Inference now runs **through the abstract ni-Vanuatu glyph layer** — unknown forms resolve to the same abstract content by edit-robust bigram-glyph similarity (live: `volcanoe→volcano`). The centromere reading is recorded (biaxial-Möbius → chiral axis everywhere → no centromere needed). The markup-strip instinct is corrected (understand via the CLEANGATE grammar, which belongs in the genome language layer). Loopshelf-consolidation + elaboration-understanding + markup-into-genome are queued.

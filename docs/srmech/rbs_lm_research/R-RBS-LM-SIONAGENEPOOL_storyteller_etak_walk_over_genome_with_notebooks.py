@@ -30,11 +30,25 @@ import re
 import json
 import tempfile
 import os
+import importlib.util as _U
 from pathlib import Path
 import srmech
 from srmech.amsc import genome as g, hdc, text as T
 from srmech.amsc.laplacian import dense_adjacency
 from srmech.amsc.format import sha256_raw, write_ndjson, read_ndjson, MPRRecord
+
+# F764: the markup grammar is a GENOME language-layer FORM vocabulary (Class-B/F), not a one-off script — Siona
+# UNDERSTANDS markup (the F762 correction). __file__-based import so it resolves regardless of cwd.
+_mk_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "R-RBS-LM-MARKUPGRAMMAR_class_bf_form_layer_understand_not_strip.py")
+_mk_spec = _U.spec_from_file_location("markupgrammar", _mk_path)
+MK = _U.module_from_spec(_mk_spec); _mk_spec.loader.exec_module(MK)
+
+# F764: the genepool CHROMOSOME-SET schema version. The handler's stale-check only watches NOTEBOOK drift, so adding a
+# language-layer chromosome (ni-vanuatu F761, markup F764) did NOT force a persisted-genome rebuild — Siona kept
+# serving a pre-language-layer genome. This sentinel closes that gap: build_genepool stamps it; the handler rebuilds
+# when the persisted stamp differs. BUMP THIS whenever the chromosome set changes.
+GENEPOOL_SCHEMA_VERSION = "F764-langlayer+markup"
 
 DIM = 64
 ONE = hdc.klein4_random(DIM, seed=0)
@@ -191,6 +205,13 @@ def build_genepool(path):
                  f"abstract translation glyph '{ch}' — the language-agnostic base every language projects from") for ch in GLYPHS]
     chromosomes.append(("signwriting", [(c, [_leaf(f"sw/{c}")]) for c in SW_CLASSES]))   # same level: the SIGNED form
     payload += [("signwriting", c, f"SignWriting symbol class: {c} (the signed form of the abstract translation)") for c in SW_CLASSES]
+    # MARKUP (F764): the Class-B/F FORM vocabulary the language layer UNDERSTANDS (sibling to SignWriting — both are
+    # framing layers). Markup is comprehended (unwrapped + edges extracted), never stripped (F762). The grammar IS in
+    # the genome now, not a one-off script: each form-class is a gene; understand_markup() is its operational read.
+    chromosomes.append(("markup", [(c, [_leaf(f"markup/{c}")]) for c in MK.MARKUP_FORM_CLASSES]))
+    payload += [("markup", c, f"markup form-class '{c}' — a Class-B/F framing form the language layer UNDERSTANDS "
+                 f"(a separable form layer comprehended, never stripped; link forms also yield relationship edges)")
+                for c in MK.MARKUP_FORM_CLASSES]
     # SURFACE level: English — each word BUILT FROM the ni-Vanuatu glyph base (_word_hv), a projection not a random leaf.
     for era, defs in ERA_DEFS.items():
         chromosomes.append((era, [(w, [_word_hv(w)]) for w in defs]))
@@ -215,6 +236,7 @@ def build_genepool(path):
                       rendering={"name": f"{k}:{key}", "purpose": "genepool kernel content", "cite_as": k})
             for k, key, txt in payload]
     write_ndjson(Path(path) / "genepool.ndjson", rows)
+    (Path(path) / "genepool.schema").write_text(GENEPOOL_SCHEMA_VERSION)   # F764: chromosome-set stamp (forces rebuild on change)
 
 
 class SionaGenepool:
