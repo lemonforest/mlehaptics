@@ -360,6 +360,16 @@ class SionaGenepool:
                (self._norm(t) in self.assoc) or \
                any(t == k or t.startswith(k) or k.startswith(t) for k in self.learned)
 
+    def _routable(self, t):
+        """F765: does this token resolve to an ANSWER tier AS-IS (deep-kernel / gloss / relation / assoc, lemma-folded)?
+        Distinct from _recognized, which also counts the loose wiki_idx abstract index — so _recognized can be True for
+        a token that still routes NOWHERE (e.g. 'volcanoe' matches wiki_idx but is no gloss/relation/assoc key, and
+        would dead-end). Pass-1 comprehension (etak FIND) runs on the NOT-routable tokens, so a variant gets understood
+        into its canonical form and reaches the meaning tiers."""
+        lt = self._lemma(t)
+        return (t in self.vix or t in self.glosses or lt in self.glosses
+                or lt in self.relations or lt in self.assoc or t in self.assoc)
+
     def _assoc_related(self, word, steer=(), k=8):
         """The UNCAPPED relational tier: word -> its co-occurrence neighbours (F754), re-ranked toward the input-ride
         STEER (neighbours shared with the relation come first) — the input-ride walking the association graph (F753)."""
@@ -434,6 +444,37 @@ class SionaGenepool:
             if sm > bs and c != word:
                 bs, best = sm, c
         return (best, bs) if best else None
+
+    def _understand(self, unknown):
+        """PASS 1 — UNDERSTAND the input into English (etak FIND; F765). Comprehend each UNRECOGNIZED content token into
+        its nearest KNOWN canonical form via the abstract glyph layer — FORM similarity, which is the RIGHT tool for
+        comprehension (and the WRONG tool for meaning, which is Pass-2's job). Biology-faithful: this is the
+        TRANSCRIPTION stage (faithful surface→canonical medium), kept SEPARATE from the Pass-2 TRANSLATION stage
+        (deriving meaning). Returns {surface: (canonical, sim)} for the tokens it understood; unresolved tokens absent.
+        Run FIRST, so the meaning tiers ride on the understood form (a misspelling/variant now reaches the full
+        gloss/relation/depth machinery, not just the last-ditch fallback)."""
+        out = {}
+        for w in unknown:
+            ab = self._abstract_resolve(w)          # the F762 form-resolver, now run UP FRONT as comprehension
+            if ab and ab[0] != w and self._edit_distance(w, ab[0]) <= max(2, len(w) // 3):
+                # F765 orthographic guard: accept only a plausible TYPO/SPELLING-VARIANT (small edit distance), NEVER a
+                # coincidental glyph match to a DIFFERENT word — else a genuinely-unknown word ("flibbertigibbet") would
+                # be force-comprehended into an unrelated store word and answered as if understood (a hallucination).
+                out[w] = ab                          # (canonical, sim)
+        return out
+
+    @staticmethod
+    def _edit_distance(a, b):
+        """Levenshtein distance (cheap for short tokens; no abs()). Gates Pass-1 comprehension to typos/variants only."""
+        if a == b:
+            return 0
+        prev = list(range(len(b) + 1))
+        for i, ca in enumerate(a, 1):
+            cur = [i]
+            for j, cb in enumerate(b, 1):
+                cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (0 if ca == cb else 1)))
+            prev = cur
+        return prev[-1]
 
     @staticmethod
     def _fmt_rel(edges):                                      # render directed-typed out-edges: "rel→obj" or "→obj"
@@ -623,6 +664,18 @@ class SionaGenepool:
         salient = [t for t in content if t not in ROUTING_STOPLIST and t not in ELABORATION_WORDS]  # candidate topics (F763: elaboration meta-words consumed, not routed)
         recognized = [t for t in salient if self._recognized(t)]                 # topics with a kernel home
         unrecognized = [t for t in salient if t not in recognized]
+        # === PASS 1 — UNDERSTAND into English (etak FIND, F765; biology's TRANSCRIPTION stage) =============
+        # Comprehend the UNRECOGNIZED surface tokens into canonical English FIRST, as a distinct action, BEFORE any
+        # meaning is derived (Pass 2 = TRANSLATION). So a misspelling/variant ("tomatto") becomes "tomato" up front and
+        # the full meaning machinery (gloss + relations + depth) rides on the understood form — not just the last fallback.
+        unroutable = [t for t in salient if not self._routable(t)]                    # F765: comprehend tokens that route to NO
+        understood = self._understand(unroutable)                                     # answer tier (not merely _recognized-False)
+        if understood:
+            salient = [understood[t][0] if t in understood else t for t in salient]   # re-render in canonical English
+            recognized = [t for t in salient if self._recognized(t)]                  # re-derive on the UNDERSTOOD tokens
+            unrecognized = [t for t in salient if t not in recognized]
+        understood_note = (("[understood: " + ", ".join(f"{s}→{c} ({sim:.2f})"
+                            for s, (c, sim) in understood.items()) + "]\n") if understood else "")
         intent = self._intent(pl)                                               # the question TYPE (frame channel)
         depth = self._depth(pl)                                                 # F763: the ELABORATION meta-signal (DEPTH axis)
         k_rel, k_assoc, walk_steps, attach_extra = {                            # depth -> answer-shaping knobs (comprehend, not discard)
@@ -649,7 +702,8 @@ class SionaGenepool:
         ctx_bundle = hdc.klein4_bundle_resolve(ctx_bundle) if ctx_bundle is not None else None
         self._ctx = ctx_terms                                                    # the running-context object (introspectable)
         eff_steer = steer_terms + [t for t in ctx_terms if t not in steer_terms]  # context nudges the input-ride
-        parse = (f"[input-ride: {intent} · topic {recognized or '—'}"
+        parse = (understood_note                                                # F765 PASS 1 output (understand) shown above PASS 2 (ride)
+                 + f"[input-ride: {intent} · topic {recognized or '—'}"
                  + (f" · detail {depth}" if depth != "normal" else "")          # F763: show Siona COMPREHENDED the elaboration ask
                  + (f" · steer {steer_terms}" if steer_terms else "")
                  + (f" · context {ctx_terms}" if ctx_terms else "") + "]")
@@ -729,14 +783,10 @@ class SionaGenepool:
             rel = self._assoc_related(key, eff_steer, k=k_assoc)           # F763: neighbour count honors answer depth
             return (f"{parse}\n[siona · relations] “{key}” is associated with: {', '.join(rel)}{proc_note}{new_note}{def_note}\n"
                     f"  (co-occurrence neighbours from the simplewiki relational kernel, CC-BY-SA)")
-        if salient:                                            # named something specific in NO kernel
-            subject = max(salient, key=len)
-            ab = self._abstract_resolve(subject)               # F762: route the unknown form THROUGH the ni-Vanuatu glyph layer
-            if ab and ab[0] in self.glosses:
-                m, sim = ab
-                return (f"{parse}\n[abstract-layer: {subject} → {m} (ni-Vanuatu glyph-match {sim:.2f})]\n"
-                        f"[siona · definition] {m}: {self.glosses[m]}\n"
-                        f"  (resolved through the abstract translation layer, not exact match; simplewiki, CC-BY-SA)")
+        if salient:                                            # named something specific in NO kernel. PASS 1 (F765) already
+            subject = max(salient, key=len)                    # tried to comprehend it into canonical English; if it still
+            # routed to no tier, it is GENUINELY unknown (not a misspelling/variant — those Pass 1 already understood and
+            # handed to the gloss/relation tiers above, with the full depth treatment). So this is the honest terminal.
             return (f"{parse}\n[siona · asking-state] You asked about “{subject}”, which touches none of my kernels — "
                     f"I won't invent it. Tell me (“remember {subject} is …”, or just answer) and I'll learn it.")
         # no substantive tokens (e.g. 'who are you', 'what can you do') -> EMERGENT introspection from structure
