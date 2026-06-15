@@ -49,14 +49,22 @@ def _slug(s): return (re.sub(r"[^a-z0-9]+", "_", s.lower()).strip("_") or "sec")
 # is the glyph-composition of its letters, so it is a PROJECTION of ni-Vanuatu, not an independent random token.
 GLYPHS = "abcdefghijklmnopqrstuvwxyz'- "          # the ni-Vanuatu abstract glyph alphabet (the universal base)
 GLYPH_SET = set(GLYPHS)
-def _glyph(ch): return hdc.klein4_random(DIM, seed=_seed("niv/" + ch))          # one abstract base vector per glyph
+_GLYPH_CACHE = {}
+def _glyph(ch):                                                                  # one abstract base vector per glyph (memoized)
+    v = _GLYPH_CACHE.get(ch)
+    if v is None:
+        v = _GLYPH_CACHE[ch] = hdc.klein4_random(DIM, seed=_seed("niv/" + ch))
+    return v
 def _posrole(i): return hdc.klein4_random(DIM, seed=_seed(f"niv/pos/{i}"))       # position role (order-preserving bind)
 def _word_hv(w):
-    """A surface word built FROM the ni-Vanuatu glyph base: bundle of position-bound glyph vectors (Class M ∘ glyphs).
-    Words sharing letters share substrate — the projection IS the language-agnostic encoding, not a fresh random leaf."""
+    """A surface word built FROM the ni-Vanuatu glyph base: bundle of character-BIGRAM binds (Class M ∘ glyphs).
+    Bigrams (adjacent-glyph binds) make the projection EDIT-ROBUST — a misspelling/inflection shares most bigrams, so
+    it resolves to the same abstract content (F762). Words sharing substrings share substrate; not a fresh random leaf."""
     chars = [c for c in w.lower() if c in GLYPH_SET] or ["x"]
-    parts = [hdc.klein4_bind(_glyph(c), _posrole(i)) for i, c in enumerate(chars[:24])]
-    return hdc.klein4_bundle(*parts) if len(parts) > 1 else parts[0]
+    if len(chars) == 1:
+        return _glyph(chars[0])
+    parts = [hdc.klein4_bind(_glyph(chars[i]), _glyph(chars[i + 1])) for i in range(len(chars) - 1)][:32]
+    return hdc.klein4_bundle(*parts)
 
 ERA_DEFS = {
     "dict-en-1600": {"nice": "foolish or ignorant", "awful": "awe-inspiring, worthy of awe",
@@ -362,6 +370,23 @@ class SionaGenepool:
         bits = (["relates to " + ", ".join(adj)] if adj else []) + (["; ".join(framed)] if framed else [])
         return (f"{subject.capitalize()} — " + "; ".join(bits) + ".") if bits else f"{subject.capitalize()}."
 
+    def _abstract_resolve(self, word, floor=0.45):
+        """INFERENCE THROUGH THE ABSTRACT LAYER (F762): an unknown SURFACE token is encoded to the ni-Vanuatu glyph
+        base (_word_hv) and matched to the nearest KNOWN word by Klein-4 similarity IN THE ABSTRACT GLYPH SPACE — so a
+        misspelling / inflection / other-language form resolves to the same abstract content (R-RBS-LM-25/54 realized).
+        Bounded by a 2-glyph prefix bucket so the scan stays cheap."""
+        if len(word) < 3:
+            return None
+        wv = _word_hv(word)
+        cands = [c for c in self.glosses if len(c) >= 3 and c[:2] == word[:2]] or \
+                [c for c in self.relations if len(c) >= 3 and c[:2] == word[:2]]
+        best, bs = None, floor
+        for c in cands[:2500]:
+            sm = hdc.klein4_similarity(wv, _word_hv(c))
+            if sm > bs and c != word:
+                bs, best = sm, c
+        return (best, bs) if best else None
+
     @staticmethod
     def _fmt_rel(edges):                                      # render directed-typed out-edges: "rel→obj" or "→obj"
         return ", ".join(f"{r}→{o}" if r != "→" else f"→{o}" for o, _c, r in edges)
@@ -636,8 +661,14 @@ class SionaGenepool:
             rel = self._assoc_related(key, eff_steer)
             return (f"{parse}\n[siona · relations] “{key}” is associated with: {', '.join(rel)}{proc_note}{new_note}{def_note}\n"
                     f"  (co-occurrence neighbours from the simplewiki relational kernel, CC-BY-SA)")
-        if salient:                                            # named something specific in NO kernel -> ASK
-            subject = max(salient, key=len)                   # the salient term (so a follow-up answer binds to it)
+        if salient:                                            # named something specific in NO kernel
+            subject = max(salient, key=len)
+            ab = self._abstract_resolve(subject)               # F762: route the unknown form THROUGH the ni-Vanuatu glyph layer
+            if ab and ab[0] in self.glosses:
+                m, sim = ab
+                return (f"{parse}\n[abstract-layer: {subject} → {m} (ni-Vanuatu glyph-match {sim:.2f})]\n"
+                        f"[siona · definition] {m}: {self.glosses[m]}\n"
+                        f"  (resolved through the abstract translation layer, not exact match; simplewiki, CC-BY-SA)")
             return (f"{parse}\n[siona · asking-state] You asked about “{subject}”, which touches none of my kernels — "
                     f"I won't invent it. Tell me (“remember {subject} is …”, or just answer) and I'll learn it.")
         # no substantive tokens (e.g. 'who are you', 'what can you do') -> EMERGENT introspection from structure

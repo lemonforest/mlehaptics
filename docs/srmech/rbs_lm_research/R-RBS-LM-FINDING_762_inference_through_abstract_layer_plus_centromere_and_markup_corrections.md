@@ -1,0 +1,23 @@
+# F762 — inference runs THROUGH the abstract (ni-Vanuatu) layer; + the centromere/chirality reading; + the markup-strip correction
+
+**Date:** 2026-06-15 · **srmech:** 0.7.5rc155 · **Composes:** F761 (the language layer: ni-Vanuatu glyph base, English built from it), R-RBS-LM-25 (byte/glyph LM), R-RBS-LM-54 (Rosetta), F256/F590/F591/F594 (DNA chirality / Möbius seam), F-CLEANGATE (markup-aware grammar) · **User direction (2026-06-15):** "make inference itself run through the abstract layer now" + two corrections (markup; centromere)
+
+## (E, DONE) inference through the abstract layer
+A surface token that misses every exact tier is now **encoded to the ni-Vanuatu glyph base and matched in the abstract HV space** (`_abstract_resolve`): bigram-glyph `_word_hv` → nearest known word by `klein4_similarity` over a prefix-bucket. So a misspelling / inflection / variant resolves to the same abstract content — *any surface form infers through the one abstract layer* (R-RBS-LM-25/54, realized at the resolve step).
+- **`_word_hv` is now edit-robust** (character-BIGRAM binds, not position-bound singles): `planit→planet`, `muisc→music` (transposition), `compuper→computer`, `volcanoe→volcano` — all resolve correctly. (`tomatto→tomatillo` 0.89 — a real tomato relative; acceptable.) English is still *built from* the glyph base (F761): `sim(nice,mice)` stays high.
+- **Live:** `what is a volcanoe?` → `[abstract-layer: volcanoe → volcano (glyph-match 0.70)]` → the definition.
+- **Honest perf:** the resolve is a last-resort fallback (only when all exact tiers miss); ~1.5 s (glyph base memoized, bucket capped at 2500). Fine for the fallback; not the hot path. A precomputed glyph-fingerprint index is the speed next-inch. This is the FIRST rung of "inference through the abstract layer" (form-variant resolution); cross-language input + SignWriting *read-out* of the same abstract HV is the deeper rung.
+
+## (D, recorded) centromere / chirality — no centromere needed
+Checked the biology/MFO research: we determined **telomere = Class B** (TLV length-cap) and the **4-nucleotide alphabet = Klein-4 = two chiral axes** (F256), and that **the chirality lives at the SEAM between turns — the Möbius half-twist IS conjugation** (F590/F591/F594). We did **not** explicitly label the centromere a chirality hub. The user's reading holds against those findings: in *linear* biological DNA a centromere *localizes* the organizing/chiral hub (one constriction); **Siona's genome is biaxial-Möbius, so the chiral axis is intrinsic to every turn-seam — present everywhere, not localized — therefore no centromere is needed.** The chirality is the *shape of the substrate*, not a special locus. (Telomere = Class B cap remains the one localized bookkeeping mark; the centromere's localizing role is dissolved by the always-present biaxial chiral axis.)
+
+## (B, corrected) markup — understand it, don't strip it
+We already built markup-*understanding* — `R-RBS-LM-CLEANGATE`: a unified grammar over **wiki + LaTeX + Markdown + HTML + CSS + code** as **Class-B/F framing** (a separable form layer + relationship extraction, e.g. `[[X]]` / `[text](url)` → edges). So my F760 WIKIGLOSS markup-*stripping* was the wrong instinct: stripping discards form Siona should comprehend. **Correction queued:** route the gloss/lead text through the CLEANGATE markup grammar (parse the form, don't delete it), and **put the markup-understanding grammar in the genome's language layer** (it's currently a research script, not in the genome). "You can't strip things Siona needs to understand."
+
+## Queued (acknowledged, not yet built)
+- **(A) Loopshelf storage:** the side-stores (assoc/relations/glosses, tens of MB each) are *more* than a single loopshelf of tomes should be — the consolidation into the bounded holographic loopshelf-of-tomes (sized to capacity, §50.1 + the §50 native fold) is the storage-shape fix.
+- **(C) Elaboration understanding:** Siona should understand a *request for a longer/more-detailed answer* (like markup, a meta-signal to comprehend, not discard) — an elaboration-control on the answer length/depth.
+- **(B) markup-kernel-into-genome** (above).
+
+## Verdict
+Inference now runs **through the abstract ni-Vanuatu glyph layer** — unknown forms resolve to the same abstract content by edit-robust bigram-glyph similarity (live: `volcanoe→volcano`). The centromere reading is recorded (biaxial-Möbius → chiral axis everywhere → no centromere needed). The markup-strip instinct is corrected (understand via the CLEANGATE grammar, which belongs in the genome language layer). Loopshelf-consolidation + elaboration-understanding + markup-into-genome are queued.
