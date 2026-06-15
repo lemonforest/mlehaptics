@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc157"
-#define SRMECH_VERSION       "0.7.5rc157"
+#define SRMECH_VERSION_PRE   "rc158"
+#define SRMECH_VERSION       "0.7.5rc158"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1035,22 +1035,34 @@ srmech_status_t srmech_elementwise_transcendental(
     int            op_id,
     double        *out);
 
-/* Dense linear solve A·X = B (v0.7.1rc3, #897 §26). A is n×n, B and the
- * output X are n×nrhs, all row-major doubles (caller-allocated). Gauss–
- * Jordan with partial pivoting; the reusable Class-L float primitive the
- * Schur-complement / DtN float path composes over for its interior solve.
- * A singular A (a wholly-zero pivot column at/below the diagonal) returns
- * SRMECH_ERR_BAD_INPUT. Bounded n, nrhs ≤ 256 (a thread-local augmented
- * workspace); larger systems return SRMECH_ERR_OVERFLOW (Python falls back
- * to numpy.linalg.solve). No libm: a solve is + − × ÷ only.
- * ABI-additive: a new symbol, so SRMECH_ABI_VERSION stays 3.
+/* Dense linear solve A·X = B (v0.7.1rc3, #897 §26; v0.7.5rc158 caller-arena).
+ * A is n×n, B and the output X are n×nrhs, all row-major doubles (caller-
+ * allocated). Gauss–Jordan with partial pivoting; the reusable Class-L float
+ * primitive the Schur-complement / DtN float path composes over for its
+ * interior solve. A singular A (a wholly-zero pivot column at/below the
+ * diagonal) returns SRMECH_ERR_BAD_INPUT. No libm: a solve is + − × ÷ only.
+ *
+ * NO compiled-in size cap (rc158 standalone-complete honor, the genome rc154
+ * precedent / [[feedback_c_must_be_standalone_complete_no_python_fallback]]):
+ * the augmented [A | B] working matrix is bump-carved from the CALLER arena
+ * `ws` (ws_len bytes), so the bound is the caller's RAM — a host sizes it
+ * large, a microcontroller small. Size `ws` from srmech_dense_solve_arena_bytes;
+ * an under-sized arena returns SRMECH_ERR_OVERFLOW. The pure-Python exact-
+ * rational solve is the COMPLETE alternative implementation for no-C hosts,
+ * not a rescue path. ABI: this RENAMES the old capped srmech_dense_solve_f64 to
+ * the arena form; the Python ctypes shim hasattr-guards the new name (a stale
+ * lib lacking it falls to pure-Python), so SRMECH_ABI_VERSION stays 3.
  */
-srmech_status_t srmech_dense_solve_f64(
+size_t srmech_dense_solve_arena_bytes(uint32_t n, uint32_t nrhs);
+
+srmech_status_t srmech_dense_solve_f64_ws(
     uint32_t       n,
     uint32_t       nrhs,
     const double  *A,
     const double  *B,
-    double        *out_X);
+    double        *out_X,
+    void          *ws,
+    size_t         ws_len);
 
 /* Exact cyclotomic-integer DFT (v0.7.5rc29, #928) — the native twin of
  * srmech.amsc.cascade.exact_dft. A power-of-two-length integer / Gaussian-
@@ -1059,10 +1071,13 @@ srmech_status_t srmech_dense_solve_f64(
  * single FPU lift ζ → e^{-2πi/N} is on the Python side. re/im are length-N
  * int64 component arrays; out_re/out_im are length N·(N/2) int64 (row k holds
  * the N/2 cyclotomic coefficients of X[k] at [k·N/2, (k+1)·N/2)). inverse != 0
- * uses ζ^{-nk}. N must be a power of two in [2, 4096] (else BAD_INPUT /
- * OVERFLOW; Python falls back to the arbitrary-precision bignum path). No libm:
- * an exact DFT is integer + − only. ABI-additive: new symbol, SRMECH_ABI_VERSION
- * stays 3.
+ * uses ζ^{-nk}. N must be a power of two ≥ 2 (else SRMECH_ERR_BAD_INPUT) — NO
+ * compiled-in size cap (rc156 standalone-complete honor: the kernel writes only
+ * the caller's out_re/out_im, no scratch to bound). The genuine domain limit is
+ * the int64 element magnitude: keep N·max|signal| int64-safe (the Python wrapper
+ * enforces this and routes larger magnitudes to its arbitrary-precision bignum
+ * path). No libm: an exact DFT is integer + − only. ABI-additive: new symbol,
+ * SRMECH_ABI_VERSION stays 3.
  */
 srmech_status_t srmech_exact_dft_i64(
     uint32_t        n,

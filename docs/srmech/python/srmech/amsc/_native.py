@@ -429,22 +429,33 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_elementwise_transcendental.restype = ctypes.c_int
 
-    # int srmech_dense_solve_f64(uint32_t n, uint32_t nrhs,
-    #     const double *A, const double *B, double *out_X)
-    # v0.7.1rc3 additive symbol (#897 §26): the reusable Class-L dense
-    # linear solve A·X = B the Schur/DtN float path composes over.
-    # hasattr-guarded because EXPECTED_ABI_VERSION stays 3 — a stale ABI-3
-    # lib built before this rc lacks the symbol; an unguarded bind would
-    # AttributeError and disable the whole native surface.
-    if hasattr(lib, "srmech_dense_solve_f64"):
-        lib.srmech_dense_solve_f64.argtypes = [
+    # size_t srmech_dense_solve_arena_bytes(uint32_t n, uint32_t nrhs)
+    # int srmech_dense_solve_f64_ws(uint32_t n, uint32_t nrhs,
+    #     const double *A, const double *B, double *out_X,
+    #     void *ws, size_t ws_len)
+    # v0.7.5rc158 standalone-complete honor: the augmented [A|B] scratch is
+    # carved from a CALLER arena (no compiled-in 256 cap), so the bound is the
+    # caller's RAM. mat_solve sizes ws via srmech_dense_solve_arena_bytes. Both
+    # symbols hasattr-guarded — a stale lib (the old capped srmech_dense_solve_f64,
+    # now removed) lacks them, so EXPECTED_ABI_VERSION stays 3 and that lib falls
+    # to the pure-Python exact-rational solve (the complete alternative impl).
+    if hasattr(lib, "srmech_dense_solve_arena_bytes"):
+        lib.srmech_dense_solve_arena_bytes.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_uint32,                    # nrhs
+        ]
+        lib.srmech_dense_solve_arena_bytes.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_dense_solve_f64_ws"):
+        lib.srmech_dense_solve_f64_ws.argtypes = [
             ctypes.c_uint32,                    # n
             ctypes.c_uint32,                    # nrhs
             ctypes.POINTER(ctypes.c_double),    # A (n*n, row-major)
             ctypes.POINTER(ctypes.c_double),    # B (n*nrhs, row-major)
             ctypes.POINTER(ctypes.c_double),    # out_X (n*nrhs, row-major)
+            ctypes.c_void_p,                    # ws (caller arena)
+            ctypes.c_size_t,                    # ws_len (arena bytes)
         ]
-        lib.srmech_dense_solve_f64.restype = ctypes.c_int
+        lib.srmech_dense_solve_f64_ws.restype = ctypes.c_int
 
     # int srmech_exact_dft_i64(uint32_t n, int inverse, const int64_t *re,
     #     const int64_t *im, int64_t *out_re, int64_t *out_im)
