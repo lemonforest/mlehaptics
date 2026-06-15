@@ -15,8 +15,8 @@ Checked the biology/MFO research: we determined **telomere = Class B** (TLV leng
 We already built markup-*understanding* — `R-RBS-LM-CLEANGATE`: a unified grammar over **wiki + LaTeX + Markdown + HTML + CSS + code** as **Class-B/F framing** (a separable form layer + relationship extraction, e.g. `[[X]]` / `[text](url)` → edges). So my F760 WIKIGLOSS markup-*stripping* was the wrong instinct: stripping discards form Siona should comprehend. **Correction queued:** route the gloss/lead text through the CLEANGATE markup grammar (parse the form, don't delete it), and **put the markup-understanding grammar in the genome's language layer** (it's currently a research script, not in the genome). "You can't strip things Siona needs to understand."
 
 ## Queued (acknowledged, not yet built)
-- **(A) Loopshelf storage:** the side-stores (assoc/relations/glosses, tens of MB each) are *more* than a single loopshelf of tomes should be — the consolidation into the bounded holographic loopshelf-of-tomes (sized to capacity, §50.1 + the §50 native fold) is the storage-shape fix.
-- **(C) Elaboration understanding:** Siona should understand a *request for a longer/more-detailed answer* (like markup, a meta-signal to comprehend, not discard) — an elaboration-control on the answer length/depth.
+- **(A) Loopshelf storage:** the side-stores (assoc/relations/glosses, tens of MB each) are *more* than a single loopshelf of tomes should be — the consolidation into the bounded holographic loopshelf-of-tomes (sized to capacity, §50.1 + the §50 native fold) is the storage-shape fix. **(still queued; this IS the F758/§50.1 lossless principle realized — store tome-leaves, not item-leaves)**
+- **(C) Elaboration understanding:** ✅ **DONE → F763.** Siona now comprehends "tell me more / in detail" (deepen) and "briefly / tl;dr" (trim) as an answer-DEPTH meta-signal — the markup principle applied to answer length; meta-words are consumed, not routed as content.
 - **(B) markup-kernel-into-genome** (above).
 
 ## Verdict

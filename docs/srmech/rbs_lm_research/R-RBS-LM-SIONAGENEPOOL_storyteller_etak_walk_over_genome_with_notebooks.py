@@ -131,6 +131,25 @@ INTENT_RE = (
     ("place",      re.compile(r"\bwhere\b")),
     ("time",       re.compile(r"\bwhen\b")),
 )
+# F763: the ELABORATION meta-signal — an answer-DEPTH axis ORTHOGONAL to intent. Like markup (F762), a request for a
+# longer/shorter answer is a meta-signal Siona must COMPREHEND, not discard: "tell me more / in detail" -> deepen the
+# answer; "briefly / in short" -> trim to the core. Read on the RAW prompt; controls k-edges + walk-steps + attach-extra.
+ELABORATION_RE = (
+    ("short", re.compile(r"\b(brief(ly)?|in brief|in short|in summary|short(er)?\s+(answer|version)|shortly|tl;?dr|"
+                         r"one\s+(line|sentence|word)|just\s+(the|tell|give|a)|concise(ly)?|keep it short|"
+                         r"quick(ly)?\s+answer|in a\s+(word|sentence|nutshell)|summar(y|ise|ize|izing|ising)|simply put)\b")),
+    ("long",  re.compile(r"\b(tell me more|more detail|(in|more)\s+depth|in detail|elaborate|expand(\s+on)?|go on|"
+                         r"say more|at length|long(er)?\s+(answer|version)|more about|everything\s+(about|on)|go deeper|"
+                         r"deeper|expound|comprehensive|thorough(ly)?|full(er)?\s+(explanation|detail)|"
+                         r"explain\s+(more|further|in\s+(more\s+)?detail))\b")),
+)
+# F763: the elaboration META-WORDS — content-ish tokens that appear inside elaboration phrases ("in DETAIL", "go DEEPER").
+# Per the markup principle (F762): once _depth COMPREHENDS the signal, these are CONSUMED — stripped from the TOPIC
+# channel so they never mis-route as content (e.g. "tomato in detail" must not read as the two topics tomato+detail).
+ELABORATION_WORDS = frozenset(
+    "detail details detailed depth elaborate elaboration briefly tldr concise concisely thorough thoroughly "
+    "comprehensive comprehensively expound deeper expand expansion fuller longer shorter summary summarize "
+    "summarise summarised summarized lengthy".split())
 # F753: the COUPLING weight. The input-ride parses the query into a SUBJECT (content noun -> routes) + STEER (the
 # relation/frame words, incl. delexical ones F751 keeps out of routing) — and the steer BIASES kernel convergence
 # (the frame becomes a direction of travel), coupling the input-walk to the kernel-walk. Subject anchors; steer nudges.
@@ -306,6 +325,13 @@ class SionaGenepool:
             if rx.search(pl):
                 return name
         return "phrase"                                      # no question frame -> a phrase / word-list
+
+    @staticmethod
+    def _depth(pl):                                           # F763: the ELABORATION meta-signal — answer DEPTH, not tier
+        for name, rx in ELABORATION_RE:                       # comprehend "tell me more"/"briefly" (don't discard it)
+            if rx.search(pl):
+                return name
+        return "normal"                                       # no elaboration cue -> the standard answer depth
 
     def _recognized(self, t):                                # does this content word have a home in any kernel?
         return (t in self.vix) or (self._norm(t) in self.wiki_idx) or (t in self.assoc) or \
@@ -572,15 +598,22 @@ class SionaGenepool:
 
         # === SENTENCE PARSE (F752): TOPIC channel (content) + FRAME channel (function words = intent) ======
         content = T.tokenize(prompt)
-        salient = [t for t in content if t not in ROUTING_STOPLIST]              # candidate topics
+        salient = [t for t in content if t not in ROUTING_STOPLIST and t not in ELABORATION_WORDS]  # candidate topics (F763: elaboration meta-words consumed, not routed)
         recognized = [t for t in salient if self._recognized(t)]                 # topics with a kernel home
         unrecognized = [t for t in salient if t not in recognized]
         intent = self._intent(pl)                                               # the question TYPE (frame channel)
+        depth = self._depth(pl)                                                 # F763: the ELABORATION meta-signal (DEPTH axis)
+        k_rel, k_assoc, walk_steps, attach_extra = {                            # depth -> answer-shaping knobs (comprehend, not discard)
+            "short":  (3, 4, 2, False),                                         # trim to the core; suppress the trailing related-notes
+            "normal": (6, 8, 4, True),                                          # the standard answer (current behaviour)
+            "long":   (12, 12, 6, True),                                        # deepen: more edges, longer walk, attach BOTH rel+assoc
+        }[depth]
         # F753 steer = relation/frame words from the RAW prompt (T.tokenize strips function words, so the topic channel
         # never sees "from"/"than"; the steer channel must read raw). A steer word is in the deep-kernel vocab OR a known
         # relation label (F757, so "from"/"than" flip the directed tier even though they aren't deep-kernel tokens).
         raw = re.findall(r"[a-z]+", prompt.lower())
-        steer_terms = [t for t in raw if t not in salient and (t in self.vix or t in self.rel_labels)]
+        steer_terms = [t for t in raw if t not in salient and t not in ELABORATION_WORDS  # F763: meta-words fully consumed (not steer either)
+                       and (t in self.vix or t in self.rel_labels)]
         steer_idx = [self.vix[t] for t in steer_terms if t in self.vix]           # kernel-walk seeds need a vix index
         # F759 running-context: content words from PRIOR turns -> a Klein-4 RBS-HDC context bundle (built with the rc155
         # streaming klein4_bundle_accumulate) + a context steer. Biases the answer toward the conversation; makes the
@@ -595,6 +628,7 @@ class SionaGenepool:
         self._ctx = ctx_terms                                                    # the running-context object (introspectable)
         eff_steer = steer_terms + [t for t in ctx_terms if t not in steer_terms]  # context nudges the input-ride
         parse = (f"[input-ride: {intent} · topic {recognized or '—'}"
+                 + (f" · detail {depth}" if depth != "normal" else "")          # F763: show Siona COMPREHENDED the elaboration ask
                  + (f" · steer {steer_terms}" if steer_terms else "")
                  + (f" · context {ctx_terms}" if ctx_terms else "") + "]")
         new_note = f"\n  (not on my shelf: {', '.join(unrecognized)})" if unrecognized else ""
@@ -626,20 +660,31 @@ class SionaGenepool:
                      if t in self.glosses or self._lemma(t) in self.glosses), None)
         if gsub:
             gk = gsub if gsub in self.glosses else self._lemma(gsub)
-            drel = self._directed_relations(self._lemma(gk), eff_steer, ctx_bundle)
-            rel_note = f"\n  (related: {self._fmt_rel(drel)})" if drel else ""
+            rel_note = ""
+            if attach_extra:                                              # F763: short depth answers with the bare definition
+                drel = self._directed_relations(self._lemma(gk), eff_steer, ctx_bundle, k=k_rel)
+                bits = [self._fmt_rel(drel)] if drel else []
+                if depth == "long":                                       # deepen: attach the assoc neighbours too
+                    arel = self._assoc_related(self._lemma(gk), eff_steer, k=k_assoc)
+                    if arel:
+                        bits.append(", ".join(arel))
+                rel_note = f"\n  (related: {'; '.join(bits)})" if bits else ""
             return (f"{parse}\n[siona · definition] {gk}: {self.glosses[gk]}\n"
                     f"  (source: simplewiki lead sentence, CC-BY-SA){proc_note}{new_note}{rel_note}")
         # not in the DEEP kernels or glosses -> the broad WIKI abstract, ENRICHED with relations (directed if held, F757)
         wk = self.wiki_lookup(prompt, steer=eff_steer)
         if wk:
             title = self._lemma(self.wiki_title[wk].lower())
-            drel = self._directed_relations(title, eff_steer, ctx_bundle)   # F757/F759: directed + context-re-ranked
-            if drel:
-                rel_note = f"\n  (relations: {self._fmt_rel(drel)})"
-            else:
-                arel = self._assoc_related(title, eff_steer)
-                rel_note = f"\n  (related: {', '.join(arel)})" if arel else ""
+            rel_note = ""
+            if attach_extra:                                            # F763: short depth answers with the bare abstract
+                drel = self._directed_relations(title, eff_steer, ctx_bundle, k=k_rel)   # F757/F759: directed + ctx-re-ranked
+                arel = self._assoc_related(title, eff_steer, k=k_assoc)
+                bits = []
+                if drel:
+                    bits.append("relations: " + self._fmt_rel(drel))
+                if arel and (depth == "long" or not drel):              # long shows BOTH; normal falls back to assoc
+                    bits.append("related: " + ", ".join(arel))
+                rel_note = ("\n  (" + "; ".join(bits) + ")") if bits else ""
             return (f"{parse}\n[siona · wiki] {self.wiki_title[wk]}: {self.wiki[wk]}\n"
                     f"  (source: {self.wiki_cite[wk]}, CC-BY-SA){proc_note}{new_note}{rel_note}")
         # honest framing: a relations answer to a DEFINITION question is associations, NOT a held dictionary definition
@@ -650,7 +695,8 @@ class SionaGenepool:
         dsub = next((t for t in sorted(salient, key=len, reverse=True) if self._lemma(t) in self.relations), None)
         if dsub:
             key = self._lemma(dsub)
-            path, edges = self._relation_walk(key, eff_steer, ctx_bundle, anchor=ctx_terms)
+            path, _first = self._relation_walk(key, eff_steer, ctx_bundle, anchor=ctx_terms, steps=walk_steps)
+            edges = self._directed_relations(key, eff_steer, ctx_bundle, k=k_rel)   # F763: the story honors answer depth
             return (f"{parse}\n[etak: {' → '.join(path)}]\n[siona] {self._relation_story(key, edges)}"
                     f"{proc_note}{new_note}{def_note}\n"
                     f"  (relations: {self._fmt_rel(edges)}; what follows {key} in simplewiki, CC-BY-SA)")
@@ -658,7 +704,7 @@ class SionaGenepool:
         asub = next((t for t in sorted(salient, key=len, reverse=True) if self._lemma(t) in self.assoc), None)
         if asub:
             key = self._lemma(asub)
-            rel = self._assoc_related(key, eff_steer)
+            rel = self._assoc_related(key, eff_steer, k=k_assoc)           # F763: neighbour count honors answer depth
             return (f"{parse}\n[siona · relations] “{key}” is associated with: {', '.join(rel)}{proc_note}{new_note}{def_note}\n"
                     f"  (co-occurrence neighbours from the simplewiki relational kernel, CC-BY-SA)")
         if salient:                                            # named something specific in NO kernel
