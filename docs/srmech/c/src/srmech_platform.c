@@ -34,6 +34,7 @@
 #  include <sys/types.h>
 #  include <sys/un.h>       /* sockaddr_un */
 #  include <unistd.h>       /* read / write / close / unlink */
+#  include <dirent.h>       /* opendir / readdir / closedir (rc163 dir iter) */
 #endif
 
 #if defined(SRMECH_PLAT_THREADS_POSIX)
@@ -804,3 +805,159 @@ srmech_status_t srmech_plat_file_size(const char *path, size_t *out_size)
 }
 
 #endif  /* SRMECH_PLAT_FILE */
+
+/* ================================================================== *
+ * DIRECTORY ITERATION (rc163) — POSIX opendir/readdir / Win32 FindFirstFile,
+ * absorbed so the genome's §43 *.chr listing carries no #ifdef. The iterator
+ * yields every entry name (incl. "." / ".."); the caller filters by suffix.
+ * stdio.h + dirent.h (POSIX) / windows.h (Win) are already included above.
+ * ================================================================== */
+
+#if defined(_WIN32) || defined(_WIN64)
+#  define SRMECH_PLAT_DIR_WIN   1
+#elif defined(__unix__) || defined(__APPLE__) || defined(__linux__)
+#  define SRMECH_PLAT_DIR_POSIX 1
+#endif
+
+#if defined(SRMECH_PLAT_DIR_POSIX)
+_Static_assert(sizeof(DIR *) <= SRMECH_PLAT_DIR_STORAGE,
+               "DIR* does not fit srmech_plat_dir handle storage");
+#elif defined(SRMECH_PLAT_DIR_WIN)
+_Static_assert(sizeof(HANDLE) <= SRMECH_PLAT_DIR_STORAGE,
+               "HANDLE does not fit srmech_plat_dir handle storage");
+#endif
+
+int srmech_plat_has_dirlist(void)
+{
+#if defined(SRMECH_PLAT_DIR_POSIX) || defined(SRMECH_PLAT_DIR_WIN)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+#if defined(SRMECH_PLAT_DIR_POSIX)
+
+srmech_status_t srmech_plat_dir_open(const char *path, srmech_plat_dir_t *out)
+{
+    assert(path != NULL);
+    assert(out != NULL);
+    out->pending_valid = 0;
+    DIR *d = opendir(path);
+    if (d == NULL) { return SRMECH_ERR_IO; }
+    memcpy(out->handle.bytes, &d, sizeof(d));
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_dir_next(srmech_plat_dir_t *dir, char *name,
+                                     size_t name_cap, int *have)
+{
+    assert(dir != NULL && have != NULL);
+    assert(name != NULL || name_cap == 0u);
+    DIR *d = NULL;
+    memcpy(&d, dir->handle.bytes, sizeof(d));
+    struct dirent *e = readdir(d);
+    if (e == NULL) { *have = 0; return SRMECH_OK; }
+    size_t nl = strlen(e->d_name);
+    if (nl + 1u > name_cap) { return SRMECH_ERR_OVERFLOW; }
+    memcpy(name, e->d_name, nl + 1u);
+    *have = 1;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_dir_close(srmech_plat_dir_t *dir)
+{
+    assert(dir != NULL);
+    assert(dir->pending_valid == 0 || dir->pending_valid == 1);
+    DIR *d = NULL;
+    memcpy(&d, dir->handle.bytes, sizeof(d));
+    if (d != NULL) { closedir(d); }
+    dir->pending_valid = 0;
+    return SRMECH_OK;
+}
+
+#elif defined(SRMECH_PLAT_DIR_WIN)
+
+srmech_status_t srmech_plat_dir_open(const char *path, srmech_plat_dir_t *out)
+{
+    assert(path != NULL);
+    assert(out != NULL);
+    out->pending_valid = 0;
+    char pattern[1024];
+    int w = snprintf(pattern, sizeof(pattern), "%s/*", path);
+    if (w < 0 || (size_t)w >= sizeof(pattern)) { return SRMECH_ERR_OVERFLOW; }
+    WIN32_FIND_DATAA fd;
+    HANDLE h = FindFirstFileA(pattern, &fd);
+    if (h == INVALID_HANDLE_VALUE) { return SRMECH_ERR_IO; }
+    size_t nl = strlen(fd.cFileName);
+    if (nl + 1u > sizeof(out->pending)) { FindClose(h); return SRMECH_ERR_OVERFLOW; }
+    memcpy(out->pending, fd.cFileName, nl + 1u);
+    out->pending_valid = 1;
+    memcpy(out->handle.bytes, &h, sizeof(h));
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_dir_next(srmech_plat_dir_t *dir, char *name,
+                                     size_t name_cap, int *have)
+{
+    assert(dir != NULL && have != NULL);
+    assert(name != NULL || name_cap == 0u);
+    if (dir->pending_valid) {
+        size_t pl = strlen(dir->pending);
+        if (pl + 1u > name_cap) { return SRMECH_ERR_OVERFLOW; }
+        memcpy(name, dir->pending, pl + 1u);
+        dir->pending_valid = 0;
+        *have = 1;
+        return SRMECH_OK;
+    }
+    HANDLE h = NULL;
+    memcpy(&h, dir->handle.bytes, sizeof(h));
+    WIN32_FIND_DATAA fd;
+    if (FindNextFileA(h, &fd) == 0) { *have = 0; return SRMECH_OK; }
+    size_t nl = strlen(fd.cFileName);
+    if (nl + 1u > name_cap) { return SRMECH_ERR_OVERFLOW; }
+    memcpy(name, fd.cFileName, nl + 1u);
+    *have = 1;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_dir_close(srmech_plat_dir_t *dir)
+{
+    assert(dir != NULL);
+    assert(dir->pending_valid == 0 || dir->pending_valid == 1);
+    HANDLE h = NULL;
+    memcpy(&h, dir->handle.bytes, sizeof(h));
+    if (h != NULL && h != INVALID_HANDLE_VALUE) { FindClose(h); }
+    dir->pending_valid = 0;
+    return SRMECH_OK;
+}
+
+#else  /* bare-metal: no directory listing */
+
+srmech_status_t srmech_plat_dir_open(const char *path, srmech_plat_dir_t *out)
+{
+    assert(srmech_plat_has_dirlist() == 0);
+    assert(out != NULL);
+    (void)path; (void)out;
+    return SRMECH_ERR_IO;
+}
+
+srmech_status_t srmech_plat_dir_next(srmech_plat_dir_t *dir, char *name,
+                                     size_t name_cap, int *have)
+{
+    assert(srmech_plat_has_dirlist() == 0);
+    assert(have != NULL);
+    (void)dir; (void)name; (void)name_cap;
+    *have = 0;
+    return SRMECH_ERR_IO;
+}
+
+srmech_status_t srmech_plat_dir_close(srmech_plat_dir_t *dir)
+{
+    assert(srmech_plat_has_dirlist() == 0);
+    assert(dir != NULL);
+    (void)dir;
+    return SRMECH_OK;
+}
+
+#endif  /* SRMECH_PLAT_DIR_* */

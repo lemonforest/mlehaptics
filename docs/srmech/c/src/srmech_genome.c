@@ -54,16 +54,6 @@
 #include <stdio.h>
 #include <string.h>
 
-/* §43 loose<->packed (genome_pack) enumerates *.chr in a directory — the one
- * platform-specific touch in this file (POSIX dirent / Win32 FindFirstFile;
- * mirrors the PAL pattern in srmech_platform.c). JPL Rule 3 bans malloc, not
- * directory I/O; the listing is collected into a caller's fixed array. */
-#if defined(_WIN32)
-#  include <windows.h>
-#else
-#  include <dirent.h>
-#endif
-
 /* On-disk filenames (mirror genome.py _MANIFEST_NAME / _BODY_NAME). */
 #define SRMECH_GENOME_MANIFEST "manifest.json"
 #define SRMECH_GENOME_BODY     "turns.bin"
@@ -1799,49 +1789,37 @@ static int genome_chr_name_ok(const char *name)
     return strcmp(name + len - 4u, ".chr") == 0 ? 1 : 0;
 }
 
-/* List "*.chr" basenames in `dir` into `names` (cap max_n). The one
- * platform-specific touch (POSIX dirent / Win32 FindFirstFile). A
+/* List "*.chr" basenames in `dir` into `names` (cap max_n). Iterates via the
+ * PAL directory surface (`srmech_plat_dir_*`) so this file carries no #ifdef
+ * — the OS-specific opendir/FindFirstFile lives in srmech_platform.c. A
  * missing/empty dir yields count 0 (not an error — the Python glob simply
  * finds nothing; the caller turns 0 into the "no .chr files" error). The
  * scan is bounded (JPL Rule 2): >max_n matches is OVERFLOW, and a flood of
- * 65536 non-matching entries stops. */
+ * 65536 entries stops. */
 static srmech_status_t genome_list_chr(const char *dir,
     char names[][SRMECH_GENOME_CHR_NAME_MAX], uint32_t max_n, uint32_t *count)
 {
     assert(dir != NULL && count != NULL);
     assert(names == NULL || max_n > 0u);             /* names==NULL: count-only */
     uint32_t n = 0u;
-#if defined(_WIN32)
-    char pattern[SRMECH_GENOME_PATH_MAX];
-    srmech_status_t st = genome_join(dir, "*.chr", pattern, sizeof(pattern));
-    if (st != SRMECH_OK) { return st; }
-    WIN32_FIND_DATAA fd;
-    HANDLE h = FindFirstFileA(pattern, &fd);
-    if (h == INVALID_HANDLE_VALUE) { *count = 0u; return SRMECH_OK; }
-    int more = 1;
-    for (uint32_t guard = 0u; more != 0 && guard < 65536u; guard++) {
-        if (genome_chr_name_ok(fd.cFileName)) {
-            if (names != NULL && n >= max_n) { FindClose(h); return SRMECH_ERR_OVERFLOW; }
-            if (names != NULL) { memcpy(names[n], fd.cFileName, strlen(fd.cFileName) + 1u); }
+    srmech_plat_dir_t d;
+    srmech_status_t st = srmech_plat_dir_open(dir, &d);
+    if (st != SRMECH_OK) { *count = 0u; return SRMECH_OK; }  /* no dir -> none */
+    char nm[SRMECH_GENOME_CHR_NAME_MAX];
+    int have = 0;
+    for (uint32_t guard = 0u; guard < 65536u; guard++) {
+        st = srmech_plat_dir_next(&d, nm, sizeof(nm), &have);
+        if (st != SRMECH_OK) { srmech_plat_dir_close(&d); return st; }
+        if (have == 0) { break; }
+        if (genome_chr_name_ok(nm)) {
+            if (names != NULL && n >= max_n) {
+                srmech_plat_dir_close(&d); return SRMECH_ERR_OVERFLOW;
+            }
+            if (names != NULL) { memcpy(names[n], nm, strlen(nm) + 1u); }
             n++;
         }
-        more = (FindNextFileA(h, &fd) != 0);
     }
-    FindClose(h);
-#else
-    DIR *d = opendir(dir);
-    if (d == NULL) { *count = 0u; return SRMECH_OK; }    /* no dir -> none */
-    struct dirent *e = readdir(d);
-    for (uint32_t guard = 0u; e != NULL && guard < 65536u; guard++) {
-        if (genome_chr_name_ok(e->d_name)) {
-            if (names != NULL && n >= max_n) { closedir(d); return SRMECH_ERR_OVERFLOW; }
-            if (names != NULL) { memcpy(names[n], e->d_name, strlen(e->d_name) + 1u); }
-            n++;
-        }
-        e = readdir(d);
-    }
-    closedir(d);
-#endif
+    srmech_plat_dir_close(&d);
     *count = n;
     return SRMECH_OK;
 }
