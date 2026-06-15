@@ -853,6 +853,155 @@ def klein4_similarity(a, b, *, sectors=None, parallel=None, mode="chunk") -> flo
     return float(matches / n)
 
 
+def klein4_bundle_accumulate(acc, v):
+    """Fold ONE Klein-4 vector ``v`` into a fixed-width accumulator — the STREAMING
+    form of the batch :func:`klein4_bundle` (UPSTREAM §50; F758).
+
+    The batch bundle needs every vector resident at once; this folds one at a time
+    into a bounded per-coordinate symbol tally, so a holographic store of N
+    relationships **never materialises the N inputs** and stays fixed-width (it
+    grows with the #coordinates ``D``, not the #folded vectors). That is the fix for
+    "why is the HDC object growing to gigs?" — superposition, not an explicit edge
+    list.
+
+    ``acc`` is an :class:`array.array` of type ``'I'`` (uint32), width ``1 + 2*D``:
+    ``acc[0]`` is the count ``n`` of folded vectors; ``acc[1 : 1+D]`` and
+    ``acc[1+D : 1+2*D]`` are the per-coordinate running 1-counts of bit-0 and bit-1.
+    Pass ``acc=None`` on the first fold to create a fresh accumulator sized to ``v``.
+    Returns ``acc`` (mutated IN PLACE and returned, so ``acc =
+    klein4_bundle_accumulate(acc, v)`` reads cleanly in a loop). The accumulator is
+    the caller's memory — its width is the architecture (``1 + 2*D`` uint32), no
+    compiled-in cap. Native-dispatched when present (the standalone-C kernel runs
+    the fold at corpus scale); pure-Python is the complete alternative.
+    """
+    buf = _as_klein4_buf(v, "klein4_bundle_accumulate")
+    d = len(buf)
+    if d == 0:
+        raise ValueError("hdc.klein4_bundle_accumulate: vector must be non-empty")
+    if acc is None:
+        acc = array("I", bytes(4 * (1 + 2 * d)))   # n + c0[D] + c1[D], all zero
+    elif len(acc) != 1 + 2 * d:
+        raise ValueError(
+            f"hdc.klein4_bundle_accumulate: acc width {(len(acc) - 1) // 2} != "
+            f"vector length {d} (an accumulator is bound to one dimension)"
+        )
+    if _native.HAS_NATIVE and hasattr(
+        _native.LIB, "srmech_klein4_bundle_accumulate"
+    ):
+        acc_c = (ctypes.c_uint32 * len(acc)).from_buffer(acc)
+        v_c = (ctypes.c_uint8 * d).from_buffer_copy(buf)
+        rc = _native.LIB.srmech_klein4_bundle_accumulate(acc_c, v_c, d)
+        if rc != _native.SRMECH_OK:
+            raise ValueError(
+                f"srmech_klein4_bundle_accumulate returned status {rc}"
+            )
+        return acc
+    # Pure-Python alternative (no C): per-coordinate 2-bit running tally.
+    acc[0] += 1
+    for i in range(d):
+        x = buf[i]
+        acc[1 + i] += x & 1
+        acc[1 + d + i] += (x >> 1) & 1
+    return acc
+
+
+def klein4_bundle_resolve(acc):
+    """Resolve a fixed-width accumulator (:func:`klein4_bundle_accumulate`) to the
+    bundled Klein-4 vector — argmax-per-coordinate (UPSTREAM §50; F758).
+
+    Per coordinate, each of the 2 bits is set iff its 1-count is STRICTLY greater
+    than ``n // 2`` (an exact tie → 0) — **bit-identical** to
+    :func:`klein4_bundle` over the same vectors. Returns the :class:`HV` carrier
+    (the SAME return as :func:`klein4_bundle`), so a resolved bundle drops straight
+    into a genome leaf (a tome-leaf, §50.1) or a :func:`klein4_similarity` cleanup.
+    An empty accumulator (``n == 0``) resolves to the all-zero vector. Native-
+    dispatched when present; pure-Python is the complete alternative.
+    """
+    if acc is None or len(acc) < 3 or (len(acc) % 2) == 0:
+        raise ValueError(
+            "hdc.klein4_bundle_resolve: acc must be a (1 + 2*D) uint32 accumulator"
+        )
+    d = (len(acc) - 1) // 2
+    if _native.HAS_NATIVE and hasattr(_native.LIB, "srmech_klein4_bundle_resolve"):
+        out = (ctypes.c_uint8 * d)()
+        acc_c = (ctypes.c_uint32 * len(acc)).from_buffer_copy(acc)
+        rc = _native.LIB.srmech_klein4_bundle_resolve(acc_c, out, d)
+        if rc != _native.SRMECH_OK:
+            raise ValueError(f"srmech_klein4_bundle_resolve returned status {rc}")
+        return HV(array("B", bytes(out)), sectors=4)
+    # Pure-Python alternative (no C): strict per-bit majority, tie → 0.
+    half = acc[0] // 2
+    out = array("B", bytes(d))
+    for i in range(d):
+        b0 = 1 if acc[1 + i] > half else 0
+        b1 = 1 if acc[1 + d + i] > half else 0
+        out[i] = (b1 << 1) | b0
+    return HV(out, sectors=4)
+
+
+def _cooc_token_seed(token, base_seed):
+    """Deterministic 32-bit seed for a token's atomic Klein-4 code — FNV-1a over the
+    token's UTF-8 bytes, mixed with ``base_seed``. Stable across runs and streams so
+    a co-occurrence readout reconstructs the same code (the cleanup key)."""
+    h = 0x811C9DC5
+    for byte in str(token).encode("utf-8"):
+        h = ((h ^ byte) * 0x01000193) & 0xFFFFFFFF
+    return (h ^ (base_seed & 0xFFFFFFFF)) & 0xFFFFFFFF
+
+
+def cooccurrence_fold(tokens, *, window, dim, seed=0):
+    """Holographic co-occurrence store — the §50 DUAL of the explicit-edge §17-U1
+    ``cooccurrence_edges`` (UPSTREAM §50; F758).
+
+    Folds every ``(token, neighbour)`` co-occurrence within ``±window`` into a
+    per-token fixed-width Klein-4 bundle, WITHOUT ever building the edge list, so
+    the store grows with the **VOCABULARY** (corpus-sublinear, Heaps' law) not the
+    **#edges** (corpus-linear). Each distinct token gets a stable random atomic code
+    (``klein4_random(dim, seed=…)`` keyed deterministically by the token, §
+    :func:`_cooc_token_seed`); a token's bundle is the
+    :func:`klein4_bundle_accumulate` superposition of its co-occurring neighbours'
+    codes.
+
+    Returns ``{"bundles": {token: HV}, "codes": {token: HV}, "vocab": [token, …],
+    "n_tokens": int}``. Read out a relationship with ``klein4_similarity(
+    result["bundles"][a], result["codes"][b])`` — high similarity ⇒ ``b`` co-occurs
+    with ``a`` (cleanup memory). The bundle is LOSSY (superposition crosstalk; F584)
+    — the bounded associative TAIL to §17-U1's small exact working set; together the
+    two are the F119/F529 two-tier at the srmech-primitive level.
+    """
+    if window < 1:
+        raise ValueError(f"hdc.cooccurrence_fold: window must be >= 1; got {window}")
+    if dim < 1:
+        raise ValueError(f"hdc.cooccurrence_fold: dim must be >= 1; got {dim}")
+    toks = list(tokens)
+    n = len(toks)
+    codes = {}
+    vocab = []
+
+    def code_for(tok):
+        c = codes.get(tok)
+        if c is None:
+            c = klein4_random(dim, seed=_cooc_token_seed(tok, seed))
+            codes[tok] = c
+            vocab.append(tok)
+        return c
+
+    for tok in toks:               # stable vocab order = first appearance
+        code_for(tok)
+    accs = {}
+    for i, t in enumerate(toks):
+        lo = i - window if i - window > 0 else 0
+        hi = i + window + 1 if i + window + 1 < n else n
+        ai = accs.get(t)
+        for j in range(lo, hi):
+            if j != i:
+                ai = klein4_bundle_accumulate(ai, code_for(toks[j]))
+        if ai is not None:
+            accs[t] = ai
+    bundles = {t: klein4_bundle_resolve(a) for t, a in accs.items()}
+    return {"bundles": bundles, "codes": codes, "vocab": vocab, "n_tokens": n}
+
+
 def klein4_chirality_flip_gamma5(v):
     """Flip the γ₅ axis: XOR with the bit-1 sector mask (2)."""
     return HV(_xor_const_buf(_as_klein4_buf(v, "klein4_chirality_flip_gamma5"), 2),
