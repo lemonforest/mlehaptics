@@ -121,6 +121,9 @@ RULE_5_EXEMPT_FUNCTIONS: set[str] = {
     "srmech_plat_has_streams",  # PAL trivial accessor: returns a compile-time
                                 # 1/0 (is a stream-IPC backend present?). No
                                 # state to assert; see c/JPL_AUDIT.md.
+    "srmech_plat_has_filesystem",  # PAL trivial accessor: returns a compile-
+                                # time 1/0 (is a filesystem backend present?).
+                                # No state to assert; see c/JPL_AUDIT.md.
     # sha256 inline helpers — 4-7 lines each, no anomalous conditions
     "srmech_ror32",
     "srmech_ch",

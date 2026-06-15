@@ -673,3 +673,132 @@ srmech_status_t srmech_plat_stream_conn_close(srmech_plat_stream_conn_t *conn)
 }
 
 #endif
+
+/* ================================================================== *
+ * FILE I/O (rc161) — portable stdio (fopen/fread/fwrite/fseek), so the
+ * POSIX + Windows path is shared; only a bare-metal target (no FS) stubs.
+ * stdio.h is already included above. JPL-clean: no goto, no malloc,
+ * bounded loops, status returns, >=2 asserts / non-trivial fn.
+ * ================================================================== */
+
+#if defined(_WIN32) || defined(_WIN64) || defined(__unix__) \
+    || defined(__APPLE__) || defined(__linux__)
+#  define SRMECH_PLAT_FILE 1
+#endif
+
+int srmech_plat_has_filesystem(void)
+{
+#if defined(SRMECH_PLAT_FILE)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+#if defined(SRMECH_PLAT_FILE)
+
+srmech_status_t srmech_plat_file_read(const char *path, unsigned char *buf,
+                                      size_t buf_cap, size_t *out_len)
+{
+    assert(path != NULL);
+    assert(out_len != NULL && (buf != NULL || buf_cap == 0));
+    FILE *fp = fopen(path, "rb");
+    if (fp == NULL) { return SRMECH_ERR_IO; }
+    size_t total = 0;
+    int over = 0;
+    while (total < buf_cap) {
+        size_t got = fread(buf + total, 1u, buf_cap - total, fp);
+        if (got == 0u) { break; }
+        total += got;
+    }
+    if (total == buf_cap) {
+        unsigned char probe;
+        if (fread(&probe, 1u, 1u, fp) != 0u) { over = 1; }
+    }
+    fclose(fp);
+    if (over) { return SRMECH_ERR_OVERFLOW; }
+    *out_len = total;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_file_read_region(const char *path, size_t offset,
+                                             unsigned char *buf, size_t len)
+{
+    assert(path != NULL);
+    assert(buf != NULL || len == 0);
+    FILE *fp = fopen(path, "rb");
+    if (fp == NULL) { return SRMECH_ERR_IO; }
+    if (fseek(fp, (long)offset, SEEK_SET) != 0) {
+        fclose(fp);
+        return SRMECH_ERR_IO;
+    }
+    size_t got = (len == 0u) ? 0u : fread(buf, 1u, len, fp);
+    fclose(fp);
+    return (got == len) ? SRMECH_OK : SRMECH_ERR_IO;
+}
+
+srmech_status_t srmech_plat_file_write(const char *path, int append,
+                                       const unsigned char *data, size_t len)
+{
+    assert(path != NULL);
+    assert(data != NULL || len == 0);
+    FILE *fp = fopen(path, append ? "ab" : "wb");
+    if (fp == NULL) { return SRMECH_ERR_IO; }
+    size_t wrote = (len == 0u) ? 0u : fwrite(data, 1u, len, fp);
+    int closed = fclose(fp);
+    if (wrote != len || closed != 0) { return SRMECH_ERR_IO; }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_file_size(const char *path, size_t *out_size)
+{
+    assert(path != NULL);
+    assert(out_size != NULL);
+    FILE *fp = fopen(path, "rb");
+    if (fp == NULL) { return SRMECH_ERR_IO; }
+    int sk = fseek(fp, 0L, SEEK_END);
+    long n = (sk == 0) ? ftell(fp) : -1L;
+    fclose(fp);
+    if (n < 0) { return SRMECH_ERR_IO; }
+    *out_size = (size_t)n;
+    return SRMECH_OK;
+}
+
+#else  /* bare-metal: no filesystem — callers feed bytes directly */
+
+srmech_status_t srmech_plat_file_read(const char *path, unsigned char *buf,
+                                      size_t buf_cap, size_t *out_len)
+{
+    assert(srmech_plat_has_filesystem() == 0);
+    assert(out_len != NULL);
+    (void)path; (void)buf; (void)buf_cap; (void)out_len;
+    return SRMECH_ERR_IO;
+}
+
+srmech_status_t srmech_plat_file_read_region(const char *path, size_t offset,
+                                             unsigned char *buf, size_t len)
+{
+    assert(srmech_plat_has_filesystem() == 0);
+    assert(path != NULL);
+    (void)path; (void)offset; (void)buf; (void)len;
+    return SRMECH_ERR_IO;
+}
+
+srmech_status_t srmech_plat_file_write(const char *path, int append,
+                                       const unsigned char *data, size_t len)
+{
+    assert(srmech_plat_has_filesystem() == 0);
+    assert(path != NULL);
+    (void)path; (void)append; (void)data; (void)len;
+    return SRMECH_ERR_IO;
+}
+
+srmech_status_t srmech_plat_file_size(const char *path, size_t *out_size)
+{
+    assert(srmech_plat_has_filesystem() == 0);
+    assert(out_size != NULL);
+    (void)path; (void)out_size;
+    return SRMECH_ERR_IO;
+}
+
+#endif  /* SRMECH_PLAT_FILE */

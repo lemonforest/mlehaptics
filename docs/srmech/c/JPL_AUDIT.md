@@ -219,6 +219,8 @@ Per-function assertion counts:
 | `srmech_version`                |    0    | **EXEMPT** — trivial accessor returning a constant string. No preconditions to assert. |
 | `srmech_abi_version`            |    0    | **EXEMPT** — trivial accessor returning a constant integer. No preconditions to assert. |
 | `srmech_plat_has_threads`       |    0    | **EXEMPT** — PAL (`srmech_platform.c`, rc4) trivial accessor: returns a compile-time `1`/`0` (is a threading backend present?). No state/preconditions to assert. The other PAL fns (`srmech_plat_thread_spawn`/`join`) carry ≥2 asserts. |
+| `srmech_plat_has_streams`       |    0    | **EXEMPT** — PAL (`srmech_platform.c`, rc5) trivial accessor: compile-time `1`/`0` (is a stream-IPC backend present?). No state to assert; the stream listen/accept/connect/read/write fns carry ≥2 asserts. |
+| `srmech_plat_has_filesystem`    |    0    | **EXEMPT** — PAL (`srmech_platform.c`, rc161) trivial accessor: compile-time `1`/`0` (is a filesystem backend present?). No state to assert; the file read/write/size fns carry ≥2 asserts. |
 | sha256 inline helpers           |    0    | **EXEMPT** — `static inline` arithmetic primitives (ror32, ch, maj, big/small sigma). Per the rule's spirit (anomalous conditions in real-life), 4-line bit-rotation helpers have no real-world failure mode worth asserting; the FIPS 180-4 algorithm is the only caller, and its preconditions on these helpers are validated at the `srmech_sha256_compress` entry. |
 | `srmech_sha256_compress`        |    2    | ✅                                                  |
 | `srmech_sha256_state_to_hex`    |    2    | ✅                                                  |
@@ -441,8 +443,11 @@ Return-value checks at every internal-callsite:
   Hermitian-eigendecomp workspace. It is side-effect-free, expands on
   one line, and uses neither token-paste nor varargs — within the
   spirit of Rule 8 (which prohibits multi-line / recursive / token-
-  pasting macros, not all parameterised constants). `SRMECH_HERMITIAN_WS_MAX`
-  is its object-like `n = MAX_NODES` specialisation, also single-line.
+  pasting macros, not all parameterised constants). (rc161 removed the
+  object-like `SRMECH_HERMITIAN_WS_MAX` / `_WS_MAX_NODES` caps — the
+  Hermitian node ceiling is now the runtime config value
+  `srmech_config_hermitian_max_nodes()`, default 2048; only the
+  arithmetic `_WS_LEN(n)` helper remains.)
 - No multi-line macros. No recursive / token-pasting macros.
 - `srmech_json.c` (§41 JSON mirror) adds `SRMECH_JSON_MAX_DEPTH`
   (object-like int recursion-depth guard — there is no child-count cap
@@ -669,6 +674,26 @@ Both `srmech_parallel.c` (rc6) and `srmech_kuramoto.c` (rc9 + rc14) pass the
 and the 3-cell pedantic `-Werror` / `-Wpedantic` build (Linux gcc /
 macOS clang / Windows MSVC), verified green in CI. `srmech_json.c` and
 `srmech_genome.c` are held to the same ratchet + pedantic build.
+
+**`srmech_config.c` (rc161 — config-driven library limits) + the
+`srmech_platform.c` FILE surface** pass the same ratchet + pedantic
+`-Werror` build. The config layer (`srmech_config_hermitian_max_nodes`
+getter / `srmech_config_load_toml` / `srmech_config_load_file` /
+`srmech_config_reset_defaults` / the static `config_apply` helper) is
+JPL-clean: no goto, no malloc (the TOML parse uses the **caller arena**,
+and `load_file` carves the file-read buffer from the front half of that
+same arena), ≤ 60-line functions, ≥ 2 asserts each, every status
+checked. The PAL FILE primitives (`srmech_plat_file_read` /
+`_read_region` / `_write` / `_size`) are portable stdio (one POSIX/Win
+implementation; a bare-metal `#else` stubs each to `SRMECH_ERR_IO`),
+each ≤ 60 lines with ≥ 2 asserts; only the trivial accessor
+`srmech_plat_has_filesystem` is Rule-5 exempt (a compile-time `1`/`0`,
+beside `has_threads`/`has_streams`). rc161 also **removed** the orphan
+`srmech_hermitian_eigendecompose` (no-`_ws`) overload + its 1 MiB
+thread-local static and the `SRMECH_HERMITIAN_WS_MAX` / `_WS_MAX_NODES`
+caps from `srmech_laplacian.c` / `srmech.h` — the Hermitian node ceiling
+is now the runtime config value. `SRMECH_ABI_VERSION` unchanged at 3
+(additive symbols; the ctypes shim binds them hasattr-guarded).
 
 **Total mechanically-detectable violations: 1 → 0 (held at 0 through
 v0.6.0rc14).**

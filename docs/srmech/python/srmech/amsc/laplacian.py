@@ -81,10 +81,11 @@ srmech's own pure-Python Class-L cascades run.
 
 The numpy-free Hermitian eigen**vector** decomposition
 (:func:`mat_hermitian_eigendecompose`) is the one path with a HIGHER native
-bound — ``n ≤ MAX_NATIVE_HERMITIAN_NODES`` (2048). It routes through the
+bound — a **config-driven** sanity ceiling (default 2048, raisable via
+``_native.config_load_toml``/``_file``; rc161). It routes through the
 reentrant ``srmech_hermitian_eigendecompose_ws`` C entry, which takes a
 caller-supplied ``2*n*n``-double workspace (allocated as a ctypes buffer here)
-and so has NO 256-sized static/stack array — only a sanity cap. This keeps the
+and so has NO 256-sized static/stack array — only that config ceiling. This keeps the
 fast native Jacobi (not the minutes-long pure-Python fallback) reachable for
 QM grid sizes (e.g. a hydrogen radial grid up to ~1000). Eigenvector sign /
 degenerate-subspace rotation is non-unique, so element-wise C/Python parity is
@@ -148,15 +149,18 @@ __all__ = [
 
 MAX_NATIVE_NODES: int = 256
 
-# Hermitian-eig-only native bound. The reentrant C entry
-# ``srmech_hermitian_eigendecompose_ws`` takes a CALLER-SUPPLIED 2*n*n-double
-# workspace (allocated here as a ctypes buffer), so its native Jacobi path has
-# NO 256-sized stack/static array — it is bounded only by this sanity cap
-# (== C-side SRMECH_HERMITIAN_WS_MAX_NODES = 2048). Every OTHER native path in
-# this module (jacobi_eigvals, dense_solve, mat_matvec/mat_matmul, the non-ws
-# hermitian wrapper) DOES rely on a 256-sized fixed buffer or hard cap and so
-# stays gated by ``MAX_NATIVE_NODES`` = 256. Used ONLY in
-# :func:`mat_hermitian_eigendecompose`'s native-dispatch gate.
+# Hermitian-eig-only native bound — the built-in DEFAULT, not a hard cap.
+# The reentrant C entry ``srmech_hermitian_eigendecompose_ws`` takes a
+# CALLER-SUPPLIED 2*n*n-double workspace (allocated here as a ctypes buffer),
+# so its native Jacobi path has NO 256-sized stack/static array. As of rc161
+# the native sanity ceiling is CONFIG-DRIVEN (C ``srmech_config_hermitian_max_nodes()``,
+# default 2048, raisable via ``_native.config_load_toml``/``_file``); the live
+# dispatch gate in :func:`mat_hermitian_eigendecompose` reads that getter, so a
+# raised config lifts the gate in lockstep. This constant mirrors the C
+# *default* (``SRMECH_HERMITIAN_DEFAULT_MAX_NODES``) for documentation / no-native
+# environments; it is NO LONGER the gate. Every OTHER native path in this module
+# (jacobi_eigvals, dense_solve, mat_matvec/mat_matmul) still relies on a
+# 256-sized fixed buffer and stays gated by ``MAX_NATIVE_NODES`` = 256.
 MAX_NATIVE_HERMITIAN_NODES: int = 2048
 
 
@@ -1533,12 +1537,11 @@ def mat_hermitian_eigendecompose(h: "Mat") -> Tuple["Mat", "Mat"]:
     feeds the kernel **zero-copy** (``from_buffer``) and a real `Mat` is
     interleaved ``(re, 0)`` once — **NO numpy** on the native path. The reentrant
     ``_ws`` entry takes a caller-supplied ``2*n*n``-double workspace (allocated
-    here as a ctypes buffer), so the fast native Jacobi serves ``n`` up to
-    ``MAX_NATIVE_HERMITIAN_NODES`` (2048) without a 256-sized static/stack
-    buffer; on a lib predating the ``_ws`` symbol it falls back to the older
-    non-ws ``srmech_hermitian_eigendecompose`` for ``n ≤ MAX_NATIVE_NODES``
-    (256). With no native lib — or ``n`` > 2048, or a native convergence miss —
-    the fallback is srmech's own pure-Python **cyclic Jacobi**
+    here as a ctypes buffer), so the fast native Jacobi serves ``n`` up to the
+    **config-driven** ceiling (``_native.config_hermitian_max_nodes()``, default
+    2048, raisable; rc161) without a 256-sized static/stack buffer. With no
+    native lib — or ``n`` above the configured ceiling, or a native convergence
+    miss — the complete alternative is srmech's own pure-Python **cyclic Jacobi**
     (:func:`_hermitian_eig_py`, real-symmetric directly / complex-Hermitian via
     the real ``2n×2n`` embedding), so the op is unconditionally numpy-free.
 
@@ -1573,9 +1576,16 @@ def mat_hermitian_eigendecompose(h: "Mat") -> Tuple["Mat", "Mat"]:
     # static) stays the fallback for n ≤ 256 on libs built before the _ws
     # symbol existed.
     have_native = _native.HAS_NATIVE and _native.LIB is not None
+    # The native compute-guard ceiling is CONFIG-DRIVEN (rc161): default 2048,
+    # raisable via ``_native.config_load_toml``/``_file``. Gate on the LIVE
+    # value (``_native.config_hermitian_max_nodes()``) so a raised config lifts
+    # the native gate in lockstep; above it, the complete alternative is
+    # srmech's own pure-Python cyclic Jacobi (no ceiling) — NOT a smaller native
+    # cap. (rc161 removed the older no-``_ws`` ``srmech_hermitian_eigendecompose``
+    # — a 1 MiB thread-local static with its own n≤256 cap and no live caller.)
     if (have_native
             and hasattr(_native.LIB, "srmech_hermitian_eigendecompose_ws")
-            and n <= MAX_NATIVE_HERMITIAN_NODES):
+            and n <= _native.config_hermitian_max_nodes()):
         h_il = _mat_to_interleaved_cbuf(h, n * n)
         eigvals_buf = (ctypes.c_double * n)()
         v_il = (ctypes.c_double * (2 * n * n))()
@@ -1584,20 +1594,6 @@ def mat_hermitian_eigendecompose(h: "Mat") -> Tuple["Mat", "Mat"]:
         rc = _native.LIB.srmech_hermitian_eigendecompose_ws(
             ctypes.c_uint32(n), h_il, eigvals_buf, v_il,
             workspace, ctypes.c_size_t(ws_len),
-        )
-        if rc == _native.SRMECH_OK:
-            eigvals = Mat(array("d", eigvals_buf), n, 1)
-            eigvecs = _mat_from_interleaved_cbuf(v_il, n, n, want_complex=True)
-            return eigvals, eigvecs
-        # Non-OK (convergence miss / over-bound) → numpy-free Jacobi fallback.
-    elif (have_native
-            and hasattr(_native.LIB, "srmech_hermitian_eigendecompose")
-            and n <= MAX_NATIVE_NODES):
-        h_il = _mat_to_interleaved_cbuf(h, n * n)
-        eigvals_buf = (ctypes.c_double * n)()
-        v_il = (ctypes.c_double * (2 * n * n))()
-        rc = _native.LIB.srmech_hermitian_eigendecompose(
-            ctypes.c_uint32(n), h_il, eigvals_buf, v_il,
         )
         if rc == _native.SRMECH_OK:
             eigvals = Mat(array("d", eigvals_buf), n, 1)
