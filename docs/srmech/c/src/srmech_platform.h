@@ -182,4 +182,48 @@ srmech_status_t srmech_plat_file_write(const char *path, int append,
 /* Byte length of `path` into *out_size. Missing / unstattable → SRMECH_ERR_IO. */
 srmech_status_t srmech_plat_file_size(const char *path, size_t *out_size);
 
+/* ================================================================== *
+ * DIRECTORY ITERATION (rc163) — the POSIX opendir / Win32 FindFirstFile
+ * duality, absorbed into the PAL so a caller (srmech_genome's §43 *.chr
+ * pack/explode listing) carries NO `#ifdef _WIN32`. The iterator yields
+ * every entry name in a directory; the caller filters (e.g. by suffix).
+ * No heap — the OS handle + a one-entry lookahead live in the caller's
+ * `srmech_plat_dir_t` storage. Win32's FindFirstFile reads the first
+ * entry at open, so it is buffered as the lookahead.
+ * ================================================================== */
+
+/* Max bytes for one directory-entry name (filename only, NUL-terminated). */
+#define SRMECH_PLAT_DIR_NAME_MAX 256
+/* Max-aligned opaque storage for one OS dir handle (POSIX DIR* / Win HANDLE). */
+#define SRMECH_PLAT_DIR_STORAGE  16
+
+/* One open directory iterator. No heap — lives in the caller's storage. */
+typedef struct srmech_plat_dir {
+    union {
+        void         *align_ptr;
+        long double   align_ld;
+        unsigned char bytes[SRMECH_PLAT_DIR_STORAGE];
+    } handle;
+    char pending[SRMECH_PLAT_DIR_NAME_MAX];  /* Win32 FindFirstFile lookahead */
+    int  pending_valid;                       /* 1 iff `pending` holds an entry */
+} srmech_plat_dir_t;
+
+/* 1 iff a directory-listing backend is compiled in (POSIX / Windows); 0 on a
+ * bare-metal target with no filesystem. */
+int srmech_plat_has_dirlist(void);
+
+/* Open `path` for iteration; *out receives the handle. SRMECH_ERR_IO if the
+ * directory cannot be opened (the caller may treat that as "no entries"). */
+srmech_status_t srmech_plat_dir_open(const char *path, srmech_plat_dir_t *out);
+
+/* Fetch the next entry name into `name` (capacity `name_cap`). *have is set to
+ * 1 and `name` written when an entry is produced, or 0 at end-of-directory.
+ * SRMECH_ERR_OVERFLOW if a name does not fit `name_cap`. */
+srmech_status_t srmech_plat_dir_next(srmech_plat_dir_t *dir, char *name,
+                                     size_t name_cap, int *have);
+
+/* Close the iterator (POSIX closedir / Win32 FindClose). Safe on a
+ * zero-initialised handle. */
+srmech_status_t srmech_plat_dir_close(srmech_plat_dir_t *dir);
+
 #endif /* SRMECH_PLATFORM_H */

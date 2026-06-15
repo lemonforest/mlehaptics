@@ -221,6 +221,7 @@ Per-function assertion counts:
 | `srmech_plat_has_threads`       |    0    | **EXEMPT** — PAL (`srmech_platform.c`, rc4) trivial accessor: returns a compile-time `1`/`0` (is a threading backend present?). No state/preconditions to assert. The other PAL fns (`srmech_plat_thread_spawn`/`join`) carry ≥2 asserts. |
 | `srmech_plat_has_streams`       |    0    | **EXEMPT** — PAL (`srmech_platform.c`, rc5) trivial accessor: compile-time `1`/`0` (is a stream-IPC backend present?). No state to assert; the stream listen/accept/connect/read/write fns carry ≥2 asserts. |
 | `srmech_plat_has_filesystem`    |    0    | **EXEMPT** — PAL (`srmech_platform.c`, rc161) trivial accessor: compile-time `1`/`0` (is a filesystem backend present?). No state to assert; the file read/write/size fns carry ≥2 asserts. |
+| `srmech_plat_has_dirlist`       |    0    | **EXEMPT** — PAL (`srmech_platform.c`, rc163) trivial accessor: compile-time `1`/`0` (is a directory-iteration backend present?). No state to assert; the dir open/next/close fns carry ≥2 asserts. |
 | sha256 inline helpers           |    0    | **EXEMPT** — `static inline` arithmetic primitives (ror32, ch, maj, big/small sigma). Per the rule's spirit (anomalous conditions in real-life), 4-line bit-rotation helpers have no real-world failure mode worth asserting; the FIPS 180-4 algorithm is the only caller, and its preconditions on these helpers are validated at the `srmech_sha256_compress` entry. |
 | `srmech_sha256_compress`        |    2    | ✅                                                  |
 | `srmech_sha256_state_to_hex`    |    2    | ✅                                                  |
@@ -699,6 +700,16 @@ thread-local static and the `SRMECH_HERMITIAN_WS_MAX` / `_WS_MAX_NODES`
 caps from `srmech_laplacian.c` / `srmech.h` — the Hermitian node ceiling
 is now the runtime config value. `SRMECH_ABI_VERSION` unchanged at 3
 (additive symbols; the ctypes shim binds them hasattr-guarded).
+
+rc163 adds the fourth PAL surface — directory iteration
+(`srmech_plat_dir_open` / `_dir_next` / `_dir_close`, POSIX
+`opendir`/`readdir` or Win32 `FindFirstFile`/`FindNextFile`, bare-metal
+`#else` → `SRMECH_ERR_IO`), each ≤ 60 lines with ≥ 2 asserts; only the
+trivial accessor `srmech_plat_has_dirlist` is Rule-5 exempt (compile-time
+`1`/`0`, beside `has_threads`/`has_streams`/`has_filesystem`).
+`srmech_genome.c::genome_list_chr` now drives that iterator, so the
+genome carries **no `#ifdef`** — every OS touch lives in the PAL TU.
+`SRMECH_ABI_VERSION` unchanged at 3 (additive symbol; hasattr-guarded).
 
 **Total mechanically-detectable violations: 1 → 0 (held at 0 through
 v0.6.0rc14).**
