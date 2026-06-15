@@ -2207,3 +2207,22 @@ detection is a cheap hash-diff (no rebuild unless drifted). TWO paths, ONE mecha
     when it is out of date.
 Demonstrated as test material: `R-RBS-LM-SIONAGENOMEHANDLER_…py` (`check_updates`/`sync_updates`, UP-TO-DATE on a fresh
 bake). Additive; TestPyPI-rc first; composes §44 (self-describing strand makes the hash-diff cheap) + AMSC/MPR + F730.
+
+## §48 ERGONOMIC gap (NOT blocking) — `magnetic_laplacian` q-phase ALIASES for large net weights; want a net-normalised variant (2026-06-15; F756)
+
+**What.** `laplacian.magnetic_laplacian(n, edges, weights, *, q=0.25)` encodes edge DIRECTION in the off-diagonal phase
+`exp(i·2π·q·(a_ij − a_ji))`. With a **fixed** q the phase is periodic in the net flow `(a_ij − a_ji)` with period `1/q`
+(=4 at q=0.25), so on a graph with **large integer net weights** the phase WRAPS — e.g. a directed pair with net=176
+aliases back onto the real axis, indistinguishable from net=0. Verified in F756 (directed word-co-occurrence graph, 400
+simplewiki articles): `united→states` net≈295 and `hex→rgb` net=219 landed on *different* phase quadrants purely by
+`net mod 4`, not by their (similar, large) directionality.
+
+**Why it's not a bug.** `magnetic_laplacian` is mathematically correct — the aliasing is inherent to a fixed-q phase
+over unbounded integer weights, and is exactly right for the small-net regime (±1, ±2) the op was framed for. The
+workaround is in-caller: pick `q < 1/(2·net_max)`, or read direction from the raw directed counts.
+
+**The ask (additive, ergonomic).** A **net-normalised** option so the phase stays monotone on heavy-edge graphs —
+e.g. `magnetic_laplacian(..., normalize_net=True)` mapping `(a_ij − a_ji)` through `atan2`-style bounded normalisation
+(or auto-`q = c / net_max`) so heavy directed edges don't wrap. Class-L; composes with the existing q-phase; pure
+add → ABI unaffected. Lets the directed Hermitian be a drop-in over real co-occurrence graphs (the F756 relation-edges
+rung) without per-graph q-tuning. Demonstrated as test material: `R-RBS-LM-RELEDGES_…py`.

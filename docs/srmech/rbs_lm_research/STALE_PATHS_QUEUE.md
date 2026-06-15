@@ -806,4 +806,16 @@ Per user direction ("check stale queue items to bring forward and do if remainin
 - LLM connection (hand-to-expert, F282): transformer ATTENTION is content-addressed navigation (query·key = which positions to attend = a soft walk; value-readout = compose). "Is attention the input-ride coupling to the kernel?" is a real askable question. See F753.
 
 ### viewport (F750) infra note — re-run needs a streaming loader
-- The viewport experiment (steps 2+3 + the observer-viewport idea) OOM'd loading the 112MB full SSoT in one json.loads + materializing the 5.14M-edge subgraph; at N=2000 the numpy-free Jacobi eig was also intractable (44min). Re-do: stream the kernel to build a small top-N (<=400) working cache, then measure. Pending.
+- The viewport experiment (steps 2+3 + the observer-viewport idea) OOM'd loading the 112MB full SSoT in one json.loads + materializing the 5.14M-edge subgraph; at N=2000 the numpy-free Jacobi eig was also intractable (44min). Re-do: stream the kernel to build a small top-N (<=400) working cache, then measure. **RESOLVED in F755** — the surface is built seed-anchored from the compact F754 assoc (no 112MB load); eig kept at N<=400.
+
+### F754 / F755 / F756 — the "yes, those 3" trio DONE (2026-06-15)
+- **F754 (wire the uncapped kernel into Siona):** RESOLVED. simplewiki_assoc.json (32MB, top-16 neighbours for ALL 213069 words, built memory-safe via bounded heaps) is a live Siona tier; infer answers relations + enriches abstracts; input-ride steers it; confirmed over /v1. See F754.
+- **F755 (viewport re-run):** RESOLVED on a SEED-ANCHORED solar surface. near:far is a local section; locality dominates at every scale on both axes (NT + surface-N); far tail holographically held. See F755.
+- **F756 (relation-edges rung):** RESOLVED first-cut. directed+typed relations = a Class-L magnetic-Laplacian Hermitian object (real spectrum); the F754 undirected tier is its chirality-collapsed symmetric projection (F552). See F756.
+
+### Next rungs surfaced by the trio (queued, not walked)
+- **Multi-cluster viewport** (F755 honest gap): the solar surface is ONE tight cluster, so step-1 center-relativity is weak. A stronger test seeds from SEVERAL unrelated domains (solar + cooking + music) so centers land in genuinely different regions and near:far re-assigns visibly by center.
+- **Wire a DIRECTED read into Siona** (F756 next): Siona currently answers undirected relations ("volcano near lava"); the rung is relation-TYPED answers ("volcano —erupts→ lava") from the directed/typed graph.
+- **Dependency-parsed relation extractor** (F756 honest gap): the reading-order=direction + function-words-between-content-words extractor is crude (breaks on passive/OSV; "of the" multiword labels dropped). A real parser (or a learned head) would give clean typed triples.
+- **Net-normalised magnetic Laplacian** (UPSTREAM_NOTES §48): the q-phase aliases for large net weights; an additive normalised variant (or auto-q) makes the directed Hermitian a drop-in over real co-occurrence graphs.
+- **Full 240k simplewiki assoc** (F754 scope): the assoc tier is 15k-article (213k vocab); the full 240,881-article run is the same code, longer (background it) — would likely pull in kombucha + the long tail.
