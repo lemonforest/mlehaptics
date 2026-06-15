@@ -59,6 +59,9 @@ LEARNED_KERNEL_FILE = Path(__file__).parent / "siona_learned_kernel.json"
 # It is a SCALABLE side-store (term-index lookup, Class-E style), NOT on the dense O(vocab^2) etak-walk surface —
 # that is how it scales from this first batch to the full enwiki abstracts dump. Lives outside the repo.
 WIKI_KERNEL_FILE = Path.home() / "corpora" / "wikipedia" / "wiki_knowledge_kernel.ndjson"
+# the UNCAPPED relational tier (F754): word -> top-K co-occurrence neighbours for ALL ~213k vocab (compact, 32MB,
+# built by R-RBS-LM-WIKIASSOC). Siona "knows the words" relationally; the input-ride (F753) steers over it.
+ASSOC_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_assoc.json"
 
 # NOTE (F743 experiment): there is NO hard-coded SIONA_SELF blurb, no _capabilities() prose, and no identity/
 # greeting/capabilities regexes. Siona's self-knowledge is read from STRUCTURE at runtime — srmech.describe()
@@ -193,6 +196,13 @@ class SionaGenepool:
                 self.wiki_toks[k] = (tt, xt)
                 for w in tt | xt:
                     self.wiki_idx.setdefault(w, set()).add(k)
+        # WIKI-ASSOC tier (F754): word -> top-K co-occurrence neighbours, UNCAPPED (~213k words). The relational layer
+        # ("Siona knows the words") + the surface the input-ride (F753) steers over. Compact (32MB), loaded once.
+        self.assoc, self.assoc_freq = {}, {}
+        if ASSOC_FILE.exists():
+            _a = json.loads(ASSOC_FILE.read_text())
+            self.assoc = _a.get("assoc", {})
+            self.assoc_freq = _a.get("freq", {})
 
     def _build_surface(self):
         """The LM surface: ONE co-occurrence graph (Class L) over every kernel Siona holds — nothing excluded."""
@@ -225,6 +235,8 @@ class SionaGenepool:
         cat = [(c["label"], c["leaf_count"]) for c in g.genome_catalog(self.path, the_one=ONE)["chromosomes"]]
         if getattr(self, "wiki", None):                       # the wiki side-store presents as a held chromosome
             cat.append(("wiki", len(self.wiki)))
+        if getattr(self, "assoc", None):                      # the uncapped relational tier (F754)
+            cat.append(("wiki-assoc", len(self.assoc)))
         return cat
 
     @staticmethod
@@ -239,8 +251,22 @@ class SionaGenepool:
         return "phrase"                                      # no question frame -> a phrase / word-list
 
     def _recognized(self, t):                                # does this content word have a home in any kernel?
-        return (t in self.vix) or (self._norm(t) in self.wiki_idx) or \
+        return (t in self.vix) or (self._norm(t) in self.wiki_idx) or (t in self.assoc) or \
+               (self._norm(t) in self.assoc) or \
                any(t == k or t.startswith(k) or k.startswith(t) for k in self.learned)
+
+    def _assoc_related(self, word, steer=(), k=8):
+        """The UNCAPPED relational tier: word -> its co-occurrence neighbours (F754), re-ranked toward the input-ride
+        STEER (neighbours shared with the relation come first) — the input-ride walking the association graph (F753)."""
+        nbrs = self.assoc.get(word) or self.assoc.get(self._norm(word)) or []
+        if not nbrs:
+            return []
+        shared = set()
+        for s in steer:                                      # input-ride steer: 2-hop — boost neighbours the relation also has
+            shared |= set(self.assoc.get(s, ())) | set(self.assoc.get(self._norm(s), ()))
+        if shared:
+            nbrs = sorted(nbrs, key=lambda n: n not in shared)   # stable: steer-shared neighbours first
+        return nbrs[:k]
 
     def wiki_lookup(self, prompt, steer=()):
         """Scalable broad-knowledge lookup over the WIKI side-store: query terms -> article via the term-index,
@@ -454,11 +480,21 @@ class SionaGenepool:
             see = [f"§{k[:24]}" for kk, k in ranked[1:3] if kk == top_kernel]   # siblings the same walk passed
             tail = f"\n  (the walk also passed: {', '.join(see)})" if see else ""
             return f"{parse}\n[etak: {path_str}]\n[{top_kernel} → §{top_key}] {body}{tail}{proc_note}{new_note}"
-        # not in the DEEP kernels -> try the broad WIKI knowledge chromosome (scalable lookup) before asking
-        wk = self.wiki_lookup(prompt)
+        # not in the DEEP kernels -> the broad WIKI abstract (definition), ENRICHED with assoc relations
+        wk = self.wiki_lookup(prompt, steer=steer_terms)
         if wk:
+            rel = self._assoc_related(self.wiki_title[wk].lower(), steer_terms)
+            rel_note = f"\n  (related: {', '.join(rel)})" if rel else ""
             return (f"{parse}\n[siona · wiki] {self.wiki_title[wk]}: {self.wiki[wk]}\n"
-                    f"  (source: {self.wiki_cite[wk]}, CC-BY-SA — attested in my wiki chromosome){proc_note}{new_note}")
+                    f"  (source: {self.wiki_cite[wk]}, CC-BY-SA){proc_note}{new_note}{rel_note}")
+        # the UNCAPPED relational tier (F754): subject in the ~213k assoc graph -> its neighbours, steered (input-ride)
+        asub = next((t for t in sorted(salient, key=len, reverse=True)
+                     if t in self.assoc or self._norm(t) in self.assoc), None)
+        if asub:
+            key = asub if asub in self.assoc else self._norm(asub)
+            rel = self._assoc_related(key, steer_terms)
+            return (f"{parse}\n[siona · relations] “{key}” is associated with: {', '.join(rel)}{proc_note}{new_note}\n"
+                    f"  (co-occurrence neighbours from the simplewiki relational kernel, CC-BY-SA)")
         if salient:                                            # named something specific in NO kernel -> ASK
             subject = max(salient, key=len)                   # the salient term (so a follow-up answer binds to it)
             return (f"{parse}\n[siona · asking-state] You asked about “{subject}”, which touches none of my kernels — "
