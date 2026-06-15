@@ -66,6 +66,9 @@ ASSOC_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_assoc.json"
 # what it does / leads to / has) with the FRAME word labelling the edge. The rung beyond the undirected assoc: the
 # input-ride (F753) can FLIP the answer by relation (a steer word matching a stored relation label surfaces those edges).
 RELATIONS_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_relations.json"
+# the real DEFINITION tier (F760): title -> the lead-sentence gloss of each simplewiki article ("what X IS"), so a
+# definition question gets a definition, not a relations dump. The EXACT definition side-store (pairs with assoc/relations).
+GLOSS_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_glosses.json"
 
 # NOTE (F743 experiment): there is NO hard-coded SIONA_SELF blurb, no _capabilities() prose, and no identity/
 # greeting/capabilities regexes. Siona's self-knowledge is read from STRUCTURE at runtime — srmech.describe()
@@ -216,6 +219,10 @@ class SionaGenepool:
                 for _o, _c, r in edges:
                     if r != "→":
                         self.rel_labels.add(r)
+        # the DEFINITION side-store (F760): title -> lead-sentence gloss ("what X IS").
+        self.glosses = {}
+        if GLOSS_FILE.exists():
+            self.glosses = json.loads(GLOSS_FILE.read_text()).get("store", {})
 
     def _build_surface(self):
         """The LM surface: ONE co-occurrence graph (Class L) over every kernel Siona holds — nothing excluded."""
@@ -249,6 +256,8 @@ class SionaGenepool:
         cat = [(c["label"], c["leaf_count"]) for c in g.genome_catalog(self.path, the_one=ONE)["chromosomes"]]
         # ... vs the wiki SIDE-STORES (external knowledge loaded alongside, NOT baked into the genome — labelled
         # honestly so they don't read as chromosomes; F759.1). They are the exact-retrieval tier; the genome carries self.
+        if getattr(self, "glosses", None):
+            cat.append(("wiki·definition [side-store]", len(self.glosses)))
         if getattr(self, "wiki", None):
             cat.append(("wiki·abstract [side-store]", len(self.wiki)))
         if getattr(self, "assoc", None):
@@ -307,13 +316,17 @@ class SionaGenepool:
         edges = sorted(edges, key=lambda e: (e[2] not in st if st else True, -csim.get(e[0], 0.0)))
         return edges[:k]
 
-    def _relation_walk(self, subject, steer=(), ctx_bundle=None, steps=4):
-        """ETAK-WALK the directed RELATION graph (F759 story-builder): subject → strongest out-edge → its strongest
-        out-edge → … — a PATH through the relations (not a flat dump). Returns (path, first-hop edges)."""
+    def _relation_walk(self, subject, steer=(), ctx_bundle=None, anchor=(), steps=4):
+        """ETAK-WALK the directed RELATION graph (F759 story-builder), STEER-GATED to stop drift (F760): each hop may
+        only step to a node within the SUBJECT's own neighbourhood ∪ the running context (`anchor`). Without the gate
+        the walk wandered off-topic (tomato → sauce → made → debut → album); the gate keeps it subject-coherent.
+        Returns (path, first-hop edges)."""
         first = self._directed_relations(subject, steer, ctx_bundle)
+        allowed = {o for o, _c, _r in first} | set(self.assoc.get(subject, ()) or self.assoc.get(self._norm(subject), ())) | set(anchor)
         path, cur, seen = [subject], subject, {subject}
         for _ in range(steps):
-            nxt = next((o for o, _c, _r in self._directed_relations(cur, steer, ctx_bundle) if o not in seen), None)
+            nxt = next((o for o, _c, _r in self._directed_relations(cur, steer, ctx_bundle)
+                        if o not in seen and o in allowed), None)            # GATE: stay in the subject's topic/context
             if not nxt:
                 break
             path.append(nxt); seen.add(nxt); cur = nxt
@@ -560,7 +573,17 @@ class SionaGenepool:
             see = [f"§{k[:24]}" for kk, k in ranked[1:3] if kk == top_kernel]   # siblings the same walk passed
             tail = f"\n  (the walk also passed: {', '.join(see)})" if see else ""
             return f"{parse}\n[etak: {path_str}]\n[{top_kernel} → §{top_key}] {body}{tail}{proc_note}{new_note}"
-        # not in the DEEP kernels -> the broad WIKI abstract (definition), ENRICHED with relations (directed if held, F757)
+        # the real DEFINITION tier (F760): the lead sentence of the simplewiki article = "what X IS". Fires before the
+        # relations tiers so a definition question gets a definition, not a relations dump. _lemma folds plural→singular.
+        gsub = next((t for t in sorted(salient, key=len, reverse=True)
+                     if t in self.glosses or self._lemma(t) in self.glosses), None)
+        if gsub:
+            gk = gsub if gsub in self.glosses else self._lemma(gsub)
+            drel = self._directed_relations(self._lemma(gk), eff_steer, ctx_bundle)
+            rel_note = f"\n  (related: {self._fmt_rel(drel)})" if drel else ""
+            return (f"{parse}\n[siona · definition] {gk}: {self.glosses[gk]}\n"
+                    f"  (source: simplewiki lead sentence, CC-BY-SA){proc_note}{new_note}{rel_note}")
+        # not in the DEEP kernels or glosses -> the broad WIKI abstract, ENRICHED with relations (directed if held, F757)
         wk = self.wiki_lookup(prompt, steer=eff_steer)
         if wk:
             title = self._lemma(self.wiki_title[wk].lower())
@@ -580,7 +603,7 @@ class SionaGenepool:
         dsub = next((t for t in sorted(salient, key=len, reverse=True) if self._lemma(t) in self.relations), None)
         if dsub:
             key = self._lemma(dsub)
-            path, edges = self._relation_walk(key, eff_steer, ctx_bundle)
+            path, edges = self._relation_walk(key, eff_steer, ctx_bundle, anchor=ctx_terms)
             return (f"{parse}\n[etak: {' → '.join(path)}]\n[siona] {self._relation_story(key, edges)}"
                     f"{proc_note}{new_note}{def_note}\n"
                     f"  (relations: {self._fmt_rel(edges)}; what follows {key} in simplewiki, CC-BY-SA)")
