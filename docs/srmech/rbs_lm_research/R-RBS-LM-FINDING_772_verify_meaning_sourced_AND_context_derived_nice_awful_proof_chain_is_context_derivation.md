@@ -1,4 +1,6 @@
-# F772 — VERIFY the authority-chain path: meaning is SOURCED (F408) *and* context-DERIVED (the chain); nice/awful is the visible proof; the chain is the context-derivation apparatus
+# F772 — VERIFY the authority-chain path: meaning is SOURCED (F408) *and* context-INFERRED (the chain); nice/awful is the visible proof; the chain is the context-inference apparatus
+
+> **Word correction (2026-06-15, user-confirmed):** this finding first said meaning is "context-**DERIVED**." The precise operation is **INFER**, not derive (the operation-distinction the user confirmed — see F773): *solve-for* = satisfy constraints (closed); *derive* = a necessary chain from premises (closed); **infer** = produce a context output by walking the stored structure (OPEN, fallible — what Siona does). So the sharpened statement is **meaning cannot be DERIVED (F408 — no necessary chain runs from structure to semantics) and must be INFERRED in context (the walk produces the applicable sense)** — non-contradictory by *operation*, cleaner than the two-axis reconciliation below. The body keeps "derived" only where F408 means *derivation-from-structure* (correctly); the *context* operation is **inference**.
 
 **Date:** 2026-06-15 · **srmech:** 0.7.5rc155 · **Composes:** F408/F453/F470/F473 (the standing record: "meaning is SOURCED, never derived [from structure]"), F739 (the era-dictionary: nice/awful visible proof), F771 (the authority chain = abstraction stack read specific-first), F770 (operators declared / operands by meaning), DUALITY.md (the asymptote — context never settles) · **User direction (2026-06-15):** "verify this path first … we've already said in various research notebook places that meaning must always be derived … our 1600 dictionary with visible proof (nice and awful) … understanding a language [is] more difficult than any continuous math … the context of now always changes meaning."
 
@@ -8,9 +10,9 @@ The record's LITERAL standing stance is the apparent **opposite** of "meaning mu
 | axis | rule | source |
 |---|---|---|
 | **structure → meaning** | meaning is **SOURCED**, *not* derivable from structure alone | F408 (record) |
-| **context → which-meaning-applies** | which sourced meaning applies **must always be DERIVED** in the context of now | user (now) |
+| **context → which-meaning-applies** | which sourced meaning applies **must always be INFERRED** in the context of now | user (now) |
 
-**Not a contradiction — the two halves of one statement: SOURCE the meanings; DERIVE which one applies.** You cannot *invent* meaning from shape (F408), and you cannot *freeze* meaning either (the context-of-now moves) — so the applicable sense is re-derived per context. The authority chain (F771) IS that context-derivation; the gloss/dict stores ARE the sourced raw material.
+**Not a contradiction — the two halves of one statement: SOURCE the meanings; INFER which one applies.** You cannot *invent* meaning from shape (F408 — no derivation runs structure→semantics), and you cannot *freeze* meaning either (the context-of-now moves) — so the applicable sense is re-**inferred** per context (the walk, not a necessary chain). The authority chain (F771) IS that context-inference; the gloss/dict stores ARE the sourced raw material.
 
 ## nice/awful — the verified visible proof (of the second axis)
 Confirmed in F739:
