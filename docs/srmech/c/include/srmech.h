@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc156"
-#define SRMECH_VERSION       "0.7.5rc156"
+#define SRMECH_VERSION_PRE   "rc157"
+#define SRMECH_VERSION       "0.7.5rc157"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -835,11 +835,12 @@ srmech_status_t srmech_three_cycle(uint64_t value, uint64_t *out);
  *   - Matrices: row-major n×n doubles, caller-allocated.
  *   - Edge lists: parallel uint32 arrays edges_u / edges_v + optional
  *     double weights (NULL = unit weights).
- *   - N bound: srmech_graph_dense_laplacian / normalized_laplacian /
- *     jacobi_eigvals stack-allocate degree/scaling buffers; n is
- *     bounded by SRMECH_LAPLACIAN_MAX_NODES (256, embedded-safe).
- *     Larger graphs return SRMECH_ERR_OVERFLOW; Python falls back to
- *     numpy.linalg.eigvalsh.
+ *   - No N cap: srmech_graph_dense_laplacian / normalized_laplacian /
+ *     jacobi_eigvals / dense_matmul_complex write only into the caller's
+ *     matrix (degree per-row, d^(−1/2) stashed in the diagonal, Jacobi
+ *     rotates in place), so the bound is the caller's RAM, not a compiled
+ *     limit (standalone-complete honor). SRMECH_LAPLACIAN_MAX_NODES below
+ *     now sizes only the legacy non-_ws Hermitian static workspace.
  *
  * No ABI bump: pure additions to ABI v2 per the Phase B4 convention.
  * ------------------------------------------------------------------ */
@@ -856,8 +857,8 @@ srmech_status_t srmech_graph_dense_adjacency(uint32_t        n,
                                              const double   *weights,
                                              double         *out_matrix);
 
-/* L = D - A. Same edge-list inputs; n bounded by
- * SRMECH_LAPLACIAN_MAX_NODES for the stack-allocated degree buffer. */
+/* L = D - A. Same edge-list inputs. No node cap — degree is computed
+ * per-row into the caller's matrix (no scratch). */
 srmech_status_t srmech_graph_dense_laplacian(uint32_t        n,
                                              uint32_t        n_edges,
                                              const uint32_t *edges_u,
@@ -866,7 +867,8 @@ srmech_status_t srmech_graph_dense_laplacian(uint32_t        n,
                                              double         *out_matrix);
 
 /* L_sym = I - D^(-1/2) A D^(-1/2). Isolated vertices (degree 0) have
- * diagonal entry 0. n bounded by SRMECH_LAPLACIAN_MAX_NODES. */
+ * diagonal entry 0. No node cap — d^(-1/2) is stashed in the diagonal
+ * (no scratch). */
 srmech_status_t srmech_graph_normalized_laplacian(uint32_t        n,
                                                   uint32_t        n_edges,
                                                   const uint32_t *edges_u,
@@ -1000,7 +1002,7 @@ srmech_status_t srmech_hermitian_eigendecompose_ws(
  * A_interleaved is m*k interleaved-double pairs (row-major).
  * B_interleaved is k*n interleaved-double pairs (row-major).
  * out_interleaved is m*n interleaved-double pairs (caller-allocated).
- * m, k and n are each bounded by SRMECH_LAPLACIAN_MAX_NODES (256).
+ * No m/k/n cap — the product writes only the caller's buffer (no scratch).
  */
 srmech_status_t srmech_dense_matmul_complex(
     uint32_t       m,
@@ -1011,9 +1013,8 @@ srmech_status_t srmech_dense_matmul_complex(
     double        *out_interleaved);
 
 /* Elementwise complex multiply: out[i] = a[i] * b[i].
- * a, b, out are n interleaved-double pairs each. Bounded n only by
- * uint32_t — no stack allocation, so the SRMECH_LAPLACIAN_MAX_NODES
- * bound does NOT apply.
+ * a, b, out are n interleaved-double pairs each. No node cap — bounded
+ * only by uint32_t / the caller's buffers (no scratch).
  */
 srmech_status_t srmech_elementwise_multiply_complex(
     uint32_t       n,

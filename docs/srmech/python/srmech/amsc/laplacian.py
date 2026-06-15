@@ -215,11 +215,12 @@ def three_fold_eigvec_groups(L) -> dict:
 
 
 def _can_dispatch_native(n: int) -> bool:
-    return (
-        _native.HAS_NATIVE
-        and _native.LIB is not None
-        and n <= MAX_NATIVE_NODES
-    )
+    # No node cap (standalone-honor rc157): the C graph ops write only into
+    # the caller's matrix (degree per-row / d^(−1/2) stashed in the diagonal /
+    # Jacobi rotates in place), so the bound is the caller's RAM, not 256.
+    # Native is authoritative when present; the pure-Python path is the
+    # complete alternative for a no-C environment.
+    return _native.HAS_NATIVE and _native.LIB is not None
 
 
 def _build_matrix_native_listmarshal(fn_name, n, edge_list, w_list):
@@ -577,21 +578,20 @@ def jacobi_eigvals(
     """Symmetric Jacobi eigendecomposition.
 
     Returns the sorted (ascending) eigenvalues of a real symmetric matrix.
-    The C path is bounded by ``MAX_NATIVE_NODES = 256`` and uses an in-place
-    algebraic Jacobi rotation (pi-free). For larger ``n`` (or when
-    ``HAS_NATIVE`` is False) the fallback is **srmech's own pure-Python Jacobi
-    cascade** (:func:`_jacobi_eigvals_py`) — NOT ``numpy.linalg.eigvalsh``:
-    when srmech can do the math with its own cascade, it does (and so the
-    Class-L spectrum runs without LAPACK/numpy, UPSTREAM §22). With numpy
-    absent the input is a ``list[list[float]]`` and the return is a
-    ``list[float]``; with numpy present the return is an ``ndarray``.
+    The C path uses an in-place algebraic Jacobi rotation (pi-free) and has
+    **no node cap** (standalone-honor rc157) — it rotates the caller's matrix
+    in place, so the bound is the caller's RAM. When there is no native lib the
+    fallback is **srmech's own pure-Python Jacobi cascade**
+    (:func:`_jacobi_eigvals_py`) — NOT ``numpy.linalg.eigvalsh``: when srmech
+    can do the math with its own cascade, it does (so the Class-L spectrum runs
+    without LAPACK/numpy, UPSTREAM §22). Input is a ``list[list[float]]`` /
+    ``Mat``; return is a ``Vec``.
 
     numpy-absent dispatch (UPSTREAM §38 / F708): the bound ``srmech_jacobi_eigvals``
-    C symbol IS reachable without numpy — when ``HAS_NATIVE`` and ``n ≤
-    MAX_NATIVE_NODES`` the numpy-free path marshals the ``list[list[float]]``
-    into a flat ctypes ``double`` buffer and calls it (~49× faster than the
-    pure-Python cascade at n=256), falling back to the cascade only when there
-    is no native lib, ``n`` is too large, or the C status is non-OK.
+    C symbol IS reachable without numpy — when ``HAS_NATIVE`` the numpy-free
+    path marshals the ``list[list[float]]`` into a flat ctypes ``double`` buffer
+    and calls it (native-authoritative), falling back to the pure-Python cascade
+    only when there is no native lib or the C status is non-OK.
 
     ``matrix`` is **not** modified by the wrapper — the native path marshals into
     a fresh ctypes buffer; the pure-Python cascade copies its rows.
@@ -1216,14 +1216,13 @@ def mat_matmul(a: "Mat", b: "Mat") -> "Mat":
     if k2 != k:
         raise ValueError(f"mat_matmul: A {a.shape} incompatible with B {b.shape}")
     is_complex = a.is_complex or b.is_complex
-    # Native zero-copy path (each dim ≤ 256, nonzero): Mat buffer → C kernel → Mat.
+    # Native zero-copy path (nonzero dims): Mat buffer → C kernel → Mat. No node
+    # cap (standalone-honor rc157) — the C kernel writes only the caller's output
+    # buffer, so the bound is the caller's RAM; native is authoritative here.
     if (m and k and n
             and _native.HAS_NATIVE
             and _native.LIB is not None
-            and hasattr(_native.LIB, "srmech_dense_matmul_complex")
-            and m <= MAX_NATIVE_NODES
-            and k <= MAX_NATIVE_NODES
-            and n <= MAX_NATIVE_NODES):
+            and hasattr(_native.LIB, "srmech_dense_matmul_complex")):
         a_il = _mat_to_interleaved_cbuf(a, m * k)
         b_il = _mat_to_interleaved_cbuf(b, k * n)
         out_il = (ctypes.c_double * (2 * m * n))()
