@@ -47,6 +47,7 @@
  */
 
 #include "srmech.h"
+#include "srmech_platform.h"   /* PAL FILE surface (rc162) — the OS file TU */
 
 #include <assert.h>
 #include <stdint.h>
@@ -100,61 +101,32 @@ static srmech_status_t genome_join(const char *dir, const char *name,
 }
 
 /* Write `len` bytes from `data` to file `path` (mode `mode`: "wb" truncate
- * or "ab" append). Returns SRMECH_OK / SRMECH_ERR_IO. */
+ * or "ab" append). Returns SRMECH_OK / SRMECH_ERR_IO. (rc162: the OS write
+ * goes through the PAL — `srmech_plat_file_write` — so no raw stdio lives in
+ * the genome; the mode string maps to the PAL's `append` flag.) */
 static srmech_status_t genome_write_file(const char *path, const char *mode,
                                          const unsigned char *data, size_t len)
 {
     assert(path != NULL && mode != NULL);
     assert(data != NULL || len == 0u);
-    FILE *fp = fopen(path, mode);
-    if (fp == NULL) {
-        return SRMECH_ERR_IO;
-    }
-    size_t wrote = (len == 0u) ? 0u : fwrite(data, 1u, len, fp);
-    int closed = fclose(fp);
-    if (wrote != len || closed != 0) {
-        return SRMECH_ERR_IO;
-    }
-    return SRMECH_OK;
+    return srmech_plat_file_write(path, (mode[0] == 'a') ? 1 : 0, data, len);
 }
 
 /* Read up to `cap` bytes of file `path` into `out`; *out_len gets the byte
- * count. SRMECH_ERR_OVERFLOW if the file is larger than `cap`. */
+ * count. SRMECH_ERR_OVERFLOW if the file is larger than `cap`. (rc162: through
+ * the PAL `srmech_plat_file_read` — identical whole-file semantics.) */
 static srmech_status_t genome_read_file(const char *path, unsigned char *out,
                                         size_t cap, size_t *out_len)
 {
     assert(path != NULL && out_len != NULL);
     assert(out != NULL || cap == 0u);
-    FILE *fp = fopen(path, "rb");
-    if (fp == NULL) {
-        return SRMECH_ERR_IO;
-    }
-    size_t total = 0u;
-    int over = 0;
-    int done = 0;
-    /* Bounded loop (Rule 2): at most cap+1 passes — each non-final pass
-     * advances `total` by >= 1, or `got == 0` ends it. */
-    for (size_t pass = 0; pass <= cap && !done; pass++) {
-        if (total >= cap) {
-            unsigned char probe;            /* probe one byte past `cap` */
-            if (fread(&probe, 1u, 1u, fp) != 0u) { over = 1; }
-            done = 1;
-        } else {
-            size_t got = fread(out + total, 1u, cap - total, fp);
-            if (got == 0u) { done = 1; } else { total += got; }
-        }
-    }
-    int err = ferror(fp);
-    fclose(fp);
-    if (err) { return SRMECH_ERR_IO; }
-    if (over) { return SRMECH_ERR_OVERFLOW; }
-    *out_len = total;
-    return SRMECH_OK;
+    return srmech_plat_file_read(path, out, cap, out_len);
 }
 
 /* Read a chromosome region: seek to `offset`, read `len` bytes into `out`
  * (capacity `cap`). SRMECH_ERR_OVERFLOW if len > cap; SRMECH_ERR_IO on a
- * short read (a truncated body). */
+ * short read (a truncated body). (rc162: the genome keeps the cap guard, the
+ * seek+read goes through the PAL `srmech_plat_file_read_region`.) */
 static srmech_status_t genome_read_region(const char *path, size_t offset,
                                           size_t len, unsigned char *out,
                                           size_t cap)
@@ -164,33 +136,17 @@ static srmech_status_t genome_read_region(const char *path, size_t offset,
     if (len > cap) {
         return SRMECH_ERR_OVERFLOW;
     }
-    FILE *fp = fopen(path, "rb");
-    if (fp == NULL) {
-        return SRMECH_ERR_IO;
-    }
-    if (fseek(fp, (long)offset, SEEK_SET) != 0) {
-        fclose(fp);
-        return SRMECH_ERR_IO;
-    }
-    size_t got = (len == 0u) ? 0u : fread(out, 1u, len, fp);
-    fclose(fp);
-    return (got == len) ? SRMECH_OK : SRMECH_ERR_IO;
+    return srmech_plat_file_read_region(path, offset, out, len);
 }
 
 /* Byte length of file `path` (for arena-sizing a body / manifest read).
- * SRMECH_ERR_IO on a missing / unstattable file; *size gets the length. */
+ * SRMECH_ERR_IO on a missing / unstattable file; *size gets the length.
+ * (rc162: through the PAL `srmech_plat_file_size`.) */
 static srmech_status_t genome_file_size(const char *path, size_t *size)
 {
     assert(path != NULL);
     assert(size != NULL);
-    FILE *fp = fopen(path, "rb");
-    if (fp == NULL) { return SRMECH_ERR_IO; }
-    int sk = fseek(fp, 0L, SEEK_END);
-    long n = (sk == 0) ? ftell(fp) : -1L;
-    fclose(fp);
-    if (sk != 0 || n < 0L) { return SRMECH_ERR_IO; }
-    *size = (size_t)n;
-    return SRMECH_OK;
+    return srmech_plat_file_size(path, size);
 }
 
 /* ------------------------------------------------------------------ *
@@ -1618,10 +1574,8 @@ static int genome_body_exists(const char *dir)
                                      body_path, sizeof(body_path));
     assert(st == SRMECH_OK || st == SRMECH_ERR_OVERFLOW);
     if (st != SRMECH_OK) { return 0; }
-    FILE *fp = fopen(body_path, "rb");
-    if (fp == NULL) { return 0; }
-    fclose(fp);
-    return 1;
+    size_t sz = 0u;   /* rc162: existence probe through the PAL, no raw fopen */
+    return (srmech_plat_file_size(body_path, &sz) == SRMECH_OK) ? 1 : 0;
 }
 
 /* APPEND a verified .chr region into an existing dest genome: same coupling

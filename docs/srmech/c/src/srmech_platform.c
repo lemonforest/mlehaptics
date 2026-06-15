@@ -715,7 +715,9 @@ srmech_status_t srmech_plat_file_read(const char *path, unsigned char *buf,
         unsigned char probe;
         if (fread(&probe, 1u, 1u, fp) != 0u) { over = 1; }
     }
+    int err = ferror(fp);   /* a mid-read error must not look like clean EOF */
     fclose(fp);
+    if (err) { return SRMECH_ERR_IO; }
     if (over) { return SRMECH_ERR_OVERFLOW; }
     *out_len = total;
     return SRMECH_OK;

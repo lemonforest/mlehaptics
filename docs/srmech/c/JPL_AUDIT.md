@@ -293,9 +293,11 @@ tree with an explicit depth-bounded stack capped at `SRMECH_JSON_MAX_DEPTH`.
 Mirrored in `tests/test_jpl_audit.py::RULE_5_EXEMPT_FUNCTIONS`.
 
 **Rule 5 — `srmech_genome.c` (§41 genome-persistence disk surface) adds NO
-new exemptions.** Every function in `srmech_genome.c` — the path/file stdio
-helpers (`genome_join` / `genome_write_file` / `genome_read_file` /
-`genome_read_region`), the manifest builders (`genome_build_the_one` /
+new exemptions.** Every function in `srmech_genome.c` — the path helper
+(`genome_join`) + the file helpers (`genome_write_file` / `genome_read_file` /
+`genome_read_region` / `genome_file_size`, which **rc162** turned into thin
+delegations to the PAL FILE surface — no raw stdio in the genome), the manifest
+builders (`genome_build_the_one` /
 `_chrom` / `_data` / `_attest` / `_render` / `_manifest` / `_manifest_tree`), the
 §44 inline-cap body scan (`genome_decode_label` / `genome_scan_chroms`) + the
 string-block fill (`genome_fill_strings`, `genome_hex`), the §44 manifest-optional
@@ -320,14 +322,17 @@ recursion (the JSON tree is built/walked by the non-recursive
 `srmech_json` builder/parser/writer); every loop is bounded by
 `n_chroms` (a caller-arena-allocated count — no compiled-in cap; the
 genome C carves ALL scratch from the caller `ws` arena) or a caller `size_t`
-(the file-read loop carries an explicit `pass <= cap` over-bound, Rule 2;
-the §43 `genome_list_chr` directory scan carries an explicit `guard < 65536`
-over-bound on top of the `≤ max_n` collected-`.chr` cap, Rule 2). File I/O
-is stdio (Rule 3 bans malloc, not files) — the §43 pack's `*.chr` directory
-enumeration is the one platform-specific touch (POSIX `dirent` / Win32
-`FindFirstFile`, ifdef'd like `srmech_platform.c`; no malloc); the caller
-arena is for the JSON tree only; path strings + digests live in fixed
-stack/static buffers.
+(rc162: the file read/write/region/size go through the PAL, whose read loop
+carries the `pass <= cap` over-bound; the §43 `genome_list_chr` directory scan
+carries an explicit `guard < 65536` over-bound on top of the `≤ max_n`
+collected-`.chr` cap, Rule 2). File I/O is stdio (Rule 3 bans malloc, not
+files), and as of **rc162** the genome's file read/write/region/size go
+**through the PAL** (`srmech_plat_file_*` — no raw `fopen`/`fread`/`fwrite` in
+the genome); the **only** remaining platform-specific touch in this file is the
+§43 pack's `*.chr` directory enumeration (POSIX `dirent` / Win32
+`FindFirstFile`, ifdef'd like `srmech_platform.c`; no malloc — a candidate for
+a future PAL dir-iteration surface); the caller arena is for the JSON tree
+only; path strings + digests live in fixed stack/static buffers.
 
 The Hermitian-eigendecomp `_ws` entry additionally validates the new
 workspace parameters at runtime (`workspace != NULL` →
