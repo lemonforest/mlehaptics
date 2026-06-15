@@ -226,4 +226,39 @@ srmech_status_t srmech_plat_dir_next(srmech_plat_dir_t *dir, char *name,
  * zero-initialised handle. */
 srmech_status_t srmech_plat_dir_close(srmech_plat_dir_t *dir);
 
+/* ================================================================== *
+ * STREAMING READ (rc164) — a persistent read handle so a caller can pull a
+ * file in fixed chunks without loading it whole (the §B4 ndjson tokeniser,
+ * which assembles lines across chunk boundaries). Part of the FILE backend
+ * (portable stdio, shared `srmech_plat_has_filesystem`); no new accessor.
+ * The OS handle (a portable FILE*) lives in the caller's storage — no heap,
+ * and srmech_platform.h stays free of <stdio.h>.
+ * ================================================================== */
+
+/* Max-aligned opaque storage for one streaming-read handle (a FILE*). */
+#define SRMECH_PLAT_RSTREAM_STORAGE 16
+
+/* One open streaming-read handle. No heap — lives in the caller's storage. */
+typedef struct srmech_plat_rstream {
+    union {
+        void         *align_ptr;
+        long double   align_ld;
+        unsigned char bytes[SRMECH_PLAT_RSTREAM_STORAGE];
+    } handle;
+} srmech_plat_rstream_t;
+
+/* Open `path` for streaming reads; *out receives the handle. SRMECH_ERR_IO if
+ * the file cannot be opened. */
+srmech_status_t srmech_plat_rstream_open(const char *path,
+                                         srmech_plat_rstream_t *out);
+
+/* Read up to `cap` bytes into `buf`; *out_n receives the count actually read
+ * (0 at end-of-file). SRMECH_ERR_IO on a read error (short read with the
+ * stream's error flag set). A short read with no error is a clean partial/EOF. */
+srmech_status_t srmech_plat_rstream_read(srmech_plat_rstream_t *rs, void *buf,
+                                         size_t cap, size_t *out_n);
+
+/* Close the handle (POSIX/Win fclose). Safe on a zero-initialised handle. */
+srmech_status_t srmech_plat_rstream_close(srmech_plat_rstream_t *rs);
+
 #endif /* SRMECH_PLATFORM_H */

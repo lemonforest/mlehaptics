@@ -767,6 +767,48 @@ srmech_status_t srmech_plat_file_size(const char *path, size_t *out_size)
     return SRMECH_OK;
 }
 
+/* Streaming read (rc164) — a persistent read handle so a caller can pull a
+ * file in fixed chunks without loading it whole (the §B4 ndjson tokeniser).
+ * Portable stdio like the whole-file helpers; no OS split, no new backend
+ * accessor (it shares `has_filesystem`). FILE* is a portable type, stored in
+ * the opaque handle so srmech_platform.h need not include <stdio.h>. */
+_Static_assert(sizeof(FILE *) <= SRMECH_PLAT_RSTREAM_STORAGE,
+               "FILE* does not fit srmech_plat_rstream handle storage");
+
+srmech_status_t srmech_plat_rstream_open(const char *path,
+                                         srmech_plat_rstream_t *out)
+{
+    assert(path != NULL);
+    assert(out != NULL);
+    FILE *fp = fopen(path, "rb");
+    if (fp == NULL) { return SRMECH_ERR_IO; }
+    memcpy(out->handle.bytes, &fp, sizeof(fp));
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_rstream_read(srmech_plat_rstream_t *rs, void *buf,
+                                         size_t cap, size_t *out_n)
+{
+    assert(rs != NULL && out_n != NULL);
+    assert(buf != NULL || cap == 0u);
+    FILE *fp = NULL;
+    memcpy(&fp, rs->handle.bytes, sizeof(fp));
+    size_t n = (cap == 0u) ? 0u : fread(buf, 1u, cap, fp);
+    *out_n = n;
+    if (n < cap && ferror(fp)) { return SRMECH_ERR_IO; }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_rstream_close(srmech_plat_rstream_t *rs)
+{
+    assert(rs != NULL);
+    assert(sizeof(FILE *) <= SRMECH_PLAT_RSTREAM_STORAGE);
+    FILE *fp = NULL;
+    memcpy(&fp, rs->handle.bytes, sizeof(fp));
+    if (fp != NULL) { fclose(fp); }
+    return SRMECH_OK;
+}
+
 #else  /* bare-metal: no filesystem — callers feed bytes directly */
 
 srmech_status_t srmech_plat_file_read(const char *path, unsigned char *buf,
@@ -802,6 +844,33 @@ srmech_status_t srmech_plat_file_size(const char *path, size_t *out_size)
     assert(out_size != NULL);
     (void)path; (void)out_size;
     return SRMECH_ERR_IO;
+}
+
+srmech_status_t srmech_plat_rstream_open(const char *path,
+                                         srmech_plat_rstream_t *out)
+{
+    assert(srmech_plat_has_filesystem() == 0);
+    assert(out != NULL);
+    (void)path; (void)out;
+    return SRMECH_ERR_IO;
+}
+
+srmech_status_t srmech_plat_rstream_read(srmech_plat_rstream_t *rs, void *buf,
+                                         size_t cap, size_t *out_n)
+{
+    assert(srmech_plat_has_filesystem() == 0);
+    assert(out_n != NULL);
+    (void)rs; (void)buf; (void)cap;
+    *out_n = 0u;
+    return SRMECH_ERR_IO;
+}
+
+srmech_status_t srmech_plat_rstream_close(srmech_plat_rstream_t *rs)
+{
+    assert(srmech_plat_has_filesystem() == 0);
+    assert(rs != NULL);
+    (void)rs;
+    return SRMECH_OK;
 }
 
 #endif  /* SRMECH_PLAT_FILE */
