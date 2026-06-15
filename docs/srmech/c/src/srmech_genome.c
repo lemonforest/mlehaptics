@@ -410,11 +410,15 @@ static srmech_json_value_t *genome_build_render(srmech_json_builder_t *b)
  * *out — the shared core of SAVE (serialised below) and the §44 manifest-less
  * REBUILD (handed straight to the loaders' accessors, exactly like a parsed
  * tree). The key order matches genome.py _manifest_record. */
+/* `wtail`/`wtail_len` (both NULL-able) receive the builder's untouched arena
+ * tail after the tree is built — the SAVE caller hands it to the json writer
+ * as its key-sort scratch (so the writer needs no arena of its own). */
 static srmech_status_t genome_build_manifest_tree(const genome_strings_t *s,
                                                   uint32_t leaf_dim,
                                                   size_t body_len,
                                                   void *ws, size_t ws_len,
-                                                  srmech_json_value_t **out)
+                                                  srmech_json_value_t **out,
+                                                  void **wtail, size_t *wtail_len)
 {
     assert(s != NULL && out != NULL);
     assert(leaf_dim > 0u && s->n_chroms <= s->cap_chroms);
@@ -447,6 +451,8 @@ static srmech_status_t genome_build_manifest_tree(const genome_strings_t *s,
     srmech_json_value_t *root = srmech_json_new_object(&b, keys, v, 5u);
     if (b.failed || root == NULL) { return SRMECH_ERR_OVERFLOW; }
     *out = root;
+    if (wtail != NULL) { *wtail = (unsigned char *)jws + b.used; }
+    if (wtail_len != NULL) { *wtail_len = jws_len - b.used; }
     return SRMECH_OK;
 }
 
@@ -461,10 +467,14 @@ static srmech_status_t genome_build_manifest(const genome_strings_t *s,
     assert(s != NULL && out != NULL && out_len != NULL);
     assert(leaf_dim > 0u && s->n_chroms <= s->cap_chroms);
     srmech_json_value_t *root = NULL;
+    void *wtail = NULL;
+    size_t wtail_len = 0u;
     srmech_status_t st = genome_build_manifest_tree(s, leaf_dim, body_len,
-                                                    ws, ws_len, &root);
+                                                    ws, ws_len, &root,
+                                                    &wtail, &wtail_len);
     if (st != SRMECH_OK) { return st; }
-    return srmech_json_write(root, out, out_cap, out_len);
+    /* Writer key-sort scratch = the builder's untouched arena tail. */
+    return srmech_json_write_ws(root, out, out_cap, out_len, wtail, wtail_len);
 }
 
 /* Decode a §44 cap leaf's INLINE label (bytes [1 .. first NUL]) into `out`
@@ -786,7 +796,8 @@ static srmech_status_t genome_obtain_manifest(
     void *tws = NULL;
     size_t tws_len = 0u;
     genome_arena_tail(&a, &tws, &tws_len);
-    return genome_build_manifest_tree(&rstrs, leaf_dim, blen, tws, tws_len, out);
+    return genome_build_manifest_tree(&rstrs, leaf_dim, blen, tws, tws_len,
+                                      out, NULL, NULL);
 }
 
 srmech_status_t srmech_genome_catalog(const char *dir,
@@ -1356,7 +1367,10 @@ static srmech_status_t genome_chr_build_file(const genome_chr_strings_t *cs,
     v[4] = genome_chr_build_render(&b, cs);
     srmech_json_value_t *root = srmech_json_new_object(&b, keys, v, 5u);
     if (b.failed || root == NULL) { return SRMECH_ERR_OVERFLOW; }
-    return srmech_json_write(root, out, out_cap, out_len);
+    /* The writer's key-sort scratch comes from the builder's untouched
+     * arena tail (no compiled-in object-width cap). */
+    return srmech_json_write_ws(root, out, out_cap, out_len,
+                                b.base + b.used, b.len - b.used);
 }
 
 /* Pull one chromosome's export metadata out of the manifest into `cs` and set

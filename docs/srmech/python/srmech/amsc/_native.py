@@ -1314,10 +1314,15 @@ def _bind(lib: ctypes.CDLL) -> None:
         # pack(loose_dir, dest, the_one, the_one_len, ws, ws_len)
         lib.srmech_genome_pack.argtypes = [_CP, _CP, _U8, _SZ, _VP, _SZ]
         lib.srmech_genome_pack.restype = ctypes.c_int
-        # json_write(value, buf, buf_len, &out_len) — serialise catalog's tree
-        if hasattr(lib, "srmech_json_write"):
-            lib.srmech_json_write.argtypes = [_VP, _CP, _SZ, _PSZ]
-            lib.srmech_json_write.restype = ctypes.c_int
+        # json_write_ws(value, buf, buf_len, &out_len, ws, ws_len) — serialise
+        # the catalog's tree; the writer's key-sort scratch is carved from the
+        # caller arena `ws` (rc160: no compiled-in object-width cap). Size `ws`
+        # with srmech_json_write_arena_bytes(value).
+        if hasattr(lib, "srmech_json_write_ws"):
+            lib.srmech_json_write_arena_bytes.argtypes = [_VP]
+            lib.srmech_json_write_arena_bytes.restype = ctypes.c_size_t
+            lib.srmech_json_write_ws.argtypes = [_VP, _CP, _SZ, _PSZ, _VP, _SZ]
+            lib.srmech_json_write_ws.restype = ctypes.c_int
 
 
 _LIB_PATH: Optional[Path] = _find_library()
@@ -1763,10 +1768,10 @@ class NativeGenomeError(RuntimeError):
 
 def has_native_genome() -> bool:
     """True iff the genome file-management C symbols are loaded + bound (a
-    rc143+ lib that also exports ``srmech_json_write``)."""
+    rc160+ lib that also exports the arena-based ``srmech_json_write_ws``)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_save")
-                and hasattr(LIB, "srmech_json_write")
+                and hasattr(LIB, "srmech_json_write_ws")
                 and hasattr(LIB, "srmech_genome_arena_bytes"))
 
 
@@ -1906,10 +1911,15 @@ def genome_catalog_c(dir_: str, the_one: bytes) -> str:
     write_cap = max(256 * 1024, 4 * max(man_sz, body_sz))
     buf = ctypes.create_string_buffer(write_cap + 1)
     out_len = ctypes.c_size_t(0)
-    rc = LIB.srmech_json_write(
-        tree, buf, ctypes.c_size_t(write_cap), ctypes.byref(out_len))
+    # rc160: the writer carves its key-sort scratch from a caller arena sized
+    # to the actual tree (no compiled-in object-width cap).
+    jws_len = int(LIB.srmech_json_write_arena_bytes(tree))
+    jws = ctypes.create_string_buffer(max(jws_len, 1))
+    rc = LIB.srmech_json_write_ws(
+        tree, buf, ctypes.c_size_t(write_cap), ctypes.byref(out_len),
+        jws, ctypes.c_size_t(len(jws)))
     if rc != SRMECH_OK:
-        raise NativeGenomeError("srmech_json_write", rc)
+        raise NativeGenomeError("srmech_json_write_ws", rc)
     return buf.raw[:out_len.value].decode("utf-8")
 
 

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc159"
-#define SRMECH_VERSION       "0.7.5rc159"
+#define SRMECH_VERSION_PRE   "rc160"
+#define SRMECH_VERSION       "0.7.5rc160"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1871,10 +1871,11 @@ srmech_status_t srmech_cd_basis_product(int dim, int i, int j,
  * stays 3.
  * ------------------------------------------------------------------ */
 
-/* Per-node cap on children (object pairs / array items) and on nesting
- * depth — match the TOML parser's caps (single-token object-like
- * macros; JPL Rule 8 clean). */
-#define SRMECH_JSON_MAX_CHILDREN 256
+/* Recursion-depth guard for the explicit parse/emit stacks (single-token
+ * object-like macro; JPL Rule 8 clean). There is NO object/array child
+ * cap: parse grows children arena-backed, and the writer's key-sort
+ * scratch is carved from a caller arena (srmech_json_write_ws), so a
+ * container is bounded only by the caller's RAM. */
 #define SRMECH_JSON_MAX_DEPTH    64
 
 typedef enum {
@@ -1915,9 +1916,20 @@ srmech_status_t srmech_json_parse(const char *src, size_t len,
                                   void *ws, size_t ws_len,
                                   srmech_json_value_t **out);
 
+/* Bytes of caller workspace srmech_json_write_ws needs to serialise `v`:
+ * the emit-frame stack plus the key-order sort scratch, sized to the
+ * ACTUAL tree (deepest nesting × widest object) — no compiled-in
+ * object-width cap. Pure tree walk, no I/O. */
+size_t srmech_json_write_arena_bytes(const srmech_json_value_t *v);
+
 /* Write `v` as canonical JSON into `buf` (capacity `buf_len` bytes,
- * NO trailing NUL written) and set *out_len to the byte count. If
- * `buf` is NULL this is a SIZE-QUERY: nothing is written and *out_len
+ * NO trailing NUL written) and set *out_len to the byte count, using the
+ * caller-supplied scratch `ws` (length `ws_len`; size it with
+ * srmech_json_write_arena_bytes). The key-sort permutation arrays live in
+ * `ws`, so an object is bounded only by the arena, not a compiled-in cap.
+ * A `ws` too small for the tree returns SRMECH_ERR_BAD_INPUT.
+ *
+ * If `buf` is NULL this is a SIZE-QUERY: nothing is written and *out_len
  * receives the exact length a full write would produce (callers can
  * two-pass: query, allocate, fill). When writing, a too-small buffer
  * returns SRMECH_ERR_OVERFLOW (never overflows). *out_len is always
@@ -1929,9 +1941,10 @@ srmech_status_t srmech_json_parse(const char *src, size_t len,
  * (%.17g shortest-ish) and are NOT guaranteed byte-identical to
  * Python's repr(float) — float parity is explicitly out of scope (MPR
  * / genome manifests are float-free). */
-srmech_status_t srmech_json_write(const srmech_json_value_t *v,
-                                  char *buf, size_t buf_len,
-                                  size_t *out_len);
+srmech_status_t srmech_json_write_ws(const srmech_json_value_t *v,
+                                     char *buf, size_t buf_len,
+                                     size_t *out_len,
+                                     void *ws, size_t ws_len);
 
 /* Look up `key` (NUL-terminated) in an OBJECT value; returns the value
  * node or NULL if `obj` is not an object or the key is absent. */

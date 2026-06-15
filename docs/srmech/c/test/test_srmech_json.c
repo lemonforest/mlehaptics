@@ -57,8 +57,16 @@ static void roundtrip(const char *src, const char *want, const char *desc)
         printf("  FAIL  %s — parse status %d\n", desc, (int)st);
         return;
     }
+    /* Writer scratch carved from a caller arena, sized to the actual tree. */
+    static char jws[1 << 20];
+    size_t jneed = srmech_json_write_arena_bytes(root);
+    if (jneed > sizeof(jws)) {
+        g_failed++;
+        printf("  FAIL  %s — writer arena too large (%zu)\n", desc, jneed);
+        return;
+    }
     size_t need = 0;
-    st = srmech_json_write(root, NULL, 0, &need);   /* size query */
+    st = srmech_json_write_ws(root, NULL, 0, &need, jws, jneed);  /* size query */
     if (st != SRMECH_OK) {
         g_failed++;
         printf("  FAIL  %s — size-query status %d\n", desc, (int)st);
@@ -71,7 +79,7 @@ static void roundtrip(const char *src, const char *want, const char *desc)
         return;
     }
     size_t wrote = 0;
-    st = srmech_json_write(root, out, sizeof(out), &wrote);
+    st = srmech_json_write_ws(root, out, sizeof(out), &wrote, jws, jneed);
     if (st != SRMECH_OK || wrote != need) {
         g_failed++;
         printf("  FAIL  %s — write status %d (wrote %zu, need %zu)\n",
@@ -167,12 +175,14 @@ int main(void)
         srmech_json_value_t *obj = srmech_json_new_object(&bld, keys, vals, 2);
         check_true(bld.failed == 0, "builder did not overflow");
 
+        static char jws[4096];
+        size_t jneed = srmech_json_write_arena_bytes(obj);
         size_t need = 0;
-        st = srmech_json_write(obj, NULL, 0, &need);
+        st = srmech_json_write_ws(obj, NULL, 0, &need, jws, jneed);
         check_true(st == SRMECH_OK, "builder tree size-query");
         static char out[256];
         size_t wrote = 0;
-        st = srmech_json_write(obj, out, sizeof(out), &wrote);
+        st = srmech_json_write_ws(obj, out, sizeof(out), &wrote, jws, jneed);
         out[wrote] = '\0';
         check_str(out, "{\"a\": [1, 2, 3], \"b\": 2}",
                   "builder writes {\"a\": [1, 2, 3], \"b\": 2}");
@@ -182,11 +192,46 @@ int main(void)
     {
         srmech_json_value_t *root = NULL;
         srmech_json_parse("[1, 2, 3]", 9, g_ws, sizeof(g_ws), &root);
+        static char jws[256];
+        size_t jneed = srmech_json_write_arena_bytes(root);
         char tiny[4];
         size_t wrote = 0;
-        srmech_status_t st = srmech_json_write(root, tiny, sizeof(tiny), &wrote);
+        srmech_status_t st = srmech_json_write_ws(root, tiny, sizeof(tiny),
+                                                  &wrote, jws, jneed);
         check_true(st == SRMECH_ERR_OVERFLOW,
                    "too-small buffer returns SRMECH_ERR_OVERFLOW");
+    }
+
+    /* No object-width cap (rc160): build an object with 400 keys (> the old
+     * 256 limit) via the builder + write it. Proves new_object accepts > 256
+     * children AND the writer's key-sort scratch comes from the caller arena.
+     * Keys "k000".."k399" sort lexicographically, so k000's value (0) leads. */
+    {
+        static char bws[1 << 20];
+        srmech_json_builder_t bld;
+        srmech_status_t st = srmech_json_builder_init(&bld, bws, sizeof(bws));
+        check_true(st == SRMECH_OK, ">256: builder_init");
+        static const char *keys[400];
+        static char keybuf[400][8];
+        srmech_json_value_t *vals[400];
+        for (int i = 0; i < 400; i++) {
+            snprintf(keybuf[i], sizeof(keybuf[i]), "k%03d", i);
+            keys[i] = keybuf[i];
+            vals[i] = srmech_json_new_int(&bld, (int64_t)i);
+        }
+        srmech_json_value_t *obj = srmech_json_new_object(&bld, keys, vals, 400);
+        check_true(bld.failed == 0 && obj != NULL,
+                   ">256: new_object accepts 400 children (no width cap)");
+        static char jws[1 << 20];
+        size_t jneed = srmech_json_write_arena_bytes(obj);
+        static char out[8192];
+        size_t wrote = 0;
+        st = srmech_json_write_ws(obj, out, sizeof(out), &wrote, jws, jneed);
+        check_true(st == SRMECH_OK && wrote > 0, ">256: writes a 400-key object");
+        out[wrote] = '\0';
+        /* Canonical: opens with the lexicographically-first key k000: 0. */
+        check_true(strncmp(out, "{\"k000\": 0, \"k001\": 1, ", 23) == 0,
+                   ">256: 400-key object is canonical key-sorted");
     }
 
     /* Error: trailing garbage rejected. */
