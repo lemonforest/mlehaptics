@@ -440,3 +440,62 @@ srmech_status_t srmech_klein4_triality_cycle(const uint8_t *in,
     }
     return SRMECH_OK;
 }
+
+/* klein4_bundle_accumulate(acc, v, dim): fold ONE Klein-4 vector v (dim bytes,
+ * each in {0..3}) into the fixed-width accumulator acc — the STREAMING form of
+ * srmech_klein4_bundle (UPSTREAM §50; F758). The batch bundle needs every vector
+ * resident; this folds one at a time, so a holographic store never materialises
+ * its inputs and stays fixed-width. acc is (1 + 2*dim) uint32: acc[0] = n (count
+ * of folded vectors), acc[1 .. dim] = per-coordinate 1-counts of bit 0, and
+ * acc[1+dim .. 2*dim] = 1-counts of bit 1. The CALLER owns acc — its width is the
+ * architecture (1 + 2*dim uint32), no compiled-in cap. Class M (HDC superposition
+ * tally); no abs(). Out-of-range element -> SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_klein4_bundle_accumulate(uint32_t      *acc,
+                                                const uint8_t *v,
+                                                size_t         dim)
+{
+    assert(acc != NULL && v != NULL);
+    assert(dim > 0u);
+    if (acc == NULL || v == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (dim == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (size_t i = 0; i < dim; i++) {
+        uint8_t e = v[i];
+        if (e > 3u) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        acc[1u + i]       += (uint32_t)(e & 1u);
+        acc[1u + dim + i] += (uint32_t)((e >> 1) & 1u);
+    }
+    acc[0] += 1u;
+    return SRMECH_OK;
+}
+
+/* klein4_bundle_resolve(acc, out, dim): resolve the accumulator to the bundled
+ * Klein-4 vector — strict per-bit majority over n = acc[0] folded vectors (an
+ * exact tie == n/2 resolves to 0 for that bit), BIT-IDENTICAL to
+ * srmech_klein4_bundle over the same vectors. out is dim bytes. The Class-K
+ * sign/phase-boundary read-out of the §50 accumulator; no abs(). */
+srmech_status_t srmech_klein4_bundle_resolve(const uint32_t *acc,
+                                             uint8_t        *out,
+                                             size_t          dim)
+{
+    assert(acc != NULL && out != NULL);
+    assert(dim > 0u);
+    if (acc == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (dim == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    uint32_t half = acc[0] / 2u;
+    for (size_t i = 0; i < dim; i++) {
+        uint8_t r0 = (acc[1u + i] > half) ? 1u : 0u;
+        uint8_t r1 = (acc[1u + dim + i] > half) ? 1u : 0u;
+        out[i] = (uint8_t)((r1 << 1) | r0);
+    }
+    return SRMECH_OK;
+}

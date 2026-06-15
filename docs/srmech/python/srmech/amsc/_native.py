@@ -912,6 +912,27 @@ def _bind(lib: ctypes.CDLL) -> None:
             ]
             lib.srmech_klein4_triality_cycle.restype = ctypes.c_int
 
+        # int srmech_klein4_bundle_accumulate(uint32_t *acc, const uint8_t *v,
+        #                                     size_t dim)  — UPSTREAM §50 (rc155).
+        # NEW — guard with its own hasattr so a pre-rc155 klein4-capable lib
+        # doesn't AttributeError here.
+        if hasattr(lib, "srmech_klein4_bundle_accumulate"):
+            lib.srmech_klein4_bundle_accumulate.argtypes = [
+                ctypes.POINTER(ctypes.c_uint32),
+                ctypes.POINTER(ctypes.c_uint8),
+                ctypes.c_size_t,
+            ]
+            lib.srmech_klein4_bundle_accumulate.restype = ctypes.c_int
+        # int srmech_klein4_bundle_resolve(const uint32_t *acc, uint8_t *out,
+        #                                  size_t dim)
+        if hasattr(lib, "srmech_klein4_bundle_resolve"):
+            lib.srmech_klein4_bundle_resolve.argtypes = [
+                ctypes.POINTER(ctypes.c_uint32),
+                ctypes.POINTER(ctypes.c_uint8),
+                ctypes.c_size_t,
+            ]
+            lib.srmech_klein4_bundle_resolve.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Cascade catalog — v0.4.5rc1 C-parity + TOML retrofit.
     # Corrects the v0.4.3rc6 / v0.4.4rc1 carve-out that shipped cascade

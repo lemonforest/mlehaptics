@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc154"
-#define SRMECH_VERSION       "0.7.5rc154"
+#define SRMECH_VERSION_PRE   "rc155"
+#define SRMECH_VERSION       "0.7.5rc155"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1625,6 +1625,21 @@ srmech_status_t srmech_klein4_triality_cycle(const uint8_t *in,
                                              uint32_t       n,
                                              int            inverse,
                                              uint8_t       *out);
+
+/* klein4_bundle_accumulate / _resolve (UPSTREAM §50): the STREAMING form of
+ * srmech_klein4_bundle. acc is a caller-owned (1 + 2*dim) uint32 accumulator
+ * (acc[0] = n folded; acc[1..dim] / acc[1+dim..2*dim] = per-coordinate bit-0 /
+ * bit-1 1-counts). _accumulate folds one Klein-4 vector; _resolve reads the
+ * argmax-per-coordinate bundle (bit-identical to srmech_klein4_bundle). The
+ * accumulator width is the architecture (caller's RAM) — no compiled-in cap.
+ * Adding these symbols does NOT bump SRMECH_ABI_VERSION. */
+srmech_status_t srmech_klein4_bundle_accumulate(uint32_t      *acc,
+                                                const uint8_t *v,
+                                                size_t         dim);
+
+srmech_status_t srmech_klein4_bundle_resolve(const uint32_t *acc,
+                                             uint8_t        *out,
+                                             size_t          dim);
 
 /* ------------------------------------------------------------------ *
  * srmech.bus — cross-process IPC C peer (v0.5.0rc2)

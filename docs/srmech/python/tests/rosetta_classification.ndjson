@@ -408,3 +408,6 @@
 {"exposed_as": "srmech.amsc.laplacian.mat_dot", "defined_at": "srmech.amsc.laplacian.mat_dot", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.mat_matvec", "defined_at": "srmech.amsc.laplacian.mat_matvec", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.mat_outer", "defined_at": "srmech.amsc.laplacian.mat_outer", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.hdc.klein4_bundle_accumulate", "defined_at": "srmech.amsc.hdc.klein4_bundle_accumulate", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.hdc.klein4_bundle_resolve", "defined_at": "srmech.amsc.hdc.klein4_bundle_resolve", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.hdc.cooccurrence_fold", "defined_at": "srmech.amsc.hdc.cooccurrence_fold", "bucket": "composition_of_c"}
