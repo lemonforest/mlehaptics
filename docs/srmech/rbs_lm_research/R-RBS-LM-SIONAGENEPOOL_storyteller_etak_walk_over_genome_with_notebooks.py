@@ -579,32 +579,44 @@ class SionaGenepool:
         return best if (best is not None and bd <= gate) else None
 
     def _resolve_canonical(self, w, context_words=()):
-        """F769 AUTHORITY HIERARCHY for resolving a typo/variant (the glyph mis-rank fix). In precedence:
-          (1) OBSERVED USAGE — a word the user already USED (running context) or TAUGHT (learned), edit-close: the
-              user's own spelling is the authority, OVERRIDING the locale ("localities are not the authority when the
-              user's input suggests another").
-          (2) LOCALE — a known en_GB/en_US spelling-convention variant -> the store-canonical (a locality authority).
-          (3) GLYPH+EDIT — the abstract glyph candidates, picking the EDIT-CLOSEST (not the glyph-TOP, which mis-ranks),
-              edit-gated (F765/F767 — no hallucinated comprehension). Returns (canonical, how) or None."""
+        """F769/F771 — resolve a typo/variant by a DECLARED ORDERED AUTHORITY CHAIN, not hardcoded branches (F770:
+        declare the structure). The order IS the language's abstraction stack read MOST-SPECIFIC-FIRST (F771): USAGE
+        (this conversation — the user's own words) > LOCALE (language-specific convention) > GLYPH (the ni-Vanuatu
+        UNIVERSAL base, lowest BECAUSE most universal). First layer that resolves wins; returns (canonical, how).
+        Extensible: insert a layer in AUTHORITY_CHAIN (e.g. a future per-user DIALECT layer between usage and locale)."""
         if len(w) < 3:
             return None
         gate = max(2, len(w) // 3)
-        # (1) observed usage — the user's established spelling wins (context + learned), edit-close + routable
+        AUTHORITY_CHAIN = (                                   # specific → universal; declared, ordered, extensible
+            ("usage",  lambda: self._usage_resolve(w, context_words, gate)),   # the user's own context/learned spelling
+            ("locale", lambda: self._locale_resolve(w, gate)),                 # en_GB/en_US convention (dormant on both-spelling corpora, F769)
+            ("glyph",  lambda: self._glyph_resolve(w, gate)),                  # the universal ni-Vanuatu base — last resort
+        )
+        for name, attempt in AUTHORITY_CHAIN:
+            cand = attempt()
+            if cand:
+                return (cand, name)
+        return None
+
+    def _usage_resolve(self, w, context_words, gate):
+        """USAGE layer (F769, highest): the user's OWN established spelling — a word from the running context or the
+        learned store, edit-close + routable. 'Localities are not the authority when the user's input suggests another.'"""
         usage = [u for u in (set(context_words) | set(self.learned)) if self._routable(u)]
-        cand = self._closest(w, usage, gate)
-        if cand:
-            return (cand, "usage")
-        # (2) locale — a systematic spelling-convention variant resolves to the store-canonical
+        return self._closest(w, usage, gate)
+
+    def _locale_resolve(self, w, gate):
+        """LOCALE layer (F769): a known en_GB/en_US spelling-convention variant -> the store-canonical, edit-close."""
         loc = LOCALE_CANON.get(w)
-        if loc and self._routable(loc) and self._edit_distance(w, loc) <= gate:
-            return (loc, "locale")
-        # (3) glyph + edit-rank — edit-closest among glyph-PLAUSIBLE candidates (fixes the F767 mis-rank), edit-gated
+        return loc if (loc and self._routable(loc) and self._edit_distance(w, loc) <= gate) else None
+
+    def _glyph_resolve(self, w, gate, floor=0.45):
+        """GLYPH layer (F769/F771, LOWEST — the ni-Vanuatu universal base): edit-CLOSEST among the glyph-PLAUSIBLE
+        candidates (not the glyph-top, which mis-ranks tomatto→tomatillo, F767), edit-gated (no hallucinated comprehension)."""
         wv = _word_hv(w)
         cands = [c for c in self.glosses if len(c) >= 3 and c[:2] == w[:2]] or \
                 [c for c in self.relations if len(c) >= 3 and c[:2] == w[:2]]
-        plausible = [c for c in cands[:2500] if c != w and hdc.klein4_similarity(wv, _word_hv(c)) >= 0.45]
-        cand = self._closest(w, plausible, gate)
-        return (cand, "glyph") if cand else None
+        plausible = [c for c in cands[:2500] if c != w and hdc.klein4_similarity(wv, _word_hv(c)) >= floor]
+        return self._closest(w, plausible, gate)
 
     @staticmethod
     def _edit_distance(a, b):
