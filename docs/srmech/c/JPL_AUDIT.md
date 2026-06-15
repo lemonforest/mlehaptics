@@ -316,7 +316,8 @@ helpers `genome_label_filename_safe` / `genome_collect_labels` / `genome_chr_nam
 / `genome_list_chr` / `genome_chr_peek_label` / `genome_sort_by_label`) — carries ≥ 2 asserts and is ≤ 60 lines. No
 recursion (the JSON tree is built/walked by the non-recursive
 `srmech_json` builder/parser/writer); every loop is bounded by
-`n_chroms` (≤ `SRMECH_GENOME_MAX_CHROMS` = 256) or a caller `size_t`
+`n_chroms` (a caller-arena-allocated count — no compiled-in cap; the
+genome C carves ALL scratch from the caller `ws` arena) or a caller `size_t`
 (the file-read loop carries an explicit `pass <= cap` over-bound, Rule 2;
 the §43 `genome_list_chr` directory scan carries an explicit `guard < 65536`
 over-bound on top of the `≤ max_n` collected-`.chr` cap, Rule 2). File I/O

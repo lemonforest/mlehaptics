@@ -32,11 +32,13 @@
  *                                    built/walked by the non-recursive
  *                                    srmech_json builder/writer/parser.
  *   - Rule 2 (bounded loops)       : OK — every loop bounded by n_chroms
- *                                    (<= SRMECH_GENOME_MAX_CHROMS) or a
- *                                    caller size_t.
- *   - Rule 3 (no malloc)           : OK — caller arena for the JSON tree;
- *                                    stdio for files; fixed stack/static
- *                                    buffers for paths + digests.
+ *                                    (a caller-arena count) or a caller
+ *                                    size_t.
+ *   - Rule 3 (no malloc)           : OK — ALL scratch (body / manifest / the
+ *                                    chromosome arrays / the .chr buffers) is
+ *                                    carved from the caller arena (a bump
+ *                                    pointer, not malloc); stdio for files;
+ *                                    fixed stack buffers for paths + digests.
  *   - Rule 4 (<= 60 lines/fn)      : OK — split along natural seams.
  *   - Rule 5 (>= 2 asserts/fn)     : OK — pointer + bound asserts per fn.
  *   - Rule 8 (no multiline macros) : OK — single-token object-like macros.
@@ -175,6 +177,75 @@ static srmech_status_t genome_read_region(const char *path, size_t offset,
     return (got == len) ? SRMECH_OK : SRMECH_ERR_IO;
 }
 
+/* Byte length of file `path` (for arena-sizing a body / manifest read).
+ * SRMECH_ERR_IO on a missing / unstattable file; *size gets the length. */
+static srmech_status_t genome_file_size(const char *path, size_t *size)
+{
+    assert(path != NULL);
+    assert(size != NULL);
+    FILE *fp = fopen(path, "rb");
+    if (fp == NULL) { return SRMECH_ERR_IO; }
+    int sk = fseek(fp, 0L, SEEK_END);
+    long n = (sk == 0) ? ftell(fp) : -1L;
+    fclose(fp);
+    if (sk != 0 || n < 0L) { return SRMECH_ERR_IO; }
+    *size = (size_t)n;
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------ *
+ * Caller-arena bump allocator — the size-AGNOSTIC scaffolding.
+ *
+ * ALL genome scratch (the body bytes read off disk, the per-chromosome
+ * string arrays, the manifest serialise buffer, the .chr region) is carved
+ * from the caller's `ws` arena, so the ONLY bound is the CALLER'S RAM — a
+ * host sizes the arena large, a microcontroller small — never a compiled-in
+ * cap. The C is therefore standalone-complete: it handles any genome the
+ * caller's arena fits, with no assumption that a Python fallback exists.
+ * JPL Rule 3 bans malloc, NOT a bump-pointer over a caller buffer (the
+ * caller owns the allocation). The srmech_json builder/parser then runs on
+ * the arena's untouched TAIL.
+ * ------------------------------------------------------------------ */
+typedef struct {
+    unsigned char *base;   /* caller workspace base        */
+    size_t         cap;    /* caller workspace capacity    */
+    size_t         off;    /* bump offset                  */
+} genome_arena_t;
+
+/* Bind an arena over the caller's [ws, ws + ws_len). */
+static void genome_arena_init(genome_arena_t *a, void *ws, size_t ws_len)
+{
+    assert(a != NULL);
+    assert(ws != NULL || ws_len == 0u);
+    a->base = (unsigned char *)ws;
+    a->cap = ws_len;
+    a->off = 0u;
+}
+
+/* Carve `n` bytes (16-byte aligned) off the front; NULL on overflow. */
+static void *genome_arena_alloc(genome_arena_t *a, size_t n)
+{
+    assert(a != NULL);
+    assert(a->off <= a->cap);
+    size_t off = (a->off + 15u) & ~(size_t)15u;        /* align up to 16 */
+    if (off > a->cap || n > a->cap - off) { return NULL; }
+    void *p = a->base + off;
+    a->off = off + n;
+    return p;
+}
+
+/* The arena's untouched (16-aligned) tail — handed to the srmech_json
+ * builder/parser, which manages it independently from here on. */
+static void genome_arena_tail(const genome_arena_t *a, void **ws, size_t *ws_len)
+{
+    assert(a != NULL);
+    assert(ws != NULL && ws_len != NULL);
+    size_t off = (a->off + 15u) & ~(size_t)15u;
+    if (off > a->cap) { off = a->cap; }
+    *ws = a->base + off;
+    *ws_len = a->cap - off;
+}
+
 /* ------------------------------------------------------------------ *
  * Manifest builder — assembles the MPRRecord tree (byte-identical to
  * genome.py _manifest_record after the json writer's key-sort).
@@ -193,13 +264,17 @@ typedef struct {
     char rule_hash[65];                             /* parser_rule_hash  */
     char descr_hash[65];                            /* collector_descriptor_hash */
     char parser_version[16 + sizeof(SRMECH_VERSION)]; /* "srmech " + ver */
-    char cap_sha[SRMECH_GENOME_MAX_CHROMS][65];     /* per-chromosome cap_sha256 */
-    uint32_t byte_offset[SRMECH_GENOME_MAX_CHROMS];
-    uint32_t byte_len[SRMECH_GENOME_MAX_CHROMS];
-    /* §44: derived by SCANNING the body's inline CHROM caps (the manifest is a
-     * derived cache — these fields ARE that derivation). */
-    char label[SRMECH_GENOME_MAX_CHROMS][SRMECH_GENOME_MAX_LABEL]; /* inline cap label */
-    uint32_t leaf_count[SRMECH_GENOME_MAX_CHROMS];  /* DATA turns (caps excluded) */
+    /* §44: per-chromosome arrays — derived by SCANNING the body's inline CHROM
+     * caps (the manifest is a derived cache; these fields ARE that derivation).
+     * Carved from the caller arena, sized to the scanned chromosome count, so a
+     * genome may hold ANY number of chromosomes the arena fits (no compiled-in
+     * cap). A consumer indexes `s->cap_sha[i]` etc. exactly as before. */
+    char (*cap_sha)[65];                            /* [cap_chroms] cap_sha256 */
+    uint32_t *byte_offset;                          /* [cap_chroms] */
+    uint32_t *byte_len;                             /* [cap_chroms] */
+    char (*label)[SRMECH_GENOME_MAX_LABEL];         /* [cap_chroms] inline label */
+    uint32_t *leaf_count;                           /* [cap_chroms] DATA turns */
+    uint32_t cap_chroms;                            /* arena-allocated capacity */
     uint32_t n_chroms;                              /* chromosomes found by scan */
 } genome_strings_t;
 
@@ -238,7 +313,7 @@ static srmech_json_value_t *genome_build_chrom(srmech_json_builder_t *b,
                                                uint32_t idx)
 {
     assert(b != NULL && s != NULL);
-    assert(idx < SRMECH_GENOME_MAX_CHROMS);
+    assert(idx < s->cap_chroms);
     const char *keys[5] = { "label", "cap_sha256", "leaf_count",
                             "byte_offset", "byte_len" };
     srmech_json_value_t *vals[5];
@@ -256,12 +331,13 @@ static srmech_json_value_t *genome_build_chrom(srmech_json_builder_t *b,
  * body_sha256 / chromosomes). */
 static srmech_json_value_t *genome_build_data(srmech_json_builder_t *b,
                                               const genome_strings_t *s,
+                                              srmech_json_value_t **chrom_items,
                                               uint32_t leaf_dim,
                                               size_t body_len)
 {
     assert(b != NULL && s != NULL);
-    assert(leaf_dim > 0u && s->n_chroms <= SRMECH_GENOME_MAX_CHROMS);
-    srmech_json_value_t *chrom_items[SRMECH_GENOME_MAX_CHROMS];
+    assert(leaf_dim > 0u && s->n_chroms <= s->cap_chroms);
+    assert(chrom_items != NULL || s->n_chroms == 0u);
     for (uint32_t i = 0; i < s->n_chroms; i++) {
         chrom_items[i] = genome_build_chrom(b, s, i);
     }
@@ -341,15 +417,29 @@ static srmech_status_t genome_build_manifest_tree(const genome_strings_t *s,
                                                   srmech_json_value_t **out)
 {
     assert(s != NULL && out != NULL);
-    assert(leaf_dim > 0u && s->n_chroms <= SRMECH_GENOME_MAX_CHROMS);
+    assert(leaf_dim > 0u && s->n_chroms <= s->cap_chroms);
+    /* Carve the chrom-pointer scratch from the FRONT of the caller arena, then
+     * run the json builder on the TAIL (so the scratch stays put across the
+     * build). No fixed cap — the bound is the caller's arena. */
+    genome_arena_t a;
+    genome_arena_init(&a, ws, ws_len);
+    srmech_json_value_t **chrom_items = NULL;
+    if (s->n_chroms > 0u) {
+        chrom_items = genome_arena_alloc(&a,
+                                         (size_t)s->n_chroms * sizeof(*chrom_items));
+        if (chrom_items == NULL) { return SRMECH_ERR_OVERFLOW; }
+    }
+    void *jws = NULL;
+    size_t jws_len = 0u;
+    genome_arena_tail(&a, &jws, &jws_len);
     srmech_json_builder_t b;
-    srmech_status_t st = srmech_json_builder_init(&b, ws, ws_len);
+    srmech_status_t st = srmech_json_builder_init(&b, jws, jws_len);
     if (st != SRMECH_OK) { return st; }
     const char *keys[5] = { "mpr_version", "data", "data_schema_id",
                             "attestation", "rendering" };
     srmech_json_value_t *v[5];
     v[0] = srmech_json_new_string(&b, "1.0", 3u);
-    v[1] = genome_build_data(&b, s, leaf_dim, body_len);
+    v[1] = genome_build_data(&b, s, chrom_items, leaf_dim, body_len);
     v[2] = srmech_json_new_string(&b, SRMECH_GENOME_SCHEMA_ID,
                                   (uint32_t)strlen(SRMECH_GENOME_SCHEMA_ID));
     v[3] = genome_build_attest(&b, s);
@@ -369,7 +459,7 @@ static srmech_status_t genome_build_manifest(const genome_strings_t *s,
                                              size_t *out_len)
 {
     assert(s != NULL && out != NULL && out_len != NULL);
-    assert(leaf_dim > 0u && s->n_chroms <= SRMECH_GENOME_MAX_CHROMS);
+    assert(leaf_dim > 0u && s->n_chroms <= s->cap_chroms);
     srmech_json_value_t *root = NULL;
     srmech_status_t st = genome_build_manifest_tree(s, leaf_dim, body_len,
                                                     ws, ws_len, &root);
@@ -392,6 +482,51 @@ static srmech_status_t genome_decode_label(const unsigned char *cap,
     return SRMECH_OK;
 }
 
+/* §44 COUNT: count the body's CHROM caps (a pre-scan, so the per-chromosome
+ * arrays can be carved to EXACTLY that many — no compiled-in chromosome cap).
+ * Validates the body is a whole multiple of leaf_dim. */
+static srmech_status_t genome_count_chroms(const unsigned char *body,
+                                           size_t body_len, uint32_t leaf_dim,
+                                           uint32_t *out_n)
+{
+    assert(out_n != NULL);
+    assert(body != NULL || body_len == 0u);
+    if (leaf_dim == 0u || body_len % (size_t)leaf_dim != 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    uint32_t n = 0u;
+    for (size_t off = 0u; off < body_len; off += leaf_dim) {
+        if (body[off] == SRMECH_GENOME_CHROM_CAP_MARKER) {
+            if (n == 0xFFFFFFFFu) { return SRMECH_ERR_OVERFLOW; }
+            n++;
+        }
+    }
+    *out_n = n;
+    return SRMECH_OK;
+}
+
+/* Carve the per-chromosome string arrays (sized to `n`) off the arena `a` —
+ * the bound is the caller's arena, not a constant. SRMECH_ERR_OVERFLOW when the
+ * arena cannot fit them. */
+static srmech_status_t genome_strings_alloc(genome_strings_t *s,
+                                            genome_arena_t *a, uint32_t n)
+{
+    assert(s != NULL && a != NULL);
+    assert(n != 0xFFFFFFFFu);
+    s->cap_sha = genome_arena_alloc(a, (size_t)n * 65u);
+    s->byte_offset = genome_arena_alloc(a, (size_t)n * sizeof(uint32_t));
+    s->byte_len = genome_arena_alloc(a, (size_t)n * sizeof(uint32_t));
+    s->label = genome_arena_alloc(a, (size_t)n * SRMECH_GENOME_MAX_LABEL);
+    s->leaf_count = genome_arena_alloc(a, (size_t)n * sizeof(uint32_t));
+    if (s->cap_sha == NULL || s->byte_offset == NULL || s->byte_len == NULL ||
+        s->label == NULL || s->leaf_count == NULL) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    s->cap_chroms = n;
+    s->n_chroms = 0u;
+    return SRMECH_OK;
+}
+
 /* §44 SCAN: walk the self-describing body block-by-block and derive every
  * chromosome's (label, cap_sha256, leaf_count, byte_offset, byte_len) into the
  * string block — this IS the "manifest is a derived cache" claim in C. A CHROM
@@ -408,7 +543,7 @@ static srmech_status_t genome_scan_chroms(genome_strings_t *s,
     int32_t cur = -1;
     for (size_t off = 0u; off < body_len; off += leaf_dim) {
         if (body[off] == SRMECH_GENOME_CHROM_CAP_MARKER) {
-            if (s->n_chroms >= SRMECH_GENOME_MAX_CHROMS) { return SRMECH_ERR_OVERFLOW; }
+            if (s->n_chroms >= s->cap_chroms) { return SRMECH_ERR_OVERFLOW; }
             cur = (int32_t)s->n_chroms;
             s->n_chroms++;
             srmech_status_t st = srmech_sha256_hex(body + off, leaf_dim, s->cap_sha[cur]);
@@ -430,13 +565,19 @@ static srmech_status_t genome_scan_chroms(genome_strings_t *s,
 /* Fill the per-build string block from the body + the_one: the hashes, the
  * version string, and the §44 inline-cap chromosome scan. */
 static srmech_status_t genome_fill_strings(genome_strings_t *s,
+                                           genome_arena_t *a,
                                            const unsigned char *body,
                                            size_t body_len, uint32_t leaf_dim,
                                            const unsigned char *the_one)
 {
     assert(s != NULL && the_one != NULL);
-    assert(leaf_dim > 0u);
-    srmech_status_t st = srmech_sha256_hex(body, body_len, s->body_sha);
+    assert(a != NULL && leaf_dim > 0u);
+    uint32_t n_chroms = 0u;                            /* count → carve arrays */
+    srmech_status_t st = genome_count_chroms(body, body_len, leaf_dim, &n_chroms);
+    if (st != SRMECH_OK) { return st; }
+    st = genome_strings_alloc(s, a, n_chroms);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_sha256_hex(body, body_len, s->body_sha);
     if (st != SRMECH_OK) { return st; }
     st = srmech_sha256_hex(the_one, leaf_dim, s->one_sha);
     if (st != SRMECH_OK) { return st; }
@@ -453,11 +594,18 @@ static srmech_status_t genome_fill_strings(genome_strings_t *s,
 }
 
 /* ------------------------------------------------------------------ *
- * Manifest write buffer — the serialised manifest bytes + trailing LF.
- * Static thread-local (Rule-3-clean; per-thread reentrant; 256 KiB is
- * ample for the §41 manifest of a SRMECH_GENOME_MAX_CHROMS genome).
+ * Manifest write buffer — the serialised manifest bytes + trailing LF, carved
+ * from the caller arena (NO fixed cap). The size is bounded by the chromosome
+ * count: a fixed preamble + a per-chromosome JSON entry (label + 4 hashes/ints
+ * + keys, < SRMECH_GENOME_MAX_LABEL + 600). The caller (Python) sizes the arena
+ * to the genome.
  * ------------------------------------------------------------------ */
-#define SRMECH_GENOME_MANIFEST_MAX (256u * 1024u)
+static size_t genome_manifest_cap(uint32_t n_chroms)
+{
+    assert(n_chroms != 0xFFFFFFFFu);
+    assert(SRMECH_GENOME_MAX_LABEL > 0u);
+    return (size_t)4096u + (size_t)n_chroms * (size_t)(SRMECH_GENOME_MAX_LABEL + 600u);
+}
 
 /* Validate the SAVE args; returns SRMECH_OK or the matching error. §44: there
  * is no caller chromosome layout — the body self-describes. */
@@ -497,16 +645,25 @@ srmech_status_t srmech_genome_save(
     if (st != SRMECH_OK) { return st; }
     st = genome_join(dir, SRMECH_GENOME_MANIFEST, man_path, sizeof(man_path));
     if (st != SRMECH_OK) { return st; }
-    /* Write turns.bin first (verbatim body), then hash + scan + build manifest. */
+    /* Write turns.bin first (verbatim body), then hash + scan + build manifest.
+     * The chromosome arrays, the manifest buffer, and the json tree are all
+     * carved from the caller arena — bound = caller RAM, no compiled-in cap. */
     st = genome_write_file(body_path, "wb", body, body_len);
     if (st != SRMECH_OK) { return st; }
-    static SRMECH_THREAD_LOCAL genome_strings_t strs;
-    st = genome_fill_strings(&strs, body, body_len, leaf_dim, the_one);
+    genome_arena_t a;
+    genome_arena_init(&a, ws, ws_len);
+    genome_strings_t strs;
+    st = genome_fill_strings(&strs, &a, body, body_len, leaf_dim, the_one);
     if (st != SRMECH_OK) { return st; }
-    static SRMECH_THREAD_LOCAL char manifest[SRMECH_GENOME_MANIFEST_MAX];
+    size_t man_cap = genome_manifest_cap(strs.n_chroms);
+    char *manifest = genome_arena_alloc(&a, man_cap + 1u);
+    if (manifest == NULL) { return SRMECH_ERR_OVERFLOW; }
+    void *tws = NULL;
+    size_t tws_len = 0u;
+    genome_arena_tail(&a, &tws, &tws_len);
     size_t mlen = 0u;
     st = genome_build_manifest(&strs, leaf_dim, body_len,
-                               ws, ws_len, manifest, sizeof(manifest) - 1u, &mlen);
+                               tws, tws_len, manifest, man_cap, &mlen);
     if (st != SRMECH_OK) { return st; }
     manifest[mlen] = '\n';                 /* trailing LF, like _write_manifest */
     return genome_write_file(man_path, "wb",
@@ -538,12 +695,19 @@ static srmech_status_t genome_parse_manifest(const char *dir, char *buf,
     return srmech_json_parse(buf, n, ws, ws_len, out);
 }
 
-/* Static body scratch — the whole body, read for the §44 manifest-less REBUILD
- * scan AND for the APPEND grow (Rule-3-clean thread-local). 16 MiB covers a
- * large genome; SRMECH_ERR_OVERFLOW past it. The two uses are SEQUENTIAL (an
- * append's obtain finishes before its grow), so one shared buffer is safe. */
-#define SRMECH_GENOME_BODY_MAX (16u * 1024u * 1024u)
-static SRMECH_THREAD_LOCAL unsigned char genome_body_scratch[SRMECH_GENOME_BODY_MAX];
+/* Byte length of <dir>/turns.bin — the APPEND grow / §45 splice callers use it
+ * to arena-size the body buffer (carved from the caller arena, no compiled-in
+ * cap). SRMECH_ERR_IO if turns.bin is missing / unstattable. */
+static srmech_status_t genome_body_size(const char *dir, size_t *out)
+{
+    assert(dir != NULL);
+    assert(out != NULL);
+    char body_path[SRMECH_GENOME_PATH_MAX];
+    srmech_status_t st = genome_join(dir, SRMECH_GENOME_BODY,
+                                     body_path, sizeof(body_path));
+    if (st != SRMECH_OK) { return st; }
+    return genome_file_size(body_path, out);
+}
 
 /* §44: obtain the manifest TREE — parse manifest.json if present (cheap; never
  * opens turns.bin), else REBUILD it by scanning the self-describing body (the
@@ -562,13 +726,18 @@ static srmech_status_t genome_obtain_manifest(
     srmech_status_t st = genome_join(dir, SRMECH_GENOME_MANIFEST,
                                      man_path, sizeof(man_path));
     if (st != SRMECH_OK) { return st; }
-    FILE *probe = fopen(man_path, "rb");
-    if (probe != NULL) {                              /* fast path: parse it */
-        fclose(probe);
-        static SRMECH_THREAD_LOCAL char manbuf[SRMECH_GENOME_MANIFEST_MAX];
+    genome_arena_t a;
+    genome_arena_init(&a, ws, ws_len);
+    size_t msz = 0u;
+    if (genome_file_size(man_path, &msz) == SRMECH_OK) {  /* fast path: parse it */
+        char *manbuf = genome_arena_alloc(&a, msz + 1u);
+        if (manbuf == NULL) { return SRMECH_ERR_OVERFLOW; }
+        void *ptws = NULL;
+        size_t ptws_len = 0u;
+        genome_arena_tail(&a, &ptws, &ptws_len);
         size_t mlen = 0u;
-        return genome_parse_manifest(dir, manbuf, sizeof(manbuf), &mlen,
-                                     ws, ws_len, out);
+        return genome_parse_manifest(dir, manbuf, msz + 1u, &mlen,
+                                     ptws, ptws_len, out);
     }
     if (the_one == NULL || the_one_len == 0u || the_one_len > 256u) {
         return SRMECH_ERR_BAD_INPUT;                  /* cannot scan w/o leaf_dim */
@@ -577,14 +746,21 @@ static srmech_status_t genome_obtain_manifest(
     char body_path[SRMECH_GENOME_PATH_MAX];
     st = genome_join(dir, SRMECH_GENOME_BODY, body_path, sizeof(body_path));
     if (st != SRMECH_OK) { return st; }
+    size_t bsz = 0u;
+    st = genome_file_size(body_path, &bsz);
+    if (st != SRMECH_OK) { return st; }
+    unsigned char *body = genome_arena_alloc(&a, (bsz == 0u) ? 1u : bsz);
+    if (body == NULL) { return SRMECH_ERR_OVERFLOW; }
     size_t blen = 0u;
-    st = genome_read_file(body_path, genome_body_scratch,
-                          sizeof(genome_body_scratch), &blen);
+    st = genome_read_file(body_path, body, bsz, &blen);
     if (st != SRMECH_OK) { return st; }
-    static SRMECH_THREAD_LOCAL genome_strings_t rstrs;
-    st = genome_fill_strings(&rstrs, genome_body_scratch, blen, leaf_dim, the_one);
+    genome_strings_t rstrs;
+    st = genome_fill_strings(&rstrs, &a, body, blen, leaf_dim, the_one);
     if (st != SRMECH_OK) { return st; }
-    return genome_build_manifest_tree(&rstrs, leaf_dim, blen, ws, ws_len, out);
+    void *tws = NULL;
+    size_t tws_len = 0u;
+    genome_arena_tail(&a, &tws, &tws_len);
+    return genome_build_manifest_tree(&rstrs, leaf_dim, blen, tws, tws_len, out);
 }
 
 srmech_status_t srmech_genome_catalog(const char *dir,
@@ -753,9 +929,6 @@ static srmech_status_t genome_check_new_label(
     if (arr == NULL || arr->type != SRMECH_JSON_ARRAY) {
         return SRMECH_ERR_BAD_INPUT;
     }
-    if ((size_t)arr->u.arr.n + 1u > SRMECH_GENOME_MAX_CHROMS) {
-        return SRMECH_ERR_OVERFLOW;
-    }
     size_t nl = strlen(new_label);
     for (uint32_t i = 0; i < arr->u.arr.n; i++) {
         const srmech_json_value_t *lv =
@@ -831,11 +1004,25 @@ srmech_status_t srmech_genome_append(const char *dir, const char *label,
         region_len == 0u || region_len % (size_t)leaf_dim != 0u) {
         return SRMECH_ERR_BAD_INPUT;
     }
+    /* Carve the grown-body buffer (old body + region) from the arena FRONT; the
+     * tail feeds obtain (manifest tree, consumed by grow) then save (its own
+     * scratch) — both run after body is filled, so the reuse is safe. */
+    genome_arena_t a;
+    genome_arena_init(&a, ws, ws_len);
+    size_t bcap = 0u;
+    srmech_status_t st = genome_body_size(dir, &bcap);
+    if (st != SRMECH_OK) { return st; }
+    bcap += region_len;
+    unsigned char *body = genome_arena_alloc(&a, (bcap == 0u) ? 1u : bcap);
+    if (body == NULL) { return SRMECH_ERR_OVERFLOW; }
+    void *tws = NULL;
+    size_t tws_len = 0u;
+    genome_arena_tail(&a, &tws, &tws_len);
     /* §44: obtain the manifest — parsed if present, else rebuilt by scanning
      * (the_one carries the leaf width), so an append works manifest-less too. */
     srmech_json_value_t *manifest = NULL;
-    srmech_status_t st = genome_obtain_manifest(dir, the_one, the_one_len,
-                                                ws, ws_len, &manifest);
+    st = genome_obtain_manifest(dir, the_one, the_one_len, tws, tws_len,
+                                &manifest);
     if (st != SRMECH_OK) { return st; }
     const srmech_json_value_t *ld = genome_data_get(manifest, "leaf_dim");
     if (ld == NULL || ld->type != SRMECH_JSON_INT ||
@@ -843,9 +1030,7 @@ srmech_status_t srmech_genome_append(const char *dir, const char *label,
     st = genome_check_new_label(manifest, label);          /* no dup labels */
     if (st != SRMECH_OK) { return st; }
     size_t new_len = 0u;
-    /* genome_body_scratch is reused here (obtain's scan has finished). */
-    st = genome_grow_body(dir, manifest, region, region_len,
-                          genome_body_scratch, sizeof(genome_body_scratch),
+    st = genome_grow_body(dir, manifest, region, region_len, body, bcap,
                           &new_len);
     if (st != SRMECH_OK) { return st; }
     /* §44: rewrite turns.bin (verbatim grown body) + a manifest DERIVED by
@@ -853,8 +1038,8 @@ srmech_status_t srmech_genome_append(const char *dir, const char *label,
      * the appended region, so turns.bin is byte-identical to a true append and
      * every prior chromosome entry re-derives byte-identically (same body
      * bytes, order-stable inline-cap scan). */
-    return srmech_genome_save(dir, genome_body_scratch, new_len, leaf_dim,
-                              the_one, the_one_len, ws, ws_len);
+    return srmech_genome_save(dir, body, new_len, leaf_dim,
+                              the_one, the_one_len, tws, tws_len);
 }
 
 /* ------------------------------------------------------------------ *
@@ -882,9 +1067,19 @@ srmech_status_t srmech_genome_remove(const char *dir, const char *label,
         return SRMECH_ERR_NULL_ARG;
     }
     if (the_one_len == 0u || the_one_len > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    genome_arena_t a;
+    genome_arena_init(&a, ws, ws_len);
+    size_t bcap = 0u;
+    srmech_status_t st = genome_body_size(dir, &bcap);
+    if (st != SRMECH_OK) { return st; }
+    unsigned char *body = genome_arena_alloc(&a, (bcap == 0u) ? 1u : bcap);
+    if (body == NULL) { return SRMECH_ERR_OVERFLOW; }
+    void *tws = NULL;
+    size_t tws_len = 0u;
+    genome_arena_tail(&a, &tws, &tws_len);
     srmech_json_value_t *manifest = NULL;
-    srmech_status_t st = genome_obtain_manifest(dir, the_one, the_one_len,
-                                                ws, ws_len, &manifest);
+    st = genome_obtain_manifest(dir, the_one, the_one_len, tws, tws_len,
+                                &manifest);
     if (st != SRMECH_OK) { return st; }
     const srmech_json_value_t *ld = genome_data_get(manifest, "leaf_dim");
     const srmech_json_value_t *arr = genome_data_get(manifest, "chromosomes");
@@ -899,15 +1094,13 @@ srmech_status_t srmech_genome_remove(const char *dir, const char *label,
         return SRMECH_ERR_BAD_INPUT;                           /* label absent */
     }
     size_t body_len = 0u;
-    st = genome_read_bound_body(dir, manifest, genome_body_scratch,
-                                sizeof(genome_body_scratch), &body_len);
+    st = genome_read_bound_body(dir, manifest, body, bcap, &body_len);
     if (st != SRMECH_OK) { return st; }
     /* splice [off, off+len) out IN PLACE: slide the tail down over the span. */
-    memmove(genome_body_scratch + off, genome_body_scratch + off + len,
-            body_len - off - len);
-    return srmech_genome_save(dir, genome_body_scratch, body_len - len,
+    memmove(body + off, body + off + len, body_len - off - len);
+    return srmech_genome_save(dir, body, body_len - len,
                               (uint32_t)the_one_len, the_one, the_one_len,
-                              ws, ws_len);
+                              tws, tws_len);
 }
 
 srmech_status_t srmech_genome_replace(const char *dir, const char *label,
@@ -926,9 +1119,20 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
         region_len % (size_t)leaf_dim != 0u) {
         return SRMECH_ERR_BAD_INPUT;
     }
+    genome_arena_t a;
+    genome_arena_init(&a, ws, ws_len);
+    size_t bcap = 0u;
+    srmech_status_t st = genome_body_size(dir, &bcap);
+    if (st != SRMECH_OK) { return st; }
+    bcap += region_len;                       /* new region may exceed the old */
+    unsigned char *body = genome_arena_alloc(&a, (bcap == 0u) ? 1u : bcap);
+    if (body == NULL) { return SRMECH_ERR_OVERFLOW; }
+    void *tws = NULL;
+    size_t tws_len = 0u;
+    genome_arena_tail(&a, &tws, &tws_len);
     srmech_json_value_t *manifest = NULL;
-    srmech_status_t st = genome_obtain_manifest(dir, the_one, the_one_len,
-                                                ws, ws_len, &manifest);
+    st = genome_obtain_manifest(dir, the_one, the_one_len, tws, tws_len,
+                                &manifest);
     if (st != SRMECH_OK) { return st; }
     const srmech_json_value_t *ld = genome_data_get(manifest, "leaf_dim");
     if (ld == NULL || ld->type != SRMECH_JSON_INT ||
@@ -938,19 +1142,16 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
         return SRMECH_ERR_BAD_INPUT;                           /* label absent */
     }
     size_t body_len = 0u;
-    st = genome_read_bound_body(dir, manifest, genome_body_scratch,
-                                sizeof(genome_body_scratch), &body_len);
+    st = genome_read_bound_body(dir, manifest, body, bcap, &body_len);
     if (st != SRMECH_OK) { return st; }
     size_t tail = body_len - off - len;
     size_t new_len = body_len - len + region_len;
-    if (new_len > sizeof(genome_body_scratch)) { return SRMECH_ERR_OVERFLOW; }
     /* splice old span out + new region in, IN PLACE: shift the tail to its new
      * home, then write the (external) region into the gap. */
-    memmove(genome_body_scratch + off + region_len,
-            genome_body_scratch + off + len, tail);
-    if (region_len != 0u) { memcpy(genome_body_scratch + off, region, region_len); }
-    return srmech_genome_save(dir, genome_body_scratch, new_len, leaf_dim,
-                              the_one, the_one_len, ws, ws_len);
+    memmove(body + off + region_len, body + off + len, tail);
+    if (region_len != 0u) { memcpy(body + off, region, region_len); }
+    return srmech_genome_save(dir, body, new_len, leaf_dim,
+                              the_one, the_one_len, tws, tws_len);
 }
 
 /* ------------------------------------------------------------------ *
@@ -982,24 +1183,14 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
  * emitted ensure_ascii=False; the "" breaks the \x hex escape before "43"). */
 #define SRMECH_GENOME_CHR_CITE_AS "srmech genome chromosome bundle (UPSTREAM \xc2\xa7""43)"
 
-/* §43 single-chromosome region bound. The Python genome_export / genome_import
- * are unbounded; the C mirror bounds the .chr buffers the same way it bounds the
- * body / manifest / chroms — a chromosome region larger than this cannot be
- * bundled in C (SRMECH_ERR_OVERFLOW). 1 MiB covers 65536 turns at leaf_dim 16. */
-#define SRMECH_GENOME_CHR_REGION_MAX (1u * 1024u * 1024u)
-
-/* §43 thread-local scratch (Rule-3-clean; demand-paged .bss; per-thread):
- *   genome_chr_region — the region bytes (read for export; decoded for import),
- *                       kept SEPARATE from genome_body_scratch so an import APPEND
- *                       can grow the dest body without a buffer collision.
- *   genome_chr_hex    — the region hex (export; held BY REFERENCE during write).
- *   genome_chr_io     — the .chr file text (written for export, read for import). */
-static SRMECH_THREAD_LOCAL unsigned char genome_chr_region[SRMECH_GENOME_CHR_REGION_MAX];
-static SRMECH_THREAD_LOCAL char genome_chr_hex[2u * SRMECH_GENOME_CHR_REGION_MAX + 1u];
-static SRMECH_THREAD_LOCAL char genome_chr_io[2u * SRMECH_GENOME_CHR_REGION_MAX + 4096u];
+/* §43 .chr scratch — the region bytes, the region hex, and the .chr file text —
+ * are all carved from the caller arena (sized to the chromosome / .chr file), so
+ * the only bound is the caller's RAM (no compiled-in 1 MiB cap). The region buf
+ * is carved SEPARATE from the body buf so an import APPEND can grow the dest body
+ * without a collision; the hex is held BY REFERENCE during srmech_json_write. */
 
 /* Stable string storage for one .chr build (held BY REFERENCE by the JSON
- * builder; must outlive srmech_json_write). The region hex is genome_chr_hex. */
+ * builder; must outlive srmech_json_write). The region hex is arena-carved. */
 typedef struct {
     char     label[SRMECH_GENOME_MAX_LABEL];
     char     cap_sha[65];
@@ -1211,6 +1402,32 @@ static srmech_status_t genome_chr_consts(genome_chr_strings_t *cs)
     return SRMECH_OK;
 }
 
+/* Read the chromosome region [off,off+len) from <dir>/turns.bin into `region`
+ * (cap == max(len,1)), verify its leading leaf_dim-byte cap block hashes to
+ * cs->cap_sha (the _read_region cap-integrity check), fill cs->region_sha, and
+ * hex-encode the region bytes into `hex` (cap >= 2*len+1). */
+static srmech_status_t genome_chr_read_region(const char *dir,
+    genome_chr_strings_t *cs, size_t off, size_t len,
+    unsigned char *region, char *hex)
+{
+    assert(dir != NULL && cs != NULL);
+    assert(region != NULL && hex != NULL);
+    char body_path[SRMECH_GENOME_PATH_MAX];
+    srmech_status_t st = genome_join(dir, SRMECH_GENOME_BODY,
+                                     body_path, sizeof(body_path));
+    if (st != SRMECH_OK) { return st; }
+    st = genome_read_region(body_path, off, len, region, (len == 0u) ? 1u : len);
+    if (st != SRMECH_OK) { return st; }
+    char capgot[65];
+    st = srmech_sha256_hex(region, cs->leaf_dim, capgot);
+    if (st != SRMECH_OK) { return st; }
+    if (memcmp(capgot, cs->cap_sha, 64u) != 0) { return SRMECH_ERR_BAD_INPUT; }
+    st = srmech_sha256_hex(region, len, cs->region_sha);
+    if (st != SRMECH_OK) { return st; }
+    genome_hex(region, len, hex);
+    return SRMECH_OK;
+}
+
 srmech_status_t srmech_genome_export(const char *dir, const char *label,
                                      const char *out_path,
                                      const unsigned char *the_one,
@@ -1224,36 +1441,35 @@ srmech_status_t srmech_genome_export(const char *dir, const char *label,
     if (the_one != NULL && (the_one_len == 0u || the_one_len > 256u)) {
         return SRMECH_ERR_BAD_INPUT;
     }
+    genome_arena_t a;
+    genome_arena_init(&a, ws, ws_len);     /* obtain uses the whole arena */
     srmech_json_value_t *manifest = NULL;
     srmech_status_t st = genome_obtain_manifest(dir, the_one, the_one_len,
                                                 ws, ws_len, &manifest);
     if (st != SRMECH_OK) { return st; }
-    static SRMECH_THREAD_LOCAL genome_chr_strings_t cs;
+    genome_chr_strings_t cs;
     size_t off = 0u, len = 0u;
-    st = genome_chr_meta(manifest, label, &cs, &off, &len);   /* reads ws tree */
+    st = genome_chr_meta(manifest, label, &cs, &off, &len);   /* copies out tree */
     if (st != SRMECH_OK) { return st; }
-    char body_path[SRMECH_GENOME_PATH_MAX];
-    st = genome_join(dir, SRMECH_GENOME_BODY, body_path, sizeof(body_path));
+    genome_arena_init(&a, ws, ws_len);     /* manifest consumed → reuse arena */
+    unsigned char *region = genome_arena_alloc(&a, (len == 0u) ? 1u : len);
+    char *hex = genome_arena_alloc(&a, 2u * len + 1u);
+    size_t io_cap = 2u * len + 4096u;
+    char *io = genome_arena_alloc(&a, io_cap);
+    if (region == NULL || hex == NULL || io == NULL) { return SRMECH_ERR_OVERFLOW; }
+    st = genome_chr_read_region(dir, &cs, off, len, region, hex);
     if (st != SRMECH_OK) { return st; }
-    st = genome_read_region(body_path, off, len, genome_chr_region,
-                            sizeof(genome_chr_region));
-    if (st != SRMECH_OK) { return st; }
-    char capgot[65];                       /* cap-integrity (mirror _read_region) */
-    st = srmech_sha256_hex(genome_chr_region, cs.leaf_dim, capgot);
-    if (st != SRMECH_OK) { return st; }
-    if (memcmp(capgot, cs.cap_sha, 64u) != 0) { return SRMECH_ERR_BAD_INPUT; }
-    st = srmech_sha256_hex(genome_chr_region, len, cs.region_sha);
-    if (st != SRMECH_OK) { return st; }
-    genome_hex(genome_chr_region, len, genome_chr_hex);
     st = genome_chr_consts(&cs);
     if (st != SRMECH_OK) { return st; }
-    size_t flen = 0u;                      /* ws reused for the .chr tree here */
-    st = genome_chr_build_file(&cs, genome_chr_hex, ws, ws_len,
-                               genome_chr_io, sizeof(genome_chr_io) - 1u, &flen);
+    void *tw = NULL;
+    size_t tl = 0u;
+    genome_arena_tail(&a, &tw, &tl);       /* tail for the .chr json tree */
+    size_t flen = 0u;
+    st = genome_chr_build_file(&cs, hex, tw, tl, io, io_cap - 1u, &flen);
     if (st != SRMECH_OK) { return st; }
-    genome_chr_io[flen] = '\n';            /* trailing LF, like _write_mpr_file */
+    io[flen] = '\n';                       /* trailing LF, like _write_mpr_file */
     return genome_write_file(out_path, "wb",
-                             (const unsigned char *)genome_chr_io, flen + 1u);
+                             (const unsigned char *)io, flen + 1u);
 }
 
 /* Decode `hexlen` lowercase/uppercase hex chars at `hex` into `out` (cap
@@ -1383,8 +1599,19 @@ static srmech_status_t genome_chr_append(const char *dest, const char *label,
     assert(region != NULL || region_len == 0u);
     const unsigned char *rb = (caller_one != NULL) ? caller_one : one;
     size_t rb_len = (caller_one != NULL) ? caller_one_len : one_len;
+    genome_arena_t a;
+    genome_arena_init(&a, ws, ws_len);
+    size_t bcap = 0u;
+    srmech_status_t st = genome_body_size(dest, &bcap);
+    if (st != SRMECH_OK) { return st; }
+    bcap += region_len;
+    unsigned char *body = genome_arena_alloc(&a, (bcap == 0u) ? 1u : bcap);
+    if (body == NULL) { return SRMECH_ERR_OVERFLOW; }
+    void *tws = NULL;
+    size_t tws_len = 0u;
+    genome_arena_tail(&a, &tws, &tws_len);
     srmech_json_value_t *manifest = NULL;
-    srmech_status_t st = genome_obtain_manifest(dest, rb, rb_len, ws, ws_len, &manifest);
+    st = genome_obtain_manifest(dest, rb, rb_len, tws, tws_len, &manifest);
     if (st != SRMECH_OK) { return st; }
     const srmech_json_value_t *ld = genome_data_get(manifest, "leaf_dim");
     if (ld == NULL || ld->type != SRMECH_JSON_INT ||
@@ -1401,11 +1628,10 @@ static srmech_status_t genome_chr_append(const char *dest, const char *label,
     st = genome_check_new_label(manifest, label);          /* no dup labels */
     if (st != SRMECH_OK) { return st; }
     size_t new_len = 0u;
-    st = genome_grow_body(dest, manifest, region, region_len,
-                          genome_body_scratch, sizeof(genome_body_scratch), &new_len);
+    st = genome_grow_body(dest, manifest, region, region_len, body, bcap, &new_len);
     if (st != SRMECH_OK) { return st; }
-    return srmech_genome_save(dest, genome_body_scratch, new_len, leaf_dim,
-                              one, one_len, ws, ws_len);
+    return srmech_genome_save(dest, body, new_len, leaf_dim,
+                              one, one_len, tws, tws_len);
 }
 
 srmech_status_t srmech_genome_import(const char *chr_path, const char *dest,
@@ -1420,29 +1646,38 @@ srmech_status_t srmech_genome_import(const char *chr_path, const char *dest,
     if (the_one != NULL && (the_one_len == 0u || the_one_len > 256u)) {
         return SRMECH_ERR_BAD_INPUT;
     }
-    size_t tlen = 0u;
-    srmech_status_t st = genome_read_file(chr_path, (unsigned char *)genome_chr_io,
-                                          sizeof(genome_chr_io), &tlen);
+    genome_arena_t a;
+    genome_arena_init(&a, ws, ws_len);
+    size_t fsz = 0u;
+    srmech_status_t st = genome_file_size(chr_path, &fsz);
     if (st != SRMECH_OK) { return st; }
-    while (tlen > 0u && (genome_chr_io[tlen - 1u] == '\n' ||
-                         genome_chr_io[tlen - 1u] == '\r')) { tlen--; }
+    char *io = genome_arena_alloc(&a, fsz + 1u);
+    unsigned char *region = genome_arena_alloc(&a, fsz + 1u);  /* region <= file */
+    if (io == NULL || region == NULL) { return SRMECH_ERR_OVERFLOW; }
+    size_t tlen = 0u;
+    st = genome_read_file(chr_path, (unsigned char *)io, fsz + 1u, &tlen);
+    if (st != SRMECH_OK) { return st; }
+    while (tlen > 0u && (io[tlen - 1u] == '\n' || io[tlen - 1u] == '\r')) { tlen--; }
+    void *pw = NULL;
+    size_t pl = 0u;
+    genome_arena_tail(&a, &pw, &pl);       /* tail for the parse tree + save */
     srmech_json_value_t *rec = NULL;
-    st = srmech_json_parse(genome_chr_io, tlen, ws, ws_len, &rec);
+    st = srmech_json_parse(io, tlen, pw, pl, &rec);
     if (st != SRMECH_OK) { return st; }
     unsigned char oneblk[256];
     size_t region_len = 0u, one_len = 0u;
     uint32_t leaf_dim = 0u;
     char label[SRMECH_GENOME_MAX_LABEL];
-    st = genome_chr_verify_extract(rec, genome_chr_region, sizeof(genome_chr_region),
+    st = genome_chr_verify_extract(rec, region, fsz + 1u,
                                    &region_len, oneblk, &one_len, &leaf_dim,
                                    label, sizeof(label));
     if (st != SRMECH_OK) { return st; }
     if (!genome_body_exists(dest)) {           /* SEED — region IS the body */
-        return srmech_genome_save(dest, genome_chr_region, region_len, leaf_dim,
-                                  oneblk, one_len, ws, ws_len);
+        return srmech_genome_save(dest, region, region_len, leaf_dim,
+                                  oneblk, one_len, pw, pl);
     }
-    return genome_chr_append(dest, label, genome_chr_region, region_len, leaf_dim,
-                             oneblk, one_len, the_one, the_one_len, ws, ws_len);
+    return genome_chr_append(dest, label, region, region_len, leaf_dim,
+                             oneblk, one_len, the_one, the_one_len, pw, pl);
 }
 
 /* ================================================================== *
@@ -1488,7 +1723,6 @@ static srmech_status_t genome_collect_labels(const srmech_json_value_t *manifest
     if (arr == NULL || arr->type != SRMECH_JSON_ARRAY) {
         return SRMECH_ERR_BAD_INPUT;
     }
-    if (arr->u.arr.n > SRMECH_GENOME_MAX_CHROMS) { return SRMECH_ERR_OVERFLOW; }
     for (uint32_t i = 0; i < arr->u.arr.n; i++) {
         const srmech_json_value_t *lv =
             srmech_json_object_get(arr->u.arr.items[i], "label");
@@ -1518,16 +1752,34 @@ srmech_status_t srmech_genome_explode(const char *dir, const char *out_dir,
     if (the_one != NULL && (the_one_len == 0u || the_one_len > 256u)) {
         return SRMECH_ERR_BAD_INPUT;
     }
-    srmech_json_value_t *manifest = NULL;
+    genome_arena_t a;
+    genome_arena_init(&a, ws, ws_len);
+    /* pass 1: obtain the manifest to learn the chromosome count. */
+    srmech_json_value_t *m0 = NULL;
     srmech_status_t st = genome_obtain_manifest(dir, the_one, the_one_len,
-                                                ws, ws_len, &manifest);
+                                                ws, ws_len, &m0);
     if (st != SRMECH_OK) { return st; }
-    static SRMECH_THREAD_LOCAL char labels[SRMECH_GENOME_MAX_CHROMS]
-                                          [SRMECH_GENOME_MAX_LABEL];
+    const srmech_json_value_t *arr = genome_data_get(m0, "chromosomes");
+    if (arr == NULL || arr->type != SRMECH_JSON_ARRAY) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    uint32_t nch = arr->u.arr.n;
+    /* carve the stable labels array (arena FRONT); the re-obtain + the export
+     * loop run on the tail past it (export REUSES its ws each iteration). */
+    genome_arena_init(&a, ws, ws_len);
+    char (*labels)[SRMECH_GENOME_MAX_LABEL] = genome_arena_alloc(
+        &a, (size_t)((nch == 0u) ? 1u : nch) * SRMECH_GENOME_MAX_LABEL);
+    if (labels == NULL) { return SRMECH_ERR_OVERFLOW; }
+    void *ew = NULL;
+    size_t el = 0u;
+    genome_arena_tail(&a, &ew, &el);
+    srmech_json_value_t *manifest = NULL;
+    st = genome_obtain_manifest(dir, the_one, the_one_len, ew, el, &manifest);
+    if (st != SRMECH_OK) { return st; }
     uint32_t n = 0u;
     st = genome_collect_labels(manifest, labels, &n);    /* before any export */
     if (st != SRMECH_OK) { return st; }
-    for (uint32_t i = 0; i < n; i++) {                   /* export reuses ws */
+    for (uint32_t i = 0; i < n; i++) {                   /* export reuses ew */
         char name[SRMECH_GENOME_CHR_NAME_MAX];
         size_t ll = strlen(labels[i]);
         memcpy(name, labels[i], ll);
@@ -1536,7 +1788,7 @@ srmech_status_t srmech_genome_explode(const char *dir, const char *out_dir,
         st = genome_join(out_dir, name, out_path, sizeof(out_path));
         if (st != SRMECH_OK) { return st; }
         st = srmech_genome_export(dir, labels[i], out_path, the_one,
-                                  the_one_len, ws, ws_len);
+                                  the_one_len, ew, el);
         if (st != SRMECH_OK) { return st; }
     }
     return SRMECH_OK;
@@ -1562,8 +1814,8 @@ static int genome_chr_name_ok(const char *name)
 static srmech_status_t genome_list_chr(const char *dir,
     char names[][SRMECH_GENOME_CHR_NAME_MAX], uint32_t max_n, uint32_t *count)
 {
-    assert(dir != NULL && names != NULL && count != NULL);
-    assert(max_n > 0u);
+    assert(dir != NULL && count != NULL);
+    assert(names == NULL || max_n > 0u);             /* names==NULL: count-only */
     uint32_t n = 0u;
 #if defined(_WIN32)
     char pattern[SRMECH_GENOME_PATH_MAX];
@@ -1575,8 +1827,8 @@ static srmech_status_t genome_list_chr(const char *dir,
     int more = 1;
     for (uint32_t guard = 0u; more != 0 && guard < 65536u; guard++) {
         if (genome_chr_name_ok(fd.cFileName)) {
-            if (n >= max_n) { FindClose(h); return SRMECH_ERR_OVERFLOW; }
-            memcpy(names[n], fd.cFileName, strlen(fd.cFileName) + 1u);
+            if (names != NULL && n >= max_n) { FindClose(h); return SRMECH_ERR_OVERFLOW; }
+            if (names != NULL) { memcpy(names[n], fd.cFileName, strlen(fd.cFileName) + 1u); }
             n++;
         }
         more = (FindNextFileA(h, &fd) != 0);
@@ -1588,8 +1840,8 @@ static srmech_status_t genome_list_chr(const char *dir,
     struct dirent *e = readdir(d);
     for (uint32_t guard = 0u; e != NULL && guard < 65536u; guard++) {
         if (genome_chr_name_ok(e->d_name)) {
-            if (n >= max_n) { closedir(d); return SRMECH_ERR_OVERFLOW; }
-            memcpy(names[n], e->d_name, strlen(e->d_name) + 1u);
+            if (names != NULL && n >= max_n) { closedir(d); return SRMECH_ERR_OVERFLOW; }
+            if (names != NULL) { memcpy(names[n], e->d_name, strlen(e->d_name) + 1u); }
             n++;
         }
         e = readdir(d);
@@ -1601,21 +1853,29 @@ static srmech_status_t genome_list_chr(const char *dir,
 }
 
 /* Read+parse a .chr bundle at `chr_path` and copy its inner data.label out
- * to `label_out` (the canonical-sort key for pack). Uses the shared
- * genome_chr_io scratch (overwritten per call — peek all before importing). */
+ * to `label_out` (the canonical-sort key for pack). Carves its read+parse
+ * scratch from the caller arena `ws` (sized to the .chr file). */
 static srmech_status_t genome_chr_peek_label(const char *chr_path,
     void *ws, size_t ws_len, char *label_out)
 {
     assert(chr_path != NULL && label_out != NULL);
     assert(ws != NULL);
-    size_t tlen = 0u;
-    srmech_status_t st = genome_read_file(chr_path,
-        (unsigned char *)genome_chr_io, sizeof(genome_chr_io), &tlen);
+    genome_arena_t a;
+    genome_arena_init(&a, ws, ws_len);
+    size_t fsz = 0u;
+    srmech_status_t st = genome_file_size(chr_path, &fsz);
     if (st != SRMECH_OK) { return st; }
-    while (tlen > 0u && (genome_chr_io[tlen - 1u] == '\n' ||
-                         genome_chr_io[tlen - 1u] == '\r')) { tlen--; }
+    char *io = genome_arena_alloc(&a, fsz + 1u);
+    if (io == NULL) { return SRMECH_ERR_OVERFLOW; }
+    size_t tlen = 0u;
+    st = genome_read_file(chr_path, (unsigned char *)io, fsz + 1u, &tlen);
+    if (st != SRMECH_OK) { return st; }
+    while (tlen > 0u && (io[tlen - 1u] == '\n' || io[tlen - 1u] == '\r')) { tlen--; }
+    void *pw = NULL;
+    size_t pl = 0u;
+    genome_arena_tail(&a, &pw, &pl);
     srmech_json_value_t *rec = NULL;
-    st = srmech_json_parse(genome_chr_io, tlen, ws, ws_len, &rec);
+    st = srmech_json_parse(io, tlen, pw, pl, &rec);
     if (st != SRMECH_OK) { return st; }
     const srmech_json_value_t *sid =
         srmech_json_object_get(rec, "data_schema_id");
@@ -1642,7 +1902,7 @@ static void genome_sort_by_label(char labels[][SRMECH_GENOME_MAX_LABEL],
     char names[][SRMECH_GENOME_CHR_NAME_MAX], uint32_t n)
 {
     assert(labels != NULL && names != NULL);
-    assert(n <= SRMECH_GENOME_MAX_CHROMS);
+    assert(n != 0xFFFFFFFFu);
     for (uint32_t i = 1u; i < n; i++) {
         char lbl[SRMECH_GENOME_MAX_LABEL];
         char nm[SRMECH_GENOME_CHR_NAME_MAX];
@@ -1671,20 +1931,29 @@ srmech_status_t srmech_genome_pack(const char *loose_dir, const char *dest,
     if (the_one != NULL && (the_one_len == 0u || the_one_len > 256u)) {
         return SRMECH_ERR_BAD_INPUT;
     }
-    static SRMECH_THREAD_LOCAL char names[SRMECH_GENOME_MAX_CHROMS]
-                                         [SRMECH_GENOME_CHR_NAME_MAX];
-    static SRMECH_THREAD_LOCAL char labels[SRMECH_GENOME_MAX_CHROMS]
-                                          [SRMECH_GENOME_MAX_LABEL];
-    uint32_t n = 0u;
-    srmech_status_t st = genome_list_chr(loose_dir, names,
-                                         SRMECH_GENOME_MAX_CHROMS, &n);
+    uint32_t nfiles = 0u;
+    srmech_status_t st = genome_list_chr(loose_dir, NULL, 0u, &nfiles); /* count */
     if (st != SRMECH_OK) { return st; }
-    if (n == 0u) { return SRMECH_ERR_BAD_INPUT; }        /* no .chr files */
+    if (nfiles == 0u) { return SRMECH_ERR_BAD_INPUT; }   /* no .chr files */
+    genome_arena_t a;
+    genome_arena_init(&a, ws, ws_len);
+    char (*names)[SRMECH_GENOME_CHR_NAME_MAX] = genome_arena_alloc(
+        &a, (size_t)nfiles * SRMECH_GENOME_CHR_NAME_MAX);
+    char (*labels)[SRMECH_GENOME_MAX_LABEL] = genome_arena_alloc(
+        &a, (size_t)nfiles * SRMECH_GENOME_MAX_LABEL);
+    if (names == NULL || labels == NULL) { return SRMECH_ERR_OVERFLOW; }
+    void *tw = NULL;
+    size_t tl = 0u;
+    genome_arena_tail(&a, &tw, &tl);          /* tail for peek + import */
+    uint32_t n = 0u;
+    st = genome_list_chr(loose_dir, names, nfiles, &n);  /* fill names */
+    if (st != SRMECH_OK) { return st; }
+    if (n == 0u) { return SRMECH_ERR_BAD_INPUT; }
     for (uint32_t i = 0; i < n; i++) {                   /* peek inner labels */
         char chr_path[SRMECH_GENOME_PATH_MAX];
         st = genome_join(loose_dir, names[i], chr_path, sizeof(chr_path));
         if (st != SRMECH_OK) { return st; }
-        st = genome_chr_peek_label(chr_path, ws, ws_len, labels[i]);
+        st = genome_chr_peek_label(chr_path, tw, tl, labels[i]);
         if (st != SRMECH_OK) { return st; }
     }
     genome_sort_by_label(labels, names, n);              /* canonical order */
@@ -1692,8 +1961,7 @@ srmech_status_t srmech_genome_pack(const char *loose_dir, const char *dest,
         char chr_path[SRMECH_GENOME_PATH_MAX];
         st = genome_join(loose_dir, names[i], chr_path, sizeof(chr_path));
         if (st != SRMECH_OK) { return st; }
-        st = srmech_genome_import(chr_path, dest, the_one, the_one_len,
-                                  ws, ws_len);
+        st = srmech_genome_import(chr_path, dest, the_one, the_one_len, tw, tl);
         if (st != SRMECH_OK) { return st; }
     }
     return SRMECH_OK;
