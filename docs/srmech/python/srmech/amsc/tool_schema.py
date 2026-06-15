@@ -916,9 +916,10 @@ def _register_primitive_class_tools() -> None:
         ),
         # v0.7.1rc3 (#897 §26): the reusable dense linear solve A·X = B the
         # Schur/DtN float path composes over (its interior solve IS an
-        # A·X = B). Native C peer srmech_dense_solve_f64 (Gauss–Jordan,
-        # partial pivoting, n,w ≤ 256) on the scientific tier; exact-rational
-        # Fraction Gauss–Jordan numpy-absent / exact=True. Golub & Van Loan §3.
+        # A·X = B). Native C peer srmech_dense_solve_f64_ws (Gauss–Jordan,
+        # partial pivoting, augmented [A|B] scratch from a caller arena — no
+        # size cap, rc158 standalone-complete honor); exact-rational Fraction
+        # Gauss–Jordan numpy-absent / exact=True. Golub & Van Loan §3.
         ToolEntry(
             name="srmech.amsc.laplacian.dense_solve", owner="srmech",
             category="laplacian",
@@ -1021,7 +1022,7 @@ def _register_primitive_class_tools() -> None:
             owner="srmech", category="laplacian",
             summary="Numpy-FREE dense linear solve A·X = B over the Mat carrier "
                     "(carrier-removal #564): real Mat.buffers feed the native "
-                    "srmech_dense_solve_f64 zero-copy; exact-rational "
+                    "srmech_dense_solve_f64_ws zero-copy; exact-rational "
                     "Gauss-Jordan fallback with no native lib. Complex A/B route "
                     "through the real 2n×2n block embedding (rc95), riding the "
                     "same native real solve. Golub & Van Loan §3.4.",

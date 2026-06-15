@@ -743,7 +743,7 @@ def dense_solve(A, B, *, exact: bool = False):
     float reciprocal, F392) and ``X`` is ``list[list[Fraction]]`` (or
     ``list[Fraction]`` for a vector RHS) — the exact path keeps the rational
     leaves. With ``exact=False`` (the default) the float realization rides the
-    numpy-free Mat engine (:func:`mat_solve` — native ``srmech_dense_solve_f64``
+    numpy-free Mat engine (:func:`mat_solve` — native ``srmech_dense_solve_f64_ws``
     Gauss–Jordan with partial pivoting, the Class-K magnitude pivot — a sign
     branch, not ``abs()``; else srmech's own exact Fraction fallback coerced to
     float). The float ``X`` is returned in the numpy-free **carrier** (rc131):
@@ -1259,16 +1259,19 @@ def mat_solve(a: "Mat", b: "Mat") -> "Mat":
 
     ``A`` ``(n, n)`` real `Mat` · solves for ``X`` ``(n, w)`` given ``B``
     ``(n, w)`` real `Mat`. ``Mat.buffer`` is already the flat row-major float64
-    the native ``srmech_dense_solve_f64`` reads, so both operands feed the kernel
-    **zero-copy** (``from_buffer``) with **NO numpy** (the C side takes them
-    ``const``, so the `Mat`\\ s are not mutated); the output is a fresh
-    ``array('d')`` wrapped back into a `Mat`. With no native lib — or any dim >
-    ``MAX_NATIVE_NODES`` (256), or the native path flagging singular — the
-    fallback is srmech's own **exact-rational Gauss–Jordan**
+    the native ``srmech_dense_solve_f64_ws`` reads, so both operands feed the
+    kernel **zero-copy** (``from_buffer``) with **NO numpy** (the C side takes
+    them ``const``, so the `Mat`\\ s are not mutated); the output is a fresh
+    ``array('d')`` wrapped back into a `Mat`. There is **no size cap** (rc158
+    standalone-complete honor): the augmented ``[A|B]`` scratch is carved from a
+    caller arena sized per call via ``srmech_dense_solve_arena_bytes``, so the
+    bound is the caller's RAM. Native is authoritative when present (a singular
+    ``A`` → ``SRMECH_ERR_BAD_INPUT`` → ``ZeroDivisionError``); with **no native
+    lib** the complete alternative is srmech's own **exact-rational Gauss–Jordan**
     (:func:`_solve_exact`, Class-N ``Fraction`` division, numpy-free) coerced to
-    float64, so the op is unconditionally numpy-free.
+    float64 — itself uncapped, so the op is unconditionally numpy-free either way.
 
-    ``srmech_dense_solve_f64`` is **real-f64 only**; a complex `Mat` (rc95)
+    ``srmech_dense_solve_f64_ws`` is **real-f64 only**; a complex `Mat` (rc95)
     routes through :func:`_mat_solve_complex` — the real ``2n×2n`` block
     embedding ``[[Aᵣ,−Aᵢ],[Aᵢ,Aᵣ]]·[u;v]=[bᵣ;bᵢ]`` over this same native real
     solve (numpy-free), so ``mat_solve`` now handles complex too.
@@ -1300,24 +1303,36 @@ def mat_solve(a: "Mat", b: "Mat") -> "Mat":
     w = b.n_cols
     if w == 0:
         return Mat(array("d"), n, 0)  # n×0 solve → n×0 X (degenerate but valid)
-    # Native zero-copy path (n, w ≤ 256): real Mat buffers → C kernel → Mat.
+    # Native zero-copy path — NO size cap (rc158 standalone-complete honor):
+    # the augmented [A|B] scratch is carved from a caller arena we size per call
+    # (srmech_dense_solve_arena_bytes), so the bound is this process's RAM, not a
+    # compiled-in 256. Native is AUTHORITATIVE when present: the cheap shape
+    # validation above raised the precise ValueErrors; a singular A surfaces as
+    # SRMECH_ERR_BAD_INPUT, which we translate to the documented ZeroDivisionError
+    # (the exact path raises the same — two complete impls, not one rescuing the
+    # other). cf. [[feedback_c_must_be_standalone_complete_no_python_fallback]].
     if (_native.HAS_NATIVE
             and _native.LIB is not None
-            and hasattr(_native.LIB, "srmech_dense_solve_f64")
-            and n <= MAX_NATIVE_NODES
-            and w <= MAX_NATIVE_NODES):
+            and hasattr(_native.LIB, "srmech_dense_solve_f64_ws")):
         a_buf = (ctypes.c_double * (n * n)).from_buffer(a.buffer)  # zero-copy (real)
         b_buf = (ctypes.c_double * (n * w)).from_buffer(b.buffer)  # zero-copy (real)
         out = (ctypes.c_double * (n * w))()
-        rc = _native.LIB.srmech_dense_solve_f64(
+        ws_bytes = int(_native.LIB.srmech_dense_solve_arena_bytes(
+            ctypes.c_uint32(n), ctypes.c_uint32(w),
+        ))
+        ws_buf = (ctypes.c_char * ws_bytes)()                     # caller arena
+        rc = _native.LIB.srmech_dense_solve_f64_ws(
             ctypes.c_uint32(n), ctypes.c_uint32(w), a_buf, b_buf, out,
+            ctypes.cast(ws_buf, ctypes.c_void_p), ctypes.c_size_t(ws_bytes),
         )
         if rc == _native.SRMECH_OK:
             return Mat(array("d", out), n, w)
-        if rc not in (_native.SRMECH_ERR_OVERFLOW, _native.SRMECH_ERR_BAD_INPUT):
-            raise RuntimeError(f"srmech_dense_solve_f64 returned non-OK status {rc}")
-        # OVERFLOW (over the native bound) / BAD_INPUT (singular) → exact fallback.
-    # numpy-free fallback: srmech's own exact-rational Gauss–Jordan (Class-N).
+        if rc == _native.SRMECH_ERR_BAD_INPUT:
+            raise ZeroDivisionError("mat_solve: A is singular (zero pivot column)")
+        raise RuntimeError(f"srmech_dense_solve_f64_ws returned non-OK status {rc}")
+    # No native lib (pure wheel / Pyodide): srmech's own exact-rational
+    # Gauss–Jordan (Class-N) is the COMPLETE alternative implementation, not a
+    # fallback rescue — it is the no-C host's only solve and is uncapped too.
     X = _solve_exact(a.tolist(), b.tolist())  # list[list[Fraction]]; raises if singular
     return Mat.from_rows([[float(x) for x in row] for row in X])
 
