@@ -207,6 +207,16 @@ LONG_SEEDS = ("elaborate", "detail", "thorough", "comprehensive")
 SHORT_SEEDS = ("brief", "concise", "short", "summary")
 DEPTH_MARGIN = 0.04                            # calibration floor (type-B, a measured separation gap; not magic)
 NEGATORS = frozenset("not no never without dont isnt arent cant cannot less".split())   # frame-channel polarity flip
+# F769: LOCALE layer of the language kernel — en_GB/en_US (etc.) spelling-convention variants -> the store-canonical
+# spelling. This OVERRIDES a glyph mis-rank for SYSTEMATIC variants (a locality authority), but is itself overridden by
+# OBSERVED USER USAGE (context/learned): localities are not the authority when the user's own input suggests another.
+# Seed table (the language-kernel hook); a full bidirectional, configurable locale inventory is the data scale-up.
+LOCALE_CANON = {
+    "colour": "color", "flavour": "flavor", "honour": "honor", "favour": "favor", "neighbour": "neighbor",
+    "labour": "labor", "behaviour": "behavior", "centre": "center", "theatre": "theater", "metre": "meter",
+    "litre": "liter", "fibre": "fiber", "organise": "organize", "realise": "realize", "analyse": "analyze",
+    "catalogue": "catalog", "defence": "defense", "grey": "gray", "aluminium": "aluminum", "programme": "program",
+}
 # F753: the COUPLING weight. The input-ride parses the query into a SUBJECT (content noun -> routes) + STEER (the
 # relation/frame words, incl. delexical ones F751 keeps out of routing) — and the steer BIASES kernel convergence
 # (the frame becomes a direction of travel), coupling the input-walk to the kernel-walk. Subject anchors; steer nudges.
@@ -544,23 +554,57 @@ class SionaGenepool:
                 bs, best = sm, c
         return (best, bs) if best else None
 
-    def _understand(self, unknown):
-        """PASS 1 — UNDERSTAND the input into English (etak FIND; F765). Comprehend each UNRECOGNIZED content token into
-        its nearest KNOWN canonical form via the abstract glyph layer — FORM similarity, which is the RIGHT tool for
-        comprehension (and the WRONG tool for meaning, which is Pass-2's job). Biology-faithful: this is the
-        TRANSCRIPTION stage (faithful surface→canonical medium), kept SEPARATE from the Pass-2 TRANSLATION stage
-        (deriving meaning). Returns {surface: (canonical, sim)} for the tokens it understood; unresolved tokens absent.
-        Run FIRST, so the meaning tiers ride on the understood form (a misspelling/variant now reaches the full
-        gloss/relation/depth machinery, not just the last-ditch fallback)."""
+    def _understand(self, unknown, context_words=()):
+        """PASS 1 — UNDERSTAND the input into English (etak FIND; F765/F769). Comprehend each UNRECOGNIZED content token
+        into its canonical form via an AUTHORITY hierarchy (F769) — biology-faithful TRANSCRIPTION, kept SEPARATE from
+        Pass-2 TRANSLATION. Returns {surface: (canonical, how)}; unresolved tokens absent. Runs FIRST so the meaning
+        tiers ride on the understood form."""
         out = {}
         for w in unknown:
-            ab = self._abstract_resolve(w)          # the F762 form-resolver, now run UP FRONT as comprehension
-            if ab and ab[0] != w and self._edit_distance(w, ab[0]) <= max(2, len(w) // 3):
-                # F765 orthographic guard: accept only a plausible TYPO/SPELLING-VARIANT (small edit distance), NEVER a
-                # coincidental glyph match to a DIFFERENT word — else a genuinely-unknown word ("flibbertigibbet") would
-                # be force-comprehended into an unrelated store word and answered as if understood (a hallucination).
-                out[w] = ab                          # (canonical, sim)
+            r = self._resolve_canonical(w, context_words)
+            if r:
+                out[w] = r                           # (canonical, how) — how ∈ {usage, locale, glyph}
         return out
+
+    def _closest(self, w, words, gate):
+        """The EDIT-CLOSEST word in `words` to w within `gate` edits (None if none qualifies). The edit-distance RANK
+        that fixes the glyph mis-rank (tomatto→tomato edit-1 beats tomatto→tomatillo edit-3)."""
+        best, bd = None, gate + 1
+        for u in words:
+            if u == w:
+                continue
+            d = self._edit_distance(w, u)
+            if d < bd:
+                bd, best = d, u
+        return best if (best is not None and bd <= gate) else None
+
+    def _resolve_canonical(self, w, context_words=()):
+        """F769 AUTHORITY HIERARCHY for resolving a typo/variant (the glyph mis-rank fix). In precedence:
+          (1) OBSERVED USAGE — a word the user already USED (running context) or TAUGHT (learned), edit-close: the
+              user's own spelling is the authority, OVERRIDING the locale ("localities are not the authority when the
+              user's input suggests another").
+          (2) LOCALE — a known en_GB/en_US spelling-convention variant -> the store-canonical (a locality authority).
+          (3) GLYPH+EDIT — the abstract glyph candidates, picking the EDIT-CLOSEST (not the glyph-TOP, which mis-ranks),
+              edit-gated (F765/F767 — no hallucinated comprehension). Returns (canonical, how) or None."""
+        if len(w) < 3:
+            return None
+        gate = max(2, len(w) // 3)
+        # (1) observed usage — the user's established spelling wins (context + learned), edit-close + routable
+        usage = [u for u in (set(context_words) | set(self.learned)) if self._routable(u)]
+        cand = self._closest(w, usage, gate)
+        if cand:
+            return (cand, "usage")
+        # (2) locale — a systematic spelling-convention variant resolves to the store-canonical
+        loc = LOCALE_CANON.get(w)
+        if loc and self._routable(loc) and self._edit_distance(w, loc) <= gate:
+            return (loc, "locale")
+        # (3) glyph + edit-rank — edit-closest among glyph-PLAUSIBLE candidates (fixes the F767 mis-rank), edit-gated
+        wv = _word_hv(w)
+        cands = [c for c in self.glosses if len(c) >= 3 and c[:2] == w[:2]] or \
+                [c for c in self.relations if len(c) >= 3 and c[:2] == w[:2]]
+        plausible = [c for c in cands[:2500] if c != w and hdc.klein4_similarity(wv, _word_hv(c)) >= 0.45]
+        cand = self._closest(w, plausible, gate)
+        return (cand, "glyph") if cand else None
 
     @staticmethod
     def _edit_distance(a, b):
@@ -769,13 +813,14 @@ class SionaGenepool:
         # meaning is derived (Pass 2 = TRANSLATION). So a misspelling/variant ("tomatto") becomes "tomato" up front and
         # the full meaning machinery (gloss + relations + depth) rides on the understood form — not just the last fallback.
         unroutable = [t for t in salient if not self._routable(t)]                    # F765: comprehend tokens that route to NO
-        understood = self._understand(unroutable)                                     # answer tier (not merely _recognized-False)
+        ctx_words = set(re.findall(r"[a-z]+", (context or "").lower()))                # F769: the user's OBSERVED usage (prior turns)
+        understood = self._understand(unroutable, ctx_words)                           # answer tier (not merely _recognized-False)
         if understood:
             salient = [understood[t][0] if t in understood else t for t in salient]   # re-render in canonical English
             recognized = [t for t in salient if self._recognized(t)]                  # re-derive on the UNDERSTOOD tokens
             unrecognized = [t for t in salient if t not in recognized]
-        understood_note = (("[understood: " + ", ".join(f"{s}→{c} ({sim:.2f})"
-                            for s, (c, sim) in understood.items()) + "]\n") if understood else "")
+        understood_note = (("[understood: " + ", ".join(f"{s}→{c} ({how})"            # F769: how ∈ usage/locale/glyph
+                            for s, (c, how) in understood.items()) + "]\n") if understood else "")
         intent = self._intent(pl)                                               # the question TYPE (frame channel)
         depth, depth_how = self._depth(pl)                                      # F763/F766: DEPTH (keyword fast-path OR meaning anchor)
         k_rel, k_assoc, walk_steps, attach_extra = {                            # depth -> answer-shaping knobs (comprehend, not discard)
