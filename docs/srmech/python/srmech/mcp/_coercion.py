@@ -545,6 +545,25 @@ def _resolve_operator_name(value: Any, *, param: str = "") -> Any:
     return resolve_operator_name(value)
 
 
+def _to_uint32_acc(value: Any, *, param: str = "") -> Any:
+    """``array('I')`` / ``array('I')|None`` -> the §50 holographic-bundle
+    accumulator (rc155). ``None`` passes through (the ``klein4_bundle_accumulate``
+    create case); an ``array('I')`` rides unchanged (an in-process caller); a JSON
+    list of ints — the cross-JSON wire form, matching ``serialise_native``'s
+    ``array('I')`` -> ``list[int]`` — is rebuilt into ``array('I')``."""
+    if value is None:
+        return None
+    from array import array as _array
+    if isinstance(value, _array):
+        return value
+    if isinstance(value, (list, tuple)):
+        return _array("I", [int(x) for x in value])
+    raise ValueError(
+        f"expected a list of uint32 ints (or None) for accumulator param "
+        f"{param or '<acc>'!r}; got {type(value).__name__}"
+    )
+
+
 #: Declared-type-string -> inbound coercer. Pass-through (``_identity``)
 #: entries are JSON-native or opaque-handle types that ``invoke_tool``
 #: cannot meaningfully coerce — they are listed EXPLICITLY (not defaulted)
@@ -573,6 +592,11 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "list[bytes]": _seq_bytes,   # v0.7.0rc10: format.sha256_batch `datas`
     "Sequence[Vec]": _seq_vec,   # v0.7.5rc132: coupling.signed_sum_squared sources
     "Sequence[HV]": _seq_hv,     # v0.7.5rc132: genome / hdc bundle hypervector lists
+    "Sequence[str]": _identity,  # v0.7.5rc155: hdc.cooccurrence_fold `tokens` (JSON-native)
+    # v0.7.5rc155: the §50 holographic-bundle accumulator (klein4_bundle_accumulate
+    # /_resolve) — a (1+2*D) uint32 array, or None for the create case.
+    "array('I')": _to_uint32_acc,
+    "array('I')|None": _to_uint32_acc,
     "tuple[Mat, ...]": _tuple_mat,  # v0.7.5rc132: gauge generators / einsum operands
     "Sequence[tuple]": _seq_tuple,  # v0.7.5rc134: genome.chromosome(genes=[(label, leaves), ...])
     "list[list[list[float]]]": _identity,  # rank-3 nested list, JSON-native (gauge f^abc)
