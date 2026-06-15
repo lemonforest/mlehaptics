@@ -10,13 +10,17 @@
  *
  * Conventions mirror srmech's TOML parser: a caller-supplied
  * arena/workspace bump allocator (`void *ws, size_t ws_len`), a
- * value-tree union (srmech_json_value_t in srmech.h), the cap
- * constants SRMECH_JSON_MAX_CHILDREN / SRMECH_JSON_MAX_DEPTH, and the
- * JPL-clean style: no goto, no malloc, no libm, <=60-line functions,
- * >=2 asserts per non-exempt function, no multi-line macros.
+ * value-tree union (srmech_json_value_t in srmech.h), the recursion-
+ * depth guard SRMECH_JSON_MAX_DEPTH, and the JPL-clean style: no goto,
+ * no malloc, no libm, <=60-line functions, >=2 asserts per non-exempt
+ * function, no multi-line macros. There is NO compiled-in object-width
+ * cap: object children grow arena-backed on parse, and the writer's
+ * key-sort scratch is carved from a caller arena (srmech_json_write_ws
+ * + srmech_json_write_arena_bytes), so an object is bounded only by the
+ * caller's RAM — standalone-complete on a host or an MCU alike.
  *
  * NO RECURSION (JPL Rule 1): both the parser (srmech_json_parse) and
- * the writer (srmech_json_write) walk the tree with an EXPLICIT stack
+ * the writer (srmech_json_write_ws) walk the tree with an EXPLICIT stack
  * bounded by SRMECH_JSON_MAX_DEPTH.
  *
  * Float caveat: DOUBLE values are written best-effort (%.17g, then
@@ -886,7 +890,8 @@ static void json_write_double(json_writer_t *w, double v)
  *
  * We never permute the value tree; instead we compute a sorted INDEX
  * permutation into a fixed-cap stack array and emit pairs in that
- * order. Insertion sort (n <= SRMECH_JSON_MAX_CHILDREN; bounded).
+ * order. Insertion sort (n is the object width; `order` is the
+ * caller-arena pool slot for this frame — bounded by the arena).
  * ------------------------------------------------------------------ */
 
 /* Bytewise compare two NUL-free keys (len-tagged). Returns <0/0/>0.
@@ -911,8 +916,10 @@ static void json_sort_object_keys(const srmech_json_value_t *obj,
                                   uint32_t *order)
 {
     assert(obj != NULL);
-    assert(order != NULL);
     uint32_t n = obj->u.obj.n;
+    /* order may be NULL only when every object in the tree is empty (the
+     * arena pool has zero width); the loops below never deref it then. */
+    assert(order != NULL || n == 0u);
     for (uint32_t k = 0; k < n; k++) {
         order[k] = k;
     }
@@ -940,8 +947,11 @@ static void json_sort_object_keys(const srmech_json_value_t *obj,
 typedef struct {
     const srmech_json_value_t *node;
     bool                       is_object;
-    uint32_t                   idx;   /* next child to emit */
-    uint32_t                   order[SRMECH_JSON_MAX_CHILDREN];
+    uint32_t                   idx;    /* next child to emit */
+    uint32_t                  *order;  /* sorted-key index permutation —
+                                        * carved from the caller arena, so an
+                                        * object is bounded only by the arena
+                                        * (no compiled-in object-width cap). */
 } json_emit_frame_t;
 
 /* Emit a scalar (null/bool/int/double/string) directly. */
@@ -1018,13 +1028,15 @@ static const srmech_json_value_t *json_emit_step(json_writer_t *w,
     return NULL;
 }
 
-/* Walk the tree with an explicit depth-bounded stack of emit frames. */
+/* Walk the tree with an explicit depth-bounded stack of `max_depth` emit
+ * frames (the stack is carved from the caller arena — `max_depth` matches
+ * its length, so the OVERFLOW guard is exactly the allocation bound). */
 static srmech_status_t json_emit_tree(json_writer_t *w,
                                       const srmech_json_value_t *root,
-                                      json_emit_frame_t *stack)
+                                      json_emit_frame_t *stack, int max_depth)
 {
     assert(w != NULL && root != NULL);
-    assert(stack != NULL);
+    assert(stack != NULL && max_depth > 0);
     if (root->type != SRMECH_JSON_OBJECT && root->type != SRMECH_JSON_ARRAY) {
         json_emit_scalar(w, root);
         return SRMECH_OK;
@@ -1039,7 +1051,7 @@ static srmech_status_t json_emit_tree(json_writer_t *w,
         if (closed) {
             depth--;
         } else if (child != NULL) {
-            if (depth >= SRMECH_JSON_MAX_DEPTH) {
+            if (depth >= max_depth) {
                 return SRMECH_ERR_OVERFLOW;
             }
             json_emit_open(w, &stack[depth], child);
@@ -1049,25 +1061,120 @@ static srmech_status_t json_emit_tree(json_writer_t *w,
     return SRMECH_OK;
 }
 
-srmech_status_t srmech_json_write(const srmech_json_value_t *v,
-                                  char *buf, size_t buf_len,
-                                  size_t *out_len)
+/* Emit-scratch dimensions: the widest object child-count (the order-array
+ * width W) and the deepest container nesting (D). Walks the tree with a
+ * MAX_DEPTH-bounded cursor stack (a genuine recursion-depth guard, NOT a
+ * problem-size cap — objects/arrays of any width are traversed). A scalar
+ * root yields W = 0, D = 0. Objects below MAX_DEPTH are not measured (the
+ * writer OVERFLOWs there regardless), so the (W, D) pair sizes exactly the
+ * arena the writer can actually use. */
+typedef struct {
+    const srmech_json_value_t *node;
+    bool                       is_object;
+    uint32_t                   idx;
+} json_dim_frame_t;
+
+static void json_emit_dims(const srmech_json_value_t *v,
+                           uint32_t *max_w, int *max_d)
+{
+    assert(v != NULL);
+    assert(max_w != NULL && max_d != NULL);
+    *max_w = 0;
+    *max_d = 0;
+    if (v->type != SRMECH_JSON_OBJECT && v->type != SRMECH_JSON_ARRAY) {
+        return;
+    }
+    json_dim_frame_t stack[SRMECH_JSON_MAX_DEPTH];
+    stack[0].node = v;
+    stack[0].is_object = (v->type == SRMECH_JSON_OBJECT);
+    stack[0].idx = 0;
+    if (stack[0].is_object) { *max_w = v->u.obj.n; }
+    int depth = 1;
+    *max_d = 1;
+    while (depth > 0) {
+        json_dim_frame_t *fr = &stack[depth - 1];
+        uint32_t n = fr->is_object ? fr->node->u.obj.n : fr->node->u.arr.n;
+        if (fr->idx >= n) { depth--; continue; }
+        const srmech_json_value_t *child = fr->is_object
+            ? fr->node->u.obj.vals[fr->idx] : fr->node->u.arr.items[fr->idx];
+        fr->idx++;
+        if ((child->type == SRMECH_JSON_OBJECT ||
+             child->type == SRMECH_JSON_ARRAY) && depth < SRMECH_JSON_MAX_DEPTH) {
+            bool cobj = (child->type == SRMECH_JSON_OBJECT);
+            if (cobj && child->u.obj.n > *max_w) { *max_w = child->u.obj.n; }
+            stack[depth].node = child;
+            stack[depth].is_object = cobj;
+            stack[depth].idx = 0;
+            depth++;
+            if (depth > *max_d) { *max_d = depth; }
+        }
+    }
+}
+
+/* Bytes of caller workspace srmech_json_write_ws needs for `v`: the emit
+ * frame stack (D frames) plus the shared key-order pool (D * W uint32),
+ * each pointer-aligned by the arena. No object-width cap — sized to the
+ * actual tree. */
+size_t srmech_json_write_arena_bytes(const srmech_json_value_t *v)
+{
+    assert(v != NULL);
+    if (v == NULL) { return 0u; }
+    uint32_t w = 0;
+    int d = 0;
+    json_emit_dims(v, &w, &d);
+    if (d < 1) { d = 1; }
+    assert(d >= 1 && d <= SRMECH_JSON_MAX_DEPTH);
+    size_t frames = (size_t)d * sizeof(json_emit_frame_t);
+    size_t pool = (size_t)d * (size_t)w * sizeof(uint32_t);
+    return frames + pool + 2u * sizeof(void *);  /* + 2 alignment pads */
+}
+
+/* Serialise `v` to `buf` using caller-supplied scratch `ws` (size it with
+ * srmech_json_write_arena_bytes). The key-order permutation arrays are carved
+ * from `ws`, so an object is bounded only by the arena — there is no
+ * compiled-in object-width cap. Byte-identical to json.dumps(sort_keys=True,
+ * ensure_ascii=False) for the float-free MPR/genome tree. */
+srmech_status_t srmech_json_write_ws(const srmech_json_value_t *v,
+                                     char *buf, size_t buf_len,
+                                     size_t *out_len,
+                                     void *ws, size_t ws_len)
 {
     assert(v != NULL);
     assert(out_len != NULL);
     if (v == NULL || out_len == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    /* The emit-frame stack is large; keep it in a thread-local static
-     * (Rule-3-clean static storage; per-thread => reentrant). */
-    static SRMECH_THREAD_LOCAL json_emit_frame_t
-        stack[SRMECH_JSON_MAX_DEPTH];
+    uint32_t width = 0;
+    int depth = 0;
+    json_emit_dims(v, &width, &depth);
+    if (depth < 1) { depth = 1; }
+    json_arena_t a;
+    a.base = (unsigned char *)ws;
+    a.len = ws_len;
+    a.used = 0;
+    json_emit_frame_t *stack = (json_emit_frame_t *)json_arena_alloc(
+        &a, (size_t)depth * sizeof(json_emit_frame_t));
+    if (stack == NULL) {
+        return SRMECH_ERR_BAD_INPUT;  /* arena too small for the tree */
+    }
+    if (width > 0u) {
+        uint32_t *pool = (uint32_t *)json_arena_alloc(
+            &a, (size_t)depth * (size_t)width * sizeof(uint32_t));
+        if (pool == NULL) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        for (int k = 0; k < depth; k++) {
+            stack[k].order = pool + (size_t)k * (size_t)width;
+        }
+    } else {
+        for (int k = 0; k < depth; k++) { stack[k].order = NULL; }
+    }
     json_writer_t w;
     w.buf = buf;
     w.cap = buf_len;
     w.pos = 0;
     w.overflow = 0;
-    srmech_status_t st = json_emit_tree(&w, v, stack);
+    srmech_status_t st = json_emit_tree(&w, v, stack, depth);
     if (st != SRMECH_OK) {
         return st;
     }
@@ -1248,10 +1355,10 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
 {
     assert(b != NULL);
     assert((keys != NULL && vals != NULL) || n == 0);
-    if (n > (uint32_t)SRMECH_JSON_MAX_CHILDREN) {
-        b->failed = 1;
-        return NULL;
-    }
+    /* No compiled-in child cap: the key/value-pointer copies are carved from
+     * the caller arena (json_builder_copy_keys/_ptrs) and the writer's key
+     * sort scratch is caller-arena-backed too, so an object is bounded only
+     * by the arena. */
     srmech_json_value_t *v = json_builder_node(b);
     const char **kcopy = json_builder_copy_keys(b, keys, n);
     srmech_json_value_t **vcopy = json_builder_copy_ptrs(b, vals, n);

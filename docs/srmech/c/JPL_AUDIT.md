@@ -444,8 +444,10 @@ Return-value checks at every internal-callsite:
   pasting macros, not all parameterised constants). `SRMECH_HERMITIAN_WS_MAX`
   is its object-like `n = MAX_NODES` specialisation, also single-line.
 - No multi-line macros. No recursive / token-pasting macros.
-- `srmech_json.c` (§41 JSON mirror) adds `SRMECH_JSON_MAX_CHILDREN`,
-  `SRMECH_JSON_MAX_DEPTH` (object-like int constants) and the four
+- `srmech_json.c` (§41 JSON mirror) adds `SRMECH_JSON_MAX_DEPTH`
+  (object-like int recursion-depth guard — there is no child-count cap
+  since rc160: the writer key-sort scratch is caller-arena-backed) and
+  the four
   structural-byte constants `JSON_LBRACE` / `JSON_RBRACE` / `JSON_LBRACK`
   / `JSON_RBRACK` (single-token ASCII-code object-like macros, `0x7B` /
   `0x7D` / `0x5B` / `0x5D`). They exist so no brace/bracket char literal
@@ -619,12 +621,13 @@ the toolchain-level Rule-10 ratchet.
   `repr(float)` is explicitly NOT guaranteed (out of scope; manifests are
   float-free). Both the parser and the writer are NON-recursive (Rule 1):
   each walks the tree with an explicit stack of frames bounded by
-  `SRMECH_JSON_MAX_DEPTH` (64), allocated off the call stack (parser frames
-  in the arena; the writer's emit-frame stack a `static SRMECH_THREAD_LOCAL`
-  array — Rule-3-clean static storage, per-thread reentrant). Per-node
-  children capped at `SRMECH_JSON_MAX_CHILDREN` (256). Every loop has a fixed
-  bound (Rule 2): the container loops are bounded by the input length / the
-  child cap. No malloc (Rule 3 — caller arena), no libm, no `<complex.h>`.
+  `SRMECH_JSON_MAX_DEPTH` (64): the parser frames + the writer's emit-frame
+  stack and its per-frame key-order pool are ALL carved from the caller
+  arena (rc160 — `srmech_json_write_ws` / `srmech_json_write_arena_bytes`),
+  so there is no child-count cap; an object is bounded only by the arena.
+  Every loop has a fixed bound (Rule 2): the container loops are bounded by
+  the input length / the object width (itself ≤ the arena).
+  No malloc (Rule 3 — caller arena), no libm, no `<complex.h>`.
   Two char classifiers (`json_is_ws` / `json_is_digit`) are Rule-5 exempt
   (see the Rule 5 section); every other function carries ≥ 2 asserts and is
   ≤ 60 lines. `SRMECH_ABI_VERSION` unchanged at 3 (new symbols + a struct +

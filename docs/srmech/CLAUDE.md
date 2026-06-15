@@ -374,18 +374,21 @@ primitive class, no exceptions**. "Binding-layer concern" is NOT a
 legitimate skip-class directive — it's a recurrence vector for
 soft-MVP carve-outs that this project has explicitly rejected.
 
-*Specific scope-bounded helpers stay Python by separate scope decision.*
-The Phase B5 decision keeps TOML parsing in Python via `tomli`
-round-trip rather than vendoring a TOML parser in C — that's a
-**vendoring-scope** decision (TOML is its own grammar; importing a
-C TOML parser into srmech's source tree is its own substantial
-scope question), not a "Class F is Python-only" decision. Class F's
-primitive (template `{key}` substitution) ships in C as
-`srmech_template_render`; TOML *parsing* — the act of turning TOML
-bytes into a structured tree — is separate from Class F's primitive
-operation and stays Python because of vendoring scope, not because
-templating is somehow binding-layer-only. Frame any future Python-
-side decision as **what's the actual scope concern (vendoring? build
+*Historical Phase-B5 note — SUPERSEDED.* Phase B5 originally kept
+TOML/JSON *parsing* in Python (a `tomli` round-trip) as a
+**vendoring-scope** decision. That stance was **superseded by the
+rc128 full-1:1 C-parity mandate**: srmech's C library now ships its
+OWN malloc-free, caller-arena **`srmech_json` parser/canonical writer**
+(byte-identical to `json.dumps`, the keystone for the genome
+`manifest.json` mirror) and a **`srmech_toml` parser** — because a
+C-only / microcontroller host genuinely needs them to read JSON
+manifests and TOML descriptors with no Python present. As of the
+v0.7.5rc159/rc160 standalone-honor sweep, both carry **no compiled-in
+child cap** (the writer's key-sort scratch + the parsers' staging are
+caller-arena-backed). So "don't vendor a parser in C" is no longer
+the stance. Class F's primitive (template `{key}` substitution) ships
+in C as `srmech_template_render`. Frame any future Python-side
+decision as **what's the actual scope concern (vendoring? build
 complexity? dependency surface?)** rather than as **skip-the-class**.
 
 **srmech is not the EMDR firmware.** The repo root `CLAUDE.md`
@@ -719,8 +722,11 @@ production publish.
 - Don't introduce CAD-grade fabrication geometry, mesh-contact,
   axle-precession, lubricant, or related machinery. srmech models
   *data provenance*, not physical artefacts.
-- Don't vendor a TOML parser or JSON parser in C. Phase B5
-  explicitly rejected this; canonicalisation stays in Python.
+- The C library DOES vendor a `srmech_json` + `srmech_toml` parser
+  (the old "don't vendor a parser in C" Phase-B5 note is SUPERSEDED by
+  the rc128 full-1:1 mandate — a C-only / MCU host needs them to read
+  JSON manifests / TOML descriptors with no Python). Both are
+  caller-arena-backed with no compiled-in child cap (rc159/rc160).
 - Don't introduce a new `hashlib.sha256(...)` direct call;
   route through `format.sha256_bytes(...)`.
 - Don't add a new function > 60 lines or remove an assertion
