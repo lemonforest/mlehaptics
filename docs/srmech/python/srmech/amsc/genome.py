@@ -44,9 +44,12 @@ each kernel by its telomere. Completes the F715 hierarchy: GENOME (multi-kernel)
 from __future__ import annotations
 
 import json
+import shutil
+import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
+from srmech.amsc import _native
 from srmech.amsc.format import MPRRecord as _MPRRecord
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.amsc.format import validate_mpr_record as _validate_mpr_record
@@ -642,6 +645,20 @@ def _write_manifest(path, record) -> None:
     manifest_path.write_text(text + "\n", encoding="utf-8", newline="\n")
 
 
+def _the_one_block_bytes(the_one) -> bytes:
+    """The ``leaf_dim``-byte block for ``the_one`` (the width the body lacks inline) —
+    the native ``srmech_genome_*`` calls take it as raw bytes."""
+    return bytes(_leaf_blocks([the_one])[0])
+
+
+def _the_one_bytes_or_empty(the_one) -> bytes:
+    """``the_one`` as bytes, or ``b""`` when it is ``None`` — for the native genome
+    reads (``load`` / ``window`` / ``catalog`` / ``explode`` / ``pack`` / ``import``)
+    where ``the_one`` is only consulted as the §44 rebuild width (a present manifest
+    needs none, so an empty ``the_one`` maps to the C ``NULL,0``)."""
+    return b"" if the_one is None else _the_one_block_bytes(the_one)
+
+
 def genome_save(strand, path, the_one, labels=None) -> dict:
     """Persist a genome ``strand`` to ``path/`` (a DIRECTORY) — UPSTREAM §41 / §44.
 
@@ -689,9 +706,21 @@ def genome_save(strand, path, the_one, labels=None) -> dict:
         )
 
     body_bytes = bytes(body)
-    (path / _BODY_NAME).write_bytes(body_bytes)
-
     the_one_block = _leaf_blocks([the_one])[0]
+
+    # §49: native C save (writes turns.bin + manifest.json byte-identically) when the
+    # genome fits the C static scratch; ANY native error falls back to pure-Python
+    # (which handles an arbitrarily large genome + raises precise exceptions).
+    if (_native.has_native_genome()
+            and len(body_bytes) <= _native.GENOME_NATIVE_BODY_MAX
+            and len(chroms) <= _native.GENOME_NATIVE_MAX_CHROMS):
+        try:
+            _native.genome_save_c(str(path), body_bytes, leaf_dim, bytes(the_one_block))
+            return _read_manifest(path)
+        except _native.NativeGenomeError:
+            pass
+
+    (path / _BODY_NAME).write_bytes(body_bytes)
     data = _build_manifest_data(leaf_dim, the_one_block, chrom_specs, body_bytes)
     record = _manifest_record(data)
     _write_manifest(path, record)
@@ -775,6 +804,15 @@ def genome_catalog(path, *, the_one=None) -> dict:
     optional ``.fai`` cache); that rebuild needs ``the_one=`` (its length is the leaf
     width) and reads ``turns.bin`` once.
     """
+    # §49: native C catalog (parse manifest.json, or §44 rebuild-by-scan) → the same
+    # canonical JSON the pure path produces; ANY native error falls back.
+    if _native.has_native_genome():
+        try:
+            text = _native.genome_catalog_c(
+                str(Path(path)), _the_one_bytes_or_empty(the_one))
+            return json.loads(text)["data"]
+        except _native.NativeGenomeError:
+            pass
     return _catalog_data(path, the_one)
 
 
@@ -840,6 +878,21 @@ def genome_load(path, *, labels=None, the_one=None):
     all_labels = [c["label"] for c in chrom_entries]
 
     if labels is None:
+        # §49: native C whole-genome load (reads turns.bin into one buffer + re-hashes
+        # the body against the manifest's body_sha256); Python decodes the verified
+        # bytes block-by-block. ANY native error falls back to the streaming read.
+        if _native.has_native_genome():
+            try:
+                body = _native.genome_load_c(
+                    str(path), bytes(_leaf_blocks([the_one])[0]),
+                    body_path.stat().st_size)
+                strand = [
+                    _hv_from_block(body[k:k + leaf_dim])
+                    for k in range(0, len(body), leaf_dim)
+                ]
+                return strand, the_one, all_labels
+            except _native.NativeGenomeError:
+                pass
         # Whole-genome streaming read: one fixed-width block at a time, hashing
         # incrementally is not available via sha256_bytes (no streaming API), so
         # we accumulate the body bytes we STREAM (block-by-block, never building
@@ -946,6 +999,20 @@ def genome_window(path, label, *, the_one=None):
             f"genome_window: label {label!r} not in the genome "
             f"(have {list(by_label)!r})"
         )
+    # §49: native C window (seek + bounded read + cap-integrity check) returns the whole
+    # region; Python skips the caps to the DATA turns. ANY native error falls back.
+    if _native.has_native_genome():
+        try:
+            region = _native.genome_window_c(
+                str(path), label, _the_one_bytes_or_empty(the_one),
+                (path / _BODY_NAME).stat().st_size)
+            return [
+                _hv_from_block(region[k:k + leaf_dim])
+                for k in range(0, len(region), leaf_dim)
+                if not _block_is_cap(region[k:k + leaf_dim])
+            ]
+        except _native.NativeGenomeError:
+            pass
     region = _read_region(path, by_label[label], leaf_dim)
     leaves: List[_HV] = []
     for k in range(0, len(region), leaf_dim):
@@ -1026,11 +1093,6 @@ def genome_append(path, label, leaves, the_one) -> dict:
             f"genome_append: chromosome {label!r} already exists in the genome"
         )
 
-    body_path = path / _BODY_NAME
-    existing_body = body_path.read_bytes()
-    # Integrity bound on what we are appending TO (never grow a corrupt body).
-    _verify_body_hash(existing_body, data["body_sha256"])
-
     new_strand = chromosome(leaves, the_one, label=label)
     new_blocks = _leaf_blocks(new_strand)
     for blk in new_blocks:
@@ -1039,8 +1101,24 @@ def genome_append(path, label, leaves, the_one) -> dict:
                 f"genome_append: leaf block width {len(blk)} != leaf_dim "
                 f"{leaf_dim}"
             )
-    byte_offset = len(existing_body)
     appended = b"".join(new_blocks)
+
+    # §49: native C append (the cap block + data turns appended append-only to
+    # turns.bin + manifest re-derived, byte-identical); ANY native error falls back.
+    if _native.has_native_genome():
+        try:
+            _native.genome_append_c(
+                str(path), label, appended, leaf_dim,
+                bytes(_leaf_blocks([the_one])[0]))
+            return _read_manifest(path)
+        except _native.NativeGenomeError:
+            pass
+
+    body_path = path / _BODY_NAME
+    existing_body = body_path.read_bytes()
+    # Integrity bound on what we are appending TO (never grow a corrupt body).
+    _verify_body_hash(existing_body, data["body_sha256"])
+    byte_offset = len(existing_body)
 
     # Append-only: open in append-binary so prior bytes are untouched.
     with body_path.open("ab") as f:
@@ -1121,12 +1199,20 @@ def genome_remove(path, label, *, the_one=None) -> dict:
             f"genome_remove: {label!r} is the genome's only chromosome — a genome "
             f"keeps >= 1 chromosome; remove the genome directory instead"
         )
+    one = _resolve_the_one(data, the_one)
+    # §49: native C remove (find the region + splice the span out in place + re-derive
+    # the manifest, byte-identical); ANY native error falls back to the pure splice.
+    if _native.has_native_genome():
+        try:
+            _native.genome_remove_c(str(path), label, bytes(_leaf_blocks([one])[0]))
+            return _read_manifest(path)
+        except _native.NativeGenomeError:
+            pass
     entry = by_label[label]
     off, byte_len = int(entry["byte_offset"]), int(entry["byte_len"])
     body = (path / _BODY_NAME).read_bytes()
     _verify_body_hash(body, data["body_sha256"])         # integrity bound before edit
     new_body = body[:off] + body[off + byte_len:]        # splice the span out in place
-    one = _resolve_the_one(data, the_one)
     return _write_body_and_manifest(path, new_body, leaf_dim, one)
 
 
@@ -1160,11 +1246,22 @@ def genome_replace(path, label, leaves, the_one) -> dict:
             f"genome_replace: label {label!r} not in the genome "
             f"(have {list(by_label)!r})"
         )
+    new_region = b"".join(_leaf_blocks(chromosome(leaves, the_one, label=label)))
+    # §49: native C replace (splice old span out + fresh region in at the same position
+    # + manifest re-derive, byte-identical); ANY native error falls back to the pure
+    # splice.
+    if _native.has_native_genome():
+        try:
+            _native.genome_replace_c(
+                str(path), label, new_region, leaf_dim,
+                bytes(_leaf_blocks([the_one])[0]))
+            return _read_manifest(path)
+        except _native.NativeGenomeError:
+            pass
     entry = by_label[label]
     off, byte_len = int(entry["byte_offset"]), int(entry["byte_len"])
     body = (path / _BODY_NAME).read_bytes()
     _verify_body_hash(body, data["body_sha256"])         # integrity bound before edit
-    new_region = b"".join(_leaf_blocks(chromosome(leaves, the_one, label=label)))
     new_body = body[:off] + new_region + body[off + byte_len:]
     return _write_body_and_manifest(path, new_body, leaf_dim, the_one)
 
@@ -1295,6 +1392,16 @@ def genome_export(path, label, out, *, the_one=None) -> dict:
             f"genome_export: label {label!r} not in the genome "
             f"(have {list(by_label)!r})"
         )
+    # §49: native C export (read the region + build the MPR-attested .chr, byte-
+    # identical); Python re-reads it for the returned ``data``. ANY native error falls
+    # back to the pure-Python build.
+    if _native.has_native_genome():
+        try:
+            _native.genome_export_c(
+                str(path), label, str(out), _the_one_bytes_or_empty(the_one))
+            return _read_chr(Path(out)).data
+        except _native.NativeGenomeError:
+            pass
     entry = by_label[label]
     region = _read_region(path, entry, leaf_dim)            # cap-integrity checked
     one_block = bytes.fromhex(data["the_one"]["hex"])
@@ -1322,6 +1429,18 @@ def genome_import(chr_path, dest, *, the_one=None) -> dict:
     manifest-less existing ``dest`` (§44 rebuild width); the bundle carries its own.
     """
     dest = Path(dest)
+    # §49: native C import (re-hash the bundle self-verifying, then SEED a fresh dest or
+    # APPEND byte-for-byte); Python re-reads the dest manifest for the return. ANY native
+    # error falls back to the pure-Python import (precise GenomeBoundingError / ValueError
+    # on a flipped byte / the_one mismatch / duplicate label).
+    if _native.has_native_genome():
+        try:
+            dest.mkdir(parents=True, exist_ok=True)   # native SEED save needs the dir
+            _native.genome_import_c(
+                str(chr_path), str(dest), _the_one_bytes_or_empty(the_one))
+            return _read_manifest(dest)
+        except _native.NativeGenomeError:
+            pass
     record = _read_chr(chr_path)
     cdata = record.data
     region = bytes.fromhex(cdata["region"]["hex"])
@@ -1389,14 +1508,30 @@ def genome_explode(path, out_dir, *, the_one=None) -> list:
     out_dir = Path(out_dir)
     data = _catalog_data(path, the_one)
     out_dir.mkdir(parents=True, exist_ok=True)
-    written = []
-    for entry in data["chromosomes"]:
-        label = entry["label"]
+    labels = [e["label"] for e in data["chromosomes"]]
+    for label in labels:
         if "/" in label or "\\" in label or label in ("", ".", ".."):
             raise ValueError(
                 f"genome_explode: chromosome label {label!r} is not filename-safe "
                 f"(cannot become a <label>.chr loose object)"
             )
+    # §49: native C explode (one MPR-attested <label>.chr per chromosome, byte-
+    # identical); Python re-reads each bundle's region hash for the returned list. ANY
+    # native error falls back to the pure-Python per-export loop.
+    if _native.has_native_genome():
+        try:
+            _native.genome_explode_c(
+                str(path), str(out_dir), _the_one_bytes_or_empty(the_one))
+            return [
+                {"label": label, "path": str(out_dir / f"{label}.chr"),
+                 "region_sha256":
+                     _read_chr(out_dir / f"{label}.chr").data["region"]["sha256"]}
+                for label in labels
+            ]
+        except _native.NativeGenomeError:
+            pass
+    written = []
+    for label in labels:
         chr_path = out_dir / f"{label}.chr"
         cdata = genome_export(path, label, chr_path, the_one=the_one)
         written.append({
@@ -1433,6 +1568,28 @@ def genome_pack(loose_dir, dest, *, the_one=None) -> dict:
     chr_files = sorted(loose_dir.glob("*.chr"))
     if not chr_files:
         raise ValueError(f"genome_pack: no .chr files in {str(loose_dir)!r}")
+    # §49: native C pack (scan *.chr, sort by each bundle's inner label, import each in
+    # canonical order, byte-identical). Pack is MULTI-STEP (one import per bundle) so it
+    # is NOT atomic — a mismatched bundle fails AFTER earlier ones were written. To keep
+    # the fallback clean, native packs into a TEMP dir and the real ``dest`` is only
+    # touched on full success; ANY native error leaves ``dest`` pristine for the
+    # pure-Python loop (whose precise GenomeBoundingError / ValueError the tests pin).
+    # Only the fresh-``dest`` case routes natively (an existing ``dest`` is an APPEND the
+    # temp-pack can't see — that stays pure-Python).
+    if _native.has_native_genome() and not (dest / _BODY_NAME).exists():
+        scratch = Path(tempfile.mkdtemp())
+        try:
+            _native.genome_pack_c(
+                str(loose_dir), str(scratch), _the_one_bytes_or_empty(the_one))
+            dest.mkdir(parents=True, exist_ok=True)
+            (dest / _BODY_NAME).write_bytes((scratch / _BODY_NAME).read_bytes())
+            (dest / _MANIFEST_NAME).write_bytes(
+                (scratch / _MANIFEST_NAME).read_bytes())
+            return _read_manifest(dest)
+        except _native.NativeGenomeError:
+            pass                                       # real dest untouched
+        finally:
+            shutil.rmtree(scratch, ignore_errors=True)
     # Canonical order: sort by the label stored INSIDE each bundle (robust to
     # externally-named .chr files; agrees with filename order for explode output).
     keyed = sorted((_read_chr(cf).data["label"], cf) for cf in chr_files)

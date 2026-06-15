@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc153] - 2026-06-15
+
+**§49 binding mile — the 11 `srmech_genome_*` C symbols are now bound + dispatched.** The C library already shipped the whole genome file-management family (the §41/§43/§44/§45 mirror), but `srmech.amsc.genome` never called it — it stayed pure-Python (the §38 / F708 "C exists, Python doesn't call it" gap). rc153 binds all 11 symbols in `srmech.amsc._native` and routes `genome.py` through them when `HAS_NATIVE`, so a C-host genome path is real AND the Python path is native-accelerated.
+
+- **`srmech.amsc._native`** binds `srmech_genome_{save,load,catalog,append,remove,replace,window,export,import,explode,pack}` + `srmech_json_write` (argtypes/restype, `hasattr`-guarded), and adds 11 `genome_*_c` wrappers + `has_native_genome()` + a `NativeGenomeError` + a lazily-allocated 16-MiB workspace arena. `genome_catalog_c` serialises the native `srmech_json_value_t*` manifest tree via `srmech_json_write` (byte-identical to `json.dumps`) and returns the JSON text.
+- **`srmech.amsc.genome`** routes all 11 public ops: the native path is a **pure accelerator** (it writes `turns.bin` + `manifest.json` + the `.chr` bundles byte-for-byte identically — proven across rc143–rc152's byte-parity harness), and on ANY native error it falls back to pure-Python (so an oversized genome past the 16-MiB static scratch, and every precise `GenomeBoundingError` / `ValueError`, are preserved). `genome_pack` packs natively into a scratch dir and only adopts `dest` on full success (pack is multi-step → not atomic → the real `dest` must stay pristine for a clean fallback).
+- **Differential test** (`tests/test_genome_native_dispatch_rc153.py`, 11 cases): every op runs once native + once pure-Python (forced) and asserts the on-disk strand + manifest are **byte-identical** and the returns match. SKIPS when the native genome surface is not built (pure-wheel / numpy-absent dev tree); the CI test-matrix cells build it.
+- **No new public callable** — `describe()["tools"]["total"]` stays **300**; ABI stays **3** (binding existing symbols / the genome C is not wired into the carrier-op ABI). 5 SSOT bumped. numpy-free.
+
 ## [0.7.5rc152] - 2026-06-14
 
 **§43 bundling↔AMSC compose — `genome_register_attested` (F729).** A genome's exploded `.chr` dir can now be registered with the AMSC catalog: each chromosome becomes its own attested source, discoverable through `list_attested_sources`. This composes the EXISTING AMSC framework — it does **not** mint a parallel attestation (F730).
