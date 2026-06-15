@@ -2084,6 +2084,52 @@ def _register_primitive_class_tools() -> None:
             returns=R("float", "in [0, 1]"),
         ),
         ToolEntry(
+            name="srmech.amsc.hdc.klein4_bundle_accumulate", owner="srmech",
+            category="hdc",
+            summary="STREAMING klein4_bundle (UPSTREAM §50): fold ONE Klein-4 "
+                    "vector into a fixed-width (1+2*D uint32) per-coordinate tally, "
+                    "so a holographic store never materialises its inputs and stays "
+                    "fixed-width (grows with D, not the #folded vectors). acc=None "
+                    "auto-creates; returns acc (mutated in place). Native-dispatched "
+                    "standalone-C kernel; the caller owns acc (no compiled-in cap).",
+            parameters=(P("acc", "array('I')|None", True,
+                          "the (1+2*D) uint32 accumulator, or None to create one "
+                          "sized to v"),
+                        P("v", "HV", True, "uint8 {0,1,2,3} vector of length D")),
+            returns=R("array('I')", "the (1+2*D) uint32 accumulator"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_bundle_resolve", owner="srmech",
+            category="hdc",
+            summary="Resolve a klein4_bundle_accumulate accumulator to the bundled "
+                    "Klein-4 vector — strict per-bit majority over n=acc[0] folded "
+                    "vectors (tie → 0), BIT-IDENTICAL to klein4_bundle. Returns the "
+                    "HV carrier, so a resolved bundle drops into a genome tome-leaf "
+                    "or a klein4_similarity cleanup. Native-dispatched.",
+            parameters=(P("acc", "array('I')", True,
+                          "a (1+2*D) uint32 accumulator"),),
+            returns=R("HV", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.cooccurrence_fold", owner="srmech",
+            category="hdc",
+            summary="Holographic co-occurrence store (UPSTREAM §50) — the DUAL of "
+                    "the explicit-edge §17-U1 cooccurrence_edges. Folds every "
+                    "(token, neighbour) within ±window into a per-token fixed-width "
+                    "Klein-4 bundle WITHOUT building the edge list, so the store "
+                    "grows with VOCAB (Heaps) not edges. Read out a relationship "
+                    "with klein4_similarity(bundles[a], codes[b]). LOSSY "
+                    "(superposition crosstalk) — the bounded associative tail.",
+            parameters=(P("tokens", "Sequence[str]", True, "the token stream"),
+                        P("window", "int", True, "co-occurrence radius (>= 1)"),
+                        P("dim", "int", True, "Klein-4 width D (one byte/coord)"),
+                        P("seed", "int", False,
+                          "base seed for the deterministic per-token codes")),
+            returns=R("dict",
+                      "{'bundles': {token: HV}, 'codes': {token: HV}, "
+                      "'vocab': [token, ...], 'n_tokens': int}"),
+        ),
+        ToolEntry(
             name="srmech.amsc.hdc.klein4_chirality_flip_gamma5", owner="srmech",
             category="hdc",
             summary="Flip the γ₅ chirality axis (XOR with sector mask 2).",
