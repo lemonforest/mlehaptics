@@ -496,3 +496,51 @@ srmech_status_t srmech_klein4_bundle_resolve(const uint32_t *acc,
     }
     return SRMECH_OK;
 }
+
+/* klein4_cooccurrence_fold (UPSTREAM §50; rc165): the §50 holographic
+ * co-occurrence fold with the corpus-linear inner loop fully native — the
+ * per-token windowed accumulation, no Python callback (the per-token string→code
+ * mapping + vocab stay Python, sublinear). For every corpus position i, each
+ * neighbour code within ±window (excluding i) folds into the accumulator of the
+ * token at i; the fold of one neighbour reuses srmech_klein4_bundle_accumulate
+ * (same 2-bit tally + byte validation). out_accs is n_codes * (1 + 2*dim) uint32,
+ * caller-owned, zeroed here then folded — the width is the architecture, no cap.
+ * window >= 1; bad code byte / out-of-range index -> SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_klein4_cooccurrence_fold(const uint8_t  *codes,
+                                                uint32_t        n_codes,
+                                                const uint32_t *tok_idx,
+                                                uint32_t        n_tokens,
+                                                uint32_t        window,
+                                                size_t          dim,
+                                                uint32_t       *out_accs)
+{
+    assert(codes != NULL && tok_idx != NULL && out_accs != NULL);
+    assert(dim > 0u && window > 0u);
+    if (codes == NULL || tok_idx == NULL || out_accs == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (dim == 0u || window == 0u || n_codes == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    size_t stride = 1u + 2u * dim;          /* per-token accumulator width */
+    for (size_t k = 0; k < (size_t)n_codes * stride; k++) {
+        out_accs[k] = 0u;                   /* zero the caller's accumulators */
+    }
+    for (uint32_t i = 0; i < n_tokens; i++) {
+        uint32_t ti = tok_idx[i];
+        if (ti >= n_codes) { return SRMECH_ERR_BAD_INPUT; }
+        uint32_t lo = (i > window) ? (i - window) : 0u;
+        uint32_t hi = n_tokens;             /* exclusive; no overflow (i<n_tokens) */
+        if (window < n_tokens - i) { hi = i + window + 1u; }
+        uint32_t *acc = &out_accs[(size_t)ti * stride];
+        for (uint32_t j = lo; j < hi; j++) {
+            if (j == i) { continue; }
+            uint32_t tj = tok_idx[j];
+            if (tj >= n_codes) { return SRMECH_ERR_BAD_INPUT; }
+            srmech_status_t st = srmech_klein4_bundle_accumulate(
+                acc, &codes[(size_t)tj * dim], dim);
+            if (st != SRMECH_OK) { return st; }
+        }
+    }
+    return SRMECH_OK;
+}

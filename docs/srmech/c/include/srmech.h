@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc164"
-#define SRMECH_VERSION       "0.7.5rc164"
+#define SRMECH_VERSION_PRE   "rc165"
+#define SRMECH_VERSION       "0.7.5rc165"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1668,6 +1668,26 @@ srmech_status_t srmech_klein4_bundle_accumulate(uint32_t      *acc,
 srmech_status_t srmech_klein4_bundle_resolve(const uint32_t *acc,
                                              uint8_t        *out,
                                              size_t          dim);
+
+/* klein4_cooccurrence_fold (UPSTREAM §50; rc165): the §50 holographic
+ * co-occurrence fold with the corpus-linear inner loop fully in C — the per-token
+ * windowed accumulation, no Python callback. `codes` is n_codes fixed-width
+ * (dim-byte) Klein-4 atomic codes (each byte in {0..3}); `tok_idx[i]` is the
+ * code index (0..n_codes-1) carried by corpus position i. For every position i in
+ * [0, n_tokens), each neighbour within ±window (excluding i) folds into the
+ * accumulator of the token at i. `out_accs` is n_codes * (1 + 2*dim) uint32,
+ * CALLER-allocated; this zeroes it then folds, so each accumulator is the SAME
+ * 2-bit tally as srmech_klein4_bundle_accumulate (resolving out_accs[t] is
+ * bit-identical to the streamed fold). Width is the architecture (caller's RAM) —
+ * no compiled-in cap. Class M; no abs. window >= 1; bad code byte / out-of-range
+ * index -> SRMECH_ERR_BAD_INPUT. Additive symbol — no ABI bump. */
+srmech_status_t srmech_klein4_cooccurrence_fold(const uint8_t  *codes,
+                                                uint32_t        n_codes,
+                                                const uint32_t *tok_idx,
+                                                uint32_t        n_tokens,
+                                                uint32_t        window,
+                                                size_t          dim,
+                                                uint32_t       *out_accs);
 
 /* ------------------------------------------------------------------ *
  * srmech.bus — cross-process IPC C peer (v0.5.0rc2)
