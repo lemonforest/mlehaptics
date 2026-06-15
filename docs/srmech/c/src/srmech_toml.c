@@ -28,13 +28,17 @@
  *      exactly to the child count). This is the "collect, then copy
  *      right-sized" discipline the task spec calls for.
  *
- * Per-table / per-array element count is capped at SRMECH_TOML_MAX_CHILDREN
- * and nesting depth at SRMECH_TOML_MAX_DEPTH (both -> SRMECH_ERR_OVERFLOW).
+ * Per-table / per-array element count is NOT capped (rc159 standalone-complete
+ * honor): children are collected into arena linked lists (no fixed staging
+ * arrays), so the only bound is the caller arena — a C-only / MCU host can
+ * parse a descriptor with any number of entries its RAM fits. Nesting depth is
+ * still bounded by SRMECH_TOML_MAX_DEPTH (a recursion-depth guard, not a
+ * problem-size cap) -> SRMECH_ERR_OVERFLOW.
  *
  * JPL Power-of-Ten compliance:
  *   - Rule 1 (no goto)        : OK
- *   - Rule 2 (bounded loops)  : OK — every scan bounded by `len`, every
- *                              child count by SRMECH_TOML_MAX_CHILDREN,
+ *   - Rule 2 (bounded loops)  : OK — every scan bounded by `len` (an element
+ *                              consumes >= 1 byte, so child count <= len),
  *                              every recursion by SRMECH_TOML_MAX_DEPTH
  *   - Rule 3 (no malloc)      : OK — caller arena only
  *   - Rule 4 (<=60 lines/func): OK — split into static helpers
@@ -146,6 +150,15 @@ typedef struct toml_btable {
     bool           is_inline;          /* inline {..}: cannot be reopened */
 } toml_btable_t;
 
+/* Arena linked-list node for collecting `[ ... ]` array elements before the
+ * "copy right-sized" emit (mirrors the builder-table entry list). No fixed
+ * staging array, so the element count is bounded only by the caller arena —
+ * not a compiled-in 256-entry cap (rc159 standalone-complete). */
+typedef struct toml_alist_node {
+    srmech_toml_value_t    *val;
+    struct toml_alist_node *next;
+} toml_alist_node_t;
+
 /* ================================================================== *
  * Parser cursor.
  * ================================================================== */
@@ -225,7 +238,10 @@ static toml_bentry_t *toml_btable_find(const toml_btable_t *t, const char *key)
     assert(t != NULL);
     assert(key != NULL);
     toml_bentry_t *e = t->head;
-    for (uint32_t guard = 0; guard <= SRMECH_TOML_MAX_CHILDREN; guard++) {
+    /* The list holds exactly t->count entries (append increments both in
+     * lockstep), so bound the walk by t->count — a runtime bound (JPL Rule 2),
+     * not a compiled-in 256-entry cap. */
+    for (uint32_t guard = 0; guard <= t->count; guard++) {
         if (e == NULL) {
             return NULL;
         }
@@ -238,15 +254,13 @@ static toml_bentry_t *toml_btable_find(const toml_btable_t *t, const char *key)
 }
 
 /* Append a new (key,val) entry to a builder table. Key MUST be absent
- * (caller checks). Enforces the SRMECH_TOML_MAX_CHILDREN cap. */
+ * (caller checks). No entry-count cap: the entry is arena-allocated and linked,
+ * so the table size is bounded only by the caller arena (rc159 honor). */
 static srmech_status_t toml_btable_append(toml_parser_t *p, toml_btable_t *t,
                                           const char *key, toml_bvalue_t *val)
 {
     assert(t != NULL);
     assert(key != NULL && val != NULL);
-    if (t->count >= SRMECH_TOML_MAX_CHILDREN) {
-        return SRMECH_ERR_OVERFLOW;
-    }
     void *mem = NULL;
     srmech_status_t st = toml_arena_alloc(&p->arena, sizeof(toml_bentry_t),
                                           &mem);
@@ -822,10 +836,10 @@ static srmech_status_t toml_put_leaf(toml_parser_t *p, toml_btable_t *t,
  * Compound values: array + inline table.
  * ================================================================== */
 
-/* Copy collected element pointers into a right-sized arena items[] and
- * fill the ARRAY value `out`. */
+/* Copy the collected element pointers (an arena linked list of `count` nodes)
+ * into a right-sized arena items[] and fill the ARRAY value `out`. */
 static srmech_status_t toml_emit_array(toml_parser_t *p,
-                                       srmech_toml_value_t **items,
+                                       const toml_alist_node_t *head,
                                        uint32_t count, srmech_toml_value_t *out)
 {
     assert(p != NULL);
@@ -839,8 +853,11 @@ static srmech_status_t toml_emit_array(toml_parser_t *p,
             return st;
         }
         arr = (srmech_toml_value_t **)mem;
+        const toml_alist_node_t *n = head;
         for (uint32_t k = 0u; k < count; k++) {
-            arr[k] = items[k];
+            assert(n != NULL);
+            arr[k] = n->val;
+            n = n->next;
         }
     }
     out->type = SRMECH_TOML_ARRAY;
@@ -880,29 +897,45 @@ static srmech_status_t toml_parse_array(toml_parser_t *p,
     if (depth >= SRMECH_TOML_MAX_DEPTH) {
         return SRMECH_ERR_OVERFLOW;
     }
-    srmech_toml_value_t *items[SRMECH_TOML_MAX_CHILDREN];
+    /* Collect elements into an arena linked list (like the builder tables) —
+     * NO fixed staging array, so the element count is bounded only by the
+     * caller arena, not a compiled-in 256-entry cap (rc159
+     * standalone-complete honor). The scan is still JPL-Rule-2-bounded: each
+     * element consumes >= 1 input byte, so it cannot exceed p->n. */
+    toml_alist_node_t *head = NULL;
+    toml_alist_node_t *tail = NULL;
     uint32_t count = 0u;
-    for (uint32_t guard = 0; guard <= SRMECH_TOML_MAX_CHILDREN; guard++) {
+    for (size_t guard = 0; guard <= p->n; guard++) {
         toml_skip_ws_nl(p);
         if (p->i >= p->n) {
             return SRMECH_ERR_BAD_INPUT;  /* unterminated array */
         }
         if (p->s[p->i] == ']') {
             p->i++;
-            return toml_emit_array(p, items, count, out);
-        }
-        if (count >= SRMECH_TOML_MAX_CHILDREN) {
-            return SRMECH_ERR_OVERFLOW;
+            return toml_emit_array(p, head, count, out);
         }
         srmech_toml_value_t elem;
         srmech_status_t st = toml_parse_value(p, &elem, depth + 1);
         if (st != SRMECH_OK) {
             return st;
         }
-        st = toml_dup_value(p, &elem, &items[count]);
+        void *mem = NULL;
+        st = toml_arena_alloc(&p->arena, sizeof(toml_alist_node_t), &mem);
         if (st != SRMECH_OK) {
             return st;
         }
+        toml_alist_node_t *node = (toml_alist_node_t *)mem;
+        st = toml_dup_value(p, &elem, &node->val);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+        node->next = NULL;
+        if (tail == NULL) {
+            head = node;
+        } else {
+            tail->next = node;
+        }
+        tail = node;
         count++;
         toml_skip_ws_nl(p);
         if (p->i < p->n && p->s[p->i] == ',') {
@@ -929,7 +962,10 @@ static srmech_status_t toml_parse_inline_table(toml_parser_t *p,
         return st;
     }
     toml_skip_ws_nl(p);
-    for (uint32_t guard = 0; guard <= SRMECH_TOML_MAX_CHILDREN; guard++) {
+    /* No entry cap: keys append to an arena linked list, so the inline table
+     * is bounded only by the caller arena. Still JPL-Rule-2-bounded — each
+     * key/value pair consumes >= 1 input byte, so it cannot exceed p->n. */
+    for (size_t guard = 0; guard <= p->n; guard++) {
         if (p->i >= p->n) {
             return SRMECH_ERR_BAD_INPUT;  /* unterminated inline table */
         }
@@ -1264,9 +1300,8 @@ static srmech_status_t toml_array_of_tables_append(toml_parser_t *p,
             return st;
         }
     }
-    if (bv->atable_n >= SRMECH_TOML_MAX_CHILDREN) {
-        return SRMECH_ERR_OVERFLOW;
-    }
+    /* No element cap for an array-of-tables: each element table links onto an
+     * arena list, bounded only by the caller arena (rc159 honor). */
     return toml_atable_link(p, bv, out);
 }
 

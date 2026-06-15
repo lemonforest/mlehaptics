@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc158"
-#define SRMECH_VERSION       "0.7.5rc158"
+#define SRMECH_VERSION_PRE   "rc159"
+#define SRMECH_VERSION       "0.7.5rc159"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2353,20 +2353,16 @@ srmech_status_t srmech_genome_pack(
  * is always a C string (the `len` field is the byte length, excluding
  * the NUL). The arena content must outlive any use of *out.
  *
- * Bounded build cap: a single table or array may hold at most
- * SRMECH_TOML_MAX_CHILDREN entries (the parser collects child pointers
- * in a fixed local array before copying them right-sized into the
- * arena); exceeding the cap returns SRMECH_ERR_OVERFLOW. Nesting depth
- * is likewise bounded by SRMECH_TOML_MAX_DEPTH.
+ * NO per-table / per-array element cap (rc159 standalone-complete honor):
+ * children are collected into arena linked lists (no fixed staging array),
+ * so a single table or array may hold any number of entries the caller arena
+ * fits — a C-only / MCU host parses a descriptor bounded only by its RAM.
+ * Nesting depth is still bounded by SRMECH_TOML_MAX_DEPTH (a recursion-depth
+ * guard, not a problem-size cap) -> SRMECH_ERR_OVERFLOW.
  *
  * ABI-additive: new symbols + types + macros only, so
  * SRMECH_ABI_VERSION stays 3. No libm, no <complex.h>, no malloc.
  * ------------------------------------------------------------------ */
-
-/* Per-table / per-array element cap (collected in a bounded local array
- * before being copied right-sized into the arena). A table/array with
- * more than this many direct entries returns SRMECH_ERR_OVERFLOW. */
-#define SRMECH_TOML_MAX_CHILDREN 256
 
 /* Maximum table/array/inline-table nesting depth (recursion guard for
  * the value parser; JPL Rule 2 bound). Exceeding it -> SRMECH_ERR_OVERFLOW. */
@@ -2411,9 +2407,8 @@ struct srmech_toml_value {
  * Returns:
  *   SRMECH_OK             — success (*out set)
  *   SRMECH_ERR_NULL_ARG   — src (with len > 0), ws, or out is NULL
- *   SRMECH_ERR_OVERFLOW   — arena too small, or a table/array exceeds
- *                           SRMECH_TOML_MAX_CHILDREN, or nesting exceeds
- *                           SRMECH_TOML_MAX_DEPTH
+ *   SRMECH_ERR_OVERFLOW   — caller arena `ws` too small for this document,
+ *                           or nesting exceeds SRMECH_TOML_MAX_DEPTH
  *   SRMECH_ERR_BAD_INPUT  — a syntax error / unsupported construct
  */
 srmech_status_t srmech_toml_parse(const char *src, size_t len,

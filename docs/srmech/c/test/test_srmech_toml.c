@@ -50,6 +50,38 @@ static void test_unicode_escape(void)
           "unicode backslash-u0041 -> A");
 }
 
+/* rc159 standalone-complete honor: a single array / table is bounded only by
+ * the caller arena, NOT a compiled-in 256-entry cap. Parse a 400-element array
+ * + a 400-key root table (both > the old SRMECH_TOML_MAX_CHILDREN = 256) and
+ * confirm every entry survives. */
+static void test_no_child_cap(void)
+{
+    static char doc[16384];
+    size_t n = 0;
+    int w = snprintf(doc + n, sizeof(doc) - n, "arr = [");
+    n += (size_t)w;
+    for (int i = 0; i < 400; i++) {
+        w = snprintf(doc + n, sizeof(doc) - n, "%s%d", i ? ", " : "", i);
+        n += (size_t)w;
+    }
+    w = snprintf(doc + n, sizeof(doc) - n, "]\n");
+    n += (size_t)w;
+    for (int i = 0; i < 400; i++) {
+        w = snprintf(doc + n, sizeof(doc) - n, "k%d = %d\n", i, i);
+        n += (size_t)w;
+    }
+    srmech_toml_value_t *root = NULL;
+    srmech_status_t st = srmech_toml_parse(doc, n, ws, sizeof(ws), &root);
+    CHECK(st == SRMECH_OK, "400-entry array+table parse ok (no 256 cap)");
+    const srmech_toml_value_t *arr = get(root, "arr");
+    CHECK(arr && arr->type == SRMECH_TOML_ARRAY && arr->u.arr.n == 400,
+          "array holds 400 elements (> old 256 cap)");
+    CHECK(arr && arr->u.arr.items[399]->u.i == 399, "array[399] == 399");
+    const srmech_toml_value_t *k399 = get(root, "k399");
+    CHECK(k399 && k399->type == SRMECH_TOML_INT && k399->u.i == 399,
+          "table key k399 == 399 (> old 256 cap)");
+}
+
 int main(void)
 {
     srmech_toml_value_t *root = NULL;
@@ -156,6 +188,7 @@ int main(void)
     }
 
     test_unicode_escape();
+    test_no_child_cap();
 
     /* Error / boundary cases. */
     st = srmech_toml_parse(NULL, 5, ws, sizeof(ws), &root);
