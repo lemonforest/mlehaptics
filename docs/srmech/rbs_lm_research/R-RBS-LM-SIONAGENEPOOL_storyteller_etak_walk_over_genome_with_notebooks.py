@@ -283,17 +283,46 @@ class SionaGenepool:
             nbrs = sorted(nbrs, key=lambda n: n not in shared)   # stable: steer-shared neighbours first
         return nbrs[:k]
 
-    def _directed_relations(self, word, steer=(), k=6):
-        """The DIRECTED + TYPED tier (F757): subject -> its strongest directed out-edges [[object, count, relation], …]
-        (objects that FOLLOW it = what it does / leads to / has), the FRAME word naming each. The input-ride (F753)
-        can FLIP it: a steer word matching a stored relation label surfaces those edges first."""
+    def _lemma(self, w):
+        """Prefer the SINGULAR form if a store holds it (tomatoes→tomato, dishes→dish) — kills the plural sense-split
+        (plural 'tomatoes' co-occurs with the Rotten-Tomatoes review site; singular 'tomato' with the food)."""
+        cands = ([w[:-2]] if w.endswith("es") and len(w) > 4 else []) + ([w[:-1]] if w.endswith("s") and len(w) > 3 else [])
+        for c in cands:
+            if c in self.relations or c in self.assoc:
+                return c
+        return w
+
+    def _directed_relations(self, word, steer=(), ctx_bundle=None, k=6):
+        """The DIRECTED + TYPED tier (F757): subject -> its strongest directed out-edges [[object, count, relation], …].
+        Input-ride (F753): a steer word matching a relation label surfaces those edges first. F759: the running-context
+        RBS-HDC bundle (Klein-4, built via the rc155 `klein4_bundle_accumulate`) re-ranks objects toward the conversation."""
         edges = self.relations.get(word) or self.relations.get(self._norm(word)) or []
         if not edges:
             return []
         st = set(steer) | {self._norm(s) for s in steer}
-        if st:                                               # input-ride: edges whose relation IS the query's relation, first
-            edges = sorted(edges, key=lambda e: e[2] not in st)
+        csim = {o: hdc.klein4_similarity(ctx_bundle, _leaf(o)) for o, _c, _r in edges} if ctx_bundle is not None else {}
+        edges = sorted(edges, key=lambda e: (e[2] not in st if st else True, -csim.get(e[0], 0.0)))
         return edges[:k]
+
+    def _relation_walk(self, subject, steer=(), ctx_bundle=None, steps=4):
+        """ETAK-WALK the directed RELATION graph (F759 story-builder): subject → strongest out-edge → its strongest
+        out-edge → … — a PATH through the relations (not a flat dump). Returns (path, first-hop edges)."""
+        first = self._directed_relations(subject, steer, ctx_bundle)
+        path, cur, seen = [subject], subject, {subject}
+        for _ in range(steps):
+            nxt = next((o for o, _c, _r in self._directed_relations(cur, steer, ctx_bundle) if o not in seen), None)
+            if not nxt:
+                break
+            path.append(nxt); seen.add(nxt); cur = nxt
+        return path, first
+
+    @staticmethod
+    def _relation_story(subject, edges):
+        """Compose the directed edges into a sentence (reads as an answer, not a bare neighbour list)."""
+        adj = [o for o, _c, r in edges if r == "→"]
+        framed = [f"{r} {o}" for o, _c, r in edges if r != "→"]
+        bits = (["relates to " + ", ".join(adj)] if adj else []) + (["; ".join(framed)] if framed else [])
+        return (f"{subject.capitalize()} — " + "; ".join(bits) + ".") if bits else f"{subject.capitalize()}."
 
     @staticmethod
     def _fmt_rel(edges):                                      # render directed-typed out-edges: "rel→obj" or "→obj"
@@ -427,7 +456,7 @@ class SionaGenepool:
                 "any of these (or give me a word to define), or teach me something new (“remember <term> is …”); "
                 "I etak-walk what I hold to compose an answer, and I ask when your question touches nothing I have.")
 
-    def infer(self, prompt, prev_assistant=""):
+    def infer(self, prompt, prev_assistant="", context=""):
         p = prompt.strip()
         pl = p.lower()
         toks = set(re.findall(r"[a-z0-9]+", pl))
@@ -490,8 +519,21 @@ class SionaGenepool:
         raw = re.findall(r"[a-z]+", prompt.lower())
         steer_terms = [t for t in raw if t not in salient and (t in self.vix or t in self.rel_labels)]
         steer_idx = [self.vix[t] for t in steer_terms if t in self.vix]           # kernel-walk seeds need a vix index
+        # F759 running-context: content words from PRIOR turns -> a Klein-4 RBS-HDC context bundle (built with the rc155
+        # streaming klein4_bundle_accumulate) + a context steer. Biases the answer toward the conversation; makes the
+        # SAME query differ once context accrues. The context object IS the running conversation, folded holographically.
+        ctx_terms = [t for t in dict.fromkeys(re.findall(r"[a-z]+", (context or "").lower()))
+                     if t not in ROUTING_STOPLIST and len(t) >= 3
+                     and (t in self.relations or t in self.assoc or t in self.vix)][:12]
+        ctx_bundle = None
+        for t in ctx_terms:
+            ctx_bundle = hdc.klein4_bundle_accumulate(ctx_bundle, _leaf(t))
+        ctx_bundle = hdc.klein4_bundle_resolve(ctx_bundle) if ctx_bundle is not None else None
+        self._ctx = ctx_terms                                                    # the running-context object (introspectable)
+        eff_steer = steer_terms + [t for t in ctx_terms if t not in steer_terms]  # context nudges the input-ride
         parse = (f"[input-ride: {intent} · topic {recognized or '—'}"
-                 + (f" · steer {steer_terms}" if steer_terms else "") + "]")
+                 + (f" · steer {steer_terms}" if steer_terms else "")
+                 + (f" · context {ctx_terms}" if ctx_terms else "") + "]")
         new_note = f"\n  (not on my shelf: {', '.join(unrecognized)})" if unrecognized else ""
         proc_note = ("\n  (you asked HOW it's made/works — I hold what it IS, not the process)"
                      if intent in ("process", "quantity") else "")
@@ -516,32 +558,35 @@ class SionaGenepool:
             tail = f"\n  (the walk also passed: {', '.join(see)})" if see else ""
             return f"{parse}\n[etak: {path_str}]\n[{top_kernel} → §{top_key}] {body}{tail}{proc_note}{new_note}"
         # not in the DEEP kernels -> the broad WIKI abstract (definition), ENRICHED with relations (directed if held, F757)
-        wk = self.wiki_lookup(prompt, steer=steer_terms)
+        wk = self.wiki_lookup(prompt, steer=eff_steer)
         if wk:
-            title = self.wiki_title[wk].lower()
-            drel = self._directed_relations(title, steer_terms)          # F757: directed/typed enrichment beats undirected
+            title = self._lemma(self.wiki_title[wk].lower())
+            drel = self._directed_relations(title, eff_steer, ctx_bundle)   # F757/F759: directed + context-re-ranked
             if drel:
                 rel_note = f"\n  (relations: {self._fmt_rel(drel)})"
             else:
-                arel = self._assoc_related(title, steer_terms)
+                arel = self._assoc_related(title, eff_steer)
                 rel_note = f"\n  (related: {', '.join(arel)})" if arel else ""
             return (f"{parse}\n[siona · wiki] {self.wiki_title[wk]}: {self.wiki[wk]}\n"
                     f"  (source: {self.wiki_cite[wk]}, CC-BY-SA){proc_note}{new_note}{rel_note}")
-        # the DIRECTED + TYPED tier (F757): subject -> what it does/leads to/has, the relation NAMED; steer can flip it
-        dsub = next((t for t in sorted(salient, key=len, reverse=True)
-                     if t in self.relations or self._norm(t) in self.relations), None)
+        # honest framing: a relations answer to a DEFINITION question is associations, NOT a held dictionary definition
+        def_note = ("\n  (these are relations I hold — what it's near/does — not a dictionary definition)"
+                    if intent == "definition" else "")
+        # the DIRECTED + TYPED tier (F757) + the F759 STORY-BUILDER: etak-walk the relation graph into a path + a
+        # composed sentence (not a flat dump). _lemma folds plural→singular; ctx_bundle re-ranks by running context.
+        dsub = next((t for t in sorted(salient, key=len, reverse=True) if self._lemma(t) in self.relations), None)
         if dsub:
-            key = dsub if dsub in self.relations else self._norm(dsub)
-            edges = self._directed_relations(key, steer_terms)
-            return (f"{parse}\n[siona · relations (directed)] “{key}” {self._fmt_rel(edges)}{proc_note}{new_note}\n"
-                    f"  (directed/typed out-edges — what follows {key} = what it does/leads to/has; simplewiki, CC-BY-SA)")
+            key = self._lemma(dsub)
+            path, edges = self._relation_walk(key, eff_steer, ctx_bundle)
+            return (f"{parse}\n[etak: {' → '.join(path)}]\n[siona] {self._relation_story(key, edges)}"
+                    f"{proc_note}{new_note}{def_note}\n"
+                    f"  (relations: {self._fmt_rel(edges)}; what follows {key} in simplewiki, CC-BY-SA)")
         # the UNCAPPED relational tier (F754): subject in the ~213k assoc graph -> its neighbours, steered (input-ride)
-        asub = next((t for t in sorted(salient, key=len, reverse=True)
-                     if t in self.assoc or self._norm(t) in self.assoc), None)
+        asub = next((t for t in sorted(salient, key=len, reverse=True) if self._lemma(t) in self.assoc), None)
         if asub:
-            key = asub if asub in self.assoc else self._norm(asub)
-            rel = self._assoc_related(key, steer_terms)
-            return (f"{parse}\n[siona · relations] “{key}” is associated with: {', '.join(rel)}{proc_note}{new_note}\n"
+            key = self._lemma(asub)
+            rel = self._assoc_related(key, eff_steer)
+            return (f"{parse}\n[siona · relations] “{key}” is associated with: {', '.join(rel)}{proc_note}{new_note}{def_note}\n"
                     f"  (co-occurrence neighbours from the simplewiki relational kernel, CC-BY-SA)")
         if salient:                                            # named something specific in NO kernel -> ASK
             subject = max(salient, key=len)                   # the salient term (so a follow-up answer binds to it)

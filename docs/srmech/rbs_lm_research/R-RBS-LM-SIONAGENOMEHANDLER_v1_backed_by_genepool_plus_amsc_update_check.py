@@ -87,9 +87,11 @@ def chat_completion(request):
     """OpenAI /v1/chat/completions handler, backed by the genepool genome."""
     model = request.get("model", "siona:genepool")
     msgs = request.get("messages", [])
-    last = next((m.get("content") or "" for m in reversed(msgs) if m.get("role") == "user"), "")
-    prev_assistant = next((m.get("content") or "" for m in reversed(msgs) if m.get("role") == "assistant"), "")
-    answer = _WORLD.infer(last, prev_assistant)   # prev_assistant lets a reply to an asking-state be LEARNED (write-mode)
+    li = max((i for i, m in enumerate(msgs) if m.get("role") == "user"), default=len(msgs) - 1)  # the current user turn
+    last = msgs[li].get("content") or "" if msgs else ""
+    prev_assistant = next((m.get("content") or "" for m in reversed(msgs[:li]) if m.get("role") == "assistant"), "")
+    context = "\n".join((m.get("content") or "") for i, m in enumerate(msgs) if i != li)   # F759: the prior turns = running context
+    answer = _WORLD.infer(last, prev_assistant, context)   # prev_assistant -> asking-state learn; context -> RBS-HDC running-context
     return {"id": "chatcmpl-siona-genepool", "object": "chat.completion", "created": int(time.time()), "model": model,
             "choices": [{"index": 0, "message": {"role": "assistant", "content": answer}, "finish_reason": "stop"}],
             "usage": {"prompt_tokens": len(last.split()), "completion_tokens": len(answer.split()), "total_tokens": 0},
