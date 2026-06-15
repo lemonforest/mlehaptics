@@ -11,7 +11,8 @@ THE FOLD (streaming, bounded, srmech-native — no Counter, no edge list, no num
   * acc[w]    = a D×4 per-coordinate symbol tally   — the running superposition (FIXED WIDTH: D×4, independent of corpus)
   * fold(w,nb): for each coordinate j, acc[w][j, hv(nb)[j]] += 1   (O(D) per co-occurrence; the whole graph is NEVER stored)
   * bundle[w] = argmax over the 4 symbols per coordinate            — the bundled Klein-4 vector (D symbols = D/4 bytes)
-  * read-out: top-K candidates by klein4_similarity(bundle[w], hv(c)) — holographic cleanup memory (lossy, by design)
+  * read-out: top-K candidates by klein4_similarity(bundle[w], hv(c)) — holographic cleanup memory (clean when sized
+    <= capacity; crosstalks ONLY when a bundle is over-stuffed past its fixed-width capacity — a sizing knob, not a property)
 
 THE SIZE LAW (the point):
   * store bytes = vocab × (D/4)        — per-word width is CONSTANT (= D/4). Doubling the corpus does NOT grow the store;
@@ -20,8 +21,11 @@ THE SIZE LAW (the point):
 
 HONEST tradeoffs: (1) the fold is O(D) per co-occurrence in pure Python — fine for this demo, but full-corpus scale wants
 a NATIVE streaming klein4-bundle-accumulate (a standalone-C op — UPSTREAM ask; this is the same "C must be standalone"
-thread). (2) the bundle is LOSSY (superposition crosstalk, F584) — so the real architecture is the F119/F529 two-tier
-(small EXACT working set + this bounded holographic tail). This file proves the holographic tier in isolation.
+thread). (2) the STORE is LOSSLESS (exact per-coordinate tallies; a chromosome/genome/tome never loses); a bundle only
+crosstalks when OVER-CAPACITY — more than ~capacity items folded into one fixed-width bundle (F584). Size each bundle
+<= capacity and the read-out is clean; the small residual crosstalk is the cost you choose when you deliberately bound
+the width for the long tail — so pair with the F119/F529 two-tier (small EXACT working set + this bounded holographic
+tail). This file proves the holographic tier in isolation; the over-stuffed read-out below is the over-capacity case.
 
 srmech 0.7.5rc153. Klein-4 HDC only; no Counter edge-dict; no numpy; no CAD. CC-BY-SA simplewiki.
 Run: MAX_ARTICLES=2000 /tmp/srmech_rc153/venv/bin/python3 docs/srmech/rbs_lm_research/R-RBS-LM-HOLOFOLD_...py
@@ -118,8 +122,9 @@ def main():
 
     print("\nVERDICT: the co-occurrence store IS a fixed-width Klein-4 HDC object — D/4 bytes per word, folded by")
     print("  superposition, NEVER an edge list. Store scales with VOCAB (corpus-sublinear), not edges. The '1 MiB tome'")
-    print("  promise holds: adding corpus saturates tallies, it does not grow the object. Lossy by design (F584) -> pair")
-    print("  with a small EXACT tier (F119/F529 two-tier). Full-scale build wants a native streaming klein4-bundle (C).")
+    print("  promise holds: adding corpus saturates tallies, it does not grow the object. Store is LOSSLESS; only an")
+    print("  OVER-CAPACITY bundle crosstalks (size <= capacity) -> pair with a small EXACT tier (F119/F529 two-tier).")
+    print("  Full-scale build wants a native streaming klein4-bundle (C).")
 
 
 if __name__ == "__main__":
