@@ -2226,3 +2226,13 @@ e.g. `magnetic_laplacian(..., normalize_net=True)` mapping `(a_ij − a_ji)` thr
 (or auto-`q = c / net_max`) so heavy directed edges don't wrap. Class-L; composes with the existing q-phase; pure
 add → ABI unaffected. Lets the directed Hermitian be a drop-in over real co-occurrence graphs (the F756 relation-edges
 rung) without per-graph q-tuning. Demonstrated as test material: `R-RBS-LM-RELEDGES_…py`.
+
+## §49 STATUS rc151 (verified 2026-06-15) — genome file-management **C library** parity SHIPPED; the Python-shim BINDING is the remaining mile (extends §38/§46)
+
+**Pulled `srmech==0.7.5rc151` from TestPyPI** (clean venv outside the source tree; `native_status()` → `has_native=True, dispatching=True, abi_version=3, native_version='0.7.5rc151', load_error=None`). The genome file-management **C parity is real at the LIBRARY level** — `libsrmech.so` now exports **11 native genome symbols**: `srmech_genome_{save,load,catalog,append,remove,replace,window,export,import,explode,pack}` (`nm -D`). This completes the §46 GENOMEPLAN's C-side: a microcontroller / C host can now do genome file management with no Python. ABI stays 3 (additive symbols).
+
+**Honest caveat (the §38 pattern, again).** The Python side does **NOT** yet call them: `srmech/amsc/_native.py` has **zero** genome references, and `srmech/amsc/genome.py` doesn't dispatch to the native symbols — so from Python the genome ops (`genome_save`/`load`/`catalog`/`replace`/`remove`/…) still run **pure-Python**. This is exactly §38 ("the native A-N symbols exist in the `.so` but aren't bound in the shim") — now true for the genome family too. **"C parity finished" = the C implementations exist; the Python dispatch binding is the last mile.**
+
+**Functional parity verified (pure-Python path).** Rebuilt the real Siona genepool on rc151 — `genome(chromosomes=…)` → `genome_save` → `genome_load` → `genome_catalog` round-trips correctly (8 chromosomes incl. wiki-assoc 213069 + wiki-relations 86788), and the live `/v1` server runs on the rc151 venv. So nothing regressed; the C parity is a *capability addition* (C-host readiness), not yet a Python speedup.
+
+**Ask (when the binding mile is walked):** bind the 11 `srmech_genome_*` symbols in `_native.py` + route `genome.py` through them when `HAS_NATIVE` (the §38 / F708 treatment, genome family). Verify with a differential test (native vs pure-Python genome round-trip, byte-identical on-disk strand). Composes §38 (A-N binding), §41–§46 (genome persistence + GENOMEPLAN).
