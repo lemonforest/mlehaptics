@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc153"
-#define SRMECH_VERSION       "0.7.5rc153"
+#define SRMECH_VERSION_PRE   "rc154"
+#define SRMECH_VERSION       "0.7.5rc154"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2037,6 +2037,16 @@ srmech_status_t srmech_genome_save(
     uint32_t leaf_dim,
     const unsigned char *the_one, size_t the_one_len,
     void *ws, size_t ws_len);
+
+/* The arena byte count any genome op needs for a body of `body_len` bytes with
+ * `n_chroms` chromosomes when it also stages a `region_len`-byte region (a .chr
+ * region, or an append/replace region; 0 otherwise). Capacity is DEFINED by the
+ * C layout — the caller sizes its `ws` arena from THIS rather than guessing. Pure
+ * arithmetic (no I/O); each term traces to a real allocation (two body copies +
+ * the .chr region/hex/io + per-chromosome strings/manifest/json + a fixed slop).
+ * Adding this symbol does NOT bump SRMECH_ABI_VERSION. */
+size_t srmech_genome_arena_bytes(size_t body_len, uint32_t n_chroms,
+                                 size_t region_len);
 
 /* CATALOG: obtain the manifest catalog as a JSON value tree from the caller
  * arena `ws`. When <dir>/manifest.json is PRESENT this parses it ONLY (never

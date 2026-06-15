@@ -213,3 +213,53 @@ def test_pack_byte_identical():
         r_pur = G.genome_pack(loose, pur, the_one=one)
     assert _disk(nat) == _disk(pur)           # re-canonicalised to sorted-label order
     assert r_nat == r_pur
+
+
+# rc154: the genome C caller-arena refactor removed the compiled-in scratch caps (the
+# old 16 MiB body arena + 256-chromosome bound). The arena is now sized from the C
+# srmech_genome_arena_bytes(body_len, n_chroms, region_len) formula — capacity is
+# defined by the layout, not a magic constant — so a genome LARGER than BOTH old caps
+# must still write byte-identically native-vs-pure. This is the load-bearing rc154
+# guard: it exercises both arena terms at once (>256 chromosomes AND a body over the
+# old 16 MiB ceiling). Leaves are replicated from a small pool — the byte-parity claim
+# is independent of leaf CONTENT — so the build stays cheap despite the size. (The leaf
+# width is the format's LEAF_CAP=256 "tome" = one byte of address, not an arena cap.)
+_BIG_DIM = 256                 # one full tome (LEAF_CAP) — maximises body per leaf
+_BIG_N_CHROM = 300             # over the old 256-chromosome cap
+
+
+def _big_label(i):
+    a = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    return a[i // 26] + a[i % 26] + str(i)
+
+
+def _big_spec(one):
+    pool = [klein4_random(_BIG_DIM, seed=s) for s in range(8)]         # 8 distinct leaves
+    leaves_per = (16 * 1024 * 1024) // (_BIG_N_CHROM * _BIG_DIM) + 2   # body > 16 MiB
+    chroms = [(_big_label(i),
+               [(_big_label(i)[0], [pool[(i + k) % 8] for k in range(leaves_per)])])
+              for i in range(_BIG_N_CHROM)]
+    return G.genome(chromosomes=chroms, the_one=one)
+
+
+def test_save_byte_identical_over_old_caps():
+    """A genome over BOTH old caps (>256 chromosomes AND a >16 MiB body) saves
+    byte-identically native-vs-pure — the caller-arena refactor's load-bearing proof
+    that capacity is the layout formula, not a compiled-in 16 MiB / 256-chrom ceiling."""
+    one = klein4_random(_BIG_DIM, seed=7)
+    spec = _big_spec(one)
+    nat, pur = _tmp(), _tmp()
+    G.genome_save(spec, nat, the_one=one)
+    with _force_pure():
+        G.genome_save(spec, pur, the_one=one)
+    nat_turns, _nat_man = _disk(nat)
+    assert _disk(nat) == _disk(pur)               # byte-identical native vs forced-pure
+    assert len(nat_turns) > 16 * 1024 * 1024      # body exceeds the old 16 MiB scratch cap
+    # catalog + window also traverse the >caps body under native (no decode cap fires)
+    cat = G.genome_catalog(nat, the_one=one)
+    assert len(cat["chromosomes"]) == _BIG_N_CHROM        # > the old 256-chrom cap
+    last = _big_label(_BIG_N_CHROM - 1)
+    w_nat = G.genome_window(nat, last, the_one=one)        # native windows the last chrom
+    with _force_pure():
+        w_pur = G.genome_window(nat, last, the_one=one)
+    assert _blocks(w_nat) == _blocks(w_pur)               # window stable native vs pure

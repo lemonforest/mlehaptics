@@ -670,6 +670,32 @@ srmech_status_t srmech_genome_save(
                              (const unsigned char *)manifest, mlen + 1u);
 }
 
+/* The arena byte count the genome ops need for a body of `body_len` bytes with
+ * `n_chroms` chromosomes when an op also stages a `region_len`-byte region (a
+ * .chr export/import region, or an append/replace region; 0 otherwise). The C
+ * carves ALL scratch from the caller arena, so the caller sizes the arena from
+ * THIS — capacity is defined by the layout, not a guess. Every term traces to a
+ * real allocation: two body copies (the grown/spliced body + the §44 rebuild
+ * scan copy), the .chr region+hex+io (region + 2*hex + 2*io ≈ 5*region), the
+ * per-chromosome strings arrays + manifest entry + json subtree (+ alignment),
+ * the manifest header, and a fixed slop for the top-level json + the ~20 arena
+ * 16-byte alignment pads. Pure arithmetic, no I/O. */
+size_t srmech_genome_arena_bytes(size_t body_len, uint32_t n_chroms,
+                                 size_t region_len)
+{
+    assert(n_chroms != 0xFFFFFFFFu);
+    assert(SRMECH_GENOME_MAX_LABEL > 0u);
+    size_t per_chrom =
+        (size_t)(65u + 8u + 8u + SRMECH_GENOME_MAX_LABEL + 8u)  /* strings arrays */
+      + (size_t)(SRMECH_GENOME_MAX_LABEL + 600u)                /* manifest entry */
+      + 768u                                                    /* json nodes+ptrs+decoded */
+      + 64u;                                                    /* per-chrom align pads */
+    size_t bodies = 2u * body_len + region_len;     /* spliced/grown body + rebuild copy */
+    size_t chr = 5u * region_len + 8192u;           /* region + 2*hex + 2*io + slop */
+    size_t fixed = 64u * 1024u + 4096u;             /* top-level json + manifest header */
+    return bodies + chr + (size_t)n_chroms * per_chrom + fixed;
+}
+
 /* ------------------------------------------------------------------ *
  * CATALOG — parse manifest.json into a JSON tree (never opens turns.bin).
  * ------------------------------------------------------------------ */
