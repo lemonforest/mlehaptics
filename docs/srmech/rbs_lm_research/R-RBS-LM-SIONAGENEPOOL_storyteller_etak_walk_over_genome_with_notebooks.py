@@ -245,13 +245,16 @@ class SionaGenepool:
         return 1 if kernel == "dict-en-2026" else (0 if kernel == "dict-en-1600" else 0.5)
 
     def introspect(self):
+        # the genome STRAND (chromosomes actually IN turns.bin — Siona's persistent self) ...
         cat = [(c["label"], c["leaf_count"]) for c in g.genome_catalog(self.path, the_one=ONE)["chromosomes"]]
-        if getattr(self, "wiki", None):                       # the wiki side-store presents as a held chromosome
-            cat.append(("wiki", len(self.wiki)))
-        if getattr(self, "assoc", None):                      # the uncapped relational tier (F754)
-            cat.append(("wiki-assoc", len(self.assoc)))
-        if getattr(self, "relations", None):                  # the directed/typed relation tier (F757)
-            cat.append(("wiki-relations", len(self.relations)))
+        # ... vs the wiki SIDE-STORES (external knowledge loaded alongside, NOT baked into the genome — labelled
+        # honestly so they don't read as chromosomes; F759.1). They are the exact-retrieval tier; the genome carries self.
+        if getattr(self, "wiki", None):
+            cat.append(("wiki·abstract [side-store]", len(self.wiki)))
+        if getattr(self, "assoc", None):
+            cat.append(("wiki·assoc [side-store]", len(self.assoc)))
+        if getattr(self, "relations", None):
+            cat.append(("wiki·relations [side-store]", len(self.relations)))
         return cat
 
     @staticmethod
