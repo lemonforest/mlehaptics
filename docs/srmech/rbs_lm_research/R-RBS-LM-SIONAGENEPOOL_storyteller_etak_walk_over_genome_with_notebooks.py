@@ -48,7 +48,7 @@ MK = _U.module_from_spec(_mk_spec); _mk_spec.loader.exec_module(MK)
 # language-layer chromosome (ni-vanuatu F761, markup F764) did NOT force a persisted-genome rebuild — Siona kept
 # serving a pre-language-layer genome. This sentinel closes that gap: build_genepool stamps it; the handler rebuilds
 # when the persisted stamp differs. BUMP THIS whenever the chromosome set changes.
-GENEPOOL_SCHEMA_VERSION = "F764-langlayer+markup"
+GENEPOOL_SCHEMA_VERSION = "F766-langlayer+markup+intent"
 
 DIM = 64
 ONE = hdc.klein4_random(DIM, seed=0)
@@ -133,7 +133,8 @@ ROUTING_STOPLIST = frozenset(
     "made make makes making made use used uses using call called calls know known knows knew based base find found "
     "finds given give gives gave get gets got getting way ways thing things kind sort type types lot like likes "
     "also well much many more most some any other another how why does did doing done need needs want wants let "
-    "tell told say said see seen look looks put take takes go goes come comes work works".split())
+    "tell told say said see seen look looks put take takes go goes come comes work works "
+    "answer answers question questions response responses reply replies explanation".split())   # F766: scaffolding words, not topics
 # F752: the FRAME channel — function words ARE the sentence structure (intent), the thing F751 stoplisted for ROUTING.
 # Read them (on the RAW prompt; tokenize drops most) to classify the question TYPE so a how-made ≠ a what-is ≠ a phrase.
 INTENT_RE = (
@@ -164,6 +165,48 @@ ELABORATION_WORDS = frozenset(
     "detail details detailed depth elaborate elaboration briefly tldr concise concisely thorough thoroughly "
     "comprehensive comprehensively expound deeper expand expansion fuller longer shorter summary summarize "
     "summarise summarised summarized lengthy".split())
+# F766: the INTENT DICTIONARY — word -> DEFINITION, the meaning substrate for the depth read. Lives in the genome as a
+# `dict-intent` chromosome (same shape as dict-en). The depth ANCHORS are built from a few SEED definitions; every other
+# entry then SELF-CLASSIFIES by definition-overlap (meaning), so "use definitions, not a keyword list" (user 2026-06-15):
+# adding a word+definition auto-places it by meaning — no hand-tagged long/short. Defs are written so the content words
+# cluster (long: detail/explain/more/full/complete; short: short/few/words/brief/main/points).
+INTENT_DICT = {
+    # --- the "more detail" family (longer answer) ---
+    "elaborate": "to explain in more detail and add more information",
+    "expound": "to explain something fully in detail",
+    "expand": "to add more detail and make the answer larger",
+    "detail": "a fuller account with more information",
+    "detailed": "having much detail and full information",
+    "thorough": "complete and done with attention to full detail",
+    "comprehensive": "complete and covering everything in full detail",
+    "exhaustive": "complete and including every detail",
+    "verbose": "using many more words and detail than needed",
+    "lengthy": "long and containing much detail",
+    "extensive": "large in scope and covering much detail",
+    "expansive": "broad and covering much in detail",
+    "deepen": "to go into more depth and detail",
+    "full": "complete with all the detail",
+    "fuller": "more complete with more detail",
+    "elaboration": "an explanation given in more detail",
+    # --- the "less / shorter" family (shorter answer) ---
+    "brief": "short and using few words",
+    "concise": "short and clear using few words",
+    "succinct": "short and clearly stated in few words",
+    "terse": "very short and using few words",
+    "short": "brief and using few words",
+    "summary": "a short account giving only the main points",
+    "summarize": "to give a short account of the main points",
+    "summarise": "to give a short account of the main points",
+    "condense": "to make shorter and more concise",
+    "gist": "the short main point",
+    "overview": "a short general account of the main points",
+    "simple": "plain and short, not detailed",
+}
+# SEEDS: a few clear words per pole whose definitions BUILD the anchors; the rest self-classify by overlap.
+LONG_SEEDS = ("elaborate", "detail", "thorough", "comprehensive")
+SHORT_SEEDS = ("brief", "concise", "short", "summary")
+DEPTH_MARGIN = 0.04                            # calibration floor (type-B, a measured separation gap; not magic)
+NEGATORS = frozenset("not no never without dont isnt arent cant cannot less".split())   # frame-channel polarity flip
 # F753: the COUPLING weight. The input-ride parses the query into a SUBJECT (content noun -> routes) + STEER (the
 # relation/frame words, incl. delexical ones F751 keeps out of routing) — and the steer BIASES kernel convergence
 # (the frame becomes a direction of travel), coupling the input-walk to the kernel-walk. Subject anchors; steer nudges.
@@ -212,6 +255,10 @@ def build_genepool(path):
     payload += [("markup", c, f"markup form-class '{c}' — a Class-B/F framing form the language layer UNDERSTANDS "
                  f"(a separable form layer comprehended, never stripped; link forms also yield relationship edges)")
                 for c in MK.MARKUP_FORM_CLASSES]
+    # dict-intent (F766): the INTENT word→definition dictionary — the meaning substrate the depth read uses (anchors are
+    # built from seed definitions; entries self-classify by definition-overlap). Genome-native, same shape as dict-en.
+    chromosomes.append(("dict-intent", [(w, [_word_hv(w)]) for w in INTENT_DICT]))
+    payload += [("dict-intent", w, d) for w, d in INTENT_DICT.items()]
     # SURFACE level: English — each word BUILT FROM the ni-Vanuatu glyph base (_word_hv), a projection not a random leaf.
     for era, defs in ERA_DEFS.items():
         chromosomes.append((era, [(w, [_word_hv(w)]) for w in defs]))
@@ -252,6 +299,7 @@ class SionaGenepool:
     from the structure she is, never asserted."""
     def __init__(self, path):
         self.path = path
+        self._danchors = None                                 # F766: lazy cache for the (long, short) depth anchors
         self._text = {(r.data["kernel"], r.data["key"]): r.data["text"]
                       for r in read_ndjson(Path(path) / "genepool.ndjson")}
         self._build_surface()
@@ -348,12 +396,63 @@ class SionaGenepool:
                 return name
         return "phrase"                                      # no question frame -> a phrase / word-list
 
-    @staticmethod
-    def _depth(pl):                                           # F763: the ELABORATION meta-signal — answer DEPTH, not tier
-        for name, rx in ELABORATION_RE:                       # comprehend "tell me more"/"briefly" (don't discard it)
-            if rx.search(pl):
-                return name
-        return "normal"                                       # no elaboration cue -> the standard answer depth
+    def _depth(self, pl):
+        """The answer-DEPTH meta-signal, TWO tiers (F119/F529 shape): (1) F763 crisp KEYWORD anchors (fast, phrase-aware
+        — 'tell me more', 'in detail'); (2) F766 MEANING anchor — any prompt word in the intent DICTIONARY is scored by
+        DEFINITION-OVERLAP to the long/short anchors, so a synonym we never hand-listed ('exhaustive'/'succinct')
+        self-classifies by MEANING, with a frame-channel NEGATION flip ('not brief'→long). Returns (depth, how) so the
+        path is legible. Runs on the UNDERSTOOD form (Pass 2, F765) — meaning, not the raw surface."""
+        for name, rx in ELABORATION_RE:                       # (1) keyword fast-path — crisp + phrase-aware
+            mt = rx.search(pl)
+            if mt:
+                pre = re.findall(r"[a-z']+", pl[:mt.start()])[-3:]
+                if any(t in NEGATORS for t in pre):           # frame-channel polarity flip ('do not be brief'→long)
+                    return ("long" if name == "short" else "short"), "keyword(neg)"
+                return name, "keyword"
+        long_a, short_a = self._depth_anchors()               # (2) meaning anchor (definitions, not a keyword list)
+        if long_a is None:
+            return "normal", ""
+        toks = re.findall(r"[a-z']+", pl)
+        long_best = short_best = 0.0
+        long_word = short_word = None
+        for i, w in enumerate(toks):
+            mv = self._word_meaning(w)
+            if mv is None:
+                continue
+            ls = hdc.klein4_similarity(mv, long_a)
+            ss = hdc.klein4_similarity(mv, short_a)
+            if any(t in NEGATORS for t in toks[max(0, i - 3):i]):     # frame-channel polarity flip ('not detailed'→short)
+                ls, ss = ss, ls
+            if ls - ss >= DEPTH_MARGIN and ls > long_best:
+                long_best, long_word = ls, w
+            elif ss - ls >= DEPTH_MARGIN and ss > short_best:
+                short_best, short_word = ss, w
+        if long_best > short_best:
+            return "long", f"meaning:{long_word}"
+        if short_best > long_best:
+            return "short", f"meaning:{short_word}"
+        return "normal", ""
+
+    def _def_bundle(self, words):
+        """Class-M bundle of the content-word leaves across the given intent words' DEFINITIONS — definition-overlap in
+        HV space = shared content words = MEANING similarity (uses _leaf per content word, NOT the glyph _word_hv: this
+        is meaning, not form). Built with the rc155 streaming klein4_bundle_accumulate."""
+        acc = None
+        for w in words:
+            for t in re.findall(r"[a-z]+", INTENT_DICT.get(w, "")):
+                if t not in ROUTING_STOPLIST and len(t) >= 3:
+                    acc = hdc.klein4_bundle_accumulate(acc, _leaf(t))
+        return hdc.klein4_bundle_resolve(acc) if acc is not None else None
+
+    def _depth_anchors(self):
+        """F766: build the (long, short) depth anchors ONCE from the SEED definitions; every other dict entry then
+        self-classifies by overlap to these (so the dictionary grows by meaning, not by hand-tagged polarity)."""
+        if self._danchors is None:
+            self._danchors = (self._def_bundle(LONG_SEEDS), self._def_bundle(SHORT_SEEDS))
+        return self._danchors
+
+    def _word_meaning(self, w):                               # F766: an intent word's meaning HV = its definition bundle
+        return self._def_bundle([w]) if w in INTENT_DICT else None
 
     def _recognized(self, t):                                # does this content word have a home in any kernel?
         return (t in self.vix) or (self._norm(t) in self.wiki_idx) or (t in self.assoc) or \
@@ -661,7 +760,8 @@ class SionaGenepool:
 
         # === SENTENCE PARSE (F752): TOPIC channel (content) + FRAME channel (function words = intent) ======
         content = T.tokenize(prompt)
-        salient = [t for t in content if t not in ROUTING_STOPLIST and t not in ELABORATION_WORDS]  # candidate topics (F763: elaboration meta-words consumed, not routed)
+        salient = [t for t in content if t not in ROUTING_STOPLIST and t not in ELABORATION_WORDS
+                   and t not in INTENT_DICT]                                     # candidate topics (F763/F766: meta-words consumed, not routed)
         recognized = [t for t in salient if self._recognized(t)]                 # topics with a kernel home
         unrecognized = [t for t in salient if t not in recognized]
         # === PASS 1 — UNDERSTAND into English (etak FIND, F765; biology's TRANSCRIPTION stage) =============
@@ -677,7 +777,7 @@ class SionaGenepool:
         understood_note = (("[understood: " + ", ".join(f"{s}→{c} ({sim:.2f})"
                             for s, (c, sim) in understood.items()) + "]\n") if understood else "")
         intent = self._intent(pl)                                               # the question TYPE (frame channel)
-        depth = self._depth(pl)                                                 # F763: the ELABORATION meta-signal (DEPTH axis)
+        depth, depth_how = self._depth(pl)                                      # F763/F766: DEPTH (keyword fast-path OR meaning anchor)
         k_rel, k_assoc, walk_steps, attach_extra = {                            # depth -> answer-shaping knobs (comprehend, not discard)
             "short":  (3, 4, 2, False),                                         # trim to the core; suppress the trailing related-notes
             "normal": (6, 8, 4, True),                                          # the standard answer (current behaviour)
@@ -687,7 +787,8 @@ class SionaGenepool:
         # never sees "from"/"than"; the steer channel must read raw). A steer word is in the deep-kernel vocab OR a known
         # relation label (F757, so "from"/"than" flip the directed tier even though they aren't deep-kernel tokens).
         raw = re.findall(r"[a-z]+", prompt.lower())
-        steer_terms = [t for t in raw if t not in salient and t not in ELABORATION_WORDS  # F763: meta-words fully consumed (not steer either)
+        steer_terms = [t for t in raw if t not in salient and t not in ELABORATION_WORDS and t not in INTENT_DICT  # F763/F766: meta-words fully consumed
+
                        and (t in self.vix or t in self.rel_labels)]
         steer_idx = [self.vix[t] for t in steer_terms if t in self.vix]           # kernel-walk seeds need a vix index
         # F759 running-context: content words from PRIOR turns -> a Klein-4 RBS-HDC context bundle (built with the rc155
@@ -704,7 +805,7 @@ class SionaGenepool:
         eff_steer = steer_terms + [t for t in ctx_terms if t not in steer_terms]  # context nudges the input-ride
         parse = (understood_note                                                # F765 PASS 1 output (understand) shown above PASS 2 (ride)
                  + f"[input-ride: {intent} · topic {recognized or '—'}"
-                 + (f" · detail {depth}" if depth != "normal" else "")          # F763: show Siona COMPREHENDED the elaboration ask
+                 + (f" · detail {depth} ({depth_how})" if depth != "normal" else "")   # F763/F766: show depth + HOW (keyword vs meaning)
                  + (f" · steer {steer_terms}" if steer_terms else "")
                  + (f" · context {ctx_terms}" if ctx_terms else "") + "]")
         new_note = f"\n  (not on my shelf: {', '.join(unrecognized)})" if unrecognized else ""
