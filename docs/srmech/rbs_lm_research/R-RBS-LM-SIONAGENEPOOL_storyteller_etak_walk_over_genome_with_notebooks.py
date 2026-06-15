@@ -97,6 +97,10 @@ INTENT_RE = (
     ("place",      re.compile(r"\bwhere\b")),
     ("time",       re.compile(r"\bwhen\b")),
 )
+# F753: the COUPLING weight. The input-ride parses the query into a SUBJECT (content noun -> routes) + STEER (the
+# relation/frame words, incl. delexical ones F751 keeps out of routing) — and the steer BIASES kernel convergence
+# (the frame becomes a direction of travel), coupling the input-walk to the kernel-walk. Subject anchors; steer nudges.
+STEER_WEIGHT = 1.0
 
 
 def parse_sections(path, cap=48, maxchars=700):
@@ -238,30 +242,35 @@ class SionaGenepool:
         return (t in self.vix) or (self._norm(t) in self.wiki_idx) or \
                any(t == k or t.startswith(k) or k.startswith(t) for k in self.learned)
 
-    def wiki_lookup(self, prompt):
+    def wiki_lookup(self, prompt, steer=()):
         """Scalable broad-knowledge lookup over the WIKI side-store: query terms -> article via the term-index,
-        scored title-overlap×3 + text-overlap (Class-E catalog style; never the dense etak-walk)."""
-        q = {self._norm(w) for w in T.tokenize(prompt) if w not in ROUTING_STOPLIST}   # F751: no delexical match
+        scored title-overlap×3 + text-overlap + STEER-overlap (F753: the relation/frame words bias which article)."""
+        q = {self._norm(w) for w in T.tokenize(prompt) if w not in ROUTING_STOPLIST}   # F751: no delexical routing
         if not q or not self.wiki:
             return None
+        st = {self._norm(w) for w in steer}                   # F753: the relation/frame steer (delexical OK here)
         cand = set().union(*(self.wiki_idx.get(t, set()) for t in q)) if q else set()
         best, best_sc = None, 0
         for k in cand:
             tt, xt = self.wiki_toks[k]
-            sc = 3 * len(q & tt) + len(q & xt)
+            sc = 3 * len(q & tt) + len(q & xt) + STEER_WEIGHT * len(st & xt)   # steer nudges, doesn't route
             if sc > best_sc:
                 best_sc, best = sc, k
         return best if best_sc >= 3 else None                 # require a real title/term hit, not one stray word
 
-    def _walk(self, landmarks, steps=WALK_STEPS):
+    def _walk(self, landmarks, steps=WALK_STEPS, steer=()):
         """FORWARD-ETAK: walk the co-occurrence graph from `landmarks` (IDF-gated, no-revisit; the landmarks held
-        in-frame), then rank sections by landmark+walk overlap. Returns (walk_path_terms, ranked_[(kernel,key)]) or
+        in-frame), then rank sections by landmark + walk + STEER overlap (F753: the input-ride's relation/frame words
+        bias convergence — the frame as a direction of travel). Returns (walk_path_terms, ranked_[(kernel,key)]) or
         None if `landmarks` is empty."""
         landmarks = list(dict.fromkeys(landmarks))
         if not landmarks:
             return None
-        lmset, visited, path = set(landmarks), set(landmarks), list(landmarks)
-        anchor, last = list(landmarks), landmarks[-1]         # etak: the frame (landmarks) stays; islands move past
+        steerset = set(steer)
+        lmset = set(landmarks)                                # convergence anchor (×LANDMARK_WEIGHT) = the SUBJECT only
+        seed = list(dict.fromkeys(list(landmarks) + [i for i in steer if i not in lmset]))  # F753: walk FROM subject+relation
+        visited, path = set(seed), list(seed)                 # the steer DIRECTS travel (toward the relation), not just scores
+        anchor, last = list(seed), seed[-1]                   # etak: the frame (subject+steer) stays; islands move past
         for _ in range(steps):
             nbr = {}
             for i in dict.fromkeys(anchor + [last]):
@@ -275,8 +284,9 @@ class SionaGenepool:
         walk = set(path)
         ranked = []
         for idx, (kernel, key) in enumerate(self.keys):
-            score = (sum(self._idf(t) for t in (self.sec[idx] & lmset)) * LANDMARK_WEIGHT     # the query frame
-                     + sum(self._idf(t) for t in (self.sec[idx] & walk)))                     # walked context
+            score = (sum(self._idf(t) for t in (self.sec[idx] & lmset)) * LANDMARK_WEIGHT     # the query frame (route)
+                     + sum(self._idf(t) for t in (self.sec[idx] & walk))                      # walked context
+                     + sum(self._idf(t) for t in (self.sec[idx] & steerset)) * STEER_WEIGHT)  # F753: relation steer
             if self.maint[idx]:
                 score *= MAINT_PENALTY                        # maintenance prose is not a good answer landing
             if score > 0:
@@ -417,7 +427,10 @@ class SionaGenepool:
         recognized = [t for t in salient if self._recognized(t)]                 # topics with a kernel home
         unrecognized = [t for t in salient if t not in recognized]
         intent = self._intent(pl)                                               # the question TYPE (frame channel)
-        parse = f"[parsed: {intent} · topic {recognized or '—'}]"
+        steer_terms = [t for t in content if t not in salient and t in self.vix]  # F753: in-vocab relation/frame words
+        steer_idx = [self.vix[t] for t in steer_terms]
+        parse = (f"[input-ride: {intent} · topic {recognized or '—'}"
+                 + (f" · steer {steer_terms}" if steer_terms else "") + "]")
         new_note = f"\n  (not on my shelf: {', '.join(unrecognized)})" if unrecognized else ""
         proc_note = ("\n  (you asked HOW it's made/works — I hold what it IS, not the process)"
                      if intent in ("process", "quantity") else "")
@@ -430,7 +443,7 @@ class SionaGenepool:
         # === ETAK-WALK the DEEP surface (inference, not retrieval) ========================================
         landmarks = [self.vix[t] for t in salient if t in self.vix]
         if landmarks:
-            trace, ranked = self._walk(landmarks)
+            trace, ranked = self._walk(landmarks, steer=steer_idx)   # F753: couple the input-ride to the kernel walk
             path_str = " → ".join(trace[:8])
             top_kernel, top_key = ranked[0]
             if top_kernel.startswith("dict-en-"):             # era-resolve the WORD the walk found (F739 disambig)
