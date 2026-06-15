@@ -31,6 +31,7 @@ from pathlib import Path
 
 import pytest
 
+from srmech.amsc import _native
 from srmech.amsc import genome
 from srmech.amsc.format import MPRRecord, validate_mpr_record
 from srmech.amsc.hdc import klein4_random
@@ -105,6 +106,12 @@ def test_catalog_reads_manifest_without_opening_body(tmp_path, monkeypatch):
         opened_paths.append(str(self))
         return real_open(self, *args, **kwargs)
 
+    # rc153: this asserts the PURE-PYTHON catalog read's I/O frugality via a
+    # ``Path.open`` hook; under native dispatch ``genome_catalog`` parses
+    # manifest.json in C (fopen — invisible to the hook), so pin the pure path here.
+    # The native catalog's "never opens turns.bin" property is proven C-side + by the
+    # rc153 byte-parity differential (test_genome_native_dispatch_rc153).
+    monkeypatch.setattr(_native, "has_native_genome", lambda: False)
     # Patch ``Path.open`` (NOT ``io.open``): the genome reads funnel through
     # ``Path.read_text`` / ``Path.open`` on every CPython, and ``Path.open`` is
     # resolved on the instance at call time. ``io.open`` is captured into
@@ -202,6 +209,11 @@ def test_window_pages_one_chromosome(tmp_path, monkeypatch):
             fh.read = _counting_read
         return fh
 
+    # rc153: this asserts the PURE-PYTHON pager reads ONLY one region's bytes via a
+    # ``Path.open`` byte-count hook; native ``genome_window`` seeks+reads via C fopen
+    # (invisible to the hook), so pin the pure path here. The native pager's region-
+    # boundedness is proven C-side + by the rc153 byte-parity differential.
+    monkeypatch.setattr(_native, "has_native_genome", lambda: False)
     # Patch ``Path.open`` (version-robust; see catalog test for the 3.10 note).
     monkeypatch.setattr(Path, "open", _measuring_open)
     genome.genome_window(p, "geography")
