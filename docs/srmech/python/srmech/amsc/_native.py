@@ -37,6 +37,8 @@ Status codes (``srmech_status_t``):
 from __future__ import annotations
 
 import ctypes
+import json
+import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -1701,29 +1703,26 @@ def cascade_parallel_sector_dispatch_c(body, x, n_sectors: int = 4) -> list:
 
 
 # ----------------------------------------------------------------------
-# v0.7.5rc153 (UPSTREAM §49): genome file-management native dispatch — the
+# v0.7.5rc154 (UPSTREAM §49): genome file-management native dispatch — the
 # Python-callable face of the 11 ``srmech_genome_*`` C symbols. ``genome.py``
 # routes through these when :func:`has_native_genome`; the C family writes
 # turns.bin + manifest.json byte-identical to the pure-Python path (proven
-# across rc143–rc152), so the dispatch is a pure accelerator with no on-disk
-# divergence. On a non-OK status these raise :class:`NativeGenomeError`;
-# ``genome.py`` catches it and falls back to pure-Python (so an oversized
-# genome — body > the C's 16-MiB static scratch, OVERFLOW — still works, and
-# the pure-Python path remains the precise-exception authority for bad input).
+# across rc143–rc152), so native is the AUTHORITATIVE accelerator with no
+# on-disk divergence. The C carves ALL its scratch from the caller arena we
+# size per call here (no compiled-in cap), so it is standalone-complete: there
+# is NO "fall back to pure-Python" — pure-Python is the complete ALTERNATIVE
+# impl that runs only when there is no C at all. A non-OK status raises
+# :class:`NativeGenomeError`, which ``genome.py`` translates (bad-input →
+# ``GenomeBoundingError``); it does NOT retry the pure path.
 # ----------------------------------------------------------------------
 
-#: The C genome static-scratch caps (srmech_genome.c) — a genome wider than
-#: these falls back to pure-Python (never crashes).
-GENOME_NATIVE_BODY_MAX: int = 16 * 1024 * 1024
-GENOME_NATIVE_MANIFEST_MAX: int = 256 * 1024
-GENOME_NATIVE_MAX_CHROMS: int = 256
-
-_genome_ws = None  # lazily-allocated 16-MiB workspace arena (JSON-tree build)
+_genome_ws = None  # reused arena buffer, grown to the largest call seen
 
 
 class NativeGenomeError(RuntimeError):
-    """A native ``srmech_genome_*`` call returned a non-OK status. ``genome.py``
-    catches this and falls back to the pure-Python path."""
+    """A native ``srmech_genome_*`` call returned a non-OK status. ``.status``
+    carries the ``SRMECH_ERR_*`` code; ``genome.py`` translates it (it does NOT
+    fall back to pure-Python — native is authoritative when present)."""
 
     def __init__(self, fn: str, status: int):
         self.status = status
@@ -1735,15 +1734,68 @@ def has_native_genome() -> bool:
     rc143+ lib that also exports ``srmech_json_write``)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_save")
-                and hasattr(LIB, "srmech_json_write"))
+                and hasattr(LIB, "srmech_json_write")
+                and hasattr(LIB, "srmech_genome_arena_bytes"))
 
 
-def _genome_ws_ptr():
-    """Lazily allocate the shared 16-MiB workspace; return ``(c_void_p, size)``."""
+def _genome_file_size(path: str) -> int:
+    """Byte size of ``path`` (0 if absent)."""
+    try:
+        return os.path.getsize(path)
+    except OSError:
+        return 0
+
+
+def _count_chrom_caps(body: bytes, leaf_dim: int) -> int:
+    """Number of §44 CHROM caps (first byte 0x43 at a leaf boundary) in ``body``."""
+    if leaf_dim <= 0:
+        return 0
+    return sum(1 for k in range(0, len(body), leaf_dim) if body[k] == 0x43)
+
+
+def _genome_chrom_count(dir_: str, the_one: bytes = b"") -> int:
+    """Chromosome count of the genome at ``dir_`` — the ``manifest.json`` count
+    (cheap) if present, else a scan of ``turns.bin``'s CHROM caps (leaf_dim =
+    ``len(the_one)``). Used ONLY to size the native arena exactly via
+    :func:`_genome_arena` — the architecture (the C layout) defines capacity."""
+    try:
+        with open(os.path.join(dir_, "manifest.json"), "rb") as fh:
+            return len(json.load(fh)["data"]["chromosomes"])
+    except (OSError, KeyError, ValueError, TypeError):
+        pass
+    leaf_dim = len(the_one)
+    if leaf_dim <= 0:
+        return 0
+    try:
+        with open(os.path.join(dir_, "turns.bin"), "rb") as fh:
+            body = fh.read()
+    except OSError:
+        return 0
+    return _count_chrom_caps(body, leaf_dim)
+
+
+def _genome_arena(body_len: int, n_chroms: int, region_len: int = 0):
+    """Return ``(c_void_p, size)`` for an arena sized to EXACTLY what the C op
+    needs for a genome of ``body_len`` bytes / ``n_chroms`` chromosomes (+ a
+    ``region_len``-byte staged region). Capacity is DEFINED by the C layout via
+    :c:func:`srmech_genome_arena_bytes` — not a heuristic multiplier. The shared
+    buffer is reused, grown to the largest call seen."""
     global _genome_ws
-    if _genome_ws is None:
-        _genome_ws = (ctypes.c_char * GENOME_NATIVE_BODY_MAX)()
+    fn = LIB.srmech_genome_arena_bytes
+    if fn.restype is not ctypes.c_size_t:
+        fn.restype = ctypes.c_size_t
+        fn.argtypes = [ctypes.c_size_t, ctypes.c_uint32, ctypes.c_size_t]
+    need = int(fn(ctypes.c_size_t(int(body_len)),
+                  ctypes.c_uint32(int(n_chroms)),
+                  ctypes.c_size_t(int(region_len))))
+    if _genome_ws is None or len(_genome_ws) < need:
+        _genome_ws = (ctypes.c_char * need)()
     return ctypes.cast(_genome_ws, ctypes.c_void_p), len(_genome_ws)
+
+
+def _turns_size(dir_: str) -> int:
+    """Byte size of ``<dir>/turns.bin`` (0 if absent)."""
+    return _genome_file_size(os.path.join(dir_, "turns.bin"))
 
 
 def _u8(data: bytes):
@@ -1761,7 +1813,7 @@ def _require_genome():
 def genome_save_c(dir_: str, body: bytes, leaf_dim: int, the_one: bytes) -> None:
     """Native genome save — writes ``<dir>/turns.bin`` + ``manifest.json``."""
     _require_genome()
-    ws, ws_len = _genome_ws_ptr()
+    ws, ws_len = _genome_arena(len(body), _count_chrom_caps(body, leaf_dim))
     rc = LIB.srmech_genome_save(
         dir_.encode("utf-8"), _u8(body), ctypes.c_size_t(len(body)),
         ctypes.c_uint32(leaf_dim), _u8(the_one), ctypes.c_size_t(len(the_one)),
@@ -1774,7 +1826,7 @@ def genome_load_c(dir_: str, the_one: bytes, out_cap: int) -> bytes:
     """Native genome load — reads the whole body (bounds-checked) from
     ``<dir>/turns.bin``; ``out_cap`` should be the turns.bin byte size."""
     _require_genome()
-    ws, ws_len = _genome_ws_ptr()
+    ws, ws_len = _genome_arena(out_cap, _genome_chrom_count(dir_, the_one))
     out = (ctypes.c_uint8 * max(out_cap, 1))()
     out_len = ctypes.c_size_t(0)
     rc = LIB.srmech_genome_load(
@@ -1791,7 +1843,7 @@ def genome_window_c(dir_: str, label: str, the_one: bytes, out_cap: int) -> byte
     integrity-verified) from ``<dir>``; ``out_cap`` an upper bound (turns.bin
     size is safe)."""
     _require_genome()
-    ws, ws_len = _genome_ws_ptr()
+    ws, ws_len = _genome_arena(out_cap, _genome_chrom_count(dir_, the_one))
     out = (ctypes.c_uint8 * max(out_cap, 1))()
     out_len = ctypes.c_size_t(0)
     rc = LIB.srmech_genome_window(
@@ -1809,18 +1861,21 @@ def genome_catalog_c(dir_: str, the_one: bytes) -> str:
     ``genome.py`` ``json.loads`` it. ``the_one`` may be empty when a manifest is
     present (only consulted as the rebuild width when it is absent)."""
     _require_genome()
-    ws, ws_len = _genome_ws_ptr()
+    man_sz = _genome_file_size(os.path.join(dir_, "manifest.json"))
+    body_sz = _genome_file_size(os.path.join(dir_, "turns.bin"))
+    ws, ws_len = _genome_arena(max(man_sz, body_sz),
+                               _genome_chrom_count(dir_, the_one))
     tree = ctypes.c_void_p()
     rc = LIB.srmech_genome_catalog(
         dir_.encode("utf-8"), _u8(the_one), ctypes.c_size_t(len(the_one)),
         ws, ctypes.c_size_t(ws_len), ctypes.byref(tree))
     if rc != SRMECH_OK:
         raise NativeGenomeError("srmech_genome_catalog", rc)
-    buf = ctypes.create_string_buffer(GENOME_NATIVE_MANIFEST_MAX + 1)
+    write_cap = max(256 * 1024, 4 * max(man_sz, body_sz))
+    buf = ctypes.create_string_buffer(write_cap + 1)
     out_len = ctypes.c_size_t(0)
     rc = LIB.srmech_json_write(
-        tree, buf, ctypes.c_size_t(GENOME_NATIVE_MANIFEST_MAX),
-        ctypes.byref(out_len))
+        tree, buf, ctypes.c_size_t(write_cap), ctypes.byref(out_len))
     if rc != SRMECH_OK:
         raise NativeGenomeError("srmech_json_write", rc)
     return buf.raw[:out_len.value].decode("utf-8")
@@ -1830,7 +1885,8 @@ def genome_append_c(dir_: str, label: str, region: bytes, leaf_dim: int,
                     the_one: bytes) -> None:
     """Native genome append — grow ``<dir>`` by one chromosome region."""
     _require_genome()
-    ws, ws_len = _genome_ws_ptr()
+    ws, ws_len = _genome_arena(
+        _turns_size(dir_), _genome_chrom_count(dir_, the_one) + 1, len(region))
     rc = LIB.srmech_genome_append(
         dir_.encode("utf-8"), label.encode("utf-8"), _u8(region),
         ctypes.c_size_t(len(region)), ctypes.c_uint32(leaf_dim),
@@ -1842,7 +1898,8 @@ def genome_append_c(dir_: str, label: str, region: bytes, leaf_dim: int,
 def genome_remove_c(dir_: str, label: str, the_one: bytes) -> None:
     """Native genome remove — splice one chromosome out of ``<dir>`` in place."""
     _require_genome()
-    ws, ws_len = _genome_ws_ptr()
+    ws, ws_len = _genome_arena(_turns_size(dir_),
+                               _genome_chrom_count(dir_, the_one))
     rc = LIB.srmech_genome_remove(
         dir_.encode("utf-8"), label.encode("utf-8"),
         _u8(the_one), ctypes.c_size_t(len(the_one)), ws, ctypes.c_size_t(ws_len))
@@ -1854,7 +1911,8 @@ def genome_replace_c(dir_: str, label: str, region: bytes, leaf_dim: int,
                      the_one: bytes) -> None:
     """Native genome replace — splice one chromosome's region in place."""
     _require_genome()
-    ws, ws_len = _genome_ws_ptr()
+    ws, ws_len = _genome_arena(
+        _turns_size(dir_), _genome_chrom_count(dir_, the_one), len(region))
     rc = LIB.srmech_genome_replace(
         dir_.encode("utf-8"), label.encode("utf-8"), _u8(region),
         ctypes.c_size_t(len(region)), ctypes.c_uint32(leaf_dim),
@@ -1866,7 +1924,8 @@ def genome_replace_c(dir_: str, label: str, region: bytes, leaf_dim: int,
 def genome_export_c(dir_: str, label: str, out_path: str, the_one: bytes) -> None:
     """Native genome export — bundle one chromosome to ``out_path`` (.chr)."""
     _require_genome()
-    ws, ws_len = _genome_ws_ptr()
+    ws, ws_len = _genome_arena(  # region <= body bound for the .chr buffers
+        _turns_size(dir_), _genome_chrom_count(dir_, the_one), _turns_size(dir_))
     rc = LIB.srmech_genome_export(
         dir_.encode("utf-8"), label.encode("utf-8"), out_path.encode("utf-8"),
         _u8(the_one), ctypes.c_size_t(len(the_one)), ws, ctypes.c_size_t(ws_len))
@@ -1877,7 +1936,9 @@ def genome_export_c(dir_: str, label: str, out_path: str, the_one: bytes) -> Non
 def genome_import_c(chr_path: str, dest: str, the_one: bytes) -> None:
     """Native genome import — re-import a .chr bundle into ``dest`` (seed/append)."""
     _require_genome()
-    ws, ws_len = _genome_ws_ptr()
+    chr_sz = _genome_file_size(chr_path)
+    ws, ws_len = _genome_arena(
+        _turns_size(dest) + chr_sz, _genome_chrom_count(dest, the_one) + 1, chr_sz)
     rc = LIB.srmech_genome_import(
         chr_path.encode("utf-8"), dest.encode("utf-8"),
         _u8(the_one), ctypes.c_size_t(len(the_one)), ws, ctypes.c_size_t(ws_len))
@@ -1888,7 +1949,8 @@ def genome_import_c(chr_path: str, dest: str, the_one: bytes) -> None:
 def genome_explode_c(dir_: str, out_dir: str, the_one: bytes) -> None:
     """Native genome explode — packed genome → dir of <label>.chr bundles."""
     _require_genome()
-    ws, ws_len = _genome_ws_ptr()
+    ws, ws_len = _genome_arena(  # region <= body bound for each .chr bundle
+        _turns_size(dir_), _genome_chrom_count(dir_, the_one), _turns_size(dir_))
     rc = LIB.srmech_genome_explode(
         dir_.encode("utf-8"), out_dir.encode("utf-8"),
         _u8(the_one), ctypes.c_size_t(len(the_one)), ws, ctypes.c_size_t(ws_len))
@@ -1899,7 +1961,14 @@ def genome_explode_c(dir_: str, out_dir: str, the_one: bytes) -> None:
 def genome_pack_c(loose_dir: str, dest: str, the_one: bytes) -> None:
     """Native genome pack — dir of *.chr → one packed genome (canonical order)."""
     _require_genome()
-    ws, ws_len = _genome_ws_ptr()
+    try:
+        chrs = [n for n in os.listdir(loose_dir) if n.endswith(".chr")]
+    except OSError:
+        chrs = []
+    total = sum(_genome_file_size(os.path.join(loose_dir, n)) for n in chrs)
+    # the packed body + a per-bundle region are both bounded by the .chr total;
+    # one .chr per chromosome → n_chroms = len(chrs).
+    ws, ws_len = _genome_arena(total, len(chrs), total)
     rc = LIB.srmech_genome_pack(
         loose_dir.encode("utf-8"), dest.encode("utf-8"),
         _u8(the_one), ctypes.c_size_t(len(the_one)), ws, ctypes.c_size_t(ws_len))
@@ -1922,9 +1991,6 @@ __all__ = [
     "NativeNDJsonError",
     "NativeGenomeError",
     "has_native_genome",
-    "GENOME_NATIVE_BODY_MAX",
-    "GENOME_NATIVE_MANIFEST_MAX",
-    "GENOME_NATIVE_MAX_CHROMS",
     "genome_save_c",
     "genome_load_c",
     "genome_catalog_c",

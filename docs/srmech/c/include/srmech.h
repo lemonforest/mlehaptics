@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc153"
-#define SRMECH_VERSION       "0.7.5rc153"
+#define SRMECH_VERSION_PRE   "rc154"
+#define SRMECH_VERSION       "0.7.5rc154"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1973,8 +1973,11 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
  * no float). The §41 format version is 1.
  *
  * File I/O is stdio (fopen / fread / fwrite / fseek); JPL Rule 3 bans
- * malloc, not file I/O. The caller arena `ws` is for the JSON tree only;
- * directory-path strings are built into bounded stack buffers.
+ * malloc, not file I/O. The caller arena `ws` backs ALL scratch (the body
+ * read, the manifest, the per-chromosome arrays, the .chr buffers, the JSON
+ * tree) via a bump pointer — the bound is the caller's RAM, never a
+ * compiled-in cap; directory-path strings are built into bounded stack
+ * buffers.
  *
  * ABI-additive: new symbols + a struct + macros, so SRMECH_ABI_VERSION
  * stays 3.
@@ -1994,11 +1997,9 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
 #define SRMECH_GENOME_CHROM_CAP_MARKER 0x43u   /* 'C' — opens a chromosome */
 #define SRMECH_GENOME_GENE_CAP_MARKER  0x47u   /* 'G' — opens a gene */
 
-/* Max chromosomes a genome directory may hold (bounds the manifest
- * builder's per-chromosome arrays; single-token object-like macro). */
-#define SRMECH_GENOME_MAX_CHROMS 256
-
-/* Max label byte length (NUL-terminated) for one chromosome. */
+/* Max label byte length (NUL-terminated) for one chromosome. This is a FORMAT
+ * width (a label lives inline in a leaf_dim-byte cap block, like PATH_MAX), NOT
+ * a count cap — the number of chromosomes is bounded only by the caller arena. */
 #define SRMECH_GENOME_MAX_LABEL 256
 
 /* SAVE: write <dir>/turns.bin (= `body` verbatim, body_len bytes) and
@@ -2016,8 +2017,11 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
  *   leaf_dim        : the fixed block width in bytes (> 0, <= 256).
  *   the_one / the_one_len : the_one's single leaf_dim-byte block
  *                     (the_one_len MUST equal leaf_dim).
- *   ws / ws_len     : arena for the JSON builder (>= a few hundred KiB
- *                     for a typical genome; SRMECH_ERR_OVERFLOW if short).
+ *   ws / ws_len     : the caller arena for ALL scratch (the per-chromosome
+ *                     scan arrays + the manifest buffer + the JSON tree) — the
+ *                     bound is the caller's RAM, NOT a compiled-in cap. Size it
+ *                     to the genome (a host sizes it large, an MCU small);
+ *                     SRMECH_ERR_OVERFLOW if too small for this genome.
  *
  * Error returns:
  *   SRMECH_ERR_NULL_ARG   — dir / body(when body_len>0) / the_one / ws NULL.
@@ -2025,8 +2029,7 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
  *                           body_len not a whole multiple of leaf_dim, a turn
  *                           before the first CHROM cap, or a label too long.
  *   SRMECH_ERR_IO          — fopen / fwrite failed.
- *   SRMECH_ERR_OVERFLOW    — the JSON arena ws is too small, or more than
- *                           SRMECH_GENOME_MAX_CHROMS chromosomes.
+ *   SRMECH_ERR_OVERFLOW    — the caller arena ws is too small for this genome.
  */
 srmech_status_t srmech_genome_save(
     const char *dir,
@@ -2034,6 +2037,16 @@ srmech_status_t srmech_genome_save(
     uint32_t leaf_dim,
     const unsigned char *the_one, size_t the_one_len,
     void *ws, size_t ws_len);
+
+/* The arena byte count any genome op needs for a body of `body_len` bytes with
+ * `n_chroms` chromosomes when it also stages a `region_len`-byte region (a .chr
+ * region, or an append/replace region; 0 otherwise). Capacity is DEFINED by the
+ * C layout — the caller sizes its `ws` arena from THIS rather than guessing. Pure
+ * arithmetic (no I/O); each term traces to a real allocation (two body copies +
+ * the .chr region/hex/io + per-chromosome strings/manifest/json + a fixed slop).
+ * Adding this symbol does NOT bump SRMECH_ABI_VERSION. */
+size_t srmech_genome_arena_bytes(size_t body_len, uint32_t n_chroms,
+                                 size_t region_len);
 
 /* CATALOG: obtain the manifest catalog as a JSON value tree from the caller
  * arena `ws`. When <dir>/manifest.json is PRESENT this parses it ONLY (never
@@ -2188,10 +2201,9 @@ srmech_status_t srmech_genome_replace(
  * region and self-verifies. This COMPOSES the §41 MPR surface — it is NOT a
  * parallel attestation. Mirrors srmech.amsc.genome genome_export / genome_import.
  *
- * The single-chromosome region the C surface can bundle is bounded by
- * SRMECH_GENOME_CHR_REGION_MAX (the Python is unbounded; the C mirror bounds the
- * .chr scratch like the body / manifest / chroms). */
-#define SRMECH_GENOME_CHR_REGION_MAX (1u * 1024u * 1024u)
+ * The .chr region / hex / file-text scratch is carved from the caller arena
+ * (sized to the chromosome / the .chr file), so a chromosome of any size the
+ * caller's arena fits can be bundled — no compiled-in cap. */
 
 /* EXPORT: write chromosome `label`'s region (CHROM cap + coupled turns; the
  * leading cap re-hashed against the manifest cap_sha256) + the_one to `out_path`
@@ -2203,8 +2215,8 @@ srmech_status_t srmech_genome_replace(
  * Error returns:
  *   SRMECH_ERR_NULL_ARG   — dir / label / out_path / ws is NULL.
  *   SRMECH_ERR_IO          — turns.bin / the .chr I/O failed.
- *   SRMECH_ERR_OVERFLOW    — ws too small, or the region exceeds
- *                           SRMECH_GENOME_CHR_REGION_MAX.
+ *   SRMECH_ERR_OVERFLOW    — the caller arena ws is too small for this
+ *                           chromosome (its region / hex / .chr text).
  *   SRMECH_ERR_BAD_INPUT   — the_one_len 0 / > 256, label absent, cap integrity
  *                           bound failed, or a malformed manifest. */
 srmech_status_t srmech_genome_export(
@@ -2226,8 +2238,8 @@ srmech_status_t srmech_genome_export(
  * Error returns:
  *   SRMECH_ERR_NULL_ARG   — chr_path / dest / ws is NULL.
  *   SRMECH_ERR_IO          — the .chr / turns.bin / manifest.json I/O failed.
- *   SRMECH_ERR_OVERFLOW    — ws too small, the .chr text exceeds the scratch, or
- *                           the region exceeds SRMECH_GENOME_CHR_REGION_MAX.
+ *   SRMECH_ERR_OVERFLOW    — the caller arena ws is too small for this .chr
+ *                           (its text / decoded region / the dest body grow).
  *   SRMECH_ERR_BAD_INPUT   — not a chromosome bundle (wrong data_schema_id),
  *                           a region / the_one integrity bound failed, the dest
  *                           leaf_dim / the_one mismatches, the label already
@@ -2251,8 +2263,8 @@ srmech_status_t srmech_genome_import(
  * Error returns:
  *   SRMECH_ERR_NULL_ARG   — dir / out_dir / ws is NULL.
  *   SRMECH_ERR_IO          — turns.bin / a .chr write failed.
- *   SRMECH_ERR_OVERFLOW    — ws too small, a region exceeds
- *                           SRMECH_GENOME_CHR_REGION_MAX, or a path too long.
+ *   SRMECH_ERR_OVERFLOW    — the caller arena ws is too small for this explode
+ *                           (the labels array / a chromosome), or a path too long.
  *   SRMECH_ERR_BAD_INPUT   — the_one_len 0 / > 256, an unsafe label, a cap
  *                           integrity bound failed, or a malformed manifest. */
 srmech_status_t srmech_genome_explode(
@@ -2272,8 +2284,9 @@ srmech_status_t srmech_genome_explode(
  * Error returns:
  *   SRMECH_ERR_NULL_ARG   — loose_dir / dest / ws is NULL.
  *   SRMECH_ERR_IO          — a .chr / turns.bin / manifest.json I/O failed.
- *   SRMECH_ERR_OVERFLOW    — ws too small, a region exceeds the scratch, or a
- *                           path too long, or > SRMECH_GENOME_MAX_CHROMS .chr.
+ *   SRMECH_ERR_OVERFLOW    — the caller arena ws is too small for this pack
+ *                           (the .chr names / labels / a bundle / the body), or
+ *                           a path too long.
  *   SRMECH_ERR_BAD_INPUT   — the_one_len 0 / > 256, no .chr files, a bundle is
  *                           not a chromosome / fails its integrity bound, or
  *                           the dest leaf_dim / the_one / label invariant. */

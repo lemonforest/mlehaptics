@@ -259,7 +259,19 @@ static srmech_status_t json_parse_string(json_parser_t *p,
     assert(p != NULL);
     assert(v != NULL);
     p->pos++;  /* skip opening quote */
-    size_t cap = p->len - p->pos;          /* decoded <= remaining bytes */
+    /* Size the decode buffer to THIS string's raw span (scan to the closing
+     * quote, skipping \-escapes), not the whole remaining input — else N
+     * strings cost O(input^2) arena. Decoded length <= raw span (escapes only
+     * shrink); the decode loop below produces identical bytes. */
+    size_t scan = p->pos;
+    while (scan < p->len) {
+        char sc = p->src[scan];
+        if (sc == '\\') { scan += 2u; continue; }
+        if (sc == '"') { break; }
+        scan++;
+    }
+    size_t cap = (scan <= p->len && scan >= p->pos) ? (scan - p->pos)
+                                                    : (p->len - p->pos);
     char *buf = (char *)json_arena_alloc(&p->arena, cap + 1u);
     if (buf == NULL && cap + 1u != 0u) {
         return SRMECH_ERR_OVERFLOW;
@@ -366,12 +378,14 @@ static srmech_status_t json_parse_literal(json_parser_t *p,
  * ------------------------------------------------------------------ */
 
 typedef struct {
-    srmech_json_value_t *node;        /* the container being built     */
-    bool                 is_object;
-    uint32_t             n;
-    const char          *keys[SRMECH_JSON_MAX_CHILDREN];
-    srmech_json_value_t *vals[SRMECH_JSON_MAX_CHILDREN];
-} json_frame_t;
+    srmech_json_value_t  *node;       /* the container being built     */
+    bool                  is_object;
+    uint32_t              n;          /* children staged so far        */
+    uint32_t              cap;        /* current staging capacity      */
+    const char          **keys;       /* arena-backed [cap]; NULL=array */
+    srmech_json_value_t **vals;       /* arena-backed [cap]            */
+} json_frame_t;                       /* staging grows from the arena —
+                                       * no compiled-in per-container cap */
 
 /* Finalise a container frame: copy its staged children into arena-owned
  * arrays and attach them to the node. */
@@ -481,16 +495,44 @@ static srmech_status_t json_read_object_key(json_parser_t *p,
     return SRMECH_OK;
 }
 
-/* Append a child (and optional key) into a container frame; bound by
- * SRMECH_JSON_MAX_CHILDREN. */
-static srmech_status_t json_frame_push_child(json_frame_t *fr,
+/* Double a full container frame's staging arrays (arena-backed; the old
+ * arrays are abandoned in the bump arena). The bound is the arena, not a
+ * compiled-in child cap. SRMECH_ERR_OVERFLOW if the arena is exhausted or the
+ * uint32 count saturates. */
+static srmech_status_t json_frame_grow(json_parser_t *p, json_frame_t *fr)
+{
+    assert(p != NULL && fr != NULL);
+    assert(fr->n == fr->cap);
+    uint32_t ncap = (fr->cap < 0x80000000u) ? (fr->cap * 2u) : 0xFFFFFFFFu;
+    if (ncap == fr->cap) { return SRMECH_ERR_OVERFLOW; }
+    srmech_json_value_t **nv = (srmech_json_value_t **)json_arena_alloc(
+        &p->arena, (size_t)ncap * sizeof(srmech_json_value_t *));
+    if (nv == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (uint32_t k = 0; k < fr->n; k++) { nv[k] = fr->vals[k]; }
+    if (fr->is_object) {
+        const char **nk = (const char **)json_arena_alloc(
+            &p->arena, (size_t)ncap * sizeof(const char *));
+        if (nk == NULL) { return SRMECH_ERR_OVERFLOW; }
+        for (uint32_t k = 0; k < fr->n; k++) { nk[k] = fr->keys[k]; }
+        fr->keys = nk;
+    }
+    fr->vals = nv;
+    fr->cap = ncap;
+    return SRMECH_OK;
+}
+
+/* Append a child (and optional key) into a container frame, growing the
+ * arena-backed staging as needed (no compiled-in child cap). */
+static srmech_status_t json_frame_push_child(json_parser_t *p,
+                                             json_frame_t *fr,
                                              const char *key,
                                              srmech_json_value_t *child)
 {
     assert(fr != NULL);
     assert(child != NULL);
-    if (fr->n >= (uint32_t)SRMECH_JSON_MAX_CHILDREN) {
-        return SRMECH_ERR_OVERFLOW;
+    if (fr->n == fr->cap) {
+        srmech_status_t gst = json_frame_grow(p, fr);
+        if (gst != SRMECH_OK) { return gst; }
     }
     if (fr->is_object) {
         fr->keys[fr->n] = key;
@@ -562,14 +604,28 @@ srmech_status_t srmech_json_parse(const char *src, size_t len,
     return SRMECH_OK;
 }
 
-/* Initialise a container frame for a freshly-opened '{' or '['. */
-static void json_frame_open(json_frame_t *fr, srmech_json_value_t *node)
+/* Initialise a container frame for a freshly-opened '{' or '[' — carve an
+ * initial arena-backed staging buffer (grown on demand by push_child). */
+static srmech_status_t json_frame_open(json_parser_t *p, json_frame_t *fr,
+                                       srmech_json_value_t *node)
 {
-    assert(fr != NULL);
+    assert(p != NULL && fr != NULL);
     assert(node != NULL);
     fr->node = node;
     fr->is_object = (node->type == SRMECH_JSON_OBJECT);
     fr->n = 0;
+    fr->cap = 8u;
+    fr->keys = NULL;
+    fr->vals = (srmech_json_value_t **)json_arena_alloc(
+        &p->arena, (size_t)fr->cap * sizeof(srmech_json_value_t *));
+    if (fr->is_object) {
+        fr->keys = (const char **)json_arena_alloc(
+            &p->arena, (size_t)fr->cap * sizeof(const char *));
+    }
+    if (fr->vals == NULL || (fr->is_object && fr->keys == NULL)) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    return SRMECH_OK;
 }
 
 /* Read the next element into the top object frame: a "key": value pair
@@ -637,7 +693,8 @@ static srmech_status_t json_parse_containers(json_parser_t *p,
     assert(p != NULL && root != NULL);
     assert(stack != NULL && final_root != NULL);
     int depth = 0;
-    json_frame_open(&stack[0], root);
+    srmech_status_t ost = json_frame_open(p, &stack[0], root);
+    if (ost != SRMECH_OK) { return ost; }
     depth = 1;
     for (size_t guard = 0; guard < p->len + 2u; guard++) {
         if (depth == 0) {
@@ -662,7 +719,7 @@ static srmech_status_t json_parse_containers(json_parser_t *p,
             depth--;
             continue;
         }
-        st = json_frame_push_child(top, key, child);
+        st = json_frame_push_child(p, top, key, child);
         if (st != SRMECH_OK) {
             return st;
         }
@@ -670,7 +727,10 @@ static srmech_status_t json_parse_containers(json_parser_t *p,
             if (depth >= SRMECH_JSON_MAX_DEPTH) {
                 return SRMECH_ERR_OVERFLOW;
             }
-            json_frame_open(&stack[depth], child);
+            st = json_frame_open(p, &stack[depth], child);
+            if (st != SRMECH_OK) {
+                return st;
+            }
             depth++;
         }
     }
@@ -1144,10 +1204,9 @@ srmech_json_value_t *srmech_json_new_array(srmech_json_builder_t *b,
 {
     assert(b != NULL);
     assert(items != NULL || n == 0);
-    if (n > (uint32_t)SRMECH_JSON_MAX_CHILDREN) {
-        b->failed = 1;
-        return NULL;
-    }
+    /* No compiled-in child cap: the item-pointer copy is carved from the
+     * caller arena (json_builder_copy_ptrs), so an array is bounded only by
+     * the arena. (Objects stay capped — the writer's key-sort is fixed-size.) */
     srmech_json_value_t *v = json_builder_node(b);
     srmech_json_value_t **copy = json_builder_copy_ptrs(b, items, n);
     if (v == NULL || copy == NULL) {

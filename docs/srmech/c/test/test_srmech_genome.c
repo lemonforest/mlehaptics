@@ -557,6 +557,56 @@ int main(void)
         }
     }
 
+    /* rc154: >256 chromosomes — the OLD static SRMECH_GENOME_MAX_CHROMS=256
+     * struct-of-arrays could NOT hold this; the caller-arena scratch is bounded
+     * only by g_ws. 300 chromosomes (leaf_dim 4, 2-char labels), each = 1 CHROM
+     * cap + 1 data turn = 8 bytes; the whole body is 2400 bytes. */
+    {
+        static unsigned char big[300u * 8u];
+        static char lbl[300][3];
+        const char *alpha =
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        for (uint32_t i = 0u; i < 300u; i++) {
+            lbl[i][0] = alpha[i / 62u];
+            lbl[i][1] = alpha[i % 62u];
+            lbl[i][2] = '\0';
+            unsigned char *leaf = big + (size_t)i * 8u;
+            leaf[0] = CC;
+            leaf[1] = (unsigned char)lbl[i][0];
+            leaf[2] = (unsigned char)lbl[i][1];
+            leaf[3] = 0u;
+            leaf[4] = 0u; leaf[5] = 1u; leaf[6] = 2u; leaf[7] = 3u;  /* data turn */
+        }
+        const char *tb = getenv("TMPDIR");
+        if (tb == NULL) { tb = getenv("TMP"); }
+        if (tb == NULL) { tb = "/tmp"; }
+        char big_dir[1024];
+        snprintf(big_dir, sizeof(big_dir), "%s/srmech_genome_big", tb);
+        ensure_dir(big_dir);
+        st = srmech_genome_save(big_dir, big, sizeof(big), leaf_dim,
+                                the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_OK, "save 300-chromosome genome (>256, arena-bound)");
+        {
+            srmech_json_value_t *bm = NULL;
+            st = srmech_genome_catalog(big_dir, NULL, 0u, g_ws, sizeof(g_ws), &bm);
+            const srmech_json_value_t *bdata =
+                (st == SRMECH_OK) ? srmech_json_object_get(bm, "data") : NULL;
+            const srmech_json_value_t *arr =
+                (bdata != NULL) ? srmech_json_object_get(bdata, "chromosomes") : NULL;
+            check_true(arr != NULL && arr->type == SRMECH_JSON_ARRAY &&
+                       arr->u.arr.n == 300u, "catalog has 300 chromosomes");
+        }
+        {
+            unsigned char wout[16];
+            size_t wlen = 0u;
+            st = srmech_genome_window(big_dir, lbl[299], wout, sizeof(wout),
+                                      &wlen, NULL, 0u, g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_OK && wlen == 8u &&
+                       memcmp(wout, big + 299u * 8u, 8u) == 0,
+                       "window(300th label) on >256-chrom genome OK (8 B)");
+        }
+    }
+
     printf("== %d passed, %d failed ==\n", g_passed, g_failed);
     return (g_failed == 0) ? 0 : 1;
 }
