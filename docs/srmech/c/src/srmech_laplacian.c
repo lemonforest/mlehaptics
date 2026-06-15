@@ -31,9 +31,10 @@
  *     buffer for adjacency build-up and final L (in-place transform).
  *   - Jacobi takes its matrix in-place; the diagonal at exit holds
  *     the eigenvalues. Eigvals are also copied to a dedicated output.
- *   - SRMECH_LAPLACIAN_MAX_NODES = 256 caps the stack-allocated
- *     degree / row-scaling buffers so the C path stays embedded-
- *     safe. Larger graphs fall back to the Python numpy path.
+ *   - No node cap: every graph op writes only into the caller's matrix
+ *     (degree / row-scaling are computed per-row or stashed in the
+ *     diagonal; Jacobi rotates in place), so the bound is the caller's
+ *     RAM, not a compiled limit (standalone-complete honor).
  *
  * JPL Power-of-Ten compliance:
  *   - Rule 1 (no goto)        : OK
@@ -41,7 +42,8 @@
  *                              caller-supplied size_t (n / n_edges,
  *                              caller's responsibility) or by
  *                              SRMECH_LAPLACIAN_JACOBI_MAX_SWEEPS
- *   - Rule 3 (no malloc)      : OK — fixed-size stack buffers only
+ *   - Rule 3 (no malloc)      : OK — caller buffers + scalar locals (plus
+ *                              a thread-local static eig scratch); no malloc
  *   - Rule 4 (≤60 lines/func) : OK — Jacobi split into rotation +
  *                              sweep helpers
  *   - Rule 5 (≥2 asserts/fn)  : OK
@@ -69,7 +71,6 @@ static double lap_sqrt(double x)
     return out;
 }
 
-#define SRMECH_LAPLACIAN_MAX_NODES        256
 #define SRMECH_LAPLACIAN_JACOBI_MAX_SWEEPS 100
 
 srmech_status_t srmech_graph_dense_adjacency(uint32_t        n,
@@ -136,29 +137,20 @@ srmech_status_t srmech_graph_dense_laplacian(uint32_t        n,
                                              double         *out_matrix)
 {
     assert(out_matrix != NULL);
-    if (n > SRMECH_LAPLACIAN_MAX_NODES) {
-        return SRMECH_ERR_OVERFLOW;
-    }
     srmech_status_t st = srmech_graph_dense_adjacency(
         n, n_edges, edges_u, edges_v, weights, out_matrix);
     if (st != SRMECH_OK) {
         return st;
     }
-    /* Capture degrees BEFORE we mutate the matrix. Stack-allocated
-     * buffer bounded by SRMECH_LAPLACIAN_MAX_NODES. */
-    double degree[SRMECH_LAPLACIAN_MAX_NODES];
-    for (uint32_t i = 0; i < n; i++) {
-        degree[i] = srmech_laplacian_row_degree(n, i, out_matrix);
-    }
-    /* L = D − A: negate off-diagonals, replace diagonal with degree. */
+    /* L = D − A, computed row-by-row: deg_r depends only on row r of A
+     * (read before row r is overwritten), so there is NO per-node scratch
+     * and no compiled node cap — the bound is the caller's out_matrix
+     * (standalone-complete honor). */
     for (uint32_t r = 0; r < n; r++) {
+        double deg = srmech_laplacian_row_degree(n, r, out_matrix);
         for (uint32_t c = 0; c < n; c++) {
             size_t idx = (size_t)r * n + c;
-            if (r == c) {
-                out_matrix[idx] = degree[r];
-            } else {
-                out_matrix[idx] = -out_matrix[idx];
-            }
+            out_matrix[idx] = (r == c) ? deg : -out_matrix[idx];
         }
     }
     assert(n == 0 || out_matrix != NULL);
@@ -173,34 +165,37 @@ srmech_status_t srmech_graph_normalized_laplacian(uint32_t        n,
                                                   double         *out_matrix)
 {
     assert(out_matrix != NULL);
-    if (n > SRMECH_LAPLACIAN_MAX_NODES) {
-        return SRMECH_ERR_OVERFLOW;
-    }
     srmech_status_t st = srmech_graph_dense_adjacency(
         n, n_edges, edges_u, edges_v, weights, out_matrix);
     if (st != SRMECH_OK) {
         return st;
     }
-    /* Compute d_i^(−1/2). Isolated vertices (degree 0) → 0 (the
-     * normalised Laplacian's diagonal is 0, not 1, at isolated
-     * vertices by convention). */
-    double d_inv_sqrt[SRMECH_LAPLACIAN_MAX_NODES];
+    /* Stash d_i^(−1/2) IN the diagonal (which L_sym overwrites anyway), so
+     * there is NO per-node scratch and no compiled node cap — the bound is
+     * the caller's out_matrix (standalone-complete honor). The row-degree
+     * reads off-diagonals only, so stashing on the diagonal is safe.
+     * Isolated vertices (degree 0) → 0 (the normalised Laplacian's diagonal
+     * is 0 there by convention). */
     for (uint32_t i = 0; i < n; i++) {
         double d = srmech_laplacian_row_degree(n, i, out_matrix);
-        d_inv_sqrt[i] = (d > 0.0) ? (1.0 / lap_sqrt(d)) : 0.0;
+        out_matrix[(size_t)i * n + i] = (d > 0.0) ? (1.0 / lap_sqrt(d)) : 0.0;
     }
-    /* L_sym = I − D^(−1/2) A D^(−1/2). */
+    /* L_sym = I − D^(−1/2) A D^(−1/2): off-diagonals first (reading the
+     * stashed d^(−1/2) from the diagonals, which this pass never writes),
+     * then finalise the diagonal to {0, 1}. */
     for (uint32_t r = 0; r < n; r++) {
+        double dr = out_matrix[(size_t)r * n + r];
         for (uint32_t c = 0; c < n; c++) {
-            size_t idx = (size_t)r * n + c;
-            double val;
-            if (r == c) {
-                val = (d_inv_sqrt[r] != 0.0) ? 1.0 : 0.0;
-            } else {
-                val = -out_matrix[idx] * d_inv_sqrt[r] * d_inv_sqrt[c];
+            if (r != c) {
+                size_t idx = (size_t)r * n + c;
+                double dc = out_matrix[(size_t)c * n + c];
+                out_matrix[idx] = -out_matrix[idx] * dr * dc;
             }
-            out_matrix[idx] = val;
         }
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        size_t d = (size_t)i * n + i;
+        out_matrix[d] = (out_matrix[d] != 0.0) ? 1.0 : 0.0;
     }
     assert(n == 0 || out_matrix != NULL);
     return SRMECH_OK;
@@ -250,7 +245,7 @@ static void srmech_laplacian_jacobi_rotate(uint32_t n, double *mat,
 static double srmech_laplacian_off_diag_sq(uint32_t n, const double *mat)
 {
     assert(mat != NULL);
-    assert(n <= SRMECH_LAPLACIAN_MAX_NODES);
+    assert(n < 0xFFFFFFFFu);          /* loop-bound sanity; no node cap */
     double s = 0.0;
     for (uint32_t r = 0; r < n; r++) {
         for (uint32_t c = r + 1; c < n; c++) {
@@ -273,9 +268,9 @@ srmech_status_t srmech_jacobi_eigvals(uint32_t  n,
     if (matrix == NULL || out_eigvals == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (n > SRMECH_LAPLACIAN_MAX_NODES) {
-        return SRMECH_ERR_OVERFLOW;
-    }
+    /* No node cap: the Jacobi sweeps rotate the caller's `matrix` IN PLACE
+     * (eigenvalues read off the diagonal), so there is no scratch — the
+     * bound is the caller's matrix (standalone-complete honor). */
     if (n == 0) {
         return SRMECH_OK;
     }
@@ -618,11 +613,9 @@ srmech_status_t srmech_dense_matmul_complex(
         || out_interleaved == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (m > SRMECH_LAPLACIAN_MAX_NODES
-        || k > SRMECH_LAPLACIAN_MAX_NODES
-        || n > SRMECH_LAPLACIAN_MAX_NODES) {
-        return SRMECH_ERR_OVERFLOW;
-    }
+    /* No m/k/n cap: the product accumulates in scalar locals and writes
+     * the caller's out_interleaved (no scratch) — the bound is the caller's
+     * buffers (standalone-complete honor). */
     for (uint32_t i = 0; i < m; i++) {
         for (uint32_t j = 0; j < n; j++) {
             double acc_re = 0.0;

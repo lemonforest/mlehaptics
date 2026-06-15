@@ -8,6 +8,18 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc157] - 2026-06-15
+
+**C standalone-complete honor sweep, part 2 — lift the four Class-L node caps (graph Laplacian / normalized / Jacobi eigvals / dense matmul).** `srmech_laplacian.c` carried `SRMECH_LAPLACIAN_MAX_NODES 256` on four ops; the audit found **none of them actually needs scratch**, so the cap was a gratuitous rejection of larger valid graphs/matrices a C-only / MCU host could serve.
+
+- **`srmech_graph_dense_laplacian`** — the `degree[256]` stack array is **eliminated**: `L = D−A` is row-local (`deg_r` depends only on row `r`, read before row `r` is overwritten), so it is computed per-row into the caller's matrix. No scratch.
+- **`srmech_graph_normalized_laplacian`** — the `d_inv_sqrt[256]` stack array is **eliminated**: `d^(−1/2)` is stashed **in the diagonal** (which `L_sym` overwrites anyway), used for the off-diagonal pass, then the diagonal is finalised to {0,1}. No scratch.
+- **`srmech_jacobi_eigvals`** — already rotates the caller's `matrix` **in place** (eigenvalues read off the diagonal); the `n > 256` cap was gratuitous and is removed.
+- **`srmech_dense_matmul_complex`** — accumulates in scalar locals and writes the caller's output buffer; the `m/k/n > 256` cap is removed.
+- **Python**: `_can_dispatch_native(n)` drops the `n ≤ MAX_NATIVE_NODES` bounds-gate (the rc153 anti-pattern) and `mat_matmul` drops its inline `≤256` check, so native is **authoritative for any size** and the pure-Python path is the complete alternative only when there is no C. (`mat_solve` / the Hermitian legacy `_ws` static buffer are unchanged — dense-solve is the next rc; the Hermitian legacy path keeps `SRMECH_LAPLACIAN_MAX_NODES`, which now sizes **only** that workspace.)
+- **Proven at n = 300 > 256** (`test_c_standalone_honor_laplacian_rc157.py`, numpy-free): `dense_laplacian` and `normalized_laplacian` native == forced-pure across the full 300×300 matrix; `jacobi_eigvals` accepts n=300 (diagonal-spectrum correctness) + native==pure at n=72; `mat_matmul` accepts n=300 (`A·I == A`) + native==pure at n=96. All 131 existing Class-L parity tests still green. C pedantic `-Werror`; JPL 6/6; ABI **3**; `tools.total` unchanged at **303**; 5 SSOT bumped.
+- Remaining honor backlog: dense-solve (`aug[]` static → caller arena + drop the `mat_solve` OVERFLOW-rescue) and the TOML / JSON-object parser child caps.
+
 ## [0.7.5rc156] - 2026-06-15
 
 **C standalone-complete honor sweep, part 1 — lift the two no-scratch size caps (exact-DFT + HDC batch bundle).** A full audit (post-rc155) of the whole C library against the rc154 standalone-complete honor ([[feedback_c_must_be_standalone_complete_no_python_fallback]]) found six native surfaces still carrying pre-rc154 compiled-in problem-SIZE caps. This rc fixes the two cheapest — caps that bound caller-INPUT size with **no scratch to arena-size** (the kernels already write only into caller-supplied memory), so a C-only / microcontroller host with the RAM for the larger problem was refused for nothing.
