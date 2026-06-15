@@ -86,6 +86,17 @@ ROUTING_STOPLIST = frozenset(
     "finds given give gives gave get gets got getting way ways thing things kind sort type types lot like likes "
     "also well much many more most some any other another how why does did doing done need needs want wants let "
     "tell told say said see seen look looks put take takes go goes come comes work works".split())
+# F752: the FRAME channel — function words ARE the sentence structure (intent), the thing F751 stoplisted for ROUTING.
+# Read them (on the RAW prompt; tokenize drops most) to classify the question TYPE so a how-made ≠ a what-is ≠ a phrase.
+INTENT_RE = (
+    ("process",    re.compile(r"\bhow\b.{0,30}\b(made|make|making|done|do|work|works|built|build|create[sd]?|"
+                              r"grow[ns]?|form(ed|s)?|produced?|happen[s]?|brew|ferment)\b")),
+    ("quantity",   re.compile(r"\bhow\s+(many|much|big|old|far|long|tall|fast)\b")),
+    ("definition", re.compile(r"\b(what\s+(is|are|s|r)|what'?s|define|definition|meaning|who\s+(is|are|was|were))\b")),
+    ("cause",      re.compile(r"\bwhy\b")),
+    ("place",      re.compile(r"\bwhere\b")),
+    ("time",       re.compile(r"\bwhen\b")),
+)
 
 
 def parse_sections(path, cap=48, maxchars=700):
@@ -215,6 +226,17 @@ class SionaGenepool:
     @staticmethod
     def _norm(w):                                             # crude singular fold so 'dragons' matches 'dragon'
         return w[:-1] if w.endswith("s") and len(w) > 3 else w
+
+    @staticmethod
+    def _intent(pl):                                          # the FRAME channel: question TYPE from function words
+        for name, rx in INTENT_RE:
+            if rx.search(pl):
+                return name
+        return "phrase"                                      # no question frame -> a phrase / word-list
+
+    def _recognized(self, t):                                # does this content word have a home in any kernel?
+        return (t in self.vix) or (self._norm(t) in self.wiki_idx) or \
+               any(t == k or t.startswith(k) or k.startswith(t) for k in self.learned)
 
     def wiki_lookup(self, prompt):
         """Scalable broad-knowledge lookup over the WIKI side-store: query terms -> article via the term-index,
@@ -389,9 +411,24 @@ class SionaGenepool:
         if "siona" in pl or re.search(r"\byou\b.*\bsrmech\b|\bsrmech\b.*\byou\b|same thing", pl):
             return self._structure_card()
 
-        # === ETAK-WALK the surface (inference, not retrieval) =============================================
+        # === SENTENCE PARSE (F752): TOPIC channel (content) + FRAME channel (function words = intent) ======
         content = T.tokenize(prompt)
-        landmarks = [self.vix[t] for t in content if t in self.vix and t not in ROUTING_STOPLIST]   # F751: no delexical routing
+        salient = [t for t in content if t not in ROUTING_STOPLIST]              # candidate topics
+        recognized = [t for t in salient if self._recognized(t)]                 # topics with a kernel home
+        unrecognized = [t for t in salient if t not in recognized]
+        intent = self._intent(pl)                                               # the question TYPE (frame channel)
+        parse = f"[parsed: {intent} · topic {recognized or '—'}]"
+        new_note = f"\n  (not on my shelf: {', '.join(unrecognized)})" if unrecognized else ""
+        proc_note = ("\n  (you asked HOW it's made/works — I hold what it IS, not the process)"
+                     if intent in ("process", "quantity") else "")
+
+        # word-salad / ambiguous: a PHRASE (no question frame) naming ≥2 distinct recognized topics -> ask which
+        if intent == "phrase" and len(set(self._norm(t) for t in recognized)) >= 2:
+            return (f"{parse}\n[siona] That reads as several things ({', '.join(recognized)}) with no question — "
+                    f"which one do you mean, or what about them?{new_note}")
+
+        # === ETAK-WALK the DEEP surface (inference, not retrieval) ========================================
+        landmarks = [self.vix[t] for t in salient if t in self.vix]
         if landmarks:
             trace, ranked = self._walk(landmarks)
             path_str = " → ".join(trace[:8])
@@ -399,21 +436,20 @@ class SionaGenepool:
             if top_kernel.startswith("dict-en-"):             # era-resolve the WORD the walk found (F739 disambig)
                 era = "dict-en-1600" if ARCHAIC_RE.search(pl) else "dict-en-2026"
                 defn = self._text.get((era, top_key), self._text[(top_kernel, top_key)])
-                return f"[etak: {path_str}]\n[{era}] {top_key}: {defn}"
+                return f"{parse}\n[etak: {path_str}]\n[{era}] {top_key}: {defn}{proc_note}{new_note}"
             body = self._text.get((top_kernel, top_key), top_key)
             see = [f"§{k[:24]}" for kk, k in ranked[1:3] if kk == top_kernel]   # siblings the same walk passed
             tail = f"\n  (the walk also passed: {', '.join(see)})" if see else ""
-            return f"[etak: {path_str}]\n[{top_kernel} → §{top_key}] {body}{tail}"
+            return f"{parse}\n[etak: {path_str}]\n[{top_kernel} → §{top_key}] {body}{tail}{proc_note}{new_note}"
         # not in the DEEP kernels -> try the broad WIKI knowledge chromosome (scalable lookup) before asking
         wk = self.wiki_lookup(prompt)
         if wk:
-            return (f"[siona · wiki] {self.wiki_title[wk]}: {self.wiki[wk]}\n"
-                    f"  (source: {self.wiki_cite[wk]}, CC-BY-SA — attested in my wiki chromosome)")
-        if content:                                            # named something specific in NO kernel -> ASK
-            subject = max(content, key=len)                   # the salient term (so a follow-up answer binds to it)
-            return (f"[siona · asking-state] You asked about “{subject}”, which touches none of my kernels — I won't "
-                    f"invent it. Tell me (“remember {subject} is …”, or just answer) and I'll learn it. "
-                    f"Otherwise, here is what I am:\n{self._structure_card()}")
+            return (f"{parse}\n[siona · wiki] {self.wiki_title[wk]}: {self.wiki[wk]}\n"
+                    f"  (source: {self.wiki_cite[wk]}, CC-BY-SA — attested in my wiki chromosome){proc_note}{new_note}")
+        if salient:                                            # named something specific in NO kernel -> ASK
+            subject = max(salient, key=len)                   # the salient term (so a follow-up answer binds to it)
+            return (f"{parse}\n[siona · asking-state] You asked about “{subject}”, which touches none of my kernels — "
+                    f"I won't invent it. Tell me (“remember {subject} is …”, or just answer) and I'll learn it.")
         # no substantive tokens (e.g. 'who are you', 'what can you do') -> EMERGENT introspection from structure
         return self._structure_card()
 
