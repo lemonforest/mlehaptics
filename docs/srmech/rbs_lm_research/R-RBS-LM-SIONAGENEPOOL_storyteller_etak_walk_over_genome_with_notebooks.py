@@ -42,6 +42,22 @@ def _seed(t): return int.from_bytes(sha256_raw(t.encode())[:4], "big")
 def _leaf(t): return hdc.klein4_random(DIM, seed=_seed(t))
 def _slug(s): return (re.sub(r"[^a-z0-9]+", "_", s.lower()).strip("_") or "sec")[:36]
 
+# === THE LANGUAGE LAYER (F761) ====================================================================================
+# ni-Vanuatu = the ABSTRACT TRANSLATION LAYER (the byte/glyph-level, language-AGNOSTIC base where any language can
+# inference — R-RBS-LM-25 strip-English-privilege / R-RBS-LM-54 Rosetta). SignWriting sits at the SAME level (the
+# signed projection of the same abstract translations). A surface language (English) is BUILT FROM this base: a word
+# is the glyph-composition of its letters, so it is a PROJECTION of ni-Vanuatu, not an independent random token.
+GLYPHS = "abcdefghijklmnopqrstuvwxyz'- "          # the ni-Vanuatu abstract glyph alphabet (the universal base)
+GLYPH_SET = set(GLYPHS)
+def _glyph(ch): return hdc.klein4_random(DIM, seed=_seed("niv/" + ch))          # one abstract base vector per glyph
+def _posrole(i): return hdc.klein4_random(DIM, seed=_seed(f"niv/pos/{i}"))       # position role (order-preserving bind)
+def _word_hv(w):
+    """A surface word built FROM the ni-Vanuatu glyph base: bundle of position-bound glyph vectors (Class M ∘ glyphs).
+    Words sharing letters share substrate — the projection IS the language-agnostic encoding, not a fresh random leaf."""
+    chars = [c for c in w.lower() if c in GLYPH_SET] or ["x"]
+    parts = [hdc.klein4_bind(_glyph(c), _posrole(i)) for i, c in enumerate(chars[:24])]
+    return hdc.klein4_bundle(*parts) if len(parts) > 1 else parts[0]
+
 ERA_DEFS = {
     "dict-en-1600": {"nice": "foolish or ignorant", "awful": "awe-inspiring, worthy of awe",
                      "computer": "a person who computes", "meat": "food in general", "silly": "blessed, innocent"},
@@ -141,10 +157,16 @@ def parse_sections(path, cap=48, maxchars=700):
 def build_genepool(path):
     payload = []                                              # MPR rows: the renderable text (AMSC content layer)
     # NO siona_identity chromosome — identity is not baked; it is read from srmech.describe() + genome_catalog at run.
-    chromosomes = [("signwriting", [(c, [_leaf(f"sw/{c}")]) for c in SW_CLASSES])]
-    payload += [("signwriting", c, f"SignWriting symbol class: {c}") for c in SW_CLASSES]
+    # === THE LANGUAGE LAYER (F761) — abstract translation base + its signed sibling, then surface languages on top ===
+    # ABSTRACT level: ni-Vanuatu (the language-agnostic glyph base) + SignWriting (its signed projection), SAME level.
+    chromosomes = [("ni-vanuatu", [(ch.strip() or "space", [_glyph(ch)]) for ch in GLYPHS])]
+    payload += [("ni-vanuatu", ch.strip() or "space",
+                 f"abstract translation glyph '{ch}' — the language-agnostic base every language projects from") for ch in GLYPHS]
+    chromosomes.append(("signwriting", [(c, [_leaf(f"sw/{c}")]) for c in SW_CLASSES]))   # same level: the SIGNED form
+    payload += [("signwriting", c, f"SignWriting symbol class: {c} (the signed form of the abstract translation)") for c in SW_CLASSES]
+    # SURFACE level: English — each word BUILT FROM the ni-Vanuatu glyph base (_word_hv), a projection not a random leaf.
     for era, defs in ERA_DEFS.items():
-        chromosomes.append((era, [(w, [_leaf(f"{era}/{w}")]) for w in defs]))
+        chromosomes.append((era, [(w, [_word_hv(w)]) for w in defs]))
         payload += [(era, w, d) for w, d in defs.items()]
     for kernel, nbpath in NOTEBOOKS.items():
         secs = parse_sections(nbpath)
