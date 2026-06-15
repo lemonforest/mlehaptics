@@ -711,6 +711,15 @@ trivial accessor `srmech_plat_has_dirlist` is Rule-5 exempt (compile-time
 genome carries **no `#ifdef`** — every OS touch lives in the PAL TU.
 `SRMECH_ABI_VERSION` unchanged at 3 (additive symbol; hasattr-guarded).
 
+rc164 adds the streaming-read surface (`srmech_plat_rstream_open` /
+`_read` / `_close`) under the existing FILE backend — portable stdio,
+**no new accessor** (it shares `srmech_plat_has_filesystem`), each ≤ 60
+lines with ≥ 2 asserts. `srmech_ndjson.c` (the §B4 line tokeniser) drops
+its own `fopen`/`fread`/`fclose` for that surface, so a `grep` for raw
+stdio across `src/` is now **zero outside `srmech_platform.c`** — every
+OS touch in the C library (files / dirs / streaming reads) lives in the
+one PAL TU. No Rule-5 exempt added. `SRMECH_ABI_VERSION` unchanged at 3.
+
 **Total mechanically-detectable violations: 1 → 0 (held at 0 through
 v0.6.0rc14).**
 
