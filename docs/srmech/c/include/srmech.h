@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc155"
-#define SRMECH_VERSION       "0.7.5rc155"
+#define SRMECH_VERSION_PRE   "rc156"
+#define SRMECH_VERSION       "0.7.5rc156"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1505,8 +1505,6 @@ srmech_status_t srmech_log(double x, double *out);
  * No ABI bump: pure additions to ABI v2 per the Phase B4 convention.
  * ------------------------------------------------------------------ */
 
-#define SRMECH_HDC_MAX_BUNDLE_N 257  /* safety cap for bundle n_vectors */
-
 /* bind(a, b): component-wise XOR. out[i] = a[i] ^ b[i]. Commutative,
  * associative, self-inverse: bind(a, bind(a, b)) = b. */
 srmech_status_t srmech_hdc_bind(const uint8_t *a,
@@ -1517,7 +1515,7 @@ srmech_status_t srmech_hdc_bind(const uint8_t *a,
 /* bundle(vectors, n_vectors): majority across n_vectors at each bit position.
  * Returns SRMECH_ERR_BAD_INPUT for even n_vectors (BSC convention requires
  * odd-count for clean majority; caller can pad with tie-breaker vector).
- * Returns SRMECH_ERR_OVERFLOW for n_vectors > SRMECH_HDC_MAX_BUNDLE_N. */
+ * No n_vectors cap — bound is the caller's RAM (the bit-count is uint32). */
 srmech_status_t srmech_hdc_bundle(const uint8_t * const *vectors,
                                   uint32_t                n_vectors,
                                   uint32_t                n_bytes,
@@ -1562,8 +1560,8 @@ srmech_status_t srmech_polar_bind(const int8_t *a,
 
 /* polar_bundle(vectors, n_vectors): per-position sticky majority.
  * out[i] = sign(sum_v vectors[v][i]); exact ties (sum == 0) → 0. No
- * odd-count restriction (the 0 state absorbs ties). Returns
- * SRMECH_ERR_OVERFLOW for n_vectors > SRMECH_HDC_MAX_BUNDLE_N. */
+ * odd-count restriction (the 0 state absorbs ties). No n_vectors cap —
+ * bound is the caller's RAM (the sum accumulator is int32). */
 srmech_status_t srmech_polar_bundle(const int8_t * const *vectors,
                                     uint32_t              n_vectors,
                                     uint32_t              n,
@@ -1603,7 +1601,7 @@ srmech_status_t srmech_klein4_bind(const uint8_t *a,
 
 /* klein4_bundle(vectors, n_vectors): per-bit majority on each of the 2
  * bits independently; exact ties (count == n_vectors/2) → 0 for that bit.
- * Returns SRMECH_ERR_OVERFLOW for n_vectors > SRMECH_HDC_MAX_BUNDLE_N. */
+ * No n_vectors cap — bound is the caller's RAM (the 1-counts are uint32). */
 srmech_status_t srmech_klein4_bundle(const uint8_t * const *vectors,
                                      uint32_t               n_vectors,
                                      uint32_t               n,

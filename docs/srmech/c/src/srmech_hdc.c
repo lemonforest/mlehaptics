@@ -106,9 +106,8 @@ srmech_status_t srmech_hdc_bundle(const uint8_t * const *vectors,
     if (n_vectors == 0 || n_bytes == 0) {
         return SRMECH_ERR_BAD_INPUT;
     }
-    if (n_vectors > SRMECH_HDC_MAX_BUNDLE_N) {
-        return SRMECH_ERR_OVERFLOW;
-    }
+    /* No n_vectors cap: the count accumulator is uint32 and the vectors are
+     * caller-resident, so the bound is the caller's RAM (standalone-complete). */
     /* BSC bundle requires odd-count for clean majority; reject even
      * (caller can pad with a tie-breaker vector if needed). */
     if ((n_vectors & 1u) == 0u) {
@@ -238,9 +237,8 @@ srmech_status_t srmech_polar_bundle(const int8_t * const *vectors,
     if (n_vectors == 0 || n == 0) {
         return SRMECH_ERR_BAD_INPUT;
     }
-    if (n_vectors > SRMECH_HDC_MAX_BUNDLE_N) {
-        return SRMECH_ERR_OVERFLOW;
-    }
+    /* No n_vectors cap: the sticky-majority accumulator is int32 and the
+     * vectors are caller-resident — bound is caller RAM (standalone-complete). */
     for (uint32_t i = 0; i < n; i++) {
         int32_t sum = 0;
         for (uint32_t v = 0; v < n_vectors; v++) {
@@ -359,9 +357,8 @@ srmech_status_t srmech_klein4_bundle(const uint8_t * const *vectors,
     if (n_vectors == 0 || n == 0) {
         return SRMECH_ERR_BAD_INPUT;
     }
-    if (n_vectors > SRMECH_HDC_MAX_BUNDLE_N) {
-        return SRMECH_ERR_OVERFLOW;
-    }
+    /* No n_vectors cap: the per-bit 1-counts are uint32 and the vectors are
+     * caller-resident — bound is caller RAM (standalone-complete). */
     uint32_t half = n_vectors / 2u;
     for (uint32_t i = 0; i < n; i++) {
         uint32_t bit0 = 0;

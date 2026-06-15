@@ -49,8 +49,6 @@ from .mat import Mat
 # Kanerva 2009; production HDC typically uses 1000-10000 bits.
 DEFAULT_HDC_BYTES: int = 128
 
-MAX_BUNDLE_N: int = 257  # mirror of SRMECH_HDC_MAX_BUNDLE_N in srmech.h
-
 
 def _check_pair(a: bytes, b: bytes, op: str) -> None:
     if len(a) != len(b):
@@ -116,10 +114,8 @@ def bundle(vectors: Sequence[bytes]) -> bytes:
         raise ValueError(
             f"hdc.bundle: n_vectors must be odd (got {n_vectors})"
         )
-    if n_vectors > MAX_BUNDLE_N:
-        raise ValueError(
-            f"hdc.bundle: n_vectors {n_vectors} exceeds MAX_BUNDLE_N {MAX_BUNDLE_N}"
-        )
+    # No n_vectors cap: the native count accumulator is uint32 and the
+    # pure-Python loop is unbounded — bound is the caller's RAM either way.
     n_bytes = len(vectors[0])
     if n_bytes == 0:
         raise ValueError("hdc.bundle: vectors must be non-empty")
@@ -179,17 +175,12 @@ def bundle_with_ties(vectors: Sequence[bytes]) -> "tuple[bytes, bytes]":
         ``(majority, ties)`` — two byte vectors, each the input length.
 
     Raises:
-        ValueError: empty sequence, mismatched lengths, zero-length vectors, or
-            more than ``MAX_BUNDLE_N`` vectors.
+        ValueError: empty sequence, mismatched lengths, or zero-length vectors.
     """
     n_vectors = len(vectors)
     if n_vectors == 0:
         raise ValueError("hdc.bundle_with_ties: vectors sequence must be non-empty")
-    if n_vectors > MAX_BUNDLE_N:
-        raise ValueError(
-            f"hdc.bundle_with_ties: n_vectors {n_vectors} exceeds "
-            f"MAX_BUNDLE_N {MAX_BUNDLE_N}"
-        )
+    # No n_vectors cap — bound is the caller's RAM (counts only, no scratch).
     n_bytes = len(vectors[0])
     if n_bytes == 0:
         raise ValueError("hdc.bundle_with_ties: vectors must be non-empty")
@@ -2006,7 +1997,6 @@ def loop_runbind_hd(a, b):
 
 __all__ = [
     "DEFAULT_HDC_BYTES",
-    "MAX_BUNDLE_N",
     "POLAR_STATES",
     "KLEIN4_STATES",
     "bind",
