@@ -31,11 +31,12 @@ edges → ``dense_laplacian``, not a ``Counter`` store.
 """
 from __future__ import annotations
 
+import itertools
 import logging
 import unicodedata
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
-__all__ = ["DEFAULT_STOPLIST", "tokenize", "cooccurrence_edges"]
+__all__ = ["DEFAULT_STOPLIST", "tokenize", "cooccurrence_edges", "cooccurrence_topk"]
 
 _log = logging.getLogger("srmech.amsc.text")
 
@@ -249,6 +250,179 @@ def cooccurrence_edges(
     edges = sorted(counts)
     weights = [counts[e] for e in edges]
     return n, edges, weights
+
+
+def _truncate_to(neigh: Dict[int, int], cap: int) -> None:
+    """Truncate one node's neighbour map to its ``cap`` highest-weight entries
+    (ties → smaller neighbour index first; deterministic). In place — the cap
+    that keeps the per-node store bounded."""
+    if len(neigh) <= cap:
+        return
+    kept = sorted(neigh.items(), key=lambda kv: (-kv[1], kv[0]))[:cap]
+    neigh.clear()
+    neigh.update(kept)
+
+
+def cooccurrence_topk(
+    docs: Iterable[object],
+    *,
+    window: int = 2,
+    k: int = 20,
+    vocab: Optional[Sequence[str]] = None,
+    cap_slack: int = 4,
+    chunk_docs: int = 2048,
+) -> Dict[str, object]:
+    """Streaming / bounded top-K co-occurrence — the LOW-RAM ENCODE peer of
+    :func:`cooccurrence_edges` (UPSTREAM §52 / F793).
+
+    The all-in-RAM :func:`cooccurrence_edges` holds every document in memory and
+    materialises the FULL pair-count edge list (the measured 2.1–2.4 GB encode
+    peak: docs + ~9 M edges). This streaming peer instead
+
+    * consumes ``docs`` as a **one-pass stream** (an iterable / generator — each
+      document is processed then released, so the corpus is never all resident),
+      and
+    * keeps only a **bounded top-K-per-node** store via **chunked merge**: it
+      accumulates the FULL co-occurrence of each ``chunk_docs``-document chunk
+      (bounded by the chunk, not the corpus), then merges those weights into the
+      running per-node store and truncates each node to a cap of ``k * cap_slack``
+      highest-weight neighbours,
+
+    so the peak is ``O(vocab × k·cap_slack + chunk)`` — never the full edge count.
+    It is the *explicit* bounded analog of the §50 holographic
+    :func:`srmech.amsc.hdc.cooccurrence_fold`, and the bounded ``(n, edges,
+    weights)`` triple it returns is a drop-in for
+    :func:`srmech.amsc.laplacian.fiedler_sparse` /
+    :func:`srmech.amsc.laplacian.normalized_cut_bisect` — so the whole
+    spectral-clump ENCODE (tokens → bounded graph → recursive cut) stays bounded.
+
+    HONESTY: when a node's realized degree never exceeds the cap it is **bit-exact**
+    to the full-graph top-K (no truncation happens); the chunked merge keeps the
+    **full summed weight** for every retained neighbour (within-chunk weights
+    accumulate before any truncation, so a heavy co-occurrence is never lost to a
+    mid-accumulation eviction). Truncation only drops a neighbour that fell out of
+    the ``k·cap_slack`` window AND did not return within a later chunk — the long
+    tail, which the downstream normalized-cut is robust to (top-K sparsification IS
+    the production preprocessing; §51 stress test). Larger ``cap_slack`` /
+    ``chunk_docs`` → more exact, more RAM. For ``vocab=None`` the vocabulary is built
+    **incrementally** (index = order of first appearance) because a single
+    streaming pass cannot pre-rank by frequency; pass an explicit ``vocab`` for a
+    stable index map. For a genuinely low-RAM encode, stream a **per-document**
+    iterable (each ``doc`` a token sequence — then the transient per-doc token
+    list is the only doc-scale allocation); a flat ``Sequence[str]`` is treated
+    as a single document (small-input convenience).
+
+    Returns
+    -------
+    dict
+        ``{"n", "vocab", "edges", "weights", "topk"}`` — ``n`` / ``vocab`` the
+        node count + index→token list; ``(edges, weights)`` the bounded
+        undirected sparse-graph triple (``u < v``, integer counts) for the
+        Laplacian path; ``topk`` the ``{token: [(neighbour, weight), …≤k]}``
+        per-token view (the §52 contract). Numpy-free, deterministic.
+    """
+    if not isinstance(window, int) or isinstance(window, bool) or window < 1:
+        raise ValueError(f"cooccurrence_topk: window must be a positive int; got {window!r}")
+    if not isinstance(k, int) or isinstance(k, bool) or k < 1:
+        raise ValueError(f"cooccurrence_topk: k must be a positive int; got {k!r}")
+    if not isinstance(cap_slack, int) or isinstance(cap_slack, bool) or cap_slack < 1:
+        raise ValueError(f"cooccurrence_topk: cap_slack must be a positive int; got {cap_slack!r}")
+    if not isinstance(chunk_docs, int) or isinstance(chunk_docs, bool) or chunk_docs < 1:
+        raise ValueError(f"cooccurrence_topk: chunk_docs must be a positive int; got {chunk_docs!r}")
+    if isinstance(docs, str):
+        raise TypeError("cooccurrence_topk: docs must be a token sequence or a stream of "
+                        "token sequences, not a raw str — tokenize() it first")
+    cap = k * cap_slack
+
+    fixed_vocab = vocab is not None
+    vocab_list: List[str] = list(vocab) if fixed_vocab else []
+    idx: Dict[str, int] = {w: i for i, w in enumerate(vocab_list)}
+
+    def _index(tok: str) -> Optional[int]:
+        if fixed_vocab:
+            return idx.get(tok)                  # out-of-vocab tokens skipped
+        j = idx.get(tok)
+        if j is None:
+            j = len(vocab_list)
+            idx[tok] = j
+            vocab_list.append(tok)
+        return j
+
+    # Peek ONE item (without draining the stream) to disambiguate a flat token
+    # sequence (one document) from a stream of documents.
+    it = iter(docs)
+    try:
+        head = next(it)
+    except StopIteration:
+        return {"n": 0, "vocab": vocab_list, "edges": [], "weights": [], "topk": {}}
+    if isinstance(head, str):
+        doc_stream: Iterable[object] = [itertools.chain([head], it)]   # one flat document
+    else:
+        doc_stream = itertools.chain([head], it)                       # a document stream
+
+    store: Dict[int, Dict[int, int]] = {}         # running per-node top-cap (bounded)
+    chunk: Dict[int, Dict[int, int]] = {}         # current chunk's full adjacency (bounded by chunk)
+
+    def _flush() -> None:
+        """Merge the current chunk's full weights into the running store, then
+        truncate each touched node back to the cap. Within-chunk weights are
+        already FULL, so heavy co-occurrences are never lost mid-accumulation."""
+        for u, neigh in chunk.items():
+            su = store.setdefault(u, {})
+            for v, w in neigh.items():
+                su[v] = su.get(v, 0) + w
+            if len(su) > cap:
+                _truncate_to(su, cap)
+        chunk.clear()
+
+    pending = 0
+    for doc in doc_stream:                        # STREAM — one document at a time
+        toks: List[int] = []
+        for t in doc:
+            if isinstance(t, str):
+                j = _index(t)
+                if j is not None:
+                    toks.append(j)
+        m = len(toks)
+        for a in range(m):                        # forward window (resets per doc)
+            ia = toks[a]
+            for b in range(a + 1, min(a + window + 1, m)):
+                ib = toks[b]
+                if ia == ib:
+                    continue
+                cu = chunk.setdefault(ia, {})
+                cu[ib] = cu.get(ib, 0) + 1
+                cv = chunk.setdefault(ib, {})
+                cv[ia] = cv.get(ia, 0) + 1
+        pending += 1
+        if pending >= chunk_docs:                 # flush the bounded chunk into the store
+            _flush()
+            pending = 0
+        # `toks` released here
+    _flush()                                      # final partial chunk
+
+    n = len(vocab_list)
+    topk: Dict[str, List[Tuple[str, int]]] = {}
+    seen: set = set()
+    edges: List[Tuple[int, int]] = []
+    weights: List[int] = []
+    for u in range(n):
+        su = store.get(u)
+        if not su:
+            continue
+        ranked = sorted(su.items(), key=lambda kv: (-kv[1], kv[0]))[:k]   # node's top-K
+        topk[vocab_list[u]] = [(vocab_list[v], w) for v, w in ranked]
+        for v, w in ranked:                       # union of per-node top-K → sparse graph
+            a, b = (u, v) if u < v else (v, u)
+            if (a, b) in seen:
+                continue
+            seen.add((a, b))
+            edges.append((a, b))
+            weights.append(w)
+    order = sorted(range(len(edges)), key=lambda i: edges[i])
+    edges = [edges[i] for i in order]
+    weights = [weights[i] for i in order]
+    return {"n": n, "vocab": vocab_list, "edges": edges, "weights": weights, "topk": topk}
 
 
 def _as_doc_list(docs: Sequence[object]) -> List[List[str]]:

@@ -806,6 +806,38 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple[int, list[tuple[int, int]], list[int]]",
                       "(n nodes, edge list, integer co-occurrence counts)"),
         ),
+        # §52 (F793): the streaming / bounded LOW-RAM ENCODE peer of
+        # cooccurrence_edges — for building the spectral-clump graph on an edge
+        # device (encode trades RAM for chunked streaming).
+        ToolEntry(
+            name="srmech.amsc.text.cooccurrence_topk", owner="srmech",
+            category="text",
+            summary="Streaming / bounded top-K co-occurrence — the LOW-RAM "
+                    "ENCODE peer of cooccurrence_edges (§52/F793). Streams docs "
+                    "one at a time (never all resident) and keeps only a bounded "
+                    "top-K-per-node store via chunked merge (per-node cap "
+                    "k*cap_slack), so the encode peak is O(vocab × k·cap_slack) "
+                    "not the full ~edge list. Bit-exact when a node's degree "
+                    "stays under the cap; heavy hitters keep full summed weight. "
+                    "The explicit bounded analog of the §50 holographic "
+                    "cooccurrence_fold; returns a drop-in (n, edges, weights) for "
+                    "fiedler_sparse + the {token:[(neighbour,weight)…]} view.",
+            parameters=(P("docs", "list", True,
+                          "stream of token sequences (per-document) or a flat "
+                          "token Sequence[str]; consumed lazily, never all resident"),
+                        P("window", "int", False, "co-occurrence window (default 2)"),
+                        P("k", "int", False, "top-K neighbours kept per node (default 20)"),
+                        P("vocab", "list", False,
+                          "explicit vocab (index=position); None builds it "
+                          "incrementally (first-seen order)"),
+                        P("cap_slack", "int", False,
+                          "per-node cap = k*cap_slack before truncation (default 4)"),
+                        P("chunk_docs", "int", False,
+                          "documents per bounded merge chunk (default 2048)")),
+            returns=R("dict",
+                      "{n, vocab, edges, weights, topk} — bounded sparse graph + "
+                      "per-token top-K view"),
+        ),
         ToolEntry(
             name="srmech.amsc.laplacian.dense_laplacian", owner="srmech",
             category="laplacian",
