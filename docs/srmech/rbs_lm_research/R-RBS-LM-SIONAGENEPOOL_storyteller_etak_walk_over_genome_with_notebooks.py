@@ -580,6 +580,30 @@ class SionaGenepool:
         shared.discard(a); shared.discard(b)
         return sorted(shared, key=lambda s: (not (s in ra and s in rb), s not in (ra | rb)))[:k]
 
+    def _resolve_entity(self, topics, want_abstract):
+        """F790: a multi-word ENTITY = adjacent topics named TOGETHER (as a phrase) in ONE subject's gloss/abstract
+        (e.g. the binomial "solanum lycopersicum" appears verbatim in tomato's lead). Resolve to that subject + serve
+        its definition/abstract instead of the ≥2-topic phrase-decline. Returns (subject, body, src) or None.
+        Candidates = the topics + their gloss/abstract-having co-occurrence neighbours (cheap — not all 216k)."""
+        phrase = " ".join(topics)
+        cands, seen = [], set()
+        for t in topics:
+            if t in self.glosses or t in self.abstracts:
+                cands.append(t)
+            for nb in (self.assoc.get(t) or self.assoc.get(self._norm(t)) or [])[:25]:
+                if nb in self.glosses or nb in self.abstracts:
+                    cands.append(nb)
+        for s in cands:
+            if s in seen:
+                continue
+            seen.add(s)
+            text = (self.abstracts.get(s) or self.glosses.get(s) or "").lower()
+            if phrase in text:                       # the queried tokens appear AS A PHRASE in this subject's definition
+                if want_abstract and s in self.abstracts:
+                    return s, self.abstracts[s], "lead abstract (≤3 sentences)"
+                return s, self.glosses.get(s) or self.abstracts[s], "lead sentence"
+        return None
+
     @staticmethod
     def _relation_story(subject, edges):
         """Compose the directed edges into a sentence (reads as an answer, not a bare neighbour list)."""
@@ -970,6 +994,14 @@ class SionaGenepool:
                             f"share in what I hold, not invented; simplewiki, CC-BY-SA){new_note}")
                 return (f"{parse}\n[siona · reasoned (derive)] I hold both “{a}” and “{b}” but find NO shared relationship "
                         f"between them in my stores — I won't invent one.{new_note}")
+            # F790: multi-word ENTITY (no cue) — is the queried phrase named TOGETHER in one subject's definition?
+            # (e.g. "solanum lycopersicum" appears verbatim in tomato's lead -> answer about tomato, not the decline.)
+            ent = self._resolve_entity(topics, want_abstract)
+            if ent:
+                s, body, src = ent
+                return (f"{parse}\n[siona · entity] {s}: {body}\n"
+                        f"  (“{' '.join(topics)}” is named in {s}'s definition — that's the entity it refers to; "
+                        f"source: simplewiki {src}, CC-BY-SA){new_note}")
         # word-salad / ambiguous: a PHRASE (no question frame) naming ≥2 distinct recognized topics, no cue -> ask which
         if intent == "phrase" and len(set(self._norm(t) for t in recognized)) >= 2:
             return (f"{parse}\n[siona] That reads as several things ({', '.join(recognized)}) with no question — "
