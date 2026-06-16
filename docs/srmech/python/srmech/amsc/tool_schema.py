@@ -885,6 +885,46 @@ def _register_primitive_class_tools() -> None:
                           "n × n real-symmetric or complex-Hermitian Laplacian"),),
             returns=R("Vec", "length-n λ₂ eigenvector (numpy-free 1-D carrier)"),
         ),
+        # §51 (issue #1097): the SPARSE / iterative normalized-cut Fiedler —
+        # the n-unbounded peer of fiedler_vector. Native standalone-C matvec
+        # power iteration; breaks the n≤256 dense-eig wall for graph partition.
+        ToolEntry(
+            name="srmech.amsc.laplacian.fiedler_sparse", owner="srmech",
+            category="laplacian",
+            summary="Sparse / iterative normalized-cut Fiedler vector — the "
+                    "n-unbounded peer of fiedler_vector (issue #1097, §51). "
+                    "Power iteration on B = I + D^-1/2 W D^-1/2 (= 2I - L_sym, "
+                    "eigenvalues in [0,2]) deflating the √deg λ₀ mode; the "
+                    "converged direction's SIGN is the normalized-cut bisection. "
+                    "Matvec-only (O(edges), n unbounded) — breaks the n≤256 "
+                    "dense-eig wall for corpus-scale graph partitioning (spectral "
+                    "clumping). Native standalone-C (caller-arena, no caps); "
+                    "pure-Python is the complete alternative.",
+            parameters=(P("n", "int", True),
+                        P("edges", "list[tuple[int, int]]", True),
+                        P("weights", "Optional[list[float]]", False),
+                        P("max_iters", "int", False,
+                          "power-iteration cap (default 250; sign-stability "
+                          "usually stops earlier)")),
+            returns=R("Vec", "length-n sign-bearing Fiedler vector (numpy-free "
+                             "1-D carrier)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.normalized_cut_bisect", owner="srmech",
+            category="laplacian",
+            summary="Sparse normalized-cut bisection: split the nodes by the "
+                    "sign of fiedler_sparse (issue #1097, §51). Returns "
+                    "(left, right) node-index lists (left = negative-sign). The "
+                    "O(edges), n-unbounded recursion primitive for spectral "
+                    "clumping — bisect, then recurse on each side. A composition "
+                    "of fiedler_sparse + a Class-K sign split.",
+            parameters=(P("n", "int", True),
+                        P("edges", "list[tuple[int, int]]", True),
+                        P("weights", "Optional[list[float]]", False),
+                        P("max_iters", "int", False)),
+            returns=R("tuple[list[int], list[int]]",
+                      "(left, right) node-index partition"),
+        ),
         ToolEntry(
             name="srmech.amsc.laplacian.jacobi_eigvals", owner="srmech",
             category="laplacian",

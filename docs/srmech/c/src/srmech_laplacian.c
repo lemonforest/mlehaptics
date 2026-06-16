@@ -707,3 +707,224 @@ srmech_status_t srmech_three_fold_bands(uint32_t n, uint32_t *out_low,
     assert(*out_low + *out_mid + *out_high == n);
     return SRMECH_OK;
 }
+
+/* --- §51 (issue #1097): the SPARSE / iterative normalized-cut Fiedler -------
+ * Power iteration on the normalized operator B = I + D^-1/2 W D^-1/2
+ * (= 2I - L_sym; eigenvalues in [0,2] -> well-conditioned, unlike sigma*I - L on
+ * a dense graph). Deflate the sqrt(deg) (lambda0) mode each step; the converged
+ * direction is the Fiedler (lambda2 of L_sym) and its SIGN is the normalized-cut
+ * bisection. Matvec-only (by edge, no CSR) -> O(edges), n unbounded. The caller
+ * supplies a >= 8*n-double scratch arena, so there is NO compiled-in node cap
+ * (the bound is the caller's RAM). Bit-identical SIGN to the Python cascade. */
+
+/* Accumulate the weighted degree of every node from the undirected edge list
+ * (both endpoints). Returns BAD_INPUT on an out-of-range endpoint. */
+static srmech_status_t fiedler_degrees(uint32_t n, uint32_t n_edges,
+                                       const uint32_t *eu, const uint32_t *ev,
+                                       const double *w, double *deg)
+{
+    assert(deg != NULL);
+    assert(n_edges == 0u || (eu != NULL && ev != NULL));
+    for (uint32_t i = 0; i < n; i++) {
+        deg[i] = 0.0;
+    }
+    for (uint32_t e = 0; e < n_edges; e++) {
+        uint32_t uu = eu[e];
+        uint32_t vv = ev[e];
+        if (uu >= n || vv >= n) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        double we = (w != NULL) ? w[e] : 1.0;
+        deg[uu] += we;
+        deg[vv] += we;
+    }
+    return SRMECH_OK;
+}
+
+/* Build the D^-1/2 diagonal (s) + the unit lambda0 eigenvector p ~ sqrt(deg).
+ * Returns the pre-normalisation L2 norm of p, or 0.0 if every degree is 0
+ * (an edgeless graph -> no cut). Normalises p in place when nonzero. */
+static double fiedler_build_sp(uint32_t n, const double *deg,
+                               double *s, double *p)
+{
+    assert(deg != NULL && s != NULL);
+    assert(p != NULL);
+    double pn2 = 0.0;
+    for (uint32_t i = 0; i < n; i++) {
+        if (deg[i] > 0.0) {
+            double r = lap_sqrt(deg[i]);
+            s[i] = 1.0 / r;
+            p[i] = r;
+        } else {
+            s[i] = 0.0;
+            p[i] = 0.0;
+        }
+        pn2 += p[i] * p[i];
+    }
+    if (pn2 <= 0.0) {
+        return 0.0;
+    }
+    double pnorm = lap_sqrt(pn2);
+    for (uint32_t i = 0; i < n; i++) {
+        p[i] /= pnorm;
+    }
+    return pnorm;
+}
+
+/* Subtract the projection onto the unit lambda0 vector p: u <- u - (u . p) p.
+ * Keeps the iterate orthogonal to the trivial sqrt(deg) mode. */
+static void fiedler_deflate(uint32_t n, double *u, const double *p)
+{
+    assert(u != NULL);
+    assert(p != NULL);
+    double dot = 0.0;
+    for (uint32_t i = 0; i < n; i++) {
+        dot += u[i] * p[i];
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        u[i] -= dot * p[i];
+    }
+}
+
+/* Deterministic, order-independent init: a Class-I multiplicative scramble
+ * keyed by node index (Knuth 2654435761, uint32 wrap == Python & 0xFFFFFFFF),
+ * mapped to [-1, 1), then deflate lambda0. NOT the parity vector [1,-1,...]:
+ * that is orthogonal to the Fiedler on a block-ordered regular graph. */
+static void fiedler_init(uint32_t n, const double *p, double *v)
+{
+    assert(p != NULL);
+    assert(v != NULL);
+    for (uint32_t i = 0; i < n; i++) {
+        uint32_t h = i * 2654435761u + 1013904223u;   /* mod 2^32 */
+        v[i] = ((double)h / 4294967296.0) * 2.0 - 1.0;
+    }
+    fiedler_deflate(n, v, p);
+}
+
+/* One normalized-operator step: u = deflate(B v), B = I + D^-1/2 W D^-1/2.
+ * t = s o v; y = W t (the O(edges) edge loop); u = v + s o y; deflate lambda0. */
+static void fiedler_step(uint32_t n, uint32_t n_edges, const uint32_t *eu,
+                         const uint32_t *ev, const double *w, const double *s,
+                         const double *p, const double *v, double *t,
+                         double *y, double *u)
+{
+    assert(s != NULL && v != NULL && u != NULL);
+    assert(t != NULL && y != NULL);
+    for (uint32_t i = 0; i < n; i++) {
+        t[i] = s[i] * v[i];
+        y[i] = 0.0;
+    }
+    for (uint32_t e = 0; e < n_edges; e++) {
+        uint32_t uu = eu[e];
+        uint32_t vv = ev[e];
+        double we = (w != NULL) ? w[e] : 1.0;
+        y[uu] += we * t[vv];
+        y[vv] += we * t[uu];
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        u[i] = v[i] + s[i] * y[i];
+    }
+    fiedler_deflate(n, u, p);
+}
+
+/* Rescale by the Class-K max-magnitude (no fabs: scan u_i^2, one Class-N root).
+ * Writes v = u / max|u|. Returns 0 if u is all-zero (caller breaks), else 1. */
+static int fiedler_rescale(uint32_t n, const double *u, double *v)
+{
+    assert(u != NULL);
+    assert(v != NULL);
+    double max_sq = 0.0;
+    for (uint32_t i = 0; i < n; i++) {
+        double sq = u[i] * u[i];      /* magnitude-square (pin-slot-free) */
+        if (sq > max_sq) {
+            max_sq = sq;
+        }
+    }
+    if (max_sq <= 0.0) {
+        return 0;
+    }
+    double mx = lap_sqrt(max_sq);
+    for (uint32_t i = 0; i < n; i++) {
+        v[i] = u[i] / mx;
+    }
+    return 1;
+}
+
+/* Compute the sign partition of v (1 if v_i >= 0 else 0), compare against the
+ * previous partition in `prev`, and overwrite `prev` with the new one. Returns
+ * 1 iff the partition is unchanged (prev seeded to -1.0 -> first call != ). */
+static int fiedler_update_sign(uint32_t n, const double *v, double *prev)
+{
+    assert(v != NULL);
+    assert(prev != NULL);
+    int all_match = 1;
+    for (uint32_t i = 0; i < n; i++) {
+        double cur = (v[i] >= 0.0) ? 1.0 : 0.0;
+        if (prev[i] != cur) {
+            all_match = 0;
+        }
+        prev[i] = cur;
+    }
+    return all_match;
+}
+
+srmech_status_t srmech_laplacian_fiedler_sparse(uint32_t n, uint32_t n_edges,
+    const uint32_t *edge_u, const uint32_t *edge_v, const double *weights,
+    uint32_t max_iters, double *out_vec, double *ws, size_t ws_len)
+{
+    assert(out_vec != NULL && ws != NULL);
+    if (out_vec == NULL || ws == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n_edges > 0u && (edge_u == NULL || edge_v == NULL)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (ws_len < (size_t)8u * n) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    assert(ws_len >= (size_t)8u * n);    /* arena holds the 8 length-n scratch vecs */
+    for (uint32_t i = 0; i < n; i++) {
+        out_vec[i] = 0.0;
+    }
+    if (n < 2u) {
+        return SRMECH_OK;                          /* no cut */
+    }
+    double *deg = ws;
+    double *s = ws + (size_t)1u * n;
+    double *p = ws + (size_t)2u * n;
+    double *v = ws + (size_t)3u * n;
+    double *u = ws + (size_t)4u * n;
+    double *t = ws + (size_t)5u * n;
+    double *y = ws + (size_t)6u * n;
+    double *prev = ws + (size_t)7u * n;
+    srmech_status_t st = fiedler_degrees(n, n_edges, edge_u, edge_v, weights, deg);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    if (fiedler_build_sp(n, deg, s, p) <= 0.0) {
+        return SRMECH_OK;                          /* edgeless -> zero vector */
+    }
+    fiedler_init(n, p, v);
+    for (uint32_t i = 0; i < n; i++) {
+        prev[i] = -1.0;
+    }
+    uint32_t stable = 0u;
+    for (uint32_t it = 0; it < max_iters; it++) {
+        fiedler_step(n, n_edges, edge_u, edge_v, weights, s, p, v, t, y, u);
+        if (fiedler_rescale(n, u, v) == 0) {
+            break;
+        }
+        if (fiedler_update_sign(n, v, prev) && it >= 20u) {
+            stable++;
+            if (stable >= 5u) {
+                break;
+            }
+        } else {
+            stable = 0u;
+        }
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        out_vec[i] = v[i];
+    }
+    return SRMECH_OK;
+}

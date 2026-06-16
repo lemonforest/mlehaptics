@@ -982,6 +982,26 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.POINTER(ctypes.c_uint32),  # out_accs (n_codes*(1+2*dim))
             ]
             lib.srmech_klein4_cooccurrence_fold.restype = ctypes.c_int
+        # srmech_status_t srmech_laplacian_fiedler_sparse(uint32_t n,
+        #     uint32_t n_edges, const uint32_t *edge_u, const uint32_t *edge_v,
+        #     const double *weights, uint32_t max_iters, double *out_vec,
+        #     double *ws, size_t ws_len)  — issue #1097 / UPSTREAM §51 (rc166):
+        #     the sparse normalized-cut Fiedler (matvec power iteration, n
+        #     unbounded). Caller-arena ws (9*n doubles) → no compiled-in cap. NEW
+        #     — own hasattr so a pre-rc166 lib doesn't AttributeError here.
+        if hasattr(lib, "srmech_laplacian_fiedler_sparse"):
+            lib.srmech_laplacian_fiedler_sparse.argtypes = [
+                ctypes.c_uint32,                   # n
+                ctypes.c_uint32,                   # n_edges
+                ctypes.POINTER(ctypes.c_uint32),  # edge_u (n_edges)
+                ctypes.POINTER(ctypes.c_uint32),  # edge_v (n_edges)
+                ctypes.POINTER(ctypes.c_double),  # weights (n_edges)
+                ctypes.c_uint32,                   # max_iters
+                ctypes.POINTER(ctypes.c_double),  # out_vec (n)
+                ctypes.POINTER(ctypes.c_double),  # ws (9*n scratch arena)
+                ctypes.c_size_t,                   # ws_len (in doubles)
+            ]
+            lib.srmech_laplacian_fiedler_sparse.restype = ctypes.c_int
 
     # ------------------------------------------------------------------
     # Cascade catalog — v0.4.5rc1 C-parity + TOML retrofit.
@@ -1458,6 +1478,17 @@ def has_native_klein4_fold() -> bool:
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_klein4_cooccurrence_fold")
                 and hasattr(LIB, "srmech_klein4_bundle_accumulate"))
+
+
+def has_native_fiedler_sparse() -> bool:
+    """True iff the §51 native sparse normalized-cut Fiedler is loaded + bound
+    (rc166+ lib): the matvec power iteration runs in C (n unbounded, caller-
+    arena, no caps), so :func:`srmech.amsc.laplacian.fiedler_sparse` /
+    :func:`~srmech.amsc.laplacian.normalized_cut_bisect` partition a >256-node
+    graph past the dense-eigensolver wall (issue #1097). False on a no-C or
+    pre-rc166 lib — the pure-Python cascade is the complete alternative."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_laplacian_fiedler_sparse"))
 
 
 # ---------------------------------------------------------------------------

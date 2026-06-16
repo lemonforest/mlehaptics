@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc165"
-#define SRMECH_VERSION       "0.7.5rc165"
+#define SRMECH_VERSION_PRE   "rc166"
+#define SRMECH_VERSION       "0.7.5rc166"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -875,6 +875,28 @@ srmech_status_t srmech_graph_normalized_laplacian(uint32_t        n,
                                                   const uint32_t *edges_v,
                                                   const double   *weights,
                                                   double         *out_matrix);
+
+/* §51 (issue #1097): the SPARSE / iterative normalized-cut Fiedler — the
+ * n-unbounded peer of the dense eigensolver path. Power iteration on the
+ * normalized operator B = I + D^(-1/2) W D^(-1/2) (= 2I - L_sym; eigenvalues in
+ * [0,2], well-conditioned), deflating the sqrt(deg) (lambda0) mode each step;
+ * the converged direction's SIGN is the normalized-cut bisection. Matvec-only
+ * (by edge, no CSR) -> O(edges), n unbounded -> breaks the n<=256 dense-
+ * eigensolver wall for graph partitioning at corpus scale. `ws` is a CALLER-
+ * supplied scratch arena of at least 8*n doubles (so there is NO compiled-in
+ * node cap — the bound is the caller's RAM). `out_vec` (length n) receives the
+ * sign-bearing Fiedler vector; n < 2 -> the zero vector. Stops early on sign-
+ * stability (5 stable-sign steps past a 20-iteration warmup). max_iters caps the
+ * power iteration. ABI-additive (a new symbol) -> SRMECH_ABI_VERSION stays 3. */
+srmech_status_t srmech_laplacian_fiedler_sparse(uint32_t        n,
+                                                uint32_t        n_edges,
+                                                const uint32_t *edge_u,
+                                                const uint32_t *edge_v,
+                                                const double   *weights,
+                                                uint32_t        max_iters,
+                                                double         *out_vec,
+                                                double         *ws,
+                                                size_t          ws_len);
 
 /* Symmetric Jacobi eigendecomposition. In-place: `matrix` becomes
  * approximately diagonal at exit (caller-owned working buffer). The

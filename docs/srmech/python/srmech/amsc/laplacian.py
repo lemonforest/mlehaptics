@@ -121,6 +121,8 @@ __all__ = [
     "dense_laplacian",
     "normalized_laplacian",
     "jacobi_eigvals",
+    "fiedler_sparse",
+    "normalized_cut_bisect",
     "spectral_block_dispatch",
     "dense_solve",
     "schur_complement",
@@ -2549,6 +2551,193 @@ def fiedler_vector(matrix) -> "Vec":
     )
 
 
+# --- §51 (issue #1097): the SPARSE / iterative normalized-cut Fiedler ---------
+# The n-unbounded peer of the dense fiedler_vector / symmetric_eigendecompose
+# path. Power iteration on the NORMALIZED operator B = I + D^-1/2 W D^-1/2
+# (= 2I - L_sym; eigenvalues in [0, 2] -> well-conditioned, unlike sigma*I - L
+# on a dense graph where the ratio (sigma-lambda2)/(sigma-lambda1) -> 1 and it
+# fails to converge). Matvec-only -> O(edges) time + memory, n unbounded.
+
+def _fiedler_sparse_py(
+    n: int,
+    edge_list: List[Tuple[int, int]],
+    w_list: List[float],
+    max_iters: int,
+) -> List[float]:
+    """Pure-Python sparse normalized-cut Fiedler (the complete no-native path).
+
+    Transcribes the F785/F786-verified prototype: build the normalized operator
+    B = I + D^-1/2 W D^-1/2 implicitly, deflate the √deg (λ₀) mode each step,
+    power-iterate, stop on sign-stability. No ``abs()``: the max-magnitude
+    rescale reads the Class-K magnitude-SQUARE (pin-slot-free) then takes one
+    Class-N root; √deg / D^-1/2 are Class-N :func:`~srmech.amsc.rational.sqrt`.
+    """
+    if n < 2:
+        return [0.0] * n
+    nbr: List[List[Tuple[int, float]]] = [[] for _ in range(n)]
+    deg = [0.0] * n
+    for (a, b), w in zip(edge_list, w_list):
+        nbr[a].append((b, w)); deg[a] += w
+        nbr[b].append((a, w)); deg[b] += w
+    s = [(1.0 / _rsqrt(deg[i])) if deg[i] > 0 else 0.0 for i in range(n)]  # D^-1/2
+    p = [_rsqrt(deg[i]) if deg[i] > 0 else 0.0 for i in range(n)]          # √deg (λ₀)
+    pn2 = sum(x * x for x in p)
+    if pn2 <= 0:
+        return [0.0] * n
+    pnorm = _rsqrt(pn2)
+    p = [x / pnorm for x in p]
+    # Deterministic, order-independent init — a Class-I multiplicative scramble
+    # keyed by node index (Knuth 2654435761), mapped to [−1, 1). NOT the parity
+    # vector [1, −1, 1, …]: that is orthogonal to the Fiedler whenever the
+    # community split aligns with index parity (a block-ordered regular graph),
+    # so power iteration would have no Fiedler component to amplify and stall.
+    # The scramble has a generic Fiedler component → it converges regardless of
+    # node ordering, and is bit-identical uint32 arithmetic for the C twin.
+    v = [(((k * 2654435761 + 1013904223) & 0xFFFFFFFF) / 4294967296.0) * 2.0 - 1.0
+         for k in range(n)]
+    dot = sum(v[i] * p[i] for i in range(n))
+    v = [v[i] - dot * p[i] for i in range(n)]              # deflate λ₀
+    prev_sign: Optional[Tuple[int, ...]] = None
+    stable = 0
+    for it in range(max_iters):
+        tmp = [s[j] * v[j] for j in range(n)]
+        u = [v[i] + s[i] * sum(w * tmp[j] for j, w in nbr[i]) for i in range(n)]  # u = B v
+        dot = sum(u[i] * p[i] for i in range(n))
+        u = [u[i] - dot * p[i] for i in range(n)]          # re-deflate λ₀
+        max_sq = 0.0
+        for x in u:
+            xsq = x * x                                    # Class-K magnitude-square (no abs)
+            if xsq > max_sq:
+                max_sq = xsq
+        if max_sq <= 0:
+            break
+        mx = _rsqrt(max_sq)                                # Class-N root -> max |u|
+        v = [x / mx for x in u]
+        sign = tuple(1 if x >= 0 else 0 for x in v)
+        if sign == prev_sign and it >= 20:                 # stable sign (after warmup)
+            stable += 1
+            if stable >= 5:
+                break
+        else:
+            stable = 0
+        prev_sign = sign
+    return v
+
+
+def _fiedler_sparse_native(
+    n: int,
+    edge_list: List[Tuple[int, int]],
+    w_list: List[float],
+    max_iters: int,
+) -> Optional[List[float]]:
+    """numpy-free native dispatch for :func:`fiedler_sparse` (issue #1097).
+
+    Marshals the edge endpoints into two ``(c_uint32 * n_edges)`` buffers + the
+    weights into a ``(c_double * n_edges)`` buffer and calls the standalone-C
+    ``srmech_laplacian_fiedler_sparse`` with a CALLER-allocated scratch arena
+    (9·n doubles — the bound is the caller's RAM, not a compiled-in cap). The
+    matvec power iteration runs in C; the sign is bit-identical to the cascade.
+    Returns the length-n Fiedler vector as ``list[float]``, or ``None`` on any
+    non-OK status (caller then uses the pure-Python cascade)."""
+    n_edges = len(edge_list)
+    eu = (ctypes.c_uint32 * n_edges)(*(int(a) for a, _ in edge_list))
+    ev = (ctypes.c_uint32 * n_edges)(*(int(b) for _, b in edge_list))
+    wbuf = (ctypes.c_double * n_edges)(*(float(w) for w in w_list))
+    out = (ctypes.c_double * n)()
+    ws = (ctypes.c_double * (9 * n))()
+    rc = _native.LIB.srmech_laplacian_fiedler_sparse(
+        ctypes.c_uint32(n),
+        ctypes.c_uint32(n_edges),
+        eu, ev, wbuf,
+        ctypes.c_uint32(int(max_iters)),
+        out,
+        ws,
+        ctypes.c_size_t(9 * n),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return list(out)
+
+
+def fiedler_sparse(
+    n: int,
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]] = None,
+    *,
+    max_iters: int = 250,
+) -> "Vec":
+    """Sparse / iterative normalized-cut Fiedler vector — the ``n``-unbounded
+    peer of :func:`fiedler_vector` (issue #1097 / UPSTREAM §51).
+
+    Power iteration on the normalized operator ``B = I + D^(−1/2) W D^(−1/2)``
+    (``= 2I − L_sym``; eigenvalues in ``[0, 2]`` → well-conditioned, unlike
+    ``σI − L`` on a dense graph). The dominant mode is the trivial ``√deg``
+    (``λ₀`` of ``L_sym``); deflating it each step leaves the **Fiedler** vector
+    (``λ₂`` of ``L_sym``) as the converged direction — its **sign** is the
+    normalized-cut bisection (the sign of ``D^(−1/2) u₁``, since the scaling is
+    positive). Matvec-only → **O(edges)** time + memory, ``n`` unbounded; this
+    breaks the ``n ≤ 256`` dense-eigensolver wall (on :func:`fiedler_vector` /
+    :func:`symmetric_eigendecompose`) for corpus-scale graph partitioning
+    (spectral clumping — partition a >256-node co-occurrence graph into
+    community tomes; F778 → F785/F786).
+
+    Stops early on **sign-stability** (5 consecutive identical sign-partitions
+    after a 20-iteration warmup — the sign converges well before full
+    eigenvector precision). Dispatches to the standalone-C
+    ``srmech_laplacian_fiedler_sparse`` when ``HAS_NATIVE`` (matvec in C, no
+    caps, caller-arena), else the pure-Python cascade — bit-identical sign.
+
+    Parameters
+    ----------
+    n : int
+        Number of graph nodes.
+    edges : Iterable[Tuple[int, int]]
+        Undirected edges ``(u, v)`` with ``0 ≤ u, v < n``.
+    weights : Optional[Iterable[float]]
+        Per-edge weights (default all ``1.0``); same length as ``edges``.
+    max_iters : int
+        Power-iteration cap (sign-stability usually stops earlier).
+
+    Returns
+    -------
+    Vec
+        The sign-bearing Fiedler vector (numpy-free 1-D carrier, ``.shape ==
+        (n,)``). For ``n < 2`` the zero vector (no cut).
+    """
+    edge_list, w_list = _validate_edges_weights_py(n, edges, weights)
+    if _native.has_native_fiedler_sparse() and n >= 2:
+        vals = _fiedler_sparse_native(n, edge_list, w_list, int(max_iters))
+        if vals is not None:
+            return Vec.from_sequence(vals, is_complex=False)
+    return Vec.from_sequence(
+        _fiedler_sparse_py(n, edge_list, w_list, int(max_iters)), is_complex=False
+    )
+
+
+def normalized_cut_bisect(
+    n: int,
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]] = None,
+    *,
+    max_iters: int = 250,
+) -> Tuple[List[int], List[int]]:
+    """Sparse normalized-cut bisection — split the nodes by the sign of the
+    :func:`fiedler_sparse` vector (issue #1097 / UPSTREAM §51).
+
+    The ergonomic recursion primitive for spectral clumping: bisect, then
+    recurse on each side (each sub-bisection is ``O(edges)`` and ``n``-unbounded,
+    so the full-vocab partition is a longer run of the SAME proven method, never
+    the dense ``n ≤ 256`` wall). Returns ``(left, right)`` node-index lists —
+    ``left`` = negative-sign nodes, ``right`` = non-negative-sign nodes. A pure
+    composition of :func:`fiedler_sparse` (a C-dispatched op) + a Class-K sign
+    split (the cut). For a degenerate graph (``n < 2``) all nodes land in
+    ``right`` (sign ≥ 0)."""
+    fv = fiedler_sparse(n, edges, weights, max_iters=max_iters)
+    left = [i for i in range(n) if fv[i] < 0]
+    right = [i for i in range(n) if fv[i] >= 0]
+    return left, right
+
+
 # The per-block dense-eig cap is MAX_NATIVE_NODES (256); 4 blocks × 256 = 1024.
 # 4 is the Klein-4 4-rung (F220/F233): 8+ sectors need the order-3 triality.
 SPECTRAL_BLOCK_CAP: int = 4
@@ -2670,6 +2859,8 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "signed_laplacian",
     "magnetic_laplacian",
     "fiedler_vector",
+    "fiedler_sparse",
+    "normalized_cut_bisect",
     "jacobi_eigvals",
     "spectral_block_dispatch",
     "hermitian_eigendecompose",
