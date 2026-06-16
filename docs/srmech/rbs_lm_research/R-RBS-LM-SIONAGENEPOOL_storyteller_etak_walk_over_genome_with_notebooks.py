@@ -272,6 +272,18 @@ ANAPHORA_RE = re.compile(r"\b(?:it|its|they|them|their|theirs|that|this|those|th
 # co-occurrence neighbours (honestly: what X appears WITH, NOT a verified list of uses).
 USES_RE = re.compile(r"\b(?:used?\s+(?:for|with|in|as|to)\b|uses?\s+of\b|what\s+can\s+\w+\s+(?:be\s+)?(?:used|do)\b|"
                      r"good\s+for\b|useful\s+for\b|go(?:es)?\s+(?:with|in)\b|pair(?:ed|s)?\s+with\b|works?\s+with\b)")
+# F799: self-PROVENANCE — "where is your source code / are you open source / where can I find you". Answered from her
+# self-knowledge (she IS the srmech package + version), not a notebook etak-walk and not a fabricated URL.
+PROVENANCE_RE = re.compile(r"\bsource\s*code\b|\byour\s+code\b|\brepo(?:sitory)?\b|\bgit(?:hub|lab)\b|\bpypi\b|"
+                           r"\bopen[\s-]?source\b|where\s+do\s+you\s+live\b|"
+                           r"where\s+(?:can\s+i\s+)?(?:find|download|install)\s+you\b")
+# F799: the running CONTEXT must carry the conversation's CONTENT, not Siona's own rendering scaffolding — her prior
+# answers are fed back verbatim, so her [bracketed] parse-lines/tags ([input-ride …], [siona · …], [etak: …]) and her
+# citation/honest-note parentheticals ((source: …, CC-BY-SA), (related: …)) are stripped first, else framing words
+# (input/ride/topic/steer/definition/source/simplewiki) pollute the context instead of real content. A content
+# parenthetical like "(Solanum lycopersicum)" carries NO scaffold marker, so it survives.
+SCAFFOLD_PAREN_RE = re.compile(r"\([^()]*?(?:CC-BY-SA|simplewiki|source:|related:|co-occurrence|derived|honest|"
+                               r"these are|the walk|RELATIONS|not a verified|won'?t invent|asking-state)[^()]*\)", re.I)
 # F791: the NAVIGATE frame — walk the spectral-clumped tome-tree (FIND→RIDE→ZOOM→WEB-HOP) instead of defining.
 NAV_RE = re.compile(r"\b(?:navigate|explore|nearby|neighbou?rhood|what'?s\s+near|near\s+to|close\s+to|"
                     r"cluster\s+(?:of|around|for)|related\s+cluster|walk\s+(?:from|the)|what'?s\s+around)\b")
@@ -919,12 +931,40 @@ class SionaGenepool:
             cand = self._lemma(m.group(1).strip().split()[-1].lower())
             if self._recognized(cand):
                 return cand
-        for t in re.findall(r"[a-z]+", (context or "").lower()):
+        for t in re.findall(r"[a-z]+", self._context_content(context).lower()):   # F799: scaffolding stripped, not a framing word
             if t not in ROUTING_STOPLIST and len(t) >= 3:
                 lt = self._lemma(t)
                 if self._recognized(lt):
                     return lt
         return None
+
+    def _context_content(self, context):
+        """F799: the running context must reflect the CONVERSATION's content, NOT Siona's own rendering scaffolding.
+        Her prior answers are fed back verbatim, so strip her framing first: every [bracketed] segment (parse-lines +
+        tags: [input-ride …], [siona · …], [etak: …], [anaphora: …], notebook §-refs) and her citation/honest-note
+        parentheticals ((source: …, CC-BY-SA), (related: …)). A content parenthetical like (Solanum lycopersicum)
+        has no scaffold marker, so it survives. The remaining prose + the user's words are the real content."""
+        s = context or ""
+        for _ in range(6):                                       # collapse NESTED brackets innermost-first: the parse line is
+            s2 = re.sub(r"\[[^\[\]]*\]", " ", s)                 # [input-ride: … topic ['x'] · steer ['y']] — strip ['x']/['y']
+            if s2 == s:                                          # then the now-flat outer bracket, else "· steer ·" leaks through
+                break
+            s = s2
+        s = SCAFFOLD_PAREN_RE.sub(" ", s)                        # drop citation / honest-note parentheticals (keep (Solanum …))
+        return s
+
+    def _provenance_card(self):
+        """F799: a self-PROVENANCE question ("where is your source code / are you open source"). Honest + grounded:
+        her source IS the srmech package she runs on (name + version, read from describe()); she's an open research
+        package, not a hidden model; but she does NOT hold a repository URL as an attested fact, so she won't
+        fabricate one (no-hallucination; F743 no baked-in self-answers — read from structure, point at what she IS)."""
+        d = srmech.describe()
+        doc1 = (srmech.__doc__ or "").strip().split(".")[0].strip()
+        return (f"[siona · provenance] My source IS the srmech package — {doc1} (srmech {d['srmech_version']}). I'm an "
+                f"open research package, not a hidden model: the mechanism I run on is the package itself, locatable "
+                f"by its name, “srmech” ({d['tools']['total']} stored-relationship ops across {len(d['categories'])} "
+                f"categories). I hold my package identity + version — but I do NOT hold a specific repository URL as an "
+                f"attested fact, so I won't fabricate one; look up the “srmech” package to find the code.")
 
     def infer(self, prompt, prev_assistant="", context=""):
         p = prompt.strip()
@@ -973,6 +1013,10 @@ class SionaGenepool:
             tier = "kernel" if hit in self._committed_terms() else "temp"
             return f"[siona · learned ({tier})] {hit}: {self.learned[hit]}"
 
+        # === F799 self-PROVENANCE: "where is your source code / are you open source" -> answer from her self-knowledge
+        # (she IS the srmech package + version), not a notebook etak-walk and not a fabricated URL. Before identity.
+        if re.search(r"\b(?:you|your|yourself)\b", pl) and PROVENANCE_RE.search(pl):
+            return self._provenance_card()
         # === identity: Siona == srmech ====================================================================
         if "siona" in pl or re.search(r"\byou\b.*\bsrmech\b|\bsrmech\b.*\byou\b|same thing", pl):
             return self._structure_card()
@@ -988,7 +1032,7 @@ class SionaGenepool:
         # meaning is derived (Pass 2 = TRANSLATION). So a misspelling/variant ("tomatto") becomes "tomato" up front and
         # the full meaning machinery (gloss + relations + depth) rides on the understood form — not just the last fallback.
         unroutable = [t for t in salient if not self._routable(t)]                    # F765: comprehend tokens that route to NO
-        ctx_words = set(re.findall(r"[a-z]+", (context or "").lower()))                # F769: the user's OBSERVED usage (prior turns)
+        ctx_words = set(re.findall(r"[a-z]+", self._context_content(context).lower()))  # F769/F799: observed usage, Siona's scaffolding stripped
         understood = self._understand(unroutable, ctx_words)                           # answer tier (not merely _recognized-False)
         if understood:
             salient = [understood[t][0] if t in understood else t for t in salient]   # re-render in canonical English
@@ -1024,9 +1068,9 @@ class SionaGenepool:
         # F759 running-context: content words from PRIOR turns -> a Klein-4 RBS-HDC context bundle (built with the rc155
         # streaming klein4_bundle_accumulate) + a context steer. Biases the answer toward the conversation; makes the
         # SAME query differ once context accrues. The context object IS the running conversation, folded holographically.
-        ctx_terms = [t for t in dict.fromkeys(re.findall(r"[a-z]+", (context or "").lower()))
-                     if t not in ROUTING_STOPLIST and len(t) >= 3
-                     and (t in self.relations or t in self.assoc or t in self.vix)][:12]
+        ctx_terms = [t for t in dict.fromkeys(re.findall(r"[a-z]+", self._context_content(context).lower()))
+                     if t not in ROUTING_STOPLIST and len(t) >= 3                          # F799: strip Siona's own scaffolding first —
+                     and (t in self.relations or t in self.assoc or t in self.vix)][:12]   # context = CONVERSATION content, not framing
         ctx_bundle = None
         for t in ctx_terms:
             ctx_bundle = hdc.klein4_bundle_accumulate(ctx_bundle, _leaf(t))
