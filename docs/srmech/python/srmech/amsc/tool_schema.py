@@ -957,6 +957,49 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple[list[int], list[int]]",
                       "(left, right) node-index partition"),
         ),
+        # §52 Part 2 (F793): the OUT-OF-CORE streaming Fiedler + its on-disk graph
+        # writer. The bounded edge SET (cooccurrence_topk) is written to a packed
+        # file, and the partition streams it — so the partition's RAM is bounded
+        # the way the edge set is, for a fully low-RAM corpus-scale encode.
+        ToolEntry(
+            name="srmech.amsc.laplacian.write_packed_graph", owner="srmech",
+            category="laplacian",
+            summary="Write a packed binary edge file for the out-of-core "
+                    "streaming Fiedler (§52 Part 2, F793) — one 16-byte record "
+                    "per edge (uint32 u | uint32 v | double w, host byte order). "
+                    "The on-disk adjacency fiedler_sparse_file (and the recursive "
+                    "out-of-core driver) reads; the edge list lives on DISK, never "
+                    "fully resident, so a low-RAM target can build + partition a "
+                    "corpus-scale co-occurrence graph. Streams rows out as it goes "
+                    "(peak RAM = one chunk). Returns the edge-record count.",
+            parameters=(P("path", "str", True,
+                          "destination file (overwritten)"),
+                        P("edges", "list[tuple[int, int]]", True),
+                        P("weights", "Optional[list[float]]", False)),
+            returns=R("int", "number of edge records written"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.fiedler_sparse_file", owner="srmech",
+            category="laplacian",
+            summary="Out-of-core sparse normalized-cut Fiedler — the streaming "
+                    "peer of fiedler_sparse that reads its adjacency from a packed "
+                    "edge FILE (§52 Part 2, F793). Identical power iteration (so "
+                    "the result equals fiedler_sparse on the same graph), but the "
+                    "edges NEVER become resident: each matvec streams the file via "
+                    "the PAL, so only the O(n) working vectors are in RAM — a "
+                    "low-RAM target can partition a graph whose edge list exceeds "
+                    "RAM (the low-RAM ENCODE for graph partition; composes §52.1 "
+                    "cooccurrence_topk). Native standalone-C streaming when "
+                    "HAS_NATIVE (the bounded path); the no-C path reads the file "
+                    "in + runs the in-RAM cascade (correct, not bounded).",
+            parameters=(P("n", "int", True),
+                        P("graph_path", "str", True,
+                          "packed edge file written by write_packed_graph"),
+                        P("max_iters", "int", False,
+                          "power-iteration cap (default 250)")),
+            returns=R("Vec", "length-n sign-bearing Fiedler vector (numpy-free "
+                             "1-D carrier)"),
+        ),
         ToolEntry(
             name="srmech.amsc.laplacian.jacobi_eigvals", owner="srmech",
             category="laplacian",

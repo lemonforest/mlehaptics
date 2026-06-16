@@ -54,10 +54,12 @@
  */
 
 #include "srmech.h"
+#include "srmech_platform.h"   /* §52 Part 2: PAL streaming-read for the out-of-core Fiedler */
 
 #include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>            /* memcpy — parse packed edge records (no aliasing UB) */
 
 /* Class-N rational sqrt (srmech_rational_sqrt) — the native Jacobi eigensolver
  * computes its rotation-angle roots via the cascade, not libm (rc45,
@@ -922,6 +924,191 @@ srmech_status_t srmech_laplacian_fiedler_sparse(uint32_t n, uint32_t n_edges,
         } else {
             stable = 0u;
         }
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        out_vec[i] = v[i];
+    }
+    return SRMECH_OK;
+}
+
+/* --- §52 Part 2 (F793): the OUT-OF-CORE streaming Fiedler -------------------
+ * The same normalized-cut power iteration as srmech_laplacian_fiedler_sparse,
+ * but the adjacency is NEVER resident: each edge pass streams a packed edge file
+ * (one 16-byte record = uint32 u | uint32 v | double w, host byte order) through
+ * the PAL streaming-read. Only the O(n) working vectors (the caller arena) live
+ * in RAM, so a low-RAM target can partition a graph whose edge list does not fit
+ * — the LOW-RAM ENCODE for graph PARTITION (composes §52.1 cooccurrence_topk for
+ * the bounded edge SET; this bounds the partition's RAM too). Records never
+ * straddle a read chunk (chunk = a whole number of records). */
+
+#define FIEDLER_REC_BYTES 16u                 /* uint32 u | uint32 v | double w */
+#define FIEDLER_CHUNK_RECS 256u
+#define FIEDLER_CHUNK_BYTES (FIEDLER_REC_BYTES * FIEDLER_CHUNK_RECS)
+
+/* Per-record callback over a streamed edge file (no Python — standalone C). */
+typedef srmech_status_t (*fiedler_rec_cb)(uint32_t u, uint32_t v, double w, void *ctx);
+
+/* Stream `path` (a packed 16-byte-record edge file) and call `cb` per record.
+ * A read that is not a whole number of records -> BAD_INPUT (truncated file). */
+static srmech_status_t fiedler_file_scan(const char *path, fiedler_rec_cb cb, void *ctx)
+{
+    assert(path != NULL);
+    assert(cb != NULL);
+    srmech_plat_rstream_t rs;
+    srmech_status_t st = srmech_plat_rstream_open(path, &rs);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    unsigned char chunk[FIEDLER_CHUNK_BYTES];
+    int eof = 0;
+    while (eof == 0) {
+        size_t n_read = 0u;
+        st = srmech_plat_rstream_read(&rs, chunk, FIEDLER_CHUNK_BYTES, &n_read);
+        if (st != SRMECH_OK) { srmech_plat_rstream_close(&rs); return st; }
+        if (n_read == 0u) { break; }
+        if ((n_read % FIEDLER_REC_BYTES) != 0u) {
+            srmech_plat_rstream_close(&rs);
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        size_t recs = n_read / FIEDLER_REC_BYTES;
+        for (size_t i = 0; i < recs; i++) {
+            const unsigned char *rec = chunk + i * FIEDLER_REC_BYTES;
+            uint32_t u = 0u, v = 0u;
+            double w = 0.0;
+            memcpy(&u, rec, sizeof(uint32_t));
+            memcpy(&v, rec + 4, sizeof(uint32_t));
+            memcpy(&w, rec + 8, sizeof(double));
+            st = cb(u, v, w, ctx);
+            if (st != SRMECH_OK) { srmech_plat_rstream_close(&rs); return st; }
+        }
+        if (n_read < FIEDLER_CHUNK_BYTES) { eof = 1; }
+    }
+    srmech_plat_rstream_close(&rs);
+    return SRMECH_OK;
+}
+
+typedef struct { uint32_t n; double *deg; } fiedler_deg_ctx;
+typedef struct { uint32_t n; const double *t; double *y; } fiedler_y_ctx;
+
+/* Degree-accumulation callback (undirected: both endpoints). */
+static srmech_status_t fiedler_deg_cb(uint32_t u, uint32_t v, double w, void *ctx)
+{
+    fiedler_deg_ctx *c = (fiedler_deg_ctx *)ctx;
+    assert(c != NULL);
+    assert(c->deg != NULL);
+    if (u >= c->n || v >= c->n) { return SRMECH_ERR_BAD_INPUT; }
+    c->deg[u] += w;
+    c->deg[v] += w;
+    return SRMECH_OK;
+}
+
+/* Matvec y += W t accumulation callback (one streamed pass = one matvec). */
+static srmech_status_t fiedler_y_cb(uint32_t u, uint32_t v, double w, void *ctx)
+{
+    fiedler_y_ctx *c = (fiedler_y_ctx *)ctx;
+    assert(c != NULL);
+    assert(c->t != NULL && c->y != NULL);
+    if (u >= c->n || v >= c->n) { return SRMECH_ERR_BAD_INPUT; }
+    c->y[u] += w * c->t[v];
+    c->y[v] += w * c->t[u];
+    return SRMECH_OK;
+}
+
+/* One out-of-core step: u = deflate(B v), the W t matvec streamed from `path`. */
+static srmech_status_t fiedler_step_file(const char *path, uint32_t n, const double *s,
+                                         const double *p, const double *v, double *t,
+                                         double *y, double *u)
+{
+    assert(s != NULL && v != NULL && u != NULL);
+    assert(t != NULL && y != NULL && p != NULL);
+    for (uint32_t i = 0; i < n; i++) {
+        t[i] = s[i] * v[i];
+        y[i] = 0.0;
+    }
+    fiedler_y_ctx ctx = { n, t, y };
+    srmech_status_t st = fiedler_file_scan(path, fiedler_y_cb, &ctx);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        u[i] = v[i] + s[i] * y[i];
+    }
+    fiedler_deflate(n, u, p);
+    return SRMECH_OK;
+}
+
+/* Out-of-core power iteration: stream-step until rescale-zero or sign-stability
+ * (5 stable-sign steps past a 20-iteration warmup). v holds the running vector. */
+static srmech_status_t fiedler_file_iterate(const char *path, uint32_t n,
+    const double *s, const double *p, double *v, double *u, double *t,
+    double *y, double *prev, uint32_t max_iters)
+{
+    assert(s != NULL && p != NULL);
+    assert(v != NULL && prev != NULL);
+    uint32_t stable = 0u;
+    for (uint32_t it = 0; it < max_iters; it++) {
+        srmech_status_t st = fiedler_step_file(path, n, s, p, v, t, y, u);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+        if (fiedler_rescale(n, u, v) == 0) {
+            break;
+        }
+        if (fiedler_update_sign(n, v, prev) && it >= 20u) {
+            stable++;
+            if (stable >= 5u) {
+                break;
+            }
+        } else {
+            stable = 0u;
+        }
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_laplacian_fiedler_sparse_file(uint32_t n, const char *path,
+    uint32_t max_iters, double *out_vec, double *ws, size_t ws_len)
+{
+    assert(out_vec != NULL && ws != NULL);
+    if (out_vec == NULL || ws == NULL || path == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (ws_len < (size_t)8u * n) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    assert(ws_len >= (size_t)8u * n);
+    for (uint32_t i = 0; i < n; i++) {
+        out_vec[i] = 0.0;
+    }
+    if (n < 2u) {
+        return SRMECH_OK;
+    }
+    double *deg = ws;
+    double *s = ws + (size_t)1u * n;
+    double *p = ws + (size_t)2u * n;
+    double *v = ws + (size_t)3u * n;
+    double *u = ws + (size_t)4u * n;
+    double *t = ws + (size_t)5u * n;
+    double *y = ws + (size_t)6u * n;
+    double *prev = ws + (size_t)7u * n;
+    for (uint32_t i = 0; i < n; i++) {
+        deg[i] = 0.0;
+    }
+    fiedler_deg_ctx dctx = { n, deg };
+    srmech_status_t st = fiedler_file_scan(path, fiedler_deg_cb, &dctx);   /* degree pass */
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    if (fiedler_build_sp(n, deg, s, p) <= 0.0) {
+        return SRMECH_OK;                          /* edgeless -> zero vector */
+    }
+    fiedler_init(n, p, v);
+    for (uint32_t i = 0; i < n; i++) {
+        prev[i] = -1.0;
+    }
+    st = fiedler_file_iterate(path, n, s, p, v, u, t, y, prev, max_iters);
+    if (st != SRMECH_OK) {
+        return st;
     }
     for (uint32_t i = 0; i < n; i++) {
         out_vec[i] = v[i];

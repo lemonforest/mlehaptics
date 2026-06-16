@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 7
 #define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc167"
-#define SRMECH_VERSION       "0.7.5rc167"
+#define SRMECH_VERSION_PRE   "rc168"
+#define SRMECH_VERSION       "0.7.5rc168"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -897,6 +897,25 @@ srmech_status_t srmech_laplacian_fiedler_sparse(uint32_t        n,
                                                 double         *out_vec,
                                                 double         *ws,
                                                 size_t          ws_len);
+
+/* §52 Part 2 (F793): the OUT-OF-CORE streaming Fiedler. Identical normalized-cut
+ * power iteration to srmech_laplacian_fiedler_sparse, but the adjacency is NEVER
+ * resident — each edge pass STREAMS a packed edge file via the PAL streaming-read.
+ * `path` is a packed binary file of 16-byte records (uint32 u | uint32 v | double w,
+ * host byte order; records never straddle a read chunk). Only the O(n) working
+ * vectors live in RAM (the caller `ws` arena, >= 8*n doubles — no compiled-in node
+ * cap), so a low-RAM target can PARTITION a graph whose edge list does not fit RAM:
+ * the low-RAM ENCODE for graph partition (composes §52.1 cooccurrence_topk for the
+ * bounded edge SET). `out_vec` (length n) receives the sign-bearing Fiedler vector;
+ * n < 2 -> the zero vector. A read that is not a whole number of records (truncated
+ * file) -> SRMECH_ERR_BAD_INPUT; an out-of-range endpoint -> SRMECH_ERR_BAD_INPUT.
+ * ABI-additive (a new symbol) -> SRMECH_ABI_VERSION stays 3. */
+srmech_status_t srmech_laplacian_fiedler_sparse_file(uint32_t      n,
+                                                     const char   *path,
+                                                     uint32_t      max_iters,
+                                                     double       *out_vec,
+                                                     double       *ws,
+                                                     size_t        ws_len);
 
 /* Symmetric Jacobi eigendecomposition. In-place: `matrix` becomes
  * approximately diagonal at exit (caller-owned working buffer). The

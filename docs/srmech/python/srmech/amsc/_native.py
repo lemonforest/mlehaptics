@@ -1003,6 +1003,25 @@ def _bind(lib: ctypes.CDLL) -> None:
             ]
             lib.srmech_laplacian_fiedler_sparse.restype = ctypes.c_int
 
+        # srmech_status_t srmech_laplacian_fiedler_sparse_file(uint32_t n,
+        #     const char *path, uint32_t max_iters, double *out_vec,
+        #     double *ws, size_t ws_len)  — §52 Part 2 / F793 (rc168): the
+        #     OUT-OF-CORE streaming Fiedler. Same power iteration, but the
+        #     adjacency STREAMS from a packed 16-byte-record edge file via the
+        #     PAL — only the O(n) ws arena is resident, so a low-RAM target can
+        #     partition a graph whose edge list does not fit RAM. NEW symbol —
+        #     own hasattr so a pre-rc168 lib doesn't AttributeError here.
+        if hasattr(lib, "srmech_laplacian_fiedler_sparse_file"):
+            lib.srmech_laplacian_fiedler_sparse_file.argtypes = [
+                ctypes.c_uint32,                   # n
+                ctypes.c_char_p,                   # path (packed edge file)
+                ctypes.c_uint32,                   # max_iters
+                ctypes.POINTER(ctypes.c_double),  # out_vec (n)
+                ctypes.POINTER(ctypes.c_double),  # ws (9*n scratch arena)
+                ctypes.c_size_t,                   # ws_len (in doubles)
+            ]
+            lib.srmech_laplacian_fiedler_sparse_file.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Cascade catalog — v0.4.5rc1 C-parity + TOML retrofit.
     # Corrects the v0.4.3rc6 / v0.4.4rc1 carve-out that shipped cascade
@@ -1489,6 +1508,18 @@ def has_native_fiedler_sparse() -> bool:
     pre-rc166 lib — the pure-Python cascade is the complete alternative."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_laplacian_fiedler_sparse"))
+
+
+def has_native_fiedler_sparse_file() -> bool:
+    """True iff the §52 Part 2 native OUT-OF-CORE streaming Fiedler is loaded +
+    bound (rc168+ lib): the matvec power iteration runs in C reading the
+    adjacency from a packed edge FILE via the PAL — only the O(n) working
+    vectors are resident, so :func:`srmech.amsc.laplacian.fiedler_sparse_file`
+    partitions a graph whose edge list does not fit RAM (F793 low-RAM encode).
+    False on a no-C or pre-rc168 lib — the pure-Python path (read the file in,
+    run the in-RAM cascade) is the complete alternative (correct, not bounded)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_laplacian_fiedler_sparse_file"))
 
 
 # ---------------------------------------------------------------------------
