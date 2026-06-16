@@ -176,6 +176,9 @@ ROUTING_STOPLIST = frozenset(
     "else besides beside except apart aside excluding versus others "
     "often sometimes usually always inside within "
     "explain describe overview "
+    # F810: REQUEST-meta operators — "show me / give us the wiki article/page" is about the REQUEST, not a topic
+    # ("show" was being routed as the TV-show noun; "wiki"/"article" as topics -> the phrase-decline misfired).
+    "show shows showed showing list lists wiki article articles page pages entry entries us "
     "navigate explore nearby neighbourhood neighborhood cluster walk near around"
     .split())   # F766/F787/F788/F791: scaffolding + connectives + about/nav-verbs, not topics
 # F752: the FRAME channel — function words ARE the sentence structure (intent), the thing F751 stoplisted for ROUTING.
@@ -303,6 +306,9 @@ PROVENANCE_RE = re.compile(r"\bsource\s*code\b|\byour\s+code\b|\brepo(?:sitory)?
 SCAFFOLD_PAREN_RE = re.compile(r"\([^()]*?(?:CC-BY-SA|simplewiki|source:|related:|co-occurrence|derived|honest|"
                                r"these are|the walk|RELATIONS|not a verified|won'?t invent|asking-state)[^()]*\)", re.I)
 # F791: the NAVIGATE frame — walk the spectral-clumped tome-tree (FIND→RIDE→ZOOM→WEB-HOP) instead of defining.
+# F810: the ARTICLE frame — "(wiki) article/page for/about X", "the full article", "show me the article". Wants the
+# FULLEST text held = the abstract-full lead (Siona stores LEADS, not full bodies); routes via F790 entity-resolution.
+ARTICLE_RE = re.compile(r"\b(?:wiki\s+)?(?:article|articles|page|pages|entry|entries)\b|\bfull\s+(?:article|text|entry)\b")
 NAV_RE = re.compile(r"\b(?:navigate|explore|nearby|neighbou?rhood|what'?s\s+near|near\s+to|close\s+to|"
                     r"cluster\s+(?:of|around|for)|related\s+cluster|walk\s+(?:from|the)|what'?s\s+around)\b")
 # F796: a pasted CODE / MATH fragment -> the dep-free rule kernel reads its A-N structure (Python/C/LaTeX; no interpreter).
@@ -1119,7 +1125,7 @@ class SionaGenepool:
         proc_note = ("\n  (you asked HOW it's made/works — I hold what it IS, not the process)"
                      if intent in ("process", "quantity") else "")
         # F788: an open "tell me about / explain X" (or depth=long, "tell me more") wants the fuller ABSTRACT.
-        want_abstract = (depth == "long") or bool(ABOUT_RE.search(pl))
+        want_abstract = (depth == "long") or bool(ABOUT_RE.search(pl)) or bool(ARTICLE_RE.search(pl))  # F810: an article ask wants the fuller text
         ab_subj = next((self._lemma(t) for t in sorted(salient, key=len, reverse=True)
                         if self._lemma(t) in self.abstracts), None)
 
@@ -1200,6 +1206,27 @@ class SionaGenepool:
             return (f"{parse}\n[siona · contents] {('Besides ' + exwords + ', ') if exwords else ''}I hold nothing"
                     f" more about “{subject}” than its lead sentence. I won't invent its other contents.{new_note}")
 
+        # === F810 ARTICLE frame: "(wiki) article/page for/about X", "the full article", "show me the article" -> serve
+        # the FULLEST text held for the resolved subject (the abstract-full LEAD; Siona stores leads, not full bodies).
+        # Resolves a multi-word entity (solanum lycopersicum -> tomato, F790) from SALIENT, not just recognized topics.
+        if ARTICLE_RE.search(pl):
+            ordered = [self._lemma(t) for t in salient]           # PROMPT order (so the binomial phrase matches)
+            subj = body = src = None
+            if len(ordered) >= 2:                                 # multi-word: the PHRASE names the entity (solanum lycopersicum -> tomato, F790)
+                ent = self._resolve_entity(ordered, True)
+                if ent:
+                    subj, body, src = ent
+            if subj is None:                                      # else the longest single salient token that is itself an article
+                subj = next((c for c in sorted(ordered, key=len, reverse=True) if c in self.abstracts or c in self.glosses), None)
+                if subj:
+                    body = self.abstracts.get(subj) or self.glosses.get(subj)
+                    src = "lead abstract (≤3 sentences)" if subj in self.abstracts else "lead sentence"
+            if subj and body:
+                return (f"{parse}\n[siona · article] {subj}: {body}\n"
+                        f"  (this is the LEAD of the simplewiki article — the fullest text I hold; I don't store full "
+                        f"article bodies yet (source: {src}, CC-BY-SA){new_note})")
+            return (f"{parse}\n[siona · article] I serve the LEAD of an article (I hold lead paragraphs, not full "
+                    f"bodies) — but I can't tell which subject you mean. Name it and I'll give its lead.{new_note}")
         # === REASONER (F774): ≥2 topics + a relational/comparison CUE -> closed-op problem-solving over RETRIEVED facts
         # (more than find+ride). Coherence as a RESULT of solving (F775); no-confabulation (closed ops don't invent,
         # F767); bounded by what's sourced (honest decline, F408). Inference ORCHESTRATES the exact set/compare ops.
