@@ -86,6 +86,24 @@ def _word_hv(w):
     parts = [hdc.klein4_bind(_glyph(chars[i]), _glyph(chars[i + 1])) for i in range(len(chars) - 1)][:32]
     return hdc.klein4_bundle(*parts)
 
+def graft_context(messages, current_index):
+    """F801: SURGICALLY graft the running-context working memory from the conversation — do NOT brute-force-scrub
+    Siona's rendered prose (the F799 regex strip was the brute-force path; this is the surgical one). Role-aware: a
+    USER turn contributes its OWN words (clean — the user never emits scaffolding); an ASSISTANT turn contributes ONLY
+    the operands Siona DECLARED (the 'topic [...]' markers she emitted), never her prose frame. The graft is the
+    conversation's operands by construction — free of rendering meta, no scrubbing needed."""
+    parts = []
+    for i, m in enumerate(messages or ()):
+        if i == current_index:
+            continue
+        c = m.get("content") or ""
+        if m.get("role") == "assistant":
+            parts.extend(re.findall(r"topic \[([^\]]*)\]", c))   # the DECLARED topic-operands only (her structured record)
+        else:
+            parts.append(c)                                       # the user's own words (already clean)
+    return "\n".join(parts)
+
+
 ERA_DEFS = {
     "dict-en-1600": {"nice": "foolish or ignorant", "awful": "awe-inspiring, worthy of awe",
                      "computer": "a person who computes", "meat": "food in general", "silly": "blessed, innocent"},

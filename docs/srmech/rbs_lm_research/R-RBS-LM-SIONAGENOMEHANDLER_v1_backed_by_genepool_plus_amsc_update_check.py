@@ -97,7 +97,7 @@ def chat_completion(request):
     li = max((i for i, m in enumerate(msgs) if m.get("role") == "user"), default=len(msgs) - 1)  # the current user turn
     last = msgs[li].get("content") or "" if msgs else ""
     prev_assistant = next((m.get("content") or "" for m in reversed(msgs[:li]) if m.get("role") == "assistant"), "")
-    context = "\n".join((m.get("content") or "") for i, m in enumerate(msgs) if i != li)   # F759: the prior turns = running context
+    context = _gp.graft_context(msgs, li)   # F801: SURGICAL graft (user words + assistant's DECLARED topic-operands), not a prose scrub
     answer = _WORLD.infer(last, prev_assistant, context)   # prev_assistant -> asking-state learn; context -> RBS-HDC running-context
     return {"id": "chatcmpl-siona-genepool", "object": "chat.completion", "created": int(time.time()), "model": model,
             "choices": [{"index": 0, "message": {"role": "assistant", "content": answer}, "finish_reason": "stop"}],
