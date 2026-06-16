@@ -1012,7 +1012,17 @@ class SionaGenepool:
         # === F796 RULE-KERNEL frame: a pasted CODE / MATH fragment -> read its A-N structure with our OWN dep-free
         # grammar (Python/C/LaTeX; NO ast/sympy/pycparser). The structural, symbol-invariant read — a closed grammar
         # ENCODED (the chess/LOGO route), not borrowed from a host interpreter.
-        if CODE_INPUT_RE.search(prompt):
+        if CODE_INPUT_RE.search(prompt) or "|||" in prompt:
+            if "|||" in prompt:                                   # F797: compare two fragments by A-N signature
+                fa, fb = prompt.split("|||", 1)
+                try:
+                    s, ca, cb, verdict = RK.compare(fa, fb)
+                except Exception:
+                    s = None
+                if s is not None:
+                    return (f"{parse}\n[siona · rule-kernel compare] structural similarity {s:+.3f} → they have {verdict}.\n"
+                            f"  (A: {', '.join(ca) or '—'} | B: {', '.join(cb) or '—'} — symbol- AND language-invariant "
+                            f"A-N signatures from Siona's own grammars, no interpreter; the algorithm, not the surface — F797)")
             try:
                 lang, cls, desc = RK.structural_read(prompt)
             except Exception:

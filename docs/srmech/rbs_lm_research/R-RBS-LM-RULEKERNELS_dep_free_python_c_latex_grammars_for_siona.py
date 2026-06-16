@@ -481,6 +481,14 @@ def structural_read(src, lang=None):
     return lang, cls, f"a {lang} fragment built from: {', '.join(cls) or '(operands only)'}"
 
 
+def compare(src_a, src_b):
+    """F797: structural-equivalence judgement between two code/math fragments — rename- AND language-invariant
+    (Python≡C when the algorithm matches). Returns (similarity, classes_a, classes_b, verdict)."""
+    s = similarity(code_sig(src_a), code_sig(src_b))
+    va = "the SAME structure" if s > 0.85 else ("RELATED structure" if s > 0.5 else "DIFFERENT structure")
+    return s, structural_read(src_a)[1], structural_read(src_b)[1], va
+
+
 def main():
     print(f"=== R-RBS-LM-RULEKERNELS — dep-free Python/C/LaTeX rule kernels (srmech {srmech.__version__}) ===\n")
     cases = {
