@@ -107,6 +107,10 @@ RELATIONS_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_relations.j
 # the real DEFINITION tier (F760): title -> the lead-sentence gloss of each simplewiki article ("what X IS"), so a
 # definition question gets a definition, not a relations dump. The EXACT definition side-store (pairs with assoc/relations).
 GLOSS_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_glosses.json"
+# F788: the FULL-COVERAGE lead-PARAGRAPH abstract store (finishes F745's documented scale path: 216k abstracts, ≤3
+# sentences). The richer-answer tier: "what is X" -> the crisp lead sentence (gloss); "tell me about/explain X" or
+# "tell me more" (depth=long, F763) -> this fuller abstract. Built by R-RBS-LM-WIKIABSTRACT; CC-BY-SA simplewiki.
+ABSTRACT_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_abstracts.json"
 
 # NOTE (F743 experiment): there is NO hard-coded SIONA_SELF blurb, no _capabilities() prose, and no identity/
 # greeting/capabilities regexes. Siona's self-knowledge is read from STRUCTURE at runtime — srmech.describe()
@@ -139,7 +143,8 @@ ROUTING_STOPLIST = frozenset(
     # ("else"/"besides" HAVE co-occurrence entries so _recognized() wrongly counted them as topics -> the F776 phrase
     # decline fired on "what else is in ketchup besides tomatoes". They are operators, consumed not routed.)
     "else besides beside except apart aside excluding versus others "
-    "often sometimes usually always inside within".split())   # F766/F787: scaffolding + connectives, not topics
+    "often sometimes usually always inside within "
+    "explain describe overview".split())   # F766/F787/F788: scaffolding + connectives + about-verbs, not topics
 # F752: the FRAME channel — function words ARE the sentence structure (intent), the thing F751 stoplisted for ROUTING.
 # Read them (on the RAW prompt; tokenize drops most) to classify the question TYPE so a how-made ≠ a what-is ≠ a phrase.
 INTENT_RE = (
@@ -239,6 +244,9 @@ CONTENTS_RE = re.compile(
     r"|\b(?:besides|apart\s+from|other\s+than|aside\s+from|except|excluding)\b"  # an exclusion connective anywhere
     r"|\bingredients?\b|\bmade\s+(?:of|from|with)\b")                         # contents / composition words
 EXCLUDE_RE = re.compile(r"\b(?:besides|apart\s+from|other\s+than|aside\s+from|except|excluding|not)\s+([a-z]+)")
+# F788: the ABOUT frame — an open "tell me about / explain / describe X" wants the fuller ABSTRACT (≤3 sentences),
+# NOT the crisp one-line definition that "what is X" wants. (depth=="long" (tell me more, F763) also serves it.)
+ABOUT_RE = re.compile(r"\b(?:tell\s+\w+\s+about|tell\s+about|all\s+about|more\s+about|explain|describe|overview\s+of)\b")
 # F753: the COUPLING weight. The input-ride parses the query into a SUBJECT (content noun -> routes) + STEER (the
 # relation/frame words, incl. delexical ones F751 keeps out of routing) — and the steer BIASES kernel convergence
 # (the frame becomes a direction of travel), coupling the input-walk to the kernel-walk. Subject anchors; steer nudges.
@@ -374,6 +382,10 @@ class SionaGenepool:
         self.glosses = {}
         if GLOSS_FILE.exists():
             self.glosses = json.loads(GLOSS_FILE.read_text()).get("store", {})
+        # F788: the full-coverage lead-PARAGRAPH abstract store (richer answers; "tell me about / explain X")
+        self.abstracts = {}
+        if ABSTRACT_FILE.exists():
+            self.abstracts = json.loads(ABSTRACT_FILE.read_text()).get("store", {})
 
     def _build_surface(self):
         """The LM surface: ONE co-occurrence graph (Class L) over every kernel Siona holds — nothing excluded."""
@@ -409,6 +421,8 @@ class SionaGenepool:
         # honestly so they don't read as chromosomes; F759.1). They are the exact-retrieval tier; the genome carries self.
         if getattr(self, "glosses", None):
             cat.append(("wiki·definition [side-store]", len(self.glosses)))
+        if getattr(self, "abstracts", None):
+            cat.append(("wiki·abstract-full [side-store]", len(self.abstracts)))   # F788: ≤3-sentence, full coverage
         if getattr(self, "wiki", None):
             cat.append(("wiki·abstract [side-store]", len(self.wiki)))
         if getattr(self, "assoc", None):
@@ -905,6 +919,10 @@ class SionaGenepool:
         new_note = f"\n  (not on my shelf: {', '.join(unrecognized)})" if unrecognized else ""
         proc_note = ("\n  (you asked HOW it's made/works — I hold what it IS, not the process)"
                      if intent in ("process", "quantity") else "")
+        # F788: an open "tell me about / explain X" (or depth=long, "tell me more") wants the fuller ABSTRACT.
+        want_abstract = (depth == "long") or bool(ABOUT_RE.search(pl))
+        ab_subj = next((self._lemma(t) for t in sorted(salient, key=len, reverse=True)
+                        if self._lemma(t) in self.abstracts), None)
 
         # === F787 CONTENTS frame: "what else / what's in X (besides Y)" -> LIST the subject's held neighbours, minus Y.
         # A multi-item list (not a single-sentence definition); fires before the 2-topic reasoner so "what else is in
@@ -958,8 +976,10 @@ class SionaGenepool:
                     f"which one do you mean, or what about them?{new_note}")
 
         # === ETAK-WALK the DEEP surface (inference, not retrieval) ========================================
+        # F788: an open "tell me about X" whose subject HAS a wiki abstract skips the (terse) deep-kernel walk so the
+        # richer abstract wins (e.g. "tell me about computer" -> the wiki abstract, not the dict-en seed "an electronic machine").
         landmarks = [self.vix[t] for t in salient if t in self.vix]
-        if landmarks:
+        if landmarks and not (want_abstract and ab_subj):
             trace, ranked = self._walk(landmarks, steer=steer_idx)   # F753: couple the input-ride to the kernel walk
             path_str = " → ".join(trace[:8])
             top_kernel, top_key = ranked[0]
@@ -986,8 +1006,14 @@ class SionaGenepool:
                     if arel:
                         bits.append(", ".join(arel))
                 rel_note = f"\n  (related: {'; '.join(bits)})" if bits else ""
-            return (f"{parse}\n[siona · definition] {gk}: {self.glosses[gk]}\n"
-                    f"  (source: simplewiki lead sentence, CC-BY-SA){proc_note}{new_note}{rel_note}")
+            # F788: "what is X" -> the crisp lead sentence; "tell me about/explain X" or depth=long -> the fuller
+            # abstract (≤3 sentences). The single-sentence answer was the DEFINITION tier; richer asks get the abstract.
+            if want_abstract and gk in self.abstracts:
+                body, src = self.abstracts[gk], "simplewiki lead abstract (≤3 sentences)"
+            else:
+                body, src = self.glosses[gk], "simplewiki lead sentence"
+            return (f"{parse}\n[siona · definition] {gk}: {body}\n"
+                    f"  (source: {src}, CC-BY-SA){proc_note}{new_note}{rel_note}")
         # not in the DEEP kernels or glosses -> the broad WIKI abstract, ENRICHED with relations (directed if held, F757)
         wk = self.wiki_lookup(prompt, steer=eff_steer)
         if wk:
