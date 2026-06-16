@@ -2281,7 +2281,7 @@ rung) without per-graph q-tuning. Demonstrated as test material: `R-RBS-LM-RELED
 
 ---
 
-## §51 ASK — a SPARSE / iterative Class-L FIEDLER (normalized-cut), to break the n≤256 dense-eigensolver wall for graph PARTITIONING at corpus scale (2026-06-16; F785, prototype verified)
+## §51 ASK — a SPARSE / iterative Class-L FIEDLER (normalized-cut), to break the n≤256 dense-eigensolver wall for graph PARTITIONING at corpus scale (2026-06-16; F785, prototype verified) — **FILED: GH lemonforest/mlehaptics#1097**
 
 **The wall:** the dense Class-L eigensolvers (`jacobi_eigvals` / `symmetric_eigendecompose` / `fiedler_vector`) cap at **n≤256**. So a co-occurrence graph over >256 words **cannot** be spectrally bisected directly — the exact blocker called out in F778 for the "spectral-clumped loopshelf" (partition the 244k-vocab co-occurrence graph into community-tomes). Hierarchical recursion below the first cut is bounded by construction, but the **top cut over the full vocab is n≫256** and has no srmech path today.
 
