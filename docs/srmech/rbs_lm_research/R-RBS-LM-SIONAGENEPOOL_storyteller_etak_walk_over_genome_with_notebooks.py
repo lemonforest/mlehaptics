@@ -1110,8 +1110,21 @@ class SionaGenepool:
                 body, src = self.abstracts[gk], "simplewiki lead abstract (≤3 sentences)"
             else:
                 body, src = self.glosses[gk], "simplewiki lead sentence"
+            # F794: "be detailed" is NOT a static sentence-cap — detail opens the viewport's other DEGREES OF FREEDOM.
+            # On depth=long, open the SPECTRAL-NEIGHBOURHOOD DOF (the F791/F792 tome-tree) on top of the abstract +
+            # relations: detail = abstract(text axis) + relations(relational axis) + clump/web(community axis). The
+            # forgotten DOF are the navigation facets, not more sentences on one axis. (NOW-dynamic cross-turn
+            # escalation — "still too brief" → open the next DOF — is the follow-on; needs conversation state.)
+            dof = ""
+            if depth == "long":
+                nav = self._navigate(self._lemma(gk))
+                if nav:
+                    _t, ride, _par, hops, _tr, _s = nav
+                    br = f"; bridges to {hops[0][2]}~{hops[0][3]}" if hops else ""
+                    if ride:
+                        dof = f"\n  (deeper — another facet, its spectral neighbourhood: {', '.join(ride[:8])}{br})"
             return (f"{parse}\n[siona · definition] {gk}: {body}\n"
-                    f"  (source: {src}, CC-BY-SA){proc_note}{new_note}{rel_note}")
+                    f"  (source: {src}, CC-BY-SA){proc_note}{new_note}{rel_note}{dof}")
         # not in the DEEP kernels or glosses -> the broad WIKI abstract, ENRICHED with relations (directed if held, F757)
         wk = self.wiki_lookup(prompt, steer=eff_steer)
         if wk:

@@ -2301,3 +2301,17 @@ rung) without per-graph q-tuning. Demonstrated as test material: `R-RBS-LM-RELED
 
 ### §51 STRESS-TEST (2026-06-16; F786) — prototype HARDENED, ready to send
 Before sending the ask, stress-tested the prototype (`R-RBS-LM-ETAKNAV_…py`) on a bigger, **genuinely-sparse** graph (the real production shape, not the near-complete toy): 1500 content words, IDF-de-lensed + top-20 sparsified → 25,434 edges. **The sparse normalized-cut Fiedler converged across 192 recursive sub-bisections (tree depth 5..13) with 0 non-converged (capped), gate re-verified 100%, in 6.1 s.** Communities came out 30× denser inside (clean). So the prototype is **robust across many deep sub-bisections at the sparse scale the 244k vocab will use** — the native port can follow this exact algorithm (normalized `B = I + D^{-1/2}WD^{-1/2}`, deflate √deg, sign-stability stop after a warmup) with confidence. **Convergence note for the native impl:** the sign-partition stabilises well before full eigenvector precision (we stop after 5 stable-sign iterations past a 20-iter warmup); a native impl only needs the sign, so it can stop on sign-stability too. This is the spec to ship.
+
+---
+
+## §52 ASK — LOW-RAM ENCODE: streaming co-occurrence + out-of-core recursive partition ON the PAL (so encoding, not just reading, fits an edge device) (2026-06-16; F793)
+
+**The split (measured, F793):** building the co-occurrence graph from the wiki SOURCE peaks at **2.1–2.4 GB** (the in-memory docs + the materialised `cooccurrence_edges` edge list, 8.7–10M edges); **navigating the pre-encoded tome-tree is 48 MB.** So *reading* is already edge-friendly (ship the encoded genome, read it); only *encoding* is GB-scale.
+
+**The platform layer is already here:** the **PAL** (rc162–164 — streaming-read surface, directory iteration, genome file I/O retrofitted onto it, `#ifdef`-gated for embedded). Chunked cross-platform file I/O exists.
+
+**The ask (two streaming ALGORITHMS on the PAL, to make the ENCODE low-RAM):**
+1. **Streaming / bounded explicit co-occurrence** — a `cooccurrence_topk(token_stream, *, window, k) -> {token: [(neighbour, weight)…k]}` that accumulates **top-K per node** via chunked PAL read/write and **never materialises the full edge list** (the explicit peer of the §50 holographic fold; the §17-U1 `cooccurrence_edges` is all-in-RAM). Turns the 2 GB edge-list peak into a bounded `vocab × K` store.
+2. **Out-of-core recursive partition** — feed the native §51 `normalized_cut_bisect` from a PAL-backed sparse adjacency (read sub-graph chunks, write sub-partitions to disk, recurse) so the whole recursive clump stays bounded regardless of vocab size.
+
+**Why it matters:** with these, the ENCODE trades RAM for chunked PAL I/O → a low-RAM target can build (not just read) the spectral-clumped smallwiki. Composes §17-U1 (explicit edges) + §50 (streaming/holographic) + §51 (sparse Fiedler) + the PAL. **Re-surface keywords:** `cooccurrence_topk` · `streaming co-occurrence` · `out-of-core` · `PAL` · `low-RAM encode` · `edge device` · `§52` · `F793`.
