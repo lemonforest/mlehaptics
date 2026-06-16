@@ -217,6 +217,13 @@ LOCALE_CANON = {
     "litre": "liter", "fibre": "fiber", "organise": "organize", "realise": "realize", "analyse": "analyze",
     "catalogue": "catalog", "defence": "defense", "grey": "gray", "aluminium": "aluminum", "programme": "program",
 }
+# F774: relational/comparison CUE words — OPERATORS (consumed from the topic channel, not routed). They trigger the
+# closed-op REASONER over ≥2 topics: COMPARE -> solve-for (needs a sourced attribute, else honest decline F408);
+# RELATE -> derive (intersect the two topics' held relation/co-occurrence neighbour-sets = the shared property).
+COMPARE_CUES = frozenset("bigger smaller larger taller shorter heavier lighter faster slower older younger than "
+                         "greater longer compare versus vs".split())
+RELATE_CUES = frozenset("common share shared between difference differ relate related relation relationship link "
+                        "connect connection both similar similarity".split())
 # F753: the COUPLING weight. The input-ride parses the query into a SUBJECT (content noun -> routes) + STEER (the
 # relation/frame words, incl. delexical ones F751 keeps out of routing) — and the steer BIASES kernel convergence
 # (the frame becomes a direction of travel), coupling the input-walk to the kernel-walk. Subject anchors; steer nudges.
@@ -529,6 +536,21 @@ class SionaGenepool:
             path.append(nxt); seen.add(nxt); cur = nxt
         return path, first
 
+    def _relate_topics(self, a, b, k=10):
+        """F774 DERIVE (closed op): the commonality of two topics = the INTERSECTION of their held relation +
+        co-occurrence neighbour-sets. A determinate set-op over RETRIEVED facts — attestable, never invented (so the
+        coherence is a RESULT of solving, not forced; F775). Ranks shared nodes that are in BOTH relation tiers first,
+        then mixed, then assoc-only. Returns the shared neighbours (≤k)."""
+        def nbrs(w):
+            rel = {o for o, _c, _r in (self.relations.get(w) or self.relations.get(self._norm(w)) or [])}
+            asc = set(self.assoc.get(w) or self.assoc.get(self._norm(w)) or [])
+            return rel, asc
+        ra, aa = nbrs(a)
+        rb, ab = nbrs(b)
+        shared = (ra | aa) & (rb | ab)
+        shared.discard(a); shared.discard(b)
+        return sorted(shared, key=lambda s: (not (s in ra and s in rb), s not in (ra | rb)))[:k]
+
     @staticmethod
     def _relation_story(subject, edges):
         """Compose the directed edges into a sentence (reads as an answer, not a bare neighbour list)."""
@@ -817,7 +839,7 @@ class SionaGenepool:
         # === SENTENCE PARSE (F752): TOPIC channel (content) + FRAME channel (function words = intent) ======
         content = T.tokenize(prompt)
         salient = [t for t in content if t not in ROUTING_STOPLIST and t not in ELABORATION_WORDS
-                   and t not in INTENT_DICT]                                     # candidate topics (F763/F766: meta-words consumed, not routed)
+                   and t not in INTENT_DICT and t not in COMPARE_CUES and t not in RELATE_CUES]   # candidate topics (F763/F766/F774: meta+cue words consumed, not routed)
         recognized = [t for t in salient if self._recognized(t)]                 # topics with a kernel home
         unrecognized = [t for t in salient if t not in recognized]
         # === PASS 1 — UNDERSTAND into English (etak FIND, F765; biology's TRANSCRIPTION stage) =============
@@ -869,7 +891,26 @@ class SionaGenepool:
         proc_note = ("\n  (you asked HOW it's made/works — I hold what it IS, not the process)"
                      if intent in ("process", "quantity") else "")
 
-        # word-salad / ambiguous: a PHRASE (no question frame) naming ≥2 distinct recognized topics -> ask which
+        # === REASONER (F774): ≥2 topics + a relational/comparison CUE -> closed-op problem-solving over RETRIEVED facts
+        # (more than find+ride). Coherence as a RESULT of solving (F775); no-confabulation (closed ops don't invent,
+        # F767); bounded by what's sourced (honest decline, F408). Inference ORCHESTRATES the exact set/compare ops.
+        topics = list(dict.fromkeys(self._lemma(t) for t in recognized))
+        if len(topics) >= 2:
+            a, b = topics[0], topics[1]
+            cues = set(re.findall(r"[a-z]+", pl))
+            if cues & COMPARE_CUES:                                  # SOLVE-FOR: needs a sourced comparable ATTRIBUTE
+                return (f"{parse}\n[siona · reasoned (solve-for)] To compare “{a}” and “{b}” I'd need a stored MEASURE of "
+                        f"that attribute for both — I hold relationships, not measured quantities, so I won't invent a "
+                        f"comparison.\n  (honest decline: the premise isn't sourced — F408; give me the measures and I can solve it)")
+            if cues & RELATE_CUES:                                   # DERIVE: intersect the two topics' held neighbour-sets
+                shared = self._relate_topics(a, b)
+                if shared:
+                    return (f"{parse}\n[siona · reasoned (derive)] “{a}” and “{b}” both relate to: {', '.join(shared)}\n"
+                            f"  (derived: the intersection of their held relations + co-occurrence neighbours — what they "
+                            f"share in what I hold, not invented; simplewiki, CC-BY-SA){new_note}")
+                return (f"{parse}\n[siona · reasoned (derive)] I hold both “{a}” and “{b}” but find NO shared relationship "
+                        f"between them in my stores — I won't invent one.{new_note}")
+        # word-salad / ambiguous: a PHRASE (no question frame) naming ≥2 distinct recognized topics, no cue -> ask which
         if intent == "phrase" and len(set(self._norm(t) for t in recognized)) >= 2:
             return (f"{parse}\n[siona] That reads as several things ({', '.join(recognized)}) with no question — "
                     f"which one do you mean, or what about them?{new_note}")
