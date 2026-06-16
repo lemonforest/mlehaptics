@@ -134,7 +134,12 @@ ROUTING_STOPLIST = frozenset(
     "finds given give gives gave get gets got getting way ways thing things kind sort type types lot like likes "
     "also well much many more most some any other another how why does did doing done need needs want wants let "
     "tell told say said see seen look looks put take takes go goes come comes work works "
-    "answer answers question questions response responses reply replies explanation".split())   # F766: scaffolding words, not topics
+    "answer answers question questions response responses reply replies explanation "
+    # F787: exclusion/addition CONNECTIVES + scaffolding adverbs — function-word OPERATORS (F770), never topics.
+    # ("else"/"besides" HAVE co-occurrence entries so _recognized() wrongly counted them as topics -> the F776 phrase
+    # decline fired on "what else is in ketchup besides tomatoes". They are operators, consumed not routed.)
+    "else besides beside except apart aside excluding versus others "
+    "often sometimes usually always inside within".split())   # F766/F787: scaffolding + connectives, not topics
 # F752: the FRAME channel — function words ARE the sentence structure (intent), the thing F751 stoplisted for ROUTING.
 # Read them (on the RAW prompt; tokenize drops most) to classify the question TYPE so a how-made ≠ a what-is ≠ a phrase.
 INTENT_RE = (
@@ -224,6 +229,16 @@ COMPARE_CUES = frozenset("bigger smaller larger taller shorter heavier lighter f
                          "greater longer compare versus vs".split())
 RELATE_CUES = frozenset("common share shared between difference differ relate related relation relationship link "
                         "connect connection both similar similarity".split())
+# F787: the CONTENTS / "what ELSE" frame — a multi-item LIST question about ONE subject (its held neighbours), with an
+# optional EXCLUSION ("besides Y"). This is NOT a definition (single sentence) and NOT a 2-topic compare/relate — it is
+# "list what I hold near X, minus Y". Answers from relations + co-occurrence, honestly framed (held neighbours, not a
+# verified contents/ingredient list). Fixes the "what else is in ketchup besides tomatoes" -> phrase-decline bug.
+CONTENTS_RE = re.compile(
+    r"\bwhat(?:'?s)?\s+(?:else|other|others|more)\b"                          # what else / what other / what more
+    r"|\bwhat(?:'?s| is| are)\s+(?:in|inside)\b"                              # what is in / what's in
+    r"|\b(?:besides|apart\s+from|other\s+than|aside\s+from|except|excluding)\b"  # an exclusion connective anywhere
+    r"|\bingredients?\b|\bmade\s+(?:of|from|with)\b")                         # contents / composition words
+EXCLUDE_RE = re.compile(r"\b(?:besides|apart\s+from|other\s+than|aside\s+from|except|excluding|not)\s+([a-z]+)")
 # F753: the COUPLING weight. The input-ride parses the query into a SUBJECT (content noun -> routes) + STEER (the
 # relation/frame words, incl. delexical ones F751 keeps out of routing) — and the steer BIASES kernel convergence
 # (the frame becomes a direction of travel), coupling the input-walk to the kernel-walk. Subject anchors; steer nudges.
@@ -890,6 +905,33 @@ class SionaGenepool:
         new_note = f"\n  (not on my shelf: {', '.join(unrecognized)})" if unrecognized else ""
         proc_note = ("\n  (you asked HOW it's made/works — I hold what it IS, not the process)"
                      if intent in ("process", "quantity") else "")
+
+        # === F787 CONTENTS frame: "what else / what's in X (besides Y)" -> LIST the subject's held neighbours, minus Y.
+        # A multi-item list (not a single-sentence definition); fires before the 2-topic reasoner so "what else is in
+        # ketchup besides tomatoes" lists ketchup's neighbours (vinegar, sauce, …) excluding tomato — instead of the
+        # phrase-decline. Honestly framed: held relations + co-occurrence, NOT a verified contents/ingredient list.
+        if recognized and CONTENTS_RE.search(pl):
+            subject = self._lemma(recognized[0])                              # the container/topic (prompt-order first)
+            excl = {self._lemma(o) for o in EXCLUDE_RE.findall(pl)}           # named after besides/except/…
+            excl |= {self._lemma(t) for t in recognized[1:]}                  # any other named topic excluded too
+            excl.add(subject)
+            seen, items = set(), []
+            for o in self._assoc_related(subject, eff_steer, k=16):           # co-occurrence neighbours (freq-ranked)
+                lo = self._lemma(o)
+                if lo not in excl and lo not in ROUTING_STOPLIST and len(lo) >= 3 and lo not in seen:
+                    seen.add(lo); items.append(o)
+            for o, _c, _r in self._directed_relations(subject, eff_steer, ctx_bundle, k=10):  # + typed relation objects
+                lo = self._lemma(o)
+                if lo not in excl and lo not in ROUTING_STOPLIST and len(lo) >= 3 and lo not in seen:
+                    seen.add(lo); items.append(o)
+            exwords = ", ".join(sorted(excl - {subject}))
+            lead = f"Besides {exwords}, what" if exwords else "What"
+            if items:
+                return (f"{parse}\n[siona · contents] {lead} I hold near “{subject}”: "
+                        f"{', '.join(items[:10])}.\n  (these are RELATIONS + co-occurrence neighbours — what “{subject}” "
+                        f"appears WITH in simplewiki, NOT a verified contents/ingredient list; CC-BY-SA){new_note}")
+            return (f"{parse}\n[siona · contents] {('Besides ' + exwords + ', ') if exwords else ''}I hold nothing"
+                    f" more about “{subject}” than its lead sentence. I won't invent its other contents.{new_note}")
 
         # === REASONER (F774): ≥2 topics + a relational/comparison CUE -> closed-op problem-solving over RETRIEVED facts
         # (more than find+ride). Coherence as a RESULT of solving (F775); no-confabulation (closed ops don't invent,
