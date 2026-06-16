@@ -499,7 +499,11 @@ class SionaGenepool:
         return w[:-1] if w.endswith("s") and len(w) > 3 else w
 
     @staticmethod
-    def _intent(pl):                                          # the FRAME channel: question TYPE from function words
+    def _intent(pl):                                          # the FRAME channel: question TYPE from function-word OPERATORS
+        if CONTENTS_RE.search(pl):                            # F800 (the srmech way): a declared OPERATOR cue maps to its
+            return "contents"                                # intent OPERAND label — so "what's in X" reads 'contents' and
+        if USES_RE.search(pl):                                # "what can X be used for" reads 'uses', not the fallback 'phrase'.
+            return "uses"                                     # (operators-declared; the cue REGEX is the operator, the label its operand)
         for name, rx in INTENT_RE:
             if rx.search(pl):
                 return name
@@ -903,23 +907,34 @@ class SionaGenepool:
         return term
 
     def _structure_card(self):
-        """Siona's self-knowledge, READ FROM STRUCTURE at runtime — NO hard-coded prose (F743 experiment): (a)
-        srmech.describe() = the substrate she runs on; (b) genome_catalog = the kernels she holds = what she can
-        answer about. She knows this "by definition": she IS an srmech instance carrying exactly these kernels, so
-        introspection is read off the structure, not asserted. (The deeper "walk my own prose to find myself" seed
-        was tested and is NOISE — the self-terms are rare, so IDF drags the walk into citation/appendix metadata;
-        F743. The clean emergent self-knowledge is describe() + catalog.)"""
+        """Siona's self-knowledge, built the srmech way — a DECLARED operator-template (the connective FRAME = form,
+        F654 / operators-declared-operands-by-meaning) filled with SOURCED operands (the FACTS, read from
+        srmech.describe() + genome_catalog at runtime — F743, never a baked self-blurb). Every content OPERAND is
+        grounded in the ni-Vanuatu glyph base (_word_hv = byte→glyph, the universal base F613/F761), and the
+        self-description is CONTENT-ADDRESSED over that glyph signature (sha256 = Class A) — so the card is sourced as
+        RBS-LM glyph + attestable, NOT free English. (F800. The deeper 'walk my own prose to find myself' seed was
+        tested and is NOISE — self-terms are rare, IDF drags the walk into citation metadata; F743.)"""
         d = srmech.describe()
-        doc1 = (srmech.__doc__ or "").strip().split(".")[0].strip()          # srmech's OWN one-line self-description
-        held = "; ".join(f"{lab} ({n})" for lab, n in self.introspect())
+        doc1 = (srmech.__doc__ or "").strip().split(".")[0].strip()          # srmech's OWN one-line self-description (sourced)
+        catalog = self.introspect()                                          # (label, leaf_count) per chromosome (sourced)
+        ops, cats, ver = d["tools"]["total"], len(d["categories"]), d["srmech_version"]
+        held = "; ".join(f"{lab} ({n})" for lab, n in catalog)
+        # the OPERANDS = the content words of the self-description; each grounded in the ni-Vanuatu glyph base, then the
+        # whole bundle CONTENT-ADDRESSED (Class A) — the self-description is sourced AS glyph, not asserted as English.
+        operands = [SIONA_NAME, "srmech"] + re.findall(r"[a-z]+", doc1.lower()) + [lab for lab, _ in catalog]
+        glyph_sig = hdc.klein4_bundle(*[_word_hv(w) for w in operands])      # operands -> ni-Vanuatu glyph base, bundled (Class M)
+        addr = sha256_raw(bytes(bytearray(int(x) & 255 for x in glyph_sig))).hex()[:12]   # Class-A content-address of the glyph signature
         return (f"[identity] I am {SIONA_NAME} — the running, genome-backed instance of {doc1}. srmech is my "
                 f"substrate; {SIONA_NAME} is me running it — the same system, named at two levels (srmech = the "
                 f"mechanism/package; {SIONA_NAME} = this instance reading its genome).\n"
-                f"[srmech.describe()] My substrate is {d['tools']['total']} stored-relationship ops across "
-                f"{len(d['categories'])} categories (srmech {d['srmech_version']}).\n"
+                f"[srmech.describe()] My substrate is {ops} stored-relationship ops across {cats} categories "
+                f"(srmech {ver}).\n"
                 f"[genome_catalog] The kernels I hold — and so what I can answer from — are: {held}. Ask me about "
                 "any of these (or give me a word to define), or teach me something new (“remember <term> is …”); "
-                "I etak-walk what I hold to compose an answer, and I ask when your question touches nothing I have.")
+                "I etak-walk what I hold to compose an answer, and I ask when your question touches nothing I have.\n"
+                f"[glyph-sourced] {len(operands)} content operands grounded in the ni-Vanuatu glyph base (byte→glyph, "
+                f"F613); self-description content-address {addr} (Class A). The frame is declared operators (form); the "
+                f"facts are sourced operands — describe() + genome_catalog, glyph-grounded, not free English.")
 
     def _prev_topic(self, prev_assistant, context):
         """F798: the PRIOR turn's subject, for anaphora carry-forward ("what can IT be used for" → the last topic).
