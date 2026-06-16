@@ -262,6 +262,16 @@ EXCLUDE_RE = re.compile(r"\b(?:besides|apart\s+from|other\s+than|aside\s+from|ex
 # F788: the ABOUT frame — an open "tell me about / explain / describe X" wants the fuller ABSTRACT (≤3 sentences),
 # NOT the crisp one-line definition that "what is X" wants. (depth=="long" (tell me more, F763) also serves it.)
 ABOUT_RE = re.compile(r"\b(?:tell\s+\w+\s+about|tell\s+about|all\s+about|more\s+about|explain|describe|overview\s+of)\b")
+# F798: the ANAPHORA frame — a follow-up whose only "subject" is a pronoun ("what can IT be used for", "tell me more
+# about THEM") carries the PRIOR turn's topic forward. Without it, salient is empty and the turn misroutes to the
+# identity card (the reported "what can it be used for" → [identity] bug). Fires conservatively (only when THIS turn
+# names no recognized topic of its own — an explicit topic always wins).
+ANAPHORA_RE = re.compile(r"\b(?:it|its|they|them|their|theirs|that|this|those|these|one|ones)\b")
+# F798: the USES frame — "what can X be used for/with", "what is X used for", "use of X", "what does X go with". This
+# is the same kind of multi-item neighbour LIST as CONTENTS (F787), just framed as USES; routes to the held relations +
+# co-occurrence neighbours (honestly: what X appears WITH, NOT a verified list of uses).
+USES_RE = re.compile(r"\b(?:used?\s+(?:for|with|in|as|to)\b|uses?\s+of\b|what\s+can\s+\w+\s+(?:be\s+)?(?:used|do)\b|"
+                     r"good\s+for\b|useful\s+for\b|go(?:es)?\s+(?:with|in)\b|pair(?:ed|s)?\s+with\b|works?\s+with\b)")
 # F791: the NAVIGATE frame — walk the spectral-clumped tome-tree (FIND→RIDE→ZOOM→WEB-HOP) instead of defining.
 NAV_RE = re.compile(r"\b(?:navigate|explore|nearby|neighbou?rhood|what'?s\s+near|near\s+to|close\s+to|"
                     r"cluster\s+(?:of|around|for)|related\s+cluster|walk\s+(?:from|the)|what'?s\s+around)\b")
@@ -899,6 +909,23 @@ class SionaGenepool:
                 "any of these (or give me a word to define), or teach me something new (“remember <term> is …”); "
                 "I etak-walk what I hold to compose an answer, and I ask when your question touches nothing I have.")
 
+    def _prev_topic(self, prev_assistant, context):
+        """F798: the PRIOR turn's subject, for anaphora carry-forward ("what can IT be used for" → the last topic).
+        Prefer the prior answer's input-ride parse line ('topic [...]'); then its '[siona · TIER] subject:' head; then
+        the earliest prior content word that still has a kernel home. Returns a lemma'd token or None."""
+        src = prev_assistant or ""
+        m = re.search(r"topic\s*\[\s*'([^']+)'", src) or re.search(r"\]\s*([a-z][a-z0-9 ]*?):\s", src)
+        if m:
+            cand = self._lemma(m.group(1).strip().split()[-1].lower())
+            if self._recognized(cand):
+                return cand
+        for t in re.findall(r"[a-z]+", (context or "").lower()):
+            if t not in ROUTING_STOPLIST and len(t) >= 3:
+                lt = self._lemma(t)
+                if self._recognized(lt):
+                    return lt
+        return None
+
     def infer(self, prompt, prev_assistant="", context=""):
         p = prompt.strip()
         pl = p.lower()
@@ -969,6 +996,16 @@ class SionaGenepool:
             unrecognized = [t for t in salient if t not in recognized]
         understood_note = (("[understood: " + ", ".join(f"{s}→{c} ({how})"            # F769: how ∈ usage/locale/glyph
                             for s, (c, how) in understood.items()) + "]\n") if understood else "")
+        # === F798 ANAPHORA carry-forward: a follow-up whose only subject is a pronoun ("what can IT be used for") has
+        # empty salient and used to misroute to the identity card. Inherit the PRIOR turn's topic (server threads it as
+        # prev_assistant + context). Conservative: only when THIS turn names no recognized topic of its own.
+        anaphora_note = ""
+        if not recognized and ANAPHORA_RE.search(pl):
+            prior = self._prev_topic(prev_assistant, context)
+            if prior:
+                salient = [prior] + [t for t in salient if self._lemma(t) != prior]
+                recognized = [prior]
+                anaphora_note = f"[anaphora: {ANAPHORA_RE.search(pl).group(0)} → {prior}]\n"
         intent = self._intent(pl)                                               # the question TYPE (frame channel)
         depth, depth_how = self._depth(pl)                                      # F763/F766: DEPTH (keyword fast-path OR meaning anchor)
         k_rel, k_assoc, walk_steps, attach_extra = {                            # depth -> answer-shaping knobs (comprehend, not discard)
@@ -996,7 +1033,7 @@ class SionaGenepool:
         ctx_bundle = hdc.klein4_bundle_resolve(ctx_bundle) if ctx_bundle is not None else None
         self._ctx = ctx_terms                                                    # the running-context object (introspectable)
         eff_steer = steer_terms + [t for t in ctx_terms if t not in steer_terms]  # context nudges the input-ride
-        parse = (understood_note                                                # F765 PASS 1 output (understand) shown above PASS 2 (ride)
+        parse = (anaphora_note + understood_note                                # F798 anaphora + F765 PASS 1 (understand) above PASS 2 (ride)
                  + f"[input-ride: {intent} · topic {recognized or '—'}"
                  + (f" · detail {depth} ({depth_how})" if depth != "normal" else "")   # F763/F766: show depth + HOW (keyword vs meaning)
                  + (f" · steer {steer_terms}" if steer_terms else "")
@@ -1055,7 +1092,8 @@ class SionaGenepool:
         # A multi-item list (not a single-sentence definition); fires before the 2-topic reasoner so "what else is in
         # ketchup besides tomatoes" lists ketchup's neighbours (vinegar, sauce, …) excluding tomato — instead of the
         # phrase-decline. Honestly framed: held relations + co-occurrence, NOT a verified contents/ingredient list.
-        if recognized and CONTENTS_RE.search(pl):
+        uses_frame = bool(USES_RE.search(pl)) and not CONTENTS_RE.search(pl)  # F798: "what can it be used for/with" = a USES list
+        if recognized and (CONTENTS_RE.search(pl) or uses_frame):
             subject = self._lemma(recognized[0])                              # the container/topic (prompt-order first)
             excl = {self._lemma(o) for o in EXCLUDE_RE.findall(pl)}           # named after besides/except/…
             excl |= {self._lemma(t) for t in recognized[1:]}                  # any other named topic excluded too
@@ -1070,6 +1108,13 @@ class SionaGenepool:
                 if lo not in excl and lo not in ROUTING_STOPLIST and len(lo) >= 3 and lo not in seen:
                     seen.add(lo); items.append(o)
             exwords = ", ".join(sorted(excl - {subject}))
+            if uses_frame:                                                    # F798: USES list — "what X is used with"
+                if items:
+                    return (f"{parse}\n[siona · uses] “{subject}” is used with / appears with: {', '.join(items[:10])}."
+                            f"\n  (RELATIONS + co-occurrence neighbours — what “{subject}” appears WITH in simplewiki, "
+                            f"NOT a verified list of uses; CC-BY-SA){new_note}")
+                return (f"{parse}\n[siona · uses] I hold nothing about what “{subject}” is used with beyond its lead "
+                        f"sentence. I won't invent its uses.{new_note}")
             lead = f"Besides {exwords}, what" if exwords else "What"
             if items:
                 return (f"{parse}\n[siona · contents] {lead} I hold near “{subject}”: "
@@ -1204,6 +1249,12 @@ class SionaGenepool:
             # handed to the gloss/relation tiers above, with the full depth treatment). So this is the honest terminal.
             return (f"{parse}\n[siona · asking-state] You asked about “{subject}”, which touches none of my kernels — "
                     f"I won't invent it. Tell me (“remember {subject} is …”, or just answer) and I'll learn it.")
+        # F798: a pronoun we could NOT resolve (no prior topic in the conversation) is an unresolved REFERENCE, not a
+        # "who are you" — answer with the asking-state, don't misroute to the identity card.
+        if ANAPHORA_RE.search(pl):
+            pron = ANAPHORA_RE.search(pl).group(0)
+            return (f"[siona · asking-state] You said “{pron}”, but nothing earlier in our conversation for it to refer "
+                    f"to. Name the thing and I'll answer.")
         # no substantive tokens (e.g. 'who are you', 'what can you do') -> EMERGENT introspection from structure
         return self._structure_card()
 
