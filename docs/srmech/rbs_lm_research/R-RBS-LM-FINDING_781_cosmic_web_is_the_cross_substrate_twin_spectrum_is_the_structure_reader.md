@@ -1,0 +1,38 @@
+# F781 — the cosmic web is the cross-substrate twin of the knowledge clump-tree+web (F780): large-scale structure is READ from the tidal-tensor eigenvalues exactly as knowledge-clumps are read from the co-occurrence Laplacian. The spectrum is the universal structure-reader; structure is READ, not imposed.
+
+**Date:** 2026-06-16 · **srmech:** 0.7.5rc165 · **Composes:** F780 (clumps-of-clumps + webs — this is its cross-substrate twin), F779 (recursive Fiedler bisection reads the clumps), F778 (clumps EMERGE / are discovered, not imposed — the load-bearing link), F172 (the co-occurrence Laplacian eigenspectrum IS the storage signature), `[[user_stance_cross_substrate_cascade_matching_as_research_method]]` (this IS the method, used live), `[[user_stance_framework_hands_the_next_question_to_the_expert]]` + `[[feedback_no_lineage_claims_in_notebook]]` (we READ what cosmology already does; we do not extend it) · **User insight (2026-06-16):** "I guessed the shape from cosmology — galaxy structures, clumping, and webs. And that we would just need to learn to look for it and learn how to read it."
+
+## The match the user made (and it holds at the level of the MATH)
+The F780 architecture — dense **clumps** (tomes), connected by sparse **webs** (cut-edge bridges), organised **hierarchically** (the bisection dendrogram), with **voids** (where co-occurrence is absent) — is the **cosmic web**: galaxies cluster into **knots** (clusters), strung along **filaments**, bounding **sheets/walls**, around vast **voids**, hierarchically (galaxies → groups → clusters → superclusters).
+
+| cosmic large-scale structure | knowledge co-occurrence structure (F780) |
+|---|---|
+| **knots / clusters** (densest) | **clumps / tomes** (dense communities, F779) |
+| **filaments** (bridges between knots) | **the webs** (cut-edge bridges, e.g. `singer──star`, F780) |
+| **sheets / walls** | weak multi-clump shared context |
+| **voids** (most of the volume, near-empty) | absence of co-occurrence (sparse, unrelated topics) |
+| **hierarchy** galaxies→groups→clusters→superclusters | the **recursive-bisection dendrogram** (clumps-of-clumps, F779) |
+| **read by**: diagonalise the tidal tensor, eigen-count | **read by**: diagonalise the co-occurrence Laplacian, Fiedler sign-split |
+
+## The load-bearing part: the READING METHOD is the same operation (Class-L spectral)
+Cosmology does NOT impose the web — it **reads** it spectrally. Compute the **deformation / tidal tensor** (the Hessian of the gravitational potential ∇²φ=δ) on a grid, **diagonalise it**, and **count the eigenvalues above a threshold** at each point → **0 = void, 1 = sheet, 2 = filament, 3 = knot** (the count = how many axes matter is collapsing along). That is an **eigendecomposition of a relationship/field operator** — the same Class-L move srmech uses to read knowledge clumps (the co-occurrence Laplacian's Fiedler vector, F779/F172). Same operator class, same structure-revealing role. **This is *why* spectral is the right reader for the loopshelf: it is the reader cosmology already uses for the same shape.** Attested:
+- **Hahn, Porciani, Carollo, Dekel (2007)**, "Properties of dark matter haloes in clusters, filaments, sheets and voids," *MNRAS* **375**, 489–499 — arXiv:astro-ph/0610280. Count POSITIVE eigenvalues of the tidal tensor: 0=void, 1=sheet, 2=filament, 3=halo/cluster.
+- **Forero-Romero, Hoffman, Gottlöber, Klypin, Yepes (2009)**, "A Dynamical Classification of the Cosmic Web" (**T-web**), *MNRAS* **396**, 1815–1824 — arXiv:0809.4135. Threshold λ_th; count eigenvalues above it → void/sheet/filament/knot.
+- **Hoffman, Metuki, Yepes et al. (2012)**, "A kinematic classification of the cosmic web" (**V-web**, velocity-shear-tensor eigenvalues), *MNRAS* **425**, 2049 — arXiv:1201.3367. (≡ T-web in the linear regime.)
+
+## "Learn to look for it and learn how to read it" — the framework's core stance, stated cleanly
+The structure is **intrinsic** — it is in the relationships (the field), not in our model of them. We don't build the clumps; the co-occurrence Laplacian already has them in its spectrum (F172). So:
+- **"Looking" = choosing the operator** — the relationship graph (knowledge) / the tidal field (cosmos). Pick the right operator and the structure is already encoded in it.
+- **"Reading" = its eigendecomposition** — the spectrum projects the spatially-/textually-distributed structure into the clump/filament/void partition. (This is the user's `[[fiber as spatially-absent encoding]]`: the structure is algebraically present in the operator, spatially absent until the eigen-projection reads it out.)
+This is F778's "clumps emerge, discovered not imposed," generalised: **discovery = pick the operator + read its spectrum.** It is also the methodology itself — `[[user_stance_cross_substrate_cascade_matching_as_research_method]]` — performed live: the user matched the knowledge-store cascade to the cosmic cascade by their shared spectral shape.
+
+## A concrete reading-tool to borrow (the next question, handed forward)
+Cosmology's classifier is **richer than our binary Fiedler split**: it labels each region by the **eigenvalue COUNT** (how many collapse axes) → void / sheet / filament / knot. The knowledge analogue: build a **local structure tensor** at each word (from its neighbourhood co-occurrence) and eigen-count it → classify each token's *environment* — **void** (isolated), **sheet** (peripheral), **filament** (a *bridge* word — exactly F780's web, e.g. `star`), **knot** (a *clump-core* word). That **unifies #221 (aboutness-centrality), F780 (web vs clump membership), and F779 (the partition) into one spectral environment-read** — a candidate refinement of the binary bisection. (Borrowed as a *reading method*, not a lineage claim — we read what the co-occurrence graph already is, the way cosmology reads the density field.)
+
+## Honest scope
+- The correspondence is at the level of the **mathematics** — both are **spectral reads of a relationship/field operator yielding a clump+filament+void hierarchy**. That is **substrate-independent graph/field structure** (precisely the framework's thesis: the same math recurs across substrates). It is **NOT** a physical claim that knowledge gravitates, nor that the universe is a knowledge graph.
+- **Diagnostic / suggestive, not predictive** (the next-question stance): the match tells us *where to look* (the co-occurrence operator) and *how to read* (eigen-count environments) — it does not claim cosmological dynamics for text.
+- Cosmology citations are arXiv-OA-attested (per the paywalled-DOI rule); the knowledge side is srmech-native Class-L (F779/F172); no `abs()`, no CAD, data outside the repo.
+
+## Verdict
+The user guessed the F780 clump-tree+web shape from the **cosmic web**, and the guess holds where it matters: **the reading method is the same Class-L spectral operation** — cosmology reads voids/sheets/filaments/knots from the tidal-tensor eigenvalues exactly as srmech reads knowledge clumps from the co-occurrence Laplacian. The structure is **intrinsic and read, not imposed** ("look" = pick the operator; "read" = eigendecompose) — F778 generalised, and the cross-substrate-matching methodology performed live. It hands forward a concrete next reading-tool: borrow cosmology's eigenvalue-COUNT environment classifier to label each word void/sheet/filament/knot, unifying #221 + F780 + F779 into one spectral read. Math-level correspondence, honestly bounded; not a physical claim.
