@@ -114,7 +114,10 @@ ABSTRACT_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_abstracts.js
 # F791: the spectral-clumped TOME-TREE + WEB (F789/#1, built by R-RBS-LM-FULLCLUMP via the rc166 native §51) — the
 # uncapped, spectrally-navigable smallwiki. {tomes: [[word…]], paths: [L/R tree address], web: {tome: [[other,wt,a,b]]}}.
 # etak navigation: FIND (word→tome) → RIDE (the clump) → ZOOM (parent = siblings sharing path[:-1]) → WEB-HOP (bridge).
-TOME_TREE_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_tome_tree.json"
+# F792: prefer the FRESH windowed-co-occurrence tree (clean source) for navigation; fall back to the assoc tree
+# (fuller 90k coverage, noisier) for words outside the fresh common-word core.
+TOME_TREE_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_tome_tree_fresh.json"
+TOME_TREE_FALLBACK = Path.home() / "corpora" / "wikipedia" / "simplewiki_tome_tree.json"
 
 # NOTE (F743 experiment): there is NO hard-coded SIONA_SELF blurb, no _capabilities() prose, and no identity/
 # greeting/capabilities regexes. Siona's self-knowledge is read from STRUCTURE at runtime — srmech.describe()
@@ -395,16 +398,21 @@ class SionaGenepool:
         self.abstracts = {}
         if ABSTRACT_FILE.exists():
             self.abstracts = json.loads(ABSTRACT_FILE.read_text()).get("store", {})
-        # F791: the spectral-clumped tome-tree + web (the navigable smallwiki, #1/F789)
-        self.tomes_list, self.tome_paths, self.tome_web, self.word_tome = [], [], {}, {}
-        if TOME_TREE_FILE.exists():
-            tt = json.loads(TOME_TREE_FILE.read_text())
-            self.tomes_list = tt.get("tomes", [])
-            self.tome_paths = tt.get("paths", [])
-            self.tome_web = {int(k): v for k, v in tt.get("web", {}).items()}
-            for ti, ws in enumerate(self.tomes_list):
+        # F791/F792: the spectral-clumped tome-tree(s) for navigation. Layered: the FRESH windowed-co-occurrence tree
+        # (clean, common-word core) wins; the assoc tree (fuller 90k, noisier) fills the gaps. word_tome: word→(tree,tome).
+        self.nav_trees, self.word_tome = [], {}
+        for src in (TOME_TREE_FILE, TOME_TREE_FALLBACK):
+            if not src.exists():
+                continue
+            tt = json.loads(src.read_text())
+            ti = len(self.nav_trees)
+            tree = {"tomes": tt.get("tomes", []), "paths": tt.get("paths", []),
+                    "web": {int(k): v for k, v in tt.get("web", {}).items()},
+                    "src": tt.get("source", src.stem)}
+            self.nav_trees.append(tree)
+            for tome_id, ws in enumerate(tree["tomes"]):
                 for w in ws:
-                    self.word_tome.setdefault(w, ti)
+                    self.word_tome.setdefault(w, (ti, tome_id))   # first tree (fresh) wins
 
     def _build_surface(self):
         """The LM surface: ONE co-occurrence graph (Class L) over every kernel Siona holds — nothing excluded."""
@@ -624,23 +632,24 @@ class SionaGenepool:
         return None
 
     def _navigate(self, subj):
-        """F791: etak-navigate the spectral-clumped tome-tree (F789). FIND the subject's leaf tome → RIDE (its clump) →
-        ZOOM (the parent clump = sibling tomes sharing path[:-1]) → WEB-HOP (the strongest cut-edge bridge to another
-        tome). Returns (tome, ride, parent, hops) or None if the subject isn't in the clumped vocab."""
-        t = self.word_tome.get(subj)
-        if t is None:
-            t = self.word_tome.get(self._norm(subj))
-        if t is None:
+        """F791/F792: etak-navigate the layered tome-tree(s). FIND the subject's leaf tome (fresh tree preferred, assoc
+        fallback) → RIDE (its clump) → ZOOM (parent = sibling tomes sharing path[:-1]) → WEB-HOP (strongest cut-edge
+        bridge). Returns (tome, ride, parent, hops, tree, src) or None if the subject isn't in any clumped vocab."""
+        loc = self.word_tome.get(subj) or self.word_tome.get(self._norm(subj))
+        if loc is None:
             return None
-        ride = [w for w in self.tomes_list[t] if w != subj][:10]
-        pre = self.tome_paths[t][:-1] if self.tome_paths[t] else ""
+        ti, t = loc
+        tree = self.nav_trees[ti]
+        tomes, paths, web = tree["tomes"], tree["paths"], tree["web"]
+        ride = [w for w in tomes[t] if w != subj][:10]
+        pre = paths[t][:-1] if paths[t] else ""
         parent, seen = [], set()
-        for i, p in enumerate(self.tome_paths):
+        for i, p in enumerate(paths):
             if i != t and p.startswith(pre):
-                for w in self.tomes_list[i]:
+                for w in tomes[i]:
                     if w not in seen:
                         seen.add(w); parent.append(w)
-        return t, ride, parent[:10], self.tome_web.get(t, [])
+        return t, ride, parent[:10], web.get(t, []), tree, tree["src"]
 
     @staticmethod
     def _relation_story(subject, edges):
@@ -995,13 +1004,13 @@ class SionaGenepool:
             if subj:
                 nav = self._navigate(subj)
                 if nav:
-                    t, ride, parent, hops = nav
+                    t, ride, parent, hops, tree, src = nav
                     hopline = ""
                     if hops:
                         o, _wt, ba, bb = hops[0]
-                        hopline = (f"\n  WEB-HOP → tome #{o} (bridge {ba}~{bb}): {', '.join(self.tomes_list[o][:8])}")
+                        hopline = (f"\n  WEB-HOP → tome #{o} (bridge {ba}~{bb}): {', '.join(tree['tomes'][o][:8])}")
                     return (f"{parse}\n[siona · navigate] “{subj}” sits in tome #{t} of the spectral-clumped smallwiki "
-                            f"(F789 native §51).\n  RIDE (this clump): {', '.join(ride) or '(alone)'}\n"
+                            f"({src} source, native §51).\n  RIDE (this clump): {', '.join(ride) or '(alone)'}\n"
                             f"  ZOOM OUT (parent clump): {', '.join(parent) or '(top)'}{hopline}\n"
                             f"  (clumps-of-clumps + cut-edge web over the simplewiki co-occurrence graph, CC-BY-SA){new_note}")
 

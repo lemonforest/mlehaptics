@@ -69,7 +69,9 @@ def fiedler_sparse(nodes, adj, t_iters=T_ITERS):
     if pn2 <= 0:
         return [0.0] * n
     pnorm = R.sqrt(pn2); p = [x / pnorm for x in p]
-    v = [1.0 if (k % 2 == 0) else -1.0 for k in range(n)]                   # deterministic non-constant init
+    v = [((k * 1103515245 + 12345) % 2147483648) / 2147483648.0 - 0.5 for k in range(n)]  # order-independent scramble init
+    # (F791.1 / srmech rc166 caveat: a [1,-1,1,…] PARITY init is orthogonal to the Fiedler on a block-ordered graph
+    #  -> power iteration stalls. The deterministic multiplicative scramble converges regardless of node ordering.)
     dot = sum(v[i] * p[i] for i in range(n)); v = [v[i] - dot * p[i] for i in range(n)]  # deflate lambda0
     prev_sign, stable = None, 0
     for it in range(t_iters):
