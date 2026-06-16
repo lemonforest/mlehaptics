@@ -1001,6 +1001,32 @@ def _register_primitive_class_tools() -> None:
                              "1-D carrier)"),
         ),
         ToolEntry(
+            name="srmech.amsc.laplacian.recursive_cut", owner="srmech",
+            category="laplacian",
+            summary="Out-of-core recursive spectral partition into community "
+                    "TOMES (§52 Part 2, F793) — the same recursion as bisecting "
+                    "with normalized_cut_bisect and recursing on each side, but "
+                    "executed OUT-OF-CORE: the adjacency, every pending sub-graph, "
+                    "and every finished tome live on DISK, so peak RAM is the "
+                    "single largest sub-graph being bisected (the top-level O(n) "
+                    "working vectors), not the whole structure. A disk-backed work "
+                    "queue drives the recursion; each step streams its sub-graph's "
+                    "induced edges (relabelled) through fiedler_sparse_file and "
+                    "recurses until |S| ≤ max_tome. A composition of "
+                    "fiedler_sparse_file (C-dispatched) + write_packed_graph + the "
+                    "disk-spilled recursion. Returns the tome node-sets + their "
+                    "on-disk paths + the work_dir.",
+            parameters=(P("n", "int", True),
+                        P("edges", "list[tuple[int, int]]", True),
+                        P("weights", "Optional[list[float]]", False),
+                        P("max_tome", "int", False,
+                          "a sub-graph with ≤ max_tome nodes is a leaf tome "
+                          "(default 256)")),
+            returns=R("dict",
+                      "{n_tomes, tome_paths, tomes, work_dir} — the community "
+                      "partition (tomes = node-id lists; tome_paths on disk)"),
+        ),
+        ToolEntry(
             name="srmech.amsc.laplacian.jacobi_eigvals", owner="srmech",
             category="laplacian",
             summary="Symmetric Jacobi eigendecomposition; pi-free closed-form "

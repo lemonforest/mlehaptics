@@ -84,6 +84,7 @@
 {"exposed_as": "srmech.amsc.laplacian.normalized_cut_bisect", "defined_at": "srmech.amsc.laplacian.normalized_cut_bisect", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.write_packed_graph", "defined_at": "srmech.amsc.laplacian.write_packed_graph", "bucket": "non_compute"}
 {"exposed_as": "srmech.amsc.laplacian.fiedler_sparse_file", "defined_at": "srmech.amsc.laplacian.fiedler_sparse_file", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.laplacian.recursive_cut", "defined_at": "srmech.amsc.laplacian.recursive_cut", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.mat_matmul", "defined_at": "srmech.amsc.laplacian.mat_matmul", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.mat_solve", "defined_at": "srmech.amsc.laplacian.mat_solve", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.mat_lstsq", "defined_at": "srmech.amsc.laplacian.mat_lstsq", "bucket": "composition_of_c"}

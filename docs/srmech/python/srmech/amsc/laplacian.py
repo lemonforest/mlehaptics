@@ -96,7 +96,9 @@ orthonormality).
 from __future__ import annotations
 
 import ctypes
+import os  # §52 Part 2: disk-backed work queue + tome files for the out-of-core driver
 import struct  # §52 Part 2: pack/unpack the on-disk edge records for the out-of-core Fiedler
+import tempfile  # §52 Part 2: default scratch dir for recursive_cut
 from array import array  # §564: numpy-free 2-D Mat carrier buffer (interleaved-complex)
 from fractions import Fraction  # §26: exact-rational interior solve (Class-N), no float
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
@@ -126,6 +128,7 @@ __all__ = [
     "normalized_cut_bisect",
     "write_packed_graph",
     "fiedler_sparse_file",
+    "recursive_cut",
     "spectral_block_dispatch",
     "dense_solve",
     "schur_complement",
@@ -2912,6 +2915,199 @@ def fiedler_sparse_file(
     )
 
 
+# §52 Part 2 (F793): the OUT-OF-CORE RECURSIVE PARTITION driver. Recursively bisect
+# the bounded graph into community tomes, but NEVER hold the whole structure in RAM:
+# the adjacency + every pending sub-graph + every finished tome live on DISK; each
+# bisection streams its sub-graph's induced edges through the rc168 fiedler_sparse_file
+# (only the O(|S|) working vectors resident). Peak RAM = the single largest sub-graph
+# being bisected (the top-level O(n)) — the recursion descends into shrinking
+# sub-graphs, so nothing else is ever resident. This is git's "work on one object at a
+# time" applied to spectral clumping.
+_NODE_REC = struct.Struct("=I")  # one node id per 4-byte record in a node-set file
+
+
+def _write_node_set(path: str, ids: Iterable[int]) -> int:
+    """Write a node-set (original node ids) to disk as packed uint32 records.
+    Streams out in bounded chunks — the set is never doubled in RAM."""
+    written = 0
+    buf = bytearray()
+    pack = _NODE_REC.pack_into
+    with open(path, "wb") as fh:
+        for nid in ids:
+            off = len(buf)
+            buf.extend(b"\x00" * _NODE_REC.size)
+            pack(buf, off, int(nid) & 0xFFFFFFFF)
+            written += 1
+            if len(buf) >= _NODE_REC.size * 65536:
+                fh.write(buf)
+                buf = bytearray()
+        if buf:
+            fh.write(buf)
+    return written
+
+
+def _read_node_set(path: str) -> List[int]:
+    """Read a node-set file back into a list of original node ids."""
+    out: List[int] = []
+    rec = _NODE_REC.size
+    unpack_from = _NODE_REC.unpack_from
+    with open(path, "rb") as fh:
+        while True:
+            chunk = fh.read(rec * 65536)
+            if not chunk:
+                break
+            if len(chunk) % rec != 0:
+                raise ValueError("truncated node-set file")
+            for off in range(0, len(chunk), rec):
+                out.append(unpack_from(chunk, off)[0])
+    return out
+
+
+def _stream_induced_subgraph(
+    parent_path: str, orig_to_local: Dict[int, int], out_path: str
+) -> int:
+    """Stream the parent packed-graph file and write the sub-graph induced on the
+    nodes of ``orig_to_local`` (keys) to ``out_path``, RELABELLED to the local
+    index ``0..|S|-1`` (so the rc168 streaming Fiedler can run on it directly). The
+    parent edges never become resident — only the membership/relabel map (O(|S|))
+    and a bounded I/O buffer. Returns the induced edge count."""
+    rec = _GRAPH_REC.size
+    written = 0
+    buf = bytearray()
+    unpack_from = _GRAPH_REC.unpack_from
+    pack_into = _GRAPH_REC.pack_into
+    get = orig_to_local.get
+    with open(parent_path, "rb") as fin, open(out_path, "wb") as fout:
+        while True:
+            chunk = fin.read(rec * _GRAPH_CHUNK_RECS)
+            if not chunk:
+                break
+            if len(chunk) % rec != 0:
+                raise ValueError("truncated packed graph file")
+            for off in range(0, len(chunk), rec):
+                u, v, w = unpack_from(chunk, off)
+                lu = get(u)
+                lv = get(v)
+                if lu is not None and lv is not None:
+                    o2 = len(buf)
+                    buf.extend(b"\x00" * rec)
+                    pack_into(buf, o2, lu, lv, w)
+                    written += 1
+                    if len(buf) >= rec * _GRAPH_CHUNK_RECS:
+                        fout.write(buf)
+                        buf = bytearray()
+        if buf:
+            fout.write(buf)
+    return written
+
+
+def recursive_cut(
+    n: int,
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]] = None,
+    *,
+    max_tome: int = 256,
+    work_dir: Optional[str] = None,
+    max_iters: int = 250,
+    max_depth: int = 64,
+) -> Dict[str, object]:
+    """Out-of-core recursive spectral partition into community **tomes** (§52 Part 2,
+    F793) — the same recursion as bisecting with :func:`normalized_cut_bisect` and
+    recursing on each side, but executed **out-of-core**: the adjacency, every pending
+    sub-graph, and every finished tome live on **disk**, so peak RAM is the single
+    largest sub-graph being bisected (the top-level ``O(n)`` working vectors), not the
+    whole structure.
+
+    The bounded graph (e.g. the ``(n, edges, weights)`` from §52.1
+    :func:`~srmech.amsc.text.cooccurrence_topk`) is written to a packed file
+    (:func:`write_packed_graph`); a **disk-backed work queue** of node-set files drives
+    the recursion. Each step streams its sub-graph's induced edges (relabelled
+    ``0..|S|-1``) to a temp file, runs the rc168 :func:`fiedler_sparse_file` (only
+    ``O(|S|)`` resident), sign-splits, writes the two child node-sets to disk, and
+    recurses until ``|S| ≤ max_tome`` (or ``max_depth`` / an uncuttable homogeneous
+    block). A composition of :func:`fiedler_sparse_file` (a C-dispatched op) +
+    :func:`write_packed_graph` + the disk-spilled recursion.
+
+    Parameters
+    ----------
+    n : int
+        Number of graph nodes.
+    edges : Iterable[Tuple[int, int]]
+        Undirected edges ``(u, v)`` with ``0 ≤ u, v < n``.
+    weights : Optional[Iterable[float]]
+        Per-edge weights (default all ``1.0``).
+    max_tome : int
+        A sub-graph with ``≤ max_tome`` nodes becomes a leaf tome (no further cut).
+    work_dir : Optional[str]
+        Scratch directory for the on-disk graph / queue / tomes. ``None`` → a fresh
+        temp dir (the caller owns it; it is NOT auto-deleted — the tome files live
+        there). Reused across calls if given.
+    max_iters : int
+        Per-bisection power-iteration cap (forwarded to :func:`fiedler_sparse_file`).
+    max_depth : int
+        Recursion-depth guard (a degenerate graph can't recurse forever).
+
+    Returns
+    -------
+    Dict[str, object]
+        ``{"n_tomes", "tome_paths", "tomes", "work_dir"}`` — ``tome_paths`` are the
+        on-disk node-set files (the bounded record; read one with
+        :func:`_read_node_set`); ``tomes`` is the convenience in-RAM list of node-id
+        lists (a partition of the ``n`` nodes, so ``O(n)`` total — the same floor as
+        the Fiedler vectors).
+    """
+    edge_list, w_list = _validate_edges_weights_py(n, edges, weights)
+    if work_dir is None:
+        work_dir = tempfile.mkdtemp(prefix="srmech_cut_")
+    os.makedirs(work_dir, exist_ok=True)
+    queue_dir = os.path.join(work_dir, "queue")
+    tomes_dir = os.path.join(work_dir, "tomes")
+    os.makedirs(queue_dir, exist_ok=True)
+    os.makedirs(tomes_dir, exist_ok=True)
+    graph_path = os.path.join(work_dir, "graph.bin")
+    write_packed_graph(graph_path, edge_list, w_list)
+
+    root = os.path.join(queue_dir, "set_0.bin")
+    _write_node_set(root, range(int(n)))
+    pending: List[Tuple[str, int]] = [(root, 0)]
+    tome_paths: List[str] = []
+    serial = 1
+    sub_path = os.path.join(work_dir, "sub.bin")
+    while pending:
+        set_path, depth = pending.pop()
+        ids = _read_node_set(set_path)
+        if len(ids) <= int(max_tome) or len(ids) < 2 or depth >= int(max_depth):
+            dest = os.path.join(tomes_dir, "tome_%d.bin" % len(tome_paths))
+            os.replace(set_path, dest)                 # MOVE the survivor, never copy
+            tome_paths.append(dest)
+            continue
+        orig_to_local = {orig: i for i, orig in enumerate(ids)}
+        _stream_induced_subgraph(graph_path, orig_to_local, sub_path)
+        fv = fiedler_sparse_file(len(ids), sub_path, max_iters=int(max_iters))
+        left = [ids[i] for i in range(len(ids)) if fv[i] < 0]
+        right = [ids[i] for i in range(len(ids)) if fv[i] >= 0]
+        os.remove(set_path)
+        if not left or not right:                      # uncuttable homogeneous block
+            dest = os.path.join(tomes_dir, "tome_%d.bin" % len(tome_paths))
+            _write_node_set(dest, ids)
+            tome_paths.append(dest)
+            continue
+        lp = os.path.join(queue_dir, "set_%d.bin" % serial); serial += 1
+        rp = os.path.join(queue_dir, "set_%d.bin" % serial); serial += 1
+        _write_node_set(lp, left)
+        _write_node_set(rp, right)
+        pending.append((lp, depth + 1))
+        pending.append((rp, depth + 1))
+    if os.path.exists(sub_path):
+        os.remove(sub_path)
+    return {
+        "n_tomes": len(tome_paths),
+        "tome_paths": tome_paths,
+        "tomes": [_read_node_set(t) for t in tome_paths],
+        "work_dir": work_dir,
+    }
+
+
 # The per-block dense-eig cap is MAX_NATIVE_NODES (256); 4 blocks × 256 = 1024.
 # 4 is the Klein-4 4-rung (F220/F233): 8+ sectors need the order-3 triality.
 SPECTRAL_BLOCK_CAP: int = 4
@@ -3037,6 +3233,7 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "normalized_cut_bisect",
     "write_packed_graph",
     "fiedler_sparse_file",
+    "recursive_cut",
     "jacobi_eigvals",
     "spectral_block_dispatch",
     "hermitian_eigendecompose",
