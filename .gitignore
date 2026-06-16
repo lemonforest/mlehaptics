@@ -151,3 +151,16 @@ docs/antikythera-maths/doom-spectral/source/sndserv/CVS/
 # scripts; ~400 MB SMICA-nosz, ~1.5 GB NILC-full; not redistributed in repo).
 docs/srmech/notes/.planck_cache/
 .pr677_body.md
+
+# --- RBS-LM / Siona wiki knowledge stores (F745/F760/F788) ---
+# Large, regenerable, attested CC-BY-SA side-stores (abstracts/glosses/relations/assoc/co-occurrence; tens of MB
+# each). They live in ~/corpora/wikipedia/ OUTSIDE the repo by design — only the BUILDER scripts + findings are
+# committed. This is a GUARD: if a builder's OUT is ever repointed into the repo tree, never commit the data artifact.
+# Scoped to the wiki STORE names + corpora/extracted dirs only — does NOT match committed R-RBS-LM-* result files.
+**/corpora/
+**/*_extracted/
+**/simplewiki_*.json
+**/simplewiki_*.ndjson
+**/enwiki_*.json
+**/enwiki_*.ndjson
+**/wiki_knowledge_kernel.ndjson
