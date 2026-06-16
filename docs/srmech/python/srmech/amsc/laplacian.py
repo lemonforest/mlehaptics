@@ -96,6 +96,7 @@ orthonormality).
 from __future__ import annotations
 
 import ctypes
+import struct  # §52 Part 2: pack/unpack the on-disk edge records for the out-of-core Fiedler
 from array import array  # §564: numpy-free 2-D Mat carrier buffer (interleaved-complex)
 from fractions import Fraction  # §26: exact-rational interior solve (Class-N), no float
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
@@ -123,6 +124,8 @@ __all__ = [
     "jacobi_eigvals",
     "fiedler_sparse",
     "normalized_cut_bisect",
+    "write_packed_graph",
+    "fiedler_sparse_file",
     "spectral_block_dispatch",
     "dense_solve",
     "schur_complement",
@@ -2738,6 +2741,177 @@ def normalized_cut_bisect(
     return left, right
 
 
+# §52 Part 2 (F793): the OUT-OF-CORE streaming Fiedler. The bounded co-occurrence
+# graph (§52.1 cooccurrence_topk) is written to a packed binary edge file — one
+# 16-byte record per edge (uint32 u | uint32 v | double w, host byte order) — and
+# the Fiedler power iteration STREAMS it from disk, so only the O(n) working
+# vectors are ever resident. This bounds the PARTITION step's RAM the way
+# cooccurrence_topk bounds the edge SET, and is the on-disk adjacency the
+# recursive out-of-core driver reads sub-graph chunks from.
+_GRAPH_REC = struct.Struct("=IId")  # 16 bytes: uint32 u, uint32 v, double w (native order)
+_GRAPH_CHUNK_RECS = 4096            # records per streamed read (never straddles a record)
+
+
+def write_packed_graph(
+    path: str,
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]] = None,
+) -> int:
+    """Write a packed binary edge file for the out-of-core streaming Fiedler
+    (§52 Part 2 / F793) — the on-disk adjacency :func:`fiedler_sparse_file`
+    (and the recursive out-of-core driver) reads.
+
+    One 16-byte record per undirected edge: ``uint32 u | uint32 v | double w``
+    (host byte order; records never straddle a read chunk). The edge list lives
+    on **disk**, never fully resident — this is what lets a low-RAM target build
+    + partition a corpus-scale co-occurrence graph (whose materialised edge list
+    is the dominant encode peak; F793). Streams the rows out as it goes (peak
+    RAM = one chunk), so writing the file is itself bounded.
+
+    Parameters
+    ----------
+    path : str
+        Destination file (overwritten).
+    edges : Iterable[Tuple[int, int]]
+        Undirected edges ``(u, v)`` with ``u, v ≥ 0``.
+    weights : Optional[Iterable[float]]
+        Per-edge weights (default all ``1.0``); same length as ``edges``.
+
+    Returns
+    -------
+    int
+        The number of edge records written.
+    """
+    edge_iter = iter(edges)
+    if weights is None:
+        weight_iter: Iterable[Optional[float]] = iter(lambda: 1.0, None)  # endless 1.0
+    else:
+        weight_iter = iter(weights)
+    written = 0
+    buf = bytearray()
+    pack = _GRAPH_REC.pack_into
+    with open(path, "wb") as fh:
+        for (a, b) in edge_iter:
+            try:
+                w = float(next(weight_iter))  # type: ignore[arg-type]
+            except StopIteration:
+                raise ValueError("weights shorter than edges") from None
+            ia, ib = int(a), int(b)
+            if ia < 0 or ib < 0:
+                raise ValueError("edge endpoints must be non-negative")
+            off = len(buf)
+            buf.extend(b"\x00" * _GRAPH_REC.size)
+            pack(buf, off, ia & 0xFFFFFFFF, ib & 0xFFFFFFFF, w)
+            written += 1
+            if len(buf) >= _GRAPH_REC.size * _GRAPH_CHUNK_RECS:
+                fh.write(buf)
+                buf = bytearray()
+        if buf:
+            fh.write(buf)
+    return written
+
+
+def _read_packed_graph(path: str) -> Tuple[List[Tuple[int, int]], List[float]]:
+    """Read a packed edge file back into ``(edges, weights)`` (the no-native
+    complete path — correct, NOT bounded; the native streaming path is bounded).
+    Streams in record-aligned chunks; a non-record-multiple read is a truncated
+    file → ``ValueError`` (mirrors the C ``SRMECH_ERR_BAD_INPUT`` guard)."""
+    edges: List[Tuple[int, int]] = []
+    weights: List[float] = []
+    rec = _GRAPH_REC.size
+    unpack_from = _GRAPH_REC.unpack_from
+    with open(path, "rb") as fh:
+        while True:
+            chunk = fh.read(rec * _GRAPH_CHUNK_RECS)
+            if not chunk:
+                break
+            if len(chunk) % rec != 0:
+                raise ValueError("truncated packed graph file (not a whole record)")
+            for off in range(0, len(chunk), rec):
+                u, v, w = unpack_from(chunk, off)
+                edges.append((u, v))
+                weights.append(w)
+    return edges, weights
+
+
+def _fiedler_sparse_file_native(
+    n: int, graph_path: str, max_iters: int
+) -> Optional[List[float]]:
+    """numpy-free native dispatch for :func:`fiedler_sparse_file` (§52 Part 2).
+
+    Calls the standalone-C ``srmech_laplacian_fiedler_sparse_file`` with a
+    CALLER-allocated scratch arena (9·n doubles — the bound is the caller's RAM,
+    not a compiled-in cap). The matvec power iteration runs in C reading the
+    adjacency from ``graph_path`` via the PAL streaming-read; only the O(n)
+    arena is resident. Returns the length-n Fiedler vector as ``list[float]``,
+    or ``None`` on any non-OK status (caller then uses the pure-Python path)."""
+    out = (ctypes.c_double * n)()
+    ws = (ctypes.c_double * (9 * n))()
+    rc = _native.LIB.srmech_laplacian_fiedler_sparse_file(
+        ctypes.c_uint32(n),
+        graph_path.encode("utf-8"),
+        ctypes.c_uint32(int(max_iters)),
+        out,
+        ws,
+        ctypes.c_size_t(9 * n),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return list(out)
+
+
+def fiedler_sparse_file(
+    n: int,
+    graph_path: str,
+    *,
+    max_iters: int = 250,
+) -> "Vec":
+    """Out-of-core sparse normalized-cut Fiedler — the streaming peer of
+    :func:`fiedler_sparse` that reads its adjacency from a packed edge FILE
+    instead of an in-RAM edge list (§52 Part 2 / F793).
+
+    Identical power iteration to :func:`fiedler_sparse` (so the result equals
+    ``fiedler_sparse(n, edges, weights)`` for the same graph), but the edges
+    NEVER become resident: each matvec STREAMS the file (written by
+    :func:`write_packed_graph`) via the PAL. Only the O(n) working vectors live
+    in RAM, so a low-RAM target can partition a graph whose edge list exceeds
+    RAM — the low-RAM ENCODE for graph **partition** (composes §52.1
+    :func:`~srmech.amsc.text.cooccurrence_topk` for the bounded edge SET). The
+    recursive out-of-core driver feeds sub-graph chunks through this.
+
+    Dispatches to the standalone-C ``srmech_laplacian_fiedler_sparse_file`` when
+    ``HAS_NATIVE`` (the bounded path — caller-arena, no caps). On a no-C lib the
+    complete alternative reads the file in and runs the in-RAM cascade — correct
+    but NOT bounded (the bound is a native-path property).
+
+    Parameters
+    ----------
+    n : int
+        Number of graph nodes.
+    graph_path : str
+        Packed edge file written by :func:`write_packed_graph`.
+    max_iters : int
+        Power-iteration cap (sign-stability usually stops earlier).
+
+    Returns
+    -------
+    Vec
+        The sign-bearing Fiedler vector (``.shape == (n,)``). For ``n < 2`` the
+        zero vector (no cut).
+    """
+    if n < 2:
+        return Vec.from_sequence([0.0] * max(int(n), 0), is_complex=False)
+    if _native.has_native_fiedler_sparse_file():
+        vals = _fiedler_sparse_file_native(int(n), graph_path, int(max_iters))
+        if vals is not None:
+            return Vec.from_sequence(vals, is_complex=False)
+    edge_list, w_list = _read_packed_graph(graph_path)
+    return Vec.from_sequence(
+        _fiedler_sparse_py(int(n), edge_list, w_list, int(max_iters)),
+        is_complex=False,
+    )
+
+
 # The per-block dense-eig cap is MAX_NATIVE_NODES (256); 4 blocks × 256 = 1024.
 # 4 is the Klein-4 4-rung (F220/F233): 8+ sectors need the order-3 triality.
 SPECTRAL_BLOCK_CAP: int = 4
@@ -2861,6 +3035,8 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "fiedler_vector",
     "fiedler_sparse",
     "normalized_cut_bisect",
+    "write_packed_graph",
+    "fiedler_sparse_file",
     "jacobi_eigvals",
     "spectral_block_dispatch",
     "hermitian_eigendecompose",
