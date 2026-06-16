@@ -111,6 +111,10 @@ GLOSS_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_glosses.json"
 # sentences). The richer-answer tier: "what is X" -> the crisp lead sentence (gloss); "tell me about/explain X" or
 # "tell me more" (depth=long, F763) -> this fuller abstract. Built by R-RBS-LM-WIKIABSTRACT; CC-BY-SA simplewiki.
 ABSTRACT_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_abstracts.json"
+# F791: the spectral-clumped TOME-TREE + WEB (F789/#1, built by R-RBS-LM-FULLCLUMP via the rc166 native §51) — the
+# uncapped, spectrally-navigable smallwiki. {tomes: [[word…]], paths: [L/R tree address], web: {tome: [[other,wt,a,b]]}}.
+# etak navigation: FIND (word→tome) → RIDE (the clump) → ZOOM (parent = siblings sharing path[:-1]) → WEB-HOP (bridge).
+TOME_TREE_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_tome_tree.json"
 
 # NOTE (F743 experiment): there is NO hard-coded SIONA_SELF blurb, no _capabilities() prose, and no identity/
 # greeting/capabilities regexes. Siona's self-knowledge is read from STRUCTURE at runtime — srmech.describe()
@@ -144,7 +148,9 @@ ROUTING_STOPLIST = frozenset(
     # decline fired on "what else is in ketchup besides tomatoes". They are operators, consumed not routed.)
     "else besides beside except apart aside excluding versus others "
     "often sometimes usually always inside within "
-    "explain describe overview".split())   # F766/F787/F788: scaffolding + connectives + about-verbs, not topics
+    "explain describe overview "
+    "navigate explore nearby neighbourhood neighborhood cluster walk near around"
+    .split())   # F766/F787/F788/F791: scaffolding + connectives + about/nav-verbs, not topics
 # F752: the FRAME channel — function words ARE the sentence structure (intent), the thing F751 stoplisted for ROUTING.
 # Read them (on the RAW prompt; tokenize drops most) to classify the question TYPE so a how-made ≠ a what-is ≠ a phrase.
 INTENT_RE = (
@@ -247,6 +253,9 @@ EXCLUDE_RE = re.compile(r"\b(?:besides|apart\s+from|other\s+than|aside\s+from|ex
 # F788: the ABOUT frame — an open "tell me about / explain / describe X" wants the fuller ABSTRACT (≤3 sentences),
 # NOT the crisp one-line definition that "what is X" wants. (depth=="long" (tell me more, F763) also serves it.)
 ABOUT_RE = re.compile(r"\b(?:tell\s+\w+\s+about|tell\s+about|all\s+about|more\s+about|explain|describe|overview\s+of)\b")
+# F791: the NAVIGATE frame — walk the spectral-clumped tome-tree (FIND→RIDE→ZOOM→WEB-HOP) instead of defining.
+NAV_RE = re.compile(r"\b(?:navigate|explore|nearby|neighbou?rhood|what'?s\s+near|near\s+to|close\s+to|"
+                    r"cluster\s+(?:of|around|for)|related\s+cluster|walk\s+(?:from|the)|what'?s\s+around)\b")
 # F753: the COUPLING weight. The input-ride parses the query into a SUBJECT (content noun -> routes) + STEER (the
 # relation/frame words, incl. delexical ones F751 keeps out of routing) — and the steer BIASES kernel convergence
 # (the frame becomes a direction of travel), coupling the input-walk to the kernel-walk. Subject anchors; steer nudges.
@@ -386,6 +395,16 @@ class SionaGenepool:
         self.abstracts = {}
         if ABSTRACT_FILE.exists():
             self.abstracts = json.loads(ABSTRACT_FILE.read_text()).get("store", {})
+        # F791: the spectral-clumped tome-tree + web (the navigable smallwiki, #1/F789)
+        self.tomes_list, self.tome_paths, self.tome_web, self.word_tome = [], [], {}, {}
+        if TOME_TREE_FILE.exists():
+            tt = json.loads(TOME_TREE_FILE.read_text())
+            self.tomes_list = tt.get("tomes", [])
+            self.tome_paths = tt.get("paths", [])
+            self.tome_web = {int(k): v for k, v in tt.get("web", {}).items()}
+            for ti, ws in enumerate(self.tomes_list):
+                for w in ws:
+                    self.word_tome.setdefault(w, ti)
 
     def _build_surface(self):
         """The LM surface: ONE co-occurrence graph (Class L) over every kernel Siona holds — nothing excluded."""
@@ -603,6 +622,25 @@ class SionaGenepool:
                     return s, self.abstracts[s], "lead abstract (≤3 sentences)"
                 return s, self.glosses.get(s) or self.abstracts[s], "lead sentence"
         return None
+
+    def _navigate(self, subj):
+        """F791: etak-navigate the spectral-clumped tome-tree (F789). FIND the subject's leaf tome → RIDE (its clump) →
+        ZOOM (the parent clump = sibling tomes sharing path[:-1]) → WEB-HOP (the strongest cut-edge bridge to another
+        tome). Returns (tome, ride, parent, hops) or None if the subject isn't in the clumped vocab."""
+        t = self.word_tome.get(subj)
+        if t is None:
+            t = self.word_tome.get(self._norm(subj))
+        if t is None:
+            return None
+        ride = [w for w in self.tomes_list[t] if w != subj][:10]
+        pre = self.tome_paths[t][:-1] if self.tome_paths[t] else ""
+        parent, seen = [], set()
+        for i, p in enumerate(self.tome_paths):
+            if i != t and p.startswith(pre):
+                for w in self.tomes_list[i]:
+                    if w not in seen:
+                        seen.add(w); parent.append(w)
+        return t, ride, parent[:10], self.tome_web.get(t, [])
 
     @staticmethod
     def _relation_story(subject, edges):
@@ -947,6 +985,25 @@ class SionaGenepool:
         want_abstract = (depth == "long") or bool(ABOUT_RE.search(pl))
         ab_subj = next((self._lemma(t) for t in sorted(salient, key=len, reverse=True)
                         if self._lemma(t) in self.abstracts), None)
+
+        # === F791 NAVIGATE frame: walk the spectral-clumped tome-tree (FIND→RIDE→ZOOM→WEB-HOP) — the navigable smallwiki.
+        if self.word_tome and NAV_RE.search(pl):
+            cand = [self._lemma(t) for t in salient if self._lemma(t) in self.word_tome or t in self.word_tome]
+            # prefer a REAL subject (has a gloss/relation), then the longer word — not a noise token in the tome vocab
+            cand.sort(key=lambda w: (w in self.glosses or w in self.relations, len(w)), reverse=True)
+            subj = cand[0] if cand else None
+            if subj:
+                nav = self._navigate(subj)
+                if nav:
+                    t, ride, parent, hops = nav
+                    hopline = ""
+                    if hops:
+                        o, _wt, ba, bb = hops[0]
+                        hopline = (f"\n  WEB-HOP → tome #{o} (bridge {ba}~{bb}): {', '.join(self.tomes_list[o][:8])}")
+                    return (f"{parse}\n[siona · navigate] “{subj}” sits in tome #{t} of the spectral-clumped smallwiki "
+                            f"(F789 native §51).\n  RIDE (this clump): {', '.join(ride) or '(alone)'}\n"
+                            f"  ZOOM OUT (parent clump): {', '.join(parent) or '(top)'}{hopline}\n"
+                            f"  (clumps-of-clumps + cut-edge web over the simplewiki co-occurrence graph, CC-BY-SA){new_note}")
 
         # === F787 CONTENTS frame: "what else / what's in X (besides Y)" -> LIST the subject's held neighbours, minus Y.
         # A multi-item list (not a single-sentence definition); fires before the 2-topic reasoner so "what else is in
