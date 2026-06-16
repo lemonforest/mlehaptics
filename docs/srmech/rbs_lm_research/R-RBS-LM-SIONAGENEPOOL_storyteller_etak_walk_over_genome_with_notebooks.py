@@ -43,12 +43,18 @@ _mk_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "R-RBS-LM-MARKUPGRAMMAR_class_bf_form_layer_understand_not_strip.py")
 _mk_spec = _U.spec_from_file_location("markupgrammar", _mk_path)
 MK = _U.module_from_spec(_mk_spec); _mk_spec.loader.exec_module(MK)
+# F796: the dep-FREE rule kernels (Python/C/LaTeX — our own grammars, no ast/sympy/pycparser). A genome language-layer
+# component (sibling to the markup grammar): Siona carries the construct→A-N vocabulary AND structurally reads code/math.
+_rk_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "R-RBS-LM-RULEKERNELS_dep_free_python_c_latex_grammars_for_siona.py")
+_rk_spec = _U.spec_from_file_location("rulekernels", _rk_path)
+RK = _U.module_from_spec(_rk_spec); _rk_spec.loader.exec_module(RK)
 
 # F764: the genepool CHROMOSOME-SET schema version. The handler's stale-check only watches NOTEBOOK drift, so adding a
 # language-layer chromosome (ni-vanuatu F761, markup F764) did NOT force a persisted-genome rebuild — Siona kept
 # serving a pre-language-layer genome. This sentinel closes that gap: build_genepool stamps it; the handler rebuilds
 # when the persisted stamp differs. BUMP THIS whenever the chromosome set changes.
-GENEPOOL_SCHEMA_VERSION = "F766-langlayer+markup+intent"
+GENEPOOL_SCHEMA_VERSION = "F796-langlayer+markup+intent+codegrammar"
 
 DIM = 64
 ONE = hdc.klein4_random(DIM, seed=0)
@@ -259,6 +265,9 @@ ABOUT_RE = re.compile(r"\b(?:tell\s+\w+\s+about|tell\s+about|all\s+about|more\s+
 # F791: the NAVIGATE frame — walk the spectral-clumped tome-tree (FIND→RIDE→ZOOM→WEB-HOP) instead of defining.
 NAV_RE = re.compile(r"\b(?:navigate|explore|nearby|neighbou?rhood|what'?s\s+near|near\s+to|close\s+to|"
                     r"cluster\s+(?:of|around|for)|related\s+cluster|walk\s+(?:from|the)|what'?s\s+around)\b")
+# F796: a pasted CODE / MATH fragment -> the dep-free rule kernel reads its A-N structure (Python/C/LaTeX; no interpreter).
+CODE_INPUT_RE = re.compile(r"\bdef\s+\w+\s*\(|\b(?:int|void|char|float|double|long)\s+\w+\s*\(|\{[^}]*;|#include|"
+                           r"\\(?:frac|sqrt|sum|int|cdot|times|alpha|beta)\b|\$[^$]+\$|[A-Za-z0-9]\s*\^\s*[\w{]")
 # F753: the COUPLING weight. The input-ride parses the query into a SUBJECT (content noun -> routes) + STEER (the
 # relation/frame words, incl. delexical ones F751 keeps out of routing) — and the steer BIASES kernel convergence
 # (the frame becomes a direction of travel), coupling the input-walk to the kernel-walk. Subject anchors; steer nudges.
@@ -307,6 +316,11 @@ def build_genepool(path):
     payload += [("markup", c, f"markup form-class '{c}' — a Class-B/F framing form the language layer UNDERSTANDS "
                  f"(a separable form layer comprehended, never stripped; link forms also yield relationship edges)")
                 for c in MK.MARKUP_FORM_CLASSES]
+    # F796: the code-grammar chromosome — the dep-FREE Python/C/LaTeX rule kernels' construct→A-N vocabulary (RK), so
+    # Siona HOLDS the rule-kernel knowledge (a programming/math language is a closed grammar ENCODED, no interpreter dep).
+    chromosomes.append(("code-grammar", [(con, [_leaf(f"code/{con}")]) for con in RK.CONSTRUCT_CLASSES]))
+    payload += [("code-grammar", con, f"code/math construct '{con}' → {cls} — {gloss} (dep-free rule kernel, F795/F796)")
+                for con, (cls, gloss) in RK.CONSTRUCT_CLASSES.items()]
     # dict-intent (F766): the INTENT word→definition dictionary — the meaning substrate the depth read uses (anchors are
     # built from seed definitions; entries self-classify by definition-overlap). Genome-native, same shape as dict-en.
     chromosomes.append(("dict-intent", [(w, [_word_hv(w)]) for w in INTENT_DICT]))
@@ -994,6 +1008,19 @@ class SionaGenepool:
         want_abstract = (depth == "long") or bool(ABOUT_RE.search(pl))
         ab_subj = next((self._lemma(t) for t in sorted(salient, key=len, reverse=True)
                         if self._lemma(t) in self.abstracts), None)
+
+        # === F796 RULE-KERNEL frame: a pasted CODE / MATH fragment -> read its A-N structure with our OWN dep-free
+        # grammar (Python/C/LaTeX; NO ast/sympy/pycparser). The structural, symbol-invariant read — a closed grammar
+        # ENCODED (the chess/LOGO route), not borrowed from a host interpreter.
+        if CODE_INPUT_RE.search(prompt):
+            try:
+                lang, cls, desc = RK.structural_read(prompt)
+            except Exception:
+                cls = None
+            if cls:
+                return (f"{parse}\n[siona · rule-kernel] {desc}.\n"
+                        f"  (A-N construct classes: {', '.join(cls)} — parsed by Siona's own {lang} grammar, no "
+                        f"ast/sympy/pycparser; a symbol-invariant structural signature, the chess/LOGO route — F795/F796)")
 
         # === F791 NAVIGATE frame: walk the spectral-clumped tome-tree (FIND→RIDE→ZOOM→WEB-HOP) — the navigable smallwiki.
         if self.word_tome and NAV_RE.search(pl):
