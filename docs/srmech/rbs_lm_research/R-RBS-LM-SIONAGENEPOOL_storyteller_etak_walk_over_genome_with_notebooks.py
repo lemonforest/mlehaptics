@@ -1107,9 +1107,12 @@ class SionaGenepool:
         # F759 running-context: content words from PRIOR turns -> a Klein-4 RBS-HDC context bundle (built with the rc155
         # streaming klein4_bundle_accumulate) + a context steer. Biases the answer toward the conversation; makes the
         # SAME query differ once context accrues. The context object IS the running conversation, folded holographically.
+        # F811: WORKING MEMORY is NEVER compacted — no truncation. The surgical graft (F801) keeps it to declared
+        # operands (lean), and the holographic klein4 bundle below accumulates the WHOLE conversation in fixed D
+        # (graceful, not a hard forget). The old [:12] cap was a compaction that made long chats forget — removed.
         ctx_terms = [t for t in dict.fromkeys(re.findall(r"[a-z]+", self._context_content(context).lower()))
-                     if t not in ROUTING_STOPLIST and len(t) >= 3                          # F799: strip Siona's own scaffolding first —
-                     and (t in self.relations or t in self.assoc or t in self.vix)][:12]   # context = CONVERSATION content, not framing
+                     if t not in ROUTING_STOPLIST and len(t) >= 3                          # F799: strip Siona's own scaffolding first
+                     and (t in self.relations or t in self.assoc or t in self.vix)]        # context = CONVERSATION content, uncapped
         ctx_bundle = None
         for t in ctx_terms:
             ctx_bundle = hdc.klein4_bundle_accumulate(ctx_bundle, _leaf(t))
