@@ -58,10 +58,10 @@ def transforms_invert():
     print("\n== the ℍ / 𝕆 transforms exist and invert (substrate for handed / triality operand-recovery) ==")
     xq = [[1, 0, 0, 0], [0, 1, 0, 0], [1, 1, 0, 0], [0, 0, 1, 1]]
     back = C.quaternion_dft(C.quaternion_dft(xq), inverse=True)
-    eq = max(abs(xq[i][j] - back[i][j]) for i in range(len(xq)) for j in range(4))
+    eq = max(C.magnitude(xq[i][j] - back[i][j]) for i in range(len(xq)) for j in range(4))   # Class-K |·|, not abs()
     xo = [[1, 0, 0, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0, 0, 0], [0, 0, 0, 0, 1, 0, 0, 0]]
     backo = C.octonion_dft(C.octonion_dft(xo), inverse=True)
-    eo = max(abs(xo[i][j] - backo[i][j]) for i in range(len(xo)) for j in range(8))
+    eo = max(C.magnitude(xo[i][j] - backo[i][j]) for i in range(len(xo)) for j in range(8))   # Class-K |·|, not abs()
     print(f"  QDFT round-trip max err: {eq:.2e}   (ℍ: left-bind != right-bind -> recovery is HANDED)")
     print(f"  ODFT round-trip max err: {eo:.2e}   (𝕆: non-associative -> triple-relationship recovery = TRIALITY)")
 
