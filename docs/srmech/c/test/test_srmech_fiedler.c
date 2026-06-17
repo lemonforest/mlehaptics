@@ -7,7 +7,7 @@
  * converged vector must separate A from B (up to a global flip). We check that,
  * plus the n<2 / too-small-arena / out-of-range-edge guards.
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"

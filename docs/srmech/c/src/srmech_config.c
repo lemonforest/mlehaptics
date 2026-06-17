@@ -21,7 +21,7 @@
  * use), read-only thereafter. JPL Power-of-Ten clean (no goto, no malloc,
  * bounded, status returns, >=2 asserts / non-trivial fn).
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"

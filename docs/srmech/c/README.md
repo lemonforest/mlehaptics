@@ -144,4 +144,4 @@ source.
 
 ## License
 
-GPL-3.0-or-later (parent project: mlehaptics).
+MIT (parent project: mlehaptics).

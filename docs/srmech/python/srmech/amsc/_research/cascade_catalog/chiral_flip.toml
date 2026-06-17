@@ -29,7 +29,7 @@ abi_version = 2
 
 [cascade.attestation]
 author = "Steven Kirkland"
-license = "GPL-3.0-or-later"
+license = "MIT"
 parser_version = "srmech-cascade 0.4.5rc1"
 canonical_landings = [
   "MFO §VIII.31.11 §(5b) — chiral dual same shape inverse",

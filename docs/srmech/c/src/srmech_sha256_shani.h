@@ -50,7 +50,7 @@
  *                      Intel SDM Vol 2 + Intel SHA Extensions whitepaper."
  * ────────────────────────────────────────────────────────────────────
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 #ifndef SRMECH_SHA256_SHANI_H
 #define SRMECH_SHA256_SHANI_H

@@ -3,7 +3,7 @@
  * Proves the Hermitian-eig ceiling is CONFIG-DRIVEN (a TOML value, not a
  * compiled-in #define): default 2048, overridable via a TOML blob AND via a
  * file read THROUGH THE PAL (srmech_plat_file_write/_read). Standalone — no
- * Python. License: GPL-3.0-or-later.
+ * Python. License: MIT.
  */
 #include "srmech.h"
 #include "srmech_platform.h"

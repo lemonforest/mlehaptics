@@ -18,7 +18,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "srmech"
-version = "0.8.0"
+version = "0.8.1rc1"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects oversize metadata
 # ("could not comply" with no useful detail bubbled into the publish
@@ -37,7 +37,7 @@ description = "Stored-Relationship Mechanism: the 14-class A-N primitive vocabul
 # block via its built-in provider.
 dynamic = ["readme"]
 requires-python = ">=3.10"
-license = "GPL-3.0-or-later"
+license = "MIT"
 authors = [{ name = "Steven Kirkland" }]
 keywords = [
     "stored-relationship",

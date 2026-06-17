@@ -39,7 +39,7 @@
  *   - Rule 7 (return-value)   : OK — srmech_status_t throughout
  *   - Rule 10 (warnings clean): OK
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"

@@ -14,9 +14,8 @@
  * this is "a correct instrument," just faster at the bulk case. Technique
  * attested to PUBLIC references (FIPS 180-4 for the algorithm; the Intel
  * Intrinsics Guide + Gueron & Krasnov, "Parallelizing message schedules
- * to accelerate SHA-256" for the N-way-lane structure); cpuminer (GPLv2+,
- * forward-compatible with srmech GPL-3.0+) was read only as a working-impl
- * pointer.
+ * to accelerate SHA-256" for the N-way-lane structure); cpuminer (GPLv2+)
+ * was read only as a working-impl pointer — no code taken.
  *
  * MECHANISM. `srmech_sha256_batch` hashes n messages. On x86 with the
  * feature present it processes them W-at-a-time (W=8 AVX2 / W=4 SSE2):
@@ -41,7 +40,7 @@
  * ops); Rule 10 (-Wall -Wextra -Wpedantic -Werror / /W4 /WX). ABI: new
  * symbol only -> SRMECH_ABI_VERSION stays 3.
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"

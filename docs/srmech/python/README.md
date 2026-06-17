@@ -86,7 +86,7 @@ Modern physics uses the first; antiquity 9 of 9 traditions canvassed (Antikyther
 
 **About the A–N alphabet.** The labels A through N record the **chronological order** in which each operation was named during this framework's evolution — they are discovery-fingerprint, not substrate-ordering. Re-sorted by substrate-native role, the partition above (`{A}` + `{I, C, J}` + `{D, E, F, G, K, L, M}` + `{B, H, N}`) is the substrate-side grouping. The alphabetical table below is the lookup convenience.
 
-Full context: [substrate-native-maths research notebook](https://mlehaptics.readthedocs.io/substrate-native-maths/substrate_native_research_notebook/) (PR #680 SSoT).
+Full context: [substrate-native-maths research notebook](https://mlehaptics.readthedocs.io/en/latest/substrate-native-maths/substrate_native_research_notebook/) (PR #680 SSoT).
 
 ### `srmech.amsc.*` — 14-class primitive vocabulary (alphabetical lookup)
 
@@ -326,4 +326,4 @@ Subsequent `list_attested_sources()`, `get_attested_dataset()`, etc. enumerate t
 
 ## License
 
-GPL-3.0-or-later. See [LICENSE](LICENSE).
+MIT License. See [LICENSE](LICENSE).

@@ -40,7 +40,7 @@
  *   3. JPL Power-of-Ten discipline (Phase B6) as a structural
  *      quality ratchet, mirroring Tasks #105–#110.
  *
- * License: GPL-3.0-or-later (parent project: mlehaptics).
+ * License: MIT (parent project: mlehaptics).
  */
 
 #ifndef SRMECH_H
@@ -63,9 +63,9 @@ extern "C" {
  * ------------------------------------------------------------------ */
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 8
-#define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   ""
-#define SRMECH_VERSION       "0.8.0"
+#define SRMECH_VERSION_PATCH 1
+#define SRMECH_VERSION_PRE   "rc1"
+#define SRMECH_VERSION       "0.8.1rc1"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported

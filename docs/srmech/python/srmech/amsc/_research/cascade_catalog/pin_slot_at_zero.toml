@@ -29,7 +29,7 @@ abi_version = 2
 
 [cascade.attestation]
 author = "Steven Kirkland"
-license = "GPL-3.0-or-later"
+license = "MIT"
 parser_version = "srmech-cascade 0.4.5rc2"
 canonical_landings = [
   "MFO §VII.6.x (Class K canonical pin-slot phase-boundary)",

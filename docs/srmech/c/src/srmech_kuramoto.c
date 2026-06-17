@@ -38,7 +38,7 @@
  *
  * ABI: new symbol only — SRMECH_ABI_VERSION stays 3 (additive).
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"

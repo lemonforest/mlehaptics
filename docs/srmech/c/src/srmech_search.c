@@ -18,7 +18,7 @@
  *
  * JPL Power-of-Ten compliance: Rules 1/3/4/5/7/10 OK.
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"

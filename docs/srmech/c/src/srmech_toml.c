@@ -47,7 +47,7 @@
  *   - Rule 8 (no multi-line macros) : OK
  *   - Rule 10 (warnings clean): OK under -Wall -Wextra -Wpedantic -Werror
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"

@@ -214,7 +214,7 @@ def build_manifest(
             "https://github.com/lemonforest/mlehaptics/blob/main/docs/"
             "srmech/srmech_research_notebook.md"
         ),
-        "license": "GPL-3.0-or-later",
+        "license": "MIT",
         "keywords": ["mcp", "srmech", "spectral", "amsc", "cascade"],
         "server": _server_block(server_type),
         # tools[] element = {name (required), description (optional)} per

@@ -32,7 +32,7 @@ unary_stage = true
 
 [cascade.attestation]
 author = "Steven Kirkland"
-license = "GPL-3.0-or-later"
+license = "MIT"
 parser_version = "srmech-cascade 0.7.5rc44"
 canonical_landings = [
   "RBS-LM UPSTREAM_NOTES §17 U2 — register the text→instrument encoder as a DSL cascade-op",

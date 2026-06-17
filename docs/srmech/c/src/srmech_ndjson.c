@@ -41,7 +41,7 @@
  *   any CR-strip) are skipped silently — we never invoke the
  *   callback on them.
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"

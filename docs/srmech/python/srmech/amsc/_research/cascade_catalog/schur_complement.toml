@@ -59,7 +59,7 @@ exact_vs_float = "exact=True is bit-exact rational (no numpy needed); exact=Fals
 
 [cascade.attestation]
 author = "Steven Kirkland"
-license = "GPL-3.0-or-later"
+license = "MIT"
 parser_version = "srmech-cascade 0.7.1rc2"
 canonical_landings = [
   "#897 §26 — operator|operand fusion op (F412/F417/F419: 'where the breakthroughs live')",

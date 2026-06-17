@@ -73,7 +73,7 @@ cpt_mirror = "srmech.amsc.hdc.klein4_cpt_mirror"
 
 [worked_instance.attestation]
 author = "Steven Kirkland"
-license = "GPL-3.0-or-later"
+license = "MIT"
 parser_version = "srmech 0.6.0rc19"
 canonical_landings = [
   "Baez, J.C. (2002), 'The Octonions', Bull. Amer. Math. Soc. 39:145, §2.4 — S3 = triality permuting 8v/8s/8c; the so(8) order-3 outer automorphism the V4-carrier cycle mirrors",

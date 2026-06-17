@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.8.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.8.x entry, -end- immediately before the prior minor (currently [0.7.5rc173], the rc line that graduated as 0.8.0). -->
 <!-- pypi-readme-changelog-start -->
+## [0.8.1rc1] - 2026-06-17
+
+**MIT relicense + a broken RTD link fix** (docs / metadata only — no code change). Two user-requested corrections ahead of the next production cut:
+
+- **Relicensed `GPL-3.0-or-later` → `MIT`.** The package `license` field in both `pyproject.toml` / `pyproject-pure.toml`, the shipped `LICENSE` file (now MIT text, © 2026 Steven Kirkland), the README License section, and **every srmech-authored license header** — all ~40 `c/` source + header files, the 15 `cascade_catalog/*.toml` + 1 `worked_instances/*.toml` attestation `license` fields, and the `_mcpb.py` Claude-Desktop-bundle `license`. The shipped tree (`python/srmech/` + `c/`) now contains **zero** `GPL-3.0-or-later`. Left intentionally: the repo-root `LICENSE` (monorepo / EMDR firmware — a separate project, stays GPL-3), dated `notes/` research scratch (historical), `CHANGELOG.md` history, and the factual "cpuminer (GPLv2+)" attribution in `srmech_sha256_batch.c` (reworded to drop the now-moot GPL-3.0 forward-compat clause — no code was ever copied).
+- **Fixed the substrate-native-maths RTD link** in the README: `…readthedocs.io/substrate-native-maths/…` → `…readthedocs.io/en/latest/substrate-native-maths/…` (the `/en/latest/` path segment was missing, so the link 404'd).
+
+No public surface change: `tools.total` **310**, ABI **3**, numpy-free. 5-SSOT bumped `0.8.0 → 0.8.1rc1`.
+
 ## [0.8.0] - 2026-06-17
 
 **Production graduation to PyPI.** The entire `v0.7.5rc1 → rc173` development line graduates as **0.8.0** — `0.7.5` is **skipped on production PyPI** because the accumulated additions are a minor-version's worth of surface, so they ship as a minor bump rather than a patch. Identical package surface to `0.8.0rc2` (TestPyPI-verified, numpy-absent shipped wheel): no code change over the merged 0.7.5rc line beyond the version relabel and the PyPI-README / research-notebook refresh to cite **0.8.0** as the latest release. Headline additions consolidated into 0.8.0:

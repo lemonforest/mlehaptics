@@ -43,7 +43,7 @@
  *   - Rule 5 (>= 2 asserts/fn)     : OK — pointer + bound asserts per fn.
  *   - Rule 8 (no multiline macros) : OK — single-token object-like macros.
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"

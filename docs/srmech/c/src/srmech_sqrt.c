@@ -22,7 +22,7 @@
  * (<=60 lines/fn) OK; Rule 5 (>=2 asserts/fn) OK; Rule 7 (status) OK;
  * Rule 10 (warnings clean) OK.
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"

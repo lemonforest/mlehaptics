@@ -50,7 +50,7 @@
  * (only SINGLE-line macros); Rule 10 (-Wall -Wextra -Wpedantic -Werror /
  * /W4 /WX). ABI: new symbol only -> SRMECH_ABI_VERSION stays 3.
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"

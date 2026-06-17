@@ -9,7 +9,7 @@
  * the in-core Fiedler's cut byte-for-byte (same algorithm, same init), and the
  * truncated-file / too-small-arena guards must fire.
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"
