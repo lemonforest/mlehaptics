@@ -26,6 +26,11 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 # srmech is the lean MATH CORE siona rides on (the 14-class A-N vocabulary + the klein4 HDC + the profile loader).
+# >=0.7.4 is VERIFIED correct for rc1: siona's walk/recall are pure-Python (siona imports NO srmech), and the
+# `siona` profile activates on the live production srmech 0.7.4. RAISE THIS FLOOR only when a siona feature uses a
+# srmech op that lives in a newer cut — the first such is error-correcting recall (rc171-native klein4_triality_cycle),
+# which gates on srmech graduating a clean v0.7.5 to production PyPI (or, for a TestPyPI siona rc, a `>=0.7.5rcN` pin
+# resolved with --pre against TestPyPI). See [[project_siona_package_takeover_unmirror]] + F828.
 dependencies = ["srmech>=0.7.4"]
 
 # THE plugin hook: siona declares itself as a srmech profile (package-only entry-point form; the loader reads
