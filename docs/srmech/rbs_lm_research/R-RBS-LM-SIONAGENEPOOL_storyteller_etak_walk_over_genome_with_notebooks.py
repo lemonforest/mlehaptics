@@ -92,16 +92,17 @@ def graft_context(messages, current_index):
     USER turn contributes its OWN words (clean — the user never emits scaffolding); an ASSISTANT turn contributes ONLY
     the operands Siona DECLARED (the 'topic [...]' markers she emitted), never her prose frame. The graft is the
     conversation's operands by construction — free of rendering meta, no scrubbing needed."""
-    parts = []
+    # F815: BIDIRECTIONAL — a conversation is two-way, so keep the USER half and the SIONA half SEPARATE (split by a
+    # \x1f sentinel) for the Klein-4 chiral-dual context bundle. SIONA's turns now contribute her OWN reply CONTENT
+    # (she remembers what SHE said, not just what the user asked); scaffolding is stripped downstream by
+    # _context_content (F799). Surgical (F801), never compacted (F811).
+    user_parts, siona_parts = [], []
     for i, m in enumerate(messages or ()):
         if i == current_index:
             continue
         c = m.get("content") or ""
-        if m.get("role") == "assistant":
-            parts.extend(re.findall(r"topic \[([^\]]*)\]", c))   # the DECLARED topic-operands only (her structured record)
-        else:
-            parts.append(c)                                       # the user's own words (already clean)
-    return "\n".join(parts)
+        (siona_parts if m.get("role") == "assistant" else user_parts).append(c)
+    return "\n".join(user_parts) + "\n\x1fSIONA\x1f\n" + "\n".join(siona_parts)
 
 
 ERA_DEFS = {
@@ -1019,7 +1020,7 @@ class SionaGenepool:
         tags: [input-ride …], [siona · …], [etak: …], [anaphora: …], notebook §-refs) and her citation/honest-note
         parentheticals ((source: …, CC-BY-SA), (related: …)). A content parenthetical like (Solanum lycopersicum)
         has no scaffold marker, so it survives. The remaining prose + the user's words are the real content."""
-        s = context or ""
+        s = (context or "").replace("\x1fSIONA\x1f", " ")       # F815: drop the bidirectional user/siona split marker
         for _ in range(6):                                       # collapse NESTED brackets innermost-first: the parse line is
             s2 = re.sub(r"\[[^\[\]]*\]", " ", s)                 # [input-ride: … topic ['x'] · steer ['y']] — strip ['x']/['y']
             if s2 == s:                                          # then the now-flat outer bracket, else "· steer ·" leaks through
@@ -1143,23 +1144,32 @@ class SionaGenepool:
         # F759 running-context: content words from PRIOR turns -> a Klein-4 RBS-HDC context bundle (built with the rc155
         # streaming klein4_bundle_accumulate) + a context steer. Biases the answer toward the conversation; makes the
         # SAME query differ once context accrues. The context object IS the running conversation, folded holographically.
-        # F811: WORKING MEMORY is NEVER compacted — no truncation. The surgical graft (F801) keeps it to declared
-        # operands (lean), and the holographic klein4 bundle below accumulates the WHOLE conversation in fixed D
-        # (graceful, not a hard forget). The old [:12] cap was a compaction that made long chats forget — removed.
-        ctx_terms = [t for t in dict.fromkeys(re.findall(r"[a-z]+", self._context_content(context).lower()))
-                     if t not in ROUTING_STOPLIST and len(t) >= 3                          # F799: strip Siona's own scaffolding first
-                     and (t in self.relations or t in self.assoc or t in self.vix)]        # context = CONVERSATION content, uncapped
+        # F815 BIDIRECTIONAL working memory (Klein-4 chiral dual): a conversation is two-way, so the context is ONE
+        # Klein-4 object with the USER's content in one chirality and SIONA's OWN reply-content in the γ₅ chiral-DUAL
+        # sector (the (4:3)|(3:4) capacitor-plate reading, F129/F130). She remembers what SHE said, distinguishable
+        # from what the user asked. F811: NEVER compacted (no cap; holographic accumulate in fixed D). F799: scaffolding
+        # stripped per-half. F801: surgical graft.
+        uctx, sctx = (context.split("\x1fSIONA\x1f", 1) + [""])[:2]               # F815: the two halves of the dialogue
+
+        def _ctx_words(txt):
+            return [t for t in dict.fromkeys(re.findall(r"[a-z]+", self._context_content(txt).lower()))
+                    if t not in ROUTING_STOPLIST and len(t) >= 3
+                    and (t in self.relations or t in self.assoc or t in self.vix)]
+        u_terms, s_terms = _ctx_words(uctx), _ctx_words(sctx)                     # user half ; Siona's-own-reply half
         ctx_bundle = None
-        for t in ctx_terms:
+        for t in u_terms:                                                        # USER half — as-is (one chirality)
             ctx_bundle = hdc.klein4_bundle_accumulate(ctx_bundle, _leaf(t))
+        for t in s_terms:                                                        # SIONA half — the γ₅ chiral DUAL (her own replies)
+            ctx_bundle = hdc.klein4_bundle_accumulate(ctx_bundle, hdc.klein4_chirality_flip_gamma5(_leaf(t)))
         ctx_bundle = hdc.klein4_bundle_resolve(ctx_bundle) if ctx_bundle is not None else None
-        self._ctx = ctx_terms                                                    # the running-context object (introspectable)
+        ctx_terms = u_terms + [t for t in s_terms if t not in u_terms]            # both halves (display/steer)
+        self._ctx = {"user": u_terms, "siona": s_terms}                          # the bidirectional running-context object
         eff_steer = steer_terms + [t for t in ctx_terms if t not in steer_terms]  # context nudges the input-ride
         parse = (anaphora_note + understood_note                                # F798 anaphora + F765 PASS 1 (understand) above PASS 2 (ride)
                  + f"[input-ride: {intent} · topic {recognized or '—'}"
                  + (f" · detail {depth} ({depth_how})" if depth != "normal" else "")   # F763/F766: show depth + HOW (keyword vs meaning)
                  + (f" · steer {steer_terms}" if steer_terms else "")
-                 + (f" · context {ctx_terms}" if ctx_terms else "") + "]")
+                 + (f" · context user{u_terms} ⊕ siona{s_terms}" if ctx_terms else "") + "]")  # F815 bidirectional
         new_note = f"\n  (not on my shelf: {', '.join(unrecognized)})" if unrecognized else ""
         proc_note = ("\n  (you asked HOW it's made/works — I hold what it IS, not the process)"
                      if intent in ("process", "quantity") else "")
