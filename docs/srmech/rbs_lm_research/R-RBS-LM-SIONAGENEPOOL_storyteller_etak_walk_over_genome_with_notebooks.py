@@ -135,6 +135,11 @@ GLOSS_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_glosses.json"
 # sentences). The richer-answer tier: "what is X" -> the crisp lead sentence (gloss); "tell me about/explain X" or
 # "tell me more" (depth=long, F763) -> this fuller abstract. Built by R-RBS-LM-WIKIABSTRACT; CC-BY-SA simplewiki.
 ABSTRACT_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_abstracts.json"
+# F814: the ENTIRE-article RBS-HDC instrument (R-RBS-LM-CORPUSENCODE) — every full body's walkable shape + k*, NDJSON
+# on disk + a title→byte-offset index for O(1) random access (load one body's shape on demand, low-RAM read F793).
+# Recall = walk the de Bruijn shape-graph from the seed -> regenerate the ENTIRE body (F813), NOT echo stored prose.
+FULLBODY_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_fullbody_instrument.ndjson"
+FULLBODY_INDEX = Path.home() / "corpora" / "wikipedia" / "simplewiki_fullbody_index.json"
 # F791: the spectral-clumped TOME-TREE + WEB (F789/#1, built by R-RBS-LM-FULLCLUMP via the rc166 native §51) — the
 # uncapped, spectrally-navigable smallwiki. {tomes: [[word…]], paths: [L/R tree address], web: {tome: [[other,wt,a,b]]}}.
 # etak navigation: FIND (word→tome) → RIDE (the clump) → ZOOM (parent = siblings sharing path[:-1]) → WEB-HOP (bridge).
@@ -458,6 +463,11 @@ class SionaGenepool:
         self.abstracts = {}
         if ABSTRACT_FILE.exists():
             self.abstracts = json.loads(ABSTRACT_FILE.read_text()).get("store", {})
+        # F814: the ENTIRE-article instrument — load the title→offset INDEX (small); the NDJSON of full-body shapes
+        # stays on disk and is seeked on demand (low-RAM read, F793). Full bodies recalled by walking, not echoed.
+        self.fullbody_index = {}
+        if FULLBODY_INDEX.exists() and FULLBODY_FILE.exists():
+            self.fullbody_index = json.loads(FULLBODY_INDEX.read_text())
         # F791/F792: the spectral-clumped tome-tree(s) for navigation. Layered: the FRESH windowed-co-occurrence tree
         # (clean, common-word core) wins; the assoc tree (fuller 90k, noisier) fills the gaps. word_tome: word→(tree,tome).
         self.nav_trees, self.word_tome = [], {}
@@ -510,6 +520,8 @@ class SionaGenepool:
             cat.append(("wiki·definition [side-store]", len(self.glosses)))
         if getattr(self, "abstracts", None):
             cat.append(("wiki·abstract-full [side-store]", len(self.abstracts)))   # F788: ≤3-sentence, full coverage
+        if getattr(self, "fullbody_index", None):
+            cat.append(("wiki·full-body [entire-article RBS-HDC instrument]", len(self.fullbody_index)))  # F814: ENTIRE bodies, walk-recalled
         if getattr(self, "wiki", None):
             cat.append(("wiki·abstract [side-store]", len(self.wiki)))
         if getattr(self, "assoc", None):
@@ -694,6 +706,30 @@ class SionaGenepool:
                     return s, self.abstracts[s], "lead abstract (≤3 sentences)"
                 return s, self.glosses.get(s) or self.abstracts[s], "lead sentence"
         return None
+
+    def _fullbody(self, title):
+        """F814: RECALL the ENTIRE article by WALKING its RBS-HDC shape-graph (not echoing stored prose). Seek the
+        title's record via the offset index, build the de Bruijn shape-graph at its k*, walk from the seed → regenerate
+        the whole body (F813; 98.2% exact). Returns (reconstructed_tokens, k, exact) or None."""
+        off = self.fullbody_index.get(title.lower())
+        if off is None:
+            return None
+        with open(FULLBODY_FILE) as f:
+            f.seek(off)
+            rec = json.loads(f.readline())
+        toks, k = rec["s"].split(), rec["k"]
+        g = {}
+        for i in range(k - 1, len(toks)):
+            c = tuple(toks[i - (k - 1):i])
+            g.setdefault(c, {})
+            g[c][toks[i]] = g[c].get(toks[i], 0) + 1
+        out = list(toks[:k - 1])
+        for _ in range(len(toks) - (k - 1)):
+            succ = g.get(tuple(out[-(k - 1):]))
+            if not succ:
+                break
+            out.append(max(succ, key=succ.get))
+        return out, k, (out == toks)
 
     def _navigate(self, subj):
         """F791/F792: etak-navigate the layered tome-tree(s). FIND the subject's leaf tome (fresh tree preferred, assoc
@@ -1220,10 +1256,21 @@ class SionaGenepool:
                 if ent:
                     subj, body, src = ent
             if subj is None:                                      # else the longest single salient token that is itself an article
-                subj = next((c for c in sorted(ordered, key=len, reverse=True) if c in self.abstracts or c in self.glosses), None)
+                subj = next((c for c in sorted(ordered, key=len, reverse=True)
+                             if c in self.fullbody_index or c in self.abstracts or c in self.glosses), None)
                 if subj:
                     body = self.abstracts.get(subj) or self.glosses.get(subj)
                     src = "lead abstract (≤3 sentences)" if subj in self.abstracts else "lead sentence"
+            # F814: the ENTIRE body is available -> reconstruct it by walking its RBS-HDC shape-graph (not the lead slice)
+            if subj and subj in self.fullbody_index:
+                fb = self._fullbody(subj)
+                if fb:
+                    rtoks, fk, exact = fb
+                    note = "" if exact else ("\n  (long-range-ambiguous body — most-likely walk; exact recall needs "
+                                             "stored branch-choices, F813)")
+                    return (f"{parse}\n[siona · article (entire body)] {subj} — reconstructed by walking its RBS-HDC "
+                            f"shape-graph at k={fk} ({len(rtoks)} tokens, GPU-free, no stored prose; F813/F814):\n"
+                            f"{' '.join(rtoks)}{note}\n  (entire-article instrument over all simplewiki bodies, CC-BY-SA){new_note}")
             if subj and body:
                 return (f"{parse}\n[siona · article] {subj}: {body}\n"
                         f"  (this is the LEAD of the simplewiki article — the fullest text I hold; I don't store full "
