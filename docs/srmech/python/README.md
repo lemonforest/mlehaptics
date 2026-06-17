@@ -1,6 +1,6 @@
 # srmech
 
-**Status:** **v0.7.4** — the 14-class A–N primitive vocabulary in native C + Python, **numpy-optional**. Every continuous-math op — trig, exp, sqrt, FFT, SVD, eig — is a **cascade of the 14**, not a separate primitive; the native build holds no libm. **The One**, `S(σ,θ)` (`cascade.the_one`, exact-rational + numpy-free, with the bit-exact `qm.hurwitz` matrix peer), generates the whole `1 + 3 + 7 + 3 = 14` substrate: the ℂ/ℍ/𝕆 Hurwitz ladder = the 28-generator `so(8)` adjoint + Spin(8) triality (the order-3 outer automorphism `τ`, `Fix(τ) = g₂ = 14`). Full C/Python cascade-catalog parity (hash, cyclic-group, graph-Laplacian, primes, HDC, rational, Kuramoto, Wiener–Khinchin autocorrelation; the two-tier `cascade.atoms`/`cascade.compose` lean-ISA split; the Klein-4 four-sector `parallel_sector_dispatch`); runtime spectral + dual-path signal-processing surfaces; Attested Multi-Source Collector/Catalog (AMSC, MPR v1) provenance. A named cascade is the default, a math-library call the exception. The v0.7.x line adds the Class-L **Schur complement / Dirichlet-to-Neumann** op, the bidirectional **`(σ,θ,μ)` hypercomplex coupler** (`cascade.hypercomplex_couple` — bind ≤7 streams reversibly into a quaternion/octonion, the Hurwitz-capped interior) + the **Hamming/GF(2) CARRY** code (`cascade.hamming_*` — error-correcting carry *past* 𝕆), and the **Cayley–Dickson open-exterior demonstrator** (`cascade.cayley_dickson` — the deliberately non-reversible object on the far side of the Hurwitz wall: zero divisors at dim 16, the executable "no backward direction" falsifier). **v0.7.4** makes the sedenion box an **addressable RBS-HDC instrument** (`cascade.SedenionRegister` — 16 named slots, the ≤7 reversible octonion working word, a Hamming carry block, and the address↔Cayley–Dickson `navigate` homomorphism with an `is_navigable` reversibility gate) and adds three composition helpers: `cascade.signed_sum_squared` (the bipolar coupling-score), `cascade.top_k_by_score` (catalog top/bottom-K selection), and `hdc.bundle_with_ties` (majority for any N with the Class-K bundle-tie surfaced).
+**Status:** **v0.8.0** — the 14-class A–N primitive vocabulary in native C + Python, **numpy-free** (numpy is no longer a dependency at all; the array carriers are the numpy-free `Mat` / `Vec` / `HV`). Every continuous-math op — trig, exp, sqrt, FFT, SVD, eig — is a **cascade of the 14**, not a separate primitive; the native build holds no libm. **The One**, `S(σ,θ)` (`cascade.the_one`, exact-rational + numpy-free, with the bit-exact `qm.hurwitz` matrix peer), generates the whole `1 + 3 + 7 + 3 = 14` substrate: the ℂ/ℍ/𝕆 Hurwitz ladder = the 28-generator `so(8)` adjoint + Spin(8) triality (the order-3 outer automorphism `τ`, `Fix(τ) = g₂ = 14`). Full C/Python cascade-catalog parity (hash, cyclic-group, graph-Laplacian, primes, HDC, rational, Kuramoto, Wiener–Khinchin autocorrelation; the two-tier `cascade.atoms`/`cascade.compose` lean-ISA split; the Klein-4 four-sector `parallel_sector_dispatch`); runtime spectral + dual-path signal-processing surfaces; Attested Multi-Source Collector/Catalog (AMSC, MPR v1) provenance. A named cascade is the default, a math-library call the exception. The v0.7.x line adds the Class-L **Schur complement / Dirichlet-to-Neumann** op, the bidirectional **`(σ,θ,μ)` hypercomplex coupler** (`cascade.hypercomplex_couple` — bind ≤7 streams reversibly into a quaternion/octonion, the Hurwitz-capped interior) + the **Hamming/GF(2) CARRY** code (`cascade.hamming_*` — error-correcting carry *past* 𝕆), and the **Cayley–Dickson open-exterior demonstrator** (`cascade.cayley_dickson` — the deliberately non-reversible object on the far side of the Hurwitz wall: zero divisors at dim 16, the executable "no backward direction" falsifier). **v0.7.4** makes the sedenion box an **addressable RBS-HDC instrument** (`cascade.SedenionRegister` — 16 named slots, the ≤7 reversible octonion working word, a Hamming carry block, and the address↔Cayley–Dickson `navigate` homomorphism with an `is_navigable` reversibility gate) and adds three composition helpers: `cascade.signed_sum_squared` (the bipolar coupling-score), `cascade.top_k_by_score` (catalog top/bottom-K selection), and `hdc.bundle_with_ties` (majority for any N with the Class-K bundle-tie surfaced). **v0.8.0** graduates the long carrier-removal arc that **removed numpy entirely** (every continuous-math op is a cascade over the numpy-free `Mat`/`Vec`/`HV` carriers; `libsrmech` carries no `libm`) and adds: the **native Class-M HDC core** (`hdc.klein4_{bind,bundle,unbind,unbundle,similarity}` + streaming `klein4_bundle_accumulate`/`_resolve`, all dispatched to C — `bundle`'s dual `unbundle` makes Class M reversible up to capacity); a **sparse / iterative Class-L Fiedler** (`laplacian.fiedler_sparse` / `normalized_cut_bisect`) plus an **out-of-core recursive graph partition** (`laplacian.recursive_cut` / `fiedler_sparse_file` + `text.cooccurrence_topk`) that break the dense n≤256 wall for corpus-scale, low-RAM graph clumping; the **genome storage + file-management surface** (`amsc.genome.*` — self-describing strand, in-place byte-splice edit, `.chr` bundles, loose↔packed, AMSC-compose; full C parity); a **class-from-introspection generator** (`dsl.generate_class_descriptor` — emit a `[class].toml` by describing what srmech already is); and **exact-until-rotation** DFT / eigenvalues (integer cyclotomic engine). Native C / Python parity across the whole surface; ABI 3.
 
 `srmech` (Stored-Relationship Mechanism) is a research package shipping five load-bearing surfaces:
 
@@ -30,7 +30,7 @@ pip install srmech[validation]      # adds jsonschema for strict data-block vali
 pip install srmech[collectors]      # adds requests + beautifulsoup4 for fetched adapters
 ```
 
-The core install is **numpy-optional** (v0.7.0 capstone): the 14-class cascade core runs on stdlib alone; importing a scientific-tier subpackage (`srmech.qm.*`, `srmech.signal_processing`, `srmech.spectral`) without `[scientific]` raises an actionable hint rather than a raw `ImportError`.
+The package is **numpy-free** (the v0.7.5 carrier-removal arc, graduated in v0.8.0): there is no numpy dependency and no `[scientific]` extra. The whole surface — the 14-class cascade core *and* the `srmech.qm.*` / `srmech.signal_processing` / `srmech.spectral` tiers — runs on stdlib alone over the numpy-free `Mat` / `Vec` / `HV` carriers, which feed the native dense kernels zero-copy from `array('d')` interleaved-complex buffers. A fresh numpy-absent venv imports and runs the entire package.
 
 ## Quick start
 
@@ -99,7 +99,7 @@ To check the backend state, call `srmech.native_status()` (top-level; equivalent
 import srmech
 srmech.native_status()
 # {'has_native': True, 'dispatching': True, 'abi_version': 3,
-#  'expected_abi': 3, 'native_version': '0.7.4', 'load_error': None}
+#  'expected_abi': 3, 'native_version': '0.8.0', 'load_error': None}
 ```
 
 | Module | Class | Primitive operation |
@@ -249,7 +249,7 @@ The on-disk format is **Mathematical Provenance Record v1** (`MPR v1`):
     "license": "CC0",
     "retrieved_at": "2026-05-13T00:00:00Z",
     "response_sha256": "<64 hex chars>",
-    "parser_version": "srmech 0.7.4",
+    "parser_version": "srmech 0.8.0",
     "parser_rule_hash": "<64 hex chars>",
     "collector_descriptor_path": "...",
     "collector_descriptor_hash": "<64 hex chars>"
@@ -280,7 +280,7 @@ Every primitive class, every `srmech.qm.*` operation (including the so(8)/triali
 from srmech.introspect import describe
 
 d = describe()
-print(d["srmech_version"])              # e.g. "0.7.4"
+print(d["srmech_version"])              # e.g. "0.8.0"
 print(d["tools"]["total"])              # every registered ToolEntry
 print(d["tools"]["mcp_callable"])       # advertised over JSON-RPC / Anthropic
 print(d["tools"]["handle_pending"])     # 0 since the rc16 handle grammar landed
