@@ -2316,7 +2316,11 @@ Before sending the ask, stress-tested the prototype (`R-RBS-LM-ETAKNAV_…py`) o
 
 **Why it matters:** with these, the ENCODE trades RAM for chunked PAL I/O → a low-RAM target can build (not just read) the spectral-clumped smallwiki. Composes §17-U1 (explicit edges) + §50 (streaming/holographic) + §51 (sparse Fiedler) + the PAL. **Re-surface keywords:** `cooccurrence_topk` · `streaming co-occurrence` · `out-of-core` · `PAL` · `low-RAM encode` · `edge device` · `§52` · `F793`.
 
-## §53 ASK — C-NATIVE klein4 bind/bundle/similarity: the Class-M HDC core is pure-Python, so a per-token HDC WALK is ~1000× too slow to be the live engine (2026-06-17; F818)
+## §53 ASK — C-NATIVE klein4 bind/bundle/similarity: the Class-M HDC core is pure-Python, so a per-token HDC WALK is ~1000× too slow to be the live engine (2026-06-17; F818) — **✅ LANDED in 0.7.5rc170 (F823)**
+
+**RESOLVED (2026-06-17, rc170):** `has_native_klein4_bind` AND `has_native_klein4_fold` are both True; klein4 now dispatches to native C. Measured D=10000: `klein4_bind` 8.74→**0.86 ms**, `klein4_bundle` 14.4→**1.01 ms**, `klein4_similarity` 4.25→**0.84 ms** (~10×). The genome's per-query klein4 layer (context bundle / similarity / triality / structure cards) is now native (live — server moved to the rc170 venv). The F808 HDC content-addressed walk now COMPLETES + is EXACT (timed out on rc166) but is still ~12–26 ms/token (tomato 4.8 s, april 70 s), so the dict de Bruijn walk remains the live recall engine; native klein4 makes the HDC walk a viable offline/demonstration path, not the live decoder. Original ask retained below for the record.
+
+
 
 **Measured (rc166, D=10000):** `klein4_bind` **8.74 ms/call**, `klein4_bundle` **14.4 ms/call**, `klein4_similarity` **4.25 ms/call**. These are Class-M HDC primitives but run **pure-Python** (the native surface has only a partial `has_native_klein4_fold` symbol; bind/bundle/similarity do NOT dispatch to C). For a FEW ops per query (the genome's context bundle / similarity ranking / glyph encoding) that is fine. But the **full-body de Bruijn recall is a per-TOKEN walk** — ~6 klein4 ops × ~770 steps for a 390-token article ≈ **45 s/article** — so the F808 srmech-native klein4 content-addressed walk (the resonant-eigenstate read, the thesis-faithful "RBS-HDC" recall) **cannot be the live recall engine**; Siona falls back to a pure-Python dict de Bruijn walk (exact, O(n), µs/step), which is the SAME context→successor stored-relationship but NOT srmech. (F818 — the honest "why aren't we using srmech to decode" answer.)
 
