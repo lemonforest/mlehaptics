@@ -4,7 +4,7 @@ profile_schema_version = "1.0"
 
 [profile]
 name            = "siona_debruijn"
-version         = "0.1.0"
+version         = "0.2.0"
 summary         = "C-native de Bruijn fiber walk (F805/F818) — symbol-agnostic sequence reconstruction; Siona's full-body recall op as a lean-srmech plugin"
 package         = "siona_debruijn_plugin"
 srmech_requires = ">=0.7.5"
@@ -12,6 +12,7 @@ srmech_requires = ">=0.7.5"
 # Bridge surface — "name = module:callable"; smoke test imports + checks callable.
 [profile.bridge]
 walk        = "siona_debruijn_plugin.bridge:walk"
+recall      = "siona_debruijn_plugin.bridge:recall"
 abi_version = "siona_debruijn_plugin.bridge:abi_version"
 
 # Native plugin tier — srmech ctypes-loads lib{library}.so from the package, calls abi_version_function,

@@ -473,6 +473,20 @@ class SionaGenepool:
         self.fullbody_index = {}
         if FULLBODY_INDEX.exists() and FULLBODY_FILE.exists():
             self.fullbody_index = json.loads(FULLBODY_INDEX.read_text())
+        # F825: activate Siona's OWN srmech PROFILE (the 3rd-party C-native de Bruijn plugin, F824) and route the
+        # full-body RECALL PATH through it — the first slice of "Siona as her own package": the inference op is
+        # discovered + ABI-checked + smoke-tested via the `srmech.profiles` surface, not walked inline. Graceful:
+        # if the profile isn't installed, `_fullbody` falls back to the inline pure-Python dict walk (F818). The
+        # klein4 srmech-core math layer is imported as before; only the recall path is lifted behind the profile.
+        self._siona_recall = None
+        try:
+            import srmech as _sr
+            _sr.profile("siona_debruijn")                       # discover + ABI-check + smoke-test + activate
+            from siona_debruijn_plugin.bridge import recall as _recall
+            self._siona_recall = _recall
+            print("[siona] full-body recall path via the siona_debruijn PROFILE (C-native de Bruijn walk)")
+        except Exception as _e:                                 # not installed / invalid -> inline dict-walk fallback
+            print(f"[siona] siona_debruijn profile not active ({type(_e).__name__}); recall uses the inline dict walk")
         # F791/F792: the spectral-clumped tome-tree(s) for navigation. Layered: the FRESH windowed-co-occurrence tree
         # (clean, common-word core) wins; the assoc tree (fuller 90k, noisier) fills the gaps. word_tome: word→(tree,tome).
         self.nav_trees, self.word_tome = [], {}
@@ -719,7 +733,15 @@ class SionaGenepool:
         klein4 — it is the FAST/EXACT realization of the same context->successor stored-relationship. The srmech-native
         klein4 HDC content-addressed walk (F808, the resonant-eigenstate read) is mathematically equivalent but ~1000x
         slower (klein4 bind/bundle are pure-Python in srmech, ~9-14 ms/call at D=10000 -> ~45 s/article), so it cannot
-        be the live engine until srmech ships C-native klein4 (UPSTREAM_NOTES §53). Returns (tokens, k, exact) or None."""
+        be the live engine until srmech ships C-native klein4 (UPSTREAM_NOTES §53). Returns (tokens, k, exact) or None.
+        F825: PRIMARY path is now Siona's own srmech PROFILE recall (the C-native de Bruijn plugin); the inline dict
+        walk below is the fallback when the profile isn't installed."""
+        if self._siona_recall is not None:                      # F825: route through Siona's profile (C-native)
+            try:
+                r = self._siona_recall(title, str(FULLBODY_FILE), str(FULLBODY_INDEX))
+                return None if r is None else (r["tokens"], r["k"], r["exact"])
+            except Exception:
+                pass                                            # fall back to the inline dict walk below
         off = self.fullbody_index.get(title.lower())
         if off is None:
             return None

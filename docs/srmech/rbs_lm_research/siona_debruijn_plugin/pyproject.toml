@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "siona-debruijn-plugin"
-version = "0.1.0"
+version = "0.2.0"
 description = "A C-native de Bruijn walk exposed as a 3rd-party srmech profile plugin (F824)"
 requires-python = ">=3.10"
 
