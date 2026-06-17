@@ -997,6 +997,35 @@ class SionaGenepool:
                 f"F613); self-description content-address {addr} (Class A). The frame is declared operators (form); the "
                 f"facts are sourced operands — describe() + genome_catalog, glyph-grounded, not free English.")
 
+    def _capability_card(self):
+        """F816: what Siona can DO — the route surface, DISTINCT from the identity card (who she IS). The doings are
+        the declared operator-form over the kernels she holds (each maps to a real route, not invented)."""
+        held = self.introspect()
+        return ("[siona · capabilities] What I can DO — each grounded in a kernel I hold, not invented:\n"
+                "• DEFINE a word — its lead sentence, or the fuller abstract (216,695 simplewiki words)\n"
+                "• RECALL an ENTIRE article — reconstructed by walking its RBS-HDC shape-graph (240,823 full bodies)\n"
+                "• tell what a thing is USED WITH / its CONTENTS — held relations + co-occurrence neighbours\n"
+                "• NAVIGATE the clumped smallwiki — the cluster/neighbourhood around a word (etak walk)\n"
+                "• RELATE or COMPARE two topics — what they share (closed-op reasoning over what I hold)\n"
+                "• READ pasted code / math — the structural A-N signature of Python / C / LaTeX (my own grammars)\n"
+                "• LEARN a term you teach me (“remember X is …”), held, then committable to my kernel\n"
+                f"I etak-walk what I hold ({len(held)} kernels) to compose each answer, and I ASK when your question "
+                f"touches nothing I have. (I'm Siona — srmech {srmech.__version__}; ask “who are you” for my identity.)")
+
+    def _vary_from(self, prev):
+        """F816: USE the bidirectional memory (F815) — the user flagged my PRIOR reply (repeated / wants it varied).
+        Give a DIFFERENT facet of what I just said, not the same card."""
+        if "[siona · capabilities]" in prev:                                       # gave capabilities -> give identity
+            return "[siona · varied] Right — that was what I can do. The other facet, who I am:\n" + self._structure_card()
+        if "[identity]" in prev:                                                   # gave identity -> give capabilities
+            return "[siona · varied] You're right — that was my identity. The different facet, what I can do:\n" + self._capability_card()
+        pt = self._prev_topic(prev, "")                                            # a content answer repeated -> say MORE
+        if pt and pt in self.abstracts:
+            return (f"[siona · varied] You're right, I repeated. More on “{pt}” (the fuller text I hold):\n"
+                    f"{self.abstracts[pt]}\n  (source: simplewiki lead abstract, CC-BY-SA)")
+        return ("[siona · varied] You're right — I repeated. I hold a fixed set of attested facts and won't invent a "
+                "different one; ask me for a specific word, a full article, or a comparison and I'll give something new.")
+
     def _prev_topic(self, prev_assistant, context):
         """F798: the PRIOR turn's subject, for anaphora carry-forward ("what can IT be used for" → the last topic).
         Prefer the prior answer's input-ride parse line ('topic [...]'); then its '[siona · TIER] subject:' head; then
@@ -1089,6 +1118,17 @@ class SionaGenepool:
             tier = "kernel" if hit in self._committed_terms() else "temp"
             return f"[siona · learned ({tier})] {hit}: {self.learned[hit]}"
 
+        # === F816 META-feedback on MY prior reply ("that's the same answer", "you repeated", "say it differently") —
+        # USE the bidirectional memory (F815): this is about my LAST reply, not a content query. Acknowledge + VARY.
+        if prev_assistant and re.search(r"\bsame\s+(?:answer|thing|response|reply)\b|that'?s\s+the\s+same|"
+                                        r"\byou\s+(?:just\s+)?(?:said|gave|repeated|copied)\b|\brepeat(?:ed|ing)?\b|"
+                                        r"\bidentical\b|say\s+it\s+different|different(?:ly)?\s+answer|didn'?t\s+change", pl):
+            return self._vary_from(prev_assistant)
+        # === F816 CAPABILITIES: "what can you do / your capabilities / how can you help" -> the DOINGS card, DISTINCT
+        # from the identity card ("who are you"). Both used to collapse to the same structure card (empty salient).
+        if re.search(r"what\s+can\s+you\s+do|what\s+do\s+you\s+do|\bcapabilit|what\s+can\s+you\s+(?:answer|help|tell)|"
+                     r"how\s+can\s+you\s+help|what\s+are\s+you\s+(?:able|capable)|what\s+can\s+i\s+ask", pl):
+            return self._capability_card()
         # === F799 self-PROVENANCE: "where is your source code / are you open source" -> answer from her self-knowledge
         # (she IS the srmech package + version), not a notebook etak-walk and not a fabricated URL. Before identity.
         if re.search(r"\b(?:you|your|yourself)\b", pl) and PROVENANCE_RE.search(pl):
