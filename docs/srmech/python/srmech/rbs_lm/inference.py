@@ -8,7 +8,7 @@ four stones of the walk into one clean API, parameterized by the descriptor
 catalog (``from_catalog``) OR an in-memory params dict (``from_params``):
 
   Step 1  ContextSubstrate.encode_context  — last-k tokens → ONE Klein-4 state
-  Step 2  next_token_distribution          — Class M retrieve over bigram-legal candidates
+  Step 2  next_token_distribution          — Class M resonator retrieve over the bounded atom set (§57: no bigram gate)
   Step 3  temperature                       — the recall↔diversity dial (cold regime)
   Step 4  infer                             — the autoregressive loop (= inference)
 
@@ -22,7 +22,6 @@ Per [[user_stance_kepler_shape_universal]]: inference IS a named A-N cascade
 """
 from __future__ import annotations
 
-from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from typing import Mapping, Sequence
 
@@ -64,8 +63,6 @@ class RBSLMInferenceSubstrate:
     vocab: list[str] = field(default_factory=list)
     vocab_vecs: np.ndarray | None = None
     vocab_idx: dict[str, int] = field(default_factory=dict)
-    next_after: dict[str, list[str]] = field(default_factory=dict)
-    bigram_counts: dict[str, Counter] = field(default_factory=dict)
     M: np.ndarray | None = None
     n_learned: int = 0
 
@@ -128,18 +125,18 @@ class RBSLMInferenceSubstrate:
 
     # ----------------------------------------------------------------- learn
     def learn(self, token_stream: Sequence[str]) -> "RBSLMInferenceSubstrate":
-        """Load corpus knowledge: the bigram candidate structure (full stream) +
+        """Load corpus knowledge: the bounded atom codebook (``vocab_vecs``) +
         a context→next associative memory of up to memory_capacity (k-window→next)
-        pairs (the F154-bounded single memory). Deterministic in learn_seed."""
+        pairs (the F154-bounded single memory). Deterministic in learn_seed.
+
+        §57: NO bigram co-occurrence count store. The next-token candidate set
+        is recovered structurally from M by the resonator at inference time
+        (see ``next_token_distribution``); the substrate's own bounded atom set
+        (``vocab_vecs``) IS the candidate scope, so no statistical n-gram gate."""
         stream = list(token_stream)
         self.vocab = sorted(set(stream))
         self.vocab_idx = {w: i for i, w in enumerate(self.vocab)}
         self.vocab_vecs = np.stack([self.ctx.enc(w) for w in self.vocab])
-
-        self.bigram_counts = defaultdict(Counter)
-        for a, b in zip(stream, stream[1:]):
-            self.bigram_counts[a][b] += 1
-        self.next_after = {a: sorted(c.keys()) for a, c in self.bigram_counts.items()}
 
         k = self.operating_k
         pairs_all = [(tuple(stream[i - k:i]), stream[i]) for i in range(k, len(stream))]
@@ -159,20 +156,30 @@ class RBSLMInferenceSubstrate:
     def next_token_distribution(self, context: Sequence[str],
                                 temperature: float | None = None):
         """Return (candidates, probabilities) — the context-conditioned next-token
-        distribution over the bigram-legal candidate set (Steps 2-3)."""
+        distribution recovered from M by the resonator (Steps 2-3).
+
+        §57: the candidate set is the substrate's OWN bounded atom set
+        (``self.vocab`` / ``self.vocab_vecs``), NOT a statistical bigram gate.
+        The next-token factor is recovered by UNBINDING the context from the
+        holographic memory M (``klein4_unbind`` — the named self-inverse recovery
+        op) and cleaning up over the bounded codebook with Class-M resonance
+        (``sim_k4_batch``). A per-tome kernel's vocab is bounded, so this scopes
+        the candidates STRUCTURALLY rather than statistically (bigram) or densely
+        (whole global vocab). §56: ``temperature <= 0`` decodes greedily
+        (argmax over the resonance scores, no division)."""
         if self.M is None:
             raise RuntimeError("call .learn(stream) before inference")
+        if not self.vocab:
+            return [], np.array([])
         T = self.operating_temperature if temperature is None else temperature
         k = self.operating_k
-        last = context[-1]
-        candidates = self.next_after.get(last, [])
-        if not candidates:
-            return [], np.array([])
-        if len(candidates) == 1:
-            return candidates, np.array([1.0])
-        cidx = [self.vocab_idx[c] for c in candidates]
-        probe = hdc.klein4_bind(self.M, self.ctx.encode_context(list(context[-k:])))
-        sims = cs.sim_k4_batch(probe, self.vocab_vecs[cidx])
+        probe = hdc.klein4_unbind(self.M, self.ctx.encode_context(list(context[-k:])))
+        sims = cs.sim_k4_batch(probe, self.vocab_vecs)
+        candidates = self.vocab
+        if T <= 0.0:  # §56: greedy argmax decode — no temperature division.
+            p = np.zeros(len(candidates))
+            p[int(np.argmax(sims))] = 1.0
+            return candidates, p
         return candidates, _softmax(sims, T)
 
     # ------------------------------------------------------------- infer
