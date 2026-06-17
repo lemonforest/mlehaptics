@@ -4,8 +4,8 @@ Lands the RBS-LM UPSTREAM_NOTES §6 (F150) chiral A–N harmonics — per-operat
 harmonic-1/2/3 classification + the harmonic-2 mirror ops (Class D/E/G) +
 harmonic-3 three-cycle ops (Class I/L) + the spectral chirality classifier —
 plus §2.2 greedy_bipartite_alignment. Per-class placement (no privileged
-namespace, per [[feedback_no_privileged_primitive_classes]]); siona is a
-co-name alias so these live in srmech.amsc.*.
+namespace, per [[feedback_no_privileged_primitive_classes]]); these live
+in srmech.amsc.*.
 """
 import pytest
 

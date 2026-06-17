@@ -22,7 +22,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "srmech"
-version = "0.7.5rc172"
+version = "0.7.5rc173"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects metadata that exceeds it
 # ("could not comply" with no useful detail bubbled into the publish
@@ -125,10 +125,8 @@ dev = [
 
 [project.scripts]
 # v0.4.6rc2 — first CLI subcommand: ``srmech status`` (out-of-band
-# introspection of a running srmech sweep). The siona alias mirrors
-# the import-level alias (v0.4.4); both invoke the same dispatch.
+# introspection of a running srmech sweep).
 srmech = "srmech.cli:main"
-siona = "srmech.cli:main"
 # v0.5.0rc6 — MCP (Model Context Protocol) server adapter for Claude Code
 # (and other MCP-aware LLM clients). ``srmech-mcp`` (stdio default; HTTP+SSE
 # via --transport http-sse). Exposes srmech.amsc.tool_schema entries
@@ -163,9 +161,8 @@ cmake.version = ">=3.23"
 cmake.build-type = "Release"
 
 # Python packages included in the wheel alongside the (eventual)
-# CMake-installed native binary. `siona` is the bundled co-name alias
-# (v0.4.4): `pip install srmech` makes `import siona` == `import srmech`.
-wheel.packages = ["srmech", "siona"]
+# CMake-installed native binary.
+wheel.packages = ["srmech"]
 
 # Make the wheel reproducible across rebuilds.
 wheel.exclude = ["*.pyc", "__pycache__"]
@@ -186,7 +183,6 @@ wheel.exclude = ["*.pyc", "__pycache__"]
 # the C library locally once Phase B3 lands.
 sdist.include = [
     "srmech/**",
-    "siona/**",
     "tests/**",
     "README.md",
     "CHANGELOG.md",
