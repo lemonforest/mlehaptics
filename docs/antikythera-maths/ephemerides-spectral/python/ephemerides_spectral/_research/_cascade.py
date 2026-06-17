@@ -23,9 +23,7 @@ core is the srmech cascade. Numerically these agree with ``math`` /
 
 from __future__ import annotations
 
-from typing import List, Sequence, Tuple
-
-import numpy as np
+from typing import Any, List, Sequence, Tuple
 
 from srmech.amsc import laplacian as _lap
 from srmech.amsc import rational as _rat
@@ -142,7 +140,7 @@ def asin(x: float, *, terms: int = 48) -> float:
 
 def gaussian_proximity_eigs(
     coords: Sequence[float], sigma: float, *, terms: int = 64,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> Tuple[Any, Any]:
     """Bounded-local-Laplacian eigenbasis on a 1-D coordinate chain
     (Class-L build + eigendecompose; Class-N Gaussian edge weights).
 
@@ -179,7 +177,7 @@ def gaussian_eigs_from_pairs(
     sigma: float,
     *,
     terms: int = 64,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> Tuple[Any, Any]:
     """Bounded-local-Laplacian eigenbasis from precomputed pairwise
     distances (Class-L build + eigendecompose; Class-N Gaussian weights).
 
