@@ -561,6 +561,21 @@ def _as_klein4_buf(v, op: str) -> "array":
     source shape). Elements must be in ``{0, 1, 2, 3}``. The numpy-free path —
     ``np`` is never imported or touched here."""
     src = v.buffer if isinstance(v, HV) else v
+    # Fast path: an existing uint8 buffer (HV.buffer / array('B') / bytes /
+    # bytearray — the common klein4 case). Bulk-copy at C speed, then range-check
+    # in a single C-level pass (max() over the array) rather than a per-element
+    # Python loop. This is what lets the native bind/bundle/similarity dispatch
+    # below actually win — otherwise the per-element validation dominates the op.
+    if isinstance(src, (bytes, bytearray)) or (
+            isinstance(src, array) and src.typecode == "B"):
+        buf = array("B", src)
+        if len(buf) == 0:
+            raise ValueError(f"hdc.{op}: klein-4 vector must be non-empty")
+        if max(buf) > 3:   # uint8 is already ≥ 0, so > 3 ⇒ outside {0, 1, 2, 3}
+            raise ValueError(
+                f"hdc.{op}: klein-4 elements must be in {{0, 1, 2, 3}}")
+        return buf
+    # General path: a list / tuple / generator of ints — validate per element.
     buf = array("B")
     try:
         for x in src:
@@ -744,6 +759,54 @@ def _klein4_bundle_core(arrs) -> "array":
     return _majority_buf(arrs)
 
 
+# --- §53 / F818: native dispatch for the Class-M klein4 core ----------------
+# The C srmech_klein4_bind / _bundle / _similarity ship in libsrmech (and are
+# ctypes-bound in _native); these marshal the array('B') klein4 buffers (codes
+# 0..3) to the native uint8 surface so the per-token HDC walk runs at C speed
+# (~100–1000× the pure-Python XOR/majority/match-count at D≈10⁴). The pure-Python
+# bodies remain the COMPLETE, bit-identical alternative for no-C environments.
+
+
+def _klein4_bind_native(a: "array", b: "array") -> "array":
+    """Native sector-XOR bind over two array('B') klein4 buffers → array('B')."""
+    n = len(a)
+    ca = (ctypes.c_uint8 * n).from_buffer_copy(a)
+    cb = (ctypes.c_uint8 * n).from_buffer_copy(b)
+    out = (ctypes.c_uint8 * n)()
+    rc = _native.LIB.srmech_klein4_bind(ca, cb, ctypes.c_uint32(n), out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return array("B", bytes(out))
+
+
+def _klein4_bundle_native(arrs) -> "array":
+    """Native per-bit majority bundle over ≥1 equal-length array('B') buffers."""
+    n_vec = len(arrs)
+    dim = len(arrs[0])
+    cbufs = [(ctypes.c_uint8 * dim).from_buffer_copy(a) for a in arrs]
+    ptrs = (ctypes.POINTER(ctypes.c_uint8) * n_vec)(
+        *[ctypes.cast(c, ctypes.POINTER(ctypes.c_uint8)) for c in cbufs])
+    out = (ctypes.c_uint8 * dim)()
+    rc = _native.LIB.srmech_klein4_bundle(
+        ptrs, ctypes.c_uint32(n_vec), ctypes.c_uint32(dim), out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return array("B", bytes(out))
+
+
+def _klein4_similarity_native(a: "array", b: "array"):
+    """Native match-fraction similarity over two array('B') buffers → float."""
+    n = len(a)
+    ca = (ctypes.c_uint8 * n).from_buffer_copy(a)
+    cb = (ctypes.c_uint8 * n).from_buffer_copy(b)
+    out = ctypes.c_double()
+    rc = _native.LIB.srmech_klein4_similarity(
+        ca, cb, ctypes.c_uint32(n), ctypes.byref(out))
+    if rc != _native.SRMECH_OK:
+        return None
+    return float(out.value)
+
+
 def klein4_bind(a, b, *, sectors=None, parallel=None, mode="chunk"):
     """Klein-4 bind: component-wise (F₂)²-XOR. Commutative, associative,
     self-inverse (``bind(a, bind(a, b)) == b``); identity is 0.
@@ -770,6 +833,10 @@ def klein4_bind(a, b, *, sectors=None, parallel=None, mode="chunk"):
     # T_s(T_s(a) XOR b) collapses to a XOR b for every sector. So all modes
     # yield the plain XOR; sectors=/parallel= stay accepted value-no-op flags
     # (pure-Python bodies don't overlap under the GIL anyway — UPSTREAM caveat).
+    if len(a) >= 1 and _native.has_native_klein4_bind():   # §53: native fast path
+        out = _klein4_bind_native(a, b)
+        if out is not None:
+            return HV(out, sectors=4)
     return HV(_xor_buf(a, b), sectors=4)
 
 
@@ -803,6 +870,10 @@ def klein4_bundle(*vectors, sectors=None, parallel=None, mode="chunk"):
     n_sectors = _klein4_resolve_sectors(sectors, parallel)
     if mode == "chunk" or n_sectors <= 1:
         # chunk splits positions → bit-identical to the plain serial majority.
+        if len(arrs[0]) >= 1 and _native.has_native_klein4_bind():  # §53: native
+            out = _klein4_bundle_native(arrs)
+            if out is not None:
+                return HV(out, sectors=4)
         return HV(_klein4_bundle_core(arrs), sectors=4)
     # chirality (F233): bundle the T_s-conjugated inputs, inv_T_s (=T_s) each,
     # then majority the ≤4 — meaningful only for chirality-asymmetric inputs.
@@ -840,6 +911,10 @@ def klein4_similarity(a, b, *, sectors=None, parallel=None, mode="chunk") -> flo
     # similarity (XOR-flipping both sides preserves equality). So every mode is
     # the match-fraction; sectors=/parallel= stay accepted value-no-op flags.
     n = len(a)
+    if n >= 1 and _native.has_native_klein4_bind():        # §53: native fast path
+        sim = _klein4_similarity_native(a, b)
+        if sim is not None:
+            return sim
     matches = sum(1 for x, y in zip(a, b) if x == y)
     return float(matches / n)
 
