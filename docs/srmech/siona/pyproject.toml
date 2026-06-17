@@ -11,7 +11,8 @@ version = "0.1.0rc1"
 description = "Siona — a grounded, can't-hallucinate RBS-HDC instrument: storage + retrieval (k=3 chiral addressing) of spectrally-encoded knowledge, built on srmech (Stored-Relationship Mechanism)."
 readme = "README.md"
 requires-python = ">=3.10"
-license = "GPL-3.0-or-later"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Steven Kirkland" }]
 keywords = ["siona", "srmech", "rbs-hdc", "stored-relationship", "de-bruijn", "recall", "grounded-lm", "spectral", "hyperdimensional"]
 classifiers = [
@@ -25,13 +26,12 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering",
 ]
-# srmech is the lean MATH CORE siona rides on (the 14-class A-N vocabulary + the klein4 HDC + the profile loader).
-# >=0.7.4 is VERIFIED correct for rc1: siona's walk/recall are pure-Python (siona imports NO srmech), and the
-# `siona` profile activates on the live production srmech 0.7.4. RAISE THIS FLOOR only when a siona feature uses a
-# srmech op that lives in a newer cut — the first such is error-correcting recall (rc171-native klein4_triality_cycle),
-# which gates on srmech graduating a clean v0.7.5 to production PyPI (or, for a TestPyPI siona rc, a `>=0.7.5rcN` pin
-# resolved with --pre against TestPyPI). See [[project_siona_package_takeover_unmirror]] + F828.
-dependencies = ["srmech>=0.7.4"]
+# srmech is the lean MATH CORE siona rides on (the 14-class A-N vocabulary + klein4 HDC + native genome
+# file-management + the profile loader). Floor >=0.8.1 = the live production srmech (graduated past the 0.7.5rc
+# series; MIT-licensed; verified: native dispatching, and it ships everything siona's roadmap needs —
+# srmech.amsc.genome, klein4_triality_cycle, klein4_unbundle). So the native-genome recall (PKG-3) + the
+# error-correcting recall (klein4_triality_cycle) are production-resolvable on this floor — no TestPyPI pin needed.
+dependencies = ["srmech>=0.8.1"]
 
 # THE plugin hook: siona declares itself as a srmech profile (package-only entry-point form; the loader reads
 # siona/srmech_profile.toml via importlib.resources). `srmech.profile("siona")` discovers + smoke-tests + activates it.

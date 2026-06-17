@@ -27,11 +27,11 @@ This is the "LM as a k=3 chiral-axis addressing system over a storage substrate"
 
 ## Status
 
-- `0.1.0rc1` is **pure-Python** (portable `py3-none-any`); it depends on `srmech>=0.7.4`.
-- A C-native de Bruijn accelerator (a `[profile.native]` tier) is a planned follow-on platform-wheel release.
+- `0.1.0rc1` is **pure-Python** (portable `py3-none-any`); it depends on `srmech>=0.8.1` (the live MIT-licensed math core).
+- A C-native de Bruijn accelerator (a `[profile.native]` tier), the native-genome recall (via `srmech.amsc.genome`), and error-correcting recall (`klein4_triality_cycle`) are follow-on releases — all production-resolvable on the `srmech>=0.8.1` floor.
 - TestPyPI release-candidates are published first; a clean (non-rc) tag promotes to PyPI.
 
 - Math core: <https://pypi.org/project/srmech/>
 - Source / issues: <https://github.com/lemonforest/mlehaptics>
 
-License: GPL-3.0-or-later (same as `srmech`).
+License: MIT (same as `srmech`).
