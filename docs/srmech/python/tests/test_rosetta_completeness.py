@@ -76,9 +76,13 @@ CEIL_PYTHON_ONLY_IRREDUCIBLE = 107
 # rc170 (§53 / F818): klein4_bind/_bundle/_similarity dispatch to srmech_klein4_*
 # (the C twins always shipped + were ctypes-bound; hdc.py just never called them)
 # -> c_dispatched; klein4_unbind == klein4_bind(c, a) so it composes the now-
-# dispatched bind -> composition_of_c. 5 -> 1 (only klein4_triality_cycle, whose
-# srmech_klein4_triality_cycle twin is not yet wired, remains the debt).
-CEIL_C_EXISTS_UNBOUND = 1
+# dispatched bind -> composition_of_c. 5 -> 1 (only klein4_triality_cycle).
+# rc171 (§53 / F818): klein4_triality_cycle dispatches to srmech_klein4_triality_cycle
+# (same forward/inverse 3-cycle tables -> bit-identical) -> c_dispatched. 1 -> 0:
+# the c_exists_unbound DEBT IS NOW EMPTY — every public op with a C twin dispatches
+# to it. Keep this at 0; a regression means a Python-only op shipped with an
+# unbound C twin — wire it, don't raise the ceiling.
+CEIL_C_EXISTS_UNBOUND = 0
 
 _DEBT_BUCKETS = ("python_only_irreducible", "c_exists_unbound")
 _ALL_BUCKETS = (

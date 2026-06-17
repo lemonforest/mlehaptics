@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc171] - 2026-06-17
+
+**§53 / F818 — wire the last klein4 op, closing the `c_exists_unbound` debt to ZERO.** rc170 wired the klein4 core (bind / bundle / similarity); `klein4_triality_cycle` was the one remaining op with a shipped, ctypes-bound C twin (`srmech_klein4_triality_cycle`) that `hdc.py` never called. rc171 wires it — so **every public srmech op that has a C twin now dispatches to it**.
+
+- **`klein4_triality_cycle(v, *, inverse=False)` now dispatches** to `srmech_klein4_triality_cycle(in, n, inverse, out)` when `_native.has_native_klein4_triality_cycle()` (new accessor), with the pure-Python table relabel as the bit-identical fallback. The C uses the **same** forward `{0,2,3,1}` / inverse `{0,3,1,2}` 3-cycle tables, so the native and pure paths agree exactly (forward, inverse, and the order-3 identity `T∘T∘T = id`). numpy-free `array('B')` ↔ `(c_uint8 * n)` marshalling, same as rc170.
+- **Measured** (D=10000, shipped wheel, native vs forced-pure): **~8×** (0.15 ms vs 1.19 ms), bit-for-bit identical.
+- **Rosetta** (#928 down-only): `klein4_triality_cycle` moves `c_exists_unbound → c_dispatched`. **`CEIL_C_EXISTS_UNBOUND` 1 → 0 — the debt bucket is now empty.** A new `test_c_exists_unbound_debt_is_closed` asserts the bucket stays empty; a regression means a Python-only op shipped with an unbound C twin (wire it, don't raise the ceiling). No ToolEntry added — `tools.total` stays **309**.
+- **Verified:** `test_klein4_triality_native_rc171.py` (pure correctness numpy-free + a native-gated differential class: forward / inverse / order-3 native == pure across a size sweep). ABI stays **3**; 5 SSOT bumped.
+
 ## [0.7.5rc170] - 2026-06-16
 
 **§53 / F818 — wire the Class-M klein4 core to its native C twins.** The C `srmech_klein4_bind` / `_bundle` / `_similarity` have shipped in `libsrmech` and been ctypes-bound in `_native.py` for many rcs, but `hdc.py` never *called* them — `klein4_bind` / `klein4_bundle` / `klein4_similarity` ran pure-Python (the Rosetta `c_exists_unbound` debt: "a C twin exists, Python doesn't dispatch"). This is the gap behind "we are either missing C native code or don't have it wired into PyPI": **not missing, just unwired.** rc170 wires the dispatch, so the per-token HDC content-addressed walk (the F808 RBS-HDC recall) runs at C speed.
