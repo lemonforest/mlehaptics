@@ -7,7 +7,7 @@ stones of the walk into one clean API, parameterized entirely by the descriptor
 catalog (descriptor_rbs_lm_inference.toml is the SSOT):
 
   Step 1  ContextSubstrate.encode_context  — last-k tokens → ONE Klein-4 state
-  Step 2  next_token_distribution          — Class M retrieve over bigram-legal candidates
+  Step 2  next_token_distribution          — Class M resonator retrieve over the bounded atom set (§57: no bigram gate)
   Step 3  temperature                       — the recall↔diversity dial (cold regime)
   Step 4  infer                             — the autoregressive loop (= inference)
 
@@ -31,7 +31,6 @@ token_seed and CoherenceReadout. See F1287 for the shim that repoints this modul
 """
 from __future__ import annotations
 
-from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from typing import Mapping, Sequence
 
