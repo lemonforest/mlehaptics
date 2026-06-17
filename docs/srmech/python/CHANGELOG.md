@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.8.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.8.x entry, -end- immediately before the prior minor (currently [0.7.5rc173], the rc line that graduated as 0.8.0). -->
 <!-- pypi-readme-changelog-start -->
+## [0.8.0] - 2026-06-17
+
+**Production graduation to PyPI.** The entire `v0.7.5rc1 → rc173` development line graduates as **0.8.0** — `0.7.5` is **skipped on production PyPI** because the accumulated additions are a minor-version's worth of surface, so they ship as a minor bump rather than a patch. Identical package surface to `0.8.0rc2` (TestPyPI-verified, numpy-absent shipped wheel): no code change over the merged 0.7.5rc line beyond the version relabel and the PyPI-README / research-notebook refresh to cite **0.8.0** as the latest release. Headline additions consolidated into 0.8.0:
+
+- **numpy removed entirely** (the rc69–rc134 carrier-removal arc) — no numpy dependency and no `[scientific]` extra; every continuous-math op is a cascade of the 14 primitives over the numpy-free `Mat` / `Vec` / `HV` carriers, fed zero-copy to the native dense kernels. A fresh numpy-absent venv imports and runs the whole package.
+- **Native Class-M HDC core** — `hdc.klein4_{bind,bundle,unbind,unbundle,similarity}` + streaming `klein4_bundle_accumulate` / `klein4_bundle_resolve` dispatch to C (~8–15× over pure-Python); `klein4_unbundle` names `bundle`'s dual, so Class M is reversible up to capacity.
+- **Corpus-scale, low-RAM graph partition** — a sparse / iterative Class-L Fiedler (`laplacian.fiedler_sparse` / `normalized_cut_bisect`) past the dense n≤256 eigensolver wall, plus out-of-core `recursive_cut` + `fiedler_sparse_file` + streaming `text.cooccurrence_topk` to keep the *encode* bounded on edge devices.
+- **Genome storage + file-management surface** (`amsc.genome.*`) — self-describing strand, in-place byte-splice edit, `.chr` bundles, loose↔packed, AMSC-compose; full standalone-C parity (caller-arena scratch, no compiled-in size caps).
+- **Config-driven classes both directions** — `dsl.generate_class_descriptor` emits a `[class].toml` from introspection (the inverse of `make_class`).
+- **Exact-until-rotation** DFT / eigenvalues (integer cyclotomic engine), the C-transpile of the transcendental cascade, the Rosetta-completeness ratchet (`c_exists_unbound` debt → 0), the PAL centralization, and removal of the `siona` co-name mirror.
+
+ABI **3**; full native C / Python parity; `describe()["tools"]["total"]` = **310**. Per-rc detail for the whole line is preserved in the `[0.8.0rcN]` and `[0.7.5rcN]` entries below.
+
 ## [0.8.0rc2] - 2026-06-17
 
 **PyPI README numpy scrub — a real review this time.** The rc1 README still advertised `pip install srmech[scientific]` and shipped a numpy-based Quick-start example, despite numpy having been removed in the carrier arc. The `[scientific]` extra is genuinely gone from both pyprojects (this was a README-only staleness, not a packaging bug), but the README never got a full sweep. rc2 fixes every stale reference:
