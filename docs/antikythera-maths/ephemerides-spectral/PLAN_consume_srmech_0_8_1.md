@@ -8,7 +8,24 @@
 
 - **srmech 0.8.1 is LIVE on production PyPI** (MIT-licensed, numpy-free; carriers `Mat`/`Vec`/`HV` replaced ndarray; `[scientific]` extra gone; tools 310, ABI 3).
 - **ephemerides-spectral** is at `0.30.0rc10`, pins **`srmech>=0.7.4`** in three files: `python/pyproject.toml:43`, `python/pyproject-pure.toml:58`, `python/ephemerides_spectral/srmech_profile.toml:40`.
-- ephemerides keeps its OWN `numpy>=1.24` dependency (its `_research/laplacian.py` reference impl + `_native_bip.py` ctypes interop). srmech being numpy-free does NOT force ephemerides numpy-free — independent.
+- ephemerides keeps its OWN `numpy>=1.24` dependency (its `_research/laplacian.py` reference impl + `_native_bip.py` ctypes interop). srmech being numpy-free does NOT *force* ephemerides numpy-free — but **user direction 2026-06-17: "this must be numpy free also, we have the tooling in srmech to do it all"** → ephemerides numpy-removal is now a committed arc (Phase N below).
+
+### Version-SSOT reality — there are **8** sites, not 3 (rc1 CI caught this)
+
+The version string lives in EIGHT files that must agree; bumping only the "3 SSOT" the plan first listed left CI red on the floor-bump rc1:
+
+| # | File | Token |
+|---|------|-------|
+| 1 | `python/pyproject.toml` | `version` |
+| 2 | `python/pyproject-pure.toml` | `version` |
+| 3 | `python/ephemerides_spectral/version.py` | `__version__` |
+| 4 | `python/ephemerides_spectral/srmech_profile.toml` | `[profile].version` |
+| 5 | `c/include/ephemerides_spectral.h` | `ES_VERSION_MINOR` + `ES_VERSION_STRING` (test_native_parity rebuilds the wheel from this; `native_version()` reads the compiled `es_version()`) |
+| 6 | `python/ephemerides_spectral/_data/manifest.json` | `version` |
+| 7 | `python/README.md` | `**Status: vX**` banner (test_readme_freshness) |
+| 8 | `python/README.md` | Status-section `**vX** *(current)*` marker (test_readme_freshness) |
+
+Plus the **3 srmech-floor pins** (sites 1, 2, 4 carry a `srmech>=…` / `srmech_requires` line).
 
 ## KEY FINDING — empirical introspection settles the "breaking changes" question
 
@@ -37,15 +54,19 @@ Install ephemerides (local) + **srmech 0.8.1 (from PyPI)** + numpy; run the **fu
 
 - Bump `srmech>=0.7.4` → **`srmech>=0.8.1`** in all THREE (pyproject.toml, pyproject-pure.toml, srmech_profile.toml). Keep the two pyprojects congruent (CI guard).
 - `_research/_cascade.py` return annotations say `Tuple[np.ndarray, np.ndarray]` but now return `(Vec, Mat)` — update to honest types (or a neutral `Tuple[Any, Any]`); cosmetic, not enforced, but keep introspection honest (`[[feedback_numpy_removal_must_preserve_carrier_format...]]` spirit).
-- Note MIT: srmech is now MIT; ephemerides itself relicenses to MIT under `[[project_srmech_subprojects_mit_monorepo_gpl3]]` — **fold the ephemerides MIT relicense into this arc** (its own GPL→MIT flip across pyprojects + LICENSE + headers, same as srmech 0.8.1rc1).
+- MIT relicense: srmech is now MIT; ephemerides relicenses GPL-3 → MIT under `[[project_srmech_subprojects_mit_monorepo_gpl3]]` (its own GPL→MIT flip across pyprojects + LICENSE + C headers, same as srmech 0.8.1rc1). **Deferred to a follow-up rc** — rc1 stayed honest (floor + version + README hygiene only); do NOT claim MIT in rc1's banner/CHANGELOG.
 
-## Phase 2 — version bump + CHANGELOG
+## Phase 1.5 — README hygiene (user direction 2026-06-17, SHIPPED in rc1)
 
-`0.30.0rc10` → **`0.31.0rc1`** across the 3 version SSOT (pyproject.toml, pyproject-pure.toml, `ephemerides_spectral/version.py`). CHANGELOG entry: "consume srmech 0.8.1 (numpy-free carriers — drop-in; floor `>=0.8.1`) + MIT relicense".
+User: "make sure our plan has pypi facing readme for ephemerides-spectral hygiene. it's quite dated and the first section has a long block in bold." The PyPI-facing README's first section crammed the **entire multi-version landing history into one giant bold `**Status:**` banner** (line 5, ~10 KB). Same pattern srmech hit at 0.8.1: collapse the banner to a single line; the per-version history already lives in the `## Status` section. **Done in rc1** (`_fix_readme_banner.py` one-shot, removed after). Further dated-prose passes (roster counts, shipped-roadmap drift) are a follow-up if a read finds staleness — but the freshness tests only enforce the mechanical markers (banner/current/changelog-completeness/CLI-body-names).
+
+## Phase 2 — version bump + CHANGELOG (across all **8** SSOT)
+
+`0.30.0rc10` → **`0.31.0rc1`** across all 8 SSOT sites in the table above (NOT just 3 — that's the rc1 CI lesson). CHANGELOG entry: "consume srmech 0.8.1 (numpy-free carriers — drop-in; floor `>=0.8.1`) + README hygiene". (MIT relicense lands its own follow-up rc, not rc1.)
 
 ## Phase 3 — ship rc1 → TestPyPI + verify
 
-Hand-push `ephemerides-spectral-v0.31.0rc1` (rc → TestPyPI auto). Verify in a clean venv: install ephemerides 0.31.0rc1 + srmech (resolve 0.8.1 from PyPI) + numpy; assert `ephemerides_spectral.__version__`, `srmech.__version__==0.8.1`, `srmech HAS_NATIVE`, `bridge.list_attested_sources()["n_sources"]`, and one ITN/cascade op (e.g. `gaussian_eigs_from_pairs` path + `find_itn_chains` / `predict_itn_accessibility`).
+Hand-push `ephemerides-spectral-v0.31.0rc1` (rc → TestPyPI auto) once CI is green + PR merged. Verify in a clean venv: install ephemerides 0.31.0rc1 + srmech (resolve 0.8.1 from PyPI) + numpy; assert `ephemerides_spectral.__version__`, `srmech.__version__==0.8.1`, `srmech HAS_NATIVE`, `bridge.list_attested_sources()["n_sources"]`, and one ITN/cascade op (e.g. `gaussian_eigs_from_pairs` path + `find_itn_chains` / `predict_itn_accessibility`).
 
 ---
 
@@ -63,21 +84,59 @@ srmech `amsc.genome.*` = self-describing strand (`turns.bin`+`manifest.json`), c
 
 Introspection verdict (subagent): **etak navigation (PR #687 ETAK/BOARD/FLOCK triality, `mfo_spectral_research_notebook.md:6706`) and ephemerides `find_itn_chains` / `predict_itn_accessibility` (gateway-graph Laplacian Fiedler partition, `research/gateway_graph_laplacian.py` + `predict_itn_accessibility.py`) are the SAME structure** — hold an invariant reference frame (Class-C axis / Fiedler eigenbasis), the Class-L manifold's transport structure reveals accessible routes via Fiedler distance; Class-M bind = the k=3 triality. Shared primitives: **L (Laplacian) + C (frame) + M (bind)**.
 
-**Per user direction** ("ephemerides may need its own `[class]` catalog TOML if we find ourselves wanting a new code path just for a different name"): do **NOT** add an `etak_*` code path alongside `find_itn_chains` — they're one cascade. Express the shared navigation cascade ONCE as an ephemerides **`[class]` catalog TOML** (`srmech.dsl.make_class` / `register_class_dir`), with `etak` and `itn` as two named views/methods over it. Prove with a DSL-class-vs-Python equivalence test (`[[feedback_prefer_config_driven_toml_classes]]`). **Likely a SEPARATE rc.**
+**Per user direction** ("ephemerides may need its own `[class]` catalog TOML if we find ourselves wanting a new code path just for a different name"): do **NOT** add an `etak_*` code path alongside `find_itn_chains` — they're one cascade. Express the shared navigation cascade ONCE as an ephemerides **`[class]` catalog TOML** (`srmech.dsl.make_class` / `register_class_dir`), with `etak` and `itn` as two named views/methods over it. Prove with a DSL-class-vs-Python equivalence test (`[[feedback_prefer_config_driven_toml_classes]]`).
+
+**= rc2 (user-confirmed 2026-06-17):** *"proceed with rc2 etak/ITN class TOML. where there were hard coded code paths that need deprecated, do not leave as no-op. remove functions that could have been done and will be done with TOML class catalog. this package was retrofit to srmech so there may be many duplicate code paths to clean out."* So rc2 is BOTH the etak/itn `[class]` TOML AND a duplicate-code-path purge. **Hard-remove**, do not no-op. Survey targets (from the Explore sweep):
+- **dead `import numpy as np`** in `_research/_cascade.py:28` (unused) — delete.
+- **pure-re-export trig wrappers** `_cascade.sqrt/sin/cos/atan2` (lines 59–86) — thin re-exports of `srmech.amsc.rational.*`; collapse callsites onto srmech directly, delete the wrappers.
+- **`_best_rational_approx` triplicate** (`_research/itn_window.py:437`, `body_architecture.py`, `predict_itn_accessibility.py:136`) — consolidate; NOTE srmech's `rational.best_rational(num,denom,max_d)` takes an int-pair, NOT a float ratio/max_int, so it's not a blind drop-in — wrap once or adapt the signature deliberately.
+- **`np.linalg.eigh` duplication** (`body_architecture.py:146`, `predict_itn_accessibility.py:79`) duplicates `srmech.amsc.laplacian.symmetric_eigendecompose` — route through srmech (CAREFUL: `predict_itn` calibration INTERCEPT/SLOPE were fit against that embedding; assert calibration invariants hold). This is also the first concrete **numpy-removal** step (feeds Phase N).
+- ITN public surface to keep working: `bridge.find_itn_chains` (2497), `predict_itn_accessibility` (2723), `em_architecture` (2834).
+
+---
+
+## Phase N — make ephemerides-spectral numpy-FREE (MAJOR arc; user direction 2026-06-17)
+
+**User:** *"this must be numpy free also, we have the tooling in srmech to do it all. thanks!"* The through-line of the 0.31.x rc series (and likely beyond). Mirror srmech's own numpy-removal journey (its rc69–rc134) but leaning on what srmech now ships: every continuous-math op is already a cascade of the 14 A–N classes over the `Mat`/`Vec`/`HV` carriers, all numpy-free. ephemerides routes its OWN math through those, then drops `numpy` from both pyprojects.
+
+**North star:** `pip install ephemerides-spectral` pulls **no numpy**; a fresh numpy-ABSENT venv imports + runs the WHOLE package and the WHOLE test suite green. No `[scientific]`-style escape hatch; no `.to_numpy()` / `np.asarray(...)` bridge (`[[feedback_numpy_free_means_zero_numpy_no_bridges]]`). Flip by **connected component** (`[[feedback_numpy_free_means_zero_numpy_no_bridges]]`), not file-by-file with coercion glue.
+
+**The live numpy surface (to inventory precisely in Phase N-0):**
+- `_research/_cascade.py` — dead `import numpy` (rc2 deletes it) + the trig wrappers.
+- `_research/laplacian.py` — the numpy reference eigensolver (duplicates `srmech.amsc.laplacian`; route through srmech's numpy-free engine).
+- `_research/body_architecture.py`, `predict_itn_accessibility.py`, `itn_window.py` — `np.linalg.eigh`, `_best_rational_approx`, embeddings (rc2 starts these).
+- `_native_bip.py` — ctypes interop marshals via numpy buffers in places; srmech already proved numpy-free ctypes marshalling (`array`/`memoryview`), reuse that pattern.
+- The per-body catalogs (kinematics/dynamics/geodetic/EM/magnetic/fluid + the v0.24.x dynamical spectra) — sweep each for `np.`.
+- The TEST suite — many tests `import numpy` as a differential oracle; rewrite numpy-free (stdlib `cmath`/`fractions`/`struct` or the srmech cascade as reference). A numpy-free module's test must itself be numpy-free (`[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]`).
+
+**Sequencing (decisive, batch by component — not dozens of micro-rcs):**
+1. **N-0 inventory** — `grep -rIn "numpy\|np\." python/ephemerides_spectral python/tests`; categorize (export / math / lazy-fallback / prose / test-oracle), map the connected components.
+2. **rc2** (already scoped) clears the `_cascade` + ITN-eigensolver component — the first real flip.
+3. Subsequent rcs flip the remaining components (catalogs, native marshalling, then tests), each rc verified in a numpy-ABSENT venv.
+4. **Capstone rc** — drop `numpy` from `pyproject.toml` + `pyproject-pure.toml` dependencies; add a permanent "zero numpy" ratchet test; full suite green with numpy uninstalled. Then graduate the 0.31.x line.
+
+**Honesty gate:** never claim a module is numpy-free until `grep -nE "\bnp\.|import numpy" <file>` == 0 AND it runs under numpy-absent. Don't over-claim in CHANGELOG banners (rc1 lesson).
 
 ---
 
 ## Discipline (load-bearing)
 
 - TestPyPI rc BEFORE any clean tag → PyPI (the clean `ephemerides-spectral-vX.Y.Z` tag is the human gate; rc tags hand-pushed).
-- 3 version SSOT must agree; 3 srmech-floor sites must agree; pyproject ≡ pyproject-pure (CI guards both).
+- **8 version SSOT must agree** (the table in Context — not 3); 3 srmech-floor sites must agree; pyproject ≡ pyproject-pure (CI guards both). Run `tests/test_readme_freshness.py` + `tests/test_native_parity.py` LOCALLY before pushing any version bump (rc1 lost a CI round to the missed 3).
 - `gh pr merge --merge` (never squash). Autotag on clean semver. Scoped `git add`.
 - **PREFER config-driven `[class]` TOML over a new bespoke code path whenever the only difference is a name** (`[[feedback_prefer_config_driven_toml_classes]]`).
 - ephemerides relicenses GPL-3 → MIT (`[[project_srmech_subprojects_mit_monorepo_gpl3]]`).
 
-## Open decisions (to confirm before the research phases)
+## Decisions (RESOLVED by user, 2026-06-17)
 
-1. **Genome packaging** — ship a genome surface in the 0.31.0 line (after the rc1 consumption update), or run it as a standalone spike/report first? (Real tension: leaf=Klein-4-HV vs float coefficients → likely "provenance checkpoint," not coefficient store.)
-2. **etak/ITN class-TOML unification** — fold into this 0.31.0 line as a follow-up rc, or a separate arc?
+1. **Genome packaging** — **Spike first, then decide** (user pick). Phase R1 runs as a standalone go/no-go spike (`secular_elements` PoC); not in the rc-ship line until it earns its place.
+2. **etak/ITN class-TOML unification** — **Fold into the rc line as rc2** (user pick), with the duplicate-code-path purge folded in (see Phase R2). Hard-remove, no no-ops.
+3. **numpy-free** — **committed** as Phase N (user: "this must be numpy free also"). Through-line of the 0.31.x series; rc2 is its first concrete flip; capstone rc drops numpy from the pyprojects.
+4. **README hygiene** — **done in rc1** (Phase 1.5); further dated-prose passes are follow-ups.
+5. **MIT relicense** — **its own follow-up rc** (not rc1; rc1 stayed honest).
 
-**Spine that ships regardless:** Phase 0 verify → Phase 1 floor bump (+ MIT) → Phase 2 version → Phase 3 TestPyPI rc1.
+## Ship order
+
+rc1 (floor + version-8-SSOT + README banner hygiene — SHIPPING) → **rc2** (etak/itn `[class]` TOML + dedup purge, first numpy flip) → rcN… (numpy-removal by component) → numpy-capstone rc (drop numpy dep + zero-numpy ratchet) → MIT-relicense rc → **0.31.0 graduation** to PyPI (human gate). Phase R1 genome spike runs in parallel as a report, ships only if clean.
+
+**Spine that ships regardless:** Phase 0 verify → Phase 1 floor bump → Phase 1.5 README hygiene → Phase 2 version (8 SSOT) → Phase 3 TestPyPI rc1.
