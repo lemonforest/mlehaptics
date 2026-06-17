@@ -7,7 +7,7 @@ name            = "siona"
 version         = "0.1.0"
 summary         = "Siona — grounded RBS-HDC recall instrument: de Bruijn fiber walk + full-body recall over a spectrally-encoded knowledge instrument, on srmech."
 package         = "siona"
-srmech_requires = ">=0.7.4"
+srmech_requires = ">=0.8.1"
 
 # Bridge surface — "name = module:callable"; the loader's smoke test imports each + checks it is callable.
 [profile.bridge]

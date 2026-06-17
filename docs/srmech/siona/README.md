@@ -21,14 +21,14 @@ toks = siona.walk(ids, k)          # de Bruijn fiber walk — reconstruct a sequ
 body = siona.recall(title, instrument_path, index_path)   # full-body recall by title (walk an RBS-HDC instrument)
 ```
 
-The core operation is the **de Bruijn fiber walk**: a body is stored as its minimal-unique-window shape, and recall *walks* that shape from a seed to regenerate the whole sequence — GPU-free, no stored prose, exact when the walk is unique. It is symbol-agnostic (it operates on integer ids), so the same op serves text tokens, DNA bases (de Bruijn graphs are the genome-assembly algorithm), or any discrete stream.
+The core operation is the **de Bruijn fiber walk**: a body is stored as its sequence shape (the relationships — which token follows which), and recall *walks* that shape from a seed to regenerate the whole sequence — GPU-free, no stored prose, exact when the walk is unique. It is symbol-agnostic (it operates on integer ids), so the same op serves text tokens, DNA bases (de Bruijn graphs are the genome-assembly algorithm), or any discrete stream. The store holds the **fiber** (the sequence); a token's Klein-4 HV is a deterministic *projection* recomputed on demand at inference, never persisted per position.
 
 This is the "LM as a k=3 chiral-axis addressing system over a storage substrate" thesis, packaged: srmech is the lean substrate-math; Siona is the addressing/retrieval layer that rides on it.
 
 ## Status
 
 - `0.1.0rc1` is **pure-Python** (portable `py3-none-any`); it depends on `srmech>=0.8.1` (the live MIT-licensed math core).
-- A C-native de Bruijn accelerator (a `[profile.native]` tier), the native-genome recall (via `srmech.amsc.genome`), and error-correcting recall (`klein4_triality_cycle`) are follow-on releases — all production-resolvable on the `srmech>=0.8.1` floor.
+- Recall rides the loose RBS-HDC instrument (an NDJSON of per-body shapes + a title→offset index). A single-file **native srmech genome** of the body corpus (via `srmech.amsc.genome`), a C-native de Bruijn accelerator (a `[profile.native]` tier), and error-correcting recall (`klein4_triality_cycle`) are follow-on releases. The native-genome path is gated on two srmech format fixes — bit-packed leaves (the genome stores each 2-bit Klein-4 lane as a full byte → 4× bloat) and a non-quadratic high-chromosome pack (see the research subtree's UPSTREAM_NOTES §55).
 - TestPyPI release-candidates are published first; a clean (non-rc) tag promotes to PyPI.
 
 - Math core: <https://pypi.org/project/srmech/>

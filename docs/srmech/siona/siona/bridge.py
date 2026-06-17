@@ -1,9 +1,14 @@
-"""Siona's recall surface (the srmech-profile bridge): the de Bruijn fiber walk (F805/F818) + the full-body
-recall path (F825), pure-Python and exact. Symbol-agnostic — operates on integer ids, so the same ops serve
-text tokens, DNA bases (de Bruijn graphs ARE genome assembly), or any discrete stream.
+"""Siona's recall surface (the srmech-profile bridge): the de Bruijn fiber walk (F805/F818) + the full-body recall
+path (F825), pure-Python and exact. Symbol-agnostic — operates on integer ids, so the same ops serve text tokens,
+DNA bases (de Bruijn graphs ARE genome assembly), or any discrete stream.
 
-rc1 is pure-Python (portable). A C-native accelerator (F824, ~3× faster at scale) is a follow-on `[profile.native]`
-platform-wheel tier; the bridge will prefer it when present and fall back to this walk."""
+rc1 recalls from the loose RBS-HDC instrument (an NDJSON of per-body shapes + a title→offset index). A native
+single-file srmech genome (`srmech.amsc.genome`, PKG-3/F832/F833) was prototyped and recalls exactly, but the genome
+format is blocked at corpus scale on two counts — it stores each 2-bit Klein-4 lane as a full byte (a flat 4× bloat)
+and `genome_pack` is O(n²) in chromosome count — both filed upstream (UPSTREAM_NOTES §55). Native-genome bodies are
+revisited once those land; rc1 ships on the loose store. The Klein-4 HV of a token is a deterministic *projection*
+(`klein4_random(seed=hash(token))`) recomputed on demand at inference — the store holds the fiber (the sequence),
+never a spatial HV per position (F833)."""
 import json
 
 __all__ = ["walk", "recall"]
