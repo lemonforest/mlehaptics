@@ -129,11 +129,11 @@
 {"exposed_as": "srmech.amsc.tlv.tlv_pack", "defined_at": "srmech.amsc.tlv.tlv_pack", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.tlv.tlv_unpack", "defined_at": "srmech.amsc.tlv.tlv_unpack", "bucket": "non_compute"}
 {"exposed_as": "srmech.qm.bell.operator_norm", "defined_at": "srmech.qm.bell.operator_norm", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.hdc.klein4_bind", "defined_at": "srmech.amsc.hdc.klein4_bind", "bucket": "c_exists_unbound"}
-{"exposed_as": "srmech.amsc.hdc.klein4_bundle", "defined_at": "srmech.amsc.hdc.klein4_bundle", "bucket": "c_exists_unbound"}
-{"exposed_as": "srmech.amsc.hdc.klein4_similarity", "defined_at": "srmech.amsc.hdc.klein4_similarity", "bucket": "c_exists_unbound"}
+{"exposed_as": "srmech.amsc.hdc.klein4_bind", "defined_at": "srmech.amsc.hdc.klein4_bind", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.hdc.klein4_bundle", "defined_at": "srmech.amsc.hdc.klein4_bundle", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.hdc.klein4_similarity", "defined_at": "srmech.amsc.hdc.klein4_similarity", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.hdc.klein4_triality_cycle", "defined_at": "srmech.amsc.hdc.klein4_triality_cycle", "bucket": "c_exists_unbound"}
-{"exposed_as": "srmech.amsc.hdc.klein4_unbind", "defined_at": "srmech.amsc.hdc.klein4_unbind", "bucket": "c_exists_unbound"}
+{"exposed_as": "srmech.amsc.hdc.klein4_unbind", "defined_at": "srmech.amsc.hdc.klein4_unbind", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.coupled_wave", "defined_at": "srmech.amsc.cascade.coupled.coupled_wave", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.hamming_decode_correct", "defined_at": "srmech.amsc.cascade.hamming.hamming_decode_correct", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.multiplex_streams", "defined_at": "srmech.amsc.cascade.coupled.multiplex_streams", "bucket": "composition_of_c"}

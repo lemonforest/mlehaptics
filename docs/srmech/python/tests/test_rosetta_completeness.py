@@ -70,10 +70,15 @@ CEIL_PYTHON_ONLY_IRREDUCIBLE = 107
 # all int8, bit-exact -> 6.
 # rc13: lmmse.op routes its solve through the dense_solve cascade + its matvec
 # through dense_matvec_complex (numpy is carriers-only there now) -> composes two
-# c_dispatched ops -> composition_of_c -> 5. The remaining 5 are the Klein-4
-# family, gated on W5 (see also test_numpy_math_ratchet.py — the source-level
-# guard that keeps numpy a carrier, not a math engine).
-CEIL_C_EXISTS_UNBOUND = 5
+# c_dispatched ops -> composition_of_c -> 5. The remaining 5 were the Klein-4
+# family (see also test_numpy_math_ratchet.py — the source-level guard that keeps
+# numpy a carrier, not a math engine).
+# rc170 (§53 / F818): klein4_bind/_bundle/_similarity dispatch to srmech_klein4_*
+# (the C twins always shipped + were ctypes-bound; hdc.py just never called them)
+# -> c_dispatched; klein4_unbind == klein4_bind(c, a) so it composes the now-
+# dispatched bind -> composition_of_c. 5 -> 1 (only klein4_triality_cycle, whose
+# srmech_klein4_triality_cycle twin is not yet wired, remains the debt).
+CEIL_C_EXISTS_UNBOUND = 1
 
 _DEBT_BUCKETS = ("python_only_irreducible", "c_exists_unbound")
 _ALL_BUCKETS = (

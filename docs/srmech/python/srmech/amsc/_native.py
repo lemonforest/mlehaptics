@@ -1499,6 +1499,22 @@ def has_native_klein4_fold() -> bool:
                 and hasattr(LIB, "srmech_klein4_bundle_accumulate"))
 
 
+def has_native_klein4_bind() -> bool:
+    """True iff the Class-M klein4 CORE primitives — bind / bundle / similarity —
+    are loaded + bound (UPSTREAM §53 / F818). The C (sector XOR-bind, per-bit
+    majority-bundle, Hamming/sector similarity) ships in libsrmech and is
+    ctypes-bound; this gates the dispatch in :func:`srmech.amsc.hdc.klein4_bind`
+    / :func:`~srmech.amsc.hdc.klein4_bundle` / :func:`~srmech.amsc.hdc.klein4_similarity`.
+    The native path is ~100–1000× the pure-Python one at HDC dimension D≈10⁴, so a
+    per-token HDC content-addressed walk (the F808 RBS-HDC recall) becomes viable
+    as the live engine. False on a no-C lib — pure-Python is the complete
+    alternative (bit-identical)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_klein4_bind")
+                and hasattr(LIB, "srmech_klein4_bundle")
+                and hasattr(LIB, "srmech_klein4_similarity"))
+
+
 def has_native_fiedler_sparse() -> bool:
     """True iff the §51 native sparse normalized-cut Fiedler is loaded + bound
     (rc166+ lib): the matvec power iteration runs in C (n unbounded, caller-
