@@ -2187,6 +2187,17 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
+            name="srmech.amsc.hdc.klein4_unbundle", owner="srmech", category="hdc",
+            summary="Klein-4 unbundle: recover a bound value from a bundle "
+                    "(superposition) by binding the key back (= unbind on the "
+                    "bundle). Exact for a single bound pair; inside a multi-pair "
+                    "bundle returns value+crosstalk — clean up with "
+                    "klein4_similarity against a codebook (recoverable up to HDC "
+                    "capacity). bundle's dual = unbundle + similarity-cleanup.",
+            parameters=(P("bundle", "HV", True), P("key", "HV", True)),
+            returns=R("HV", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
             name="srmech.amsc.hdc.klein4_bundle", owner="srmech", category="hdc",
             summary="Klein-4 bundle: per-bit majority on each of the 2 bits "
                     "independently; accepts any count n>=1 (even or odd); "

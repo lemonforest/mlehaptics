@@ -858,6 +858,39 @@ def klein4_unbind(c, a):
     return klein4_bind(c, a)
 
 
+def klein4_unbundle(bundle, key):
+    """Klein-4 unbundle: recover a bound value from a bundle (superposition) —
+    the dual of :func:`klein4_bundle`.
+
+    A record is built by bundling bound key→value pairs,
+    ``S = bundle(bind(k1, v1), …, bind(kn, vn))``. Binding a key **back** against
+    the superposition recovers that key's value plus crosstalk from the other
+    terms: ``unbundle(S, ki) == unbind(S, ki) == bind(S, ki)`` (self-inverse XOR).
+    This works precisely *because the bundle keeps the relationship* — the bound
+    pairs are still present in ``S``; it needs neither the individual pre-bundle
+    vectors nor a separate index. For a single bound pair it is **exact**
+    (``unbundle(bind(k, v), k) == v``); inside a multi-pair bundle the result is
+    the value-plus-crosstalk estimate.
+
+    Clean up the estimate to the exact stored value with :func:`klein4_similarity`
+    against a codebook of candidate values
+    (``argmax_v similarity(unbundle(S, key), v)``) — recoverable up to the HDC
+    bundle capacity. So ``bundle``'s dual is **unbundle + similarity-cleanup**, a
+    structured bind-back recovery — NOT a blind query. (Class M is reversible,
+    capacity-bounded; the per-class reversibility audit is corrected accordingly.)
+
+    Args:
+        bundle: A Klein-4 superposition (uint8 ``{0,1,2,3}``), e.g. from
+            :func:`klein4_bundle`.
+        key: The binding key (uint8 ``{0,1,2,3}``, same length as ``bundle``).
+
+    Returns:
+        The recovered value + crosstalk (uint8 ``{0,1,2,3}``); denoise via
+        :func:`klein4_similarity` against your codebook.
+    """
+    return klein4_bind(bundle, key)
+
+
 def klein4_bundle(*vectors, sectors=None, parallel=None, mode="chunk"):
     """Klein-4 bundle: per-bit majority vote on each of the 2 bits
     independently. Accepts ANY number of vectors ``n >= 1`` (even OR odd —
@@ -2138,6 +2171,7 @@ __all__ = [
     "klein4_random",
     "klein4_bind",
     "klein4_unbind",
+    "klein4_unbundle",
     "klein4_bundle",
     "klein4_similarity",
     "klein4_bundle_accumulate",

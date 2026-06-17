@@ -8,6 +8,14 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc172] - 2026-06-17
+
+**`klein4_unbundle` — name the bundle's dual + correct the Class-M reversibility audit.** The per-class reversibility audit (`srmech_research_notebook.md` §3.27) used to mark Class M (HDC) **MIXED**, pinning it on "`bundle` irreversible — no `unbundle`, only the `similarity` query." That under-stated it: `bundle`'s dual **is** `unbundle` = `unbind`-on-the-bundle + `similarity`-cleanup, recoverable *because the bundle keeps the relationship* (the bound key→value pairs are still present in the superposition).
+
+- **New `srmech.amsc.hdc.klein4_unbundle(bundle, key)`** → recover a bound value from a bundle by binding the key back: `unbundle(S, kᵢ) = unbind(S, kᵢ) = bind(S, kᵢ)` (self-inverse XOR). **Exact** for a single bound pair (`unbundle(bind(k, v), k) == v`); inside a multi-pair record it returns value-plus-crosstalk — denoise to the exact value with `klein4_similarity` against your value codebook (`argmax_v similarity(unbundle(S, key), v)`), recoverable up to the HDC bundle capacity. A pure **`composition_of_c`** over the rc170-native `klein4_bind`; no new C symbol, no new param type (two `HV` args), ABI stays **3**.
+- **Reversibility audit corrected** (`§3.27`): Correction 2 + the Class-M table row + the "fundamentally one-way" list now read `bundle ↔ unbundle` (bind-back + cleanup), **recoverable up to capacity** — the capacity number is the recall bound (the analog of Class L's float-carrier floor), not proof of a missing inverse. Class M is **reversible (capacity-bounded)**, not "MIXED/irreversible bundle." `bundle↔unbundle` joins `tlv_pack↔tlv_unpack` (rc134) as an acted-on output of the audit.
+- **Verified:** `test_klein4_unbundle_rc172.py` (single-pair exact recall; `unbundle == bind == unbind` composition identity; a 3-pair record where `unbundle` + `similarity`-cleanup recovers each key's value). One new ToolEntry → `tools.total` **309 → 310** (`klein4_unbundle` = `composition_of_c`). numpy-free; 5 SSOT bumped.
+
 ## [0.7.5rc171] - 2026-06-17
 
 **§53 / F818 — wire the last klein4 op, closing the `c_exists_unbound` debt to ZERO.** rc170 wired the klein4 core (bind / bundle / similarity); `klein4_triality_cycle` was the one remaining op with a shipped, ctypes-bound C twin (`srmech_klein4_triality_cycle`) that `hdc.py` never called. rc171 wires it — so **every public srmech op that has a C twin now dispatches to it**.
