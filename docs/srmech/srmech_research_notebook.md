@@ -11,6 +11,7 @@
 
 **Status:** Active. **Master architecture notebook for the spectral-research collection.** Cross-domain pollination layer above the per-domain notebooks (chess / ephemerides / antikythera / doom / othello / logo / MFO); home for domains without their own notebook (currently: graphics-domain Inkscape / Skia / GEGL).
 **Version:** v0.1 (master-architecture framing; was v0 inception-only).
+**Latest srmech package release:** **v0.8.0** (graduates the long v0.7.5rc carrier-removal line; 0.7.5 is skipped on production PyPI and the accumulated additions ship as the 0.8.0 minor). Headline 0.8.0 surface: **numpy-free** (numpy removed entirely; `Mat`/`Vec`/`HV` carriers), the **native Class-M HDC core** (`klein4_{bind,bundle,unbind,unbundle,similarity}` + streaming fold), a **sparse + out-of-core Class-L Fiedler** graph-partition path (breaks the dense n≤256 wall), the **genome storage / file-management** surface (full C parity), and the **class-from-introspection generator**. Prior production releases — v0.7.4 / v0.7.3 / v0.7.1 / v0.7.0 / v0.6.0 / v0.5.0 / v0.4.x / v0.2.0 — remain in PyPI history.
 **Started:** 2026-05-09. Promoted to master architecture notebook same day per user direction.
 **Location:** `docs/srmech/` — top-level home, separate from any single domain.
 

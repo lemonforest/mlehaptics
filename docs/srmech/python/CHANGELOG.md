@@ -6,8 +6,22 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension)._
 
-<!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
+<!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.8.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.8.x entry, -end- immediately before the prior minor (currently [0.7.5rc173], the rc line that graduated as 0.8.0). -->
 <!-- pypi-readme-changelog-start -->
+## [0.8.0rc1] - 2026-06-17
+
+**Graduation candidate — the entire v0.7.5rc1 → rc173 line ships as 0.8.0.** 0.7.5 is **skipped on production PyPI**: the accumulated additions are a minor-version's worth of surface, so they graduate as **0.8.0** rather than a 0.7.5 patch. This rc adds no new code beyond the already-merged 0.7.5rc line — it relabels the version and refreshes the PyPI README + research notebook to cite **0.8.0** as the latest release. Headline additions consolidated into 0.8.0:
+
+- **numpy removed entirely** (the rc69–rc134 carrier-removal arc) — no numpy dependency and no `[scientific]` extra; every continuous-math op is a cascade of the 14 primitives over the numpy-free `Mat` / `Vec` / `HV` carriers, fed zero-copy to the native dense kernels. A fresh numpy-absent venv imports and runs the whole package.
+- **Native Class-M HDC core** — `hdc.klein4_{bind,bundle,unbind,unbundle,similarity}` + streaming `klein4_bundle_accumulate` / `klein4_bundle_resolve` all dispatch to C (~8–15× over pure-Python). `klein4_unbundle` names `bundle`'s dual (bind-back + `similarity` cleanup), so Class M is reversible up to capacity — the per-class reversibility audit was corrected to match.
+- **Corpus-scale, low-RAM graph partition** — a sparse / iterative Class-L Fiedler (`laplacian.fiedler_sparse` / `normalized_cut_bisect`) breaks the dense n≤256 eigensolver wall; out-of-core `laplacian.recursive_cut` + `fiedler_sparse_file` + streaming `text.cooccurrence_topk` keep the *encode* (not just the read) bounded for edge devices.
+- **Genome storage + file-management surface** (`amsc.genome.*`) — self-describing strand, in-place byte-splice edit, `.chr` bundles, loose↔packed, AMSC-compose; full standalone-C parity (caller-arena scratch, no compiled-in size caps).
+- **Config-driven classes both directions** — `dsl.generate_class_descriptor` emits a `[class].toml` by introspecting what srmech already is (the inverse of `make_class`).
+- **Exact-until-rotation** DFT / eigenvalues (integer cyclotomic engine), the C-transpile of the transcendental cascade, the Rosetta-completeness ratchet (`c_exists_unbound` debt → 0), the PAL (platform-abstraction layer) centralization, and removal of the `siona` co-name mirror.
+
+ABI **3**; full native C / Python parity; `describe()["tools"]["total"]` = **310**. Per-rc detail for the whole line is preserved in the `[0.7.5rcN]` entries below.
+
+<!-- pypi-readme-changelog-end -->
 ## [0.7.5rc173] - 2026-06-17
 
 **Remove the `siona` co-name mirror — free the name for a downstream `srmech + inference` package.** From v0.4.4 the srmech wheel bundled a second top-level package, `siona`, that aliased every `srmech.*` object (`pip install srmech` → `import siona` returned the same objects), paired with a standalone `siona` metapackage on PyPI and a dedicated publish workflow. That mirror is now retired: srmech stays the scaffolding, and the `siona` name is reserved for a separate package (srmech + inference) developed in another session. No srmech public surface changes — `tools.total` stays **310**, ABI stays **3**, the package is numpy-free.
@@ -2459,7 +2473,6 @@ The first v0.7.0 voxel: srmech gains the octonion product (the gauge *arithmetic
 
 Canonical SSoT: Baez, J.C. (2002) "The Octonions", Bull. Amer. Math. Soc. 39, 145. +6 ToolEntries (179 → **185**). ABI stays **3** (pure-Python, additive). JPL audit ratchet unchanged.
 
-<!-- pypi-readme-changelog-end -->
 ## [0.6.0] - 2026-06-01
 
 **Production graduation of the v0.6.0 rc1–rc21 lean-ISA voxel arc to PyPI.** The clean (non-rc) tag promotes the **rc21** state already verified-green on TestPyPI — the only delta from rc21 is this version string + entry, and the full pedantic-C (gcc/clang/MSVC) + 4-cell test matrix + pure-wheel build re-verify the `0.6.0` build before the production tag. ABI **3**; `describe()` total **179**.

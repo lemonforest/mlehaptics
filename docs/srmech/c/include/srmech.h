@@ -62,10 +62,10 @@ extern "C" {
  * version at tag time; mismatch fails the publish.
  * ------------------------------------------------------------------ */
 #define SRMECH_VERSION_MAJOR 0
-#define SRMECH_VERSION_MINOR 7
-#define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc173"
-#define SRMECH_VERSION       "0.7.5rc173"
+#define SRMECH_VERSION_MINOR 8
+#define SRMECH_VERSION_PATCH 0
+#define SRMECH_VERSION_PRE   "rc1"
+#define SRMECH_VERSION       "0.8.0rc1"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
