@@ -337,12 +337,12 @@
       "size_bytes": 9845
     },
     "_research/bip_hd_lift.py": {
-      "sha256": "50be51ba5132f5cb90438905f8fbad0257c5403444423df5a95af4c20578ffe8",
-      "size_bytes": 8153
+      "sha256": "d0afdb5a1bd30fb12f21fe74675f755d2f84a5c9d11e666834f9edfdff033a90",
+      "size_bytes": 9981
     },
     "_research/bip_instrument.py": {
-      "sha256": "01dfb9227af6edba99eb2e05c0eb1ebfd29e21e3e5e78a9586d23d1670a24c2f",
-      "size_bytes": 25588
+      "sha256": "263abcd457c1c084617d93da55a053034449ee52fcf63815838912fc09bc9dbb",
+      "size_bytes": 27503
     },
     "_research/bodies.py": {
       "sha256": "baf75251aa8d89a1d810dec955b1b53a4d4dc466e248ba75ade428248ce415d7",
@@ -421,8 +421,8 @@
       "size_bytes": 19110
     },
     "_research/ephemeris_reference_instrument.py": {
-      "sha256": "9b0db0f91f428a4b0cfcbdf8b9dba30c871b0f3faebdc062a7aff8024a4d6e51",
-      "size_bytes": 11035
+      "sha256": "20c5896a865eb635027f13bcd718ea9aa767327b1628edada694d1f3e253b1a3",
+      "size_bytes": 13272
     },
     "_research/fluid_instrument.py": {
       "sha256": "da10fff7e2e32d3aa71a7186add52d63e0cd4a0f5c167327b0d8f1dd135b5476",
@@ -473,8 +473,8 @@
       "size_bytes": 13185
     },
     "_research/laplacian.py": {
-      "sha256": "a3fac93db9102c04c280c81cc96f48921a209bb6cb27fc4b3616483d0f44a9a8",
-      "size_bytes": 12233
+      "sha256": "7ed92c234cc5e14376ef4961bda4298e02578cdcb2165c720b0d5e254f918794",
+      "size_bytes": 14761
     },
     "_research/loki_patera_catalog.py": {
       "sha256": "6a53db61aba7ac77f947cadebd5902844a73296cbf26c9153ab5489dfae6910d",
@@ -674,5 +674,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.31.0rc3"
+  "version": "0.31.0rc4"
 }

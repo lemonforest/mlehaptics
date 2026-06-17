@@ -1,8 +1,8 @@
 """Channel-basis byte-parity test (v0.6.1, Tier 2a foundation).
 
 Pins agreement between the Python `_research/portable_prng` +
-``np.exp(1j * phi)`` pipeline and the C ``es_channel_basis`` entry
-point. This is the foundation that lets Tier 2b (HD encode +
+float32-truncated unit-phasor pipeline and the C ``es_channel_basis``
+entry point. This is the foundation that lets Tier 2b (HD encode +
 observer-bind + eclipse projection) produce byte-identical output
 between BIP and C paths.
 
@@ -12,8 +12,8 @@ Skipped when the native binary isn't loaded.
 from __future__ import annotations
 
 import math
+import struct
 
-import numpy as np
 import pytest
 
 from ephemerides_spectral import _native_bip
@@ -29,10 +29,33 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def _py_basis(seed: int, D: int) -> np.ndarray:
-    """Python-side reference basis: splitmix64 phases → complex64 unit vectors."""
+# v0.31.0rc4: numpy-free oracle helpers. The bases are list[complex] whose
+# components are float32-truncated; comparison is byte-for-byte via
+# struct.pack (interleaved float32 (re, im) per element).
+def _f32(x: float) -> float:
+    return struct.unpack("f", struct.pack("f", float(x)))[0]
+
+
+def _c64_bytes(arr) -> bytes:
+    buf = bytearray()
+    for z in arr:
+        zc = complex(z)
+        buf += struct.pack("<ff", zc.real, zc.imag)
+    return bytes(buf)
+
+
+def _max_abs_diff(a, b) -> float:
+    return max((abs(complex(x) - complex(y)) for x, y in zip(a, b)), default=0.0)
+
+
+def _py_basis(seed: int, D: int):
+    """Python-side reference basis: splitmix64 phases → complex64 unit vectors.
+
+    float32-truncated (complex64-equivalent) via _f32 — byte-identical to
+    the old ``np.complex64(np.exp(1j*p))`` path (validated).
+    """
     phases = splitmix64_phases(seed, D)
-    return np.array([np.exp(1j * p) for p in phases], dtype=np.complex64)
+    return [complex(_f32(math.cos(p)), _f32(math.sin(p))) for p in phases]
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -91,26 +114,24 @@ def test_channel_basis_byte_identical_py_vs_c(seed: int, D: int) -> None:
     """
     c = _native_bip.native_channel_basis(seed, D)
     py = _py_basis(seed, D)
-    assert c.dtype == np.complex64
-    assert py.dtype == np.complex64
-    assert c.shape == py.shape == (D,)
-    # Strictest possible check: byte-identical complex64 arrays.
-    assert np.array_equal(c, py), (
+    assert len(c) == len(py) == D
+    # Strictest possible check: byte-identical complex64 buffers.
+    assert _c64_bytes(c) == _c64_bytes(py), (
         f"channel-basis byte mismatch at seed={seed}, D={D}: "
-        f"max |c-py| = {np.max(np.abs(c - py))}"
+        f"max |c-py| = {_max_abs_diff(c, py)}"
     )
 
 
 def test_channel_basis_unit_magnitude() -> None:
     """Each basis element has |z| = 1 (unit-magnitude complex). The
-    np.float32 truncation of cos/sin can land slightly off unity; the
+    float32 truncation of cos/sin can land slightly off unity; the
     tolerance reflects that.
     """
     basis = _native_bip.native_channel_basis(2026, 4096)
-    mags = np.abs(basis)
+    max_mag_err = max(abs(abs(complex(z)) - 1.0) for z in basis)
     # float32 worst-case: cos²+sin² rounds to within ~1e-6 of 1.0
-    assert np.max(np.abs(mags - 1.0)) < 1e-6, (
-        f"basis not unit-magnitude: max|mag-1|={np.max(np.abs(mags-1.0))}"
+    assert max_mag_err < 1e-6, (
+        f"basis not unit-magnitude: max|mag-1|={max_mag_err}"
     )
 
 
@@ -121,9 +142,9 @@ def test_channel_basis_distinct_seeds_distinct_bases() -> None:
     b = _native_bip.native_channel_basis(2027, 1024)
     c = _native_bip.native_channel_basis(2028, 1024)
     # Different bases should NOT be elementwise close.
-    assert np.max(np.abs(a - b)) > 0.1
-    assert np.max(np.abs(b - c)) > 0.1
-    assert np.max(np.abs(a - c)) > 0.1
+    assert _max_abs_diff(a, b) > 0.1
+    assert _max_abs_diff(b, c) > 0.1
+    assert _max_abs_diff(a, c) > 0.1
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -131,17 +152,14 @@ def test_channel_basis_distinct_seeds_distinct_bases() -> None:
 # ──────────────────────────────────────────────────────────────────────
 
 
-def _py_turn_integer_basis(seed: int, D: int) -> np.ndarray:
-    """Python-side reference TURN_INTEGER basis (complex64).
+def _py_turn_integer_basis(seed: int, D: int):
+    """Python-side reference TURN_INTEGER basis (complex64-truncated list).
 
     Mirrors `c/src/es_channel_bases.c::es_channel_basis_turn_integer_route`
-    via `splitmix64_turn_integer_basis()` + complex64 cast.
+    via `splitmix64_turn_integer_basis()` + float32 truncation.
     """
     pairs = splitmix64_turn_integer_basis(seed, D)
-    return np.array(
-        [complex(re, im) for re, im in pairs],
-        dtype=np.complex64,
-    )
+    return [complex(_f32(re), _f32(im)) for re, im in pairs]
 
 
 @pytest.mark.parametrize("seed,D", [
@@ -179,12 +197,10 @@ def test_channel_basis_turn_integer_byte_identical_py_vs_c(
     """
     c = _native_bip.native_channel_basis_turn_integer(seed, D)
     py = _py_turn_integer_basis(seed, D)
-    assert c.dtype == np.complex64
-    assert py.dtype == np.complex64
-    assert c.shape == py.shape == (D,)
-    assert np.array_equal(c, py), (
+    assert len(c) == len(py) == D
+    assert _c64_bytes(c) == _c64_bytes(py), (
         f"TURN_INTEGER channel-basis byte mismatch at seed={seed}, D={D}: "
-        f"max |c-py| = {np.max(np.abs(c - py))}"
+        f"max |c-py| = {_max_abs_diff(c, py)}"
     )
 
 

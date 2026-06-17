@@ -33,10 +33,67 @@ mathematically equivalent under cos(), and consistent with the v0.1.0
 Jupiter-Saturn 5:2 wiring (n_J = 5, m_S = 2).
 """
 
-import numpy as np
+import cmath
+import math
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 from .bodies import BODIES, Body
+
+
+# ---------------------------------------------------------------------------
+# numpy-free linear-algebra helpers (v0.31.0rc4)
+# ---------------------------------------------------------------------------
+#
+# These replace the handful of numpy/scipy operations the breathing
+# Laplacian needs. Matrices are plain ``list[list[complex]]`` (row-major);
+# scalar transcendentals route through stdlib ``math``/``cmath`` so the
+# float bytes match the previous numpy path (same libm).
+
+
+def _zeros(n: int) -> List[List[complex]]:
+    """n x n zero matrix as a list-of-lists of complex."""
+    return [[0j for _ in range(n)] for _ in range(n)]
+
+
+def _matvec(M: List[List[complex]], v: List[complex]) -> List[complex]:
+    """Dense matrix * vector (complex)."""
+    n = len(M)
+    out: List[complex] = [0j] * n
+    for i in range(n):
+        row = M[i]
+        s = 0j
+        for j in range(n):
+            s += row[j] * v[j]
+        out[i] = s
+    return out
+
+
+def expm_neg_i_hermitian(L_rows: List[List[complex]], t: float) -> List[List[complex]]:
+    """``expm(-1j * L * t)`` for a Hermitian ``L`` via eigendecomposition.
+
+    ``L_rows`` is a Hermitian matrix as ``list[list[complex]]``. Using
+    the spectral theorem ``expm(-1j L t) = V diag(exp(-i lambda t)) V^H``
+    via srmech's numpy-free Hermitian eigensolver. Matches
+    ``scipy.linalg.expm(-1j*L*t)`` to ~1e-12 (validated against the
+    pre-flip path).
+    """
+    from srmech.amsc.mat import Mat
+    from srmech.amsc.laplacian import mat_hermitian_eigendecompose
+
+    n = len(L_rows)
+    eigvals, eigvecs = mat_hermitian_eigendecompose(Mat.from_rows(L_rows))
+    lam = [row[0].real if hasattr(row[0], "real") else float(row[0])
+           for row in eigvals.tolist()]
+    V = eigvecs.tolist()  # n x n complex; columns are the eigenvectors
+    g = [cmath.exp(complex(0.0, -1.0) * lk * t) for lk in lam]
+    out = [[0j] * n for _ in range(n)]
+    for i in range(n):
+        for j in range(n):
+            s = 0j
+            for k in range(n):
+                s += V[i][k] * g[k] * V[j][k].conjugate()
+            out[i][j] = s
+    return out
 
 
 @dataclass(frozen=True)
@@ -93,37 +150,37 @@ class SolarSystemLaplacian:
         # 3. Static Fiber couplings
         self.L_static = self._build_static_couplings()
 
-    def _build_trunk_diagonal(self) -> np.ndarray:
-        L = np.zeros((self.n, self.n), dtype=np.complex128)
+    def _build_trunk_diagonal(self) -> List[List[complex]]:
+        L = _zeros(self.n)
         for i, name in enumerate(self.body_names):
             body = BODIES[name]
             if body.period_days > 0:
-                L[i, i] = 2.0 * np.pi / body.period_days
+                L[i][i] = 2.0 * math.pi / body.period_days
         return L
 
-    def _calculate_pn_corrections(self) -> np.ndarray:
+    def _calculate_pn_corrections(self) -> List[List[complex]]:
         """Calculate Post-Newtonian frequency shifts (Subtle frequency drag)."""
-        L = np.zeros((self.n, self.n), dtype=np.complex128)
+        L = _zeros(self.n)
         # Relativistic precession of Mercury is the classic example
         # (Approx. 43 arcseconds per century)
         # 43 arcsec / century = 43 * (pi / 180 / 3600) / (100 * 365.25) rad/day
-        mercury_precession = 43 * (np.pi / 180 / 3600) / (36525.0)
+        mercury_precession = 43 * (math.pi / 180 / 3600) / (36525.0)
         if "mercury" in self.body_to_idx:
             idx = self.body_to_idx["mercury"]
-            L[idx, idx] = mercury_precession
+            L[idx][idx] = mercury_precession
         return L
 
-    def _build_static_couplings(self) -> np.ndarray:
-        L = np.zeros((self.n, self.n), dtype=np.complex128)
+    def _build_static_couplings(self) -> List[List[complex]]:
+        L = _zeros(self.n)
         couplings = self._define_couplings()
         for b1, b2, weight in couplings:
             idx1 = self.body_to_idx[b1]
             idx2 = self.body_to_idx[b2]
-            L[idx1, idx2] = -weight
-            L[idx2, idx1] = -weight
+            L[idx1][idx2] = -weight
+            L[idx2][idx1] = -weight
         return L
 
-    def get_dynamic_laplacian(self, current_phases: np.ndarray) -> np.ndarray:
+    def get_dynamic_laplacian(self, current_phases) -> List[List[complex]]:
         """State-dependent (non-autonomous) graph Laplacian.
 
         Walks the module-level RESONANCES table and applies the
@@ -135,7 +192,12 @@ class SolarSystemLaplacian:
         Returns the combined Hermitian matrix
         `L_trunk + L_pn + L_static * modulation`.
         """
-        L = self.L_trunk + self.L_pn + self.L_static.copy()
+        n = self.n
+        L = [
+            [self.L_trunk[i][j] + self.L_pn[i][j] + self.L_static[i][j]
+             for j in range(n)]
+            for i in range(n)
+        ]
 
         alpha = 0.1
         for r in RESONANCES:
@@ -144,9 +206,9 @@ class SolarSystemLaplacian:
             idx_a = self.body_to_idx[r.body_a]
             idx_b = self.body_to_idx[r.body_b]
             res_phase = r.n_a * current_phases[idx_a] - r.m_b * current_phases[idx_b]
-            modulation = 1.0 + alpha * np.cos(res_phase)
-            L[idx_a, idx_b] *= modulation
-            L[idx_b, idx_a] *= modulation
+            modulation = 1.0 + alpha * math.cos(res_phase)
+            L[idx_a][idx_b] *= modulation
+            L[idx_b][idx_a] *= modulation
 
         return L
 
@@ -160,7 +222,7 @@ class SolarSystemLaplacian:
             if body.category == "planet":
                 # Interaction strength proportional to sqrt(m1*m2)
                 # scaled to be a perturbation (e.g. 0.01% of mean motion)
-                weight = 1e-6 * np.sqrt(body.mass_earth * sun_mass)
+                weight = 1e-6 * math.sqrt(body.mass_earth * sun_mass)
                 couplings.append(("sun", name, weight))
                 
         # Secondary: Moons to their parent planets
@@ -186,7 +248,7 @@ class SolarSystemLaplacian:
         for moon, planet in moon_map.items():
             if moon not in BODIES:
                 continue
-            weight = 1e-4 * np.sqrt(BODIES[moon].mass_earth * BODIES[planet].mass_earth)
+            weight = 1e-4 * math.sqrt(BODIES[moon].mass_earth * BODIES[planet].mass_earth)
             couplings.append((planet, moon, weight))
             
         # Tertiary: Resonances and major perturbations.
@@ -196,14 +258,14 @@ class SolarSystemLaplacian:
 
         # Jupiter-Saturn 5:2 (Great Conjunction)
         couplings.append(("jupiter", "saturn",
-            1e-5 * np.sqrt(BODIES["jupiter"].mass_earth * BODIES["saturn"].mass_earth)))
+            1e-5 * math.sqrt(BODIES["jupiter"].mass_earth * BODIES["saturn"].mass_earth)))
 
         # Neptune-Pluto 3:2 (orbital resonance). Pluto is in a stable
         # 3:2 mean-motion resonance with Neptune; smaller mass-product
         # than J-S so the coupling is correspondingly smaller.
         if "pluto" in BODIES:
             couplings.append(("neptune", "pluto",
-                1e-5 * np.sqrt(BODIES["neptune"].mass_earth * BODIES["pluto"].mass_earth)))
+                1e-5 * math.sqrt(BODIES["neptune"].mass_earth * BODIES["pluto"].mass_earth)))
 
         # Laplace resonance — three-body 4:2:1 mean-motion lock among
         # Io, Europa, Ganymede. Wired here as two pairwise Phase 9
@@ -211,9 +273,9 @@ class SolarSystemLaplacian:
         # couplings are stronger than moon-planet because the moons sit
         # close together in their parent's gravity well.
         couplings.append(("io", "europa",
-            1e-3 * np.sqrt(BODIES["io"].mass_earth * BODIES["europa"].mass_earth)))
+            1e-3 * math.sqrt(BODIES["io"].mass_earth * BODIES["europa"].mass_earth)))
         couplings.append(("europa", "ganymede",
-            1e-3 * np.sqrt(BODIES["europa"].mass_earth * BODIES["ganymede"].mass_earth)))
+            1e-3 * math.sqrt(BODIES["europa"].mass_earth * BODIES["ganymede"].mass_earth)))
 
         # v0.5.0: famous Saturnian mean-motion resonances. The static
         # weight here is what the Phase 9 breathing modulation scales;
@@ -223,49 +285,57 @@ class SolarSystemLaplacian:
         # scaling factor as the Galileans.
         if "mimas" in BODIES and "tethys" in BODIES:
             couplings.append(("mimas", "tethys",
-                1e-3 * np.sqrt(BODIES["mimas"].mass_earth * BODIES["tethys"].mass_earth)))
+                1e-3 * math.sqrt(BODIES["mimas"].mass_earth * BODIES["tethys"].mass_earth)))
         if "enceladus" in BODIES and "dione" in BODIES:
             couplings.append(("enceladus", "dione",
-                1e-3 * np.sqrt(BODIES["enceladus"].mass_earth * BODIES["dione"].mass_earth)))
+                1e-3 * math.sqrt(BODIES["enceladus"].mass_earth * BODIES["dione"].mass_earth)))
         if "titan" in BODIES and "hyperion" in BODIES:
             couplings.append(("titan", "hyperion",
-                1e-3 * np.sqrt(BODIES["titan"].mass_earth * BODIES["hyperion"].mass_earth)))
+                1e-3 * math.sqrt(BODIES["titan"].mass_earth * BODIES["hyperion"].mass_earth)))
 
         # Asteroids to Jupiter (no Phase 9 modulation; static perturbation only)
         for ast in ["ceres", "vesta", "pallas", "hygiea"]:
             couplings.append(("jupiter", ast,
-                1e-7 * np.sqrt(BODIES["jupiter"].mass_earth * BODIES[ast].mass_earth)))
+                1e-7 * math.sqrt(BODIES["jupiter"].mass_earth * BODIES[ast].mass_earth)))
 
         return couplings
 
     @property
-    def L_lti(self) -> np.ndarray:
+    def L_lti(self) -> List[List[complex]]:
         """LTI snapshot: trunk + PN + static couplings, no breathing.
 
         Provided for reference / regression baselines (the Phase 8 propagator).
         For Phase 9 evolution, use ``get_dynamic_laplacian(current_phases)``
         and integrate iteratively in chunks.
         """
-        return self.L_trunk + self.L_pn + self.L_static
+        n = self.n
+        return [
+            [self.L_trunk[i][j] + self.L_pn[i][j] + self.L_static[i][j]
+             for j in range(n)]
+            for i in range(n)
+        ]
 
-    def get_propagator(self, delta_days: float) -> np.ndarray:
+    def get_propagator(self, delta_days: float) -> List[List[complex]]:
         """Compute the LTI unitary propagator U = exp(-i * L_lti * delta_days).
 
         Note: this is the static (Phase 8) propagator. For Phase 9 breathing
         dynamics, callers should iterate ``get_dynamic_laplacian`` in chunks
         rather than relying on a single matrix exponential.
-        """
-        from scipy.linalg import expm
-        return expm(-1j * self.L_lti * delta_days)
 
-    def evolve_state(self, initial_phases: np.ndarray, delta_days: float) -> np.ndarray:
+        v0.31.0rc4: numpy-free. ``L_lti`` is Hermitian, so the unitary
+        propagator is computed by Hermitian eigendecomposition
+        (``expm_neg_i_hermitian``) instead of ``scipy.linalg.expm``.
+        """
+        return expm_neg_i_hermitian(self.L_lti, float(delta_days))
+
+    def evolve_state(self, initial_phases, delta_days: float) -> List[float]:
         """Evolve phases using the LTI propagator (Phase 8 baseline).
 
         Returns the evolved phases in radians. For Phase 9 dynamics the BIP
         and reference instruments do their own chunked integration over
         ``get_dynamic_laplacian`` — this method is kept for the LTI baseline.
         """
-        psi_0 = np.exp(1j * initial_phases)
+        psi_0 = [cmath.exp(1j * p) for p in initial_phases]
         U = self.get_propagator(delta_days)
-        psi_t = U @ psi_0
-        return np.angle(psi_t)
+        psi_t = _matvec(U, psi_0)
+        return [cmath.phase(z) for z in psi_t]
