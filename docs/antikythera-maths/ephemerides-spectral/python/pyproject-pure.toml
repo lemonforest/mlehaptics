@@ -101,3 +101,6 @@ exclude = [
 # needs explicit inclusion for TOMLs since they're data not Python.
 "ephemerides_spectral/srmech_profile.toml" = "ephemerides_spectral/srmech_profile.toml"
 "ephemerides_spectral/_srmech_tool_schema.toml" = "ephemerides_spectral/_srmech_tool_schema.toml"
+# rc2 — config-driven srmech [class] catalog (GatewayNavigation = the
+# ITN / etak navigation cascade). Data TOML, needs explicit inclusion.
+"ephemerides_spectral/_research/class_catalog/gateway_navigation.toml" = "ephemerides_spectral/_research/class_catalog/gateway_navigation.toml"
