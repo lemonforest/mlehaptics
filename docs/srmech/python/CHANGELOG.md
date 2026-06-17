@@ -8,6 +8,14 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.8.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.8.x entry, -end- immediately before the prior minor (currently [0.7.5rc173], the rc line that graduated as 0.8.0). -->
 <!-- pypi-readme-changelog-start -->
+## [0.8.1] - 2026-06-17
+
+**Production graduation of `0.8.1rc1` to PyPI** (TestPyPI-verified, numpy-absent shipped wheel: `License-Expression: MIT`, no GPL classifier, `tools.total` 310, ABI 3). The line carries the **MIT relicense** (the whole shipped tree — `python/srmech/` + `c/` — is MIT; the monorepo root stays GPL-3, by design: math is the scaffolding) and the **RTD substrate-native-maths link fix**. This graduation adds one docs-only change:
+
+- **Dropped the inline `**Status:** vX.Y.Z — …` README banner.** The PyPI project page already shows the published version at the top, and the changelog slice (appended by the fancy-pypi-readme hook) already carries "what's new", so the per-ship inline Status banner was redundant and required a manual bump every release. Version numbers inside the descriptive body prose are kept (they're historical and don't change).
+
+No code change vs `0.8.1rc1`; `tools.total` **310**, ABI **3**, numpy-free, MIT.
+
 ## [0.8.1rc1] - 2026-06-17
 
 **MIT relicense + a broken RTD link fix** (docs / metadata only — no code change). Two user-requested corrections ahead of the next production cut:
