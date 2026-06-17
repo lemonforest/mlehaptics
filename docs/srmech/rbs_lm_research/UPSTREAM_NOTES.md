@@ -1762,7 +1762,7 @@ wheel in a numpy-free venv (`R-RBS-LM-GENOMELANDS...py`):
 **not** ship; we still hand-roll edges. (Ask 3, the wired 1024-node 4-sector spectral block, also not yet a shipped
 one-call surface.) See F716.
 
-## §39 ASK — a class GENERATOR from introspection: introspection→`[class].toml` (the inverse of `make_class`; 2026-06-09; F716/F717)
+## §39 ASK — a class GENERATOR from introspection: introspection→`[class].toml` (the inverse of `make_class`; 2026-06-09; F716/F717) — **✅ LANDED rc49 (`dsl.generate_class_descriptor`; verified on the rc173 wheel, F830)**
 
 rc42 shipped the class-from-TOML loader (`srmech.dsl.make_class`: **TOML→class**), class-aware **Class-H
 introspection** (`srmech.introspect` enumerates its own `[class]` classes; its docstring already frames
@@ -2243,7 +2243,7 @@ rung) without per-graph q-tuning. Demonstrated as test material: `R-RBS-LM-RELED
 - **Differential verified (the exact ask):** the native `genome_save` strand is **BYTE-IDENTICAL** to the forced-pure-Python strand — `manifest.json` + `turns.bin` sha256 match (patched `_native.has_native_genome=lambda:False` to force the pure path, same input genome). `has_native_genome()=True`. Round-trip clean: save → load → catalog `[('alpha',2),('beta',1)]`; `genome_replace`(alpha 2→3) + `genome_remove`(beta) → `[('alpha',3)]`. Test material: inline differential (this dive); the real Siona genepool also rebuilds + the `/v1` server runs on the rc153 venv (F757 directed tier + steer flip intact).
 - **Status:** §49 RESOLVED. The genome file-management C parity is now real at BOTH levels — C library symbols (rc151) AND Python dispatch (rc153), byte-identical. ABI stays 3 (additive). Remaining tail (not blocking): the bounds-gated fallback means very large genomes (>16 MiB body / >256 chroms) still run pure-Python — fine for Siona; a chunked-native path would be the next rung if a genome ever exceeds it.
 
-## §50 ASK — a STREAMING / native Klein-4 bundle-ACCUMULATE: the holographic DUAL of §17-U1 `cooccurrence_edges` (the fix for "why is the HDC object growing to gigs?") (2026-06-15; F758)
+## §50 ASK — a STREAMING / native Klein-4 bundle-ACCUMULATE: the holographic DUAL of §17-U1 `cooccurrence_edges` (the fix for "why is the HDC object growing to gigs?") (2026-06-15; F758) — **✅ LANDED rc155+rc165 (`hdc.klein4_bundle_accumulate`/`_resolve` + `cooccurrence_fold`; native `has_native_klein4_fold`=True; verified rc173, F830)**
 
 **The catch (user, 2026-06-15):** *"why on earth is an HDC object growing to gigs from the 1 MiB a tome starts with?"* Because the co-occurrence store was built the **explicit-edge** way (a `Counter()`/edge-dict, corpus-LINEAR), not the holographic way. An HDC store should be **fixed-width** — N relationships SUPERPOSE into one bounded bundle; it must not grow with #edges.
 
@@ -2281,7 +2281,7 @@ rung) without per-graph q-tuning. Demonstrated as test material: `R-RBS-LM-RELED
 
 ---
 
-## §51 ASK — a SPARSE / iterative Class-L FIEDLER (normalized-cut), to break the n≤256 dense-eigensolver wall for graph PARTITIONING at corpus scale (2026-06-16; F785, prototype verified) — **FILED: GH lemonforest/mlehaptics#1097**
+## §51 ASK — a SPARSE / iterative Class-L FIEDLER (normalized-cut), to break the n≤256 dense-eigensolver wall for graph PARTITIONING at corpus scale (2026-06-16; F785, prototype verified) — **FILED: GH lemonforest/mlehaptics#1097** — **✅ LANDED rc166 (`laplacian.fiedler_sparse` + `normalized_cut_bisect`; native `has_native_fiedler_sparse`=True; verified rc173 bisects cleanly, F830). GH #1097 closure is the maintainer's.**
 
 **The wall:** the dense Class-L eigensolvers (`jacobi_eigvals` / `symmetric_eigendecompose` / `fiedler_vector`) cap at **n≤256**. So a co-occurrence graph over >256 words **cannot** be spectrally bisected directly — the exact blocker called out in F778 for the "spectral-clumped loopshelf" (partition the 244k-vocab co-occurrence graph into community-tomes). Hierarchical recursion below the first cut is bounded by construction, but the **top cut over the full vocab is n≫256** and has no srmech path today.
 
@@ -2304,7 +2304,7 @@ Before sending the ask, stress-tested the prototype (`R-RBS-LM-ETAKNAV_…py`) o
 
 ---
 
-## §52 ASK — LOW-RAM ENCODE: streaming co-occurrence + out-of-core recursive partition ON the PAL (so encoding, not just reading, fits an edge device) (2026-06-16; F793)
+## §52 ASK — LOW-RAM ENCODE: streaming co-occurrence + out-of-core recursive partition ON the PAL (so encoding, not just reading, fits an edge device) (2026-06-16; F793) — **✅ LANDED rc167+rc168/169 (`text.cooccurrence_topk` + `laplacian.recursive_cut` + `fiedler_sparse_file`; native `has_native_fiedler_sparse_file`=True; verified rc173, F830)**
 
 **The split (measured, F793):** building the co-occurrence graph from the wiki SOURCE peaks at **2.1–2.4 GB** (the in-memory docs + the materialised `cooccurrence_edges` edge list, 8.7–10M edges); **navigating the pre-encoded tome-tree is 48 MB.** So *reading* is already edge-friendly (ship the encoded genome, read it); only *encoding* is GB-scale.
 
