@@ -139,8 +139,15 @@ ABSTRACT_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_abstracts.js
 # F814: the ENTIRE-article RBS-HDC instrument (R-RBS-LM-CORPUSENCODE) — every full body's walkable shape + k*, NDJSON
 # on disk + a title→byte-offset index for O(1) random access (load one body's shape on demand, low-RAM read F793).
 # Recall = walk the de Bruijn shape-graph from the seed -> regenerate the ENTIRE body (F813), NOT echo stored prose.
-FULLBODY_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_fullbody_instrument.ndjson"
-FULLBODY_INDEX = Path.home() / "corpora" / "wikipedia" / "simplewiki_fullbody_index.json"
+# F817 (no-doctoring): prefer the RAW-dump instrument (markup COMPREHENDED by understand_markup, not stripped from a
+# wikiextractor projection); fall back to the F814 doctored instrument only if the raw re-encode hasn't landed yet.
+_RAW_FB = Path.home() / "corpora" / "wikipedia" / "simplewiki_rawbody_instrument.ndjson"
+_RAW_FB_IDX = Path.home() / "corpora" / "wikipedia" / "simplewiki_rawbody_index.json"
+if _RAW_FB.exists() and _RAW_FB_IDX.exists():
+    FULLBODY_FILE, FULLBODY_INDEX = _RAW_FB, _RAW_FB_IDX
+else:
+    FULLBODY_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_fullbody_instrument.ndjson"
+    FULLBODY_INDEX = Path.home() / "corpora" / "wikipedia" / "simplewiki_fullbody_index.json"
 # F791: the spectral-clumped TOME-TREE + WEB (F789/#1, built by R-RBS-LM-FULLCLUMP via the rc166 native §51) — the
 # uncapped, spectrally-navigable smallwiki. {tomes: [[word…]], paths: [L/R tree address], web: {tome: [[other,wt,a,b]]}}.
 # etak navigation: FIND (word→tome) → RIDE (the clump) → ZOOM (parent = siblings sharing path[:-1]) → WEB-HOP (bridge).
