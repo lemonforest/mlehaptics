@@ -59,8 +59,6 @@ import math
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
-import numpy as np
-
 
 # Mean periods (days). Standard literature values; see Naval Almanac
 # / IERS conventions for the authoritative figures.

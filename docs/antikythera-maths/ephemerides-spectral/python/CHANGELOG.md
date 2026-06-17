@@ -10,6 +10,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.31.0rc3] — 2026-06-17
+
+### Changed — numpy-removal arc: drop the dead `import numpy` from `syzygy_window`
+
+A small, safe Phase-N increment. The shipped `_research/syzygy_window.py`
+carried an unused top-level `import numpy as np` (no `np.` reference
+anywhere in the module) — a dead import that nonetheless forced numpy at
+package-import time. Removed at the canonical source
+(`docs/antikythera-maths/research/syzygy_window.py`) and re-emitted
+through codegen (`emit_research_modules` → `_research/`; `manifest.json`
+re-hashed).
+
+With rc2's ITN flip this drains the last *trivial* shipped numpy. The
+remaining numpy is now ONE connected component — the **byte-exact
+BIP-encoder / HD-lift / native-marshalling core**:
+`_research/bip_instrument.py`, `ephemeris_reference_instrument.py`,
+`laplacian.py` (its LTI propagator uses `scipy.linalg.expm`),
+`bip_hd_lift.py`, plus `ephemerides_spectral/_native_bip.py`
+(`encode_state`/`encode_at_jd` return `np.uint32[N_BODIES]` + the
+complex64 ctypes marshalling) and `bridge.py` (`_interleave_complex` HD
+wire-format). That component is calibration-sensitive and gated on the
+BIP byte-parity test (`backend="c"` ≡ `backend="bip"`) — a dedicated
+follow-up effort, not a quick flip (see PLAN Phase N step 4).
+
+**No `ephemerides_spectral` code-behaviour or ABI change**
+(`ES_ABI_VERSION = 10`). Rc cycles through TestPyPI only.
+
 ## [0.31.0rc2] — 2026-06-17
 
 ### Changed — numpy-free ITN / etak navigation cascade + `GatewayNavigation` `[class]` TOML

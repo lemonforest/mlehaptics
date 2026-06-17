@@ -621,8 +621,8 @@
       "size_bytes": 13773
     },
     "_research/syzygy_window.py": {
-      "sha256": "c38e417818ba80c97ecb45d6daf122175385cce4d66378d048784a5a4cc3eb33",
-      "size_bytes": 8796
+      "sha256": "4f49eed9f4dc71462f8feb82ab694e5c09b3d786f52d1e4a52bc92022529f4af",
+      "size_bytes": 8776
     },
     "_research/thermal_balance_catalog.py": {
       "sha256": "39f418c118a3ea6bff230a1d4e32defc9bed3e0f62cf3fe08f03633f7422ca59",
@@ -674,5 +674,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.31.0rc2"
+  "version": "0.31.0rc3"
 }
