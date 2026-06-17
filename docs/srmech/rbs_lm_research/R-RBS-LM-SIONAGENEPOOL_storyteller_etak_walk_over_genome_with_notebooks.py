@@ -139,15 +139,12 @@ ABSTRACT_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_abstracts.js
 # F814: the ENTIRE-article RBS-HDC instrument (R-RBS-LM-CORPUSENCODE) — every full body's walkable shape + k*, NDJSON
 # on disk + a title→byte-offset index for O(1) random access (load one body's shape on demand, low-RAM read F793).
 # Recall = walk the de Bruijn shape-graph from the seed -> regenerate the ENTIRE body (F813), NOT echo stored prose.
-# F817 (no-doctoring): prefer the RAW-dump instrument (markup COMPREHENDED by understand_markup, not stripped from a
-# wikiextractor projection); fall back to the F814 doctored instrument only if the raw re-encode hasn't landed yet.
-_RAW_FB = Path.home() / "corpora" / "wikipedia" / "simplewiki_rawbody_instrument.ndjson"
-_RAW_FB_IDX = Path.home() / "corpora" / "wikipedia" / "simplewiki_rawbody_index.json"
-if _RAW_FB.exists() and _RAW_FB_IDX.exists():
-    FULLBODY_FILE, FULLBODY_INDEX = _RAW_FB, _RAW_FB_IDX
-else:
-    FULLBODY_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_fullbody_instrument.ndjson"
-    FULLBODY_INDEX = Path.home() / "corpora" / "wikipedia" / "simplewiki_fullbody_index.json"
+# F817 (no-doctoring): the RAW-dump instrument (markup COMPREHENDED by understand_markup) is the ONLY full-body
+# source — NO doctored fallback (user direction 2026-06-17: "should not be a doctored source as fall back. that
+# doesn't make sense"). If it is absent the loader's .exists() guard simply leaves the full-body tier off; we never
+# silently serve a wikiextractor projection.
+FULLBODY_FILE = Path.home() / "corpora" / "wikipedia" / "simplewiki_rawbody_instrument.ndjson"
+FULLBODY_INDEX = Path.home() / "corpora" / "wikipedia" / "simplewiki_rawbody_index.json"
 # F791: the spectral-clumped TOME-TREE + WEB (F789/#1, built by R-RBS-LM-FULLCLUMP via the rc166 native §51) — the
 # uncapped, spectrally-navigable smallwiki. {tomes: [[word…]], paths: [L/R tree address], web: {tome: [[other,wt,a,b]]}}.
 # etak navigation: FIND (word→tome) → RIDE (the clump) → ZOOM (parent = siblings sharing path[:-1]) → WEB-HOP (bridge).
@@ -716,9 +713,13 @@ class SionaGenepool:
         return None
 
     def _fullbody(self, title):
-        """F814: RECALL the ENTIRE article by WALKING its RBS-HDC shape-graph (not echoing stored prose). Seek the
-        title's record via the offset index, build the de Bruijn shape-graph at its k*, walk from the seed → regenerate
-        the whole body (F813; 98.2% exact). Returns (reconstructed_tokens, k, exact) or None."""
+        """RECALL the ENTIRE article by WALKING its de Bruijn shape-graph (the fiber, F805; NOT echoing stored prose).
+        Seek the record via the offset index, build the context->successor graph at its k*, walk from the seed ->
+        regenerate the whole body (F813; ~99% exact). HONEST NOTE (F818): this is a PURE-PYTHON dict walk, NOT srmech
+        klein4 — it is the FAST/EXACT realization of the same context->successor stored-relationship. The srmech-native
+        klein4 HDC content-addressed walk (F808, the resonant-eigenstate read) is mathematically equivalent but ~1000x
+        slower (klein4 bind/bundle are pure-Python in srmech, ~9-14 ms/call at D=10000 -> ~45 s/article), so it cannot
+        be the live engine until srmech ships C-native klein4 (UPSTREAM_NOTES §53). Returns (tokens, k, exact) or None."""
         off = self.fullbody_index.get(title.lower())
         if off is None:
             return None
@@ -1010,7 +1011,7 @@ class SionaGenepool:
         held = self.introspect()
         return ("[siona · capabilities] What I can DO — each grounded in a kernel I hold, not invented:\n"
                 "• DEFINE a word — its lead sentence, or the fuller abstract (216,695 simplewiki words)\n"
-                "• RECALL an ENTIRE article — reconstructed by walking its RBS-HDC shape-graph (240,823 full bodies)\n"
+                "• RECALL an ENTIRE article — reconstructed by walking its de Bruijn shape-graph (271,038 full bodies)\n"
                 "• tell what a thing is USED WITH / its CONTENTS — held relations + co-occurrence neighbours\n"
                 "• NAVIGATE the clumped smallwiki — the cluster/neighbourhood around a word (etak walk)\n"
                 "• RELATE or COMPARE two topics — what they share (closed-op reasoning over what I hold)\n"
@@ -1318,15 +1319,16 @@ class SionaGenepool:
                 if subj:
                     body = self.abstracts.get(subj) or self.glosses.get(subj)
                     src = "lead abstract (≤3 sentences)" if subj in self.abstracts else "lead sentence"
-            # F814: the ENTIRE body is available -> reconstruct it by walking its RBS-HDC shape-graph (not the lead slice)
+            # F814: the ENTIRE body is available -> reconstruct it by walking its de Bruijn shape-graph (not the lead slice;
+            # F818: a de Bruijn fiber walk, NOT srmech klein4 HDC — see _fullbody for the honest distinction)
             if subj and subj in self.fullbody_index:
                 fb = self._fullbody(subj)
                 if fb:
                     rtoks, fk, exact = fb
                     note = "" if exact else ("\n  (long-range-ambiguous body — most-likely walk; exact recall needs "
                                              "stored branch-choices, F813)")
-                    return (f"{parse}\n[siona · article (entire body)] {subj} — reconstructed by walking its RBS-HDC "
-                            f"shape-graph at k={fk} ({len(rtoks)} tokens, GPU-free, no stored prose; F813/F814):\n"
+                    return (f"{parse}\n[siona · article (entire body)] {subj} — reconstructed by walking its de Bruijn "
+                            f"shape-graph (the fiber) at k={fk} ({len(rtoks)} tokens, GPU-free, no stored prose; F813/F814):\n"
                             f"{' '.join(rtoks)}{note}\n  (entire-article instrument over all simplewiki bodies, CC-BY-SA){new_note}")
             if subj and body:
                 return (f"{parse}\n[siona · article] {subj}: {body}\n"
