@@ -110,10 +110,18 @@ Introspection verdict (subagent): **etak navigation (PR #687 ETAK/BOARD/FLOCK tr
 - The TEST suite — many tests `import numpy` as a differential oracle; rewrite numpy-free (stdlib `cmath`/`fractions`/`struct` or the srmech cascade as reference). A numpy-free module's test must itself be numpy-free (`[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]`).
 
 **Sequencing (decisive, batch by component — not dozens of micro-rcs):**
-1. **N-0 inventory** — `grep -rIn "numpy\|np\." python/ephemerides_spectral python/tests`; categorize (export / math / lazy-fallback / prose / test-oracle), map the connected components.
-2. **rc2** (already scoped) clears the `_cascade` + ITN-eigensolver component — the first real flip.
-3. Subsequent rcs flip the remaining components (catalogs, native marshalling, then tests), each rc verified in a numpy-ABSENT venv.
-4. **Capstone rc** — drop `numpy` from `pyproject.toml` + `pyproject-pure.toml` dependencies; add a permanent "zero numpy" ratchet test; full suite green with numpy uninstalled. Then graduate the 0.31.x line.
+1. **N-0 inventory** — DONE. SHIPPED-package numpy surface (what makes `pip install` need numpy) = the `_research/*` codegen-copied modules + `ephemerides_spectral/{bridge,_native_bip}.py`. NOTE: the canonical `research/` tree has many more numpy files (bit_alu, encode_ant, gateway_graph_laplacian, …) but those are **research-only scaffold, NOT shipped** (not in `_INCLUDED_MODULES`) — they don't affect the installed package's numpy dep. Edit canonical + run codegen (`[[project_ephemerides_research_is_generated_copy_edit_canonical_run_codegen]]`).
+2. **rc2** — DONE (0.31.0rc2, TestPyPI-verified). Cleared the ITN component: `_cascade` dead-import + `body_architecture` + `predict_itn_accessibility` → one `navigation_ops` cascade + the `GatewayNavigation` `[class]`. numpy gone from 4 modules.
+3. **rc3** — `syzygy_window.py` dead `import numpy` removal (the last TRIVIAL shipped numpy). After rc3 the remaining shipped numpy is ALL ONE component (below).
+4. **THE remaining component = the encoder / HD-lift / native-marshalling core** (~145 hits, calibration-sensitive, byte-exact-BIP-gated — its own dedicated effort, NOT a quick flip):
+   - `_research/laplacian.py` (25) — complex128 Laplacian build (`np.zeros`/`np.pi`/`np.sqrt`/`np.cos`) + the LTI propagator `get_propagator`/`evolve_state` which uses **`scipy.linalg.expm`** (NO easy numpy-free matrix-exp — DECIDE: drop the LTI baseline as research-only, or implement a numpy-free matrix-exp). Consumed by ↓.
+   - `_research/bip_instrument.py` (47) — the BIP integer-ALU encoder; reads the Laplacian diagonal → int64 residues. Its output is byte-exact (the package's core correctness guarantee).
+   - `_research/ephemeris_reference_instrument.py` (35) — the reference encoder (breathing path via `get_dynamic_laplacian`).
+   - `_research/bip_hd_lift.py` (22) — the complex64 HD lift.
+   - `ephemerides_spectral/_native_bip.py` (16) — `encode_state`/`encode_at_jd` return **`np.uint32[N_BODIES]`** (the encoder's primary output type — flipping to `array('I')`/Vec ripples into bridge + tests) + the complex64 ctypes marshalling (`np.frombuffer`/`np.ascontiguousarray` → reuse srmech's numpy-free `array`+`memoryview` ctypes pattern, [[feedback_c_must_be_standalone_complete_no_python_fallback]] sibling).
+   - `ephemerides_spectral/bridge.py` (5) — `_interleave_complex` HD wire-format (np complex array → interleaved float32 list).
+   - **GATE for this whole component:** the existing BIP byte-parity test (`backend="c"` ≡ `backend="bip"` byte-for-byte) + `test_native_parity` MUST stay green — the `encode_state` residues are bit-exact; ANY drift is a regression. Capture residue ground truth BEFORE flipping, assert byte-identical after. (`tests/` are NOT codegen-copied — edit directly.)
+5. **Capstone rc** — once the core is flipped: drop `numpy` from `pyproject.toml` + `pyproject-pure.toml` dependencies; rewrite numpy-oracle TESTS numpy-free; add a permanent "zero numpy" ratchet (no `import numpy` / no executable `np.`); full suite green with numpy UNINSTALLED. Then graduate the 0.31.x line.
 
 **Honesty gate:** never claim a module is numpy-free until `grep -nE "\bnp\.|import numpy" <file>` == 0 AND it runs under numpy-absent. Don't over-claim in CHANGELOG banners (rc1 lesson).
 
