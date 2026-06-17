@@ -16,8 +16,9 @@ discrimination.
 
 The classifier is **not machine learning in the SGD sense** —
 adding the v0.24.11 ground-proof row is a deterministic schema
-extension; the eigenbasis recomputes via `np.linalg.eigh` (closed
-form), byte-identical across runs, no training loop.
+extension; the eigenbasis recomputes via a Hermitian
+eigendecomposition (closed form), byte-identical across runs, no
+training loop.
 """
 
 from __future__ import annotations

@@ -38,8 +38,9 @@ Module-level guarantees:
 
 from __future__ import annotations
 
-import numpy as np
+import math
 import warnings
+from array import array
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -72,18 +73,24 @@ COSINE_LUT_SIZE: int = 1 << COSINE_LUT_BITS
 COSINE_LUT_AMP: int = 1 << 14              # ±16384 (Q1.14 in int32)
 
 
-def _build_cosine_lut() -> np.ndarray:
+def _build_cosine_lut() -> array:
     """Precompute integer cosine table over the cyclic group Z_{2^COSINE_LUT_BITS}.
 
     Index ``k`` maps to ``cos(2*pi * k / 1024)`` quantised to ``int32`` in
     Q1.14 format. Computed once, at import time, with the FPU — but every
     runtime use is a pure integer index lookup.
+
+    v0.31.0rc4: numpy-free. ``round()`` is round-half-to-even, identical
+    to ``np.round``; ``math.cos`` shares libm with the previous numpy
+    path, so the int32 table is byte-identical.
     """
-    angles = 2.0 * np.pi * np.arange(COSINE_LUT_SIZE) / COSINE_LUT_SIZE
-    return np.round(np.cos(angles) * COSINE_LUT_AMP).astype(np.int32)
+    return array("i", [
+        int(round(math.cos(2.0 * math.pi * k / COSINE_LUT_SIZE) * COSINE_LUT_AMP))
+        for k in range(COSINE_LUT_SIZE)
+    ])
 
 
-_COSINE_LUT: np.ndarray = _build_cosine_lut()
+_COSINE_LUT: array = _build_cosine_lut()
 
 
 def cos_lut(phase_uint32: int, n_lobes: int = 1) -> int:
@@ -92,9 +99,13 @@ def cos_lut(phase_uint32: int, n_lobes: int = 1) -> int:
     ``cos_lut(phi, n)`` returns ``round(cos(n * 2*pi*phi/2^32) * COSINE_LUT_AMP)``
     via integer arithmetic only. Used by the breathing-coupling term, which
     needs ``cos(5*phi_J - 2*phi_S)`` for the Jupiter-Saturn 5:2 resonance.
+
+    v0.31.0rc4: numpy-free. The uint32 multiply + mask is replicated
+    with Python ``int`` arithmetic and an explicit ``& (MODULO - 1)``
+    fixed-width reduction.
     """
-    folded = (np.uint32(phase_uint32) * np.uint32(n_lobes)) & np.uint32(MODULO - 1)
-    idx = int(folded) >> (K_BITS - COSINE_LUT_BITS)
+    folded = (int(phase_uint32) * int(n_lobes)) & (MODULO - 1)
+    idx = folded >> (K_BITS - COSINE_LUT_BITS)
     return int(_COSINE_LUT[idx])
 
 # ---------------------------------------------------------------------------
@@ -143,26 +154,39 @@ class EphemerisBIPInstrument:
 
         # 3. Fixed-point integer frequencies (Q-format: MODULO residues = 2*pi rad)
         # omega_diag[i] = residues/day for body i, signed int64.
-        self.omega_diag = self._scale_diagonal(
-            self.laplacian.L_trunk + self.laplacian.L_pn
-        )
+        # v0.31.0rc4: the Laplacian matrices are now list[list[complex]];
+        # add the trunk + PN diagonals element-wise (not list-concat).
+        n = self.laplacian.n
+        L_trunk = self.laplacian.L_trunk
+        L_pn = self.laplacian.L_pn
+        combined_diag = [L_trunk[i][i] + L_pn[i][i] for i in range(n)]
+        self.omega_diag = self._scale_diagonal_from_diag(combined_diag)
 
-    def _scale_diagonal(self, L: np.ndarray) -> np.ndarray:
-        """Diagonal of a complex Laplacian -> int64 residues/day.
+    def _scale_diagonal_from_diag(self, diag: List[complex]) -> array:
+        """Complex diagonal -> int64 residues/day (``array('q')``).
 
         The conversion is ``omega_int = round(omega_rad_per_day / (2*pi) * MODULO)``.
         Periods are validated: any frequency that rounds to zero residues/day is
         flagged so the caller knows the body's mean motion is below the
         Q-format's resolution floor (``1 / MODULO`` ≈ 2.3e-10 rev/day,
         i.e. ~13 Gyr period — never trips for real bodies).
+
+        v0.31.0rc4: numpy-free. ``round()`` is round-half-to-even,
+        identical to ``np.round``; magnitude via plain ``abs()`` on a
+        float (no Class-K cascade rule — this is ephemerides float math,
+        not a srmech cascade).
         """
-        omega_rad_per_day = np.diag(L).real
-        omega_int = np.round(omega_rad_per_day / (2.0 * np.pi) * MODULO).astype(np.int64)
+        omega_rad_per_day = [z.real for z in diag]
+        omega_int = array("q", [
+            int(round(w / (2.0 * math.pi) * MODULO)) for w in omega_rad_per_day
+        ])
         # Guard the resolution floor.
-        nonzero_input = np.abs(omega_rad_per_day) > 0
-        rounded_to_zero = nonzero_input & (omega_int == 0)
-        if rounded_to_zero.any():
-            offenders = [self.body_names[i] for i in np.where(rounded_to_zero)[0]]
+        offenders = [
+            self.body_names[i]
+            for i in range(len(omega_int))
+            if abs(omega_rad_per_day[i]) > 0 and omega_int[i] == 0
+        ]
+        if offenders:
             warnings.warn(
                 f"Q-format underflow: bodies {offenders} have mean motions below "
                 f"1 residue/day; bump K_BITS or use a higher-resolution Q-format.",
@@ -170,7 +194,7 @@ class EphemerisBIPInstrument:
             )
         return omega_int
 
-    def _load_baked_initial_phases(self) -> Optional[np.ndarray]:
+    def _load_baked_initial_phases(self) -> Optional[array]:
         """Load codegen-baked initial phases from `_data/initial_phases.json`.
 
         Returns the per-body uint32 phase array if the JSON is present
@@ -207,24 +231,38 @@ class EphemerisBIPInstrument:
                 # Body-roster drift — refuse to use stale baked values.
                 continue
             phases_dict = payload.get("initial_phases", {})
-            arr = np.zeros(len(self.body_names), dtype=np.uint32)
+            arr = array("I", [0]) * len(self.body_names)
             for i, name in enumerate(self.body_names):
                 if name not in phases_dict:
                     return None  # roster mismatch
-                arr[i] = np.uint32(int(phases_dict[name]))
+                arr[i] = int(phases_dict[name]) & (MODULO - 1)
             return arr
         return None
 
-    def _initialize_bases(self) -> Dict[str, np.ndarray]:
-        bases = {}
+    def _initialize_bases(self) -> Dict[str, array]:
+        """Per-body integer channel bases (``array('I')`` in [0, MODULO)).
+
+        v0.31.0rc4: numpy-free. The legacy path seeded these via
+        ``numpy.random.default_rng(2026+i).integers(...)`` (PCG64), a
+        stream that can't be reproduced without numpy. These integer
+        bases are used ONLY by ``run_dimensional_expansion_sweep`` (the
+        ``__main__`` benchmark demo) — they are NOT on any shipped
+        bridge/encode_state path, and no test pins their bytes. The
+        splitmix64 stream (the same portable PRNG the HD-lift channel
+        bases use) supplies a deterministic numpy-free replacement.
+        """
+        from .portable_prng import splitmix64_next
+        bases: Dict[str, array] = {}
         for i, body in enumerate(self.body_names):
-            rng = np.random.default_rng(2026 + i)
-            # Uniform discrete phases in [0, MODULO)
-            phases = rng.integers(0, MODULO, self.D, dtype=np.uint32)
+            state = (2026 + i) & ((1 << 64) - 1)
+            phases = array("I", [0]) * self.D
+            for k in range(self.D):
+                state, u = splitmix64_next(state)
+                phases[k] = u & (MODULO - 1)
             bases[body] = phases
         return bases
 
-    def _calibrate_initial_phases(self, jd: float) -> np.ndarray:
+    def _calibrate_initial_phases(self, jd: float) -> array:
         """Calibrate the phase angles (mapped to Z_{2^K}) from ephemeris truth.
 
         Resolution order:
@@ -245,11 +283,11 @@ class EphemerisBIPInstrument:
         if baked is not None:
             return baked
         if self.bundle is None:
-            return np.zeros(len(self.body_names), dtype=np.uint32)
+            return array("I", [0]) * len(self.body_names)
 
         ts = self.bundle.ts
         t = ts.tt_jd(jd)
-        phases = np.zeros(len(self.body_names), dtype=np.uint32)
+        phases = array("I", [0]) * len(self.body_names)
         
         moon_parent_map = {
             "luna": "terra",
@@ -296,7 +334,7 @@ class EphemerisBIPInstrument:
                 astrometric = center.at(t).observe(target)
                 _, lon, _ = astrometric.ecliptic_latlon()
                 # Map [0, 2pi) -> [0, MODULO)
-                phases[i] = int((lon.radians / (2.0 * np.pi)) * MODULO) % MODULO
+                phases[i] = int((lon.radians / (2.0 * math.pi)) * MODULO) % MODULO
                 
             except (KeyError, ValueError):
                 if body_info.period_days > 0:
@@ -310,8 +348,8 @@ class EphemerisBIPInstrument:
         """Off-diagonal coupling weight in residues/day, signed int64."""
         idx1 = self.body_to_idx[b1]
         idx2 = self.body_to_idx[b2]
-        val = self.laplacian.L_static[idx1, idx2].real
-        return int(round(val / (2.0 * np.pi) * MODULO))
+        val = self.laplacian.L_static[idx1][idx2].real
+        return int(round(val / (2.0 * math.pi) * MODULO))
 
     # Phase 9 breathing parameters. ``BREATHING_AMP_NUM/DEN`` is the
     # fractional modulation depth expressed as integers (10% = 1/10).
@@ -327,17 +365,28 @@ class EphemerisBIPInstrument:
     # ~1.86 Myr — well outside any DE441 use case.
     _INT64_DELTA_DAYS_LIMIT: float = 6.8e8
 
-    def encode_state(self, date_jd: float) -> np.ndarray:
+    # uint64 / int64 fixed-width masks (v0.31.0rc4: explicit, numpy-free).
+    _U64_MASK: int = (1 << 64) - 1
+    _I64_MIN: int = -(1 << 63)
+    _I64_MAX: int = (1 << 63) - 1
+
+    def encode_state(self, date_jd: float) -> array:
         """Phase 9 breathing evolution — pure integer ALU, no FPU.
+
+        Returns an ``array('I')`` of per-body uint32 phase residues (one
+        per body, alphabetical order).
 
         The encode path is wrapped in a defensive guard:
 
         * Bounds-check on ``|delta_t_days|`` so the int64 frequency multiply
           stays in range — fails fast with ``OverflowError`` if exceeded.
-        * Signed int64 ops execute under ``np.errstate(over='raise')`` so
-          silent saturation in ``omega * step`` is converted to a hard error.
-        * The uint64 phase accumulation runs OUTSIDE that errstate because
-          its wraparound *is* the cyclic-group reduction we want.
+        * The signed int64 frequency multiply is range-checked explicitly
+          (the v0.31.0rc4 numpy-free replacement for the old
+          ``np.errstate(over='raise')`` saturation trap): any product
+          outside ``[-2**63, 2**63)`` raises ``OverflowError``.
+        * The uint64 phase accumulation wraps via an explicit
+          ``& 0xFFFFFFFFFFFFFFFF`` mask — the wraparound *is* the
+          cyclic-group reduction we want.
 
         v0.4.0: after the base encode, ``diagnosed_fibers.evaluate_active_patches``
         is queried; any active runtime patches contribute residue deltas
@@ -346,7 +395,7 @@ class EphemerisBIPInstrument:
         is byte-identical to v0.3.1.
         """
         delta_t_days = float(date_jd - REFERENCE_JD)
-        if not np.isfinite(delta_t_days):
+        if not math.isfinite(delta_t_days):
             raise OverflowError(
                 f"Non-finite delta_t_days={delta_t_days} for date_jd={date_jd}"
             )
@@ -357,15 +406,23 @@ class EphemerisBIPInstrument:
                 f"≈ 1.86 Myr). The Q-format conversion ``omega * delta_t`` would "
                 f"saturate. Stay inside the DE441 epoch or chunk the request."
             )
-        try:
-            return self._encode_state_impl(delta_t_days, date_jd=date_jd)
-        except FloatingPointError as exc:
-            # FloatingPointError = np.errstate(over='raise') firing on int64.
-            raise OverflowError(
-                f"Integer overflow in BIP encode_state(date_jd={date_jd}): {exc}"
-            ) from exc
+        return self._encode_state_impl(delta_t_days, date_jd=date_jd)
 
-    def _encode_state_impl(self, delta_t_days: float, *, date_jd: float) -> np.ndarray:
+    def _i64_mul_checked(self, a: int, b: int) -> int:
+        """Signed int64 multiply with an explicit overflow trap.
+
+        Replicates ``np.errstate(over='raise')`` around an int64 product:
+        the result must fit in the signed 64-bit range or this raises
+        ``OverflowError`` (the same surface the old numpy path exposed).
+        """
+        r = a * b
+        if not (self._I64_MIN <= r <= self._I64_MAX):
+            raise OverflowError(
+                f"int64 overflow in Q-format multiply: {a} * {b} = {r}"
+            )
+        return r
+
+    def _encode_state_impl(self, delta_t_days: float, *, date_jd: float) -> array:
         # Integer chunk count + signed integer step direction.
         # delta_t_days has fractional sub-day content; we keep that as
         # a single trailing "remainder" step so the chunked loop only
@@ -377,21 +434,24 @@ class EphemerisBIPInstrument:
         remainder_days = abs_days - num_steps * chunk
         step_signed = sign * chunk  # Python int, +30 or -30
 
-        # Phase accumulator: uint64, initialised from the calibrated uint32 phases.
-        curr_phases = self.initial_phases_int.astype(np.uint64).copy()
+        u64 = self._U64_MASK
+        n_bodies = len(self.body_names)
 
-        # Per-step trunk increment in int64. Signed multiply is the only
-        # place silent overflow would *corrupt* the result (uint64 wrap
-        # downstream is the cyclic-group reduction we want), so we trap
-        # int64 saturation here and only here.
+        # Phase accumulator: list of Python ints in [0, 2**64), initialised
+        # from the calibrated uint32 phases. (uint64 cyclic group.)
+        curr_phases = [int(p) for p in self.initial_phases_int]
+
+        # Per-step trunk increment in int64 (signed). The multiply is the
+        # only place silent overflow would *corrupt* the result; trap it
+        # explicitly. Store as two's-complement uint64 for the wrapping add.
         omega = self.omega_diag                        # int64, residues/day
-        with np.errstate(over="raise", invalid="raise"):
-            trunk_step = (omega * np.int64(step_signed)).astype(np.int64)
+        trunk_step_u64 = [
+            self._i64_mul_checked(int(omega[i]), step_signed) & u64
+            for i in range(n_bodies)
+        ]
 
         # Pre-resolve resonance entries: (idx_a, idx_b, n_a, m_b, base_nudge)
         # where base_nudge = scaled_coupling * step_signed in residues/chunk.
-        # Skipping any pair whose bodies aren't in BODIES (defensive — the
-        # current 26-body roster covers all four wired resonances).
         resonance_table: List[Tuple[int, int, int, int, int]] = []
         for r in RESONANCES:
             if r.body_a not in self.body_to_idx or r.body_b not in self.body_to_idx:
@@ -408,71 +468,68 @@ class EphemerisBIPInstrument:
             base_nudge = scaled * step_signed
             resonance_table.append((ia, ib, r.n_a, r.m_b, base_nudge))
 
-        # Wrap the accumulator hot loop in an errstate that *ignores* uint64
-        # wraparound — wraparound IS the modular reduction here. Also use
-        # ``warnings.catch_warnings`` so callers who promoted RuntimeWarning
-        # to error don't see this benign overflow.
-        trunk_step_u64 = trunk_step.astype(np.uint64)
-        with np.errstate(over="ignore"), warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=RuntimeWarning,
-                                     message="overflow encountered")
-            for _ in range(num_steps):
-                # 1. Diagonal evolution: cyclic addition in Z_{2^64}.
-                #    Final reduction to Z_{2^32} happens once at the end.
-                curr_phases = curr_phases + trunk_step_u64
+        mod_mask = MODULO - 1
+        for _ in range(num_steps):
+            # 1. Diagonal evolution: cyclic addition in Z_{2^64}.
+            #    Final reduction to Z_{2^32} happens once at the end.
+            for i in range(n_bodies):
+                curr_phases[i] = (curr_phases[i] + trunk_step_u64[i]) & u64
 
-                # 2. Breathing coupling — pure integer LUT, walked over
-                #    the full RESONANCES table. v0.1.0 wired only J-S 5:2;
-                #    v0.2.0 adds Neptune-Pluto 3:2, Io-Europa 2:1,
-                #    Europa-Ganymede 2:1.
-                for ia, ib, n_a, m_b, base_nudge in resonance_table:
-                    phi_a = int(curr_phases[ia] & np.uint64(MODULO - 1))
-                    phi_b = int(curr_phases[ib] & np.uint64(MODULO - 1))
-                    res_phase = (n_a * phi_a - m_b * phi_b) & (MODULO - 1)
+            # 2. Breathing coupling — pure integer LUT, walked over the
+            #    full RESONANCES table.
+            for ia, ib, n_a, m_b, base_nudge in resonance_table:
+                phi_a = curr_phases[ia] & mod_mask
+                phi_b = curr_phases[ib] & mod_mask
+                res_phase = (n_a * phi_a - m_b * phi_b) & mod_mask
 
-                    # cos_lut returns Q1.14 int in [-AMP, +AMP].
-                    # Modulation depth: 1 + (NUM/DEN) * cos.
-                    # Integer nudge = base + (NUM * base * cos) / (DEN * AMP).
-                    cos_q14 = cos_lut(res_phase, n_lobes=1)
-                    breath = (
-                        self._BREATHING_AMP_NUM * base_nudge * cos_q14
-                    ) // (self._BREATHING_AMP_DEN * COSINE_LUT_AMP)
-                    nudge = base_nudge + breath
+                # cos_lut returns Q1.14 int in [-AMP, +AMP].
+                # Modulation depth: 1 + (NUM/DEN) * cos.
+                # Integer nudge = base + (NUM * base * cos) / (DEN * AMP).
+                cos_q14 = cos_lut(res_phase, n_lobes=1)
+                breath = (
+                    self._BREATHING_AMP_NUM * base_nudge * cos_q14
+                ) // (self._BREATHING_AMP_DEN * COSINE_LUT_AMP)
+                nudge = base_nudge + breath
 
-                    nudge_u64 = np.uint64(np.int64(nudge))
-                    curr_phases[ia] = curr_phases[ia] + nudge_u64
-                    curr_phases[ib] = curr_phases[ib] + nudge_u64
+                nudge_u64 = nudge & u64  # two's-complement uint64 of a signed int
+                curr_phases[ia] = (curr_phases[ia] + nudge_u64) & u64
+                curr_phases[ib] = (curr_phases[ib] + nudge_u64) & u64
 
-            # Sub-chunk remainder: one float multiply for the final
-            # fractional-day fragment. The signed multiply runs under
-            # the strict int64 trap; the uint64 add stays in the lenient
-            # cyclic-group context.
-            if remainder_days > 0.0:
-                with np.errstate(over="raise", invalid="raise"):
-                    remainder_step = np.round(
-                        omega * (sign * remainder_days)
-                    ).astype(np.int64)
-                curr_phases = curr_phases + remainder_step.astype(np.uint64)
+        # Sub-chunk remainder: one float multiply for the final
+        # fractional-day fragment. The signed multiply runs under the
+        # strict int64 trap; the uint64 add wraps in the cyclic group.
+        # ``round()`` is round-half-to-even, identical to ``np.round``;
+        # the float64 product ``omega[i] * (sign * remainder_days)`` is
+        # bit-identical to numpy's int64*float64 -> float64.
+        if remainder_days > 0.0:
+            scale = sign * remainder_days
+            for i in range(n_bodies):
+                rstep = round(int(omega[i]) * scale)
+                if not (self._I64_MIN <= rstep <= self._I64_MAX):
+                    raise OverflowError(
+                        f"int64 overflow in remainder multiply for body {i}"
+                    )
+                curr_phases[i] = (curr_phases[i] + (rstep & u64)) & u64
 
-            # v0.4.0 runtime kernel patching — overlay step.
-            # Active diagnosed-fiber patches contribute per-body residue
-            # deltas that are SUMMED into the phase accumulator BEFORE
-            # the final cyclic-group reduction. Patches don't mutate
-            # the base encoder state; they're applied as an overlay so
-            # the published kernel bytes never change. With zero patches
-            # active this loop is a no-op and the encode is byte-identical
-            # to v0.3.1.
-            if _patches.has_active_patches():
-                overlay = _patches.evaluate_active_patches(date_jd, self.body_to_idx)
-                for body_idx, delta_residue in overlay.items():
-                    delta_u64 = np.uint64(np.int64(int(delta_residue)))
-                    curr_phases[body_idx] = curr_phases[body_idx] + delta_u64
+        # v0.4.0 runtime kernel patching — overlay step.
+        # Active diagnosed-fiber patches contribute per-body residue
+        # deltas that are SUMMED into the phase accumulator BEFORE the
+        # final cyclic-group reduction. With zero patches active this
+        # loop is a no-op and the encode is byte-identical to v0.3.1.
+        if _patches.has_active_patches():
+            overlay = _patches.evaluate_active_patches(date_jd, self.body_to_idx)
+            for body_idx, delta_residue in overlay.items():
+                delta_u64 = int(delta_residue) & u64
+                curr_phases[body_idx] = (curr_phases[body_idx] + delta_u64) & u64
 
-        return (curr_phases & np.uint64(MODULO - 1)).astype(np.uint32)
+        return array("I", [(p & mod_mask) for p in curr_phases])
 
-    def bind(self, phase_vec_a: np.ndarray, phase_vec_b: np.ndarray) -> np.ndarray:
+    def bind(self, phase_vec_a, phase_vec_b) -> array:
         """FPU-less binding: Modular addition."""
-        return (phase_vec_a + phase_vec_b) % MODULO
+        return array("I", [
+            (int(a) + int(b)) % MODULO
+            for a, b in zip(phase_vec_a, phase_vec_b)
+        ])
 
     def get_resolution(self, body: str = "terra") -> float:
         """Seconds per 1-unit residue shift."""
@@ -508,22 +565,27 @@ def run_dimensional_expansion_sweep():
         
         start = time.perf_counter()
         phases = instrument.encode_state(test_jd)
-        state = np.zeros(D, dtype=np.uint32)
+        # Superpose the integer bases (uint32 cyclic add) — numpy-free.
+        state = array("I", [0]) * D
+        u32 = MODULO - 1
         for i, name in enumerate(instrument.body_names):
-            state += (instrument.channel_bases[name] + phases[i])
+            base = instrument.channel_bases[name]
+            ph = int(phases[i])
+            for k in range(D):
+                state[k] = (state[k] + base[k] + ph) & u32
         enc_time = (time.perf_counter() - start) * 1000
-        
+
         # 3. DE441 Truth
         ts = instrument.bundle.ts
         t = ts.tt_jd(test_jd)
         astrometric = instrument.bundle.sun.at(t).observe(instrument.bundle.earth)
         _, lon, _ = astrometric.ecliptic_latlon()
         truth_rad = lon.radians
-        
+
         idx_earth = instrument.body_names.index("terra")
-        bip_earth_rad = (phases[idx_earth] / MODULO) * 2.0 * np.pi
-        err_441 = np.abs((bip_earth_rad - truth_rad + np.pi) % (2.0 * np.pi) - np.pi)
-        
+        bip_earth_rad = (phases[idx_earth] / MODULO) * 2.0 * math.pi
+        err_441 = abs((bip_earth_rad - truth_rad + math.pi) % (2.0 * math.pi) - math.pi)
+
         # 4. DE442 Truth
         bundle_442 = load_ephemeris(kernel="de442", data_dir=data_dir)
         err_442 = 0.0
@@ -531,7 +593,7 @@ def run_dimensional_expansion_sweep():
             t_442 = bundle_442.ts.tt_jd(test_jd)
             astrometric_442 = bundle_442.sun.at(t_442).observe(bundle_442.earth)
             _, lon_442, _ = astrometric_442.ecliptic_latlon()
-            err_442 = np.abs((bip_earth_rad - lon_442.radians + np.pi) % (2.0 * np.pi) - np.pi)
+            err_442 = abs((bip_earth_rad - lon_442.radians + math.pi) % (2.0 * math.pi) - math.pi)
         
         # 5. SNR
         snr = D / (len(instrument.body_names) - 1)

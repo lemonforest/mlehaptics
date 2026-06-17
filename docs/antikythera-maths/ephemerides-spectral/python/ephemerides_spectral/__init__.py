@@ -127,10 +127,12 @@ def default_encode(
 
     Returns
     -------
-    numpy.ndarray
-        Backend-appropriate encoded state. For ``"bip"`` this is
-        ``uint32[n_bodies]`` (per-body phase residues in ``Z_{2^32}``);
-        for ``"complex128"`` it is ``complex128[D]`` (unit-norm).
+    array.array | list
+        Backend-appropriate encoded state (numpy-free since v0.31.0rc4).
+        For ``"bip"`` / ``"c"`` this is ``array('I')`` of per-body
+        ``uint32`` phase residues in ``Z_{2^32}`` (length ``n_bodies``);
+        for ``"complex128"`` it is a ``list[complex]`` of length ``D``
+        (unit-norm).
 
     See also
     --------

@@ -494,7 +494,8 @@ def test_eoc_patch_byte_parity_across_backends() -> None:
             jd = REFERENCE_JD + delta_t_yr * 365.25
             py = default_encode(jd, backend="bip", kernel="de421")
             c  = default_encode(jd, backend="c",   kernel="de421")
-            assert (py == c).all(), (
+            # v0.31.0rc4: encode returns array('I'); compare via tolist().
+            assert py.tolist() == c.tolist(), (
                 f"EOC-patched native vs Python phases differ at "
                 f"delta_t = {delta_t_yr} yr.\n"
                 f"  python: {py.tolist()}\n"

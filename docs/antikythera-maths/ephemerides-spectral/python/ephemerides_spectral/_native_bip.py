@@ -38,10 +38,9 @@ from __future__ import annotations
 import ctypes
 import os
 import sys
+from array import array
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-
-import numpy as np
 
 
 # Mirror of ``ES_ABI_VERSION`` in the C header. Bump in lockstep with
@@ -527,8 +526,14 @@ elif LOAD_ERROR is None:
 # High-level helper — the path callers actually use
 # ──────────────────────────────────────────────────────────────────────
 
-def encode_state(delta_t_days: float) -> np.ndarray:
-    """Native BIP encode_state — returns ``uint32[N_BODIES]`` phase residues.
+def encode_state(delta_t_days: float) -> array:
+    """Native BIP encode_state — returns ``array('I')[N_BODIES]`` phase residues.
+
+    v0.31.0rc4: numpy-free. The output buffer is a stdlib ``array('I')``
+    (unsigned 32-bit); the C library writes into it in place via a
+    ``ctypes`` pointer obtained from the array's buffer (no numpy). The
+    return type matches the pure-Python ``EphemerisBIPInstrument.encode_state``
+    (also ``array('I')``), so ``.tolist()`` / index access work uniformly.
 
     Caller-side guard required: only invoke when ``HAS_NATIVE`` is True.
     Raises ``RuntimeError`` if the C library returned a non-zero status.
@@ -541,10 +546,11 @@ def encode_state(delta_t_days: float) -> np.ndarray:
     assert LIB is not None
     assert N_BODIES is not None
 
-    phases = np.zeros(N_BODIES, dtype=np.uint32)
+    phases = array("I", [0]) * N_BODIES
+    buf = (ctypes.c_uint32 * N_BODIES).from_buffer(phases)
     status = LIB.es_encode_state(
         ctypes.c_double(float(delta_t_days)),
-        phases.ctypes.data_as(ctypes.POINTER(ctypes.c_uint32)),
+        ctypes.cast(buf, ctypes.POINTER(ctypes.c_uint32)),
     )
     if status == ES_OK:
         return phases
@@ -558,20 +564,64 @@ def encode_state(delta_t_days: float) -> np.ndarray:
     raise RuntimeError(f"native es_encode_state returned status={status}")
 
 
-def encode_at_jd(jd_tdb: float) -> np.ndarray:
-    """Convenience: encode at an absolute JD via the native path."""
+def encode_at_jd(jd_tdb: float) -> array:
+    """Convenience: encode at an absolute JD via the native path.
+
+    v0.31.0rc4: numpy-free — returns ``array('I')`` (see ``encode_state``).
+    """
     if not HAS_NATIVE:
         raise RuntimeError("native library not loaded")
     assert LIB is not None
     assert N_BODIES is not None
-    phases = np.zeros(N_BODIES, dtype=np.uint32)
+    phases = array("I", [0]) * N_BODIES
+    buf = (ctypes.c_uint32 * N_BODIES).from_buffer(phases)
     status = LIB.es_encode_at_jd(
         ctypes.c_double(float(jd_tdb)),
-        phases.ctypes.data_as(ctypes.POINTER(ctypes.c_uint32)),
+        ctypes.cast(buf, ctypes.POINTER(ctypes.c_uint32)),
     )
     if status != ES_OK:
         raise RuntimeError(f"native es_encode_at_jd returned status={status}")
     return phases
+
+
+# ──────────────────────────────────────────────────────────────────────
+# numpy-free complex64 <-> ctypes marshalling (v0.31.0rc4)
+# ──────────────────────────────────────────────────────────────────────
+#
+# ``es_complex64_t`` is two contiguous float32s (real, imag), 8 bytes per
+# element — the same layout numpy's complex64 uses. The previous path
+# round-tripped through ``np.frombuffer`` / ``np.ascontiguousarray``;
+# these helpers do the same with stdlib ``array('f')`` + ctypes buffers,
+# preserving the float32 truncation exactly.
+
+
+def _esc64_buffer_to_complex_list(buf, D: int) -> List[complex]:
+    """Read an ``(EsComplex64 * D)`` ctypes buffer into ``list[complex]``.
+
+    The raw bytes are reinterpreted as interleaved float32 ``(re, im)``
+    pairs via ``array('f')`` — identical to ``np.frombuffer(buf,
+    complex64)`` element-for-element.
+    """
+    flat = array("f")
+    flat.frombytes(bytes(buf))
+    return [complex(flat[2 * k], flat[2 * k + 1]) for k in range(D)]
+
+
+def _complex_list_to_esc64_buffer(state, D: int):
+    """Pack an iterable of complex into a fresh ``(EsComplex64 * D)`` buffer.
+
+    Each component is truncated to float32 by going through ``array('f')``
+    (the same IEEE-754 rounding ``np.ascontiguousarray(..., complex64)``
+    applied), then the bytes are loaded into the ctypes struct array.
+    """
+    flat = array("f")
+    for z in state:
+        flat.append(z.real)
+        flat.append(z.imag)
+    out = (EsComplex64 * D)()
+    src = flat.tobytes()
+    ctypes.memmove(out, src, len(src))
+    return out
 
 
 def native_version() -> Optional[str]:
@@ -814,12 +864,16 @@ def native_find_syzygies(jd_lo: float, jd_hi: float, *,
     return out
 
 
-def native_encode_state_hd(delta_t_days: float, D: int) -> Any:
+def native_encode_state_hd(delta_t_days: float, D: int) -> List[complex]:
     """Run the C-side BIP encode + lift to D-dim hypervector.
 
-    Returns a `numpy.complex64` array of length D (unit-norm).
+    Returns a ``list[complex]`` of length D (unit-norm). Matches the
+    pure-Python ``bip_hd_lift.encode_state_hd`` return type.
 
     Caller-side guard required: only invoke when ``HAS_NATIVE`` is True.
+
+    v0.31.0rc4: numpy-free. The complex64 output buffer is read back via
+    the stdlib ``array('f')`` interleaved-float32 marshalling.
 
     ABI v6 note: scratch buffers are allocated here in Python and passed
     by pointer; the C library no longer allocates internally (Rule 3).
@@ -829,7 +883,6 @@ def native_encode_state_hd(delta_t_days: float, D: int) -> Any:
             "native_encode_state_hd called without native library"
         )
     assert LIB is not None
-    import numpy as np
     buf = (EsComplex64 * D)()
     scratch_basis = (EsComplex64 * D)()
     scratch_rolled = (EsComplex64 * D)()
@@ -842,15 +895,19 @@ def native_encode_state_hd(delta_t_days: float, D: int) -> Any:
     ))
     if rc != ES_OK:
         raise RuntimeError(f"es_encode_state_hd returned status {rc}")
-    return np.frombuffer(buf, dtype=np.complex64).copy()
+    return _esc64_buffer_to_complex_list(buf, int(D))
 
 
 def native_bind_observer(state: Any, body_idx: int, lat_deg: float,
-                         lon_deg: float) -> Any:
+                         lon_deg: float) -> List[complex]:
     """Run the C-side topocentric observer-bind.
 
-    `state` must be a numpy `complex64` array; the returned array is
-    the same shape.
+    `state` is any iterable of complex (the HD-lift output, now
+    ``list[complex]``); the returned vector is the same length.
+
+    v0.31.0rc4: numpy-free. The input is packed into an ``EsComplex64``
+    buffer (float32-truncated) and the output read back as
+    ``list[complex]``.
 
     ABI v6 note: scratch buffers allocated here (Rule 3).
     """
@@ -859,16 +916,15 @@ def native_bind_observer(state: Any, body_idx: int, lat_deg: float,
             "native_bind_observer called without native library"
         )
     assert LIB is not None
-    import numpy as np
-    state_c64 = np.ascontiguousarray(state, dtype=np.complex64)
-    D = int(state_c64.shape[0])
-    in_buf = state_c64.ctypes.data_as(ctypes.POINTER(EsComplex64))
+    state_list = list(state)
+    D = len(state_list)
+    in_buf = _complex_list_to_esc64_buffer(state_list, D)
     out_buf = (EsComplex64 * D)()
     scratch_body_basis = (EsComplex64 * D)()
     scratch_coord_basis = (EsComplex64 * D)()
     scratch_coord_op = (EsComplex64 * D)()
     rc = int(LIB.es_bind_observer(
-        in_buf,
+        ctypes.cast(in_buf, ctypes.POINTER(EsComplex64)),
         ctypes.c_size_t(int(body_idx)),
         ctypes.c_double(float(lat_deg)),
         ctypes.c_double(float(lon_deg)),
@@ -880,7 +936,7 @@ def native_bind_observer(state: Any, body_idx: int, lat_deg: float,
     ))
     if rc != ES_OK:
         raise RuntimeError(f"es_bind_observer returned status {rc}")
-    return np.frombuffer(out_buf, dtype=np.complex64).copy()
+    return _esc64_buffer_to_complex_list(out_buf, D)
 
 
 def native_get_eclipse_probability(state: Any, sun_body_idx: int,
@@ -894,10 +950,12 @@ def native_get_eclipse_probability(state: Any, sun_body_idx: int,
             "native_get_eclipse_probability called without native library"
         )
     assert LIB is not None
-    import numpy as np
-    state_c64 = np.ascontiguousarray(state, dtype=np.complex64)
-    D = int(state_c64.shape[0])
-    in_buf = state_c64.ctypes.data_as(ctypes.POINTER(EsComplex64))
+    state_list = list(state)
+    D = len(state_list)
+    in_buf = ctypes.cast(
+        _complex_list_to_esc64_buffer(state_list, D),
+        ctypes.POINTER(EsComplex64),
+    )
     scratch_sun_b = (EsComplex64 * D)()
     scratch_moon_b = (EsComplex64 * D)()
     scratch_node_b = (EsComplex64 * D)()
@@ -921,12 +979,12 @@ def native_get_eclipse_probability(state: Any, sun_body_idx: int,
     return float(out_prob.value)
 
 
-def native_channel_basis(seed: int, D: int) -> Any:
+def native_channel_basis(seed: int, D: int) -> List[complex]:
     """Generate a deterministic complex64 channel basis of dimension D.
 
-    Returns a numpy array of dtype `complex64`, length `D`. Bit-
-    identical to the Python-side `_research/portable_prng.splitmix64_phases`
-    output passed through `exp(1j*phi)` and cast to complex64.
+    Returns a ``list[complex]`` of length `D` (float32-truncated
+    components). Matches the Python-side
+    `_research/bip_hd_lift.channel_basis` return type and bytes.
 
     Caller-side guard required: only invoke when ``HAS_NATIVE`` is True.
 
@@ -942,7 +1000,6 @@ def native_channel_basis(seed: int, D: int) -> Any:
             "native_channel_basis called without native library"
         )
     assert LIB is not None
-    import numpy as np
     buf = (EsComplex64 * D)()
     rc = int(LIB.es_channel_basis(
         ctypes.c_uint64(int(seed) & ((1 << 64) - 1)),
@@ -951,12 +1008,11 @@ def native_channel_basis(seed: int, D: int) -> Any:
     ))
     if rc != ES_OK:
         raise RuntimeError(f"es_channel_basis returned status {rc}")
-    # Reinterpret the raw buffer as numpy complex64 without copy.
-    arr = np.frombuffer(buf, dtype=np.complex64).copy()
-    return arr
+    # v0.31.0rc4: numpy-free — reinterpret the raw buffer as complex list.
+    return _esc64_buffer_to_complex_list(buf, int(D))
 
 
-def native_channel_basis_method(seed: int, D: int, method: int) -> Any:
+def native_channel_basis_method(seed: int, D: int, method: int) -> List[complex]:
     """v0.29.0rc1 — method-selected channel-basis construction.
 
     ``method = ES_BASIS_METHOD_LEGACY`` (0) is byte-identical to
@@ -979,7 +1035,6 @@ def native_channel_basis_method(seed: int, D: int, method: int) -> Any:
             "native_channel_basis_method called without native library"
         )
     assert LIB is not None
-    import numpy as np
     buf = (EsComplex64 * D)()
     rc = int(LIB.es_channel_basis_method(
         ctypes.c_uint64(int(seed) & ((1 << 64) - 1)),
@@ -991,7 +1046,8 @@ def native_channel_basis_method(seed: int, D: int, method: int) -> Any:
         raise RuntimeError(
             f"es_channel_basis_method returned status {rc} (method={method})"
         )
-    return np.frombuffer(buf, dtype=np.complex64).copy()
+    # v0.31.0rc4: numpy-free.
+    return _esc64_buffer_to_complex_list(buf, int(D))
 
 
 def native_channel_basis_turn_integer(seed: int, D: int) -> Any:

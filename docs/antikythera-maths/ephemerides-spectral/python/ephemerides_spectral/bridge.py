@@ -31,10 +31,9 @@ from __future__ import annotations
 
 import json
 import math
+from array import array
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-
-import numpy as np
 
 from ephemerides_spectral._research.ephemeris_reference_instrument import (
     EphemerisHDCInstrument,
@@ -462,11 +461,20 @@ def _get_bip(kernel: str = "de441",
     return _BIP_CACHE[key]
 
 
-def _interleave_complex(state: np.ndarray) -> List[float]:
-    out = np.empty(2 * state.size, dtype=np.float32)
-    out[0::2] = state.real.astype(np.float32, copy=False)
-    out[1::2] = state.imag.astype(np.float32, copy=False)
-    return out.tolist()
+def _interleave_complex(state) -> List[float]:
+    """Interleave a complex vector into ``[re0, im0, re1, im1, ...]`` float32.
+
+    v0.31.0rc4: numpy-free. ``state`` is any iterable of complex (the
+    HD-lift / reference-encoder output is now ``list[complex]``). Each
+    component is rounded to float32 precision via ``array('f')`` (the
+    same IEEE-754 nearest-even rounding the old ``.astype(np.float32)``
+    applied) before being returned as Python floats.
+    """
+    buf = array("f")
+    for z in state:
+        buf.append(z.real)
+        buf.append(z.imag)
+    return buf.tolist()
 
 
 def _read_manifest() -> Dict[str, Any]:
@@ -5779,7 +5787,7 @@ def list_couplings() -> Dict[str, Any]:
     names = inst.laplacian.body_names
     for i in range(n):
         for j in range(i + 1, n):
-            w = L[i, j].real
+            w = L[i][j].real
             if w == 0.0:
                 continue
             # Category heuristic: lookup against the static topology.

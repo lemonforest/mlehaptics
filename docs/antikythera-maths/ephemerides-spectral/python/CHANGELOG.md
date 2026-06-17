@@ -10,6 +10,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.31.0rc4] — 2026-06-17
+
+### Changed — numpy-FREE capstone: `pip install ephemerides-spectral` pulls NO numpy
+
+The capstone of the Phase-N numpy-removal arc. After rc2 (ITN component)
+and rc3 (the last trivial dead import), the remaining numpy was ONE
+connected component — the byte-exact BIP-encoder / HD-lift /
+native-marshalling core. rc4 flips it, then **drops `numpy` from BOTH
+`python/pyproject.toml` and `python/pyproject-pure.toml` dependencies**.
+The shipped package and its full test suite now import and run with
+numpy **not installed at all**.
+
+**The six shipped modules flipped** (canonical
+`docs/antikythera-maths/research/<f>.py`, re-emitted through codegen):
+
+- `laplacian.py` — complex128 Laplacian build (`np.zeros`/`np.pi`/
+  `np.sqrt`/`np.cos`) → `list[list[complex]]` + stdlib `math`/`cmath`.
+  The LTI propagator `get_propagator` / `evolve_state` (and the
+  reference instrument's breathing encode) replace `scipy.linalg.expm`
+  with a **Hermitian matrix-exponential keystone** `expm_neg_i_hermitian`
+  — the matrices are Hermitian, so `expm(-1j·L·t) = V·diag(exp(-iλt))·Vᴴ`
+  via srmech's numpy-free Hermitian eigensolver
+  (`srmech.amsc.laplacian.mat_hermitian_eigendecompose`). Matches scipy
+  to ~1e-12 (validated).
+- `bip_instrument.py` — the BIP integer-ALU encoder. uint64/int64 numpy
+  arithmetic → Python `int` + explicit fixed-width masking (uint64 add
+  `& 0xFFFFFFFFFFFFFFFF`; final reduce `& (MODULO-1)`). The
+  `np.errstate(over='raise')` int64 overflow trap is replicated by an
+  explicit range check (`-(2**63) <= r < 2**63`). The cosine LUT uses
+  stdlib `round` (round-half-to-even, identical to `np.round`) + `math.cos`.
+  `encode_state` now returns `array('I')`.
+- `ephemeris_reference_instrument.py` — the FPU reference encoder; same
+  Hermitian-expm flip + stdlib trig.
+- `bip_hd_lift.py` — the complex64 HD lift. The channel basis stays
+  **byte-identical complex64** via `struct`-based float32 truncation
+  (`complex(_f32(cos(p)), _f32(sin(p)))` equals `np.complex64(exp(1j·p))`
+  byte-for-byte). HD vectors are `list[complex]`; `np.roll` →
+  list-rotation (verified-equal semantics); `np.linalg.norm` / `np.vdot`
+  → stdlib.
+- `_native_bip.py` — `encode_state`/`encode_at_jd` return `array('I')`;
+  the complex64 ctypes marshalling (`np.frombuffer` / `np.ascontiguousarray`)
+  → stdlib `array('f')` + ctypes buffers. (Native parity preserved: the
+  native `channel_basis` stays byte-identical, native HD within ~2.4e-8.)
+- `bridge.py` — `_interleave_complex` HD wire-format → `array('f')`.
+
+**Byte-exactness gates held** (pinned from the pre-flip numpy-present
+code, re-asserted after each flip): `encode_state` (uint32 residues) and
+`channel_basis` (complex64 bytes) reproduce **byte-for-byte**; the
+Laplacian diagonal / dynamic matrix / propagator reproduce to float
+round-off; HD-lift / bind-observer / eclipse-probability reproduce within
+the **1e-5 HD-parity tolerance** (the superposition now accumulates in
+float64 rather than complex64 — more accurate than the old path, ~3-4e-8
+deviation). The reference instrument's per-body channel bases were
+re-seeded from the portable splitmix64 stream (the numpy `default_rng`
+PCG64 stream can't be reproduced numpy-free) — no byte-exact test pins
+those `backend="fpu-ref"` bytes.
+
+**Tests:** every test that imported numpy as a buffer/oracle was rewritten
+numpy-free (stdlib `array`/`struct`/`cmath` or the package's own carriers).
+New permanent `tests/test_zero_numpy_ratchet.py` asserts no `import numpy`
+and no executable `np.` token anywhere in `ephemerides_spectral/`.
+
+**No `ephemerides_spectral` ABI change** (`ES_ABI_VERSION = 10`). Rc cycles
+through TestPyPI only.
+
 ## [0.31.0rc3] — 2026-06-17
 
 ### Changed — numpy-removal arc: drop the dead `import numpy` from `syzygy_window`

@@ -36,7 +36,8 @@ without a C toolchain, Pyodide / WASM environments).
 
 from __future__ import annotations
 
-import numpy as np
+import struct
+
 import pytest
 
 from ephemerides_spectral import _native_bip
@@ -50,6 +51,23 @@ pytestmark = pytest.mark.skipif(
     not _native_bip.HAS_NATIVE,
     reason="native library not loaded; dual-path tests require C path",
 )
+
+
+# v0.31.0rc4: numpy-free oracle helpers — bases are list[complex].
+def _c64_bytes(arr) -> bytes:
+    buf = bytearray()
+    for z in arr:
+        zc = complex(z)
+        buf += struct.pack("<ff", zc.real, zc.imag)
+    return bytes(buf)
+
+
+def _max_abs_diff(a, b) -> float:
+    return max((abs(complex(x) - complex(y)) for x, y in zip(a, b)), default=0.0)
+
+
+def _max_mag_err(arr) -> float:
+    return max((abs(abs(complex(z)) - 1.0) for z in arr), default=0.0)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -73,11 +91,10 @@ def test_legacy_method_byte_identical_to_default(seed: int, D: int) -> None:
     legacy = _native_bip.native_channel_basis_method(
         seed, D, ES_BASIS_METHOD_LEGACY,
     )
-    assert default.dtype == legacy.dtype == np.complex64
-    assert default.shape == legacy.shape == (D,)
-    assert np.array_equal(default, legacy), (
+    assert len(default) == len(legacy) == D
+    assert _c64_bytes(default) == _c64_bytes(legacy), (
         f"LEGACY method drifted from default es_channel_basis at "
-        f"seed={seed}, D={D}: max |delta| = {np.max(np.abs(default - legacy))}"
+        f"seed={seed}, D={D}: max |delta| = {_max_abs_diff(default, legacy)}"
     )
 
 
@@ -95,8 +112,9 @@ def test_legacy_method_byte_identical_to_default(seed: int, D: int) -> None:
 def test_turn_integer_method_shape_and_dtype(seed: int, D: int) -> None:
     """The TURN_INTEGER route must return the same shape / dtype as LEGACY."""
     ti = _native_bip.native_channel_basis_turn_integer(seed, D)
-    assert ti.dtype == np.complex64
-    assert ti.shape == (D,)
+    assert isinstance(ti, list)
+    assert len(ti) == D
+    assert all(isinstance(z, complex) for z in ti[:8])
 
 
 @pytest.mark.parametrize("seed,D", [
@@ -112,10 +130,10 @@ def test_turn_integer_unit_magnitude(seed: int, D: int) -> None:
     turn; the within-quadrant path lands within float32 ULP.
     """
     ti = _native_bip.native_channel_basis_turn_integer(seed, D)
-    mags = np.abs(ti)
-    assert np.max(np.abs(mags - 1.0)) < 1e-6, (
+    max_err = _max_mag_err(ti)
+    assert max_err < 1e-6, (
         f"TURN_INTEGER basis not unit-magnitude at seed={seed}, D={D}: "
-        f"max|mag-1| = {np.max(np.abs(mags - 1.0))}"
+        f"max|mag-1| = {max_err}"
     )
 
 
@@ -153,14 +171,13 @@ def test_turn_integer_quarter_turn_bit_exact_when_phase_aligned() -> None:
     # property: TURN_INTEGER's distribution of |z| is centred at 1.0
     # with at-most float32 ULP spread, AND any element exactly on a
     # quadrant has the orthogonal component exactly zero.
-    mags = np.abs(ti)
-    near_unit = np.where(np.abs(mags - 1.0) < 1e-12)[0]
+    near_unit = [k for k in range(D) if abs(abs(complex(ti[k])) - 1.0) < 1e-12]
     # For "near unit" elements, check whether either component is
     # exactly zero — that's the signature of the quarter-turn dispatch.
     # If none happen in the D=65536 sweep (probability 1 - (1-2^-30)^65536
     # ≈ 6e-5 — essentially never), this assertion vacuously passes.
     for idx in near_unit:
-        z = ti[idx]
+        z = complex(ti[idx])
         if abs(z.real) > 1.0 - 1e-12 or abs(z.imag) > 1.0 - 1e-12:
             # Candidate quarter turn — verify the orthogonal component
             # is bit-zero (the TURN_INTEGER dispatch emits literal 0.0f).
@@ -178,10 +195,11 @@ def test_turn_integer_quarter_turn_bit_exact_when_phase_aligned() -> None:
                 )
     # The contrast with LEGACY: LEGACY's near-unit elements have BOTH
     # components within float32 ULP of (±1, 0) but neither exactly zero.
-    legacy_mags = np.abs(legacy)
-    legacy_near_unit = np.where(np.abs(legacy_mags - 1.0) < 1e-12)[0]
+    legacy_near_unit = [
+        k for k in range(D) if abs(abs(complex(legacy[k])) - 1.0) < 1e-12
+    ]
     for idx in legacy_near_unit:
-        z = legacy[idx]
+        z = complex(legacy[idx])
         # If LEGACY happens to land on a near-quadrant, document that
         # both components are non-zero (the orthogonal one will be a
         # tiny but non-zero float). We don't fail on this — it's the
@@ -206,8 +224,8 @@ def test_turn_integer_magnitude_error_no_worse_than_legacy() -> None:
     seed = 2026
     legacy = _native_bip.native_channel_basis_method(seed, D, ES_BASIS_METHOD_LEGACY)
     ti = _native_bip.native_channel_basis_turn_integer(seed, D)
-    legacy_max = float(np.max(np.abs(np.abs(legacy) - 1.0)))
-    ti_max = float(np.max(np.abs(np.abs(ti) - 1.0)))
+    legacy_max = _max_mag_err(legacy)
+    ti_max = _max_mag_err(ti)
     # Allowance: float32 LSB at unity (~6e-8) — fairness margin.
     ALLOWANCE = 6e-8
     assert ti_max <= legacy_max + ALLOWANCE, (
@@ -242,6 +260,6 @@ def test_turn_integer_deterministic_across_calls() -> None:
     """
     a = _native_bip.native_channel_basis_turn_integer(2026, 4096)
     b = _native_bip.native_channel_basis_turn_integer(2026, 4096)
-    assert np.array_equal(a, b), (
+    assert _c64_bytes(a) == _c64_bytes(b), (
         "TURN_INTEGER not deterministic across calls — implementation bug"
     )
