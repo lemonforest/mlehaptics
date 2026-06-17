@@ -93,41 +93,87 @@ def extract_edges(text):
     return uniq
 
 
-def understand_markup(text):
-    """COMPREHEND markup, do NOT discard it. Returns (clean_prose, edges): extract the relationship edges, UNWRAP
-    inline content (keep the word a link/emphasis/heading wraps), and remove ONLY pure-form syntax (template/ref/
-    table/css/latex/code). Markup is a separable FORM layer the language layer understands (F762)."""
+# ── Template sub-language kernel (F819) — a wiki {{name|pos|k=v}} is a DISCRETE grammar, not noise. CONTENT-bearing
+#    templates render their args as inline prose; an unknown family is SURFACED as a gap (the missing-kernel signal,
+#    per "do not do manually removing edits … it shows us where we are missing sublanguage kernels") rather than
+#    silently dropped. Innermost-first (in understand_markup's fixpoint) resolves nested templates inside-out.
+#    Each entry is a discrete render rule per the template's wiki semantics (attested to its purpose, not a magic str).
+_TPL_CONTENT = {
+    "convert": lambda p: " ".join(p[:2]), "cvt": lambda p: " ".join(p[:2]),     # {{convert|5|km}} -> "5 km"
+    "nowrap": lambda p: " ".join(p), "nobr": lambda p: " ".join(p), "nobreak": lambda p: " ".join(p),
+    "lang": lambda p: p[-1] if p else "",                                        # {{lang|fr|bonjour}} -> "bonjour"
+    "frac": lambda p: "/".join(p) if p else "", "sfrac": lambda p: "/".join(p) if p else "",
+    "val": lambda p: p[0] if p else "", "formatnum": lambda p: p[0] if p else "",
+    "as of": lambda p: "as of " + " ".join(p), "quote": lambda p: " ".join(p),
+    "nihongo": lambda p: p[0] if p else "",
+}
+
+
+def _resolve_template(inner, gaps):
+    """Render a wiki template (inner = text between the braces, no nested braces — innermost). CONTENT family ->
+    its inline prose; unknown family -> '' + RECORD the family in `gaps` (the missing-kernel signal). Metadata
+    templates (infobox/cite/navbox/stub/…) carry FACTS not lead prose — dropping them from the WALK is correct, but
+    the family is surfaced so an infobox-FACTS kernel can be built next (these are discrete, tractable)."""
+    head = inner.split("|", 1)[0]
+    base = head.split(":", 1)[0].strip().lower()                 # {{formatnum:1000}} colon form
+    pos = [a.strip() for a in inner.split("|")[1:] if "=" not in a]
+    if base in _TPL_CONTENT:
+        return " " + _TPL_CONTENT[base](pos) + " "
+    if base.startswith("lang-"):                                 # {{lang-fr|bonjour}} -> "bonjour"
+        return " " + (pos[0] if pos else "") + " "
+    if gaps is not None and base:
+        fam = base.split()[0]
+        gaps[fam] = gaps.get(fam, 0) + 1                         # this template family has no kernel yet
+    return " "
+
+
+def understand_markup(text, *, gaps=None):
+    """COMPREHEND markup, do NOT discard it. Returns (clean_prose, edges). If `gaps` (a dict) is passed it is
+    POPULATED with construct-class -> count for everything that has NO content kernel yet (the missing-kernel MAP,
+    F819) — a manual strip would HIDE that signal, so we SURFACE it. CONTENT kernels (kept): links (unwrap + edges,
+    F764), emphasis/heading (unwrap), CONTENT templates (render). Surfaced-as-gap (dropped + counted): unknown
+    template families, <ref>, tables, <math>/$LaTeX$, <code>, and the <score>/<chem>/<gallery>/<timeline> block tags
+    (#226). html-tag/css/list markers wrap content we KEEP, so they are form-not-gap."""
     t = text or ""
     edges = extract_edges(t)
-    # 0) PURE-FORM blocks that may CONTAIN {{/[[ (remove before the balanced pass) — comment/code/ref
-    t = re.sub(r"<!--.*?-->", " ", t, flags=re.S)                # html comments
-    t = _DETECT["code_span"].sub(" ", t)                         # ``` fences ``` / `inline code`
-    t = re.sub(r"<ref[^>]*?/>", " ", t, flags=re.I)              # self-closing <ref />
-    t = re.sub(r"<ref[^>]*>.*?</ref>", " ", t, flags=re.S | re.I)   # <ref> ... </ref>
-    # 1) BALANCED templates {{..}} (form) + wiki-links [[..]] (media->form, else KEEP display), INNERMOST-first
-    #    to a fixpoint, so arbitrary nesting (File caption w/ nested link, template-in-template) is comprehended,
-    #    not left as residue (the F814 raw-wikitext correction; the lead tier is shallow so converges identically).
+
+    def _g(k, n=1):
+        if gaps is not None and n:
+            gaps[k] = gaps.get(k, 0) + n
+
+    # 0) blocks that may CONTAIN {{/[[ — remove before the balanced pass (comment/code/ref/specialized #226 tags)
+    t = re.sub(r"<!--.*?-->", " ", t, flags=re.S)                # html comments (no content)
+    _g("<code>", len(_DETECT["code_span"].findall(t)))
+    t = _DETECT["code_span"].sub(" ", t)
+    for tag in ("ref", "gallery", "score", "chem", "ce", "math", "timeline", "syntaxhighlight", "pre", "mapframe"):
+        pat = rf"<{tag}\b[^>]*?/>|<{tag}\b[^>]*>.*?</{tag}>"
+        _g(f"<{tag}>", len(re.findall(pat, t, flags=re.S | re.I)))
+        t = re.sub(pat, " ", t, flags=re.S | re.I)
+    # 1) BALANCED templates {{..}} (CONTENT kernel / gap-surface) + wiki-links [[..]] (media->form, else KEEP display),
+    #    INNERMOST-first to a fixpoint, so nesting (File caption w/ nested link, template-in-template) is comprehended.
     prev = None
     while prev != t:
         prev = t
-        t = _TPL_INNER.sub(" ", t)
+        t = _TPL_INNER.sub(lambda m: _resolve_template(m.group(0)[2:-2], gaps), t)
         t = _WL_INNER.sub(_resolve_wiki_link, t)
-    # 2) tables {| .. |} (loop for nested) — pure form (cell content is layout, not lead prose)
+    # 2) tables {| .. |} (loop for nested) — cell content is layout, not lead prose -> surfaced as gap
     prev = None
     while prev != t:
         prev = t
+        _g("table {|", len(re.findall(r"\{\|.*?\|\}", t, flags=re.S)))
         t = re.sub(r"\{\|.*?\|\}", " ", t, flags=re.S)
     # 3) UNWRAP remaining inline content — KEEP the word the form wraps (the comprehend-not-discard core)
     t = _MD_LINK.sub(r"\1", t)                                   # [text](url)        -> text
-    t = re.sub(r"\$[^$]+\$", " ", t)                             # inline LaTeX math = notation form
+    _g("$latex$", len(re.findall(r"\$[^$\n]+\$", t)))
+    t = re.sub(r"\$[^$]+\$", " ", t)                             # inline LaTeX math = notation form (-> F452/F454)
     t = re.sub(r"'''([^']+)'''", r"\1", t)                       # wiki '''bold'''
     t = re.sub(r"''([^']+)''", r"\1", t)                         # wiki ''italic''
     t = re.sub(r"\*\*([^*]+)\*\*|__([^_]+)__", lambda m: m.group(1) or m.group(2), t)   # markdown **bold**/__bold__
     t = re.sub(r"\*([^*]+)\*", r"\1", t)                         # markdown *italic*
     t = re.sub(r"={2,6}\s*([^=\n]+?)\s*={2,6}", r"\1. ", t)      # wiki ==Heading== -> "Heading." (its own sentence)
     t = re.sub(r"^#{1,6}\s*(.+?)\s*$", r"\1. ", t, flags=re.M)   # markdown # Heading -> "Heading."
-    # 3) remaining PURE-form syntax (no content to keep)
-    t = re.sub(r"</?[a-z][^>]*>", " ", t, flags=re.I)            # html tags
+    # 4) remaining FORM syntax that WRAPS content we keep (tag/css/list/entity) — form-not-gap (content survives)
+    t = re.sub(r"</?[a-z][^>]*>", " ", t, flags=re.I)            # html tags (text between them kept)
     t = re.sub(r'\b[a-z-]+\s*=\s*"[^"]*"|\b\d+px\b', " ", t, flags=re.I)   # css attr="…" / 100px
     t = re.sub(r"\\[a-zA-Z]+(?:\{[^}]*\})*|\\[a-zA-Z]+", " ", t) # LaTeX \cmd{…}{…} (all args) / bare \cmd
     t = re.sub(r"^\s*[-*+>:;]\s|^\s*\d+\.\s|^-{3,}$", " ", t, flags=re.M)    # list / quote / def / hr markers

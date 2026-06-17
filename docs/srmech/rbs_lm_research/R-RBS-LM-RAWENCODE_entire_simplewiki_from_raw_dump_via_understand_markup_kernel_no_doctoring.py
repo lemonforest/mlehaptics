@@ -35,6 +35,7 @@ from collections import defaultdict
 DUMP = "/home/skirklan/corpora/wikipedia/simplewiki-latest-pages-articles.xml.bz2"
 OUT = "/home/skirklan/corpora/wikipedia/simplewiki_rawbody_instrument.ndjson"
 IDX = "/home/skirklan/corpora/wikipedia/simplewiki_rawbody_index.json"
+GAPMAP = "/home/skirklan/corpora/wikipedia/simplewiki_rawbody_gapmap.json"   # F819: missing-kernel map (surfaced, not stripped)
 KMAX = 16
 MIN_TOK = 12                                                     # skip stubs / template-only pages
 
@@ -72,6 +73,7 @@ def main():
                      f"(NO doctoring; srmech {srmech.__version__}) ===\n")
     sys.stderr.flush()
     index = {}
+    gapmap = {}                                                  # F819: construct-class -> count (the missing-kernel map)
     n = nuniq = toktot = edgetot = 0
     ksum = 0
     title = ns = txt = None
@@ -90,7 +92,10 @@ def main():
                 txt = el.text
             elif tag == "page":
                 if ns == "0" and not isredir and txt and len(txt) > 200:
-                    clean, edges = mg.understand_markup(txt)
+                    g = {}
+                    clean, edges = mg.understand_markup(txt, gaps=g)   # F819: surface the missing-kernel map
+                    for kk, vv in g.items():
+                        gapmap[kk] = gapmap.get(kk, 0) + vv
                     toks = re.findall(r"[a-z0-9]+", clean.lower())
                     if len(toks) >= MIN_TOK:
                         k, uniq = kstar(toks)
@@ -112,10 +117,15 @@ def main():
                 isredir = False
                 el.clear()
     json.dump(index, open(IDX, "w"))
+    json.dump(gapmap, open(GAPMAP, "w"))                          # F819: the missing-kernel map (surfaced, not stripped)
     sys.stderr.write(f"\nDONE: {n} pages encoded from RAW dump | {toktot:,} tokens | uniq-walk {nuniq / n:.1%} | "
                      f"mean k* {ksum / n:.1f} | {edgetot:,} curated edges (mean {edgetot / n:.1f}/page)\n")
     sys.stderr.write(f"instrument: {OUT} ({os.path.getsize(OUT) // (1024 * 1024)} MB) | "
                      f"index: {IDX} ({len(index)} titles)\n")
+    top = sorted(gapmap.items(), key=lambda kv: -kv[1])[:25]
+    sys.stderr.write(f"MISSING-KERNEL MAP -> {GAPMAP} ({len(gapmap)} construct families); top 25 (the kernel-build queue):\n")
+    for k, v in top:
+        sys.stderr.write(f"    {k:24s} {v:>9,}\n")
     sys.stderr.flush()
 
 
