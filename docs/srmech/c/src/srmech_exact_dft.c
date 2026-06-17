@@ -44,7 +44,7 @@
  * ABI: additive — srmech_exact_dft_i64 is a NEW exported symbol, so
  * SRMECH_ABI_VERSION stays 3 (the Python ctypes shim hasattr-guards it).
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"

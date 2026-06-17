@@ -29,7 +29,7 @@
  * string / object / array trees only (MPR / genome manifests are
  * float-free). See JPL_AUDIT.md + CHANGELOG.
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"

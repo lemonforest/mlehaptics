@@ -29,7 +29,7 @@
  *   - Rule 5 (≥2 asserts per non-exempt function).
  *   - Rule 8 (no multi-line macros).
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"

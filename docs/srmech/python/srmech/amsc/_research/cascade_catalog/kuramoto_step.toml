@@ -104,7 +104,7 @@ non_numeric = "non-coercible theta/omega -> native path skipped; pure-Python fal
 
 [cascade.attestation]
 author = "Steven Kirkland"
-license = "GPL-3.0-or-later"
+license = "MIT"
 parser_version = "srmech-cascade 0.6.0rc9"
 canonical_landings = [
   "Kuramoto, Y. (1975), 'Self-entrainment of a population of coupled non-linear oscillators', in International Symposium on Mathematical Problems in Theoretical Physics, Lecture Notes in Physics 39:420 (Springer) — the canonical coupled-oscillator model",

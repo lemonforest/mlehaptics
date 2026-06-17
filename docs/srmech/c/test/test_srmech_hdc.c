@@ -12,7 +12,7 @@
  * so per token: acc[c0]=2*c1 (n=2); acc[c1]=2*c0+2*c2 (n=4); acc[c2]=2*c1 (n=2).
  * Accumulator layout: [n, bit0-1counts[dim], bit1-1counts[dim]] (stride 1+2*dim).
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"

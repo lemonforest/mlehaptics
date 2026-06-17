@@ -78,7 +78,7 @@ periodicity = "the autocorrelation is CIRCULAR (lags wrap mod n) — this is the
 
 [cascade.attestation]
 author = "Steven Kirkland"
-license = "GPL-3.0-or-later"
+license = "MIT"
 parser_version = "srmech-cascade 0.7.0rc8"
 canonical_landings = [
   "Wiener, N. (1930), 'Generalized harmonic analysis', Acta Math. 55:117 — the autocorrelation ↔ power-spectrum theorem",

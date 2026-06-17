@@ -41,7 +41,7 @@ inf_f64 = "+inf and -inf swap under orientation < 0."
 
 [cascade.attestation]
 author = "Steven Kirkland"
-license = "GPL-3.0-or-later"
+license = "MIT"
 parser_version = "srmech-cascade 0.4.5rc4"
 canonical_landings = [
   "MFO §VII.6.x (Class C cascade-orientation)",

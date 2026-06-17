@@ -28,7 +28,7 @@
  * symbols, exactly like the srmech_simd_* HAL functions.
  *
  * JPL Power-of-Ten: no goto, no malloc, bounded, status returns, ≤60-line
- * functions, warnings-clean. License: GPL-3.0-or-later.
+ * functions, warnings-clean. License: MIT.
  */
 #ifndef SRMECH_PLATFORM_H
 #define SRMECH_PLATFORM_H

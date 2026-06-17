@@ -12,7 +12,7 @@
  * Rule 8 (no multi-line macros); Rule 10 (-Werror / /WX). ABI: no exported
  * symbol (internal TU) — SRMECH_ABI_VERSION unaffected.
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech_simd.h"

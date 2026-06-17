@@ -22,7 +22,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "srmech"
-version = "0.8.0"
+version = "0.8.1rc1"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects metadata that exceeds it
 # ("could not comply" with no useful detail bubbled into the publish
@@ -41,7 +41,7 @@ description = "Stored-Relationship Mechanism: the 14-class A-N primitive vocabul
 # hatchling (pyproject-pure.toml) consumes the same block natively.
 dynamic = ["readme"]
 requires-python = ">=3.10"
-license = "GPL-3.0-or-later"
+license = "MIT"
 authors = [{ name = "Steven Kirkland" }]
 keywords = [
     "stored-relationship",

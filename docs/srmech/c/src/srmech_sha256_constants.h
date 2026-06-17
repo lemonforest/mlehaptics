@@ -44,7 +44,7 @@
  * test and regenerate. A hand edit that the derive-and-assert test does
  * not bless is a defect by construction.
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 #ifndef SRMECH_SHA256_CONSTANTS_H
 #define SRMECH_SHA256_CONSTANTS_H

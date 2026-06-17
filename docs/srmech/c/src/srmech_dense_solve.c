@@ -58,7 +58,7 @@
  * new name (a stale lib lacking it falls to pure-Python), so SRMECH_ABI_VERSION
  * stays 3 — the old capped srmech_dense_solve_f64 is removed, not re-signatured.
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"

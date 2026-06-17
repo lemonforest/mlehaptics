@@ -6,7 +6,7 @@
  * causes HAS_NATIVE to stay False; the Python fallback path runs
  * unchanged.
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"

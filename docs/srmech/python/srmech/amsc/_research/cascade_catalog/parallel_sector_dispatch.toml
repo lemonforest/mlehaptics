@@ -86,7 +86,7 @@ collapse_lattice = "two sectors collapse iff body commutes with the distinguishi
 
 [cascade.attestation]
 author = "Steven Kirkland"
-license = "GPL-3.0-or-later"
+license = "MIT"
 parser_version = "srmech-cascade 0.6.0rc6"
 canonical_landings = [
   "Baez, J.C. (2002), 'The Octonions', Bull. Amer. Math. Soc. 39:145 (arXiv:math/0105155) §2.4 — Out(Spin(8)) = S3, the order-3 triality cap (F220)",

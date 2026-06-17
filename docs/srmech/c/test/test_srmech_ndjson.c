@@ -16,7 +16,7 @@
  * The test itself uses stdio to lay down the fixture file (test code is not
  * JPL-bound — only the library is); the library walks it through the PAL.
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"
