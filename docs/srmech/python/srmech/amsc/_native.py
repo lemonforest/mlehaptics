@@ -1515,6 +1515,20 @@ def has_native_klein4_bind() -> bool:
                 and hasattr(LIB, "srmech_klein4_similarity"))
 
 
+def has_native_klein4_triality_cycle() -> bool:
+    """True iff the Class-I klein4 order-3 triality cycle is loaded + bound
+    (UPSTREAM §53 / F818, the last ``c_exists_unbound`` klein4 op). The C
+    ``srmech_klein4_triality_cycle(in, n, inverse, out)`` — the order-3
+    S₃ = Aut(V₄) relabel (iω₇→γ₅→CPT→iω₇, identity fixed; the V₄-carrier image
+    of the so(8) 8v→8s→8c triality) — ships in libsrmech with the SAME forward /
+    inverse 3-cycle tables as the pure-Python op, so the native path is
+    bit-identical. Gates the dispatch in
+    :func:`srmech.amsc.hdc.klein4_triality_cycle`. False on a no-C lib — the
+    pure-Python relabel is the complete alternative."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_klein4_triality_cycle"))
+
+
 def has_native_fiedler_sparse() -> bool:
     """True iff the §51 native sparse normalized-cut Fiedler is loaded + bound
     (rc166+ lib): the matvec power iteration runs in C (n unbounded, caller-

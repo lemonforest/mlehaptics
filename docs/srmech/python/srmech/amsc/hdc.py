@@ -807,6 +807,19 @@ def _klein4_similarity_native(a: "array", b: "array"):
     return float(out.value)
 
 
+def _klein4_triality_native(buf: "array", inverse: bool) -> "array":
+    """Native order-3 triality relabel over an array('B') buffer → array('B').
+    The C uses the SAME forward / inverse 3-cycle tables as the pure path."""
+    n = len(buf)
+    cin = (ctypes.c_uint8 * n).from_buffer_copy(buf)
+    out = (ctypes.c_uint8 * n)()
+    rc = _native.LIB.srmech_klein4_triality_cycle(
+        cin, ctypes.c_uint32(n), ctypes.c_int(1 if inverse else 0), out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return array("B", bytes(out))
+
+
 def klein4_bind(a, b, *, sectors=None, parallel=None, mode="chunk"):
     """Klein-4 bind: component-wise (F₂)²-XOR. Commutative, associative,
     self-inverse (``bind(a, bind(a, b)) == b``); identity is 0.
@@ -1204,6 +1217,10 @@ def klein4_triality_cycle(v, *, inverse=False):
         The relabelled uint8 array (same shape as ``v``).
     """
     buf = _as_klein4_buf(v, "klein4_triality_cycle")
+    if len(buf) >= 1 and _native.has_native_klein4_triality_cycle():  # §53: native
+        out = _klein4_triality_native(buf, inverse)
+        if out is not None:
+            return HV(out, sectors=4)
     table = _KLEIN4_TRIALITY_INVERSE if inverse else _KLEIN4_TRIALITY_FORWARD
     return HV(_table_buf(buf, table), sectors=4)
 
