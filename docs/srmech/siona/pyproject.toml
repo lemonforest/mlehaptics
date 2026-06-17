@@ -4,19 +4,16 @@ build-backend = "hatchling.build"
 
 [project]
 name = "siona"
-version = "0.0.4"
-# siona is a METADATA-ONLY metapackage (no Python files of its own). The
-# `import siona` co-name alias ships INSIDE the srmech wheel (top-level
-# `siona/` package alongside `srmech`, from srmech v0.4.6). All this dist
-# does is guarantee srmech>=0.4.6 is present, which is what provides
-# `import siona`. Shipping no `siona/` here is deliberate: it prevents a
-# file-ownership collision when both `siona` and `srmech` are installed.
-description = "siona - co-name metapackage for srmech (Stored-Relationship Mechanism). Installs srmech>=0.4.6, whose wheel provides the 'import siona' alias (same objects as 'import srmech', single source of truth)."
+# 0.1.0rc1 — the UN-MIRROR cut: siona stops being a co-name alias for srmech (srmech rc173 removed the in-wheel
+# `import siona` alias) and becomes its OWN real package — the grounded RBS-HDC inference layer, a srmech PROFILE
+# built ON lean srmech. TestPyPI rc first (its OWN PR; NOT via PR #687); a clean tag -> PyPI is the human gate.
+version = "0.1.0rc1"
+description = "Siona — a grounded, can't-hallucinate RBS-HDC instrument: storage + retrieval (k=3 chiral addressing) of spectrally-encoded knowledge, built on srmech (Stored-Relationship Mechanism)."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "GPL-3.0-or-later"
 authors = [{ name = "Steven Kirkland" }]
-keywords = ["srmech", "siona", "alias", "metapackage", "stored-relationship-mechanism", "spectral", "cascade"]
+keywords = ["siona", "srmech", "rbs-hdc", "stored-relationship", "de-bruijn", "recall", "grounded-lm", "spectral", "hyperdimensional"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
@@ -28,20 +25,27 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering",
 ]
-# srmech>=0.4.6 is the floor that bundles the in-wheel `siona/` alias.
-dependencies = ["srmech>=0.4.6"]
+# srmech is the lean MATH CORE siona rides on (the 14-class A-N vocabulary + the klein4 HDC + the profile loader).
+dependencies = ["srmech>=0.7.4"]
+
+# THE plugin hook: siona declares itself as a srmech profile (package-only entry-point form; the loader reads
+# siona/srmech_profile.toml via importlib.resources). `srmech.profile("siona")` discovers + smoke-tests + activates it.
+[project.entry-points."srmech.profiles"]
+siona = "siona"
 
 [project.urls]
 Homepage = "https://github.com/lemonforest/mlehaptics/tree/main/docs/srmech/siona"
 Repository = "https://github.com/lemonforest/mlehaptics"
 Issues = "https://github.com/lemonforest/mlehaptics/issues"
-"srmech (canonical package)" = "https://pypi.org/project/srmech/"
+"srmech (math core)" = "https://pypi.org/project/srmech/"
 
-# Metadata-only wheel: no Python packages are selected. `bypass-selection`
-# tells hatchling this empty-payload wheel is intentional (a metapackage),
-# not a misconfiguration. The alias code lives in srmech's wheel.
 [tool.hatch.build.targets.wheel]
-bypass-selection = true
+packages = ["siona"]
+
+# Ship the profile descriptor as package data so the loader can read it via importlib.resources.
+# rc1 is pure-Python (py3-none-any); the C-native de Bruijn accelerator (F824/F825) is a follow-on cibuildwheel rc.
+[tool.hatch.build.targets.wheel.force-include]
+"siona/srmech_profile.toml" = "siona/srmech_profile.toml"
 
 [tool.hatch.build.targets.sdist]
-include = ["README.md", "pyproject.toml"]
+include = ["siona/", "README.md", "pyproject.toml"]

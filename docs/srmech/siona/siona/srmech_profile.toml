@@ -1,0 +1,18 @@
+# srmech_profile.toml — the `siona` profile (the un-mirror cut). Discovered via the `srmech.profiles`
+# entry-point; activated with `srmech.profile("siona")`. rc1 = pure-Python bridge (no [profile.native] yet).
+profile_schema_version = "1.0"
+
+[profile]
+name            = "siona"
+version         = "0.1.0"
+summary         = "Siona — grounded RBS-HDC recall instrument: de Bruijn fiber walk + full-body recall over a spectrally-encoded knowledge instrument, on srmech."
+package         = "siona"
+srmech_requires = ">=0.7.4"
+
+# Bridge surface — "name = module:callable"; the loader's smoke test imports each + checks it is callable.
+[profile.bridge]
+walk   = "siona.bridge:walk"
+recall = "siona.bridge:recall"
+
+# [profile.native] intentionally omitted in rc1 — siona rides srmech's native Klein-4 for HDC; the de Bruijn
+# walk is pure-Python (exact). The C-native de Bruijn accelerator (F824) is a follow-on cibuildwheel rc.

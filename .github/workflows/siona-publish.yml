@@ -1,12 +1,14 @@
 name: siona-publish
 
-# Build the pure-Python `siona` alias distribution (a thin co-name for
-# `srmech` — `import siona` is `import srmech`) and publish to PyPI /
-# TestPyPI via OIDC trusted publishing.
+# Build + publish the `siona` package — Siona's grounded RBS-HDC inference layer
+# (a srmech profile plugin built ON `srmech`). NOTE: from 0.1.0 siona is its OWN
+# real package, NOT a co-name alias for srmech (the in-wheel `import siona` alias
+# was retired upstream in srmech rc173). Publishes to PyPI / TestPyPI via OIDC
+# trusted publishing (project=siona on both indices).
 #
 # RC-version auto-routing (mirrors srmech-publish.yml):
-#   * Tag `siona-vX.Y.ZrcN`  → TestPyPI
-#   * Tag `siona-vX.Y.Z`      → PyPI
+#   * Tag `siona-vX.Y.ZrcN`  → TestPyPI   (each rcN goes via its OWN PR — never PR #687)
+#   * Tag `siona-vX.Y.Z`      → PyPI       (clean tag = the human production gate)
 # The tag suffix is the source of truth. (siona tags are created manually;
 # there is no autotag for siona.)
 #
@@ -46,9 +48,9 @@ jobs:
           set -euo pipefail
           python -m build
           ls -la dist/
-          # Sanity: a py3-none-any wheel + an sdist, and no stray binaries.
-          # Version-agnostic globs (siona is a metadata-only metapackage; the
-          # version changes per release).
+          # Sanity: a py3-none-any wheel + an sdist (siona rc1 is the pure-Python
+          # inference layer on srmech; the C-native de Bruijn tier is a follow-on
+          # cibuildwheel rc). Version-agnostic globs.
           ls dist/siona-*-py3-none-any.whl 1>/dev/null
           ls dist/siona-*.tar.gz 1>/dev/null
           python -m twine check --strict dist/*
