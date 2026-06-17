@@ -1,6 +1,6 @@
 """srmech CLI entry point.
 
-Wires the ``srmech`` (and ``siona``) console-script entry to a single
+Wires the ``srmech`` console-script entry to a single
 :func:`main` dispatch. **Five subcommands** — ``status`` / ``bus`` /
 ``dsl`` / ``mcp`` / ``class``:
 

@@ -18,7 +18,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "srmech"
-version = "0.7.5rc172"
+version = "0.7.5rc173"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects oversize metadata
 # ("could not comply" with no useful detail bubbled into the publish
@@ -100,10 +100,8 @@ dev = [
 
 [project.scripts]
 # v0.4.6rc2 — first CLI subcommand: ``srmech status`` (out-of-band
-# introspection of a running srmech sweep). The siona alias mirrors
-# the import-level alias (v0.4.4); both invoke the same dispatch.
+# introspection of a running srmech sweep).
 srmech = "srmech.cli:main"
-siona = "srmech.cli:main"
 # v0.5.0rc6 — MCP (Model Context Protocol) server adapter for Claude Code.
 # Mirrors the pyproject.toml entry; pure-Python wheel ships the same console-
 # script so Pyodide / WASM environments get the same surface.
@@ -121,7 +119,7 @@ Changelog = "https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/pyt
 "Research notebook" = "https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/srmech_research_notebook.md"
 
 [tool.hatch.build.targets.wheel]
-packages = ["srmech", "siona"]
+packages = ["srmech"]
 # Exclude any _native/ directory if it leaked in from a prior build.
 # Hatchling's `exclude` must be an array of glob strings — *not* a
 # table. (The earlier table form `"...\_native/*" = true` broke
@@ -135,7 +133,6 @@ exclude = [
 [tool.hatch.build.targets.sdist]
 include = [
     "srmech/**",
-    "siona/**",
     "tests/**",
     "README.md",
     "CHANGELOG.md",

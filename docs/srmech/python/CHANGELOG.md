@@ -4,10 +4,19 @@ All notable changes to this package will be documented here. The format follows 
 
 ## [Unreleased]
 
-_Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension + `siona status` CLI via siona pyproject `[project.scripts]` enhancement)._
+_Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension)._
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.7.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.7.x entry, -end- immediately before the prior released minor (currently [0.6.0]). -->
 <!-- pypi-readme-changelog-start -->
+## [0.7.5rc173] - 2026-06-17
+
+**Remove the `siona` co-name mirror — free the name for a downstream `srmech + inference` package.** From v0.4.4 the srmech wheel bundled a second top-level package, `siona`, that aliased every `srmech.*` object (`pip install srmech` → `import siona` returned the same objects), paired with a standalone `siona` metapackage on PyPI and a dedicated publish workflow. That mirror is now retired: srmech stays the scaffolding, and the `siona` name is reserved for a separate package (srmech + inference) developed in another session. No srmech public surface changes — `tools.total` stays **310**, ABI stays **3**, the package is numpy-free.
+
+- **Deleted** the bundled alias package (`siona/__init__.py`), its test (`tests/test_siona_alias.py`), the standalone metapackage (`docs/srmech/siona/` — `pyproject.toml` + `README.md`), and the `.github/workflows/siona-publish.yml` publish workflow.
+- **De-mirrored the packaging** in both `pyproject.toml` and `pyproject-pure.toml`: dropped the `siona = "srmech.cli:main"` console script (the `srmech` script is unchanged), `wheel.packages` / hatch `packages` → `["srmech"]`, and removed the `siona/**` sdist include.
+- **Prose scrub:** the README "also bundles the `siona` alias" blurb, the CLI docstring's "(and `siona`)", the `test_harmonics.py` co-name comment, and the Unreleased "`siona status` CLI" deferred note are gone. The forward-looking `srmech / siona processes` bus-composition docstrings are **kept** — they anticipate the future `siona` (inference) package composing with srmech over the IPC bus.
+- **Note:** un-publishing the already-released `siona` distributions from PyPI / TestPyPI is a registry-side action that must be done by the maintainer; this rc only removes the mirror machinery from the repo so no future srmech release ships or publishes `siona`.
+
 ## [0.7.5rc172] - 2026-06-17
 
 **`klein4_unbundle` — name the bundle's dual + correct the Class-M reversibility audit.** The per-class reversibility audit (`srmech_research_notebook.md` §3.27) used to mark Class M (HDC) **MIXED**, pinning it on "`bundle` irreversible — no `unbundle`, only the `similarity` query." That under-stated it: `bundle`'s dual **is** `unbundle` = `unbind`-on-the-bundle + `similarity`-cleanup, recoverable *because the bundle keeps the relationship* (the bound key→value pairs are still present in the superposition).
