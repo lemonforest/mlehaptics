@@ -33,6 +33,23 @@ _WIKI_LINK      = re.compile(r"\[\[([^\]|]+)\]\]")                # [[Entity]]  
 _MD_LINK        = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")          # [text](url)        -> text
 _WIKI_LINK_TGT  = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]*)?\]\]")   # the link TARGET (the relationship edge)
 
+# BALANCED nesting (F814-no-doctoring): on RAW wikitext the lead-tier regexes break on nesting — a
+# [[File:…|caption with [[nested]]]] or a {{tpl with {{nested}}}} leaves residue. We resolve INNERMOST-first
+# to a fixpoint: a template {{…}} is pure form (removed); a wiki-link [[…]] either is media/namespace form
+# (File/Image/Category/Media → removed) or wraps CONTENT (→ keep the display text). Inner links resolve first,
+# so an outer File caption is whole-form by the time it is seen. Pure UNDERSTANDING — no content discarded.
+_TPL_INNER = re.compile(r"\{\{[^{}]*\}\}")                       # innermost {{template}} (no nested braces)
+_WL_INNER  = re.compile(r"\[\[[^\[\]]*\]\]")                     # innermost [[wiki-link]] (no nested brackets)
+_NS_FORM   = re.compile(r"(?i)^\s*(?:file|image|category|media)\s*:")   # media/namespace link = pure form
+
+
+def _resolve_wiki_link(m):
+    """An innermost [[…]]: media/namespace → form (drop); else KEEP the display (text after last pipe)."""
+    inner = m.group(0)[2:-2]
+    if _NS_FORM.match(inner.split("|", 1)[0]):
+        return " "
+    return inner.rsplit("|", 1)[-1] if "|" in inner else inner
+
 # Per-form-class detectors (for detect_markup — so the genome can SAY which forms it recognized).
 _DETECT = {
     "wiki_link":       re.compile(r"\[\[[^\]]+\]\]"),
@@ -82,17 +99,27 @@ def understand_markup(text):
     table/css/latex/code). Markup is a separable FORM layer the language layer understands (F762)."""
     t = text or ""
     edges = extract_edges(t)
-    # 1) PURE-FORM blocks (no prose inside) — remove form + content
+    # 0) PURE-FORM blocks that may CONTAIN {{/[[ (remove before the balanced pass) — comment/code/ref
+    t = re.sub(r"<!--.*?-->", " ", t, flags=re.S)                # html comments
     t = _DETECT["code_span"].sub(" ", t)                         # ``` fences ``` / `inline code`
-    t = _DETECT["citation_ref"].sub(" ", t)                      # <ref>…</ref>
-    t = re.sub(r"\{\{[^{}]*\}\}", " ", t)                        # {{templates}} (one nesting level)
-    t = re.sub(r"\{\|.*?\|\}", " ", t, flags=re.S)               # {| tables |}
-    t = re.sub(r"\[\[(?:File|Image):[^\]]*\]\]", " ", t, flags=re.I)   # media links = pure form (caption is not the lead)
-    t = re.sub(r"\$[^$]+\$", " ", t)                             # inline LaTeX math $…$ = notation form
-    # 2) UNWRAP inline content — KEEP the word the form wraps (the comprehend-not-discard core)
-    t = _WIKI_LINK_DISP.sub(r"\1", t)                            # [[Target|Display]] -> Display
-    t = _WIKI_LINK.sub(r"\1", t)                                 # [[Entity]]         -> Entity
+    t = re.sub(r"<ref[^>]*?/>", " ", t, flags=re.I)              # self-closing <ref />
+    t = re.sub(r"<ref[^>]*>.*?</ref>", " ", t, flags=re.S | re.I)   # <ref> ... </ref>
+    # 1) BALANCED templates {{..}} (form) + wiki-links [[..]] (media->form, else KEEP display), INNERMOST-first
+    #    to a fixpoint, so arbitrary nesting (File caption w/ nested link, template-in-template) is comprehended,
+    #    not left as residue (the F814 raw-wikitext correction; the lead tier is shallow so converges identically).
+    prev = None
+    while prev != t:
+        prev = t
+        t = _TPL_INNER.sub(" ", t)
+        t = _WL_INNER.sub(_resolve_wiki_link, t)
+    # 2) tables {| .. |} (loop for nested) — pure form (cell content is layout, not lead prose)
+    prev = None
+    while prev != t:
+        prev = t
+        t = re.sub(r"\{\|.*?\|\}", " ", t, flags=re.S)
+    # 3) UNWRAP remaining inline content — KEEP the word the form wraps (the comprehend-not-discard core)
     t = _MD_LINK.sub(r"\1", t)                                   # [text](url)        -> text
+    t = re.sub(r"\$[^$]+\$", " ", t)                             # inline LaTeX math = notation form
     t = re.sub(r"'''([^']+)'''", r"\1", t)                       # wiki '''bold'''
     t = re.sub(r"''([^']+)''", r"\1", t)                         # wiki ''italic''
     t = re.sub(r"\*\*([^*]+)\*\*|__([^_]+)__", lambda m: m.group(1) or m.group(2), t)   # markdown **bold**/__bold__
@@ -103,7 +130,8 @@ def understand_markup(text):
     t = re.sub(r"</?[a-z][^>]*>", " ", t, flags=re.I)            # html tags
     t = re.sub(r'\b[a-z-]+\s*=\s*"[^"]*"|\b\d+px\b', " ", t, flags=re.I)   # css attr="…" / 100px
     t = re.sub(r"\\[a-zA-Z]+(?:\{[^}]*\})*|\\[a-zA-Z]+", " ", t) # LaTeX \cmd{…}{…} (all args) / bare \cmd
-    t = re.sub(r"^\s*[-*+>]\s|^\s*\d+\.\s|^-{3,}$", " ", t, flags=re.M)    # list / quote / hr markers
+    t = re.sub(r"^\s*[-*+>:;]\s|^\s*\d+\.\s|^-{3,}$", " ", t, flags=re.M)    # list / quote / def / hr markers
+    t = re.sub(r"&[a-z]+;|&#\d+;", " ", t)                       # html entities &amp; &#160;
     t = re.sub(r"[\[\]{}|]", " ", t)                            # stray bracket/pipe residue
     t = re.sub(r"\s+", " ", t).strip()
     return t, edges
