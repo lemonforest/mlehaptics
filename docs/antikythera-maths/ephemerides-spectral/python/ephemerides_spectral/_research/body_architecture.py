@@ -63,12 +63,11 @@ References
 from __future__ import annotations
 
 import math
-from typing import Dict, List, Optional
-
-import numpy as np
+from typing import Dict, List, Optional, Tuple
 
 from .bodies import BODIES
 from .itn_window import _best_rational_approx
+from . import navigation_ops as _nav
 
 
 # ---- Default heliocentric subset (v0.16.0 Tier-1 expansion). ---------
@@ -114,46 +113,36 @@ def _resonance_weight(p_i: float, p_j: float) -> float:
     return math.exp(-residual / RESONANCE_RESIDUAL_SCALE) / float(p + q)
 
 
-def _build_resonance_laplacian(bodies: List[str]) -> np.ndarray:
-    """Build the combinatorial Laplacian L = D - W on ``bodies``."""
+def _build_resonance_laplacian(bodies: List[str]):
+    """Build the combinatorial Laplacian L = D - W on ``bodies`` via the
+    shared Class-L navigation cascade (:mod:`navigation_ops`,
+    numpy-free). Returns an :class:`srmech.amsc.mat.Mat`."""
     n = len(bodies)
-    W = np.zeros((n, n), dtype=np.float64)
-    for i in range(n):
-        for j in range(i + 1, n):
-            p_i = BODIES[bodies[i]].period_days
-            p_j = BODIES[bodies[j]].period_days
-            w = _resonance_weight(p_i, p_j)
-            W[i, j] = w
-            W[j, i] = w
-    D = np.diag(W.sum(axis=1))
-    return D - W
+    periods = [BODIES[name].period_days for name in bodies]
+    edges, weights = _nav.symmetric_pairs_to_edges(
+        n, lambda i, j: _resonance_weight(periods[i], periods[j])
+    )
+    return _nav.adjacency_to_laplacian(n, edges, weights)
 
 
 def _fiedler_with_sign_convention(
-    L: np.ndarray,
+    L,
     bodies: List[str],
-) -> tuple[float, np.ndarray]:
+) -> Tuple[float, List[float]]:
     """Return (λ₂, Fiedler eigenvector) with deterministic sign.
 
-    ``np.linalg.eigh`` returns eigenvectors with sign that depends on
-    LAPACK's pivoting; the sign is platform-dependent in principle.
-    We apply a stable physics-anchored convention: the body with the
-    *shortest sidereal period* is forced to have a positive Fiedler
-    entry. This makes the canonical inner/outer label assignment
-    (mercury at the deep-positive end ⇒ inner; pluto at the deep-
-    negative end ⇒ outer) reproducible across platforms.
+    Routes through the shared Class-L eigendecompose + Class-C frame in
+    :func:`navigation_ops.fiedler_partition` (the srmech Jacobi solver,
+    bit-identical to LAPACK ``eigh`` on these small resonance Laplacians;
+    numpy-free). The physics-anchored convention forces the body with
+    the *shortest sidereal period* to a positive Fiedler entry, so the
+    canonical inner/outer label assignment (mercury deep-positive ⇒
+    inner; pluto deep-negative ⇒ outer) is reproducible across
+    platforms. ``f`` is a plain ``list[float]``.
     """
-    eigvals, eigvecs = np.linalg.eigh(L)
-    lam2 = float(eigvals[1])
-    f = eigvecs[:, 1].copy()
-    # Sign convention: shortest-period body has positive Fiedler entry.
-    periods = np.array(
-        [BODIES[name].period_days for name in bodies], dtype=np.float64
-    )
-    pivot = int(np.argmin(periods))
-    if f[pivot] < 0.0:
-        f = -f
-    return lam2, f
+    periods = [BODIES[name].period_days for name in bodies]
+    pivot = periods.index(min(periods))
+    return _nav.fiedler_partition(L, pivot)
 
 
 def compute_body_architecture(

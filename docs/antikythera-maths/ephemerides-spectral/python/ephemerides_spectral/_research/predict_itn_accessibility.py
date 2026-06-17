@@ -76,10 +76,9 @@ from __future__ import annotations
 import math
 from typing import Dict, List, Tuple
 
-import numpy as np
-
 from .bodies import BODIES
 from .itn_window import _best_rational_approx, hohmann_total_dv_kms
+from . import navigation_ops as _nav
 
 
 # ---- Default heliocentric subset (same as body_architecture). --------
@@ -147,65 +146,53 @@ def _hybrid_weight(p_i: float, p_j: float) -> float:
     return (1.0 / (dv + EPS_DV_KMS)) * resonance
 
 
-def _build_hybrid_laplacian(bodies: List[str]) -> np.ndarray:
+def _build_hybrid_laplacian(bodies: List[str]):
+    """Build the §13.9 hybrid-weighted Laplacian L = D - W on ``bodies``
+    via the shared Class-L navigation cascade (:mod:`navigation_ops`,
+    numpy-free). Returns an :class:`srmech.amsc.mat.Mat`."""
     n = len(bodies)
-    W = np.zeros((n, n), dtype=np.float64)
-    for i in range(n):
-        for j in range(i + 1, n):
-            p_i = BODIES[bodies[i]].period_days
-            p_j = BODIES[bodies[j]].period_days
-            w = _hybrid_weight(p_i, p_j)
-            W[i, j] = w
-            W[j, i] = w
-    D = np.diag(W.sum(axis=1))
-    return D - W
+    periods = [BODIES[name].period_days for name in bodies]
+    edges, weights = _nav.symmetric_pairs_to_edges(
+        n, lambda i, j: _hybrid_weight(periods[i], periods[j])
+    )
+    return _nav.adjacency_to_laplacian(n, edges, weights)
 
 
 def _eigvecs_2d_with_sign(
-    L: np.ndarray, bodies: List[str]
-) -> Tuple[float, float, np.ndarray, np.ndarray]:
+    L, bodies: List[str]
+) -> Tuple[float, float, List[float], List[float]]:
     """Return (λ₂, λ₃, f₂, f₃) with deterministic sign conventions.
 
-    f₂: same convention as :mod:`body_architecture` — body of shortest
-    period forced to positive entry.
-
-    f₃: max-|f₃| entry forced positive (no physics-anchor available; the
-    second-smallest non-trivial mode picks out a different structure
-    than the first, so a max-magnitude convention is the simplest
-    reproducible choice).
+    Routes through the shared Class-L 2-D Fiedler embedding in
+    :func:`navigation_ops.fiedler_embedding_2d` (the srmech Jacobi
+    solver, numpy-free). f₂: same convention as :mod:`body_architecture`
+    — body of shortest period forced to a positive entry. f₃: max-|f₃|
+    entry forced positive (no physics-anchor for the third mode). f₂, f₃
+    are plain ``list[float]``.
     """
-    eigvals, eigvecs = np.linalg.eigh(L)
-    lam2 = float(eigvals[1])
-    lam3 = float(eigvals[2])
-    f2 = eigvecs[:, 1].copy()
-    f3 = eigvecs[:, 2].copy()
-    periods = np.array(
-        [BODIES[name].period_days for name in bodies], dtype=np.float64
-    )
-    pivot = int(np.argmin(periods))
-    if f2[pivot] < 0.0:
-        f2 = -f2
-    if f3[int(np.argmax(np.abs(f3)))] < 0.0:
-        f3 = -f3
-    return lam2, lam3, f2, f3
+    periods = [BODIES[name].period_days for name in bodies]
+    pivot = periods.index(min(periods))
+    return _nav.fiedler_embedding_2d(L, pivot)
 
 
 # Module-level memoised eigendecomposition. The default 13-body roster
 # is fixed; we eagerly compute the (f₂, f₃) embedding once at module
-# load (microseconds — eigh on a 13×13 symmetric matrix). Per-pair
-# lookups are then O(1).
-_DEFAULT_LAPLACIAN: np.ndarray = _build_hybrid_laplacian(HELIOCENTRIC_BODIES)
+# load (microseconds — the Jacobi sweep on a 13×13 symmetric matrix).
+# Per-pair lookups are then O(1).
+_DEFAULT_LAPLACIAN = _build_hybrid_laplacian(HELIOCENTRIC_BODIES)
 (
     _DEFAULT_LAMBDA_2,
     _DEFAULT_LAMBDA_3,
-    _DEFAULT_FIEDLER,        # f₂
-    _DEFAULT_F3,             # f₃
+    _DEFAULT_FIEDLER,        # f₂ (list[float])
+    _DEFAULT_F3,             # f₃ (list[float])
 ) = _eigvecs_2d_with_sign(_DEFAULT_LAPLACIAN, HELIOCENTRIC_BODIES)
 
-# 2-D (f₂, f₃) embedding — production v0.18.2 predictor uses this.
-_DEFAULT_EMBEDDING: np.ndarray = np.column_stack(
-    [_DEFAULT_FIEDLER, _DEFAULT_F3]
-)
+# 2-D (f₂, f₃) embedding — production v0.18.2 predictor uses this. One
+# [f₂[k], f₃[k]] row per body (plain list of pairs; numpy-free).
+_DEFAULT_EMBEDDING: List[List[float]] = [
+    [_DEFAULT_FIEDLER[k], _DEFAULT_F3[k]]
+    for k in range(len(HELIOCENTRIC_BODIES))
+]
 
 _DEFAULT_BODY_INDEX: Dict[str, int] = {
     name: idx for idx, name in enumerate(HELIOCENTRIC_BODIES)
@@ -298,7 +285,7 @@ def predict_itn_accessibility(
     # predictor (replaces v0.18.1's 1-D |f₂[i] - f₂[j]| distance).
     embedding_i = _DEFAULT_EMBEDDING[i]
     embedding_j = _DEFAULT_EMBEDDING[j]
-    d_2d = float(np.linalg.norm(embedding_i - embedding_j))
+    d_2d = _nav.euclidean_distance(embedding_i, embedding_j)
     # 1-D Fiedler distance preserved as a returned field (back-compat;
     # callers who pinned the v0.18.1 fiedler_distance value still see
     # the same number).

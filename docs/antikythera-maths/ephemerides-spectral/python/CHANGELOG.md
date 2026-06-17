@@ -10,6 +10,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.31.0rc2] — 2026-06-17
+
+### Changed — numpy-free ITN / etak navigation cascade + `GatewayNavigation` `[class]` TOML
+
+The first concrete **numpy-removal** flip (the package's own math, per the
+numpy-removal arc) folded together with the **duplicate-code-path purge**
+the rc2 etak/ITN work calls for.
+
+`body_architecture` and `predict_itn_accessibility` each hand-rolled their
+OWN dense numpy Laplacian (`np.zeros` / `np.diag` / `W.sum`) +
+`np.linalg.eigh` + a Fiedler sign convention — a duplicate of srmech's
+Class-L `dense_laplacian` + `symmetric_eigendecompose` (the latter already
+wrapped numpy-free by `_cascade.symmetric_eigh`). New
+`_research/navigation_ops.py` is the **single** numpy-free realisation of
+the ITN / etak navigation cascade (Class-L build + Class-C Fiedler
+sign-frame + Class-K sign re-application — no `abs()` on the vector — all
+via srmech carriers). Both consumers now route through it; **numpy is
+removed from 4 modules** (`navigation_ops`, `body_architecture`,
+`predict_itn_accessibility`, and `_cascade`'s dead `import numpy`).
+
+Verified against the rc1 numpy ground truth: `body_architecture` λ₂ is
+byte-identical (`0.14959233296610927`; inner 8 / outer 5 partition
+unchanged); `predict_itn_accessibility` observables (`fiedler_distance` /
+`embedding_distance_2d` / `predicted_dv_kms`) reproduce to max Δ 6.9e-11
+(the expected Jacobi-vs-LAPACK eigenvector difference; same eigenspace);
+the full 81-test ITN suite (`body_architecture` + `predict_itn` +
+`find_itn_chains`) passes unchanged. **No calibration threshold moved.**
+
+**etak ≡ ITN.** Rather than add a second `etak_*` code path beside
+`find_itn_chains` / `predict_itn_accessibility` (a new code path for a
+different name — the thing `[[feedback_prefer_config_driven_toml_classes]]`
+says to avoid), the shared navigation cascade is now expressed ONCE as a
+config-driven srmech `[class]`: `class_catalog/gateway_navigation.toml`
+declares `GatewayNavigation` (fields `L` + `pivot`; methods `fiedler` —
+the body-architecture partition view — and `embed2d` — the
+predict-accessibility embedding view) binding the flat `navigation_ops`
+adapters (the genome two-layer pattern). `_research/_srmech_classes.py`
+registers it lazily (no import-time side effect; graceful no-op if the
+srmech DSL is absent). `tests/test_gateway_navigation_class.py` is the
+DSL-class-vs-Python equivalence proof — `.fiedler()` / `.embed2d()` are
+byte-identical to calling `navigation_ops` directly, and the DSL fiedler
+view reproduces the live `body_architecture` partition. This is the first
+config-driven `[class]` TOML ephemerides ships (force-included in the pure
+wheel; the platform wheel auto-includes `_research/**`).
+
+**No `ephemerides_spectral` ABI change** (`ES_ABI_VERSION = 10`). Rc
+cycles through TestPyPI only.
+
 ## [0.31.0rc1] — 2026-06-17
 
 ### Changed — consume srmech 0.8.1 + dependency floor `>=0.8.1` + README hygiene

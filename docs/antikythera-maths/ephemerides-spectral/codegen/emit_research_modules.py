@@ -37,6 +37,11 @@ _INCLUDED_MODULES: List[str] = [
     "dynamics.py",
     "body_architecture.py",
     "predict_itn_accessibility.py",
+    # rc2 — the single numpy-free ITN / etak navigation cascade (shared
+    # by body_architecture + predict_itn_accessibility) + the lazy
+    # registrar for the GatewayNavigation [class] catalog TOML.
+    "navigation_ops.py",
+    "_srmech_classes.py",
     "em_instrument_data.py",
     "em_instrument.py",
     "geodetic_catalog_data.py",
@@ -163,9 +168,10 @@ _INCLUDED_MODULES: List[str] = [
 # Subdirectories under research/ to mirror recursively. Empty after
 # Task #197 Phase 4 (2026-05-13) — `attested_adapters` was removed
 # when the AMSC framework migrated to srmech.amsc.adapters.* on PyPI.
-# Kept as a list so future nested-package ships can re-add entries
-# without re-introducing the iteration scaffolding.
-_INCLUDED_SUBDIRS: List[str] = []
+# Subdirectories mirrored into _research/ wholesale (both .py modules
+# AND .toml data, so config-driven [class] catalogs ship). rc2 adds
+# class_catalog/ (the GatewayNavigation descriptor).
+_INCLUDED_SUBDIRS: List[str] = ["class_catalog"]
 
 def emit() -> List[Path]:
     if _RESEARCH_DST.exists():
@@ -190,7 +196,10 @@ def emit() -> List[Path]:
             continue
         dst_dir = _RESEARCH_DST / subdir
         dst_dir.mkdir(parents=True, exist_ok=True)
-        for src_file in sorted(src_dir.rglob("*.py")):
+        _subdir_globs = ("*.py", "*.toml")
+        for src_file in sorted(
+            p for pat in _subdir_globs for p in src_dir.rglob(pat)
+        ):
             rel = src_file.relative_to(src_dir)
             dst_file = dst_dir / rel
             dst_file.parent.mkdir(parents=True, exist_ok=True)

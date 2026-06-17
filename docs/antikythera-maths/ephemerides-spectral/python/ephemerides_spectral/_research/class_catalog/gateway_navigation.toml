@@ -1,0 +1,42 @@
+# GatewayNavigation — the ITN / etak gateway-navigation cascade declared
+# DECLARATIVELY as a config-driven srmech [class] over the shipped
+# `ephemerides_spectral._research.navigation_ops` flat ops (the genome
+# two-layer pattern: ship each method as a flat cascade op → bind it
+# here; no logic duplication, byte-identical to the Python path).
+#
+# etak ≡ ITN
+# ----------
+# The PR #687 *etak* navigation (ETAK / BOARD / FLOCK triality) and the
+# ephemerides *ITN* gateway-graph search are the SAME cascade — hold an
+# invariant Class-C Fiedler frame, let the Class-L manifold transport
+# reveal accessible routes via Fiedler distance, Class-M-bind the
+# triality. Rather than a second `etak_*` code path beside
+# `find_itn_chains` / `predict_itn_accessibility` (a new code path for a
+# different name — the exact thing [[feedback_prefer_config_driven_toml_classes]]
+# says to avoid), the shared cascade is expressed ONCE here; `fiedler`
+# (the body-architecture partition) and `embed2d` (the
+# predict-accessibility embedding) are the two named views over it.
+#
+# Construct from a built Laplacian: `GatewayNavigation(L=..., pivot=...)`
+# where `L` is the Class-L `dense_laplacian` (resonance- or hybrid-
+# weighted) and `pivot` is the shortest-period body index (the Class-C
+# sign-frame anchor). The methods bind the flat navigation_ops adapters.
+
+[class]
+name = "GatewayNavigation"
+kind = "navigation"
+doc = "The ITN / etak gateway-navigation cascade (Class-L Fiedler partition over a resonance-/hybrid-weighted graph Laplacian + Class-C sign-frame). etak ≡ ITN — one cascade, two named views: `fiedler` (inner/outer body-architecture partition) and `embed2d` (2-D (f₂,f₃) accessibility embedding). Construct with L= (the dense_laplacian) and pivot= (the shortest-period body index, the sign-frame anchor). Composes ephemerides_spectral._research.navigation_ops over srmech's numpy-free Class-L laplacian; no new algebra."
+
+[class.field]
+L = "any"
+pivot = "int"
+
+[class.method.fiedler]
+op = "ephemerides_spectral._research.navigation_ops.fiedler_partition"
+binds = ["L", "pivot"]
+doc = "The ITN/etak architecture view — Class-L eigendecompose + Class-C sign-frame. Returns (λ₂, f₂) with f₂[pivot] ≥ 0 (the physics-anchored frame). The body-architecture inner/outer partition is the sign of each f₂ entry."
+
+[class.method.embed2d]
+op = "ephemerides_spectral._research.navigation_ops.fiedler_embedding_2d"
+binds = ["L", "pivot"]
+doc = "The ITN/etak accessibility view — the 2-D (f₂, f₃) Fiedler embedding. Returns (λ₂, λ₃, f₂, f₃); the predict_itn accessibility distance is ‖(f₂,f₃)[i] − (f₂,f₃)[j]‖ on this embedding."
