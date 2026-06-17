@@ -10,6 +10,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.31.0rc1] — 2026-06-17
+
+### Changed — consume srmech 0.8.1 + dependency floor `>=0.8.1` + README hygiene
+
+srmech graduated to **0.8.1** — its math layer is now fully **numpy-free**
+(`Mat` / `Vec` / `HV` carriers replace every `numpy` callsite) and the package
+is **MIT**-relicensed (math is the scaffolding; the monorepo root stays GPL-3).
+This rc lifts the `srmech>=…` floor `>=0.7.4` → **`>=0.8.1`** across the three
+pins (`pyproject.toml`, `pyproject-pure.toml`,
+`ephemerides_spectral/srmech_profile.toml`) and bumps the package version
+across the **8** SSOT sites — the four version files plus
+`c/include/ephemerides_spectral.h` (`ES_VERSION_*`), `_data/manifest.json`, and
+the two README markers (banner + Status `*(current)*`). The first rc1 push
+missed the last three; this entry records the lockstep fix.
+
+Empirically verified the srmech carrier swap is a clean drop-in: the package
+consumes only `srmech.amsc.*` (Class-L `laplacian` + Class-N `rational`
+cascades through `_research/_cascade.py`, plus the AMSC catalog/format), and
+those surfaces import + run byte-unchanged against live srmech 0.8.1 — the full
+local suite is green (the one pre-existing failure is a missing skyfield `.bsp`
+kernel, unrelated to srmech).
+
+Also collapses the multi-version **bold Status banner** at the top of the
+PyPI-facing README to a single line; the per-version history stays in the
+`## Status` section where it belongs rather than crammed into the banner.
+
+**No `ephemerides_spectral` code or ABI change** (`ES_ABI_VERSION = 10`). This
+rc begins the ephemerides-spectral **numpy-removal arc** — routing the
+package's *own* math through srmech's carriers — completed over follow-up rcs.
+Rc cycles through TestPyPI only.
+
 ## [0.30.0rc10] — 2026-06-07
 
 ### Added — heat_flow dual-author attested-TOML backfill
