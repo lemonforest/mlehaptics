@@ -1,0 +1,23 @@
+# srmech_profile.toml — siona_debruijn (F824): a C-native de Bruijn walk as a 3rd-party srmech plugin.
+# Discovered via the `srmech.profiles` entry-point; activated with srmech.profile("siona_debruijn").
+profile_schema_version = "1.0"
+
+[profile]
+name            = "siona_debruijn"
+version         = "0.1.0"
+summary         = "C-native de Bruijn fiber walk (F805/F818) — symbol-agnostic sequence reconstruction; Siona's full-body recall op as a lean-srmech plugin"
+package         = "siona_debruijn_plugin"
+srmech_requires = ">=0.7.5"
+
+# Bridge surface — "name = module:callable"; smoke test imports + checks callable.
+[profile.bridge]
+walk        = "siona_debruijn_plugin.bridge:walk"
+abi_version = "siona_debruijn_plugin.bridge:abi_version"
+
+# Native plugin tier — srmech ctypes-loads lib{library}.so from the package, calls abi_version_function,
+# and requires its return == expected_abi_version (AbiMismatchError otherwise).
+[profile.native]
+library              = "siona_debruijn"
+install_path         = "."
+abi_version_function = "siona_debruijn_abi_version"
+expected_abi_version = 1
