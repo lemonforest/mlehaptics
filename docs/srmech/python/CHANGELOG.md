@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.8.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.8.x entry, -end- immediately before the prior minor (currently [0.7.5rc173], the rc line that graduated as 0.8.0). -->
 <!-- pypi-readme-changelog-start -->
+## [0.8.0rc2] - 2026-06-17
+
+**PyPI README numpy scrub — a real review this time.** The rc1 README still advertised `pip install srmech[scientific]` and shipped a numpy-based Quick-start example, despite numpy having been removed in the carrier arc. The `[scientific]` extra is genuinely gone from both pyprojects (this was a README-only staleness, not a packaging bug), but the README never got a full sweep. rc2 fixes every stale reference:
+
+- **Install block** — dropped the `pip install srmech[scientific]` line (the extra does not exist); `validation` / `collectors` extras unchanged.
+- **Quick-start example** — rewritten numpy-free: `laplacian.dense_laplacian(n, edges)` (the real `(n, edges) -> Mat` signature, not a numpy adjacency) + plain-Python-list states. **The exact block is extracted and run on the shipped wheel in a numpy-absent venv** — it passes.
+- **Prose** — `so8.g2_subalgebra` "rank-revealing numpy subset" → numpy-free `Mat`; Path A "closed-form algebra over numpy / scipy" → over the numpy-free `Mat`/`Vec` carriers; `parallel_sector_dispatch` "(native / IO / numpy) body" → "(native / IO)"; kuramoto "libm-trig tolerance" → native trig-cascade tolerance (the C build holds no libm); and the `hurwitz` bullet's nonexistent `hurwitz_matrix(σ, θ)` → the actual `cascade.the_one(σ, θ).to_matrix()` + `qm.hurwitz.hurwitz_planes()` surface.
+
+A full `numpy | np. | scientific | scipy | libm | ndarray` grep of the README now shows only correct context ("numpy-free", "no numpy", "no `[scientific]` extra", "holds no libm", or `"scientific"` in scare-quotes). No code change beyond the 5-SSOT bump; `tools.total` **310**, ABI **3**, numpy-free.
+
 ## [0.8.0rc1] - 2026-06-17
 
 **Graduation candidate — the entire v0.7.5rc1 → rc173 line ships as 0.8.0.** 0.7.5 is **skipped on production PyPI**: the accumulated additions are a minor-version's worth of surface, so they graduate as **0.8.0** rather than a 0.7.5 patch. This rc adds no new code beyond the already-merged 0.7.5rc line — it relabels the version and refreshes the PyPI README + research notebook to cite **0.8.0** as the latest release. Headline additions consolidated into 0.8.0:
