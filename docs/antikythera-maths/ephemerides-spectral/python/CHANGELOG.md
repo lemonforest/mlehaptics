@@ -10,6 +10,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.31.0rc5] — 2026-06-18
+
+### Changed — srmech `>=0.8.2` floor bump (consume the new srmech release)
+
+Floor-bump rc with **no `ephemerides_spectral` code change**: the `srmech`
+dependency floor moves `>=0.8.1 → >=0.8.2` in both `pyproject.toml` and
+`pyproject-pure.toml`, picking up **srmech 0.8.2** (the §57 RBS-LM bigram-gate
+removal + the AST STOP-list ratchet banning `numpy`/`Counter`/`defaultdict` in
+srmech source). The package stays the numpy-FREE capstone from rc4 — verified
+numpy-absent against srmech 0.8.2 on TestPyPI. No `ephemerides_spectral` ABI
+change (`ES_ABI_VERSION = 10`). 6-site version SSOT bumped `0.31.0rc4 →
+0.31.0rc5`. Rc cycles through TestPyPI only.
+
 ## [0.31.0rc4] — 2026-06-17
 
 ### Changed — numpy-FREE capstone: `pip install ephemerides-spectral` pulls NO numpy

@@ -15,7 +15,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ephemerides-spectral"
-version = "0.31.0rc4"
+version = "0.31.0rc5"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects oversize metadata
 # ("could not comply" with no useful detail bubbled into the publish
@@ -58,7 +58,7 @@ classifiers = [
 # v0.31.0rc4: numpy-FREE capstone — see python/pyproject.toml. numpy is
 # no longer a runtime dependency; skyfield stays an optional [ephemeris]
 # extra (it transitively requires numpy for live SPICE calibration).
-dependencies = ["srmech>=0.8.1"]
+dependencies = ["srmech>=0.8.2"]
 
 [project.optional-dependencies]
 ephemeris  = ["skyfield>=1.46", "jplephem>=2.21"]
