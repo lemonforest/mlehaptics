@@ -11,6 +11,7 @@
 
 **Status:** Active. **Master architecture notebook for the spectral-research collection.** Cross-domain pollination layer above the per-domain notebooks (chess / ephemerides / antikythera / doom / othello / logo / MFO); home for domains without their own notebook (currently: graphics-domain Inkscape / Skia / GEGL).
 **Version:** v0.1 (master-architecture framing; was v0 inception-only).
+**Latest srmech package release:** **v0.8.0** (graduates the long v0.7.5rc carrier-removal line; 0.7.5 is skipped on production PyPI and the accumulated additions ship as the 0.8.0 minor). Headline 0.8.0 surface: **numpy-free** (numpy removed entirely; `Mat`/`Vec`/`HV` carriers), the **native Class-M HDC core** (`klein4_{bind,bundle,unbind,unbundle,similarity}` + streaming fold), a **sparse + out-of-core Class-L Fiedler** graph-partition path (breaks the dense n≤256 wall), the **genome storage / file-management** surface (full C parity), and the **class-from-introspection generator**. Prior production releases — v0.7.4 / v0.7.3 / v0.7.1 / v0.7.0 / v0.6.0 / v0.5.0 / v0.4.x / v0.2.0 — remain in PyPI history.
 **Started:** 2026-05-09. Promoted to master architecture notebook same day per user direction.
 **Location:** `docs/srmech/` — top-level home, separate from any single domain.
 
@@ -5575,6 +5576,39 @@ Synthesis (F181): the disposition is **one operator, ≥2 band-specific actors �
 ### §3.37.6 Cross-references + status
 
 **Cross-references:** §3.27 / §3.28 (the recursive-Hopf + two-tier arcs this sits just below; §3.27 is the 28D=𝔰𝔬(8) chiral-hyper-loop home that F174 is the literature anchor for); §3.30.3 / F291 (F170's attested-and-corrected cross-match is an early twin-discipline instance); §3.33–§3.35 (the F183+ work this immediately precedes); the no-magic discipline (F151 PARTIAL, F163/F175 nulls kept). Per-finding docs `R-RBS-LM-FINDING_151…181`. **Status:** meaning-tier catch-up; the F166/F167 inference-walk capstone + the H177 falsification arc were the most under-surfaced and are the load-bearing additions. Honest nulls/partials preserved (F151, F163, F175, F178). k=3 triality pending (Phase 14).
+
+## §3.38 The A–N reversibility / lossy audit — reversible-rotation vs irreversible-projection (per-operator)
+
+A per-operator audit of the 14 A–N primitive classes, prompted by the carrier-removal arc's *exact-until-rotation* results (the integer-cyclotomic exact DFT and the char-poly + Sturm exact eigenvalues). The organizing reading: **a "lossy" operator projects information *out*, and the projected-out part is the fiber — the irrational rotation the discrete substrate can only approach.** Two corrections to a naïve first reading proved load-bearing and are recorded here.
+
+**Correction 1 — Class L is NOT partial-lossy; it is reversible.** For the symmetric Laplacian, eigendecomposition `M = Q·Λ·Qᵀ` (Q orthogonal) is a *bijective similarity transform* — `M` reconstructs exactly from `(Q, Λ)`; no information is destroyed. The eigenvalues `Λ` are the bit-exact scaffold (roots of an integer char-poly, Sturm-bracketable to arbitrary precision); the eigenvectors `Q` are the *rotation = the fiber*, irrational (no closed radical form for n ≥ 5, Abel–Ruffini), so only a **float carrier** loses precision (the ~1e-7 nullspace floor). L doesn't lose the fiber — **L reads the fiber.** "Partial-lossy" was a carrier artifact, not a property of the operator. And **Class K (pin-slot) is the operator that pins the continuous fiber-rotation back to exact ±1 — K *is* "the rotation of the bit-exact."**
+
+**Correction 2 — `bundle`'s dual is `unbundle` (bind-back + cleanup); it is recoverable up to capacity, not irreversible.** A first reading called `bundle` an irreversible many→one majority sum with "no `unbundle`, only the `similarity` query." That under-stated it. A *record* bundles bound key→value pairs, `S = bundle(bind(k₁,v₁), …)`; binding a key **back** recovers its value — `unbundle(S, kᵢ) = unbind(S, kᵢ) = bind(S, kᵢ)` (self-inverse XOR; the named `klein4_unbundle`, 0.7.5rc172) — *exact* for a single pair, value-plus-crosstalk inside a multi-pair bundle, denoised to the exact value by a `similarity`-cleanup against a codebook. It works **because the bundle keeps the relationship** (the bound pairs are still present in `S`). So `bundle`'s dual is the *structured* bind-back `unbundle` + cleanup, **recoverable up to the HDC capacity** — the capacity number is the recall bound (the analog of L's float-carrier floor), *not* proof of a missing inverse. The audit stays **per-operator**, but `bundle` lands on the reversible-up-to-a-bound side, with `bind` / `permute`, not with the one-way projections.
+
+The organizing axis is therefore **reversible-rotation-into-a-fiber** (exact; only carrier-limited) **vs many→one projection** (genuinely information-destroying; dual is at best a partial re-projection / query):
+
+| Class | core op(s) | reversible? | dual |
+|---|---|---|---|
+| **A** hash | `sha256_*` | **irreversible** | none — the archetypal projection |
+| **I** cyclic | `mod_mul`↔`mod_inv`, `mod_pow`, `three_cycle` | reversible | ✅ `mod_inv`; **`gcd`/`lcm` irreversible** (reduce to a divisor) |
+| **C** orient | stream + flip | reversible | flip self-inverse ✅ |
+| **J** primes | `factor`, `is_prime`, `cyclic_period` | factor reversible (↔multiply) | **`is_prime`/`period` = lossy readouts** |
+| **D** dispatch | `match`, `mirror_pattern` | **match irreversible** | `mirror_pattern` is the chiral *mirror*, not the inverse |
+| **E** catalog | `get`↔`register`, `list_*` | reversible | ✅ lookup↔register; `list_*` readout |
+| **F** template | **`render` only** | reversible-in-principle | ❌ **no `parse`/unrender — gap** |
+| **G** search | `byte_search`(`_backward`) | **irreversible** | chiral mirror (backward); true dual = located content (= E) |
+| **K** pin/kepler | `equation_of_centre`↔`kepler_solve`, `pin_slot` | reversible | ✅ paired; `pin_slot` self-inverse (the exact-izer) |
+| **L** laplacian | build + eigendecompose | **reversible** (the fiber-reader) | ✅ inverse-transform; loss is float-carrier only |
+| **M** hdc | `bind`↔`unbind`, `bundle`↔**`unbundle`**, `permute`, `similarity` | **reversible** (capacity-bounded) | `bind`/`unbind`✅, `permute`✅; **`bundle`↔`unbundle`** (bind-back + `similarity` cleanup) recoverable up to HDC capacity — the bundle keeps the relationship |
+| **B** tlv | `tlv_pack`↔`tlv_unpack` | reversible | ✅ complete (rc134) |
+| **H** introspect | `describe` / `native_status` | **readout (lossy)** | dual = reconstruct-from-description = genome `recall` |
+| **N** rational | `exp`↔`log`, `atan`, `sin`/`cos`, `best_rational` | reversible | `exp`/`log`✅, `atan`✅; **`sin`/`cos` have no `arcsin`/`arccos` — gap**; `best_rational` lossy |
+
+**Two genuine "missing inverse" gaps** (fillable — the next `tlv_pack→tlv_unpack`): **F** has `render` but no `parse`; **N** has `atan` but no `arcsin`/`arccos`. Everything else is either paired ✅ or fundamentally one-way (A hash, `gcd`, D `match`, search, `is_prime`, `similarity`, `best_rational`, H readout), where the dual can only ever be a partial query — `tlv_pack↔tlv_unpack` (rc134) and `bundle↔unbundle` (`klein4_unbundle`, 0.7.5rc172) are the two acted-on outputs of this audit so far.
+
+**Operator-multiplicity is mostly interpretive, with one irrep candidate.** Raw per-class op-counts are dominated by *carrier-replication* (the numpy-removal arc's `dense_*` / `mat_*` / `_real` / `_complex` near-duplicates in L; the `polar` / `klein4` / `loop` carrier-triple in M; the function / `series_truncate` twins in N) — interpretive, not structural. The structural skeleton underneath is **reversibility-parity**: reversible classes come as op + inverse *pairs* (B, G, K, I), irreversible as an *unpaired* forward (A, F, D-match). The one *forced*-looking multiplicity is M's carrier-stripped core `{bind, bundle, permute, similarity}` = **4 = |V₄|**, replicated by **triality = 3** carriers → `so(8) = V₄-sector × triality`. Whether the other classes' carrier-stripped counts fall on `{1, 3, 7}` is an open spike. *(The carrier-replication this audit exposed is the same duplication the numpy-removal-consolidation arc removes.)*
+
+**Cross-references:** §3.27 (28D = 𝔰𝔬(8) = 14 g₂ ⊕ 14, the V₄ × triality home); `[[user_stance_chirality_is_local_sign_flip_through_metric_fiber]]` (chirality = Class C local sign-flip through the fiber; K traces it); `spike_chiral_an_spectral_shape.py` (the `chiral_dual = C∘op∘C` spectral-shape sweep — the shape-level twin of this inverse-level audit). **Status:** dev-audit; the two gaps (F `parse`, N `arcsin`/`arccos`) are queued; the carrier-stripped-irrep claim is an open research spike.
 
 ---
 

@@ -10,6 +10,12 @@ mix-then-parallel (interpolation).
 
 Path B dual in Phase 6 (Path B subband bundle decomposition).
 
+Carrier-free since v0.7.5rc85 (#564): plain Python ``list`` carriers; the only
+delegate ``_dsp.convolve`` is already numpy-free (returns ``List[float]``). The
+strided polyphase split/interleave and the per-component accumulate are explicit
+index loops (Class-M elementwise adds); the ``[::L]`` strides are native list
+slices.
+
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Vaidyanathan
 (1993) *Multirate Systems and Filter Banks* §4.3 + Bellanger (1976).
 """
@@ -18,7 +24,7 @@ from __future__ import annotations
 
 from typing import List
 
-import numpy as np
+from srmech.signal_processing import _dsp_cascades as _dsp
 
 OPERATION_NAME = "polyphase"
 CLASS_COMPOSITION = ("L", "N")
@@ -32,17 +38,16 @@ SSOT_CITATION = (
 )
 
 
-def decompose(filter_taps, L: int) -> List[np.ndarray]:
+def decompose(filter_taps, L: int) -> List[list]:
     """Decompose ``filter_taps`` into L polyphase components.
 
-    ``E_k[n] = h[k + n*L]`` for k = 0..L-1.
+    ``E_k[n] = h[k + n*L]`` for k = 0..L-1. Returns a ``list`` of L ``list``s.
     """
-    taps = np.asarray(filter_taps, dtype=np.float64)
+    taps = [float(v) for v in filter_taps]
     # Pad to multiple of L
-    pad = (-taps.shape[0]) % L
+    pad = (-len(taps)) % L
     if pad:
-        taps = np.concatenate([taps, np.zeros(pad, dtype=np.float64)])
-    M = taps.shape[0] // L
+        taps = taps + [0.0] * pad
     components = []
     for k in range(L):
         e_k = taps[k::L]
@@ -63,7 +68,7 @@ def op(
     Parameters
     ----------
     signal:
-        1-D real array.
+        1-D real sequence.
     filter_taps:
         FIR filter taps.
     L:
@@ -76,34 +81,36 @@ def op(
 
     Returns
     -------
-    numpy.ndarray
-        Polyphase-filtered output.
+    list
+        Polyphase-filtered output (length-``N`` ``list`` of ``float``).
     """
-    sig = np.asarray(signal, dtype=np.float64)
+    sig = [float(v) for v in signal]
     components = decompose(filter_taps, L)
     if mode == "decimation":
         # Decimation: each polyphase component filters a decimated version
-        # of the input then we sum.
-        out_len = (sig.shape[0] + L - 1) // L
-        out = np.zeros(out_len + components[0].shape[0] - 1, dtype=np.float64)
+        # of the input then we sum (Class-M accumulate into the shared buffer).
+        out_len = (len(sig) + L - 1) // L
+        out = [0.0] * (out_len + len(components[0]) - 1)
         for k, e_k in enumerate(components):
             # Take every L-th sample of signal starting at offset k
-            x_k = sig[k::L] if k < sig.shape[0] else np.array([], dtype=np.float64)
-            if x_k.shape[0] == 0:
+            x_k = sig[k::L] if k < len(sig) else []
+            if len(x_k) == 0:
                 continue
-            filtered = np.convolve(x_k, e_k, mode="full")
-            out[: filtered.shape[0]] += filtered
+            filtered = _dsp.convolve(x_k, e_k, mode="full")
+            for i in range(len(filtered)):
+                out[i] += filtered[i]
         return out
     if mode == "interpolation":
         # Interpolation: filter each input through component then interleave.
         per_component = []
-        for k, e_k in enumerate(components):
-            filtered = np.convolve(sig, e_k, mode="full")
+        for e_k in components:
+            filtered = _dsp.convolve(sig, e_k, mode="full")
             per_component.append(filtered)
-        # Interleave outputs.
-        max_len = max(c.shape[0] for c in per_component)
-        out = np.zeros(max_len * L, dtype=np.float64)
+        # Interleave outputs (strided write, Class-C reorientation).
+        max_len = max(len(c) for c in per_component)
+        out = [0.0] * (max_len * L)
         for k, c in enumerate(per_component):
-            out[k::L][: c.shape[0]] = c
+            for i in range(len(c)):
+                out[k + i * L] = c[i]
         return out
     raise ValueError(f"mode must be 'decimation' or 'interpolation'; got {mode}")

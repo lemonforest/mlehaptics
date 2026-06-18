@@ -70,7 +70,7 @@ rationale = "Option A preserves the cascade-catalog public API contract that op 
 
 [cascade.attestation]
 author = "Steven Kirkland"
-license = "GPL-3.0-or-later"
+license = "MIT"
 parser_version = "srmech-cascade 0.4.5rc8"
 canonical_landings = [
   "MFO §VIII.31.11 §(5b) — chiral dual same shape inverse",

@@ -10,19 +10,21 @@ an opaque ``TypeError: '>' not supported between instances of 'complex' and
 rc24 adds a ``_require_real`` boundary guard that raises an intentional,
 actionable ``TypeError`` *before* any dispatch. This test pins:
 
-1. both atoms reject Python ``complex`` and numpy complex scalars with a
-   clean message that names the op + points at the Euclidean-norm
-   alternative;
+1. both atoms reject Python ``complex`` with a clean message that names the
+   op + points at the Euclidean-norm alternative;
 2. every real numeric (float / int / negative / zero / NaN / ±inf) is
    unaffected — no behaviour change for in-contract inputs.
 
 The complex modulus ``(re**2 + im**2) ** 0.5`` is a **Euclidean-norm** op —
 a *different* cascade class, not a Class K pin-slot — so it is deliberately
 out of scope (option (b), not (a)).
-"""
-import math
 
-import numpy as np
+numpy-free: the old numpy-complex-scalar rejection cases (``np.complex128``,
+``np.complex64``, 0-d complex ndarray) and the ``test_numpy_real_scalars_
+pass_through`` case were deleted — numpy is out of srmech, so only the
+Python ``complex`` rejection and the plain ``float``/``int`` pass-through
+remain in contract.
+"""
 import pytest
 
 from srmech.amsc import cascade
@@ -37,9 +39,6 @@ _COMPLEX_INPUTS = [
     complex(3, 4),
     complex(0, 1),
     complex(-2, -5),
-    np.complex128(3 + 4j),
-    np.complex64(1 - 2j),
-    np.array(3 + 4j),  # 0-d complex ndarray (dtype.kind == 'c')
 ]
 
 
@@ -116,10 +115,3 @@ def test_pin_slot_at_zero_real_unchanged():
     assert cascade.pin_slot_at_zero(2.0) == (+1, 2.0)
     assert cascade.pin_slot_at_zero(-2.0) == (-1, 2.0)
     assert cascade.pin_slot_at_zero(0.0) == (0, 0.0)
-
-
-def test_numpy_real_scalars_pass_through():
-    """Real numpy scalars are ordered against 0.0 → not rejected."""
-    assert cascade.magnitude(np.float64(-3.0)) == 3.0
-    # int64 stays on the Python path; magnitude is the |x| value.
-    assert cascade.magnitude(np.int64(-4)) == 4

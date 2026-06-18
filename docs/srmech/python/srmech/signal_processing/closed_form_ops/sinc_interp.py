@@ -6,6 +6,14 @@ Nyquist) ∘ Class K (band-limit pin-slot threshold) composition. The classical
 Whittaker-Shannon formula reconstructs a band-limited signal at arbitrary
 time-offsets via a sum of shifted sinc kernels.
 
+numpy-free (carrier-removal #564, rc93): the sinc kernel uses the substrate-
+native ``_sinc`` (sin(πx)/(πx), Class-N rational cascade over the **Class-N π
+cascade** ``_PI``, Spike #32; the x=0 removable singularity is a Class-K branch
+returning 1.0, no division, no ``abs()``). The complex Whittaker-Shannon matvec
+``out[q] = Σ_s sinc((t_q−t_s)/T)·y[s]`` is an inline nested sum over plain
+``list``s — NOT via ``dense_matvec_complex`` (which is numpy-carrier INTERNALLY,
+the rc70 "runnable ≠ loadable" trap). numpy is no longer imported.
+
 Path B dual in Phase 6 (Path B band-limit bundle).
 
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Whittaker
@@ -14,9 +22,9 @@ Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Whittaker
 
 from __future__ import annotations
 
-import numpy as np
+from typing import List
 
-from srmech.amsc.laplacian import dense_matvec_complex
+from srmech.amsc import rational as _srn
 
 OPERATION_NAME = "sinc_interp"
 CLASS_COMPOSITION = ("L", "K")
@@ -29,6 +37,34 @@ SSOT_CITATION = (
     "(Crossref). Oppenheim & Schafer (2010, 3rd ed.), 'Discrete-Time "
     "Signal Processing', Prentice Hall, §4.1."
 )
+
+# Class-N π cascade (Archimedes hexagon-doubling, Spike #32) — the substrate-
+# native π source for the sinc kernel; NOT math.pi / np.pi.
+_PI = float(_srn.pi_cascade_digits(30))
+
+
+def _sinc(x: float) -> float:
+    """Normalised sinc ``sin(πx)/(πx)`` matching ``np.sinc``, numpy-free.
+
+    Routes through ``rational.sin`` over the Class-N ``_PI`` source. The
+    removable singularity at ``x == 0`` is a Class-K branch (returns ``1.0``,
+    no division), so there is no ``abs()`` and no divide-by-zero.
+    """
+    if x == 0.0:
+        return 1.0
+    px = _PI * x
+    return _srn.sin(px) / px
+
+
+def _median(values: List[float]) -> float:
+    """Median of a list (matches ``numpy.median``: mean of the two middle
+    elements for even length)."""
+    ordered = sorted(values)
+    n = len(ordered)
+    mid = n // 2
+    if n % 2 == 1:
+        return ordered[mid]
+    return (ordered[mid - 1] + ordered[mid]) / 2.0
 
 
 def op(signal, sample_indices, target_indices, *, D: int = 8192):
@@ -50,33 +86,43 @@ def op(signal, sample_indices, target_indices, *, D: int = 8192):
 
     Returns
     -------
-    numpy.ndarray
+    list of complex (or a single complex for a scalar ``target_indices``)
         Interpolated values at ``target_indices``.
     """
-    y = np.asarray(signal, dtype=np.complex128)
-    t_s = np.asarray(sample_indices, dtype=np.float64)
-    t_q = np.asarray(target_indices, dtype=np.float64)
-    if y.ndim != 1 or t_s.ndim != 1:
+    sig_seq = list(signal)
+    if sig_seq and hasattr(sig_seq[0], "__len__") and not isinstance(
+        sig_seq[0], (str, bytes)
+    ):
+        raise ValueError("sinc_interp expects 1-D signal and sample_indices")
+    y = [complex(v) for v in sig_seq]
+    ts_seq = list(sample_indices)
+    if ts_seq and hasattr(ts_seq[0], "__len__") and not isinstance(
+        ts_seq[0], (str, bytes)
+    ):
+        raise ValueError("sinc_interp expects 1-D signal and sample_indices")
+    t_s = [float(v) for v in ts_seq]
+    if len(y) != len(t_s):
         raise ValueError(
-            f"sinc_interp expects 1-D signal and sample_indices; got "
-            f"{y.shape} and {t_s.shape}"
+            f"signal length {len(y)} != sample_indices length {len(t_s)}"
         )
-    if y.shape[0] != t_s.shape[0]:
-        raise ValueError(
-            f"signal length {y.shape[0]} != sample_indices length {t_s.shape[0]}"
-        )
-    # Estimate sample spacing.
-    if t_s.shape[0] >= 2:
-        T = np.median(np.diff(t_s))
+    # Estimate sample spacing (median of consecutive differences).
+    if len(t_s) >= 2:
+        T = _median([t_s[i + 1] - t_s[i] for i in range(len(t_s) - 1)])
     else:
         T = 1.0
-    # Sinc matrix: K[q, s] = sinc((t_q - t_s) / T)
-    if t_q.ndim == 0:
-        t_q_arr = np.array([t_q], dtype=np.float64)
+    # A scalar target (python/numpy scalar) has no __len__.
+    tq_is_scalar = not hasattr(target_indices, "__len__")
+    if tq_is_scalar:
+        t_q = [float(target_indices)]
     else:
-        t_q_arr = t_q
-    K = np.sinc((t_q_arr[:, None] - t_s[None, :]) / T)
-    out = dense_matvec_complex(K, y)  # K real sinc, y complex IQ → complex matvec
-    if t_q.ndim == 0:
+        t_q = [float(v) for v in target_indices]
+    # Complex Whittaker-Shannon matvec: out[q] = Σ_s sinc((t_q−t_s)/T)·y[s].
+    out = []
+    for tq in t_q:
+        acc = 0j
+        for s in range(len(t_s)):
+            acc += _sinc((tq - t_s[s]) / T) * y[s]
+        out.append(acc)
+    if tq_is_scalar:
         return out[0]
     return out

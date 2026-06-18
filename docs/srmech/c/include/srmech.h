@@ -40,7 +40,7 @@
  *   3. JPL Power-of-Ten discipline (Phase B6) as a structural
  *      quality ratchet, mirroring Tasks #105–#110.
  *
- * License: GPL-3.0-or-later (parent project: mlehaptics).
+ * License: MIT (parent project: mlehaptics).
  */
 
 #ifndef SRMECH_H
@@ -62,10 +62,10 @@ extern "C" {
  * version at tag time; mismatch fails the publish.
  * ------------------------------------------------------------------ */
 #define SRMECH_VERSION_MAJOR 0
-#define SRMECH_VERSION_MINOR 7
-#define SRMECH_VERSION_PATCH 5
-#define SRMECH_VERSION_PRE   "rc27"
-#define SRMECH_VERSION       "0.7.5rc27"
+#define SRMECH_VERSION_MINOR 8
+#define SRMECH_VERSION_PATCH 1
+#define SRMECH_VERSION_PRE   ""
+#define SRMECH_VERSION       "0.8.1"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -835,11 +835,12 @@ srmech_status_t srmech_three_cycle(uint64_t value, uint64_t *out);
  *   - Matrices: row-major n×n doubles, caller-allocated.
  *   - Edge lists: parallel uint32 arrays edges_u / edges_v + optional
  *     double weights (NULL = unit weights).
- *   - N bound: srmech_graph_dense_laplacian / normalized_laplacian /
- *     jacobi_eigvals stack-allocate degree/scaling buffers; n is
- *     bounded by SRMECH_LAPLACIAN_MAX_NODES (256, embedded-safe).
- *     Larger graphs return SRMECH_ERR_OVERFLOW; Python falls back to
- *     numpy.linalg.eigvalsh.
+ *   - No N cap: srmech_graph_dense_laplacian / normalized_laplacian /
+ *     jacobi_eigvals / dense_matmul_complex write only into the caller's
+ *     matrix (degree per-row, d^(−1/2) stashed in the diagonal, Jacobi
+ *     rotates in place), so the bound is the caller's RAM, not a compiled
+ *     limit (standalone-complete honor). SRMECH_LAPLACIAN_MAX_NODES below
+ *     now sizes only the legacy non-_ws Hermitian static workspace.
  *
  * No ABI bump: pure additions to ABI v2 per the Phase B4 convention.
  * ------------------------------------------------------------------ */
@@ -856,8 +857,8 @@ srmech_status_t srmech_graph_dense_adjacency(uint32_t        n,
                                              const double   *weights,
                                              double         *out_matrix);
 
-/* L = D - A. Same edge-list inputs; n bounded by
- * SRMECH_LAPLACIAN_MAX_NODES for the stack-allocated degree buffer. */
+/* L = D - A. Same edge-list inputs. No node cap — degree is computed
+ * per-row into the caller's matrix (no scratch). */
 srmech_status_t srmech_graph_dense_laplacian(uint32_t        n,
                                              uint32_t        n_edges,
                                              const uint32_t *edges_u,
@@ -866,13 +867,55 @@ srmech_status_t srmech_graph_dense_laplacian(uint32_t        n,
                                              double         *out_matrix);
 
 /* L_sym = I - D^(-1/2) A D^(-1/2). Isolated vertices (degree 0) have
- * diagonal entry 0. n bounded by SRMECH_LAPLACIAN_MAX_NODES. */
+ * diagonal entry 0. No node cap — d^(-1/2) is stashed in the diagonal
+ * (no scratch). */
 srmech_status_t srmech_graph_normalized_laplacian(uint32_t        n,
                                                   uint32_t        n_edges,
                                                   const uint32_t *edges_u,
                                                   const uint32_t *edges_v,
                                                   const double   *weights,
                                                   double         *out_matrix);
+
+/* §51 (issue #1097): the SPARSE / iterative normalized-cut Fiedler — the
+ * n-unbounded peer of the dense eigensolver path. Power iteration on the
+ * normalized operator B = I + D^(-1/2) W D^(-1/2) (= 2I - L_sym; eigenvalues in
+ * [0,2], well-conditioned), deflating the sqrt(deg) (lambda0) mode each step;
+ * the converged direction's SIGN is the normalized-cut bisection. Matvec-only
+ * (by edge, no CSR) -> O(edges), n unbounded -> breaks the n<=256 dense-
+ * eigensolver wall for graph partitioning at corpus scale. `ws` is a CALLER-
+ * supplied scratch arena of at least 8*n doubles (so there is NO compiled-in
+ * node cap — the bound is the caller's RAM). `out_vec` (length n) receives the
+ * sign-bearing Fiedler vector; n < 2 -> the zero vector. Stops early on sign-
+ * stability (5 stable-sign steps past a 20-iteration warmup). max_iters caps the
+ * power iteration. ABI-additive (a new symbol) -> SRMECH_ABI_VERSION stays 3. */
+srmech_status_t srmech_laplacian_fiedler_sparse(uint32_t        n,
+                                                uint32_t        n_edges,
+                                                const uint32_t *edge_u,
+                                                const uint32_t *edge_v,
+                                                const double   *weights,
+                                                uint32_t        max_iters,
+                                                double         *out_vec,
+                                                double         *ws,
+                                                size_t          ws_len);
+
+/* §52 Part 2 (F793): the OUT-OF-CORE streaming Fiedler. Identical normalized-cut
+ * power iteration to srmech_laplacian_fiedler_sparse, but the adjacency is NEVER
+ * resident — each edge pass STREAMS a packed edge file via the PAL streaming-read.
+ * `path` is a packed binary file of 16-byte records (uint32 u | uint32 v | double w,
+ * host byte order; records never straddle a read chunk). Only the O(n) working
+ * vectors live in RAM (the caller `ws` arena, >= 8*n doubles — no compiled-in node
+ * cap), so a low-RAM target can PARTITION a graph whose edge list does not fit RAM:
+ * the low-RAM ENCODE for graph partition (composes §52.1 cooccurrence_topk for the
+ * bounded edge SET). `out_vec` (length n) receives the sign-bearing Fiedler vector;
+ * n < 2 -> the zero vector. A read that is not a whole number of records (truncated
+ * file) -> SRMECH_ERR_BAD_INPUT; an out-of-range endpoint -> SRMECH_ERR_BAD_INPUT.
+ * ABI-additive (a new symbol) -> SRMECH_ABI_VERSION stays 3. */
+srmech_status_t srmech_laplacian_fiedler_sparse_file(uint32_t      n,
+                                                     const char   *path,
+                                                     uint32_t      max_iters,
+                                                     double       *out_vec,
+                                                     double       *ws,
+                                                     size_t        ws_len);
 
 /* Symmetric Jacobi eigendecomposition. In-place: `matrix` becomes
  * approximately diagonal at exit (caller-owned working buffer). The
@@ -931,50 +974,77 @@ srmech_status_t srmech_three_fold_bands(uint32_t n, uint32_t *out_low,
 #define SRMECH_TRANS_SIN 2
 #define SRMECH_TRANS_LOG 3
 
-/* Hermitian eigendecomposition via complex-Jacobi rotations.
- * Input: H_interleaved is n*n interleaved-doubles (re, im pairs),
- *   row-major; MUST be Hermitian (caller's responsibility — checked
- *   only via assert in debug builds).
- * Output: out_eigvals = n real ascending-sorted eigenvalues;
- *   out_eigvecs_interleaved = n*n complex unitary matrix V (columns
- *   are eigenvectors). H = V * diag(eigvals) * V^H.
- * n is bounded by SRMECH_LAPLACIAN_MAX_NODES (256). Iteration count
- * bounded by SRMECH_LAPLACIAN_JACOBI_MAX_SWEEPS (100); returns
- * SRMECH_ERR_OVERFLOW on non-convergence.
- * Pi-free: phase factor for complex-Jacobi computed algebraically
- * from matrix entries (atan2-free).
- */
-srmech_status_t srmech_hermitian_eigendecompose(
-    uint32_t       n,
-    const double  *H_interleaved,
-    double        *out_eigvals,
-    double        *out_eigvecs_interleaved);
-
 /* Required workspace length (in doubles) for srmech_hermitian_
  * eigendecompose_ws at a given node count `n`: a working copy of the
  * n×n complex Hermitian matrix in interleaved-double form = 2*n*n
- * doubles. Use SRMECH_HERMITIAN_WS_MAX to size a worst-case
- * (n == SRMECH_LAPLACIAN_MAX_NODES) buffer. */
+ * doubles. */
 #define SRMECH_HERMITIAN_WS_LEN(n) ((size_t)(n) * (size_t)(n) * 2u)
-#define SRMECH_HERMITIAN_WS_MAX SRMECH_HERMITIAN_WS_LEN(SRMECH_LAPLACIAN_MAX_NODES)
 
-/* Reentrant variant of srmech_hermitian_eigendecompose (#772).
+/* DEFAULT compute-guard ceiling for the Hermitian eigendecomposition's
+ * node count — a reasonableness limit on the O(n³) dense complex Jacobi,
+ * NOT a scratch-buffer cap (the caller owns the 2*n*n workspace). As of
+ * rc161 this is the *built-in default* of a CONFIG-DRIVEN value: read the
+ * live ceiling with srmech_config_hermitian_max_nodes() (settable via
+ * srmech_config_load_toml/_file, key `[hermitian] max_nodes`), not from a
+ * compiled-in cap. The real architectural bound is still `ws_len >= 2*n*n`.
+ * (rc161 removed the no-`_ws` convenience wrapper + its 1 MiB thread-local
+ * static; callers use srmech_hermitian_eigendecompose_ws with a sized
+ * workspace, the Python `mat_hermitian_eigendecompose` being one.) */
+#define SRMECH_HERMITIAN_DEFAULT_MAX_NODES 2048u
+
+/* ------------------------------------------------------------------ *
+ * Runtime config (rc161) — config-FILE-driven library limits, so a
+ * compute-guard ceiling tunes per-deployment with NO recompile (the
+ * "config-driven, not hard-coded" direction). Defined in srmech_config.c.
  *
- * Identical numerics + output contract, but takes a CALLER-SUPPLIED
- * working buffer `workspace` (length `ws_len` doubles) instead of an
- * internal shared-static scratch matrix. This makes the eigendecomp
- * safe to drive concurrently from many threads (the #771 plugin),
- * each passing its own workspace, with no malloc (JPL Rule 3) and no
- * large per-call stack frame.
- *
+ * Set ONCE at startup (before concurrent use); read-only thereafter.
+ * Un-set / missing keys keep the built-in default, so behaviour is
+ * unchanged until a config overrides it. ABI-additive — new symbols, so
+ * SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* Parse a caller-held TOML blob (MCU-safe — a flash image, no filesystem
+ * needed) into the live config, using the caller arena `ws` (ws_len bytes;
+ * no malloc). Recognised today: `[hermitian] max_nodes`. Unknown keys are
+ * ignored. SRMECH_ERR_BAD_INPUT on a syntax error, OVERFLOW if `ws` is too
+ * small for the document. */
+srmech_status_t srmech_config_load_toml(const char *toml, size_t len,
+                                        void *ws, size_t ws_len);
+
+/* Read `path` THROUGH THE PAL (the single OS file surface) into a buffer
+ * carved from `ws`, then srmech_config_load_toml it. On a no-filesystem
+ * target the PAL returns SRMECH_ERR_IO; use the bytes form instead. */
+srmech_status_t srmech_config_load_file(const char *path,
+                                        void *ws, size_t ws_len);
+
+/* The live Hermitian-eig node ceiling (default SRMECH_HERMITIAN_DEFAULT_
+ * MAX_NODES; overridden by a loaded config). Always > 0. */
+uint32_t srmech_config_hermitian_max_nodes(void);
+
+/* Reset every config value to its built-in default (mainly for tests). */
+void srmech_config_reset_defaults(void);
+
+/* Hermitian eigendecomposition via complex-Jacobi rotations (caller-
+ * workspace entry — the only entry as of rc161; the no-`_ws` convenience
+ * overload was removed). Identical numerics + output contract regardless
+ * of who owns the workspace; safe to drive concurrently from many threads
+ * (the #771 plugin), each passing its own workspace, with no malloc (JPL
+ * Rule 3) and no large per-call stack frame.
+ * Input: H_interleaved is n*n interleaved-doubles (re, im pairs),
+ *   row-major; MUST be Hermitian (caller's responsibility — asserted in
+ *   debug builds).
+ * Output: out_eigvals = n real ascending-sorted eigenvalues;
+ *   out_eigvecs_interleaved = n*n complex unitary matrix V (columns are
+ *   eigenvectors). H = V * diag(eigvals) * V^H.
  * `workspace` must be non-NULL with `ws_len >= SRMECH_HERMITIAN_WS_LEN(n)`
- * = 2*n*n doubles; returns SRMECH_ERR_OVERFLOW if too small or n
- * exceeds SRMECH_LAPLACIAN_MAX_NODES, SRMECH_ERR_NULL_ARG if any
- * required pointer is NULL.
+ * = 2*n*n doubles (the real architectural bound). `n` is additionally
+ * compute-guarded by srmech_config_hermitian_max_nodes() (config-driven,
+ * default 2048). Returns SRMECH_ERR_OVERFLOW if `ws_len` is too small, n
+ * exceeds the configured ceiling, or the Jacobi sweep
+ * (SRMECH_LAPLACIAN_JACOBI_MAX_SWEEPS) does not converge; SRMECH_ERR_NULL_
+ * ARG if any required pointer is NULL. Pi-free (atan2-free phase factor).
  *
- * ABI-additive: a new symbol, so SRMECH_ABI_VERSION is unchanged. The
- * original srmech_hermitian_eigendecompose remains and now routes
- * through this core using a thread-local workspace. */
+ * ABI-additive: SRMECH_ABI_VERSION unchanged. */
 srmech_status_t srmech_hermitian_eigendecompose_ws(
     uint32_t       n,
     const double  *H_interleaved,
@@ -983,24 +1053,11 @@ srmech_status_t srmech_hermitian_eigendecompose_ws(
     double        *workspace,
     size_t         ws_len);
 
-/* Dense complex matrix-vector multiplication: out = M @ v.
- * M_interleaved is rows*cols interleaved-double pairs (row-major).
- * v_interleaved is cols interleaved-double pairs.
- * out_interleaved is rows interleaved-double pairs (caller-allocated).
- * rows and cols are bounded by SRMECH_LAPLACIAN_MAX_NODES (256).
- */
-srmech_status_t srmech_dense_matvec_complex(
-    uint32_t       rows,
-    uint32_t       cols,
-    const double  *M_interleaved,
-    const double  *v_interleaved,
-    double        *out_interleaved);
-
 /* Dense complex matrix-matrix multiplication: out = A @ B.
  * A_interleaved is m*k interleaved-double pairs (row-major).
  * B_interleaved is k*n interleaved-double pairs (row-major).
  * out_interleaved is m*n interleaved-double pairs (caller-allocated).
- * m, k and n are each bounded by SRMECH_LAPLACIAN_MAX_NODES (256).
+ * No m/k/n cap — the product writes only the caller's buffer (no scratch).
  */
 srmech_status_t srmech_dense_matmul_complex(
     uint32_t       m,
@@ -1011,9 +1068,8 @@ srmech_status_t srmech_dense_matmul_complex(
     double        *out_interleaved);
 
 /* Elementwise complex multiply: out[i] = a[i] * b[i].
- * a, b, out are n interleaved-double pairs each. Bounded n only by
- * uint32_t — no stack allocation, so the SRMECH_LAPLACIAN_MAX_NODES
- * bound does NOT apply.
+ * a, b, out are n interleaved-double pairs each. No node cap — bounded
+ * only by uint32_t / the caller's buffers (no scratch).
  */
 srmech_status_t srmech_elementwise_multiply_complex(
     uint32_t       n,
@@ -1034,22 +1090,57 @@ srmech_status_t srmech_elementwise_transcendental(
     int            op_id,
     double        *out);
 
-/* Dense linear solve A·X = B (v0.7.1rc3, #897 §26). A is n×n, B and the
- * output X are n×nrhs, all row-major doubles (caller-allocated). Gauss–
- * Jordan with partial pivoting; the reusable Class-L float primitive the
- * Schur-complement / DtN float path composes over for its interior solve.
- * A singular A (a wholly-zero pivot column at/below the diagonal) returns
- * SRMECH_ERR_BAD_INPUT. Bounded n, nrhs ≤ 256 (a thread-local augmented
- * workspace); larger systems return SRMECH_ERR_OVERFLOW (Python falls back
- * to numpy.linalg.solve). No libm: a solve is + − × ÷ only.
- * ABI-additive: a new symbol, so SRMECH_ABI_VERSION stays 3.
+/* Dense linear solve A·X = B (v0.7.1rc3, #897 §26; v0.7.5rc158 caller-arena).
+ * A is n×n, B and the output X are n×nrhs, all row-major doubles (caller-
+ * allocated). Gauss–Jordan with partial pivoting; the reusable Class-L float
+ * primitive the Schur-complement / DtN float path composes over for its
+ * interior solve. A singular A (a wholly-zero pivot column at/below the
+ * diagonal) returns SRMECH_ERR_BAD_INPUT. No libm: a solve is + − × ÷ only.
+ *
+ * NO compiled-in size cap (rc158 standalone-complete honor, the genome rc154
+ * precedent / [[feedback_c_must_be_standalone_complete_no_python_fallback]]):
+ * the augmented [A | B] working matrix is bump-carved from the CALLER arena
+ * `ws` (ws_len bytes), so the bound is the caller's RAM — a host sizes it
+ * large, a microcontroller small. Size `ws` from srmech_dense_solve_arena_bytes;
+ * an under-sized arena returns SRMECH_ERR_OVERFLOW. The pure-Python exact-
+ * rational solve is the COMPLETE alternative implementation for no-C hosts,
+ * not a rescue path. ABI: this RENAMES the old capped srmech_dense_solve_f64 to
+ * the arena form; the Python ctypes shim hasattr-guards the new name (a stale
+ * lib lacking it falls to pure-Python), so SRMECH_ABI_VERSION stays 3.
  */
-srmech_status_t srmech_dense_solve_f64(
+size_t srmech_dense_solve_arena_bytes(uint32_t n, uint32_t nrhs);
+
+srmech_status_t srmech_dense_solve_f64_ws(
     uint32_t       n,
     uint32_t       nrhs,
     const double  *A,
     const double  *B,
-    double        *out_X);
+    double        *out_X,
+    void          *ws,
+    size_t         ws_len);
+
+/* Exact cyclotomic-integer DFT (v0.7.5rc29, #928) — the native twin of
+ * srmech.amsc.cascade.exact_dft. A power-of-two-length integer / Gaussian-
+ * integer signal transforms to the exact ℤ[ζ_N] spectrum by PURE INTEGER
+ * add/subtract (ζ^{N/2} = -1 is a Class-K sign-flip, never abs/fabs); the
+ * single FPU lift ζ → e^{-2πi/N} is on the Python side. re/im are length-N
+ * int64 component arrays; out_re/out_im are length N·(N/2) int64 (row k holds
+ * the N/2 cyclotomic coefficients of X[k] at [k·N/2, (k+1)·N/2)). inverse != 0
+ * uses ζ^{-nk}. N must be a power of two ≥ 2 (else SRMECH_ERR_BAD_INPUT) — NO
+ * compiled-in size cap (rc156 standalone-complete honor: the kernel writes only
+ * the caller's out_re/out_im, no scratch to bound). The genuine domain limit is
+ * the int64 element magnitude: keep N·max|signal| int64-safe (the Python wrapper
+ * enforces this and routes larger magnitudes to its arbitrary-precision bignum
+ * path). No libm: an exact DFT is integer + − only. ABI-additive: new symbol,
+ * SRMECH_ABI_VERSION stays 3.
+ */
+srmech_status_t srmech_exact_dft_i64(
+    uint32_t        n,
+    int             inverse,
+    const int64_t  *re,
+    const int64_t  *im,
+    int64_t        *out_re,
+    int64_t        *out_im);
 
 /* ------------------------------------------------------------------ *
  * Class J — prime-factorisation / period (Task #217 Phase C1 rc3)
@@ -1485,8 +1576,6 @@ srmech_status_t srmech_log(double x, double *out);
  * No ABI bump: pure additions to ABI v2 per the Phase B4 convention.
  * ------------------------------------------------------------------ */
 
-#define SRMECH_HDC_MAX_BUNDLE_N 257  /* safety cap for bundle n_vectors */
-
 /* bind(a, b): component-wise XOR. out[i] = a[i] ^ b[i]. Commutative,
  * associative, self-inverse: bind(a, bind(a, b)) = b. */
 srmech_status_t srmech_hdc_bind(const uint8_t *a,
@@ -1497,7 +1586,7 @@ srmech_status_t srmech_hdc_bind(const uint8_t *a,
 /* bundle(vectors, n_vectors): majority across n_vectors at each bit position.
  * Returns SRMECH_ERR_BAD_INPUT for even n_vectors (BSC convention requires
  * odd-count for clean majority; caller can pad with tie-breaker vector).
- * Returns SRMECH_ERR_OVERFLOW for n_vectors > SRMECH_HDC_MAX_BUNDLE_N. */
+ * No n_vectors cap — bound is the caller's RAM (the bit-count is uint32). */
 srmech_status_t srmech_hdc_bundle(const uint8_t * const *vectors,
                                   uint32_t                n_vectors,
                                   uint32_t                n_bytes,
@@ -1542,8 +1631,8 @@ srmech_status_t srmech_polar_bind(const int8_t *a,
 
 /* polar_bundle(vectors, n_vectors): per-position sticky majority.
  * out[i] = sign(sum_v vectors[v][i]); exact ties (sum == 0) → 0. No
- * odd-count restriction (the 0 state absorbs ties). Returns
- * SRMECH_ERR_OVERFLOW for n_vectors > SRMECH_HDC_MAX_BUNDLE_N. */
+ * odd-count restriction (the 0 state absorbs ties). No n_vectors cap —
+ * bound is the caller's RAM (the sum accumulator is int32). */
 srmech_status_t srmech_polar_bundle(const int8_t * const *vectors,
                                     uint32_t              n_vectors,
                                     uint32_t              n,
@@ -1583,7 +1672,7 @@ srmech_status_t srmech_klein4_bind(const uint8_t *a,
 
 /* klein4_bundle(vectors, n_vectors): per-bit majority on each of the 2
  * bits independently; exact ties (count == n_vectors/2) → 0 for that bit.
- * Returns SRMECH_ERR_OVERFLOW for n_vectors > SRMECH_HDC_MAX_BUNDLE_N. */
+ * No n_vectors cap — bound is the caller's RAM (the 1-counts are uint32). */
 srmech_status_t srmech_klein4_bundle(const uint8_t * const *vectors,
                                      uint32_t               n_vectors,
                                      uint32_t               n,
@@ -1605,6 +1694,41 @@ srmech_status_t srmech_klein4_triality_cycle(const uint8_t *in,
                                              uint32_t       n,
                                              int            inverse,
                                              uint8_t       *out);
+
+/* klein4_bundle_accumulate / _resolve (UPSTREAM §50): the STREAMING form of
+ * srmech_klein4_bundle. acc is a caller-owned (1 + 2*dim) uint32 accumulator
+ * (acc[0] = n folded; acc[1..dim] / acc[1+dim..2*dim] = per-coordinate bit-0 /
+ * bit-1 1-counts). _accumulate folds one Klein-4 vector; _resolve reads the
+ * argmax-per-coordinate bundle (bit-identical to srmech_klein4_bundle). The
+ * accumulator width is the architecture (caller's RAM) — no compiled-in cap.
+ * Adding these symbols does NOT bump SRMECH_ABI_VERSION. */
+srmech_status_t srmech_klein4_bundle_accumulate(uint32_t      *acc,
+                                                const uint8_t *v,
+                                                size_t         dim);
+
+srmech_status_t srmech_klein4_bundle_resolve(const uint32_t *acc,
+                                             uint8_t        *out,
+                                             size_t          dim);
+
+/* klein4_cooccurrence_fold (UPSTREAM §50; rc165): the §50 holographic
+ * co-occurrence fold with the corpus-linear inner loop fully in C — the per-token
+ * windowed accumulation, no Python callback. `codes` is n_codes fixed-width
+ * (dim-byte) Klein-4 atomic codes (each byte in {0..3}); `tok_idx[i]` is the
+ * code index (0..n_codes-1) carried by corpus position i. For every position i in
+ * [0, n_tokens), each neighbour within ±window (excluding i) folds into the
+ * accumulator of the token at i. `out_accs` is n_codes * (1 + 2*dim) uint32,
+ * CALLER-allocated; this zeroes it then folds, so each accumulator is the SAME
+ * 2-bit tally as srmech_klein4_bundle_accumulate (resolving out_accs[t] is
+ * bit-identical to the streamed fold). Width is the architecture (caller's RAM) —
+ * no compiled-in cap. Class M; no abs. window >= 1; bad code byte / out-of-range
+ * index -> SRMECH_ERR_BAD_INPUT. Additive symbol — no ABI bump. */
+srmech_status_t srmech_klein4_cooccurrence_fold(const uint8_t  *codes,
+                                                uint32_t        n_codes,
+                                                const uint32_t *tok_idx,
+                                                uint32_t        n_tokens,
+                                                uint32_t        window,
+                                                size_t          dim,
+                                                uint32_t       *out_accs);
 
 /* ------------------------------------------------------------------ *
  * srmech.bus — cross-process IPC C peer (v0.5.0rc2)
@@ -1795,6 +1919,595 @@ srmech_status_t srmech_hamming_decode_correct(const uint8_t *codeword, size_t le
  * power of two in range, or i/j out of range). */
 srmech_status_t srmech_cd_basis_product(int dim, int i, int j,
                                         int *out_index, int *out_sign);
+
+/* ------------------------------------------------------------------
+ * JSON value-tree — parser + canonical writer (§41 genome-persistence
+ * C mirror; the wider AMSC provenance C surface).
+ *
+ * A malloc-free JSON module: the parser builds a value tree from a
+ * caller-supplied arena/workspace (bump allocator — the same
+ * `void *ws, size_t ws_len` convention the TOML parser uses), and the
+ * writer emits bytes BYTE-IDENTICAL to CPython's
+ *   json.dumps(obj, sort_keys=True, ensure_ascii=False)
+ * for any tree of null / bool / int / string / object / array — which
+ * is exactly what an MPR manifest / a genome catalog is (they are
+ * float-free). See the byte-parity rules at srmech_json_write below.
+ *
+ * Strings (and object keys) in the value tree are stored DECODED (the
+ * raw UTF-8 bytes, escapes already resolved) and are NOT NUL-
+ * terminated — each carries an explicit length. The writer re-escapes
+ * them on output.
+ *
+ * No recursion: both the parser and the writer use an explicit depth-
+ * bounded stack (<= SRMECH_JSON_MAX_DEPTH), so JPL Rule 1 (no direct
+ * or indirect recursion) holds.
+ *
+ * ABI-additive: new symbols + a struct + macros, so SRMECH_ABI_VERSION
+ * stays 3.
+ * ------------------------------------------------------------------ */
+
+/* Recursion-depth guard for the explicit parse/emit stacks (single-token
+ * object-like macro; JPL Rule 8 clean). There is NO object/array child
+ * cap: parse grows children arena-backed, and the writer's key-sort
+ * scratch is carved from a caller arena (srmech_json_write_ws), so a
+ * container is bounded only by the caller's RAM. */
+#define SRMECH_JSON_MAX_DEPTH    64
+
+typedef enum {
+    SRMECH_JSON_NULL = 0,
+    SRMECH_JSON_BOOL,
+    SRMECH_JSON_INT,      /* int64 */
+    SRMECH_JSON_DOUBLE,
+    SRMECH_JSON_STRING,
+    SRMECH_JSON_ARRAY,
+    SRMECH_JSON_OBJECT
+} srmech_json_type_t;
+
+typedef struct srmech_json_value srmech_json_value_t;
+struct srmech_json_value {
+    srmech_json_type_t type;
+    union {
+        struct { const char *ptr; uint32_t len; } str;   /* UTF-8, decoded (NOT escaped); keys + string values */
+        int64_t i;
+        double  f;
+        int     b;                                       /* 0/1 */
+        struct { srmech_json_value_t **items; uint32_t n; } arr;
+        struct { const char **keys; srmech_json_value_t **vals; uint32_t n; } obj;
+    } u;
+};
+
+/* Parse `len` JSON bytes at `src` into a value tree allocated from the
+ * caller-supplied workspace `ws` (length `ws_len` bytes). On success
+ * *out points at the root node (inside the workspace) and SRMECH_OK is
+ * returned. Trailing non-whitespace after the top-level value is an
+ * error. Arena exhaustion → SRMECH_ERR_OVERFLOW; malformed input →
+ * SRMECH_ERR_BAD_INPUT; a NULL required pointer → SRMECH_ERR_NULL_ARG.
+ *
+ * String decoding handles \" \\ \/ \b \f \n \r \t and \uXXXX
+ * (including UTF-16 surrogate pairs → UTF-8 bytes). Numbers with a
+ * '.', 'e', or 'E' parse to SRMECH_JSON_DOUBLE; otherwise to
+ * SRMECH_JSON_INT (int64). */
+srmech_status_t srmech_json_parse(const char *src, size_t len,
+                                  void *ws, size_t ws_len,
+                                  srmech_json_value_t **out);
+
+/* Bytes of caller workspace srmech_json_write_ws needs to serialise `v`:
+ * the emit-frame stack plus the key-order sort scratch, sized to the
+ * ACTUAL tree (deepest nesting × widest object) — no compiled-in
+ * object-width cap. Pure tree walk, no I/O. */
+size_t srmech_json_write_arena_bytes(const srmech_json_value_t *v);
+
+/* Write `v` as canonical JSON into `buf` (capacity `buf_len` bytes,
+ * NO trailing NUL written) and set *out_len to the byte count, using the
+ * caller-supplied scratch `ws` (length `ws_len`; size it with
+ * srmech_json_write_arena_bytes). The key-sort permutation arrays live in
+ * `ws`, so an object is bounded only by the arena, not a compiled-in cap.
+ * A `ws` too small for the tree returns SRMECH_ERR_BAD_INPUT.
+ *
+ * If `buf` is NULL this is a SIZE-QUERY: nothing is written and *out_len
+ * receives the exact length a full write would produce (callers can
+ * two-pass: query, allocate, fill). When writing, a too-small buffer
+ * returns SRMECH_ERR_OVERFLOW (never overflows). *out_len is always
+ * set on SRMECH_OK.
+ *
+ * The output is byte-identical to CPython
+ * json.dumps(obj, sort_keys=True, ensure_ascii=False) for null / bool
+ * / int / string / object / array trees. DOUBLE values are best-effort
+ * (%.17g shortest-ish) and are NOT guaranteed byte-identical to
+ * Python's repr(float) — float parity is explicitly out of scope (MPR
+ * / genome manifests are float-free). */
+srmech_status_t srmech_json_write_ws(const srmech_json_value_t *v,
+                                     char *buf, size_t buf_len,
+                                     size_t *out_len,
+                                     void *ws, size_t ws_len);
+
+/* Look up `key` (NUL-terminated) in an OBJECT value; returns the value
+ * node or NULL if `obj` is not an object or the key is absent. */
+const srmech_json_value_t *srmech_json_object_get(
+    const srmech_json_value_t *obj, const char *key);
+
+/* ------------------------------------------------------------------
+ * JSON builder — construct a value tree in the SAME arena, for the
+ * §41 genome-manifest C mirror (nested objects / arrays / strings /
+ * int64s). Init a builder over a workspace, then allocate nodes from
+ * it; the resulting root can be handed straight to srmech_json_write.
+ *
+ * Strings passed to srmech_json_new_string are NOT copied — the caller
+ * must keep the bytes alive for the lifetime of the tree (the manifest
+ * builder holds its key/value byte buffers across the build → write).
+ * The keys/vals/items arrays passed to new_object / new_array ARE
+ * copied into the arena, so the caller's temporary arrays may be
+ * reused after the call.
+ * ------------------------------------------------------------------ */
+typedef struct {
+    unsigned char *base;   /* workspace base                         */
+    size_t         len;    /* workspace capacity (bytes)             */
+    size_t         used;   /* bump offset                            */
+    int            failed; /* 1 once any allocation overflowed       */
+} srmech_json_builder_t;
+
+/* Initialise a builder over `ws` (length `ws_len`). */
+srmech_status_t srmech_json_builder_init(srmech_json_builder_t *b,
+                                         void *ws, size_t ws_len);
+
+/* Node constructors. Each returns a node allocated from the builder's
+ * arena, or NULL on arena exhaustion / NULL builder (the builder's
+ * `failed` flag latches so a caller can check once at the end). */
+srmech_json_value_t *srmech_json_new_null(srmech_json_builder_t *b);
+srmech_json_value_t *srmech_json_new_bool(srmech_json_builder_t *b, int truth);
+srmech_json_value_t *srmech_json_new_int(srmech_json_builder_t *b, int64_t i);
+srmech_json_value_t *srmech_json_new_double(srmech_json_builder_t *b, double f);
+srmech_json_value_t *srmech_json_new_string(srmech_json_builder_t *b,
+                                            const char *ptr, uint32_t len);
+srmech_json_value_t *srmech_json_new_array(srmech_json_builder_t *b,
+                                           srmech_json_value_t **items,
+                                           uint32_t n);
+srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
+                                            const char **keys,
+                                            srmech_json_value_t **vals,
+                                            uint32_t n);
+
+/* ------------------------------------------------------------------
+ * §41 genome persistence — the C mirror of srmech.amsc.genome's
+ * disk save / load / catalog / append / window. A genome directory is
+ *
+ *   <dir>/manifest.json   an MPRRecord (MPR v1) catalogue of the
+ *                         chromosome set (leaf_dim, per-chromosome
+ *                         cap_sha256 / leaf_count / byte_offset /
+ *                         byte_len, body_sha256, the_one hash+hex).
+ *   <dir>/turns.bin       the append-only flat body: every strand
+ *                         element (a telomere cap or a coupled turn)
+ *                         is a FIXED-WIDTH leaf_dim-byte block. No
+ *                         length prefixes — chromosome boundaries live
+ *                         in the manifest as byte_offset / byte_len.
+ *
+ * The manifest is built with the JSON builder above and serialised with
+ * srmech_json_write, so it is BYTE-IDENTICAL to the Python genome_save's
+ * json.dumps(payload, sort_keys=True, ensure_ascii=False). turns.bin is
+ * the body bytes verbatim (no transformation). All hashing routes through
+ * srmech_sha256_hex (Class A); bounding == integrity (every read re-hashes
+ * the bytes it touched and compares the hex against the manifest — no abs,
+ * no float). The §41 format version is 1.
+ *
+ * File I/O is stdio (fopen / fread / fwrite / fseek); JPL Rule 3 bans
+ * malloc, not file I/O. The caller arena `ws` backs ALL scratch (the body
+ * read, the manifest, the per-chromosome arrays, the .chr buffers, the JSON
+ * tree) via a bump pointer — the bound is the caller's RAM, never a
+ * compiled-in cap; directory-path strings are built into bounded stack
+ * buffers.
+ *
+ * ABI-additive: new symbols + a struct + macros, so SRMECH_ABI_VERSION
+ * stays 3.
+ * ------------------------------------------------------------------ */
+
+/* §41/§44 on-disk format version. 1 == content-address telomere caps +
+ * manifest-described boundaries; 2 (§44) == SELF-DESCRIBING fixed-width
+ * strand: chromosome + gene boundaries are INLINE packed caps scanned-for in
+ * the body (the strand is the SSoT; the manifest is a derived cache, every
+ * field rebuildable by scanning the body). Mirrors GENOME_FORMAT_VERSION. */
+#define SRMECH_GENOME_FORMAT_VERSION 2
+
+/* §44 inline cap markers — the FIRST byte of a fixed-width cap leaf. Both are
+ * > 3 so a cap is told apart from a Klein-4 data turn (bytes 0..3) by its
+ * first byte alone; the label follows, NUL-padded to leaf_dim. Mirror
+ * CHROM_CAP_MARKER / GENE_CAP_MARKER in srmech.amsc.genome. */
+#define SRMECH_GENOME_CHROM_CAP_MARKER 0x43u   /* 'C' — opens a chromosome */
+#define SRMECH_GENOME_GENE_CAP_MARKER  0x47u   /* 'G' — opens a gene */
+
+/* Max label byte length (NUL-terminated) for one chromosome. This is a FORMAT
+ * width (a label lives inline in a leaf_dim-byte cap block, like PATH_MAX), NOT
+ * a count cap — the number of chromosomes is bounded only by the caller arena. */
+#define SRMECH_GENOME_MAX_LABEL 256
+
+/* SAVE: write <dir>/turns.bin (= `body` verbatim, body_len bytes) and
+ * <dir>/manifest.json (byte-identical to the Python genome_save manifest).
+ *
+ * §44: the chromosome layout is DERIVED by SCANNING the self-describing body
+ * — there is no caller-supplied layout. Every CHROM cap (first byte
+ * SRMECH_GENOME_CHROM_CAP_MARKER) opens a chromosome whose label is read INLINE
+ * from the cap, whose leaf_count is the DATA-turn count (blocks that are NOT a
+ * CHROM/GENE cap), and whose byte_offset/byte_len span up to the next CHROM cap
+ * (or EOF). The derived manifest is byte-identical to the Python genome_save's
+ * (the strand is the SSoT; the manifest is a derived cache).
+ *   body / body_len : the self-describing fixed-width body (CHROM/GENE caps +
+ *                     coupled turns; n_turns = body_len / leaf_dim).
+ *   leaf_dim        : the fixed block width in bytes (> 0, <= 256).
+ *   the_one / the_one_len : the_one's single leaf_dim-byte block
+ *                     (the_one_len MUST equal leaf_dim).
+ *   ws / ws_len     : the caller arena for ALL scratch (the per-chromosome
+ *                     scan arrays + the manifest buffer + the JSON tree) — the
+ *                     bound is the caller's RAM, NOT a compiled-in cap. Size it
+ *                     to the genome (a host sizes it large, an MCU small);
+ *                     SRMECH_ERR_OVERFLOW if too small for this genome.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — dir / body(when body_len>0) / the_one / ws NULL.
+ *   SRMECH_ERR_BAD_INPUT   — leaf_dim == 0 / > 256, the_one_len != leaf_dim,
+ *                           body_len not a whole multiple of leaf_dim, a turn
+ *                           before the first CHROM cap, or a label too long.
+ *   SRMECH_ERR_IO          — fopen / fwrite failed.
+ *   SRMECH_ERR_OVERFLOW    — the caller arena ws is too small for this genome.
+ */
+srmech_status_t srmech_genome_save(
+    const char *dir,
+    const unsigned char *body, size_t body_len,
+    uint32_t leaf_dim,
+    const unsigned char *the_one, size_t the_one_len,
+    void *ws, size_t ws_len);
+
+/* The arena byte count any genome op needs for a body of `body_len` bytes with
+ * `n_chroms` chromosomes when it also stages a `region_len`-byte region (a .chr
+ * region, or an append/replace region; 0 otherwise). Capacity is DEFINED by the
+ * C layout — the caller sizes its `ws` arena from THIS rather than guessing. Pure
+ * arithmetic (no I/O); each term traces to a real allocation (two body copies +
+ * the .chr region/hex/io + per-chromosome strings/manifest/json + a fixed slop).
+ * Adding this symbol does NOT bump SRMECH_ABI_VERSION. */
+size_t srmech_genome_arena_bytes(size_t body_len, uint32_t n_chroms,
+                                 size_t region_len);
+
+/* CATALOG: obtain the manifest catalog as a JSON value tree from the caller
+ * arena `ws`. When <dir>/manifest.json is PRESENT this parses it ONLY (never
+ * opens turns.bin) — the cheap catalog read. §44: when it is ABSENT the catalog
+ * is REBUILT by scanning the self-describing turns.bin (the strand is the SSoT,
+ * the manifest an optional .fai cache); that rebuild needs `the_one`
+ * (the_one_len IS the leaf width). On success *out_manifest points at the root
+ * object (the full MPRRecord; its "data" child is the catalog).
+ * Pass the_one=NULL,the_one_len=0 when a manifest is known to be present.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — dir / ws / out_manifest is NULL.
+ *   SRMECH_ERR_IO          — turns.bin could not be opened / read on rebuild.
+ *   SRMECH_ERR_OVERFLOW    — the manifest or its tree exceeds ws / turns.bin
+ *                           exceeds the rebuild scratch.
+ *   SRMECH_ERR_BAD_INPUT   — manifest.json is malformed JSON, OR it is absent
+ *                           and no the_one was supplied (cannot scan).
+ */
+srmech_status_t srmech_genome_catalog(
+    const char *dir, const unsigned char *the_one, size_t the_one_len,
+    void *ws, size_t ws_len, srmech_json_value_t **out_manifest);
+
+/* LOAD: read <dir>/turns.bin into `out` (capacity out_cap bytes), re-hash
+ * the whole body and compare its hex against the manifest's
+ * data.body_sha256. On a mismatch returns SRMECH_ERR_BAD_INPUT (the
+ * GenomeBoundingError analogue). *out_len receives the body length. §44: when
+ * manifest.json is absent the catalog is rebuilt by scanning turns.bin, which
+ * needs `the_one` (the_one_len IS the leaf width); pass the_one=NULL,0 when a
+ * manifest is present.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — dir / out / out_len / ws is NULL.
+ *   SRMECH_ERR_IO          — turns.bin I/O failed.
+ *   SRMECH_ERR_OVERFLOW    — out_cap < body length, or ws too small.
+ *   SRMECH_ERR_BAD_INPUT   — body hash != manifest body_sha256 (bound
+ *                           failed), a malformed manifest, OR no manifest and
+ *                           no the_one.
+ */
+srmech_status_t srmech_genome_load(
+    const char *dir, unsigned char *out, size_t out_cap, size_t *out_len,
+    const unsigned char *the_one, size_t the_one_len,
+    void *ws, size_t ws_len);
+
+/* WINDOW: seek to one chromosome's byte_offset, read its byte_len bytes
+ * into `out` (capacity out_cap), re-hash the leading cap block and compare
+ * its hex against that chromosome's cap_sha256. On a mismatch returns
+ * SRMECH_ERR_BAD_INPUT (the bounding error). *out_len receives byte_len.
+ * The returned bytes include the leading cap block (the whole region). §44:
+ * when manifest.json is absent the offsets are rebuilt by scanning turns.bin,
+ * which needs `the_one` (the_one_len IS the leaf width); pass the_one=NULL,0
+ * when a manifest is present.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — dir / label / out / out_len / ws is NULL.
+ *   SRMECH_ERR_IO          — turns.bin I/O failed.
+ *   SRMECH_ERR_OVERFLOW    — out_cap < byte_len, or ws too small.
+ *   SRMECH_ERR_BAD_INPUT   — label absent, cap hash != cap_sha256, a
+ *                           malformed manifest, OR no manifest and no the_one.
+ */
+srmech_status_t srmech_genome_window(
+    const char *dir, const char *label,
+    unsigned char *out, size_t out_cap, size_t *out_len,
+    const unsigned char *the_one, size_t the_one_len,
+    void *ws, size_t ws_len);
+
+/* APPEND: append one chromosome's region (`region`, region_len bytes = the
+ * cap block + its data turns, all leaf_dim-byte blocks) to the END of
+ * <dir>/turns.bin (append-only; prior body bytes are never rewritten), then
+ * rewrite manifest.json with the new chromosome entry + recomputed n_turns /
+ * body_sha256. Every EXISTING chromosome entry (cap_sha256 / byte_offset /
+ * leaf_count / byte_len) is carried through byte-identically.
+ *   the_one / the_one_len : the_one block (the_one_len == leaf_dim), re-used
+ *                     for the manifest the_one hash+hex (must match the stored
+ *                     leaf_dim; the prior body is bound-checked before growth).
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — dir / label / region(when region_len>0) /
+ *                           the_one / ws is NULL.
+ *   SRMECH_ERR_IO          — turns.bin / manifest.json I/O failed.
+ *   SRMECH_ERR_OVERFLOW    — ws too small, or too many chromosomes.
+ *   SRMECH_ERR_BAD_INPUT   — leaf_dim mismatch, label already present,
+ *                           region_len not a whole multiple of leaf_dim,
+ *                           prior body bound failed, or malformed manifest.
+ */
+srmech_status_t srmech_genome_append(
+    const char *dir, const char *label,
+    const unsigned char *region, size_t region_len, uint32_t leaf_dim,
+    const unsigned char *the_one, size_t the_one_len,
+    void *ws, size_t ws_len);
+
+/* §45 IN-PLACE EDIT — biology excises, it does not re-synthesize. With the §44
+ * self-describing body an edit is a pure BYTE splice on turns.bin (no kernel is
+ * decoded / re-coupled — the surviving chromosomes' coupled bytes stay
+ * byte-identical, only relocated). The spliced body is committed via
+ * srmech_genome_save, which re-derives the manifest by scanning it, so the
+ * on-disk turns.bin + manifest.json are byte-identical to the Python
+ * genome_remove / genome_replace output. Like APPEND (a write op), `the_one` is
+ * REQUIRED (srmech_genome_save needs it for the manifest the_one hash+hex) and
+ * the_one_len IS leaf_dim. The whole body is re-hashed against the committed
+ * body_sha256 BEFORE the edit (the GenomeBoundingError analogue). */
+
+/* REMOVE: excise chromosome `label` IN PLACE — find its region in the
+ * self-describing body, splice the [byte_offset, byte_offset+byte_len) span out
+ * of turns.bin, and rewrite manifest.json (DERIVED by scanning the spliced
+ * body). Mirrors the Python genome_remove. the_one_len MUST equal the stored
+ * leaf_dim.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — dir / label / the_one / ws is NULL.
+ *   SRMECH_ERR_IO          — turns.bin / manifest.json I/O failed.
+ *   SRMECH_ERR_OVERFLOW    — ws too small, or body exceeds the scratch.
+ *   SRMECH_ERR_BAD_INPUT   — the_one_len 0 / > 256 or != stored leaf_dim, label
+ *                           absent, `label` is the genome's ONLY chromosome,
+ *                           prior body bound failed, or malformed manifest.
+ */
+srmech_status_t srmech_genome_remove(
+    const char *dir, const char *label,
+    const unsigned char *the_one, size_t the_one_len,
+    void *ws, size_t ws_len);
+
+/* REPLACE: swap chromosome `label`'s content IN PLACE — splice its old span out
+ * of turns.bin and `region` (region_len bytes = a fresh telomere-capped
+ * chromosome's cap block + data turns, all leaf_dim-byte blocks) IN at the same
+ * position, then rewrite manifest.json (DERIVED by scanning the new body). Every
+ * OTHER chromosome's body bytes stay byte-identical. Mirrors the Python
+ * genome_replace (whose `leaves` are coupled into the region by the caller).
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — dir / label / region(when region_len>0) / the_one /
+ *                           ws is NULL.
+ *   SRMECH_ERR_IO          — turns.bin / manifest.json I/O failed.
+ *   SRMECH_ERR_OVERFLOW    — ws too small, or the new body exceeds the scratch.
+ *   SRMECH_ERR_BAD_INPUT   — leaf_dim 0 / the_one_len != leaf_dim / != stored
+ *                           leaf_dim, region_len not a whole multiple of
+ *                           leaf_dim, label absent, prior body bound failed, or
+ *                           malformed manifest.
+ */
+srmech_status_t srmech_genome_replace(
+    const char *dir, const char *label,
+    const unsigned char *region, size_t region_len, uint32_t leaf_dim,
+    const unsigned char *the_one, size_t the_one_len,
+    void *ws, size_t ws_len);
+
+/* §43 FILE-MANAGEMENT — the chromosome as a bundleable .chr file. Now that §44
+ * made the strand self-describing and §45 made it editable in place, a
+ * chromosome can be EXPORTED as ONE self-contained, content-addressed file
+ * (.chr), shipped, and re-IMPORTED into a genome self-verifying — the "tar one
+ * chromosome, ship it" goal. A .chr is ONE MPR record built with the SAME json
+ * builder + writer the manifest uses, so it is BYTE-IDENTICAL to the Python
+ * genome_export's json.dumps(sort_keys=True, ensure_ascii=False) + LF; its
+ * attestation.response_sha256 IS the region hash, so an import re-hashes the
+ * region and self-verifies. This COMPOSES the §41 MPR surface — it is NOT a
+ * parallel attestation. Mirrors srmech.amsc.genome genome_export / genome_import.
+ *
+ * The .chr region / hex / file-text scratch is carved from the caller arena
+ * (sized to the chromosome / the .chr file), so a chromosome of any size the
+ * caller's arena fits can be bundled — no compiled-in cap. */
+
+/* EXPORT: write chromosome `label`'s region (CHROM cap + coupled turns; the
+ * leading cap re-hashed against the manifest cap_sha256) + the_one to `out_path`
+ * as ONE MPR-attested .chr record. `the_one` is OPTIONAL — pass it (length ==
+ * leaf_dim) to export from a MANIFEST-LESS source (§44; the catalog is rebuilt
+ * by scanning turns.bin), else NULL when manifest.json is present. The .chr
+ * round-trips byte-identically.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — dir / label / out_path / ws is NULL.
+ *   SRMECH_ERR_IO          — turns.bin / the .chr I/O failed.
+ *   SRMECH_ERR_OVERFLOW    — the caller arena ws is too small for this
+ *                           chromosome (its region / hex / .chr text).
+ *   SRMECH_ERR_BAD_INPUT   — the_one_len 0 / > 256, label absent, cap integrity
+ *                           bound failed, or a malformed manifest. */
+srmech_status_t srmech_genome_export(
+    const char *dir, const char *label, const char *out_path,
+    const unsigned char *the_one, size_t the_one_len,
+    void *ws, size_t ws_len);
+
+/* IMPORT: read a .chr bundle (genome_export's output), RE-HASH its region and
+ * its the_one against the bundle's own attestation (self-verifying — a flipped
+ * byte is SRMECH_ERR_BAD_INPUT), then either SEED a fresh genome at `dest` when
+ * it has no turns.bin yet (the region becomes turns.bin VERBATIM) or APPEND the
+ * chromosome byte-for-byte into the existing dest (which REQUIRES the same
+ * coupling invariant — dest the_one.sha256 == the .chr's — and a fresh label).
+ * `the_one` is only consulted as the rebuild width for a manifest-less existing
+ * dest (§44); the bundle carries its own the_one. The dest directory must exist
+ * (the C surface does not mkdir — turns.bin is written into an existing dir,
+ * like save / append). Mirrors the Python genome_import.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — chr_path / dest / ws is NULL.
+ *   SRMECH_ERR_IO          — the .chr / turns.bin / manifest.json I/O failed.
+ *   SRMECH_ERR_OVERFLOW    — the caller arena ws is too small for this .chr
+ *                           (its text / decoded region / the dest body grow).
+ *   SRMECH_ERR_BAD_INPUT   — not a chromosome bundle (wrong data_schema_id),
+ *                           a region / the_one integrity bound failed, the dest
+ *                           leaf_dim / the_one mismatches, the label already
+ *                           exists in dest, or a malformed bundle / manifest. */
+srmech_status_t srmech_genome_import(
+    const char *chr_path, const char *dest,
+    const unsigned char *the_one, size_t the_one_len,
+    void *ws, size_t ws_len);
+
+/* §43 LOOSE<->PACKED — git's object model for genomes.
+ *
+ * EXPLODE: write one loose <label>.chr bundle per chromosome of the packed
+ * genome at `dir` into `out_dir` (which must exist; the C surface does not
+ * mkdir), each via srmech_genome_export (so each .chr self-verifies). Like
+ * `git unpack-objects`. `the_one` is only consulted as the rebuild width
+ * for a manifest-less source (§44); when the source has a manifest.json it
+ * may be NULL. Every chromosome label must be filename-safe (no '/' / '\\',
+ * not "" / "." / "..") — else SRMECH_ERR_BAD_INPUT. Mirrors the Python
+ * genome_explode.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — dir / out_dir / ws is NULL.
+ *   SRMECH_ERR_IO          — turns.bin / a .chr write failed.
+ *   SRMECH_ERR_OVERFLOW    — the caller arena ws is too small for this explode
+ *                           (the labels array / a chromosome), or a path too long.
+ *   SRMECH_ERR_BAD_INPUT   — the_one_len 0 / > 256, an unsafe label, a cap
+ *                           integrity bound failed, or a malformed manifest. */
+srmech_status_t srmech_genome_explode(
+    const char *dir, const char *out_dir,
+    const unsigned char *the_one, size_t the_one_len,
+    void *ws, size_t ws_len);
+
+/* PACK: read every <label>.chr in `loose_dir` (a *.chr directory scan), sort
+ * them by their inner data.label (CANONICAL order — content-preserving, not
+ * byte-order-preserving: it re-canonicalises), and srmech_genome_import each
+ * in order into `dest` (the first SEEDS dest, the rest APPEND — so they must
+ * share one the_one). Like `git repack`. `dest` must exist (no mkdir); an
+ * empty `loose_dir` (or no *.chr files) is SRMECH_ERR_BAD_INPUT. `the_one` is
+ * only the rebuild width for a manifest-less existing dest (§44). Mirrors the
+ * Python genome_pack.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — loose_dir / dest / ws is NULL.
+ *   SRMECH_ERR_IO          — a .chr / turns.bin / manifest.json I/O failed.
+ *   SRMECH_ERR_OVERFLOW    — the caller arena ws is too small for this pack
+ *                           (the .chr names / labels / a bundle / the body), or
+ *                           a path too long.
+ *   SRMECH_ERR_BAD_INPUT   — the_one_len 0 / > 256, no .chr files, a bundle is
+ *                           not a chromosome / fails its integrity bound, or
+ *                           the dest leaf_dim / the_one / label invariant. */
+srmech_status_t srmech_genome_pack(
+    const char *loose_dir, const char *dest,
+    const unsigned char *the_one, size_t the_one_len,
+    void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * TOML parser (malloc-free; caller arena)
+ *
+ * A self-contained reader for the TOML subset srmech's descriptor /
+ * cascade-catalog files actually use. NOT a full TOML 1.0 parser: it
+ * implements exactly the grammar the corpus exercises and rejects the
+ * rest with SRMECH_ERR_BAD_INPUT so a silent mis-parse can never slip
+ * through (no datetimes — they do not appear in the corpus).
+ *
+ * Supported grammar:
+ *   - tables [a], [a.b.c] (dotted -> nested; reopening a path allowed);
+ *   - arrays of tables [[a]], [[a.b]] (each appends a new table);
+ *   - key/value: bare or dotted bare keys ([A-Za-z0-9_-]); the value is
+ *       basic "..." (escapes \" \\ \n \t \r \uXXXX -> UTF-8),
+ *       literal '...', multiline """...""" / '''...''' (leading newline
+ *       after the opener trimmed), integer (+/-, underscores), float
+ *       (decimal point and/or e/E exponent, underscores), bool
+ *       true/false, array [ ... ] (multi-line, trailing comma, nested),
+ *       inline table { k = v, ... };
+ *   - comments: '#' to end of line, outside strings.
+ *
+ * Memory model: the WHOLE parse tree (values, key strings, child
+ * pointer arrays) is built inside the caller-supplied arena `ws`
+ * (ws_len bytes), used as an 8-byte-aligned bump allocator. There is
+ * NO malloc and no global state — the parser is reentrant. Strings are
+ * copied into the arena NUL-terminated, so srmech_toml_value_t::u.str.ptr
+ * is always a C string (the `len` field is the byte length, excluding
+ * the NUL). The arena content must outlive any use of *out.
+ *
+ * NO per-table / per-array element cap (rc159 standalone-complete honor):
+ * children are collected into arena linked lists (no fixed staging array),
+ * so a single table or array may hold any number of entries the caller arena
+ * fits — a C-only / MCU host parses a descriptor bounded only by its RAM.
+ * Nesting depth is still bounded by SRMECH_TOML_MAX_DEPTH (a recursion-depth
+ * guard, not a problem-size cap) -> SRMECH_ERR_OVERFLOW.
+ *
+ * ABI-additive: new symbols + types + macros only, so
+ * SRMECH_ABI_VERSION stays 3. No libm, no <complex.h>, no malloc.
+ * ------------------------------------------------------------------ */
+
+/* Maximum table/array/inline-table nesting depth (recursion guard for
+ * the value parser; JPL Rule 2 bound). Exceeding it -> SRMECH_ERR_OVERFLOW. */
+#define SRMECH_TOML_MAX_DEPTH 64
+
+/* The dynamic type of a parsed TOML value. */
+typedef enum srmech_toml_type {
+    SRMECH_TOML_STRING = 0,
+    SRMECH_TOML_INT,
+    SRMECH_TOML_FLOAT,
+    SRMECH_TOML_BOOL,
+    SRMECH_TOML_ARRAY,
+    SRMECH_TOML_TABLE
+} srmech_toml_type_t;
+
+typedef struct srmech_toml_value srmech_toml_value_t;
+
+/* A parsed TOML value. All pointers refer into the caller's arena. For
+ * a STRING, `str.ptr` is NUL-terminated and `str.len` is its byte
+ * length. For ARRAY / TABLE, the child pointer arrays (`arr.items`,
+ * `tbl.keys`, `tbl.vals`) also live in the arena. */
+struct srmech_toml_value {
+    srmech_toml_type_t type;
+    union {
+        struct { const char *ptr; uint32_t len; } str;
+        int64_t i;
+        double  f;
+        int     b;
+        struct { srmech_toml_value_t **items; uint32_t n; } arr;
+        struct {
+            const char           **keys;
+            srmech_toml_value_t  **vals;
+            uint32_t               n;
+        } tbl;
+    } u;
+};
+
+/* Parse src[0..len) into a TOML tree built ENTIRELY inside the caller's
+ * arena `ws` (ws_len bytes, used as an 8-byte-aligned bump allocator).
+ * On success *out is the root TABLE value (which lives in ws). No malloc.
+ *
+ * Returns:
+ *   SRMECH_OK             — success (*out set)
+ *   SRMECH_ERR_NULL_ARG   — src (with len > 0), ws, or out is NULL
+ *   SRMECH_ERR_OVERFLOW   — caller arena `ws` too small for this document,
+ *                           or nesting exceeds SRMECH_TOML_MAX_DEPTH
+ *   SRMECH_ERR_BAD_INPUT  — a syntax error / unsupported construct
+ */
+srmech_status_t srmech_toml_parse(const char *src, size_t len,
+                                  void *ws, size_t ws_len,
+                                  srmech_toml_value_t **out);
+
+/* Look up `key` in a TABLE value; returns the matching child value, or
+ * NULL if `table`/`key` is NULL, `table` is not a TABLE, or the key is
+ * absent. The returned pointer aliases into the same arena as `table`. */
+const srmech_toml_value_t *srmech_toml_table_get(
+    const srmech_toml_value_t *table, const char *key);
 
 #ifdef __cplusplus
 }

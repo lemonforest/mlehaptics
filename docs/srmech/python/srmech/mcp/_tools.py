@@ -106,6 +106,20 @@ _TYPE_LEXICON: Dict[str, str] = {
     "sequence": "array",
     "iterable[int]": "array",
     "tuple[int, int]": "array",
+    # numpy-free carrier-spirit param types (v0.7.5rc132) — all ride JSON as a
+    # nested (Mat / Mat-tuple) or flat (Vec / HV) array; never named numpy.
+    "Mat": "array",
+    "Vec": "array",
+    "HV": "array",
+    "Optional[Vec]": "array",
+    "Optional[HV]": "array",
+    "Mat | Vec": "array",
+    "Sequence[Vec]": "array",
+    "Sequence[HV]": "array",
+    "tuple[Mat, ...]": "array",
+    "list[list[list[float]]]": "array",
+    # legacy numpy-free wire-form keys (no param advertises them now; kept for
+    # the round-trip / coercion tests).
     "tuple[np.ndarray, ...]": "array",
     "np.ndarray": "array",
     "Optional[np.ndarray]": "array",
@@ -140,13 +154,39 @@ def _json_schema_type_for(param_type: str) -> str:
 _ENCODING_HINT: Dict[str, str] = {
     "bytes": "base64-encoded bytes",
     "complex": "[real, imaginary]",
+    # numpy-free carrier-spirit param types (v0.7.5rc132). The carrier ACCEPTS
+    # every degenerate form the no-math plan uses (list / array.array / tuple /
+    # nested-list), so the wire form is just a plain JSON array.
+    "Mat": (
+        "nested JSON array of rows, row-major; complex elements as [re, im]"
+    ),
+    "Vec": "flat JSON array (length-n); complex elements as [re, im]",
+    "HV": "flat JSON array of integers (the hypervector elements)",
+    "Optional[Vec]": (
+        "flat JSON array (length-n) or null; complex elements as [re, im]"
+    ),
+    "Optional[HV]": "flat JSON array of integers, or null",
+    "Mat | Vec": (
+        "nested JSON array of rows (2-D) OR a flat JSON array (1-D); "
+        "complex elements as [re, im]"
+    ),
+    "Sequence[Vec]": "array of flat JSON arrays (each a 1-D vector)",
+    "Sequence[HV]": "array of flat JSON integer arrays (each a hypervector)",
+    "tuple[Mat, ...]": (
+        "array of nested JSON arrays (each a row-major matrix; complex as "
+        "[re, im])"
+    ),
+    "list[list[list[float]]]": (
+        "rank-3 nested JSON array of real numbers"
+    ),
+    "Sequence[bytes]": "array of base64-encoded byte strings",
+    # legacy numpy-free wire-form keys (no param advertises them now).
     "np.ndarray": (
         "nested JSON array, row-major; complex elements as [re, im]"
     ),
     "Optional[np.ndarray]": (
         "nested JSON array, row-major; complex elements as [re, im]"
     ),
-    "Sequence[bytes]": "array of base64-encoded byte strings",
     "Sequence[np.ndarray]": (
         "array of nested JSON arrays (each row-major; complex as [re, im])"
     ),

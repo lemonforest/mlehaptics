@@ -590,9 +590,11 @@ def test_describe_shape_handles_common_inputs():
     assert describe_shape(None) == "None"
     assert describe_shape(3.14).startswith("float")
     assert describe_shape([1, 2, 3]).startswith("list(len=3")
-    # ndarray
-    import numpy as _np
-    s = describe_shape(_np.zeros((4, 4)))
+    # a 2-D shaped carrier — numpy-free (#564): describe_shape duck-types
+    # `.shape`, so the numpy-free Mat (shape (4, 4)) exercises the same branch
+    # an ndarray used to. (numpy is GONE from srmech and its test oracle.)
+    from srmech.amsc.mat import Mat
+    s = describe_shape(Mat.from_rows([[0.0] * 4 for _ in range(4)]))
     assert "(4, 4)" in s
 
 

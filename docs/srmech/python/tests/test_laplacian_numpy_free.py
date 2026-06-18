@@ -51,33 +51,90 @@ def test_jacobi_cascade_diagonal_and_tiny():
 
 # --- the real-symmetric core runs with numpy ABSENT --------------------------
 
-def test_real_core_numpy_absent(monkeypatch):
-    """Force ``laplacian.np = None`` → the build → eigvals chain runs in pure
-    Python (list[list[float]] → list[float]) and matches the numpy spectrum."""
+def test_real_core_numpy_absent():
+    """Post-#564 numpy is GONE from srmech entirely (there is no
+    ``laplacian.np`` attribute to monkeypatch). The build → eigvals chain runs
+    in pure Python (``list[list[float]]`` → ``list[float]``) by default, and
+    the Jacobi cascade reproduces the closed-form path-graph spectrum.
+
+    P5 (path on 5 nodes) Laplacian has the closed-form eigenvalues
+    ``2 − 2·cos(kπ/5)``, ``k = 0..4`` → ``{0, 2−φ, 1, 2, 2+1/φ}`` numerically
+    ``{0, 0.690983, 1.909830, 3.0, 3.690983}`` (Spielman, Spectral Graph
+    Theory, path-graph eigenpairs)."""
+    # numpy is absent: there is NO laplacian.np attribute.
+    from srmech.amsc.mat import Mat
+    from srmech.amsc.vec import Vec
+    assert not hasattr(L, "np")
+
     edges = _ref_path_graph_laplacian(5)
-    ref_eig = [float(x) for x in L.jacobi_eigvals(L.dense_laplacian(5, edges))]
+    Lp = L.dense_laplacian(5, edges)         # rc129: -> real Mat (.shape + m[i,j])
+    assert isinstance(Lp, Mat) and Lp.shape == (5, 5)
+    eig = L.jacobi_eigvals(Lp)               # rc129: -> Vec via the cascade
+    assert isinstance(eig, Vec)
 
-    monkeypatch.setattr(L, "np", None)
-    Lp = L.dense_laplacian(5, edges)         # -> list[list[float]]
-    assert isinstance(Lp, list) and isinstance(Lp[0], list)
-    eig = L.jacobi_eigvals(Lp)               # -> list[float] via the Jacobi cascade
-    assert isinstance(eig, list)
-    for a, b in zip(eig, ref_eig):
+    # Closed-form path-graph P5 spectrum (hand-computed, no numpy oracle).
+    import math
+    expected = sorted(2.0 - 2.0 * math.cos(k * math.pi / 5) for k in range(5))
+    assert len(eig) == 5
+    for a, b in zip(sorted(eig), expected):    # Vec → sorted(list of scalars)
         assert abs(a - b) < 1e-9
-    # adjacency + normalized also build numpy-free
-    assert isinstance(L.dense_adjacency(5, edges), list)
-    assert isinstance(L.normalized_laplacian(5, edges), list)
+    # adjacency + normalized also build numpy-free (Mat carriers).
+    assert isinstance(L.dense_adjacency(5, edges), Mat)
+    assert isinstance(L.normalized_laplacian(5, edges), Mat)
 
 
-def test_scientific_tier_raises_clean_without_numpy(monkeypatch):
-    """The complex / signed / magnetic scientific-tier ops raise a clear
-    ImportError (via _require_np) when numpy is absent — not an opaque
-    AttributeError."""
-    monkeypatch.setattr(L, "np", None)
-    with pytest.raises(ImportError):
-        L.hermitian_eigendecompose([[1.0, 0.0], [0.0, 1.0]])
-    with pytest.raises(ImportError):
-        L.signed_laplacian(2, [(0, 1)], [-1.0])
+def test_scientific_tier_ops_run_without_numpy():
+    """Post-#564 numpy is GONE, so the complex / signed / magnetic
+    "scientific-tier" ops no longer raise an ImportError when numpy is absent —
+    they just run as pure-Python cascades returning plain Python lists.
+
+    (The old ``test_scientific_tier_raises_clean_without_numpy`` asserted a
+    ``_require_np`` ImportError guard; that guard was deleted with numpy, so
+    this now pins the inverse contract: the ops succeed numpy-free.)"""
+    from srmech.amsc.mat import Mat
+    from srmech.amsc.vec import Vec
+    w, V = L.hermitian_eigendecompose([[1.0, 0.0], [0.0, 1.0]])
+    assert isinstance(w, Vec) and list(w) == [1.0, 1.0]   # rc129: Vec eigenvalues
+    assert isinstance(V, Mat) and V.shape == (2, 2)        # rc129: Mat eigenvectors
+
+    Ls = L.signed_laplacian(2, [(0, 1)], [-1.0])
+    assert isinstance(Ls, Mat) and Ls.shape == (2, 2)      # rc129: Mat carrier
+    # |−1|-degree on each node is 1 → L = [[1, 1], [1, 1]] (sign on off-diagonal).
+    assert Ls[0, 0] == pytest.approx(1.0)
+    assert Ls[1, 1] == pytest.approx(1.0)
+
+
+def test_hermitian_eigendecompose_degenerate_numpy_free():
+    """REGRESSION (carrier-consolidation rc135): the pure-Python complex-Hermitian
+    eigendecompose used to ``ZeroDivisionError`` on a DEGENERATE eigenvalue — the
+    2n real-embedding doubles each complex eigenvector via the J-rotation ``i·z``,
+    so the "every other column" pick collapses to a zero vector after Gram–Schmidt
+    (the identity matrix is the minimal trigger). The fallback now scans the
+    embedding columns at the same eigenvalue for an independent reconstruction.
+    Pin: a unitary basis + exact reconstruction ``V·diag(λ)·Vᴴ = H`` on three
+    degenerate complex-Hermitian matrices, numpy-free."""
+    from srmech.amsc.mat import Mat
+
+    cases = [
+        [[1.0, 0.0], [0.0, 1.0]],                       # identity: λ = {1, 1}
+        [[2.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 5.0]],   # λ = {2, 2, 5}
+        [[2.0, 0.0, 0.0], [0.0, 3.0, 1j], [0.0, -1j, 3.0]],    # complex, λ = {2, 2, 4}
+    ]
+    for rows in cases:
+        H = Mat.from_rows(rows)
+        n = H.n_rows
+        w, V = L.hermitian_eigendecompose(H)
+        lam = list(w)
+        for a in range(n):                              # Vᴴ V = I (unitary basis)
+            for b in range(n):
+                s = sum(V[i, a].conjugate() * V[i, b] for i in range(n))
+                tgt = 1.0 if a == b else 0.0
+                # abs() allowed in TESTS (tolerance), not in shipped cascades.
+                assert abs(s - tgt) < 1e-9              # noqa
+        for i in range(n):                              # V·diag(λ)·Vᴴ = H
+            for j in range(n):
+                s = sum(V[i, a] * lam[a] * V[j, a].conjugate() for a in range(n))
+                assert abs(s - complex(rows[i][j])) < 1e-9  # noqa
 
 
 # --- the "abs() is never fine" codebase ratchet ------------------------------

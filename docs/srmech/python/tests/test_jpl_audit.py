@@ -121,6 +121,13 @@ RULE_5_EXEMPT_FUNCTIONS: set[str] = {
     "srmech_plat_has_streams",  # PAL trivial accessor: returns a compile-time
                                 # 1/0 (is a stream-IPC backend present?). No
                                 # state to assert; see c/JPL_AUDIT.md.
+    "srmech_plat_has_filesystem",  # PAL trivial accessor: returns a compile-
+                                # time 1/0 (is a filesystem backend present?).
+                                # No state to assert; see c/JPL_AUDIT.md.
+    "srmech_plat_has_dirlist",  # PAL trivial accessor: returns a compile-time
+                                # 1/0 (is a directory-iteration backend
+                                # present?). No state to assert; see
+                                # c/JPL_AUDIT.md.
     # sha256 inline helpers — 4-7 lines each, no anomalous conditions
     "srmech_ror32",
     "srmech_ch",
@@ -154,6 +161,20 @@ RULE_5_EXEMPT_FUNCTIONS: set[str] = {
     # `__ror` is the 1-line rotate (like srmech_ror32 / srmech_sha256b__ror).
     "srmech_simd_has_shani",
     "srmech_sha256ni__ror",
+    # srmech_toml.c char classifiers — pure `char -> bool` predicates over a
+    # single value argument (is-whitespace / is-bare-key-char). No pointer,
+    # no bounds, no state: the only "input" is a char, which has no anomalous
+    # value to assert (every char is a valid input). Asserting a tautology
+    # would be cargo-cult per the Rule 5 exemption policy in c/JPL_AUDIT.md;
+    # same shape as the exempt sha256 ch/maj inline primitives.
+    "toml_is_ws",
+    "toml_is_bare_key_char",
+    # srmech_json.c (§41 genome-persistence C mirror): trivial char
+    # classifiers — 4-line predicates returning 0/1 over a single char,
+    # no pointer/bounds invariant to assert (same kind as the TOML
+    # parser's toml_is_ws). See c/JPL_AUDIT.md.
+    "json_is_ws",
+    "json_is_digit",
 }
 
 # Maximum allowed function length (JPL Rule 4).

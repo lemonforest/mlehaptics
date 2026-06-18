@@ -39,7 +39,7 @@ Canonical SSoT
 
 from __future__ import annotations
 
-import numpy as np
+from typing import List
 
 OPERATION_NAME = "sign_quantise"
 CLASS_COMPOSITION = ("K", "M")
@@ -85,25 +85,31 @@ def op(
 
     Returns
     -------
-    numpy.ndarray
-        Integer-valued ``{-1, 0, +1}`` array with the same shape as input.
-        D1 algebra-identical to
+    list of int
+        Integer-valued ``{-1, 0, +1}`` list, one per input sample. D1
+        algebra-identical to
         :func:`srmech.signal_processing.closed_form_ops.sign_quantise.op`.
+
+    numpy-free (carrier-removal #564, rc94): the Class-K decision is an
+    explicit per-element sign-branch (NO ``abs()``; the ``np.where`` carrier is
+    gone). The carrier is a plain Python ``list`` throughout.
     """
-    arr = np.asarray(signal, dtype=np.float64)
-    out = np.zeros_like(arr, dtype=np.int8)
+    arr = [float(v) for v in signal]
     if dead_band <= 0.0:
         # Class K threshold projection: pin-slot at decision boundary.
-        out[:] = np.where(arr >= threshold, 1, -1)
-    else:
-        # Three-level Class K projection with dead-band; the dead-band
-        # is the asymptotic-DOF "near-boundary" zone where the
-        # pin-slot rejects projection.
-        out[:] = np.where(
-            arr > threshold + dead_band,
-            1,
-            np.where(arr < threshold - dead_band, -1, 0),
-        )
+        return [1 if v >= threshold else -1 for v in arr]
+    # Three-level Class K projection with dead-band; the dead-band is the
+    # asymptotic-DOF "near-boundary" zone where the pin-slot rejects projection.
+    hi = threshold + dead_band
+    lo = threshold - dead_band
+    out: List[int] = []
+    for v in arr:
+        if v > hi:
+            out.append(1)
+        elif v < lo:
+            out.append(-1)
+        else:
+            out.append(0)
     return out
 
 

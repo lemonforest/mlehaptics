@@ -6,9 +6,9 @@ JPL DE441 ephemeris truth over a multi-millennium window.
 
 from __future__ import annotations
 
+import math
 import os
 from pathlib import Path
-import numpy as np
 import pytest
 from ephemerides_spectral._research.ephemeris_reference_instrument import EphemerisHDCInstrument, REFERENCE_JD
 from ephemerides_spectral._research.bodies import BODIES
@@ -23,9 +23,9 @@ def test_phase_drift_sweep(kernel_name: str):
     instrument = EphemerisHDCInstrument(kernel=kernel_name)
 
     
-    # Sweep range: J2000 +/- 50 years
-    years = np.linspace(-50, 50, 5) 
-    jds = REFERENCE_JD + (years * 365.25)
+    # Sweep range: J2000 +/- 50 years (numpy-free linspace(-50, 50, 5)).
+    years = [-50.0, -25.0, 0.0, 25.0, 50.0]
+    jds = [REFERENCE_JD + (y * 365.25) for y in years]
     
     body_errors = {name: [] for name in instrument.body_names}
     ts = instrument.bundle.ts
@@ -71,8 +71,8 @@ def test_phase_drift_sweep(kernel_name: str):
                 _, lon, _ = astrometric.ecliptic_latlon()
                 truth_phase = lon.radians
                 
-                err = (pred_phases[i] - truth_phase + np.pi) % (2.0 * np.pi) - np.pi
-                body_errors[name].append(np.abs(err))
+                err = (pred_phases[i] - truth_phase + math.pi) % (2.0 * math.pi) - math.pi
+                body_errors[name].append(abs(err))
             except (KeyError, ValueError):
                 continue
 
@@ -80,7 +80,7 @@ def test_phase_drift_sweep(kernel_name: str):
     print("-" * 60)
     for name, errs in body_errors.items():
         if not errs: continue
-        rms = np.sqrt(np.mean(np.square(errs)))
+        rms = math.sqrt(sum(e * e for e in errs) / len(errs))
         print(f"{name:<12}: {rms:.6f} rad")
         assert rms < 3.0 # Allow for drift in first-principles model
 

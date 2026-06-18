@@ -29,19 +29,13 @@ classifier that reads the harmonic order directly off an encoded hypervector's
 symmetry signature, generalising the surface-form token-name classifier
 (R-RBS-NN-14a) to work on any encoded vector regardless of provenance.
 
-Pure-Python + numpy; no new C surface (harmonic classification is framework-
-level composition over the existing A–N primitives). Class-L (spectral) read
-of the chirality structure.
+Pure-Python (numpy-free, #564); no new C surface (harmonic classification is
+framework-level composition over the existing A–N primitives). Class-L
+(spectral) read of the chirality structure over plain ``float`` lists.
 """
 from __future__ import annotations
 
 from typing import Dict, Tuple
-
-# numpy is the [scientific] extra (v0.7.0). This module mixes a numpy-free
-# path with ndarray-typed ops; the lazy proxy keeps the module importable
-# on a plain install and only the ndarray ops raise the [scientific] hint.
-from srmech._scientific import lazy_numpy as _lazy_numpy
-np = _lazy_numpy("srmech.amsc.harmonics")
 
 # F150 operator → chirality-harmonic partition (the 1-2-3 reading of the 14).
 HARMONIC_1: Tuple[str, ...] = ("A", "B", "F", "H", "N")
@@ -86,7 +80,7 @@ def classify_harmonic(class_letter: str) -> int:
     return _LETTER_TO_HARMONIC[upper]
 
 
-def _spectral_scores(hv: np.ndarray) -> Tuple[float, float, float]:
+def _spectral_scores(hv) -> Tuple[float, float, float]:
     """Three symmetry scores (dc, mirror, three_cycle) in [0, 1] for a vector.
 
     - dc: DC-dominance = |Σx| / Σ|x| — a constant / chirality-invariant signal
@@ -96,39 +90,40 @@ def _spectral_scores(hv: np.ndarray) -> Tuple[float, float, float]:
     - three_cycle: 3-fold rotational self-agreement = |⟨x, roll(x, n/3)⟩| /
       ⟨x, x⟩ for n divisible by 3 — a 3-periodic signal scores high
       (→ harmonic 3). 0 when n is not divisible by 3.
-    Pure real-arithmetic symmetry probes. Every magnitude is an EXPLICIT
-    Class-K sign-branch (pin-slot: ``x where x >= 0 else -x``) — never an ALU
-    ``abs()`` and never the ``sqrt(·²)`` stealth-abs; ``⟨x, x⟩`` energy is a
-    Class-L inner product.
-    """
-    # Real Class-L inner products via the cascade dot (numpy is a carrier here;
-    # local import keeps this module numpy-absent-safe per §22 — numpy is already
-    # loaded by the np.asarray above).
-    from srmech.amsc.laplacian import dense_dot_real
 
-    x = np.asarray(hv, dtype=float).reshape(-1)
-    n = x.size
-    energy = dense_dot_real(x, x)
+    Pure real-arithmetic symmetry probes over a plain ``float`` list (numpy-free
+    #564). Every magnitude is an EXPLICIT Class-K sign-branch (pin-slot:
+    ``x where x >= 0 else -x``) — never an ALU ``abs()`` and never the
+    ``sqrt(·²)`` stealth-abs; ``⟨x, x⟩`` energy is a Class-L inner product.
+    """
+    x = [float(v) for v in hv]
+    n = len(x)
+    energy = sum(xi * xi for xi in x)  # Class-L inner product ⟨x, x⟩
     if n == 0 or energy == 0.0:
         return (0.0, 0.0, 0.0)
     # Σ|x_i| (L1 norm) via the explicit Class-K sign-branch, not sqrt(x²).
-    total_mag = float(np.sum(np.where(x >= 0.0, x, -x)))
-    s = float(np.sum(x))
+    total_mag = sum(xi if xi >= 0.0 else -xi for xi in x)
+    s = sum(x)
     dc = (s if s >= 0.0 else -s) / total_mag if total_mag > 0.0 else 0.0
-    d_mirror = dense_dot_real(x, x[::-1])
+    d_mirror = sum(x[i] * x[n - 1 - i] for i in range(n))  # ⟨x, reverse(x)⟩
     mirror = (d_mirror if d_mirror >= 0.0 else -d_mirror) / energy
     if n % 3 == 0:
-        rolled = np.roll(x, n // 3)
-        d_three = dense_dot_real(x, rolled)
+        k = n // 3
+        # roll(x, k): rolled[i] = x[(i - k) mod n]; ⟨x, roll(x, n/3)⟩.
+        d_three = sum(x[i] * x[(i - k) % n] for i in range(n))
         three = (d_three if d_three >= 0.0 else -d_three) / energy
     else:
         three = 0.0
     return (dc, mirror, three)
 
 
-def classify_chirality_harmonic(hv: np.ndarray, dc_threshold: float = 0.5) -> int:
+def classify_chirality_harmonic(hv, dc_threshold: float = 0.5) -> int:
     """Classify an encoded hypervector into chirality-harmonic 1/2/3 by its
     spectral symmetry signature (F150 §6.2).
+
+    ``hv`` may be a :class:`~srmech.amsc.vec.Vec` / :class:`~srmech.amsc.mat.Mat`
+    / any flat ``Sequence`` (rc129); it is read element-by-element (iterating a
+    ``Vec`` yields scalars), so the carrier flip is transparent.
 
     Procedure: compute three symmetry scores (DC-dominance, mirror reflection,
     3-fold rotation). A DC-dominant signal (score ≥ `dc_threshold`) is
@@ -138,8 +133,8 @@ def classify_chirality_harmonic(hv: np.ndarray, dc_threshold: float = 0.5) -> in
     provenance — the spectral generalisation of the surface-form token-name
     classifier (R-RBS-NN-14a).
     """
-    x = np.asarray(hv, dtype=float).reshape(-1)
-    if x.size == 0:
+    x = [float(v) for v in hv]
+    if len(x) == 0:
         raise ValueError("classify_chirality_harmonic: empty vector")
     dc, mirror, three = _spectral_scores(x)
     if dc >= dc_threshold:

@@ -13,9 +13,7 @@ Schafer (2010, 3rd ed.) §10.4 (spectrogram as time-frequency energy density).
 
 from __future__ import annotations
 
-from typing import Optional
-
-import numpy as np
+from typing import Optional, Sequence
 
 from .stft import op as stft_op
 
@@ -34,7 +32,7 @@ def op(
     *,
     frame_size: int = 256,
     hop_size: Optional[int] = None,
-    window: Optional[np.ndarray] = None,
+    window: Optional[Sequence[float]] = None,
     D: int = 8192,
 ):
     """Spectrogram of ``signal``: ``|STFT(signal)|^2``.
@@ -50,8 +48,9 @@ def op(
 
     Returns
     -------
-    numpy.ndarray
-        Real ``(n_frames, frame_size)`` energy density.
+    list
+        Real energy density as a ``list`` of ``n_frames`` per-frame ``list``s
+        (carrier-free since v0.7.5rc89, #564 — ``stft.op`` now returns lists).
     """
     stft_matrix = stft_op(
         signal,
@@ -60,5 +59,8 @@ def op(
         window=window,
         D=D,
     )
-    # |z|² = real²+imag² (no abs())
-    return stft_matrix.real ** 2 + stft_matrix.imag ** 2
+    # |z|² = real²+imag² (no abs()), elementwise over the list-of-lists STFT.
+    return [
+        [v.real * v.real + v.imag * v.imag for v in row]
+        for row in stft_matrix
+    ]

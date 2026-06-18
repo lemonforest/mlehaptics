@@ -81,7 +81,8 @@ The generator is **numpy-free at import** and **exact-rational** in its core
 (every entry a reduced ``(num, den)`` integer pair via the Class-N
 ``cos_series_truncate`` / ``sin_series_truncate`` Taylor partials). The
 optional :meth:`One.to_numpy` / :meth:`One.to_matrix` float realisations
-import numpy lazily (the ``srmech[scientific]`` tier, §22).
+lazily import numpy (the ``srmech[scientific]`` tier, §22) — never at module
+load (so the carrier ratchet must not count this module).
 
 Canonical SSoT:
 - Hurwitz (1898), *Über die Composition der quadratischen Formen* — the
@@ -281,20 +282,9 @@ class One:
             out.extend(blk.imag)
         return tuple(out)
 
-    def to_numpy(self):
-        """The 14-vector state as a ``numpy`` float array (opt-in / lazy).
-
-        Requires the ``srmech[scientific]`` extra (numpy). The exact
-        rationals are float-cast at the boundary, never before.
-        """
-        from srmech._scientific import require_numpy
-
-        np = require_numpy("srmech.amsc.cascade.one.One.to_numpy")
-        flat = self.to_flat_rational()
-        return np.array([num / den for (num, den) in flat], dtype=float)
-
-    def to_matrix(self):
-        """The 14×14 block-diagonal operator ``G(σ,θ)`` (opt-in / lazy).
+    def to_matrix(self) -> "Mat":
+        """The 14×14 block-diagonal operator ``G(σ,θ)`` as a numpy-free
+        :class:`~srmech.amsc.mat.Mat` (real).
 
         ``G`` is ``⨁_n (1 ⊕ σ R_n(θ))`` — the identity on each ``ℝ·1`` axis
         and ``σ`` times the octonion-native rotation ``R_n(θ)`` on each
@@ -302,33 +292,56 @@ class One:
         and the real axis). Applying ``G`` to the canonical seed (real ``1``,
         imaginary ``e₁``) reproduces :meth:`to_flat_rational`. For 𝕆 this is
         a genuine **3-plane** rotation (eigenvalues ``{1, e^{±iθ}×3}`` on the
-        imaginary part). This is the matrix that the qm-peer
+        imaginary part). This is the matrix the qm-peer
         :mod:`srmech.qm.hurwitz` must agree with (the Rosetta parity).
-        Requires the ``srmech[scientific]`` extra (numpy).
         """
-        from srmech._scientific import require_numpy
+        from srmech.amsc.mat import Mat
 
-        np = require_numpy("srmech.amsc.cascade.one.One.to_matrix")
         cn, cd = cos_series_truncate(self.theta[0], self.theta[1], self.terms)
         sn, sd = sin_series_truncate(self.theta[0], self.theta[1], self.terms)
         cos_t = cn / cd
         sin_t = sn / sd
-        s = self.sigma
-        g = np.zeros((DIM, DIM), dtype=float)
+        s = float(self.sigma)
+        g = [[0.0] * DIM for _ in range(DIM)]
         offset = 0
         for idx, d in enumerate(IMAG_DIMS):      # d = 1, 3, 7
-            g[offset, offset] = 1.0              # ℝ·1 anchor — fixed
+            g[offset][offset] = 1.0              # ℝ·1 anchor — fixed
             imo = offset + 1                     # imaginary axes e₁..e_d
             for i in range(d):                   # default σ·identity on Im
-                g[imo + i, imo + i] = s
+                g[imo + i][imo + i] = s
             for (a, b, sgn) in FANO_PLANES[idx]:  # turn each Fano plane by θ
                 ia, ib = imo + (a - 1), imo + (b - 1)
-                g[ia, ia] = s * cos_t
-                g[ib, ib] = s * cos_t
-                g[ib, ia] = s * sgn * sin_t      # e_a → cosθ e_a + sgn sinθ e_b
-                g[ia, ib] = -s * sgn * sin_t     # e_b → -sgn sinθ e_a + cosθ e_b
+                g[ia][ia] = s * cos_t
+                g[ib][ib] = s * cos_t
+                g[ib][ia] = s * sgn * sin_t      # e_a → cosθ e_a + sgn sinθ e_b
+                g[ia][ib] = -s * sgn * sin_t     # e_b → -sgn sinθ e_a + cosθ e_b
             offset += 1 + d
-        return g
+        return Mat.from_rows(g, is_complex=False)
+
+    def to_scalar(self, mode: str = "trace", index: int = None,
+                  *, as_float: bool = False):
+        """Project the One down to a single scalar — the matrix→scalar member
+        of the carrier's projection family (the scalar peer of
+        :meth:`to_flat_rational`; the ``.to_scalar()`` read-out).
+
+        EXACT by default and **numpy-free**: every mode returns a reduced
+        ``(num, den)`` Class-N rational from integer arithmetic and the *same*
+        ``cos_series_truncate`` the ``trigonometry`` / ``asymptotic_calculus``
+        catalogs validate (no forked trig path — those catalogs are this
+        scalar's target test). The exact ``(num, den)`` is the scalar peer of
+        :meth:`to_flat_rational`. Float never ENTERS (the One's inputs are
+        exact integers via :func:`the_one`); float only LEAVES, and only on
+        request — ``as_float=True`` does the single terminal ``num/den`` cast
+        to a **plain Python float with NO numpy** (the "return float sometimes"
+        rule). *Unlike* :meth:`to_numpy` / :meth:`to_matrix` — the numpy-tier
+        exports the carrier-removal arc (#564) is retiring — this float export
+        needs no numpy at all. One boundary cast is not error summation; a
+        *chain* of float ops would be
+        (``[[feedback_no_numpy_rosetta_peer_continuous_float_error_collecting]]``).
+
+        See the module-level :func:`to_scalar` for the full mode contract.
+        """
+        return to_scalar(self, mode=mode, index=index, as_float=as_float)
 
     def __repr__(self) -> str:  # pragma: no cover - cosmetic
         return (
@@ -420,6 +433,144 @@ def the_one(sigma: int,
 #: ``S(σ,θ)`` — the formula-name alias for :func:`the_one`.
 s_generator = the_one
 
+
+def to_scalar(one: "One",
+              mode: str = "trace",
+              index: int = None,
+              *,
+              as_float: bool = False):
+    """Project the exact :class:`One` down to a single scalar — the
+    matrix/vector→scalar boundary of the carrier's projection family (the
+    scalar peer of :meth:`One.to_flat_rational`), **numpy-free**.
+
+    The math is EXACT and the inputs are EXACT: a One is built from integer
+    ``(σ, θ_num, θ_den)`` (:func:`the_one`) — float never *enters*. Every mode
+    returns a reduced ``(num, den)`` Class-N rational from integer arithmetic
+    (the scalar peer of :meth:`One.to_flat_rational`). Float only *leaves*, and
+    only on request: ``as_float=True`` does the single terminal ``num/den``
+    cast to a **plain Python float — no numpy** (the "return float sometimes"
+    rule). *Unlike* :meth:`One.to_numpy` / :meth:`One.to_matrix` (the numpy
+    ``[scientific]``-tier exports the carrier-removal arc #564 is retiring),
+    this float export needs no numpy. One boundary cast ≠ error summation; a
+    *chain* of float ops would be
+    (``[[feedback_no_numpy_rosetta_peer_continuous_float_error_collecting]]``).
+
+    This is bindable as a TOML-class method op
+    (``op = "srmech.amsc.cascade.to_scalar"``) so a class can chain
+    matrix-math → scalar output (the genome-update class-from-TOML way).
+
+    Parameters
+    ----------
+    one : One
+    mode : {"trace", "sqnorm", "component"}, default "trace"
+        - ``"trace"`` — the exact rotation character
+          ``Tr G(σ,θ) = 3 + 3σ + 8σ·cos θ`` (the 0/1/3-plane diagonal of
+          :meth:`One.to_matrix`). ``cos θ`` is the **same** Class-N
+          ``cos_series_truncate`` the ``trigonometry`` / ``asymptotic_calculus``
+          catalogs validate — those catalogs are this scalar's *target test*
+          (no forked trig path).
+        - ``"sqnorm"`` — the exact squared length ``Σ (num/den)²`` over the 14
+          state rationals (pure integer arithmetic; no trig, no ``abs``/``sqrt``).
+        - ``"component"`` — the ``index``-th of the 14 exact rationals (the
+          literal scalar read-out; ``index`` required, ``0 ≤ index < 14``).
+    index : int, optional
+        Required for ``mode="component"``.
+    as_float : bool, default False
+        If True, return ``float(num/den)`` (the opt-in terminal export);
+        otherwise the exact ``(num, den)``.
+
+    Returns
+    -------
+    tuple[int, int] | float
+        Exact ``(num, den)`` (default) or a Python float (``as_float=True``).
+    """
+    if not isinstance(one, One):
+        raise TypeError(
+            f"to_scalar expects a One; got {type(one).__name__}")
+    if mode == "component":
+        if index is None:
+            raise ValueError("mode='component' requires index= (0..13)")
+        flat = one.to_flat_rational()
+        if not 0 <= index < len(flat):
+            raise IndexError(
+                f"index {index} out of range 0..{len(flat) - 1}")
+        num, den = flat[index]
+    elif mode == "sqnorm":
+        # Σ (num/den)² — exact integer arithmetic; squaring is sign-free so no
+        # Class-K branch is needed (a magnitude with no abs()/sqrt at this level).
+        acc_num, acc_den = 0, 1
+        for (n, d) in one.to_flat_rational():
+            t_num, t_den = n * n, d * d
+            acc_num, acc_den = _reduce_rational(
+                acc_num * t_den + t_num * acc_den, acc_den * t_den)
+        num, den = acc_num, acc_den
+    elif mode == "trace":
+        # Tr G(σ,θ) = 3 + 3σ + 8σ·cos θ — the rotation character. cos θ is the
+        # SAME Class-N catalog primitive (trigonometry / asymptotic_calculus),
+        # so this scalar is correct iff that catalog cos is correct.
+        cn, cd = cos_series_truncate(one.theta[0], one.theta[1], one.terms)
+        s = one.sigma
+        num, den = _reduce_rational((3 + 3 * s) * cd + 8 * s * cn, cd)
+    else:
+        raise ValueError(
+            f"mode must be 'trace', 'sqnorm' or 'component'; got {mode!r}")
+    if as_float:
+        return num / den          # the single terminal lossy cast (no numpy)
+    return (num, den)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Flat cascade-op accessors — the make_class two-layer binding surface.
+#
+# ``one.toml`` (the packaged ``[class] One``) binds its methods to these by
+# dotted path — the genome **two-layer pattern**: ship each accessor as a
+# module-level flat op, then bind it in the ``[class]`` TOML. Each takes the
+# constructed :class:`One` as its sole bind (the descriptor's ``one`` field),
+# mirroring the module-level :func:`to_scalar` above. They are reachable ONLY
+# through the class TOML (a :func:`~srmech.dsl.make_class` method), NOT the MCP
+# tool list — exempt in the tool-schema coverage gate exactly like
+# :func:`to_scalar`. This realises "prefer config-driven ``[class]`` TOML over
+# hand-coding domain classes" (``[[feedback_prefer_config_driven_toml_classes]]``)
+# for the substrate generator itself: ``One`` becomes a declarative class whose
+# accessors are cascade-op refs.
+# ──────────────────────────────────────────────────────────────────────
+
+def one_dim(one: "One") -> int:
+    """Flat-op accessor — the substrate dimension (always 14). See :attr:`One.dim`."""
+    return one.dim
+
+
+def one_imag_dims(one: "One") -> Tuple[int, int, int]:
+    """Flat-op accessor — ``(1, 3, 7)`` imaginary dims. See :attr:`One.imag_dims`."""
+    return one.imag_dims
+
+
+def one_partition(one: "One") -> Tuple[int, int, int, int]:
+    """Flat-op accessor — the ``(1, 3, 7, 3)`` A–N partition. See :attr:`One.partition`."""
+    return one.partition
+
+
+def one_plane_counts(one: "One") -> Tuple[int, int, int]:
+    """Flat-op accessor — ``(0, 1, 3)`` planes per block. See :attr:`One.plane_counts`."""
+    return one.plane_counts
+
+
+def one_grammar_slots(one: "One") -> Tuple[str, str, str]:
+    """Flat-op accessor — ``('B','H','N')`` grammar units. See :attr:`One.grammar_slots`."""
+    return one.grammar_slots
+
+
+def one_flat_rational(one: "One") -> Tuple[Tuple[int, int], ...]:
+    """Flat-op accessor — the 14 exact rationals. See :meth:`One.to_flat_rational`."""
+    return one.to_flat_rational()
+
+
+def one_matrix(one: "One"):
+    """Flat-op accessor — the 14×14 numpy-free :class:`~srmech.amsc.mat.Mat`
+    operator ``G(σ,θ)``. See :meth:`One.to_matrix`."""
+    return one.to_matrix()
+
+
 __all__ = [
     "ALGEBRAS",
     "IMAG_DIMS",
@@ -433,4 +584,13 @@ __all__ = [
     "One",
     "the_one",
     "s_generator",
+    "to_scalar",
+    # flat cascade-op accessors — the one.toml ([class] One) binding surface
+    "one_dim",
+    "one_imag_dims",
+    "one_partition",
+    "one_plane_counts",
+    "one_grammar_slots",
+    "one_flat_rational",
+    "one_matrix",
 ]

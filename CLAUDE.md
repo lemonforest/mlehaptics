@@ -145,6 +145,10 @@ Per `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`:
 
 Per `[[feedback_srmech_amsc_catalog_pitfalls]]` — 6 mandatory TOML sections; `[source]` needs `human_readable_name` (not `name`); `[fetch].ndjson_path` is load-bearing; `literature_curated` rows are FLAT dicts (NOT MPRRecord envelopes); `jacobi_eigvals` → ndarray; `best_rational` → tuple; `dense_laplacian` edges are 2-tuples.
 
+### Config-driven TOML class discipline (load-bearing)
+
+Per `[[feedback_prefer_config_driven_toml_classes]]` (user direction 2026-06-13) — **PREFER config-driven `[class]` TOML (`srmech.dsl.make_class`) over hand-coding srmech domain classes.** When a domain object is a cascade-of-the-14 composition (state + cascade-op-chain methods), declare it as a `[class]` TOML descriptor; the qm/hurwitz + genome treatment is the model. Carriers (`Mat`/`Vec`/`HV`), `srmech.bus`, adapters, and the `srmech.qm.*` physics op-families STAY Python. **Verified conversion cost:** follow the genome two-layer pattern (ship each method as a flat cascade op → bind in TOML); the `make_class` contract is one-op-per-method + a single `appends`/`sets` field, so dict/multi-field-state classes need a contract extension first (`SedenionRegister` is HARD, not a freebie; immutable accessor-shaped classes like `One` are cleaner first targets). Prove every conversion with a DSL-class-vs-Python equivalence test.
+
 ---
 
 ## §3 Active research arcs

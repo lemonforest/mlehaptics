@@ -16,7 +16,7 @@ Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Haar (1910)
 
 from __future__ import annotations
 
-import numpy as np
+from srmech.amsc import rational as _srn
 
 OPERATION_NAME = "wavelet"
 CLASS_COMPOSITION = ("L", "N")
@@ -54,7 +54,7 @@ def op(signal, *, levels: int = 3, wavelet: str = "haar", D: int = 8192):
     tuple
         ``(approx, [detail_level_k, ..., detail_level_1])`` where ``approx``
         is the coarsest-scale approximation and ``detail_level_k`` is the
-        detail coefficients at level k.
+        detail coefficients at level k. Both are ``list``\\s — numpy-free (#564).
     """
     if wavelet != "haar":
         raise NotImplementedError(
@@ -62,24 +62,24 @@ def op(signal, *, levels: int = 3, wavelet: str = "haar", D: int = 8192):
             f"future Phase 2.1+ scope per [[feedback_no_mvp_framing]] "
             f"phase-language."
         )
-    arr = np.asarray(signal, dtype=np.float64).copy()
-    if arr.ndim != 1:
-        raise ValueError(f"wavelet expects 1-D signal; got shape {arr.shape}")
-    inv_sqrt2 = 1.0 / np.sqrt(2.0)
+    # numpy-free list carrier (#564); the 1/sqrt(2) Class-N normaliser is the
+    # libm-free rational sqrt, and every band is an explicit elementwise
+    # Class-L 2-point (sum / difference) over the dyadic Class-N decimation.
+    try:
+        current = [float(x) for x in signal]
+    except TypeError as exc:  # nested sequence -> not 1-D
+        raise ValueError("wavelet expects a 1-D real signal") from exc
+    inv_sqrt2 = 1.0 / _srn.sqrt(2.0)
     details = []
-    current = arr
     for _ in range(levels):
-        n = current.shape[0]
+        n = len(current)
         if n < 2 or n % 2 != 0:
-            # Pad to even length with zero
-            pad = np.zeros(n + (n % 2), dtype=np.float64)
-            pad[:n] = current
-            current = pad
-            n = current.shape[0]
+            # Pad to even length with one zero (Class-N dyadic alignment).
+            current = current + [0.0] * (n % 2)
         evens = current[0::2]
         odds = current[1::2]
-        approx = (evens + odds) * inv_sqrt2
-        detail = (evens - odds) * inv_sqrt2
+        approx = [(e + o) * inv_sqrt2 for e, o in zip(evens, odds)]
+        detail = [(e - o) * inv_sqrt2 for e, o in zip(evens, odds)]
         details.append(detail)
         current = approx
     return current, details[::-1]

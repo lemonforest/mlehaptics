@@ -7,15 +7,26 @@ Order 3 (``T∘T∘T = id``, ``T² = T⁻¹``). Class I — a pure uint8 relabel
 sign / no ``abs()``. This is the "third axis" (F182) that the three order-2
 flips cannot reach: order-3 cycling of the involutions, not a fourth order-2
 chirality. rc17 ships it pure-Python; rc18 adds the co-equal C peer.
+
+#564 (numpy out the door): this test is numpy-FREE — the Klein-4 vectors are
+stdlib ``list[int]`` / ``random.Random`` ints in {0,1,2,3}, and the op returns
+an ``HV`` compared via ``HV.__eq__`` / ``.tolist()`` / ``.buffer``. No numpy is
+imported, so the file PASSES with numpy absent.
 """
-import numpy as np
+import random
+
 import pytest
 
 from srmech.amsc import hdc
 
 
 def _all_sectors():
-    return np.array([0, 1, 2, 3], dtype=np.uint8)
+    return [0, 1, 2, 3]
+
+
+def _rand_k4(seed, D):
+    r = random.Random(seed)
+    return [r.randrange(4) for _ in range(D)]
 
 
 def test_explicit_forward_mapping():
@@ -36,33 +47,31 @@ def test_order_three_identity():
     once = hdc.klein4_triality_cycle(v)
     twice = hdc.klein4_triality_cycle(once)
     thrice = hdc.klein4_triality_cycle(twice)
-    assert (thrice == v), "T∘T∘T must be the identity (order 3)"
+    assert thrice == v, "T∘T∘T must be the identity (order 3)"
 
 
 def test_square_equals_inverse():
     v = _all_sectors()
     twice = hdc.klein4_triality_cycle(hdc.klein4_triality_cycle(v))
     inv = hdc.klein4_triality_cycle(v, inverse=True)
-    assert (twice == inv), "T² must equal T⁻¹"
+    assert twice == inv, "T² must equal T⁻¹"
 
 
 def test_forward_then_inverse_is_identity():
-    rng = np.random.default_rng(7)
-    v = hdc.klein4_random(256, rng)
+    v = _rand_k4(7, 256)
     rt = hdc.klein4_triality_cycle(hdc.klein4_triality_cycle(v), inverse=True)
-    assert (rt == v)
+    assert rt == v
 
 
 def test_identity_sector_is_fixed():
-    v = np.zeros(64, dtype=np.uint8)
-    assert (hdc.klein4_triality_cycle(v).tolist() == [0] * len(v))
+    v = [0] * 64
+    assert hdc.klein4_triality_cycle(v).tolist() == [0] * len(v)
 
 
 def test_is_a_permutation_of_the_three_involutions():
     # forward maps 1->2, 2->3, 3->1, so the occupancy of involution-2 after
     # the cycle equals involution-1 before, etc.; identity(0) is invariant.
-    rng = np.random.default_rng(11)
-    v = hdc.klein4_random(4096, rng)
+    v = _rand_k4(11, 4096)
     n0, n1, n2, n3 = hdc.klein4_sector_count(v)
     c0, c1, c2, c3 = hdc.klein4_sector_count(hdc.klein4_triality_cycle(v))
     assert c0 == n0
@@ -71,7 +80,7 @@ def test_is_a_permutation_of_the_three_involutions():
 
 def test_rejects_out_of_range():
     with pytest.raises(ValueError):
-        hdc.klein4_triality_cycle(np.array([0, 1, 4], dtype=np.uint8))
+        hdc.klein4_triality_cycle([0, 1, 4])
 
 
 def test_so8_triality_cycle_is_also_order_three():

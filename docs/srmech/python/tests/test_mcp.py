@@ -21,7 +21,6 @@ import urllib.request
 from http.client import HTTPConnection
 from typing import Any, Dict, Iterator, List, Tuple
 
-import numpy as np
 import pytest
 
 # Force bus tools to register so coverage matches the runtime baseline.
@@ -237,9 +236,10 @@ def test_invoke_tool_polar_bundle_variadic_dispatches() -> None:
     from srmech.amsc import hdc
     from srmech.mcp._tools import MCPToolError
 
-    rng = np.random.default_rng(11)
-    # JSON arrays decode to Python lists; emulate that wire form.
-    vectors = [hdc.polar_random(16, rng).tolist() for _ in range(3)]
+    # JSON arrays decode to Python lists; emulate that wire form (numpy-free:
+    # the seeded random ops + bundle are numpy-free; ``.tolist()`` flattens the
+    # array('b') / HV carrier to the plain-list wire form).
+    vectors = [hdc.polar_random(16, seed=11 + i).tolist() for i in range(3)]
     try:
         result = invoke_tool(
             "srmech.amsc.hdc.polar_bundle", {"vectors": vectors}
@@ -247,12 +247,12 @@ def test_invoke_tool_polar_bundle_variadic_dispatches() -> None:
     except (TypeError, MCPToolError) as exc:  # pragma: no cover
         pytest.fail(f"variadic dispatch broke: {type(exc).__name__}: {exc}")
     # A real bundled result: a length-16 polar vector over {-1, 0, +1}.
-    arr = np.asarray(result)
-    assert arr.shape == (16,)
-    assert set(np.unique(arr).tolist()) <= {-1, 0, 1}
-    # Bit-exact against calling the reference directly with *args.
-    expected = hdc.polar_bundle(*[np.asarray(v) for v in vectors])
-    assert np.array_equal(arr, expected)
+    res = list(result)
+    assert len(res) == 16
+    assert set(res) <= {-1, 0, 1}
+    # Bit-exact against calling the reference directly with *args (plain lists).
+    expected = list(hdc.polar_bundle(*[list(v) for v in vectors]))
+    assert res == expected
 
 
 def test_invoke_tool_klein4_bundle_variadic_dispatches() -> None:
@@ -261,19 +261,20 @@ def test_invoke_tool_klein4_bundle_variadic_dispatches() -> None:
     from srmech.amsc import hdc
     from srmech.mcp._tools import MCPToolError
 
-    rng = np.random.default_rng(11)
-    vectors = [hdc.klein4_random(16, rng).tolist() for _ in range(3)]
+    # numpy-free wire form: seeded klein4 vectors, ``.tolist()``'d off the HV
+    # carrier to plain lists (the JSON-array shape an MCP client sends).
+    vectors = [hdc.klein4_random(16, seed=11 + i).tolist() for i in range(3)]
     try:
         result = invoke_tool(
             "srmech.amsc.hdc.klein4_bundle", {"vectors": vectors}
         )
     except (TypeError, MCPToolError) as exc:  # pragma: no cover
         pytest.fail(f"variadic dispatch broke: {type(exc).__name__}: {exc}")
-    arr = np.asarray(result)
-    assert arr.shape == (16,)
-    assert set(np.unique(arr).tolist()) <= {0, 1, 2, 3}
-    expected = hdc.klein4_bundle(*[np.asarray(v) for v in vectors])
-    assert np.array_equal(arr, expected)
+    res = list(result)
+    assert len(res) == 16
+    assert set(res) <= {0, 1, 2, 3}
+    expected = list(hdc.klein4_bundle(*[list(v) for v in vectors]))
+    assert res == expected
 
 
 def test_invoke_tool_variadic_tolerates_legacy_sigil_key() -> None:
@@ -282,15 +283,14 @@ def test_invoke_tool_variadic_tolerates_legacy_sigil_key() -> None:
     falls back to it), so no in-flight client breaks on the rename."""
     from srmech.amsc import hdc
 
-    rng = np.random.default_rng(7)
-    vectors = [hdc.polar_random(8, rng).tolist() for _ in range(3)]
+    vectors = [hdc.polar_random(8, seed=7 + i).tolist() for i in range(3)]
     result = invoke_tool(
         "srmech.amsc.hdc.polar_bundle", {"*vectors": vectors}
     )
-    arr = np.asarray(result)
-    assert arr.shape == (8,)
-    expected = hdc.polar_bundle(*[np.asarray(v) for v in vectors])
-    assert np.array_equal(arr, expected)
+    res = list(result)
+    assert len(res) == 8
+    expected = list(hdc.polar_bundle(*[list(v) for v in vectors]))
+    assert res == expected
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -309,11 +309,20 @@ def test_serialise_result_handles_bytes_tuples_paths() -> None:
     assert parsed["tup"] == [1, 2]
 
 
-def test_serialise_result_numpy_arrays() -> None:
-    """numpy arrays are tolist'd through the fallback."""
-    import numpy as np
-    out = serialise_result(np.array([1.0, 2.0, 3.0]))
-    assert json.loads(out) == [1.0, 2.0, 3.0]
+def test_serialise_result_matrices_and_lists() -> None:
+    """numpy-free (#564): ops return ``Mat`` / nested lists, not ndarrays.
+    ``serialise_result`` renders a ``Mat`` via ``.tolist()`` and a nested
+    list straight to JSON text — the wire form is identical to what the old
+    ndarray ``tolist()`` fallback produced."""
+    from srmech.amsc.mat import Mat
+
+    # A Mat (numpy-free dense matrix) is .tolist()'d to nested JSON arrays.
+    out = serialise_result(Mat.from_rows([[1.0, 2.0, 3.0]]))
+    assert json.loads(out) == [[1.0, 2.0, 3.0]]
+
+    # A plain nested list rides straight through.
+    out2 = serialise_result([1.0, 2.0, 3.0])
+    assert json.loads(out2) == [1.0, 2.0, 3.0]
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -1000,7 +1009,8 @@ def test_describe_shape() -> None:
     from srmech.introspect import describe
 
     d = describe()
-    # Top-level keys (rc15 adds the handle_pending name list).
+    # Top-level keys (rc15 adds the handle_pending name list; v0.7.5rc41 adds
+    # the user-declared "classes" surface — #962 Part 2).
     assert set(d.keys()) == {
         "srmech_version",
         "tool_schema_version",
@@ -1008,6 +1018,7 @@ def test_describe_shape() -> None:
         "tools",
         "handle_pending",
         "categories",
+        "classes",
     }
     # Version agrees with the package attribute (no hardcoded literal).
     assert d["srmech_version"] == srmech.__version__
@@ -1145,22 +1156,23 @@ def test_klein4_random_seed_reproducible() -> None:
     test."""
     from srmech.amsc import hdc
 
-    # Direct: identical vectors for the same seed.
-    a = hdc.klein4_random(8, seed=42)
-    b = hdc.klein4_random(8, seed=42)
-    assert np.array_equal(a, b)
-    assert set(np.unique(a).tolist()) <= {0, 1, 2, 3}
+    # Direct: identical vectors for the same seed (numpy-free — compare the
+    # plain-list contents of the HV carrier).
+    a = list(hdc.klein4_random(8, seed=42))
+    b = list(hdc.klein4_random(8, seed=42))
+    assert a == b
+    assert set(a) <= {0, 1, 2, 3}
 
     # Through invoke_tool twice (the wire path): also identical.
-    r1 = invoke_tool("srmech.amsc.hdc.klein4_random", {"D": 8, "seed": 42})
-    r2 = invoke_tool("srmech.amsc.hdc.klein4_random", {"D": 8, "seed": 42})
-    assert np.array_equal(np.asarray(r1), np.asarray(r2))
+    r1 = list(invoke_tool("srmech.amsc.hdc.klein4_random", {"D": 8, "seed": 42}))
+    r2 = list(invoke_tool("srmech.amsc.hdc.klein4_random", {"D": 8, "seed": 42}))
+    assert r1 == r2
     # And invoke_tool agrees bit-exactly with the direct seeded call.
-    assert np.array_equal(np.asarray(r1), a)
+    assert r1 == a
 
     # A different seed gives a different vector (the seed is load-bearing).
-    c = hdc.klein4_random(8, seed=43)
-    assert not np.array_equal(a, c)
+    c = list(hdc.klein4_random(8, seed=43))
+    assert a != c
 
 
 def test_polar_random_seed_reproducible() -> None:
@@ -1169,31 +1181,40 @@ def test_polar_random_seed_reproducible() -> None:
     for BUG A)."""
     from srmech.amsc import hdc
 
-    a = hdc.polar_random(8, seed=7)
-    b = hdc.polar_random(8, seed=7)
-    assert np.array_equal(a, b)
-    assert set(np.unique(a).tolist()) <= {-1, 0, 1}
+    a = list(hdc.polar_random(8, seed=7))
+    b = list(hdc.polar_random(8, seed=7))
+    assert a == b
+    assert set(a) <= {-1, 0, 1}
 
-    r1 = invoke_tool("srmech.amsc.hdc.polar_random", {"D": 8, "seed": 7})
-    r2 = invoke_tool("srmech.amsc.hdc.polar_random", {"D": 8, "seed": 7})
-    assert np.array_equal(np.asarray(r1), np.asarray(r2))
-    assert np.array_equal(np.asarray(r1), a)
+    r1 = list(invoke_tool("srmech.amsc.hdc.polar_random", {"D": 8, "seed": 7}))
+    r2 = list(invoke_tool("srmech.amsc.hdc.polar_random", {"D": 8, "seed": 7}))
+    assert r1 == r2
+    assert r1 == a
 
 
 def test_random_ops_rng_takes_precedence_over_seed() -> None:
     """When BOTH ``rng`` and ``seed`` are given, the explicit ``rng`` wins
     (documented precedence), and the legacy ``rng=`` path stays back-compat
-    for in-process Python callers."""
+    for in-process Python callers.
+
+    rc125 (#564): the hdc random ops are numpy-FREE — the ``rng=`` path now
+    accepts a stdlib ``random.Random`` (a numpy ``Generator`` is still honoured
+    via duck-typing), and the polar op returns an ``array('b')`` (was an int8
+    ndarray). This test is itself numpy-free (a cluster-module test, per
+    `[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]`)."""
+    import random
+
     from srmech.amsc import hdc
 
-    # rng= path still works (back-compat).
-    assert len(hdc.klein4_random(8, rng=np.random.default_rng(0))) == 8
-    assert hdc.polar_random(8, rng=np.random.default_rng(0)).shape == (8,)
+    # rng= path still works (back-compat) — stdlib Random.
+    assert len(hdc.klein4_random(8, rng=random.Random(0))) == 8
+    p = hdc.polar_random(8, rng=random.Random(0))
+    assert p.typecode == "b" and len(p) == 8
 
     # rng wins over seed: the rng-built vector differs from the seed-only one.
-    rng_out = hdc.klein4_random(8, rng=np.random.default_rng(999), seed=1)
+    rng_out = hdc.klein4_random(8, rng=random.Random(999), seed=1)
     seed_out = hdc.klein4_random(8, seed=1)
-    assert not np.array_equal(rng_out, seed_out)
+    assert list(rng_out.buffer) != list(seed_out.buffer)
 
 
 def test_random_ops_schema_drops_unserialisable_rng() -> None:
@@ -1335,9 +1356,16 @@ def test_all_param_types_json_coercible() -> None:
 
 def test_coercion_roundtrips_scalar_leaf_types() -> None:
     """``coerce_param(serialise_native(x)) == x`` for representative
-    bytes / complex / real-ndarray values (the documented round-trip
-    guarantee). Complex arrays use the explicit ``complex_pairs_to_ndarray``
-    builder (the generic ndarray path stays real per its dtype caveat)."""
+    bytes / complex / array-shaped values (the documented round-trip
+    guarantee).
+
+    numpy-free (#564): the ``"np.ndarray"`` wire-form NAME survives (it is
+    the JSON-RPC type-string key), but there are no ndarrays. The matrix
+    wire form is a nested list of plain floats; ``coerce_param(.., "np.ndarray")``
+    returns that nested list UNCHANGED. Complex matrices serialise as
+    ``[re, im]`` leaves and rebuild via the explicit
+    ``complex_pairs_to_ndarray`` (now returning a ``list[complex]``)."""
+    from srmech.amsc.mat import Mat
     from srmech.mcp._coercion import (
         coerce_param,
         complex_pairs_to_ndarray,
@@ -1354,37 +1382,46 @@ def test_coercion_roundtrips_scalar_leaf_types() -> None:
     # A bare JSON number decodes to complex(n, 0).
     assert coerce_param(5, "complex") == complex(5, 0)
 
-    # real ndarray <-> nested list (EXACT — values + shape).
-    arr = np.array([[1.0, 2.0], [3.0, 4.0]])
-    back = coerce_param(serialise_native(arr), "np.ndarray")
-    assert np.array_equal(back, arr)
+    # real matrix <-> nested list (EXACT — values + shape). A Mat serialises
+    # to a nested list; the "np.ndarray" inbound coercion returns it unchanged
+    # (the numpy-free wire form).
+    rows = [[1.0, 2.0], [3.0, 4.0]]
+    back = coerce_param(serialise_native(Mat.from_rows(rows)), "np.ndarray")
+    assert back == rows
 
-    # complex ndarray: serialised as [re, im] leaves, rebuilt via the
-    # explicit complex builder (documented dtype caveat — the generic
-    # np.ndarray inbound path does NOT auto-promote).
-    carr = np.array([1 + 2j, 3 - 4j])
-    assert np.array_equal(
-        complex_pairs_to_ndarray(serialise_native(carr)), carr
-    )
+    # complex matrix: serialised as [re, im] leaves, rebuilt via the explicit
+    # complex builder which now returns a flat list[complex]. A 1xN complex Mat
+    # serialises to [[[re,im],[re,im]]]; the builder takes the [re,im] pair list,
+    # so pass the single row.
+    cvals = [1 + 2j, 3 - 4j]
+    row = serialise_native(Mat.from_rows([cvals]))[0]
+    assert list(complex_pairs_to_ndarray(row)) == cvals
+    # The bare pair-list form round-trips directly to list[complex].
+    assert list(complex_pairs_to_ndarray([[1.0, 2.0], [3.0, -4.0]])) == [1 + 2j, 3 - 4j]
 
 
 def test_serialise_native_emits_json_serialisable() -> None:
     """``serialise_native`` output is always JSON-serialisable for the
-    awkward Python types ops return (bytes / complex / ndarray (real +
-    complex) / numpy scalars / nested tuples / dict with bytes key)."""
+    awkward Python types ops return.
+
+    numpy-free (#564): there is no ndarray branch in ``serialise_native``.
+    The matrix carrier is ``Mat`` (``.tolist()``'d, complex entries → ``[re,
+    im]`` leaves); scalars are plain Python ``int`` / ``float`` / ``complex``;
+    containers (tuple / list / dict, incl. bytes keys) recurse."""
+    from srmech.amsc.mat import Mat
     from srmech.mcp._coercion import serialise_native
 
     samples: List[Any] = [
         b"\x00\xff",
         complex(1, 2),
-        np.array([1.0, 2.0, 3.0]),
-        np.array([[1 + 1j, 2 - 2j]]),
-        np.int64(7),
-        np.float64(1.5),
-        np.uint8(255),
+        Mat.from_rows([[1.0, 2.0, 3.0]]),         # real Mat
+        Mat.from_rows([[1 + 1j, 2 - 2j]]),        # complex Mat
+        7,
+        1.5,
+        255,
         (1, 2, b"ab"),
-        {b"key": np.array([1, 2])},
-        {"nested": [np.int64(3), complex(0, 1)]},
+        {b"key": [1, 2]},
+        {"nested": [3, complex(0, 1)]},
     ]
     for s in samples:
         # Must not raise — the load-bearing guarantee for the tool_result.
@@ -1490,11 +1527,17 @@ def test_invoke_jacobi_eigvals_nested_list_matrix() -> None:
     raw = invoke_tool(
         "srmech.amsc.laplacian.jacobi_eigvals", {"matrix": matrix}
     )
-    arr = np.asarray(raw)
-    assert arr.shape == (3,)
-    # Known spectrum of the path-graph-3 Laplacian-like tridiagonal matrix.
-    expected = np.sort(np.linalg.eigvalsh(np.asarray(matrix)))
-    assert np.allclose(np.sort(arr), expected)
+    vals = sorted(raw)
+    assert len(vals) == 3
+    # Oracle = the substrate-native EXACT real-symmetric eigvals cascade
+    # (``eigvals_exact``, numpy-free), NOT np.linalg.eigvalsh. (The closed form
+    # of this tridiagonal is 2 ± √2, 2: {0.5858…, 2.0, 3.4142…}.)
+    from srmech.amsc.cascade.matrix_cascades import eigvals_exact
+
+    expected = sorted(eigvals_exact(matrix))
+    assert len(expected) == 3
+    for got, want in zip(vals, expected):
+        assert abs(got - want) < 1e-9
     text = serialise_result(raw)
     assert isinstance(json.loads(text), list)
 
@@ -1631,8 +1674,9 @@ def _synth_spectral_handle_envelope() -> Dict[str, Any]:
     from srmech.spectral import decompose
     from srmech.mcp._coercion import serialise_native
 
-    state = np.array([1.0, 0.0])
-    laplacian = np.array([[1.0, -1.0], [-1.0, 1.0]])
+    # numpy-free: decompose accepts plain lists.
+    state = [1.0, 0.0]
+    laplacian = [[1.0, -1.0], [-1.0, 1.0]]
     handle = decompose(state, laplacian)
     return serialise_native(handle)
 
@@ -1673,9 +1717,38 @@ def _synth_value_for_type(type_string: str) -> Any:
         # any shape complaint is a tolerated DOMAIN error).
         "np.ndarray": mat2,
         "Optional[np.ndarray]": mat2,
+        # v0.7.5rc72 Mat carrier (mat_matmul): a 2x2 list-of-rows -> real Mat;
+        # square so mat_matmul(a, b) returns cleanly.
+        "Mat": mat2,
+        # v0.7.5rc132 carrier-spirit param types. The carrier is AGNOSTIC about
+        # input, so each synth is the DEGENERATE Python form (flat list / nested
+        # list); the op's own acceptance builds the final carrier.
+        #   Vec  -> a short flat vector (valid for matvec / state / k / dot ops).
+        #   HV   -> a length-8 hypervector valid for BOTH the Klein-4 byte ops
+        #           ({0,1,2,3}) AND the power-of-two octonion ops (length 8 is a
+        #           power of two; polar/int8 ops tolerate a tolerated domain error
+        #           on a 2/3 element, but length-8 {0,1,2,3} is in-domain for the
+        #           dominant klein4 / octonion families).
+        "Vec": vec,
+        "HV": [0, 1, 2, 3, 0, 1, 2, 3],
+        "Optional[Vec]": vec,
+        "Optional[HV]": [0, 1, 2, 3, 0, 1, 2, 3],
+        "Mat | Vec": mat2,   # the 2-D arm satisfies the most ops; 1-D is tolerated
+        # v0.7.5rc155: the §50 holographic-bundle accumulator (klein4_bundle_*).
+        #   accumulate's `acc` synths to None — accumulate(None, v) is the clean
+        #   fold-start (creates a fresh accumulator sized to v); resolve's `acc`
+        #   synths to a minimal valid (1 + 2*D) uint32 accumulator (D=1, n=1).
+        "array('I')|None": None,
+        "array('I')": [1, 0, 0],
         # container element-recursions (minimal valid shapes).
         "Sequence[bytes]": [b64, b64],
         "list[bytes]": [b64, b64],   # v0.7.0rc10: format.sha256_batch `datas`
+        "Sequence[Vec]": [vec, vec],
+        "Sequence[HV]": [[0, 1, 2, 3], [0, 1, 2, 3]],
+        "tuple[Mat, ...]": [mat2, mat2],
+        # rank-3 nested list (gauge structure constants f^abc); a minimal 1x1x1.
+        "list[list[list[float]]]": [[[0.0]]],
+        # legacy numpy-free wire-form keys (no param advertises them now).
         "Sequence[np.ndarray]": [vec, vec],
         "tuple[np.ndarray, ...]": [mat2, mat2],
         # v0.7.0rc36 spectral_cascades: each complex scalar rides as [re, im].
@@ -1825,11 +1898,30 @@ def test_every_advertised_tool_invocable() -> None:
                  f"RESULT not serialisable {type(exc).__name__}: {exc}")
             )
             continue
+
+        # rc131 — RETURN-TYPE AGREEMENT. The harness already holds ``raw``; the
+        # gap §10.1 historically left open was never asserting that ``type(raw)``
+        # AGREES with the advertised ``returns.type``. Assert it here too (the
+        # immolation gate owns the canonical guard; this folds the inspection
+        # into the existing every-tool harness). ``None`` agreement (an
+        # unassertable handle / unknown type) is skipped, exactly as the
+        # immolation gate skips it.
+        if entry.returns is not None:
+            from conftest import return_type_agrees
+            agrees = return_type_agrees(raw, entry.returns.type)
+            if agrees is False:
+                failures.append(
+                    (entry.name, synth,
+                     f"RETURN-TYPE mismatch: observed "
+                     f"{type(raw).__name__!r} does not match advertised "
+                     f"{entry.returns.type!r}")
+                )
+                continue
         invoked_ok += 1
 
     print(
         f"\n{invoked_ok}/{len(advertised)} advertised tools invocable "
-        f"(binding+coercion clean)"
+        f"(binding+coercion+return-type clean)"
     )
     assert not failures, (
         "every-tool invocation smoke found tools that are advertised but "
@@ -1904,8 +1996,8 @@ def test_spectral_handle_param_coercer_resolves() -> None:
     from srmech.spectral import SpectralHandle, decompose
     from srmech.mcp._coercion import coerce_param, serialise_native
 
-    state = np.array([1.0, 2.0])
-    laplacian = np.array([[1.0, -1.0], [-1.0, 1.0]])
+    state = [1.0, 2.0]
+    laplacian = [[1.0, -1.0], [-1.0, 1.0]]
     handle = decompose(state, laplacian)
 
     env = serialise_native(handle)
@@ -1927,9 +2019,7 @@ def test_spectral_handle_or_bytes_discriminates() -> None:
     from srmech.spectral import SpectralHandle, decompose
     from srmech.mcp._coercion import coerce_param, serialise_native
 
-    handle = decompose(
-        np.array([1.0, 2.0]), np.array([[1.0, -1.0], [-1.0, 1.0]])
-    )
+    handle = decompose([1.0, 2.0], [[1.0, -1.0], [-1.0, 1.0]])
     env = serialise_native(handle)
 
     # Handle arm.

@@ -78,7 +78,7 @@ graduates_to = "a first-class native C/Python primitive (srmech_quaternion_dft) 
 
 [cascade.attestation]
 author = "Steven Kirkland"
-license = "GPL-3.0-or-later"
+license = "MIT"
 parser_version = "srmech-cascade 0.7.0rc31"
 # Citations VERIFIED via PDF extraction (MPM discipline;
 # docs/srmech/notes/qdft_odft_citation_verification_863.md). OA / attestable;

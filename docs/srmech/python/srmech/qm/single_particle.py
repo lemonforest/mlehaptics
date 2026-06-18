@@ -1,10 +1,17 @@
-"""Canonical single-particle QM operations.
+"""Canonical single-particle QM operations (numpy-free).
 
 Per ``[[feedback_science_is_ssot_not_project]]``: each operation cites
-canonical physics literature. Implementations are numpy-based; for large
-real-symmetric Hamiltonians the underlying eigendecomposition is the
-Class L primitive (``srmech.amsc.laplacian.jacobi_eigvals``); numpy
-covers the complex-Hermitian general case.
+canonical physics literature.
+
+numpy-FREE (v0.7.5rc117, #564): the working matrices are held in the
+framework-native :class:`~srmech.amsc.mat.Mat` carrier and every
+linear-algebra step routes through the Class-L ``mat_*`` family
+(:func:`~srmech.amsc.laplacian.mat_matmul` and
+:func:`~srmech.amsc.laplacian.mat_hermitian_eigendecompose`, native dense
+kernels with a pure-Python cascade fallback) — **no numpy**. State vectors
+are plain Python sequences of ``complex`` (``Mat`` is 2-D only); the
+per-mode time-evolution phase ``e^{-iλt}`` is the substrate-native Class-N
+``rational.cexp`` (Euler cascade ``cos + i·sin``), **not** ``np.exp``.
 
 Per ``[[user_stance_1d_collapse_to_loe_identity_not_action]]``: these
 substrate-coupling operations act on Hilbert-space content; the
@@ -13,17 +20,56 @@ LoE-content itself lives at 1D_t per MFO §VII.1.2.
 
 from __future__ import annotations
 
-import numpy as np
-from typing import Tuple
+from typing import List, Sequence, Tuple
 
-from srmech.amsc.laplacian import (
-    dense_matmul_complex,
-    dense_matvec_complex,
-    hermitian_eigendecompose,
-)
+from srmech.amsc import rational as _srn
+from srmech.amsc.laplacian import mat_hermitian_eigendecompose, mat_matmul
+from srmech.amsc.mat import Mat
 
 
-def tdse_evolve(H: np.ndarray, psi: np.ndarray, t: float) -> np.ndarray:
+# ----------------------------------------------------------------------
+# numpy-free Mat / vector helpers
+# ----------------------------------------------------------------------
+
+
+def _matvec(m: "Mat", v: Sequence[complex]) -> List[complex]:
+    """``M·v`` for a ``Mat`` ``M`` and a plain vector ``v`` → plain list.
+
+    Routes through :func:`mat_matmul` (native dense kernel / pure-Python
+    cascade fallback) by treating ``v`` as an ``(n, 1)`` column ``Mat`` —
+    numpy-free, the 2-D carrier standing in for the absent ``mat_matvec``.
+    """
+    col = Mat.from_rows([[x] for x in v], is_complex=True)
+    out = mat_matmul(m, col)
+    return [out[i, 0] for i in range(out.n_rows)]
+
+
+def _mat_sub(a: "Mat", b: "Mat") -> "Mat":
+    """``A − B`` element-wise as a new ``Mat`` (numpy-free)."""
+    rows = [[a[i, j] - b[i, j] for j in range(a.n_cols)] for i in range(a.n_rows)]
+    return Mat.from_rows(rows, is_complex=a.is_complex or b.is_complex)
+
+
+def _phase_diag(eigvals: "Mat", t: float) -> "Mat":
+    """``diag(e^{-iλt})`` as an ``(n, n)`` complex ``Mat``.
+
+    ``eigvals`` is the ``(n, 1)`` **real** ``Mat`` from
+    :func:`mat_hermitian_eigendecompose`; each phase is the Class-N
+    ``rational.cexp`` Euler cascade (``e^{-iλt} = cexp(−λt)``), not ``np.exp``.
+    """
+    n = eigvals.n_rows
+    rows = [[0j] * n for _ in range(n)]
+    for i in range(n):
+        rows[i][i] = _srn.cexp(-(eigvals[i, 0] * t))
+    return Mat.from_rows(rows, is_complex=True)
+
+
+# ----------------------------------------------------------------------
+# operations
+# ----------------------------------------------------------------------
+
+
+def tdse_evolve(H: "Mat", psi: Sequence[complex], t: float) -> List[complex]:
     """Closed-form Time-Dependent Schrödinger evolution.
 
     Solves ``iℏ ∂_t ψ = H ψ`` (ℏ = 1) via eigenbasis-diagonal closed form:
@@ -33,61 +79,68 @@ def tdse_evolve(H: np.ndarray, psi: np.ndarray, t: float) -> np.ndarray:
     Sakurai *Modern QM* §2.1.5 eq 2.1.40; Cohen-Tannoudji *QM* §III.D.2.
 
     Args:
-        H: Hermitian Hamiltonian (n × n).
-        psi: Initial state (n).
+        H: Hermitian Hamiltonian (n × n ``Mat``).
+        psi: Initial state, a length-n sequence of complex amplitudes.
         t: Evolution time (in units of ℏ / energy).
 
     Returns:
-        ψ(t) of shape (n,), complex dtype.
+        ψ(t) as a length-n list of ``complex``.
     """
-    if H.shape[0] != H.shape[1]:
+    n = H.n_rows
+    if H.n_cols != n:
         raise ValueError(f"tdse_evolve: H must be square; got shape {H.shape}")
-    if psi.shape[0] != H.shape[0]:
+    if len(psi) != n:
         raise ValueError(
-            f"tdse_evolve: psi shape {psi.shape} incompatible with H shape {H.shape}"
+            f"tdse_evolve: psi length {len(psi)} incompatible with H shape {H.shape}"
         )
     # Class-L Hermitian eigendecomposition (srmech's own primitive). H is a
-    # general complex-Hermitian Hamiltonian, so V stays complex128.
-    eigvals, V = hermitian_eigendecompose(H)
-    psi_eigbasis = dense_matvec_complex(V.conj().T, psi)   # Class-L matvec cascade
-    psi_t_eigbasis = np.exp(-1j * eigvals * t) * psi_eigbasis
-    return dense_matvec_complex(V, psi_t_eigbasis)          # Class-L matvec cascade
+    # general complex-Hermitian Hamiltonian, so V is the complex unitary Mat.
+    eigvals, V = mat_hermitian_eigendecompose(H)
+    psi_eig = _matvec(V.conj().T, psi)            # Vᴴ·ψ  (Class-L matvec cascade)
+    # e^{-iλt} per-mode phase via the Class-N Euler cascade (rational.cexp).
+    phases = [_srn.cexp(-(eigvals[k, 0] * t)) for k in range(n)]
+    psi_t_eig = [phases[k] * psi_eig[k] for k in range(n)]
+    return _matvec(V, psi_t_eig)                  # V·(...)  (Class-L matvec cascade)
 
 
-def tise_solve(H: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def tise_solve(H: "Mat") -> Tuple["Mat", "Mat"]:
     """Time-Independent Schrödinger Equation ``H ψ_n = E_n ψ_n``.
 
     Canonical SSoT: Schrödinger (1926) *Annalen der Physik* 79, 361;
     Sakurai *Modern QM* §2.1.3; Griffiths *Intro QM* §2.1.
 
     Args:
-        H: Hermitian Hamiltonian (n × n).
+        H: Hermitian Hamiltonian (n × n ``Mat``).
 
     Returns:
-        ``(eigenvalues, eigenvectors)``: ascending eigenvalues (n,) and
-        column-stacked eigenvectors (n, n), orthonormal.
+        ``(eigvals, eigvecs)``: the ``(n, 1)`` **real** ``Mat`` of ascending
+        eigenvalues and the ``(n, n)`` **complex** unitary ``Mat`` whose columns
+        are the orthonormal eigenvectors — exactly the
+        :func:`mat_hermitian_eigendecompose` contract (this op *is* the
+        Hermitian eigenproblem).
     """
-    if H.shape[0] != H.shape[1]:
+    n = H.n_rows
+    if H.n_cols != n:
         raise ValueError(f"tise_solve: H must be square; got shape {H.shape}")
-    # Class-L Hermitian eigendecomposition (srmech's own primitive). General
-    # complex-Hermitian H, so the eigenvectors stay complex128.
-    return hermitian_eigendecompose(H)
+    # Class-L Hermitian eigendecomposition (srmech's own primitive).
+    return mat_hermitian_eigendecompose(H)
 
 
-def commutator(A: np.ndarray, B: np.ndarray) -> np.ndarray:
+def commutator(A: "Mat", B: "Mat") -> "Mat":
     """Operator commutator ``[A, B] = A B - B A``.
 
     Canonical SSoT: Sakurai *Modern QM* §1.4 eq 1.4.6.
     """
-    if A.shape != B.shape or A.shape[0] != A.shape[1]:
+    if A.shape != B.shape or A.n_rows != A.n_cols:
         raise ValueError(
             f"commutator: A and B must be square and same shape; "
             f"got {A.shape} vs {B.shape}"
         )
-    return dense_matmul_complex(A, B) - dense_matmul_complex(B, A)  # Class-L matmul cascade
+    # Class-L matmul cascade throughout; numpy-free Mat subtraction.
+    return _mat_sub(mat_matmul(A, B), mat_matmul(B, A))
 
 
-def heisenberg_evolve(A: np.ndarray, H: np.ndarray, t: float) -> np.ndarray:
+def heisenberg_evolve(A: "Mat", H: "Mat", t: float) -> "Mat":
     """Heisenberg-picture operator evolution ``A_H(t) = U†(t) A U(t)``.
 
     With ``U(t) = exp(-iHt/ℏ)`` and ℏ = 1. Equivalent to integrating the
@@ -97,28 +150,28 @@ def heisenberg_evolve(A: np.ndarray, H: np.ndarray, t: float) -> np.ndarray:
     *Zeitschrift für Physik* 33, 879.
 
     Args:
-        A: Operator to evolve (n × n).
-        H: Hermitian Hamiltonian (n × n).
+        A: Operator to evolve (n × n ``Mat``).
+        H: Hermitian Hamiltonian (n × n ``Mat``).
         t: Evolution time.
 
     Returns:
-        ``A_H(t)`` of shape (n, n), complex dtype.
+        ``A_H(t)`` as an (n, n) complex ``Mat``.
     """
     if A.shape != H.shape:
         raise ValueError(
             f"heisenberg_evolve: A and H must have same shape; "
             f"got A={A.shape} vs H={H.shape}"
         )
-    # Class-L Hermitian eigendecomposition (srmech's own primitive); general
-    # complex-Hermitian H, so V stays complex128.
-    eigvals, V = hermitian_eigendecompose(H)
-    phases = np.exp(-1j * eigvals * t)
+    # Class-L Hermitian eigendecomposition (srmech's own primitive).
+    eigvals, V = mat_hermitian_eigendecompose(H)
+    D = _phase_diag(eigvals, t)                    # diag(e^{-iλt}) — Class-N cexp
     # U = V·diag(phases)·Vᴴ, then A_H = Uᴴ·A·U — Class-L matmul cascade throughout.
-    U = dense_matmul_complex(dense_matmul_complex(V, np.diag(phases)), V.conj().T)
-    return dense_matmul_complex(dense_matmul_complex(U.conj().T, A), U)
+    U = mat_matmul(mat_matmul(V, D), V.conj().T)
+    Uh = U.conj().T
+    return mat_matmul(mat_matmul(Uh, A), U)
 
 
-def lattice_momentum(n: int, dx: float = 1.0) -> np.ndarray:
+def lattice_momentum(n: int, dx: float = 1.0) -> "Mat":
     """Lattice momentum operator ``p̂ = -i ∂_x`` via central-difference.
 
     Periodic boundary; uniform 1D lattice with spacing ``dx``.
@@ -135,38 +188,46 @@ def lattice_momentum(n: int, dx: float = 1.0) -> np.ndarray:
         dx: Lattice spacing.
 
     Returns:
-        Hermitian (n, n) momentum operator (complex dtype).
+        Hermitian (n, n) momentum operator as a complex ``Mat``.
     """
     if n < 2:
         raise ValueError(f"lattice_momentum: n must be ≥ 2; got {n}")
     if dx <= 0:
         raise ValueError(f"lattice_momentum: dx must be positive; got {dx}")
-    p = np.zeros((n, n), dtype=complex)
+    rows = [[0j] * n for _ in range(n)]
     coef = 1j / (2.0 * dx)
     for i in range(n):
-        p[i, (i + 1) % n] = -coef
-        p[i, (i - 1) % n] = coef
-    return p
+        rows[i][(i + 1) % n] = -coef
+        rows[i][(i - 1) % n] = coef
+    return Mat.from_rows(rows, is_complex=True)
 
 
-def density_matrix(psi: np.ndarray) -> np.ndarray:
+def density_matrix(psi: Sequence[complex]) -> "Mat":
     """Pure-state density matrix ``ρ = |ψ⟩⟨ψ|``.
 
     Canonical SSoT: von Neumann (1932) *Mathematische Grundlagen*;
     Sakurai *Modern QM* §3.4 eq 3.4.7.
 
     Args:
-        psi: State vector (n,). Should be normalized.
+        psi: State vector, a length-n sequence of complex amplitudes
+            (should be normalized).
 
     Returns:
-        Density matrix (n, n), Hermitian PSD with trace = ⟨ψ|ψ⟩.
+        Density matrix as an (n, n) complex ``Mat``, Hermitian PSD with
+        trace = ⟨ψ|ψ⟩.
     """
-    if psi.ndim != 1:
-        raise ValueError(f"density_matrix: psi must be 1-D; got shape {psi.shape}")
-    return np.outer(psi, psi.conj())
+    n = len(psi)
+    if n == 0:
+        raise ValueError("density_matrix: psi must be a non-empty sequence")
+    # ρ = |ψ⟩⟨ψ| = outer(ψ, conj(ψ)) via the column·row Class-L matmul cascade.
+    col = Mat.from_rows([[complex(psi[i])] for i in range(n)], is_complex=True)      # (n,1)
+    row = Mat.from_rows(
+        [[complex(psi[j]).conjugate() for j in range(n)]], is_complex=True           # (1,n)
+    )
+    return mat_matmul(col, row)
 
 
-def liouville_evolve(rho: np.ndarray, H: np.ndarray, t: float) -> np.ndarray:
+def liouville_evolve(rho: "Mat", H: "Mat", t: float) -> "Mat":
     """Liouville-von Neumann evolution ``ρ(t) = U(t) ρ(0) U†(t)``.
 
     Equivalent to integrating ``iℏ ∂_t ρ = [H, ρ]``.
@@ -175,25 +236,24 @@ def liouville_evolve(rho: np.ndarray, H: np.ndarray, t: float) -> np.ndarray:
     Sakurai *Modern QM* §3.4.2 eq 3.4.28.
 
     Args:
-        rho: Initial density matrix (n × n).
-        H: Hermitian Hamiltonian (n × n).
+        rho: Initial density matrix (n × n ``Mat``).
+        H: Hermitian Hamiltonian (n × n ``Mat``).
         t: Evolution time.
 
     Returns:
-        ρ(t) of shape (n, n).
+        ρ(t) as an (n, n) complex ``Mat``.
     """
     if rho.shape != H.shape:
         raise ValueError(
             f"liouville_evolve: rho and H must have same shape; "
             f"got rho={rho.shape} vs H={H.shape}"
         )
-    # Class-L Hermitian eigendecomposition (srmech's own primitive); general
-    # complex-Hermitian H, so V stays complex128.
-    eigvals, V = hermitian_eigendecompose(H)
-    phases = np.exp(-1j * eigvals * t)
+    # Class-L Hermitian eigendecomposition (srmech's own primitive).
+    eigvals, V = mat_hermitian_eigendecompose(H)
+    D = _phase_diag(eigvals, t)                    # diag(e^{-iλt}) — Class-N cexp
     # U = V·diag(phases)·Vᴴ, then ρ(t) = U·ρ·Uᴴ — Class-L matmul cascade throughout.
-    U = dense_matmul_complex(dense_matmul_complex(V, np.diag(phases)), V.conj().T)
-    return dense_matmul_complex(dense_matmul_complex(U, rho), U.conj().T)
+    U = mat_matmul(mat_matmul(V, D), V.conj().T)
+    return mat_matmul(mat_matmul(U, rho), U.conj().T)
 
 
 __all__ = [

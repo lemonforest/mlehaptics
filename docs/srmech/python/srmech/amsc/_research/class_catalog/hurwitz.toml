@@ -1,0 +1,29 @@
+# Class catalog entry: Hurwitz (#564 — the numpy-Rosetta-peer dissolution POC).
+#
+# "the One" S(σ,θ) under its Hurwitz name, declared the class-from-TOML way
+# (srmech.dsl.make_class) — a method that BINDS the EXACT, numpy-free cascade
+# generator srmech.amsc.cascade.the_one. There was never supposed to be a numpy
+# Rosetta-peer: the old hand-coded srmech.qm.hurwitz.hurwitz_matrix was a float
+# duplicate of One.to_matrix (np.zeros, cos/sin float-divided — continuous-float
+# math that SUMS error every op, not correct-for-science). This TOML class is the
+# correct realization: zero Python, no numpy, the exact (num,den) One; the float
+# 14x14 matrix stays the opt-in lossy One.to_matrix (the [scientific] export, not
+# the math path). Same operation, different name → the TOML class way.
+
+[class]
+name = "Hurwitz"
+kind = "generator"
+doc = """
+The Hurwitz generator G(sigma, theta) = "the One" S(sigma, theta) — the single
+exact-rational, numpy-free generator of the 1+3+7+3 = 14-D substrate. The
+ℝ,ℂ,ℍ,𝕆 Hurwitz ladder read as the octonion epicycle e^{Î_n θ} turning 0/1/3
+Fano planes. `generate` returns the exact One (the 14 exact (num,den) rationals
+via One.to_flat_rational); the opt-in float 14x14 realisation is One.to_matrix
+(the lossy [scientific] export — never the math path).
+"""
+
+# A pure generator — no instance state; all binds come from the call kwargs.
+[class.method.generate]
+op = "srmech.amsc.cascade.the_one"
+binds = ["sigma", "theta_num", "theta_den"]
+doc = "Build the exact One S(sigma, theta) — numpy-free, exact-rational (terms= passes through for the Class-N cos/sin Taylor depth)."

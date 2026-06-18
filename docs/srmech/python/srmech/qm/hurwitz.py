@@ -48,9 +48,6 @@ from __future__ import annotations
 
 from typing import List, Tuple
 
-import numpy as np
-
-from srmech.amsc.rational import cos_series_truncate, sin_series_truncate
 from srmech.qm.octonion import octonion_mult_table
 
 #: The substrate dimension (2 + 4 + 8).
@@ -72,13 +69,13 @@ def _fano_planes(axis: int, dim: int) -> List[Tuple[int, int, int]]:
     both ``< dim``, neither the axis). Internal: the public
     :func:`hurwitz_planes` wraps the three algebra axes.
     """
-    table = octonion_mult_table().astype(int)
+    table = octonion_mult_table()  # rc122: nested list — index [a][b][axis], not [a,b,axis]
     out: List[Tuple[int, int, int]] = []
     for a in range(1, dim):
         for b in range(a + 1, dim):
             if a == axis or b == axis:
                 continue
-            sign = int(table[a, b, axis])
+            sign = int(table[a][b][axis])
             if sign != 0:
                 out.append((a, b, sign))
     return out
@@ -106,64 +103,6 @@ def hurwitz_planes() -> Tuple[Tuple[Tuple[int, int, int], ...], ...]:
     )
 
 
-def hurwitz_matrix(sigma: int,
-                   theta_num: int,
-                   theta_den: int = 1,
-                   terms: int = _DEFAULT_TERMS) -> np.ndarray:
-    """The ``14×14`` octonion-native operator ``G(σ,θ)`` of "the One" (#887).
-
-    ``G = ⨁_n (1 ⊕ σ R_n(θ))``: the identity on each ``ℝ·1`` anchor and ``σ``
-    times the octonion-native rotation ``R_n(θ)`` on each ``Im 𝔸_n`` — turn
-    every Fano plane through ``Î_n`` by θ (planes derived from
-    :func:`hurwitz_planes`), fixing ``Î_n``. For 𝕆 this is a genuine
-    **3-plane** rotation (eigenvalues ``{1, e^{±iθ}×3}`` on the imaginary
-    part). Bit-exactly equal to :meth:`srmech.amsc.cascade.One.to_matrix`
-    (same exact-rational ``cos``/``sin``, same Fano planes).
-
-    Class A (planes) ∘ Class N (rational ``cos``/``sin``) ∘ Class K·C (σ).
-
-    Args:
-        sigma: Chirality ``σ ∈ {+1, -1}``.
-        theta_num, theta_den: Angle ``θ = theta_num / theta_den`` (radians);
-            ``theta_den > 0``.
-        terms: Class-N Taylor depth for ``cos``/``sin`` (default 24).
-
-    Returns:
-        A ``(14, 14)`` ``float64`` orthogonal-up-to-σ matrix.
-
-    Raises:
-        ValueError: if ``sigma ∉ {+1,-1}`` or ``theta_den <= 0``.
-    """
-    if sigma != 1 and sigma != -1:
-        raise ValueError(f"sigma (chirality) must be +1 or -1; got {sigma!r}")
-    if theta_den <= 0:
-        raise ValueError(f"theta_den must be positive; got {theta_den}")
-
-    cn, cd = cos_series_truncate(theta_num, theta_den, terms)
-    sn, sd = sin_series_truncate(theta_num, theta_den, terms)
-    cos_t = cn / cd
-    sin_t = sn / sd
-    s = sigma
-    planes_per = hurwitz_planes()
-
-    g = np.zeros((_DIM, _DIM), dtype=float)
-    offset = 0
-    for idx, d in enumerate(_IMAG_DIMS):     # d = 1, 3, 7
-        g[offset, offset] = 1.0              # ℝ·1 anchor — fixed
-        imo = offset + 1                     # imaginary axes e₁..e_d
-        for i in range(d):                   # default σ·identity on Im
-            g[imo + i, imo + i] = s
-        for (a, b, sgn) in planes_per[idx]:  # turn each Fano plane by θ
-            ia, ib = imo + (a - 1), imo + (b - 1)
-            g[ia, ia] = s * cos_t
-            g[ib, ib] = s * cos_t
-            g[ib, ia] = s * sgn * sin_t      # e_a → cosθ e_a + sgn sinθ e_b
-            g[ia, ib] = -s * sgn * sin_t     # e_b → -sgn sinθ e_a + cosθ e_b
-        offset += 1 + d
-    return g
-
-
 __all__ = [
-    "hurwitz_matrix",
     "hurwitz_planes",
 ]

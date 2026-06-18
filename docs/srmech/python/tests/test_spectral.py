@@ -7,7 +7,8 @@ HDC bind identity (PR #514) + Spike #116 rank-k delta identity (PR #516).
 
 from __future__ import annotations
 
-import numpy as np
+import random
+
 import pytest
 
 from srmech import spectral
@@ -25,21 +26,31 @@ from srmech.spectral import (
 # Helpers — small Hermitian Laplacian fixtures
 # ---------------------------------------------------------------------------
 
-def _path_laplacian(n: int) -> np.ndarray:
-    """Path-graph Laplacian on n nodes (Hermitian, PSD)."""
-    L = np.zeros((n, n), dtype=np.float64)
+def _path_laplacian(n: int) -> list:
+    """Path-graph Laplacian on n nodes (Hermitian, PSD).
+
+    Returns a list-of-lists of floats: diagonal = node degree, off-diagonal
+    -1.0 for adjacent path nodes (numpy-free).
+    """
+    L = [[0.0 for _ in range(n)] for _ in range(n)]
     for i in range(n - 1):
-        L[i, i] += 1
-        L[i + 1, i + 1] += 1
-        L[i, i + 1] -= 1
-        L[i + 1, i] -= 1
+        L[i][i] += 1.0
+        L[i + 1][i + 1] += 1.0
+        L[i][i + 1] -= 1.0
+        L[i + 1][i] -= 1.0
     return L
 
 
-def _random_state(n: int, seed: int = 0) -> np.ndarray:
-    """Reproducible real-valued state vector."""
-    rng = np.random.default_rng(seed)
-    return rng.standard_normal(n).astype(np.float64)
+def _scaled_laplacian(n: int, factor: float) -> list:
+    """``_path_laplacian(n)`` with every entry multiplied by ``factor``."""
+    L = _path_laplacian(n)
+    return [[v * factor for v in row] for row in L]
+
+
+def _random_state(n: int, seed: int = 0) -> list:
+    """Reproducible real-valued state vector (deterministic, stdlib-only)."""
+    r = random.Random(seed)
+    return [r.uniform(-1.0, 1.0) for _ in range(n)]
 
 
 # ---------------------------------------------------------------------------
@@ -68,16 +79,17 @@ class TestDecompose:
     def test_state_shape_rejection(self):
         L = _path_laplacian(4)
         with pytest.raises(ValueError):
-            decompose(np.zeros((2, 2)), L)  # 2-D state rejected
+            decompose([[0.0, 0.0], [0.0, 0.0]], L)  # 2-D state rejected
 
     def test_laplacian_shape_rejection(self):
         with pytest.raises(ValueError):
-            decompose(np.zeros(4), np.zeros((4, 3)))  # non-square rejected
+            # non-square laplacian rejected
+            decompose([0.0] * 4, [[0.0] * 3 for _ in range(4)])
 
     def test_size_mismatch_rejection(self):
         L = _path_laplacian(4)
         with pytest.raises(ValueError):
-            decompose(np.zeros(5), L)
+            decompose([0.0] * 5, L)
 
     def test_descriptor_hash_changes_with_encoder_tag(self):
         clear_eigenbasis_cache()
@@ -137,7 +149,7 @@ class TestDelta:
     def test_substrate_mismatch_rejection(self):
         clear_eigenbasis_cache()
         L_a = _path_laplacian(4)
-        L_b = _path_laplacian(4) * 2  # different Laplacian -> different hash
+        L_b = _scaled_laplacian(4, 2.0)  # different Laplacian -> different hash
         s = _random_state(4, seed=0)
         h_a = decompose(s, L_a)
         h_b = decompose(s, L_b)
@@ -156,13 +168,13 @@ class TestDelta:
 
 class TestRecompose:
     def test_roundtrip_bit_exact(self):
-        """decompose then recompose returns original state at machine ε."""
+        """decompose then recompose returns original state at machine epsilon."""
         clear_eigenbasis_cache()
         L = _path_laplacian(8)
-        state = _random_state(8, seed=42).astype(np.complex128)
+        state = [complex(x) for x in _random_state(8, seed=42)]
         h = decompose(state, L)
         recovered = recompose(h, L)
-        residual = np.max(np.abs(recovered - state))
+        residual = max(abs(recovered[i] - state[i]) for i in range(len(state)))
         assert residual < 1e-12, f"residual {residual:.3e} too large"
 
     def test_content_sha_mismatch_rejection(self):
@@ -183,7 +195,7 @@ class TestRecompose:
     def test_descriptor_hash_mismatch_rejection(self):
         clear_eigenbasis_cache()
         L_a = _path_laplacian(4)
-        L_b = _path_laplacian(4) * 3
+        L_b = _scaled_laplacian(4, 3.0)
         state = _random_state(4)
         h = decompose(state, L_a)
         with pytest.raises(ValueError, match="descriptor_hash"):
@@ -200,9 +212,9 @@ class TestSimilarity:
         assert similarity(a, a) == pytest.approx(1.0)
 
     def test_orthogonal_random_near_zero(self):
-        rng = np.random.default_rng(0)
-        a = bytes(rng.integers(0, 256, size=128, dtype=np.uint8))
-        b = bytes(rng.integers(0, 256, size=128, dtype=np.uint8))
+        r = random.Random(0)
+        a = bytes(r.randrange(0, 256) for _ in range(128))
+        b = bytes(r.randrange(0, 256) for _ in range(128))
         # Random byte vectors are statistically near-orthogonal
         s = similarity(a, b)
         assert -0.2 < s < 0.2
@@ -226,7 +238,7 @@ class TestCache:
         clear_eigenbasis_cache()
         # Insert N_MAX_EIGENBASES + 3 distinct descriptors
         for i in range(N_MAX_EIGENBASES + 3):
-            L = _path_laplacian(4) * (i + 1)  # distinct laplacians
+            L = _scaled_laplacian(4, float(i + 1))  # distinct laplacians
             decompose(_random_state(4), L)
         # Cache should hold exactly N_MAX_EIGENBASES entries
         assert len(_EIGENBASIS_CACHE) == N_MAX_EIGENBASES
@@ -249,8 +261,8 @@ class TestEndToEndIdentity:
         """state_b = recompose(handle from state_a + bind(state_a, state_b))."""
         clear_eigenbasis_cache()
         L = _path_laplacian(8)
-        s_a = _random_state(8, seed=1).astype(np.complex128)
-        s_b = _random_state(8, seed=2).astype(np.complex128)
+        s_a = [complex(x) for x in _random_state(8, seed=1)]
+        s_b = [complex(x) for x in _random_state(8, seed=2)]
         h_a = decompose(s_a, L)
         h_b = decompose(s_b, L)
         d = delta(h_a, h_b)
@@ -304,11 +316,13 @@ class TestHandleJSONRoundTrip:
             "srmech.spectral.recompose", {"handle": env, "laplacian": L}
         )
         # Compare against the direct in-process recompose of the same state.
-        direct = recompose(decompose(np.array(state), np.array(L)), np.array(L))
-        # recomposed is a nested [re, im] list (complex128 ndarray on wire).
-        got = np.asarray(recomposed)
-        got_complex = got[..., 0] + 1j * got[..., 1]
-        np.testing.assert_allclose(got_complex, direct, atol=1e-9)
+        direct = recompose(decompose(state, L), L)
+        # recomposed is a nested [re, im] list (complex on wire).
+        got_complex = [complex(pair[0], pair[1]) for pair in recomposed]
+        residual = max(
+            abs(got_complex[i] - direct[i]) for i in range(len(direct))
+        )
+        assert residual < 1e-9, (got_complex, direct)
 
     def test_producer_producer_consumer_chain_via_invoke_tool(self):
         """decompose -> predict(envelope) -> truncate_sparse(envelope) ->
@@ -342,6 +356,6 @@ class TestHandleJSONRoundTrip:
         recomposed = _json_invoke(
             "srmech.spectral.recompose", {"handle": h2, "laplacian": L}
         )
-        got = np.asarray(recomposed)
         # A length-3 complex state reconstructs (each scalar a [re, im] pair).
-        assert got.shape == (3, 2)
+        assert len(recomposed) == 3
+        assert all(len(pair) == 2 for pair in recomposed)

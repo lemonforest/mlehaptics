@@ -49,10 +49,8 @@ to callers that want the herd-immunity property explicitly.
 
 Naming alignment with UTLP
 --------------------------
-* ``dna`` — the per-channel pre-shared secret. Replaces rc3's
-  ``seed`` arg with the same role; the bus client/server still
-  accept ``seed=`` for one-rc back-compat with a
-  :class:`DeprecationWarning`.
+* ``dna`` — the per-channel pre-shared secret (replaces rc3's
+  ``seed`` arg with the same role).
 * "Exon fields" — UTLP's term for the nonce components
   (``sender_id`` + ``channel_id`` + ``packet_seq``); we keep the
   three-field structure verbatim.

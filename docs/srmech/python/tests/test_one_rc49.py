@@ -190,66 +190,114 @@ def test_module_has_no_module_level_numpy_import():
             assert (node.module or "").split(".")[0] != "numpy"
 
 
-# ── opt-in float realisations (scientific tier; skip if numpy absent) ──
+# ── the float realisation .to_matrix() — a numpy-free 14×14 Mat (#564) ──
+#
+# numpy has been removed entirely from srmech: ``One.to_numpy()`` is DELETED and
+# ``.to_matrix()`` returns a framework-native real ``Mat`` (14×14). The block-
+# diagonal G(σ,θ) operator is asserted directly on the ``Mat`` (entry values via
+# ``m[i, j]``), and matrix·vector / Gᵀ products are done in stdlib nested-list
+# arithmetic — no numpy oracle.
 
-def _has_numpy():
-    return importlib.util.find_spec("numpy") is not None
+# The block layout: ℂ(2) at offset 0, ℍ(4) at offset 2, 𝕆(8) at offset 6;
+# each block's real anchor at its offset and imaginary axes e₁..e_d after it.
+_BLOCK_OFFSETS = (0, 2, 6)
+_IMAG_DIMS = (1, 3, 7)
 
 
-@pytest.mark.skipif(not _has_numpy(), reason="numpy (scientific tier) not installed")
-def test_to_numpy_is_14_vector_matching_rationals():
-    import numpy as np
+def _mat_vec(g, v):
+    """Stdlib matrix·vector: (g @ v)[i] = Σ_j g[i, j] · v[j] (numpy-free)."""
+    n = g.n_rows
+    m = g.n_cols
+    return [sum(g[i, j] * v[j] for j in range(m)) for i in range(n)]
 
+
+def _canonical_seed():
+    """The seed: real anchor = 1 + imaginary axis e₁ = 1 per block, rest 0."""
+    seed = [0.0] * 14
+    for off, d in zip(_BLOCK_OFFSETS, _IMAG_DIMS):
+        seed[off] = 1.0          # ℝ·1 anchor
+        seed[off + 1] = 1.0      # imaginary e₁
+    return seed
+
+
+def test_to_matrix_is_real_14x14_mat():
     s = the_one(+1, 1, 1, terms=20)
-    v = s.to_numpy()
-    assert v.shape == (14,)
-    flat = s.to_flat_rational()
-    expected = np.array([n / d for (n, d) in flat], dtype=float)
-    assert np.allclose(v, expected, atol=0.0, rtol=0.0)
+    g = s.to_matrix()
+    assert type(g).__name__ == "Mat"
+    assert g.shape == (14, 14)
+    assert g.n_rows == 14 and g.n_cols == 14
 
 
-@pytest.mark.skipif(not _has_numpy(), reason="numpy (scientific tier) not installed")
 def test_to_matrix_applied_to_seed_reproduces_state():
-    import numpy as np
-
     s = the_one(-1, 5, 4, terms=22)
     g = s.to_matrix()
     assert g.shape == (14, 14)
-    # canonical seed: real anchor = 1, imaginary axis e₁ = 1, rest 0
-    seed = np.zeros(14, dtype=float)
-    offset = 0
-    for d in (1, 3, 7):
-        seed[offset] = 1.0          # ℝ·1 anchor
-        seed[offset + 1] = 1.0      # imaginary e₁
-        offset += 1 + d
-    assert np.allclose(g @ seed, s.to_numpy(), atol=1e-12)
+    got = _mat_vec(g, _canonical_seed())
+    # G·seed must reproduce the 14 exact rationals of to_flat_rational() as floats.
+    expected = [n / d for (n, d) in s.to_flat_rational()]
+    assert len(got) == len(expected) == 14
+    for a, b in zip(got, expected):
+        assert abs(a - b) < 1e-12, (a, b)
 
 
-@pytest.mark.skipif(not _has_numpy(), reason="numpy (scientific tier) not installed")
 def test_to_matrix_is_block_diagonal_orthogonal_up_to_sigma():
-    import numpy as np
-
     s = the_one(+1, 1, 1, terms=24)     # σ=+1 → proper rotation, G Gᵀ ≈ I
     g = s.to_matrix()
-    assert np.allclose(g @ g.T, np.eye(14), atol=1e-9)
+    n = 14
+    # G Gᵀ[i, k] = Σ_j g[i, j] · g[k, j]; assert ≈ I numpy-free.
+    for i in range(n):
+        for k in range(n):
+            dot = sum(g[i, j] * g[k, j] for j in range(n))
+            assert abs(dot - (1.0 if i == k else 0.0)) < 1e-9, (i, k, dot)
 
 
-@pytest.mark.skipif(not _has_numpy(), reason="numpy (scientific tier) not installed")
-def test_octonion_block_turns_three_planes():
-    # The 𝕆 block (dims 6..13: real e₀ then imaginary e₁..e₇) is the
-    # octonion-native 3-plane rotation: eigenvalues {1 (e₀), 1 (e₇=Î₃),
-    # e^{±iθ}×3} on the 8-D block.
-    import numpy as np
-
-    theta = 0.6
-    # match the cascade's exact-rational θ to a clean fraction
-    s = the_one(+1, 6, 10, terms=26)
+def test_to_matrix_is_block_diagonal():
+    # G is ⨁_n (1 ⊕ σ R_n(θ)): zero outside the 2/4/8 diagonal blocks.
+    s = the_one(-1, 3, 4, terms=22)
     g = s.to_matrix()
-    o_block = g[6:14, 6:14]                       # the 8×8 𝕆 block (1 ⊕ R₃)
-    ang = np.sort(np.round(np.angle(np.linalg.eigvals(o_block)), 3))
-    # two fixed axes (angle 0) + three planes at ±θ
-    assert list(ang).count(0.0) == 2
-    pos = [a for a in ang if a > 1e-6]
-    neg = [a for a in ang if a < -1e-6]
-    assert len(pos) == 3 and len(neg) == 3
-    assert np.allclose(pos, round(theta, 3), atol=1e-2)
+    block_ranges = [(0, 2), (2, 6), (6, 14)]
+    for i in range(14):
+        for j in range(14):
+            same_block = any(lo <= i < hi and lo <= j < hi for lo, hi in block_ranges)
+            if not same_block:
+                assert g[i, j] == 0.0, (i, j, g[i, j])
+
+
+def test_octonion_block_turns_three_planes():
+    # The 𝕆 block (rows/cols 6..13: real e₀ at 6, imaginary e₁..e₇ at 7..13) is
+    # the octonion-native 3-plane rotation. Verify the block STRUCTURE directly
+    # on the Mat (exact, numpy-free): the real axis e₀ and the Î₃ = e₇ axis are
+    # FIXED, while each of the three Fano planes through e₇ carries a 2×2
+    # rotation [[c, -s], [s, c]] (eigenvalues e^{±iθ}, three of them).
+    tn, td, terms = 6, 10, 26
+    s = the_one(+1, tn, td, terms=terms)
+    g = s.to_matrix()
+    cn, cd = cos_series_truncate(tn, td, terms)
+    sn, sd = sin_series_truncate(tn, td, terms)
+    cos_t = cn / cd
+    sin_t = sn / sd
+
+    base = 6                       # 𝕆 block starts at index 6 (real e₀)
+    imo = base + 1                 # imaginary e₁..e₇ at indices 7..13
+    # e₀ (real anchor) is fixed.
+    assert g[base, base] == 1.0
+    # Î₃ = e₇ is the fixed rotation axis (imaginary index 7 → col imo + 6 = 13).
+    fixed_axis = imo + 6
+    assert abs(g[fixed_axis, fixed_axis] - 1.0) < 1e-12
+
+    # The three oriented Fano planes through e₇ (matches one.FANO_PLANES[2]).
+    planes = ((1, 6, -1), (2, 5, 1), (3, 4, 1))
+    rotated = set()
+    for (a, b, sgn) in planes:
+        ia, ib = imo + (a - 1), imo + (b - 1)
+        rotated.add(ia)
+        rotated.add(ib)
+        # 2×2 rotation block [[c, -sgn·s], [sgn·s, c]] for σ = +1.
+        assert abs(g[ia, ia] - cos_t) < 1e-12
+        assert abs(g[ib, ib] - cos_t) < 1e-12
+        assert abs(g[ib, ia] - sgn * sin_t) < 1e-12
+        assert abs(g[ia, ib] - (-sgn * sin_t)) < 1e-12
+    # exactly two fixed axes (real e₀ at index 6 + Î₃ = e₇ at index 13); the
+    # other six imaginary axes are the three rotated planes (3 × 2 = 6).
+    assert len(rotated) == 6
+    assert fixed_axis not in rotated

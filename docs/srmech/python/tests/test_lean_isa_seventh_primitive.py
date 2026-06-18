@@ -29,13 +29,19 @@ HONESTY SPLIT (mirrors the so8 ``an_embedding`` discipline): the order of
 self-computed; that the 6 atoms generate EXACTLY ``Z2 × Z2 × Z2`` of order 8
 is a documented framework-reading (surfaced only under the framework field),
 NOT labelled bit-exact derived.
+
+rc123 (numpy-free, #564): this test is itself numpy-FREE —
+``lean_isa_seventh_primitive``'s ``triality`` is a :class:`srmech.amsc.mat.Mat`;
+matmuls / norms route through ``mat_matmul`` / ``mat_norm`` with no numpy
+oracle and no ``.to_numpy()`` (per
+``[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]``).
 """
 
 from __future__ import annotations
 
-import numpy as np
-
 from srmech.amsc.cascade import magnitude
+from srmech.amsc.laplacian import mat_matmul, mat_norm
+from srmech.amsc.mat import Mat
 from srmech.qm import triality
 from srmech.qm.triality import lean_isa_seventh_primitive
 
@@ -53,14 +59,25 @@ _EXPECTED_ATOMS = (
 )
 
 
-def _frob(matrix: np.ndarray) -> float:
+def _eye(n: int) -> Mat:
+    return Mat.from_rows([[1.0 if i == j else 0.0 for j in range(n)]
+                          for i in range(n)])
+
+
+def _sub(a: Mat, b: Mat) -> Mat:
+    ar, br = a.tolist(), b.tolist()
+    return Mat.from_rows([[ar[i][j] - br[i][j] for j in range(len(ar[0]))]
+                          for i in range(len(ar))])
+
+
+def _frob(matrix: Mat) -> float:
     """Frobenius-norm deviation reduced through the scalar Class K magnitude.
 
-    Reduce the matrix to a SCALAR float FIRST (``np.linalg.norm`` is the
+    Reduce to a SCALAR float FIRST (the numpy-free Class-N ``mat_norm`` is the
     Frobenius norm), then pass that scalar to ``cascade.magnitude``
-    (scalar-only; it raises on an ndarray). NEVER ``abs()``.
+    (scalar-only; it raises on an array). NEVER ``abs()``.
     """
-    return magnitude(float(np.linalg.norm(matrix)))
+    return magnitude(mat_norm(matrix))
 
 
 # ----------------------------------------------------------------------
@@ -104,7 +121,7 @@ def test_seventh_primitive_is_triality_automorphism():
     tau = result["triality"]
     assert tau.shape == (28, 28)
     # The returned τ matches the engine's τ bit-exactly.
-    assert _frob(tau - triality.triality_automorphism()) < _BIT_EXACT
+    assert _frob(_sub(tau, triality.triality_automorphism())) < _BIT_EXACT
 
 
 def test_triality_order_is_exactly_three_bit_exact():
@@ -124,10 +141,12 @@ def test_triality_order_is_exactly_three_bit_exact():
 
     # Independent re-derivation from the returned τ (no abs()).
     tau = lean_isa_seventh_primitive()["triality"]
-    identity = np.eye(28)
-    assert _frob(tau @ tau @ tau - identity) < _TOL
-    assert _frob(tau - identity) > 1.0
-    assert _frob(tau @ tau - identity) > 1.0
+    identity = _eye(28)
+    tau2 = mat_matmul(tau, tau)
+    tau3 = mat_matmul(tau2, tau)
+    assert _frob(_sub(tau3, identity)) < _TOL
+    assert _frob(_sub(tau, identity)) > 1.0
+    assert _frob(_sub(tau2, identity)) > 1.0
 
 
 # ----------------------------------------------------------------------
@@ -192,9 +211,9 @@ def test_mpr_attestation_present_and_well_formed():
     assert block["parser_version"] == "srmech 0.6.0"
 
     # response_sha256 == sha256_bytes over the 28×28 τ float64 bytes.
-    tau = np.ascontiguousarray(
-        triality.triality_automorphism(), dtype=np.float64
-    ).tobytes()
+    # Mat.tobytes() is the row-major float64 buffer — byte-identical to the
+    # prior ``ascontiguousarray(τ, float64).tobytes()``. Numpy-free.
+    tau = triality.triality_automorphism().tobytes()
     assert block["response_sha256"] == sha256_bytes(tau)
 
     # The data payload records the chirality-complete 6 + 1 core + the atoms.
@@ -255,7 +274,7 @@ def test_framework_reading_is_distinct_and_not_load_bearing():
 def test_introspect_tools_total_is_210():
     import srmech.introspect as introspect
 
-    assert introspect.describe()["tools"]["total"] == 260
+    assert introspect.describe()["tools"]["total"] == 310
 
 
 def test_tool_entry_registered():

@@ -5,6 +5,11 @@ matrix-vector multiply on the joint observation-signal substrate) ∘ Class N
 (rational gain ``R_xy R_yy^{-1}``) composition. Closed-form Wiener-Hopf
 for the linear estimator.
 
+Carrier-removal #564 (rc101): numpy-FREE — the Class-L gain solve routes through
+the native :func:`~srmech.amsc.laplacian.mat_solve` over the numpy-free
+:class:`~srmech.amsc.mat.Mat` carrier, and the ``K·(y-mean_y)`` estimate is a
+pure-Python matvec. No top-level ``import numpy``.
+
 Path B dual in Phase 6 (Path B covariance bound-vector).
 
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Kay (1993)
@@ -13,15 +18,10 @@ Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Kay (1993)
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import List
 
-import numpy as np
-
-# The math runs through srmech cascades, not numpy: ``dense_solve`` is the
-# Class-L dense linear solve (native ``srmech_dense_solve_f64`` / exact-rational
-# Gauss-Jordan), ``dense_matvec_complex`` the Class-L matrix-vector product.
-# numpy stays carriers-only here (asarray / transpose / elementwise +/-).
-from ...amsc.laplacian import dense_matvec_complex, dense_solve
+from srmech.amsc.laplacian import mat_solve
+from srmech.amsc.mat import Mat
 
 OPERATION_NAME = "lmmse"
 CLASS_COMPOSITION = ("L", "N")
@@ -32,6 +32,19 @@ SSOT_CITATION = (
 )
 
 
+def _as_vec(v) -> List[float]:
+    """Coerce a 1-D array-like to a list of float (numpy-free)."""
+    raw = v.tolist() if hasattr(v, "tolist") else list(v)
+    if raw and isinstance(raw[0], (list, tuple)):
+        raise ValueError("expected 1-D vector")
+    return [float(x) for x in raw]
+
+
+def _as_rows(a) -> List[List[float]]:
+    """Coerce a 2-D array-like to a list-of-rows of float (numpy-free)."""
+    return [[float(x) for x in r] for r in (a.tolist() if hasattr(a, "tolist") else [list(r) for r in a])]
+
+
 def op(
     y,
     R_yy,
@@ -40,7 +53,7 @@ def op(
     mean_x=None,
     mean_y=None,
     D: int = 8192,
-) -> np.ndarray:
+) -> List[float]:
     """LMMSE estimate ``x_hat = mean_x + R_xy R_yy^-1 (y - mean_y)``.
 
     Parameters
@@ -60,36 +73,26 @@ def op(
 
     Returns
     -------
-    numpy.ndarray
+    list[float]
         ``(n,)`` LMMSE estimate of x.
     """
-    y_arr = np.asarray(y, dtype=np.float64)
-    Ryy = np.asarray(R_yy, dtype=np.float64)
-    Rxy = np.asarray(R_xy, dtype=np.float64)
-    if y_arr.ndim != 1:
-        raise ValueError(f"y must be 1-D; got {y_arr.shape}")
-    m = y_arr.shape[0]
-    if Ryy.shape != (m, m):
-        raise ValueError(f"R_yy must be ({m}, {m}); got {Ryy.shape}")
-    if Rxy.shape[1] != m:
-        raise ValueError(
-            f"R_xy must have {m} columns; got {Rxy.shape}"
-        )
-    n = Rxy.shape[0]
-    if mean_x is None:
-        mx = np.zeros(n, dtype=np.float64)
-    else:
-        mx = np.asarray(mean_x, dtype=np.float64)
-    if mean_y is None:
-        my = np.zeros(m, dtype=np.float64)
-    else:
-        my = np.asarray(mean_y, dtype=np.float64)
-    # Class-L gain via the srmech dense-solve cascade: K @ R_yy = R_xy, i.e.
-    # solve R_yy^T · Z = R_xy^T for Z, then K = Z^T. The solve is where the cost
-    # (and the math) lives; it rides ``srmech_dense_solve_f64`` (no numpy linalg).
-    Z = dense_solve(Ryy.T, Rxy.T)
-    K = np.ascontiguousarray(Z, dtype=np.float64).T
-    # Estimate x_hat = mean_x + K · (y - mean_y) via the srmech matvec cascade
-    # (real result of the complex M·v primitive; numpy does only the ± packing).
-    estimate = dense_matvec_complex(K, y_arr - my).real
-    return mx + estimate
+    yv = _as_vec(y)
+    Ryy = _as_rows(R_yy)
+    Rxy = _as_rows(R_xy)
+    m = len(yv)
+    if len(Ryy) != m or any(len(r) != m for r in Ryy):
+        raise ValueError(f"R_yy must be ({m}, {m})")
+    n = len(Rxy)
+    if any(len(r) != m for r in Rxy):
+        raise ValueError(f"R_xy must have {m} columns")
+    mx = [0.0] * n if mean_x is None else _as_vec(mean_x)
+    my = [0.0] * m if mean_y is None else _as_vec(mean_y)
+    # Class-L gain via the native Mat-carrier dense solve: K·R_yy = R_xy, i.e.
+    # solve R_yyᵀ · Z = R_xyᵀ for Z (m, n), then K = Zᵀ (n, m). The solve is where
+    # the cost (and the math) lives; it rides the native srmech_dense_solve_f64.
+    Ryy_T = Mat.from_rows([[Ryy[j][i] for j in range(m)] for i in range(m)])  # (m, m)
+    Rxy_T = Mat.from_rows([[Rxy[j][i] for j in range(n)] for i in range(m)])  # (m, n)
+    Z = mat_solve(Ryy_T, Rxy_T)                                              # (m, n)
+    # x_hat[i] = mean_x[i] + (Kᵀ row)·(y - mean_y) = mx[i] + Σ_j Z[j,i]·(y_j - my_j).
+    dy = [yv[j] - my[j] for j in range(m)]
+    return [mx[i] + sum(float(Z[j, i]) * dy[j] for j in range(m)) for i in range(n)]

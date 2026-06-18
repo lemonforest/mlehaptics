@@ -58,7 +58,22 @@ from ._catalog import (
     register_catalog_dir,
 )
 from ._chain import Chain, chain
-from ._tool_surface import list_catalog_ops, run_toml_chain
+from ._class_catalog import (
+    CLASS_CATALOG_DIR,
+    CatalogClass,
+    get_class_descriptor,
+    list_classes,
+    load_class_catalog,
+    make_class,
+    register_class_dir,
+)
+from ._class_surface import (
+    describe_class,
+    generate_class_descriptor,
+    list_class_surface,
+    run_class_method,
+)
+from ._tool_surface import list_catalog_ops, list_ops, run_toml_chain
 from ._toml_chain import (
     build_chain_from_dict,
     build_chain_from_toml,
@@ -86,4 +101,19 @@ __all__ = [
     # Declarative one-shot surface (v0.5.0rc12 — LLM tool entry points)
     "run_toml_chain",
     "list_catalog_ops",
+    # §17 U3 (rc45): unified op-discovery — cascade-ops + catalog-chains in one list
+    "list_ops",
+    # User-declared classes from [class] TOML (#962 Part 2; rc39) — declarative,
+    # generic runtime objects; methods bind to cascade ops by dotted path.
+    "make_class",
+    "CatalogClass",
+    "list_classes",
+    "get_class_descriptor",
+    "load_class_catalog",
+    "register_class_dir",
+    "CLASS_CATALOG_DIR",
+    # Class-aware DSL surface (rc40) — one-shot introspect + run for CLI / LLM
+    "describe_class",
+    "list_class_surface",
+    "run_class_method",
 ]

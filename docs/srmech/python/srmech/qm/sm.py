@@ -37,10 +37,8 @@ Canonical SSoT:
 
 from __future__ import annotations
 
-
-import numpy as np
-
-from srmech.amsc.laplacian import dense_matmul_complex
+from srmech.amsc.laplacian import mat_matmul, mat_norm
+from srmech.amsc.mat import Mat
 
 from srmech.amsc import rational as _srn
 
@@ -236,7 +234,7 @@ def ckm_matrix(
     theta_13: float,
     theta_23: float,
     delta_cp: float = 0.0,
-) -> np.ndarray:
+) -> "Mat":
     """CKM quark-mixing matrix (standard parameterization).
 
     Three Euler-like mixing angles plus one CP-violating phase. The matrix
@@ -264,9 +262,11 @@ def ckm_matrix(
     c12, s12 = _srn.cos(theta_12), _srn.sin(theta_12)
     c13, s13 = _srn.cos(theta_13), _srn.sin(theta_13)
     c23, s23 = _srn.cos(theta_23), _srn.sin(theta_23)
-    phase = np.exp(1j * delta_cp)
-    inv_phase = np.exp(-1j * delta_cp)
-    V = np.array([
+    phase = _srn.cexp(delta_cp)        # e^{iδ} scalar Euler cascade (Class-N)
+    inv_phase = _srn.cexp(-delta_cp)   # e^{-iδ}
+    # numpy-FREE entrywise build of exact Class-N scalar cascades, wrapped in
+    # the numpy-free Mat carrier (v0.7.5rc116, #564).
+    return Mat.from_rows([
         [
             c12 * c13,
             s12 * c13,
@@ -282,17 +282,26 @@ def ckm_matrix(
             -c12 * s23 - s12 * c23 * s13 * phase,
             c23 * c13,
         ],
-    ], dtype=complex)
-    return V
+    ], is_complex=True)
 
 
-def ckm_unitarity_residual(V: np.ndarray) -> float:
+def ckm_unitarity_residual(V: "Mat") -> float:
     """Frobenius norm of ``V V† - I`` — should be at machine precision.
+
+    numpy-FREE (v0.7.5rc116): ``V·Vᴴ`` via the native ``mat_matmul``, the
+    entrywise ``− I`` as a plain ``Mat``-entry subtraction, and the Frobenius
+    norm via the rc114 Class-N ``mat_norm`` (no numpy).
 
     Canonical SSoT: PDG review §12.1.
     """
-    I = np.eye(V.shape[0], dtype=complex)
-    return float(np.linalg.norm(dense_matmul_complex(V, V.conj().T) - I))
+    vvh = mat_matmul(V, V.conj().T)
+    n = vvh.n_rows
+    diff = [
+        vvh[i, j] - (1.0 if i == j else 0.0)
+        for i in range(n)
+        for j in range(vvh.n_cols)
+    ]
+    return mat_norm(diff)
 
 
 __all__ = [

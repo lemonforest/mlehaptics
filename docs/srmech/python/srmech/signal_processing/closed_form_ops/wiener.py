@@ -8,15 +8,18 @@ and noise PSDs and applies it via FFT.
 
 Path B dual in Phase 4 (Wiener via bundled eigenvalue handles).
 
+Carrier-free since v0.7.5rc87 (#564): plain Python ``list`` carriers; ``_sc.fft``
+/ ``_sc.ifft`` already return ``List[complex]``; the per-bin power, the
+``np.maximum(..., eps)`` floors and the Class-N rational gain are explicit
+elementwise list comprehensions, ``|X|² = X.real² + X.imag²`` (no ``abs()``).
+
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Wiener
 (1949) + Kay (1993) §11 + Hayes (1996) §7.
 """
 
 from __future__ import annotations
 
-from typing import Optional
-
-import numpy as np
+from srmech.amsc.cascade import spectral_cascades as _sc
 
 OPERATION_NAME = "wiener"
 CLASS_COMPOSITION = ("L", "N")
@@ -34,7 +37,7 @@ def op(
     signal,
     noise_psd,
     *,
-    signal_psd: Optional[np.ndarray] = None,
+    signal_psd=None,
     D: int = 8192,
 ):
     """Block / offline frequency-domain Wiener filter applied to ``signal``.
@@ -54,27 +57,29 @@ def op(
 
     Returns
     -------
-    numpy.ndarray
-        Real Wiener-filtered estimate of the clean signal.
+    list
+        Real Wiener-filtered estimate of the clean signal (``list`` of
+        ``float``, length ``len(signal)``).
     """
-    sig = np.asarray(signal, dtype=np.float64)
-    n_psd = np.asarray(noise_psd, dtype=np.float64)
-    if sig.ndim != 1:
-        raise ValueError(f"wiener expects 1-D signal; got {sig.shape}")
-    if n_psd.shape != sig.shape:
-        raise ValueError(
-            f"noise_psd shape {n_psd.shape} != signal shape {sig.shape}"
-        )
-    X = np.fft.fft(sig)
-    obs_psd = X.real ** 2 + X.imag ** 2  # |z|² = real²+imag² (no abs())
+    rows = list(signal)
+    if rows and hasattr(rows[0], "__len__"):
+        raise ValueError(f"wiener expects 1-D signal; got {len(rows)} rows")
+    sig = [float(v) for v in rows]
+    n_psd = [float(v) for v in noise_psd]
+    n = len(sig)
+    if len(n_psd) != n:
+        raise ValueError(f"noise_psd length {len(n_psd)} != signal length {n}")
+    X = list(_sc.fft(sig))
+    # |z|² = real²+imag² (no abs())
+    obs_psd = [x.real * x.real + x.imag * x.imag for x in X]
     if signal_psd is None:
-        s_psd = np.maximum(obs_psd - n_psd, 1e-30)
+        # Class-L floor (np.maximum with the eps scalar) per bin.
+        s_psd = [max(obs_psd[k] - n_psd[k], 1e-30) for k in range(n)]
     else:
-        s_psd = np.asarray(signal_psd, dtype=np.float64)
-        if s_psd.shape != sig.shape:
-            raise ValueError(
-                f"signal_psd shape {s_psd.shape} != signal shape {sig.shape}"
-            )
+        s_psd = [float(v) for v in signal_psd]
+        if len(s_psd) != n:
+            raise ValueError(f"signal_psd length {len(s_psd)} != signal length {n}")
     # Class N rational gain: H_W(k) = S_xx(k) / (S_xx(k) + S_nn(k))
-    H = s_psd / np.maximum(s_psd + n_psd, 1e-30)
-    return np.real(np.fft.ifft(H * X))
+    H = [s_psd[k] / max(s_psd[k] + n_psd[k], 1e-30) for k in range(n)]
+    filtered = _sc.ifft([H[k] * X[k] for k in range(n)])
+    return [v.real for v in filtered]

@@ -1271,7 +1271,7 @@ def cexp(theta: float, *, terms: int = _TRIG_FLOAT_TERMS) -> complex:
 
     Euler's formula: Class-N trig ∘ Class-C imaginary-unit rotation (the
     imaginary unit *is* a 90° phase-plane rotation). Substrate-native
-    replacement for ``np.exp(1j*theta)`` / ``cmath.exp(1j*theta)`` — the
+    replacement for ``np.exp`` / ``cmath.exp`` of ``1j*theta`` — the
     DFT twiddle factor and the quantum time-evolution phase.
     """
     return complex(cos(theta, terms=terms), sin(theta, terms=terms))

@@ -38,7 +38,7 @@
  * Rule 5 (>=2 asserts/non-trivial fn) OK; Rule 7 (status returns) OK;
  * Rule 10 (warnings clean) OK.
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"

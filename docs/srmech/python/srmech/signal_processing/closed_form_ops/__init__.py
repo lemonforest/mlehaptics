@@ -38,49 +38,34 @@ the module-level constants.
 
 from __future__ import annotations
 
-from . import (
-    allpass,
-    arithmetic_coding,
-    beamforming_fixed,
-    cross_spectral,
-    dct,
-    esprit,
-    farrow,
-    fft,
-    fir,
-    fsk,
-    hdc_truncation,
-    heat_kernel,
-    huffman,
-    ica_jade,
-    ifft,
-    iir,
-    jpeg,
-    lmmse,
-    lz77,
-    map_ml,
-    matched_filter,
-    mimo_svd,
-    mlse,
-    multirate,
-    multitaper,
-    music,
-    ofdm,
-    pi_cascade,
-    polyphase,
-    psk_qam,
-    rfft,
-    rle,
-    sign_quantise,
-    sinc_interp,
-    spectral_subtraction,
-    spectrogram,
-    stft,
-    vector_quantisation,
-    viterbi,
-    wavelet,
-    wiener,
+import importlib
+
+#: Every op submodule, imported LAZILY (PEP 562): kept lazy so ``import
+#: srmech.signal_processing`` doesn't eager-import all ~41 op modules. Every op
+#: is numpy-free (#564), so this is a plain lazy import — no ``[scientific]``
+#: gate.
+_OP_MODULES = (
+    "allpass", "arithmetic_coding", "beamforming_fixed", "cross_spectral",
+    "dct", "esprit", "farrow", "fft", "fir", "fsk", "hdc_truncation",
+    "heat_kernel", "huffman", "ica_jade", "ifft", "iir", "jpeg", "lmmse",
+    "lz77", "map_ml", "matched_filter", "mimo_svd", "mlse", "multirate",
+    "multitaper", "music", "ofdm", "pi_cascade", "polyphase", "psk_qam",
+    "rfft", "rle", "sign_quantise", "sinc_interp", "spectral_subtraction",
+    "spectrogram", "stft", "vector_quantisation", "viterbi", "wavelet",
+    "wiener",
 )
+
+
+def __getattr__(name):
+    if name in _OP_MODULES:
+        mod = importlib.import_module(f".{name}", __name__)
+        globals()[name] = mod
+        return mod
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__():
+    return sorted(set(globals()) | set(_OP_MODULES))
 
 #: Canonical list of all 38 Path A op module names. Used by tests and the
 #: post-merge registration script (Phase 1 integration).

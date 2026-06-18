@@ -27,7 +27,7 @@
  *   - Rule 7 (return-value)     : OK — srmech_status_t
  *   - Rule 10 (warnings clean)  : OK under -Wall -Wextra -Wpedantic
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"

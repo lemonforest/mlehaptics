@@ -150,6 +150,49 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # like the hypercomplex_dft / parallel re-exports above.
     "srmech.amsc.cascade.one.the_one",
     "srmech.amsc.cascade.one.s_generator",
+    # cascade.one.to_scalar (v0.7.5rc76, #564) — the matrix/vector→scalar export
+    # of the exact One: takes a structured ``One`` object (no MCP coercer for a
+    # One param, so it cannot cross the JSON-RPC boundary) → NOT an MCP tool,
+    # exempt on the callable/structured-arg rationale (like greedy_bipartite_
+    # alignment above). It is a public, tested ``bignum_reference``-tier exact-
+    # rational projection, reachable via Python AND dotted-path TOML-class
+    # binding (op = "srmech.amsc.cascade.to_scalar"), not via the MCP tool list.
+    "srmech.amsc.cascade.one.to_scalar",
+    # cascade.one.one_* (v0.7.5rc138, #564 / [[feedback_prefer_config_driven_toml_classes]])
+    # — the flat cascade-op accessor layer that the packaged ``one.toml``
+    # ([class] One) binds its methods to (the genome two-layer pattern: ship each
+    # accessor as a flat op, bind in the [class] TOML). Each takes a structured
+    # ``One`` object → no MCP coercer for a One param, reachable ONLY via the
+    # make_class class surface, NOT the MCP tool list — exempt exactly like
+    # ``one.to_scalar`` above.
+    "srmech.amsc.cascade.one.one_dim",
+    "srmech.amsc.cascade.one.one_imag_dims",
+    "srmech.amsc.cascade.one.one_partition",
+    "srmech.amsc.cascade.one.one_plane_counts",
+    "srmech.amsc.cascade.one.one_grammar_slots",
+    "srmech.amsc.cascade.one.one_flat_rational",
+    "srmech.amsc.cascade.one.one_matrix",
+    # cascade.sedenion_register.sed_* (v0.7.5rc140, #564 / PR #687 §31 /
+    # [[feedback_prefer_config_driven_toml_classes]]) — the flat cascade-op
+    # adapter layer that the packaged ``sedenion_register.toml`` ([class]
+    # SedenionRegister) binds its methods to (the genome two-layer pattern: each
+    # adapter rehydrates a transient register from the declarative D/codebook/slots
+    # fields + delegates to the existing method, no logic duplication). Each takes
+    # structured ``slots``/``codebook``/``D`` args → no MCP coercer, reachable ONLY
+    # via the make_class class surface, NOT the MCP tool list — exempt exactly like
+    # the ``one.one_*`` accessors above.
+    "srmech.amsc.cascade.sedenion_register.sed_write",
+    "srmech.amsc.cascade.sedenion_register.sed_materialize",
+    "srmech.amsc.cascade.sedenion_register.sed_read_unbind",
+    "srmech.amsc.cascade.sedenion_register.sed_clean",
+    "srmech.amsc.cascade.sedenion_register.sed_slots",
+    "srmech.amsc.cascade.sedenion_register.sed_couple_working",
+    "srmech.amsc.cascade.sedenion_register.sed_uncouple_working",
+    "srmech.amsc.cascade.sedenion_register.sed_carry",
+    "srmech.amsc.cascade.sedenion_register.sed_correct",
+    "srmech.amsc.cascade.sedenion_register.sed_navmap",
+    "srmech.amsc.cascade.sedenion_register.sed_navigate",
+    "srmech.amsc.cascade.sedenion_register.sed_is_navigable",
     # cascade.cayley_dickson.* — the open-exterior boundary-demonstrator
     # (v0.7.3rc1 / #915 / MFO §VII.6.23). The discoverable surface is registered
     # under STABLE flat names ``srmech.amsc.cascade.{cd_mult,cd_conjugate,

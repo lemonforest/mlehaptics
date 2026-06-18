@@ -1,8 +1,8 @@
 """srmech CLI entry point.
 
-Wires the ``srmech`` (and ``siona``) console-script entry to a single
-:func:`main` dispatch. **Four subcommands** — ``status`` / ``bus`` /
-``dsl`` / ``mcp``:
+Wires the ``srmech`` console-script entry to a single
+:func:`main` dispatch. **Five subcommands** — ``status`` / ``bus`` /
+``dsl`` / ``mcp`` / ``class``:
 
 * v0.4.6rc2 shipped ``srmech status`` (out-of-band introspection of a
   running srmech sweep), backed by :mod:`srmech.cli.status`.
@@ -14,6 +14,8 @@ Wires the ``srmech`` (and ``siona``) console-script entry to a single
   :mod:`srmech.cli.mcp`.
 * v0.5.0rc8 added ``srmech dsl`` (compose / run cascade chains),
   backed by :mod:`srmech.cli.dsl`.
+* v0.7.5rc41 added ``srmech class`` (discover user-declared [class]
+  classes — list / describe), backed by :mod:`srmech.cli.klass`.
 
 Usage::
 
@@ -29,6 +31,8 @@ Usage::
     srmech dsl run SPEC.toml            # run a cascade chain spec
     srmech dsl ops                      # list cascade ops
     srmech mcp emit-mcpb                # write a Claude Desktop bundle
+    srmech class list                   # list user-declared classes
+    srmech class describe Genome        # one class's fields + methods
 
 ``python -m srmech ...`` is equivalent.
 """
@@ -41,6 +45,7 @@ from typing import List, Optional
 
 from . import bus as _bus_cli
 from . import dsl as _dsl_cli
+from . import klass as _class_cli
 from . import mcp as _mcp_cli
 from . import status as _status
 from srmech.version import __version__ as _srmech_version
@@ -55,11 +60,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="srmech",
         description=(
-            "srmech command-line interface. Four subcommands: ``status`` "
+            "srmech command-line interface. Five subcommands: ``status`` "
             "(out-of-band introspection of a running srmech sweep), "
             "``bus`` (operate the cross-process bus), ``dsl`` (compose / "
-            "run cascade chains), and ``mcp`` (emit Model Context Protocol "
-            "integration artifacts for Claude Desktop)."
+            "run cascade chains), ``mcp`` (emit Model Context Protocol "
+            "integration artifacts for Claude Desktop), and ``class`` "
+            "(discover user-declared [class] classes — list / describe)."
         ),
     )
     parser.add_argument(
@@ -120,6 +126,19 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     _mcp_cli.add_arguments(mcp_p)
+    class_p = sub.add_parser(
+        "class",
+        help=(
+            "Discover user-declared [class] classes (list / describe)."
+        ),
+        description=(
+            "Discover the user-declared classes srmech constructs from [class] "
+            "TOML (#962 Part 2). Two sub-subcommands: list (enumerate the seed "
+            "Genome + bring-your-own classes), describe (full JSON descriptor "
+            "of one class's fields + methods)."
+        ),
+    )
+    _class_cli.add_arguments(class_p)
     return parser
 
 
@@ -147,6 +166,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         return _dsl_cli.run(args)
     if args.command == "mcp":
         return _mcp_cli.run(args)
+    if args.command == "class":
+        return _class_cli.run(args)
     parser.print_help()
     return 0
 

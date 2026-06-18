@@ -21,25 +21,30 @@
  * Class-N cascade (unlike the Jacobi eigensolver, which needs sqrt).
  *
  * Public API:
- *   - srmech_dense_solve_f64  (A·X = B, A n×n, B/X n×nrhs, row-major)
+ *   - srmech_dense_solve_f64_ws  (A·X = B, A n×n, B/X n×nrhs, row-major;
+ *                                 augmented [A|B] scratch from caller arena)
+ *   - srmech_dense_solve_arena_bytes  (arena byte count for a given n, nrhs)
  *
  * Conventions:
  *   - Matrices are row-major doubles (caller-allocated). A is n×n, B is
  *     n×nrhs, out_X is n×nrhs.
  *   - A wholly-zero pivot column at/below the diagonal ⇒ singular A ⇒
- *     SRMECH_ERR_BAD_INPUT (Python falls back to numpy.linalg.solve,
- *     which raises LinAlgError).
- *   - SRMECH_DENSE_SOLVE_MAX_N / _MAX_RHS = 256 cap the thread-local
- *     augmented working matrix (worst case 256×512 = 1 MiB — static
- *     duration, no malloc, the srmech_hermitian_eigendecompose
- *     precedent). Larger systems fall back to the Python numpy path.
+ *     SRMECH_ERR_BAD_INPUT (the Python wrapper raises ZeroDivisionError;
+ *     pure-Python's exact-rational Gauss–Jordan raises the same — the two
+ *     are complete alternative implementations, not one rescuing the other).
+ *   - NO compiled-in size cap: the augmented [A | B] working matrix is
+ *     carved from a CALLER-supplied arena `ws` (srmech_dense_solve_arena_bytes
+ *     sizes it), so the only bound is the caller's RAM — a host sizes it
+ *     large, a microcontroller small (the v0.7.5rc154 genome caller-arena
+ *     precedent / [[feedback_c_must_be_standalone_complete_no_python_fallback]]).
  *
  * JPL Power-of-Ten compliance:
  *   - Rule 1 (no goto)        : OK
  *   - Rule 2 (bounded loops)  : OK — every loop bounded by n / nrhs
  *                              (≤ the MAX bounds, checked before the solve)
- *   - Rule 3 (no malloc)      : OK — one thread-local static augmented
- *                              buffer; everything else is stack scalars
+ *   - Rule 3 (no malloc)      : OK — the augmented buffer is bump-carved
+ *                              from the caller arena `ws`; everything else
+ *                              is stack scalars
  *   - Rule 4 (≤60 lines/func) : OK — solve split into load / pivot /
  *                              eliminate helpers
  *   - Rule 5 (≥2 asserts/fn)  : OK
@@ -47,10 +52,13 @@
  *   - Rule 8 (no multi-line macros) : OK — single-line #defines only
  *   - Rule 10 (warnings clean): OK under -Wall -Wextra -Wpedantic / /W4
  *
- * ABI: additive — srmech_dense_solve_f64 is a NEW exported symbol, so
- * SRMECH_ABI_VERSION stays 3 (the Python ctypes shim hasattr-guards it).
+ * ABI: the rc154 standalone-complete honor (v0.7.5rc158) RENAMES the symbol
+ * to srmech_dense_solve_f64_ws (the arena-taking form) and adds
+ * srmech_dense_solve_arena_bytes; the Python ctypes shim hasattr-guards the
+ * new name (a stale lib lacking it falls to pure-Python), so SRMECH_ABI_VERSION
+ * stays 3 — the old capped srmech_dense_solve_f64 is removed, not re-signatured.
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"
@@ -59,9 +67,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define SRMECH_DENSE_SOLVE_MAX_N   256
-#define SRMECH_DENSE_SOLVE_MAX_RHS 256
-#define SRMECH_DENSE_SOLVE_WS_MAX  (SRMECH_DENSE_SOLVE_MAX_N * (SRMECH_DENSE_SOLVE_MAX_N + SRMECH_DENSE_SOLVE_MAX_RHS))
+/* No compiled-in size cap (rc158 standalone-complete honor): the augmented
+ * [A | B] working matrix is carved from the caller arena `ws`, sized by
+ * srmech_dense_solve_arena_bytes. The bound is the caller's RAM, not a 256. */
 
 /* Load the augmented [A | B] matrix into the working buffer. The buffer
  * has row stride w = n + nrhs: columns [0, n) hold A, [n, n+nrhs) hold B. */
@@ -143,11 +151,28 @@ static void dense_solve_eliminate(uint32_t n, uint32_t nrhs,
     }
 }
 
-srmech_status_t srmech_dense_solve_f64(uint32_t      n,
-                                       uint32_t      nrhs,
-                                       const double *A,
-                                       const double *B,
-                                       double       *out_X)
+/* The arena byte count srmech_dense_solve_f64_ws needs for an n×n A and an
+ * n×nrhs B: the augmented [A | B] working matrix is n rows × (n + nrhs)
+ * columns of double, plus sizeof(double) slop so the bump base can be rounded
+ * up to an 8-byte (double) boundary. Pure arithmetic — the caller sizes its
+ * `ws` arena from THIS, so the bound is the caller's RAM, never a compiled-in
+ * cap (a host sizes it large, a microcontroller small). Adding this symbol
+ * does NOT bump SRMECH_ABI_VERSION. */
+size_t srmech_dense_solve_arena_bytes(uint32_t n, uint32_t nrhs)
+{
+    size_t w = (size_t)n + (size_t)nrhs;
+    assert(w >= (size_t)n);                                    /* w = n + nrhs >= n */
+    assert(n == 0u || w <= SIZE_MAX / (size_t)n);              /* n*w no overflow */
+    return (size_t)n * w * sizeof(double) + sizeof(double);
+}
+
+srmech_status_t srmech_dense_solve_f64_ws(uint32_t      n,
+                                          uint32_t      nrhs,
+                                          const double *A,
+                                          const double *B,
+                                          double       *out_X,
+                                          void         *ws,
+                                          size_t        ws_len)
 {
     assert(A != NULL);
     assert(B != NULL);
@@ -155,16 +180,25 @@ srmech_status_t srmech_dense_solve_f64(uint32_t      n,
     if (A == NULL || B == NULL || out_X == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (n > SRMECH_DENSE_SOLVE_MAX_N || nrhs > SRMECH_DENSE_SOLVE_MAX_RHS) {
-        return SRMECH_ERR_OVERFLOW;
-    }
     if (n == 0 || nrhs == 0) {
-        return SRMECH_OK;
+        return SRMECH_OK;                       /* nothing to solve; ws unused */
     }
-    /* Per-thread augmented [A | B] workspace (#772 reentrancy). Static
-     * duration (up to 1 MiB — too large to stack), thread-local so
-     * concurrent solvers don't collide. Rule-3-clean: no malloc. */
-    static SRMECH_THREAD_LOCAL double aug[SRMECH_DENSE_SOLVE_WS_MAX];
+    assert(ws != NULL);
+    if (ws == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    /* Carve the augmented [A | B] working matrix from the caller arena `ws`
+     * — NO compiled-in size cap: the only bound is ws_len (the caller's RAM).
+     * The base is rounded up to an 8-byte boundary for aligned double access
+     * (an MCU caller may hand us a byte buffer); the +sizeof(double) slop in
+     * srmech_dense_solve_arena_bytes covers that fixup. Rule-3-clean: no malloc. */
+    size_t need = srmech_dense_solve_arena_bytes(n, nrhs);
+    if (ws_len < need) {
+        return SRMECH_ERR_OVERFLOW;             /* caller arena too small */
+    }
+    uintptr_t aligned = ((uintptr_t)ws + (sizeof(double) - 1u))
+                        & ~(uintptr_t)(sizeof(double) - 1u);
+    double *aug = (double *)aligned;
     size_t w = (size_t)n + (size_t)nrhs;
     dense_solve_load_aug(n, nrhs, A, B, aug);
     for (uint32_t col = 0; col < n; col++) {

@@ -1,6 +1,6 @@
 """srmech.cli — command-line surface.
 
-**Four subcommands** — ``status`` / ``bus`` / ``dsl`` / ``mcp``:
+**Five subcommands** — ``status`` / ``bus`` / ``dsl`` / ``mcp`` / ``class``:
 
 * v0.4.6rc2 introduced the first CLI subcommand: ``srmech status``
   (out-of-band introspection per user direction 2026-05-28).
@@ -11,6 +11,8 @@
   Model Context Protocol bundle).
 * v0.5.0rc8 added ``srmech dsl`` (``run`` / ``ops`` / ``visualize`` —
   compose and run cascade chains).
+* v0.7.5rc41 added ``srmech class`` (``list`` / ``describe`` — discover
+  user-declared [class] classes; #962 Part 2).
 
 The module is also runnable directly: ``python -m srmech.cli ...``
 forwards to :func:`main`. Plus ``python -m srmech ...`` (one level

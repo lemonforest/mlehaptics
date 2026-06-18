@@ -31,9 +31,10 @@
  *     buffer for adjacency build-up and final L (in-place transform).
  *   - Jacobi takes its matrix in-place; the diagonal at exit holds
  *     the eigenvalues. Eigvals are also copied to a dedicated output.
- *   - SRMECH_LAPLACIAN_MAX_NODES = 256 caps the stack-allocated
- *     degree / row-scaling buffers so the C path stays embedded-
- *     safe. Larger graphs fall back to the Python numpy path.
+ *   - No node cap: every graph op writes only into the caller's matrix
+ *     (degree / row-scaling are computed per-row or stashed in the
+ *     diagonal; Jacobi rotates in place), so the bound is the caller's
+ *     RAM, not a compiled limit (standalone-complete honor).
  *
  * JPL Power-of-Ten compliance:
  *   - Rule 1 (no goto)        : OK
@@ -41,21 +42,24 @@
  *                              caller-supplied size_t (n / n_edges,
  *                              caller's responsibility) or by
  *                              SRMECH_LAPLACIAN_JACOBI_MAX_SWEEPS
- *   - Rule 3 (no malloc)      : OK — fixed-size stack buffers only
+ *   - Rule 3 (no malloc)      : OK — caller buffers + scalar locals (plus
+ *                              a thread-local static eig scratch); no malloc
  *   - Rule 4 (≤60 lines/func) : OK — Jacobi split into rotation +
  *                              sweep helpers
  *   - Rule 5 (≥2 asserts/fn)  : OK
  *   - Rule 7 (return-value)   : OK — srmech_status_t throughout
  *   - Rule 10 (warnings clean): OK under -Wall -Wextra -Wpedantic
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"
+#include "srmech_platform.h"   /* §52 Part 2: PAL streaming-read for the out-of-core Fiedler */
 
 #include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>            /* memcpy — parse packed edge records (no aliasing UB) */
 
 /* Class-N rational sqrt (srmech_rational_sqrt) — the native Jacobi eigensolver
  * computes its rotation-angle roots via the cascade, not libm (rc45,
@@ -69,7 +73,6 @@ static double lap_sqrt(double x)
     return out;
 }
 
-#define SRMECH_LAPLACIAN_MAX_NODES        256
 #define SRMECH_LAPLACIAN_JACOBI_MAX_SWEEPS 100
 
 srmech_status_t srmech_graph_dense_adjacency(uint32_t        n,
@@ -136,29 +139,20 @@ srmech_status_t srmech_graph_dense_laplacian(uint32_t        n,
                                              double         *out_matrix)
 {
     assert(out_matrix != NULL);
-    if (n > SRMECH_LAPLACIAN_MAX_NODES) {
-        return SRMECH_ERR_OVERFLOW;
-    }
     srmech_status_t st = srmech_graph_dense_adjacency(
         n, n_edges, edges_u, edges_v, weights, out_matrix);
     if (st != SRMECH_OK) {
         return st;
     }
-    /* Capture degrees BEFORE we mutate the matrix. Stack-allocated
-     * buffer bounded by SRMECH_LAPLACIAN_MAX_NODES. */
-    double degree[SRMECH_LAPLACIAN_MAX_NODES];
-    for (uint32_t i = 0; i < n; i++) {
-        degree[i] = srmech_laplacian_row_degree(n, i, out_matrix);
-    }
-    /* L = D − A: negate off-diagonals, replace diagonal with degree. */
+    /* L = D − A, computed row-by-row: deg_r depends only on row r of A
+     * (read before row r is overwritten), so there is NO per-node scratch
+     * and no compiled node cap — the bound is the caller's out_matrix
+     * (standalone-complete honor). */
     for (uint32_t r = 0; r < n; r++) {
+        double deg = srmech_laplacian_row_degree(n, r, out_matrix);
         for (uint32_t c = 0; c < n; c++) {
             size_t idx = (size_t)r * n + c;
-            if (r == c) {
-                out_matrix[idx] = degree[r];
-            } else {
-                out_matrix[idx] = -out_matrix[idx];
-            }
+            out_matrix[idx] = (r == c) ? deg : -out_matrix[idx];
         }
     }
     assert(n == 0 || out_matrix != NULL);
@@ -173,34 +167,37 @@ srmech_status_t srmech_graph_normalized_laplacian(uint32_t        n,
                                                   double         *out_matrix)
 {
     assert(out_matrix != NULL);
-    if (n > SRMECH_LAPLACIAN_MAX_NODES) {
-        return SRMECH_ERR_OVERFLOW;
-    }
     srmech_status_t st = srmech_graph_dense_adjacency(
         n, n_edges, edges_u, edges_v, weights, out_matrix);
     if (st != SRMECH_OK) {
         return st;
     }
-    /* Compute d_i^(−1/2). Isolated vertices (degree 0) → 0 (the
-     * normalised Laplacian's diagonal is 0, not 1, at isolated
-     * vertices by convention). */
-    double d_inv_sqrt[SRMECH_LAPLACIAN_MAX_NODES];
+    /* Stash d_i^(−1/2) IN the diagonal (which L_sym overwrites anyway), so
+     * there is NO per-node scratch and no compiled node cap — the bound is
+     * the caller's out_matrix (standalone-complete honor). The row-degree
+     * reads off-diagonals only, so stashing on the diagonal is safe.
+     * Isolated vertices (degree 0) → 0 (the normalised Laplacian's diagonal
+     * is 0 there by convention). */
     for (uint32_t i = 0; i < n; i++) {
         double d = srmech_laplacian_row_degree(n, i, out_matrix);
-        d_inv_sqrt[i] = (d > 0.0) ? (1.0 / lap_sqrt(d)) : 0.0;
+        out_matrix[(size_t)i * n + i] = (d > 0.0) ? (1.0 / lap_sqrt(d)) : 0.0;
     }
-    /* L_sym = I − D^(−1/2) A D^(−1/2). */
+    /* L_sym = I − D^(−1/2) A D^(−1/2): off-diagonals first (reading the
+     * stashed d^(−1/2) from the diagonals, which this pass never writes),
+     * then finalise the diagonal to {0, 1}. */
     for (uint32_t r = 0; r < n; r++) {
+        double dr = out_matrix[(size_t)r * n + r];
         for (uint32_t c = 0; c < n; c++) {
-            size_t idx = (size_t)r * n + c;
-            double val;
-            if (r == c) {
-                val = (d_inv_sqrt[r] != 0.0) ? 1.0 : 0.0;
-            } else {
-                val = -out_matrix[idx] * d_inv_sqrt[r] * d_inv_sqrt[c];
+            if (r != c) {
+                size_t idx = (size_t)r * n + c;
+                double dc = out_matrix[(size_t)c * n + c];
+                out_matrix[idx] = -out_matrix[idx] * dr * dc;
             }
-            out_matrix[idx] = val;
         }
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        size_t d = (size_t)i * n + i;
+        out_matrix[d] = (out_matrix[d] != 0.0) ? 1.0 : 0.0;
     }
     assert(n == 0 || out_matrix != NULL);
     return SRMECH_OK;
@@ -250,7 +247,7 @@ static void srmech_laplacian_jacobi_rotate(uint32_t n, double *mat,
 static double srmech_laplacian_off_diag_sq(uint32_t n, const double *mat)
 {
     assert(mat != NULL);
-    assert(n <= SRMECH_LAPLACIAN_MAX_NODES);
+    assert(n < 0xFFFFFFFFu);          /* loop-bound sanity; no node cap */
     double s = 0.0;
     for (uint32_t r = 0; r < n; r++) {
         for (uint32_t c = r + 1; c < n; c++) {
@@ -273,9 +270,9 @@ srmech_status_t srmech_jacobi_eigvals(uint32_t  n,
     if (matrix == NULL || out_eigvals == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (n > SRMECH_LAPLACIAN_MAX_NODES) {
-        return SRMECH_ERR_OVERFLOW;
-    }
+    /* No node cap: the Jacobi sweeps rotate the caller's `matrix` IN PLACE
+     * (eigenvalues read off the diagonal), so there is no scratch — the
+     * bound is the caller's matrix (standalone-complete honor). */
     if (n == 0) {
         return SRMECH_OK;
     }
@@ -307,12 +304,11 @@ srmech_status_t srmech_jacobi_eigvals(uint32_t  n,
 /* ================================================================ *
  * Class L broadening — ADR-0002 Phase 2 (v0.4.1rc5)
  *
- * Four new ops extending Class L from "graph Laplacian" to
+ * Three new ops extending Class L from "graph Laplacian" to
  * "dense-matrix linear algebra including eigendecomposition +
- * matrix-vector multiplication + elementwise operations":
+ * elementwise operations":
  *
  *   - srmech_hermitian_eigendecompose
- *   - srmech_dense_matvec_complex
  *   - srmech_elementwise_multiply_complex
  *   - srmech_elementwise_transcendental
  *
@@ -337,7 +333,7 @@ static double srmech_hermitian_off_diag_sq(uint32_t n,
                                            const double *mat_il)
 {
     assert(mat_il != NULL);
-    assert(n <= SRMECH_LAPLACIAN_MAX_NODES);
+    assert(n <= srmech_config_hermitian_max_nodes());
     double s = 0.0;
     for (uint32_t r = 0; r < n; r++) {
         for (uint32_t c = r + 1; c < n; c++) {
@@ -460,7 +456,7 @@ static void srmech_hermitian_apply_rotation(uint32_t n, double *H,
 static void srmech_hermitian_init_identity(uint32_t n, double *V_il)
 {
     assert(V_il != NULL);
-    assert(n <= SRMECH_LAPLACIAN_MAX_NODES);
+    assert(n <= srmech_config_hermitian_max_nodes());
     size_t total = (size_t)n * n * 2;
     for (size_t i = 0; i < total; i++) {
         V_il[i] = 0.0;
@@ -518,7 +514,6 @@ static srmech_status_t srmech_hermitian_run_sweeps(uint32_t n,
 {
     assert(Hwork != NULL);
     assert(V != NULL);
-    assert(n <= SRMECH_LAPLACIAN_MAX_NODES);
     /* Convergence target = 1e-12² × initial off-diagonal norm. */
     double target = 1e-24 * srmech_hermitian_off_diag_sq(n, Hwork);
     uint32_t sweep;
@@ -550,12 +545,13 @@ srmech_status_t srmech_hermitian_eigendecompose_ws(
 {
     assert(out_eigvals != NULL);
     assert(out_eigvecs_interleaved != NULL);
-    assert(n <= SRMECH_LAPLACIAN_MAX_NODES);
     if (H_interleaved == NULL || out_eigvals == NULL
         || out_eigvecs_interleaved == NULL || workspace == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (n > SRMECH_LAPLACIAN_MAX_NODES) {
+    /* Compute-guard ceiling is CONFIG-DRIVEN (rc161): default 2048, settable
+     * via srmech_config_load_toml/_file. The real bound is ws_len >= 2*n*n. */
+    if (n > srmech_config_hermitian_max_nodes()) {
         return SRMECH_ERR_OVERFLOW;
     }
     if (n == 0) {
@@ -585,61 +581,11 @@ srmech_status_t srmech_hermitian_eigendecompose_ws(
     return SRMECH_OK;
 }
 
-srmech_status_t srmech_hermitian_eigendecompose(
-    uint32_t       n,
-    const double  *H_interleaved,
-    double        *out_eigvals,
-    double        *out_eigvecs_interleaved)
-{
-    assert(out_eigvals != NULL);
-    assert(out_eigvecs_interleaved != NULL);
-    /* Per-thread workspace (#772 reentrancy). Static duration (a
-     * complex 256×256 working matrix is ~1 MiB — too large to stack)
-     * but thread-local, so concurrent callers on different threads
-     * each get a private copy. Rule-3-clean: static duration, no
-     * malloc. Routes through the _ws core so both entries share one
-     * numeric path. */
-    static SRMECH_THREAD_LOCAL double Hwork[SRMECH_HERMITIAN_WS_MAX];
-    return srmech_hermitian_eigendecompose_ws(
-        n, H_interleaved, out_eigvals, out_eigvecs_interleaved,
-        Hwork, SRMECH_HERMITIAN_WS_MAX);
-}
-
-srmech_status_t srmech_dense_matvec_complex(
-    uint32_t       rows,
-    uint32_t       cols,
-    const double  *M_interleaved,
-    const double  *v_interleaved,
-    double        *out_interleaved)
-{
-    assert(M_interleaved != NULL);
-    assert(out_interleaved != NULL);
-    if (M_interleaved == NULL || v_interleaved == NULL
-        || out_interleaved == NULL) {
-        return SRMECH_ERR_NULL_ARG;
-    }
-    if (rows > SRMECH_LAPLACIAN_MAX_NODES
-        || cols > SRMECH_LAPLACIAN_MAX_NODES) {
-        return SRMECH_ERR_OVERFLOW;
-    }
-    for (uint32_t r = 0; r < rows; r++) {
-        double acc_re = 0.0;
-        double acc_im = 0.0;
-        for (uint32_t c = 0; c < cols; c++) {
-            size_t mi = ((size_t)r * cols + c) * 2;
-            size_t vi = (size_t)c * 2;
-            double m_re = M_interleaved[mi];
-            double m_im = M_interleaved[mi + 1];
-            double v_re = v_interleaved[vi];
-            double v_im = v_interleaved[vi + 1];
-            acc_re += m_re * v_re - m_im * v_im;
-            acc_im += m_re * v_im + m_im * v_re;
-        }
-        out_interleaved[(size_t)r * 2]     = acc_re;
-        out_interleaved[(size_t)r * 2 + 1] = acc_im;
-    }
-    return SRMECH_OK;
-}
+/* (rc161) The no-`_ws` convenience overload srmech_hermitian_eigendecompose
+ * was REMOVED — it self-buffered a 1 MiB thread-local static (the last
+ * compiled-in-buffer + its own n<=256 cap) and had no live caller on a
+ * current build. Callers use srmech_hermitian_eigendecompose_ws with a
+ * caller-sized workspace; the config getter is the (overridable) ceiling. */
 
 srmech_status_t srmech_dense_matmul_complex(
     uint32_t       m,
@@ -655,11 +601,9 @@ srmech_status_t srmech_dense_matmul_complex(
         || out_interleaved == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (m > SRMECH_LAPLACIAN_MAX_NODES
-        || k > SRMECH_LAPLACIAN_MAX_NODES
-        || n > SRMECH_LAPLACIAN_MAX_NODES) {
-        return SRMECH_ERR_OVERFLOW;
-    }
+    /* No m/k/n cap: the product accumulates in scalar locals and writes
+     * the caller's out_interleaved (no scratch) — the bound is the caller's
+     * buffers (standalone-complete honor). */
     for (uint32_t i = 0; i < m; i++) {
         for (uint32_t j = 0; j < n; j++) {
             double acc_re = 0.0;
@@ -763,5 +707,411 @@ srmech_status_t srmech_three_fold_bands(uint32_t n, uint32_t *out_low,
     *out_mid = base + (rem >= 2u ? 1u : 0u);
     *out_high = n - *out_low - *out_mid;
     assert(*out_low + *out_mid + *out_high == n);
+    return SRMECH_OK;
+}
+
+/* --- §51 (issue #1097): the SPARSE / iterative normalized-cut Fiedler -------
+ * Power iteration on the normalized operator B = I + D^-1/2 W D^-1/2
+ * (= 2I - L_sym; eigenvalues in [0,2] -> well-conditioned, unlike sigma*I - L on
+ * a dense graph). Deflate the sqrt(deg) (lambda0) mode each step; the converged
+ * direction is the Fiedler (lambda2 of L_sym) and its SIGN is the normalized-cut
+ * bisection. Matvec-only (by edge, no CSR) -> O(edges), n unbounded. The caller
+ * supplies a >= 8*n-double scratch arena, so there is NO compiled-in node cap
+ * (the bound is the caller's RAM). Bit-identical SIGN to the Python cascade. */
+
+/* Accumulate the weighted degree of every node from the undirected edge list
+ * (both endpoints). Returns BAD_INPUT on an out-of-range endpoint. */
+static srmech_status_t fiedler_degrees(uint32_t n, uint32_t n_edges,
+                                       const uint32_t *eu, const uint32_t *ev,
+                                       const double *w, double *deg)
+{
+    assert(deg != NULL);
+    assert(n_edges == 0u || (eu != NULL && ev != NULL));
+    for (uint32_t i = 0; i < n; i++) {
+        deg[i] = 0.0;
+    }
+    for (uint32_t e = 0; e < n_edges; e++) {
+        uint32_t uu = eu[e];
+        uint32_t vv = ev[e];
+        if (uu >= n || vv >= n) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        double we = (w != NULL) ? w[e] : 1.0;
+        deg[uu] += we;
+        deg[vv] += we;
+    }
+    return SRMECH_OK;
+}
+
+/* Build the D^-1/2 diagonal (s) + the unit lambda0 eigenvector p ~ sqrt(deg).
+ * Returns the pre-normalisation L2 norm of p, or 0.0 if every degree is 0
+ * (an edgeless graph -> no cut). Normalises p in place when nonzero. */
+static double fiedler_build_sp(uint32_t n, const double *deg,
+                               double *s, double *p)
+{
+    assert(deg != NULL && s != NULL);
+    assert(p != NULL);
+    double pn2 = 0.0;
+    for (uint32_t i = 0; i < n; i++) {
+        if (deg[i] > 0.0) {
+            double r = lap_sqrt(deg[i]);
+            s[i] = 1.0 / r;
+            p[i] = r;
+        } else {
+            s[i] = 0.0;
+            p[i] = 0.0;
+        }
+        pn2 += p[i] * p[i];
+    }
+    if (pn2 <= 0.0) {
+        return 0.0;
+    }
+    double pnorm = lap_sqrt(pn2);
+    for (uint32_t i = 0; i < n; i++) {
+        p[i] /= pnorm;
+    }
+    return pnorm;
+}
+
+/* Subtract the projection onto the unit lambda0 vector p: u <- u - (u . p) p.
+ * Keeps the iterate orthogonal to the trivial sqrt(deg) mode. */
+static void fiedler_deflate(uint32_t n, double *u, const double *p)
+{
+    assert(u != NULL);
+    assert(p != NULL);
+    double dot = 0.0;
+    for (uint32_t i = 0; i < n; i++) {
+        dot += u[i] * p[i];
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        u[i] -= dot * p[i];
+    }
+}
+
+/* Deterministic, order-independent init: a Class-I multiplicative scramble
+ * keyed by node index (Knuth 2654435761, uint32 wrap == Python & 0xFFFFFFFF),
+ * mapped to [-1, 1), then deflate lambda0. NOT the parity vector [1,-1,...]:
+ * that is orthogonal to the Fiedler on a block-ordered regular graph. */
+static void fiedler_init(uint32_t n, const double *p, double *v)
+{
+    assert(p != NULL);
+    assert(v != NULL);
+    for (uint32_t i = 0; i < n; i++) {
+        uint32_t h = i * 2654435761u + 1013904223u;   /* mod 2^32 */
+        v[i] = ((double)h / 4294967296.0) * 2.0 - 1.0;
+    }
+    fiedler_deflate(n, v, p);
+}
+
+/* One normalized-operator step: u = deflate(B v), B = I + D^-1/2 W D^-1/2.
+ * t = s o v; y = W t (the O(edges) edge loop); u = v + s o y; deflate lambda0. */
+static void fiedler_step(uint32_t n, uint32_t n_edges, const uint32_t *eu,
+                         const uint32_t *ev, const double *w, const double *s,
+                         const double *p, const double *v, double *t,
+                         double *y, double *u)
+{
+    assert(s != NULL && v != NULL && u != NULL);
+    assert(t != NULL && y != NULL);
+    for (uint32_t i = 0; i < n; i++) {
+        t[i] = s[i] * v[i];
+        y[i] = 0.0;
+    }
+    for (uint32_t e = 0; e < n_edges; e++) {
+        uint32_t uu = eu[e];
+        uint32_t vv = ev[e];
+        double we = (w != NULL) ? w[e] : 1.0;
+        y[uu] += we * t[vv];
+        y[vv] += we * t[uu];
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        u[i] = v[i] + s[i] * y[i];
+    }
+    fiedler_deflate(n, u, p);
+}
+
+/* Rescale by the Class-K max-magnitude (no fabs: scan u_i^2, one Class-N root).
+ * Writes v = u / max|u|. Returns 0 if u is all-zero (caller breaks), else 1. */
+static int fiedler_rescale(uint32_t n, const double *u, double *v)
+{
+    assert(u != NULL);
+    assert(v != NULL);
+    double max_sq = 0.0;
+    for (uint32_t i = 0; i < n; i++) {
+        double sq = u[i] * u[i];      /* magnitude-square (pin-slot-free) */
+        if (sq > max_sq) {
+            max_sq = sq;
+        }
+    }
+    if (max_sq <= 0.0) {
+        return 0;
+    }
+    double mx = lap_sqrt(max_sq);
+    for (uint32_t i = 0; i < n; i++) {
+        v[i] = u[i] / mx;
+    }
+    return 1;
+}
+
+/* Compute the sign partition of v (1 if v_i >= 0 else 0), compare against the
+ * previous partition in `prev`, and overwrite `prev` with the new one. Returns
+ * 1 iff the partition is unchanged (prev seeded to -1.0 -> first call != ). */
+static int fiedler_update_sign(uint32_t n, const double *v, double *prev)
+{
+    assert(v != NULL);
+    assert(prev != NULL);
+    int all_match = 1;
+    for (uint32_t i = 0; i < n; i++) {
+        double cur = (v[i] >= 0.0) ? 1.0 : 0.0;
+        if (prev[i] != cur) {
+            all_match = 0;
+        }
+        prev[i] = cur;
+    }
+    return all_match;
+}
+
+srmech_status_t srmech_laplacian_fiedler_sparse(uint32_t n, uint32_t n_edges,
+    const uint32_t *edge_u, const uint32_t *edge_v, const double *weights,
+    uint32_t max_iters, double *out_vec, double *ws, size_t ws_len)
+{
+    assert(out_vec != NULL && ws != NULL);
+    if (out_vec == NULL || ws == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n_edges > 0u && (edge_u == NULL || edge_v == NULL)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (ws_len < (size_t)8u * n) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    assert(ws_len >= (size_t)8u * n);    /* arena holds the 8 length-n scratch vecs */
+    for (uint32_t i = 0; i < n; i++) {
+        out_vec[i] = 0.0;
+    }
+    if (n < 2u) {
+        return SRMECH_OK;                          /* no cut */
+    }
+    double *deg = ws;
+    double *s = ws + (size_t)1u * n;
+    double *p = ws + (size_t)2u * n;
+    double *v = ws + (size_t)3u * n;
+    double *u = ws + (size_t)4u * n;
+    double *t = ws + (size_t)5u * n;
+    double *y = ws + (size_t)6u * n;
+    double *prev = ws + (size_t)7u * n;
+    srmech_status_t st = fiedler_degrees(n, n_edges, edge_u, edge_v, weights, deg);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    if (fiedler_build_sp(n, deg, s, p) <= 0.0) {
+        return SRMECH_OK;                          /* edgeless -> zero vector */
+    }
+    fiedler_init(n, p, v);
+    for (uint32_t i = 0; i < n; i++) {
+        prev[i] = -1.0;
+    }
+    uint32_t stable = 0u;
+    for (uint32_t it = 0; it < max_iters; it++) {
+        fiedler_step(n, n_edges, edge_u, edge_v, weights, s, p, v, t, y, u);
+        if (fiedler_rescale(n, u, v) == 0) {
+            break;
+        }
+        if (fiedler_update_sign(n, v, prev) && it >= 20u) {
+            stable++;
+            if (stable >= 5u) {
+                break;
+            }
+        } else {
+            stable = 0u;
+        }
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        out_vec[i] = v[i];
+    }
+    return SRMECH_OK;
+}
+
+/* --- §52 Part 2 (F793): the OUT-OF-CORE streaming Fiedler -------------------
+ * The same normalized-cut power iteration as srmech_laplacian_fiedler_sparse,
+ * but the adjacency is NEVER resident: each edge pass streams a packed edge file
+ * (one 16-byte record = uint32 u | uint32 v | double w, host byte order) through
+ * the PAL streaming-read. Only the O(n) working vectors (the caller arena) live
+ * in RAM, so a low-RAM target can partition a graph whose edge list does not fit
+ * — the LOW-RAM ENCODE for graph PARTITION (composes §52.1 cooccurrence_topk for
+ * the bounded edge SET; this bounds the partition's RAM too). Records never
+ * straddle a read chunk (chunk = a whole number of records). */
+
+#define FIEDLER_REC_BYTES 16u                 /* uint32 u | uint32 v | double w */
+#define FIEDLER_CHUNK_RECS 256u
+#define FIEDLER_CHUNK_BYTES (FIEDLER_REC_BYTES * FIEDLER_CHUNK_RECS)
+
+/* Per-record callback over a streamed edge file (no Python — standalone C). */
+typedef srmech_status_t (*fiedler_rec_cb)(uint32_t u, uint32_t v, double w, void *ctx);
+
+/* Stream `path` (a packed 16-byte-record edge file) and call `cb` per record.
+ * A read that is not a whole number of records -> BAD_INPUT (truncated file). */
+static srmech_status_t fiedler_file_scan(const char *path, fiedler_rec_cb cb, void *ctx)
+{
+    assert(path != NULL);
+    assert(cb != NULL);
+    srmech_plat_rstream_t rs;
+    srmech_status_t st = srmech_plat_rstream_open(path, &rs);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    unsigned char chunk[FIEDLER_CHUNK_BYTES];
+    int eof = 0;
+    while (eof == 0) {
+        size_t n_read = 0u;
+        st = srmech_plat_rstream_read(&rs, chunk, FIEDLER_CHUNK_BYTES, &n_read);
+        if (st != SRMECH_OK) { srmech_plat_rstream_close(&rs); return st; }
+        if (n_read == 0u) { break; }
+        if ((n_read % FIEDLER_REC_BYTES) != 0u) {
+            srmech_plat_rstream_close(&rs);
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        size_t recs = n_read / FIEDLER_REC_BYTES;
+        for (size_t i = 0; i < recs; i++) {
+            const unsigned char *rec = chunk + i * FIEDLER_REC_BYTES;
+            uint32_t u = 0u, v = 0u;
+            double w = 0.0;
+            memcpy(&u, rec, sizeof(uint32_t));
+            memcpy(&v, rec + 4, sizeof(uint32_t));
+            memcpy(&w, rec + 8, sizeof(double));
+            st = cb(u, v, w, ctx);
+            if (st != SRMECH_OK) { srmech_plat_rstream_close(&rs); return st; }
+        }
+        if (n_read < FIEDLER_CHUNK_BYTES) { eof = 1; }
+    }
+    srmech_plat_rstream_close(&rs);
+    return SRMECH_OK;
+}
+
+typedef struct { uint32_t n; double *deg; } fiedler_deg_ctx;
+typedef struct { uint32_t n; const double *t; double *y; } fiedler_y_ctx;
+
+/* Degree-accumulation callback (undirected: both endpoints). */
+static srmech_status_t fiedler_deg_cb(uint32_t u, uint32_t v, double w, void *ctx)
+{
+    fiedler_deg_ctx *c = (fiedler_deg_ctx *)ctx;
+    assert(c != NULL);
+    assert(c->deg != NULL);
+    if (u >= c->n || v >= c->n) { return SRMECH_ERR_BAD_INPUT; }
+    c->deg[u] += w;
+    c->deg[v] += w;
+    return SRMECH_OK;
+}
+
+/* Matvec y += W t accumulation callback (one streamed pass = one matvec). */
+static srmech_status_t fiedler_y_cb(uint32_t u, uint32_t v, double w, void *ctx)
+{
+    fiedler_y_ctx *c = (fiedler_y_ctx *)ctx;
+    assert(c != NULL);
+    assert(c->t != NULL && c->y != NULL);
+    if (u >= c->n || v >= c->n) { return SRMECH_ERR_BAD_INPUT; }
+    c->y[u] += w * c->t[v];
+    c->y[v] += w * c->t[u];
+    return SRMECH_OK;
+}
+
+/* One out-of-core step: u = deflate(B v), the W t matvec streamed from `path`. */
+static srmech_status_t fiedler_step_file(const char *path, uint32_t n, const double *s,
+                                         const double *p, const double *v, double *t,
+                                         double *y, double *u)
+{
+    assert(s != NULL && v != NULL && u != NULL);
+    assert(t != NULL && y != NULL && p != NULL);
+    for (uint32_t i = 0; i < n; i++) {
+        t[i] = s[i] * v[i];
+        y[i] = 0.0;
+    }
+    fiedler_y_ctx ctx = { n, t, y };
+    srmech_status_t st = fiedler_file_scan(path, fiedler_y_cb, &ctx);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        u[i] = v[i] + s[i] * y[i];
+    }
+    fiedler_deflate(n, u, p);
+    return SRMECH_OK;
+}
+
+/* Out-of-core power iteration: stream-step until rescale-zero or sign-stability
+ * (5 stable-sign steps past a 20-iteration warmup). v holds the running vector. */
+static srmech_status_t fiedler_file_iterate(const char *path, uint32_t n,
+    const double *s, const double *p, double *v, double *u, double *t,
+    double *y, double *prev, uint32_t max_iters)
+{
+    assert(s != NULL && p != NULL);
+    assert(v != NULL && prev != NULL);
+    uint32_t stable = 0u;
+    for (uint32_t it = 0; it < max_iters; it++) {
+        srmech_status_t st = fiedler_step_file(path, n, s, p, v, t, y, u);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+        if (fiedler_rescale(n, u, v) == 0) {
+            break;
+        }
+        if (fiedler_update_sign(n, v, prev) && it >= 20u) {
+            stable++;
+            if (stable >= 5u) {
+                break;
+            }
+        } else {
+            stable = 0u;
+        }
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_laplacian_fiedler_sparse_file(uint32_t n, const char *path,
+    uint32_t max_iters, double *out_vec, double *ws, size_t ws_len)
+{
+    assert(out_vec != NULL && ws != NULL);
+    if (out_vec == NULL || ws == NULL || path == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (ws_len < (size_t)8u * n) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    assert(ws_len >= (size_t)8u * n);
+    for (uint32_t i = 0; i < n; i++) {
+        out_vec[i] = 0.0;
+    }
+    if (n < 2u) {
+        return SRMECH_OK;
+    }
+    double *deg = ws;
+    double *s = ws + (size_t)1u * n;
+    double *p = ws + (size_t)2u * n;
+    double *v = ws + (size_t)3u * n;
+    double *u = ws + (size_t)4u * n;
+    double *t = ws + (size_t)5u * n;
+    double *y = ws + (size_t)6u * n;
+    double *prev = ws + (size_t)7u * n;
+    for (uint32_t i = 0; i < n; i++) {
+        deg[i] = 0.0;
+    }
+    fiedler_deg_ctx dctx = { n, deg };
+    srmech_status_t st = fiedler_file_scan(path, fiedler_deg_cb, &dctx);   /* degree pass */
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    if (fiedler_build_sp(n, deg, s, p) <= 0.0) {
+        return SRMECH_OK;                          /* edgeless -> zero vector */
+    }
+    fiedler_init(n, p, v);
+    for (uint32_t i = 0; i < n; i++) {
+        prev[i] = -1.0;
+    }
+    st = fiedler_file_iterate(path, n, s, p, v, u, t, y, prev, max_iters);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        out_vec[i] = v[i];
+    }
     return SRMECH_OK;
 }

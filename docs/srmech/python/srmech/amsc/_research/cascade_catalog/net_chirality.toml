@@ -41,7 +41,7 @@ mixed_types = "Mixed int/float/bool/numpy elements fall back to Python."
 
 [cascade.attestation]
 author = "Steven Kirkland"
-license = "GPL-3.0-or-later"
+license = "MIT"
 parser_version = "srmech-cascade 0.4.5rc5"
 canonical_landings = [
   "MFO §VIII.31.11 §(5d) — net-chirality conserved C-invariant",

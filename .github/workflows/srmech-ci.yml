@@ -154,18 +154,18 @@ jobs:
           python -m twine check --strict dist/*
           echo "pure-wheel sanity checks passed"
 
-      - name: Verify wheel installs + imports (numpy-optional capstone)
+      - name: Verify wheel installs + imports (numpy-ZERO capstone)
         working-directory: docs/srmech/python
         run: |
           set -euo pipefail
-          # Install ONLY the wheel (no extras) — numpy is optional as of v0.7.0,
-          # so a bare install must import the cascade core with numpy absent.
+          # Install ONLY the wheel (no extras) — numpy is GONE (#564), so a bare
+          # install must import + RUN the whole package with numpy absent.
           python -m pip install --quiet dist/*.whl
           cd /tmp
           python -c "
           import importlib.util
           assert importlib.util.find_spec('numpy') is None, \
-              'numpy leaked into the base install — it must be the [scientific] extra'
+              'numpy leaked into the install — numpy is removed entirely (#564)'
           from srmech import __version__
           from srmech.amsc import (
               MPRRecord, Descriptor, get_attested_dataset,
@@ -174,13 +174,114 @@ jobs:
           # the Class-N cascade core must work numpy-free
           from srmech.amsc import rational
           assert rational.best_rational(22, 7, 100) == (22, 7)
-          # the scientific tier must fail with the actionable [scientific] hint
-          try:
-              import srmech.qm  # noqa: F401
-              raise SystemExit('srmech.qm imported without numpy (guard missing)')
-          except ImportError as exc:
-              assert 'srmech[scientific]' in str(exc), exc
-          print(f'srmech {__version__} OK (numpy-optional)')
+          # the srmech.qm SUBPACKAGE is fully numpy-free (#564): every submodule
+          # imports + runs with numpy absent, over the Mat carrier + cascades.
+          import srmech.qm  # noqa: F401  (subpackage import must NOT require numpy)
+          from srmech.qm import spin, bell, single_particle, relativistic, gauge, potentials
+          assert type(spin.pauli_matrices()[0]).__name__ == 'Mat', 'spin not numpy-free'
+          verified, primary, _ = bell.verify_chsh()
+          assert verified and primary == 0.0, (verified, primary)
+          # single_particle (rc117) is numpy-free: a tiny Hermitian Mat eigensolves
+          # to a (n,1) real eigval Mat + complex unitary Mat, no numpy.
+          from srmech.amsc.mat import Mat
+          _ev, _V = single_particle.tise_solve(
+              Mat.from_rows([[2.0, 1j], [-1j, 3.0]], is_complex=True))
+          assert type(_ev).__name__ == 'Mat' and _ev.shape == (2, 1), 'single_particle not numpy-free'
+          # relativistic (rc118) is numpy-free: the Dirac γ-matrices are Mats and
+          # the Clifford residuals {γ^μ,γ^ν}=2η^{μν}I are ~0, no numpy.
+          assert type(relativistic.gamma_matrices()[0]).__name__ == 'Mat', 'relativistic not numpy-free'
+          assert max(relativistic.clifford_residuals()) < 1e-12, 'relativistic clifford residual too large'
+          # gauge (rc119) is numpy-free: SU(2) generators are Mats and the
+          # fundamental Casimir eigenvalue is 3/4, no numpy.
+          _g2 = gauge.su2_generators()
+          assert type(_g2[0]).__name__ == 'Mat', 'gauge not numpy-free'
+          assert abs(gauge.casimir_eigenvalue(_g2) - 0.75) < 1e-12, 'gauge casimir wrong'
+          # potentials (rc121) is numpy-free: hydrogen_radial returns (list, list, Mat) via the native eig.
+          _r, _e, _V = potentials.hydrogen_radial(n_grid=40, r_max=30.0)
+          assert type(_V).__name__ == 'Mat' and not _V.is_complex, 'potentials not numpy-free'
+          assert -0.7 < _e[0] < -0.3, 'potentials hydrogen ground state off'
+          # octonion / so8 / triality (rc122-124) are numpy-free: the octonion
+          # connected component flips together. octonion L-mult is a real Mat;
+          # the 14 g2 derivations are real 8x8 Mats; the order-3 triality tau is
+          # a 28x28 real Mat with tau^3 = I (~0). No numpy on any path.
+          from srmech.qm import octonion, so8, triality
+          assert type(octonion.octonion_left_mult([1.0,0,0,0,0,0,0,0])).__name__ == 'Mat', 'octonion not numpy-free'
+          _g2 = so8.g2_subalgebra()
+          assert len(_g2) == 14 and type(_g2[0]).__name__ == 'Mat', 'so8 not numpy-free'
+          _tau = triality.triality_automorphism()
+          from srmech.amsc.laplacian import mat_matmul, mat_norm
+          _t3 = mat_matmul(mat_matmul(_tau, _tau), _tau)
+          _id = Mat.from_rows([[1.0 if i==j else 0.0 for j in range(28)] for i in range(28)])
+          _d = Mat.from_rows([[_t3[i,j]-_id[i,j] for j in range(28)] for i in range(28)])
+          assert _tau.shape == (28, 28) and mat_norm(_d) < 1e-9, 'triality tau^3 != I'
+          # hdc loop family + hypercomplex_dft (rc125) are numpy-free too.
+          from srmech.amsc import hdc
+          assert type(hdc.loop_bind([1.0,0,0,0,0,0,0,0],[0,1.0,0,0,0,0,0,0])).__name__ == 'list', 'hdc loop not numpy-free'
+          assert hdc.polar_random(8, seed=1).typecode == 'b', 'hdc polar not numpy-free'
+          from srmech.amsc.cascade import quaternion_dft
+          assert len(quaternion_dft([[1.0,0,0,0]])) == 1, 'hypercomplex_dft not numpy-free'
+          # propagators (rc123) is numpy-free: the Feynman propagators are built
+          # over the numpy-free Mat carrier (scalar -> complex, the 4x4 numerators
+          # -> Mat via mat_matmul outer / the relativistic Dirac+metric producers).
+          from srmech.qm import propagators
+          _G = propagators.feynman_scalar_propagator(k_squared=10.0, m=1.0)
+          assert abs(_G - 1j/9.0) < 1e-12, 'propagators scalar pole wrong'
+          _SF = propagators.feynman_fermion_propagator([3.0,1.0,0.0,0.0], m=1.0)
+          assert type(_SF).__name__ == 'Mat' and _SF.shape == (4, 4), 'propagators not numpy-free'
+          # pseudo_hermitian (rc124) is numpy-free: η = (V V†)⁻¹ built from the
+          # general non-Hermitian eigenvectors of a real-spectrum O (null vectors
+          # of O − λI off mat_eigvals) makes O η-pseudo-Hermitian (O† η = η O).
+          # This is the LAST qm carrier — srmech.qm is now fully numpy-free.
+          from srmech.qm import pseudo_hermitian
+          _O = Mat.from_rows([[1.0,0.5,0.0],[0.0,2.0,0.5],[0.0,0.0,3.0]], is_complex=True)
+          _eta = pseudo_hermitian.construct_eta_from_eigendecomposition(_O)
+          assert type(_eta).__name__ == 'Mat' and pseudo_hermitian.is_pseudo_hermitian(_O, _eta, atol=1e-8), 'pseudo_hermitian not numpy-free'
+          # ica_jade (rc126) is numpy-free — the LAST signal_processing carrier,
+          # so the whole subpackage now imports + runs numpy-absent. JADE
+          # whitening routes the covariance eig through mat_hermitian_eigendecompose
+          # and returns the sources / unmixing matrix as Mats.
+          from srmech.signal_processing.closed_form_ops import ica_jade
+          _S, _W = ica_jade.op([[1.0,0.5],[0.5,1.0],[-1.0,0.2],[0.3,-0.7]], n_components=2, max_iter=3)
+          assert type(_S).__name__ == 'Mat' and type(_W).__name__ == 'Mat' and _W.shape == (2, 2), 'ica_jade not numpy-free'
+          # #564: numpy is GONE — there is no [scientific] tier and no numpy export
+          # boundary. The_one generates the 14 substrate as a real Mat (no to_numpy).
+          from srmech.amsc.cascade.one import the_one
+          _G = the_one(1, 0, 1).to_matrix()
+          assert type(_G).__name__ == 'Mat' and _G.shape == (14, 14), 'the_one not numpy-free'
+          # COMPREHENSIVE registry walk (#564 / rc127): prove the SHIPPED WHEEL
+          # exposes EVERY registered tool's module + EVERY shipped catalog class
+          # with numpy absent — not just the curated subset above. A tool whose
+          # module was omitted from the wheel (packaging gap), or a class that
+          # fails to describe, fails HERE on the real install rather than silently.
+          import importlib
+          from srmech.amsc import tool_schema as _ts
+          from srmech.introspect import describe as _describe
+          from srmech import dsl as _dsl
+          _tools = _ts.tool_schema_view()['tools']
+          assert len(_tools) == _describe()['tools']['total'], 'tool registry / describe() drift'
+          _unresolved = []
+          for _t in _tools:
+              _parts = _t['name'].split('.'); _mod = None; _idx = 0
+              for _i in range(len(_parts), 0, -1):
+                  try:
+                      _mod = importlib.import_module('.'.join(_parts[:_i])); _idx = _i; break
+                  except ImportError:
+                      continue
+              if _mod is None:
+                  _unresolved.append(_t['name']); continue
+              _obj = _mod
+              for _p in _parts[_idx:]:
+                  if not hasattr(_obj, _p):
+                      _unresolved.append(_t['name']); break
+                  _obj = getattr(_obj, _p)
+          assert not _unresolved, f'{len(_unresolved)} registered tools unresolved on the installed wheel: {_unresolved[:10]}'
+          _cls = list(_dsl.list_classes())
+          assert _cls == _describe()['classes']['names'], 'class registry / describe() drift'
+          for _nm in _cls:
+              _info = _dsl.describe_class(_nm)
+              assert _info['name'] == _nm and (_info['fields'] or _info['methods']), f'shipped class {_nm} empty/broken'
+          print(f'registry walk OK: {len(_tools)} tools + {len(_cls)} catalog classes all reachable numpy-free')
+          print(f'srmech {__version__} OK (numpy-FREE: whole package imports + runs with numpy absent)')
           "
 
   pedantic-build:

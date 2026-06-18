@@ -662,6 +662,15 @@ def describe() -> Dict[str, Any]:
         else:
             handle_pending.append(entry.name)
 
+    # User-declared [class] classes (rc41) — the package recognises its own
+    # user-extensible class surface (the Class-H self-recognition view). Guarded
+    # local import (avoids any srmech.dsl import-cycle at introspect load).
+    try:
+        from ..dsl import list_classes as _list_classes
+        _class_names = _list_classes()
+    except Exception:  # pragma: no cover — class catalog optional / absent
+        _class_names = []
+
     return {
         "srmech_version": schema.srmech_version,
         "tool_schema_version": TOOL_SCHEMA_VERSION,
@@ -678,6 +687,9 @@ def describe() -> Dict[str, Any]:
         },
         "handle_pending": sorted(handle_pending),
         "categories": sorted(by_category.keys()),
+        # User-declared [class] classes (#962 Part 2) — name list; full
+        # descriptors via srmech.dsl.describe_class / `srmech class describe`.
+        "classes": {"total": len(_class_names), "names": sorted(_class_names)},
     }
 
 

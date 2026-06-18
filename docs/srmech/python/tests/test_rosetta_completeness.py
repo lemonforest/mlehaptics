@@ -42,9 +42,11 @@ from pathlib import Path
 
 import pytest
 
-# The qm / signal_processing surfaces need numpy to import. When numpy is absent
-# (a deliberately-minimal install) this completeness audit simply doesn't apply.
-pytest.importorskip("numpy")
+# #564 (numpy out the door): the qm / signal_processing surfaces are numpy-free
+# now, and this audit walks them with stdlib importlib / inspect / pkgutil only
+# (a submodule that still fails to import is simply skipped by ``_iter_submodules``
+# — it contributes no live ops). So the completeness ratchet runs numpy-ABSENT
+# (no ``importorskip``; the test must PASS, not skip, with numpy uninstalled).
 
 _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 
@@ -53,7 +55,10 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 
 # ----- the down-only debt ceilings (rc7 baseline; issue #928) -----------
 # LOWER these as ops gain C twins. NEVER raise them.
-CEIL_PYTHON_ONLY_IRREDUCIBLE = 108
+# rc67: symmetric_eigendecompose stopped being Python-only-irreducible — it now
+# delegates to the c_dispatched hermitian_eigendecompose + phase-canon, so it
+# moved to composition_of_c. python_only_irreducible 108 -> 107.
+CEIL_PYTHON_ONLY_IRREDUCIBLE = 107
 # rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
 # rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.
@@ -65,10 +70,19 @@ CEIL_PYTHON_ONLY_IRREDUCIBLE = 108
 # all int8, bit-exact -> 6.
 # rc13: lmmse.op routes its solve through the dense_solve cascade + its matvec
 # through dense_matvec_complex (numpy is carriers-only there now) -> composes two
-# c_dispatched ops -> composition_of_c -> 5. The remaining 5 are the Klein-4
-# family, gated on W5 (see also test_numpy_math_ratchet.py — the source-level
-# guard that keeps numpy a carrier, not a math engine).
-CEIL_C_EXISTS_UNBOUND = 5
+# c_dispatched ops -> composition_of_c -> 5. The remaining 5 were the Klein-4
+# family (see also test_numpy_math_ratchet.py — the source-level guard that keeps
+# numpy a carrier, not a math engine).
+# rc170 (§53 / F818): klein4_bind/_bundle/_similarity dispatch to srmech_klein4_*
+# (the C twins always shipped + were ctypes-bound; hdc.py just never called them)
+# -> c_dispatched; klein4_unbind == klein4_bind(c, a) so it composes the now-
+# dispatched bind -> composition_of_c. 5 -> 1 (only klein4_triality_cycle).
+# rc171 (§53 / F818): klein4_triality_cycle dispatches to srmech_klein4_triality_cycle
+# (same forward/inverse 3-cycle tables -> bit-identical) -> c_dispatched. 1 -> 0:
+# the c_exists_unbound DEBT IS NOW EMPTY — every public op with a C twin dispatches
+# to it. Keep this at 0; a regression means a Python-only op shipped with an
+# unbound C twin — wire it, don't raise the ceiling.
+CEIL_C_EXISTS_UNBOUND = 0
 
 _DEBT_BUCKETS = ("python_only_irreducible", "c_exists_unbound")
 _ALL_BUCKETS = (

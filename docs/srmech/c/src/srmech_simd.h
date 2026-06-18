@@ -24,7 +24,7 @@
  * never part of the public API or the ABI surface; downstream ctypes callers
  * never see it.
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 #ifndef SRMECH_SIMD_H
 #define SRMECH_SIMD_H

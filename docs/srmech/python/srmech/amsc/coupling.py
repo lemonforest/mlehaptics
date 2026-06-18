@@ -15,8 +15,10 @@ ones with C parity, and a composition sequences them in Python.
 
 Per UPSTREAM_NOTES §1.2 (RBS-LM research subtree) — surfaced by
 R-RBS-LM-33 weak-coupling-truncate and R-RBS-LM-49 Method C, both of which
-need ``coupling_sq = (Σ_sources (2·bits − 1))²`` and previously inlined it
-as bare numpy with a docstring note that the operation IS Class K + L.
+need ``coupling_sq = (Σ_sources (2·bits − 1))²``.
+
+numpy-FREE (#564): the score is integer arithmetic over plain Python ``int``
+lists — the bipolar sum and its square need no array engine.
 
 Canonical SSoT: the bipolar / spatter-code convention — Kanerva (2009)
 *Hyperdimensional Computing*, Cognitive Computation 1, 139.
@@ -24,61 +26,64 @@ Canonical SSoT: the bipolar / spatter-code convention — Kanerva (2009)
 
 from __future__ import annotations
 
-from typing import Sequence
+from typing import List, Sequence
 
-# numpy is the [scientific] extra (v0.7.0). This module mixes a numpy-free
-# path with ndarray-typed ops; the lazy proxy keeps the module importable
-# on a plain install and only the ndarray ops raise the [scientific] hint.
-from srmech._scientific import lazy_numpy as _lazy_numpy
-np = _lazy_numpy("srmech.amsc.coupling")
+from .vec import Vec  # rc129: the numpy-free 1-D carrier (restores .shape)
 
 
-def signed_sum_squared(sources: Sequence) -> np.ndarray:
+def signed_sum_squared(sources: Sequence) -> "Vec":
     """Squared signed-sum coupling score across a stack of bit-arrays.
 
     Args:
-        sources: A non-empty sequence of equal-length 1-D arrays, each
+        sources: A non-empty sequence of equal-length 1-D sequences, each
             holding bits in ``{0, 1}``.
 
     Returns:
-        ``int64`` array (same length as each source): per position,
+        A real :class:`~srmech.amsc.vec.Vec` (same length as each source;
+        ``.shape == (n,)`` + scalar ``v[i]``) — per position,
         ``(Σ_sources (2·bit − 1))²`` — the squared signed-sum, i.e. the
         Class-L magnitude-square of the Class-K bipolar-projected sum.
         Range ``[0, n_sources²]``; ``n_sources²`` = full agreement,
-        ``0`` = balanced (equal +1 / −1 across sources).
+        ``0`` = balanced (equal +1 / −1 across sources). rc129: the carrier is
+        a ``Vec``, NOT a bare ``list[int]`` — the small non-negative integer
+        scores are exact as float64 doubles (well within the 2⁵³ exact-integer
+        range; the buffer carries them losslessly).
 
     Raises:
-        ValueError: empty ``sources``, mismatched lengths, non-1-D input,
-            or values outside ``{0, 1}``.
+        ValueError: empty ``sources``, mismatched lengths, or values
+            outside ``{0, 1}``.
     """
     if len(sources) == 0:
         raise ValueError(
             "coupling.signed_sum_squared: requires at least one source"
         )
-    arrs = [np.asarray(s, dtype=np.int64) for s in sources]
-    n = arrs[0].size
+    arrs = [[int(x) for x in s] for s in sources]
+    n = len(arrs[0])
     if n == 0:
         raise ValueError("coupling.signed_sum_squared: sources must be non-empty")
     for i, a in enumerate(arrs):
-        if a.ndim != 1:
+        if len(a) != n:
             raise ValueError(
-                f"coupling.signed_sum_squared: source {i} must be 1-D "
-                f"(got ndim {a.ndim})"
-            )
-        if a.size != n:
-            raise ValueError(
-                f"coupling.signed_sum_squared: source {i} length {a.size} "
+                f"coupling.signed_sum_squared: source {i} length {len(a)} "
                 f"!= {n}"
             )
-        if not bool(np.isin(a, (0, 1)).all()):
-            raise ValueError(
-                f"coupling.signed_sum_squared: source {i} must hold bits "
-                f"in {{0, 1}}"
-            )
-    # Class K — bipolar sign-projection {0,1} -> {-1,+1}; sum across sources.
-    signed_sum = np.sum(np.stack([2 * a - 1 for a in arrs]), axis=0)
-    # Class L — signed-magnitude-squared (no abs(); the square is sign-agnostic).
-    return (signed_sum * signed_sum).astype(np.int64)
+        for v in a:
+            if v not in (0, 1):
+                raise ValueError(
+                    f"coupling.signed_sum_squared: source {i} must hold bits "
+                    f"in {{0, 1}}"
+                )
+    out: List[int] = []
+    for pos in range(n):
+        # Class K — bipolar sign-projection {0,1} -> {-1,+1}; sum across sources.
+        signed_sum = 0
+        for a in arrs:
+            signed_sum += 2 * a[pos] - 1
+        # Class L — signed-magnitude-squared (no abs(); the square is sign-agnostic).
+        out.append(signed_sum * signed_sum)
+    # rc129: return the numpy-free 1-D Vec carrier (the small ints are exact as
+    # doubles). Iterating it yields scalars; v.tolist() recovers the int values.
+    return Vec.from_sequence(out, is_complex=False)
 
 
 __all__ = ["signed_sum_squared"]

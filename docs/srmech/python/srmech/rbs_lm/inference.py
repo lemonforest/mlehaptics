@@ -22,22 +22,28 @@ Per [[user_stance_kepler_shape_universal]]: inference IS a named A-N cascade
 """
 from __future__ import annotations
 
+import random
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
-from typing import Mapping, Sequence
+from typing import List, Mapping, Sequence
 
-import numpy as np
-
-from srmech.amsc import hdc
+from srmech.amsc import hdc, rational
+from srmech.amsc.hv import HV
 
 from . import substrate as cs
 
 
-def _softmax(x: np.ndarray, t: float) -> np.ndarray:
-    z = x / t
-    z = z - z.max()
-    e = np.exp(z)
-    return e / e.sum()
+def _softmax(x, t: float) -> List[float]:
+    """Temperature softmax over a small candidate list — numpy-free. The
+    per-element ``exp`` is the Class-N ``rational.exp`` cascade (the same
+    substrate-native transcendental the DSP carrier-flips use; NOT the
+    numpy-carrier ``elementwise_transcendental``), so the op runs numpy-absent.
+    The ``z - max(z)`` shift is the standard overflow-safe form."""
+    z = [xi / t for xi in x]
+    m = max(z)
+    e = [rational.exp(zi - m) for zi in z]
+    s = sum(e)
+    return [ei / s for ei in e]
 
 
 @dataclass
@@ -62,11 +68,11 @@ class RBSLMInferenceSubstrate:
 
     # learned state (populated by .learn())
     vocab: list[str] = field(default_factory=list)
-    vocab_vecs: np.ndarray | None = None
+    vocab_vecs: "list[HV] | None" = None
     vocab_idx: dict[str, int] = field(default_factory=dict)
     next_after: dict[str, list[str]] = field(default_factory=dict)
     bigram_counts: dict[str, Counter] = field(default_factory=dict)
-    M: np.ndarray | None = None
+    M: "HV | None" = None
     n_learned: int = 0
 
     # ----------------------------------------------------------------- build
@@ -134,7 +140,7 @@ class RBSLMInferenceSubstrate:
         stream = list(token_stream)
         self.vocab = sorted(set(stream))
         self.vocab_idx = {w: i for i, w in enumerate(self.vocab)}
-        self.vocab_vecs = np.stack([self.ctx.enc(w) for w in self.vocab])
+        self.vocab_vecs = [self.ctx.enc(w) for w in self.vocab]
 
         self.bigram_counts = defaultdict(Counter)
         for a, b in zip(stream, stream[1:]):
@@ -143,9 +149,11 @@ class RBSLMInferenceSubstrate:
 
         k = self.operating_k
         pairs_all = [(tuple(stream[i - k:i]), stream[i]) for i in range(k, len(stream))]
-        rng = np.random.default_rng(self.learn_seed)
+        # numpy-free deterministic memory subsample (stdlib RNG; the framework-
+        # native incidental source — re-derivable in learn_seed, no numpy).
+        rng = random.Random(self.learn_seed)
         n = min(self.memory_capacity, len(pairs_all))
-        idx = rng.choice(len(pairs_all), size=n, replace=False)
+        idx = rng.sample(range(len(pairs_all)), n)
         pairs = [pairs_all[i] for i in idx]
         assoc = []
         for win, nxt in pairs:
@@ -167,12 +175,12 @@ class RBSLMInferenceSubstrate:
         last = context[-1]
         candidates = self.next_after.get(last, [])
         if not candidates:
-            return [], np.array([])
+            return [], []
         if len(candidates) == 1:
-            return candidates, np.array([1.0])
+            return candidates, [1.0]
         cidx = [self.vocab_idx[c] for c in candidates]
         probe = hdc.klein4_bind(self.M, self.ctx.encode_context(list(context[-k:])))
-        sims = cs.sim_k4_batch(probe, self.vocab_vecs[cidx])
+        sims = cs.sim_k4_batch(probe, [self.vocab_vecs[i] for i in cidx])
         return candidates, _softmax(sims, T)
 
     # ------------------------------------------------------------- infer
@@ -181,13 +189,16 @@ class RBSLMInferenceSubstrate:
         """Autoregressive generation (Step 4): the substrate conditioned on its own
         running output. Returns the prompt + generated tokens. Deterministic in seed."""
         max_tokens = self.default_max_tokens if max_tokens is None else max_tokens
-        gr = np.random.default_rng(seed)
+        gr = random.Random(seed)  # numpy-free deterministic sampler (in seed)
         out = list(prompt)
         for _ in range(max_tokens):
             cands, p = self.next_token_distribution(out, temperature=temperature)
             if len(cands) == 0:
                 break
-            nxt = cands[int(gr.choice(len(cands), p=p))] if len(cands) > 1 else cands[0]
+            if len(cands) > 1:
+                nxt = cands[gr.choices(range(len(cands)), weights=p, k=1)[0]]
+            else:
+                nxt = cands[0]
             out.append(nxt)
         return out
 

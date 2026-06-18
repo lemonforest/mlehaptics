@@ -9,12 +9,15 @@ kernel-tier (srmech.amsc.hdc) and deliberately NOT in the srmech.dsl cascade
 catalog, so this instance is verified HERE in Python against the real ops
 (rather than via run_toml_chain). This test IS the worked instance's executable
 attestation — the TOML's documented claims are checked against the ops.
+
+#564 (numpy out the door): the random Klein-4 vectors are built with the stdlib
+``random.Random`` (ints in {0,1,2,3}) and every op returns an ``HV`` compared
+via ``HV.__eq__``. No numpy is imported, so this worked-instance attestation
+runs with numpy absent (the substrate-native discipline).
 """
+import random
 import sys
 from pathlib import Path
-
-import numpy as np
-import pytest
 
 import srmech
 from srmech.amsc import hdc
@@ -47,7 +50,8 @@ def _T_inv(v):
 
 
 def _rand(seed, D=512):
-    return np.random.default_rng(seed).integers(0, 4, size=D, dtype=np.uint8)
+    r = random.Random(seed)
+    return [r.randrange(4) for _ in range(D)]
 
 
 # --------------------------------------------------------------------------

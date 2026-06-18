@@ -42,7 +42,7 @@
  *   - Rule 6 (smallest scope): variables declared at use site.
  *   - Rule 7 (check return values): all srmech_* returns checked.
  *
- * License: GPL-3.0-or-later (parent project mlehaptics).
+ * License: MIT (parent project mlehaptics).
  */
 
 #include "srmech.h"

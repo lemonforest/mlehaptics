@@ -45,9 +45,7 @@ Canonical SSoT
 
 from __future__ import annotations
 
-from typing import Optional
-
-import numpy as np
+from srmech.amsc.cascade import spectral_cascades as _sc
 
 OPERATION_NAME = "wiener"
 CLASS_COMPOSITION = ("L", "N", "M")
@@ -66,7 +64,7 @@ def op(
     signal,
     noise_psd,
     *,
-    signal_psd: Optional[np.ndarray] = None,
+    signal_psd=None,
     D: int = 8192,
     substrate: str = "cyclic",
 ):
@@ -101,39 +99,40 @@ def op(
 
     Returns
     -------
-    numpy.ndarray
-        Real Wiener-filtered estimate of the clean signal. D1 algebra-
+    list
+        Real Wiener-filtered estimate of the clean signal (``list`` of
+        ``float``, length ``len(signal)``). Numpy-free (#564), D1 algebra-
         identical to
         :func:`srmech.signal_processing.closed_form_ops.wiener.op`.
     """
-    sig = np.asarray(signal, dtype=np.float64)
-    n_psd = np.asarray(noise_psd, dtype=np.float64)
-    if sig.ndim != 1:
-        raise ValueError(f"wiener expects 1-D signal; got {sig.shape}")
-    if n_psd.shape != sig.shape:
-        raise ValueError(
-            f"noise_psd shape {n_psd.shape} != signal shape {sig.shape}"
-        )
+    rows = list(signal)
+    if rows and hasattr(rows[0], "__len__"):
+        raise ValueError(f"wiener expects 1-D signal; got {len(rows)} rows")
+    sig = [float(v) for v in rows]
+    n_psd = [float(v) for v in noise_psd]
+    n = len(sig)
+    if len(n_psd) != n:
+        raise ValueError(f"noise_psd length {len(n_psd)} != signal length {n}")
     # Class L: transform to cyclic-graph Laplacian eigenbasis (== FFT basis).
-    X = np.fft.fft(sig)
-    obs_psd = X.real ** 2 + X.imag ** 2  # |z|² = real²+imag² (no abs())
+    # _sc.fft already returns List[complex] numpy-free.
+    X = list(_sc.fft(sig))
+    obs_psd = [x.real * x.real + x.imag * x.imag for x in X]  # |z|²=real²+imag² (no abs())
     if signal_psd is None:
-        s_psd = np.maximum(obs_psd - n_psd, 1e-30)
+        # Class-L floor (np.maximum with the eps scalar) per bin.
+        s_psd = [max(obs_psd[k] - n_psd[k], 1e-30) for k in range(n)]
     else:
-        s_psd = np.asarray(signal_psd, dtype=np.float64)
-        if s_psd.shape != sig.shape:
-            raise ValueError(
-                f"signal_psd shape {s_psd.shape} != signal shape {sig.shape}"
-            )
+        s_psd = [float(v) for v in signal_psd]
+        if len(s_psd) != n:
+            raise ValueError(f"signal_psd length {len(s_psd)} != signal length {n}")
     # Class N rational gain per eigenmode:
     # H(lambda_k) = S_xx(k) / (S_xx(k) + S_nn(k)).
     # This IS the Class N rational MMSE algebra per Kay 1993 §11.
-    H = s_psd / np.maximum(s_psd + n_psd, 1e-30)
+    H = [s_psd[k] / max(s_psd[k] + n_psd[k], 1e-30) for k in range(n)]
     # Class M bind on the spectrum (elementwise multiplication is the
     # cyclic-substrate Class M bind dual via convolution theorem).
-    filtered_spectrum = H * X
     # Inverse Class L: map back from eigenbasis to sample domain.
-    return np.real(np.fft.ifft(filtered_spectrum))
+    filtered = _sc.ifft([H[k] * X[k] for k in range(n)])
+    return [v.real for v in filtered]
 
 
 def _register() -> None:

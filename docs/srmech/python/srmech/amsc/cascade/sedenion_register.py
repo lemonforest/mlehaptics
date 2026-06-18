@@ -46,10 +46,13 @@ Two distinct boundaries, kept distinct (F465): the register's **associative**
 capacity is ``D``-bounded (HDC crosstalk), separate from the **reversible** working
 set (≤7, the coupler). Real-coefficient EC stays out (the §30 GF(2)-only fence).
 
-The minter + HDC storage are the **scientific tier** (numpy on call): the module
-imports numpy-free; :meth:`write` / :meth:`read` / :meth:`couple_working` import
-numpy lazily. :meth:`navigate` / :meth:`is_navigable` / :meth:`carry` /
-:meth:`correct` are numpy-free.
+numpy-FREE (#564): the WHOLE instrument is numpy-free. The minter + HDC storage
+(:meth:`write` / :meth:`read` / :meth:`materialize`) route through
+:func:`srmech.signal_processing.mint_vector` + the Class-M
+:func:`srmech.amsc.hdc.bind` / ``bundle`` / ``similarity`` cascades; the ≤7
+working word (:meth:`couple_working`) routes through
+:func:`hypercomplex_couple`; :meth:`navigate` / :meth:`is_navigable` /
+:meth:`carry` / :meth:`correct` are pure address-algebra. Nothing imports numpy.
 
 SSoT / provenance: UPSTREAM_NOTES §31 (RBS-LM, PR #687); F465
 (`R-RBS-LM-SEDENION_addressable_hdc_instrument`) + F468
@@ -82,13 +85,14 @@ WORKING_WORD_CAP = 7
 
 
 def _lazy_hdc():
-    """Import the Class-M HDC byte ops on demand (storage is the scientific tier)."""
+    """Import the Class-M HDC byte ops on demand (numpy-free; defers the import
+    so the module loads without touching signal_processing)."""
     from ..hdc import bind, bundle, similarity
     return bind, bundle, similarity
 
 
 def _lazy_mint():
-    """Import the RBS-HDC minter on demand (numpy-backed scientific tier)."""
+    """Import the RBS-HDC minter on demand (numpy-free cascade; deferred import)."""
     from ...signal_processing import mint_vector
     return mint_vector
 
@@ -111,7 +115,7 @@ class SedenionRegister:
         self._addr_cache: Dict[int, bytes] = {}
         self._slots: Dict[int, Tuple[str, int]] = {}   # slot -> (key, sign∈{+1,-1})
 
-    # ── address + codebook minting (scientific tier) ──────────────────────
+    # ── address + codebook minting (numpy-free cascade; deferred import) ──
     def _mint(self, name: str) -> bytes:
         if self._minter is None:
             self._minter = _lazy_mint()
@@ -266,3 +270,147 @@ def sedenion_register(D: int = DEFAULT_D,
     homomorphism) + :meth:`SedenionRegister.is_navigable` (the reversibility gate).
     """
     return SedenionRegister(D=D, codebook=codebook)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Flat cascade-op adapters — the make_class two-layer binding surface for
+# ``sedenion_register.toml`` (the ``[class] SedenionRegister``; #564 /
+# [[feedback_prefer_config_driven_toml_classes]]).
+#
+# The declarative class state is ``D`` (int) / ``codebook`` (dict) / ``slots``
+# (dict) — the private ``_minter`` / ``_addr_cache`` caches are DROPPED (minting
+# is deterministic from ``(name, D)``, so the declarative form recomputes; the
+# cache was a perf-only memo). Each adapter rehydrates a transient
+# :class:`SedenionRegister` from those fields and calls the existing method (no
+# logic duplication), so the TOML class is byte-identical to the Python class.
+# The class TOML routes: ``write`` -> ``mutates=["slots","codebook"]``;
+# ``read`` -> a 2-stage **chain** (``sed_read_unbind`` -> ``sed_clean``: the
+# unbound "noisy" vector is the visible intermediate, cleaned against the
+# codebook); ``navigate`` -> ``returns="self"`` (a new register); the rest a
+# single flat op. Reachable ONLY via the make_class class surface (structured
+# ``slots``/``codebook`` args have no MCP coercer) — exempt in the tool-schema
+# coverage gate exactly like the ``one.*`` accessors.
+# ──────────────────────────────────────────────────────────────────────
+
+def _rehydrate(D: int, codebook, slots) -> SedenionRegister:
+    """Build a transient SedenionRegister from the declarative fields."""
+    r = SedenionRegister(D=int(D), codebook=dict(codebook or {}))
+    r._slots = {int(k): (str(v[0]), int(v[1]))
+                for k, v in dict(slots or {}).items()}
+    return r
+
+
+def sed_write(slot, key, slots, codebook, D, *, sign: int = 1):
+    """``write`` (mutates): store ``key`` at sedenion slot ``e{slot}`` with a
+    Class-C ``sign``. Returns ``(None, {"slots": …, "codebook": …})`` — minting
+    the value vec grows the codebook, the slot-map records the assignment."""
+    r = _rehydrate(D, codebook, slots)
+    r.write(slot, key, sign=sign)
+    return (None, {"slots": dict(r._slots), "codebook": dict(r.codebook)})
+
+
+def sed_materialize(slots, codebook, D):
+    """``materialize``: the associative superposition bytes (raises if empty)."""
+    return _rehydrate(D, codebook, slots).materialize()
+
+
+def sed_read_unbind(slot, slots, codebook, D):
+    """``read`` CHAIN stage 1: unbind slot ``e{slot}`` from the bundle → the
+    noisy vector (``None`` if the register is empty — the read short-circuit)."""
+    r = _rehydrate(D, codebook, slots)
+    r._check_slot(slot)
+    if not r.codebook or not r._slots:
+        return None
+    bind, _, _ = _lazy_hdc()
+    return bind(r._addr(slot), r.materialize())
+
+
+def sed_clean(noisy, codebook):
+    """``read`` CHAIN stage 2: nearest-codebook clean → ``(key, sign)``.
+    ``(None, +1)`` if ``noisy`` is absent (empty register). Class-K magnitude via
+    an explicit sign-branch (never ``abs()``); the winning polarity is the
+    Class-C ``sign`` carried separately."""
+    if noisy is None:
+        return (None, 1)
+    _, _, similarity = _lazy_hdc()
+    best_key, best_sign, best_mag = None, 1, -1.0
+    for key, vec in dict(codebook).items():
+        if key == "__pad__":
+            continue
+        s_pos = similarity(noisy, vec)
+        s_neg = similarity(noisy, chiral_flip(vec))
+        mag_pos = s_pos if s_pos >= 0.0 else -s_pos
+        mag_neg = s_neg if s_neg >= 0.0 else -s_neg
+        if mag_pos >= best_mag:
+            best_key, best_sign, best_mag = key, 1, mag_pos
+        if mag_neg > best_mag:
+            best_key, best_sign, best_mag = key, -1, mag_neg
+    return (best_key, best_sign)
+
+
+def sed_slots(slots):
+    """``slots``: a copy of the ``slot → (key, sign)`` assignment."""
+    return {int(k): (str(v[0]), int(v[1]))
+            for k, v in dict(slots or {}).items()}
+
+
+def sed_couple_working(vals):
+    """``couple_working``: bind ≤7 values into one octonion working word."""
+    return SedenionRegister().couple_working(vals)
+
+
+def sed_uncouple_working(octonion):
+    """``uncouple_working``: recover the ≤7 streams from the working word."""
+    return SedenionRegister().uncouple_working(octonion)
+
+
+def sed_carry(overflow_bits, *, n: int = 3):
+    """``carry``: Hamming(2ⁿ−1)-encode overflow bits into the EC block."""
+    return SedenionRegister().carry(overflow_bits, n=n)
+
+
+def sed_correct(codeword):
+    """``correct``: locate + correct a single-bit error in an EC codeword."""
+    return SedenionRegister().correct(codeword)
+
+
+def sed_navmap(j):
+    """``navmap``: the signed pointer-advance permutation for ×e_j."""
+    return SedenionRegister().navmap(j)
+
+
+def sed_navigate(j, D, codebook, slots):
+    """``navigate`` (returns="self"): walk the hyper-loop — right-multiply every
+    slot name by ``e_j`` → a NEW register's ``{D, codebook, slots}`` state-dict
+    (shares the codebook; composes the Class-C signs)."""
+    out = _rehydrate(D, codebook, slots).navigate(j)
+    return {"D": out.D, "codebook": dict(out.codebook), "slots": dict(out._slots)}
+
+
+def sed_is_navigable(direction):
+    """``is_navigable``: True iff navigation along ``direction`` is reversible."""
+    return SedenionRegister().is_navigable(direction)
+
+
+__all__ = [
+    "NUM_SLOTS",
+    "OCT_BLOCK",
+    "EC_BLOCK",
+    "DEFAULT_D",
+    "WORKING_WORD_CAP",
+    "SedenionRegister",
+    "sedenion_register",
+    # flat cascade-op adapters — the sedenion_register.toml binding surface
+    "sed_write",
+    "sed_materialize",
+    "sed_read_unbind",
+    "sed_clean",
+    "sed_slots",
+    "sed_couple_working",
+    "sed_uncouple_working",
+    "sed_carry",
+    "sed_correct",
+    "sed_navmap",
+    "sed_navigate",
+    "sed_is_navigable",
+]

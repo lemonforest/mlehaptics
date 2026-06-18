@@ -17,54 +17,24 @@ beyond a single-file read.
 **srmech** is short for **Stored-Relationship Mechanism**. It is:
 
 - A Python research package, published as **`srmech`** on PyPI.
-  Last graduated release: **`v0.5.0`** (production graduation of
-  the rc9–rc22 voxel arc — srmech.bus IPC bus, DSL operator-chain
-  runner, MCP / agent adapters, profile-plugin loader, the
-  𝔰𝔬(8) / g₂ embedding + triality read-out). The **current dev
-  head is `v0.6.0rc10`** (on TestPyPI, graduating to a clean
-  `v0.6.0`) — the cascade.atoms / cascade.compose two-tier
-  lean-ISA arc. Earlier `v0.4.0` (full 14-class C-parity primitive
-  vocabulary + canonical QM/QFT/SM operations layer), `v0.2.0`
-  (native-C-accelerated AMSC build-out) and `v0.1.0` (pure-Python
-  AMSC) remain in PyPI history.
-- **Version-narrative currency note (updated 2026-06-06):** the latest
-  clean (non-rc) cut is **`srmech==0.7.4`, live on production PyPI**
-  (numpy OPTIONAL; native ABI 3; clean-verified in a venv outside the source
-  tree — `native_status().native_version=='0.7.4'`, `has_native`/`dispatching`
-  True). The **0.7.4** cut graduates the rc1/rc2 arc that drained the PR #687
-  upstream queue: **`srmech.amsc.cascade.sedenion_register.SedenionRegister`**
-  (§31 — the sedenion box as an addressable instrument: 16 named slots,
-  octonion working block `e0..e7` = the ≤7 reversible coupler word, `e8..e15`
-  = the Hamming carry block; `write`/`read`/`couple_working`/`uncouple_working`/
-  `carry`/`correct` + the genuinely-new **`navigate`** address↔Cayley–Dickson
-  homomorphism + **`is_navigable`** reversibility gate; F465/F468) plus three
-  candidate-additions — **`cascade.signed_sum_squared`** (§1.2, Class K∘L
-  coupling-score, no `abs()`), **`cascade.top_k_by_score`** (§1.3, Class E∘K
-  selection), **`hdc.bundle_with_ties`** (rbs_nn Note 1, Class-K bundle-tie).
-  All compositions over the 14-class vocabulary — **no new primitive class;
-  ABI stays 3**; `describe()` 248→252. The prior **0.7.3** cut added the exact
-  (Fraction) **Cayley–Dickson** algebra `srmech.amsc.cascade.cayley_dickson`
-  (PR #917 — `cd_mult`/`cd_conjugate`/`cd_norm_sq`/`cd_basis_product`,
-  `is_division_algebra_dim`, `left_mult_is_invertible`/`left_mult_kernel`,
-  `sedenion_zero_divisor_witness`; the **𝕆→𝕊 reversibility horizon** as a
-  callable instrument — F460, verified 20/20; the MFO reading at notebook
-  §VIII.31.16 / PR #918). The prior **0.7.2** cut graduated the rc1/rc2
-  hypercomplex arc: **`cascade.hypercomplex_couple`** (the bidirectional
-  `(σ,θ,μ)` coupler, GH #908 / F448 — bind ≤7 streams → octonion, reversible
-  to ~1e-16) and the **`cascade.hamming_encode`/`hamming_syndrome`/
-  `hamming_decode_correct`** 2ⁿ−1 GF(2) block-code family (UPSTREAM_NOTES
-  §30 / F450 — the front-loader's CARRY/EC half, XOR-only lean-ALU). (0.7.1
-  / 0.7.2 remain in PyPI history.) For current work install from production
-  PyPI (`pip install
-  srmech`, or `srmech[scientific]` for the numpy-backed `qm`/QDFT/coupler
-  surface). **API note:** the public
-  native-status entry point is **`srmech.native_status()`** (a dict:
-  `has_native`/`dispatching`/`abi_version`/`native_version`/`load_error`)
-  — the top-level `srmech.HAS_NATIVE` boolean was **removed** in 0.7.0.
-  The *internal* `srmech.amsc._native.HAS_NATIVE` attribute still
-  exists (the dispatch shim references it), so the architecture notes
-  below that mention `_native.HAS_NATIVE` remain accurate. See
-  `docs/srmech/rbs_lm_research/UPSTREAM_NOTES.md` §27/§28.
+  Last graduated release: **`v0.7.4`** (production PyPI). The
+  **current dev head is `v0.7.5rc135`** (a long carrier-arc rc run
+  on TestPyPI); the most recent rc is the **"carrier
+  consolidation"** ship (see the dedicated section below — it
+  collapses the numpy-removal duplication debt and removes the
+  overdue bus shims; the version-jump decision is the user's, to be
+  made before the next live-PyPI cut, so it rides the `0.7.5rcN`
+  line for now). Earlier
+  graduations — `v0.7.3` / `v0.7.1` / `v0.7.0` (the One `S(σ,θ)` +
+  the numpy-optional cascade graduation), `v0.5.0` (bus / DSL /
+  MCP / so(8)+triality voxel arc), `v0.4.0` (14-class C-parity
+  vocabulary + QM/QFT/SM), `v0.2.0`, `v0.1.0` — remain in PyPI
+  history. **numpy is no longer a dependency**: every continuous-math
+  op is a cascade of the 14 primitives over the numpy-free
+  `Mat` / `Vec` / `HV` carriers (the rc69–rc134 carrier-removal arc;
+  see the numpy section below). This top "What srmech IS" narrative is
+  kept current under user direction — **this file is NOT hygiene-gated**,
+  so update it freely whenever srmech's surface moves.
 - The home of the **Attested Multi-Source Collector/Catalog
   (AMSC) framework** — every ground-proof datum carries a mandatory
   attestation block (`source_doi`, `source_url`, `license`,
@@ -152,6 +122,90 @@ beyond a single-file read.
   (additive → ABI stays 3; JPL-clean; no Python callback), differential-
   tested. Defaults reproduce the plain step byte-for-byte.
 
+**What shipped after v0.6.0 — the v0.7.x graduations + the numpy-zero carrier arc:**
+
+- **v0.7.0 → v0.7.4 (all graduated to production PyPI)** — the
+  octonion / Cayley–Dickson + "the One" `S(σ,θ)` arc, the
+  C-transpile of the transcendental cascade, the Hamming/GF(2)
+  Rosetta pair, the Schur-complement / Dirichlet-to-Neumann Class-L
+  op, `sedenion_register`, and the **numpy→optional capstone**
+  (`v0.7.0rc47`): numpy left `install_requires`. Every continuous-math
+  op became a cascade of the 14 primitives; `libsrmech` carries no
+  `libm`.
+- **v0.7.5 (long rc run rc1 → rc134, TestPyPI; current dev head)** —
+  the **carrier-removal arc (#564)**. numpy went from *optional* to
+  *gone*: a numpy-free **`Mat`** (2-D, `srmech/amsc/mat.py`) + **`Vec`**
+  (1-D, `srmech/amsc/vec.py`) + **`HV`** carrier replaced every
+  ndarray, with the native dense kernels fed **zero-copy** from the
+  `array('d')` interleaved-complex buffers. A down-only
+  **`CEIL_NUMPY_CARRIER`** ratchet drove top-level `import numpy`
+  to **0**, and the rc129–rc133 "carrier-spirit lockdown" made the
+  carriers numpy-idiom-faithful (`m[0]→Vec`, `·`/`@`, slicing,
+  elementwise arithmetic, `.conj` as Class-K). rc134 = genome
+  several-genes-per-chromosome (`tlv_unpack` + `chromosome(genes=)`).
+  See `[[project_carrier_ratchet_to_zero_15rc_roadmap]]` +
+  `[[feedback_numpy_removal_must_preserve_carrier_format_mat_vec_not_lists]]`.
+
+### "carrier consolidation" — ships on the `0.7.5rcN` line (rc135)
+
+The carrier-removal arc, done one-rc-per-module, **left a duplication
+debt**: it was meant to be *numpy-spirited* (one dtype-transparent
+carrier op per operation), but each flip *added* a kernel. The
+`srmech.amsc.laplacian` Class-L surface ended up with the same op in
+two-to-four forms. The consolidation hard-removes the redundancy down
+to one dtype-polymorphic `mat_*` op each (user 2026-06-13: "we messed
+up big time with numpy-removal inflation … fix this pollution"; **hard
+removals**, breaking is fine). **Version note:** this is the user's
+call to make before the next live-PyPI cut, so the consolidation rides
+the `0.7.5rcN` line as **rc135** — do NOT mint a `0.7.6`/`0.8.0` bump
+yourself. The full plan also lives in
+`[[project_srmech_carrier_consolidation_remove_numpy_removal_duplication]]`.
+
+**Remove 11 redundant ops** (dtype-split `_real`/`_complex` + the
+superseded loose-input `dense_*` generation):
+`dense_matvec_complex`, `dense_matmul_complex`, `dense_dot_complex`,
+`dense_matmul_real`, `dense_matvec_real`, `dense_dot_real`,
+`dense_norm`, `dense_outer_complex`, `dense_outer_real`,
+`mat_dot_real`, `mat_dot_complex`.
+
+**Keep / add 3 dtype-poly `mat_*` ops** (the canonical carrier surface):
+`mat_matmul` (exists, dtype-poly, native-dispatched), `mat_norm`
+(exists), `mat_solve`/`mat_lstsq`/`mat_eigvals`/`mat_svd`/
+`mat_hermitian_eigendecompose` (exist) — **plus new** `mat_dot`
+(unify the 4 dot forms), `mat_matvec` (column-`Mat` over `mat_matmul`),
+`mat_outer`. Net public-callable delta: **−11 + 3 = −8**.
+
+VERIFY-FIRST (user requirement): `dense_matmul_complex`/`dense_matvec_complex`
+are already thin coercion-shims that ride `mat_matmul`; `dense_*_real`
+wrap their `_complex` twins; `mat_dot_real`/`mat_norm` use
+`_iter_mat_scalars`. So the unified ops are value-identical — prove it
+with a real+complex equivalence check before deleting.
+
+Consumers to repoint (NOT external — internal + tests only):
+`mat.py` `__matmul__`/`__rmatmul__` (→ `mat_matmul`/`mat_matvec`),
+`vec.py` `__matmul__`/`__rmatmul__` (→ `mat_matvec`/`mat_dot`),
+`hdc.py` 3 sites (`mat_dot_real` → `mat_dot`). `_flatten_scalars`
+STAYS (elementwise ops use it). Each removal also touches: laplacian
+`__all__` (×2: the top list + `LAPLACIAN_OPS`), the `ToolEntry` in
+`tool_schema.py`, the `rosetta_classification.ndjson` ledger, the
+**#928 down-only Rosetta ratchet**, the `describe()["tools"]["total"]`
+count in the **five** duplicated count-tests, and `_native.py`.
+**C/Python 1:1 parity (user directive):** `srmech_dense_matmul_complex`
+stays — it still backs `mat_matmul`; but the now-orphaned
+`srmech_dense_matvec_complex` kernel is **removed** from the C surface
+to keep it 1:1 with Python (matvec is now a composition over
+`mat_matmul`, so the dedicated C kernel has no caller). Removed from
+`c/include/srmech.h` (prototype + doc), `c/src/srmech_laplacian.c`
+(definition + ADR-0002-Phase-2 doc bullet), and the `_native.py`
+ctypes binding. Additive/subtractive of a dead symbol does **not**
+bump ABI (stays 3; the ctypes shim binds via `hasattr`).
+
+**Also overdue (directive "check other aliases left over"):** the v0.5.0
+bus deprecation shims still present at v0.7.5 — HARD-REMOVE
+`srmech/bus/_chain.py` ("removed in v0.5.0 final") and the `seed=`
+kwarg in `bus/_client.py` + `_server.py` (the `seed→dna` rename;
+updates `test_bus_aio.py`).
+
 The package directory layout:
 
 ```
@@ -200,6 +254,24 @@ descriptors under `srmech/amsc/_research/cascade_catalog/` — now
 (`chiral_flip`, `pin_slot_at_zero`, `magnitude`, `reorient`,
 `net_chirality`, `cyclic_gcd`, `best_rational_signed`,
 `chiral_dual`) plus `parallel_sector_dispatch` and `kuramoto_step`.
+
+**Discipline — PREFER config-driven `[class]` TOML over hand-coded
+domain classes** (`[[feedback_prefer_config_driven_toml_classes]]`,
+user direction 2026-06-13). When a domain object is a
+cascade-of-the-14 composition (state + cascade-op-chain methods),
+declare it as a `[class]` TOML descriptor consumed by
+`srmech.dsl.make_class` / `register_class_dir` (descriptors live
+under `srmech/amsc/_research/class_catalog/`; the seeds are
+`genome.toml` + `hurwitz.toml`). The `Mat`/`Vec`/`HV` carriers,
+`srmech.bus`, the `adapters/`, and the `srmech.qm.*` physics
+op-families STAY hand-coded Python. **Conversion follows the genome
+two-layer pattern** — ship each method as a flat cascade op, then
+bind it in the TOML; the `make_class` contract is one-op-per-method
++ a single `appends`/`sets` field, so dict/multi-field-state classes
+(e.g. `SedenionRegister`) need a contract extension first, while
+immutable accessor-shaped classes (e.g. `One`) are cleaner first
+targets. Prove every conversion with a DSL-class-vs-Python
+equivalence test.
 
 ---
 
@@ -255,16 +327,24 @@ Each class follows the same ratchet — parity test + JPL Power-of-Ten
 audit + cibuildwheel matrix update + TestPyPI rc verification per
 `[[feedback_always_rc_first_for_downstream_publishes]]`.
 
-**Hard dependencies have evolved with Phase C1:**
+**Hard dependencies (current — numpy is GONE):**
 
 - v0.3.x and earlier: stdlib only (plus `tomli` on Python 3.10).
-- **v0.4.0rc2 onward**: numpy added as a hard dependency. Class L
-  (graph Laplacian) and Class M (HDC bind/bundle, planned) are
-  fundamentally array-numerical; numpy provides the ergonomic
-  Python surface + fallback path. Pyodide environments install
-  numpy via micropip. The C native surface itself does NOT depend
-  on numpy or LAPACK (Jacobi eigvals are implemented in C with
-  algebraic c/s computation, pi-free).
+- **v0.4.0rc2 → v0.7.0rc46**: numpy was a hard dependency (Class L /
+  Class M array math). *(historical)*
+- **v0.7.0rc47**: numpy moved to an optional `[scientific]` extra.
+- **v0.7.5 carrier arc (rc69 → rc134)**: numpy was **removed entirely**.
+  There is no `[scientific]` extra and no `import numpy` anywhere in
+  `srmech/`. The array carriers are the numpy-free **`Mat`** / **`Vec`**
+  / **`HV`** (`array('d')`, row-major, interleaved-`(re,im)` for complex
+  = C99 `double _Complex`), fed **zero-copy** to the native dense
+  kernels. Install pulls **no numpy**; a fresh numpy-absent venv imports
+  + runs the whole package. The C native surface never depended on numpy
+  or LAPACK (Jacobi eigvals in C, algebraic c/s, pi-free). **Verify every
+  numpy-removal rc in a numpy-ABSENT clean venv** — never reinstall numpy
+  to exercise a carrier path (`[[feedback_numpy_is_out_the_door_not_optional]]`).
+  A test for a numpy-free module must itself be numpy-free
+  (`[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]`).
 
 **The current Phase B state (Class A + Class C implemented)** is
 Phase B's stopping point and Task #217's starting point. Per
@@ -294,18 +374,21 @@ primitive class, no exceptions**. "Binding-layer concern" is NOT a
 legitimate skip-class directive — it's a recurrence vector for
 soft-MVP carve-outs that this project has explicitly rejected.
 
-*Specific scope-bounded helpers stay Python by separate scope decision.*
-The Phase B5 decision keeps TOML parsing in Python via `tomli`
-round-trip rather than vendoring a TOML parser in C — that's a
-**vendoring-scope** decision (TOML is its own grammar; importing a
-C TOML parser into srmech's source tree is its own substantial
-scope question), not a "Class F is Python-only" decision. Class F's
-primitive (template `{key}` substitution) ships in C as
-`srmech_template_render`; TOML *parsing* — the act of turning TOML
-bytes into a structured tree — is separate from Class F's primitive
-operation and stays Python because of vendoring scope, not because
-templating is somehow binding-layer-only. Frame any future Python-
-side decision as **what's the actual scope concern (vendoring? build
+*Historical Phase-B5 note — SUPERSEDED.* Phase B5 originally kept
+TOML/JSON *parsing* in Python (a `tomli` round-trip) as a
+**vendoring-scope** decision. That stance was **superseded by the
+rc128 full-1:1 C-parity mandate**: srmech's C library now ships its
+OWN malloc-free, caller-arena **`srmech_json` parser/canonical writer**
+(byte-identical to `json.dumps`, the keystone for the genome
+`manifest.json` mirror) and a **`srmech_toml` parser** — because a
+C-only / microcontroller host genuinely needs them to read JSON
+manifests and TOML descriptors with no Python present. As of the
+v0.7.5rc159/rc160 standalone-honor sweep, both carry **no compiled-in
+child cap** (the writer's key-sort scratch + the parsers' staging are
+caller-arena-backed). So "don't vendor a parser in C" is no longer
+the stance. Class F's primitive (template `{key}` substitution) ships
+in C as `srmech_template_render`. Frame any future Python-side
+decision as **what's the actual scope concern (vendoring? build
 complexity? dependency surface?)** rather than as **skip-the-class**.
 
 **srmech is not the EMDR firmware.** The repo root `CLAUDE.md`
@@ -404,10 +487,21 @@ for the post-mortem.
 
 ### Versioning + tag-push routing
 
-- Version SSOT lives in **three places** that must agree:
+- Version SSOT lives in **FIVE places** that must agree (bump version
+  FIRST, then run the suite, or the pin passes spuriously —
+  `[[feedback_srmech_version_bump_hits_five_locations_run_suite_after]]`):
   `python/pyproject.toml`, `python/pyproject-pure.toml`,
-  `python/srmech/version.py`. **Plus** `c/include/srmech.h`
-  (`SRMECH_VERSION_PRE` / `SRMECH_VERSION`).
+  `python/srmech/version.py`, `c/include/srmech.h`
+  (`SRMECH_VERSION_PRE` / `SRMECH_VERSION`), **and** the hard-pinned
+  version-string test in
+  `python/tests/test_signal_processing_scaffolding.py`
+  (stale name `test_version_is_0_7_0rcN`; asserts the exact current
+  version). `grep -rn "X.Y.ZrcN" tests/ srmech/` at every bump.
+- **rc tags are pushed MANUALLY** — `srmech-autotag.yml` only auto-tags
+  strict-semver (clean) tags; an `rcN` suffix is non-strict-semver and
+  is SKIPPED, so push `git tag srmech-vX.Y.ZrcN HEAD && git push origin
+  <tag>` by hand. Clean `srmech-vX.Y.Z` tags auto-route to PyPI (the
+  human-in-loop production gate) — do NOT hand-push those.
 - **rc-suffix auto-routing** in `.github/workflows/srmech-publish.yml`:
   - Tag `srmech-vX.Y.ZrcN` (lowercase `rc`, no separator) →
     **TestPyPI** auto-publish.
@@ -629,8 +723,11 @@ production publish.
 - Don't introduce CAD-grade fabrication geometry, mesh-contact,
   axle-precession, lubricant, or related machinery. srmech models
   *data provenance*, not physical artefacts.
-- Don't vendor a TOML parser or JSON parser in C. Phase B5
-  explicitly rejected this; canonicalisation stays in Python.
+- The C library DOES vendor a `srmech_json` + `srmech_toml` parser
+  (the old "don't vendor a parser in C" Phase-B5 note is SUPERSEDED by
+  the rc128 full-1:1 mandate — a C-only / MCU host needs them to read
+  JSON manifests / TOML descriptors with no Python). Both are
+  caller-arena-backed with no compiled-in child cap (rc159/rc160).
 - Don't introduce a new `hashlib.sha256(...)` direct call;
   route through `format.sha256_bytes(...)`.
 - Don't add a new function > 60 lines or remove an assertion

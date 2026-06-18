@@ -7,17 +7,24 @@ down-sampling by M keeps every M-th sample; rational rate L/M composes both.
 
 Path B dual in Phase 6 (Path B up/down/rational rate).
 
+numpy-free (carrier-removal #564, rc92): the windowed-sinc low-pass taps are
+built with a substrate-native ``_sinc`` (sin(πx)/(πx), Class-N rational cascade
+over the **Class-N π cascade** ``_PI``, Spike #32) and a numpy-free ``_ccos``
+Hamming window; ``_dsp.convolve`` already returns a plain ``list``. numpy is no
+longer imported — the carrier is a Python ``list`` throughout. The x=0 sinc
+singularity is a Class-K removable branch (returns 1.0, no division), never an
+``abs()``.
+
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Vaidyanathan
 (1993) *Multirate Systems and Filter Banks* §4.
 """
 
 from __future__ import annotations
 
-from typing import Optional
-
-import numpy as np
+from typing import List, Optional
 
 from srmech.amsc import rational as _srn
+from srmech.signal_processing import _dsp_cascades as _dsp
 
 OPERATION_NAME = "multirate"
 CLASS_COMPOSITION = ("N", "C")
@@ -29,18 +36,32 @@ SSOT_CITATION = (
     "Prentice Hall."
 )
 
+# Class-N π cascade (Archimedes hexagon-doubling, Spike #32) — the substrate-
+# native π source for the windowed-sinc trig; NOT math.pi / np.pi.
+_PI = float(_srn.pi_cascade_digits(30))
+
 
 def _ccos(a):
-    """Elementwise substrate-native cosine (Class-N rational cascade).
+    """Elementwise substrate-native cosine (Class-N rational cascade), numpy-free.
 
-    Replaces ``np.cos`` on the Hamming-window angle array — routes each angle
-    through ``srmech.amsc.rational.cos`` (pi-free range reduction); numpy is
-    used only as the array container.
+    Takes an iterable of angles, returns a plain ``list`` of ``rational.cos``
+    values (pi-free range reduction). Replaces ``np.cos`` on the Hamming-window
+    angle array; the rc33 trig-routing test references this helper directly.
     """
-    a = np.asarray(a, dtype=float)
-    return np.array(
-        [_srn.cos(float(v)) for v in a.ravel()], dtype=float
-    ).reshape(a.shape)
+    return [_srn.cos(float(v)) for v in a]
+
+
+def _sinc(x: float) -> float:
+    """Normalised sinc ``sin(πx)/(πx)`` matching ``np.sinc``, numpy-free.
+
+    Routes through ``rational.sin`` over the Class-N ``_PI`` source. The
+    removable singularity at ``x == 0`` is a Class-K branch (returns ``1.0``,
+    no division), so there is no ``abs()`` and no divide-by-zero.
+    """
+    if x == 0.0:
+        return 1.0
+    px = _PI * x
+    return _srn.sin(px) / px
 
 
 def op(
@@ -48,9 +69,9 @@ def op(
     *,
     up: int = 1,
     down: int = 1,
-    filter_taps: Optional[np.ndarray] = None,
+    filter_taps: Optional[List[float]] = None,
     D: int = 8192,
-):
+) -> List[float]:
     """Rational sample-rate conversion by ratio ``up/down``.
 
     Up-samples by inserting ``up - 1`` zeros, low-pass filters with
@@ -72,34 +93,44 @@ def op(
 
     Returns
     -------
-    numpy.ndarray
+    list of float
         Resampled signal.
     """
     if up < 1 or down < 1:
         raise ValueError("up and down must be >= 1")
-    sig = np.asarray(signal, dtype=np.float64)
-    if sig.ndim != 1:
-        raise ValueError(f"multirate expects 1-D signal; got {sig.shape}")
+    seq = list(signal)
+    if seq and hasattr(seq[0], "__len__") and not isinstance(seq[0], (str, bytes)):
+        raise ValueError("multirate expects 1-D signal")
+    sig = [float(v) for v in seq]
+    n0 = len(sig)
     if up == 1 and down == 1:
-        return sig.copy()
-    # Up-sample: insert zeros
+        return list(sig)
+    # Up-sample: insert ``up - 1`` zeros between samples (Class C streaming).
     if up > 1:
-        upsampled = np.zeros(sig.shape[0] * up, dtype=np.float64)
-        upsampled[::up] = sig
+        upsampled = [0.0] * (n0 * up)
+        for i in range(n0):
+            upsampled[i * up] = sig[i]
     else:
-        upsampled = sig
-    # Low-pass filter (Class N rational coefficients via sinc)
+        upsampled = list(sig)
+    # Low-pass filter (Class N rational coefficients via windowed sinc).
     if filter_taps is None:
-        N_taps = 41
+        n_taps = 41
         cutoff = 1.0 / max(up, down)
-        n = np.arange(N_taps) - (N_taps - 1) / 2
-        taps = np.sinc(cutoff * n) * cutoff
-        # Hamming window
-        w = 0.54 - 0.46 * _ccos(2.0 * np.pi * np.arange(N_taps) / (N_taps - 1))
-        filter_taps = taps * w
-        filter_taps = filter_taps / np.sum(filter_taps)
-    filtered = np.convolve(upsampled, filter_taps, mode="same")
-    # Down-sample
+        centre = (n_taps - 1) / 2
+        taps = [_sinc(cutoff * (k - centre)) * cutoff for k in range(n_taps)]
+        # Hamming window (numpy-free _ccos).
+        w = [
+            0.54 - 0.46 * c
+            for c in _ccos([2.0 * _PI * k / (n_taps - 1) for k in range(n_taps)])
+        ]
+        windowed = [taps[k] * w[k] for k in range(n_taps)]
+        total = sum(windowed)
+        filter_taps = [v / total for v in windowed]
+    else:
+        filter_taps = [float(v) for v in filter_taps]
+    # _dsp.convolve is numpy-free (returns a list).
+    filtered = _dsp.convolve(upsampled, filter_taps, mode="same")
+    # Down-sample (Class N decimation), then apply the up-sampling gain.
     if down > 1:
-        return filtered[::down] * up
-    return filtered * up
+        return [v * up for v in filtered[::down]]
+    return [v * up for v in filtered]

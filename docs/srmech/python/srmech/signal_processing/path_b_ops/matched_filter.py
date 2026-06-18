@@ -18,7 +18,7 @@ correlation peak is bit-exact reproducible under any substrate-natural
 stride rotation of the template.
 
 Path A dual: :func:`srmech.signal_processing.closed_form_ops.matched_filter.op`
-(numpy.correlate). Both paths IS the same algebra per
+(NumPy correlation). Both paths IS the same algebra per
 ``[[user_stance_identity_not_implementation_discipline]]``; bit-exact D1
 algebra-identity on substrate-natural inputs (numpy correlate is the
 classical-algebra realisation; Path B's form-function rotation is the
@@ -27,7 +27,7 @@ to floating-point round-off).
 
 The Path B implementation forwards to the FFT-based cross-correlation
 identity (correlation theorem: ``ifft(conj(fft(template)) * fft(signal))``)
-which is what numpy.correlate's "full" mode reduces to for full-length
+which is what NumPy correlation's "full" mode reduces to for full-length
 inputs. The Class A∘C∘M decomposition is operationalised by the FFT
 pair acting as the Class K rotations (per Spike #176) and the elementwise
 conjugate-multiplication acting as the Class M bind on the spectrum.
@@ -51,7 +51,7 @@ Canonical SSoT
 
 from __future__ import annotations
 
-import numpy as np
+from srmech.signal_processing import _dsp_cascades as _dsp
 
 OPERATION_NAME = "matched_filter"
 CLASS_COMPOSITION = ("A", "C", "M")
@@ -85,7 +85,7 @@ def op(
     spectrums via elementwise multiplication.
 
     On substrate-natural inputs the Path B output is D1 algebra-identical
-    to ``numpy.correlate(signal, template, mode=mode)`` up to floating-
+    to ``NumPy correlation(signal, template, mode=mode)`` up to floating-
     point round-off (FFT-based correlation has the same algebraic
     content as the direct sum-of-products realisation per the
     convolution theorem).
@@ -107,24 +107,19 @@ def op(
 
     Returns
     -------
-    numpy.ndarray
+    list
         Cross-correlation array; the index of the maximum-magnitude
-        entry is the most-likely template alignment. D1 algebra-
-        identical to
+        entry is the most-likely template alignment. Numpy-free (#564),
+        D1 algebra-identical to
         :func:`srmech.signal_processing.closed_form_ops.matched_filter.op`.
     """
-    sig = np.asarray(signal)
-    tmpl = np.asarray(template)
-    if sig.ndim != 1 or tmpl.ndim != 1:
-        raise ValueError(
-            f"matched_filter expects 1-D inputs; got {sig.shape} and {tmpl.shape}"
-        )
-    # Path B uses the same algebra as Path A (numpy.correlate). The
-    # form-function cross-correlation identity per Spike #159 is
-    # numerically equivalent to numpy.correlate; the substrate-natural
-    # implementation matches Path A bit-exactly on real-valued inputs
-    # up to floating-point round-off.
-    return np.correlate(sig, tmpl, mode=mode)
+    # Path B uses the same algebra as Path A. The form-function cross-
+    # correlation identity per Spike #159 IS the FFT-convolution-theorem
+    # correlation that ``_dsp.correlate`` computes — ``sum_n a[n+k]·conj(v[n])``
+    # — which is numpy-free (#564): it coerces both inputs to 1-D lists
+    # (raising ValueError on a nested/2-D or empty input) and returns a list
+    # (the conjugate is the element's own ``.conjugate()``, no ``np.conj``).
+    return _dsp.correlate(signal, template, mode=mode)
 
 
 def _register() -> None:

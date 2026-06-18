@@ -18,31 +18,40 @@ Canonical SSoT:
 
 from __future__ import annotations
 
-import numpy as np
 from typing import Tuple
 
-from srmech.amsc.laplacian import dense_matmul_complex
+from srmech.amsc.laplacian import mat_matmul, mat_norm
+from srmech.amsc.mat import Mat
 
 
-def pauli_matrices() -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def pauli_matrices() -> Tuple["Mat", "Mat", "Mat"]:
     """Return the three Pauli matrices ``(σ_x, σ_y, σ_z)``.
+
+    numpy-FREE (v0.7.5rc115, #564) — each is an **exact** 2×2 complex
+    Hermitian :class:`~srmech.amsc.mat.Mat` with entries in ``{0, ±1, ±i}``
+    (no float approximation; entries are plain Python ``complex`` scalars).
 
     Canonical SSoT: Pauli (1927) *Zeitschrift für Physik* 43, 601;
     Sakurai *Modern QM* §3.2 eq 3.2.1.
 
     Returns:
         ``(sigma_x, sigma_y, sigma_z)``: each a 2×2 complex Hermitian
-        traceless matrix satisfying ``σ_i² = I`` and the Clifford algebra.
+        traceless ``Mat`` satisfying ``σ_i² = I`` and the Clifford algebra.
     """
-    sigma_x = np.array([[0.0, 1.0], [1.0, 0.0]], dtype=complex)
-    sigma_y = np.array([[0.0, -1j], [1j, 0.0]], dtype=complex)
-    sigma_z = np.array([[1.0, 0.0], [0.0, -1.0]], dtype=complex)
+    sigma_x = Mat.from_rows([[0, 1], [1, 0]], is_complex=True)
+    sigma_y = Mat.from_rows([[0, -1j], [1j, 0]], is_complex=True)
+    sigma_z = Mat.from_rows([[1, 0], [0, -1]], is_complex=True)
     return sigma_x, sigma_y, sigma_z
 
 
-def pauli_identity() -> np.ndarray:
-    """The 2×2 identity (Cl(0,3) scalar)."""
-    return np.eye(2, dtype=complex)
+def pauli_identity() -> "Mat":
+    """The 2×2 identity (Cl(0,3) scalar) as an exact complex ``Mat``."""
+    return Mat.from_rows([[1, 0], [0, 1]], is_complex=True)
+
+
+def _entries(m: "Mat"):
+    """Flat row-major list of a ``Mat``'s plain complex entries (numpy-free)."""
+    return [m[i, j] for i in range(m.n_rows) for j in range(m.n_cols)]
 
 
 def pauli_clifford_residuals() -> Tuple[float, float]:
@@ -62,55 +71,73 @@ def pauli_clifford_residuals() -> Tuple[float, float]:
     """
     sx, sy, sz = pauli_matrices()
     I = pauli_identity()
-    # Anticommutator residuals — Class-L matmul cascade for every Pauli product.
-    mm = dense_matmul_complex
-    anti_off = [mm(sx, sy) + mm(sy, sx),
-                mm(sx, sz) + mm(sz, sx),
-                mm(sy, sz) + mm(sz, sy)]
-    anti_diag = [mm(sx, sx) - I, mm(sy, sy) - I, mm(sz, sz) - I]
-    max_anti = max(
-        np.linalg.norm(c) for c in (anti_off + anti_diag)
-    )
-    # Commutator residuals (cyclic).
-    comm = [
-        (mm(sx, sy) - mm(sy, sx)) - 2j * sz,
-        (mm(sy, sz) - mm(sz, sy)) - 2j * sx,
-        (mm(sz, sx) - mm(sx, sz)) - 2j * sy,
-    ]
-    max_comm = max(np.linalg.norm(c) for c in comm)
+    # Anticommutator residuals — Class-L native matmul (mat_matmul) for every
+    # Pauli product, combined entrywise as numpy-free flat complex lists, then
+    # the rc114 Class-N mat_norm. No numpy, no abs().
+    def _norm_sum(*pairs):   # ‖Σ_k sign_k · P_k‖ over aligned 2×2 entries
+        ents = [_entries(p) for _, p in pairs]
+        signs = [s for s, _ in pairs]
+        combined = [sum(sg * e[k] for sg, e in zip(signs, ents))
+                    for k in range(len(ents[0]))]
+        return mat_norm(combined)
+    mm = mat_matmul
+    max_anti = max([
+        _norm_sum((1, mm(sx, sy)), (1, mm(sy, sx))),
+        _norm_sum((1, mm(sx, sz)), (1, mm(sz, sx))),
+        _norm_sum((1, mm(sy, sz)), (1, mm(sz, sy))),
+        _norm_sum((1, mm(sx, sx)), (-1, I)),
+        _norm_sum((1, mm(sy, sy)), (-1, I)),
+        _norm_sum((1, mm(sz, sz)), (-1, I)),
+    ])
+    # Commutator residuals (cyclic): ‖[σ_i,σ_j] − 2i ε_{ijk} σ_k‖.
+    max_comm = max([
+        _norm_sum((1, mm(sx, sy)), (-1, mm(sy, sx)), (-2j, sz)),
+        _norm_sum((1, mm(sy, sz)), (-1, mm(sz, sy)), (-2j, sx)),
+        _norm_sum((1, mm(sz, sx)), (-1, mm(sx, sz)), (-2j, sy)),
+    ])
     return max_anti, max_comm
 
 
-def pauli_spin_operator(direction: np.ndarray) -> np.ndarray:
+def pauli_spin_operator(direction) -> "Mat":
     """Spin-½ projection onto an arbitrary axis: ``S_n = (ℏ/2) σ · n̂``.
 
-    Returns ``σ · n̂ / 2`` (ℏ = 1 convention) where ``n̂`` is the unit
-    vector along the chosen direction.
+    Returns ``σ · n̂ / 2`` (ℏ = 1 convention) as an exact-shape 2×2 complex
+    ``Mat`` where ``n̂`` is the unit vector along the chosen direction.
+    numpy-FREE (v0.7.5rc115) — ``direction`` is any 3-element sequence
+    (list / tuple / ndarray), the magnitude is the rc114 ``mat_norm`` and the
+    combination is an entrywise list build (no numpy, no abs()).
 
     Canonical SSoT: Sakurai *Modern QM* §3.2 eq 3.2.51; Griffiths
     *Intro QM* §4.4.
 
     Args:
-        direction: 3-vector (need not be unit; will be normalized).
+        direction: 3-element sequence (need not be unit; will be normalized).
 
     Returns:
-        2×2 Hermitian matrix with eigenvalues ±½.
+        2×2 Hermitian ``Mat`` with eigenvalues ±½.
 
     Raises:
-        ValueError: zero-magnitude direction or wrong shape.
+        ValueError: zero-magnitude direction or wrong length.
     """
-    direction = np.asarray(direction, dtype=float)
-    if direction.shape != (3,):
+    try:
+        d = [float(x) for x in direction]
+    except TypeError:
+        raise ValueError("pauli_spin_operator: direction must be a 3-vector")
+    if len(d) != 3:
         raise ValueError(
-            f"pauli_spin_operator: direction must be a 3-vector; "
-            f"got shape {direction.shape}"
+            f"pauli_spin_operator: direction must be a 3-vector; got length {len(d)}"
         )
-    norm = np.linalg.norm(direction)
+    norm = mat_norm(d)
     if norm == 0.0:
         raise ValueError("pauli_spin_operator: direction must be non-zero")
-    nhat = direction / norm
+    nhat = [x / norm for x in d]
     sx, sy, sz = pauli_matrices()
-    return 0.5 * (nhat[0] * sx + nhat[1] * sy + nhat[2] * sz)
+    out = [
+        [0.5 * (nhat[0] * sx[i, j] + nhat[1] * sy[i, j] + nhat[2] * sz[i, j])
+         for j in range(2)]
+        for i in range(2)
+    ]
+    return Mat.from_rows(out, is_complex=True)
 
 
 __all__ = [

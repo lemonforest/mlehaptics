@@ -73,14 +73,17 @@ def test_default_encode_native_matches_python(delta_t_yr: float) -> None:
     expected_n = len(BODIES)
     py_phases = default_encode(jd, backend="bip", kernel="de421")
     c_phases = default_encode(jd, backend="c", kernel="de421")
-    assert py_phases.shape == c_phases.shape == (expected_n,)
-    assert py_phases.dtype == c_phases.dtype, "dtypes must match"
+    # v0.31.0rc4: both backends return array('I') (numpy-free).
+    assert py_phases.typecode == c_phases.typecode == "I", "typecodes must match"
+    assert len(py_phases) == len(c_phases) == expected_n
+    py_list = py_phases.tolist()
+    c_list = c_phases.tolist()
     # Byte-for-byte agreement.
-    assert (py_phases == c_phases).all(), (
+    assert py_list == c_list, (
         f"native vs python phases differ at delta_t = {delta_t_yr} yr.\n"
-        f"  python: {py_phases.tolist()}\n"
-        f"  native: {c_phases.tolist()}\n"
-        f"  diff:   {(py_phases.astype(int) - c_phases.astype(int)).tolist()}"
+        f"  python: {py_list}\n"
+        f"  native: {c_list}\n"
+        f"  diff:   {[a - b for a, b in zip(py_list, c_list)]}"
     )
 
 
@@ -193,25 +196,28 @@ def test_profile_native_encode_matches_direct_ctypes_encode() -> None:
     fresh_lib.es_n_bodies.restype = ctypes.c_int
 
     n = fresh_lib.es_n_bodies()
-    import numpy as np
+    from array import array
     for delta_t_days in [0.0, 365.25, 20 * 365.25, -100 * 365.25]:
+        # v0.31.0rc4: numpy-free buffers — stdlib array('I') + ctypes.
         # Via the profile-loaded handle (= _native_bip.LIB).
-        profile_buf = np.zeros(n, dtype=np.uint32)
+        profile_buf = array("I", [0]) * n
+        p_ptr = (ctypes.c_uint32 * n).from_buffer(profile_buf)
         rc1 = _native_bip.LIB.es_encode_state(
             ctypes.c_double(delta_t_days),
-            profile_buf.ctypes.data_as(ctypes.POINTER(ctypes.c_uint32)),
+            ctypes.cast(p_ptr, ctypes.POINTER(ctypes.c_uint32)),
         )
         assert rc1 == 0, f"profile handle es_encode_state returned {rc1}"
 
         # Via the fresh CDLL handle.
-        fresh_buf = np.zeros(n, dtype=np.uint32)
+        fresh_buf = array("I", [0]) * n
+        f_ptr = (ctypes.c_uint32 * n).from_buffer(fresh_buf)
         rc2 = fresh_lib.es_encode_state(
             ctypes.c_double(delta_t_days),
-            fresh_buf.ctypes.data_as(ctypes.POINTER(ctypes.c_uint32)),
+            ctypes.cast(f_ptr, ctypes.POINTER(ctypes.c_uint32)),
         )
         assert rc2 == 0, f"fresh handle es_encode_state returned {rc2}"
 
-        assert (profile_buf == fresh_buf).all(), (
+        assert profile_buf.tolist() == fresh_buf.tolist(), (
             f"profile-loaded vs fresh-CDLL phases differ at "
             f"delta_t={delta_t_days} d.\n"
             f"  profile: {profile_buf.tolist()}\n"

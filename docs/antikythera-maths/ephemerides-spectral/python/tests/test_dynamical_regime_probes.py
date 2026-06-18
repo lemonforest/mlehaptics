@@ -13,7 +13,7 @@ Pins two payloads:
     the latent diagnostic that v0.24.9 left in distances_to_all.
 
 The classifier is **not machine learning in the SGD sense** — its
-"training step" is a single deterministic ``np.linalg.eigh`` call.
+"training step" is a single deterministic Hermitian eigendecomposition.
 The probes are **test vectors**, never training data. These tests
 ratchet the classifier's deterministic behaviour on real bodies.
 """

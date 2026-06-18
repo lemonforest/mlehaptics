@@ -28,7 +28,7 @@
  * symbols, exactly like the srmech_simd_* HAL functions.
  *
  * JPL Power-of-Ten: no goto, no malloc, bounded, status returns, ≤60-line
- * functions, warnings-clean. License: GPL-3.0-or-later.
+ * functions, warnings-clean. License: MIT.
  */
 #ifndef SRMECH_PLATFORM_H
 #define SRMECH_PLATFORM_H
@@ -144,5 +144,121 @@ srmech_status_t srmech_plat_stream_write_all(srmech_plat_stream_conn_t *conn,
 /* Close one connection (POSIX close(fd) / Windows FlushFileBuffers-free
  * DisconnectNamedPipe+CloseHandle as appropriate). */
 srmech_status_t srmech_plat_stream_conn_close(srmech_plat_stream_conn_t *conn);
+
+/* ================================================================== *
+ * FILE I/O (rc161) — the last raw-OS surface in the library.
+ *
+ * File access is portable stdio (fopen/fread/fwrite/fseek), so POSIX and
+ * Windows share ONE implementation; only the presence of a filesystem
+ * differs. Callers that read/write files (srmech_config, and — retrofit
+ * follow-up — srmech_genome / srmech_ndjson) go through these primitives
+ * instead of carrying their own fopen, so the OS file surface lives in
+ * exactly one TU, like threads + streams above. A bare-metal target with
+ * no filesystem reports has_filesystem() == 0 and every call returns
+ * SRMECH_ERR_IO; such a target feeds bytes directly (e.g. a flash blob to
+ * srmech_config_load_toml) instead.
+ * ================================================================== */
+
+/* 1 iff a filesystem-backed file backend is compiled in (POSIX / Windows);
+ * 0 on a bare-metal target with no filesystem. */
+int srmech_plat_has_filesystem(void);
+
+/* Read up to `buf_cap` bytes of `path` into `buf`; *out_len gets the count.
+ * A file larger than buf_cap is SRMECH_ERR_OVERFLOW (nothing partial is
+ * relied upon). Missing / unreadable file → SRMECH_ERR_IO. */
+srmech_status_t srmech_plat_file_read(const char *path, unsigned char *buf,
+                                      size_t buf_cap, size_t *out_len);
+
+/* Read exactly `len` bytes from `path` starting at byte `offset` into `buf`.
+ * Short read (offset+len past EOF) → SRMECH_ERR_IO. */
+srmech_status_t srmech_plat_file_read_region(const char *path, size_t offset,
+                                             unsigned char *buf, size_t len);
+
+/* Write `len` bytes of `data` to `path`. `append` != 0 opens in append mode
+ * ("ab"); else truncate ("wb"). fopen/fwrite/fclose failure → SRMECH_ERR_IO. */
+srmech_status_t srmech_plat_file_write(const char *path, int append,
+                                       const unsigned char *data, size_t len);
+
+/* Byte length of `path` into *out_size. Missing / unstattable → SRMECH_ERR_IO. */
+srmech_status_t srmech_plat_file_size(const char *path, size_t *out_size);
+
+/* ================================================================== *
+ * DIRECTORY ITERATION (rc163) — the POSIX opendir / Win32 FindFirstFile
+ * duality, absorbed into the PAL so a caller (srmech_genome's §43 *.chr
+ * pack/explode listing) carries NO `#ifdef _WIN32`. The iterator yields
+ * every entry name in a directory; the caller filters (e.g. by suffix).
+ * No heap — the OS handle + a one-entry lookahead live in the caller's
+ * `srmech_plat_dir_t` storage. Win32's FindFirstFile reads the first
+ * entry at open, so it is buffered as the lookahead.
+ * ================================================================== */
+
+/* Max bytes for one directory-entry name (filename only, NUL-terminated). */
+#define SRMECH_PLAT_DIR_NAME_MAX 256
+/* Max-aligned opaque storage for one OS dir handle (POSIX DIR* / Win HANDLE). */
+#define SRMECH_PLAT_DIR_STORAGE  16
+
+/* One open directory iterator. No heap — lives in the caller's storage. */
+typedef struct srmech_plat_dir {
+    union {
+        void         *align_ptr;
+        long double   align_ld;
+        unsigned char bytes[SRMECH_PLAT_DIR_STORAGE];
+    } handle;
+    char pending[SRMECH_PLAT_DIR_NAME_MAX];  /* Win32 FindFirstFile lookahead */
+    int  pending_valid;                       /* 1 iff `pending` holds an entry */
+} srmech_plat_dir_t;
+
+/* 1 iff a directory-listing backend is compiled in (POSIX / Windows); 0 on a
+ * bare-metal target with no filesystem. */
+int srmech_plat_has_dirlist(void);
+
+/* Open `path` for iteration; *out receives the handle. SRMECH_ERR_IO if the
+ * directory cannot be opened (the caller may treat that as "no entries"). */
+srmech_status_t srmech_plat_dir_open(const char *path, srmech_plat_dir_t *out);
+
+/* Fetch the next entry name into `name` (capacity `name_cap`). *have is set to
+ * 1 and `name` written when an entry is produced, or 0 at end-of-directory.
+ * SRMECH_ERR_OVERFLOW if a name does not fit `name_cap`. */
+srmech_status_t srmech_plat_dir_next(srmech_plat_dir_t *dir, char *name,
+                                     size_t name_cap, int *have);
+
+/* Close the iterator (POSIX closedir / Win32 FindClose). Safe on a
+ * zero-initialised handle. */
+srmech_status_t srmech_plat_dir_close(srmech_plat_dir_t *dir);
+
+/* ================================================================== *
+ * STREAMING READ (rc164) — a persistent read handle so a caller can pull a
+ * file in fixed chunks without loading it whole (the §B4 ndjson tokeniser,
+ * which assembles lines across chunk boundaries). Part of the FILE backend
+ * (portable stdio, shared `srmech_plat_has_filesystem`); no new accessor.
+ * The OS handle (a portable FILE*) lives in the caller's storage — no heap,
+ * and srmech_platform.h stays free of <stdio.h>.
+ * ================================================================== */
+
+/* Max-aligned opaque storage for one streaming-read handle (a FILE*). */
+#define SRMECH_PLAT_RSTREAM_STORAGE 16
+
+/* One open streaming-read handle. No heap — lives in the caller's storage. */
+typedef struct srmech_plat_rstream {
+    union {
+        void         *align_ptr;
+        long double   align_ld;
+        unsigned char bytes[SRMECH_PLAT_RSTREAM_STORAGE];
+    } handle;
+} srmech_plat_rstream_t;
+
+/* Open `path` for streaming reads; *out receives the handle. SRMECH_ERR_IO if
+ * the file cannot be opened. */
+srmech_status_t srmech_plat_rstream_open(const char *path,
+                                         srmech_plat_rstream_t *out);
+
+/* Read up to `cap` bytes into `buf`; *out_n receives the count actually read
+ * (0 at end-of-file). SRMECH_ERR_IO on a read error (short read with the
+ * stream's error flag set). A short read with no error is a clean partial/EOF. */
+srmech_status_t srmech_plat_rstream_read(srmech_plat_rstream_t *rs, void *buf,
+                                         size_t cap, size_t *out_n);
+
+/* Close the handle (POSIX/Win fclose). Safe on a zero-initialised handle. */
+srmech_status_t srmech_plat_rstream_close(srmech_plat_rstream_t *rs);
 
 #endif /* SRMECH_PLATFORM_H */

@@ -5,9 +5,11 @@ v0.7.4rc1 ships the sedenion box as an addressable RBS-HDC instrument —
 v0.7.3 primitives (no new algebra); the genuinely-new surface is the address↔CD
 `navigate` homomorphism + the `is_navigable` reversibility gate.
 
-The storage + working-word paths are the scientific tier (numpy on call) and skip
-cleanly without numpy; `navigate` / `is_navigable` / `carry` / `correct` are
-numpy-free and always run.
+numpy-FREE (#564): the WHOLE instrument is numpy-free — the storage path
+(`mint_vector` + `hdc.bind`/`bundle`/`similarity`) and the ≤7 working word
+(`hypercomplex_couple`) route through cascades, so every test here RUNS with
+numpy NOT installed. (The old `SKIP_NO_NUMPY` "scientific tier" skip is GONE —
+numpy is out the door.)
 """
 from fractions import Fraction
 
@@ -22,16 +24,6 @@ from srmech.amsc.cascade import (
     WORKING_WORD_CAP,
 )
 from srmech.amsc.cascade import cayley_dickson as cd
-
-try:
-    import numpy  # noqa: F401
-    _HAS_NUMPY = True
-except Exception:
-    _HAS_NUMPY = False
-
-SKIP_NO_NUMPY = pytest.mark.skipif(
-    not _HAS_NUMPY, reason="storage / working-word use the scientific tier (numpy)"
-)
 
 
 # ── constants + construction ──────────────────────────────────────────────────
@@ -49,9 +41,8 @@ def test_factory_returns_register():
     assert reg.D == 8192
 
 
-# ── [A] addressable HDC storage (scientific tier) ─────────────────────────────
+# ── [A] addressable HDC storage (numpy-free; mint + Class-M bind/bundle) ───────
 
-@SKIP_NO_NUMPY
 def test_addressable_read_back_octonion_block():
     reg = sedenion_register(D=8192)
     truth = {0: "alpha", 1: "beta", 2: "gamma", 3: "delta",
@@ -62,20 +53,17 @@ def test_addressable_read_back_octonion_block():
     assert hits == 8, f"only {hits}/8 slots read back cleanly"
 
 
-@SKIP_NO_NUMPY
 def test_empty_register_read_is_none():
     assert sedenion_register().read(0) == (None, 1)
 
 
-@SKIP_NO_NUMPY
 def test_materialize_empty_raises():
     with pytest.raises(ValueError):
         sedenion_register().materialize()
 
 
-# ── [B] the ≤7 reversible working word ────────────────────────────────────────
+# ── [B] the ≤7 reversible working word (numpy-free; hypercomplex_couple) ───────
 
-@SKIP_NO_NUMPY
 def test_working_word_couple_uncouple_bit_exact():
     reg = sedenion_register()
     vals = [1.0, -1.0, 1.0, 1.0, -1.0, 1.0, -1.0]

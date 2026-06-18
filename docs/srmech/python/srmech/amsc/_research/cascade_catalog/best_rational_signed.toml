@@ -104,7 +104,7 @@ bool_kwargs = "isinstance(True, int) is True but type(True) is bool — native r
 
 [cascade.attestation]
 author = "Steven Kirkland"
-license = "GPL-3.0-or-later"
+license = "MIT"
 parser_version = "srmech-cascade 0.4.5rc7"
 canonical_landings = [
   "Khinchin (1964), Continued Fractions — Class N best-rational primitive attestation",

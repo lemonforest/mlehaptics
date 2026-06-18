@@ -69,16 +69,42 @@ Canonical SSoT
 
 from __future__ import annotations
 
-from . import (
-    fft,
-    hdc_truncation,
-    ifft,
-    matched_filter,
-    pi_cascade,
-    rfft,
-    sign_quantise,
-    wiener,
+import importlib
+
+from srmech.signal_processing.path_registry import (
+    register_lazy_loader as _register_lazy_loader,
 )
+
+# numpy-FREE Path B ops: eager import → register (Path A + Path B) at package
+# load, numpy-free (each `_register()` pulls its numpy-free closed_form_ops
+# counterpart, which is itself lazy now). Keeps the registry populated for
+# these on `import srmech.signal_processing` without any numpy.
+from . import fft, hdc_truncation, ifft, pi_cascade, rfft  # noqa: F401
+
+#: Path B ops imported LAZILY: a lazy loader is registered with the
+#: path_registry so `dispatch` / `lookup` / `has_path` resolve them
+#: (importing-on-demand, which then registers). Every op is numpy-free (#564);
+#: lazy is purely to keep `import srmech.signal_processing` light.
+_LAZY_NUMPY_OPS = ("matched_filter", "sign_quantise", "wiener")
+
+
+def _make_lazy_loader(_op_module):
+    def _load():
+        importlib.import_module(f".{_op_module}", __name__)  # triggers _register()
+
+    return _load
+
+
+for _op in _LAZY_NUMPY_OPS:
+    _register_lazy_loader(_op, _make_lazy_loader(_op))
+
+#: Attribute access (`path_b_ops.matched_filter`) imports the op on demand.
+def __getattr__(name):
+    if name in _LAZY_NUMPY_OPS:
+        mod = importlib.import_module(f".{name}", __name__)
+        globals()[name] = mod
+        return mod
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 #: Canonical roster of Phase 4 Path B MVP op modules (alphabetical).
 #: Used by ``tests/test_signal_processing_path_b_mvp.py`` to assert

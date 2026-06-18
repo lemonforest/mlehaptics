@@ -9,8 +9,12 @@
       "size_bytes": 318
     },
     "_research/_cascade.py": {
-      "sha256": "fb471568cde2ccd5175abc80c13dcdd58c4fae460853a9c50daaf0bb08492f20",
-      "size_bytes": 10658
+      "sha256": "ee6b14dc0b3cc5ede215d5d044a18295ae746a21279e144c88fa219831bdc3fd",
+      "size_bytes": 10615
+    },
+    "_research/_srmech_classes.py": {
+      "sha256": "2fd39f3b2759d2cad5b9dd7825ffe117acda093280e58b36cf3a43bf4a537621",
+      "size_bytes": 2379
     },
     "_research/admittance_catalog.py": {
       "sha256": "d800d5cc13e58a640f1236a095f5f52d38580d1f12441e565509824264dfff82",
@@ -333,24 +337,28 @@
       "size_bytes": 9845
     },
     "_research/bip_hd_lift.py": {
-      "sha256": "50be51ba5132f5cb90438905f8fbad0257c5403444423df5a95af4c20578ffe8",
-      "size_bytes": 8153
+      "sha256": "d0afdb5a1bd30fb12f21fe74675f755d2f84a5c9d11e666834f9edfdff033a90",
+      "size_bytes": 9981
     },
     "_research/bip_instrument.py": {
-      "sha256": "01dfb9227af6edba99eb2e05c0eb1ebfd29e21e3e5e78a9586d23d1670a24c2f",
-      "size_bytes": 25588
+      "sha256": "263abcd457c1c084617d93da55a053034449ee52fcf63815838912fc09bc9dbb",
+      "size_bytes": 27503
     },
     "_research/bodies.py": {
       "sha256": "baf75251aa8d89a1d810dec955b1b53a4d4dc466e248ba75ade428248ce415d7",
       "size_bytes": 10432
     },
     "_research/body_architecture.py": {
-      "sha256": "a5bdcaeca175883c4bcf7a9658c601d06ca84bc2057d523947dfbadfbac1e42a",
-      "size_bytes": 9767
+      "sha256": "0a7595a638e91df9a3b94e26d465fced6b00f606dc47f5e80af4111b3faec18f",
+      "size_bytes": 9653
     },
     "_research/body_kernel_registry.py": {
       "sha256": "65120628f0e9514cbd9b8df5ea3fe1e675c74acfdd146ef5a28b9c6c4816d34f",
       "size_bytes": 10209
+    },
+    "_research/class_catalog/gateway_navigation.toml": {
+      "sha256": "bb2aecaaa0db31b77c19af9982b92d0666a05e16c9ef5fd1ae658854abb661b0",
+      "size_bytes": 2683
     },
     "_research/cmb_anomalies_catalog.py": {
       "sha256": "ecc6dbbe7553682d52f3c261d894e402612a5391c471df101811fae85316bc06",
@@ -413,8 +421,8 @@
       "size_bytes": 19110
     },
     "_research/ephemeris_reference_instrument.py": {
-      "sha256": "9b0db0f91f428a4b0cfcbdf8b9dba30c871b0f3faebdc062a7aff8024a4d6e51",
-      "size_bytes": 11035
+      "sha256": "20c5896a865eb635027f13bcd718ea9aa767327b1628edada694d1f3e253b1a3",
+      "size_bytes": 13272
     },
     "_research/fluid_instrument.py": {
       "sha256": "da10fff7e2e32d3aa71a7186add52d63e0cd4a0f5c167327b0d8f1dd135b5476",
@@ -465,8 +473,8 @@
       "size_bytes": 13185
     },
     "_research/laplacian.py": {
-      "sha256": "a3fac93db9102c04c280c81cc96f48921a209bb6cb27fc4b3616483d0f44a9a8",
-      "size_bytes": 12233
+      "sha256": "7ed92c234cc5e14376ef4961bda4298e02578cdcb2165c720b0d5e254f918794",
+      "size_bytes": 14761
     },
     "_research/loki_patera_catalog.py": {
       "sha256": "6a53db61aba7ac77f947cadebd5902844a73296cbf26c9153ab5489dfae6910d",
@@ -516,6 +524,10 @@
       "sha256": "072fbb8738ef7eb30abe632c71602625f8f9a26d49ed45f3207741b3cf7876b5",
       "size_bytes": 19202
     },
+    "_research/navigation_ops.py": {
+      "sha256": "943c651dc830429d521fc16da6192e9287dfcdd54f0c89f5b175b64a476a2c28",
+      "size_bytes": 5365
+    },
     "_research/orographic_forcing.py": {
       "sha256": "d46fb4efbb3a12a14d06828c278501760fbebe47c359ef28987f76e76506f395",
       "size_bytes": 4673
@@ -537,8 +549,8 @@
       "size_bytes": 6614
     },
     "_research/predict_itn_accessibility.py": {
-      "sha256": "940b309b73e8aa99a17f4ac5465a5f52a1e8bc589e7ac1f1325fb9d8168faf7a",
-      "size_bytes": 13689
+      "sha256": "8092b0fa33bb81e0eab8f04e0dae660684352038c30e6063fb927209ec96a70c",
+      "size_bytes": 13694
     },
     "_research/proper_time.py": {
       "sha256": "2e02707ae0cfdb9b2874ad4fd6954fb15d811b2ba1296b33808061de2fe9acfa",
@@ -609,8 +621,8 @@
       "size_bytes": 13773
     },
     "_research/syzygy_window.py": {
-      "sha256": "c38e417818ba80c97ecb45d6daf122175385cce4d66378d048784a5a4cc3eb33",
-      "size_bytes": 8796
+      "sha256": "4f49eed9f4dc71462f8feb82ab694e5c09b3d786f52d1e4a52bc92022529f4af",
+      "size_bytes": 8776
     },
     "_research/thermal_balance_catalog.py": {
       "sha256": "39f418c118a3ea6bff230a1d4e32defc9bed3e0f62cf3fe08f03633f7422ca59",
@@ -662,5 +674,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.30.0rc10"
+  "version": "0.31.0rc4"
 }

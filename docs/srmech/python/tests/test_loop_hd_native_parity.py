@@ -14,28 +14,50 @@ C agrees with itself.
 When the native lib is absent (Pyodide / pure wheel) the native helpers return
 None and these tests skip with a log (the pure-Python fallback is exercised by
 ``test_loop_hd_division.py``).
+
+rc125 (numpy-free, #564): this test is itself numpy-FREE — the HD ops return
+``list[float]``; block math is explicit, norms ride ``mat_norm``, random blocks
+come from stdlib ``random.Random`` (no numpy oracle, per
+`[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]`).
 """
 
-import numpy as np
+import random
+
 import pytest
 
+from srmech.amsc.laplacian import mat_dot, mat_norm
 from srmech.amsc import hdc
 from srmech.amsc.hdc import LOOP_DIM
 
 NB = 48  # blocks; D = NB * 8 = 384 (an HD width, > one octonion)
 
 
+def _vsub(u, v):
+    return [u[i] - v[i] for i in range(len(u))]
+
+
 def _rand_blocks(seed, *, unit=False):
     """NB random dim-8 blocks flattened to one HD vector (optionally unit-norm)."""
-    rng = np.random.default_rng(seed)
-    b = rng.standard_normal((NB, LOOP_DIM))
-    if unit:
-        b /= np.linalg.norm(b, axis=1, keepdims=True)
-    return b.reshape(-1)
+    rng = random.Random(seed)
+    out = []
+    for _ in range(NB):
+        b = [rng.gauss(0.0, 1.0) for _ in range(LOOP_DIM)]
+        if unit:
+            nrm = sum(x * x for x in b) ** 0.5
+            b = [x / nrm for x in b]
+        out.extend(b)
+    return out
 
 
 def _blocks(v):
-    return np.asarray(v, dtype=float).reshape(-1, LOOP_DIM)
+    return [v[k * LOOP_DIM:(k + 1) * LOOP_DIM] for k in range(len(v) // LOOP_DIM)]
+
+
+def _concat(blocks):
+    out = []
+    for b in blocks:
+        out.extend(b)
+    return out
 
 
 def _require_native(symbol):
@@ -54,22 +76,24 @@ def test_native_conj_hd_matches_python_recursion():
     x = _rand_blocks(2026)
     native = hdc._try_native_loop_conj_hd(x)
     assert native is not None
-    want = np.concatenate([hdc._loop_conj_raw(b) for b in _blocks(x)])
-    assert np.array_equal(native, want)  # conj is sign flips — exact
+    want = _concat([hdc._loop_conj_raw(b) for b in _blocks(x)])
+    assert native == want  # conj is sign flips — exact
 
 
 def test_native_inv_hd_matches_python_recursion():
     _require_native("srmech_loop_inv_hd_f64")
     # non-unit blocks (distinct scales) — exercises the norm² gate.
-    xb = _blocks(_rand_blocks(7)).copy()
+    xb = _blocks(_rand_blocks(7))
     for k in range(NB):
-        xb[k] *= (0.5 + 0.13 * k)
-    x = xb.reshape(-1)
+        xb[k] = [v * (0.5 + 0.13 * k) for v in xb[k]]
+    x = _concat(xb)
     native = hdc._try_native_loop_inv_hd(x)
     assert native is not None
-    want = np.concatenate(
-        [hdc._loop_conj_raw(b) / float(np.dot(b, b)) for b in _blocks(x)])
-    assert np.allclose(native, want, atol=1e-13)
+    want = _concat([
+        [c / mat_dot(b, b) for c in hdc._loop_conj_raw(b)]
+        for b in _blocks(x)
+    ])
+    assert mat_norm(_vsub(native, want)) < 1e-13
 
 
 def test_native_unbind_hd_matches_python_recursion():
@@ -78,10 +102,10 @@ def test_native_unbind_hd_matches_python_recursion():
     b = _rand_blocks(12)
     native = hdc._try_native_loop_unbind_hd(a, b)
     assert native is not None
-    want = np.concatenate(
+    want = _concat(
         [hdc._loop_bind_raw(hdc._loop_conj_raw(ab), bb)
          for ab, bb in zip(_blocks(a), _blocks(b))])
-    assert np.allclose(native, want, atol=1e-12)
+    assert mat_norm(_vsub(native, want)) < 1e-12
 
 
 def test_native_runbind_hd_matches_python_recursion():
@@ -90,10 +114,10 @@ def test_native_runbind_hd_matches_python_recursion():
     b = _rand_blocks(22)
     native = hdc._try_native_loop_runbind_hd(a, b)
     assert native is not None
-    want = np.concatenate(
+    want = _concat(
         [hdc._loop_bind_raw(bb, hdc._loop_conj_raw(ab))
          for ab, bb in zip(_blocks(a), _blocks(b))])
-    assert np.allclose(native, want, atol=1e-12)
+    assert mat_norm(_vsub(native, want)) < 1e-12
 
 
 # ----------------------------------------------------------------------
@@ -106,12 +130,10 @@ def test_wrappers_dispatch_to_native_when_present():
     x = _rand_blocks(31)
     a = _rand_blocks(32)
     b = _rand_blocks(33)
-    assert np.array_equal(hdc.loop_conj_hd(x), hdc._try_native_loop_conj_hd(x))
-    assert np.array_equal(hdc.loop_inv_hd(x), hdc._try_native_loop_inv_hd(x))
-    assert np.array_equal(
-        hdc.loop_unbind_hd(a, b), hdc._try_native_loop_unbind_hd(a, b))
-    assert np.array_equal(
-        hdc.loop_runbind_hd(a, b), hdc._try_native_loop_runbind_hd(a, b))
+    assert hdc.loop_conj_hd(x) == hdc._try_native_loop_conj_hd(x)
+    assert hdc.loop_inv_hd(x) == hdc._try_native_loop_inv_hd(x)
+    assert hdc.loop_unbind_hd(a, b) == hdc._try_native_loop_unbind_hd(a, b)
+    assert hdc.loop_runbind_hd(a, b) == hdc._try_native_loop_runbind_hd(a, b)
 
 
 # ----------------------------------------------------------------------
@@ -124,19 +146,19 @@ def test_native_round_trip_left_and_right_unbind():
     a = _rand_blocks(41, unit=True)
     v = _rand_blocks(42, unit=True)
     # left-built: b = a·v  ⟹  loop_unbind_hd(a, b) == v
-    assert np.allclose(hdc.loop_unbind_hd(a, hdc.loop_bind_hd(a, v)), v, atol=1e-12)
+    assert mat_norm(_vsub(hdc.loop_unbind_hd(a, hdc.loop_bind_hd(a, v)), v)) < 1e-12
     # right-built: b = v·a ⟹  loop_runbind_hd(a, b) == v
-    assert np.allclose(hdc.loop_runbind_hd(a, hdc.loop_bind_hd(v, a)), v, atol=1e-12)
+    assert mat_norm(_vsub(hdc.loop_runbind_hd(a, hdc.loop_bind_hd(v, a)), v)) < 1e-12
 
 
 def test_native_inv_hd_is_per_block_bind_identity():
     _require_native("srmech_loop_inv_hd_f64")
     x = _rand_blocks(43, unit=True)
     prod = _blocks(hdc.loop_bind_hd(x, hdc.loop_inv_hd(x)))
-    e0 = np.zeros(LOOP_DIM)
+    e0 = [0.0] * LOOP_DIM
     e0[0] = 1.0
     for k in range(NB):
-        assert np.allclose(prod[k], e0, atol=1e-12)
+        assert mat_norm(_vsub(prod[k], e0)) < 1e-12
 
 
 # ----------------------------------------------------------------------
@@ -146,9 +168,9 @@ def test_native_inv_hd_is_per_block_bind_identity():
 
 def test_inv_hd_zero_block_raises_through_fallback():
     x = _rand_blocks(51, unit=True)
-    xb = _blocks(x).copy()
-    xb[NB // 2] = 0.0  # one zero block — no Moufang inverse
-    x = xb.reshape(-1)
+    xb = _blocks(x)
+    xb[NB // 2] = [0.0] * LOOP_DIM  # one zero block — no Moufang inverse
+    x = _concat(xb)
     # native peer (if present) returns None on BAD_INPUT; the wrapper then
     # falls through to the per-block Python path, which asserts on the zero.
     assert hdc._try_native_loop_inv_hd(x) is None or not hdc._loop_native_ready(

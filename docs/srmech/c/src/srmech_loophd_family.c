@@ -37,7 +37,7 @@
  * Rule 7 (srmech_status_t throughout); Rule 10 (-Wall -Wextra -Wpedantic
  * -Werror / /WX). ABI: new symbols only → SRMECH_ABI_VERSION stays 3 (additive).
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"

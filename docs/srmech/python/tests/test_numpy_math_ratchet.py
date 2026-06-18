@@ -151,10 +151,249 @@ _UFUNC = re.compile(
 # fallbacks; a deeper separate pass) and the docstring/ToolEntry-summary
 # `numpy.linalg.*` cross-reference MENTIONS (precise docs — left intact, not gamed).
 # Next: np.fft (n/axis handling) + np.linalg.svd/qr/eigvals + inv/pinv.
+#
+# rc28 EXACTIFIES the dft/fft cascade (no ratchet movement — counts unchanged).
+# Per the sharpened user direction ("don't use floats for bit-exact math, that's
+# what ints and complex are for; floats are for FPU lift"), the dft/fft cascade
+# now routes an all-integer / Gaussian-integer power-of-two signal through an
+# exact cyclotomic-integer engine (ℤ[ζ_N], ζ^{N/2}=-1 Class-K sign-flip → pure
+# integer add/subtract) with ONE FPU lift at the end — exact-until-rotation, MORE
+# faithful than a float FFT (which rounds every butterfly). This is the FIRST
+# exact cascade and a correction to rc27's "round-off-faithful is fine" framing
+# for the integer case. It adds NO numpy, NO public surface (private engine
+# srmech.amsc.cascade.exact_dft), so all three ceilings (linalg_fft/matmul/ufunc)
+# AND the rosetta python_only_irreducible debt bucket are untouched. Exposing the
+# exact ℤ[ζ_N] spectrum as a public op belongs with its C twin (a follow-up).
+#
+# rc34 resumes the matmul decrement by ROUTING distinct-op callsites onto the
+# already-shipped kron / einsum cascades (no new public op — pure routing):
+# qm.so8's `np.kron(ad.T,I) - np.kron(I,ad)` superoperator (×2) and qm.bell's
+# `_kron` (×1) → `spectral_cascades.kron` (`np.asarray` is carrier-only); and
+# qm.triality's octonion-couple `np.einsum("i,j,ijk->k")` (×1) →
+# `matrix_cascades.einsum`. All four are value-faithful (so8/triality bit-exact
+# err 0.0; bell bit-exact on its Pauli/measurement operators) (matmul 55 -> 51).
+# DEFERRED: ica_jade's 2 einsum sit in the hot Jacobi sweep loop (a perf-careful
+# pass), the np.outer family awaits a dense_outer cascade (a new public op), and
+# the matrix_cascades QR-internal vdot/outer/@ await the shape-polymorphic pass.
+#
+# rc51 ships the dense_outer cascade (the deferred new public op): laplacian
+# gains `dense_outer_complex` / `dense_outer_real` (an outer product IS the k=1
+# case of dense_matmul_complex, so it rides the native kernel bit-identically),
+# and routes the 3 genuine np.outer sites — qm.propagators' two real k^μk^ν
+# momentum tensors (→ dense_outer_real) and qm.single_particle's complex |ψ⟩⟨ψ|
+# density matrix (→ dense_outer_complex) (matmul 51 -> 48). The 2 remaining
+# np.outer are the matrix_cascades QR-internal Householder updates, still on the
+# shape-polymorphic pass with the QR-internal vdot/@.
+# rc52 OPENS the ufunc decrement: the new `laplacian.elementwise_hypot`
+# (per-element rational.hypot — the Class-N |z| cascade, native
+# srmech_rational_sqrt-dispatched, numpy carries the array only) routes the
+# 5 DSP `np.hypot(z.real, z.imag)` magnitude sites (fsk/mlse/psk_qam/ofdm/
+# spectral) off numpy's ufunc engine (ufunc 48 -> 43). Round-off-faithful
+# (rational sqrt floor-projected vs IEEE round-to-nearest; the magnitude
+# shift never flips a nearest-symbol / argmax decision). Next ufunc batches:
+# the np.exp complex-phase sites onto elementwise_transcendental, then
+# np.sqrt / np.sin / np.cos / np.log / np.sign.
+# rc53 continues the ufunc decrement: routes the 14 genuine `np.exp` callsites
+# onto cascades — the array e^{iθ} phases (qm.gauge time-evolution diag,
+# qm.single_particle TDSE/Heisenberg/Liouville per-mode phases, fsk tone bank,
+# psk_qam constellation, spectral_subtraction phase re-attach, spectral phase
+# extrapolate, laplacian magnetic directed-phase) onto `elementwise_transcendental
+# (·, 'exp_i')` (its real cos/sin run the native libm-free C cascade), the real
+# array exps (heat_kernel decay, rbs_lm softmax) onto `(·, 'exp')`, and the 2
+# scalar CKM phases (qm.sm) onto `rational.cexp` (Euler). Plus 2 doc/summary
+# `np.exp(` mentions de-parened (ratchet-visible). ufunc 43 -> 27. The 2
+# remaining np.exp are elementwise_transcendental's OWN complex-input fallback +
+# real no-native fallback (the documented internal kernel; deferred). Next: the
+# np.sqrt cluster (12), then np.sin/np.cos/np.log/np.sign.
+# rc54 continues the ufunc decrement: the new `laplacian.elementwise_sqrt`
+# (per-element rational.sqrt — the Class-N√ cascade, native
+# srmech_rational_sqrt-dispatched, numpy carries the array only) routes the 2
+# array `np.sqrt` sites (spectral_subtraction PSD magnitude, ica_jade
+# whitening eigenvalues), and the 10 SCALAR np.sqrt sites (gauge Gell-Mann
+# 1/√3 ×3, potentials √n ladder, relativistic on-shell energy, so8 ×2,
+# triality, psk_qam √M, wavelet 1/√2) route onto `rational.sqrt`. ufunc
+# 27 -> 15. Round-off-faithful (rational sqrt floor-projected vs IEEE
+# round-to-nearest, ≤1-ULP; bit-exact on perfect squares). Next: np.sin (3)
+# + np.cos (3) onto elementwise_transcendental, np.log (5), np.sign (2); then
+# the 2 internal exp fallbacks (the deferred cascade kernel).
+# rc55 clears the EXTERNAL ufunc residue: the 2 scalar `np.log` (mlse
+# uniform-prior A_log / pi_log) route onto `rational.log`, and the 1 array
+# `np.sign` (hdc.polar_bundle's Pyodide fallback for srmech_polar_bundle)
+# routes onto a Class-K comparison sign `(x>0)-(x<0)` (carrier comparisons,
+# no np.sign ufunc; bit-identical to np.sign for the real int sum; no abs()).
+# Plus 2 ratchet-visible comment mentions de-parened. ufunc 15 -> 10. The
+# remaining 10 are ALL `elementwise_transcendental`'s OWN internal numpy
+# fallback (2 exp + 3 sin + 3 cos + 2 log — the complex-input path + the
+# no-native real path); driving those to zero is the deferred cascade-kernel
+# work (needs complex-input trig/exp/log cascades), tracked separately.
+# rc56 CLOSES the ufunc bucket to ZERO (rc52 hypot 48->43, rc53 exp ->27,
+# rc54 sqrt ->15, rc55 log/sign ->10, rc56 ->0). The last 10 were
+# `elementwise_transcendental`'s OWN internal numpy fallback (its complex-
+# input path + its no-native real path). rc56 makes both numpy-free: the
+# real fallback loops `rational.exp/cos/sin/log` (Class-N scalar cascades,
+# bit-exact vs numpy over the tested range), the complex path runs
+# `rational.complex_exp` (exp) / cosh-sinh-from-rational.exp (cos/sin) /
+# `rational.log(hypot)+i*atan2` (log) per element. numpy is now PURELY a
+# carrier across the entire transcendental + magnitude surface. Next numpy-
+# math front: the `linalg_fft` ledger (122 — np.linalg.* / np.fft.*).
+# rc57 — the matmul-ledger REWORD SWEEP (the ledger's documented next step:
+# 'reword sweep + distinct-op cascades = separate work items'). The ufunc
+# bucket is 0 (rc52-rc56); turning to matmul, ~30 of its 48 matches were
+# TEXTUAL ` @ ` / np.{vdot,einsum,convolve,correlate,kron} mentions in
+# docstrings / comments / ToolEntry summaries (+ one profile_loader f-string
+# ` @ ` false positive), not compute. rc57 strips them all (write the NumPy
+# op name / `·` without the dotted-paren form, per the rc34 convention) — ZERO
+# behaviour change. matmul 48 -> 18. The remaining 18 ARE genuine deferred
+# compute: matrix_cascades QR-internals (vdot/outer/@/back-solve, shape-
+# polymorphic), ica_jade einsum hot loop, fir/multirate/polyphase np.convolve
+# + matched_filter np.correlate (distinct-op cascades — own future work),
+# laplacian Schur L_pi·X + the dense_matvec kernel-internal @. Next: the
+# convolve/correlate cascades, then the QR shape-polymorphic pass, then linalg_fft.
+# rc58 — the convolve/correlate cascade (the documented next step). The 6
+# DSP callsites (fir / multirate / polyphase ×2 np.convolve + closed_form /
+# path_b matched_filter np.correlate) route onto a new signal_processing-
+# internal helper `_dsp_cascades.{convolve,correlate}`: direct linear
+# convolution as Class-I shift ∘ Class-M scaled-accumulate (`full[i:i+nb] =
+# full[i:i+nb] + a[i]*b`, numpy a carrier only — no convolve/matmul/ufunc),
+# with full/same/valid edge modes; correlate = convolve(a, conj(v)[::-1])
+# with NumPy's exact same-mode crop (floor for na>=nv, ceil for na<nv).
+# Value-faithful to NumPy across 15 length-combos × 3 dtypes × 3 modes.
+# NOT a public srmech.amsc op (it composes carrier arithmetic, no own C
+# symbol → would only add python_only_irreducible debt; a future rc can
+# promote it WITH a C twin). matmul 18 -> 12. The remaining 12 are the
+# matrix_cascades QR-internals (8) + ica_jade einsum hot loop (2) + laplacian
+# Schur/dense_matvec (2). Next: the QR shape-polymorphic pass, then linalg_fft.
+# rc59 — the QR shape-polymorphic pass (the documented next step). The 8
+# matrix_cascades QR-internal sites route onto the EXISTING value-faithful
+# dense_* kernels (no new kernel): the 2 `np.vdot(v,v)` (the _norm2 / vhv
+# Hermitian self-bind) -> `dense_dot_complex(conj(v), v)` (plain bilinear, so
+# conj passed explicitly); the 2 `np.outer` (the Householder reflector v vᴴ) ->
+# `dense_outer_complex`; the `conj(v) @ R` / `Q @ v` reflector matvecs ->
+# `dense_matvec_complex`; and the lstsq back-solve `Qᴴ·b` + `R[i,i+1:]·x[i+1:]`
+# -> dense_matvec/matmul (branch on rhs ndim) / dense_dot (1-D) / dense_matvec
+# (k-col) — the shape-polymorphic case. The kernels are value-faithful, so the
+# QR/SVD/lstsq/eig INVARIANTS (reconstruction, orthonormal Q, upper-tri R,
+# singular values, eigenvalue multiset) are preserved — verified vs numpy
+# across real+complex, 1-D + multi-column rhs. matmul 12 -> 4. The final 4 are
+# genuinely deferred: ica_jade np.einsum (the hot JADE cumulant loop) + the
+# laplacian Schur `L_pi·X` + the `dense_matvec_complex` kernel-INTERNAL `@`
+# fallback (a kernel can't route onto itself). Next numpy-math front: the
+# `linalg_fft` ledger (122 — np.linalg.* / np.fft.*).
 # ---------------------------------------------------------------------------
-CEIL_LINALG_FFT = 122
-CEIL_MATMUL = 55
-CEIL_UFUNC = 48
+# rc61: the np.fft.* family, first batch. The 15 one-dimensional
+# `np.fft.fft(x)` / `np.fft.ifft(x)` callsites in signal_processing
+# (cross_spectral ×4, ofdm ×2, spectral_subtraction ×2, multitaper ×1,
+# stft ×2, wiener ×2, path_b/wiener ×2) route onto the value-faithful
+# `srmech.amsc.cascade.spectral_cascades.fft` / `.ifft` cascade (radix-2
+# Cooley-Tukey + dft fallback for non-power-of-2 N; exact-until-rotation,
+# verified == numpy across real+complex N=2..100), wrapped `np.asarray(...)`
+# so the result stays an ndarray carrier. The DSP-op INVARIANTS (coherence,
+# Wiener gain, OFDM round-trip, STFT frames, multitaper PSD) are preserved —
+# 447 signal_processing tests pass post-route. linalg_fft 102 -> 87. The
+# remaining np.fft. sites are the n=/axis= Path-A reference ops
+# (fft.py/ifft.py/rfft.py + fftfreq), which need an array-aware (n-pad +
+# axis) wrapper over the 1-D cascade — deferred to the next batch. The
+# np.linalg.{svd,qr,eig,solve,inv,...} decomposition cluster (~36 genuine
+# sites, mostly qm/so8.py) is the front after that.
+# rc62: DRAIN the np.fft.* family. New signal_processing/_fft_carrier.py lifts
+# the 1-D spectral_cascades fft/ifft to NumPy's ndarray + n= (zero-pad /
+# truncate) + axis= contract (NumPy a carrier only: moveaxis / reshape / pad /
+# slice), plus a real-input rfft (full-transform-then-slice, with a complex-
+# input TypeError raise mirroring NumPy) and an fftfreq carrier (integer bin
+# indices / (n*d); no transcendentals). All 8 remaining genuine np.fft.* calls
+# route onto it — the 6 Path-A/Path-B fft/ifft/rfft ops (closed_form_ops +
+# path_b_ops) + the 2 cross_spectral fftfreq sites — and the ~18 textual
+# `numpy.fft.X` doc/summary mentions are reworded to "NumPy fft". The carriers
+# are bit-faithful to NumPy across real+complex, 1-D + n-D, every axis, and n
+# pad/truncate (~1e-9). rfft is value-faithful (~1 ULP) NOT bit-identical to
+# NumPy's pocketfft real-FFT (even np.fft.fft(real)[:n//2+1] != np.fft.rfft
+# bit-for-bit) — matching pocketfft's exact rounding was a NumPy-backend
+# artifact, not a substrate property, so the rfft-vs-NumPy tests are now
+# allclose (the Path-A-vs-Path-B cascade identity stays exact). np.fft. -> 0.
+# linalg_fft 87 -> 61. Next: the np.linalg.{svd,qr,eig,solve,inv,...} cluster.
+# rc63a (first np.linalg.* sub-rc): route the genuine sign/order-invariant
+# decompositions onto the already-shipped value-faithful matrix_cascades
+# cascades. The 5 `q, _ = np.linalg.qr(X)` callsites (qm/so8.py) consume Q only
+# through `q @ q.T` projectors / its column span / a sum-of-squares leak test —
+# all invariant to QR's per-column sign — so `matrix_cascades.qr` (faithful up
+# to column sign) is exact for the usage (verified: q@q.T == numpy to ~1e-9).
+# The 2 `np.linalg.eigvals(X)` callsites (pseudo_hermitian `max|imag|`, esprit
+# rotation set) consume the eigenvalue MULTISET (order-free) -> `.eigvals`
+# (set-faithful ~1e-12). 83 so8/esprit/pseudo_hermitian/triality op-tests pass
+# post-route. Plus the ~22 textual `numpy.linalg.X` faithfulness/summary
+# mentions in matrix_cascades / tool_schema / triality (no genuine calls there)
+# reworded to "NumPy X". np.linalg. 61 -> 32. The genuine svd / matrix_rank /
+# inv / eig / eigh / solve / lstsq / pinv (sign/order-delicate, mostly qm/so8.py
+# + amsc/laplacian.py) are the rc63b/c sub-batches.
+# rc63b (v0.7.5rc64): the 2 real `np.linalg.inv` covariance-inverse sites in
+# signal_processing/closed_form_ops/map_ml.py route onto the already-exported
+# `laplacian.dense_solve(M, np.eye(n))` (a unique, well-conditioned solve — the
+# inverse IS A·X=I; verified == numpy ~1e-9). The so8 `np.linalg.matrix_rank`
+# sites were investigated and KEPT ON NUMPY: the cascade SVD is value-faithful
+# for large singular values but its nullspace (small-singular-value) accuracy is
+# too low for an absolute-tol rank count on a RANK-DEFICIENT matrix (it over-
+# counted so8 `rank_with_so4` 6 -> 9) — a legitimate numpy-as-ACCURACY site, not
+# numpy-as-carrier (deferred with the dense_solve fallback + matmul-4 tail).
+# linalg_fft 32 -> 30. rc65: pinv (so8 Killing-form structure-constant solve) ->
+# _pinv svd-reconstruct A+ = V.diag(1/s).Uh via dense_matmul_real; sign-invariant
+# (pinv unique), full-column-rank coords -> well-conditioned -> ~1e-7 faithful.
+# linalg_fft 30 -> 29. rc66: complex inv (pseudo_hermitian (V·V†)⁻¹) ->
+# laplacian._dense_solve_complex — the real 2n×2n block embedding of the native
+# real dense_solve. linalg_fft 29 -> 28.
+# rc67: symmetric_eigendecompose (real-symmetric eigh) -> the C-backed
+# hermitian_eigendecompose + _canonicalize_eigenvector_signs (Class-K per-column
+# phase pin: rotate so the largest-|·| entry is real-positive, then .real). The
+# native Jacobi peer keeps real input real; verified real + reconstruction-exact
+# on degenerate cases (4-cycle / identity / block-degen). 1 genuine call + 2
+# textual docstring mentions removed. linalg_fft 28 -> 25.
+# rc68: the 2 so8 np.linalg.eig sites (J / ad(H) — both REAL antisymmetric, so
+# iS is Hermitian) route onto _eig_real_skew = hermitian_eigendecompose(iS)
+# (λ_S = −i·μ, same eigenvectors). Verified the +i-eigenspace PROJECTOR + the
+# Rayleigh-quotient weights are basis-invariant (so the degenerate mult-3 584
+# triplet span is preserved); full so8/triality/an_embedding suite green.
+# linalg_fft 25 -> 23.
+# Remaining: numpy-as-accuracy (6 matrix_rank + 7 so8 svd, small-s/nullspace),
+# the irreducible numpy fallbacks INSIDE dense_solve / hermitian_eigendecompose,
+# pseudo_hermitian:182 eig (O NOT skew → iS trick N/A; needs general non-Hermitian
+# eigenvector cascade), plus precise docstring mentions. (rc109: the mimo_svd
+# public-API op routed onto the numpy-free `mat_svd` Mat foundation — its
+# `np.linalg.svd` is gone, so linalg_fft 23 → 22.)
+# rc123/124/125 (#564 carrier removal): qm/so8.py, qm/triality.py,
+# amsc/hdc.py + amsc/cascade/hypercomplex_dft.py flip fully numpy-free. so8 was
+# the dominant numpy-as-accuracy holder (its ~13 np.linalg.{svd,matrix_rank}
+# sites): the rank COUNTS move to the EXACT rational RREF / float Gram-Schmidt
+# rank, and the nullspace/SVD GEOMETRY rides the numpy-free `mat_svd`; triality's
+# lstsq/matmul move to `mat_solve`/`mat_matmul`; hdc's loop/polar families drop
+# numpy entirely. The live linalg_fft count falls to 9 (8 in laplacian's own
+# irreducible numpy fallbacks + 1 pseudo_hermitian general-eig). 22 → 9.
+# rc124 (#564 carrier removal): qm/pseudo_hermitian.py flips fully numpy-free —
+# its lone `np.linalg.eig` (the general non-Hermitian eigendecomposition for the
+# η = (V V†)⁻¹ construction) is replaced by `mat_eigvals` + a deterministic
+# Gaussian-elimination null-vector eigenvector cascade, so the last non-laplacian
+# linalg_fft callsite is gone. 9 → 8 (now all in laplacian's irreducible numpy
+# fallbacks).
+# rc126 (#564 carrier removal): signal_processing/closed_form_ops/ica_jade.py
+# flips fully numpy-free (the LAST signal_processing carrier) — its 2 cumulant-
+# rotation `np.einsum` calls become explicit numpy-free first-axis-contraction
+# loops, and the `a·b` matmul docstring is de-`@`-ed. matmul 4 → 2 (the
+# remaining 2 are laplacian's own irreducible internal products).
+# rc127 (#564 carrier removal COMPLETE): numpy is GONE from srmech entirely —
+# no `import numpy`, no `srmech._scientific`, no `[scientific]` extra, no
+# to_numpy() bridge, no `np` module attribute. The executable numpy-MATH surface
+# this ratchet guards is therefore ZERO across all three categories. The
+# remaining `numpy.linalg.*` matches are TEXTUAL DOCSTRING mentions in
+# amsc/laplacian.py ("Matches the native-C / ``numpy.linalg.eigvalsh`` path to
+# Jacobi round-off", "NOT ``numpy.linalg.eigvalsh``") — precise historical
+# cross-references in prose, NOT compute. matmul + ufunc are 0. The ratchet now
+# measures only docstring residue; the ceilings are pinned at the exact residual
+# counts so the down-only guard still passes (and still catches any NEW np. token
+# re-entering the source).
+# rc131: the introspection-honesty sweep rewrote schur_complement's docstring
+# (dropping its stale "``numpy.linalg.solve`` ``[scientific]`` tier" reference,
+# which described a numpy path that no longer exists), so linalg_fft 3 → 2.
+CEIL_LINALG_FFT = 2  # textual `numpy.linalg.*` docstring mentions in laplacian.py
+CEIL_MATMUL = 0
+CEIL_UFUNC = 0
 
 
 def _count_category() -> dict[str, int]:

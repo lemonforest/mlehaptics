@@ -15,7 +15,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ephemerides-spectral"
-version = "0.30.0rc10"
+version = "0.31.0rc4"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects oversize metadata
 # ("could not comply" with no useful detail bubbled into the publish
@@ -55,7 +55,10 @@ classifiers = [
 # _bootstrap_amsc() imports srmech.amsc.* at package import (Task #197
 # Phase 3 cross-package wiring). MUST stay congruent with the floor
 # in pyproject.toml.
-dependencies = ["numpy>=1.24", "srmech>=0.7.4"]
+# v0.31.0rc4: numpy-FREE capstone — see python/pyproject.toml. numpy is
+# no longer a runtime dependency; skyfield stays an optional [ephemeris]
+# extra (it transitively requires numpy for live SPICE calibration).
+dependencies = ["srmech>=0.8.1"]
 
 [project.optional-dependencies]
 ephemeris  = ["skyfield>=1.46", "jplephem>=2.21"]
@@ -101,3 +104,6 @@ exclude = [
 # needs explicit inclusion for TOMLs since they're data not Python.
 "ephemerides_spectral/srmech_profile.toml" = "ephemerides_spectral/srmech_profile.toml"
 "ephemerides_spectral/_srmech_tool_schema.toml" = "ephemerides_spectral/_srmech_tool_schema.toml"
+# rc2 — config-driven srmech [class] catalog (GatewayNavigation = the
+# ITN / etak navigation cascade). Data TOML, needs explicit inclusion.
+"ephemerides_spectral/_research/class_catalog/gateway_navigation.toml" = "ephemerides_spectral/_research/class_catalog/gateway_navigation.toml"

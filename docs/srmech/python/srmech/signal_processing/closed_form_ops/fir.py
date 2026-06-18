@@ -5,7 +5,7 @@ coefficient table) ∘ Class C (cyclic streaming over the signal-tap product
 cascade) composition. Class N is the closed-form home for the impulse
 response, and Class C is the cyclic streaming that produces the output.
 
-The closed-form reference uses numpy's ``np.convolve`` (linear convolution).
+The closed-form reference uses NumPy linear convolution.
 
 Path B dual in Phase 6 (FIR via Class N rational + bundle convolution).
 
@@ -15,7 +15,7 @@ Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Oppenheim
 
 from __future__ import annotations
 
-import numpy as np
+from srmech.signal_processing import _dsp_cascades as _dsp
 
 OPERATION_NAME = "fir"
 CLASS_COMPOSITION = ("N", "C")
@@ -38,19 +38,15 @@ def op(signal, coefficients, *, mode: str = "full", D: int = 8192):
     coefficients:
         FIR filter taps ``[b_0, b_1, ..., b_{M-1}]`` (Class N rational table).
     mode:
-        ``"full"`` (default), ``"same"``, or ``"valid"`` per ``np.convolve``.
+        ``"full"`` (default), ``"same"``, or ``"valid"`` per NumPy convolution.
     D:
         Path B dimensionality (Path A unused).
 
     Returns
     -------
-    numpy.ndarray
-        Filtered output.
+    list
+        Filtered output (length per ``mode``); numpy-free (#564).
     """
-    sig = np.asarray(signal)
-    b = np.asarray(coefficients)
-    if sig.ndim != 1 or b.ndim != 1:
-        raise ValueError(
-            f"fir expects 1-D inputs; got {sig.shape} and {b.shape}"
-        )
-    return np.convolve(sig, b, mode=mode)
+    # _dsp.convolve is numpy-free: it coerces both inputs to 1-D lists (raising
+    # ValueError on a nested/2-D input or an empty input) and returns a list.
+    return _dsp.convolve(signal, coefficients, mode=mode)

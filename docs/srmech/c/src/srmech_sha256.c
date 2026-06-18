@@ -27,7 +27,7 @@
  *   - Rule 10 (warnings clean): OK under -Wall -Wextra -Wpedantic
  *                              -Werror (verified at CI Phase B6)
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"

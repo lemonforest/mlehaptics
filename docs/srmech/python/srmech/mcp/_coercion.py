@@ -83,7 +83,10 @@ import base64
 import binascii
 from typing import Any, Callable, Dict, List, Tuple
 
-import numpy as np
+# numpy-FREE (#564): the wire form for a former ``np.ndarray`` param/return is a
+# plain nested JSON ``list`` (the numpy-free ops consume/return plain Python
+# lists / :class:`srmech.amsc.mat.Mat` / :class:`srmech.amsc.hv.HV` / ``complex``
+# now). No ``import numpy`` here — this was the LAST top-level numpy carrier.
 
 # ``binascii.Error`` is what ``base64.b64decode(validate=True)`` raises on
 # malformed input.
@@ -162,53 +165,175 @@ def _to_complex(value: Any, *, param: str = "") -> complex:
     )
 
 
-def _to_ndarray(value: Any, *, param: str = "") -> np.ndarray:
-    """Coerce a nested JSON list to a **real** ``np.ndarray`` (the
-    natural numpy dtype: ``float64`` for any float, ``int64`` for all
-    ints). A value already an ndarray passes through unchanged.
+def _to_ndarray(value: Any, *, param: str = "") -> list:
+    """Coerce a nested JSON list to a **real nested Python list** — the
+    numpy-free (#564) wire form for the historical ``np.ndarray`` param.
 
-    DTYPE CAVEAT (the documented round-trip caveat). A nested list of
-    plain numbers is built as a *real* array; the generic ``np.ndarray``
-    path does NOT auto-promote ``[re, im]`` leaves to a complex array,
-    because a real 2-column matrix (e.g. ``[[1, 2], [3, 4]]``) is
-    shape-indistinguishable from a length-2 complex vector — guessing
-    would corrupt the far more common real-matrix ops (graph-Laplacian,
-    real symmetric eigendecomposition, real 3-/4-vectors). This makes the
-    real-array round-trip ``coerce_param(serialise_native(x)) == x``
-    EXACT, and is lossless for the complex-input ops too: every complex
-    op internally casts via ``np.ascontiguousarray(value,
-    dtype=complex128)`` and a real symmetric matrix IS a valid Hermitian
-    input. The only thing the generic path cannot accept on input is an
-    array carrying genuine *imaginary* parts — express those explicitly
-    with :func:`_complex_pairs_to_ndarray` (the ``complex`` element coercer
-    handles single complex scalars; bulk complex array work is the bus
-    by-reference handle path, not the JSON MCP path).
-    """
-    if isinstance(value, np.ndarray):
+    DTYPE CAVEAT (the documented round-trip caveat). A nested list of plain
+    numbers stays REAL; the generic path does NOT auto-promote ``[re, im]``
+    leaves to complex, because a real 2-column matrix (e.g.
+    ``[[1, 2], [3, 4]]``) is shape-indistinguishable from a length-2 complex
+    vector — guessing would corrupt the far more common real-matrix ops
+    (graph-Laplacian, real symmetric eigendecomposition, real 3-/4-vectors).
+    This makes the round-trip ``coerce_param(serialise_native(x)) == x``
+    EXACT. The only thing the generic path cannot accept on input is a nested
+    list carrying genuine *imaginary* parts — express those explicitly with
+    :func:`_complex_pairs_to_ndarray` (the ``complex`` element coercer handles
+    single complex scalars; bulk complex array work is the by-reference handle
+    path, not the JSON MCP path)."""
+    if isinstance(value, tuple):
+        return [list(v) if isinstance(v, (list, tuple)) else v for v in value]
+    return value
+
+
+def _to_mat(value: Any, *, param: str = "") -> Any:
+    """Coerce a nested JSON list-of-rows to a real :class:`srmech.amsc.mat.Mat`
+    (the numpy-free 2-D carrier; v0.7.5rc72 ``mat_matmul`` bridge). A value
+    already a ``Mat`` passes through unchanged.
+
+    Same real-only caveat as :func:`_to_ndarray`: a nested list of plain numbers
+    builds a REAL ``Mat`` (a 2-column real matrix is shape-indistinguishable from
+    a length-2 complex vector, so the generic JSON path never guesses imaginary
+    parts); genuine-complex ``Mat`` work rides the in-process / by-reference
+    handle path, not the JSON MCP path."""
+    from srmech.amsc.mat import Mat  # numpy-free carrier; lazy to avoid a cycle
+    if isinstance(value, Mat):
         return value
-    # np.asarray picks float64 for any float present, int64 for all-ints.
-    # Force float64 when the value is (nested) numeric with any float so a
-    # mixed int/float matrix is uniform; np.asarray already does this.
-    return np.asarray(value)
-
-
-def _complex_pairs_to_ndarray(value: Any, *, param: str = "") -> np.ndarray:
-    """Build a ``complex128`` array from nested ``[re, im]`` leaves — the
-    inverse of the outbound complex-array serialisation (each scalar is a
-    2-list ``[re, im]``). Used by round-trip tests and any future op that
-    declares an explicitly-complex array param; the generic
-    :func:`_to_ndarray` deliberately does NOT call this (see its dtype
-    caveat). A value already a complex ndarray passes through.
-    """
-    if isinstance(value, np.ndarray):
-        return value.astype(np.complex128)
-    real = np.asarray(value, dtype=np.float64)
-    if real.ndim == 0 or real.shape[-1] != 2:
+    if not isinstance(value, (list, tuple)):
         raise ValueError(
-            f"complex ndarray param {param or '<ndarray>'!r}: innermost "
-            f"axis must be [re, im] (length 2); got shape {real.shape}"
+            f"expected a list of rows for param {param or '<mat>'!r}; "
+            f"got {type(value).__name__}"
         )
-    return real[..., 0] + 1j * real[..., 1]
+    return Mat.from_rows([list(r) for r in value], is_complex=False)
+
+
+def _to_vec(value: Any, *, param: str = "") -> Any:
+    """Coerce a flat JSON list to the **natural flat Python list** — the
+    numpy-free wire form for a ``Vec``-typed (1-D carrier) param (v0.7.5rc132).
+
+    The carrier is AGNOSTIC about input: every numpy-free op that takes a 1-D
+    operand iterates it (``[float(x) for x in v]`` / ``Vec.from_sequence(v)`` /
+    a length-n scan), so a flat ``list`` / ``tuple`` / ``array.array`` / ``Vec``
+    are all accepted. The honest, minimal coercer therefore produces the flat
+    Python structure (a ``list``) and lets the op's own acceptance handle the
+    final carrier — never wraps numpy. A value already a ``Vec`` (an in-process
+    caller) passes through unchanged."""
+    from srmech.amsc.vec import Vec  # numpy-free 1-D carrier; lazy to avoid a cycle
+    if isinstance(value, Vec):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return value
+
+
+def _to_hv(value: Any, *, param: str = "") -> Any:
+    """Coerce a flat JSON int list to the **natural flat Python list** — the
+    numpy-free wire form for an ``HV``-typed (hypervector byte carrier) param
+    (v0.7.5rc132).
+
+    The carrier is AGNOSTIC about input: the hdc / genome / octonion ops that
+    take a hypervector validate it through their own ``_as_klein4_buf`` /
+    ``_as_polar`` / ``_as_loop`` (each iterates a ``list`` / ``tuple`` /
+    ``array.array`` / ``HV`` / ``bytes`` and casts per-element), so the honest,
+    minimal coercer produces the flat Python structure (a ``list``) and lets the
+    op's own acceptance build the final ``HV`` / ``array('B')`` / ``list[float]``.
+    A value already an ``HV`` (an in-process caller) passes through unchanged."""
+    from srmech.amsc.hv import HV  # numpy-free hypervector carrier; lazy
+    if isinstance(value, HV):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return value
+
+
+def _to_mat_or_vec(value: Any, *, param: str = "") -> Any:
+    """Coerce a ``Mat | Vec`` (shape-polymorphic) param: a nested list rides as
+    a 2-D matrix, a flat list as a 1-D vector — both pass through as the natural
+    Python structure (the numpy-free op's ``_as_rows`` / shape-polymorphic kernel
+    inspects nesting). A ``Mat`` / ``Vec`` / tuple is accepted too; the op is the
+    canonical validator (v0.7.5rc132)."""
+    if isinstance(value, tuple):
+        return list(value)
+    return value
+
+
+def _seq_vec(value: Any, *, param: str = "") -> List[Any]:
+    """``Sequence[Vec]`` -> list of flat lists (each a 1-D operand; numpy-free
+    wire form). The op iterates each element, so a flat ``list`` / ``tuple`` /
+    ``Vec`` per slot is accepted (v0.7.5rc132)."""
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"expected a list of 1-D vectors for param "
+            f"{param or '<seq-vec>'!r}; got {type(value).__name__}"
+        )
+    return [_to_vec(v, param=param) for v in value]
+
+
+def _seq_hv(value: Any, *, param: str = "") -> List[Any]:
+    """``Sequence[HV]`` -> list of flat lists (each a hypervector; numpy-free
+    wire form). The genome / hdc ops iterate each element, so a flat ``list`` /
+    ``tuple`` / ``HV`` per slot is accepted (v0.7.5rc132)."""
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"expected a list of hypervectors for param "
+            f"{param or '<seq-hv>'!r}; got {type(value).__name__}"
+        )
+    return [_to_hv(v, param=param) for v in value]
+
+
+def _tuple_mat(value: Any, *, param: str = "") -> Tuple[Any, ...]:
+    """``tuple[Mat, ...]`` -> tuple of nested lists (the QM gauge / einsum ops
+    take a *tuple* of matrices / arrays). Each element passes through as its
+    natural nested-list structure; the op is the canonical validator. JSON has
+    no tuple, so a list arrives and is re-tupled (v0.7.5rc132)."""
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"expected a list of matrices for param "
+            f"{param or '<tuple-mat>'!r}; got {type(value).__name__}"
+        )
+    return tuple(value)
+
+
+def _seq_tuple(value: Any, *, param: str = "") -> List[tuple]:
+    """``Sequence[tuple]`` -> list of re-tupled pairs (v0.7.5rc134). JSON has no
+    tuple, so a list of ``[label, payload]`` pairs arrives and each is re-tupled
+    so the op's ``for a, b in seq`` unpacking sees genuine tuples. Used by
+    ``genome.chromosome(genes=[(label, leaves), ...])``; the op is the canonical
+    validator of the pair contents (label str + leaves hypervector list)."""
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"expected a list of pairs for param "
+            f"{param or '<seq-tuple>'!r}; got {type(value).__name__}"
+        )
+    return [tuple(v) for v in value]
+
+
+def _is_re_im_leaf(value: Any) -> bool:
+    """True iff ``value`` is a ``[re, im]`` leaf — a length-2 sequence of
+    plain numbers (not a nested container)."""
+    return (
+        isinstance(value, (list, tuple))
+        and len(value) == 2
+        and all(isinstance(x, (int, float)) and not isinstance(x, bool)
+                for x in value)
+    )
+
+
+def _complex_pairs_to_ndarray(value: Any, *, param: str = "") -> Any:
+    """Build a nested list of ``complex`` from nested ``[re, im]`` leaves — the
+    numpy-free (#564) inverse of the outbound complex serialisation (each
+    scalar rides as a 2-list ``[re, im]``). Used by round-trip tests and any
+    op declaring an explicitly-complex array param; the generic
+    :func:`_to_ndarray` deliberately does NOT call this (see its dtype caveat).
+    """
+    if _is_re_im_leaf(value):
+        return complex(float(value[0]), float(value[1]))
+    if isinstance(value, (list, tuple)):
+        return [_complex_pairs_to_ndarray(v, param=param) for v in value]
+    raise ValueError(
+        f"complex ndarray param {param or '<ndarray>'!r}: innermost axis must "
+        f"be [re, im] (length 2); got {type(value).__name__}"
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -239,9 +364,9 @@ def _seq_bytes(value: Any, *, param: str = "") -> List[bytes]:
     return [_b64_to_bytes(v, param=param) for v in value]
 
 
-def _seq_ndarray(value: Any, *, param: str = "") -> List[np.ndarray]:
-    """``Sequence[np.ndarray]`` -> list of ndarrays (each from a nested
-    list)."""
+def _seq_ndarray(value: Any, *, param: str = "") -> List[list]:
+    """``Sequence[np.ndarray]`` -> list of nested lists (each from a nested
+    JSON list; numpy-free wire form, #564)."""
     if not isinstance(value, (list, tuple)):
         raise ValueError(
             f"expected a list of nested arrays for param "
@@ -250,8 +375,8 @@ def _seq_ndarray(value: Any, *, param: str = "") -> List[np.ndarray]:
     return [_to_ndarray(v, param=param) for v in value]
 
 
-def _tuple_ndarray(value: Any, *, param: str = "") -> Tuple[np.ndarray, ...]:
-    """``tuple[np.ndarray, ...]`` -> tuple of ndarrays (the QM gauge ops
+def _tuple_ndarray(value: Any, *, param: str = "") -> Tuple[list, ...]:
+    """``tuple[np.ndarray, ...]`` -> tuple of nested lists (the QM gauge ops
     take a *tuple* of generator matrices)."""
     return tuple(_seq_ndarray(value, param=param))
 
@@ -420,6 +545,25 @@ def _resolve_operator_name(value: Any, *, param: str = "") -> Any:
     return resolve_operator_name(value)
 
 
+def _to_uint32_acc(value: Any, *, param: str = "") -> Any:
+    """``array('I')`` / ``array('I')|None`` -> the §50 holographic-bundle
+    accumulator (rc155). ``None`` passes through (the ``klein4_bundle_accumulate``
+    create case); an ``array('I')`` rides unchanged (an in-process caller); a JSON
+    list of ints — the cross-JSON wire form, matching ``serialise_native``'s
+    ``array('I')`` -> ``list[int]`` — is rebuilt into ``array('I')``."""
+    if value is None:
+        return None
+    from array import array as _array
+    if isinstance(value, _array):
+        return value
+    if isinstance(value, (list, tuple)):
+        return _array("I", [int(x) for x in value])
+    raise ValueError(
+        f"expected a list of uint32 ints (or None) for accumulator param "
+        f"{param or '<acc>'!r}; got {type(value).__name__}"
+    )
+
+
 #: Declared-type-string -> inbound coercer. Pass-through (``_identity``)
 #: entries are JSON-native or opaque-handle types that ``invoke_tool``
 #: cannot meaningfully coerce — they are listed EXPLICITLY (not defaulted)
@@ -428,11 +572,35 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # ── non-JSON scalar types (the core of the 65/158 fix) ──
     "bytes": _b64_to_bytes,
     "complex": _to_complex,
+    # ── numpy-free carrier-spirit param types (v0.7.5rc132). The carrier is
+    #    AGNOSTIC about input — the coercer produces the natural Python structure
+    #    (nested list for Mat, flat list for Vec/HV) and the op's own acceptance
+    #    builds the final carrier. NO numpy is ever named where a caller sees it. ──
+    "Mat": _to_mat,            # v0.7.5rc72: numpy-free 2-D carrier (mat_matmul bridge)
+    "Vec": _to_vec,            # v0.7.5rc132: numpy-free 1-D carrier
+    "HV": _to_hv,              # v0.7.5rc132: numpy-free hypervector byte carrier
+    "Optional[Vec]": _to_vec,
+    "Optional[HV]": _to_hv,
+    "Mat | Vec": _to_mat_or_vec,   # shape-polymorphic 2-D-or-1-D operand
+    # ── the legacy ``np.ndarray`` keys are KEPT (no param advertises them any
+    #    more, but the round-trip / wire-form tests still key off the historical
+    #    type-string) — both map to the numpy-free nested-list coercer. ──
     "np.ndarray": _to_ndarray,
     "Optional[np.ndarray]": _to_ndarray,
     # ── container element-recursion ──
     "Sequence[bytes]": _seq_bytes,
     "list[bytes]": _seq_bytes,   # v0.7.0rc10: format.sha256_batch `datas`
+    "Sequence[Vec]": _seq_vec,   # v0.7.5rc132: coupling.signed_sum_squared sources
+    "Sequence[HV]": _seq_hv,     # v0.7.5rc132: genome / hdc bundle hypervector lists
+    "Sequence[str]": _identity,  # v0.7.5rc155: hdc.cooccurrence_fold `tokens` (JSON-native)
+    # v0.7.5rc155: the §50 holographic-bundle accumulator (klein4_bundle_accumulate
+    # /_resolve) — a (1+2*D) uint32 array, or None for the create case.
+    "array('I')": _to_uint32_acc,
+    "array('I')|None": _to_uint32_acc,
+    "tuple[Mat, ...]": _tuple_mat,  # v0.7.5rc132: gauge generators / einsum operands
+    "Sequence[tuple]": _seq_tuple,  # v0.7.5rc134: genome.chromosome(genes=[(label, leaves), ...])
+    "list[list[list[float]]]": _identity,  # rank-3 nested list, JSON-native (gauge f^abc)
+    # ── legacy numpy-free Sequence/tuple keys kept for wire-form tests ──
     "Sequence[np.ndarray]": _seq_ndarray,
     "tuple[np.ndarray, ...]": _tuple_ndarray,
     "list[complex]": _seq_complex,            # v0.7.0rc36: spectral_cascades.{dft,idft}
@@ -444,6 +612,9 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "pathlib.Path": _to_path,
     "tuple[int, int]": _to_int_tuple,
     "list[tuple[int, int]]": _identity,   # nested lists JSON-native
+    # v0.7.5rc29: exact_dft.lift `spectrum` — the exact Z[zeta_N] spectrum is a
+    # list of (real_vec, imag_vec) integer pairs; nested lists are JSON-native.
+    "list[tuple[list[int], list[int]]]": _identity,
     # ── JSON-native scalars (explicit pass-through) ──
     "int": _identity,
     "Optional[int]": _identity,
@@ -516,28 +687,21 @@ def coerce_param(value: Any, type_string: str, *, param: str = "") -> Any:
 # ──────────────────────────────────────────────────────────────────────
 
 
-def _ndarray_to_json(arr: np.ndarray) -> Any:
-    """Serialise an ndarray to a nested JSON list. Complex arrays carry
-    each element as ``[re, im]`` (the inverse of :func:`_to_ndarray`)."""
-    if np.iscomplexobj(arr):
-        # Stack real/imag on a new trailing axis so each scalar becomes
-        # [re, im]; .tolist() then yields nested [re, im] leaves.
-        stacked = np.stack([arr.real, arr.imag], axis=-1)
-        return stacked.tolist()
-    return arr.tolist()
-
-
 def serialise_native(value: Any) -> Any:
     """Recursively convert a native Python result to a JSON-serialisable
     value.
 
     * ``bytes`` -> base64 ``str``
-    * ``np.ndarray`` -> nested list (complex -> ``[re, im]`` leaves)
+    * :class:`srmech.amsc.mat.Mat` -> nested list (complex -> ``[re, im]`` leaves)
     * ``complex`` -> ``[re, im]``
-    * numpy scalars -> Python ``int`` / ``float`` / ``bool``
     * tuples / lists / sets -> list (recursed)
     * dicts -> dict (values recursed; keys base64'd if bytes)
     * ``pathlib.PurePath`` -> ``str``
+
+    numpy-FREE (#564): the core ops return :class:`Mat` / :class:`HV` / nested
+    ``list`` / ``complex`` — never ``np.ndarray`` — so there is no ndarray
+    branch. A ``complex`` leaf (whether bare or inside a nested list) rides as
+    ``[re, im]`` via the recursion.
 
     Anything else is returned unchanged for ``json.dumps`` to handle (or
     for the caller's ``default=`` fallback to catch).
@@ -562,20 +726,22 @@ def serialise_native(value: Any) -> Any:
     if isinstance(value, complex):
         return [value.real, value.imag]
     # srmech HV handle (numpy-free Klein-4 carrier, v0.7.0rc29) -> list[int].
-    # The core ops return HV, not np.ndarray; cross JSON-RPC by value as a
-    # plain integer list (the same shape an ndarray result would serialise to).
+    # The core ops return HV; cross JSON-RPC by value as a plain integer list.
     from srmech.amsc.hv import HV as _HV
     if isinstance(value, _HV):
         return value.tolist()
-    # numpy ndarray -> nested list
-    if isinstance(value, np.ndarray):
-        return _ndarray_to_json(value)
-    # numpy scalar -> python scalar (np.bool_ -> bool, integer -> int, ...)
-    if isinstance(value, np.generic):
-        item = value.item()
-        if isinstance(item, complex):
-            return [item.real, item.imag]
-        return item
+    # srmech Mat (numpy-free 2-D carrier, v0.7.5rc72) -> nested list. A complex
+    # Mat serialises each entry as a ``[re, im]`` leaf via the recursion on the
+    # nested list (Mat.tolist() yields a list[list[complex]]).
+    from srmech.amsc.mat import Mat as _Mat
+    if isinstance(value, _Mat):
+        return serialise_native(value.tolist())
+    # srmech Vec (numpy-free 1-D carrier, rc129) -> flat list. A complex Vec
+    # serialises each entry as a ``[re, im]`` leaf via the recursion (Vec.tolist()
+    # yields a flat list[float] / list[complex]). The 1-D peer of the Mat branch.
+    from srmech.amsc.vec import Vec as _Vec
+    if isinstance(value, _Vec):
+        return serialise_native(value.tolist())
     # dict -> recurse (a bytes key serialises to its base64 string)
     if isinstance(value, dict):
         out: Dict[Any, Any] = {}

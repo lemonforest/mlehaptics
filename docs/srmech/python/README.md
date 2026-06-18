@@ -1,7 +1,5 @@
 # srmech
 
-**Status:** **v0.7.4** — the 14-class A–N primitive vocabulary in native C + Python, **numpy-optional**. Every continuous-math op — trig, exp, sqrt, FFT, SVD, eig — is a **cascade of the 14**, not a separate primitive; the native build holds no libm. **The One**, `S(σ,θ)` (`cascade.the_one`, exact-rational + numpy-free, with the bit-exact `qm.hurwitz` matrix peer), generates the whole `1 + 3 + 7 + 3 = 14` substrate: the ℂ/ℍ/𝕆 Hurwitz ladder = the 28-generator `so(8)` adjoint + Spin(8) triality (the order-3 outer automorphism `τ`, `Fix(τ) = g₂ = 14`). Full C/Python cascade-catalog parity (hash, cyclic-group, graph-Laplacian, primes, HDC, rational, Kuramoto, Wiener–Khinchin autocorrelation; the two-tier `cascade.atoms`/`cascade.compose` lean-ISA split; the Klein-4 four-sector `parallel_sector_dispatch`); runtime spectral + dual-path signal-processing surfaces; Attested Multi-Source Collector/Catalog (AMSC, MPR v1) provenance. A named cascade is the default, a math-library call the exception. The v0.7.x line adds the Class-L **Schur complement / Dirichlet-to-Neumann** op, the bidirectional **`(σ,θ,μ)` hypercomplex coupler** (`cascade.hypercomplex_couple` — bind ≤7 streams reversibly into a quaternion/octonion, the Hurwitz-capped interior) + the **Hamming/GF(2) CARRY** code (`cascade.hamming_*` — error-correcting carry *past* 𝕆), and the **Cayley–Dickson open-exterior demonstrator** (`cascade.cayley_dickson` — the deliberately non-reversible object on the far side of the Hurwitz wall: zero divisors at dim 16, the executable "no backward direction" falsifier). **v0.7.4** makes the sedenion box an **addressable RBS-HDC instrument** (`cascade.SedenionRegister` — 16 named slots, the ≤7 reversible octonion working word, a Hamming carry block, and the address↔Cayley–Dickson `navigate` homomorphism with an `is_navigable` reversibility gate) and adds three composition helpers: `cascade.signed_sum_squared` (the bipolar coupling-score), `cascade.top_k_by_score` (catalog top/bottom-K selection), and `hdc.bundle_with_ties` (majority for any N with the Class-K bundle-tie surfaced). *(The package also bundles the `siona` co-name alias — `pip install srmech` also gives `import siona`, same objects. The standalone `siona` PyPI package is a metapackage that depends on `srmech`.)*
-
 `srmech` (Stored-Relationship Mechanism) is a research package shipping five load-bearing surfaces:
 
 1. **14-class primitive vocabulary** (`srmech.amsc.*`) — content-addressing, streaming, cyclic-group, graph-Laplacian, prime-factorisation, TLV, search, dispatch, catalog, templating, rational-approximation, equation-of-centre/Kepler, hyperdimensional-computing (HDC). Each class has both a Python wrapper and a native C symbol in `libsrmech.{so,dll,dylib}`.
@@ -24,31 +22,30 @@ Implementation is JPL Power-of-Ten compliant on the C side; cibuildwheel matrix 
 ## Install
 
 ```bash
-pip install srmech                  # core: stdlib only — the numpy-free Class-N cascade + native C surface
-pip install srmech[scientific]      # adds numpy for the array tier (srmech.qm.* / signal_processing / spectral)
+pip install srmech                  # the whole package — stdlib only, no numpy, ever
 pip install srmech[validation]      # adds jsonschema for strict data-block validation
 pip install srmech[collectors]      # adds requests + beautifulsoup4 for fetched adapters
 ```
 
-The core install is **numpy-optional** (v0.7.0 capstone): the 14-class cascade core runs on stdlib alone; importing a scientific-tier subpackage (`srmech.qm.*`, `srmech.signal_processing`, `srmech.spectral`) without `[scientific]` raises an actionable hint rather than a raw `ImportError`.
+The package is **numpy-free** (the v0.7.5 carrier-removal arc, graduated in v0.8.0): there is no numpy dependency and no `[scientific]` extra. The whole surface — the 14-class cascade core *and* the `srmech.qm.*` / `srmech.signal_processing` / `srmech.spectral` tiers — runs on stdlib alone over the numpy-free `Mat` / `Vec` / `HV` carriers, which feed the native dense kernels zero-copy from `array('d')` interleaved-complex buffers. A fresh numpy-absent venv imports and runs the entire package.
 
 ## Quick start
 
 Decompose a real signal onto a graph-Laplacian eigenbasis, take an HDC delta against a reference, and recompose:
 
 ```python
-import numpy as np
 from srmech import spectral
 from srmech.amsc import laplacian
 
-# Substrate: cycle-graph Laplacian on 8 nodes (any Hermitian L works).
-A = np.roll(np.eye(8), 1, axis=1)
-A = A + A.T
-L = laplacian.dense_laplacian(A.astype(np.complex128))
+# Substrate: cycle-graph Laplacian on 8 nodes, built (n, edges) -> Mat.
+# No numpy — the Mat carrier is the numpy-free array. Any Hermitian L works.
+n = 8
+edges = [(i, (i + 1) % n) for i in range(n)]
+L = laplacian.dense_laplacian(n, edges)
 
-# Project two states onto the eigenbasis.
-state_ref = np.array([1.0, 0, 0, 0, 0, 0, 0, 0], dtype=np.complex128)
-state_now = np.array([0.9, 0.1, 0, 0, 0, 0, 0, 0], dtype=np.complex128)
+# Project two states (plain Python lists) onto the eigenbasis.
+state_ref = [1.0, 0, 0, 0, 0, 0, 0, 0]
+state_now = [0.9, 0.1, 0, 0, 0, 0, 0, 0]
 
 h_ref = spectral.decompose(state_ref, L)
 h_now = spectral.decompose(state_now, L)
@@ -87,7 +84,7 @@ Modern physics uses the first; antiquity 9 of 9 traditions canvassed (Antikyther
 
 **About the A–N alphabet.** The labels A through N record the **chronological order** in which each operation was named during this framework's evolution — they are discovery-fingerprint, not substrate-ordering. Re-sorted by substrate-native role, the partition above (`{A}` + `{I, C, J}` + `{D, E, F, G, K, L, M}` + `{B, H, N}`) is the substrate-side grouping. The alphabetical table below is the lookup convenience.
 
-Full context: [substrate-native-maths research notebook](https://mlehaptics.readthedocs.io/substrate-native-maths/substrate_native_research_notebook/) (PR #680 SSoT).
+Full context: [substrate-native-maths research notebook](https://mlehaptics.readthedocs.io/en/latest/substrate-native-maths/substrate_native_research_notebook/) (PR #680 SSoT).
 
 ### `srmech.amsc.*` — 14-class primitive vocabulary (alphabetical lookup)
 
@@ -99,7 +96,7 @@ To check the backend state, call `srmech.native_status()` (top-level; equivalent
 import srmech
 srmech.native_status()
 # {'has_native': True, 'dispatching': True, 'abi_version': 3,
-#  'expected_abi': 3, 'native_version': '0.7.4', 'load_error': None}
+#  'expected_abi': 3, 'native_version': '0.8.0', 'load_error': None}
 ```
 
 | Module | Class | Primitive operation |
@@ -124,9 +121,9 @@ srmech.native_status()
 The ℂ/ℍ/𝕆 division-algebra ladder and its `so(8)` / Spin(8) structure — the framework's own substrate, not a math-application layer. Modules:
 
 - `octonion` — the MPR-attested Cayley-Dickson-from-H convention: `octonion_mult_table` (the attested `(8,8,8)` int8 structure constants), `octonion_left_mult` / `octonion_right_mult` (the `8×8` `L_a` / `R_a` binders), `octonion_conjugate`, `octonion_norm` (Class K ∘ C, never `abs()`). `octonion_table_attestation` content-addresses the table bytes via `sha256_bytes`. Cites Baez (2002), *The Octonions* (arXiv:math/0105155).
-- `so8` — the 28-generator `so(8)` adjoint partitioned **14 (g₂ = Der O) + 7 (L-type) + 7 (R-type)**: `so8_adjoint_basis`, `g2_subalgebra` (the 14 derivations; deterministic rank-revealing numpy subset, no RNG), `so7_subalgebra` (the 21; the `D4 → B3` Z2 fold), and `an_embedding` — the bit-exact **su(3) ⊕ 3 ⊕ 3̄** Lie branching of the 14 g₂ generators (su(3) = the stabiliser of an imaginary octonion unit; the genuine fundamental `3` is the `+i` eigenspace of the su(3)-invariant complex structure `J`, `J² = −I`, so a real 3-span cannot carry it). The `8 + 3 + 3̄` decomposition is the op's own self-attesting bit-exact computation (Baez §4.1 cited for `g₂ = Der O` / dim 14 only, the build input); the 14 A-N class names are surfaced only as a documented `framework_an_reading` label ("framework-reading, not derived"), distinct from this su(3) partition.
+- `so8` — the 28-generator `so(8)` adjoint partitioned **14 (g₂ = Der O) + 7 (L-type) + 7 (R-type)**: `so8_adjoint_basis`, `g2_subalgebra` (the 14 derivations; deterministic rank-revealing subset over the numpy-free `Mat` carrier, no RNG), `so7_subalgebra` (the 21; the `D4 → B3` Z2 fold), and `an_embedding` — the bit-exact **su(3) ⊕ 3 ⊕ 3̄** Lie branching of the 14 g₂ generators (su(3) = the stabiliser of an imaginary octonion unit; the genuine fundamental `3` is the `+i` eigenspace of the su(3)-invariant complex structure `J`, `J² = −I`, so a real 3-span cannot carry it). The `8 + 3 + 3̄` decomposition is the op's own self-attesting bit-exact computation (Baez §4.1 cited for `g₂ = Der O` / dim 14 only, the build input); the 14 A-N class names are surfaced only as a documented `framework_an_reading` label ("framework-reading, not derived"), distinct from this su(3) partition.
 - `triality` — the Spin(8) triality engine: `triality_automorphism` (the `28×28` order-3 outer automorphism `τ`, `τ³ = I`, `Fix(τ) = g₂` dim 14), `triality_swap` (the Z2 — with `τ` generates `S3 = Out(Spin(8))`), `triality_cycle` (the Class-I `8v → 8s → 8c` rep-permutation), `triality_apply`, `triality_companions`, `triality_relation_residual` (Cartan's `g_v(x·y) = g_s(x)·y + x·g_c(y)`, 0 when correct). Cites Cartan (1925) + Baez (2002).
-- `hurwitz` — **the One** as a matrix (#887): `hurwitz_matrix(σ, θ)` builds the `14×14` `G(σ,θ) = ⨁_n(1 ⊕ σ R_n(θ))` of `S(σ,θ)` with the Fano planes **derived** from `octonion_mult_table`; `hurwitz_planes()` exposes the `0 / 1 / 3` planes each ℂ / ℍ / 𝕆 block turns by θ (the octonion epicycle: 𝕆 spins three Fano-triple planes at once, eigenvalues `{1, e^{±iθ}×3}`). Bit-exactly equal to the numpy-free `srmech.amsc.cascade.the_one(...).to_matrix()` — the cascade↔matrix Rosetta peer.
+- `hurwitz` — **the One** as a matrix (#887): the `14×14` `G(σ,θ) = ⨁_n(1 ⊕ σ R_n(θ))` of `S(σ,θ)` is built numpy-free by `srmech.amsc.cascade.the_one(σ, θ).to_matrix()` (exact-rational), with the Fano planes **derived** from `octonion_mult_table`; `srmech.qm.hurwitz.hurwitz_planes()` exposes the `0 / 1 / 3` planes each ℂ / ℍ / 𝕆 block turns by θ (the octonion epicycle: 𝕆 spins three Fano-triple planes at once, eigenvalues `{1, e^{±iθ}×3}`). Since the v0.7.5 reframe, Hurwitz is a config-driven `[class]` over `the_one` (`srmech/amsc/_research/class_catalog/hurwitz.toml`) — the cascade↔class Rosetta peer, no numpy.
 
 Further continuous-math worked-examples (single-particle / spin / relativistic / propagator / gauge / Standard-Model operators, each cited to its canonical literature) also ship under `srmech.qm.*` and are discoverable via `describe()` / the tool-schema. They are compositions of the 14 like everything else — no domain is privileged or singled out.
 
@@ -175,14 +172,14 @@ As of **v0.6.0** the catalog is a **two-tier lean-ISA split** (`#751`): `srmech.
 - `chiral_flip(seq)` — **Class C** orientation reversal (`seq[::-1]`). *(C peer: v0.4.5rc1)*
 - `chiral_dual(op, x)` — **Class C ∘ op ∘ Class C**: run an operator in the opposite Class-C orientation. The chiral dual of an A–N operator is *same spectral shape, inverted orientation* (magnitude preserved, phase flipped — spike-verified); it reduces to the bare Class K `−1` for the sign operators and is the identity for real-symmetric ones. *(C peer: v0.4.5rc8 — queued; higher-order, callback ABI)*
 - `net_chirality(orientations)` — **Class C** net handedness of a cascade (product of per-op orientations in `{-1,0,+1}`; `0` if any is neutral). *(C peer: v0.4.5rc5)*
-- `parallel_sector_dispatch(body, x, *, n_sectors=4, verify=False)` — **Class C** (Klein-4 `γ₅± × iω₇±` four-sector orchestration). Runs one cascade `body` across its ≤4 Klein-4 chirality sectors and returns a structured self-describing result; a GIL-releasing (native / IO / numpy) body lets the ≤4 sectors genuinely overlap. Higher-order (a body-callback orchestrator, not a unary `chain().then(...)` stage). *(C peer: `srmech_cascade_parallel_sector_dispatch`, body-callback ABI, v0.6.0; `n_sectors > 4` → `ValueError` — Klein-4 has no order-4+ element, 8+ needs the order-3 triality.)*
-- `kuramoto_step(theta, omega, *, coupling=1.0, dt=0.01)` — **Class I ∘ sin ∘ Σ ∘ C** one forward-Euler step of the canonical Kuramoto coupled-oscillator model (`θᵢ ← θᵢ + dt·(ωᵢ + (K/n)·Σⱼ sin(θⱼ − θᵢ))`). The O(n²) sin-coupling runs natively. *(C peer: `srmech_cascade_kuramoto_step_f64`, v0.6.0rc9; parity to libm-trig tolerance, same coupling-sum index order both sides; `n == 1` is pure drift.)*
+- `parallel_sector_dispatch(body, x, *, n_sectors=4, verify=False)` — **Class C** (Klein-4 `γ₅± × iω₇±` four-sector orchestration). Runs one cascade `body` across its ≤4 Klein-4 chirality sectors and returns a structured self-describing result; a GIL-releasing (native / IO) body lets the ≤4 sectors genuinely overlap. Higher-order (a body-callback orchestrator, not a unary `chain().then(...)` stage). *(C peer: `srmech_cascade_parallel_sector_dispatch`, body-callback ABI, v0.6.0; `n_sectors > 4` → `ValueError` — Klein-4 has no order-4+ element, 8+ needs the order-3 triality.)*
+- `kuramoto_step(theta, omega, *, coupling=1.0, dt=0.01)` — **Class I ∘ sin ∘ Σ ∘ C** one forward-Euler step of the canonical Kuramoto coupled-oscillator model (`θᵢ ← θᵢ + dt·(ωᵢ + (K/n)·Σⱼ sin(θⱼ − θᵢ))`). The O(n²) sin-coupling runs natively. *(C peer: `srmech_cascade_kuramoto_step_f64`, v0.6.0rc9; parity to the native trig-cascade tolerance — the C build holds no libm — same coupling-sum index order both sides; `n == 1` is pure drift.)*
 
 ### `srmech.signal_processing` — dual-path signal-processing surface
 
 Two paths for the same algebra, dispatched per call:
 
-- **Path A** — closed-form algebra over numpy / scipy; one module per op under `srmech.signal_processing.closed_form_ops.*`. 40 ops (38 Phase-2 baseline + `pi_cascade` + `rfft`) covering frequency analysis (`fft`, `ifft`, `rfft`, `stft`, `spectrogram`, `multitaper`, `dct`, `wavelet`), digital filters (`fir`, `iir`, `allpass`, `polyphase`, `multirate`, `farrow`, `sinc_interp`), detection / estimation (`matched_filter`, `wiener`, `lmmse`, `map_ml`, `mlse`, `viterbi`, `cross_spectral`, `music`, `esprit`, `ica_jade`, `mimo_svd`), modulation (`psk_qam`, `fsk`, `ofdm`, `beamforming_fixed`), coding (`huffman`, `rle`, `lz77`, `arithmetic_coding`, `jpeg`), quantisation / compression (`sign_quantise`, `vector_quantisation`, `hdc_truncation`, `heat_kernel`, `spectral_subtraction`, `pi_cascade`).
+- **Path A** — closed-form algebra over the numpy-free `Mat` / `Vec` carriers (no numpy, no scipy); one module per op under `srmech.signal_processing.closed_form_ops.*`. 40 ops (38 Phase-2 baseline + `pi_cascade` + `rfft`) covering frequency analysis (`fft`, `ifft`, `rfft`, `stft`, `spectrogram`, `multitaper`, `dct`, `wavelet`), digital filters (`fir`, `iir`, `allpass`, `polyphase`, `multirate`, `farrow`, `sinc_interp`), detection / estimation (`matched_filter`, `wiener`, `lmmse`, `map_ml`, `mlse`, `viterbi`, `cross_spectral`, `music`, `esprit`, `ica_jade`, `mimo_svd`), modulation (`psk_qam`, `fsk`, `ofdm`, `beamforming_fixed`), coding (`huffman`, `rle`, `lz77`, `arithmetic_coding`, `jpeg`), quantisation / compression (`sign_quantise`, `vector_quantisation`, `hdc_truncation`, `heat_kernel`, `spectral_subtraction`, `pi_cascade`).
 - **Path B** — RBS-HDC bound-vector instrument at D=8192 (`srmech.signal_processing.rbs_hdc_instrument`). Mints class-operator vectors, cascade compositions, stance fingerprints, and full LoE content encodings (Mode-B). Eight ops have full dual-path implementations: `fft`, `ifft`, `rfft`, `sign_quantise`, `matched_filter`, `wiener`, `hdc_truncation`, `pi_cascade`.
 
 ```python
@@ -249,7 +246,7 @@ The on-disk format is **Mathematical Provenance Record v1** (`MPR v1`):
     "license": "CC0",
     "retrieved_at": "2026-05-13T00:00:00Z",
     "response_sha256": "<64 hex chars>",
-    "parser_version": "srmech 0.7.4",
+    "parser_version": "srmech 0.8.0",
     "parser_rule_hash": "<64 hex chars>",
     "collector_descriptor_path": "...",
     "collector_descriptor_hash": "<64 hex chars>"
@@ -280,7 +277,7 @@ Every primitive class, every `srmech.qm.*` operation (including the so(8)/triali
 from srmech.introspect import describe
 
 d = describe()
-print(d["srmech_version"])              # e.g. "0.7.4"
+print(d["srmech_version"])              # e.g. "0.8.0"
 print(d["tools"]["total"])              # every registered ToolEntry
 print(d["tools"]["mcp_callable"])       # advertised over JSON-RPC / Anthropic
 print(d["tools"]["handle_pending"])     # 0 since the rc16 handle grammar landed
@@ -327,4 +324,4 @@ Subsequent `list_attested_sources()`, `get_attested_dataset()`, etc. enumerate t
 
 ## License
 
-GPL-3.0-or-later. See [LICENSE](LICENSE).
+MIT License. See [LICENSE](LICENSE).

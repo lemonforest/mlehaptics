@@ -21,7 +21,7 @@ Path B dual ships alongside in
 the RBS-LM research subtree: real bit-string FFT cascades — bipolar bits
 in {-1, +1} — used full ``fft`` at 2× cost; ``rfft`` closes that gap).
 
-Closed-form reference: numpy's ``numpy.fft.rfft`` (Cooley & Tukey 1965 +
+Closed-form reference: numpy's ``NumPy rfft`` (Cooley & Tukey 1965 +
 FFTPACK / pocketfft backends).
 """
 
@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-import numpy as np
+from srmech.signal_processing import _fft_carrier as _fc
 
 OPERATION_NAME = "rfft"
 CLASS_COMPOSITION = ("A", "I", "K")
@@ -49,7 +49,7 @@ def op(signal, *, n: Optional[int] = None, axis: int = -1, D: int = 8192):
     ----------
     signal:
         Real array-like. (A complex input has its real part taken by
-        ``numpy.fft.rfft``; pass complex data to ``fft`` instead.)
+        ``NumPy rfft``; pass complex data to ``fft`` instead.)
     n:
         Optional length of the transformed axis. ``None`` -> use signal
         length. Output length along ``axis`` is ``n // 2 + 1``.
@@ -65,5 +65,4 @@ def op(signal, *, n: Optional[int] = None, axis: int = -1, D: int = 8192):
         Complex DFT coefficients for the non-redundant bins
         ``0 .. N//2`` (length ``N//2 + 1``).
     """
-    arr = np.asarray(signal)
-    return np.fft.rfft(arr, n=n, axis=axis)
+    return _fc.rfft(signal, n=n, axis=axis)

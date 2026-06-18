@@ -1,0 +1,41 @@
+# Cascade catalog entry: encode_loe_content (RBS-LM UPSTREAM §17 U2).
+#
+# Registers the EXISTING, verified text→instrument encoder
+# `srmech.signal_processing.encode_loe_content` as a DSL cascade-op via the
+# rc44 dotted-`op=` resolver — so `[[stage]] op="encode_loe_content"` is legal
+# and ANY catalog's text rows get a one-line kernel chain. The primitive
+# already works (self-sim 1.000, vs-unrelated −0.007); this is the cheapest,
+# highest-leverage of the §17 catalog→kernel→DSL unification asks: it makes the
+# text→instrument step nameable in a chain without re-exporting the op into
+# `srmech.amsc.cascade`.
+
+[cascade]
+name = "encode_loe_content"
+op = "srmech.signal_processing.encode_loe_content"
+class_composition = "A∘C∘M"
+purpose = "Mode-B text→instrument encode: content string → D-bit LoE fingerprint (Class A content-address ∘ Class C cyclic permute ∘ Class M XOR-fold)."
+description = """
+The verified text→instrument encoder, surfaced as a DSL cascade-op (§17 U2).
+A unary `str -> bytes` stage: mint a Class A content-addressed vector, apply a
+Class C substrate-natural cyclic permute, and Class M XOR-fold against the
+substrate's class-operator vector. Stage kwargs `D=` (fingerprint bit-width)
+and `substrate=` pass straight through. Same content under different substrate
+strides produces orthogonal fingerprints (Spike #173 R3). numpy-tier
+(`srmech[scientific]`); the op already ships in `srmech.signal_processing`.
+"""
+
+[cascade.signature]
+input = "str"
+output = "bytes"
+operation = "encode_loe_content(content, *, D=8192, substrate='default')"
+unary_stage = true
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "MIT"
+parser_version = "srmech-cascade 0.7.5rc44"
+canonical_landings = [
+  "RBS-LM UPSTREAM_NOTES §17 U2 — register the text→instrument encoder as a DSL cascade-op",
+  "srmech.signal_processing.rbs_hdc_instrument.encode_loe_content — the shipped primitive (self-sim 1.000)",
+  "[[user_stance_loe_as_rbs_hdc_instrument_meta_recursive]] — Mode-B encode chain",
+]

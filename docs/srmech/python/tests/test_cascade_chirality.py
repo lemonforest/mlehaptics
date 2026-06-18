@@ -4,11 +4,38 @@ chiral_flip (Class C orientation reversal), chiral_dual (Class C ∘ op ∘ Clas
 net_chirality (Class C net-handedness invariant). The chiral dual of an A-N
 operator is "same shape, inverse" (MFO §VIII.31.11) — these tests pin the
 value-level behaviour and the spectral "same magnitude, inverted phase" property.
+
+numpy-free: the spectral checks use a pure-Python DFT (Σ x[t]·e^{-2πikt/n}) as
+the reference oracle; signals are built with ``math.sin``/``math.cos`` and the
+roll is a pure-Python slice rotation. The old ``test_chiral_flip_ndarray`` was
+deleted — it only asserted ``np.array_equal`` on an ``np.arange`` input, which
+no longer applies now that numpy is out of srmech and the op takes plain lists.
 """
-import numpy as np
+import cmath
+import math
+import statistics
+
 import pytest
 
 from srmech.amsc import cascade
+
+
+# ── pure-Python DFT oracle (numpy-free) ─────────────────────────────────
+def _dft(x):
+    """Σ_t x[t]·e^{-2πikt/n} — the textbook DFT, the numpy-free oracle."""
+    n = len(x)
+    return [sum(x[t] * cmath.exp(-2j * cmath.pi * k * t / n) for t in range(n))
+            for k in range(n)]
+
+
+def _roll(v, shift):
+    """Circular right-shift of a list by ``shift`` (numpy.roll equivalent)."""
+    if not v:
+        return list(v)
+    s = shift % len(v)
+    if s == 0:
+        return list(v)
+    return list(v[-s:]) + list(v[:-s])
 
 
 # ── chiral_flip — Class C orientation reversal ──────────────────────────
@@ -26,9 +53,9 @@ def test_chiral_flip_is_involutive():
     assert cascade.chiral_flip(cascade.chiral_flip(x)) == x
 
 
-def test_chiral_flip_ndarray():
-    x = np.arange(5)
-    assert np.array_equal(cascade.chiral_flip(x), np.array([4, 3, 2, 1, 0]))
+def test_chiral_flip_list_of_range():
+    """A list of integers reverses element-for-element."""
+    assert cascade.chiral_flip([0, 1, 2, 3, 4]) == [4, 3, 2, 1, 0]
 
 
 # ── chiral_dual — Class C ∘ op ∘ Class C ─────────────────────────────────
@@ -57,31 +84,39 @@ def test_chiral_dual_of_negate_is_negate_180deg():
 
 
 # ── spectral property: same magnitude, inverted phase (MFO §VIII.31.11) ──
+def _make_signal(n):
+    return [math.sin(2 * math.pi * 3 * t / n) + 0.5 * math.cos(2 * math.pi * 7 * t / n)
+            for t in range(n)]
+
+
 def test_chiral_dual_preserves_fft_magnitude():
     n = 64
-    t = np.arange(n)
-    x = np.sin(2 * np.pi * 3 * t / n) + 0.5 * np.cos(2 * np.pi * 7 * t / n)
-    shift = lambda v: np.roll(v, 5)
+    x = _make_signal(n)
+    shift = lambda v: _roll(list(v), 5)
     y = shift(x)
     yd = cascade.chiral_dual(shift, x)
-    magY = np.sqrt((np.fft.fft(y) * np.conj(np.fft.fft(y))).real)
-    magYd = np.sqrt((np.fft.fft(yd) * np.conj(np.fft.fft(yd))).real)
-    assert np.max(np.sqrt((magY - magYd) ** 2)) < 1e-9  # same shape
+    magY = [abs(c) for c in _dft(y)]
+    magYd = [abs(c) for c in _dft(yd)]
+    # Same shape: signed difference per bin stays below 1e-9.
+    assert max(abs(a - b) for a, b in zip(magY, magYd)) < 1e-9
 
 
 def test_chiral_dual_inverts_phase_not_a_global_turn():
     n = 64
-    t = np.arange(n)
-    x = np.sin(2 * np.pi * 3 * t / n) + 0.5 * np.cos(2 * np.pi * 7 * t / n)
-    shift = lambda v: np.roll(v, 5)
-    Y = np.fft.fft(shift(x))
-    Yd = np.fft.fft(cascade.chiral_dual(shift, x))
+    x = _make_signal(n)
+    shift = lambda v: _roll(list(v), 5)
+    Y = _dft(shift(x))
+    Yd = _dft(cascade.chiral_dual(shift, x))
     # NOT a constant pi turn: phase-diff varies across active bins.
-    mag = np.sqrt((Y * np.conj(Y)).real)
-    active = mag > 1e-6 * np.max(mag)
-    pdiff = np.angle(Yd[active]) - np.angle(Y[active])
-    pdiff = (pdiff + np.pi) % (2 * np.pi) - np.pi
-    assert np.std(pdiff) > 0.1  # orientation-flip, not a rigid 180deg
+    mag = [abs(c) for c in Y]
+    mx = max(mag)
+    active = [i for i, m in enumerate(mag) if m > 1e-6 * mx]
+    pdiff = []
+    for i in active:
+        d = cmath.phase(Yd[i]) - cmath.phase(Y[i])
+        d = (d + math.pi) % (2 * math.pi) - math.pi
+        pdiff.append(d)
+    assert statistics.pstdev(pdiff) > 0.1  # orientation-flip, not a rigid 180deg
 
 
 # ── net_chirality — Class C net handedness ──────────────────────────────

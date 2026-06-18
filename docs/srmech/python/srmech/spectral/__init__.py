@@ -14,7 +14,7 @@ per ``[[feedback_no_privileged_primitive_classes]]``:
 - :func:`delta` — Class M (HDC bind / XOR self-inverse) per Spike #114
   Option B (direct bind on already-encoded coefficient bytes; 1.22× faster
   than wrapper variant).
-- :func:`recompose` — Class L (inverse eigendecomposition via V @ coeffs)
+- :func:`recompose` — Class L (inverse eigendecomposition via V·coeffs)
   ∘ Class M (handle integrity check).
 - :func:`similarity` — Class M (HDC similarity = 1 − 2·hamming(a,b)/D in
   [−1, 1]).
@@ -59,15 +59,17 @@ primitive class is introduced.
 from __future__ import annotations
 
 import hashlib
+import struct
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import Optional
+from typing import List, Optional
 
-import numpy as np
+from srmech.amsc import rational
+from srmech.amsc.laplacian import mat_hermitian_eigendecompose
+from srmech.amsc.mat import Mat
 
 from ..amsc.hdc import bind as _hdc_bind
 from ..amsc.hdc import similarity as _hdc_similarity
-from ..amsc.laplacian import dense_matvec_complex, hermitian_eigendecompose
 
 __all__ = [
     "SpectralHandle",
@@ -104,7 +106,7 @@ class SpectralHandle:
         encoder identity + any hyperparameters). Eigenbasis cache key.
     coefficients_bytes:
         Per-state encoded coefficients. For numeric substrates: typically
-        ``V.T @ state`` projected onto eigenbasis, packed to bytes. For
+        ``V.T·state`` projected onto eigenbasis, packed to bytes. For
         binary HDC substrates: BSC vector bytes directly.
     content_sha:
         SHA-256 hex of ``coefficients_bytes``; integrity check on
@@ -131,10 +133,12 @@ def clear_eigenbasis_cache() -> None:
     _EIGENBASIS_CACHE.clear()
 
 
-def _cache_eigenbasis(
-    descriptor_hash: str, eigvals: np.ndarray, V: np.ndarray
-) -> None:
-    """Insert ``(eigvals, V)`` for ``descriptor_hash`` into the LRU cache."""
+def _cache_eigenbasis(descriptor_hash: str, eigvals, V) -> None:
+    """Insert ``(eigvals, V)`` for ``descriptor_hash`` into the LRU cache.
+
+    ``eigvals`` is a list of real eigenvalues; ``V`` is the eigenvector ``Mat``
+    (columns = eigenvectors), both numpy-free as of v0.7.5rc125.
+    """
     if descriptor_hash in _EIGENBASIS_CACHE:
         _EIGENBASIS_CACHE.move_to_end(descriptor_hash)
     _EIGENBASIS_CACHE[descriptor_hash] = (eigvals, V)
@@ -156,25 +160,72 @@ def _sha256_hex(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _descriptor_hash(
-    laplacian: np.ndarray, encoder_tag: str = "default"
-) -> str:
+def _to_complex_mat(m) -> "Mat":
+    """Coerce a ``Mat`` (passthrough) or any 2-D sequence into a complex ``Mat``."""
+    if isinstance(m, Mat):
+        return m
+    return Mat.from_rows(
+        [[complex(x) for x in row] for row in m], is_complex=True
+    )
+
+
+def _complex128_bytes(values) -> bytes:
+    """Pack a flat sequence of complex values as complex128 bytes — interleaved
+    native-endian ``(re, im)`` float64 pairs, byte-identical to a numpy
+    complex128 ``.tobytes()`` (so descriptor / coefficient hashes are stable)."""
+    flat = []
+    for z in values:
+        z = complex(z)
+        flat.append(z.real)
+        flat.append(z.imag)
+    return struct.pack("=%dd" % len(flat), *flat)
+
+
+def _unpack_complex128(data: bytes, n: int) -> List[complex]:
+    """Inverse of :func:`_complex128_bytes`: complex128 bytes -> list of ``n``
+    complex (numpy-free replacement for the prior ``frombuffer`` carrier)."""
+    vals = struct.unpack("=%dd" % (2 * n), data)
+    return [complex(vals[2 * i], vals[2 * i + 1]) for i in range(n)]
+
+
+def _descriptor_hash(laplacian, encoder_tag: str = "default") -> str:
     """SHA-256 of canonicalised substrate descriptor.
 
     Per Spike #115 design decision (2026-05-18 user choice): laplacian_kind
     folds into the substrate_descriptor_hash; not a separate cache-key.
-    Canonical bytes = laplacian.tobytes() + b"|" + encoder_tag.encode().
+    Canonical bytes = row-major complex128 bytes of the Laplacian + b"|" +
+    encoder_tag.encode(); numpy-free (struct-packed) since v0.7.5rc125, but
+    byte-identical to the prior contiguous-complex128 ``.tobytes()`` carrier.
     """
+    L = _to_complex_mat(laplacian)
+    nr, nc = L.shape
+    flat = (L[i, j] for i in range(nr) for j in range(nc))
     h = hashlib.sha256()
-    h.update(np.ascontiguousarray(laplacian, dtype=np.complex128).tobytes())
+    h.update(_complex128_bytes(flat))
     h.update(b"|")
     h.update(encoder_tag.encode("utf-8"))
     return h.hexdigest()
 
 
+def _eigenbasis(laplacian_mat: "Mat", desc_hash: str):
+    """Return cached ``(eigvals_list, V_Mat)`` for ``laplacian_mat`` or compute
+    it via the numpy-free native Hermitian eigendecomposition and cache it.
+
+    ``eigvals_list`` is the list of real eigenvalues; ``V_Mat`` is the
+    eigenvector ``Mat`` (columns = eigenvectors).
+    """
+    cached = _get_cached_eigenbasis(desc_hash)
+    if cached is not None:
+        return cached
+    evals_mat, v_mat = mat_hermitian_eigendecompose(laplacian_mat)
+    eigvals = [complex(evals_mat[i, 0]).real for i in range(evals_mat.shape[0])]
+    _cache_eigenbasis(desc_hash, eigvals, v_mat)
+    return eigvals, v_mat
+
+
 def decompose(
-    state: np.ndarray,
-    laplacian: np.ndarray,
+    state,
+    laplacian,
     *,
     encoder_tag: str = "default",
 ) -> SpectralHandle:
@@ -199,33 +250,35 @@ def decompose(
     Returns
     -------
     SpectralHandle
-        With ``coefficients_bytes = (V.conj().T @ state).tobytes()``.
+        With ``coefficients_bytes = (V.conj().T·state).tobytes()``.
 
     Raises
     ------
     ValueError
         If shapes mismatch or laplacian is not square.
     """
-    state_arr = np.ascontiguousarray(state, dtype=np.complex128)
-    if state_arr.ndim != 1:
-        raise ValueError(f"state must be 1-D; got shape {state_arr.shape}")
-    L_arr = np.ascontiguousarray(laplacian, dtype=np.complex128)
-    if L_arr.ndim != 2 or L_arr.shape[0] != L_arr.shape[1]:
-        raise ValueError(f"laplacian must be square 2-D; got {L_arr.shape}")
-    n = L_arr.shape[0]
-    if state_arr.shape[0] != n:
+    L = _to_complex_mat(laplacian)
+    nr, nc = L.shape
+    if nr != nc:
+        raise ValueError(f"laplacian must be square 2-D; got {L.shape}")
+    n = nr
+    try:
+        state_vec = [complex(x) for x in state]
+    except TypeError:
+        raise ValueError("state must be a 1-D sequence of scalars")
+    if len(state_vec) != n:
         raise ValueError(
-            f"state length {state_arr.shape[0]} != laplacian size {n}"
+            f"state length {len(state_vec)} != laplacian size {n}"
         )
-    desc_hash = _descriptor_hash(L_arr, encoder_tag=encoder_tag)
-    cached = _get_cached_eigenbasis(desc_hash)
-    if cached is None:
-        eigvals, V = hermitian_eigendecompose(L_arr)
-        _cache_eigenbasis(desc_hash, eigvals, V)
-    else:
-        eigvals, V = cached
-    coeffs = dense_matvec_complex(V.conj().T, state_arr)
-    coeffs_bytes = coeffs.tobytes()
+    desc_hash = _descriptor_hash(L, encoder_tag=encoder_tag)
+    eigvals, V = _eigenbasis(L, desc_hash)
+    # coeffs = Vᴴ·state — Class-L projection onto the eigenbasis (V columns are
+    # eigenvectors), as an explicit sesquilinear matvec (numpy-free).
+    coeffs = [
+        sum((V[i, k].conjugate() * state_vec[i] for i in range(n)), 0j)
+        for k in range(n)
+    ]
+    coeffs_bytes = _complex128_bytes(coeffs)
     return SpectralHandle(
         substrate_descriptor_hash=desc_hash,
         coefficients_bytes=coeffs_bytes,
@@ -280,11 +333,11 @@ def delta(ref: SpectralHandle | bytes, current: SpectralHandle | bytes) -> bytes
 
 
 def recompose(
-    handle: SpectralHandle, laplacian: np.ndarray, *, encoder_tag: str = "default"
-) -> np.ndarray:
+    handle: SpectralHandle, laplacian, *, encoder_tag: str = "default"
+) -> List[complex]:
     """Reconstruct node-domain state from ``handle`` via inverse projection.
 
-    Class chain: Class L (inverse eigendecomposition ``state = V @ coeffs``)
+    Class chain: Class L (inverse eigendecomposition ``state = V·coeffs``)
     ∘ Class M (SHA-256 content integrity check on handle).
 
     Parameters
@@ -300,9 +353,9 @@ def recompose(
 
     Returns
     -------
-    np.ndarray
-        ``(n_modes,)`` complex128 array; real states have negligible
-        imaginary part by Hermitian eigenbasis algebra.
+    list of complex
+        ``n_modes`` reconstructed node-domain coefficients; real states have
+        negligible imaginary part by Hermitian eigenbasis algebra.
 
     Raises
     ------
@@ -315,21 +368,19 @@ def recompose(
         raise ValueError(
             "spectral.recompose: handle content_sha mismatch (corruption?)"
         )
-    L_arr = np.ascontiguousarray(laplacian, dtype=np.complex128)
-    desc_hash = _descriptor_hash(L_arr, encoder_tag=encoder_tag)
+    L = _to_complex_mat(laplacian)
+    desc_hash = _descriptor_hash(L, encoder_tag=encoder_tag)
     if desc_hash != handle.substrate_descriptor_hash:
         raise ValueError(
             "spectral.recompose: laplacian descriptor_hash mismatch with handle"
         )
-    cached = _get_cached_eigenbasis(desc_hash)
-    if cached is None:
-        eigvals, V = hermitian_eigendecompose(L_arr)
-        _cache_eigenbasis(desc_hash, eigvals, V)
-    else:
-        eigvals, V = cached
+    eigvals, V = _eigenbasis(L, desc_hash)
     n = handle.n_modes
-    coeffs = np.frombuffer(handle.coefficients_bytes, dtype=np.complex128).reshape(n)
-    return dense_matvec_complex(V, coeffs)
+    coeffs = _unpack_complex128(handle.coefficients_bytes, n)
+    # state = V·coeffs — inverse projection (Class-L), explicit matvec (numpy-free).
+    return [
+        sum((V[i, k] * coeffs[k] for k in range(n)), 0j) for i in range(n)
+    ]
 
 
 def similarity(
@@ -375,7 +426,7 @@ def similarity(
 
 def predict(
     handle: SpectralHandle,
-    laplacian: np.ndarray,
+    laplacian,
     *,
     steps: int = 1,
     dt: float = 1.0,
@@ -428,26 +479,22 @@ def predict(
         raise ValueError(
             "spectral.predict: handle content_sha mismatch (corruption?)"
         )
-    L_arr = np.ascontiguousarray(laplacian, dtype=np.complex128)
-    desc_hash = _descriptor_hash(L_arr, encoder_tag=encoder_tag)
+    L = _to_complex_mat(laplacian)
+    desc_hash = _descriptor_hash(L, encoder_tag=encoder_tag)
     if desc_hash != handle.substrate_descriptor_hash:
         raise ValueError(
             "spectral.predict: laplacian descriptor_hash mismatch with handle"
         )
-    cached = _get_cached_eigenbasis(desc_hash)
-    if cached is None:
-        eigvals, V = hermitian_eigendecompose(L_arr)
-        _cache_eigenbasis(desc_hash, eigvals, V)
-    else:
-        eigvals, V = cached
+    eigvals, V = _eigenbasis(L, desc_hash)
     n = handle.n_modes
-    coeffs = np.frombuffer(
-        handle.coefficients_bytes, dtype=np.complex128
-    ).reshape(n)
-    # Class C cascade-extrapolate: per-mode phase evolution.
-    phase = np.exp(-1j * np.asarray(eigvals, dtype=np.float64) * steps * dt)
-    coeffs_pred = (coeffs * phase).astype(np.complex128)
-    coeffs_bytes = coeffs_pred.tobytes()
+    coeffs = _unpack_complex128(handle.coefficients_bytes, n)
+    # Class C cascade-extrapolate: per-mode phase evolution e^{-i λ_k steps dt}
+    # via the Class-N Euler cascade rational.cexp (numpy-free).
+    coeffs_pred = [
+        coeffs[k] * rational.cexp(-(eigvals[k] * steps * dt))
+        for k in range(n)
+    ]
+    coeffs_bytes = _complex128_bytes(coeffs_pred)
     return SpectralHandle(
         substrate_descriptor_hash=desc_hash,
         coefficients_bytes=coeffs_bytes,
@@ -573,11 +620,10 @@ def truncate_sparse(
             "spectral.truncate_sparse: handle content_sha mismatch (corruption?)"
         )
     n = handle.n_modes
-    coeffs = np.frombuffer(
-        handle.coefficients_bytes, dtype=np.complex128
-    ).reshape(n).copy()
-    # |z| = hypot(real, imag) (no abs()); coeffs are complex spectral coefficients.
-    magnitudes = np.hypot(coeffs.real, coeffs.imag)
+    coeffs = _unpack_complex128(handle.coefficients_bytes, n)
+    # |z|² = re²+im² (squared modulus; monotone in |z|, no abs()/sqrt — Class K);
+    # used for both the top-k ranking and the threshold gate (compare to thr²).
+    mag_sq = [c.real * c.real + c.imag * c.imag for c in coeffs]
     if keep_k is not None:
         k = int(keep_k)
         if k < 0 or k > n:
@@ -586,15 +632,14 @@ def truncate_sparse(
                 f"got keep_k={k}, n_modes={n}"
             )
         if k == 0:
-            coeffs[:] = 0
+            coeffs = [0j] * n
         elif k < n:
-            # argpartition keeps top-k by magnitude; zero everything else.
-            # Stable secondary sort by index for determinism on ties.
-            order = np.argsort(-magnitudes, kind="stable")
-            keep_indices = set(int(i) for i in order[:k])
-            for i in range(n):
-                if i not in keep_indices:
-                    coeffs[i] = 0
+            # Keep the top-k by magnitude; zero everything else. ``sorted`` with
+            # reverse=True is stable (ties keep ascending index), matching the
+            # prior stable descending-magnitude argsort determinism.
+            order = sorted(range(n), key=lambda i: mag_sq[i], reverse=True)
+            keep_indices = set(order[:k])
+            coeffs = [coeffs[i] if i in keep_indices else 0j for i in range(n)]
         # k == n: keep all; no zeroing
     else:
         thr = float(threshold)  # type: ignore[arg-type]
@@ -603,9 +648,9 @@ def truncate_sparse(
                 "spectral.truncate_sparse: threshold must be >= 0.0; "
                 f"got {thr!r}"
             )
-        mask = magnitudes < thr
-        coeffs[mask] = 0
-    coeffs_bytes = coeffs.astype(np.complex128).tobytes()
+        thr_sq = thr * thr
+        coeffs = [coeffs[i] if mag_sq[i] >= thr_sq else 0j for i in range(n)]
+    coeffs_bytes = _complex128_bytes(coeffs)
     return SpectralHandle(
         substrate_descriptor_hash=handle.substrate_descriptor_hash,
         coefficients_bytes=coeffs_bytes,

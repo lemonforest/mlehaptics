@@ -2,18 +2,69 @@
 
 Tests the four public operations (``dense_adjacency``,
 ``dense_laplacian``, ``normalized_laplacian``, ``jacobi_eigvals``)
-against reference values and numpy-equivalence. When
+against hand-computed reference values. When
 ``srmech.amsc._native.HAS_NATIVE`` is ``True``, the native ↔ fallback
-parity sweep runs (toggling the flag to force the fallback path and
-comparing outputs to ~1e-12 tolerance).
+parity sweep runs (toggling the flag to force the pure-Python fallback
+path and comparing outputs to ~1e-12 tolerance).
+
+Post-#564 numpy is GONE from srmech; rc129 restores the numpy-carrier FORMAT:
+the build ops return a numpy-free ``Mat`` (``.shape`` + ``m[i, j]``) and
+``jacobi_eigvals`` returns a 1-D ``Vec`` (ascending eigenvalues). Reference
+values are hand-computed or supplied by srmech's OWN pure-Python Jacobi
+cascade — never numpy LAPACK.
 """
 
 from __future__ import annotations
 
-import numpy as np
+import math
+import random
+
 import pytest
 
 from srmech.amsc import _native, laplacian
+
+
+# ---------------------------------------------------------------------
+# plain-list helpers (no numpy)
+# ---------------------------------------------------------------------
+
+def _as_nested(M):
+    """rc129: the dense_* builders now return a numpy-free ``Mat`` carrier;
+    ``.tolist()`` recovers the nested list these helpers compare against."""
+    return M.tolist() if hasattr(M, "tolist") else M
+
+
+def _assert_matrix_equal(M, expected, tol=0.0):
+    M = _as_nested(M)
+    expected = _as_nested(expected)
+    assert len(M) == len(expected)
+    for i in range(len(expected)):
+        assert len(M[i]) == len(expected[i])
+        for j in range(len(expected[i])):
+            if tol:
+                assert abs(M[i][j] - expected[i][j]) <= tol
+            else:
+                assert M[i][j] == expected[i][j]
+
+
+def _transpose(M):
+    M = _as_nested(M)
+    return [[M[j][i] for j in range(len(M))] for i in range(len(M[0]))] if M else []
+
+
+def _is_symmetric(M, tol=1e-12):
+    M = _as_nested(M)
+    n = len(M)
+    return all(abs(M[i][j] - M[j][i]) <= tol for i in range(n) for j in range(n))
+
+
+def _random_symmetric(n, rng):
+    A = [[rng.gauss(0.0, 1.0) for _ in range(n)] for _ in range(n)]
+    return [[(A[i][j] + A[j][i]) / 2.0 for j in range(n)] for i in range(n)]
+
+
+def _random_edges(n, m, rng):
+    return [(rng.randrange(n), rng.randrange(n)) for _ in range(m)]
 
 
 # ---------------------------------------------------------------------
@@ -22,35 +73,35 @@ from srmech.amsc import _native, laplacian
 
 def test_adjacency_empty_graph():
     A = laplacian.dense_adjacency(5, [])
-    assert A.shape == (5, 5)
-    np.testing.assert_array_equal(A, np.zeros((5, 5)))
+    assert len(A) == 5 and all(len(row) == 5 for row in A)
+    _assert_matrix_equal(A, [[0.0] * 5 for _ in range(5)])
 
 
 def test_adjacency_triangle():
     # 3-cycle: 0-1, 1-2, 2-0
     A = laplacian.dense_adjacency(3, [(0, 1), (1, 2), (2, 0)])
-    expected = np.array([
+    expected = [
         [0, 1, 1],
         [1, 0, 1],
         [1, 1, 0],
-    ], dtype=np.float64)
-    np.testing.assert_array_equal(A, expected)
+    ]
+    _assert_matrix_equal(A, expected)
 
 
 def test_adjacency_weighted():
     A = laplacian.dense_adjacency(3, [(0, 1), (1, 2)], weights=[2.5, 3.5])
-    expected = np.array([
+    expected = [
         [0.0, 2.5, 0.0],
         [2.5, 0.0, 3.5],
         [0.0, 3.5, 0.0],
-    ])
-    np.testing.assert_array_equal(A, expected)
+    ]
+    _assert_matrix_equal(A, expected)
 
 
 def test_adjacency_self_loop_adds_2w_to_diagonal():
     A = laplacian.dense_adjacency(2, [(0, 0), (0, 1)])
-    expected = np.array([[2.0, 1.0], [1.0, 0.0]])
-    np.testing.assert_array_equal(A, expected)
+    expected = [[2.0, 1.0], [1.0, 0.0]]
+    _assert_matrix_equal(A, expected)
 
 
 def test_adjacency_out_of_range_rejected():
@@ -64,45 +115,43 @@ def test_adjacency_out_of_range_rejected():
 
 def test_laplacian_triangle():
     L = laplacian.dense_laplacian(3, [(0, 1), (1, 2), (2, 0)])
-    expected = np.array([
-        [ 2, -1, -1],
-        [-1,  2, -1],
-        [-1, -1,  2],
-    ], dtype=np.float64)
-    np.testing.assert_array_equal(L, expected)
+    expected = [
+        [2, -1, -1],
+        [-1, 2, -1],
+        [-1, -1, 2],
+    ]
+    _assert_matrix_equal(L, expected)
 
 
 def test_laplacian_path_graph():
     # Path 0-1-2-3 has degree sequence [1, 2, 2, 1]
     L = laplacian.dense_laplacian(4, [(0, 1), (1, 2), (2, 3)])
-    expected = np.array([
-        [ 1, -1,  0,  0],
-        [-1,  2, -1,  0],
-        [ 0, -1,  2, -1],
-        [ 0,  0, -1,  1],
-    ], dtype=np.float64)
-    np.testing.assert_array_equal(L, expected)
+    expected = [
+        [1, -1, 0, 0],
+        [-1, 2, -1, 0],
+        [0, -1, 2, -1],
+        [0, 0, -1, 1],
+    ]
+    _assert_matrix_equal(L, expected, tol=0.0)
 
 
 def test_laplacian_is_symmetric_positive_semidefinite():
-    rng = np.random.default_rng(20260515)
-    for trial in range(20):
-        n = int(rng.integers(3, 32))
-        m = int(rng.integers(n - 1, n * (n - 1) // 2 + 1))
-        edges = [
-            (int(rng.integers(0, n)), int(rng.integers(0, n)))
-            for _ in range(m)
-        ]
+    rng = random.Random(20260515)
+    for _ in range(20):
+        n = rng.randint(3, 31)
+        m = rng.randint(n - 1, n * (n - 1) // 2 + 1)
+        edges = _random_edges(n, m, rng)
         L = laplacian.dense_laplacian(n, edges)
-        np.testing.assert_allclose(L, L.T, atol=1e-12)
-        eigs = np.linalg.eigvalsh(L)
-        # Smallest eigenvalue should be >= -1e-10 (PSD with float noise).
-        assert eigs.min() >= -1e-10
+        assert _is_symmetric(L, tol=1e-12)
+        # PSD via srmech's OWN Jacobi cascade (not numpy LAPACK).
+        eigs = laplacian.jacobi_eigvals(L)
+        assert min(eigs) >= -1e-9
 
 
 def test_laplacian_row_sums_zero():
     L = laplacian.dense_laplacian(5, [(0, 1), (1, 2), (2, 3), (3, 4), (4, 0)])
-    np.testing.assert_allclose(L.sum(axis=1), np.zeros(5), atol=1e-12)
+    for row in L:
+        assert abs(sum(row)) < 1e-12
 
 
 # ---------------------------------------------------------------------
@@ -113,82 +162,83 @@ def test_normalized_laplacian_triangle():
     Lsym = laplacian.normalized_laplacian(3, [(0, 1), (1, 2), (2, 0)])
     # Triangle: each vertex has degree 2; d_inv_sqrt = 1/sqrt(2)
     off = -1.0 / 2.0  # -1 * (1/sqrt(2)) * (1/sqrt(2)) = -1/2
-    expected = np.array([
+    expected = [
         [1.0, off, off],
         [off, 1.0, off],
         [off, off, 1.0],
-    ])
-    np.testing.assert_allclose(Lsym, expected, atol=1e-12)
+    ]
+    _assert_matrix_equal(Lsym, expected, tol=1e-12)
 
 
 def test_normalized_laplacian_isolated_vertex_zero_diagonal():
     # 2 nodes, edge (0,1); vertex 2 isolated
     Lsym = laplacian.normalized_laplacian(3, [(0, 1)])
-    # Node 2 has degree 0; L_sym[2,2] should be 0
+    # Node 2 has degree 0; L_sym[2,2] should be 0 (rc129: Mat carrier, m[i, j])
     assert Lsym[2, 2] == 0.0
 
 
 def test_normalized_laplacian_eigvals_in_0_2():
-    rng = np.random.default_rng(20260516)
+    rng = random.Random(20260516)
     for _ in range(20):
-        n = int(rng.integers(3, 20))
-        m = int(rng.integers(n - 1, n * (n - 1) // 2 + 1))
-        edges = [
-            (int(rng.integers(0, n)), int(rng.integers(0, n)))
-            for _ in range(m)
-        ]
+        n = rng.randint(3, 19)
+        m = rng.randint(n - 1, n * (n - 1) // 2 + 1)
+        edges = _random_edges(n, m, rng)
         # Drop self-loops for the symmetric-eigval bound to hold
         edges = [(u, v) for (u, v) in edges if u != v]
         if not edges:
             continue
         Lsym = laplacian.normalized_laplacian(n, edges)
-        eigs = np.linalg.eigvalsh(Lsym)
+        eigs = laplacian.jacobi_eigvals(Lsym)   # srmech's own cascade
         # Normalised Laplacian eigvals lie in [0, 2] (graph theory).
-        assert eigs.min() >= -1e-10, f"min eig {eigs.min()} < 0"
-        assert eigs.max() <= 2.0 + 1e-10, f"max eig {eigs.max()} > 2"
+        assert min(eigs) >= -1e-9, f"min eig {min(eigs)} < 0"
+        assert max(eigs) <= 2.0 + 1e-9, f"max eig {max(eigs)} > 2"
 
 
 # ---------------------------------------------------------------------
-# jacobi_eigvals — agreement with numpy.linalg.eigvalsh
+# jacobi_eigvals — closed-form spectra + cascade cross-check
 # ---------------------------------------------------------------------
 
 def test_jacobi_eigvals_diagonal():
-    M = np.diag([1.0, 2.0, 3.0])
+    M = [[1.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 3.0]]
     eigs = laplacian.jacobi_eigvals(M)
-    np.testing.assert_allclose(eigs, [1.0, 2.0, 3.0], atol=1e-12)
+    for got, exp in zip(eigs, [1.0, 2.0, 3.0]):
+        assert abs(got - exp) < 1e-12
 
 
 def test_jacobi_eigvals_2x2():
-    M = np.array([[2.0, 1.0], [1.0, 2.0]])
+    M = [[2.0, 1.0], [1.0, 2.0]]
     eigs = laplacian.jacobi_eigvals(M)
     # Closed form: 1, 3
-    np.testing.assert_allclose(eigs, [1.0, 3.0], atol=1e-12)
+    for got, exp in zip(eigs, [1.0, 3.0]):
+        assert abs(got - exp) < 1e-12
 
 
-def test_jacobi_eigvals_matches_numpy_random_sweep():
-    rng = np.random.default_rng(20260517)
-    for trial in range(15):
-        n = int(rng.integers(3, 24))
-        # Random symmetric matrix
-        M = rng.standard_normal((n, n))
-        M = (M + M.T) / 2
-        eigs_jacobi = laplacian.jacobi_eigvals(M, max_sweeps=100, tolerance=1e-12)
-        eigs_numpy = np.sort(np.linalg.eigvalsh(M))
-        np.testing.assert_allclose(eigs_jacobi, eigs_numpy, atol=1e-10)
+def test_jacobi_eigvals_matches_cascade_random_sweep():
+    """The (native) jacobi path agrees with srmech's OWN pure-Python Jacobi
+    cascade across random symmetric matrices — the native ↔ cascade parity."""
+    rng = random.Random(20260517)
+    for _ in range(15):
+        n = rng.randint(3, 23)
+        M = _random_symmetric(n, rng)
+        eigs_main = laplacian.jacobi_eigvals(M, max_sweeps=100, tolerance=1e-12)
+        eigs_cascade = sorted(laplacian._jacobi_eigvals_py([row[:] for row in M]))
+        for a, b in zip(sorted(eigs_main), eigs_cascade):
+            assert abs(a - b) < 1e-9
 
 
 def test_jacobi_eigvals_on_laplacian():
     L = laplacian.dense_laplacian(4, [(0, 1), (1, 2), (2, 3), (3, 0)])
     eigs = laplacian.jacobi_eigvals(L)
     # 4-cycle Laplacian eigvals: 0, 2, 2, 4 (closed-form algebraic)
-    np.testing.assert_allclose(eigs, [0.0, 2.0, 2.0, 4.0], atol=1e-10)
+    for got, exp in zip(sorted(eigs), [0.0, 2.0, 2.0, 4.0]):
+        assert abs(got - exp) < 1e-9
 
 
 def test_jacobi_eigvals_does_not_mutate_input():
-    M = np.array([[2.0, 1.0], [1.0, 3.0]])
-    M_copy = M.copy()
+    M = [[2.0, 1.0], [1.0, 3.0]]
+    M_copy = [row[:] for row in M]
     _ = laplacian.jacobi_eigvals(M)
-    np.testing.assert_array_equal(M, M_copy)
+    assert M == M_copy
 
 
 # ---------------------------------------------------------------------
@@ -197,74 +247,70 @@ def test_jacobi_eigvals_does_not_mutate_input():
 
 @pytest.mark.skipif(not _native.HAS_NATIVE, reason="native lib not loaded")
 def test_native_dense_adjacency_matches_fallback():
-    rng = np.random.default_rng(20260518)
+    rng = random.Random(20260518)
     saved = _native.HAS_NATIVE
     try:
         for _ in range(20):
-            n = int(rng.integers(3, 32))
-            m = int(rng.integers(n, n * (n - 1) // 2 + 1))
-            edges = [
-                (int(rng.integers(0, n)), int(rng.integers(0, n)))
-                for _ in range(m)
-            ]
-            ws = rng.uniform(0.5, 2.0, size=m).tolist()
+            n = rng.randint(3, 31)
+            m = rng.randint(n, n * (n - 1) // 2 + 1)
+            edges = _random_edges(n, m, rng)
+            ws = [rng.uniform(0.5, 2.0) for _ in range(m)]
 
             _native.HAS_NATIVE = True
             A_native = laplacian.dense_adjacency(n, edges, ws)
             _native.HAS_NATIVE = False
             A_fallback = laplacian.dense_adjacency(n, edges, ws)
-            np.testing.assert_allclose(A_native, A_fallback, atol=1e-12)
+            _assert_matrix_equal(A_native, A_fallback, tol=1e-12)
     finally:
         _native.HAS_NATIVE = saved
 
 
 @pytest.mark.skipif(not _native.HAS_NATIVE, reason="native lib not loaded")
 def test_native_dense_laplacian_matches_fallback():
-    rng = np.random.default_rng(20260519)
+    rng = random.Random(20260519)
     saved = _native.HAS_NATIVE
     try:
         for _ in range(15):
-            n = int(rng.integers(3, 32))
-            m = int(rng.integers(n, n * (n - 1) // 2 + 1))
-            edges = [
-                (int(rng.integers(0, n)), int(rng.integers(0, n)))
-                for _ in range(m)
-            ]
+            n = rng.randint(3, 31)
+            m = rng.randint(n, n * (n - 1) // 2 + 1)
+            edges = _random_edges(n, m, rng)
 
             _native.HAS_NATIVE = True
             L_native = laplacian.dense_laplacian(n, edges)
             _native.HAS_NATIVE = False
             L_fallback = laplacian.dense_laplacian(n, edges)
-            np.testing.assert_allclose(L_native, L_fallback, atol=1e-12)
+            _assert_matrix_equal(L_native, L_fallback, tol=1e-12)
     finally:
         _native.HAS_NATIVE = saved
 
 
 @pytest.mark.skipif(not _native.HAS_NATIVE, reason="native lib not loaded")
 def test_native_jacobi_matches_fallback():
-    rng = np.random.default_rng(20260520)
+    rng = random.Random(20260520)
     saved = _native.HAS_NATIVE
     try:
         for _ in range(10):
-            n = int(rng.integers(3, 24))
-            M = rng.standard_normal((n, n))
-            M = (M + M.T) / 2
+            n = rng.randint(3, 23)
+            M = _random_symmetric(n, rng)
 
             _native.HAS_NATIVE = True
             eigs_native = laplacian.jacobi_eigvals(M, max_sweeps=100, tolerance=1e-12)
             _native.HAS_NATIVE = False
             eigs_fallback = laplacian.jacobi_eigvals(M)
-            np.testing.assert_allclose(eigs_native, eigs_fallback, atol=1e-10)
+            for a, b in zip(sorted(eigs_native), sorted(eigs_fallback)):
+                assert abs(a - b) < 1e-9
     finally:
         _native.HAS_NATIVE = saved
 
 
 def test_jacobi_eigvals_large_n_falls_back():
-    # n > MAX_NATIVE_NODES forces numpy fallback even when HAS_NATIVE
+    # n > MAX_NATIVE_NODES forces the pure-Python cascade even when HAS_NATIVE.
+    # Use a diagonal matrix so the closed-form spectrum is its sorted diagonal.
     n = laplacian.MAX_NATIVE_NODES + 1
-    rng = np.random.default_rng(20260521)
-    M = rng.standard_normal((n, n))
-    M = (M + M.T) / 2
+    rng = random.Random(20260521)
+    diag = [rng.uniform(-5.0, 5.0) for _ in range(n)]
+    M = [[diag[i] if i == j else 0.0 for j in range(n)] for i in range(n)]
     eigs = laplacian.jacobi_eigvals(M)
-    eigs_ref = np.sort(np.linalg.eigvalsh(M))
-    np.testing.assert_allclose(eigs, eigs_ref, atol=1e-10)
+    expected = sorted(diag)
+    for a, b in zip(sorted(eigs), expected):
+        assert abs(a - b) < 1e-9

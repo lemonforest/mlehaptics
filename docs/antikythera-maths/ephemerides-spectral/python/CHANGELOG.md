@@ -10,6 +10,177 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.31.0rc4] — 2026-06-17
+
+### Changed — numpy-FREE capstone: `pip install ephemerides-spectral` pulls NO numpy
+
+The capstone of the Phase-N numpy-removal arc. After rc2 (ITN component)
+and rc3 (the last trivial dead import), the remaining numpy was ONE
+connected component — the byte-exact BIP-encoder / HD-lift /
+native-marshalling core. rc4 flips it, then **drops `numpy` from BOTH
+`python/pyproject.toml` and `python/pyproject-pure.toml` dependencies**.
+The shipped package and its full test suite now import and run with
+numpy **not installed at all**.
+
+**The six shipped modules flipped** (canonical
+`docs/antikythera-maths/research/<f>.py`, re-emitted through codegen):
+
+- `laplacian.py` — complex128 Laplacian build (`np.zeros`/`np.pi`/
+  `np.sqrt`/`np.cos`) → `list[list[complex]]` + stdlib `math`/`cmath`.
+  The LTI propagator `get_propagator` / `evolve_state` (and the
+  reference instrument's breathing encode) replace `scipy.linalg.expm`
+  with a **Hermitian matrix-exponential keystone** `expm_neg_i_hermitian`
+  — the matrices are Hermitian, so `expm(-1j·L·t) = V·diag(exp(-iλt))·Vᴴ`
+  via srmech's numpy-free Hermitian eigensolver
+  (`srmech.amsc.laplacian.mat_hermitian_eigendecompose`). Matches scipy
+  to ~1e-12 (validated).
+- `bip_instrument.py` — the BIP integer-ALU encoder. uint64/int64 numpy
+  arithmetic → Python `int` + explicit fixed-width masking (uint64 add
+  `& 0xFFFFFFFFFFFFFFFF`; final reduce `& (MODULO-1)`). The
+  `np.errstate(over='raise')` int64 overflow trap is replicated by an
+  explicit range check (`-(2**63) <= r < 2**63`). The cosine LUT uses
+  stdlib `round` (round-half-to-even, identical to `np.round`) + `math.cos`.
+  `encode_state` now returns `array('I')`.
+- `ephemeris_reference_instrument.py` — the FPU reference encoder; same
+  Hermitian-expm flip + stdlib trig.
+- `bip_hd_lift.py` — the complex64 HD lift. The channel basis stays
+  **byte-identical complex64** via `struct`-based float32 truncation
+  (`complex(_f32(cos(p)), _f32(sin(p)))` equals `np.complex64(exp(1j·p))`
+  byte-for-byte). HD vectors are `list[complex]`; `np.roll` →
+  list-rotation (verified-equal semantics); `np.linalg.norm` / `np.vdot`
+  → stdlib.
+- `_native_bip.py` — `encode_state`/`encode_at_jd` return `array('I')`;
+  the complex64 ctypes marshalling (`np.frombuffer` / `np.ascontiguousarray`)
+  → stdlib `array('f')` + ctypes buffers. (Native parity preserved: the
+  native `channel_basis` stays byte-identical, native HD within ~2.4e-8.)
+- `bridge.py` — `_interleave_complex` HD wire-format → `array('f')`.
+
+**Byte-exactness gates held** (pinned from the pre-flip numpy-present
+code, re-asserted after each flip): `encode_state` (uint32 residues) and
+`channel_basis` (complex64 bytes) reproduce **byte-for-byte**; the
+Laplacian diagonal / dynamic matrix / propagator reproduce to float
+round-off; HD-lift / bind-observer / eclipse-probability reproduce within
+the **1e-5 HD-parity tolerance** (the superposition now accumulates in
+float64 rather than complex64 — more accurate than the old path, ~3-4e-8
+deviation). The reference instrument's per-body channel bases were
+re-seeded from the portable splitmix64 stream (the numpy `default_rng`
+PCG64 stream can't be reproduced numpy-free) — no byte-exact test pins
+those `backend="fpu-ref"` bytes.
+
+**Tests:** every test that imported numpy as a buffer/oracle was rewritten
+numpy-free (stdlib `array`/`struct`/`cmath` or the package's own carriers).
+New permanent `tests/test_zero_numpy_ratchet.py` asserts no `import numpy`
+and no executable `np.` token anywhere in `ephemerides_spectral/`.
+
+**No `ephemerides_spectral` ABI change** (`ES_ABI_VERSION = 10`). Rc cycles
+through TestPyPI only.
+
+## [0.31.0rc3] — 2026-06-17
+
+### Changed — numpy-removal arc: drop the dead `import numpy` from `syzygy_window`
+
+A small, safe Phase-N increment. The shipped `_research/syzygy_window.py`
+carried an unused top-level `import numpy as np` (no `np.` reference
+anywhere in the module) — a dead import that nonetheless forced numpy at
+package-import time. Removed at the canonical source
+(`docs/antikythera-maths/research/syzygy_window.py`) and re-emitted
+through codegen (`emit_research_modules` → `_research/`; `manifest.json`
+re-hashed).
+
+With rc2's ITN flip this drains the last *trivial* shipped numpy. The
+remaining numpy is now ONE connected component — the **byte-exact
+BIP-encoder / HD-lift / native-marshalling core**:
+`_research/bip_instrument.py`, `ephemeris_reference_instrument.py`,
+`laplacian.py` (its LTI propagator uses `scipy.linalg.expm`),
+`bip_hd_lift.py`, plus `ephemerides_spectral/_native_bip.py`
+(`encode_state`/`encode_at_jd` return `np.uint32[N_BODIES]` + the
+complex64 ctypes marshalling) and `bridge.py` (`_interleave_complex` HD
+wire-format). That component is calibration-sensitive and gated on the
+BIP byte-parity test (`backend="c"` ≡ `backend="bip"`) — a dedicated
+follow-up effort, not a quick flip (see PLAN Phase N step 4).
+
+**No `ephemerides_spectral` code-behaviour or ABI change**
+(`ES_ABI_VERSION = 10`). Rc cycles through TestPyPI only.
+
+## [0.31.0rc2] — 2026-06-17
+
+### Changed — numpy-free ITN / etak navigation cascade + `GatewayNavigation` `[class]` TOML
+
+The first concrete **numpy-removal** flip (the package's own math, per the
+numpy-removal arc) folded together with the **duplicate-code-path purge**
+the rc2 etak/ITN work calls for.
+
+`body_architecture` and `predict_itn_accessibility` each hand-rolled their
+OWN dense numpy Laplacian (`np.zeros` / `np.diag` / `W.sum`) +
+`np.linalg.eigh` + a Fiedler sign convention — a duplicate of srmech's
+Class-L `dense_laplacian` + `symmetric_eigendecompose` (the latter already
+wrapped numpy-free by `_cascade.symmetric_eigh`). New
+`_research/navigation_ops.py` is the **single** numpy-free realisation of
+the ITN / etak navigation cascade (Class-L build + Class-C Fiedler
+sign-frame + Class-K sign re-application — no `abs()` on the vector — all
+via srmech carriers). Both consumers now route through it; **numpy is
+removed from 4 modules** (`navigation_ops`, `body_architecture`,
+`predict_itn_accessibility`, and `_cascade`'s dead `import numpy`).
+
+Verified against the rc1 numpy ground truth: `body_architecture` λ₂ is
+byte-identical (`0.14959233296610927`; inner 8 / outer 5 partition
+unchanged); `predict_itn_accessibility` observables (`fiedler_distance` /
+`embedding_distance_2d` / `predicted_dv_kms`) reproduce to max Δ 6.9e-11
+(the expected Jacobi-vs-LAPACK eigenvector difference; same eigenspace);
+the full 81-test ITN suite (`body_architecture` + `predict_itn` +
+`find_itn_chains`) passes unchanged. **No calibration threshold moved.**
+
+**etak ≡ ITN.** Rather than add a second `etak_*` code path beside
+`find_itn_chains` / `predict_itn_accessibility` (a new code path for a
+different name — the thing `[[feedback_prefer_config_driven_toml_classes]]`
+says to avoid), the shared navigation cascade is now expressed ONCE as a
+config-driven srmech `[class]`: `class_catalog/gateway_navigation.toml`
+declares `GatewayNavigation` (fields `L` + `pivot`; methods `fiedler` —
+the body-architecture partition view — and `embed2d` — the
+predict-accessibility embedding view) binding the flat `navigation_ops`
+adapters (the genome two-layer pattern). `_research/_srmech_classes.py`
+registers it lazily (no import-time side effect; graceful no-op if the
+srmech DSL is absent). `tests/test_gateway_navigation_class.py` is the
+DSL-class-vs-Python equivalence proof — `.fiedler()` / `.embed2d()` are
+byte-identical to calling `navigation_ops` directly, and the DSL fiedler
+view reproduces the live `body_architecture` partition. This is the first
+config-driven `[class]` TOML ephemerides ships (force-included in the pure
+wheel; the platform wheel auto-includes `_research/**`).
+
+**No `ephemerides_spectral` ABI change** (`ES_ABI_VERSION = 10`). Rc
+cycles through TestPyPI only.
+
+## [0.31.0rc1] — 2026-06-17
+
+### Changed — consume srmech 0.8.1 + dependency floor `>=0.8.1` + README hygiene
+
+srmech graduated to **0.8.1** — its math layer is now fully **numpy-free**
+(`Mat` / `Vec` / `HV` carriers replace every `numpy` callsite) and the package
+is **MIT**-relicensed (math is the scaffolding; the monorepo root stays GPL-3).
+This rc lifts the `srmech>=…` floor `>=0.7.4` → **`>=0.8.1`** across the three
+pins (`pyproject.toml`, `pyproject-pure.toml`,
+`ephemerides_spectral/srmech_profile.toml`) and bumps the package version
+across the **8** SSOT sites — the four version files plus
+`c/include/ephemerides_spectral.h` (`ES_VERSION_*`), `_data/manifest.json`, and
+the two README markers (banner + Status `*(current)*`). The first rc1 push
+missed the last three; this entry records the lockstep fix.
+
+Empirically verified the srmech carrier swap is a clean drop-in: the package
+consumes only `srmech.amsc.*` (Class-L `laplacian` + Class-N `rational`
+cascades through `_research/_cascade.py`, plus the AMSC catalog/format), and
+those surfaces import + run byte-unchanged against live srmech 0.8.1 — the full
+local suite is green (the one pre-existing failure is a missing skyfield `.bsp`
+kernel, unrelated to srmech).
+
+Also collapses the multi-version **bold Status banner** at the top of the
+PyPI-facing README to a single line; the per-version history stays in the
+`## Status` section where it belongs rather than crammed into the banner.
+
+**No `ephemerides_spectral` code or ABI change** (`ES_ABI_VERSION = 10`). This
+rc begins the ephemerides-spectral **numpy-removal arc** — routing the
+package's *own* math through srmech's carriers — completed over follow-up rcs.
+Rc cycles through TestPyPI only.
+
 ## [0.30.0rc10] — 2026-06-07
 
 ### Added — heat_flow dual-author attested-TOML backfill

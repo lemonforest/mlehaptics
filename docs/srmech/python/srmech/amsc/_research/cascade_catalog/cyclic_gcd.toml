@@ -69,7 +69,7 @@ bool_input = "Native dispatch falls back to Python (bool is a subclass of int bu
 
 [cascade.attestation]
 author = "Steven Kirkland"
-license = "GPL-3.0-or-later"
+license = "MIT"
 parser_version = "srmech-cascade 0.4.5rc6"
 canonical_landings = [
   "Euclid, Elements VII.1-2 (Class I primitive attestation; Task #217 Phase C1 rc1)",

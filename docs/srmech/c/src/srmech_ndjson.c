@@ -41,21 +41,21 @@
  *   any CR-strip) are skipped silently — we never invoke the
  *   callback on them.
  *
- * License: GPL-3.0-or-later.
+ * License: MIT.
  */
 
 #include "srmech.h"
+#include "srmech_platform.h"   /* PAL streaming-read surface (rc164) */
 
 #include <assert.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 /* ------------------------------------------------------------------ *
  * Configuration knobs (compile-time, JPL Rule 2 bounds)
  * ------------------------------------------------------------------ */
 
-/* Read buffer size — bytes pulled from disk per fread() call.
+/* Read buffer size — bytes pulled from disk per PAL streaming-read call.
  * 64 KiB matches glibc's default stdio block size on most kernels;
  * Windows ucrt is the same. Stack-resident.
  */
@@ -178,7 +178,7 @@ static srmech_status_t srmech_ndjson_process_chunk(
  *
  * Errors:
  *   SRMECH_ERR_NULL_ARG     — path or cb is NULL.
- *   SRMECH_ERR_IO           — fopen / fread / ferror failed.
+ *   SRMECH_ERR_IO           — PAL rstream open / read failed (or no FS).
  *   SRMECH_ERR_OVERFLOW     — a line exceeds SRMECH_NDJSON_MAX_LINE_BYTES.
  *   <callback return value> — propagated as the function's return.
  *                              The callback may use SRMECH_ERR_BAD_INPUT
@@ -194,9 +194,10 @@ srmech_status_t srmech_ndjson_iter(const char            *path,
     assert(path != NULL);
     assert(cb != NULL);
 
-    FILE *fp = fopen(path, "rb");
-    if (fp == NULL) {
-        return SRMECH_ERR_IO;
+    srmech_plat_rstream_t rs;
+    srmech_status_t st = srmech_plat_rstream_open(path, &rs);
+    if (st != SRMECH_OK) {
+        return st;                       /* SRMECH_ERR_IO (or bare-metal stub) */
     }
 
     /* Per-thread line-assembly buffer (#772). Static duration (1 MiB
@@ -206,29 +207,28 @@ srmech_status_t srmech_ndjson_iter(const char            *path,
     uint8_t chunk[SRMECH_NDJSON_CHUNK_BYTES];
     size_t line_len = 0u;
     size_t lineno = 1u;
-    srmech_status_t st = SRMECH_OK;
     int eof_reached = 0;
 
     while (!eof_reached) {
-        const size_t n_read = fread(
-            chunk, 1u, SRMECH_NDJSON_CHUNK_BYTES, fp);
+        size_t n_read = 0u;
+        st = srmech_plat_rstream_read(
+            &rs, chunk, SRMECH_NDJSON_CHUNK_BYTES, &n_read);
+        if (st != SRMECH_OK) {           /* a mid-read error (rstream checked
+                                          * the error flag) — not clean EOF */
+            srmech_plat_rstream_close(&rs);
+            return st;
+        }
         if (n_read == 0u) {
-            if (ferror(fp)) {
-                st = SRMECH_ERR_IO;
-            }
-            break;
+            break;                        /* clean end-of-file */
         }
         st = srmech_ndjson_process_chunk(
             chunk, n_read, cb, user, line_buf, &line_len, &lineno);
         if (st != SRMECH_OK) {
-            fclose(fp);
+            srmech_plat_rstream_close(&rs);
             return st;
         }
         if (n_read < SRMECH_NDJSON_CHUNK_BYTES) {
-            if (ferror(fp)) {
-                st = SRMECH_ERR_IO;
-            }
-            eof_reached = 1;
+            eof_reached = 1;              /* short read with no error == EOF */
         }
     }
 
@@ -236,6 +236,6 @@ srmech_status_t srmech_ndjson_iter(const char            *path,
         st = srmech_ndjson_emit(cb, line_buf, line_len, lineno, user);
     }
 
-    fclose(fp);
+    srmech_plat_rstream_close(&rs);
     return st;
 }
