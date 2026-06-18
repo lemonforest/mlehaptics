@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.8.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.8.x entry, -end- immediately before the prior minor (currently [0.7.5rc173], the rc line that graduated as 0.8.0). -->
 <!-- pypi-readme-changelog-start -->
+## [0.8.2rc1] - 2026-06-17
+
+**§57 RBS-LM bigram-gate removal + a STOP-list ratchet that bans numpy & `Counter`/`defaultdict` in srmech source.** Two coupled corrections, both enforcing the framework's own cascade-honesty discipline:
+
+- **`rbs_lm.inference` no longer hand-rolls a `Counter()` bigram table (§57).** The `next_token_distribution` candidate set was a bigram-legal gate built from `defaultdict(Counter)` over the training stream — exactly the statistical-LM co-occurrence idiom the CLAUDE.md STOP-list forbids. It is replaced by the **Class-M resonator over the full bounded per-tome atom set** (`self.vocab`): probe the holographic bundle `M` with the encoded context, fractional-agreement similarity over every atom vector, `T <= 0` is §56 greedy (argmax → one-hot). Grounding comes from `M`, not a next-token count table. `learn()` no longer builds the bigram structure (the `Counter`/`defaultdict` import + the `next_after`/`bigram_counts` fields are gone). Verified numpy-absent: **100% grounded greedy recall** (corpus 30/60/120, D up to 32768).
+- **The lone non-STOP-list `Counter` in `amsc.cascade.matrix_cascades` (implicit-einsum label tally) is replaced by a plain-dict count** — so srmech source carries **zero** `Counter`/`defaultdict`.
+- **New `tests/test_stop_list_ratchet.py`** — an **AST**-based down-only ratchet asserting **zero** real code uses of `numpy` / `np.` / `Counter` / `defaultdict` anywhere under `srmech/`. AST-based, so docstring/comment prose that *names* the banned idiom (to explain the discipline) does not trip it; it catches imports, `np.` attribute access, name references, and even a stale non-stringized `-> np.ndarray` annotation. This is the source-level twin of the machine's pip-install numpy ban: the tripwire that keeps numpy out and forces the framework-native carriers/cascades.
+
+No public surface change: `tools.total` **310**, ABI **3**, numpy-free, MIT. 5-SSOT bumped `0.8.1 → 0.8.2rc1`.
+
 ## [0.8.1] - 2026-06-17
 
 **Production graduation of `0.8.1rc1` to PyPI** (TestPyPI-verified, numpy-absent shipped wheel: `License-Expression: MIT`, no GPL classifier, `tools.total` 310, ABI 3). The line carries the **MIT relicense** (the whole shipped tree — `python/srmech/` + `c/` — is MIT; the monorepo root stays GPL-3, by design: math is the scaffolding) and the **RTD substrate-native-maths link fix**. This graduation adds one docs-only change:
