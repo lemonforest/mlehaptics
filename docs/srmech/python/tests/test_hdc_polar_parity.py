@@ -195,8 +195,10 @@ def test_parity_similarity():
         a = hdc.polar_random(200, rng)
         b = hdc.polar_random(200, rng)
         for sz in (True, False):
+            # The C kernel returns a double (the F868 display-boundary collapse);
+            # compare it to the Q's float view (float(Q) is the same boundary cast).
             assert _c_similarity(a, b, sz) == pytest.approx(
-                hdc.polar_similarity(a, b, skip_zero=sz))
+                float(hdc.polar_similarity(a, b, skip_zero=sz)))
 
 
 @_requires_native
@@ -204,4 +206,4 @@ def test_parity_density():
     rng = random.Random(13)
     for _ in range(20):
         v = hdc.polar_random(200, rng)
-        assert _c_density(v) == pytest.approx(hdc.polar_density(v))
+        assert _c_density(v) == pytest.approx(float(hdc.polar_density(v)))
