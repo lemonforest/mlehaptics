@@ -67,9 +67,11 @@ class TestNativeDifferential:
             a = _codes(3, D)
             b = _codes(29, D)
             native = hdc.klein4_similarity(a, b)
-            pure = sum(1 for x, y in zip(a, b) if x == y) / D
-            assert native == pytest.approx(pure, abs=0.0), (
-                f"similarity mismatch at D={D}")
+            # v0.9.0 (F868): klein4_similarity returns the EXACT Q matches/D, so
+            # assert native == the exact rational (Q == its (num, den) house form),
+            # not an approx float compare.
+            matches = sum(1 for x, y in zip(a, b) if x == y)
+            assert native == (matches, D), f"similarity mismatch at D={D}"
 
     def test_bind_self_inverse_native(self):
         a = _codes(11, 4096)

@@ -6,8 +6,22 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mmap ring buffer for >1k events/sec + C-side `srmech_progress_cb_t` callback ABI extension)._
 
-<!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.8.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.8.x entry, -end- immediately before the prior minor (currently [0.7.5rc173], the rc line that graduated as 0.8.0). -->
+<!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc1] - 2026-06-18
+
+**The stay-rational scalar-carrier foundation (F868): exact `Q` rationals where a `float` was throwing the provenance away.** klein4 (and the polar HDC family) returned a Python `float()` for a quantity that is *exactly* a rational — `matches / D` with both integers. A `float` is just `best_rational` with `max_d ≈ 2⁵²` and the provenance discarded — a strictly worse version of the rational already in hand. v0.9.0 keeps the value exact and collapses to a decimal **only at the display boundary** (`float(q)`).
+
+- **New `srmech.amsc.q.Q`** — the framework-native exact-rational scalar carrier, the scalar peer of the `Mat`/`Vec`/`HV` array carriers. Carries one reduced `(num, den)` integer pair; **compares like a float** (`Q(D, D) == 1.0`, `Q(3, 4) == 0.75`) and **ranks correctly** (`max`/`sorted` via integer cross-multiply — F868 mechanism #2), but never collapses to a decimal until `float(q)`. Reduction rides the Class-N reducer (Euclidean GCD over big ints, no stdlib `math`); arithmetic rides Class-N `rational_*`. Recognises a 2-int `(num, den)` tuple as srmech's rational house form, so legacy tuple-equality interoperates.
+- **New `srmech.amsc.complex128.Complex128`** — the float-complex scalar carrier (the FPU-lift peer of `Q`); `norm_sq` is `re²+im²` (no `math`), `abs` rides Class-N `rational.sqrt` (no `math.hypot`).
+- **`hdc.klein4_similarity` + `hdc.polar_similarity` + `hdc.polar_density` now return `Q`** (was `float`). **`cascade.to_scalar` / `One.to_scalar` return `Q`** (was a bare `(num, den)` tuple).
+- **New `hdc.klein4_match_count(a, b) -> int`** — the RAW integer recall-ranking key (F868 mechanism #1: argmax over integer counts needs no division, never leaves the integers). Native-dispatched via the **new C peer `srmech_klein4_match_count`**, with `srmech_klein4_similarity` refactored to compose over it (the integer key and the float view share one definition). ABI stays **3** (additive symbol).
+- **`amsc.cyclic.gcd` is now UNCAPPED** — native `srmech_gcd` serves its uint64 domain, big-int Euclid beyond (standalone-honor "no compiled-in caps"), so the `~100-digit` `One`-scale numerators reduce. The Class-N `_reduce_rational` + the series-truncation reducer route through the Class-I `cyclic.gcd` (use srmech for math, not stdlib `math.gcd`).
+- The shared return-type-agreement matcher (`tests/conftest.py`) is now carrier-aware for `Q` + `Complex128`, so the immolation / every-tool gates VERIFY the exact-`Q` returns rather than skipping them.
+
+Net public-callable delta: **+1** (`klein4_match_count`); `tools.total` **310 → 311**, ABI **3**, numpy-free, MIT. 5-SSOT bumped `0.8.2 → 0.9.0rc1`. (BSC `hdc.similarity` → `Q` + a `hamming` integer-key op are the queued `0.9.0rc2` follow-up.)
+
+<!-- pypi-readme-changelog-end -->
 ## [0.8.2] - 2026-06-18
 
 **Production graduation of `0.8.2rc1` to PyPI** (TestPyPI-verified on the shipped wheel: `numpy` not importable, `HAS_NATIVE True`, ABI 3, `tools.total` 310). No code change vs `0.8.2rc1`. The line carries:
@@ -80,7 +94,6 @@ A full `numpy | np. | scientific | scipy | libm | ndarray` grep of the README no
 
 ABI **3**; full native C / Python parity; `describe()["tools"]["total"]` = **310**. Per-rc detail for the whole line is preserved in the `[0.7.5rcN]` entries below.
 
-<!-- pypi-readme-changelog-end -->
 ## [0.7.5rc173] - 2026-06-17
 
 **Remove the `siona` co-name mirror — free the name for a downstream `srmech + inference` package.** From v0.4.4 the srmech wheel bundled a second top-level package, `siona`, that aliased every `srmech.*` object (`pip install srmech` → `import siona` returned the same objects), paired with a standalone `siona` metapackage on PyPI and a dedicated publish workflow. That mirror is now retired: srmech stays the scaffolding, and the `siona` name is reserved for a separate package (srmech + inference) developed in another session. No srmech public surface changes — `tools.total` stays **310**, ABI stays **3**, the package is numpy-free.

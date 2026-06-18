@@ -2119,19 +2119,21 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.hdc.polar_similarity", owner="srmech", category="hdc",
-            summary="Polar match-fraction in [0,1]. skip_zero=True (default) "
-                    "counts only jointly non-zero positions; False counts all "
-                    "(0==0 a match).",
+            summary="Polar match-fraction in [0,1] as the EXACT Q rational "
+                    "(v0.9.0 F868 stay-rational; collapses to a decimal only via "
+                    "float(s)). skip_zero=True (default) counts only jointly "
+                    "non-zero positions; False counts all (0==0 a match).",
             parameters=(P("a", "HV", True), P("b", "HV", True),
                         P("skip_zero", "bool", False, "default True")),
-            returns=R("float", "in [0, 1]"),
+            returns=R("Q", "exact rational matches/informative in [0, 1]"),
         ),
         ToolEntry(
             name="srmech.amsc.hdc.polar_density", owner="srmech", category="hdc",
-            summary="Fraction of non-zero (informative) positions in [0,1]; "
-                    "1.0 = fully bipolar, lower = more dead-band.",
+            summary="Fraction of non-zero (informative) positions in [0,1] as the "
+                    "EXACT Q rational (v0.9.0 F868); 1.0 = fully bipolar, lower = "
+                    "more dead-band. Collapses to a decimal only via float(d).",
             parameters=(P("v", "HV", True, "int8 {-1,0,+1}"),),
-            returns=R("float", "in [0, 1]"),
+            returns=R("Q", "exact rational nonzero/n in [0, 1]"),
         ),
         ToolEntry(
             name="srmech.amsc.hdc.polar_from_real", owner="srmech", category="hdc",
@@ -2223,10 +2225,12 @@ def _register_primitive_class_tools() -> None:
         ToolEntry(
             name="srmech.amsc.hdc.klein4_similarity", owner="srmech", category="hdc",
             summary="Klein-4 similarity: fraction of positions where a==b in "
-                    "[0,1] (1 identical, 0 orthogonal). rc13 sectors=/parallel=/"
-                    "mode= fans the comparison across ≤4 lanes (default-ON at ≥4 "
-                    "cores); ALWAYS returns the serial float (chunk sums "
-                    "per-slice matches; chirality recombines via sector-0).",
+                    "[0,1] (1 identical, 0 orthogonal). v0.9.0 (F868 stay-"
+                    "rational): returns the EXACT Q rational matches/D (compares "
+                    "like a float, collapses to a decimal only via float(s)); use "
+                    "klein4_match_count for the raw integer key. rc13 sectors=/"
+                    "parallel=/mode= fans the comparison across ≤4 lanes (default-"
+                    "ON at ≥4 cores); ALWAYS returns the serial value.",
             parameters=(P("a", "HV", True), P("b", "HV", True),
                         P("sectors", "int", False, "lanes 1..4; default-on (4 "
                           "at ≥4 cores, else 1)"),
@@ -2234,7 +2238,24 @@ def _register_primitive_class_tools() -> None:
                           "(alias for sectors=)"),
                         P("mode", "str", False, "'chunk' (default) or "
                           "'chirality'")),
-            returns=R("float", "in [0, 1]"),
+            returns=R("Q", "exact rational matches/D in [0, 1]"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_match_count", owner="srmech", category="hdc",
+            summary="Klein-4 match count: the RAW INTEGER number of positions "
+                    "where a==b (UPSTREAM §61; F868). klein4_similarity = "
+                    "match_count / len(a). This is the float-free, blow-up-free "
+                    "recall-ranking key — argmax over integer counts needs no "
+                    "division and never leaves the integers. Native-dispatched "
+                    "(srmech_klein4_match_count).",
+            parameters=(P("a", "HV", True), P("b", "HV", True),
+                        P("sectors", "int", False, "lanes 1..4; default-on (4 "
+                          "at ≥4 cores, else 1)"),
+                        P("parallel", "bool", False, "True→4 lanes / False→1 "
+                          "(alias for sectors=)"),
+                        P("mode", "str", False, "'chunk' (default) or "
+                          "'chirality'")),
+            returns=R("int", "count of matching positions in [0, len(a)]"),
         ),
         ToolEntry(
             name="srmech.amsc.hdc.klein4_bundle_accumulate", owner="srmech",

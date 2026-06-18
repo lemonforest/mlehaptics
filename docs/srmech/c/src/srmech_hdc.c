@@ -382,10 +382,16 @@ srmech_status_t srmech_klein4_bundle(const uint8_t * const *vectors,
     return SRMECH_OK;
 }
 
-srmech_status_t srmech_klein4_similarity(const uint8_t *a,
-                                         const uint8_t *b,
-                                         uint32_t       n,
-                                         double        *out)
+/* klein4_match_count(a, b, n, out): the EXACT integer count of coordinates
+ * where a[i] == b[i] — the Class-M recall-ranking key BEFORE the float divide
+ * (UPSTREAM §61; F868 stay-rational: similarity = match_count / n is an exact
+ * rational, so the integer count is what the kernel computes; collapse to a
+ * double only at the display boundary, in srmech_klein4_similarity). Both
+ * buffers carry V4 tokens in {0,1,2,3}; out of range -> ERR_BAD_INPUT. */
+srmech_status_t srmech_klein4_match_count(const uint8_t *a,
+                                          const uint8_t *b,
+                                          uint32_t       n,
+                                          uint32_t      *out)
 {
     assert(a != NULL && b != NULL && out != NULL);
     assert(n > 0);
@@ -403,6 +409,28 @@ srmech_status_t srmech_klein4_similarity(const uint8_t *a,
         if (a[i] == b[i]) {
             matches++;
         }
+    }
+    *out = matches;
+    return SRMECH_OK;
+}
+
+/* klein4_similarity = the F868 display-boundary collapse of the exact
+ * match_count: count / n as a double. Composes over srmech_klein4_match_count
+ * so the integer key and the float view share one definition. */
+srmech_status_t srmech_klein4_similarity(const uint8_t *a,
+                                         const uint8_t *b,
+                                         uint32_t       n,
+                                         double        *out)
+{
+    assert(out != NULL);
+    assert(n > 0);
+    if (out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    uint32_t matches = 0;
+    srmech_status_t st = srmech_klein4_match_count(a, b, n, &matches);
+    if (st != SRMECH_OK) {
+        return st;
     }
     *out = (double)matches / (double)n;
     return SRMECH_OK;

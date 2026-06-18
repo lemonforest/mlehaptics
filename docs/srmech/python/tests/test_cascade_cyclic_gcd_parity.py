@@ -23,7 +23,7 @@ Boundary cases:
   - gcd(0, 0) = 0; gcd(a, 0) = a; gcd(0, b) = b (gcd identity).
   - Negative input: Python fallback raises ValueError (matches
     srmech.amsc.cyclic.gcd uint64 surface).
-  - Out-of-uint64: Python fallback raises ValueError.
+  - Out-of-uint64: UNCAPPED (v0.9.0) — big-int Euclid (native serves uint64).
   - Bool input: Python fallback accepts (isinstance(True, int) is True);
     native rejects via `type(x) is int` (bool subclass check).
 """
@@ -140,10 +140,11 @@ def test_both_negative_falls_back_python_raises():
         cascade.cyclic_gcd(-12, -8)
 
 
-def test_out_of_uint64_a_falls_back_python_raises():
-    """Bigint > 2**64-1: native dispatch falls through; Python ref raises."""
-    with pytest.raises(ValueError, match="exceeds uint64 range"):
-        cascade.cyclic_gcd(2 ** 100, 2 ** 99)
+def test_out_of_uint64_a_is_bigint_uncapped():
+    """v0.9.0: cyclic.gcd is UNCAPPED — bigint > 2**64-1 takes the big-int
+    Euclid (native serves its uint64 domain; standalone-honor "no compiled-in
+    caps"). gcd(2**100, 2**99) == 2**99."""
+    assert cascade.cyclic_gcd(2 ** 100, 2 ** 99) == 2 ** 99
 
 
 def test_bool_true_input_via_python_fallback():

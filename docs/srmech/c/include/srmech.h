@@ -62,10 +62,10 @@ extern "C" {
  * version at tag time; mismatch fails the publish.
  * ------------------------------------------------------------------ */
 #define SRMECH_VERSION_MAJOR 0
-#define SRMECH_VERSION_MINOR 8
-#define SRMECH_VERSION_PATCH 2
-#define SRMECH_VERSION_PRE   ""
-#define SRMECH_VERSION       "0.8.2"
+#define SRMECH_VERSION_MINOR 9
+#define SRMECH_VERSION_PATCH 0
+#define SRMECH_VERSION_PRE   "rc1"
+#define SRMECH_VERSION       "0.9.0rc1"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1678,8 +1678,17 @@ srmech_status_t srmech_klein4_bundle(const uint8_t * const *vectors,
                                      uint32_t               n,
                                      uint8_t               *out);
 
+/* klein4_match_count(a, b): EXACT integer count of positions where a[i] ==
+ * b[i] (the F868 stay-rational recall-ranking key before the float divide;
+ * similarity = count / n). Additive symbol — no ABI bump. */
+srmech_status_t srmech_klein4_match_count(const uint8_t *a,
+                                          const uint8_t *b,
+                                          uint32_t       n,
+                                          uint32_t      *out);
+
 /* klein4_similarity(a, b): fraction of positions where a[i] == b[i] in
- * [0, 1] (1 identical, 0 orthogonal). */
+ * [0, 1] (1 identical, 0 orthogonal) — the display-boundary collapse of
+ * srmech_klein4_match_count. */
 srmech_status_t srmech_klein4_similarity(const uint8_t *a,
                                          const uint8_t *b,
                                          uint32_t       n,

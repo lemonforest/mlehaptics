@@ -44,9 +44,14 @@ def test_trace_uses_the_same_catalog_cos():
 
 def test_sqnorm_is_exact_integer_pair():
     sq = to_scalar(the_one(1, 1, 3, terms=24), mode="sqnorm")
-    assert isinstance(sq, tuple) and isinstance(sq[0], int) and isinstance(sq[1], int)
+    # v0.9.0: to_scalar returns the exact Q scalar-rational carrier (the raw
+    # (num, den) integer pair is recoverable). Float never enters.
+    from srmech.amsc.q import Q
+    assert isinstance(sq, Q)
+    num, den = sq                       # Q unpacks to the exact int pair
+    assert isinstance(num, int) and isinstance(den, int)
     # Σ (num/den)² of a real unit-norm rotation seed: positive, den > 0.
-    assert sq[1] > 0 and sq[0] >= 0
+    assert den > 0 and num >= 0
 
 
 def test_sqnorm_theta_zero_equals_block_count_plus_sigma_squares():
