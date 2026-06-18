@@ -11,7 +11,27 @@ revisited once those land; rc1 ships on the loose store. The Klein-4 HV of a tok
 never a spatial HV per position (F833)."""
 import json
 
-__all__ = ["walk", "recall"]
+__all__ = ["walk", "recall", "route", "two_mode_recall"]
+
+# --- the recall MODE BOUNDARY (F851/F853, corrected by the F853 §CORRECTION) -------------------
+# WALK / sequence mode -> read the FULL metric: walk()/recall() below, AND per-context walk-position
+#   routing (the F840 vote). De-lensing the walk HURTS it (F849 generation 8%->3%; F853-corr the F840
+#   vote 94.3%->68.6%) — the high-frequency tokens ARE the curvature the walk rides.
+# ABOUT / meaning mode -> read the DE-LENSED metric: route() below — content/topic/aboutness queries
+#   (snippet -> which tome). De-lensing HELPS this (F853 80%->90%): meaning is the anti-mass content;
+#   mass is a distractor. The discriminator is "content/meaning query vs sequence/walk op," NOT
+#   "routing vs generation" (some routing is walk-mode).
+# two_mode_recall() is SCALE-COVARIANT (F851): the de-lensed route is the COARSE pass (which tome),
+#   the full-metric walk is the FINE pass (within it). Resolve to the query's scale — coherence is a
+#   DoF, there is no single fixed match target (F851).
+# DESIGN, not yet wired (need the chirality-native encoder F844-F848, absent from this loose store):
+#   (a) chiral cosets + route/scope for multi-domain stores (F848 — orthogonal cosets make cross-
+#       domain contamination structurally impossible; "clump don't divide", within-domain sharing is
+#       signal, F778); (b) coherence-GATED co-evolution ONLY (F851 — naive plastic recall runs away
+#       76%->42%, so any walk-reshapes-store step must gate on confidence).
+DELENS_MIN_LEN = 4       # de-lens heuristic: keep content words (len>=4); drops short function words
+_SUBSTRATE_D = 10000     # recall substrate dimension (matches the F817 instrument / ContextSubstrate)
+_CS = None               # lazily-built ContextSubstrate singleton (token -> deterministic Klein-4 HV)
 
 
 def walk(ids, k):
@@ -59,3 +79,55 @@ def recall(title, instrument_path, index_path):
     k = rec["k"]
     out = walk(toks, k)
     return {"tokens": out, "k": k, "exact": out == toks, "native": False}
+
+
+def _delens_bundle(tokens, mass):
+    """ABOUT-mode de-lensed Klein-4 content bundle: drop the mass (high-frequency function-word
+    background, F849/F850) + short tokens, mint each surviving content token to its deterministic
+    Klein-4 HV (the on-demand projection), bundle. Returns the bundle HV, or None if no content
+    survives. The mass is a distractor for *meaning*, so removed here (F853) — but NEVER for the
+    walk (F853 §CORRECTION: de-lensing the walk/per-context route hurts)."""
+    global _CS
+    if _CS is None:
+        from srmech.rbs_lm.substrate import ContextSubstrate
+        _CS = ContextSubstrate(D=_SUBSTRATE_D, hex_chars=16)
+    from srmech.amsc import hdc
+    content = sorted({w for w in tokens if w not in mass and len(w) >= DELENS_MIN_LEN})
+    if not content:
+        return None
+    hvs = [_CS.enc(w) for w in content]
+    if len(hvs) == 1:
+        return hvs[0]
+    return hdc.klein4_bundle(*(hvs if len(hvs) % 2 else hvs + [hvs[0]]))   # klein4_bundle needs odd count
+
+
+def route(query_tokens, candidates, mass=frozenset()):
+    """ABOUT-MODE routing (F853): rank `candidates` by de-lensed Klein-4 content resonance to the
+    query — "which tome is this about." `candidates`: iterable of (label, tokens). `mass`: the
+    high-frequency function words to de-lens (the caller's corpus stoplist). Returns
+    [(label, score), ...] sorted high→low. De-lensing sharpens aboutness (F853 80%->90%); this is the
+    COARSE pass of scale-covariant recall — pair with walk-mode recall() for the fine reconstruction.
+    Do NOT use this for walk-position routing — that stays full-metric (F853 §CORRECTION)."""
+    from srmech.amsc import hdc
+    q = _delens_bundle(query_tokens, mass)
+    if q is None:
+        return []
+    scored = []
+    for label, toks in candidates:
+        b = _delens_bundle(toks, mass)
+        scored.append((label, hdc.klein4_similarity(q, b) if b is not None else -1.0))
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return scored
+
+
+def two_mode_recall(query_tokens, candidates, instrument_path, index_path, mass=frozenset()):
+    """SCALE-COVARIANT two-mode recall (F851/F853): COARSE about-mode route() (de-lensed) picks the
+    tome, then FINE walk-mode recall() (full-metric de Bruijn shape walk) reconstructs within it.
+    `candidates`: (label==title, tokens) the route ranks over (the caller's candidate tome-set — at
+    corpus scale a clump/inverted-index pre-filter supplies these). Returns
+    {routed_to, ranking, recall}. Resolve to the query's scale; no single fixed match target (F851)."""
+    ranking = route(query_tokens, candidates, mass)
+    if not ranking:
+        return {"routed_to": None, "ranking": [], "recall": None}
+    top = ranking[0][0]
+    return {"routed_to": top, "ranking": ranking, "recall": recall(top, instrument_path, index_path)}
