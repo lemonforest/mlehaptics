@@ -10,6 +10,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.31.1rc1] — 2026-06-18
+
+### Changed — README freshness: surface the srmech integration
+
+Doc-only rc with **no `ephemerides_spectral` code change**. The PyPI-facing
+README's descriptive prose (Overview / Key Capabilities / Installation) had
+never been updated since the AMSC-to-srmech refactor — it described a
+standalone instrument and named `srmech` only in the per-version Status
+bullets. This rc adds:
+
+- a **"Built on srmech (numpy-FREE runtime)"** subsection at the top of the
+  Overview — every continuous-math op routes through srmech's numpy-free
+  `Mat` / `Vec` / `HV` carriers and Class-N rational cascades; `srmech` is
+  the sole hard runtime dependency; the package is numpy-FREE (imports and
+  runs with `numpy` not installed); it registers as the `ephemerides`
+  srmech profile via `srmech.list_profiles()`; AMSC catalogs ride on
+  `srmech.amsc`;
+- a one-line **srmech / numpy note** in the Installation section.
+
+No code / ABI change (`ES_ABI_VERSION = 10`); version-only bump across the
+6-site SSOT `0.31.0 → 0.31.1rc1`. Rc cycles through TestPyPI only.
+
 ## [0.31.0] — 2026-06-18
 
 ### numpy-FREE capstone — production graduation
