@@ -2,8 +2,6 @@
 
 > **High-precision HDC reference instrument for the Sol Star System.**
 
-**Status: v0.31.0 — numpy-FREE capstone (production): the shipped package and its test suite import and run with numpy NOT installed at all, and `numpy` is dropped from both pyprojects' dependencies. The byte-exact BIP-encoder / HD-lift / native-marshalling core is flipped to stdlib `math`/`cmath`/`array` + srmech's numpy-free carriers (`srmech>=0.8.2`); a permanent zero-numpy ratchet guards it. Per-version history in the Status section below.**
-
 ## Overview
 
 `ephemerides-spectral` is a hyperdimensional-computing instrument that encodes the barycentric state of our star system using high-precision ephemeris data (NASA JPL DE441 / DE442) as resonant phases over a graph Laplacian.
