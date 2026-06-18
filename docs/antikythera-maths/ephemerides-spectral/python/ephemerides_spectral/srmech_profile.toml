@@ -39,7 +39,7 @@ summary         = "Sol Star System spectral instrument — 52-body roster, 11 cr
 package         = "ephemerides_spectral"
 srmech_requires = ">=0.8.1"
 homepage        = "https://github.com/lemonforest/mlehaptics/tree/main/docs/antikythera-maths/ephemerides-spectral"
-license         = "GPL-3.0-or-later"
+license         = "MIT"
 
 # ────────────────────────────────────────────────────────────────────────
 # [profile.bridge]
