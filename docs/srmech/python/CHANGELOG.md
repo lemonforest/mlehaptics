@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc5] - 2026-06-18
+
+**Third and last of the UPSTREAM §62 graduations: the byte/glyph-level Klein-4 word encoder (§60 / F864), scaffolded fresh into srmech.** This closes the §62 list (rc3 = §59 continuous-phase, rc4 = §58 chunk-set, rc5 = §60 byte encoder).
+
+- **New `hdc.klein4_encode_bytes(data, D)`** → an `HV`: a bundle of POSITION-BOUND per-byte random vectors — each byte `b` → `klein4_random(D, seed=b)` (the 256-byte vocab), bound with an internal deterministic position role-vector, all bundled. Restores **morphology**: `klein4_similarity(encode_bytes(b"cat"), encode_bytes(b"cats")) ≈ 0.66` (matching F864's ~0.656) ≫ the ~0.25 Klein-4 chance level, because the shared prefix bytes occupy the same positions — while **stripping the word-atomic English/whitespace privilege** (it hashes raw UTF-8, the universal-script alphabet). A `str` is UTF-8-encoded.
+- **Honest C-peer note:** the encoder is a composition that reaches the native `klein4_bind`/`klein4_bundle`; the byte- and position-vector minting rides the python-only `klein4_random` (stdlib-MT determinism by design, the same minting basis as the whole Klein-4 family). A standalone-C MT19937 to make the *minting* native too is the tracked follow-up — not faked here.
+
+`tools.total` **316 → 317** (`klein4_encode_bytes`; the position-key is an internal helper, not a separately-exposed op). ABI **3**, numpy-free, MIT. No new primitive class. 5-SSOT bumped `0.9.0rc4 → 0.9.0rc5`. **The UPSTREAM §62 graduation list is now complete.**
+
 ## [0.9.0rc4] - 2026-06-18
 
 **Second of the UPSTREAM §62 graduations: the capacity-bounded chunk-set + max-resonance read (§58 / F837), a reusable VSA cleanup-memory, scaffolded fresh into srmech.** Instead of superposing N bound key→value pairs into ONE over-stuffed bundle (crosstalk grows with N), the binds split into a LIST of capacity-bounded bundles and recall takes the MAX resonance over the chunk-set — the F837 fix that moved the resolver read 3.3% → 96.7% rank-1.
