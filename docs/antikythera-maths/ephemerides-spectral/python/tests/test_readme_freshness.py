@@ -127,26 +127,30 @@ def test_readme_status_does_not_invent_unreleased_versions() -> None:
 # ──────────────────────────────────────────────────────────────────────
 
 def test_readme_status_banner_matches_package_version() -> None:
-    """The 'Status: vX.Y.Z[rcN]' banner under the H1 must equal __version__."""
+    """If a 'Status: vX.Y.Z[rcN]' banner exists under the H1, it must equal
+    __version__.
+
+    The bold banner is **optional** — the per-version `## Status` section
+    (with its `*(current)*` marker, enforced by the next test) is the SSoT
+    for which version is current. The PyPI-facing README intentionally
+    drops the banner (v0.31.0) to keep the landing page clean. This guard
+    only fires if a banner is present and has gone stale, so re-adding one
+    can never silently drift.
+    """
     text = _read(_README)
     match = re.search(
         # PEP 440 pre-release form: optional rcN suffix with no separator.
-        # The README banner stamps the actual __version__ so during an
-        # rc cycle (e.g. 0.26.1rc1 verifying srmech compatibility on
-        # TestPyPI) the marker tracks the rc, not the stable predecessor.
         r"\*\*Status:\s*v(\d+\.\d+\.\d+(?:rc\d+)?)[^*]*\*\*",
         text,
     )
-    assert match is not None, (
-        "README missing the 'Status: vX.Y.Z' banner under the H1. "
-        "Add a single-line bold status banner immediately after the "
-        "blockquote subtitle."
-    )
+    if match is None:
+        return  # no banner — fine; the `*(current)*` marker carries the stamp
     banner = match.group(1)
     assert banner == __version__, (
         f"README Status banner says v{banner}, but __version__ is "
-        f"{__version__!r}. Bump the banner in lockstep with the "
-        f"version bump in version.py / pyproject.toml."
+        f"{__version__!r}. Either bump the banner in lockstep with the "
+        f"version bump in version.py / pyproject.toml, or remove the "
+        f"banner (it is optional)."
     )
 
 
