@@ -1,4 +1,4 @@
-# F839 — PER-TOME COHERENCE: a capacity-bounded chunk-set **consolidates storage** across many articles (cross-article crosstalk is benign **on-manifold** — read rank-1 stays 100% at 3 and 6 articles), but coherent **generation requires per-tome ROUTING** — querying all chunks lets off-manifold autoregressive drift pull *foreign-article* tokens into the loop, and routing generation to the relevant article's own chunks restores coherence (Abrahamic 69.6% → **95.7%**). **Smaller chunks make the shared case WORSE** (C=8 → 17.4%), so the lever is routing, not chunk-size. Storage = consolidated; inference = routed — exactly the genome's per-tome scoping ([[F778]] etak clump-routing). On the real `srmech.rbs_lm` encoding, 0.8.2rc1, numpy-absent, no gen-1 code.
+# F839 — PER-TOME COHERENCE: a capacity-bounded chunk-set **consolidates storage** across many articles (cross-article crosstalk is benign **on-manifold** — read rank-1 stays 100% at 3 and 6 articles), but coherent **generation requires per-tome ROUTING** — querying all chunks lets off-manifold autoregressive drift pull *foreign-article* tokens into the loop, and routing generation to the relevant article's own chunks restores coherence (Abrahamic 69.6% → **95.7%**). **Smaller chunks make the shared case WORSE** (C=8 → 17.4%), so the lever is routing, not chunk-size. Storage = consolidated; inference = routed — exactly the genome's per-tome scoping ([[F778]] etak clump-routing). On the real `srmech.rbs_lm` encoding, 0.8.2rc1, numpy-absent, no gen-1 code. **⚠ See § CORRECTION (end of file): routing is necessary but NOT sufficient — uniform coherence needs routing PLUS a non-monotonic sweet-spot chunk capacity `C` (≈8 here: all three articles ≥97.7% at C=8 vs 54–95% at C=16). The "lever is routing, not chunk-size" line is wrong — both are levers, plus `k*`.**
 
 **Date:** 2026-06-18 · **srmech:** 0.8.2rc1 (TestPyPI dev substrate) · **Provenance:** `/tmp/{multi_tome,tome_scale,tome_gen,grounded,route}.py` on `srmech.rbs_lm.substrate.ContextSubstrate` + `srmech.amsc.hdc` klein4 ops, D=10000, simplewiki raw-body instrument (the F817 `k` per article) · **Composes:** F838 (single-article 100% = chunked-M + k\*; the read≠generation gap), F837 (chunked-M read 3.3→96.7%), F832 (bundle capacity), [[F778]] (spectral-clumped loopshelf + etak clump-routing), [[feedback_relationship_lm_ideas_not_code_from_gen1]] · **User direction:** "multi-article / per-tome coherence … the genome-consolidated chunk-sets … keep continuing."
 
@@ -48,3 +48,28 @@ So §58's "M → capacity-bounded chunk-set" is a clean reusable substrate chang
 
 ## Verdict / next
 Per-tome **read** consolidation works; per-tome coherent **generation** works **with routing** (95.7% on the routed short article; 100%/97.7% on the others). Cross-article crosstalk is benign on-manifold and is handled off-manifold by routing — both relationship-native, no gen-1 code. **Next:** (a) per-tome routing as a first-class recall step (resonance-vote the tome, then resonate within it) — measure routed generation across the full 6-article tome; (b) the honest-residual fix (iterated cleanup / per-context unique window) toward uniform high-coherence on short docs; (c) **genuine generation/generalization** — novel prompts composing *across* routed tomes (the real LM test, vs. reproduction-via-inference). Evaluate by groundedness / coherence, never throughput.
+
+---
+
+## § CORRECTION (same-day, 2026-06-18) — routing is necessary but NOT sufficient; coherent generation needs routing **+** a sweet-spot chunk capacity `C` (non-monotonic). The headline above ("routing fixes generation, 69.6→95.7%") was incomplete.
+
+Building routing as an actual recall step (per-article tagged chunks = the genome's "many genes, one container"; sticky-route at the seed, generate within the home tome) exposed that the 69.6→95.7% number was **C=16-specific** and that routing alone is **not** the fix:
+
+| article (sticky-routed, per-article own chunks) | k\* | binds | C=16 | **C=8** | C=4 |
+|---|---|---|---|---|---|
+| Adobe Illustrator | 4 | 72 | 59.1% | **97.7%** | 61.4% |
+| Andouille | 4 | 85 | 54.5% | **100.0%** | 45.5% |
+| Abrahamic religions | 6 | 56 | 95.7% | **97.8%** | 71.7% |
+
+**What this corrects:** at **C=16 routed**, the two articles that were *fine in the shared tome* (Adobe 97.7%, Andouille 100%) **dropped to 59.1% / 54.5%** — and that drop is **NOT** foreign-token contamination (routed → only own-vocab atoms reachable). It is **own-article internal crosstalk**: packing ~14 real binds into each C=16 chunk dulls the on-manifold read. The shared tome had *accidentally* thinned each article's binds across more chunks (mixed with foreign noise), lowering binds-per-chunk — which is why the un-routed shared-tome generation looked better for those two. So the shared-tome 100%/97.7% was **capacity-lucky**, not a routing property.
+
+**The real mechanism — two capacity effects in tension, with a sweet spot:**
+- **Too-large `C`** (16): high binds-per-chunk → on-manifold crosstalk → dull read → greedy drifts (Adobe/Andouille 54–59%).
+- **Too-small `C`** (4): many chunks → off-manifold `max`-over-chunks picks the loudest noise → drift — **even per-article-routed with zero foreign tokens** (45–72%). This isolates F839's "more chunks worse off-manifold" mechanism as **independent of cross-article contamination** (the shared-tome C=8→17.4% was foreign-contamination *plus* this; here it's this alone).
+- **Sweet-spot `C`** (≈8 for these 56–85-bind articles): low enough binds-per-chunk for a sharp on-manifold read, few enough chunks to avoid off-manifold max-noise → **all three uniformly ≥97.7%**.
+
+**Corrected recipe (relationship-native, no gen-1 code):** coherent generation = **(1) per-tome routing** (removes foreign contamination — `[[F778]]` etak vote) **+ (2) a sweet-spot chunk capacity `C`** tuned to binds-per-tome (here ≈8; expect it to scale with tome size — a per-tome measured capacity, not a global constant) **+ (3) per-doc `k*`** (F838). Routing handles *which tome*; `C` handles *read sharpness vs drift-noise within it*; `k*` handles *greedy cycles*. All three are levers; none alone suffices.
+
+**Per-step (re-voting) routing is fragile** (Adobe 11.4%, stayed home only 18% of steps): off-manifold the tome-vote wanders to the wrong tome. **Sticky routing** (commit to the seed's tome) is the robust choice for reproduction; per-step re-voting is the path to *cross-tome composition* (generalization) but needs a sharper vote (a confidence margin / hysteresis) before it's usable. That sharper-vote design is now the open generalization sub-question.
+
+**Boundary unchanged:** the capacity-bounded chunk-set + max-resonance read stays the §58 srmech-graduation candidate; routing + `k*` + the autoregressive loop + the per-tome `C`-tuning stay in siona. The C-sweet-spot is a *measurement* the inference layer does per tome, not a new primitive.
