@@ -10,6 +10,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.31.0] — 2026-06-18
+
+### numpy-FREE capstone — production graduation
+
+The clean semver cut of the `0.31.0rc1 → rc5` numpy-removal arc, graduated to
+production PyPI. `pip install ephemerides-spectral` pulls **NO numpy**: the
+shipped package and its full test suite import and run with numpy **not installed
+at all**, every continuous-math op routing through srmech's numpy-free `Mat` /
+`Vec` / `HV` carriers (`srmech>=0.8.2`) or stdlib `math` / `cmath` / `array`.
+
+This graduation bundles the rc-line work verbatim — no code change from rc5:
+
+- **rc2** — numpy-free ITN / etak navigation cascade + `GatewayNavigation`
+  config-driven `[class]` TOML (first concrete numpy flip + duplicate-path purge).
+- **rc3** — dropped the last trivial dead `import numpy` (`syzygy_window`).
+- **rc4** — the byte-exact BIP-encoder / HD-lift / native-marshalling core flipped
+  to stdlib + srmech carriers; **`numpy` dropped from BOTH `pyproject.toml` and
+  `pyproject-pure.toml` dependencies**. A permanent
+  `tests/test_zero_numpy_ratchet.py` asserts no `import numpy` / no executable
+  `np.` token anywhere in the package; the numpy-oracle tests were rewritten
+  numpy-free.
+- **rc5** — `srmech` dependency floor `>=0.8.1 → >=0.8.2` to pick up srmech 0.8.2
+  (the §57 RBS-LM bigram-gate removal + the AST STOP-list ratchet banning
+  `numpy` / `Counter` / `defaultdict` in srmech source).
+
+**Verified numpy-absent on the shipped wheel** against srmech 0.8.2 (PyPI), with
+`numpy` pip-banned at the machine level. **No `ephemerides_spectral` ABI change**
+(`ES_ABI_VERSION = 10`). 6-site version SSOT graduated `0.31.0rc5 → 0.31.0`.
+
 ## [0.31.0rc5] — 2026-06-18
 
 ### Changed — srmech `>=0.8.2` floor bump (consume the new srmech release)
