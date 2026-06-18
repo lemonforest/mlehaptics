@@ -72,6 +72,7 @@
 {"exposed_as": "srmech.amsc.hdc.polar_bundle", "defined_at": "srmech.amsc.hdc.polar_bundle", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.hdc.polar_density", "defined_at": "srmech.amsc.hdc.polar_density", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.hdc.similarity", "defined_at": "srmech.amsc.hdc.similarity", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.hdc.hamming", "defined_at": "srmech.amsc.hdc.hamming", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.kepler.equation_of_centre", "defined_at": "srmech.amsc.kepler.equation_of_centre", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.kepler.kepler_solve", "defined_at": "srmech.amsc.kepler.kepler_solve", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.kepler.pin_slot", "defined_at": "srmech.amsc.kepler.pin_slot", "bucket": "c_dispatched"}

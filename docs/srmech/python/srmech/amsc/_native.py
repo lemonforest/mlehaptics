@@ -848,6 +848,20 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_hdc_similarity.restype = ctypes.c_int
 
+    # int srmech_hdc_hamming(const uint8_t *a, const uint8_t *b,
+    #                        uint32_t n_bytes, uint32_t *out)
+    # NEW in v0.9.0rc2 (F868 stay-rational) — guard with its own hasattr so a
+    # pre-rc2 lib doesn't AttributeError; the integer bit-Hamming distance backs
+    # the exact Q-returning hdc.similarity / the public hdc.hamming op.
+    if hasattr(lib, "srmech_hdc_hamming"):
+        lib.srmech_hdc_hamming.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_uint32),
+        ]
+        lib.srmech_hdc_hamming.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Class M — polar {-1, 0, +1} variant (v0.4.3rc1). NEW symbols; guard
     # with hasattr so a stale lib built before these landed doesn't

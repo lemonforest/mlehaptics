@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc1"
-#define SRMECH_VERSION       "0.9.0rc1"
+#define SRMECH_VERSION_PRE   "rc2"
+#define SRMECH_VERSION       "0.9.0rc2"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1600,8 +1600,17 @@ srmech_status_t srmech_hdc_permute(const uint8_t *a,
                                    int32_t        rotate_bits,
                                    uint8_t       *out);
 
+/* hdc_hamming(a, b): EXACT integer bit-Hamming distance (count of differing
+ * bits = popcount of the XOR), the F868 stay-rational recall key before the
+ * float divide (similarity = 1 - 2*hamming/D). Additive symbol — no ABI bump. */
+srmech_status_t srmech_hdc_hamming(const uint8_t *a,
+                                   const uint8_t *b,
+                                   uint32_t       n_bytes,
+                                   uint32_t      *out);
+
 /* similarity(a, b): 1 - 2 * hamming(a, b) / D in [-1, 1]. +1 = identical,
- * 0 = orthogonal (Hamming(a,b) = D/2), -1 = bit-complementary. */
+ * 0 = orthogonal (Hamming(a,b) = D/2), -1 = bit-complementary — the
+ * display-boundary collapse of srmech_hdc_hamming. */
 srmech_status_t srmech_hdc_similarity(const uint8_t *a,
                                       const uint8_t *b,
                                       uint32_t       n_bytes,

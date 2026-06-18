@@ -172,10 +172,15 @@ srmech_status_t srmech_hdc_permute(const uint8_t *a,
     return SRMECH_OK;
 }
 
-srmech_status_t srmech_hdc_similarity(const uint8_t *a,
-                                      const uint8_t *b,
-                                      uint32_t       n_bytes,
-                                      double        *out)
+/* hdc_hamming(a, b, n_bytes, out): the EXACT integer bit-Hamming distance — the
+ * count of differing BITS across the two BSC byte buffers (popcount of the XOR),
+ * the F868 stay-rational recall key BEFORE the float divide (UPSTREAM §61).
+ * similarity = 1 - 2*hamming/D with D = 8*n_bytes; collapse to a double only at
+ * the display boundary, in srmech_hdc_similarity. Additive symbol — no ABI bump. */
+srmech_status_t srmech_hdc_hamming(const uint8_t *a,
+                                   const uint8_t *b,
+                                   uint32_t       n_bytes,
+                                   uint32_t      *out)
 {
     assert(a != NULL && b != NULL && out != NULL);
     assert(n_bytes > 0);
@@ -185,9 +190,31 @@ srmech_status_t srmech_hdc_similarity(const uint8_t *a,
     if (n_bytes == 0) {
         return SRMECH_ERR_BAD_INPUT;
     }
-    uint64_t hamming = 0;
+    uint32_t hamming = 0;
     for (uint32_t i = 0; i < n_bytes; i++) {
-        hamming += (uint64_t)SRMECH_HDC_POPCOUNT8[a[i] ^ b[i]];
+        hamming += (uint32_t)SRMECH_HDC_POPCOUNT8[a[i] ^ b[i]];
+    }
+    *out = hamming;
+    return SRMECH_OK;
+}
+
+/* hdc_similarity = the F868 display-boundary collapse of the exact bit-Hamming
+ * distance: 1 - 2*hamming/D in [-1, 1], D = 8*n_bytes. Composes over
+ * srmech_hdc_hamming so the integer key and the float view share one definition. */
+srmech_status_t srmech_hdc_similarity(const uint8_t *a,
+                                      const uint8_t *b,
+                                      uint32_t       n_bytes,
+                                      double        *out)
+{
+    assert(out != NULL);
+    assert(n_bytes > 0);
+    if (out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    uint32_t hamming = 0;
+    srmech_status_t st = srmech_hdc_hamming(a, b, n_bytes, &hamming);
+    if (st != SRMECH_OK) {
+        return st;
     }
     double D = (double)(n_bytes * 8u);
     *out = 1.0 - 2.0 * (double)hamming / D;
