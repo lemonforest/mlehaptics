@@ -926,6 +926,18 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_klein4_bind.restype = ctypes.c_int
 
+        # §59 / F861: int srmech_klein4_phase_key(uint32_t D, uint32_t start,
+        #                          uint32_t width, uint8_t elem, uint8_t *out)
+        if hasattr(lib, "srmech_klein4_phase_key"):
+            lib.srmech_klein4_phase_key.argtypes = [
+                ctypes.c_uint32,
+                ctypes.c_uint32,
+                ctypes.c_uint32,
+                ctypes.c_uint8,
+                ctypes.POINTER(ctypes.c_uint8),
+            ]
+            lib.srmech_klein4_phase_key.restype = ctypes.c_int
+
         # int srmech_klein4_bundle(const uint8_t * const *vectors,
         #                          uint32_t n_vectors, uint32_t n,
         #                          uint8_t *out)

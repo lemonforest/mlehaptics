@@ -2236,6 +2236,41 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
+            name="srmech.amsc.hdc.klein4_phase_key", owner="srmech", category="hdc",
+            summary="Continuous-phase Klein-4 key (UPSTREAM §59; F861): the V4 "
+                    "code `elem` (default 2 = γ₅) on a `width`-wide circular "
+                    "slot-window starting at round(frac·D) mod D, identity (0) "
+                    "elsewhere — 'continuous phase from discrete-per-slot sectors "
+                    "via population coding', the chirality-native analogue of "
+                    "HRR/polar phase. Default width is the half-window D//2.",
+            parameters=(P("D", "int", True, "dimension"),
+                        P("frac", "float", True,
+                          "phase fraction in [0,1) (wraps mod 1)"),
+                        P("elem", "int", False,
+                          "Klein-4 code in {0,1,2,3} (default 2 = γ₅)"),
+                        P("width", "int", False,
+                          "window width in slots (default D//2)")),
+            returns=R("HV", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_phase_bind", owner="srmech", category="hdc",
+            summary="Bind a continuous phase into a Klein-4 vector (UPSTREAM §59): "
+                    "klein4_bind(hv, klein4_phase_key(len(hv), frac, …)). "
+                    "Reversible (same phase twice = identity); σ-mirror (±φ "
+                    "equidistant from base); and similarity(phase_bind(h,0), "
+                    "phase_bind(h,Δφ)) is the EXACT rational 1 − 2·circ_dist(Δφ) "
+                    "(an integer half-window overlap over D → a Q, never a lossy "
+                    "float). Native-dispatched via srmech_klein4_phase_key.",
+            parameters=(P("hv", "HV", True, "uint8 {0,1,2,3}"),
+                        P("frac", "float", True,
+                          "phase fraction in [0,1) (wraps mod 1)"),
+                        P("elem", "int", False,
+                          "Klein-4 code in {0,1,2,3} (default 2 = γ₅)"),
+                        P("width", "int", False,
+                          "window width in slots (default D//2)")),
+            returns=R("HV", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
             name="srmech.amsc.hdc.klein4_similarity", owner="srmech", category="hdc",
             summary="Klein-4 similarity: fraction of positions where a==b in "
                     "[0,1] (1 identical, 0 orthogonal). v0.9.0 (F868 stay-"
