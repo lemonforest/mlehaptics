@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "ephemerides-spectral"
-version = "0.31.0rc4"
+version = "0.31.0rc5"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects metadata that exceeds it
 # ("could not comply" with no useful detail bubbled into the publish
@@ -46,7 +46,7 @@ classifiers = [
 # math/cmath/array. numpy is no longer a runtime dependency. skyfield
 # (which transitively requires numpy) stays an OPTIONAL [ephemeris] extra
 # for live SPICE calibration; the SPICE-free runtime uses baked phases.
-dependencies = ["srmech>=0.8.1"]
+dependencies = ["srmech>=0.8.2"]
 
 [project.optional-dependencies]
 ephemeris  = ["skyfield>=1.46", "jplephem>=2.21"]
