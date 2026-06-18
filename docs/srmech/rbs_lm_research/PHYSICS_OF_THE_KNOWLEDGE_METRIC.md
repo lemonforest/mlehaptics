@@ -30,7 +30,7 @@ The metric predicts a **mass↔meaning dissociation**, confirmed: de-lensing (dr
 - **Walk mode** (generate): full metric (chunked-M + k\* + chiral routing, F848).
 - **Route/about mode** (which tome / aboutness): de-lensed metric (content/anti-mass).
 - **Coarse→fine**: de-lensed route picks the tome, full-metric walk fills it in.
-This **fixes the F840 routing misroutes** (they were the low-aboutness, mass-dominated reads) and unifies F768 (aboutness) + F782 (IDF-de-lensing) under one principle: **read the metric at the mode and scale the query demands.**
+This unifies F768 (aboutness) + F782 (IDF-de-lensing) under one principle: **read the metric at the mode and scale the query demands.** ⚠ **Corrected mode boundary (F853 §CORRECTION, verified):** the discriminator is **content/meaning query (→ de-lens) vs walk/sequence operation (→ full metric)**, NOT "routing vs generation." Some routing is walk-mode: de-lensing the **F840 per-context walk-routing HURT it (94.3%→68.6%)** — those misroutes are fixed by the F768 aboutness *gate* (hold/widen on low-aboutness contexts), not by de-lensing. De-lens is for content/topic/aboutness queries (snippet→topic, 80→90); full metric is for walking (generation + walk-position routing).
 
 ## Perfect recovery, in this light (F848)
 Imperfect multi-domain recall was the **sector-0 chirality collapse**, not a sparse limit. Orthogonal Klein-4 cosets make cross-domain contamination structurally impossible; route+scope to the coset restores per-domain solo recovery in one store. The duality holds (sparse ≡ dense, no loss); the gap was the collapsed shape.
