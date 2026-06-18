@@ -10,6 +10,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.32.0] — 2026-06-18
+
+### Changed — MIT relicense + README capabilities refresh (production graduation)
+
+The clean semver cut of the `0.32.0rc1` cycle, graduated to production PyPI.
+Identical content to rc1 (no further changes); the rc was verified numpy-absent
+on the TestPyPI wheel (version `0.32.0rc1`, `License-Expression: MIT` in the
+wheel metadata, the new `LICENSE` file shipped at
+`dist-info/licenses/LICENSE`, and the `ephemerides` srmech profile registering
+`status='ok'` against `srmech 0.8.2`). Two doc / metadata fixes, **no
+`ephemerides_spectral` code change**:
+
+- **Relicensed `GPL-3.0-or-later` → `MIT`** everywhere the package declares a
+  license: `pyproject.toml`, `pyproject-pure.toml`, `srmech_profile.toml`, the
+  C header + `c/README.md` + subtree `README.md`, and the PyPI README — plus a
+  new `LICENSE` file (MIT text). `ephemerides-spectral` and its runtime engine
+  `srmech` are both MIT and freely reusable; the wider `mlehaptics` monorepo
+  stays GPL-3-or-later (no GPL code is linked).
+- **README Key Capabilities refresh** surfacing the shipped v0.19 → v0.30
+  instruments (Sol Electromagnetic Instrument, Geodetic / Magnetic-Multipole /
+  Fluid catalogs, the eleven cross-channel coupling surfaces, Trajectory +
+  Sensing, spin-orbit↔rotation lock, per-body Dynamical Spectra + classifier,
+  AMSC provenance, Saturn-ring + Solar dynamics); Roadmap trimmed accordingly.
+
+No code / ABI change (`ES_ABI_VERSION = 10`).
+
 ## [0.32.0rc1] — 2026-06-18
 
 ### Changed — MIT relicense + README capabilities refresh
