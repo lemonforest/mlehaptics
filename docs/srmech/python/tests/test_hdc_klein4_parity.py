@@ -25,6 +25,7 @@ import pytest
 
 from srmech.amsc import _native
 from srmech.amsc import hdc
+from srmech.amsc.q import Q
 
 
 _K4_NATIVE = _native.HAS_NATIVE and hasattr(_native.LIB, "srmech_klein4_bind")
@@ -98,7 +99,10 @@ def test_klein4_similarity_and_sector_count():
     assert hdc.klein4_similarity(a, a) == 1.0
     x = [0, 1, 2, 3]
     y = [0, 1, 3, 3]
-    assert hdc.klein4_similarity(x, y) == pytest.approx(0.75)
+    # v0.9.0 (F868): klein4_similarity returns the EXACT Q — assert the rational
+    # (3 matches / 4), and the raw integer count via the new klein4_match_count.
+    assert hdc.klein4_similarity(x, y) == Q(3, 4)
+    assert hdc.klein4_match_count(x, y) == 3
     assert hdc.klein4_sector_count([0, 0, 1, 2, 2, 2, 3]) == [2, 1, 3, 1]
 
 
@@ -167,7 +171,9 @@ def test_parity_klein4_bundle():
 def test_parity_klein4_similarity():
     for s in range(20):
         a = _rand_k4(500 + s, D=200); b = _rand_k4(600 + s, D=200)
-        assert _c_similarity(a, b) == pytest.approx(hdc.klein4_similarity(a, b))
+        # The C kernel returns a double (the display-boundary collapse); compare
+        # it to the Q's float view (F868) — float(Q) is the same boundary cast.
+        assert _c_similarity(a, b) == pytest.approx(float(hdc.klein4_similarity(a, b)))
 
 
 # --------------------------------------------------------------------------

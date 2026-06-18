@@ -933,6 +933,21 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_klein4_similarity.restype = ctypes.c_int
 
+        # int srmech_klein4_match_count(const uint8_t *a, const uint8_t *b,
+        #                               uint32_t n, uint32_t *out)
+        # NEW in v0.9.0rc1 (F868 stay-rational) — guard with its own hasattr so
+        # a pre-rc1 klein4-capable lib doesn't AttributeError here; the integer
+        # match count backs the exact Q-returning klein4_similarity / the public
+        # klein4_match_count op.
+        if hasattr(lib, "srmech_klein4_match_count"):
+            lib.srmech_klein4_match_count.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8),
+                ctypes.POINTER(ctypes.c_uint8),
+                ctypes.c_uint32,
+                ctypes.POINTER(ctypes.c_uint32),
+            ]
+            lib.srmech_klein4_match_count.restype = ctypes.c_int
+
         # int srmech_klein4_triality_cycle(const uint8_t *in, uint32_t n,
         #                                  int inverse, uint8_t *out)
         # NEW in v0.6.0rc18 — guard with its own hasattr so a klein4-capable

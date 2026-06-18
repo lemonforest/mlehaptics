@@ -326,13 +326,14 @@ def exp_series_truncate(numerator: int,
 
     sum_den = q_to_N * N_factorial
 
-    # Reduce to lowest terms via Class N rational gcd:
+    # Reduce to lowest terms via the Class-I cyclic gcd (use srmech for math,
+    # not stdlib math.gcd; uncapped → big-int safe at One-scale numerators):
     if sum_num == 0:
         return (0, 1)
     # Class-K magnitude as an EXPLICIT sign-branch, never an ALU abs()
     # (sum_den is already positive upstream).
     num_mag = sum_num if sum_num >= 0 else -sum_num
-    g = math.gcd(num_mag, sum_den)
+    g = _cyclic.gcd(num_mag, sum_den)
     out_num = sum_num // g
     out_den = sum_den // g
     # Ensure denominator is positive.
