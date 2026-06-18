@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "ephemerides-spectral"
-version = "0.31.1"
+version = "0.32.0rc1"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects metadata that exceeds it
 # ("could not comply" with no useful detail bubbled into the publish
@@ -15,7 +15,7 @@ version = "0.31.1"
 description = "High-precision HDC reference instrument for the Sol Star System based on JPL DE441. Native C backend; 52-body roster (Lagrange trojans + retrograde irregulars); per-body Geodetic, Electromagnetic, Magnetic-Multipole, Fluid catalogs; eleven cross-channel coupling surfaces; trajectory + sensing layer (ballistic propagator, 3-regime ICBM, look-angle geometry, BC-differential discrimination); resonance-graph ITN-chain search; spectral body-architecture; SPICE-free runtime."
 readme = "README.md"
 requires-python = ">=3.10"
-license = "GPL-3.0-or-later"
+license = "MIT"
 authors = [{ name = "Steven Kirkland" }]
 keywords = [
     "ephemeris",
@@ -115,6 +115,7 @@ sdist.include = [
     "tests/**",
     "README.md",
     "CHANGELOG.md",
+    "LICENSE",
     "pyproject.toml",
     "../CMakeLists.txt",
     "../c/include/**",
