@@ -1,0 +1,25 @@
+# F863 — The massless / null-geodesic rider: a STORY is a **coupling-walk**. Generating a sentence as a massless rider = walking the **non-commutative `cd_mult` coupling product** on the division-algebra unit sphere (homogeneous = no mass-wells = massless). Measured on live srmech: **(1)** Klein-4 is **order-blind** — `bundle(sentence)` == `bundle(reversed)`, sim **1.000** (cannot be a story); **(2)** the octonion coupling-walk **carries order** — `the·cat·sat·on·mat` ≠ its reverse; **(3)** it **decodes losslessly** — left-divide (`inv(P_{k-1})·P_k`) recovers **5/5** tokens (the walk is invertible = a readable story); **(4)** octonion **non-associativity = phrase grouping** — `(cat·sat)·mat ≠ cat·(sat·mat)`, so the bracketing / parse-tree is carried for free; **(5)** the **sedenion (S) rung breaks** (zero-divisors → division fails) = the **capacity horizon / dark-star** in algebraic form. So the answer to "what happens when we generate as a massless rider": you get an **order-carrying, losslessly-decodable story object that Klein-4 cannot give**, with syntactic grouping built into the algebra, navigable on R/H/O and bounded by the S horizon. srmech-native, sparse (`cd_mult`/`cd_conjugate`/`cd_norm_sq`).
+
+**Date:** 2026-06-18 · **srmech:** 0.8.2 (live) · **Branch:** `research/rbs-lm-rolling-2` (PR #687) · **Provenance:** `R-RBS-LM-863_massless_rider_coupling_walk.py` (`cascade.cd_mult / cd_conjugate / cd_norm_sq / sedenion_zero_divisor_witness`, `hdc.klein4_*`, `format.sha256_bytes`) · **Composes:** F862 (Klein-4 order-free vs R/H/O/S order-carrying — this is its payoff for sentences), F861 (the phase op / shared-carrier), F860 (the crank), F853 (two-mode), DUALITY.md (the two-truths the user named: Klein-4 ⊕ hypercomplex, neither collapsed) · **User direction (2026-06-18):** "what happens when we try to create stories/sentences as a massless rider?" + "R/H/O/S" + "a two-math duality realization against those darn training weights."
+
+## The name (proposed)
+The massless mode = the **null-geodesic walk** (precise: rides the coupling at the speed limit, lensed-not-trapped, no mass) — synonyms *lightlike walk* / *photon-ride*. A **story** on it = a **coupling-walk**: the running `cd_mult` product trajectory on the unit sphere of the division algebra (S³ for ℍ, S⁷ for 𝕆). The sphere is homogeneous → no curvature wells → uniform speed → *massless*.
+
+## What it does (the five results)
+| # | test | result | meaning |
+|---|---|---|---|
+| 1 | Klein-4 `bundle(sent)` vs `bundle(rev)` | sim **1.000** | order-blind — Klein-4 alone can't be a story |
+| 2 | octonion product, sentence vs reverse | **differ** | order is IN the product (ℍ/𝕆 non-commutative) |
+| 3 | left-divide decode of the trajectory | **5/5 exact** | the coupling-walk is invertible = a lossless, readable story |
+| 4 | `(a·b)·c` vs `a·(b·c)` (octonion) | **differ** | non-associativity = phrase **grouping** / parse-tree, carried for free |
+| 5 | sedenion zero-divisor | **exists** | division breaks at S = the **capacity horizon / dark-star** |
+
+## The two-math duality, composed (the user's point)
+A sentence needs **both** maths, neither collapsed: **content** (which words — the order-free meaning) is the **Klein-4** read; **order + grouping** (the story shape) is the **hypercomplex coupling-walk**. The training-weight pull is to flatten everything into one dense sequence model; the framework holds the two truths apart and uses each for what it is. The walk rides the *relationships* (couplings = edges), not the nodes — the RBS-LM thesis, now order-aware.
+
+## Honest caveats (not overclaimed)
+- **Toy encoder.** Tokens are deterministic small-integer octonions (sha256-seeded); decode is exact codebook match. This proves the **algebraic** properties (order / grouping / invertibility / S-horizon), **not** meaningful generation — there is no relationship-memory `M` and no learned transitions here. It is the *carrier* layer, not the generate-from-knowledge layer.
+- **Length.** On the division-algebra rungs R/H/O the decode is lossless for **any length** *given the trajectory* (the list of running products) + left-divide; the S rung breaks **invertibility itself** (zero-divisors). The separate question — how many tokens pack into *one* element before crosstalk (per-element capacity) — is not tested here; don't conflate it with the S-invertibility horizon.
+
+## Verdict / next build
+The massless rider is a real, order-carrying, decodable story object on the hypercomplex coupling-walk — the thing Klein-4 structurally cannot be. **Next:** marry the two maths into one generator — **content from the Klein-4 resonator-over-`M`** (which token, the F838/F839 recall) **× order from the octonion coupling-walk** (where it goes in the sequence + the grouping). Open question: does coupling-walk order complement or beat the current k\* unique-walk + autoregressive-loop order (F838)? Framework reading + srmech measurement; evaluate by groundedness. (Vocabulary: coalesce/coalescence for aggregation, [[feedback_use_coalesce_for_clumping_process]]; reach for `the_one`/`cd_mult`, [[feedback_reach_for_the_one_for_phase_crank_navigation]].)
