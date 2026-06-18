@@ -115,6 +115,7 @@ sdist.include = [
     "tests/**",
     "README.md",
     "CHANGELOG.md",
+    "LICENSE",
     "pyproject.toml",
     "../CMakeLists.txt",
     "../c/include/**",

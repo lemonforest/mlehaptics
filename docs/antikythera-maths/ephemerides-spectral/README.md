@@ -75,5 +75,7 @@ Python API reference.
 
 ## License
 
-Hardware: CERN-OHL-S v2 (parent project license).
-Software: GPL-3.0-or-later.
+MIT. `ephemerides-spectral` and its runtime engine
+[`srmech`](https://pypi.org/project/srmech/) are both MIT-licensed, so the
+instrument is freely reusable. (The wider `mlehaptics` monorepo this package is
+developed in remains GPL-3-or-later; this package carries its own MIT terms.)

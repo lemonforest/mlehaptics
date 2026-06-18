@@ -16,13 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 Two doc / metadata fixes, **no `ephemerides_spectral` code change**:
 
-- **Relicensed `GPL-3.0-or-later` → `MIT`** across `pyproject.toml`,
-  `pyproject-pure.toml`, and the README `## License` section. The math is
-  scaffolding — `ephemerides-spectral` and its runtime engine `srmech` are
-  both MIT-licensed and freely reusable. The wider `mlehaptics` monorepo this
-  package is developed in stays GPL-3-or-later; this package carries its own
-  MIT terms (no GPL code is linked — the only hard runtime dep is `srmech`,
-  MIT, plus the optional `skyfield`, MIT).
+- **Relicensed `GPL-3.0-or-later` → `MIT`** everywhere the package declares a
+  license: `pyproject.toml`, `pyproject-pure.toml`, `srmech_profile.toml`
+  (`[profile].license`), the C header `c/include/ephemerides_spectral.h`, the
+  `c/README.md` + subtree `README.md` License sections, and the PyPI README
+  `## License` section — **plus a new `LICENSE` file** (MIT text) shipped in the
+  sdist/wheel (matching `srmech`). The math is scaffolding —
+  `ephemerides-spectral` and its runtime engine `srmech` are both MIT-licensed
+  and freely reusable. The wider `mlehaptics` monorepo this package is developed
+  in stays GPL-3-or-later; this package carries its own MIT terms (no GPL code is
+  linked — the only hard runtime dep is `srmech`, MIT, plus the optional
+  `skyfield`, MIT). The subtree README's stale `Hardware: CERN-OHL-S` line (an
+  EMDR-firmware-template artifact — this is a pure-software package) was removed.
 - **README Key Capabilities refresh.** The descriptive section had been
   frozen at the ~v0.18 feature set and never surfaced the shipped v0.19 → v0.30
   instruments. Added Key-Capabilities bullets (with accurate `bridge.*`

@@ -36,7 +36,8 @@
  *   (~6.8e8 days = ~1.86 Myr). Outside this envelope, omega * delta_t
  *   would saturate int64 and corrupt the result.
  *
- * License: GPL-3.0-or-later (parent project: mlehaptics).
+ * License: MIT (this package). The wider mlehaptics monorepo is
+ *          GPL-3.0-or-later; this package carries its own MIT terms.
  */
 
 #ifndef EPHEMERIDES_SPECTRAL_H
