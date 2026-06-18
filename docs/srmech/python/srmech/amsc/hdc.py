@@ -1180,6 +1180,74 @@ def klein4_chunk_resolve(chunks, key, candidates):
     return [Q(c, D) for c in counts]
 
 
+# ── §60 / F864: byte/glyph-level Klein-4 encoder (morphology, no English bias) ─
+# The word-atomic encoder (whole token → one orthogonal random HV) has no
+# sub-word structure (sim('cat','cats') ≈ chance). The byte/glyph core composes
+# a word vector from POSITION-BOUND per-byte vectors — restoring morphology
+# (sim('cat','cats') ≫ chance) while stripping the English/whitespace privilege
+# (it hashes raw UTF-8 bytes, the universal-script alphabet). Composes
+# klein4_random (the 256-byte vocab + position keys) + klein4_bind + klein4_
+# bundle — no new primitive class. The per-byte / per-position vector minting
+# rides the python_only ``klein4_random`` (stdlib-MT determinism by design); a
+# standalone-C MT19937 to make the whole minting+encode native is the tracked
+# follow-up. numpy-free; carrier = one HV.
+
+#: Seed namespace for position role-keys — disjoint from the 0..255 byte vocab.
+_KLEIN4_POS_SEED_BASE = 0x10000
+
+
+def _klein4_pos_key(D, pos):
+    """A deterministic Klein-4 position role-vector for slot ``pos`` (UPSTREAM
+    §60): ``klein4_random`` over a position-namespaced seed
+    (``0x10000 + pos``), so it never collides with the 256-byte alphabet
+    (seeds 0..255). The role half of the role-filler bind in
+    :func:`klein4_encode_bytes` — an internal helper (a seeded
+    :func:`klein4_random`, so not a separately-exposed public op).
+    """
+    D = int(D)
+    if D <= 0:
+        raise ValueError("hdc._klein4_pos_key: D must be positive")
+    p = int(pos)
+    if p < 0:
+        raise ValueError(f"hdc._klein4_pos_key: pos must be ≥ 0; got {p}")
+    return klein4_random(D, seed=_KLEIN4_POS_SEED_BASE + p)
+
+
+def klein4_encode_bytes(data, D):
+    """Byte-composed Klein-4 vector (UPSTREAM §60; F864): a bundle of
+    POSITION-BOUND per-byte random vectors —
+    ``bundle_i( klein4_bind(klein4_random(D, seed=byte_i), pos_key(D, i)) )``.
+
+    Each byte ``b`` maps to ``klein4_random(D, seed=b)`` (the 256-byte vocab);
+    binding with a deterministic position role-vector (an internal seeded
+    :func:`klein4_random`) gives the role-filler, and the per-byte binds are
+    bundled into one :class:`HV`. This restores **morphology** —
+    ``klein4_similarity(encode_bytes(b"cat"), encode_bytes(b"cats"))`` ≫ the
+    Klein-4 chance level, because the shared prefix bytes occupy the same
+    positions — while stripping the word-atomic English/whitespace privilege
+    (it hashes raw UTF-8, the universal-script alphabet). The language core is
+    byte-level; an English kernel sits on top (F764). numpy-free.
+
+    Args:
+        data: The byte string to encode (``bytes`` / ``bytearray``; a ``str``
+            is UTF-8 encoded). Must be non-empty.
+        D: Vector dimension (positive).
+    """
+    if isinstance(data, str):
+        data = data.encode("utf-8")
+    elif not isinstance(data, (bytes, bytearray)):
+        raise TypeError(
+            "hdc.klein4_encode_bytes: data must be bytes / bytearray / str")
+    if len(data) == 0:
+        raise ValueError("hdc.klein4_encode_bytes: data must be non-empty")
+    D = int(D)
+    if D <= 0:
+        raise ValueError("hdc.klein4_encode_bytes: D must be positive")
+    bound = [klein4_bind(klein4_random(D, seed=b), _klein4_pos_key(D, i))
+             for i, b in enumerate(data)]
+    return klein4_bundle(*bound)
+
+
 def _klein4_check(a, b, mode, op):
     """Shared validation for the klein4 match-fraction family — coerce both to
     klein4 buffers, length-match, mode-check; returns ``(a, b, n)``."""
@@ -2465,6 +2533,7 @@ __all__ = [
     "klein4_phase_bind",
     "klein4_chunk_bundle",
     "klein4_chunk_resolve",
+    "klein4_encode_bytes",
     "cooccurrence_fold",
     "klein4_chirality_flip_gamma5",
     "klein4_project_axis",

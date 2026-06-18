@@ -2304,6 +2304,20 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[Q]", "per-candidate max-resonance score"),
         ),
         ToolEntry(
+            name="srmech.amsc.hdc.klein4_encode_bytes", owner="srmech", category="hdc",
+            summary="Byte-composed Klein-4 vector (UPSTREAM §60; F864): a bundle "
+                    "of POSITION-BOUND per-byte random vectors — byte b → "
+                    "klein4_random(D, seed=b) (the 256-byte vocab), bound with "
+                    "klein4_pos_key(D, i), all bundled. Restores MORPHOLOGY "
+                    "(sim('cat','cats') ≈ 0.66 ≫ the ~0.25 chance level) while "
+                    "stripping the word-atomic English/whitespace privilege (it "
+                    "hashes raw UTF-8). Composes klein4_random + bind + bundle.",
+            parameters=(P("data", "bytes", True,
+                          "the byte string to encode (non-empty)"),
+                        P("D", "int", True, "dimension")),
+            returns=R("HV", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
             name="srmech.amsc.hdc.klein4_similarity", owner="srmech", category="hdc",
             summary="Klein-4 similarity: fraction of positions where a==b in "
                     "[0,1] (1 identical, 0 orthogonal). v0.9.0 (F868 stay-"
