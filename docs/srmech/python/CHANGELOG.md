@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc3] - 2026-06-18
+
+**First of the UPSTREAM §62 graduations: the LM-agnostic continuous-phase Klein-4 primitive (§59 / F861) is scaffolded fresh into srmech.** Per the §62 boundary decision, the streaming LM *generator* stays in siona, but a short list of LM-agnostic primitives graduates to the lean core — gated on "after the rational-landing" (the `0.9.0rc1`/`rc2` stay-rational `Q` work) "with a C peer." This is the first.
+
+- **New `hdc.klein4_phase_key(D, frac, *, elem=2, width=None)`** — the V4 code `elem` (default 2 = γ₅) on a `width`-wide circular slot-window starting at `round(frac·D) mod D`, identity (0) elsewhere. "Continuous phase from discrete-per-slot sectors via population coding" — the chirality-native analogue of HRR / polar phase. Native-dispatched via the **new C peer `srmech_klein4_phase_key`** (integer window fill, no compiled-in cap — bound is the caller's `out` of length D).
+- **New `hdc.klein4_phase_bind(hv, frac, *, elem=2, width=None)`** = `klein4_bind(hv, klein4_phase_key(len(hv), frac, …))`. **Reversible** (same phase twice = identity); **σ-mirror** (±φ equidistant from the base); and `klein4_similarity(phase_bind(h, 0), phase_bind(h, Δφ))` is the **EXACT rational** `1 − 2·circ_dist(Δφ)` — the integer half-window overlap over `D`, kept a `Q` (stay-rational, never a lossy float).
+
+No new primitive class (Class-M bind over a Class-K-style sector pattern). `tools.total` **312 → 314**, ABI **3** (additive C symbol), numpy-free, MIT. 5-SSOT bumped `0.9.0rc2 → 0.9.0rc3`.
+
 ## [0.9.0rc2] - 2026-06-18
 
 **The stay-rational sweep closes the HDC similarity family: BSC `hdc.similarity` → exact `Q` + a `hamming` integer-key op** (the `0.9.0rc1` follow-up). With `klein4_similarity` / `polar_similarity` / `polar_density` already on `Q`, this finishes the F868 conversion of every exact-rational-as-float site in the Class-M HDC surface.

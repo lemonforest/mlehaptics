@@ -977,6 +977,101 @@ def klein4_bundle(*vectors, sectors=None, parallel=None, mode="chunk"):
     return HV(_klein4_bundle_core(duals), sectors=4)
 
 
+# ── §59 / F861: continuous-phase Klein-4 (population-code phase key + bind) ──
+# The chirality-native analogue of HRR / polar phase: a continuous phase
+# ``frac ∈ [0, 1)`` is encoded as a half-window of one V4 element on a slot
+# offset ``round(frac·D) mod D`` (population coding), then BOUND into a value
+# with ``klein4_bind``. The key property is exactly rational:
+#   ``klein4_similarity(phase_bind(h, 0), phase_bind(h, Δφ)) == 1 − 2·circ_dist(Δφ)``
+# because the ``h`` cancels under the XOR bind, leaving the integer overlap of
+# the two slot-windows over ``D`` — :func:`klein4_similarity` keeps it a ``Q``
+# (stay-rational, F868). Reversible (same phase twice = identity) + σ-mirror
+# (``±φ`` equidistant from the base). No new primitive class: Class-M bind over
+# a Class-K-style sector pattern. numpy-free; carrier = one HV.
+
+
+def _klein4_phase_start(D: int, frac) -> int:
+    """Integer slot offset ``round(frac·D) mod D`` (the F861 population-code
+    phase offset). ``frac`` is a float phase in ``[0, 1)`` (values outside wrap
+    circularly via the ``mod D``)."""
+    return round(float(frac) * D) % D
+
+
+def _klein4_phase_key_native(D: int, start: int, width: int, elem: int):
+    """Native window-fill of the phase-key buffer → ``array('B')`` (or ``None``
+    if the symbol is absent / the call fails — the pure path is the complete
+    bit-identical alternative)."""
+    if not hasattr(_native.LIB, "srmech_klein4_phase_key"):
+        return None
+    out = (ctypes.c_uint8 * D)()
+    rc = _native.LIB.srmech_klein4_phase_key(
+        ctypes.c_uint32(D), ctypes.c_uint32(start),
+        ctypes.c_uint32(width), ctypes.c_uint8(elem), out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return array("B", bytes(out))
+
+
+def _klein4_phase_key_core(D: int, start: int, width: int, elem: int) -> "array":
+    """Pure-Python window fill: ``elem`` on the circular slot-window
+    ``[start, start+width) mod D``, 0 elsewhere (bit-identical to the C peer).
+    No ``abs()`` — a plain modular write loop."""
+    buf = array("B", bytes(D))
+    for j in range(width):
+        buf[(start + j) % D] = elem
+    return buf
+
+
+def klein4_phase_key(D, frac, *, elem=2, width=None):
+    """A continuous-phase Klein-4 key (UPSTREAM §59; F861).
+
+    The V4 element ``elem`` (default 2 = the γ₅ axis) is written on a
+    ``width``-wide circular slot-window starting at ``round(frac·D) mod D``,
+    with identity (0) everywhere else — "continuous phase from discrete-per-slot
+    sectors via population coding."
+
+    Args:
+        D: Vector dimension (positive).
+        frac: Phase fraction in ``[0, 1)`` (a float; values outside wrap mod 1).
+        elem: The Klein-4 code in ``{0, 1, 2, 3}`` written across the window
+            (default 2 = γ₅).
+        width: Window width in slots (default the half-window ``D // 2``, which
+            gives the measured ``1 − 2·circ_dist`` similarity law).
+    """
+    D = int(D)
+    if D <= 0:
+        raise ValueError("hdc.klein4_phase_key: D must be positive")
+    if not isinstance(elem, int) or isinstance(elem, bool) or elem < 0 or elem > 3:
+        raise ValueError(
+            "hdc.klein4_phase_key: elem must be a Klein-4 code in {0, 1, 2, 3}; "
+            f"got {elem!r}")
+    w = D // 2 if width is None else int(width)
+    if w < 0 or w > D:
+        raise ValueError(
+            f"hdc.klein4_phase_key: width must be in 0..D ({D}); got {w}")
+    start = _klein4_phase_start(D, frac)
+    out = _klein4_phase_key_native(D, start, w, elem)
+    if out is None:
+        out = _klein4_phase_key_core(D, start, w, elem)
+    return HV(out, sectors=4)
+
+
+def klein4_phase_bind(hv, frac, *, elem=2, width=None):
+    """Bind a continuous phase ``frac`` into a Klein-4 hypervector (UPSTREAM §59):
+    ``klein4_bind(hv, klein4_phase_key(len(hv), frac, elem, width))``.
+
+    Reversible (``phase_bind(phase_bind(h, φ), φ) == h``); σ-mirror (``+φ`` and
+    ``−φ`` are equidistant from the base); and
+    ``klein4_similarity(phase_bind(h, 0), phase_bind(h, Δφ))`` is the EXACT
+    rational ``1 − 2·circ_dist(Δφ)`` — the integer half-window overlap over
+    ``D`` (a :class:`Q`, never a lossy float). The chirality-native analogue of
+    HRR / polar phase, built only from a slot-window key + :func:`klein4_bind`.
+    """
+    buf = _as_klein4_buf(hv, "klein4_phase_bind")
+    key = klein4_phase_key(len(buf), frac, elem=elem, width=width)
+    return klein4_bind(HV(buf, sectors=4), key)
+
+
 def _klein4_check(a, b, mode, op):
     """Shared validation for the klein4 match-fraction family — coerce both to
     klein4 buffers, length-match, mode-check; returns ``(a, b, n)``."""
@@ -2258,6 +2353,8 @@ __all__ = [
     "klein4_match_count",
     "klein4_bundle_accumulate",
     "klein4_bundle_resolve",
+    "klein4_phase_key",
+    "klein4_phase_bind",
     "cooccurrence_fold",
     "klein4_chirality_flip_gamma5",
     "klein4_project_axis",

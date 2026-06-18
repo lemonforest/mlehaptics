@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc2"
-#define SRMECH_VERSION       "0.9.0rc2"
+#define SRMECH_VERSION_PRE   "rc3"
+#define SRMECH_VERSION       "0.9.0rc3"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1686,6 +1686,18 @@ srmech_status_t srmech_klein4_bundle(const uint8_t * const *vectors,
                                      uint32_t               n_vectors,
                                      uint32_t               n,
                                      uint8_t               *out);
+
+/* klein4_phase_key(D, start, width, elem): the V4 code `elem` on the circular
+ * slot-window [start, start+width) mod D, identity (0) elsewhere — the §59 /
+ * F861 population-code CONTINUOUS-PHASE key (the chirality-native analogue of
+ * HRR / polar phase). Caller picks start = round(frac*D) mod D and width (the
+ * half-window D/2 gives the 1 − 2·circ_dist similarity law). Additive symbol —
+ * no ABI bump; no compiled-in cap (bound is the caller's `out` of length D). */
+srmech_status_t srmech_klein4_phase_key(uint32_t  D,
+                                        uint32_t  start,
+                                        uint32_t  width,
+                                        uint8_t   elem,
+                                        uint8_t  *out);
 
 /* klein4_match_count(a, b): EXACT integer count of positions where a[i] ==
  * b[i] (the F868 stay-rational recall-ranking key before the float divide;

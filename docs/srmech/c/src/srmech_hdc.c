@@ -371,6 +371,32 @@ srmech_status_t srmech_klein4_bind(const uint8_t *a,
     return SRMECH_OK;
 }
 
+srmech_status_t srmech_klein4_phase_key(uint32_t  D,
+                                        uint32_t  start,
+                                        uint32_t  width,
+                                        uint8_t   elem,
+                                        uint8_t  *out)
+{
+    /* §59 / F861: the V4 code `elem` on the circular slot-window
+     * [start, start+width) mod D, identity (0) elsewhere — the population-code
+     * continuous-phase key. No caps: bound is the caller's `out` of length D. */
+    assert(out != NULL);
+    assert(D > 0u);
+    if (out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (D == 0u || start >= D || width > D || elem > 3u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (uint32_t i = 0; i < D; i++) {
+        out[i] = 0u;
+    }
+    for (uint32_t j = 0; j < width; j++) {
+        out[(start + j) % D] = elem;  /* circular slot window */
+    }
+    return SRMECH_OK;
+}
+
 srmech_status_t srmech_klein4_bundle(const uint8_t * const *vectors,
                                      uint32_t               n_vectors,
                                      uint32_t               n,
