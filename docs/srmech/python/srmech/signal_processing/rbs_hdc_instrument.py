@@ -1131,8 +1131,12 @@ class RBSHDCInstrument:
         self.memory[pathway].add_content(vec)
 
     # ── Class M similarity surface ───────────────────────────────────
-    def similarity(self, a: bytes, b: bytes) -> float:
-        """Class M similarity in [-1, 1] (1 - 2*hamming/D)."""
+    def similarity(self, a: bytes, b: bytes) -> "_M.Q":
+        """Class M similarity in [-1, 1], the EXACT rational ``(D-2*hamming)/D``.
+
+        Delegates to :func:`srmech.amsc.hdc.similarity`, which is stay-rational
+        (F868): the value is two ints the whole way and collapses to a decimal
+        only at the display boundary (``float(s)``)."""
         # v0.4.6rc2 — introspection emit at the Class M similarity boundary.
         # Gate-first so off-path is zero allocations.
         from srmech.introspect._writer import (
