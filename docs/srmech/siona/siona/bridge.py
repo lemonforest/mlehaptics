@@ -30,7 +30,13 @@ __all__ = ["walk", "recall", "route", "two_mode_recall"]
 #       signal, F778); (b) coherence-GATED co-evolution ONLY (F851 — naive plastic recall runs away
 #       76%->42%, so any walk-reshapes-store step must gate on confidence).
 DELENS_MIN_LEN = 4       # de-lens heuristic: keep content words (len>=4); drops short function words
-_SUBSTRATE_D = 10000     # recall substrate dimension (matches the F817 instrument / ContextSubstrate)
+# DIM DISCIPLINE (F871; F811 prior): use 2^n, never a round decimal. 10000 is an unattested
+#   MAGIC NUMBER kept ONLY because the live v082 instrument was encoded at it (flipping it
+#   needs a full re-encode). New stores -> D=2^13=8192 (Class-A attested; packs the Klein-4
+#   boolean belly, 2 bits/slot). Measured truth: capacity is DIMENSION-INDEPENDENT (~24-bind
+#   SNR wall, 1/sqrt(N)) -> CHUNK for capacity, SIZE D for reliability (~sqrt(D)), 2^n for
+#   attestation+packing. Do NOT grow D to fix capacity; it can't. Migrate to 8192 on re-encode.
+_SUBSTRATE_D = 10000     # LEGACY magic dim — matches the v082 instrument; new work uses 8192 (F871)
 _CS = None               # lazily-built ContextSubstrate singleton (token -> deterministic Klein-4 HV)
 
 
