@@ -1072,6 +1072,114 @@ def klein4_phase_bind(hv, frac, *, elem=2, width=None):
     return klein4_bind(HV(buf, sectors=4), key)
 
 
+# ── §58 / F837: capacity-bounded chunk-set + max-resonance read ─────────────
+# A reusable VSA cleanup-memory. Instead of superposing N bound key→value pairs
+# into ONE over-stuffed bundle (crosstalk grows with N), the binds are split
+# into a LIST of capacity-bounded bundles (≤ C binds each). Recall probes every
+# chunk and takes the MAX resonance over the chunk-set — the F837 fix that took
+# the resolver read from 3.3% → 96.7% rank-1. The capacity C is EXPOSED (a
+# non-monotonic sweet-spot, F839 correction), NOT hardcoded. LM-agnostic: the
+# ROUTING / per-doc k* / autoregressive loop / argmax stay in the caller (the
+# §58.1 / F839 boundary). Composes klein4_bind/bundle/similarity — no new class.
+
+
+def _klein4_chunk_resolve_native(chunk_bufs, key_buf, cand_bufs, D):
+    """Native max-resonance read → per-candidate best integer match-count (or
+    ``None`` if the symbol is absent / the call fails). The C returns the COUNT
+    (the F868 stay-rational ranking key) before the ``/D`` divide."""
+    if not hasattr(_native.LIB, "srmech_klein4_chunk_resolve"):
+        return None
+    n_chunks = len(chunk_bufs)
+    n_cand = len(cand_bufs)
+    chunks_flat = (ctypes.c_uint8 * (n_chunks * D)).from_buffer_copy(
+        b"".join(bytes(c) for c in chunk_bufs))
+    cand_flat = (ctypes.c_uint8 * (n_cand * D)).from_buffer_copy(
+        b"".join(bytes(c) for c in cand_bufs))
+    ckey = (ctypes.c_uint8 * D).from_buffer_copy(bytes(key_buf))
+    out = (ctypes.c_uint32 * n_cand)()
+    rc = _native.LIB.srmech_klein4_chunk_resolve(
+        chunks_flat, ctypes.c_uint32(n_chunks), ckey, ctypes.c_uint32(D),
+        cand_flat, ctypes.c_uint32(n_cand), out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return [int(x) for x in out]
+
+
+def _klein4_chunk_resolve_core(chunk_bufs, key_buf, cand_bufs):
+    """Pure-Python max-resonance read → per-candidate best integer match-count
+    (bit-identical to the C peer). bind = XOR; match-count = agreeing positions;
+    take the MAX over the chunk-set. No ``abs()``."""
+    bound = [_xor_buf(ch, key_buf) for ch in chunk_bufs]
+    out = []
+    for cand in cand_bufs:
+        best = 0
+        for bd in bound:
+            mc = sum(1 for x, y in zip(bd, cand) if x == y)
+            if mc > best:
+                best = mc
+        out.append(best)
+    return out
+
+
+def klein4_chunk_bundle(vectors, capacity):
+    """Build a CAPACITY-BOUNDED chunk-set from a list of (bound) vectors
+    (UPSTREAM §58; F837): consecutive groups of ≤ ``capacity`` vectors, each
+    reduced with :func:`klein4_bundle`. Returns a ``list`` of :class:`HV`
+    chunks — the cleanup-memory that avoids the single-bundle crosstalk.
+
+    ``capacity`` is exposed (a non-monotonic sweet-spot per tome, F839), not
+    hardcoded. numpy-free; carrier cost = ``ceil(len(vectors) / capacity)``
+    bundles.
+    """
+    bufs = [_as_klein4_buf(v, "klein4_chunk_bundle") for v in vectors]
+    if not bufs:
+        raise ValueError("hdc.klein4_chunk_bundle: requires at least one vector")
+    C = int(capacity)
+    if C < 1:
+        raise ValueError(f"hdc.klein4_chunk_bundle: capacity must be ≥ 1; got {C}")
+    n = len(bufs[0])
+    for i, b in enumerate(bufs):
+        if len(b) != n:
+            raise ValueError(
+                f"hdc.klein4_chunk_bundle: vector {i} has length {len(b)}, "
+                f"expected {n}")
+    chunks = []
+    for i in range(0, len(bufs), C):
+        group = bufs[i:i + C]
+        chunks.append(klein4_bundle(*group))   # native-dispatched bundle
+    return chunks
+
+
+def klein4_chunk_resolve(chunks, key, candidates):
+    """Max-resonance read over a capacity-bounded chunk-set (UPSTREAM §58; F837).
+
+    For each candidate, returns the **MAX over chunks** of
+    ``klein4_similarity(klein4_bind(chunk, key), candidate)`` — one EXACT
+    :class:`Q` per candidate (stay-rational, F868: the recall ranks on the
+    integer match-count; ``Q(count, D)`` only names the fraction). The
+    LM-agnostic VSA cleanup-memory; the routing / argmax stays in the caller.
+    Native-dispatched via ``srmech_klein4_chunk_resolve`` (the recall hot path).
+    """
+    chunk_bufs = [_as_klein4_buf(c, "klein4_chunk_resolve") for c in chunks]
+    cand_bufs = [_as_klein4_buf(c, "klein4_chunk_resolve") for c in candidates]
+    if not chunk_bufs:
+        raise ValueError("hdc.klein4_chunk_resolve: requires at least one chunk")
+    if not cand_bufs:
+        raise ValueError("hdc.klein4_chunk_resolve: requires at least one candidate")
+    key_buf = _as_klein4_buf(key, "klein4_chunk_resolve")
+    D = len(key_buf)
+    for label, bufs in (("chunk", chunk_bufs), ("candidate", cand_bufs)):
+        for i, b in enumerate(bufs):
+            if len(b) != D:
+                raise ValueError(
+                    f"hdc.klein4_chunk_resolve: {label} {i} has length {len(b)}, "
+                    f"expected {D} (the key length)")
+    counts = _klein4_chunk_resolve_native(chunk_bufs, key_buf, cand_bufs, D)
+    if counts is None:
+        counts = _klein4_chunk_resolve_core(chunk_bufs, key_buf, cand_bufs)
+    return [Q(c, D) for c in counts]
+
+
 def _klein4_check(a, b, mode, op):
     """Shared validation for the klein4 match-fraction family — coerce both to
     klein4 buffers, length-match, mode-check; returns ``(a, b, n)``."""
@@ -2355,6 +2463,8 @@ __all__ = [
     "klein4_bundle_resolve",
     "klein4_phase_key",
     "klein4_phase_bind",
+    "klein4_chunk_bundle",
+    "klein4_chunk_resolve",
     "cooccurrence_fold",
     "klein4_chirality_flip_gamma5",
     "klein4_project_axis",

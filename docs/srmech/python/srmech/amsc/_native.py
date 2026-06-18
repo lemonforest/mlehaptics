@@ -938,6 +938,22 @@ def _bind(lib: ctypes.CDLL) -> None:
             ]
             lib.srmech_klein4_phase_key.restype = ctypes.c_int
 
+        # §58 / F837: int srmech_klein4_chunk_resolve(const uint8_t *chunks,
+        #     uint32_t n_chunks, const uint8_t *key, uint32_t D,
+        #     const uint8_t *candidates, uint32_t n_candidates,
+        #     uint32_t *out_counts)
+        if hasattr(lib, "srmech_klein4_chunk_resolve"):
+            lib.srmech_klein4_chunk_resolve.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8),
+                ctypes.c_uint32,
+                ctypes.POINTER(ctypes.c_uint8),
+                ctypes.c_uint32,
+                ctypes.POINTER(ctypes.c_uint8),
+                ctypes.c_uint32,
+                ctypes.POINTER(ctypes.c_uint32),
+            ]
+            lib.srmech_klein4_chunk_resolve.restype = ctypes.c_int
+
         # int srmech_klein4_bundle(const uint8_t * const *vectors,
         #                          uint32_t n_vectors, uint32_t n,
         #                          uint8_t *out)
