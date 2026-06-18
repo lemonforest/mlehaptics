@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc3"
-#define SRMECH_VERSION       "0.9.0rc3"
+#define SRMECH_VERSION_PRE   "rc4"
+#define SRMECH_VERSION       "0.9.0rc4"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1698,6 +1698,21 @@ srmech_status_t srmech_klein4_phase_key(uint32_t  D,
                                         uint32_t  width,
                                         uint8_t   elem,
                                         uint8_t  *out);
+
+/* klein4_chunk_resolve(chunks, n_chunks, key, D, candidates, n_candidates):
+ * §58 / F837 max-resonance read over a CAPACITY-BOUNDED chunk-set. `chunks` is
+ * n_chunks*D, `candidates` is n_candidates*D (row-major, codes {0,1,2,3}). For
+ * each candidate, out_counts[j] = MAX over chunks of the integer match-count
+ * between (chunk XOR key) and that candidate — the F868 stay-rational recall
+ * key before the /D divide (Python wraps Q(count, D)). Additive symbol — no ABI
+ * bump; no compiled-in cap (bound is the caller's arrays). */
+srmech_status_t srmech_klein4_chunk_resolve(const uint8_t *chunks,
+                                            uint32_t       n_chunks,
+                                            const uint8_t *key,
+                                            uint32_t       D,
+                                            const uint8_t *candidates,
+                                            uint32_t       n_candidates,
+                                            uint32_t      *out_counts);
 
 /* klein4_match_count(a, b): EXACT integer count of positions where a[i] ==
  * b[i] (the F868 stay-rational recall-ranking key before the float divide;

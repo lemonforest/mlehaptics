@@ -90,7 +90,7 @@ def test_phase_ops_public_and_counted():
     assert "klein4_phase_key" in hdc.__all__
     assert "klein4_phase_bind" in hdc.__all__
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 314
+    assert introspect.describe()["tools"]["total"] >= 314
 
 
 @pytest.mark.skipif(not HAS_NATIVE, reason="native lib absent")

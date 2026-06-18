@@ -2271,6 +2271,39 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
+            name="srmech.amsc.hdc.klein4_chunk_bundle", owner="srmech", category="hdc",
+            summary="Build a CAPACITY-BOUNDED chunk-set (UPSTREAM §58; F837): "
+                    "split a list of (bound) vectors into consecutive groups of "
+                    "≤ `capacity` and klein4_bundle each. Returns a list of HV "
+                    "chunks — the VSA cleanup-memory that avoids the single-"
+                    "bundle crosstalk (resolver read 3.3% → 96.7% rank-1). "
+                    "`capacity` is exposed (a non-monotonic per-tome sweet-spot, "
+                    "F839), not hardcoded.",
+            parameters=(P("vectors", "Sequence[HV]", True,
+                          "one or more uint8 {0,1,2,3} vectors of equal length"),
+                        P("capacity", "int", True,
+                          "max binds per chunk (≥ 1)")),
+            returns=R("list[HV]", "≤ ceil(len(vectors)/capacity) bundle chunks"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_chunk_resolve", owner="srmech", category="hdc",
+            summary="Max-resonance read over a capacity-bounded chunk-set "
+                    "(UPSTREAM §58; F837): for each candidate, the MAX over "
+                    "chunks of klein4_similarity(klein4_bind(chunk, key), "
+                    "candidate). Returns one EXACT Q per candidate (stay-rational "
+                    "F868: ranks on the integer match-count; Q(count,D) names the "
+                    "fraction). The LM-agnostic VSA cleanup-memory; routing/argmax "
+                    "stay in the caller. Native-dispatched (the recall hot path).",
+            parameters=(P("chunks", "Sequence[HV]", True,
+                          "the capacity-bounded bundle chunks (from "
+                          "klein4_chunk_bundle)"),
+                        P("key", "HV", True,
+                          "the probe key (e.g. an encoded context)"),
+                        P("candidates", "Sequence[HV]", True,
+                          "the bounded candidate atom set to score")),
+            returns=R("list[Q]", "per-candidate max-resonance score"),
+        ),
+        ToolEntry(
             name="srmech.amsc.hdc.klein4_similarity", owner="srmech", category="hdc",
             summary="Klein-4 similarity: fraction of positions where a==b in "
                     "[0,1] (1 identical, 0 orthogonal). v0.9.0 (F868 stay-"

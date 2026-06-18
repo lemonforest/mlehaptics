@@ -397,6 +397,47 @@ srmech_status_t srmech_klein4_phase_key(uint32_t  D,
     return SRMECH_OK;
 }
 
+srmech_status_t srmech_klein4_chunk_resolve(const uint8_t *chunks,
+                                            uint32_t       n_chunks,
+                                            const uint8_t *key,
+                                            uint32_t       D,
+                                            const uint8_t *candidates,
+                                            uint32_t       n_candidates,
+                                            uint32_t      *out_counts)
+{
+    /* §58 / F837: max-resonance read over a capacity-bounded chunk-set. For
+     * each candidate, out_counts[j] = MAX over chunks of the integer match-
+     * count between (chunk XOR key) and the candidate — the F868 stay-rational
+     * recall key before the /D divide. No caps: bound is the caller's arrays. */
+    assert(chunks != NULL && key != NULL && candidates != NULL);
+    assert(out_counts != NULL && D > 0u && n_chunks > 0u && n_candidates > 0u);
+    if (chunks == NULL || key == NULL || candidates == NULL
+            || out_counts == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (D == 0u || n_chunks == 0u || n_candidates == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (uint32_t j = 0; j < n_candidates; j++) {
+        const uint8_t *cand = candidates + (size_t)j * D;
+        uint32_t best = 0u;
+        for (uint32_t i = 0; i < n_chunks; i++) {
+            const uint8_t *chunk = chunks + (size_t)i * D;
+            uint32_t mc = 0u;
+            for (uint32_t p = 0; p < D; p++) {
+                if ((uint8_t)(chunk[p] ^ key[p]) == cand[p]) {
+                    mc++;
+                }
+            }
+            if (mc > best) {
+                best = mc;
+            }
+        }
+        out_counts[j] = best;
+    }
+    return SRMECH_OK;
+}
+
 srmech_status_t srmech_klein4_bundle(const uint8_t * const *vectors,
                                      uint32_t               n_vectors,
                                      uint32_t               n,

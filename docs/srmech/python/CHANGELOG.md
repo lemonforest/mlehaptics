@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc4] - 2026-06-18
+
+**Second of the UPSTREAM §62 graduations: the capacity-bounded chunk-set + max-resonance read (§58 / F837), a reusable VSA cleanup-memory, scaffolded fresh into srmech.** Instead of superposing N bound key→value pairs into ONE over-stuffed bundle (crosstalk grows with N), the binds split into a LIST of capacity-bounded bundles and recall takes the MAX resonance over the chunk-set — the F837 fix that moved the resolver read 3.3% → 96.7% rank-1.
+
+- **New `hdc.klein4_chunk_bundle(vectors, capacity)`** → a `list` of `HV` chunks: consecutive groups of ≤ `capacity` (bound) vectors, each reduced with `klein4_bundle`. The `capacity` is **exposed** (a non-monotonic per-tome sweet-spot, F839), not hardcoded. (`composition_of_c`.)
+- **New `hdc.klein4_chunk_resolve(chunks, key, candidates)`** → one EXACT `Q` per candidate: the **MAX over chunks** of `klein4_similarity(klein4_bind(chunk, key), candidate)`. Stay-rational (F868) — the recall ranks on the integer match-count; `Q(count, D)` only names the fraction. Native-dispatched via the **new C peer `srmech_klein4_chunk_resolve`** (the recall hot path; integer match-count kernel, no compiled-in cap).
+- **LM-agnostic boundary (§58.1 / F839):** the chunk-set + max-resonance read is the reusable VSA part that graduates; the per-tome **routing**, the per-doc `k*`, the autoregressive loop, and the argmax stay in the caller (siona).
+
+`tools.total` **314 → 316**, ABI **3** (additive C symbol), numpy-free, MIT. No new primitive class (composes `klein4_bind`/`bundle`/`similarity`). 5-SSOT bumped `0.9.0rc3 → 0.9.0rc4`.
+
 ## [0.9.0rc3] - 2026-06-18
 
 **First of the UPSTREAM §62 graduations: the LM-agnostic continuous-phase Klein-4 primitive (§59 / F861) is scaffolded fresh into srmech.** Per the §62 boundary decision, the streaming LM *generator* stays in siona, but a short list of LM-agnostic primitives graduates to the lean core — gated on "after the rational-landing" (the `0.9.0rc1`/`rc2` stay-rational `Q` work) "with a C peer." This is the first.
