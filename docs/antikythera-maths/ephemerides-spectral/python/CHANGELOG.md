@@ -10,6 +10,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.32.0rc1] — 2026-06-18
+
+### Changed — MIT relicense + README capabilities refresh
+
+Two doc / metadata fixes, **no `ephemerides_spectral` code change**:
+
+- **Relicensed `GPL-3.0-or-later` → `MIT`** across `pyproject.toml`,
+  `pyproject-pure.toml`, and the README `## License` section. The math is
+  scaffolding — `ephemerides-spectral` and its runtime engine `srmech` are
+  both MIT-licensed and freely reusable. The wider `mlehaptics` monorepo this
+  package is developed in stays GPL-3-or-later; this package carries its own
+  MIT terms (no GPL code is linked — the only hard runtime dep is `srmech`,
+  MIT, plus the optional `skyfield`, MIT).
+- **README Key Capabilities refresh.** The descriptive section had been
+  frozen at the ~v0.18 feature set and never surfaced the shipped v0.19 → v0.30
+  instruments. Added Key-Capabilities bullets (with accurate `bridge.*`
+  surfaces) for: the Sol Electromagnetic Instrument (v0.19), the Geodetic /
+  Magnetic-Multipole / Fluid catalogs + SphericalHarmonic unification (v0.20–
+  v0.21), the eleven cross-channel coupling surfaces (v0.21.1–v0.21.10), the
+  Trajectory + Sensing layer (v0.22), spin-orbit↔rotation lock (v0.23), the
+  per-body Dynamical Spectra + dynamical-regime classifier (v0.24), the AMSC
+  attested-provenance framework (v0.25), and the Saturn-ring + Solar-dynamics
+  catalogs (v0.30). The Roadmap's gateway-graph bullet was trimmed (its
+  shipped pieces now live in Key Capabilities).
+
+No code / ABI change (`ES_ABI_VERSION = 10`); 6-site version SSOT bumped
+`0.31.1 → 0.32.0rc1`. Rc cycles through TestPyPI only.
+
 ## [0.31.1] — 2026-06-18
 
 ### Changed — README freshness: surface the srmech integration (production)
