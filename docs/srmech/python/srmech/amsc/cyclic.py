@@ -90,11 +90,27 @@ def _ensure_uint64(name: str, value: int) -> int:
     return value
 
 
+_UINT64_MAX = 0xFFFF_FFFF_FFFF_FFFF
+
+
 def gcd(a: int, b: int) -> int:
-    """Euclidean GCD. ``gcd(0, 0)`` is ``0``; ``gcd(a, 0)`` is ``a``."""
-    a = _ensure_uint64("a", a)
-    b = _ensure_uint64("b", b)
-    if _native.HAS_NATIVE and _native.LIB is not None:
+    """Class-I Euclidean GCD. ``gcd(0, 0)`` is ``0``; ``gcd(a, 0)`` is ``a``.
+
+    **No upper cap (arbitrary precision).** The native C ``srmech_gcd`` serves
+    its representable domain (``uint64``); inputs beyond ``2⁶⁴-1`` (e.g. the
+    ~100-digit numerators of ``One``-scale rationals) take the big-int Euclid
+    below — the *complete* pure-Python alternative, not a fallback. Removing the
+    compiled-in ``2⁶⁴`` rejection is the standalone-honor "no compiled-in caps"
+    discipline (`[[feedback_c_must_be_standalone_complete_no_python_fallback]]`,
+    `[[project_c_standalone_honor_drift_backlog]]`): a fixed-width-int's full
+    domain IS its width; arbitrary precision is a different numeric domain the
+    pure path owns. Non-negative integer domain (gcd of magnitudes)."""
+    if not isinstance(a, int) or not isinstance(b, int):
+        raise TypeError("gcd: a and b must be int")
+    if a < 0 or b < 0:
+        raise ValueError(f"gcd: a and b must be non-negative; got {a}, {b}")
+    if (_native.HAS_NATIVE and _native.LIB is not None
+            and a <= _UINT64_MAX and b <= _UINT64_MAX):
         out = ctypes.c_uint64(0)
         rc = _native.LIB.srmech_gcd(
             ctypes.c_uint64(a),

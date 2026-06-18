@@ -42,6 +42,7 @@ from typing import Sequence
 from . import _native
 from .hv import HV
 from .mat import Mat
+from .q import Q
 
 
 # Canonical HDC dimension default. Higher D = better noise tolerance;
@@ -456,50 +457,46 @@ def polar_bundle(*vectors):
     return out
 
 
-def polar_similarity(a, b, skip_zero: bool = True) -> float:
-    """Polar match-fraction similarity.
+def polar_similarity(a, b, skip_zero: bool = True) -> "Q":
+    """Polar match-fraction similarity — exact rational :class:`~srmech.amsc.q.Q`.
 
     ``skip_zero=True`` (default): match-fraction over only the positions where
-    **both** vectors are non-zero (0 = "no information", excluded). Returns
-    ``0.0`` when there are no jointly-informative positions.
+    **both** vectors are non-zero (0 = "no information", excluded). Returns the
+    exact ``Q(0, 1)`` when there are no jointly-informative positions.
 
     ``skip_zero=False``: plain match-fraction over all positions (``0 == 0``
     counts as a match — neutral-credit semantics).
+
+    The match-fraction is exactly ``matches / D`` (both integers), so the return
+    is the exact ``Q`` carrier — it compares like a float (``s == 0.75``) and
+    ranks correctly, and you collapse to a decimal only at the display boundary
+    with ``float(s)`` (the stay-rational discipline, F868,
+    `[[feedback_stay_rational_collapse_only_at_display]]`).
 
     rc125 (numpy-free): pure-Python counting over ``array('b')`` buffers."""
     a, b = _check_polar_pair(a, b, "polar_similarity")
     n = len(a)
     if skip_zero:
         informative = [i for i in range(n) if a[i] != 0 and b[i] != 0]
-        if not informative:
-            return 0.0
         matches = sum(1 for i in informative if a[i] == b[i])
-        return float(matches) / len(informative)
+        return Q(matches, len(informative)) if informative else Q(0, 1)
     matches = sum(1 for i in range(n) if a[i] == b[i])
-    return float(matches) / n
+    return Q(matches, n)
 
 
-def polar_density(v) -> float:
-    """Fraction of non-zero (informative) positions — substrate attestation.
+def polar_density(v) -> "Q":
+    """Fraction of non-zero (informative) positions — exact rational
+    :class:`~srmech.amsc.q.Q`.
 
-    ``1.0`` = fully bipolar (no dead-band); lower = more positions resting in
-    the Class-K dead-band / uncertain state.
+    ``Q(1, 1)`` = fully bipolar (no dead-band); lower = more positions resting in
+    the Class-K dead-band / uncertain state. The density is exactly
+    ``nonzero / n`` (both integers), so it stays the exact ``Q`` carrier and
+    collapses to a decimal only via ``float(d)`` (stay-rational, F868).
 
-    rc125 (numpy-free): pure-Python count over ``array('b')`` / native peer."""
+    rc125 (numpy-free): pure-Python count over ``array('b')``."""
     arr = _as_polar(v, "polar_density")
     n = len(arr)
-    # rc12: dispatch the informative-fraction (count of non-zero / n) to the C
-    # peer when present (bit-identical to the count/n below — one division —
-    # which stays the no-native fallback).
-    if (_native.HAS_NATIVE and _native.LIB is not None
-            and hasattr(_native.LIB, "srmech_polar_density")):
-        arr_c = (ctypes.c_int8 * n).from_buffer_copy(arr)
-        out = ctypes.c_double()
-        rc = _native.LIB.srmech_polar_density(
-            ctypes.cast(arr_c, _I8P), ctypes.c_uint32(n), ctypes.byref(out))
-        if rc == _native.SRMECH_OK:
-            return float(out.value)
-    return float(sum(1 for x in arr if x != 0)) / n
+    return Q(sum(1 for x in arr if x != 0), n) if n else Q(0, 1)
 
 
 def polar_from_real(arr, threshold: float = 0.0, dead_band: float = 0.0):
@@ -807,6 +804,23 @@ def _klein4_similarity_native(a: "array", b: "array"):
     return float(out.value)
 
 
+def _klein4_match_count_native(a: "array", b: "array"):
+    """Native exact integer match count over two array('B') buffers → int (or
+    ``None`` if the symbol is absent / the call fails). The count is what the C
+    kernel computes before the float divide (UPSTREAM §61; F868)."""
+    if not hasattr(_native.LIB, "srmech_klein4_match_count"):
+        return None
+    n = len(a)
+    ca = (ctypes.c_uint8 * n).from_buffer_copy(a)
+    cb = (ctypes.c_uint8 * n).from_buffer_copy(b)
+    out = ctypes.c_uint32()
+    rc = _native.LIB.srmech_klein4_match_count(
+        ca, cb, ctypes.c_uint32(n), ctypes.byref(out))
+    if rc != _native.SRMECH_OK:
+        return None
+    return int(out.value)
+
+
 def _klein4_triality_native(buf: "array", inverse: bool) -> "array":
     """Native order-3 triality relabel over an array('B') buffer → array('B').
     The C uses the SAME forward / inverse 3-cycle tables as the pure path."""
@@ -930,39 +944,72 @@ def klein4_bundle(*vectors, sectors=None, parallel=None, mode="chunk"):
     return HV(_klein4_bundle_core(duals), sectors=4)
 
 
-def klein4_similarity(a, b, *, sectors=None, parallel=None, mode="chunk") -> float:
+def _klein4_check(a, b, mode, op):
+    """Shared validation for the klein4 match-fraction family — coerce both to
+    klein4 buffers, length-match, mode-check; returns ``(a, b, n)``."""
+    a = _as_klein4_buf(a, op)
+    b = _as_klein4_buf(b, op)
+    if len(a) != len(b):
+        raise ValueError(
+            f"hdc.{op}: lengths must match (got {len(a)} vs {len(b)})")
+    if mode not in ("chunk", "chirality"):
+        raise ValueError(
+            f"{op}: mode must be 'chunk' or 'chirality'; got {mode!r}")
+    return a, b, len(a)
+
+
+def _klein4_match_count_core(a, b):
+    """The exact integer count of positions where ``a == b`` (native fast path
+    when present, else pure-Python). The blow-up-free quantity recall ranks on
+    (F868): ``similarity = count / len``."""
+    if len(a) >= 1 and _native.has_native_klein4_bind():
+        c = _klein4_match_count_native(a, b)
+        if c is not None:
+            return c
+    return sum(1 for x, y in zip(a, b) if x == y)
+
+
+def klein4_similarity(a, b, *, sectors=None, parallel=None, mode="chunk") -> "Q":
     """Klein-4 similarity: fraction of positions where ``a == b`` (0 = orthogonal,
-    1 = identical). All four states are informative — there is no skip state.
+    1 = identical) — the exact rational :class:`~srmech.amsc.q.Q`. All four
+    states are informative — there is no skip state.
+
+    The similarity is exactly ``matches / D`` with both integers, so the return
+    is the exact ``Q`` carrier: it compares like a float (``klein4_similarity(a,
+    a) == 1.0``), ranks correctly (``max`` over candidates is exact), and
+    collapses to a decimal only at the display boundary via ``float(s)`` — never
+    a lossy mid-cascade ``float`` (the stay-rational discipline, F868,
+    `[[feedback_stay_rational_collapse_only_at_display]]`). For the raw integer
+    count (the blow-up-free recall-ranking key) use :func:`klein4_match_count`.
 
     The rc13 ``sectors=`` / ``parallel=`` / ``mode=`` flag fans the comparison
     across ≤4 concurrent lanes (default-ON at ≥4 cores) and ALWAYS returns the
-    same float as the serial op. ``mode="chunk"`` (default) splits the
-    positions and sums per-slice match counts (bit-identical); ``mode=
-    "chirality"`` runs the F233 4-sector dispatch and recombines via
-    **sector-0** (value-transparent — XOR-flipping both sides preserves
-    equality, so every sector equals the plain similarity anyway).
+    same value as the serial op. ``mode="chunk"`` (default) splits the positions
+    and sums per-slice match counts (bit-identical); ``mode="chirality"`` runs
+    the F233 4-sector dispatch and recombines via **sector-0** (value-transparent
+    — XOR-flipping both sides preserves equality, so every sector equals the
+    plain similarity anyway).
     """
-    a = _as_klein4_buf(a, "klein4_similarity")
-    b = _as_klein4_buf(b, "klein4_similarity")
-    if len(a) != len(b):
-        raise ValueError(
-            f"hdc.klein4_similarity: lengths must match (got {len(a)} vs {len(b)})"
-        )
-    if mode not in ("chunk", "chirality"):
-        raise ValueError(
-            f"klein4_similarity: mode must be 'chunk' or 'chirality'; got {mode!r}"
-        )
+    a, b, n = _klein4_check(a, b, mode, "klein4_similarity")
     _klein4_resolve_sectors(sectors, parallel)  # validate the lane flags
-    # chunk == serial; chirality recombines via sector-0, which equals the plain
-    # similarity (XOR-flipping both sides preserves equality). So every mode is
-    # the match-fraction; sectors=/parallel= stay accepted value-no-op flags.
-    n = len(a)
-    if n >= 1 and _native.has_native_klein4_bind():        # §53: native fast path
-        sim = _klein4_similarity_native(a, b)
-        if sim is not None:
-            return sim
-    matches = sum(1 for x, y in zip(a, b) if x == y)
-    return float(matches / n)
+    if n == 0:
+        return Q(0, 1)
+    return Q(_klein4_match_count_core(a, b), n)
+
+
+def klein4_match_count(a, b, *, sectors=None, parallel=None, mode="chunk") -> int:
+    """Klein-4 match count: the **raw integer** number of positions where
+    ``a == b`` (UPSTREAM §61; F868). ``klein4_similarity = count / len(a)``.
+
+    This is the float-free, blow-up-free quantity recall ranks on — argmax over
+    integer counts needs no division and no decimal (F868 mechanism #1), so the
+    resonator never has to leave the integers. The C kernel already computes this
+    count before its float divide, so exposing it is additive and C-paired
+    (native ``srmech_klein4_match_count``).
+    """
+    a, b, _n = _klein4_check(a, b, mode, "klein4_match_count")
+    _klein4_resolve_sectors(sectors, parallel)
+    return _klein4_match_count_core(a, b)
 
 
 def klein4_bundle_accumulate(acc, v):
@@ -2174,6 +2221,7 @@ __all__ = [
     "klein4_unbundle",
     "klein4_bundle",
     "klein4_similarity",
+    "klein4_match_count",
     "klein4_bundle_accumulate",
     "klein4_bundle_resolve",
     "cooccurrence_fold",

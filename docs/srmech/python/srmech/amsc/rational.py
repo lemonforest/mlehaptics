@@ -30,6 +30,7 @@ import struct
 from typing import List, Tuple
 
 from . import _native
+from . import cyclic as _cyclic
 
 __all__ = [
     "continued_fraction",
@@ -356,7 +357,12 @@ def exp_series_truncate(numerator: int,
 
 
 def _reduce_rational(num: int, den: int) -> Tuple[int, int]:
-    """Reduce (num, den) to lowest terms with positive denominator."""
+    """Reduce (num, den) to lowest terms with positive denominator.
+
+    The GCD rides the Class-I :func:`srmech.amsc.cyclic.gcd` (srmech-native, no
+    stdlib ``math.gcd``) — now uncapped, so the ~100-digit ``One``-scale
+    numerators reduce exactly (native serves its uint64 domain, big-int Euclid
+    beyond)."""
     if den == 0:
         raise ZeroDivisionError("rational denominator is zero")
     if num == 0:
@@ -364,7 +370,7 @@ def _reduce_rational(num: int, den: int) -> Tuple[int, int]:
     # Class-K magnitude via EXPLICIT sign-branches, never an ALU abs().
     num_mag = num if num >= 0 else -num
     den_mag = den if den >= 0 else -den
-    g = math.gcd(num_mag, den_mag)
+    g = _cyclic.gcd(num_mag, den_mag)
     num //= g
     den //= g
     if den < 0:
