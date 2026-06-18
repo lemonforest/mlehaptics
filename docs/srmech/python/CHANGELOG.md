@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.8.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.8.x entry, -end- immediately before the prior minor (currently [0.7.5rc173], the rc line that graduated as 0.8.0). -->
 <!-- pypi-readme-changelog-start -->
+## [0.8.2] - 2026-06-18
+
+**Production graduation of `0.8.2rc1` to PyPI** (TestPyPI-verified on the shipped wheel: `numpy` not importable, `HAS_NATIVE True`, ABI 3, `tools.total` 310). No code change vs `0.8.2rc1`. The line carries:
+
+- **§57 RBS-LM bigram-gate removal** — `rbs_lm.inference.next_token_distribution` scores the full bounded per-tome atom set with the Class-M resonator over `M` (greedy at `T <= 0`), with no hand-rolled `Counter()` bigram table (the STOP-list contaminant). 100% grounded greedy recall, numpy-absent.
+- **The AST STOP-list ratchet** (`tests/test_stop_list_ratchet.py`) banning `numpy` / `np` / `Counter` / `defaultdict` in srmech source — the source-level twin of a pip numpy ban, forcing the framework-native carriers + cascades.
+
+`tools.total` **310**, ABI **3**, numpy-free, MIT.
+
 ## [0.8.2rc1] - 2026-06-17
 
 **§57 RBS-LM bigram-gate removal + a STOP-list ratchet that bans numpy & `Counter`/`defaultdict` in srmech source.** Two coupled corrections, both enforcing the framework's own cascade-honesty discipline:
