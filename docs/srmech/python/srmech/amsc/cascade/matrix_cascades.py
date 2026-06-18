@@ -43,7 +43,6 @@ there is no ``the NumPy linalg family`` anywhere in the call graph.
 from __future__ import annotations
 
 import itertools
-from collections import Counter
 from typing import Dict, List, Tuple
 
 # numpy-FREE (#564): the matrix factorisations operate on, and return, plain
@@ -334,7 +333,11 @@ def einsum(subscripts: str, *operands):
         for axis, lab in enumerate(labels):
             sizes[lab] = shape[axis]
     if arrow == "":                                   # implicit output (Class B/D)
-        counts = Counter("".join(in_labels))
+        # Plain-dict label tally (the STOP-list forbids hand-rolled Counter()):
+        # implicit einsum output = labels appearing exactly once, sorted.
+        counts: Dict[str, int] = {}
+        for lab in "".join(in_labels):
+            counts[lab] = counts.get(lab, 0) + 1
         outspec = "".join(sorted(lab for lab in counts if counts[lab] == 1))
     summed = [lab for lab in sizes if lab not in outspec]
     out_shape = tuple(sizes[lab] for lab in outspec)
