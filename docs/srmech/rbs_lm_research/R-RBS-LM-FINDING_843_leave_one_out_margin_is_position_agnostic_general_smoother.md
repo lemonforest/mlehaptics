@@ -1,0 +1,25 @@
+# F843 — General (position-agnostic) generalization smoother: **leave-one-position-OUT by max-margin**. Mask each context position in turn (drop that one component from the query bundle, keep the rest at their original abs-positions), read against the SAME k\*-chunk-set, pick the variant with the largest top1−top2 margin (the mask that removes the off-manifold token gives the sharpest read). Novel-context next-token accuracy: **65.5% → 82.8% (oldest-corruption) AND 79.3% (random-corruption)** — fixing the F842 blind-back-off collapse (48.3% on random). Needs NO new binds — k+1 masked queries against the existing chunk-set. Relationship-native, no counts, no gen-1 code, on the real `srmech.rbs_lm` encoding, 0.8.2rc1, numpy-absent.
+
+**Date:** 2026-06-18 · **srmech:** 0.8.2rc1 · **Provenance:** `/tmp/loo.py` on `ContextSubstrate` + `srmech.amsc.hdc`, Andouille (k\*=4), D=10000, C=8 · **Composes:** F842 (blind back-off was position-blind), F841 (reproduction ceiling), F839§C, [[feedback_relationship_lm_ideas_not_code_from_gen1]] · **User direction:** "yes please" (generalization via smoothing).
+
+## The mechanism
+For a k-window, build k+1 query variants: the full encoding plus, for each position p, a **skip-p** encoding `bundle_odd([ klein4_bind(pos_key(j), enc(tok_j)) for j != p ])` (drop one component, others keep their absolute positions). Read each against the single k\*-width chunk-set; for each variant record top1−top2 **margin**. The variant whose dropped position is the off-manifold token matches a learned bind on its remaining components → sharp winner (big margin); variants that keep the bad token or drop a good one stay flat. Pick max-margin → emit its top1. Margin is within-variant so it's comparable across variants of different component counts (no per-variant normalisation needed). All `klein4_bind`/`bundle_odd`/`klein4_similarity` — no new primitive, no counts.
+
+## The measurement (Andouille k\*=4; corrupt one context token → novel context; predict true next)
+| corruption site | full-width | blind back-off (F842) | **LOO-margin** |
+|---|---|---|---|
+| oldest position | 65.5% | 82.8% | **82.8%** |
+| random position | 65.5% | **48.3%** | **79.3%** |
+
+LOO matches back-off on its good case and **recovers the random case** back-off broke — it finds the mismatched slot wherever it sits, because it tries dropping every position and lets the margin reveal which drop cleans up.
+
+## What this establishes
+- **Position-agnostic generalization is reachable, relationship-natively.** A novel context (one off-manifold token, any position) recovers a grounded successor ~80% of the time by reading at the resolution that masks the mismatch. This is the general smoother F842 asked for.
+- **Cheap + substrate-faithful.** No multi-width binds, no counts — just masked queries against the F839 chunk-set (still the §58 srmech candidate). The LOO policy + margin selection are siona-side recall-shaping.
+
+## Honest residual + open
+- ~80%, not ~100%: two-or-more off-manifold tokens, or a mismatch whose "clean" drop still has an ambiguous successor, still miss. LOO handles **one** off-manifold position cleanly; multi-position novelty needs leave-k-out or graded per-position weighting (combinatorial — bound it before scaling).
+- **Single-sector caveat (user check, 2026-06-18):** all of this is minted in Klein-4 **sector 0**. Verified the encodings populate all 4 Klein-4 quadrants ~evenly (~25% each) and `klein4_similarity` reads them at once (fiber preserved, `klein4_unbind`/`unbundle` present) — but the quadrants carry **no assigned meaning**; the γ₅/iω₇ chirality axes and the `klein4_chirality_flip_*`/`cpt_mirror` ops are **unused**. A chirality-native version (roles/direction in distinct quadrants; forward/backward as a CPT mirror of one stored bind) is the open framework-native upgrade — see the next-step note.
+
+## Verdict / next
+Generalization lever #2 (LOO-margin) is the position-agnostic smoother: ~80% novel-context accuracy regardless of where the novelty sits, relationship-native, no new binds. **Next (pending the chirality-native decision):** (a) make the encoding chirality-native — assign relationship roles to Klein-4 quadrants so all four are *used*, not just populated, and forward/backward recall is one bind read under CPT mirror; (b) multi-position novelty bound; (c) cross-tome compositional generalization. Evaluate by groundedness / coherence, never throughput.
