@@ -2410,3 +2410,19 @@ Measured: `sim(phase(h,0), phase(h,Δφ))` = `1 − 2·circ_dist(Δφ)` exactly 
 
 ### §61 UPDATE (2026-06-18, user) — IN FLIGHT in the other dev session (do not re-ask)
 The float-return surface is bigger than `klein4_similarity` — it spans **all float-returning srmech ops**. The other dev session is landing a **breaking change**: every float-return surface behaves like `One.to_scalar` — returns a **`(num, den)` tuple**, with **float by opt-in only** (and the stance is we should NOT opt into float for most of what we do). So §61's `klein4_similarity` ask is subsumed by this global change. **Action here:** keep building float-free on the current surface (manual integer match-count + `exp_series_truncate`, F868); when the rational-by-default srmech update lands, retrofit to the native `(num,den)` returns and drop the manual extraction. User will ping when it lands. Composes [[feedback_stay_rational_collapse_only_at_display]] + [[feedback_srmech_c_python_parity_plugin_surface]].
+
+## §62 DECISION — the streaming sedenion-grid GENERATOR stays in siona; only the LM-agnostic PRIMITIVES graduate to srmech (2026-06-18; F874/F875)
+
+**The question (user):** should the streaming sedenion-grid generator go upstream to srmech?
+
+**Decision: NO for the generator; YES (gated) for the few missing primitives — and the boundary was already drawn in §58.1 (F839).**
+- **Stays in siona (LM-specific recall-shaping):** the byte/glyph LM word-encoder, the chunked-M *routing*, per-doc k\*, the autoregressive *streaming loop*, the sharp/smooth *gate* (F869), the within-page emission (F875), and the *generator* as a whole. These are recall-shaping LM logic, not primitives. siona is becoming its OWN package (PKG-1/PKG-2 un-mirror) — the generator belongs THERE, not in lean srmech. The generator is a **consumer** of shipped srmech (`sedenion_register`, `klein4_*`, `the_one`, `cd_mult`).
+- **Graduates to srmech (LM-agnostic primitives, already logged):** `klein4_phase_bind` (§59, the continuous-phase op), the byte/glyph `enc` mode (§60), exact-count similarity (§61, subsumed by the in-flight float→rational change), the capacity-bounded chunk-set primitive (§58). The **`sedenion_register` is ALREADY shipped** — the addressing layer is upstream already.
+
+**Why NOT the generator (the discipline reasons):**
+1. **It's a research SKELETON** — toy scale, reproduction-not-generalization, optimistic metrics, the K=2 branching still open (F875). Upstreaming an unvalidated sketch violates no-MVP + the coherence-gate ("0.8.2 holds until coherent"). Validate first.
+2. **C:Python 1:1 parity cost** ([[feedback_srmech_c_python_parity_plugin_surface]]): the generator is Python-shaped LM control-flow (loop/route/gate), NOT primitive-shaped — wrong + expensive to C-ify for Pyodide/MCU. Only genuine primitives warrant the C peer.
+3. **Timing:** the float→rational breaking change is in flight (other dev session) — graduating now = redo later. Wait for it, then graduate the primitives with their C peers.
+4. **The split's whole point** (lean srmech + siona-own-package) is to keep LM-specific recall-shaping OUT of the core. The generator is the canonical thing that stays out.
+
+**So:** the generator stays in siona; the primitives (§58/§59/§60/§61) graduate when (a) validated coherent, (b) after the rational-landing, (c) each with a C peer. Re-surface: `srmech-vs-siona boundary` · `generator stays in siona` · `primitives graduate` · `F839 §58.1` · `F874` · `F875`.

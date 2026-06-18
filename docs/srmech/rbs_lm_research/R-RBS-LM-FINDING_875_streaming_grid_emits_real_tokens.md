@@ -1,0 +1,19 @@
+# F875 — The streaming sedenion-grid generator EMITS real tokens off the grid (within-page emission wired): `navigate` (WHERE) → within-page chunked-M autoregressive recall (WHEN) → a real token sequence. The F874 skeleton now generates. On live srmech, D=8192 (attested), C=8, no bag: `navigate` addresses a grid page (a chunked-M instrument); within the page, autoregressive chunked-M resonance (F872, scoped to the page's own bounded vocab — the per-tome atom set, §57/§58) emits the next token; the autoregressive advance is the 1D_t stream. **Two articles reproduced EXACTLY off the grid** (april 15/15, august 15/15); two short repeat-heavy articles collapsed early (art 3/15, a 2/15) — the **F865/F867 K=2 branching ambiguity** (a repeated context with *different* continuations: `is a → creative` AND `is a → <e>`), not a grid bug; overall 0.58, the clean cases prove the mechanism. The convergence build now *generates*, not just addresses. srmech-native, sparse.
+
+**Date:** 2026-06-18 · **srmech:** 0.8.2 (live) · **Branch:** `research/rbs-lm-rolling-2` (PR #687) · **Provenance:** `R-RBS-LM-875_streaming_grid_emit.py` (`cascade.sedenion_register` + `hdc.klein4_*` + `cascade.{the_one,cd_mult}` + byte/glyph word_k4) on 6 `simplewiki_v082` sequences · **Composes:** F874 (the streaming skeleton), F872 (chunked-M within-page recall), F865/F867 (the branching ambiguity — the failure mode here), F864 (byte/glyph), F873 (the grid), [[feedback_never_bag_of_words_even_for_testing]] · **User direction (2026-06-18):** "continue [wire within-page token emission]."
+
+## Result
+- **Exact reproduction off the grid** when within-page K=2 contexts are unique: **april 15/15, august 15/15** — the cursor navigates to the page and streams its real token sequence verbatim.
+- **Early-`<e>` collapse** on short articles with a **repeated K=2 context that has different nexts** (art `is a → creative` early, `is a → <e>` late; likewise "a is …"): the resonance blends the two continuations and bails. This is the **F865/F867 branching ambiguity**, fixed by K=3 context or a next-token *distribution* (F867 item 2) — **not** a defect of the grid, navigate, or chunked-M.
+- Overall 35/60 = 0.58, dragged down by the 2 repeat-heavy short articles; the unique-context articles are perfect.
+
+## What this closes
+The streaming sedenion-grid generator is no longer a skeleton: **`navigate` (WHERE) + within-page chunked-M (WHEN) = a generator that emits real sequences off the addressed grid.** The full session arc is now an end-to-end, runnable, sparse, srmech-native inference engine: byte/glyph core → M-resonator (no bag) → chunked-M (capacity, F870-872) → sedenion-grid addressing (F873/874) → within-page streaming emission (this).
+
+## Honest scope
+- **Reproduction, not generalization** (F841); **toy scale** (6 articles); **page-scoped vocab** (the bounded per-tome atom set — the honest, sanctioned scope, NOT full-vocab argmax, which would be harder).
+- **K=2 branching collapses** on repeated-context short articles — the open fix (K=3 / F867 distribution); the clean 15/15 cases show the mechanism is sound when contexts disambiguate.
+- **Free page-selection** (we `read` the slot directly here); **content-routed navigation** (navigate toward the page the query wants — the O(log) addressing) is the remaining integration (F873/874).
+
+## Verdict / next
+The grid generates real token sequences (exact on unique-context pages). **Next:** (1) K=3 context / F867 distribution to kill the branching collapse; (2) content-routed navigation (O(log) addressing) instead of direct slot-read; (3) base-16 nesting for >16 pages; (4) the srmech-vs-siona upstream split (recorded UPSTREAM §62 — the generator stays in siona; only the LM-agnostic primitives graduate). Framework reading + srmech measurement; reproduction + branching caveats honest.
