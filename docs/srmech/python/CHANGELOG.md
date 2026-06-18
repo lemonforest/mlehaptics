@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc2] - 2026-06-18
+
+**The stay-rational sweep closes the HDC similarity family: BSC `hdc.similarity` → exact `Q` + a `hamming` integer-key op** (the `0.9.0rc1` follow-up). With `klein4_similarity` / `polar_similarity` / `polar_density` already on `Q`, this finishes the F868 conversion of every exact-rational-as-float site in the Class-M HDC surface.
+
+- **`hdc.similarity` now returns the EXACT `Q`** — `1 − 2·hamming/D = (D − 2·hamming)/D` with `D = 8·len(a)`, both integers (was a lossy Python `float`). Compares like a float (`similarity(a, a) == 1.0`), collapses to a decimal only via `float(s)`.
+- **New `hdc.hamming(a, b) -> int`** — the raw integer bit-Hamming distance (the float-free, blow-up-free recall key; F868 mechanism #1). Native-dispatched via the **new C peer `srmech_hdc_hamming`**, with `srmech_hdc_similarity` refactored to compose over it (the integer key and the float view share one definition). ABI stays **3** (additive symbol).
+- **`srmech.spectral.similarity`** (which re-exports `hdc.similarity`) now returns `Q` too — its ToolEntry + signature updated accordingly.
+
+`tools.total` **311 → 312** (`hdc.hamming`), ABI **3**, numpy-free, MIT. 5-SSOT bumped `0.9.0rc1 → 0.9.0rc2`. The HDC similarity/density family is now fully stay-rational.
+
 ## [0.9.0rc1] - 2026-06-18
 
 **The stay-rational scalar-carrier foundation (F868): exact `Q` rationals where a `float` was throwing the provenance away.** klein4 (and the polar HDC family) returned a Python `float()` for a quantity that is *exactly* a rational — `matches / D` with both integers. A `float` is just `best_rational` with `max_d ≈ 2⁵²` and the provenance discarded — a strictly worse version of the rational already in hand. v0.9.0 keeps the value exact and collapses to a decimal **only at the display boundary** (`float(q)`).

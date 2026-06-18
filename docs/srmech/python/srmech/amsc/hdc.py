@@ -244,37 +244,70 @@ def permute(a: bytes, rotate_bits: int) -> bytes:
     return bytes(out)
 
 
-def similarity(a: bytes, b: bytes) -> float:
-    """Normalized BSC similarity in ``[-1, 1]``.
+def _hdc_hamming_native(a: bytes, b: bytes):
+    """Native integer bit-Hamming distance over two byte buffers → int (or
+    ``None`` if the symbol is absent / the call fails). The count the C kernel
+    computes BEFORE the similarity float divide (UPSTREAM §61; F868)."""
+    if not hasattr(_native.LIB, "srmech_hdc_hamming"):
+        return None
+    n = len(a)
+    a_buf = (ctypes.c_uint8 * n).from_buffer_copy(a)
+    b_buf = (ctypes.c_uint8 * n).from_buffer_copy(b)
+    out = ctypes.c_uint32()
+    rc = _native.LIB.srmech_hdc_hamming(a_buf, b_buf, n, ctypes.byref(out))
+    if rc != _native.SRMECH_OK:
+        return None
+    return int(out.value)
 
-    ``similarity(a, b) = 1 - 2 * hamming(a, b) / D`` where ``D = 8 * len(a)``.
+
+def _hdc_hamming_core(a: bytes, b: bytes) -> int:
+    """The exact integer bit-Hamming distance (native fast path when present,
+    else pure-Python popcount). The blow-up-free quantity recall ranks on (F868):
+    ``similarity = 1 - 2 * hamming / D`` with ``D = 8 * len(a)``."""
+    if _native.HAS_NATIVE:
+        h = _hdc_hamming_native(a, b)
+        if h is not None:
+            return h
+    return sum(bin(x ^ y).count("1") for x, y in zip(a, b))
+
+
+def hamming(a: bytes, b: bytes) -> int:
+    """BSC bit-Hamming distance: the **raw integer** count of differing bits
+    (UPSTREAM §61; F868). ``similarity = 1 - 2 * hamming(a, b) / (8 * len(a))``.
+
+    This is the float-free, blow-up-free quantity recall ranks on — argmax over
+    integer distances needs no division and never leaves the integers (F868
+    mechanism #1). The C kernel already computes this count before its float
+    divide, so exposing it is additive and C-paired (native ``srmech_hdc_hamming``).
+
+    Raises:
+        ValueError: lengths differ or are zero.
+    """
+    _check_pair(a, b, "hamming")
+    return _hdc_hamming_core(a, b)
+
+
+def similarity(a: bytes, b: bytes) -> "Q":
+    """Normalized BSC similarity in ``[-1, 1]`` as the EXACT :class:`~srmech.amsc.q.Q`.
+
+    ``similarity(a, b) = 1 - 2 * hamming(a, b) / D = (D - 2*hamming) / D`` where
+    ``D = 8 * len(a)`` — both integers, so the return is the exact ``Q`` carrier:
+    it compares like a float (``similarity(a, a) == 1.0``), ranks correctly, and
+    collapses to a decimal only at the display boundary via ``float(s)`` — never a
+    lossy mid-cascade ``float`` (the stay-rational discipline, F868,
+    `[[feedback_stay_rational_collapse_only_at_display]]`). For the raw integer
+    bit-distance (the blow-up-free recall key) use :func:`hamming`.
+
     +1 = identical; 0 = orthogonal (Hamming distance D/2); -1 = bit-complementary.
-
-    Args:
-        a, b: BSC vectors of identical length.
-
-    Returns:
-        Similarity in ``[-1, 1]``.
 
     Raises:
         ValueError: lengths differ or are zero.
     """
     _check_pair(a, b, "similarity")
     n = len(a)
-    if _native.HAS_NATIVE:
-        out = ctypes.c_double(0.0)
-        a_buf = (ctypes.c_uint8 * n).from_buffer_copy(a)
-        b_buf = (ctypes.c_uint8 * n).from_buffer_copy(b)
-        rc = _native.LIB.srmech_hdc_similarity(
-            a_buf, b_buf, n, ctypes.byref(out)
-        )
-        if rc != _native.SRMECH_OK:
-            raise ValueError(f"srmech_hdc_similarity returned status {rc}")
-        return out.value
-    # Pure-Python fallback.
     D = n * 8
-    hamming = sum(bin(x ^ y).count("1") for x, y in zip(a, b))
-    return 1.0 - 2.0 * hamming / D
+    ham = _hdc_hamming_core(a, b)
+    return Q(D - 2 * ham, D)
 
 
 # ---------------------------------------------------------------------------
@@ -2208,6 +2241,7 @@ __all__ = [
     "bundle_with_ties",
     "permute",
     "similarity",
+    "hamming",
     "polar_random",
     "polar_bind",
     "polar_unbind",

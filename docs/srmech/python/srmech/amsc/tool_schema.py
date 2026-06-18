@@ -2057,10 +2057,23 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.hdc.similarity", owner="srmech", category="hdc",
-            summary="HDC similarity: 1 − 2 hamming(a, b)/D ∈ [−1, 1]. "
-                    "+1 identical, 0 orthogonal, −1 complementary.",
+            summary="HDC similarity: 1 − 2 hamming(a, b)/D ∈ [−1, 1] as the EXACT "
+                    "Q rational (v0.9.0 F868 stay-rational; (D−2·hamming)/D, "
+                    "collapses to a decimal only via float(s)). +1 identical, 0 "
+                    "orthogonal, −1 complementary. Use hamming for the integer key.",
             parameters=(P("a", "bytes", True), P("b", "bytes", True)),
-            returns=R("float", "in [-1, 1]"),
+            returns=R("Q", "exact rational (D−2·hamming)/D in [-1, 1]"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.hamming", owner="srmech", category="hdc",
+            summary="HDC bit-Hamming distance: the RAW INTEGER count of differing "
+                    "bits between two BSC byte vectors (UPSTREAM §61; F868). "
+                    "similarity = 1 − 2·hamming/(8·len(a)). The float-free, "
+                    "blow-up-free recall-ranking key — argmax over integer "
+                    "distances needs no division. Native-dispatched "
+                    "(srmech_hdc_hamming).",
+            parameters=(P("a", "bytes", True), P("b", "bytes", True)),
+            returns=R("int", "count of differing bits in [0, 8·len(a)]"),
         ),
         # ────────────────────────────────────────────────────────────
         # Class M — polar {-1, 0, +1} variant (v0.4.3rc1). Rank-1 Class M
@@ -3375,13 +3388,13 @@ def _register_spectral_runtime_tools() -> None:
         ToolEntry(
             name="srmech.spectral.similarity", owner="srmech",
             category="spectral",
-            summary="HDC similarity ``1 − 2·hamming(a, b) / D`` in "
-                    "[−1, +1]. Class M per Kanerva 2009 §3.2; direct on "
-                    "coefficient bytes. +1 = identical, 0 = orthogonal, "
-                    "−1 = anti-correlated." + PUBLISH_OPT_IN_NOTE,
+            summary="HDC similarity ``1 − 2·hamming(a, b) / D`` in [−1, +1] as "
+                    "the EXACT Q rational (v0.9.0 F868). Class M per Kanerva "
+                    "2009 §3.2; direct on coefficient bytes. +1 = identical, 0 = "
+                    "orthogonal, −1 = anti-correlated." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("a", "SpectralHandle | bytes", True),
                         P("b", "SpectralHandle | bytes", True)),
-            returns=R("float", "in [-1, +1]"),
+            returns=R("Q", "exact rational (D−2·hamming)/D in [-1, +1]"),
         ),
         # ────────────────────────────────────────────────────────────
         # rcN+2 — predict / prediction_error / truncate_sparse
