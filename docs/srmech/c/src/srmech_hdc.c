@@ -666,3 +666,163 @@ srmech_status_t srmech_klein4_cooccurrence_fold(const uint8_t  *codes,
     }
     return SRMECH_OK;
 }
+
+/* ------------------------------------------------------------------ *
+ * Class M — Klein-4 deterministic random (v0.9.0rc6)
+ *
+ * srmech_klein4_random reproduces CPython random.Random(seed).randrange(4),
+ * D times, BYTE-IDENTICAL: an MT19937 generator seeded by init_by_array over
+ * the seed's little-endian uint32 words, each draw = getrandbits(3)
+ * (= genrand_uint32() >> 29) with rejection of values >= 4. This makes the §60
+ * byte/glyph encoder — and its 256-byte vocab + position keys — fully native
+ * (klein4_random was the last python_only_irreducible klein4 op). The seeding,
+ * tempering, and rejection match CPython's _randommodule.c + random.py exactly
+ * (proven byte-for-byte against random.Random in the Python parity test).
+ *
+ * Standalone-complete (no caps, no Python fallback): the 624-word MT state is
+ * stack-resident; the caller supplies the seed key — a C-only / MCU host seeds
+ * from its own entropy and passes the words, exactly as the Python wrapper
+ * splits the seed int. Reference: Matsumoto & Nishimura (1998) "Mersenne
+ * Twister", ACM TOMACS 8(1), 3-30.
+ * ------------------------------------------------------------------ */
+
+#define SRMECH_MT_N        624u
+#define SRMECH_MT_M        397u
+#define SRMECH_MT_MATRIX_A 0x9908b0dfu
+#define SRMECH_MT_UPPER    0x80000000u
+#define SRMECH_MT_LOWER    0x7fffffffu
+
+typedef struct srmech_mt {
+    uint32_t state[SRMECH_MT_N];
+    uint32_t index;
+} srmech_mt_t;
+
+/* init_genrand(s): seed the 624-word state from a single 32-bit value (CPython
+ * _randommodule init_genrand). The non-linear recurrence is integer-exact. */
+static void srmech_mt_init_genrand(srmech_mt_t *st, uint32_t s)
+{
+    uint32_t i;
+    assert(st != NULL);
+    st->state[0] = s;
+    for (i = 1u; i < SRMECH_MT_N; i++) {
+        uint32_t prev = st->state[i - 1u];
+        st->state[i] = 1812433253u * (prev ^ (prev >> 30)) + i;
+    }
+    st->index = SRMECH_MT_N;
+    assert(st->index == SRMECH_MT_N);
+}
+
+/* init_by_array(key, key_length): seed from an array of 32-bit words — the
+ * path random.Random(int) takes after splitting the seed into little-endian
+ * words (CPython init_by_array). Bit-exact non-linear mixing. */
+static void srmech_mt_init_by_array(srmech_mt_t    *st,
+                                    const uint32_t *key,
+                                    size_t          key_length)
+{
+    size_t i = 1u;
+    size_t j = 0u;
+    size_t k;
+    assert(st != NULL && key != NULL);
+    assert(key_length > 0u);
+    srmech_mt_init_genrand(st, 19650218u);
+    k = (SRMECH_MT_N > key_length) ? (size_t)SRMECH_MT_N : key_length;
+    for (; k != 0u; k--) {
+        uint32_t prev = st->state[i - 1u];
+        st->state[i] = (st->state[i] ^ ((prev ^ (prev >> 30)) * 1664525u))
+                       + key[j] + (uint32_t)j;
+        i++; j++;
+        if (i >= SRMECH_MT_N) { st->state[0] = st->state[SRMECH_MT_N - 1u]; i = 1u; }
+        if (j >= key_length) { j = 0u; }
+    }
+    for (k = SRMECH_MT_N - 1u; k != 0u; k--) {
+        uint32_t prev = st->state[i - 1u];
+        st->state[i] = (st->state[i] ^ ((prev ^ (prev >> 30)) * 1566083941u))
+                       - (uint32_t)i;
+        i++;
+        if (i >= SRMECH_MT_N) { st->state[0] = st->state[SRMECH_MT_N - 1u]; i = 1u; }
+    }
+    st->state[0] = 0x80000000u;  /* MSB = 1 assures a non-zero initial array */
+}
+
+/* regenerate(): refresh the full 624-word block (the twist) — split out of
+ * genrand_uint32 to keep both under JPL Rule 4 (≤60 lines). */
+static void srmech_mt_regenerate(srmech_mt_t *st)
+{
+    static const uint32_t mag01[2] = { 0u, SRMECH_MT_MATRIX_A };
+    uint32_t kk;
+    uint32_t *mt;
+    assert(st != NULL);
+    assert(st->index >= SRMECH_MT_N);
+    mt = st->state;
+    for (kk = 0u; kk < SRMECH_MT_N - SRMECH_MT_M; kk++) {
+        uint32_t y = (mt[kk] & SRMECH_MT_UPPER) | (mt[kk + 1u] & SRMECH_MT_LOWER);
+        mt[kk] = mt[kk + SRMECH_MT_M] ^ (y >> 1) ^ mag01[y & 1u];
+    }
+    for (; kk < SRMECH_MT_N - 1u; kk++) {
+        uint32_t y = (mt[kk] & SRMECH_MT_UPPER) | (mt[kk + 1u] & SRMECH_MT_LOWER);
+        mt[kk] = mt[kk - (SRMECH_MT_N - SRMECH_MT_M)] ^ (y >> 1) ^ mag01[y & 1u];
+    }
+    {
+        uint32_t y = (mt[SRMECH_MT_N - 1u] & SRMECH_MT_UPPER) | (mt[0] & SRMECH_MT_LOWER);
+        mt[SRMECH_MT_N - 1u] = mt[SRMECH_MT_M - 1u] ^ (y >> 1) ^ mag01[y & 1u];
+    }
+    st->index = 0u;
+}
+
+/* genrand_uint32(): one tempered 32-bit word (CPython genrand_uint32). */
+static uint32_t srmech_mt_genrand_uint32(srmech_mt_t *st)
+{
+    uint32_t y;
+    assert(st != NULL);
+    assert(st->index <= SRMECH_MT_N);
+    if (st->index >= SRMECH_MT_N) {
+        srmech_mt_regenerate(st);
+    }
+    y = st->state[st->index];
+    st->index++;
+    y ^= (y >> 11);
+    y ^= (y << 7) & 0x9d2c5680u;
+    y ^= (y << 15) & 0xefc60000u;
+    y ^= (y >> 18);
+    return y;
+}
+
+/* below4(): random._randbelow(4) = getrandbits(3) with rejection of >= 4. The
+ * top 3 bits give 0..7; reject 4..7 and redraw. Reject probability 1/2 per
+ * draw; the 64-try bound (JPL Rule 2) is unreachable in practice (2^-64) and
+ * keeps the consumed word-stream byte-identical to CPython. */
+static uint32_t srmech_mt_below4(srmech_mt_t *st)
+{
+    uint32_t tries;
+    assert(st != NULL);
+    assert(st->index <= SRMECH_MT_N);
+    for (tries = 0u; tries < 64u; tries++) {
+        uint32_t r = srmech_mt_genrand_uint32(st) >> 29;  /* getrandbits(3) */
+        if (r < 4u) {
+            return r;
+        }
+    }
+    return 0u;  /* unreachable; statically-bounded fallback for Rule 2 */
+}
+
+srmech_status_t srmech_klein4_random(const uint32_t *key,
+                                     size_t          key_length,
+                                     uint32_t        D,
+                                     uint8_t        *out)
+{
+    srmech_mt_t st;
+    uint32_t i;
+    assert(key != NULL && out != NULL);
+    assert(D > 0u && key_length > 0u);
+    if (key == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (D == 0u || key_length == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    srmech_mt_init_by_array(&st, key, key_length);
+    for (i = 0u; i < D; i++) {
+        out[i] = (uint8_t)srmech_mt_below4(&st);
+    }
+    return SRMECH_OK;
+}

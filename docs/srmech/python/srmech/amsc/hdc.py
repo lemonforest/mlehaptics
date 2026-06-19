@@ -674,6 +674,38 @@ def _majority_buf(arrs) -> "array":
     return out
 
 
+def _seed_to_le_words(seed: int):
+    """The seed's little-endian uint32 words — exactly what CPython's
+    ``random_seed`` feeds to ``init_by_array`` (CPython takes the magnitude; ``0``
+    → a single ``0`` word). The magnitude is a Class-K pin-slot sign-branch at the
+    zero boundary + Class-C sign re-application — never ``abs()``. Pure integer
+    arithmetic (Class N), no float."""
+    s = int(seed)
+    n = s if s >= 0 else -s   # Class-K branch at the zero pin-slot, then negate
+    nbits = n.bit_length()
+    nwords = 1 if nbits == 0 else (nbits + 31) // 32
+    return [(n >> (32 * i)) & 0xFFFFFFFF for i in range(nwords)]
+
+
+def _klein4_random_native(D: int, seed: int):
+    """Native MT19937 draw of ``D`` Klein-4 codes for an integer ``seed`` —
+    byte-identical to ``random.Random(seed)``'s ``randrange(4)`` stream — or
+    ``None`` when the C symbol is absent / the call fails (pure-Python is the
+    COMPLETE alternative, not a rescue). The C seeds via ``init_by_array`` over
+    the seed's little-endian uint32 words; ``out`` is ``D`` bytes in {0,1,2,3}."""
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_klein4_random")):
+        return None
+    words = _seed_to_le_words(seed)
+    key = (ctypes.c_uint32 * len(words))(*words)
+    out = (ctypes.c_uint8 * D)()
+    rc = _native.LIB.srmech_klein4_random(
+        key, len(words), ctypes.c_uint32(D), out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return array("B", out)
+
+
 def klein4_random(D: int, rng=None, seed: "int | None" = None):
     """Random Klein-4 hypervector of dimension ``D`` with elements in {0,1,2,3}.
 
@@ -688,6 +720,14 @@ def klein4_random(D: int, rng=None, seed: "int | None" = None):
             DETERMINISTIC vector (srmech's bit-exact / attestation discipline).
             **Precedence:** an explicit ``rng`` wins over ``seed`` if both are
             supplied.
+
+    rc6 (§60 / F864): the deterministic integer-``seed`` path dispatches to the
+    standalone-C MT19937 ``srmech_klein4_random`` when native is present — a
+    byte-for-byte reproduction of CPython's ``random.Random(seed).randrange(4)``
+    (the last ``python_only_irreducible`` klein4 op earns its C twin, so the §60
+    byte/glyph encoder + the 256-byte vocab + position keys are now fully
+    native). Pure-Python ``random.Random`` is the complete alternative for a
+    no-C host / a caller-supplied ``rng`` / the urandom ``seed=None`` path.
     """
     if D <= 0:
         raise ValueError("hdc.klein4_random: D must be positive")
@@ -697,6 +737,10 @@ def klein4_random(D: int, rng=None, seed: "int | None" = None):
         # name in THIS module). The default (seed / None) path below is
         # numpy-free (stdlib ``random``) — the §22 numpy-optional core.
         return HV(array("B", (int(x) for x in rng.integers(0, 4, size=D))), sectors=4)
+    if rng is None and isinstance(seed, int) and not isinstance(seed, bool):
+        buf = _klein4_random_native(D, seed)
+        if buf is not None:
+            return HV(buf, sectors=4)
     r = rng if rng is not None else _random.Random(seed)
     return HV(array("B", (r.randrange(4) for _ in range(D))), sectors=4)
 
@@ -1188,9 +1232,10 @@ def klein4_chunk_resolve(chunks, key, candidates):
 # (it hashes raw UTF-8 bytes, the universal-script alphabet). Composes
 # klein4_random (the 256-byte vocab + position keys) + klein4_bind + klein4_
 # bundle — no new primitive class. The per-byte / per-position vector minting
-# rides the python_only ``klein4_random`` (stdlib-MT determinism by design); a
-# standalone-C MT19937 to make the whole minting+encode native is the tracked
-# follow-up. numpy-free; carrier = one HV.
+# rides ``klein4_random``, which is now native (rc6 §60: the standalone-C
+# MT19937 ``srmech_klein4_random`` reproduces ``random.Random(seed).randrange(4)``
+# byte-for-byte), so the whole minting + encode is C-dispatched. numpy-free;
+# carrier = one HV.
 
 #: Seed namespace for position role-keys — disjoint from the 0..255 byte vocab.
 _KLEIN4_POS_SEED_BASE = 0x10000

@@ -58,7 +58,10 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 # rc67: symmetric_eigendecompose stopped being Python-only-irreducible — it now
 # delegates to the c_dispatched hermitian_eigendecompose + phase-canon, so it
 # moved to composition_of_c. python_only_irreducible 108 -> 107.
-CEIL_PYTHON_ONLY_IRREDUCIBLE = 107
+# rc6 (0.9.0, §60 / F864): klein4_random earns its standalone-C MT19937 twin
+# srmech_klein4_random (byte-identical to random.Random(seed).randrange(4)) and
+# dispatches to it -> c_dispatched. python_only_irreducible 107 -> 106.
+CEIL_PYTHON_ONLY_IRREDUCIBLE = 106
 # rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
 # rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.

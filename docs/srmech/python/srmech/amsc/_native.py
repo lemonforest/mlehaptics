@@ -954,6 +954,20 @@ def _bind(lib: ctypes.CDLL) -> None:
             ]
             lib.srmech_klein4_chunk_resolve.restype = ctypes.c_int
 
+        # §60 / F864: int srmech_klein4_random(const uint32_t *key,
+        #     size_t key_length, uint32_t D, uint8_t *out) — MT19937 seeded by
+        # init_by_array(key); each draw byte-identical to random.Random(seed)
+        # .randrange(4). NEW in rc6 — guard with its own hasattr so a pre-rc6
+        # klein4-capable lib doesn't AttributeError here.
+        if hasattr(lib, "srmech_klein4_random"):
+            lib.srmech_klein4_random.argtypes = [
+                ctypes.POINTER(ctypes.c_uint32),
+                ctypes.c_size_t,
+                ctypes.c_uint32,
+                ctypes.POINTER(ctypes.c_uint8),
+            ]
+            lib.srmech_klein4_random.restype = ctypes.c_int
+
         # int srmech_klein4_bundle(const uint8_t * const *vectors,
         #                          uint32_t n_vectors, uint32_t n,
         #                          uint8_t *out)
