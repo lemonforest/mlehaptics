@@ -676,9 +676,12 @@ def _majority_buf(arrs) -> "array":
 
 def _seed_to_le_words(seed: int):
     """The seed's little-endian uint32 words — exactly what CPython's
-    ``random_seed`` feeds to ``init_by_array`` (absolute value; ``0`` → a single
-    ``0`` word). Pure integer arithmetic (Class N), no float."""
-    n = abs(int(seed))
+    ``random_seed`` feeds to ``init_by_array`` (CPython takes the magnitude; ``0``
+    → a single ``0`` word). The magnitude is a Class-K pin-slot sign-branch at the
+    zero boundary + Class-C sign re-application — never ``abs()``. Pure integer
+    arithmetic (Class N), no float."""
+    s = int(seed)
+    n = s if s >= 0 else -s   # Class-K branch at the zero pin-slot, then negate
     nbits = n.bit_length()
     nwords = 1 if nbits == 0 else (nbits + 31) // 32
     return [(n >> (32 * i)) & 0xFFFFFFFF for i in range(nwords)]
