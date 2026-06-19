@@ -2426,3 +2426,19 @@ The float-return surface is bigger than `klein4_similarity` — it spans **all f
 4. **The split's whole point** (lean srmech + siona-own-package) is to keep LM-specific recall-shaping OUT of the core. The generator is the canonical thing that stays out.
 
 **So:** the generator stays in siona; the primitives (§58/§59/§60/§61) graduate when (a) validated coherent, (b) after the rational-landing, (c) each with a C peer. Re-surface: `srmech-vs-siona boundary` · `generator stays in siona` · `primitives graduate` · `F839 §58.1` · `F874` · `F875`.
+
+## §63 VERIFICATION — srmech 0.9.0rc6 (TestPyPI): the fraction-carrier change = the `Q` carrier; §58–§61 all SHIPPED; one open item (transcendentals still float) (2026-06-18, user-requested introspection)
+
+Pulled `srmech==0.9.0rc6` into a clean numpy-absent venv (native ABI 3, dispatching). Introspected the fraction-carrier change across the surface:
+
+**The carrier:** new `srmech.amsc.q.Q` — `numerator`/`denominator`, `as_pair()` (the (num,den) tuple), `as_float()` (float **opt-in**), `from_float`/`from_pair`. This IS the `One.to_scalar`-style "(num,den) + opt-in float" carrier the user specified.
+
+**Converted to `Q` (the genuine-rational SIMILARITY surfaces):** `hdc.klein4_similarity` → Q, `hdc.polar_similarity` → Q, `spectral.similarity` → Q (sig `-> 'Q'`). Already-exact (correct as-is): `klein4_match_count`→int, `cascade.magnitude`→int, `cascade.cd_norm_sq`→Fraction, `best_rational`→tuple.
+
+**Everything flagged in §58–§61 SHIPPED (the "primitives graduate" plan of §62 is largely done upstream):**
+- **§58** chunk-set → `klein4_chunk_bundle(vectors, capacity)` + `klein4_chunk_resolve(chunks, key, candidates)` (+ `klein4_bundle_accumulate/resolve`).
+- **§59** continuous-phase op → `klein4_phase_bind(hv, frac, *, elem=2, width=None)` + `klein4_phase_key` — **exactly the F861 design** (frac population-code, γ₅ elem=2, half-width default).
+- **§60** byte/glyph enc → `klein4_encode_bytes(data, D)`.
+- **§61** exact-count similarity → `klein4_match_count(a,b,...) -> int` + `klein4_similarity` → Q (= matches/D, exact). (`sedenion_register` was already shipped pre-rc6.)
+
+**THE ONE OPEN ITEM (did we miss anything):** the **transcendentals still return bare `float`, not `Q`** — `rational.{exp, sqrt, atan2, hypot, sin, cos, tan}` all → float. For `exp/sin/cos/atan/log1p` the exact-rational form exists as the separate `*_series_truncate(num,den,terms) -> (num,den) tuple`; **but `sqrt`/`hypot` have NO public exact companion (float only).** So the float→Q conversion covered the rational-valued similarity surfaces but NOT the transcendental convenience fns. **Open question for the maintainer (user's call):** is this intentional (transcendental = the float opt-in; exact = `*_series_truncate`) or a gap — i.e., should `rational.exp` etc. default to a `Q` (a bounded-rational `best_rational`/series approximation, per F868 "a float is best_rational with provenance discarded") with `as_float()` opt-in, to match `klein4_similarity`? And `sqrt`/`hypot` arguably need an exact (`Q`/series) public form at all. **Verification caveat:** read from introspecting actual return types — the rc6 CHANGELOG wasn't locatable in the wheel, so the *intended* scope is unconfirmed; flagging for the maintainer, not asserting a bug. Re-surface: `0.9.0rc6` · `Q carrier` · `as_pair/as_float` · `transcendentals still float` · `sqrt/hypot no exact form` · `F868` · `§61`.
