@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc5"
-#define SRMECH_VERSION       "0.9.0rc5"
+#define SRMECH_VERSION_PRE   "rc6"
+#define SRMECH_VERSION       "0.9.0rc6"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1713,6 +1713,18 @@ srmech_status_t srmech_klein4_chunk_resolve(const uint8_t *chunks,
                                             const uint8_t *candidates,
                                             uint32_t       n_candidates,
                                             uint32_t      *out_counts);
+
+/* klein4_random(key, key_length, D): D draws of CPython random.Random(seed)
+ * .randrange(4), BYTE-IDENTICAL. `key` is the seed's little-endian uint32 words
+ * (the Python wrapper splits the seed int; a C-only / MCU host passes its own
+ * entropy words). Fills `out` with D codes in {0,1,2,3} via MT19937 +
+ * getrandbits(3) rejection. Standalone-complete: the 624-word state is
+ * stack-resident — no malloc, no compiled-in cap (bound is the caller's `out`).
+ * Additive symbol — no ABI bump. */
+srmech_status_t srmech_klein4_random(const uint32_t *key,
+                                     size_t          key_length,
+                                     uint32_t        D,
+                                     uint8_t        *out);
 
 /* klein4_match_count(a, b): EXACT integer count of positions where a[i] ==
  * b[i] (the F868 stay-rational recall-ranking key before the float divide;

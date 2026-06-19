@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc6] - 2026-06-18
+
+**The §60 follow-up lands: a standalone-C MT19937 for `klein4_random`, closing the last python-only klein4 op.** rc5 shipped `klein4_encode_bytes` honestly noting that its per-byte / per-position vector *minting* still rode the python-only `klein4_random` (stdlib Mersenne-Twister determinism), with a standalone-C port flagged as the tracked follow-up. This rc delivers it — so the whole §60 minting + encode is now C-dispatched.
+
+- **New C peer `srmech_klein4_random(key, key_length, D, out)`** — reproduces CPython `random.Random(seed).randrange(4)` **BYTE-FOR-BYTE**, `D` times: MT19937 seeded by `init_by_array` over the seed's little-endian uint32 words (`init_genrand` / `init_by_array` / `genrand_uint32` exactly as `_randommodule.c`), each draw = `getrandbits(3)` (`genrand_uint32() >> 29`) with rejection of values ≥ 4. Standalone-complete — the 624-word state is stack-resident (no malloc, no compiled-in cap, bound is the caller's `out`); a C-only / MCU host passes its own entropy words. JPL-clean (each helper < 60 lines, ≥ 2 asserts, bounded rejection loop). Reference: Matsumoto & Nishimura (1998).
+- **`hdc.klein4_random` now dispatches** its deterministic integer-`seed` path to the C twin when native is present (the Python wrapper splits the seed int into LE uint32 words via `_seed_to_le_words`); pure-Python `random.Random` stays the **complete alternative** for a no-C host / a caller-supplied `rng` / the urandom `seed=None` path — not a try-native-except-retry rescue.
+- **Rosetta:** `hdc.klein4_random` moves **`python_only_irreducible → c_dispatched`**, lowering the down-only debt ceiling **107 → 106** (`#928`). This was the last python-only klein4 op; `klein4_encode_bytes` (composition_of_c) now reaches native all the way down.
+
+No new public op (C peer + reclassification only): `tools.total` stays **317**. ABI **3** (additive C symbol — genome-style, the klein4 C is bound via `hasattr` in `_native.py`). numpy-free, MIT. 5-SSOT bumped `0.9.0rc5 → 0.9.0rc6`.
+
 ## [0.9.0rc5] - 2026-06-18
 
 **Third and last of the UPSTREAM §62 graduations: the byte/glyph-level Klein-4 word encoder (§60 / F864), scaffolded fresh into srmech.** This closes the §62 list (rc3 = §59 continuous-phase, rc4 = §58 chunk-set, rc5 = §60 byte encoder).
