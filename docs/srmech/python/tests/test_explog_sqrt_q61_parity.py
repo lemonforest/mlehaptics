@@ -56,12 +56,18 @@ native_sqrt = pytest.mark.skipif(
 
 # ---- 1. C ↔ Q61 bit-exact (forcing the pure-Python path via monkeypatch) ----
 
+# rc7: ``R.{exp,log,sqrt}`` return an exact ``Q``; the native ``*_c`` helpers
+# return a ``float``. The C↔Q61 "bit-exact" claim is about the FLOAT PROJECTION
+# of the exact Q being byte-identical to the native double, so collapse the Q
+# with ``float()`` at the comparison (``Q == <native float>`` is an exact
+# cross-multiply and the exact rational != the rounded double by design).
+
 @native_explog
 def test_exp_native_bit_exact_with_q61(monkeypatch):
     native = {x: _native.exp_c(x) for x in _EXP_ARGS}
     monkeypatch.setattr(_native, "has_native_explog", lambda: False)
     for x in _EXP_ARGS:
-        assert R.exp(x) == native[x], (
+        assert float(R.exp(x)) == native[x], (
             f"exp({x!r}) C={_bits(native[x])} Q61={_bits(R.exp(x))}")
 
 
@@ -70,7 +76,7 @@ def test_log_native_bit_exact_with_q61(monkeypatch):
     native = {x: _native.log_c(x) for x in _POS_ARGS}
     monkeypatch.setattr(_native, "has_native_explog", lambda: False)
     for x in _POS_ARGS:
-        assert R.log(x) == native[x], (
+        assert float(R.log(x)) == native[x], (
             f"log({x!r}) C={_bits(native[x])} Q61={_bits(R.log(x))}")
 
 
@@ -79,7 +85,7 @@ def test_sqrt_native_bit_exact_with_q61(monkeypatch):
     native = {x: _native.rational_sqrt_c(x) for x in _POS_ARGS}
     monkeypatch.setattr(_native, "has_native_sqrt", lambda: False)
     for x in _POS_ARGS:
-        assert R.sqrt(x) == native[x], (
+        assert float(R.sqrt(x)) == native[x], (
             f"sqrt({x!r}) C={_bits(native[x])} Q61={_bits(R.sqrt(x))}")
 
 
