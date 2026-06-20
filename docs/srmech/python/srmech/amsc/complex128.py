@@ -22,6 +22,8 @@ boundary collapse back to the builtin.
 
 from __future__ import annotations
 
+import numbers
+
 from . import rational as _rational
 
 __all__ = ["Complex128"]
@@ -147,6 +149,15 @@ class Complex128:
     def __pos__(self) -> "Complex128":
         return Complex128(self._z)
 
+    def __pow__(self, other):
+        """``z ** w`` — the builtin float-complex power (this is the float boundary
+        carrier; an integer ``w`` is repeated multiply, a general ``w`` rides the
+        builtin ``complex`` exp/log). Part of the :class:`numbers.Complex` contract."""
+        return self._combine(other, lambda a, b: a ** b)
+
+    def __rpow__(self, other):
+        return self._combine(other, lambda a, b: b ** a)
+
     # ── complex-specific ────────────────────────────────────────────────────
     def conjugate(self) -> "Complex128":
         """Complex conjugate — Class-K sign-flip on the imaginary part (never an
@@ -159,8 +170,19 @@ class Complex128:
         re, im = self._z.real, self._z.imag
         return re * re + im * im
 
-    def __abs__(self) -> float:
+    def __abs__(self):
         """Modulus ``|z| = √(re² + im²)`` via the srmech Class-N
         :func:`srmech.amsc.rational.sqrt` (not ``math.hypot``/``math.sqrt``).
-        Genuinely irrational → the float boundary."""
+        Genuinely irrational → the exact-rational :class:`~srmech.amsc.q.Q` boundary
+        (itself a :class:`numbers.Real`, so ``abs(z)`` is a Real, as the
+        :class:`numbers.Complex` contract requires)."""
         return _rational.sqrt(self.norm_sq())
+
+
+# ``Complex128`` implements the full :class:`numbers.Complex` surface — ``real`` /
+# ``imag`` / ``conjugate`` / ``__complex__`` / ``__abs__`` / ``__bool__`` / ``==``
+# / the arithmetic ring incl. ``__pow__`` / ``__rpow__`` — so it IS a genuine
+# ``numbers.Complex`` (hence ``numbers.Number``). Registering makes
+# ``isinstance(z, numbers.Complex)`` True, the scalar-carrier peer of ``Q``'s
+# ``numbers.Rational`` registration.
+numbers.Complex.register(Complex128)
