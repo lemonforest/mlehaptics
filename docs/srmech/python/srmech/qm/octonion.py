@@ -396,7 +396,7 @@ def octonion_norm(x: Sequence[float]) -> float:
     # Reduce to a SCALAR float first (cascade.magnitude raises on a sequence),
     # then the Class K pin-slot magnitude, then the square root. No abs().
     sum_sq = sum(xi * xi for xi in x)
-    return _rsqrt(_magnitude(sum_sq))
+    return float(_rsqrt(_magnitude(sum_sq)))
 
 
 __all__ = [

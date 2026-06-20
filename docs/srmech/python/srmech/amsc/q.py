@@ -236,3 +236,20 @@ class Q:
         # Class-K magnitude via explicit sign-branch, never an ALU abs() on the
         # value (`[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`).
         return Q(self._n if self._n >= 0 else -self._n, self._d)
+
+    def __pow__(self, exp):
+        """Exact INTEGER power — the EXACT rational ``(num/den)**exp``, staying in
+        the integer ALU (rides the Class-N :func:`~srmech.amsc.rational.rational_pow_uint`,
+        native-dispatched). A non-integer exponent returns ``NotImplemented`` (it
+        is not an exact rational — use ``rational.sqrt`` / ``exp(log)`` for those).
+        This lets the common ``cos(x)**2`` / ``r**3`` idioms flow the cascade as
+        ``Q`` instead of rotating to the FPU early."""
+        if not isinstance(exp, int) or isinstance(exp, bool):
+            return NotImplemented
+        if exp == 0:
+            return Q(1, 1)
+        if exp > 0:
+            return Q.from_pair(_rational.rational_pow_uint((self._n, self._d), exp))
+        if self._n == 0:
+            raise ZeroDivisionError("Q: 0 cannot be raised to a negative power")
+        return Q.from_pair(_rational.rational_pow_uint((self._d, self._n), -exp))

@@ -181,7 +181,10 @@ def su3_gell_mann_matrices() -> Tuple["Mat", ...]:
     # λ^8: diagonal hypercharge-like; the 1/√3 normaliser is the Class-N
     # rational.sqrt (libm-free).
     lam.append(_scale(
-        1.0 / _srn.sqrt(3.0),
+        # 1/√3 enters the float-complex generator Mat here — the exact-Q root
+        # rotates to float at this carrier boundary (``_scale`` does ``s·m[i,j]``
+        # with ``m[i,j]`` complex; ``Q·complex`` would not combine).
+        1.0 / float(_srn.sqrt(3.0)),
         Mat.from_rows([[1, 0, 0], [0, 1, 0], [0, 0, -2]], is_complex=True),
     ))
     return tuple(lam)
@@ -223,8 +226,8 @@ def su3_structure_constants() -> List[List[List[float]]]:
         (2, 3, 4, 0.5),
         (0, 4, 5, -0.5),
         (2, 5, 6, -0.5),
-        (3, 4, 7, _srn.sqrt(3.0) / 2.0),
-        (5, 6, 7, _srn.sqrt(3.0) / 2.0),
+        (3, 4, 7, float(_srn.sqrt(3.0)) / 2.0),    # √3/2 structure constant → float
+        (5, 6, 7, float(_srn.sqrt(3.0)) / 2.0),    # (feeds _scale(f, complex-Mat))
     ]
     for a, b, c, val in seed_values:
         # Fill via total antisymmetry: f[π(abc)] = sign(π) val.

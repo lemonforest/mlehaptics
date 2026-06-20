@@ -45,17 +45,21 @@ def _dct_matrix(n: int, dct_type: int = 2) -> List[List[float]]:
     list-of-lists. Each entry routes through the Class-N ``rational.cos``
     cascade (pi-free range reduction); value-faithful to the ``np.cos`` matrix
     to ~1e-9. ``op`` applies the ``2.0 *`` / normalisation scaling.
+
+    ``rational.cos`` returns an exact ``Q``; the basis is a real FPU transform
+    matrix (it transforms the signal numerically and downstream ``jpeg`` quantises
+    with ``round``), so collapse each entry to ``float`` here — the last-mile rotate.
     """
     if dct_type == 2:
         # DCT-II: M[k][j] = cos(pi * k * (2j + 1) / (2N))
         return [
-            [_srn.cos(_PI * k * (2.0 * j + 1.0) / (2.0 * n)) for j in range(n)]
+            [float(_srn.cos(_PI * k * (2.0 * j + 1.0) / (2.0 * n))) for j in range(n)]
             for k in range(n)
         ]
     if dct_type == 3:
         # DCT-III: M[k][j] = cos(pi * (2k + 1) * j / (2N))  (inverse of DCT-II)
         return [
-            [_srn.cos(_PI * (2.0 * k + 1.0) * j / (2.0 * n)) for j in range(n)]
+            [float(_srn.cos(_PI * (2.0 * k + 1.0) * j / (2.0 * n))) for j in range(n)]
             for k in range(n)
         ]
     raise ValueError(f"dct_type must be 2 or 3; got {dct_type}")

@@ -111,27 +111,34 @@ def test_exp_log_round_trip():
 
 def test_exp_edges():
     assert R.exp(0.0) == 1.0
-    assert math.isnan(R.exp(float("nan")))
-    assert R.exp(float("inf")) == float("inf")
-    assert R.exp(float("-inf")) == 0.0
-    assert R.exp(1000.0) == float("inf")          # overflow gate
-    assert R.exp(-1000.0) == 0.0                  # underflow gate
+    # rc7 stay-rational: a non-finite x raises (Q is the finite-rational carrier).
+    for bad in (float("nan"), float("inf"), float("-inf")):
+        with pytest.raises(ValueError):
+            R.exp(bad)
+    # No DBL_MAX overflow/underflow gate (that was a float artefact): a finite x
+    # gives the EXACT (huge / tiny) finite rational, never inf / 0. Check the
+    # exact (num, den) directly so no float() projection overflows.
+    big_n, big_d = R.exp(1000.0).as_pair()
+    assert big_n > big_d > 0                        # exp(1000) > 1, exact rational
+    tiny_n, tiny_d = R.exp(-1000.0).as_pair()
+    assert 0 < tiny_n and tiny_d > tiny_n           # 0 < exp(-1000) < 1, exact rational
 
 
 def test_log_edges():
     assert R.log(1.0) == 0.0
-    assert math.isnan(R.log(float("nan")))
-    assert math.isnan(R.log(-1.0))                # domain
-    assert R.log(0.0) == float("-inf")
-    assert R.log(float("inf")) == float("inf")
+    # rc7: x <= 0 and non-finite raise (none of -inf / nan is a rational).
+    for bad in (float("nan"), -1.0, 0.0, float("inf"), float("-inf")):
+        with pytest.raises(ValueError):
+            R.log(bad)
 
 
 def test_sqrt_edges():
     assert R.sqrt(0.0) == 0.0
     assert R.sqrt(4.0) == 2.0
-    assert R.sqrt(float("inf")) == float("inf")
-    with pytest.raises(ValueError):
-        R.sqrt(-1.0)
+    # rc7: negative AND non-finite raise (Q is the finite-rational carrier).
+    for bad in (-1.0, float("inf"), float("-inf"), float("nan")):
+        with pytest.raises(ValueError):
+            R.sqrt(bad)
 
 
 def test_sqrt_precision_bits_reference_is_separate():

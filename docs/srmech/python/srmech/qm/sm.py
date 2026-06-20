@@ -92,7 +92,7 @@ def higgs_vev(mu_squared: float, lam: float) -> float:
         raise ValueError(f"higgs_vev: mu_squared must be > 0; got {mu_squared}")
     if lam <= 0:
         raise ValueError(f"higgs_vev: lam must be > 0; got {lam}")
-    return _srn.sqrt(mu_squared / (2.0 * lam))
+    return float(_srn.sqrt(mu_squared / (2.0 * lam)))
 
 
 # ----------------------------------------------------------------------
@@ -116,7 +116,7 @@ def weak_mixing_angle(g: float, g_prime: float) -> float:
     """
     if g <= 0:
         raise ValueError(f"weak_mixing_angle: g must be > 0; got {g}")
-    return _srn.atan2(g_prime, g)
+    return float(_srn.atan2(g_prime, g))
 
 
 def w_boson_mass(g: float, vev: float) -> float:
@@ -159,7 +159,7 @@ def z_boson_mass(g: float, g_prime: float, vev: float) -> float:
             f"z_boson_mass: g, g_prime, vev must all be > 0; got "
             f"g={g}, g_prime={g_prime}, vev={vev}"
         )
-    return vev * _srn.sqrt(g * g + g_prime * g_prime) / 2.0
+    return float(vev * _srn.sqrt(g * g + g_prime * g_prime) / 2.0)
 
 
 def weinberg_relation_residual(g: float, g_prime: float, vev: float) -> float:
@@ -176,7 +176,7 @@ def weinberg_relation_residual(g: float, g_prime: float, vev: float) -> float:
     theta_W = weak_mixing_angle(g, g_prime)
     # Class-K magnitude via explicit sign-branch (no abs()); scalar real.
     _d = MW - MZ * _srn.cos(theta_W)
-    return _d if _d >= 0.0 else -_d
+    return float(_d if _d >= 0.0 else -_d)    # FPU last-mile (scalar observable)
 
 
 def electroweak_summary(g: float, g_prime: float, vev: float) -> dict:
@@ -192,8 +192,8 @@ def electroweak_summary(g: float, g_prime: float, vev: float) -> dict:
         "M_W": w_boson_mass(g, vev),
         "M_Z": z_boson_mass(g, g_prime, vev),
         "theta_W_rad": theta_W,
-        "cos_theta_W": _srn.cos(theta_W),
-        "sin_theta_W": _srn.sin(theta_W),
+        "cos_theta_W": float(_srn.cos(theta_W)),
+        "sin_theta_W": float(_srn.sin(theta_W)),
         "weinberg_residual": weinberg_relation_residual(g, g_prime, vev),
     }
 
@@ -221,7 +221,7 @@ def fermion_mass_from_yukawa(yukawa: float, vev: float) -> float:
     """
     if vev <= 0:
         raise ValueError(f"fermion_mass_from_yukawa: vev must be > 0; got {vev}")
-    return yukawa * vev / _srn.sqrt(2.0)
+    return float(yukawa * vev / _srn.sqrt(2.0))
 
 
 # ----------------------------------------------------------------------
@@ -262,24 +262,32 @@ def ckm_matrix(
     c12, s12 = _srn.cos(theta_12), _srn.sin(theta_12)
     c13, s13 = _srn.cos(theta_13), _srn.sin(theta_13)
     c23, s23 = _srn.cos(theta_23), _srn.sin(theta_23)
-    phase = _srn.cexp(delta_cp)        # e^{iδ} scalar Euler cascade (Class-N)
-    inv_phase = _srn.cexp(-delta_cp)   # e^{-iδ}
+    phase = _srn.cexp(delta_cp)        # e^{iδ} scalar Euler cascade (Class-N) — complex
+    inv_phase = _srn.cexp(-delta_cp)   # e^{-iδ}                               — complex
     # numpy-FREE entrywise build of exact Class-N scalar cascades, wrapped in
-    # the numpy-free Mat carrier (v0.7.5rc116, #564).
+    # the numpy-free Mat carrier (v0.7.5rc116, #564). 0.9.0rc7 (stay-rational):
+    # the trig ``c_ij``/``s_ij`` are exact ``Q``. The PURE-REAL entries stay
+    # ``Q`` until ``Mat.from_rows`` collapses them (``complex(Q)``). The
+    # PHASE-BEARING entries enter the Complex128 carrier here, so their ``Q``
+    # coefficient rotates to ``float`` at this ALU→FPU boundary — ``float ± complex``
+    # promotes, but ``Q ± complex`` does not (``Q`` is a custom type ``complex``
+    # cannot combine with). This IS the last-mile rotate for those entries.
+    s13_e_neg = float(s13) * inv_phase     # s13·e^{-iδ} (complex)
+    s13_e_pos = float(s13) * phase         # s13·e^{+iδ} (complex)
     return Mat.from_rows([
         [
             c12 * c13,
             s12 * c13,
-            s13 * inv_phase,
+            s13_e_neg,
         ],
         [
-            -s12 * c23 - c12 * s23 * s13 * phase,
-            c12 * c23 - s12 * s23 * s13 * phase,
+            -float(s12 * c23) - float(c12 * s23) * s13_e_pos,
+            float(c12 * c23) - float(s12 * s23) * s13_e_pos,
             s23 * c13,
         ],
         [
-            s12 * s23 - c12 * c23 * s13 * phase,
-            -c12 * s23 - s12 * c23 * s13 * phase,
+            float(s12 * s23) - float(c12 * c23) * s13_e_pos,
+            -float(c12 * s23) - float(s12 * c23) * s13_e_pos,
             c23 * c13,
         ],
     ], is_complex=True)

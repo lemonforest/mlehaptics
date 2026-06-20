@@ -1082,6 +1082,8 @@ def cos(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> "Q":
     x = float(x)
     if not math.isfinite(x):
         raise ValueError("cos: x must be finite (Q is the finite-rational carrier)")
+    if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
+        return _q(_native.cos_q61_c(x), _Q61_ONE)
     ok, octant, r = _q61_reduce(x)
     if not ok:
         raise ValueError(f"cos: |x| too large for the Q61 octant reduction; got {x}")
@@ -1100,6 +1102,8 @@ def sin(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> "Q":
     x = float(x)
     if not math.isfinite(x):
         raise ValueError("sin: x must be finite (Q is the finite-rational carrier)")
+    if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
+        return _q(_native.sin_q61_c(x), _Q61_ONE)
     ok, octant, r = _q61_reduce(x)
     if not ok:
         raise ValueError(f"sin: |x| too large for the Q61 octant reduction; got {x}")
@@ -1132,6 +1136,8 @@ def atan(x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> "Q":
     x = float(x)
     if x != x:                                     # NaN
         raise ValueError("atan: x is NaN (not a rational)")
+    if _native.has_native_trans_q61():          # native handles ±Inf via the COT band
+        return _q(_native.atan_q61_c(x), _Q61_ONE)
     if math.isinf(x):                              # atan(±Inf) = ±π/2 (exact Q)
         v = _Q61_HALF_PI_Q61 if x > 0.0 else -_Q61_HALF_PI_Q61
         return _q(v, _Q61_ONE)
@@ -1267,6 +1273,9 @@ def exp(x: float, *, terms: int = _EXP_FLOAT_TERMS) -> "Q":
     x = float(x)
     if not math.isfinite(x):
         raise ValueError("exp: x must be finite (Q is the finite-rational carrier)")
+    if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
+        core, n = _native.exp_q61_c(x)
+        return _q(core << n, _Q61_ONE) if n >= 0 else _q(core, _Q61_ONE << (-n))
     tn = x * _EXPLOG_INV_LN2
     n = int(tn + (0.5 if tn >= 0.0 else -0.5))     # round half away from zero
     r = (x - n * _EXPLOG_LN2_HI) - n * _EXPLOG_LN2_LO
@@ -1295,6 +1304,9 @@ def log(x: float, *, terms: int = _EXPLOG_LOG_TERMS) -> "Q":
         raise ValueError("log: x must be finite (Q is the finite-rational carrier)")
     if x <= 0.0:
         raise ValueError(f"log domain: x must be > 0 (log 0 = −∞ is not rational); got {x}")
+    if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
+        logm, e = _native.log_q61_c(x)
+        return _q(logm + e * _Q61_LN2, _Q61_ONE)
     bits = struct.unpack("<Q", struct.pack("<d", x))[0]
     raw = (bits >> 52) & 0x7FF
     frac = bits & ((1 << 52) - 1)
@@ -1401,6 +1413,9 @@ def sqrt(x, *, precision_bits: int = None) -> "Q":
     if precision_bits is not None:                # exact rational at N frac bits
         xn, xd = x.as_integer_ratio()
         return _sqrt_rational(xn, xd, precision_bits)
+    if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
+        root, p = _native.sqrt_q61_c(x)
+        return _q(root << p, 1) if p >= 0 else _q(root, 1 << (-p))
     bits = struct.unpack("<Q", struct.pack("<d", x))[0]
     raw = (bits >> 52) & 0x7FF
     frac = bits & ((1 << 52) - 1)

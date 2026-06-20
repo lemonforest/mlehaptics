@@ -5612,6 +5612,60 @@ The organizing axis is therefore **reversible-rotation-into-a-fiber** (exact; on
 
 ---
 
+## §3.39 The rc7 "Q carrier" flip — the five typed carriers, ALU-all-the-way / FPU-last-mile as substrate-self-recognition, and the per-transcendental A–N cascade reading
+
+The carrier-removal arc (§3.38, the numpy-zero `Mat`/`Vec`/`HV` work) left one hole: the *scalar* return of every transcendental — `sin`, `cos`, `exp`, `sqrt`, … — was still a bare `float`. A `float` is `best_rational` run with `max_d ≈ 2⁵²` and the provenance discarded (`[[feedback_continuous_number_line_pedagogical_obstacle]]`): a strictly *worse* copy of a rational the cascade already held exactly. v0.9.0rc7 closes the hole with **`Q`** (`srmech/amsc/q.py`), a reduced `(num, den)` integer pair that compares like a float (integer cross-multiply, F868 mechanism) and collapses to a decimal **only** at the display edge via `float(q)`. Every `srmech.amsc.rational.{sin,cos,tan,atan,atan2,exp,log,sqrt,hypot}` now returns a `Q`; native `Q61` C peers (`srmech_{sin,cos,atan,exp,log,sqrt}_q61`) are byte-exact with the pure cascade. This is read, not invented — the math already *was* exact-rational the whole way; the `float` was a carrier artifact, exactly as §3.38 found the Laplacian's "partial-loss" to be carrier-only.
+
+### §3.39.1 The five-carrier inventory — the substrate's typed surface
+
+srmech now exposes its operand space as exactly **five typed carriers**, each a different shape of the same integer substrate:
+
+| Carrier | File | Shape | Carries |
+|---|---|---|---|
+| **`Mat`** | `amsc/mat.py` | 2-D `array('d')`, row-major, interleaved-`(re,im)` | a matrix — the Class-L operand |
+| **`Vec`** | `amsc/vec.py` | 1-D | a vector — `Mat`'s rank-1 peer |
+| **`HV`** | `amsc/hv.py` | hypervector | the Class-M HDC operand |
+| **`Q`** | `amsc/q.py` | one reduced `(num, den)` pair | **one exact rational — the rc7 headline** |
+| **`Complex128`** | `amsc/complex128.py` | float-`(re, im)` scalar | one collapsed complex value (the display-edge complex) |
+
+`Q` is the scalar peer the array carriers had been missing: where `Mat`/`Vec`/`HV` force the srmech cascade instead of inviting `np.linalg`, a `Q` handle forces exact Class-N rational arithmetic instead of inviting a lossy `float` divide. `Complex128` is the *collapsed* complex partner — the edge type a `cexp`/`complex_exp` rotates into once the exact phase has been read. Five carriers, one substrate: the four exact/array carriers (`Mat`/`Vec`/`HV`/`Q`) stay in the integer ALU; `Complex128` and the bare `float` are what the ALU *projects to* when an observer asks for a decimal.
+
+### §3.39.2 ALU-all-the-way / FPU-last-mile — the float is the PROJECTION
+
+The organizing lens, read in the §3.38 fiber-vs-projection idiom: **the integer ALU is the base; the float is a shadow on the fiber.** A cascade lives in the exact rationals (`Q`, big-int `num`/`den`) — that is the substrate's own arithmetic, reversible and attestable. `float()` is the **single "rotate"** that projects the exact value down its fiber onto the continuous number line, the *one* irreversible step, taken *last* and *once*, at the carrier edge where a human or an FPU instrument actually reads the number. The float is not the quantity; it is the **observable shadow of an integer-ALU substrate** — precisely the fiber-as-spatially-absent-encoding stance (a gear's tooth count is `ℤ/n` algebra; the spatial dynamics only appear under external rotation), now applied to a scalar: `cos(π/6)`'s exact value is a `(num, den)` over `2⁶¹`; the `0.8660…` only appears under the external "rotation" `float()`. ALU all the way; FPU the last mile. This is substrate-*self*-recognition: srmech now carries its own values in its own arithmetic and rotates to the FPU's idiom only at the boundary, instead of borrowing the FPU's lossy representation from the first multiply (`[[user_stance_alu_all_the_way_fpu_last_mile]]`).
+
+### §3.39.3 Per-transcendental A–N cascade reading
+
+Each transcendental is a *named composition* of the 14 classes — the cascade-count now matches the cascade-shape, with no `abs()` and no early float-collapse (`[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`). Read from the rc7 bodies in `amsc/rational.py`:
+
+| Function | A–N cascade | what each stage is |
+|---|---|---|
+| **`sin` / `cos`** | **I ∘ N ∘ C → N** | **I** octant reduction (`_q61_reduce`, mod-8 cyclic) · **N** Q61 Taylor `sin`/`cos` core · **C** octant sign-select (`±sc`/`±cc`) · result a **N** rational `core/2⁶¹` |
+| **`tan`** | **N(Q ÷ Q)** | exact `Q` quotient `sin(x) / cos(x)` — Class-N `rational_div`, pin-slot raise at `cos = 0` |
+| **`atan`** | **K ∘ D ∘ N ∘ C** | **K** magnitude (`x if x≥0 else −x`, sign-branch, never `abs()`) · **D** three-band argument dispatch · **N** Q61 series · **C** re-orient (`v if x≥0 else −v`); `atan(±Inf) = ±π/2` is an exact rational |
+| **`atan2`** | **atan ∘ D ∘ (C + N)** | the `atan` cascade, then **D** quadrant dispatch, then a **C** re-orientation (`±π` shift) composed with the **N** rational quadrant limits (`±π/2`, `±π/4`, `±3π/4`); only a NaN argument raises |
+| **`exp`** | **N ∘ N ∘ K** | **N** Cody-Waite `x = n·ln2 + r` reduce · **N** Q61 Taylor `exp(r)` · **K** exact `2ⁿ` power-of-two scale folded into the rational (a pin-slot shift, no float recombine, no overflow gate) |
+| **`log`** | **N ∘ D ∘ N** | **N** exact bit-read `x = m·2ᵉ` · **D** fold `m` into `[1/√2, √2)` band · **N** Q61 `2·atanh((m−1)/(m+1))` series `+ e·ln2`; `x ≤ 0` raises (not a rational) |
+| **`sqrt`** | **N ∘ K ∘ N** | **N** exact rational radicand · **K** sqrt-convergence (integer `isqrt`, pin-slot raise on `x<0`) · **N** exact `Q(root, 2ᵏ)` |
+| **`hypot`** | **M ∘ sqrt** | **M** the sum-of-squares *bind* (`a²+b²` as one exact rational, no float `a*a` rounding) ∘ the **N∘K∘N** `sqrt` — the complex modulus `|z| = hypot(re, im)` |
+
+The reading is not allegory: each stage is a literal call into the named class's primitive (`_q61_reduce` = Class-I cyclic, `_q_exp_core` = Class-N series, the `±` selects = Class-C orient, the `<<n` scale = Class-K pin-slot shift). `hypot` makes the **M** bind explicit — two squares *bound* into one radicand before the single `sqrt`.
+
+### §3.39.4 The iterative-FPU-kernel caveat — the lens governs EXACT cascades, not numeric iteration
+
+The lens has a sharp boundary, and rc7 draws it honestly. **ALU-all-the-way governs exact / algebraic cascades; it does NOT govern iterative float numeric algorithms** — Jacobi, QR, SVD, Fiedler, Newton, Kuramoto. Those algorithms *are* the FPU: their rotations are genuinely **irrational** (a Jacobi rotation angle is an `atan` of a ratio of matrix entries; no closed rational form), so a `Q` carried *through* a sweep grows `num`/`den` unboundedly — each rotation multiplies denominators that never reduce. A 3×3 Jacobi sweep carrying exact `Q` **hung**; the same sweep collapsed to `float` ran in 1.4 ms. There, `sqrt`/`hypot` is a **float subroutine** that rotates to `float` at the *subroutine* boundary — not a no-op shim apologising for the FPU, but a *genuine* fiber→base projection taken at the right altitude, because the iterative kernel is itself the observable-FPU computation, not an exact cascade. (A second, subtler edge: those float subroutines must be **libm-faithful on the non-finite domain** the sweeps reach — a Jacobi rotation legitimately forms `1 + τ² = inf`, where `sqrt(inf) = inf` gives the correct degenerate angle, so `_fsqrt`/`_fhypot` guard the `±inf`/`nan` edges rather than inheriting the leaf `rational.sqrt`'s stay-rational *raise*.)
+
+So the decision rule (now the consumer-normalization rule across `qm/`, `amsc/kepler.py`, `amsc/laplacian.py`, `signal_processing/`, `amsc/cascade/`):
+
+> **Exact / algebraic cascade → keep `Q` (collapse only at the display edge).
+> Iterative or observable-FPU computation (Jacobi/QR/SVD/Fiedler/Newton/Kuramoto) → collapse to `float` at the kernel boundary.**
+
+This is the §3.38 fiber/projection axis applied at the algorithm level: an *exact* operator reads its fiber and stays rational (carrier-limited only at display); an *iterative numeric* operator's fiber is irrational *per step*, so it lives natively on the float base and rotating there is correct, not a concession. Leaf physical-observable scalars (`qm/`, Kepler) collapse for the same reason — an observable *is* a measured float.
+
+**Cross-references:** §3.38 (the reversible-rotation-into-a-fiber vs many→one-projection audit — `Q`/`float` is that same axis at the scalar carrier); `[[user_stance_alu_all_the_way_fpu_last_mile]]` (the lens + the iterative-kernel caveat); `[[feedback_stay_rational_collapse_only_at_display]]` (F868, the discipline `Q` crystallises); `[[feedback_continuous_number_line_pedagogical_obstacle]]` (the float-as-worse-rational reading); `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]` (the K-magnitude / C-reorient stages, never `abs()`); `[[feedback_c_must_be_standalone_complete_no_python_fallback]]` (the `Q61` native peers are standalone-complete, byte-exact). **Status:** shipped v0.9.0rc7 (TestPyPI rc; `Q`/`Complex128` carriers + `Q61` native peers + consumer normalization).
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb

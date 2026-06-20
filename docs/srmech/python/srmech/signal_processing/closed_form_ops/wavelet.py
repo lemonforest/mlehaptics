@@ -69,7 +69,7 @@ def op(signal, *, levels: int = 3, wavelet: str = "haar", D: int = 8192):
         current = [float(x) for x in signal]
     except TypeError as exc:  # nested sequence -> not 1-D
         raise ValueError("wavelet expects a 1-D real signal") from exc
-    inv_sqrt2 = 1.0 / _srn.sqrt(2.0)
+    inv_sqrt2 = 1.0 / float(_srn.sqrt(2.0))   # float scale for the recursive DWT
     details = []
     for _ in range(levels):
         n = len(current)

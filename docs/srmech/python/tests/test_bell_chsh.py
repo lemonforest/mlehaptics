@@ -213,7 +213,7 @@ def test_chsh_operator_algebraic_reduction():
     """
     B = bell.chsh_operator()
     M = bell.chsh_pauli_combination()
-    root2 = _rsqrt(2.0)  # Class-N scalar root (same path bell.py uses)
+    root2 = float(_rsqrt(2.0))  # Class-N scalar root → float (scales a complex Mat)
     assert _max_abs_combo((1, B), (-root2, M)) < 1e-14
 
 
@@ -367,7 +367,7 @@ def test_chsh_pauli_combination_uses_canonical_pauli_matrices():
 def test_chsh_operator_uses_canonical_pauli_matrices():
     """The full CHSH operator uses :func:`srmech.qm.spin.pauli_matrices`."""
     sigma_x, _sy, sigma_z = spin.pauli_matrices()
-    inv_sqrt2 = 1.0 / _rsqrt(2.0)  # same Class-N path bell.chsh_operator uses
+    inv_sqrt2 = 1.0 / float(_rsqrt(2.0))  # Class-N root → float (scales a complex Mat)
     A0, A1 = sigma_z, sigma_x
     B0 = _combine((inv_sqrt2, sigma_z), (inv_sqrt2, sigma_x))   # inv·(σz+σx)
     B1 = _combine((inv_sqrt2, sigma_z), (-inv_sqrt2, sigma_x))  # inv·(σz−σx)

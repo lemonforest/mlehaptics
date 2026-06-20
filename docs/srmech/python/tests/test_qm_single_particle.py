@@ -45,12 +45,16 @@ def _hermitian(n: int, seed: int) -> "Mat":
 
 
 def _vec_norm(v) -> float:
-    """‖v‖₂ via the Class-N sqrt cascade (numpy-free)."""
+    """‖v‖₂ via the Class-N sqrt cascade (numpy-free).
+
+    ``rational.sqrt`` returns an exact ``Q``; collapse to ``float`` here (the
+    norm divides a complex vector in ``_unit`` — ``complex / Q`` has no interop
+    by design, so float is the last-mile rotate)."""
     s = 0.0
     for x in v:
         z = complex(x)
         s += z.real * z.real + z.imag * z.imag
-    return _srn.sqrt(s)
+    return float(_srn.sqrt(s))
 
 
 def _unit(n: int, seed: int):

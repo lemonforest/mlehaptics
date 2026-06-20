@@ -129,7 +129,7 @@ def op(
     # Transition (prev_state, input) -> next_state where the input becomes
     # the most-recent memory entry and the oldest is dropped.
     log_neg_inf = -1e18
-    log_A = _srn.log(float(A))  # Class-N log cascade (not libm)
+    log_A = float(_srn.log(float(A)))  # Class-N log cascade (not libm) → float log-prob
 
     # Trans matrix: A_log[prev][next] = log P(next | prev) — equally likely
     # over the A possible input symbols, but only A out of n_states are
@@ -156,7 +156,7 @@ def op(
             B_log[s][t] = -(e.real * e.real + e.imag * e.imag)
 
     # Initial state log-prob: uniform.
-    pi_log = [-_srn.log(float(n_states))] * n_states
+    pi_log = [-float(_srn.log(float(n_states)))] * n_states
 
     # Use viterbi with observations as time indices [0..T-1] and an emission
     # matrix indexed by [state][t]. viterbi expects B[state][obs_symbol]; we

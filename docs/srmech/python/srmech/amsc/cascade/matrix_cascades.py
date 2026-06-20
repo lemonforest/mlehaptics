@@ -66,8 +66,15 @@ __all__ = ["qr", "svd", "lstsq", "einsum", "eigvals", "char_poly", "eigvals_exac
 
 
 def _modulus(z: complex) -> float:
-    """|z| via the Class-N hypot cascade (no ``abs()`` — discipline)."""
-    return _rhypot(float(z.real), float(z.imag))
+    """|z| via the Class-N hypot cascade (no ``abs()`` — discipline).
+
+    0.9.0rc7: ``rational.hypot`` now returns an exact ``Q``; this magnitude
+    feeds the iterative FPU kernels below (Householder QR, the eigenvalue
+    iteration), which converge by float round-off, so the root rotates to
+    float at this subroutine boundary (a ``Q`` carried through the sweep would
+    grow num/den unboundedly). The exact ``Q`` magnitude is the one EXACT
+    consumers call directly; this is its float projection."""
+    return float(_rhypot(float(z.real), float(z.imag)))
 
 
 # ── numpy-free nested-list helpers (shape / index / build / collapse) ──────────
@@ -115,7 +122,9 @@ def _norm2(v: List[complex]) -> float:
     for vi in v:
         z = complex(vi)
         sq += z.real * z.real + z.imag * z.imag
-    return _rsqrt(sq) if sq > 0.0 else 0.0
+    # 0.9.0rc7: float-project the exact-Q root — this norm feeds the iterative
+    # Householder QR (a float kernel; see ``_modulus``).
+    return float(_rsqrt(sq)) if sq > 0.0 else 0.0
 
 
 def qr(a, *, mode: str = "reduced") -> Tuple["_Mat", "_Mat"]:

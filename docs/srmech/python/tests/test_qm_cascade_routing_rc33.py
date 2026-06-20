@@ -67,7 +67,8 @@ def _hermitian_mat(n: int, seed: int) -> "Mat":
 def _unit_vec(n: int, seed: int):
     g = _lcg(seed + 777)
     v = [complex(next(g), next(g)) for _ in range(n)]
-    nrm = _srn.sqrt(sum(x.real * x.real + x.imag * x.imag for x in v))
+    # rational.sqrt → exact Q; collapse to float (complex / Q has no interop).
+    nrm = float(_srn.sqrt(sum(x.real * x.real + x.imag * x.imag for x in v)))
     return [x / nrm for x in v]
 
 

@@ -542,7 +542,10 @@ def kuramoto_step(
             coupling_sum = 0.0
             for j in range(n):
                 coupling_sum += _rsin(float(theta_list[j]) - theta_i)
-            out.append(theta_i + h * (float(omega_list[i]) + inv_n * coupling_sum))
+            # Kuramoto phase step — float to match the native peer + List[float]
+            # contract (the integrator is an FPU dynamical system; the sin
+            # coupling flowed Q, collapsing at this per-step boundary).
+            out.append(float(theta_i + h * (float(omega_list[i]) + inv_n * coupling_sum)))
         return out
 
     # ── generalised path: validate + dispatch (native or Python) ──────────
@@ -601,7 +604,7 @@ def kuramoto_step(
         f = float(omega_list[i]) + s
         if psi is not None:
             f += ps[i] * _rsin(psi[i] - theta_i)
-        out2.append(theta_i + h * f)
+        out2.append(float(theta_i + h * f))    # float Kuramoto step (see above)
     return out2
 
 

@@ -48,9 +48,12 @@ def _ccos(a):
 
     Replaces ``np.cos`` on the window-angle array — routes each angle through
     ``srmech.amsc.rational.cos`` (pi-free range reduction); no ``np.cos`` /
-    ``math.cos`` in the call graph. Returns a plain ``list`` of ``float``.
+    ``math.cos`` in the call graph. ``rational.cos`` returns an exact ``Q``; the
+    window is a real FPU array that multiplies the complex signal segments, so
+    collapse to ``float`` here (``Q × complex`` has no interop by design).
+    Returns a plain ``list`` of ``float``.
     """
-    return [_srn.cos(float(v)) for v in a]
+    return [float(_srn.cos(float(v))) for v in a]
 
 
 def _coherence(s_xy, s_xx, s_yy):
