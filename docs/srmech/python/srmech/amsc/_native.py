@@ -1404,6 +1404,19 @@ def _bind(lib: ctypes.CDLL) -> None:
             getattr(lib, _scalar_trans).argtypes = [
                 ctypes.c_double, ctypes.POINTER(ctypes.c_double)]
             getattr(lib, _scalar_trans).restype = ctypes.c_int
+    # 0.9.0rc7 stay-rational Q61 peers (F868). One-output (sin/cos/atan) return
+    # the int64 Q61 value; two-output (exp/log/sqrt) return (mantissa, exponent).
+    for _q1 in ("srmech_sin_q61", "srmech_cos_q61", "srmech_atan_q61"):
+        if hasattr(lib, _q1):
+            getattr(lib, _q1).argtypes = [
+                ctypes.c_double, ctypes.POINTER(ctypes.c_int64)]
+            getattr(lib, _q1).restype = ctypes.c_int
+    for _q2 in ("srmech_exp_q61", "srmech_log_q61", "srmech_sqrt_q61"):
+        if hasattr(lib, _q2):
+            getattr(lib, _q2).argtypes = [
+                ctypes.c_double, ctypes.POINTER(ctypes.c_int64),
+                ctypes.POINTER(ctypes.c_int64)]
+            getattr(lib, _q2).restype = ctypes.c_int
     if hasattr(lib, "srmech_atan2"):
         lib.srmech_atan2.argtypes = [
             ctypes.c_double, ctypes.c_double, ctypes.POINTER(ctypes.c_double)]
@@ -1731,6 +1744,70 @@ def log_c(x: float) -> float:
 
 def rational_sqrt_c(x: float) -> float:
     return _scalar_trans_c("srmech_rational_sqrt", x)
+
+
+# ----------------------------------------------------------------------
+# 0.9.0rc7 stay-rational Q61 dispatch (F868). These return the EXACT int64 Q61
+# pieces the C cascade computes BEFORE its float projection, so the Python
+# ``rational.{sin,cos,atan,exp,log,sqrt}`` dispatch to native AND keep the full
+# 61-bit rational (``Q``), not a 52-bit double promoted back. A non-finite /
+# out-of-Q61-range argument -> SRMECH_ERR_BAD_INPUT -> ValueError (the pure-Python
+# peer raises identically). Byte-exact with the pure cascade (10047/10047 checks).
+# ----------------------------------------------------------------------
+def has_native_trans_q61() -> bool:
+    """True iff the C Q61 transcendental peers are loaded + bound (0.9.0rc7+)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_sin_q61")
+                and hasattr(LIB, "srmech_exp_q61")
+                and hasattr(LIB, "srmech_sqrt_q61"))
+
+
+def _q61_one_out(symbol: str, x: float) -> int:
+    out = ctypes.c_int64()
+    rc = getattr(LIB, symbol)(ctypes.c_double(x), ctypes.byref(out))
+    if rc != SRMECH_OK:
+        raise ValueError(f"{symbol}: argument has no Q61 rational (status {rc})")
+    return out.value
+
+
+def _q61_two_out(symbol: str, x: float):
+    a = ctypes.c_int64()
+    b = ctypes.c_int64()
+    rc = getattr(LIB, symbol)(
+        ctypes.c_double(x), ctypes.byref(a), ctypes.byref(b))
+    if rc != SRMECH_OK:
+        raise ValueError(f"{symbol}: argument has no Q61 rational (status {rc})")
+    return a.value, b.value
+
+
+def sin_q61_c(x: float) -> int:
+    """``sin(x)`` numerator over ``2**61`` (int64)."""
+    return _q61_one_out("srmech_sin_q61", x)
+
+
+def cos_q61_c(x: float) -> int:
+    """``cos(x)`` numerator over ``2**61`` (int64)."""
+    return _q61_one_out("srmech_cos_q61", x)
+
+
+def atan_q61_c(x: float) -> int:
+    """``atan(x)`` numerator over ``2**61`` (int64)."""
+    return _q61_one_out("srmech_atan_q61", x)
+
+
+def exp_q61_c(x: float):
+    """``exp(x) = (core / 2**61) * 2**n`` -> ``(core, n)`` (both int64)."""
+    return _q61_two_out("srmech_exp_q61", x)
+
+
+def log_q61_c(x: float):
+    """``log(x) = (logm + e*ln2) / 2**61`` -> ``(logm, e)`` (both int64)."""
+    return _q61_two_out("srmech_log_q61", x)
+
+
+def sqrt_q61_c(x: float):
+    """``sqrt(x) = root * 2**p`` -> ``(root, p)`` (both int64)."""
+    return _q61_two_out("srmech_sqrt_q61", x)
 
 
 def atan2_c(y: float, x: float) -> float:

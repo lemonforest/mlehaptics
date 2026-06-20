@@ -44,11 +44,14 @@ _PI = float(_srn.pi_cascade_digits(30))
 def _ccos(a):
     """Elementwise substrate-native cosine (Class-N rational cascade), numpy-free.
 
-    Takes an iterable of angles, returns a plain ``list`` of ``rational.cos``
-    values (pi-free range reduction). Replaces ``np.cos`` on the Hamming-window
-    angle array; the rc33 trig-routing test references this helper directly.
+    Takes an iterable of angles, returns a plain ``list`` of ``float``
+    (``rational.cos`` returns an exact ``Q``; the Hamming-window array is a real
+    FPU coefficient bank that multiplies signal taps, so collapse to ``float``
+    here — ``Q × complex`` has no interop by design). Replaces ``np.cos`` on the
+    Hamming-window angle array; the rc33 trig-routing test references this
+    helper directly.
     """
-    return [_srn.cos(float(v)) for v in a]
+    return [float(_srn.cos(float(v))) for v in a]
 
 
 def _sinc(x: float) -> float:
@@ -61,7 +64,7 @@ def _sinc(x: float) -> float:
     if x == 0.0:
         return 1.0
     px = _PI * x
-    return _srn.sin(px) / px
+    return float(_srn.sin(px)) / px       # exact Q → float (FPU filter tap)
 
 
 def op(

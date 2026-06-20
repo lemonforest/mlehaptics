@@ -33,8 +33,9 @@ Surface
   trig — range-reduce against the π-cascade, then project the exact rational
   to float): :func:`cos`, :func:`sin`, :func:`tan`, :func:`atan`,
   :func:`atan2`;
-* **float-projection exp / complex-exp** (Euler ``e^(iθ)`` = Class-N trig ∘
-  Class-C i-rotation): :func:`exp`, :func:`cexp`, :func:`complex_exp`;
+* **float-projection exp / log / complex-exp** (Euler ``e^(iθ)`` = Class-N trig ∘
+  Class-C i-rotation; ``log`` = Class-N atanh cascade): :func:`exp`, :func:`log`,
+  :func:`cexp`, :func:`complex_exp`;
 * **float-projection roots** (integer-Newton scaled-bignum sqrt, Class-N∘K):
   :func:`sqrt`, :func:`hypot`;
 * **rational arithmetic**: :func:`rational_add`, :func:`rational_mul`,
@@ -69,6 +70,7 @@ from srmech.amsc.rational import (
     atan,
     atan2,
     exp,
+    log,
     cexp,
     complex_exp,
     sqrt,
@@ -92,6 +94,7 @@ __all__ = [
     "atan",
     "atan2",
     "exp",
+    "log",
     "cexp",
     "complex_exp",
     "sqrt",

@@ -54,9 +54,12 @@ def _csin(a):
 
     Replaces ``np.sin`` on the cosine-taper angle array — routes each angle
     through ``srmech.amsc.rational.sin`` (pi-free range reduction); no ``np.sin``
-    / ``math.sin`` in the call graph. Returns a plain ``list`` of ``float``.
+    / ``math.sin`` in the call graph. ``rational.sin`` returns an exact ``Q``;
+    the taper bank is a real FPU windowing array that multiplies the complex
+    signal, so collapse to ``float`` here (the last-mile rotate — ``Q × complex``
+    has no interop by design). Returns a plain ``list`` of ``float``.
     """
-    return [_srn.sin(float(v)) for v in a]
+    return [float(_srn.sin(float(v))) for v in a]
 
 
 def op(
@@ -99,7 +102,9 @@ def op(
         tapers = []
         for k in range(n_tapers):
             raw = _csin([_PI * (k + 1) * (i + 1) / (n + 1) for i in range(n)])
-            norm = _srn.sqrt(sum(v * v for v in raw))  # ℓ² norm via Class-N sqrt
+            # ℓ² norm via Class-N sqrt → exact Q; collapse to float so the taper
+            # bank (which multiplies the complex signal below) stays real-FPU.
+            norm = float(_srn.sqrt(sum(v * v for v in raw)))
             tapers.append([v / norm for v in raw])
     acc = [0.0] * n
     for k in range(n_tapers):

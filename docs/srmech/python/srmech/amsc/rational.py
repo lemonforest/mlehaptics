@@ -987,8 +987,66 @@ def _q61_atan_core(m: int) -> int:
 
 def _q61_to_double(q61: int) -> float:
     """Project Q61 → float: ``float(v) / float(2**61)`` (matches the C
-    two-step ``(double)q61 / (double)SRMECH_TRIG_ONE`` cast exactly)."""
+    two-step ``(double)q61 / (double)SRMECH_TRIG_ONE`` cast exactly).
+
+    This is the OLD display-boundary collapse. As of 0.9.0rc7 the public
+    transcendentals stay rational (:class:`~srmech.amsc.q.Q`) and only collapse
+    when the caller asks (``float(q)``); this helper is retained for the
+    internal float-reduction arithmetic (Cody-Waite ``r``, atan band edges)
+    where a transient double is legitimate, never as the public return.
+    """
     return float(q61) / float(_Q61_ONE)
+
+
+# ── stay-rational Q factory + recombination constants (0.9.0rc7) ──────────
+# F868 stay-rational ([[feedback_stay_rational_collapse_only_at_display]]):
+# the transcendentals compute an EXACT Q61 rational (the int64 cascade value
+# over 2**61, or a clean power-of-two-scaled form for exp/sqrt) and the OLD
+# code threw ~9 bits away into a float at ``_q61_to_double``. The public
+# ``sin``/``cos``/``tan``/``atan``/``atan2``/``exp``/``log``/``sqrt``/``hypot``
+# now return that exact rational as a ``Q``; ``float(q)`` reproduces (and
+# slightly betters) the old float. ``Q`` is imported lazily to break the
+# ``q.py`` ↔ ``rational.py`` import cycle (q imports rational at load).
+_Q_CLS = None
+
+
+def _q(num: int, den: int):
+    """Build a :class:`~srmech.amsc.q.Q` from an exact ``(num, den)`` integer
+    pair (deferred import — ``q`` imports this module). The Q reducer rides the
+    Class-N Euclidean GCD, so power-of-two denominators stay powers of two."""
+    global _Q_CLS
+    if _Q_CLS is None:
+        from .q import Q as _Q_imported
+        _Q_CLS = _Q_imported
+    return _Q_CLS(num, den)
+
+
+# ln(2) in Q61 (denominator 2**61), DERIVED from the Class-N log1p cascade
+# (no math.log): ln2 = −log1p(−1/2) (|−1/2|<1 → fast), quantised to Q61. The
+# e·ln2 recombine in ``log`` stays in this Q61 model (matching ``pi/2`` =
+# ``_Q61_HALF_PI_Q61``), so ``log`` returns a clean ``Q(v, 2**61)``.
+_Q61_LN2 = 1598288580650331957                   # round(ln2 * 2**61)
+
+
+def _atan_nonneg_q61(m: float) -> int:
+    """``atan(m)`` for ``m >= 0`` as a Q61 INTEGER (the stay-rational peer of
+    :func:`_q61_atan_nonneg`): the three-band reduction accumulates in Q61
+    ints (``pi/2`` = ``_Q61_HALF_PI_Q61``, ``pi/4`` = that ``// 2``), so the
+    result is exact over ``2**61``. The band edges + ``1/m`` / ``(m−1)/(m+1)``
+    fold the float argument (inherent — the input is a float); the SERIES and
+    the recombine are integer."""
+    assert m >= 0.0, "atan magnitude must be non-negative (Class-K)"
+    if m <= _Q61_TAN_PI8:
+        mq = int(m * float(_Q61_ONE) + 0.5)
+        return _q61_atan_core(mq)
+    if m >= _Q61_COT_PI8:                          # atan(m) = pi/2 − atan(1/m)
+        mq = int((1.0 / m) * float(_Q61_ONE) + 0.5)
+        return _Q61_HALF_PI_Q61 - _q61_atan_core(mq)
+    u = (m - 1.0) / (m + 1.0)                       # middle band: pi/4 + atan(u)
+    neg = u < 0.0
+    um = -u if neg else u
+    a = _q61_atan_core(int(um * float(_Q61_ONE) + 0.5))
+    return (_Q61_HALF_PI_Q61 // 2) + (-a if neg else a)
 
 
 def _q61_atan_nonneg(m: float) -> float:
@@ -1010,115 +1068,114 @@ def _q61_atan_nonneg(m: float) -> float:
     return half_pi / 2.0 + (-a if neg else a)
 
 
-def cos(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> float:
-    """``cos(x)`` (radians) via the Q61 Class-N cascade.
+def cos(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> "Q":
+    """``cos(x)`` (radians) → an EXACT :class:`~srmech.amsc.q.Q` (Q61 rational).
 
-    Bit-exact with the native peer ``srmech_cos`` (Q61 fixed-point); on a
-    native install this dispatches to the C and returns identical bits.
-    Substrate-native replacement for ``math.cos`` / ``np.cos`` — no
-    ``math.cos`` in the call graph. ``terms`` is retained for back-compat;
-    the Q61 cascade uses a fixed term cap. The exact-rational higher-
-    precision reference surface is ``cos_series_truncate``.
+    0.9.0rc7 stay-rational (F868): the Class-N Q61 cascade computes the exact
+    rational ``v / 2**61``; this returns that ``Q`` instead of collapsing to a
+    float — ``float(cos(x))`` reproduces (and slightly betters) the old float.
+    Substrate-native replacement for ``math.cos`` / ``np.cos`` — no ``math.cos``
+    in the call graph. Non-finite ``x`` raises (``Q`` is the finite-rational
+    carrier). ``terms`` is retained for back-compat (fixed Q61 cap). The
+    arbitrary-precision exact reference surface is ``cos_series_truncate``.
     """
     x = float(x)
     if not math.isfinite(x):
-        return x - x                               # NaN for ±Inf and NaN
-    if _native.has_native_trig():
-        return _native.cos_c(x)
+        raise ValueError("cos: x must be finite (Q is the finite-rational carrier)")
+    if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
+        return _q(_native.cos_q61_c(x), _Q61_ONE)
     ok, octant, r = _q61_reduce(x)
     if not ok:
-        return x - x                               # NaN for Inf/NaN
+        raise ValueError(f"cos: |x| too large for the Q61 octant reduction; got {x}")
     sc = _q61_sin_core(r)
     cc = _q61_cos_core(r)
     v = cc if octant == 0 else -sc if octant == 1 else -cc if octant == 2 else sc
-    return _q61_to_double(v)
+    return _q(v, _Q61_ONE)
 
 
-def sin(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> float:
-    """``sin(x)`` (radians) via the Q61 Class-N cascade.
+def sin(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> "Q":
+    """``sin(x)`` (radians) → an EXACT :class:`~srmech.amsc.q.Q` (Q61 rational).
 
-    Bit-exact with the native peer ``srmech_sin``; dispatches to C when
-    available. Substrate-native replacement for ``math.sin`` / ``np.sin``.
+    Stay-rational peer of :func:`cos` (the exact Q61 ``v / 2**61``).
+    Substrate-native replacement for ``math.sin`` / ``np.sin``.
     """
     x = float(x)
     if not math.isfinite(x):
-        return x - x                               # NaN for ±Inf and NaN
-    if _native.has_native_trig():
-        return _native.sin_c(x)
+        raise ValueError("sin: x must be finite (Q is the finite-rational carrier)")
+    if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
+        return _q(_native.sin_q61_c(x), _Q61_ONE)
     ok, octant, r = _q61_reduce(x)
     if not ok:
-        return x - x
+        raise ValueError(f"sin: |x| too large for the Q61 octant reduction; got {x}")
     sc = _q61_sin_core(r)
     cc = _q61_cos_core(r)
     v = sc if octant == 0 else cc if octant == 1 else -sc if octant == 2 else -cc
-    return _q61_to_double(v)
+    return _q(v, _Q61_ONE)
 
 
-def tan(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> float:
-    """``tan(x) = sin(x)/cos(x)`` via the Q61 cascade (no native
-    ``srmech_tan`` — composed from the Q61 ``sin``/``cos``)."""
+def tan(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> "Q":
+    """``tan(x) = sin(x) / cos(x)`` → an EXACT :class:`~srmech.amsc.q.Q`.
+
+    The exact ``Q`` quotient of the Q61 ``sin`` / ``cos`` (no native
+    ``srmech_tan``). Raises where ``cos(x) == 0``."""
     c = cos(x)
-    if c == 0.0:
+    if c == 0:
         raise ValueError("tan undefined: cos(x) == 0")
-    return sin(x) / c
+    return sin(x) / c                              # exact Q / Q
 
 
-def atan(x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> float:
-    """``atan(x)`` via the Q61 three-band Class-N cascade.
+def atan(x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> "Q":
+    """``atan(x)`` → an EXACT :class:`~srmech.amsc.q.Q` via the Q61 three-band
+    Class-N cascade.
 
-    Bit-exact with ``srmech_atan``; dispatches to C when available. Class-K
-    magnitude (never ``abs()`` of the value) + Class-C re-orientation; the
-    three-band reduction keeps every series argument in the fast region.
-    Substrate-native replacement for ``math.atan`` / ``np.arctan``.
+    Class-K magnitude (never ``abs()`` of the value) + Class-C re-orientation;
+    the three-band reduction keeps every series argument fast. ``atan(±Inf)`` =
+    ``±π/2`` is a representable rational, returned as ``Q(±pi/2_q61, 2**61)``;
+    NaN raises. Substrate-native replacement for ``math.atan`` / ``np.arctan``.
     """
     x = float(x)
-    if not math.isfinite(x):
-        if x != x:                                 # NaN
-            return x
-        # atan(±Inf) = ±π/2 (cascade π/2; sign re-applied — Class C)
-        half_pi = _q61_to_double(_Q61_HALF_PI_Q61)
-        return half_pi if x > 0.0 else -half_pi
-    if _native.has_native_trig():
-        return _native.atan_c(x)
+    if x != x:                                     # NaN
+        raise ValueError("atan: x is NaN (not a rational)")
+    if _native.has_native_trans_q61():          # native handles ±Inf via the COT band
+        return _q(_native.atan_q61_c(x), _Q61_ONE)
+    if math.isinf(x):                              # atan(±Inf) = ±π/2 (exact Q)
+        v = _Q61_HALF_PI_Q61 if x > 0.0 else -_Q61_HALF_PI_Q61
+        return _q(v, _Q61_ONE)
     xm = x if x >= 0.0 else -x                     # Class-K magnitude
-    r = _q61_atan_nonneg(xm)
-    return r if x >= 0.0 else -r                   # Class-C re-orientation
+    v = _atan_nonneg_q61(xm)
+    return _q(v if x >= 0.0 else -v, _Q61_ONE)     # Class-C re-orientation
 
 
-def atan2(y: float, x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> float:
-    """``atan2(y, x)`` via the Q61 atan cascade with quadrant logic.
+def atan2(y: float, x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> "Q":
+    """``atan2(y, x)`` → an EXACT :class:`~srmech.amsc.q.Q` via the Q61 atan
+    cascade with quadrant logic.
 
-    Bit-exact with ``srmech_atan2``; dispatches to C when available.
+    The quadrant limits (``±π/2``, ``±π/4``, ``±3π/4``, ``±π``, ``±0``) are all
+    representable rationals — returned as exact ``Q`` over ``2**61`` — so the
+    ``±Inf`` argument cases stay rational; only a NaN argument raises.
     Substrate-native replacement for ``math.atan2`` / ``np.arctan2``.
     """
     y = float(y)
     x = float(x)
-    # Non-finite quadrant limits, run BEFORE dispatch so the native and
-    # pure-Python paths agree on the whole domain (the C reduces Inf via an
-    # int cast that is UB; this guard keeps both renderings identical).
+    if y != y or x != x:                           # any NaN → not a rational
+        raise ValueError("atan2: y or x is NaN (not a rational)")
+    hp = _Q61_HALF_PI_Q61                          # pi/2 in Q61
     if not (math.isfinite(y) and math.isfinite(x)):
-        if y != y or x != x:                       # any NaN → NaN
-            return float("nan")
-        half_pi = _q61_to_double(_Q61_HALF_PI_Q61)
-        pi = 2.0 * half_pi
-        if math.isinf(y) and math.isinf(x):        # both ±Inf
-            base = pi / 4.0 if x > 0.0 else 3.0 * pi / 4.0
-            return math.copysign(base, y)          # ±π/4 or ±3π/4
-        if math.isinf(y):                          # |y|=Inf, x finite
-            return math.copysign(half_pi, y)       # ±π/2
-        if x > 0.0:                                # x=+Inf, y finite
-            return math.copysign(0.0, y)           # ±0
-        return math.copysign(pi, y)                # x=−Inf, y finite → ±π
-    if _native.has_native_trig():
-        return _native.atan2_c(y, x)
-    half_pi = _q61_to_double(_Q61_HALF_PI_Q61)
-    pi = 2.0 * half_pi
+        if math.isinf(y) and math.isinf(x):        # both ±Inf → ±π/4 or ±3π/4
+            mag = hp // 2 if x > 0.0 else 3 * (hp // 2)
+            return _q(mag if y >= 0.0 else -mag, _Q61_ONE)
+        if math.isinf(y):                          # |y|=Inf, x finite → ±π/2
+            return _q(hp if y >= 0.0 else -hp, _Q61_ONE)
+        if x > 0.0:                                # x=+Inf, y finite → ±0
+            return _q(0, 1)
+        return _q(2 * hp if y >= 0.0 else -2 * hp, _Q61_ONE)   # x=−Inf → ±π
     if x == 0.0:
-        return half_pi if y > 0.0 else (-half_pi if y < 0.0 else 0.0)
-    base = atan(y / x)
+        return _q(hp if y > 0.0 else (-hp if y < 0.0 else 0), _Q61_ONE)
+    base = atan(y / x)                             # exact Q
     if x > 0.0:
         return base
-    return base + pi if y >= 0.0 else base - pi    # x<0 quadrant shift (Class C)
+    pi = _q(2 * hp, _Q61_ONE)                       # x<0 quadrant shift (Class C)
+    return base + pi if y >= 0.0 else base - pi
 
 
 # Default Taylor terms for the exact-rational (bignum REFERENCE) exp surface.
@@ -1199,56 +1256,57 @@ def _q_log_core(t: int) -> int:
     return s * 2
 
 
-def exp(x: float, *, terms: int = _EXP_FLOAT_TERMS) -> float:
-    """``e^x`` via the Q61 Class-N exp cascade with Cody-Waite ln2 reduction.
+def exp(x: float, *, terms: int = _EXP_FLOAT_TERMS) -> "Q":
+    """``e^x`` → an EXACT :class:`~srmech.amsc.q.Q` via the Q61 Class-N exp
+    cascade with Cody-Waite ln2 reduction.
 
     ``x = n·ln2 + r`` with ``|r| <= ln2/2``; ``exp(r)`` is the Q61 integer
-    Taylor ``1 + r + r²/2! + …`` and the ``2^n`` scale is folded into the IEEE
-    exponent. Bit-exact with the native peer ``srmech_exp``; dispatches to C
-    when available. Substrate-native replacement for ``math.exp`` / ``np.exp``
-    (real) — no ``math.exp`` in the call graph. ``terms`` selects the
-    exact-rational REFERENCE surface ``exp_series_truncate`` (used only by the
-    bignum reference, not this float projection).
+    Taylor ``1 + r + r²/2! + …`` (an exact ``Q(core, 2**61)``) and the ``2^n``
+    scale is an EXACT power of two folded into the rational — so the result is
+    the exact rational ``core·2^n / 2**61``, never a float-collapsed ``2^n``
+    recombine. 0.9.0rc7 stay-rational: there is no ``DBL_MAX`` overflow gate
+    (that was a float artefact) — a finite ``x`` gives the exact (possibly
+    large) rational; only non-finite ``x`` raises. Substrate-native replacement
+    for ``math.exp`` / ``np.exp`` (real). ``terms`` selects the arbitrary-
+    precision REFERENCE surface ``exp_series_truncate``.
     """
     x = float(x)
-    if x != x:                                     # NaN
-        return x
-    if x > _EXPLOG_OVERFLOW:
-        return float("inf")
-    if x < _EXPLOG_UNDERFLOW:
-        return 0.0
-    if _native.has_native_explog():
-        return _native.exp_c(x)
+    if not math.isfinite(x):
+        raise ValueError("exp: x must be finite (Q is the finite-rational carrier)")
+    if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
+        core, n = _native.exp_q61_c(x)
+        return _q(core << n, _Q61_ONE) if n >= 0 else _q(core, _Q61_ONE << (-n))
     tn = x * _EXPLOG_INV_LN2
     n = int(tn + (0.5 if tn >= 0.0 else -0.5))     # round half away from zero
     r = (x - n * _EXPLOG_LN2_HI) - n * _EXPLOG_LN2_LO
     rq = int(r * float(_Q61_ONE) + (0.5 if r >= 0.0 else -0.5))
-    m = _q61_to_double(_q_exp_core(rq))            # exp(r)
-    return _q_scale2(m, n)
+    core = _q_exp_core(rq)                          # exp(r) as Q61 int (≈[0.7,1.4])
+    if n >= 0:                                      # exact 2^n scale (no float)
+        return _q(core << n, _Q61_ONE)
+    return _q(core, _Q61_ONE << (-n))
 
 
-def log(x: float, *, terms: int = _EXPLOG_LOG_TERMS) -> float:
-    """``ln(x)`` (natural log, x > 0) via the Q61 Class-N atanh cascade.
+def log(x: float, *, terms: int = _EXPLOG_LOG_TERMS) -> "Q":
+    """``ln(x)`` (natural log, x > 0) → an EXACT :class:`~srmech.amsc.q.Q` via
+    the Q61 Class-N atanh cascade.
 
-    ``x = m·2^e`` read from the bit pattern, ``m`` folded into ``[1/√2, √2)``;
-    ``log(m) = 2·atanh((m−1)/(m+1))`` is the Q61 series and ``e·ln2`` recombines
-    with the two-word ln2. Bit-exact with the native peer ``srmech_log``;
-    dispatches to C when available. Substrate-native replacement for
-    ``math.log`` / ``np.log`` (real). Domain (matching ``srmech_log``):
-    ``x < 0 → NaN``, ``x == 0 → −Inf``. The exact-rational REFERENCE surface is
-    ``log1p_series_truncate`` (where the W14 ``|x| <= 1`` domain guard lives).
+    ``x = m·2^e`` read EXACTLY from the bit pattern, ``m`` folded into
+    ``[1/√2, √2)``; ``log(m) = 2·atanh((m−1)/(m+1))`` is the Q61 series and the
+    ``e·ln2`` recombine stays in the Q61 model (``_Q61_LN2``, cascade-derived),
+    so the result is the exact ``Q((logm + e·ln2_q61), 2**61)`` — no two-word
+    float recombine. Substrate-native replacement for ``math.log`` / ``np.log``
+    (real). Domain: ``x <= 0`` raises (``log 0 = −∞``, ``log(<0)`` undefined —
+    neither is a rational); non-finite raises. The arbitrary-precision REFERENCE
+    surface is ``log1p_series_truncate``.
     """
     x = float(x)
-    if x != x:                                     # NaN
-        return x
-    if x < 0.0:
-        return float("nan")                        # domain (Class-K refusal)
-    if x == 0.0:
-        return float("-inf")
-    if math.isinf(x):
-        return x                                   # +Inf
-    if _native.has_native_explog():
-        return _native.log_c(x)
+    if not math.isfinite(x):
+        raise ValueError("log: x must be finite (Q is the finite-rational carrier)")
+    if x <= 0.0:
+        raise ValueError(f"log domain: x must be > 0 (log 0 = −∞ is not rational); got {x}")
+    if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
+        logm, e = _native.log_q61_c(x)
+        return _q(logm + e * _Q61_LN2, _Q61_ONE)
     bits = struct.unpack("<Q", struct.pack("<d", x))[0]
     raw = (bits >> 52) & 0x7FF
     frac = bits & ((1 << 52) - 1)
@@ -1269,8 +1327,8 @@ def log(x: float, *, terms: int = _EXPLOG_LOG_TERMS) -> float:
         e += 1
     tt = (m - 1.0) / (m + 1.0)
     tq = int(tt * float(_Q61_ONE) + (0.5 if tt >= 0.0 else -0.5))
-    logm = _q61_to_double(_q_log_core(tq))
-    return e * _EXPLOG_LN2_HI + (logm + e * _EXPLOG_LN2_LO)
+    logm = _q_log_core(tq)                          # log(m) as Q61 int
+    return _q(logm + e * _Q61_LN2, _Q61_ONE)        # + e·ln2, exact in Q61
 
 
 def cexp(theta: float, *, terms: int = _TRIG_FLOAT_TERMS) -> complex:
@@ -1292,8 +1350,11 @@ def complex_exp(z: complex, *, terms: int = _TRIG_FLOAT_TERMS) -> complex:
     replacement for ``np.exp`` / ``cmath.exp`` on a complex argument.
     """
     z = complex(z)
-    e_real = exp(z.real)
-    return e_real * complex(cos(z.imag, terms=terms), sin(z.imag, terms=terms))
+    er = exp(z.real)                                # Q — stay in the integer ALU
+    # e^z = e^Re·(cos Im + i sin Im). The ``er * cos`` / ``er * sin`` are exact
+    # Q·Q products (ALU); the float/FPU appears ONLY at the ``complex()`` last
+    # rotate (this IS the display boundary for the complex result).
+    return complex(er * cos(z.imag, terms=terms), er * sin(z.imag, terms=terms))
 
 
 # Scaled-integer precision for the bignum REFERENCE sqrt (bits below the
@@ -1303,59 +1364,88 @@ def complex_exp(z: complex, *, terms: int = _TRIG_FLOAT_TERMS) -> complex:
 _SQRT_PRECISION_BITS: int = 64
 
 
-def sqrt(x: float, *, precision_bits: int = None) -> float:
-    """``√x`` (x ≥ 0) via the Class-N rational sqrt cascade.
+#: Default fractional bits for the √ of an EXACT rational (Q input / hypot's
+#: exact sum-of-squares): 54 — double the float64 mantissa, so the rational
+#: root carries more than the float floor. The float-input path keeps K=27
+#: (the native C-parity baseline) for the IEEE-bit decomposition.
+_SQRT_Q_K: int = 54
 
-    Default (``precision_bits=None``): the IEEE-bit ``M·2^e`` decomposition
-    with ``root = isqrt(M << 2K)`` (K=27) projected by ``2^(e/2−K)`` — **Class
-    N** rational ∘ **Class K** sqrt-convergence, **bit-exact with the native
-    peer** ``srmech_rational_sqrt``; dispatches to C when available. No float
-    ``math.sqrt`` / ``np.sqrt`` in the call graph. Negative ``x`` raises
-    (domain error), matching ``math.sqrt``.
 
-    ``precision_bits=N`` selects the higher-precision **bignum REFERENCE**
-    path (``as_integer_ratio`` + scaled ``_integer_sqrt``), e.g. for the
-    π-cascade where >double precision is wanted.
+def _sqrt_rational(num: int, den: int, k: int):
+    """``√(num/den)`` as an EXACT ``Q(root, 2**k)`` (integer ``isqrt`` of the
+    ``2^{2k}``-scaled radicand). ``num, den >= 0``; ``den > 0``."""
+    assert num >= 0 and den > 0, "sqrt of a non-negative rational only"
+    root = _integer_sqrt((num << (2 * k)) // den)   # floor(√(num/den) · 2^k)
+    return _q(root, 1 << k)
+
+
+def sqrt(x, *, precision_bits: int = None) -> "Q":
+    """``√x`` (x ≥ 0) → an EXACT :class:`~srmech.amsc.q.Q` via the Class-N
+    rational sqrt cascade.
+
+    ``x`` may be a ``float`` OR a :class:`~srmech.amsc.q.Q` (rc7 — stays
+    rational through :func:`hypot` and the complex modulus). Default
+    (``precision_bits=None``): the IEEE-bit ``M·2^e`` decomposition with
+    ``root = isqrt(M << 2K)`` (K=27) scaled by the EXACT ``2^(e/2−K)`` — the
+    result is the exact ``Q(root, 2^k)`` (``float`` of it betters the old
+    ``float(root)·2^…`` which pre-rounded ``root``). **Class N** rational ∘
+    **Class K** sqrt-convergence. A ``Q`` input is rooted at ``_SQRT_Q_K`` bits
+    (exact rational radicand). Negative ``x`` raises (Class-K pin-slot at zero).
+
+    ``precision_bits=N`` selects the higher-precision path (the exact rational
+    rooted at ``N`` fractional bits), e.g. for the π-cascade.
     """
+    # Q-input: root the exact rational directly (stay-rational; e.g. hypot).
+    if hasattr(x, "as_pair") and not isinstance(x, float):
+        xn, xd = x.as_pair()
+        if xn < 0:
+            raise ValueError(f"sqrt domain error: x must be >= 0; got {x}")
+        if xn == 0:
+            return _q(0, 1)
+        return _sqrt_rational(xn, xd, precision_bits or _SQRT_Q_K)
     x = float(x)
     if x < 0.0:                                   # Class-K pin-slot at zero
         raise ValueError(f"sqrt domain error: x must be >= 0; got {x}")
+    if not math.isfinite(x):
+        raise ValueError("sqrt: x must be finite (Q is the finite-rational carrier)")
     if x == 0.0:
-        return 0.0
-    if precision_bits is not None:                # bignum reference surface
+        return _q(0, 1)
+    if precision_bits is not None:                # exact rational at N frac bits
         xn, xd = x.as_integer_ratio()
-        scale = 1 << (2 * precision_bits)
-        radicand = (xn * scale) // xd
-        root = _integer_sqrt(radicand)            # floor(√x · 2^b)
-        return root / (1 << precision_bits)
-    if _native.has_native_sqrt():
-        return _native.rational_sqrt_c(x)
+        return _sqrt_rational(xn, xd, precision_bits)
+    if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
+        root, p = _native.sqrt_q61_c(x)
+        return _q(root << p, 1) if p >= 0 else _q(root, 1 << (-p))
     bits = struct.unpack("<Q", struct.pack("<d", x))[0]
     raw = (bits >> 52) & 0x7FF
     frac = bits & ((1 << 52) - 1)
-    if raw == 0x7FF:
-        return x                                  # +Inf
     mant = frac if raw == 0 else (frac | (1 << 52))
     e = -1074 if raw == 0 else raw - 1075         # x = mant · 2^e
     if e & 1:                                      # make e even
         mant <<= 1
         e -= 1
-    radicand = mant << (2 * _SQRT_C_K)            # 128-bit; math.isqrt == C isqrt128
-    root = math.isqrt(radicand)
-    return float(root) * _q_pow2(e // 2 - _SQRT_C_K)
+    root = math.isqrt(mant << (2 * _SQRT_C_K))    # 128-bit; math.isqrt == C isqrt128
+    p = e // 2 - _SQRT_C_K                          # exact power-of-two scale
+    return _q(root << p, 1) if p >= 0 else _q(root, 1 << (-p))
 
 
-def hypot(a: float, b: float, *, precision_bits: int = None) -> float:
-    """``hypot(a, b) = √(a² + b²)`` via the Class-N sqrt cascade.
+def hypot(a: float, b: float, *, precision_bits: int = None) -> "Q":
+    """``hypot(a, b) = √(a² + b²)`` → an EXACT :class:`~srmech.amsc.q.Q`.
 
-    **Class M** (the sum-of-squares bind) ∘ **Class N∘K** (:func:`sqrt`).
-    Substrate-native replacement for ``math.hypot`` / ``np.hypot`` (the
-    complex modulus ``|z| = hypot(z.real, z.imag)``). ``precision_bits``
-    threads to :func:`sqrt` (default ``None`` = the C-bit-exact cascade).
+    **Class M** (the sum-of-squares bind) ∘ **Class N∘K** (:func:`sqrt`). rc7
+    stay-rational: ``a² + b²`` is formed as an EXACT rational (each float's
+    ``as_integer_ratio`` squared and added — no float ``a*a`` rounding) and
+    ``√`` of that exact rational is returned as ``Q``. Substrate-native
+    replacement for ``math.hypot`` / ``np.hypot`` (the complex modulus
+    ``|z| = hypot(z.real, z.imag)``). ``a``/``b`` may be ``float`` or ``Q``.
     """
-    a = float(a)
-    b = float(b)
-    return sqrt(a * a + b * b, precision_bits=precision_bits)
+    an, ad = (a.as_pair() if hasattr(a, "as_pair") and not isinstance(a, float)
+              else float(a).as_integer_ratio())
+    bn, bd = (b.as_pair() if hasattr(b, "as_pair") and not isinstance(b, float)
+              else float(b).as_integer_ratio())
+    num = an * an * bd * bd + bn * bn * ad * ad    # (a²+b²) exact numerator
+    den = ad * ad * bd * bd
+    return _sqrt_rational(num, den, precision_bits or _SQRT_Q_K)
 
 
 # ──────────────────────────────────────────────────────────────────────

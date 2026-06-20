@@ -84,7 +84,7 @@ _MU_AXES = {
 }
 # The body-diagonal unit axis (i+j+k)/√3 — the order-3 (triality-adjacent)
 # pure-quaternion direction; still μ²=−1.
-_S3 = 1.0 / _rsqrt(3.0)
+_S3 = 1.0 / float(_rsqrt(3.0))
 _MU_AXES["ijk"] = (0.0, _S3, _S3, _S3)
 
 _FORMS = ("left", "right")
@@ -140,7 +140,7 @@ def _resolve_mu(mu_axis, *, octonion) -> List[float]:
             return _as8(_MU_AXES[mu_axis])
         if mu_axis == "diagonal":
             hi = 8 if octonion else 4
-            inv = 1.0 / _rsqrt(float(hi - 1))
+            inv = 1.0 / float(_rsqrt(float(hi - 1)))
             return [0.0] + [inv if 1 <= i < hi else 0.0 for i in range(1, 8)]
         raise ValueError(
             f"mu_axis must be one of {sorted(_MU_AXES) + ['diagonal']}, or a unit "
@@ -155,7 +155,7 @@ def _resolve_mu(mu_axis, *, octonion) -> List[float]:
             "a quaternion mu_axis must lie in ℍ (components e4..e7 == 0); use "
             "octonion_dft / a quaternion-scope coupler for an octonion axis"
         )
-    norm = _rsqrt(float(sum(c * c for c in v[1:])))
+    norm = float(_rsqrt(float(sum(c * c for c in v[1:]))))
     if norm == 0.0:
         raise ValueError("mu_axis must be a non-zero pure-imaginary vector")
     inv = 1.0 / norm

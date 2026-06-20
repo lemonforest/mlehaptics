@@ -91,10 +91,12 @@ def pin_slot(theta: float, pin_offset: float, pin_distance: float) -> float:
         if rc != _native.SRMECH_OK:
             raise ValueError(f"srmech_pin_slot returned status {rc}")
         return out.value
-    # Pure-Python fallback.
+    # Pure-Python fallback. The pin-slot internal cascade flows Q (exact ALU
+    # arithmetic); ``float()`` is the FPU last-mile rotate that matches the
+    # native ``srmech_pin_slot`` c_double contract (the angle is the observable).
     x = pin_distance + pin_offset * _rcos(theta)
     y = pin_offset * _rsin(theta)
-    return _ratan2(y, x)
+    return float(_ratan2(y, x))
 
 
 def kepler_solve(
@@ -157,7 +159,7 @@ def kepler_solve(
         # never an ALU abs().
         delta_mag = delta if delta >= 0.0 else -delta
         if delta_mag < tolerance:
-            return E
+            return float(E)        # FPU last-mile (native srmech_kepler_solve → c_double)
     raise RuntimeError(
         f"kepler_solve: did not converge in {max_iter} iterations "
         f"(M={M_rad}, e={e}, best_E={E})"
@@ -218,7 +220,7 @@ def equation_of_centre(
         e_power *= e
         harmonic = (k_idx + 1) * M_rad
         delta += _EOC_COEFFS[k_idx] * e_power * _rsin(harmonic)
-    return delta
+    return float(delta)            # FPU last-mile (native srmech_equation_of_centre → c_double)
 
 
 __all__ = [

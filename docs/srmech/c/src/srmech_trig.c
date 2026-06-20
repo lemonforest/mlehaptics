@@ -282,3 +282,74 @@ srmech_status_t srmech_atan2(double y, double x, double *out)
     *out = (y >= 0.0) ? base + pi : base - pi;            /* x<0 quadrant shift (Class C) */
     return SRMECH_OK;
 }
+
+/* ── 0.9.0rc7 stay-rational Q61 surface (F868) ────────────────────────────
+ * The public sin/cos/atan project the Q61 cascade value to a 52-bit double as
+ * the LAST step, throwing ~9 bits away. These peers return the EXACT int64 Q61
+ * (denominator 2^61) BEFORE that projection so the Python `rational.{sin,cos,
+ * atan}` dispatch to native AND keep the full 61-bit rational (`Q(v, 2^61)`),
+ * not a double promoted back to Q. Same cores, no float-collapse. A non-finite
+ * (or |x| >= 2^55) argument has no Q61 representation -> SRMECH_ERR_BAD_INPUT
+ * (the Python peer raises identically). */
+srmech_status_t srmech_sin_q61(double x, int64_t *out_q61)
+{
+    assert(out_q61 != NULL);
+    if (out_q61 == NULL) { return SRMECH_ERR_NULL_ARG; }
+    int oct;
+    int64_t r;
+    if (!trig_reduce(x, &oct, &r)) { return SRMECH_ERR_BAD_INPUT; }
+    assert(oct >= 0 && oct < 4);
+    int64_t sc = trig_sin_core(r), cc = trig_cos_core(r);
+    *out_q61 = (oct == 0) ? sc : (oct == 1) ? cc : (oct == 2) ? -sc : -cc;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_cos_q61(double x, int64_t *out_q61)
+{
+    assert(out_q61 != NULL);
+    if (out_q61 == NULL) { return SRMECH_ERR_NULL_ARG; }
+    int oct;
+    int64_t r;
+    if (!trig_reduce(x, &oct, &r)) { return SRMECH_ERR_BAD_INPUT; }
+    assert(oct >= 0 && oct < 4);
+    int64_t sc = trig_sin_core(r), cc = trig_cos_core(r);
+    *out_q61 = (oct == 0) ? cc : (oct == 1) ? -sc : (oct == 2) ? -cc : sc;
+    return SRMECH_OK;
+}
+
+/* atan(|m|) for m >= 0 as an exact Q61 INTEGER — the three-band recombination
+ * accumulates in Q61 ints (pi/2 = HALF_PI_Q61, pi/4 = that >> 1), mirror of the
+ * Python `_atan_nonneg_q61`. The COT band naturally yields pi/2 for m = +Inf
+ * (1/Inf = 0 -> atan_core(0) = 0). */
+static int64_t trig_atan_nonneg_q61(double m)
+{
+    assert(m >= 0.0);
+    assert(SRMECH_TRIG_HALF_PI_Q61 > 0);   /* pi/2 anchor sane (JPL Rule 5) */
+    int64_t mq;
+    if (m <= SRMECH_TRIG_TAN_PI8) {
+        mq = (int64_t)(m * (double)SRMECH_TRIG_ONE + 0.5);
+        return trig_atan_core(mq);
+    }
+    if (m >= SRMECH_TRIG_COT_PI8) {                       /* atan(m) = pi/2 - atan(1/m) */
+        mq = (int64_t)((1.0 / m) * (double)SRMECH_TRIG_ONE + 0.5);
+        return SRMECH_TRIG_HALF_PI_Q61 - trig_atan_core(mq);
+    }
+    double u = (m - 1.0) / (m + 1.0);                     /* middle band: pi/4 + atan(u) */
+    int neg = (u < 0.0);
+    double um = neg ? -u : u;
+    mq = (int64_t)(um * (double)SRMECH_TRIG_ONE + 0.5);
+    int64_t a = trig_atan_core(mq);
+    return (SRMECH_TRIG_HALF_PI_Q61 / 2) + (neg ? -a : a);
+}
+
+srmech_status_t srmech_atan_q61(double x, int64_t *out_q61)
+{
+    assert(out_q61 != NULL);
+    if (out_q61 == NULL) { return SRMECH_ERR_NULL_ARG; }
+    if (x != x) { return SRMECH_ERR_BAD_INPUT; }          /* NaN — not a rational */
+    double xm = (x < 0.0) ? -x : x;                       /* Class-K magnitude */
+    assert(xm >= 0.0);                                     /* magnitude non-negative (JPL Rule 5) */
+    int64_t v = trig_atan_nonneg_q61(xm);                 /* +/-Inf -> +/- pi/2 via band */
+    *out_q61 = (x < 0.0) ? -v : v;                        /* Class-C re-orient */
+    return SRMECH_OK;
+}

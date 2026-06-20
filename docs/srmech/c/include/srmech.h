@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc6"
-#define SRMECH_VERSION       "0.9.0rc6"
+#define SRMECH_VERSION_PRE   "rc7"
+#define SRMECH_VERSION       "0.9.0rc7"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1537,6 +1537,16 @@ srmech_status_t srmech_cos(double x, double *out);
 srmech_status_t srmech_atan(double x, double *out);
 srmech_status_t srmech_atan2(double y, double x, double *out);
 
+/* 0.9.0rc7 stay-rational Q61 peers (F868). These return the EXACT int64 Q61
+ * cascade value (denominator 2^61) BEFORE the float projection, so the Python
+ * rational.{sin,cos,atan} dispatch to native AND keep the full 61-bit rational
+ * (Q(*out_q61, 2^61)) instead of a double promoted back to Q. Same cores. A
+ * non-finite (or |x| >= 2^55) argument has no Q61 form -> SRMECH_ERR_BAD_INPUT.
+ * Additive -> ABI unchanged. */
+srmech_status_t srmech_sin_q61(double x, int64_t *out_q61);
+srmech_status_t srmech_cos_q61(double x, int64_t *out_q61);
+srmech_status_t srmech_atan_q61(double x, int64_t *out_q61);
+
 /* Class-N rational sqrt cascade (v0.7.0rc45). sqrt(x) (x >= 0) via an INTEGER
  * floor-isqrt on a scaled radicand (portable two-limb 128-bit isqrt; no libm,
  * no float sqrt, no __int128) + IEEE-exponent-field power-of-two scaling.
@@ -1544,6 +1554,13 @@ srmech_status_t srmech_atan2(double y, double x, double *out);
  * executable runs the cascade. Machine-epsilon vs libm; negative x ->
  * SRMECH_ERR_BAD_INPUT (out = NaN). Additive -> ABI unchanged. */
 srmech_status_t srmech_rational_sqrt(double x, double *out);
+
+/* 0.9.0rc7 stay-rational Q61 peer (F868). sqrt(x) = root * 2^(e/2 - K) EXACTLY
+ * (root = isqrt(M << 2K), K = 27). Returns the integer pieces (*out_root,
+ * *out_p) so the Python rational.sqrt forms Q(root << p, 1) for p >= 0 else
+ * Q(root, 1 << -p). sqrt(0) -> (0, 0); negative / non-finite -> BAD_INPUT.
+ * Additive -> ABI unchanged. */
+srmech_status_t srmech_sqrt_q61(double x, int64_t *out_root, int64_t *out_p);
 
 /* Class-N rational exp/log cascade (v0.7.0rc46; the C-transpile closeout).
  * exp(x) = 2^n * exp(r) with the Q61 integer Taylor for exp(r) (|r| <= ln2/2)
@@ -1556,6 +1573,18 @@ srmech_status_t srmech_rational_sqrt(double x, double *out);
  * non-positive x -> SRMECH_ERR_BAD_INPUT. Additive -> ABI unchanged. */
 srmech_status_t srmech_exp(double x, double *out);
 srmech_status_t srmech_log(double x, double *out);
+
+/* 0.9.0rc7 stay-rational Q61 peers (F868). Return the EXACT rational pieces so
+ * the Python rational.{exp,log} dispatch to native AND keep full Q61 provenance:
+ *   srmech_exp_q61: exp(x) = (core / 2^61) * 2^n -> (*out_core, *out_n); Python
+ *     forms Q(core << n, 2^61) (n>=0) or Q(core, 2^61 << -n). NaN / impractical
+ *     |x| (n past int64) -> BAD_INPUT (no DBL_MAX gate — the rational has none).
+ *   srmech_log_q61: log(x) = (logm + e*ln2) / 2^61 -> (*out_logm = log(mantissa)
+ *     in Q61, *out_e); Python forms Q(logm + e*_Q61_LN2, 2^61) with the cascade-
+ *     derived Q61 ln2. x <= 0 / non-finite -> BAD_INPUT.
+ * Additive -> ABI unchanged. */
+srmech_status_t srmech_exp_q61(double x, int64_t *out_core, int64_t *out_n);
+srmech_status_t srmech_log_q61(double x, int64_t *out_logm, int64_t *out_e);
 
 /* ------------------------------------------------------------------ *
  * Class M — HDC binary spatter codes (Task #217 Phase C1 rc8)

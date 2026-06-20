@@ -97,3 +97,34 @@ srmech_status_t srmech_rational_sqrt(double x, double *out)
     *out = (double)root * srmech_pow2(e / 2 - SRMECH_SQRT_K);
     return SRMECH_OK;
 }
+
+/* ── 0.9.0rc7 stay-rational Q61 surface (F868) ────────────────────────────
+ * sqrt(x) = root * 2^(e/2 - K) EXACTLY (root = isqrt(M << 2K), K = 27). This
+ * peer returns the integer pieces instead of projecting to a double, so the
+ * Python `rational.sqrt` dispatch to native AND keep the exact rational:
+ * Python forms _q(root << p, 1) for p = e/2 - K >= 0, else _q(root, 1 << -p).
+ * sqrt(0) = 0 -> (*out_root, *out_p) = (0, 0). Negative / non-finite x has no
+ * rational sqrt -> SRMECH_ERR_BAD_INPUT (the Python peer raises identically). */
+srmech_status_t srmech_sqrt_q61(double x, int64_t *out_root, int64_t *out_p)
+{
+    assert(out_root != NULL);
+    assert(out_p != NULL);
+    if (out_root == NULL || out_p == NULL) { return SRMECH_ERR_NULL_ARG; }
+    if (x < 0.0 || x != x) { *out_root = 0; *out_p = 0; return SRMECH_ERR_BAD_INPUT; }
+    if (x == 0.0) { *out_root = 0; *out_p = 0; return SRMECH_OK; }
+    uint64_t bits;
+    memcpy(&bits, &x, sizeof bits);
+    uint32_t raw = (uint32_t)((bits >> 52) & 0x7FFu);
+    uint64_t frac = bits & ((UINT64_C(1) << 52) - 1);
+    if (raw == 0x7FFu) { *out_root = 0; *out_p = 0; return SRMECH_ERR_BAD_INPUT; } /* +Inf */
+    uint64_t mant = (raw == 0) ? frac : (frac | (UINT64_C(1) << 52));
+    int e = (raw == 0) ? -1074 : (int)raw - 1075;               /* x = mant * 2^e */
+    assert(mant != 0);
+    if ((e & 1) != 0) { mant <<= 1; e -= 1; }                   /* make e even */
+    unsigned s = (unsigned)(2 * SRMECH_SQRT_K);
+    uint64_t rhi = (s >= 64) ? (mant >> (128 - s)) : (mant >> (64 - s));
+    uint64_t rlo = mant << s;
+    *out_root = (int64_t)srmech_isqrt128(rhi, rlo);
+    *out_p = (int64_t)(e / 2 - SRMECH_SQRT_K);
+    return SRMECH_OK;
+}
