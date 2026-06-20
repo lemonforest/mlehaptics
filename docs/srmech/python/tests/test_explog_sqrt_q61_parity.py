@@ -73,11 +73,21 @@ def test_exp_native_bit_exact_with_q61(monkeypatch):
 
 @native_explog
 def test_log_native_bit_exact_with_q61(monkeypatch):
+    # rc7 changed log's ``e·ln2`` recombine from the legacy two-word-FLOAT ln2
+    # (which the old native float ``log_c`` still uses) to an EXACT Q61-INTEGER
+    # ln2 (``_Q61_LN2``). For inputs with ``e != 0`` the two valid algorithms
+    # round the last mantissa bit differently, so the Q61 float projection sits
+    # within **1 ULP** of legacy ``log_c`` (both within 1 ULP of libm; exp/sqrt
+    # stay byte-exact because their 2^n recombine is an exact power-of-two, no
+    # irrational ln2 multiply). The byte-exact peer for the Q61 log is the rc7
+    # ``srmech_log_q61`` (see test_native_q61_parity_rc7.py); legacy ``log_c`` is
+    # the ≤1-ULP reference here.
     native = {x: _native.log_c(x) for x in _POS_ARGS}
     monkeypatch.setattr(_native, "has_native_explog", lambda: False)
     for x in _POS_ARGS:
-        assert float(R.log(x)) == native[x], (
-            f"log({x!r}) C={_bits(native[x])} Q61={_bits(R.log(x))}")
+        got = float(R.log(x))
+        assert abs(got - native[x]) <= math.ulp(native[x]), (
+            f"log({x!r}) >1ULP: C={_bits(native[x])} Q61={_bits(got)}")
 
 
 @native_sqrt
