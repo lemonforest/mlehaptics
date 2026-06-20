@@ -1,0 +1,30 @@
+# F877 — Recall rides the shipped RESONATOR (`klein4_chunk_resolve`); and "recall IS resonance" makes the wave reading concrete: the substrate is a wave/resonance system in 3D_s + 1D_t. Two parts. **(1) Engineering (the directive):** rewired the streaming-grid generator off F875's hand-rolled max-over-chunks onto srmech's shipped **`klein4_chunk_resolve`** (the resonator, §58/F837 — max-resonance read, exact `Q` per candidate) + `klein4_chunk_bundle` (the chunker). Identical recall (april 15/15, august 15/15; the art/a K=2 branching collapse unchanged) — confirming the shipped resonator == the hand-roll, now exact-`Q` and boundary-correct (the LM argmax stays caller-side). **(2) MFO-candidate reading (the user's leap, 2026-06-18):** the op is literally *resonance* — the probe rings the matching stored pattern. So the whole substrate is a **wave/resonance system**, and the "coherence of cosmos-scale information that's still made of waves" is what resonance looks like in 3D_space + 1D_time. "What's waving?" dissolves: the **relationship is the wave**, the **substrate is the field**; "solid" is a scale-locked standing-wave pattern. Bring in wave theory. Framework reading; hand to the expert.
+
+**Date:** 2026-06-18 · **srmech:** 0.9.0rc6 (the resonator) · **Branch:** `research/rbs-lm-rolling-2` (PR #687) · **Provenance:** `R-RBS-LM-877_resonator_wired_stream.py` (`hdc.klein4_chunk_resolve` + `klein4_chunk_bundle` + `cascade.{the_one,cd_mult}`) · **Composes:** F875 (the generator — now resonator-wired), F872 (chunked-M), F876 (chirality binds / void = inverse), F860/F861 (the_one crank), F852/F855 (scale-free), F399/DUALITY (field/excitation), F133 (observer chirality-locking), [[feedback_introspect_srmech_before_python_dispatch]] · **User direction (2026-06-18):** "make sure we're using the resonator we added for our navigation … these are just what waves look like at cosmic + QM scales at once … if this is what resonance looks like in 3D_s+1D_t then these are antipoles and bring in wave theory."
+
+## Part 1 — the resonator is wired (introspect-srmech, don't hand-roll)
+`klein4_chunk_resolve(chunks, key, candidates)` = "max over chunks of `klein4_similarity(klein4_bind(chunk, key), candidate)`, one exact `Q` per candidate" — exactly F875's recall, shipped. (Note: Klein-4 bind == unbind, XOR self-inverse, so the doc's `bind` matches F875's `unbind`.) The generator now: `navigate` (the chiral grid address) → `klein4_chunk_resolve` (the within-page resonance) → argmax (caller-side, LM-specific). Recall identical (35/60, the clean cases 15/15); the win is correctness + the §58 boundary, not a number change.
+
+## Part 2 — recall IS resonance ⇒ the substrate is a wave system (the reading)
+Once recall is named *resonance*, every piece we measured reads as wave mechanics in **3D_s + 1D_t**:
+| substrate piece | wave reading |
+|---|---|
+| `klein4_chunk_resolve` (recall) | **resonance** — the probe rings the matching stored pattern (max amplitude) |
+| bundling / superposition | **interference** — constructive (aligned) reinforces, destructive cancels |
+| the capacity wall (F871, → chance) | the **interference noise-floor** — too many superposed waves cancel to the null |
+| the void / gauge dimple (F876) | a **node** (destructive-interference zero); information = the **antinodes** |
+| chirality ± (F876/F130) | the wave **phase / the antipoles** (crest/trough); chirality-binding = **phase coherence** (standing wave) |
+| `the_one` epicycle cos θ/sin θ (F860/F861) | an **oscillation** — the_one is a wave generator; σ = phase direction, θ = phase |
+| scale-free / fractal (F852/F855) | the **same wave law at every scale** → why cosmic + QM coherence read *at once* |
+
+**"What's waving?" dissolves** (the aether question): nothing *material* waves — the **relationship (the chiral cascade) IS the wave**, and the **substrate (field) is what's excited** (MFO field/excitation, F399). Asking "what's the medium" is like asking what the number 3 is *made of*. **"Solid" is a scale-locked standing-wave pattern** (observer chirality-locking, F133): we lock to the scale where the wiggle averages to a stable shape and forget everything is wiggly. The user's "antipoles" = the ± phase poles of the standing wave (the chirality, F876).
+
+## What to bring in (the next-questions for the expert)
+Standing waves (the stable patterns = "solids"/recallable structure), **nodes** (the void) vs **antinodes** (information), **interference** (bundling/capacity), **phase** (chirality / the_one θ), **resonance** (recall), **dispersion** and **group-vs-phase velocity** (the F860 lead-the-target / light-delay reading), and the wave equation in 3D_s + 1D_t. The chirality-binds reading (F876) becomes: **coherence = phase-locking of a standing wave**; gravity (mass) = the dispersion/distortion; the void = the node.
+
+## Honest scope
+- **Part 1 is measured** (the resonator wiring reproduces F875 exactly, on shipped 0.9.0rc6). **Part 2 is an MFO-candidate reading** (favored-not-privileged, hand-to-expert) — strongly suggested by the structure (recall-is-resonance is literal; bundling-is-interference is exact) but a *framing*, not new data; it points at the next questions (bring wave theory in) rather than asserting a physics result.
+- Reproduction-not-generalization + the K=2 branching (F875) still stand; unchanged by the resonator wiring.
+
+## Verdict / next
+The generator now rides the shipped resonator (`klein4_chunk_resolve`) — recall is resonance, exact-`Q`, boundary-correct. And naming it resonance makes the substrate legible as a **wave/resonance system in 3D_s + 1D_t**: bundling=interference, void=node, chirality=phase/antipole, the_one=oscillation, scale-free=one-wave-all-scales; "what's waving" dissolves into relationship-is-wave / substrate-is-field, "solid" = scale-locked standing wave. **Next:** bring wave theory in (standing waves / nodes / dispersion / group-vs-phase velocity) as the lens on the metric; and the F876 chirality-binds ablation (venv now rebuildable). Framework reading + shipped-op measurement; MFO-candidate; evaluate by groundedness.
