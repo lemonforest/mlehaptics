@@ -284,6 +284,7 @@
 {"exposed_as": "srmech.signal_processing.unlock_dispatch_table", "defined_at": "srmech.signal_processing.cascade_dispatcher.unlock_dispatch_table", "bucket": "non_compute"}
 {"exposed_as": "srmech.signal_processing.update_dispatch_table", "defined_at": "srmech.signal_processing.profiling.update_dispatch_table", "bucket": "non_compute"}
 {"exposed_as": "srmech.amsc.cascade.hypercomplex_couple", "defined_at": "srmech.amsc.cascade.hypercomplex_dft.hypercomplex_couple", "bucket": "python_only_irreducible"}
+{"exposed_as": "srmech.amsc.cascade.hypercomplex_exp", "defined_at": "srmech.amsc.cascade.hypercomplex_dft.hypercomplex_exp", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.eigvals", "defined_at": "srmech.amsc.cascade.matrix_cascades.eigvals", "bucket": "python_only_irreducible"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.einsum", "defined_at": "srmech.amsc.cascade.matrix_cascades.einsum", "bucket": "python_only_irreducible"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.lstsq", "defined_at": "srmech.amsc.cascade.matrix_cascades.lstsq", "bucket": "python_only_irreducible"}

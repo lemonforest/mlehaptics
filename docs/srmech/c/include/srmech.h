@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc9"
-#define SRMECH_VERSION       "0.9.0rc9"
+#define SRMECH_VERSION_PRE   "rc10"
+#define SRMECH_VERSION       "0.9.0rc10"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1585,6 +1585,18 @@ srmech_status_t srmech_rational_sqrt(double x, double *out);
  * Q(root, 1 << -p). sqrt(0) -> (0, 0); negative / non-finite -> BAD_INPUT.
  * Additive -> ABI unchanged. */
 srmech_status_t srmech_sqrt_q61(double x, int64_t *out_root, int64_t *out_p);
+
+/* 0.9.0rc10 hypercomplex exp(mu*theta) twiddle (F882, srmech #205). Fills out8
+ * (an 8-element int64 array) with the unit exponential q = cos(theta) +
+ * mu*sin(theta) in Q61 (denominator 2^61): out8[0] = cos(theta), out8[1..k] =
+ * sin(theta)/sqrt(k), out8[k+1..7] = 0. mu = the equal-weight UNIT pure-imaginary
+ * over the first k_axes octonion axes, k_axes in {1,3,7} -> C/H/O. The eight
+ * components feed a Cayley-Dickson multiply (the literal QDFT/ODFT twiddle), then
+ * one projection. Byte-exact with the Python pure-Q61 cascade.hypercomplex_exp.
+ * Non-finite / |theta| >= 2^55, or k_axes not in {1,3,7} -> SRMECH_ERR_BAD_INPUT.
+ * Additive -> ABI unchanged. */
+srmech_status_t srmech_hypercomplex_exp_q61(double theta, int k_axes,
+                                            int64_t *out8);
 
 /* Class-N rational exp/log cascade (v0.7.0rc46; the C-transpile closeout).
  * exp(x) = 2^n * exp(r) with the Q61 integer Taylor for exp(r) (|r| <= ln2/2)

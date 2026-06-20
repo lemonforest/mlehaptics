@@ -2907,6 +2907,33 @@ def _register_primitive_class_tools() -> None:
                       "the coupled value — a 4-component quaternion (≤3 streams) or "
                       "8-component octonion"),
         ),
+        # Literal exp(μθ) unit hypercomplex twiddle (v0.9.0rc10; F882, srmech #205).
+        # Registered FLAT as srmech.amsc.cascade.hypercomplex_exp; native C peer
+        # srmech_hypercomplex_exp_q61 is byte-exact Q61 (test_hypercomplex_exp_rc10).
+        ToolEntry(
+            name="srmech.amsc.cascade.hypercomplex_exp", owner="srmech",
+            category="cascade",
+            summary="Literal exp(μθ) = cos θ + μ·sin θ unit hypercomplex twiddle — the "
+                    "GENUINE hypercomplex exponential as an exact Q61 8-tuple (F882, "
+                    "srmech #205). μ is the equal-weight UNIT pure-imaginary over the "
+                    "first k_axes octonion axes: k_axes ∈ {1,3,7} = ℂ/ℍ/𝕆. Returns 8 "
+                    "exact Q [cos θ, sin θ/√k ×k, 0 ×(7−k)] with |q|=1. Feed it into "
+                    "cd_mult to rotate a hypercomplex value IN the algebra, then project "
+                    "once — the literal QDFT/ODFT twiddle that beats composing scalar "
+                    "phase_binds on the projected carrier (F882: ℂ 0.78 = the spirit's "
+                    "ℍ rung; 𝕆/ODFT 0.81, a new routing high). Class N (Q61 cos/sin) ∘ "
+                    "Class K (1/√k unit norm via integer-sqrt) ∘ Class C (sign); no "
+                    "abs(), no libm, no bignum — fixed-width Q61. Native peer "
+                    "srmech_hypercomplex_exp_q61 is byte-exact with the pure cascade.",
+            parameters=(
+                P("theta", "float", True, "the rotation angle θ (radians)"),
+                P("k_axes", "int", True,
+                  "imaginary-axis count: 1 (ℂ) | 3 (ℍ / QDFT) | 7 (𝕆 / ODFT)"),
+            ),
+            returns=R("tuple[Q, ...]",
+                      "8-tuple of exact Q (Q61, denominator 2^61): "
+                      "[cos θ, sin θ/√k ×k_axes, 0 ×(7−k_axes)]"),
+        ),
         # Hamming / GF(2) linear block-code family (v0.7.2rc2; #910 / §30,
         # F442/F449) — the CARRY/EC half of the sedenion front-loader. Rosetta
         # PAIR: pure-Python spec + JPL-clean srmech_hamming_* C peer, attested
