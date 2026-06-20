@@ -113,6 +113,15 @@ class Q:
         """The exact reduced ``(num, den)`` integer pair."""
         return (self._n, self._d)
 
+    def as_integer_ratio(self) -> Tuple[int, int]:
+        """The exact reduced ``(num, den)`` — the standard numeric protocol so a
+        ``Q`` is a first-class :class:`~fractions.Fraction` source. This is what
+        lets ``Fraction(q)`` / ``int(q)`` (and so ``cascade.cd_mult`` over the
+        exact-rational ``Q`` twiddle ``hypercomplex_exp``) coerce without a float
+        rotation. Alias of :meth:`as_pair` (``int``/``float``/``Fraction`` all
+        expose ``as_integer_ratio``)."""
+        return (self._n, self._d)
+
     def __iter__(self):
         """Unpack as ``num, den = q``."""
         yield self._n

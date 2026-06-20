@@ -20,7 +20,11 @@
  * identities reassemble bit-exactly (sin0=0, cos0=1, atan0=0, exp0=1, log1=0,
  * sqrt4=2, sqrt(1/4)=1/2); (2) each peer's float projection matches libm over a
  * spread; (3) the three COMPOSED ops (tan, atan2, hypot) a C host builds from
- * the peers + constants match libm — proving the full surface is standalone.
+ * the peers + constants match libm — proving the full surface is standalone;
+ * (4) 0.9.0rc10 — the literal exp(mu*theta) hypercomplex twiddle
+ * (srmech_hypercomplex_exp_q61, F882): 8 Q61 int64 = cos theta + mu*sin theta
+ * for k_axes in {1,3,7} (C/H/O), the imaginary slots bit-equal, |q| = 1, and
+ * k_axes outside {1,3,7} a clean BAD_INPUT — proving the twiddle is C-host-only.
  */
 
 #include "srmech.h"
@@ -182,6 +186,40 @@ int main(void)
         check_close(q61_atan2(1.0, 0.0), atan2(1.0, 0.0), 1e-12, "atan2(1,0)=pi/2 via half_pi");
         check_close(q61_atan2(1.0, -1.0), atan2(1.0, -1.0), 1e-12, "atan2(1,-1) quadrant II");
         check_close(q61_atan2(-1.0, -1.0), atan2(-1.0, -1.0), 1e-12, "atan2(-1,-1) quadrant III");
+    }
+
+    /* (4) 0.9.0rc10 — the literal exp(mu*theta) hypercomplex twiddle (F882),
+     * standalone C-host: cos theta + mu*sin theta as 8 Q61 int64, |q| = 1. */
+    {
+        int64_t q8[8];
+        const double inv = 1.0 / (double)SRMECH_Q61_ONE;   /* Q61 -> double */
+        srmech_status_t st = srmech_hypercomplex_exp_q61(0.7, 1, q8);
+        check_eq_i64((int64_t)st, (int64_t)SRMECH_OK, "exp_q61(0.7,1) -> OK");
+        check_close((double)q8[0] * inv, cos(0.7), 1e-12, "k=1 q[0] = cos theta");
+        check_close((double)q8[1] * inv, sin(0.7), 1e-12, "k=1 q[1] = sin theta");
+        for (int a = 2; a < 8; a++) {
+            check_eq_i64(q8[a], 0, "k=1 empty axis is exactly 0");
+        }
+        /* k=3 (quaternion): the 3 imaginary slots are bit-equal; |q| = 1. */
+        st = srmech_hypercomplex_exp_q61(0.9, 3, q8);
+        check_eq_i64((int64_t)st, (int64_t)SRMECH_OK, "exp_q61(0.9,3) -> OK");
+        check_eq_i64(q8[2], q8[1], "k=3 slot2 == slot1");
+        check_eq_i64(q8[3], q8[1], "k=3 slot3 == slot1");
+        check_eq_i64(q8[4], 0, "k=3 slot4 is exactly 0");
+        double n2 = 0.0;
+        for (int a = 0; a < 8; a++) { double c = (double)q8[a] * inv; n2 += c * c; }
+        check_close(n2, 1.0, 1e-9, "k=3 unit norm |q|^2 = 1");
+        /* k=7 (octonion / ODFT twiddle): all 7 imaginary slots bit-equal. */
+        st = srmech_hypercomplex_exp_q61(1.3, 7, q8);
+        check_eq_i64((int64_t)st, (int64_t)SRMECH_OK, "exp_q61(1.3,7) -> OK");
+        check_eq_i64(q8[7], q8[1], "k=7 slot7 == slot1");
+        n2 = 0.0;
+        for (int a = 0; a < 8; a++) { double c = (double)q8[a] * inv; n2 += c * c; }
+        check_close(n2, 1.0, 1e-9, "k=7 unit norm |q|^2 = 1");
+        /* k outside {1,3,7} is a clean BAD_INPUT, not a crash. */
+        st = srmech_hypercomplex_exp_q61(0.5, 2, q8);
+        check_eq_i64((int64_t)st, (int64_t)SRMECH_ERR_BAD_INPUT,
+                     "exp_q61(.,2) -> BAD_INPUT");
     }
 
     printf("\n%d passed, %d failed\n", g_passed, g_failed);

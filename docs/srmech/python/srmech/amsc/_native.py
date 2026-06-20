@@ -1421,6 +1421,13 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_atan2.argtypes = [
             ctypes.c_double, ctypes.c_double, ctypes.POINTER(ctypes.c_double)]
         lib.srmech_atan2.restype = ctypes.c_int
+    # 0.9.0rc10 hypercomplex exp(mu*theta) twiddle (F882): fills out8 (8 int64
+    # Q61 components). ``int srmech_hypercomplex_exp_q61(double theta, int k_axes,
+    # int64_t *out8)``. hasattr guard — a pre-rc10 lib still loads.
+    if hasattr(lib, "srmech_hypercomplex_exp_q61"):
+        lib.srmech_hypercomplex_exp_q61.argtypes = [
+            ctypes.c_double, ctypes.c_int, ctypes.POINTER(ctypes.c_int64)]
+        lib.srmech_hypercomplex_exp_q61.restype = ctypes.c_int
 
     # ------------------------------------------------------------------
     # v0.7.5rc153 (UPSTREAM §49): bind the 11 genome file-management C
@@ -1808,6 +1815,26 @@ def log_q61_c(x: float):
 def sqrt_q61_c(x: float):
     """``sqrt(x) = root * 2**p`` -> ``(root, p)`` (both int64)."""
     return _q61_two_out("srmech_sqrt_q61", x)
+
+
+def has_native_hypercomplex_exp() -> bool:
+    """True iff the C hypercomplex exp(μθ) twiddle peer is loaded (0.9.0rc10+)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_hypercomplex_exp_q61"))
+
+
+def hypercomplex_exp_q61_c(theta: float, k_axes: int):
+    """``exp(μθ) = cos θ + μ·sin θ`` (μ unit pure-imaginary over the first
+    ``k_axes`` octonion axes, ``k_axes ∈ {1,3,7}``) → a list of 8 Q61 int64
+    components over ``2**61`` (out8[0]=cos θ, out8[1..k]=sin θ/√k, rest 0)."""
+    out = (ctypes.c_int64 * 8)()
+    rc = LIB.srmech_hypercomplex_exp_q61(
+        ctypes.c_double(theta), ctypes.c_int(int(k_axes)), out)
+    if rc != SRMECH_OK:
+        raise ValueError(
+            f"srmech_hypercomplex_exp_q61: theta non-finite or k_axes not in "
+            f"{{1,3,7}} (status {rc})")
+    return [out[i] for i in range(8)]
 
 
 def atan2_c(y: float, x: float) -> float:

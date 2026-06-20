@@ -60,14 +60,32 @@ Citations (verified PDFs —
 """
 from __future__ import annotations
 
-from typing import List, Sequence
+import math
+from typing import List, Sequence, Tuple
 
 # §22: scalar root + trig via the Class-N rational cascade, not libm; π from the
 # Archimedes pi_cascade (`[[feedback_continuous_number_line_pedagogical_obstacle]]`).
+from srmech.amsc import _native
+from srmech.amsc import rational as _rational
+from srmech.amsc.q import Q as _Q
 from srmech.amsc.rational import cos as _rcos
 from srmech.amsc.rational import pi_cascade_digits as _pi_cascade_digits
 from srmech.amsc.rational import sin as _rsin
 from srmech.amsc.rational import sqrt as _rsqrt
+
+# 0.9.0rc10 (F882, srmech #205) — the LITERAL exp(μθ) twiddle in EXACT Q61.
+_Q61_ONE = _rational._Q61_ONE                          # 1.0 in Q61 (= 2**61)
+_HC_AXES = (1, 3, 7)                                   # ℂ / ℍ / 𝕆 imaginary dims
+# unit 1/√k as a Q61 int = isqrt(2^122 / k): the integer-sqrt cascade
+# (``math.isqrt``, bit-identical to the C ``srmech_isqrt128``); k=1 → 2**61.
+_HC_INV_Q61 = {k: math.isqrt((_Q61_ONE * _Q61_ONE) // k) for k in _HC_AXES}
+
+
+def _q61_int(qv: "_Q") -> int:
+    """Recover the raw Q61 integer ``v`` from a ``Q == v / 2**61`` (the reduced
+    denominator always divides ``2**61``)."""
+    n, d = qv.as_pair()
+    return n * (_Q61_ONE // d)
 
 # Cascade-π as a float: the high-precision rational digit-string projected to
 # float once at import (no `math.pi`).
@@ -101,6 +119,41 @@ def _twiddle8(theta: float, mu: Sequence[float]) -> List[float]:
     c = _rcos(theta)
     s = _rsin(theta)
     return [c] + [s * mu[i] for i in range(1, 8)]
+
+
+def hypercomplex_exp(theta: float, k_axes: int) -> Tuple["_Q", ...]:
+    """The unit hypercomplex exponential ``exp(μθ) = cos θ + μ·sin θ`` as an
+    8-tuple of EXACT :class:`~srmech.amsc.q.Q` (Q61, denominator ``2**61``).
+
+    ``μ`` is the EQUAL-WEIGHT UNIT pure-imaginary over the first ``k_axes``
+    octonion imaginary axes — ``k_axes ∈ {1, 3, 7}`` selecting ``ℂ`` / ``ℍ`` /
+    ``𝕆`` (the F882 *literal* QDFT / ODFT twiddle). The eight components are
+    ``q[0] = cos θ``, ``q[1..k] = sin θ / √k`` (so ``|q| = 1``), ``q[k+1..7] =
+    0``. Feed them into :func:`~srmech.amsc.cascade.cd_mult` to rotate a
+    hypercomplex value **in the algebra** (then project once) — the "do the
+    transform in ℍ/𝕆, then read out" that beats composing scalar ``phase_bind``
+    ops on the projected carrier (F882: ℂ 0.78 = the spirit's ℍ rung; 𝕆/ODFT
+    0.81, a new routing high).
+
+    Substrate-native fixed-width Q61 cascade (``rational.{cos,sin}`` + the
+    integer-sqrt unit norm — no bignum, no libm), **byte-exact** with the native
+    peer ``srmech_hypercomplex_exp_q61`` when present. ``k_axes`` outside
+    ``{1, 3, 7}`` or a non-finite ``theta`` raises ``ValueError`` (``Q`` is the
+    finite-rational carrier)."""
+    if k_axes not in _HC_INV_Q61:
+        raise ValueError(
+            f"hypercomplex_exp: k_axes must be 1, 3 or 7 (ℂ/ℍ/𝕆); got {k_axes!r}")
+    th = float(theta)
+    if not math.isfinite(th):
+        raise ValueError("hypercomplex_exp: theta must be finite (Q is the finite-rational carrier)")
+    if _native.has_native_hypercomplex_exp():
+        ints = _native.hypercomplex_exp_q61_c(th, k_axes)      # 8 Q61 ints, byte-exact
+    else:                                                       # pure Q61 cascade
+        c = _q61_int(_rcos(th))
+        s = _q61_int(_rsin(th))
+        scaled = _rational._q61_fxmul(s, _HC_INV_Q61[k_axes])   # sin θ / √k (Class K·C)
+        ints = [c] + [scaled if a < k_axes else 0 for a in range(7)]
+    return tuple(_Q(v, _Q61_ONE) for v in ints)
 
 
 def _as8(vec) -> List[float]:

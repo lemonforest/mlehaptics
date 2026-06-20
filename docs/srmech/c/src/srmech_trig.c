@@ -317,6 +317,48 @@ srmech_status_t srmech_cos_q61(double x, int64_t *out_q61)
     return SRMECH_OK;
 }
 
+/* 0.9.0rc10 hypercomplex exp(mu*theta) twiddle (F882, srmech #205). The unit
+ * exponential q = cos(theta) + mu*sin(theta), mu the equal-weight unit pure-
+ * imaginary over the FIRST k_axes octonion axes (k_axes = 1/3/7 -> C/H/O). Fills
+ * eight Q61 components (denominator 2^61): out8[0] = cos(theta); out8[1..k] =
+ * sin(theta)/sqrt(k); out8[k+1..7] = 0. mu is unit via 1/sqrt(k) in Q61 =
+ * isqrt(2^122 / k) (k=1 -> 2^61 exactly); the k=3,7 anchors are round(2^61/sqrt k)
+ * and are verified === the Python isqrt cascade in the parity test (no 128-bit
+ * divide in -Wpedantic C, so they are stated, not derived in-place). The eight
+ * components feed a Cayley-Dickson multiply (where a hypercomplex value lives),
+ * then a single projection — the literal QDFT/ODFT twiddle. Byte-exact with the
+ * pure-Q61 Python mirror cascade.hypercomplex_exp. A non-finite (or |theta| >=
+ * 2^55) argument has no Q61 form -> SRMECH_ERR_BAD_INPUT (the cos/sin peers gate
+ * it); k_axes not in {1,3,7} -> SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_hypercomplex_exp_q61(double theta, int k_axes,
+                                            int64_t *out8)
+{
+    assert(out8 != NULL);
+    if (out8 == NULL) { return SRMECH_ERR_NULL_ARG; }
+    int64_t inv;
+    if (k_axes == 1) {
+        inv = SRMECH_Q61_ONE;                          /* 1/sqrt(1) = 1.0 in Q61 */
+    } else if (k_axes == 3) {
+        inv = INT64_C(1331279082078542925);            /* round(2^61 / sqrt 3) */
+    } else if (k_axes == 7) {
+        inv = INT64_C(871526737819464516);             /* round(2^61 / sqrt 7) */
+    } else {
+        return SRMECH_ERR_BAD_INPUT;                    /* only C/H/O imaginary axes */
+    }
+    assert(inv > 0);                                   /* unit norm anchor positive */
+    int64_t c = 0, s = 0;
+    srmech_status_t st = srmech_cos_q61(theta, &c);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_sin_q61(theta, &s);
+    if (st != SRMECH_OK) { return st; }
+    int64_t scaled = trig_fxmul(s, inv);               /* sin(theta) / sqrt(k) */
+    out8[0] = c;
+    for (int a = 1; a < 8; a++) {
+        out8[a] = (a <= k_axes) ? scaled : INT64_C(0);
+    }
+    return SRMECH_OK;
+}
+
 /* atan(|m|) for m >= 0 as an exact Q61 INTEGER — the three-band recombination
  * accumulates in Q61 ints (pi/2 = HALF_PI_Q61, pi/4 = that >> 1), mirror of the
  * Python `_atan_nonneg_q61`. The COT band naturally yields pi/2 for m = +Inf
