@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc7"
-#define SRMECH_VERSION       "0.9.0rc7"
+#define SRMECH_VERSION_PRE   "rc8"
+#define SRMECH_VERSION       "0.9.0rc8"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1537,11 +1537,35 @@ srmech_status_t srmech_cos(double x, double *out);
 srmech_status_t srmech_atan(double x, double *out);
 srmech_status_t srmech_atan2(double y, double x, double *out);
 
+/* 0.9.0rc8 Q61 model constants (F868) — the fixed-point scale + the two
+ * transcendental recombine anchors a C-ONLY host needs to reassemble the EXACT
+ * rational that Python's rational.{sin,cos,tan,atan,atan2,exp,log,sqrt,hypot}
+ * return, with NO Python present. The *_q61 peers below hand back the int64 Q61
+ * pieces; these three constants close the assembly so the full transcendental
+ * surface is computable standalone:
+ *   sin/cos/atan : value = out_q61 / SRMECH_Q61_ONE                  (exact int64)
+ *   exp          : value = (out_core / SRMECH_Q61_ONE) * 2^out_n     (ldexp scale)
+ *   log          : value = (out_logm + out_e * SRMECH_Q61_LN2) / SRMECH_Q61_ONE
+ *                  — out_e * ln2 exceeds int64; recombine in int128 / a bignum
+ *                  for the EXACT rational (Python uses arbitrary-precision ints),
+ *                  or in double for the libm-faithful float projection.
+ *   sqrt         : value = out_root * 2^out_p                        (no constant)
+ *   tan          : sin-peer / cos-peer                               (exact Q/Q)
+ *   atan2        : atan-peer + quadrant shift by SRMECH_Q61_HALF_PI (+-pi/2) and
+ *                  2*SRMECH_Q61_HALF_PI (+-pi), per sign(x), sign(y)
+ *   hypot        : sqrt-peer of (a*a + b*b)
+ * Values are round(c * 2^61). Single-line #defines (JPL Rule 8 clean). */
+#define SRMECH_Q61_FBITS    61
+#define SRMECH_Q61_ONE      (INT64_C(1) << SRMECH_Q61_FBITS)   /* 1.0 in Q61 = 2^61 */
+#define SRMECH_Q61_LN2      INT64_C(1598288580650331957)       /* round(ln2  * 2^61) */
+#define SRMECH_Q61_HALF_PI  INT64_C(3622009729038561421)       /* round(pi/2 * 2^61) */
+
 /* 0.9.0rc7 stay-rational Q61 peers (F868). These return the EXACT int64 Q61
  * cascade value (denominator 2^61) BEFORE the float projection, so the Python
  * rational.{sin,cos,atan} dispatch to native AND keep the full 61-bit rational
  * (Q(*out_q61, 2^61)) instead of a double promoted back to Q. Same cores. A
  * non-finite (or |x| >= 2^55) argument has no Q61 form -> SRMECH_ERR_BAD_INPUT.
+ * A C-only host reassembles the rational via the SRMECH_Q61_* constants above.
  * Additive -> ABI unchanged. */
 srmech_status_t srmech_sin_q61(double x, int64_t *out_q61);
 srmech_status_t srmech_cos_q61(double x, int64_t *out_q61);
