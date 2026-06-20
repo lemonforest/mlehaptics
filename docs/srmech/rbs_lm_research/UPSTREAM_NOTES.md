@@ -2454,3 +2454,18 @@ Pulled `srmech==0.9.0rc9` into a clean venv (native ABI 3, dispatching). The rc9
 **Return-type surface (unchanged from §63, re-confirmed at rc9):** `hdc.klein4_similarity` → **Q** (e.g. `Q(2059,8192)` = matches/D, exact); `best_rational` → tuple; `cascade.magnitude` → int; `calculus.{sin,cos,exp,atan}_series_truncate` → exact `(num,den)` **tuple** (NOT Q — still the §63 open item: the rational-similarity surfaces are Q, the transcendental-series surfaces are bare tuples; `the_one` still requires **int** `theta_num/theta_den`, rejects float).
 
 **Impact on siona/RBS-LM code:** our routing/recall ranking (`max(..., key=klein4_similarity)`) is **unaffected** — Q is comparable, so the ranking is identical to the old float path, now exact-rational end-to-end (honors `[[feedback_stay_rational_collapse_only_at_display]]` with zero code change). Re-surface: `0.9.0rc9` · `Q arithmetic-complete` · `no __int__/__index__` · `similarity→Q` · `transcendental-series still tuple` · `F868` · `§63`.
+
+## §65 VERIFICATION — srmech 0.9.0rc11 (TestPyPI): Q gains `__int__`+`real`/`imag`/`conjugate`; SedenionRegister ships `carry`/`correct`/`navmap` (2026-06-20, introspect-before-dispatch)
+
+Pulled `srmech==0.9.0rc11` into a clean venv (native ABI 3, dispatching). Deltas vs rc9 (§64):
+
+**Q carrier:** now has **`__int__`** (was absent at rc9) + **`real`/`imag`/`conjugate`/`as_integer_ratio`** (complex-rational accessors + the stdlib float protocol). Still **no `__index__`** (can't index a list with a `Q` — use `int(q)` / `q.as_pair()`). `klein4_similarity` → `Q` (unchanged).
+
+**SedenionRegister (rc11 surface — the carry/EC mechanism, load-bearing for the address grid):**
+- `navigate(j) -> SedenionRegister` — right-multiply slot *names* by `e_j` (the address↔Cayley–Dickson homomorphism); **`navigate(j).navigate(j)` = the global −1** (`e_j²=−1`) — i.e. a double-step is the **sign flip = the σ↔θ Möbius half-twist** (F888), recoverable as a Class-K sign. VERIFIED: page back at its slot with sign −1 after two steps.
+- `navmap(j) -> Dict[int,(k,sign)]` — the signed pointer-advance permutation (reversible at every dim).
+- `carry(overflow_bits, n=3) -> List[int]` — encode overflow past the ≤7 working set into a **Hamming(2ⁿ−1, …) EC codeword in the e8..e15 block**. **GOTCHA: `n=3` ⇒ Hamming(7,4) needs EXACTLY 4 data bits** (not 3) — `ValueError` otherwise.
+- `correct(codeword) -> {"data","error_position","corrected_codeword"}` — single-error-correcting decode (the recovered payload is under key **`"data"`**).
+- `couple_working`/`uncouple_working` (pack ≤7 vals into an octonion), `materialize() -> bytes`, `is_navigable(direction)`, `slots()`.
+
+VERIFIED in F891: `carry`→`correct` round-trips 4-bit payloads 6/6 clean and 6/6 after a 1-bit codeword error; 64-page addressing via (base-slot, carried-high-bits) = 64/64 exact AND 64/64 with a 1-bit address-carry error (EC-protected) — vs F880's flat base-16 resonance-nesting (0.16). Re-surface: `0.9.0rc11` · `Q.__int__` · `Q.real/imag/conjugate` · `SedenionRegister.carry` · `Hamming(7,4) needs 4 data bits` · `correct()["data"]` · `navigate²=-1 = Mobius` · `F891`.
