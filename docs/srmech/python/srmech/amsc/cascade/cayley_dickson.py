@@ -112,9 +112,27 @@ def _is_pow2(n: int) -> bool:
     return n >= 1 and (n & (n - 1)) == 0
 
 
+def _coerce_frac(x: Any) -> Fraction:
+    """Coerce one scalar to an exact ``Fraction``. Accepts any rational carrier
+    that exposes ``as_integer_ratio`` — notably :class:`srmech.amsc.q.Q`, the
+    exact-rational scalar (so the ``hypercomplex_exp`` Q-twiddle feeds straight
+    into ``cd_mult``). The ``as_integer_ratio`` route is version-robust:
+    ``Fraction(q)`` only consults ``as_integer_ratio`` on Python ≥3.14, so a
+    Q would raise ``TypeError`` on 3.10–3.13 without this. ``int``/``float``
+    round-trip identically through ``as_integer_ratio``; ``str``/``Decimal``
+    fall back to the plain constructor."""
+    if type(x) is Fraction:
+        return x
+    air = getattr(x, "as_integer_ratio", None)
+    if air is not None:
+        n, d = air()
+        return Fraction(n, d)
+    return Fraction(x)
+
+
 def _as_elem(seq: Sequence[Any]) -> Tuple[Fraction, ...]:
     """Coerce a sequence to a power-of-two-length tuple of exact Fractions."""
-    el = tuple(x if type(x) is Fraction else Fraction(x) for x in seq)
+    el = tuple(_coerce_frac(x) for x in seq)
     n = len(el)
     if not _is_pow2(n):
         raise ValueError(

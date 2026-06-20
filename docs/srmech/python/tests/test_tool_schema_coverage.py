@@ -117,6 +117,11 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # (which IS registered); the submodule-dotted name is the same object
     # re-exported flat, exempt exactly like the DFT peers above.
     "srmech.amsc.cascade.hypercomplex_dft.hypercomplex_couple",
+    # cascade.hypercomplex_dft.hypercomplex_exp (v0.9.0rc10 / F882, srmech #205).
+    # The literal exp(μθ) hypercomplex twiddle. Registered under its STABLE flat
+    # public name ``srmech.amsc.cascade.hypercomplex_exp`` (which IS registered);
+    # the submodule-dotted name is the same object re-exported flat.
+    "srmech.amsc.cascade.hypercomplex_dft.hypercomplex_exp",
     # cascade.hamming.* — the Hamming/GF(2) block-code family (v0.7.2rc2 / #910
     # §30). Registered under their STABLE flat public names
     # ``srmech.amsc.cascade.hamming_{encode,syndrome,decode_correct}`` (which ARE
