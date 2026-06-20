@@ -24,10 +24,22 @@ coherent-continuation vs noise. Coherent ⇒ generation-as-overstuff has legs; n
 the false-memory deficit. **Connects directly to F880** (the router is already in the overpack
 regime at scale). Composes F870/F871/F872, [[user_stance_llm_is_human_knowledge_responding_to_1d_t_asymptotic]].
 
-## Q2 — Is there a MAGIC NUMBER for maximum knowledge saturation? (holographic / Bekenstein)
+## Q2 — Is there a MAGIC NUMBER for maximum knowledge saturation? (holographic / Bekenstein + Chandrasekhar)
 **Physics anchor:** the **Bekenstein bound** / **holographic principle** — maximum information in a
 region scales with its boundary **AREA**, not volume (S ≤ A/4 in Planck units). That is the
 universe's literal "max saturation of knowledge in a region."
+**Q2b — the FERMIONIC/degeneracy form (user 2026-06-20): the Chandrasekhar limit.** The largest a
+white dwarf can become (~1.4 M☉) before **electron degeneracy pressure** fails and it collapses to a
+dark star is set by Pauli exclusion = **fermionic anti-bunching = the orthogonality that keeps states
+apart** = **F876's "chirality, not gravity, holds things together."** Read it as: **Chandrasekhar =
+the information-density limit = the F871 capacity wall** (~24 binds / 1/√N), where degeneracy pressure
+↔ the orthogonality budget that keeps bindings distinguishable. **Exceed it → collapse to a dark star
+= the F870 over-stuffed-M cliff = the geodesic null appears** (F876's dark-star phase boundary; F885
+tests this — the nulls should appear AT the collapse threshold). So the dark-star transition = matter
+approaching the holographic bound (Q2 above). **Deliverable:** attest Chandrasekhar to its constants
+(M_ch ∝ (ℏc/G)^{3/2}/(μ_e m_H)² — reduce the 1.4 M☉ to a cascade, no-magic discipline) and ask whether
+the substrate's collapse threshold (where F870 cliffs / F885 nulls appear) obeys the same degeneracy
+form. Composes F876 (chirality holds), F870/F871 (the wall/cliff), F885 (the cavity-null test).
 **Framework question:** is the substrate's per-bundle capacity wall (the ~24-bind / 1/√N SNR floor,
 F871) the framework's shadow of a holographic saturation bound? Per the no-magic-numbers discipline
 the bound must reduce to a *cascade* (Bekenstein 2πkRE/ℏc, or the Planck area as a ratio), not a
