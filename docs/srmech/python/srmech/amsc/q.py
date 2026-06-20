@@ -33,11 +33,33 @@ stdlib ``math``); arithmetic rides Class-N ``rational_add`` / ``rational_mul`` /
 
 from __future__ import annotations
 
+import numbers
 from typing import Tuple
 
 from . import rational as _rational
 
 __all__ = ["Q"]
+
+
+def _integer_exponent(exp):
+    """The int value of ``exp`` IF it is an integer-valued exponent — a plain
+    ``int`` (``bool`` excluded) or a rational with denominator 1 (e.g. ``Q(2, 1)``,
+    ``Fraction(2, 1)``) — else ``None``. An integer-valued *float* (``2.0``) is
+    NOT integer here, matching ``fractions.Fraction`` (``Fraction ** 2.0`` is a
+    float, not an exact rational)."""
+    if isinstance(exp, bool):
+        return None
+    if isinstance(exp, int):
+        return exp
+    den = getattr(exp, "denominator", None)
+    num = getattr(exp, "numerator", None)
+    if den is not None and num is not None:
+        try:
+            if den == 1:
+                return int(num)
+        except (TypeError, ValueError):
+            return None
+    return None
 
 
 def _as_pair(value):
@@ -247,18 +269,156 @@ class Q:
         return Q(self._n if self._n >= 0 else -self._n, self._d)
 
     def __pow__(self, exp):
-        """Exact INTEGER power — the EXACT rational ``(num/den)**exp``, staying in
-        the integer ALU (rides the Class-N :func:`~srmech.amsc.rational.rational_pow_uint`,
-        native-dispatched). A non-integer exponent returns ``NotImplemented`` (it
-        is not an exact rational — use ``rational.sqrt`` / ``exp(log)`` for those).
-        This lets the common ``cos(x)**2`` / ``r**3`` idioms flow the cascade as
-        ``Q`` instead of rotating to the FPU early."""
-        if not isinstance(exp, int) or isinstance(exp, bool):
+        """Exact rational power for an INTEGER exponent — the EXACT rational
+        ``(num/den)**exp``, staying in the integer ALU (rides the Class-N
+        :func:`~srmech.amsc.rational.rational_pow_uint`, native-dispatched). An
+        integer-valued exponent may be an ``int`` OR an integer-valued rational
+        (``Q(2, 1)``). A genuinely non-integer exponent (a rational with
+        denominator > 1, or a float) leaves the rationals, so it collapses to the
+        float boundary EXACTLY like :class:`fractions.Fraction` (the result is
+        irrational; ``float`` is where srmech holds irrationals). This keeps
+        ``cos(x)**2`` / ``r**3`` exact while ``q ** 0.5`` stays honest instead of
+        raising — Q is a faithful :class:`numbers.Rational`."""
+        k = _integer_exponent(exp)
+        if k is not None:
+            if k == 0:
+                return Q(1, 1)
+            if k > 0:
+                return Q.from_pair(_rational.rational_pow_uint((self._n, self._d), k))
+            if self._n == 0:
+                raise ZeroDivisionError("Q: 0 cannot be raised to a negative power")
+            return Q.from_pair(_rational.rational_pow_uint((self._d, self._n), -k))
+        base = self._n / self._d
+        if isinstance(exp, complex):
+            return base ** exp
+        pair = _as_pair(exp)
+        if pair is None:
             return NotImplemented
-        if exp == 0:
-            return Q(1, 1)
-        if exp > 0:
-            return Q.from_pair(_rational.rational_pow_uint((self._n, self._d), exp))
-        if self._n == 0:
-            raise ZeroDivisionError("Q: 0 cannot be raised to a negative power")
-        return Q.from_pair(_rational.rational_pow_uint((self._d, self._n), -exp))
+        return base ** (pair[0] / pair[1])
+
+    def __rpow__(self, other):
+        """``base ** self``. Exact when ``self`` is integer-valued (``base`` raised
+        to ``int(self)`` rides the exact integer-power path); otherwise the result
+        is irrational and collapses to the float boundary, Fraction-consistent."""
+        pair = _as_pair(other)
+        if pair is None:
+            return NotImplemented
+        if self._d == 1:
+            return Q.from_pair(pair) ** int(self._n)
+        return (pair[0] / pair[1]) ** (self._n / self._d)
+
+    # ── numbers.Rational conformance: the integer-rounding family (exact, via the
+    #    integer ALU; sign handled by an explicit branch, never an ALU abs()) ────
+    def __trunc__(self) -> int:
+        """Truncate toward zero (``math.trunc``). Exact: denominators are positive
+        (reduced), so the sign is carried by an explicit Class-K branch."""
+        n, d = self._n, self._d
+        if n >= 0:
+            return n // d
+        return -((-n) // d)
+
+    def __int__(self) -> int:
+        """``int(q)`` — truncates toward zero (the numeric-protocol contract)."""
+        return self.__trunc__()
+
+    def __floor__(self) -> int:
+        """Floor toward −∞ (``math.floor``), EXACT — Python ``//`` over a positive
+        reduced denominator already floors toward −∞ (no lossy ``float`` detour)."""
+        return self._n // self._d
+
+    def __ceil__(self) -> int:
+        """Ceil toward +∞ (``math.ceil``), EXACT (no lossy ``float`` detour)."""
+        return -((-self._n) // self._d)
+
+    def _round_half_even(self) -> int:
+        """Round to the nearest integer, ties to even (Python ``round`` / Fraction
+        semantics). Exact integer arithmetic; ``r`` lands in ``[0, d)`` because the
+        reduced denominator is positive."""
+        n, d = self._n, self._d
+        q = n // d
+        r = n - q * d
+        twice = 2 * r
+        if twice < d:
+            return q
+        if twice > d:
+            return q + 1
+        return q if (q % 2 == 0) else q + 1
+
+    def __round__(self, ndigits=None):
+        """``round(q)`` → nearest int (ties-to-even); ``round(q, ndigits)`` → a
+        ``Q`` rounded to that many decimal places — Fraction-consistent, exact."""
+        if ndigits is None:
+            return self._round_half_even()
+        if ndigits >= 0:
+            shift = 10 ** ndigits
+            scaled = Q(self._n * shift, self._d)
+            return Q(scaled._round_half_even(), shift)
+        shift = 10 ** (-ndigits)
+        scaled = Q(self._n, self._d * shift)
+        return Q(scaled._round_half_even() * shift, 1)
+
+    # ── numbers.Complex accessors (a real number's real part is itself) ─────────
+    @property
+    def real(self) -> "Q":
+        return self
+
+    @property
+    def imag(self) -> "Q":
+        return Q(0, 1)
+
+    def conjugate(self) -> "Q":
+        """A real number is its own conjugate."""
+        return self
+
+    def __complex__(self) -> complex:
+        return complex(self._n / self._d)
+
+    # ── numbers.Real floor-division / modulo (Fraction return-types: ``//`` and
+    #    ``divmod`` yield an int quotient, ``%`` yields a Q remainder) ───────────
+    def __floordiv__(self, other):
+        pair = _as_pair(other)
+        if pair is None:
+            return NotImplemented
+        return Q.from_pair(_rational.rational_div((self._n, self._d), pair)).__floor__()
+
+    def __rfloordiv__(self, other):
+        pair = _as_pair(other)
+        if pair is None:
+            return NotImplemented
+        return Q.from_pair(_rational.rational_div(pair, (self._n, self._d))).__floor__()
+
+    def __mod__(self, other):
+        pair = _as_pair(other)
+        if pair is None:
+            return NotImplemented
+        return self - (self // other) * Q.from_pair(pair)
+
+    def __rmod__(self, other):
+        pair = _as_pair(other)
+        if pair is None:
+            return NotImplemented
+        o = Q.from_pair(pair)
+        return o - (o // self) * self
+
+    def __divmod__(self, other):
+        pair = _as_pair(other)
+        if pair is None:
+            return NotImplemented
+        return (self // other, self % other)
+
+    def __rdivmod__(self, other):
+        pair = _as_pair(other)
+        if pair is None:
+            return NotImplemented
+        o = Q.from_pair(pair)
+        return (o // self, o % self)
+
+
+# ``Q`` IS an exact rational with the full real/rational interface above, so it is
+# a genuine :class:`numbers.Rational` (hence ``numbers.Real`` / ``numbers.Complex``
+# / ``numbers.Number``). Registering makes ``isinstance(q, numbers.Rational)`` True
+# and — load-bearing across Python versions — lets ``Fraction(q)`` read
+# ``q.numerator`` / ``q.denominator`` directly (``Fraction`` only consults
+# ``as_integer_ratio`` on Python ≥3.14; on 3.10–3.13 it requires a registered
+# ``Rational``). See `[[feedback_fraction_of_q_carrier_needs_as_integer_ratio_route_pre_314]]`.
+numbers.Rational.register(Q)
