@@ -99,3 +99,14 @@ Both the user-flagged "missing material" concern and the GH `[research]`-issue +
 
 ## Progress log
 - 2026-06-02 — Phase 0 inventory complete; plan lodged. Awaiting branch-strategy pick + go on Phase 1.
+
+## AUDIT-3 (2026-06-21) — the F900–F917 byte/glyph-LM deliverable batch (NOT yet swept; post-dates PR #836)
+
+A new, not-yet-backfilled batch grew from the F899 "packaged RBS-LM is word-hash, not byte/glyph" question. **To sweep into srmech §8.x (the PR-#687 RBS-LM arc) + the MFO notebook, same discipline (meaning-tier, no-magic, held-lightly, no-lineage):**
+- **F900–F901/F905** — the byte/glyph scaffolding is ONE scale-invariant compositor (C1 = role-filler bundle) at every scale; word-hash is its content-address DUAL (a fractal form of byte-hash); the existing L1/L2/L3 ladder (chained bind) is NOT scale-invariant. Sparsity preserved+improved (bounded 256-byte codebook). Coherence == scale-invariance (introspectable).
+- **F902–F913 (the chemistry / Standard-Model-of-a-language arc)** — the 4-layer stack: C1 substrate · octonion `cd_mult` bond · sedenion `sedenion_register` address · §57 distributional resonator; the (4+3) heptad = {K,L,M} associative-3 vs {D,E,F,G} sequence-4 (F914, principled; unit-bijection OPEN); recursion (molecules become atoms, F912).
+- **F909 + F915 (the two NULLs — load-bearing, do NOT bury)** — linguistic structure (valence, constituency) is DISTRIBUTIONAL, NOT the octonion byte-strain (strain ≈ random for real bracketings). The scales do not collapse.
+- **F916 (THE DELIVERABLE)** — the 4-layer byte/glyph LM, all on shipped srmech surfaces; one real package change = C1 as `ContextSubstrate.enc`.
+- **F917 (rc spec + CAVEAT CORRECTION)** — the C1-enc graduation rc spec; **and the correction the backfill MUST carry: the octonion bond is a content-dependent addressing/retrieval KEY, NOT a grammar/structure generator (F909/F915 null). Wire the right operator at the right scale.** Do not let the §8.x text say the bond generates *linguistic* structure.
+
+**Status:** awaiting user go on the rc (F917) and/or the notebook sweep; the F916 layer table must be lifted WITH the F917 §0 caveat, never the uncorrected "bond generates structure" reading.
