@@ -562,6 +562,39 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_cd_basis_product.restype = ctypes.c_int
 
+    # Sedenion address layer (v0.9.0rc12; UPSTREAM §31 / F465+F468) — the
+    # navigation + reversibility gate a C-only host needs for "Siona's address
+    # layer." hasattr-guarded so a stale lib (pre-rc12) keeps the rest.
+    #   int srmech_sedenion_navmap(int j, int *out_dest, int *out_sign)
+    if hasattr(lib, "srmech_sedenion_navmap"):
+        lib.srmech_sedenion_navmap.argtypes = [
+            ctypes.c_int,                       # j (basis direction)
+            ctypes.POINTER(ctypes.c_int),       # out_dest[16]
+            ctypes.POINTER(ctypes.c_int),       # out_sign[16]
+        ]
+        lib.srmech_sedenion_navmap.restype = ctypes.c_int
+    #   int srmech_sedenion_navigate(int j, const int *in_slots,
+    #       const int *in_signs, size_t count, int *out_slots, int *out_signs)
+    if hasattr(lib, "srmech_sedenion_navigate"):
+        lib.srmech_sedenion_navigate.argtypes = [
+            ctypes.c_int,                       # j
+            ctypes.POINTER(ctypes.c_int),       # in_slots
+            ctypes.POINTER(ctypes.c_int),       # in_signs (+1/-1)
+            ctypes.c_size_t,                    # count
+            ctypes.POINTER(ctypes.c_int),       # out_slots
+            ctypes.POINTER(ctypes.c_int),       # out_signs
+        ]
+        lib.srmech_sedenion_navigate.restype = ctypes.c_int
+    #   int srmech_sedenion_is_navigable(const int64_t *direction, size_t n,
+    #                                    int *out_invertible)  (modular rank)
+    if hasattr(lib, "srmech_sedenion_is_navigable"):
+        lib.srmech_sedenion_is_navigable.argtypes = [
+            ctypes.POINTER(ctypes.c_int64),     # direction (integer vector)
+            ctypes.c_size_t,                    # n (power of two <= 64)
+            ctypes.POINTER(ctypes.c_int),       # out_invertible (0/1)
+        ]
+        lib.srmech_sedenion_is_navigable.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Class J — prime-factorisation / period (Task #217 Phase C1 rc3).
     # ------------------------------------------------------------------

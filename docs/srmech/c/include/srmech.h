@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc11"
-#define SRMECH_VERSION       "0.9.0rc11"
+#define SRMECH_VERSION_PRE   "rc12"
+#define SRMECH_VERSION       "0.9.0rc12"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2041,6 +2041,51 @@ srmech_status_t srmech_hamming_decode_correct(const uint8_t *codeword, size_t le
  * power of two in range, or i/j out of range). */
 srmech_status_t srmech_cd_basis_product(int dim, int i, int j,
                                         int *out_index, int *out_sign);
+
+/* ------------------------------------------------------------------
+ * Sedenion-addressable hyper-loop ADDRESS LAYER (UPSTREAM §31 / F465 +
+ * F468; Python srmech.amsc.cascade.sedenion_register). The navigation +
+ * reversibility-gate ops a C-only host needs to run "Siona's address
+ * layer." The carry/correct EC half is the §30 srmech_hamming_* family.
+ * Rosetta peer of SedenionRegister.{navmap,navigate,is_navigable},
+ * attested by tests/test_cascade_sedenion_parity.py.
+ *
+ * NO BIGNUM: is_navigable decides invertibility of the signed
+ * XOR-circulant L(x)[r][c] = sign(r^c,c) * x_{r^c} by MODULAR rank over
+ * word-size primes (every product < 2^62, no multi-precision limb), made
+ * certain for the singular verdict by exceeding the Hadamard determinant
+ * bound. See srmech_sedenion.c.
+ *
+ * ABI-additive: new symbols + a macro, so SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* The sedenion address space is 16 named slots e0..e15. */
+#define SRMECH_SEDENION_NUM_SLOTS 16
+
+/* The signed pointer-advance permutation for right-multiply-by-e_j: for each
+ * slot i in [0,16), out_dest[i] = k and out_sign[i] = s where e_i * e_j =
+ * s * e_k. out_dest / out_sign are caller arrays of length 16. j in [0,16).
+ * Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (j out of range). */
+srmech_status_t srmech_sedenion_navmap(int j, int *out_dest, int *out_sign);
+
+/* Route `count` occupied (slot, sign) records through the ×e_j permutation,
+ * composing the Class-C signs: out_slots[m] = k, out_signs[m] = in_signs[m]*s
+ * where e_{in_slots[m]} * e_j = s * e_k. in_signs entries must be +1/-1 and
+ * in_slots in [0,16). count == 0 is a no-op. Errors: SRMECH_ERR_NULL_ARG;
+ * SRMECH_ERR_BAD_INPUT (j / slot out of range, or sign not +-1). */
+srmech_status_t srmech_sedenion_navigate(int j, const int *in_slots,
+                                         const int *in_signs, size_t count,
+                                         int *out_slots, int *out_signs);
+
+/* Reversibility gate: is left-multiplication by `direction` (an integer
+ * vector of power-of-two length n in [1, SRMECH_CD_MAX_DIM]) a bijection?
+ * Sets *out_invertible to 1 (invertible / navigable) or 0 (a left zero
+ * divisor). Exact (modular rank; bit-identical bool to the Python
+ * Fraction-nullspace oracle). Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT
+ * (n not a power of two in range, magnitude overflow, or coefficients beyond
+ * the certainty prime table). */
+srmech_status_t srmech_sedenion_is_navigable(const int64_t *direction,
+                                             size_t n, int *out_invertible);
 
 /* ------------------------------------------------------------------
  * JSON value-tree — parser + canonical writer (§41 genome-persistence
