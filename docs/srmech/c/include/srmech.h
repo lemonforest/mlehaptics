@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc14"
-#define SRMECH_VERSION       "0.9.0rc14"
+#define SRMECH_VERSION_PRE   "rc15"
+#define SRMECH_VERSION       "0.9.0rc15"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2049,6 +2049,36 @@ srmech_status_t srmech_hamming_decode_correct(const uint8_t *codeword, size_t le
  * power of two in range, or i/j out of range). */
 srmech_status_t srmech_cd_basis_product(int dim, int i, int j,
                                         int *out_index, int *out_sign);
+
+/* ------------------------------------------------------------------
+ * Qi — the EXACT-complex (Gaussian-rational) carrier C-host peer (0.9.0rc15;
+ * Python srmech.amsc.qi.Qi). A Qi value is FOUR int64 limbs
+ * {re_num, re_den, im_num, im_den} (denominators positive, fit int64). Lets a
+ * C-only host do exact `re + im·i` arithmetic over ℚ in one call per op, the
+ * named A–N cascade composed from the Class-N srmech_rational_* ops:
+ *   add/sub/mul  : Class M bilinear bind ∘ Class C cross-term order
+ *                  (mul = (ac−bd) + (ad+bc)i)
+ *   conjugate    : Class K — the im sign-flip (never abs())
+ *   quadrant     : Class C orientation → Klein-4 sector (bit0=re<0, bit1=im<0)
+ *   norm_sq      : Class N anchor — re²+im² (exact ℚ; out[2] = {num, den})
+ *
+ * NO BIGNUM (fixed-limb mandate): any intermediate escaping the int64/uint64
+ * limb domain returns SRMECH_ERR_OVERFLOW; the Python Qi falls through to its
+ * exact-Fraction path (the unbounded oracle), as the rc13 isqrt does past
+ * 2^128. Carrier-internal like the Mat/Vec dense kernels: NOT a Rosetta op.
+ * ABI-additive — SRMECH_ABI_VERSION stays 3. See srmech_qi.c.
+ * Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (denominator ≤ 0);
+ * SRMECH_ERR_OVERFLOW (int64 limb domain exceeded). out arrays are caller-owned
+ * (out[4] for add/sub/mul/conjugate; out[2] for norm_sq). ------------------ */
+srmech_status_t srmech_qi_add(const int64_t a[4], const int64_t b[4],
+                              int64_t out[4]);
+srmech_status_t srmech_qi_sub(const int64_t a[4], const int64_t b[4],
+                              int64_t out[4]);
+srmech_status_t srmech_qi_mul(const int64_t a[4], const int64_t b[4],
+                              int64_t out[4]);
+srmech_status_t srmech_qi_conjugate(const int64_t a[4], int64_t out[4]);
+srmech_status_t srmech_qi_quadrant(const int64_t a[4], int *out_quadrant);
+srmech_status_t srmech_qi_norm_sq(const int64_t a[4], int64_t out[2]);
 
 /* ------------------------------------------------------------------
  * Sedenion-addressable hyper-loop ADDRESS LAYER (UPSTREAM §31 / F465 +

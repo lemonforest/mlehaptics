@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc15] - 2026-06-21
+
+**`srmech_qi.c` — the EXACT-complex (`Qi`) carrier earns its C-host peer (the NORTH STAR C-host parity).** rc14 shipped `Qi`, the exact Gaussian-rational complex carrier; rc15 gives it the native surface a C-ONLY host needs to do exact `re + im·i` arithmetic over ℚ with no Python present — the standalone-completeness mandate.
+
+- **New `srmech_qi.c` (six symbols)** — a `Qi` is four int64 limbs `{re_num, re_den, im_num, im_den}`. `srmech_qi_add` / `_sub` / `_mul` (Class M bilinear bind ∘ Class C cross-term order; mul = the `(ac−bd)+(ad+bc)i` Gaussian identity), `srmech_qi_conjugate` (Class K im sign-flip, never an `abs()`), `srmech_qi_quadrant` (Class C orientation → the Klein-4 sector), `srmech_qi_norm_sq` (Class N anchor, `re²+im²`). Each is a thin **named A–N cascade** composed from the exported Class-N `srmech_rational_add`/`_mul` — no float, no libm, no malloc, JPL Power-of-Ten clean (the auto-walked `test_jpl_audit.py` covers it). **NO bignum** (the fixed-limb mandate): any intermediate past the int64 limb domain returns `SRMECH_ERR_OVERFLOW`, and the Python `Qi` falls through to its exact-`Fraction` path (the unbounded oracle) — the same documented ceiling as the rc13 isqrt past 2^128.
+- **Python `Qi` routes through the peer.** `_native.py` binds the six (hasattr-guarded) + `has_native_qi()` + `qi_{add,sub,mul,conjugate,quadrant,norm_sq}_c` wrappers (return `None` out of the int64 domain — the shipped `rational._try_c_two_rationals` precedent). The `Qi` `__add__`/`__sub__`/`__mul__`/`norm_sq` dunders dispatch to the single-call native peer when the limbs fit int64, else the exact `Q` path.
+- **Proven the rc12 way.** Standalone C smoke `test_srmech_qi.c` (27/27, pedantic `-Werror -std=c11`); WSL2 ctypes **byte-parity** harness — native `srmech_qi_*` bit-exact with a `Fraction` oracle over the full grid (330 checks, 0 fails); new `test_qi_native_parity.py` (the CI C/Python parity ratchet — native wrappers + routed dunders match the oracle, int64-ceiling falls through to exact).
+
+Carrier-internal native peer like the `Mat`/`Vec` dense kernels: **no new public op** (`tools.total` stays **318**), no Rosetta / count-test change, **ABI stays 3** (additive symbols, hasattr-bound). numpy-free AND math-free, MIT. 5-SSOT `0.9.0rc14 → 0.9.0rc15`.
+
 ## [0.9.0rc14] - 2026-06-21
 
 **The carrier family gains its sixth member — `Qi`, the EXACT-complex scalar — and its sign sector is a Klein-4 quadrant.** rc11 made `Complex128` a registered `numbers.Complex`, but it is **float**; `Q` is the exact real. The gap was an exact complex. `Qi = (re: Q, im: Q)` is the Gaussian rational — the exact `numbers.Complex` over ℚ — the natural exact cousin of `Complex128`, shipped the way rc11 shipped `Complex128`: a carrier with full ABC conformance + a ratchet (no new public op, `tools.total` stays **318**).
