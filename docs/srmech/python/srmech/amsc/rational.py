@@ -25,7 +25,6 @@ for a small-N case is a Phase C1 follow-on per
 from __future__ import annotations
 
 import ctypes
-import math
 import struct
 from typing import List, Tuple
 
@@ -62,6 +61,41 @@ __all__ = [
 # Max terms a uint64 continued fraction can produce is Fibonacci-worst-
 # case ~91 iterations; 128 is the C-side cap and a safe Python ceiling.
 _MAX_TERMS: int = 128
+
+# ── float classification + integer-sqrt without stdlib `math` (rc13 purge) ──
+# `_is_finite` / `_is_inf` were the last float-classification calls in
+# the cascade; they are pure IEEE-754 predicates, expressed here as plain
+# comparisons (a `float("inf")` literal needs no maths library). `math.isqrt`
+# was the last pure-integer primitive Python borrowed — replaced by a native
+# two-limb dispatch (`srmech_isqrt`) + an arbitrary-precision integer-Newton.
+_FLOAT_INF: float = float("inf")
+
+
+def _is_finite(x: float) -> bool:
+    """``_is_finite`` via comparison: finite iff not NaN and within ±∞."""
+    return x == x and -_FLOAT_INF < x < _FLOAT_INF
+
+
+def _is_inf(x: float) -> bool:
+    """``_is_inf`` via comparison: ``x`` is ±∞."""
+    return x == _FLOAT_INF or x == -_FLOAT_INF
+
+
+def _py_isqrt(n: int) -> int:
+    """Arbitrary-precision integer floor square root (no stdlib ``math.isqrt``).
+
+    Newton's method on Python big-ints, seeded by the bit length — exact for
+    every ``n >= 0`` and bignum-safe (the ``pi_cascade_digits`` D=1000 radicand
+    is ~20000-bit). The native two-limb ``srmech_isqrt`` handles the bounded
+    ``n < 2**128`` case; this is the unbounded fallback."""
+    if n < 2:
+        return n
+    x = 1 << ((n.bit_length() + 1) >> 1)        # ~ceil(bits/2)-bit seed
+    while True:
+        y = (x + n // x) >> 1                    # integer Newton step
+        if y >= x:
+            return x
+        x = y
 
 
 def _ensure_uint64(name: str, value: int) -> int:
@@ -1080,7 +1114,7 @@ def cos(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> "Q":
     arbitrary-precision exact reference surface is ``cos_series_truncate``.
     """
     x = float(x)
-    if not math.isfinite(x):
+    if not _is_finite(x):
         raise ValueError("cos: x must be finite (Q is the finite-rational carrier)")
     if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
         return _q(_native.cos_q61_c(x), _Q61_ONE)
@@ -1100,7 +1134,7 @@ def sin(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> "Q":
     Substrate-native replacement for ``math.sin`` / ``np.sin``.
     """
     x = float(x)
-    if not math.isfinite(x):
+    if not _is_finite(x):
         raise ValueError("sin: x must be finite (Q is the finite-rational carrier)")
     if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
         return _q(_native.sin_q61_c(x), _Q61_ONE)
@@ -1138,7 +1172,7 @@ def atan(x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> "Q":
         raise ValueError("atan: x is NaN (not a rational)")
     if _native.has_native_trans_q61():          # native handles ±Inf via the COT band
         return _q(_native.atan_q61_c(x), _Q61_ONE)
-    if math.isinf(x):                              # atan(±Inf) = ±π/2 (exact Q)
+    if _is_inf(x):                              # atan(±Inf) = ±π/2 (exact Q)
         v = _Q61_HALF_PI_Q61 if x > 0.0 else -_Q61_HALF_PI_Q61
         return _q(v, _Q61_ONE)
     xm = x if x >= 0.0 else -x                     # Class-K magnitude
@@ -1160,11 +1194,11 @@ def atan2(y: float, x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> "Q":
     if y != y or x != x:                           # any NaN → not a rational
         raise ValueError("atan2: y or x is NaN (not a rational)")
     hp = _Q61_HALF_PI_Q61                          # pi/2 in Q61
-    if not (math.isfinite(y) and math.isfinite(x)):
-        if math.isinf(y) and math.isinf(x):        # both ±Inf → ±π/4 or ±3π/4
+    if not (_is_finite(y) and _is_finite(x)):
+        if _is_inf(y) and _is_inf(x):        # both ±Inf → ±π/4 or ±3π/4
             mag = hp // 2 if x > 0.0 else 3 * (hp // 2)
             return _q(mag if y >= 0.0 else -mag, _Q61_ONE)
-        if math.isinf(y):                          # |y|=Inf, x finite → ±π/2
+        if _is_inf(y):                          # |y|=Inf, x finite → ±π/2
             return _q(hp if y >= 0.0 else -hp, _Q61_ONE)
         if x > 0.0:                                # x=+Inf, y finite → ±0
             return _q(0, 1)
@@ -1271,7 +1305,7 @@ def exp(x: float, *, terms: int = _EXP_FLOAT_TERMS) -> "Q":
     precision REFERENCE surface ``exp_series_truncate``.
     """
     x = float(x)
-    if not math.isfinite(x):
+    if not _is_finite(x):
         raise ValueError("exp: x must be finite (Q is the finite-rational carrier)")
     if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
         core, n = _native.exp_q61_c(x)
@@ -1300,7 +1334,7 @@ def log(x: float, *, terms: int = _EXPLOG_LOG_TERMS) -> "Q":
     surface is ``log1p_series_truncate``.
     """
     x = float(x)
-    if not math.isfinite(x):
+    if not _is_finite(x):
         raise ValueError("log: x must be finite (Q is the finite-rational carrier)")
     if x <= 0.0:
         raise ValueError(f"log domain: x must be > 0 (log 0 = −∞ is not rational); got {x}")
@@ -1406,7 +1440,7 @@ def sqrt(x, *, precision_bits: int = None) -> "Q":
     x = float(x)
     if x < 0.0:                                   # Class-K pin-slot at zero
         raise ValueError(f"sqrt domain error: x must be >= 0; got {x}")
-    if not math.isfinite(x):
+    if not _is_finite(x):
         raise ValueError("sqrt: x must be finite (Q is the finite-rational carrier)")
     if x == 0.0:
         return _q(0, 1)
@@ -1424,7 +1458,7 @@ def sqrt(x, *, precision_bits: int = None) -> "Q":
     if e & 1:                                      # make e even
         mant <<= 1
         e -= 1
-    root = math.isqrt(mant << (2 * _SQRT_C_K))    # 128-bit; math.isqrt == C isqrt128
+    root = _integer_sqrt(mant << (2 * _SQRT_C_K))   # 128-bit; native srmech_isqrt
     p = e // 2 - _SQRT_C_K                          # exact power-of-two scale
     return _q(root << p, 1) if p >= 0 else _q(root, 1 << (-p))
 
@@ -1671,24 +1705,22 @@ def _pi_cascade_auto_params(num_digits: int) -> Tuple[int, int]:
 
 
 def _integer_sqrt(n: int) -> int:
-    """Integer floor square root. Pure integer.
+    """Integer floor square root — substrate-native (rc13: the stdlib
+    ``math.isqrt`` is GONE; this IS the srmech integer-isqrt).
 
-    Used by pi_cascade_digits to bound the cascade's rational √
-    operation in pure integer arithmetic. No floats, no math.pi.
-
-    Implementation: stdlib ``math.isqrt`` (CPython 3.10+ uses an
-    asymptotically-optimal Karatsuba-style algorithm internally — for
-    20480-bit inputs (D=1000 cascade scale) the speedup over a naive
-    Newton iteration is ~2500x). This is the rc13 cap-expansion
-    optimization that makes num_digits up to 1000 tractable. The AST-
-    verification gate only flags ``math.pi`` / ``math.tau`` /
-    ``numpy.pi``; ``math.isqrt`` is a pure-integer arithmetic helper
-    and is explicitly compatible with the substrate-invariance
-    discipline per ``[[user_stance_pi_spectral_shape_scalar_invariant]]``.
+    Dispatches the native two-limb ``srmech_isqrt`` for a bounded radicand
+    (``n < 2**128`` — the hot ``rational.sqrt`` / hypercomplex-twiddle case)
+    and an arbitrary-precision integer-Newton (``_py_isqrt``) for the
+    unbounded ``pi_cascade_digits`` scale (D=1000 → ~20000-bit radicand).
+    Neither path touches a maths library; pure integer arithmetic throughout
+    (no floats, no ``math.pi``), so the substrate-invariance discipline per
+    ``[[user_stance_pi_spectral_shape_scalar_invariant]]`` is preserved.
     """
     assert isinstance(n, int), "_integer_sqrt requires int"
     assert n >= 0, f"_integer_sqrt requires non-negative input; got {n}"
-    return math.isqrt(n)
+    if n < (1 << 128) and _native.has_native_isqrt():
+        return _native.isqrt128_c(n)
+    return _py_isqrt(n)
 
 
 def _rational_sqrt_midpoint(

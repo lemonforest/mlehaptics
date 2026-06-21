@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc12"
-#define SRMECH_VERSION       "0.9.0rc12"
+#define SRMECH_VERSION_PRE   "rc13"
+#define SRMECH_VERSION       "0.9.0rc13"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1585,6 +1585,14 @@ srmech_status_t srmech_rational_sqrt(double x, double *out);
  * Q(root, 1 << -p). sqrt(0) -> (0, 0); negative / non-finite -> BAD_INPUT.
  * Additive -> ABI unchanged. */
 srmech_status_t srmech_sqrt_q61(double x, int64_t *out_root, int64_t *out_p);
+
+/* 0.9.0rc13 public integer floor-sqrt — floor(sqrt((nhi:nlo))) for a 128-bit
+ * unsigned radicand, written to *out_root. Exposes the two-limb isqrt the
+ * sqrt cascade already uses as a standalone-C symbol so a C-only host (and the
+ * Python rational._integer_sqrt dispatch) needs NO stdlib math.isqrt. The
+ * Python peer falls back to arbitrary-precision integer-Newton beyond 128 bits.
+ * Additive -> ABI unchanged. */
+srmech_status_t srmech_isqrt(uint64_t nhi, uint64_t nlo, uint64_t *out_root);
 
 /* 0.9.0rc10 hypercomplex exp(mu*theta) twiddle (F882, srmech #205). Fills out8
  * (an 8-element int64 array) with the unit exponential q = cos(theta) +

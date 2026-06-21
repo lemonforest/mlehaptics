@@ -159,7 +159,11 @@ def _fhypot(a, b) -> float:
     return float(_rhypot(fa, fb))
 
 
-from math import pi as _PI  # §564: numpy-free π (stdlib math.pi — NOT np.pi)
+# §564/rc13: numpy-free AND math-free π — 4·atan(1) via the Class-N atan
+# cascade (c_dispatched; NO stdlib math.pi, NO np.pi), projected to float once
+# at import (the ×4 is an exact power of two, so 4·atan(1) == math.pi bit-for-bit).
+from srmech.amsc.rational import atan as _atan_pi
+_PI = 4.0 * float(_atan_pi(1.0))
 
 from .mat import Mat  # §564: the numpy-free 2-D carrier the mat_* engine returns
 from .vec import Vec  # rc129: the numpy-free 1-D carrier (vectors / eigenvalues)
@@ -2551,7 +2555,8 @@ def magnetic_laplacian(
     el, wl = _validate_edges_weights_py(n, edges, weights)
     W = _directed_adjacency(n, [u for u, _ in el], [v for _, v in el], wl)
     A_s = [[0.5 * (W[r][c] + W[c][r]) for c in range(n)] for r in range(n)]
-    # phase[r][c] = exp(i·2π·q·(W[r][c] − W[c][r])); 2π via stdlib math.pi.
+    # phase[r][c] = exp(i·2π·q·(W[r][c] − W[c][r])); 2π via the Class-N atan
+    # cascade (_PI = 4·atan(1); no stdlib math.pi).
     two_pi_q = 2.0 * _PI * float(q)
     L = [[0j] * n for _ in range(n)]
     deg = [0.0] * n

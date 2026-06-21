@@ -1461,6 +1461,12 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_hypercomplex_exp_q61.argtypes = [
             ctypes.c_double, ctypes.c_int, ctypes.POINTER(ctypes.c_int64)]
         lib.srmech_hypercomplex_exp_q61.restype = ctypes.c_int
+    # 0.9.0rc13 public integer floor-sqrt (the stdlib `math.isqrt` purge):
+    # ``int srmech_isqrt(uint64_t nhi, uint64_t nlo, uint64_t *out_root)``.
+    if hasattr(lib, "srmech_isqrt"):
+        lib.srmech_isqrt.argtypes = [
+            ctypes.c_uint64, ctypes.c_uint64, ctypes.POINTER(ctypes.c_uint64)]
+        lib.srmech_isqrt.restype = ctypes.c_int
 
     # ------------------------------------------------------------------
     # v0.7.5rc153 (UPSTREAM §49): bind the 11 genome file-management C
@@ -1848,6 +1854,29 @@ def log_q61_c(x: float):
 def sqrt_q61_c(x: float):
     """``sqrt(x) = root * 2**p`` -> ``(root, p)`` (both int64)."""
     return _q61_two_out("srmech_sqrt_q61", x)
+
+
+def has_native_isqrt() -> bool:
+    """True iff the C 128-bit integer floor-sqrt is loaded + bound (0.9.0rc13+)."""
+    return bool(HAS_NATIVE and LIB is not None and hasattr(LIB, "srmech_isqrt"))
+
+
+def isqrt128_c(n: int) -> int:
+    """``floor(sqrt(n))`` for ``0 <= n < 2**128`` via the native two-limb isqrt.
+
+    Splits ``n`` into 64-bit hi/lo limbs and dispatches ``srmech_isqrt``; the
+    Python ``rational._integer_sqrt`` uses this for the bounded radicand and an
+    arbitrary-precision integer-Newton fallback beyond 128 bits. Raises if ``n``
+    is out of the 128-bit domain (the caller gates on that)."""
+    if n < 0 or n >= (1 << 128):
+        raise ValueError("isqrt128_c: n must be in [0, 2**128)")
+    out = ctypes.c_uint64()
+    rc = LIB.srmech_isqrt(
+        ctypes.c_uint64(n >> 64), ctypes.c_uint64(n & ((1 << 64) - 1)),
+        ctypes.byref(out))
+    if rc != SRMECH_OK:
+        raise ValueError(f"srmech_isqrt: status {rc}")
+    return out.value
 
 
 def has_native_hypercomplex_exp() -> bool:
