@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc17"
-#define SRMECH_VERSION       "0.9.0rc17"
+#define SRMECH_VERSION_PRE   "rc18"
+#define SRMECH_VERSION       "0.9.0rc18"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1853,6 +1853,22 @@ srmech_status_t srmech_klein4_bundle_accumulate(uint32_t      *acc,
 srmech_status_t srmech_klein4_bundle_resolve(const uint32_t *acc,
                                              uint8_t        *out,
                                              size_t          dim);
+
+/* klein4_compose(parts, n, D, acc, scratch, out): the scale-invariant role-
+ * filler compositor (UPSTREAM §60 / F900; rc18) —
+ * bundle_i( klein4_bind(part_i, klein4_pos_key(D, i)) ) over n pre-composed
+ * D-byte Klein-4 `parts` (row-major). pos_key(i) = klein4_random over seed
+ * 0x10000 + i (byte-identical to the Python _klein4_pos_key). The native peer of
+ * hdc.klein4_compose, the RECURSIVE rung above klein4_encode_bytes; one C call
+ * folds the whole bundle (a single part resolves to its position-bound self).
+ * `acc` is caller-owned (1 + 2*D) uint32; `scratch` is 2*D caller-owned bytes
+ * (pos-key + bound). No compiled-in cap, no malloc. Additive — no ABI bump. */
+srmech_status_t srmech_klein4_compose(const uint8_t *parts,
+                                      uint32_t       n,
+                                      uint32_t       D,
+                                      uint32_t      *acc,
+                                      uint8_t       *scratch,
+                                      uint8_t       *out);
 
 /* klein4_cooccurrence_fold (UPSTREAM §50; rc165): the §50 holographic
  * co-occurrence fold with the corpus-linear inner loop fully in C — the per-token

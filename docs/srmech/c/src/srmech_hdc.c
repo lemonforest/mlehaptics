@@ -619,6 +619,61 @@ srmech_status_t srmech_klein4_bundle_resolve(const uint32_t *acc,
     return SRMECH_OK;
 }
 
+/* The position-namespaced seed base for klein4_compose / klein4_encode_bytes
+ * role keys (byte-identical to the Python _KLEIN4_POS_SEED_BASE): 0x10000, so
+ * pos-key seeds never collide with the 256-byte alphabet (seeds 0..255). */
+#define SRMECH_KLEIN4_POS_SEED_BASE 0x10000u
+
+/* klein4_compose (UPSTREAM §60 / F900; rc18): the scale-invariant role-filler
+ * compositor — bundle_i( klein4_bind(part_i, klein4_pos_key(D, i)) ) over n
+ * pre-composed D-byte Klein-4 `parts` (row-major, codes {0,1,2,3}). The pos key
+ * for slot i is klein4_random over SRMECH_KLEIN4_POS_SEED_BASE + i (byte-
+ * identical to the Python _klein4_pos_key). The native peer of hdc.klein4_compose
+ * (the RECURSIVE rung above klein4_encode_bytes): one C call folds the whole
+ * role-filler bundle via srmech_klein4_bundle_accumulate, so a single part
+ * resolves to its position-bound self (bundle of one = itself), matching the
+ * Python shortcut. `acc` is a caller-owned (1 + 2*D) uint32 accumulator;
+ * `scratch` is 2*D caller-owned bytes (pos-key [0,D) + bound [D,2D)). Width is
+ * the architecture (caller's RAM) — no compiled-in cap, no malloc. n >= 1,
+ * D >= 1. Additive symbol — no ABI bump. */
+srmech_status_t srmech_klein4_compose(const uint8_t *parts,
+                                      uint32_t       n,
+                                      uint32_t       D,
+                                      uint32_t      *acc,
+                                      uint8_t       *scratch,
+                                      uint8_t       *out)
+{
+    assert(parts != NULL && acc != NULL && scratch != NULL && out != NULL);
+    assert(n >= 1u && D >= 1u);
+    if (parts == NULL || acc == NULL || scratch == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n == 0u || D == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    uint8_t *poskey = scratch;
+    uint8_t *bound  = scratch + D;
+    for (size_t k = 0; k < (size_t)1u + (size_t)2u * D; k++) {
+        acc[k] = 0u;
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        uint32_t key = (uint32_t)SRMECH_KLEIN4_POS_SEED_BASE + i;
+        srmech_status_t rc = srmech_klein4_random(&key, (size_t)1, D, poskey);
+        if (rc != SRMECH_OK) {
+            return rc;
+        }
+        rc = srmech_klein4_bind(parts + (size_t)i * D, poskey, D, bound);
+        if (rc != SRMECH_OK) {
+            return rc;
+        }
+        rc = srmech_klein4_bundle_accumulate(acc, bound, (size_t)D);
+        if (rc != SRMECH_OK) {
+            return rc;
+        }
+    }
+    return srmech_klein4_bundle_resolve(acc, out, (size_t)D);
+}
+
 /* klein4_cooccurrence_fold (UPSTREAM §50; rc165): the §50 holographic
  * co-occurrence fold with the corpus-linear inner loop fully native — the
  * per-token windowed accumulation, no Python callback (the per-token string→code
