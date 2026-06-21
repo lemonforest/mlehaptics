@@ -79,16 +79,21 @@ class RBSLMInferenceSubstrate:
 
         ``params`` carries the same nested structure the descriptor catalog
         yields under ``desc.fetch["literature_curated"]``: a ``substrate`` table
-        (D / token_seed_hex_chars) and an ``inference.instrument`` table
-        (operating_k / operating_temperature / memory_capacity /
-        default_max_tokens / learn_seed)."""
+        (D / token_seed_hex_chars / optional ``enc_mode``) and an
+        ``inference.instrument`` table (operating_k / operating_temperature /
+        memory_capacity / default_max_tokens / learn_seed).
+
+        ``substrate.enc_mode`` selects the word encoder: ``"byteglyph"``
+        (default — the C1 byte/glyph LM object, F916) or ``"wordhash"`` (the
+        prior whole-word sha256 atom; pin it to reproduce pre-rc17 numerics)."""
         from srmech.amsc._native import HAS_NATIVE, NATIVE_ABI_VERSION
         from srmech import __version__ as SRMECH_VERSION
 
         sub = params["substrate"]
         inst = params["inference"]["instrument"]
         ctx = cs.ContextSubstrate(D=int(sub["D"]),
-                                  hex_chars=int(sub["token_seed_hex_chars"]))
+                                  hex_chars=int(sub["token_seed_hex_chars"]),
+                                  enc_mode=str(sub.get("enc_mode", "byteglyph")))
         return cls(
             ctx=ctx,
             operating_k=int(inst["operating_k"]),
