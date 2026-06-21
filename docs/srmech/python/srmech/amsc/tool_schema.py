@@ -2318,6 +2318,24 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
+            name="srmech.amsc.hdc.klein4_compose", owner="srmech", category="hdc",
+            summary="Scale-invariant role-filler compositor (F900/F901; the "
+                    "byte/glyph LM 'C1'): bundle_i( klein4_bind(part_i, "
+                    "klein4_pos_key(D, i)) ) over ARBITRARY pre-composed HV "
+                    "parts. Where klein4_encode_bytes mints byte atoms (byte→"
+                    "word), this is the RECURSIVE rung (word→phrase→sentence): "
+                    "the parts at level n+1 are the composed vectors of level n. "
+                    "Position-binding makes it order-sensitive + similarity-"
+                    "PRESERVING (a one-part change degrades gracefully — same "
+                    "fractal coherence signature at every scale), unlike a bare "
+                    "chained klein4_bind fold (→ ~0.25 chance). Composes "
+                    "klein4_bind + klein4_bundle.",
+            parameters=(P("parts", "Sequence[HV]", True,
+                          "a non-empty sequence of equal-length uint8 {0,1,2,3} "
+                          "Klein-4 parts"),),
+            returns=R("HV", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
             name="srmech.amsc.hdc.klein4_similarity", owner="srmech", category="hdc",
             summary="Klein-4 similarity: fraction of positions where a==b in "
                     "[0,1] (1 identical, 0 orthogonal). v0.9.0 (F868 stay-"

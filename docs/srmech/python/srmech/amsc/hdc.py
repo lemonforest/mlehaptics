@@ -1293,6 +1293,38 @@ def klein4_encode_bytes(data, D):
     return klein4_bundle(*bound)
 
 
+def klein4_compose(parts):
+    """Scale-invariant role-filler compositor (F900/F901; the byte/glyph LM
+    "C1"): a bundle of POSITION-BOUND parts —
+    ``bundle_i( klein4_bind(part_i, klein4_pos_key(D, i)) )``.
+
+    The SAME operator at every scale. Where :func:`klein4_encode_bytes` mints
+    the 256-byte atoms internally (byte → word), this composes ARBITRARY
+    pre-composed :class:`HV` parts, so it is the **recursive** rung —
+    word → phrase → sentence, the parts at level ``n+1`` being the composed
+    vectors of level ``n``. Position-binding makes it order-sensitive and
+    similarity-PRESERVING: changing one of ``n`` parts degrades the result
+    gracefully (the same fractal coherence signature at every scale, F900),
+    unlike a bare chained :func:`klein4_bind` fold (involutive → collapses to
+    the ~0.25 chance level). Composes :func:`klein4_bind` + :func:`klein4_bundle`
+    (both native-dispatched); an even part-count bundles per-bit-majority with
+    ties → 0 (no pad needed, same as :func:`klein4_encode_bytes`). numpy-free,
+    no ``abs()`` (Class M ∘ Class C).
+
+    Args:
+        parts: a NON-EMPTY sequence of equal-length Klein-4 :class:`HV` parts.
+            A single part is returned position-bound (the identity rung).
+    """
+    parts = list(parts)
+    if not parts:
+        raise ValueError("hdc.klein4_compose: parts must be a non-empty sequence")
+    D = len(parts[0])
+    bound = [klein4_bind(p, _klein4_pos_key(D, i)) for i, p in enumerate(parts)]
+    if len(bound) == 1:
+        return bound[0]
+    return klein4_bundle(*bound)
+
+
 def _klein4_check(a, b, mode, op):
     """Shared validation for the klein4 match-fraction family — coerce both to
     klein4 buffers, length-match, mode-check; returns ``(a, b, n)``."""
@@ -2579,6 +2611,7 @@ __all__ = [
     "klein4_chunk_bundle",
     "klein4_chunk_resolve",
     "klein4_encode_bytes",
+    "klein4_compose",
     "cooccurrence_fold",
     "klein4_chirality_flip_gamma5",
     "klein4_project_axis",
