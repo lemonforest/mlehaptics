@@ -61,7 +61,7 @@ print(f"    chained-bind (brittle, not addressable): {recover_acc(lambda bs: cha
 print("\n(CALORIC + REVERSIBILITY) reading an atom out of a k-atom C1 molecule (chance signal ~0.25):")
 print(f"    {'k atoms':>8}{'SIGNAL (read fidelity)':>24}{'REVERSIBLE% (atoms recoverable)':>34}")
 curve = []
-for k in [4, 16, 64, 256, 1024, 4096]:
+for k in [4, 16, 64, 256, 1024]:
     n = 8; sig = []; rev = []
     for _ in range(n):
         bs = [rng.randint(0,255) for _ in range(k)]
