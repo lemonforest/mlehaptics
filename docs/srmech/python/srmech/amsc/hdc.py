@@ -1293,6 +1293,33 @@ def klein4_encode_bytes(data, D):
     return klein4_bundle(*bound)
 
 
+def _klein4_compose_native(bufs):
+    """Native SINGLE-CALL role-filler compose over ≥1 equal-length array('B')
+    klein4 buffers → array('B'), else ``None`` (the pure composition is the
+    COMPLETE alternative, not a rescue). The C peer folds the whole bundle —
+    the §60 position keys (klein4_random over seed 0x10000+i) ∘ bind ∘
+    bundle-accumulate/resolve — in one ``srmech_klein4_compose`` call, byte-
+    identical to the pure path; for one part it resolves to that part's
+    position-bound self (bundle of one = itself), matching the Python shortcut."""
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_klein4_compose")):
+        return None
+    n = len(bufs)
+    D = len(bufs[0])
+    flat = bytearray()
+    for b in bufs:
+        flat += bytes(b)
+    cparts = (ctypes.c_uint8 * (n * D)).from_buffer_copy(bytes(flat))
+    acc = (ctypes.c_uint32 * (1 + 2 * D))()
+    scratch = (ctypes.c_uint8 * (2 * D))()
+    out = (ctypes.c_uint8 * D)()
+    rc = _native.LIB.srmech_klein4_compose(
+        cparts, ctypes.c_uint32(n), ctypes.c_uint32(D), acc, scratch, out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return array("B", bytes(out))
+
+
 def klein4_compose(parts):
     """Scale-invariant role-filler compositor (F900/F901; the byte/glyph LM
     "C1"): a bundle of POSITION-BOUND parts —
@@ -1318,8 +1345,16 @@ def klein4_compose(parts):
     parts = list(parts)
     if not parts:
         raise ValueError("hdc.klein4_compose: parts must be a non-empty sequence")
-    D = len(parts[0])
-    bound = [klein4_bind(p, _klein4_pos_key(D, i)) for i, p in enumerate(parts)]
+    bufs = [_as_klein4_buf(p, "klein4_compose") for p in parts]
+    D = len(bufs[0])
+    for b in bufs:
+        if len(b) != D:
+            raise ValueError(
+                "hdc.klein4_compose: all parts must have equal length")
+    native = _klein4_compose_native(bufs)   # rc18: single native call
+    if native is not None:
+        return HV(native, sectors=4)
+    bound = [klein4_bind(b, _klein4_pos_key(D, i)) for i, b in enumerate(bufs)]
     if len(bound) == 1:
         return bound[0]
     return klein4_bundle(*bound)

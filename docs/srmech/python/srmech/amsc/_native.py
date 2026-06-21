@@ -1056,6 +1056,19 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_klein4_bundle.restype = ctypes.c_int
 
+        # rc18 / F900: int srmech_klein4_compose(const uint8_t *parts,
+        #   uint32_t n, uint32_t D, uint32_t *acc, uint8_t *scratch, uint8_t *out)
+        if hasattr(lib, "srmech_klein4_compose"):
+            lib.srmech_klein4_compose.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8),   # parts (n*D)
+                ctypes.c_uint32,                  # n
+                ctypes.c_uint32,                  # D
+                ctypes.POINTER(ctypes.c_uint32),  # acc (1 + 2*D)
+                ctypes.POINTER(ctypes.c_uint8),   # scratch (2*D)
+                ctypes.POINTER(ctypes.c_uint8),   # out (D)
+            ]
+            lib.srmech_klein4_compose.restype = ctypes.c_int
+
         # int srmech_klein4_similarity(const uint8_t *a, const uint8_t *b,
         #                              uint32_t n, double *out)
         lib.srmech_klein4_similarity.argtypes = [

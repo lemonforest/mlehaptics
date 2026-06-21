@@ -142,7 +142,7 @@
 {"exposed_as": "srmech.amsc.hdc.klein4_phase_bind", "defined_at": "srmech.amsc.hdc.klein4_phase_bind", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.hdc.klein4_chunk_bundle", "defined_at": "srmech.amsc.hdc.klein4_chunk_bundle", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.hdc.klein4_encode_bytes", "defined_at": "srmech.amsc.hdc.klein4_encode_bytes", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.hdc.klein4_compose", "defined_at": "srmech.amsc.hdc.klein4_compose", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.hdc.klein4_compose", "defined_at": "srmech.amsc.hdc.klein4_compose", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.coupled_wave", "defined_at": "srmech.amsc.cascade.coupled.coupled_wave", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.hamming_decode_correct", "defined_at": "srmech.amsc.cascade.hamming.hamming_decode_correct", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.multiplex_streams", "defined_at": "srmech.amsc.cascade.coupled.multiplex_streams", "bucket": "composition_of_c"}

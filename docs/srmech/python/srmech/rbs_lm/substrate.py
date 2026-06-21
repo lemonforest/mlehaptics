@@ -70,11 +70,26 @@ def encode_word_byteglyph(word: str, *, D: int, sector: int) -> HV:
     return hdc.klein4_bind(base, _sector_const(D, sector))
 
 
-def encode_bigram_l1(word_a: str, word_b: str, *, D: int, hex_chars: int) -> HV:
-    w_a = encode_word_k4(word_a, D=D, sector=0, hex_chars=hex_chars)
-    w_b = encode_word_k4(word_b, D=D, sector=0, hex_chars=hex_chars)
-    bound = hdc.klein4_bind(w_a, w_b)
-    return hdc.klein4_bind(bound, _sector_const(D, 1))
+def _ladder_word(word: str, *, D: int, hex_chars: int, enc_mode: str) -> HV:
+    """One word vector for the L1/L2/L3 ladder. ``enc_mode='byteglyph'`` (default
+    across the ladder) byte-composes via :func:`encode_word_byteglyph` (the C1
+    object); ``'wordhash'`` mints the whole-word sha256 atom via
+    :func:`encode_word_k4` (the prior behaviour, the content-address dual)."""
+    if enc_mode == "byteglyph":
+        return encode_word_byteglyph(word, D=D, sector=0)
+    return encode_word_k4(word, D=D, sector=0, hex_chars=hex_chars)
+
+
+def encode_bigram_l1(word_a: str, word_b: str, *, D: int, hex_chars: int,
+                     enc_mode: str = "byteglyph") -> HV:
+    """L1 bigram (F917 Part B / rc18): the scale-invariant role-filler COMPOSE
+    (``hdc.klein4_compose``) of the two word vectors — was a chained
+    ``klein4_bind`` (involutive, similarity-DESTROYING; a one-word change
+    collapsed it to ~chance), now similarity-PRESERVING — with the level-1
+    sector tag."""
+    parts = [_ladder_word(w, D=D, hex_chars=hex_chars, enc_mode=enc_mode)
+             for w in (word_a, word_b)]
+    return hdc.klein4_bind(hdc.klein4_compose(parts), _sector_const(D, 1))
 
 
 def encode_skeleton_l2(
@@ -83,20 +98,27 @@ def encode_skeleton_l2(
     *,
     D: int,
     hex_chars: int,
+    enc_mode: str = "byteglyph",
 ) -> HV:
-    first_l1 = encode_bigram_l1(*first_bigram, D=D, hex_chars=hex_chars)
-    last_l1 = encode_bigram_l1(*last_bigram, D=D, hex_chars=hex_chars)
-    bound = hdc.klein4_bind(first_l1, last_l1)
-    return hdc.klein4_bind(bound, _sector_const(D, 2))
+    """L2 skeleton — the "coherent word-string before a sentence" fractal node
+    (F900): the SAME compositor over the two L1 vectors (the recursive rung,
+    parts at level n+1 = composed vectors of level n), with the level-2 tag."""
+    first_l1 = encode_bigram_l1(*first_bigram, D=D, hex_chars=hex_chars,
+                                enc_mode=enc_mode)
+    last_l1 = encode_bigram_l1(*last_bigram, D=D, hex_chars=hex_chars,
+                               enc_mode=enc_mode)
+    return hdc.klein4_bind(hdc.klein4_compose([first_l1, last_l1]),
+                           _sector_const(D, 2))
 
 
-def encode_sentence_l3(tokens, *, D: int, hex_chars: int) -> HV:
-    accum = encode_word_k4(tokens[0], D=D, sector=0, hex_chars=hex_chars)
-    for w in tokens[1:]:
-        accum = hdc.klein4_bind(
-            accum, encode_word_k4(w, D=D, sector=0, hex_chars=hex_chars)
-        )
-    return hdc.klein4_bind(accum, _sector_const(D, 3))
+def encode_sentence_l3(tokens, *, D: int, hex_chars: int,
+                       enc_mode: str = "byteglyph") -> HV:
+    """L3 sentence: the SAME compositor over all token vectors (the top rung) —
+    one scale-invariant operator end to end (byte→word→phrase→sentence) — with
+    the level-3 sector tag."""
+    parts = [_ladder_word(t, D=D, hex_chars=hex_chars, enc_mode=enc_mode)
+             for t in tokens]
+    return hdc.klein4_bind(hdc.klein4_compose(parts), _sector_const(D, 3))
 
 
 def sim_k4_batch(query, candidates):
