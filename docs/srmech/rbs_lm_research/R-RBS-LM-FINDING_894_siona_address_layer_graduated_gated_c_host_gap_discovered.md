@@ -27,3 +27,14 @@
 
 ## Verdict / next
 `SionaPageGrid` is **graduated into the siona package** (gated, own branch, 4/4 tests on rc11) as the exact + error-correcting address layer riding the `srmech.profiles` plugin surface. The audit settled the questions: **TOML class catalogs supported; routing fully rc11-scaffolded (nothing new to srmech from the lossy layer); the sole srmech gap is the C-side `SedenionRegister` + Hamming** (the C-host-completeness blocker, §66). **Next (to unlock rc1):** (1) **routing coherence** — the single open lossy layer (storage-density arc, Q1–Q4); (2) **bundle the language scaffolding + smallwiki** into the siona wheel (measure the sparse on-disk size → smallwiki now, bigwiki if it fits); (3) the srmech **C-side sedenion register** ask (§66) for C-host completeness; (4) optionally express `SionaPageGrid` as a TOML `[class]`. Framework reading → package graduation; gated exactly as directed; the C-host gap discovered and lodged.
+
+---
+
+## UPDATE (2026-06-21, on `siona/page-grid-graduation`) — SionaPageGrid now ALSO a config-driven TOML `[class]`
+Per `[[feedback_prefer_config_driven_toml_classes]]` and the user's "all math from srmech TOML class cascades," `SionaPageGrid` is now declared as a srmech `[class]` (the preferred declarative form), validated byte-identical to the hand-coded class:
+- `siona/class_catalog/siona_page_grid.toml` — `[class.field]` `D`/`pages`/`addr`; methods `add` (mutates, functional `(val, {field: new})` form), `fetch`, `address` bind the flat adapters in `siona/page_grid_ops.py` (`spg_add`/`spg_fetch`/`spg_address`) which ride the srmech sedenion register (`carry`/`correct`) + integer index arithmetic — **no external math libraries, no numpy, no bag** (the math-is-cascades discipline).
+- Registered at `import siona` (`register_class_dir` via `importlib.resources`); shipped as wheel package data (`force-include`). The hand-coded `siona.page_grid.SionaPageGrid` is kept as the **equivalence reference**.
+- **Tests 7/7 on rc13**: TOML-class vs Python byte-identical (64-page address+fetch) + every-single-bit fault corrected + introspection (`test_page_grid_toml_class.py`).
+- Contract notes (the model was `SedenionRegister`, itself a shipped TOML class): rc137 `mutates` (functional return), `[class.field]` dict-state, flat-op adapters = the genome two-layer pattern. Still **GATED** (no rc1 publish).
+
+So `SionaPageGrid` exists in two equivalent forms: the convenience Python class (R-RBS-LM-893) and the declarative TOML `[class]` (preferred) — both pure srmech composition. The remaining rc1 gates are unchanged: routing coherence, language-scaffolding+smallwiki, and the C-host cascade-runner (§66/§67).
