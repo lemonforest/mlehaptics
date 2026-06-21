@@ -591,6 +591,21 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_int64), ctypes.POINTER(ctypes.c_int64)]
         lib.srmech_qi_norm_sq.restype = ctypes.c_int
 
+    # Exact-Q61 (σ,θ,μ) octonion coupler C-host peer (0.9.0rc16) — the
+    # hypercomplex_couple rewrite that closes the rc12 sed_couple/uncouple
+    # transitive-ratchet allowlist. hasattr-guarded (pre-rc16 lib keeps the rest).
+    #   int srmech_hypercomplex_couple_q61(double eff, const int64_t streams[8],
+    #       const int64_t mu[8], int form_is_left, int64_t out[8])
+    if hasattr(lib, "srmech_hypercomplex_couple_q61"):
+        lib.srmech_hypercomplex_couple_q61.argtypes = [
+            ctypes.c_double,                    # eff = sigma*(-1 if inv)*theta
+            ctypes.POINTER(ctypes.c_int64),     # streams[8] (Q61)
+            ctypes.POINTER(ctypes.c_int64),     # mu[8] (Q61, unit pure-imag)
+            ctypes.c_int,                       # form_is_left (1=left, 0=right)
+            ctypes.POINTER(ctypes.c_int64),     # out[8] (Q61)
+        ]
+        lib.srmech_hypercomplex_couple_q61.restype = ctypes.c_int
+
     # Sedenion address layer (v0.9.0rc12; UPSTREAM §31 / F465+F468) — the
     # navigation + reversibility gate a C-only host needs for "Siona's address
     # layer." hasattr-guarded so a stale lib (pre-rc12) keeps the rest.
@@ -2004,6 +2019,26 @@ def qi_norm_sq_c(a):
     if rc in (SRMECH_ERR_OVERFLOW, SRMECH_ERR_BAD_INPUT):
         return None
     raise RuntimeError(f"srmech_qi_norm_sq returned non-OK status {rc}")
+
+
+def has_native_hypercomplex_couple() -> bool:
+    """True iff the C exact-Q61 (σ,θ,μ) octonion coupler peer is loaded (0.9.0rc16+)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_hypercomplex_couple_q61"))
+
+
+def hypercomplex_couple_q61_c(streams8, mu8, eff: float, form_is_left: bool):
+    """Native exact-Q61 octonion couple ``T ⊗ q`` → 8 Q61 ints, where ``T =
+    exp(eff·μ) = cos eff + sin eff·μ`` and ``⊗`` is left/right octonion multiply.
+    ``streams8`` / ``mu8`` are 8 Q61 ints; byte-exact with the pure path."""
+    s = (ctypes.c_int64 * 8)(*streams8)
+    m = (ctypes.c_int64 * 8)(*mu8)
+    out = (ctypes.c_int64 * 8)()
+    rc = LIB.srmech_hypercomplex_couple_q61(
+        ctypes.c_double(eff), s, m, ctypes.c_int(1 if form_is_left else 0), out)
+    if rc != SRMECH_OK:
+        raise ValueError(f"srmech_hypercomplex_couple_q61: status {rc}")
+    return [out[i] for i in range(8)]
 
 
 def has_native_hypercomplex_exp() -> bool:

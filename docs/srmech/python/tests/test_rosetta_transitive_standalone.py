@@ -45,13 +45,11 @@ _NOT_READY = frozenset(
 # reclassify) and DELETE the line. NEVER add without an explicit user-approved
 # reason + the rc that will close it.
 _ACKNOWLEDGED = {
-    # The two sedenion-register working-word adapters reach the python-only
-    # `hypercomplex_couple` (the σθμ reversible coupler). Closes when
-    # hypercomplex_couple gets a C peer (tracked follow-up).
-    ("srmech.amsc.cascade.sedenion_register.sed_couple_working",
-     "srmech.amsc.cascade.hypercomplex_dft.hypercomplex_couple"),
-    ("srmech.amsc.cascade.sedenion_register.sed_uncouple_working",
-     "srmech.amsc.cascade.hypercomplex_dft.hypercomplex_couple"),
+    # (rc16 closed the sed_couple_working / sed_uncouple_working →
+    # `hypercomplex_couple` edges: the coupler was rewritten to the exact-Q61
+    # octonion couple `_couple_q61` that dispatches to `srmech_hypercomplex_couple_q61`
+    # and composes only c_dispatched primitives — so it is now `c_dispatched`,
+    # not `python_only_irreducible`, and the edges are no longer non-ready.)
     # (rc13 closed the exact_dft.lift → pi_cascade_digits edge by rerouting the
     # FPU-lift 2π to the c_dispatched `rational.atan`: 2π = 8·atan(1).)
 }

@@ -359,6 +359,63 @@ srmech_status_t srmech_hypercomplex_exp_q61(double theta, int k_axes,
     return SRMECH_OK;
 }
 
+/* Static helper — exact octonion product a*b over Q61 via the Cayley-Dickson
+ * structure constants (srmech_cd_basis_product) and the Q61 fixed-point multiply.
+ * c[i^j] += sign(i,j) * (a[i]*b[j] >> 61). Integer accumulation is
+ * order-independent. Class-M bilinear bind o Class-C sign orientation; no abs(). */
+static srmech_status_t octo_mult_q61(const int64_t a[8], const int64_t b[8],
+                                     int64_t out[8])
+{
+    assert(a != NULL && b != NULL);
+    assert(out != NULL);
+    for (int k = 0; k < 8; k++) { out[k] = INT64_C(0); }
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+            int idx = 0;
+            int sgn = 0;
+            srmech_status_t st = srmech_cd_basis_product(8, i, j, &idx, &sgn);
+            if (st != SRMECH_OK) { return st; }
+            int64_t p = trig_fxmul(a[i], b[j]);
+            out[idx] += (sgn > 0) ? p : -p;            /* Class-C; no abs() */
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* 0.9.0rc16 exact-Q61 (sigma,theta,mu) octonion coupler — the C-host peer of
+ * cascade.hypercomplex_dft.hypercomplex_couple (closes the rc12 sed_couple /
+ * sed_uncouple transitive-ratchet allowlist). T = exp(eff*mu) = cos(eff) +
+ * sin(eff)*mu, mu a caller-provided unit pure-imaginary Q61 8-vector; out =
+ * T*streams (form_is_left) or streams*T (the non-commutative left/right forms).
+ * Byte-exact with the pure-Q61 Python mirror (the Q61 trig cascade +
+ * cd_basis_product + fxmul are all bit-identical C<->Python). eff non-finite or
+ * |eff| >= 2^55 -> SRMECH_ERR_BAD_INPUT (the cos/sin peers gate it). */
+srmech_status_t srmech_hypercomplex_couple_q61(double eff, const int64_t streams8[8],
+                                               const int64_t mu8[8], int form_is_left,
+                                               int64_t out8[8])
+{
+    assert(streams8 != NULL && mu8 != NULL);
+    assert(out8 != NULL);
+    if (streams8 == NULL || mu8 == NULL || out8 == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    int64_t c = 0;
+    int64_t s = 0;
+    srmech_status_t st = srmech_cos_q61(eff, &c);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_sin_q61(eff, &s);
+    if (st != SRMECH_OK) { return st; }
+    int64_t tw[8];
+    tw[0] = c;
+    for (int a = 1; a < 8; a++) {
+        tw[a] = trig_fxmul(s, mu8[a]);                 /* sin(eff) * mu[a] */
+    }
+    if (form_is_left) {
+        return octo_mult_q61(tw, streams8, out8);      /* T * q */
+    }
+    return octo_mult_q61(streams8, tw, out8);          /* q * T */
+}
+
 /* atan(|m|) for m >= 0 as an exact Q61 INTEGER — the three-band recombination
  * accumulates in Q61 ints (pi/2 = HALF_PI_Q61, pi/4 = that >> 1), mirror of the
  * Python `_atan_nonneg_q61`. The COT band naturally yields pi/2 for m = +Inf
