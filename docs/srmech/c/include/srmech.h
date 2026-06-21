@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc15"
-#define SRMECH_VERSION       "0.9.0rc15"
+#define SRMECH_VERSION_PRE   "rc16"
+#define SRMECH_VERSION       "0.9.0rc16"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1605,6 +1605,20 @@ srmech_status_t srmech_isqrt(uint64_t nhi, uint64_t nlo, uint64_t *out_root);
  * Additive -> ABI unchanged. */
 srmech_status_t srmech_hypercomplex_exp_q61(double theta, int k_axes,
                                             int64_t *out8);
+
+/* 0.9.0rc16 exact-Q61 (sigma,theta,mu) octonion coupler — the C-host peer of
+ * cascade.hypercomplex_dft.hypercomplex_couple (closes the rc12 sed_couple /
+ * sed_uncouple transitive-ratchet allowlist). T = exp(eff*mu) = cos(eff) +
+ * sin(eff)*mu, with `eff = sigma*(-1 if inverse)*theta` and `mu` a caller-
+ * provided UNIT pure-imaginary Q61 8-vector (denominator 2^61); out8 = T*streams8
+ * (form_is_left != 0) or streams8*T (the non-commutative left/right forms), via
+ * the Q61 trig cascade + srmech_cd_basis_product structure constants + the Q61
+ * fixed-point multiply. Byte-exact with the pure-Q61 Python mirror. Non-finite /
+ * |eff| >= 2^55 -> SRMECH_ERR_BAD_INPUT (the cos/sin peers gate it). Additive ->
+ * ABI unchanged. */
+srmech_status_t srmech_hypercomplex_couple_q61(double eff, const int64_t streams8[8],
+                                               const int64_t mu8[8], int form_is_left,
+                                               int64_t out8[8]);
 
 /* Class-N rational exp/log cascade (v0.7.0rc46; the C-transpile closeout).
  * exp(x) = 2^n * exp(r) with the Q61 integer Taylor for exp(r) (|r| <= ln2/2)
