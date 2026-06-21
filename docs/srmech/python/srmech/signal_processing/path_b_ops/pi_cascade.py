@@ -109,7 +109,7 @@ def _verify_path_b_substrate_identity(D: int) -> dict:
     Returns the (stride, cycle_order) pairs as a metadata dict for
     optional inspection by the benchmark.
     """
-    from math import gcd
+    from srmech.amsc.cyclic import gcd
     pairs: dict = {}
     for k in _ARCHIMEDES_CASCADE_STRIDES:
         order = verify_rotation_class_n_cycle_order(k, D=D)

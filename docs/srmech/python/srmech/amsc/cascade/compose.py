@@ -29,7 +29,6 @@ pure-delegation alias for the Class I ``srmech_gcd`` primitive; the
 from __future__ import annotations
 
 import ctypes
-import math
 from typing import List, Sequence, Tuple
 
 from srmech.amsc import _native
@@ -58,6 +57,28 @@ DEFAULT_MAX_DENOMINATOR = 100
 #: Default fine-scaling factor turning a float magnitude into the integer
 #: pair ``srmech.amsc.rational.best_rational`` consumes.
 DEFAULT_FINE_SCALE = 1_000_000
+
+
+def _compensated_sum(values: Sequence[float]) -> float:
+    """Kahan–Babuška–Neumaier compensated summation — substrate-native (rc13
+    replaces the stdlib ``math.fsum``).
+
+    Keeps a per-bin running sum well-conditioned with NO maths library: the
+    larger-magnitude term is selected by a **square** comparison
+    (``s*s >= v*v`` — no ``abs()``, Class-K honest), and the bits lost at each
+    add are accumulated in a separate compensation term recovered at the end.
+    Near-exact for the well-conditioned autocorrelation sums it backs (the
+    stdlib ``math.fsum`` is exactly-rounded; Neumaier matches it to ~1 ulp)."""
+    s = 0.0
+    c = 0.0                                        # running compensation
+    for v in values:
+        t = s + v
+        if s * s >= v * v:                         # |s| >= |v| via squares
+            c += (s - t) + v
+        else:
+            c += (v - t) + s
+        s = t
+    return s + c
 
 
 def _try_native_best_rational_signed(x, max_denominator, fine_scale):
@@ -420,13 +441,14 @@ def autocorrelation(x: Sequence[float]) -> List[float]:
         return native
     # Numpy-free fallback (UPSTREAM §22): the direct circular autocorrelation
     # r[k] = Σ_n x[n]·x[(n+k) mod n] — identically IFFT(|FFT(x)|²) for real x,
-    # but with no FFT / no numpy. math.fsum keeps the per-bin sum well-conditioned.
+    # but with no FFT / no numpy. _compensated_sum (Neumaier) keeps the per-bin
+    # sum well-conditioned — substrate-native, no stdlib math.fsum.
     xs = [float(v) for v in x]
     n = len(xs)
     if n == 0:
         return []
     return [
-        math.fsum(xs[i] * xs[(i + k) % n] for i in range(n))
+        _compensated_sum([xs[i] * xs[(i + k) % n] for i in range(n)])
         for k in range(n)
     ]
 

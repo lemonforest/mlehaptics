@@ -52,11 +52,8 @@ _ACKNOWLEDGED = {
      "srmech.amsc.cascade.hypercomplex_dft.hypercomplex_couple"),
     ("srmech.amsc.cascade.sedenion_register.sed_uncouple_working",
      "srmech.amsc.cascade.hypercomplex_dft.hypercomplex_couple"),
-    # exact_dft.lift's FPU-lift twiddle takes a FLOAT 2π from the bignum
-    # `pi_cascade_digits`. Closes in rc13 (math purge) by rerouting to the
-    # c_dispatched `rational.atan` (2π = 8·atan(1), bit-identical).
-    ("srmech.amsc.cascade.exact_dft.lift",
-     "srmech.amsc.rational.pi_cascade_digits"),
+    # (rc13 closed the exact_dft.lift → pi_cascade_digits edge by rerouting the
+    # FPU-lift 2π to the c_dispatched `rational.atan`: 2π = 8·atan(1).)
 }
 
 

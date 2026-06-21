@@ -128,3 +128,21 @@ srmech_status_t srmech_sqrt_q61(double x, int64_t *out_root, int64_t *out_p)
     *out_p = (int64_t)(e / 2 - SRMECH_SQRT_K);
     return SRMECH_OK;
 }
+
+/* ── 0.9.0rc13 public integer floor-sqrt (the stdlib `math.isqrt` purge) ───
+ * floor(sqrt((nhi:nlo))) for a 128-bit unsigned radicand, written to
+ * *out_root. Exposes the file-local two-limb isqrt128 as a standalone-C
+ * symbol so a C-only host (and the Python `rational._integer_sqrt` dispatch)
+ * computes the integer square root with NO stdlib `math.isqrt` — the last
+ * pure-integer primitive Python was still borrowing from the maths library.
+ * The Python peer falls back to an arbitrary-precision integer-Newton for
+ * radicands beyond 128 bits (the pi_cascade D=1000 scale). */
+srmech_status_t srmech_isqrt(uint64_t nhi, uint64_t nlo, uint64_t *out_root)
+{
+    assert(out_root != NULL);
+    if (out_root == NULL) { return SRMECH_ERR_NULL_ARG; }
+    uint64_t root = srmech_isqrt128(nhi, nlo);
+    assert(nhi != 0 || root * root <= nlo);   /* floor property (64-bit case) */
+    *out_root = root;
+    return SRMECH_OK;
+}

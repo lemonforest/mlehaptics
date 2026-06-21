@@ -60,7 +60,6 @@ Citations (verified PDFs —
 """
 from __future__ import annotations
 
-import math
 from typing import List, Sequence, Tuple
 
 # §22: scalar root + trig via the Class-N rational cascade, not libm; π from the
@@ -76,9 +75,9 @@ from srmech.amsc.rational import sqrt as _rsqrt
 # 0.9.0rc10 (F882, srmech #205) — the LITERAL exp(μθ) twiddle in EXACT Q61.
 _Q61_ONE = _rational._Q61_ONE                          # 1.0 in Q61 (= 2**61)
 _HC_AXES = (1, 3, 7)                                   # ℂ / ℍ / 𝕆 imaginary dims
-# unit 1/√k as a Q61 int = isqrt(2^122 / k): the integer-sqrt cascade
-# (``math.isqrt``, bit-identical to the C ``srmech_isqrt128``); k=1 → 2**61.
-_HC_INV_Q61 = {k: math.isqrt((_Q61_ONE * _Q61_ONE) // k) for k in _HC_AXES}
+# unit 1/√k as a Q61 int = isqrt(2^122 / k): the substrate-native integer-sqrt
+# (``rational._integer_sqrt`` → native ``srmech_isqrt``); k=1 → 2**61.
+_HC_INV_Q61 = {k: _rational._integer_sqrt((_Q61_ONE * _Q61_ONE) // k) for k in _HC_AXES}
 
 
 def _q61_int(qv: "_Q") -> int:
@@ -144,7 +143,7 @@ def hypercomplex_exp(theta: float, k_axes: int) -> Tuple["_Q", ...]:
         raise ValueError(
             f"hypercomplex_exp: k_axes must be 1, 3 or 7 (ℂ/ℍ/𝕆); got {k_axes!r}")
     th = float(theta)
-    if not math.isfinite(th):
+    if not _rational._is_finite(th):
         raise ValueError("hypercomplex_exp: theta must be finite (Q is the finite-rational carrier)")
     if _native.has_native_hypercomplex_exp():
         ints = _native.hypercomplex_exp_q61_c(th, k_axes)      # 8 Q61 ints, byte-exact
