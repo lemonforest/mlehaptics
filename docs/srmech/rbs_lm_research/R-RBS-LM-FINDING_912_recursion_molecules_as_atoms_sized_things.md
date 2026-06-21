@@ -1,0 +1,11 @@
+# F912 (thread 2) — RECURSION: molecules become atoms for the next rung. The SAME octonion `cd_mult` fold runs byte→word→phrase→sentence; each level's product is an octonion, bondable at the next (self-similar — F901's scale-invariance now with the content-dependent octonion bond). Sensitivity COMPOUNDS (a sentence responds to a change at any rung: 1 byte 0.158, word-order 0.159, phrase-order 0.006) and structure-multiplicity COMPOUNDS (Catalan per rung → Catalan^depth distinct architectures). The "sized things" are the deep recursion: one operator, structure space exploding with depth.
+
+**Date:** 2026-06-21 · **srmech:** 0.9.0rc13 · **Branch:** `research/rbs-lm-rolling-2` (PR #687) · **Probe:** `R-RBS-LM-FINDING_912_recursion_molecules_as_atoms_sized_things.py` · **Composes:** F910 (k=7 molecular generator), F908 (octonion bond), F901 (the scale-invariant C1 ladder — this is its octonion-bond analog), F906 · **User direction:** "the recursion — molecules-as-atoms for the next rung → the bigger sized things."
+
+## Measured
+- **Self-similar recursion runs:** `word_oct = fold(byte_octs)`, `phrase_oct = fold(word_octs)`, `sentence_oct = fold(phrase_octs)` — all the *same* `cd_mult` fold; the sentence is an octonion (len 8). A word (molecule of bytes) **is** an atom at the phrase rung (the same operator bonds it).
+- **Sensitivity compounds** (cos² to the base sentence): change 1 BYTE → 0.158, WORD-order → 0.159, PHRASE-order → 0.006. A change at *any* depth propagates to the whole — the recursion carries content + order + grouping from every rung up to the top.
+- **Multiplicity compounds:** 3-byte word = 2 groupings, 3-word phrase = 2 groupings; a sentence of P×W×B units has ~Catalan^(#units) distinct architectures.
+
+## Reading
+The octonion `cd_mult` is a **scale-free compositor** (like C1, F901) but **content-dependent** (F906): so the atoms→molecules→things ladder is one operator recursing, with the *structure* (grouping, F910) and *content/order* (F908/F862) propagating across all rungs. The "sized things" the user asked about = arbitrarily deep recursion; the architecture space grows as Catalan^depth, which is why large coherent structures are both expressible and rare (the F911 affinity prunes them). **Next:** the F911 stability selection applied recursively — which deep architectures survive the affinity at every rung.
