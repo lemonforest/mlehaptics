@@ -31,7 +31,7 @@ The package is **numpy-free** (the v0.7.5 carrier-removal arc, graduated in v0.8
 
 ### Carriers — the numpy-free array + scalar family
 
-Every value srmech moves rides one of **five framework-owned carriers** instead of an `ndarray` / `float` / `complex`. A carrier keeps the value inside the srmech cascade (introspection, attestation, native dispatch) and refuses the idiom — `m @ v` routes the Class-L cascade, not BLAS; `float(q)` is an explicit boundary collapse, not a silent one — so an LLM consumer cannot quietly reach back for numpy.
+Every value srmech moves rides one of **six framework-owned carriers** instead of an `ndarray` / `float` / `complex`. A carrier keeps the value inside the srmech cascade (introspection, attestation, native dispatch) and refuses the idiom — `m @ v` routes the Class-L cascade, not BLAS; `float(q)` is an explicit boundary collapse, not a silent one — so an LLM consumer cannot quietly reach back for numpy.
 
 | Carrier | Module | Shape / role | Replaces (numpy idiom) |
 |---|---|---|---|
@@ -40,8 +40,9 @@ Every value srmech moves rides one of **five framework-owned carriers** instead 
 | `HV` | `srmech/amsc/hv.py` | hypervector (Class-M HDC bind/bundle/permute/similarity) | `np.ndarray` used as a `{-1,0,+1}` spatter code |
 | `Q` | `srmech/amsc/q.py` | **exact-rational scalar** — a reduced `(num, den)` integer pair (**v0.9.0rc7 headline**) | a real `float` returned by `sin`/`cos`/`exp`/`sqrt`/`atan2`/… |
 | `Complex128` | `srmech/amsc/complex128.py` | float-complex scalar — two `float64` `(re, im)`, 1:1 with C99 `double _Complex` | the builtin `complex` (an `e^{iθ}`, an eigenvalue, a `the_one` component) |
+| `Qi` | `srmech/amsc/qi.py` | **exact-complex scalar** — a Gaussian rational `(re: Q, im: Q)`, the exact `numbers.Complex` over ℚ; its sign sector is a **Klein-4 quadrant** (**v0.9.0rc14**) | the builtin `complex` where the value is exactly rational |
 
-`Mat` / `Vec` / `HV` feed the native dense kernels **zero-copy**; `Q` / `Complex128` are the scalar peers (`Q` exact, `Complex128` the float-complex display type for values that are genuinely irrational).
+`Mat` / `Vec` / `HV` feed the native dense kernels **zero-copy**; `Q` / `Complex128` / `Qi` are the scalar peers — `Q` exact-real, `Complex128` the float-complex display type for irrational values, `Qi` the **exact**-complex (`Qi = klein4 quadrant ⊗ |Qi|`, conjugation XOR-ing the imaginary bit).
 
 #### The lens — ALU all the way, FPU last-mile
 

@@ -43,6 +43,17 @@ def _coerce(value):
             return complex(float(value))
         except (TypeError, ValueError):
             return None
+    # Any other ``numbers.Complex`` carrier — notably the EXACT ``Qi`` — collapses
+    # to the float boundary here. ``Complex128`` is the documented sink for a value
+    # that leaves the rationals, so ``Qi`` (exact) combined with a ``Complex128``
+    # (float) yields a ``Complex128`` — exact-meets-float → float, the same
+    # direction as ``Fraction(1, 2) + 0.5 → 1.0``. This makes ``Complex128`` a
+    # consumer surface for every framework-native complex carrier.
+    if isinstance(value, numbers.Complex):
+        try:
+            return complex(value)
+        except (TypeError, ValueError, OverflowError):
+            return None
     return None
 
 
