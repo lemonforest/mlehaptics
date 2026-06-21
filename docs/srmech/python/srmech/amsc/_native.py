@@ -2030,12 +2030,19 @@ def has_native_hypercomplex_couple() -> bool:
 def hypercomplex_couple_q61_c(streams8, mu8, eff: float, form_is_left: bool):
     """Native exact-Q61 octonion couple ``T ⊗ q`` → 8 Q61 ints, where ``T =
     exp(eff·μ) = cos eff + sin eff·μ`` and ``⊗`` is left/right octonion multiply.
-    ``streams8`` / ``mu8`` are 8 Q61 ints; byte-exact with the pure path."""
+    ``streams8`` / ``mu8`` are 8 Q61 ints; byte-exact with the pure path.
+
+    Returns ``None`` when a stream limb is outside the int64 Q61 domain
+    (``|stream| > 1`` → ``SRMECH_ERR_OVERFLOW``; no bignum in C): the caller's
+    pure-Python path (bignum-exact) is the complete alternative — the documented
+    native domain ceiling, like ``rational._try_c_two_rationals``."""
     s = (ctypes.c_int64 * 8)(*streams8)
     m = (ctypes.c_int64 * 8)(*mu8)
     out = (ctypes.c_int64 * 8)()
     rc = LIB.srmech_hypercomplex_couple_q61(
         ctypes.c_double(eff), s, m, ctypes.c_int(1 if form_is_left else 0), out)
+    if rc == SRMECH_ERR_OVERFLOW:
+        return None
     if rc != SRMECH_OK:
         raise ValueError(f"srmech_hypercomplex_couple_q61: status {rc}")
     return [out[i] for i in range(8)]

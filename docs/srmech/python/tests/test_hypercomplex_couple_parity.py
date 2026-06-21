@@ -108,6 +108,31 @@ def test_couple_q61_matches_explicit_reference(streams, form):
     assert got == ref
 
 
+# ── the int64 domain ceiling routes large magnitudes to the pure path ──
+
+def test_guard_rejects_large_magnitude_streams():
+    """``_q61_couple_fits_native`` is the int64 Q61 domain gate: unit-bounded
+    (|x| ≤ 1) passes, anything past it (a Q61 limb past 2**61) routes to pure."""
+    assert _hc._q61_couple_fits_native([_to_q61(1.0), _to_q61(-1.0), 0])
+    assert not _hc._q61_couple_fits_native([_to_q61(2.0)])
+    assert not _hc._q61_couple_fits_native([_to_q61(-7.0), 0, 0])
+
+
+@pytest.mark.parametrize("streams", [[2.0, -1.0, 3.0], [1, 2, 3, 4, 5, 6, 7]])
+@pytest.mark.parametrize("form", ["left", "right"])
+def test_large_magnitude_round_trips_via_pure(streams, form):
+    """Large-magnitude streams exceed the native int64 Q61 domain, so the couple
+    takes the pure bignum-exact path — bind+unbind still recovers the carrier.
+    This is the regression the CI native wheel caught (native int64 overflow on
+    ``[1,2,3,4,5,6,7]``): the guard now routes it to pure, which is exact."""
+    q, octonion = _hc._pack_streams(streams)
+    ref = list(q) if octonion else list(q[:4])
+    bound = hypercomplex_couple(streams, axis="diagonal", theta=0.7, form=form, sigma=1)
+    back = hypercomplex_couple(bound, axis="diagonal", theta=0.7, form=form, sigma=-1)
+    for got, want in zip(back, ref):
+        assert abs(got - want) < 1e-9
+
+
 # ── bit-parity: native couple == pure Q61 reference, byte-for-byte (wheel) ──
 
 @_native_only

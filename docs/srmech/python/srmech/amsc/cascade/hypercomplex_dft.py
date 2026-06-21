@@ -160,16 +160,34 @@ def _octo_mult_q61(a: Sequence[int], b: Sequence[int]) -> List[int]:
     return out
 
 
+def _q61_couple_fits_native(streams_q61: Sequence[int]) -> bool:
+    """True iff every Q61 stream limb is unit-bounded (``|x| ≤ 1``, i.e.
+    ``|limb| ≤ 2**61``) — the native int64 Q61 octonion couple's domain ceiling.
+    Within it neither the limbs nor the norm-preserving output (``|q| ≤ √8 < 4``)
+    overflow int64. Larger magnitudes have no Q61-int64 representation (no bignum
+    in C), so they take the pure (bignum-exact) Python path — the documented
+    native ceiling, like ``rational._try_c_two_rationals``. Class-K magnitude
+    test (no ``abs()``)."""
+    for v in streams_q61:
+        if v > _Q61_ONE or v < -_Q61_ONE:
+            return False
+    return True
+
+
 def _couple_q61(streams_q61: Sequence[int], mu_q61: Sequence[int],
                 eff: float, *, form: str) -> List[int]:
     """The exact-Q61 coupler core: ``T ⊗ q`` with the twiddle ``T = exp(eff·μ) =
     cos eff·1 + sin eff·μ`` (Q61) and ``⊗`` the left/right octonion multiply.
     Returns the 8 Q61 ints — byte-exact with ``srmech_hypercomplex_couple_q61``
-    when native (the Q61 trig cascade + cd_basis_product + fxmul are all
-    bit-identical C↔Python)."""
-    if _native.has_native_hypercomplex_couple():        # the whole couple in C
-        return _native.hypercomplex_couple_q61_c(
+    when native AND the streams are unit-bounded (the int64 Q61 domain); larger
+    magnitudes take the pure bignum-exact path (the Q61 trig cascade +
+    cd_basis_product + fxmul are all bit-identical C↔Python in the shared
+    domain)."""
+    if _native.has_native_hypercomplex_couple() and _q61_couple_fits_native(streams_q61):
+        out = _native.hypercomplex_couple_q61_c(     # the whole couple in C
             streams_q61, mu_q61, eff, form == "left")
+        if out is not None:                          # None = native int64 ceiling
+            return out
     if _native.has_native_trans_q61():
         cos = _native.cos_q61_c(eff)
         sin = _native.sin_q61_c(eff)

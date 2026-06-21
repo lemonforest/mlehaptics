@@ -389,7 +389,10 @@ static srmech_status_t octo_mult_q61(const int64_t a[8], const int64_t b[8],
  * T*streams (form_is_left) or streams*T (the non-commutative left/right forms).
  * Byte-exact with the pure-Q61 Python mirror (the Q61 trig cascade +
  * cd_basis_product + fxmul are all bit-identical C<->Python). eff non-finite or
- * |eff| >= 2^55 -> SRMECH_ERR_BAD_INPUT (the cos/sin peers gate it). */
+ * |eff| >= 2^55 -> SRMECH_ERR_BAD_INPUT (the cos/sin peers gate it). A stream
+ * limb past the unit-bounded int64 Q61 domain (|stream| > 1, |limb| > 2^61) ->
+ * SRMECH_ERR_OVERFLOW (no bignum in C); the caller's pure path is the complete
+ * alternative for larger magnitudes (the documented native ceiling). */
 srmech_status_t srmech_hypercomplex_couple_q61(double eff, const int64_t streams8[8],
                                                const int64_t mu8[8], int form_is_left,
                                                int64_t out8[8])
@@ -398,6 +401,17 @@ srmech_status_t srmech_hypercomplex_couple_q61(double eff, const int64_t streams
     assert(out8 != NULL);
     if (streams8 == NULL || mu8 == NULL || out8 == NULL) {
         return SRMECH_ERR_NULL_ARG;
+    }
+    /* int64 Q61 domain ceiling: a stream limb must be unit-bounded (|x| <= 1,
+     * i.e. |limb| <= 2^61) so neither the limbs nor the norm-preserving output
+     * (|q| <= sqrt(8) < 4) overflow int64. Larger magnitudes have no Q61-int64
+     * representation (no bignum in C) -> SRMECH_ERR_OVERFLOW; the caller's pure
+     * path (bignum-exact) is the complete alternative. Class-K test (no abs). */
+    const int64_t one_q61 = (int64_t)1 << SRMECH_TRIG_FBITS;
+    for (int i = 0; i < 8; i++) {
+        if (streams8[i] > one_q61 || streams8[i] < -one_q61) {
+            return SRMECH_ERR_OVERFLOW;
+        }
     }
     int64_t c = 0;
     int64_t s = 0;
