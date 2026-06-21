@@ -173,7 +173,12 @@ class Qi:
         return f"Qi({self._re!r}, {self._im!r})"
 
     def __str__(self) -> str:
-        return f"({self._re}{'+' if self._im >= 0 else '-'}{abs(self._im)}i)"
+        # Class-K sign-branch (never an ALU abs): split the im sign from its
+        # magnitude via a Q negation, never `abs()` (per the cascade-honesty
+        # discipline — sign is the Class-K pin-slot, not an ALU op).
+        nonneg = self._im >= 0
+        mag = self._im if nonneg else -self._im
+        return f"({self._re}{'+' if nonneg else '-'}{mag}i)"
 
     def __bool__(self) -> bool:
         return bool(self._re) or bool(self._im)
