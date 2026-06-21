@@ -562,6 +562,35 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_cd_basis_product.restype = ctypes.c_int
 
+    # Qi exact-complex (Gaussian-rational) carrier C-host peer (0.9.0rc15) —
+    # carrier-internal (NOT a Rosetta op), four int64 limbs {re_num, re_den,
+    # im_num, im_den}. hasattr-guarded so a stale lib (pre-rc15) keeps the rest.
+    #   int srmech_qi_{add,sub,mul}(const int64_t a[4], const int64_t b[4],
+    #                               int64_t out[4])
+    for _qi_op in ("srmech_qi_add", "srmech_qi_sub", "srmech_qi_mul"):
+        if hasattr(lib, _qi_op):
+            getattr(lib, _qi_op).argtypes = [
+                ctypes.POINTER(ctypes.c_int64),     # a[4]
+                ctypes.POINTER(ctypes.c_int64),     # b[4]
+                ctypes.POINTER(ctypes.c_int64),     # out[4]
+            ]
+            getattr(lib, _qi_op).restype = ctypes.c_int
+    #   int srmech_qi_conjugate(const int64_t a[4], int64_t out[4])
+    if hasattr(lib, "srmech_qi_conjugate"):
+        lib.srmech_qi_conjugate.argtypes = [
+            ctypes.POINTER(ctypes.c_int64), ctypes.POINTER(ctypes.c_int64)]
+        lib.srmech_qi_conjugate.restype = ctypes.c_int
+    #   int srmech_qi_quadrant(const int64_t a[4], int *out_quadrant)
+    if hasattr(lib, "srmech_qi_quadrant"):
+        lib.srmech_qi_quadrant.argtypes = [
+            ctypes.POINTER(ctypes.c_int64), ctypes.POINTER(ctypes.c_int)]
+        lib.srmech_qi_quadrant.restype = ctypes.c_int
+    #   int srmech_qi_norm_sq(const int64_t a[4], int64_t out[2])
+    if hasattr(lib, "srmech_qi_norm_sq"):
+        lib.srmech_qi_norm_sq.argtypes = [
+            ctypes.POINTER(ctypes.c_int64), ctypes.POINTER(ctypes.c_int64)]
+        lib.srmech_qi_norm_sq.restype = ctypes.c_int
+
     # Sedenion address layer (v0.9.0rc12; UPSTREAM §31 / F465+F468) — the
     # navigation + reversibility gate a C-only host needs for "Siona's address
     # layer." hasattr-guarded so a stale lib (pre-rc12) keeps the rest.
@@ -1877,6 +1906,104 @@ def isqrt128_c(n: int) -> int:
     if rc != SRMECH_OK:
         raise ValueError(f"srmech_isqrt: status {rc}")
     return out.value
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Qi — the exact-complex (Gaussian-rational) carrier C-host peer (0.9.0rc15).
+# Carrier-internal (NOT a Rosetta op). Four int64 limbs {re_num, re_den,
+# im_num, im_den}; the wrappers return None when native is absent / a limb is
+# out of the int64 domain / an intermediate overflowed (the Python `Qi`
+# exact-Fraction path is the unbounded oracle) — mirroring the
+# `rational._try_c_two_rationals` precedent.
+# ──────────────────────────────────────────────────────────────────────
+_QI_I64_MAX: int = (1 << 63) - 1
+_QI_I64_MIN: int = -(1 << 63)
+
+
+def has_native_qi() -> bool:
+    """True iff the C Qi exact-complex carrier peer is loaded + bound (0.9.0rc15+)."""
+    return bool(HAS_NATIVE and LIB is not None and hasattr(LIB, "srmech_qi_mul"))
+
+
+def _qi_limbs_fit(v) -> bool:
+    """True iff the 4 limbs (re_num, re_den, im_num, im_den) fit signed int64
+    with positive denominators — the native int64-limb domain."""
+    return (_QI_I64_MIN <= v[0] <= _QI_I64_MAX and 0 < v[1] <= _QI_I64_MAX
+            and _QI_I64_MIN <= v[2] <= _QI_I64_MAX and 0 < v[3] <= _QI_I64_MAX)
+
+
+def _qi_binop_c(symbol: str, a, b):
+    """Native (a `symbol` b) for two 4-limb Qi vectors → a 4-tuple, or None if
+    native is absent / a limb is out of domain / an intermediate overflowed
+    int64 (caller falls through to the exact-Fraction path)."""
+    if not has_native_qi() or not _qi_limbs_fit(a) or not _qi_limbs_fit(b):
+        return None
+    a_arr = (ctypes.c_int64 * 4)(*a)
+    b_arr = (ctypes.c_int64 * 4)(*b)
+    out = (ctypes.c_int64 * 4)()
+    rc = getattr(LIB, symbol)(a_arr, b_arr, out)
+    if rc == SRMECH_OK:
+        return (out[0], out[1], out[2], out[3])
+    if rc in (SRMECH_ERR_OVERFLOW, SRMECH_ERR_BAD_INPUT):
+        return None
+    raise RuntimeError(f"{symbol} returned non-OK status {rc}")
+
+
+def qi_add_c(a, b):
+    """Native Qi add (a + b) as a 4-limb tuple, or None (out of int64 domain)."""
+    return _qi_binop_c("srmech_qi_add", a, b)
+
+
+def qi_sub_c(a, b):
+    """Native Qi sub (a − b) as a 4-limb tuple, or None (out of int64 domain)."""
+    return _qi_binop_c("srmech_qi_sub", a, b)
+
+
+def qi_mul_c(a, b):
+    """Native Qi mul (a · b) as a 4-limb tuple, or None (out of int64 domain)."""
+    return _qi_binop_c("srmech_qi_mul", a, b)
+
+
+def qi_conjugate_c(a):
+    """Native Qi conjugate as a 4-limb tuple, or None (out of int64 domain)."""
+    if not has_native_qi() or not _qi_limbs_fit(a):
+        return None
+    a_arr = (ctypes.c_int64 * 4)(*a)
+    out = (ctypes.c_int64 * 4)()
+    rc = LIB.srmech_qi_conjugate(a_arr, out)
+    if rc == SRMECH_OK:
+        return (out[0], out[1], out[2], out[3])
+    if rc in (SRMECH_ERR_OVERFLOW, SRMECH_ERR_BAD_INPUT):
+        return None
+    raise RuntimeError(f"srmech_qi_conjugate returned non-OK status {rc}")
+
+
+def qi_quadrant_c(a):
+    """Native Qi Klein-4 quadrant (int 0..3), or None (out of int64 domain)."""
+    if not has_native_qi() or not _qi_limbs_fit(a):
+        return None
+    a_arr = (ctypes.c_int64 * 4)(*a)
+    out = ctypes.c_int(0)
+    rc = LIB.srmech_qi_quadrant(a_arr, ctypes.byref(out))
+    if rc == SRMECH_OK:
+        return out.value
+    if rc in (SRMECH_ERR_OVERFLOW, SRMECH_ERR_BAD_INPUT):
+        return None
+    raise RuntimeError(f"srmech_qi_quadrant returned non-OK status {rc}")
+
+
+def qi_norm_sq_c(a):
+    """Native Qi |a|² as a (num, den) tuple, or None (out of int64 domain)."""
+    if not has_native_qi() or not _qi_limbs_fit(a):
+        return None
+    a_arr = (ctypes.c_int64 * 4)(*a)
+    out = (ctypes.c_int64 * 2)()
+    rc = LIB.srmech_qi_norm_sq(a_arr, out)
+    if rc == SRMECH_OK:
+        return (out[0], out[1])
+    if rc in (SRMECH_ERR_OVERFLOW, SRMECH_ERR_BAD_INPUT):
+        return None
+    raise RuntimeError(f"srmech_qi_norm_sq returned non-OK status {rc}")
 
 
 def has_native_hypercomplex_exp() -> bool:

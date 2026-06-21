@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import numbers
 
+from . import _native
 from . import rational as _rational
 from .hdc import KLEIN4_STATES
 from .q import Q
@@ -159,6 +160,13 @@ class Qi:
         """The exact ``((re_num, re_den), (im_num, im_den))`` integer pairs."""
         return (self._re.as_pair(), self._im.as_pair())
 
+    def _limbs(self):
+        """The flat ``(re_num, re_den, im_num, im_den)`` int 4-tuple — the wire
+        the native ``srmech_qi_*`` C-host peer speaks (0.9.0rc15)."""
+        rn, rd = self._re.as_pair()
+        inum, iden = self._im.as_pair()
+        return (rn, rd, inum, iden)
+
     def __iter__(self):
         """Unpack as ``re, im = z`` (each a ``Q``)."""
         yield self._re
@@ -210,6 +218,9 @@ class Qi:
         z = _coerce(other)
         if z is None:
             return NotImplemented
+        res = _native.qi_add_c(self._limbs(), z._limbs())   # C-host peer when in-domain
+        if res is not None:
+            return Qi.from_pairs((res[0], res[1]), (res[2], res[3]))
         return Qi(self._re + z._re, self._im + z._im)
 
     __radd__ = __add__
@@ -218,18 +229,27 @@ class Qi:
         z = _coerce(other)
         if z is None:
             return NotImplemented
+        res = _native.qi_sub_c(self._limbs(), z._limbs())
+        if res is not None:
+            return Qi.from_pairs((res[0], res[1]), (res[2], res[3]))
         return Qi(self._re - z._re, self._im - z._im)
 
     def __rsub__(self, other):
         z = _coerce(other)
         if z is None:
             return NotImplemented
+        res = _native.qi_sub_c(z._limbs(), self._limbs())
+        if res is not None:
+            return Qi.from_pairs((res[0], res[1]), (res[2], res[3]))
         return Qi(z._re - self._re, z._im - self._im)
 
     def __mul__(self, other):
         z = _coerce(other)
         if z is None:
             return NotImplemented
+        res = _native.qi_mul_c(self._limbs(), z._limbs())
+        if res is not None:
+            return Qi.from_pairs((res[0], res[1]), (res[2], res[3]))
         a, b, c, d = self._re, self._im, z._re, z._im
         return Qi(a * c - b * d, a * d + b * c)       # (ac-bd) + (ad+bc)i
 
@@ -305,7 +325,12 @@ class Qi:
 
     def norm_sq(self) -> Q:
         """``|z|² = re² + im²`` — the EXACT squared modulus as a ``Q`` (Class N
-        rational anchor; pure exact mult/add, no sqrt, no ``math``)."""
+        rational anchor; pure exact mult/add, no sqrt, no ``math``). Routes
+        through the native ``srmech_qi_norm_sq`` C-host peer when the limbs fit
+        int64, else the exact ``Q`` path (the unbounded reference)."""
+        res = _native.qi_norm_sq_c(self._limbs())
+        if res is not None:
+            return Q.from_pair(res)
         return self._re * self._re + self._im * self._im
 
     def __abs__(self):
