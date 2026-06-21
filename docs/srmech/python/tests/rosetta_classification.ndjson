@@ -6,7 +6,7 @@
 {"exposed_as": "srmech.amsc.cascade.cd_conjugate", "defined_at": "srmech.amsc.cascade.cayley_dickson.cd_conjugate", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.amsc.cascade.cd_mult", "defined_at": "srmech.amsc.cascade.cayley_dickson.cd_mult", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.amsc.cascade.cd_norm_sq", "defined_at": "srmech.amsc.cascade.cayley_dickson.cd_norm_sq", "bucket": "bignum_reference"}
-{"exposed_as": "srmech.amsc.cascade.left_mult_is_invertible", "defined_at": "srmech.amsc.cascade.cayley_dickson.left_mult_is_invertible", "bucket": "bignum_reference"}
+{"exposed_as": "srmech.amsc.cascade.left_mult_is_invertible", "defined_at": "srmech.amsc.cascade.cayley_dickson.left_mult_is_invertible", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.left_mult_kernel", "defined_at": "srmech.amsc.cascade.cayley_dickson.left_mult_kernel", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.amsc.cascade.left_mult_matrix", "defined_at": "srmech.amsc.cascade.cayley_dickson.left_mult_matrix", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.amsc.cascade.sedenion_zero_divisor_witness", "defined_at": "srmech.amsc.cascade.cayley_dickson.sedenion_zero_divisor_witness", "bucket": "bignum_reference"}
