@@ -1881,6 +1881,8 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
     eigs: List[complex] = []
     m = n
     sweeps = 0
+    it = 0                                            # iterations since last deflate
+    sweep_ceiling = max_sweeps * n
     while m > 0:
         if m == 1:
             eigs.append(H[0][0])                      # Class-L: last eigenvalue
@@ -1889,18 +1891,34 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
         if _modulus_c(H[m - 1][m - 2]) <= _MAT_EIG_DEFLATE_TOL * (scale + 1e-300):
             eigs.append(H[m - 1][m - 1])              # Class-L: deflate eigenvalue
             m -= 1
+            it = 0                                    # new deflation-target: reset stall
             continue
         if m == 2:
             lam1, lam2 = _eig2x2(H[0][0], H[0][1], H[1][0], H[1][1])  # closed form
             eigs.append(lam1)
             eigs.append(lam2)
             break
-        # Wilkinson shift: the trailing-2×2 eigenvalue closest to H[m-1][m-1].
-        lam1, lam2 = _eig2x2(
-            H[m - 2][m - 2], H[m - 2][m - 1], H[m - 1][m - 2], H[m - 1][m - 1]
-        )
-        dd = H[m - 1][m - 1]
-        mu = lam1 if _modulus_c(lam1 - dd) < _modulus_c(lam2 - dd) else lam2
+        # Shift selection. The plain Wilkinson μ is the trailing-2×2 eigenvalue
+        # closest to H[m-1][m-1]. BUT on a cyclic-permutation / companion block the
+        # trailing 2×2 is [[0,0],[1,0]] → both roots 0 → μ=0 → an UNSHIFTED step,
+        # and an equal-modulus spectrum (e.g. roots of unity) then never deflates.
+        # The classic EISPACK ``hqr`` / LAPACK cure is an EXCEPTIONAL shift injected
+        # on a stall: at it==10 and it==20 (the EISPACK cadence) we replace μ with an
+        # ad-hoc shift built from the local sub-diagonal magnitudes, perturbing the
+        # spectrum estimate enough to dislodge the equal-modulus lock. (Golub & Van
+        # Loan §7.5; EISPACK ``hqr``.) ``_modulus_c`` is the Class-K magnitude — no
+        # bare ``abs()`` per the cascade-honesty rule.
+        if it == 10 or it == 20:
+            mu = _modulus_c(H[m - 1][m - 2])          # EISPACK exceptional shift
+            if m - 3 >= 0:
+                mu += _modulus_c(H[m - 2][m - 3])
+            mu = complex(mu, 0.0)                     # Class-C real ad-hoc shift
+        else:
+            lam1, lam2 = _eig2x2(
+                H[m - 2][m - 2], H[m - 2][m - 1], H[m - 1][m - 2], H[m - 1][m - 1]
+            )
+            dd = H[m - 1][m - 1]
+            mu = lam1 if _modulus_c(lam1 - dd) < _modulus_c(lam2 - dd) else lam2
         # QR of the leading m×m block minus μI; then H[:m,:m] ← R·Q + μI, the RQ
         # contraction routed through the native Mat-carrier mat_matmul (Class K).
         sub = [[H[i][j] - (mu if i == j else 0j) for j in range(m)] for i in range(m)]
@@ -1912,10 +1930,18 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
             for j in range(m):
                 H[i][j] = complex(rq[i, j]) + (mu if i == j else 0j)
         sweeps += 1
-        if sweeps > max_sweeps * n:                   # no-silent-hang backstop
-            for i in range(m):
-                eigs.append(H[i][i])
-            break
+        it += 1
+        if sweeps > sweep_ceiling:                    # genuine non-convergence:
+            # NEVER silently return the raw diagonal of an UN-converged block — for a
+            # companion matrix that diagonal is all zeros (the historic all-zero bug).
+            # Raise instead so the caller sees the failure (the exact integer oracle
+            # ``cascade.matrix_cascades.eigvals_exact`` is the convergent alternative).
+            raise RuntimeError(
+                f"mat_eigvals failed to converge in {sweeps} QR sweeps "
+                f"(n={n}, remaining block m={m}); the input may be pathological "
+                f"for the float shifted-QR path — use the exact integer oracle "
+                f"srmech.amsc.cascade.matrix_cascades.eigvals_exact for certified roots"
+            )
     return eigs
 
 
