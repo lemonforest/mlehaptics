@@ -338,7 +338,7 @@ class QMat:
             raise TypeError("QMat.matmul requires another QMat")
         if self.n_cols != other.n_rows:
             raise ValueError(
-                f"QMat matmul inner-dim mismatch: {self.shape} @ {other.shape}")
+                f"QMat matmul inner-dim mismatch: {self.shape} · {other.shape}")
         bt = other.transpose()._rows                 # columns of `other` as rows
         out_rows: List[Tuple[Q, ...]] = []
         for ra in self._rows:
