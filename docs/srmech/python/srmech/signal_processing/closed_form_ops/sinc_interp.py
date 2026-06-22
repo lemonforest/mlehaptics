@@ -53,7 +53,7 @@ def _sinc(x: float) -> float:
     if x == 0.0:
         return 1.0
     px = _PI * x
-    return _srn.sin(px) / px
+    return float(_srn.sin(px)) / px       # exact Q → float (FPU interpolation tap)
 
 
 def _median(values: List[float]) -> float:

@@ -282,3 +282,187 @@ srmech_status_t srmech_atan2(double y, double x, double *out)
     *out = (y >= 0.0) ? base + pi : base - pi;            /* x<0 quadrant shift (Class C) */
     return SRMECH_OK;
 }
+
+/* ── 0.9.0rc7 stay-rational Q61 surface (F868) ────────────────────────────
+ * The public sin/cos/atan project the Q61 cascade value to a 52-bit double as
+ * the LAST step, throwing ~9 bits away. These peers return the EXACT int64 Q61
+ * (denominator 2^61) BEFORE that projection so the Python `rational.{sin,cos,
+ * atan}` dispatch to native AND keep the full 61-bit rational (`Q(v, 2^61)`),
+ * not a double promoted back to Q. Same cores, no float-collapse. A non-finite
+ * (or |x| >= 2^55) argument has no Q61 representation -> SRMECH_ERR_BAD_INPUT
+ * (the Python peer raises identically). */
+srmech_status_t srmech_sin_q61(double x, int64_t *out_q61)
+{
+    assert(out_q61 != NULL);
+    if (out_q61 == NULL) { return SRMECH_ERR_NULL_ARG; }
+    int oct;
+    int64_t r;
+    if (!trig_reduce(x, &oct, &r)) { return SRMECH_ERR_BAD_INPUT; }
+    assert(oct >= 0 && oct < 4);
+    int64_t sc = trig_sin_core(r), cc = trig_cos_core(r);
+    *out_q61 = (oct == 0) ? sc : (oct == 1) ? cc : (oct == 2) ? -sc : -cc;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_cos_q61(double x, int64_t *out_q61)
+{
+    assert(out_q61 != NULL);
+    if (out_q61 == NULL) { return SRMECH_ERR_NULL_ARG; }
+    int oct;
+    int64_t r;
+    if (!trig_reduce(x, &oct, &r)) { return SRMECH_ERR_BAD_INPUT; }
+    assert(oct >= 0 && oct < 4);
+    int64_t sc = trig_sin_core(r), cc = trig_cos_core(r);
+    *out_q61 = (oct == 0) ? cc : (oct == 1) ? -sc : (oct == 2) ? -cc : sc;
+    return SRMECH_OK;
+}
+
+/* 0.9.0rc10 hypercomplex exp(mu*theta) twiddle (F882, srmech #205). The unit
+ * exponential q = cos(theta) + mu*sin(theta), mu the equal-weight unit pure-
+ * imaginary over the FIRST k_axes octonion axes (k_axes = 1/3/7 -> C/H/O). Fills
+ * eight Q61 components (denominator 2^61): out8[0] = cos(theta); out8[1..k] =
+ * sin(theta)/sqrt(k); out8[k+1..7] = 0. mu is unit via 1/sqrt(k) in Q61 =
+ * isqrt(2^122 / k) (k=1 -> 2^61 exactly); the k=3,7 anchors are round(2^61/sqrt k)
+ * and are verified === the Python isqrt cascade in the parity test (no 128-bit
+ * divide in -Wpedantic C, so they are stated, not derived in-place). The eight
+ * components feed a Cayley-Dickson multiply (where a hypercomplex value lives),
+ * then a single projection — the literal QDFT/ODFT twiddle. Byte-exact with the
+ * pure-Q61 Python mirror cascade.hypercomplex_exp. A non-finite (or |theta| >=
+ * 2^55) argument has no Q61 form -> SRMECH_ERR_BAD_INPUT (the cos/sin peers gate
+ * it); k_axes not in {1,3,7} -> SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_hypercomplex_exp_q61(double theta, int k_axes,
+                                            int64_t *out8)
+{
+    assert(out8 != NULL);
+    if (out8 == NULL) { return SRMECH_ERR_NULL_ARG; }
+    int64_t inv;
+    if (k_axes == 1) {
+        inv = SRMECH_Q61_ONE;                          /* 1/sqrt(1) = 1.0 in Q61 */
+    } else if (k_axes == 3) {
+        inv = INT64_C(1331279082078542925);            /* round(2^61 / sqrt 3) */
+    } else if (k_axes == 7) {
+        inv = INT64_C(871526737819464516);             /* round(2^61 / sqrt 7) */
+    } else {
+        return SRMECH_ERR_BAD_INPUT;                    /* only C/H/O imaginary axes */
+    }
+    assert(inv > 0);                                   /* unit norm anchor positive */
+    int64_t c = 0, s = 0;
+    srmech_status_t st = srmech_cos_q61(theta, &c);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_sin_q61(theta, &s);
+    if (st != SRMECH_OK) { return st; }
+    int64_t scaled = trig_fxmul(s, inv);               /* sin(theta) / sqrt(k) */
+    out8[0] = c;
+    for (int a = 1; a < 8; a++) {
+        out8[a] = (a <= k_axes) ? scaled : INT64_C(0);
+    }
+    return SRMECH_OK;
+}
+
+/* Static helper — exact octonion product a*b over Q61 via the Cayley-Dickson
+ * structure constants (srmech_cd_basis_product) and the Q61 fixed-point multiply.
+ * c[i^j] += sign(i,j) * (a[i]*b[j] >> 61). Integer accumulation is
+ * order-independent. Class-M bilinear bind o Class-C sign orientation; no abs(). */
+static srmech_status_t octo_mult_q61(const int64_t a[8], const int64_t b[8],
+                                     int64_t out[8])
+{
+    assert(a != NULL && b != NULL);
+    assert(out != NULL);
+    for (int k = 0; k < 8; k++) { out[k] = INT64_C(0); }
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+            int idx = 0;
+            int sgn = 0;
+            srmech_status_t st = srmech_cd_basis_product(8, i, j, &idx, &sgn);
+            if (st != SRMECH_OK) { return st; }
+            int64_t p = trig_fxmul(a[i], b[j]);
+            out[idx] += (sgn > 0) ? p : -p;            /* Class-C; no abs() */
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* 0.9.0rc16 exact-Q61 (sigma,theta,mu) octonion coupler — the C-host peer of
+ * cascade.hypercomplex_dft.hypercomplex_couple (closes the rc12 sed_couple /
+ * sed_uncouple transitive-ratchet allowlist). T = exp(eff*mu) = cos(eff) +
+ * sin(eff)*mu, mu a caller-provided unit pure-imaginary Q61 8-vector; out =
+ * T*streams (form_is_left) or streams*T (the non-commutative left/right forms).
+ * Byte-exact with the pure-Q61 Python mirror (the Q61 trig cascade +
+ * cd_basis_product + fxmul are all bit-identical C<->Python). eff non-finite or
+ * |eff| >= 2^55 -> SRMECH_ERR_BAD_INPUT (the cos/sin peers gate it). A stream
+ * limb past the unit-bounded int64 Q61 domain (|stream| > 1, |limb| > 2^61) ->
+ * SRMECH_ERR_OVERFLOW (no bignum in C); the caller's pure path is the complete
+ * alternative for larger magnitudes (the documented native ceiling). */
+srmech_status_t srmech_hypercomplex_couple_q61(double eff, const int64_t streams8[8],
+                                               const int64_t mu8[8], int form_is_left,
+                                               int64_t out8[8])
+{
+    assert(streams8 != NULL && mu8 != NULL);
+    assert(out8 != NULL);
+    if (streams8 == NULL || mu8 == NULL || out8 == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    /* int64 Q61 domain ceiling: a stream limb must be unit-bounded (|x| <= 1,
+     * i.e. |limb| <= 2^61) so neither the limbs nor the norm-preserving output
+     * (|q| <= sqrt(8) < 4) overflow int64. Larger magnitudes have no Q61-int64
+     * representation (no bignum in C) -> SRMECH_ERR_OVERFLOW; the caller's pure
+     * path (bignum-exact) is the complete alternative. Class-K test (no abs). */
+    const int64_t one_q61 = (int64_t)1 << SRMECH_TRIG_FBITS;
+    for (int i = 0; i < 8; i++) {
+        if (streams8[i] > one_q61 || streams8[i] < -one_q61) {
+            return SRMECH_ERR_OVERFLOW;
+        }
+    }
+    int64_t c = 0;
+    int64_t s = 0;
+    srmech_status_t st = srmech_cos_q61(eff, &c);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_sin_q61(eff, &s);
+    if (st != SRMECH_OK) { return st; }
+    int64_t tw[8];
+    tw[0] = c;
+    for (int a = 1; a < 8; a++) {
+        tw[a] = trig_fxmul(s, mu8[a]);                 /* sin(eff) * mu[a] */
+    }
+    if (form_is_left) {
+        return octo_mult_q61(tw, streams8, out8);      /* T * q */
+    }
+    return octo_mult_q61(streams8, tw, out8);          /* q * T */
+}
+
+/* atan(|m|) for m >= 0 as an exact Q61 INTEGER — the three-band recombination
+ * accumulates in Q61 ints (pi/2 = HALF_PI_Q61, pi/4 = that >> 1), mirror of the
+ * Python `_atan_nonneg_q61`. The COT band naturally yields pi/2 for m = +Inf
+ * (1/Inf = 0 -> atan_core(0) = 0). */
+static int64_t trig_atan_nonneg_q61(double m)
+{
+    assert(m >= 0.0);
+    assert(SRMECH_TRIG_HALF_PI_Q61 > 0);   /* pi/2 anchor sane (JPL Rule 5) */
+    int64_t mq;
+    if (m <= SRMECH_TRIG_TAN_PI8) {
+        mq = (int64_t)(m * (double)SRMECH_TRIG_ONE + 0.5);
+        return trig_atan_core(mq);
+    }
+    if (m >= SRMECH_TRIG_COT_PI8) {                       /* atan(m) = pi/2 - atan(1/m) */
+        mq = (int64_t)((1.0 / m) * (double)SRMECH_TRIG_ONE + 0.5);
+        return SRMECH_TRIG_HALF_PI_Q61 - trig_atan_core(mq);
+    }
+    double u = (m - 1.0) / (m + 1.0);                     /* middle band: pi/4 + atan(u) */
+    int neg = (u < 0.0);
+    double um = neg ? -u : u;
+    mq = (int64_t)(um * (double)SRMECH_TRIG_ONE + 0.5);
+    int64_t a = trig_atan_core(mq);
+    return (SRMECH_TRIG_HALF_PI_Q61 / 2) + (neg ? -a : a);
+}
+
+srmech_status_t srmech_atan_q61(double x, int64_t *out_q61)
+{
+    assert(out_q61 != NULL);
+    if (out_q61 == NULL) { return SRMECH_ERR_NULL_ARG; }
+    if (x != x) { return SRMECH_ERR_BAD_INPUT; }          /* NaN — not a rational */
+    double xm = (x < 0.0) ? -x : x;                       /* Class-K magnitude */
+    assert(xm >= 0.0);                                     /* magnitude non-negative (JPL Rule 5) */
+    int64_t v = trig_atan_nonneg_q61(xm);                 /* +/-Inf -> +/- pi/2 via band */
+    *out_q61 = (x < 0.0) ? -v : v;                        /* Class-C re-orient */
+    return SRMECH_OK;
+}

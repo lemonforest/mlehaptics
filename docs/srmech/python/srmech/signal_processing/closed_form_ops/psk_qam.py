@@ -69,7 +69,7 @@ def _psk_constellation(M: int) -> List[complex]:
 
 def _qam_constellation(M: int) -> List[complex]:
     """Square M-QAM constellation; requires sqrt(M) to be integer (numpy-free)."""
-    sqrt_m = int(round(_srn.sqrt(float(M))))
+    sqrt_m = int(round(float(_srn.sqrt(float(M)))))   # √M → float before round()
     if sqrt_m * sqrt_m != M:
         raise ValueError(f"square QAM requires M = K^2; got M={M}")
     # Gray-coded levels: {-(sqrt_m-1), ..., -1, 1, ..., (sqrt_m-1)}

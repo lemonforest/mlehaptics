@@ -25,11 +25,11 @@ for a small-N case is a Phase C1 follow-on per
 from __future__ import annotations
 
 import ctypes
-import math
 import struct
 from typing import List, Tuple
 
 from . import _native
+from . import cyclic as _cyclic
 
 __all__ = [
     "continued_fraction",
@@ -45,6 +45,7 @@ __all__ = [
     "log1p_series_truncate",
     "atan_series_truncate",
     "pi_cascade_digits",
+    "pi_chudnovsky_digits",
     "cos",
     "sin",
     "tan",
@@ -61,6 +62,41 @@ __all__ = [
 # Max terms a uint64 continued fraction can produce is Fibonacci-worst-
 # case ~91 iterations; 128 is the C-side cap and a safe Python ceiling.
 _MAX_TERMS: int = 128
+
+# ── float classification + integer-sqrt without stdlib `math` (rc13 purge) ──
+# `_is_finite` / `_is_inf` were the last float-classification calls in
+# the cascade; they are pure IEEE-754 predicates, expressed here as plain
+# comparisons (a `float("inf")` literal needs no maths library). `math.isqrt`
+# was the last pure-integer primitive Python borrowed — replaced by a native
+# two-limb dispatch (`srmech_isqrt`) + an arbitrary-precision integer-Newton.
+_FLOAT_INF: float = float("inf")
+
+
+def _is_finite(x: float) -> bool:
+    """``_is_finite`` via comparison: finite iff not NaN and within ±∞."""
+    return x == x and -_FLOAT_INF < x < _FLOAT_INF
+
+
+def _is_inf(x: float) -> bool:
+    """``_is_inf`` via comparison: ``x`` is ±∞."""
+    return x == _FLOAT_INF or x == -_FLOAT_INF
+
+
+def _py_isqrt(n: int) -> int:
+    """Arbitrary-precision integer floor square root (no stdlib ``math.isqrt``).
+
+    Newton's method on Python big-ints, seeded by the bit length — exact for
+    every ``n >= 0`` and bignum-safe (the ``pi_cascade_digits`` D=1000 radicand
+    is ~20000-bit). The native two-limb ``srmech_isqrt`` handles the bounded
+    ``n < 2**128`` case; this is the unbounded fallback."""
+    if n < 2:
+        return n
+    x = 1 << ((n.bit_length() + 1) >> 1)        # ~ceil(bits/2)-bit seed
+    while True:
+        y = (x + n // x) >> 1                    # integer Newton step
+        if y >= x:
+            return x
+        x = y
 
 
 def _ensure_uint64(name: str, value: int) -> int:
@@ -325,13 +361,14 @@ def exp_series_truncate(numerator: int,
 
     sum_den = q_to_N * N_factorial
 
-    # Reduce to lowest terms via Class N rational gcd:
+    # Reduce to lowest terms via the Class-I cyclic gcd (use srmech for math,
+    # not stdlib math.gcd; uncapped → big-int safe at One-scale numerators):
     if sum_num == 0:
         return (0, 1)
     # Class-K magnitude as an EXPLICIT sign-branch, never an ALU abs()
     # (sum_den is already positive upstream).
     num_mag = sum_num if sum_num >= 0 else -sum_num
-    g = math.gcd(num_mag, sum_den)
+    g = _cyclic.gcd(num_mag, sum_den)
     out_num = sum_num // g
     out_den = sum_den // g
     # Ensure denominator is positive.
@@ -356,7 +393,12 @@ def exp_series_truncate(numerator: int,
 
 
 def _reduce_rational(num: int, den: int) -> Tuple[int, int]:
-    """Reduce (num, den) to lowest terms with positive denominator."""
+    """Reduce (num, den) to lowest terms with positive denominator.
+
+    The GCD rides the Class-I :func:`srmech.amsc.cyclic.gcd` (srmech-native, no
+    stdlib ``math.gcd``) — now uncapped, so the ~100-digit ``One``-scale
+    numerators reduce exactly (native serves its uint64 domain, big-int Euclid
+    beyond)."""
     if den == 0:
         raise ZeroDivisionError("rational denominator is zero")
     if num == 0:
@@ -364,7 +406,7 @@ def _reduce_rational(num: int, den: int) -> Tuple[int, int]:
     # Class-K magnitude via EXPLICIT sign-branches, never an ALU abs().
     num_mag = num if num >= 0 else -num
     den_mag = den if den >= 0 else -den
-    g = math.gcd(num_mag, den_mag)
+    g = _cyclic.gcd(num_mag, den_mag)
     num //= g
     den //= g
     if den < 0:
@@ -980,8 +1022,66 @@ def _q61_atan_core(m: int) -> int:
 
 def _q61_to_double(q61: int) -> float:
     """Project Q61 → float: ``float(v) / float(2**61)`` (matches the C
-    two-step ``(double)q61 / (double)SRMECH_TRIG_ONE`` cast exactly)."""
+    two-step ``(double)q61 / (double)SRMECH_TRIG_ONE`` cast exactly).
+
+    This is the OLD display-boundary collapse. As of 0.9.0rc7 the public
+    transcendentals stay rational (:class:`~srmech.amsc.q.Q`) and only collapse
+    when the caller asks (``float(q)``); this helper is retained for the
+    internal float-reduction arithmetic (Cody-Waite ``r``, atan band edges)
+    where a transient double is legitimate, never as the public return.
+    """
     return float(q61) / float(_Q61_ONE)
+
+
+# ── stay-rational Q factory + recombination constants (0.9.0rc7) ──────────
+# F868 stay-rational ([[feedback_stay_rational_collapse_only_at_display]]):
+# the transcendentals compute an EXACT Q61 rational (the int64 cascade value
+# over 2**61, or a clean power-of-two-scaled form for exp/sqrt) and the OLD
+# code threw ~9 bits away into a float at ``_q61_to_double``. The public
+# ``sin``/``cos``/``tan``/``atan``/``atan2``/``exp``/``log``/``sqrt``/``hypot``
+# now return that exact rational as a ``Q``; ``float(q)`` reproduces (and
+# slightly betters) the old float. ``Q`` is imported lazily to break the
+# ``q.py`` ↔ ``rational.py`` import cycle (q imports rational at load).
+_Q_CLS = None
+
+
+def _q(num: int, den: int):
+    """Build a :class:`~srmech.amsc.q.Q` from an exact ``(num, den)`` integer
+    pair (deferred import — ``q`` imports this module). The Q reducer rides the
+    Class-N Euclidean GCD, so power-of-two denominators stay powers of two."""
+    global _Q_CLS
+    if _Q_CLS is None:
+        from .q import Q as _Q_imported
+        _Q_CLS = _Q_imported
+    return _Q_CLS(num, den)
+
+
+# ln(2) in Q61 (denominator 2**61), DERIVED from the Class-N log1p cascade
+# (no math.log): ln2 = −log1p(−1/2) (|−1/2|<1 → fast), quantised to Q61. The
+# e·ln2 recombine in ``log`` stays in this Q61 model (matching ``pi/2`` =
+# ``_Q61_HALF_PI_Q61``), so ``log`` returns a clean ``Q(v, 2**61)``.
+_Q61_LN2 = 1598288580650331957                   # round(ln2 * 2**61)
+
+
+def _atan_nonneg_q61(m: float) -> int:
+    """``atan(m)`` for ``m >= 0`` as a Q61 INTEGER (the stay-rational peer of
+    :func:`_q61_atan_nonneg`): the three-band reduction accumulates in Q61
+    ints (``pi/2`` = ``_Q61_HALF_PI_Q61``, ``pi/4`` = that ``// 2``), so the
+    result is exact over ``2**61``. The band edges + ``1/m`` / ``(m−1)/(m+1)``
+    fold the float argument (inherent — the input is a float); the SERIES and
+    the recombine are integer."""
+    assert m >= 0.0, "atan magnitude must be non-negative (Class-K)"
+    if m <= _Q61_TAN_PI8:
+        mq = int(m * float(_Q61_ONE) + 0.5)
+        return _q61_atan_core(mq)
+    if m >= _Q61_COT_PI8:                          # atan(m) = pi/2 − atan(1/m)
+        mq = int((1.0 / m) * float(_Q61_ONE) + 0.5)
+        return _Q61_HALF_PI_Q61 - _q61_atan_core(mq)
+    u = (m - 1.0) / (m + 1.0)                       # middle band: pi/4 + atan(u)
+    neg = u < 0.0
+    um = -u if neg else u
+    a = _q61_atan_core(int(um * float(_Q61_ONE) + 0.5))
+    return (_Q61_HALF_PI_Q61 // 2) + (-a if neg else a)
 
 
 def _q61_atan_nonneg(m: float) -> float:
@@ -1003,115 +1103,114 @@ def _q61_atan_nonneg(m: float) -> float:
     return half_pi / 2.0 + (-a if neg else a)
 
 
-def cos(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> float:
-    """``cos(x)`` (radians) via the Q61 Class-N cascade.
+def cos(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> "Q":
+    """``cos(x)`` (radians) → an EXACT :class:`~srmech.amsc.q.Q` (Q61 rational).
 
-    Bit-exact with the native peer ``srmech_cos`` (Q61 fixed-point); on a
-    native install this dispatches to the C and returns identical bits.
-    Substrate-native replacement for ``math.cos`` / ``np.cos`` — no
-    ``math.cos`` in the call graph. ``terms`` is retained for back-compat;
-    the Q61 cascade uses a fixed term cap. The exact-rational higher-
-    precision reference surface is ``cos_series_truncate``.
+    0.9.0rc7 stay-rational (F868): the Class-N Q61 cascade computes the exact
+    rational ``v / 2**61``; this returns that ``Q`` instead of collapsing to a
+    float — ``float(cos(x))`` reproduces (and slightly betters) the old float.
+    Substrate-native replacement for ``math.cos`` / ``np.cos`` — no ``math.cos``
+    in the call graph. Non-finite ``x`` raises (``Q`` is the finite-rational
+    carrier). ``terms`` is retained for back-compat (fixed Q61 cap). The
+    arbitrary-precision exact reference surface is ``cos_series_truncate``.
     """
     x = float(x)
-    if not math.isfinite(x):
-        return x - x                               # NaN for ±Inf and NaN
-    if _native.has_native_trig():
-        return _native.cos_c(x)
+    if not _is_finite(x):
+        raise ValueError("cos: x must be finite (Q is the finite-rational carrier)")
+    if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
+        return _q(_native.cos_q61_c(x), _Q61_ONE)
     ok, octant, r = _q61_reduce(x)
     if not ok:
-        return x - x                               # NaN for Inf/NaN
+        raise ValueError(f"cos: |x| too large for the Q61 octant reduction; got {x}")
     sc = _q61_sin_core(r)
     cc = _q61_cos_core(r)
     v = cc if octant == 0 else -sc if octant == 1 else -cc if octant == 2 else sc
-    return _q61_to_double(v)
+    return _q(v, _Q61_ONE)
 
 
-def sin(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> float:
-    """``sin(x)`` (radians) via the Q61 Class-N cascade.
+def sin(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> "Q":
+    """``sin(x)`` (radians) → an EXACT :class:`~srmech.amsc.q.Q` (Q61 rational).
 
-    Bit-exact with the native peer ``srmech_sin``; dispatches to C when
-    available. Substrate-native replacement for ``math.sin`` / ``np.sin``.
+    Stay-rational peer of :func:`cos` (the exact Q61 ``v / 2**61``).
+    Substrate-native replacement for ``math.sin`` / ``np.sin``.
     """
     x = float(x)
-    if not math.isfinite(x):
-        return x - x                               # NaN for ±Inf and NaN
-    if _native.has_native_trig():
-        return _native.sin_c(x)
+    if not _is_finite(x):
+        raise ValueError("sin: x must be finite (Q is the finite-rational carrier)")
+    if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
+        return _q(_native.sin_q61_c(x), _Q61_ONE)
     ok, octant, r = _q61_reduce(x)
     if not ok:
-        return x - x
+        raise ValueError(f"sin: |x| too large for the Q61 octant reduction; got {x}")
     sc = _q61_sin_core(r)
     cc = _q61_cos_core(r)
     v = sc if octant == 0 else cc if octant == 1 else -sc if octant == 2 else -cc
-    return _q61_to_double(v)
+    return _q(v, _Q61_ONE)
 
 
-def tan(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> float:
-    """``tan(x) = sin(x)/cos(x)`` via the Q61 cascade (no native
-    ``srmech_tan`` — composed from the Q61 ``sin``/``cos``)."""
+def tan(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> "Q":
+    """``tan(x) = sin(x) / cos(x)`` → an EXACT :class:`~srmech.amsc.q.Q`.
+
+    The exact ``Q`` quotient of the Q61 ``sin`` / ``cos`` (no native
+    ``srmech_tan``). Raises where ``cos(x) == 0``."""
     c = cos(x)
-    if c == 0.0:
+    if c == 0:
         raise ValueError("tan undefined: cos(x) == 0")
-    return sin(x) / c
+    return sin(x) / c                              # exact Q / Q
 
 
-def atan(x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> float:
-    """``atan(x)`` via the Q61 three-band Class-N cascade.
+def atan(x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> "Q":
+    """``atan(x)`` → an EXACT :class:`~srmech.amsc.q.Q` via the Q61 three-band
+    Class-N cascade.
 
-    Bit-exact with ``srmech_atan``; dispatches to C when available. Class-K
-    magnitude (never ``abs()`` of the value) + Class-C re-orientation; the
-    three-band reduction keeps every series argument in the fast region.
-    Substrate-native replacement for ``math.atan`` / ``np.arctan``.
+    Class-K magnitude (never ``abs()`` of the value) + Class-C re-orientation;
+    the three-band reduction keeps every series argument fast. ``atan(±Inf)`` =
+    ``±π/2`` is a representable rational, returned as ``Q(±pi/2_q61, 2**61)``;
+    NaN raises. Substrate-native replacement for ``math.atan`` / ``np.arctan``.
     """
     x = float(x)
-    if not math.isfinite(x):
-        if x != x:                                 # NaN
-            return x
-        # atan(±Inf) = ±π/2 (cascade π/2; sign re-applied — Class C)
-        half_pi = _q61_to_double(_Q61_HALF_PI_Q61)
-        return half_pi if x > 0.0 else -half_pi
-    if _native.has_native_trig():
-        return _native.atan_c(x)
+    if x != x:                                     # NaN
+        raise ValueError("atan: x is NaN (not a rational)")
+    if _native.has_native_trans_q61():          # native handles ±Inf via the COT band
+        return _q(_native.atan_q61_c(x), _Q61_ONE)
+    if _is_inf(x):                              # atan(±Inf) = ±π/2 (exact Q)
+        v = _Q61_HALF_PI_Q61 if x > 0.0 else -_Q61_HALF_PI_Q61
+        return _q(v, _Q61_ONE)
     xm = x if x >= 0.0 else -x                     # Class-K magnitude
-    r = _q61_atan_nonneg(xm)
-    return r if x >= 0.0 else -r                   # Class-C re-orientation
+    v = _atan_nonneg_q61(xm)
+    return _q(v if x >= 0.0 else -v, _Q61_ONE)     # Class-C re-orientation
 
 
-def atan2(y: float, x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> float:
-    """``atan2(y, x)`` via the Q61 atan cascade with quadrant logic.
+def atan2(y: float, x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> "Q":
+    """``atan2(y, x)`` → an EXACT :class:`~srmech.amsc.q.Q` via the Q61 atan
+    cascade with quadrant logic.
 
-    Bit-exact with ``srmech_atan2``; dispatches to C when available.
+    The quadrant limits (``±π/2``, ``±π/4``, ``±3π/4``, ``±π``, ``±0``) are all
+    representable rationals — returned as exact ``Q`` over ``2**61`` — so the
+    ``±Inf`` argument cases stay rational; only a NaN argument raises.
     Substrate-native replacement for ``math.atan2`` / ``np.arctan2``.
     """
     y = float(y)
     x = float(x)
-    # Non-finite quadrant limits, run BEFORE dispatch so the native and
-    # pure-Python paths agree on the whole domain (the C reduces Inf via an
-    # int cast that is UB; this guard keeps both renderings identical).
-    if not (math.isfinite(y) and math.isfinite(x)):
-        if y != y or x != x:                       # any NaN → NaN
-            return float("nan")
-        half_pi = _q61_to_double(_Q61_HALF_PI_Q61)
-        pi = 2.0 * half_pi
-        if math.isinf(y) and math.isinf(x):        # both ±Inf
-            base = pi / 4.0 if x > 0.0 else 3.0 * pi / 4.0
-            return math.copysign(base, y)          # ±π/4 or ±3π/4
-        if math.isinf(y):                          # |y|=Inf, x finite
-            return math.copysign(half_pi, y)       # ±π/2
-        if x > 0.0:                                # x=+Inf, y finite
-            return math.copysign(0.0, y)           # ±0
-        return math.copysign(pi, y)                # x=−Inf, y finite → ±π
-    if _native.has_native_trig():
-        return _native.atan2_c(y, x)
-    half_pi = _q61_to_double(_Q61_HALF_PI_Q61)
-    pi = 2.0 * half_pi
+    if y != y or x != x:                           # any NaN → not a rational
+        raise ValueError("atan2: y or x is NaN (not a rational)")
+    hp = _Q61_HALF_PI_Q61                          # pi/2 in Q61
+    if not (_is_finite(y) and _is_finite(x)):
+        if _is_inf(y) and _is_inf(x):        # both ±Inf → ±π/4 or ±3π/4
+            mag = hp // 2 if x > 0.0 else 3 * (hp // 2)
+            return _q(mag if y >= 0.0 else -mag, _Q61_ONE)
+        if _is_inf(y):                          # |y|=Inf, x finite → ±π/2
+            return _q(hp if y >= 0.0 else -hp, _Q61_ONE)
+        if x > 0.0:                                # x=+Inf, y finite → ±0
+            return _q(0, 1)
+        return _q(2 * hp if y >= 0.0 else -2 * hp, _Q61_ONE)   # x=−Inf → ±π
     if x == 0.0:
-        return half_pi if y > 0.0 else (-half_pi if y < 0.0 else 0.0)
-    base = atan(y / x)
+        return _q(hp if y > 0.0 else (-hp if y < 0.0 else 0), _Q61_ONE)
+    base = atan(y / x)                             # exact Q
     if x > 0.0:
         return base
-    return base + pi if y >= 0.0 else base - pi    # x<0 quadrant shift (Class C)
+    pi = _q(2 * hp, _Q61_ONE)                       # x<0 quadrant shift (Class C)
+    return base + pi if y >= 0.0 else base - pi
 
 
 # Default Taylor terms for the exact-rational (bignum REFERENCE) exp surface.
@@ -1192,56 +1291,57 @@ def _q_log_core(t: int) -> int:
     return s * 2
 
 
-def exp(x: float, *, terms: int = _EXP_FLOAT_TERMS) -> float:
-    """``e^x`` via the Q61 Class-N exp cascade with Cody-Waite ln2 reduction.
+def exp(x: float, *, terms: int = _EXP_FLOAT_TERMS) -> "Q":
+    """``e^x`` → an EXACT :class:`~srmech.amsc.q.Q` via the Q61 Class-N exp
+    cascade with Cody-Waite ln2 reduction.
 
     ``x = n·ln2 + r`` with ``|r| <= ln2/2``; ``exp(r)`` is the Q61 integer
-    Taylor ``1 + r + r²/2! + …`` and the ``2^n`` scale is folded into the IEEE
-    exponent. Bit-exact with the native peer ``srmech_exp``; dispatches to C
-    when available. Substrate-native replacement for ``math.exp`` / ``np.exp``
-    (real) — no ``math.exp`` in the call graph. ``terms`` selects the
-    exact-rational REFERENCE surface ``exp_series_truncate`` (used only by the
-    bignum reference, not this float projection).
+    Taylor ``1 + r + r²/2! + …`` (an exact ``Q(core, 2**61)``) and the ``2^n``
+    scale is an EXACT power of two folded into the rational — so the result is
+    the exact rational ``core·2^n / 2**61``, never a float-collapsed ``2^n``
+    recombine. 0.9.0rc7 stay-rational: there is no ``DBL_MAX`` overflow gate
+    (that was a float artefact) — a finite ``x`` gives the exact (possibly
+    large) rational; only non-finite ``x`` raises. Substrate-native replacement
+    for ``math.exp`` / ``np.exp`` (real). ``terms`` selects the arbitrary-
+    precision REFERENCE surface ``exp_series_truncate``.
     """
     x = float(x)
-    if x != x:                                     # NaN
-        return x
-    if x > _EXPLOG_OVERFLOW:
-        return float("inf")
-    if x < _EXPLOG_UNDERFLOW:
-        return 0.0
-    if _native.has_native_explog():
-        return _native.exp_c(x)
+    if not _is_finite(x):
+        raise ValueError("exp: x must be finite (Q is the finite-rational carrier)")
+    if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
+        core, n = _native.exp_q61_c(x)
+        return _q(core << n, _Q61_ONE) if n >= 0 else _q(core, _Q61_ONE << (-n))
     tn = x * _EXPLOG_INV_LN2
     n = int(tn + (0.5 if tn >= 0.0 else -0.5))     # round half away from zero
     r = (x - n * _EXPLOG_LN2_HI) - n * _EXPLOG_LN2_LO
     rq = int(r * float(_Q61_ONE) + (0.5 if r >= 0.0 else -0.5))
-    m = _q61_to_double(_q_exp_core(rq))            # exp(r)
-    return _q_scale2(m, n)
+    core = _q_exp_core(rq)                          # exp(r) as Q61 int (≈[0.7,1.4])
+    if n >= 0:                                      # exact 2^n scale (no float)
+        return _q(core << n, _Q61_ONE)
+    return _q(core, _Q61_ONE << (-n))
 
 
-def log(x: float, *, terms: int = _EXPLOG_LOG_TERMS) -> float:
-    """``ln(x)`` (natural log, x > 0) via the Q61 Class-N atanh cascade.
+def log(x: float, *, terms: int = _EXPLOG_LOG_TERMS) -> "Q":
+    """``ln(x)`` (natural log, x > 0) → an EXACT :class:`~srmech.amsc.q.Q` via
+    the Q61 Class-N atanh cascade.
 
-    ``x = m·2^e`` read from the bit pattern, ``m`` folded into ``[1/√2, √2)``;
-    ``log(m) = 2·atanh((m−1)/(m+1))`` is the Q61 series and ``e·ln2`` recombines
-    with the two-word ln2. Bit-exact with the native peer ``srmech_log``;
-    dispatches to C when available. Substrate-native replacement for
-    ``math.log`` / ``np.log`` (real). Domain (matching ``srmech_log``):
-    ``x < 0 → NaN``, ``x == 0 → −Inf``. The exact-rational REFERENCE surface is
-    ``log1p_series_truncate`` (where the W14 ``|x| <= 1`` domain guard lives).
+    ``x = m·2^e`` read EXACTLY from the bit pattern, ``m`` folded into
+    ``[1/√2, √2)``; ``log(m) = 2·atanh((m−1)/(m+1))`` is the Q61 series and the
+    ``e·ln2`` recombine stays in the Q61 model (``_Q61_LN2``, cascade-derived),
+    so the result is the exact ``Q((logm + e·ln2_q61), 2**61)`` — no two-word
+    float recombine. Substrate-native replacement for ``math.log`` / ``np.log``
+    (real). Domain: ``x <= 0`` raises (``log 0 = −∞``, ``log(<0)`` undefined —
+    neither is a rational); non-finite raises. The arbitrary-precision REFERENCE
+    surface is ``log1p_series_truncate``.
     """
     x = float(x)
-    if x != x:                                     # NaN
-        return x
-    if x < 0.0:
-        return float("nan")                        # domain (Class-K refusal)
-    if x == 0.0:
-        return float("-inf")
-    if math.isinf(x):
-        return x                                   # +Inf
-    if _native.has_native_explog():
-        return _native.log_c(x)
+    if not _is_finite(x):
+        raise ValueError("log: x must be finite (Q is the finite-rational carrier)")
+    if x <= 0.0:
+        raise ValueError(f"log domain: x must be > 0 (log 0 = −∞ is not rational); got {x}")
+    if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
+        logm, e = _native.log_q61_c(x)
+        return _q(logm + e * _Q61_LN2, _Q61_ONE)
     bits = struct.unpack("<Q", struct.pack("<d", x))[0]
     raw = (bits >> 52) & 0x7FF
     frac = bits & ((1 << 52) - 1)
@@ -1262,8 +1362,8 @@ def log(x: float, *, terms: int = _EXPLOG_LOG_TERMS) -> float:
         e += 1
     tt = (m - 1.0) / (m + 1.0)
     tq = int(tt * float(_Q61_ONE) + (0.5 if tt >= 0.0 else -0.5))
-    logm = _q61_to_double(_q_log_core(tq))
-    return e * _EXPLOG_LN2_HI + (logm + e * _EXPLOG_LN2_LO)
+    logm = _q_log_core(tq)                          # log(m) as Q61 int
+    return _q(logm + e * _Q61_LN2, _Q61_ONE)        # + e·ln2, exact in Q61
 
 
 def cexp(theta: float, *, terms: int = _TRIG_FLOAT_TERMS) -> complex:
@@ -1285,8 +1385,11 @@ def complex_exp(z: complex, *, terms: int = _TRIG_FLOAT_TERMS) -> complex:
     replacement for ``np.exp`` / ``cmath.exp`` on a complex argument.
     """
     z = complex(z)
-    e_real = exp(z.real)
-    return e_real * complex(cos(z.imag, terms=terms), sin(z.imag, terms=terms))
+    er = exp(z.real)                                # Q — stay in the integer ALU
+    # e^z = e^Re·(cos Im + i sin Im). The ``er * cos`` / ``er * sin`` are exact
+    # Q·Q products (ALU); the float/FPU appears ONLY at the ``complex()`` last
+    # rotate (this IS the display boundary for the complex result).
+    return complex(er * cos(z.imag, terms=terms), er * sin(z.imag, terms=terms))
 
 
 # Scaled-integer precision for the bignum REFERENCE sqrt (bits below the
@@ -1296,59 +1399,88 @@ def complex_exp(z: complex, *, terms: int = _TRIG_FLOAT_TERMS) -> complex:
 _SQRT_PRECISION_BITS: int = 64
 
 
-def sqrt(x: float, *, precision_bits: int = None) -> float:
-    """``√x`` (x ≥ 0) via the Class-N rational sqrt cascade.
+#: Default fractional bits for the √ of an EXACT rational (Q input / hypot's
+#: exact sum-of-squares): 54 — double the float64 mantissa, so the rational
+#: root carries more than the float floor. The float-input path keeps K=27
+#: (the native C-parity baseline) for the IEEE-bit decomposition.
+_SQRT_Q_K: int = 54
 
-    Default (``precision_bits=None``): the IEEE-bit ``M·2^e`` decomposition
-    with ``root = isqrt(M << 2K)`` (K=27) projected by ``2^(e/2−K)`` — **Class
-    N** rational ∘ **Class K** sqrt-convergence, **bit-exact with the native
-    peer** ``srmech_rational_sqrt``; dispatches to C when available. No float
-    ``math.sqrt`` / ``np.sqrt`` in the call graph. Negative ``x`` raises
-    (domain error), matching ``math.sqrt``.
 
-    ``precision_bits=N`` selects the higher-precision **bignum REFERENCE**
-    path (``as_integer_ratio`` + scaled ``_integer_sqrt``), e.g. for the
-    π-cascade where >double precision is wanted.
+def _sqrt_rational(num: int, den: int, k: int):
+    """``√(num/den)`` as an EXACT ``Q(root, 2**k)`` (integer ``isqrt`` of the
+    ``2^{2k}``-scaled radicand). ``num, den >= 0``; ``den > 0``."""
+    assert num >= 0 and den > 0, "sqrt of a non-negative rational only"
+    root = _integer_sqrt((num << (2 * k)) // den)   # floor(√(num/den) · 2^k)
+    return _q(root, 1 << k)
+
+
+def sqrt(x, *, precision_bits: int = None) -> "Q":
+    """``√x`` (x ≥ 0) → an EXACT :class:`~srmech.amsc.q.Q` via the Class-N
+    rational sqrt cascade.
+
+    ``x`` may be a ``float`` OR a :class:`~srmech.amsc.q.Q` (rc7 — stays
+    rational through :func:`hypot` and the complex modulus). Default
+    (``precision_bits=None``): the IEEE-bit ``M·2^e`` decomposition with
+    ``root = isqrt(M << 2K)`` (K=27) scaled by the EXACT ``2^(e/2−K)`` — the
+    result is the exact ``Q(root, 2^k)`` (``float`` of it betters the old
+    ``float(root)·2^…`` which pre-rounded ``root``). **Class N** rational ∘
+    **Class K** sqrt-convergence. A ``Q`` input is rooted at ``_SQRT_Q_K`` bits
+    (exact rational radicand). Negative ``x`` raises (Class-K pin-slot at zero).
+
+    ``precision_bits=N`` selects the higher-precision path (the exact rational
+    rooted at ``N`` fractional bits), e.g. for the π-cascade.
     """
+    # Q-input: root the exact rational directly (stay-rational; e.g. hypot).
+    if hasattr(x, "as_pair") and not isinstance(x, float):
+        xn, xd = x.as_pair()
+        if xn < 0:
+            raise ValueError(f"sqrt domain error: x must be >= 0; got {x}")
+        if xn == 0:
+            return _q(0, 1)
+        return _sqrt_rational(xn, xd, precision_bits or _SQRT_Q_K)
     x = float(x)
     if x < 0.0:                                   # Class-K pin-slot at zero
         raise ValueError(f"sqrt domain error: x must be >= 0; got {x}")
+    if not _is_finite(x):
+        raise ValueError("sqrt: x must be finite (Q is the finite-rational carrier)")
     if x == 0.0:
-        return 0.0
-    if precision_bits is not None:                # bignum reference surface
+        return _q(0, 1)
+    if precision_bits is not None:                # exact rational at N frac bits
         xn, xd = x.as_integer_ratio()
-        scale = 1 << (2 * precision_bits)
-        radicand = (xn * scale) // xd
-        root = _integer_sqrt(radicand)            # floor(√x · 2^b)
-        return root / (1 << precision_bits)
-    if _native.has_native_sqrt():
-        return _native.rational_sqrt_c(x)
+        return _sqrt_rational(xn, xd, precision_bits)
+    if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
+        root, p = _native.sqrt_q61_c(x)
+        return _q(root << p, 1) if p >= 0 else _q(root, 1 << (-p))
     bits = struct.unpack("<Q", struct.pack("<d", x))[0]
     raw = (bits >> 52) & 0x7FF
     frac = bits & ((1 << 52) - 1)
-    if raw == 0x7FF:
-        return x                                  # +Inf
     mant = frac if raw == 0 else (frac | (1 << 52))
     e = -1074 if raw == 0 else raw - 1075         # x = mant · 2^e
     if e & 1:                                      # make e even
         mant <<= 1
         e -= 1
-    radicand = mant << (2 * _SQRT_C_K)            # 128-bit; math.isqrt == C isqrt128
-    root = math.isqrt(radicand)
-    return float(root) * _q_pow2(e // 2 - _SQRT_C_K)
+    root = _integer_sqrt(mant << (2 * _SQRT_C_K))   # 128-bit; native srmech_isqrt
+    p = e // 2 - _SQRT_C_K                          # exact power-of-two scale
+    return _q(root << p, 1) if p >= 0 else _q(root, 1 << (-p))
 
 
-def hypot(a: float, b: float, *, precision_bits: int = None) -> float:
-    """``hypot(a, b) = √(a² + b²)`` via the Class-N sqrt cascade.
+def hypot(a: float, b: float, *, precision_bits: int = None) -> "Q":
+    """``hypot(a, b) = √(a² + b²)`` → an EXACT :class:`~srmech.amsc.q.Q`.
 
-    **Class M** (the sum-of-squares bind) ∘ **Class N∘K** (:func:`sqrt`).
-    Substrate-native replacement for ``math.hypot`` / ``np.hypot`` (the
-    complex modulus ``|z| = hypot(z.real, z.imag)``). ``precision_bits``
-    threads to :func:`sqrt` (default ``None`` = the C-bit-exact cascade).
+    **Class M** (the sum-of-squares bind) ∘ **Class N∘K** (:func:`sqrt`). rc7
+    stay-rational: ``a² + b²`` is formed as an EXACT rational (each float's
+    ``as_integer_ratio`` squared and added — no float ``a*a`` rounding) and
+    ``√`` of that exact rational is returned as ``Q``. Substrate-native
+    replacement for ``math.hypot`` / ``np.hypot`` (the complex modulus
+    ``|z| = hypot(z.real, z.imag)``). ``a``/``b`` may be ``float`` or ``Q``.
     """
-    a = float(a)
-    b = float(b)
-    return sqrt(a * a + b * b, precision_bits=precision_bits)
+    an, ad = (a.as_pair() if hasattr(a, "as_pair") and not isinstance(a, float)
+              else float(a).as_integer_ratio())
+    bn, bd = (b.as_pair() if hasattr(b, "as_pair") and not isinstance(b, float)
+              else float(b).as_integer_ratio())
+    num = an * an * bd * bd + bn * bn * ad * ad    # (a²+b²) exact numerator
+    den = ad * ad * bd * bd
+    return _sqrt_rational(num, den, precision_bits or _SQRT_Q_K)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -1574,24 +1706,22 @@ def _pi_cascade_auto_params(num_digits: int) -> Tuple[int, int]:
 
 
 def _integer_sqrt(n: int) -> int:
-    """Integer floor square root. Pure integer.
+    """Integer floor square root — substrate-native (rc13: the stdlib
+    ``math.isqrt`` is GONE; this IS the srmech integer-isqrt).
 
-    Used by pi_cascade_digits to bound the cascade's rational √
-    operation in pure integer arithmetic. No floats, no math.pi.
-
-    Implementation: stdlib ``math.isqrt`` (CPython 3.10+ uses an
-    asymptotically-optimal Karatsuba-style algorithm internally — for
-    20480-bit inputs (D=1000 cascade scale) the speedup over a naive
-    Newton iteration is ~2500x). This is the rc13 cap-expansion
-    optimization that makes num_digits up to 1000 tractable. The AST-
-    verification gate only flags ``math.pi`` / ``math.tau`` /
-    ``numpy.pi``; ``math.isqrt`` is a pure-integer arithmetic helper
-    and is explicitly compatible with the substrate-invariance
-    discipline per ``[[user_stance_pi_spectral_shape_scalar_invariant]]``.
+    Dispatches the native two-limb ``srmech_isqrt`` for a bounded radicand
+    (``n < 2**128`` — the hot ``rational.sqrt`` / hypercomplex-twiddle case)
+    and an arbitrary-precision integer-Newton (``_py_isqrt``) for the
+    unbounded ``pi_cascade_digits`` scale (D=1000 → ~20000-bit radicand).
+    Neither path touches a maths library; pure integer arithmetic throughout
+    (no floats, no ``math.pi``), so the substrate-invariance discipline per
+    ``[[user_stance_pi_spectral_shape_scalar_invariant]]`` is preserved.
     """
     assert isinstance(n, int), "_integer_sqrt requires int"
     assert n >= 0, f"_integer_sqrt requires non-negative input; got {n}"
-    return math.isqrt(n)
+    if n < (1 << 128) and _native.has_native_isqrt():
+        return _native.isqrt128_c(n)
+    return _py_isqrt(n)
 
 
 def _rational_sqrt_midpoint(
@@ -1634,31 +1764,48 @@ def pi_cascade_digits(num_digits: int,
                       *,
                       max_cascade_depth: int | None = None,
                       precision_bits: int | None = None) -> str:
-    """Stream decimal digits of π via Archimedes hexagon-doubling cascade.
+    """Stream decimal digits of π via the Pfaff–Archimedes two-mean
+    chiral-pair bracket.
 
     Computes the decimal-digit expansion of π to ``num_digits`` digits
     after the decimal point. No invocation of ``math.pi`` (or any
     transcendental library function) anywhere in the call graph — the
     cascade uses only:
 
-    * Pure integer arithmetic for half-perimeter accumulation
-    * Rational-bounded √ via integer-floor square root (``math.isqrt``)
+    * Pure integer arithmetic (the two means: harmonic + geometric)
+    * Integer-floor square root (``_integer_sqrt`` / ``_scaled_integer_sqrt``)
     * Integer long-division for decimal-digit extraction
 
-    Algorithm (Archimedes, c. 250 BCE):
+    Algorithm (the two-sided chiral pair — Pfaff's 1800 reformulation of
+    the c. 250 BCE Archimedes polygon method as a pair of recurrent means)
+    ---------------------------------------------------------------------
+    Instead of the naive linear hexagon-doubling single-bound form
+    (one rational √ feeding the next radicand at every step — the
+    op-costly form, **removed** in rc20), bracket π between a
+    **circumscribed** sequence falling ↓ to π and an **inscribed**
+    sequence rising ↑ to π. The two are a *chiral pair* — the same
+    cycle run with opposite orientation (one mean dual to the other) —
+    and at each step they are recombined by a mean::
 
-    Start with a regular hexagon inscribed in a unit circle. The
-    hexagon has 6 sides each of length 1 (so s² = 1 exactly). At each
-    cascade step, double the number of sides via the half-angle
-    identity:
+        a₀ = 2√3 = √12   (circumscribed perimeter bound; a ↓ to π)
+        b₀ = 3           (inscribed  half-perimeter bound; b ↑ to π)
 
-        s²_{2n} = 2 − √(4 − s²_n)
+        aₙ₊₁ = harmonic_mean(aₙ, bₙ) = 2·aₙ·bₙ / (aₙ + bₙ)   (circumscribed)
+        bₙ₊₁ = geometric_mean(aₙ₊₁, bₙ) = √(aₙ₊₁·bₙ)          (inscribed)
 
-    The half-perimeter of the inscribed n-gon is (n/2) · s_n, which
-    converges to π as n → ∞. After ``max_cascade_depth`` doublings,
-    the rational half-perimeter (computed in lower-bound form using
-    rational-bounded √) is converted to a decimal string by integer
-    long division.
+    The **bracket invariant** ``b/M < π < a/M`` holds at every step
+    (``b`` strictly increasing, ``a`` strictly decreasing), so the two
+    bounds pin the digits and π is read off as the **midpoint**
+    ``(a + b) / 2``. There is exactly ONE √ per step (the geometric
+    mean), an integer ``_scaled_integer_sqrt`` — and because both
+    Archimedes forms have a per-step √ and π is transcendental, this
+    chiral pair is classified PRIMITIVE-NA (an intrinsic-float LIMIT,
+    NOT an avoidable rotation-last violation): the two-sided bracket is
+    kept as the *studied ordered cycle-of-cycles pattern*, while the
+    naive linear single-bound form is removed. For the canonical
+    exact-substrate π digit stream (bit-exact body, ONE terminal
+    rotation), use :func:`pi_chudnovsky_digits` — it is the digit SSoT
+    this function is cross-checked against.
 
     Per ``[[user_stance_pi_spectral_shape_scalar_invariant]]``: the
     scalar decimal expansion 3.14159... is a downstream readout of
@@ -1667,33 +1814,36 @@ def pi_cascade_digits(num_digits: int,
     substrates with AST-verified zero math.pi invocations.
 
     Per ``[[user_stance_pi_as_projection]]``: π is generated by a
-    cascade-substrate operation (integer-cyclic doubling on a
-    polygon's vertex count); the scalar value is the projection
+    cascade-substrate operation (the two recurrent means bracketing
+    the polygon's perimeter); the scalar value is the projection
     artifact under continuous-length metric. No math.pi required
     to compute the decimal expansion.
 
-    Auto-scaling (rc13)
-    -------------------
+    Auto-scaling
+    ------------
     When ``max_cascade_depth`` / ``precision_bits`` are left as
     ``None`` (the default), they are computed automatically from
-    ``num_digits`` via ``_pi_cascade_auto_params`` using the linear
-    scaling validated by Task #248:
+    ``num_digits`` via ``_pi_cascade_auto_params``:
 
       depth          = max(90,  ceil(num_digits * 90  / 50))
       precision_bits = max(512, ceil(num_digits * 512 / 50))
 
-    Callers may override either kwarg explicitly to study cascade
-    convergence at non-canonical parameter combinations.
+    (The chiral pair converges *quadratically*, far faster than the
+    linear hexagon-doubling the depth scaling was sized for, so this
+    depth is more than sufficient — the bracket pins all requested
+    digits well within the loop bound.) Callers may override either
+    kwarg explicitly to study cascade convergence at non-canonical
+    parameter combinations.
 
     Parameters
     ----------
     num_digits : int
         Number of decimal digits to emit after the decimal point.
-        Must satisfy ``0 <= num_digits <= 1000`` (rc13 cap; rc12 was 50).
+        Must satisfy ``0 <= num_digits <= 1000``.
     max_cascade_depth : int or None, keyword-only
-        Cascade doubling depth. ``None`` (default) → auto-scaled from
-        ``num_digits`` per ``_pi_cascade_auto_params``. Explicit value
-        must be in [1, 2000].
+        Cascade mean-iteration depth. ``None`` (default) → auto-scaled
+        from ``num_digits`` per ``_pi_cascade_auto_params``. Explicit
+        value must be in [1, 2000].
     precision_bits : int or None, keyword-only
         Bit precision for the scaled-integer √ operation. ``None``
         (default) → auto-scaled from ``num_digits``. Explicit value
@@ -1725,13 +1875,9 @@ def pi_cascade_digits(num_digits: int,
     -----
     AST-verified zero ``math.pi`` invocations per
     ``[[user_stance_pi_spectral_shape_scalar_invariant]]`` — pinned
-    by ``tests/test_pi_cascade_primitives.py``.
-
-    The function imports ``math`` for ``math.gcd`` (rational reduction)
-    and ``math.isqrt`` (integer square root) only; ``math.pi`` and
-    ``math.tau`` are never accessed. The AST gate test walks this
-    function's source tree and asserts no ``Attribute(math, pi)`` or
-    ``Attribute(math, tau)`` nodes.
+    by ``tests/test_pi_cascade_primitives.py``. The function uses only
+    pure integer arithmetic + the integer-floor √; ``math.pi`` and
+    ``math.tau`` are never accessed.
     """
     if not isinstance(num_digits, int):
         raise TypeError(
@@ -1771,52 +1917,43 @@ def pi_cascade_digits(num_digits: int,
     if num_digits == 0:
         return "3."
 
-    # Fixed-precision-integer Archimedes cascade. We carry one
+    # Fixed-precision-integer two-mean chiral-pair bracket. We carry one
     # canonical scale factor M = 2^precision_bits throughout: every
-    # quantity is an integer that, divided by the appropriate power
-    # of M, gives the underlying rational. This avoids the rational-
-    # arithmetic bit-length explosion that occurs when carrying full
-    # (num, den) pairs through the cascade.
+    # quantity is an integer that, divided by M, gives the underlying
+    # real bound. ``a`` is the circumscribed bound (falls ↓ to π); ``b``
+    # is the inscribed bound (rises ↑ to π). The bracket invariant
+    # ``b/M < π < a/M`` holds at every step, so the midpoint pins π.
     #
-    # Convention:
-    #   s_sq    represents s²        with scaling factor M  (s² · M)
-    # i.e. s_sq = round(true_s_squared * M).
-    #
-    # Initial hexagon: s²_6 = 1, so s_sq = M exactly.
+    #   b₀ = 3·M           inscribed hexagon half-perimeter  (lower bound)
+    #   a₀ = √(12)·M       circumscribed = 2√3·M             (upper bound)
     M: int = 1 << precision_bits
-    s_sq: int = M  # = 1 * M, exact
-    n: int = 6
+    b: int = 3 * M
+    # a₀ = 2√3·M = √(12·M²); _integer_sqrt is the PRIMITIVE-NA integer
+    # isqrt (intrinsic-float limit, π transcendental — see docstring).
+    a: int = _integer_sqrt(12 * M * M)
 
-    # Cascade doubling: s²_{2n} = 2 − √(4 − s²_n).
-    # In scaled-integer form: s_sq_new = 2*M − round(√((4*M − s_sq) * M))
-    # because √(x · M)/M = √x when x is given as x·M (single scaling).
-    # General rule for round-to-nearest integer √ at scale M:
-    #   round_sqrt_scaled(y) returns round(√(y * M)) — integer.
+    # Two-mean recurrence: harmonic mean (circumscribed, ↓) then
+    # geometric mean (inscribed, ↑) — the ONE √ per step. Scale M is
+    # preserved by each mean: the harmonic-mean quotient cancels one M,
+    # and the geometric mean √(a·b) of two M-scaled quantities is again
+    # M-scaled. Converges quadratically; the auto-depth loop bound is
+    # far more than sufficient — the bracket pins all requested digits.
     for _ in range(max_cascade_depth):
-        # 4 − s²_n  (in scaled form):  4*M − s_sq
-        four_minus_s_sq_scaled = 4 * M - s_sq
-        if four_minus_s_sq_scaled < 0:
-            # numerical guard — should never happen with sane inputs
-            four_minus_s_sq_scaled = 0
-        # Compute round(√(four_minus_s_sq_scaled * M)) — this is
-        # the scaled-integer representation of √(4 − s²).
-        rsq_scaled = _scaled_integer_sqrt(four_minus_s_sq_scaled, M)
-        # s²_{2n} = 2 − √(4 − s²_n);  scaled: 2*M − rsq_scaled
-        s_sq = 2 * M - rsq_scaled
-        n *= 2
+        # Harmonic mean (circumscribed): a_next = 2·a·b / (a + b).
+        a_next = (2 * a * b) // (a + b)
+        # Geometric mean (inscribed): b = √(a_next · b). Both a_next and
+        # b carry scale M, so the product a_next·b carries M²; its
+        # integer floor square root is therefore directly at scale M
+        # (√(M²·xy) = M·√(xy)) — the ONE √ per step.
+        b = _integer_sqrt(a_next * b)
+        a = a_next
 
-    # Final half-perimeter approximation of π:
-    #   π ≈ (n/2) · √(s²)
-    # In scaled form:  pi_scaled = (n/2) · round(√(s_sq · M))
-    s_scaled = _scaled_integer_sqrt(s_sq, M)
-    # half_perimeter ≈ (n/2) · (s_scaled / M); we keep this as integer-
-    # scaled value pi_scaled where pi_scaled / M ≈ π.
-    # Note n is always even (n = 6, 12, 24, ...), so n/2 is integer.
-    pi_scaled = (n * s_scaled) // 2
+    # π ≈ midpoint of the bracket [b, a]:  pi_scaled = round(π · M).
+    pi_scaled = (a + b) // 2
 
     # Extract decimal digits from pi_scaled / M.
     # Multiply pi_scaled by 10^(num_digits) before dividing by M to
-    # produce the integer pi_int_digits = round(π · 10^num_digits).
+    # produce the integer pi_int_digits = floor(π · 10^num_digits).
     ten_pow = 10 ** num_digits
     pi_int = (pi_scaled * ten_pow) // M
     # Defensive: the integer part should be 3 · 10^num_digits.
@@ -1829,8 +1966,184 @@ def pi_cascade_digits(num_digits: int,
         )
     fractional_part = pi_int - integer_part * ten_pow
     # Zero-pad the fractional part to exactly num_digits.
-    frac_str = str(fractional_part).zfill(num_digits)
+    frac_str = _decimal_zfill(fractional_part, num_digits)
     return "3." + frac_str
+
+
+# Maximum digits the rotation-last Chudnovsky path will emit.  Unlike the
+# Archimedes ``pi_cascade_digits`` (capped at 1000 by its per-step √ cost),
+# the linear Chudnovsky series stays exact-integer until ONE terminal √, so
+# 10000 is comfortable; the cap is purely a sanity guard.
+_PI_CHUDNOVSKY_MAX_DIGITS: int = 100000
+
+# Chudnovsky series constants (the canonical 1989 Chudnovsky-brothers
+# formula).  All are exact integers — no float, no transcendental anywhere.
+_CHUD_L0: int = 13591409          # L_0
+_CHUD_L_STEP: int = 545140134     # L_{k+1} = L_k + L_STEP
+_CHUD_X_STEP: int = -262537412640768000  # X_{k+1} = X_k * X_STEP  (= -640320^3)
+_CHUD_C_LINEAR: int = 426880      # 426880 * sqrt(10005) prefactor
+_CHUD_RADICAND: int = 10005       # the lone irrational, taken via ONE isqrt
+_CHUD_GUARD: int = 16             # guard digits (dropped before read-out)
+
+
+def _decimal_zfill(value: int, width: int) -> str:
+    """Render a non-negative int as a decimal string, left-padded with
+    zeros to at least ``width`` chars — WITHOUT tripping CPython 3.11+'s
+    4300-digit ``int.__str__`` guard (which ``str(value).zfill(width)``
+    would on a 10000-digit π fraction).
+
+    Done by chunking base 10^9: each chunk fits the guard comfortably, so
+    the result is byte-identical to ``str(value).zfill(width)`` for every
+    non-negative ``value`` and any ``width``.  Pure integer arithmetic; no
+    ``math``, no ``sys`` global mutation.
+    """
+    assert isinstance(value, int) and value >= 0, "value must be non-negative int"
+    assert isinstance(width, int) and width >= 0, "width must be non-negative int"
+    if value == 0:
+        return "0" * (width if width > 0 else 1)
+    chunk_base = 1_000_000_000        # 10^9 — 9 digits per chunk
+    chunks: List[str] = []
+    v = value
+    while v > 0:
+        v, rem = divmod(v, chunk_base)
+        if v > 0:
+            chunks.append(str(rem).zfill(9))   # interior chunk: pad to 9
+        else:
+            chunks.append(str(rem))            # most-significant chunk: no pad
+    chunks.reverse()
+    digits = "".join(chunks)
+    if len(digits) < width:
+        digits = "0" * (width - len(digits)) + digits
+    return digits
+
+
+def pi_chudnovsky_digits(num_digits: int) -> str:
+    """Stream decimal digits of π via the ROTATION-LAST Chudnovsky cascade.
+
+    The canonical srmech cascade shape: keep the body **bit-exact**
+    (integer add / sub / mul / floor-divmod on the exact substrate) and
+    perform the **single** continuous/frame projection ONCE, terminally.
+    Here the body is the Chudnovsky linear series accumulated as exact
+    integers; the ONE terminal projection (the "rotation") is the final
+    ``isqrt(10005·one²)`` followed by a division and a base-10 render.
+    NO float, NO ``math``, NO per-term square root — the opposite of the
+    Archimedes ``pi_cascade_digits``, which projects every step.
+
+    This is the pure-Python mirror of the C ``srmech_pi_chudnovsky`` — the
+    same fixed-point integer algorithm, byte-identical output.  Python's
+    ``int`` is arbitrary precision, so this is BOTH the no-native fallback
+    AND the parity oracle the C path is checked against.
+
+    Algorithm (fixed-point linear Chudnovsky)
+    -----------------------------------------
+    With ``D = num_digits``, ``G = 16`` guard digits, ``P = D + G`` and a
+    fixed-point unit ``one = 10**P``::
+
+        L_0 = 13591409,  L_{k+1} = L_k + 545140134
+        X_0 = 1,         X_{k+1} = X_k * (-262537412640768000)   (= 640320^3)
+        M_0 = 1,         M_{k+1} = M_k * (12k+2)(12k+6)(12k+10) / (k+1)^3
+        S   = Σ_{k=0}^{N-1}  (M_k * L_k) * one  //  X_k        (floor division)
+
+    then the lone terminal rotation::
+
+        sqrt10005 = isqrt(10005 * one * one)        # = floor(√10005 · one)
+        pi_scaled = (426880 * sqrt10005 * one) // S  # = floor(π · one)
+        pi_digits = pi_scaled // 10**G               # floor(π · 10**D)
+
+    ~14.18 digits land per term, so ``N = D // 14 + 2`` terms suffice.
+
+    Parameters
+    ----------
+    num_digits : int
+        Decimal digits to emit after the point.  ``0 <= num_digits <=
+        100000``.  ``0`` → ``"3."``.
+
+    Returns
+    -------
+    str
+        ``"3."`` followed by exactly ``num_digits`` fractional digits
+        (e.g. ``num_digits=5`` → ``"3.14159"``).
+
+    Raises
+    ------
+    TypeError
+        If ``num_digits`` is not int.
+    ValueError
+        If ``num_digits`` is negative or exceeds the practical cap.
+
+    Examples
+    --------
+    >>> pi_chudnovsky_digits(15)
+    '3.141592653589793'
+    >>> pi_chudnovsky_digits(0)
+    '3.'
+    >>> pi_chudnovsky_digits(5)
+    '3.14159'
+    """
+    if not isinstance(num_digits, int):
+        raise TypeError(
+            f"num_digits must be int; got {type(num_digits).__name__}"
+        )
+    assert num_digits is not None, "num_digits must not be None"
+    if num_digits < 0:
+        raise ValueError(f"num_digits must be non-negative; got {num_digits}")
+    if num_digits > _PI_CHUDNOVSKY_MAX_DIGITS:
+        raise ValueError(
+            f"num_digits exceeds practical cap "
+            f"{_PI_CHUDNOVSKY_MAX_DIGITS}; got {num_digits}"
+        )
+    if num_digits == 0:
+        return "3."
+
+    # Native dispatch: the C srmech_pi_chudnovsky runs the exact-bigint body on
+    # the caller-arena srmech_bigint, byte-identical to the pure-Python oracle
+    # below. Use it when present; the pure-Python body is the complete fallback
+    # (no-C / Pyodide) AND the parity oracle the C path is checked against.
+    if _native.HAS_NATIVE:
+        r = _native.pi_chudnovsky_c(num_digits)
+        if r is not None:
+            return r
+
+    D = num_digits
+    G = _CHUD_GUARD
+    P = D + G
+    one = 10 ** P                      # fixed-point unit
+    n_terms = D // 14 + 2              # ~14.18 digits/term
+
+    # --- bit-exact body: exact-integer linear series accumulation -----
+    L = _CHUD_L0                       # L_k
+    X = 1                              # X_k  (signed; X_0 = +1)
+    M = 1                              # M_k  (the term coefficient)
+    S = 0                              # Σ scaled by `one`
+    for k in range(n_terms):
+        S += (M * L) * one // X        # floor division (Python //)
+        # Advance M, L, X for the next k (exact integer recurrences).
+        num = (12 * k + 2) * (12 * k + 6) * (12 * k + 10)
+        den = (k + 1) ** 3
+        M = M * num
+        assert M % den == 0, (
+            f"Chudnovsky M recurrence non-integral at k={k}"
+        )
+        M //= den
+        L += _CHUD_L_STEP
+        X *= _CHUD_X_STEP
+
+    # --- the ONE terminal rotation/projection (rotation-last) ---------
+    sqrt10005 = _py_isqrt(_CHUD_RADICAND * one * one)   # floor(√10005 · one)
+    assert S != 0, "Chudnovsky series sum collapsed to zero"
+    pi_scaled = (_CHUD_C_LINEAR * sqrt10005 * one) // S  # floor(π · one)
+
+    # --- read out D digits (drop the G guard digits) ------------------
+    pi_digits = pi_scaled // (10 ** G)                  # floor(π · 10**D)
+    ten_pow_d = 10 ** D
+    int_part = pi_digits // ten_pow_d
+    if int_part != 3:
+        raise RuntimeError(
+            f"pi_chudnovsky_digits produced integer part {int_part}, "
+            f"expected 3 (term count or guard digits insufficient)"
+        )
+    frac = pi_digits - int_part * ten_pow_d
+    return "3." + _decimal_zfill(frac, D)
 
 
 def _scaled_integer_sqrt(y: int, M: int) -> int:

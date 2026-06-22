@@ -66,6 +66,8 @@ def _matches_token(raw: Any, token: str):
     from srmech.amsc.mat import Mat
     from srmech.amsc.vec import Vec
     from srmech.amsc.hv import HV
+    from srmech.amsc.q import Q
+    from srmech.amsc.complex128 import Complex128
 
     token = token.strip()
     if token == "...":
@@ -76,6 +78,14 @@ def _matches_token(raw: Any, token: str):
         return isinstance(raw, Vec)
     if token.startswith("HV"):
         return isinstance(raw, HV)
+    # Scalar carriers (v0.9.0): Q (exact rational) + Complex128 (float-complex),
+    # the scalar peers of the Mat/Vec/HV array carriers. Checked before the
+    # plain `complex`/`float` scalar tokens so an exact `Q` return is verified
+    # as a `Q`, not skipped (F868 stay-rational return-type discipline).
+    if token.startswith("Complex128"):
+        return isinstance(raw, Complex128)
+    if token.startswith("Q"):
+        return isinstance(raw, Q)
     if token.startswith("array"):
         return isinstance(raw, _stdlib_array)
     if token.startswith("tuple"):

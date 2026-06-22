@@ -42,6 +42,7 @@ from typing import Sequence
 from . import _native
 from .hv import HV
 from .mat import Mat
+from .q import Q
 
 
 # Canonical HDC dimension default. Higher D = better noise tolerance;
@@ -243,37 +244,70 @@ def permute(a: bytes, rotate_bits: int) -> bytes:
     return bytes(out)
 
 
-def similarity(a: bytes, b: bytes) -> float:
-    """Normalized BSC similarity in ``[-1, 1]``.
+def _hdc_hamming_native(a: bytes, b: bytes):
+    """Native integer bit-Hamming distance over two byte buffers → int (or
+    ``None`` if the symbol is absent / the call fails). The count the C kernel
+    computes BEFORE the similarity float divide (UPSTREAM §61; F868)."""
+    if not hasattr(_native.LIB, "srmech_hdc_hamming"):
+        return None
+    n = len(a)
+    a_buf = (ctypes.c_uint8 * n).from_buffer_copy(a)
+    b_buf = (ctypes.c_uint8 * n).from_buffer_copy(b)
+    out = ctypes.c_uint32()
+    rc = _native.LIB.srmech_hdc_hamming(a_buf, b_buf, n, ctypes.byref(out))
+    if rc != _native.SRMECH_OK:
+        return None
+    return int(out.value)
 
-    ``similarity(a, b) = 1 - 2 * hamming(a, b) / D`` where ``D = 8 * len(a)``.
+
+def _hdc_hamming_core(a: bytes, b: bytes) -> int:
+    """The exact integer bit-Hamming distance (native fast path when present,
+    else pure-Python popcount). The blow-up-free quantity recall ranks on (F868):
+    ``similarity = 1 - 2 * hamming / D`` with ``D = 8 * len(a)``."""
+    if _native.HAS_NATIVE:
+        h = _hdc_hamming_native(a, b)
+        if h is not None:
+            return h
+    return sum(bin(x ^ y).count("1") for x, y in zip(a, b))
+
+
+def hamming(a: bytes, b: bytes) -> int:
+    """BSC bit-Hamming distance: the **raw integer** count of differing bits
+    (UPSTREAM §61; F868). ``similarity = 1 - 2 * hamming(a, b) / (8 * len(a))``.
+
+    This is the float-free, blow-up-free quantity recall ranks on — argmax over
+    integer distances needs no division and never leaves the integers (F868
+    mechanism #1). The C kernel already computes this count before its float
+    divide, so exposing it is additive and C-paired (native ``srmech_hdc_hamming``).
+
+    Raises:
+        ValueError: lengths differ or are zero.
+    """
+    _check_pair(a, b, "hamming")
+    return _hdc_hamming_core(a, b)
+
+
+def similarity(a: bytes, b: bytes) -> "Q":
+    """Normalized BSC similarity in ``[-1, 1]`` as the EXACT :class:`~srmech.amsc.q.Q`.
+
+    ``similarity(a, b) = 1 - 2 * hamming(a, b) / D = (D - 2*hamming) / D`` where
+    ``D = 8 * len(a)`` — both integers, so the return is the exact ``Q`` carrier:
+    it compares like a float (``similarity(a, a) == 1.0``), ranks correctly, and
+    collapses to a decimal only at the display boundary via ``float(s)`` — never a
+    lossy mid-cascade ``float`` (the stay-rational discipline, F868,
+    `[[feedback_stay_rational_collapse_only_at_display]]`). For the raw integer
+    bit-distance (the blow-up-free recall key) use :func:`hamming`.
+
     +1 = identical; 0 = orthogonal (Hamming distance D/2); -1 = bit-complementary.
-
-    Args:
-        a, b: BSC vectors of identical length.
-
-    Returns:
-        Similarity in ``[-1, 1]``.
 
     Raises:
         ValueError: lengths differ or are zero.
     """
     _check_pair(a, b, "similarity")
     n = len(a)
-    if _native.HAS_NATIVE:
-        out = ctypes.c_double(0.0)
-        a_buf = (ctypes.c_uint8 * n).from_buffer_copy(a)
-        b_buf = (ctypes.c_uint8 * n).from_buffer_copy(b)
-        rc = _native.LIB.srmech_hdc_similarity(
-            a_buf, b_buf, n, ctypes.byref(out)
-        )
-        if rc != _native.SRMECH_OK:
-            raise ValueError(f"srmech_hdc_similarity returned status {rc}")
-        return out.value
-    # Pure-Python fallback.
     D = n * 8
-    hamming = sum(bin(x ^ y).count("1") for x, y in zip(a, b))
-    return 1.0 - 2.0 * hamming / D
+    ham = _hdc_hamming_core(a, b)
+    return Q(D - 2 * ham, D)
 
 
 # ---------------------------------------------------------------------------
@@ -456,50 +490,46 @@ def polar_bundle(*vectors):
     return out
 
 
-def polar_similarity(a, b, skip_zero: bool = True) -> float:
-    """Polar match-fraction similarity.
+def polar_similarity(a, b, skip_zero: bool = True) -> "Q":
+    """Polar match-fraction similarity — exact rational :class:`~srmech.amsc.q.Q`.
 
     ``skip_zero=True`` (default): match-fraction over only the positions where
-    **both** vectors are non-zero (0 = "no information", excluded). Returns
-    ``0.0`` when there are no jointly-informative positions.
+    **both** vectors are non-zero (0 = "no information", excluded). Returns the
+    exact ``Q(0, 1)`` when there are no jointly-informative positions.
 
     ``skip_zero=False``: plain match-fraction over all positions (``0 == 0``
     counts as a match — neutral-credit semantics).
+
+    The match-fraction is exactly ``matches / D`` (both integers), so the return
+    is the exact ``Q`` carrier — it compares like a float (``s == 0.75``) and
+    ranks correctly, and you collapse to a decimal only at the display boundary
+    with ``float(s)`` (the stay-rational discipline, F868,
+    `[[feedback_stay_rational_collapse_only_at_display]]`).
 
     rc125 (numpy-free): pure-Python counting over ``array('b')`` buffers."""
     a, b = _check_polar_pair(a, b, "polar_similarity")
     n = len(a)
     if skip_zero:
         informative = [i for i in range(n) if a[i] != 0 and b[i] != 0]
-        if not informative:
-            return 0.0
         matches = sum(1 for i in informative if a[i] == b[i])
-        return float(matches) / len(informative)
+        return Q(matches, len(informative)) if informative else Q(0, 1)
     matches = sum(1 for i in range(n) if a[i] == b[i])
-    return float(matches) / n
+    return Q(matches, n)
 
 
-def polar_density(v) -> float:
-    """Fraction of non-zero (informative) positions — substrate attestation.
+def polar_density(v) -> "Q":
+    """Fraction of non-zero (informative) positions — exact rational
+    :class:`~srmech.amsc.q.Q`.
 
-    ``1.0`` = fully bipolar (no dead-band); lower = more positions resting in
-    the Class-K dead-band / uncertain state.
+    ``Q(1, 1)`` = fully bipolar (no dead-band); lower = more positions resting in
+    the Class-K dead-band / uncertain state. The density is exactly
+    ``nonzero / n`` (both integers), so it stays the exact ``Q`` carrier and
+    collapses to a decimal only via ``float(d)`` (stay-rational, F868).
 
-    rc125 (numpy-free): pure-Python count over ``array('b')`` / native peer."""
+    rc125 (numpy-free): pure-Python count over ``array('b')``."""
     arr = _as_polar(v, "polar_density")
     n = len(arr)
-    # rc12: dispatch the informative-fraction (count of non-zero / n) to the C
-    # peer when present (bit-identical to the count/n below — one division —
-    # which stays the no-native fallback).
-    if (_native.HAS_NATIVE and _native.LIB is not None
-            and hasattr(_native.LIB, "srmech_polar_density")):
-        arr_c = (ctypes.c_int8 * n).from_buffer_copy(arr)
-        out = ctypes.c_double()
-        rc = _native.LIB.srmech_polar_density(
-            ctypes.cast(arr_c, _I8P), ctypes.c_uint32(n), ctypes.byref(out))
-        if rc == _native.SRMECH_OK:
-            return float(out.value)
-    return float(sum(1 for x in arr if x != 0)) / n
+    return Q(sum(1 for x in arr if x != 0), n) if n else Q(0, 1)
 
 
 def polar_from_real(arr, threshold: float = 0.0, dead_band: float = 0.0):
@@ -644,6 +674,38 @@ def _majority_buf(arrs) -> "array":
     return out
 
 
+def _seed_to_le_words(seed: int):
+    """The seed's little-endian uint32 words — exactly what CPython's
+    ``random_seed`` feeds to ``init_by_array`` (CPython takes the magnitude; ``0``
+    → a single ``0`` word). The magnitude is a Class-K pin-slot sign-branch at the
+    zero boundary + Class-C sign re-application — never ``abs()``. Pure integer
+    arithmetic (Class N), no float."""
+    s = int(seed)
+    n = s if s >= 0 else -s   # Class-K branch at the zero pin-slot, then negate
+    nbits = n.bit_length()
+    nwords = 1 if nbits == 0 else (nbits + 31) // 32
+    return [(n >> (32 * i)) & 0xFFFFFFFF for i in range(nwords)]
+
+
+def _klein4_random_native(D: int, seed: int):
+    """Native MT19937 draw of ``D`` Klein-4 codes for an integer ``seed`` —
+    byte-identical to ``random.Random(seed)``'s ``randrange(4)`` stream — or
+    ``None`` when the C symbol is absent / the call fails (pure-Python is the
+    COMPLETE alternative, not a rescue). The C seeds via ``init_by_array`` over
+    the seed's little-endian uint32 words; ``out`` is ``D`` bytes in {0,1,2,3}."""
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_klein4_random")):
+        return None
+    words = _seed_to_le_words(seed)
+    key = (ctypes.c_uint32 * len(words))(*words)
+    out = (ctypes.c_uint8 * D)()
+    rc = _native.LIB.srmech_klein4_random(
+        key, len(words), ctypes.c_uint32(D), out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return array("B", out)
+
+
 def klein4_random(D: int, rng=None, seed: "int | None" = None):
     """Random Klein-4 hypervector of dimension ``D`` with elements in {0,1,2,3}.
 
@@ -658,6 +720,14 @@ def klein4_random(D: int, rng=None, seed: "int | None" = None):
             DETERMINISTIC vector (srmech's bit-exact / attestation discipline).
             **Precedence:** an explicit ``rng`` wins over ``seed`` if both are
             supplied.
+
+    rc6 (§60 / F864): the deterministic integer-``seed`` path dispatches to the
+    standalone-C MT19937 ``srmech_klein4_random`` when native is present — a
+    byte-for-byte reproduction of CPython's ``random.Random(seed).randrange(4)``
+    (the last ``python_only_irreducible`` klein4 op earns its C twin, so the §60
+    byte/glyph encoder + the 256-byte vocab + position keys are now fully
+    native). Pure-Python ``random.Random`` is the complete alternative for a
+    no-C host / a caller-supplied ``rng`` / the urandom ``seed=None`` path.
     """
     if D <= 0:
         raise ValueError("hdc.klein4_random: D must be positive")
@@ -667,6 +737,10 @@ def klein4_random(D: int, rng=None, seed: "int | None" = None):
         # name in THIS module). The default (seed / None) path below is
         # numpy-free (stdlib ``random``) — the §22 numpy-optional core.
         return HV(array("B", (int(x) for x in rng.integers(0, 4, size=D))), sectors=4)
+    if rng is None and isinstance(seed, int) and not isinstance(seed, bool):
+        buf = _klein4_random_native(D, seed)
+        if buf is not None:
+            return HV(buf, sectors=4)
     r = rng if rng is not None else _random.Random(seed)
     return HV(array("B", (r.randrange(4) for _ in range(D))), sectors=4)
 
@@ -807,6 +881,23 @@ def _klein4_similarity_native(a: "array", b: "array"):
     return float(out.value)
 
 
+def _klein4_match_count_native(a: "array", b: "array"):
+    """Native exact integer match count over two array('B') buffers → int (or
+    ``None`` if the symbol is absent / the call fails). The count is what the C
+    kernel computes before the float divide (UPSTREAM §61; F868)."""
+    if not hasattr(_native.LIB, "srmech_klein4_match_count"):
+        return None
+    n = len(a)
+    ca = (ctypes.c_uint8 * n).from_buffer_copy(a)
+    cb = (ctypes.c_uint8 * n).from_buffer_copy(b)
+    out = ctypes.c_uint32()
+    rc = _native.LIB.srmech_klein4_match_count(
+        ca, cb, ctypes.c_uint32(n), ctypes.byref(out))
+    if rc != _native.SRMECH_OK:
+        return None
+    return int(out.value)
+
+
 def _klein4_triality_native(buf: "array", inverse: bool) -> "array":
     """Native order-3 triality relabel over an array('B') buffer → array('B').
     The C uses the SAME forward / inverse 3-cycle tables as the pure path."""
@@ -930,39 +1021,411 @@ def klein4_bundle(*vectors, sectors=None, parallel=None, mode="chunk"):
     return HV(_klein4_bundle_core(duals), sectors=4)
 
 
-def klein4_similarity(a, b, *, sectors=None, parallel=None, mode="chunk") -> float:
+# ── §59 / F861: continuous-phase Klein-4 (population-code phase key + bind) ──
+# The chirality-native analogue of HRR / polar phase: a continuous phase
+# ``frac ∈ [0, 1)`` is encoded as a half-window of one V4 element on a slot
+# offset ``round(frac·D) mod D`` (population coding), then BOUND into a value
+# with ``klein4_bind``. The key property is exactly rational:
+#   ``klein4_similarity(phase_bind(h, 0), phase_bind(h, Δφ)) == 1 − 2·circ_dist(Δφ)``
+# because the ``h`` cancels under the XOR bind, leaving the integer overlap of
+# the two slot-windows over ``D`` — :func:`klein4_similarity` keeps it a ``Q``
+# (stay-rational, F868). Reversible (same phase twice = identity) + σ-mirror
+# (``±φ`` equidistant from the base). No new primitive class: Class-M bind over
+# a Class-K-style sector pattern. numpy-free; carrier = one HV.
+
+
+def _klein4_phase_start(D: int, frac) -> int:
+    """Integer slot offset ``round(frac·D) mod D`` (the F861 population-code
+    phase offset). ``frac`` is a float phase in ``[0, 1)`` (values outside wrap
+    circularly via the ``mod D``)."""
+    return round(float(frac) * D) % D
+
+
+def _klein4_phase_key_native(D: int, start: int, width: int, elem: int):
+    """Native window-fill of the phase-key buffer → ``array('B')`` (or ``None``
+    if the symbol is absent / the call fails — the pure path is the complete
+    bit-identical alternative)."""
+    if not hasattr(_native.LIB, "srmech_klein4_phase_key"):
+        return None
+    out = (ctypes.c_uint8 * D)()
+    rc = _native.LIB.srmech_klein4_phase_key(
+        ctypes.c_uint32(D), ctypes.c_uint32(start),
+        ctypes.c_uint32(width), ctypes.c_uint8(elem), out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return array("B", bytes(out))
+
+
+def _klein4_phase_key_core(D: int, start: int, width: int, elem: int) -> "array":
+    """Pure-Python window fill: ``elem`` on the circular slot-window
+    ``[start, start+width) mod D``, 0 elsewhere (bit-identical to the C peer).
+    No ``abs()`` — a plain modular write loop."""
+    buf = array("B", bytes(D))
+    for j in range(width):
+        buf[(start + j) % D] = elem
+    return buf
+
+
+def klein4_phase_key(D, frac, *, elem=2, width=None):
+    """A continuous-phase Klein-4 key (UPSTREAM §59; F861).
+
+    The V4 element ``elem`` (default 2 = the γ₅ axis) is written on a
+    ``width``-wide circular slot-window starting at ``round(frac·D) mod D``,
+    with identity (0) everywhere else — "continuous phase from discrete-per-slot
+    sectors via population coding."
+
+    Args:
+        D: Vector dimension (positive).
+        frac: Phase fraction in ``[0, 1)`` (a float; values outside wrap mod 1).
+        elem: The Klein-4 code in ``{0, 1, 2, 3}`` written across the window
+            (default 2 = γ₅).
+        width: Window width in slots (default the half-window ``D // 2``, which
+            gives the measured ``1 − 2·circ_dist`` similarity law).
+    """
+    D = int(D)
+    if D <= 0:
+        raise ValueError("hdc.klein4_phase_key: D must be positive")
+    if not isinstance(elem, int) or isinstance(elem, bool) or elem < 0 or elem > 3:
+        raise ValueError(
+            "hdc.klein4_phase_key: elem must be a Klein-4 code in {0, 1, 2, 3}; "
+            f"got {elem!r}")
+    w = D // 2 if width is None else int(width)
+    if w < 0 or w > D:
+        raise ValueError(
+            f"hdc.klein4_phase_key: width must be in 0..D ({D}); got {w}")
+    start = _klein4_phase_start(D, frac)
+    out = _klein4_phase_key_native(D, start, w, elem)
+    if out is None:
+        out = _klein4_phase_key_core(D, start, w, elem)
+    return HV(out, sectors=4)
+
+
+def klein4_phase_bind(hv, frac, *, elem=2, width=None):
+    """Bind a continuous phase ``frac`` into a Klein-4 hypervector (UPSTREAM §59):
+    ``klein4_bind(hv, klein4_phase_key(len(hv), frac, elem, width))``.
+
+    Reversible (``phase_bind(phase_bind(h, φ), φ) == h``); σ-mirror (``+φ`` and
+    ``−φ`` are equidistant from the base); and
+    ``klein4_similarity(phase_bind(h, 0), phase_bind(h, Δφ))`` is the EXACT
+    rational ``1 − 2·circ_dist(Δφ)`` — the integer half-window overlap over
+    ``D`` (a :class:`Q`, never a lossy float). The chirality-native analogue of
+    HRR / polar phase, built only from a slot-window key + :func:`klein4_bind`.
+    """
+    buf = _as_klein4_buf(hv, "klein4_phase_bind")
+    key = klein4_phase_key(len(buf), frac, elem=elem, width=width)
+    return klein4_bind(HV(buf, sectors=4), key)
+
+
+# ── §58 / F837: capacity-bounded chunk-set + max-resonance read ─────────────
+# A reusable VSA cleanup-memory. Instead of superposing N bound key→value pairs
+# into ONE over-stuffed bundle (crosstalk grows with N), the binds are split
+# into a LIST of capacity-bounded bundles (≤ C binds each). Recall probes every
+# chunk and takes the MAX resonance over the chunk-set — the F837 fix that took
+# the resolver read from 3.3% → 96.7% rank-1. The capacity C is EXPOSED (a
+# non-monotonic sweet-spot, F839 correction), NOT hardcoded. LM-agnostic: the
+# ROUTING / per-doc k* / autoregressive loop / argmax stay in the caller (the
+# §58.1 / F839 boundary). Composes klein4_bind/bundle/similarity — no new class.
+
+
+def _klein4_chunk_resolve_native(chunk_bufs, key_buf, cand_bufs, D):
+    """Native max-resonance read → per-candidate best integer match-count (or
+    ``None`` if the symbol is absent / the call fails). The C returns the COUNT
+    (the F868 stay-rational ranking key) before the ``/D`` divide."""
+    if not hasattr(_native.LIB, "srmech_klein4_chunk_resolve"):
+        return None
+    n_chunks = len(chunk_bufs)
+    n_cand = len(cand_bufs)
+    chunks_flat = (ctypes.c_uint8 * (n_chunks * D)).from_buffer_copy(
+        b"".join(bytes(c) for c in chunk_bufs))
+    cand_flat = (ctypes.c_uint8 * (n_cand * D)).from_buffer_copy(
+        b"".join(bytes(c) for c in cand_bufs))
+    ckey = (ctypes.c_uint8 * D).from_buffer_copy(bytes(key_buf))
+    out = (ctypes.c_uint32 * n_cand)()
+    rc = _native.LIB.srmech_klein4_chunk_resolve(
+        chunks_flat, ctypes.c_uint32(n_chunks), ckey, ctypes.c_uint32(D),
+        cand_flat, ctypes.c_uint32(n_cand), out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return [int(x) for x in out]
+
+
+def _klein4_chunk_resolve_core(chunk_bufs, key_buf, cand_bufs):
+    """Pure-Python max-resonance read → per-candidate best integer match-count
+    (bit-identical to the C peer). bind = XOR; match-count = agreeing positions;
+    take the MAX over the chunk-set. No ``abs()``."""
+    bound = [_xor_buf(ch, key_buf) for ch in chunk_bufs]
+    out = []
+    for cand in cand_bufs:
+        best = 0
+        for bd in bound:
+            mc = sum(1 for x, y in zip(bd, cand) if x == y)
+            if mc > best:
+                best = mc
+        out.append(best)
+    return out
+
+
+def klein4_chunk_bundle(vectors, capacity):
+    """Build a CAPACITY-BOUNDED chunk-set from a list of (bound) vectors
+    (UPSTREAM §58; F837): consecutive groups of ≤ ``capacity`` vectors, each
+    reduced with :func:`klein4_bundle`. Returns a ``list`` of :class:`HV`
+    chunks — the cleanup-memory that avoids the single-bundle crosstalk.
+
+    ``capacity`` is exposed (a non-monotonic sweet-spot per tome, F839), not
+    hardcoded. numpy-free; carrier cost = ``ceil(len(vectors) / capacity)``
+    bundles.
+    """
+    bufs = [_as_klein4_buf(v, "klein4_chunk_bundle") for v in vectors]
+    if not bufs:
+        raise ValueError("hdc.klein4_chunk_bundle: requires at least one vector")
+    C = int(capacity)
+    if C < 1:
+        raise ValueError(f"hdc.klein4_chunk_bundle: capacity must be ≥ 1; got {C}")
+    n = len(bufs[0])
+    for i, b in enumerate(bufs):
+        if len(b) != n:
+            raise ValueError(
+                f"hdc.klein4_chunk_bundle: vector {i} has length {len(b)}, "
+                f"expected {n}")
+    chunks = []
+    for i in range(0, len(bufs), C):
+        group = bufs[i:i + C]
+        chunks.append(klein4_bundle(*group))   # native-dispatched bundle
+    return chunks
+
+
+def klein4_chunk_resolve(chunks, key, candidates):
+    """Max-resonance read over a capacity-bounded chunk-set (UPSTREAM §58; F837).
+
+    For each candidate, returns the **MAX over chunks** of
+    ``klein4_similarity(klein4_bind(chunk, key), candidate)`` — one EXACT
+    :class:`Q` per candidate (stay-rational, F868: the recall ranks on the
+    integer match-count; ``Q(count, D)`` only names the fraction). The
+    LM-agnostic VSA cleanup-memory; the routing / argmax stays in the caller.
+    Native-dispatched via ``srmech_klein4_chunk_resolve`` (the recall hot path).
+    """
+    chunk_bufs = [_as_klein4_buf(c, "klein4_chunk_resolve") for c in chunks]
+    cand_bufs = [_as_klein4_buf(c, "klein4_chunk_resolve") for c in candidates]
+    if not chunk_bufs:
+        raise ValueError("hdc.klein4_chunk_resolve: requires at least one chunk")
+    if not cand_bufs:
+        raise ValueError("hdc.klein4_chunk_resolve: requires at least one candidate")
+    key_buf = _as_klein4_buf(key, "klein4_chunk_resolve")
+    D = len(key_buf)
+    for label, bufs in (("chunk", chunk_bufs), ("candidate", cand_bufs)):
+        for i, b in enumerate(bufs):
+            if len(b) != D:
+                raise ValueError(
+                    f"hdc.klein4_chunk_resolve: {label} {i} has length {len(b)}, "
+                    f"expected {D} (the key length)")
+    counts = _klein4_chunk_resolve_native(chunk_bufs, key_buf, cand_bufs, D)
+    if counts is None:
+        counts = _klein4_chunk_resolve_core(chunk_bufs, key_buf, cand_bufs)
+    return [Q(c, D) for c in counts]
+
+
+# ── §60 / F864: byte/glyph-level Klein-4 encoder (morphology, no English bias) ─
+# The word-atomic encoder (whole token → one orthogonal random HV) has no
+# sub-word structure (sim('cat','cats') ≈ chance). The byte/glyph core composes
+# a word vector from POSITION-BOUND per-byte vectors — restoring morphology
+# (sim('cat','cats') ≫ chance) while stripping the English/whitespace privilege
+# (it hashes raw UTF-8 bytes, the universal-script alphabet). Composes
+# klein4_random (the 256-byte vocab + position keys) + klein4_bind + klein4_
+# bundle — no new primitive class. The per-byte / per-position vector minting
+# rides ``klein4_random``, which is now native (rc6 §60: the standalone-C
+# MT19937 ``srmech_klein4_random`` reproduces ``random.Random(seed).randrange(4)``
+# byte-for-byte), so the whole minting + encode is C-dispatched. numpy-free;
+# carrier = one HV.
+
+#: Seed namespace for position role-keys — disjoint from the 0..255 byte vocab.
+_KLEIN4_POS_SEED_BASE = 0x10000
+
+
+def _klein4_pos_key(D, pos):
+    """A deterministic Klein-4 position role-vector for slot ``pos`` (UPSTREAM
+    §60): ``klein4_random`` over a position-namespaced seed
+    (``0x10000 + pos``), so it never collides with the 256-byte alphabet
+    (seeds 0..255). The role half of the role-filler bind in
+    :func:`klein4_encode_bytes` — an internal helper (a seeded
+    :func:`klein4_random`, so not a separately-exposed public op).
+    """
+    D = int(D)
+    if D <= 0:
+        raise ValueError("hdc._klein4_pos_key: D must be positive")
+    p = int(pos)
+    if p < 0:
+        raise ValueError(f"hdc._klein4_pos_key: pos must be ≥ 0; got {p}")
+    return klein4_random(D, seed=_KLEIN4_POS_SEED_BASE + p)
+
+
+def klein4_encode_bytes(data, D):
+    """Byte-composed Klein-4 vector (UPSTREAM §60; F864): a bundle of
+    POSITION-BOUND per-byte random vectors —
+    ``bundle_i( klein4_bind(klein4_random(D, seed=byte_i), pos_key(D, i)) )``.
+
+    Each byte ``b`` maps to ``klein4_random(D, seed=b)`` (the 256-byte vocab);
+    binding with a deterministic position role-vector (an internal seeded
+    :func:`klein4_random`) gives the role-filler, and the per-byte binds are
+    bundled into one :class:`HV`. This restores **morphology** —
+    ``klein4_similarity(encode_bytes(b"cat"), encode_bytes(b"cats"))`` ≫ the
+    Klein-4 chance level, because the shared prefix bytes occupy the same
+    positions — while stripping the word-atomic English/whitespace privilege
+    (it hashes raw UTF-8, the universal-script alphabet). The language core is
+    byte-level; an English kernel sits on top (F764). numpy-free.
+
+    Args:
+        data: The byte string to encode (``bytes`` / ``bytearray``; a ``str``
+            is UTF-8 encoded). Must be non-empty.
+        D: Vector dimension (positive).
+    """
+    if isinstance(data, str):
+        data = data.encode("utf-8")
+    elif not isinstance(data, (bytes, bytearray)):
+        raise TypeError(
+            "hdc.klein4_encode_bytes: data must be bytes / bytearray / str")
+    if len(data) == 0:
+        raise ValueError("hdc.klein4_encode_bytes: data must be non-empty")
+    D = int(D)
+    if D <= 0:
+        raise ValueError("hdc.klein4_encode_bytes: D must be positive")
+    bound = [klein4_bind(klein4_random(D, seed=b), _klein4_pos_key(D, i))
+             for i, b in enumerate(data)]
+    return klein4_bundle(*bound)
+
+
+def _klein4_compose_native(bufs):
+    """Native SINGLE-CALL role-filler compose over ≥1 equal-length array('B')
+    klein4 buffers → array('B'), else ``None`` (the pure composition is the
+    COMPLETE alternative, not a rescue). The C peer folds the whole bundle —
+    the §60 position keys (klein4_random over seed 0x10000+i) ∘ bind ∘
+    bundle-accumulate/resolve — in one ``srmech_klein4_compose`` call, byte-
+    identical to the pure path; for one part it resolves to that part's
+    position-bound self (bundle of one = itself), matching the Python shortcut."""
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_klein4_compose")):
+        return None
+    n = len(bufs)
+    D = len(bufs[0])
+    flat = bytearray()
+    for b in bufs:
+        flat += bytes(b)
+    cparts = (ctypes.c_uint8 * (n * D)).from_buffer_copy(bytes(flat))
+    acc = (ctypes.c_uint32 * (1 + 2 * D))()
+    scratch = (ctypes.c_uint8 * (2 * D))()
+    out = (ctypes.c_uint8 * D)()
+    rc = _native.LIB.srmech_klein4_compose(
+        cparts, ctypes.c_uint32(n), ctypes.c_uint32(D), acc, scratch, out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return array("B", bytes(out))
+
+
+def klein4_compose(parts):
+    """Scale-invariant role-filler compositor (F900/F901; the byte/glyph LM
+    "C1"): a bundle of POSITION-BOUND parts —
+    ``bundle_i( klein4_bind(part_i, klein4_pos_key(D, i)) )``.
+
+    The SAME operator at every scale. Where :func:`klein4_encode_bytes` mints
+    the 256-byte atoms internally (byte → word), this composes ARBITRARY
+    pre-composed :class:`HV` parts, so it is the **recursive** rung —
+    word → phrase → sentence, the parts at level ``n+1`` being the composed
+    vectors of level ``n``. Position-binding makes it order-sensitive and
+    similarity-PRESERVING: changing one of ``n`` parts degrades the result
+    gracefully (the same fractal coherence signature at every scale, F900),
+    unlike a bare chained :func:`klein4_bind` fold (involutive → collapses to
+    the ~0.25 chance level). Composes :func:`klein4_bind` + :func:`klein4_bundle`
+    (both native-dispatched); an even part-count bundles per-bit-majority with
+    ties → 0 (no pad needed, same as :func:`klein4_encode_bytes`). numpy-free,
+    no ``abs()`` (Class M ∘ Class C).
+
+    Args:
+        parts: a NON-EMPTY sequence of equal-length Klein-4 :class:`HV` parts.
+            A single part is returned position-bound (the identity rung).
+    """
+    parts = list(parts)
+    if not parts:
+        raise ValueError("hdc.klein4_compose: parts must be a non-empty sequence")
+    bufs = [_as_klein4_buf(p, "klein4_compose") for p in parts]
+    D = len(bufs[0])
+    for b in bufs:
+        if len(b) != D:
+            raise ValueError(
+                "hdc.klein4_compose: all parts must have equal length")
+    native = _klein4_compose_native(bufs)   # rc18: single native call
+    if native is not None:
+        return HV(native, sectors=4)
+    bound = [klein4_bind(b, _klein4_pos_key(D, i)) for i, b in enumerate(bufs)]
+    if len(bound) == 1:
+        return bound[0]
+    return klein4_bundle(*bound)
+
+
+def _klein4_check(a, b, mode, op):
+    """Shared validation for the klein4 match-fraction family — coerce both to
+    klein4 buffers, length-match, mode-check; returns ``(a, b, n)``."""
+    a = _as_klein4_buf(a, op)
+    b = _as_klein4_buf(b, op)
+    if len(a) != len(b):
+        raise ValueError(
+            f"hdc.{op}: lengths must match (got {len(a)} vs {len(b)})")
+    if mode not in ("chunk", "chirality"):
+        raise ValueError(
+            f"{op}: mode must be 'chunk' or 'chirality'; got {mode!r}")
+    return a, b, len(a)
+
+
+def _klein4_match_count_core(a, b):
+    """The exact integer count of positions where ``a == b`` (native fast path
+    when present, else pure-Python). The blow-up-free quantity recall ranks on
+    (F868): ``similarity = count / len``."""
+    if len(a) >= 1 and _native.has_native_klein4_bind():
+        c = _klein4_match_count_native(a, b)
+        if c is not None:
+            return c
+    return sum(1 for x, y in zip(a, b) if x == y)
+
+
+def klein4_similarity(a, b, *, sectors=None, parallel=None, mode="chunk") -> "Q":
     """Klein-4 similarity: fraction of positions where ``a == b`` (0 = orthogonal,
-    1 = identical). All four states are informative — there is no skip state.
+    1 = identical) — the exact rational :class:`~srmech.amsc.q.Q`. All four
+    states are informative — there is no skip state.
+
+    The similarity is exactly ``matches / D`` with both integers, so the return
+    is the exact ``Q`` carrier: it compares like a float (``klein4_similarity(a,
+    a) == 1.0``), ranks correctly (``max`` over candidates is exact), and
+    collapses to a decimal only at the display boundary via ``float(s)`` — never
+    a lossy mid-cascade ``float`` (the stay-rational discipline, F868,
+    `[[feedback_stay_rational_collapse_only_at_display]]`). For the raw integer
+    count (the blow-up-free recall-ranking key) use :func:`klein4_match_count`.
 
     The rc13 ``sectors=`` / ``parallel=`` / ``mode=`` flag fans the comparison
     across ≤4 concurrent lanes (default-ON at ≥4 cores) and ALWAYS returns the
-    same float as the serial op. ``mode="chunk"`` (default) splits the
-    positions and sums per-slice match counts (bit-identical); ``mode=
-    "chirality"`` runs the F233 4-sector dispatch and recombines via
-    **sector-0** (value-transparent — XOR-flipping both sides preserves
-    equality, so every sector equals the plain similarity anyway).
+    same value as the serial op. ``mode="chunk"`` (default) splits the positions
+    and sums per-slice match counts (bit-identical); ``mode="chirality"`` runs
+    the F233 4-sector dispatch and recombines via **sector-0** (value-transparent
+    — XOR-flipping both sides preserves equality, so every sector equals the
+    plain similarity anyway).
     """
-    a = _as_klein4_buf(a, "klein4_similarity")
-    b = _as_klein4_buf(b, "klein4_similarity")
-    if len(a) != len(b):
-        raise ValueError(
-            f"hdc.klein4_similarity: lengths must match (got {len(a)} vs {len(b)})"
-        )
-    if mode not in ("chunk", "chirality"):
-        raise ValueError(
-            f"klein4_similarity: mode must be 'chunk' or 'chirality'; got {mode!r}"
-        )
+    a, b, n = _klein4_check(a, b, mode, "klein4_similarity")
     _klein4_resolve_sectors(sectors, parallel)  # validate the lane flags
-    # chunk == serial; chirality recombines via sector-0, which equals the plain
-    # similarity (XOR-flipping both sides preserves equality). So every mode is
-    # the match-fraction; sectors=/parallel= stay accepted value-no-op flags.
-    n = len(a)
-    if n >= 1 and _native.has_native_klein4_bind():        # §53: native fast path
-        sim = _klein4_similarity_native(a, b)
-        if sim is not None:
-            return sim
-    matches = sum(1 for x, y in zip(a, b) if x == y)
-    return float(matches / n)
+    if n == 0:
+        return Q(0, 1)
+    return Q(_klein4_match_count_core(a, b), n)
+
+
+def klein4_match_count(a, b, *, sectors=None, parallel=None, mode="chunk") -> int:
+    """Klein-4 match count: the **raw integer** number of positions where
+    ``a == b`` (UPSTREAM §61; F868). ``klein4_similarity = count / len(a)``.
+
+    This is the float-free, blow-up-free quantity recall ranks on — argmax over
+    integer counts needs no division and no decimal (F868 mechanism #1), so the
+    resonator never has to leave the integers. The C kernel already computes this
+    count before its float divide, so exposing it is additive and C-paired
+    (native ``srmech_klein4_match_count``).
+    """
+    a, b, _n = _klein4_check(a, b, mode, "klein4_match_count")
+    _klein4_resolve_sectors(sectors, parallel)
+    return _klein4_match_count_core(a, b)
 
 
 def klein4_bundle_accumulate(acc, v):
@@ -2161,6 +2624,7 @@ __all__ = [
     "bundle_with_ties",
     "permute",
     "similarity",
+    "hamming",
     "polar_random",
     "polar_bind",
     "polar_unbind",
@@ -2174,8 +2638,15 @@ __all__ = [
     "klein4_unbundle",
     "klein4_bundle",
     "klein4_similarity",
+    "klein4_match_count",
     "klein4_bundle_accumulate",
     "klein4_bundle_resolve",
+    "klein4_phase_key",
+    "klein4_phase_bind",
+    "klein4_chunk_bundle",
+    "klein4_chunk_resolve",
+    "klein4_encode_bytes",
+    "klein4_compose",
     "cooccurrence_fold",
     "klein4_chirality_flip_gamma5",
     "klein4_project_axis",

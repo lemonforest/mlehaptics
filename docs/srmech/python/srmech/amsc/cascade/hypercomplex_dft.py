@@ -60,14 +60,31 @@ Citations (verified PDFs —
 """
 from __future__ import annotations
 
-from typing import List, Sequence
+from typing import List, Sequence, Tuple
 
 # §22: scalar root + trig via the Class-N rational cascade, not libm; π from the
 # Archimedes pi_cascade (`[[feedback_continuous_number_line_pedagogical_obstacle]]`).
+from srmech.amsc import _native
+from srmech.amsc import rational as _rational
+from srmech.amsc.q import Q as _Q
 from srmech.amsc.rational import cos as _rcos
 from srmech.amsc.rational import pi_cascade_digits as _pi_cascade_digits
 from srmech.amsc.rational import sin as _rsin
 from srmech.amsc.rational import sqrt as _rsqrt
+
+# 0.9.0rc10 (F882, srmech #205) — the LITERAL exp(μθ) twiddle in EXACT Q61.
+_Q61_ONE = _rational._Q61_ONE                          # 1.0 in Q61 (= 2**61)
+_HC_AXES = (1, 3, 7)                                   # ℂ / ℍ / 𝕆 imaginary dims
+# unit 1/√k as a Q61 int = isqrt(2^122 / k): the substrate-native integer-sqrt
+# (``rational._integer_sqrt`` → native ``srmech_isqrt``); k=1 → 2**61.
+_HC_INV_Q61 = {k: _rational._integer_sqrt((_Q61_ONE * _Q61_ONE) // k) for k in _HC_AXES}
+
+
+def _q61_int(qv: "_Q") -> int:
+    """Recover the raw Q61 integer ``v`` from a ``Q == v / 2**61`` (the reduced
+    denominator always divides ``2**61``)."""
+    n, d = qv.as_pair()
+    return n * (_Q61_ONE // d)
 
 # Cascade-π as a float: the high-precision rational digit-string projected to
 # float once at import (no `math.pi`).
@@ -84,7 +101,7 @@ _MU_AXES = {
 }
 # The body-diagonal unit axis (i+j+k)/√3 — the order-3 (triality-adjacent)
 # pure-quaternion direction; still μ²=−1.
-_S3 = 1.0 / _rsqrt(3.0)
+_S3 = 1.0 / float(_rsqrt(3.0))
 _MU_AXES["ijk"] = (0.0, _S3, _S3, _S3)
 
 _FORMS = ("left", "right")
@@ -101,6 +118,121 @@ def _twiddle8(theta: float, mu: Sequence[float]) -> List[float]:
     c = _rcos(theta)
     s = _rsin(theta)
     return [c] + [s * mu[i] for i in range(1, 8)]
+
+
+# 0.9.0rc16 — the EXACT-Q61 (σ,θ,μ) coupler core: the C-host-parity rewrite of
+# `hypercomplex_couple`. The float `Mat` octonion-matvec is replaced by an EXACT
+# fixed-width Q61 octonion multiply (the Cayley–Dickson structure constants
+# `cd_basis_product` + the Q61 fixed-point multiply), so the coupler is
+# byte-exact reproducible by a C-only host (`srmech_hypercomplex_couple_q61`) —
+# no float boundary except the final projection. Closes the rc12
+# sed_couple/sed_uncouple transitive-ratchet allowlist.
+from fractions import Fraction as _Fraction
+from srmech.amsc.rational import _q61_fxmul               # Q61 fixed-point multiply
+from srmech.amsc.cascade.cayley_dickson import cd_basis_product as _cd_basis
+# (`_q61_int` is the module-local Q-int projector defined above.)
+
+
+def _to_q61(x: float) -> int:
+    """Project a float to its nearest Q61 fixed-point int — the deliberate
+    float→exact-rational boundary (Python-side only; the C peer receives ints)."""
+    return round(_Fraction(float(x)) * _Q61_ONE)
+
+
+def _octo_mult_q61(a: Sequence[int], b: Sequence[int]) -> List[int]:
+    """Exact octonion product ``a·b`` over Q61 — Class-M bilinear bind via the
+    Cayley–Dickson structure constants (``cd_basis_product``, the same the C peer
+    uses) ∘ Class-C sign orientation ∘ the Q61 fixed-point multiply. Integer
+    accumulation is order-independent, so the skip-zero shortcut is exact. No
+    float, no ``abs()``."""
+    out = [0] * 8
+    for i in range(8):
+        ai = a[i]
+        if ai == 0:
+            continue
+        for j in range(8):
+            bj = b[j]
+            if bj == 0:
+                continue
+            k, s = _cd_basis(8, i, j)
+            p = _q61_fxmul(ai, bj)
+            out[k] += p if s > 0 else -p          # Class-C orientation; no abs()
+    return out
+
+
+def _q61_couple_fits_native(streams_q61: Sequence[int]) -> bool:
+    """True iff every Q61 stream limb is unit-bounded (``|x| ≤ 1``, i.e.
+    ``|limb| ≤ 2**61``) — the native int64 Q61 octonion couple's domain ceiling.
+    Within it neither the limbs nor the norm-preserving output (``|q| ≤ √8 < 4``)
+    overflow int64. Larger magnitudes have no Q61-int64 representation (no bignum
+    in C), so they take the pure (bignum-exact) Python path — the documented
+    native ceiling, like ``rational._try_c_two_rationals``. Class-K magnitude
+    test (no ``abs()``)."""
+    for v in streams_q61:
+        if v > _Q61_ONE or v < -_Q61_ONE:
+            return False
+    return True
+
+
+def _couple_q61(streams_q61: Sequence[int], mu_q61: Sequence[int],
+                eff: float, *, form: str) -> List[int]:
+    """The exact-Q61 coupler core: ``T ⊗ q`` with the twiddle ``T = exp(eff·μ) =
+    cos eff·1 + sin eff·μ`` (Q61) and ``⊗`` the left/right octonion multiply.
+    Returns the 8 Q61 ints — byte-exact with ``srmech_hypercomplex_couple_q61``
+    when native AND the streams are unit-bounded (the int64 Q61 domain); larger
+    magnitudes take the pure bignum-exact path (the Q61 trig cascade +
+    cd_basis_product + fxmul are all bit-identical C↔Python in the shared
+    domain)."""
+    if _native.has_native_hypercomplex_couple() and _q61_couple_fits_native(streams_q61):
+        out = _native.hypercomplex_couple_q61_c(     # the whole couple in C
+            streams_q61, mu_q61, eff, form == "left")
+        if out is not None:                          # None = native int64 ceiling
+            return out
+    if _native.has_native_trans_q61():
+        cos = _native.cos_q61_c(eff)
+        sin = _native.sin_q61_c(eff)
+    else:
+        cos = _q61_int(_rcos(eff))
+        sin = _q61_int(_rsin(eff))
+    tw = [cos] + [_q61_fxmul(sin, mu_q61[i]) for i in range(1, 8)]
+    if form == "left":
+        return _octo_mult_q61(tw, streams_q61)    # T·q
+    return _octo_mult_q61(streams_q61, tw)        # q·T
+
+
+def hypercomplex_exp(theta: float, k_axes: int) -> Tuple["_Q", ...]:
+    """The unit hypercomplex exponential ``exp(μθ) = cos θ + μ·sin θ`` as an
+    8-tuple of EXACT :class:`~srmech.amsc.q.Q` (Q61, denominator ``2**61``).
+
+    ``μ`` is the EQUAL-WEIGHT UNIT pure-imaginary over the first ``k_axes``
+    octonion imaginary axes — ``k_axes ∈ {1, 3, 7}`` selecting ``ℂ`` / ``ℍ`` /
+    ``𝕆`` (the F882 *literal* QDFT / ODFT twiddle). The eight components are
+    ``q[0] = cos θ``, ``q[1..k] = sin θ / √k`` (so ``|q| = 1``), ``q[k+1..7] =
+    0``. Feed them into :func:`~srmech.amsc.cascade.cd_mult` to rotate a
+    hypercomplex value **in the algebra** (then project once) — the "do the
+    transform in ℍ/𝕆, then read out" that beats composing scalar ``phase_bind``
+    ops on the projected carrier (F882: ℂ 0.78 = the spirit's ℍ rung; 𝕆/ODFT
+    0.81, a new routing high).
+
+    Substrate-native fixed-width Q61 cascade (``rational.{cos,sin}`` + the
+    integer-sqrt unit norm — no bignum, no libm), **byte-exact** with the native
+    peer ``srmech_hypercomplex_exp_q61`` when present. ``k_axes`` outside
+    ``{1, 3, 7}`` or a non-finite ``theta`` raises ``ValueError`` (``Q`` is the
+    finite-rational carrier)."""
+    if k_axes not in _HC_INV_Q61:
+        raise ValueError(
+            f"hypercomplex_exp: k_axes must be 1, 3 or 7 (ℂ/ℍ/𝕆); got {k_axes!r}")
+    th = float(theta)
+    if not _rational._is_finite(th):
+        raise ValueError("hypercomplex_exp: theta must be finite (Q is the finite-rational carrier)")
+    if _native.has_native_hypercomplex_exp():
+        ints = _native.hypercomplex_exp_q61_c(th, k_axes)      # 8 Q61 ints, byte-exact
+    else:                                                       # pure Q61 cascade
+        c = _q61_int(_rcos(th))
+        s = _q61_int(_rsin(th))
+        scaled = _rational._q61_fxmul(s, _HC_INV_Q61[k_axes])   # sin θ / √k (Class K·C)
+        ints = [c] + [scaled if a < k_axes else 0 for a in range(7)]
+    return tuple(_Q(v, _Q61_ONE) for v in ints)
 
 
 def _as8(vec) -> List[float]:
@@ -140,7 +272,7 @@ def _resolve_mu(mu_axis, *, octonion) -> List[float]:
             return _as8(_MU_AXES[mu_axis])
         if mu_axis == "diagonal":
             hi = 8 if octonion else 4
-            inv = 1.0 / _rsqrt(float(hi - 1))
+            inv = 1.0 / float(_rsqrt(float(hi - 1)))
             return [0.0] + [inv if 1 <= i < hi else 0.0 for i in range(1, 8)]
         raise ValueError(
             f"mu_axis must be one of {sorted(_MU_AXES) + ['diagonal']}, or a unit "
@@ -155,7 +287,7 @@ def _resolve_mu(mu_axis, *, octonion) -> List[float]:
             "a quaternion mu_axis must lie in ℍ (components e4..e7 == 0); use "
             "octonion_dft / a quaternion-scope coupler for an octonion axis"
         )
-    norm = _rsqrt(float(sum(c * c for c in v[1:])))
+    norm = float(_rsqrt(float(sum(c * c for c in v[1:]))))
     if norm == 0.0:
         raise ValueError("mu_axis must be a non-zero pure-imaginary vector")
     inv = 1.0 / norm
@@ -448,8 +580,6 @@ def hypercomplex_couple(
     Class home: **M** (octonion multiply) ∘ **C** (the ``σ``/conjugation
     orientation) ∘ **N** (the rational phase ``θ``). F436 / F437; §29.
     """
-    from srmech.qm.octonion import octonion_left_mult, octonion_right_mult
-
     if sigma not in (1, -1, 1.0, -1.0):
         raise ValueError(f"sigma must be +1 or -1; got {sigma!r}")
     if form not in _FORMS:
@@ -458,11 +588,12 @@ def hypercomplex_couple(
     q, octonion = _pack_streams(streams)
     mu = _resolve_mu(axis, octonion=octonion)
     eff = float(sigma) * (-1.0 if inverse else 1.0) * float(theta)
-    w = _twiddle8(eff, mu)
-    # rc125 (numpy-free): octonion-rep matvec via the pure-Python _matvec8 (the
-    # Mat octonion_*_mult, never numpy `@` / dense_matvec_real).
-    if form == "left":
-        out = _matvec8(octonion_left_mult(w), q)
-    else:
-        out = _matvec8(octonion_right_mult(w), q)
+    # rc16 (C-host parity): the float `Mat` octonion-matvec is replaced by the
+    # EXACT-Q61 octonion couple `_couple_q61` (cd_basis_product structure
+    # constants + Q61 fxmul) — byte-exact reproducible in C
+    # (`srmech_hypercomplex_couple_q61`), the stay-rational NORTH STAR with no
+    # float boundary except this final projection.
+    out_q61 = _couple_q61([_to_q61(v) for v in q], [_to_q61(v) for v in mu],
+                          eff, form=form)
+    out = [v / float(_Q61_ONE) for v in out_q61]
     return list(out) if octonion else out[:4]

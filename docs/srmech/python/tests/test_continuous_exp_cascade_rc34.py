@@ -43,11 +43,13 @@ def test_complex_exp_matches_cmath():
 
 
 def test_cexp_is_euler_of_the_cascade_trig():
-    # cexp(theta) == complex(cos(theta), sin(theta)) using srmech's OWN trig
+    # cexp(theta) == complex(cos(theta), sin(theta)) using srmech's OWN trig.
+    # rc7: cos/sin return an EXACT Q; cexp collapses them to float at the
+    # complex() display boundary, so compare against the float projection.
     for t in [0.4, 1.3, -2.2]:
         got = R.cexp(t)
-        assert got.real == R.cos(t)
-        assert got.imag == R.sin(t)
+        assert got.real == float(R.cos(t))
+        assert got.imag == float(R.sin(t))
 
 
 def test_no_libm_exp_in_call_graph():

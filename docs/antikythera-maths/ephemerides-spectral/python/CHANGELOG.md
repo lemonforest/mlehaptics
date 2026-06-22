@@ -10,6 +10,148 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.32.0] — 2026-06-18
+
+### Changed — MIT relicense + README capabilities refresh (production graduation)
+
+The clean semver cut of the `0.32.0rc1` cycle, graduated to production PyPI.
+Identical content to rc1 (no further changes); the rc was verified numpy-absent
+on the TestPyPI wheel (version `0.32.0rc1`, `License-Expression: MIT` in the
+wheel metadata, the new `LICENSE` file shipped at
+`dist-info/licenses/LICENSE`, and the `ephemerides` srmech profile registering
+`status='ok'` against `srmech 0.8.2`). Two doc / metadata fixes, **no
+`ephemerides_spectral` code change**:
+
+- **Relicensed `GPL-3.0-or-later` → `MIT`** everywhere the package declares a
+  license: `pyproject.toml`, `pyproject-pure.toml`, `srmech_profile.toml`, the
+  C header + `c/README.md` + subtree `README.md`, and the PyPI README — plus a
+  new `LICENSE` file (MIT text). `ephemerides-spectral` and its runtime engine
+  `srmech` are both MIT and freely reusable; the wider `mlehaptics` monorepo
+  stays GPL-3-or-later (no GPL code is linked).
+- **README Key Capabilities refresh** surfacing the shipped v0.19 → v0.30
+  instruments (Sol Electromagnetic Instrument, Geodetic / Magnetic-Multipole /
+  Fluid catalogs, the eleven cross-channel coupling surfaces, Trajectory +
+  Sensing, spin-orbit↔rotation lock, per-body Dynamical Spectra + classifier,
+  AMSC provenance, Saturn-ring + Solar dynamics); Roadmap trimmed accordingly.
+
+No code / ABI change (`ES_ABI_VERSION = 10`).
+
+## [0.32.0rc1] — 2026-06-18
+
+### Changed — MIT relicense + README capabilities refresh
+
+Two doc / metadata fixes, **no `ephemerides_spectral` code change**:
+
+- **Relicensed `GPL-3.0-or-later` → `MIT`** everywhere the package declares a
+  license: `pyproject.toml`, `pyproject-pure.toml`, `srmech_profile.toml`
+  (`[profile].license`), the C header `c/include/ephemerides_spectral.h`, the
+  `c/README.md` + subtree `README.md` License sections, and the PyPI README
+  `## License` section — **plus a new `LICENSE` file** (MIT text) shipped in the
+  sdist/wheel (matching `srmech`). The math is scaffolding —
+  `ephemerides-spectral` and its runtime engine `srmech` are both MIT-licensed
+  and freely reusable. The wider `mlehaptics` monorepo this package is developed
+  in stays GPL-3-or-later; this package carries its own MIT terms (no GPL code is
+  linked — the only hard runtime dep is `srmech`, MIT, plus the optional
+  `skyfield`, MIT). The subtree README's stale `Hardware: CERN-OHL-S` line (an
+  EMDR-firmware-template artifact — this is a pure-software package) was removed.
+- **README Key Capabilities refresh.** The descriptive section had been
+  frozen at the ~v0.18 feature set and never surfaced the shipped v0.19 → v0.30
+  instruments. Added Key-Capabilities bullets (with accurate `bridge.*`
+  surfaces) for: the Sol Electromagnetic Instrument (v0.19), the Geodetic /
+  Magnetic-Multipole / Fluid catalogs + SphericalHarmonic unification (v0.20–
+  v0.21), the eleven cross-channel coupling surfaces (v0.21.1–v0.21.10), the
+  Trajectory + Sensing layer (v0.22), spin-orbit↔rotation lock (v0.23), the
+  per-body Dynamical Spectra + dynamical-regime classifier (v0.24), the AMSC
+  attested-provenance framework (v0.25), and the Saturn-ring + Solar-dynamics
+  catalogs (v0.30). The Roadmap's gateway-graph bullet was trimmed (its
+  shipped pieces now live in Key Capabilities).
+
+No code / ABI change (`ES_ABI_VERSION = 10`); 6-site version SSOT bumped
+`0.31.1 → 0.32.0rc1`. Rc cycles through TestPyPI only.
+
+## [0.31.1] — 2026-06-18
+
+### Changed — README freshness: surface the srmech integration (production)
+
+Doc-only graduation of the `0.31.1rc1` cycle — **no `ephemerides_spectral`
+code change**. The PyPI-facing README's descriptive prose now opens with a
+**"Built on srmech (numpy-FREE runtime)"** Overview subsection (every
+continuous-math op routes through srmech's numpy-free `Mat`/`Vec`/`HV`
+carriers + Class-N rational cascades; `srmech` is the sole hard runtime
+dependency; the package imports/runs with `numpy` not installed; it
+registers as the `ephemerides` srmech profile via `srmech.list_profiles()`;
+AMSC catalogs ride on `srmech.amsc`) plus a one-line srmech/numpy note in
+Installation.
+
+Verified numpy-absent on the rc1 wheel against srmech 0.8.2 — the
+`ephemerides` profile registers and `body_architecture` computes. No code /
+ABI change (`ES_ABI_VERSION = 10`); 6-site version SSOT graduated
+`0.31.1rc1 → 0.31.1`.
+
+## [0.31.1rc1] — 2026-06-18
+
+### Changed — README freshness: surface the srmech integration
+
+Doc-only rc with **no `ephemerides_spectral` code change**. The PyPI-facing
+README's descriptive prose (Overview / Key Capabilities / Installation) had
+never been updated since the AMSC-to-srmech refactor — it described a
+standalone instrument and named `srmech` only in the per-version Status
+bullets. This rc adds:
+
+- a **"Built on srmech (numpy-FREE runtime)"** subsection at the top of the
+  Overview — every continuous-math op routes through srmech's numpy-free
+  `Mat` / `Vec` / `HV` carriers and Class-N rational cascades; `srmech` is
+  the sole hard runtime dependency; the package is numpy-FREE (imports and
+  runs with `numpy` not installed); it registers as the `ephemerides`
+  srmech profile via `srmech.list_profiles()`; AMSC catalogs ride on
+  `srmech.amsc`;
+- a one-line **srmech / numpy note** in the Installation section.
+
+No code / ABI change (`ES_ABI_VERSION = 10`); version-only bump across the
+6-site SSOT `0.31.0 → 0.31.1rc1`. Rc cycles through TestPyPI only.
+
+## [0.31.0] — 2026-06-18
+
+### numpy-FREE capstone — production graduation
+
+The clean semver cut of the `0.31.0rc1 → rc5` numpy-removal arc, graduated to
+production PyPI. `pip install ephemerides-spectral` pulls **NO numpy**: the
+shipped package and its full test suite import and run with numpy **not installed
+at all**, every continuous-math op routing through srmech's numpy-free `Mat` /
+`Vec` / `HV` carriers (`srmech>=0.8.2`) or stdlib `math` / `cmath` / `array`.
+
+This graduation bundles the rc-line work verbatim — no code change from rc5:
+
+- **rc2** — numpy-free ITN / etak navigation cascade + `GatewayNavigation`
+  config-driven `[class]` TOML (first concrete numpy flip + duplicate-path purge).
+- **rc3** — dropped the last trivial dead `import numpy` (`syzygy_window`).
+- **rc4** — the byte-exact BIP-encoder / HD-lift / native-marshalling core flipped
+  to stdlib + srmech carriers; **`numpy` dropped from BOTH `pyproject.toml` and
+  `pyproject-pure.toml` dependencies**. A permanent
+  `tests/test_zero_numpy_ratchet.py` asserts no `import numpy` / no executable
+  `np.` token anywhere in the package; the numpy-oracle tests were rewritten
+  numpy-free.
+- **rc5** — `srmech` dependency floor `>=0.8.1 → >=0.8.2` to pick up srmech 0.8.2
+  (the §57 RBS-LM bigram-gate removal + the AST STOP-list ratchet banning
+  `numpy` / `Counter` / `defaultdict` in srmech source).
+
+**Verified numpy-absent on the shipped wheel** against srmech 0.8.2 (PyPI), with
+`numpy` pip-banned at the machine level. **No `ephemerides_spectral` ABI change**
+(`ES_ABI_VERSION = 10`). 6-site version SSOT graduated `0.31.0rc5 → 0.31.0`.
+
+## [0.31.0rc5] — 2026-06-18
+
+### Changed — srmech `>=0.8.2` floor bump (consume the new srmech release)
+
+Floor-bump rc with **no `ephemerides_spectral` code change**: the `srmech`
+dependency floor moves `>=0.8.1 → >=0.8.2` in both `pyproject.toml` and
+`pyproject-pure.toml`, picking up **srmech 0.8.2** (the §57 RBS-LM bigram-gate
+removal + the AST STOP-list ratchet banning `numpy`/`Counter`/`defaultdict` in
+srmech source). The package stays the numpy-FREE capstone from rc4 — verified
+numpy-absent against srmech 0.8.2 on TestPyPI. No `ephemerides_spectral` ABI
+change (`ES_ABI_VERSION = 10`). 6-site version SSOT bumped `0.31.0rc4 →
+0.31.0rc5`. Rc cycles through TestPyPI only.
+
 ## [0.31.0rc4] — 2026-06-17
 
 ### Changed — numpy-FREE capstone: `pip install ephemerides-spectral` pulls NO numpy

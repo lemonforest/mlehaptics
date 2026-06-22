@@ -137,4 +137,5 @@ on all 26 phases. Floor-division semantics (`Python a // b` vs
 
 ## License
 
-GPL-3.0-or-later (parent project: mlehaptics).
+MIT (this package). The wider `mlehaptics` monorepo is GPL-3.0-or-later;
+this package carries its own MIT terms.

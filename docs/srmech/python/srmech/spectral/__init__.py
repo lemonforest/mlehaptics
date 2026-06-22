@@ -385,8 +385,10 @@ def recompose(
 
 def similarity(
     a: SpectralHandle | bytes, b: SpectralHandle | bytes
-) -> float:
-    """HDC similarity ``1 − 2·hamming(a, b) / D`` in ``[−1, 1]``.
+) -> "Q":
+    """HDC similarity ``1 − 2·hamming(a, b) / D`` in ``[−1, 1]`` as the EXACT
+    ``Q`` rational (v0.9.0 F868 stay-rational; ``(D−2·hamming)/D``, collapses to
+    a decimal only via ``float(s)``). Re-exports :func:`srmech.amsc.hdc.similarity`.
 
     Class chain: Class M (HDC similarity per Kanerva 2009 §3.2). Direct on
     coefficient bytes per Spike #115 design / Spike #114 Option B.

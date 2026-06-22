@@ -26,6 +26,7 @@ import pytest
 
 from srmech.amsc import _native
 from srmech.amsc import hdc
+from srmech.amsc.q import Q
 
 
 _POLAR_NATIVE = _native.HAS_NATIVE and hasattr(_native.LIB, "srmech_polar_bind")
@@ -90,19 +91,21 @@ def test_polar_bundle_sticky_majority_ties_to_zero():
 def test_polar_similarity_skip_and_include_zero():
     x = array("b", [1, 0, -1, 1])
     y = array("b", [1, 0, -1, -1])
-    # skip-zero: positions where both != 0 → idx 0, 2, 3; matches at 0, 2 → 2/3
-    assert hdc.polar_similarity(x, y) == pytest.approx(2.0 / 3.0)
-    # include-zero: idx1 (0 == 0) also counts → 3/4
-    assert hdc.polar_similarity(x, y, skip_zero=False) == pytest.approx(0.75)
-    # no jointly-informative positions → 0.0
+    # skip-zero: positions where both != 0 → idx 0, 2, 3; matches at 0, 2 → 2/3.
+    # v0.9.0 (F868): polar_similarity returns the EXACT Q — 2/3 is NOT a finite
+    # float (off by 1 ULP), so assert the exact rational, never pytest.approx.
+    assert hdc.polar_similarity(x, y) == Q(2, 3)
+    # include-zero: idx1 (0 == 0) also counts → 3/4.
+    assert hdc.polar_similarity(x, y, skip_zero=False) == Q(3, 4)
+    # no jointly-informative positions → exact 0.
     z0 = array("b", [0, 0])
-    assert hdc.polar_similarity(z0, z0) == 0.0
+    assert hdc.polar_similarity(z0, z0) == Q(0, 1)
 
 
 def test_polar_density():
-    assert hdc.polar_density(array("b", [1, 0, -1, 1])) == pytest.approx(0.75)
-    assert hdc.polar_density(array("b", [0, 0, 0])) == 0.0
-    assert hdc.polar_density(array("b", [1, -1])) == 1.0
+    assert hdc.polar_density(array("b", [1, 0, -1, 1])) == Q(3, 4)
+    assert hdc.polar_density(array("b", [0, 0, 0])) == Q(0, 1)
+    assert hdc.polar_density(array("b", [1, -1])) == Q(1, 1)
 
 
 def test_polar_from_real_bridge_dead_band():
@@ -192,8 +195,10 @@ def test_parity_similarity():
         a = hdc.polar_random(200, rng)
         b = hdc.polar_random(200, rng)
         for sz in (True, False):
+            # The C kernel returns a double (the F868 display-boundary collapse);
+            # compare it to the Q's float view (float(Q) is the same boundary cast).
             assert _c_similarity(a, b, sz) == pytest.approx(
-                hdc.polar_similarity(a, b, skip_zero=sz))
+                float(hdc.polar_similarity(a, b, skip_zero=sz)))
 
 
 @_requires_native
@@ -201,4 +206,4 @@ def test_parity_density():
     rng = random.Random(13)
     for _ in range(20):
         v = hdc.polar_random(200, rng)
-        assert _c_density(v) == pytest.approx(hdc.polar_density(v))
+        assert _c_density(v) == pytest.approx(float(hdc.polar_density(v)))

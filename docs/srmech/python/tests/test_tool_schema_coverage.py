@@ -117,6 +117,11 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # (which IS registered); the submodule-dotted name is the same object
     # re-exported flat, exempt exactly like the DFT peers above.
     "srmech.amsc.cascade.hypercomplex_dft.hypercomplex_couple",
+    # cascade.hypercomplex_dft.hypercomplex_exp (v0.9.0rc10 / F882, srmech #205).
+    # The literal exp(μθ) hypercomplex twiddle. Registered under its STABLE flat
+    # public name ``srmech.amsc.cascade.hypercomplex_exp`` (which IS registered);
+    # the submodule-dotted name is the same object re-exported flat.
+    "srmech.amsc.cascade.hypercomplex_dft.hypercomplex_exp",
     # cascade.hamming.* — the Hamming/GF(2) block-code family (v0.7.2rc2 / #910
     # §30). Registered under their STABLE flat public names
     # ``srmech.amsc.cascade.hamming_{encode,syndrome,decode_correct}`` (which ARE
@@ -228,6 +233,36 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # ``SedenionRegister`` is a class (not coverage-walked). Exempt exactly like
     # the cayley_dickson re-exports above.
     "srmech.amsc.cascade.sedenion_register.sedenion_register",
+    # matrix_cascades.eigvec_exact / eigvec_exact_float (v0.9.0rc23 — rc-D exact
+    # eigenvectors). These RETURN ``Qalg`` components (the exact ℚ(α) number-field
+    # carrier), which is NOT MCP-serializable — exactly like the ``Qalg`` carrier
+    # itself is not registered. They are package-level exact ops reachable via
+    # Python (and consumed by the exact eigenproblem), not via the MCP tool list,
+    # so they are exempt on the same "cannot cross the JSON-RPC boundary"
+    # rationale as ``one.to_scalar`` / ``greedy_bipartite_alignment`` above. The
+    # exact eigenVALUES (``eigvals_exact`` / ``char_poly``) ARE registered (they
+    # return list/float); only the eigenVECTOR ops (Qalg return) are exempt.
+    "srmech.amsc.cascade.matrix_cascades.eigvec_exact",
+    "srmech.amsc.cascade.matrix_cascades.eigvec_exact_float",
+    # matrix_cascades.factor_integer_poly / eig_exact (v0.9.0rc25 — rc-F). Exempt on
+    # the SAME "package-level exact algebra, returns non-JSON-RPC types" rationale as
+    # the eigvec ops above. ``eig_exact`` returns dicts carrying ``complex`` /
+    # ``Qalg`` eigenpairs (and ``project=False`` returns ``Qalg`` objects outright);
+    # ``factor_integer_poly`` returns list[tuple[tuple[int], int]] (an exact
+    # arbitrary-precision factorisation oracle, ``bignum_reference`` in the Rosetta
+    # ledger). Both are reachable via Python, not the MCP tool list, exactly like the
+    # ``Qalg`` carrier itself is not registered.
+    "srmech.amsc.cascade.matrix_cascades.factor_integer_poly",
+    "srmech.amsc.cascade.matrix_cascades.eig_exact",
+    # matrix_cascades.jordan_chains_exact / jordan_form_exact (v0.9.0rc27 — rc-G,
+    # exact generalized eigenvectors / Jordan canonical form). Exempt on the SAME
+    # "package-level exact algebra, returns non-JSON-RPC types" rationale as the
+    # eigvec / eig_exact ops above. ``jordan_chains_exact`` returns ``Qalg`` chains;
+    # ``jordan_form_exact`` returns dicts carrying ``Qalg`` / ``complex`` P, J and
+    # block eigenvalues (``project=False`` is all ``Qalg``). Both reachable via
+    # Python, not the MCP tool list, exactly like the ``Qalg`` carrier itself.
+    "srmech.amsc.cascade.matrix_cascades.jordan_chains_exact",
+    "srmech.amsc.cascade.matrix_cascades.jordan_form_exact",
 })
 
 

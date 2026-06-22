@@ -62,10 +62,10 @@ extern "C" {
  * version at tag time; mismatch fails the publish.
  * ------------------------------------------------------------------ */
 #define SRMECH_VERSION_MAJOR 0
-#define SRMECH_VERSION_MINOR 8
-#define SRMECH_VERSION_PATCH 1
-#define SRMECH_VERSION_PRE   ""
-#define SRMECH_VERSION       "0.8.1"
+#define SRMECH_VERSION_MINOR 9
+#define SRMECH_VERSION_PATCH 0
+#define SRMECH_VERSION_PRE   "rc28"
+#define SRMECH_VERSION       "0.9.0rc28"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1537,6 +1537,40 @@ srmech_status_t srmech_cos(double x, double *out);
 srmech_status_t srmech_atan(double x, double *out);
 srmech_status_t srmech_atan2(double y, double x, double *out);
 
+/* 0.9.0rc8 Q61 model constants (F868) — the fixed-point scale + the two
+ * transcendental recombine anchors a C-ONLY host needs to reassemble the EXACT
+ * rational that Python's rational.{sin,cos,tan,atan,atan2,exp,log,sqrt,hypot}
+ * return, with NO Python present. The *_q61 peers below hand back the int64 Q61
+ * pieces; these three constants close the assembly so the full transcendental
+ * surface is computable standalone:
+ *   sin/cos/atan : value = out_q61 / SRMECH_Q61_ONE                  (exact int64)
+ *   exp          : value = (out_core / SRMECH_Q61_ONE) * 2^out_n     (ldexp scale)
+ *   log          : value = (out_logm + out_e * SRMECH_Q61_LN2) / SRMECH_Q61_ONE
+ *                  — out_e * ln2 exceeds int64; recombine in int128 / a bignum
+ *                  for the EXACT rational (Python uses arbitrary-precision ints),
+ *                  or in double for the libm-faithful float projection.
+ *   sqrt         : value = out_root * 2^out_p                        (no constant)
+ *   tan          : sin-peer / cos-peer                               (exact Q/Q)
+ *   atan2        : atan-peer + quadrant shift by SRMECH_Q61_HALF_PI (+-pi/2) and
+ *                  2*SRMECH_Q61_HALF_PI (+-pi), per sign(x), sign(y)
+ *   hypot        : sqrt-peer of (a*a + b*b)
+ * Values are round(c * 2^61). Single-line #defines (JPL Rule 8 clean). */
+#define SRMECH_Q61_FBITS    61
+#define SRMECH_Q61_ONE      (INT64_C(1) << SRMECH_Q61_FBITS)   /* 1.0 in Q61 = 2^61 */
+#define SRMECH_Q61_LN2      INT64_C(1598288580650331957)       /* round(ln2  * 2^61) */
+#define SRMECH_Q61_HALF_PI  INT64_C(3622009729038561421)       /* round(pi/2 * 2^61) */
+
+/* 0.9.0rc7 stay-rational Q61 peers (F868). These return the EXACT int64 Q61
+ * cascade value (denominator 2^61) BEFORE the float projection, so the Python
+ * rational.{sin,cos,atan} dispatch to native AND keep the full 61-bit rational
+ * (Q(*out_q61, 2^61)) instead of a double promoted back to Q. Same cores. A
+ * non-finite (or |x| >= 2^55) argument has no Q61 form -> SRMECH_ERR_BAD_INPUT.
+ * A C-only host reassembles the rational via the SRMECH_Q61_* constants above.
+ * Additive -> ABI unchanged. */
+srmech_status_t srmech_sin_q61(double x, int64_t *out_q61);
+srmech_status_t srmech_cos_q61(double x, int64_t *out_q61);
+srmech_status_t srmech_atan_q61(double x, int64_t *out_q61);
+
 /* Class-N rational sqrt cascade (v0.7.0rc45). sqrt(x) (x >= 0) via an INTEGER
  * floor-isqrt on a scaled radicand (portable two-limb 128-bit isqrt; no libm,
  * no float sqrt, no __int128) + IEEE-exponent-field power-of-two scaling.
@@ -1544,6 +1578,47 @@ srmech_status_t srmech_atan2(double y, double x, double *out);
  * executable runs the cascade. Machine-epsilon vs libm; negative x ->
  * SRMECH_ERR_BAD_INPUT (out = NaN). Additive -> ABI unchanged. */
 srmech_status_t srmech_rational_sqrt(double x, double *out);
+
+/* 0.9.0rc7 stay-rational Q61 peer (F868). sqrt(x) = root * 2^(e/2 - K) EXACTLY
+ * (root = isqrt(M << 2K), K = 27). Returns the integer pieces (*out_root,
+ * *out_p) so the Python rational.sqrt forms Q(root << p, 1) for p >= 0 else
+ * Q(root, 1 << -p). sqrt(0) -> (0, 0); negative / non-finite -> BAD_INPUT.
+ * Additive -> ABI unchanged. */
+srmech_status_t srmech_sqrt_q61(double x, int64_t *out_root, int64_t *out_p);
+
+/* 0.9.0rc13 public integer floor-sqrt — floor(sqrt((nhi:nlo))) for a 128-bit
+ * unsigned radicand, written to *out_root. Exposes the two-limb isqrt the
+ * sqrt cascade already uses as a standalone-C symbol so a C-only host (and the
+ * Python rational._integer_sqrt dispatch) needs NO stdlib math.isqrt. The
+ * Python peer falls back to arbitrary-precision integer-Newton beyond 128 bits.
+ * Additive -> ABI unchanged. */
+srmech_status_t srmech_isqrt(uint64_t nhi, uint64_t nlo, uint64_t *out_root);
+
+/* 0.9.0rc10 hypercomplex exp(mu*theta) twiddle (F882, srmech #205). Fills out8
+ * (an 8-element int64 array) with the unit exponential q = cos(theta) +
+ * mu*sin(theta) in Q61 (denominator 2^61): out8[0] = cos(theta), out8[1..k] =
+ * sin(theta)/sqrt(k), out8[k+1..7] = 0. mu = the equal-weight UNIT pure-imaginary
+ * over the first k_axes octonion axes, k_axes in {1,3,7} -> C/H/O. The eight
+ * components feed a Cayley-Dickson multiply (the literal QDFT/ODFT twiddle), then
+ * one projection. Byte-exact with the Python pure-Q61 cascade.hypercomplex_exp.
+ * Non-finite / |theta| >= 2^55, or k_axes not in {1,3,7} -> SRMECH_ERR_BAD_INPUT.
+ * Additive -> ABI unchanged. */
+srmech_status_t srmech_hypercomplex_exp_q61(double theta, int k_axes,
+                                            int64_t *out8);
+
+/* 0.9.0rc16 exact-Q61 (sigma,theta,mu) octonion coupler — the C-host peer of
+ * cascade.hypercomplex_dft.hypercomplex_couple (closes the rc12 sed_couple /
+ * sed_uncouple transitive-ratchet allowlist). T = exp(eff*mu) = cos(eff) +
+ * sin(eff)*mu, with `eff = sigma*(-1 if inverse)*theta` and `mu` a caller-
+ * provided UNIT pure-imaginary Q61 8-vector (denominator 2^61); out8 = T*streams8
+ * (form_is_left != 0) or streams8*T (the non-commutative left/right forms), via
+ * the Q61 trig cascade + srmech_cd_basis_product structure constants + the Q61
+ * fixed-point multiply. Byte-exact with the pure-Q61 Python mirror. Non-finite /
+ * |eff| >= 2^55 -> SRMECH_ERR_BAD_INPUT (the cos/sin peers gate it). Additive ->
+ * ABI unchanged. */
+srmech_status_t srmech_hypercomplex_couple_q61(double eff, const int64_t streams8[8],
+                                               const int64_t mu8[8], int form_is_left,
+                                               int64_t out8[8]);
 
 /* Class-N rational exp/log cascade (v0.7.0rc46; the C-transpile closeout).
  * exp(x) = 2^n * exp(r) with the Q61 integer Taylor for exp(r) (|r| <= ln2/2)
@@ -1556,6 +1631,18 @@ srmech_status_t srmech_rational_sqrt(double x, double *out);
  * non-positive x -> SRMECH_ERR_BAD_INPUT. Additive -> ABI unchanged. */
 srmech_status_t srmech_exp(double x, double *out);
 srmech_status_t srmech_log(double x, double *out);
+
+/* 0.9.0rc7 stay-rational Q61 peers (F868). Return the EXACT rational pieces so
+ * the Python rational.{exp,log} dispatch to native AND keep full Q61 provenance:
+ *   srmech_exp_q61: exp(x) = (core / 2^61) * 2^n -> (*out_core, *out_n); Python
+ *     forms Q(core << n, 2^61) (n>=0) or Q(core, 2^61 << -n). NaN / impractical
+ *     |x| (n past int64) -> BAD_INPUT (no DBL_MAX gate — the rational has none).
+ *   srmech_log_q61: log(x) = (logm + e*ln2) / 2^61 -> (*out_logm = log(mantissa)
+ *     in Q61, *out_e); Python forms Q(logm + e*_Q61_LN2, 2^61) with the cascade-
+ *     derived Q61 ln2. x <= 0 / non-finite -> BAD_INPUT.
+ * Additive -> ABI unchanged. */
+srmech_status_t srmech_exp_q61(double x, int64_t *out_core, int64_t *out_n);
+srmech_status_t srmech_log_q61(double x, int64_t *out_logm, int64_t *out_e);
 
 /* ------------------------------------------------------------------ *
  * Class M — HDC binary spatter codes (Task #217 Phase C1 rc8)
@@ -1600,8 +1687,17 @@ srmech_status_t srmech_hdc_permute(const uint8_t *a,
                                    int32_t        rotate_bits,
                                    uint8_t       *out);
 
+/* hdc_hamming(a, b): EXACT integer bit-Hamming distance (count of differing
+ * bits = popcount of the XOR), the F868 stay-rational recall key before the
+ * float divide (similarity = 1 - 2*hamming/D). Additive symbol — no ABI bump. */
+srmech_status_t srmech_hdc_hamming(const uint8_t *a,
+                                   const uint8_t *b,
+                                   uint32_t       n_bytes,
+                                   uint32_t      *out);
+
 /* similarity(a, b): 1 - 2 * hamming(a, b) / D in [-1, 1]. +1 = identical,
- * 0 = orthogonal (Hamming(a,b) = D/2), -1 = bit-complementary. */
+ * 0 = orthogonal (Hamming(a,b) = D/2), -1 = bit-complementary — the
+ * display-boundary collapse of srmech_hdc_hamming. */
 srmech_status_t srmech_hdc_similarity(const uint8_t *a,
                                       const uint8_t *b,
                                       uint32_t       n_bytes,
@@ -1678,8 +1774,56 @@ srmech_status_t srmech_klein4_bundle(const uint8_t * const *vectors,
                                      uint32_t               n,
                                      uint8_t               *out);
 
+/* klein4_phase_key(D, start, width, elem): the V4 code `elem` on the circular
+ * slot-window [start, start+width) mod D, identity (0) elsewhere — the §59 /
+ * F861 population-code CONTINUOUS-PHASE key (the chirality-native analogue of
+ * HRR / polar phase). Caller picks start = round(frac*D) mod D and width (the
+ * half-window D/2 gives the 1 − 2·circ_dist similarity law). Additive symbol —
+ * no ABI bump; no compiled-in cap (bound is the caller's `out` of length D). */
+srmech_status_t srmech_klein4_phase_key(uint32_t  D,
+                                        uint32_t  start,
+                                        uint32_t  width,
+                                        uint8_t   elem,
+                                        uint8_t  *out);
+
+/* klein4_chunk_resolve(chunks, n_chunks, key, D, candidates, n_candidates):
+ * §58 / F837 max-resonance read over a CAPACITY-BOUNDED chunk-set. `chunks` is
+ * n_chunks*D, `candidates` is n_candidates*D (row-major, codes {0,1,2,3}). For
+ * each candidate, out_counts[j] = MAX over chunks of the integer match-count
+ * between (chunk XOR key) and that candidate — the F868 stay-rational recall
+ * key before the /D divide (Python wraps Q(count, D)). Additive symbol — no ABI
+ * bump; no compiled-in cap (bound is the caller's arrays). */
+srmech_status_t srmech_klein4_chunk_resolve(const uint8_t *chunks,
+                                            uint32_t       n_chunks,
+                                            const uint8_t *key,
+                                            uint32_t       D,
+                                            const uint8_t *candidates,
+                                            uint32_t       n_candidates,
+                                            uint32_t      *out_counts);
+
+/* klein4_random(key, key_length, D): D draws of CPython random.Random(seed)
+ * .randrange(4), BYTE-IDENTICAL. `key` is the seed's little-endian uint32 words
+ * (the Python wrapper splits the seed int; a C-only / MCU host passes its own
+ * entropy words). Fills `out` with D codes in {0,1,2,3} via MT19937 +
+ * getrandbits(3) rejection. Standalone-complete: the 624-word state is
+ * stack-resident — no malloc, no compiled-in cap (bound is the caller's `out`).
+ * Additive symbol — no ABI bump. */
+srmech_status_t srmech_klein4_random(const uint32_t *key,
+                                     size_t          key_length,
+                                     uint32_t        D,
+                                     uint8_t        *out);
+
+/* klein4_match_count(a, b): EXACT integer count of positions where a[i] ==
+ * b[i] (the F868 stay-rational recall-ranking key before the float divide;
+ * similarity = count / n). Additive symbol — no ABI bump. */
+srmech_status_t srmech_klein4_match_count(const uint8_t *a,
+                                          const uint8_t *b,
+                                          uint32_t       n,
+                                          uint32_t      *out);
+
 /* klein4_similarity(a, b): fraction of positions where a[i] == b[i] in
- * [0, 1] (1 identical, 0 orthogonal). */
+ * [0, 1] (1 identical, 0 orthogonal) — the display-boundary collapse of
+ * srmech_klein4_match_count. */
 srmech_status_t srmech_klein4_similarity(const uint8_t *a,
                                          const uint8_t *b,
                                          uint32_t       n,
@@ -1709,6 +1853,22 @@ srmech_status_t srmech_klein4_bundle_accumulate(uint32_t      *acc,
 srmech_status_t srmech_klein4_bundle_resolve(const uint32_t *acc,
                                              uint8_t        *out,
                                              size_t          dim);
+
+/* klein4_compose(parts, n, D, acc, scratch, out): the scale-invariant role-
+ * filler compositor (UPSTREAM §60 / F900; rc18) —
+ * bundle_i( klein4_bind(part_i, klein4_pos_key(D, i)) ) over n pre-composed
+ * D-byte Klein-4 `parts` (row-major). pos_key(i) = klein4_random over seed
+ * 0x10000 + i (byte-identical to the Python _klein4_pos_key). The native peer of
+ * hdc.klein4_compose, the RECURSIVE rung above klein4_encode_bytes; one C call
+ * folds the whole bundle (a single part resolves to its position-bound self).
+ * `acc` is caller-owned (1 + 2*D) uint32; `scratch` is 2*D caller-owned bytes
+ * (pos-key + bound). No compiled-in cap, no malloc. Additive — no ABI bump. */
+srmech_status_t srmech_klein4_compose(const uint8_t *parts,
+                                      uint32_t       n,
+                                      uint32_t       D,
+                                      uint32_t      *acc,
+                                      uint8_t       *scratch,
+                                      uint8_t       *out);
 
 /* klein4_cooccurrence_fold (UPSTREAM §50; rc165): the §50 holographic
  * co-occurrence fold with the corpus-linear inner loop fully in C — the per-token
@@ -1919,6 +2079,81 @@ srmech_status_t srmech_hamming_decode_correct(const uint8_t *codeword, size_t le
  * power of two in range, or i/j out of range). */
 srmech_status_t srmech_cd_basis_product(int dim, int i, int j,
                                         int *out_index, int *out_sign);
+
+/* ------------------------------------------------------------------
+ * Qi — the EXACT-complex (Gaussian-rational) carrier C-host peer (0.9.0rc15;
+ * Python srmech.amsc.qi.Qi). A Qi value is FOUR int64 limbs
+ * {re_num, re_den, im_num, im_den} (denominators positive, fit int64). Lets a
+ * C-only host do exact `re + im·i` arithmetic over ℚ in one call per op, the
+ * named A–N cascade composed from the Class-N srmech_rational_* ops:
+ *   add/sub/mul  : Class M bilinear bind ∘ Class C cross-term order
+ *                  (mul = (ac−bd) + (ad+bc)i)
+ *   conjugate    : Class K — the im sign-flip (never abs())
+ *   quadrant     : Class C orientation → Klein-4 sector (bit0=re<0, bit1=im<0)
+ *   norm_sq      : Class N anchor — re²+im² (exact ℚ; out[2] = {num, den})
+ *
+ * NO BIGNUM (fixed-limb mandate): any intermediate escaping the int64/uint64
+ * limb domain returns SRMECH_ERR_OVERFLOW; the Python Qi falls through to its
+ * exact-Fraction path (the unbounded oracle), as the rc13 isqrt does past
+ * 2^128. Carrier-internal like the Mat/Vec dense kernels: NOT a Rosetta op.
+ * ABI-additive — SRMECH_ABI_VERSION stays 3. See srmech_qi.c.
+ * Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (denominator ≤ 0);
+ * SRMECH_ERR_OVERFLOW (int64 limb domain exceeded). out arrays are caller-owned
+ * (out[4] for add/sub/mul/conjugate; out[2] for norm_sq). ------------------ */
+srmech_status_t srmech_qi_add(const int64_t a[4], const int64_t b[4],
+                              int64_t out[4]);
+srmech_status_t srmech_qi_sub(const int64_t a[4], const int64_t b[4],
+                              int64_t out[4]);
+srmech_status_t srmech_qi_mul(const int64_t a[4], const int64_t b[4],
+                              int64_t out[4]);
+srmech_status_t srmech_qi_conjugate(const int64_t a[4], int64_t out[4]);
+srmech_status_t srmech_qi_quadrant(const int64_t a[4], int *out_quadrant);
+srmech_status_t srmech_qi_norm_sq(const int64_t a[4], int64_t out[2]);
+
+/* ------------------------------------------------------------------
+ * Sedenion-addressable hyper-loop ADDRESS LAYER (UPSTREAM §31 / F465 +
+ * F468; Python srmech.amsc.cascade.sedenion_register). The navigation +
+ * reversibility-gate ops a C-only host needs to run "Siona's address
+ * layer." The carry/correct EC half is the §30 srmech_hamming_* family.
+ * Rosetta peer of SedenionRegister.{navmap,navigate,is_navigable},
+ * attested by tests/test_cascade_sedenion_parity.py.
+ *
+ * NO BIGNUM: is_navigable decides invertibility of the signed
+ * XOR-circulant L(x)[r][c] = sign(r^c,c) * x_{r^c} by MODULAR rank over
+ * word-size primes (every product < 2^62, no multi-precision limb), made
+ * certain for the singular verdict by exceeding the Hadamard determinant
+ * bound. See srmech_sedenion.c.
+ *
+ * ABI-additive: new symbols + a macro, so SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* The sedenion address space is 16 named slots e0..e15. */
+#define SRMECH_SEDENION_NUM_SLOTS 16
+
+/* The signed pointer-advance permutation for right-multiply-by-e_j: for each
+ * slot i in [0,16), out_dest[i] = k and out_sign[i] = s where e_i * e_j =
+ * s * e_k. out_dest / out_sign are caller arrays of length 16. j in [0,16).
+ * Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (j out of range). */
+srmech_status_t srmech_sedenion_navmap(int j, int *out_dest, int *out_sign);
+
+/* Route `count` occupied (slot, sign) records through the ×e_j permutation,
+ * composing the Class-C signs: out_slots[m] = k, out_signs[m] = in_signs[m]*s
+ * where e_{in_slots[m]} * e_j = s * e_k. in_signs entries must be +1/-1 and
+ * in_slots in [0,16). count == 0 is a no-op. Errors: SRMECH_ERR_NULL_ARG;
+ * SRMECH_ERR_BAD_INPUT (j / slot out of range, or sign not +-1). */
+srmech_status_t srmech_sedenion_navigate(int j, const int *in_slots,
+                                         const int *in_signs, size_t count,
+                                         int *out_slots, int *out_signs);
+
+/* Reversibility gate: is left-multiplication by `direction` (an integer
+ * vector of power-of-two length n in [1, SRMECH_CD_MAX_DIM]) a bijection?
+ * Sets *out_invertible to 1 (invertible / navigable) or 0 (a left zero
+ * divisor). Exact (modular rank; bit-identical bool to the Python
+ * Fraction-nullspace oracle). Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT
+ * (n not a power of two in range, magnitude overflow, or coefficients beyond
+ * the certainty prime table). */
+srmech_status_t srmech_sedenion_is_navigable(const int64_t *direction,
+                                             size_t n, int *out_invertible);
 
 /* ------------------------------------------------------------------
  * JSON value-tree — parser + canonical writer (§41 genome-persistence
@@ -2508,6 +2743,146 @@ srmech_status_t srmech_toml_parse(const char *src, size_t len,
  * absent. The returned pointer aliases into the same arena as `table`. */
 const srmech_toml_value_t *srmech_toml_table_get(
     const srmech_toml_value_t *table, const char *key);
+
+/* ------------------------------------------------------------------ *
+ * srmech_bigint — caller-arena arbitrary-precision integer
+ *
+ * The unbounded-integer foundation that removes the "overflow → fall
+ * back to CPython int" gap so the C library is standalone-complete
+ * (no GMP, no external bignum, no malloc — JPL Rule 3). A value is
+ * carried base-2^32, little-endian, sign-magnitude, over CALLER-OWNED
+ * limb storage:
+ *
+ *   sign  ∈ {-1, 0, +1}   (0 iff the value is zero)
+ *   n                       significant limb count, NO leading-zero limbs
+ *   cap                     capacity of limbs[] the caller provided
+ *   limbs[0]                least-significant 32-bit limb
+ *
+ * Every op writes into a caller-provided `out` whose limbs[]/cap the
+ * caller pre-sizes via the `_bound` helpers (limb counts). If out->cap
+ * is too small the op returns SRMECH_ERR_OVERFLOW and never writes past
+ * cap. Ops needing scratch take a `void *ws, size_t ws_len` caller arena
+ * (an 8-byte-aligned uint32 bump region); too-small → SRMECH_ERR_OVERFLOW.
+ *
+ * Division / shift use PYTHON FLOOR semantics: q = floor(a / b),
+ * r = a − q·b, so 0 <= r < |b| when b > 0 (matches Python divmod and >>).
+ * ------------------------------------------------------------------ */
+typedef struct srmech_bigint {
+    int32_t   sign;    /* -1, 0, or +1 (0 iff n == 0)            */
+    uint32_t  n;       /* significant limb count; no leading zero */
+    uint32_t  cap;     /* capacity of limbs[] the caller provided */
+    uint32_t *limbs;   /* caller-owned; limbs[0] = least sig.     */
+} srmech_bigint_t;
+
+/* Bound helpers — the minimum limb count the caller must allocate for
+ * each operation's `out`. Each clamps/guards size_t overflow. */
+size_t srmech_bigint_add_bound(size_t a_n, size_t b_n);     /* max(a,b)+1     */
+size_t srmech_bigint_mul_bound(size_t a_n, size_t b_n);     /* a_n + b_n      */
+size_t srmech_bigint_shl_bound(size_t a_n, uint32_t bits);  /* a + bits/32 +1 */
+size_t srmech_bigint_pow_bound(size_t base_n, uint32_t exp);/* base_n*exp + 1 */
+size_t srmech_bigint_from_dec_bound(size_t n_digits);       /* n_digits/9 + 2 */
+size_t srmech_bigint_to_dec_bound(size_t a_n);              /* a_n*10 + 2     */
+
+/* out = v (a signed 64-bit value). INT64_MIN handled (no negation trap). */
+srmech_status_t srmech_bigint_set_i64(srmech_bigint_t *out, int64_t v);
+
+/* out = a (deep limb copy). OVERFLOW if out->cap < a->n. */
+srmech_status_t srmech_bigint_copy(srmech_bigint_t *out, const srmech_bigint_t *a);
+
+/* Signed three-way compare: -1 if a < b, 0 if a == b, +1 if a > b. */
+int srmech_bigint_cmp(const srmech_bigint_t *a, const srmech_bigint_t *b);
+
+/* 1 iff a is zero, else 0. */
+int srmech_bigint_is_zero(const srmech_bigint_t *a);
+
+/* out = a + b (signed). OVERFLOW if out->cap < add_bound(a->n, b->n). */
+srmech_status_t srmech_bigint_add(srmech_bigint_t *out, const srmech_bigint_t *a,
+                                  const srmech_bigint_t *b);
+
+/* out = a - b (signed). OVERFLOW if out->cap < add_bound(a->n, b->n). */
+srmech_status_t srmech_bigint_sub(srmech_bigint_t *out, const srmech_bigint_t *a,
+                                  const srmech_bigint_t *b);
+
+/* out = a * b (schoolbook). OVERFLOW if out->cap < mul_bound(a->n, b->n). */
+srmech_status_t srmech_bigint_mul(srmech_bigint_t *out, const srmech_bigint_t *a,
+                                  const srmech_bigint_t *b);
+
+/* out = a << bits. OVERFLOW if out->cap < shl_bound(a->n, bits). */
+srmech_status_t srmech_bigint_shl_bits(srmech_bigint_t *out,
+                                       const srmech_bigint_t *a, uint32_t bits);
+
+/* out = a >> bits, FLOOR (toward -inf) to match Python >>; for a >= 0
+ * this is a plain truncating shift. For a < 0 the floor can carry one
+ * extra limb, so size out->cap >= a->n + 1 (OVERFLOW otherwise). */
+srmech_status_t srmech_bigint_shr_bits(srmech_bigint_t *out,
+                                       const srmech_bigint_t *a, uint32_t bits);
+
+/* q = floor(a / b), r = a - q*b (Python FLOOR semantics: 0 <= r < |b|
+ * when b > 0). b != 0 else SRMECH_ERR_BAD_INPUT. q or r may be NULL to
+ * skip that output. Uses Knuth Algorithm D in the caller arena `ws`. */
+srmech_status_t srmech_bigint_divmod(srmech_bigint_t *q, srmech_bigint_t *r,
+                                     const srmech_bigint_t *a,
+                                     const srmech_bigint_t *b,
+                                     void *ws, size_t ws_len);
+
+/* out = floor(sqrt(a)). a >= 0 else SRMECH_ERR_BAD_INPUT. Integer Newton
+ * iteration over the caller arena `ws`. OVERFLOW if out->cap too small. */
+srmech_status_t srmech_bigint_isqrt(srmech_bigint_t *out, const srmech_bigint_t *a,
+                                    void *ws, size_t ws_len);
+
+/* out = gcd(|a|, |b|) >= 0 (Euclid). Caller arena `ws`. */
+srmech_status_t srmech_bigint_gcd(srmech_bigint_t *out, const srmech_bigint_t *a,
+                                  const srmech_bigint_t *b,
+                                  void *ws, size_t ws_len);
+
+/* out = base^exp (exp >= 0; exp == 0 -> 1). Binary exponentiation over
+ * the caller arena `ws`. OVERFLOW if out->cap < pow_bound(base->n, exp). */
+srmech_status_t srmech_bigint_pow_u32(srmech_bigint_t *out,
+                                      const srmech_bigint_t *base, uint32_t exp,
+                                      void *ws, size_t ws_len);
+
+/* out = decimal s[0..len). Optional leading '-'; remaining chars 0-9.
+ * OVERFLOW if out->cap < from_dec_bound(len). */
+srmech_status_t srmech_bigint_from_dec(srmech_bigint_t *out, const char *s,
+                                       size_t len);
+
+/* Write a's decimal expansion (with leading '-' if negative) into buf as a
+ * NUL-terminated string; *out_len = strlen (excludes the NUL). Caller arena
+ * `ws`. OVERFLOW if buf cap or ws is too small (need to_dec_bound limbs). */
+srmech_status_t srmech_bigint_to_dec(const srmech_bigint_t *a, char *buf,
+                                     size_t cap, size_t *out_len,
+                                     void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_pi — ROTATION-LAST Chudnovsky π (built on srmech_bigint)
+ *
+ * The canonical srmech cascade shape: keep the body BIT-EXACT (integer
+ * add / sub / mul / floor-divmod on the exact bigint substrate) and do
+ * the SINGLE continuous/frame projection ONCE, terminally. The body is
+ * the Chudnovsky linear series accumulated as exact bigints; the lone
+ * terminal rotation is the final isqrt(10005·one²) + one division + a
+ * base-10 render. NO float, NO libm, NO per-term square root.
+ *
+ * Byte-identical to the pure-Python pi_chudnovsky_digits oracle (same
+ * fixed-point algorithm, same floor semantics). All limb buffers + the
+ * divmod/isqrt scratch are carved from the caller arena `ws`; size it
+ * via srmech_pi_chudnovsky_ws_bound(num_digits). Linear term accumulation
+ * (NO binary splitting) — JPL Rule 1 no-recursion clean.
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES the caller must hand srmech_pi_chudnovsky for the
+ * requested digit count (covers every bigint limb buffer + the deepest
+ * divmod/isqrt scratch). 8-byte-aligned uint32 bump arena. */
+size_t srmech_pi_chudnovsky_ws_bound(uint32_t num_digits);
+
+/* Write π to `num_digits` fractional digits as "3." + digits into `out`
+ * (NUL-terminated; *out_len = strlen, excludes the NUL). num_digits == 0
+ * → "3.". `out_cap` must be >= num_digits + 4. Carves all scratch from the
+ * caller arena `ws` (>= srmech_pi_chudnovsky_ws_bound); too-small out_cap
+ * or ws → SRMECH_ERR_OVERFLOW. */
+srmech_status_t srmech_pi_chudnovsky(uint32_t num_digits, char *out,
+                                     size_t out_cap, size_t *out_len,
+                                     void *ws, size_t ws_len);
 
 #ifdef __cplusplus
 }

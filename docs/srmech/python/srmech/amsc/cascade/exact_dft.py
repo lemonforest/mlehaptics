@@ -279,16 +279,16 @@ def _lift_spectrum(spectrum: ExactSpectrum, n: int, *, scale: int = 1) -> List[c
     Class-N substrate-native ``cexp`` (same twiddle the float ``dft`` uses), so
     the lift is consistent with the legacy path. Imported lazily so the exact
     core above carries no float dependency (numpy-absent-safe; ``cexp`` /
-    ``pi_cascade_digits`` are pure-Python Class-N, no numpy).
+    ``atan`` are pure-Python Class-N — and ``atan`` is C-dispatched — no numpy).
     """
-    from srmech.amsc.rational import cexp, pi_cascade_digits
+    from srmech.amsc.rational import cexp, atan as _atan
 
     if not spectrum:
         return []
     # Basis degree d: N/2 for the power-of-two negacyclic ring, φ(N) in general.
     # Inferred from the coefficient-vector length so the lift handles both.
     deg = len(spectrum[0][0])
-    two_pi = 2.0 * float(pi_cascade_digits(40))
+    two_pi = 8.0 * float(_atan(1.0))               # 8·atan(1) = 2π (c_dispatched)
     roots = [cexp(-two_pi * j / n) for j in range(deg)]  # e^{-2πi·j/N}
     out: List[complex] = []
     for (xr, xi) in spectrum:

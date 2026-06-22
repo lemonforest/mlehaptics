@@ -29,6 +29,33 @@ pip install srmech[collectors]      # adds requests + beautifulsoup4 for fetched
 
 The package is **numpy-free** (the v0.7.5 carrier-removal arc, graduated in v0.8.0): there is no numpy dependency and no `[scientific]` extra. The whole surface — the 14-class cascade core *and* the `srmech.qm.*` / `srmech.signal_processing` / `srmech.spectral` tiers — runs on stdlib alone over the numpy-free `Mat` / `Vec` / `HV` carriers, which feed the native dense kernels zero-copy from `array('d')` interleaved-complex buffers. A fresh numpy-absent venv imports and runs the entire package.
 
+### Carriers — the numpy-free array + scalar family
+
+Every value srmech moves rides one of **six framework-owned carriers** instead of an `ndarray` / `float` / `complex`. A carrier keeps the value inside the srmech cascade (introspection, attestation, native dispatch) and refuses the idiom — `m @ v` routes the Class-L cascade, not BLAS; `float(q)` is an explicit boundary collapse, not a silent one — so an LLM consumer cannot quietly reach back for numpy.
+
+| Carrier | Module | Shape / role | Replaces (numpy idiom) |
+|---|---|---|---|
+| `Mat` | `srmech/amsc/mat.py` | 2-D `array('d')`, row-major, interleaved-`(re,im)` for complex | `np.ndarray` (2-D); `A @ B`, `A[i]`, `A[:, j]`, `A.conj().T` |
+| `Vec` | `srmech/amsc/vec.py` | 1-D `array('d')`, `.shape = (n,)` | `np.ndarray` (1-D); `v @ w`, `v[k]`, `v[:2]`, `v.conj` |
+| `HV` | `srmech/amsc/hv.py` | hypervector (Class-M HDC bind/bundle/permute/similarity) | `np.ndarray` used as a `{-1,0,+1}` spatter code |
+| `Q` | `srmech/amsc/q.py` | **exact-rational scalar** — a reduced `(num, den)` integer pair (**v0.9.0rc7 headline**) | a real `float` returned by `sin`/`cos`/`exp`/`sqrt`/`atan2`/… |
+| `Complex128` | `srmech/amsc/complex128.py` | float-complex scalar — two `float64` `(re, im)`, 1:1 with C99 `double _Complex` | the builtin `complex` (an `e^{iθ}`, an eigenvalue, a `the_one` component) |
+| `Qi` | `srmech/amsc/qi.py` | **exact-complex scalar** — a Gaussian rational `(re: Q, im: Q)`, the exact `numbers.Complex` over ℚ; its sign sector is a **Klein-4 quadrant** (**v0.9.0rc14**) | the builtin `complex` where the value is exactly rational |
+
+`Mat` / `Vec` / `HV` feed the native dense kernels **zero-copy**; `Q` / `Complex128` / `Qi` are the scalar peers — `Q` exact-real, `Complex128` the float-complex display type for irrational values, `Qi` the **exact**-complex (`Qi = klein4 quadrant ⊗ |Qi|`, conjugation XOR-ing the imaginary bit).
+
+#### The lens — ALU all the way, FPU last-mile
+
+A cascade is integer arithmetic on the **ALU** (add / multiply / GCD / cross-multiply over big integers) right up to the edge, where a single `float()` "rotates" the held rational onto the **FPU** decimal axis. `Q` is what keeps the ALU stretch exact: `srmech.amsc.rational.{sin,cos,tan,atan,atan2,exp,log,sqrt,hypot}` return a `Q` (an exact `(num, den)`) instead of a bare `float`, so the value stays in the integer ALU and `float(q)` / `complex(z)` is the *one* last rotation, taken only at the display / carrier edge.
+
+This split is load-bearing because the two halves have different reproducibility guarantees. **Integer-ALU is bit-reproducible and attestable** — the same `(num, den)` on every platform, content-addressable via `sha256_bytes`, no last-bit drift. **The FPU is where cross-platform last-bit divergence lives** (libm rounding, `-ffast-math`, x87-vs-SSE), so the framework spends as little of the cascade there as possible. The native Q61 C peers (`srmech_{sin,cos,atan,exp,log,sqrt}_q61`) carry the same exact integer-ALU result across the C boundary, byte-exact-verified against the Python `Q`. When the native library is loaded, `srmech.amsc.rational.{sin,cos,tan,atan,atan2,exp,log,sqrt}` **dispatch to those peers automatically** (the pure-Python Q61 cascade is the byte-identical fallback when it is not — a spy test asserts the live dispatch on every native CI cell). A **C-only host** reassembles the same exact rational from the peers plus the exported `SRMECH_Q61_ONE` / `SRMECH_Q61_LN2` / `SRMECH_Q61_HALF_PI` model constants — no Python required.
+
+The collapse is a *genuine boundary*, not a no-op shim. Leaf physical-observable scalar ops (`srmech.qm.*`, `amsc/kepler.py`) and the iterative FPU kernels (`amsc/laplacian.py` Jacobi / QR / SVD / Fiedler, `signal_processing` taper/window helpers, the Kuramoto step) collapse to `float` at their edge **because they ARE the FPU** — an iterative numeric kernel that kept exact rationals would grow `num` / `den` unboundedly per sweep. Exact cascades keep `Q`; numeric kernels rotate at the boundary.
+
+#### Why `Q` — the stay-rational discipline (F868)
+
+A quantity that is *exactly* rational must stay two integers the whole way and collapse to a decimal **only at the display boundary** — a `float` is just `best_rational` with `max_d ≈ 2⁵²` and the provenance thrown away, a strictly worse version of the rational already held. Holding `Q` removes the **float-arithmetic rounding** from the cascade (not the series-truncation error): a perfect-square root is exact (`sqrt(4) == Q(2,1)`, `hypot(3,4) == Q(5,1)`, `sqrt(0.25) == Q(1,2)`), the special values are exact (`sin(0)=0`, `cos(0)=1`, `exp(0)=1`, `log(1)=0`), a match-fraction `matches / D` stays an exact ratio that ranks correctly under `max()` / `sorted()` (a `Q` compares by integer cross-multiply, `a·d` vs `c·b`, never by collapsing first), and every numeric leaf that ships in an attested record is bit-reproducible rather than a platform-dependent decimal. A transcendental *value* is itself an exact rational Taylor truncation of an irrational, so an identity like `cos²θ + sin²θ` holds to that truncation precision (its `float()` rounds to `1.0`), not symbolically — `Q` keeps the arithmetic exact, it does not turn an irrational into a rational.
+
 ## Quick start
 
 Decompose a real signal onto a graph-Laplacian eigenbasis, take an HDC delta against a reference, and recompose:

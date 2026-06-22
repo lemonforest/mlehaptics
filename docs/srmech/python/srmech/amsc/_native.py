@@ -562,6 +562,83 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_cd_basis_product.restype = ctypes.c_int
 
+    # Qi exact-complex (Gaussian-rational) carrier C-host peer (0.9.0rc15) —
+    # carrier-internal (NOT a Rosetta op), four int64 limbs {re_num, re_den,
+    # im_num, im_den}. hasattr-guarded so a stale lib (pre-rc15) keeps the rest.
+    #   int srmech_qi_{add,sub,mul}(const int64_t a[4], const int64_t b[4],
+    #                               int64_t out[4])
+    for _qi_op in ("srmech_qi_add", "srmech_qi_sub", "srmech_qi_mul"):
+        if hasattr(lib, _qi_op):
+            getattr(lib, _qi_op).argtypes = [
+                ctypes.POINTER(ctypes.c_int64),     # a[4]
+                ctypes.POINTER(ctypes.c_int64),     # b[4]
+                ctypes.POINTER(ctypes.c_int64),     # out[4]
+            ]
+            getattr(lib, _qi_op).restype = ctypes.c_int
+    #   int srmech_qi_conjugate(const int64_t a[4], int64_t out[4])
+    if hasattr(lib, "srmech_qi_conjugate"):
+        lib.srmech_qi_conjugate.argtypes = [
+            ctypes.POINTER(ctypes.c_int64), ctypes.POINTER(ctypes.c_int64)]
+        lib.srmech_qi_conjugate.restype = ctypes.c_int
+    #   int srmech_qi_quadrant(const int64_t a[4], int *out_quadrant)
+    if hasattr(lib, "srmech_qi_quadrant"):
+        lib.srmech_qi_quadrant.argtypes = [
+            ctypes.POINTER(ctypes.c_int64), ctypes.POINTER(ctypes.c_int)]
+        lib.srmech_qi_quadrant.restype = ctypes.c_int
+    #   int srmech_qi_norm_sq(const int64_t a[4], int64_t out[2])
+    if hasattr(lib, "srmech_qi_norm_sq"):
+        lib.srmech_qi_norm_sq.argtypes = [
+            ctypes.POINTER(ctypes.c_int64), ctypes.POINTER(ctypes.c_int64)]
+        lib.srmech_qi_norm_sq.restype = ctypes.c_int
+
+    # Exact-Q61 (σ,θ,μ) octonion coupler C-host peer (0.9.0rc16) — the
+    # hypercomplex_couple rewrite that closes the rc12 sed_couple/uncouple
+    # transitive-ratchet allowlist. hasattr-guarded (pre-rc16 lib keeps the rest).
+    #   int srmech_hypercomplex_couple_q61(double eff, const int64_t streams[8],
+    #       const int64_t mu[8], int form_is_left, int64_t out[8])
+    if hasattr(lib, "srmech_hypercomplex_couple_q61"):
+        lib.srmech_hypercomplex_couple_q61.argtypes = [
+            ctypes.c_double,                    # eff = sigma*(-1 if inv)*theta
+            ctypes.POINTER(ctypes.c_int64),     # streams[8] (Q61)
+            ctypes.POINTER(ctypes.c_int64),     # mu[8] (Q61, unit pure-imag)
+            ctypes.c_int,                       # form_is_left (1=left, 0=right)
+            ctypes.POINTER(ctypes.c_int64),     # out[8] (Q61)
+        ]
+        lib.srmech_hypercomplex_couple_q61.restype = ctypes.c_int
+
+    # Sedenion address layer (v0.9.0rc12; UPSTREAM §31 / F465+F468) — the
+    # navigation + reversibility gate a C-only host needs for "Siona's address
+    # layer." hasattr-guarded so a stale lib (pre-rc12) keeps the rest.
+    #   int srmech_sedenion_navmap(int j, int *out_dest, int *out_sign)
+    if hasattr(lib, "srmech_sedenion_navmap"):
+        lib.srmech_sedenion_navmap.argtypes = [
+            ctypes.c_int,                       # j (basis direction)
+            ctypes.POINTER(ctypes.c_int),       # out_dest[16]
+            ctypes.POINTER(ctypes.c_int),       # out_sign[16]
+        ]
+        lib.srmech_sedenion_navmap.restype = ctypes.c_int
+    #   int srmech_sedenion_navigate(int j, const int *in_slots,
+    #       const int *in_signs, size_t count, int *out_slots, int *out_signs)
+    if hasattr(lib, "srmech_sedenion_navigate"):
+        lib.srmech_sedenion_navigate.argtypes = [
+            ctypes.c_int,                       # j
+            ctypes.POINTER(ctypes.c_int),       # in_slots
+            ctypes.POINTER(ctypes.c_int),       # in_signs (+1/-1)
+            ctypes.c_size_t,                    # count
+            ctypes.POINTER(ctypes.c_int),       # out_slots
+            ctypes.POINTER(ctypes.c_int),       # out_signs
+        ]
+        lib.srmech_sedenion_navigate.restype = ctypes.c_int
+    #   int srmech_sedenion_is_navigable(const int64_t *direction, size_t n,
+    #                                    int *out_invertible)  (modular rank)
+    if hasattr(lib, "srmech_sedenion_is_navigable"):
+        lib.srmech_sedenion_is_navigable.argtypes = [
+            ctypes.POINTER(ctypes.c_int64),     # direction (integer vector)
+            ctypes.c_size_t,                    # n (power of two <= 64)
+            ctypes.POINTER(ctypes.c_int),       # out_invertible (0/1)
+        ]
+        lib.srmech_sedenion_is_navigable.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Class J — prime-factorisation / period (Task #217 Phase C1 rc3).
     # ------------------------------------------------------------------
@@ -848,6 +925,20 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_hdc_similarity.restype = ctypes.c_int
 
+    # int srmech_hdc_hamming(const uint8_t *a, const uint8_t *b,
+    #                        uint32_t n_bytes, uint32_t *out)
+    # NEW in v0.9.0rc2 (F868 stay-rational) — guard with its own hasattr so a
+    # pre-rc2 lib doesn't AttributeError; the integer bit-Hamming distance backs
+    # the exact Q-returning hdc.similarity / the public hdc.hamming op.
+    if hasattr(lib, "srmech_hdc_hamming"):
+        lib.srmech_hdc_hamming.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_uint32),
+        ]
+        lib.srmech_hdc_hamming.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Class M — polar {-1, 0, +1} variant (v0.4.3rc1). NEW symbols; guard
     # with hasattr so a stale lib built before these landed doesn't
@@ -912,6 +1003,48 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_klein4_bind.restype = ctypes.c_int
 
+        # §59 / F861: int srmech_klein4_phase_key(uint32_t D, uint32_t start,
+        #                          uint32_t width, uint8_t elem, uint8_t *out)
+        if hasattr(lib, "srmech_klein4_phase_key"):
+            lib.srmech_klein4_phase_key.argtypes = [
+                ctypes.c_uint32,
+                ctypes.c_uint32,
+                ctypes.c_uint32,
+                ctypes.c_uint8,
+                ctypes.POINTER(ctypes.c_uint8),
+            ]
+            lib.srmech_klein4_phase_key.restype = ctypes.c_int
+
+        # §58 / F837: int srmech_klein4_chunk_resolve(const uint8_t *chunks,
+        #     uint32_t n_chunks, const uint8_t *key, uint32_t D,
+        #     const uint8_t *candidates, uint32_t n_candidates,
+        #     uint32_t *out_counts)
+        if hasattr(lib, "srmech_klein4_chunk_resolve"):
+            lib.srmech_klein4_chunk_resolve.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8),
+                ctypes.c_uint32,
+                ctypes.POINTER(ctypes.c_uint8),
+                ctypes.c_uint32,
+                ctypes.POINTER(ctypes.c_uint8),
+                ctypes.c_uint32,
+                ctypes.POINTER(ctypes.c_uint32),
+            ]
+            lib.srmech_klein4_chunk_resolve.restype = ctypes.c_int
+
+        # §60 / F864: int srmech_klein4_random(const uint32_t *key,
+        #     size_t key_length, uint32_t D, uint8_t *out) — MT19937 seeded by
+        # init_by_array(key); each draw byte-identical to random.Random(seed)
+        # .randrange(4). NEW in rc6 — guard with its own hasattr so a pre-rc6
+        # klein4-capable lib doesn't AttributeError here.
+        if hasattr(lib, "srmech_klein4_random"):
+            lib.srmech_klein4_random.argtypes = [
+                ctypes.POINTER(ctypes.c_uint32),
+                ctypes.c_size_t,
+                ctypes.c_uint32,
+                ctypes.POINTER(ctypes.c_uint8),
+            ]
+            lib.srmech_klein4_random.restype = ctypes.c_int
+
         # int srmech_klein4_bundle(const uint8_t * const *vectors,
         #                          uint32_t n_vectors, uint32_t n,
         #                          uint8_t *out)
@@ -923,6 +1056,19 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_klein4_bundle.restype = ctypes.c_int
 
+        # rc18 / F900: int srmech_klein4_compose(const uint8_t *parts,
+        #   uint32_t n, uint32_t D, uint32_t *acc, uint8_t *scratch, uint8_t *out)
+        if hasattr(lib, "srmech_klein4_compose"):
+            lib.srmech_klein4_compose.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8),   # parts (n*D)
+                ctypes.c_uint32,                  # n
+                ctypes.c_uint32,                  # D
+                ctypes.POINTER(ctypes.c_uint32),  # acc (1 + 2*D)
+                ctypes.POINTER(ctypes.c_uint8),   # scratch (2*D)
+                ctypes.POINTER(ctypes.c_uint8),   # out (D)
+            ]
+            lib.srmech_klein4_compose.restype = ctypes.c_int
+
         # int srmech_klein4_similarity(const uint8_t *a, const uint8_t *b,
         #                              uint32_t n, double *out)
         lib.srmech_klein4_similarity.argtypes = [
@@ -932,6 +1078,21 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_double),
         ]
         lib.srmech_klein4_similarity.restype = ctypes.c_int
+
+        # int srmech_klein4_match_count(const uint8_t *a, const uint8_t *b,
+        #                               uint32_t n, uint32_t *out)
+        # NEW in v0.9.0rc1 (F868 stay-rational) — guard with its own hasattr so
+        # a pre-rc1 klein4-capable lib doesn't AttributeError here; the integer
+        # match count backs the exact Q-returning klein4_similarity / the public
+        # klein4_match_count op.
+        if hasattr(lib, "srmech_klein4_match_count"):
+            lib.srmech_klein4_match_count.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8),
+                ctypes.POINTER(ctypes.c_uint8),
+                ctypes.c_uint32,
+                ctypes.POINTER(ctypes.c_uint32),
+            ]
+            lib.srmech_klein4_match_count.restype = ctypes.c_int
 
         # int srmech_klein4_triality_cycle(const uint8_t *in, uint32_t n,
         #                                  int inverse, uint8_t *out)
@@ -1333,10 +1494,36 @@ def _bind(lib: ctypes.CDLL) -> None:
             getattr(lib, _scalar_trans).argtypes = [
                 ctypes.c_double, ctypes.POINTER(ctypes.c_double)]
             getattr(lib, _scalar_trans).restype = ctypes.c_int
+    # 0.9.0rc7 stay-rational Q61 peers (F868). One-output (sin/cos/atan) return
+    # the int64 Q61 value; two-output (exp/log/sqrt) return (mantissa, exponent).
+    for _q1 in ("srmech_sin_q61", "srmech_cos_q61", "srmech_atan_q61"):
+        if hasattr(lib, _q1):
+            getattr(lib, _q1).argtypes = [
+                ctypes.c_double, ctypes.POINTER(ctypes.c_int64)]
+            getattr(lib, _q1).restype = ctypes.c_int
+    for _q2 in ("srmech_exp_q61", "srmech_log_q61", "srmech_sqrt_q61"):
+        if hasattr(lib, _q2):
+            getattr(lib, _q2).argtypes = [
+                ctypes.c_double, ctypes.POINTER(ctypes.c_int64),
+                ctypes.POINTER(ctypes.c_int64)]
+            getattr(lib, _q2).restype = ctypes.c_int
     if hasattr(lib, "srmech_atan2"):
         lib.srmech_atan2.argtypes = [
             ctypes.c_double, ctypes.c_double, ctypes.POINTER(ctypes.c_double)]
         lib.srmech_atan2.restype = ctypes.c_int
+    # 0.9.0rc10 hypercomplex exp(mu*theta) twiddle (F882): fills out8 (8 int64
+    # Q61 components). ``int srmech_hypercomplex_exp_q61(double theta, int k_axes,
+    # int64_t *out8)``. hasattr guard — a pre-rc10 lib still loads.
+    if hasattr(lib, "srmech_hypercomplex_exp_q61"):
+        lib.srmech_hypercomplex_exp_q61.argtypes = [
+            ctypes.c_double, ctypes.c_int, ctypes.POINTER(ctypes.c_int64)]
+        lib.srmech_hypercomplex_exp_q61.restype = ctypes.c_int
+    # 0.9.0rc13 public integer floor-sqrt (the stdlib `math.isqrt` purge):
+    # ``int srmech_isqrt(uint64_t nhi, uint64_t nlo, uint64_t *out_root)``.
+    if hasattr(lib, "srmech_isqrt"):
+        lib.srmech_isqrt.argtypes = [
+            ctypes.c_uint64, ctypes.c_uint64, ctypes.POINTER(ctypes.c_uint64)]
+        lib.srmech_isqrt.restype = ctypes.c_int
 
     # ------------------------------------------------------------------
     # v0.7.5rc153 (UPSTREAM §49): bind the 11 genome file-management C
@@ -1401,6 +1588,31 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_json_write_arena_bytes.restype = ctypes.c_size_t
             lib.srmech_json_write_ws.argtypes = [_VP, _CP, _SZ, _PSZ, _VP, _SZ]
             lib.srmech_json_write_ws.restype = ctypes.c_int
+
+    # ------------------------------------------------------------------
+    # Class N — ROTATION-LAST Chudnovsky π on srmech_bigint (0.9.0rc19).
+    # The two srmech_pi_* symbols are the C-host peer of
+    # srmech.amsc.rational.pi_chudnovsky_digits — exact bigint body, ONE
+    # terminal isqrt+division, byte-identical "3.<digits>". The underlying
+    # srmech_bigint is carrier-internal (NO Python surface — not bound
+    # here). NEW symbols → hasattr-guarded (a stale ABI-3 lib keeps the
+    # rest of the native surface); additive → EXPECTED_ABI_VERSION stays 3.
+    #   size_t srmech_pi_chudnovsky_ws_bound(uint32_t num_digits)
+    if hasattr(lib, "srmech_pi_chudnovsky_ws_bound"):
+        lib.srmech_pi_chudnovsky_ws_bound.argtypes = [ctypes.c_uint32]
+        lib.srmech_pi_chudnovsky_ws_bound.restype = ctypes.c_size_t
+    #   srmech_status_t srmech_pi_chudnovsky(uint32_t num_digits, char *out,
+    #       size_t out_cap, size_t *out_len, void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_pi_chudnovsky"):
+        lib.srmech_pi_chudnovsky.argtypes = [
+            ctypes.c_uint32,                    # num_digits
+            ctypes.POINTER(ctypes.c_char),      # out
+            ctypes.c_size_t,                    # out_cap
+            ctypes.POINTER(ctypes.c_size_t),    # out_len
+            ctypes.c_void_p,                    # ws (caller arena)
+            ctypes.c_size_t,                    # ws_len (arena bytes)
+        ]
+        lib.srmech_pi_chudnovsky.restype = ctypes.c_int
 
 
 _LIB_PATH: Optional[Path] = _find_library()
@@ -1486,6 +1698,47 @@ def has_native_sqrt() -> bool:
     """True iff the C integer-isqrt sqrt cascade is loaded + bound (rc45+ lib)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_rational_sqrt"))
+
+
+def has_native_pi_chudnovsky() -> bool:
+    """True iff the rotation-last Chudnovsky π C symbols are loaded + bound
+    (0.9.0rc19+ lib): :func:`srmech.amsc.rational.pi_chudnovsky_digits`
+    dispatches to the exact-bigint native path. False on a no-C or pre-rc19
+    lib — the pure-Python int-bignum body is the complete alternative (and the
+    parity oracle); the two paths emit byte-identical ``"3.<digits>"``."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_pi_chudnovsky")
+                and hasattr(LIB, "srmech_pi_chudnovsky_ws_bound"))
+
+
+def pi_chudnovsky_c(num_digits: int) -> "str | None":
+    """Native rotation-last Chudnovsky π → ``"3.<num_digits digits>"`` or None.
+
+    Returns ``None`` when the native symbols are absent (no-C / pre-rc19 lib)
+    so the caller falls through to the pure-Python bignum body. Sizes the
+    caller arena via ``srmech_pi_chudnovsky_ws_bound``, then calls the exact
+    C path; a non-OK status raises :class:`RuntimeError`. Byte-identical to the
+    pure-Python oracle (proven C==Python==Archimedes at 1000 + 10000 digits)."""
+    if not has_native_pi_chudnovsky():
+        return None
+    ws_len = int(LIB.srmech_pi_chudnovsky_ws_bound(ctypes.c_uint32(num_digits)))
+    ws = (ctypes.c_uint8 * max(ws_len, 1))()
+    out_cap = num_digits + 8                      # "3." + digits + NUL + slack
+    out = (ctypes.c_char * out_cap)()
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_pi_chudnovsky(
+        ctypes.c_uint32(num_digits),
+        out,
+        ctypes.c_size_t(out_cap),
+        ctypes.byref(out_len),
+        ctypes.cast(ws, ctypes.c_void_p),
+        ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_pi_chudnovsky returned non-OK status {rc}"
+        )
+    return bytes(out)[:out_len.value].decode("ascii")
 
 
 def has_native_klein4_fold() -> bool:
@@ -1660,6 +1913,238 @@ def log_c(x: float) -> float:
 
 def rational_sqrt_c(x: float) -> float:
     return _scalar_trans_c("srmech_rational_sqrt", x)
+
+
+# ----------------------------------------------------------------------
+# 0.9.0rc7 stay-rational Q61 dispatch (F868). These return the EXACT int64 Q61
+# pieces the C cascade computes BEFORE its float projection, so the Python
+# ``rational.{sin,cos,atan,exp,log,sqrt}`` dispatch to native AND keep the full
+# 61-bit rational (``Q``), not a 52-bit double promoted back. A non-finite /
+# out-of-Q61-range argument -> SRMECH_ERR_BAD_INPUT -> ValueError (the pure-Python
+# peer raises identically). Byte-exact with the pure cascade (10047/10047 checks).
+# ----------------------------------------------------------------------
+def has_native_trans_q61() -> bool:
+    """True iff the C Q61 transcendental peers are loaded + bound (0.9.0rc7+)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_sin_q61")
+                and hasattr(LIB, "srmech_exp_q61")
+                and hasattr(LIB, "srmech_sqrt_q61"))
+
+
+def _q61_one_out(symbol: str, x: float) -> int:
+    out = ctypes.c_int64()
+    rc = getattr(LIB, symbol)(ctypes.c_double(x), ctypes.byref(out))
+    if rc != SRMECH_OK:
+        raise ValueError(f"{symbol}: argument has no Q61 rational (status {rc})")
+    return out.value
+
+
+def _q61_two_out(symbol: str, x: float):
+    a = ctypes.c_int64()
+    b = ctypes.c_int64()
+    rc = getattr(LIB, symbol)(
+        ctypes.c_double(x), ctypes.byref(a), ctypes.byref(b))
+    if rc != SRMECH_OK:
+        raise ValueError(f"{symbol}: argument has no Q61 rational (status {rc})")
+    return a.value, b.value
+
+
+def sin_q61_c(x: float) -> int:
+    """``sin(x)`` numerator over ``2**61`` (int64)."""
+    return _q61_one_out("srmech_sin_q61", x)
+
+
+def cos_q61_c(x: float) -> int:
+    """``cos(x)`` numerator over ``2**61`` (int64)."""
+    return _q61_one_out("srmech_cos_q61", x)
+
+
+def atan_q61_c(x: float) -> int:
+    """``atan(x)`` numerator over ``2**61`` (int64)."""
+    return _q61_one_out("srmech_atan_q61", x)
+
+
+def exp_q61_c(x: float):
+    """``exp(x) = (core / 2**61) * 2**n`` -> ``(core, n)`` (both int64)."""
+    return _q61_two_out("srmech_exp_q61", x)
+
+
+def log_q61_c(x: float):
+    """``log(x) = (logm + e*ln2) / 2**61`` -> ``(logm, e)`` (both int64)."""
+    return _q61_two_out("srmech_log_q61", x)
+
+
+def sqrt_q61_c(x: float):
+    """``sqrt(x) = root * 2**p`` -> ``(root, p)`` (both int64)."""
+    return _q61_two_out("srmech_sqrt_q61", x)
+
+
+def has_native_isqrt() -> bool:
+    """True iff the C 128-bit integer floor-sqrt is loaded + bound (0.9.0rc13+)."""
+    return bool(HAS_NATIVE and LIB is not None and hasattr(LIB, "srmech_isqrt"))
+
+
+def isqrt128_c(n: int) -> int:
+    """``floor(sqrt(n))`` for ``0 <= n < 2**128`` via the native two-limb isqrt.
+
+    Splits ``n`` into 64-bit hi/lo limbs and dispatches ``srmech_isqrt``; the
+    Python ``rational._integer_sqrt`` uses this for the bounded radicand and an
+    arbitrary-precision integer-Newton fallback beyond 128 bits. Raises if ``n``
+    is out of the 128-bit domain (the caller gates on that)."""
+    if n < 0 or n >= (1 << 128):
+        raise ValueError("isqrt128_c: n must be in [0, 2**128)")
+    out = ctypes.c_uint64()
+    rc = LIB.srmech_isqrt(
+        ctypes.c_uint64(n >> 64), ctypes.c_uint64(n & ((1 << 64) - 1)),
+        ctypes.byref(out))
+    if rc != SRMECH_OK:
+        raise ValueError(f"srmech_isqrt: status {rc}")
+    return out.value
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Qi — the exact-complex (Gaussian-rational) carrier C-host peer (0.9.0rc15).
+# Carrier-internal (NOT a Rosetta op). Four int64 limbs {re_num, re_den,
+# im_num, im_den}; the wrappers return None when native is absent / a limb is
+# out of the int64 domain / an intermediate overflowed (the Python `Qi`
+# exact-Fraction path is the unbounded oracle) — mirroring the
+# `rational._try_c_two_rationals` precedent.
+# ──────────────────────────────────────────────────────────────────────
+_QI_I64_MAX: int = (1 << 63) - 1
+_QI_I64_MIN: int = -(1 << 63)
+
+
+def has_native_qi() -> bool:
+    """True iff the C Qi exact-complex carrier peer is loaded + bound (0.9.0rc15+)."""
+    return bool(HAS_NATIVE and LIB is not None and hasattr(LIB, "srmech_qi_mul"))
+
+
+def _qi_limbs_fit(v) -> bool:
+    """True iff the 4 limbs (re_num, re_den, im_num, im_den) fit signed int64
+    with positive denominators — the native int64-limb domain."""
+    return (_QI_I64_MIN <= v[0] <= _QI_I64_MAX and 0 < v[1] <= _QI_I64_MAX
+            and _QI_I64_MIN <= v[2] <= _QI_I64_MAX and 0 < v[3] <= _QI_I64_MAX)
+
+
+def _qi_binop_c(symbol: str, a, b):
+    """Native (a `symbol` b) for two 4-limb Qi vectors → a 4-tuple, or None if
+    native is absent / a limb is out of domain / an intermediate overflowed
+    int64 (caller falls through to the exact-Fraction path)."""
+    if not has_native_qi() or not _qi_limbs_fit(a) or not _qi_limbs_fit(b):
+        return None
+    a_arr = (ctypes.c_int64 * 4)(*a)
+    b_arr = (ctypes.c_int64 * 4)(*b)
+    out = (ctypes.c_int64 * 4)()
+    rc = getattr(LIB, symbol)(a_arr, b_arr, out)
+    if rc == SRMECH_OK:
+        return (out[0], out[1], out[2], out[3])
+    if rc in (SRMECH_ERR_OVERFLOW, SRMECH_ERR_BAD_INPUT):
+        return None
+    raise RuntimeError(f"{symbol} returned non-OK status {rc}")
+
+
+def qi_add_c(a, b):
+    """Native Qi add (a + b) as a 4-limb tuple, or None (out of int64 domain)."""
+    return _qi_binop_c("srmech_qi_add", a, b)
+
+
+def qi_sub_c(a, b):
+    """Native Qi sub (a − b) as a 4-limb tuple, or None (out of int64 domain)."""
+    return _qi_binop_c("srmech_qi_sub", a, b)
+
+
+def qi_mul_c(a, b):
+    """Native Qi mul (a · b) as a 4-limb tuple, or None (out of int64 domain)."""
+    return _qi_binop_c("srmech_qi_mul", a, b)
+
+
+def qi_conjugate_c(a):
+    """Native Qi conjugate as a 4-limb tuple, or None (out of int64 domain)."""
+    if not has_native_qi() or not _qi_limbs_fit(a):
+        return None
+    a_arr = (ctypes.c_int64 * 4)(*a)
+    out = (ctypes.c_int64 * 4)()
+    rc = LIB.srmech_qi_conjugate(a_arr, out)
+    if rc == SRMECH_OK:
+        return (out[0], out[1], out[2], out[3])
+    if rc in (SRMECH_ERR_OVERFLOW, SRMECH_ERR_BAD_INPUT):
+        return None
+    raise RuntimeError(f"srmech_qi_conjugate returned non-OK status {rc}")
+
+
+def qi_quadrant_c(a):
+    """Native Qi Klein-4 quadrant (int 0..3), or None (out of int64 domain)."""
+    if not has_native_qi() or not _qi_limbs_fit(a):
+        return None
+    a_arr = (ctypes.c_int64 * 4)(*a)
+    out = ctypes.c_int(0)
+    rc = LIB.srmech_qi_quadrant(a_arr, ctypes.byref(out))
+    if rc == SRMECH_OK:
+        return out.value
+    if rc in (SRMECH_ERR_OVERFLOW, SRMECH_ERR_BAD_INPUT):
+        return None
+    raise RuntimeError(f"srmech_qi_quadrant returned non-OK status {rc}")
+
+
+def qi_norm_sq_c(a):
+    """Native Qi |a|² as a (num, den) tuple, or None (out of int64 domain)."""
+    if not has_native_qi() or not _qi_limbs_fit(a):
+        return None
+    a_arr = (ctypes.c_int64 * 4)(*a)
+    out = (ctypes.c_int64 * 2)()
+    rc = LIB.srmech_qi_norm_sq(a_arr, out)
+    if rc == SRMECH_OK:
+        return (out[0], out[1])
+    if rc in (SRMECH_ERR_OVERFLOW, SRMECH_ERR_BAD_INPUT):
+        return None
+    raise RuntimeError(f"srmech_qi_norm_sq returned non-OK status {rc}")
+
+
+def has_native_hypercomplex_couple() -> bool:
+    """True iff the C exact-Q61 (σ,θ,μ) octonion coupler peer is loaded (0.9.0rc16+)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_hypercomplex_couple_q61"))
+
+
+def hypercomplex_couple_q61_c(streams8, mu8, eff: float, form_is_left: bool):
+    """Native exact-Q61 octonion couple ``T ⊗ q`` → 8 Q61 ints, where ``T =
+    exp(eff·μ) = cos eff + sin eff·μ`` and ``⊗`` is left/right octonion multiply.
+    ``streams8`` / ``mu8`` are 8 Q61 ints; byte-exact with the pure path.
+
+    Returns ``None`` when a stream limb is outside the int64 Q61 domain
+    (``|stream| > 1`` → ``SRMECH_ERR_OVERFLOW``; no bignum in C): the caller's
+    pure-Python path (bignum-exact) is the complete alternative — the documented
+    native domain ceiling, like ``rational._try_c_two_rationals``."""
+    s = (ctypes.c_int64 * 8)(*streams8)
+    m = (ctypes.c_int64 * 8)(*mu8)
+    out = (ctypes.c_int64 * 8)()
+    rc = LIB.srmech_hypercomplex_couple_q61(
+        ctypes.c_double(eff), s, m, ctypes.c_int(1 if form_is_left else 0), out)
+    if rc == SRMECH_ERR_OVERFLOW:
+        return None
+    if rc != SRMECH_OK:
+        raise ValueError(f"srmech_hypercomplex_couple_q61: status {rc}")
+    return [out[i] for i in range(8)]
+
+
+def has_native_hypercomplex_exp() -> bool:
+    """True iff the C hypercomplex exp(μθ) twiddle peer is loaded (0.9.0rc10+)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_hypercomplex_exp_q61"))
+
+
+def hypercomplex_exp_q61_c(theta: float, k_axes: int):
+    """``exp(μθ) = cos θ + μ·sin θ`` (μ unit pure-imaginary over the first
+    ``k_axes`` octonion axes, ``k_axes ∈ {1,3,7}``) → a list of 8 Q61 int64
+    components over ``2**61`` (out8[0]=cos θ, out8[1..k]=sin θ/√k, rest 0)."""
+    out = (ctypes.c_int64 * 8)()
+    rc = LIB.srmech_hypercomplex_exp_q61(
+        ctypes.c_double(theta), ctypes.c_int(int(k_axes)), out)
+    if rc != SRMECH_OK:
+        raise ValueError(
+            f"srmech_hypercomplex_exp_q61: theta non-finite or k_axes not in "
+            f"{{1,3,7}} (status {rc})")
+    return [out[i] for i in range(8)]
 
 
 def atan2_c(y: float, x: float) -> float:

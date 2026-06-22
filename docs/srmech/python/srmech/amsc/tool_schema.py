@@ -1033,7 +1033,10 @@ def _register_primitive_class_tools() -> None:
                     "c/s computation. Native C dispatch when n ≤ 256.",
             parameters=(P("matrix", "Mat", True, "n × n symmetric"),
                         P("max_sweeps", "int", False, "default 100"),
-                        P("tolerance", "float", False)),
+                        P("tolerance", "float", False),
+                        P("exact", "bool", False,
+                          "exact eigvals_exact route for integer/rational "
+                          "symmetric input (default float-Jacobi)")),
             returns=R("Vec", "n eigenvalues ascending (numpy-free 1-D carrier)"),
         ),
         ToolEntry(
@@ -1618,31 +1621,31 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.rational.cos", owner="srmech", category="rational",
-            summary="cos(x) (radians) via the Class-N rational cascade: range-reduce into [-π, π] with the π-cascade rational, cos Taylor partial sum, then project the exact rational to float. Substrate-native replacement for math.cos / np.cos (no math.cos in the call graph); matches libm to ~1e-15.",
+            summary="cos(x) (radians) via the Class-N rational cascade: range-reduce into [-π, π] with the π-cascade rational, cos Taylor partial sum, returning the EXACT rational Q (the integer-ALU value; float(q) projects to the FPU at the display edge). Substrate-native replacement for math.cos / np.cos (no math.cos in the call graph); float(q) matches libm to ~1e-15.",
             parameters=(P("x", "float", True, "angle in radians"),
                         P("terms", "int", False, "Taylor terms (keyword-only); default 24")),
-            returns=R("float", "cos(x) projected from the exact rational"),
+            returns=R("Q", "cos(x) as an exact rational (Class-N Q carrier); float(q) projects at the display edge"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.sin", owner="srmech", category="rational",
-            summary="sin(x) (radians) via the Class-N rational cascade (π-cascade range reduction + sin Taylor, projected to float). Substrate-native replacement for math.sin / np.sin; matches libm to ~1e-15.",
+            summary="sin(x) (radians) via the Class-N rational cascade (π-cascade range reduction + sin Taylor, returned as an EXACT rational Q). Substrate-native replacement for math.sin / np.sin; float(q) matches libm to ~1e-15.",
             parameters=(P("x", "float", True, "angle in radians"),
                         P("terms", "int", False, "Taylor terms (keyword-only); default 24")),
-            returns=R("float", "sin(x) projected from the exact rational"),
+            returns=R("Q", "sin(x) as an exact rational (Class-N Q carrier)"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.tan", owner="srmech", category="rational",
             summary="tan(x) = sin(x)/cos(x) via the Class-N rational cascade (raises if cos(x) == 0). Substrate-native replacement for math.tan / np.tan.",
             parameters=(P("x", "float", True, "angle in radians"),
                         P("terms", "int", False, "Taylor terms (keyword-only); default 24")),
-            returns=R("float", "tan(x) projected from the exact rational"),
+            returns=R("Q", "tan(x) = sin/cos as an exact rational (Class-N Q carrier)"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.atan", owner="srmech", category="rational",
             summary="atan(x) via the Class-N atan cascade with three-band argument reduction (√2∓1 edges → every series argument |·|<=√2−1; Class-K magnitude, no abs()). Substrate-native replacement for math.atan / np.arctan; machine-ε accurate.",
             parameters=(P("x", "float", True, "argument"),
                         P("terms", "int", False, "atan Taylor terms (keyword-only); default 40")),
-            returns=R("float", "atan(x) in (-π/2, π/2)"),
+            returns=R("Q", "atan(x) as an exact rational (Class-N Q carrier) in (-π/2, π/2)"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.atan2", owner="srmech", category="rational",
@@ -1650,21 +1653,21 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("y", "float", True, "ordinate"),
                         P("x", "float", True, "abscissa"),
                         P("terms", "int", False, "atan Taylor terms (keyword-only); default 40")),
-            returns=R("float", "atan2(y, x) in (-π, π]"),
+            returns=R("Q", "atan2(y, x) as an exact rational (Class-N Q carrier) in (-π, π]"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.exp", owner="srmech", category="rational",
-            summary="e^x (real) via the Q61 Class-N exp cascade with Cody-Waite ln2 reduction (x = n*ln2 + r, |r| <= ln2/2; exp(r) the Q61 integer Taylor, 2^n folded into the IEEE exponent). Bit-exact with the native peer srmech_exp; dispatches to C when available. Substrate-native replacement for math.exp / np.exp (real).",
+            summary="e^x (real) via the Q61 Class-N exp cascade with Cody-Waite ln2 reduction (x = n*ln2 + r, |r| <= ln2/2; exp(r) the Q61 integer Taylor, 2^n folded in as an EXACT power-of-two scale → an exact rational Q, no float-collapsed recombine and no DBL_MAX overflow gate). Bit-exact with the native peer srmech_exp_q61; dispatches to C when available. Substrate-native replacement for math.exp / np.exp (real).",
             parameters=(P("x", "float", True, "real exponent"),
                         P("terms", "int", False, "exact-rational reference Taylor terms (keyword-only); default 24")),
-            returns=R("float", "e^x projected from the Q61 cascade"),
+            returns=R("Q", "e^x as an exact rational (Class-N Q carrier) from the Q61 cascade"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.log", owner="srmech", category="rational",
-            summary="ln(x) (natural log, x > 0) via the Q61 Class-N atanh cascade: x = m*2^e read from the bit pattern, m folded into [1/sqrt2, sqrt2), log(m) = 2*atanh((m-1)/(m+1)) the Q61 series, e*ln2 recombined with a two-word ln2. Bit-exact with the native peer srmech_log; dispatches to C when available. Domain: x < 0 -> NaN, x == 0 -> -Inf. Substrate-native replacement for math.log / np.log (real).",
+            summary="ln(x) (natural log, x > 0) via the Q61 Class-N atanh cascade: x = m*2^e read from the bit pattern, m folded into [1/sqrt2, sqrt2), log(m) = 2*atanh((m-1)/(m+1)) the Q61 series, e*ln2 recombined exactly in the Q61 model → an exact rational Q. Bit-exact with the native peer srmech_log_q61; dispatches to C when available. Domain: x <= 0 raises ValueError (log 0 = -Inf is not a rational); non-finite raises. Substrate-native replacement for math.log / np.log (real).",
             parameters=(P("x", "float", True, "argument, x > 0"),
                         P("terms", "int", False, "exact-rational reference Taylor terms (keyword-only); default 13")),
-            returns=R("float", "ln(x) projected from the Q61 cascade"),
+            returns=R("Q", "ln(x) as an exact rational (Class-N Q carrier) from the Q61 cascade"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.cexp", owner="srmech", category="rational",
@@ -1685,7 +1688,7 @@ def _register_primitive_class_tools() -> None:
             summary="sqrt(x) for x >= 0 via the Class-N rational sqrt cascade — IEEE-bit x = M*2^e, root = isqrt(M << 2K) (K=27), projected by 2^(e/2 - K). Bit-exact with the native peer srmech_rational_sqrt; dispatches to C. precision_bits=N selects the higher-precision bignum reference (as_integer_ratio + scaled floor-isqrt). No math.sqrt / np.sqrt in the call graph; negative x raises a domain error.",
             parameters=(P("x", "float", True, "radicand, x >= 0"),
                         P("precision_bits", "int", False, "higher-precision bignum reference (keyword-only); default None = C-bit-exact K=27 cascade")),
-            returns=R("float", "sqrt(x) projected from the integer root"),
+            returns=R("Q", "sqrt(x) as an exact rational (Class-N Q carrier) from the integer root"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.hypot", owner="srmech", category="rational",
@@ -1693,7 +1696,7 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("a", "float", True, "first leg"),
                         P("b", "float", True, "second leg"),
                         P("precision_bits", "int", False, "scaled-integer precision (keyword-only); default 64")),
-            returns=R("float", "Euclidean norm sqrt(a^2 + b^2)"),
+            returns=R("Q", "Euclidean norm sqrt(a^2 + b^2) as an exact rational (Class-N Q carrier)"),
         ),
         ToolEntry(
             name="srmech.amsc.cascade.spectral_cascades.dft", owner="srmech", category="cascade",
@@ -1791,11 +1794,12 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.cascade.matrix_cascades.eigvals_exact", owner="srmech", category="cascade",
-            summary="Exact REAL eigenvalues of an integer matrix — the well-conditioned exact-until-rotation cascade (no Wilkinson ill-conditioning, because the eigenvalues are ALGEBRAIC and we never leave exact arithmetic). char_poly (exact integer) + Yun square-free factorization (exact multiplicities) + Sturm sign-sequence isolation (Class C sign-count at Class K interval boundaries) + rational bisection (Class N anchors → the algebraic asymptote), all in exact Fraction arithmetic, then ONE FPU lift. bits sets refinement precision; return_intervals=True yields the exact (lo, hi) rational isolating intervals. Returns the real eigenvalues ascending WITH multiplicity (symmetric matrices are all-real/complete; matrices with complex eigenvalues return only the real ones — complex isolation is a follow-up).",
+            summary="Exact eigenvalues of an integer matrix — the well-conditioned exact-until-rotation cascade (no Wilkinson ill-conditioning, because the eigenvalues are ALGEBRAIC and we never leave exact arithmetic). char_poly (exact integer) + Yun square-free factorization (exact multiplicities) + Sturm sign-sequence isolation (Class C sign-count at Class K interval boundaries) + rational bisection (Class N anchors → the algebraic asymptote), all in exact Fraction arithmetic, then ONE FPU lift. bits sets refinement precision; return_intervals=True yields the exact (lo, hi) rational isolating intervals (real-only path). Returns the real eigenvalues ascending WITH multiplicity. With include_complex=True the COMPLEX eigenvalues are also returned, EXACTLY ISOLATED: a float-QR candidate is certified as a unique root of the exact integer char-poly in a rational box by the argument-principle root-count (winding number in exact Fraction arithmetic — no float in the count), refined to bits, the float being the single terminal projection of the certified box center — distinct from the unconditioned float-QR spectrum of mat_eigvals it merely seeds. Returns all n eigenvalues (reals first ascending as float, then complex sorted by (re, im) as complex; conjugate pairs).",
             parameters=(P("a", "Mat", True, "(n, n) integer square matrix"),
                         P("bits", "int", False, "keyword-only; bisection refinement precision in bits (default 64)"),
-                        P("return_intervals", "bool", False, "keyword-only; return exact (lo, hi) rational intervals instead of floats; default False")),
-            returns=R("list", "real eigenvalues ascending with multiplicity (floats, or (lo, hi) Fraction intervals)"),
+                        P("return_intervals", "bool", False, "keyword-only; return exact (lo, hi) rational intervals instead of floats (real-only path); default False"),
+                        P("include_complex", "bool", False, "also isolate+return the complex eigenvalues (default: real only)")),
+            returns=R("list", "real eigenvalues ascending with multiplicity (floats, or (lo, hi) Fraction intervals); with include_complex=True, all n eigenvalues (reals as float then certified complex)"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.continued_fraction_convergents",
@@ -1817,6 +1821,14 @@ def _register_primitive_class_tools() -> None:
                           "default None (auto-scaled from num_digits); cascade doubling depth in [1, 2000]"),
                         P("precision_bits", "int", False,
                           "default None (auto-scaled from num_digits); scaled-integer √ bit precision in [64, 32768]")),
+            returns=R("str", "'3.{num_digits}' decimal expansion of π"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.pi_chudnovsky_digits",
+            owner="srmech",
+            category="rational",
+            summary="Stream decimal digits of π via the ROTATION-LAST Chudnovsky series — the canonical srmech cascade shape: the body stays bit-exact (exact integer add/sub/mul/floor-divmod accumulating the Chudnovsky linear series on arbitrary-precision integers — the caller-arena srmech_bigint in C), and the SINGLE continuous/frame projection ('rotation') happens ONCE, terminally, as one isqrt(10005·one²) followed by one division and a base-10 render. NO float, NO math, NO per-term square root — the opposite of pi_cascade_digits (Archimedes), which projects every step. ~14.18 digits land per term. Native C path srmech_pi_chudnovsky when present (byte-identical to the pure-Python bignum oracle; C==Python validated at 1000 + 10000 digits); pure Python is the complete fallback + the parity oracle. Returns '3.141592...' as a string. Canonical SSoT: D. V. & G. V. Chudnovsky, 'Approximations and complex multiplication according to Ramanujan' (1988).",
+            parameters=(P("num_digits", "int", True, "0 <= num_digits <= 100000"),),
             returns=R("str", "'3.{num_digits}' decimal expansion of π"),
         ),
 
@@ -2057,10 +2069,23 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.hdc.similarity", owner="srmech", category="hdc",
-            summary="HDC similarity: 1 − 2 hamming(a, b)/D ∈ [−1, 1]. "
-                    "+1 identical, 0 orthogonal, −1 complementary.",
+            summary="HDC similarity: 1 − 2 hamming(a, b)/D ∈ [−1, 1] as the EXACT "
+                    "Q rational (v0.9.0 F868 stay-rational; (D−2·hamming)/D, "
+                    "collapses to a decimal only via float(s)). +1 identical, 0 "
+                    "orthogonal, −1 complementary. Use hamming for the integer key.",
             parameters=(P("a", "bytes", True), P("b", "bytes", True)),
-            returns=R("float", "in [-1, 1]"),
+            returns=R("Q", "exact rational (D−2·hamming)/D in [-1, 1]"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.hamming", owner="srmech", category="hdc",
+            summary="HDC bit-Hamming distance: the RAW INTEGER count of differing "
+                    "bits between two BSC byte vectors (UPSTREAM §61; F868). "
+                    "similarity = 1 − 2·hamming/(8·len(a)). The float-free, "
+                    "blow-up-free recall-ranking key — argmax over integer "
+                    "distances needs no division. Native-dispatched "
+                    "(srmech_hdc_hamming).",
+            parameters=(P("a", "bytes", True), P("b", "bytes", True)),
+            returns=R("int", "count of differing bits in [0, 8·len(a)]"),
         ),
         # ────────────────────────────────────────────────────────────
         # Class M — polar {-1, 0, +1} variant (v0.4.3rc1). Rank-1 Class M
@@ -2119,19 +2144,21 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.hdc.polar_similarity", owner="srmech", category="hdc",
-            summary="Polar match-fraction in [0,1]. skip_zero=True (default) "
-                    "counts only jointly non-zero positions; False counts all "
-                    "(0==0 a match).",
+            summary="Polar match-fraction in [0,1] as the EXACT Q rational "
+                    "(v0.9.0 F868 stay-rational; collapses to a decimal only via "
+                    "float(s)). skip_zero=True (default) counts only jointly "
+                    "non-zero positions; False counts all (0==0 a match).",
             parameters=(P("a", "HV", True), P("b", "HV", True),
                         P("skip_zero", "bool", False, "default True")),
-            returns=R("float", "in [0, 1]"),
+            returns=R("Q", "exact rational matches/informative in [0, 1]"),
         ),
         ToolEntry(
             name="srmech.amsc.hdc.polar_density", owner="srmech", category="hdc",
-            summary="Fraction of non-zero (informative) positions in [0,1]; "
-                    "1.0 = fully bipolar, lower = more dead-band.",
+            summary="Fraction of non-zero (informative) positions in [0,1] as the "
+                    "EXACT Q rational (v0.9.0 F868); 1.0 = fully bipolar, lower = "
+                    "more dead-band. Collapses to a decimal only via float(d).",
             parameters=(P("v", "HV", True, "int8 {-1,0,+1}"),),
-            returns=R("float", "in [0, 1]"),
+            returns=R("Q", "exact rational nonzero/n in [0, 1]"),
         ),
         ToolEntry(
             name="srmech.amsc.hdc.polar_from_real", owner="srmech", category="hdc",
@@ -2221,12 +2248,114 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
+            name="srmech.amsc.hdc.klein4_phase_key", owner="srmech", category="hdc",
+            summary="Continuous-phase Klein-4 key (UPSTREAM §59; F861): the V4 "
+                    "code `elem` (default 2 = γ₅) on a `width`-wide circular "
+                    "slot-window starting at round(frac·D) mod D, identity (0) "
+                    "elsewhere — 'continuous phase from discrete-per-slot sectors "
+                    "via population coding', the chirality-native analogue of "
+                    "HRR/polar phase. Default width is the half-window D//2.",
+            parameters=(P("D", "int", True, "dimension"),
+                        P("frac", "float", True,
+                          "phase fraction in [0,1) (wraps mod 1)"),
+                        P("elem", "int", False,
+                          "Klein-4 code in {0,1,2,3} (default 2 = γ₅)"),
+                        P("width", "int", False,
+                          "window width in slots (default D//2)")),
+            returns=R("HV", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_phase_bind", owner="srmech", category="hdc",
+            summary="Bind a continuous phase into a Klein-4 vector (UPSTREAM §59): "
+                    "klein4_bind(hv, klein4_phase_key(len(hv), frac, …)). "
+                    "Reversible (same phase twice = identity); σ-mirror (±φ "
+                    "equidistant from base); and similarity(phase_bind(h,0), "
+                    "phase_bind(h,Δφ)) is the EXACT rational 1 − 2·circ_dist(Δφ) "
+                    "(an integer half-window overlap over D → a Q, never a lossy "
+                    "float). Native-dispatched via srmech_klein4_phase_key.",
+            parameters=(P("hv", "HV", True, "uint8 {0,1,2,3}"),
+                        P("frac", "float", True,
+                          "phase fraction in [0,1) (wraps mod 1)"),
+                        P("elem", "int", False,
+                          "Klein-4 code in {0,1,2,3} (default 2 = γ₅)"),
+                        P("width", "int", False,
+                          "window width in slots (default D//2)")),
+            returns=R("HV", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_chunk_bundle", owner="srmech", category="hdc",
+            summary="Build a CAPACITY-BOUNDED chunk-set (UPSTREAM §58; F837): "
+                    "split a list of (bound) vectors into consecutive groups of "
+                    "≤ `capacity` and klein4_bundle each. Returns a list of HV "
+                    "chunks — the VSA cleanup-memory that avoids the single-"
+                    "bundle crosstalk (resolver read 3.3% → 96.7% rank-1). "
+                    "`capacity` is exposed (a non-monotonic per-tome sweet-spot, "
+                    "F839), not hardcoded.",
+            parameters=(P("vectors", "Sequence[HV]", True,
+                          "one or more uint8 {0,1,2,3} vectors of equal length"),
+                        P("capacity", "int", True,
+                          "max binds per chunk (≥ 1)")),
+            returns=R("list[HV]", "≤ ceil(len(vectors)/capacity) bundle chunks"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_chunk_resolve", owner="srmech", category="hdc",
+            summary="Max-resonance read over a capacity-bounded chunk-set "
+                    "(UPSTREAM §58; F837): for each candidate, the MAX over "
+                    "chunks of klein4_similarity(klein4_bind(chunk, key), "
+                    "candidate). Returns one EXACT Q per candidate (stay-rational "
+                    "F868: ranks on the integer match-count; Q(count,D) names the "
+                    "fraction). The LM-agnostic VSA cleanup-memory; routing/argmax "
+                    "stay in the caller. Native-dispatched (the recall hot path).",
+            parameters=(P("chunks", "Sequence[HV]", True,
+                          "the capacity-bounded bundle chunks (from "
+                          "klein4_chunk_bundle)"),
+                        P("key", "HV", True,
+                          "the probe key (e.g. an encoded context)"),
+                        P("candidates", "Sequence[HV]", True,
+                          "the bounded candidate atom set to score")),
+            returns=R("list[Q]", "per-candidate max-resonance score"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_encode_bytes", owner="srmech", category="hdc",
+            summary="Byte-composed Klein-4 vector (UPSTREAM §60; F864): a bundle "
+                    "of POSITION-BOUND per-byte random vectors — byte b → "
+                    "klein4_random(D, seed=b) (the 256-byte vocab), bound with "
+                    "klein4_pos_key(D, i), all bundled. Restores MORPHOLOGY "
+                    "(sim('cat','cats') ≈ 0.66 ≫ the ~0.25 chance level) while "
+                    "stripping the word-atomic English/whitespace privilege (it "
+                    "hashes raw UTF-8). Composes klein4_random + bind + bundle.",
+            parameters=(P("data", "bytes", True,
+                          "the byte string to encode (non-empty)"),
+                        P("D", "int", True, "dimension")),
+            returns=R("HV", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_compose", owner="srmech", category="hdc",
+            summary="Scale-invariant role-filler compositor (F900/F901; the "
+                    "byte/glyph LM 'C1'): bundle_i( klein4_bind(part_i, "
+                    "klein4_pos_key(D, i)) ) over ARBITRARY pre-composed HV "
+                    "parts. Where klein4_encode_bytes mints byte atoms (byte→"
+                    "word), this is the RECURSIVE rung (word→phrase→sentence): "
+                    "the parts at level n+1 are the composed vectors of level n. "
+                    "Position-binding makes it order-sensitive + similarity-"
+                    "PRESERVING (a one-part change degrades gracefully — same "
+                    "fractal coherence signature at every scale), unlike a bare "
+                    "chained klein4_bind fold (→ ~0.25 chance). Composes "
+                    "klein4_bind + klein4_bundle.",
+            parameters=(P("parts", "Sequence[HV]", True,
+                          "a non-empty sequence of equal-length uint8 {0,1,2,3} "
+                          "Klein-4 parts"),),
+            returns=R("HV", "uint8 {0,1,2,3}"),
+        ),
+        ToolEntry(
             name="srmech.amsc.hdc.klein4_similarity", owner="srmech", category="hdc",
             summary="Klein-4 similarity: fraction of positions where a==b in "
-                    "[0,1] (1 identical, 0 orthogonal). rc13 sectors=/parallel=/"
-                    "mode= fans the comparison across ≤4 lanes (default-ON at ≥4 "
-                    "cores); ALWAYS returns the serial float (chunk sums "
-                    "per-slice matches; chirality recombines via sector-0).",
+                    "[0,1] (1 identical, 0 orthogonal). v0.9.0 (F868 stay-"
+                    "rational): returns the EXACT Q rational matches/D (compares "
+                    "like a float, collapses to a decimal only via float(s)); use "
+                    "klein4_match_count for the raw integer key. rc13 sectors=/"
+                    "parallel=/mode= fans the comparison across ≤4 lanes (default-"
+                    "ON at ≥4 cores); ALWAYS returns the serial value.",
             parameters=(P("a", "HV", True), P("b", "HV", True),
                         P("sectors", "int", False, "lanes 1..4; default-on (4 "
                           "at ≥4 cores, else 1)"),
@@ -2234,7 +2363,24 @@ def _register_primitive_class_tools() -> None:
                           "(alias for sectors=)"),
                         P("mode", "str", False, "'chunk' (default) or "
                           "'chirality'")),
-            returns=R("float", "in [0, 1]"),
+            returns=R("Q", "exact rational matches/D in [0, 1]"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.hdc.klein4_match_count", owner="srmech", category="hdc",
+            summary="Klein-4 match count: the RAW INTEGER number of positions "
+                    "where a==b (UPSTREAM §61; F868). klein4_similarity = "
+                    "match_count / len(a). This is the float-free, blow-up-free "
+                    "recall-ranking key — argmax over integer counts needs no "
+                    "division and never leaves the integers. Native-dispatched "
+                    "(srmech_klein4_match_count).",
+            parameters=(P("a", "HV", True), P("b", "HV", True),
+                        P("sectors", "int", False, "lanes 1..4; default-on (4 "
+                          "at ≥4 cores, else 1)"),
+                        P("parallel", "bool", False, "True→4 lanes / False→1 "
+                          "(alias for sectors=)"),
+                        P("mode", "str", False, "'chunk' (default) or "
+                          "'chirality'")),
+            returns=R("int", "count of matching positions in [0, len(a)]"),
         ),
         ToolEntry(
             name="srmech.amsc.hdc.klein4_bundle_accumulate", owner="srmech",
@@ -2790,6 +2936,33 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[float]",
                       "the coupled value — a 4-component quaternion (≤3 streams) or "
                       "8-component octonion"),
+        ),
+        # Literal exp(μθ) unit hypercomplex twiddle (v0.9.0rc10; F882, srmech #205).
+        # Registered FLAT as srmech.amsc.cascade.hypercomplex_exp; native C peer
+        # srmech_hypercomplex_exp_q61 is byte-exact Q61 (test_hypercomplex_exp_rc10).
+        ToolEntry(
+            name="srmech.amsc.cascade.hypercomplex_exp", owner="srmech",
+            category="cascade",
+            summary="Literal exp(μθ) = cos θ + μ·sin θ unit hypercomplex twiddle — the "
+                    "GENUINE hypercomplex exponential as an exact Q61 8-tuple (F882, "
+                    "srmech #205). μ is the equal-weight UNIT pure-imaginary over the "
+                    "first k_axes octonion axes: k_axes ∈ {1,3,7} = ℂ/ℍ/𝕆. Returns 8 "
+                    "exact Q [cos θ, sin θ/√k ×k, 0 ×(7−k)] with |q|=1. Feed it into "
+                    "cd_mult to rotate a hypercomplex value IN the algebra, then project "
+                    "once — the literal QDFT/ODFT twiddle that beats composing scalar "
+                    "phase_binds on the projected carrier (F882: ℂ 0.78 = the spirit's "
+                    "ℍ rung; 𝕆/ODFT 0.81, a new routing high). Class N (Q61 cos/sin) ∘ "
+                    "Class K (1/√k unit norm via integer-sqrt) ∘ Class C (sign); no "
+                    "abs(), no libm, no bignum — fixed-width Q61. Native peer "
+                    "srmech_hypercomplex_exp_q61 is byte-exact with the pure cascade.",
+            parameters=(
+                P("theta", "float", True, "the rotation angle θ (radians)"),
+                P("k_axes", "int", True,
+                  "imaginary-axis count: 1 (ℂ) | 3 (ℍ / QDFT) | 7 (𝕆 / ODFT)"),
+            ),
+            returns=R("tuple[Q, ...]",
+                      "8-tuple of exact Q (Q61, denominator 2^61): "
+                      "[cos θ, sin θ/√k ×k_axes, 0 ×(7−k_axes)]"),
         ),
         # Hamming / GF(2) linear block-code family (v0.7.2rc2; #910 / §30,
         # F442/F449) — the CARRY/EC half of the sedenion front-loader. Rosetta
@@ -3354,13 +3527,13 @@ def _register_spectral_runtime_tools() -> None:
         ToolEntry(
             name="srmech.spectral.similarity", owner="srmech",
             category="spectral",
-            summary="HDC similarity ``1 − 2·hamming(a, b) / D`` in "
-                    "[−1, +1]. Class M per Kanerva 2009 §3.2; direct on "
-                    "coefficient bytes. +1 = identical, 0 = orthogonal, "
-                    "−1 = anti-correlated." + PUBLISH_OPT_IN_NOTE,
+            summary="HDC similarity ``1 − 2·hamming(a, b) / D`` in [−1, +1] as "
+                    "the EXACT Q rational (v0.9.0 F868). Class M per Kanerva "
+                    "2009 §3.2; direct on coefficient bytes. +1 = identical, 0 = "
+                    "orthogonal, −1 = anti-correlated." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("a", "SpectralHandle | bytes", True),
                         P("b", "SpectralHandle | bytes", True)),
-            returns=R("float", "in [-1, +1]"),
+            returns=R("Q", "exact rational (D−2·hamming)/D in [-1, +1]"),
         ),
         # ────────────────────────────────────────────────────────────
         # rcN+2 — predict / prediction_error / truncate_sparse

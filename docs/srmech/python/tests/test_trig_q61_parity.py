@@ -192,26 +192,36 @@ def test_tan_matches_libm():
 # 4. non-finite reconciliation (native and non-native agree, see (2))
 # ----------------------------------------------------------------------
 
-def test_nonfinite_sin_cos_are_nan():
+def test_nonfinite_sin_cos_raise():
+    # rc7 stay-rational: sin/cos of a non-finite raise (no NaN-rational exists).
     for x in (float("inf"), float("-inf"), float("nan")):
-        assert math.isnan(R.sin(x))
-        assert math.isnan(R.cos(x))
+        with pytest.raises(ValueError):
+            R.sin(x)
+        with pytest.raises(ValueError):
+            R.cos(x)
 
 
 def test_nonfinite_atan_limits():
+    # atan(±Inf) = ±π/2 is a representable rational (exact Q); NaN raises. The
+    # exact Q betters the libm half-pi double, so compare the display-edge float.
     half = R._q61_to_double(R._Q61_HALF_PI_Q61)
-    assert R.atan(float("inf")) == half
-    assert R.atan(float("-inf")) == -half
-    assert math.isnan(R.atan(float("nan")))
+    assert float(R.atan(float("inf"))) == half
+    assert float(R.atan(float("-inf"))) == -half
+    with pytest.raises(ValueError):
+        R.atan(float("nan"))
 
 
 def test_nonfinite_atan2_matches_libm():
+    # ±Inf args give exact quadrant-limit rationals (±π/2, ±π/4, ±3π/4, ±π, ±0);
+    # only NaN raises. The exact Q betters the libm doubles, so collapse to float.
     vals = [1.0, -1.0, 0.0, float("inf"), float("-inf")]
     for y in vals:
         for x in vals:
-            got = R.atan2(y, x)
+            got = float(R.atan2(y, x))             # exact Q → float at display edge
             want = math.atan2(y, x)
-            assert got == want or (math.isnan(got) and math.isnan(want)), (
+            assert abs(got - want) <= 1e-12, (
                 f"atan2({y!r},{x!r})={got} libm={want}")
-    assert math.isnan(R.atan2(float("nan"), 1.0))
-    assert math.isnan(R.atan2(1.0, float("nan")))
+    with pytest.raises(ValueError):
+        R.atan2(float("nan"), 1.0)
+    with pytest.raises(ValueError):
+        R.atan2(1.0, float("nan"))

@@ -50,11 +50,46 @@ def encode_word_k4(word: str, *, D: int, sector: int, hex_chars: int) -> HV:
     return hdc.klein4_bind(base, _sector_const(D, sector))
 
 
-def encode_bigram_l1(word_a: str, word_b: str, *, D: int, hex_chars: int) -> HV:
-    w_a = encode_word_k4(word_a, D=D, sector=0, hex_chars=hex_chars)
-    w_b = encode_word_k4(word_b, D=D, sector=0, hex_chars=hex_chars)
-    bound = hdc.klein4_bind(w_a, w_b)
-    return hdc.klein4_bind(bound, _sector_const(D, 1))
+def encode_word_byteglyph(word: str, *, D: int, sector: int) -> HV:
+    """Byte-composed word vector — the C1 byte/glyph LM object (F900/F901/F916):
+    ``klein4_bind(klein4_encode_bytes(word.utf8), sector_const(sector))``. The
+    scale-invariant role-filler bundle over the word's UTF-8 bytes, with the
+    sector channel preserved. This is the byte/glyph DUAL of the word-hash
+    :func:`encode_word_k4`: it restores MORPHOLOGY (``sim('cat','cats')`` ≫ the
+    ~0.25 chance level the word-hash gives, because shared prefix bytes occupy
+    shared positions) and strips the word-atomic English/whitespace privilege
+    (it hashes raw UTF-8, the universal-script alphabet). An empty token routes
+    to a fixed neutral atom (``klein4_encode_bytes`` requires non-empty).
+    ``hex_chars`` is intentionally absent — the bytes ARE the seed, not a
+    sha256 prefix. numpy-free (Class M C1 ∘ Class C sector)."""
+    data = word.encode("utf-8")
+    if len(data) == 0:
+        base = hdc.klein4_random(D, seed=0)  # the empty/pad atom
+    else:
+        base = hdc.klein4_encode_bytes(data, D)
+    return hdc.klein4_bind(base, _sector_const(D, sector))
+
+
+def _ladder_word(word: str, *, D: int, hex_chars: int, enc_mode: str) -> HV:
+    """One word vector for the L1/L2/L3 ladder. ``enc_mode='byteglyph'`` (default
+    across the ladder) byte-composes via :func:`encode_word_byteglyph` (the C1
+    object); ``'wordhash'`` mints the whole-word sha256 atom via
+    :func:`encode_word_k4` (the prior behaviour, the content-address dual)."""
+    if enc_mode == "byteglyph":
+        return encode_word_byteglyph(word, D=D, sector=0)
+    return encode_word_k4(word, D=D, sector=0, hex_chars=hex_chars)
+
+
+def encode_bigram_l1(word_a: str, word_b: str, *, D: int, hex_chars: int,
+                     enc_mode: str = "byteglyph") -> HV:
+    """L1 bigram (F917 Part B / rc18): the scale-invariant role-filler COMPOSE
+    (``hdc.klein4_compose``) of the two word vectors — was a chained
+    ``klein4_bind`` (involutive, similarity-DESTROYING; a one-word change
+    collapsed it to ~chance), now similarity-PRESERVING — with the level-1
+    sector tag."""
+    parts = [_ladder_word(w, D=D, hex_chars=hex_chars, enc_mode=enc_mode)
+             for w in (word_a, word_b)]
+    return hdc.klein4_bind(hdc.klein4_compose(parts), _sector_const(D, 1))
 
 
 def encode_skeleton_l2(
@@ -63,20 +98,27 @@ def encode_skeleton_l2(
     *,
     D: int,
     hex_chars: int,
+    enc_mode: str = "byteglyph",
 ) -> HV:
-    first_l1 = encode_bigram_l1(*first_bigram, D=D, hex_chars=hex_chars)
-    last_l1 = encode_bigram_l1(*last_bigram, D=D, hex_chars=hex_chars)
-    bound = hdc.klein4_bind(first_l1, last_l1)
-    return hdc.klein4_bind(bound, _sector_const(D, 2))
+    """L2 skeleton — the "coherent word-string before a sentence" fractal node
+    (F900): the SAME compositor over the two L1 vectors (the recursive rung,
+    parts at level n+1 = composed vectors of level n), with the level-2 tag."""
+    first_l1 = encode_bigram_l1(*first_bigram, D=D, hex_chars=hex_chars,
+                                enc_mode=enc_mode)
+    last_l1 = encode_bigram_l1(*last_bigram, D=D, hex_chars=hex_chars,
+                               enc_mode=enc_mode)
+    return hdc.klein4_bind(hdc.klein4_compose([first_l1, last_l1]),
+                           _sector_const(D, 2))
 
 
-def encode_sentence_l3(tokens, *, D: int, hex_chars: int) -> HV:
-    accum = encode_word_k4(tokens[0], D=D, sector=0, hex_chars=hex_chars)
-    for w in tokens[1:]:
-        accum = hdc.klein4_bind(
-            accum, encode_word_k4(w, D=D, sector=0, hex_chars=hex_chars)
-        )
-    return hdc.klein4_bind(accum, _sector_const(D, 3))
+def encode_sentence_l3(tokens, *, D: int, hex_chars: int,
+                       enc_mode: str = "byteglyph") -> HV:
+    """L3 sentence: the SAME compositor over all token vectors (the top rung) —
+    one scale-invariant operator end to end (byte→word→phrase→sentence) — with
+    the level-3 sector tag."""
+    parts = [_ladder_word(t, D=D, hex_chars=hex_chars, enc_mode=enc_mode)
+             for t in tokens]
+    return hdc.klein4_bind(hdc.klein4_compose(parts), _sector_const(D, 3))
 
 
 def sim_k4_batch(query, candidates):
@@ -84,6 +126,32 @@ def sim_k4_batch(query, candidates):
     candidate. numpy-free: the Class-M ``hdc.klein4_similarity`` over each HV
     candidate (== the old ``(candidates == query).mean(axis=1)``)."""
     return [hdc.klein4_similarity(query, c) for c in candidates]
+
+
+def scale_signature(parts):
+    """Coherence == scale-invariance, made introspectable (F900). Returns the
+    mean retained self-similarity of the composed whole vs each one-part-
+    perturbed whole: compose the parts (C1, :func:`hdc.klein4_compose`), then for
+    each position swap that part for a fixed neutral atom and measure how far the
+    composite moves. A COHERENT (on-manifold) hierarchy degrades GRACEFULLY and
+    uniformly — ~``(n-1)/n`` per perturbation, the SAME fractal signature at
+    every scale (byte→word→phrase→sentence); an incoherent fold (chained-bind)
+    collapses toward chance. The returned exact :class:`Q` rational in ``[0, 1]``
+    is the mean retained similarity; a tight spread across positions IS the
+    scale-invariance the byte/glyph LM is built on. numpy-free; composes
+    :func:`hdc.klein4_compose` + :func:`hdc.klein4_similarity` (both native)."""
+    parts = list(parts)
+    if len(parts) < 2:
+        raise ValueError("scale_signature: need at least 2 parts to perturb")
+    D = len(parts[0])
+    whole = hdc.klein4_compose(parts)
+    neutral = hdc.klein4_random(D, seed=0)
+    sims = []
+    for i in range(len(parts)):
+        perturbed = list(parts)
+        perturbed[i] = neutral
+        sims.append(hdc.klein4_similarity(whole, hdc.klein4_compose(perturbed)))
+    return sum(sims) / len(sims)
 
 
 # ---------------------------------------------------------------------------
@@ -109,23 +177,41 @@ class ContextSubstrate:
     pad vector rather than discarding a real token.
     """
 
-    def __init__(self, *, D: int, hex_chars: int, sector: int = 0):
+    def __init__(self, *, D: int, hex_chars: int, sector: int = 0,
+                 enc_mode: str = "byteglyph"):
+        if enc_mode not in ("byteglyph", "wordhash"):
+            raise ValueError(
+                "ContextSubstrate: enc_mode must be 'byteglyph' (default — the "
+                "C1 byte/glyph LM object, F916) or 'wordhash' (the fast atom "
+                f"dual, the prior default); got {enc_mode!r}")
         self.D = int(D)
         self.hex_chars = int(hex_chars)
         self.sector = int(sector)
+        self.enc_mode = enc_mode
         self._poskey: dict[int, HV] = {}
         self._pad = self.enc("__bundle_pad__")  # fixed neutral tie-breaker
 
     def enc(self, tok: str, sector: int | None = None) -> HV:
-        return encode_word_k4(
-            tok, D=self.D,
-            sector=self.sector if sector is None else sector,
-            hex_chars=self.hex_chars,
-        )
+        """Encode ONE token → its Klein-4 word vector. ``enc_mode='byteglyph'``
+        (default) byte-composes via :func:`encode_word_byteglyph` (the C1
+        object); ``enc_mode='wordhash'`` mints the whole-word sha256 atom via
+        :func:`encode_word_k4` (the prior behaviour, the content-address dual)."""
+        sec = self.sector if sector is None else sector
+        if self.enc_mode == "byteglyph":
+            return encode_word_byteglyph(tok, D=self.D, sector=sec)
+        return encode_word_k4(tok, D=self.D, sector=sec, hex_chars=self.hex_chars)
 
     def pos_key(self, p: int) -> HV:
         if p not in self._poskey:
-            self._poskey[p] = self.enc(f"__ctx_pos_{p}__")
+            # Position role vectors are ALWAYS orthogonal word-hash atoms
+            # (sha256 avalanche), enc_mode-INDEPENDENT: byte-composing the
+            # near-identical "__ctx_pos_k__" labels would CORRELATE adjacent
+            # roles (defeating the role-filler binding), and minting them this
+            # way makes 'wordhash' mode reproduce the prior encode_context bytes
+            # exactly (the behaviour-pin guarantee).
+            self._poskey[p] = encode_word_k4(
+                f"__ctx_pos_{p}__", D=self.D, sector=self.sector,
+                hex_chars=self.hex_chars)
         return self._poskey[p]
 
     def bundle_odd(self, vecs) -> HV:

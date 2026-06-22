@@ -79,6 +79,8 @@ from fractions import Fraction
 from itertools import combinations
 from typing import Any, Dict, List, Sequence, Set, Tuple
 
+from srmech.amsc.cyclic import gcd as _gcd   # Class-I gcd (native); NOT stdlib math
+
 from srmech.amsc import _native  # rc10: native srmech_cd_basis_product dispatch
 
 #: Hard ceiling on the algebra dimension (the demonstrator is not unbounded; the
@@ -112,9 +114,27 @@ def _is_pow2(n: int) -> bool:
     return n >= 1 and (n & (n - 1)) == 0
 
 
+def _coerce_frac(x: Any) -> Fraction:
+    """Coerce one scalar to an exact ``Fraction``. Accepts any rational carrier
+    that exposes ``as_integer_ratio`` — notably :class:`srmech.amsc.q.Q`, the
+    exact-rational scalar (so the ``hypercomplex_exp`` Q-twiddle feeds straight
+    into ``cd_mult``). The ``as_integer_ratio`` route is version-robust:
+    ``Fraction(q)`` only consults ``as_integer_ratio`` on Python ≥3.14, so a
+    Q would raise ``TypeError`` on 3.10–3.13 without this. ``int``/``float``
+    round-trip identically through ``as_integer_ratio``; ``str``/``Decimal``
+    fall back to the plain constructor."""
+    if type(x) is Fraction:
+        return x
+    air = getattr(x, "as_integer_ratio", None)
+    if air is not None:
+        n, d = air()
+        return Fraction(n, d)
+    return Fraction(x)
+
+
 def _as_elem(seq: Sequence[Any]) -> Tuple[Fraction, ...]:
     """Coerce a sequence to a power-of-two-length tuple of exact Fractions."""
-    el = tuple(x if type(x) is Fraction else Fraction(x) for x in seq)
+    el = tuple(_coerce_frac(x) for x in seq)
     n = len(el)
     if not _is_pow2(n):
         raise ValueError(
@@ -495,10 +515,51 @@ def left_mult_kernel(x: Sequence[Any]) -> List[Tuple[Fraction, ...]]:
     return _rational_nullspace(left_mult_matrix(x))
 
 
+def _native_is_invertible(el: Tuple[Fraction, ...]):
+    """The invertibility decision via the native modular-rank gate
+    ``srmech_sedenion_is_navigable`` (rc12; bignum-free, exact — see
+    ``c/src/srmech_sedenion.c``). Returns the bool, or ``None`` when there is no
+    native lib OR the integer-cleared direction exceeds the C domain (int64
+    magnitude / the certainty prime table) — in which case the caller routes to
+    the exact-rational kernel. Singularity is scale-invariant, so clearing
+    denominators to integer numerators is exact."""
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_sedenion_is_navigable")):
+        return None
+    den = 1
+    for v in el:
+        den = den * v.denominator // _gcd(den, v.denominator)
+    int64_max = (1 << 63) - 1
+    nums = []
+    for v in el:
+        num = int(v * den)
+        if num > int64_max or num < -int64_max - 1:
+            return None                      # beyond int64 → exact oracle
+        nums.append(num)
+    n = len(nums)
+    arr = (ctypes.c_int64 * n)(*nums)
+    out = ctypes.c_int()
+    rc = _native.LIB.srmech_sedenion_is_navigable(arr, n, ctypes.byref(out))
+    if rc != _native.SRMECH_OK:
+        return None                          # absurd magnitude → exact oracle
+    return out.value == 1
+
+
 def left_mult_is_invertible(x: Sequence[Any]) -> bool:
     """``True`` iff ``u ↦ x·u`` is a bijection (a backward direction exists).
 
     Always ``True`` for nonzero ``x`` at dims ≤ 8; ``False`` for a zero divisor
     at dim ≥ 16 — the reversibility that ends at the Hurwitz wall.
+
+    rc12: dispatches the decision to the native modular-rank gate
+    ``srmech_sedenion_is_navigable`` when present (NO bignum: the n×n signed
+    XOR-circulant L(x) is decided by integer rank over word-size primes, bit-
+    identical bool to the kernel-emptiness test below). The exact-rational
+    kernel is the complete alternative for no-C environments and the
+    unbounded-magnitude tail.
     """
-    return len(left_mult_kernel(x)) == 0
+    el = _as_elem(x)
+    native = _native_is_invertible(el)
+    if native is not None:
+        return native
+    return len(left_mult_kernel(el)) == 0

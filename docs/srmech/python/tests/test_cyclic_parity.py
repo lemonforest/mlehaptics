@@ -132,9 +132,12 @@ def test_negative_inputs_rejected():
         cyclic.mod_add(-1, 0, 7)
 
 
-def test_oversized_inputs_rejected():
-    with pytest.raises(ValueError):
-        cyclic.gcd(2**65, 1)
+def test_gcd_oversized_is_uncapped():
+    # v0.9.0: cyclic.gcd is UNCAPPED (arbitrary precision) — native serves its
+    # uint64 domain, big-int Euclid beyond (standalone-honor "no compiled-in
+    # caps"). gcd(2**65, 1) == 1. (Other cyclic ops keep the uint64 surface.)
+    assert cyclic.gcd(2**65, 1) == 1
+    assert cyclic.gcd(2**100, 2**99) == 2**99
 
 
 def test_non_int_inputs_rejected():

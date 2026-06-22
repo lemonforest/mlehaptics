@@ -172,10 +172,15 @@ srmech_status_t srmech_hdc_permute(const uint8_t *a,
     return SRMECH_OK;
 }
 
-srmech_status_t srmech_hdc_similarity(const uint8_t *a,
-                                      const uint8_t *b,
-                                      uint32_t       n_bytes,
-                                      double        *out)
+/* hdc_hamming(a, b, n_bytes, out): the EXACT integer bit-Hamming distance — the
+ * count of differing BITS across the two BSC byte buffers (popcount of the XOR),
+ * the F868 stay-rational recall key BEFORE the float divide (UPSTREAM §61).
+ * similarity = 1 - 2*hamming/D with D = 8*n_bytes; collapse to a double only at
+ * the display boundary, in srmech_hdc_similarity. Additive symbol — no ABI bump. */
+srmech_status_t srmech_hdc_hamming(const uint8_t *a,
+                                   const uint8_t *b,
+                                   uint32_t       n_bytes,
+                                   uint32_t      *out)
 {
     assert(a != NULL && b != NULL && out != NULL);
     assert(n_bytes > 0);
@@ -185,9 +190,31 @@ srmech_status_t srmech_hdc_similarity(const uint8_t *a,
     if (n_bytes == 0) {
         return SRMECH_ERR_BAD_INPUT;
     }
-    uint64_t hamming = 0;
+    uint32_t hamming = 0;
     for (uint32_t i = 0; i < n_bytes; i++) {
-        hamming += (uint64_t)SRMECH_HDC_POPCOUNT8[a[i] ^ b[i]];
+        hamming += (uint32_t)SRMECH_HDC_POPCOUNT8[a[i] ^ b[i]];
+    }
+    *out = hamming;
+    return SRMECH_OK;
+}
+
+/* hdc_similarity = the F868 display-boundary collapse of the exact bit-Hamming
+ * distance: 1 - 2*hamming/D in [-1, 1], D = 8*n_bytes. Composes over
+ * srmech_hdc_hamming so the integer key and the float view share one definition. */
+srmech_status_t srmech_hdc_similarity(const uint8_t *a,
+                                      const uint8_t *b,
+                                      uint32_t       n_bytes,
+                                      double        *out)
+{
+    assert(out != NULL);
+    assert(n_bytes > 0);
+    if (out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    uint32_t hamming = 0;
+    srmech_status_t st = srmech_hdc_hamming(a, b, n_bytes, &hamming);
+    if (st != SRMECH_OK) {
+        return st;
     }
     double D = (double)(n_bytes * 8u);
     *out = 1.0 - 2.0 * (double)hamming / D;
@@ -344,6 +371,73 @@ srmech_status_t srmech_klein4_bind(const uint8_t *a,
     return SRMECH_OK;
 }
 
+srmech_status_t srmech_klein4_phase_key(uint32_t  D,
+                                        uint32_t  start,
+                                        uint32_t  width,
+                                        uint8_t   elem,
+                                        uint8_t  *out)
+{
+    /* §59 / F861: the V4 code `elem` on the circular slot-window
+     * [start, start+width) mod D, identity (0) elsewhere — the population-code
+     * continuous-phase key. No caps: bound is the caller's `out` of length D. */
+    assert(out != NULL);
+    assert(D > 0u);
+    if (out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (D == 0u || start >= D || width > D || elem > 3u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (uint32_t i = 0; i < D; i++) {
+        out[i] = 0u;
+    }
+    for (uint32_t j = 0; j < width; j++) {
+        out[(start + j) % D] = elem;  /* circular slot window */
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_klein4_chunk_resolve(const uint8_t *chunks,
+                                            uint32_t       n_chunks,
+                                            const uint8_t *key,
+                                            uint32_t       D,
+                                            const uint8_t *candidates,
+                                            uint32_t       n_candidates,
+                                            uint32_t      *out_counts)
+{
+    /* §58 / F837: max-resonance read over a capacity-bounded chunk-set. For
+     * each candidate, out_counts[j] = MAX over chunks of the integer match-
+     * count between (chunk XOR key) and the candidate — the F868 stay-rational
+     * recall key before the /D divide. No caps: bound is the caller's arrays. */
+    assert(chunks != NULL && key != NULL && candidates != NULL);
+    assert(out_counts != NULL && D > 0u && n_chunks > 0u && n_candidates > 0u);
+    if (chunks == NULL || key == NULL || candidates == NULL
+            || out_counts == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (D == 0u || n_chunks == 0u || n_candidates == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (uint32_t j = 0; j < n_candidates; j++) {
+        const uint8_t *cand = candidates + (size_t)j * D;
+        uint32_t best = 0u;
+        for (uint32_t i = 0; i < n_chunks; i++) {
+            const uint8_t *chunk = chunks + (size_t)i * D;
+            uint32_t mc = 0u;
+            for (uint32_t p = 0; p < D; p++) {
+                if ((uint8_t)(chunk[p] ^ key[p]) == cand[p]) {
+                    mc++;
+                }
+            }
+            if (mc > best) {
+                best = mc;
+            }
+        }
+        out_counts[j] = best;
+    }
+    return SRMECH_OK;
+}
+
 srmech_status_t srmech_klein4_bundle(const uint8_t * const *vectors,
                                      uint32_t               n_vectors,
                                      uint32_t               n,
@@ -382,10 +476,16 @@ srmech_status_t srmech_klein4_bundle(const uint8_t * const *vectors,
     return SRMECH_OK;
 }
 
-srmech_status_t srmech_klein4_similarity(const uint8_t *a,
-                                         const uint8_t *b,
-                                         uint32_t       n,
-                                         double        *out)
+/* klein4_match_count(a, b, n, out): the EXACT integer count of coordinates
+ * where a[i] == b[i] — the Class-M recall-ranking key BEFORE the float divide
+ * (UPSTREAM §61; F868 stay-rational: similarity = match_count / n is an exact
+ * rational, so the integer count is what the kernel computes; collapse to a
+ * double only at the display boundary, in srmech_klein4_similarity). Both
+ * buffers carry V4 tokens in {0,1,2,3}; out of range -> ERR_BAD_INPUT. */
+srmech_status_t srmech_klein4_match_count(const uint8_t *a,
+                                          const uint8_t *b,
+                                          uint32_t       n,
+                                          uint32_t      *out)
 {
     assert(a != NULL && b != NULL && out != NULL);
     assert(n > 0);
@@ -403,6 +503,28 @@ srmech_status_t srmech_klein4_similarity(const uint8_t *a,
         if (a[i] == b[i]) {
             matches++;
         }
+    }
+    *out = matches;
+    return SRMECH_OK;
+}
+
+/* klein4_similarity = the F868 display-boundary collapse of the exact
+ * match_count: count / n as a double. Composes over srmech_klein4_match_count
+ * so the integer key and the float view share one definition. */
+srmech_status_t srmech_klein4_similarity(const uint8_t *a,
+                                         const uint8_t *b,
+                                         uint32_t       n,
+                                         double        *out)
+{
+    assert(out != NULL);
+    assert(n > 0);
+    if (out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    uint32_t matches = 0;
+    srmech_status_t st = srmech_klein4_match_count(a, b, n, &matches);
+    if (st != SRMECH_OK) {
+        return st;
     }
     *out = (double)matches / (double)n;
     return SRMECH_OK;
@@ -497,6 +619,61 @@ srmech_status_t srmech_klein4_bundle_resolve(const uint32_t *acc,
     return SRMECH_OK;
 }
 
+/* The position-namespaced seed base for klein4_compose / klein4_encode_bytes
+ * role keys (byte-identical to the Python _KLEIN4_POS_SEED_BASE): 0x10000, so
+ * pos-key seeds never collide with the 256-byte alphabet (seeds 0..255). */
+#define SRMECH_KLEIN4_POS_SEED_BASE 0x10000u
+
+/* klein4_compose (UPSTREAM §60 / F900; rc18): the scale-invariant role-filler
+ * compositor — bundle_i( klein4_bind(part_i, klein4_pos_key(D, i)) ) over n
+ * pre-composed D-byte Klein-4 `parts` (row-major, codes {0,1,2,3}). The pos key
+ * for slot i is klein4_random over SRMECH_KLEIN4_POS_SEED_BASE + i (byte-
+ * identical to the Python _klein4_pos_key). The native peer of hdc.klein4_compose
+ * (the RECURSIVE rung above klein4_encode_bytes): one C call folds the whole
+ * role-filler bundle via srmech_klein4_bundle_accumulate, so a single part
+ * resolves to its position-bound self (bundle of one = itself), matching the
+ * Python shortcut. `acc` is a caller-owned (1 + 2*D) uint32 accumulator;
+ * `scratch` is 2*D caller-owned bytes (pos-key [0,D) + bound [D,2D)). Width is
+ * the architecture (caller's RAM) — no compiled-in cap, no malloc. n >= 1,
+ * D >= 1. Additive symbol — no ABI bump. */
+srmech_status_t srmech_klein4_compose(const uint8_t *parts,
+                                      uint32_t       n,
+                                      uint32_t       D,
+                                      uint32_t      *acc,
+                                      uint8_t       *scratch,
+                                      uint8_t       *out)
+{
+    assert(parts != NULL && acc != NULL && scratch != NULL && out != NULL);
+    assert(n >= 1u && D >= 1u);
+    if (parts == NULL || acc == NULL || scratch == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n == 0u || D == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    uint8_t *poskey = scratch;
+    uint8_t *bound  = scratch + D;
+    for (size_t k = 0; k < (size_t)1u + (size_t)2u * D; k++) {
+        acc[k] = 0u;
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        uint32_t key = (uint32_t)SRMECH_KLEIN4_POS_SEED_BASE + i;
+        srmech_status_t rc = srmech_klein4_random(&key, (size_t)1, D, poskey);
+        if (rc != SRMECH_OK) {
+            return rc;
+        }
+        rc = srmech_klein4_bind(parts + (size_t)i * D, poskey, D, bound);
+        if (rc != SRMECH_OK) {
+            return rc;
+        }
+        rc = srmech_klein4_bundle_accumulate(acc, bound, (size_t)D);
+        if (rc != SRMECH_OK) {
+            return rc;
+        }
+    }
+    return srmech_klein4_bundle_resolve(acc, out, (size_t)D);
+}
+
 /* klein4_cooccurrence_fold (UPSTREAM §50; rc165): the §50 holographic
  * co-occurrence fold with the corpus-linear inner loop fully native — the
  * per-token windowed accumulation, no Python callback (the per-token string→code
@@ -541,6 +718,166 @@ srmech_status_t srmech_klein4_cooccurrence_fold(const uint8_t  *codes,
                 acc, &codes[(size_t)tj * dim], dim);
             if (st != SRMECH_OK) { return st; }
         }
+    }
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------ *
+ * Class M — Klein-4 deterministic random (v0.9.0rc6)
+ *
+ * srmech_klein4_random reproduces CPython random.Random(seed).randrange(4),
+ * D times, BYTE-IDENTICAL: an MT19937 generator seeded by init_by_array over
+ * the seed's little-endian uint32 words, each draw = getrandbits(3)
+ * (= genrand_uint32() >> 29) with rejection of values >= 4. This makes the §60
+ * byte/glyph encoder — and its 256-byte vocab + position keys — fully native
+ * (klein4_random was the last python_only_irreducible klein4 op). The seeding,
+ * tempering, and rejection match CPython's _randommodule.c + random.py exactly
+ * (proven byte-for-byte against random.Random in the Python parity test).
+ *
+ * Standalone-complete (no caps, no Python fallback): the 624-word MT state is
+ * stack-resident; the caller supplies the seed key — a C-only / MCU host seeds
+ * from its own entropy and passes the words, exactly as the Python wrapper
+ * splits the seed int. Reference: Matsumoto & Nishimura (1998) "Mersenne
+ * Twister", ACM TOMACS 8(1), 3-30.
+ * ------------------------------------------------------------------ */
+
+#define SRMECH_MT_N        624u
+#define SRMECH_MT_M        397u
+#define SRMECH_MT_MATRIX_A 0x9908b0dfu
+#define SRMECH_MT_UPPER    0x80000000u
+#define SRMECH_MT_LOWER    0x7fffffffu
+
+typedef struct srmech_mt {
+    uint32_t state[SRMECH_MT_N];
+    uint32_t index;
+} srmech_mt_t;
+
+/* init_genrand(s): seed the 624-word state from a single 32-bit value (CPython
+ * _randommodule init_genrand). The non-linear recurrence is integer-exact. */
+static void srmech_mt_init_genrand(srmech_mt_t *st, uint32_t s)
+{
+    uint32_t i;
+    assert(st != NULL);
+    st->state[0] = s;
+    for (i = 1u; i < SRMECH_MT_N; i++) {
+        uint32_t prev = st->state[i - 1u];
+        st->state[i] = 1812433253u * (prev ^ (prev >> 30)) + i;
+    }
+    st->index = SRMECH_MT_N;
+    assert(st->index == SRMECH_MT_N);
+}
+
+/* init_by_array(key, key_length): seed from an array of 32-bit words — the
+ * path random.Random(int) takes after splitting the seed into little-endian
+ * words (CPython init_by_array). Bit-exact non-linear mixing. */
+static void srmech_mt_init_by_array(srmech_mt_t    *st,
+                                    const uint32_t *key,
+                                    size_t          key_length)
+{
+    size_t i = 1u;
+    size_t j = 0u;
+    size_t k;
+    assert(st != NULL && key != NULL);
+    assert(key_length > 0u);
+    srmech_mt_init_genrand(st, 19650218u);
+    k = (SRMECH_MT_N > key_length) ? (size_t)SRMECH_MT_N : key_length;
+    for (; k != 0u; k--) {
+        uint32_t prev = st->state[i - 1u];
+        st->state[i] = (st->state[i] ^ ((prev ^ (prev >> 30)) * 1664525u))
+                       + key[j] + (uint32_t)j;
+        i++; j++;
+        if (i >= SRMECH_MT_N) { st->state[0] = st->state[SRMECH_MT_N - 1u]; i = 1u; }
+        if (j >= key_length) { j = 0u; }
+    }
+    for (k = SRMECH_MT_N - 1u; k != 0u; k--) {
+        uint32_t prev = st->state[i - 1u];
+        st->state[i] = (st->state[i] ^ ((prev ^ (prev >> 30)) * 1566083941u))
+                       - (uint32_t)i;
+        i++;
+        if (i >= SRMECH_MT_N) { st->state[0] = st->state[SRMECH_MT_N - 1u]; i = 1u; }
+    }
+    st->state[0] = 0x80000000u;  /* MSB = 1 assures a non-zero initial array */
+}
+
+/* regenerate(): refresh the full 624-word block (the twist) — split out of
+ * genrand_uint32 to keep both under JPL Rule 4 (≤60 lines). */
+static void srmech_mt_regenerate(srmech_mt_t *st)
+{
+    static const uint32_t mag01[2] = { 0u, SRMECH_MT_MATRIX_A };
+    uint32_t kk;
+    uint32_t *mt;
+    assert(st != NULL);
+    assert(st->index >= SRMECH_MT_N);
+    mt = st->state;
+    for (kk = 0u; kk < SRMECH_MT_N - SRMECH_MT_M; kk++) {
+        uint32_t y = (mt[kk] & SRMECH_MT_UPPER) | (mt[kk + 1u] & SRMECH_MT_LOWER);
+        mt[kk] = mt[kk + SRMECH_MT_M] ^ (y >> 1) ^ mag01[y & 1u];
+    }
+    for (; kk < SRMECH_MT_N - 1u; kk++) {
+        uint32_t y = (mt[kk] & SRMECH_MT_UPPER) | (mt[kk + 1u] & SRMECH_MT_LOWER);
+        mt[kk] = mt[kk - (SRMECH_MT_N - SRMECH_MT_M)] ^ (y >> 1) ^ mag01[y & 1u];
+    }
+    {
+        uint32_t y = (mt[SRMECH_MT_N - 1u] & SRMECH_MT_UPPER) | (mt[0] & SRMECH_MT_LOWER);
+        mt[SRMECH_MT_N - 1u] = mt[SRMECH_MT_M - 1u] ^ (y >> 1) ^ mag01[y & 1u];
+    }
+    st->index = 0u;
+}
+
+/* genrand_uint32(): one tempered 32-bit word (CPython genrand_uint32). */
+static uint32_t srmech_mt_genrand_uint32(srmech_mt_t *st)
+{
+    uint32_t y;
+    assert(st != NULL);
+    assert(st->index <= SRMECH_MT_N);
+    if (st->index >= SRMECH_MT_N) {
+        srmech_mt_regenerate(st);
+    }
+    y = st->state[st->index];
+    st->index++;
+    y ^= (y >> 11);
+    y ^= (y << 7) & 0x9d2c5680u;
+    y ^= (y << 15) & 0xefc60000u;
+    y ^= (y >> 18);
+    return y;
+}
+
+/* below4(): random._randbelow(4) = getrandbits(3) with rejection of >= 4. The
+ * top 3 bits give 0..7; reject 4..7 and redraw. Reject probability 1/2 per
+ * draw; the 64-try bound (JPL Rule 2) is unreachable in practice (2^-64) and
+ * keeps the consumed word-stream byte-identical to CPython. */
+static uint32_t srmech_mt_below4(srmech_mt_t *st)
+{
+    uint32_t tries;
+    assert(st != NULL);
+    assert(st->index <= SRMECH_MT_N);
+    for (tries = 0u; tries < 64u; tries++) {
+        uint32_t r = srmech_mt_genrand_uint32(st) >> 29;  /* getrandbits(3) */
+        if (r < 4u) {
+            return r;
+        }
+    }
+    return 0u;  /* unreachable; statically-bounded fallback for Rule 2 */
+}
+
+srmech_status_t srmech_klein4_random(const uint32_t *key,
+                                     size_t          key_length,
+                                     uint32_t        D,
+                                     uint8_t        *out)
+{
+    srmech_mt_t st;
+    uint32_t i;
+    assert(key != NULL && out != NULL);
+    assert(D > 0u && key_length > 0u);
+    if (key == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (D == 0u || key_length == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    srmech_mt_init_by_array(&st, key, key_length);
+    for (i = 0u; i < D; i++) {
+        out[i] = (uint8_t)srmech_mt_below4(&st);
     }
     return SRMECH_OK;
 }

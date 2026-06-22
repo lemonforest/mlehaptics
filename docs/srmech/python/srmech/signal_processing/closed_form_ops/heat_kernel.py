@@ -76,8 +76,11 @@ def op(signal, laplacian, *, t: float = 1.0, D: int = 8192) -> List[complex]:
     # Class L: Hermitian eigendecomposition via the native Mat-carrier solver.
     eigvals_mat, V = mat_hermitian_eigendecompose(L_mat)
     # g(λ) = exp(-t·λ) — eigenvalues are REAL, so a per-bin Class-N rational.exp
-    # cascade (inlined, not the numpy-carrier elementwise_transcendental).
-    g = [_rexp(-t * float(eigvals_mat[k, 0])) for k in range(n)]
+    # cascade (inlined, not the numpy-carrier elementwise_transcendental). The
+    # eigenbasis filter+reconstruct (below) multiplies these weights against the
+    # complex eigenvector coeffs, so this is the FPU last-mile: collapse the exact
+    # Q from rational.exp to float HERE (Q × complex has no interop by design).
+    g = [float(_rexp(-t * float(eigvals_mat[k, 0]))) for k in range(n)]
     # coeffs = Vᴴ·signal (project onto the eigenbasis); pure-Python matvec.
     coeffs = [sum(V[i, k].conjugate() * sig[i] for i in range(n)) for k in range(n)]
     # out = V·(g ⊙ coeffs) (filter + reconstruct); pure-Python matvec.

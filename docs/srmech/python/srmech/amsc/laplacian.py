@@ -112,7 +112,58 @@ from srmech.amsc.rational import log as _rlog  # Class-N log cascade, not libm
 from srmech.amsc.rational import atan2 as _ratan2  # Class-N atan2 cascade, not libm
 from srmech.amsc.rational import complex_exp as _rcomplex_exp  # Class-N e^z, not libm
 
-from math import pi as _PI  # §564: numpy-free π (stdlib math.pi — NOT np.pi)
+
+# 0.9.0rc7 (stay-rational, F868): ``rational.sqrt`` / ``rational.hypot`` now
+# return an exact :class:`~srmech.amsc.q.Q`. That is right for EXACT contexts,
+# but the iterative dense-linear-algebra kernels below — the Jacobi eigen-sweep,
+# Householder QR, the Gram-SVD, the Fiedler power-iteration, the complex √ — are
+# genuinely **FPU float algorithms**: their rotations are irrational and they
+# converge by float round-off, so a ``Q`` carried through a sweep grows the
+# num/den unboundedly each iteration (the sweep never terminates in finite
+# rational arithmetic). The root is therefore a **float subroutine** here — it
+# rotates to float at the call boundary (``[[user_stance_alu_all_the_way_fpu_last_mile]]``:
+# this IS that boundary, the iterative kernel lives on the FPU). The exact-``Q``
+# root is the one the EXACT consumers call directly; ``_fsqrt`` / ``_fhypot`` are
+# the float PROJECTION of it, used only inside these float kernels.
+def _fsqrt(x) -> float:
+    """``float(rational.sqrt(x))`` — the float projection for the FPU kernels.
+
+    libm-faithful on the FULL float domain these iterative sweeps reach: rc7's
+    stay-rational ``rational.sqrt`` RAISES on a non-finite ``x`` (a ``Q`` cannot
+    be ±inf / nan), but a Jacobi / QR rotation legitimately forms
+    ``1.0 + tau*tau == inf`` for a huge rotation ratio, where ``sqrt(inf) = inf``
+    yields the correct degenerate angle (``t = -1/(-tau + inf) = -0``). So mirror
+    ``math.sqrt`` at the edges (``sqrt(+inf)=+inf``, ``sqrt(nan)=nan``); every
+    FINITE non-negative ``x`` still routes the exact Class-N cascade."""
+    x = float(x)
+    if x != x:                          # nan → nan
+        return x
+    if x == float("inf"):               # sqrt(+inf) = +inf (libm-faithful)
+        return x
+    if x == float("-inf"):              # outside domain → nan sentinel (no kernel hits this)
+        return float("nan")
+    return float(_rsqrt(x))
+
+
+def _fhypot(a, b) -> float:
+    """``float(rational.hypot(a, b))`` — the float projection for the FPU kernels.
+
+    libm-faithful at the non-finite edges the sweeps reach (``hypot(inf, ·)=inf``,
+    ``hypot(nan, ·)=nan``); every finite pair routes the exact Class-N cascade."""
+    fa = float(a)
+    fb = float(b)
+    if fa != fa or fb != fb:            # nan in → nan
+        return float("nan")
+    if fa in (float("inf"), float("-inf")) or fb in (float("inf"), float("-inf")):
+        return float("inf")            # hypot(inf, ·) = inf (libm-faithful)
+    return float(_rhypot(fa, fb))
+
+
+# §564/rc13: numpy-free AND math-free π — 4·atan(1) via the Class-N atan
+# cascade (c_dispatched; NO stdlib math.pi, NO np.pi), projected to float once
+# at import (the ×4 is an exact power of two, so 4·atan(1) == math.pi bit-for-bit).
+from srmech.amsc.rational import atan as _atan_pi
+_PI = 4.0 * float(_atan_pi(1.0))
 
 from .mat import Mat  # §564: the numpy-free 2-D carrier the mat_* engine returns
 from .vec import Vec  # rc129: the numpy-free 1-D carrier (vectors / eigenvalues)
@@ -333,7 +384,7 @@ def _normalized_laplacian_py(
 ) -> List[List[float]]:
     A = _dense_adjacency_py(n, edges, weights)
     deg = [sum(A[r][c] for c in range(n) if c != r) for r in range(n)]
-    d_inv_sqrt = [(1.0 / _rsqrt(d)) if d > 0 else 0.0 for d in deg]
+    d_inv_sqrt = [(1.0 / _fsqrt(d)) if d > 0 else 0.0 for d in deg]
     L = [[0.0] * n for _ in range(n)]
     for r in range(n):
         for c in range(n):
@@ -375,7 +426,7 @@ def _jacobi_eigvals_py(
     if n == 1:
         return [a[0][0]]
     for _sweep in range(max_sweeps):
-        off = _rsqrt(
+        off = _fsqrt(
             sum(a[p][q] * a[p][q] for p in range(n) for q in range(p + 1, n))
         )
         if off <= tolerance:
@@ -387,10 +438,10 @@ def _jacobi_eigvals_py(
                     continue
                 tau = (a[q][q] - a[p][p]) / (2.0 * apq)
                 if tau >= 0.0:
-                    t = 1.0 / (tau + _rsqrt(1.0 + tau * tau))
+                    t = 1.0 / (tau + _fsqrt(1.0 + tau * tau))
                 else:
-                    t = -1.0 / (-tau + _rsqrt(1.0 + tau * tau))
-                c = 1.0 / _rsqrt(1.0 + t * t)
+                    t = -1.0 / (-tau + _fsqrt(1.0 + tau * tau))
+                c = 1.0 / _fsqrt(1.0 + t * t)
                 s = t * c
                 # A ← Jᵀ A J  (Givens rotation in the (p, q) plane):
                 # pass 1 — columns p, q  (B = A J)
@@ -445,7 +496,7 @@ def _jacobi_eig_py(
     if n == 1:
         return [a[0][0]], [[1.0]]
     for _sweep in range(max_sweeps):
-        off = _rsqrt(
+        off = _fsqrt(
             sum(a[p][q] * a[p][q] for p in range(n) for q in range(p + 1, n))
         )
         if off <= tolerance:
@@ -457,10 +508,10 @@ def _jacobi_eig_py(
                     continue
                 tau = (a[q][q] - a[p][p]) / (2.0 * apq)
                 if tau >= 0.0:
-                    t = 1.0 / (tau + _rsqrt(1.0 + tau * tau))
+                    t = 1.0 / (tau + _fsqrt(1.0 + tau * tau))
                 else:
-                    t = -1.0 / (-tau + _rsqrt(1.0 + tau * tau))
-                c = 1.0 / _rsqrt(1.0 + t * t)
+                    t = -1.0 / (-tau + _fsqrt(1.0 + tau * tau))
+                c = 1.0 / _fsqrt(1.0 + t * t)
                 s = t * c
                 # A ← Jᵀ A J  (Givens rotation in the (p, q) plane)
                 for k in range(n):
@@ -582,10 +633,74 @@ def _jacobi_eigvals_native_listmarshal(rows, n, max_sweeps, tolerance):
     return sorted(out)
 
 
+def _is_exact_scalar(x) -> bool:
+    """True iff ``x`` is an EXACT scalar — a plain ``int`` (not ``bool``) or a
+    :class:`numbers.Rational` (covers :class:`fractions.Fraction` and the srmech
+    ``Q`` carrier, both registered as ``numbers.Rational``). A ``float`` /
+    ``complex`` / ``bool`` is NOT exact (``bool`` is excluded so a truthy entry
+    can't masquerade as the integer 1)."""
+    import numbers
+    if isinstance(x, bool):
+        return False
+    if isinstance(x, int):
+        return True
+    return isinstance(x, numbers.Rational)
+
+
+def _jacobi_eigvals_exact(matrix) -> "Vec":
+    """Exact-substrate symmetric eigenvalues (rc-B; the ``exact=True`` route of
+    :func:`jacobi_eigvals`).
+
+    Validates ``matrix`` is SQUARE, **exact** (every entry an ``int`` /
+    :class:`fractions.Fraction` / srmech ``Q``), and SYMMETRIC, then routes to
+    the exact-substrate cascade :func:`srmech.amsc.cascade.matrix_cascades.eigvals_exact`
+    (lazily imported here to avoid any circular-import risk). Returns the
+    ascending eigenvalues **with multiplicity** as a 1-D :class:`Vec` — the same
+    return contract as the float-Jacobi path.
+
+    Raises :class:`ValueError` on a non-square / float-bearing / non-symmetric
+    input: exact eigenvalues are only achievable for an integer/rational
+    SYMMETRIC matrix (a non-symmetric integer matrix can have complex
+    eigenvalues that the real-root ``eigvals_exact`` returns incompletely)."""
+    rows = [list(r) for r in matrix]
+    n = len(rows)
+    if n == 0 or any(len(r) != n for r in rows):
+        raise ValueError(
+            "jacobi_eigvals(exact=True) requires a square n×n matrix; "
+            f"got row lengths {[len(r) for r in rows]} for n={n}"
+        )
+    for i in range(n):
+        for j in range(n):
+            if not _is_exact_scalar(rows[i][j]):
+                raise ValueError(
+                    "jacobi_eigvals(exact=True) requires every entry to be "
+                    "EXACT (int / fractions.Fraction / srmech Q) — never a "
+                    f"float/complex; entry [{i}][{j}] = {rows[i][j]!r} is "
+                    f"{type(rows[i][j]).__name__}. Exact eigenvalues are only "
+                    "achievable on an exact substrate."
+                )
+    for i in range(n):
+        for j in range(i + 1, n):
+            if rows[i][j] != rows[j][i]:
+                raise ValueError(
+                    "jacobi_eigvals(exact=True) requires a SYMMETRIC matrix "
+                    f"(a[i][j] == a[j][i]); entry [{i}][{j}] = {rows[i][j]!r} "
+                    f"!= [{j}][{i}] = {rows[j][i]!r}. A non-symmetric integer "
+                    "matrix can have complex eigenvalues that the real-root "
+                    "eigvals_exact returns incompletely."
+                )
+    # Lazy import (avoid a circular-import risk at module load).
+    from srmech.amsc.cascade.matrix_cascades import eigvals_exact
+    eigs = eigvals_exact(rows)  # ascending, with multiplicity (real spectrum)
+    return Vec.from_sequence(eigs, is_complex=False)
+
+
 def jacobi_eigvals(
     matrix,
     max_sweeps: int = 100,
     tolerance: float = 1e-12,
+    *,
+    exact: bool = False,
 ) -> "Vec":
     """Symmetric Jacobi eigendecomposition.
 
@@ -614,7 +729,29 @@ def jacobi_eigvals(
     + scalar ``v[i]``), NOT a bare ``list[float]``. When ``HAS_NATIVE`` and
     ``n ≤ 256`` the numpy-free list-marshal native path runs; else srmech's own
     pure-Python Jacobi cascade.
+
+    Rotation-last exact route (rc-B, ``exact=``, keyword-only)
+    ---------------------------------------------------------
+    * ``exact=False`` (the default): **unchanged** — the float-Jacobi path
+      above, verbatim. Float-Jacobi stays the default speed path (the
+      iterative FPU last-mile, classified PRIMITIVE_NA in the rotation-last
+      audit — an intrinsic-float limit, NOT an avoidable violation).
+    * ``exact=True``: route to the exact-substrate cascade. The matrix is
+      validated SQUARE, **exact** (every entry an ``int`` /
+      :class:`fractions.Fraction` / srmech ``Q`` — never a ``float`` /
+      ``complex``), and SYMMETRIC (``a[i][j] == a[j][i]``); any failure
+      raises :class:`ValueError`. (Exact eigenvalues are only achievable for
+      an integer/rational SYMMETRIC matrix: a non-symmetric integer matrix
+      can have complex eigenvalues that the real-root ``eigvals_exact``
+      returns incompletely.) The spectrum then stays exact — char-poly
+      Faddeev–LeVerrier → Yun square-free → Sturm isolation → ``Fraction``
+      bisection — until the single terminal float lift (the rotation-last
+      "exact-substrate-achievable" case). The return is the same contract as
+      the float path: a 1-D :class:`~srmech.amsc.vec.Vec` of ``n`` ascending
+      eigenvalues, **with multiplicity**.
     """
+    if exact:
+        return _jacobi_eigvals_exact(matrix)
     rows = [[float(x) for x in r] for r in matrix]
     n = len(rows)
     if n > 0 and all(len(r) == n for r in rows) and _can_dispatch_native(n):
@@ -1483,7 +1620,7 @@ def _hermitian_eig_py(h: "Mat") -> Tuple["Mat", "Mat"]:
         """Modified Gram–Schmidt: subtract the projection of ``vec`` onto every
         already-accepted eigenvector in the SAME degenerate eigenspace."""
         for ev_prev, w_prev in cols:
-            if _rsqrt((ev_cur - ev_prev) * (ev_cur - ev_prev)) <= 1e-9:
+            if _fsqrt((ev_cur - ev_prev) * (ev_cur - ev_prev)) <= 1e-9:
                 proj = sum(w_prev[i].conjugate() * vec[i] for i in range(n))
                 vec = [vec[i] - proj * w_prev[i] for i in range(n)]
         return vec
@@ -1494,7 +1631,7 @@ def _hermitian_eig_py(h: "Mat") -> Tuple["Mat", "Mat"]:
         ev = evals2[col]
         w = _mgs([complex(V2[i][col], V2[i + n][col]) for i in range(n)], ev)
         norm2 = sum(x.real * x.real + x.imag * x.imag for x in w)
-        if _rsqrt(norm2) <= 1e-12:
+        if _fsqrt(norm2) <= 1e-12:
             # Degenerate eigenvalue: this embedding column reconstructed onto an
             # eigenvector we already accepted (the real 2n-embedding DOUBLES each
             # complex eigenvector via the J-rotation i·z, so the "every other
@@ -1504,14 +1641,14 @@ def _hermitian_eig_py(h: "Mat") -> Tuple["Mat", "Mat"]:
             # survives Gram–Schmidt; the eigenspace still has more independent
             # directions than we have accepted, so one must exist.
             for j in range(m):
-                if _rsqrt((evals2[j] - ev) * (evals2[j] - ev)) > 1e-9:
+                if _fsqrt((evals2[j] - ev) * (evals2[j] - ev)) > 1e-9:
                     continue
                 cand = _mgs([complex(V2[i][j], V2[i + n][j]) for i in range(n)], ev)
                 cn2 = sum(x.real * x.real + x.imag * x.imag for x in cand)
-                if _rsqrt(cn2) > 1e-12:
+                if _fsqrt(cn2) > 1e-12:
                     w, norm2 = cand, cn2
                     break
-        inv = 1.0 / _rsqrt(norm2)
+        inv = 1.0 / _fsqrt(norm2)
         w = [x * inv for x in w]
         cols.append((ev, w))
     ev_mat = Mat(array("d", (float(ev) for ev, _ in cols)), n, 1)
@@ -1625,7 +1762,7 @@ _MAT_EIG_DEFLATE_TOL = 1e-14   # subdiagonal/scale below this → Schur deflatio
 
 def _modulus_c(z: complex) -> float:
     """|z| via the Class-N hypot cascade (no ``abs()`` — discipline)."""
-    return _rhypot(float(z.real), float(z.imag))
+    return _fhypot(float(z.real), float(z.imag))
 
 
 def _complex_sqrt_local(w: complex) -> complex:
@@ -1640,11 +1777,11 @@ def _complex_sqrt_local(w: complex) -> complex:
     b = float(w.imag)
     if a == 0.0 and b == 0.0:
         return 0j
-    mod = _rhypot(a, b)                             # Class-N |w| (≥ |a| exactly)
+    mod = _fhypot(a, b)                             # Class-N |w| (≥ |a| exactly)
     re_arg = (mod + a) / 2.0                        # both radicands ≥ 0
     im_arg = (mod - a) / 2.0                        # mathematically; a tiny <0 is
-    re = _rsqrt(re_arg) if re_arg > 0.0 else 0.0    # float round-off → Class-K
-    im = _rsqrt(im_arg) if im_arg > 0.0 else 0.0    # pin-slot at zero
+    re = _fsqrt(re_arg) if re_arg > 0.0 else 0.0    # float round-off → Class-K
+    im = _fsqrt(im_arg) if im_arg > 0.0 else 0.0    # pin-slot at zero
     return complex(re, im if b >= 0.0 else -im)     # Class-K sign-branch (no copysign)
 
 
@@ -1676,9 +1813,9 @@ def _qr_complex_list(
             normx2 += (R[i][k].conjugate() * R[i][k]).real
         if normx2 <= 0.0:
             continue
-        normx = _rsqrt(normx2)                       # Class-N ‖x‖
+        normx = _fsqrt(normx2)                       # Class-N ‖x‖
         x0 = R[k][k]
-        modx0 = _rhypot(x0.real, x0.imag)
+        modx0 = _fhypot(x0.real, x0.imag)
         phase = (x0 / modx0) if modx0 > 0.0 else complex(1.0, 0.0)
         alpha = -phase * normx                       # Class-K pin-slot phase
         v = [R[i][k] for i in range(k, m)]
@@ -1744,6 +1881,8 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
     eigs: List[complex] = []
     m = n
     sweeps = 0
+    it = 0                                            # iterations since last deflate
+    sweep_ceiling = max_sweeps * n
     while m > 0:
         if m == 1:
             eigs.append(H[0][0])                      # Class-L: last eigenvalue
@@ -1752,18 +1891,34 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
         if _modulus_c(H[m - 1][m - 2]) <= _MAT_EIG_DEFLATE_TOL * (scale + 1e-300):
             eigs.append(H[m - 1][m - 1])              # Class-L: deflate eigenvalue
             m -= 1
+            it = 0                                    # new deflation-target: reset stall
             continue
         if m == 2:
             lam1, lam2 = _eig2x2(H[0][0], H[0][1], H[1][0], H[1][1])  # closed form
             eigs.append(lam1)
             eigs.append(lam2)
             break
-        # Wilkinson shift: the trailing-2×2 eigenvalue closest to H[m-1][m-1].
-        lam1, lam2 = _eig2x2(
-            H[m - 2][m - 2], H[m - 2][m - 1], H[m - 1][m - 2], H[m - 1][m - 1]
-        )
-        dd = H[m - 1][m - 1]
-        mu = lam1 if _modulus_c(lam1 - dd) < _modulus_c(lam2 - dd) else lam2
+        # Shift selection. The plain Wilkinson μ is the trailing-2×2 eigenvalue
+        # closest to H[m-1][m-1]. BUT on a cyclic-permutation / companion block the
+        # trailing 2×2 is [[0,0],[1,0]] → both roots 0 → μ=0 → an UNSHIFTED step,
+        # and an equal-modulus spectrum (e.g. roots of unity) then never deflates.
+        # The classic EISPACK ``hqr`` / LAPACK cure is an EXCEPTIONAL shift injected
+        # on a stall: at it==10 and it==20 (the EISPACK cadence) we replace μ with an
+        # ad-hoc shift built from the local sub-diagonal magnitudes, perturbing the
+        # spectrum estimate enough to dislodge the equal-modulus lock. (Golub & Van
+        # Loan §7.5; EISPACK ``hqr``.) ``_modulus_c`` is the Class-K magnitude — no
+        # bare ``abs()`` per the cascade-honesty rule.
+        if it == 10 or it == 20:
+            mu = _modulus_c(H[m - 1][m - 2])          # EISPACK exceptional shift
+            if m - 3 >= 0:
+                mu += _modulus_c(H[m - 2][m - 3])
+            mu = complex(mu, 0.0)                     # Class-C real ad-hoc shift
+        else:
+            lam1, lam2 = _eig2x2(
+                H[m - 2][m - 2], H[m - 2][m - 1], H[m - 1][m - 2], H[m - 1][m - 1]
+            )
+            dd = H[m - 1][m - 1]
+            mu = lam1 if _modulus_c(lam1 - dd) < _modulus_c(lam2 - dd) else lam2
         # QR of the leading m×m block minus μI; then H[:m,:m] ← R·Q + μI, the RQ
         # contraction routed through the native Mat-carrier mat_matmul (Class K).
         sub = [[H[i][j] - (mu if i == j else 0j) for j in range(m)] for i in range(m)]
@@ -1775,10 +1930,18 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
             for j in range(m):
                 H[i][j] = complex(rq[i, j]) + (mu if i == j else 0j)
         sweeps += 1
-        if sweeps > max_sweeps * n:                   # no-silent-hang backstop
-            for i in range(m):
-                eigs.append(H[i][i])
-            break
+        it += 1
+        if sweeps > sweep_ceiling:                    # genuine non-convergence:
+            # NEVER silently return the raw diagonal of an UN-converged block — for a
+            # companion matrix that diagonal is all zeros (the historic all-zero bug).
+            # Raise instead so the caller sees the failure (the exact integer oracle
+            # ``cascade.matrix_cascades.eigvals_exact`` is the convergent alternative).
+            raise RuntimeError(
+                f"mat_eigvals failed to converge in {sweeps} QR sweeps "
+                f"(n={n}, remaining block m={m}); the input may be pathological "
+                f"for the float shifted-QR path — use the exact integer oracle "
+                f"srmech.amsc.cascade.matrix_cascades.eigvals_exact for certified roots"
+            )
     return eigs
 
 
@@ -1840,7 +2003,7 @@ def mat_svd(a: "Mat") -> Tuple["Mat", List[float], "Mat"]:
     order = sorted(range(n), key=lambda i: lam[i], reverse=True)   # descending λ → σ
     # V columns reordered descending; vcols[j] is the j-th right singular vector.
     vcols = [[V[i, order[j]] for i in range(n)] for j in range(n)]
-    sigma = [_rsqrt(lam[order[j]] if lam[order[j]] > 0.0 else 0.0) for j in range(n)]
+    sigma = [_fsqrt(lam[order[j]] if lam[order[j]] > 0.0 else 0.0) for j in range(n)]
     k = min(m, n)
     S = [sigma[j] for j in range(k)]
 
@@ -1871,7 +2034,7 @@ def mat_svd(a: "Mat") -> Tuple["Mat", List[float], "Mat"]:
         for u in ucols:
             proj = sum(u[i].conjugate() * cand[i] for i in range(m))
             cand = [cand[i] - proj * u[i] for i in range(m)]
-        norm = _rsqrt(sum(x.real * x.real + x.imag * x.imag for x in cand))
+        norm = _fsqrt(sum(x.real * x.real + x.imag * x.imag for x in cand))
         if norm > 1e-12:
             inv = 1.0 / norm
             ucols.append([x * inv for x in cand])
@@ -1940,7 +2103,7 @@ def mat_norm(x) -> float:
         else:
             sv = float(s)
             total += sv * sv
-    return _rsqrt(total) if total > 0.0 else 0.0
+    return _fsqrt(total) if total > 0.0 else 0.0
 
 
 def _operand_is_complex(x) -> bool:
@@ -2193,7 +2356,7 @@ def _complex_transcendental_loop(flat, op_name: str) -> list:
         if op_name == "exp":
             out.append(_rcomplex_exp(z))
         elif op_name == "log":
-            mag = _rhypot(a, b)
+            mag = _fhypot(a, b)
             if mag <= 0.0:
                 raise ValueError("log requires arr[i] != 0")
             out.append(complex(_rlog(mag), _ratan2(b, a)))
@@ -2329,7 +2492,7 @@ def elementwise_hypot(a, b):
         raise ValueError(
             f"elementwise_hypot: length mismatch {len(flat_a)} vs {len(flat_b)}"
         )
-    flat = [_rhypot(float(ai), float(bi)) for ai, bi in zip(flat_a, flat_b)]
+    flat = [_fhypot(float(ai), float(bi)) for ai, bi in zip(flat_a, flat_b)]
     return _ew_pack(flat, matrix=is_mat, shape=shape, is_complex=False)
 
 
@@ -2372,7 +2535,7 @@ def elementwise_sqrt(arr):
     flat = [float(x) for x in _flatten_scalars(arr)]
     if flat and min(flat) < 0.0:
         raise ValueError("elementwise_sqrt requires all arr[i] >= 0")
-    out = [_rsqrt(x) for x in flat]
+    out = [_fsqrt(x) for x in flat]
     return _ew_pack(out, matrix=is_mat, shape=shape, is_complex=False)
 
 
@@ -2504,7 +2667,8 @@ def magnetic_laplacian(
     el, wl = _validate_edges_weights_py(n, edges, weights)
     W = _directed_adjacency(n, [u for u, _ in el], [v for _, v in el], wl)
     A_s = [[0.5 * (W[r][c] + W[c][r]) for c in range(n)] for r in range(n)]
-    # phase[r][c] = exp(i·2π·q·(W[r][c] − W[c][r])); 2π via stdlib math.pi.
+    # phase[r][c] = exp(i·2π·q·(W[r][c] − W[c][r])); 2π via the Class-N atan
+    # cascade (_PI = 4·atan(1); no stdlib math.pi).
     two_pi_q = 2.0 * _PI * float(q)
     L = [[0j] * n for _ in range(n)]
     deg = [0.0] * n
@@ -2585,12 +2749,12 @@ def _fiedler_sparse_py(
     for (a, b), w in zip(edge_list, w_list):
         nbr[a].append((b, w)); deg[a] += w
         nbr[b].append((a, w)); deg[b] += w
-    s = [(1.0 / _rsqrt(deg[i])) if deg[i] > 0 else 0.0 for i in range(n)]  # D^-1/2
-    p = [_rsqrt(deg[i]) if deg[i] > 0 else 0.0 for i in range(n)]          # √deg (λ₀)
+    s = [(1.0 / _fsqrt(deg[i])) if deg[i] > 0 else 0.0 for i in range(n)]  # D^-1/2
+    p = [_fsqrt(deg[i]) if deg[i] > 0 else 0.0 for i in range(n)]          # √deg (λ₀)
     pn2 = sum(x * x for x in p)
     if pn2 <= 0:
         return [0.0] * n
-    pnorm = _rsqrt(pn2)
+    pnorm = _fsqrt(pn2)
     p = [x / pnorm for x in p]
     # Deterministic, order-independent init — a Class-I multiplicative scramble
     # keyed by node index (Knuth 2654435761), mapped to [−1, 1). NOT the parity
@@ -2617,7 +2781,7 @@ def _fiedler_sparse_py(
                 max_sq = xsq
         if max_sq <= 0:
             break
-        mx = _rsqrt(max_sq)                                # Class-N root -> max |u|
+        mx = _fsqrt(max_sq)                                # Class-N root -> max |u|
         v = [x / mx for x in u]
         sign = tuple(1 if x >= 0 else 0 for x in v)
         if sign == prev_sign and it >= 20:                 # stable sign (after warmup)

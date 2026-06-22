@@ -159,7 +159,10 @@ def op(
     order = sorted(range(p), key=lambda idx: eigvals[idx], reverse=True)
     # Keep top n_components and whiten. ``W_whiten = diag(1/√λ) · Vᵀ`` (k×p).
     lam = [eigvals[order[c]] if eigvals[order[c]] > 1e-12 else 1e-12 for c in range(k)]
-    inv_sqrt = [1.0 / _srn.sqrt(lam[c]) for c in range(k)]
+    # Whitening magnitudes feed the float JADE Givens sweep below (an iterative
+    # FPU diagonaliser); the exact-Q roots rotate to float here so the sweep
+    # stays on the FPU (Q carried through the sweep would grow num/den each pass).
+    inv_sqrt = [1.0 / float(_srn.sqrt(lam[c])) for c in range(k)]
     W_whiten = [[inv_sqrt[c] * eigvecs[i][order[c]] for i in range(p)] for c in range(k)]
     # Whitened sources ``Z = (W_whiten · Xᵀ)ᵀ`` (n×k).
     Z = [
@@ -205,7 +208,7 @@ def op(
                 if _abs(theta) < tol:
                     continue
                 off += _abs(theta)
-                c, s = _srn.cos(theta), _srn.sin(theta)
+                c, s = float(_srn.cos(theta)), float(_srn.sin(theta))  # float Givens
                 # Givens rotation G.
                 G = [[1.0 if a == b else 0.0 for b in range(k)] for a in range(k)]
                 G[i][i] = c

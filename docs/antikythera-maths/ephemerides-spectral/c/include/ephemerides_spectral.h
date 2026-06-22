@@ -36,7 +36,8 @@
  *   (~6.8e8 days = ~1.86 Myr). Outside this envelope, omega * delta_t
  *   would saturate int64 and corrupt the result.
  *
- * License: GPL-3.0-or-later (parent project: mlehaptics).
+ * License: MIT (this package). The wider mlehaptics monorepo is
+ *          GPL-3.0-or-later; this package carries its own MIT terms.
  */
 
 #ifndef EPHEMERIDES_SPECTRAL_H
@@ -741,9 +742,9 @@ es_status_t es_get_eclipse_probability(const es_complex64_t *state,
  * two need to be bumped together at release time.
  */
 #define ES_VERSION_MAJOR 0
-#define ES_VERSION_MINOR 31
+#define ES_VERSION_MINOR 32
 #define ES_VERSION_PATCH 0
-#define ES_VERSION_STRING "0.31.0rc4"
+#define ES_VERSION_STRING "0.32.0"
 
 const char *es_version(void);
 

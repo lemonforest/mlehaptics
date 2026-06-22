@@ -216,3 +216,66 @@ srmech_status_t srmech_log(double x, double *out)
                + (logm + (double)e * SRMECH_EXPLOG_LN2_LO);
     return SRMECH_OK;
 }
+
+/* ── 0.9.0rc7 stay-rational Q61 surface (F868) ────────────────────────────
+ * exp/log peers that return the EXACT rational pieces instead of the projected
+ * double, so the Python `rational.{exp,log}` dispatch to native AND keep the
+ * full Q61 provenance:
+ *   srmech_exp_q61: exp(x) = (core / 2^61) * 2^n.  Returns (*out_core in
+ *     [~0.7,1.4]*2^61, *out_n). Python forms _q(core << n, 2^61) (n>=0) or
+ *     _q(core, 2^61 << -n). NO float overflow gate (the exact rational has no
+ *     DBL_MAX); only NaN / impractical |x| (n would not fit int64) -> BAD_INPUT.
+ *   srmech_log_q61: log(x) = (logm + e*ln2) / 2^61.  Returns (*out_logm =
+ *     log(mantissa) in Q61, *out_e = binary exponent). Python forms
+ *     _q(logm + e*_Q61_LN2, 2^61) with the cascade-derived Q61 ln2 (NOT the
+ *     two-word float LN2 used by srmech_log) -> a clean Q over 2^61. */
+srmech_status_t srmech_exp_q61(double x, int64_t *out_core, int64_t *out_n)
+{
+    assert(out_core != NULL);
+    assert(out_n != NULL);
+    if (out_core == NULL || out_n == NULL) { return SRMECH_ERR_NULL_ARG; }
+    if (x != x) { return SRMECH_ERR_BAD_INPUT; }                  /* NaN */
+    if (x > 1.0e18 || x < -1.0e18) { return SRMECH_ERR_BAD_INPUT; }  /* Inf / n past int64 */
+    double tn = x * SRMECH_EXPLOG_INV_LN2;
+    int64_t n = (int64_t)(tn + (tn >= 0.0 ? 0.5 : -0.5));        /* round half away from 0 */
+    double r = (x - (double)n * SRMECH_EXPLOG_LN2_HI)
+                   - (double)n * SRMECH_EXPLOG_LN2_LO;
+    int64_t rq = (int64_t)(r * (double)SRMECH_EXPLOG_ONE + (r >= 0.0 ? 0.5 : -0.5));
+    *out_core = explog_exp_core(rq);
+    *out_n = n;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_log_q61(double x, int64_t *out_logm, int64_t *out_e)
+{
+    assert(out_logm != NULL);
+    assert(out_e != NULL);
+    if (out_logm == NULL || out_e == NULL) { return SRMECH_ERR_NULL_ARG; }
+    if (x != x) { return SRMECH_ERR_BAD_INPUT; }                  /* NaN */
+    if (x <= 0.0) { return SRMECH_ERR_BAD_INPUT; }                /* log domain */
+    uint64_t bits;
+    memcpy(&bits, &x, sizeof bits);
+    uint32_t raw = (uint32_t)((bits >> 52) & 0x7FFu);
+    uint64_t frac = bits & ((UINT64_C(1) << 52) - 1);
+    if (raw == 0x7FFu) { return SRMECH_ERR_BAD_INPUT; }          /* +Inf — not finite */
+    uint64_t mant;
+    int e;
+    if (raw == 0) {                                              /* subnormal */
+        uint64_t f = frac;
+        int sh = 0;
+        for (sh = 0; sh < 53 && (f & (UINT64_C(1) << 52)) == 0; sh++) { f <<= 1; }
+        assert(sh <= 52);
+        mant = f;
+        e = -1022 - sh;
+    } else {
+        mant = frac | (UINT64_C(1) << 52);
+        e = (int)raw - 1023;
+    }
+    double m = (double)mant / (double)(UINT64_C(1) << 52);       /* m in [1,2) */
+    if (m >= SRMECH_EXPLOG_SQRT2) { m *= 0.5; e += 1; }          /* fold to [1/sqrt2,sqrt2) */
+    double tt = (m - 1.0) / (m + 1.0);
+    int64_t tq = (int64_t)(tt * (double)SRMECH_EXPLOG_ONE + (tt >= 0.0 ? 0.5 : -0.5));
+    *out_logm = explog_log_core(tq);                             /* log(m) in Q61 */
+    *out_e = (int64_t)e;
+    return SRMECH_OK;
+}

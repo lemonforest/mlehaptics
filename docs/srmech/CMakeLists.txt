@@ -96,6 +96,23 @@ if(SRMECH_SRCS)
                 LIBRARY DESTINATION srmech/_native
                 ARCHIVE DESTINATION srmech/_native)
     endif()
+
+    # ─────────────────────────────────────────────────────────────────
+    # Standalone C-HOST smoke (0.9.0rc8, F868) — compiled in the pedantic
+    # CI matrix so the Q61 stay-rational transcendental surface is proven
+    # to BUILD for a C-ONLY host (no Python) on Linux gcc / macOS clang /
+    # Windows MSVC under -Werror / /WX. It reassembles all 9 transcendentals
+    # from the six srmech_*_q61 peers + the SRMECH_Q61_* constants and checks
+    # them against libm. Run it for the value check (62 asserts):
+    #   ./build/test_srmech_trans_q61          (exit 0 = all pass)
+    # Guarded by SRMECH_PEDANTIC so it joins the warnings-as-errors gate but
+    # is never built into the shipped wheel. (The other c/test/*.c smokes
+    # keep their dev-time/WSL2 run convention.)
+    # ─────────────────────────────────────────────────────────────────
+    if(SRMECH_PEDANTIC)
+        add_executable(test_srmech_trans_q61 c/test/test_srmech_trans_q61.c)
+        target_link_libraries(test_srmech_trans_q61 PRIVATE srmech ${SRMECH_MATH_LIB})
+    endif()
 else()
     # Phase B1 only: no .c files yet. Emit a status line so the
     # build log makes the scaffold state obvious.

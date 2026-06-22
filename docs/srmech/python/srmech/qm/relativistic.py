@@ -288,7 +288,7 @@ def klein_gordon_dispersion(k_spatial: Sequence[float], m: float) -> float:
     if m < 0:
         raise ValueError(f"klein_gordon_dispersion: m must be ≥ 0; got {m}")
     k_sq = sum(x * x for x in k_spatial)   # |k|² — Class-N plain dot
-    return _srn.sqrt(k_sq + m * m)
+    return float(_srn.sqrt(k_sq + m * m))
 
 
 def four_momentum_squared(k: Sequence[float]) -> float:

@@ -104,6 +104,7 @@ from ..rational import (
     sin_series_truncate,
     _reduce_rational,
 )
+from ..q import Q
 
 # ──────────────────────────────────────────────────────────────────────
 # Substrate constants — the 1+3+7+3 partition, named once.
@@ -516,7 +517,11 @@ def to_scalar(one: "One",
             f"mode must be 'trace', 'sqnorm' or 'component'; got {mode!r}")
     if as_float:
         return num / den          # the single terminal lossy cast (no numpy)
-    return (num, den)
+    # The exact scalar-rational carrier (F868 stay-rational): float never
+    # enters, the value compares like a float, and the raw ``(num, den)`` is
+    # always recoverable (``q.numerator`` / ``q.denominator`` / ``num, den = q``).
+    # Replaces the awkward bare tuple this used to hand back.
+    return Q(num, den)
 
 
 # ──────────────────────────────────────────────────────────────────────

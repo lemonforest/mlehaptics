@@ -56,22 +56,38 @@ native_sqrt = pytest.mark.skipif(
 
 # ---- 1. C ↔ Q61 bit-exact (forcing the pure-Python path via monkeypatch) ----
 
+# rc7: ``R.{exp,log,sqrt}`` return an exact ``Q``; the native ``*_c`` helpers
+# return a ``float``. The C↔Q61 "bit-exact" claim is about the FLOAT PROJECTION
+# of the exact Q being byte-identical to the native double, so collapse the Q
+# with ``float()`` at the comparison (``Q == <native float>`` is an exact
+# cross-multiply and the exact rational != the rounded double by design).
+
 @native_explog
 def test_exp_native_bit_exact_with_q61(monkeypatch):
     native = {x: _native.exp_c(x) for x in _EXP_ARGS}
     monkeypatch.setattr(_native, "has_native_explog", lambda: False)
     for x in _EXP_ARGS:
-        assert R.exp(x) == native[x], (
+        assert float(R.exp(x)) == native[x], (
             f"exp({x!r}) C={_bits(native[x])} Q61={_bits(R.exp(x))}")
 
 
 @native_explog
 def test_log_native_bit_exact_with_q61(monkeypatch):
+    # rc7 changed log's ``e·ln2`` recombine from the legacy two-word-FLOAT ln2
+    # (which the old native float ``log_c`` still uses) to an EXACT Q61-INTEGER
+    # ln2 (``_Q61_LN2``). For inputs with ``e != 0`` the two valid algorithms
+    # round the last mantissa bit differently, so the Q61 float projection sits
+    # within **1 ULP** of legacy ``log_c`` (both within 1 ULP of libm; exp/sqrt
+    # stay byte-exact because their 2^n recombine is an exact power-of-two, no
+    # irrational ln2 multiply). The byte-exact peer for the Q61 log is the rc7
+    # ``srmech_log_q61`` (see test_native_q61_parity_rc7.py); legacy ``log_c`` is
+    # the ≤1-ULP reference here.
     native = {x: _native.log_c(x) for x in _POS_ARGS}
     monkeypatch.setattr(_native, "has_native_explog", lambda: False)
     for x in _POS_ARGS:
-        assert R.log(x) == native[x], (
-            f"log({x!r}) C={_bits(native[x])} Q61={_bits(R.log(x))}")
+        got = float(R.log(x))
+        assert abs(got - native[x]) <= math.ulp(native[x]), (
+            f"log({x!r}) >1ULP: C={_bits(native[x])} Q61={_bits(got)}")
 
 
 @native_sqrt
@@ -79,7 +95,7 @@ def test_sqrt_native_bit_exact_with_q61(monkeypatch):
     native = {x: _native.rational_sqrt_c(x) for x in _POS_ARGS}
     monkeypatch.setattr(_native, "has_native_sqrt", lambda: False)
     for x in _POS_ARGS:
-        assert R.sqrt(x) == native[x], (
+        assert float(R.sqrt(x)) == native[x], (
             f"sqrt({x!r}) C={_bits(native[x])} Q61={_bits(R.sqrt(x))}")
 
 
@@ -111,27 +127,34 @@ def test_exp_log_round_trip():
 
 def test_exp_edges():
     assert R.exp(0.0) == 1.0
-    assert math.isnan(R.exp(float("nan")))
-    assert R.exp(float("inf")) == float("inf")
-    assert R.exp(float("-inf")) == 0.0
-    assert R.exp(1000.0) == float("inf")          # overflow gate
-    assert R.exp(-1000.0) == 0.0                  # underflow gate
+    # rc7 stay-rational: a non-finite x raises (Q is the finite-rational carrier).
+    for bad in (float("nan"), float("inf"), float("-inf")):
+        with pytest.raises(ValueError):
+            R.exp(bad)
+    # No DBL_MAX overflow/underflow gate (that was a float artefact): a finite x
+    # gives the EXACT (huge / tiny) finite rational, never inf / 0. Check the
+    # exact (num, den) directly so no float() projection overflows.
+    big_n, big_d = R.exp(1000.0).as_pair()
+    assert big_n > big_d > 0                        # exp(1000) > 1, exact rational
+    tiny_n, tiny_d = R.exp(-1000.0).as_pair()
+    assert 0 < tiny_n and tiny_d > tiny_n           # 0 < exp(-1000) < 1, exact rational
 
 
 def test_log_edges():
     assert R.log(1.0) == 0.0
-    assert math.isnan(R.log(float("nan")))
-    assert math.isnan(R.log(-1.0))                # domain
-    assert R.log(0.0) == float("-inf")
-    assert R.log(float("inf")) == float("inf")
+    # rc7: x <= 0 and non-finite raise (none of -inf / nan is a rational).
+    for bad in (float("nan"), -1.0, 0.0, float("inf"), float("-inf")):
+        with pytest.raises(ValueError):
+            R.log(bad)
 
 
 def test_sqrt_edges():
     assert R.sqrt(0.0) == 0.0
     assert R.sqrt(4.0) == 2.0
-    assert R.sqrt(float("inf")) == float("inf")
-    with pytest.raises(ValueError):
-        R.sqrt(-1.0)
+    # rc7: negative AND non-finite raise (Q is the finite-rational carrier).
+    for bad in (-1.0, float("inf"), float("-inf"), float("nan")):
+        with pytest.raises(ValueError):
+            R.sqrt(bad)
 
 
 def test_sqrt_precision_bits_reference_is_separate():

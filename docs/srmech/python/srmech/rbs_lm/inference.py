@@ -8,7 +8,7 @@ four stones of the walk into one clean API, parameterized by the descriptor
 catalog (``from_catalog``) OR an in-memory params dict (``from_params``):
 
   Step 1  ContextSubstrate.encode_context  — last-k tokens → ONE Klein-4 state
-  Step 2  next_token_distribution          — Class M retrieve over bigram-legal candidates
+  Step 2  next_token_distribution          — Class M retrieve over the bounded atom set
   Step 3  temperature                       — the recall↔diversity dial (cold regime)
   Step 4  infer                             — the autoregressive loop (= inference)
 
@@ -23,7 +23,6 @@ Per [[user_stance_kepler_shape_universal]]: inference IS a named A-N cascade
 from __future__ import annotations
 
 import random
-from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from typing import List, Mapping, Sequence
 
@@ -70,8 +69,6 @@ class RBSLMInferenceSubstrate:
     vocab: list[str] = field(default_factory=list)
     vocab_vecs: "list[HV] | None" = None
     vocab_idx: dict[str, int] = field(default_factory=dict)
-    next_after: dict[str, list[str]] = field(default_factory=dict)
-    bigram_counts: dict[str, Counter] = field(default_factory=dict)
     M: "HV | None" = None
     n_learned: int = 0
 
@@ -82,16 +79,21 @@ class RBSLMInferenceSubstrate:
 
         ``params`` carries the same nested structure the descriptor catalog
         yields under ``desc.fetch["literature_curated"]``: a ``substrate`` table
-        (D / token_seed_hex_chars) and an ``inference.instrument`` table
-        (operating_k / operating_temperature / memory_capacity /
-        default_max_tokens / learn_seed)."""
+        (D / token_seed_hex_chars / optional ``enc_mode``) and an
+        ``inference.instrument`` table (operating_k / operating_temperature /
+        memory_capacity / default_max_tokens / learn_seed).
+
+        ``substrate.enc_mode`` selects the word encoder: ``"byteglyph"``
+        (default — the C1 byte/glyph LM object, F916) or ``"wordhash"`` (the
+        prior whole-word sha256 atom; pin it to reproduce pre-rc17 numerics)."""
         from srmech.amsc._native import HAS_NATIVE, NATIVE_ABI_VERSION
         from srmech import __version__ as SRMECH_VERSION
 
         sub = params["substrate"]
         inst = params["inference"]["instrument"]
         ctx = cs.ContextSubstrate(D=int(sub["D"]),
-                                  hex_chars=int(sub["token_seed_hex_chars"]))
+                                  hex_chars=int(sub["token_seed_hex_chars"]),
+                                  enc_mode=str(sub.get("enc_mode", "byteglyph")))
         return cls(
             ctx=ctx,
             operating_k=int(inst["operating_k"]),
@@ -134,18 +136,18 @@ class RBSLMInferenceSubstrate:
 
     # ----------------------------------------------------------------- learn
     def learn(self, token_stream: Sequence[str]) -> "RBSLMInferenceSubstrate":
-        """Load corpus knowledge: the bigram candidate structure (full stream) +
-        a context→next associative memory of up to memory_capacity (k-window→next)
-        pairs (the F154-bounded single memory). Deterministic in learn_seed."""
+        """Load corpus knowledge: the bounded per-tome atom set (``vocab``) + a
+        context→next associative memory of up to memory_capacity (k-window→next)
+        pairs (the F154-bounded single memory). Deterministic in learn_seed.
+
+        §57: NO bigram-count co-occurrence table is built — the candidate set is
+        the bounded atom set itself, scored at inference time by the Class-M
+        resonator over ``M``. The hand-rolled ``Counter()`` bigram tally the
+        CLAUDE.md STOP-list flags as a statistical-LM contaminant is retired."""
         stream = list(token_stream)
         self.vocab = sorted(set(stream))
         self.vocab_idx = {w: i for i, w in enumerate(self.vocab)}
         self.vocab_vecs = [self.ctx.enc(w) for w in self.vocab]
-
-        self.bigram_counts = defaultdict(Counter)
-        for a, b in zip(stream, stream[1:]):
-            self.bigram_counts[a][b] += 1
-        self.next_after = {a: sorted(c.keys()) for a, c in self.bigram_counts.items()}
 
         k = self.operating_k
         pairs_all = [(tuple(stream[i - k:i]), stream[i]) for i in range(k, len(stream))]
@@ -167,20 +169,32 @@ class RBSLMInferenceSubstrate:
     def next_token_distribution(self, context: Sequence[str],
                                 temperature: float | None = None):
         """Return (candidates, probabilities) — the context-conditioned next-token
-        distribution over the bigram-legal candidate set (Steps 2-3)."""
+        distribution (Steps 2-3).
+
+        §57: the candidate set is the FULL bounded per-tome atom set
+        (``self.vocab``), scored by the Class-M resonator — probe the bundle
+        ``M`` with the encoded context, then fractional-agreement similarity over
+        every atom vector. There is NO bigram-count gate (the hand-rolled
+        ``Counter()`` co-occurrence the CLAUDE.md STOP-list forbids): grounding
+        comes from ``M``, not a statistical-LM next-token table. §56: ``T <= 0``
+        is greedy (argmax → one-hot), no temperature softmax."""
         if self.M is None:
             raise RuntimeError("call .learn(stream) before inference")
+        if not self.vocab:
+            return [], []
         T = self.operating_temperature if temperature is None else temperature
         k = self.operating_k
-        last = context[-1]
-        candidates = self.next_after.get(last, [])
-        if not candidates:
-            return [], []
-        if len(candidates) == 1:
-            return candidates, [1.0]
-        cidx = [self.vocab_idx[c] for c in candidates]
+        candidates = self.vocab
         probe = hdc.klein4_bind(self.M, self.ctx.encode_context(list(context[-k:])))
-        sims = cs.sim_k4_batch(probe, [self.vocab_vecs[i] for i in cidx])
+        sims = cs.sim_k4_batch(probe, self.vocab_vecs)
+        if T <= 0.0:                                   # §56 greedy: argmax → one-hot
+            best = 0
+            for i in range(1, len(sims)):
+                if sims[i] > sims[best]:                # Class K pin-slot compare
+                    best = i
+            p = [0.0] * len(candidates)
+            p[best] = 1.0
+            return candidates, p
         return candidates, _softmax(sims, T)
 
     # ------------------------------------------------------------- infer

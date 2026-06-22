@@ -25,6 +25,7 @@ from srmech.calculus import (  # noqa: F401  (re-exported for back-compat)
     atan,
     atan2,
     exp,
+    log,
     cexp,
     complex_exp,
     sqrt,

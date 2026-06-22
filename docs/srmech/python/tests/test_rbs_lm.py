@@ -6,6 +6,11 @@ tiny token stream, attestation block keys, and infer determinism. The substrate
 is built via the in-memory ``from_params`` path (no TOML), with one test
 exercising ``from_catalog`` through a tmp descriptor.toml.
 
+§57: the candidate set is the full bounded ATOM set (``self.vocab``) scored by
+the Class-M resonator over ``M`` — there is NO hand-rolled ``Counter()`` bigram
+gate (the STOP-list contaminant). So these tests assert full-vocab candidates +
+greedy resonator grounding rather than bigram-legality.
+
 numpy-free (v0.7.5rc113, #564): the encode path returns the framework-native
 ``srmech.amsc.hv.HV`` carrier and the substrate runs with numpy absent, so these
 assertions are HV-native (``len`` / ``.tolist`` / ``==``) rather than ndarray
@@ -154,38 +159,59 @@ def test_from_params_constructor():
     assert sub.abi_version is None or isinstance(sub.abi_version, int)
 
 
-def test_learn_builds_bigram_structure_and_memory():
+def test_learn_builds_atom_set_and_memory():
     sub = RBSLMInferenceSubstrate.from_params(PARAMS).learn(TINY_STREAM)
     assert sub.M is not None
     assert len(sub.M) == D
     assert sub.n_learned > 0
     assert sub.vocab == sorted(set(TINY_STREAM))
-    # "the" is followed by cat, cat, dog in the stream → candidates {cat, dog}.
-    assert set(sub.next_after["the"]) == {"cat", "dog"}
-    # "cat" is followed by sat, ran → candidates {sat, ran}.
-    assert set(sub.next_after["cat"]) == {"sat", "ran"}
+    # §57: the candidate set is the bounded ATOM set (vocab), one HV per atom —
+    # NOT a hand-rolled bigram-count table. The Counter()/defaultdict next_after
+    # structure the STOP-list forbids is gone.
+    assert sub.vocab_vecs is not None
+    assert len(sub.vocab_vecs) == len(sub.vocab)
+    assert not hasattr(sub, "next_after")
+    assert not hasattr(sub, "bigram_counts")
 
 
-def test_next_token_distribution_probs_and_legal_candidates():
+def test_next_token_distribution_full_vocab_candidates():
     sub = RBSLMInferenceSubstrate.from_params(PARAMS).learn(TINY_STREAM)
     cands, probs = sub.next_token_distribution(["the", "cat"])
-    # Candidates must be the bigram-legal successors of the LAST token ("cat").
-    assert set(cands) == {"sat", "ran"}
+    # §57: candidates are the FULL bounded atom set (the resonator scores all of
+    # vocab), NOT a bigram-legal subset of the last token's successors.
+    assert set(cands) == set(sub.vocab)
     assert len(probs) == len(cands)
     assert float(sum(probs)) == pytest.approx(1.0)
     assert all(p >= 0.0 for p in probs)
 
 
-def test_next_token_distribution_single_candidate_and_dead_end():
+def test_next_token_distribution_no_dead_end_under_resonator():
     sub = RBSLMInferenceSubstrate.from_params(PARAMS).learn(TINY_STREAM)
-    # "dog" is followed only by "sat" → single candidate, prob 1.0.
-    cands, probs = sub.next_token_distribution(["the", "dog"])
-    assert cands == ["sat"]
-    assert probs == [1.0]
-    # A last token that never appears as a left-token → no candidates (dead end).
-    cands2, probs2 = sub.next_token_distribution(["the", "neverseen"])
-    assert cands2 == []
-    assert len(probs2) == 0
+    # §57: there is no bigram "dead end" — a context whose last token never
+    # appeared as a left-token STILL resonates over the full atom set (grounding
+    # comes from M, not a next-token gate), so candidates are never empty here.
+    cands, probs = sub.next_token_distribution(["the", "neverseen"])
+    assert set(cands) == set(sub.vocab)
+    assert float(sum(probs)) == pytest.approx(1.0)
+
+
+def test_greedy_recovers_grounded_successor():
+    # §57 grounding: at inference D the Class-M resonator over M recovers the
+    # stored next token. A distinct-token stream makes each k-window unique, so
+    # greedy (T<=0, §56 argmax → one-hot) is exact.
+    hi = {
+        "substrate": {"D": 8192, "token_seed_hex_chars": HEX_CHARS},
+        "inference": {"instrument": {
+            "operating_k": 2, "operating_temperature": 0.0,
+            "memory_capacity": 1000, "default_max_tokens": 8, "learn_seed": 1234}},
+    }
+    stream = ["a", "b", "c", "d", "e", "f"]
+    sub = RBSLMInferenceSubstrate.from_params(hi).learn(stream)
+    cands, probs = sub.next_token_distribution(["a", "b"], temperature=0.0)
+    # one-hot greedy: the argmax candidate is the grounded successor "c".
+    top = cands[max(range(len(probs)), key=lambda i: probs[i])]
+    assert top == "c"
+    assert float(sum(probs)) == pytest.approx(1.0)
 
 
 def test_next_token_distribution_before_learn_raises():
@@ -194,15 +220,14 @@ def test_next_token_distribution_before_learn_raises():
         sub.next_token_distribution(["the", "cat"])
 
 
-def test_infer_starts_from_prompt_and_is_bigram_legal():
+def test_infer_starts_from_prompt_and_stays_in_vocab():
     sub = RBSLMInferenceSubstrate.from_params(PARAMS).learn(TINY_STREAM)
     out = sub.infer(["the", "cat"], max_tokens=5, seed=7)
     assert isinstance(out, list)
     assert out[:2] == ["the", "cat"]
-    # Every adjacent pair in the generated tail must be a learned bigram.
-    for a, b in zip(out, out[1:]):
-        if a in sub.next_after:
-            assert b in sub.next_after[a]
+    # §57: every generated token is drawn from the bounded atom set (the
+    # resonator only ever ranks vocab atoms) — no bigram-legality gate.
+    assert all(tok in sub.vocab for tok in out)
 
 
 def test_infer_determinism_same_seed():
@@ -289,8 +314,8 @@ def test_from_catalog_builds_substrate(tmp_path):
     assert isinstance(sub.descriptor_hash, str)
     assert len(sub.descriptor_hash) == 64
     int(sub.descriptor_hash, 16)  # parses as hex
-    # End-to-end works identically to the from_params path.
+    # End-to-end works identically to the from_params path (§57: full atom set).
     sub.learn(TINY_STREAM)
     cands, probs = sub.next_token_distribution(["the", "cat"])
-    assert set(cands) == {"sat", "ran"}
+    assert set(cands) == set(sub.vocab)
     assert float(sum(probs)) == pytest.approx(1.0)

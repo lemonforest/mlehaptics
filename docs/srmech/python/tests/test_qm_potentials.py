@@ -49,7 +49,7 @@ def test_harmonic_oscillator_ladder_action():
     n = 20
     a, _ = potentials.harmonic_oscillator_ladder(n_dim=n)
     for k in range(1, n):
-        expected = _srn.sqrt(float(k))
+        expected = float(_srn.sqrt(float(k)))      # exact Q → float ladder element
         # Column k is √k on row k-1, zero on every other row.
         for i in range(n):
             want = expected if i == k - 1 else 0.0
