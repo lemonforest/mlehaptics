@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc29"
-#define SRMECH_VERSION       "0.9.0rc29"
+#define SRMECH_VERSION_PRE   "rc30"
+#define SRMECH_VERSION       "0.9.0rc30"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -216,13 +216,6 @@ typedef srmech_status_t (*srmech_ndjson_line_cb)(const char *line,
 srmech_status_t srmech_ndjson_iter(const char            *path,
                                    srmech_ndjson_line_cb  cb,
                                    void                  *user);
-
-/* B5 (planned): Canonical-serialised TOML hash. Re-emits the parsed
- *     TOML with sorted keys + normalised whitespace, then SHA-256s
- *     the result. Output is 64 lowercase hex chars + NUL into
- *     `out_hex`. */
-srmech_status_t srmech_toml_canonical_hash(const char *toml_path,
-                                           char       *out_hex);
 
 /* ------------------------------------------------------------------ *
  * Cascade catalog — cross-domain named cascades
@@ -839,13 +832,10 @@ srmech_status_t srmech_three_cycle(uint64_t value, uint64_t *out);
  *     jacobi_eigvals / dense_matmul_complex write only into the caller's
  *     matrix (degree per-row, d^(−1/2) stashed in the diagonal, Jacobi
  *     rotates in place), so the bound is the caller's RAM, not a compiled
- *     limit (standalone-complete honor). SRMECH_LAPLACIAN_MAX_NODES below
- *     now sizes only the legacy non-_ws Hermitian static workspace.
+ *     limit (standalone-complete honor).
  *
  * No ABI bump: pure additions to ABI v2 per the Phase B4 convention.
  * ------------------------------------------------------------------ */
-
-#define SRMECH_LAPLACIAN_MAX_NODES 256
 
 /* A from edge list. A[u,v] = A[v,u] = sum of weights of edges between u
  * and v. Self-loops add 2*w to the diagonal (standard convention).

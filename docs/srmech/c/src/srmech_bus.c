@@ -45,7 +45,6 @@
  * ------------------------------------------------------------------ */
 
 #define SRMECH_BUS_FRAME_PREFIX_BYTES 4u
-#define SRMECH_BUS_MAX_FRAME_BYTES    (16u * 1024u * 1024u)  /* 16 MiB */
 
 /* Per-connection workspace size. Caller-supplied response buffer is
  * separate; this is the request-read buffer the accept loop owns. */

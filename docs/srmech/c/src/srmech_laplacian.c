@@ -467,9 +467,8 @@ static void srmech_hermitian_init_identity(uint32_t n, double *V_il)
 }
 
 /* Helper: sort eigenpairs in ascending eigenvalue order. Selection-
- * sort over n (bounded by SRMECH_LAPLACIAN_MAX_NODES, so O(n²) is
- * embedded-safe). Swaps eigvals[i] with eigvals[min_idx] AND column i
- * of V with column min_idx of V. */
+ * sort over n (O(n²) over the caller's n eigenpairs). Swaps eigvals[i]
+ * with eigvals[min_idx] AND column i of V with column min_idx of V. */
 static void srmech_hermitian_sort_eigenpairs(uint32_t n,
                                              double *eigvals,
                                              double *V_il)

@@ -568,15 +568,6 @@ def polar_from_real(arr, threshold: float = 0.0, dead_band: float = 0.0):
 KLEIN4_STATES = (0, 1, 2, 3)
 
 
-def _as_klein4(v, op: str):
-    """Validate a Klein-4 value into an ``array('B')`` buffer (numpy-free).
-
-    rc125: the prior numpy ``asarray(..., uint8)`` path is the stdlib
-    :func:`_as_klein4_buf` — kept as a thin alias for the few legacy callers
-    of this name (elements in ``{0, 1, 2, 3}``)."""
-    return _as_klein4_buf(v, op)
-
-
 # ── numpy-free Klein-4 core (v0.7.0rc29; UPSTREAM §22/§22b) ───────────────
 # The Klein-4 carrier is the first family to go numpy-free: ops validate to a
 # stdlib ``array('B')`` working buffer and return an :class:`HV` handle (no
@@ -812,15 +803,6 @@ def _klein4_sector_flip(s, buf: "array") -> "array":
     return _xor_const_buf(buf, _KLEIN4_SECTOR_MASKS[s])
 
 
-def _klein4_chirality_duals(body, buf: "array", n_sectors):
-    """The ≤4 sector duals ``T_s(body(T_s(v)))`` (F233). Serial — the pure-Python
-    bodies are GIL-bound, so threading would not overlap (UPSTREAM caveat)."""
-    return [
-        _klein4_sector_flip(s, body(_klein4_sector_flip(s, buf)))
-        for s in range(n_sectors)
-    ]
-
-
 def _klein4_bundle_core(arrs) -> "array":
     """Per-bit majority over equal-length klein4 buffers — the serial bundle
     kernel (the public :func:`klein4_bundle` wraps it in an :class:`HV`)."""
@@ -866,19 +848,6 @@ def _klein4_bundle_native(arrs) -> "array":
     if rc != _native.SRMECH_OK:
         return None
     return array("B", bytes(out))
-
-
-def _klein4_similarity_native(a: "array", b: "array"):
-    """Native match-fraction similarity over two array('B') buffers → float."""
-    n = len(a)
-    ca = (ctypes.c_uint8 * n).from_buffer_copy(a)
-    cb = (ctypes.c_uint8 * n).from_buffer_copy(b)
-    out = ctypes.c_double()
-    rc = _native.LIB.srmech_klein4_similarity(
-        ca, cb, ctypes.c_uint32(n), ctypes.byref(out))
-    if rc != _native.SRMECH_OK:
-        return None
-    return float(out.value)
 
 
 def _klein4_match_count_native(a: "array", b: "array"):

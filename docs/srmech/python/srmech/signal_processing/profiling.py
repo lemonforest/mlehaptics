@@ -1,10 +1,11 @@
 """Profiling infrastructure for ``srmech.signal_processing``.
 
-Phase 1 scaffolding (v0.4.2rc1) — data structures + hook API for
-empirical Path-A-vs-Path-B benchmarking. Phase 8 (v0.4.2rc8) implements
-the benchmark runner, regression pipeline, and learned-dispatch-table
-materialisation; Phase 1 ships the surface so Phase 5 dispatcher work
-can call into a defined API.
+Data structures + hook API for empirical Path-A-vs-Path-B
+benchmarking: the :class:`ProfileCellKey` / :class:`ProfileRecord`
+shapes, the in-memory record buffer (:func:`record_profile` /
+:func:`iter_records` / :func:`clear_records`), and the
+:func:`cell_grid` benchmark-cell enumerator the dispatcher work
+programs against.
 
 Granularity per conductor decision #3 (2026-05-19): **full per-op ×
 per-cascade-depth × per-substrate**. Benchmark suite cell count =
@@ -28,9 +29,8 @@ Discipline anchors:
 from __future__ import annotations
 
 import json
-import time
-from dataclasses import asdict, dataclass, field
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
+from dataclasses import dataclass, field
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 from ._paths import (
     PATH_A,
@@ -43,31 +43,13 @@ from ._paths import (
 __all__ = [
     "ProfileRecord",
     "ProfileCellKey",
-    "ProfilingNotImplementedError",
     "record_profile",
     "iter_records",
     "clear_records",
-    "profile_op",
-    "update_dispatch_table",
     "cell_grid",
     "DEFAULT_INPUT_SIZES",
     "DEFAULT_CASCADE_DEPTHS",
 ]
-
-
-# ──────────────────────────────────────────────────────────────────────
-# Errors
-# ──────────────────────────────────────────────────────────────────────
-
-
-class ProfilingNotImplementedError(NotImplementedError):
-    """Raised by Phase 1 stubs that defer to Phase 8.
-
-    Phase 1 ships the API surface so the dispatcher (Phase 5) and
-    learned-table consumers can program against a stable interface;
-    the actual benchmark runner + regression pipeline lands in Phase 8
-    (v0.4.2rc8) per the implementation plan §6.8.
-    """
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -250,113 +232,3 @@ def cell_grid(
                         )
 
 
-# ──────────────────────────────────────────────────────────────────────
-# Phase 8 hooks (Phase 1 stubs raise NotImplementedError)
-# ──────────────────────────────────────────────────────────────────────
-
-
-def profile_op(
-    op_name: str,
-    *,
-    input_sizes: Optional[Tuple[int, ...]] = None,
-    cascade_depths: Optional[Tuple[int, ...]] = None,
-    substrates: Optional[Tuple[str, ...]] = None,
-    n_repeats: int = 5,
-    runner: Optional[Callable[..., ProfileRecord]] = None,
-) -> List[ProfileRecord]:
-    """Run the benchmark suite for one op across the configured grid.
-
-    Phase 1 stub raises :class:`ProfilingNotImplementedError`. Phase 8
-    populates the runner; until then the API is locked.
-
-    Parameters
-    ----------
-    op_name:
-        Operation name (must be registered in :mod:`path_registry`).
-    input_sizes, cascade_depths, substrates:
-        Override default sweeps (see :func:`cell_grid`).
-    n_repeats:
-        Number of repeat runs per cell underlying the median timing.
-    runner:
-        Optional cell-runner injection point for test isolation. Phase 8
-        provides the default.
-
-    Returns
-    -------
-    list[ProfileRecord]
-        One record per cell in the sweep.
-
-    Raises
-    ------
-    ProfilingNotImplementedError
-        Phase 1 stub — Phase 8 lands the runner.
-    """
-    raise ProfilingNotImplementedError(
-        "profile_op is a Phase 1 scaffolding stub. Benchmark runner "
-        "lands in Phase 8 (v0.4.2rc8) per the implementation plan §6.8. "
-        f"(op_name={op_name!r}, n_repeats={n_repeats})"
-    )
-
-
-def update_dispatch_table(
-    *,
-    records: Optional[List[ProfileRecord]] = None,
-    locked: bool = True,
-) -> Dict[str, Any]:
-    """Build / update the learned dispatch table from collected records.
-
-    Phase 1 stub raises :class:`ProfilingNotImplementedError`. Phase 8
-    materialises the table per the lock policy in
-    :data:`srmech.signal_processing._paths.DISPATCH_TABLE_LOCK_POLICY`.
-
-    Parameters
-    ----------
-    records:
-        Records to regress. Defaults to the module-level buffer
-        (:func:`iter_records`).
-    locked:
-        If True, the materialised table is written to the locked path
-        (:data:`srmech.signal_processing._paths.LEARNED_DISPATCH_TABLE_PATH`).
-        If False, returned in-memory only.
-
-    Returns
-    -------
-    dict
-        Per-op-per-substrate regression-fit threshold dict.
-
-    Raises
-    ------
-    ProfilingNotImplementedError
-        Phase 1 stub — Phase 8 lands the regression pipeline.
-    """
-    raise ProfilingNotImplementedError(
-        "update_dispatch_table is a Phase 1 scaffolding stub. Regression "
-        "pipeline lands in Phase 8 (v0.4.2rc8) per the implementation "
-        f"plan §6.8. (locked={locked}, n_records="
-        f"{len(records) if records is not None else len(_RECORDS)})"
-    )
-
-
-# ──────────────────────────────────────────────────────────────────────
-# Minimal-cell timing helper (Phase 1 — usable in tests, not a runner)
-# ──────────────────────────────────────────────────────────────────────
-
-
-def _time_one_call(
-    fn: Callable[..., object],
-    args: Tuple[Any, ...] = (),
-    kwargs: Optional[Dict[str, Any]] = None,
-) -> Tuple[float, float]:
-    """Time one call to ``fn(*args, **kwargs)``. Returns (wall_s, cpu_s).
-
-    Phase 1 utility for unit-testing the profiling surface without
-    invoking the Phase 8 runner. Not a benchmarking-grade harness —
-    use Phase 8's :func:`profile_op` for sweep work.
-    """
-    kwargs = kwargs or {}
-    wall_start = time.perf_counter()
-    cpu_start = time.process_time()
-    fn(*args, **kwargs)
-    wall_end = time.perf_counter()
-    cpu_end = time.process_time()
-    return (wall_end - wall_start, cpu_end - cpu_start)
