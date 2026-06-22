@@ -1589,6 +1589,31 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_json_write_ws.argtypes = [_VP, _CP, _SZ, _PSZ, _VP, _SZ]
             lib.srmech_json_write_ws.restype = ctypes.c_int
 
+    # ------------------------------------------------------------------
+    # Class N — ROTATION-LAST Chudnovsky π on srmech_bigint (0.9.0rc19).
+    # The two srmech_pi_* symbols are the C-host peer of
+    # srmech.amsc.rational.pi_chudnovsky_digits — exact bigint body, ONE
+    # terminal isqrt+division, byte-identical "3.<digits>". The underlying
+    # srmech_bigint is carrier-internal (NO Python surface — not bound
+    # here). NEW symbols → hasattr-guarded (a stale ABI-3 lib keeps the
+    # rest of the native surface); additive → EXPECTED_ABI_VERSION stays 3.
+    #   size_t srmech_pi_chudnovsky_ws_bound(uint32_t num_digits)
+    if hasattr(lib, "srmech_pi_chudnovsky_ws_bound"):
+        lib.srmech_pi_chudnovsky_ws_bound.argtypes = [ctypes.c_uint32]
+        lib.srmech_pi_chudnovsky_ws_bound.restype = ctypes.c_size_t
+    #   srmech_status_t srmech_pi_chudnovsky(uint32_t num_digits, char *out,
+    #       size_t out_cap, size_t *out_len, void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_pi_chudnovsky"):
+        lib.srmech_pi_chudnovsky.argtypes = [
+            ctypes.c_uint32,                    # num_digits
+            ctypes.POINTER(ctypes.c_char),      # out
+            ctypes.c_size_t,                    # out_cap
+            ctypes.POINTER(ctypes.c_size_t),    # out_len
+            ctypes.c_void_p,                    # ws (caller arena)
+            ctypes.c_size_t,                    # ws_len (arena bytes)
+        ]
+        lib.srmech_pi_chudnovsky.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None
@@ -1673,6 +1698,47 @@ def has_native_sqrt() -> bool:
     """True iff the C integer-isqrt sqrt cascade is loaded + bound (rc45+ lib)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_rational_sqrt"))
+
+
+def has_native_pi_chudnovsky() -> bool:
+    """True iff the rotation-last Chudnovsky π C symbols are loaded + bound
+    (0.9.0rc19+ lib): :func:`srmech.amsc.rational.pi_chudnovsky_digits`
+    dispatches to the exact-bigint native path. False on a no-C or pre-rc19
+    lib — the pure-Python int-bignum body is the complete alternative (and the
+    parity oracle); the two paths emit byte-identical ``"3.<digits>"``."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_pi_chudnovsky")
+                and hasattr(LIB, "srmech_pi_chudnovsky_ws_bound"))
+
+
+def pi_chudnovsky_c(num_digits: int) -> "str | None":
+    """Native rotation-last Chudnovsky π → ``"3.<num_digits digits>"`` or None.
+
+    Returns ``None`` when the native symbols are absent (no-C / pre-rc19 lib)
+    so the caller falls through to the pure-Python bignum body. Sizes the
+    caller arena via ``srmech_pi_chudnovsky_ws_bound``, then calls the exact
+    C path; a non-OK status raises :class:`RuntimeError`. Byte-identical to the
+    pure-Python oracle (proven C==Python==Archimedes at 1000 + 10000 digits)."""
+    if not has_native_pi_chudnovsky():
+        return None
+    ws_len = int(LIB.srmech_pi_chudnovsky_ws_bound(ctypes.c_uint32(num_digits)))
+    ws = (ctypes.c_uint8 * max(ws_len, 1))()
+    out_cap = num_digits + 8                      # "3." + digits + NUL + slack
+    out = (ctypes.c_char * out_cap)()
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_pi_chudnovsky(
+        ctypes.c_uint32(num_digits),
+        out,
+        ctypes.c_size_t(out_cap),
+        ctypes.byref(out_len),
+        ctypes.cast(ws, ctypes.c_void_p),
+        ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_pi_chudnovsky returned non-OK status {rc}"
+        )
+    return bytes(out)[:out_len.value].decode("ascii")
 
 
 def has_native_klein4_fold() -> bool:

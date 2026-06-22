@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc18"
-#define SRMECH_VERSION       "0.9.0rc18"
+#define SRMECH_VERSION_PRE   "rc19"
+#define SRMECH_VERSION       "0.9.0rc19"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2743,6 +2743,146 @@ srmech_status_t srmech_toml_parse(const char *src, size_t len,
  * absent. The returned pointer aliases into the same arena as `table`. */
 const srmech_toml_value_t *srmech_toml_table_get(
     const srmech_toml_value_t *table, const char *key);
+
+/* ------------------------------------------------------------------ *
+ * srmech_bigint — caller-arena arbitrary-precision integer
+ *
+ * The unbounded-integer foundation that removes the "overflow → fall
+ * back to CPython int" gap so the C library is standalone-complete
+ * (no GMP, no external bignum, no malloc — JPL Rule 3). A value is
+ * carried base-2^32, little-endian, sign-magnitude, over CALLER-OWNED
+ * limb storage:
+ *
+ *   sign  ∈ {-1, 0, +1}   (0 iff the value is zero)
+ *   n                       significant limb count, NO leading-zero limbs
+ *   cap                     capacity of limbs[] the caller provided
+ *   limbs[0]                least-significant 32-bit limb
+ *
+ * Every op writes into a caller-provided `out` whose limbs[]/cap the
+ * caller pre-sizes via the `_bound` helpers (limb counts). If out->cap
+ * is too small the op returns SRMECH_ERR_OVERFLOW and never writes past
+ * cap. Ops needing scratch take a `void *ws, size_t ws_len` caller arena
+ * (an 8-byte-aligned uint32 bump region); too-small → SRMECH_ERR_OVERFLOW.
+ *
+ * Division / shift use PYTHON FLOOR semantics: q = floor(a / b),
+ * r = a − q·b, so 0 <= r < |b| when b > 0 (matches Python divmod and >>).
+ * ------------------------------------------------------------------ */
+typedef struct srmech_bigint {
+    int32_t   sign;    /* -1, 0, or +1 (0 iff n == 0)            */
+    uint32_t  n;       /* significant limb count; no leading zero */
+    uint32_t  cap;     /* capacity of limbs[] the caller provided */
+    uint32_t *limbs;   /* caller-owned; limbs[0] = least sig.     */
+} srmech_bigint_t;
+
+/* Bound helpers — the minimum limb count the caller must allocate for
+ * each operation's `out`. Each clamps/guards size_t overflow. */
+size_t srmech_bigint_add_bound(size_t a_n, size_t b_n);     /* max(a,b)+1     */
+size_t srmech_bigint_mul_bound(size_t a_n, size_t b_n);     /* a_n + b_n      */
+size_t srmech_bigint_shl_bound(size_t a_n, uint32_t bits);  /* a + bits/32 +1 */
+size_t srmech_bigint_pow_bound(size_t base_n, uint32_t exp);/* base_n*exp + 1 */
+size_t srmech_bigint_from_dec_bound(size_t n_digits);       /* n_digits/9 + 2 */
+size_t srmech_bigint_to_dec_bound(size_t a_n);              /* a_n*10 + 2     */
+
+/* out = v (a signed 64-bit value). INT64_MIN handled (no negation trap). */
+srmech_status_t srmech_bigint_set_i64(srmech_bigint_t *out, int64_t v);
+
+/* out = a (deep limb copy). OVERFLOW if out->cap < a->n. */
+srmech_status_t srmech_bigint_copy(srmech_bigint_t *out, const srmech_bigint_t *a);
+
+/* Signed three-way compare: -1 if a < b, 0 if a == b, +1 if a > b. */
+int srmech_bigint_cmp(const srmech_bigint_t *a, const srmech_bigint_t *b);
+
+/* 1 iff a is zero, else 0. */
+int srmech_bigint_is_zero(const srmech_bigint_t *a);
+
+/* out = a + b (signed). OVERFLOW if out->cap < add_bound(a->n, b->n). */
+srmech_status_t srmech_bigint_add(srmech_bigint_t *out, const srmech_bigint_t *a,
+                                  const srmech_bigint_t *b);
+
+/* out = a - b (signed). OVERFLOW if out->cap < add_bound(a->n, b->n). */
+srmech_status_t srmech_bigint_sub(srmech_bigint_t *out, const srmech_bigint_t *a,
+                                  const srmech_bigint_t *b);
+
+/* out = a * b (schoolbook). OVERFLOW if out->cap < mul_bound(a->n, b->n). */
+srmech_status_t srmech_bigint_mul(srmech_bigint_t *out, const srmech_bigint_t *a,
+                                  const srmech_bigint_t *b);
+
+/* out = a << bits. OVERFLOW if out->cap < shl_bound(a->n, bits). */
+srmech_status_t srmech_bigint_shl_bits(srmech_bigint_t *out,
+                                       const srmech_bigint_t *a, uint32_t bits);
+
+/* out = a >> bits, FLOOR (toward -inf) to match Python >>; for a >= 0
+ * this is a plain truncating shift. For a < 0 the floor can carry one
+ * extra limb, so size out->cap >= a->n + 1 (OVERFLOW otherwise). */
+srmech_status_t srmech_bigint_shr_bits(srmech_bigint_t *out,
+                                       const srmech_bigint_t *a, uint32_t bits);
+
+/* q = floor(a / b), r = a - q*b (Python FLOOR semantics: 0 <= r < |b|
+ * when b > 0). b != 0 else SRMECH_ERR_BAD_INPUT. q or r may be NULL to
+ * skip that output. Uses Knuth Algorithm D in the caller arena `ws`. */
+srmech_status_t srmech_bigint_divmod(srmech_bigint_t *q, srmech_bigint_t *r,
+                                     const srmech_bigint_t *a,
+                                     const srmech_bigint_t *b,
+                                     void *ws, size_t ws_len);
+
+/* out = floor(sqrt(a)). a >= 0 else SRMECH_ERR_BAD_INPUT. Integer Newton
+ * iteration over the caller arena `ws`. OVERFLOW if out->cap too small. */
+srmech_status_t srmech_bigint_isqrt(srmech_bigint_t *out, const srmech_bigint_t *a,
+                                    void *ws, size_t ws_len);
+
+/* out = gcd(|a|, |b|) >= 0 (Euclid). Caller arena `ws`. */
+srmech_status_t srmech_bigint_gcd(srmech_bigint_t *out, const srmech_bigint_t *a,
+                                  const srmech_bigint_t *b,
+                                  void *ws, size_t ws_len);
+
+/* out = base^exp (exp >= 0; exp == 0 -> 1). Binary exponentiation over
+ * the caller arena `ws`. OVERFLOW if out->cap < pow_bound(base->n, exp). */
+srmech_status_t srmech_bigint_pow_u32(srmech_bigint_t *out,
+                                      const srmech_bigint_t *base, uint32_t exp,
+                                      void *ws, size_t ws_len);
+
+/* out = decimal s[0..len). Optional leading '-'; remaining chars 0-9.
+ * OVERFLOW if out->cap < from_dec_bound(len). */
+srmech_status_t srmech_bigint_from_dec(srmech_bigint_t *out, const char *s,
+                                       size_t len);
+
+/* Write a's decimal expansion (with leading '-' if negative) into buf as a
+ * NUL-terminated string; *out_len = strlen (excludes the NUL). Caller arena
+ * `ws`. OVERFLOW if buf cap or ws is too small (need to_dec_bound limbs). */
+srmech_status_t srmech_bigint_to_dec(const srmech_bigint_t *a, char *buf,
+                                     size_t cap, size_t *out_len,
+                                     void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_pi — ROTATION-LAST Chudnovsky π (built on srmech_bigint)
+ *
+ * The canonical srmech cascade shape: keep the body BIT-EXACT (integer
+ * add / sub / mul / floor-divmod on the exact bigint substrate) and do
+ * the SINGLE continuous/frame projection ONCE, terminally. The body is
+ * the Chudnovsky linear series accumulated as exact bigints; the lone
+ * terminal rotation is the final isqrt(10005·one²) + one division + a
+ * base-10 render. NO float, NO libm, NO per-term square root.
+ *
+ * Byte-identical to the pure-Python pi_chudnovsky_digits oracle (same
+ * fixed-point algorithm, same floor semantics). All limb buffers + the
+ * divmod/isqrt scratch are carved from the caller arena `ws`; size it
+ * via srmech_pi_chudnovsky_ws_bound(num_digits). Linear term accumulation
+ * (NO binary splitting) — JPL Rule 1 no-recursion clean.
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES the caller must hand srmech_pi_chudnovsky for the
+ * requested digit count (covers every bigint limb buffer + the deepest
+ * divmod/isqrt scratch). 8-byte-aligned uint32 bump arena. */
+size_t srmech_pi_chudnovsky_ws_bound(uint32_t num_digits);
+
+/* Write π to `num_digits` fractional digits as "3." + digits into `out`
+ * (NUL-terminated; *out_len = strlen, excludes the NUL). num_digits == 0
+ * → "3.". `out_cap` must be >= num_digits + 4. Carves all scratch from the
+ * caller arena `ws` (>= srmech_pi_chudnovsky_ws_bound); too-small out_cap
+ * or ws → SRMECH_ERR_OVERFLOW. */
+srmech_status_t srmech_pi_chudnovsky(uint32_t num_digits, char *out,
+                                     size_t out_cap, size_t *out_len,
+                                     void *ws, size_t ws_len);
 
 #ifdef __cplusplus
 }

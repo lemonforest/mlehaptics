@@ -1819,6 +1819,14 @@ def _register_primitive_class_tools() -> None:
                           "default None (auto-scaled from num_digits); scaled-integer √ bit precision in [64, 32768]")),
             returns=R("str", "'3.{num_digits}' decimal expansion of π"),
         ),
+        ToolEntry(
+            name="srmech.amsc.rational.pi_chudnovsky_digits",
+            owner="srmech",
+            category="rational",
+            summary="Stream decimal digits of π via the ROTATION-LAST Chudnovsky series — the canonical srmech cascade shape: the body stays bit-exact (exact integer add/sub/mul/floor-divmod accumulating the Chudnovsky linear series on arbitrary-precision integers — the caller-arena srmech_bigint in C), and the SINGLE continuous/frame projection ('rotation') happens ONCE, terminally, as one isqrt(10005·one²) followed by one division and a base-10 render. NO float, NO math, NO per-term square root — the opposite of pi_cascade_digits (Archimedes), which projects every step. ~14.18 digits land per term. Native C path srmech_pi_chudnovsky when present (byte-identical to the pure-Python bignum oracle; C==Python validated at 1000 + 10000 digits); pure Python is the complete fallback + the parity oracle. Returns '3.141592...' as a string. Canonical SSoT: D. V. & G. V. Chudnovsky, 'Approximations and complex multiplication according to Ramanujan' (1988).",
+            parameters=(P("num_digits", "int", True, "0 <= num_digits <= 100000"),),
+            returns=R("str", "'3.{num_digits}' decimal expansion of π"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Genome-storage surface — biological-structure names as cascade
