@@ -123,9 +123,16 @@ def encode_sentence_l3(tokens, *, D: int, hex_chars: int,
 
 def sim_k4_batch(query, candidates):
     """Fractional-agreement similarity (F132 §3 standard) — one float per
-    candidate. numpy-free: the Class-M ``hdc.klein4_similarity`` over each HV
-    candidate (== the old ``(candidates == query).mean(axis=1)``)."""
-    return [hdc.klein4_similarity(query, c) for c in candidates]
+    candidate. numpy-free: the Class-M integer ``hdc.klein4_match_count`` over
+    each HV candidate, divided once by ``D`` (== the old
+    ``(candidates == query).mean(axis=1)``). Floats are correct + faster here:
+    the only caller is the vocab-ranking argmax/sort in ``rbs_lm/inference.py``,
+    where the per-candidate exact ``Q`` of ``hdc.klein4_similarity`` would
+    allocate a rational per vocab entry in the inference hot-path. The integer
+    match-count → one float division skips that allocation while preserving the
+    ranking order (``klein4_similarity = match_count / D`` exactly)."""
+    D = len(query)
+    return [hdc.klein4_match_count(query, c) / D for c in candidates]  # int/int -> float
 
 
 def scale_signature(parts):

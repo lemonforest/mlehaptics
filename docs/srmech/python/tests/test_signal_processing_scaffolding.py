@@ -11,8 +11,6 @@ Verifies:
   registration with a different callable raises.
 - `profiling.cell_grid` enumerates the full 1920-cell benchmark grid for
   a 10-op suite at default sweeps (conductor decision #3).
-- `profile_op` / `update_dispatch_table` raise
-  `ProfilingNotImplementedError` (Phase 8 stub).
 - `dispatch(op_name, path="verify")` raises
   `DispatcherNotImplementedError` (Phase 5 stub).
 - Dispatch-table-lock-state default (locked per conductor decision #7).
@@ -53,8 +51,6 @@ def test_signal_processing_imports():
         registered_ops,
         record_profile,
         cell_grid,
-        profile_op,
-        update_dispatch_table,
         is_dispatch_table_locked,
         D_DEFAULT,
         SUBSTRATES,
@@ -605,8 +601,8 @@ def test_version_is_0_7_0rc10():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.9.0rc29", (
-        f"expected srmech.__version__ == '0.9.0rc29'; got "
+    assert srmech.__version__ == "0.9.0rc30", (
+        f"expected srmech.__version__ == '0.9.0rc30'; got "
         f"{srmech.__version__!r}"
     )
 
@@ -1176,26 +1172,6 @@ def test_cell_grid_covers_all_substrates():
     cells = list(cell_grid(op_names=("fft",)))
     substrates_seen = {c.substrate for c in cells}
     assert substrates_seen == set(SUBSTRATES)
-
-
-def test_profile_op_raises_in_phase_1():
-    """Phase 8 lands the runner; Phase 1 stub raises."""
-    from srmech.signal_processing import (
-        ProfilingNotImplementedError,
-        profile_op,
-    )
-    with pytest.raises(ProfilingNotImplementedError):
-        profile_op("fft")
-
-
-def test_update_dispatch_table_raises_in_phase_1():
-    """Phase 8 lands the regression pipeline; Phase 1 stub raises."""
-    from srmech.signal_processing import (
-        ProfilingNotImplementedError,
-        update_dispatch_table,
-    )
-    with pytest.raises(ProfilingNotImplementedError):
-        update_dispatch_table()
 
 
 def test_profile_record_ndjson_serialisation():

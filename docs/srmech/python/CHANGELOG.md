@@ -8,6 +8,24 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc30] - 2026-06-22
+
+**CLEANUP + BUGFIX (no-stubs-ever pass; no behavior bugs except the §A hot-path fix).** Three labeled tracks:
+
+**(A) BUGFIX — `sim_k4_batch` float hot-path** (`srmech/rbs_lm/substrate.py`). The docstring promised "one **float** per candidate" but the body returned `[hdc.klein4_similarity(query, c) for c in candidates]`, and since the rc7 stay-rational arc `klein4_similarity` returns an exact `Q` rational — so the inference vocab-ranking hot-path (`rbs_lm/inference.py:189`, the only caller) allocated a `Q` per vocab candidate. The float-batch hot-path was never landed. Fixed to `D = len(query); return [hdc.klein4_match_count(query, c) / D for c in candidates]` — the integer match-count (`klein4_match_count`, the raw count `klein4_similarity = count / D` exactly) divided once → one Python `int/int` float, skipping the per-candidate `Q`. The ranking argmax/sort order is unchanged. The existing `test_sim_k4_batch_self_is_one` uses `pytest.approx(1.0)` + inequalities (no `Q`-exact assertion), so it stays valid for floats.
+
+**(B + C) CLEANUP — deleted 15 dead Python symbols + 2 Phase-8 profiling stubs** (re-grep-confirmed zero callers each):
+- `srmech/amsc/hdc.py`: `_as_klein4` (dead thin alias of the live `_as_klein4_buf`), `_klein4_chirality_duals`, `_klein4_similarity_native` (the public `klein4_similarity` routes via `_klein4_match_count_core` → `_klein4_match_count_native`, NOT this wrapper; the native `srmech_klein4_similarity` C symbol stays bound in `_native.py` + gated by `has_native_klein4_bind`, so deleting this Python wrapper orphans no native code).
+- `srmech/amsc/mat.py`: `Mat._flat_index` (dead method).
+- `srmech/qm/so8.py`: `_mat_rows` (dead `m.tolist()` wrapper).
+- `srmech/amsc/rational.py`: `_principal_angle_anchor` (dead range-reduction helper; its sole-purpose default-arg constant `_TRIG_FLOAT_ANCHOR_DEN` removed with it — sibling `_TRIG_FLOAT_TERMS`/`_ATAN_FLOAT_TERMS` are live and kept), `_q_scale2` + `_q_pow2` (the pair — `_q_pow2`'s only caller was `_q_scale2`), `_rational_sqrt_midpoint` (dead; its "Used by `pi_cascade_digits`" docstring was stale — `pi_cascade_digits` uses `_integer_sqrt`/`_scaled_integer_sqrt`).
+- `srmech/amsc/laplacian.py`: `_vec_to_interleaved_cbuf` + `_vec_from_interleaved_cbuf` (unused `Vec` native-marshallers; the live `Mat` twins `_mat_to_interleaved_cbuf`/`_mat_from_interleaved_cbuf` are untouched).
+- `srmech/signal_processing/profiling.py`: `_time_one_call` (dead Phase-1 unit-test utility); **and the 2 Phase-8 STUBS** `profile_op` + `update_dispatch_table` that unconditionally `raise ProfilingNotImplementedError` (the "Phase 8 (v0.4.2rc8)" runner never landed) — removed per the no-stubs rule, along with the `ProfilingNotImplementedError` exception (no other user), their `__all__` entries in `profiling.py` + `signal_processing/__init__.py`, the 2 Rosetta `non_compute` ledger rows, the pinning tests `test_profile_op_raises_in_phase_1`/`test_update_dispatch_table_raises_in_phase_1`, and the dead-API mentions in `cascade_dispatcher.py`/`_paths.py`/the scaffolding-test docstring. (The profiling stubs had NO ToolEntry registration → `describe()['tools']['total']` is unaffected.) Orphaned imports scrubbed (`time`, `Callable`, `asdict`).
+
+**(D) deleted 3 dead C constructs** (ABI stays 3 — no bound symbol removed, no wire-format change): `srmech_toml_canonical_hash` orphaned `(planned)` prototype in `c/include/srmech.h` (no definition in any `c/src/*.c`); the dead `SRMECH_LAPLACIAN_MAX_NODES` `#define` in `c/include/srmech.h` (0 code expansions after the rc156-161 arena-carve sweep — the `degree[256]`/`d_inv_sqrt[256]` stack arrays are gone) + its 2 stale comments (`srmech.h`, `srmech_laplacian.c:470`); the unused `SRMECH_BUS_MAX_FRAME_BYTES` `#define` in `c/src/srmech_bus.c`.
+
+No signature change → `tools.total` stays **320**, ABI **3**. numpy-free AND math-free, MIT. 5-SSOT `0.9.0rc29 → 0.9.0rc30`. Tests: `test_cleanup_rc30.py`.
+
 ## [0.9.0rc29] - 2026-06-22
 
 **POLISH (no behavior bugs — quality/cleanup).**

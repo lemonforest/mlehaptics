@@ -236,11 +236,6 @@ def _to_mat(a: Sequence[Sequence[Number]], *, is_complex: bool = None) -> Mat:
     return Mat.from_rows(a, is_complex=is_complex)
 
 
-def _mat_rows(m: Mat) -> List[List[Number]]:
-    """A nested-list copy of a :class:`Mat`'s rows (numpy-free)."""
-    return m.tolist()
-
-
 # ── exact rank over ℚ (the RANK fix; NOT cascade-SVD tolerance) ───────────
 def _rank_exact(columns: Sequence[Sequence[Number]]) -> int:
     """Exact matrix rank of the column stack ``columns`` (a list of column

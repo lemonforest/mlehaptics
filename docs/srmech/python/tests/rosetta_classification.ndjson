@@ -277,14 +277,12 @@
 {"exposed_as": "srmech.signal_processing.iter_records", "defined_at": "srmech.signal_processing.profiling.iter_records", "bucket": "non_compute"}
 {"exposed_as": "srmech.signal_processing.lock_dispatch_table", "defined_at": "srmech.signal_processing.cascade_dispatcher.lock_dispatch_table", "bucket": "non_compute"}
 {"exposed_as": "srmech.signal_processing.lookup", "defined_at": "srmech.signal_processing.path_registry.lookup", "bucket": "non_compute"}
-{"exposed_as": "srmech.signal_processing.profile_op", "defined_at": "srmech.signal_processing.profiling.profile_op", "bucket": "non_compute"}
 {"exposed_as": "srmech.signal_processing.record_profile", "defined_at": "srmech.signal_processing.profiling.record_profile", "bucket": "non_compute"}
 {"exposed_as": "srmech.signal_processing.register", "defined_at": "srmech.signal_processing.path_registry.register", "bucket": "non_compute"}
 {"exposed_as": "srmech.signal_processing.path_registry.register_lazy_loader", "defined_at": "srmech.signal_processing.path_registry.register_lazy_loader", "bucket": "non_compute"}
 {"exposed_as": "srmech.signal_processing.registered_ops", "defined_at": "srmech.signal_processing.path_registry.registered_ops", "bucket": "non_compute"}
 {"exposed_as": "srmech.signal_processing.resolve_path", "defined_at": "srmech.signal_processing.cascade_dispatcher.resolve_path", "bucket": "non_compute"}
 {"exposed_as": "srmech.signal_processing.unlock_dispatch_table", "defined_at": "srmech.signal_processing.cascade_dispatcher.unlock_dispatch_table", "bucket": "non_compute"}
-{"exposed_as": "srmech.signal_processing.update_dispatch_table", "defined_at": "srmech.signal_processing.profiling.update_dispatch_table", "bucket": "non_compute"}
 {"exposed_as": "srmech.amsc.cascade.hypercomplex_couple", "defined_at": "srmech.amsc.cascade.hypercomplex_dft.hypercomplex_couple", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.hypercomplex_exp", "defined_at": "srmech.amsc.cascade.hypercomplex_dft.hypercomplex_exp", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.eigvals", "defined_at": "srmech.amsc.cascade.matrix_cascades.eigvals", "bucket": "python_only_irreducible"}

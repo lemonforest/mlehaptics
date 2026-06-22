@@ -546,10 +546,9 @@ def lock_dispatch_table() -> None:
 def unlock_dispatch_table() -> None:
     """Unlock the dispatch table (for local override per plan §3.5).
 
-    Users wanting different thresholds may unlock, rerun
-    :func:`srmech.signal_processing.profiling.update_dispatch_table`
-    on their own machine, and ship a local override. Per plan §3.5
-    this does NOT pollute the package's locked table — that's a
-    Phase 8 invariant.
+    Users wanting different thresholds may unlock, regenerate the
+    learned dispatch table on their own machine, and ship a local
+    override. Per plan §3.5 this does NOT pollute the package's locked
+    table.
     """
     _LOCK_STATE["locked"] = False

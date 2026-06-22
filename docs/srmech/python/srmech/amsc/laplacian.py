@@ -1303,37 +1303,6 @@ def _mat_from_interleaved_cbuf(cbuf, n_rows: int, n_cols: int, *, want_complex: 
     return Mat(array("d", (cbuf[2 * i] for i in range(n))), n_rows, n_cols)
 
 
-def _vec_to_interleaved_cbuf(v: "Vec", n_elems: int):
-    """The 1-D twin of :func:`_mat_to_interleaved_cbuf`: a
-    ``(c_double * 2*n_elems)`` ctypes buffer of ``v``'s elements as interleaved
-    ``(re, im)`` doubles — numpy-free. A `Vec` IS something in C — a contiguous
-    ``double _Complex`` buffer — so this marshals it to the native layer exactly
-    like a `Mat`.
-
-    When ``v`` is complex its ``array('d')`` buffer IS already the interleaved
-    ``(re, im)`` layout, so this is a **zero-copy** ``from_buffer`` view (the C
-    kernel reads it ``const``). When ``v`` is real the buffer is one double per
-    element, so a fresh interleaved buffer is filled ``(re, 0.0)`` once."""
-    buf = v.buffer  # array('d')
-    if v.is_complex:
-        return (ctypes.c_double * (2 * n_elems)).from_buffer(buf)  # zero-copy
-    cbuf = (ctypes.c_double * (2 * n_elems))()
-    for idx in range(n_elems):
-        cbuf[2 * idx] = buf[idx]  # imag slot stays 0.0
-    return cbuf
-
-
-def _vec_from_interleaved_cbuf(cbuf, n: int, *, want_complex: bool):
-    """The 1-D twin of :func:`_mat_from_interleaved_cbuf`: wrap an interleaved
-    ``(re, im)`` ctypes buffer back into a ``Vec`` (numpy-free). ``want_complex``
-    keeps the interleaved layout; otherwise the real parts (every even slot)
-    form a real ``Vec``."""
-    from .vec import Vec  # numpy-free carrier; local import keeps load-order clean
-    if want_complex:
-        return Vec(array("d", cbuf), n, is_complex=True)
-    return Vec(array("d", (cbuf[2 * i] for i in range(n))), n)
-
-
 def mat_matmul(a: "Mat", b: "Mat") -> "Mat":
     """Numpy-free dense matrix multiply ``A·B`` over the
     :class:`~srmech.amsc.mat.Mat` carrier — the 2-D ``@`` replacement for the

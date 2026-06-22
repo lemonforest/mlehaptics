@@ -117,10 +117,6 @@ class Mat:
     def __len__(self) -> int:
         return self.n_rows  # number of rows, like numpy's 2-D len
 
-    def _flat_index(self, i: int, j: int) -> int:
-        assert 0 <= i < self.n_rows and 0 <= j < self.n_cols, "Mat index out of range"
-        return i * self.n_cols + j
-
     def _norm_row(self, i: int) -> int:
         if i < 0:
             i += self.n_rows

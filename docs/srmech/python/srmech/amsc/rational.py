@@ -818,12 +818,8 @@ def atan_series_truncate(numerator: int,
 _PI_RATIONAL_DIGITS: int = 50
 _PI_RATIONAL_CACHE: "Tuple[int, int] | None" = None
 
-# Class-N anchor denominator + Taylor term count for the float
-# projection. 10**15 anchors the reduced angle at the float64 precision
-# floor (≈1e-15) so the projection matches libm to machine scale while
-# keeping the reduced-angle bignums bounded; 24 cos/sin terms drive the
-# |x|<=π series residual below 1e-16.
-_TRIG_FLOAT_ANCHOR_DEN: int = 10 ** 15
+# Class-N Taylor term count for the float projection: 24 cos/sin terms drive
+# the |x|<=π series residual below 1e-16.
 _TRIG_FLOAT_TERMS: int = 24
 _ATAN_FLOAT_TERMS: int = 40
 
@@ -846,30 +842,6 @@ def _pi_rational(digits: int = _PI_RATIONAL_DIGITS) -> Tuple[int, int]:
     if digits <= _PI_RATIONAL_DIGITS:
         _PI_RATIONAL_CACHE = result
     return result
-
-
-def _principal_angle_anchor(x: float,
-                            anchor_den: int = _TRIG_FLOAT_ANCHOR_DEN
-                            ) -> Tuple[int, int]:
-    """Range-reduce ``x`` (radians) into ≈[-π, π] and anchor it to a
-    fixed-denominator Class-N rational ``(num, anchor_den)``.
-
-    Exact float→rational (``float.as_integer_ratio``) minus an integer
-    multiple of the cascade-derived 2π; the integer-turn selection is the
-    only floating step and is exact for ``|x|`` well within float range.
-    """
-    assert anchor_den > 0, "anchor denominator must be positive"
-    x = float(x)
-    x_num, x_den = x.as_integer_ratio()
-    pi_num, pi_den = _pi_rational()
-    tau_num, tau_den = 2 * pi_num, pi_den         # 2π = tau_num / tau_den
-    turns = round(x / (tau_num / tau_den))        # nearest integer turn
-    # reduced = x - turns * 2π  (exact rational)
-    red_num = x_num * tau_den - turns * tau_num * x_den
-    red_den = x_den * tau_den
-    # Project the reduced angle to float (in ≈[-π, π]) and anchor it.
-    anchored_num = round((red_num / red_den) * anchor_den)
-    return anchored_num, anchor_den
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -1248,22 +1220,6 @@ _EXPLOG_LOG_TERMS = 13                            # |t|<=√2-edge: t^27/27 < 2^
 _EXPLOG_OVERFLOW = 709.782712893384              # ln(DBL_MAX)
 _EXPLOG_UNDERFLOW = -745.2                        # ln(smallest subnormal)
 _SQRT_C_K = 27                                    # root precision bits (C peer)
-
-
-def _q_pow2(p: int) -> float:
-    """``2**p`` as a double, built directly from the IEEE-754 exponent field
-    (exact, no ``ldexp``). ``p`` must keep the biased exponent in [1, 2046]."""
-    assert -1023 < p < 1024, "pow2 exponent out of normal range"
-    bits = (((p + 1023) & 0x7FF) << 52) & _Q61_MASK64
-    return struct.unpack("<d", struct.pack("<Q", bits))[0]
-
-
-def _q_scale2(m: float, n: int) -> float:
-    """``m * 2**n``, splitting ``n`` so neither power-of-two leaves the normal
-    range (mirror ``explog_scale2``). ``n//2`` is C truncate-toward-zero."""
-    nh = n // 2 if n >= 0 else -((-n) // 2)        # C trunc-toward-zero
-    nl = n - nh
-    return m * _q_pow2(nh) * _q_pow2(nl)
 
 
 def _q_exp_core(r: int) -> int:
@@ -1722,42 +1678,6 @@ def _integer_sqrt(n: int) -> int:
     if n < (1 << 128) and _native.has_native_isqrt():
         return _native.isqrt128_c(n)
     return _py_isqrt(n)
-
-
-def _rational_sqrt_midpoint(
-        num: int,
-        den: int,
-        precision_bits: int) -> Tuple[int, int]:
-    """Compute a rational mid-bound approximation of √(num/den) at given precision.
-
-    Returns (p, q) with q = den * 2^precision_bits, where p is the
-    rounded integer square root of the scaled bignum (truncated-floor
-    plus 1/2 correction), so |p/q - √(num/den)| ≤ 1/(2q) approximately.
-
-    Pure integer Newton-Raphson on scaled bignum; no floats; no math.pi.
-    Used by ``pi_cascade_digits`` to avoid the one-sided error
-    accumulation that lower-bound truncation produces over many
-    cascade steps.
-    """
-    assert isinstance(num, int) and isinstance(den, int), "rational sqrt needs int inputs"
-    assert num >= 0, f"rational_sqrt requires non-negative numerator; got {num}"
-    assert den > 0, f"rational_sqrt requires positive denominator; got {den}"
-    if num == 0:
-        return (0, 1)
-    M = 1 << precision_bits
-    # √(num/den) = √(num*den) / den. Scale by M for precision; round-
-    # to-nearest by computing both s = floor(√(scaled)) and adjusting
-    # if (s+1)^2 - scaled < scaled - s^2 (i.e. (s+1) is closer).
-    scaled = num * den * M * M
-    s_lo = _integer_sqrt(scaled)
-    s_hi = s_lo + 1
-    # Round to nearest: pick s_hi if its square is closer to `scaled`
-    # than s_lo's square. Pure integer comparison.
-    if (s_hi * s_hi - scaled) < (scaled - s_lo * s_lo):
-        s = s_hi
-    else:
-        s = s_lo
-    return (s, den * M)
 
 
 def pi_cascade_digits(num_digits: int,
