@@ -62,7 +62,8 @@ from srmech.amsc.laplacian import (
 from srmech.amsc.rational import hypot as _rhypot
 from srmech.amsc.rational import sqrt as _rsqrt
 
-__all__ = ["qr", "svd", "lstsq", "einsum", "eigvals", "char_poly", "eigvals_exact"]
+__all__ = ["qr", "svd", "lstsq", "einsum", "eigvals", "char_poly", "eigvals_exact",
+           "eigvec_exact", "eigvec_exact_float"]
 
 
 def _modulus(z: complex) -> float:
@@ -693,3 +694,218 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False):
     if return_intervals:
         return eigs
     return [float((lo + hi) / 2) for (lo, hi) in eigs]
+
+
+# ── exact EIGENVECTORS over ℚ(λ) = Qalg: null space of A−λI by exact RREF ────────
+# The exact eigenvalues `eigvals_exact` give the spectrum; their EIGENVECTORS are
+# the genuinely-new rc-D capability. For an integer/rational matrix A and an
+# eigenvalue λ that is a root of an IRREDUCIBLE integer polynomial m, ℚ(λ) =
+# ℚ[x]/(m) is a FIELD, so the eigenvector lives in the null space of (A − λI) over
+# that field. We represent λ as a `Qalg` over m, build M = A − λI with Qalg
+# entries, and do EXACT Gaussian elimination over the Qalg field — every pivot
+# operation is exact-`Q` (rotation-last: the body stays exact; the ONE terminal
+# rotation is `.to_complex()`/`.to_float()` per component in eigvec_exact_float).
+# This is the Tajima–Ohara–Terui regime (S. Tajima, K. Ohara, A. Terui, "An
+# extension and efficient calculation of the Horner's rule for matrices" /
+# exact eigenvector computation via the minimal annihilating polynomial,
+# arXiv:1811.09149) done as a DIRECT exact null-space.
+
+
+def _eigvec_exact_qalg(a, lam):
+    """The shared exact engine: returns ``(null_vectors, Qalg_one, free_cols)``
+    where ``null_vectors`` is a ``list[list[Qalg]]`` (one per free column = a
+    basis of the null space of ``A − λI`` over ℚ(λ)). See :func:`eigvec_exact`
+    for the public contract."""
+    # Lazy import (avoid any circular-import risk at module load; mirrors the
+    # laplacian.py exact route).
+    from srmech.amsc.qalg import Qalg
+
+    if not isinstance(lam, Qalg):
+        raise TypeError(
+            "eigvec_exact: lam must be a Qalg eigenvalue (carrying its "
+            f"irreducible m + embedding root); got {type(lam).__name__}")
+    rows = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
+    n = len(rows)
+    if n == 0:
+        raise ValueError("eigvec_exact: a must be a non-empty square matrix")
+    if any(len(r) != n for r in rows):
+        raise ValueError(
+            f"eigvec_exact: a must be square 2-D; got {n}x{len(rows[0])}")
+    m = lam.m
+    root = lam.root
+
+    def _q_entry(v):
+        """Coerce an integer/rational matrix entry to a constant ``Qalg`` over m."""
+        vr = v.real if hasattr(v, "real") else v
+        vi = v.imag if hasattr(v, "imag") else 0
+        if vi != 0:
+            raise ValueError(
+                "eigvec_exact: a must be an integer/rational (real) matrix; "
+                f"got complex entry {v!r}")
+        if hasattr(vr, "numerator") and hasattr(vr, "denominator"):
+            num, den = int(vr.numerator), int(vr.denominator)
+        elif int(vr) == vr:
+            num, den = int(vr), 1
+        else:                                          # a bare float — exact ratio
+            fr = _FR(vr)
+            num, den = fr.numerator, fr.denominator
+        return Qalg.rational((num, den), m, root=root)
+
+    # Build M = A − λI with Qalg entries (the diagonal subtracts λ).
+    M = [[_q_entry(rows[i][j]) for j in range(n)] for i in range(n)]
+    for i in range(n):
+        M[i][i] = M[i][i] - lam
+
+    # Exact Gaussian elimination over the Qalg field → reduced row echelon form.
+    pivot_cols: List[int] = []
+    pivot_row_of_col: Dict[int, int] = {}
+    r = 0
+    for c in range(n):
+        # Find a pivot: the first row at/below r with a nonzero Qalg entry in col c.
+        piv = None
+        for rr in range(r, n):
+            if bool(M[rr][c]):
+                piv = rr
+                break
+        if piv is None:
+            continue                                   # a free column
+        M[r], M[piv] = M[piv], M[r]                    # swap pivot row up
+        # Normalize the pivot row by the pivot's inverse (exact Qalg inverse).
+        try:
+            inv = M[r][c].inverse()
+        except ZeroDivisionError as exc:               # m reducible ⇒ not a field
+            raise ValueError(
+                "eigvec_exact: lam.m must be the IRREDUCIBLE minimal polynomial "
+                "of the eigenvalue — a reducible m makes ℚ[x]/(m) a non-field "
+                "(a zero-divisor pivot was hit); polynomial factorization of the "
+                "char-poly is the rc-E follow-up.") from exc
+        M[r] = [M[r][j] * inv for j in range(n)]
+        # Eliminate column c from every OTHER row (full RREF).
+        for rr in range(n):
+            if rr != r and bool(M[rr][c]):
+                f = M[rr][c]
+                M[rr] = [M[rr][j] - f * M[r][j] for j in range(n)]
+        pivot_cols.append(c)
+        pivot_row_of_col[c] = r
+        r += 1
+        if r == n:
+            break
+
+    free_cols = [c for c in range(n) if c not in pivot_row_of_col]
+
+    # Each free column gives one null-space basis vector: set that free variable
+    # to 1, every other free variable to 0, and back-substitute the pivot
+    # variables (in RREF, pivot var = −(its row entry in the free column)).
+    one = Qalg.rational((1, 1), m, root=root)
+    zero = Qalg.rational((0, 1), m, root=root)
+    null_vectors: List[List[Qalg]] = []
+    for fc in free_cols:
+        v = [zero for _ in range(n)]
+        v[fc] = one
+        for c in pivot_cols:
+            pr = pivot_row_of_col[c]
+            v[c] = -M[pr][fc]
+        null_vectors.append(v)
+    return null_vectors, one, free_cols
+
+
+def eigvec_exact(a, lam):
+    """Exact EIGENVECTOR(S) of an integer/rational matrix via the null space of
+    ``A − λI`` over the number field ℚ(λ) = ``Qalg`` (rotation-last rc-D).
+
+    ``a`` is an integer/rational square matrix (list-of-lists or :class:`~srmech.amsc.mat.Mat`);
+    ``lam`` is a :class:`~srmech.amsc.qalg.Qalg` — the eigenvalue, carrying its
+    IRREDUCIBLE minimal polynomial ``m`` and (optionally) an embedding ``root``.
+    For an eigenvalue that is a root of an irreducible integer polynomial ``m``,
+    ℚ(λ) = ℚ[x]/(m) is a FIELD, so the eigenvector lives in the null space of
+    ``A − λI`` over that field. We build ``M = A − λI`` with ``Qalg`` entries
+    (the diagonal subtracts λ) and run EXACT Gaussian elimination over the
+    ``Qalg`` field (pivot → normalize by the pivot's ``inverse()`` → eliminate
+    the column) to reduced row echelon form; the null space is read off the free
+    columns. Every step is exact ``Q`` arithmetic — the body NEVER touches a
+    float (the single terminal rotation is in :func:`eigvec_exact_float`).
+
+    **Return contract.** For a SIMPLE eigenvalue (rank ``A − λI`` = ``n−1`` → a
+    1-dimensional null space) this returns the single null vector as a
+    ``list[Qalg]`` (the supported headline case). For a DEGENERATE / repeated
+    eigenvalue (null-space dim > 1) it returns a list of the basis vectors — a
+    ``list[list[Qalg]]`` — one per free column. (A free-column count of 0 cannot
+    happen for a genuine eigenvalue, since ``A − λI`` is singular by definition;
+    it raises a clear ``ValueError`` if it somehow does — λ was not an eigenvalue.)
+
+    The eigen-relation ``A·v == λ·v`` is verified EXACTLY over ``Qalg`` (all-Qalg
+    equality, componentwise) before returning — an assert, not a float check.
+
+    Raises ``ValueError`` if ``lam.m`` is REDUCIBLE (a zero-divisor pivot is hit,
+    because ℚ[x]/(m) is then not a field — polynomial factorization of the
+    char-poly is the rc-E follow-up), or if ``a`` is non-square / complex.
+
+    This is the Tajima–Ohara–Terui (arXiv:1811.09149) exact-eigenvector regime
+    done as a direct exact null-space. **Class L** (the eigenspace = the spectral
+    null space) ∘ **Class N** (the exact ``Q`` field arithmetic) ∘ **Class K**
+    (the sign in subtraction / negation — never an ALU ``abs``).
+    """
+    from srmech.amsc.qalg import Qalg  # noqa: F401  (kept for the verify below)
+
+    null_vectors, _one_unused, free_cols = _eigvec_exact_qalg(a, lam)
+    if not free_cols:
+        raise ValueError(
+            "eigvec_exact: A − λI is non-singular (null space is trivial) — "
+            "lam is not an eigenvalue of a (or its m does not match a's "
+            "spectrum). The eigenvector null space is empty.")
+
+    rows = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
+    n = len(rows)
+
+    def _verify(vec):
+        """Assert ``A·vec == λ·vec`` exactly over Qalg, componentwise."""
+        for i in range(n):
+            # (A·v)[i] = Σ_j a[i][j] · v[j]  — Qalg arithmetic (a[i][j] scalar).
+            acc = None
+            for j in range(n):
+                term = vec[j] * rows[i][j]             # Qalg · (int/Fraction scalar)
+                acc = term if acc is None else acc + term
+            lhs = acc
+            rhs = lam * vec[i]
+            assert lhs == rhs, (
+                f"eigvec_exact: eigen-relation A·v == λ·v FAILED at component {i} "
+                f"({lhs!r} != {rhs!r}) — internal error")
+
+    if len(free_cols) == 1:
+        v = null_vectors[0]
+        _verify(v)
+        return v
+    # Degenerate / repeated eigenvalue: null space dim > 1 → return ALL basis
+    # vectors. Each basis vector independently satisfies the eigen-relation.
+    for v in null_vectors:
+        _verify(v)
+    return null_vectors
+
+
+def eigvec_exact_float(a, lam):
+    """Float read-out of :func:`eigvec_exact` — the ONE terminal projection.
+
+    Calls :func:`eigvec_exact` (exact ``Qalg`` body), then **terminal-projects**
+    each component via :meth:`Qalg.to_complex` (or :meth:`Qalg.to_float` when
+    ``lam.root`` is real) — one FPU lift per component, the rotation-last
+    boundary. ``lam`` MUST carry an embedding ``root`` (the projection needs it).
+
+    Returns a ``list[complex]`` (or ``list[float]`` for a real root) for a simple
+    eigenvalue, or a ``list[list[...]]`` (one float vector per basis vector) for
+    a degenerate eigenvalue — mirroring :func:`eigvec_exact`'s shape.
+    """
+    if getattr(lam, "root", None) is None:
+        raise ValueError(
+            "eigvec_exact_float: lam must carry an embedding root for the "
+            "terminal projection; attach one with Qalg(m, coords, root=...) or "
+            ".with_root(root)")
+    real_root = not (isinstance(lam.root, complex) and lam.root.imag != 0)
+
+    def _project(comp):
+        return comp.to_float() if real_root else comp.to_complex()
+
+    result = eigvec_exact(a, lam)
+    # Shape-faithful: result is list[Qalg] (simple) or list[list[Qalg]] (degenerate).
+    if result and isinstance(result[0], list):
+        return [[_project(c) for c in vec] for vec in result]
+    return [_project(c) for c in result]
