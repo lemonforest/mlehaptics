@@ -1843,6 +1843,73 @@ def _qr_complex_list(
     return Q, R
 
 
+def _balance_radix2(H: List[List[complex]]) -> List[List[complex]]:
+    """Parlett–Reinsch balancing of a square ``complex`` matrix ``H`` in place,
+    using **RADIX-2** scaling so the diagonal similarity ``D⁻¹·H·D`` is **EXACT**.
+
+    Each index ``i`` is scaled by a power of two ``f = 2^k`` — row ``i`` divided by
+    ``f`` and column ``i`` multiplied by ``f`` (the similarity ``D⁻¹HD`` with
+    ``D = diag(2^{k_i})``). Because ``f`` is a power of two, every multiply/divide
+    is an EXACT binary shift of the mantissa (no floating rounding), so the
+    eigenvalue multiset is **invariant** — unchanged for well-scaled input, more
+    accurate for badly-scaled input (the QR sweep no longer amplifies a lopsided
+    row-norm/col-norm split). The iteration equalises each index's row-norm ``r``
+    against its column-norm ``c`` by the standard Parlett–Reinsch test, accepting a
+    step only when it REDUCES ``r + c``; sweeps repeat until no index changes.
+
+    The norms use the Class-K :func:`_modulus_c` magnitude (no bare ``abs()`` per
+    the cascade-honesty rule). This is a pure pre-conditioning step on ``H`` — the
+    exceptional-shift QR that follows is unchanged.
+
+    Canonical SSoT: Parlett & Reinsch, "Balancing a matrix for calculation of
+    eigenvalues and eigenvectors", *Numer. Math.* **13** (1969) 293–304; Golub &
+    Van Loan, *Matrix Computations* (4th ed., 2013) §7.5.1.
+    """
+    n = len(H)
+    radix = 2.0
+    radix2 = radix * radix                            # β² (exact: 4.0)
+    converged = False
+    while not converged:
+        converged = True
+        for i in range(n):
+            r = 0.0                                    # row-norm  Σ_{j≠i} |H[i][j]|
+            c = 0.0                                    # col-norm  Σ_{j≠i} |H[j][i]|
+            for j in range(n):
+                if j == i:
+                    continue
+                r += _modulus_c(H[i][j])               # Class-K magnitude (no abs())
+                c += _modulus_c(H[j][i])               # Class-K magnitude (no abs())
+            if c == 0.0 or r == 0.0:
+                continue                               # an isolated index — skip
+            # The EISPACK ``balanc`` (Parlett–Reinsch) inner test, radix-2: choose
+            # the power of two ``f`` that drives the SCALED col-norm ``c`` toward the
+            # row-norm ``r`` — bring c UP while it is below ``r/β`` (each step c·β²,
+            # f·β), then DOWN while it is at/above ``r·β`` (each step c/β², f/β).
+            f = 1.0                                    # the radix-2 scale 2^k
+            s = c + r                                  # the quantity to reduce
+            g = r / radix
+            while c < g:
+                f *= radix
+                c *= radix2
+            g = r * radix
+            while c >= g:
+                f /= radix
+                c /= radix2
+            # Accept only if the SCALED sum (c + r)/f genuinely drops below 0.95·s.
+            # Dividing by f is what makes ``s`` strictly DECREASE on every accepted
+            # step (the row-norm becomes r/f, the col-norm becomes c·f → their sum
+            # is (c·f + r/f); NR tracks the post-scale col-norm in ``c`` already, so
+            # the comparison quantity is (c + r)/f). This monotone decrease is the
+            # Parlett–Reinsch termination guarantee — without the ``/f`` the sweeps
+            # can OSCILLATE and never converge.
+            if (c + r) < 0.95 * s * f and f != 1.0:
+                converged = False                      # a change → another sweep
+                for j in range(n):                     # row i ÷ f, col i × f (exact)
+                    H[i][j] = H[i][j] / f
+                    H[j][i] = H[j][i] * f
+    return H
+
+
 def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
     """Eigenvalue MULTISET of a general (non-Hermitian) square matrix over the
     :class:`~srmech.amsc.mat.Mat` carrier — foundation op #4 of the numpy-CARRIER
@@ -1863,8 +1930,19 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
     For a Hermitian ``A`` prefer :func:`mat_hermitian_eigendecompose` (exact
     Jacobi — pure Class L). Raises ``ValueError`` on a non-square ``A``.
 
+    * **Balancing (Parlett–Reinsch, radix-2).** Before the QR sweep ``H`` is
+      pre-conditioned by :func:`_balance_radix2` — an EXACT diagonal similarity
+      ``D⁻¹·H·D`` with ``D`` a diagonal of powers of two, chosen to equalise each
+      index's row-norm against its column-norm. Powers of two make every scale a
+      binary shift of the mantissa (no floating rounding), so the eigenvalue
+      multiset is **invariant**: unchanged for well-scaled input, MORE ACCURATE
+      for badly-scaled input (a lopsided row/col-norm split otherwise loses digits
+      in the QR iteration). The shifted-QR step below is unchanged.
+
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
-    Hopkins, 2013) §7.5 (the practical QR algorithm with Wilkinson shifts).
+    Hopkins, 2013) §7.5 (the practical QR algorithm with Wilkinson shifts) +
+    §7.5.1 (balancing); Parlett & Reinsch, "Balancing a matrix for calculation of
+    eigenvalues and eigenvectors", *Numer. Math.* **13** (1969) 293–304.
     """
     from .mat import Mat
     assert isinstance(a, Mat), (
@@ -1878,6 +1956,12 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
     H = [[complex(a[i, j]) for j in range(n)] for i in range(n)]
     if n == 1:
         return [H[0][0]]
+    # Parlett–Reinsch RADIX-2 balancing pre-step: an EXACT diagonal similarity
+    # D⁻¹·H·D (powers of two only → no floating rounding) that equalises each
+    # index's row-norm against its column-norm. Eigenvalues are invariant under a
+    # similarity, so the multiset is UNCHANGED for well-scaled input and MORE
+    # ACCURATE for badly-scaled input. (Parlett & Reinsch 1969; G&VL §7.5.1.)
+    H = _balance_radix2(H)
     eigs: List[complex] = []
     m = n
     sweeps = 0
