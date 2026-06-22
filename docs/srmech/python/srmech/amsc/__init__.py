@@ -64,6 +64,10 @@ from .format import (
     validate_mpr_record,
     write_ndjson,
 )
+# The exact number-field carrier Qalg = ℚ[x]/(m) — the generalisation of the
+# Gaussian-rational Qi (= Qalg over x²+1). Exact-substrate algebraic numbers
+# (rotation-last roadmap rc-C). A carrier, not a ToolEntry (mirrors Qi).
+from .qalg import Qalg
 # v0.3.0 — tool_schema introspection (Task #198) registers srmech's
 # own AMSC tools at import time. Profile-contributed tools register
 # later, at profile-activation time via profile_loader.
@@ -100,4 +104,6 @@ __all__ = [
     "list_registered_roots",
     "register_attested_root",
     "use_local_kernel",
+    # carriers
+    "Qalg",
 ]
