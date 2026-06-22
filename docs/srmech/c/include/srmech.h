@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc36"
-#define SRMECH_VERSION       "0.9.0rc36"
+#define SRMECH_VERSION_PRE   "rc37"
+#define SRMECH_VERSION       "0.9.0rc37"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1131,6 +1131,55 @@ srmech_status_t srmech_exact_dft_i64(
     const int64_t  *im,
     int64_t        *out_re,
     int64_t        *out_im);
+
+/* ------------------------------------------------------------------ *
+ * The resonant-spectrum closure (§75 / F928) — a Class-L coupling
+ * COMPOSITE over the existing kernels (srmech_hermitian_eigendecompose_ws
+ * + srmech_best_rational + srmech_factor), the C twin of
+ * srmech.amsc.coupling.resonant_spectrum. Reads a real-symmetric coupling
+ * Laplacian L as a stored (excitation-free) object: the eigenvalue
+ * "tensions" (ascending), the eigenvector "modes" (columns), the force-
+ * orders L^k = V·diag(Λ^k)·Vᵀ from the ONE eigensolve, and the adjacent-
+ * tension resonance ratios + lock (smooth-den) vs libration (large-prime-
+ * den) verdicts. Standalone-complete: all scratch is bump-carved from the
+ * CALLER arena `ws` (no malloc). ABI-additive: new symbols, ABI stays 3.
+ * ------------------------------------------------------------------ */
+
+/* The caller arena size IN BYTES srmech_resonant_spectrum needs for an
+ * n×n Laplacian (the interleaved-H input + eigensolve workspace + the
+ * complex/real eigenvector copies). Size `ws_len` ≥ this. */
+size_t srmech_resonant_spectrum_arena_bytes(uint32_t n);
+
+/* Read the real-symmetric coupling Laplacian L (n×n row-major real,
+ * `L_rowmajor`) as a resonant object. `orders` ≥ 1 force-orders, `max_den`
+ * ≥ 1 the best_rational ceiling. Caller pre-sizes every output:
+ *   out_tensions[n]              — eigenvalues ASCENDING (real)
+ *   out_modes[n*n]               — eigenvectors, row-major, columns = modes
+ *                                  (real; sign-pinned like the Python op)
+ *   out_force_orders[orders*n*n] — [L, L^2, …, L^orders] row-major real,
+ *                                  contiguous per order
+ *   out_res_pairs[(n-1)*2]       — (i, j) adjacent-tension pair indices
+ *   out_res_ratio[(n-1)*2]       — (num, den) of each tension ratio
+ *   out_res_locked[n-1]          — 1 = LOCK (smooth/2-adic den), 0 = libration
+ *   *out_res_count               — number of resonance rows actually written
+ * `ws` (ws_len bytes) sized from srmech_resonant_spectrum_arena_bytes.
+ * Returns SRMECH_ERR_BAD_INPUT for orders<1 / max_den<1, SRMECH_ERR_NULL_ARG
+ * for a NULL pointer (n>0), SRMECH_ERR_OVERFLOW for a too-small arena or a
+ * non-convergent eigensolve. n==0 writes nothing + *out_res_count=0. */
+srmech_status_t srmech_resonant_spectrum(
+    uint32_t       n,
+    const double  *L_rowmajor,
+    uint32_t       orders,
+    uint64_t       max_den,
+    double        *out_tensions,
+    double        *out_modes,
+    double        *out_force_orders,
+    int32_t       *out_res_pairs,
+    uint64_t      *out_res_ratio,
+    int32_t       *out_res_locked,
+    uint32_t      *out_res_count,
+    double        *ws,
+    size_t         ws_len);
 
 /* ------------------------------------------------------------------ *
  * Class J — prime-factorisation / period (Task #217 Phase C1 rc3)

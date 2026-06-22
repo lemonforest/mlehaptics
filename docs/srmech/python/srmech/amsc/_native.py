@@ -529,6 +529,38 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_dense_matmul_complex.restype = ctypes.c_int
 
+    # §75 (F928): the resonant-spectrum closure — the C twin of
+    # srmech.amsc.coupling.resonant_spectrum. A Class-L coupling composite over
+    # srmech_hermitian_eigendecompose_ws + srmech_best_rational + srmech_factor.
+    # NEW symbols, hasattr-guarded (ABI stays 3) so a stale ABI-3 lib keeps the
+    # rest of the native surface and the pure-Python op is the complete path.
+    #   size_t srmech_resonant_spectrum_arena_bytes(uint32_t n)
+    if hasattr(lib, "srmech_resonant_spectrum_arena_bytes"):
+        lib.srmech_resonant_spectrum_arena_bytes.argtypes = [ctypes.c_uint32]
+        lib.srmech_resonant_spectrum_arena_bytes.restype = ctypes.c_size_t
+    #   int srmech_resonant_spectrum(uint32_t n, const double *L_rowmajor,
+    #       uint32_t orders, uint64_t max_den, double *out_tensions,
+    #       double *out_modes, double *out_force_orders, int32_t *out_res_pairs,
+    #       uint64_t *out_res_ratio, int32_t *out_res_locked,
+    #       uint32_t *out_res_count, double *ws, size_t ws_len)
+    if hasattr(lib, "srmech_resonant_spectrum"):
+        lib.srmech_resonant_spectrum.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.POINTER(ctypes.c_double),    # L_rowmajor (n*n real)
+            ctypes.c_uint32,                    # orders
+            ctypes.c_uint64,                    # max_den
+            ctypes.POINTER(ctypes.c_double),    # out_tensions (n)
+            ctypes.POINTER(ctypes.c_double),    # out_modes (n*n real, columns)
+            ctypes.POINTER(ctypes.c_double),    # out_force_orders (orders*n*n)
+            ctypes.POINTER(ctypes.c_int32),     # out_res_pairs ((n-1)*2)
+            ctypes.POINTER(ctypes.c_uint64),    # out_res_ratio ((n-1)*2)
+            ctypes.POINTER(ctypes.c_int32),     # out_res_locked (n-1)
+            ctypes.POINTER(ctypes.c_uint32),    # out_res_count
+            ctypes.POINTER(ctypes.c_double),    # ws (caller arena)
+            ctypes.c_size_t,                    # ws_len (arena bytes)
+        ]
+        lib.srmech_resonant_spectrum.restype = ctypes.c_int
+
     # v0.7.2rc2 (#910 / §30; F442/F449): Hamming / GF(2) block-code family.
     # NEW symbols — hasattr-guarded so a stale lib (pre-rc2) keeps the rest of
     # the native surface. uint8 0/1 buffers; lean-ALU XOR (no float, no libm).

@@ -2703,6 +2703,53 @@ def _register_primitive_class_tools() -> None:
                              "carrier; integer scores exact as float64)"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The resonant-spectrum closure (§75 / F928) — a Class-L coupling
+        # composite over the eigensolve + best_rational + factor kernels,
+        # with the 1:1 C peer srmech_resonant_spectrum.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.coupling.resonant_spectrum", owner="srmech",
+            category="coupling",
+            summary="Read a real-symmetric coupling Laplacian L as a STORED "
+                    "(excitation-free) resonant object (§75 / F928). Returns the "
+                    "eigenvalue 'tensions' ASCENDING (the stored 'dark' tension "
+                    "spectrum = the MFO field, no pluck), the eigenvector 'modes' "
+                    "(columns = the excitation modes), the force-orders "
+                    "[L, L², …, Lᵒ] via Lᵏ = V·diag(Λᵏ)·Vᵀ reconstructed from the "
+                    "ONE eigensolve (L² = biharmonic/tidal forces-of-forces), and "
+                    "the 'resonances' — each adjacent nonzero-tension ratio as a "
+                    "Class-N best_rational (num, den) with a Class-J lock verdict "
+                    "(smooth/2-adic den = LOCK on the Laplace ladder; large-prime "
+                    "den = libration off-lock). Composes symmetric_eigendecompose "
+                    "(L) + mat_matmul (L) + best_rational (N) + primes.factor (J); "
+                    "1:1 C peer srmech_resonant_spectrum (native when present, "
+                    "pure-Python the complete alternative). numpy-free; no abs().",
+            parameters=(P("L", "Mat", True,
+                          "an n×n real-symmetric coupling Laplacian"),
+                        P("orders", "int", False,
+                          "how many force-orders [L¹…Lᵒ]; default 2 (≥1)"),
+                        P("max_den", "int", False,
+                          "best_rational denominator ceiling; default 64")),
+            returns=R("dict", "{'tensions': Vec (ascending), 'modes': Mat "
+                              "(columns = eigenvectors), 'force_orders': "
+                              "list[Mat] [L,…,Lᵒ], 'resonances': list of "
+                              "{pair, ratio (num,den), den_coords, locked}}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.coupling.from_bodies", owner="srmech",
+            category="coupling",
+            summary="Build the gravity coupling-graph (n, edges, weights) for a "
+                    "body set — the m_i·m_j/r² Newtonian-weight builder feeding "
+                    "resonant_spectrum (the F928 Jupiter+Galilean convention: a "
+                    "central body at index 0/position 0, a moon-pair gap "
+                    "otherwise). Feeds laplacian.dense_laplacian. numpy-free.",
+            parameters=(P("masses", "sequence", True, "body masses (flat list)"),
+                        P("positions", "sequence", True,
+                          "1-D body positions, flat list (central body at 0)")),
+            returns=R("tuple[int, list[tuple[int,int]], list[float]]",
+                      "(n, edges, weights) for dense_laplacian"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # Foundational cross-domain cascade catalog (v0.4.3rc6).
         # The cascades recurring across every/most domains, promoted so a
         # named cascade is the default and a math-library call the exception.
