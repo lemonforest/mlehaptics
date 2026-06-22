@@ -48,10 +48,8 @@ def test_deferred_rungs_logged():
 
 
 def test_harmonic_ladder_fully_closed_capstone():
-    # the derived predicate returns True now that no rung has an open class —
-    # the §74 / F923 capstone (C/K via Qi rc31, J via Qprime rc32).
-    assert harmonics.harmonic_ladder_fully_closed() is True
-    # and no rung carries any open class
+    # the §74 / F923 capstone — no rung carries any open class
+    # (C/K via Qi rc31, J via Qprime rc32). The empty ladder IS the capstone.
     assert all(open_classes == () for open_classes in
                harmonics.HARMONIC_LADDER_OPEN_RUNGS.values())
 

@@ -168,14 +168,6 @@ HARMONIC_LADDER_OPEN_RUNGS = {
 }
 
 
-def harmonic_ladder_fully_closed() -> bool:
-    """Return ``True`` iff NO chirality-harmonic rung has an open class — the
-    §74 / F923 capstone state (C/K closed rc31 via ``Qi``, J closed rc32 via
-    ``Qprime``). Derived from :data:`HARMONIC_LADDER_OPEN_RUNGS`: closed iff
-    every rung's open-class tuple is empty."""
-    return all(len(open_classes) == 0
-               for open_classes in HARMONIC_LADDER_OPEN_RUNGS.values())
-
 __all__ = [
     "HARMONIC_1",
     "HARMONIC_LADDER_OPEN_RUNGS",
@@ -185,5 +177,4 @@ __all__ = [
     "ALL_CLASS_LETTERS",
     "classify_harmonic",
     "classify_chirality_harmonic",
-    "harmonic_ladder_fully_closed",
 ]

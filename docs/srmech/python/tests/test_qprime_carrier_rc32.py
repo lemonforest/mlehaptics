@@ -190,5 +190,3 @@ def test_harmonic_ladder_now_empty_no_open_class():
     open_classes = [c for rung in harmonics.HARMONIC_LADDER_OPEN_RUNGS.values()
                     for c in rung]
     assert open_classes == []
-    # the derived predicate agrees
-    assert harmonics.harmonic_ladder_fully_closed() is True
