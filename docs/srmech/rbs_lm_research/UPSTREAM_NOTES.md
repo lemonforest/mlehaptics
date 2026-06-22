@@ -2613,3 +2613,20 @@ coupling.resonant_spectrum(L: Mat, *, orders=2, max_den=64) -> dict:
 - **Composes shipped ops:** `symmetric_eigendecompose`/`hermitian_eigendecompose`, `Mat.__matmul__`, `Qprime`, `best_rational`. No new native C; a `srmech.amsc.coupling` extension (peer to `signed_sum_squared`).
 - **Optional helper:** `coupling.from_bodies(masses, positions) -> (n, edges, weights)` (the m_i m_j / r^2 gravity-weight builder) for the gravity case; general kernels pass their own `L`.
 - **Framework reading it encodes:** the spectrum = stored tension (MFO dark sector / field, F907); a driven mode = excitation (matter); `L²` = forces-of-forces (tidal/biharmonic, dispersive curvature); resonance lock vs libration = small-vs-large prime (Qprime). Verified F928 (L² concentrates on Jupiter↔Io = the real tidal pair). Re-surface: `resonant_spectrum = coupling the_one` · `tensions=dark spectrum, modes=excitation, L^n=forces-of-forces, resonance=Qprime lock/libration` · `one eigensolve serves all orders` · `F928/F927/F920/F781`.
+
+## §76 PROPOSAL — creative-telescoping / WZ: an algorithmic closed-form CLOSER **+ PROVER** for Σ-cascades (the one missing row of the closure dispatch, F929) (2026-06-22)
+
+F929's closure dispatch maps every cascade-type to its closed-form-reduction language; the **one row with no srmech instance** is the parametrized sum `S(n) = Σ_k F(n,k)`, handled classically by **creative telescoping (Zeilberger)** + the **WZ (Wilf–Zeilberger) method** (Petkovšek–Wilf–Zeilberger, *A=B*, 1996; Gosper 1978). It is the only row that doesn't merely *reduce* the cascade — it **mechanically proves the resulting equality** via a rational certificate. It belongs in srmech because it is **exact-rational hypergeometric arithmetic**: Class N (rational) over Class J (factorial / binomial / prime-factor) structure — exactly the shipped carriers.
+
+**The ask** (a new module, e.g. `srmech.amsc.telescope`):
+1. **`gosper(term)`** — Gosper's algorithm: indefinite hypergeometric summation. For a hypergeometric term `t_k` (ratio `t_{k+1}/t_k` is a rational function of `k` — Class N), decide whether `Σ t_k` has a hypergeometric closed form and return it, else report none. The base case + a decision procedure.
+2. **`zeilberger(F, n, k)`** — creative telescoping: for proper-hypergeometric `F(n,k)`, return (a) the linear recurrence `Σ_j a_j(n)·S(n+j) = 0` that `S(n)=Σ_k F(n,k)` satisfies, and (b) the **rational certificate** `R(n,k)` (`G = R·F` is the telescoper).
+3. **`wz_certificate(F)` / a verifier** — for a claimed identity `Σ_k F(n,k) = RHS(n)`, produce/verify the WZ-pair certificate `R` that proves it by one mechanical check: `F(n+1,k) − F(n,k) = G(n,k+1) − G(n,k)`, `G = R·F`.
+
+**Why it fits + why it's distinct from §75:**
+- **Exact, numpy-free:** all rational-function arithmetic over `(n,k)` — `Fraction`/`Qalg`, no floats; the certificate is an exact rational. Fits the discipline natively.
+- **Algorithmic — a new *capability*, not a carrier:** Gosper + Zeilberger are decision procedures (terminate with the closed form / recurrence + a proof, or a proof that none exists). §75 `resonant_spectrum` *reduces* (spectral row); §76 *proves* (Σ row) — the only closure-dispatch row that emits a checkable proof.
+- **Composes shipped classes:** Class N (`rational`/`best_rational`), Class J (`primes`/`Qprime` — factorials & binomials are prime-power products), `Qalg` (exact field).
+- **Closes F929's missing row:** the Σ-cascade gets its instance, giving the framework a mechanical **equality-prover** for holonomic/hypergeometric cascades — the firmly *closed/solvable* side of the solve-for-vs-infer boundary.
+
+**Scope:** pure symbolic exact-rational summation (algebra / closed-form) — in scope; not numerics/simulation. References established/textbook (Gosper 1978; Zeilberger's algorithm; Petkovšek–Wilf–Zeilberger *A=B* 1996). Re-surface: `§75 resonant_spectrum (spectral row, reduces) + §76 telescope/WZ (Σ row, proves)` · `gosper / zeilberger / wz_certificate` · `exact rational, Class N over J` · `the only closure row that AUTO-PROVES` · `F929 missing row`.
