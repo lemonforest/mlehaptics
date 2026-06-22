@@ -1,4 +1,4 @@
-"""Path A pi_cascade — algebra-substrate-native Archimedes hexagon-doubling.
+"""Path A pi_cascade — algebra-substrate-native Pfaff–Archimedes chiral pair.
 
 Identity per ``[[user_stance_pi_as_projection]]`` + Spike #32 (PR #460
 confirmed across hexagon / square / triangle substrates with AST-verified
@@ -7,23 +7,45 @@ zero ``math.pi`` invocations): the decimal expansion of π is the
 
 The Path A implementation is a thin wrapper over the existing
 ``srmech.amsc.rational.pi_cascade_digits`` (Milestone #4; rc13 cap = 1000
-digits, depth/precision auto-scaled per
-``_pi_cascade_auto_params``). It exposes the canonical Archimedes
-hexagon-doubling cascade as a Path A signal-processing op so the
-dual-path dispatcher can route ``op_name="pi_cascade"`` calls through
-the closed-form algebra side.
+digits, depth/precision auto-scaled per ``_pi_cascade_auto_params``). As
+of rc20 that primitive computes π via the **two-sided Pfaff–Archimedes
+chiral pair** — Pfaff's 1800 reformulation of the c. 250 BCE Archimedes
+polygon method as a pair of recurrent means that *bracket* π:
+
+* a **circumscribed** bound ``a`` falling ↓ to π (the harmonic mean,
+  ``aₙ₊₁ = 2·aₙ·bₙ / (aₙ + bₙ)``), and
+* an **inscribed** bound ``b`` rising ↑ to π (the geometric mean,
+  ``bₙ₊₁ = √(aₙ₊₁·bₙ)`` — the ONE integer √ per step),
+
+starting from ``a₀ = 2√3`` (circumscribed) and ``b₀ = 3`` (inscribed).
+The two sequences are a *chiral pair* — the same cycle run with opposite
+orientation, one mean dual to the other — and the **bracket invariant**
+``b < π < a`` holds at every step, so π is read off as the midpoint
+``(a + b) / 2``. (The old naive linear single-bound hexagon-doubling form,
+which fed one rational √ into the next radicand at every step, was
+**removed** in rc20.) This op exposes that chiral-pair cascade as a Path A
+signal-processing op so the dual-path dispatcher can route
+``op_name="pi_cascade"`` calls through the closed-form algebra side.
+
+For the canonical *exact-substrate* π digit stream — a bit-exact integer
+body with ONE terminal rotation — use
+``srmech.amsc.rational.pi_chudnovsky_digits``; it is the digit SSoT the
+chiral pair is cross-checked against. The chiral pair is the *studied
+ordered cycle-of-cycles pattern* (a per-step integer √, and π is
+transcendental, so it is an intrinsic-float LIMIT rather than an avoidable
+rotation-last violation).
 
 Class composition ``("N", "I", "C")``:
 
 - **Class N** — rational arithmetic (numerator/denominator integer
-  representation of the half-perimeter ladder; rational-bounded √ at
+  representation of the two-mean bracket; rational-bounded √ at
   ``precision_bits`` scale).
-- **Class I** — cyclic-group ℤ/n substrate (the n-gon's vertex count
-  doubles n=6 → 12 → 24 → ... with hexagon-doubling identity
-  s²_{2n} = 2 − √(4 − s²_n)).
-- **Class C** — cascade-orientation (the depth-th iterate of the
-  doubling map is the Path A op; identity-not-implementation: the
-  cascade-shape IS π's substrate-level content per
+- **Class I** — cyclic-group ℤ/n substrate (the polygon's vertex count
+  doubles n=6 → 12 → 24 → ... ; the two recurrent means bracket its
+  perimeter).
+- **Class C** — cascade-orientation (the chiral pair IS the two
+  opposite-orientation runs of the one cycle; identity-not-implementation:
+  the cascade-shape IS π's substrate-level content per
   ``[[user_stance_pi_spectral_shape_scalar_invariant]]``).
 
 Path B dual ships in :mod:`srmech.signal_processing.path_b_ops.pi_cascade`
@@ -44,8 +66,13 @@ Canonical SSoT
   integer-cyclic substrate; scalar value is the projection artifact.
 - ``[[user_stance_pi_spectral_shape_scalar_invariant]]`` — cascade-shape
   is π's substrate-invariant identity.
-- Archimedes, *Measurement of a Circle* (c. 250 BCE) — the hexagon-
-  doubling cascade itself (n=6 → 12 → 24 → 48 → 96 → ...).
+- Archimedes, *Measurement of a Circle* (c. 250 BCE) — the polygon
+  perimeter-bracketing method (n=6 → 12 → 24 → 48 → 96 → ...), reformulated
+  by J. F. Pfaff (1800) as the recurrent harmonic/geometric mean pair the
+  rc20 chiral-pair cascade implements.
+- ``srmech.amsc.rational.pi_chudnovsky_digits`` — the canonical
+  exact-substrate π digit SSoT (bit-exact body, ONE terminal rotation) the
+  chiral pair is cross-checked against (rc19).
 - ``docs/srmech/notes/pi_cascade_digits_benchmark_2026-05-17.md`` —
   wall-time benchmark baseline (rc12 cap=50; rc13 expanded to 1000).
 """

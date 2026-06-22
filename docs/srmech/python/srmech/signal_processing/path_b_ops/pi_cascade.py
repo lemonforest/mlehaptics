@@ -7,11 +7,24 @@ Spike #170 (RBS-HDC instrument as LoE-bearing substrate at D=8192) +
 ``[[user_stance_cascade_lives_on_circles]]`` (cascade composition of
 cyclic shifts produces unit-circle eigenvalues at machine ε).
 
+The underlying ``srmech.amsc.rational.pi_cascade_digits`` primitive
+computes π via the **two-sided Pfaff–Archimedes chiral pair** (rc20):
+a *circumscribed* bound ``a`` falling ↓ to π (the harmonic mean,
+``aₙ₊₁ = 2·aₙ·bₙ/(aₙ+bₙ)``) and an *inscribed* bound ``b`` rising ↑ to π
+(the geometric mean, ``bₙ₊₁ = √(aₙ₊₁·bₙ)`` — the ONE √ per step), from
+``a₀ = 2√3`` and ``b₀ = 3``. The two are a chiral pair — the same cycle
+run with opposite orientation — and the bracket invariant ``b < π < a``
+holds at every step, so π is the midpoint ``(a + b)/2`` (the old naive
+linear single-bound hexagon-doubling form was removed in rc20). For the
+canonical exact-substrate π digit stream (bit-exact body, ONE terminal
+rotation) use ``srmech.amsc.rational.pi_chudnovsky_digits`` — the digit
+SSoT the chiral pair is cross-checked against.
+
 The Path B implementation lives on the **RBS-HDC bound-vector substrate
 at D=8192**:
 
 1. **Class K cycle order verification** (Spike #176 T8). Each
-   Archimedes hexagon-doubling step n → 2n IS a Class K pin-slot
+   polygon-doubling step n → 2n in the chiral pair IS a Class K pin-slot
    rotation on a cyclic substrate ℤ/n. We verify that for representative
    n in the cascade (n=6, 12, 24, ...), the additive order in ℤ/D is
    well-defined: ``verify_rotation_class_n_cycle_order(n, D=8192) =
@@ -58,8 +71,12 @@ Canonical SSoT
 - ``[[user_stance_identity_not_implementation_discipline]]`` — Path A
   and Path B both instantiate the same algebra; D1 bit-exact.
 - Milestone #4 — underlying ``srmech.amsc.rational.pi_cascade_digits``
-  primitive (rc13 cap=1000).
-- Archimedes, *Measurement of a Circle* (c. 250 BCE).
+  primitive (rc13 cap=1000; rc20 two-sided Pfaff–Archimedes chiral pair).
+- ``srmech.amsc.rational.pi_chudnovsky_digits`` — the canonical
+  exact-substrate π digit SSoT the chiral pair is cross-checked against
+  (rc19).
+- Archimedes, *Measurement of a Circle* (c. 250 BCE), as reformulated by
+  J. F. Pfaff (1800) into the recurrent harmonic/geometric mean pair.
 """
 
 from __future__ import annotations
