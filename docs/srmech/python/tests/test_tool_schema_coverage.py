@@ -233,6 +233,17 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # ``SedenionRegister`` is a class (not coverage-walked). Exempt exactly like
     # the cayley_dickson re-exports above.
     "srmech.amsc.cascade.sedenion_register.sedenion_register",
+    # matrix_cascades.eigvec_exact / eigvec_exact_float (v0.9.0rc23 — rc-D exact
+    # eigenvectors). These RETURN ``Qalg`` components (the exact ℚ(α) number-field
+    # carrier), which is NOT MCP-serializable — exactly like the ``Qalg`` carrier
+    # itself is not registered. They are package-level exact ops reachable via
+    # Python (and consumed by the exact eigenproblem), not via the MCP tool list,
+    # so they are exempt on the same "cannot cross the JSON-RPC boundary"
+    # rationale as ``one.to_scalar`` / ``greedy_bipartite_alignment`` above. The
+    # exact eigenVALUES (``eigvals_exact`` / ``char_poly``) ARE registered (they
+    # return list/float); only the eigenVECTOR ops (Qalg return) are exempt.
+    "srmech.amsc.cascade.matrix_cascades.eigvec_exact",
+    "srmech.amsc.cascade.matrix_cascades.eigvec_exact_float",
 })
 
 
