@@ -244,6 +244,16 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # return list/float); only the eigenVECTOR ops (Qalg return) are exempt.
     "srmech.amsc.cascade.matrix_cascades.eigvec_exact",
     "srmech.amsc.cascade.matrix_cascades.eigvec_exact_float",
+    # matrix_cascades.factor_integer_poly / eig_exact (v0.9.0rc25 — rc-F). Exempt on
+    # the SAME "package-level exact algebra, returns non-JSON-RPC types" rationale as
+    # the eigvec ops above. ``eig_exact`` returns dicts carrying ``complex`` /
+    # ``Qalg`` eigenpairs (and ``project=False`` returns ``Qalg`` objects outright);
+    # ``factor_integer_poly`` returns list[tuple[tuple[int], int]] (an exact
+    # arbitrary-precision factorisation oracle, ``bignum_reference`` in the Rosetta
+    # ledger). Both are reachable via Python, not the MCP tool list, exactly like the
+    # ``Qalg`` carrier itself is not registered.
+    "srmech.amsc.cascade.matrix_cascades.factor_integer_poly",
+    "srmech.amsc.cascade.matrix_cascades.eig_exact",
 })
 
 
