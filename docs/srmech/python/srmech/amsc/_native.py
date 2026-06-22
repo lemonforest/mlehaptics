@@ -1900,9 +1900,9 @@ def _bigexp_call(symbol: str, numerator: int, denominator: int,
     # series is bounded by q^E·E! (E ~ 2N+1); 32·(N+digits)+64 limbs is a safe
     # envelope across the per-op term caps (exp N≤512, trig N≤50, log/atan N≤64,
     # pow exp≤65535 — but exp_val that large is the caller's arena to size).
-    num_digits = len(str(abs(numerator))) + len(str(denominator))
+    num_digits = len(str(numerator).lstrip("-")) + len(str(denominator))
     out_cap = 32 * (num_terms + num_digits) + 64
-    num_limbs = max(len(str(abs(numerator))) // 9 + 2, 2)
+    num_limbs = max(len(str(numerator).lstrip("-")) // 9 + 2, 2)
     den_limbs = max(len(str(denominator)) // 9 + 2, 2)
     ws_len = int(LIB.srmech_bigexp_ws_bound(
         ctypes.c_size_t(num_limbs), ctypes.c_size_t(den_limbs),
