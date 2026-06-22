@@ -1033,7 +1033,10 @@ def _register_primitive_class_tools() -> None:
                     "c/s computation. Native C dispatch when n ≤ 256.",
             parameters=(P("matrix", "Mat", True, "n × n symmetric"),
                         P("max_sweeps", "int", False, "default 100"),
-                        P("tolerance", "float", False)),
+                        P("tolerance", "float", False),
+                        P("exact", "bool", False,
+                          "exact eigvals_exact route for integer/rational "
+                          "symmetric input (default float-Jacobi)")),
             returns=R("Vec", "n eigenvalues ascending (numpy-free 1-D carrier)"),
         ),
         ToolEntry(

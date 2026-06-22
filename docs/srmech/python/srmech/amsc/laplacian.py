@@ -633,10 +633,74 @@ def _jacobi_eigvals_native_listmarshal(rows, n, max_sweeps, tolerance):
     return sorted(out)
 
 
+def _is_exact_scalar(x) -> bool:
+    """True iff ``x`` is an EXACT scalar — a plain ``int`` (not ``bool``) or a
+    :class:`numbers.Rational` (covers :class:`fractions.Fraction` and the srmech
+    ``Q`` carrier, both registered as ``numbers.Rational``). A ``float`` /
+    ``complex`` / ``bool`` is NOT exact (``bool`` is excluded so a truthy entry
+    can't masquerade as the integer 1)."""
+    import numbers
+    if isinstance(x, bool):
+        return False
+    if isinstance(x, int):
+        return True
+    return isinstance(x, numbers.Rational)
+
+
+def _jacobi_eigvals_exact(matrix) -> "Vec":
+    """Exact-substrate symmetric eigenvalues (rc-B; the ``exact=True`` route of
+    :func:`jacobi_eigvals`).
+
+    Validates ``matrix`` is SQUARE, **exact** (every entry an ``int`` /
+    :class:`fractions.Fraction` / srmech ``Q``), and SYMMETRIC, then routes to
+    the exact-substrate cascade :func:`srmech.amsc.cascade.matrix_cascades.eigvals_exact`
+    (lazily imported here to avoid any circular-import risk). Returns the
+    ascending eigenvalues **with multiplicity** as a 1-D :class:`Vec` — the same
+    return contract as the float-Jacobi path.
+
+    Raises :class:`ValueError` on a non-square / float-bearing / non-symmetric
+    input: exact eigenvalues are only achievable for an integer/rational
+    SYMMETRIC matrix (a non-symmetric integer matrix can have complex
+    eigenvalues that the real-root ``eigvals_exact`` returns incompletely)."""
+    rows = [list(r) for r in matrix]
+    n = len(rows)
+    if n == 0 or any(len(r) != n for r in rows):
+        raise ValueError(
+            "jacobi_eigvals(exact=True) requires a square n×n matrix; "
+            f"got row lengths {[len(r) for r in rows]} for n={n}"
+        )
+    for i in range(n):
+        for j in range(n):
+            if not _is_exact_scalar(rows[i][j]):
+                raise ValueError(
+                    "jacobi_eigvals(exact=True) requires every entry to be "
+                    "EXACT (int / fractions.Fraction / srmech Q) — never a "
+                    f"float/complex; entry [{i}][{j}] = {rows[i][j]!r} is "
+                    f"{type(rows[i][j]).__name__}. Exact eigenvalues are only "
+                    "achievable on an exact substrate."
+                )
+    for i in range(n):
+        for j in range(i + 1, n):
+            if rows[i][j] != rows[j][i]:
+                raise ValueError(
+                    "jacobi_eigvals(exact=True) requires a SYMMETRIC matrix "
+                    f"(a[i][j] == a[j][i]); entry [{i}][{j}] = {rows[i][j]!r} "
+                    f"!= [{j}][{i}] = {rows[j][i]!r}. A non-symmetric integer "
+                    "matrix can have complex eigenvalues that the real-root "
+                    "eigvals_exact returns incompletely."
+                )
+    # Lazy import (avoid a circular-import risk at module load).
+    from srmech.amsc.cascade.matrix_cascades import eigvals_exact
+    eigs = eigvals_exact(rows)  # ascending, with multiplicity (real spectrum)
+    return Vec.from_sequence(eigs, is_complex=False)
+
+
 def jacobi_eigvals(
     matrix,
     max_sweeps: int = 100,
     tolerance: float = 1e-12,
+    *,
+    exact: bool = False,
 ) -> "Vec":
     """Symmetric Jacobi eigendecomposition.
 
@@ -665,7 +729,29 @@ def jacobi_eigvals(
     + scalar ``v[i]``), NOT a bare ``list[float]``. When ``HAS_NATIVE`` and
     ``n ≤ 256`` the numpy-free list-marshal native path runs; else srmech's own
     pure-Python Jacobi cascade.
+
+    Rotation-last exact route (rc-B, ``exact=``, keyword-only)
+    ---------------------------------------------------------
+    * ``exact=False`` (the default): **unchanged** — the float-Jacobi path
+      above, verbatim. Float-Jacobi stays the default speed path (the
+      iterative FPU last-mile, classified PRIMITIVE_NA in the rotation-last
+      audit — an intrinsic-float limit, NOT an avoidable violation).
+    * ``exact=True``: route to the exact-substrate cascade. The matrix is
+      validated SQUARE, **exact** (every entry an ``int`` /
+      :class:`fractions.Fraction` / srmech ``Q`` — never a ``float`` /
+      ``complex``), and SYMMETRIC (``a[i][j] == a[j][i]``); any failure
+      raises :class:`ValueError`. (Exact eigenvalues are only achievable for
+      an integer/rational SYMMETRIC matrix: a non-symmetric integer matrix
+      can have complex eigenvalues that the real-root ``eigvals_exact``
+      returns incompletely.) The spectrum then stays exact — char-poly
+      Faddeev–LeVerrier → Yun square-free → Sturm isolation → ``Fraction``
+      bisection — until the single terminal float lift (the rotation-last
+      "exact-substrate-achievable" case). The return is the same contract as
+      the float path: a 1-D :class:`~srmech.amsc.vec.Vec` of ``n`` ascending
+      eigenvalues, **with multiplicity**.
     """
+    if exact:
+        return _jacobi_eigvals_exact(matrix)
     rows = [[float(x) for x in r] for r in matrix]
     n = len(rows)
     if n > 0 and all(len(r) == n for r in rows) and _can_dispatch_native(n):
