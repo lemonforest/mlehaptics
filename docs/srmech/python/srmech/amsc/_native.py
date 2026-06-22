@@ -79,6 +79,21 @@ SRMECH_TRANS_SIN: int = 2
 SRMECH_TRANS_LOG: int = 3
 
 
+# Mirror of ``srmech_bigint_t`` in c/include/srmech.h — the caller-arena,
+# arbitrary-precision integer carrier (base-2^32 little-endian sign-magnitude
+# over caller-owned limbs). Used by the rc35 bignum-exact transcendental
+# series (srmech_*_series_truncate_big / srmech_rational_pow_uint_big) to
+# marshal exact-rational (num, den) operands + results. Layout MUST match:
+#   { int32_t sign; uint32_t n; uint32_t cap; uint32_t *limbs }.
+class _SrmechBigint(ctypes.Structure):
+    _fields_ = [
+        ("sign", ctypes.c_int32),
+        ("n", ctypes.c_uint32),
+        ("cap", ctypes.c_uint32),
+        ("limbs", ctypes.POINTER(ctypes.c_uint32)),
+    ]
+
+
 def _candidate_lib_names() -> list[str]:
     if sys.platform == "win32":
         # CMake's PREFIX="" override produces srmech.dll (matches
@@ -1614,6 +1629,67 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_pi_chudnovsky.restype = ctypes.c_int
 
+    # rc35: BIGNUM-EXACT Class-N transcendental Taylor truncations on the
+    # caller-arena srmech_bigint (the standalone-honor closure removing the
+    # int64/Q61 ceiling the C peers had vs. the Python bignum path). The
+    # operand/result rationals are srmech_bigint pairs; all scratch is caller-
+    # arena (sized via srmech_bigexp_ws_bound). NEW symbols → hasattr-guarded;
+    # additive → EXPECTED_ABI_VERSION stays 3. srmech_bigint is carrier-internal
+    # (bound here only to marshal the *_big operands, mirroring the pi_chudnovsky
+    # bigint-ws pattern).
+    #   size_t srmech_bigexp_ws_bound(size_t num_limbs, size_t den_limbs,
+    #                                 uint32_t num_terms)
+    if hasattr(lib, "srmech_bigexp_ws_bound"):
+        lib.srmech_bigexp_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_uint32,
+        ]
+        lib.srmech_bigexp_ws_bound.restype = ctypes.c_size_t
+    # srmech_bigint marshalling helpers (decimal <-> srmech_bigint) needed to
+    # feed the *_big ops their bigint operands + read the bigint results.
+    #   size_t srmech_bigint_to_dec_bound(size_t a_n)
+    if hasattr(lib, "srmech_bigint_to_dec_bound"):
+        lib.srmech_bigint_to_dec_bound.argtypes = [ctypes.c_size_t]
+        lib.srmech_bigint_to_dec_bound.restype = ctypes.c_size_t
+    #   srmech_status_t srmech_bigint_from_dec(srmech_bigint_t *out,
+    #                                          const char *s, size_t len)
+    if hasattr(lib, "srmech_bigint_from_dec"):
+        lib.srmech_bigint_from_dec.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.c_char_p, ctypes.c_size_t,
+        ]
+        lib.srmech_bigint_from_dec.restype = ctypes.c_int
+    #   srmech_status_t srmech_bigint_to_dec(const srmech_bigint_t *a, char *buf,
+    #       size_t cap, size_t *out_len, void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_bigint_to_dec"):
+        lib.srmech_bigint_to_dec.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(ctypes.c_char),
+            ctypes.c_size_t, ctypes.POINTER(ctypes.c_size_t),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_bigint_to_dec.restype = ctypes.c_int
+    # The six *_big ops — all share the signature
+    #   srmech_status_t fn(const srmech_bigint_t *x_num,
+    #       const srmech_bigint_t *x_den, uint32_t num_terms,
+    #       srmech_bigint_t *out_num, srmech_bigint_t *out_den,
+    #       void *ws, size_t ws_len)
+    _BIGEXP_SIG = [
+        ctypes.POINTER(_SrmechBigint),   # x_num / base_num
+        ctypes.POINTER(_SrmechBigint),   # x_den / base_den
+        ctypes.c_uint32,                 # num_terms / exp_val
+        ctypes.POINTER(_SrmechBigint),   # out_num
+        ctypes.POINTER(_SrmechBigint),   # out_den
+        ctypes.c_void_p,                 # ws
+        ctypes.c_size_t,                 # ws_len
+    ]
+    for _bop in ("srmech_exp_series_truncate_big",
+                 "srmech_sin_series_truncate_big",
+                 "srmech_cos_series_truncate_big",
+                 "srmech_log1p_series_truncate_big",
+                 "srmech_atan_series_truncate_big",
+                 "srmech_rational_pow_uint_big"):
+        if hasattr(lib, _bop):
+            getattr(lib, _bop).argtypes = list(_BIGEXP_SIG)
+            getattr(lib, _bop).restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None
@@ -1739,6 +1815,112 @@ def pi_chudnovsky_c(num_digits: int) -> "str | None":
             f"srmech_pi_chudnovsky returned non-OK status {rc}"
         )
     return bytes(out)[:out_len.value].decode("ascii")
+
+
+# ----------------------------------------------------------------------
+# rc35: bignum-exact Class-N transcendental series (exact-rational-in →
+# exact-rational-out over the caller-arena srmech_bigint). These remove the
+# int64/Q61 magnitude ceiling the C peers had vs. the Python bignum path, so
+# a C-only host gets Python's unbounded exact (num, den). The Python wrappers
+# below marshal Python ints ⇄ srmech_bigint (via the decimal bridge) and size
+# the caller arena via srmech_bigexp_ws_bound — the same bigint-ws pattern as
+# pi_chudnovsky_c.
+# ----------------------------------------------------------------------
+
+_BIGEXP_SYMS = (
+    "srmech_bigexp_ws_bound",
+    "srmech_bigint_from_dec",
+    "srmech_bigint_to_dec",
+    "srmech_bigint_to_dec_bound",
+)
+
+
+def has_native_bigexp() -> bool:
+    """True iff the rc35 bignum-exact transcendental series + the srmech_bigint
+    decimal-marshal helpers are loaded + bound. False on a no-C or pre-rc35 lib
+    — the pure-Python bignum body in ``srmech.amsc.rational`` is the complete
+    alternative (and the parity oracle); both emit byte-identical ``(num,
+    den)``."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _BIGEXP_SYMS) and hasattr(
+        LIB, "srmech_exp_series_truncate_big"
+    )
+
+
+def _bigint_from_int(value: int, cap_limbs: int):
+    """Build a ``_SrmechBigint`` carrying ``value`` over a fresh ``cap_limbs``
+    limb buffer. Returns ``(bigint, limbs_buf)`` — the caller MUST keep
+    ``limbs_buf`` alive for the bigint's lifetime (ctypes won't)."""
+    bi = _SrmechBigint()
+    limbs = (ctypes.c_uint32 * cap_limbs)()
+    bi.limbs = ctypes.cast(limbs, ctypes.POINTER(ctypes.c_uint32))
+    bi.cap = cap_limbs
+    bi.n = 0
+    bi.sign = 0
+    s = str(value).encode("ascii")
+    rc = LIB.srmech_bigint_from_dec(ctypes.byref(bi), s, len(s))
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_bigint_from_dec returned non-OK status {rc}")
+    return bi, limbs
+
+
+def _bigint_to_int(bi) -> int:
+    """Read a ``_SrmechBigint`` back to a Python ``int`` via the decimal bridge."""
+    a_n = bi.n if bi.n else 1
+    cap = int(LIB.srmech_bigint_to_dec_bound(ctypes.c_size_t(a_n))) + 8
+    buf = ctypes.create_string_buffer(cap)
+    out_len = ctypes.c_size_t(0)
+    scratch_words = a_n * 12 + 64
+    scratch = (ctypes.c_uint8 * (scratch_words * 4))()
+    rc = LIB.srmech_bigint_to_dec(
+        ctypes.byref(bi), buf, ctypes.c_size_t(cap), ctypes.byref(out_len),
+        ctypes.cast(scratch, ctypes.c_void_p),
+        ctypes.c_size_t(scratch_words * 4),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_bigint_to_dec returned non-OK status {rc}")
+    return int(bytes(buf)[:out_len.value].decode("ascii"))
+
+
+def _bigexp_call(symbol: str, numerator: int, denominator: int,
+                 num_terms: int) -> "tuple[int, int] | None":
+    """Invoke one ``*_big`` op and return its reduced ``(num, den)`` or ``None``.
+
+    Returns ``None`` when the native symbols are absent (caller falls through to
+    the pure-Python bignum oracle). A non-OK C status (other than absence)
+    raises :class:`RuntimeError`. The operand/result rationals + the caller
+    arena are all sized from the input magnitudes + ``num_terms`` so the bignum
+    path has NO ceiling (byte-identical to ``srmech.amsc.rational`` at any
+    magnitude)."""
+    if not has_native_bigexp() or not hasattr(LIB, symbol):
+        return None
+    # Limb sizing: 9 decimal digits ≈ 1 limb; pad generously. The output /
+    # working carriers are sized to hold the reduced result, which for these
+    # series is bounded by q^E·E! (E ~ 2N+1); 32·(N+digits)+64 limbs is a safe
+    # envelope across the per-op term caps (exp N≤512, trig N≤50, log/atan N≤64,
+    # pow exp≤65535 — but exp_val that large is the caller's arena to size).
+    num_digits = len(str(numerator).lstrip("-")) + len(str(denominator))
+    out_cap = 32 * (num_terms + num_digits) + 64
+    num_limbs = max(len(str(numerator).lstrip("-")) // 9 + 2, 2)
+    den_limbs = max(len(str(denominator)) // 9 + 2, 2)
+    ws_len = int(LIB.srmech_bigexp_ws_bound(
+        ctypes.c_size_t(num_limbs), ctypes.c_size_t(den_limbs),
+        ctypes.c_uint32(num_terms),
+    ))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    x_num, _xnl = _bigint_from_int(numerator, out_cap)
+    x_den, _xdl = _bigint_from_int(denominator, out_cap)
+    out_num, _onl = _bigint_from_int(0, out_cap)
+    out_den, _odl = _bigint_from_int(0, out_cap)
+    rc = getattr(LIB, symbol)(
+        ctypes.byref(x_num), ctypes.byref(x_den), ctypes.c_uint32(num_terms),
+        ctypes.byref(out_num), ctypes.byref(out_den),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"{symbol} returned non-OK status {rc}")
+    return _bigint_to_int(out_num), _bigint_to_int(out_den)
 
 
 def has_native_klein4_fold() -> bool:
