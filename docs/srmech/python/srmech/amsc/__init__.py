@@ -68,6 +68,12 @@ from .format import (
 # Gaussian-rational Qi (= Qalg over x²+1). Exact-substrate algebraic numbers
 # (rotation-last roadmap rc-C). A carrier, not a ToolEntry (mirrors Qi).
 from .qalg import Qalg
+# The exact prime-coordinate carrier Qprime — a positive int as its exponent
+# vector {prime: exponent} of n = ∏ pᵉ (FTA). The Class-J exact carrier
+# (multiply=add-exponents, gcd=min, lcm=max, multiplicative-order period); the
+# F923 / §74 capstone that closes the last harmonic-ladder rung. A carrier, not
+# a ToolEntry (mirrors Qi / Qalg).
+from .qprime import Qprime
 # v0.3.0 — tool_schema introspection (Task #198) registers srmech's
 # own AMSC tools at import time. Profile-contributed tools register
 # later, at profile-activation time via profile_loader.
@@ -106,4 +112,5 @@ __all__ = [
     "use_local_kernel",
     # carriers
     "Qalg",
+    "Qprime",
 ]

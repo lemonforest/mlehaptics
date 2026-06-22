@@ -41,9 +41,19 @@ def test_classify_harmonic_rejects_bad_input():
 
 
 def test_deferred_rungs_logged():
-    # no-silent-caps: H2 (C, K) CLOSED at rc31 (F924 — Qi.arg() / Qi.modulus());
-    # only H3 (J, primes.three_cycle_factor) remains open. Logged, not hidden.
-    assert harmonics.HARMONIC_LADDER_OPEN_RUNGS == {2: (), 3: ("J",)}
+    # CAPSTONE (rc32, F923 / §74): the ladder is now FULLY CLOSED — NO class
+    # remains open. H2 (C, K) closed rc31 (F924 — Qi.arg() / Qi.modulus()); H3
+    # (J) closed rc32 (Qprime — multiplicative-period). No encode blind spots.
+    assert harmonics.HARMONIC_LADDER_OPEN_RUNGS == {2: (), 3: ()}
+
+
+def test_harmonic_ladder_fully_closed_capstone():
+    # the derived predicate returns True now that no rung has an open class —
+    # the §74 / F923 capstone (C/K via Qi rc31, J via Qprime rc32).
+    assert harmonics.harmonic_ladder_fully_closed() is True
+    # and no rung carries any open class
+    assert all(open_classes == () for open_classes in
+               harmonics.HARMONIC_LADDER_OPEN_RUNGS.values())
 
 
 # ── spectral chirality classifier (§6.2) ──────────────────────────────────
