@@ -74,6 +74,10 @@ from .qalg import Qalg
 # F923 / §74 capstone that closes the last harmonic-ladder rung. A carrier, not
 # a ToolEntry (mirrors Qi / Qalg).
 from .qprime import Qprime
+# The exact-rational matrix carrier QMat — the bigint peer of the float64 Mat
+# (exact dense linear algebra over ℚ, no magnitude ceiling). A carrier, not a
+# ToolEntry, mirrors Qi / Qalg / Qprime.
+from .qmat import QMat
 # v0.3.0 — tool_schema introspection (Task #198) registers srmech's
 # own AMSC tools at import time. Profile-contributed tools register
 # later, at profile-activation time via profile_loader.
@@ -113,4 +117,5 @@ __all__ = [
     # carriers
     "Qalg",
     "Qprime",
+    "QMat",
 ]
