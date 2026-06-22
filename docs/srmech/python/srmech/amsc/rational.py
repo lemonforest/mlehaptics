@@ -45,6 +45,7 @@ __all__ = [
     "log1p_series_truncate",
     "atan_series_truncate",
     "pi_cascade_digits",
+    "pi_chudnovsky_digits",
     "cos",
     "sin",
     "tan",
@@ -1960,6 +1961,182 @@ def pi_cascade_digits(num_digits: int,
     # Zero-pad the fractional part to exactly num_digits.
     frac_str = str(fractional_part).zfill(num_digits)
     return "3." + frac_str
+
+
+# Maximum digits the rotation-last Chudnovsky path will emit.  Unlike the
+# Archimedes ``pi_cascade_digits`` (capped at 1000 by its per-step √ cost),
+# the linear Chudnovsky series stays exact-integer until ONE terminal √, so
+# 10000 is comfortable; the cap is purely a sanity guard.
+_PI_CHUDNOVSKY_MAX_DIGITS: int = 100000
+
+# Chudnovsky series constants (the canonical 1989 Chudnovsky-brothers
+# formula).  All are exact integers — no float, no transcendental anywhere.
+_CHUD_L0: int = 13591409          # L_0
+_CHUD_L_STEP: int = 545140134     # L_{k+1} = L_k + L_STEP
+_CHUD_X_STEP: int = -262537412640768000  # X_{k+1} = X_k * X_STEP  (= -640320^3)
+_CHUD_C_LINEAR: int = 426880      # 426880 * sqrt(10005) prefactor
+_CHUD_RADICAND: int = 10005       # the lone irrational, taken via ONE isqrt
+_CHUD_GUARD: int = 16             # guard digits (dropped before read-out)
+
+
+def _decimal_zfill(value: int, width: int) -> str:
+    """Render a non-negative int as a decimal string, left-padded with
+    zeros to at least ``width`` chars — WITHOUT tripping CPython 3.11+'s
+    4300-digit ``int.__str__`` guard (which ``str(value).zfill(width)``
+    would on a 10000-digit π fraction).
+
+    Done by chunking base 10^9: each chunk fits the guard comfortably, so
+    the result is byte-identical to ``str(value).zfill(width)`` for every
+    non-negative ``value`` and any ``width``.  Pure integer arithmetic; no
+    ``math``, no ``sys`` global mutation.
+    """
+    assert isinstance(value, int) and value >= 0, "value must be non-negative int"
+    assert isinstance(width, int) and width >= 0, "width must be non-negative int"
+    if value == 0:
+        return "0" * (width if width > 0 else 1)
+    chunk_base = 1_000_000_000        # 10^9 — 9 digits per chunk
+    chunks: List[str] = []
+    v = value
+    while v > 0:
+        v, rem = divmod(v, chunk_base)
+        if v > 0:
+            chunks.append(str(rem).zfill(9))   # interior chunk: pad to 9
+        else:
+            chunks.append(str(rem))            # most-significant chunk: no pad
+    chunks.reverse()
+    digits = "".join(chunks)
+    if len(digits) < width:
+        digits = "0" * (width - len(digits)) + digits
+    return digits
+
+
+def pi_chudnovsky_digits(num_digits: int) -> str:
+    """Stream decimal digits of π via the ROTATION-LAST Chudnovsky cascade.
+
+    The canonical srmech cascade shape: keep the body **bit-exact**
+    (integer add / sub / mul / floor-divmod on the exact substrate) and
+    perform the **single** continuous/frame projection ONCE, terminally.
+    Here the body is the Chudnovsky linear series accumulated as exact
+    integers; the ONE terminal projection (the "rotation") is the final
+    ``isqrt(10005·one²)`` followed by a division and a base-10 render.
+    NO float, NO ``math``, NO per-term square root — the opposite of the
+    Archimedes ``pi_cascade_digits``, which projects every step.
+
+    This is the pure-Python mirror of the C ``srmech_pi_chudnovsky`` — the
+    same fixed-point integer algorithm, byte-identical output.  Python's
+    ``int`` is arbitrary precision, so this is BOTH the no-native fallback
+    AND the parity oracle the C path is checked against.
+
+    Algorithm (fixed-point linear Chudnovsky)
+    -----------------------------------------
+    With ``D = num_digits``, ``G = 16`` guard digits, ``P = D + G`` and a
+    fixed-point unit ``one = 10**P``::
+
+        L_0 = 13591409,  L_{k+1} = L_k + 545140134
+        X_0 = 1,         X_{k+1} = X_k * (-262537412640768000)   (= 640320^3)
+        M_0 = 1,         M_{k+1} = M_k * (12k+2)(12k+6)(12k+10) / (k+1)^3
+        S   = Σ_{k=0}^{N-1}  (M_k * L_k) * one  //  X_k        (floor division)
+
+    then the lone terminal rotation::
+
+        sqrt10005 = isqrt(10005 * one * one)        # = floor(√10005 · one)
+        pi_scaled = (426880 * sqrt10005 * one) // S  # = floor(π · one)
+        pi_digits = pi_scaled // 10**G               # floor(π · 10**D)
+
+    ~14.18 digits land per term, so ``N = D // 14 + 2`` terms suffice.
+
+    Parameters
+    ----------
+    num_digits : int
+        Decimal digits to emit after the point.  ``0 <= num_digits <=
+        100000``.  ``0`` → ``"3."``.
+
+    Returns
+    -------
+    str
+        ``"3."`` followed by exactly ``num_digits`` fractional digits
+        (e.g. ``num_digits=5`` → ``"3.14159"``).
+
+    Raises
+    ------
+    TypeError
+        If ``num_digits`` is not int.
+    ValueError
+        If ``num_digits`` is negative or exceeds the practical cap.
+
+    Examples
+    --------
+    >>> pi_chudnovsky_digits(15)
+    '3.141592653589793'
+    >>> pi_chudnovsky_digits(0)
+    '3.'
+    >>> pi_chudnovsky_digits(5)
+    '3.14159'
+    """
+    if not isinstance(num_digits, int):
+        raise TypeError(
+            f"num_digits must be int; got {type(num_digits).__name__}"
+        )
+    assert num_digits is not None, "num_digits must not be None"
+    if num_digits < 0:
+        raise ValueError(f"num_digits must be non-negative; got {num_digits}")
+    if num_digits > _PI_CHUDNOVSKY_MAX_DIGITS:
+        raise ValueError(
+            f"num_digits exceeds practical cap "
+            f"{_PI_CHUDNOVSKY_MAX_DIGITS}; got {num_digits}"
+        )
+    if num_digits == 0:
+        return "3."
+
+    # Native dispatch: the C srmech_pi_chudnovsky runs the exact-bigint body on
+    # the caller-arena srmech_bigint, byte-identical to the pure-Python oracle
+    # below. Use it when present; the pure-Python body is the complete fallback
+    # (no-C / Pyodide) AND the parity oracle the C path is checked against.
+    if _native.HAS_NATIVE:
+        r = _native.pi_chudnovsky_c(num_digits)
+        if r is not None:
+            return r
+
+    D = num_digits
+    G = _CHUD_GUARD
+    P = D + G
+    one = 10 ** P                      # fixed-point unit
+    n_terms = D // 14 + 2              # ~14.18 digits/term
+
+    # --- bit-exact body: exact-integer linear series accumulation -----
+    L = _CHUD_L0                       # L_k
+    X = 1                              # X_k  (signed; X_0 = +1)
+    M = 1                              # M_k  (the term coefficient)
+    S = 0                              # Σ scaled by `one`
+    for k in range(n_terms):
+        S += (M * L) * one // X        # floor division (Python //)
+        # Advance M, L, X for the next k (exact integer recurrences).
+        num = (12 * k + 2) * (12 * k + 6) * (12 * k + 10)
+        den = (k + 1) ** 3
+        M = M * num
+        assert M % den == 0, (
+            f"Chudnovsky M recurrence non-integral at k={k}"
+        )
+        M //= den
+        L += _CHUD_L_STEP
+        X *= _CHUD_X_STEP
+
+    # --- the ONE terminal rotation/projection (rotation-last) ---------
+    sqrt10005 = _py_isqrt(_CHUD_RADICAND * one * one)   # floor(√10005 · one)
+    assert S != 0, "Chudnovsky series sum collapsed to zero"
+    pi_scaled = (_CHUD_C_LINEAR * sqrt10005 * one) // S  # floor(π · one)
+
+    # --- read out D digits (drop the G guard digits) ------------------
+    pi_digits = pi_scaled // (10 ** G)                  # floor(π · 10**D)
+    ten_pow_d = 10 ** D
+    int_part = pi_digits // ten_pow_d
+    if int_part != 3:
+        raise RuntimeError(
+            f"pi_chudnovsky_digits produced integer part {int_part}, "
+            f"expected 3 (term count or guard digits insufficient)"
+        )
+    frac = pi_digits - int_part * ten_pow_d
+    return "3." + _decimal_zfill(frac, D)
 
 
 def _scaled_integer_sqrt(y: int, M: int) -> int:

@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc19] - 2026-06-21
+
+**`srmech_bigint.c` — a caller-arena arbitrary-precision integer foundation lands in C, and the rotation-last Chudnovsky π operator (`pi_chudnovsky_digits`) earns its native dispatch on it.** The C library gains an unbounded-integer kernel — base `2^32` limbs, all scratch CARVED FROM THE CALLER ARENA (no `malloc`, no external bignum lib) — the standalone-complete foundation a C-only / microcontroller host needs for exact integer math past `int64`. It is carrier-internal (NO Python surface, NO ctypes binding). Built on it, the `srmech_pi_chudnovsky` C symbol runs the rotation-last Chudnovsky series and the public `pi_chudnovsky_digits` now dispatches to it.
+
+- **New public op `srmech.amsc.rational.pi_chudnovsky_digits` (Class N; +1 → tools.total 320).** The canonical srmech cascade shape: the BODY stays bit-exact (exact integer add/sub/mul/floor-divmod accumulating the Chudnovsky 1988 linear series on `srmech_bigint`), and the SINGLE continuous/frame projection — the "rotation" — happens ONCE, terminally (`isqrt(10005·one²)` → one division → base-10 render). NO float, NO `math`, NO per-term square root — the opposite of the Archimedes `pi_cascade_digits`, which projects every step. ~14.18 digits land per term. SSoT: D. V. & G. V. Chudnovsky, "Approximations and complex multiplication according to Ramanujan" (1988).
+- **Native dispatch.** `pi_chudnovsky_digits` calls `srmech_pi_chudnovsky` when `HAS_NATIVE` (sizing the caller arena via `srmech_pi_chudnovsky_ws_bound`), and the pure-Python arbitrary-precision `int` body is BOTH the no-C / Pyodide fallback AND the parity oracle the C path is checked against. `_native.py` binds the two `srmech_pi_*` symbols (`hasattr`-guarded) + `pi_chudnovsky_c` / `has_native_pi_chudnovsky`. Validated **C == Python == Archimedes oracle** at 1000 and 10000 digits (10k in ≈0.5s; rotation-last = exact bigint body + one terminal isqrt+division). `c_dispatched` in the Rosetta ledger.
+
+ABI stays **3** (additive symbols, `hasattr`-bound). numpy-free AND math-free, MIT. 5-SSOT `0.9.0rc18 → 0.9.0rc19`; tools.total 319 → 320. Tests: `test_pi_chudnovsky_rc19.py`.
+
 ## [0.9.0rc18] - 2026-06-21
 
 **F917 Part B: the L1/L2/L3 ladder is rebuilt on `klein4_compose`, and the compositor earns its native C peer (`srmech_klein4_compose`).** rc17 graduated the byte/glyph substrate (`ContextSubstrate.enc`) and shipped `klein4_compose` as a pure composition; this rc makes the **whole ladder** one scale-invariant operator and gives the compositor a single-call native dispatch.

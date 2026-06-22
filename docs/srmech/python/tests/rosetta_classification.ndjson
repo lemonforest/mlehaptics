@@ -24,6 +24,7 @@
 {"exposed_as": "srmech.amsc.rational.exp_series_truncate", "defined_at": "srmech.amsc.rational.exp_series_truncate", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.amsc.rational.log1p_series_truncate", "defined_at": "srmech.amsc.rational.log1p_series_truncate", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.amsc.rational.pi_cascade_digits", "defined_at": "srmech.amsc.rational.pi_cascade_digits", "bucket": "bignum_reference"}
+{"exposed_as": "srmech.amsc.rational.pi_chudnovsky_digits", "defined_at": "srmech.amsc.rational.pi_chudnovsky_digits", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.rational.sin_series_truncate", "defined_at": "srmech.amsc.rational.sin_series_truncate", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.qm.bell.tsirelson_bound", "defined_at": "srmech.qm.bell.tsirelson_bound", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.pi_cascade.op", "defined_at": "srmech.signal_processing.closed_form_ops.pi_cascade.op", "bucket": "bignum_reference"}

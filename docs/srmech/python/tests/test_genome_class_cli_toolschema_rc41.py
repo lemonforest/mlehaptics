@@ -63,4 +63,4 @@ def test_introspect_tools_total_is_276():
     # rc42 added genome + partition ToolEntries (272→274);
     # rc43 added laplacian.tokenize + cooccurrence_edges (§17 U1; 274→276).
     # rc108 added laplacian.mat_svd (full-SVD Mat foundation; 289→290).
-    assert introspect.describe()["tools"]["total"] == 319
+    assert introspect.describe()["tools"]["total"] == 320
