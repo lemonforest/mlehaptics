@@ -41,8 +41,9 @@ def test_classify_harmonic_rejects_bad_input():
 
 
 def test_deferred_rungs_logged():
-    # no-silent-caps: rc12 leaves C/K (H2) + J (H3) open; logged, not hidden.
-    assert harmonics.HARMONIC_LADDER_OPEN_RUNGS == {2: ("C", "K"), 3: ("J",)}
+    # no-silent-caps: H2 (C, K) CLOSED at rc31 (F924 — Qi.arg() / Qi.modulus());
+    # only H3 (J, primes.three_cycle_factor) remains open. Logged, not hidden.
+    assert harmonics.HARMONIC_LADDER_OPEN_RUNGS == {2: (), 3: ("J",)}
 
 
 # ── spectral chirality classifier (§6.2) ──────────────────────────────────
