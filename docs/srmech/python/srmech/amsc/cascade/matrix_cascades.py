@@ -63,7 +63,8 @@ from srmech.amsc.rational import hypot as _rhypot
 from srmech.amsc.rational import sqrt as _rsqrt
 
 __all__ = ["qr", "svd", "lstsq", "einsum", "eigvals", "char_poly", "eigvals_exact",
-           "eigvec_exact", "eigvec_exact_float", "factor_integer_poly", "eig_exact"]
+           "eigvec_exact", "eigvec_exact_float", "factor_integer_poly", "eig_exact",
+           "jordan_chains_exact", "jordan_form_exact"]
 
 
 def _modulus(z: complex) -> float:
@@ -1310,6 +1311,370 @@ def eigvec_exact_float(a, lam):
     return [_project(c) for c in result]
 
 
+# ── exact JORDAN CHAINS over ℚ(λ) = Qalg: generalized eigenvectors (rc27, rc-G) ──
+# The rc23 `eigvec_exact` returns the GEOMETRIC eigenvectors (the null space of
+# N = A − λI) — for a DEFECTIVE eigenvalue that is FEWER than the algebraic
+# multiplicity μ, so it is NOT a complete basis. This closes that gap: the
+# generalized eigenvectors / Jordan chains. N is nilpotent on the generalized
+# eigenspace `null(Nᵘ)` (dim μ). By the exact `Qalg`-Gaussian-elimination rank of
+# the matrix powers `Nᵏ` (k = 0,1,…,p where p is the smallest power with
+# `null(N^p) = null(N^{p+1})`), the Jordan structure is read off the rank jumps:
+#   • # blocks of size ≥ k = dim null(Nᵏ) − dim null(N^{k-1}) = r_{k-1} − r_k,
+#   • # blocks of size exactly k = r_{k-1} − 2·r_k + r_{k+1}.
+# The chains are built top-down (the classical construction): for the largest
+# block size p, pick generalized eigenvectors in `null(N^p)` not in `null(N^{p-1})`
+# and form the chain v, N·v, N²·v, …, N^{p-1}·v (bottom = a genuine geometric
+# eigenvector, N·bottom = 0); at each smaller size, choose new top vectors
+# independent modulo the chains already built. All arithmetic is exact `Qalg`.
+# Ref: R. A. Horn & C. R. Johnson, *Matrix Analysis*, 2nd ed. (Cambridge Univ.
+# Press, 2013), §3.1–3.2 (the Jordan canonical form + chain construction); see
+# also G. H. Golub & C. F. Van Loan, *Matrix Computations*, 4th ed. §7.6.5.
+
+
+def _qalg_matrix_of(a, lam):
+    """``(N = A − λI, A_qalg, n, one, zero)`` with ``Qalg`` entries over ``lam``'s
+    field — the shared exact set-up for the Jordan machinery (mirrors the build at
+    the top of :func:`_eigvec_exact_qalg`)."""
+    from srmech.amsc.qalg import Qalg
+
+    if not isinstance(lam, Qalg):
+        raise TypeError(
+            "jordan: lam must be a Qalg eigenvalue (carrying its irreducible m + "
+            f"embedding root); got {type(lam).__name__}")
+    rows = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
+    n = len(rows)
+    if n == 0:
+        raise ValueError("jordan: a must be a non-empty square matrix")
+    if any(len(r) != n for r in rows):
+        raise ValueError(f"jordan: a must be square 2-D; got {n}x{len(rows[0])}")
+    m = lam.m
+    root = lam.root
+
+    def _q_entry(v):
+        vr = v.real if hasattr(v, "real") else v
+        vi = v.imag if hasattr(v, "imag") else 0
+        if vi != 0:
+            raise ValueError(
+                "jordan: a must be an integer/rational (real) matrix; "
+                f"got complex entry {v!r}")
+        if hasattr(vr, "numerator") and hasattr(vr, "denominator"):
+            num, den = int(vr.numerator), int(vr.denominator)
+        elif int(vr) == vr:
+            num, den = int(vr), 1
+        else:
+            fr = _FR(vr)
+            num, den = fr.numerator, fr.denominator
+        return Qalg.rational((num, den), m, root=root)
+
+    A_q = [[_q_entry(rows[i][j]) for j in range(n)] for i in range(n)]
+    one = Qalg.rational((1, 1), m, root=root)
+    zero = Qalg.rational((0, 1), m, root=root)
+    # N = A − λI.
+    N = [[A_q[i][j] for j in range(n)] for i in range(n)]
+    for i in range(n):
+        N[i][i] = N[i][i] - lam
+    return N, A_q, n, one, zero
+
+
+def _qalg_matmul(P, Q, n, zero):
+    """Exact ``Qalg`` matrix product ``P·Q`` (both n×n) — the Class-M bind."""
+    out = [[zero for _ in range(n)] for _ in range(n)]
+    for i in range(n):
+        Pi = P[i]
+        for k in range(n):
+            pik = Pi[k]
+            if not pik:                                 # exact Qalg zero
+                continue
+            Qk = Q[k]
+            row = out[i]
+            for j in range(n):
+                qkj = Qk[j]
+                if qkj:
+                    row[j] = row[j] + pik * qkj
+    return out
+
+
+def _qalg_matvec(M, v, n, zero):
+    """Exact ``Qalg`` matrix·vector ``M·v`` — the Class-M bind on a single column."""
+    out = [zero for _ in range(n)]
+    for i in range(n):
+        acc = zero
+        Mi = M[i]
+        for j in range(n):
+            mij = Mi[j]
+            if mij and v[j]:
+                acc = acc + mij * v[j]
+        out[i] = acc
+    return out
+
+
+def _qalg_rref(M, n):
+    """Exact reduced row echelon form of an n×n ``Qalg`` matrix (a COPY is reduced).
+    Returns ``(R, pivot_cols, pivot_row_of_col)`` — the RREF, the pivot columns, and
+    the column→pivot-row map. Same Gaussian-elimination kernel as
+    :func:`_eigvec_exact_qalg`, over the ``Qalg`` field (every pivot inverse is the
+    exact :meth:`Qalg.inverse`)."""
+    R = [list(row) for row in M]
+    pivot_cols: List[int] = []
+    pivot_row_of_col: Dict[int, int] = {}
+    r = 0
+    for c in range(n):
+        piv = None
+        for rr in range(r, n):
+            if bool(R[rr][c]):
+                piv = rr
+                break
+        if piv is None:
+            continue
+        R[r], R[piv] = R[piv], R[r]
+        try:
+            inv = R[r][c].inverse()
+        except ZeroDivisionError as exc:
+            raise ValueError(
+                "jordan: lam.m must be the IRREDUCIBLE minimal polynomial of the "
+                "eigenvalue — a reducible m makes ℚ[x]/(m) a non-field (a "
+                "zero-divisor pivot was hit).") from exc
+        R[r] = [R[r][j] * inv for j in range(n)]
+        for rr in range(n):
+            if rr != r and bool(R[rr][c]):
+                f = R[rr][c]
+                R[rr] = [R[rr][j] - f * R[r][j] for j in range(n)]
+        pivot_cols.append(c)
+        pivot_row_of_col[c] = r
+        r += 1
+        if r == n:
+            break
+    return R, pivot_cols, pivot_row_of_col
+
+
+def _qalg_nullspace(M, n, one, zero):
+    """Exact null-space basis of an n×n ``Qalg`` matrix (the free-column
+    construction, identical to :func:`_eigvec_exact_qalg`): a ``list[list[Qalg]]``,
+    one basis vector per free column."""
+    R, pivot_cols, pivot_row_of_col = _qalg_rref(M, n)
+    free_cols = [c for c in range(n) if c not in pivot_row_of_col]
+    basis: List[List] = []
+    for fc in free_cols:
+        v = [zero for _ in range(n)]
+        v[fc] = one
+        for c in pivot_cols:
+            pr = pivot_row_of_col[c]
+            v[c] = -R[pr][fc]
+        basis.append(v)
+    return basis
+
+
+def _qalg_rank(M, n):
+    """Exact rank of an n×n ``Qalg`` matrix = the pivot count of its RREF."""
+    _R, pivot_cols, _prc = _qalg_rref(M, n)
+    return len(pivot_cols)
+
+
+def _qalg_independent_modulo(cand, spanning, n, zero):
+    """Is the ``Qalg`` vector ``cand`` linearly INDEPENDENT of the columns in
+    ``spanning`` (a ``list[list[Qalg]]``)? Exact: row-reduce the (n × (k+1)) matrix
+    whose columns are ``spanning`` then ``cand`` and check the rank rose by one.
+    (Used to pick chain tops independent modulo the already-built chains + the
+    lower null space.)"""
+    base_rank = _qalg_column_rank(spanning, n)
+    aug_rank = _qalg_column_rank(list(spanning) + [cand], n)
+    return aug_rank > base_rank
+
+
+def _qalg_column_rank(cols, n):
+    """Exact rank of the span of a list of ``Qalg`` column vectors (each length n).
+    Builds the matrix with those columns and counts RREF pivots (rank is
+    transpose-invariant, so a row-reduction of the column-matrix works)."""
+    k = len(cols)
+    if k == 0:
+        return 0
+    # Build an n×k matrix (column j = cols[j]); rank = pivots of its RREF. RREF here
+    # is over a possibly-non-square shape, so reduce directly (not via _qalg_rref,
+    # which is n×n). Inline a rectangular Gaussian elimination over Qalg.
+    M = [[cols[j][i] for j in range(k)] for i in range(n)]
+    r = 0
+    rank = 0
+    for c in range(k):
+        piv = None
+        for rr in range(r, n):
+            if bool(M[rr][c]):
+                piv = rr
+                break
+        if piv is None:
+            continue
+        M[r], M[piv] = M[piv], M[r]
+        inv = M[r][c].inverse()
+        M[r] = [M[r][j] * inv for j in range(k)]
+        for rr in range(n):
+            if rr != r and bool(M[rr][c]):
+                f = M[rr][c]
+                M[rr] = [M[rr][j] - f * M[r][j] for j in range(k)]
+        rank += 1
+        r += 1
+        if r == n:
+            break
+    return rank
+
+
+def jordan_chains_exact(a, lam):
+    """Exact JORDAN CHAINS (generalized eigenvectors) of an integer/rational matrix
+    for an eigenvalue ``λ`` — the complete generalized eigenspace over ℚ(λ) = ``Qalg``
+    (rotation-last rc-G; closes the eigensolver for DEFECTIVE matrices).
+
+    ``a`` is an integer/rational square matrix; ``lam`` is a
+    :class:`~srmech.amsc.qalg.Qalg` eigenvalue (over its IRREDUCIBLE minimal
+    polynomial ``m``, optionally carrying an embedding ``root``) of algebraic
+    multiplicity μ. With ``N = A − λI``, the generalized eigenspace ``null(Nᵘ)``
+    has dimension μ and ``N`` is nilpotent on it. The Jordan structure is read off
+    the EXACT ``Qalg``-Gaussian-elimination ranks ``r_k = rank(Nᵏ)``:
+
+    * ``# blocks of size ≥ k`` = ``r_{k-1} − r_k``;
+    * ``# blocks of size exactly k`` = ``r_{k-1} − 2·r_k + r_{k+1}``.
+
+    The chains are built TOP-DOWN (the classical construction): for the largest
+    block size ``p`` down to 1, pick generalized eigenvectors ``v`` in ``null(N^p)``
+    not in ``null(N^{p-1})`` (independent modulo the chains already built), and form
+    the chain ``v, N·v, N²·v, …, N^{p-1}·v`` (the bottom ``N^{p-1}·v`` is a genuine
+    geometric eigenvector). All arithmetic is exact ``Qalg``.
+
+    **Return.** ``(chains, block_sizes)`` where ``chains`` is a ``list`` of chains,
+    each chain a ``list[list[Qalg]]`` of generalized eigenvectors ordered so the
+    BOTTOM (last) entry is the geometric eigenvector and ``N · chain[i] == chain[i-1]``
+    (``N · chain[0] == 0``); ``block_sizes`` is the ``list[int]`` of the chains'
+    lengths (= the Jordan block sizes for λ, summing to μ). The chain relations are
+    VERIFIED exactly over ``Qalg`` (``(A−λI)·top == next-down``, bottom annihilated)
+    before returning.
+
+    For a NON-defective λ every chain has length 1 (the geometric eigenvectors),
+    so this reduces to :func:`eigvec_exact`'s basis. Raises ``ValueError`` if
+    ``lam.m`` is reducible (ℚ[x]/(m) is then not a field) or ``a`` is non-square /
+    complex.
+
+    Ref: R. A. Horn & C. R. Johnson, *Matrix Analysis*, 2nd ed. (Cambridge, 2013),
+    §3.1–3.2; G. H. Golub & C. F. Van Loan, *Matrix Computations*, 4th ed. §7.6.5.
+
+    **Class L** (the generalized eigenspace = the iterated spectral null space) ∘
+    **Class N** (the exact ``Q`` field arithmetic) ∘ **Class K** (the sign in
+    subtraction / negation — never an ALU ``abs``).
+    """
+    N, _A_q, n, one, zero = _qalg_matrix_of(a, lam)
+
+    # ── ranks r_k = rank(Nᵏ) for k = 0,1,… until null space stops growing ─────────
+    # N⁰ = I (rank n, nullity 0). Accumulate powers exactly; stop at the smallest p
+    # with rank(N^p) == rank(N^{p+1}) (the generalized eigenspace has stabilised).
+    identity = [[one if i == j else zero for j in range(n)] for i in range(n)]
+    powers = [identity]                                  # powers[k] = Nᵏ
+    ranks = [n]                                          # ranks[k] = rank(Nᵏ)
+    Nk = identity
+    while True:
+        Nk = _qalg_matmul(Nk, N, n, zero)
+        rk = _qalg_rank(Nk, n)
+        powers.append(Nk)
+        ranks.append(rk)
+        if rk == ranks[-2]:                              # rank stopped dropping
+            break
+        if len(ranks) > n + 1:                           # safety (cannot exceed n)
+            break
+    p = len(ranks) - 1                                   # smallest stabilising power
+    # nullities m_k = dim null(Nᵏ) = n − r_k.
+    nul = [n - r for r in ranks]
+    mu = nul[p]                                          # algebraic multiplicity (= dim null(N^p))
+
+    # block-size counts: # blocks of size exactly k = m_k − 2·m_{k-1} + m_{k-2}
+    # (with the rank form r_{k-1} − 2·r_k + r_{k+1}). Read for k = 1..p.
+    block_sizes: List[int] = []
+    for k in range(1, p + 1):
+        rk_m1 = ranks[k - 1]
+        rk = ranks[k]
+        rk_p1 = ranks[k + 1] if k + 1 < len(ranks) else ranks[-1]
+        count_exactly_k = rk_m1 - 2 * rk + rk_p1
+        for _ in range(count_exactly_k):
+            block_sizes.append(k)
+
+    # ── TOP-DOWN chain construction ───────────────────────────────────────────────
+    # For block size s from p down to 1, the chain TOPS live in null(N^s) but not in
+    # null(N^{s-1}); each top must be independent modulo (the lower null space
+    # null(N^{s-1})) ∪ (the chain vectors already chosen at this level and above).
+    # `used` accumulates every generalized eigenvector chosen so far (all levels),
+    # so a new top is required independent of all of them together with null(N^{s-1}).
+    null_of = {}                                         # k → basis of null(Nᵏ)
+
+    def _null_basis(k):
+        if k not in null_of:
+            null_of[k] = _qalg_nullspace(powers[k], n, one, zero)
+        return null_of[k]
+
+    chains: List[List[List]] = []
+    # number of blocks of size exactly s, for the top-down loop.
+    n_blocks_size = {}
+    for k in range(1, p + 1):
+        rk_m1 = ranks[k - 1]
+        rk = ranks[k]
+        rk_p1 = ranks[k + 1] if k + 1 < len(ranks) else ranks[-1]
+        n_blocks_size[k] = rk_m1 - 2 * rk + rk_p1
+
+    chosen_tops: List[List] = []                         # all chain tops + their lower-null context
+    for s in range(p, 0, -1):
+        need = n_blocks_size.get(s, 0)
+        if need == 0:
+            continue
+        lower = _null_basis(s - 1) if s - 1 >= 1 else []
+        # candidate tops = null(N^s) basis vectors; pick `need` of them independent
+        # modulo (lower ∪ already-chosen chain vectors).
+        cand_basis = _null_basis(s)
+        picked = 0
+        # The spanning context a new top must be independent of: the lower null space
+        # PLUS every generalized vector already placed in a chain (so distinct chains
+        # stay independent). Built fresh each pick (vectors grow as chains form).
+        for cand in cand_basis:
+            if picked == need:
+                break
+            context = list(lower)
+            for ch in chains:
+                context.extend(ch)
+            if _qalg_independent_modulo(cand, context, n, zero):
+                # build the chain v, N·v, …, N^{s-1}·v (top→bottom).
+                chain_top_down = [cand]
+                cur = cand
+                for _ in range(s - 1):
+                    cur = _qalg_matvec(N, cur, n, zero)
+                    chain_top_down.append(cur)
+                # store bottom→top so chain[i-1] = N·chain[i] and chain[0] is the
+                # geometric eigenvector (the documented order).
+                chain = list(reversed(chain_top_down))
+                chains.append(chain)
+                chosen_tops.append(cand)
+                picked += 1
+        if picked != need:
+            raise ValueError(
+                f"jordan_chains_exact: could not find {need} independent size-{s} "
+                f"chain tops (found {picked}) for eigenvalue with min_poly "
+                f"{lam.m!r} — internal Jordan-structure bug")
+
+    # ── exact verification of the chain relations over Qalg ───────────────────────
+    # For each chain (bottom→top): N·chain[0] == 0 and N·chain[i] == chain[i-1].
+    for chain in chains:
+        bottom = chain[0]
+        Nb = _qalg_matvec(N, bottom, n, zero)
+        for comp in Nb:
+            assert not comp, (
+                "jordan_chains_exact: chain bottom is not a geometric eigenvector "
+                f"((A−λI)·bottom != 0) for min_poly {lam.m!r} — internal error")
+        for i in range(1, len(chain)):
+            Nv = _qalg_matvec(N, chain[i], n, zero)
+            for j in range(n):
+                assert Nv[j] == chain[i - 1][j], (
+                    "jordan_chains_exact: chain relation (A−λI)·chain[i] == "
+                    f"chain[i-1] FAILED at level {i}, component {j} for min_poly "
+                    f"{lam.m!r} — internal error")
+
+    # sanity: Σ block sizes == μ.
+    assert sum(len(ch) for ch in chains) == mu, (
+        f"jordan_chains_exact: chain lengths sum {sum(len(ch) for ch in chains)} "
+        f"!= algebraic multiplicity {mu} — internal error")
+    return chains, [len(ch) for ch in chains]
+
+
 # ── Part 1 — factor an integer polynomial into irreducibles over ℚ (Zassenhaus) ──
 # Factoring over ℚ ≡ factoring over ℤ (Gauss's lemma: the product of two primitive
 # polynomials is primitive, so a ℚ-factorisation of a primitive ℤ-polynomial has
@@ -1969,28 +2334,41 @@ def eig_exact(a, *, bits: int = 64, project: bool = True):
          "algebraic_multiplicity": int,    # from the char-poly factor multiplicity
          "geometric_multiplicity": int,    # dim of the A−λI null space
          "min_poly": tuple[int],           # the exact irreducible m_i (low→high)
-         "defective": bool}                # geometric < algebraic
+         "defective": bool,                # geometric < algebraic
+         "jordan_blocks": list[int],       # Jordan block sizes for λ (sum = alg-mult)
+         "generalized_vectors": list[list[complex]]}  # FULL μ-many basis, by chain
 
     ``value`` / ``vector`` are the single TERMINAL projections (rotation-last);
     ``min_poly`` is the eigenvalue's exact irreducible substrate. For a DEGENERATE
     eigenvalue (geometric > 1) ``vector`` is the first null-space basis vector — the
-    full basis is reachable via :func:`eigvec_exact_float`. When the geometric
-    multiplicity is below the algebraic, the matrix is **defective**: ``defective``
-    is ``True`` and only the geometric eigenvectors are returned. **Jordan
-    generalized eigenvectors are OUT OF SCOPE** (a defective block's chain is not
-    computed); say so rather than fabricate them.
+    full basis is reachable via :func:`eigvec_exact_float`.
+
+    **rc27 — the COMPLETE generalized basis (closes the eigensolver).** Each entry
+    now also carries ``"jordan_blocks"`` (the Jordan block sizes for λ — all ``1``s
+    ⇒ diagonalizable-at-this-λ, a ``2`` ⇒ a size-2 defective chain, …; they sum to
+    the algebraic multiplicity) and ``"generalized_vectors"`` — the FULL μ-many
+    generalized eigenvectors organized by chain (each chain bottom→top, the bottom a
+    geometric eigenvector). For a NON-defective λ the chains are all length 1, so
+    ``generalized_vectors`` equals the geometric eigenvectors and existing behaviour
+    is preserved; for a DEFECTIVE λ this is the new COMPLETE basis (the Jordan chains
+    from :func:`jordan_chains_exact`). ``generalized_vectors`` are float/complex when
+    ``project=True``, exact ``Qalg`` when ``project=False``.
 
     With ``project=False`` returns the EXACT objects for callers staying in the
     field: each dict swaps ``value`` → ``value_qalg`` (a :class:`~srmech.amsc.qalg.Qalg`)
     and ``vector`` → ``vectors_qalg`` (``list[list[Qalg]]``, the exact null-space
-    basis), keeping ``min_poly`` + the multiplicities + ``defective``.
+    basis), keeping ``min_poly`` + the multiplicities + ``defective`` +
+    ``jordan_blocks`` + ``generalized_vectors`` (the latter as ``list[list[Qalg]]``).
 
     **SELF-VALIDATION** (asserted before returning — this is what catches a
-    factorisation bug): (a) ``Σ algebraic_multiplicity == n``; (b) the eigenvalue
-    multiset (with algebraic multiplicity) reconstructs the monic char-poly
-    (``Π (x − value_k) ≈`` char-poly to ~1e-7, numeric); (c) every returned
-    ``(value, vector)`` satisfies ``A·vector ≈ value·vector`` to ~1e-9. A clear
-    ``ValueError`` is raised on any failure (it means an upstream bug).
+    factorisation bug): (a) ``Σ algebraic_multiplicity == n`` AND the FULL
+    generalized basis has exactly ``n`` vectors (the complete-basis guarantee);
+    (b) the eigenvalue multiset (with algebraic multiplicity) reconstructs the monic
+    char-poly (``Π (x − value_k) ≈`` char-poly to ~1e-7, numeric); (c) every returned
+    ``(value, vector)`` satisfies ``A·vector ≈ value·vector`` to ~1e-9, AND the full
+    generalized basis ``P`` (all eigenvalues' chains together) satisfies
+    ``A·P ≈ P·J`` to ~1e-9 where ``J`` is the Jordan form. A clear ``ValueError`` is
+    raised on any failure (it means an upstream bug).
 
     **Class L** (the spectral content) ∘ **Class J** (the irreducible-factor
     substrate) ∘ **Class N** (the exact ℚ(λ) field arithmetic) ∘ **Class K** (the
@@ -2036,23 +2414,34 @@ def eig_exact(a, *, bits: int = 64, project: bool = True):
                 basis = [res]
             geom = len(basis)
             defective = geom < alg_mult
+            # rc27: the COMPLETE generalized eigenspace = the Jordan chains. For a
+            # NON-defective λ every chain is length 1, so the union of chain vectors
+            # equals the geometric basis (existing behaviour); for a DEFECTIVE λ this
+            # is the full μ-many basis. Chains are bottom→top (bottom = geometric).
+            chains, block_sizes = jordan_chains_exact(a, lam)
+            gen_qalg = [vec for chain in chains for vec in chain]  # flatten by chain
             entry = {
                 "min_poly": m_int,
                 "algebraic_multiplicity": alg_mult,
                 "geometric_multiplicity": geom,
                 "defective": defective,
+                "jordan_blocks": list(block_sizes),
             }
+            real_root = not (isinstance(root, complex) and root.imag != 0)
             if project:
                 entry["value"] = (lam.to_float() + 0j if not isinstance(root, complex)
                                   else lam.to_complex())
-                # primary vector = first basis vector, projected component-wise.
-                real_root = not (isinstance(root, complex) and root.imag != 0)
+                # primary vector = first GEOMETRIC basis vector, projected component-wise.
                 first = basis[0]
                 entry["vector"] = [
                     (c.to_float() + 0j if real_root else c.to_complex()) for c in first]
+                entry["generalized_vectors"] = [
+                    [(c.to_float() + 0j if real_root else c.to_complex()) for c in vec]
+                    for vec in gen_qalg]
             else:
                 entry["value_qalg"] = lam
                 entry["vectors_qalg"] = basis
+                entry["generalized_vectors"] = gen_qalg
             eigenpairs.append(entry)
 
     # deterministic order: by (value real, value imag) when projected, else by the
@@ -2067,13 +2456,22 @@ def eig_exact(a, *, bits: int = 64, project: bool = True):
     eigenpairs.sort(key=_sort_key)
 
     # ── SELF-VALIDATION ──────────────────────────────────────────────────────────
-    # (a) Σ algebraic_multiplicity == n.
+    # (a) Σ algebraic_multiplicity == n AND the FULL generalized basis is n-many.
     total_alg = sum(e["algebraic_multiplicity"] for e in eigenpairs)
     if total_alg != n:
         raise ValueError(
             f"eig_exact self-validation (a) FAILED: Σ algebraic_multiplicity = "
             f"{total_alg} != n = {n} — the char-poly factorisation lost/gained a "
             "root (upstream bug)")
+    # rc27 complete-basis guarantee: the union of all eigenvalues' generalized
+    # vectors (the Jordan chains) is a basis of ℂⁿ — exactly n vectors, defective
+    # or not.
+    total_gen = sum(len(e["generalized_vectors"]) for e in eigenpairs)
+    if total_gen != n:
+        raise ValueError(
+            f"eig_exact self-validation (a) FAILED: the full generalized basis has "
+            f"{total_gen} vectors != n = {n} — the Jordan-chain construction is "
+            "incomplete (upstream bug)")
 
     # the float/complex eigenvalue list (with algebraic multiplicity) for (b)/(c).
     if project:
@@ -2133,6 +2531,59 @@ def eig_exact(a, *, bits: int = 64, project: bool = True):
                         f"component {i} for eigenvalue {val!r} "
                         f"({lhs!r} vs {rhs!r}) — eigenvector bug")
 
+    # rc27 (c') the FULL generalized basis P satisfies A·P ≈ P·J (the complete
+    # Jordan relation, defective or not): build P (columns = each eigenvalue's
+    # generalized vectors, chain by chain) and J (the Jordan matrix — λ on the
+    # diagonal, a super-diagonal 1 WITHIN each chain) in float/complex, then check
+    # ‖A·P − P·J‖∞ ≤ ~1e-9. (For project=False the Qalg columns are projected here;
+    # eig_exact's float check is the rotation-last read-out of the exact relation
+    # jordan_chains_exact already asserted bit-exactly over Qalg.)
+    cols: List[List[complex]] = []                       # P columns (n-vectors)
+    jblocks: List[Tuple[complex, int]] = []              # (λ, chain_len) per chain
+    for e in eigenpairs:
+        if project:
+            val = e["value"]
+            gv = [[complex(c) for c in vec] for vec in e["generalized_vectors"]]
+            sizes = e["jordan_blocks"]
+        else:
+            lam = e["value_qalg"]
+            r = lam.root
+            val = (lam.to_complex() if (isinstance(r, complex) and r.imag != 0)
+                   else complex(lam.to_float(), 0.0))
+            real_root = not (isinstance(r, complex) and r.imag != 0)
+            gv = [[(c.to_complex() if not real_root else complex(c.to_float(), 0.0))
+                   for c in vec] for vec in e["generalized_vectors"]]
+            sizes = e["jordan_blocks"]
+        # the generalized_vectors are laid out chain-by-chain (bottom→top); slice
+        # them back into the chains so J gets a super-diagonal 1 only WITHIN a chain.
+        off = 0
+        for s in sizes:
+            for k in range(s):
+                cols.append(gv[off + k])
+            jblocks.append((val, s))
+            off += s
+    if len(cols) == n:                                   # (defensive — (a) ensures it)
+        # J: block-diagonal Jordan, columns/rows in the same chain-by-chain order as P.
+        J = [[0j] * n for _ in range(n)]
+        pos = 0
+        for (val, s) in jblocks:
+            for k in range(s):
+                J[pos + k][pos + k] = val
+                if k + 1 < s:                            # super-diagonal 1 within chain
+                    J[pos + k][pos + k + 1] = 1.0 + 0j
+            pos += s
+        # P has the generalized vectors as COLUMNS: P[i][col] = cols[col][i].
+        # Check A·P ≈ P·J columnwise: (A·P)[:,c] = A·cols[c]; (P·J)[:,c] = Σ_k P[:,k]·J[k][c].
+        for c in range(n):
+            ap = [sum(af[i][j] * cols[c][j] for j in range(n)) for i in range(n)]
+            pj = [sum(cols[k][i] * J[k][c] for k in range(n)) for i in range(n)]
+            for i in range(n):
+                if _modulus(ap[i] - pj[i]) > 1e-9:
+                    raise ValueError(
+                        "eig_exact self-validation (c') FAILED: A·P != P·J at "
+                        f"row {i}, column {c} ({ap[i]!r} vs {pj[i]!r}) — Jordan-form "
+                        "bug")
+
     return eigenpairs
 
 
@@ -2156,3 +2607,204 @@ def _roots_of_irreducible(m_low: List[int], bits: int) -> List:
     # m is irreducible → its roots are all simple → eigvals_exact returns them all.
     evs = eigvals_exact(comp, bits=bits, include_complex=True)
     return list(evs)
+
+
+# ── Part 3 — the complete-eigensolver CAPSTONE: matrix → exact Jordan form ────────
+def jordan_form_exact(a, *, bits: int = 64, project: bool = True):
+    """The canonical exact JORDAN CANONICAL FORM of an integer/rational matrix —
+    every square matrix → ``A = P·J·P⁻¹`` with ``J`` the Jordan form (rc27, rc-G).
+
+    The complete-eigensolver capstone: chains :func:`eig_exact` (char-poly →
+    irreducible factors → exact roots → :func:`jordan_chains_exact` for every
+    eigenvalue's generalized eigenvectors) into the canonical ``{P, J}`` decomposition.
+    Unlike a numeric eig, this is exact even when ``A`` is DEFECTIVE (non-diagonalizable):
+    the generalized eigenvectors / Jordan chains give a COMPLETE basis, and ``J``
+    carries the genuine super-diagonal 1s of the defective blocks.
+
+    ``a`` must be an INTEGER (or rational-integer) square matrix.
+
+    Returns ``{"blocks": list[(eigenvalue, size)], "P": n×n generalized-eigenvector
+    matrix (columns), "J": the n×n Jordan matrix}``. With ``project=True`` (default)
+    ``eigenvalue`` / ``P`` / ``J`` are float/``complex``; with ``project=False`` the
+    eigenvalues are exact :class:`~srmech.amsc.qalg.Qalg` and ``P`` / ``J`` are
+    ``list[list[Qalg]]`` (exact). The blocks are ordered to match ``P``'s columns
+    and ``J``'s diagonal blocks (chain by chain, bottom→top within each chain), so
+    column ``c`` of ``P`` is the generalized eigenvector whose Jordan position is
+    diagonal entry ``J[c][c]``.
+
+    **SELF-VALIDATION** (asserted before returning): ``A·P == P·J`` EXACTLY over
+    ``Qalg`` (the exact-substrate relation — no float in the check) AND ``A·P ≈ P·J``
+    to ~1e-9 in the projected float/complex read-out. A clear ``ValueError`` is
+    raised on any failure (it means an upstream bug).
+
+    Ref: R. A. Horn & C. R. Johnson, *Matrix Analysis*, 2nd ed. (Cambridge, 2013),
+    §3.1–3.2; G. H. Golub & C. F. Van Loan, *Matrix Computations*, 4th ed. §7.6.5.
+
+    **Class L** (the spectral content) ∘ **Class J** (the irreducible-factor
+    substrate) ∘ **Class N** (the exact ℚ(λ) field arithmetic) ∘ **Class K** (the
+    terminal float/complex projection — rotation-last).
+    """
+    from srmech.amsc.qalg import Qalg
+
+    rows = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
+    n = len(rows)
+    if n == 0:
+        return {"blocks": [], "P": [], "J": []}
+    if any(len(r) != n for r in rows):
+        raise ValueError(
+            f"jordan_form_exact: a must be square 2-D; got {n}x{len(rows[0])}")
+
+    cp = char_poly(a)
+    cp_low = [int(c) for c in reversed(cp)]
+    irr_factors = factor_integer_poly(cp_low)
+
+    # gather, per eigenvalue, its Qalg value + chains (exact). Order eigenvalues by
+    # the isolated embedding root (deterministic), matching eig_exact's sort.
+    eig_entries: List[Tuple[complex, "Qalg", List[List[List]]]] = []
+    for (m_tuple, _alg_mult) in irr_factors:
+        m_low = list(m_tuple)
+        if m_low[-1] != 1:
+            raise ValueError(
+                f"jordan_form_exact: irreducible factor {m_tuple} is not monic — "
+                "char-poly factorisation inconsistent (internal bug)")
+        m_int = tuple(int(c) for c in m_low)
+        for root in _roots_of_irreducible(m_low, bits):
+            lam = Qalg.alpha(m_int, root=root)
+            chains, _block_sizes = jordan_chains_exact(a, lam)
+            rc = complex(root)
+            eig_entries.append((rc, lam, chains))
+    eig_entries.sort(key=lambda t: (t[0].real, t[0].imag))
+
+    # build the EXACT Qalg P (columns) + J (Jordan), chain by chain (bottom→top).
+    # m for the field one/zero: every eigenvalue's Qalg shares no single m across
+    # distinct factors, so build P/J entries per-eigenvalue with that λ's field, and
+    # keep a global zero/one per cell from the column's own λ (the cells are filled
+    # explicitly; untouched cells need a zero — use the FIRST eigenvalue's field for
+    # those, since over ℂ they are all the rational 0). To keep one consistent field
+    # for the J zeros we use each block's own λ.one()/λ-zero for its own cells and a
+    # rational-0 placeholder elsewhere.
+    blocks_out: List[Tuple] = []
+    P_cols_qalg: List[List] = []                         # each a length-n Qalg column
+    J_spec: List[Tuple["Qalg", int]] = []                # (λ_qalg, chain_len) per chain
+    for (_rc, lam, chains) in eig_entries:
+        for chain in chains:                             # chain bottom→top
+            s = len(chain)
+            for vec in chain:
+                P_cols_qalg.append(list(vec))
+            J_spec.append((lam, s))
+            blocks_out.append((lam, s))
+
+    # exact Qalg J (n×n) over a single shared scalar field: all entries are λ (a
+    # Qalg) or 1/0 (rationals coerced into the column's λ field). We assemble J as a
+    # list[list[Qalg]] where each diagonal cell carries its own λ's field and the
+    # super-diagonal 1 / off cells carry that λ's one()/zero.
+    # When eigenvalues span DIFFERENT number fields (distinct min-polys) there is no
+    # single Qalg field holding all of P+J; each COLUMN of J lives in ITS OWN
+    # eigenvalue's field (J is block-diagonal, so column c only ever couples to
+    # column-c's block, same λ). So every cell of J carries a zero in that column's
+    # field, keeping each column internally field-consistent — for both the exact
+    # check and the project=False return.
+    if not eig_entries:
+        raise ValueError("jordan_form_exact: no eigenvalues found (internal bug)")
+    # λ per column (chain by chain, bottom→top), in J_spec order.
+    col_lam: List["Qalg"] = []
+    for (lam, s) in J_spec:
+        col_lam.extend([lam] * s)
+    col_zero = [lam.one() - lam.one() for lam in col_lam]   # the rational 0 per column field
+
+    J_qalg: List[List] = [[col_zero[c] for c in range(n)] for _ in range(n)]
+    pos = 0
+    for (lam, s) in J_spec:
+        lone = lam.one()
+        for k in range(s):
+            J_qalg[pos + k][pos + k] = lam                # diagonal λ (this column's field)
+            if k + 1 < s:
+                J_qalg[pos + k][pos + k + 1] = lone       # super-diagonal 1 within chain
+        pos += s
+
+    # ── EXACT self-validation: A·P == P·J over Qalg (columnwise, per-column field) ──
+    # A·P column c = A·P_cols[c]; P·J column c = Σ_k P_cols[k]·J[k][c]. Both stay in
+    # column c's field (A entries are field-agnostic rational scalars; J[k][c] is
+    # nonzero only for k in column c's block → same λ as P_cols[k]).
+    def _col_equal_exact(c):
+        zc = col_zero[c]
+        # (A·P)[:,c]
+        ap = []
+        for i in range(n):
+            acc = zc
+            for j in range(n):
+                acc = acc + P_cols_qalg[c][j] * rows[i][j]
+            ap.append(acc)
+        # (P·J)[:,c] = Σ_k P_cols[k] · J[k][c]
+        pj = [zc for _ in range(n)]
+        for k in range(n):
+            jkc = J_qalg[k][c]
+            if not jkc:
+                continue
+            for i in range(n):
+                pj[i] = pj[i] + P_cols_qalg[k][i] * jkc
+        for i in range(n):
+            if ap[i] != pj[i]:
+                return (i, ap[i], pj[i])
+        return None
+
+    for c in range(n):
+        bad = _col_equal_exact(c)
+        if bad is not None:
+            i, av, pv = bad
+            raise ValueError(
+                "jordan_form_exact exact self-validation FAILED: A·P != P·J over "
+                f"Qalg at row {i}, column {c} ({av!r} vs {pv!r}) — Jordan-form bug")
+
+    if not project:
+        return {"blocks": blocks_out, "P": _P_cols_to_matrix(P_cols_qalg, n),
+                "J": J_qalg}
+
+    # ── terminal projection — the ONE rotation ────────────────────────────────────
+    def _proj_scalar(lam):
+        r = lam.root
+        return (lam.to_complex() if (isinstance(r, complex) and r.imag != 0)
+                else complex(lam.to_float(), 0.0))
+
+    def _proj_comp(comp, lam):
+        r = lam.root
+        real_root = not (isinstance(r, complex) and r.imag != 0)
+        return comp.to_complex() if not real_root else complex(comp.to_float(), 0.0)
+
+    # project P: column c belongs to the chain whose λ is J's diagonal at c
+    # (``col_lam`` built above tracks λ per column in J_spec order).
+    P_float = _P_cols_to_matrix(
+        [[_proj_comp(P_cols_qalg[c][i], col_lam[c]) for i in range(n)]
+         for c in range(n)], n)
+    # Build J_float directly from J_spec (not by inspecting Qalg truthiness — a λ=0
+    # diagonal would be falsy). λ on the diagonal, a super-diagonal 1 WITHIN a chain.
+    J_float = [[0j] * n for _ in range(n)]
+    pos = 0
+    for (lam, s) in J_spec:
+        lval = _proj_scalar(lam)
+        for k in range(s):
+            J_float[pos + k][pos + k] = lval
+            if k + 1 < s:
+                J_float[pos + k][pos + k + 1] = 1.0 + 0j
+        pos += s
+    blocks_float = [(_proj_scalar(lam), s) for (lam, s) in blocks_out]
+
+    # float self-validation A·P ≈ P·J to ~1e-9.
+    af = [[complex(rows[i][j]) for j in range(n)] for i in range(n)]
+    Pm = P_float                                         # P[i][c]
+    for c in range(n):
+        ap = [sum(af[i][j] * Pm[j][c] for j in range(n)) for i in range(n)]
+        pj = [sum(Pm[i][k] * J_float[k][c] for k in range(n)) for i in range(n)]
+        for i in range(n):
+            if _modulus(ap[i] - pj[i]) > 1e-9:
+                raise ValueError(
+                    "jordan_form_exact float self-validation FAILED: A·P != P·J at "
+                    f"row {i}, column {c} ({ap[i]!r} vs {pj[i]!r}) — Jordan-form bug")
+
+    return {"blocks": blocks_float, "P": P_float, "J": J_float}
+
+
+def _P_cols_to_matrix(cols, n):
+    """Assemble a list of COLUMN vectors (each length ``n``) into the row-major
+    matrix ``P`` with those columns: ``P[i][c] = cols[c][i]``."""
+    return [[cols[c][i] for c in range(len(cols))] for i in range(n)]

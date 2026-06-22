@@ -254,6 +254,15 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # ``Qalg`` carrier itself is not registered.
     "srmech.amsc.cascade.matrix_cascades.factor_integer_poly",
     "srmech.amsc.cascade.matrix_cascades.eig_exact",
+    # matrix_cascades.jordan_chains_exact / jordan_form_exact (v0.9.0rc27 — rc-G,
+    # exact generalized eigenvectors / Jordan canonical form). Exempt on the SAME
+    # "package-level exact algebra, returns non-JSON-RPC types" rationale as the
+    # eigvec / eig_exact ops above. ``jordan_chains_exact`` returns ``Qalg`` chains;
+    # ``jordan_form_exact`` returns dicts carrying ``Qalg`` / ``complex`` P, J and
+    # block eigenvalues (``project=False`` is all ``Qalg``). Both reachable via
+    # Python, not the MCP tool list, exactly like the ``Qalg`` carrier itself.
+    "srmech.amsc.cascade.matrix_cascades.jordan_chains_exact",
+    "srmech.amsc.cascade.matrix_cascades.jordan_form_exact",
 })
 
 
