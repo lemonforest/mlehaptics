@@ -670,8 +670,9 @@ def _isolate_real_roots(factor: List, bits: int) -> List[Tuple]:
 # ── exact COMPLEX-root isolation: the argument-principle box-count (rc24, rc-E) ──
 # The exact REAL eigenvalues come out of the Sturm cascade above; the COMPLEX ones
 # (conjugate pairs of an integer char-poly) are isolated by the SAME exact-substrate
-# discipline — find them numerically (float-QR ``mat_eigvals`` candidates), then
-# CERTIFY each with the argument principle: the number of roots of an integer
+# discipline — PURE rational-box subdivision over the upper half-plane
+# (``_isolate_complex_roots_upper``), with NO float-QR candidate seeding: each box
+# is CERTIFIED with the argument principle — the number of roots of an integer
 # polynomial strictly inside an open rational box equals the winding number of p
 # around the box boundary, computed in EXACT ``Fraction`` arithmetic (no float in
 # the count). Along each edge ``p`` restricts to ``U(t)+iV(t)`` with U,V ∈ ℚ[t];
@@ -805,53 +806,6 @@ def _count_roots_in_box(p: List, x0, x1, y0, y1) -> int:
     return count
 
 
-def _certify_complex_root(p: List, cand: complex, others: List[complex],
-                          bits: int) -> Tuple[_FR, _FR]:
-    """Isolate ONE simple complex root of the integer/ℚ polynomial ``p`` near the
-    numeric candidate ``cand`` and refine it to ``bits`` of precision. Grows /
-    shrinks a JITTERED rational box around ``cand`` until ``_count_roots_in_box
-    == 1``; then refines via :func:`_refine_box`. Returns the exact rational box
-    center ``(re, im)``. The candidate-SEEDED path (the float-QR accelerator); the
-    pure-subdivision :func:`_isolate_complex_roots_upper` is the always-works
-    fallback when the candidates are unreliable."""
-    cx = _FR(cand.real).limit_denominator(1 << 40)
-    cy = _FR(cand.imag).limit_denominator(1 << 40)
-    # Initial half-width: a fraction of the nearest-candidate gap (so the box can
-    # only ever hold ONE root), floored to something small but nonzero.
-    gap = None
-    for o in others:
-        d = _modulus(complex(o) - complex(cand))
-        if d > 0 and (gap is None or d < gap):
-            gap = d
-    h = _FR(1, 1 << 8)
-    if gap is not None and gap > 0:
-        hg = _FR(gap).limit_denominator(1 << 40) / 4
-        if hg > 0 and hg < h:
-            h = hg
-    hy = h * _FR(1021, 1024)                          # asymmetric → generic corners
-    tries = 0
-    while True:
-        tries += 1
-        if tries > 4000:
-            raise ValueError(
-                f"_certify_complex_root: failed to isolate a single root near "
-                f"{cand!r} after {tries} attempts")
-        hy = h * _FR(1021, 1024)
-        try:
-            c = _count_roots_in_box(p, cx - h, cx + h, cy - hy, cy + hy)
-        except ValueError:
-            h = h * _FR(9, 8)                          # boundary root → grow + re-jitter
-            cx = cx + _FR(1, 1 << 50)
-            continue
-        if c == 1:
-            break
-        if c == 0:
-            h = h * 2                                  # box too small → grow
-            continue
-        h = h / 2                                      # >1 root boxed → shrink
-    return _refine_box(p, cx - h, cx + h, cy - hy, cy + hy, bits)
-
-
 def _cauchy_root_bound(p: List) -> _FR:
     """A rational bound ``B`` with every root of ``p`` (low→high) satisfying
     ``|root| < B`` — the Cauchy bound ``1 + max|a_i / a_n|``. Exact ℚ, Class-K
@@ -865,8 +819,9 @@ def _isolate_complex_roots_upper(p: List, want: int, bits: int) -> List[complex]
     """Exactly isolate the ``want`` roots of the integer/ℚ polynomial ``p`` in the
     OPEN UPPER half-plane (im > 0) by recursive rational-box subdivision, certified
     by :func:`_count_roots_in_box` (exact argument principle — no float in the
-    count), each refined to ``bits`` of precision. The pure-subdivision fallback
-    when the float-QR candidates are unreliable (e.g. QR stalls on a cyclic
+    count), each refined to ``bits`` of precision. This is the ONLY complex-root
+    path (rc28): pure exact subdivision over a square-free factor, with NO float-QR
+    candidate seeding — so it is robust where a float QR would stall (e.g. a cyclic
     permutation matrix). Returns the box centers as ``complex`` (im > 0). The
     conjugates (im < 0) are the caller's mirror."""
     B = _cauchy_root_bound(p)
@@ -1017,16 +972,18 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False,
     the matrix order to detect that case.
 
     With ``include_complex=True`` the COMPLEX eigenvalues are ALSO returned,
-    **exactly isolated**: a float-QR candidate (:func:`~srmech.amsc.laplacian.mat_eigvals`)
-    is CERTIFIED as a unique root of the exact integer characteristic polynomial in
-    a rational box by the argument-principle count :func:`_count_roots_in_box`
-    (winding number in exact ``Fraction`` arithmetic — no float in the count), then
-    the box is refined to ``bits`` of precision; the emitted ``complex`` is the
-    single terminal projection of the certified box center (the exact-substrate
-    object is the integer char-poly + the certified isolating box). This is exact
-    isolation — qualitatively distinct from the unconditioned float-QR spectrum of
-    :func:`~srmech.amsc.laplacian.mat_eigvals`, whose candidates it merely seeds.
-    Conjugate symmetry holds (``a+bi`` with ``b>0`` pairs with ``a−bi``). Returns
+    **exactly isolated** by PURE rational-box subdivision over the upper half-plane
+    (:func:`_isolate_complex_roots_upper`), per square-free factor (rc28), with NO
+    float-QR candidate seeding. Each box is CERTIFIED as holding exactly one root of
+    the exact integer characteristic polynomial by the argument-principle count
+    :func:`_count_roots_in_box` (winding number in exact ``Fraction`` arithmetic —
+    no float in the count), then refined to ``bits`` of precision; the emitted
+    ``complex`` is the single terminal projection of the certified box center (the
+    exact-substrate object is the integer char-poly + the certified isolating box).
+    This is exact isolation — qualitatively distinct from the unconditioned float-QR
+    spectrum of :func:`~srmech.amsc.laplacian.mat_eigvals` (which is not consulted
+    here at all). Conjugate symmetry holds (``a+bi`` with ``b>0`` pairs with
+    ``a−bi``). Returns
     **all n** eigenvalues with multiplicity: the reals first (ascending, as
     ``float``), then the complex (sorted by ``(re, im)``, as ``complex``).
     ``return_intervals`` is honoured for the real part only and ignored for the
@@ -1069,11 +1026,11 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False,
     # upper-half (im > 0) roots of each square-free factor therefore ALWAYS
     # terminates; each isolated root is emitted ``mult`` times (and its conjugate
     # ``mult`` times), exactly as the real path appends each simple real root
-    # ``mult`` times. The float-QR candidate accelerator (``_certify_complex_root``)
-    # is dropped on this path: it must NEVER be called on a non-square-free polynomial
-    # (it would loop on a coincident pair), and routing the whole branch through the
-    # always-terminating per-factor ``_isolate_complex_roots_upper`` is correctness-
-    # and termination-first over the accelerator's speed.
+    # ``mult`` times. There is NO float-QR candidate seeding on this path (rc28): the
+    # whole branch routes through the always-terminating per-factor
+    # ``_isolate_complex_roots_upper`` — pure exact subdivision, correctness- and
+    # termination-first (a candidate-seeded accelerator must never run on a
+    # non-square-free polynomial, where it would loop on a coincident pair).
     certified: List[complex] = []
     certified_upper = 0
     for factor, mult in _square_free_factors(p):
