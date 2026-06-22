@@ -666,8 +666,333 @@ def _isolate_real_roots(factor: List, bits: int) -> List[Tuple]:
     return out
 
 
-def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False):
-    """Exact REAL eigenvalues of an integer matrix — the well-conditioned
+# ── exact COMPLEX-root isolation: the argument-principle box-count (rc24, rc-E) ──
+# The exact REAL eigenvalues come out of the Sturm cascade above; the COMPLEX ones
+# (conjugate pairs of an integer char-poly) are isolated by the SAME exact-substrate
+# discipline — find them numerically (float-QR ``mat_eigvals`` candidates), then
+# CERTIFY each with the argument principle: the number of roots of an integer
+# polynomial strictly inside an open rational box equals the winding number of p
+# around the box boundary, computed in EXACT ``Fraction`` arithmetic (no float in
+# the count). Along each edge ``p`` restricts to ``U(t)+iV(t)`` with U,V ∈ ℚ[t];
+# the boundary change-of-argument is the sum of the per-edge Cauchy indices of
+# ``V/U`` (a Sturm-style sign-variation count, the same machinery as the real
+# isolation). The float is the single terminal projection of the exact box center.
+
+
+def _poly_real_imag_on_edge(p: List, x0, y0, dx, dy) -> Tuple[List, List]:
+    """For ``z(t) = (x0 + dx·t) + i·(y0 + dy·t)`` substitute into the integer/ℚ
+    polynomial ``p`` (low→high) and return ``(U, V)`` — the real/imag parts as
+    polynomials in ``t`` over ℚ. Exact: ``z = a(t) + i·b(t)`` with
+    ``a = x0 + dx·t``, ``b = y0 + dy·t``; powers of ``z`` are accumulated by
+    complex multiply of the (U, V) pair, all in ``Fraction``."""
+    a = [_FR(x0), _FR(dx)]                            # real part of z(t)
+    b = [_FR(y0), _FR(dy)]                            # imag part of z(t)
+    U = [_FR(0)]
+    V = [_FR(0)]
+    powU = [_FR(1)]                                   # z^0 = 1 + 0i
+    powV = [_FR(0)]
+    for coeff in p:                                   # low→high: coeff · z^k
+        c = _FR(coeff)
+        U = _poly_add(U, [c * t for t in powU])
+        V = _poly_add(V, [c * t for t in powV])
+        # powU+i·powV ← (powU+i·powV)·(a+i·b)
+        ra = _poly_sub(_poly_mul(powU, a), _poly_mul(powV, b))
+        rb = _poly_add(_poly_mul(powU, b), _poly_mul(powV, a))
+        powU, powV = ra, rb
+    return _poly_trim(U), _poly_trim(V)
+
+
+def _poly_add(a: List, b: List) -> List:
+    n = max(len(a), len(b))
+    return _poly_trim([(a[i] if i < len(a) else _FR(0)) + (b[i] if i < len(b) else _FR(0))
+                       for i in range(n)])
+
+
+def _poly_mul(a: List, b: List) -> List:
+    a = _poly_trim(a)
+    b = _poly_trim(b)
+    out = [_FR(0)] * (len(a) + len(b) - 1)
+    for i, av in enumerate(a):
+        if av == 0:
+            continue
+        for j, bv in enumerate(b):
+            out[i + j] += av * bv
+    return _poly_trim(out)
+
+
+def _sturm_seq_general(f: List, g: List) -> List[List]:
+    """The generalised Sturm (Sturm–Habicht-style) remainder sequence starting
+    ``f, g`` — ``s0 = f``, ``s1 = g``, ``s_{k+1} = −rem(s_{k−1}, s_k)`` — used for
+    the Cauchy index of ``g/f``. Pure ℚ; terminates when the remainder is 0."""
+    seq = [_poly_trim(f), _poly_trim(g)]
+    while _poly_trim(seq[-1]) != [_FR(0)]:
+        _, r = _poly_divmod(seq[-2], seq[-1])
+        r = _poly_trim(r)
+        if r == [_FR(0)]:
+            break
+        seq.append([-x for x in r])
+    return seq
+
+
+def _cauchy_index_open(f: List, g: List, a, b) -> int:
+    """The Cauchy index ``I_a^b(g/f)`` over the OPEN interval ``(a, b)`` — the
+    number of −∞→+∞ jumps minus +∞→−∞ jumps of ``g/f`` as ``t`` runs ``a → b``.
+    Equals ``V(a) − V(b)`` of the generalised Sturm sequence sign-variation count
+    (``f, g, −rem, …``) evaluated at the endpoints. Exact ℚ."""
+    seq = _sturm_seq_general(f, g)
+    return _sturm_V(seq, a) - _sturm_V(seq, b)
+
+
+def _count_roots_in_box(p: List, x0, x1, y0, y1) -> int:
+    """The number of roots (with multiplicity) of the integer/ℚ polynomial ``p``
+    (coeffs **low→high**) STRICTLY inside the open rational box
+    ``(x0, x1) × (y0, y1)`` — the **argument principle** in EXACT ``Fraction``
+    arithmetic (no float in the count). The winding number of ``p`` around the
+    rectangular boundary (traversed counter-clockwise) equals that root count.
+
+    Along each edge, ``p(z(t)) = U(t) + i·V(t)`` with ``U, V ∈ ℚ[t]``; the change
+    of argument over the edge is ``−π · I(V/U)`` (the Cauchy index of ``V/U`` over
+    the edge), so the total winding ``= −½ · Σ_edges I_edge(V/U)``. The caller must
+    supply rational corners whose boundary is root-free (generic rationals miss the
+    algebraic roots); a root ON the boundary makes the count ill-defined — nudge
+    the corners. Returns a non-negative ``int``.
+
+    **Class L** (the spectral root count) ∘ **Class C** (the per-edge Cauchy-index
+    sign-count) ∘ **Class K** (the ℚ interval pin-slots). See Henrici,
+    *Applied and Computational Complex Analysis* vol. 1 §6.2 (the argument
+    principle by Cauchy-index summation over a polygon).
+    """
+    p = [_FR(c) for c in p]
+    if _poly_trim(p) == [_FR(0)]:
+        raise ValueError("_count_roots_in_box: zero polynomial has no isolated roots")
+    x0, x1, y0, y1 = _FR(x0), _FR(x1), _FR(y0), _FR(y1)
+    if not (x0 < x1 and y0 < y1):
+        raise ValueError("_count_roots_in_box: need x0 < x1 and y0 < y1")
+    # The four edges as (x_start, y_start, dx, dy), parameter t in [0, 1],
+    # traversed counter-clockwise: bottom → right → top → left.
+    edges = (
+        (x0, y0, x1 - x0, _FR(0)),                    # bottom: y = y0, x: x0→x1
+        (x1, y0, _FR(0), y1 - y0),                    # right:  x = x1, y: y0→y1
+        (x1, y1, x0 - x1, _FR(0)),                    # top:    y = y1, x: x1→x0
+        (x0, y1, _FR(0), y0 - y1),                    # left:   x = x0, y: y1→y0
+    )
+    total_index = 0
+    for (xs, ys, dx, dy) in edges:
+        U, V = _poly_real_imag_on_edge(p, xs, ys, dx, dy)
+        # A boundary root would make U and V vanish simultaneously somewhere on
+        # the edge → gcd(U, V) non-constant. The caller is told to nudge corners;
+        # guard so an on-boundary corner cannot silently corrupt the count.
+        if _poly_trim(U) == [_FR(0)] and _poly_trim(V) == [_FR(0)]:
+            raise ValueError(
+                "_count_roots_in_box: p vanishes on an entire edge — degenerate "
+                "box (corners hit a root); nudge the rational corners")
+        # Cauchy index over the OPEN edge (0, 1); the corners are the box vertices,
+        # which the caller keeps root-free.
+        total_index += _cauchy_index_open(U, V, _FR(0), _FR(1))
+    # winding = −½ · Σ I_edge ; the box is traced counter-clockwise so a root
+    # inside contributes +1 to the winding ⇒ the magnitude is the count.
+    n2 = -total_index
+    if n2 % 2 != 0:
+        raise ValueError(
+            "_count_roots_in_box: half-integer winding — a root lies ON the box "
+            "boundary; nudge the rational corners")
+    count = n2 // 2
+    if count < 0:
+        raise ValueError(
+            "_count_roots_in_box: negative winding — boundary orientation/edge "
+            "bug or a boundary root; nudge the corners")
+    return count
+
+
+def _certify_complex_root(p: List, cand: complex, others: List[complex],
+                          bits: int) -> Tuple[_FR, _FR]:
+    """Isolate ONE simple complex root of the integer/ℚ polynomial ``p`` near the
+    numeric candidate ``cand`` and refine it to ``bits`` of precision. Grows /
+    shrinks a JITTERED rational box around ``cand`` until ``_count_roots_in_box
+    == 1``; then refines via :func:`_refine_box`. Returns the exact rational box
+    center ``(re, im)``. The candidate-SEEDED path (the float-QR accelerator); the
+    pure-subdivision :func:`_isolate_complex_roots_upper` is the always-works
+    fallback when the candidates are unreliable."""
+    cx = _FR(cand.real).limit_denominator(1 << 40)
+    cy = _FR(cand.imag).limit_denominator(1 << 40)
+    # Initial half-width: a fraction of the nearest-candidate gap (so the box can
+    # only ever hold ONE root), floored to something small but nonzero.
+    gap = None
+    for o in others:
+        d = _modulus(complex(o) - complex(cand))
+        if d > 0 and (gap is None or d < gap):
+            gap = d
+    h = _FR(1, 1 << 8)
+    if gap is not None and gap > 0:
+        hg = _FR(gap).limit_denominator(1 << 40) / 4
+        if hg > 0 and hg < h:
+            h = hg
+    hy = h * _FR(1021, 1024)                          # asymmetric → generic corners
+    tries = 0
+    while True:
+        tries += 1
+        if tries > 4000:
+            raise ValueError(
+                f"_certify_complex_root: failed to isolate a single root near "
+                f"{cand!r} after {tries} attempts")
+        hy = h * _FR(1021, 1024)
+        try:
+            c = _count_roots_in_box(p, cx - h, cx + h, cy - hy, cy + hy)
+        except ValueError:
+            h = h * _FR(9, 8)                          # boundary root → grow + re-jitter
+            cx = cx + _FR(1, 1 << 50)
+            continue
+        if c == 1:
+            break
+        if c == 0:
+            h = h * 2                                  # box too small → grow
+            continue
+        h = h / 2                                      # >1 root boxed → shrink
+    return _refine_box(p, cx - h, cx + h, cy - hy, cy + hy, bits)
+
+
+def _cauchy_root_bound(p: List) -> _FR:
+    """A rational bound ``B`` with every root of ``p`` (low→high) satisfying
+    ``|root| < B`` — the Cauchy bound ``1 + max|a_i / a_n|``. Exact ℚ, Class-K
+    magnitude (sign-branch, no ``abs()``)."""
+    p = _poly_trim([_FR(c) for c in p])
+    lead = _mag(p[-1])
+    return _FR(1) + max((_mag(c) / lead for c in p[:-1]), default=_FR(0))
+
+
+def _isolate_complex_roots_upper(p: List, want: int, bits: int) -> List[complex]:
+    """Exactly isolate the ``want`` roots of the integer/ℚ polynomial ``p`` in the
+    OPEN UPPER half-plane (im > 0) by recursive rational-box subdivision, certified
+    by :func:`_count_roots_in_box` (exact argument principle — no float in the
+    count), each refined to ``bits`` of precision. The pure-subdivision fallback
+    when the float-QR candidates are unreliable (e.g. QR stalls on a cyclic
+    permutation matrix). Returns the box centers as ``complex`` (im > 0). The
+    conjugates (im < 0) are the caller's mirror."""
+    B = _cauchy_root_bound(p)
+    # The upper-half search box: x ∈ (−B, B), y ∈ (η, B) with a small positive η so
+    # the real axis (where the real roots live) is excluded. η is a generic small
+    # rational; jitter the box corners so they miss the algebraic roots.
+    eta = _FR(1, 1 << 24)
+    jx = _FR(1, 997)
+    jy = _FR(1, 991)
+    found: List[Tuple[_FR, _FR]] = []
+    # work-stack of (x0, x1, y0, y1, expected_count); seed with the whole strip.
+    x0, x1, y0, y1 = -B - jx, B + jx, eta, B + jy
+    try:
+        total = _count_roots_in_box(p, x0, x1, y0, y1)
+    except ValueError:
+        # a corner/edge hit a root — nudge and retry once with a different jitter.
+        x0, x1, y0, y1 = -B - _FR(1, 503), B + _FR(1, 509), eta, B + _FR(1, 521)
+        total = _count_roots_in_box(p, x0, x1, y0, y1)
+    stack = [(x0, x1, y0, y1, total)]
+    guard = 0
+    while stack:
+        guard += 1
+        if guard > 200000:
+            raise ValueError("_isolate_complex_roots_upper: subdivision did not terminate")
+        bx0, bx1, by0, by1, cnt = stack.pop()
+        if cnt == 0:
+            continue
+        wx, wy = bx1 - bx0, by1 - by0
+        if cnt == 1 and wx <= _FR(1) and wy <= _FR(1):
+            # isolated → refine to bits via root-free-cut bisection.
+            cx, cy = _refine_box(p, bx0, bx1, by0, by1, bits)
+            found.append((cx, cy))
+            continue
+        # split the longer axis at a root-free cut near the midpoint.
+        if wx >= wy:
+            cut = _root_free_split(p, bx0, bx1, by0, by1, axis="x")
+            left = _count_roots_in_box(p, bx0, cut, by0, by1)
+            right = cnt - left
+            if left:
+                stack.append((bx0, cut, by0, by1, left))
+            if right:
+                stack.append((cut, bx1, by0, by1, right))
+        else:
+            cut = _root_free_split(p, bx0, bx1, by0, by1, axis="y")
+            bottom = _count_roots_in_box(p, bx0, bx1, by0, cut)
+            top = cnt - bottom
+            if bottom:
+                stack.append((bx0, bx1, by0, cut, bottom))
+            if top:
+                stack.append((bx0, bx1, cut, by1, top))
+    return [complex(float(cx), float(cy)) for (cx, cy) in found]
+
+
+def _root_free_split(p: List, x0, x1, y0, y1, axis: str) -> _FR:
+    """A cut value near the midpoint of the chosen ``axis`` of the box such that
+    BOTH resulting sub-boxes have a well-defined root count (no root on the cut).
+    Jitters off the midpoint until :func:`_count_roots_in_box` does not raise."""
+    lo, hi = (x0, x1) if axis == "x" else (y0, y1)
+    span = hi - lo
+    for k in range(80):
+        frac = _FR(1, 2) + _FR((k * 13 + 5) % 101 - 50, 1 << 11)
+        if frac <= 0 or frac >= 1:
+            continue
+        cut = lo + span * frac
+        try:
+            if axis == "x":
+                _count_roots_in_box(p, x0, cut, y0, y1)
+                _count_roots_in_box(p, cut, x1, y0, y1)
+            else:
+                _count_roots_in_box(p, x0, x1, y0, cut)
+                _count_roots_in_box(p, x0, x1, cut, y1)
+        except ValueError:
+            continue
+        return cut
+    raise ValueError("_root_free_split: no root-free cut found")
+
+
+def _refine_box(p: List, x0, x1, y0, y1, bits: int) -> Tuple[_FR, _FR]:
+    """Refine an isolating box (guaranteed to hold exactly ONE root) to half-width
+    ``< 2^-bits`` by root-free-cut bisection; return the box center ``(re, im)``.
+
+    Each step takes ONE jittered cut near the midpoint of the longer axis and ONE
+    :func:`_count_roots_in_box` on the lower/left sub-box (count 1 → keep it, else
+    keep the complement) — re-jittering only on the boundary-root guard. The cut
+    is a low-denominator rational (the jitter is a coarse dyadic-ish fraction) so
+    the ``Fraction`` numerators stay small as the box shrinks."""
+    eps = _FR(1, 1 << bits)
+    lo_x, hi_x, lo_y, hi_y = x0, x1, y0, y1
+    # A short cycle of jitter fractions near 1/2 — generic enough to miss the root,
+    # low-denominator to keep the Fractions small.
+    jitters = (_FR(1, 2), _FR(127, 256), _FR(129, 256), _FR(63, 128), _FR(65, 128),
+               _FR(31, 64), _FR(33, 64), _FR(509, 1024), _FR(515, 1024))
+    while (hi_x - lo_x) > eps or (hi_y - lo_y) > eps:
+        x_axis = (hi_x - lo_x) >= (hi_y - lo_y)
+        lo, hi = (lo_x, hi_x) if x_axis else (lo_y, hi_y)
+        span = hi - lo
+        chosen = None
+        for fr in jitters:
+            cut = lo + span * fr
+            try:
+                if x_axis:
+                    c = _count_roots_in_box(p, lo_x, cut, lo_y, hi_y)
+                else:
+                    c = _count_roots_in_box(p, lo_x, hi_x, lo_y, cut)
+            except ValueError:
+                continue
+            chosen = (cut, c)
+            break
+        if chosen is None:
+            raise ValueError("_refine_box: no root-free refinement cut found")
+        cut, c = chosen
+        if x_axis:
+            if c == 1:
+                hi_x = cut
+            else:
+                lo_x = cut
+        else:
+            if c == 1:
+                hi_y = cut
+            else:
+                lo_y = cut
+    return ((lo_x + hi_x) / 2, (lo_y + hi_y) / 2)
+
+
+def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False,
+                  include_complex: bool = False):
+    """Exact eigenvalues of an integer matrix — the well-conditioned
     exact-until-rotation cascade (no Wilkinson ill-conditioning).
 
     ``char_poly`` (exact integer) → Yun square-free factorisation (exact
@@ -676,12 +1001,34 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False):
     → the algebraic asymptote), kept in exact ``Fraction`` arithmetic the whole
     way. Each eigenvalue stays an exact algebraic number until the single FPU
     lift. ``bits`` sets the refinement precision; ``return_intervals=True`` yields
-    the exact ``(lo, hi)`` rational isolating intervals instead of floats.
+    the exact ``(lo, hi)`` rational isolating intervals (real eigenvalues only)
+    instead of floats.
 
-    Returns the real eigenvalues ascending **with multiplicity**. A symmetric
-    integer matrix has an all-real spectrum (complete); a matrix with complex
-    eigenvalues returns only its real ones (exact complex isolation is a
-    follow-up) — compare ``len(...)`` to the matrix order to detect that case.
+    With ``include_complex=False`` (default) returns ONLY the real eigenvalues
+    ascending **with multiplicity** — byte-for-byte the historic behaviour. A
+    symmetric integer matrix has an all-real spectrum (complete); a matrix with
+    complex eigenvalues returns only its real ones here — compare ``len(...)`` to
+    the matrix order to detect that case.
+
+    With ``include_complex=True`` the COMPLEX eigenvalues are ALSO returned,
+    **exactly isolated**: a float-QR candidate (:func:`~srmech.amsc.laplacian.mat_eigvals`)
+    is CERTIFIED as a unique root of the exact integer characteristic polynomial in
+    a rational box by the argument-principle count :func:`_count_roots_in_box`
+    (winding number in exact ``Fraction`` arithmetic — no float in the count), then
+    the box is refined to ``bits`` of precision; the emitted ``complex`` is the
+    single terminal projection of the certified box center (the exact-substrate
+    object is the integer char-poly + the certified isolating box). This is exact
+    isolation — qualitatively distinct from the unconditioned float-QR spectrum of
+    :func:`~srmech.amsc.laplacian.mat_eigvals`, whose candidates it merely seeds.
+    Conjugate symmetry holds (``a+bi`` with ``b>0`` pairs with ``a−bi``). Returns
+    **all n** eigenvalues with multiplicity: the reals first (ascending, as
+    ``float``), then the complex (sorted by ``(re, im)``, as ``complex``).
+    ``return_intervals`` is honoured for the real part only and ignored for the
+    complex part (a box, not an interval).
+
+    **Class L** (the spectral content) ∘ **Class C** (the Cauchy-index winding) ∘
+    **Class K** (the ℚ box/interval pin-slots) ∘ **Class N** (the rational
+    refinement anchors).
     """
     cp = char_poly(a)                                # monic, high→low
     p = [_FR(c) for c in reversed(cp)]               # low→high over ℚ
@@ -691,9 +1038,61 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False):
             for _ in range(mult):
                 eigs.append((lo, hi))
     eigs.sort(key=lambda iv: iv[0] + iv[1])
-    if return_intervals:
+    # ``return_intervals`` yields the exact real isolating intervals; it applies to
+    # the real spectrum only (a complex root is a box, not an interval), so it is
+    # honoured solely on the real-only path and ignored when include_complex=True.
+    if return_intervals and not include_complex:
         return eigs
-    return [float((lo + hi) / 2) for (lo, hi) in eigs]
+    real_out = [float((lo + hi) / 2) for (lo, hi) in eigs]
+    if not include_complex:
+        return real_out
+
+    # ── complex eigenvalues: certify the float-QR candidates exactly ──────────
+    rows = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
+    n = len(rows)
+    n_real = len(eigs)
+    if n_real == n:                                   # all-real spectrum — done
+        return real_out
+    n_complex = n - n_real                            # comes in conjugate pairs
+    want_upper = n_complex // 2
+    # PRIMARY: certify the float-QR candidates (the accelerator). FALLBACK: the
+    # pure argument-principle subdivision, which never stalls (float-QR can — e.g.
+    # on a cyclic permutation matrix). Either way EVERY emitted value is a CERTIFIED
+    # unique root of the exact integer char-poly in a rational box (exact-substrate);
+    # the float is the single terminal projection of the box center.
+    upper_roots: List[complex] = []
+    try:
+        from srmech.amsc.mat import Mat
+        cand = list(_mat_eigvals(Mat.from_rows(
+            [[complex(v) for v in r] for r in rows], is_complex=True)))
+        cplx_cands = [z for z in cand if z.imag != 0]
+        upper_cands = sorted((z for z in cplx_cands if z.imag > 0),
+                             key=lambda z: (round(z.real, 9), round(z.imag, 9)))
+        if len(upper_cands) != want_upper:
+            raise ValueError("candidate complex count mismatch — use subdivision")
+        seen: List[Tuple[_FR, _FR]] = []
+        for z in upper_cands:
+            others = [w for w in cplx_cands if w is not z]
+            cx, cy = _certify_complex_root(p, z, others, bits)
+            seen.append((cx, cy))
+            upper_roots.append(complex(float(cx), float(cy)))
+    except (ValueError, AssertionError):
+        # Float-QR was unreliable (stall / wrong count / un-isolable seed) — fall
+        # back to the always-works exact subdivision from the Cauchy root bound.
+        upper_roots = _isolate_complex_roots_upper(p, want_upper, bits)
+    # Reconcile the certified count with the algebraic multiplicity from the
+    # char-poly: the upper-half count must be exactly n_complex / 2.
+    if len(upper_roots) != want_upper:
+        raise ValueError(
+            f"eigvals_exact: certified {len(upper_roots)} upper-half complex roots "
+            f"but the char-poly multiplicity expects {want_upper} "
+            f"(n={n}, real={n_real})")
+    certified: List[complex] = []
+    for z in upper_roots:
+        certified.append(complex(z.real, z.imag))
+        certified.append(complex(z.real, -z.imag))    # conjugate (im < 0)
+    certified.sort(key=lambda z: (z.real, z.imag))
+    return real_out + certified
 
 
 # ── exact EIGENVECTORS over ℚ(λ) = Qalg: null space of A−λI by exact RREF ────────
