@@ -2595,3 +2595,21 @@ srmech's own `harmonics.HARMONIC_LADDER_OPEN_RUNGS = {2:('C','K'), 3:('J',)}` is
 `primes.FACTOR_MAX_DISTINCT_PRIMES = 64` vs `factor.__doc__` "≤15 distinct primes for uint64" — reconcile (15 is the true uint64 bound).
 
 **Outcome when shipped:** `HARMONIC_LADDER_OPEN_RUNGS` empties — the A-N encode ladder is fully carried, no blind spots. Both carriers compose ALREADY-SHIPPED ops (Qarg: `asymptotic_calculus`; Qprime: `primes`+`cyclic`); neither needs new native C. Re-surface: `close {C,K,J}` · `Qarg = polar accessors on Qi (atan2/sqrt shipped) + from_complex` · `Qprime = prime-exponent carrier (factor+gcd/lcm)` · `both verified F924/F923` · `supersedes §72/§73`.
+
+## §75 PROPOSAL — `resonant_spectrum(L)`: the coupling-system `the_one` (one ordered-solution-set for every spectral-kernel cascade) (2026-06-22; F928)
+
+Every Class-L spectral-kernel cascade we run reduces to the SAME steps: build/take a coupling Laplacian `L` → eigensolve → read {the spectrum, the modes, the higher force-orders Lⁿ, the resonance ratios}. F920 (language usage kernel), F781 (cosmic-web eigen-environment), F926 (directional), F927/F928 (gravity coupling) are all this cascade. Like `the_one` crystallized the epicycle crank into `S(σ,θ)`, propose crystallizing this into one primitive:
+
+```
+coupling.resonant_spectrum(L: Mat, *, orders=2, max_den=64) -> dict:
+  tensions    : Vec   # eigenvalues ascending = the stored "dark" tension spectrum (no excitation)
+  modes       : Mat   # eigenvectors = the excitation modes
+  force_orders: list  # [L, L^2, ...] via Lambda^k in the eigenbasis (k=2 = biharmonic = tidal/turbulence)
+  resonances  : list  # integer/prime ratios of tensions (or supplied frequencies) via Qprime + best_rational
+                      #   small-prime/2-adic = locked; large prime = libration off-lock
+```
+
+- **Hot path:** ONE eigensolve serves every force-order (`Lⁿ = V Λⁿ Vᵀ`) — no repeated matmul; resonance read bundled.
+- **Composes shipped ops:** `symmetric_eigendecompose`/`hermitian_eigendecompose`, `Mat.__matmul__`, `Qprime`, `best_rational`. No new native C; a `srmech.amsc.coupling` extension (peer to `signed_sum_squared`).
+- **Optional helper:** `coupling.from_bodies(masses, positions) -> (n, edges, weights)` (the m_i m_j / r^2 gravity-weight builder) for the gravity case; general kernels pass their own `L`.
+- **Framework reading it encodes:** the spectrum = stored tension (MFO dark sector / field, F907); a driven mode = excitation (matter); `L²` = forces-of-forces (tidal/biharmonic, dispersive curvature); resonance lock vs libration = small-vs-large prime (Qprime). Verified F928 (L² concentrates on Jupiter↔Io = the real tidal pair). Re-surface: `resonant_spectrum = coupling the_one` · `tensions=dark spectrum, modes=excitation, L^n=forces-of-forces, resonance=Qprime lock/libration` · `one eigensolve serves all orders` · `F928/F927/F920/F781`.
