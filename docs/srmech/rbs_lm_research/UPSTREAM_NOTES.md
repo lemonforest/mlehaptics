@@ -2575,3 +2575,23 @@ srmech's own `harmonics.HARMONIC_LADDER_OPEN_RUNGS = {2:('C','K'), 3:('J',)}` is
 2. **Prime-coordinate carrier (closes J).** `primes.factor` is the *op*; the *carrier* — a quantity as its **prime-exponent vector** (the Class-J encode: represent in the prime basis, with exact multiply=add-exponents / gcd=min / lcm=max) — is missing. Add an exact-scalar carrier peer to `Qi`/`Qalg` (call it `Qprime`/`PrimeVec`) built on `primes.factor` + `FACTOR_MAX_DISTINCT_PRIMES`. Then a relationship can be encoded in the prime basis (the J-lens), closing the rung.
 
 **Verification both:** after either lands, `harmonics.HARMONIC_LADDER_OPEN_RUNGS` should drop the closed class; re-run the corresponding encode (magnetic/phase spectral kernel for C/K, a prime-basis relationship encode for J). Re-surface: `OPEN_RUNGS {C,K,J} = the blind-spot map` · `Qarg closes C+K (atan_series + magnitude)` · `prime-coordinate carrier closes J` · `Qi has no polar (confirmed)` · `F922/F919/§72`.
+
+## §74 CONSOLIDATED ASK — finish filling out srmech: close the harmonic-ladder open rungs {C, K, J} with two carriers (supersedes §72 + §73; both prototyped + verified against rc28 — F923/F924) (2026-06-22)
+
+`srmech.amsc.harmonics.HARMONIC_LADDER_OPEN_RUNGS = {2:('C','K'), 3:('J',)}` is srmech's own blind-spot map (F922). The other 11 A-N classes are carried. Two carrier additions close all three open rungs; **both are prototyped and verified** (no design risk):
+
+### 1. `Qarg` — polar read on the exact-complex carrier `Qi` (and `Q`). Closes **C + K**. (F924)
+- **Needs NO new transcendental code.** `srmech.asymptotic_calculus` already ships `atan2(y,x,*,terms=40)->Q` (exact, full quadrant, **accepts `Q` args**), `sqrt`, `hypot`, `sin`, `cos`.
+- **API (verified):** `Qi.modulus() = sqrt(self.norm_sq())` [Class K] · `Qi.arg() = atan2(self.imag, self.real)` [Class C] · `Qi.as_polar() -> (r,θ)` · `Qi.from_polar(r,θ)`. Methods (peer to the existing `norm_sq()`); mirror on `Q`.
+- **Verified:** round-trip residual 0–1.2e-15 (display-only; r,θ exact `Q`); on a directed `magnetic_laplacian` the phase flips exactly with direction (θ_fwd+θ_rev = `Q(0,1)`) while modulus = `Q(1,2)` is direction-blind ⇒ arg=C (chirality), modulus=K (pin-slot).
+- **Bonus convenience:** add `Qi.from_complex(z)` (lift a builtin `complex`, e.g. a `Mat`/`Vec` entry) — peer to `from_pairs`/`from_float`. Unblocks the polar read directly on `magnetic_laplacian`/`hermitian_eigendecompose` output (the F919/F920 directional spectral kernel). Minor, non-blocking.
+
+### 2. `Qprime` — prime-coordinate carrier (exact-scalar peer to `Qi`/`Qalg`). Closes **J**. (F923)
+- A quantity → its prime-exponent vector via `primes.factor`, with EXACT arithmetic: `multiply`=add-exponents, `gcd`=min, `lcm`=max; rational similarity (cosine² over shared primes).
+- **API (verified):** `Qprime.from_int(n)`/`from_factors(pairs)`/`one()`; `.multiply`/`.gcd`/`.lcm`/`.similarity->Fraction`/`.overlap->Fraction`; `.as_int`/`.as_pairs`/`.radical`/`.is_prime_power`/`.order_mod(n)`. Invariants: exponents≥1, primes sorted, empty=identity(==1). Composes `primes.factor`/`is_prime`/`cyclic_period` + `cyclic.gcd`/`lcm`.
+- **Verified:** 200/200 random pairs exact (multiply==`factor(ab)`; gcd==`cyclic.gcd`; lcm==`cyclic.lcm`); `sim²(12,18)=16/25`, coprime→0.
+
+### 3. Minor doc fix
+`primes.FACTOR_MAX_DISTINCT_PRIMES = 64` vs `factor.__doc__` "≤15 distinct primes for uint64" — reconcile (15 is the true uint64 bound).
+
+**Outcome when shipped:** `HARMONIC_LADDER_OPEN_RUNGS` empties — the A-N encode ladder is fully carried, no blind spots. Both carriers compose ALREADY-SHIPPED ops (Qarg: `asymptotic_calculus`; Qprime: `primes`+`cyclic`); neither needs new native C. Re-surface: `close {C,K,J}` · `Qarg = polar accessors on Qi (atan2/sqrt shipped) + from_complex` · `Qprime = prime-exponent carrier (factor+gcd/lcm)` · `both verified F924/F923` · `supersedes §72/§73`.
