@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc34"
-#define SRMECH_VERSION       "0.9.0rc34"
+#define SRMECH_VERSION_PRE   "rc35"
+#define SRMECH_VERSION       "0.9.0rc35"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2873,6 +2873,91 @@ size_t srmech_pi_chudnovsky_ws_bound(uint32_t num_digits);
 srmech_status_t srmech_pi_chudnovsky(uint32_t num_digits, char *out,
                                      size_t out_cap, size_t *out_len,
                                      void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_bigexp — BIGNUM-EXACT Class-N transcendental Taylor truncations
+ * (built on srmech_bigint; the standalone-honor closure for the exact-
+ * rational series).
+ *
+ * The int64/Q61 peers in srmech_rational.c (srmech_exp_series_truncate,
+ * srmech_rational_pow_uint) cap at int64 and return SRMECH_ERR_OVERFLOW past
+ * it, so a C-only host hit a magnitude ceiling the Python bignum path does
+ * not. These *_big variants compute the SAME exact rational the Python
+ * srmech.amsc.rational.{exp,sin,cos,log1p,atan}_series_truncate /
+ * rational_pow_uint compute, over caller-arena srmech_bigint (NO malloc), and
+ * return it REDUCED to lowest terms with positive denominator — byte-identical
+ * to Python's (num, den) at ANY magnitude.
+ *
+ * The operand and result rationals are passed as srmech_bigint pairs
+ * (x_num / x_den in, out_num / out_den out). out_den is always > 0 and
+ * gcd(|out_num|, out_den) == 1. den (x_den / base_den) must be > 0. Each op
+ * carves all working carriers + divmod/gcd scratch from the caller arena
+ * `ws` (>= srmech_bigexp_ws_bound(num_limbs, den_limbs, num_terms)); too-small
+ * `ws` or an `out` whose cap is too small → SRMECH_ERR_OVERFLOW. Out-of-domain
+ * arguments (x_den <= 0, num_terms past the per-op cap, |x| > 1 for atan, or
+ * x outside (-1, 1] for log1p) → SRMECH_ERR_BAD_INPUT, matching the Python
+ * ValueError-domain so C and Python accept the SAME inputs.
+ *
+ * Carrier-internal (like srmech_pi): NOT a Rosetta ledger op. Additive
+ * symbols → SRMECH_ABI_VERSION unchanged.
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES the caller must hand any *_big op below, for input
+ * rationals of `num_limbs` / `den_limbs` significant limbs and the given
+ * `num_terms`. Covers every working carrier + the deepest divmod/gcd scratch.
+ * 8-byte-aligned uint32 bump arena. */
+size_t srmech_bigexp_ws_bound(size_t num_limbs, size_t den_limbs,
+                              uint32_t num_terms);
+
+/* exp partial sum S_N(p/q) = Σ_{k=0..N} (p/q)^k / k!. num_terms <= 512. */
+srmech_status_t srmech_exp_series_truncate_big(const srmech_bigint_t *x_num,
+                                               const srmech_bigint_t *x_den,
+                                               uint32_t num_terms,
+                                               srmech_bigint_t *out_num,
+                                               srmech_bigint_t *out_den,
+                                               void *ws, size_t ws_len);
+
+/* sin partial sum Σ_{k=0..N} (-1)^k (p/q)^(2k+1) / (2k+1)!. num_terms <= 50. */
+srmech_status_t srmech_sin_series_truncate_big(const srmech_bigint_t *x_num,
+                                               const srmech_bigint_t *x_den,
+                                               uint32_t num_terms,
+                                               srmech_bigint_t *out_num,
+                                               srmech_bigint_t *out_den,
+                                               void *ws, size_t ws_len);
+
+/* cos partial sum Σ_{k=0..N} (-1)^k (p/q)^(2k) / (2k)!. num_terms <= 50. */
+srmech_status_t srmech_cos_series_truncate_big(const srmech_bigint_t *x_num,
+                                               const srmech_bigint_t *x_den,
+                                               uint32_t num_terms,
+                                               srmech_bigint_t *out_num,
+                                               srmech_bigint_t *out_den,
+                                               void *ws, size_t ws_len);
+
+/* log1p partial sum Σ_{k=1..N} (-1)^(k+1) (p/q)^k / k. Domain -1 < p/q <= 1.
+ * num_terms <= 64. */
+srmech_status_t srmech_log1p_series_truncate_big(const srmech_bigint_t *x_num,
+                                                 const srmech_bigint_t *x_den,
+                                                 uint32_t num_terms,
+                                                 srmech_bigint_t *out_num,
+                                                 srmech_bigint_t *out_den,
+                                                 void *ws, size_t ws_len);
+
+/* atan partial sum Σ_{k=0..N} (-1)^k (p/q)^(2k+1) / (2k+1). Domain |p/q| <= 1.
+ * num_terms <= 64. */
+srmech_status_t srmech_atan_series_truncate_big(const srmech_bigint_t *x_num,
+                                                const srmech_bigint_t *x_den,
+                                                uint32_t num_terms,
+                                                srmech_bigint_t *out_num,
+                                                srmech_bigint_t *out_den,
+                                                void *ws, size_t ws_len);
+
+/* (p/q)^n = p^n / q^n, reduced. exp_val <= 65535. */
+srmech_status_t srmech_rational_pow_uint_big(const srmech_bigint_t *base_num,
+                                             const srmech_bigint_t *base_den,
+                                             uint32_t exp_val,
+                                             srmech_bigint_t *out_num,
+                                             srmech_bigint_t *out_den,
+                                             void *ws, size_t ws_len);
 
 #ifdef __cplusplus
 }
