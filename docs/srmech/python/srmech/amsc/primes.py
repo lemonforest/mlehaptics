@@ -34,7 +34,7 @@ __all__ = [
 ]
 
 # uint64 max distinct prime factors: product of first 15 primes
-# (2*3*5*7*11*13*17*19*23*29*31*37*41*43*47) = 6.14e16 < 2^64 < product
+# (2*3*5*7*11*13*17*19*23*29*31*37*41*43*47) = 6.14e17 < 2^64 < product
 # of first 16. So uint64 has at most 15 distinct prime factors; 64 is
 # a comfortable upper bound.
 FACTOR_MAX_DISTINCT_PRIMES: int = 64

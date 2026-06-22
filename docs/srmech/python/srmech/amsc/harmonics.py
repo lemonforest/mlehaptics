@@ -142,11 +142,11 @@ def classify_chirality_harmonic(hv, dc_threshold: float = 0.5) -> int:
     return 3 if three > mirror else 2
 
 
-#: F150 chirality-harmonic ladder coverage. rc12 ships the harmonic-2 mirror
+#: F150 chirality-harmonic ladder coverage. rc12 shipped the harmonic-2 mirror
 #: variants for Classes D/E/G and the harmonic-3 three-cycle variants for I/L
-#: (+ classify_harmonic + the spectral classifier). The ladder is NOT yet
-#: complete — the remaining rungs stay OPEN so it finishes rather than silently
-#: capping (no-silent-caps discipline):
+#: (+ classify_harmonic + the spectral classifier). The ladder is now FULLY
+#: CLOSED — NO class remains open (the §74 / F923 capstone; no encode blind
+#: spots left). The closure record:
 #:   - Harmonic 2 (C, K): CLOSED at 0.9.0rc31 (F924 / UPSTREAM §74). The exact
 #:     POLAR accessors on the ``Qi`` carrier ship both: ``Qi.arg()`` is the
 #:     Class-C orientation (which-way; ``atan2`` quadrant logic) and
@@ -154,13 +154,19 @@ def classify_chirality_harmonic(hv, dc_threshold: float = 0.5) -> int:
 #:     The magnetic-Laplacian read (θ_fwd+θ_rev=0, direction-blind modulus) is
 #:     the closure demonstration. Class M's harmonic-2 had already shipped as
 #:     ``srmech.amsc.hdc.klein4_*`` (F132).
-#:   - Harmonic 3 (J): ``primes.three_cycle_factor`` is SPECULATIVE — an open
-#:     framework question (F150 §6.3), the next rung (the rc32 Qprime), not yet
-#:     a concrete op.
+#:   - Harmonic 3 (J): CLOSED at 0.9.0rc32 (F923 / UPSTREAM §74, the CAPSTONE).
+#:     The exact prime-coordinate carrier ``srmech.amsc.qprime.Qprime`` ships the
+#:     Class-J multiplicative-period structure: multiply=add-exponents
+#:     (==``factor(a·b)``), gcd=min, lcm=max, exact cosine² similarity, and the
+#:     multiplicative-order ``Qprime.period(m)`` (the 1/m repeating-period lens,
+#:     ``ord₇(10)==6``) over ``primes.factor`` + ``primes.cyclic_period``.
+#: ALL ENCODE RUNGS CLOSED: C/K via Qi (rc31), J via Qprime (rc32). The ladder
+#: is empty — every A–N class is reachable, no harmonic blind spot remains.
 HARMONIC_LADDER_OPEN_RUNGS = {
     2: (),           # CLOSED rc31 — Qi.arg() (Class C) + Qi.modulus() (Class K), F924
-    3: ("J",),       # primes.three_cycle_factor — speculative, F150 §6.3 (rc32 Qprime)
+    3: (),           # CLOSED rc32 — Qprime (Class J multiplicative-period), F923 §74 CAPSTONE
 }
+
 
 __all__ = [
     "HARMONIC_1",
