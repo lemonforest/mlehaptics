@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc35"
-#define SRMECH_VERSION       "0.9.0rc35"
+#define SRMECH_VERSION_PRE   "rc36"
+#define SRMECH_VERSION       "0.9.0rc36"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2770,6 +2770,7 @@ size_t srmech_bigint_add_bound(size_t a_n, size_t b_n);     /* max(a,b)+1     */
 size_t srmech_bigint_mul_bound(size_t a_n, size_t b_n);     /* a_n + b_n      */
 size_t srmech_bigint_shl_bound(size_t a_n, uint32_t bits);  /* a + bits/32 +1 */
 size_t srmech_bigint_pow_bound(size_t base_n, uint32_t exp);/* base_n*exp + 1 */
+size_t srmech_bigint_pow_ws_bound(size_t base_n, uint32_t exp);/* pow ws BYTES */
 size_t srmech_bigint_from_dec_bound(size_t n_digits);       /* n_digits/9 + 2 */
 size_t srmech_bigint_to_dec_bound(size_t a_n);              /* a_n*10 + 2     */
 
@@ -2826,7 +2827,9 @@ srmech_status_t srmech_bigint_gcd(srmech_bigint_t *out, const srmech_bigint_t *a
                                   void *ws, size_t ws_len);
 
 /* out = base^exp (exp >= 0; exp == 0 -> 1). Binary exponentiation over
- * the caller arena `ws`. OVERFLOW if out->cap < pow_bound(base->n, exp). */
+ * the caller arena `ws` (>= pow_ws_bound(base->n, exp) BYTES). OVERFLOW if
+ * out->cap < pow_bound(base->n, exp) or ws is too small for the running
+ * square + raw mul-temp (both sized from base^exp, not a fixed cap). */
 srmech_status_t srmech_bigint_pow_u32(srmech_bigint_t *out,
                                       const srmech_bigint_t *base, uint32_t exp,
                                       void *ws, size_t ws_len);
