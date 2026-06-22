@@ -136,6 +136,24 @@ size_t srmech_bigint_pow_bound(size_t base_n, uint32_t exp)
     return prod + 1u;
 }
 
+/* Workspace BYTES the caller must give srmech_bigint_pow_u32 for base^exp:
+ * the running square (pow_bound limbs) + the raw mul-temp (mul_bound of two
+ * pow_bound). Returns (size_t)-1 on size overflow (caller's ws check rejects). */
+size_t srmech_bigint_pow_ws_bound(size_t base_n, uint32_t exp)
+{
+    size_t cap_b2 = srmech_bigint_pow_bound(base_n, exp);
+    size_t cap_t, total;
+    assert((size_t)exp == exp);
+    if (cap_b2 == (size_t)-1) { return (size_t)-1; }
+    cap_t = srmech_bigint_mul_bound(cap_b2, cap_b2);
+    assert(cap_t >= cap_b2);
+    total = cap_b2 + cap_t;
+    if (total < cap_b2 || total > (size_t)-1 / sizeof(uint32_t)) {
+        return (size_t)-1;
+    }
+    return total * sizeof(uint32_t);
+}
+
 size_t srmech_bigint_from_dec_bound(size_t n_digits)
 {
     size_t limbs = (n_digits / 9u) + 2u;
@@ -845,15 +863,23 @@ srmech_status_t srmech_bigint_pow_u32(srmech_bigint_t *out,
 {
     uint32_t *wb = (uint32_t *)ws;
     size_t words = ws_len / sizeof(uint32_t), cur = 0u;
-    srmech_bigint_t b2, t; size_t cap = (size_t)base->n * 32u + 4u;
+    srmech_bigint_t b2, t;
+    /* The running square b2 reaches up to base^exp = pow_bound limbs; the
+     * mul-temp t holds the RAW product of two such, so it needs mul_bound
+     * space. (Pre-rc36 both were sized base->n*32+4, which overflowed once
+     * base^exp exceeded 32 limbs, e.g. 7^600 / 452^128.) */
+    size_t cap_b2 = srmech_bigint_pow_bound(base->n, exp);
+    size_t cap_t;
     uint32_t *bb, *tb, e = exp;
     srmech_status_t st;
     assert(out != NULL && base != NULL);
     assert(out->limbs != NULL || out->cap == 0u);
-    bb = bi_ws_take(wb, words, &cur, cap);
-    tb = bi_ws_take(wb, words, &cur, cap);
+    if (cap_b2 == (size_t)-1) { return SRMECH_ERR_OVERFLOW; }
+    cap_t = srmech_bigint_mul_bound(cap_b2, cap_b2);
+    bb = bi_ws_take(wb, words, &cur, cap_b2);
+    tb = bi_ws_take(wb, words, &cur, cap_t);
     if (bb == NULL || tb == NULL) { return SRMECH_ERR_OVERFLOW; }
-    b2.limbs = bb; b2.cap = (uint32_t)cap; t.limbs = tb; t.cap = (uint32_t)cap;
+    b2.limbs = bb; b2.cap = (uint32_t)cap_b2; t.limbs = tb; t.cap = (uint32_t)cap_t;
     st = srmech_bigint_set_i64(out, 1);              /* out = 1 */
     if (st != SRMECH_OK) { return st; }
     st = srmech_bigint_copy(&b2, base);              /* b2 = base */

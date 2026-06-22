@@ -66,7 +66,7 @@ static void check_status(srmech_status_t got, srmech_status_t want,
 static void check_dec(const srmech_bigint_t *v, const char *want,
                       const char *desc)
 {
-    char buf[256];
+    char buf[1024];   /* wide enough for the 508-digit pow(7,600) keystone */
     size_t olen = 0;
     srmech_status_t st = srmech_bigint_to_dec(v, buf, sizeof(buf), &olen,
                                               g_ws, sizeof(g_ws));
@@ -205,6 +205,48 @@ int main(void)
         srmech_bigint_set_i64(&b, 0xFFFFFFFFLL);
         check_status(srmech_bigint_add(&small, &a, &b), SRMECH_ERR_OVERFLOW,
                      "add overflow guard");
+    }
+
+    /* ---- pow_u32 (binary exponentiation; rc36 scratch-bound fix) ---- */
+    {
+        uint32_t pbuf[CAP], bbuf[CAP];
+        srmech_bigint_t po = bi_make(pbuf, CAP);
+        srmech_bigint_t pbase = bi_make(bbuf, CAP);
+        const char *e7_600 =
+            "11450488332310252629233198149569278478623259821197339943425315"
+            "54985163223206633039966559241257609670429897350415891980768804"
+            "12794575473190385665994943189876297213016525337351380678465872"
+            "58862845654893027187626149138556374802011495367934064646250942"
+            "44515365050120716031569341385478652988610315682341203592396495"
+            "19684199242817038581483010718844282803408485904757788145768539"
+            "82063120666404156531022348503937987859541449436932669286370821"
+            "170080422597177518760544741277685436943552772412354198499053082"
+            "75568360001";
+        size_t pneed;
+        srmech_bigint_set_i64(&pbase, 3);
+        check_status(srmech_bigint_pow_u32(&po, &pbase, 5, g_ws, sizeof(g_ws)),
+                     SRMECH_OK, "pow(3,5) st");
+        check_dec(&po, "243", "pow(3,5)");
+        srmech_bigint_set_i64(&pbase, 2);
+        check_status(srmech_bigint_pow_u32(&po, &pbase, 64, g_ws, sizeof(g_ws)),
+                     SRMECH_OK, "pow(2,64) st");
+        check_dec(&po, "18446744073709551616", "pow(2,64)");
+        check_status(srmech_bigint_pow_u32(&po, &pbase, 0, g_ws, sizeof(g_ws)),
+                     SRMECH_OK, "pow(2,0) st");
+        check_dec(&po, "1", "pow(2,0)");
+        /* KEYSTONE: 7^600 = 53 limbs > the pre-rc36 internal cap
+         * (base->n*32+4 = 36), which OVERFLOWED here; now byte-identical to
+         * Python's 7**600 (a C-only host has the full magnitude). */
+        srmech_bigint_set_i64(&pbase, 7);
+        check_status(srmech_bigint_pow_u32(&po, &pbase, 600, g_ws, sizeof(g_ws)),
+                     SRMECH_OK, "pow(7,600) st");
+        check_dec(&po, e7_600, "pow(7,600) keystone");
+        check_i64((int64_t)(po.n > 36u), 1, "pow(7,600) exceeds old 36-limb cap");
+        /* the advertised ws bound is exactly sufficient (tight, no over-alloc) */
+        pneed = srmech_bigint_pow_ws_bound(pbase.n, 600);
+        check_status(srmech_bigint_pow_u32(&po, &pbase, 600, g_ws, pneed),
+                     SRMECH_OK, "pow(7,600) via pow_ws_bound");
+        check_dec(&po, e7_600, "pow(7,600) tight ws");
     }
 
     printf("test_srmech_bigint: %d passed, %d failed\n", g_passed, g_failed);
