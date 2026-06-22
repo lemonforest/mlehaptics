@@ -63,7 +63,7 @@ from srmech.amsc.rational import hypot as _rhypot
 from srmech.amsc.rational import sqrt as _rsqrt
 
 __all__ = ["qr", "svd", "lstsq", "einsum", "eigvals", "char_poly", "eigvals_exact",
-           "eigvec_exact", "eigvec_exact_float"]
+           "eigvec_exact", "eigvec_exact_float", "factor_integer_poly", "eig_exact"]
 
 
 def _modulus(z: complex) -> float:
@@ -1308,3 +1308,851 @@ def eigvec_exact_float(a, lam):
     if result and isinstance(result[0], list):
         return [[_project(c) for c in vec] for vec in result]
     return [_project(c) for c in result]
+
+
+# ── Part 1 — factor an integer polynomial into irreducibles over ℚ (Zassenhaus) ──
+# Factoring over ℚ ≡ factoring over ℤ (Gauss's lemma: the product of two primitive
+# polynomials is primitive, so a ℚ-factorisation of a primitive ℤ-polynomial has
+# primitive ℤ-factors up to a rational unit). The classical algorithm (Zassenhaus):
+#   1. split off content + square-free-decompose (reuse the Yun helper above);
+#   2. factor each square-free primitive f mod a good prime p (f square-free mod p),
+#      via distinct-degree + equal-degree (Cantor–Zassenhaus) splitting over 𝔽_p;
+#   3. Hensel-lift the mod-p factorisation to mod p^k with p^k ≥ 2·B+1 (B = the
+#      Mignotte coefficient bound for true factors), so a true factor's coefficients
+#      are recoverable as the symmetric residues mod p^k;
+#   4. RECOMBINE: over increasing subset sizes of the lifted factors, multiply mod
+#      p^k, take symmetric integer representatives, scale by the leading-coeff
+#      cofactor, and trial-divide f over ℤ; a clean division peels off a true
+#      irreducible factor.
+# All EXACT integer / Fraction arithmetic — no float, no ``math`` (gcd routes
+# through srmech.amsc.cyclic.gcd, sign-handled). Refs: D. E. Knuth, *TAOCP* Vol. 2
+# §4.6.2 (factorisation of polynomials); J. von zur Gathen & J. Gerhen, *Modern
+# Computer Algebra*, ch. 15 (factoring over finite fields) + ch. 16 (Hensel lifting
+# + short-vector / Zassenhaus recombination).
+
+
+def _ipoly_trim(p: List[int]) -> List[int]:
+    """Drop trailing zeros of an integer coefficient list (low→high)."""
+    q = list(p)
+    while len(q) > 1 and q[-1] == 0:
+        q.pop()
+    return q
+
+
+def _int_gcd(a: int, b: int) -> int:
+    """Sign-safe Class-I Euclidean gcd over ℤ (``cyclic.gcd`` takes magnitudes;
+    sign is the Class-K pin-slot re-applied here, never an ALU ``abs``)."""
+    from srmech.amsc.cyclic import gcd as _cyclic_gcd
+    return _cyclic_gcd(_mag(a), _mag(b))
+
+
+def _ipoly_content(p: List[int]) -> int:
+    """The content = gcd of the integer coefficients (0 for the zero poly)."""
+    g = 0
+    for c in p:
+        g = _int_gcd(g, c)
+    return g
+
+
+def _ipoly_primitive(p: List[int]) -> Tuple[int, List[int]]:
+    """Split ``p`` into ``(content_signed, primitive_part)`` with the primitive part
+    having content 1 and POSITIVE leading coefficient. The signed content carries
+    both the gcd and the overall sign so ``content · primitive == p``."""
+    p = _ipoly_trim(p)
+    cont = _ipoly_content(p)
+    if cont == 0:
+        return 0, [0]
+    if p[-1] < 0:                                    # Class-K sign pin-slot → positive lead
+        cont = -cont
+    prim = [c // cont for c in p]
+    return cont, prim
+
+
+def _ipoly_mul(a: List[int], b: List[int]) -> List[int]:
+    """Exact integer polynomial multiply (low→high)."""
+    a = _ipoly_trim(a)
+    b = _ipoly_trim(b)
+    out = [0] * (len(a) + len(b) - 1)
+    for i, av in enumerate(a):
+        if av:
+            for j, bv in enumerate(b):
+                out[i + j] += av * bv
+    return _ipoly_trim(out)
+
+
+def _ipoly_exact_divmod(a: List[int], b: List[int]) -> Tuple[List[int], List[int]]:
+    """Integer polynomial division ``a = q·b + r`` when it is EXACT over ℤ (every
+    coefficient quotient is integral); returns ``(q, r)`` with ``r == [0]`` on a
+    clean divide. If a coefficient step is non-integral, returns ``(None, None)``
+    (the trial-division signal)."""
+    a = _ipoly_trim(list(a))
+    b = _ipoly_trim(list(b))
+    if b == [0]:
+        raise ZeroDivisionError("polynomial division by zero")
+    q = [0] * max(len(a) - len(b) + 1, 1)
+    r = list(a)
+    while len(r) >= len(b) and _ipoly_trim(r) != [0]:
+        if r[-1] % b[-1] != 0:
+            return None, None                        # not an exact integer divide
+        c = r[-1] // b[-1]
+        d = len(r) - len(b)
+        q[d] = c
+        for i in range(len(b)):
+            r[d + i] -= c * b[i]
+        r = _ipoly_trim(r)
+    return _ipoly_trim(q), _ipoly_trim(r)
+
+
+# ── 𝔽_p[x] arithmetic (pure integer mod-p; Class-I cyclic field) ────────────────
+def _fp_trim(p: List[int], q: int) -> List[int]:
+    out = [c % q for c in p]
+    while len(out) > 1 and out[-1] == 0:
+        out.pop()
+    return out
+
+
+def _fp_mulmod(a: List[int], b: List[int], q: int) -> List[int]:
+    a = _fp_trim(a, q)
+    b = _fp_trim(b, q)
+    out = [0] * (len(a) + len(b) - 1)
+    for i, av in enumerate(a):
+        if av:
+            for j, bv in enumerate(b):
+                out[i + j] = (out[i + j] + av * bv) % q
+    return _fp_trim(out, q)
+
+
+def _fp_divmod(a: List[int], b: List[int], q: int) -> Tuple[List[int], List[int]]:
+    a = _fp_trim(a, q)
+    b = _fp_trim(b, q)
+    if b == [0]:
+        raise ZeroDivisionError("𝔽_p polynomial division by zero")
+    inv_lead = pow(b[-1], q - 2, q)                  # Fermat inverse in 𝔽_p
+    quo = [0] * max(len(a) - len(b) + 1, 1)
+    r = list(a)
+    while len(r) >= len(b) and _fp_trim(r, q) != [0]:
+        c = (r[-1] * inv_lead) % q
+        d = len(r) - len(b)
+        quo[d] = c
+        for i in range(len(b)):
+            r[d + i] = (r[d + i] - c * b[i]) % q
+        r = _fp_trim(r, q)
+    return _fp_trim(quo, q), _fp_trim(r, q)
+
+
+def _fp_gcd(a: List[int], b: List[int], q: int) -> List[int]:
+    a = _fp_trim(a, q)
+    b = _fp_trim(b, q)
+    while b != [0]:
+        _, r = _fp_divmod(a, b, q)
+        a, b = b, r
+    if a != [0] and a[-1] != 1:                      # make monic
+        inv = pow(a[-1], q - 2, q)
+        a = [(c * inv) % q for c in a]
+    return a
+
+
+def _fp_deriv(p: List[int], q: int) -> List[int]:
+    if len(p) <= 1:
+        return [0]
+    return _fp_trim([(p[i] * i) % q for i in range(1, len(p))], q)
+
+
+def _fp_powmod(base: List[int], e: int, mod: List[int], q: int) -> List[int]:
+    """``base^e mod (mod, q)`` by square-and-multiply in 𝔽_p[x]/(mod)."""
+    result = [1]
+    b = _fp_divmod(base, mod, q)[1]
+    while e:
+        if e & 1:
+            result = _fp_divmod(_fp_mulmod(result, b, q), mod, q)[1]
+        e >>= 1
+        if e:
+            b = _fp_divmod(_fp_mulmod(b, b, q), mod, q)[1]
+    return _fp_trim(result, q)
+
+
+def _fp_make_monic(p: List[int], q: int) -> List[int]:
+    p = _fp_trim(p, q)
+    if p == [0] or p[-1] == 1:
+        return p
+    inv = pow(p[-1], q - 2, q)
+    return _fp_trim([(c * inv) % q for c in p], q)
+
+
+def _distinct_degree_factor(f: List[int], q: int) -> List[Tuple[List[int], int]]:
+    """Distinct-degree factorisation of a SQUARE-FREE monic ``f`` over 𝔽_p:
+    returns ``[(g_d, d)]`` where ``g_d`` is the product of all monic irreducible
+    factors of ``f`` of degree exactly ``d`` (von zur Gathen–Gerhard §14.2)."""
+    out: List[Tuple[List[int], int]] = []
+    fstar = _fp_make_monic(f, q)
+    d = 1
+    x = [0, 1]
+    xqd = x                                          # x^(q^0) tracked via repeated power
+    while len(fstar) - 1 >= 2 * d:
+        # xqd ← x^(q^d) mod fstar  (raise the previous power to the q-th power)
+        xqd = _fp_powmod(xqd, q, fstar, q)
+        g = _fp_gcd(_fp_trim(_poly_sub_fp(xqd, x, q), q), fstar, q)
+        if g != [1] and g != [0]:
+            out.append((_fp_make_monic(g, q), d))
+            fstar, _ = _fp_divmod(fstar, g, q)
+            fstar = _fp_make_monic(fstar, q)
+        d += 1
+    if fstar != [1] and len(fstar) > 1:              # the remaining factor is irreducible
+        out.append((fstar, len(fstar) - 1))
+    return out
+
+
+def _poly_sub_fp(a: List[int], b: List[int], q: int) -> List[int]:
+    n = max(len(a), len(b))
+    return _fp_trim([((a[i] if i < len(a) else 0) - (b[i] if i < len(b) else 0)) % q
+                     for i in range(n)], q)
+
+
+def _equal_degree_split(f: List[int], d: int, q: int,
+                        rng) -> List[List[int]]:
+    """Cantor–Zassenhaus equal-degree factorisation: split the product of
+    distinct monic irreducibles of degree ``d`` in ``f`` (over 𝔽_p, p odd) into
+    its irreducible factors. Deterministic-seeded randomness for reproducibility
+    (von zur Gathen–Gerhard §14.3)."""
+    f = _fp_make_monic(f, q)
+    deg = len(f) - 1
+    if deg == d:
+        return [f]
+    factors = [f]
+    out: List[List[int]] = []
+    exp = (pow(q, d) - 1) // 2
+    n = len(f) - 1
+    while factors:
+        g = factors.pop()
+        if len(g) - 1 == d:
+            out.append(g)
+            continue
+        # random degree < deg(g) polynomial
+        while True:
+            r = [rng(q) for _ in range(len(g) - 1)]
+            r = _fp_trim(r, q)
+            if r != [0] and len(r) > 1:
+                break
+        h = _fp_powmod(r, exp, g, q)
+        h = _poly_sub_fp(h, [1], q)                  # h = r^exp − 1
+        gg = _fp_gcd(h, g, q)
+        if gg == [1] or _fp_trim(gg, q) == _fp_make_monic(g, q):
+            factors.append(g)                        # split failed; retry
+            continue
+        gg = _fp_make_monic(gg, q)
+        other, _ = _fp_divmod(g, gg, q)
+        factors.append(gg)
+        factors.append(_fp_make_monic(other, q))
+    return out
+
+
+def _factor_mod_p(f: List[int], q: int, rng) -> List[List[int]]:
+    """Full factorisation of a SQUARE-FREE monic ``f`` over 𝔽_p into monic
+    irreducibles (distinct-degree then equal-degree)."""
+    fac: List[List[int]] = []
+    for g, d in _distinct_degree_factor(f, q):
+        if len(g) - 1 == d:
+            fac.append(g)
+        else:
+            fac.extend(_equal_degree_split(g, d, q, rng))
+    return [_fp_make_monic(g, q) for g in fac]
+
+
+# ── Mignotte bound + Hensel lifting ─────────────────────────────────────────────
+def _mignotte_bound(f: List[int]) -> int:
+    """An integer bound ``B`` on every coefficient of any integer factor of ``f``:
+    the Mignotte bound ``B = 2^deg · ‖f‖₂ · |lead|`` (a coarse, always-valid
+    over-estimate — using ‖f‖₂ ≤ ‖f‖₁ keeps it integer + exact). Class-K magnitudes
+    throughout (no ``abs``)."""
+    deg = len(f) - 1
+    norm1 = sum(_mag(c) for c in f)                  # ‖f‖₁ ≥ ‖f‖₂
+    lead = _mag(f[-1])
+    return (1 << deg) * norm1 * lead + 1
+
+
+def _hensel_step(f: List[int], g: List[int], h: List[int],
+                 s: List[int], t: List[int], modulus: int):
+    """One quadratic-Hensel lift from ``mod m`` to ``mod m²`` for the relation
+    ``f ≡ g·h`` with Bézout cofactors ``s·g + t·h ≡ 1``. Returns the lifted
+    ``(g, h, s, t)`` mod ``m²`` (von zur Gathen–Gerhard Algorithm 15.10)."""
+    m2 = modulus * modulus
+    # e = f − g·h  (mod m²)
+    e = _poly_sub_mod(f, _mul_mod(g, h, m2), m2)
+    q_, r_ = _divmod_mod(_mul_mod(s, e, m2), h, m2, modulus)
+    g_star = _poly_add_mod(_poly_add_mod(g, _mul_mod(t, e, m2), m2),
+                           _mul_mod(q_, g, m2), m2)
+    h_star = _poly_add_mod(h, r_, m2)
+    # lift the cofactors: b = s·g_star + t·h_star − 1
+    b = _poly_sub_mod(_poly_add_mod(_mul_mod(s, g_star, m2),
+                                    _mul_mod(t, h_star, m2), m2), [1], m2)
+    c_, d_ = _divmod_mod(_mul_mod(s, b, m2), h_star, m2, modulus)
+    s_star = _poly_sub_mod(s, d_, m2)
+    t_star = _poly_sub_mod(_poly_sub_mod(t, _mul_mod(t, b, m2), m2),
+                           _mul_mod(c_, g_star, m2), m2)
+    return (_trim_mod(g_star, m2), _trim_mod(h_star, m2),
+            _trim_mod(s_star, m2), _trim_mod(t_star, m2))
+
+
+def _trim_mod(p: List[int], m: int) -> List[int]:
+    out = [c % m for c in p]
+    while len(out) > 1 and out[-1] == 0:
+        out.pop()
+    return out
+
+
+def _poly_add_mod(a: List[int], b: List[int], m: int) -> List[int]:
+    n = max(len(a), len(b))
+    return _trim_mod([((a[i] if i < len(a) else 0) + (b[i] if i < len(b) else 0)) % m
+                      for i in range(n)], m)
+
+
+def _poly_sub_mod(a: List[int], b: List[int], m: int) -> List[int]:
+    n = max(len(a), len(b))
+    return _trim_mod([((a[i] if i < len(a) else 0) - (b[i] if i < len(b) else 0)) % m
+                      for i in range(n)], m)
+
+
+def _mul_mod(a: List[int], b: List[int], m: int) -> List[int]:
+    a = _trim_mod(a, m)
+    b = _trim_mod(b, m)
+    out = [0] * (len(a) + len(b) - 1)
+    for i, av in enumerate(a):
+        if av:
+            for j, bv in enumerate(b):
+                out[i + j] = (out[i + j] + av * bv) % m
+    return _trim_mod(out, m)
+
+
+def _divmod_mod(a: List[int], b: List[int], m: int, prime: int) -> Tuple[List[int], List[int]]:
+    """Division of ``a`` by a MONIC-mod-prime ``b`` modulo ``m`` (m a power of
+    ``prime``). The leading coeff of ``b`` is a unit mod m (it is 1 mod prime), so
+    its inverse mod m exists and the division is exact-style with quotient +
+    remainder (deg r < deg b)."""
+    a = _trim_mod(a, m)
+    b = _trim_mod(b, m)
+    inv_lead = pow(b[-1], -1, m)                     # b[-1] is a unit mod m
+    quo = [0] * max(len(a) - len(b) + 1, 1)
+    r = list(a)
+    while len(r) >= len(b) and _trim_mod(r, m) != [0]:
+        c = (r[-1] * inv_lead) % m
+        d = len(r) - len(b)
+        quo[d] = c
+        for i in range(len(b)):
+            r[d + i] = (r[d + i] - c * b[i]) % m
+        r = _trim_mod(r, m)
+    return _trim_mod(quo, m), _trim_mod(r, m)
+
+
+def _multi_hensel_lift(f: List[int], factors_modp: List[List[int]],
+                       prime: int, target: int) -> List[List[int]]:
+    """Lift a list of pairwise-coprime monic factors of ``f mod prime`` to factors
+    mod ``prime^k`` with ``prime^k ≥ target``, by a balanced product tree of
+    quadratic Hensel steps. ``f`` need not be monic; the leading coefficient is
+    folded onto the FIRST factor so the lifted product matches ``f`` mod p^k."""
+    # Make the lifted product reproduce f mod p^k: work with f_monic = f scaled so
+    # its lead is a unit; we lift factors of f mod p^k whose product ≡ lead^{-1}? —
+    # simpler & standard: lift the MONIC associate of f, recombination re-applies
+    # the leading-coefficient cofactor.
+    if len(factors_modp) == 1:
+        # single factor: its monic form mod p^k IS the monic associate of f.
+        k = 1
+        m = prime
+        while m < target:
+            k += 1
+            m *= prime
+        lead = f[-1]
+        inv_lead = pow(lead % m, -1, m)
+        fm = _trim_mod([(c * inv_lead) % m for c in f], m)
+        return [fm]
+    # split the factor list in two, lift the pair (g,h), recurse on each side.
+    mid = len(factors_modp) // 2
+    g0 = _product_modp(factors_modp[:mid], prime)
+    h0 = _product_modp(factors_modp[mid:], prime)
+    # Make g0,h0 monic mod prime (they are, being products of monic factors).
+    # f's monic associate mod the lift modulus:
+    k = 1
+    m = prime
+    while m < target:
+        k += 1
+        m *= prime
+    lead = f[-1]
+    inv_lead = pow(lead % m, -1, m)
+    fm = _trim_mod([(c * inv_lead) % m for c in f], m)
+    # Bézout cofactors mod prime: s·g0 + t·h0 ≡ 1.
+    s, t = _bezout_modp(g0, h0, prime)
+    g, h, s, t = g0, h0, s, t
+    modn = prime
+    while modn < m:
+        # one quadratic step doubles the modulus; cap at m.
+        g, h, s, t = _hensel_step(fm, g, h, s, t, modn)
+        modn = modn * modn
+        if modn > m:
+            g = _trim_mod(g, m)
+            h = _trim_mod(h, m)
+            modn = m
+    g = _trim_mod(g, m)
+    h = _trim_mod(h, m)
+    left = _multi_hensel_lift_factors(g, factors_modp[:mid], prime, m)
+    right = _multi_hensel_lift_factors(h, factors_modp[mid:], prime, m)
+    return left + right
+
+
+def _multi_hensel_lift_factors(g_lifted: List[int], factors_modp: List[List[int]],
+                               prime: int, m: int) -> List[List[int]]:
+    """Recurse: ``g_lifted`` is a monic-mod-m lift whose mod-prime image is the
+    product of ``factors_modp``; split it into the per-factor lifts mod m."""
+    if len(factors_modp) == 1:
+        return [_trim_mod(g_lifted, m)]
+    mid = len(factors_modp) // 2
+    a0 = _product_modp(factors_modp[:mid], prime)
+    b0 = _product_modp(factors_modp[mid:], prime)
+    s, t = _bezout_modp(a0, b0, prime)
+    a, b, s, t = a0, b0, s, t
+    modn = prime
+    while modn < m:
+        a, b, s, t = _hensel_step(g_lifted, a, b, s, t, modn)
+        modn = modn * modn
+        if modn > m:
+            a = _trim_mod(a, m)
+            b = _trim_mod(b, m)
+            modn = m
+    a = _trim_mod(a, m)
+    b = _trim_mod(b, m)
+    return (_multi_hensel_lift_factors(a, factors_modp[:mid], prime, m)
+            + _multi_hensel_lift_factors(b, factors_modp[mid:], prime, m))
+
+
+def _product_modp(factors: List[List[int]], q: int) -> List[int]:
+    out = [1]
+    for f in factors:
+        out = _fp_mulmod(out, f, q)
+    return out
+
+
+def _bezout_modp(g: List[int], h: List[int], q: int) -> Tuple[List[int], List[int]]:
+    """Bézout cofactors ``s·g + t·h ≡ 1 (mod q)`` for coprime monic g, h over 𝔽_p
+    via the extended Euclidean algorithm in 𝔽_p[x]."""
+    old_r, r = _fp_trim(g, q), _fp_trim(h, q)
+    old_s, s = [1], [0]
+    old_t, t = [0], [1]
+    while r != [0]:
+        quo, _ = _fp_divmod(old_r, r, q)
+        old_r, r = r, _poly_sub_fp(old_r, _fp_mulmod(quo, r, q), q)
+        old_s, s = s, _poly_sub_fp(old_s, _fp_mulmod(quo, s, q), q)
+        old_t, t = t, _poly_sub_fp(old_t, _fp_mulmod(quo, t, q), q)
+    # normalise so old_r (the gcd, a unit) becomes 1
+    g0 = old_r[0]
+    inv = pow(g0, q - 2, q)
+    s_out = _fp_trim([(c * inv) % q for c in old_s], q)
+    t_out = _fp_trim([(c * inv) % q for c in old_t], q)
+    return s_out, t_out
+
+
+def _symmetric_rep(p: List[int], m: int) -> List[int]:
+    """Symmetric integer representatives of a mod-m coefficient list (centred in
+    ``(−m/2, m/2]``) — the lift back to ℤ a true factor's coefficients fall in."""
+    out = []
+    half = m // 2
+    for c in p:
+        c %= m
+        if c > half:
+            c -= m
+        out.append(c)
+    return _ipoly_trim(out)
+
+
+def _factor_square_free_primitive(f: List[int], *, subset_cap: int = 18
+                                  ) -> Tuple[List[List[int]], bool]:
+    """Factor a SQUARE-FREE primitive integer polynomial ``f`` (positive lead,
+    content 1, deg ≥ 1) into irreducible integer factors. Returns
+    ``(factors, hit_cap)`` where ``hit_cap`` flags that the recombination
+    subset-size guard was reached (the factorisation is then returned as-far-as-
+    peeled with the leftover as one factor — never hangs)."""
+    f = _ipoly_trim(f)
+    deg = len(f) - 1
+    if deg <= 1:
+        return [f], False
+
+    # 1. choose a prime p ∤ lead with f square-free mod p.
+    from srmech.amsc.primes import is_prime
+    lead = f[-1]
+    prime = None
+    cand = 3
+    while cand < 100000:
+        if is_prime(cand) and lead % cand != 0:
+            fp = _fp_trim(f, cand)
+            if _fp_gcd(fp, _fp_deriv(fp, cand), cand) == [1]:
+                prime = cand
+                break
+        cand += 2
+    if prime is None:
+        raise ValueError(
+            "factor_integer_poly: no good reduction prime found below 100000 "
+            "(degenerate input?)")
+
+    # deterministic-seeded 𝔽_p randomness for reproducible Cantor–Zassenhaus.
+    state = [0x2545F4914F6CDD1D ^ (prime * (deg + 1))]
+
+    def _rng(q):
+        # a tiny xorshift → uniform-ish residue; deterministic for a given prime.
+        x = state[0]
+        x ^= (x << 13) & 0xFFFFFFFFFFFFFFFF
+        x ^= x >> 7
+        x ^= (x << 17) & 0xFFFFFFFFFFFFFFFF
+        state[0] = x
+        return x % q
+
+    # 2. factor f (its monic associate) mod p.
+    fp_monic = _fp_make_monic(f, prime)
+    modp_factors = _factor_mod_p(fp_monic, prime, _rng)
+    if len(modp_factors) == 1:
+        return [f], False                            # irreducible (one factor mod p)
+
+    # 3. Hensel-lift to mod p^k with p^k ≥ 2·B+1.
+    bound = _mignotte_bound(f)
+    target = 2 * bound + 1
+    m = prime
+    while m < target:
+        m *= prime
+    lifted = _multi_hensel_lift(f, modp_factors, prime, m)
+    lifted = [_trim_mod(g, m) for g in lifted]
+
+    # 4. recombination: increasing subset sizes; trial-divide over ℤ.
+    remaining = list(range(len(lifted)))
+    irreducibles: List[List[int]] = []
+    f_work = list(f)
+    lead_work = f_work[-1]
+    size = 1
+    hit_cap = False
+    while remaining and size <= len(remaining):
+        if size > subset_cap:
+            hit_cap = True
+            break
+        found = None
+        for combo in itertools.combinations(remaining, size):
+            # candidate = lead · Π lifted[i]  (mod m), symmetric rep, primitive part.
+            prod = [lead_work % m]
+            for i in combo:
+                prod = _mul_mod(prod, lifted[i], m)
+            cand_poly = _symmetric_rep(prod, m)
+            _c, cand_prim = _ipoly_primitive(cand_poly)
+            if len(cand_prim) <= 1:
+                continue
+            quo, rem = _ipoly_exact_divmod(f_work, cand_prim)
+            if quo is not None and rem == [0]:
+                found = (combo, cand_prim, quo)
+                break
+        if found is None:
+            size += 1
+            continue
+        combo, cand_prim, quo = found
+        irreducibles.append(cand_prim)
+        for i in combo:
+            remaining.remove(i)
+        f_work = _ipoly_trim(quo)
+        lead_work = f_work[-1] if f_work != [0] else 1
+        # f_work may now be a unit (±1) if all factors peeled.
+        if len(f_work) <= 1:
+            break
+        size = 1                                     # restart subset search on the smaller f
+    # whatever is left (deg ≥ 1) is the final irreducible factor (or the cap leftover).
+    if len(f_work) > 1:
+        _c, leftover = _ipoly_primitive(f_work)
+        irreducibles.append(leftover)
+    return irreducibles, hit_cap
+
+
+def factor_integer_poly(coeffs):
+    """Factor an integer polynomial into its IRREDUCIBLE factors over ℚ (Zassenhaus).
+
+    ``coeffs`` is the integer coefficient sequence **low→high** (``coeffs[0]`` the
+    constant term). Returns a ``list[tuple[factor_coeffs, multiplicity]]`` — each
+    ``factor_coeffs`` a primitive **irreducible** integer polynomial (low→high,
+    content 1, POSITIVE leading coefficient), paired with its multiplicity ``≥ 1``.
+    The product ``Π factor**mult`` reconstructs the input up to its overall sign and
+    content (the ``self-check`` below asserts exactly that).
+
+    Algorithm (Gauss's lemma: factoring over ℚ ≡ factoring over ℤ):
+
+    1. split off content + primitive part; **Yun square-free decomposition**
+       (reuse :func:`_square_free_factors`) so each multiplicity is handled exactly;
+    2. for each square-free primitive ``f`` (deg ≥ 1): deg ≤ 1 ⇒ irreducible; else
+       choose a prime ``p ∤ lead(f)`` with ``f`` square-free mod ``p``, factor
+       ``f mod p`` in 𝔽_p[x] (distinct-degree + **Cantor–Zassenhaus** equal-degree),
+       **Hensel-lift** to mod ``p^k`` with ``p^k ≥ 2·B+1`` (``B`` = the **Mignotte**
+       coefficient bound), then **recombine** over increasing subset sizes (multiply
+       mod ``p^k``, take symmetric integer reps, scale by the leading-coeff cofactor,
+       trial-divide over ℤ — a clean division peels off a true irreducible factor),
+       guarded by a subset-size cap so the worst case cannot hang.
+
+    All EXACT integer / ``fractions.Fraction`` arithmetic — no float, no ``math``
+    module (gcd routes through ``srmech.amsc.cyclic.gcd``; primality through
+    ``srmech.amsc.primes.is_prime``). Refs: D. E. Knuth, *The Art of Computer
+    Programming* Vol. 2 §4.6.2; J. von zur Gathen & J. Gerhard, *Modern Computer
+    Algebra*, ch. 15–16 (factoring over finite fields + Hensel lifting + Zassenhaus
+    recombination).
+
+    **Class L** (the algebraic / spectral content) ∘ **Class J** (the prime-field
+    reduction + Hensel lift) ∘ **Class I** (the 𝔽_p modular arithmetic) ∘ **Class K**
+    (the symmetric-rep sign pin-slots — never an ALU ``abs``).
+    """
+    coeffs = [int(c) for c in coeffs]
+    p = _ipoly_trim(coeffs)
+    if p == [0]:
+        raise ValueError("factor_integer_poly: the zero polynomial has no factorisation")
+    if len(p) == 1:                                  # a nonzero constant — no factors
+        return []
+    cont, prim = _ipoly_primitive(p)                 # content (signed) · primitive part
+
+    # square-free decomposition over ℚ (Yun) → [(square_free_part, multiplicity)].
+    prim_q = [_FR(c) for c in prim]
+    sf = _square_free_factors(prim_q)                # [(monic ℚ factor, k)]
+
+    factors_out: List[Tuple[Tuple[int, ...], int]] = []
+    capped = False
+    for (g_q, mult) in sf:
+        # g_q is a monic ℚ polynomial; clear denominators → primitive ℤ polynomial.
+        den_lcm = 1
+        for c in g_q:
+            den_lcm = den_lcm * c.denominator // _int_gcd(den_lcm, c.denominator)
+        g_int = _ipoly_trim([int(c * den_lcm) for c in g_q])
+        _c, g_prim = _ipoly_primitive(g_int)
+        irr, hit = _factor_square_free_primitive(g_prim)
+        if hit:
+            capped = True
+        for fac in irr:
+            _c2, fac_prim = _ipoly_primitive(fac)
+            factors_out.append((tuple(fac_prim), mult))
+
+    # merge identical factors (a square-free part can in principle repeat across the
+    # decomposition only with the SAME multiplicity, but consolidate defensively).
+    merged: Dict[Tuple[int, ...], int] = {}
+    for fac, mult in factors_out:
+        merged[fac] = merged.get(fac, 0) + mult
+    result = sorted(merged.items(), key=lambda kv: (len(kv[0]), kv[0]))
+
+    # ── self-check: Π factor**mult == ± content · input (up to sign/content) ──────
+    if not capped:
+        recon = [1]
+        for fac, mult in result:
+            for _ in range(mult):
+                recon = _ipoly_mul(recon, list(fac))
+        # recon should equal `prim` up to sign (both primitive, positive lead by
+        # construction of _ipoly_primitive); compare primitive parts.
+        _rc, recon_prim = _ipoly_primitive(recon)
+        assert recon_prim == prim or recon_prim == [(-c) for c in prim], (
+            f"factor_integer_poly self-check FAILED: Π factor**mult = {recon_prim} "
+            f"!= primitive input {prim} — internal Zassenhaus bug")
+    return [(fac, mult) for fac, mult in result]
+
+
+# ── Part 2 — turnkey exact eigensolver: matrix → all exact eigenpairs ────────────
+def eig_exact(a, *, bits: int = 64, project: bool = True):
+    """Turnkey EXACT eigensolver — a matrix → ALL its exact eigenpairs (rc-F).
+
+    Chains the rotation-last exact machinery into one call:
+    ``char_poly(a)`` → Yun square-free → :func:`factor_integer_poly` (the
+    IRREDUCIBLE factors ``m_i``, each carrying its algebraic multiplicity) → for
+    each ``m_i`` isolate ALL its roots (real via the Sturm cascade, complex via the
+    rc-E argument-principle box subdivision) → each root ``λ`` becomes a
+    :class:`~srmech.amsc.qalg.Qalg` over ``m_i`` (its EXACT irreducible substrate,
+    embedded at the isolated float/complex root) → :func:`eigvec_exact` for the
+    exact eigenvector(s) = the null space of ``A − λI`` over ℚ(λ).
+
+    ``a`` must be an INTEGER (or rational-integer) square matrix.
+
+    With ``project=True`` (default) returns a ``list[dict]`` — one entry per
+    DISTINCT eigenvalue — each::
+
+        {"value": complex,                 # the terminal float/complex projection
+         "vector": list[complex],          # the (first) eigenvector, projected
+         "algebraic_multiplicity": int,    # from the char-poly factor multiplicity
+         "geometric_multiplicity": int,    # dim of the A−λI null space
+         "min_poly": tuple[int],           # the exact irreducible m_i (low→high)
+         "defective": bool}                # geometric < algebraic
+
+    ``value`` / ``vector`` are the single TERMINAL projections (rotation-last);
+    ``min_poly`` is the eigenvalue's exact irreducible substrate. For a DEGENERATE
+    eigenvalue (geometric > 1) ``vector`` is the first null-space basis vector — the
+    full basis is reachable via :func:`eigvec_exact_float`. When the geometric
+    multiplicity is below the algebraic, the matrix is **defective**: ``defective``
+    is ``True`` and only the geometric eigenvectors are returned. **Jordan
+    generalized eigenvectors are OUT OF SCOPE** (a defective block's chain is not
+    computed); say so rather than fabricate them.
+
+    With ``project=False`` returns the EXACT objects for callers staying in the
+    field: each dict swaps ``value`` → ``value_qalg`` (a :class:`~srmech.amsc.qalg.Qalg`)
+    and ``vector`` → ``vectors_qalg`` (``list[list[Qalg]]``, the exact null-space
+    basis), keeping ``min_poly`` + the multiplicities + ``defective``.
+
+    **SELF-VALIDATION** (asserted before returning — this is what catches a
+    factorisation bug): (a) ``Σ algebraic_multiplicity == n``; (b) the eigenvalue
+    multiset (with algebraic multiplicity) reconstructs the monic char-poly
+    (``Π (x − value_k) ≈`` char-poly to ~1e-7, numeric); (c) every returned
+    ``(value, vector)`` satisfies ``A·vector ≈ value·vector`` to ~1e-9. A clear
+    ``ValueError`` is raised on any failure (it means an upstream bug).
+
+    **Class L** (the spectral content) ∘ **Class J** (the irreducible-factor
+    substrate) ∘ **Class N** (the exact ℚ(λ) field arithmetic) ∘ **Class K** (the
+    terminal float/complex projection — rotation-last).
+    """
+    from srmech.amsc.qalg import Qalg
+
+    rows = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
+    n = len(rows)
+    if n == 0:
+        return []
+    if any(len(r) != n for r in rows):
+        raise ValueError(f"eig_exact: a must be square 2-D; got {n}x{len(rows[0])}")
+
+    cp = char_poly(a)                                # monic, high→low
+    cp_low = [int(c) for c in reversed(cp)]          # low→high integer coeffs
+
+    # factor the char-poly into irreducibles with algebraic multiplicities.
+    irr_factors = factor_integer_poly(cp_low)        # [(m_i low→high tuple, alg_mult)]
+
+    eigenpairs: List[dict] = []
+    for (m_tuple, alg_mult) in irr_factors:
+        m_low = list(m_tuple)                        # primitive irreducible, low→high
+        # make m monic over ℤ (it must be — char-poly is monic, factors of a monic
+        # integer poly with positive lead are monic; assert it).
+        if m_low[-1] != 1:
+            raise ValueError(
+                f"eig_exact: irreducible factor {m_tuple} is not monic — the "
+                "char-poly factorisation is inconsistent (internal bug)")
+        m_int = tuple(int(c) for c in m_low)         # Qalg wants an int tuple low→high
+
+        # isolate ALL roots of this irreducible factor (real + complex), as floats/
+        # complex — the embeddings for the Qalg projection. We build a tiny companion
+        # of m and reuse eigvals_exact's exact isolation on it.
+        roots = _roots_of_irreducible(m_low, bits)
+
+        for root in roots:
+            lam = Qalg.alpha(m_int, root=root)
+            res = eigvec_exact(a, lam)               # list[Qalg] or list[list[Qalg]]
+            if res and isinstance(res[0], list):
+                basis = res                          # geometric mult > 1
+            else:
+                basis = [res]
+            geom = len(basis)
+            defective = geom < alg_mult
+            entry = {
+                "min_poly": m_int,
+                "algebraic_multiplicity": alg_mult,
+                "geometric_multiplicity": geom,
+                "defective": defective,
+            }
+            if project:
+                entry["value"] = (lam.to_float() + 0j if not isinstance(root, complex)
+                                  else lam.to_complex())
+                # primary vector = first basis vector, projected component-wise.
+                real_root = not (isinstance(root, complex) and root.imag != 0)
+                first = basis[0]
+                entry["vector"] = [
+                    (c.to_float() + 0j if real_root else c.to_complex()) for c in first]
+            else:
+                entry["value_qalg"] = lam
+                entry["vectors_qalg"] = basis
+            eigenpairs.append(entry)
+
+    # deterministic order: by (value real, value imag) when projected, else by the
+    # isolated root carried on the Qalg.
+    def _sort_key(e):
+        if project:
+            v = e["value"]
+            return (v.real, v.imag)
+        r = e["value_qalg"].root
+        rc = complex(r)
+        return (rc.real, rc.imag)
+    eigenpairs.sort(key=_sort_key)
+
+    # ── SELF-VALIDATION ──────────────────────────────────────────────────────────
+    # (a) Σ algebraic_multiplicity == n.
+    total_alg = sum(e["algebraic_multiplicity"] for e in eigenpairs)
+    if total_alg != n:
+        raise ValueError(
+            f"eig_exact self-validation (a) FAILED: Σ algebraic_multiplicity = "
+            f"{total_alg} != n = {n} — the char-poly factorisation lost/gained a "
+            "root (upstream bug)")
+
+    # the float/complex eigenvalue list (with algebraic multiplicity) for (b)/(c).
+    if project:
+        eval_list = [(e["value"], e["algebraic_multiplicity"]) for e in eigenpairs]
+    else:
+        eval_list = []
+        for e in eigenpairs:
+            lam = e["value_qalg"]
+            r = lam.root
+            val = (lam.to_complex() if (isinstance(r, complex) and r.imag != 0)
+                   else complex(lam.to_float(), 0.0))
+            eval_list.append((val, e["algebraic_multiplicity"]))
+
+    # (b) Π (x − value_k)^mult ≈ monic char-poly (numeric, ~1e-7).
+    recon = [1.0 + 0j]                               # low→high complex poly
+    for (val, mlt) in eval_list:
+        for _ in range(mlt):
+            # multiply by (x − val): shift up minus val·current.
+            nxt = [0j] * (len(recon) + 1)
+            for i, c in enumerate(recon):
+                nxt[i] += -val * c
+                nxt[i + 1] += c
+            recon = nxt
+    cp_monic_low = [complex(c) for c in reversed(cp)]  # monic char-poly low→high
+    if len(recon) != len(cp_monic_low):
+        raise ValueError(
+            "eig_exact self-validation (b) FAILED: reconstructed degree "
+            f"{len(recon) - 1} != char-poly degree {len(cp_monic_low) - 1}")
+    for i in range(len(recon)):
+        if _modulus(recon[i] - cp_monic_low[i]) > 1e-7:
+            raise ValueError(
+                "eig_exact self-validation (b) FAILED: Π(x − value) does not "
+                f"reconstruct the char-poly at coeff {i} "
+                f"({recon[i]!r} vs {cp_monic_low[i]!r}) — factorisation bug")
+
+    # (c) A·vector ≈ value·vector to ~1e-9 for every returned (value, vector).
+    af = [[complex(rows[i][j]) for j in range(n)] for i in range(n)]
+    for e in eigenpairs:
+        if project:
+            val = e["value"]
+            vecs = [e["vector"]]
+        else:
+            lam = e["value_qalg"]
+            r = lam.root
+            val = (lam.to_complex() if (isinstance(r, complex) and r.imag != 0)
+                   else complex(lam.to_float(), 0.0))
+            real_root = not (isinstance(r, complex) and r.imag != 0)
+            vecs = [[(c.to_complex() if not real_root else complex(c.to_float(), 0.0))
+                     for c in vec] for vec in e["vectors_qalg"]]
+        for vec in vecs:
+            for i in range(n):
+                lhs = sum(af[i][j] * complex(vec[j]) for j in range(n))
+                rhs = val * complex(vec[i])
+                if _modulus(lhs - rhs) > 1e-9:
+                    raise ValueError(
+                        "eig_exact self-validation (c) FAILED: A·v != λ·v at "
+                        f"component {i} for eigenvalue {val!r} "
+                        f"({lhs!r} vs {rhs!r}) — eigenvector bug")
+
+    return eigenpairs
+
+
+def _roots_of_irreducible(m_low: List[int], bits: int) -> List:
+    """All roots (real ``float`` + complex ``complex``) of a monic irreducible
+    integer polynomial ``m`` (low→high) — the embeddings for the Qalg projection.
+    Reuses the exact isolation cascade on the companion matrix of ``m`` (so the
+    Sturm real-root + argument-principle complex-root machinery is shared), but a
+    degree-1 ``m`` is just its single rational root, handled directly."""
+    m_low = _ipoly_trim(m_low)
+    deg = len(m_low) - 1
+    if deg == 1:                                     # m = m0 + x → root −m0
+        return [float(-m_low[0])]
+    # companion matrix of the MONIC m (low→high): roots of m are its eigenvalues.
+    # C = [[0,...,0,−m0],[1,0,...,0,−m1],...,[0,...,1,−m_{n-1}]] (last col = −coeffs).
+    comp = [[0] * deg for _ in range(deg)]
+    for i in range(1, deg):
+        comp[i][i - 1] = 1
+    for i in range(deg):
+        comp[i][deg - 1] = -m_low[i]
+    # m is irreducible → its roots are all simple → eigvals_exact returns them all.
+    evs = eigvals_exact(comp, bits=bits, include_complex=True)
+    return list(evs)
