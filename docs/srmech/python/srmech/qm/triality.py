@@ -69,6 +69,7 @@ Canonical SSoT:
 from __future__ import annotations
 
 import functools
+from fractions import Fraction as _Fraction
 from typing import Dict, List, Sequence, Tuple
 
 from srmech.amsc import rational as _srn
@@ -77,7 +78,7 @@ from srmech.amsc.cascade import magnitude as _magnitude
 from srmech.amsc.cyclic import mod_add as _mod_add
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.amsc.mat import Mat
-from srmech.amsc.laplacian import mat_matmul, mat_norm, mat_solve
+from srmech.amsc.laplacian import mat_matmul, mat_norm
 from srmech.qm.octonion import octonion_mult_table
 from srmech.qm.so8 import (
     _DIM,
@@ -221,81 +222,111 @@ def _octonion_mul(x: Sequence[float], y: Sequence[float]) -> List[float]:
     return out
 
 
+def _exact_solve_normal_equations(g: List[List[int]], c: List[int],
+                                  n: int) -> List[_Fraction]:
+    """Exact-ℚ particular solution of the consistent, rank-deficient INTEGER
+    normal equations ``G·x = c`` via :class:`~fractions.Fraction` Gauss-Jordan
+    elimination; non-pivot (free) columns are pinned to 0.
+
+    Native-INDEPENDENT (pure rational arithmetic — no float, no Tikhonov
+    ridge), so the companion maps it returns are bit-identical on every
+    platform. The system is consistent (``rhs ∈ range(A)``), so the free
+    columns carry the gauge freedom and a residual-0 solution exists.
+    """
+    rows = [[_Fraction(g[r][col]) for col in range(n)] + [_Fraction(c[r])]
+            for r in range(n)]
+    pivot_cols: List[int] = []
+    rank = 0
+    for col in range(n):
+        pivot = None
+        for r in range(rank, n):
+            if rows[r][col] != 0:
+                pivot = r
+                break
+        if pivot is None:                                # free column → gauge
+            continue
+        rows[rank], rows[pivot] = rows[pivot], rows[rank]
+        lead = rows[rank][col]
+        rows[rank] = [x / lead for x in rows[rank]]
+        for r in range(n):
+            if r != rank and rows[r][col] != 0:
+                factor = rows[r][col]
+                rows[r] = [rows[r][cc] - factor * rows[rank][cc]
+                           for cc in range(n + 1)]
+        pivot_cols.append(col)
+        rank += 1
+        if rank == n:
+            break
+    sol = [_Fraction(0)] * n
+    for idx, col in enumerate(pivot_cols):
+        sol[col] = rows[idx][n]
+    return sol
+
+
 def _solve_companions(operator) -> Tuple[List[List[float]], List[List[float]]]:
     """Solve ``A(x*y) = B(x)*y + x*C(y)`` for ``(B, C)`` given ``A`` (``8x8``).
 
-    Deterministic least-squares over the 64 basis pairs ``(e_i, e_j)`` and 8
-    output components (512 equations, 128 unknowns = ``vec(B) | vec(C)``).
-    For a derivation in ``g2`` the solution is ``B = C = A``.
+    Deterministic over the 64 basis pairs ``(e_i, e_j)`` and 8 output
+    components (512 equations, 128 unknowns = ``vec(B) | vec(C)``). For a
+    derivation in ``g2`` the solution is ``B = C = A``.
 
-    rc124 (numpy-free): the over-determined system is solved by its normal
-    equations ``(AᵀA)·x = Aᵀ·rhs`` (128 unknowns) via the native real
-    :func:`mat_solve` (128 ≤ the native bound, so it stays fast). The 512×128
-    design ``A`` is **never materialised**: each of the 512 equation rows is
-    SPARSE — exactly ``_DIM`` nonzeros in the ``vec(B)`` block (columns
-    ``k·8 + i`` for ``k`` in 0..7, value ``C[k][j][m]``) and ``_DIM`` in the
-    ``vec(C)`` block (columns ``64 + k·8 + j``, value ``C[i][k][m]``) — so the
-    Gram matrix ``G = AᵀA`` and ``Aᵀ·rhs`` accumulate over only those ~16
-    nonzeros per row (the prior dense ``mat_lstsq`` 512-wide contraction fell
-    off the 256 native bound into a pure-Python triple loop — minutes; the
-    sparse Gram is sub-second). The Gram is rank-deficient (the B/C companion
-    split carries a gauge freedom, so ``A`` has a non-trivial nullspace): the
-    native ``mat_solve`` tolerates the singular block, but the pure-Python
-    (pure-wheel / WASM) solve rejects it — so on that failure ONLY a tiny
-    Tikhonov ridge ``λI`` is applied, recovering the same consistent
-    least-squares solution to O(λ) ≈ 6e-11 (the system is consistent and
-    ``c = Aᵀ·rhs`` has no nullspace component, so the ridge does not bias it).
-    The table is consumed as a nested list. ``operator`` is a :class:`Mat` /
-    nested-list ``8×8``.
+    rc33 (exact-ℚ, native-independent): the octonion structure constants are
+    ``{-1, 0, +1}`` integers, so the normal equations ``G·x = c``
+    (``G = AᵀA``, ``c = Aᵀ·rhs``) are an INTEGER system, solved EXACTLY over ℚ
+    by :func:`_exact_solve_normal_equations` — NO float ``mat_solve``, NO
+    Tikhonov ridge. The Gram ``G`` is rank-deficient (the B/C companion split
+    carries a gauge freedom, so ``A`` has a non-trivial nullspace); the system
+    is CONSISTENT (``rhs ∈ range(A)``), so the free columns absorb the gauge
+    and a residual-0 particular solution exists. The resulting companion maps
+    are exact DYADIC rationals (denominators in ``{1, 2}``), so the downstream
+    ``S_B`` / ``S_C`` / ``tau`` are BIT-IDENTICAL on every platform — this is
+    what closes the so8 native-vs-pure rank divergence: the prior float
+    ``mat_solve`` applied a ~6e-11 Tikhonov ridge on the pure-Python (singular)
+    path, which the exact :func:`so8._rank_exact` then amplified into a wrong
+    ``Fix(tau)`` / ``Fix(S_B)`` dimension (28 instead of 14 / 21). The exact
+    solution reproduces the SAME gauge as the float construction (matches it to
+    ~2e-12), now bit-exact.
+
+    The 512×128 design ``A`` is never materialised: each equation row is SPARSE
+    (``_DIM`` nonzeros in each of the ``vec(B)`` / ``vec(C)`` blocks, value an
+    integer structure constant), so the integer ``G`` and ``c`` accumulate over
+    only ~16 nonzeros per row. The table is consumed as a nested list;
+    ``operator`` is a :class:`Mat` / nested-list ``8×8``.
     """
     op = _as_8x8(operator, "_solve_companions")
     table = _table_float()
     basis = _eye(_DIM)
     nvar = 2 * _DIM * _DIM                               # 128 unknowns
-    # Sparse normal equations: G = AᵀA (128×128), c = Aᵀ·rhs (128×1). Each row
-    # contributes a length-≤16 sparse pattern of (column, value) pairs.
-    g = [[0.0] * nvar for _ in range(nvar)]
-    c = [0.0] * nvar
+    # Sparse INTEGER normal equations: G = AᵀA (128×128), c = Aᵀ·rhs (128×1).
+    # Each row contributes a length-≤16 sparse pattern of (column, value) pairs.
+    g = [[0] * nvar for _ in range(nvar)]
+    c = [0] * nvar
     for i in range(_DIM):
         for j in range(_DIM):
             target = _matvec(op, _octonion_mul(basis[i], basis[j]))
             for m in range(_DIM):
-                # The nonzero (column, value) entries of this equation row.
-                entries: List[Tuple[int, float]] = []
+                # The nonzero (column, integer value) entries of this row.
+                entries: List[Tuple[int, int]] = []
                 for k in range(_DIM):
                     bval = table[k][j][m]
                     if bval != 0.0:
-                        entries.append((k * _DIM + i, bval))
+                        entries.append((k * _DIM + i, int(round(bval))))
                     cval = table[i][k][m]
                     if cval != 0.0:
-                        entries.append((_DIM * _DIM + k * _DIM + j, cval))
-                rhs_m = float(target[m])
-                # Accumulate AᵀA and Aᵀ·rhs over the sparse pattern.
+                        entries.append((_DIM * _DIM + k * _DIM + j,
+                                        int(round(cval))))
+                rhs_m = int(round(target[m]))
+                # Accumulate AᵀA and Aᵀ·rhs over the sparse pattern (integer).
                 for col_a, val_a in entries:
                     c[col_a] += val_a * rhs_m
                     ga = g[col_a]
                     for col_b, val_b in entries:
                         ga[col_b] += val_a * val_b
-    c_mat = Mat.from_rows([[x] for x in c])
-    try:
-        solution = mat_solve(Mat.from_rows(g), c_mat)
-    except ZeroDivisionError:
-        # The Gram G = AᵀA is rank-deficient (the B/C companion split carries a
-        # gauge freedom, so A has a non-trivial nullspace). The native solve
-        # tolerates the singular block; the pure-Python (pure-wheel / WASM)
-        # block-solve rejects it as a "singular interior block". A tiny Tikhonov
-        # ridge λI makes G+λI positive-definite. The normal equations are
-        # CONSISTENT (∃ exact x, residual 0) and c = Aᵀ·rhs has NO component in
-        # G's nullspace, so the ridged solution IS the same least-squares
-        # solution to O(λ): at λ = 1e-12·max(diag G) the order-3 τ closes to
-        # ‖τ³−I‖ ~ 6e-11 and matches the native-path τ to ~2e-11 (both ≪ 1e-9).
-        lam = 1e-12 * max((g[i][i] for i in range(nvar)), default=1.0)
-        for i in range(nvar):
-            g[i][i] += lam
-        solution = mat_solve(Mat.from_rows(g), c_mat)
-    sol = [float(solution[r, 0]) for r in range(nvar)]
-    b_companion = [[sol[i * _DIM + j] for j in range(_DIM)] for i in range(_DIM)]
-    c_companion = [[sol[_DIM * _DIM + i * _DIM + j] for j in range(_DIM)]
+    sol = _exact_solve_normal_equations(g, c, nvar)      # exact ℚ; dyadic
+    # Dyadic rationals (denom ∈ {1, 2}) are bit-exact in float64.
+    b_companion = [[float(sol[i * _DIM + j]) for j in range(_DIM)]
+                   for i in range(_DIM)]
+    c_companion = [[float(sol[_DIM * _DIM + i * _DIM + j]) for j in range(_DIM)]
                    for i in range(_DIM)]
     return b_companion, c_companion
 
