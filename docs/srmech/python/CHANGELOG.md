@@ -8,6 +8,10 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc31] - 2026-06-22
+
+**FEATURE — the Qarg graduation: exact POLAR accessors on the `Qi` exact-complex carrier (§74 / F924).** `Qi` gains five methods — `modulus()` [**Class K** magnitude], `arg()` [**Class C** orientation], `as_polar`, `from_polar`, `from_complex` — composing the exact-`Q` `sqrt`/`atan2`/`cos`/`sin` already shipped in `srmech.amsc.rational` (re-exported by `srmech.asymptotic_calculus`). **No new transcendental code and no new C** — those four ops already accept and return exact `Q`. `modulus()` is the `√` of the carrier's own exact `norm_sq()` (so `Qi(3,4).modulus() == Q(5)` EXACT), `arg()` is `atan2(im, re)` with quadrant logic as Class-C direction over Class-K signs (never an ALU `abs()`), `from_polar(r, θ)` reconstructs via `r·(cos θ + i·sin θ)` over `Q` arithmetic, and `from_complex(z)` lifts a builtin `complex` into the exact carrier (the bridge that lets `Mat`/`Vec` complex entries — e.g. a `magnetic_laplacian` off-diagonal — be polar-read exactly). **Closes the harmonic-ladder Class C + Class K open rungs** (`HARMONIC_LADDER_OPEN_RUNGS[2]` now `()`; J remains for the rc32 Qprime): on a directed 3-cycle's magnetic Laplacian, reversing every edge gives `arg_fwd + arg_rev == Q(0)` EXACT (the chirality flip — Class C recovers which-way) while `modulus_fwd == modulus_rev` (direction-blind — Class K recovers how-much). Round-trip residuals 0–1e-15. `Qi` is a carrier (Python, like `Qalg`), so these are NOT ToolEntries — `tools.total` stays **320**, ABI **3**, Python-only.
+
 ## [0.9.0rc30] - 2026-06-22
 
 **CLEANUP + BUGFIX (no-stubs-ever pass; no behavior bugs except the §A hot-path fix).** Three labeled tracks:
