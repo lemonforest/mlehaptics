@@ -889,8 +889,13 @@ def _isolate_complex_roots_upper(p: List, want: int, bits: int) -> List[complex]
     guard = 0
     while stack:
         guard += 1
-        if guard > 200000:
-            raise ValueError("_isolate_complex_roots_upper: subdivision did not terminate")
+        if guard > 20000:
+            # The only callers pass a SQUARE-FREE polynomial (rc28), whose roots are
+            # all simple → subdivision always separates them well under this bound. A
+            # non-square-free input (a coincident root) would spin forever here with
+            # exploding Fraction denominators, so fail FAST rather than hang.
+            raise ValueError("_isolate_complex_roots_upper: subdivision did not "
+                             "terminate (input must be square-free)")
         bx0, bx1, by0, by1, cnt = stack.pop()
         if cnt == 0:
             continue
@@ -1048,7 +1053,7 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False,
     if not include_complex:
         return real_out
 
-    # ── complex eigenvalues: certify the float-QR candidates exactly ──────────
+    # ── complex eigenvalues: isolate PER SQUARE-FREE FACTOR (rc28 fix) ─────────
     rows = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
     n = len(rows)
     n_real = len(eigs)
@@ -1056,42 +1061,48 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False,
         return real_out
     n_complex = n - n_real                            # comes in conjugate pairs
     want_upper = n_complex // 2
-    # PRIMARY: certify the float-QR candidates (the accelerator). FALLBACK: the
-    # pure argument-principle subdivision, which never stalls (float-QR can — e.g.
-    # on a cyclic permutation matrix). Either way EVERY emitted value is a CERTIFIED
-    # unique root of the exact integer char-poly in a rational box (exact-substrate);
-    # the float is the single terminal projection of the box center.
-    upper_roots: List[complex] = []
-    try:
-        from srmech.amsc.mat import Mat
-        cand = list(_mat_eigvals(Mat.from_rows(
-            [[complex(v) for v in r] for r in rows], is_complex=True)))
-        cplx_cands = [z for z in cand if z.imag != 0]
-        upper_cands = sorted((z for z in cplx_cands if z.imag > 0),
-                             key=lambda z: (round(z.real, 9), round(z.imag, 9)))
-        if len(upper_cands) != want_upper:
-            raise ValueError("candidate complex count mismatch — use subdivision")
-        seen: List[Tuple[_FR, _FR]] = []
-        for z in upper_cands:
-            others = [w for w in cplx_cands if w is not z]
-            cx, cy = _certify_complex_root(p, z, others, bits)
-            seen.append((cx, cy))
-            upper_roots.append(complex(float(cx), float(cy)))
-    except (ValueError, AssertionError):
-        # Float-QR was unreliable (stall / wrong count / un-isolable seed) — fall
-        # back to the always-works exact subdivision from the Cauchy root bound.
-        upper_roots = _isolate_complex_roots_upper(p, want_upper, bits)
-    # Reconcile the certified count with the algebraic multiplicity from the
-    # char-poly: the upper-half count must be exactly n_complex / 2.
-    if len(upper_roots) != want_upper:
+    # MIRROR THE REAL PATH: isolate the complex roots PER SQUARE-FREE FACTOR.
+    # ``_square_free_factors(p)`` returns ``[(factor, mult)]`` where each ``factor``
+    # is SQUARE-FREE — so ALL its roots are SIMPLE. Box-subdivision can only ever
+    # separate SIMPLE roots (a coincident pair has count ≥ 2 in EVERY enclosing box,
+    # so the isolators would spin to their guards — the rc28 hang). Isolating the
+    # upper-half (im > 0) roots of each square-free factor therefore ALWAYS
+    # terminates; each isolated root is emitted ``mult`` times (and its conjugate
+    # ``mult`` times), exactly as the real path appends each simple real root
+    # ``mult`` times. The float-QR candidate accelerator (``_certify_complex_root``)
+    # is dropped on this path: it must NEVER be called on a non-square-free polynomial
+    # (it would loop on a coincident pair), and routing the whole branch through the
+    # always-terminating per-factor ``_isolate_complex_roots_upper`` is correctness-
+    # and termination-first over the accelerator's speed.
+    certified: List[complex] = []
+    certified_upper = 0
+    for factor, mult in _square_free_factors(p):
+        deg = len(_poly_trim(factor)) - 1
+        if deg < 2:                                   # deg ≤ 1 → only a real root
+            continue
+        # this square-free factor's upper-half complex count =
+        # (deg − #real_roots) // 2 (real roots come in singles, complex in pairs).
+        n_real_factor = len(_isolate_real_roots(factor, bits))
+        want_upper_factor = (deg - n_real_factor) // 2
+        if want_upper_factor == 0:
+            continue
+        # factor is SQUARE-FREE → all roots simple → isolation ALWAYS terminates.
+        upper_roots = _isolate_complex_roots_upper(factor, want_upper_factor, bits)
+        if len(upper_roots) != want_upper_factor:
+            raise ValueError(
+                f"eigvals_exact: certified {len(upper_roots)} upper-half complex "
+                f"roots of a square-free factor but expected {want_upper_factor}")
+        for z in upper_roots:
+            for _ in range(mult):                     # mirror the real path's mult
+                certified.append(complex(z.real, z.imag))
+                certified.append(complex(z.real, -z.imag))   # conjugate (im < 0)
+            certified_upper += mult
+    # Reconcile the summed per-factor multiplicities with the char-poly count.
+    if certified_upper != want_upper:
         raise ValueError(
-            f"eigvals_exact: certified {len(upper_roots)} upper-half complex roots "
+            f"eigvals_exact: certified {certified_upper} upper-half complex roots "
             f"but the char-poly multiplicity expects {want_upper} "
             f"(n={n}, real={n_real})")
-    certified: List[complex] = []
-    for z in upper_roots:
-        certified.append(complex(z.real, z.imag))
-        certified.append(complex(z.real, -z.imag))    # conjugate (im < 0)
     certified.sort(key=lambda z: (z.real, z.imag))
     return real_out + certified
 

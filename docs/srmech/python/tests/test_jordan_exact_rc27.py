@@ -297,20 +297,21 @@ def test_jordan_eigenvalues_cross_check_eigvals_exact():
     """The Jordan-form block eigenvalues (with size as multiplicity) cross-check
     eigvals_exact(include_complex=True).
 
-    NOTE: a matrix with a REPEATED *complex* eigenvalue (e.g. the companion of
-    (x²+1)² → ±i each multiplicity 2) is EXCLUDED here because `eigvals_exact`
-    (the rc24 complex isolator) STALLS on repeated complex roots — a PRE-EXISTING
-    `eigvals_exact` limitation, not a Jordan bug (`jordan_form_exact` handles that
-    companion fine, see `test_complex_defective_block`). The complex-defective
-    eigenvalue cross-check is covered there via `eig_exact` directly. The cases
-    below all have DISTINCT roots (real-repeat is fine; only complex-repeat stalls
-    `eigvals_exact`)."""
+    rc28: the REPEATED *complex* eigenvalue case (the companion of (x²+1)² → ±i each
+    multiplicity 2) is now INCLUDED — the rc24 complex isolator used to STALL on
+    repeated complex roots (it isolated on the full char-poly, where box-subdivision
+    can't separate a coincident pair), and rc28 fixed it by isolating per square-free
+    factor. The companion of (x²+1)² is added below; it must now terminate and agree
+    with the Jordan-form eigenvalues."""
+    # companion of (x²+1)² = x⁴ + 2x² + 1 (low→high [1,0,2,0,1]) → ±i each mult 2.
+    comp_x2p1_sq = [[0, 0, 0, -1], [1, 0, 0, -0], [0, 1, 0, -2], [0, 0, 1, -0]]
     cases = [
         [[2, 1], [0, 2]],                                # real-repeat λ=2 (fine)
         [[2, 1, 0], [0, 2, 0], [0, 0, 2]],               # real-repeat λ=2 (fine)
         [[5, 1, 0], [0, 5, 1], [0, 0, 5]],               # real-repeat λ=5 (fine)
         [[2, 0], [0, 3]],                                # distinct real
         [[0, -1], [1, 0]],                               # distinct complex ±i
+        comp_x2p1_sq,                                    # rc28: repeated complex ±i (mult 2)
     ]
     for A in cases:
         n = len(A)
