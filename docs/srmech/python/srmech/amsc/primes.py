@@ -30,6 +30,7 @@ __all__ = [
     "is_prime",
     "factor",
     "cyclic_period",
+    "next_prime",
     "FACTOR_MAX_DISTINCT_PRIMES",
 ]
 
@@ -129,6 +130,51 @@ def factor(n: int) -> List[Tuple[int, int]]:
     if n > 1:
         result.append((int(n), 1))
     return result
+
+
+def next_prime(n: int) -> int:
+    """Return the smallest prime strictly greater than ``n`` (the prime successor).
+
+    Composes :func:`is_prime` over the odd candidates above ``n`` (``0``/``1``
+    step to ``2``; ``2`` steps to ``3``). Class J. Dispatches to the native
+    ``srmech_next_prime`` when present; the pure-Python body is the complete,
+    byte-identical alternative.
+
+    The native surface is bounded by ``uint64`` (``n <= 2**64 - 1``); the
+    pure-Python fallback inherits Python's arbitrary-precision integers (no
+    upper cap), so ``next_prime`` is well-defined for any non-negative ``n``.
+    The parity test exercises only ``uint64`` inputs to keep the paths
+    byte-exact.
+    """
+    if not isinstance(n, int) or isinstance(n, bool):
+        raise TypeError(f"next_prime: n must be int; got {type(n).__name__}")
+    if n < 0:
+        raise ValueError(f"next_prime: n must be non-negative; got {n}")
+    if (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_next_prime")
+            and n <= 0xFFFF_FFFF_FFFF_FFFF):
+        out = ctypes.c_uint64(0)
+        rc = _native.LIB.srmech_next_prime(
+            ctypes.c_uint64(n), ctypes.byref(out)
+        )
+        if rc == _native.SRMECH_ERR_OVERFLOW:
+            raise OverflowError(
+                f"next_prime({n}): no prime below uint64 wrap"
+            )
+        if rc != _native.SRMECH_OK:
+            raise RuntimeError(
+                f"srmech_next_prime returned non-OK status {rc}"
+            )
+        return int(out.value)
+    if n < 2:
+        return 2
+    if n == 2:
+        return 3
+    # Every prime above 2 is odd; start at the next odd number above n.
+    candidate = n + 1 if n % 2 == 0 else n + 2
+    while not is_prime(candidate):
+        candidate += 2
+    return candidate
 
 
 def cyclic_period(a: int, n: int, max_k: int = 0) -> int:

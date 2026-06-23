@@ -112,6 +112,13 @@ if(SRMECH_SRCS)
     if(SRMECH_PEDANTIC)
         add_executable(test_srmech_trans_q61 c/test/test_srmech_trans_q61.c)
         target_link_libraries(test_srmech_trans_q61 PRIVATE srmech ${SRMECH_MATH_LIB})
+
+        # rc44 CRT-GF-RREF rung 1: the swell-free GF(p) RREF + prime-successor
+        # smoke. Joins the warnings-as-errors gate (Release/NDEBUG strips assert,
+        # so an assert-only param would warn -Werror=unused-parameter). Run it:
+        #   ./build/test_srmech_modular_linalg     (exit 0 = all pass)
+        add_executable(test_srmech_modular_linalg c/test/test_srmech_modular_linalg.c)
+        target_link_libraries(test_srmech_modular_linalg PRIVATE srmech ${SRMECH_MATH_LIB})
     endif()
 else()
     # Phase B1 only: no .c files yet. Emit a status line so the
