@@ -407,6 +407,46 @@ class QMat:
         R, _piv, _prc = _rref_augmented(self._rows, self.n_cols)
         return QMat.__new__(QMat)._init_from(tuple(tuple(r) for r in R))
 
+    def rref_crt(self):
+        """The EXACT reduced row-echelon form via **CRT re-fibration** — byte-
+        identical to :meth:`rref` but at *bounded* memory instead of the dense
+        Gauss-Jordan's Hadamard-envelope arena.
+
+        The dense :meth:`rref` grows numerators + denominators at every pivot, so
+        its malloc-free arena must reserve the worst-case fraction envelope (the
+        rc44 measurement: ~1.5 GB for a 17-bit answer on the order-2 Franel
+        484x154 system). This method instead re-fibrates the solve onto the
+        Chinese Remainder Theorem (Class I modular fibers / Class J primes /
+        Class N rational reconstruction):
+
+        1. **Reduce per prime.** For an odd prime ``p`` (``2 < p < 2**31``) reduce
+           each entry ``num/den`` to ``(num * den^{-1}) mod p`` via the Class-I
+           :func:`srmech.amsc.cyclic.mod_inv`. A prime dividing ANY denominator is
+           *skipped* (the modular image of that entry is undefined).
+        2. **Eliminate (swell-free).** Run the bounded machine-int
+           :func:`srmech.amsc.modular_linalg.gf_rref` over GF(p) -> the RREF mod
+           ``p`` + its rank + pivot columns. No fraction growth, no bignum.
+        3. **Consensus rank / unlucky-prime discard.** The true rank is the
+           CONSENSUS = the maximum ``(rank, pivots)`` seen (a prime that drops a
+           pivot reduces the modular rank; it never raises it). Any prime whose
+           ``(rank, pivots)`` disagrees with the running consensus is an *unlucky
+           prime* and is discarded from the CRT (the genuine ``p=7`` Franel drop).
+        4. **Combine + reconstruct once.** For each entry position
+           :func:`srmech.amsc.modular_linalg.crt_combine` the per-prime residues
+           -> a residue mod ``prod(good primes)``; then the Class-N
+           :func:`srmech.amsc.rational.rational_reconstruct` recovers the exact
+           ``Q`` entry.
+        5. **Early termination (stabilization).** Keep adding good primes until the
+           reconstructed rational matrix is IDENTICAL across two consecutive good-
+           prime additions (the standard CRT early-termination). The dense
+           Hadamard bound is not needed — stabilization is the stop.
+
+        Returns the same shape as :meth:`rref` (the exact-Q RREF as a ``QMat``).
+        Pure-int / pure-Q, bigint, no ``abs()`` (Class-K), no float, no numpy, no
+        ``math``. Composes the C-backed ``gf_rref`` / ``crt_combine`` /
+        ``rational_reconstruct`` / ``next_prime`` ops (``composition_of_c``)."""
+        return _rref_crt(self)
+
     def rank(self) -> int:
         """The EXACT rank = the pivot count of the RREF (exact over ℚ)."""
         nat = _native()
@@ -612,6 +652,147 @@ def _rref_augmented(rows, n_cols_left: int):
         if r == n_rows:
             break
     return R, pivot_cols, pivot_row_of_col
+
+
+# ── the CRT re-fibration of the exact-ℚ RREF (rc46) ─────────────────────────
+# rref_crt's body: solve mod several bounded primes (each a swell-free gf_rref),
+# CRT-combine + rational-reconstruct once → the exact-ℚ RREF byte-identical to the
+# dense rref but at bounded memory (no Hadamard-envelope arena). Composes the
+# C-backed gf_rref / crt_combine / rational_reconstruct / next_prime ops.
+
+# The GF(p) field ceiling: gf_rref requires 2 < p < 2**31 (so a*b fits uint64).
+_GF_P_CEILING: int = 1 << 31
+# Seed for the descending prime walk — the largest odd value below the ceiling.
+# We walk DOWNWARD from here so every emitted prime is a valid GF(p) modulus.
+_GF_P_SEED: int = _GF_P_CEILING - 1
+
+
+def _gf_primes():
+    """Yield distinct odd primes ``p`` with ``2 < p < 2**31`` (valid ``gf_rref``
+    moduli), largest-first. Composes the Class-J primality test (via
+    :func:`srmech.amsc.primes.is_prime`) over the descending odd candidates — the
+    same primitive ``next_prime`` rides, walked downward to stay inside the field
+    ceiling (``next_prime`` walks UP and would immediately exceed ``2**31``)."""
+    from . import primes as _primes
+    cand = _GF_P_SEED
+    if cand % 2 == 0:
+        cand -= 1
+    while cand > 2:
+        if _primes.is_prime(cand):
+            yield cand
+        cand -= 2
+
+
+def _entries_mod_p(rows, p: int):
+    """Reduce every exact-``Q`` entry ``num/den`` to ``(num · den⁻¹) mod p`` over
+    GF(p), or ``None`` if ``p`` divides any denominator (an *undefined* modular
+    image — the prime must be skipped). Class-I ``mod_inv`` composition; the
+    residues land in ``[0, p)``. Returns a list-of-lists of ``int`` residues."""
+    from . import cyclic as _cyclic
+    out = []
+    for r in rows:
+        rr = []
+        for q in r:
+            num, den = q._n, q._d                 # exact reduced (num, den)
+            dmod = den % p
+            if dmod == 0:
+                return None                       # p | den ⇒ skip this prime
+            inv = _cyclic.mod_inv(dmod, p)        # Class-I modular inverse
+            rr.append((num % p) * inv % p)
+        out.append(rr)
+    return out
+
+
+def _rref_crt(self) -> "QMat":
+    """See :meth:`QMat.rref_crt`. Bounded-memory exact-ℚ RREF via CRT."""
+    from . import modular_linalg as _ml
+    from . import rational as _rational
+
+    n_rows, n_cols = self.n_rows, self.n_cols
+    if n_rows == 0 or n_cols == 0:
+        # Degenerate: nothing to reduce — the dense rref is already trivial.
+        return self.rref()
+
+    n_cells = n_rows * n_cols
+    consensus = None                              # (rank, tuple(pivots))
+    good_residues = [[] for _ in range(n_cells)]  # per-cell residue list
+    good_moduli: List[int] = []
+    prev_matrix = None                            # the last reconstructed QMat rows
+
+    primes = _gf_primes()
+    for p in primes:
+        residues = _entries_mod_p(self._rows, p)
+        if residues is None:
+            continue                              # p | some denominator — skip
+
+        res = _ml.gf_rref(residues, p)
+        key = (res["rank"], tuple(res["pivots"]))
+
+        if consensus is None:
+            consensus = key
+        elif key != consensus:
+            # Class-K compare: a strictly-larger (rank, pivots) supersedes; an
+            # equal-or-smaller disagreement is the unlucky prime → discard it.
+            if _key_dominates(key, consensus):
+                # A better consensus appeared: every accumulated prime so far was
+                # itself unlucky relative to this one — restart the CRT on it.
+                consensus = key
+                good_residues = [[] for _ in range(n_cells)]
+                good_moduli = []
+                prev_matrix = None
+            else:
+                continue                          # genuine unlucky prime: discard
+
+        # This prime agrees with the consensus — fold its RREF residues into CRT.
+        flat = [res["rref"][r][c] for r in range(n_rows) for c in range(n_cols)]
+        for i in range(n_cells):
+            good_residues[i].append(flat[i])
+        good_moduli.append(p)
+
+        # Need >= 2 good primes before stabilization can be observed.
+        if len(good_moduli) < 2:
+            continue
+
+        matrix = _reconstruct_matrix(good_residues, good_moduli, n_rows, n_cols,
+                                     _ml, _rational)
+        if matrix is None:
+            # Reconstruction not yet within bounds for some entry — add more primes.
+            continue
+        if prev_matrix is not None and matrix == prev_matrix:
+            # Stabilized across two consecutive good-prime additions: done.
+            return QMat.__new__(QMat)._init_from(matrix)
+        prev_matrix = matrix
+
+    # Exhausted the prime field without stabilizing — should not happen for a
+    # finite exact-ℚ answer; fall back to the dense exact rref (still correct).
+    return self.rref()                            # pragma: no cover
+
+
+def _key_dominates(key, other) -> bool:
+    """Class-K comparison of two ``(rank, pivots)`` consensus keys: ``key``
+    dominates ``other`` iff its rank is strictly larger (a higher-rank modular
+    image is the truer one; a lucky prime sees full rank, an unlucky one drops a
+    pivot). Ties on rank with differing pivots cannot both be the true RREF
+    support, so the larger rank is the sole tie-break used here."""
+    return key[0] > other[0]
+
+
+def _reconstruct_matrix(good_residues, good_moduli, n_rows, n_cols,
+                        _ml, _rational):
+    """CRT-combine each cell's residue list (mod ∏ good_moduli) then
+    rational-reconstruct the exact ``Q`` entry. Returns the tuple-of-tuples of
+    ``Q`` (the candidate RREF rows), or ``None`` if any cell does not reconstruct
+    within the Wang bound at the current modulus (signal: add more primes)."""
+    cells: List[Q] = []
+    for reslist in good_residues:
+        combined = _ml.crt_combine(reslist, good_moduli)
+        pq = _rational.rational_reconstruct(combined["residue"], combined["modulus"])
+        if pq is None:
+            return None
+        cells.append(Q(pq[0], pq[1]))
+    rows = tuple(tuple(cells[r * n_cols + c] for c in range(n_cols))
+                 for r in range(n_rows))
+    return rows
 
 
 def _as_column_block(b, n: int) -> "QMat":

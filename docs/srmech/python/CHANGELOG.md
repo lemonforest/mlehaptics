@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc46] - 2026-06-23
+
+**CRT-QMat re-fibration arc, rung 3 — `QMat.rref_crt`: the exact-ℚ RREF at bounded memory.** The fiber assembles. `QMat.rref_crt()` is a new `QMat` carrier method that computes the **same exact-rational RREF as the dense `QMat.rref()`** (`{rref, rank, pivots}`, byte-identical) — but via CRT instead of the dense Gauss-Jordan whose malloc-free arena reserves the Hadamard worst-case intermediate-fraction envelope. It composes the rc44+rc45 pieces: descending machine-int primes (`< 2³¹`, walking `primes.is_prime`) → `gf_rref` over GF(p) per prime (swell-free) → unlucky-prime **rank-consensus** (the max-rank key dominates; lower-rank primes discarded, the p=7 Franel mechanism — and a strictly-higher rank later *restarts* the CRT) → `crt_combine` per cell → `rational_reconstruct` → **stabilization early-termination** (return when the reconstructed rational matrix is identical across two consecutive good primes).
+
+**The headline (order-2 Franel 484×154 system):** the dense exact-ℚ path reserves a **~2.3 GB** Hadamard-envelope arena (faithful eval of the `srmech_qmat_ws_bound` formula); the CRT path's per-prime int64 matrix is **0.596 MB** (a **~3867:1** footprint reduction) and its full Python peak working set is **~19 MB**, using **3 primes**. Same exact RREF, bounded memory — the fiber, not the dense reservation.
+
+Surface: `rref_crt` is a `QMat` carrier **method** (like `rref`/`det`/`inverse`), **NOT a ToolEntry** → `describe()["tools"]["total"]` **stays 329**; Rosetta classification **`composition_of_c`** (it composes the C-backed `gf_rref`/`crt_combine`/`rational_reconstruct`/`next_prime` — all attested native==pure in rc44/rc45); ABI stays **3**. numpy-free, `math`-free, no `abs()` (Class-K). The single-symbol `srmech_qmat_rref_crt` C orchestration (a bare-C host calling ONE function) is the **owed everything-mirrors backfill** — the stabilization loop over a growing CRT product needs careful malloc-free arena bounds, deferred to keep this rc focused (the four underlying ops are already C-backed).
+
+Verified byte-identical `rref_crt == rref` on 60 random shapes (incl. rank-deficient), keystone-magnitude entries (`Q(10⁴⁰+1, 3³⁰)`, num/den > 2⁶⁴), first-prime-unlucky consensus-restart, and **the real order-2 Franel 484×154 system**.
+
 ## [0.9.0rc45] - 2026-06-23
 
 **CRT-QMat re-fibration arc, rung 2 — `crt_combine` + `rational_reconstruct`: the "project once at the end" closers.** Rung 1 (rc44) gave `gf_rref` (bounded GF(p) field-RREF) + `next_prime`. This rc adds the two ops that turn a set of per-prime modular residues back into the **exact rational answer** — completing the `I∘J∘N` recipe (modular fibers ∘ primes ∘ rational reconstruction):
