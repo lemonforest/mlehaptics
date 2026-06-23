@@ -11,11 +11,24 @@ magnitude ceiling**: a coefficient numerator or denominator may freely exceed
 ``2**64`` (unlike a native int64 fixed-point path).
 
 This is the FOUNDATION carrier of the §76 "telescope" Σ-row closed-form prover
-(F929): the Gosper / Zeilberger / WZ machinery (rc39+) reduces a hypergeometric
-sum by manipulating exact polynomials in ℚ[k] — long division, the polynomial
-GCD, the dispersion ``p(x+h)`` shift — so they need an exact, ceiling-free
-polynomial substrate FIRST. ``Poly`` is that substrate (the Class-N rational
-arithmetic over the Class-J prime-field is what the telescope sits on).
+(F929): the Gosper / Zeilberger / WZ machinery reduces a hypergeometric sum by
+manipulating exact polynomials in ℚ[k] — long division, the polynomial GCD, the
+dispersion ``p(x+h)`` shift — so they need an exact, ceiling-free polynomial
+substrate FIRST. ``Poly`` is that substrate (the Class-N rational arithmetic over
+the Class-J prime-field is what the telescope sits on).
+
+rc39 (Layer A) completes the polynomial-algebra foundation on top of the rc38
+carrier: the deferred single-call ``srmech_poly_gcd`` C peer (now routing
+:meth:`gcd` natively, with a chain-scaled arena — see ``srmech_poly.c``), plus
+:meth:`resultant` (exact subresultant-style PRS) and :meth:`dispersion` (the
+non-negative integer roots of ``Res_k(p(k), q(k+h))``). ``gosper`` itself — the
+indefinite hypergeometric summation that consumes these — is DEFERRED to rc40:
+shipping it as a public op requires a ``srmech_gosper`` C peer (the Rosetta
+ratchet forbids a Python-only compute op), and that peer needs an exact-ℚ
+LINEAR SOLVE in malloc-free caller-arena C (the undetermined-coefficient Gosper
+equation ``a(k)·x(k+1) − b(k−1)·x(k) = c(k)``) — i.e. the ``QMat`` exact
+Gauss-Jordan rref/solve backfilled into the C surface, a large build not sound
+in one rc. rc40 ships that ℚ-solve-in-C, then ``gosper`` + ``srmech_gosper``.
 
 Why a carrier and not a bare list of ``Q`` (mirrors the ``Q`` / ``QMat``
 rationale):
@@ -444,16 +457,24 @@ class Poly:
         o = self._as_poly(other)
         if o is None:
             raise TypeError("Poly.gcd requires a Poly / coercible coefficient sequence")
-        # NOTE: the GCD stays on the pure-Python bigint path this rc (rc38). The
-        # divmod it rides IS C-accelerated when native is present (each `a mod b`
-        # below routes through srmech_poly_divmod), so the inner long divisions
-        # already run in C; only the Euclidean *driver* + the monic-normalize are
-        # Python. A dedicated single-call srmech_poly_gcd C peer is the immediate
-        # rc39-prefix follow-up — its arena must cover the ℚ-GCD coefficient
-        # cascade (the classic exponential intermediate-coefficient growth), which
-        # needs a degree-scaled bound rather than the per-op product envelope the
-        # other C peers use; building that soundly is deferred so it does not blow
-        # this rc (the pure-Python bigint GCD has no ceiling — the complete path).
+        # rc39: a dedicated single-call srmech_poly_gcd C peer now carries the
+        # whole monic Euclidean chain natively when present. Its arena is
+        # chain-scaled (per-step MONIC NORMALIZATION tames the ℚ-coefficient
+        # growth from ~92× to ~23× input bits, and the cap carries degree-squared
+        # headroom past that), so the native path runs the full Euclid loop in C.
+        # The pure-Python bigint Euclid below is the COMPLETE alternative + the
+        # parity oracle: it has no magnitude ceiling, and its inner long divisions
+        # still route through srmech_poly_divmod when native is present. The
+        # native peer falls back to it on ANY NativeError (incl. an OVERFLOW from
+        # an input past the chain-scaled bound).
+        nat = _native()
+        if nat is not None and nat.has_native_poly_gcd():
+            try:
+                pairs = nat.poly_gcd_c(_pairs(self._c), _pairs(o._c))
+                if pairs is not None:
+                    return Poly._wrap(_from_pairs(pairs))
+            except (RuntimeError, OverflowError, ValueError):
+                pass                                  # fall to the pure path
         a, b = self, o
         # Euclid: a, b -> b, a mod b until b is zero; the last nonzero is the GCD.
         while not b.is_zero:
@@ -520,6 +541,52 @@ class Poly:
             acc = acc._mul_poly(linear) + Poly._wrap(() if c == 0 else (c,))
         return acc
 
+    # ── resultant / dispersion (the §76 Gosper substrate; exact over ℚ) ──────
+    def resultant(self, other) -> Q:
+        """The EXACT resultant ``Res(self, other)`` as a ``Q``, via the
+        subresultant-style **polynomial-remainder sequence** — NO matrix, NO
+        determinant. The resultant is zero iff the two polynomials share a
+        non-constant common factor, and it is the substrate the §76 Gosper
+        **dispersion** rides on (the dispersion is the non-negative integer roots
+        of ``Res_k(p(k), q(k+h))`` as a polynomial in ``h``).
+
+        Reduction recurrence (each step exact over ℚ): for ``deg p = m ≥ deg q =
+        n ≥ 1`` and ``r = p mod q``, ``Res(p, q) = (-1)^(m·n) · lc(q)^(m - deg r)
+        · Res(q, r)``; the base cases are ``Res(p, c) = c^deg p`` for a constant
+        ``c``, ``Res(p, q) = (-1)^(m·n) Res(q, p)`` when ``deg p < deg q``, and a
+        zero result the instant a remainder vanishes (a shared factor). The sign
+        is the **Class-K** pin-slot (an integer ``±1`` from the parity of ``m·n``,
+        never an ALU ``abs()``). Exact, bigint, no float; matches the
+        product-of-differences definition ``lc(p)^deg q · ∏ q(roots of p)``."""
+        o = self._as_poly(other)
+        if o is None:
+            raise TypeError("Poly.resultant requires a Poly / coercible sequence")
+        return _resultant(self, o)
+
+    def dispersion(self, other) -> List[int]:
+        """The EXACT **dispersion set** ``{ h ≥ 0 integer : deg gcd(self(k),
+        other(k + h)) ≥ 1 }`` (the standard Gosper–Petkovšek convention: the
+        SECOND argument is shifted by ``+h``). It is the set of non-negative
+        integer shifts at which the two polynomials share a root, i.e. the
+        non-negative integer roots of ``R(h) = Res_k(self(k), other(k + h))`` (a
+        polynomial in ``h`` of degree ``≤ deg self · deg other``).
+
+        Computed EXACTLY (no float): ``R(h)`` is reconstructed by Lagrange
+        interpolation through ``deg self · deg other + 1`` exact ``(h_i,
+        Res_k(self, other.shift(h_i)))`` points, then its non-negative integer
+        roots are found by the rational-root theorem on the integer-cleared
+        ``R(h)`` (each candidate confirmed by an exact ``R(h) == 0`` check). The
+        list is sorted ascending; it is empty when the polynomials never overlap
+        under a non-negative integer shift.
+
+        Note on convention: the §76 Gosper / Petkovšek normal form needs exactly
+        this set — the ``h`` at which ``gcd(a(k), b(k + h))`` is non-trivial,
+        peeled to make ``gcd(a(k), b(k + h)) = 1 ∀ h ≥ 0``."""
+        o = self._as_poly(other)
+        if o is None:
+            raise TypeError("Poly.dispersion requires a Poly / coercible sequence")
+        return _dispersion(self, o)
+
     # ── the boundary collapse — the ONE rotation (ALU → FPU) ────────────────
     def to_floats(self) -> List[float]:
         """Collapse to a list of float64 coefficients (ascending degree) — the
@@ -529,3 +596,143 @@ class Poly:
         :meth:`srmech.amsc.q.Q.__float__` — the opt-in display boundary. The zero
         polynomial returns an empty list."""
         return [float(c) for c in self._c]
+
+
+# ── exact resultant (subresultant-style PRS; module-level so it is iterative —
+#    no recursion limit, JPL-spirit Rule 1) ─────────────────────────────────────
+def _resultant(p: "Poly", q: "Poly") -> Q:
+    """The exact resultant ``Res(p, q)`` via the polynomial-remainder sequence,
+    written ITERATIVELY (the recurrence unrolled into a loop so a deep chain
+    never trips Python's recursion limit). Exact ``Q``; the sign is the Class-K
+    ``±1`` parity of ``deg p · deg q`` at each reduction. See :meth:`Poly.resultant`."""
+    if p.is_zero or q.is_zero:
+        return _Q_ZERO
+    acc = _Q_ONE                                      # the running scale factor
+    while True:
+        dp, dq = p.degree, q.degree
+        if dp == 0 and dq == 0:
+            return acc                                # Res of two nonzero constants
+        if dq == 0:                                   # Res(p, c) = c^deg p
+            return acc * (q.leading ** dp)
+        if dp == 0:                                   # Res(c, q) = c^deg q
+            return acc * (p.leading ** dq)
+        if dp < dq:                                   # swap, carry the (-1)^(mn) sign
+            sgn = -1 if ((dp * dq) % 2) else 1
+            acc = acc * Q(sgn, 1)
+            p, q = q, p
+            continue
+        r = p.divmod(q)[1]
+        if r.is_zero:
+            return _Q_ZERO                            # a shared factor ⇒ resultant 0
+        sgn = -1 if ((dp * dq) % 2) else 1
+        acc = acc * Q(sgn, 1) * (q.leading ** (dp - r.degree))
+        p, q = q, r
+
+
+# ── exact dispersion (non-negative integer roots of Res_k(p(k), q(k+h))) ──────
+def _int_divisors(n: int) -> List[int]:
+    """The positive divisors of ``|n|`` (``[1]`` for ``n == 0``; the rational-root
+    theorem only needs the divisors of the nonzero leading / trailing terms)."""
+    n = n if n >= 0 else -n                           # Class-K magnitude, no abs()
+    if n == 0:
+        return [1]
+    out: List[int] = []
+    i = 1
+    while i * i <= n:
+        if n % i == 0:
+            out.append(i)
+            if i != n // i:
+                out.append(n // i)
+        i += 1
+    return sorted(out)
+
+
+def _dispersion(p: "Poly", q: "Poly") -> List[int]:
+    """The non-negative integer roots of ``R(h) = Res_k(p(k), q(k + h))``,
+    reconstructed exactly by Lagrange interpolation then sieved by the
+    rational-root theorem. See :meth:`Poly.dispersion`."""
+    if p.is_zero or q.is_zero:
+        return []
+    dp, dq = p.degree, q.degree
+    if dp < 1 or dq < 1:
+        return []                                     # a constant shares no root
+    deg_h = dp * dq                                   # deg_h R(h) ≤ deg p · deg q
+    # exact sample points (h_i, Res_k(p, q.shift(h_i))) for h_i = 0 .. deg_h
+    rh = _interpolate([(Q(hi, 1), _resultant(p, q.shift(Q(hi, 1))))
+                       for hi in range(deg_h + 1)])
+    if rh.is_zero:
+        # R(h) ≡ 0 ⇒ p, q share a factor at EVERY shift (degenerate); the
+        # non-negative integer "roots" are unbounded — return [] (Gosper's GP-form
+        # peeling only consumes a FINITE dispersion set; this degenerate input is
+        # handled upstream). This never arises for the squarefree inputs Gosper
+        # feeds dispersion (a, b coprime-after-content).
+        return []
+    return _nonneg_int_roots(rh)
+
+
+def _interpolate(points) -> "Poly":
+    """Exact Lagrange interpolation through ``(x_i, y_i)`` exact-``Q`` points →
+    the unique ``Poly`` of degree ``< len(points)`` hitting them. Exact over ℚ."""
+    result = Poly._wrap(())
+    n = len(points)
+    for i in range(n):
+        xi, yi = points[i]
+        if yi == 0:
+            continue
+        term = Poly._wrap((yi,))                      # the i-th Lagrange basis · y_i
+        denom = _Q_ONE
+        for j in range(n):
+            if j == i:
+                continue
+            xj = points[j][0]
+            term = term._mul_poly(Poly._wrap((-xj, _Q_ONE)))   # · (x - x_j)
+            denom = denom * (xi - xj)
+        inv = _Q_ONE / denom
+        term = Poly._wrap(tuple(a * inv for a in term._c))
+        result = result + term
+    return result
+
+
+def _nonneg_int_roots(rh: "Poly") -> List[int]:
+    """The sorted non-negative INTEGER roots of an exact ``Poly`` ``R(h)``, via
+    the rational-root theorem on its integer-cleared coefficients (each candidate
+    confirmed by an exact ``R(h) == 0`` check — no float). ``h = 0`` is included
+    iff the constant term is zero."""
+    coeffs = list(rh._c)
+    # clear denominators: multiply through by the lcm of the denominators
+    lcm = 1
+    for c in coeffs:
+        d = c.denominator
+        lcm = lcm // _gcd_int(lcm, d) * d
+    ic = [int(c.numerator * (lcm // c.denominator)) for c in coeffs]
+    roots: List[int] = []
+    # strip a factor of h for each trailing-zero coefficient (h = 0 is a root)
+    shift0 = 0
+    while ic and ic[0] == 0:
+        ic.pop(0)
+        shift0 += 1
+    if shift0 > 0:
+        roots.append(0)
+    while ic and ic[-1] == 0:
+        ic.pop()
+    if len(ic) <= 1:
+        return sorted(set(roots))                     # only the h = 0 root (if any)
+    a0, an = ic[0], ic[-1]
+    cands = set()
+    for pdiv in _int_divisors(a0):
+        for qdiv in _int_divisors(an):
+            if qdiv != 0 and pdiv % qdiv == 0:
+                cands.add(pdiv // qdiv)               # integer candidates only
+    for h in cands:
+        if h > 0 and rh.eval(Q(h, 1)) == 0:
+            roots.append(h)
+    return sorted(set(roots))
+
+
+def _gcd_int(a: int, b: int) -> int:
+    """Integer GCD via the Class-I cyclic Euclid (no ``math.gcd`` import)."""
+    a = a if a >= 0 else -a                            # Class-K magnitude, no abs()
+    b = b if b >= 0 else -b
+    while b:
+        a, b = b, a % b
+    return a

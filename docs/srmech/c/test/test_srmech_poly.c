@@ -280,6 +280,87 @@ static void t_bignum_eval(void)
     npass++;
 }
 
+static void t_gcd(void)
+{
+    /* gcd(x^2 - 1, x - 1) = x - 1 (monic)  ->  [-1, 1] */
+    const char *an[] = {"-1", "0", "1"}, *ad[] = {"1", "1", "1"};
+    const char *bn[] = {"-1", "1"}, *bd[] = {"1", "1"};
+    hpoly_t a, b, o; size_t olen = 0u, ws;
+    hpoly_set(&a, an, ad, 3); hpoly_set(&b, bn, bd, 2);
+    hpoly_blank(&o, 3);
+    ws = srmech_poly_gcd_ws_bound(2u, 3u); arena_ensure(ws);
+    assert(srmech_poly_gcd(a.bn, a.bd, 3, b.bn, b.bd, 2,
+                           o.bn, o.bd, &olen, arena, ws) == SRMECH_OK);
+    hpoly_sync(&o, 3);
+    assert(olen == 2);
+    expect_coeff(&o.bn[0], &o.bd[0], "-1", "1", "gcd c0");
+    expect_coeff(&o.bn[1], &o.bd[1], "1", "1", "gcd c1");
+    npass++;
+}
+
+static void t_gcd_coprime(void)
+{
+    /* gcd(x, x + 3) = 1 (coprime -> monic constant 1)  ->  [1] */
+    const char *an[] = {"0", "1"}, *ad[] = {"1", "1"};
+    const char *bn[] = {"3", "1"}, *bd[] = {"1", "1"};
+    hpoly_t a, b, o; size_t olen = 0u, ws;
+    hpoly_set(&a, an, ad, 2); hpoly_set(&b, bn, bd, 2);
+    hpoly_blank(&o, 2);
+    ws = srmech_poly_gcd_ws_bound(2u, 2u); arena_ensure(ws);
+    assert(srmech_poly_gcd(a.bn, a.bd, 2, b.bn, b.bd, 2,
+                           o.bn, o.bd, &olen, arena, ws) == SRMECH_OK);
+    hpoly_sync(&o, 2);
+    assert(olen == 1);
+    expect_coeff(&o.bn[0], &o.bd[0], "1", "1", "gcd-coprime c0");
+    npass++;
+}
+
+static void t_gcd_p_zero(void)
+{
+    /* gcd(2x^2 + 4, 0) = monic(2x^2+4) = x^2 + 2  ->  [2, 0, 1] */
+    const char *an[] = {"4", "0", "2"}, *ad[] = {"1", "1", "1"};
+    hpoly_t a, b, o; size_t olen = 0u, ws;
+    hpoly_set(&a, an, ad, 3);
+    hpoly_blank(&b, 0);
+    hpoly_blank(&o, 3);
+    ws = srmech_poly_gcd_ws_bound(2u, 3u); arena_ensure(ws);
+    assert(srmech_poly_gcd(a.bn, a.bd, 3, b.bn, b.bd, 0,
+                           o.bn, o.bd, &olen, arena, ws) == SRMECH_OK);
+    hpoly_sync(&o, 3);
+    assert(olen == 3);
+    expect_coeff(&o.bn[0], &o.bd[0], "2", "1", "gcd(p,0) c0");
+    expect_coeff(&o.bn[2], &o.bd[2], "1", "1", "gcd(p,0) c2");
+    npass++;
+}
+
+static void t_gcd_bignum(void)
+{
+    /* A higher-degree case that drives the Euclidean chain (a degree-3 factor
+     * shared by two degree-4 polynomials) over RATIONAL coefficients — the
+     * regime the rc38 naive per-op envelope OVERFLOWED on. Shared cubic
+     * x^3 - (1/3)x^2 - 2x + 2/3  ->  [2/3, -2, -1/3, 1]:
+     *   a = shared*(x + 1/2)  ;  b = shared*(2x - 1)
+     *   gcd = monic(shared) = x^3 - (1/3)x^2 - 2x + 2/3.
+     * a, b coefficients pre-reduced by the Python Poly / Fraction oracle. */
+    const char *an[] = {"1", "-1", "-13", "1", "1"};
+    const char *ad[] = {"3", "3", "6", "6", "1"};
+    const char *bn[] = {"-2", "10", "-11", "-5", "2"};
+    const char *bd[] = {"3", "3", "3", "3", "1"};
+    hpoly_t a, b, o; size_t olen = 0u, ws;
+    hpoly_set(&a, an, ad, 5); hpoly_set(&b, bn, bd, 5);
+    hpoly_blank(&o, 5);
+    ws = srmech_poly_gcd_ws_bound(2u, 5u); arena_ensure(ws);
+    assert(srmech_poly_gcd(a.bn, a.bd, 5, b.bn, b.bd, 5,
+                           o.bn, o.bd, &olen, arena, ws) == SRMECH_OK);
+    hpoly_sync(&o, 5);
+    assert(olen == 4);
+    expect_coeff(&o.bn[0], &o.bd[0], "2", "3", "gcd-bignum c0");
+    expect_coeff(&o.bn[1], &o.bd[1], "-2", "1", "gcd-bignum c1");
+    expect_coeff(&o.bn[2], &o.bd[2], "-1", "3", "gcd-bignum c2");
+    expect_coeff(&o.bn[3], &o.bd[3], "1", "1", "gcd-bignum c3");
+    npass++;
+}
+
 int main(void)
 {
     t_add();
@@ -289,8 +370,12 @@ int main(void)
     t_shift();
     t_rational_divmod();
     t_bignum_eval();
+    t_gcd();
+    t_gcd_coprime();
+    t_gcd_p_zero();
+    t_gcd_bignum();
     free(arena);
-    printf("srmech_poly smoke: %d/%d cases PASS\n", npass, 7);
-    assert(npass == 7);
+    printf("srmech_poly smoke: %d/%d cases PASS\n", npass, 11);
+    assert(npass == 11);
     return 0;
 }
