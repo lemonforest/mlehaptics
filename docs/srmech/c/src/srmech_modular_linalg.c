@@ -51,39 +51,49 @@ static int64_t m_at(const int64_t *m, uint32_t n_cols, uint32_t r, uint32_t c)
 }
 
 /* (a + b) mod p, with a, b already in [0, p) and p < 2**31 so a + b < 2**32. */
+/* (a + b) mod p via the Class-I cyclic primitive (a, b in [0, p), p < 2**31).
+ * rc49: routes through srmech_mod_add — composes the Class-I abstraction
+ * instead of re-deriving (a + b) % p privately. The call is OUTSIDE the assert
+ * so it survives -DNDEBUG; (void)st keeps st 'used' when the assert strips. */
 static uint64_t gf_add(uint64_t a, uint64_t b, uint64_t p)
 {
+    uint64_t out = 0u;
+    srmech_status_t st;
     assert(p > 2u);
     assert(a < p && b < p);
-    return (a + b) % p;
+    st = srmech_mod_add(a, b, p, &out);
+    assert(st == SRMECH_OK);
+    (void)st;
+    return out;
 }
 
-/* (a * b) mod p, with a, b in [0, p) and p < 2**31 so a * b < 2**62 < 2**64. */
+/* (a * b) mod p via the Class-I cyclic primitive (a, b in [0, p), p < 2**31). */
 static uint64_t gf_mul(uint64_t a, uint64_t b, uint64_t p)
 {
+    uint64_t out = 0u;
+    srmech_status_t st;
     assert(p > 2u);
     assert(a < p && b < p);
-    return (a * b) % p;
+    st = srmech_mod_mul(a, b, p, &out);
+    assert(st == SRMECH_OK);
+    (void)st;
+    return out;
 }
 
-/* Modular inverse of a in GF(p) via Fermat: a**(p-2) mod p (p prime).
- * Square-and-multiply, bounded by the 31 significant bits of (p - 2). a must be
- * nonzero mod p (the caller only inverts a discovered nonzero pivot). */
+/* Modular inverse of a in GF(p) via the Class-I cyclic primitive — extended
+ * Euclidean, 1:1 with Python cyclic.mod_inv (rc49: supersedes the prior private
+ * Fermat power). a is nonzero mod p (the caller only inverts a discovered
+ * nonzero pivot, so gcd(a, p) = 1 and the inverse always exists). */
 static uint64_t gf_inv(uint64_t a, uint64_t p)
 {
-    uint64_t result = 1u;
-    uint64_t base   = a % p;
-    uint64_t e      = p - 2u;
+    uint64_t out = 0u;
+    srmech_status_t st;
     assert(p > 2u);
-    assert(base != 0u);
-    while (e != 0u) {
-        if ((e & 1u) != 0u) {
-            result = gf_mul(result, base, p);
-        }
-        base = gf_mul(base, base, p);
-        e >>= 1;
-    }
-    return result;
+    assert(a % p != 0u);
+    st = srmech_mod_inv(a, p, &out);
+    assert(st == SRMECH_OK);
+    (void)st;
+    return out;
 }
 
 /* Scale row r (in place) by the field scalar s: m[r][c] *= s for all c. */
