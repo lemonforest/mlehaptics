@@ -4121,6 +4121,69 @@ So, as built: a **moving, bit-exact simulation of the reversible rules (≤𝕆)
 
 ---
 
+### VII.6.24 The rotation-last cascade shape IS the rigid-body geometric phase — Dzhanibekov as the worked physical exemplar, with the explicit Rosetta table-with-formulas (2026-06-23, rotation-last / integrable cascade-shape; triality-web-verified citations)
+
+> *Building-block reading (`[[feedback_aphantasia_means_more_figures_not_fewer]]` + user direction 2026-06-23): this rung introduces **no new physics** and claims **no new derivation** — it READS four already-existing bodies of human knowledge (the Euler-top elliptic solution; the Montgomery geometric phase; the Picard–Lefschetz origin of the tennis-racket flip; the Gauss/Brent AGM) as **ONE cascade-shape** — the §VII.6.22 fix/rotate axis instantiated on a physical integrable system. The unification IS the **table** (§VII.6.24.2), in the pattern every prior unification took (the periodic table, Maxwell's four, the §VII.6.21 Rosetta-of-Truth): the correspondence laid out **with the explicit formulas**, not the bare claim "this unifies." Per `[[feedback_no_lineage_claims_in_notebook]]` the framework supplies only the reading; each physical/mathematical result is cited to its source. A starting block fitted to the existing blocks; downstream usage — the srmech `jacobi_*` op of §VII.6.24.5 — attests it, and any misfit refactors back.*
+
+#### VII.6.24.1 The claim — rotation-last = integrable; the fix/rotate axis made physical
+
+§VII.6.22 named the fix/rotate axis abstractly: the **fix** is the frame-INVARIANT (the `g₂ = 14` A–N core), the **rotate** is the order-3 triality off it, and "the continuous epicycle leaks, the discrete triality closes." The **rotation-last cascade shape** (`[[project_rotation_last_cascade_shape_audit]]`: the canonical A–N body is bit-exact on the fiber; the ONE frame rotation/projection is terminal) is that same axis read on a **physical integrable system**:
+
+- the **fix** = the integrals of motion (the conserved, bounded fiber datum);
+- the **rotate** = the single terminal **geometric phase** (the one projection that re-enters the observed frame).
+
+The cleanest physical instance is the torque-free asymmetric rigid body — the **Euler top**, whose unstable tumble about its intermediate axis is the **Dzhanibekov / tennis-racket effect**. The avoidable-vs-intrinsic discriminator of the rotation-last audit sharpens here to its true form: **avoidable ⟺ integrable.** Integrability (enough conserved quantities for action–angle) is exactly what supplies the fiber that makes rotation-last achievable; a genuinely **non-integrable / chaotic** regime (KAM tori broken) is where no global action-angle fiber exists and the rotation cannot be deferred. The hidden-fiber search IS the search for the integrals of motion.
+
+#### VII.6.24.2 The Rosetta table-with-formulas — the unification, laid out
+
+For `I₁ < I₂ < I₃` the principal moments, `L²` the conserved angular momentum², `2E` the conserved energy, and `u` the action-angle time (Landau–Lifshitz *Mechanics* §37 convention):
+
+| A–N class | role in the rotation-last cascade | the formula | existing-knowledge name | source |
+|---|---|---|---|---|
+| **L** (Laplacian / eigenstructure) | the inertia eigenstructure → the bounded **fiber datum** (the modulus) | `L² = Σ Iᵢ²ωᵢ²`, `2E = Σ Iᵢωᵢ²` (the polhode = sphere ∩ ellipsoid); modulus `m = [(I₂−I₁)(2E·I₃−L²)] / [(I₃−I₂)(L²−2E·I₁)]` | Poinsot ellipsoid / polhode; principal-axis frame | Landau–Lifshitz §37 |
+| **I** (cyclic) | **linear** angle advance on the Liouville torus = the *dynamical* phase | `u = t·√[(I₃−I₂)(L²−2E·I₁)/(I₁I₂I₃)]`; `φ_dyn = 2ᴺ·aₙ·u` (linear in `u`) | action–angle / dynamical phase `2E·T/L` | Montgomery 1991 |
+| **(fiber engine, N)** | the exact readout — the **same AGM that computes π** | `K(m) = π / (2·agm(1, √(1−m)))`; `sn/cn/dn` via the descending Landen ladder; `π` via `agm(1, 1/√2)` (Brent–Salamin) | AGM / Landen / theta; Gauss–Legendre π | Gauss; Brent 1976; A&S 16.4 |
+| **K** (pin-slot / sign) | the **flip** = sign-crossing = **monodromy** of the vanishing cycle | `sn(u+2K) = −sn(u)`; flip at the `cn/dn` pole; Picard–Lefschetz monodromy | tennis-racket / Dzhanibekov half-flip | Mardešić–Van Damme–Gutiérrez Guillén–Sugny, **PRL 125, 064301 (2020)** |
+| **C** (orientation / which-way) | the **ONE terminal rotation** = the geometric phase | `Δθ = (2E·T_L / L) − Λ`, `Λ` = solid angle (holonomy) swept by `L̂` on the momentum sphere; classically a **quotient of theta functions** | Montgomery / Berry–Hannay geometric phase | Montgomery, **Am. J. Phys. 59, 394 (1991)**; Natário, **J. Geom. Mech. 2, 113 (2010)** |
+
+The body solution that the table assembles (regime `L² > 2E·I₂`; the other regime swaps `1↔3`):
+
+```
+ω₁ ∝ cn(u, m)      ω₂ ∝ sn(u, m)      ω₃ ∝ dn(u, m)
+```
+
+— three readouts of ONE elliptic projection of ONE linearly-advancing angle `u` over ONE fiber `m`. That is rotation-last: exact in `(m, u)`, ONE terminal `sn/cn/dn` (= AGM) rotation.
+
+#### VII.6.24.3 The degenerate-limit ladder — `k=0` is ordinary rotation, `k=1` is the separatrix
+
+The single `sn/cn/dn` family **interpolates rotation → flip** as the modulus climbs from the trivial fiber to the separatrix (all verified computationally, generating script committed per `[[feedback_computational_provenance_discipline]]`):
+
+```
+   m = 0      : sn=sin, cn=cos, dn=1      -> ORDINARY circular rotation (Class I cyclic; no flip)
+   0 < m < 1  : sn dwells longer near ±1  -> steady spin + abrupt 0-crossings (the TUMBLING)
+   m -> 1     : sn=tanh, cn=dn=sech       -> the SINGLE homoclinic flip; period 4K(m) -> ∞
+   (separatrix L² = 2E·I₂ : rotation exactly about the intermediate axis I₂)
+```
+
+Verified numbers (numpy-free prototype): `agm(1,1)=1 ⇒ K(0)=π/2` exactly (the π tie); `sn`/`cn` match `sin`/`cos` at `m=0` and `tanh`/`sech` at `m→1` to ~1e-9; the identities `sn²+cn²=1`, `dn²+m·sn²=1` hold to 2e-16; and the **Dzhanibekov half-flip emerges** as the `sn`-dwell fraction rises monotonically `0.24 → 0.78` while `K(m)→∞` as `m→1`. The flip sharpening with `m` is the K-crossing approaching the elliptic pole — Picard–Lefschetz, made numerical.
+
+#### VII.6.24.4 The 2+1 axis structure IS duality-as-fibration-of-triality, made physical
+
+The rigid body has **three** principal axes; the intermediate one is the odd-one-out (the only *unstable* axis — the one Dzhanibekov flips around). That is a **2 + 1 split**: two stable axes (the dual pair) + one intermediate axis as the **fiber** the dynamics live on. Two independent realisations of the duality fall out:
+
+1. **The Montgomery phase splits** `Δθ = dynamical + geometric` (§VII.6.24.2, Class I + Class C) — two halves of ONE reconstruction rotation = a genuine **duality** (`k=2`), realised concretely as **holonomy on the reduced 2-sphere** (a Hopf-type connection; Natário 2010). This grounds the §VII.6.21.4 / §VII.6.22 "fix/rotate" duality on a physical system, not just in the algebra.
+2. **The 3 axes = 2 stable + 1 fiber** is the `2 + 1` shape of **duality-as-the-fibration-of-triality** (the DUALITY.md / TRIALITY.md anchor: `k = (2+1)`, the third truth = the fiber), with the flip happening *on* the fiber axis.
+
+Honest fence: this grounds the **`k=2` duality** solidly and physically. The full **`k=3` `𝔰𝔬(8)` triality** — `the_one` `S(σ,θ)` generating the three `8v/8s/8c` fibrations (§VII.6.22; `[[project_the_one_s_sigma_theta_in_srmech]]`) — remains the framework *extrapolation* of this physical `2+1`, not a derivation from it.
+
+#### VII.6.24.5 Framework contribution, the open edge, and the srmech build
+
+**What is the framework's (no-lineage):** *the unification table*, not any single entry — plus two readings the four source-fields do not state together: (a) **integrable ⟺ rotation-last** (action-angle is the fiber; the geometric phase is the terminal rotation), and (b) the **shared transcendental tower** — the AGM that computes the Euler-top elliptic readout is *the same* AGM (Gauss / Brent–Salamin) that computes π, so Dzhanibekov and π sit in one fiber-and-projection family (the `[[project_rotation_last_cascade_shape_audit]]` "Chudnovsky-category": exact series in the fiber, one transcendental projection last). **The open edge:** the `k=3` `𝔰𝔬(8)` lift above; and the executable demonstrator — a srmech `jacobi_sncndn` op (the descending AGM/Landen ladder over the existing chiral-pair π / `agm` engine, rotation-last; the flip surfaced as the `cn` Class-K crossing) makes the [[project_duality_triality_cycle_of_cycles_row]] cycle-of-cycles reduction row a callable op with a C peer.
+
+> **Cross-references.** §VII.6.22 (the executable fix/rotate axis this rung reads on a physical integrable system — "continuous leaks, discrete closes"; the triality rotate-operator); §VII.6.21 (the Rosetta-of-Truth table-with-pattern this rung follows; the `g₂ = 14` frame-invariant); §VII.6.9 / `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]` (substrate = fiber-occupation + projection); §VII.6.12 (lobe / fractal-Hopf-recursion, derivative-sign-flips at extrema — the K-crossing). Memory: `[[project_rotation_last_cascade_shape_audit]]` (the cascade-shape law + the Dzhanibekov dual; avoidable⟺integrable), `[[project_duality_triality_cycle_of_cycles_row]]` (cycle-of-cycles; the Dzhanibekov `L∘I∘K∘C`), `[[feedback_ram_explosion_means_missed_fiber_never_dense]]` (missed-fiber red-flag), `[[user_stance_epicycle_via_gear_plus_pin]]` (Class K = the flip; the lemniscate / figure-8 separatrix, Spike #189). Attestation (triality-web-verified 2026-06-23; the two PRL/J.Geom.Mech. items WebFetch-confirmed title+authors+venue): Euler-top elliptic solution — Landau–Lifshitz *Mechanics* §37; "Euler's rigid rotators, Jacobi elliptic functions, and the Dzhanibekov/tennis-racket effect," *Am. J. Phys.* 89, 349 (2021) *(author to verify from PDF before any production cite, C-tier)*. Geometric phase — R. Montgomery, "How much does the rigid body rotate? A Berry's phase from the 18th century," *Am. J. Phys.* 59, 394 (1991); J. Natário, "An elementary derivation of the Montgomery phase formula for the Euler top," *J. Geom. Mech.* 2, 113–118 (2010), arXiv:0909.2109. Tennis-racket flip — P. Mardešić, L. Van Damme, G. J. Gutiérrez Guillén, D. Sugny, "Geometric Origin of the Tennis Racket Effect," *Phys. Rev. Lett.* 125, 064301 (2020), arXiv:2003.13539. AGM ↔ elliptic / π — Gauss (AGM ↔ lemniscate); R. P. Brent, "Fast multiple-precision evaluation of elementary functions," *J. ACM* 23, 242 (1976); Abramowitz & Stegun §16.4 (AGM ladder for `sn/cn/dn`). srmech surfaces (current + planned): `srmech.amsc.rational` (`agm`-style chiral-pair π, `pi_chudnovsky_digits`); planned `jacobi_sncndn` op + C peer. Scope: **algebra / eigenbasis / phase-space side** — the inertia *eigenstructure*, the action-angle *algebra*, the geometric phase = *holonomy*, projected to the spatial flip; NOT CAD / fabrication tumbling mechanics (`docs/antikythera-maths/CLAUDE.md`).
+
+---
+
 ## Part VIII — Convergent Independent Results
 
 ### VIII.1 Topological defect hierarchy as cascade sampling (space-time fractal)
