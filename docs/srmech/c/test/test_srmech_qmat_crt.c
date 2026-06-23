@@ -22,6 +22,12 @@
 
 #define LCAP 512u
 
+/* Runtime check that SURVIVES -DNDEBUG (Release): assert() would strip both the
+ * comparison AND any side-effecting call wrapped in it, so verification + the
+ * library calls must run unconditionally. Mirrors the expect_q abort pattern. */
+#define CHECK(cond, msg) \
+    do { if (!(cond)) { fprintf(stderr, "FAIL %s\n", (msg)); abort(); } } while (0)
+
 typedef struct { uint32_t limbs[LCAP]; srmech_bigint_t bi; } hbi_t;
 
 static void hbi_set(hbi_t *h, const char *dec)
@@ -30,7 +36,8 @@ static void hbi_set(hbi_t *h, const char *dec)
     h->bi.cap = LCAP;
     h->bi.n = 0u;
     h->bi.sign = 0;
-    assert(srmech_bigint_from_dec(&h->bi, dec, strlen(dec)) == SRMECH_OK);
+    CHECK(srmech_bigint_from_dec(&h->bi, dec, strlen(dec)) == SRMECH_OK,
+          "bigint_from_dec");
 }
 
 static void hbi_blank(hbi_t *h)
@@ -45,7 +52,8 @@ static void hbi_dec(const srmech_bigint_t *a, char *buf, size_t cap)
 {
     static uint32_t ws[LCAP * 16];
     size_t outlen = 0u;
-    assert(srmech_bigint_to_dec(a, buf, cap, &outlen, ws, sizeof(ws)) == SRMECH_OK);
+    CHECK(srmech_bigint_to_dec(a, buf, cap, &outlen, ws, sizeof(ws)) == SRMECH_OK,
+          "bigint_to_dec");
 }
 
 static void expect_q(const srmech_bigint_t *num, const srmech_bigint_t *den,
@@ -127,8 +135,8 @@ static size_t run_crt(hmat_t *a, hmat_t *o, size_t r, size_t c, size_t *piv)
     size_t rank = 0u, ws = srmech_qmat_rref_crt_ws_bound(8u, r, c);
     arena_ensure(ws);
     hmat_blank(o, r * c);
-    assert(srmech_qmat_rref_crt(a->bn, a->bd, r, c, o->bn, o->bd, &rank, piv,
-                                g_arena, ws) == SRMECH_OK);
+    CHECK(srmech_qmat_rref_crt(a->bn, a->bd, r, c, o->bn, o->bd, &rank, piv,
+                               g_arena, ws) == SRMECH_OK, "qmat_rref_crt");
     hmat_sync(o, r * c);
     return rank;
 }
@@ -141,7 +149,7 @@ static void t_crt_identity(void)
     hmat_t a, o; size_t piv[8], rank;
     hmat_set(&a, n, d, 3, 3);
     rank = run_crt(&a, &o, 3, 3, piv);
-    assert(rank == 3);
+    CHECK(rank == 3, "rank == 3");
     expect_q(&o.bn[0], &o.bd[0], "1", "1", "crt-id[0,0]");
     expect_q(&o.bn[4], &o.bd[4], "1", "1", "crt-id[1,1]");
     expect_q(&o.bn[8], &o.bd[8], "1", "1", "crt-id[2,2]");
@@ -159,7 +167,7 @@ static void t_crt_free_column(void)
     hmat_t a, o; size_t piv[8], rank;
     hmat_set(&a, n, d, 2, 3);
     rank = run_crt(&a, &o, 2, 3, piv);
-    assert(rank == 2);
+    CHECK(rank == 2, "rank == 2");
     expect_q(&o.bn[0], &o.bd[0], "1", "1", "crt-free[0,0]");
     expect_q(&o.bn[1], &o.bd[1], "2", "1", "crt-free[0,1]");
     expect_q(&o.bn[2], &o.bd[2], "0", "1", "crt-free[0,2]");
@@ -176,7 +184,7 @@ static void t_crt_fractional_negative(void)
     hmat_t a, o; size_t piv[8], rank;
     hmat_set(&a, n, d, 2, 2);
     rank = run_crt(&a, &o, 2, 2, piv);
-    assert(rank == 2);
+    CHECK(rank == 2, "rank == 2");
     expect_q(&o.bn[0], &o.bd[0], "1", "1", "crt-frac[0,0]");
     expect_q(&o.bn[1], &o.bd[1], "0", "1", "crt-frac[0,1]");
     expect_q(&o.bn[3], &o.bd[3], "1", "1", "crt-frac[1,1]");
@@ -193,7 +201,7 @@ static void t_crt_unlucky_restart(void)
     hmat_t a, o; size_t piv[8], rank;
     hmat_set(&a, n, d, 2, 2);
     rank = run_crt(&a, &o, 2, 2, piv);
-    assert(rank == 2);
+    CHECK(rank == 2, "rank == 2");
     expect_q(&o.bn[0], &o.bd[0], "1", "1", "crt-unlucky[0,0]");
     expect_q(&o.bn[1], &o.bd[1], "0", "1", "crt-unlucky[0,1]");
     expect_q(&o.bn[3], &o.bd[3], "1", "1", "crt-unlucky[1,1]");
@@ -213,7 +221,7 @@ static void t_crt_big_answer(void)
     char bn[16384];
     hmat_set(&a, n, d, 2, 3);
     rank = run_crt(&a, &o, 2, 3, piv);
-    assert(rank == 2);
+    CHECK(rank == 2, "rank == 2");
     expect_q(&o.bn[0], &o.bd[0], "1", "1", "crt-big[0,0]");
     expect_q(&o.bn[4], &o.bd[4], "1", "1", "crt-big[1,1]");
     /* x0 = (3*b0 - b1)/5 = (3*(10^40+1) - 1)/5 = (3*10^40+2)/5, already reduced
