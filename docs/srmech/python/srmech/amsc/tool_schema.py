@@ -745,6 +745,40 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("a", "int", True), P("n", "int", True)),
             returns=R("int", "in [1, n)"),
         ),
+        # ────────────────────────────────────────────────────────────
+        # Class I — modular linear algebra: GF(p) reduced row-echelon form
+        # (rc44, rung 1 of the CRT-QMat re-fibration arc).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.modular_linalg.gf_rref", owner="srmech",
+            category="modular_linalg",
+            summary="Reduced row-echelon form of an integer matrix over the finite "
+                    "field GF(p) — Gaussian elimination over a prime field (cf. "
+                    "Cohen, *A Course in Computational Algebraic Number Theory*, "
+                    "1993, Algorithm 2.3.1; von zur Gathen & Gerhard, *Modern "
+                    "Computer Algebra*, 3rd ed. 2013, §5.4). The swell-free core of "
+                    "the rc44 CRT re-fibration: exact-ℚ Gauss-Jordan grows numerators "
+                    "and denominators at every pivot (a Hadamard-bounded arena, ~GB "
+                    "for the order-2 Franel system), whereas GF(p) elimination has "
+                    "ZERO coefficient swell — every residue stays in [0, p). Input: "
+                    "an integer matrix (list of equal-length int rows; entries may be "
+                    "negative, reduced into [0, p) first) and a prime p with "
+                    "2 < p < 2**31 (so a*b fits uint64; primality is the caller's "
+                    "contract). Class I (composes mod_inv / mod_mul / mod_add); "
+                    "Class-K sign/zero handling (compare-to-0, never abs()); bounded "
+                    "machine-int, no fraction growth, no bignum, no float, no numpy / "
+                    "math. 1:1 C peer srmech_gf_rref (in-place int64 caller-arena; "
+                    "native when present, pure-Python the complete alternative).",
+            parameters=(P("rows", "list[list[int]]", True,
+                          "the integer matrix as a list of equal-length int rows "
+                          "(entries may be negative)"),
+                        P("p", "int", True,
+                          "an odd prime with 2 < p < 2**31 (the field modulus)")),
+            returns=R("dict",
+                      "{'rref': [[int]] (every entry in [0, p)), 'rank': int, "
+                      "'pivots': [int] (the pivot column of each pivot row, "
+                      "ascending)}"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class L — graph Laplacian
@@ -1357,6 +1391,19 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("a", "int", True), P("n", "int", True),
                         P("max_k", "int", False)),
             returns=R("int", "≥ 1"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.primes.next_prime", owner="srmech", category="primes",
+            summary="The prime successor (Class J): the smallest prime strictly "
+                    "greater than n. Trial-division primality (cf. Crandall & "
+                    "Pomerance, *Prime Numbers: A Computational Perspective*, 2nd "
+                    "ed. 2005, §1.3) walked over the odd candidates above n; 0/1 "
+                    "step to 2 and 2 steps to 3. Used by the rc44 CRT re-fibration "
+                    "arc to enumerate the GF(p) reduction primes. 1:1 C peer "
+                    "srmech_next_prime (native when present; pure-Python complete). "
+                    "Exact integer; no float, no abs(), no numpy / math.",
+            parameters=(P("n", "int", True, "non-negative integer"),),
+            returns=R("int", "the smallest prime > n"),
         ),
 
         # ────────────────────────────────────────────────────────────

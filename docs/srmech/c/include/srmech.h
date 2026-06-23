@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc43"
-#define SRMECH_VERSION       "0.9.0rc43"
+#define SRMECH_VERSION_PRE   "rc44"
+#define SRMECH_VERSION       "0.9.0rc44"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1219,6 +1219,40 @@ srmech_status_t srmech_cyclic_period(uint64_t  a,
                                      uint64_t  n,
                                      uint64_t  max_k,
                                      uint64_t *out_period);
+
+/* Smallest prime strictly greater than n (the prime successor). Composes the
+ * trial-division srmech_is_prime over the odd candidates above n. 0 and 1 step
+ * to 2; 2 steps to 3. Returns SRMECH_ERR_OVERFLOW only if no prime exists below
+ * the uint64 wrap (unreachable for any real n -- the largest prime gap under
+ * 2^64 is ~1500). srmech 0.9.0rc44, additive symbol (no ABI bump). */
+srmech_status_t srmech_next_prime(uint64_t n, uint64_t *out);
+
+/* ------------------------------------------------------------------ *
+ * Class I -- modular linear algebra: GF(p) RREF (srmech 0.9.0rc44).
+ *
+ * Rung 1 of the CRT-QMat re-fibration arc: the swell-free GF(p) Gauss-
+ * Jordan that the later CRT solve composes (solve mod several machine-
+ * int primes -> CRT-combine -> rational-reconstruct once). Bounded
+ * machine-int arithmetic only -- NO fraction growth, NO bignum. The
+ * matrix + pivot buffers are caller-owned (no malloc).
+ *
+ * Additive symbol -- no ABI bump.
+ * ------------------------------------------------------------------ */
+
+/* Reduce `matrix` (an n_rows x n_cols int64 matrix, ROW-MAJOR, caller-owned)
+ * to reduced row-echelon form over the field GF(p), IN PLACE. Entries may be
+ * negative on input; they are canonicalised into [0, p) first and every output
+ * entry lies in [0, p). Requires p an odd prime with 2 < p < 2**31 (so a*b fits
+ * uint64); returns SRMECH_ERR_BAD_INPUT otherwise. Writes the pivot column of
+ * each pivot row into `out_pivots` (caller buffer of >= min(n_rows, n_cols)
+ * uint32) and the rank into `*out_rank`. Primality of p is the caller's
+ * contract (the arithmetic domain bound is the only thing guarded here). */
+srmech_status_t srmech_gf_rref(int64_t  *matrix,
+                               uint32_t  n_rows,
+                               uint32_t  n_cols,
+                               uint64_t  p,
+                               uint32_t *out_pivots,
+                               uint32_t *out_rank);
 
 /* ------------------------------------------------------------------ *
  * Class B — tagged-tuple TLV byte-canonical form (Task #217 Phase

@@ -714,6 +714,32 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_cyclic_period.restype = ctypes.c_int
 
+    # rc44: int srmech_next_prime(uint64_t n, uint64_t *out) — the prime
+    # successor (Class J). NEW symbol — hasattr-guarded so a stale pre-rc44 lib
+    # keeps the rest of the native surface (ABI stays 3; pure-Python is complete).
+    if hasattr(lib, "srmech_next_prime"):
+        lib.srmech_next_prime.argtypes = [
+            ctypes.c_uint64, ctypes.POINTER(ctypes.c_uint64),
+        ]
+        lib.srmech_next_prime.restype = ctypes.c_int
+
+    # rc44: int srmech_gf_rref(int64_t *matrix, uint32_t n_rows, uint32_t n_cols,
+    #     uint64_t p, uint32_t *out_pivots, uint32_t *out_rank) — the swell-free
+    # GF(p) reduced-row-echelon kernel (Class I modular linear algebra, rung 1 of
+    # the CRT-QMat re-fibration arc). In-place over a caller-owned row-major int64
+    # buffer; pivots + rank into caller buffers. NEW symbol — hasattr-guarded (ABI
+    # stays 3; the pure-Python srmech.amsc.modular_linalg.gf_rref is complete).
+    if hasattr(lib, "srmech_gf_rref"):
+        lib.srmech_gf_rref.argtypes = [
+            ctypes.POINTER(ctypes.c_int64),     # matrix (n_rows*n_cols, row-major)
+            ctypes.c_uint32,                    # n_rows
+            ctypes.c_uint32,                    # n_cols
+            ctypes.c_uint64,                    # p (2 < p < 2**31)
+            ctypes.POINTER(ctypes.c_uint32),    # out_pivots (>= min(rows,cols))
+            ctypes.POINTER(ctypes.c_uint32),    # out_rank
+        ]
+        lib.srmech_gf_rref.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Class B (tagged-tuple TLV) — Task #217 Phase C1 rc4.
     # ------------------------------------------------------------------
@@ -3221,6 +3247,23 @@ def log_q61_c(x: float):
 def sqrt_q61_c(x: float):
     """``sqrt(x) = root * 2**p`` -> ``(root, p)`` (both int64)."""
     return _q61_two_out("srmech_sqrt_q61", x)
+
+
+def has_native_next_prime() -> bool:
+    """True iff the rc44 srmech_next_prime prime-successor peer is loaded + bound.
+    False on a no-C / pre-rc44 lib — the pure-Python ``primes.next_prime`` body
+    (composing ``is_prime`` over odd candidates) is the complete alternative."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_next_prime"))
+
+
+def has_native_gf_rref() -> bool:
+    """True iff the rc44 srmech_gf_rref GF(p) RREF kernel is loaded + bound.
+    False on a no-C / pre-rc44 lib — the pure-Python
+    ``modular_linalg.gf_rref`` body (composing the Class-I modular primitives) is
+    the complete, byte-identical alternative (and the parity oracle)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_gf_rref"))
 
 
 def has_native_isqrt() -> bool:

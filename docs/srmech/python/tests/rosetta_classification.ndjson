@@ -437,3 +437,5 @@
 {"exposed_as": "srmech.amsc.hdc.klein4_bundle_accumulate", "defined_at": "srmech.amsc.hdc.klein4_bundle_accumulate", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.hdc.klein4_bundle_resolve", "defined_at": "srmech.amsc.hdc.klein4_bundle_resolve", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.hdc.cooccurrence_fold", "defined_at": "srmech.amsc.hdc.cooccurrence_fold", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.primes.next_prime", "defined_at": "srmech.amsc.primes.next_prime", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.modular_linalg.gf_rref", "defined_at": "srmech.amsc.modular_linalg.gf_rref", "bucket": "c_dispatched"}
