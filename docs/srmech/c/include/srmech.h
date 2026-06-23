@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc37"
-#define SRMECH_VERSION       "0.9.0rc37"
+#define SRMECH_VERSION_PRE   "rc38"
+#define SRMECH_VERSION       "0.9.0rc38"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3010,6 +3010,114 @@ srmech_status_t srmech_rational_pow_uint_big(const srmech_bigint_t *base_num,
                                              srmech_bigint_t *out_num,
                                              srmech_bigint_t *out_den,
                                              void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_poly — EXACT-RATIONAL univariate polynomial over srmech_bigint
+ * (the C peer of srmech.amsc.poly.Poly; the §76 telescope Sigma-row prover's
+ * foundation carrier).
+ *
+ * A polynomial is two parallel caller-owned srmech_bigint arrays in ASCENDING
+ * degree: nums[i] / dens[i] is the exact-rational coefficient of x^i (dens[i] >
+ * 0, gcd(|nums[i]|, dens[i]) == 1; zero coefficient = 0/1). `n` is the
+ * coefficient count; the CANONICAL form trims trailing-zero (high-degree)
+ * coefficients, so the zero polynomial has n == 0. Each op computes the SAME
+ * exact rational coefficients srmech.amsc.poly.Poly computes (Class-N rational
+ * arithmetic over Class-J reduction), over caller-arena srmech_bigint (NO
+ * malloc), reduced to lowest terms — byte-identical to Python at ANY magnitude
+ * (full bignum; no int64/Q61 ceiling).
+ *
+ * STANDALONE-COMPLETE: every working carrier + the divmod/reduce scratch is
+ * carved from the caller arena `ws` (>= the matching srmech_poly_ws_bound), so
+ * the bound is the caller's RAM. Out coefficient arrays are caller-owned + must
+ * be pre-sized (add/sub: max(na,nb); mul: na+nb-1; divmod: q -> na-nb+1, r ->
+ * na; shift: n); each srmech_bigint in those arrays must carry enough limb
+ * capacity for the result coefficient (size with srmech_bigint cap >= the
+ * per-coeff product bound). Out-of-domain (nb == 0 for divmod) ->
+ * SRMECH_ERR_BAD_INPUT; too-small ws or an out coefficient cap ->
+ * SRMECH_ERR_OVERFLOW (matching Python's ZeroDivisionError / unbounded-int
+ * domains).
+ *
+ * NOTE: the single-call polynomial GCD (srmech_poly_gcd) is the immediate
+ * rc39-prefix follow-up, NOT shipped here. The Euclidean GCD over Q has the
+ * classic intermediate-coefficient explosion, so its caller-arena bound must
+ * scale with the Euclidean-chain length (a subresultant formulation), not the
+ * per-op product envelope the peers below use; shipping a gcd that could
+ * OVERFLOW on a benign higher-degree input would break the standalone-complete
+ * honor. The Python Poly.gcd already runs its inner long divisions through
+ * srmech_poly_divmod when native is present; only its Euclid driver stays Python
+ * (the pure-bigint GCD has no ceiling — the complete path).
+ *
+ * Carrier-internal (like srmech_bigexp): NOT a Rosetta ledger op. Additive
+ * symbols -> SRMECH_ABI_VERSION unchanged.
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES the caller hands any srmech_poly_* op below, for input
+ * coefficients of `coeff_limbs` significant limbs and a polynomial of `n_terms`
+ * coefficients. Covers every working carrier + the deepest divmod scratch.
+ * 8-byte-aligned uint32 bump arena. */
+size_t srmech_poly_ws_bound(size_t coeff_limbs, size_t n_terms);
+
+/* out = a + b, coefficientwise exact-Q, trimmed. out arrays hold max(na, nb)
+ * coefficients; *out_len <- the trimmed length. */
+srmech_status_t srmech_poly_add(const srmech_bigint_t *a_n,
+                                const srmech_bigint_t *a_d, size_t na,
+                                const srmech_bigint_t *b_n,
+                                const srmech_bigint_t *b_d, size_t nb,
+                                srmech_bigint_t *out_n, srmech_bigint_t *out_d,
+                                size_t *out_len, void *ws, size_t ws_len);
+
+/* out = a - b, coefficientwise exact-Q, trimmed. Same shapes as add. */
+srmech_status_t srmech_poly_sub(const srmech_bigint_t *a_n,
+                                const srmech_bigint_t *a_d, size_t na,
+                                const srmech_bigint_t *b_n,
+                                const srmech_bigint_t *b_d, size_t nb,
+                                srmech_bigint_t *out_n, srmech_bigint_t *out_d,
+                                size_t *out_len, void *ws, size_t ws_len);
+
+/* out = a * b (coefficient convolution), exact-Q, trimmed. out arrays hold
+ * na + nb - 1 coefficients (0 when either is the zero polynomial). */
+srmech_status_t srmech_poly_mul(const srmech_bigint_t *a_n,
+                                const srmech_bigint_t *a_d, size_t na,
+                                const srmech_bigint_t *b_n,
+                                const srmech_bigint_t *b_d, size_t nb,
+                                srmech_bigint_t *out_n, srmech_bigint_t *out_d,
+                                size_t *out_len, void *ws, size_t ws_len);
+
+/* (quotient, remainder) of a / b over Q: a == q*b + r, deg r < deg b (or r ==
+ * 0). nb == 0 -> SRMECH_ERR_BAD_INPUT. out_q arrays hold na-nb+1 coefficients
+ * (0 when na < nb); out_r arrays hold na (the working remainder width).
+ * *out_qn / *out_rn <- the trimmed lengths. */
+srmech_status_t srmech_poly_divmod(const srmech_bigint_t *a_n,
+                                   const srmech_bigint_t *a_d, size_t na,
+                                   const srmech_bigint_t *b_n,
+                                   const srmech_bigint_t *b_d, size_t nb,
+                                   srmech_bigint_t *out_q_n,
+                                   srmech_bigint_t *out_q_d, size_t *out_qn,
+                                   srmech_bigint_t *out_r_n,
+                                   srmech_bigint_t *out_r_d, size_t *out_rn,
+                                   void *ws, size_t ws_len);
+
+/* (srmech_poly_gcd deferred to the rc39-prefix follow-up — see the block
+ * comment above for the Euclidean coefficient-explosion rationale.) */
+
+/* p(x) at x = x_n/x_d by exact Horner -> one reduced rational out_num/out_den. */
+srmech_status_t srmech_poly_eval(const srmech_bigint_t *p_n,
+                                 const srmech_bigint_t *p_d, size_t n,
+                                 const srmech_bigint_t *x_n,
+                                 const srmech_bigint_t *x_d,
+                                 srmech_bigint_t *out_num,
+                                 srmech_bigint_t *out_den,
+                                 void *ws, size_t ws_len);
+
+/* p(x + h) (the dispersion shift) by exact synthetic Horner on (x + h). acc
+ * arrays hold n coefficients; *acc_len <- the trimmed length. */
+srmech_status_t srmech_poly_shift(const srmech_bigint_t *p_n,
+                                  const srmech_bigint_t *p_d, size_t n,
+                                  const srmech_bigint_t *h_n,
+                                  const srmech_bigint_t *h_d,
+                                  srmech_bigint_t *acc_n,
+                                  srmech_bigint_t *acc_d, size_t *acc_len,
+                                  void *ws, size_t ws_len);
 
 #ifdef __cplusplus
 }

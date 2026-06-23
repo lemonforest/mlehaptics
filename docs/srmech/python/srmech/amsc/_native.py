@@ -1722,6 +1722,76 @@ def _bind(lib: ctypes.CDLL) -> None:
             getattr(lib, _bop).argtypes = list(_BIGEXP_SIG)
             getattr(lib, _bop).restype = ctypes.c_int
 
+    # rc38: the EXACT-RATIONAL polynomial carrier C peer (srmech_poly_*) — the
+    # §76 telescope Sigma-row foundation. Each op takes parallel srmech_bigint
+    # coefficient arrays (nums[]/dens[], ascending degree) + a caller arena, all
+    # over the same bignum substrate as bigexp (no int64/Q61 ceiling). NEW
+    # symbols → hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 3. Bound
+    # here only to marshal the coefficient arrays (mirroring the bigexp pattern);
+    # Poly carries the math, the C accelerates it byte-identically.
+    #   size_t srmech_poly_ws_bound(size_t coeff_limbs, size_t n_terms)
+    if hasattr(lib, "srmech_poly_ws_bound"):
+        lib.srmech_poly_ws_bound.argtypes = [ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_poly_ws_bound.restype = ctypes.c_size_t
+    # add / sub / mul share the
+    #   fn(a_n, a_d, na, b_n, b_d, nb, out_n, out_d, *out_len, ws, ws_len)
+    # shape over srmech_bigint coefficient arrays.
+    _POLY_BINOP_SIG = [
+        ctypes.POINTER(_SrmechBigint),   # a_n[]
+        ctypes.POINTER(_SrmechBigint),   # a_d[]
+        ctypes.c_size_t,                 # na
+        ctypes.POINTER(_SrmechBigint),   # b_n[]
+        ctypes.POINTER(_SrmechBigint),   # b_d[]
+        ctypes.c_size_t,                 # nb
+        ctypes.POINTER(_SrmechBigint),   # out_n[]
+        ctypes.POINTER(_SrmechBigint),   # out_d[]
+        ctypes.POINTER(ctypes.c_size_t), # *out_len
+        ctypes.c_void_p,                 # ws
+        ctypes.c_size_t,                 # ws_len
+    ]
+    for _pop in ("srmech_poly_add", "srmech_poly_sub", "srmech_poly_mul"):
+        if hasattr(lib, _pop):
+            getattr(lib, _pop).argtypes = list(_POLY_BINOP_SIG)
+            getattr(lib, _pop).restype = ctypes.c_int
+    #   srmech_poly_divmod(a_n,a_d,na, b_n,b_d,nb, q_n,q_d,*qn, r_n,r_d,*rn, ws,wl)
+    if hasattr(lib, "srmech_poly_divmod"):
+        lib.srmech_poly_divmod.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_size_t,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_size_t,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_poly_divmod.restype = ctypes.c_int
+    # (srmech_poly_gcd deferred to the rc39-prefix follow-up — the Euclidean
+    # coefficient explosion needs a chain-scaled arena, not the per-op envelope;
+    # Poly.gcd's inner long divisions already route through srmech_poly_divmod.)
+    #   srmech_poly_eval(p_n,p_d,n, x_n,x_d, out_num,out_den, ws,wl)
+    if hasattr(lib, "srmech_poly_eval"):
+        lib.srmech_poly_eval.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_size_t,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_poly_eval.restype = ctypes.c_int
+    #   srmech_poly_shift(p_n,p_d,n, h_n,h_d, acc_n,acc_d,*alen, ws,wl)
+    if hasattr(lib, "srmech_poly_shift"):
+        lib.srmech_poly_shift.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_size_t,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_poly_shift.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None
@@ -1953,6 +2023,241 @@ def _bigexp_call(symbol: str, numerator: int, denominator: int,
     if rc != SRMECH_OK:
         raise RuntimeError(f"{symbol} returned non-OK status {rc}")
     return _bigint_to_int(out_num), _bigint_to_int(out_den)
+
+
+# ----------------------------------------------------------------------
+# rc38: the EXACT-RATIONAL polynomial carrier C peer (srmech_poly_*). The
+# Python srmech.amsc.poly.Poly routes its add/sub/mul/divmod/gcd/eval/shift
+# through these when has_native_poly(); the pure-Python body is the COMPLETE
+# alternative (and the parity oracle) — both emit byte-identical exact (num,
+# den) coefficients at any magnitude. The marshalling builds parallel
+# _SrmechBigint coefficient arrays over the decimal bridge (same pattern as
+# _bigexp_call), keeping the backing limb buffers alive for the call.
+# ----------------------------------------------------------------------
+
+_POLY_SYMS = (
+    "srmech_poly_ws_bound",
+    "srmech_bigint_from_dec",
+    "srmech_bigint_to_dec",
+    "srmech_bigint_to_dec_bound",
+)
+
+
+def has_native_poly() -> bool:
+    """True iff the rc38 srmech_poly_* ops + the srmech_bigint decimal-marshal
+    helpers are loaded + bound. False on a no-C or pre-rc38 lib — the
+    pure-Python ``srmech.amsc.poly.Poly`` body is the complete alternative (and
+    the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _POLY_SYMS) and hasattr(
+        LIB, "srmech_poly_add"
+    )
+
+
+def _poly_coeff_limbs(coeffs) -> int:
+    """The largest significant-limb count across a coefficient ``(num, den)``
+    sequence (9 decimal digits ≈ 1 limb; pad)."""
+    cl = 1
+    for num, den in coeffs:
+        cl = max(cl, len(str(num).lstrip("-")) // 9 + 2, len(str(den)) // 9 + 2)
+    return cl
+
+
+def _poly_make_array(coeffs, out_cap):
+    """Build parallel ``_SrmechBigint`` arrays (nums, dens) over the decimal
+    bridge from a ``(num, den)`` coefficient sequence, each carrier sized to
+    ``out_cap`` limbs. Returns ``(num_arr, den_arr, keepalive)`` — the caller
+    MUST keep ``keepalive`` (the limb buffers) alive for the call."""
+    n = len(coeffs)
+    num_arr = (_SrmechBigint * max(n, 1))()
+    den_arr = (_SrmechBigint * max(n, 1))()
+    keep = []
+    for i, (num, den) in enumerate(coeffs):
+        bn, kbn = _bigint_from_int(int(num), out_cap)
+        bd, kbd = _bigint_from_int(int(den), out_cap)
+        num_arr[i] = bn
+        den_arr[i] = bd
+        keep.append(kbn)
+        keep.append(kbd)
+    return num_arr, den_arr, keep
+
+
+def _poly_blank_array(n, out_cap):
+    """Build parallel blank ``_SrmechBigint`` output arrays of ``n`` slots, each
+    sized to ``out_cap`` limbs. Returns ``(num_arr, den_arr, keepalive)``."""
+    num_arr = (_SrmechBigint * max(n, 1))()
+    den_arr = (_SrmechBigint * max(n, 1))()
+    keep = []
+    for i in range(n):
+        bn, kbn = _bigint_from_int(0, out_cap)
+        bd, kbd = _bigint_from_int(1, out_cap)
+        num_arr[i] = bn
+        den_arr[i] = bd
+        keep.append(kbn)
+        keep.append(kbd)
+    return num_arr, den_arr, keep
+
+
+def _poly_read_array(num_arr, den_arr, length):
+    """Read the first ``length`` coefficients of a result ``_SrmechBigint`` array
+    pair back to a list of ``(num, den)`` Python-int tuples."""
+    out = []
+    for i in range(length):
+        out.append((_bigint_to_int(num_arr[i]), _bigint_to_int(den_arr[i])))
+    return out
+
+
+def _poly_setup(*coeff_seqs, extra_terms=0):
+    """Common sizing: the per-coefficient limb cap (``out_cap``) and the caller
+    arena (``ws``, ``ws_len``) for a set of input coefficient sequences. The
+    ``out_cap`` over-sizes to the product-of-magnitudes envelope (mirrors the C
+    poly_cap_for); the arena is sized from srmech_poly_ws_bound."""
+    n_terms = max((len(s) for s in coeff_seqs), default=1) + extra_terms + 1
+    cl = 1
+    for s in coeff_seqs:
+        cl = max(cl, _poly_coeff_limbs(s))
+    # Match the C poly_cap_for product-of-magnitudes envelope (generous).
+    out_cap = (cl * n_terms + 2) * 2 + cl * 2 + 64
+    ws_len = int(LIB.srmech_poly_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_size_t(n_terms)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    return out_cap, ws, ws_len
+
+
+def poly_add_c(a_coeffs, b_coeffs):
+    """Native exact-Q polynomial add → list of reduced ``(num, den)`` tuples, or
+    ``None`` if the native symbols are absent. ``a_coeffs`` / ``b_coeffs`` are
+    ``(num, den)`` sequences in ascending degree."""
+    return _poly_addsub_c("srmech_poly_add", a_coeffs, b_coeffs)
+
+
+def poly_sub_c(a_coeffs, b_coeffs):
+    """Native exact-Q polynomial subtract (see :func:`poly_add_c`)."""
+    return _poly_addsub_c("srmech_poly_sub", a_coeffs, b_coeffs)
+
+
+def _poly_addsub_c(symbol, a_coeffs, b_coeffs):
+    if not has_native_poly() or not hasattr(LIB, symbol):
+        return None
+    na, nb = len(a_coeffs), len(b_coeffs)
+    m = max(na, nb)
+    out_cap, ws, ws_len = _poly_setup(a_coeffs, b_coeffs)
+    a_n, a_d, ka = _poly_make_array(a_coeffs, out_cap)
+    b_n, b_d, kb = _poly_make_array(b_coeffs, out_cap)
+    o_n, o_d, ko = _poly_blank_array(max(m, 1), out_cap)
+    out_len = ctypes.c_size_t(0)
+    rc = getattr(LIB, symbol)(
+        a_n, a_d, ctypes.c_size_t(na), b_n, b_d, ctypes.c_size_t(nb),
+        o_n, o_d, ctypes.byref(out_len),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (ka, kb, ko)
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"{symbol} returned non-OK status {rc}")
+    return _poly_read_array(o_n, o_d, out_len.value)
+
+
+def poly_mul_c(a_coeffs, b_coeffs):
+    """Native exact-Q polynomial product (convolution) → reduced ``(num, den)``
+    list, or ``None`` if absent."""
+    if not has_native_poly() or not hasattr(LIB, "srmech_poly_mul"):
+        return None
+    na, nb = len(a_coeffs), len(b_coeffs)
+    if na == 0 or nb == 0:
+        return []
+    m = na + nb - 1
+    out_cap, ws, ws_len = _poly_setup(a_coeffs, b_coeffs, extra_terms=m)
+    a_n, a_d, ka = _poly_make_array(a_coeffs, out_cap)
+    b_n, b_d, kb = _poly_make_array(b_coeffs, out_cap)
+    o_n, o_d, ko = _poly_blank_array(m, out_cap)
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_poly_mul(
+        a_n, a_d, ctypes.c_size_t(na), b_n, b_d, ctypes.c_size_t(nb),
+        o_n, o_d, ctypes.byref(out_len),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (ka, kb, ko)
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_poly_mul returned non-OK status {rc}")
+    return _poly_read_array(o_n, o_d, out_len.value)
+
+
+def poly_divmod_c(a_coeffs, b_coeffs):
+    """Native exact-Q polynomial long division → ``(quotient_list,
+    remainder_list)`` of reduced ``(num, den)`` tuples, or ``None`` if absent.
+    Raises ``ZeroDivisionError`` when ``b_coeffs`` is the zero polynomial."""
+    if not has_native_poly() or not hasattr(LIB, "srmech_poly_divmod"):
+        return None
+    na, nb = len(a_coeffs), len(b_coeffs)
+    if nb == 0:
+        raise ZeroDivisionError("poly_divmod_c by the zero polynomial")
+    qcap = (na - nb + 1) if na >= nb else 0
+    out_cap, ws, ws_len = _poly_setup(a_coeffs, b_coeffs, extra_terms=na)
+    a_n, a_d, ka = _poly_make_array(a_coeffs, out_cap)
+    b_n, b_d, kb = _poly_make_array(b_coeffs, out_cap)
+    q_n, q_d, kq = _poly_blank_array(max(qcap, 1), out_cap)
+    r_n, r_d, kr = _poly_blank_array(max(na, 1), out_cap)
+    qn = ctypes.c_size_t(0)
+    rn = ctypes.c_size_t(0)
+    rc = LIB.srmech_poly_divmod(
+        a_n, a_d, ctypes.c_size_t(na), b_n, b_d, ctypes.c_size_t(nb),
+        q_n, q_d, ctypes.byref(qn), r_n, r_d, ctypes.byref(rn),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (ka, kb, kq, kr)
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_poly_divmod returned non-OK status {rc}")
+    return (_poly_read_array(q_n, q_d, qn.value),
+            _poly_read_array(r_n, r_d, rn.value))
+
+
+def poly_eval_c(p_coeffs, x):
+    """Native exact Horner evaluation → one reduced ``(num, den)`` tuple, or
+    ``None`` if absent. ``x`` is a ``(num, den)`` tuple."""
+    if not has_native_poly() or not hasattr(LIB, "srmech_poly_eval"):
+        return None
+    n = len(p_coeffs)
+    out_cap, ws, ws_len = _poly_setup(p_coeffs, [x], extra_terms=n)
+    p_n, p_d, kp = _poly_make_array(p_coeffs, out_cap)
+    x_n, kxn = _bigint_from_int(int(x[0]), out_cap)
+    x_d, kxd = _bigint_from_int(int(x[1]), out_cap)
+    o_n, kon = _bigint_from_int(0, out_cap)
+    o_d, kod = _bigint_from_int(1, out_cap)
+    rc = LIB.srmech_poly_eval(
+        p_n, p_d, ctypes.c_size_t(n), ctypes.byref(x_n), ctypes.byref(x_d),
+        ctypes.byref(o_n), ctypes.byref(o_d),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (kp, kxn, kxd, kon, kod)
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_poly_eval returned non-OK status {rc}")
+    return (_bigint_to_int(o_n), _bigint_to_int(o_d))
+
+
+def poly_shift_c(p_coeffs, h):
+    """Native exact dispersion ``p(x + h)`` → reduced ``(num, den)`` coefficient
+    list, or ``None`` if absent. ``h`` is a ``(num, den)`` tuple."""
+    if not has_native_poly() or not hasattr(LIB, "srmech_poly_shift"):
+        return None
+    n = len(p_coeffs)
+    if n == 0:
+        return []
+    out_cap, ws, ws_len = _poly_setup(p_coeffs, [h], extra_terms=n)
+    p_n, p_d, kp = _poly_make_array(p_coeffs, out_cap)
+    h_n, khn = _bigint_from_int(int(h[0]), out_cap)
+    h_d, khd = _bigint_from_int(int(h[1]), out_cap)
+    o_n, o_d, ko = _poly_blank_array(n, out_cap)
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_poly_shift(
+        p_n, p_d, ctypes.c_size_t(n), ctypes.byref(h_n), ctypes.byref(h_d),
+        o_n, o_d, ctypes.byref(out_len),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (kp, khn, khd, ko)
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_poly_shift returned non-OK status {rc}")
+    return _poly_read_array(o_n, o_d, out_len.value)
 
 
 def has_native_klein4_fold() -> bool:

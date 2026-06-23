@@ -78,6 +78,12 @@ from .qprime import Qprime
 # (exact dense linear algebra over ℚ, no magnitude ceiling). A carrier, not a
 # ToolEntry, mirrors Qi / Qalg / Qprime.
 from .qmat import QMat
+# The exact-rational polynomial carrier Poly — the 1-D polynomial peer of QMat
+# (exact univariate algebra over ℚ: long division, monic GCD, dispersion shift,
+# Horner eval; no magnitude ceiling). The FOUNDATION carrier of the §76 telescope
+# Σ-row prover (rc39+). A carrier, not a ToolEntry, mirrors Qi / Qalg / Qprime /
+# QMat.
+from .poly import Poly
 # v0.3.0 — tool_schema introspection (Task #198) registers srmech's
 # own AMSC tools at import time. Profile-contributed tools register
 # later, at profile-activation time via profile_loader.
@@ -118,4 +124,5 @@ __all__ = [
     "Qalg",
     "Qprime",
     "QMat",
+    "Poly",
 ]
