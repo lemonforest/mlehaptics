@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc39"
-#define SRMECH_VERSION       "0.9.0rc39"
+#define SRMECH_VERSION_PRE   "rc40"
+#define SRMECH_VERSION       "0.9.0rc40"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3134,6 +3134,116 @@ srmech_status_t srmech_poly_shift(const srmech_bigint_t *p_n,
                                   srmech_bigint_t *acc_n,
                                   srmech_bigint_t *acc_d, size_t *acc_len,
                                   void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_qmat — EXACT-RATIONAL dense matrix over srmech_bigint (the C peer of
+ * srmech.amsc.qmat.QMat; the exact-ℚ linear-algebra carrier the §76 gosper
+ * undetermined-coefficient solve needs in C).
+ *
+ * A matrix is two parallel caller-owned srmech_bigint arrays, ROW-MAJOR:
+ * nums[r*ncols + c] / dens[r*ncols + c] is the exact-rational entry at (r, c)
+ * (dens > 0, gcd(|nums|, dens) == 1; zero entry = 0/1). Each op computes the
+ * SAME exact rational entries srmech.amsc.qmat.QMat computes — exact Gauss-Jordan
+ * over ℚ on the shared _rref_augmented kernel — over caller-arena srmech_bigint
+ * (NO malloc), reduced to lowest terms with positive denominator. Byte-identical
+ * to Python's (num, den) at ANY magnitude (full bignum; no int64/Q61 ceiling).
+ *
+ * STANDALONE-COMPLETE: the working matrix entry storage + every scalar carrier +
+ * the divmod/reduce scratch are carved from the caller arena `ws` (>= the matching
+ * srmech_qmat_ws_bound), so the bound is the caller's RAM. Out entry arrays are
+ * caller-owned + must be pre-sized: rref n_rows*n_cols, det a single rational,
+ * inverse/solve the answer block, nullspace n_cols*n_cols (column-major basis).
+ * Each srmech_bigint in those arrays must carry >= srmech_qmat_entry_cap limbs.
+ * A singular inverse/solve sets *out_singular = 1 (mirroring QMat's ValueError);
+ * a too-small ws or an out entry cap -> SRMECH_ERR_OVERFLOW (never a silent wrap),
+ * and the Python QMat falls back to its ceiling-free pure-Gauss-Jordan path.
+ *
+ * ARENA SOUNDNESS: every reduced RREF entry is a ratio of input MINORS (Cramer);
+ * a k x k minor Hadamard-bounds at k^(k/2) * M^k (k <= n_rows + total_cols).
+ * qmat_cap_for sizes each carrier with coeff_limbs * (n_rows + total_cols) + a
+ * log-headroom slack (dominating that minor bit-length) and x2 for the unreduced
+ * cross-product — so a benign input never spuriously overflows; a genuinely huge
+ * one reports OVERFLOW, never wraps.
+ *
+ * Carrier-internal (like srmech_poly): NOT a Rosetta ledger op. Additive symbols
+ * -> SRMECH_ABI_VERSION unchanged (stays 3).
+ * ------------------------------------------------------------------ */
+
+/* The largest square dimension / column count the fixed-size pivot bookkeeping
+ * (the on-stack pivot_cols + col->pivot-row arrays) supports. Past this an op
+ * returns SRMECH_ERR_BAD_INPUT and the Python QMat keeps its pure path. */
+#define SRMECH_QMAT_MAX_DIM 256u
+
+/* Minimum `ws_len` BYTES the caller hands every srmech_qmat_* op below, for input
+ * entries of `coeff_limbs` significant limbs and a row-reduction spanning `n_rows`
+ * rows by `total_cols` columns (total_cols = the augmented width: n_cols for
+ * rref/rank/nullspace, 2*n for inverse, n+b_cols for solve). Covers the working
+ * matrix entry storage + every scalar carrier + the deepest gcd/divmod scratch.
+ * 8-byte-aligned uint32 bump arena. */
+size_t srmech_qmat_ws_bound(size_t coeff_limbs, size_t n_rows,
+                            size_t total_cols);
+
+/* The per-entry limb cap the caller must give each srmech_bigint in the OUTPUT
+ * nums/dens arrays (so a reduced result entry never overflows its slot before the
+ * op's guard fires). Use the SAME total_cols as the op's ws-bound. */
+size_t srmech_qmat_entry_cap(size_t coeff_limbs, size_t n_rows,
+                             size_t total_cols);
+
+/* Reduced row echelon form of A (n_rows x n_cols) over ℚ. out_n/out_d receive the
+ * n_rows*n_cols reduced matrix (row-major); *out_rank <- the pivot count;
+ * pivot_cols[0..*out_rank) <- the pivot columns (increasing; caller sizes it
+ * n_cols). n_cols > SRMECH_QMAT_MAX_DIM -> SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_qmat_rref(const srmech_bigint_t *a_n,
+                                 const srmech_bigint_t *a_d, size_t n_rows,
+                                 size_t n_cols, srmech_bigint_t *out_n,
+                                 srmech_bigint_t *out_d, size_t *out_rank,
+                                 size_t *pivot_cols, void *ws, size_t ws_len);
+
+/* The exact rank of A (the RREF pivot count). */
+srmech_status_t srmech_qmat_rank(const srmech_bigint_t *a_n,
+                                 const srmech_bigint_t *a_d, size_t n_rows,
+                                 size_t n_cols, size_t *out_rank,
+                                 void *ws, size_t ws_len);
+
+/* The exact determinant of A (n x n) as one reduced rational out_num/out_den.
+ * Forward Gauss elimination with explicit pivoting; the swap sign is a Class-K
+ * int ±1 pin-slot (never an ALU abs). A zero pivot column -> det 0/1. */
+srmech_status_t srmech_qmat_det(const srmech_bigint_t *a_n,
+                                const srmech_bigint_t *a_d, size_t n,
+                                srmech_bigint_t *out_num,
+                                srmech_bigint_t *out_den, void *ws,
+                                size_t ws_len);
+
+/* The exact inverse of A (n x n) via [A|I] Gauss-Jordan. out_n/out_d receive the
+ * n*n inverse (row-major) iff A is invertible; *out_singular set 1 (and out left
+ * unspecified) when A is singular — mirroring QMat.inverse's ValueError. */
+srmech_status_t srmech_qmat_inverse(const srmech_bigint_t *a_n,
+                                    const srmech_bigint_t *a_d, size_t n,
+                                    srmech_bigint_t *out_n,
+                                    srmech_bigint_t *out_d, int *out_singular,
+                                    void *ws, size_t ws_len);
+
+/* Solve A x = b EXACTLY (A is n x n, b is n x b_cols) via [A|b] Gauss-Jordan.
+ * out_n/out_d receive x (n x b_cols, row-major) iff A is full-rank-square;
+ * *out_singular set 1 when A is singular (no unique solution) — mirroring
+ * QMat.solve's ValueError. */
+srmech_status_t srmech_qmat_solve(const srmech_bigint_t *a_n,
+                                  const srmech_bigint_t *a_d, size_t n,
+                                  const srmech_bigint_t *b_n,
+                                  const srmech_bigint_t *b_d, size_t b_cols,
+                                  srmech_bigint_t *out_n, srmech_bigint_t *out_d,
+                                  int *out_singular, void *ws, size_t ws_len);
+
+/* An exact basis of ker(A) (A is n_rows x n_cols) — the classical free-variable
+ * construction (mirrors QMat.nullspace element-for-element). out_n/out_d receive
+ * an (n_cols x *out_nfree) COLUMN-MAJOR-by-store matrix: out[i*n_cols + j] is
+ * entry i of basis column j (caller sizes out n_cols*n_cols; *out_nfree <= n_cols
+ * is the free-column count). *out_nfree == 0 iff A has full column rank. */
+srmech_status_t srmech_qmat_nullspace(const srmech_bigint_t *a_n,
+                                      const srmech_bigint_t *a_d, size_t n_rows,
+                                      size_t n_cols, srmech_bigint_t *out_n,
+                                      srmech_bigint_t *out_d, size_t *out_nfree,
+                                      void *ws, size_t ws_len);
 
 #ifdef __cplusplus
 }
