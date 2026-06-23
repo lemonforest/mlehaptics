@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc42"
-#define SRMECH_VERSION       "0.9.0rc42"
+#define SRMECH_VERSION_PRE   "rc43"
+#define SRMECH_VERSION       "0.9.0rc43"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3367,6 +3367,64 @@ srmech_status_t srmech_zeilberger(
         srmech_bigint_t *cert_n, srmech_bigint_t *cert_d, size_t *cert_klen,
         size_t *out_cert_kdeg,
         void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_wz_verify -- the Wilf-Zeilberger VERIFY primitive (the THIRD
+ * and FINAL public op of the section 76 "telescope" Sigma-row closed-form
+ * prover, F929). The COMPLETE C mirror of the VERIFY half of
+ * srmech.amsc.wz_certificate.wz_certificate.
+ *
+ * Given a proper hypergeometric term F(n,k) by its two term ratios
+ *   r_n(n,k) = An/Ad = rn_num/rn_den
+ *   r_k(n,k) = Bn/Bd = rk_num/rk_den
+ * and a candidate WZ certificate R(n,k) = Xn/Xd = cert_num/cert_den (each an
+ * exact-rational BIVARIATE polynomial over Q[n,k], the same flat k-ascending
+ * Poly-in-n encoding the srmech_zeilberger peer uses), this CHECKS the WZ equation
+ *   F(n+1,k) - F(n,k) = G(n,k+1) - G(n,k),   G = R * F,
+ * as an EXACT bivariate rational-function identity. Dividing through by F(n,k) and
+ * clearing denominators it is the single bivariate POLYNOMIAL identity
+ *   (An - Ad) * (Xd1 * Bd * Xd)  ==  (Xn1 * Bn * Xd - Xn * Xd1 * Bd) * Ad,
+ * where Xn1/Xd1 are the k->k+1 shifts of Xn/Xd.
+ *
+ * *out_equal = 1 iff the identity holds (the WZ certificate is valid), else 0.
+ *
+ * This is a COMPLETE verification -- bounded only by the input DEGREES, NOT by any
+ * order (unlike the rc42 srmech_zeilberger peer's order<=1 cap). Method: build both
+ * sides as exact-Q bivariate polynomials (a 2-D grid of Q over caller-arena
+ * srmech_bigint) and compare them coefficient-by-coefficient. NO solve, NO order
+ * loop, NO qmat. No malloc (JPL Rule 3): every working bipoly is carved from the
+ * caller arena `ws` (>= srmech_wz_verify_ws_bound). Any residual overflow returns
+ * SRMECH_ERR_OVERFLOW (never a wrap), and the Python wz_certificate falls back to
+ * its ceiling-free pure-Q compare (the standalone-complete honor).
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES for inputs of `coeff_limbs` significant limbs per
+ * coefficient and a max bivariate `degree`. 8-byte-aligned. */
+size_t srmech_wz_verify_ws_bound(size_t coeff_limbs, size_t degree);
+
+/* The per-coefficient limb cap each srmech_bigint working carrier needs so a
+ * cleared-identity coefficient never overflows its slot (a degree hint). */
+size_t srmech_wz_verify_out_cap(size_t coeff_limbs, size_t degree);
+
+/* Verify the WZ certificate for the term F(n,k). rn_den / rk_den / cert_den must
+ * have kdeg > 0 (nonzero). Returns SRMECH_OK + *out_equal set on a clean check;
+ * SRMECH_ERR_OVERFLOW (arena too small for a huge input) routes the Python op to
+ * its pure-Q compare. */
+srmech_status_t srmech_wz_verify(
+        const srmech_bigint_t *rn_num_n, const srmech_bigint_t *rn_num_d,
+        const size_t *rn_num_klen, size_t rn_num_kdeg,
+        const srmech_bigint_t *rn_den_n, const srmech_bigint_t *rn_den_d,
+        const size_t *rn_den_klen, size_t rn_den_kdeg,
+        const srmech_bigint_t *rk_num_n, const srmech_bigint_t *rk_num_d,
+        const size_t *rk_num_klen, size_t rk_num_kdeg,
+        const srmech_bigint_t *rk_den_n, const srmech_bigint_t *rk_den_d,
+        const size_t *rk_den_klen, size_t rk_den_kdeg,
+        const srmech_bigint_t *cert_num_n, const srmech_bigint_t *cert_num_d,
+        const size_t *cert_num_klen, size_t cert_num_kdeg,
+        const srmech_bigint_t *cert_den_n, const srmech_bigint_t *cert_den_d,
+        const size_t *cert_den_klen, size_t cert_den_kdeg,
+        int *out_equal, void *ws, size_t ws_len);
 
 #ifdef __cplusplus
 }
