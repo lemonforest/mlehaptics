@@ -2750,6 +2750,42 @@ def _register_primitive_class_tools() -> None:
                       "(n, edges, weights) for dense_laplacian"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The §76 "telescope" Σ-row closed-form prover (F929) — Gosper's
+        # indefinite hypergeometric summation, the FIRST public op of the row.
+        # Class-N rational arithmetic over the Class-J prime-field on the
+        # exact-ℚ[k] Poly substrate; 1:1 C peer srmech_gosper.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.gosper.gosper", owner="srmech",
+            category="gosper",
+            summary="Gosper's indefinite hypergeometric summation (Gosper 1978, "
+                    "PNAS 75(1):40–42; Petkovšek–Wilf–Zeilberger *A=B* 1996, "
+                    "ch. 5) — the FIRST public op of the §76 'telescope' Σ-row "
+                    "closed-form prover (F929). Input: a hypergeometric term given "
+                    "by its TERM RATIO t(k+1)/t(k) = num(k)/den(k) (two exact-ℚ[k] "
+                    "Poly). Decides whether Σ t(k) has a hypergeometric "
+                    "antidifference T(k)=R(k)·t(k) (so T(k+1)−T(k)=t(k), and the "
+                    "sum telescopes: Σ_{a}^{b} t = T(b+1)−T(a)); if so returns the "
+                    "rational certificate R={'num':Poly,'den':Poly}, else None (no "
+                    "closed form — e.g. the harmonic t(k)=1/k). Exact over ℚ via "
+                    "the Gosper–Petkovšek normal form (Poly dispersion/gcd/divmod) "
+                    "+ the bounded-degree undetermined-coefficient solve (exact "
+                    "Gauss-Jordan over ℚ, QMat). 1:1 C peer srmech_gosper "
+                    "(orchestrates srmech_poly_*/srmech_qmat_rref; native when "
+                    "present, pure-Python the complete alternative). Exact bigint; "
+                    "no float, no abs() (Class-K sign), no numpy / math.",
+            parameters=(P("num", "Poly", True,
+                          "the term-ratio NUMERATOR num(k) — an exact-ℚ[k] Poly "
+                          "(or an ascending-degree coefficient list)"),
+                        P("den", "Poly", True,
+                          "the term-ratio DENOMINATOR den(k) — a NONZERO exact-ℚ[k] "
+                          "Poly (or coefficient list)")),
+            returns=R("dict | None",
+                      "{'num': Poly, 'den': Poly} (the rational certificate R(k) "
+                      "with antidifference T(k)=R(k)·t(k)), or None when no "
+                      "hypergeometric closed form exists"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # Foundational cross-domain cascade catalog (v0.4.3rc6).
         # The cascades recurring across every/most domains, promoted so a
         # named cascade is the default and a math-library call the exception.

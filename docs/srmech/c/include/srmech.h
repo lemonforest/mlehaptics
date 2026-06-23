@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc40"
-#define SRMECH_VERSION       "0.9.0rc40"
+#define SRMECH_VERSION_PRE   "rc41"
+#define SRMECH_VERSION       "0.9.0rc41"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3244,6 +3244,66 @@ srmech_status_t srmech_qmat_nullspace(const srmech_bigint_t *a_n,
                                       size_t n_cols, srmech_bigint_t *out_n,
                                       srmech_bigint_t *out_d, size_t *out_nfree,
                                       void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_gosper — Gosper's indefinite hypergeometric summation (the
+ * FIRST public op of the §76 "telescope" Σ-row closed-form prover,
+ * F929). Built on srmech_bigint + the exact-ℚ poly/qmat machinery.
+ *
+ * Input: a hypergeometric term given by its TERM RATIO
+ *   t(k+1)/t(k) = num(k)/den(k)
+ * as two exact-rational polynomials in ℚ[k], each a parallel pair of
+ * srmech_bigint coefficient arrays (ascending degree; nums[i]/dens[i] =
+ * coeff of k^i, dens > 0, reduced). Output: when Σ t(k) HAS a
+ * hypergeometric antidifference T(k) = R(k)·t(k) (so T(k+1)−T(k)=t(k)),
+ * the rational CERTIFICATE R(k) = r_num(k)/r_den(k); else "no solution".
+ *
+ * The algorithm composes the same exact-ℚ kernels the Python op uses —
+ * polynomial GCD / long division / dispersion shift (the srmech_poly_*
+ * family's algebra) + the exact Gauss-Jordan RREF over ℚ
+ * (srmech_qmat_rref) for the undetermined-coefficient Gosper equation —
+ * over caller-arena srmech_bigint (NO malloc, JPL Rule 3). Byte-identical
+ * to the Python certificate at ANY magnitude (full bignum; no ceiling).
+ *
+ * STANDALONE-COMPLETE: every working carrier + the poly/qmat/divmod
+ * scratch is carved from the caller arena `ws` (>= srmech_gosper_ws_bound),
+ * so the bound is the caller's RAM, not a compiled-in cap. Any residual
+ * overflow returns SRMECH_ERR_OVERFLOW (never a silent wrap), and the
+ * Python gosper falls back to its ceiling-free pure-ℚ path.
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES the caller hands srmech_gosper for input term-ratio
+ * polynomials of `coeff_limbs` significant limbs per coefficient and a higher
+ * degree of `degree` (max(deg num, deg den)). Sized for the dispersion /
+ * GP-normal-form / degree-bounded linear-solve chain (the heaviest stage is the
+ * exact-ℚ RREF over an (deg²+1)×(deg+1) augmented matrix). 8-byte-aligned. */
+size_t srmech_gosper_ws_bound(size_t coeff_limbs, size_t degree);
+
+/* The per-coefficient limb cap a caller must give each srmech_bigint in the
+ * r_num / r_den output arrays, so a reduced certificate coefficient never
+ * overflows its slot before the op's own guard fires. */
+size_t srmech_gosper_out_cap(size_t coeff_limbs, size_t degree);
+
+/* Compute Gosper's certificate for the term ratio num/den.
+ *   num_n/num_d (length n_num) : the term-ratio numerator   num(k) over ℚ[k]
+ *   den_n/den_d (length n_den) : the term-ratio denominator den(k) over ℚ[k]
+ * On success *out_has_solution is set: 1 when a hypergeometric antidifference
+ * exists (then r_num_n/r_num_d (length *out_rnum) and r_den_n/r_den_d (length
+ * *out_rden) carry the reduced certificate R(k) = r_num(k)/r_den(k)), 0 when
+ * none exists (the r_* arrays are then unspecified). The caller sizes each r_*
+ * array to (degree + 2) coefficients of srmech_gosper_out_cap limbs. den must be
+ * a NONZERO polynomial (n_den > 0) else SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_gosper(const srmech_bigint_t *num_n,
+                              const srmech_bigint_t *num_d, size_t n_num,
+                              const srmech_bigint_t *den_n,
+                              const srmech_bigint_t *den_d, size_t n_den,
+                              int *out_has_solution,
+                              srmech_bigint_t *r_num_n, srmech_bigint_t *r_num_d,
+                              size_t *out_rnum,
+                              srmech_bigint_t *r_den_n, srmech_bigint_t *r_den_d,
+                              size_t *out_rden,
+                              void *ws, size_t ws_len);
 
 #ifdef __cplusplus
 }

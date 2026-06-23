@@ -246,6 +246,25 @@ def _to_hv(value: Any, *, param: str = "") -> Any:
     return value
 
 
+def _to_poly(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value to the **natural ascending-degree coefficient form** for
+    a ``Poly``-typed param (rc41 ``gosper`` term-ratio operands).
+
+    The op's ``Poly`` acceptance (:meth:`srmech.amsc.poly.Poly.from_coeffs`) is
+    AGNOSTIC about input: it iterates a coefficient sequence where each entry is
+    an exact-rational coefficient — an ``int``, or a ``[num, den]`` integer pair
+    (a 2-list JSON carries naturally). So the honest, minimal coercer produces the
+    flat Python list and lets ``Poly.from_coeffs`` build the carrier — never a
+    float (a Poly coefficient must be exact). A value already a ``Poly`` (an
+    in-process caller) passes through unchanged."""
+    from srmech.amsc.poly import Poly  # exact-ℚ polynomial carrier; lazy
+    if isinstance(value, Poly):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return value
+
+
 def _to_mat_or_vec(value: Any, *, param: str = "") -> Any:
     """Coerce a ``Mat | Vec`` (shape-polymorphic) param: a nested list rides as
     a 2-D matrix, a flat list as a 1-D vector — both pass through as the natural
@@ -579,6 +598,7 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "Mat": _to_mat,            # v0.7.5rc72: numpy-free 2-D carrier (mat_matmul bridge)
     "Vec": _to_vec,            # v0.7.5rc132: numpy-free 1-D carrier
     "HV": _to_hv,              # v0.7.5rc132: numpy-free hypervector byte carrier
+    "Poly": _to_poly,          # 0.9.0rc41: exact-ℚ polynomial carrier (gosper term ratio)
     "Optional[Vec]": _to_vec,
     "Optional[HV]": _to_hv,
     "Mat | Vec": _to_mat_or_vec,   # shape-polymorphic 2-D-or-1-D operand
