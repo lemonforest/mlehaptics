@@ -1938,6 +1938,26 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.c_void_p, ctypes.c_size_t,
         ]
         lib.srmech_qmat_nullspace.restype = ctypes.c_int
+    # rc48: srmech_qmat_rref_crt — the CRT re-fibration of the exact-Q RREF as ONE
+    # standalone C symbol (the CLOSER of the CRT-QMat arc). Same wire shape as
+    # srmech_qmat_rref; bounded (answer-sized) arena via srmech_qmat_rref_crt_ws_bound.
+    #   size_t srmech_qmat_rref_crt_ws_bound(coeff_limbs, n_rows, n_cols)
+    #   size_t srmech_qmat_rref_crt_entry_cap(coeff_limbs, n_rows, n_cols)
+    for _csz in ("srmech_qmat_rref_crt_ws_bound", "srmech_qmat_rref_crt_entry_cap"):
+        if hasattr(lib, _csz):
+            getattr(lib, _csz).argtypes = [
+                ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t]
+            getattr(lib, _csz).restype = ctypes.c_size_t
+    #   srmech_qmat_rref_crt(a_n,a_d, n_rows,n_cols, o_n,o_d, *rank, piv[], ws,wl)
+    if hasattr(lib, "srmech_qmat_rref_crt"):
+        lib.srmech_qmat_rref_crt.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_size_t, ctypes.c_size_t,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_size_t), ctypes.POINTER(ctypes.c_size_t),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_qmat_rref_crt.restype = ctypes.c_int
 
     # rc41: srmech_gosper — Gosper's indefinite hypergeometric summation (the §76
     # telescope Sigma-row's first public op). Orchestrates the exact-Q poly/qmat
@@ -2774,6 +2794,69 @@ def qmat_nullspace_c(a_pairs, n_rows, n_cols):
     # rebuild the nfree column vectors: column j's entry i is flat[i*n_cols + j].
     return [[flat[i * n_cols + j] for i in range(n_cols)]
             for j in range(nfree.value)]
+
+
+def has_native_qmat_rref_crt() -> bool:
+    """True iff the rc48 srmech_qmat_rref_crt CRT re-fibration peer (the CLOSER of
+    the CRT-QMat arc) + its ws-bound helper are loaded + bound. False on a no-C /
+    pre-rc48 lib — the pure-Python ``QMat.rref_crt`` body (composing the Class-I
+    gf_rref / crt_combine over the Class-J descending prime field + the Class-N
+    rational_reconstruct) is the complete, byte-identical alternative (and the
+    parity oracle)."""
+    return bool(has_native_qmat()
+                and hasattr(LIB, "srmech_qmat_rref_crt")
+                and hasattr(LIB, "srmech_qmat_rref_crt_ws_bound")
+                and hasattr(LIB, "srmech_qmat_rref_crt_entry_cap"))
+
+
+def qmat_rref_crt_c(a_pairs, n_rows, n_cols):
+    """Native bounded-memory exact-ℚ RREF via CRT re-fibration →
+    ``(rref_pairs, rank, pivot_cols)`` (rref_pairs is the row-major reduced matrix
+    as ``(num, den)`` tuples), or ``None`` if the native symbol is absent / the C
+    op reports OVERFLOW (the pure-Python CRT body is the complete fallback).
+
+    Same wire shape as :func:`qmat_rref_c`, but BOTH the arena
+    (``srmech_qmat_rref_crt_ws_bound``) AND the output entry cap
+    (``srmech_qmat_rref_crt_entry_cap``) are sized from the ANSWER-Hadamard
+    good-prime bound, NOT the dense Cramer-minor cap (using the dense
+    ``srmech_qmat_entry_cap`` for the output would re-reserve the ~2.3 GB the CRT
+    row exists to escape). Bounded (answer-sized) memory end-to-end."""
+    if not has_native_qmat_rref_crt():
+        return None
+    cl = _qmat_coeff_limbs(a_pairs)
+    out_cap = int(LIB.srmech_qmat_rref_crt_entry_cap(
+        ctypes.c_size_t(cl), ctypes.c_size_t(n_rows), ctypes.c_size_t(n_cols)))
+    ws_len = int(LIB.srmech_qmat_rref_crt_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_size_t(n_rows), ctypes.c_size_t(n_cols)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    a_n, a_d, ka = _qmat_make_array(a_pairs, out_cap)
+    o_n, o_d, ko = _qmat_blank_array(max(n_rows * n_cols, 1), out_cap)
+    rank = ctypes.c_size_t(0)
+    piv = (ctypes.c_size_t * max(n_cols, 1))()
+    rc = LIB.srmech_qmat_rref_crt(
+        a_n, a_d, ctypes.c_size_t(n_rows), ctypes.c_size_t(n_cols),
+        o_n, o_d, ctypes.byref(rank), piv,
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (ka, ko)
+    if rc != SRMECH_OK:
+        # OVERFLOW (answer outgrew the answer-cap, or arena too small) / any
+        # non-OK status → fall back to the pure-Python CRT path (complete).
+        return None
+    pairs = _qmat_read_array(o_n, o_d, n_rows * n_cols)
+    return pairs, rank.value, [piv[i] for i in range(rank.value)]
+
+
+def qmat_rref_crt_arena_bytes(a_pairs, n_rows, n_cols):
+    """The C arena size (BYTES) ``srmech_qmat_rref_crt`` requests for this input —
+    the answer-sized CRT bound (NOT the dense Hadamard envelope). Returns ``None``
+    if the native ws-bound helper is absent. Diagnostic surface for the
+    bounded-arena measurement (the rc48 verify gate)."""
+    if not has_native_qmat_rref_crt():
+        return None
+    cl = _qmat_coeff_limbs(a_pairs)
+    return int(LIB.srmech_qmat_rref_crt_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_size_t(n_rows), ctypes.c_size_t(n_cols)))
 
 
 # ----------------------------------------------------------------------
