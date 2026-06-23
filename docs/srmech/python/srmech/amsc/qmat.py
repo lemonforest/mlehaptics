@@ -52,6 +52,33 @@ _Q_ZERO = Q(0, 1)
 _Q_ONE = Q(1, 1)
 
 
+def _native():
+    """The native ``_native`` module IF the rc40 ``srmech_qmat_*`` peer is present,
+    else ``None`` — so the carrier dispatches to C when available and falls cleanly
+    to the pure-Python Gauss-Jordan body (the complete alternative + the parity
+    oracle) otherwise. Imported lazily to avoid a bootstrap cycle."""
+    try:
+        from . import _native as nat
+    except ImportError:
+        return None
+    return nat if nat.has_native_qmat() else None
+
+
+def _row_major_pairs(rows) -> List[Tuple[int, int]]:
+    """Flatten a tuple-of-tuples of ``Q`` to a ROW-MAJOR ``(num, den)`` int-pair
+    list (the C qmat marshalling house form)."""
+    return [(q._n, q._d) for r in rows for q in r]
+
+
+def _qmat_from_flat(pairs, n_rows: int, n_cols: int) -> "QMat":
+    """Rebuild a ``QMat`` from a flat row-major ``(num, den)`` pair list."""
+    rows = tuple(
+        tuple(Q(pairs[r * n_cols + c][0], pairs[r * n_cols + c][1])
+              for c in range(n_cols))
+        for r in range(n_rows))
+    return QMat.__new__(QMat)._init_from(rows)
+
+
 def _to_q(value, *, allow_float: bool = False):
     """Coerce ``value`` to an exact :class:`~srmech.amsc.q.Q`, or ``None`` if it
     is not an exact-rational-coercible entry (mirrors ``qi``/``qalg`` ``_to_q``).
@@ -367,11 +394,30 @@ class QMat:
         first nonzero ``Q`` in each column (``Q != 0``, never a float tolerance);
         every pivot row is scaled to a leading ``1`` and cleared above + below.
         Bigint exact — no magnitude ceiling."""
+        nat = _native()
+        if nat is not None and self.n_rows and self.n_cols:
+            try:
+                res = nat.qmat_rref_c(_row_major_pairs(self._rows),
+                                      self.n_rows, self.n_cols)
+                if res is not None:
+                    pairs, _rank, _piv = res
+                    return _qmat_from_flat(pairs, self.n_rows, self.n_cols)
+            except (RuntimeError, OverflowError, ValueError):
+                pass                                 # fall to the pure path
         R, _piv, _prc = _rref_augmented(self._rows, self.n_cols)
         return QMat.__new__(QMat)._init_from(tuple(tuple(r) for r in R))
 
     def rank(self) -> int:
         """The EXACT rank = the pivot count of the RREF (exact over ℚ)."""
+        nat = _native()
+        if nat is not None and self.n_rows and self.n_cols:
+            try:
+                rk = nat.qmat_rank_c(_row_major_pairs(self._rows),
+                                     self.n_rows, self.n_cols)
+                if rk is not None:
+                    return rk
+            except (RuntimeError, OverflowError, ValueError):
+                pass
         _R, pivot_cols, _prc = _rref_augmented(self._rows, self.n_cols)
         return len(pivot_cols)
 
@@ -384,6 +430,14 @@ class QMat:
             raise ValueError(
                 f"QMat.det requires a square matrix; got {self.shape}")
         n = self.n_rows
+        nat = _native()
+        if nat is not None and n:
+            try:
+                pair = nat.qmat_det_c(_row_major_pairs(self._rows), n)
+                if pair is not None:
+                    return Q(pair[0], pair[1])
+            except (RuntimeError, OverflowError, ValueError):
+                pass
         R = [list(r) for r in self._rows]
         sign = 1                                      # Class-K pin-slot (±1)
         prod = _Q_ONE
@@ -415,6 +469,18 @@ class QMat:
             raise ValueError(
                 f"QMat.inverse requires a square matrix; got {self.shape}")
         n = self.n_rows
+        nat = _native()
+        if nat is not None and n:
+            try:
+                res = nat.qmat_inverse_c(_row_major_pairs(self._rows), n)
+                if res is not None:
+                    pairs, singular = res
+                    if singular:
+                        raise ValueError(
+                            "QMat.inverse: matrix is singular (not invertible)")
+                    return _qmat_from_flat(pairs, n, n)
+            except (RuntimeError, OverflowError):
+                pass
         ident = [[_Q_ONE if i == j else _Q_ZERO for j in range(n)]
                  for i in range(n)]
         aug = [list(self._rows[i]) + ident[i] for i in range(n)]
@@ -436,6 +502,20 @@ class QMat:
         n = self.n_rows
         B = _as_column_block(b, n)
         b_cols = B.n_cols
+        nat = _native()
+        if nat is not None and n:
+            try:
+                res = nat.qmat_solve_c(_row_major_pairs(self._rows), n,
+                                       _row_major_pairs(B._rows), b_cols)
+                if res is not None:
+                    pairs, singular = res
+                    if singular:
+                        raise ValueError(
+                            "QMat.solve: A is singular — no unique solution (use "
+                            "nullspace / lstsq for the rank-deficient case).")
+                    return _qmat_from_flat(pairs, n, b_cols)
+            except (RuntimeError, OverflowError):
+                pass
         aug = [list(self._rows[i]) + list(B._rows[i]) for i in range(n)]
         R, pivot_cols, _prc = _rref_augmented(aug, n)
         if pivot_cols != list(range(n)):
@@ -450,6 +530,19 @@ class QMat:
         COLUMN vectors (each ``n_cols × 1``) spanning the kernel exactly, one per
         free column of the RREF (the classical free-variable construction). The
         list is empty iff ``A`` has full column rank. Exact over ℚ, bigint."""
+        nat = _native()
+        if nat is not None and self.n_rows and self.n_cols:
+            try:
+                cols = nat.qmat_nullspace_c(_row_major_pairs(self._rows),
+                                            self.n_rows, self.n_cols)
+                if cols is not None:
+                    basis: List["QMat"] = []
+                    for vec in cols:
+                        col = tuple((Q(p[0], p[1]),) for p in vec)
+                        basis.append(QMat.__new__(QMat)._init_from(col))
+                    return basis
+            except (RuntimeError, OverflowError, ValueError):
+                pass
         R, pivot_cols, pivot_row_of_col = _rref_augmented(self._rows, self.n_cols)
         n = self.n_cols
         free_cols = [c for c in range(n) if c not in pivot_row_of_col]

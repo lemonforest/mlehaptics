@@ -1797,6 +1797,76 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.c_void_p, ctypes.c_size_t,
         ]
         lib.srmech_poly_shift.restype = ctypes.c_int
+    # rc40: the EXACT-RATIONAL matrix carrier C peer (srmech_qmat_*) — the exact
+    # ℚ-linear-algebra peer of srmech.amsc.qmat.QMat (the §76 gosper exact solve
+    # foundation). Each op takes ROW-MAJOR parallel _SrmechBigint entry arrays.
+    #   size_t srmech_qmat_ws_bound(coeff_limbs, n_rows, total_cols)
+    #   size_t srmech_qmat_entry_cap(coeff_limbs, n_rows, total_cols)
+    for _qsz in ("srmech_qmat_ws_bound", "srmech_qmat_entry_cap"):
+        if hasattr(lib, _qsz):
+            getattr(lib, _qsz).argtypes = [
+                ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t]
+            getattr(lib, _qsz).restype = ctypes.c_size_t
+    #   srmech_qmat_rref(a_n,a_d, n_rows,n_cols, o_n,o_d, *rank, piv[], ws,wl)
+    if hasattr(lib, "srmech_qmat_rref"):
+        lib.srmech_qmat_rref.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_size_t, ctypes.c_size_t,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_size_t), ctypes.POINTER(ctypes.c_size_t),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_qmat_rref.restype = ctypes.c_int
+    #   srmech_qmat_rank(a_n,a_d, n_rows,n_cols, *rank, ws,wl)
+    if hasattr(lib, "srmech_qmat_rank"):
+        lib.srmech_qmat_rank.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_size_t, ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_qmat_rank.restype = ctypes.c_int
+    #   srmech_qmat_det(a_n,a_d, n, o_num,o_den, ws,wl)
+    if hasattr(lib, "srmech_qmat_det"):
+        lib.srmech_qmat_det.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_size_t,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_qmat_det.restype = ctypes.c_int
+    #   srmech_qmat_inverse(a_n,a_d, n, o_n,o_d, *singular, ws,wl)
+    if hasattr(lib, "srmech_qmat_inverse"):
+        lib.srmech_qmat_inverse.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_size_t,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_int),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_qmat_inverse.restype = ctypes.c_int
+    #   srmech_qmat_solve(a_n,a_d, n, b_n,b_d, b_cols, o_n,o_d, *singular, ws,wl)
+    if hasattr(lib, "srmech_qmat_solve"):
+        lib.srmech_qmat_solve.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_size_t,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_size_t,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_int),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_qmat_solve.restype = ctypes.c_int
+    #   srmech_qmat_nullspace(a_n,a_d, n_rows,n_cols, o_n,o_d, *nfree, ws,wl)
+    if hasattr(lib, "srmech_qmat_nullspace"):
+        lib.srmech_qmat_nullspace.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_size_t, ctypes.c_size_t,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_qmat_nullspace.restype = ctypes.c_int
 
 
 _LIB_PATH: Optional[Path] = _find_library()
@@ -2318,6 +2388,237 @@ def poly_gcd_c(a_coeffs, b_coeffs):
     if rc != SRMECH_OK:
         raise RuntimeError(f"srmech_poly_gcd returned non-OK status {rc}")
     return _poly_read_array(o_n, o_d, out_len.value)
+
+
+# ----------------------------------------------------------------------
+# rc40: the EXACT-RATIONAL matrix carrier C peer (srmech_qmat_*). The Python
+# srmech.amsc.qmat.QMat routes its rref/rank/det/inverse/solve/nullspace through
+# these when has_native_qmat(); the pure-Python Gauss-Jordan body is the COMPLETE
+# alternative (and the parity oracle) — both emit byte-identical exact (num, den)
+# entries at any magnitude. The marshalling builds ROW-MAJOR parallel
+# _SrmechBigint entry arrays over the decimal bridge (same pattern as the poly
+# peer), keeping the backing limb buffers alive for the call.
+# ----------------------------------------------------------------------
+
+_QMAT_SYMS = (
+    "srmech_qmat_ws_bound",
+    "srmech_qmat_entry_cap",
+    "srmech_bigint_from_dec",
+    "srmech_bigint_to_dec",
+    "srmech_bigint_to_dec_bound",
+)
+
+
+def has_native_qmat() -> bool:
+    """True iff the rc40 srmech_qmat_* ops + the srmech_bigint decimal-marshal
+    helpers are loaded + bound. False on a no-C or pre-rc40 lib — the pure-Python
+    ``srmech.amsc.qmat.QMat`` Gauss-Jordan body is the complete alternative (and
+    the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _QMAT_SYMS) and hasattr(
+        LIB, "srmech_qmat_rref"
+    )
+
+
+def _qmat_coeff_limbs(pairs) -> int:
+    """The largest significant-limb count across a flat ``(num, den)`` entry
+    sequence (9 decimal digits ~ 1 limb; pad)."""
+    cl = 1
+    for num, den in pairs:
+        cl = max(cl, len(str(num).lstrip("-")) // 9 + 2, len(str(den)) // 9 + 2)
+    return cl
+
+
+def _qmat_make_array(pairs, out_cap):
+    """Build ROW-MAJOR parallel ``_SrmechBigint`` arrays (nums, dens) from a flat
+    ``(num, den)`` entry sequence, each carrier ``out_cap`` limbs. Returns
+    ``(num_arr, den_arr, keepalive)`` — keep the limb buffers alive for the call."""
+    n = len(pairs)
+    num_arr = (_SrmechBigint * max(n, 1))()
+    den_arr = (_SrmechBigint * max(n, 1))()
+    keep = []
+    for i, (num, den) in enumerate(pairs):
+        bn, kbn = _bigint_from_int(int(num), out_cap)
+        bd, kbd = _bigint_from_int(int(den), out_cap)
+        num_arr[i] = bn
+        den_arr[i] = bd
+        keep.append(kbn)
+        keep.append(kbd)
+    return num_arr, den_arr, keep
+
+
+def _qmat_blank_array(n, out_cap):
+    """Build blank ``(num=0, den=1)`` parallel ``_SrmechBigint`` output arrays of
+    ``n`` slots, each ``out_cap`` limbs."""
+    num_arr = (_SrmechBigint * max(n, 1))()
+    den_arr = (_SrmechBigint * max(n, 1))()
+    keep = []
+    for i in range(n):
+        bn, kbn = _bigint_from_int(0, out_cap)
+        bd, kbd = _bigint_from_int(1, out_cap)
+        num_arr[i] = bn
+        den_arr[i] = bd
+        keep.append(kbn)
+        keep.append(kbd)
+    return num_arr, den_arr, keep
+
+
+def _qmat_read_array(num_arr, den_arr, length):
+    """Read the first ``length`` entries of a result ``_SrmechBigint`` array pair
+    back to a list of ``(num, den)`` Python-int tuples."""
+    return [(_bigint_to_int(num_arr[i]), _bigint_to_int(den_arr[i]))
+            for i in range(length)]
+
+
+def _qmat_setup(a_pairs, total_cols, n_rows, *extra):
+    """Common sizing: the per-entry limb cap (``out_cap`` = the C qmat_entry_cap,
+    so output entries never overflow before the op's own guard) + the caller arena
+    (``ws``, ``ws_len`` = srmech_qmat_ws_bound). ``extra`` is further pair
+    sequences (e.g. the solve RHS) folded into the coeff-limb estimate."""
+    cl = _qmat_coeff_limbs(a_pairs)
+    for seq in extra:
+        if seq:
+            cl = max(cl, _qmat_coeff_limbs(seq))
+    out_cap = int(LIB.srmech_qmat_entry_cap(
+        ctypes.c_size_t(cl), ctypes.c_size_t(n_rows), ctypes.c_size_t(total_cols)))
+    ws_len = int(LIB.srmech_qmat_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_size_t(n_rows), ctypes.c_size_t(total_cols)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    return out_cap, ws, ws_len
+
+
+def qmat_rref_c(a_pairs, n_rows, n_cols):
+    """Native exact-ℚ RREF → ``(rref_pairs, rank, pivot_cols)`` (rref_pairs is the
+    row-major reduced matrix as ``(num, den)`` tuples), or ``None`` if absent.
+    ``a_pairs`` is the row-major ``(num, den)`` entry sequence."""
+    if not has_native_qmat() or not hasattr(LIB, "srmech_qmat_rref"):
+        return None
+    out_cap, ws, ws_len = _qmat_setup(a_pairs, n_cols, n_rows)
+    a_n, a_d, ka = _qmat_make_array(a_pairs, out_cap)
+    o_n, o_d, ko = _qmat_blank_array(max(n_rows * n_cols, 1), out_cap)
+    rank = ctypes.c_size_t(0)
+    piv = (ctypes.c_size_t * max(n_cols, 1))()
+    rc = LIB.srmech_qmat_rref(
+        a_n, a_d, ctypes.c_size_t(n_rows), ctypes.c_size_t(n_cols),
+        o_n, o_d, ctypes.byref(rank), piv,
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (ka, ko)
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_qmat_rref returned non-OK status {rc}")
+    pairs = _qmat_read_array(o_n, o_d, n_rows * n_cols)
+    return pairs, rank.value, [piv[i] for i in range(rank.value)]
+
+
+def qmat_rank_c(a_pairs, n_rows, n_cols):
+    """Native exact-ℚ rank → ``int``, or ``None`` if absent."""
+    if not has_native_qmat() or not hasattr(LIB, "srmech_qmat_rank"):
+        return None
+    out_cap, ws, ws_len = _qmat_setup(a_pairs, n_cols, n_rows)
+    a_n, a_d, ka = _qmat_make_array(a_pairs, out_cap)
+    rank = ctypes.c_size_t(0)
+    rc = LIB.srmech_qmat_rank(
+        a_n, a_d, ctypes.c_size_t(n_rows), ctypes.c_size_t(n_cols),
+        ctypes.byref(rank),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = ka
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_qmat_rank returned non-OK status {rc}")
+    return rank.value
+
+
+def qmat_det_c(a_pairs, n):
+    """Native exact-ℚ determinant → one reduced ``(num, den)`` tuple, or ``None``
+    if absent."""
+    if not has_native_qmat() or not hasattr(LIB, "srmech_qmat_det"):
+        return None
+    out_cap, ws, ws_len = _qmat_setup(a_pairs, n + n, n)
+    a_n, a_d, ka = _qmat_make_array(a_pairs, out_cap)
+    o_n, kon = _bigint_from_int(0, out_cap)
+    o_d, kod = _bigint_from_int(1, out_cap)
+    rc = LIB.srmech_qmat_det(
+        a_n, a_d, ctypes.c_size_t(n),
+        ctypes.byref(o_n), ctypes.byref(o_d),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (ka, kon, kod)
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_qmat_det returned non-OK status {rc}")
+    return (_bigint_to_int(o_n), _bigint_to_int(o_d))
+
+
+def qmat_inverse_c(a_pairs, n):
+    """Native exact-ℚ inverse → ``(inv_pairs, singular)`` (inv_pairs is the
+    row-major inverse as ``(num, den)`` tuples; ``singular`` is True when A is not
+    invertible, in which case inv_pairs is unspecified), or ``None`` if absent."""
+    if not has_native_qmat() or not hasattr(LIB, "srmech_qmat_inverse"):
+        return None
+    out_cap, ws, ws_len = _qmat_setup(a_pairs, n + n, n)
+    a_n, a_d, ka = _qmat_make_array(a_pairs, out_cap)
+    o_n, o_d, ko = _qmat_blank_array(max(n * n, 1), out_cap)
+    sing = ctypes.c_int(0)
+    rc = LIB.srmech_qmat_inverse(
+        a_n, a_d, ctypes.c_size_t(n), o_n, o_d, ctypes.byref(sing),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (ka, ko)
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_qmat_inverse returned non-OK status {rc}")
+    if sing.value:
+        return [], True
+    return _qmat_read_array(o_n, o_d, n * n), False
+
+
+def qmat_solve_c(a_pairs, n, b_pairs, b_cols):
+    """Native exact-ℚ solve A x = b → ``(x_pairs, singular)`` (x_pairs is the
+    row-major n×b_cols solution; ``singular`` True when A is not full-rank), or
+    ``None`` if absent. ``b_pairs`` is the row-major n×b_cols RHS block."""
+    if not has_native_qmat() or not hasattr(LIB, "srmech_qmat_solve"):
+        return None
+    out_cap, ws, ws_len = _qmat_setup(a_pairs, n + b_cols, n, b_pairs)
+    a_n, a_d, ka = _qmat_make_array(a_pairs, out_cap)
+    b_n, b_d, kb = _qmat_make_array(b_pairs, out_cap)
+    o_n, o_d, ko = _qmat_blank_array(max(n * b_cols, 1), out_cap)
+    sing = ctypes.c_int(0)
+    rc = LIB.srmech_qmat_solve(
+        a_n, a_d, ctypes.c_size_t(n), b_n, b_d, ctypes.c_size_t(b_cols),
+        o_n, o_d, ctypes.byref(sing),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (ka, kb, ko)
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_qmat_solve returned non-OK status {rc}")
+    if sing.value:
+        return [], True
+    return _qmat_read_array(o_n, o_d, n * b_cols), False
+
+
+def qmat_nullspace_c(a_pairs, n_rows, n_cols):
+    """Native exact-ℚ kernel basis → list of column basis vectors, each a list of
+    ``n_cols`` ``(num, den)`` tuples (matching QMat.nullspace's per-column basis),
+    or ``None`` if absent. Empty list iff A has full column rank."""
+    if not has_native_qmat() or not hasattr(LIB, "srmech_qmat_nullspace"):
+        return None
+    out_cap, ws, ws_len = _qmat_setup(a_pairs, n_cols, n_rows)
+    a_n, a_d, ka = _qmat_make_array(a_pairs, out_cap)
+    # the C stores the (n_cols x nfree) basis column-major into an n_cols*n_cols
+    # row-major block: out[i*n_cols + j] is entry i of basis column j.
+    o_n, o_d, ko = _qmat_blank_array(max(n_cols * n_cols, 1), out_cap)
+    nfree = ctypes.c_size_t(0)
+    rc = LIB.srmech_qmat_nullspace(
+        a_n, a_d, ctypes.c_size_t(n_rows), ctypes.c_size_t(n_cols),
+        o_n, o_d, ctypes.byref(nfree),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (ka, ko)
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_qmat_nullspace returned non-OK status {rc}")
+    flat = _qmat_read_array(o_n, o_d, n_cols * n_cols)
+    # rebuild the nfree column vectors: column j's entry i is flat[i*n_cols + j].
+    return [[flat[i * n_cols + j] for i in range(n_cols)]
+            for j in range(nfree.value)]
 
 
 def has_native_klein4_fold() -> bool:
