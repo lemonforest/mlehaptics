@@ -35,6 +35,7 @@ __all__ = [
     "continued_fraction",
     "continued_fraction_convergents",
     "best_rational",
+    "rational_reconstruct",
     "exp_series_truncate",
     "rational_add",
     "rational_mul",
@@ -200,6 +201,116 @@ def best_rational(numerator: int,
         k_curr, k_prev = k_prev, k_next
         p, q = q, p % q
     return best_p, best_q
+
+
+def _rational_reconstruct_pure(residue: int, modulus: int,
+                               num_bound: int, den_bound: int):
+    """Half-GCD rational reconstruction (Wang's algorithm). Returns the reduced
+    signed ``(p, q)`` with ``p/q ≡ residue (mod modulus)``, ``|p| <= num_bound``,
+    ``0 < q <= den_bound``, ``gcd(q, modulus) == 1`` — or ``None`` if no such
+    rational exists in the bounds. Mirrors the C kernel exactly (same extended-
+    Euclidean recurrence, same Class-K sign-branch at the end)."""
+    # Extended Euclidean on (modulus, residue): track only the t-coefficient
+    # (the running denominator). Stop the FIRST time the remainder drops to or
+    # below the numerator bound — that (r, t) row is the reconstruction.
+    r0, r1 = modulus, residue % modulus
+    t0, t1 = 0, 1
+    while r1 > num_bound:
+        quotient = r0 // r1
+        r0, r1 = r1, r0 - quotient * r1
+        t0, t1 = t1, t0 - quotient * t1
+    # Candidate numerator r1, denominator t1 (t1 may be negative — Class-K).
+    p_cand = r1
+    q_cand = t1
+    # Class-K magnitude via an explicit sign-branch (never an ALU abs()).
+    q_mag = q_cand if q_cand >= 0 else -q_cand
+    if q_mag == 0 or q_mag > den_bound:
+        return None
+    # Canonicalise the denominator positive: a negative q flips both signs.
+    if q_cand < 0:
+        p_cand = -p_cand
+        q_cand = -q_cand
+    # The reconstruction is valid only if it is in lowest terms relative to the
+    # modulus (gcd(q, modulus) == 1) AND already reduced (gcd(|p|, q) == 1) —
+    # otherwise no UNIQUE rational matches in these bounds.
+    p_mag = p_cand if p_cand >= 0 else -p_cand
+    if _cyclic.gcd(q_cand, modulus) != 1:
+        return None
+    g = _cyclic.gcd(p_mag, q_cand)
+    if g != 1:
+        return None
+    return (p_cand, q_cand)
+
+
+def rational_reconstruct(residue: int, modulus: int, *,
+                         num_bound: int = None,
+                         den_bound: int = None):
+    """Recover the rational ``p/q`` congruent to ``residue`` modulo ``modulus``.
+
+    Returns the reduced **signed** ``(p, q)`` (a 2-tuple of ``int``) with
+    ``p/q ≡ residue (mod modulus)``, ``|p| <= num_bound``, ``0 < q <= den_bound``,
+    ``gcd(q, modulus) == 1``, and ``gcd(|p|, q) == 1`` — or ``None`` if no such
+    rational exists within the bounds.
+
+    The default symmetric bound is ``num_bound = den_bound = isqrt(modulus // 2)``
+    — the standard Wang bound (Wang 1981, *An improved Monte Carlo algorithm for
+    computing exact rational solutions*; von zur Gathen & Gerhard, *Modern
+    Computer Algebra*, 3rd ed. 2013, §5.10) that **guarantees uniqueness**: at
+    most one rational with ``|p|·q < modulus / 2`` is congruent to ``residue``,
+    so the first extended-Euclidean row dropping to or below the bound IS that
+    rational.
+
+    Class N (the rational-reconstruction member of the ``best_rational`` /
+    ``continued_fraction`` extended-Euclidean family — but the *residue →
+    bounded-p/q* recovery, a distinct algorithm). Sign is Class-K (an explicit
+    sign-branch, never ``abs()``); arbitrary-precision integer / bignum (the
+    modulus and the recovered numerator/denominator can exceed ``2**64``); no
+    float, no numpy, no ``math``.
+
+    Dispatches to the native ``srmech_rational_reconstruct`` (over
+    ``srmech_bigint``) when present; the pure-Python body is the complete,
+    byte-identical alternative (and the parity oracle).
+    """
+    if not isinstance(residue, int) or isinstance(residue, bool):
+        raise TypeError(
+            f"rational_reconstruct: residue must be int; "
+            f"got {type(residue).__name__}"
+        )
+    if not isinstance(modulus, int) or isinstance(modulus, bool):
+        raise TypeError(
+            f"rational_reconstruct: modulus must be int; "
+            f"got {type(modulus).__name__}"
+        )
+    if modulus < 2:
+        raise ValueError(
+            f"rational_reconstruct: modulus must be >= 2; got {modulus}"
+        )
+    if num_bound is None or den_bound is None:
+        default = _py_isqrt(modulus // 2)
+        if num_bound is None:
+            num_bound = default
+        if den_bound is None:
+            den_bound = default
+    if not isinstance(num_bound, int) or isinstance(num_bound, bool):
+        raise TypeError("rational_reconstruct: num_bound must be int")
+    if not isinstance(den_bound, int) or isinstance(den_bound, bool):
+        raise TypeError("rational_reconstruct: den_bound must be int")
+    if num_bound < 0:
+        raise ValueError("rational_reconstruct: num_bound must be >= 0")
+    if den_bound < 1:
+        raise ValueError("rational_reconstruct: den_bound must be >= 1")
+
+    res = residue % modulus
+    # The exact-zero residue reconstructs to 0/1 (it is the only rational with a
+    # zero numerator in lowest terms); short-circuit before the Euclid loop.
+    if res == 0:
+        return (0, 1)
+
+    native = _native.rational_reconstruct(res, modulus, num_bound, den_bound)
+    if native is not None:
+        return native if native[0] is not None else None
+
+    return _rational_reconstruct_pure(res, modulus, num_bound, den_bound)
 
 
 # Upper bound on N to prevent runaway integer-size growth. At N=512 the

@@ -42,7 +42,7 @@ from .cyclic import mod_add as _mod_add
 from .cyclic import mod_inv as _mod_inv
 from .cyclic import mod_mul as _mod_mul
 
-__all__ = ["gf_rref"]
+__all__ = ["gf_rref", "crt_combine"]
 
 # Field bound: 2 < p < 2**31 keeps a*b inside uint64 with no doubling needed.
 _P_CEILING: int = 1 << 31
@@ -180,3 +180,107 @@ def gf_rref(rows, p: int) -> Dict[str, object]:
 
     m, pivots, rank = _gf_rref_pure(rows, n_rows, n_cols, p)
     return {"rref": m, "rank": rank, "pivots": pivots}
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Class I — CRT combine (rc45, rung 2 of the CRT-QMat re-fibration arc).
+# ──────────────────────────────────────────────────────────────────────────
+# After the swell-free GF(p) elimination has produced one residue per prime,
+# the per-prime results are recombined into a single residue modulo the product
+# of the primes — the Chinese Remainder Theorem. The combined modulus
+# ``∏ m_i`` exceeds 64 bits for k ≳ 3 of the ~31-bit reduction primes, so the
+# accumulator is **bignum** (Python ``int``, no ceiling); only the per-step
+# inverse ``M_i⁻¹ (mod m_i)`` stays inside ``uint64`` (it is taken modulo a
+# single ~31-bit prime), so it rides the Class-I :func:`cyclic.mod_inv`.
+
+
+def _check_crt_inputs(residues, moduli) -> int:
+    """Validate the CRT operand pair and return ``k`` (the prime count).
+
+    ``residues`` / ``moduli`` must be equal-length non-empty lists of ``int``;
+    each modulus must be ``>= 2``; the moduli must be **distinct** (the
+    pairwise-coprimality the caller contracts comes free for distinct primes,
+    and distinctness is the cheap structural check we can make here)."""
+    if not isinstance(residues, (list, tuple)):
+        raise TypeError("crt_combine: residues must be a list of int")
+    if not isinstance(moduli, (list, tuple)):
+        raise TypeError("crt_combine: moduli must be a list of int")
+    k = len(moduli)
+    if len(residues) != k:
+        raise ValueError(
+            "crt_combine: residues and moduli must have equal length; "
+            f"got {len(residues)} and {k}"
+        )
+    if k == 0:
+        raise ValueError("crt_combine: need at least one (residue, modulus)")
+    for r in residues:
+        if not isinstance(r, int) or isinstance(r, bool):
+            raise TypeError("crt_combine: every residue must be int")
+    for mod in moduli:
+        if not isinstance(mod, int) or isinstance(mod, bool):
+            raise TypeError("crt_combine: every modulus must be int")
+        if mod < 2:
+            raise ValueError(f"crt_combine: every modulus must be >= 2; got {mod}")
+    if len(set(moduli)) != k:
+        raise ValueError("crt_combine: moduli must be distinct (pairwise coprime)")
+    return k
+
+
+def _crt_combine_pure(residues, moduli):
+    """Iterative (Garner) CRT over a bignum accumulator. Returns
+    ``(residue, modulus)`` with ``residue`` in ``[0, modulus)`` and
+    ``modulus = ∏ moduli``. Mirrors the C kernel exactly (same fold order,
+    same per-step inverse modulo a single prime)."""
+    # Seed with the first congruence reduced into [0, m_0).
+    cur = residues[0] % moduli[0]
+    modulus = moduli[0]
+    for i in range(1, len(moduli)):
+        m_i = moduli[i]
+        # Solve cur + modulus*t ≡ r_i (mod m_i): t = (r_i - cur)·modulus⁻¹.
+        # `modulus` is bignum; (modulus % m_i) is a ~31-bit residue, so the
+        # inverse rides the uint64 Class-I cyclic.mod_inv.
+        inv = _mod_inv(modulus % m_i, m_i)
+        # (r_i - cur) reduced into [0, m_i) — Class-K sign handling lives in
+        # Python's true-modulo %, which is non-negative for a positive modulus.
+        diff = (residues[i] - cur) % m_i
+        t = _mod_mul(diff, inv, m_i)
+        cur = cur + modulus * t
+        modulus = modulus * m_i
+    return cur % modulus, modulus
+
+
+def crt_combine(residues, moduli) -> Dict[str, int]:
+    """Chinese-Remainder-combine per-prime residues into one residue mod ∏ mᵢ.
+
+    Given ``residues = [r_0, …, r_{k-1}]`` and pairwise-coprime ``moduli =
+    [m_0, …, m_{k-1}]`` (distinct primes from the CRT reduction sequence),
+    return ``{"residue": int, "modulus": int}`` where ``residue ≡ r_i (mod m_i)``
+    for every ``i`` and ``modulus = ∏ m_i``, with ``residue`` in
+    ``[0, modulus)``.
+
+    Iterative CRT (Garner's algorithm; cf. Knuth, *TAOCP* vol. 2, §4.3.2;
+    von zur Gathen & Gerhard, *Modern Computer Algebra*, 3rd ed. 2013, §5.4),
+    composing the Class-I cyclic-group primitives :func:`cyclic.mod_inv` /
+    :func:`~srmech.amsc.cyclic.mod_mul`. The combined modulus exceeds 64 bits
+    for ``k ≳ 3`` of the ~31-bit reduction primes, so the accumulator is
+    **bignum** (Python ``int``, no ceiling); only the per-step inverse, taken
+    modulo a single prime, stays inside ``uint64``. Sign/zero handling is
+    Class-K (Python's non-negative ``%``, never ``abs()``); no float, no numpy,
+    no ``math``.
+
+    Dispatches to the native ``srmech_crt_combine`` (over ``srmech_bigint``)
+    when present; the pure-Python body is the complete, byte-identical
+    alternative (and the parity oracle).
+    """
+    k = _check_crt_inputs(residues, moduli)
+    res_list = [int(r) for r in residues]
+    mod_list = [int(mod) for mod in moduli]
+
+    native = _native.crt_combine(res_list, mod_list)
+    if native is not None:
+        residue_out, modulus_out = native
+        return {"residue": residue_out, "modulus": modulus_out}
+
+    residue_out, modulus_out = _crt_combine_pure(res_list, mod_list)
+    assert k >= 1
+    return {"residue": residue_out, "modulus": modulus_out}

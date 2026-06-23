@@ -119,6 +119,13 @@ if(SRMECH_SRCS)
         #   ./build/test_srmech_modular_linalg     (exit 0 = all pass)
         add_executable(test_srmech_modular_linalg c/test/test_srmech_modular_linalg.c)
         target_link_libraries(test_srmech_modular_linalg PRIVATE srmech ${SRMECH_MATH_LIB})
+
+        # rc45 CRT closers rung 2: crt_combine + rational_reconstruct over
+        # srmech_bigint. Cross-checked against an independent CRT oracle + a
+        # reconstruction round-trip (incl. >2**64 moduli). Run it:
+        #   ./build/test_srmech_crt_reconstruct    (exit 0 = all pass)
+        add_executable(test_srmech_crt_reconstruct c/test/test_srmech_crt_reconstruct.c)
+        target_link_libraries(test_srmech_crt_reconstruct PRIVATE srmech ${SRMECH_MATH_LIB})
     endif()
 else()
     # Phase B1 only: no .c files yet. Emit a status line so the

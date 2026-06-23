@@ -779,6 +779,41 @@ def _register_primitive_class_tools() -> None:
                       "'pivots': [int] (the pivot column of each pivot row, "
                       "ascending)}"),
         ),
+        # ────────────────────────────────────────────────────────────
+        # Class I — CRT combine (rc45, rung 2 of the CRT-QMat re-fibration
+        # arc). The per-prime-residues → one-residue-mod-product closer.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.modular_linalg.crt_combine", owner="srmech",
+            category="modular_linalg",
+            summary="Chinese-Remainder-combine per-prime residues into one residue "
+                    "modulo the product of the primes — the CRT (cf. Knuth, *The "
+                    "Art of Computer Programming*, vol. 2, 3rd ed. 1997, §4.3.2; von "
+                    "zur Gathen & Gerhard, *Modern Computer Algebra*, 3rd ed. 2013, "
+                    "§5.4). The Class-I combine of the rc45 CRT re-fibration: after "
+                    "gf_rref solves modulo several machine-int primes (each a "
+                    "swell-free GF(p) elimination), this merges the per-prime "
+                    "residues back into one congruence. Input: residues [r_0..r_k-1] "
+                    "and pairwise-coprime moduli [m_0..m_k-1] (distinct primes from "
+                    "the CRT sequence). Returns {'residue': int, 'modulus': int} with "
+                    "residue ≡ r_i (mod m_i) for all i and modulus = ∏ m_i, residue "
+                    "in [0, modulus). Iterative Garner CRT composing mod_inv / "
+                    "mod_mul; the combined modulus exceeds 64 bits for k ≳ 3 of the "
+                    "~31-bit primes, so the accumulator is bignum (Python int, no "
+                    "ceiling) while the per-step inverse stays in uint64. Class-K "
+                    "sign/zero handling (non-negative %, never abs()); no float, no "
+                    "numpy / math. 1:1 C peer srmech_crt_combine (over srmech_bigint, "
+                    "caller-arena; native when present, pure-Python the complete "
+                    "alternative).",
+            parameters=(P("residues", "list[int]", True,
+                          "the per-prime residues [r_0..r_k-1]"),
+                        P("moduli", "list[int]", True,
+                          "the pairwise-coprime moduli [m_0..m_k-1] (distinct "
+                          "primes), same length as residues")),
+            returns=R("dict",
+                      "{'residue': int (≡ r_i mod m_i for all i, in [0, modulus)), "
+                      "'modulus': int (∏ m_i)}"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class L — graph Laplacian
@@ -1577,6 +1612,43 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("numerator", "int", True), P("denominator", "int", True),
                         P("max_denominator", "int", True, "> 0")),
             returns=R("tuple[int, int]", "(p', q')"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # Class N — rational reconstruction (rc45, rung 2 of the
+        # CRT-QMat re-fibration arc). The residue→bounded-p/q closer.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.rational.rational_reconstruct", owner="srmech",
+            category="rational",
+            summary="Recover the rational p/q congruent to a residue modulo M — "
+                    "rational reconstruction (cf. Wang 1981, *An improved Monte "
+                    "Carlo algorithm for computing exact rational solutions*; von "
+                    "zur Gathen & Gerhard, *Modern Computer Algebra*, 3rd ed. 2013, "
+                    "§5.10). The Class-N closer of the rc45 CRT re-fibration: after "
+                    "crt_combine merges the per-prime residues into one residue mod "
+                    "M, this recovers the exact rational answer. Returns the reduced "
+                    "SIGNED (p, q) with p/q ≡ residue (mod M), |p| ≤ num_bound, "
+                    "0 < q ≤ den_bound, gcd(q, M) == 1, gcd(|p|, q) == 1 — or None "
+                    "if no such rational exists in the bounds. The default symmetric "
+                    "bound num_bound = den_bound = isqrt(M // 2) is the standard Wang "
+                    "bound guaranteeing uniqueness. Half-GCD / extended-Euclidean "
+                    "reconstruction (the best_rational / continued_fraction Class-N "
+                    "family, but the distinct residue→bounded-p/q algorithm); sign "
+                    "is Class-K (an explicit sign-branch, never abs()); arbitrary-"
+                    "precision / bignum (M and p/q may exceed 2**64); no float, no "
+                    "numpy / math. 1:1 C peer srmech_rational_reconstruct (over "
+                    "srmech_bigint, caller-arena; native when present, pure-Python "
+                    "the complete alternative).",
+            parameters=(P("residue", "int", True,
+                          "the residue r (reduced into [0, M) internally)"),
+                        P("modulus", "int", True, "the modulus M >= 2"),
+                        P("num_bound", "Optional[int]", False,
+                          "|p| ceiling; default isqrt(M // 2) (the Wang bound)"),
+                        P("den_bound", "Optional[int]", False,
+                          "q ceiling; default isqrt(M // 2) (the Wang bound)")),
+            returns=R("Optional[tuple[int, int]]",
+                      "the reduced signed (p, q), or None if no rational fits the "
+                      "bounds"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.exp_series_truncate", owner="srmech",

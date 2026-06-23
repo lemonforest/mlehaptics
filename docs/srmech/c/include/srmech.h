@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc44"
-#define SRMECH_VERSION       "0.9.0rc44"
+#define SRMECH_VERSION_PRE   "rc45"
+#define SRMECH_VERSION       "0.9.0rc45"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3044,6 +3044,65 @@ srmech_status_t srmech_rational_pow_uint_big(const srmech_bigint_t *base_num,
                                              srmech_bigint_t *out_num,
                                              srmech_bigint_t *out_den,
                                              void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_crt_combine / srmech_rational_reconstruct — the CRT closers
+ * (srmech 0.9.0rc45, rung 2 of the CRT-QMat re-fibration arc).
+ *
+ * After the swell-free GF(p) elimination (srmech_gf_rref, rung 1) has produced
+ * one residue per reduction prime, these two turn the per-prime residues back
+ * into the EXACT rational answer: CRT-combine the residues into one residue
+ * modulo the product of the primes, then rational-reconstruct that residue back
+ * to a bounded p/q. Both run over the caller-arena srmech_bigint — the combined
+ * modulus + the reconstructed numerator/denominator are bignum.
+ *
+ * Additive symbols — ABI unchanged (stays 3).
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES for srmech_crt_combine over `k` congruences. The Garner
+ * fold's scratch is a few partial-product bigints sized from the running
+ * modulus; this is a generous envelope (the actual modulus limb count is data-
+ * dependent, so the marshaller pads further). */
+size_t srmech_crt_combine_ws_bound(size_t k);
+
+/* CRT-combine `k` congruences r_i (mod m_i) into one residue mod ∏ m_i.
+ * `residues` / `moduli` are caller-owned uint64 arrays of length `k` (each
+ * residue + modulus fits uint64 — the ~31-bit reduction primes). The moduli
+ * must be pairwise coprime (distinct primes; the caller's contract). Writes the
+ * combined residue (in [0, modulus)) into *out_residue and ∏ m_i into
+ * *out_modulus, both bignum (size their limb cap from the total bit-width).
+ * Iterative Garner CRT; the per-step inverse is taken modulo a single uint64
+ * prime. SRMECH_ERR_BAD_INPUT if k == 0 or any modulus < 2; SRMECH_ERR_OVERFLOW
+ * if an out cap or `ws` is too small. */
+srmech_status_t srmech_crt_combine(const uint64_t *residues,
+                                   const uint64_t *moduli,
+                                   uint32_t k,
+                                   srmech_bigint_t *out_residue,
+                                   srmech_bigint_t *out_modulus,
+                                   void *ws, size_t ws_len);
+
+/* Minimum `ws_len` BYTES for srmech_rational_reconstruct on a modulus of
+ * `modulus_limbs` 32-bit limbs. Covers the half-GCD recurrence carriers + the
+ * divmod/gcd arena tail. */
+size_t srmech_rational_reconstruct_ws_bound(size_t modulus_limbs);
+
+/* Reconstruct the rational p/q congruent to `residue` modulo `modulus`, with
+ * |p| <= num_bound, 0 < q <= den_bound, gcd(q, modulus) == 1 and gcd(|p|, q)
+ * == 1. residue/modulus/num_bound/den_bound are caller-owned bigints (modulus
+ * >= 2; bounds >= 0/1). On success *out_found = 1 and out_num/out_den carry the
+ * reduced SIGNED p/q (out_den > 0; the sign is Class-K, an explicit sign-branch,
+ * never abs()). If no rational exists in the bounds, *out_found = 0 (out_num/
+ * out_den unspecified). Half-GCD / Wang reconstruction over the caller arena
+ * `ws`. SRMECH_ERR_BAD_INPUT if modulus < 2; SRMECH_ERR_OVERFLOW on a too-small
+ * out cap or `ws`. */
+srmech_status_t srmech_rational_reconstruct(const srmech_bigint_t *residue,
+                                            const srmech_bigint_t *modulus,
+                                            const srmech_bigint_t *num_bound,
+                                            const srmech_bigint_t *den_bound,
+                                            srmech_bigint_t *out_num,
+                                            srmech_bigint_t *out_den,
+                                            int32_t *out_found,
+                                            void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_poly — EXACT-RATIONAL univariate polynomial over srmech_bigint
