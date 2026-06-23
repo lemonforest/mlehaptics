@@ -1868,6 +1868,34 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_qmat_nullspace.restype = ctypes.c_int
 
+    # rc41: srmech_gosper — Gosper's indefinite hypergeometric summation (the §76
+    # telescope Sigma-row's first public op). Orchestrates the exact-Q poly/qmat
+    # kernels into one caller-arena symbol. Term ratio num/den (parallel
+    # _SrmechBigint coefficient arrays) -> the rational certificate R = r_num/r_den
+    # (or "no solution"). NEW symbols -> hasattr-guarded; additive -> ABI stays 3.
+    #   size_t srmech_gosper_ws_bound(coeff_limbs, degree)
+    #   size_t srmech_gosper_out_cap(coeff_limbs, degree)
+    for _gsz in ("srmech_gosper_ws_bound", "srmech_gosper_out_cap"):
+        if hasattr(lib, _gsz):
+            getattr(lib, _gsz).argtypes = [ctypes.c_size_t, ctypes.c_size_t]
+            getattr(lib, _gsz).restype = ctypes.c_size_t
+    #   srmech_gosper(num_n,num_d,n_num, den_n,den_d,n_den, *has,
+    #       r_num_n,r_num_d,*rnum, r_den_n,r_den_d,*rden, ws,wl)
+    if hasattr(lib, "srmech_gosper"):
+        lib.srmech_gosper.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_size_t,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_int),
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_gosper.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None
@@ -2619,6 +2647,81 @@ def qmat_nullspace_c(a_pairs, n_rows, n_cols):
     # rebuild the nfree column vectors: column j's entry i is flat[i*n_cols + j].
     return [[flat[i * n_cols + j] for i in range(n_cols)]
             for j in range(nfree.value)]
+
+
+# ----------------------------------------------------------------------
+# rc41: srmech_gosper — Gosper's indefinite hypergeometric summation (the §76
+# telescope Sigma-row's first public op). The Python srmech.amsc.gosper.gosper
+# routes through this when has_native_gosper(); the pure-Python body is the
+# COMPLETE alternative (and the parity oracle) — both emit the same reduced
+# (num, den) certificate at any magnitude. The marshalling reuses the qmat /
+# poly _SrmechBigint coefficient-array bridge.
+# ----------------------------------------------------------------------
+
+_GOSPER_SYMS = (
+    "srmech_gosper_ws_bound",
+    "srmech_gosper_out_cap",
+    "srmech_bigint_from_dec",
+    "srmech_bigint_to_dec",
+    "srmech_bigint_to_dec_bound",
+)
+
+
+def has_native_gosper() -> bool:
+    """True iff the rc41 srmech_gosper op + its ws/out-cap sizers + the
+    srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
+    pre-rc41 lib — the pure-Python ``srmech.amsc.gosper.gosper`` body is the
+    complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _GOSPER_SYMS) and hasattr(
+        LIB, "srmech_gosper"
+    )
+
+
+def gosper_c(num_coeffs, den_coeffs):
+    """Native Gosper certificate for the term ratio num/den → ``(has_solution,
+    r_num_pairs, r_den_pairs)`` (the certificate coefficient lists are reduced
+    ``(num, den)`` tuples, ascending degree), or ``None`` if the native symbols
+    are absent. ``num_coeffs`` / ``den_coeffs`` are ``(num, den)`` coefficient
+    sequences in ascending degree (the term ratio's numerator / denominator)."""
+    if not has_native_gosper():
+        return None
+    n_num, n_den = len(num_coeffs), len(den_coeffs)
+    if n_den == 0:
+        raise ValueError("gosper_c: the term-ratio denominator must be nonzero")
+    deg = max(n_num, n_den)
+    # the per-coefficient out cap + the caller arena (sized from the input limbs).
+    cl = max(_qmat_coeff_limbs(num_coeffs) if num_coeffs else 1,
+             _qmat_coeff_limbs(den_coeffs) if den_coeffs else 1)
+    out_cap = int(LIB.srmech_gosper_out_cap(
+        ctypes.c_size_t(cl), ctypes.c_size_t(deg)))
+    ws_len = int(LIB.srmech_gosper_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_size_t(deg)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    num_n, num_d, kn = _qmat_make_array(num_coeffs, out_cap)
+    den_n, den_d, kd = _qmat_make_array(den_coeffs, out_cap)
+    rn_n, rn_d, krn = _qmat_blank_array(deg + 2, out_cap)
+    rd_n, rd_d, krd = _qmat_blank_array(deg + 2, out_cap)
+    has = ctypes.c_int(0)
+    lrn = ctypes.c_size_t(0)
+    lrd = ctypes.c_size_t(0)
+    rc = LIB.srmech_gosper(
+        num_n, num_d, ctypes.c_size_t(n_num),
+        den_n, den_d, ctypes.c_size_t(n_den),
+        ctypes.byref(has),
+        rn_n, rn_d, ctypes.byref(lrn),
+        rd_n, rd_d, ctypes.byref(lrd),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (kn, kd, krn, krd)
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_gosper returned non-OK status {rc}")
+    if not has.value:
+        return False, [], []
+    r_num = _qmat_read_array(rn_n, rn_d, lrn.value)
+    r_den = _qmat_read_array(rd_n, rd_d, lrd.value)
+    return True, r_num, r_den
 
 
 def has_native_klein4_fold() -> bool:
