@@ -1767,9 +1767,15 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.c_void_p, ctypes.c_size_t,
         ]
         lib.srmech_poly_divmod.restype = ctypes.c_int
-    # (srmech_poly_gcd deferred to the rc39-prefix follow-up — the Euclidean
-    # coefficient explosion needs a chain-scaled arena, not the per-op envelope;
-    # Poly.gcd's inner long divisions already route through srmech_poly_divmod.)
+    # rc39: srmech_poly_gcd (the deferred rc38 item) — the monic Euclidean GCD
+    # over Q in one native call, with a SEPARATE chain-scaled ws-bound
+    # (srmech_poly_gcd_ws_bound). Same coefficient-array shape as add/sub.
+    if hasattr(lib, "srmech_poly_gcd_ws_bound"):
+        lib.srmech_poly_gcd_ws_bound.argtypes = [ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_poly_gcd_ws_bound.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_poly_gcd"):
+        lib.srmech_poly_gcd.argtypes = list(_POLY_BINOP_SIG)
+        lib.srmech_poly_gcd.restype = ctypes.c_int
     #   srmech_poly_eval(p_n,p_d,n, x_n,x_d, out_num,out_den, ws,wl)
     if hasattr(lib, "srmech_poly_eval"):
         lib.srmech_poly_eval.argtypes = [
@@ -2257,6 +2263,60 @@ def poly_shift_c(p_coeffs, h):
     _ = (kp, khn, khd, ko)
     if rc != SRMECH_OK:
         raise RuntimeError(f"srmech_poly_shift returned non-OK status {rc}")
+    return _poly_read_array(o_n, o_d, out_len.value)
+
+
+def has_native_poly_gcd() -> bool:
+    """True iff the rc39 ``srmech_poly_gcd`` single-call monic Euclidean GCD peer
+    is loaded + bound (needs the rc38 poly base + the rc39 gcd symbol + its
+    separate chain-scaled ws-bound). False on a no-C / pre-rc39 lib — the
+    pure-Python ``Poly.gcd`` Euclid driver (whose inner long divisions still route
+    through ``srmech_poly_divmod``) is the complete, ceiling-free alternative."""
+    return bool(has_native_poly()
+                and hasattr(LIB, "srmech_poly_gcd")
+                and hasattr(LIB, "srmech_poly_gcd_ws_bound"))
+
+
+def _poly_gcd_setup(a_coeffs, b_coeffs):
+    """Sizing for the GCD chain: the per-coefficient limb cap + the SEPARATE
+    chain-scaled caller arena (``srmech_poly_gcd_ws_bound``). The ``out_cap``
+    over-sizes to the C ``poly_gcd_cap_for`` envelope (degree-squared headroom)
+    so the output coefficients never overflow before the C op's own guard."""
+    n_terms = max(len(a_coeffs), len(b_coeffs), 1)
+    cl = max(_poly_coeff_limbs(a_coeffs) if a_coeffs else 1,
+             _poly_coeff_limbs(b_coeffs) if b_coeffs else 1)
+    # Match the C poly_gcd_cap_for: cl*nt + 2 step, * nt chain accumulation.
+    step = cl * n_terms + 2
+    out_cap = step * n_terms + step * 2 + 32 + 64
+    ws_len = int(LIB.srmech_poly_gcd_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_size_t(n_terms)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    return out_cap, ws, ws_len
+
+
+def poly_gcd_c(a_coeffs, b_coeffs):
+    """Native single-call monic Euclidean GCD over ℚ → reduced ``(num, den)``
+    coefficient list (monic; ascending degree), or ``None`` if the native gcd
+    peer is absent. ``gcd(0, 0) -> []`` (the zero polynomial)."""
+    if not has_native_poly_gcd():
+        return None
+    na, nb = len(a_coeffs), len(b_coeffs)
+    m = max(na, nb)
+    if m == 0:
+        return []
+    out_cap, ws, ws_len = _poly_gcd_setup(a_coeffs, b_coeffs)
+    a_n, a_d, ka = _poly_make_array(a_coeffs, out_cap)
+    b_n, b_d, kb = _poly_make_array(b_coeffs, out_cap)
+    o_n, o_d, ko = _poly_blank_array(m, out_cap)
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_poly_gcd(
+        a_n, a_d, ctypes.c_size_t(na), b_n, b_d, ctypes.c_size_t(nb),
+        o_n, o_d, ctypes.byref(out_len),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (ka, kb, ko)
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_poly_gcd returned non-OK status {rc}")
     return _poly_read_array(o_n, o_d, out_len.value)
 
 

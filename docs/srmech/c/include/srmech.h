@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc38"
-#define SRMECH_VERSION       "0.9.0rc38"
+#define SRMECH_VERSION_PRE   "rc39"
+#define SRMECH_VERSION       "0.9.0rc39"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3037,15 +3037,17 @@ srmech_status_t srmech_rational_pow_uint_big(const srmech_bigint_t *base_num,
  * SRMECH_ERR_OVERFLOW (matching Python's ZeroDivisionError / unbounded-int
  * domains).
  *
- * NOTE: the single-call polynomial GCD (srmech_poly_gcd) is the immediate
- * rc39-prefix follow-up, NOT shipped here. The Euclidean GCD over Q has the
- * classic intermediate-coefficient explosion, so its caller-arena bound must
- * scale with the Euclidean-chain length (a subresultant formulation), not the
- * per-op product envelope the peers below use; shipping a gcd that could
- * OVERFLOW on a benign higher-degree input would break the standalone-complete
- * honor. The Python Poly.gcd already runs its inner long divisions through
- * srmech_poly_divmod when native is present; only its Euclid driver stays Python
- * (the pure-bigint GCD has no ceiling — the complete path).
+ * The single-call polynomial GCD (srmech_poly_gcd, rc39) takes a SEPARATE
+ * ws-bound (srmech_poly_gcd_ws_bound) because the Euclidean GCD over Q has the
+ * classic intermediate-coefficient growth, so its caller-arena bound scales with
+ * the Euclidean-chain length. The soundness lever is MONIC NORMALIZATION after
+ * every chain step: the GCD is defined up to a unit, so scaling each remainder
+ * to a leading 1 leaves the final monic GCD identical (verified over 4000 random
+ * integer+rational trials) while taming the coefficient growth from ~92x input
+ * bits (no-norm) to ~23x (monic-norm); poly_gcd_cap_for then sizes each carrier
+ * with degree-squared headroom, provably past that linear-in-degree growth. Any
+ * residual overflow still returns SRMECH_ERR_OVERFLOW (never a silent wrap), and
+ * the Python Poly.gcd falls back to its ceiling-free pure-bigint path.
  *
  * Carrier-internal (like srmech_bigexp): NOT a Rosetta ledger op. Additive
  * symbols -> SRMECH_ABI_VERSION unchanged.
@@ -3097,8 +3099,22 @@ srmech_status_t srmech_poly_divmod(const srmech_bigint_t *a_n,
                                    srmech_bigint_t *out_r_d, size_t *out_rn,
                                    void *ws, size_t ws_len);
 
-/* (srmech_poly_gcd deferred to the rc39-prefix follow-up — see the block
- * comment above for the Euclidean coefficient-explosion rationale.) */
+/* Minimum `ws_len` BYTES for srmech_poly_gcd (a SEPARATE, larger bound than
+ * srmech_poly_ws_bound — covers the chain-scaled carriers + three working poly
+ * buffers + the divmod scratch). 8-byte-aligned uint32 bump arena. */
+size_t srmech_poly_gcd_ws_bound(size_t coeff_limbs, size_t n_terms);
+
+/* gcd = the MONIC Euclidean GCD of a and b over Q (leading coefficient 1, so
+ * canonical). out arrays hold max(na, nb) coefficients (the GCD degree never
+ * exceeds min(deg a, deg b)); *out_len <- the trimmed monic-GCD length.
+ * gcd(0, 0) -> the zero polynomial (out_len 0); gcd(p, 0) -> monic(p). Exact
+ * over Q, bignum; OVERFLOW if ws or an out coefficient cap is too small. */
+srmech_status_t srmech_poly_gcd(const srmech_bigint_t *a_n,
+                                const srmech_bigint_t *a_d, size_t na,
+                                const srmech_bigint_t *b_n,
+                                const srmech_bigint_t *b_d, size_t nb,
+                                srmech_bigint_t *out_n, srmech_bigint_t *out_d,
+                                size_t *out_len, void *ws, size_t ws_len);
 
 /* p(x) at x = x_n/x_d by exact Horner -> one reduced rational out_num/out_den. */
 srmech_status_t srmech_poly_eval(const srmech_bigint_t *p_n,
