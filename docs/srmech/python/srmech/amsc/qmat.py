@@ -447,10 +447,14 @@ class QMat:
         ``rational_reconstruct`` / ``next_prime`` ops (``composition_of_c``)."""
         return _rref_crt(self)
 
-    def rank(self) -> int:
-        """The EXACT rank = the pivot count of the RREF (exact over ℚ)."""
+    def rank(self, *, method: str = "auto") -> int:
+        """The EXACT rank = the pivot count of the RREF (exact over ℚ).
+
+        ``method`` selects the solve path (rc47): ``"auto"`` (default — CRT for a
+        large system, dense for a small one), ``"dense"``, or ``"crt"``. All three
+        give the identical exact rank; ``"crt"`` runs at bounded memory."""
         nat = _native()
-        if nat is not None and self.n_rows and self.n_cols:
+        if nat is not None and method != "crt" and self.n_rows and self.n_cols:
             try:
                 rk = nat.qmat_rank_c(_row_major_pairs(self._rows),
                                      self.n_rows, self.n_cols)
@@ -458,20 +462,36 @@ class QMat:
                     return rk
             except (RuntimeError, OverflowError, ValueError):
                 pass
+        if (self.n_rows and self.n_cols
+                and _use_crt(self.n_rows, self.n_cols, method)):
+            out = _rref_crt_rows(self._rows, self.n_rows, self.n_cols, self.n_cols)
+            if out is not None:
+                return len(out[1])                # CRT pivot count = exact rank
         _R, pivot_cols, _prc = _rref_augmented(self._rows, self.n_cols)
         return len(pivot_cols)
 
-    def det(self) -> Q:
+    def det(self, *, method: str = "auto") -> Q:
         """The EXACT determinant as a ``Q`` (square only) via Gauss elimination
         with explicit pivoting. The pivot-swap sign is the **Class-K** pin-slot
         (an integer ``±1`` flipped on each row swap), never an ALU ``abs()``; the
-        determinant is ``sign · ∏ pivots`` — exact, bigint, no float."""
+        determinant is ``sign · ∏ pivots`` — exact, bigint, no float.
+
+        ``method`` selects the solve path (rc47): ``"auto"`` (default — CRT for a
+        large matrix, dense for a small one), ``"dense"``, or ``"crt"``. The CRT
+        path computes ``det mod p`` over the descending prime field (each a
+        swell-free GF(p) elimination), CRT-combines the modular determinants, and
+        rational-reconstructs ONCE — byte-identical to the dense determinant at
+        bounded memory."""
         if self.n_rows != self.n_cols:
             raise ValueError(
                 f"QMat.det requires a square matrix; got {self.shape}")
         n = self.n_rows
+        if n and _use_crt(n, n, method):
+            crt = _det_crt(self._rows, n)
+            if crt is not None:
+                return crt
         nat = _native()
-        if nat is not None and n:
+        if nat is not None and method != "crt" and n:
             try:
                 pair = nat.qmat_det_c(_row_major_pairs(self._rows), n)
                 if pair is not None:
@@ -500,17 +520,34 @@ class QMat:
                     R[rr] = [R[rr][j] - f * R[c][j] for j in range(n)]
         return prod * Q(sign, 1)
 
-    def inverse(self) -> "QMat":
+    def inverse(self, *, method: str = "auto") -> "QMat":
         """The EXACT inverse (square nonsingular) via ``[A | I]`` Gauss-Jordan:
         row-reduce the augmented matrix; the left half becomes ``I`` iff ``A`` is
         invertible, and the right half is then ``A⁻¹``. Raises ``ValueError`` on a
-        singular matrix. Exact, bigint, no float."""
+        singular matrix. Exact, bigint, no float.
+
+        ``method`` selects the solve path (rc47): ``"auto"`` (default — CRT for a
+        large matrix, dense for a small one), ``"dense"``, or ``"crt"``. The CRT
+        path reduces ``[A|I]`` at bounded memory; byte-identical to the dense
+        inverse."""
         if self.n_rows != self.n_cols:
             raise ValueError(
                 f"QMat.inverse requires a square matrix; got {self.shape}")
         n = self.n_rows
+        ident = [[_Q_ONE if i == j else _Q_ZERO for j in range(n)]
+                 for i in range(n)]
+        aug = [list(self._rows[i]) + ident[i] for i in range(n)]
+        if n and _use_crt(n, 2 * n, method):
+            out = _rref_crt_rows(tuple(tuple(r) for r in aug), n, 2 * n, n)
+            if out is not None:
+                R, pivot_cols, _prc = out
+                if pivot_cols != list(range(n)):
+                    raise ValueError(
+                        "QMat.inverse: matrix is singular (not invertible)")
+                inv_rows = tuple(tuple(R[i][n:]) for i in range(n))
+                return QMat.__new__(QMat)._init_from(inv_rows)
         nat = _native()
-        if nat is not None and n:
+        if nat is not None and method != "crt" and n:
             try:
                 res = nat.qmat_inverse_c(_row_major_pairs(self._rows), n)
                 if res is not None:
@@ -521,29 +558,42 @@ class QMat:
                     return _qmat_from_flat(pairs, n, n)
             except (RuntimeError, OverflowError):
                 pass
-        ident = [[_Q_ONE if i == j else _Q_ZERO for j in range(n)]
-                 for i in range(n)]
-        aug = [list(self._rows[i]) + ident[i] for i in range(n)]
         R, pivot_cols, _prc = _rref_augmented(aug, n)
         if pivot_cols != list(range(n)):
             raise ValueError("QMat.inverse: matrix is singular (not invertible)")
         inv_rows = tuple(tuple(R[i][n:]) for i in range(n))
         return QMat.__new__(QMat)._init_from(inv_rows)
 
-    def solve(self, b) -> "QMat":
+    def solve(self, b, *, method: str = "auto") -> "QMat":
         """Solve ``A · x = b`` EXACTLY (``A`` = ``self``). ``b`` is a ``QMat``
         column (or RHS block) or a nested/flat sequence coerced to one. Returns
         ``x`` as a ``QMat`` of shape ``(n_cols, b_cols)``. Raises ``ValueError`` if
         ``A`` is not square, the shapes do not conform, or the system is singular /
-        inconsistent. Exact ``[A | b]`` Gauss-Jordan, bigint, no float."""
+        inconsistent. Exact ``[A | b]`` Gauss-Jordan, bigint, no float.
+
+        ``method`` selects the solve path (rc47): ``"auto"`` (default — CRT for a
+        large system, dense for a small one), ``"dense"``, or ``"crt"``. The CRT
+        path reduces ``[A|b]`` at bounded memory; byte-identical to the dense
+        solve."""
         if self.n_rows != self.n_cols:
             raise ValueError(
                 f"QMat.solve requires a square A; got {self.shape}")
         n = self.n_rows
         B = _as_column_block(b, n)
         b_cols = B.n_cols
+        if n and _use_crt(n, n + b_cols, method):
+            aug = [list(self._rows[i]) + list(B._rows[i]) for i in range(n)]
+            out = _rref_crt_rows(tuple(tuple(r) for r in aug), n, n + b_cols, n)
+            if out is not None:
+                R, pivot_cols, _prc = out
+                if pivot_cols != list(range(n)):
+                    raise ValueError(
+                        "QMat.solve: A is singular — no unique solution (use "
+                        "nullspace / lstsq for the rank-deficient case).")
+                x_rows = tuple(tuple(R[i][n:n + b_cols]) for i in range(n))
+                return QMat.__new__(QMat)._init_from(x_rows)
         nat = _native()
-        if nat is not None and n:
+        if nat is not None and method != "crt" and n:
             try:
                 res = nat.qmat_solve_c(_row_major_pairs(self._rows), n,
                                        _row_major_pairs(B._rows), b_cols)
@@ -565,13 +615,21 @@ class QMat:
         x_rows = tuple(tuple(R[i][n:n + b_cols]) for i in range(n))
         return QMat.__new__(QMat)._init_from(x_rows)
 
-    def nullspace(self) -> List["QMat"]:
+    def nullspace(self, *, method: str = "auto") -> List["QMat"]:
         """An EXACT basis of ``ker(A)`` (``A`` = ``self``) — a ``list`` of ``QMat``
         COLUMN vectors (each ``n_cols × 1``) spanning the kernel exactly, one per
         free column of the RREF (the classical free-variable construction). The
-        list is empty iff ``A`` has full column rank. Exact over ℚ, bigint."""
+        list is empty iff ``A`` has full column rank. Exact over ℚ, bigint.
+
+        ``method`` selects the solve path (rc47): ``"auto"`` (default — CRT for a
+        large system, dense for a small one), ``"dense"``, or ``"crt"``. The CRT
+        path reduces ``A`` to RREF at bounded memory; the kernel basis is
+        byte-identical to the dense one."""
         nat = _native()
-        if nat is not None and self.n_rows and self.n_cols:
+        if (nat is not None and method != "crt"
+                and not (self.n_rows and self.n_cols
+                         and _use_crt(self.n_rows, self.n_cols, method))
+                and self.n_rows and self.n_cols):
             try:
                 cols = nat.qmat_nullspace_c(_row_major_pairs(self._rows),
                                             self.n_rows, self.n_cols)
@@ -583,7 +641,7 @@ class QMat:
                     return basis
             except (RuntimeError, OverflowError, ValueError):
                 pass
-        R, pivot_cols, pivot_row_of_col = _rref_augmented(self._rows, self.n_cols)
+        R, pivot_cols, pivot_row_of_col = _nullspace_rref(self, method)
         n = self.n_cols
         free_cols = [c for c in range(n) if c not in pivot_row_of_col]
         basis: List["QMat"] = []
@@ -666,6 +724,37 @@ _GF_P_CEILING: int = 1 << 31
 # We walk DOWNWARD from here so every emitted prime is a valid GF(p) modulus.
 _GF_P_SEED: int = _GF_P_CEILING - 1
 
+# Auto-by-size dispatch threshold (rc47). The dense exact-ℚ Gauss-Jordan grows the
+# numerators + denominators at EVERY pivot, so its malloc-free arena must reserve
+# the Hadamard worst-case fraction envelope — GB-scale on the order-2 Franel
+# 484x154 / order-3 2790x780 Zeilberger systems. CRT solves mod several bounded
+# primes (zero coefficient swell) and reconstructs once → bounded memory. For
+# small systems the dense path is faster (no per-prime overhead, no Wang-bound
+# stabilization loop), so the `method="auto"` default uses CRT only once a system
+# is large enough that the dense fraction-swell is the bottleneck. The crossover
+# is cell-count based: below the threshold the dense pivot growth is cheap; above
+# it the bounded CRT path wins decisively. Opt in / out explicitly with
+# `method="crt"` / `method="dense"`.
+_CRT_AUTO_CELL_THRESHOLD: int = 4096
+
+
+def _use_crt(n_rows: int, n_cols: int, method: str) -> bool:
+    """Decide the solve path for the size-`method` dispatch (rc47).
+
+    ``method="dense"`` → always the dense Gauss-Jordan; ``method="crt"`` → always
+    the bounded CRT re-fibration; ``method="auto"`` (the default) → CRT once the
+    cell count ``n_rows·n_cols`` exceeds :data:`_CRT_AUTO_CELL_THRESHOLD` (where the
+    dense Hadamard fraction-swell is the wall), dense below it (faster there).
+    Either path is EXACT and byte-identical — this only trades memory for speed."""
+    if method == "dense":
+        return False
+    if method == "crt":
+        return True
+    if method == "auto":
+        return n_rows * n_cols > _CRT_AUTO_CELL_THRESHOLD
+    raise ValueError(
+        f"QMat: method must be 'auto' / 'dense' / 'crt'; got {method!r}")
+
 
 def _gf_primes():
     """Yield distinct odd primes ``p`` with ``2 < p < 2**31`` (valid ``gf_rref``
@@ -705,13 +794,40 @@ def _entries_mod_p(rows, p: int):
 
 def _rref_crt(self) -> "QMat":
     """See :meth:`QMat.rref_crt`. Bounded-memory exact-ℚ RREF via CRT."""
-    from . import modular_linalg as _ml
-    from . import rational as _rational
-
     n_rows, n_cols = self.n_rows, self.n_cols
     if n_rows == 0 or n_cols == 0:
         # Degenerate: nothing to reduce — the dense rref is already trivial.
         return self.rref()
+    out = _rref_crt_rows(self._rows, n_rows, n_cols, n_cols)
+    if out is None:
+        # Exhausted the prime field without stabilizing — should not happen for a
+        # finite exact-ℚ answer; fall back to the dense exact rref (still correct).
+        return self.rref()                        # pragma: no cover
+    rows, _piv, _prc = out
+    return QMat.__new__(QMat)._init_from(rows)
+
+
+def _rref_crt_rows(src_rows, n_rows: int, n_cols: int, n_cols_left: int):
+    """The shared CRT-re-fibration kernel — the engine under :meth:`QMat.rref_crt`
+    AND the augmented det/inverse/solve/nullspace CRT paths.
+
+    Reduces the ``Q`` matrix ``src_rows`` (``n_rows × n_cols``) to its exact RREF
+    at bounded memory, pivoting only on the leading ``n_cols_left`` columns (the
+    rest — the ``I`` of ``[A|I]`` for inverse, the ``b`` of ``[A|b]`` for solve —
+    ride along but are never pivoted on). Mirrors the dense :func:`_rref_augmented`
+    pivot contract exactly (first nonzero ``Q != 0`` at or below the current row),
+    so the returned RREF rows + pivot structure are byte-identical to the dense
+    path.
+
+    Returns ``(rows, pivot_cols, pivot_row_of_col)`` — the same triple
+    :func:`_rref_augmented` returns, with ``rows`` a tuple-of-tuples of exact
+    ``Q`` — or ``None`` if the prime field exhausts without stabilizing (the
+    caller then falls back to the dense path; not hit for a finite exact-ℚ
+    answer). Composes the Class-I ``gf_rref`` / ``crt_combine`` over the Class-J
+    descending prime field, with the Class-N ``rational_reconstruct`` closing each
+    entry; Class-K consensus + sign throughout. No float, no numpy, no ``math``."""
+    from . import modular_linalg as _ml
+    from . import rational as _rational
 
     n_cells = n_rows * n_cols
     consensus = None                              # (rank, tuple(pivots))
@@ -719,13 +835,15 @@ def _rref_crt(self) -> "QMat":
     good_moduli: List[int] = []
     prev_matrix = None                            # the last reconstructed QMat rows
 
-    primes = _gf_primes()
-    for p in primes:
-        residues = _entries_mod_p(self._rows, p)
+    for p in _gf_primes():
+        residues = _entries_mod_p(src_rows, p)
         if residues is None:
             continue                              # p | some denominator — skip
 
-        res = _ml.gf_rref(residues, p)
+        # gf_rref pivots on ALL columns; restrict the pivot search to the leading
+        # n_cols_left so the RREF support matches the dense _rref_augmented (the
+        # appended block carries along but never sources a pivot).
+        res = _gf_rref_left(residues, p, n_cols_left, _ml)
         key = (res["rank"], tuple(res["pivots"]))
 
         if consensus is None:
@@ -760,12 +878,121 @@ def _rref_crt(self) -> "QMat":
             continue
         if prev_matrix is not None and matrix == prev_matrix:
             # Stabilized across two consecutive good-prime additions: done.
-            return QMat.__new__(QMat)._init_from(matrix)
+            pivot_cols = list(consensus[1])
+            pivot_row_of_col = {c: r for r, c in enumerate(pivot_cols)}
+            return matrix, pivot_cols, pivot_row_of_col
         prev_matrix = matrix
 
-    # Exhausted the prime field without stabilizing — should not happen for a
-    # finite exact-ℚ answer; fall back to the dense exact rref (still correct).
-    return self.rref()                            # pragma: no cover
+    return None                                   # pragma: no cover
+
+
+def _gf_rref_left(residues, p: int, n_cols_left: int, _ml):
+    """A GF(p) RREF that pivots ONLY on the leading ``n_cols_left`` columns (the
+    appended ``[A|I]`` / ``[A|b]`` block rides along, never sourcing a pivot) —
+    the modular mirror of the dense :func:`_rref_augmented` pivot contract.
+
+    When ``n_cols_left`` spans every column this is just :func:`gf_rref`; for a
+    genuine augmentation we reduce the leading block alone to read its pivot
+    support, then apply the SAME row operations to the full augmented matrix by
+    reducing the whole matrix and trusting that a leading-block pivot set is
+    unaffected by the trailing columns (Gauss-Jordan on ``[A|B]`` reduces ``A`` to
+    its RREF regardless of ``B``). Concretely: run the full ``gf_rref`` but report
+    only the pivots that fall in ``[0, n_cols_left)`` — for the augmented det /
+    inverse / solve / nullspace shapes the trailing block never introduces a NEW
+    leading-block pivot, so the full-matrix RREF restricted to ``A`` equals the
+    dense ``_rref_augmented`` result."""
+    n_total = len(residues[0]) if residues else 0
+    if n_cols_left >= n_total:
+        return _ml.gf_rref(residues, p)
+    full = _ml.gf_rref(residues, p)
+    pivots_left = [c for c in full["pivots"] if c < n_cols_left]
+    return {"rref": full["rref"], "rank": len(pivots_left), "pivots": pivots_left}
+
+
+def _nullspace_rref(self, method: str):
+    """The RREF + pivot structure backing :meth:`QMat.nullspace` — the dense
+    :func:`_rref_augmented` for a small system / ``method="dense"``, the
+    bounded-memory CRT :func:`_rref_crt_rows` for a large one / ``method="crt"``.
+    Returns the same ``(R, pivot_cols, pivot_row_of_col)`` triple either way (the
+    CRT path is byte-identical to the dense RREF), so the free-variable kernel
+    construction in the caller is unchanged."""
+    if (self.n_rows and self.n_cols
+            and _use_crt(self.n_rows, self.n_cols, method)):
+        out = _rref_crt_rows(self._rows, self.n_rows, self.n_cols, self.n_cols)
+        if out is not None:
+            rows, pivot_cols, pivot_row_of_col = out
+            return [list(r) for r in rows], pivot_cols, pivot_row_of_col
+    return _rref_augmented(self._rows, self.n_cols)
+
+
+# ── the CRT determinant (det mod p over the descending prime field) ──────────
+def _det_mod_p(residues, n: int, p: int, _ml) -> int:
+    """``det(A) mod p`` of the ``n×n`` residue matrix over GF(p), via a swell-free
+    GF(p) Gaussian elimination tracking the pivot product + the Class-K swap sign
+    (an integer ``±1`` flipped on each row swap, never an ALU ``abs()``). Returns
+    the determinant residue in ``[0, p)`` (``0`` iff ``A`` is singular mod ``p``).
+    Class-I modular arithmetic composing the cyclic-group primitives."""
+    from .cyclic import mod_inv as _mi
+    from .cyclic import mod_mul as _mm
+    m = [[v % p for v in row] for row in residues]
+    sign = 1                                       # Class-K pin-slot (±1)
+    prod = 1
+    for c in range(n):
+        sel = None
+        for r in range(c, n):
+            if m[r][c] != 0:                       # Class-K compare-to-0
+                sel = r
+                break
+        if sel is None:
+            return 0                               # a zero column ⇒ singular mod p
+        if sel != c:
+            m[c], m[sel] = m[sel], m[c]
+            sign = -sign                           # Class-K sign-flip on swap
+        pivot = m[c][c]
+        prod = _mm(prod, pivot, p)
+        inv = _mi(pivot, p)
+        for r in range(c + 1, n):
+            if m[r][c] == 0:
+                continue
+            factor = _mm(m[r][c], inv, p)
+            for j in range(c, n):
+                sub = _mm(m[c][j], factor, p)
+                m[r][j] = (m[r][j] + (p - sub)) % p
+    det = _mm(prod, sign % p, p)                   # fold the ±1 sign into [0,p)
+    return det
+
+
+def _det_crt(src_rows, n: int):
+    """The exact-ℚ determinant via CRT (rc47, the bounded-memory ``method="crt"``
+    path). Computes ``det mod p`` over the descending GF(p) prime field (each a
+    swell-free :func:`_det_mod_p`), CRT-combines the modular determinants
+    (:func:`crt_combine`), and rational-reconstructs ONCE
+    (:func:`rational_reconstruct`) — byte-identical to the dense determinant at
+    bounded memory. Returns the exact :class:`~srmech.amsc.q.Q`, or ``None`` if the
+    prime field exhausts without stabilizing (not hit for a finite answer)."""
+    from . import modular_linalg as _ml
+    from . import rational as _rational
+
+    good_residues: List[int] = []
+    good_moduli: List[int] = []
+    prev = None
+    for p in _gf_primes():
+        residues = _entries_mod_p(src_rows, p)
+        if residues is None:
+            continue                               # p | some denominator — skip
+        good_residues.append(_det_mod_p(residues, n, p, _ml))
+        good_moduli.append(p)
+        if len(good_moduli) < 2:
+            continue
+        combined = _ml.crt_combine(good_residues, good_moduli)
+        pq = _rational.rational_reconstruct(combined["residue"], combined["modulus"])
+        if pq is None:
+            continue                               # not yet within the Wang bound
+        cur = Q(pq[0], pq[1])
+        if prev is not None and cur == prev:
+            return cur                             # stabilized across two primes
+        prev = cur
+    return None                                    # pragma: no cover
 
 
 def _key_dominates(key, other) -> bool:
