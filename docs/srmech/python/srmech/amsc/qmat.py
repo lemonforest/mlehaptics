@@ -798,6 +798,23 @@ def _rref_crt(self) -> "QMat":
     if n_rows == 0 or n_cols == 0:
         # Degenerate: nothing to reduce — the dense rref is already trivial.
         return self.rref()
+    # rc48: dispatch the WHOLE CRT solve to the single C symbol
+    # srmech_qmat_rref_crt when present (one malloc-free, caller-arena,
+    # answer-sized call orchestrating gf_rref / crt_combine /
+    # rational_reconstruct / the descending prime walk). Byte-identical to the
+    # pure path below; a non-OK C status (OVERFLOW / absent symbol) falls cleanly
+    # to the pure-Python CRT body — the complete alternative + the parity oracle.
+    nat = _native()
+    if nat is not None and getattr(nat, "has_native_qmat_rref_crt", None) \
+            and nat.has_native_qmat_rref_crt():
+        try:
+            res = nat.qmat_rref_crt_c(_row_major_pairs(self._rows),
+                                      n_rows, n_cols)
+            if res is not None:
+                pairs, _rank, _piv = res
+                return _qmat_from_flat(pairs, n_rows, n_cols)
+        except (RuntimeError, OverflowError, ValueError):
+            pass                                  # fall to the pure CRT path
     out = _rref_crt_rows(self._rows, n_rows, n_cols, n_cols)
     if out is None:
         # Exhausted the prime field without stabilizing — should not happen for a

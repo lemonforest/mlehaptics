@@ -126,6 +126,15 @@ if(SRMECH_SRCS)
         #   ./build/test_srmech_crt_reconstruct    (exit 0 = all pass)
         add_executable(test_srmech_crt_reconstruct c/test/test_srmech_crt_reconstruct.c)
         target_link_libraries(test_srmech_crt_reconstruct PRIVATE srmech ${SRMECH_MATH_LIB})
+
+        # rc48 CRT-QMat CLOSER: srmech_qmat_rref_crt -- the single-symbol C
+        # orchestration of the whole bounded-memory exact-Q CRT solve (gf_rref +
+        # crt_combine + rational_reconstruct + the descending prime walk). Proves a
+        # C-only host gets the exact-Q RREF (incl. a >2**64 bigint answer, the
+        # fractional floor-residue path, and the first-prime-unlucky restart). Run:
+        #   ./build/test_srmech_qmat_crt           (exit 0 = all pass)
+        add_executable(test_srmech_qmat_crt c/test/test_srmech_qmat_crt.c)
+        target_link_libraries(test_srmech_qmat_crt PRIVATE srmech ${SRMECH_MATH_LIB})
     endif()
 else()
     # Phase B1 only: no .c files yet. Emit a status line so the

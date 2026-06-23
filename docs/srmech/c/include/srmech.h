@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc47"
-#define SRMECH_VERSION       "0.9.0rc47"
+#define SRMECH_VERSION_PRE   "rc48"
+#define SRMECH_VERSION       "0.9.0rc48"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3337,6 +3337,70 @@ srmech_status_t srmech_qmat_nullspace(const srmech_bigint_t *a_n,
                                       size_t n_cols, srmech_bigint_t *out_n,
                                       srmech_bigint_t *out_d, size_t *out_nfree,
                                       void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_qmat_rref_crt — the CRT re-fibration of the exact-Q RREF as ONE
+ * standalone C symbol (srmech 0.9.0rc48, the CLOSER of the CRT-QMat arc).
+ *
+ * Orchestrates the four already-C-backed rungs (srmech_gf_rref / srmech_crt_combine
+ * / srmech_rational_reconstruct / srmech_is_prime) into the full bounded-memory
+ * exact-Q solve a bare-C host can call with ONE call. BYTE-IDENTICAL to the
+ * pure-Python srmech.amsc.qmat.QMat.rref_crt: descending odd primes from 2**31-2,
+ * skip a prime dividing any denominator, gf_rref per prime over GF(p), unlucky-
+ * prime rank-consensus (max (rank, pivots) dominates; a strictly higher-rank prime
+ * RESTARTS the CRT), crt_combine per cell, rational_reconstruct with the default
+ * Wang bound isqrt(modulus // 2), stabilization early-termination (reconstructed
+ * matrix identical across two consecutive good primes).
+ *
+ * THE ARENA BOUND (the crux). Unlike the dense srmech_qmat_rref (whose malloc-free
+ * arena must reserve the Hadamard fraction ENVELOPE OF THE ELIMINATION, GB-scale),
+ * the CRT arena is bounded by the ANSWER size: each per-prime solve is int64
+ * (n_rows*n_cols*8 bytes), and the only bignum is the final per-cell crt_combine
+ * product + rational_reconstruct, whose size is bounded by the NUMBER OF GOOD
+ * PRIMES -- itself bounded a priori by the answer-Hadamard envelope (every reduced
+ * entry is a ratio of input MINORS; a span x span minor of magnitude-M entries
+ * bounds at span^(span/2)*M^span = H, and Wang succeeds once the good-prime product
+ * exceeds 2*H^2, so n_primes <= ceil((2*log2 H + 2)/30) + slack). That bound is
+ * derived from the input entries' magnitudes + the dimension, NOT the elimination
+ * swell -- so the working RAM is answer-sized (MB-scale on the Franel system),
+ * never the ~2.3 GB dense envelope. The caller sizes the arena from
+ * srmech_qmat_rref_crt_ws_bound.
+ *
+ * Returns the same wire shape as srmech_qmat_rref (the exact-Q RREF row-major in
+ * out_n/out_d, the pivot count in *out_rank, the pivot columns in pivot_cols).
+ * STANDALONE-COMPLETE: every working table + bignum carrier + sub-op scratch is
+ * carved from the caller arena `ws` (>= srmech_qmat_rref_crt_ws_bound). A too-small
+ * arena or an exhausted prime field -> SRMECH_ERR_OVERFLOW (never a silent wrap);
+ * the Python QMat.rref_crt then keeps its ceiling-free pure CRT path.
+ * n_rows / n_cols > SRMECH_QMAT_MAX_DIM -> SRMECH_ERR_BAD_INPUT.
+ *
+ * Carrier-internal (like srmech_qmat): NOT a Rosetta ledger op. Additive symbols
+ * -> SRMECH_ABI_VERSION unchanged (stays 3).
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES for srmech_qmat_rref_crt on an n_rows x n_cols input of
+ * `coeff_limbs` significant limbs per entry. Sizes the roster from the ANSWER-
+ * Hadamard good-prime bound (NOT the dense elimination swell). 8-byte-aligned. */
+size_t srmech_qmat_rref_crt_ws_bound(size_t coeff_limbs, size_t n_rows,
+                                     size_t n_cols);
+
+/* The per-entry limb cap the caller must give each srmech_bigint in the OUTPUT
+ * nums/dens arrays -- sized from the ANSWER-Hadamard good-prime bound (NOT the
+ * dense Cramer-minor srmech_qmat_entry_cap, which would re-reserve the GB-scale
+ * output the CRT row escapes). */
+size_t srmech_qmat_rref_crt_entry_cap(size_t coeff_limbs, size_t n_rows,
+                                      size_t n_cols);
+
+/* The exact-Q RREF of A (n_rows x n_cols) via the bounded-memory CRT re-fibration.
+ * out_n/out_d receive the n_rows*n_cols reduced matrix (row-major); *out_rank <-
+ * the pivot count; pivot_cols[0..*out_rank) <- the pivot columns (increasing;
+ * caller sizes it n_cols). Byte-identical to srmech_qmat_rref's result at bounded
+ * memory. */
+srmech_status_t srmech_qmat_rref_crt(const srmech_bigint_t *a_n,
+                                     const srmech_bigint_t *a_d, size_t n_rows,
+                                     size_t n_cols, srmech_bigint_t *out_n,
+                                     srmech_bigint_t *out_d, size_t *out_rank,
+                                     size_t *pivot_cols, void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_gosper — Gosper's indefinite hypergeometric summation (the
