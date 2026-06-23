@@ -8,6 +8,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc45] - 2026-06-23
+
+**CRT-QMat re-fibration arc, rung 2 — `crt_combine` + `rational_reconstruct`: the "project once at the end" closers.** Rung 1 (rc44) gave `gf_rref` (bounded GF(p) field-RREF) + `next_prime`. This rc adds the two ops that turn a set of per-prime modular residues back into the **exact rational answer** — completing the `I∘J∘N` recipe (modular fibers ∘ primes ∘ rational reconstruction):
+
+- **`crt_combine(residues, moduli)`** (`srmech.amsc.modular_linalg`, Class I) — iterative Garner CRT: given residues and pairwise-coprime moduli (the distinct CRT primes), returns `{"residue", "modulus"}` with `residue ≡ rᵢ (mod mᵢ)` and `modulus = ∏ mᵢ`. The combined modulus exceeds 64 bits, so this is **bignum** (Python `int`, no ceiling).
+- **`rational_reconstruct(residue, modulus, *, num_bound=None, den_bound=None)`** (`srmech.amsc.rational`, Class N) — Wang half-GCD extended-Euclidean reconstruction: recovers the unique `p/q ≡ residue (mod modulus)` within the bounds (default symmetric Wang bound `isqrt(modulus // 2)`), or `None` if none exists. Sign is Class-K (never `abs()`).
+
+Both ship malloc-free, JPL-clean C peers over the caller-arena `srmech_bigint` (`c/src/srmech_crt_reconstruct.c`: `srmech_crt_combine` + `srmech_rational_reconstruct`), wired via `_native.py` (`has_native_crt_combine` / `has_native_rational_reconstruct`); **native == pure byte-identical** including moduli > 2⁶⁴. Public ToolEntries → `describe()["tools"]["total"]` **327 → 329**, both Rosetta `c_dispatched`; ABI stays **3**.
+
+Verified: `crt_combine` vs an independent CRT oracle (>2⁶⁴ moduli exercised); `rational_reconstruct` round-trips `(p·q⁻¹ mod M) → (p,q)` vs `Fraction` + honest `None`-out-of-bound; and **the `I∘J∘N` mini end-to-end** — `gf_rref` over several primes → `crt_combine` → `rational_reconstruct` recovers the `fractions.Fraction` dense-RREF answer **byte-for-byte** (with unlucky-prime skipping), confirming the fiber composes to the exact rational at bounded memory. C smoke 25/25 under both Release (`-DNDEBUG`) and debug pedantic `-Werror`; source pure-ASCII.
+
+rc46 next assembles `gf_rref` + these into the full QMat CRT solve (byte-identical to dense `QMat.rref`, ~369:1 arena collapse); rc47 routes det/inverse/solve/nullspace through it and removes `ZB_MAX_ORDER`.
+
 ## [0.9.0rc44] - 2026-06-23
 
 **CRT-QMat re-fibration arc, rung 1 — `gf_rref` + `next_prime`: the swell-free modular foundation.** This opens the arc that re-fibrates srmech's exact-ℚ linear algebra off the dense Gauss-Jordan RREF (whose malloc-free caller-arena reserves the *Hadamard worst-case intermediate-fraction envelope* — measured **1.54 GB for a 17-bit answer** on a 484×154 exact-ℚ system, a 369:1 over-reservation) and onto **CRT** (Class I modular fibers ∘ Class J primes ∘ Class N rational reconstruction), where each per-prime solve is bounded and swell-free. Rung 1 ships the bottom of that stack:

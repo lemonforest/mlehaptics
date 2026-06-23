@@ -740,6 +740,51 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_gf_rref.restype = ctypes.c_int
 
+    # rc45: the CRT closers (rung 2 of the CRT-QMat re-fibration arc), both over
+    # the caller-arena srmech_bigint (the combined modulus + reconstructed
+    # numerator/denominator are bignum). NEW symbols — hasattr-guarded so a stale
+    # pre-rc45 lib keeps the rest of the native surface (ABI stays 3; the
+    # pure-Python bodies in modular_linalg / rational are complete).
+    #
+    # size_t srmech_crt_combine_ws_bound(size_t k)
+    # srmech_status_t srmech_crt_combine(const uint64_t *residues,
+    #     const uint64_t *moduli, uint32_t k, srmech_bigint_t *out_residue,
+    #     srmech_bigint_t *out_modulus, void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_crt_combine_ws_bound"):
+        lib.srmech_crt_combine_ws_bound.argtypes = [ctypes.c_size_t]
+        lib.srmech_crt_combine_ws_bound.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_crt_combine"):
+        lib.srmech_crt_combine.argtypes = [
+            ctypes.POINTER(ctypes.c_uint64),     # residues[k]
+            ctypes.POINTER(ctypes.c_uint64),     # moduli[k]
+            ctypes.c_uint32,                     # k
+            ctypes.POINTER(_SrmechBigint),       # out_residue (bignum)
+            ctypes.POINTER(_SrmechBigint),       # out_modulus (bignum)
+            ctypes.c_void_p, ctypes.c_size_t,    # ws, ws_len
+        ]
+        lib.srmech_crt_combine.restype = ctypes.c_int
+
+    # size_t srmech_rational_reconstruct_ws_bound(size_t modulus_limbs)
+    # srmech_status_t srmech_rational_reconstruct(const srmech_bigint_t *residue,
+    #     const srmech_bigint_t *modulus, const srmech_bigint_t *num_bound,
+    #     const srmech_bigint_t *den_bound, srmech_bigint_t *out_num,
+    #     srmech_bigint_t *out_den, int32_t *out_found, void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_rational_reconstruct_ws_bound"):
+        lib.srmech_rational_reconstruct_ws_bound.argtypes = [ctypes.c_size_t]
+        lib.srmech_rational_reconstruct_ws_bound.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_rational_reconstruct"):
+        lib.srmech_rational_reconstruct.argtypes = [
+            ctypes.POINTER(_SrmechBigint),       # residue
+            ctypes.POINTER(_SrmechBigint),       # modulus
+            ctypes.POINTER(_SrmechBigint),       # num_bound
+            ctypes.POINTER(_SrmechBigint),       # den_bound
+            ctypes.POINTER(_SrmechBigint),       # out_num
+            ctypes.POINTER(_SrmechBigint),       # out_den
+            ctypes.POINTER(ctypes.c_int32),      # out_found (1 = found, 0 = None)
+            ctypes.c_void_p, ctypes.c_size_t,    # ws, ws_len
+        ]
+        lib.srmech_rational_reconstruct.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Class B (tagged-tuple TLV) — Task #217 Phase C1 rc4.
     # ------------------------------------------------------------------
@@ -3264,6 +3309,116 @@ def has_native_gf_rref() -> bool:
     the complete, byte-identical alternative (and the parity oracle)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_gf_rref"))
+
+
+def has_native_crt_combine() -> bool:
+    """True iff the rc45 srmech_crt_combine CRT-combine peer (over srmech_bigint)
+    is loaded + bound. False on a no-C / pre-rc45 lib — the pure-Python
+    ``modular_linalg.crt_combine`` body (iterative Garner CRT) is the complete,
+    byte-identical alternative (and the parity oracle)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_crt_combine")
+                and hasattr(LIB, "srmech_crt_combine_ws_bound")
+                and hasattr(LIB, "srmech_bigint_to_dec")
+                and hasattr(LIB, "srmech_bigint_to_dec_bound"))
+
+
+def has_native_rational_reconstruct() -> bool:
+    """True iff the rc45 srmech_rational_reconstruct peer (over srmech_bigint) is
+    loaded + bound. False on a no-C / pre-rc45 lib — the pure-Python
+    ``rational.rational_reconstruct`` body (half-GCD / Wang reconstruction) is the
+    complete, byte-identical alternative (and the parity oracle)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_rational_reconstruct")
+                and hasattr(LIB, "srmech_rational_reconstruct_ws_bound")
+                and hasattr(LIB, "srmech_bigint_from_dec")
+                and hasattr(LIB, "srmech_bigint_to_dec")
+                and hasattr(LIB, "srmech_bigint_to_dec_bound"))
+
+
+def crt_combine(residues, moduli):
+    """Native CRT-combine: ``(residue, modulus)`` or ``None`` if the native
+    symbol is absent (the pure-Python Garner body is the complete fallback).
+
+    ``residues`` / ``moduli`` are equal-length lists of non-negative ``int``,
+    each ``< 2**64`` (the ~31-bit reduction primes + their residues fit uint64).
+    The combined modulus + residue are bignum (no ceiling); they ride the
+    srmech_bigint decimal marshal back to a Python ``int``."""
+    if not has_native_crt_combine():
+        return None
+    k = len(moduli)
+    if k == 0:
+        return None
+    _U64_MAX = (1 << 64) - 1
+    for v in residues:
+        if v < 0 or v > _U64_MAX:
+            return None
+    for v in moduli:
+        if v < 0 or v > _U64_MAX:
+            return None
+    res_arr = (ctypes.c_uint64 * k)(*residues)
+    mod_arr = (ctypes.c_uint64 * k)(*moduli)
+    # Combined modulus is ∏ m_i; size the out carriers from the total bit-width.
+    total_bits = 0
+    for m in moduli:
+        total_bits += m.bit_length()
+    out_cap = total_bits // 32 + 8
+    out_residue, _orl = _bigint_from_int(0, out_cap)
+    out_modulus, _oml = _bigint_from_int(0, out_cap)
+    ws_len = int(LIB.srmech_crt_combine_ws_bound(ctypes.c_size_t(k)))
+    # The Garner fold's scratch grows with the partial-product limb count; the
+    # ws_bound returns a generous BYTES envelope already, but pad for safety.
+    ws_len = max(ws_len, (out_cap * 8 + 64) * 8)
+    ws = (ctypes.c_uint8 * ws_len)()
+    rc = LIB.srmech_crt_combine(
+        res_arr, mod_arr, ctypes.c_uint32(k),
+        ctypes.byref(out_residue), ctypes.byref(out_modulus),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_crt_combine returned non-OK status {rc}")
+    return _bigint_to_int(out_residue), _bigint_to_int(out_modulus)
+
+
+def rational_reconstruct(residue: int, modulus: int,
+                         num_bound: int, den_bound: int):
+    """Native rational reconstruction: ``(p, q)``, ``(None, None)`` for the
+    no-reconstruction case, or ``None`` if the native symbol is absent (the
+    pure-Python half-GCD body is the complete fallback).
+
+    All four inputs are arbitrary-precision ``int`` (the modulus + recovered
+    p/q can exceed ``2**64``); they ride the srmech_bigint decimal bridge."""
+    if not has_native_rational_reconstruct():
+        return None
+    # Limb sizing from the widest operand (the modulus dominates).
+    mod_digits = len(str(modulus))
+    out_cap = mod_digits // 9 + 8
+    res_bi, _rl = _bigint_from_int(residue, out_cap)
+    mod_bi, _ml = _bigint_from_int(modulus, out_cap)
+    nb_bi, _nl = _bigint_from_int(num_bound, out_cap)
+    db_bi, _dl = _bigint_from_int(den_bound, out_cap)
+    out_num, _onl = _bigint_from_int(0, out_cap)
+    out_den, _odl = _bigint_from_int(0, out_cap)
+    found = ctypes.c_int32(0)
+    mod_limbs = mod_bi.n if mod_bi.n else 1
+    ws_len = int(LIB.srmech_rational_reconstruct_ws_bound(
+        ctypes.c_size_t(mod_limbs)))
+    ws_len = max(ws_len, (out_cap * 12 + 64) * 4)
+    ws = (ctypes.c_uint8 * ws_len)()
+    rc = LIB.srmech_rational_reconstruct(
+        ctypes.byref(res_bi), ctypes.byref(mod_bi),
+        ctypes.byref(nb_bi), ctypes.byref(db_bi),
+        ctypes.byref(out_num), ctypes.byref(out_den),
+        ctypes.byref(found),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_rational_reconstruct returned non-OK status {rc}"
+        )
+    if found.value == 0:
+        return (None, None)
+    return _bigint_to_int(out_num), _bigint_to_int(out_den)
 
 
 def has_native_isqrt() -> bool:

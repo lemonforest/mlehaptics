@@ -439,3 +439,5 @@
 {"exposed_as": "srmech.amsc.hdc.cooccurrence_fold", "defined_at": "srmech.amsc.hdc.cooccurrence_fold", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.primes.next_prime", "defined_at": "srmech.amsc.primes.next_prime", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.modular_linalg.gf_rref", "defined_at": "srmech.amsc.modular_linalg.gf_rref", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.modular_linalg.crt_combine", "defined_at": "srmech.amsc.modular_linalg.crt_combine", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.rational.rational_reconstruct", "defined_at": "srmech.amsc.rational.rational_reconstruct", "bucket": "c_dispatched"}
