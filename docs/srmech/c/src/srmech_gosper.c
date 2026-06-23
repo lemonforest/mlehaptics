@@ -784,7 +784,7 @@ static srmech_status_t gos_build_col(gos_ctx_t *c, gos_work_t *w, size_t j,
                                      size_t *max_deg);
 static srmech_status_t gos_qmat_solve(gos_ctx_t *c, gos_work_t *w, size_t n_rows,
                                       size_t n_cols, int *out_ok);
-static srmech_status_t gos_read_solution(gos_ctx_t *c, gos_work_t *w,
+static srmech_status_t gos_read_solution(gos_work_t *w,
                                          const srmech_bigint_t *o_n,
                                          const srmech_bigint_t *o_d, size_t n_rows,
                                          size_t n_cols, size_t total, int *out_ok);
@@ -1018,20 +1018,20 @@ static srmech_status_t gos_qmat_solve(gos_ctx_t *c, gos_work_t *w, size_t n_rows
     st = srmech_qmat_rref(a_n, a_d, n_rows, total, o_n, o_d, &rank, piv,
                           qws, ws_words * sizeof(uint32_t));
     if (st != SRMECH_OK) { return st; }
-    return gos_read_solution(c, w, o_n, o_d, n_rows, n_cols, total, out_ok);
+    return gos_read_solution(w, o_n, o_d, n_rows, n_cols, total, out_ok);
 }
 
 /* Read the solution x from the RREF output o_n/o_d (mirrors the Python pivot
  * read): each pivot col < n_cols -> the RHS entry; free cols -> 0; a pivot in
  * the RHS col -> inconsistent (*out_ok = 0). */
-static srmech_status_t gos_read_solution(gos_ctx_t *c, gos_work_t *w,
+static srmech_status_t gos_read_solution(gos_work_t *w,
                                          const srmech_bigint_t *o_n,
                                          const srmech_bigint_t *o_d, size_t n_rows,
                                          size_t n_cols, size_t total, int *out_ok)
 {
     size_t j, r;
     srmech_status_t st;
-    assert(c != NULL && w != NULL && o_n != NULL && out_ok != NULL);
+    assert(w != NULL && o_n != NULL && out_ok != NULL);
     assert(total == n_cols + 1u);
     for (j = 0u; j < n_cols; j++) {
         st = srmech_bigint_set_i64(&w->x.n[j], 0);
