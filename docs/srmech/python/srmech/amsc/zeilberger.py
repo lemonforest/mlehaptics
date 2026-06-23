@@ -565,6 +565,31 @@ def _assemble_rows(rho_common, den_p, rk_n, rk_d, order, n_deg, xk_deg, xn_deg,
     return [row for _, row in sorted(monomials.items())]
 
 
+# The Zeilberger undetermined-coefficient solve is the consumer that hit the dense
+# Hadamard-arena wall (the order-2 Franel 484x154 / order-3 2790x780 homogeneous
+# systems). rc47 routes it through the bounded-memory CRT re-fibration:
+# QMat.rref_crt() is byte-identical to the dense QMat.rref() but solves mod several
+# bounded primes (zero coefficient swell) and reconstructs once, so high-order
+# definite sums solve at bounded memory — there is no dense-arena cap to work
+# around on the Python path any more (the rc44 dense order-≥2 backfill is
+# dissolved). Tiny systems stay on the faster dense rref (auto-by-size dispatch).
+_CRT_KERNEL_CELL_THRESHOLD: int = 4096
+
+
+def _kernel_rref(QMat, rows):
+    """The exact-ℚ RREF of the homogeneous Zeilberger system, byte-identical
+    whichever path runs. Auto-by-size: a large system (cell count past the
+    threshold — the order-2/order-3 creative-telescoping matrices that hit the
+    dense Hadamard-envelope arena) reduces through the bounded-memory
+    :meth:`~srmech.amsc.qmat.QMat.rref_crt` (CRT re-fibration); a tiny system stays
+    on the faster dense :meth:`~srmech.amsc.qmat.QMat.rref`. Returns the RREF as a
+    list-of-rows of ``Q`` (the form ``_homogeneous_kernel`` consumes)."""
+    m = QMat.from_rows([list(r) for r in rows])
+    use_crt = m.n_rows * m.n_cols > _CRT_KERNEL_CELL_THRESHOLD
+    reduced = m.rref_crt() if use_crt else m.rref()
+    return reduced.to_lists()
+
+
 def _homogeneous_kernel(QMat, rows, n_unknowns, a_block):
     """Find a nonzero kernel vector of the homogeneous system ``rows·v = 0`` whose
     ``a``-block (the first ``a_block`` unknowns) is NOT all zero — that is a genuine
@@ -574,7 +599,7 @@ def _homogeneous_kernel(QMat, rows, n_unknowns, a_block):
     order). Uses the exact Gauss-Jordan RREF of :class:`~srmech.amsc.qmat.QMat`."""
     if not rows:
         return None
-    rref = QMat.from_rows([list(r) for r in rows]).rref().to_lists()
+    rref = _kernel_rref(QMat, rows)
     # pivot columns
     pivots: List[int] = []
     pivot_row_of: Dict[int, List[Q]] = {}
