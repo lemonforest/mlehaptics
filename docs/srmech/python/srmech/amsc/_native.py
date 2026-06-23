@@ -1896,6 +1896,34 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_gosper.restype = ctypes.c_int
 
+    # rc42: srmech_zeilberger — Zeilberger's creative telescoping (the §76 telescope
+    # Sigma-row's SECOND public op). The four BIVARIATE term ratios ride as flat
+    # (num, den) coefficient arrays (k-then-n order) + a per-k length array + the
+    # k-degree count; the recurrence coeffs + certificate come back the same way.
+    #   size_t srmech_zeilberger_ws_bound(coeff_limbs, order, degree)
+    #   size_t srmech_zeilberger_out_cap(coeff_limbs, order, degree)
+    for _zsz in ("srmech_zeilberger_ws_bound", "srmech_zeilberger_out_cap"):
+        if hasattr(lib, _zsz):
+            getattr(lib, _zsz).argtypes = [ctypes.c_size_t, ctypes.c_size_t,
+                                           ctypes.c_size_t]
+            getattr(lib, _zsz).restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_zeilberger"):
+        _bi = ctypes.POINTER(_SrmechBigint)
+        _szp = ctypes.POINTER(ctypes.c_size_t)
+        lib.srmech_zeilberger.argtypes = [
+            _bi, _bi, _szp, ctypes.c_size_t,     # rn_num n/d, klen, kdeg
+            _bi, _bi, _szp, ctypes.c_size_t,     # rn_den
+            _bi, _bi, _szp, ctypes.c_size_t,     # rk_num
+            _bi, _bi, _szp, ctypes.c_size_t,     # rk_den
+            ctypes.c_size_t, ctypes.c_size_t,    # max_order, n_stride
+            ctypes.POINTER(ctypes.c_int), _szp,  # out_has, out_order
+            _bi, _bi, _szp,                      # coeff n/d, coeff_nlen
+            _bi, _bi, _szp,                      # cert n/d, cert_klen
+            _szp,                                # out_cert_kdeg
+            ctypes.c_void_p, ctypes.c_size_t,    # ws, ws_len
+        ]
+        lib.srmech_zeilberger.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None
@@ -2722,6 +2750,130 @@ def gosper_c(num_coeffs, den_coeffs):
     r_num = _qmat_read_array(rn_n, rn_d, lrn.value)
     r_den = _qmat_read_array(rd_n, rd_d, lrd.value)
     return True, r_num, r_den
+
+
+# ----------------------------------------------------------------------
+# rc42: srmech_zeilberger — Zeilberger's creative telescoping (the §76 telescope
+# Sigma-row's SECOND public op). The Python srmech.amsc.zeilberger.zeilberger
+# routes a POSITIVE (recurrence-found) C result through this; a has=0 / error
+# falls to the complete pure-Python path (the parity oracle + full-coverage
+# decider). The four bivariate ratios + the recurrence/certificate ride the same
+# _SrmechBigint coefficient-array bridge as qmat / poly / gosper.
+# ----------------------------------------------------------------------
+
+_ZEILBERGER_SYMS = (
+    "srmech_zeilberger_ws_bound",
+    "srmech_zeilberger_out_cap",
+)
+
+
+def has_native_zeilberger() -> bool:
+    """True iff the rc42 srmech_zeilberger op + its ws/out-cap sizers are loaded +
+    bound. False on a no-C or pre-rc42 lib — the pure-Python
+    ``srmech.amsc.zeilberger.zeilberger`` body is the complete alternative (and the
+    parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _ZEILBERGER_SYMS) and hasattr(
+        LIB, "srmech_zeilberger"
+    )
+
+
+def _bi_flatten(bi_pairs):
+    """A bivariate ``[[(num,den), ...]_k0, ...]`` (the ``BiPoly`` bridge form) →
+    ``(flat_pairs, klen_list)`` where ``flat_pairs`` lists every coefficient in
+    k-then-n order and ``klen_list[dk]`` is the n-coefficient count of k-slot
+    ``dk``."""
+    flat = []
+    klen = []
+    for kp in bi_pairs:
+        klen.append(len(kp))
+        flat.extend(kp)
+    return flat, klen
+
+
+def zeilberger_c(rn_num, rn_den, rk_num, rk_den, max_order):
+    """Native Zeilberger recurrence for the four bivariate term ratios → ``(has,
+    order, coeff_pairs, cert_pairs)`` (``coeff_pairs[j]`` the ascending-n
+    ``(num,den)`` list of ``a_j(n)``; ``cert_pairs[dk]`` the k-slot ``dk`` n-coeff
+    list of the certificate ``x(n,k)``), or ``None`` if the native symbols are
+    absent. Each ratio operand is a bivariate-pairs structure (the ``_bi_pairs``
+    bridge form). A non-OK status / inability raises ``RuntimeError`` so the caller
+    falls to the pure path."""
+    if not has_native_zeilberger():
+        return None
+    flats = []
+    klens = []
+    for bp in (rn_num, rn_den, rk_num, rk_den):
+        f, k = _bi_flatten(bp)
+        flats.append(f)
+        klens.append(k)
+    if len(klens[1]) == 0 or len(klens[3]) == 0:
+        raise ValueError("zeilberger_c: r_n / r_k denominators must be nonzero")
+    deg = max((len(k) for k in klens), default=1)
+    cl = max((_qmat_coeff_limbs(f) if f else 1 for f in flats), default=1)
+    out_cap = int(LIB.srmech_zeilberger_out_cap(
+        ctypes.c_size_t(cl), ctypes.c_size_t(max_order), ctypes.c_size_t(deg)))
+    ws_len = int(LIB.srmech_zeilberger_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_size_t(max_order), ctypes.c_size_t(deg)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    # marshal the four inputs (flat coeff arrays + klen size_t arrays).
+    in_arrays = []
+    keep = []
+    for f, k in zip(flats, klens):
+        a_n, a_d, ka = _qmat_make_array(f, out_cap)
+        klen_arr = (ctypes.c_size_t * max(len(k), 1))(*k)
+        in_arrays.append((a_n, a_d, klen_arr, len(k)))
+        keep.append(ka)
+        keep.append(klen_arr)
+    # output arrays: coeff (order+1)*nbound ; cert kbound*nbound. A generous slot
+    # count; the C writes contiguously + reports per-segment lengths.
+    nbound = (deg + 2) * (max_order + 2) + 8
+    coeff_slots = (max_order + 1) * nbound + 8
+    cert_slots = nbound * nbound + 8
+    coeff_n, coeff_d, kc = _qmat_blank_array(coeff_slots, out_cap)
+    cert_n, cert_d, ke = _qmat_blank_array(cert_slots, out_cap)
+    coeff_nlen = (ctypes.c_size_t * (max_order + 2))()
+    cert_klen = (ctypes.c_size_t * (nbound + 2))()
+    has = ctypes.c_int(0)
+    order_out = ctypes.c_size_t(0)
+    cert_kdeg = ctypes.c_size_t(0)
+    rc = LIB.srmech_zeilberger(
+        in_arrays[0][0], in_arrays[0][1], in_arrays[0][2], ctypes.c_size_t(in_arrays[0][3]),
+        in_arrays[1][0], in_arrays[1][1], in_arrays[1][2], ctypes.c_size_t(in_arrays[1][3]),
+        in_arrays[2][0], in_arrays[2][1], in_arrays[2][2], ctypes.c_size_t(in_arrays[2][3]),
+        in_arrays[3][0], in_arrays[3][1], in_arrays[3][2], ctypes.c_size_t(in_arrays[3][3]),
+        ctypes.c_size_t(max_order), ctypes.c_size_t(deg),
+        ctypes.byref(has), ctypes.byref(order_out),
+        coeff_n, coeff_d, coeff_nlen,
+        cert_n, cert_d, cert_klen,
+        ctypes.byref(cert_kdeg),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (keep, kc, ke)
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_zeilberger returned non-OK status {rc}")
+    if not has.value:
+        return False, 0, [], []
+    order = int(order_out.value)
+    # read the contiguous coeff segments (per coeff_nlen[j]).
+    coeff_pairs = []
+    off = 0
+    for j in range(order + 1):
+        ln = int(coeff_nlen[j])
+        coeff_pairs.append([(_bigint_to_int(coeff_n[off + i]),
+                             _bigint_to_int(coeff_d[off + i])) for i in range(ln)])
+        off += ln
+    # read the contiguous certificate segments (per cert_klen[dk]).
+    cert_pairs = []
+    off = 0
+    kdeg = int(cert_kdeg.value)
+    for dk in range(kdeg):
+        ln = int(cert_klen[dk])
+        cert_pairs.append([(_bigint_to_int(cert_n[off + i]),
+                            _bigint_to_int(cert_d[off + i])) for i in range(ln)])
+        off += ln
+    return True, order, coeff_pairs, cert_pairs
 
 
 def has_native_klein4_fold() -> bool:

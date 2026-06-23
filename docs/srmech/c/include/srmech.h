@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc41"
-#define SRMECH_VERSION       "0.9.0rc41"
+#define SRMECH_VERSION_PRE   "rc42"
+#define SRMECH_VERSION       "0.9.0rc42"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3304,6 +3304,69 @@ srmech_status_t srmech_gosper(const srmech_bigint_t *num_n,
                               srmech_bigint_t *r_den_n, srmech_bigint_t *r_den_d,
                               size_t *out_rden,
                               void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_zeilberger -- Zeilberger's creative telescoping (the SECOND
+ * public op of the section 76 "telescope" Sigma-row closed-form prover,
+ * F929). The C peer of srmech.amsc.zeilberger.zeilberger.
+ *
+ * Input: a proper hypergeometric term F(n,k) given by its TWO term ratios
+ *   r_n(n,k) = F(n+1,k)/F(n,k) = rn_num(n,k)/rn_den(n,k)
+ *   r_k(n,k) = F(n,k+1)/F(n,k) = rk_num(n,k)/rk_den(n,k)
+ * each an exact-rational BIVARIATE polynomial over Q[n,k]. A bivariate
+ * polynomial is encoded FLAT as a k-ascending list of Poly-in-n coefficients:
+ * the (num_n, num_d) arrays carry every coefficient in order (k-degree dk's
+ * Poly-in-n occupies the next klen[dk] entries, ascending n-degree), and
+ * klen[dk] is that Poly-in-n's coefficient count; kdeg is the number of
+ * k-degree slots. Each srmech_bigint pair (num, den) is a reduced exact rational.
+ *
+ * Output: when a recurrence of order <= max_order exists, *out_has = 1, *out_order
+ * = L, and coeff_n/coeff_d (with coeff_nlen[j] the per-j length, j = 0..L) carry
+ * the recurrence coefficient polynomials a_j(n) so Sum_j a_j(n) f(n+j) = 0
+ * (f(n) = Sum_k F(n,k)); cert_n/cert_d (with cert_klen + *out_cert_kdeg) carry the
+ * rational certificate numerator x(n,k) (R = x / D_P). Else *out_has = 0.
+ *
+ * The algorithm composes the SAME exact-Q kernels the Python op uses -- the
+ * srmech_poly_* algebra (the bivariate handling rides Poly-in-n mul/add/shift) +
+ * the exact Gauss-Jordan RREF over Q (srmech_qmat_rref) for the parametrized
+ * creative-telescoping linear system -- over caller-arena srmech_bigint (NO
+ * malloc, JPL Rule 3). Byte-identical to the Python recurrence at ANY magnitude.
+ *
+ * STANDALONE-COMPLETE: every working carrier + the bipoly/qmat scratch is carved
+ * from the caller arena `ws` (>= srmech_zeilberger_ws_bound). Any residual
+ * overflow returns SRMECH_ERR_OVERFLOW (never a wrap), and the Python zeilberger
+ * falls back to its ceiling-free pure-Q path.
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES for input ratios of `coeff_limbs` significant limbs per
+ * coefficient, a max ansatz `order`, and a max bivariate `degree`. 8-byte-aligned. */
+size_t srmech_zeilberger_ws_bound(size_t coeff_limbs, size_t order, size_t degree);
+
+/* The per-coefficient limb cap for each srmech_bigint in the coeff_* / cert_*
+ * OUTPUT arrays, so a result coefficient never overflows its slot. */
+size_t srmech_zeilberger_out_cap(size_t coeff_limbs, size_t order, size_t degree);
+
+/* Compute Zeilberger's recurrence for the term F(n,k) given by its two ratios.
+ * n_stride is the largest n-shift in the inputs (a degree hint; 1 is safe). The
+ * caller sizes coeff_* to (max_order+1) * (out n-degree bound) entries and cert_*
+ * to (out k-degree bound) * (out n-degree bound) entries, each of
+ * srmech_zeilberger_out_cap limbs. rn_den / rk_den must have kdeg > 0. */
+srmech_status_t srmech_zeilberger(
+        const srmech_bigint_t *rn_num_n, const srmech_bigint_t *rn_num_d,
+        const size_t *rn_num_klen, size_t rn_num_kdeg,
+        const srmech_bigint_t *rn_den_n, const srmech_bigint_t *rn_den_d,
+        const size_t *rn_den_klen, size_t rn_den_kdeg,
+        const srmech_bigint_t *rk_num_n, const srmech_bigint_t *rk_num_d,
+        const size_t *rk_num_klen, size_t rk_num_kdeg,
+        const srmech_bigint_t *rk_den_n, const srmech_bigint_t *rk_den_d,
+        const size_t *rk_den_klen, size_t rk_den_kdeg,
+        size_t max_order, size_t n_stride,
+        int *out_has, size_t *out_order,
+        srmech_bigint_t *coeff_n, srmech_bigint_t *coeff_d, size_t *coeff_nlen,
+        srmech_bigint_t *cert_n, srmech_bigint_t *cert_d, size_t *cert_klen,
+        size_t *out_cert_kdeg,
+        void *ws, size_t ws_len);
 
 #ifdef __cplusplus
 }

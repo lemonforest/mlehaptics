@@ -265,6 +265,28 @@ def _to_poly(value: Any, *, param: str = "") -> Any:
     return value
 
 
+def _to_bipoly(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value to the natural form for a ``BiPoly``-typed param (rc42
+    ``zeilberger`` bivariate term-ratio operands).
+
+    A ``BiPoly`` is a polynomial in ``k`` whose coefficients are
+    :class:`~srmech.amsc.poly.Poly` in ``n``. The op's coercion
+    (:meth:`srmech.amsc.zeilberger.BiPoly.coerce`) accepts: a ``BiPoly`` (passes
+    through); a ``Poly`` (read as a polynomial in ``k`` alone); or a
+    ``k``-ascending list whose entries are each a Poly-in-n (an ``n``-coefficient
+    list). So the honest, minimal coercer hands the natural nested list through —
+    a JSON ``[[a, b], [c]]`` rides as k-slot 0 = Poly-in-n ``[a, b]``, k-slot 1 =
+    ``[c]`` — and lets ``BiPoly.coerce`` build the carrier (never a float; a
+    coefficient must be exact). A ``BiPoly`` / ``Poly`` / tuple passes naturally."""
+    from srmech.amsc.zeilberger import BiPoly  # exact-ℚ bivariate carrier; lazy
+    from srmech.amsc.poly import Poly
+    if isinstance(value, (BiPoly, Poly)):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return value
+
+
 def _to_mat_or_vec(value: Any, *, param: str = "") -> Any:
     """Coerce a ``Mat | Vec`` (shape-polymorphic) param: a nested list rides as
     a 2-D matrix, a flat list as a 1-D vector — both pass through as the natural
@@ -599,6 +621,7 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "Vec": _to_vec,            # v0.7.5rc132: numpy-free 1-D carrier
     "HV": _to_hv,              # v0.7.5rc132: numpy-free hypervector byte carrier
     "Poly": _to_poly,          # 0.9.0rc41: exact-ℚ polynomial carrier (gosper term ratio)
+    "BiPoly": _to_bipoly,      # 0.9.0rc42: exact-ℚ[n,k] bivariate carrier (zeilberger ratios)
     "Optional[Vec]": _to_vec,
     "Optional[HV]": _to_hv,
     "Mat | Vec": _to_mat_or_vec,   # shape-polymorphic 2-D-or-1-D operand
