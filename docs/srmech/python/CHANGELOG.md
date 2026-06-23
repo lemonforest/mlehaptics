@@ -8,6 +8,14 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc49] - 2026-06-23
+
+**Fix a shipped GF(p) abstraction-bypass — route `srmech_gf_rref` through the Class-I `srmech_mod_*` primitives.** The C `srmech_gf_rref` (rc44, the foundation of the CRT-QMat solve) carried its own private static GF(p) modular helpers — `gf_add`/`gf_mul` (raw `(a∘b) % p`) and `gf_inv` (Fermat `a^(p−2)`) — instead of composing the existing Class-I cyclic C primitives `srmech_mod_add`/`srmech_mod_mul`/`srmech_mod_inv`. Two problems: (a) it re-implemented modular arithmetic the Class-I module already owns (the Python `gf_rref` composes `cyclic.mod_*`; the C mirror did not), and (b) its Fermat inverse **diverged in algorithm** from the canonical extended-Euclid `srmech_mod_inv` (same result for prime *p*, but not the same code path).
+
+rc49 rewrites the three `gf_*` helpers as thin wrappers over `srmech_mod_add`/`srmech_mod_mul`/`srmech_mod_inv`, deleting the private raw-`%` arithmetic and the Fermat power loop. `gf_inv` now uses the **extended-Euclid** Class-I inverse — 1:1 with Python `cyclic.mod_inv`. The `srmech_mod_*` call sits OUTSIDE the assert (survives `-DNDEBUG`); `(void)st` keeps the status `used` when the assert strips.
+
+**Byte-identical** — verified native `gf_rref` == forced-pure on 60 random GF(2³¹−1) systems, and the whole `QMat.rref_crt == dense rref` chain (which builds on `gf_rref`) on 30 random + keystone `Q(10⁴⁰+1, 3³⁰)` matrices. JPL-clean (pedantic `-Werror` Release/NDEBUG compile clean; the wrappers keep ≥2 asserts each; the Fermat-loop removal only reduces complexity). No new symbols, ABI stays **3**, `describe()["tools"]["total"]` stays **329**. (Found via the HAL/PAL abstraction-layer audit: the whole rcN-run C surface uses the SIMD-HAL + platform-PAL correctly; this was the one inner-arithmetic primitive composed privately rather than through its owning Class-I module.)
+
 ## [0.9.0rc48] - 2026-06-23
 
 **CRT-QMat re-fibration arc, rung 5 — CLOSER: `srmech_qmat_rref_crt`, the single-symbol C orchestration.** Discharges the owed everything-mirrors backlog: a bare-C host (no Python) now calls **one function** for the whole bounded-memory exact-ℚ CRT solve. rc44–rc47 shipped the four underlying C rungs (`srmech_gf_rref`, `srmech_crt_combine`, `srmech_rational_reconstruct`, `srmech_next_prime`) + routed the consumers; rc48 composes them into one malloc-free, caller-arena, JPL-clean symbol.
