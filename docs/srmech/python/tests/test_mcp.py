@@ -1715,6 +1715,10 @@ def _synth_value_for_type(type_string: str) -> Any:
         # ndarray: a 2x2 identity (square — satisfies the most ops; the
         # vector ops accept it as a 2-row matrix or re-shape internally;
         # any shape complaint is a tolerated DOMAIN error).
+        # rc42 zeilberger BiPoly operand: a minimal valid nonzero bivariate ratio
+        # — k-slot 0 is the Poly-in-n [1, 1] (= 1 + n). Coerces + binds cleanly;
+        # any "no recurrence" is a tolerated DOMAIN result, not a binding error.
+        "BiPoly": [[1, 1]],
         "np.ndarray": mat2,
         "Optional[np.ndarray]": mat2,
         # v0.7.5rc72 Mat carrier (mat_matmul): a 2x2 list-of-rows -> real Mat;

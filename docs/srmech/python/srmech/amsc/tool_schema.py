@@ -2786,6 +2786,52 @@ def _register_primitive_class_tools() -> None:
                       "hypergeometric closed form exists"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The §76 "telescope" Σ-row closed-form prover (F929) — Zeilberger's
+        # creative telescoping, the SECOND public op of the row. Builds on gosper
+        # (Gosper-in-k) + Poly + QMat (the exact-ℚ parametrized solve); 1:1 C peer
+        # srmech_zeilberger.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.zeilberger.zeilberger", owner="srmech",
+            category="zeilberger",
+            summary="Zeilberger's creative telescoping (Zeilberger 1990, Discrete "
+                    "Math. 80(2):207–211; 1991, J. Symbolic Computation 11(3):195–"
+                    "204; Petkovšek–Wilf–Zeilberger *A=B* 1996, ch. 6) — the SECOND "
+                    "public op of the §76 'telescope' Σ-row closed-form prover "
+                    "(F929). For a DEFINITE hypergeometric sum f(n)=Σ_k F(n,k) of a "
+                    "proper term F(n,k), produces the minimal-order LINEAR "
+                    "RECURRENCE with polynomial coefficients Σ_{j=0}^{L} a_j(n)·"
+                    "f(n+j)=0. Input: F's two term ratios r_n(n,k)=F(n+1,k)/F(n,k) "
+                    "and r_k(n,k)=F(n,k+1)/F(n,k), each a rational function of (n,k) "
+                    "given as two bivariate exact-ℚ[n,k] BiPoly (a Poly-in-k whose "
+                    "coeffs are Poly-in-n; a plain Poly is read as a k-polynomial). "
+                    "Method: creative telescoping — for L=0,1,…,max_order run "
+                    "Gosper-in-k on T=Σ_j a_j(n)F(n+j,k) with the a_j(n) carried as "
+                    "unknowns; the first nonzero exact-ℚ kernel (via QMat RREF) is "
+                    "the recurrence + the rational certificate R(n,k). Returns "
+                    "{'order':L,'coeffs':[Poly_in_n,…],'certificate':BiPoly}, or "
+                    "None when none ≤ max_order. 1:1 C peer srmech_zeilberger "
+                    "(orchestrates srmech_poly_*/srmech_qmat_rref; native "
+                    "accelerates the common low-order case, pure-Python the "
+                    "complete alternative). Exact bigint; no float, no abs() "
+                    "(Class-K sign), no numpy / math.",
+            parameters=(P("rn_num", "BiPoly", True,
+                          "r_n NUMERATOR — F(n+1,k)/F(n,k) numerator, a bivariate "
+                          "exact-ℚ[n,k] BiPoly (or a Poly / coefficient list)"),
+                        P("rn_den", "BiPoly", True,
+                          "r_n DENOMINATOR — a NONZERO bivariate BiPoly"),
+                        P("rk_num", "BiPoly", True,
+                          "r_k NUMERATOR — F(n,k+1)/F(n,k) numerator BiPoly"),
+                        P("rk_den", "BiPoly", True,
+                          "r_k DENOMINATOR — a NONZERO bivariate BiPoly"),
+                        P("max_order", "int", False,
+                          "the largest ansatz recurrence order to try (default 6)")),
+            returns=R("dict | None",
+                      "{'order': int, 'coeffs': [Poly, ...], 'certificate': BiPoly} "
+                      "— the minimal-order recurrence Σ_j coeffs[j](n)·f(n+j)=0 plus "
+                      "the WZ certificate, or None when none of order ≤ max_order"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # Foundational cross-domain cascade catalog (v0.4.3rc6).
         # The cascades recurring across every/most domains, promoted so a
         # named cascade is the default and a math-library call the exception.
