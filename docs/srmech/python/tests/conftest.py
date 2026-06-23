@@ -116,6 +116,13 @@ def return_type_agrees(raw: Any, advertised: str):
     when no arm of the advertised union carries an assertable token (so the
     caller skips — never a false failure on an unknown handle type)."""
     arms = [a.strip() for a in advertised.split("|")]
+    # A ``None`` return against a MULTI-ARM ``X | None`` union agrees iff a ``None``
+    # arm is present — a decision op (gosper / zeilberger / wz_certificate) returns
+    # ``None`` when no result exists, and that must verify against ``dict | None``
+    # instead of failing on the sibling ``dict`` arm (which reports False for None).
+    # Scoped to the union case so a sole ``None``-advertised op is unaffected.
+    if raw is None and len(arms) > 1 and any(a in ("None", "NoneType") for a in arms):
+        return True
     any_assertable = False
     for arm in arms:
         m = _matches_token(raw, arm)

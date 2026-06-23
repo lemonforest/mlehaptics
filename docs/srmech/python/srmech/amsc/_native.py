@@ -1924,6 +1924,34 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_zeilberger.restype = ctypes.c_int
 
+    # rc43: srmech_wz_verify — the Wilf-Zeilberger VERIFY primitive (the §76 telescope
+    # Sigma-row's THIRD/FINAL public op). The COMPLETE C mirror of the verify half of
+    # srmech.amsc.wz_certificate: an EXACT bivariate-Q rational-function identity check
+    # (bounded only by input DEGREE, not by any order — unlike the rc42 order-<=1 peer).
+    # The six bivariate inputs (r_n num/den, r_k num/den, cert num/den) ride as flat
+    # (num, den) coefficient arrays + per-k length arrays + the k-degree count, the same
+    # _SrmechBigint bridge as zeilberger. NEW symbols -> hasattr-guarded; ABI stays 3.
+    #   size_t srmech_wz_verify_ws_bound(coeff_limbs, degree)
+    #   size_t srmech_wz_verify_out_cap(coeff_limbs, degree)
+    for _wsz in ("srmech_wz_verify_ws_bound", "srmech_wz_verify_out_cap"):
+        if hasattr(lib, _wsz):
+            getattr(lib, _wsz).argtypes = [ctypes.c_size_t, ctypes.c_size_t]
+            getattr(lib, _wsz).restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_wz_verify"):
+        _wbi = ctypes.POINTER(_SrmechBigint)
+        _wszp = ctypes.POINTER(ctypes.c_size_t)
+        lib.srmech_wz_verify.argtypes = [
+            _wbi, _wbi, _wszp, ctypes.c_size_t,  # rn_num n/d, klen, kdeg
+            _wbi, _wbi, _wszp, ctypes.c_size_t,  # rn_den
+            _wbi, _wbi, _wszp, ctypes.c_size_t,  # rk_num
+            _wbi, _wbi, _wszp, ctypes.c_size_t,  # rk_den
+            _wbi, _wbi, _wszp, ctypes.c_size_t,  # cert_num
+            _wbi, _wbi, _wszp, ctypes.c_size_t,  # cert_den
+            ctypes.POINTER(ctypes.c_int),        # out_equal
+            ctypes.c_void_p, ctypes.c_size_t,    # ws, ws_len
+        ]
+        lib.srmech_wz_verify.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None
@@ -2874,6 +2902,87 @@ def zeilberger_c(rn_num, rn_den, rk_num, rk_den, max_order):
                             _bigint_to_int(cert_d[off + i])) for i in range(ln)])
         off += ln
     return True, order, coeff_pairs, cert_pairs
+
+
+# ----------------------------------------------------------------------
+# rc43: srmech_wz_verify — the Wilf-Zeilberger VERIFY primitive (the §76 telescope
+# Sigma-row's THIRD/FINAL public op). The Python srmech.amsc.wz_certificate routes
+# its VERIFY half through this when has_native_wz_verify(); the pure-Python
+# bivariate-Q polynomial compare is the COMPLETE alternative (and the parity oracle)
+# — both decide the SAME exact rational-function identity. The six bivariate operands
+# ride the same _SrmechBigint coefficient-array bridge (the _bi_flatten form) as
+# zeilberger. This is a FULL C mirror (degree-bounded, no order cap): a definite 0/1
+# result is trusted both ways.
+# ----------------------------------------------------------------------
+
+_WZ_SYMS = (
+    "srmech_wz_verify_ws_bound",
+    "srmech_wz_verify_out_cap",
+)
+
+
+def has_native_wz_verify() -> bool:
+    """True iff the rc43 srmech_wz_verify op + its ws/out-cap sizers are loaded +
+    bound. False on a no-C or pre-rc43 lib — the pure-Python
+    ``srmech.amsc.wz_certificate`` verify body is the complete alternative (and the
+    parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _WZ_SYMS) and hasattr(
+        LIB, "srmech_wz_verify"
+    )
+
+
+def wz_verify_c(rn_num, rn_den, rk_num, rk_den, cert_num, cert_den):
+    """Native WZ-equation verify for the six bivariate operands → ``True`` / ``False``
+    (the WZ certificate identity holds / does not), or ``None`` if the native symbols
+    are absent. Each operand is a bivariate-pairs structure (the ``_bi_pairs`` bridge
+    form: a k-ascending list of ascending-n ``(num, den)`` lists). A non-OK status /
+    inability raises ``RuntimeError`` so the caller falls to the pure path."""
+    if not has_native_wz_verify():
+        return None
+    flats = []
+    klens = []
+    for bp in (rn_num, rn_den, rk_num, rk_den, cert_num, cert_den):
+        f, k = _bi_flatten(bp)
+        flats.append(f)
+        klens.append(k)
+    # r_n den / r_k den / cert den must be nonzero (kdeg > 0).
+    if len(klens[1]) == 0 or len(klens[3]) == 0 or len(klens[5]) == 0:
+        raise ValueError("wz_verify_c: r_n / r_k / cert denominators must be nonzero")
+    deg = max((len(k) for k in klens), default=1)
+    # the n-degree also drives the envelope: the max per-k n-coeff count across inputs.
+    for k in klens:
+        deg = max(deg, max((v for v in k), default=0))
+    cl = max((_qmat_coeff_limbs(f) if f else 1 for f in flats), default=1)
+    ws_len = int(LIB.srmech_wz_verify_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_size_t(deg)))
+    out_cap = int(LIB.srmech_wz_verify_out_cap(
+        ctypes.c_size_t(cl), ctypes.c_size_t(deg)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    in_arrays = []
+    keep = []
+    for f, k in zip(flats, klens):
+        a_n, a_d, ka = _qmat_make_array(f, out_cap)
+        klen_arr = (ctypes.c_size_t * max(len(k), 1))(*k)
+        in_arrays.append((a_n, a_d, klen_arr, len(k)))
+        keep.append(ka)
+        keep.append(klen_arr)
+    out_equal = ctypes.c_int(0)
+    rc = LIB.srmech_wz_verify(
+        in_arrays[0][0], in_arrays[0][1], in_arrays[0][2], ctypes.c_size_t(in_arrays[0][3]),
+        in_arrays[1][0], in_arrays[1][1], in_arrays[1][2], ctypes.c_size_t(in_arrays[1][3]),
+        in_arrays[2][0], in_arrays[2][1], in_arrays[2][2], ctypes.c_size_t(in_arrays[2][3]),
+        in_arrays[3][0], in_arrays[3][1], in_arrays[3][2], ctypes.c_size_t(in_arrays[3][3]),
+        in_arrays[4][0], in_arrays[4][1], in_arrays[4][2], ctypes.c_size_t(in_arrays[4][3]),
+        in_arrays[5][0], in_arrays[5][1], in_arrays[5][2], ctypes.c_size_t(in_arrays[5][3]),
+        ctypes.byref(out_equal),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = keep
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_wz_verify returned non-OK status {rc}")
+    return bool(out_equal.value)
 
 
 def has_native_klein4_fold() -> bool:

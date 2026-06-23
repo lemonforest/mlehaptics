@@ -2832,6 +2832,53 @@ def _register_primitive_class_tools() -> None:
                       "the WZ certificate, or None when none of order ≤ max_order"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The §76 "telescope" Σ-row closed-form prover (F929) — the
+        # Wilf–Zeilberger pair method, the THIRD and FINAL public op of the row
+        # (the Σ-row CLOSER: gosper → zeilberger → wz_certificate). FINDs via
+        # zeilberger at the forced recurrence + VERIFIES the WZ equation as an
+        # exact bivariate rational identity; 1:1 C peer srmech_wz_verify is the
+        # COMPLETE verify mirror (degree-bounded, no order cap).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.wz_certificate.wz_certificate", owner="srmech",
+            category="wz_certificate",
+            summary="The Wilf–Zeilberger pair method (Wilf & Zeilberger 1990, "
+                    "*Rational functions certify combinatorial identities*, J. Amer. "
+                    "Math. Soc. 3(1):147–158; Petkovšek–Wilf–Zeilberger *A=B* 1996, "
+                    "ch. 7) — the THIRD and FINAL public op of the §76 'telescope' "
+                    "Σ-row closed-form prover (F929), the row CLOSER. PROVES a "
+                    "terminating hypergeometric identity Σ_k F(n,k)=const by producing "
+                    "AND verifying its WZ certificate. Input: F's two term ratios "
+                    "r_n(n,k)=F(n+1,k)/F(n,k) and r_k(n,k)=F(n,k+1)/F(n,k), each a "
+                    "bivariate exact-ℚ[n,k] BiPoly num/den pair (a plain Poly is read "
+                    "as a k-polynomial). The WZ method is Zeilberger at the FORCED "
+                    "n-recurrence f(n+1)−f(n)=0: it FINDs the certificate R(n,k) "
+                    "(=zeilberger at max_order=1, the order-1 recurrence of a "
+                    "constant sum) such that G=R·F makes the WZ equation F(n+1,k)−"
+                    "F(n,k)=G(n,k+1)−G(n,k) telescope, then VERIFIES that equation as "
+                    "an EXACT bivariate rational-function identity (clearing "
+                    "denominators to a polynomial identity — no solve, no order "
+                    "bound). Returns {'certificate':{'num':BiPoly,'den':BiPoly}, "
+                    "'verified':True}, or None when the term is not WZ-summable. 1:1 "
+                    "C peer srmech_wz_verify is the COMPLETE verify mirror (the "
+                    "degree-bounded exact bivariate-ℚ identity check; native when "
+                    "present, pure-Python the complete alternative). Exact bigint; no "
+                    "float, no abs() (Class-K sign), no numpy / math.",
+            parameters=(P("rn_num", "BiPoly", True,
+                          "r_n NUMERATOR — F(n+1,k)/F(n,k) numerator, a bivariate "
+                          "exact-ℚ[n,k] BiPoly (or a Poly / coefficient list)"),
+                        P("rn_den", "BiPoly", True,
+                          "r_n DENOMINATOR — a NONZERO bivariate BiPoly"),
+                        P("rk_num", "BiPoly", True,
+                          "r_k NUMERATOR — F(n,k+1)/F(n,k) numerator BiPoly"),
+                        P("rk_den", "BiPoly", True,
+                          "r_k DENOMINATOR — a NONZERO bivariate BiPoly")),
+            returns=R("dict | None",
+                      "{'certificate': {'num': BiPoly, 'den': BiPoly}, 'verified': "
+                      "True} — the WZ certificate R(n,k)=num/den (verified to satisfy "
+                      "the WZ equation), or None when the term is not WZ-summable"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # Foundational cross-domain cascade catalog (v0.4.3rc6).
         # The cascades recurring across every/most domains, promoted so a
         # named cascade is the default and a math-library call the exception.
