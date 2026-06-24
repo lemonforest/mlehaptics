@@ -2209,6 +2209,38 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_apagodu_zeilberger.restype = ctypes.c_int
 
+    # rc56: srmech_q_zeilberger — the q-analog of Zeilberger's creative telescoping
+    # (the SECOND public op of the q-hypergeometric F929 row). The four QBiPoly term
+    # ratios ride as flat (num, den) q-runs (Y-major then X-major) + per-(Y,X)-cell
+    # qlen[] + per-Y-cell x_low[]/x_cells[] + Y-cell count; the recurrence coeffs +
+    # certificate come back the same way. The native peer completes the canonical
+    # k-free q-geometric order-1 case + declines the rest (has=0 -> Python re-decides).
+    #   size_t srmech_q_zeilberger_ws_bound(coeff_limbs, order, qdeg)
+    #   size_t srmech_q_zeilberger_out_cap(coeff_limbs, order, qdeg)
+    for _qzsz in ("srmech_q_zeilberger_ws_bound", "srmech_q_zeilberger_out_cap"):
+        if hasattr(lib, _qzsz):
+            getattr(lib, _qzsz).argtypes = [ctypes.c_size_t, ctypes.c_size_t,
+                                            ctypes.c_size_t]
+            getattr(lib, _qzsz).restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_q_zeilberger"):
+        _qbi = ctypes.POINTER(_SrmechBigint)
+        _qszp = ctypes.POINTER(ctypes.c_size_t)
+        _qi64p = ctypes.POINTER(ctypes.c_int64)
+        # one QBiPoly input slot = (n, d, qlen, xlow, xcells, ycells).
+        _qbipoly_in = [_qbi, _qbi, _qszp, _qi64p, _qszp, ctypes.c_size_t]
+        lib.srmech_q_zeilberger.argtypes = (
+            _qbipoly_in        # rn_num
+            + _qbipoly_in      # rn_den
+            + _qbipoly_in      # rk_num
+            + _qbipoly_in      # rk_den
+            + [ctypes.c_size_t,                                   # max_order
+               ctypes.POINTER(ctypes.c_int), _qszp,              # out_has, out_order
+               _qbi, _qbi, _qszp, _qi64p, _qszp, _qszp,          # coeff n/d, qlen, xlow, xcells, count
+               _qbi, _qbi, _qszp, _qi64p, _qszp, _qszp,          # cert n/d, qlen, xlow, xcells, ycells
+               ctypes.c_void_p, ctypes.c_size_t]                 # ws, ws_len
+        )
+        lib.srmech_q_zeilberger.restype = ctypes.c_int
+
     # rc43: srmech_wz_verify — the Wilf-Zeilberger VERIFY primitive (the §76 telescope
     # Sigma-row's THIRD/FINAL public op). The COMPLETE C mirror of the verify half of
     # srmech.amsc.wz_certificate: an EXACT bivariate-Q rational-function identity check
@@ -3868,6 +3900,177 @@ def zeilberger_c(rn_num, rn_den, rk_num, rk_den, max_order):
                             _bigint_to_int(cert_d[off + i])) for i in range(ln)])
         off += ln
     return True, order, coeff_pairs, cert_pairs
+
+
+# ----------------------------------------------------------------------
+# rc56: srmech_q_zeilberger — the q-analog of Zeilberger's creative telescoping (the
+# SECOND public op of the q-hypergeometric F929 row). The Python
+# srmech.amsc.q_zeilberger.q_zeilberger routes a POSITIVE (recurrence-found) C result
+# through this; a has=0 / error falls to the complete pure-Python path (the parity
+# oracle + full-coverage decider). The four QBiPoly term ratios + the recurrence
+# coeffs + the certificate ride the QBiPoly bridge form: a per-Y-cell x_low[] +
+# x_cells[] + the concatenated QPoly q-runs (Y-major then X-major) + a per-(Y,X)-cell
+# qlen[]. The native peer completes the canonical k-free q-geometric order-1 case +
+# declines the rest (has=0 -> Python re-decides).
+# ----------------------------------------------------------------------
+
+_Q_ZEILBERGER_SYMS = (
+    "srmech_q_zeilberger_ws_bound",
+    "srmech_q_zeilberger_out_cap",
+    "srmech_bigint_from_dec",
+    "srmech_bigint_to_dec",
+    "srmech_bigint_to_dec_bound",
+)
+
+
+def has_native_q_zeilberger() -> bool:
+    """True iff the rc56 srmech_q_zeilberger op + its ws/out-cap sizers + the
+    srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
+    pre-rc56 lib — the pure-Python ``srmech.amsc.q_zeilberger.q_zeilberger`` body is
+    the complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _Q_ZEILBERGER_SYMS) and hasattr(
+        LIB, "srmech_q_zeilberger"
+    )
+
+
+def _qbi_flatten(form, out_cap):
+    """A QBiPoly ``(y_xlow[], rows)`` bridge form → the flat native arrays
+    ``(num_arr, den_arr, qlen_arr, xlow_arr, xcells_arr, ycells, keepalive)``: the
+    concatenated q-runs (Y-major then X-major), a per-(Y,X)-cell ``qlen[]``, a per-Y-
+    cell ``x_low[]`` and ``x_cells[]``, and the Y-cell count. ``rows[yd]`` is the
+    QPoly x-row (an ascending-x list of ascending-q (num, den) runs) of Y-cell
+    ``yd``."""
+    y_xlow, rows = form
+    ycells = len(rows)
+    xcells = [len(xrow) for xrow in rows]
+    qlens = []
+    flat = []
+    for xrow in rows:
+        for run in xrow:
+            qlens.append(len(run))
+            flat.extend(run)
+    total = max(len(flat), 1)
+    num_arr = (_SrmechBigint * total)()
+    den_arr = (_SrmechBigint * total)()
+    keep = []
+    for idx, (num, den) in enumerate(flat):
+        bn, kbn = _bigint_from_int(int(num), out_cap)
+        bd, kbd = _bigint_from_int(int(den), out_cap)
+        num_arr[idx] = bn
+        den_arr[idx] = bd
+        keep.append(kbn)
+        keep.append(kbd)
+    qlen_arr = (ctypes.c_size_t * max(len(qlens), 1))(*qlens)
+    xlow_arr = (ctypes.c_int64 * max(ycells, 1))(*[int(v) for v in y_xlow])
+    xcells_arr = (ctypes.c_size_t * max(ycells, 1))(*xcells)
+    keep += [qlen_arr, xlow_arr, xcells_arr]
+    return num_arr, den_arr, qlen_arr, xlow_arr, xcells_arr, ycells, keep
+
+
+def _qbi_row_coeff_limbs(form):
+    """The largest significant-limb count across every (num, den) in a QBiPoly bridge
+    form (9 decimal digits ≈ 1 limb; pad)."""
+    cl = 1
+    _y, rows = form
+    for xrow in rows:
+        for run in xrow:
+            for num, den in run:
+                cl = max(cl, len(str(num).lstrip("-")) // 9 + 2,
+                         len(str(den)) // 9 + 2)
+    return cl
+
+
+def q_zeilberger_c(rn_num, rn_den, rk_num, rk_den, max_order):
+    """Native q-Zeilberger recurrence for the four QBiPoly term ratios → ``(has,
+    order, coeff_forms, cert_form)`` (``coeff_forms[j]`` the QPoly ``(x_low, rows)``
+    bridge form of ``a_j(X)``; ``cert_form`` the QBiPoly ``(y_xlow[], rows)`` bridge
+    form of the certificate ``x(X,Y)``), or ``None`` if the native symbols are absent.
+    Each ratio operand is a QBiPoly ``(y_xlow[], rows)`` bridge form. The native peer
+    completes the canonical k-free q-geometric order-1 case + declines the rest
+    (``has`` False → the caller re-decides on the pure path). A non-OK status raises
+    ``RuntimeError`` so the caller falls to the pure path."""
+    if not has_native_q_zeilberger():
+        return None
+    forms = (rn_num, rn_den, rk_num, rk_den)
+    if not rn_den[1] or not rk_den[1]:
+        raise ValueError("q_zeilberger_c: r_n / r_k denominators must be nonzero")
+    cl = max(_qbi_row_coeff_limbs(f) for f in forms)
+    qdeg = 1
+    for f in forms:
+        for xrow in f[1]:
+            for run in xrow:
+                qdeg = max(qdeg, len(run))
+    out_cap = int(LIB.srmech_q_zeilberger_out_cap(
+        ctypes.c_size_t(cl), ctypes.c_size_t(max_order), ctypes.c_size_t(qdeg)))
+    ws_len = int(LIB.srmech_q_zeilberger_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_size_t(max_order), ctypes.c_size_t(qdeg)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    keep = []
+    in_args = []
+    for f in forms:
+        nn, dd, ql, xl, xc, yc, k = _qbi_flatten(f, out_cap)
+        in_args += [nn, dd, ql, xl, xc, ctypes.c_size_t(yc)]
+        keep.append(k)
+    # output: up to (max_order+1) coeff QPoly cells (each a single X-cell here) +
+    # a certificate QBiPoly (bounded Y-cells). Generous slot counts; the C reports the
+    # per-cell lengths + counts.
+    coeff_cells = max_order + 2
+    cell_q_cap = qdeg + 4
+    coeff_total = coeff_cells * cell_q_cap + 8
+    cert_total = (qdeg + 4) * cell_q_cap + 8
+    coeff_n, coeff_d, kc = _qmat_blank_array(coeff_total, out_cap)
+    cert_n, cert_d, ke = _qmat_blank_array(cert_total, out_cap)
+    coeff_qlen = (ctypes.c_size_t * (coeff_cells + 2))()
+    coeff_xlow = (ctypes.c_int64 * (coeff_cells + 2))()
+    coeff_xcells = (ctypes.c_size_t * (coeff_cells + 2))()
+    cert_qlen = (ctypes.c_size_t * (qdeg + 8))()
+    cert_xlow = (ctypes.c_int64 * (qdeg + 8))()
+    cert_xcells = (ctypes.c_size_t * (qdeg + 8))()
+    has = ctypes.c_int(0)
+    order_out = ctypes.c_size_t(0)
+    coeff_count = ctypes.c_size_t(0)
+    cert_ycells = ctypes.c_size_t(0)
+    rc = LIB.srmech_q_zeilberger(
+        *in_args,
+        ctypes.c_size_t(max_order),
+        ctypes.byref(has), ctypes.byref(order_out),
+        coeff_n, coeff_d, coeff_qlen, coeff_xlow, coeff_xcells,
+        ctypes.byref(coeff_count),
+        cert_n, cert_d, cert_qlen, cert_xlow, cert_xcells,
+        ctypes.byref(cert_ycells),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (keep, kc, ke)
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_q_zeilberger returned non-OK status {rc}")
+    if not has.value:
+        return False, 0, [], (0, [])
+    order = int(order_out.value)
+    n_coeff = int(coeff_count.value)
+    # each coeff a single-X-cell QPoly: read its q-run, wrap as (x_low, [run]).
+    coeff_forms = []
+    off = 0
+    for j in range(n_coeff):
+        ln = int(coeff_qlen[j])
+        run = [(_bigint_to_int(coeff_n[off + i]), _bigint_to_int(coeff_d[off + i]))
+               for i in range(ln)]
+        coeff_forms.append((int(coeff_xlow[j]), [run]))
+        off += ln
+    # the certificate QBiPoly: cert_ycells Y-cells, each a single X-cell here.
+    ny = int(cert_ycells.value)
+    cert_rows = []
+    cert_y_xlow = []
+    off = 0
+    for yd in range(ny):
+        ln = int(cert_qlen[yd])
+        run = [(_bigint_to_int(cert_n[off + i]), _bigint_to_int(cert_d[off + i]))
+               for i in range(ln)]
+        cert_rows.append([run])
+        cert_y_xlow.append(int(cert_xlow[yd]))
+        off += ln
+    return True, order, coeff_forms, (cert_y_xlow, cert_rows)
 
 
 # ----------------------------------------------------------------------
