@@ -3711,6 +3711,89 @@ srmech_status_t srmech_wz_verify(
         const size_t *cert_den_klen, size_t cert_den_kdeg,
         int *out_equal, void *ws, size_t ws_len);
 
+/* ------------------------------------------------------------------ *
+ * srmech_apagodu_zeilberger -- the Apagodu-Zeilberger multivariate "sums
+ * of sums" creative-telescoping recurrence-finder (the rc53 op that CLOSES
+ * the multivariate F929 reduction row). The C peer of
+ * srmech.amsc.apagodu_zeilberger.apagodu_zeilberger.
+ *
+ * Input: a proper hypergeometric term F(n,j,k) given by its THREE term ratios
+ *   r_n(n,j,k) = F(n+1,j,k)/F(n,j,k) = rn_num/rn_den
+ *   r_j(n,j,k) = F(n,j+1,k)/F(n,j,k) = rj_num/rj_den
+ *   r_k(n,j,k) = F(n,j,k+1)/F(n,j,k) = rk_num/rk_den
+ * each an exact-rational TRIVARIATE polynomial over Q[n,j,k]. A trivariate poly
+ * is encoded FLAT as a j-major then k-then-n stream of (num, den) bigint pairs:
+ * for the (jdeg x kdeg) (j,k) grid, *_nlen[dj*kdeg + dk] is the n-run length of
+ * cell (dj, dk) and those n-coefficients occupy the next *_nlen entries (ascending
+ * n-degree); *_jdeg / *_kdeg are the block shape. Each (num, den) is reduced.
+ *
+ * Output: when a recurrence of order <= max_order exists, *out_has = 1, *out_order
+ * = L, and coeff_n/coeff_d (coeff_nlen[i] the per-i length, i = 0..L) carry the
+ * recurrence coefficient polynomials a_i(n) so Sum_i a_i(n) f(n+i) = 0
+ * (f(n) = Sum_{j,k} F(n,j,k)); cert_j_* and cert_k_* carry the two rational
+ * certificate numerators x_j(n,j,k) / x_k(n,j,k) (R_j = x_j/D_P, R_k = x_k/D_P) as
+ * the SAME (j,k)-cell grid encoding (cert_*_nlen + *out_cert_*_jdeg/kdeg). Else
+ * *out_has = 0.
+ *
+ * The algorithm (Apagodu & Zeilberger 2006, Adv. Appl. Math. 37:139-152), exact
+ * over Q[n,j,k]: for L = 0..max_order, the two-certificate ansatz
+ *   Sum_i a_i(n) rho_i = [R_j(j+1) r_j - R_j] + [R_k(k+1) r_k - R_k]
+ * (rho_i = prod_{t<i} r_n(n+t), D_P = prod_i rho_den_i) cleared to one common
+ * denominator is a polynomial identity in (n,j,k) LINEAR in {a_i coeffs} U
+ * {x_j coeffs} U {x_k coeffs}; matching (n,j,k)-powers gives a HOMOGENEOUS exact-Q
+ * system. A kernel vector with a NONZERO a-block (read off srmech_qmat_rref) gives
+ * the recurrence + certificates; the first such L is the minimal order.
+ *
+ * The C peer ACCELERATES the common low-order case (order <= 1, the textbook
+ * double-sum identities, e.g. Sum_{j,k} C(n,j)C(j,k) -> 3^n); a genuinely-2D
+ * higher-order term (the Apery-like sums) falls to the COMPLETE pure-Python path
+ * -- the C never returns a false "no recurrence", it just declines (the Python
+ * dispatch trusts only a has=1 C result). Composes the srmech_qmat_rref kernel + a
+ * compact internal exact-Q TRIVARIATE poly toolkit over caller-arena srmech_bigint
+ * (NO malloc, JPL Rule 3). Byte-identical to the Python recurrence at ANY
+ * magnitude. Any residual overflow returns SRMECH_ERR_OVERFLOW (never a wrap), and
+ * the Python op then runs its ceiling-free pure-Q path.
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES for inputs of `coeff_limbs` significant limbs per
+ * coefficient, a max ansatz `order`, and a max trivariate `degree`. 8-byte-aligned. */
+size_t srmech_apagodu_zeilberger_ws_bound(size_t coeff_limbs, size_t order,
+                                          size_t degree);
+
+/* The per-coefficient limb cap for each srmech_bigint in the coeff_* / cert_*
+ * OUTPUT arrays, so a result coefficient never overflows its slot. */
+size_t srmech_apagodu_zeilberger_out_cap(size_t coeff_limbs, size_t order,
+                                         size_t degree);
+
+/* Compute the Apagodu-Zeilberger recurrence for the double sum f(n)=Sum_{j,k}
+ * F(n,j,k) given F's three term ratios. degree_hint is a degree hint (1 is safe).
+ * The caller sizes coeff_* to (max_order+1) * (out n-degree bound) entries and each
+ * cert_* to (out jdeg)*(out kdeg)*(out n-degree bound) entries, each of
+ * srmech_apagodu_zeilberger_out_cap limbs. rn_den / rj_den / rk_den must have
+ * jdeg > 0. */
+srmech_status_t srmech_apagodu_zeilberger(
+        const srmech_bigint_t *rn_num_n, const srmech_bigint_t *rn_num_d,
+        const size_t *rn_num_nlen, size_t rn_num_jdeg, size_t rn_num_kdeg,
+        const srmech_bigint_t *rn_den_n, const srmech_bigint_t *rn_den_d,
+        const size_t *rn_den_nlen, size_t rn_den_jdeg, size_t rn_den_kdeg,
+        const srmech_bigint_t *rj_num_n, const srmech_bigint_t *rj_num_d,
+        const size_t *rj_num_nlen, size_t rj_num_jdeg, size_t rj_num_kdeg,
+        const srmech_bigint_t *rj_den_n, const srmech_bigint_t *rj_den_d,
+        const size_t *rj_den_nlen, size_t rj_den_jdeg, size_t rj_den_kdeg,
+        const srmech_bigint_t *rk_num_n, const srmech_bigint_t *rk_num_d,
+        const size_t *rk_num_nlen, size_t rk_num_jdeg, size_t rk_num_kdeg,
+        const srmech_bigint_t *rk_den_n, const srmech_bigint_t *rk_den_d,
+        const size_t *rk_den_nlen, size_t rk_den_jdeg, size_t rk_den_kdeg,
+        size_t max_order, size_t degree_hint,
+        int *out_has, size_t *out_order,
+        srmech_bigint_t *coeff_n, srmech_bigint_t *coeff_d, size_t *coeff_nlen,
+        srmech_bigint_t *cert_j_n, srmech_bigint_t *cert_j_d, size_t *cert_j_nlen,
+        size_t *out_cert_j_jdeg, size_t *out_cert_j_kdeg,
+        srmech_bigint_t *cert_k_n, srmech_bigint_t *cert_k_d, size_t *cert_k_nlen,
+        size_t *out_cert_k_jdeg, size_t *out_cert_k_kdeg,
+        void *ws, size_t ws_len);
+
 #ifdef __cplusplus
 }
 #endif

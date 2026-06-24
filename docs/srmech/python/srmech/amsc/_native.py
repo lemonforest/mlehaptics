@@ -2095,6 +2095,38 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_zeilberger.restype = ctypes.c_int
 
+    # rc53: srmech_apagodu_zeilberger — the Apagodu-Zeilberger multivariate "sums of
+    # sums" creative telescoping (CLOSES the multivariate F929 row). The three
+    # TRIVARIATE term ratios ride as flat (num, den) coefficient arrays (j-major then
+    # k-then-n order) + a per-(j,k)-cell n-run length array + the (jdeg, kdeg) shape;
+    # the recurrence coeffs + the two certificates come back the same way.
+    #   size_t srmech_apagodu_zeilberger_ws_bound(coeff_limbs, order, degree)
+    #   size_t srmech_apagodu_zeilberger_out_cap(coeff_limbs, order, degree)
+    for _azsz in ("srmech_apagodu_zeilberger_ws_bound",
+                  "srmech_apagodu_zeilberger_out_cap"):
+        if hasattr(lib, _azsz):
+            getattr(lib, _azsz).argtypes = [ctypes.c_size_t, ctypes.c_size_t,
+                                            ctypes.c_size_t]
+            getattr(lib, _azsz).restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_apagodu_zeilberger"):
+        _bi = ctypes.POINTER(_SrmechBigint)
+        _szp = ctypes.POINTER(ctypes.c_size_t)
+        lib.srmech_apagodu_zeilberger.argtypes = [
+            _bi, _bi, _szp, ctypes.c_size_t, ctypes.c_size_t,  # rn_num n/d, nlen, jdeg, kdeg
+            _bi, _bi, _szp, ctypes.c_size_t, ctypes.c_size_t,  # rn_den
+            _bi, _bi, _szp, ctypes.c_size_t, ctypes.c_size_t,  # rj_num
+            _bi, _bi, _szp, ctypes.c_size_t, ctypes.c_size_t,  # rj_den
+            _bi, _bi, _szp, ctypes.c_size_t, ctypes.c_size_t,  # rk_num
+            _bi, _bi, _szp, ctypes.c_size_t, ctypes.c_size_t,  # rk_den
+            ctypes.c_size_t, ctypes.c_size_t,                  # max_order, degree_hint
+            ctypes.POINTER(ctypes.c_int), _szp,                # out_has, out_order
+            _bi, _bi, _szp,                                    # coeff n/d, coeff_nlen
+            _bi, _bi, _szp, _szp, _szp,                        # cert_j n/d, nlen, jdeg, kdeg
+            _bi, _bi, _szp, _szp, _szp,                        # cert_k n/d, nlen, jdeg, kdeg
+            ctypes.c_void_p, ctypes.c_size_t,                  # ws, ws_len
+        ]
+        lib.srmech_apagodu_zeilberger.restype = ctypes.c_int
+
     # rc43: srmech_wz_verify — the Wilf-Zeilberger VERIFY primitive (the §76 telescope
     # Sigma-row's THIRD/FINAL public op). The COMPLETE C mirror of the verify half of
     # srmech.amsc.wz_certificate: an EXACT bivariate-Q rational-function identity check
@@ -3430,6 +3462,191 @@ def zeilberger_c(rn_num, rn_den, rk_num, rk_den, max_order):
                             _bigint_to_int(cert_d[off + i])) for i in range(ln)])
         off += ln
     return True, order, coeff_pairs, cert_pairs
+
+
+# ----------------------------------------------------------------------
+# rc53: srmech_apagodu_zeilberger — the Apagodu-Zeilberger multivariate "sums of
+# sums" creative telescoping (CLOSES the multivariate F929 row). The Python
+# srmech.amsc.apagodu_zeilberger.apagodu_zeilberger routes a POSITIVE
+# (recurrence-found) C result through this; a has=0 / error falls to the complete
+# pure-Python path (the parity oracle + full-coverage decider). The three TRIVARIATE
+# ratios + the recurrence + the two certificates ride the nested-bridge (j,k)-cell
+# grid form (the same _tri_pairs form tripoly uses).
+# ----------------------------------------------------------------------
+
+_APAGODU_SYMS = (
+    "srmech_apagodu_zeilberger_ws_bound",
+    "srmech_apagodu_zeilberger_out_cap",
+)
+
+
+def has_native_apagodu_zeilberger() -> bool:
+    """True iff the rc53 srmech_apagodu_zeilberger op + its ws/out-cap sizers are
+    loaded + bound. False on a no-C or pre-rc53 lib — the pure-Python
+    ``srmech.amsc.apagodu_zeilberger.apagodu_zeilberger`` body is the complete
+    alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _APAGODU_SYMS) and hasattr(
+        LIB, "srmech_apagodu_zeilberger"
+    )
+
+
+def _az_tri_flatten(tri_pairs):
+    """A trivariate ``[[[(num,den), ...]_n]_k]_j`` (the ``TriPoly`` nested-bridge
+    form) → ``(flat_pairs, nlen_list, jdeg, kdeg)`` where ``flat_pairs`` lists every
+    coefficient in j-then-k-then-n order, ``nlen_list[dj*kdeg + dk]`` is the n-run
+    length of cell ``(dj, dk)``, and ``(jdeg, kdeg)`` is the rectangular block shape
+    (each j-block padded to the max k-degree across blocks so the grid is
+    rectangular). The Apagodu–Zeilberger bridge flattener (distinct from the
+    tripoly-carrier ``_tri_flatten`` which pads to a caller-given (aj, ak))."""
+    jdeg = len(tri_pairs)
+    kdeg = 0
+    for kgrid in tri_pairs:
+        if len(kgrid) > kdeg:
+            kdeg = len(kgrid)
+    if jdeg == 0 or kdeg == 0:
+        return [], [], jdeg, kdeg
+    flat = []
+    nlen = []
+    for kgrid in tri_pairs:
+        for dk in range(kdeg):
+            run = kgrid[dk] if dk < len(kgrid) else []
+            nlen.append(len(run))
+            flat.extend(run)
+    return flat, nlen, jdeg, kdeg
+
+
+def apagodu_zeilberger_c(rn_num, rn_den, rj_num, rj_den, rk_num, rk_den, max_order):
+    """Native Apagodu-Zeilberger recurrence for the six trivariate term-ratio
+    operands → ``(has, order, coeff_pairs, cert_j_blocks, cert_k_blocks)``
+    (``coeff_pairs[i]`` the ascending-n ``(num,den)`` list of ``a_i(n)``;
+    ``cert_*_blocks`` the nested ``[[[(num,den), …]_n]_k]_j`` bridge form of each
+    certificate numerator), or ``None`` if the native symbols are absent. Each ratio
+    operand is the ``_tri_pairs`` nested-bridge form. A non-OK status / inability
+    raises ``RuntimeError`` so the caller falls to the pure path."""
+    if not has_native_apagodu_zeilberger():
+        return None
+    flats = []
+    nlens = []
+    jdegs = []
+    kdegs = []
+    for tp in (rn_num, rn_den, rj_num, rj_den, rk_num, rk_den):
+        f, nl, jd, kd = _az_tri_flatten(tp)
+        flats.append(f)
+        nlens.append(nl)
+        jdegs.append(jd)
+        kdegs.append(kd)
+    if jdegs[1] == 0 or jdegs[3] == 0 or jdegs[5] == 0:
+        raise ValueError(
+            "apagodu_zeilberger_c: r_n / r_j / r_k denominators must be nonzero")
+    deg = 1
+    for jd, kd, nl in zip(jdegs, kdegs, nlens):
+        deg = max(deg, jd, kd, max(nl) if nl else 1)
+    cl = max((_qmat_coeff_limbs(f) if f else 1 for f in flats), default=1)
+    out_cap = int(LIB.srmech_apagodu_zeilberger_out_cap(
+        ctypes.c_size_t(cl), ctypes.c_size_t(max_order), ctypes.c_size_t(deg)))
+    ws_len = int(LIB.srmech_apagodu_zeilberger_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_size_t(max_order), ctypes.c_size_t(deg)))
+    # The dense exact-ℚ RREF arena for a multivariate AZ system swells with the
+    # Hadamard fraction-growth bound (the swell the Python path dodges via the CRT
+    # re-fibration rref_crt; the C dense path does not). Past a sane ceiling the C
+    # peer would need a multi-hundred-MB arena, so we DECLINE to the bounded-memory
+    # pure-Python CRT path (the standalone-complete honor — the C never returns a
+    # false "no recurrence"; here it simply isn't invoked, and the pure path is the
+    # decider). The dense-C accelerates the small textbook cases; a CRT-C re-fibration
+    # is the owed everything-mirrors backfill for the wider systems.
+    # The dense exact-ℚ RREF entry-cap (Hadamard fraction-growth bound) makes even
+    # the smallest genuine double-sum system's caller arena hundreds of MB AND the
+    # RREF slow; the Python rref_crt re-fibration is the bounded-memory accelerator.
+    # So the C peer DECLINES past a modest arena ceiling (the standalone-complete
+    # honor — it never returns a false "no recurrence"; the bounded-memory pure CRT
+    # path is the decider). A CRT-C re-fibration of this kernel is the owed
+    # everything-mirrors backfill (the QMat-CRT arc precedent). The ceiling is raisable
+    # (SRMECH_AZ_WS_CEILING_MB) to exercise the C peer's execution-parity proof on a
+    # box with the RAM for it.
+    _ceiling_mb = 192
+    try:
+        _ceiling_mb = max(1, int(os.environ.get("SRMECH_AZ_WS_CEILING_MB", "192")))
+    except (TypeError, ValueError):
+        _ceiling_mb = 192
+    if ws_len > _ceiling_mb * 1024 * 1024:
+        return None
+    try:
+        ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    except (MemoryError, OverflowError):
+        return None                            # decline to the pure CRT path
+    in_arrays = []
+    keep = []
+    for f, nl, jd, kd in zip(flats, nlens, jdegs, kdegs):
+        a_n, a_d, ka = _qmat_make_array(f, out_cap)
+        nlen_arr = (ctypes.c_size_t * max(len(nl), 1))(*nl)
+        in_arrays.append((a_n, a_d, nlen_arr, jd, kd))
+        keep.append(ka)
+        keep.append(nlen_arr)
+    # output slots: coeff (order+1)*nbound ; each cert (cells)*(nbound). A generous
+    # slot count; the C writes contiguously + reports per-segment lengths.
+    nbound = (deg + 2) * (max_order + 2) + 8
+    cells_bound = (deg + 4) * (deg + 4) + 8
+    coeff_slots = (max_order + 1) * nbound + 8
+    cert_slots = cells_bound * nbound + 8
+    coeff_n, coeff_d, kc = _qmat_blank_array(coeff_slots, out_cap)
+    cj_n, cj_d, kj = _qmat_blank_array(cert_slots, out_cap)
+    ck_n, ck_d, kk = _qmat_blank_array(cert_slots, out_cap)
+    coeff_nlen = (ctypes.c_size_t * (max_order + 2))()
+    cj_nlen = (ctypes.c_size_t * (cells_bound + 2))()
+    ck_nlen = (ctypes.c_size_t * (cells_bound + 2))()
+    has = ctypes.c_int(0)
+    order_out = ctypes.c_size_t(0)
+    cj_jdeg = ctypes.c_size_t(0)
+    cj_kdeg = ctypes.c_size_t(0)
+    ck_jdeg = ctypes.c_size_t(0)
+    ck_kdeg = ctypes.c_size_t(0)
+    args = []
+    for (a_n, a_d, nlen_arr, jd, kd) in in_arrays:
+        args += [a_n, a_d, nlen_arr, ctypes.c_size_t(jd), ctypes.c_size_t(kd)]
+    rc = LIB.srmech_apagodu_zeilberger(
+        *args,
+        ctypes.c_size_t(max_order), ctypes.c_size_t(deg),
+        ctypes.byref(has), ctypes.byref(order_out),
+        coeff_n, coeff_d, coeff_nlen,
+        cj_n, cj_d, cj_nlen, ctypes.byref(cj_jdeg), ctypes.byref(cj_kdeg),
+        ck_n, ck_d, ck_nlen, ctypes.byref(ck_jdeg), ctypes.byref(ck_kdeg),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (keep, kc, kj, kk)
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_apagodu_zeilberger returned non-OK status {rc}")
+    if not has.value:
+        return False, 0, [], [], []
+    order = int(order_out.value)
+    coeff_pairs = []
+    off = 0
+    for i in range(order + 1):
+        ln = int(coeff_nlen[i])
+        coeff_pairs.append([(_bigint_to_int(coeff_n[off + p]),
+                             _bigint_to_int(coeff_d[off + p])) for p in range(ln)])
+        off += ln
+
+    def _read_cert(cn, cd, cnlen, jdeg, kdeg):
+        blocks = []
+        o = 0
+        for dj in range(jdeg):
+            kgrid = []
+            for dk in range(kdeg):
+                ln = int(cnlen[dj * kdeg + dk])
+                kgrid.append([(_bigint_to_int(cn[o + p]),
+                               _bigint_to_int(cd[o + p])) for p in range(ln)])
+                o += ln
+            blocks.append(kgrid)
+        return blocks
+
+    cert_j_blocks = _read_cert(cj_n, cj_d, cj_nlen, int(cj_jdeg.value),
+                               int(cj_kdeg.value))
+    cert_k_blocks = _read_cert(ck_n, ck_d, ck_nlen, int(ck_jdeg.value),
+                               int(ck_kdeg.value))
+    return True, order, coeff_pairs, cert_j_blocks, cert_k_blocks
 
 
 # ----------------------------------------------------------------------
