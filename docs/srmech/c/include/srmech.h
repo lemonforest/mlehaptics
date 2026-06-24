@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc54"
-#define SRMECH_VERSION       "0.9.0rc54"
+#define SRMECH_VERSION_PRE   "rc55"
+#define SRMECH_VERSION       "0.9.0rc55"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3463,6 +3463,72 @@ srmech_status_t srmech_qpoly_qshift(const srmech_bigint_t *a_n,
                                     srmech_bigint_t *out_d, size_t *out_qlen,
                                     const size_t *out_off, void *ws,
                                     size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_q_gosper — the q-analog of Gosper's indefinite hypergeometric
+ * summation (the FIRST public op of the q-hypergeometric F929 reduction row,
+ * the q-analog of the §76 srmech_gosper). The C peer of
+ * srmech.amsc.q_gosper.q_gosper.
+ *
+ * Input: a q-hypergeometric term given by its TERM RATIO t(k+1)/t(k) = r(x) =
+ * num(x)/den(x) as two Laurent polynomials in x = q^k over Q[q] (two QPoly),
+ * each in the bridge wire form (concatenated ascending-q (num, den) runs +
+ * a per-x-cell qlen[] array + the x_low offset). Output: when Sum t(k) HAS a
+ * q-hypergeometric antidifference T(k) = R(q^k)*t(k) (so T(k+1)-T(k)=t(k)), the
+ * rational CERTIFICATE R(x) = r_num(x)/r_den(x) (two QPoly, same bridge form);
+ * else *out_has = 0.
+ *
+ * The algorithm is exact over the FIELD Q(q) (Koornwinder 1993): the
+ * q-Gosper-Petkovsek normal form + the q-Gosper equation a(x)y(qx)-b(x/q)y(x)=
+ * c(x), the rational leaf solve riding the PUBLIC srmech_qmat_rref over
+ * caller-arena srmech_bigint (NO malloc, JPL Rule 3). Byte-identical to the
+ * Python certificate at ANY magnitude.
+ *
+ * STANDALONE-COMPLETE + BOUNDED native scope: this rc55 peer COMPLETES the
+ * canonical constant-ratio q-geometric case natively (r = num0(q)/den0(q),
+ * x-degree 0; R = den0 / (num0 - den0)); for every other input it DECLINES
+ * (*out_has = 0), and the Python op re-runs its COMPLETE pure-Q(q) path -- so a
+ * has=0 is NEVER a definitive "no certificate" (the dispatch trusts only has=1),
+ * mirroring the srmech_zeilberger / srmech_apagodu_zeilberger order-cap precedent.
+ * The full higher-x-degree Q(q)[x] RREF is the owed everything-mirrors backlog.
+ * Any residual overflow returns SRMECH_ERR_OVERFLOW (never a wrap).
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES srmech_q_gosper needs for inputs of `coeff_limbs`
+ * significant limbs per q-coefficient and a higher q-degree of `qdeg`. */
+size_t srmech_q_gosper_ws_bound(size_t coeff_limbs, size_t qdeg);
+
+/* The per-coefficient limb cap for each srmech_bigint in the rn / rd OUTPUT
+ * q-run arrays, so a reduced certificate q-coefficient never overflows its slot. */
+size_t srmech_q_gosper_out_cap(size_t coeff_limbs, size_t qdeg);
+
+/* Compute the q-Gosper certificate for r = num/den.
+ *   num_n/num_d (qlen num_qlen[], num_cells x-cells, x_low num_xlow): the term
+ *     ratio NUMERATOR num(x) -- a QPoly bridge form (concatenated ascending-q runs)
+ *   den_n/den_d ...: the term ratio DENOMINATOR den(x) (same form; den_cells > 0)
+ * On success *out_has is set: 1 when a q-hypergeometric antidifference exists (then
+ * rn and rd carry the reduced certificate R(x) = r_num(x) over r_den(x) as two
+ * QPoly, with rn_qlen[]/out_rn_cells/out_rn_xlow + the rd peers), 0 when the peer
+ * declines (the caller re-decides on the pure path). The caller sizes each output
+ * q-run array to srmech_q_gosper_out_cap limbs; rn and rd hold one x-cell each in
+ * the native (constant-ratio) scope. den_cells == 0 -> SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_q_gosper(const srmech_bigint_t *num_n,
+                                const srmech_bigint_t *num_d,
+                                const size_t *num_qlen, size_t num_cells,
+                                int64_t num_xlow,
+                                const srmech_bigint_t *den_n,
+                                const srmech_bigint_t *den_d,
+                                const size_t *den_qlen, size_t den_cells,
+                                int64_t den_xlow,
+                                int *out_has,
+                                srmech_bigint_t *rn_n, srmech_bigint_t *rn_d,
+                                size_t *rn_qlen, size_t *out_rn_cells,
+                                int64_t *out_rn_xlow,
+                                srmech_bigint_t *rd_n, srmech_bigint_t *rd_d,
+                                size_t *rd_qlen, size_t *out_rd_cells,
+                                int64_t *out_rd_xlow,
+                                void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_qmat — EXACT-RATIONAL dense matrix over srmech_bigint (the C peer of

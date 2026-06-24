@@ -8,6 +8,14 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc55] - 2026-06-24
+
+**`q_gosper` — the q-analog of Gosper indefinite hypergeometric summation; the FIRST ToolEntry op of srmech's q-hypergeometric F929 reduction row.** Given the q-term ratio `t_{k+1}/t_k = r(qᵏ) = num/den` (two Laurent-in-`x=qᵏ` exact-`ℚ[q]` `QPoly`), returns the rational q-antidifference **certificate** `R(x)` (`{num, den}` QPoly, with `T(k)=R(qᵏ)·t(k)` and `Δ_q T = t`) when the term is q-Gosper-summable, else honest **`None`** (the un-summable residue IS the no-hallucination discipline).
+
+Pipeline (the q-analog of rc41 `gosper`): reduce `r` over `ℚ(q)[x]` → q-Gosper–Petkovšek normal form `r = (a/b)·(c(qx)/c(x))` with `gcd(a(x), b(qʲx)) = 1 ∀j≥0` peeled at the **q-dispersion** shifts → solve the q-Gosper equation by undetermined coefficients via exact Gauss-Jordan over the **field `ℚ(q)`** (each unknown `yⱼ` is itself a rational function in `q`). Exact over ℚ(q) — a local `_Cq` rational-function-in-q field layer, since polynomial GCD needs a field and `ℚ[q]` (QPoly's ground ring) is not one. numpy-free, math-free, no `abs()`. 1:1 C peer `srmech_q_gosper` (caller-arena bignum, malloc-free, JPL-clean, OVERFLOW-not-wrap; `has=1` only on a real native solve, `has=0` re-decides the COMPLETE pure path → never a false "no certificate"). ToolEntry (c_dispatched), `has_native_q_gosper()`, `tools.total` 332 → **333**, ABI **3**.
+
+Verified: the certificate identity `R(qx)·r(x) − R(x) = 1` exact over ℚ (≡ `Δ_q(R·t) = t`); the un-summable case returns `None`; native==pure byte-identical. First op of the q-row (rc56 `q_zeilberger` parametrizes this engine). Cites Koornwinder, *J. Comput. Appl. Math.* **48** (1993) 91–111.
+
 ## [0.9.0rc54] - 2026-06-24
 
 **`QPoly` — exact q-shift carrier — the foundation for the q-hypergeometric F929 reduction row (q-Gosper → q-Zeilberger → q-WZ, rc55–57).** The q-analog of `Poly`/`BiPoly`: a **Laurent polynomial in `x = qⁿ`** whose coefficients are exact **polynomials in `q`** (`Poly`-in-q cells over a signed x-exponent window — the signed `x_low` carries the negative x-powers the q-shift term-ratio algebra produces). The load-bearing new operations are the **q-shift `σ: x ↦ q·x`** (`qshift(s)`) and the **q-difference `Δ_q = σ − id`** (`qdelta`) — exactly what q-Gosper/q-Zeilberger consume.

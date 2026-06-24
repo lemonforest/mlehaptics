@@ -1723,6 +1723,12 @@ def _synth_value_for_type(type_string: str) -> Any:
         # trivariate ratio — j-slot 0 is the BiPoly [[1, 1]] (= 1 + n). Coerces
         # + binds cleanly; any "no recurrence" is a tolerated DOMAIN result.
         "TriPoly": [[[1, 1]]],
+        # rc55 q_gosper QPoly operand: a minimal valid nonzero Laurent-in-x ℚ[q]
+        # term ratio — a single x⁰ cell carrying the constant ℚ[q] coefficient 2
+        # (the q-geometric Σ 2ᵏ numerator). [[2]] avoids the 2-element-list
+        # (num, den) ambiguity of QPoly's own cell coercion; coerces + binds
+        # cleanly, and as a term-ratio numerator yields a DOMAIN-valid certificate.
+        "QPoly": [[2]],
         "np.ndarray": mat2,
         "Optional[np.ndarray]": mat2,
         # v0.7.5rc72 Mat carrier (mat_matmul): a 2x2 list-of-rows -> real Mat;
