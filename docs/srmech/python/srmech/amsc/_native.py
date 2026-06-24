@@ -2269,6 +2269,38 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_wz_verify.restype = ctypes.c_int
 
+    # rc57: srmech_q_wz_verify — the q-analog of the Wilf-Zeilberger VERIFY primitive
+    # (the THIRD/FINAL public op of the q-hypergeometric F929 row, the q-row CLOSER).
+    # The COMPLETE C mirror of the verify half of srmech.amsc.q_wz_certificate: an EXACT
+    # bivariate-Q[q] rational-function identity check (bounded only by input DEGREE, not
+    # by any order — unlike the rc56 q_zeilberger order-<=1 peer). The six bivariate-q
+    # inputs (r_n num/den, r_k num/den, cert num/den) ride the SAME QBiPoly bridge as
+    # srmech_q_zeilberger (n/d flat q-runs + per-(Y,X) qlen[] + per-Y xlow[]/xcells[] +
+    # ycells). NEW symbols -> hasattr-guarded; ABI stays 3.
+    #   size_t srmech_q_wz_verify_ws_bound(coeff_limbs, degree)
+    #   size_t srmech_q_wz_verify_out_cap(coeff_limbs, degree)
+    for _qwsz in ("srmech_q_wz_verify_ws_bound", "srmech_q_wz_verify_out_cap"):
+        if hasattr(lib, _qwsz):
+            getattr(lib, _qwsz).argtypes = [ctypes.c_size_t, ctypes.c_size_t]
+            getattr(lib, _qwsz).restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_q_wz_verify"):
+        _qwbi = ctypes.POINTER(_SrmechBigint)
+        _qwszp = ctypes.POINTER(ctypes.c_size_t)
+        _qwi64p = ctypes.POINTER(ctypes.c_int64)
+        # one QBiPoly input slot = (n, d, qlen, xlow, xcells, ycells).
+        _qwbipoly_in = [_qwbi, _qwbi, _qwszp, _qwi64p, _qwszp, ctypes.c_size_t]
+        lib.srmech_q_wz_verify.argtypes = (
+            _qwbipoly_in       # rn_num
+            + _qwbipoly_in     # rn_den
+            + _qwbipoly_in     # rk_num
+            + _qwbipoly_in     # rk_den
+            + _qwbipoly_in     # cert_num
+            + _qwbipoly_in     # cert_den
+            + [ctypes.POINTER(ctypes.c_int),        # out_equal
+               ctypes.c_void_p, ctypes.c_size_t]    # ws, ws_len
+        )
+        lib.srmech_q_wz_verify.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None
@@ -4336,6 +4368,93 @@ def wz_verify_c(rn_num, rn_den, rk_num, rk_den, cert_num, cert_den):
     _ = keep
     if rc != SRMECH_OK:
         raise RuntimeError(f"srmech_wz_verify returned non-OK status {rc}")
+    return bool(out_equal.value)
+
+
+# ----------------------------------------------------------------------
+# rc57: srmech_q_wz_verify — the q-analog of the Wilf-Zeilberger VERIFY primitive (the
+# §76 q-hypergeometric F929 row's THIRD/FINAL public op, the q-row CLOSER). The Python
+# srmech.amsc.q_wz_certificate routes its VERIFY half through this when
+# has_native_q_wz_verify(); the pure-Python bivariate-Q[q] polynomial compare is the
+# COMPLETE alternative (and the parity oracle) — both decide the SAME exact rational-
+# function identity. The six bivariate-q operands ride the SAME QBiPoly coefficient
+# bridge (the _qbi_flatten form) as q_zeilberger. This is a FULL C mirror (degree-
+# bounded, no order cap): a definite 0/1 result is trusted both ways.
+# ----------------------------------------------------------------------
+
+_Q_WZ_SYMS = (
+    "srmech_q_wz_verify_ws_bound",
+    "srmech_q_wz_verify_out_cap",
+    "srmech_bigint_from_dec",
+    "srmech_bigint_to_dec",
+    "srmech_bigint_to_dec_bound",
+)
+
+
+def has_native_q_wz_verify() -> bool:
+    """True iff the rc57 srmech_q_wz_verify op + its ws/out-cap sizers + the
+    srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
+    pre-rc57 lib — the pure-Python ``srmech.amsc.q_wz_certificate`` verify body is the
+    complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _Q_WZ_SYMS) and hasattr(
+        LIB, "srmech_q_wz_verify"
+    )
+
+
+def _qbi_degree(form):
+    """The max bivariate-q degree of a QBiPoly bridge form ``(y_xlow[], rows)`` — the
+    larger of the Y-cell count, the max X-cell count, and the max q-run length across
+    all cells (the per-dimension envelope the C sizer consumes as a single hint)."""
+    _y, rows = form
+    deg = len(rows)
+    for xrow in rows:
+        if len(xrow) > deg:
+            deg = len(xrow)
+        for run in xrow:
+            if len(run) > deg:
+                deg = len(run)
+    return deg
+
+
+def q_wz_verify_c(rn_num, rn_den, rk_num, rk_den, cert_num, cert_den):
+    """Native q-WZ-equation verify for the six bivariate-q operands → ``True`` /
+    ``False`` (the q-WZ certificate identity holds / does not), or ``None`` if the
+    native symbols are absent. Each operand is a QBiPoly ``(y_xlow[], rows)`` bridge
+    form (the SAME form q_zeilberger marshals). A non-OK status / inability raises
+    ``RuntimeError`` so the caller falls to the pure path."""
+    if not has_native_q_wz_verify():
+        return None
+    forms = (rn_num, rn_den, rk_num, rk_den, cert_num, cert_den)
+    # r_n den / r_k den / cert den must be nonzero (ycells > 0).
+    if not rn_den[1] or not rk_den[1] or not cert_den[1]:
+        raise ValueError(
+            "q_wz_verify_c: r_n / r_k / cert denominators must be nonzero")
+    cl = max(_qbi_row_coeff_limbs(f) for f in forms)
+    deg = max(_qbi_degree(f) for f in forms)
+    if deg < 1:
+        deg = 1
+    ws_len = int(LIB.srmech_q_wz_verify_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_size_t(deg)))
+    out_cap = int(LIB.srmech_q_wz_verify_out_cap(
+        ctypes.c_size_t(cl), ctypes.c_size_t(deg)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    keep = []
+    in_args = []
+    for f in forms:
+        nn, dd, ql, xl, xc, yc, k = _qbi_flatten(f, out_cap)
+        in_args += [nn, dd, ql, xl, xc, ctypes.c_size_t(yc)]
+        keep.append(k)
+    out_equal = ctypes.c_int(0)
+    rc = LIB.srmech_q_wz_verify(
+        *in_args,
+        ctypes.byref(out_equal),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = keep
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_q_wz_verify returned non-OK status {rc}")
     return bool(out_equal.value)
 
 

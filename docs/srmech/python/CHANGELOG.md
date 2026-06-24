@@ -8,6 +8,16 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc57] - 2026-06-24
+
+**`q_wz_certificate` — the q-Wilf–Zeilberger pair method; the identity-PROOF op; the THIRD and FINAL op of the q-hypergeometric F929 reduction row — CLOSES the row AND the whole multivariate + q-hypergeometric reduction-theory arc.** For a proper q-hypergeometric term `F(n,k)` given by its bivariate-q ratios (`QBiPoly` over `(X,Y)=(qⁿ,qᵏ)`), `q_wz_certificate(rn_num,rn_den, rk_num,rk_den)` PRODUCES + VERIFIES the q-WZ certificate `R(X,Y)` whose companion `G = R·F` makes the q-WZ equation `r_n(X,Y) − 1 = R(X,qY)·r_k(X,Y) − R(X,Y)` an exact identity → `{certificate, verified: True}`, else **`None`**.
+
+**FIND** reuses the rc56 q-Zeilberger order-1 path (the forced `f(n+1)−f(n)=0`, `[−1,+1]`, certificate, rescaled by `1/a₁`). **VERIFY** is the new degree-bounded primitive: the exact bivariate-ℚ[q] identity `(An−Ad)·(σ_y(Xd)·Bd·Xd) == (σ_y(Xn)·Bn·Xd − Xn·σ_y(Xd)·Bd)·Ad` (`σ_y:Y↦qY`) — no solve, no order bound. Because the check is **degree-bounded not order-bounded**, its C peer `srmech_q_wz_verify` is a **COMPLETE C mirror** (contrast rc42/rc56's order-≤1-only native path): a full exact-ℚ[q] QBiPoly toolkit over caller-arena bignum, malloc-free, JPL-clean, OVERFLOW-not-wrap, all locals `{0}`-init, **per-dimension arena sizing** (Y/X/q sized independently → no cubic RAM blow-up; the bounded fiber per variable). Exact over ℚ(q); numpy/math/`abs()`-free. ToolEntry (c_dispatched), `has_native_q_wz_verify()`, `tools.total` 334 → **335**, ABI **3**.
+
+Verified: the q-WZ equation holds for known pairs by independent exact bivariate-ℚ(q) evaluation at several `(q,n,k)` (the constant-summand `R=0` pair end-to-end, two constructed nontrivial triples incl. `R=Y/(X−Y)`); a wrong certificate → not verified; a non-WZ term → `None`; native==pure byte-identical.
+
+**The q-row is complete:** `gosper`(rc41)/`zeilberger`(rc42)/`wz_certificate`(rc43) ordinary → `q_gosper`(rc55)/`q_zeilberger`(rc56)/`q_wz_certificate`(rc57) q-analog, each built on the last (`QPoly` rc54 → `QBiPoly` rc56 carriers). Cites Koornwinder, *J. Comput. Appl. Math.* **48** (1993) 91–111 (q-WZ method); Wilf & Zeilberger, *Invent. Math.* **108** (1992) 575–633 (the WZ pair).
+
 ## [0.9.0rc56] - 2026-06-24
 
 **`q_zeilberger` — the q-analog of Zeilberger creative telescoping; the recurrence-finder for DEFINITE q-hypergeometric sums; the SECOND op of srmech's q-hypergeometric F929 reduction row.** For `f(n) = Σ_k F(n,k)` with bivariate-q term ratios `F(n+1,k)/F(n,k) = rn(qⁿ,qᵏ)` and `F(n,k+1)/F(n,k) = rk(qⁿ,qᵏ)`, returns the minimal-order linear q-recurrence `{order, coeffs:[QPoly in qⁿ], certificate}` (`Σ_j a_j(qⁿ)·f(n+j) = 0`, with the q-Gosper certificate) when one exists ≤ `max_order`, else **`None`**.

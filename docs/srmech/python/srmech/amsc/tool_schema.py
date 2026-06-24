@@ -3167,6 +3167,65 @@ def _register_primitive_class_tools() -> None:
                       "order ≤ max_order"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The q-HYPERGEOMETRIC row of the §76 telescope Σ-row prover (F929) —
+        # q-WZ, the THIRD and FINAL public op of the q-row (the q-analog of
+        # wz_certificate; the q-row CLOSER, and the closer of the WHOLE
+        # multivariate + q-hypergeometric reduction-theory arc). FINDs via
+        # q_zeilberger at the forced recurrence + VERIFIES the q-WZ equation as
+        # an exact bivariate-ℚ[q] rational identity; 1:1 C peer srmech_q_wz_verify
+        # is the COMPLETE verify mirror (degree-bounded, no order cap).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.q_wz_certificate.q_wz_certificate", owner="srmech",
+            category="q_wz_certificate",
+            summary="The q-analog of the Wilf–Zeilberger pair method (T.H. "
+                    "Koornwinder, 'On Zeilberger's algorithm and its q-analogue', J. "
+                    "Comput. Appl. Math. 48:91–111, 1993; the q-WZ pair anchor is H. "
+                    "Wilf & D. Zeilberger, 'An algorithmic proof theory for "
+                    "hypergeometric (ordinary and q) multisum/integral identities', "
+                    "Invent. Math. 108:575–633, 1992; textbook anchor Gasper & Rahman, "
+                    "*Basic Hypergeometric Series*) — the THIRD and FINAL public op of "
+                    "the q-hypergeometric F929 reduction row, the q-row CLOSER (and the "
+                    "closer of the whole multivariate + q-hypergeometric reduction-"
+                    "theory arc): q_gosper (indefinite) → q_zeilberger (recurrence) → "
+                    "q_wz_certificate (proof). PROVES a terminating q-hypergeometric "
+                    "identity Σ_k F(n,k)=const by producing AND verifying its q-WZ "
+                    "certificate. Input: F's two bivariate-q term ratios over "
+                    "(X,Y)=(qⁿ,qᵏ): r_n(X,Y)=F(n+1,k)/F(n,k) and r_k(X,Y)=F(n,k+1)/"
+                    "F(n,k), each a QBiPoly num/den pair (the SAME operands "
+                    "q_zeilberger takes; a QPoly in Y / a Poly-in-q / a nested-list "
+                    "coerces). The q-WZ method is q-Zeilberger at the FORCED "
+                    "n-recurrence f(n+1)−f(n)=0: it FINDs the certificate R(X,Y) "
+                    "(=q_zeilberger at max_order=1, the order-1 recurrence of a constant "
+                    "q-sum, scaled to the [−1,+1] WZ recurrence) such that G=R·F makes "
+                    "the q-WZ equation F(n+1,k)−F(n,k)=G(n,k+1)−G(n,k) q-telescope "
+                    "(G(n,k+1)=(σ_y R)·(σ_y F), σ_y:Y↦qY), then VERIFIES that equation "
+                    "as an EXACT bivariate-ℚ[q] rational-function identity (clearing "
+                    "denominators to a polynomial identity — no solve, no order bound). "
+                    "Returns {'certificate':{'num':QBiPoly,'den':QBiPoly},'verified':"
+                    "True}, or None when the term is not q-WZ-summable (incl. a term "
+                    "q_zeilberger cannot reduce on its supported path). 1:1 C peer "
+                    "srmech_q_wz_verify is the COMPLETE verify mirror (the degree-"
+                    "bounded exact bivariate-ℚ[q] identity check, NOT order-bounded — "
+                    "unlike the rc56 q_zeilberger order-≤1 peer; native when present, "
+                    "pure-Python the complete alternative + the byte-identical parity "
+                    "oracle). Exact bigint; no float, no abs() (Class-K sign), no "
+                    "numpy / math.",
+            parameters=(P("rn_num", "QBiPoly", True,
+                          "r_n NUMERATOR — F(n+1,k)/F(n,k) numerator, a bivariate-q "
+                          "QBiPoly (or a QPoly-in-Y / Poly-in-q / nested-list form)"),
+                        P("rn_den", "QBiPoly", True,
+                          "r_n DENOMINATOR — a NONZERO bivariate-q QBiPoly"),
+                        P("rk_num", "QBiPoly", True,
+                          "r_k NUMERATOR — F(n,k+1)/F(n,k) numerator QBiPoly"),
+                        P("rk_den", "QBiPoly", True,
+                          "r_k DENOMINATOR — a NONZERO bivariate-q QBiPoly")),
+            returns=R("dict | None",
+                      "{'certificate': {'num': QBiPoly, 'den': QBiPoly}, 'verified': "
+                      "True} — the q-WZ certificate R(X,Y)=num/den (verified to satisfy "
+                      "the q-WZ equation), or None when the term is not q-WZ-summable"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The F929 OPEN/infer ROUTER — the meta-dispatcher that makes the
         # three shipped reduction-theory rows (cyclic / spectral / Σ) ONE
         # callable. Pure orchestration over the already-C-mirrored reducers
