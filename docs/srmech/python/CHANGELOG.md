@@ -8,6 +8,15 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc58] - 2026-06-24
+
+**The F929 `dispatch.infer` router learns the two post-§76 Σ sub-rows — the multivariate "sums of sums" and q-hypergeometric reduction rows now AUTO-JOIN the dispatch table.** `srmech.amsc.dispatch.infer` (the OPEN/infer meta-dispatcher that detects which reduction-theory row a stored relationship matches, tries the matching reducer, verifies the reducer's OWN check, and returns the closed form — else honest `OPEN`) gains two new sub-rows beside the existing cyclic / spectral / Σ:
+
+- **`row="sigma_multivar"`** — the six `(n,j,k)` TriPoly term-ratios (`rn_*` / `rj_*` / `rk_*`) of a "sums of sums" `Σ_{j,k} F(n,j,k)` route to `apagodu_zeilberger` (rc53); a non-None minimal-order annihilating recurrence is the verification. The `rj_*` pair makes this strictly more specific than the ordinary Σ row, so it is detected first.
+- **`row="sigma_q"`** — a definite q-sum's four QBiPoly q-term-ratios (`qrn_*` / `qrk_*`) route to `q_wz_certificate` (rc57; accepted ONLY on its own `verified` flag); an indefinite QPoly q-term-ratio (`q_term_ratio_*`) routes to `q_gosper` (rc55).
+
+Both the structural sniff and the explicit `row=` / `kind=` tag paths recognise the new rows; the `_OPEN_HINTS` candidate-next-theory now points past them (multibasic / elliptic-hypergeometric ₁₀E₉ for q, higher-arity TriPoly⁺ for multivar). Pure orchestration over the already-C-mirrored reducers — **`non_compute`**, no new C peer, no new carrier, no new ToolEntry: `tools.total` stays **335**, ABI **3**. The anti-hallucination contract is unchanged — `infer` NEVER returns `reducible: True` for a reduction it did not verify. Tests: a real `Σ_{j,k} C(n,j)C(j,k)=3ⁿ` routes+verifies via `apagodu_zeilberger`; a genuine q-WZ pair via `q_wz_certificate`; `Σ qᵏ` via `q_gosper`; and a non-q-WZ payload returns honest `OPEN`. With this, all six F929 reduction-row ops (rc52–57) are reachable through the one `infer` dispatch table.
+
 ## [0.9.0rc57] - 2026-06-24
 
 **`q_wz_certificate` — the q-Wilf–Zeilberger pair method; the identity-PROOF op; the THIRD and FINAL op of the q-hypergeometric F929 reduction row — CLOSES the row AND the whole multivariate + q-hypergeometric reduction-theory arc.** For a proper q-hypergeometric term `F(n,k)` given by its bivariate-q ratios (`QBiPoly` over `(X,Y)=(qⁿ,qᵏ)`), `q_wz_certificate(rn_num,rn_den, rk_num,rk_den)` PRODUCES + VERIFIES the q-WZ certificate `R(X,Y)` whose companion `G = R·F` makes the q-WZ equation `r_n(X,Y) − 1 = R(X,qY)·r_k(X,Y) − R(X,Y)` an exact identity → `{certificate, verified: True}`, else **`None`**.

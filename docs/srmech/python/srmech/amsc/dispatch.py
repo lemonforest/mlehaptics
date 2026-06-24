@@ -161,8 +161,14 @@ def match(input_bytes: bytes,
 # the documented next reduction-theory rows the framework has flagged but
 # NOT yet shipped, per the post-§76 roadmap, NOT a fabricated promise).
 _OPEN_HINTS: Dict[str, str] = {
-    "sigma": "multivariate WZ / Apagodu–Zeilberger (sums of sums "
-             "Σ_j Σ_k F(n,j,k)) or q-hypergeometric (q-Gosper / q-Zeilberger)",
+    "sigma": "a definite/indefinite hypergeometric sum the telescope reducers "
+             "did not close — try the multivariate (sums-of-sums) or "
+             "q-hypergeometric Σ sub-rows, or a higher-order creative-telescoping",
+    "sigma_multivar": "multivariate 'sums of sums' beyond the (n,j,k) Apagodu–"
+                      "Zeilberger reach — a higher-arity TriPoly⁺ creative-"
+                      "telescoping or a multibasic-q multisum reducer",
+    "sigma_q": "a q-hypergeometric sum beyond the q-Gosper / q-WZ reach — a "
+               "multibasic or elliptic-hypergeometric (₁₀E₉) reduction row",
     "spectral": "directed / signed (magnetic) Laplacian spectral row, or a "
                 "non-self-adjoint pencil generalized-eigenproblem reducer",
     "cyclic": "a higher Cayley–Dickson rung (sedenion S(σ,θ)) or a "
@@ -175,6 +181,14 @@ _OPEN_HINTS: Dict[str, str] = {
 # Σ before spectral before cyclic so the most specific payload wins).
 _SIGMA_KEYS = ("rn_num", "rn_den", "rk_num", "rk_den")
 _SIGMA_GOSPER_KEYS = ("term_ratio_num", "term_ratio_den")
+# the two post-§76 Σ sub-rows. The multivariate "sums of sums" row
+# Σ_{j,k} F(n,j,k) carries the SIX (n,j,k) TriPoly term-ratios — it shares the
+# rn_*/rk_* pair with the ordinary Σ row but ADDS the rj_* pair, so this 6-key
+# set is the most specific and is checked FIRST. The q-hypergeometric row uses
+# q-prefixed keys (QBiPoly / QPoly q-ratios) that never collide with the others.
+_SIGMA_MULTIVAR_KEYS = ("rn_num", "rn_den", "rj_num", "rj_den", "rk_num", "rk_den")
+_SIGMA_Q_KEYS = ("qrn_num", "qrn_den", "qrk_num", "qrk_den")
+_SIGMA_Q_GOSPER_KEYS = ("q_term_ratio_num", "q_term_ratio_den")
 _SPECTRAL_KEYS = ("laplacian", "adjacency", "edges", "matrix")
 _CYCLIC_KEYS = ("sigma", "theta_num", "generator", "period")
 
@@ -189,6 +203,10 @@ def _detect_row(rel: Dict[str, Any]) -> Optional[str]:
     tag = rel.get("row", rel.get("kind"))
     if tag is not None:
         t = str(tag).strip().lower()
+        if t in ("sigma_multivar", "multivar", "apagodu", "sums_of_sums"):
+            return "sigma_multivar"
+        if t in ("sigma_q", "q", "q_sigma", "q_hypergeometric", "qsum"):
+            return "sigma_q"
         if t in ("sigma", "Σ", "telescope", "sum"):
             return "sigma"
         if t in ("spectral", "laplacian", "coupling"):
@@ -197,7 +215,14 @@ def _detect_row(rel: Dict[str, Any]) -> Optional[str]:
             return "cyclic"
         return None  # an explicit but unknown tag → honest OPEN
     # Untagged: sniff structure. Σ (a definite/indefinite hypergeometric sum)
-    # is the most specific (named term-ratio operands).
+    # is the most specific (named term-ratio operands). The two post-§76 Σ
+    # sub-rows are MORE specific than the ordinary Σ row (multivar shares the
+    # rn_*/rk_* pair but adds rj_*; q uses q-prefixed keys), so they win first.
+    if all(k in rel for k in _SIGMA_MULTIVAR_KEYS):
+        return "sigma_multivar"
+    if (all(k in rel for k in _SIGMA_Q_KEYS)
+            or all(k in rel for k in _SIGMA_Q_GOSPER_KEYS)):
+        return "sigma_q"
     if all(k in rel for k in _SIGMA_KEYS) or all(k in rel for k in _SIGMA_GOSPER_KEYS):
         return "sigma"
     if any(k in rel for k in _SPECTRAL_KEYS):
@@ -251,6 +276,45 @@ def _try_sigma(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         r = _g.gosper(rel["term_ratio_num"], rel["term_ratio_den"])
         if r is not None:  # a (non-None) certificate IS the verification here
             return _reduced("sigma", "gosper", r)
+        return None
+    return None
+
+
+def _try_sigma_multivar(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """The multivariate Σ sub-row — the (n,j,k) 'sums of sums' creative
+    telescoping. Routes the six TriPoly term-ratios to ``apagodu_zeilberger``;
+    a non-None minimal-order recurrence IS the verification (the op constructs
+    it to annihilate ``Σ_{j,k} F(n,j,k)`` via the exact-ℚ QMat solve — the same
+    'a (non-None) certificate is the proof' contract as gosper/zeilberger).
+    Returns the reduced dict, or ``None`` to fall through to OPEN."""
+    from . import apagodu_zeilberger as _az  # lazy: avoids import cycle
+    rec = _az.apagodu_zeilberger(rel["rn_num"], rel["rn_den"],
+                                 rel["rj_num"], rel["rj_den"],
+                                 rel["rk_num"], rel["rk_den"])
+    if rec is not None:
+        return _reduced("sigma_multivar", "apagodu_zeilberger", rec)
+    return None
+
+
+def _try_sigma_q(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """The q-hypergeometric Σ sub-row. A definite q-sum's four QBiPoly q-term-
+    ratios route to ``q_wz_certificate`` (the q-identity PROOF; accepted ONLY
+    when its own ``verified`` flag is True — the same anti-hallucination gate as
+    the ordinary wz_certificate). An indefinite QPoly q-term-ratio routes to
+    ``q_gosper`` (accepted iff it returns a rational q-antidifference cert).
+    Returns the reduced dict, or ``None`` to fall through to OPEN."""
+    if all(k in rel for k in _SIGMA_Q_KEYS):
+        from . import q_wz_certificate as _qwz  # lazy
+        cert = _qwz.q_wz_certificate(rel["qrn_num"], rel["qrn_den"],
+                                     rel["qrk_num"], rel["qrk_den"])
+        if cert is not None and cert.get("verified") is True:
+            return _reduced("sigma_q", "q_wz_certificate", cert)
+        return None  # not q-WZ / not verified → honest OPEN
+    if all(k in rel for k in _SIGMA_Q_GOSPER_KEYS):
+        from . import q_gosper as _qg  # lazy
+        r = _qg.q_gosper(rel["q_term_ratio_num"], rel["q_term_ratio_den"])
+        if r is not None:  # a (non-None) q-certificate IS the verification here
+            return _reduced("sigma_q", "q_gosper", r)
         return None
     return None
 
@@ -385,6 +449,16 @@ def infer(relationship: Dict[str, Any]) -> Dict[str, Any]:
       (the identity PROOF; accepted iff its ``verified`` flag is True). A single
       indefinite term-ratio ``term_ratio_num`` / ``term_ratio_den`` routes to
       :func:`~srmech.amsc.gosper.gosper` (accepted iff it returns a certificate).
+    * **Σ multivariate** (``row="sigma_multivar"``) — the SIX ``(n,j,k)`` TriPoly
+      term-ratios (``rn_*`` / ``rj_*`` / ``rk_*``) of a "sums of sums"
+      ``Σ_{j,k} F(n,j,k)`` route to
+      :func:`~srmech.amsc.apagodu_zeilberger.apagodu_zeilberger` (accepted iff it
+      finds a minimal-order annihilating recurrence).
+    * **Σ q-hypergeometric** (``row="sigma_q"``) — a definite q-sum's four
+      QBiPoly q-term-ratios (``qrn_*`` / ``qrk_*``) route to
+      :func:`~srmech.amsc.q_wz_certificate.q_wz_certificate` (accepted iff its
+      ``verified`` flag is True); an indefinite QPoly q-term-ratio
+      (``q_term_ratio_*``) routes to :func:`~srmech.amsc.q_gosper.q_gosper`.
     * **spectral** (``row="spectral"`` / a graph payload) — an ``edges`` list
       (with optional ``weights`` + ``n``), an ``adjacency`` grid, or an explicit
       ``laplacian`` / ``matrix`` build a coupling Laplacian and route to
@@ -432,7 +506,9 @@ def infer(relationship: Dict[str, Any]) -> Dict[str, Any]:
     # through to the honest OPEN (with the row-appropriate candidate hint). Any
     # reducer-internal contract error (a malformed payload) is caught and routed
     # to OPEN too — never a spurious ``reducible: True``.
-    _TRY = {"sigma": _try_sigma, "spectral": _try_spectral, "cyclic": _try_cyclic}
+    _TRY = {"sigma": _try_sigma, "sigma_multivar": _try_sigma_multivar,
+            "sigma_q": _try_sigma_q, "spectral": _try_spectral,
+            "cyclic": _try_cyclic}
     try:
         result = _TRY[row](relationship)
     except (ValueError, TypeError, IndexError, KeyError, ZeroDivisionError,
