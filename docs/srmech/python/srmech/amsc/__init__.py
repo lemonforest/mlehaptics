@@ -91,6 +91,14 @@ from .poly import Poly
 # telescoping row (the rc53 apagodu_zeilberger op consumes it). A carrier, not a
 # ToolEntry, mirrors Poly / QMat / Qi / Qalg / Qprime.
 from .tripoly import TriPoly
+# The exact ADDITIVE theta-function carrier ThetaSum — a ℚ(q,p)-linear SUM of
+# theta-products over a single theta-product denominator. The additive layer over
+# the multiplicative EllRatio (rc60) that GENUINE elliptic creative telescoping
+# needs (theta-quotients are not additively closed). Its is_zero decides theta
+# identities EXACTLY by the elliptic degree bound (quasi-periodicity grouping + the
+# Fundamental Theorem of Elliptic Functions). A carrier, not a ToolEntry, mirrors
+# EllRatio / QMat / Poly / TriPoly.
+from .thetasum import ThetaSum
 # v0.3.0 — tool_schema introspection (Task #198) registers srmech's
 # own AMSC tools at import time. Profile-contributed tools register
 # later, at profile-activation time via profile_loader.
@@ -133,4 +141,5 @@ __all__ = [
     "QMat",
     "Poly",
     "TriPoly",
+    "ThetaSum",
 ]
