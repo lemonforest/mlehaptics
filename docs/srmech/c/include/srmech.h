@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc49"
-#define SRMECH_VERSION       "0.9.0rc49"
+#define SRMECH_VERSION_PRE   "rc50"
+#define SRMECH_VERSION       "0.9.0rc50"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3044,6 +3044,44 @@ srmech_status_t srmech_rational_pow_uint_big(const srmech_bigint_t *base_num,
                                              srmech_bigint_t *out_num,
                                              srmech_bigint_t *out_den,
                                              void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_jacobi — BIGNUM-EXACT Jacobi elliptic sn/cn/dn Maclaurin truncation
+ * (the C peer of srmech.amsc.rational.jacobi_sncndn_series_truncate).
+ *
+ * The "rotation-last" exact-ℚ sibling of srmech_sin/cos_series_truncate_big:
+ * builds the Maclaurin coefficient sequences of the three Jacobi elliptic
+ * functions sn/cn/dn from the coupled power-series ODE
+ *   sn' = cn·dn, cn' = -sn·dn, dn' = -m·sn·cn ; sn(0)=0, cn(0)=dn(0)=1
+ * (Abramowitz & Stegun §16.4), evaluates each at u = u_num/u_den with modulus
+ * parameter m = m_num/m_den, and returns the three reduced exact rationals
+ * (sn, cn, dn) — byte-identical to the Python triple at ANY magnitude, over
+ * caller-arena srmech_bigint (NO malloc). u_den / m_den must be > 0;
+ * num_terms <= 50 (else SRMECH_ERR_BAD_INPUT, matching the Python domain).
+ * Every out carrier's cap and the arena `ws` (>= srmech_jacobi_sncndn_ws_bound)
+ * too small → SRMECH_ERR_OVERFLOW. Additive symbol → ABI unchanged.
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES for an op with input rationals of the given limb
+ * sizes + num_terms. 8-byte-aligned uint32 bump arena. */
+size_t srmech_jacobi_sncndn_ws_bound(size_t num_limbs, size_t den_limbs,
+                                     size_t m_num_limbs, size_t m_den_limbs,
+                                     uint32_t num_terms);
+
+/* sn/cn/dn N-term Maclaurin truncation at u = u_num/u_den, m = m_num/m_den.
+ * Each (out_num, out_den) is reduced, gcd == 1, out_den > 0. num_terms <= 50. */
+srmech_status_t srmech_jacobi_sncndn(const srmech_bigint_t *u_num,
+                                     const srmech_bigint_t *u_den,
+                                     const srmech_bigint_t *m_num,
+                                     const srmech_bigint_t *m_den,
+                                     uint32_t num_terms,
+                                     srmech_bigint_t *sn_num,
+                                     srmech_bigint_t *sn_den,
+                                     srmech_bigint_t *cn_num,
+                                     srmech_bigint_t *cn_den,
+                                     srmech_bigint_t *dn_num,
+                                     srmech_bigint_t *dn_den,
+                                     void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_crt_combine / srmech_rational_reconstruct — the CRT closers

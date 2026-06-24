@@ -1793,6 +1793,42 @@ def _bind(lib: ctypes.CDLL) -> None:
             getattr(lib, _bop).argtypes = list(_BIGEXP_SIG)
             getattr(lib, _bop).restype = ctypes.c_int
 
+    # Jacobi elliptic sn/cn/dn Maclaurin truncation C peer (the C twin of
+    # srmech.amsc.rational.jacobi_sncndn_series_truncate). Same caller-arena
+    # srmech_bigint substrate as bigexp; two rational operands (u, m) in, three
+    # rational outputs (sn, cn, dn). NEW symbols → hasattr-guarded; additive →
+    # EXPECTED_ABI_VERSION stays 3.
+    #   size_t srmech_jacobi_sncndn_ws_bound(size_t num_limbs, size_t den_limbs,
+    #       size_t m_num_limbs, size_t m_den_limbs, uint32_t num_terms)
+    if hasattr(lib, "srmech_jacobi_sncndn_ws_bound"):
+        lib.srmech_jacobi_sncndn_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t,
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_uint32,
+        ]
+        lib.srmech_jacobi_sncndn_ws_bound.restype = ctypes.c_size_t
+    #   srmech_status_t srmech_jacobi_sncndn(const srmech_bigint_t *u_num,
+    #       const srmech_bigint_t *u_den, const srmech_bigint_t *m_num,
+    #       const srmech_bigint_t *m_den, uint32_t num_terms,
+    #       srmech_bigint_t *sn_num, *sn_den, *cn_num, *cn_den, *dn_num, *dn_den,
+    #       void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_jacobi_sncndn"):
+        lib.srmech_jacobi_sncndn.argtypes = [
+            ctypes.POINTER(_SrmechBigint),   # u_num
+            ctypes.POINTER(_SrmechBigint),   # u_den
+            ctypes.POINTER(_SrmechBigint),   # m_num
+            ctypes.POINTER(_SrmechBigint),   # m_den
+            ctypes.c_uint32,                 # num_terms
+            ctypes.POINTER(_SrmechBigint),   # sn_num
+            ctypes.POINTER(_SrmechBigint),   # sn_den
+            ctypes.POINTER(_SrmechBigint),   # cn_num
+            ctypes.POINTER(_SrmechBigint),   # cn_den
+            ctypes.POINTER(_SrmechBigint),   # dn_num
+            ctypes.POINTER(_SrmechBigint),   # dn_den
+            ctypes.c_void_p,                 # ws
+            ctypes.c_size_t,                 # ws_len
+        ]
+        lib.srmech_jacobi_sncndn.restype = ctypes.c_int
+
     # rc38: the EXACT-RATIONAL polynomial carrier C peer (srmech_poly_*) — the
     # §76 telescope Sigma-row foundation. Each op takes parallel srmech_bigint
     # coefficient arrays (nums[]/dens[], ascending degree) + a caller arena, all
@@ -2274,6 +2310,75 @@ def _bigexp_call(symbol: str, numerator: int, denominator: int,
     if rc != SRMECH_OK:
         raise RuntimeError(f"{symbol} returned non-OK status {rc}")
     return _bigint_to_int(out_num), _bigint_to_int(out_den)
+
+
+def has_native_jacobi_sncndn() -> bool:
+    """True iff the Jacobi elliptic sn/cn/dn C peer + the srmech_bigint decimal
+    marshal helpers are loaded + bound. False on a no-C or pre-jacobi lib — the
+    pure-Python bignum body in ``srmech.amsc.rational`` is the complete
+    alternative (and the parity oracle); both emit byte-identical (sn, cn,
+    dn)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (all(hasattr(LIB, s) for s in _BIGEXP_SYMS)
+            and hasattr(LIB, "srmech_jacobi_sncndn")
+            and hasattr(LIB, "srmech_jacobi_sncndn_ws_bound"))
+
+
+def jacobi_sncndn_c(numerator: int, denominator: int,
+                    m_numerator: int, m_denominator: int,
+                    num_terms: int) -> "tuple | None":
+    """Invoke ``srmech_jacobi_sncndn`` and return the reduced
+    ``((sn_num, sn_den), (cn_num, cn_den), (dn_num, dn_den))`` triple, or
+    ``None`` when the native symbols are absent (caller falls through to the
+    pure-Python bignum oracle). The operand/result rationals + the caller arena
+    are all sized from the input magnitudes + ``num_terms`` so the bignum path
+    has NO ceiling (byte-identical to ``srmech.amsc.rational`` at any
+    magnitude)."""
+    if not has_native_jacobi_sncndn():
+        return None
+    # Limb sizing — see _bigexp_call; the coefficient denominators grow like
+    # (k+1)!·m_den^k, so size the output / working carriers generously off N and
+    # the input digit lengths (over-sizing is free; under-sizing → OVERFLOW).
+    u_digits = len(str(numerator).lstrip("-")) + len(str(denominator))
+    m_digits = len(str(m_numerator).lstrip("-")) + len(str(m_denominator))
+    out_cap = 48 * (num_terms + u_digits + m_digits) + 128
+    num_limbs = max(len(str(numerator).lstrip("-")) // 9 + 2, 2)
+    den_limbs = max(len(str(denominator)) // 9 + 2, 2)
+    mn_limbs = max(len(str(m_numerator).lstrip("-")) // 9 + 2, 2)
+    md_limbs = max(len(str(m_denominator)) // 9 + 2, 2)
+    ws_len = int(LIB.srmech_jacobi_sncndn_ws_bound(
+        ctypes.c_size_t(num_limbs), ctypes.c_size_t(den_limbs),
+        ctypes.c_size_t(mn_limbs), ctypes.c_size_t(md_limbs),
+        ctypes.c_uint32(num_terms),
+    ))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    u_num, _u0 = _bigint_from_int(numerator, out_cap)
+    u_den, _u1 = _bigint_from_int(denominator, out_cap)
+    m_num, _m0 = _bigint_from_int(m_numerator, out_cap)
+    m_den, _m1 = _bigint_from_int(m_denominator, out_cap)
+    sn_n, _s0 = _bigint_from_int(0, out_cap)
+    sn_d, _s1 = _bigint_from_int(0, out_cap)
+    cn_n, _c0 = _bigint_from_int(0, out_cap)
+    cn_d, _c1 = _bigint_from_int(0, out_cap)
+    dn_n, _d0 = _bigint_from_int(0, out_cap)
+    dn_d, _d1 = _bigint_from_int(0, out_cap)
+    rc = LIB.srmech_jacobi_sncndn(
+        ctypes.byref(u_num), ctypes.byref(u_den),
+        ctypes.byref(m_num), ctypes.byref(m_den),
+        ctypes.c_uint32(num_terms),
+        ctypes.byref(sn_n), ctypes.byref(sn_d),
+        ctypes.byref(cn_n), ctypes.byref(cn_d),
+        ctypes.byref(dn_n), ctypes.byref(dn_d),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_jacobi_sncndn returned non-OK status {rc}")
+    return (
+        (_bigint_to_int(sn_n), _bigint_to_int(sn_d)),
+        (_bigint_to_int(cn_n), _bigint_to_int(cn_d)),
+        (_bigint_to_int(dn_n), _bigint_to_int(dn_d)),
+    )
 
 
 # ----------------------------------------------------------------------
