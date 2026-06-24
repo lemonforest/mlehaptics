@@ -3073,6 +3073,48 @@ def _register_primitive_class_tools() -> None:
                       "certificates, or None when none of order ≤ max_order"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The q-HYPERGEOMETRIC row of the §76 telescope Σ-row prover (F929) —
+        # q-Gosper, the FIRST public op of the q-row (the q-analog of gosper).
+        # Decides q-Gosper-summability of a q-hypergeometric term over the rc54
+        # QPoly ℚ[q]-carrier (Laurent in x=qᵏ); 1:1 C peer srmech_q_gosper.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.q_gosper.q_gosper", owner="srmech",
+            category="q_gosper",
+            summary="The q-analog of Gosper's indefinite hypergeometric summation "
+                    "(T.H. Koornwinder, 'On Zeilberger's algorithm and its "
+                    "q-analogue', J. Comput. Appl. Math. 48:91–111, 1993; textbook "
+                    "anchor Gasper & Rahman, *Basic Hypergeometric Series*) — the "
+                    "FIRST public op of the q-hypergeometric F929 reduction row, the "
+                    "q-analog of the §76 gosper. Input: a q-hypergeometric term given "
+                    "by its TERM RATIO t(k+1)/t(k)=r(x)=num(x)/den(x), x=qᵏ, σ:x↦q·x "
+                    "(the q-shift) — two Laurent polynomials in x over ℚ[q], each a "
+                    "QPoly (the rc54 carrier this op consumes; a Poly-in-q / the "
+                    "nested-list form coerces). Decides whether Σ t(k) has a "
+                    "q-hypergeometric antidifference T(k)=R(qᵏ)·t(k) (so T(k+1)−T(k)="
+                    "t(k), and the sum telescopes: Σ_{a}^{b} t = T(b+1)−T(a), with "
+                    "R(qx)·r(x)−R(x)=1); if so returns the rational certificate "
+                    "R={'num':QPoly,'den':QPoly}, else None (no q-hypergeometric "
+                    "closed form). Exact over the FIELD ℚ(q) via the q-Gosper–"
+                    "Petkovšek normal form (q-gcd/q-dispersion over ℚ(q)[x]) + the "
+                    "bounded-degree undetermined-coefficient q-Gosper equation a(x)·"
+                    "y(qx)−b(x/q)·y(x)=c(x) solved by exact Gauss-Jordan (QMat). 1:1 "
+                    "C peer srmech_q_gosper (orchestrates srmech_qpoly_*/srmech_qmat_"
+                    "rref; native completes the canonical constant-ratio q-geometric "
+                    "case, pure-Python the complete alternative + the byte-identical "
+                    "parity oracle — a has=0 is never a definitive 'no certificate'). "
+                    "Exact bigint; no float, no abs() (Class-K sign), no numpy / math.",
+            parameters=(P("rn_num", "QPoly", True,
+                          "the term-ratio NUMERATOR num(x) — a Laurent-in-x exact-ℚ[q] "
+                          "QPoly (or a Poly-in-q / nested-list ℚ[q] cell sequence)"),
+                        P("rn_den", "QPoly", True,
+                          "the term-ratio DENOMINATOR den(x) — a NONZERO QPoly")),
+            returns=R("dict | None",
+                      "{'num': QPoly, 'den': QPoly} (the rational certificate R(x) "
+                      "with antidifference T(k)=R(qᵏ)·t(k)), or None when no "
+                      "q-hypergeometric closed form exists"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The F929 OPEN/infer ROUTER — the meta-dispatcher that makes the
         # three shipped reduction-theory rows (cyclic / spectral / Σ) ONE
         # callable. Pure orchestration over the already-C-mirrored reducers

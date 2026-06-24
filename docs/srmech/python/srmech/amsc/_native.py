@@ -2124,6 +2124,31 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_gosper.restype = ctypes.c_int
 
+    # rc55: srmech_q_gosper — the q-analog of Gosper (the FIRST public op of the
+    # q-hypergeometric F929 row). The two QPoly term-ratio operands ride in the
+    # QPoly bridge form (concatenated ascending-q (num, den) runs + a per-x-cell
+    # qlen[] array + the x_low offset); the certificate R = rn/rd comes back the
+    # same way. The native peer completes the constant-ratio case + declines the
+    # rest (has=0 -> Python re-decides). NEW symbols -> hasattr-guarded; ABI stays 3.
+    #   size_t srmech_q_gosper_ws_bound(coeff_limbs, qdeg)
+    #   size_t srmech_q_gosper_out_cap(coeff_limbs, qdeg)
+    for _qgsz in ("srmech_q_gosper_ws_bound", "srmech_q_gosper_out_cap"):
+        if hasattr(lib, _qgsz):
+            getattr(lib, _qgsz).argtypes = [ctypes.c_size_t, ctypes.c_size_t]
+            getattr(lib, _qgsz).restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_q_gosper"):
+        _qbi = ctypes.POINTER(_SrmechBigint)
+        _qszp = ctypes.POINTER(ctypes.c_size_t)
+        lib.srmech_q_gosper.argtypes = [
+            _qbi, _qbi, _qszp, ctypes.c_size_t, ctypes.c_int64,  # num n/d, qlen, cells, xlow
+            _qbi, _qbi, _qszp, ctypes.c_size_t, ctypes.c_int64,  # den
+            ctypes.POINTER(ctypes.c_int),                        # out_has
+            _qbi, _qbi, _qszp, _qszp, ctypes.POINTER(ctypes.c_int64),  # rn n/d, qlen, cells, xlow
+            _qbi, _qbi, _qszp, _qszp, ctypes.POINTER(ctypes.c_int64),  # rd n/d, qlen, cells, xlow
+            ctypes.c_void_p, ctypes.c_size_t,                    # ws, ws_len
+        ]
+        lib.srmech_q_gosper.restype = ctypes.c_int
+
     # rc42: srmech_zeilberger — Zeilberger's creative telescoping (the §76 telescope
     # Sigma-row's SECOND public op). The four BIVARIATE term ratios ride as flat
     # (num, den) coefficient arrays (k-then-n order) + a per-k length array + the
@@ -3634,6 +3659,91 @@ def gosper_c(num_coeffs, den_coeffs):
     r_num = _qmat_read_array(rn_n, rn_d, lrn.value)
     r_den = _qmat_read_array(rd_n, rd_d, lrd.value)
     return True, r_num, r_den
+
+
+# ----------------------------------------------------------------------
+# rc55: srmech_q_gosper — the q-analog of Gosper (the FIRST public op of the
+# q-hypergeometric F929 row). The Python srmech.amsc.q_gosper.q_gosper routes a
+# POSITIVE (certificate-found) C result through this; a has=0 / error falls to the
+# complete pure-Python path (the parity oracle + full-coverage decider). The two
+# QPoly term-ratio operands + the certificate ride the QPoly (x_low, rows) bridge
+# form (concatenated ascending-q (num, den) runs + a per-x-cell qlen[] array), the
+# SAME flatten/read helpers the rc54 srmech_qpoly_* ops use.
+# ----------------------------------------------------------------------
+
+_Q_GOSPER_SYMS = (
+    "srmech_q_gosper_ws_bound",
+    "srmech_q_gosper_out_cap",
+    "srmech_bigint_from_dec",
+    "srmech_bigint_to_dec",
+    "srmech_bigint_to_dec_bound",
+)
+
+
+def has_native_q_gosper() -> bool:
+    """True iff the rc55 srmech_q_gosper op + its ws/out-cap sizers + the
+    srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
+    pre-rc55 lib — the pure-Python ``srmech.amsc.q_gosper.q_gosper`` body is the
+    complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _Q_GOSPER_SYMS) and hasattr(
+        LIB, "srmech_q_gosper"
+    )
+
+
+def q_gosper_c(num_form, den_form):
+    """Native q-Gosper certificate for the term ratio num/den → ``(has_solution,
+    r_num_form, r_den_form)`` (each ``_form`` the QPoly ``(x_low, rows)`` bridge
+    form), or ``None`` if the native symbols are absent. ``num_form`` / ``den_form``
+    are ``(x_low, rows)`` pairs (each ``rows`` an ascending-x list of ascending-q
+    (num, den) q-runs). The native peer completes the constant-ratio (single-x-cell)
+    case + declines the rest (``has_solution`` False → the caller re-decides on the
+    pure path)."""
+    if not has_native_q_gosper():
+        return None
+    n_lo, n_rows = num_form
+    d_lo, d_rows = den_form
+    if not d_rows:
+        raise ValueError("q_gosper_c: the term-ratio denominator must be nonzero")
+    # the per-coefficient out cap + the caller arena (sized from the input q-runs).
+    cl = max(_qp_row_coeff_limbs(n_rows), _qp_row_coeff_limbs(d_rows))
+    qdeg = 1
+    for run in list(n_rows) + list(d_rows):
+        qdeg = max(qdeg, len(run))
+    out_cap = int(LIB.srmech_q_gosper_out_cap(
+        ctypes.c_size_t(cl), ctypes.c_size_t(qdeg)))
+    ws_len = int(LIB.srmech_q_gosper_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_size_t(qdeg)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    num_n, num_d, num_q, kn = _qp_flatten(n_rows, out_cap)
+    den_n, den_d, den_q, kd = _qp_flatten(d_rows, out_cap)
+    # the certificate is a single x-cell each (the native constant-ratio scope); size
+    # the output q-run capacity generously (the reduced num0 / (num0-den0) q-degree).
+    cert_cap = qdeg + 4
+    rn_n, rn_d, rn_q, rn_off, krn = _qp_blank_cells([cert_cap], out_cap)
+    rd_n, rd_d, rd_q, rd_off, krd = _qp_blank_cells([cert_cap], out_cap)
+    has = ctypes.c_int(0)
+    rn_cells = ctypes.c_size_t(0)
+    rd_cells = ctypes.c_size_t(0)
+    rn_xlow = ctypes.c_int64(0)
+    rd_xlow = ctypes.c_int64(0)
+    rc = LIB.srmech_q_gosper(
+        num_n, num_d, num_q, ctypes.c_size_t(len(n_rows)), ctypes.c_int64(int(n_lo)),
+        den_n, den_d, den_q, ctypes.c_size_t(len(d_rows)), ctypes.c_int64(int(d_lo)),
+        ctypes.byref(has),
+        rn_n, rn_d, rn_q, ctypes.byref(rn_cells), ctypes.byref(rn_xlow),
+        rd_n, rd_d, rd_q, ctypes.byref(rd_cells), ctypes.byref(rd_xlow),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (kn, kd, krn, krd)
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_q_gosper returned non-OK status {rc}")
+    if not has.value:
+        return False, (0, []), (0, [])
+    r_num_rows = _qp_read_row(rn_n, rn_d, rn_q, rn_off, rn_cells.value)
+    r_den_rows = _qp_read_row(rd_n, rd_d, rd_q, rd_off, rd_cells.value)
+    return True, (rn_xlow.value, r_num_rows), (rd_xlow.value, r_den_rows)
 
 
 # ----------------------------------------------------------------------

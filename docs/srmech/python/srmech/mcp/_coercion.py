@@ -308,6 +308,27 @@ def _to_tripoly(value: Any, *, param: str = "") -> Any:
     return value
 
 
+def _to_qpoly(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value to the natural form for a ``QPoly``-typed param (rc55
+    ``q_gosper`` q-hypergeometric term-ratio operands).
+
+    A ``QPoly`` is a Laurent polynomial in ``x = qⁿ`` over ``ℚ[q]`` — an
+    ascending-x sequence of :class:`~srmech.amsc.poly.Poly`-in-``q`` cells. The op's
+    coercion (:func:`srmech.amsc.q_gosper._coerce_qpoly`) accepts a ``QPoly`` (passes
+    through), a lower carrier (a ``Poly`` in ``q`` → an ``x**0`` cell), or the
+    natural nested-list form (an ascending-x list of ``ℚ[q]`` coefficient cells). So
+    the honest, minimal coercer hands the value through (tuple→list) and lets the op
+    build the carrier (never a float; a coefficient must be exact). A ``QPoly`` /
+    ``Poly`` / tuple passes naturally."""
+    from srmech.amsc.qpoly import QPoly  # exact-ℚ[q] q-shift carrier; lazy
+    from srmech.amsc.poly import Poly
+    if isinstance(value, (QPoly, Poly)):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return value
+
+
 def _to_mat_or_vec(value: Any, *, param: str = "") -> Any:
     """Coerce a ``Mat | Vec`` (shape-polymorphic) param: a nested list rides as
     a 2-D matrix, a flat list as a 1-D vector — both pass through as the natural
@@ -644,6 +665,7 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "Poly": _to_poly,          # 0.9.0rc41: exact-ℚ polynomial carrier (gosper term ratio)
     "BiPoly": _to_bipoly,      # 0.9.0rc42: exact-ℚ[n,k] bivariate carrier (zeilberger ratios)
     "TriPoly": _to_tripoly,    # 0.9.0rc53: exact-ℚ[n,j,k] trivariate carrier (apagodu_zeilberger ratios)
+    "QPoly": _to_qpoly,        # 0.9.0rc55: exact-ℚ[q] q-shift carrier (q_gosper q-term ratios)
     "Optional[Vec]": _to_vec,
     "Optional[HV]": _to_hv,
     "Mat | Vec": _to_mat_or_vec,   # shape-polymorphic 2-D-or-1-D operand
