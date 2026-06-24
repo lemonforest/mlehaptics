@@ -1739,6 +1739,18 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
         ),
         ToolEntry(
+            name="srmech.amsc.rational.jacobi_sncndn_series_truncate",
+            owner="srmech", category="rational",
+            summary="Jacobi elliptic sn/cn/dn Maclaurin partial sums at u=p/q, modulus m=m_p/m_q, as a triple of exact rationals. Coeffs from the coupled ODE sn'=cn*dn, cn'=-sn*dn, dn'=-m*sn*cn (Abramowitz & Stegun §16.4). Rotation-last exact-Q sibling of sin/cos_series_truncate: sn^2+cn^2=1 and dn^2+m*sn^2=1 hold exactly; m=0 -> sin/cos, m=1 -> tanh/sech. Class N + Class J + Class I (sign) composition; native C peer srmech_jacobi_sncndn; Python bignum-capable.",
+            parameters=(P("numerator", "int", True, "p of u = p/q"),
+                        P("denominator", "int", True, "q of u = p/q (must be > 0)"),
+                        P("m_numerator", "int", True, "m_p of modulus m = m_p/m_q"),
+                        P("m_denominator", "int", True, "m_q of m (must be > 0)"),
+                        P("num_terms", "int", True, "truncation N, 0 <= N <= 50")),
+            returns=R("tuple[tuple[int, int], tuple[int, int], tuple[int, int]]",
+                      "((sn_num, sn_den), (cn_num, cn_den), (dn_num, dn_den)) reduced"),
+        ),
+        ToolEntry(
             name="srmech.amsc.rational.cos", owner="srmech", category="rational",
             summary="cos(x) (radians) via the Class-N rational cascade: range-reduce into [-π, π] with the π-cascade rational, cos Taylor partial sum, returning the EXACT rational Q (the integer-ALU value; float(q) projects to the FPU at the display edge). Substrate-native replacement for math.cos / np.cos (no math.cos in the call graph); float(q) matches libm to ~1e-15.",
             parameters=(P("x", "float", True, "angle in radians"),

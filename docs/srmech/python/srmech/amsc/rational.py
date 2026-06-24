@@ -45,6 +45,7 @@ __all__ = [
     "cos_series_truncate",
     "log1p_series_truncate",
     "atan_series_truncate",
+    "jacobi_sncndn_series_truncate",
     "pi_cascade_digits",
     "pi_chudnovsky_digits",
     "cos",
@@ -735,6 +736,7 @@ def _check_series_inputs(numerator: int,
 
 _TRIG_SERIES_MAX_TERMS: int = 50
 _LOG_SERIES_MAX_TERMS: int = 64
+_JACOBI_SERIES_MAX_TERMS: int = 50
 
 
 def sin_series_truncate(numerator: int,
@@ -896,6 +898,156 @@ def atan_series_truncate(numerator: int,
         if k % 4 == 3:
             num, den = _reduce_rational(num, den)
     return _reduce_rational(num, den)
+
+
+def _native_jacobi_sncndn(
+    numerator: int, denominator: int,
+    m_numerator: int, m_denominator: int, num_terms: int,
+) -> "Tuple[Tuple[int, int], Tuple[int, int], Tuple[int, int]] | None":
+    """Dispatch Jacobi sn/cn/dn to the C peer ``srmech_jacobi_sncndn`` when the
+    native lib carries it; ``None`` otherwise (caller runs the pure body).
+
+    Byte-identical exact-ℚ over ``srmech_bigint`` (no magnitude ceiling) — the
+    pure-Python body is the complete fallback and the parity oracle.
+    """
+    fn = getattr(_native, "jacobi_sncndn_c", None)
+    if fn is None or not _native.has_native_jacobi_sncndn():
+        return None
+    return fn(numerator, denominator, m_numerator, m_denominator, num_terms)
+
+
+def jacobi_sncndn_series_truncate(
+    numerator: int,
+    denominator: int,
+    m_numerator: int,
+    m_denominator: int,
+    num_terms: int,
+) -> Tuple[Tuple[int, int], Tuple[int, int], Tuple[int, int]]:
+    """Jacobi elliptic sn/cn/dn Maclaurin partial sums as exact rationals.
+
+    Computes the ``num_terms``-term truncation of the three Jacobi elliptic
+    functions ``sn(u, m)``, ``cn(u, m)``, ``dn(u, m)`` at ``u = p/q`` and
+    modulus parameter ``m = m_p/m_q``, returned as a triple of exact rational
+    ``(num, den)`` pairs ``((sn_num, sn_den), (cn_num, cn_den),
+    (dn_num, dn_den))``.
+
+    This is the "rotation-last" exact-ℚ sibling of
+    :func:`sin_series_truncate` / :func:`cos_series_truncate`: the whole body
+    runs in the exact-rational fiber (Class N over Python bignum ints, reduced
+    by the Class-I :func:`srmech.amsc.cyclic.gcd`) with NO floating-point and
+    NO mid-body projection — ``float(sn_num/sn_den)`` etc. is the single
+    terminal observer-frame rotation the caller applies at the display edge.
+
+    The power-series coefficients come from the coupled ODE system (the same
+    recurrence A&S §16.4 / DLMF §22.10 give for the Maclaurin expansion)::
+
+        sn' =  cn·dn,  cn' = -sn·dn,  dn' = -m·sn·cn
+        sn(0) = 0,  cn(0) = 1,  dn(0) = 1
+
+    Let ``a``/``b``/``c`` be the Maclaurin coefficient sequences of sn/cn/dn.
+    With ``a0 = 0``, ``b0 = c0 = 1``, for ``k = 0 .. N-1`` (``⊛`` is the
+    discrete convolution ``Σ_{i+j=k}``)::
+
+        a[k+1] = ( b ⊛ c )[k] / (k+1)
+        b[k+1] = -( a ⊛ c )[k] / (k+1)
+        c[k+1] = -m·( a ⊛ b )[k] / (k+1)
+
+    Then ``sn(u) = Σ a[k]·u^k``, ``cn(u) = Σ b[k]·u^k``,
+    ``dn(u) = Σ c[k]·u^k`` — each an exact rational for rational ``u`` and
+    ``m``. Two exact-ℚ Pythagorean identities hold on the *coefficient*
+    sequences (all higher terms cancel): ``sn² + cn² = 1`` and
+    ``dn² + m·sn² = 1``.
+
+    The two limiting degeneracies recover the circular / hyperbolic series:
+
+    - ``m = 0`` → sn = sin, cn = cos, dn = 1.
+    - ``m = 1`` → sn = tanh, cn = dn = sech.
+
+    ``num_terms`` is the truncation order ``N`` (the highest power of ``u``
+    retained); ``0 <= N <= 50``. ``denominator`` and ``m_denominator`` must be
+    positive. Pure-integer / exact-rational at every step; Python
+    bignum-capable.
+
+    References
+    ----------
+    M. Abramowitz & I. A. Stegun, *Handbook of Mathematical Functions*,
+    §16.4 (Jacobi elliptic functions); the power-series ODE system.
+
+    Examples
+    --------
+    >>> # m = 0 recovers sin/cos Maclaurin coefficients
+    >>> sn, cn, dn = jacobi_sncndn_series_truncate(0, 1, 0, 1, 4)
+    >>> sn, cn, dn
+    ((0, 1), (1, 1), (1, 1))
+    """
+    _check_series_inputs(numerator, denominator, num_terms,
+                         _JACOBI_SERIES_MAX_TERMS,
+                         "jacobi_sncndn_series_truncate")
+    if not isinstance(m_numerator, int):
+        raise TypeError(
+            f"m_numerator must be int; got {type(m_numerator).__name__}")
+    if not isinstance(m_denominator, int):
+        raise TypeError(
+            f"m_denominator must be int; got {type(m_denominator).__name__}")
+    if m_denominator <= 0:
+        raise ValueError(
+            f"m_denominator must be positive; got {m_denominator}")
+
+    # Try the native C peer first (byte-identical exact-ℚ over srmech_bigint);
+    # the pure-Python body below is the complete fallback AND the parity oracle.
+    out = _native_jacobi_sncndn(
+        numerator, denominator, m_numerator, m_denominator, num_terms)
+    if out is not None:
+        return out
+
+    m = _reduce_rational(m_numerator, m_denominator)
+    # Coefficient sequences a (sn), b (cn), c (dn) as exact (num, den) pairs.
+    a: List[Tuple[int, int]] = [(0, 1)]
+    b: List[Tuple[int, int]] = [(1, 1)]
+    c: List[Tuple[int, int]] = [(1, 1)]
+    for k in range(num_terms):
+        # Discrete convolutions (b⊛c), (a⊛c), (a⊛b) at index k.
+        bc = (0, 1)
+        ac = (0, 1)
+        ab = (0, 1)
+        for i in range(k + 1):
+            j = k - i
+            bc = rational_add(bc, rational_mul(b[i], c[j]))
+            ac = rational_add(ac, rational_mul(a[i], c[j]))
+            ab = rational_add(ab, rational_mul(a[i], b[j]))
+        inv_kp1 = (1, k + 1)                       # 1/(k+1)
+        a_next = rational_mul(bc, inv_kp1)
+        # Class-K sign-flip (negate numerator) then Class-N divide by (k+1).
+        b_next = rational_mul((-ac[0], ac[1]), inv_kp1)
+        c_next = rational_mul(rational_mul((-ab[0], ab[1]), m), inv_kp1)
+        a.append(a_next)
+        b.append(b_next)
+        c.append(c_next)
+    # Horner-free Σ coeff[k]·u^k accumulation in the exact fiber.
+    p, q = numerator, denominator
+    sn = _eval_poly_rational(a, p, q)
+    cn = _eval_poly_rational(b, p, q)
+    dn = _eval_poly_rational(c, p, q)
+    return (sn, cn, dn)
+
+
+def _eval_poly_rational(coeffs: "List[Tuple[int, int]]",
+                        p: int, q: int) -> Tuple[int, int]:
+    """Evaluate Σ_k coeffs[k]·(p/q)^k as one reduced exact rational.
+
+    Accumulates u^k = p^k / q^k incrementally; all-integer / exact-ℚ, no
+    floating point. Used by :func:`jacobi_sncndn_series_truncate` to project
+    each coefficient sequence onto the argument u = p/q in the fiber.
+    """
+    total = (0, 1)
+    u_pow = (1, 1)                                 # (p/q)^0
+    u = _reduce_rational(p, q)
+    for k, ck in enumerate(coeffs):
+        if k > 0:
+            u_pow = rational_mul(u_pow, u)
+        if ck[0] != 0:
+            total = rational_add(total, rational_mul(ck, u_pow))
+    return _reduce_rational(total[0], total[1])
 
 
 # ──────────────────────────────────────────────────────────────────────

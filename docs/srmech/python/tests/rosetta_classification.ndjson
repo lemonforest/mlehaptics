@@ -22,6 +22,7 @@
 {"exposed_as": "srmech.amsc.rational.atan_series_truncate", "defined_at": "srmech.amsc.rational.atan_series_truncate", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.amsc.rational.cos_series_truncate", "defined_at": "srmech.amsc.rational.cos_series_truncate", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.amsc.rational.exp_series_truncate", "defined_at": "srmech.amsc.rational.exp_series_truncate", "bucket": "bignum_reference"}
+{"exposed_as": "srmech.amsc.rational.jacobi_sncndn_series_truncate", "defined_at": "srmech.amsc.rational.jacobi_sncndn_series_truncate", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.rational.log1p_series_truncate", "defined_at": "srmech.amsc.rational.log1p_series_truncate", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.amsc.rational.pi_cascade_digits", "defined_at": "srmech.amsc.rational.pi_cascade_digits", "bucket": "bignum_reference"}
 {"exposed_as": "srmech.amsc.rational.pi_chudnovsky_digits", "defined_at": "srmech.amsc.rational.pi_chudnovsky_digits", "bucket": "c_dispatched"}
