@@ -8,6 +8,14 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc53] - 2026-06-23
+
+**`apagodu_zeilberger` — the multivariate "sums of sums" creative-telescoping recurrence-finder — CLOSES the multivariate F929 reduction row.** The double-sum generalization of `zeilberger`: for `f(n)=Σ_{j,k} F(n,j,k)` it finds the minimal-order recurrence `Σᵢ aᵢ(n)·f(n+i)=0` via the **Apagodu–Zeilberger two-certificate ansatz** `Σᵢ aᵢ(n)·F(n+i,j,k)=Δⱼ Gⱼ + Δₖ Gₖ`, cleared over the rc52 `TriPoly` ℚ[n,j,k] (consuming its `Δⱼ`/`Δₖ` difference operators) and solved by the rc40 `QMat` exact-ℚ RREF. `apagodu_zeilberger(rn_num,rn_den, rj_num,rj_den, rk_num,rk_den, max_order=…)` — the three TriPoly term-ratios `r_n=F(n+1,j,k)/F`, `r_j=F(n,j+1,k)/F`, `r_k=F(n,j,k+1)/F` — returns `{order, coeffs:[Poly_in_n], certificate_j, certificate_k}` or honest `None`.
+
+Verified: `Σⱼ Σₖ C(n,j)C(j,k)=3ⁿ` → `f(n+1)−3f(n)=0` (cross-checked against composing two `zeilberger` calls); `Σ C(n,j)C(n−j,k)=3ⁿ` → order-1, **native==pure byte-identical**; both recurrences **annihilate `3ⁿ`**; honest `None` past `max_order`; zero-denominator rejected. Complete 1:1 C peer `srmech_apagodu_zeilberger` (own exact-ℚ trivariate toolkit + `srmech_qmat_rref`, caller-arena, JPL-clean) accelerating order ≤ 1; wide systems decline to the bounded-memory CRT pure path (dispatch trusts only `has=1`). `tools.total` 331→**332** (`c_dispatched`); ABI **3**. numpy-free, math-free, no `abs()`. Cites Apagodu & Zeilberger, *Adv. Appl. Math.* **37** (2006) 139–152.
+
+**The multivariate "sums of sums" row is CLOSED:** `TriPoly` (rc52) → `apagodu_zeilberger` (rc53). The Apéry-like `Σ_{j,k} C(n,j)C(n,k)C(j+k,j)` (`[1,5,33,245,1921,…]`) is order-2 with a high-degree cross-term certificate; its annihilation test is opt-in (`SRMECH_RUN_APERY=1`) — the pure path proves it.
+
 ## [0.9.0rc52] - 2026-06-23
 
 **`TriPoly` — exact-ℚ[n,j,k] polynomial carrier — the foundation for the multivariate "sums of sums" creative-telescoping row (Apagodu–Zeilberger).** The 3-variable sibling of the rc42 BiPoly (ℚ[n,k]): a `j`-ascending tuple of BiPoly-in-(n,k). Carrier surface — `from_coeffs`/`from_dict`/`zero`/`one`/`from_n_poly`/`from_bipoly`, exact `+`/`−`/`·`, `eval(n,j,k)→Q`, `shift_n`/`shift_j`/`shift_k`, and the **difference operators `delta_j`/`delta_k`** (`shift_x(1) − self`) that express the joint certificate `Σᵢ aᵢ(n)·F(n+i,j,k) = Δⱼ Gⱼ + Δₖ Gₖ` the rc53 op will solve.

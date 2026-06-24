@@ -3010,6 +3010,69 @@ def _register_primitive_class_tools() -> None:
                       "the WZ equation), or None when the term is not WZ-summable"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The MULTIVARIATE "sums of sums" row of the §76 telescope Σ-row prover —
+        # the Apagodu–Zeilberger double-sum creative-telescoping recurrence-finder
+        # (CLOSES the multivariate F929 reduction row). Generalizes zeilberger to a
+        # DOUBLE sum over the rc52 TriPoly ℚ[n,j,k] carrier; 1:1 C peer
+        # srmech_apagodu_zeilberger (accelerates the order ≤ 1 textbook case).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.apagodu_zeilberger.apagodu_zeilberger",
+            owner="srmech", category="apagodu_zeilberger",
+            summary="The Apagodu–Zeilberger multivariate 'sums of sums' creative "
+                    "telescoping (M. Apagodu & D. Zeilberger, 'Multi-variable "
+                    "Zeilberger and Almkvist–Zeilberger algorithms and the "
+                    "sharpening of Wilf–Zeilberger theory', Adv. Appl. Math. "
+                    "37(2):139–152, 2006; H. Wilf & D. Zeilberger, 'An algorithmic "
+                    "proof theory for hypergeometric (ordinary and q) multisum/"
+                    "integral identities', Invent. Math. 108(1):575–633, 1992) — the "
+                    "op that CLOSES the multivariate F929 reduction row, the double-"
+                    "sum generalization of zeilberger. For a DEFINITE DOUBLE "
+                    "hypergeometric sum f(n)=Σ_{j,k} F(n,j,k) of a proper term "
+                    "F(n,j,k), produces the minimal-order LINEAR RECURRENCE with "
+                    "polynomial coefficients Σ_{i=0}^{L} a_i(n)·f(n+i)=0. Input: F's "
+                    "THREE term ratios r_n(n,j,k)=F(n+1,j,k)/F(n,j,k), "
+                    "r_j=F(n,j+1,k)/F(n,j,k), r_k=F(n,j,k+1)/F(n,j,k), each a "
+                    "rational function of (n,j,k) given as two trivariate exact-"
+                    "ℚ[n,j,k] TriPoly (the rc52 carrier this op consumes; a BiPoly / "
+                    "Poly / scalar coerces). Method: the two-certificate creative-"
+                    "telescoping ansatz Σ_i a_i(n)·ρ_i = Δ_j(R_j·F)/F + Δ_k(R_k·F)/F "
+                    "with rational certificates R_j=x_j/D_P, R_k=x_k/D_P over the "
+                    "shared LHS denominator D_P=Π_i ρ_den_i; clearing denominators "
+                    "gives a homogeneous exact-ℚ linear system (QMat RREF), and the "
+                    "first nonzero a-block kernel is the recurrence + the two "
+                    "certificates; summing over j,k collapses the telescoping RHS. "
+                    "Returns {'order':L,'coeffs':[Poly_in_n,…],'certificate_j':"
+                    "TriPoly,'certificate_k':TriPoly}, or None when none ≤ max_order. "
+                    "1:1 C peer srmech_apagodu_zeilberger (orchestrates the "
+                    "trivariate poly algebra + srmech_qmat_rref; native accelerates "
+                    "the order ≤ 1 textbook double-sum case, e.g. Σ_{j,k} "
+                    "C(n,j)C(j,k)→3ⁿ, pure-Python the complete alternative — a "
+                    "genuinely-2D higher-order term like Σ C(n,j)C(n,k)C(j+k,j) is "
+                    "proved on the pure path). Exact bigint; no float, no abs() "
+                    "(Class-K sign), no numpy / math.",
+            parameters=(P("rn_num", "TriPoly", True,
+                          "r_n NUMERATOR — F(n+1,j,k)/F(n,j,k) numerator, a "
+                          "trivariate exact-ℚ[n,j,k] TriPoly (or a coercible value)"),
+                        P("rn_den", "TriPoly", True,
+                          "r_n DENOMINATOR — a NONZERO trivariate TriPoly"),
+                        P("rj_num", "TriPoly", True,
+                          "r_j NUMERATOR — F(n,j+1,k)/F(n,j,k) numerator TriPoly"),
+                        P("rj_den", "TriPoly", True,
+                          "r_j DENOMINATOR — a NONZERO trivariate TriPoly"),
+                        P("rk_num", "TriPoly", True,
+                          "r_k NUMERATOR — F(n,j,k+1)/F(n,j,k) numerator TriPoly"),
+                        P("rk_den", "TriPoly", True,
+                          "r_k DENOMINATOR — a NONZERO trivariate TriPoly"),
+                        P("max_order", "int", False,
+                          "the largest ansatz recurrence order to try (default 4)")),
+            returns=R("dict | None",
+                      "{'order': int, 'coeffs': [Poly, ...], 'certificate_j': "
+                      "TriPoly, 'certificate_k': TriPoly} — the minimal-order "
+                      "recurrence Σ_i coeffs[i](n)·f(n+i)=0 plus the two rational "
+                      "certificates, or None when none of order ≤ max_order"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The F929 OPEN/infer ROUTER — the meta-dispatcher that makes the
         # three shipped reduction-theory rows (cyclic / spectral / Σ) ONE
         # callable. Pure orchestration over the already-C-mirrored reducers

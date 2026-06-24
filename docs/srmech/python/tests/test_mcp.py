@@ -1719,6 +1719,10 @@ def _synth_value_for_type(type_string: str) -> Any:
         # — k-slot 0 is the Poly-in-n [1, 1] (= 1 + n). Coerces + binds cleanly;
         # any "no recurrence" is a tolerated DOMAIN result, not a binding error.
         "BiPoly": [[1, 1]],
+        # rc53 apagodu_zeilberger TriPoly operand: a minimal valid nonzero
+        # trivariate ratio — j-slot 0 is the BiPoly [[1, 1]] (= 1 + n). Coerces
+        # + binds cleanly; any "no recurrence" is a tolerated DOMAIN result.
+        "TriPoly": [[[1, 1]]],
         "np.ndarray": mat2,
         "Optional[np.ndarray]": mat2,
         # v0.7.5rc72 Mat carrier (mat_matmul): a 2x2 list-of-rows -> real Mat;
