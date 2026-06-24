@@ -11,7 +11,7 @@ import os
 import re
 import tokenize
 
-from srmech.amsc.ellbase import EllMonomial as M, Theta, _modified_theta_trunc
+from srmech.amsc.ellbase import EllMonomial as M, Theta, EllRatio as R, _modified_theta_trunc
 from srmech.amsc.q import Q
 
 _VALS = {"q": Q(2, 1), "p": Q(1, 9), "a": Q(3, 5), "b": Q(4, 7)}
@@ -96,3 +96,50 @@ def test_ellbase_source_is_numpy_math_abs_free():
     assert "import numpy" not in text
     assert "import math" not in text
     assert re.search(r"abs\([^)]", text) is None          # no bare abs() CALL
+
+
+# ── rc60: the EllRatio term-ratio carrier + the balancing predicate ───────────
+_A, _B, _X = M.symbol("a"), M.symbol("b"), M.symbol("x")
+
+
+def _th(m):
+    return Theta(m)
+
+
+def test_theta_canonicalize_negative_p_exponent():
+    """rc60 regression: a NEGATIVE odd p-exponent (which the EllRatio period-shift
+    introduces via p⁻¹) must canonicalize value-preserving — the (−1)^k sign with
+    k<0 (the rc59 latent `Q(-1,1)**k` bug, now `Q(-1,1) if k odd`)."""
+    z = M.symbol("p", -1) * _A * _X                       # p-exponent −1 (odd)
+    pref, th0 = Theta(z).canonicalize()
+    assert th0.arg.exp_of("p") == 0
+    vals = dict(_VALS, x=Q(2, 3))
+    via = pref.eval(vals) * th0.eval_trunc(vals, _N)
+    assert abs(float(via / Theta(z).eval_trunc(vals, _N)) - 1.0) < 1e-9
+
+
+def test_ellratio_algebra():
+    r = R(num=(_th(_A * _X),), den=(_th(_X),))            # θ(ax)/θ(x)
+    assert (r * r.inv()).is_unit                          # r · r⁻¹ = 1
+    assert (r * R(num=(_th(_X),), den=(_th(_A * _X),))).is_unit
+    assert R.one().is_unit and R.monomial(_A).prefactor == _A
+
+
+def test_ellratio_is_elliptic_balancing_predicate():
+    """The very-well-poised gate: θ(ax)θ(bx)/[θ(x)θ(abx)] is balanced (elliptic);
+    θ(ax)/θ(x) is not (∏ args mismatch). ``is_elliptic`` ≡ ``pshift() == self``."""
+    bal = R(num=(_th(_A * _X), _th(_B * _X)), den=(_th(_X), _th(_A * _B * _X)))
+    unbal = R(num=(_th(_A * _X),), den=(_th(_X),))
+    assert bal.is_elliptic() is True
+    assert unbal.is_elliptic() is False
+    # the exact period-shift relation on the unbalanced one: pshift = a⁻¹·itself
+    assert unbal.pshift() == unbal * R.monomial(_A.inv())
+
+
+def test_ellratio_eval_pshift_consistent_for_elliptic():
+    bal = R(num=(_th(_A * _X), _th(_B * _X)), den=(_th(_X), _th(_A * _B * _X)))
+    vals = dict(_VALS, b=Q(4, 7), x=Q(2, 3))
+    e0 = bal.eval_trunc(vals, _N)
+    e1 = bal.pshift().eval_trunc(vals, _N)
+    assert e0 != Q(0, 1)
+    assert abs(float(e1 / e0) - 1.0) < 1e-9               # elliptic ⇒ pshift-invariant

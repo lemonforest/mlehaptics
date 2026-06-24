@@ -61,7 +61,7 @@ from typing import Dict, Iterable, List, Mapping, Tuple
 
 from .q import Q
 
-__all__ = ["EllMonomial", "Theta"]
+__all__ = ["EllMonomial", "Theta", "EllRatio"]
 
 _Q_ZERO = Q(0, 1)
 _Q_ONE = Q(1, 1)
@@ -317,7 +317,7 @@ class Theta:
         k = self._z.exp_of(_P)
         z0 = self._z * EllMonomial.symbol(_P, -k)        # strip p**k → p-exp 0
         # θ(pᵏ z0) = (−1)ᵏ p^{−k(k−1)/2} z0⁻ᵏ θ(z0)
-        sign = Q(-1, 1) ** k if k % 2 else _Q_ONE
+        sign = Q(-1, 1) if (k % 2 != 0) else _Q_ONE   # (−1)^k; k may be negative
         pref = EllMonomial(sign, {_P: -(k * (k - 1)) // 2}) * (z0 ** (-k))
         # Orientation: pick the canonical rep of {z0, z0⁻¹}; θ(w⁻¹) = −w⁻¹ θ(w).
         z0_inv = z0.inv()
@@ -375,3 +375,243 @@ def _modified_theta_trunc(z_val, p_val, n_terms: int) -> Q:
         acc = acc * (_Q_ONE - z_inv * pj * p)    # (1 − z⁻¹·p^{j+1})
         pj = pj * p
     return acc
+
+
+_X = "x"        # the summation-variable symbol (x = q**n); the elliptic-shift σ
+                # (n ↦ n+1, i.e. x ↦ q·x) and the period-shift (x ↦ p·x) act on x.
+
+
+def _ratio_cancel(num: "List[Theta]", den: "List[Theta]") -> "Tuple[Tuple[Theta, ...], Tuple[Theta, ...]]":
+    """Cancel matching ``Theta`` between two factor multisets (canonical thetas);
+    return ``(num', den')`` with common factors removed, each sorted by argument
+    key (a canonical form). Plain multiset bookkeeping — not a Counter / spectral
+    proxy."""
+    dn: "Dict[Theta, int]" = {}
+    for t in num:
+        dn[t] = dn.get(t, 0) + 1
+    dd: "Dict[Theta, int]" = {}
+    for t in den:
+        dd[t] = dd.get(t, 0) + 1
+    for t in list(dn):
+        if t in dd:
+            c = dn[t] if dn[t] < dd[t] else dd[t]    # multiset min (Class-K-free)
+            dn[t] -= c
+            dd[t] -= c
+    out_n: "List[Theta]" = []
+    for t, c in dn.items():
+        out_n.extend([t] * c)
+    out_d: "List[Theta]" = []
+    for t, c in dd.items():
+        out_d.extend([t] * c)
+    out_n.sort(key=lambda th: th.arg._sort_key())
+    out_d.sort(key=lambda th: th.arg._sort_key())
+    return tuple(out_n), tuple(out_d)
+
+
+class EllRatio:
+    """A numpy-free EXACT elliptic-hypergeometric TERM-RATIO carrier: an exact
+    product ``prefactor · ∏(num θ) / ∏(den θ)`` of :class:`Theta` factors over an
+    :class:`EllMonomial` prefactor, immutable. The carrier the elliptic engine
+    (elliptic-Gosper → elliptic-Zeilberger → elliptic-WZ) telescopes over — the
+    elliptic analogue of the q-term-ratio (a ``QPoly`` quotient), one algebra up.
+
+    On construction every ``Theta`` is canonicalized (:meth:`Theta.canonicalize`)
+    and its prefactor folded into the global prefactor; matching ``θ`` cancel
+    between numerator and denominator; the surviving multisets are sorted — so the
+    representation is canonical and ``==`` is exact.
+
+    The two load-bearing operations:
+
+    - :meth:`qshift` — the **summation shift** ``σ`` (``n ↦ n+1``, i.e. the
+      substitution ``x ↦ q·x`` in every theta argument), the elliptic analogue of
+      :meth:`QPoly.qshift`. The elliptic engine's telescoping consumes it.
+    - :meth:`is_elliptic` — the **balancing / very-well-poised predicate**, defined
+      operationally: a theta-hypergeometric term-ratio is *elliptic* (a genuine
+      function on the elliptic curve ``ℂ*/⟨p⟩``) **iff it is invariant under the
+      period shift** ``x ↦ p·x`` — so ``is_elliptic() ≡ (pshift() == self)``. The
+      carrier's exact canonicalization (the theta quasi-periodicity rewrites)
+      decides it; no hand-rolled balancing algebra. This is the structural gate
+      the elliptic reducers consult before attempting a closed form.
+    """
+
+    __slots__ = ("_pref", "_num", "_den")
+
+    def __init__(self, prefactor: "EllMonomial | None" = None,
+                 num: "Iterable[Theta]" = (), den: "Iterable[Theta]" = ()) -> None:
+        pref = EllMonomial.one() if prefactor is None else prefactor
+        if not isinstance(pref, EllMonomial):
+            raise TypeError("EllRatio prefactor must be an EllMonomial")
+        num_l: "List[Theta]" = []
+        for t in num:
+            if not isinstance(t, Theta):
+                raise TypeError("EllRatio numerator factors must be Theta")
+            pr, t0 = t.canonicalize()
+            pref = pref * pr
+            num_l.append(t0)
+        den_l: "List[Theta]" = []
+        for t in den:
+            if not isinstance(t, Theta):
+                raise TypeError("EllRatio denominator factors must be Theta")
+            pr, t0 = t.canonicalize()
+            pref = pref / pr                      # a den factor contributes 1/pr
+            den_l.append(t0)
+        if pref.is_zero:
+            self._pref, self._num, self._den = EllMonomial(_Q_ZERO), (), ()
+            return
+        self._num, self._den = _ratio_cancel(num_l, den_l)
+        self._pref = pref
+
+    # ── construction ────────────────────────────────────────────────────────
+    @classmethod
+    def _wrap(cls, pref: EllMonomial, num: "Tuple[Theta, ...]",
+              den: "Tuple[Theta, ...]") -> "EllRatio":
+        """Internal: wrap ALREADY-canonical (pref, num, den) with no re-canon."""
+        r = cls.__new__(cls)
+        r._pref, r._num, r._den = pref, num, den
+        return r
+
+    @classmethod
+    def one(cls) -> "EllRatio":
+        """The unit ratio ``1`` (unit prefactor, no theta factors)."""
+        return cls._wrap(EllMonomial.one(), (), ())
+
+    @classmethod
+    def monomial(cls, m: EllMonomial) -> "EllRatio":
+        """The pure-monomial ratio ``m`` (no theta factors)."""
+        if not isinstance(m, EllMonomial):
+            raise TypeError("EllRatio.monomial: m must be an EllMonomial")
+        if m.is_zero:
+            return cls._wrap(EllMonomial(_Q_ZERO), (), ())
+        return cls._wrap(m, (), ())
+
+    @classmethod
+    def theta(cls, t: Theta) -> "EllRatio":
+        """The single-factor ratio ``θ(z; p)`` (a numerator theta)."""
+        return cls(num=(t,))
+
+    # ── accessors ───────────────────────────────────────────────────────────
+    @property
+    def prefactor(self) -> EllMonomial:
+        """The exact ``EllMonomial`` prefactor (sign = Class-K)."""
+        return self._pref
+
+    @property
+    def num(self) -> "Tuple[Theta, ...]":
+        """The canonical numerator ``Theta`` multiset (sorted)."""
+        return self._num
+
+    @property
+    def den(self) -> "Tuple[Theta, ...]":
+        """The canonical denominator ``Theta`` multiset (sorted)."""
+        return self._den
+
+    @property
+    def is_zero(self) -> bool:
+        """True iff the ratio is identically zero (zero prefactor)."""
+        return self._pref.is_zero
+
+    @property
+    def is_unit(self) -> bool:
+        """True iff the ratio is exactly ``1`` (unit prefactor, no thetas)."""
+        return self._pref.is_unit and not self._num and not self._den
+
+    # ── exact multiplicative algebra ─────────────────────────────────────────
+    def __mul__(self, other) -> "EllRatio":
+        if isinstance(other, EllRatio):
+            return EllRatio(self._pref * other._pref,
+                            self._num + other._num, self._den + other._den)
+        if isinstance(other, EllMonomial):
+            return EllRatio._wrap(self._pref * other, self._num, self._den) \
+                if not (self._pref * other).is_zero else \
+                EllRatio._wrap(EllMonomial(_Q_ZERO), (), ())
+        return NotImplemented
+
+    __rmul__ = __mul__
+
+    def inv(self) -> "EllRatio":
+        """The reciprocal ``1 / self`` (swap num↔den, invert the prefactor). The
+        zero ratio has no inverse."""
+        if self.is_zero:
+            raise ZeroDivisionError("EllRatio: the zero ratio has no inverse")
+        return EllRatio._wrap(self._pref.inv(), self._den, self._num)
+
+    def __truediv__(self, other) -> "EllRatio":
+        if isinstance(other, EllRatio):
+            return self * other.inv()
+        if isinstance(other, EllMonomial):
+            return EllRatio._wrap(self._pref / other, self._num, self._den)
+        return NotImplemented
+
+    def __eq__(self, other) -> bool:
+        if other is self:
+            return True
+        if isinstance(other, EllRatio):
+            return (self._pref == other._pref and self._num == other._num
+                    and self._den == other._den)
+        return NotImplemented
+
+    def __ne__(self, other):
+        r = self.__eq__(other)
+        return r if r is NotImplemented else (not r)
+
+    def __hash__(self) -> int:
+        return hash((self._pref, self._num, self._den))
+
+    def __repr__(self) -> str:
+        if self.is_zero:
+            return "EllRatio(0)"
+        return (f"EllRatio(pref={self._pref!r}, "
+                f"num={len(self._num)}θ, den={len(self._den)}θ)")
+
+    # ── the two shifts (summation σ: x↦qx ; period: x↦px) ───────────────────
+    def _shift(self, base: str) -> "EllRatio":
+        """Substitute ``x ↦ base·x`` (``base`` = ``'q'`` for the summation shift σ,
+        ``'p'`` for the period shift) in the prefactor and every theta argument.
+        Under ``x ↦ base·x`` a monomial ``m`` with x-exponent ``e`` becomes
+        ``m · base**e`` (the ``x**e`` factor → ``(base·x)**e``); re-canonicalizes
+        (a ``base='p'`` shift introduces p-exponents the theta rewrites resolve)."""
+        def sm(m: EllMonomial) -> EllMonomial:
+            return m * EllMonomial.symbol(base, m.exp_of(_X))
+        pref = sm(self._pref)
+        num = [Theta(sm(t.arg)) for t in self._num]
+        den = [Theta(sm(t.arg)) for t in self._den]
+        return EllRatio(pref, num, den)
+
+    def qshift(self) -> "EllRatio":
+        """The **summation shift** ``σ`` (``n ↦ n+1`` / ``x ↦ q·x``) — the
+        elliptic analogue of :meth:`QPoly.qshift`. What the elliptic-Gosper
+        antidifference and elliptic-Zeilberger creative telescoping consume."""
+        return self._shift(_Q_SYM)
+
+    def pshift(self) -> "EllRatio":
+        """The **period shift** ``x ↦ p·x`` — the elliptic-curve translation by
+        the nome. A theta-hypergeometric ratio is elliptic iff it is invariant
+        under this shift (:meth:`is_elliptic`)."""
+        return self._shift(_P)
+
+    def is_elliptic(self) -> bool:
+        """The **balancing / very-well-poised predicate**: True iff the ratio is a
+        genuine elliptic function (invariant under the period shift ``x ↦ p·x``).
+        Operationally ``pshift() == self`` — the exact theta-canonicalization
+        decides it. The elliptic reducers consult this before attempting a closed
+        form; a non-elliptic (unbalanced) input is honestly out of the row."""
+        return self.pshift() == self
+
+    # ── evaluation (the exact-ℚ cross-check oracle) ──────────────────────────
+    def eval_trunc(self, values: "Mapping[str, object]", n_terms: int) -> Q:
+        """Evaluate to a single exact ``Q``: ``prefactor(values)`` times the
+        truncated modified-theta product of every numerator factor over that of
+        every denominator factor (``n_terms`` truncation; no float). ``values``
+        supplies ``p`` and every argument symbol. The zero ratio → ``Q(0)``; a
+        denominator theta evaluating to 0 raises ``ZeroDivisionError``."""
+        if self.is_zero:
+            return _Q_ZERO
+        acc = self._pref.eval(values)
+        for t in self._num:
+            acc = acc * t.eval_trunc(values, n_terms)
+        for t in self._den:
+            d = t.eval_trunc(values, n_terms)
+            if d == _Q_ZERO:
+                raise ZeroDivisionError("EllRatio.eval_trunc: denominator theta is zero")
+            acc = acc / d
+        return acc
