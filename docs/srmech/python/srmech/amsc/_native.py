@@ -2175,6 +2175,31 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_elliptic_gosper.restype = ctypes.c_int
 
+    # rc63: srmech_thetasum_is_zero — the C peer of the ThetaSum carrier's is_zero (the
+    # load-bearing EXACT Weierstrass three-term + quasi-periodicity decision). The
+    # cleared numerator rides as the interned symbol-table dimension + the p/x/y
+    # indices + the per-term theta counts + the flat monomial coeff arrays
+    # (coeff_num/coeff_den) + the flat int32 exponent rows. *out_is_zero comes back.
+    #   size_t srmech_thetasum_ws_bound(n_syms, n_terms, max_thetas, coeff_limbs)
+    if hasattr(lib, "srmech_thetasum_ws_bound"):
+        lib.srmech_thetasum_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_thetasum_ws_bound.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_thetasum_is_zero"):
+        _tbi = ctypes.POINTER(_SrmechBigint)
+        lib.srmech_thetasum_is_zero.argtypes = [
+            ctypes.c_size_t,                     # n_syms
+            ctypes.c_int, ctypes.c_int, ctypes.c_int,  # xsym, ysym, psym
+            ctypes.c_size_t,                     # n_terms
+            ctypes.POINTER(ctypes.c_size_t),     # term_nthetas
+            _tbi, _tbi,                          # coeff_num, coeff_den (flat)
+            ctypes.POINTER(ctypes.c_int32),      # exps_flat
+            ctypes.c_uint32,                     # coeff_cap
+            ctypes.POINTER(ctypes.c_int),        # out_is_zero
+            ctypes.c_void_p, ctypes.c_size_t,    # ws, ws_len
+        ]
+        lib.srmech_thetasum_is_zero.restype = ctypes.c_int
+
     # rc42: srmech_zeilberger — Zeilberger's creative telescoping (the §76 telescope
     # Sigma-row's SECOND public op). The four BIVARIATE term ratios ride as flat
     # (num, den) coefficient arrays (k-then-n order) + a per-k length array + the
@@ -3918,6 +3943,93 @@ def elliptic_gosper_c(ratio_form):
         "den": [],
     }
     return True, cert_form
+
+
+# ----------------------------------------------------------------------
+# rc63: srmech_thetasum_is_zero — the C peer of the ThetaSum carrier's is_zero (the
+# load-bearing EXACT Weierstrass three-term + quasi-periodicity decision). The Python
+# srmech.amsc.thetasum.ThetaSum.is_zero marshals its cleared numerator terms (each a
+# prefactor EllMonomial + a tuple of canonical Theta) over an interned symbol table
+# and routes the DECISION through this; the pure-Python body is the COMPLETE
+# alternative + the parity oracle. The C verdict EQUALS the Python verdict byte-for-
+# byte (a 1:1 structural mirror), so the dispatch trusts it unconditionally when the
+# native symbols are present.
+# ----------------------------------------------------------------------
+
+_THETASUM_SYMS = (
+    "srmech_thetasum_ws_bound",
+    "srmech_bigint_from_dec",
+    "srmech_bigint_to_dec",
+    "srmech_bigint_to_dec_bound",
+)
+
+
+def has_native_thetasum() -> bool:
+    """True iff the rc63 srmech_thetasum_is_zero op + its ws sizer + the srmech_bigint
+    decimal-marshal helpers are loaded + bound. False on a no-C or pre-rc63 lib — the
+    pure-Python ``srmech.amsc.thetasum.ThetaSum.is_zero`` body is the complete
+    alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _THETASUM_SYMS) and hasattr(
+        LIB, "srmech_thetasum_is_zero"
+    )
+
+
+def thetasum_is_zero_c(n_syms, xsym, ysym, psym, term_nthetas, monomials):
+    """Native ThetaSum.is_zero decision for the cleared numerator terms → ``bool`` (the
+    C verdict), or ``None`` if the native symbols are absent. ``n_syms`` is the interned
+    symbol-table dimension; ``xsym`` / ``ysym`` / ``psym`` the interned indices of
+    ``x`` / ``y`` / ``p`` (-1 if absent); ``term_nthetas[i]`` the theta count of term i;
+    ``monomials`` the flat list of ``(num, den, exps_row)`` triples in the order
+    term0.pref, term0.theta0..K, term1.pref, … (each ``exps_row`` a length-``n_syms``
+    int list). An empty numerator (no terms) is zero by definition (handled by the
+    caller). A non-OK C status raises ``RuntimeError``."""
+    if not has_native_thetasum():
+        return None
+    n_terms = len(term_nthetas)
+    if n_terms == 0:
+        return True
+    max_thetas = max(term_nthetas) if term_nthetas else 0
+    # per-coefficient limb estimate (9 decimal digits ~ 1 limb; pad).
+    cl = 1
+    for num, den, _exps in monomials:
+        cl = max(cl, len(str(num).lstrip("-")) // 9 + 2, len(str(den)) // 9 + 2)
+    out_cap = cl
+    ws_len = int(LIB.srmech_thetasum_ws_bound(
+        ctypes.c_size_t(n_syms), ctypes.c_size_t(n_terms),
+        ctypes.c_size_t(max_thetas), ctypes.c_size_t(cl)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    # flat coeff arrays + the flat int32 exponent rows.
+    n_mono = len(monomials)
+    num_arr = (_SrmechBigint * max(n_mono, 1))()
+    den_arr = (_SrmechBigint * max(n_mono, 1))()
+    keep = []
+    exps_flat = []
+    for i, (num, den, exps_row) in enumerate(monomials):
+        bn, kbn = _bigint_from_int(int(num), out_cap)
+        bd, kbd = _bigint_from_int(int(den), out_cap)
+        num_arr[i] = bn
+        den_arr[i] = bd
+        keep.append(kbn)
+        keep.append(kbd)
+        if len(exps_row) != n_syms:
+            raise ValueError("thetasum_is_zero_c: exps row length != n_syms")
+        exps_flat.extend(int(e) for e in exps_row)
+    exps_c = (ctypes.c_int32 * max(len(exps_flat), 1))(*exps_flat)
+    nthetas_c = (ctypes.c_size_t * n_terms)(*[int(t) for t in term_nthetas])
+    out_is_zero = ctypes.c_int(0)
+    rc = LIB.srmech_thetasum_is_zero(
+        ctypes.c_size_t(n_syms),
+        ctypes.c_int(xsym), ctypes.c_int(ysym), ctypes.c_int(psym),
+        ctypes.c_size_t(n_terms), nthetas_c,
+        num_arr, den_arr, exps_c,
+        ctypes.c_uint32(out_cap), ctypes.byref(out_is_zero),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_thetasum_is_zero returned non-OK status {rc}")
+    return bool(out_is_zero.value)
 
 
 # ----------------------------------------------------------------------

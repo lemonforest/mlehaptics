@@ -132,6 +132,7 @@ from __future__ import annotations
 
 from typing import Dict, Iterable, List, Mapping, Tuple
 
+from . import _native as _nat
 from .ellbase import EllMonomial, EllRatio, Theta, _P, _X, _coerce_q
 from .q import Q
 
@@ -513,7 +514,24 @@ class ThetaSum:
         for a canonical reference ``r``; the basis factors then combine exactly in the
         carrier (their ``Q``·prefactor coefficients add). The class is ``≡ 0`` IFF every
         normal-form coefficient cancels to 0 — a purely symbolic, EXACT carrier
-        decision, NO evaluation."""
+        decision, NO evaluation.
+
+        The decision DISPATCHES to the native ``srmech_thetasum_is_zero`` C peer when
+        it is loaded (a 1:1 structural mirror of this exact reduction — the C verdict
+        EQUALS the Python verdict byte-for-byte, so it is trusted unconditionally);
+        otherwise the pure-Python :meth:`_is_zero_py` body decides (it is the COMPLETE
+        alternative + the C peer's parity oracle)."""
+        if not self._terms:
+            return True
+        c = self._is_zero_c()
+        if c is not None:
+            return c
+        return self._is_zero_py()
+
+    def _is_zero_py(self) -> bool:
+        """The COMPLETE pure-Python ``is_zero`` decision (the parity oracle for the C
+        peer) — quasi-periodicity grouping + the exact Weierstrass three-term reduction.
+        See :meth:`is_zero` for the full algorithm + the MPM-verified theorems."""
         if not self._terms:
             return True
         # (2) partition the numerator terms by quasi-periodicity class.
@@ -526,6 +544,43 @@ class ThetaSum:
             if not _class_is_zero(members):
                 return False
         return True
+
+    def _is_zero_c(self) -> "bool | None":
+        """Dispatch the ``is_zero`` decision to the native ``srmech_thetasum_is_zero`` C
+        peer → the bool verdict, or ``None`` when the native symbols are absent (the
+        caller falls to :meth:`_is_zero_py`). The cleared numerator terms are marshalled
+        over an interned symbol table (the distinct symbols across every term prefactor +
+        canonical theta argument, sorted by NAME so the C dense exponent vector
+        reproduces the :meth:`~srmech.amsc.ellbase.EllMonomial._sort_key` tuple order)."""
+        if not _nat.has_native_thetasum():
+            return None
+        # the interned symbol universe = every symbol on a prefactor or a theta arg.
+        syms: "set" = set()
+        for pref, thetas in self._terms:
+            syms.update(pref.exps.keys())
+            for t in thetas:
+                syms.update(t.arg.exps.keys())
+        sym_list = sorted(syms)
+        idx = {s: i for i, s in enumerate(sym_list)}
+        n_syms = len(sym_list)
+
+        def row(m: EllMonomial) -> "List[int]":
+            r = [0] * n_syms
+            for s, e in m.exps.items():
+                r[idx[s]] = e
+            return r
+
+        monomials: "List[Tuple[int, int, List[int]]]" = []
+        term_nthetas: "List[int]" = []
+        for pref, thetas in self._terms:
+            monomials.append((pref.coeff.numerator, pref.coeff.denominator, row(pref)))
+            for t in thetas:
+                a = t.arg
+                monomials.append((a.coeff.numerator, a.coeff.denominator, row(a)))
+            term_nthetas.append(len(thetas))
+        return _nat.thetasum_is_zero_c(
+            n_syms, idx.get(_X, -1), idx.get(_Y, -1), idx.get(_P, -1),
+            term_nthetas, monomials)
 
     def __eq__(self, other) -> bool:
         if other is self:
