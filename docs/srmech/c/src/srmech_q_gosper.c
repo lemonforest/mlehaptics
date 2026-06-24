@@ -506,7 +506,11 @@ srmech_status_t srmech_q_gosper(const srmech_bigint_t *num_n,
                                 void *ws, size_t ws_len)
 {
     qg_ctx_t c;
-    qg_qpoly_t qn, qd, num0, den0, dn, rnum, rden;
+    /* zero-init: MSVC /WX flags C4701 (potentially-uninitialized num0/den0) on
+     * the early-error path even though line ~559 returns before any use; the
+     * {0} init is harmless (every struct is qg_qp_alloc'd before real use). */
+    qg_qpoly_t qn = {0}, qd = {0}, num0 = {0}, den0 = {0},
+               dn = {0}, rnum = {0}, rden = {0};
     uint32_t cap;
     size_t cl, terms, i, nlen0, dlen0;
     srmech_status_t st;
