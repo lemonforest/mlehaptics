@@ -1904,6 +1904,50 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.c_void_p, ctypes.c_size_t,
         ]
         lib.srmech_poly_shift.restype = ctypes.c_int
+    # rc52: the EXACT-RATIONAL TRIVARIATE polynomial carrier C peer
+    # (srmech_tripoly_*) — the 3-variable sibling of BiPoly, the multivariate
+    # "sums of sums" creative-telescoping foundation. A TriPoly is a ROW-MAJOR
+    # (j,k) grid of n-Poly coefficient runs over the same bignum substrate as poly
+    # (no int64/Q61 ceiling). NEW symbols → hasattr-guarded; additive →
+    # EXPECTED_ABI_VERSION stays 3.
+    #   size_t srmech_tripoly_ws_bound(size_t coeff_limbs, size_t n_terms)
+    if hasattr(lib, "srmech_tripoly_ws_bound"):
+        lib.srmech_tripoly_ws_bound.argtypes = [ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_tripoly_ws_bound.restype = ctypes.c_size_t
+    # add / sub share the cellwise-aligned grid shape
+    #   fn(a_n,a_d,a_nlen,cells, b_n,b_d,b_nlen, out_n,out_d,out_nlen, ws,wl)
+    _TRIPOLY_ADDSUB_SIG = [
+        ctypes.POINTER(_SrmechBigint),   # a_n[]
+        ctypes.POINTER(_SrmechBigint),   # a_d[]
+        ctypes.POINTER(ctypes.c_size_t), # a_nlen[]
+        ctypes.c_size_t,                 # cells
+        ctypes.POINTER(_SrmechBigint),   # b_n[]
+        ctypes.POINTER(_SrmechBigint),   # b_d[]
+        ctypes.POINTER(ctypes.c_size_t), # b_nlen[]
+        ctypes.POINTER(_SrmechBigint),   # out_n[]
+        ctypes.POINTER(_SrmechBigint),   # out_d[]
+        ctypes.POINTER(ctypes.c_size_t), # out_nlen[]
+        ctypes.c_void_p,                 # ws
+        ctypes.c_size_t,                 # ws_len
+    ]
+    for _trop in ("srmech_tripoly_add", "srmech_tripoly_sub"):
+        if hasattr(lib, _trop):
+            getattr(lib, _trop).argtypes = list(_TRIPOLY_ADDSUB_SIG)
+            getattr(lib, _trop).restype = ctypes.c_int
+    #   srmech_tripoly_mul(a_n,a_d,a_nlen,aj,ak, b_n,b_d,b_nlen,bj,bk,
+    #                      out_n,out_d,out_nlen, out_off, ocols, accum, ws,wl)
+    if hasattr(lib, "srmech_tripoly_mul"):
+        lib.srmech_tripoly_mul.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_size_t), ctypes.c_size_t, ctypes.c_size_t,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_size_t), ctypes.c_size_t, ctypes.c_size_t,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.POINTER(ctypes.c_size_t), ctypes.c_size_t, ctypes.c_size_t,
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_tripoly_mul.restype = ctypes.c_int
     # rc40: the EXACT-RATIONAL matrix carrier C peer (srmech_qmat_*) — the exact
     # ℚ-linear-algebra peer of srmech.amsc.qmat.QMat (the §76 gosper exact solve
     # foundation). Each op takes ROW-MAJOR parallel _SrmechBigint entry arrays.
@@ -2668,6 +2712,231 @@ def poly_gcd_c(a_coeffs, b_coeffs):
     if rc != SRMECH_OK:
         raise RuntimeError(f"srmech_poly_gcd returned non-OK status {rc}")
     return _poly_read_array(o_n, o_d, out_len.value)
+
+
+# ----------------------------------------------------------------------
+# rc52: the EXACT-RATIONAL TRIVARIATE polynomial carrier C peer
+# (srmech_tripoly_*). The Python srmech.amsc.tripoly.TriPoly routes its
+# add/sub/mul through these when has_native_tripoly(); the pure-Python body is
+# the COMPLETE alternative (and the parity oracle) — both emit byte-identical
+# exact (num, den) coefficients at any magnitude.
+#
+# The Python bridge form of a TriPoly is the nested [[[(num,den)…]_n]_k]_j grid
+# (j-major, then k, then ascending-n Poly coefficients). The C peer consumes the
+# (j,k) grid FLATTENED row-major into a single concatenated _SrmechBigint
+# coefficient array pair (nums[]/dens[], cells in row-major (j,k) order, ascending
+# n within each cell) plus a parallel cell-length array nlen[] (length aj*ak).
+# ----------------------------------------------------------------------
+
+_TRIPOLY_SYMS = (
+    "srmech_tripoly_ws_bound",
+    "srmech_bigint_from_dec",
+    "srmech_bigint_to_dec",
+    "srmech_bigint_to_dec_bound",
+)
+
+
+def has_native_tripoly() -> bool:
+    """True iff the rc52 srmech_tripoly_* ops + the srmech_bigint decimal-marshal
+    helpers are loaded + bound. False on a no-C or pre-rc52 lib — the pure-Python
+    ``srmech.amsc.tripoly.TriPoly`` body is the complete alternative (and the
+    parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _TRIPOLY_SYMS) and hasattr(
+        LIB, "srmech_tripoly_add"
+    )
+
+
+def _tri_grid_dims(grid):
+    """A nested [[[(num,den)…]_n]_k]_j grid → (aj, ak), the j-degree+1 and the max
+    k-degree+1 across all j-blocks (the rectangular (j,k) shape the flat C form
+    pads to)."""
+    aj = len(grid)
+    ak = 0
+    for kgrid in grid:
+        if len(kgrid) > ak:
+            ak = len(kgrid)
+    return aj, ak
+
+
+def _tri_grid_coeff_limbs(grid):
+    """The largest significant-limb count across every (num, den) in a nested
+    grid (9 decimal digits ≈ 1 limb; pad)."""
+    cl = 1
+    for kgrid in grid:
+        for run in kgrid:
+            for num, den in run:
+                cl = max(cl, len(str(num).lstrip("-")) // 9 + 2,
+                         len(str(den)) // 9 + 2)
+    return cl
+
+
+def _tri_flatten(grid, aj, ak, out_cap):
+    """Flatten a nested grid to row-major (j,k) concatenated _SrmechBigint arrays
+    over the (aj x ak) rectangle (missing cells → empty n-runs). Returns
+    ``(num_arr, den_arr, nlen_arr, keepalive)`` — the caller MUST keep
+    ``keepalive`` (the limb buffers) alive for the call."""
+    runs = []
+    cells = aj * ak
+    nlen = (ctypes.c_size_t * max(cells, 1))()
+    total = 0
+    for dj in range(aj):
+        kgrid = grid[dj] if dj < len(grid) else []
+        for dk in range(ak):
+            run = kgrid[dk] if dk < len(kgrid) else []
+            runs.append(run)
+            nlen[dj * ak + dk] = len(run)
+            total += len(run)
+    num_arr = (_SrmechBigint * max(total, 1))()
+    den_arr = (_SrmechBigint * max(total, 1))()
+    keep = []
+    idx = 0
+    for run in runs:
+        for num, den in run:
+            bn, kbn = _bigint_from_int(int(num), out_cap)
+            bd, kbd = _bigint_from_int(int(den), out_cap)
+            num_arr[idx] = bn
+            den_arr[idx] = bd
+            keep.append(kbn)
+            keep.append(kbd)
+            idx += 1
+    return num_arr, den_arr, nlen, keep
+
+
+def _tri_blank_cells(cell_caps, out_cap):
+    """Build the concatenated blank output arrays. ``cell_caps`` is the per-cell
+    pre-trim n-run capacity list; the total is their sum. Returns
+    ``(num_arr, den_arr, nlen_arr, offsets, keepalive)`` — ``offsets`` is each
+    cell's base index into the concatenated arrays, ``nlen_arr`` is pre-zeroed."""
+    cells = len(cell_caps)
+    total = sum(cell_caps)
+    num_arr = (_SrmechBigint * max(total, 1))()
+    den_arr = (_SrmechBigint * max(total, 1))()
+    nlen = (ctypes.c_size_t * max(cells, 1))()
+    offsets = (ctypes.c_size_t * max(cells, 1))()
+    keep = []
+    idx = 0
+    for cidx, cap in enumerate(cell_caps):
+        offsets[cidx] = idx
+        nlen[cidx] = 0
+        for _ in range(cap):
+            bn, kbn = _bigint_from_int(0, out_cap)
+            bd, kbd = _bigint_from_int(1, out_cap)
+            num_arr[idx] = bn
+            den_arr[idx] = bd
+            keep.append(kbn)
+            keep.append(kbd)
+            idx += 1
+    return num_arr, den_arr, nlen, offsets, keep
+
+
+def _tri_read_grid(num_arr, den_arr, nlen, offsets, aj, ak):
+    """Read the concatenated result arrays back into the nested
+    [[[(num,den)…]_n]_k]_j grid (j-major, then k), using the per-cell trimmed
+    lengths nlen[] + base offsets[]. Trailing-empty cells/blocks stay (the carrier
+    re-trims on the Python side)."""
+    grid = []
+    for dj in range(aj):
+        kgrid = []
+        for dk in range(ak):
+            cell = dj * ak + dk
+            base = offsets[cell]
+            length = nlen[cell]
+            run = []
+            for i in range(length):
+                run.append((_bigint_to_int(num_arr[base + i]),
+                            _bigint_to_int(den_arr[base + i])))
+            kgrid.append(run)
+        grid.append(kgrid)
+    return grid
+
+
+def _tri_setup(*grids, accum_terms=1):
+    """Common sizing for a set of input grids: the per-coefficient limb cap
+    (``out_cap``) and the caller arena (``ws``, ``ws_len``). ``accum_terms`` is the
+    worst-case output n-run length (the convolution depth)."""
+    cl = 1
+    for g in grids:
+        cl = max(cl, _tri_grid_coeff_limbs(g))
+    n_terms = accum_terms + 1
+    # Match the C tri_cap_for product-of-magnitudes envelope (generous).
+    out_cap = (cl * n_terms + 2) * 2 + cl * 2 + 64
+    ws_len = int(LIB.srmech_tripoly_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_size_t(n_terms)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    return out_cap, ws, ws_len
+
+
+def tripoly_add_c(a_grid, b_grid):
+    """Native exact-ℚ trivariate add → the nested [[[(num,den)…]_n]_k]_j grid, or
+    ``None`` if the native symbols are absent."""
+    return _tripoly_addsub_c("srmech_tripoly_add", a_grid, b_grid)
+
+
+def tripoly_sub_c(a_grid, b_grid):
+    """Native exact-ℚ trivariate subtract (see :func:`tripoly_add_c`)."""
+    return _tripoly_addsub_c("srmech_tripoly_sub", a_grid, b_grid)
+
+
+def _tripoly_addsub_c(symbol, a_grid, b_grid):
+    if not has_native_tripoly() or not hasattr(LIB, symbol):
+        return None
+    aj, ak = _tri_grid_dims(a_grid)
+    bj, bk = _tri_grid_dims(b_grid)
+    oj, ok = max(aj, bj), max(ak, bk)            # the aligned rectangle
+    cells = oj * ok
+    out_cap, ws, ws_len = _tri_setup(a_grid, b_grid, accum_terms=1)
+    a_n, a_d, a_nlen, ka = _tri_flatten(a_grid, oj, ok, out_cap)
+    b_n, b_d, b_nlen, kb = _tri_flatten(b_grid, oj, ok, out_cap)
+    # per-cell pre-trim stride = max(a_cell_len, b_cell_len) — EXACTLY the C
+    # tri_addsub stride `o_off += max(na, nb)` (an empty+empty cell strides 0, so
+    # the Python offset layout must NOT floor to 1 or it would diverge after the
+    # first all-empty cell).
+    cell_caps = [max(a_nlen[c], b_nlen[c]) for c in range(cells)]
+    o_n, o_d, o_nlen, o_off, ko = _tri_blank_cells(cell_caps, out_cap)
+    rc = getattr(LIB, symbol)(
+        a_n, a_d, a_nlen, ctypes.c_size_t(cells),
+        b_n, b_d, b_nlen,
+        o_n, o_d, o_nlen,
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (ka, kb, ko)
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"{symbol} returned non-OK status {rc}")
+    return _tri_read_grid(o_n, o_d, o_nlen, o_off, oj, ok)
+
+
+def tripoly_mul_c(a_grid, b_grid):
+    """Native exact-ℚ trivariate product (2-D (j,k) convolution; each cell an
+    n-run convolution) → the nested grid, or ``None`` if absent."""
+    if not has_native_tripoly() or not hasattr(LIB, "srmech_tripoly_mul"):
+        return None
+    aj, ak = _tri_grid_dims(a_grid)
+    bj, bk = _tri_grid_dims(b_grid)
+    if aj == 0 or ak == 0 or bj == 0 or bk == 0:
+        return []
+    oj, ok = aj + bj - 1, ak + bk - 1
+    cells = oj * ok
+    # worst-case output n-run length = max input n-run lengths summed - 1.
+    amax = max((len(run) for kg in a_grid for run in kg), default=0)
+    bmax = max((len(run) for kg in b_grid for run in kg), default=0)
+    accum = max(amax + bmax - 1, 1)
+    out_cap, ws, ws_len = _tri_setup(a_grid, b_grid, accum_terms=accum)
+    a_n, a_d, a_nlen, ka = _tri_flatten(a_grid, aj, ak, out_cap)
+    b_n, b_d, b_nlen, kb = _tri_flatten(b_grid, bj, bk, out_cap)
+    cell_caps = [accum] * cells
+    o_n, o_d, o_nlen, o_off, ko = _tri_blank_cells(cell_caps, out_cap)
+    rc = LIB.srmech_tripoly_mul(
+        a_n, a_d, a_nlen, ctypes.c_size_t(aj), ctypes.c_size_t(ak),
+        b_n, b_d, b_nlen, ctypes.c_size_t(bj), ctypes.c_size_t(bk),
+        o_n, o_d, o_nlen, o_off, ctypes.c_size_t(ok), ctypes.c_size_t(accum),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (ka, kb, ko)
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_tripoly_mul returned non-OK status {rc}")
+    return _tri_read_grid(o_n, o_d, o_nlen, o_off, oj, ok)
 
 
 # ----------------------------------------------------------------------

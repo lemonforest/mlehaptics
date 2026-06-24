@@ -84,6 +84,13 @@ from .qmat import QMat
 # Σ-row prover (rc39+). A carrier, not a ToolEntry, mirrors Qi / Qalg / Qprime /
 # QMat.
 from .poly import Poly
+# The exact-rational TRIVARIATE polynomial carrier TriPoly — the 3-variable
+# sibling of BiPoly (exact ℚ[n,j,k]: the free variable n + two summation
+# variables j, k, with shift_n/shift_j/shift_k + delta_j/delta_k difference
+# operators). The foundation of the multivariate "sums of sums" creative-
+# telescoping row (the rc53 apagodu_zeilberger op consumes it). A carrier, not a
+# ToolEntry, mirrors Poly / QMat / Qi / Qalg / Qprime.
+from .tripoly import TriPoly
 # v0.3.0 — tool_schema introspection (Task #198) registers srmech's
 # own AMSC tools at import time. Profile-contributed tools register
 # later, at profile-activation time via profile_loader.
@@ -125,4 +132,5 @@ __all__ = [
     "Qprime",
     "QMat",
     "Poly",
+    "TriPoly",
 ]
