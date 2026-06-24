@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc60"
-#define SRMECH_VERSION       "0.9.0rc60"
+#define SRMECH_VERSION_PRE   "rc61"
+#define SRMECH_VERSION       "0.9.0rc61"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3529,6 +3529,68 @@ srmech_status_t srmech_q_gosper(const srmech_bigint_t *num_n,
                                 size_t *rd_qlen, size_t *out_rd_cells,
                                 int64_t *out_rd_xlow,
                                 void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_elliptic_gosper — the ELLIPTIC analog of Gosper's indefinite
+ * hypergeometric summation (the FIRST engine op of the ELLIPTIC F929 reduction
+ * row, the top of the base-axis degeneration tower elliptic -> q -> ordinary). The
+ * C peer of srmech.amsc.elliptic_gosper.elliptic_gosper.
+ *
+ * Input: an elliptic-hypergeometric term given by its TERM RATIO t(n+1)/t(n) = r(x)
+ * (x = q^n) as an EllRatio -- a theta-quotient prod theta(a x;p)/prod theta(b x;p)
+ * over an exact-Q monomial prefactor. The bridge form: the prefactor exact-Q
+ * coefficient (pref_num, pref_den), the prefactor symbol count (n_pref_syms), and
+ * the numerator + denominator theta-factor counts (n_num, n_den).
+ *
+ * Output: when t(n) HAS an elliptic-hypergeometric antidifference T(n) = R(x)*t(n)
+ * (so T(n+1) - T(n) = t(n)), the CERTIFICATE R(x) satisfying the elliptic Gosper
+ * equation R(qx)*r(x) - R(x) = 1; in the native (constant-ratio) scope R is the
+ * scalar prefactor rn/rd (no theta), so rn/rd carry the reduced exact-Q certificate
+ * coefficient. Else *out_has = 0.
+ *
+ * Reference (MPM-verified at build): George Gasper & Michael Schlosser, "Summation,
+ * transformation, and expansion formulas for multibasic theta hypergeometric
+ * series," Adv. Stud. Contemp. Math. (Kyungshang) 11, no. 1 (2005), 67-84
+ * (arXiv:math/0505215) -- derived "using indefinite summation."
+ *
+ * STANDALONE-COMPLETE + BOUNDED native scope (the srmech_q_gosper precedent): this
+ * rc61 peer COMPLETES the canonical elliptic-GEOMETRIC core natively -- a CONSTANT
+ * term ratio r = z = z_num/z_den (no theta factors, no prefactor symbols), whose
+ * certificate is the closed form R = z_den / (z_num - z_den) (so R(qx)*r - R =
+ * R*(z-1) = 1, exact -- the elliptic analogue of the ordinary / q-geometric
+ * R = 1/(z-1)). For EVERY other input it DECLINES (*out_has = 0), and the Python op
+ * re-runs its COMPLETE pure-Python path -- a has=0 is NEVER a definitive "no
+ * certificate" (the dispatch trusts only has=1). z == 1 has no finite certificate ->
+ * decline. Malloc-free (JPL Rule 3): caller arena `ws` only; byte-identical to the
+ * Python certificate at ANY magnitude. Any residual overflow -> SRMECH_ERR_OVERFLOW.
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES srmech_elliptic_gosper needs for a prefactor coefficient of
+ * `coeff_limbs` significant limbs. */
+size_t srmech_elliptic_gosper_ws_bound(size_t coeff_limbs);
+
+/* The per-coefficient limb cap for each srmech_bigint in the rn / rd OUTPUT, so the
+ * reduced certificate coefficient never overflows its slot. */
+size_t srmech_elliptic_gosper_out_cap(size_t coeff_limbs);
+
+/* Compute the elliptic-Gosper certificate for the term ratio r.
+ *   pref_num / pref_den : the exact-Q prefactor coefficient z = z_num/z_den
+ *   n_pref_syms         : the prefactor symbol count (q/p/param powers)
+ *   n_num / n_den       : the numerator / denominator theta-factor counts
+ * On success *out_has is set: 1 when the (constant-ratio) elliptic-geometric core has
+ * an antidifference (then rn/rd carry the reduced scalar certificate coefficient
+ * R = z_den/(z_num - z_den)), 0 when the peer declines (any theta factor or a
+ * non-scalar prefactor, or z == 1 -> the caller re-decides on the pure path). The
+ * caller sizes rn/rd to srmech_elliptic_gosper_out_cap limbs. pref_den == 0 ->
+ * SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_elliptic_gosper(const srmech_bigint_t *pref_num,
+                                       const srmech_bigint_t *pref_den,
+                                       size_t n_pref_syms,
+                                       size_t n_num, size_t n_den,
+                                       int *out_has,
+                                       srmech_bigint_t *rn, srmech_bigint_t *rd,
+                                       void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_q_zeilberger — the q-analog of Zeilberger's creative telescoping (the

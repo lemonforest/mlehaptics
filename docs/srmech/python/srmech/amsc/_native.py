@@ -2149,6 +2149,32 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_q_gosper.restype = ctypes.c_int
 
+    # rc61: srmech_elliptic_gosper — the ELLIPTIC analog of Gosper (the FIRST engine
+    # op of the ELLIPTIC F929 row). The term-ratio EllRatio rides as the prefactor
+    # exact-Q coefficient (pref_num, pref_den) + the prefactor symbol count + the
+    # numerator / denominator theta-factor counts; the certificate scalar coefficient
+    # (constant-ratio native scope) comes back as rn/rd. The native peer completes the
+    # elliptic-geometric (constant-ratio) case + declines the rest (has=0 -> Python
+    # re-decides). NEW symbols -> hasattr-guarded; ABI stays 3.
+    #   size_t srmech_elliptic_gosper_ws_bound(coeff_limbs)
+    #   size_t srmech_elliptic_gosper_out_cap(coeff_limbs)
+    for _egsz in ("srmech_elliptic_gosper_ws_bound",
+                  "srmech_elliptic_gosper_out_cap"):
+        if hasattr(lib, _egsz):
+            getattr(lib, _egsz).argtypes = [ctypes.c_size_t]
+            getattr(lib, _egsz).restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_elliptic_gosper"):
+        _ebi = ctypes.POINTER(_SrmechBigint)
+        lib.srmech_elliptic_gosper.argtypes = [
+            _ebi, _ebi,                          # pref_num, pref_den
+            ctypes.c_size_t,                     # n_pref_syms
+            ctypes.c_size_t, ctypes.c_size_t,    # n_num, n_den
+            ctypes.POINTER(ctypes.c_int),        # out_has
+            _ebi, _ebi,                          # rn, rd
+            ctypes.c_void_p, ctypes.c_size_t,    # ws, ws_len
+        ]
+        lib.srmech_elliptic_gosper.restype = ctypes.c_int
+
     # rc42: srmech_zeilberger — Zeilberger's creative telescoping (the §76 telescope
     # Sigma-row's SECOND public op). The four BIVARIATE term ratios ride as flat
     # (num, den) coefficient arrays (k-then-n order) + a per-k length array + the
@@ -3808,6 +3834,90 @@ def q_gosper_c(num_form, den_form):
     r_num_rows = _qp_read_row(rn_n, rn_d, rn_q, rn_off, rn_cells.value)
     r_den_rows = _qp_read_row(rd_n, rd_d, rd_q, rd_off, rd_cells.value)
     return True, (rn_xlow.value, r_num_rows), (rd_xlow.value, r_den_rows)
+
+
+# ----------------------------------------------------------------------
+# rc61: srmech_elliptic_gosper — the ELLIPTIC analog of Gosper (the FIRST engine op
+# of the ELLIPTIC F929 row). The Python srmech.amsc.elliptic_gosper.elliptic_gosper
+# routes a POSITIVE (certificate-found) C result through this AND re-verifies it in
+# exact ℚ before trusting it; a has=0 / error falls to the complete pure-Python path
+# (the parity oracle + full-coverage decider). The term-ratio EllRatio rides as its
+# exact-ℚ prefactor coefficient (pref_num, pref_den) + the prefactor symbol count +
+# the numerator / denominator theta-factor counts; the certificate scalar coefficient
+# (the constant-ratio native scope) comes back as rn / rd via the bigint decimal
+# bridge.
+# ----------------------------------------------------------------------
+
+_ELLIPTIC_GOSPER_SYMS = (
+    "srmech_elliptic_gosper_ws_bound",
+    "srmech_elliptic_gosper_out_cap",
+    "srmech_bigint_from_dec",
+    "srmech_bigint_to_dec",
+    "srmech_bigint_to_dec_bound",
+)
+
+
+def has_native_elliptic_gosper() -> bool:
+    """True iff the rc61 srmech_elliptic_gosper op + its ws/out-cap sizers + the
+    srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
+    pre-rc61 lib — the pure-Python ``srmech.amsc.elliptic_gosper.elliptic_gosper``
+    body is the complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _ELLIPTIC_GOSPER_SYMS) and hasattr(
+        LIB, "srmech_elliptic_gosper"
+    )
+
+
+def elliptic_gosper_c(ratio_form):
+    """Native elliptic-Gosper certificate for the term-ratio EllRatio ``ratio_form``
+    → ``(has_solution, cert_form)`` (``cert_form`` the EllRatio bridge form), or
+    ``None`` if the native symbols are absent. ``ratio_form`` is the dict
+    :func:`srmech.amsc.elliptic_gosper._ratio_to_form` emits (``prefactor`` =
+    ``(coeff_num, coeff_den, [(sym, exp), …])``; ``num`` / ``den`` = theta-argument
+    monomial triples). The native peer completes the constant-ratio elliptic-geometric
+    case (no theta factors, scalar prefactor) + declines the rest (``has_solution``
+    False → the caller re-decides on the pure path)."""
+    if not has_native_elliptic_gosper():
+        return None
+    pref_num, pref_den, pref_exps = ratio_form["prefactor"]
+    n_num = len(ratio_form["num"])
+    n_den = len(ratio_form["den"])
+    n_pref_syms = len(pref_exps)
+    if pref_den == 0:
+        raise ValueError("elliptic_gosper_c: the prefactor coefficient denominator "
+                         "must be nonzero")
+    # the per-coefficient out cap + the caller arena (sized from the input limbs).
+    cl = max(len(str(pref_num).lstrip("-")) // 9 + 2,
+             len(str(pref_den)) // 9 + 2, 2)
+    out_cap = int(LIB.srmech_elliptic_gosper_out_cap(ctypes.c_size_t(cl)))
+    ws_len = int(LIB.srmech_elliptic_gosper_ws_bound(ctypes.c_size_t(cl)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    pn, _pnl = _bigint_from_int(pref_num, out_cap)
+    pd, _pdl = _bigint_from_int(pref_den, out_cap)
+    rn, _rnl = _bigint_from_int(0, out_cap)
+    rd, _rdl = _bigint_from_int(0, out_cap)
+    has = ctypes.c_int(0)
+    rc = LIB.srmech_elliptic_gosper(
+        ctypes.byref(pn), ctypes.byref(pd),
+        ctypes.c_size_t(n_pref_syms),
+        ctypes.c_size_t(n_num), ctypes.c_size_t(n_den),
+        ctypes.byref(has),
+        ctypes.byref(rn), ctypes.byref(rd),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_elliptic_gosper returned non-OK status {rc}")
+    if not has.value:
+        return False, None
+    # the certificate is the scalar prefactor rn/rd (no theta factors) in the
+    # constant-ratio native scope — rebuild it as the EllRatio bridge form.
+    cert_form = {
+        "prefactor": (_bigint_to_int(rn), _bigint_to_int(rd), []),
+        "num": [],
+        "den": [],
+    }
+    return True, cert_form
 
 
 # ----------------------------------------------------------------------

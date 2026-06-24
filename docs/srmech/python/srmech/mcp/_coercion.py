@@ -352,6 +352,35 @@ def _to_qbipoly(value: Any, *, param: str = "") -> Any:
     return value
 
 
+def _to_ellratio(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value to the natural form for an ``EllRatio``-typed param (rc61
+    ``elliptic_gosper`` elliptic-hypergeometric term-ratio operand).
+
+    An ``EllRatio`` is a theta-quotient ``∏θ(αx;p)/∏θ(βx;p)`` over an exact-``ℚ``
+    monomial prefactor. The op's coercion
+    (:func:`srmech.amsc.elliptic_gosper._coerce_ratio`) accepts an ``EllRatio``
+    (passes through) or a lower carrier (an ``EllMonomial`` → a pure-monomial ratio;
+    a ``Theta`` → a single numerator theta). For a JSON caller the natural minimal
+    operand is a single exact-``ℚ`` SCALAR (the elliptic-geometric constant ratio
+    ``r = z``, the engine's canonical certifiable case): an int / ``(num, den)`` pair
+    builds the scalar ``EllRatio.monomial(EllMonomial.scalar(z))``. An ``EllRatio`` /
+    ``EllMonomial`` / ``Theta`` passes through (never a float; a coefficient must be
+    exact)."""
+    from srmech.amsc.ellbase import EllMonomial, EllRatio, Theta  # exact carrier; lazy
+    from srmech.amsc.q import Q
+    if isinstance(value, (EllRatio, EllMonomial, Theta)):
+        return value
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return EllRatio.monomial(EllMonomial.scalar(Q(value, 1)))
+    if (isinstance(value, (list, tuple)) and len(value) == 2
+            and isinstance(value[0], int) and isinstance(value[1], int)
+            and value[1] != 0):
+        return EllRatio.monomial(EllMonomial.scalar(Q(value[0], value[1])))
+    return value
+
+
 def _to_mat_or_vec(value: Any, *, param: str = "") -> Any:
     """Coerce a ``Mat | Vec`` (shape-polymorphic) param: a nested list rides as
     a 2-D matrix, a flat list as a 1-D vector — both pass through as the natural
@@ -690,6 +719,7 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "TriPoly": _to_tripoly,    # 0.9.0rc53: exact-ℚ[n,j,k] trivariate carrier (apagodu_zeilberger ratios)
     "QPoly": _to_qpoly,        # 0.9.0rc55: exact-ℚ[q] q-shift carrier (q_gosper q-term ratios)
     "QBiPoly": _to_qbipoly,    # 0.9.0rc56: exact bivariate-ℚ[q] carrier (q_zeilberger ratios)
+    "EllRatio": _to_ellratio,  # 0.9.0rc61: exact modified-theta-quotient carrier (elliptic_gosper term ratio)
     "Optional[Vec]": _to_vec,
     "Optional[HV]": _to_hv,
     "Mat | Vec": _to_mat_or_vec,   # shape-polymorphic 2-D-or-1-D operand
