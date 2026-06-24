@@ -63,4 +63,7 @@ def test_introspect_tools_total_is_276():
     # rc42 added genome + partition ToolEntries (272→274);
     # rc43 added laplacian.tokenize + cooccurrence_edges (§17 U1; 274→276).
     # rc108 added laplacian.mat_svd (full-SVD Mat foundation; 289→290).
-    assert introspect.describe()["tools"]["total"] == 330
+    # F929 router: dispatch.infer ToolEntry (the OPEN/infer meta-dispatcher
+    # over the cyclic/spectral/Σ reduction rows; non_compute orchestration,
+    # no C peer) — 330→331.
+    assert introspect.describe()["tools"]["total"] == 331

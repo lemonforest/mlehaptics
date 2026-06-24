@@ -3010,6 +3010,60 @@ def _register_primitive_class_tools() -> None:
                       "the WZ equation), or None when the term is not WZ-summable"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The F929 OPEN/infer ROUTER — the meta-dispatcher that makes the
+        # three shipped reduction-theory rows (cyclic / spectral / Σ) ONE
+        # callable. Pure orchestration over the already-C-mirrored reducers
+        # (the_one / resonant_spectrum / telescope) — NO new math, so it is
+        # non_compute (the from_bodies / cooccurrence_edges precedent; no
+        # srmech_infer C symbol). The capstone of the dispatch table (F929).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.dispatch.infer", owner="srmech",
+            category="dispatch",
+            summary="The F929 OPEN/infer ROUTER — the meta-dispatcher over "
+                    "srmech's three shipped closed-form reduction-theory rows "
+                    "(cyclic / spectral / Σ), the capstone that makes the F929 "
+                    "dispatch table (14 A–N classes as a table of closed-form "
+                    "reduction theories) ONE callable. Given an arbitrary STORED "
+                    "RELATIONSHIP (a descriptor dict), DETECTS which row its "
+                    "structure matches (an explicit row=/kind= tag wins; else "
+                    "structural sniff: the four (n,k) term-ratios rn_num/rn_den/"
+                    "rk_num/rk_den or a term_ratio_num/term_ratio_den → Σ; an "
+                    "edges/adjacency/laplacian/matrix payload → spectral; a sigma/"
+                    "theta_num/period/generator payload → cyclic), TRIES the "
+                    "matching shipped reducer AND VERIFIES it actually reduced — "
+                    "reads the reducer's OWN verification: wz_certificate's "
+                    "verified flag (Σ), the force-orders L²==L·L contract "
+                    "(spectral, resonant_spectrum), the (1,3,7,3) partition + "
+                    "n1_is_sigma_only invariant (cyclic, the_one) — and returns the "
+                    "verified closed form, else an honest OPEN. Composes the "
+                    "EXISTING verified reducers — NO new math; NEVER returns "
+                    "reducible:True for a reduction it did not verify (the "
+                    "executable no-magic-numbers / no-hallucination discipline). "
+                    "On success: {reducible:True, row, reducer, closed_form, "
+                    "verified:True}; on no verified match: {reducible:False, "
+                    "row:None, reason, candidate_next_theory:<honest hint>}. A "
+                    "Class-D late-binding op one rung above dispatch.match; "
+                    "non_compute orchestration (no srmech_infer C peer — every "
+                    "computation rides an already-C-mirrored reducer). numpy-free; "
+                    "no abs() (the Λ² verify reads the magnitude by Class-K "
+                    "comparison). Cites F929.",
+            parameters=(P("relationship", "dict", True,
+                          "the stored-relationship descriptor — an optional row=/"
+                          "kind= tag ('sigma'/'spectral'/'cyclic') plus the "
+                          "row-specific payload: Σ → rn_num/rn_den/rk_num/rk_den "
+                          "(definite sum) or term_ratio_num/term_ratio_den "
+                          "(indefinite); spectral → edges (+weights,+n) / adjacency "
+                          "/ laplacian / matrix; cyclic → sigma + theta_num "
+                          "(+theta_den) or period / generator"),),
+            returns=R("dict",
+                      "{'reducible': True, 'row': str, 'reducer': str, "
+                      "'closed_form': <reducer output>, 'verified': True} on a "
+                      "VERIFIED reduction, else {'reducible': False, 'row': None, "
+                      "'reason': str, 'candidate_next_theory': str} (the honest "
+                      "OPEN residue)"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # Foundational cross-domain cascade catalog (v0.4.3rc6).
         # The cascades recurring across every/most domains, promoted so a
         # named cascade is the default and a math-library call the exception.

@@ -23,11 +23,11 @@ API
 from __future__ import annotations
 
 import ctypes
-from typing import Iterable, Tuple
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 from . import _native
 
-__all__ = ["match", "mirror_pattern"]
+__all__ = ["match", "mirror_pattern", "infer"]
 
 
 def mirror_pattern(pattern: bytes) -> bytes:
@@ -119,3 +119,325 @@ def match(input_bytes: bytes,
         if input_b.find(p) >= 0:
             return True, t
     return False, 0
+
+
+# =====================================================================
+# §76+ — the F929 OPEN/infer router: ONE dispatch table over the three
+# shipped closed-form reduction-theory rows (cyclic / spectral / Σ).
+# =====================================================================
+#
+# F929 frame: the 14 A–N classes ARE a DISPATCH TABLE over closed-form
+# reduction theories humans already built, each recognised as a cascade.
+# Three reducer rows already ship in srmech:
+#
+#   * cyclic   row → ``cascade.the_one`` (the S(σ,θ) Klein-4 generator),
+#   * spectral row → ``coupling.resonant_spectrum`` (Laplacian eigensolve),
+#   * Σ        row → ``telescope`` = gosper / zeilberger / wz_certificate.
+#
+# ``infer`` is the META-dispatcher (a Class-D late-binding op, one rung up
+# from :func:`match`) that makes the three rows ONE callable: it DETECTS
+# which row a stored relationship matches, TRIES the matching reducer AND
+# VERIFIES it actually reduced (reads the reducer's OWN verification — the
+# wz_certificate ``verified`` flag, the resonant_spectrum force-orders
+# Λ²≈L·L, the One ``(1,3,7,3)`` partition + ``n1_is_sigma_only`` invariant),
+# and returns the verified closed form — else an honest ``OPEN``.
+#
+# It composes the EXISTING verified reducers — NO NEW MATH. ``infer`` runs
+# no arithmetic of its own; every computation happens inside a reducer that
+# already has its 1:1 C peer (srmech_resonant_spectrum / srmech_gosper /
+# srmech_zeilberger / srmech_wz_verify). So this op is **non_compute**
+# orchestration (the from_bodies / cooccurrence_edges precedent) — there is
+# no ``srmech_infer`` C symbol and the #928 python_only_irreducible debt
+# ceiling is untouched.
+#
+# The OPEN residue is the POINT: it makes the no-magic-numbers /
+# no-hallucination discipline EXECUTABLE — ``infer`` NEVER returns
+# ``reducible: True`` for a reduction it did not VERIFY. A relationship the
+# current vocabulary cannot close comes back ``{reducible: False, …}`` with
+# an honest candidate next-theory hint (the residue srmech is honest about,
+# never fabricates a reduction for).
+
+# The honest candidate-next-theory hints (kept SMALL + truthful — these name
+# the documented next reduction-theory rows the framework has flagged but
+# NOT yet shipped, per the post-§76 roadmap, NOT a fabricated promise).
+_OPEN_HINTS: Dict[str, str] = {
+    "sigma": "multivariate WZ / Apagodu–Zeilberger (sums of sums "
+             "Σ_j Σ_k F(n,j,k)) or q-hypergeometric (q-Gosper / q-Zeilberger)",
+    "spectral": "directed / signed (magnetic) Laplacian spectral row, or a "
+                "non-self-adjoint pencil generalized-eigenproblem reducer",
+    "cyclic": "a higher Cayley–Dickson rung (sedenion S(σ,θ)) or a "
+              "non-division-algebra cyclic-group reduction",
+    None: "no row matched; candidate = a NEW reduction-theory row (the F929 "
+          "dispatch table is extensible — add the matching reducer)",
+}
+
+# The structural-sniff keys for each untagged row (checked in this order;
+# Σ before spectral before cyclic so the most specific payload wins).
+_SIGMA_KEYS = ("rn_num", "rn_den", "rk_num", "rk_den")
+_SIGMA_GOSPER_KEYS = ("term_ratio_num", "term_ratio_den")
+_SPECTRAL_KEYS = ("laplacian", "adjacency", "edges", "matrix")
+_CYCLIC_KEYS = ("sigma", "theta_num", "generator", "period")
+
+
+def _detect_row(rel: Dict[str, Any]) -> Optional[str]:
+    """Structural row-detector: read which reduction-theory row a stored
+    relationship matches. An explicit ``row`` / ``kind`` tag wins; otherwise
+    sniff the payload keys (Σ → spectral → cyclic, most-specific first).
+
+    Returns ``"sigma"`` / ``"spectral"`` / ``"cyclic"``, or ``None`` (no row).
+    """
+    tag = rel.get("row", rel.get("kind"))
+    if tag is not None:
+        t = str(tag).strip().lower()
+        if t in ("sigma", "Σ", "telescope", "sum"):
+            return "sigma"
+        if t in ("spectral", "laplacian", "coupling"):
+            return "spectral"
+        if t in ("cyclic", "klein4", "the_one", "modular"):
+            return "cyclic"
+        return None  # an explicit but unknown tag → honest OPEN
+    # Untagged: sniff structure. Σ (a definite/indefinite hypergeometric sum)
+    # is the most specific (named term-ratio operands).
+    if all(k in rel for k in _SIGMA_KEYS) or all(k in rel for k in _SIGMA_GOSPER_KEYS):
+        return "sigma"
+    if any(k in rel for k in _SPECTRAL_KEYS):
+        return "spectral"
+    if any(k in rel for k in _CYCLIC_KEYS):
+        return "cyclic"
+    return None
+
+
+def _reduced(row: str, reducer: str, closed_form: Any) -> Dict[str, Any]:
+    """The VERIFIED-reduction return shape (the only path to ``reducible: True``)."""
+    return {
+        "reducible": True,
+        "row": row,
+        "reducer": reducer,
+        "closed_form": closed_form,
+        "verified": True,
+    }
+
+
+def _open(row: Optional[str], reason: str) -> Dict[str, Any]:
+    """The honest OPEN return shape — a relationship the current vocabulary
+    cannot CLOSE-and-VERIFY. Carries a truthful candidate next-theory hint."""
+    return {
+        "reducible": False,
+        "row": None,
+        "reason": reason,
+        "candidate_next_theory": _OPEN_HINTS.get(row, _OPEN_HINTS[None]),
+    }
+
+
+def _try_sigma(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """The Σ row — try the telescope reducers and VERIFY. A definite-sum
+    relationship (the four (n,k) term-ratios) routes to ``wz_certificate``
+    (the identity PROOF) and is accepted ONLY when its own ``verified`` flag
+    is True; an indefinite term-ratio (single-variable) routes to ``gosper``
+    and is accepted only when it returns a (non-None) rational certificate.
+    Returns the reduced dict, or ``None`` to fall through to OPEN."""
+    if all(k in rel for k in _SIGMA_KEYS):
+        from . import wz_certificate as _wz  # lazy: avoids import cycle
+        cert = _wz.wz_certificate(rel["rn_num"], rel["rn_den"],
+                                  rel["rk_num"], rel["rk_den"])
+        # VERIFY: trust ONLY the reducer's own verification flag (anti-
+        # hallucination — never claim a reduction wz_certificate didn't prove).
+        if cert is not None and cert.get("verified") is True:
+            return _reduced("sigma", "wz_certificate", cert)
+        return None  # not WZ-summable / not verified → honest OPEN
+    # Indefinite hypergeometric summation (Gosper) — a single term-ratio.
+    if all(k in rel for k in _SIGMA_GOSPER_KEYS):
+        from . import gosper as _g  # lazy
+        r = _g.gosper(rel["term_ratio_num"], rel["term_ratio_den"])
+        if r is not None:  # a (non-None) certificate IS the verification here
+            return _reduced("sigma", "gosper", r)
+        return None
+    return None
+
+
+def _try_spectral(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """The spectral row — build the coupling Laplacian and run
+    ``resonant_spectrum``, then VERIFY the reducer's own internal check:
+    the force-orders satisfy Λ² ≈ L·L (the L² == V·diag(Λ²)·Vᵀ
+    reconstruction the §75 op guarantees). Accept only when that holds."""
+    from . import coupling as _c  # lazy
+    from . import laplacian as _L
+    from .mat import Mat
+
+    L = _build_laplacian(rel, _L, Mat)
+    if L is None:
+        return None
+    spec = _c.resonant_spectrum(L, orders=2)
+    # VERIFY: the resonant_spectrum CONTRACT is force_orders[1] == L·L (the
+    # biharmonic L² reconstructed from the ONE eigensolve). Re-derive L·L by
+    # the Class-L matmul and compare — the reducer's own verification.
+    fo = spec.get("force_orders") or []
+    if len(fo) < 2:
+        return None
+    l1 = fo[0]                       # L¹  (= V·diag(Λ)·Vᵀ ≈ L)
+    l2 = fo[1]                       # L²  (= V·diag(Λ²)·Vᵀ)
+    if not _matrices_close(l2, _L.mat_matmul(l1, l1)):
+        return None                 # the Λ² == L·L contract failed → OPEN
+    return _reduced("spectral", "resonant_spectrum", spec)
+
+
+def _try_cyclic(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """The cyclic row — build ``the_one`` S(σ,θ) and VERIFY its structural
+    invariants: the (1,3,7,3) A–N partition, the (0,1,3) plane-counts, and
+    the n=1-is-σ-only prediction (θ inert at the ℂ rung). Accept only when
+    all hold (the One's own self-consistency check)."""
+    from .cascade import one as _one  # lazy
+
+    sigma = int(rel.get("sigma", 1))
+    theta_num = int(rel.get("theta_num", rel.get("period", 0)))
+    theta_den = int(rel.get("theta_den", 1))
+    if sigma not in (1, -1) or theta_den <= 0:
+        return None
+    one = _one.the_one(sigma, theta_num, theta_den)
+    # VERIFY: the One's structural invariants (the cyclic-row's closed form is
+    # the 14-D generator; its verification is the 1:3:7:3 substrate identity).
+    if (one.partition == (1, 3, 7, 3)
+            and one.plane_counts == (0, 1, 3)
+            and one.n1_is_sigma_only):
+        return _reduced("cyclic", "the_one", one)
+    return None
+
+
+def _build_laplacian(rel: Dict[str, Any], _L, Mat):
+    """Coerce a spectral relationship's payload into a real-symmetric coupling
+    Laplacian :class:`Mat` (or ``None`` if it can't be built). Accepts an
+    explicit ``laplacian`` / ``matrix`` (square grid), an ``adjacency``
+    (degree − A), or an ``edges`` list (with optional ``weights`` + ``n``)."""
+    if "laplacian" in rel or "matrix" in rel:
+        grid = rel.get("laplacian", rel.get("matrix"))
+        rows = grid.tolist() if hasattr(grid, "tolist") else [list(r) for r in grid]
+        n = len(rows)
+        if n == 0 or any(len(r) != n for r in rows):
+            return None
+        return Mat.from_rows([[float(x) for x in r] for r in rows], is_complex=False)
+    if "edges" in rel:
+        edges = [(int(a), int(b)) for (a, b) in rel["edges"]]
+        weights = rel.get("weights")
+        n = rel.get("n")
+        if n is None:
+            n = 1 + max((max(a, b) for a, b in edges), default=-1)
+        if weights is not None:
+            return _L.dense_laplacian(int(n), edges, [float(w) for w in weights])
+        return _L.dense_laplacian(int(n), edges)
+    if "adjacency" in rel:
+        a = rel["adjacency"]
+        rows = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
+        n = len(rows)
+        if n == 0 or any(len(r) != n for r in rows):
+            return None
+        # L = D − A (Class-L: degree on the diagonal, minus the adjacency).
+        lap = [[0.0] * n for _ in range(n)]
+        for i in range(n):
+            deg = 0.0
+            for j in range(n):
+                deg += float(rows[i][j])
+                lap[i][j] = -float(rows[i][j])
+            lap[i][i] = deg + lap[i][i]
+        return Mat.from_rows(lap, is_complex=False)
+    return None
+
+
+def _matrices_close(a, b, *, rel_tol: float = 1e-6) -> bool:
+    """True iff two real :class:`Mat` agree entrywise to a relative tolerance —
+    the resonant_spectrum Λ² == L·L verification (a float eigensolve compare,
+    so a tolerance is correct here; the magnitude is read by Class-K comparison,
+    never abs()). Shapes must match."""
+    if a.shape != b.shape:
+        return False
+    n_rows, n_cols = a.shape
+    for i in range(n_rows):
+        for j in range(n_cols):
+            av, bv = float(a[i, j]), float(b[i, j])
+            diff = av - bv
+            # |diff| by Class-K comparison (no abs()): the sign-folded magnitude.
+            mag = diff if diff >= 0.0 else -diff
+            scale = av if av >= 0.0 else -av
+            bscale = bv if bv >= 0.0 else -bv
+            if bscale > scale:
+                scale = bscale
+            if mag > rel_tol * (scale if scale > 1.0 else 1.0):
+                return False
+    return True
+
+
+def infer(relationship: Dict[str, Any]) -> Dict[str, Any]:
+    """The F929 OPEN/infer router — the meta-dispatcher over srmech's three
+    shipped closed-form reduction-theory rows (cyclic / spectral / Σ).
+
+    Given an arbitrary *stored relationship* (a descriptor dict), DETECT which
+    reduction-theory row its structure matches, TRY the matching shipped
+    reducer, VERIFY that the reducer actually reduced (read the reducer's OWN
+    verification), and return the verified closed form — else return an honest
+    ``OPEN``. ``infer`` composes the EXISTING verified reducers and runs NO new
+    arithmetic; it NEVER returns ``reducible: True`` for a reduction it did not
+    verify (the executable no-hallucination discipline, F929).
+
+    Row detection (an explicit ``row`` / ``kind`` tag wins; else structural):
+
+    * **Σ** (``row="sigma"`` / a hypergeometric sum) — the four bivariate
+      term-ratios ``rn_num`` / ``rn_den`` / ``rk_num`` / ``rk_den`` of a definite
+      sum ``Σ_k F(n,k)`` route to :func:`~srmech.amsc.wz_certificate.wz_certificate`
+      (the identity PROOF; accepted iff its ``verified`` flag is True). A single
+      indefinite term-ratio ``term_ratio_num`` / ``term_ratio_den`` routes to
+      :func:`~srmech.amsc.gosper.gosper` (accepted iff it returns a certificate).
+    * **spectral** (``row="spectral"`` / a graph payload) — an ``edges`` list
+      (with optional ``weights`` + ``n``), an ``adjacency`` grid, or an explicit
+      ``laplacian`` / ``matrix`` build a coupling Laplacian and route to
+      :func:`~srmech.amsc.coupling.resonant_spectrum`; accepted iff the
+      force-orders satisfy the ``L² == L·L`` contract (the reducer's own check).
+    * **cyclic** (``row="cyclic"`` / a ``sigma`` / ``theta_num`` / ``period`` /
+      ``generator`` payload) — builds the One ``S(σ,θ)`` via
+      :func:`~srmech.amsc.cascade.one.the_one`; accepted iff the ``(1,3,7,3)``
+      partition + ``(0,1,3)`` plane-counts + ``n1_is_sigma_only`` invariants hold.
+
+    Args:
+        relationship: a descriptor dict. May carry an explicit ``row`` / ``kind``
+            tag, plus the row-specific payload keys above.
+
+    Returns:
+        On a VERIFIED reduction::
+
+            {"reducible": True, "row": "<row>", "reducer": "<name>",
+             "closed_form": <reducer output>, "verified": True}
+
+        On no match / no verified reduction (the honest OPEN residue)::
+
+            {"reducible": False, "row": None,
+             "reason": "not reducible in current vocabulary",
+             "candidate_next_theory": "<short honest hint>"}
+
+    This is a Class-D late-binding op (one rung above :func:`match`): pure
+    orchestration over the already-C-mirrored reducers, so it ships **without**
+    a dedicated C peer (the from_bodies / cooccurrence_edges ``non_compute``
+    precedent). numpy-free; no ``abs()`` (the spectral Λ² verify reads the
+    magnitude by Class-K comparison). Cites F929 (the dispatch-table-of-
+    reduction-theories frame).
+    """
+    if not isinstance(relationship, dict):
+        raise TypeError(
+            f"infer expects a relationship descriptor dict; got "
+            f"{type(relationship).__name__}")
+
+    row = _detect_row(relationship)
+    if row is None:
+        return _open(None, "not reducible in current vocabulary")
+
+    # Dispatch + VERIFY. Each ``_try_*`` runs the matching reducer and returns a
+    # reduced dict ONLY when the reducer's OWN verification passed; a None falls
+    # through to the honest OPEN (with the row-appropriate candidate hint). Any
+    # reducer-internal contract error (a malformed payload) is caught and routed
+    # to OPEN too — never a spurious ``reducible: True``.
+    _TRY = {"sigma": _try_sigma, "spectral": _try_spectral, "cyclic": _try_cyclic}
+    try:
+        result = _TRY[row](relationship)
+    except (ValueError, TypeError, IndexError, KeyError, ZeroDivisionError,
+            OverflowError, RuntimeError):
+        result = None
+    if result is not None:
+        return result
+    return _open(row, "not reducible in current vocabulary")
