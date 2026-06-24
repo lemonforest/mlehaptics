@@ -280,3 +280,84 @@ def test_module_is_numpy_and_math_free():
     # ``abs()`` (empty parens — a discipline reference in a docstring/comment) is
     # fine; a real call ``abs(<arg>)`` always has a non-``)`` char after the paren.
     assert re.search(r"abs\([^)]", text) is None
+
+
+# ── rc58: the two post-§76 Σ sub-rows now auto-join the dispatch table ────────
+from srmech.amsc.tripoly import TriPoly
+from srmech.amsc.qpoly import QPoly
+from srmech.amsc.qbipoly import QBiPoly
+from srmech.amsc.q import Q
+
+
+def _tp(d):
+    return TriPoly.from_dict(d)
+
+
+def test_infer_routes_multivar_sums_of_sums():
+    """Σ_{j,k} C(n,j)C(j,k) = 3ⁿ — a genuine (n,j,k) 'sums of sums'. ``infer``
+    DETECTS the multivariate Σ sub-row (the ``rj_*`` pair beats the ordinary Σ
+    row) and routes to ``apagodu_zeilberger``, returning a VERIFIED reduction."""
+    rel = {
+        "rn_num": _tp({(1, 0, 0): 1, (0, 0, 0): 1}),
+        "rn_den": _tp({(1, 0, 0): 1, (0, 0, 0): 1, (0, 1, 0): -1}),
+        "rj_num": _tp({(1, 0, 0): 1, (0, 1, 0): -1}),
+        "rj_den": _tp({(0, 1, 0): 1, (0, 0, 0): 1, (0, 0, 1): -1}),
+        "rk_num": _tp({(0, 1, 0): 1, (0, 0, 1): -1}),
+        "rk_den": _tp({(0, 0, 1): 1, (0, 0, 0): 1}),
+    }
+    res = infer(rel)
+    assert res["reducible"] is True
+    assert res["row"] == "sigma_multivar"
+    assert res["reducer"] == "apagodu_zeilberger"
+    assert res["verified"] is True
+
+
+def _q_wz_pair_ratios():
+    """A genuine q-WZ pair (R=Y/(X−Y), r_k=Y/X) — the rc57 constructed triple;
+    returns ``(qrn_num, qrn_den, qrk_num, qrk_den)``."""
+    def xc(c):
+        return QPoly.from_q_poly(Poly.from_coeffs([Q(c, 1)]))
+
+    def xm(e, c=1):
+        return QPoly.from_q_poly(Poly.from_coeffs([Q(c, 1)]), e)
+
+    Xn = QBiPoly([QPoly.zero(), xc(1)])
+    Xd = QBiPoly([xm(1, 1), xc(-1)])
+    Bn = QBiPoly([QPoly.zero(), xc(1)])
+    Bd = QBiPoly([xm(1, 1)])
+    num_rhs = Xn.qshift_y(1) * Bn * Xd - Xn * Xd.qshift_y(1) * Bd
+    den_rhs = Xd.qshift_y(1) * Bd * Xd
+    return num_rhs + den_rhs, den_rhs, Bn, Bd
+
+
+def test_infer_routes_q_definite_sum():
+    """A genuine q-WZ pair → ``infer`` DETECTS the q-hypergeometric Σ sub-row and
+    routes to ``q_wz_certificate``, accepted only on its own ``verified`` flag."""
+    An, Ad, Bn, Bd = _q_wz_pair_ratios()
+    res = infer({"qrn_num": An, "qrn_den": Ad, "qrk_num": Bn, "qrk_den": Bd})
+    assert res["reducible"] is True
+    assert res["row"] == "sigma_q"
+    assert res["reducer"] == "q_wz_certificate"
+    assert res["verified"] is True
+
+
+def test_infer_routes_q_indefinite_gosper():
+    """The q-geometric Σ qᵏ (q-term-ratio r=q) → ``infer`` routes the QPoly
+    q-term-ratio to ``q_gosper``, returning a verified reduction."""
+    res = infer({"q_term_ratio_num": QPoly.from_dict({(0, 1): Q(1, 1)}),  # = q
+                 "q_term_ratio_den": QPoly.one()})
+    assert res["reducible"] is True
+    assert res["row"] == "sigma_q"
+    assert res["reducer"] == "q_gosper"
+
+
+def test_infer_open_on_non_q_wz_pair():
+    """A q-definite payload that is NOT a q-WZ pair (r_n=q ⇒ the sum is not
+    n-constant) → honest OPEN: ``infer`` NEVER claims reducible:True without
+    ``q_wz_certificate``'s own ``verified`` flag."""
+    qC = QBiPoly([QPoly.from_q_poly(Poly.monomial(1, Q(1, 1)))])  # the constant q
+    one = QBiPoly([QPoly.one()])
+    res = infer({"qrn_num": qC, "qrn_den": one, "qrk_num": qC, "qrk_den": one})
+    assert res["reducible"] is False
+    assert res["row"] is None
+    assert "candidate_next_theory" in res
