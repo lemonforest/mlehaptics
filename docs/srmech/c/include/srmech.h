@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc51"
-#define SRMECH_VERSION       "0.9.0rc51"
+#define SRMECH_VERSION_PRE   "rc52"
+#define SRMECH_VERSION       "0.9.0rc52"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3265,6 +3265,96 @@ srmech_status_t srmech_poly_shift(const srmech_bigint_t *p_n,
                                   srmech_bigint_t *acc_n,
                                   srmech_bigint_t *acc_d, size_t *acc_len,
                                   void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_tripoly — EXACT-RATIONAL TRIVARIATE polynomial over srmech_bigint (the
+ * C peer of srmech.amsc.tripoly.TriPoly; the multivariate "sums of sums"
+ * creative-telescoping foundation, the 3-variable sibling of BiPoly).
+ *
+ * A TriPoly is an exact-Q polynomial in the free variable n and two summation
+ * variables j, k, carried as a ROW-MAJOR (j, k) GRID of n-polynomials: the grid
+ * has aj = (j-degree + 1) rows and ak = (k-degree + 1) columns; the cell
+ * (dj, dk) at flat index dj*ak + dk is an n-polynomial — a run of exact-rational
+ * coefficients in ASCENDING n-degree. The cell n-runs are CONCATENATED in a
+ * single pair of caller-owned srmech_bigint arrays (nums[] / dens[], ascending n
+ * within each cell, cells in row-major (j,k) order), with a parallel nlen[]
+ * array (length aj*ak) giving each cell's n-run length. A cell coefficient
+ * nums[..]/dens[..] is the exact rational of n^dn (dens > 0, gcd(|nums|, dens)
+ * == 1; zero coefficient = 0/1).
+ *
+ * Each op computes the SAME exact rational coefficients srmech.amsc.tripoly.
+ * TriPoly computes (Class-N rational arithmetic over Class-J reduction), over
+ * caller-arena srmech_bigint (NO malloc), reduced to lowest terms with positive
+ * denominator. Byte-identical to Python at ANY magnitude (full bignum; no
+ * int64/Q61 ceiling).
+ *
+ * add/sub require the two grids to share the SAME (aj, ak) shape: the caller
+ * pre-pads the smaller grid's missing cells to empty n-runs and the smaller j/k
+ * extent to the max (mirroring how Python TriPoly aligns block(d) over the max
+ * j-degree and each BiPoly over the max k-degree). mul is the 2-D (j,k)
+ * convolution: the product grid is (aj+bj-1) x (ak+bk-1); the caller passes the
+ * product column count `ocols`, a per-output-cell base offset array out_off[]
+ * (into the concatenated out arrays — the caller-sized cell stride), the
+ * worst-case n-run convolution depth `accum_terms`, and pre-zeros out_nlen[] to
+ * 0; the op multiply-accumulates each cell and writes the trimmed n-run length
+ * back into out_nlen[cell].
+ *
+ * STANDALONE-COMPLETE: every working carrier is carved from the caller arena `ws`
+ * (>= the matching srmech_tripoly_ws_bound), so the bound is the caller's RAM. A
+ * too-small ws or an out coefficient cap -> SRMECH_ERR_OVERFLOW (never a silent
+ * wrap), and the Python TriPoly falls back to its ceiling-free pure-Python path.
+ *
+ * Carrier-internal (like srmech_poly): NOT a Rosetta ledger op. Additive symbols
+ * -> SRMECH_ABI_VERSION unchanged.
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES the caller hands any srmech_tripoly_* op below, for
+ * input coefficients of `coeff_limbs` significant limbs and a worst-case output
+ * n-run of `n_terms` coefficients. 8-byte-aligned uint32 bump arena. */
+size_t srmech_tripoly_ws_bound(size_t coeff_limbs, size_t n_terms);
+
+/* out = a + b, cellwise (j,k)-aligned, coefficientwise exact-Q over each cell's
+ * n-run, trimmed. Both grids are `cells` cells (the SAME aj*ak shape); a_nlen /
+ * b_nlen give each cell's n-run length; out arrays hold, per cell,
+ * max(a_nlen[cell], b_nlen[cell]) coefficients (the pre-trim stride);
+ * out_nlen[cell] <- the trimmed length. */
+srmech_status_t srmech_tripoly_add(const srmech_bigint_t *a_n,
+                                   const srmech_bigint_t *a_d,
+                                   const size_t *a_nlen, size_t cells,
+                                   const srmech_bigint_t *b_n,
+                                   const srmech_bigint_t *b_d,
+                                   const size_t *b_nlen,
+                                   srmech_bigint_t *out_n,
+                                   srmech_bigint_t *out_d, size_t *out_nlen,
+                                   void *ws, size_t ws_len);
+
+/* out = a - b, cellwise exact-Q. Same shapes as add. */
+srmech_status_t srmech_tripoly_sub(const srmech_bigint_t *a_n,
+                                   const srmech_bigint_t *a_d,
+                                   const size_t *a_nlen, size_t cells,
+                                   const srmech_bigint_t *b_n,
+                                   const srmech_bigint_t *b_d,
+                                   const size_t *b_nlen,
+                                   srmech_bigint_t *out_n,
+                                   srmech_bigint_t *out_d, size_t *out_nlen,
+                                   void *ws, size_t ws_len);
+
+/* out = a * b (2-D (j,k) convolution; each cell an n-run convolution). A is
+ * (aj x ak), B is (bj x bk); the product grid is (aj+bj-1) x (ak+bk-1) with
+ * `ocols` = ak+bk-1 columns. out_off[] (length (aj+bj-1)*ocols) is each output
+ * cell's base offset into the concatenated out arrays; `accum_terms` is the
+ * worst-case output n-run length. The caller pre-zeros out_nlen[] to 0; the op
+ * multiply-accumulates + writes the trimmed n-run length per cell. */
+srmech_status_t srmech_tripoly_mul(const srmech_bigint_t *a_n,
+                                   const srmech_bigint_t *a_d,
+                                   const size_t *a_nlen, size_t aj, size_t ak,
+                                   const srmech_bigint_t *b_n,
+                                   const srmech_bigint_t *b_d,
+                                   const size_t *b_nlen, size_t bj, size_t bk,
+                                   srmech_bigint_t *out_n,
+                                   srmech_bigint_t *out_d, size_t *out_nlen,
+                                   const size_t *out_off, size_t ocols,
+                                   size_t accum_terms, void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_qmat — EXACT-RATIONAL dense matrix over srmech_bigint (the C peer of
