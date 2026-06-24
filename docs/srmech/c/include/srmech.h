@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc53"
-#define SRMECH_VERSION       "0.9.0rc53"
+#define SRMECH_VERSION_PRE   "rc54"
+#define SRMECH_VERSION       "0.9.0rc54"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3355,6 +3355,114 @@ srmech_status_t srmech_tripoly_mul(const srmech_bigint_t *a_n,
                                    srmech_bigint_t *out_d, size_t *out_nlen,
                                    const size_t *out_off, size_t ocols,
                                    size_t accum_terms, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_qpoly — EXACT q-shift CARRIER over srmech_bigint (the C peer of
+ * srmech.amsc.qpoly.QPoly; the q-hypergeometric F929 reduction-row foundation,
+ * the q-analog of srmech_poly).
+ *
+ * A QPoly is a LAURENT polynomial in x = q^n whose coefficients are exact
+ * polynomials in q (the ground ring Q[q]). It is carried as a ROW of q-polynomial
+ * CELLS over an x-exponent window [x_low, x_low+cells): cell i is the Q[q]
+ * coefficient of x^(x_low+i), itself a run of exact-rational coefficients in
+ * ASCENDING q-degree. The cell q-runs are stored CONCATENATED in a single pair of
+ * caller-owned srmech_bigint arrays (nums[] / dens[], ascending q within each
+ * cell, cells in ascending-x order), with a parallel `qlen[]` array (length
+ * `cells`) giving each cell's q-run length. A cell coefficient is the exact
+ * rational of q^dq (dens > 0, gcd(|nums|, dens) == 1; zero = 0/1). The x_low
+ * offset is the caller's bookkeeping (these ops align by INDEX). (Mirrors
+ * srmech_tripoly's concatenated-cell + nlen[] layout, one dimension lighter — a
+ * single x-row, not a (j,k) grid.)
+ *
+ * Each op computes the SAME exact rational coefficients srmech.amsc.qpoly.QPoly
+ * computes (Class-N rational arithmetic over Class-J reduction), over caller-arena
+ * srmech_bigint (NO malloc), reduced to lowest terms — byte-identical to Python at
+ * ANY magnitude (full bignum; no int64/Q61 ceiling).
+ *
+ *   add/sub : cellwise (x-index-aligned) coefficientwise exact-Q add/sub of the
+ *             two cells' q-runs, then trim. The caller pre-aligns both inputs to
+ *             the SAME x-window (cells count), padding missing cells to empty
+ *             q-runs (mirroring the Python QPoly._addsub union span).
+ *   mul     : 1-D x-convolution; each output x-cell accumulates the exact-Q q-run
+ *             convolution (a Q[q] multiply) of the input cells.
+ *   qshift  : the q-shift sigma^s : x -> q^s * x. Cell i (x-exponent x_low+i)
+ *             becomes c_i(q) * q^(s*(x_low+i)) — each cell's q-run shifted up by
+ *             s*(x_low+i) q-degrees. The caller guarantees every s*(x_low+i) >= 0
+ *             (the Q[q] ground ring; q-Gosper feeds only non-negative shifts) — a
+ *             negative shift -> SRMECH_ERR_BAD_INPUT (a Laurent-in-q result needs
+ *             the future Q(q) carrier, never asked of this op).
+ *
+ * STANDALONE-COMPLETE: every working carrier is carved from the caller arena `ws`
+ * (>= the matching srmech_qpoly_ws_bound), so the bound is the caller's RAM. Out
+ * coefficient arrays are caller-owned + must be pre-sized (add/sub: each cell
+ * max(na,nb); mul: each output cell na+nb-1; qshift: each cell in_qlen + s*e), and
+ * pre-zeroed for mul (the multiply-accumulate seed). A too-small ws or out cap ->
+ * SRMECH_ERR_OVERFLOW (never a silent wrap), and the Python QPoly falls back to
+ * its ceiling-free pure path.
+ *
+ * Carrier-internal (like srmech_poly / srmech_tripoly): NOT a Rosetta ledger op.
+ * Additive symbols -> SRMECH_ABI_VERSION unchanged.
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES the caller hands any srmech_qpoly_* op below, for input
+ * coefficients of `coeff_limbs` significant limbs and a worst-case output q-run of
+ * `n_terms` coefficients. 8-byte-aligned uint32 bump arena. */
+size_t srmech_qpoly_ws_bound(size_t coeff_limbs, size_t n_terms);
+
+/* out = a + b, cellwise (x-index-aligned) coefficientwise exact-Q, trimmed. Both
+ * inputs share `cells` x-cells (caller pre-aligns to the union x-window, padding
+ * missing cells to empty q-runs). out arrays hold, per cell, max(na, nb)
+ * coefficients (concatenated, ascending q); out_qlen[cell] <- the trimmed q-len. */
+srmech_status_t srmech_qpoly_add(const srmech_bigint_t *a_n,
+                                 const srmech_bigint_t *a_d,
+                                 const size_t *a_qlen, size_t cells,
+                                 const srmech_bigint_t *b_n,
+                                 const srmech_bigint_t *b_d,
+                                 const size_t *b_qlen,
+                                 srmech_bigint_t *out_n, srmech_bigint_t *out_d,
+                                 size_t *out_qlen, void *ws, size_t ws_len);
+
+/* out = a - b, cellwise exact-Q, trimmed. Same shapes as srmech_qpoly_add. */
+srmech_status_t srmech_qpoly_sub(const srmech_bigint_t *a_n,
+                                 const srmech_bigint_t *a_d,
+                                 const size_t *a_qlen, size_t cells,
+                                 const srmech_bigint_t *b_n,
+                                 const srmech_bigint_t *b_d,
+                                 const size_t *b_qlen,
+                                 srmech_bigint_t *out_n, srmech_bigint_t *out_d,
+                                 size_t *out_qlen, void *ws, size_t ws_len);
+
+/* out = a * b (1-D x-convolution; each output cell a q-run convolution), exact-Q.
+ * A is `acells` x-cells, B is `bcells`; the product is acells+bcells-1 cells. The
+ * caller pre-zeros the output (total slots) and passes each output cell's q-run
+ * CAPACITY in out_qlen[cell] on entry (the stride); the op fills + trims, writing
+ * the final trimmed q-len back. out_off[cell] is the flat output offset of cell
+ * `cell`. `accum_terms` is the worst-case output q-run length (sizes the arena). */
+srmech_status_t srmech_qpoly_mul(const srmech_bigint_t *a_n,
+                                 const srmech_bigint_t *a_d,
+                                 const size_t *a_qlen, size_t acells,
+                                 const srmech_bigint_t *b_n,
+                                 const srmech_bigint_t *b_d,
+                                 const size_t *b_qlen, size_t bcells,
+                                 srmech_bigint_t *out_n, srmech_bigint_t *out_d,
+                                 size_t *out_qlen, const size_t *out_off,
+                                 size_t accum_terms, void *ws, size_t ws_len);
+
+/* The q-shift sigma^s : x -> q^s * x, i.e. f(q^n) -> f(q^(n+s)). Cell i
+ * (x-exponent x_low+i, coefficient c_i(q)) -> c_i(q) * q^(s*(x_low+i)): each
+ * cell's q-run is shifted up by s*(x_low+i) q-degrees. The x-window is UNCHANGED
+ * (`cells` cells). Every s*(x_low+i) must be >= 0 (the Q[q] ground ring); a
+ * negative shift -> SRMECH_ERR_BAD_INPUT. The caller pre-zeros the output + passes
+ * each cell's output q-run CAPACITY (>= in_qlen + s*e) via out_off[cell] strides;
+ * out_qlen[cell] <- the trimmed q-len. */
+srmech_status_t srmech_qpoly_qshift(const srmech_bigint_t *a_n,
+                                    const srmech_bigint_t *a_d,
+                                    const size_t *a_qlen, size_t cells,
+                                    int64_t s, int64_t x_low,
+                                    srmech_bigint_t *out_n,
+                                    srmech_bigint_t *out_d, size_t *out_qlen,
+                                    const size_t *out_off, void *ws,
+                                    size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_qmat — EXACT-RATIONAL dense matrix over srmech_bigint (the C peer of
