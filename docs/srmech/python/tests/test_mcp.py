@@ -1735,6 +1735,12 @@ def _synth_value_for_type(type_string: str) -> Any:
         # the BiPoly [[1, 1]] sample; coerces + binds cleanly, and as a term-ratio
         # numerator yields a DOMAIN-valid (k-free q-geometric) recurrence.
         "QBiPoly": [[[2]]],
+        # rc61 elliptic_gosper EllRatio operand: a minimal valid term ratio — the
+        # exact-ℚ SCALAR (3, 2) (the elliptic-geometric constant ratio r = 3/2). The
+        # coercer builds EllRatio.monomial(EllMonomial.scalar(3/2)); coerces + binds
+        # cleanly, and as a term ratio yields a DOMAIN-valid certificate R = 2 (the
+        # elliptic-geometric closed form 1/(z−1) = z_den/(z_num−z_den)).
+        "EllRatio": [3, 2],
         "np.ndarray": mat2,
         "Optional[np.ndarray]": mat2,
         # v0.7.5rc72 Mat carrier (mat_matmul): a 2x2 list-of-rows -> real Mat;

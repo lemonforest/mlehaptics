@@ -3226,6 +3226,57 @@ def _register_primitive_class_tools() -> None:
                       "the q-WZ equation), or None when the term is not q-WZ-summable"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The ELLIPTIC row of the F929 Σ-row prover — elliptic-Gosper, the FIRST
+        # ENGINE op of the ELLIPTIC row (the top of the base-axis degeneration tower
+        # elliptic → q → ordinary). Indefinite elliptic-hypergeometric summation over
+        # the modified-theta EllRatio carrier (rc59 ellbase + rc60 EllRatio); the
+        # elliptic analogue of gosper / q_gosper, ONE algebra up. 1:1 C peer
+        # srmech_elliptic_gosper.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.elliptic_gosper.elliptic_gosper", owner="srmech",
+            category="elliptic_gosper",
+            summary="The ELLIPTIC analog of Gosper's indefinite hypergeometric "
+                    "summation (George Gasper & Michael Schlosser, 'Summation, "
+                    "transformation, and expansion formulas for multibasic theta "
+                    "hypergeometric series', Adv. Stud. Contemp. Math. (Kyungshang) "
+                    "11, no. 1 (2005), 67–84, arXiv:math/0505215 — derived 'using "
+                    "indefinite summation', the theta/elliptic analogue of Gosper's "
+                    "telescoping; secondary anchor S.O. Warnaar, Constr. Approx. 18 "
+                    "(2002) 479–502; keystone the Frenkel–Turaev ₁₀E₉ sum) — the "
+                    "FIRST engine op of the ELLIPTIC F929 reduction row, the top of "
+                    "the base-axis degeneration tower elliptic→q→ordinary, the "
+                    "elliptic analogue of gosper / q_gosper ONE algebra up. Input: an "
+                    "elliptic-hypergeometric term given by its TERM RATIO t(n+1)/t(n)="
+                    "r(x), x=qⁿ, σ:x↦q·x (the summation shift) — an EllRatio (the rc60 "
+                    "theta-quotient carrier ∏θ(αx;p)/∏θ(βx;p) over an exact-ℚ monomial "
+                    "prefactor; an EllMonomial / Theta lifts). Gates on the balancing / "
+                    "very-well-poised predicate (r.is_elliptic(), Gasper–Schlosser Eq. "
+                    "(2.4)); an unbalanced ratio is out of the row → None. Decides "
+                    "whether Σ t(n) has an elliptic-hypergeometric antidifference T(n)="
+                    "R(x)·t(n) (so T(n+1)−T(n)=t(n), the sum telescopes, and the "
+                    "elliptic Gosper equation R(qx)·r(x)−R(x)=1 holds); if so returns "
+                    "the certificate R (an EllRatio), else None. Exact over the "
+                    "modified-theta algebra (no float); the additive Gosper equation is "
+                    "decided structurally + CERTIFIED in exact ℚ via EllRatio.eval_trunc "
+                    "(the theta-quotient carrier is multiplicatively but not additively "
+                    "closed). 1:1 C peer srmech_elliptic_gosper (native completes the "
+                    "elliptic-geometric constant-ratio core R=z_den/(z_num−z_den), "
+                    "pure-Python the complete alternative + the byte-identical parity "
+                    "oracle — a has=0 is never a definitive 'no certificate'). Exact "
+                    "bigint; no float, no abs() (Class-K sign), no numpy / math.",
+            parameters=(P("r", "EllRatio", True,
+                          "the elliptic-hypergeometric TERM RATIO t(n+1)/t(n)=r(x), "
+                          "x=qⁿ — an EllRatio (a theta-quotient over an exact-ℚ monomial "
+                          "prefactor; an EllMonomial / Theta is lifted)"),),
+            returns=R("dict | None",
+                      "{'prefactor': {'coeff': (num, den), 'exps': {sym: exp}}, 'num': "
+                      "[{sym: exp}, …], 'den': [{sym: exp}, …], 'certificate': EllRatio} "
+                      "— the certificate R(x) satisfying R(qx)·r(x)−R(x)=1 (so T(n)="
+                      "R(qⁿ)·t(n) is the antidifference), or None when no elliptic-"
+                      "hypergeometric antidifference exists / r is unbalanced"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The F929 OPEN/infer ROUTER — the meta-dispatcher that makes the
         # three shipped reduction-theory rows (cyclic / spectral / Σ) ONE
         # callable. Pure orchestration over the already-C-mirrored reducers

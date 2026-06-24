@@ -447,3 +447,4 @@
 {"exposed_as": "srmech.amsc.modular_linalg.gf_rref", "defined_at": "srmech.amsc.modular_linalg.gf_rref", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.modular_linalg.crt_combine", "defined_at": "srmech.amsc.modular_linalg.crt_combine", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.rational.rational_reconstruct", "defined_at": "srmech.amsc.rational.rational_reconstruct", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.elliptic_gosper.elliptic_gosper", "defined_at": "srmech.amsc.elliptic_gosper.elliptic_gosper", "bucket": "c_dispatched"}
