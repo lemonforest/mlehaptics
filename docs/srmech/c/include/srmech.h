@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc62"
-#define SRMECH_VERSION       "0.9.0rc62"
+#define SRMECH_VERSION_PRE   "rc63"
+#define SRMECH_VERSION       "0.9.0rc63"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3591,6 +3591,50 @@ srmech_status_t srmech_elliptic_gosper(const srmech_bigint_t *pref_num,
                                        int *out_has,
                                        srmech_bigint_t *rn, srmech_bigint_t *rd,
                                        void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_thetasum_is_zero — the C peer of the ThetaSum ADDITIVE theta-function
+ * carrier's is_zero (srmech.amsc.thetasum.ThetaSum.is_zero), the load-bearing
+ * EXACT decision under GENUINE elliptic creative telescoping. A 1:1 STRUCTURAL
+ * MIRROR of the pure-Python Weierstrass three-term reduction partitioned by
+ * quasi-periodicity class (Rosengren arXiv:1608.06161v3 §1.4 Eq. 1.12 + §1.3
+ * Lemma 1.3.2) -- NOT a bounded shell: the C verdict equals the Python verdict
+ * byte-for-byte, including the honest NOT-zero on a shape outside the clean +/-
+ * -pair form the carrier reduces (sound, never false-accept; never a converging
+ * eval). The whole peer is malloc-free (JPL Rule 3): every working monomial /
+ * theta / term / rterm + bigint scratch is carved from the caller arena `ws`,
+ * sized to the input (n_terms, n_thetas, n_syms) -- no compiled-in math cap.
+ *
+ * The cleared numerator is the only input is_zero inspects (self == 0 <=>
+ * numerator == 0). The wire form: the interned symbol-table dimension `n_syms`
+ * (the distinct symbols, in the Python sorted order so the dense exponent vector
+ * reproduces the EllMonomial._sort_key tuple compare); the p / x / y interned
+ * indices (`psym` / `xsym` / `ysym`, -1 if absent); the per-term theta counts
+ * `term_nthetas[n_terms]`; the flat monomial coeff arrays `coeff_num` / `coeff_den`
+ * (each monomial an exact-Q num/den as a srmech_bigint, in the order term0.pref,
+ * term0.theta0..K, term1.pref, ...) + the flat exponent rows `exps_flat`
+ * (int32[n_syms] per monomial, same order). `coeff_cap` is the per-bigint limb cap.
+ * *out_is_zero = 1 iff the numerator is identically zero.
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES srmech_thetasum_is_zero needs for the given shape
+ * (n_syms symbols, n_terms numerator terms, max_thetas the largest per-term theta
+ * count, coeff_limbs the per-coefficient significant-limb estimate). */
+size_t srmech_thetasum_ws_bound(size_t n_syms, size_t n_terms, size_t max_thetas,
+                                size_t coeff_limbs);
+
+/* Decide whether the cleared ThetaSum numerator (the `n_terms` terms) is
+ * identically zero. *out_is_zero = 1 iff == 0. Caller arena `ws`. n_terms == 0 ->
+ * == 0 (the empty numerator). A required NULL pointer -> SRMECH_ERR_NULL_ARG; a
+ * too-small arena -> SRMECH_ERR_OVERFLOW. */
+srmech_status_t srmech_thetasum_is_zero(size_t n_syms, int xsym, int ysym, int psym,
+                                        size_t n_terms, const size_t *term_nthetas,
+                                        const srmech_bigint_t *coeff_num,
+                                        const srmech_bigint_t *coeff_den,
+                                        const int32_t *exps_flat,
+                                        uint32_t coeff_cap, int *out_is_zero,
+                                        void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_q_zeilberger — the q-analog of Zeilberger's creative telescoping (the
