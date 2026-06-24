@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc61"
-#define SRMECH_VERSION       "0.9.0rc61"
+#define SRMECH_VERSION_PRE   "rc62"
+#define SRMECH_VERSION       "0.9.0rc62"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3591,6 +3591,78 @@ srmech_status_t srmech_elliptic_gosper(const srmech_bigint_t *pref_num,
                                        int *out_has,
                                        srmech_bigint_t *rn, srmech_bigint_t *rd,
                                        void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_elliptic_zeilberger — the ELLIPTIC analog of Zeilberger's creative
+ * telescoping (the SECOND engine op of the ELLIPTIC F929 reduction row). The C peer
+ * of srmech.amsc.elliptic_zeilberger.elliptic_zeilberger.
+ *
+ * Input: a theta-hypergeometric term F(n,k) by its TWO bivariate-elliptic term
+ * ratios over (x, y) = (q^n, q^k):
+ *   r_n(x,y) = F(n+1,k)/F(n,k)   (the n-shift, sigma_x : x -> q*x)
+ *   r_k(x,y) = F(n,k+1)/F(n,k)   (the k-shift, sigma_y : y -> q*y)
+ * each an EllRatio -- a theta-quotient over an exact-Q monomial prefactor. The bridge
+ * form per EllRatio: the prefactor exact-Q coefficient (pref_num, pref_den), the
+ * prefactor symbol count (n_pref_syms), and the numerator + denominator theta-factor
+ * counts (n_num, n_den).
+ *
+ * Output: when f(n)=Sum_k F(n,k) satisfies an EXACTLY-certifiable recurrence
+ *   Sum_{j=0}^{L} a_j(n) f(n+j) = 0,
+ * the order L (out_order) + the recurrence coefficients a_j(n); in the native (scalar
+ * k-free) scope the order-1 coefficients a_0 = -z, a_1 = 1 come back as exact-Q scalars
+ * (a0_num/a0_den, a1_num/a1_den) and the companion certificate G == 0 (the caller emits
+ * the zero certificate). Else *out_has = 0.
+ *
+ * Reference (MPM-verified at build): the elliptic (theta) analogues were introduced by
+ * I.B. Frenkel and V.G. Turaev, "Elliptic solutions of the Yang-Baxter equation and
+ * modular hypergeometric functions," in The Arnold-Gelfand Mathematical Seminars, eds.
+ * V.I. Arnold, I.M. Gelfand, V.S. Retakh & M. Smirnov (Birkhauser Boston, 1997), pp.
+ * 171-204; keystone the Frenkel-Turaev 10E9 sum (Warnaar, Constr. Approx. 18 (2002)
+ * 479-502, Cor. 2.2, arXiv:math/0001006).
+ *
+ * STANDALONE-COMPLETE + BOUNDED native scope (the srmech_q_zeilberger precedent): this
+ * rc62 peer COMPLETES the canonical native case -- the SCALAR k-free elliptic-geometric
+ * term r_n = z (a pure-scalar prefactor, no theta factors, no prefactor symbols),
+ * whose definite sum f(n) = z^n C satisfies the ORDER-1 recurrence a_0 = -z, a_1 = 1
+ * (certificate G == 0; the recurrence IS the term ratio, no k-telescoping needed). For
+ * EVERY other input it DECLINES (*out_has = 0), and the Python op re-runs its COMPLETE
+ * pure-Python path -- a has=0 is NEVER a definitive "no recurrence" (the dispatch trusts
+ * only has=1). z == 0 is not a proper term -> decline. Malloc-free (JPL Rule 3): caller
+ * arena `ws` only; byte-identical to the Python recurrence at ANY magnitude. Any residual
+ * overflow -> SRMECH_ERR_OVERFLOW.
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES srmech_elliptic_zeilberger needs for a prefactor coefficient
+ * of `coeff_limbs` significant limbs. */
+size_t srmech_elliptic_zeilberger_ws_bound(size_t coeff_limbs);
+
+/* The per-coefficient limb cap for each srmech_bigint in the a0 / a1 OUTPUT, so the
+ * reduced recurrence coefficient never overflows its slot. */
+size_t srmech_elliptic_zeilberger_out_cap(size_t coeff_limbs);
+
+/* Compute the elliptic-Zeilberger recurrence for the term ratios r_n, r_k.
+ *   rn_pref_num / rn_pref_den : the r_n exact-Q prefactor coefficient z = z_num/z_den
+ *   rn_n_pref_syms            : the r_n prefactor symbol count (q/p/param/x powers)
+ *   rn_n_num / rn_n_den       : the r_n numerator / denominator theta-factor counts
+ *   rk_pref_num / rk_pref_den : the r_k exact-Q prefactor coefficient
+ *   rk_n_pref_syms            : the r_k prefactor symbol count
+ *   rk_n_num / rk_n_den       : the r_k numerator / denominator theta-factor counts
+ * On success *out_has is set: 1 when the (scalar k-free) order-1 recurrence is found
+ * (then *out_order = 1, a0 = -z, a1 = 1 reduced; the caller emits the zero certificate),
+ * 0 when the peer declines (any theta factor / non-scalar prefactor in r_n, a zero r_k,
+ * or z == 0 -> the caller re-decides on the pure path). The caller sizes a0/a1 to
+ * srmech_elliptic_zeilberger_out_cap limbs. rn_pref_den == 0 -> SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_elliptic_zeilberger(
+        const srmech_bigint_t *rn_pref_num, const srmech_bigint_t *rn_pref_den,
+        size_t rn_n_pref_syms, size_t rn_n_num, size_t rn_n_den,
+        const srmech_bigint_t *rk_pref_num, const srmech_bigint_t *rk_pref_den,
+        size_t rk_n_pref_syms, size_t rk_n_num, size_t rk_n_den,
+        size_t max_order,
+        int *out_has, size_t *out_order,
+        srmech_bigint_t *a0_num, srmech_bigint_t *a0_den,
+        srmech_bigint_t *a1_num, srmech_bigint_t *a1_den,
+        void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_q_zeilberger — the q-analog of Zeilberger's creative telescoping (the

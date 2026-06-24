@@ -3277,6 +3277,65 @@ def _register_primitive_class_tools() -> None:
                       "hypergeometric antidifference exists / r is unbalanced"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The ELLIPTIC row of the F929 Σ-row prover — elliptic-Zeilberger, the SECOND
+        # ENGINE op of the ELLIPTIC row (the creative-telescoping recurrence-finder for
+        # DEFINITE elliptic-hypergeometric sums). The elliptic analogue of zeilberger /
+        # q_zeilberger, ONE algebra up. 1:1 C peer srmech_elliptic_zeilberger.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.elliptic_zeilberger.elliptic_zeilberger", owner="srmech",
+            category="elliptic_zeilberger",
+            summary="The ELLIPTIC analog of Zeilberger's creative telescoping "
+                    "(I.B. Frenkel & V.G. Turaev, 'Elliptic solutions of the "
+                    "Yang–Baxter equation and modular hypergeometric functions', in "
+                    "The Arnold–Gelfand Mathematical Seminars, eds. Arnold/Gelfand/"
+                    "Retakh/Smirnov, Birkhäuser Boston 1997, pp. 171–204; keystone the "
+                    "terminating very-well-poised Frenkel–Turaev ₁₀E₉ sum = the "
+                    "elliptic Jackson ₈W₇ sum, S.O. Warnaar, Constr. Approx. 18 (2002) "
+                    "479–502, Cor. 2.2 / Eq. 2.11, arXiv:math/0001006) — the SECOND "
+                    "engine op of the ELLIPTIC F929 reduction row, the elliptic analogue "
+                    "of zeilberger / q_zeilberger ONE algebra up. Input: a theta-"
+                    "hypergeometric term F(n,k) by its TWO bivariate-elliptic term "
+                    "ratios over (x,y)=(qⁿ,qᵏ) — r_n(x,y)=F(n+1,k)/F(n,k) (the n-shift, "
+                    "σ_x:x↦q·x) and r_k(x,y)=F(n,k+1)/F(n,k) (the k-shift, σ_y:y↦q·y), "
+                    "each an EllRatio over symbols including x and y (an EllMonomial / "
+                    "Theta lifts). Finds the minimal-order recurrence Σ_j a_j(n)·f(n+j)"
+                    "=0 (a_j(n) EllRatios in n only) with companion certificate G(n,k) "
+                    "satisfying the creative-telescoping identity Σ_j a_j(n)·F(n+j,k)="
+                    "G(n,k+1)−G(n,k), or None. A recurrence is a PROOF object: accepted "
+                    "ONLY when verified EXACTLY by the elliptic DEGREE BOUND (Fundamental "
+                    "Theorem of Elliptic Functions — the carrier multiplicative collapse "
+                    "+ exact-ℚ EllRatio.eval_trunc agreement on the theta-free residual "
+                    "at more than d distinct sample points), NEVER on a converging "
+                    "residual. The exactly-certifiable class is the order-1 recurrence of "
+                    "a k-free-r_n elliptic-geometric term (rₙ_den(x)·f(n+1)−rₙ_num(x)·"
+                    "f(n)=0, certificate G≡0 — the FT ₁₀E₉ closed-form n-recurrence); a "
+                    "genuine k-dependent-r_n creative telescoping needs the additive "
+                    "theta lattice the multiplicative EllRatio carrier lacks (the same "
+                    "boundary elliptic_gosper hits) → None. 1:1 C peer "
+                    "srmech_elliptic_zeilberger (native completes the scalar k-free "
+                    "order-1 case a_0=−z, a_1=1; pure-Python the complete alternative + "
+                    "byte-identical parity oracle — a has=0 is never a definitive 'no "
+                    "recurrence'). Exact bigint; no float, no abs() (Class-K sign), no "
+                    "numpy / math.",
+            parameters=(P("rn", "EllRatio", True,
+                          "the n-term-ratio r_n(x,y)=F(n+1,k)/F(n,k) (σ_x:x↦q·x) — an "
+                          "EllRatio over symbols including x=qⁿ and y=qᵏ (an EllMonomial "
+                          "/ Theta is lifted)"),
+                        P("rk", "EllRatio", True,
+                          "the k-term-ratio r_k(x,y)=F(n,k+1)/F(n,k) (σ_y:y↦q·y) — an "
+                          "EllRatio over symbols including x and y"),
+                        P("max_order", "int", False,
+                          "the largest ansatz order the bounded search reaches "
+                          "(default 6; the exactly-decidable class is order ≤ 1)")),
+            returns=R("dict | None",
+                      "{'order': L, 'coeffs': [EllRatio_in_n, …], 'certificate': "
+                      "EllRatio, 'coeff_operands': [...], 'certificate_operand': {...}} "
+                      "— the minimal-order recurrence Σ_j coeffs[j](n)·f(n+j)=0 with "
+                      "companion G=certificate, or None when no recurrence is exactly "
+                      "certifiable in the elliptic carrier"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The F929 OPEN/infer ROUTER — the meta-dispatcher that makes the
         # three shipped reduction-theory rows (cyclic / spectral / Σ) ONE
         # callable. Pure orchestration over the already-C-mirrored reducers

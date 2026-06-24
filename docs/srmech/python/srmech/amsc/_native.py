@@ -2175,6 +2175,39 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_elliptic_gosper.restype = ctypes.c_int
 
+    # rc62: srmech_elliptic_zeilberger — the ELLIPTIC analog of Zeilberger's creative
+    # telescoping (the SECOND engine op of the ELLIPTIC F929 row). The two term ratios
+    # r_n / r_k ride as their EllRatio prefactor exact-Q coefficients + prefactor symbol
+    # counts + numerator / denominator theta-factor counts; the order-1 recurrence
+    # coefficients a_0 = -z, a_1 = 1 (scalar k-free native scope) come back as exact-Q
+    # scalars (a0_num/a0_den, a1_num/a1_den). The native peer completes the scalar k-free
+    # elliptic-geometric order-1 case + declines the rest (has=0 -> Python re-decides).
+    # NEW symbols -> hasattr-guarded; ABI stays 3.
+    #   size_t srmech_elliptic_zeilberger_ws_bound(coeff_limbs)
+    #   size_t srmech_elliptic_zeilberger_out_cap(coeff_limbs)
+    for _ezsz in ("srmech_elliptic_zeilberger_ws_bound",
+                  "srmech_elliptic_zeilberger_out_cap"):
+        if hasattr(lib, _ezsz):
+            getattr(lib, _ezsz).argtypes = [ctypes.c_size_t]
+            getattr(lib, _ezsz).restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_elliptic_zeilberger"):
+        _ezbi = ctypes.POINTER(_SrmechBigint)
+        lib.srmech_elliptic_zeilberger.argtypes = [
+            _ezbi, _ezbi,                        # rn_pref_num, rn_pref_den
+            ctypes.c_size_t,                     # rn_n_pref_syms
+            ctypes.c_size_t, ctypes.c_size_t,    # rn_n_num, rn_n_den
+            _ezbi, _ezbi,                        # rk_pref_num, rk_pref_den
+            ctypes.c_size_t,                     # rk_n_pref_syms
+            ctypes.c_size_t, ctypes.c_size_t,    # rk_n_num, rk_n_den
+            ctypes.c_size_t,                     # max_order
+            ctypes.POINTER(ctypes.c_int),        # out_has
+            ctypes.POINTER(ctypes.c_size_t),     # out_order
+            _ezbi, _ezbi,                        # a0_num, a0_den
+            _ezbi, _ezbi,                        # a1_num, a1_den
+            ctypes.c_void_p, ctypes.c_size_t,    # ws, ws_len
+        ]
+        lib.srmech_elliptic_zeilberger.restype = ctypes.c_int
+
     # rc42: srmech_zeilberger — Zeilberger's creative telescoping (the §76 telescope
     # Sigma-row's SECOND public op). The four BIVARIATE term ratios ride as flat
     # (num, den) coefficient arrays (k-then-n order) + a per-k length array + the
@@ -3918,6 +3951,96 @@ def elliptic_gosper_c(ratio_form):
         "den": [],
     }
     return True, cert_form
+
+
+# ----------------------------------------------------------------------
+# rc62: srmech_elliptic_zeilberger — the ELLIPTIC analog of Zeilberger's creative
+# telescoping (the SECOND engine op of the ELLIPTIC F929 row). The Python
+# srmech.amsc.elliptic_zeilberger.elliptic_zeilberger routes a POSITIVE (recurrence-
+# found) C result through this AND re-verifies it exactly by the degree bound before
+# trusting it; a has=0 / error falls to the complete pure-Python path (the parity
+# oracle + full-coverage decider). The two term ratios r_n / r_k ride as their EllRatio
+# prefactor exact-Q coefficients + prefactor symbol counts + numerator / denominator
+# theta-factor counts; the order-1 recurrence coefficients a_0 = -z, a_1 = 1 (the scalar
+# k-free native scope) come back as exact-Q scalars via the bigint decimal bridge.
+# ----------------------------------------------------------------------
+
+_ELLIPTIC_ZEILBERGER_SYMS = (
+    "srmech_elliptic_zeilberger_ws_bound",
+    "srmech_elliptic_zeilberger_out_cap",
+    "srmech_bigint_from_dec",
+    "srmech_bigint_to_dec",
+    "srmech_bigint_to_dec_bound",
+)
+
+
+def has_native_elliptic_zeilberger() -> bool:
+    """True iff the rc62 srmech_elliptic_zeilberger op + its ws/out-cap sizers + the
+    srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
+    pre-rc62 lib — the pure-Python ``srmech.amsc.elliptic_zeilberger.elliptic_zeilberger``
+    body is the complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _ELLIPTIC_ZEILBERGER_SYMS) and hasattr(
+        LIB, "srmech_elliptic_zeilberger"
+    )
+
+
+def elliptic_zeilberger_c(rn_form, rk_form, max_order):
+    """Native elliptic-Zeilberger recurrence for the term ratios ``rn_form`` / ``rk_form``
+    (each the EllRatio bridge dict :func:`srmech.amsc.elliptic_zeilberger._ratio_to_form`
+    emits) → ``(has_solution, order, coeff_forms, cert_form)`` (the coeff / cert EllRatio
+    bridge forms), or ``None`` if the native symbols are absent. The native peer completes
+    the scalar k-free elliptic-geometric order-1 case (r_n a pure scalar, no theta) +
+    declines the rest (``has_solution`` False → the caller re-decides on the pure path)."""
+    if not has_native_elliptic_zeilberger():
+        return None
+    rn_pn, rn_pd, rn_pexps = rn_form["prefactor"]
+    rk_pn, rk_pd, rk_pexps = rk_form["prefactor"]
+    if rn_pd == 0:
+        raise ValueError("elliptic_zeilberger_c: the r_n prefactor coefficient "
+                         "denominator must be nonzero")
+    rn_n_num, rn_n_den = len(rn_form["num"]), len(rn_form["den"])
+    rk_n_num, rk_n_den = len(rk_form["num"]), len(rk_form["den"])
+    rn_syms, rk_syms = len(rn_pexps), len(rk_pexps)
+    # the per-coefficient out cap + the caller arena (sized from the input limbs).
+    cl = max(len(str(rn_pn).lstrip("-")) // 9 + 2, len(str(rn_pd)) // 9 + 2, 2)
+    out_cap = int(LIB.srmech_elliptic_zeilberger_out_cap(ctypes.c_size_t(cl)))
+    ws_len = int(LIB.srmech_elliptic_zeilberger_ws_bound(ctypes.c_size_t(cl)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    rnn, _a = _bigint_from_int(rn_pn, out_cap)
+    rnd, _b = _bigint_from_int(rn_pd, out_cap)
+    rkn, _c = _bigint_from_int(rk_pn, out_cap)
+    rkd, _d = _bigint_from_int(rk_pd if rk_pd != 0 else 1, out_cap)
+    a0n, _e = _bigint_from_int(0, out_cap)
+    a0d, _f = _bigint_from_int(0, out_cap)
+    a1n, _g = _bigint_from_int(0, out_cap)
+    a1d, _h = _bigint_from_int(0, out_cap)
+    has = ctypes.c_int(0)
+    order = ctypes.c_size_t(0)
+    rc = LIB.srmech_elliptic_zeilberger(
+        ctypes.byref(rnn), ctypes.byref(rnd),
+        ctypes.c_size_t(rn_syms), ctypes.c_size_t(rn_n_num), ctypes.c_size_t(rn_n_den),
+        ctypes.byref(rkn), ctypes.byref(rkd),
+        ctypes.c_size_t(rk_syms), ctypes.c_size_t(rk_n_num), ctypes.c_size_t(rk_n_den),
+        ctypes.c_size_t(int(max_order)),
+        ctypes.byref(has), ctypes.byref(order),
+        ctypes.byref(a0n), ctypes.byref(a0d),
+        ctypes.byref(a1n), ctypes.byref(a1d),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_elliptic_zeilberger returned non-OK status {rc}")
+    if not has.value:
+        return False, 0, None, None
+    # the order-1 scalar coefficients a_0 = -z, a_1 = 1 (no theta factors) → EllRatio
+    # bridge forms; the companion certificate G == 0 (the caller emits the zero ratio).
+    coeff_forms = [
+        {"prefactor": (_bigint_to_int(a0n), _bigint_to_int(a0d), []), "num": [], "den": []},
+        {"prefactor": (_bigint_to_int(a1n), _bigint_to_int(a1d), []), "num": [], "den": []},
+    ]
+    cert_form = {"prefactor": (0, 1, []), "num": [], "den": []}
+    return True, int(order.value), coeff_forms, cert_form
 
 
 # ----------------------------------------------------------------------
