@@ -2200,6 +2200,32 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_thetasum_is_zero.restype = ctypes.c_int
 
+    # rc64: srmech_ellratio_is_elliptic — the C peer of the EllRatio carrier's
+    # is_elliptic (the BALANCING / very-well-poised predicate = pshift() == self). The
+    # canonical EllRatio rides as the interned symbol-table dimension + the x/p indices
+    # + the numerator/denominator theta counts + the flat monomial coeff arrays
+    # (coeff_num/coeff_den, in order prefactor, num0..K, den0..L) + the flat int32
+    # exponent rows. *out_is_elliptic comes back. Shares the srmech_bigint decimal
+    # marshal helpers (already in _THETASUM_SYMS) with the thetasum peer.
+    #   size_t srmech_ellratio_ws_bound(n_syms, n_num, n_den, coeff_limbs)
+    if hasattr(lib, "srmech_ellratio_ws_bound"):
+        lib.srmech_ellratio_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_ellratio_ws_bound.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_ellratio_is_elliptic"):
+        _ebi2 = ctypes.POINTER(_SrmechBigint)
+        lib.srmech_ellratio_is_elliptic.argtypes = [
+            ctypes.c_size_t,                     # n_syms
+            ctypes.c_int, ctypes.c_int,          # xsym, psym
+            ctypes.c_size_t, ctypes.c_size_t,    # n_num, n_den
+            _ebi2, _ebi2,                        # coeff_num, coeff_den (flat)
+            ctypes.POINTER(ctypes.c_int32),      # exps_flat
+            ctypes.c_uint32,                     # coeff_cap
+            ctypes.POINTER(ctypes.c_int),        # out_is_elliptic
+            ctypes.c_void_p, ctypes.c_size_t,    # ws, ws_len
+        ]
+        lib.srmech_ellratio_is_elliptic.restype = ctypes.c_int
+
     # rc42: srmech_zeilberger — Zeilberger's creative telescoping (the §76 telescope
     # Sigma-row's SECOND public op). The four BIVARIATE term ratios ride as flat
     # (num, den) coefficient arrays (k-then-n order) + a per-k length array + the
@@ -4030,6 +4056,88 @@ def thetasum_is_zero_c(n_syms, xsym, ysym, psym, term_nthetas, monomials):
     if rc != SRMECH_OK:
         raise RuntimeError(f"srmech_thetasum_is_zero returned non-OK status {rc}")
     return bool(out_is_zero.value)
+
+
+# ----------------------------------------------------------------------
+# rc64: srmech_ellratio_is_elliptic — the C peer of the EllRatio carrier's
+# is_elliptic (the BALANCING / very-well-poised predicate = pshift() == self).
+# srmech.amsc.ellbase.EllRatio.is_elliptic dispatches a positive result through
+# here; an absent peer falls to the complete pure-Python body (the parity oracle).
+# Shares the srmech_bigint decimal-marshal helpers with the thetasum peer.
+# ----------------------------------------------------------------------
+
+_ELLRATIO_SYMS = (
+    "srmech_ellratio_ws_bound",
+    "srmech_bigint_from_dec",
+    "srmech_bigint_to_dec",
+    "srmech_bigint_to_dec_bound",
+)
+
+
+def has_native_ellratio() -> bool:
+    """True iff the rc64 srmech_ellratio_is_elliptic op + its ws sizer + the
+    srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
+    pre-rc64 lib — the pure-Python ``srmech.amsc.ellbase.EllRatio.is_elliptic`` body
+    is the complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _ELLRATIO_SYMS) and hasattr(
+        LIB, "srmech_ellratio_is_elliptic"
+    )
+
+
+def ellratio_is_elliptic_c(n_syms, xsym, psym, n_num, n_den, monomials):
+    """Native EllRatio.is_elliptic decision for a CANONICAL ratio → ``bool`` (the C
+    verdict), or ``None`` if the native symbols are absent. ``n_syms`` is the interned
+    symbol-table dimension; ``xsym`` / ``psym`` the interned indices of ``x`` / ``p``
+    (-1 if absent); ``n_num`` / ``n_den`` the numerator / denominator theta counts;
+    ``monomials`` the flat list of ``(num, den, exps_row)`` triples in the order
+    prefactor, num0..K-1, den0..L-1 (each ``exps_row`` a length-``n_syms`` int list).
+    A non-OK C status raises ``RuntimeError``."""
+    if not has_native_ellratio():
+        return None
+    # A pure-scalar ratio (no symbols) clamps to a single all-zero exponent slot so the
+    # C (which clamps n_syms -> 1) reads a consistent dense row per monomial.
+    if n_syms == 0:
+        n_syms = 1
+        monomials = [(num, den, [0]) for num, den, _e in monomials]
+    # per-coefficient limb estimate (9 decimal digits ~ 1 limb; pad).
+    cl = 1
+    for num, den, _exps in monomials:
+        cl = max(cl, len(str(num).lstrip("-")) // 9 + 2, len(str(den)) // 9 + 2)
+    out_cap = cl
+    ws_len = int(LIB.srmech_ellratio_ws_bound(
+        ctypes.c_size_t(n_syms), ctypes.c_size_t(n_num),
+        ctypes.c_size_t(n_den), ctypes.c_size_t(cl)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    n_mono = len(monomials)
+    num_arr = (_SrmechBigint * max(n_mono, 1))()
+    den_arr = (_SrmechBigint * max(n_mono, 1))()
+    keep = []
+    exps_flat = []
+    for i, (num, den, exps_row) in enumerate(monomials):
+        bn, kbn = _bigint_from_int(int(num), out_cap)
+        bd, kbd = _bigint_from_int(int(den), out_cap)
+        num_arr[i] = bn
+        den_arr[i] = bd
+        keep.append(kbn)
+        keep.append(kbd)
+        if len(exps_row) != n_syms:
+            raise ValueError("ellratio_is_elliptic_c: exps row length != n_syms")
+        exps_flat.extend(int(e) for e in exps_row)
+    exps_c = (ctypes.c_int32 * max(len(exps_flat), 1))(*exps_flat)
+    out_is_elliptic = ctypes.c_int(0)
+    rc = LIB.srmech_ellratio_is_elliptic(
+        ctypes.c_size_t(n_syms),
+        ctypes.c_int(xsym), ctypes.c_int(psym),
+        ctypes.c_size_t(n_num), ctypes.c_size_t(n_den),
+        num_arr, den_arr, exps_c,
+        ctypes.c_uint32(out_cap), ctypes.byref(out_is_elliptic),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_ellratio_is_elliptic returned non-OK status {rc}")
+    return bool(out_is_elliptic.value)
 
 
 # ----------------------------------------------------------------------
