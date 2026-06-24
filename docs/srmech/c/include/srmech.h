@@ -3598,6 +3598,76 @@ srmech_status_t srmech_q_zeilberger(
         void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
+ * srmech_q_wz_verify — the q-analog of the Wilf-Zeilberger VERIFY primitive (the
+ * THIRD and FINAL public op of the q-hypergeometric F929 reduction row, the q-row
+ * CLOSER). The C peer of the VERIFY half of srmech.amsc.q_wz_certificate.
+ *
+ * CHECKS that a candidate q-WZ certificate R(X,Y) = Xn/Xd satisfies the q-WZ equation
+ * for the proper q-hypergeometric term F(n,k) given by its two bivariate-q term
+ * ratios r_n = An/Ad, r_k = Bn/Bd (each an exact bivariate-Q[q] QBiPoly over
+ * (X,Y) = (q^n, q^k), the SAME bridge wire form srmech_q_zeilberger consumes -- the
+ * concatenated q-runs (Y-major then X-major), a per-(Y,X)-cell qlen[], a per-Y-cell
+ * xlow[]/xcells[], and the Y-cell count):
+ *
+ *   F(n+1,k) - F(n,k) = G(n,k+1) - G(n,k),   G(n,k) = R(X,Y) * F(n,k),
+ * with G(n,k+1) = (sigma_y R)*(sigma_y F) and sigma_y : Y -> q*Y the k-direction
+ * q-shift (a Q[q] monomial multiply per Y-cell: the Y^d cell picks up q^d).
+ *
+ * Dividing by F(n,k) gives the rational identity
+ *   r_n - 1 = R(X,qY) * r_k - R(X,Y),
+ * and clearing denominators turns it into the single bivariate POLYNOMIAL identity
+ *   (An - Ad) * (sigma_y(Xd) * Bd * Xd) ==
+ *       (sigma_y(Xn) * Bn * Xd - Xn * sigma_y(Xd) * Bd) * Ad.
+ * This is a COMPLETE verification -- bounded only by the input DEGREES, NOT by any
+ * order (unlike the rc56 srmech_q_zeilberger order-<=1 native cap). So
+ * srmech_q_wz_verify is a FULL C mirror of the Python verify.
+ *
+ * Method (exact over Q[q], no float): build both sides as exact bivariate-Q[q]
+ * QBiPoly (a Y-ascending list of Q[q] QPoly-in-X cells, over caller-arena
+ * srmech_bigint) and compare them coefficient-by-coefficient. NO solve, NO order loop,
+ * NO qmat. *out_equal = 1 iff the identity holds. No malloc (JPL Rule 3): every
+ * working carrier is carved from the caller arena `ws`. Any residual overflow returns
+ * SRMECH_ERR_OVERFLOW (never a wrap); the Python op then runs its ceiling-free pure-Q
+ * compare (standalone-honor). rn_den / rk_den / cert_den must have ycells > 0.
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES for inputs of `coeff_limbs` significant limbs per
+ * q-coefficient and a max bivariate `degree` (max over the X- + Y- + q-extents).
+ * 8-byte-aligned. */
+size_t srmech_q_wz_verify_ws_bound(size_t coeff_limbs, size_t degree);
+
+/* The per-coefficient limb cap each srmech_bigint working carrier needs so a cleared-
+ * identity q-coefficient never overflows its slot (a degree hint). */
+size_t srmech_q_wz_verify_out_cap(size_t coeff_limbs, size_t degree);
+
+/* Verify the q-WZ certificate for the term F(n,k). The six bivariate-q operands ride
+ * the SAME QBiPoly bridge as srmech_q_zeilberger (n/d flat q-runs + qlen[] + xlow[] +
+ * xcells[] + ycells). rn_den / rk_den / cert_den must have ycells > 0 (nonzero).
+ * Returns SRMECH_OK + *out_equal set on a clean check; SRMECH_ERR_OVERFLOW (arena too
+ * small for a huge input) routes the Python op to its pure-Q compare. */
+srmech_status_t srmech_q_wz_verify(
+        const srmech_bigint_t *rn_num_n, const srmech_bigint_t *rn_num_d,
+        const size_t *rn_num_qlen, const int64_t *rn_num_xlow,
+        const size_t *rn_num_xcells, size_t rn_num_ycells,
+        const srmech_bigint_t *rn_den_n, const srmech_bigint_t *rn_den_d,
+        const size_t *rn_den_qlen, const int64_t *rn_den_xlow,
+        const size_t *rn_den_xcells, size_t rn_den_ycells,
+        const srmech_bigint_t *rk_num_n, const srmech_bigint_t *rk_num_d,
+        const size_t *rk_num_qlen, const int64_t *rk_num_xlow,
+        const size_t *rk_num_xcells, size_t rk_num_ycells,
+        const srmech_bigint_t *rk_den_n, const srmech_bigint_t *rk_den_d,
+        const size_t *rk_den_qlen, const int64_t *rk_den_xlow,
+        const size_t *rk_den_xcells, size_t rk_den_ycells,
+        const srmech_bigint_t *cert_num_n, const srmech_bigint_t *cert_num_d,
+        const size_t *cert_num_qlen, const int64_t *cert_num_xlow,
+        const size_t *cert_num_xcells, size_t cert_num_ycells,
+        const srmech_bigint_t *cert_den_n, const srmech_bigint_t *cert_den_d,
+        const size_t *cert_den_qlen, const int64_t *cert_den_xlow,
+        const size_t *cert_den_xcells, size_t cert_den_ycells,
+        int *out_equal, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
  * srmech_qmat — EXACT-RATIONAL dense matrix over srmech_bigint (the C peer of
  * srmech.amsc.qmat.QMat; the exact-ℚ linear-algebra carrier the §76 gosper
  * undetermined-coefficient solve needs in C).
