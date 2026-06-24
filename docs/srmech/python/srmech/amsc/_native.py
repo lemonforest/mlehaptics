@@ -1904,6 +1904,63 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.c_void_p, ctypes.c_size_t,
         ]
         lib.srmech_poly_shift.restype = ctypes.c_int
+    # rc54: the EXACT q-shift CARRIER C peer (srmech_qpoly_*) — the q-analog of
+    # the poly carrier, the q-hypergeometric F929 reduction-row foundation. A
+    # QPoly is a ROW of q-Poly cells over an x-window; the bridge flattens the
+    # row of q-runs into a single concatenated _SrmechBigint pair + a qlen[]
+    # array (mirroring tripoly), plus the q-shift. NEW symbols → hasattr-guarded;
+    # additive → EXPECTED_ABI_VERSION stays 3.
+    #   size_t srmech_qpoly_ws_bound(size_t coeff_limbs, size_t n_terms)
+    if hasattr(lib, "srmech_qpoly_ws_bound"):
+        lib.srmech_qpoly_ws_bound.argtypes = [ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_qpoly_ws_bound.restype = ctypes.c_size_t
+    # add / sub share the x-index-aligned cellwise shape
+    #   fn(a_n,a_d,a_qlen,cells, b_n,b_d,b_qlen, out_n,out_d,out_qlen, ws,wl)
+    _QPOLY_ADDSUB_SIG = [
+        ctypes.POINTER(_SrmechBigint),   # a_n[]
+        ctypes.POINTER(_SrmechBigint),   # a_d[]
+        ctypes.POINTER(ctypes.c_size_t), # a_qlen[]
+        ctypes.c_size_t,                 # cells
+        ctypes.POINTER(_SrmechBigint),   # b_n[]
+        ctypes.POINTER(_SrmechBigint),   # b_d[]
+        ctypes.POINTER(ctypes.c_size_t), # b_qlen[]
+        ctypes.POINTER(_SrmechBigint),   # out_n[]
+        ctypes.POINTER(_SrmechBigint),   # out_d[]
+        ctypes.POINTER(ctypes.c_size_t), # out_qlen[]
+        ctypes.c_void_p,                 # ws
+        ctypes.c_size_t,                 # ws_len
+    ]
+    for _qpop in ("srmech_qpoly_add", "srmech_qpoly_sub"):
+        if hasattr(lib, _qpop):
+            getattr(lib, _qpop).argtypes = list(_QPOLY_ADDSUB_SIG)
+            getattr(lib, _qpop).restype = ctypes.c_int
+    #   srmech_qpoly_mul(a_n,a_d,a_qlen,acells, b_n,b_d,b_qlen,bcells,
+    #                    out_n,out_d,out_qlen, out_off, accum, ws,wl)
+    if hasattr(lib, "srmech_qpoly_mul"):
+        lib.srmech_qpoly_mul.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_size_t), ctypes.c_size_t,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_size_t), ctypes.c_size_t,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.POINTER(ctypes.c_size_t), ctypes.c_size_t,
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_qpoly_mul.restype = ctypes.c_int
+    #   srmech_qpoly_qshift(a_n,a_d,a_qlen,cells, s, x_low,
+    #                       out_n,out_d,out_qlen, out_off, ws,wl)
+    if hasattr(lib, "srmech_qpoly_qshift"):
+        lib.srmech_qpoly_qshift.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_size_t), ctypes.c_size_t,
+            ctypes.c_int64, ctypes.c_int64,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_qpoly_qshift.restype = ctypes.c_int
     # rc52: the EXACT-RATIONAL TRIVARIATE polynomial carrier C peer
     # (srmech_tripoly_*) — the 3-variable sibling of BiPoly, the multivariate
     # "sums of sums" creative-telescoping foundation. A TriPoly is a ROW-MAJOR
@@ -2744,6 +2801,245 @@ def poly_gcd_c(a_coeffs, b_coeffs):
     if rc != SRMECH_OK:
         raise RuntimeError(f"srmech_poly_gcd returned non-OK status {rc}")
     return _poly_read_array(o_n, o_d, out_len.value)
+
+
+# ----------------------------------------------------------------------
+# rc54: the EXACT q-shift CARRIER C peer (srmech_qpoly_*). The Python
+# srmech.amsc.qpoly.QPoly routes its add/sub/mul + the q-shift through these when
+# has_native_qpoly(); the pure-Python body is the COMPLETE alternative (and the
+# parity oracle) — both emit byte-identical exact (num, den) q-coefficients at any
+# magnitude. The Python bridge form of a QPoly is (x_low, [[(num,den)…]_q]_x): the
+# x-low offset plus an ascending-x list, each entry an ascending-q-degree q-run.
+# The C peer flattens the x-row of q-runs into a single concatenated _SrmechBigint
+# pair + a qlen[] array (the same pattern as the tripoly grid, one dimension
+# lighter). add/sub require x-aligned inputs, so the wrapper pads both to the union
+# x-window before the call and carries the result x_low itself.
+# ----------------------------------------------------------------------
+
+_QPOLY_SYMS = (
+    "srmech_qpoly_ws_bound",
+    "srmech_bigint_from_dec",
+    "srmech_bigint_to_dec",
+    "srmech_bigint_to_dec_bound",
+)
+
+
+def has_native_qpoly() -> bool:
+    """True iff the rc54 srmech_qpoly_* ops + the srmech_bigint decimal-marshal
+    helpers are loaded + bound. False on a no-C or pre-rc54 lib — the pure-Python
+    ``srmech.amsc.qpoly.QPoly`` body is the complete alternative (and the parity
+    oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _QPOLY_SYMS) and hasattr(
+        LIB, "srmech_qpoly_add"
+    )
+
+
+def _qp_row_coeff_limbs(rows):
+    """The largest significant-limb count across every (num, den) in an x-row of
+    q-runs (9 decimal digits ≈ 1 limb; pad)."""
+    cl = 1
+    for run in rows:
+        for num, den in run:
+            cl = max(cl, len(str(num).lstrip("-")) // 9 + 2,
+                     len(str(den)) // 9 + 2)
+    return cl
+
+
+def _qp_flatten(rows, out_cap):
+    """Flatten an x-row of q-runs to concatenated _SrmechBigint arrays + a qlen[]
+    array. Returns ``(num_arr, den_arr, qlen_arr, keepalive)`` — the caller MUST
+    keep ``keepalive`` (the limb buffers) alive for the call."""
+    cells = len(rows)
+    qlen = (ctypes.c_size_t * max(cells, 1))()
+    total = sum(len(run) for run in rows)
+    num_arr = (_SrmechBigint * max(total, 1))()
+    den_arr = (_SrmechBigint * max(total, 1))()
+    keep = []
+    idx = 0
+    for cidx, run in enumerate(rows):
+        qlen[cidx] = len(run)
+        for num, den in run:
+            bn, kbn = _bigint_from_int(int(num), out_cap)
+            bd, kbd = _bigint_from_int(int(den), out_cap)
+            num_arr[idx] = bn
+            den_arr[idx] = bd
+            keep.append(kbn)
+            keep.append(kbd)
+            idx += 1
+    return num_arr, den_arr, qlen, keep
+
+
+def _qp_blank_cells(cell_caps, out_cap):
+    """Build the concatenated blank output arrays. ``cell_caps`` is the per-x-cell
+    pre-trim q-run capacity list. Returns ``(num_arr, den_arr, qlen_arr, offsets,
+    keepalive)`` — ``offsets`` is each cell's base index, ``qlen_arr`` pre-zeroed."""
+    cells = len(cell_caps)
+    total = sum(cell_caps)
+    num_arr = (_SrmechBigint * max(total, 1))()
+    den_arr = (_SrmechBigint * max(total, 1))()
+    qlen = (ctypes.c_size_t * max(cells, 1))()
+    offsets = (ctypes.c_size_t * max(cells, 1))()
+    keep = []
+    idx = 0
+    for cidx, cap in enumerate(cell_caps):
+        offsets[cidx] = idx
+        qlen[cidx] = 0
+        for _ in range(cap):
+            bn, kbn = _bigint_from_int(0, out_cap)
+            bd, kbd = _bigint_from_int(1, out_cap)
+            num_arr[idx] = bn
+            den_arr[idx] = bd
+            keep.append(kbn)
+            keep.append(kbd)
+            idx += 1
+    return num_arr, den_arr, qlen, offsets, keep
+
+
+def _qp_read_row(num_arr, den_arr, qlen, offsets, cells):
+    """Read the concatenated result arrays back into an x-row of q-runs (the
+    ascending-x list), using the per-cell trimmed lengths qlen[] + base
+    offsets[]."""
+    rows = []
+    for cell in range(cells):
+        base = offsets[cell]
+        length = qlen[cell]
+        run = []
+        for i in range(length):
+            run.append((_bigint_to_int(num_arr[base + i]),
+                        _bigint_to_int(den_arr[base + i])))
+        rows.append(run)
+    return rows
+
+
+def _qp_setup(*rows_seqs, accum_terms=1):
+    """Common sizing for a set of input x-rows: the per-coefficient limb cap
+    (``out_cap``) and the caller arena (``ws``, ``ws_len``). ``accum_terms`` is the
+    worst-case output q-run length (the convolution depth)."""
+    cl = 1
+    for rows in rows_seqs:
+        cl = max(cl, _qp_row_coeff_limbs(rows))
+    n_terms = accum_terms + 1
+    # Match the C qp_cap_for product-of-magnitudes envelope (generous).
+    out_cap = (cl * n_terms + 2) * 2 + cl * 2 + 64
+    ws_len = int(LIB.srmech_qpoly_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_size_t(n_terms)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    return out_cap, ws, ws_len
+
+
+def qpoly_addsub_c(a_form, b_form, sub):
+    """Native exact-ℚ[q] x-cellwise add/sub → the ``(x_low, rows)`` bridge form, or
+    ``None`` if absent. ``a_form`` / ``b_form`` are ``(x_low, rows)`` pairs (each
+    ``rows`` an ascending-x list of ascending-q (num, den) runs). The wrapper pads
+    both inputs to the union x-window so the C op aligns by index, then carries the
+    union ``x_low`` on the result."""
+    symbol = "srmech_qpoly_sub" if sub else "srmech_qpoly_add"
+    if not has_native_qpoly() or not hasattr(LIB, symbol):
+        return None
+    a_lo, a_rows = a_form
+    b_lo, b_rows = b_form
+    lo = min(a_lo, b_lo)
+    hi = max(a_lo + len(a_rows) - 1, b_lo + len(b_rows) - 1)
+    cells = hi - lo + 1 if (a_rows or b_rows) else 0
+    if cells <= 0:
+        return (lo, [])
+    a_pad = _qp_align_rows(a_rows, a_lo, lo, cells)
+    b_pad = _qp_align_rows(b_rows, b_lo, lo, cells)
+    out_cap, ws, ws_len = _qp_setup(a_pad, b_pad)
+    a_n, a_d, a_q, ka = _qp_flatten(a_pad, out_cap)
+    b_n, b_d, b_q, kb = _qp_flatten(b_pad, out_cap)
+    # output cell q-run capacity = max(na, nb) per cell — this IS the C op's
+    # internal write stride (o_off += max(na,nb)); use it EXACTLY (no floor) so
+    # the Python read offsets match the C cell strides byte-for-byte.
+    cell_caps = [max(len(a_pad[i]), len(b_pad[i])) for i in range(cells)]
+    o_n, o_d, o_q, o_off, ko = _qp_blank_cells(cell_caps, out_cap)
+    rc = getattr(LIB, symbol)(
+        a_n, a_d, a_q, ctypes.c_size_t(cells), b_n, b_d, b_q,
+        o_n, o_d, o_q, ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (ka, kb, ko)
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"{symbol} returned non-OK status {rc}")
+    rows = _qp_read_row(o_n, o_d, o_q, o_off, cells)
+    return (lo, rows)
+
+
+def _qp_align_rows(rows, src_lo, dst_lo, cells):
+    """Pad an x-row to the window ``[dst_lo, dst_lo + cells)`` with empty q-runs for
+    the missing low/high x-cells (so two rows align by index for the C op)."""
+    out = [[] for _ in range(cells)]
+    for i, run in enumerate(rows):
+        out[(src_lo + i) - dst_lo] = run
+    return out
+
+
+def qpoly_mul_c(a_form, b_form):
+    """Native exact-ℚ[q] x-convolution product → the ``(x_low, rows)`` bridge form,
+    or ``None`` if absent. The output x_low is ``a_lo + b_lo``."""
+    if not has_native_qpoly() or not hasattr(LIB, "srmech_qpoly_mul"):
+        return None
+    a_lo, a_rows = a_form
+    b_lo, b_rows = b_form
+    acells, bcells = len(a_rows), len(b_rows)
+    if acells == 0 or bcells == 0:
+        return (0, [])
+    ocells = acells + bcells - 1
+    amax = max((len(run) for run in a_rows), default=0)
+    bmax = max((len(run) for run in b_rows), default=0)
+    accum = max(amax + bmax - 1, 1)
+    out_cap, ws, ws_len = _qp_setup(a_rows, b_rows, accum_terms=accum)
+    a_n, a_d, a_q, ka = _qp_flatten(a_rows, out_cap)
+    b_n, b_d, b_q, kb = _qp_flatten(b_rows, out_cap)
+    cell_caps = [accum] * ocells
+    o_n, o_d, o_q, o_off, ko = _qp_blank_cells(cell_caps, out_cap)
+    rc = LIB.srmech_qpoly_mul(
+        a_n, a_d, a_q, ctypes.c_size_t(acells),
+        b_n, b_d, b_q, ctypes.c_size_t(bcells),
+        o_n, o_d, o_q, o_off, ctypes.c_size_t(accum),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (ka, kb, ko)
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_qpoly_mul returned non-OK status {rc}")
+    rows = _qp_read_row(o_n, o_d, o_q, o_off, ocells)
+    return (a_lo + b_lo, rows)
+
+
+def qpoly_qshift_c(a_form, s):
+    """Native exact-ℚ[q] q-shift ``σ**s : x ↦ q**s·x`` → the ``(x_low, rows)`` bridge
+    form, or ``None`` if absent. Each cell's q-run shifts up by ``s·e`` q-degrees;
+    a negative ``s·e`` raises ``ValueError`` (leaves ℚ[q]). x-window unchanged."""
+    if not has_native_qpoly() or not hasattr(LIB, "srmech_qpoly_qshift"):
+        return None
+    x_low, rows = a_form
+    cells = len(rows)
+    if cells == 0:
+        return (x_low, [])
+    # output cell q-run capacity = in q-len + s·e (the shift grows the run).
+    cell_caps = []
+    for i, run in enumerate(rows):
+        e = x_low + i
+        sh = s * e
+        if sh < 0:
+            raise ValueError(
+                f"qpoly_qshift_c: negative q-shift s·e={sh} leaves ℚ[q]")
+        cell_caps.append(max(len(run) + sh, 1))
+    out_cap, ws, ws_len = _qp_setup(rows, accum_terms=max(cell_caps))
+    a_n, a_d, a_q, ka = _qp_flatten(rows, out_cap)
+    o_n, o_d, o_q, o_off, ko = _qp_blank_cells(cell_caps, out_cap)
+    rc = LIB.srmech_qpoly_qshift(
+        a_n, a_d, a_q, ctypes.c_size_t(cells),
+        ctypes.c_int64(int(s)), ctypes.c_int64(int(x_low)),
+        o_n, o_d, o_q, o_off,
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (ka, ko)
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_qpoly_qshift returned non-OK status {rc}")
+    rows_out = _qp_read_row(o_n, o_d, o_q, o_off, cells)
+    return (x_low, rows_out)
 
 
 # ----------------------------------------------------------------------
