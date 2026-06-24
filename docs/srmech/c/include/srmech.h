@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc55"
-#define SRMECH_VERSION       "0.9.0rc55"
+#define SRMECH_VERSION_PRE   "rc56"
+#define SRMECH_VERSION       "0.9.0rc56"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3529,6 +3529,73 @@ srmech_status_t srmech_q_gosper(const srmech_bigint_t *num_n,
                                 size_t *rd_qlen, size_t *out_rd_cells,
                                 int64_t *out_rd_xlow,
                                 void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_q_zeilberger — the q-analog of Zeilberger's creative telescoping (the
+ * SECOND public op of the q-hypergeometric F929 reduction row, the q-analog of
+ * srmech_zeilberger). The C peer of srmech.amsc.q_zeilberger.q_zeilberger.
+ *
+ * Input: a proper q-hypergeometric term F(n,k) by its TWO bivariate-q term ratios
+ * over (X, Y) = (q^n, q^k):
+ *   r_n(X,Y) = F(n+1,k)/F(n,k) = rn_num/rn_den
+ *   r_k(X,Y) = F(n,k+1)/F(n,k) = rk_num/rk_den
+ * each a QBiPoly (a Y-ascending list of QPoly-in-X cells; each QPoly a Laurent-in-X
+ * run of Q[q] coefficients). The bridge wire form per QBiPoly: the concatenated
+ * q-runs (Y-major then X-major), a per-(Y,X)-cell qlen[], a per-Y-cell x_low[] and
+ * x_cells[], and the Y-cell count.
+ *
+ * Output: when f(n)=Sum_k F(n,k) satisfies a q-recurrence of order <= max_order,
+ * *out_has = 1, *out_order = L, and coeff_* (with coeff_qlen[]/coeff_xlow[]/
+ * coeff_xcells[] and *out_coeff_count = L+1) carry the recurrence coefficients
+ * a_j(X) (QPoly-in-X) so Sum_j a_j(q^n) f(n+j) = 0; cert_* (with *out_cert_ycells)
+ * carry the q-Gosper certificate numerator x(X,Y) (R = x/D_P) when emitted. Else
+ * *out_has = 0.
+ *
+ * STANDALONE-COMPLETE + BOUNDED native scope (the srmech_q_gosper precedent): this
+ * rc56 peer COMPLETES the canonical k-FREE q-GEOMETRIC class (r_n a single Y^0
+ * QPoly cell, r_k == 1) -- the order-1 recurrence rn_den f(n+1) - rn_num f(n) = 0
+ * (a_0 = -rn_num, a_1 = rn_den), exact + byte-identical. For every other input it
+ * DECLINES (*out_has = 0), and the Python op re-runs its COMPLETE pure-Q(q) path
+ * (a has=0 is NEVER a definitive "no recurrence" -- the dispatch trusts only has=1).
+ * The full higher-order Q(q)[X,Y] RREF is the owed everything-mirrors backlog. Any
+ * residual overflow returns SRMECH_ERR_OVERFLOW (never a wrap).
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES for input ratios of `coeff_limbs` significant limbs per
+ * q-coefficient, a max ansatz `order`, and a max q-degree `qdeg`. 8-byte-aligned. */
+size_t srmech_q_zeilberger_ws_bound(size_t coeff_limbs, size_t order, size_t qdeg);
+
+/* The per-coefficient limb cap for each srmech_bigint in the coeff_* / cert_* OUTPUT
+ * arrays, so a result q-coefficient never overflows its slot. */
+size_t srmech_q_zeilberger_out_cap(size_t coeff_limbs, size_t order, size_t qdeg);
+
+/* Compute the q-Zeilberger recurrence for F(n,k) given by its two bivariate-q
+ * ratios. The caller sizes coeff_* to (max_order+1) output QPoly cells (each a q-run
+ * of srmech_q_zeilberger_out_cap limbs) and cert_* likewise. rn_den / rk_den must
+ * have ycells > 0. */
+srmech_status_t srmech_q_zeilberger(
+        const srmech_bigint_t *rn_num_n, const srmech_bigint_t *rn_num_d,
+        const size_t *rn_num_qlen, const int64_t *rn_num_xlow,
+        const size_t *rn_num_xcells, size_t rn_num_ycells,
+        const srmech_bigint_t *rn_den_n, const srmech_bigint_t *rn_den_d,
+        const size_t *rn_den_qlen, const int64_t *rn_den_xlow,
+        const size_t *rn_den_xcells, size_t rn_den_ycells,
+        const srmech_bigint_t *rk_num_n, const srmech_bigint_t *rk_num_d,
+        const size_t *rk_num_qlen, const int64_t *rk_num_xlow,
+        const size_t *rk_num_xcells, size_t rk_num_ycells,
+        const srmech_bigint_t *rk_den_n, const srmech_bigint_t *rk_den_d,
+        const size_t *rk_den_qlen, const int64_t *rk_den_xlow,
+        const size_t *rk_den_xcells, size_t rk_den_ycells,
+        size_t max_order,
+        int *out_has, size_t *out_order,
+        srmech_bigint_t *coeff_n, srmech_bigint_t *coeff_d,
+        size_t *coeff_qlen, int64_t *coeff_xlow, size_t *coeff_xcells,
+        size_t *out_coeff_count,
+        srmech_bigint_t *cert_n, srmech_bigint_t *cert_d,
+        size_t *cert_qlen, int64_t *cert_xlow, size_t *cert_xcells,
+        size_t *out_cert_ycells,
+        void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_qmat — EXACT-RATIONAL dense matrix over srmech_bigint (the C peer of

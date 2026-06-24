@@ -329,6 +329,29 @@ def _to_qpoly(value: Any, *, param: str = "") -> Any:
     return value
 
 
+def _to_qbipoly(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value to the natural form for a ``QBiPoly``-typed param (rc56
+    ``q_zeilberger`` bivariate-q term-ratio operands).
+
+    A ``QBiPoly`` is the q-analog of ``BiPoly`` — a polynomial in ``Y = qᵏ`` whose
+    coefficients are :class:`~srmech.amsc.qpoly.QPoly` in ``X = qⁿ`` (over ``ℚ[q]``).
+    The op's coercion (:meth:`srmech.amsc.qbipoly.QBiPoly.coerce`) accepts a
+    ``QBiPoly`` (passes through), a ``QPoly`` (read as a polynomial in ``Y`` alone), a
+    ``Poly`` in ``q`` (a scalar), or the natural nested-``Y``-degree list whose entries
+    are each a ``QPoly``-in-``X`` (or QPoly-coercible cell). So the honest, minimal
+    coercer hands the value through (tuple→list) and lets the op build the carrier
+    (never a float; a coefficient must be exact). A ``QBiPoly`` / ``QPoly`` / ``Poly``
+    / tuple passes naturally."""
+    from srmech.amsc.qbipoly import QBiPoly  # exact bivariate-ℚ[q] carrier; lazy
+    from srmech.amsc.qpoly import QPoly
+    from srmech.amsc.poly import Poly
+    if isinstance(value, (QBiPoly, QPoly, Poly)):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return value
+
+
 def _to_mat_or_vec(value: Any, *, param: str = "") -> Any:
     """Coerce a ``Mat | Vec`` (shape-polymorphic) param: a nested list rides as
     a 2-D matrix, a flat list as a 1-D vector — both pass through as the natural
@@ -666,6 +689,7 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "BiPoly": _to_bipoly,      # 0.9.0rc42: exact-ℚ[n,k] bivariate carrier (zeilberger ratios)
     "TriPoly": _to_tripoly,    # 0.9.0rc53: exact-ℚ[n,j,k] trivariate carrier (apagodu_zeilberger ratios)
     "QPoly": _to_qpoly,        # 0.9.0rc55: exact-ℚ[q] q-shift carrier (q_gosper q-term ratios)
+    "QBiPoly": _to_qbipoly,    # 0.9.0rc56: exact bivariate-ℚ[q] carrier (q_zeilberger ratios)
     "Optional[Vec]": _to_vec,
     "Optional[HV]": _to_hv,
     "Mat | Vec": _to_mat_or_vec,   # shape-polymorphic 2-D-or-1-D operand

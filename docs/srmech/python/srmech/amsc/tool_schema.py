@@ -3115,6 +3115,58 @@ def _register_primitive_class_tools() -> None:
                       "q-hypergeometric closed form exists"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The q-HYPERGEOMETRIC row of the §76 telescope Σ-row prover (F929) —
+        # q-Zeilberger, the SECOND public op of the q-row (the q-analog of
+        # zeilberger). Finds the linear q-recurrence of a DEFINITE q-sum over the
+        # new bivariate-q QBiPoly carrier (Laurent in X=qⁿ, ascending in Y=qᵏ);
+        # parametrizes the rc55 q-Gosper ℚ(q) solve. 1:1 C peer srmech_q_zeilberger.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.q_zeilberger.q_zeilberger", owner="srmech",
+            category="q_zeilberger",
+            summary="The q-analog of Zeilberger's creative telescoping (T.H. "
+                    "Koornwinder, 'On Zeilberger's algorithm and its q-analogue', J. "
+                    "Comput. Appl. Math. 48:91–111, 1993; textbook anchor Gasper & "
+                    "Rahman, *Basic Hypergeometric Series*) — the SECOND public op of "
+                    "the q-hypergeometric F929 reduction row, the q-analog of the §76 "
+                    "zeilberger (and the recurrence-finder the q-WZ proof op rc57 "
+                    "builds on). Input: a proper q-hypergeometric term F(n,k) given by "
+                    "its TWO bivariate-q term ratios over (X,Y)=(qⁿ,qᵏ): r_n(X,Y)="
+                    "F(n+1,k)/F(n,k) and r_k(X,Y)=F(n,k+1)/F(n,k), each a QBiPoly (a "
+                    "polynomial in Y=qᵏ whose coefficients are QPoly in X=qⁿ; a QPoly "
+                    "in Y / a Poly-in-q / a nested-list form coerces). Produces the "
+                    "minimal-order linear q-recurrence Σ_{j=0}^{L} a_j(qⁿ)·f(n+j)=0 "
+                    "(f(n)=Σ_k F(n,k)), the a_j exact QPoly in X=qⁿ over ℚ(q), plus the "
+                    "q-Gosper certificate x(X,Y) (R=x/D_P; the q-WZ relation Σ_j a_j "
+                    "F(n+j,k)=Δ_q(R·F) holds exactly), or None when no recurrence of "
+                    "order ≤ max_order exists. Exact over the FIELD ℚ(q) via the "
+                    "PARAMETRIZED rc55 q-Gosper undetermined-coefficient solve (reuses "
+                    "the q-Gosper _Cq ℚ(q) field + Gauss-Jordan with the a_j(qⁿ) as "
+                    "extra unknowns; a homogeneous ℚ(q) kernel with a nonzero a-block "
+                    "is the recurrence). 1:1 C peer srmech_q_zeilberger (orchestrates "
+                    "the srmech_qpoly q-algebra + srmech_qmat_rref; native completes "
+                    "the canonical k-free q-geometric order-1 case, pure-Python the "
+                    "complete alternative + the byte-identical parity oracle — a has=0 "
+                    "is never a definitive 'no recurrence'). Exact bigint; no float, no "
+                    "abs() (Class-K sign), no numpy / math.",
+            parameters=(P("rn_num", "QBiPoly", True,
+                          "r_n NUMERATOR — the F(n+1,k)/F(n,k) numerator, a bivariate-q "
+                          "QBiPoly (or a QPoly-in-Y / Poly-in-q / nested-list form)"),
+                        P("rn_den", "QBiPoly", True,
+                          "r_n DENOMINATOR — a NONZERO bivariate-q QBiPoly"),
+                        P("rk_num", "QBiPoly", True,
+                          "r_k NUMERATOR — the F(n,k+1)/F(n,k) numerator, a QBiPoly"),
+                        P("rk_den", "QBiPoly", True,
+                          "r_k DENOMINATOR — a NONZERO bivariate-q QBiPoly"),
+                        P("max_order", "int", False,
+                          "the largest ansatz recurrence order to try (default 6)")),
+            returns=R("dict | None",
+                      "{'order': int, 'coeffs': [QPoly, ...], 'certificate': QBiPoly} "
+                      "— the minimal-order q-recurrence Σ_j coeffs[j](qⁿ)·f(n+j)=0 plus "
+                      "the q-Gosper rational certificate x(X,Y), or None when none of "
+                      "order ≤ max_order"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The F929 OPEN/infer ROUTER — the meta-dispatcher that makes the
         # three shipped reduction-theory rows (cyclic / spectral / Σ) ONE
         # callable. Pure orchestration over the already-C-mirrored reducers

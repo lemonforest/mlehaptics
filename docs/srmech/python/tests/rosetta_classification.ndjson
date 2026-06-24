@@ -310,6 +310,7 @@
 {"exposed_as": "srmech.amsc.wz_certificate.wz_certificate", "defined_at": "srmech.amsc.wz_certificate.wz_certificate", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.apagodu_zeilberger.apagodu_zeilberger", "defined_at": "srmech.amsc.apagodu_zeilberger.apagodu_zeilberger", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.q_gosper.q_gosper", "defined_at": "srmech.amsc.q_gosper.q_gosper", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.q_zeilberger.q_zeilberger", "defined_at": "srmech.amsc.q_zeilberger.q_zeilberger", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.dispatch.infer", "defined_at": "srmech.amsc.dispatch.infer", "bucket": "non_compute"}
 {"exposed_as": "srmech.amsc.harmonics.classify_chirality_harmonic", "defined_at": "srmech.amsc.harmonics.classify_chirality_harmonic", "bucket": "python_only_irreducible"}
 {"exposed_as": "srmech.amsc.hdc.bundle_with_ties", "defined_at": "srmech.amsc.hdc.bundle_with_ties", "bucket": "python_only_irreducible"}

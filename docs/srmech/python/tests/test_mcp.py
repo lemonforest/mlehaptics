@@ -1729,6 +1729,12 @@ def _synth_value_for_type(type_string: str) -> Any:
         # (num, den) ambiguity of QPoly's own cell coercion; coerces + binds
         # cleanly, and as a term-ratio numerator yields a DOMAIN-valid certificate.
         "QPoly": [[2]],
+        # rc56 q_zeilberger QBiPoly operand: a minimal valid nonzero bivariate-q
+        # term ratio — a single Y⁰ cell carrying the QPoly [[2]] (one X⁰ cell, the
+        # constant ℚ[q] coefficient 2; the q-geometric numerator). The q-analog of
+        # the BiPoly [[1, 1]] sample; coerces + binds cleanly, and as a term-ratio
+        # numerator yields a DOMAIN-valid (k-free q-geometric) recurrence.
+        "QBiPoly": [[[2]]],
         "np.ndarray": mat2,
         "Optional[np.ndarray]": mat2,
         # v0.7.5rc72 Mat carrier (mat_matmul): a 2x2 list-of-rows -> real Mat;
