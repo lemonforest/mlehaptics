@@ -110,8 +110,8 @@ _Q_ONE = Q(1, 1)
 # R(qx)·r(x) − R(x) = 1 is verified (the theta-quotient carrier is NOT additively
 # closed, so the additive relation is decided structurally + CERTIFIED in exact ℚ).
 # Several independent points pin the rational identity. A point with |p| < 1 makes
-# the truncated modified-theta product converge; the verifier reads the exact-ℚ value
-# at two truncation depths and requires the gap to the target to collapse (Class-K
+# the truncated modified-theta product the exact-ℚ value the verifier reads; a
+# certificate is accepted ONLY when the residual is EXACTLY 0 there (Class-K
 # magnitude, never an ALU abs()). All exact rationals (no float, no math, no numpy).
 _VERIFY_POINTS: Tuple[Dict[str, Q], ...] = (
     {_Q_SYM: Q(2, 1), _P: Q(1, 9), _X: Q(2, 3), "a": Q(3, 5), "b": Q(4, 7),
@@ -120,19 +120,12 @@ _VERIFY_POINTS: Tuple[Dict[str, Q], ...] = (
      "c": Q(3, 8), "d": Q(4, 9), "e": Q(2, 3), "f": Q(5, 6)},
 )
 
-# The two truncation depths the additive verifier reads (the modified-theta product
-# converges as |p| < 1; a genuine telescoper's gap to 1 collapses between them).
-_VERIFY_TRUNC_LO = 10
-_VERIFY_TRUNC_HI = 22
-# A cheap shallow truncation for the candidate PRE-FILTER (a non-solution's gap to 1
-# is already large at this depth, so the deep read runs only for near-misses).
-_PREFILTER_TRUNC = 4
-_PREFILTER_GAP = Q(1, 20)
-# The exact-ℚ closeness threshold (the deeper read must be within this of the target,
-# AND closer than the shallow read — a converging-to-1 witness). A degenerate (no
-# surviving theta) difference hits the target EXACTLY at any depth, so this only ever
-# gates genuine theta telescopers; an exact rational, never a float.
-_VERIFY_GAP = Q(1, 10 ** 6)
+# The truncation depth the EXACT verifier reads. A certificate is accepted ONLY when
+# the Gosper-equation residual is EXACTLY 0 at every sample — which holds iff the
+# residual carries NO surviving theta factor (the theta-free / elliptic-geometric
+# core), whose exact-ℚ truncated value IS the true value at any finite depth. So the
+# depth is immaterial to a genuine certificate; it only bounds the near-miss reject.
+_VERIFY_TRUNC = 12
 
 # The largest theta-dispersion q-step the GP-form scan reaches (the elliptic analogue
 # of the q-Gosper x-degree / q-dispersion bound). A genuine elliptic-summable term's
@@ -224,39 +217,24 @@ def _gap_to_one(cert: EllRatio, lhs_mul: EllRatio, vals: Dict[str, Q],
 
 
 def _verifies_gosper_equation(cert: EllRatio, r: EllRatio) -> bool:
-    """Decide ``R(qx)·r(x) − R(x) = 1`` (the elliptic Gosper equation) at every
-    sample in :data:`_VERIFY_POINTS`. The theta-quotient carrier is multiplicatively
-    but NOT additively closed, so the additive ``−`` is taken in exact ``ℚ`` via
-    :meth:`~srmech.amsc.ellbase.EllRatio.eval_trunc`, and the equation holds in the
-    truncation LIMIT (``θ(z;p)`` is an infinite product; the finite truncation is the
-    exact-``ℚ`` partial). The decision is exact-``ℚ``, no float:
-
-    - the **degenerate / elliptic-geometric core** (the certificate's difference
-      carries no surviving theta — e.g. a constant term ratio) hits the target ``1``
-      EXACTLY at the shallow depth → accepted immediately;
-    - a **genuine theta telescoper** has a gap that COLLAPSES with depth: the deeper
-      read's Class-K gap-to-1 is within :data:`_VERIFY_GAP` AND strictly smaller than
-      the shallow read's → a converging-to-1 witness.
-
-    A non-solution's gap neither vanishes nor collapses → rejected. Returns True iff
-    every sample point witnesses the equation."""
+    """Decide ``R(qx)·r(x) − R(x) = 1`` (the elliptic Gosper equation) EXACTLY. A
+    certificate is accepted ONLY when the equation's residual is EXACTLY zero in
+    exact ``ℚ`` at every sample in :data:`_VERIFY_POINTS` — which holds iff the
+    certificate's Gosper-equation difference carries NO surviving theta factor (the
+    theta-free / elliptic-geometric core), whose exact-``ℚ`` truncated value IS the
+    true value at every finite depth. A candidate whose residual is merely small or
+    converging is REJECTED, not accepted: **a certificate is an exact proof object,
+    never a numerically-converging witness** — the same no-hallucination, exact-
+    verification standard the §76 ``gosper`` / ``zeilberger`` / ``wz_certificate`` ops
+    hold. Genuine single-x theta telescopers (which need the multi-x ``q**(2n)``
+    lattice, a future carrier extension) therefore return honest ``None`` here, never
+    a numerically-witnessed certificate. The theta-quotient carrier is
+    multiplicatively but NOT additively closed, so the additive ``−`` of the residual
+    is taken in exact ``ℚ`` via :meth:`~srmech.amsc.ellbase.EllRatio.eval_trunc`."""
     lhs_mul = cert.qshift() * r                       # R(qx)·r(x), in the carrier
-    # cheap shallow pre-filter on the FIRST point: a non-solution's gap is already
-    # large at the shallow depth, so the deep reads run only for near-misses.
-    pre = _gap_to_one(cert, lhs_mul, _VERIFY_POINTS[0], _PREFILTER_TRUNC)
-    if pre is None or not (pre == _Q_ZERO or pre < _PREFILTER_GAP):
-        return False
     for vals in _VERIFY_POINTS:
-        lo = _gap_to_one(cert, lhs_mul, vals, _VERIFY_TRUNC_LO)
-        if lo is None:
-            return False
-        if lo == _Q_ZERO:
-            continue                                  # exact at finite depth (core)
-        hi = _gap_to_one(cert, lhs_mul, vals, _VERIFY_TRUNC_HI)
-        if hi is None:
-            return False
-        # a converging-to-1 witness: the deeper gap is tight AND shrinking.
-        if not (hi < _VERIFY_GAP and hi < lo):
+        gap = _gap_to_one(cert, lhs_mul, vals, _VERIFY_TRUNC)
+        if gap is None or gap != _Q_ZERO:             # accept ONLY an EXACT-0 residual
             return False
     return True
 
