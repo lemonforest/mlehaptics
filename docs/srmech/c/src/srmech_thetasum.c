@@ -52,10 +52,20 @@
  */
 
 #include "srmech.h"
+#include "srmech_ellbase_internal.h"
 
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
+
+/* The exact-Q monomial + theta-canon KERNELS this decision rides on were PROMOTED
+ * to srmech_ellbase.c (rc64) so ThetaSum.is_zero and EllRatio.is_elliptic share ONE
+ * copy of each (the everything-mirrors discipline forbids two copies of the same
+ * algebra). The arena context / monomial / exact-Q carriers + their algebra are the
+ * shared srmech_ell_* types + srmech_ellbase_* functions; the thin aliases below keep
+ * this file's call sites (`ts_*`) unchanged while pointing at the single shared copy.
+ * What stays HERE is the thetasum-SPECIFIC algebra: the +/- -pair / rterm storage, the
+ * recover_pairs / canon_pair / three-term rewrite, and the is_zero orchestration. */
 
 /* The Weierstrass-reduction pass bound (mirrors thetasum._REDUCE_MAX_PASSES): the
  * non-reference s-pair midpoint multiset strictly decreases each pass, so a small
@@ -63,18 +73,34 @@
  * NOT-zero rather than looping (the Python parity). */
 #define TS_REDUCE_MAX_PASSES 64u
 
-/* A rational coefficient num/den as two srmech_bigint carved from the arena. */
-typedef struct ts_q {
-    srmech_bigint_t num;
-    srmech_bigint_t den;
-} ts_q_t;
+/* ---- shared-kernel aliases (the single copy lives in srmech_ellbase.c) ------- */
+typedef srmech_ell_q_t    ts_q_t;
+typedef srmech_ell_mono_t ts_mono_t;
+typedef srmech_ell_ctx_t  ts_ctx_t;
 
-/* An EllMonomial: an exact-Q coeff over a dense int32 exponent vector of length
- * n_syms (the interned symbol table). The zero monomial has coeff num == 0. */
-typedef struct ts_mono {
-    ts_q_t   coeff;
-    int32_t *exps;   /* length n_syms, arena-carved                         */
-} ts_mono_t;
+#define ts_take_words        srmech_ellbase_take_words
+#define ts_align8            srmech_ellbase_align8
+#define ts_take_exps         srmech_ellbase_take_exps
+#define ts_bind_bi           srmech_ellbase_bind_bi
+#define ts_bind_q            srmech_ellbase_bind_q
+#define ts_bind_mono         srmech_ellbase_bind_mono
+#define ts_bind_mono_arr     srmech_ellbase_bind_mono_arr
+#define ts_q_reduce          srmech_ellbase_q_reduce
+#define ts_q_mul             srmech_ellbase_q_mul
+#define ts_q_add             srmech_ellbase_q_add
+#define ts_q_copy            srmech_ellbase_q_copy
+#define ts_q_eq              srmech_ellbase_q_eq
+#define ts_mono_is_zero      srmech_ellbase_mono_is_zero
+#define ts_mono_set_one      srmech_ellbase_mono_set_one
+#define ts_mono_copy         srmech_ellbase_mono_copy
+#define ts_mono_mul          srmech_ellbase_mono_mul
+#define ts_mono_inv          srmech_ellbase_mono_inv
+#define ts_mono_div          srmech_ellbase_mono_div
+#define ts_exps_cmp          srmech_ellbase_exps_cmp
+#define ts_mono_cmp          srmech_ellbase_mono_cmp
+#define ts_mono_eq           srmech_ellbase_mono_eq
+#define ts_mono_sqrt         srmech_ellbase_mono_sqrt
+#define ts_theta_canon_arg   srmech_ellbase_theta_canon_arg
 
 /* A canonical +/- -pair (alpha, beta): theta(alpha*beta^pm). */
 typedef struct ts_pair {
@@ -82,99 +108,9 @@ typedef struct ts_pair {
     ts_mono_t beta;
 } ts_pair_t;
 
-/* The whole working context: the arena bump allocator + sizing. */
-typedef struct ts_ctx {
-    uint32_t *pool;
-    size_t    pool_words;
-    size_t    pool_cur;
-    void     *scratch;
-    size_t    scratch_len;
-    size_t    n_syms;     /* interned symbol-table dimension                */
-    uint32_t  cap;        /* per-bigint limb cap                            */
-} ts_ctx_t;
-
-/* ---- arena bump primitives -------------------------------------------------- */
-
-static uint32_t *ts_take_words(ts_ctx_t *c, size_t cnt)
-{
-    uint32_t *p;
-    assert(c != NULL);
-    assert(c->pool_cur <= c->pool_words);
-    if (cnt > c->pool_words || c->pool_cur > c->pool_words - cnt) {
-        return NULL;
-    }
-    p = c->pool + c->pool_cur;
-    c->pool_cur += cnt;
-    return p;
-}
-
-/* 8-byte-align the bump cursor before carving a struct array that embeds pointers
- * (ts_pair_t / ts_rterm_t), so the cast-from-uint32* storage is correctly aligned
- * on a 64-bit target. The arena base is 8-byte aligned by contract. */
-static void ts_align8(ts_ctx_t *c)
-{
-    assert(c != NULL);
-    assert(c->pool_cur <= c->pool_words);
-    if ((c->pool_cur & 1u) != 0u && c->pool_cur < c->pool_words) {
-        c->pool_cur += 1u;     /* pad one 4-byte word -> 8-byte boundary */
-    }
-}
-
-static int32_t *ts_take_exps(ts_ctx_t *c)
-{
-    /* one int32 exponent per symbol (round up to a uint32-word multiple). */
-    size_t words;
-    uint32_t *raw;
-    assert(c != NULL);
-    assert(c->n_syms >= 1u);
-    words = c->n_syms;                      /* int32 == uint32 word           */
-    raw = ts_take_words(c, words);
-    if (raw == NULL) {
-        return NULL;
-    }
-    memset(raw, 0, words * sizeof(uint32_t));
-    return (int32_t *)raw;
-}
-
-static srmech_status_t ts_bind_bi(ts_ctx_t *c, srmech_bigint_t *b)
-{
-    uint32_t *limbs;
-    assert(c != NULL && b != NULL);
-    assert(c->cap > 0u);
-    limbs = ts_take_words(c, c->cap);
-    if (limbs == NULL) {
-        return SRMECH_ERR_OVERFLOW;
-    }
-    b->limbs = limbs;
-    b->cap = c->cap;
-    b->n = 0;
-    b->sign = 0;
-    return SRMECH_OK;
-}
-
-static srmech_status_t ts_bind_q(ts_ctx_t *c, ts_q_t *q)
-{
-    srmech_status_t st;
-    assert(c != NULL && q != NULL);
-    assert(c->cap > 0u);
-    st = ts_bind_bi(c, &q->num);
-    if (st != SRMECH_OK) { return st; }
-    return ts_bind_bi(c, &q->den);
-}
-
-static srmech_status_t ts_bind_mono(ts_ctx_t *c, ts_mono_t *m)
-{
-    srmech_status_t st;
-    assert(c != NULL && m != NULL);
-    assert(c->n_syms >= 1u);
-    st = ts_bind_q(c, &m->coeff);
-    if (st != SRMECH_OK) { return st; }
-    m->exps = ts_take_exps(c);
-    if (m->exps == NULL) {
-        return SRMECH_ERR_OVERFLOW;
-    }
-    return SRMECH_OK;
-}
+/* The arena bump primitives + per-bigint / per-monomial binds are the SHARED kernels
+ * (srmech_ellbase_take_words / align8 / take_exps / bind_bi / bind_q / bind_mono,
+ * aliased above). Only the thetasum-SPECIFIC pair bind stays here. */
 
 static srmech_status_t ts_bind_pair(ts_ctx_t *c, ts_pair_t *pr)
 {
@@ -186,269 +122,6 @@ static srmech_status_t ts_bind_pair(ts_ctx_t *c, ts_pair_t *pr)
     return ts_bind_mono(c, &pr->beta);
 }
 
-/* ---- exact-Q (two-bigint) helpers ------------------------------------------- */
-
-/* q := num/den in lowest terms with den > 0 (Class-K sign on num). den nonzero. */
-static srmech_status_t ts_q_reduce(ts_ctx_t *c, ts_q_t *q,
-                                   srmech_bigint_t *g, srmech_bigint_t *t0,
-                                   srmech_bigint_t *t1)
-{
-    srmech_status_t st;
-    assert(c != NULL && q != NULL && g != NULL);
-    assert(q->den.sign != 0);
-    if (q->den.sign < 0) {
-        q->num.sign = (q->num.sign == 0) ? 0 : -q->num.sign;
-        q->den.sign = -q->den.sign;
-    }
-    if (srmech_bigint_is_zero(&q->num)) {
-        return srmech_bigint_set_i64(&q->den, 1);
-    }
-    st = srmech_bigint_gcd(g, &q->num, &q->den, c->scratch, c->scratch_len);
-    if (st != SRMECH_OK) { return st; }
-    st = srmech_bigint_divmod(t0, t1, &q->num, g, c->scratch, c->scratch_len);
-    if (st != SRMECH_OK) { return st; }
-    st = srmech_bigint_copy(&q->num, t0);
-    if (st != SRMECH_OK) { return st; }
-    st = srmech_bigint_divmod(t0, t1, &q->den, g, c->scratch, c->scratch_len);
-    if (st != SRMECH_OK) { return st; }
-    return srmech_bigint_copy(&q->den, t0);
-}
-
-/* out := a * b (exact rational; reduced). out distinct from a, b. */
-static srmech_status_t ts_q_mul(ts_ctx_t *c, ts_q_t *out, const ts_q_t *a,
-                                const ts_q_t *b, srmech_bigint_t *g,
-                                srmech_bigint_t *t0, srmech_bigint_t *t1)
-{
-    srmech_status_t st;
-    assert(c != NULL && out != NULL && a != NULL && b != NULL);
-    assert(g != NULL);
-    st = srmech_bigint_mul(&out->num, &a->num, &b->num);
-    if (st != SRMECH_OK) { return st; }
-    st = srmech_bigint_mul(&out->den, &a->den, &b->den);
-    if (st != SRMECH_OK) { return st; }
-    return ts_q_reduce(c, out, g, t0, t1);
-}
-
-/* out := a + b (exact rational; reduced). out distinct from a, b. */
-static srmech_status_t ts_q_add(ts_ctx_t *c, ts_q_t *out, const ts_q_t *a,
-                                const ts_q_t *b, srmech_bigint_t *g,
-                                srmech_bigint_t *t0, srmech_bigint_t *t1)
-{
-    srmech_status_t st;
-    assert(out != NULL && a != NULL && b != NULL);
-    assert(g != NULL && t0 != NULL && t1 != NULL);
-    /* num = a.num*b.den + b.num*a.den ; den = a.den*b.den */
-    st = srmech_bigint_mul(t0, &a->num, &b->den);
-    if (st != SRMECH_OK) { return st; }
-    st = srmech_bigint_mul(t1, &b->num, &a->den);
-    if (st != SRMECH_OK) { return st; }
-    st = srmech_bigint_add(&out->num, t0, t1);
-    if (st != SRMECH_OK) { return st; }
-    st = srmech_bigint_mul(&out->den, &a->den, &b->den);
-    if (st != SRMECH_OK) { return st; }
-    return ts_q_reduce(c, out, g, t0, t1);
-}
-
-static srmech_status_t ts_q_copy(ts_q_t *out, const ts_q_t *a)
-{
-    srmech_status_t st;
-    assert(out != NULL && a != NULL);
-    assert(out->num.limbs != NULL && out->den.limbs != NULL);
-    st = srmech_bigint_copy(&out->num, &a->num);
-    if (st != SRMECH_OK) { return st; }
-    return srmech_bigint_copy(&out->den, &a->den);
-}
-
-/* 1 iff a == b as exact rationals (both assumed reduced, den > 0). */
-static int ts_q_eq(const ts_q_t *a, const ts_q_t *b)
-{
-    assert(a != NULL && b != NULL);
-    assert(a->den.sign >= 0 && b->den.sign >= 0);
-    return (srmech_bigint_cmp(&a->num, &b->num) == 0
-            && srmech_bigint_cmp(&a->den, &b->den) == 0);
-}
-
-/* ---- monomial helpers ------------------------------------------------------- */
-
-static int ts_mono_is_zero(const ts_mono_t *m)
-{
-    assert(m != NULL);
-    assert(m->coeff.num.limbs != NULL);
-    return srmech_bigint_is_zero(&m->coeff.num);
-}
-
-static srmech_status_t ts_mono_set_one(ts_ctx_t *c, ts_mono_t *m)
-{
-    srmech_status_t st;
-    assert(c != NULL && m != NULL);
-    assert(m->exps != NULL);
-    st = srmech_bigint_set_i64(&m->coeff.num, 1);
-    if (st != SRMECH_OK) { return st; }
-    st = srmech_bigint_set_i64(&m->coeff.den, 1);
-    if (st != SRMECH_OK) { return st; }
-    memset(m->exps, 0, c->n_syms * sizeof(int32_t));
-    return SRMECH_OK;
-}
-
-static srmech_status_t ts_mono_copy(ts_ctx_t *c, ts_mono_t *out,
-                                    const ts_mono_t *a)
-{
-    srmech_status_t st;
-    assert(c != NULL && out != NULL && a != NULL);
-    assert(out->exps != NULL && a->exps != NULL);
-    st = ts_q_copy(&out->coeff, &a->coeff);
-    if (st != SRMECH_OK) { return st; }
-    memcpy(out->exps, a->exps, c->n_syms * sizeof(int32_t));
-    return SRMECH_OK;
-}
-
-/* out := a * b (monomial multiply: coeff *, exponents +). out distinct. */
-static srmech_status_t ts_mono_mul(ts_ctx_t *c, ts_mono_t *out,
-                                   const ts_mono_t *a, const ts_mono_t *b,
-                                   srmech_bigint_t *g, srmech_bigint_t *t0,
-                                   srmech_bigint_t *t1)
-{
-    srmech_status_t st;
-    size_t i;
-    assert(c != NULL && out != NULL && a != NULL && b != NULL);
-    assert(g != NULL);
-    st = ts_q_mul(c, &out->coeff, &a->coeff, &b->coeff, g, t0, t1);
-    if (st != SRMECH_OK) { return st; }
-    for (i = 0; i < c->n_syms; i++) {
-        out->exps[i] = a->exps[i] + b->exps[i];
-    }
-    return SRMECH_OK;
-}
-
-/* out := 1 / a (monomial inverse: coeff 1/coeff, exponents negated). a nonzero. */
-static srmech_status_t ts_mono_inv(ts_ctx_t *c, ts_mono_t *out,
-                                   const ts_mono_t *a)
-{
-    srmech_status_t st;
-    size_t i;
-    assert(c != NULL && out != NULL && a != NULL);
-    assert(!ts_mono_is_zero(a));
-    st = srmech_bigint_copy(&out->coeff.num, &a->coeff.den);
-    if (st != SRMECH_OK) { return st; }
-    st = srmech_bigint_copy(&out->coeff.den, &a->coeff.num);
-    if (st != SRMECH_OK) { return st; }
-    if (out->coeff.den.sign < 0) {
-        out->coeff.num.sign = (out->coeff.num.sign == 0) ? 0
-                              : -out->coeff.num.sign;
-        out->coeff.den.sign = -out->coeff.den.sign;
-    }
-    for (i = 0; i < c->n_syms; i++) {
-        out->exps[i] = -a->exps[i];
-    }
-    return SRMECH_OK;
-}
-
-/* out := a / b (monomial divide). b nonzero. */
-static srmech_status_t ts_mono_div(ts_ctx_t *c, ts_mono_t *out,
-                                   const ts_mono_t *a, const ts_mono_t *b,
-                                   ts_mono_t *binv, srmech_bigint_t *g,
-                                   srmech_bigint_t *t0, srmech_bigint_t *t1)
-{
-    srmech_status_t st;
-    assert(c != NULL && out != NULL && a != NULL && b != NULL && binv != NULL);
-    assert(!ts_mono_is_zero(b));
-    st = ts_mono_inv(c, binv, b);
-    if (st != SRMECH_OK) { return st; }
-    return ts_mono_mul(c, out, a, binv, g, t0, t1);
-}
-
-/* Compare two monomial EXPONENT maps the way Python's EllMonomial._sort_key does:
- * each is `tuple(sorted(exps.items()))` -- a sorted list of (symbol, exp) pairs with
- * ZERO exponents OMITTED -- compared LEXICOGRAPHICALLY pair-by-pair. The symbol table
- * is interned in the Python sorted-symbol-NAME order, so a merge-walk over the NONZERO
- * dense entries (in ascending index = ascending symbol-name) reproduces the tuple
- * compare exactly. A plain index-wise compare would be WRONG: ((a,2),(c,1)) vs ((b,1),)
- * tuple-compares ('a',2) < ('b',1) by symbol-name FIRST, not by the index-0 exponent.
- * Returns -1 / 0 / +1. */
-static int ts_exps_cmp(const ts_ctx_t *c, const int32_t *a, const int32_t *b)
-{
-    size_t ia = 0;
-    size_t ib = 0;
-    assert(c != NULL && a != NULL && b != NULL);
-    assert(c->n_syms >= 1u);
-    for (;;) {
-        while (ia < c->n_syms && a[ia] == 0) { ia++; }   /* next nonzero pair in a */
-        while (ib < c->n_syms && b[ib] == 0) { ib++; }   /* next nonzero pair in b */
-        if (ia >= c->n_syms && ib >= c->n_syms) { return 0; }   /* both exhausted  */
-        if (ia >= c->n_syms) { return -1; }   /* a is a prefix -> a < b (shorter)   */
-        if (ib >= c->n_syms) { return 1; }    /* b is a prefix -> a > b             */
-        if (ia != ib) {
-            /* the lex-first present symbol differs: smaller symbol INDEX (= name) wins. */
-            return (ia < ib) ? -1 : 1;
-        }
-        if (a[ia] != b[ib]) {                 /* same symbol: compare its exponent. */
-            return (a[ia] < b[ib]) ? -1 : 1;
-        }
-        ia++;
-        ib++;
-    }
-}
-
-/* Full monomial sort-key compare (exps, then coeff num, then coeff den) -- the
- * Python EllMonomial._sort_key total order. Returns -1 / 0 / +1. */
-static int ts_mono_cmp(const ts_ctx_t *c, const ts_mono_t *a, const ts_mono_t *b)
-{
-    int e;
-    int cn;
-    assert(c != NULL && a != NULL && b != NULL);
-    assert(a->exps != NULL && b->exps != NULL);
-    e = ts_exps_cmp(c, a->exps, b->exps);
-    if (e != 0) { return e; }
-    cn = srmech_bigint_cmp(&a->coeff.num, &b->coeff.num);
-    if (cn != 0) { return cn; }
-    return srmech_bigint_cmp(&a->coeff.den, &b->coeff.den);
-}
-
-/* 1 iff a == b as monomials (same exps AND same reduced coeff). */
-static int ts_mono_eq(const ts_ctx_t *c, const ts_mono_t *a, const ts_mono_t *b)
-{
-    assert(c != NULL && a != NULL && b != NULL);
-    assert(a->exps != NULL && b->exps != NULL);
-    return (ts_exps_cmp(c, a->exps, b->exps) == 0
-            && ts_q_eq(&a->coeff, &b->coeff));
-}
-
-/* ---- Theta.canonicalize (ellbase) ------------------------------------------- *
- *
- * theta(z; p) == prefactor * theta(z0; p) with z0 having p-exponent 0 and a fixed
- * orientation of {z0, z0^-1}. The build-pinned exact identities:
- *   theta(p^k z0) = (-1)^k p^{-k(k-1)/2} z0^{-k} theta(z0)
- *   theta(w^-1)   = -w^-1 theta(w)
- * `psym` / `xsym` / `ysym` are the interned indices of p / x / y (-1 if absent).
- * Writes the canonical argument into `out_arg` (its coeff aside -- the decision
- * uses only the canonical ARGUMENT, never the prefactor here). Returns OK / err. */
-static srmech_status_t ts_theta_canon_arg(ts_ctx_t *c, ts_mono_t *out_arg,
-                                          const ts_mono_t *z, int psym,
-                                          ts_mono_t *zinv)
-{
-    int cmp;
-    srmech_status_t st;
-    assert(c != NULL && out_arg != NULL && z != NULL);
-    assert(zinv != NULL);
-    /* strip p^k -> z0 (p-exponent 0). */
-    st = ts_mono_copy(c, out_arg, z);
-    if (st != SRMECH_OK) { return st; }
-    if (psym >= 0) { out_arg->exps[psym] = 0; }
-    /* orientation: pick the canonical rep of {z0, z0^-1}; theta(w^-1) = -w^-1 theta(w).
-     * The DECISION only needs the canonical ARGUMENT, so we flip z0 -> z0^-1 when z0's
-     * sort-key exceeds z0^-1's (and z0 != z0^-1), exactly as Python does. */
-    st = ts_mono_inv(c, zinv, out_arg);
-    if (st != SRMECH_OK) { return st; }
-    if (ts_mono_eq(c, out_arg, zinv)) {
-        return SRMECH_OK;                    /* self-inverse: left as-is */
-    }
-    cmp = ts_mono_cmp(c, out_arg, zinv);
-    if (cmp > 0) {
-        st = ts_mono_copy(c, out_arg, zinv);
-        if (st != SRMECH_OK) { return st; }
-    }
-    return SRMECH_OK;
-}
 
 /* The quasi-periodicity-class KEY of a theta-product: the net multiplier monomial
  * EXPONENT vector the product acquires under x->p*x AND y->p*y
@@ -542,53 +215,8 @@ static srmech_status_t ts_pref_exps_of_shift(ts_ctx_t *c, const ts_mono_t *targ,
     return SRMECH_OK;
 }
 
-/* ---- monomial square root (the +/- -pair midpoint test) --------------------- *
- *
- * out := sqrt(z): halve every exponent (each must be even) and take the exact
- * rational sqrt of the coeff (num + den each a perfect square). Sets *ok = 1 on
- * success, 0 when z is NOT a perfect-square monomial. Mirrors _monomial_sqrt. */
-static srmech_status_t ts_mono_sqrt(ts_ctx_t *c, ts_mono_t *out,
-                                    const ts_mono_t *z, int *ok,
-                                    srmech_bigint_t *r, srmech_bigint_t *t0)
-{
-    size_t i;
-    srmech_status_t st;
-    assert(c != NULL && out != NULL && z != NULL && ok != NULL);
-    assert(r != NULL && t0 != NULL);
-    *ok = 0;
-    if (ts_mono_is_zero(z)) {
-        return SRMECH_OK;
-    }
-    for (i = 0; i < c->n_syms; i++) {
-        if ((z->exps[i] & 1) != 0) {     /* odd exponent -> not a perfect square */
-            return SRMECH_OK;
-        }
-    }
-    /* sqrt of the coeff numerator + denominator (both >= 0 after Class-K split). */
-    st = srmech_bigint_isqrt(r, &z->coeff.num, c->scratch, c->scratch_len);
-    if (st != SRMECH_OK) { return st; }
-    st = srmech_bigint_mul(t0, r, r);
-    if (st != SRMECH_OK) { return st; }
-    if (srmech_bigint_cmp(t0, &z->coeff.num) != 0) {
-        return SRMECH_OK;                /* numerator not a perfect square */
-    }
-    st = srmech_bigint_copy(&out->coeff.num, r);
-    if (st != SRMECH_OK) { return st; }
-    st = srmech_bigint_isqrt(r, &z->coeff.den, c->scratch, c->scratch_len);
-    if (st != SRMECH_OK) { return st; }
-    st = srmech_bigint_mul(t0, r, r);
-    if (st != SRMECH_OK) { return st; }
-    if (srmech_bigint_cmp(t0, &z->coeff.den) != 0) {
-        return SRMECH_OK;                /* denominator not a perfect square */
-    }
-    st = srmech_bigint_copy(&out->coeff.den, r);
-    if (st != SRMECH_OK) { return st; }
-    for (i = 0; i < c->n_syms; i++) {
-        out->exps[i] = z->exps[i] / 2;
-    }
-    *ok = 1;
-    return SRMECH_OK;
-}
+/* ts_mono_sqrt (the +/- -pair midpoint perfect-square test) is the SHARED
+ * srmech_ellbase_mono_sqrt (aliased above). */
 
 /* canon_half: fix the half `beta` orientation (FREE): positive leading summation
  * exponent (x then y), else the lex-smaller of {beta, 1/beta}. `alpha` (midpoint)
@@ -766,26 +394,7 @@ typedef struct ts_scr {
     int         psym;      /* the interned p index (-1 if absent)            */
 } ts_scr_t;
 
-/* Carve a contiguous bound monomial array of `count` monos (8-byte aligned). */
-static srmech_status_t ts_bind_mono_arr(ts_ctx_t *c, ts_mono_t **out, size_t count)
-{
-    size_t i;
-    size_t words;
-    uint32_t *raw;
-    srmech_status_t st;
-    assert(c != NULL && out != NULL && count >= 1u);
-    assert(c->n_syms >= 1u);
-    ts_align8(c);
-    words = (count * sizeof(ts_mono_t) + sizeof(uint32_t) - 1u) / sizeof(uint32_t);
-    raw = ts_take_words(c, words);
-    if (raw == NULL) { return SRMECH_ERR_OVERFLOW; }
-    *out = (ts_mono_t *)raw;
-    for (i = 0; i < count; i++) {
-        st = ts_bind_mono(c, &(*out)[i]);
-        if (st != SRMECH_OK) { return st; }
-    }
-    return SRMECH_OK;
-}
+/* ts_bind_mono_arr is the SHARED srmech_ellbase_bind_mono_arr (aliased above). */
 
 /* Carve a contiguous bound pair array of `count` pairs (8-byte aligned). */
 static srmech_status_t ts_bind_pair_arr(ts_ctx_t *c, ts_pair_t **out, size_t count)

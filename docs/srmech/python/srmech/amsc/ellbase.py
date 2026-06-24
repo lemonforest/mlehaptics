@@ -594,8 +594,70 @@ class EllRatio:
         genuine elliptic function (invariant under the period shift ``x ↦ p·x``).
         Operationally ``pshift() == self`` — the exact theta-canonicalization
         decides it. The elliptic reducers consult this before attempting a closed
-        form; a non-elliptic (unbalanced) input is honestly out of the row."""
+        form; a non-elliptic (unbalanced) input is honestly out of the row.
+
+        DISPATCHES to the native ``srmech_ellratio_is_elliptic`` C peer when it is
+        loaded (a 1:1 structural mirror of this exact decision — the C verdict EQUALS
+        the Python verdict byte-for-byte, so it is trusted unconditionally); otherwise
+        the pure-Python :meth:`_is_elliptic_py` body decides (it is the COMPLETE
+        alternative + the C peer's parity oracle)."""
+        c = self._is_elliptic_c()
+        if c is not None:
+            return c
+        return self._is_elliptic_py()
+
+    def _is_elliptic_py(self) -> bool:
+        """The COMPLETE pure-Python ``is_elliptic`` decision (the parity oracle for the
+        C peer): the period shift equals self, decided by the exact theta-canon."""
         return self.pshift() == self
+
+    def _is_elliptic_c(self) -> "bool | None":
+        """Dispatch the ``is_elliptic`` decision to the native
+        ``srmech_ellratio_is_elliptic`` C peer → the bool verdict, or ``None`` when the
+        native symbols are absent (the caller falls to :meth:`_is_elliptic_py`). The
+        CANONICAL ratio (prefactor + num/den canonical theta arguments) is marshalled
+        over an interned symbol table (the distinct symbols across the prefactor + every
+        theta argument, sorted by NAME so the C dense exponent vector reproduces the
+        :meth:`EllMonomial._sort_key` tuple order)."""
+        from . import _native as _nat
+        if not _nat.has_native_ellratio():
+            return None
+        if self.is_zero:
+            # the zero ratio: pshift(0) == 0, trivially elliptic (no theta marshalling).
+            return self.pshift() == self
+        # The interned symbol universe MUST include p AND x even when the canonical form
+        # carries neither: the period shift x ↦ p·x INTRODUCES a p-power (keyed off the
+        # x-exponent), so the C needs a p slot to write it into AND an x slot to read it
+        # from — without them the C period shift would be a silent no-op (always
+        # reporting elliptic). Mirrors EllMonomial.symbol('p', …) materialising p.
+        syms: "set" = {_X, _P}
+        syms.update(self._pref.exps.keys())
+        for t in self._num:
+            syms.update(t.arg.exps.keys())
+        for t in self._den:
+            syms.update(t.arg.exps.keys())
+        sym_list = sorted(syms)
+        idx = {s: i for i, s in enumerate(sym_list)}
+        n_syms = len(sym_list)
+
+        def row(m: EllMonomial) -> "List[int]":
+            r = [0] * n_syms
+            for s, e in m.exps.items():
+                r[idx[s]] = e
+            return r
+
+        monomials: "List[Tuple[int, int, List[int]]]" = []
+        monomials.append((self._pref.coeff.numerator,
+                          self._pref.coeff.denominator, row(self._pref)))
+        for t in self._num:
+            a = t.arg
+            monomials.append((a.coeff.numerator, a.coeff.denominator, row(a)))
+        for t in self._den:
+            a = t.arg
+            monomials.append((a.coeff.numerator, a.coeff.denominator, row(a)))
+        return _nat.ellratio_is_elliptic_c(
+            n_syms, idx.get(_X, -1), idx.get(_P, -1),
+            len(self._num), len(self._den), monomials)
 
     # ── evaluation (the exact-ℚ cross-check oracle) ──────────────────────────
     def eval_trunc(self, values: "Mapping[str, object]", n_terms: int) -> Q:

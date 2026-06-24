@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc63"
-#define SRMECH_VERSION       "0.9.0rc63"
+#define SRMECH_VERSION_PRE   "rc64"
+#define SRMECH_VERSION       "0.9.0rc64"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3635,6 +3635,57 @@ srmech_status_t srmech_thetasum_is_zero(size_t n_syms, int xsym, int ysym, int p
                                         const int32_t *exps_flat,
                                         uint32_t coeff_cap, int *out_is_zero,
                                         void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_ellratio_is_elliptic — the C peer of the EllRatio carrier's is_elliptic
+ * (srmech.amsc.ellbase.EllRatio.is_elliptic), the load-bearing BALANCING / very-
+ * well-poised predicate the elliptic reducers consult before attempting a closed
+ * form. A 1:1 STRUCTURAL MIRROR of the pure-Python decision
+ *
+ *     is_elliptic() == (pshift() == self)
+ *
+ * — the term-ratio is a genuine elliptic function (a function on the elliptic curve
+ * C-star / <p>) IFF it is invariant under the period shift x -> p*x. The C reproduces
+ * the
+ * Python decision byte-for-byte: it period-shifts the prefactor + every theta
+ * argument (x -> p*x: a monomial gains p^{its x-exponent}), RE-CANONICALIZES (the
+ * Theta.canonicalize quasi-periodicity + inversion rewrites fold each prefactor),
+ * cancels matching canonical thetas between numerator and denominator, sorts the
+ * survivors, and compares the canonical (prefactor, num-multiset, den-multiset) to
+ * self's. NOT a bounded/numeric shell -- no convergence threshold on any decision
+ * path. The shared exact-Q monomial + theta-canon kernels are the same single copy
+ * srmech_thetasum_is_zero rides (promoted to srmech_ellbase.c). Malloc-free (JPL
+ * Rule 3): every working monomial + bigint scratch is carved from the caller arena
+ * `ws`, sized to the input (n_num, n_den, n_syms) -- no compiled-in math cap.
+ *
+ * Wire form: the interned symbol-table dimension `n_syms` (the distinct symbols, in
+ * the Python sorted order so the dense exponent vector reproduces the
+ * EllMonomial._sort_key tuple compare); the x / p interned indices (`xsym` / `psym`,
+ * -1 if absent); the numerator / denominator theta-factor counts (`n_num` / `n_den`);
+ * the flat monomial coeff arrays `coeff_num` / `coeff_den` (each an exact-Q num/den
+ * as a srmech_bigint, in order prefactor, num0..K-1, den0..L-1) + the flat exponent
+ * rows `exps_flat` (int32[n_syms] per monomial, same order). `coeff_cap` is the
+ * per-bigint limb cap. *out_is_elliptic = 1 iff genuinely elliptic.
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES srmech_ellratio_is_elliptic needs for the given shape
+ * (n_syms symbols, n_num numerator + n_den denominator theta factors, coeff_limbs
+ * the per-coefficient significant-limb estimate). */
+size_t srmech_ellratio_ws_bound(size_t n_syms, size_t n_num, size_t n_den,
+                                size_t coeff_limbs);
+
+/* Decide whether the EllRatio (prefactor + the `n_num` numerator + `n_den`
+ * denominator canonical theta arguments) is a genuine ELLIPTIC function (invariant
+ * under x -> p*x). *out_is_elliptic = 1 iff elliptic. Caller arena `ws`. A required
+ * NULL pointer -> SRMECH_ERR_NULL_ARG; a too-small arena -> SRMECH_ERR_OVERFLOW. */
+srmech_status_t srmech_ellratio_is_elliptic(size_t n_syms, int xsym, int psym,
+                                            size_t n_num, size_t n_den,
+                                            const srmech_bigint_t *coeff_num,
+                                            const srmech_bigint_t *coeff_den,
+                                            const int32_t *exps_flat,
+                                            uint32_t coeff_cap, int *out_is_elliptic,
+                                            void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_q_zeilberger — the q-analog of Zeilberger's creative telescoping (the
