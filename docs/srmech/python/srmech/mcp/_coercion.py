@@ -287,6 +287,27 @@ def _to_bipoly(value: Any, *, param: str = "") -> Any:
     return value
 
 
+def _to_tripoly(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value to the natural form for a ``TriPoly``-typed param (rc53
+    ``apagodu_zeilberger`` trivariate term-ratio operands).
+
+    A ``TriPoly`` is a polynomial in ``ℚ[n,j,k]`` — a ``j``-ascending tuple of
+    :class:`~srmech.amsc.zeilberger.BiPoly` in ``(n,k)``. The op's coercion
+    (:meth:`srmech.amsc.tripoly.TriPoly._as_tripoly`) accepts a ``TriPoly`` (passes
+    through), a lower carrier (``BiPoly`` in ``(n,k)`` / ``Poly`` in ``k``), or the
+    natural nested list. So the honest, minimal coercer hands the value through
+    (tuple→list) and lets the op build the carrier (never a float; a coefficient
+    must be exact). A ``TriPoly`` / ``BiPoly`` / ``Poly`` / tuple passes naturally."""
+    from srmech.amsc.tripoly import TriPoly  # exact-ℚ trivariate carrier; lazy
+    from srmech.amsc.zeilberger import BiPoly
+    from srmech.amsc.poly import Poly
+    if isinstance(value, (TriPoly, BiPoly, Poly)):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return value
+
+
 def _to_mat_or_vec(value: Any, *, param: str = "") -> Any:
     """Coerce a ``Mat | Vec`` (shape-polymorphic) param: a nested list rides as
     a 2-D matrix, a flat list as a 1-D vector — both pass through as the natural
@@ -622,6 +643,7 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "HV": _to_hv,              # v0.7.5rc132: numpy-free hypervector byte carrier
     "Poly": _to_poly,          # 0.9.0rc41: exact-ℚ polynomial carrier (gosper term ratio)
     "BiPoly": _to_bipoly,      # 0.9.0rc42: exact-ℚ[n,k] bivariate carrier (zeilberger ratios)
+    "TriPoly": _to_tripoly,    # 0.9.0rc53: exact-ℚ[n,j,k] trivariate carrier (apagodu_zeilberger ratios)
     "Optional[Vec]": _to_vec,
     "Optional[HV]": _to_hv,
     "Mat | Vec": _to_mat_or_vec,   # shape-polymorphic 2-D-or-1-D operand
