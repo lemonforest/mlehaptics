@@ -100,6 +100,7 @@ from typing import Dict, List, Optional, Tuple
 from .cascade import magnitude
 from .ellbase import EllMonomial, EllRatio, Theta, _P, _Q_SYM, _X
 from .q import Q
+from .thetasum import ThetaSum
 
 __all__ = ["elliptic_gosper"]
 
@@ -217,108 +218,121 @@ def _gap_to_one(cert: EllRatio, lhs_mul: EllRatio, vals: Dict[str, Q],
 
 
 def _verifies_gosper_equation(cert: EllRatio, r: EllRatio) -> bool:
-    """Decide ``R(qx)·r(x) − R(x) = 1`` (the elliptic Gosper equation) EXACTLY. A
-    certificate is accepted ONLY when the equation's residual is EXACTLY zero in
-    exact ``ℚ`` at every sample in :data:`_VERIFY_POINTS` — which holds iff the
-    certificate's Gosper-equation difference carries NO surviving theta factor (the
-    theta-free / elliptic-geometric core), whose exact-``ℚ`` truncated value IS the
-    true value at every finite depth. A candidate whose residual is merely small or
-    converging is REJECTED, not accepted: **a certificate is an exact proof object,
-    never a numerically-converging witness** — the same no-hallucination, exact-
-    verification standard the §76 ``gosper`` / ``zeilberger`` / ``wz_certificate`` ops
-    hold. Genuine single-x theta telescopers (which need the multi-x ``q**(2n)``
-    lattice, a future carrier extension) therefore return honest ``None`` here, never
-    a numerically-witnessed certificate. The theta-quotient carrier is
-    multiplicatively but NOT additively closed, so the additive ``−`` of the residual
-    is taken in exact ``ℚ`` via :meth:`~srmech.amsc.ellbase.EllRatio.eval_trunc`."""
-    lhs_mul = cert.qshift() * r                       # R(qx)·r(x), in the carrier
-    for vals in _VERIFY_POINTS:
-        gap = _gap_to_one(cert, lhs_mul, vals, _VERIFY_TRUNC)
-        if gap is None or gap != _Q_ZERO:             # accept ONLY an EXACT-0 residual
-            return False
-    return True
+    """Decide ``R(qx)·r(x) − R(x) = 1`` (the elliptic Gosper equation) EXACTLY via the
+    ADDITIVE :class:`~srmech.amsc.thetasum.ThetaSum` carrier's structural
+    :attr:`~srmech.amsc.thetasum.ThetaSum.is_zero` — quasi-periodicity grouping + the
+    Weierstrass three-term reduction + the Fundamental-Theorem-of-Elliptic-Functions
+    degree bound, **never a converging-eval witness**. The theta-quotient
+    :class:`EllRatio` is multiplicatively but NOT additively closed, so the additive
+    residual ``(R(qx)·r) − R − 1`` is formed in ``ThetaSum`` (where the additive ``−``
+    lives) and decided there — the rc62 ``ThetaSum`` is exactly what unblocks the
+    GENUINE k-dependent theta telescoper the rc61 eval-based verifier had to decline.
+    A certificate is an exact proof object: accepted IFF the residual is structurally
+    ``≡ 0`` (the same no-hallucination standard the §76 ``gosper`` / ``zeilberger`` /
+    ``wz_certificate`` ops hold). ``ThetaSum.is_zero`` dispatches to the
+    ``srmech_thetasum`` C peer when loaded, else the complete pure-Python decision."""
+    residual = (ThetaSum.from_ellratio(cert.qshift() * r)
+                - ThetaSum.from_ellratio(cert) - ThetaSum.one())
+    return residual.is_zero
 
 
-# ── candidate certificate construction (the theta-monomial-quotient class) ─────
+# ── the theta-Gosper–Petkovšek normal form: PEEL the q-shift coboundary ────────
 
 
-def _candidate_certificates(r: EllRatio) -> List[EllRatio]:
-    """The candidate antidifference theta-quotients ``R`` for the term-ratio ``r``,
-    in the structurally-decidable elliptic-summable class (a theta-MONOMIAL-quotient
-    ``y`` in the GP form — the elliptic analogue of the q-geometric closed form).
-
-    The certificate ``R = (σ⁻¹b)·y / c`` of an elliptic-summable term is itself a
-    theta-quotient over the SAME theta arguments as ``r`` (q-shifted), times a
-    monomial prefactor. Rather than re-derive the GP factorisation symbolically (the
-    theta algebra has no ring addition to drive an undetermined-coefficient solve),
-    the engine enumerates the bounded family of such ``R`` directly from ``r``'s
-    theta factors + the theta-dispersion q-steps, and lets the exact-``ℚ`` additive
-    verifier (:func:`_verifies_gosper_equation`) pick the one (if any) that solves
-    the Gosper equation. The family is finite (bounded by the dispersion window and
-    the prefactor-monomial degrees), so this is a complete decision over the class —
-    not a heuristic: a term is certified summable iff a member verifies."""
+def _peel_coboundary(r: EllRatio) -> "Tuple[EllRatio, EllRatio, EllRatio]":
+    """Bring the term-ratio ``r`` to the theta-GP normal form ``r = (A/B)·(σC / C)``
+    by PEELING the maximal q-shift coboundary ``σC/C`` (``σ : x ↦ q·x``), leaving
+    ``A`` / ``B`` theta-dispersion-coprime. A denominator factor ``θ(D)`` is a
+    coboundary (``C``) factor iff its q-shifted partner ``θ(σD) = θ(D·q^{e_x(D)})`` is
+    a numerator factor — the hidden q-shift fiber (the spatially-absent shift orbit)
+    made explicit. Returns ``(A, B, C)`` as :class:`EllRatio` theta-products (``A``
+    carries ``r``'s monomial prefactor) with ``r == (A·B⁻¹)·(C.qshift()·C⁻¹)``
+    EXACTLY. This is the STRUCTURAL decomposition — decompose-and-compute, NOT an
+    enumerate-and-test guess (the rc61 find-gap was here, not in the y-solve)."""
     num = list(r.num)
     den = list(r.den)
-    # the dispersion q-steps that can shift r's theta args into alignment.
-    disp = _theta_dispersion([t.arg for t in num], [t.arg for t in den])
-    shifts = sorted({0, 1} | set(disp) | {k - 1 for k in disp if k >= 1})
-    cands: List[EllRatio] = []
-    seen = set()
-
-    def _add(cert: EllRatio) -> None:
-        key = (cert.prefactor, cert.num, cert.den)
-        if key not in seen:
-            seen.add(key)
-            cands.append(cert)
-
-    # Family 0 — the elliptic-geometric core: a CONSTANT term ratio r = z (a
-    # pure-scalar prefactor, no thetas) has the constant certificate R = 1/(z − 1)
-    # (then R(qx)·r − R = R·(z − 1) = 1 exactly), the direct elliptic analogue of the
-    # ordinary / q-geometric closed form. Only a pure-scalar prefactor admits the
-    # ℚ subtraction ``z − 1`` (Class-K sign via the exact Q); z = 1 has no finite
-    # certificate.
-    if not num and not den and not r.prefactor.symbols():
-        z = r.prefactor.coeff
-        if z != _Q_ONE:
-            _add(EllRatio.monomial(EllMonomial.scalar(_Q_ONE / (z - _Q_ONE))))
-
-    # Family 1 — R = (den theta-quotient) shifted by σ⁻ᵏ, times a small monomial
-    # prefactor. This is the (σ⁻¹b)/c shape: the certificate's theta factors are r's
-    # denominator factors (the GP b/c carriers) under a q-shift.
-    for k in shifts:
-        den_shift_num = [Theta(t.arg * EllMonomial.symbol(_Q_SYM, -k)) for t in den]
-        for pref in _prefactor_candidates(r):
-            _add(EllRatio(pref, num=den_shift_num, den=()))
-            _add(EllRatio(pref, num=den_shift_num, den=tuple(num)))
-    # Family 2 — R = (num/den theta-quotient) of r itself shifted, times a monomial.
-    # Covers the elliptic-geometric core where R rides r's own theta structure.
-    for k in shifts:
-        num_shift = [Theta(t.arg * EllMonomial.symbol(_Q_SYM, -k)) for t in num]
-        den_shift = [Theta(t.arg * EllMonomial.symbol(_Q_SYM, -k)) for t in den]
-        for pref in _prefactor_candidates(r):
-            _add(EllRatio(pref, num=tuple(num_shift), den=tuple(den_shift)))
-    return cands
+    c_factors: "List[Theta]" = []
+    i = 0
+    while i < len(den):
+        d_arg = den[i].arg
+        # the q-shift partner of θ(D): under x ↦ q·x the argument gains q^{e_x(D)}.
+        partner = Theta(d_arg * EllMonomial.symbol(_Q_SYM, d_arg.exp_of(_X)))
+        hit = next((j for j, nt in enumerate(num) if nt == partner), None)
+        if hit is not None:
+            assert hit >= 0                       # the coboundary partner index
+            c_factors.append(den[i])              # θ(D) is a coboundary (C) factor
+            del num[hit]
+            del den[i]
+        else:
+            i += 1
+    c = EllRatio(num=tuple(c_factors))
+    a = EllRatio(r.prefactor, num=tuple(num))
+    b = EllRatio(num=tuple(den))
+    # fold any residual monomial (the σC/C bookkeeping unit) into A so the GP
+    # factoring is EXACT: r == (A/B)·(σC/C).
+    residual = r * ((a * b.inv()) * (c.qshift() * c.inv())).inv()
+    assert not residual.num and not residual.den   # the peel leaves only a monomial
+    a = a * residual.prefactor
+    return a, b, c
 
 
-def _prefactor_candidates(r: EllRatio) -> List[EllMonomial]:
-    """The small family of exact-``ℚ`` monomial prefactors to try on a candidate
-    certificate. The certificate prefactor is the inverse of ``r``'s prefactor (the
-    σc/c bookkeeping unit) times a low-degree x/q correction; the unit and a handful
-    of ±1 x-power corrections cover the theta-monomial-quotient class. Class-K sign
-    via the exact ``Q`` coefficient — never an ALU ``abs()``."""
-    base = r.prefactor
-    out: List[EllMonomial] = []
-    seen = set()
-    # the unit, the inverse-prefactor, and ±1 x-power / ±1 sign corrections.
-    for unit in (EllMonomial.one(), base.inv(), base):
-        for xshift in (0, 1, -1):
-            for sign in (_Q_ONE, Q(-1, 1)):
-                m = unit * EllMonomial(sign, {_X: xshift}) \
-                    if xshift != 0 else unit * EllMonomial.scalar(sign)
-                if m not in seen:
-                    seen.add(m)
-                    out.append(m)
-    return out
+def _xshift_inverse(p: EllRatio) -> EllRatio:
+    """The inverse summation shift ``σ⁻¹ : x ↦ x/q`` on a theta-product ``p`` (each
+    argument monomial ``m`` gains ``q^{−e_x(m)}``) — :meth:`EllRatio.qshift` run
+    backwards, for the certificate frame ``B(x/q)``. No ``abs()``; exact."""
+    def _sm(m: EllMonomial) -> EllMonomial:
+        return m * EllMonomial.symbol(_Q_SYM, -m.exp_of(_X))
+    return EllRatio(_sm(p.prefactor),
+                    num=[Theta(_sm(t.arg)) for t in p.num],
+                    den=[Theta(_sm(t.arg)) for t in p.den])
+
+
+def _x_param(p: EllRatio) -> "EllMonomial | None":
+    """The ``α`` of a theta-product's x-pair ``θ(αx)θ(α/x)`` — strip the ``x`` from the
+    canonical x-dependent factor. Returned up to the ``α ↔ α⁻¹`` orientation that
+    :meth:`Theta.canonicalize` fixes (the **chiral endianness**); the endianness is
+    resolved against the exact verifier in :func:`_solve_certificate`. ``None`` if the
+    product carries no x-dependent factor (out of the single-Weierstrass class)."""
+    assert isinstance(p, EllRatio)
+    for t in p.num:
+        e = t.arg.exp_of(_X)
+        if e == 1:
+            return t.arg * EllMonomial.symbol(_X, -1)
+        if e == -1:
+            return (t.arg * EllMonomial.symbol(_X, 1)).inv()
+    return None
+
+
+def _solve_certificate(a: EllRatio, b: EllRatio, c: EllRatio,
+                       r: EllRatio) -> "Optional[EllRatio]":
+    """Solve the elliptic Gosper equation for the theta-monomial-quotient class via the
+    **Weierstrass three-term relation** (Rosengren Eq. 1.12, the ``ThetaSum`` addition
+    formula). With the GP factors ``(A, B, C)`` and the x-params ``a, b, c`` of ``A``,
+    ``B(x/q)``, ``C``, the key equation ``A·y(qx) − B(x/q)·y = C`` has the CONSTANT
+    solution ``y = (c/a)/[θ(ba)θ(b/a)]`` — since the three-term relation gives
+    ``A − B(x/q) = (a/c)·θ(ba)θ(b/a)·C`` — and the certificate is ``R = (B(x/q)/C)·y``.
+    The carrier fixes each x-param only up to the ``α ↔ α⁻¹`` **chiral endianness**, so
+    the ≤ 8 handednesses of ``(a, b, c)`` are tried and the exact verifier
+    (:func:`_verifies_gosper_equation`) picks the one that closes the equation — a
+    Class-K sign / Class-C chirality resolution (the SHAPE is determined by the GP
+    factoring; only the endianness is free; NOT an enumerate-and-test family). Returns
+    the verified certificate or ``None`` (out of the structurally-decidable class)."""
+    assert isinstance(r, EllRatio)
+    b_shift = _xshift_inverse(b)                   # B(x/q)
+    pa, pb, pc = _x_param(a), _x_param(b_shift), _x_param(c)
+    if pa is None or pb is None or pc is None:
+        return None                               # not the single-Weierstrass class
+    frame = b_shift * c.inv()                      # B(x/q)/C
+    for sa in (pa, pa.inv()):
+        for sb in (pb, pb.inv()):
+            for sc in (pc, pc.inv()):
+                # y = (c/a) / [θ(b·a) θ(b/a)]  (Class-K sign via the exact Q monomial)
+                y = EllRatio(sc * sa.inv(),
+                             den=(Theta(sb * sa), Theta(sb / sa)))
+                cert = frame * y
+                if _verifies_gosper_equation(cert, r):
+                    return cert
+    return None
 
 
 # ── the wire form for the C bridge (theta-arg integer-exponent lattice) ────────
@@ -433,12 +447,14 @@ def elliptic_gosper(r) -> Optional[Dict[str, object]]:
 
 
 def _elliptic_gosper_pure(r: EllRatio) -> Optional[Dict[str, object]]:
-    """The exact pure-Python elliptic-Gosper decider (the complete alternative to the
-    C peer). Enumerates the bounded theta-monomial-quotient certificate family from
-    ``r``'s theta factors + the theta-dispersion q-steps, and returns the first that
-    VERIFIES the additive Gosper equation ``R(qx)·r − R = 1`` exactly (in ``ℚ``), or
-    ``None`` when none does. See the module docstring."""
-    for cert in _candidate_certificates(r):
-        if _verifies_gosper_equation(cert, r):
-            return _cert_to_result(cert)
-    return None
+    """The exact pure-Python elliptic-Gosper decider (the complete alternative to the C
+    peer) — STRUCTURAL decompose-and-compute, NOT enumerate-and-test. (1) PEEL the
+    q-shift coboundary to the theta-GP normal form ``r = (A/B)·(σC/C)``
+    (:func:`_peel_coboundary` — the hidden-fiber decomposition; the rc61 find-gap was
+    here). (2) SOLVE the elliptic Gosper equation for the theta-monomial-quotient
+    certificate via the Weierstrass three-term relation, the chiral endianness resolved
+    against the exact verifier (:func:`_solve_certificate`). Returns the certificate
+    ``R`` (verified ``R(qx)·r − R == 1`` EXACTLY in ``ℚ``) or ``None``."""
+    a, b, c = _peel_coboundary(r)
+    cert = _solve_certificate(a, b, c, r)
+    return _cert_to_result(cert) if cert is not None else None
