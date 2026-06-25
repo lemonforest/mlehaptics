@@ -574,29 +574,29 @@ srmech_status_t srmech_ellbase_theta_canon_full(srmech_ell_ctx_t *c,
  * decision compares that canonical (prefactor, num-multiset, den-multiset) to self's
  * (already-canonical) form EXACTLY. */
 
-/* A reusable scratch bundle for the EllRatio construction algebra. */
-typedef struct er_scr {
-    srmech_ell_mono_t *pm;       /* ER_SCR_MONOS general scratch monomials  */
-    int               *used;     /* >= max(n_num, n_den) cancel/compare flags */
-    srmech_bigint_t    g;
-    srmech_bigint_t    t0;
-    srmech_bigint_t    t1;
-} er_scr_t;
+/* The EllRatio scratch + working-value types + their construction algebra were
+ * PROMOTED to srmech_ellbase_internal.h (rc-genuine) so the GENUINE elliptic-Gosper
+ * engine builds on ONE copy of EllRatio.__init__ (the everything-mirrors discipline
+ * forbids two copies). The thin aliases below keep this file's call sites (`er_*`)
+ * unchanged while the single shared definitions carry the exported symbols. */
+typedef srmech_ell_er_scr_t   er_scr_t;
+typedef srmech_ell_er_ratio_t er_ratio_t;
 
-#define ER_SCR_MONOS 12u
+#define ER_SCR_MONOS SRMECH_ELL_ER_SCR_MONOS
 
-/* A canonical EllRatio working value: a prefactor monomial + the canonical num/den
- * theta-ARGUMENT monomial arrays (sorted by the arg sort-key) + their live counts. */
-typedef struct er_ratio {
-    srmech_ell_mono_t  pref;
-    srmech_ell_mono_t *num;      /* canonical num theta args, sorted        */
-    size_t             n_num;
-    srmech_ell_mono_t *den;      /* canonical den theta args, sorted        */
-    size_t             n_den;
-    int                is_zero;  /* 1 iff the prefactor is the zero monomial */
-} er_ratio_t;
+/* Keep this file's internal call sites on the short `er_*` names; the single shared
+ * definitions carry the exported `srmech_ellbase_er_*` symbols. */
+#define er_bind_scr    srmech_ellbase_er_bind_scr
+#define er_bind_ratio  srmech_ellbase_er_bind_ratio
+#define er_build       srmech_ellbase_er_build
+#define er_ratio_eq    srmech_ellbase_er_ratio_eq
+#define er_pshift_arg  srmech_ellbase_er_pshift_arg
+#define er_qshift_arg  srmech_ellbase_er_qshift_arg
+#define er_arena_init  srmech_ellbase_er_arena_init
+#define er_mono_words  srmech_ellbase_er_mono_words
 
-static srmech_status_t er_bind_scr(srmech_ell_ctx_t *c, er_scr_t *s, size_t flagcap)
+srmech_status_t srmech_ellbase_er_bind_scr(srmech_ell_ctx_t *c, er_scr_t *s,
+                                           size_t flagcap)
 {
     uint32_t *raw;
     srmech_status_t st;
@@ -613,7 +613,7 @@ static srmech_status_t er_bind_scr(srmech_ell_ctx_t *c, er_scr_t *s, size_t flag
     return st;
 }
 
-static srmech_status_t er_bind_ratio(srmech_ell_ctx_t *c, er_ratio_t *r,
+srmech_status_t er_bind_ratio(srmech_ell_ctx_t *c, er_ratio_t *r,
                                      size_t cap_num, size_t cap_den)
 {
     srmech_status_t st;
@@ -735,7 +735,7 @@ static srmech_status_t er_cancel_sort(srmech_ell_ctx_t *c, er_ratio_t *out,
  * folded -- a num factor multiplies the global pref, a den factor divides it), then the
  * matching canonical thetas cancel between num and den (multiset min), and the survivors
  * are sorted. Mirrors EllRatio.__init__ exactly. */
-static srmech_status_t er_build(srmech_ell_ctx_t *c, er_ratio_t *out,
+srmech_status_t er_build(srmech_ell_ctx_t *c, er_ratio_t *out,
                                 const srmech_ell_mono_t *pref0,
                                 const srmech_ell_mono_t *num_args, size_t n_num,
                                 const srmech_ell_mono_t *den_args, size_t n_den,
@@ -779,7 +779,7 @@ static int er_args_eq(const srmech_ell_ctx_t *c, const srmech_ell_mono_t *a, siz
 
 /* 1 iff two canonical EllRatios are EQUAL (EllRatio.__eq__: same prefactor monomial
  * AND same num-multiset AND same den-multiset; a zero ratio equals a zero ratio). */
-static int er_ratio_eq(const srmech_ell_ctx_t *c, const er_ratio_t *a,
+int er_ratio_eq(const srmech_ell_ctx_t *c, const er_ratio_t *a,
                        const er_ratio_t *b)
 {
     assert(c != NULL && a != NULL && b != NULL);
@@ -794,7 +794,7 @@ static int er_ratio_eq(const srmech_ell_ctx_t *c, const er_ratio_t *a,
 
 /* Period-shift one canonical argument monomial: a -> a * p^{a.exp_of(x)} (the x -> p*x
  * substitution's monomial effect). Mirrors EllRatio._shift's `sm`. */
-static srmech_status_t er_pshift_arg(srmech_ell_ctx_t *c, srmech_ell_mono_t *out,
+srmech_status_t er_pshift_arg(srmech_ell_ctx_t *c, srmech_ell_mono_t *out,
                                      const srmech_ell_mono_t *a, int xsym, int psym)
 {
     int32_t ex;
@@ -805,6 +805,26 @@ static srmech_status_t er_pshift_arg(srmech_ell_ctx_t *c, srmech_ell_mono_t *out
     if (st != SRMECH_OK) { return st; }
     ex = (xsym >= 0) ? a->exps[xsym] : 0;
     if (psym >= 0) { out->exps[psym] += ex; }            /* * p^{x-exponent} */
+    return SRMECH_OK;
+}
+
+/* Summation-shift one canonical argument monomial along q: a -> a * q^{a.exp_of(x)}
+ * (the x -> q*x substitution, EllRatio.qshift's `sm`), or the INVERSE shift x -> x/q
+ * (a -> a * q^{-a.exp_of(x)}, the elliptic_gosper _xshift_inverse `_sm`) when `inverse`
+ * is set. The qsym analogue of er_pshift_arg; no abs (Class-K sign on the exponent). */
+srmech_status_t er_qshift_arg(srmech_ell_ctx_t *c, srmech_ell_mono_t *out,
+                              const srmech_ell_mono_t *a, int xsym, int qsym,
+                              int inverse)
+{
+    int32_t ex;
+    srmech_status_t st;
+    assert(c != NULL && out != NULL && a != NULL);
+    assert(a->exps != NULL && out->exps != NULL);
+    st = srmech_ellbase_mono_copy(c, out, a);
+    if (st != SRMECH_OK) { return st; }
+    ex = (xsym >= 0) ? a->exps[xsym] : 0;
+    if (inverse) { ex = -ex; }                           /* x -> x/q : q^{-x-exp} */
+    if (qsym >= 0) { out->exps[qsym] += ex; }            /* * q^{+/- x-exponent}  */
     return SRMECH_OK;
 }
 
@@ -856,7 +876,7 @@ static srmech_status_t er_parse(srmech_ell_ctx_t *c, srmech_ell_mono_t *pref,
 /* Carve the arena: split `ws` into the bump pool + a trailing bigint scratch region
  * (8-byte-aligned uint32). Returns OVERFLOW if `ws` is NULL or too small. (Mirrors
  * the thetasum arena split.) */
-static srmech_status_t er_arena_init(srmech_ell_ctx_t *c, void *ws, size_t ws_len)
+srmech_status_t er_arena_init(srmech_ell_ctx_t *c, void *ws, size_t ws_len)
 {
     uint32_t *base = (uint32_t *)ws;
     size_t words = ws_len / sizeof(uint32_t);
@@ -875,7 +895,7 @@ static srmech_status_t er_arena_init(srmech_ell_ctx_t *c, void *ws, size_t ws_le
 }
 
 /* The per-monomial arena footprint (words): 2 bigints (2*cap) + an exps row (ns). */
-static size_t er_mono_words(size_t cap, size_t ns)
+size_t er_mono_words(size_t cap, size_t ns)
 {
     assert(cap >= 1u);
     assert(ns >= 1u);
