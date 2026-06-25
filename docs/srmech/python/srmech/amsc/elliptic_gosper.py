@@ -89,13 +89,18 @@ This is the **elliptic-Gosper** rung of the ELLIPTIC F929 row (the row continues
 with the elliptic-Zeilberger recurrence-finder rc62, which parametrizes THIS engine,
 then the elliptic-WZ proof op rc63); the internals are factored to be reused there.
 
-C peer: ``srmech_elliptic_gosper`` (``c/src/srmech_elliptic_gosper.c``) is a
-BOUNDED-SCOPE accelerator (the ``srmech_q_gosper`` precedent): it completes the
-structurally-simplest elliptic-summable case natively over the integer theta-
-exponent lattice + exact-``ℚ`` prefactor, byte-identical to the Python certificate,
-and DECLINES the rest (``out_has = 0`` → the Python dispatch re-runs the COMPLETE
-pure-Python body here, the parity oracle AND the full-coverage decider — a ``has=0``
-is never a definitive "no certificate"). Caller-arena, malloc-free, JPL-clean.
+C peer: ``srmech_elliptic_gosper`` (``c/src/srmech_elliptic_gosper.c``) is a GENUINE
+1:1 mirror of this peel-solve pipeline (NOT the rc61 bounded accelerator): over the
+integer theta-exponent lattice it runs the geometric-constant core + the peel-
+coboundary + the Weierstrass key-equation y-solve over the ≤ 8 chiral endianness
+combos + the exact residual verification via the native ``srmech_thetasum_is_zero``
+(the same exact additive verifier this body uses) — byte-identical to the Python
+certificate. It builds on the shared ``srmech_ellbase_*`` (canonicalize / monomial
+algebra) + ``srmech_thetasum_*`` (is_zero) kernels (the everything-mirrors no-double-
+copy discipline). A ``has = 0`` is never a definitive "no certificate" — the Python
+dispatch re-runs the COMPLETE pure-Python body (the parity oracle + full-coverage
+decider) and re-verifies any ``has = 1`` in exact ``ℚ`` before trusting it. Caller-
+arena, malloc-free, JPL-clean; no ``abs()`` (Class-K sign), no ``math`` / numpy.
 """
 
 from __future__ import annotations
