@@ -2149,28 +2149,38 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_q_gosper.restype = ctypes.c_int
 
-    # rc61: srmech_elliptic_gosper — the ELLIPTIC analog of Gosper (the FIRST engine
-    # op of the ELLIPTIC F929 row). The term-ratio EllRatio rides as the prefactor
-    # exact-Q coefficient (pref_num, pref_den) + the prefactor symbol count + the
-    # numerator / denominator theta-factor counts; the certificate scalar coefficient
-    # (constant-ratio native scope) comes back as rn/rd. The native peer completes the
-    # elliptic-geometric (constant-ratio) case + declines the rest (has=0 -> Python
-    # re-decides). NEW symbols -> hasattr-guarded; ABI stays 3.
-    #   size_t srmech_elliptic_gosper_ws_bound(coeff_limbs)
+    # srmech_elliptic_gosper — the GENUINE ELLIPTIC analog of Gosper (the FIRST engine
+    # op of the ELLIPTIC F929 row). The term-ratio rides as the FULL EllRatio wire form
+    # (the interned symbol-table dimension + the x/p/q interned indices + the num/den
+    # theta counts + the flat exact-Q monomial coeff arrays + the flat int32 exponent
+    # rows, like srmech_ellratio_is_elliptic); the certificate EllRatio comes back as
+    # out_pref_num/out_pref_den + the flat out_exps_flat rows + the out_n_num/out_n_den
+    # counts. The native peer runs the genuine peel + Weierstrass-key-equation solve +
+    # exact ThetaSum.is_zero verify; it declines the rest (has=0 -> Python re-decides).
+    # NEW signature (the genuine rebuild) -> hasattr-guarded; ABI stays 3.
+    #   size_t srmech_elliptic_gosper_ws_bound(n_syms, n_num, n_den, coeff_limbs)
     #   size_t srmech_elliptic_gosper_out_cap(coeff_limbs)
-    for _egsz in ("srmech_elliptic_gosper_ws_bound",
-                  "srmech_elliptic_gosper_out_cap"):
-        if hasattr(lib, _egsz):
-            getattr(lib, _egsz).argtypes = [ctypes.c_size_t]
-            getattr(lib, _egsz).restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_elliptic_gosper_ws_bound"):
+        lib.srmech_elliptic_gosper_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_elliptic_gosper_ws_bound.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_elliptic_gosper_out_cap"):
+        lib.srmech_elliptic_gosper_out_cap.argtypes = [ctypes.c_size_t]
+        lib.srmech_elliptic_gosper_out_cap.restype = ctypes.c_size_t
     if hasattr(lib, "srmech_elliptic_gosper"):
         _ebi = ctypes.POINTER(_SrmechBigint)
         lib.srmech_elliptic_gosper.argtypes = [
-            _ebi, _ebi,                          # pref_num, pref_den
-            ctypes.c_size_t,                     # n_pref_syms
+            ctypes.c_size_t,                     # n_syms
+            ctypes.c_int, ctypes.c_int, ctypes.c_int,  # xsym, psym, qsym
             ctypes.c_size_t, ctypes.c_size_t,    # n_num, n_den
+            _ebi, _ebi,                          # coeff_num, coeff_den (flat)
+            ctypes.POINTER(ctypes.c_int32),      # exps_flat
+            ctypes.c_uint32,                     # coeff_cap
             ctypes.POINTER(ctypes.c_int),        # out_has
-            _ebi, _ebi,                          # rn, rd
+            _ebi, _ebi,                          # out_pref_num, out_pref_den
+            ctypes.POINTER(ctypes.c_int32),      # out_exps_flat
+            ctypes.c_size_t,                     # out_exps_cap_rows
+            ctypes.POINTER(ctypes.c_size_t), ctypes.POINTER(ctypes.c_size_t),  # out_n_num/den
             ctypes.c_void_p, ctypes.c_size_t,    # ws, ws_len
         ]
         lib.srmech_elliptic_gosper.restype = ctypes.c_int
@@ -3907,12 +3917,18 @@ _ELLIPTIC_GOSPER_SYMS = (
     "srmech_bigint_to_dec_bound",
 )
 
+# the interned-symbol-table convention MUST match EllRatio._is_elliptic_c: x / p / q are
+# force-included even when the canonical form carries none, because the C peel / qshift /
+# pshift INTRODUCE q- and p-powers keyed off the x-exponent (without the slots the C
+# shifts would be silent no-ops). _X='x', _P='p', _Q_SYM='q' (srmech.amsc.ellbase).
+_EG_FORCE_SYMS = ("p", "q", "x")
+
 
 def has_native_elliptic_gosper() -> bool:
-    """True iff the rc61 srmech_elliptic_gosper op + its ws/out-cap sizers + the
-    srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
-    pre-rc61 lib — the pure-Python ``srmech.amsc.elliptic_gosper.elliptic_gosper``
-    body is the complete alternative (and the parity oracle)."""
+    """True iff the srmech_elliptic_gosper op + its ws/out-cap sizers + the srmech_bigint
+    decimal-marshal helpers are loaded + bound. False on a no-C or pre-op lib — the
+    pure-Python ``srmech.amsc.elliptic_gosper.elliptic_gosper`` body is the complete
+    alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
     return all(hasattr(LIB, s) for s in _ELLIPTIC_GOSPER_SYMS) and hasattr(
@@ -3921,52 +3937,106 @@ def has_native_elliptic_gosper() -> bool:
 
 
 def elliptic_gosper_c(ratio_form):
-    """Native elliptic-Gosper certificate for the term-ratio EllRatio ``ratio_form``
-    → ``(has_solution, cert_form)`` (``cert_form`` the EllRatio bridge form), or
-    ``None`` if the native symbols are absent. ``ratio_form`` is the dict
+    """Native GENUINE elliptic-Gosper certificate for the term-ratio EllRatio
+    ``ratio_form`` → ``(has_solution, cert_form)`` (``cert_form`` the EllRatio bridge
+    form), or ``None`` if the native symbols are absent. ``ratio_form`` is the dict
     :func:`srmech.amsc.elliptic_gosper._ratio_to_form` emits (``prefactor`` =
     ``(coeff_num, coeff_den, [(sym, exp), …])``; ``num`` / ``den`` = theta-argument
-    monomial triples). The native peer completes the constant-ratio elliptic-geometric
-    case (no theta factors, scalar prefactor) + declines the rest (``has_solution``
-    False → the caller re-decides on the pure path)."""
+    monomial triples). The native peer runs the genuine peel-coboundary + Weierstrass
+    key-equation solve + exact ThetaSum.is_zero verify; it declines an input outside the
+    structurally-decidable class (``has_solution`` False → the caller re-decides on the
+    pure path AND re-verifies any has=1 in exact ℚ)."""
     if not has_native_elliptic_gosper():
         return None
     pref_num, pref_den, pref_exps = ratio_form["prefactor"]
-    n_num = len(ratio_form["num"])
-    n_den = len(ratio_form["den"])
-    n_pref_syms = len(pref_exps)
     if pref_den == 0:
         raise ValueError("elliptic_gosper_c: the prefactor coefficient denominator "
                          "must be nonzero")
-    # the per-coefficient out cap + the caller arena (sized from the input limbs).
-    cl = max(len(str(pref_num).lstrip("-")) // 9 + 2,
-             len(str(pref_den)) // 9 + 2, 2)
+    num_monos = ratio_form["num"]
+    den_monos = ratio_form["den"]
+    n_num = len(num_monos)
+    n_den = len(den_monos)
+    monos = [(pref_num, pref_den, pref_exps)] + list(num_monos) + list(den_monos)
+    # the interned symbol universe = every prefactor / theta-arg symbol + the forced x/p/q.
+    syms = set(_EG_FORCE_SYMS)
+    for _cn, _cd, exps in monos:
+        syms.update(s for s, _e in exps)
+    sym_list = sorted(syms)
+    idx = {s: i for i, s in enumerate(sym_list)}
+    n_syms = len(sym_list)
+
+    def _row(exps):
+        r = [0] * n_syms
+        for s, e in exps:
+            r[idx[s]] = e
+        return r
+
+    # per-coefficient limb estimate (9 decimal digits ~ 1 limb; pad). The working bigint
+    # cap (coeff_cap) is modest -- the theta-algebra coefficients stay tiny; the OUTPUT
+    # bigint slots use the larger out_cap. ws_bound + the C call get the SAME coeff_cap.
+    cl = 2
+    for cn, cd, _e in monos:
+        cl = max(cl, len(str(cn).lstrip("-")) // 9 + 2, len(str(cd)) // 9 + 2)
+    work_cap = cl + 16
     out_cap = int(LIB.srmech_elliptic_gosper_out_cap(ctypes.c_size_t(cl)))
-    ws_len = int(LIB.srmech_elliptic_gosper_ws_bound(ctypes.c_size_t(cl)))
+    if out_cap < work_cap:
+        out_cap = work_cap
+    ws_len = int(LIB.srmech_elliptic_gosper_ws_bound(
+        ctypes.c_size_t(n_syms), ctypes.c_size_t(n_num),
+        ctypes.c_size_t(n_den), ctypes.c_size_t(work_cap)))
     ws = (ctypes.c_uint8 * max(ws_len, 8))()
-    pn, _pnl = _bigint_from_int(pref_num, out_cap)
-    pd, _pdl = _bigint_from_int(pref_den, out_cap)
-    rn, _rnl = _bigint_from_int(0, out_cap)
-    rd, _rdl = _bigint_from_int(0, out_cap)
+    # the flat input wire: coeff arrays (in order prefactor, num0..K, den0..L) + exps rows.
+    n_mono = len(monos)
+    num_arr = (_SrmechBigint * max(n_mono, 1))()
+    den_arr = (_SrmechBigint * max(n_mono, 1))()
+    keep = []
+    exps_flat = []
+    for i, (cn, cd, exps) in enumerate(monos):
+        bn, kbn = _bigint_from_int(int(cn), work_cap)
+        bd, kbd = _bigint_from_int(int(cd), work_cap)
+        num_arr[i] = bn
+        den_arr[i] = bd
+        keep.append(kbn)
+        keep.append(kbd)
+        exps_flat.extend(_row(exps))
+    exps_c = (ctypes.c_int32 * max(len(exps_flat), 1))(*exps_flat)
+    # the output buffers: the cert prefactor coeff + a generous flat exps row buffer.
+    out_cap_rows = 1 + 2 * (n_num + n_den) + 32
+    out_pn, _opnl = _bigint_from_int(0, out_cap)
+    out_pd, _opdl = _bigint_from_int(0, out_cap)
+    out_exps = (ctypes.c_int32 * max(out_cap_rows * n_syms, 1))()
+    out_nn = ctypes.c_size_t(0)
+    out_nd = ctypes.c_size_t(0)
     has = ctypes.c_int(0)
     rc = LIB.srmech_elliptic_gosper(
-        ctypes.byref(pn), ctypes.byref(pd),
-        ctypes.c_size_t(n_pref_syms),
+        ctypes.c_size_t(n_syms),
+        ctypes.c_int(idx.get("x", -1)), ctypes.c_int(idx.get("p", -1)),
+        ctypes.c_int(idx.get("q", -1)),
         ctypes.c_size_t(n_num), ctypes.c_size_t(n_den),
+        num_arr, den_arr, exps_c, ctypes.c_uint32(work_cap),
         ctypes.byref(has),
-        ctypes.byref(rn), ctypes.byref(rd),
+        ctypes.byref(out_pn), ctypes.byref(out_pd),
+        out_exps, ctypes.c_size_t(out_cap_rows),
+        ctypes.byref(out_nn), ctypes.byref(out_nd),
         ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
     )
     if rc != SRMECH_OK:
         raise RuntimeError(f"srmech_elliptic_gosper returned non-OK status {rc}")
     if not has.value:
         return False, None
-    # the certificate is the scalar prefactor rn/rd (no theta factors) in the
-    # constant-ratio native scope — rebuild it as the EllRatio bridge form.
+    # rebuild the certificate EllRatio bridge form from the flat output rows.
+    cnn = out_nn.value
+    cnd = out_nd.value
+
+    def _exps_from_row(row):
+        return [(sym_list[j], int(row[j])) for j in range(n_syms) if row[j] != 0]
+
+    rows = [out_exps[r * n_syms:(r + 1) * n_syms] for r in range(1 + cnn + cnd)]
     cert_form = {
-        "prefactor": (_bigint_to_int(rn), _bigint_to_int(rd), []),
-        "num": [],
-        "den": [],
+        "prefactor": (_bigint_to_int(out_pn), _bigint_to_int(out_pd),
+                      _exps_from_row(rows[0])),
+        "num": [(1, 1, _exps_from_row(rows[1 + i])) for i in range(cnn)],
+        "den": [(1, 1, _exps_from_row(rows[1 + cnn + i])) for i in range(cnd)],
     }
     return True, cert_form
 

@@ -137,4 +137,64 @@ srmech_status_t srmech_ellbase_theta_canon_full(srmech_ell_ctx_t *c,
                                                 srmech_bigint_t *t0,
                                                 srmech_bigint_t *t1);
 
+/* ---- EllRatio working layer (shared; promoted from srmech_ellbase.c rc-genuine) --- *
+ *
+ * The canonical EllRatio working value + its construction algebra, promoted out of
+ * srmech_ellbase.c so the GENUINE srmech_elliptic_gosper engine builds on ONE copy
+ * (the everything-mirrors discipline forbids two copies of EllRatio.__init__). The
+ * EllRatio.is_elliptic peer + the elliptic-Gosper engine both call these. */
+
+/* A reusable scratch bundle for the EllRatio construction algebra. */
+typedef struct srmech_ell_er_scr {
+    srmech_ell_mono_t *pm;       /* SRMECH_ELL_ER_SCR_MONOS general scratch monomials */
+    int               *used;     /* >= max(n_num, n_den) cancel/compare flags         */
+    srmech_bigint_t    g;
+    srmech_bigint_t    t0;
+    srmech_bigint_t    t1;
+} srmech_ell_er_scr_t;
+
+#define SRMECH_ELL_ER_SCR_MONOS 12u
+
+/* A canonical EllRatio working value: a prefactor monomial + the canonical num/den
+ * theta-ARGUMENT monomial arrays (sorted by the arg sort-key) + their live counts. */
+typedef struct srmech_ell_er_ratio {
+    srmech_ell_mono_t  pref;
+    srmech_ell_mono_t *num;      /* canonical num theta args, sorted        */
+    size_t             n_num;
+    srmech_ell_mono_t *den;      /* canonical den theta args, sorted        */
+    size_t             n_den;
+    int                is_zero;  /* 1 iff the prefactor is the zero monomial */
+} srmech_ell_er_ratio_t;
+
+srmech_status_t srmech_ellbase_er_bind_scr(srmech_ell_ctx_t *c,
+                                           srmech_ell_er_scr_t *s, size_t flagcap);
+srmech_status_t srmech_ellbase_er_bind_ratio(srmech_ell_ctx_t *c,
+                                             srmech_ell_er_ratio_t *r,
+                                             size_t cap_num, size_t cap_den);
+srmech_status_t srmech_ellbase_er_build(srmech_ell_ctx_t *c,
+                                        srmech_ell_er_ratio_t *out,
+                                        const srmech_ell_mono_t *pref0,
+                                        const srmech_ell_mono_t *num_args, size_t n_num,
+                                        const srmech_ell_mono_t *den_args, size_t n_den,
+                                        int psym, srmech_ell_er_scr_t *s,
+                                        srmech_ell_mono_t *cn, size_t cn_cap,
+                                        srmech_ell_mono_t *cd, size_t cd_cap);
+int srmech_ellbase_er_ratio_eq(const srmech_ell_ctx_t *c,
+                               const srmech_ell_er_ratio_t *a,
+                               const srmech_ell_er_ratio_t *b);
+srmech_status_t srmech_ellbase_er_pshift_arg(srmech_ell_ctx_t *c,
+                                             srmech_ell_mono_t *out,
+                                             const srmech_ell_mono_t *a,
+                                             int xsym, int psym);
+/* The summation shift x -> q*x on a canonical argument monomial: a -> a * q^{a.exp(x)}
+ * (the qsym analogue of er_pshift_arg's p^{x-exp}; EllRatio.qshift's `sm`). The inverse
+ * shift x -> x/q is the same with `inverse` = 1 (a -> a * q^{-a.exp(x)}, _xshift_inverse). */
+srmech_status_t srmech_ellbase_er_qshift_arg(srmech_ell_ctx_t *c,
+                                             srmech_ell_mono_t *out,
+                                             const srmech_ell_mono_t *a,
+                                             int xsym, int qsym, int inverse);
+srmech_status_t srmech_ellbase_er_arena_init(srmech_ell_ctx_t *c, void *ws,
+                                             size_t ws_len);
+size_t srmech_ellbase_er_mono_words(size_t cap, size_t ns);
+
 #endif /* SRMECH_ELLBASE_INTERNAL_H */

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc64"
-#define SRMECH_VERSION       "0.9.0rc64"
+#define SRMECH_VERSION_PRE   "rc65"
+#define SRMECH_VERSION       "0.9.0rc65"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3537,59 +3537,69 @@ srmech_status_t srmech_q_gosper(const srmech_bigint_t *num_n,
  * C peer of srmech.amsc.elliptic_gosper.elliptic_gosper.
  *
  * Input: an elliptic-hypergeometric term given by its TERM RATIO t(n+1)/t(n) = r(x)
- * (x = q^n) as an EllRatio -- a theta-quotient prod theta(a x;p)/prod theta(b x;p)
- * over an exact-Q monomial prefactor. The bridge form: the prefactor exact-Q
- * coefficient (pref_num, pref_den), the prefactor symbol count (n_pref_syms), and
- * the numerator + denominator theta-factor counts (n_num, n_den).
+ * (x = q^n) as a FULL EllRatio -- a theta-quotient prod theta(a x;p)/prod theta(b x;p)
+ * over an exact-Q monomial prefactor. The wire form mirrors srmech_ellratio_is_elliptic:
+ * the interned symbol-table dimension `n_syms` (distinct symbols in the Python sorted
+ * order so the dense exponent vector reproduces EllMonomial._sort_key); the x / p / q
+ * interned indices (`xsym` / `psym` / `qsym`, -1 if absent); the num / den theta counts
+ * (`n_num` / `n_den`); the flat exact-Q monomial coeff arrays `coeff_num` / `coeff_den`
+ * (in order prefactor, num0..K-1, den0..L-1) + the flat int32 exponent rows `exps_flat`
+ * (int32[n_syms] per monomial, same order). `coeff_cap` is the per-bigint limb cap.
  *
  * Output: when t(n) HAS an elliptic-hypergeometric antidifference T(n) = R(x)*t(n)
- * (so T(n+1) - T(n) = t(n)), the CERTIFICATE R(x) satisfying the elliptic Gosper
- * equation R(qx)*r(x) - R(x) = 1; in the native (constant-ratio) scope R is the
- * scalar prefactor rn/rd (no theta), so rn/rd carry the reduced exact-Q certificate
- * coefficient. Else *out_has = 0.
+ * (so T(n+1) - T(n) = t(n)), the CERTIFICATE R(x) (a full EllRatio) satisfying the
+ * elliptic Gosper equation R(qx)*r(x) - R(x) = 1, written out as `out_pref_num` /
+ * `out_pref_den` (the prefactor exact-Q coeff) + `out_exps_flat` (the prefactor row,
+ * then the *out_n_num num rows, then the *out_n_den den rows; each int32[n_syms]) +
+ * the counts `*out_n_num` / `*out_n_den`. Else *out_has = 0.
  *
  * Reference (MPM-verified at build): George Gasper & Michael Schlosser, "Summation,
  * transformation, and expansion formulas for multibasic theta hypergeometric
  * series," Adv. Stud. Contemp. Math. (Kyungshang) 11, no. 1 (2005), 67-84
- * (arXiv:math/0505215) -- derived "using indefinite summation."
+ * (arXiv:math/0505215) -- derived "using indefinite summation"; the key equation is
+ * the Weierstrass three-term relation, Rosengren arXiv:1608.06161 Sec.1.4 Eq.1.12.
  *
- * STANDALONE-COMPLETE + BOUNDED native scope (the srmech_q_gosper precedent): this
- * rc61 peer COMPLETES the canonical elliptic-GEOMETRIC core natively -- a CONSTANT
- * term ratio r = z = z_num/z_den (no theta factors, no prefactor symbols), whose
- * certificate is the closed form R = z_den / (z_num - z_den) (so R(qx)*r - R =
- * R*(z-1) = 1, exact -- the elliptic analogue of the ordinary / q-geometric
- * R = 1/(z-1)). For EVERY other input it DECLINES (*out_has = 0), and the Python op
- * re-runs its COMPLETE pure-Python path -- a has=0 is NEVER a definitive "no
- * certificate" (the dispatch trusts only has=1). z == 1 has no finite certificate ->
- * decline. Malloc-free (JPL Rule 3): caller arena `ws` only; byte-identical to the
- * Python certificate at ANY magnitude. Any residual overflow -> SRMECH_ERR_OVERFLOW.
+ * GENUINE structural pipeline (a 1:1 mirror of _elliptic_gosper_pure, NOT the rc61
+ * geometric-constant shell): (0) the elliptic-GEOMETRIC core (a constant scalar ratio
+ * r = z -> R = z_den/(z_num - z_den); z == 1 declines); (1) PEEL the q-shift coboundary
+ * to the theta-GP normal form r = (A/B)*(sigma C / C); (2) SOLVE the elliptic Gosper
+ * key equation via the Weierstrass three-term relation, the <=8 chiral endianness
+ * resolved against the EXACT residual ThetaSum is_zero verifier (srmech_thetasum_is_zero
+ * -- the same no-hallucination standard). For an input outside the structurally-
+ * decidable class it DECLINES (*out_has = 0), and the Python op re-runs its COMPLETE
+ * pure-Python path + re-verifies any has=1 result in exact Q -- a has=0 is NEVER a
+ * definitive "no certificate" (the dispatch trusts only has=1). Malloc-free (JPL Rule
+ * 3): caller arena `ws` only; byte-identical to the Python certificate at ANY
+ * magnitude. Any residual overflow / too-small arena -> SRMECH_ERR_OVERFLOW.
  *
  * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
 
-/* Minimum `ws_len` BYTES srmech_elliptic_gosper needs for a prefactor coefficient of
- * `coeff_limbs` significant limbs. */
-size_t srmech_elliptic_gosper_ws_bound(size_t coeff_limbs);
+/* Minimum `ws_len` BYTES srmech_elliptic_gosper needs for the given shape (n_syms
+ * symbols, n_num + n_den input theta factors, coeff_limbs the per-coefficient
+ * significant-limb estimate). */
+size_t srmech_elliptic_gosper_ws_bound(size_t n_syms, size_t n_num, size_t n_den,
+                                       size_t coeff_limbs);
 
-/* The per-coefficient limb cap for each srmech_bigint in the rn / rd OUTPUT, so the
- * reduced certificate coefficient never overflows its slot. */
+/* The per-coefficient limb cap for each srmech_bigint in the OUTPUT (the cert prefactor
+ * coeff), so the reduced certificate coefficient never overflows its slot. */
 size_t srmech_elliptic_gosper_out_cap(size_t coeff_limbs);
 
-/* Compute the elliptic-Gosper certificate for the term ratio r.
- *   pref_num / pref_den : the exact-Q prefactor coefficient z = z_num/z_den
- *   n_pref_syms         : the prefactor symbol count (q/p/param powers)
- *   n_num / n_den       : the numerator / denominator theta-factor counts
- * On success *out_has is set: 1 when the (constant-ratio) elliptic-geometric core has
- * an antidifference (then rn/rd carry the reduced scalar certificate coefficient
- * R = z_den/(z_num - z_den)), 0 when the peer declines (any theta factor or a
- * non-scalar prefactor, or z == 1 -> the caller re-decides on the pure path). The
- * caller sizes rn/rd to srmech_elliptic_gosper_out_cap limbs. pref_den == 0 ->
- * SRMECH_ERR_BAD_INPUT. */
-srmech_status_t srmech_elliptic_gosper(const srmech_bigint_t *pref_num,
-                                       const srmech_bigint_t *pref_den,
-                                       size_t n_pref_syms,
+/* Compute the GENUINE elliptic-Gosper certificate for the term ratio r (the full
+ * EllRatio wire form). On success *out_has is set: 1 when t(n) has an antidifference
+ * (then out_pref_num/out_pref_den + out_exps_flat + out_n_num/out_n_den carry the
+ * certificate EllRatio), 0 when the peer declines (out of the structurally-decidable
+ * class -> the caller re-decides on the pure path). `out_exps_cap_rows` is the row
+ * capacity of the caller's out_exps_flat buffer (1 + max_num + max_den rows); too small
+ * -> SRMECH_ERR_OVERFLOW. A required NULL pointer -> SRMECH_ERR_NULL_ARG. */
+srmech_status_t srmech_elliptic_gosper(size_t n_syms, int xsym, int psym, int qsym,
                                        size_t n_num, size_t n_den,
-                                       int *out_has,
-                                       srmech_bigint_t *rn, srmech_bigint_t *rd,
+                                       const srmech_bigint_t *coeff_num,
+                                       const srmech_bigint_t *coeff_den,
+                                       const int32_t *exps_flat, uint32_t coeff_cap,
+                                       int *out_has, srmech_bigint_t *out_pref_num,
+                                       srmech_bigint_t *out_pref_den,
+                                       int32_t *out_exps_flat, size_t out_exps_cap_rows,
+                                       size_t *out_n_num, size_t *out_n_den,
                                        void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
