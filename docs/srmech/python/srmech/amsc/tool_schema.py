@@ -3447,6 +3447,60 @@ def _register_primitive_class_tools() -> None:
                       "for inspect / solve_key_equation)}"),
         ),
         # ────────────────────────────────────────────────────────────
+        # rc70: the FIRST WEIGHT-GRADED carrier (srmech.amsc.unary_theta). The
+        # operand ladder (Q / Poly / QPoly / EllRatio / ThetaSum) was entirely
+        # WEIGHT-0; unary_theta augments it with a WEIGHT axis (= 1/2 + poly-
+        # degree j), making the harmonic-Maass / mock-theta SHADOW representable
+        # in-carrier (research item #9). 1:1 C peer srmech_unary_theta.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.unary_theta.unary_theta",
+            owner="srmech", category="unary_theta",
+            summary="Construct a UNARY THETA SERIES g(τ) = Σ_{n∈support} χ(n)·"
+                    "n^j·q^{(a·n²+b·n)/D} — the FIRST WEIGHT-GRADED operand "
+                    "carrier (the ladder Q/Poly/QPoly/EllRatio/ThetaSum was all "
+                    "WEIGHT-0). Its WEIGHT = 1/2 + j (exact Q): j=0 ⇒ weight 1/2 "
+                    "(a Jacobi theta), j=1 ⇒ weight 3/2 (a mock-theta SHADOW), "
+                    "j=2 ⇒ weight 5/2 — THE WEIGHT AXIS. This makes the "
+                    "harmonic-Maass / mock-theta program (research item #9) "
+                    "representable in-carrier: the order-3 mock theta f(q) has "
+                    "SHADOW g₃ = Σ_{n≥1} (−12/n)·n·q^{n²/24} (Zagier, Astérisque "
+                    "326 (2009), Exp. 986, p. 150), a weight-3/2 unary theta a "
+                    "weight-0 carrier cannot hold. .q_series(N) returns the EXACT "
+                    "INTEGER coefficients after factoring the leading q-power: θ₃ "
+                    "(triv χ, j=0, a=1,b=0,D=1, support='all') → [1,2,0,0,2,…] "
+                    "(Σ_{n∈ℤ}q^{n²}); g₃ ('minus12', j=1, a=1,b=0,D=24, "
+                    "support='positive') → [1,−5,−7,0,0,11,0,13,…] (the Zagier "
+                    "coeffs at q^{1/24}). χ is a Character (period M, values in "
+                    "{−1,0,1}); 'trivial' / 'minus12' are the named anchors. 1:1 "
+                    "C peer srmech_unary_theta computes the integer q-series over "
+                    "caller-arena srmech_bigint (n^j full bignum, no int64 "
+                    "ceiling; byte-identical to Python). Exact integers + exact-Q "
+                    "weight; no float, no abs() (the χ sign is the Class-K pin-"
+                    "slot), no numpy / math.",
+            parameters=(P("char", "str", True,
+                          "the character χ: 'trivial' (χ≡1) or 'minus12' (the "
+                          "(−12/·) Kronecker character of g₃); an in-process "
+                          "caller may also pass a Character or a residue table"),
+                        P("j", "int", True,
+                          "the polynomial degree of the n^j factor (j ≥ 0); the "
+                          "weight is 1/2 + j"),
+                        P("a", "int", True,
+                          "the quadratic coefficient of the q-exponent (a > 0)"),
+                        P("b", "int", True,
+                          "the linear coefficient of the q-exponent"),
+                        P("D", "int", True,
+                          "the q-exponent denominator (D > 0); the exponent is "
+                          "(a·n²+b·n)/D"),
+                        P("support", "str", False,
+                          "the summation support: 'all' (n∈ℤ), 'positive' (n≥1, "
+                          "the default), or 'nonneg' (n≥0)")),
+            returns=R("UnaryTheta",
+                      "the weight-graded carrier (.weight = Q(1,2)+j; "
+                      ".q_series(N) → exact integer coefficients; "
+                      ".leading_power() → the factored-out q-power)"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # Foundational cross-domain cascade catalog (v0.4.3rc6).
         # The cascades recurring across every/most domains, promoted so a
         # named cascade is the default and a math-library call the exception.

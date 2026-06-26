@@ -367,6 +367,19 @@ class ThetaSum:
                 and not self._terms[0][1] and self._den_pref.is_unit
                 and not self._den_thetas)
 
+    @property
+    def weight(self) -> Q:
+        """The modular WEIGHT on the operand ladder — **0** (exact
+        :class:`~srmech.amsc.q.Q`). ``ThetaSum`` is the additive carrier of a
+        BALANCED (genuine-elliptic) theta rational function: the creative-
+        telescoping residual it holds is a weight-0 elliptic object on
+        ``ℂ*/⟨p⟩`` (a sum of balanced theta-quotients over a common balanced
+        denominator), so its grade is 0 — like every carrier below
+        :class:`srmech.amsc.unary_theta.UnaryTheta`, the ladder before the weight
+        axis was introduced. Constant (the carrier represents balanced data); the
+        weight axis is :attr:`srmech.amsc.unary_theta.UnaryTheta.weight`."""
+        return Q(0, 1)
+
     # ── additive algebra (common denominator → sum / subtract numerators) ────
     def _num_over(self, target_pref: EllMonomial,
                   target_thetas: "Tuple[Theta, ...]") -> "List[_Term]":

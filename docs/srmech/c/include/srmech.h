@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc69"
-#define SRMECH_VERSION       "0.9.0rc69"
+#define SRMECH_VERSION_PRE   "rc70"
+#define SRMECH_VERSION       "0.9.0rc70"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3265,6 +3265,36 @@ srmech_status_t srmech_poly_shift(const srmech_bigint_t *p_n,
                                   srmech_bigint_t *acc_n,
                                   srmech_bigint_t *acc_d, size_t *acc_len,
                                   void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_unary_theta — the EXACT-INTEGER q-series of a UNARY THETA SERIES (the
+ * C peer of srmech.amsc.unary_theta.UnaryTheta; the first WEIGHT-GRADED operand
+ * carrier). A unary theta is g(tau) = SUM_{n in support} chi(n)*n^j*q^{(a*n^2+
+ * b*n)/D}; its WEIGHT is 1/2 + j (that rational lives in the Python Q carrier —
+ * the C computes only the integer q-series). This op returns the EXACT INTEGER
+ * coefficients out[e] = SUM_{n:E(n)=e} chi(n)*n^j (e = 0..N) after factoring out
+ * the leading (minimal) q-power over the support — byte-identical to the Python
+ * carrier (n^j is full srmech_bigint, no int64 ceiling). chi(n) in {-1,0,1} via
+ * the length-`modulus` chi_table (Class-K sign, never abs). support: 0=all
+ * (n in Z), 1=positive (n>=1), 2=nonneg (n>=0).
+ *
+ * Carrier-internal (like srmech_poly): NOT a Rosetta ledger op; additive symbols
+ * -> ABI unchanged (stays 3). The working n^j carriers + pow scratch are carved
+ * from the caller arena `ws` (>= srmech_unary_theta_ws_bound). The out[] array
+ * is caller-owned (N+1 srmech_bigint, each pre-bound to >= coeff_limbs limbs).
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES for srmech_unary_theta_q_series (the nj/nbase carriers
+ * at `coeff_limbs` width + the bigint pow scratch for |n|^j). */
+size_t srmech_unary_theta_ws_bound(uint32_t j, size_t coeff_limbs);
+
+/* The exact integer q-series: out[e] (e=0..N) <- SUM_{n:E(n)=e} chi(n)*n^j,
+ * *out_len <- N+1. SRMECH_ERR_BAD_INPUT on modulus<1 / a<=0 / D<1 / empty
+ * support; SRMECH_ERR_OVERFLOW if a coefficient or the arena is too small. */
+srmech_status_t srmech_unary_theta_q_series(
+    uint32_t modulus, const int32_t *chi_table, uint32_t j,
+    int64_t a, int64_t b, uint32_t D, int support, size_t N,
+    srmech_bigint_t *out, size_t *out_len, void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_tripoly — EXACT-RATIONAL TRIVARIATE polynomial over srmech_bigint (the

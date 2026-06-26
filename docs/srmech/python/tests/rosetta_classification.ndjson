@@ -451,3 +451,4 @@
 {"exposed_as": "srmech.amsc.ellbase.elliptic_lagrange_basis", "defined_at": "srmech.amsc.ellbase.elliptic_lagrange_basis", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7", "defined_at": "srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.carrier_spectrum.carrier_spectrum", "defined_at": "srmech.amsc.carrier_spectrum.carrier_spectrum", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.unary_theta.unary_theta", "defined_at": "srmech.amsc.unary_theta.unary_theta", "bucket": "c_dispatched"}
