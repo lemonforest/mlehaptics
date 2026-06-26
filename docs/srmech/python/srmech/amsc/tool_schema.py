@@ -3284,6 +3284,62 @@ def _register_primitive_class_tools() -> None:
                       "hypergeometric antidifference exists / r is unbalanced"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The ELLIPTIC Σ-row ORDER-1 RECURRENCE op for the Frenkel–Turaev ₈ω₇
+        # summation — a STRUCTURAL (beat-decomposition) finder that builds the
+        # order-1 recurrence coefficient ρ(n) from the elementary symmetric
+        # functions of the free params (NOT a coefficient nullspace solve —
+        # provably dead for the elliptic case; the anti-brute-force discipline).
+        # 1:1 C peer srmech_elliptic_recurrence_8w7.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7",
+            owner="srmech", category="elliptic_recurrence",
+            summary="The ELLIPTIC Σ-row ORDER-1 RECURRENCE op for the Frenkel–"
+                    "Turaev ₈ω₇ summation (S. Ole Warnaar, 'Summation and "
+                    "transformation formulas for elliptic hypergeometric series', "
+                    "Constr. Approx. 18 (2002) 479–502, arXiv:math/0001006, "
+                    "Corollary 2.2 — the ₈ω₇ closed product form "
+                    "(aq, aq/bc, aq/bd, aq/cd; q,p)_n / (aq/b, aq/c, aq/d, aq/bcd; "
+                    "q,p)_n; balancing bcde=a²q^{n+1}). A STRUCTURAL (beat-"
+                    "decomposition) finder: it RECOGNIZES a canonical ₈ω₇ term "
+                    "ratio t(n+1)/t(n)=r(x) (x=qⁿ — the very-well-poised core "
+                    "θ(aq²x²)θ(ax)/[θ(ax²)θ(qx)] over five Pochhammer pairs θ(ux)/"
+                    "θ(aqx/u) with the balancing) as an EllRatio, DECOMPOSES it "
+                    "into the base a + the three FREE params [b,c,d], and "
+                    "CONSTRUCTS the order-1 recurrence coefficient ρ(n) (an "
+                    "EllRatio in y=qⁿ, 4 num + 4 den thetas) from the elementary "
+                    "symmetric functions s2={bc,bd,cd}, s3=bcd: num endpoints "
+                    "{aq}∪{aq/bc,aq/bd,aq/cd}, den {aq/b,aq/c,aq/d}∪{aq/bcd}. The "
+                    "construction IS the answer (decompose-and-compute, NOT a "
+                    "coefficient nullspace solve — provably dead for the elliptic "
+                    "case; the anti-brute-force discipline). Returns {'order':1, "
+                    "'coeffs':[-ρ,1], 'rho':ρ, …} (f(n+1)=ρ(n)·f(n)) only after "
+                    "VERIFYING ρ(n)==f(n+1)/f(n) for the ₈ω₇ sum to <1e-9 (the "
+                    "closed product form the independent oracle, via the carrier's "
+                    "exact-ℚ truncated-theta eval — NOT a standalone numeric "
+                    "theta); a non-₈ω₇ (unbalanced / wrong very-well-poised shape / "
+                    "≠3 free params) or a ρ that fails the gate → None (the honest "
+                    "out-of-class residue). 1:1 C peer srmech_elliptic_recurrence_"
+                    "8w7 mirrors the recognize-decompose-construct over the integer "
+                    "theta-exponent lattice (the shared srmech_ellbase_* monomial "
+                    "algebra + er_build); the Python trusts a native ρ ONLY after a "
+                    "byte-for-byte rebuild + the gate (a has=0 → Python pure path). "
+                    "Exact bigint; no float, no abs() (Class-K sign), no numpy / "
+                    "math.",
+            parameters=(P("r", "EllRatio", True,
+                          "the ₈ω₇ summand's TERM RATIO t(n+1)/t(n)=r(x), x=qⁿ — an "
+                          "EllRatio (the very-well-poised theta-quotient over an "
+                          "exact-ℚ monomial prefactor; an EllMonomial / Theta is "
+                          "lifted)"),),
+            returns=R("dict | None",
+                      "{'order': 1, 'coeffs': [-ρ, 1], 'rho': EllRatio, "
+                      "'prefactor': {'coeff': (num, den), 'exps': {sym: exp}}, "
+                      "'num': [{sym: exp}, …], 'den': [{sym: exp}, …]} — the order-1 "
+                      "recurrence f(n+1)=ρ(n)·f(n) (ρ an EllRatio in y=qⁿ, 4 num + 4 "
+                      "den thetas, verified ρ(n)==f(n+1)/f(n)), or None when r is not "
+                      "a canonical ₈ω₇ / the recurrence fails the gate"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The F929 OPEN/infer ROUTER — the meta-dispatcher that makes the
         # three shipped reduction-theory rows (cyclic / spectral / Σ) ONE
         # callable. Pure orchestration over the already-C-mirrored reducers

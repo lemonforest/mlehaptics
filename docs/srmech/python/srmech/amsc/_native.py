@@ -2269,6 +2269,43 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_elliptic_lagrange_basis.restype = ctypes.c_int
 
+    # rc68: srmech_elliptic_recurrence_8w7 — the ELLIPTIC Σ-row ORDER-1 RECURRENCE op for
+    # the Frenkel–Turaev ₈ω₇ summation. The C peer of
+    # srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7. The term-ratio rides as the
+    # FULL EllRatio wire form (the interned symbol-table dimension + the x/p/q/y interned
+    # indices + the num/den theta counts + the flat exact-Q coeff arrays + the flat int32
+    # exponent rows, like srmech_elliptic_gosper but with the added y index for the
+    # recurrence axis); the recurrence coefficient ρ EllRatio comes back as
+    # out_pref_num/out_pref_den + the flat out_exps_flat rows + the out_n_num/out_n_den
+    # counts. The native peer runs the genuine recognize-decompose-construct; a has=0
+    # (not ₈ω₇) -> Python re-decides. NEW symbols -> hasattr-guarded; ABI stays 3.
+    #   size_t srmech_elliptic_recurrence_8w7_ws_bound(n_syms, n_num, n_den, coeff_limbs)
+    #   size_t srmech_elliptic_recurrence_8w7_out_cap(coeff_limbs)
+    if hasattr(lib, "srmech_elliptic_recurrence_8w7_ws_bound"):
+        lib.srmech_elliptic_recurrence_8w7_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_elliptic_recurrence_8w7_ws_bound.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_elliptic_recurrence_8w7_out_cap"):
+        lib.srmech_elliptic_recurrence_8w7_out_cap.argtypes = [ctypes.c_size_t]
+        lib.srmech_elliptic_recurrence_8w7_out_cap.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_elliptic_recurrence_8w7"):
+        _erbi = ctypes.POINTER(_SrmechBigint)
+        lib.srmech_elliptic_recurrence_8w7.argtypes = [
+            ctypes.c_size_t,                     # n_syms
+            ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,  # xsym, psym, qsym, ysym
+            ctypes.c_size_t, ctypes.c_size_t,    # n_num, n_den
+            _erbi, _erbi,                        # coeff_num, coeff_den (flat)
+            ctypes.POINTER(ctypes.c_int32),      # exps_flat
+            ctypes.c_uint32,                     # coeff_cap
+            ctypes.POINTER(ctypes.c_int),        # out_has
+            _erbi, _erbi,                        # out_pref_num, out_pref_den
+            ctypes.POINTER(ctypes.c_int32),      # out_exps_flat
+            ctypes.c_size_t,                     # out_exps_cap_rows
+            ctypes.POINTER(ctypes.c_size_t), ctypes.POINTER(ctypes.c_size_t),  # out_n_num/den
+            ctypes.c_void_p, ctypes.c_size_t,    # ws, ws_len
+        ]
+        lib.srmech_elliptic_recurrence_8w7.restype = ctypes.c_int
+
     # rc42: srmech_zeilberger — Zeilberger's creative telescoping (the §76 telescope
     # Sigma-row's SECOND public op). The four BIVARIATE term ratios ride as flat
     # (num, den) coefficient arrays (k-then-n order) + a per-k length array + the
@@ -4072,6 +4109,148 @@ def elliptic_gosper_c(ratio_form):
         "den": [(1, 1, _exps_from_row(rows[1 + cnn + i])) for i in range(cnd)],
     }
     return True, cert_form
+
+
+# ----------------------------------------------------------------------
+# rc68: srmech_elliptic_recurrence_8w7 — the C peer of the ELLIPTIC Σ-row ORDER-1
+# RECURRENCE op srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7 for the
+# Frenkel–Turaev ₈ω₇ summation. The term-ratio EllRatio marshals over the same wire
+# convention as elliptic_gosper (the interned symbol table + the x/p/q/y indices + the
+# num/den theta counts + the flat coeff arrays + the flat exps rows), with the recurrence
+# coefficient ρ EllRatio coming back as a prefactor coeff + the canonical theta exps rows.
+# The native peer constructs the EXACT ρ; the Python dispatch trusts it ONLY after a
+# byte-for-byte rebuild + the ₈ω₇ verification gate. A has=0 -> Python pure path.
+# ----------------------------------------------------------------------
+
+_ELLIPTIC_RECURRENCE_SYMS = (
+    "srmech_elliptic_recurrence_8w7_ws_bound",
+    "srmech_elliptic_recurrence_8w7_out_cap",
+    "srmech_bigint_from_dec",
+    "srmech_bigint_to_dec",
+    "srmech_bigint_to_dec_bound",
+)
+
+# the symbols forced into the interned table even when the canonical form carries none:
+# x (the summation axis), p (the nome the theta-canon writes), q (the base; aq = a·q is
+# load-bearing in the decompose), and y (the recurrence axis the free-param filter reads).
+_ER8W7_FORCE_SYMS = ("p", "q", "x", "y")
+
+
+def has_native_elliptic_recurrence_8w7() -> bool:
+    """True iff the rc68 srmech_elliptic_recurrence_8w7 op + its ws/out-cap sizers + the
+    srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or pre-rc68
+    lib — the pure-Python
+    ``srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7`` body is the complete
+    alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _ELLIPTIC_RECURRENCE_SYMS) and hasattr(
+        LIB, "srmech_elliptic_recurrence_8w7"
+    )
+
+
+def elliptic_recurrence_8w7_c(ratio_form):
+    """Native ₈ω₇ order-1 recurrence coefficient ρ for the term-ratio EllRatio
+    ``ratio_form`` → ``(has_recurrence, rho_form)`` (``rho_form`` the EllRatio bridge
+    form), or ``None`` if the native symbols are absent. ``ratio_form`` is the dict
+    :func:`srmech.amsc.elliptic_recurrence._ratio_to_form` emits (``prefactor`` =
+    ``(coeff_num, coeff_den, [(sym, exp), …])``; ``num`` / ``den`` = theta-argument
+    monomial triples). The native peer runs the genuine recognize-decompose-construct
+    pipeline; it declines an input that is NOT a canonical ₈ω₇ (``has_recurrence`` False →
+    the caller re-decides on the pure path)."""
+    if not has_native_elliptic_recurrence_8w7():
+        return None
+    pref_num, pref_den, pref_exps = ratio_form["prefactor"]
+    if pref_den == 0:
+        raise ValueError("elliptic_recurrence_8w7_c: the prefactor coefficient "
+                         "denominator must be nonzero")
+    num_monos = ratio_form["num"]
+    den_monos = ratio_form["den"]
+    n_num = len(num_monos)
+    n_den = len(den_monos)
+    monos = [(pref_num, pref_den, pref_exps)] + list(num_monos) + list(den_monos)
+    # the interned symbol universe = every prefactor / theta-arg symbol + the forced x/p/q/y.
+    syms = set(_ER8W7_FORCE_SYMS)
+    for _cn, _cd, exps in monos:
+        syms.update(s for s, _e in exps)
+    sym_list = sorted(syms)
+    idx = {s: i for i, s in enumerate(sym_list)}
+    n_syms = len(sym_list)
+
+    def _row(exps):
+        r = [0] * n_syms
+        for s, e in exps:
+            r[idx[s]] = e
+        return r
+
+    # per-coefficient limb estimate (9 decimal digits ~ 1 limb; pad).
+    cl = 2
+    for cn, cd, _e in monos:
+        cl = max(cl, len(str(cn).lstrip("-")) // 9 + 2, len(str(cd)) // 9 + 2)
+    work_cap = cl + 16
+    out_cap = int(LIB.srmech_elliptic_recurrence_8w7_out_cap(ctypes.c_size_t(cl)))
+    if out_cap < work_cap:
+        out_cap = work_cap
+    ws_len = int(LIB.srmech_elliptic_recurrence_8w7_ws_bound(
+        ctypes.c_size_t(n_syms), ctypes.c_size_t(n_num),
+        ctypes.c_size_t(n_den), ctypes.c_size_t(work_cap)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    # the flat input wire: coeff arrays (in order prefactor, num0..K, den0..L) + exps rows.
+    n_mono = len(monos)
+    num_arr = (_SrmechBigint * max(n_mono, 1))()
+    den_arr = (_SrmechBigint * max(n_mono, 1))()
+    keep = []
+    exps_flat = []
+    for i, (cn, cd, exps) in enumerate(monos):
+        bn, kbn = _bigint_from_int(int(cn), work_cap)
+        bd, kbd = _bigint_from_int(int(cd), work_cap)
+        num_arr[i] = bn
+        den_arr[i] = bd
+        keep.append(kbn)
+        keep.append(kbd)
+        exps_flat.extend(_row(exps))
+    exps_c = (ctypes.c_int32 * max(len(exps_flat), 1))(*exps_flat)
+    # the output buffers: the ρ prefactor coeff + a generous flat exps row buffer (ρ has
+    # 4 num + 4 den thetas + 1 prefactor row; budget generously for cancellation slack).
+    out_cap_rows = 1 + 2 * (n_num + n_den) + 32
+    out_pn, _opnl = _bigint_from_int(0, out_cap)
+    out_pd, _opdl = _bigint_from_int(0, out_cap)
+    out_exps = (ctypes.c_int32 * max(out_cap_rows * n_syms, 1))()
+    out_nn = ctypes.c_size_t(0)
+    out_nd = ctypes.c_size_t(0)
+    has = ctypes.c_int(0)
+    rc = LIB.srmech_elliptic_recurrence_8w7(
+        ctypes.c_size_t(n_syms),
+        ctypes.c_int(idx.get("x", -1)), ctypes.c_int(idx.get("p", -1)),
+        ctypes.c_int(idx.get("q", -1)), ctypes.c_int(idx.get("y", -1)),
+        ctypes.c_size_t(n_num), ctypes.c_size_t(n_den),
+        num_arr, den_arr, exps_c, ctypes.c_uint32(work_cap),
+        ctypes.byref(has),
+        ctypes.byref(out_pn), ctypes.byref(out_pd),
+        out_exps, ctypes.c_size_t(out_cap_rows),
+        ctypes.byref(out_nn), ctypes.byref(out_nd),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_elliptic_recurrence_8w7 returned non-OK status {rc}")
+    if not has.value:
+        return False, None
+    # rebuild the ρ EllRatio bridge form from the flat output rows.
+    cnn = out_nn.value
+    cnd = out_nd.value
+
+    def _exps_from_row(row):
+        return [(sym_list[j], int(row[j])) for j in range(n_syms) if row[j] != 0]
+
+    rows = [out_exps[r * n_syms:(r + 1) * n_syms] for r in range(1 + cnn + cnd)]
+    rho_form = {
+        "prefactor": (_bigint_to_int(out_pn), _bigint_to_int(out_pd),
+                      _exps_from_row(rows[0])),
+        "num": [(1, 1, _exps_from_row(rows[1 + i])) for i in range(cnn)],
+        "den": [(1, 1, _exps_from_row(rows[1 + cnn + i])) for i in range(cnd)],
+    }
+    return True, rho_form
 
 
 # ----------------------------------------------------------------------

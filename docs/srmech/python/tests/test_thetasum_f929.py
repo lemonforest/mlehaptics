@@ -176,6 +176,6 @@ def test_thetasum_source_is_numpy_math_abs_free():
 # ── carrier has NO ToolEntry footprint (tools.total stays 336) ────────────────
 def test_thetasum_is_a_carrier_no_tool_entry():
     """ThetaSum is a CARRIER (a class + private helpers), exactly like EllRatio / QMat /
-    TriPoly — it adds NO ToolEntry, so describe()['tools']['total'] stays 336."""
+    TriPoly — it adds NO ToolEntry, so describe()['tools']['total'] stays 337."""
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 336
+    assert introspect.describe()["tools"]["total"] == 337
