@@ -2236,6 +2236,39 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_ellratio_is_elliptic.restype = ctypes.c_int
 
+    # rc67: srmech_elliptic_lagrange_basis — the C peer of the EllRatio-carrier op
+    # srmech.amsc.ellbase.elliptic_lagrange_basis (rc66, Python-only; C mirror owed
+    # by the everything-mirrors same-rc discipline). The k point monomials ride as
+    # flat (coeff_num/coeff_den) srmech_bigint arrays + the flat int32 exponent rows;
+    # the multiplier as a single monomial; the k basis EllRatios come back as the
+    # per-element prefactor coeff arrays + the per-element theta counts + the flat
+    # canonical exponent rows. Shares the srmech_bigint decimal-marshal helpers (in
+    # _ELLRATIO_SYMS) with the ellratio / thetasum peers.
+    #   size_t srmech_elliptic_lagrange_basis_ws_bound(n_syms, k, coeff_limbs)
+    if hasattr(lib, "srmech_elliptic_lagrange_basis_ws_bound"):
+        lib.srmech_elliptic_lagrange_basis_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_elliptic_lagrange_basis_ws_bound.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_elliptic_lagrange_basis"):
+        _ebi3 = ctypes.POINTER(_SrmechBigint)
+        lib.srmech_elliptic_lagrange_basis.argtypes = [
+            ctypes.c_size_t,                     # n_syms
+            ctypes.c_int, ctypes.c_int,          # varsym, psym
+            ctypes.c_size_t,                     # k
+            _ebi3, _ebi3,                        # pt_coeff_num, pt_coeff_den (flat)
+            ctypes.POINTER(ctypes.c_int32),      # pt_exps_flat
+            _ebi3, _ebi3,                        # mult_num, mult_den
+            ctypes.POINTER(ctypes.c_int32),      # mult_exps
+            ctypes.c_uint32,                     # coeff_cap
+            _ebi3, _ebi3,                        # out_coeff_num, out_coeff_den (per row)
+            ctypes.POINTER(ctypes.c_int32),      # out_exps_flat
+            ctypes.c_size_t,                     # out_exps_cap_rows
+            ctypes.POINTER(ctypes.c_size_t),     # out_n_num (k)
+            ctypes.POINTER(ctypes.c_size_t),     # out_n_den (k)
+            ctypes.c_void_p, ctypes.c_size_t,    # ws, ws_len
+        ]
+        lib.srmech_elliptic_lagrange_basis.restype = ctypes.c_int
+
     # rc42: srmech_zeilberger — Zeilberger's creative telescoping (the §76 telescope
     # Sigma-row's SECOND public op). The four BIVARIATE term ratios ride as flat
     # (num, den) coefficient arrays (k-then-n order) + a per-k length array + the
@@ -4208,6 +4241,149 @@ def ellratio_is_elliptic_c(n_syms, xsym, psym, n_num, n_den, monomials):
     if rc != SRMECH_OK:
         raise RuntimeError(f"srmech_ellratio_is_elliptic returned non-OK status {rc}")
     return bool(out_is_elliptic.value)
+
+
+# ----------------------------------------------------------------------
+# rc67: srmech_elliptic_lagrange_basis — the C peer of the EllRatio-carrier op
+# srmech.amsc.ellbase.elliptic_lagrange_basis (rc66, shipped Python-only; its C
+# mirror is owed by the everything-mirrors same-rc discipline). A C-MIRROR PARITY
+# build: the k basis EllRatios come back byte-exact equal to the pure-Python op.
+# srmech.amsc.ellbase.elliptic_lagrange_basis dispatches through here when the peer
+# is loaded; the pure-Python body is the complete alternative + the parity oracle.
+# Shares the srmech_bigint decimal-marshal helpers (in _ELLRATIO_SYMS) with the
+# ellratio / thetasum peers.
+# ----------------------------------------------------------------------
+
+
+def has_native_elliptic_lagrange_basis() -> bool:
+    """True iff the rc67 srmech_elliptic_lagrange_basis op + its ws sizer + the
+    srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
+    pre-rc67 lib — the pure-Python ``srmech.amsc.ellbase.elliptic_lagrange_basis``
+    body is the complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _ELLRATIO_SYMS) and all(
+        hasattr(LIB, s) for s in (
+            "srmech_elliptic_lagrange_basis",
+            "srmech_elliptic_lagrange_basis_ws_bound",
+        )
+    )
+
+
+def elliptic_lagrange_basis_c(n_syms, varsym, psym, k, point_monos, mult_mono):
+    """Native ``elliptic_lagrange_basis`` for the k point monomials + the multiplier
+    monomial → a list of ``k`` EllRatio bridge forms (each a dict ``{"prefactor":
+    (coeff_num, coeff_den, exps), "num": [...], "den": [...]}``), or ``None`` if the
+    native symbols are absent. ``n_syms`` is the interned symbol-table dimension;
+    ``varsym`` / ``psym`` the interned indices of the interpolation variable + the
+    nome ``p`` (-1 if absent); ``point_monos`` the list of ``k`` ``(num, den,
+    exps_row)`` point triples (each ``exps_row`` a length-``n_syms`` int list);
+    ``mult_mono`` the multiplier ``(num, den, exps_row)`` triple. The returned thetas
+    are decoded against ``sym_list`` by the caller. A non-OK C status raises
+    ``RuntimeError``."""
+    if not has_native_elliptic_lagrange_basis():
+        return None
+    if k == 0:
+        raise ValueError("elliptic_lagrange_basis_c: need at least one interpolation point")
+    if n_syms == 0:
+        # a pure-scalar table clamps to a single all-zero exponent slot (the C clamps
+        # n_syms -> 1) so every monomial reads a consistent dense row.
+        n_syms = 1
+        point_monos = [(num, den, [0]) for num, den, _e in point_monos]
+        m_num, m_den, _me = mult_mono
+        mult_mono = (m_num, m_den, [0])
+    all_monos = list(point_monos) + [mult_mono]
+    # per-coefficient limb estimate (9 decimal digits ~ 1 limb; pad). The balancing
+    # point v_i = (-1)^k·t/∏others multiplies coefficients, so size generously.
+    cl = 2
+    for num, den, _exps in all_monos:
+        cl = max(cl, len(str(num).lstrip("-")) // 9 + 2, len(str(den)) // 9 + 2)
+    out_cap = cl + 8
+    work_cap = cl + 8
+    ws_len = int(LIB.srmech_elliptic_lagrange_basis_ws_bound(
+        ctypes.c_size_t(n_syms), ctypes.c_size_t(k), ctypes.c_size_t(work_cap)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    keep = []
+    # the k flat point inputs.
+    pt_num_arr = (_SrmechBigint * k)()
+    pt_den_arr = (_SrmechBigint * k)()
+    pt_exps_flat = []
+    for i, (num, den, exps_row) in enumerate(point_monos):
+        if len(exps_row) != n_syms:
+            raise ValueError("elliptic_lagrange_basis_c: point exps row length != n_syms")
+        bn, kbn = _bigint_from_int(int(num), work_cap)
+        bd, kbd = _bigint_from_int(int(den), work_cap)
+        pt_num_arr[i] = bn
+        pt_den_arr[i] = bd
+        keep.append(kbn)
+        keep.append(kbd)
+        pt_exps_flat.extend(int(e) for e in exps_row)
+    pt_exps_c = (ctypes.c_int32 * max(len(pt_exps_flat), 1))(*pt_exps_flat)
+    # the multiplier monomial.
+    m_num, m_den, m_exps = mult_mono
+    if len(m_exps) != n_syms:
+        raise ValueError("elliptic_lagrange_basis_c: multiplier exps row length != n_syms")
+    mbn, kmbn = _bigint_from_int(int(m_num), work_cap)
+    mbd, kmbd = _bigint_from_int(int(m_den), work_cap)
+    keep.append(kmbn)
+    keep.append(kmbd)
+    m_exps_c = (ctypes.c_int32 * max(n_syms, 1))(*[int(e) for e in m_exps])
+    # the output buffers: a single ROW stream -- each emitted monomial (a prefactor
+    # OR a theta argument) is one row carrying its exact-Q coeff (out_cn / out_cd) +
+    # its dense exps row (out_exps). Each L_i emits 1 prefactor row + k num-theta rows
+    # + 0 den rows; budget k*(1+k) rows + generous slack. The coeff travels with EVERY
+    # row because a theta ARGUMENT can carry a non-unit Class-K coeff (the balancing
+    # arg z·v_i^{-1}); assuming coeff 1 (the well-poised gosper convention) drops it.
+    out_cap_rows = k * (1 + k) + 8
+    out_cn_arr = (_SrmechBigint * out_cap_rows)()
+    out_cd_arr = (_SrmechBigint * out_cap_rows)()
+    for r in range(out_cap_rows):
+        ocn, kocn = _bigint_from_int(0, out_cap)
+        ocd, kocd = _bigint_from_int(0, out_cap)
+        out_cn_arr[r] = ocn
+        out_cd_arr[r] = ocd
+        keep.append(kocn)
+        keep.append(kocd)
+    out_exps = (ctypes.c_int32 * max(out_cap_rows * n_syms, 1))()
+    out_nn = (ctypes.c_size_t * k)()
+    out_nd = (ctypes.c_size_t * k)()
+    rc = LIB.srmech_elliptic_lagrange_basis(
+        ctypes.c_size_t(n_syms),
+        ctypes.c_int(varsym), ctypes.c_int(psym),
+        ctypes.c_size_t(k),
+        pt_num_arr, pt_den_arr, pt_exps_c,
+        ctypes.byref(mbn), ctypes.byref(mbd), m_exps_c,
+        ctypes.c_uint32(work_cap),
+        out_cn_arr, out_cd_arr, out_exps, ctypes.c_size_t(out_cap_rows),
+        out_nn, out_nd,
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_elliptic_lagrange_basis returned non-OK status {rc}")
+    # rebuild the k EllRatio bridge forms from the flat output ROW stream (each row
+    # = (coeff_num, coeff_den, exps_row)).
+    def _read_row(r):
+        return (_bigint_to_int(out_cn_arr[r]), _bigint_to_int(out_cd_arr[r]),
+                [int(out_exps[r * n_syms + j]) for j in range(n_syms)])
+
+    basis = []
+    row = 0
+    for i in range(k):
+        nn = out_nn[i]
+        nd = out_nd[i]
+        pref = _read_row(row)
+        row += 1
+        num_rows = []
+        for _ in range(nn):
+            num_rows.append(_read_row(row))
+            row += 1
+        den_rows = []
+        for _ in range(nd):
+            den_rows.append(_read_row(row))
+            row += 1
+        basis.append({"prefactor": pref, "num": num_rows, "den": den_rows})
+    return basis
 
 
 # ----------------------------------------------------------------------

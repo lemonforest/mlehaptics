@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc66"
-#define SRMECH_VERSION       "0.9.0rc66"
+#define SRMECH_VERSION_PRE   "rc67"
+#define SRMECH_VERSION       "0.9.0rc67"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3696,6 +3696,73 @@ srmech_status_t srmech_ellratio_is_elliptic(size_t n_syms, int xsym, int psym,
                                             const int32_t *exps_flat,
                                             uint32_t coeff_cap, int *out_is_elliptic,
                                             void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_elliptic_lagrange_basis — the C peer of the EllRatio-carrier op
+ * srmech.amsc.ellbase.elliptic_lagrange_basis (rc66, shipped Python-only; its C
+ * mirror is owed by the everything-mirrors same-rc discipline -> rc67). A
+ * C-MIRROR PARITY build (NOT a new algorithm): it reproduces the EXISTING,
+ * already-shipped pure-Python carrier byte-for-byte.
+ *
+ * Returns the k = `k` elliptic Lagrange interpolation basis EllRatios of the
+ * k-dimensional space V_t = { f analytic on C* : f(p*z) = t*z^{-k}*f(z) } at the
+ * k nodes (Rosengren arXiv:1608.06161v3 Sec.1.3 Corollary 1.3.5). For each i,
+ * with others = { points[j] : j != i } and prod = PROD others, the i-th element
+ * places its k theta zeros at { z/u_j : j != i } plus the BALANCING point
+ * v_i = (-1)^k * t / prod (so the product of the k zeros equals (-1)^k * t):
+ *   L_i = EllRatio( num = [ theta(z * u_j^{-1}) : j != i ] + [ theta(z * v_i^{-1}) ] )
+ * with the default unit prefactor; the EllRatio construction folds each theta's
+ * canonicalize prefactor, cancels matching thetas, and sorts the survivors. Pure
+ * composition of the shared srmech_ellbase_* monomial algebra + er_build.
+ *
+ * Wire form (mirrors srmech_ellratio_is_elliptic): the interned symbol-table
+ * dimension `n_syms` (distinct symbols in the Python sorted-symbol-NAME order so
+ * the dense exponent vector reproduces EllMonomial._sort_key); `varsym` / `psym`
+ * the interned indices of the interpolation variable `var` and the nome `p`
+ * (-1 if absent); the node count `k`; the flat point-monomial coeff arrays
+ * `pt_coeff_num` / `pt_coeff_den` (point0..k-1) + the flat int32 exponent rows
+ * `pt_exps_flat` (int32[n_syms] per point); the multiplier monomial `mult_num`
+ * / `mult_den` / `mult_exps`. `coeff_cap` is the per-bigint limb cap.
+ *
+ * Output: the k basis EllRatios written flat as a single ROW stream. Each emitted
+ * monomial (a prefactor or a theta argument) contributes ONE row: its exact-Q coeff
+ * into `out_coeff_num` / `out_coeff_den`[row] AND its dense int32[n_syms] exponent
+ * row into `out_exps_flat`, in the order, per element i: its prefactor row, then
+ * out_n_num[i] num-theta rows, then out_n_den[i] den-theta rows. The per-element
+ * theta counts come back in `out_n_num[i]` / `out_n_den[i]`. (The coeff travels with
+ * EVERY row -- a theta ARGUMENT can carry a non-unit Class-K coeff, e.g. the
+ * balancing arg z*v_i^{-1} with v_i = (-1)^k*t/PROD others -- so the coeff is NOT
+ * assumed 1.) `out_exps_cap_rows` is the row capacity of the caller's out_exps_flat
+ * / out_coeff buffers; too small -> SRMECH_ERR_OVERFLOW. k == 0 -> SRMECH_ERR_NULL_ARG
+ * (Python raises ValueError). A required NULL pointer -> SRMECH_ERR_NULL_ARG; a
+ * too-small arena -> SRMECH_ERR_OVERFLOW.
+ *
+ * The (-1)^k sign is a Class-K parity branch (an int +/-1), never abs()/fabs().
+ * Malloc-free (JPL Rule 3): caller arena `ws` only, sized to (k, n_syms) -- no
+ * compiled-in cap. Additive symbol -> ABI unchanged (stays 3). License: MIT. ---- */
+
+/* Minimum `ws_len` BYTES srmech_elliptic_lagrange_basis needs for the given shape
+ * (n_syms symbols, k interpolation nodes, coeff_limbs the per-coefficient
+ * significant-limb estimate). */
+size_t srmech_elliptic_lagrange_basis_ws_bound(size_t n_syms, size_t k,
+                                               size_t coeff_limbs);
+
+/* Build the k elliptic Lagrange basis EllRatios at the k nodes (see above). */
+srmech_status_t srmech_elliptic_lagrange_basis(size_t n_syms, int varsym, int psym,
+                                               size_t k,
+                                               const srmech_bigint_t *pt_coeff_num,
+                                               const srmech_bigint_t *pt_coeff_den,
+                                               const int32_t *pt_exps_flat,
+                                               const srmech_bigint_t *mult_num,
+                                               const srmech_bigint_t *mult_den,
+                                               const int32_t *mult_exps,
+                                               uint32_t coeff_cap,
+                                               srmech_bigint_t *out_coeff_num,
+                                               srmech_bigint_t *out_coeff_den,
+                                               int32_t *out_exps_flat,
+                                               size_t out_exps_cap_rows,
+                                               size_t *out_n_num, size_t *out_n_den,
+                                               void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_q_zeilberger — the q-analog of Zeilberger's creative telescoping (the
