@@ -61,10 +61,14 @@ def test_idempotent_re_registration_is_silent() -> None:
         category="test",
         summary="idempotent test entry",
     )
-    register_tool(entry)
-    register_tool(entry)  # should not raise
-    # cleanup
-    unregister_profile_tools("test.idempotent")  # no-op; "srmech" owner
+    try:
+        register_tool(entry)
+        register_tool(entry)  # should not raise
+    finally:
+        # cleanup: the entry has owner "srmech", so unregister_profile_tools is a
+        # no-op for it — pop it from the global registry directly so it does NOT
+        # leak into the schema singleton and inflate other tests' tools.total.
+        ts._REGISTRY.pop("test.idempotent", None)
 
 
 def test_conflicting_re_registration_raises() -> None:
@@ -82,9 +86,14 @@ def test_conflicting_re_registration_raises() -> None:
         category="test",
         summary="DIFFERENT version",
     )
-    register_tool(e1)
-    with pytest.raises(ToolSchemaConflictError):
-        register_tool(e2)
+    try:
+        register_tool(e1)
+        with pytest.raises(ToolSchemaConflictError):
+            register_tool(e2)
+    finally:
+        # cleanup: pop the injected entry so it does NOT leak into the schema
+        # singleton (owner "srmech" → unregister_profile_tools can't remove it).
+        ts._REGISTRY.pop("test.conflicting", None)
 
 
 def test_register_profile_tools_enforces_owner_tag() -> None:
