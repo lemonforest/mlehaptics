@@ -449,3 +449,4 @@
 {"exposed_as": "srmech.amsc.rational.rational_reconstruct", "defined_at": "srmech.amsc.rational.rational_reconstruct", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.elliptic_gosper.elliptic_gosper", "defined_at": "srmech.amsc.elliptic_gosper.elliptic_gosper", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.ellbase.elliptic_lagrange_basis", "defined_at": "srmech.amsc.ellbase.elliptic_lagrange_basis", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7", "defined_at": "srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7", "bucket": "c_dispatched"}

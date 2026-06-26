@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc67"
-#define SRMECH_VERSION       "0.9.0rc67"
+#define SRMECH_VERSION_PRE   "rc68"
+#define SRMECH_VERSION       "0.9.0rc68"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3759,6 +3759,81 @@ srmech_status_t srmech_elliptic_lagrange_basis(size_t n_syms, int varsym, int ps
                                                uint32_t coeff_cap,
                                                srmech_bigint_t *out_coeff_num,
                                                srmech_bigint_t *out_coeff_den,
+                                               int32_t *out_exps_flat,
+                                               size_t out_exps_cap_rows,
+                                               size_t *out_n_num, size_t *out_n_den,
+                                               void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_elliptic_recurrence_8w7 — the ELLIPTIC Sigma-row ORDER-1 RECURRENCE op for the
+ * Frenkel–Turaev ₈ω₇ summation. The C peer of
+ * srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7 — a 1:1 STRUCTURAL MIRROR of
+ * the pure-Python recognize-decompose-construct pipeline (NOT a coefficient nullspace
+ * solve, which is provably dead for the elliptic case; the anti-brute-force discipline).
+ *
+ * Input: the ₈ω₇ summand's TERM RATIO t(n+1)/t(n) = r(x) (x = q^n) as a full EllRatio (a
+ * theta-quotient prod theta(a x;p)/prod theta(b x;p) over an exact-Q monomial prefactor).
+ * The wire form mirrors srmech_elliptic_gosper but ADDS the y interned index (the
+ * recurrence axis y = q^n): the interned symbol-table dimension `n_syms` + the x/p/q/y
+ * interned indices (-1 if absent) + the num/den theta counts + the flat exact-Q coeff
+ * arrays + the flat int32 exponent rows (in the order prefactor, num0..K-1, den0..L-1).
+ * `coeff_cap` is the per-bigint limb cap.
+ *
+ * Output: when r is a canonical ₈ω₇, the order-1 recurrence COEFFICIENT rho (a full
+ * EllRatio in y = q^n: its prefactor exact-Q coeff into out_pref_num/out_pref_den + its
+ * exponent row, then the num/den canonical theta-argument exponent rows into
+ * out_exps_flat, per-side counts in out_n_num/out_n_den) such that f(n+1) = rho(n)*f(n);
+ * else *out_has = 0.
+ *
+ * The GENUINE pipeline (mirrors _elliptic_recurrence_8w7_pure):
+ *   (1) RECOGNIZE + DECOMPOSE the very-well-poised ₈ω₇: the unique den factor
+ *       theta(a x^2) (x-exponent magnitude 2) gives the base a; the linear den factors
+ *       theta(a q x u^-1) (x-exponent magnitude 1) give aq*real_base^-1 = u; drop the
+ *       (q)-factor (u == a) + the y-carrying (n-dependent) params, leaving the three FREE
+ *       params [b, c, d]. Out of class (no unique quadratic core / != 3 free) -> *out_has=0.
+ *   (2) CONSTRUCT rho from the elementary symmetric functions s2 = {bc, bd, cd}, s3 = bcd
+ *       (Warnaar, Constr. Approx. 18 (2002) 479-502, Cor 2.2): num endpoints
+ *       {aq} U {aq/bc, aq/bd, aq/cd}; den {aq/b, aq/c, aq/d} U {aq/bcd}; rho =
+ *       prod theta(end*y;p) over num / prod theta(end*y;p) over den. The construction IS
+ *       the answer (decompose-and-compute, no undetermined-coefficient solve).
+ *
+ * The VERIFICATION GATE (rho(n) == f(n+1)/f(n) for the ₈ω₇ sum) is on the PYTHON side (it
+ * needs the truncated-theta eval oracle); the C peer constructs the EXACT rho and the
+ * Python trusts it ONLY after rebuilding it byte-for-byte AND re-running the gate in exact
+ * Q. A *out_has = 0 is NEVER a definitive "no recurrence" (the Python re-decides on its
+ * COMPLETE pure path); on any overflow / too-small arena the peer returns
+ * SRMECH_ERR_OVERFLOW and the Python re-runs the pure path. A required NULL pointer ->
+ * SRMECH_ERR_NULL_ARG.
+ *
+ * Reference (MPM-verified at build): S. Ole Warnaar, "Summation and transformation
+ * formulas for elliptic hypergeometric series," Constr. Approx. 18 (2002) 479-502
+ * (arXiv:math/0001006), Corollary 2.2.
+ *
+ * PURE COMPOSITION of the shared srmech_ellbase_* exact-Q monomial algebra + er_build
+ * (the same single copy srmech_elliptic_gosper / srmech_ellratio_is_elliptic ride).
+ * Malloc-free (JPL Rule 3): caller arena `ws` only. The "magnitude 2 / magnitude 1"
+ * x-power test is a Class-K parity branch (e == mag || e == -mag), never abs()/fabs().
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ---- */
+
+/* Minimum `ws_len` BYTES srmech_elliptic_recurrence_8w7 needs for the given shape (n_syms
+ * symbols, n_num + n_den input theta factors, coeff_limbs the per-coefficient
+ * significant-limb estimate). */
+size_t srmech_elliptic_recurrence_8w7_ws_bound(size_t n_syms, size_t n_num, size_t n_den,
+                                               size_t coeff_cap);
+
+/* The per-coefficient limb cap for each srmech_bigint in the OUTPUT (the rho prefactor). */
+size_t srmech_elliptic_recurrence_8w7_out_cap(size_t coeff_limbs);
+
+/* Find the order-1 ₈ω₇ recurrence coefficient rho (see above). */
+srmech_status_t srmech_elliptic_recurrence_8w7(size_t n_syms, int xsym, int psym,
+                                               int qsym, int ysym,
+                                               size_t n_num, size_t n_den,
+                                               const srmech_bigint_t *coeff_num,
+                                               const srmech_bigint_t *coeff_den,
+                                               const int32_t *exps_flat,
+                                               uint32_t coeff_cap, int *out_has,
+                                               srmech_bigint_t *out_pref_num,
+                                               srmech_bigint_t *out_pref_den,
                                                int32_t *out_exps_flat,
                                                size_t out_exps_cap_rows,
                                                size_t *out_n_num, size_t *out_n_den,
