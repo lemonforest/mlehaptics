@@ -2306,6 +2306,39 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_elliptic_recurrence_8w7.restype = ctypes.c_int
 
+    # rc69: srmech_carrier_spectrum — the OPERAND-side dual of the_one (the C peer of
+    # srmech.amsc.carrier_spectrum.carrier_spectrum). The carrier element rides as the
+    # SAME full EllRatio wire form srmech_elliptic_recurrence_8w7 parses (n_syms + the
+    # x/p/q/y interned indices + the num/den theta counts + the flat exact-Q coeff arrays
+    # + the flat int32 exponent rows). The channel READ comes back as the distinct
+    # x-exponents (out_cyclic[] + out_n_cyclic) + the per-theta q-stripped block-label
+    # exponent rows (out_block_flat + out_n_thetas). The Python rebuilds + re-verifies
+    # the spectrum byte-for-byte. NEW symbols -> hasattr-guarded; ABI stays 3.
+    #   size_t srmech_carrier_spectrum_ws_bound(n_syms, n_num, n_den, coeff_cap)
+    if hasattr(lib, "srmech_carrier_spectrum_ws_bound"):
+        lib.srmech_carrier_spectrum_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_carrier_spectrum_ws_bound.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_carrier_spectrum"):
+        _csbi = ctypes.POINTER(_SrmechBigint)
+        lib.srmech_carrier_spectrum.argtypes = [
+            ctypes.c_size_t,                     # n_syms
+            ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,  # xsym, psym, qsym, ysym
+            ctypes.c_size_t, ctypes.c_size_t,    # n_num, n_den
+            _csbi, _csbi,                        # coeff_num, coeff_den (flat)
+            ctypes.POINTER(ctypes.c_int32),      # exps_flat
+            ctypes.c_uint32,                     # coeff_cap
+            ctypes.POINTER(ctypes.c_int),        # out_has
+            ctypes.POINTER(ctypes.c_int32),      # out_cyclic
+            ctypes.c_size_t,                     # cyclic_cap
+            ctypes.POINTER(ctypes.c_size_t),     # out_n_cyclic
+            ctypes.POINTER(ctypes.c_int32),      # out_block_flat
+            ctypes.c_size_t,                     # block_cap_rows
+            ctypes.POINTER(ctypes.c_size_t),     # out_n_thetas
+            ctypes.c_void_p, ctypes.c_size_t,    # ws, ws_len
+        ]
+        lib.srmech_carrier_spectrum.restype = ctypes.c_int
+
     # rc42: srmech_zeilberger — Zeilberger's creative telescoping (the §76 telescope
     # Sigma-row's SECOND public op). The four BIVARIATE term ratios ride as flat
     # (num, den) coefficient arrays (k-then-n order) + a per-k length array + the
@@ -4251,6 +4284,127 @@ def elliptic_recurrence_8w7_c(ratio_form):
         "den": [(1, 1, _exps_from_row(rows[1 + cnn + i])) for i in range(cnd)],
     }
     return True, rho_form
+
+
+# ----------------------------------------------------------------------
+# rc69: srmech_carrier_spectrum — the OPERAND-side dual of the_one. The carrier element
+# rides as the SAME full EllRatio wire form srmech_elliptic_recurrence_8w7 parses; the
+# native peer returns the channel READ (the cyclic σ-eigenspectrum x-exponents + the
+# per-theta q-stripped block-label rows). The Python rebuilds the cyclic dict + groups
+# the thetas by block, trusting the native result ONLY after the pure rebuild reproduces
+# the SAME spectrum byte-for-byte. A has=0 (p absent / over scope) -> Python pure path.
+# ----------------------------------------------------------------------
+
+_CARRIER_SPECTRUM_SYMS = ("srmech_carrier_spectrum_ws_bound",)
+# x (the cyclic axis read), p (the nome the theta-canon writes), q (stripped for the
+# σ-invariant block label), y (the second period direction) are forced into the table.
+_CS_FORCE_SYMS = ("p", "q", "x", "y")
+
+
+def has_native_carrier_spectrum() -> bool:
+    """True iff the rc69 srmech_carrier_spectrum op + its ws sizer are loaded + bound.
+    False on a no-C or pre-rc69 lib — the pure-Python
+    ``srmech.amsc.carrier_spectrum.CarrierSpectrum`` channel read is the complete
+    alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _CARRIER_SPECTRUM_SYMS) and hasattr(
+        LIB, "srmech_carrier_spectrum"
+    )
+
+
+def carrier_spectrum_c(ratio_form):
+    """Native channel read of the carrier element ``ratio_form`` →
+    ``(cyclic, blocks)`` or ``None`` if the native symbols are absent. ``ratio_form`` is
+    the dict :func:`srmech.amsc.carrier_spectrum._ratio_to_form` emits (``prefactor`` =
+    ``(coeff_num, coeff_den, [(sym, exp), …])``; ``num`` / ``den`` = theta-argument
+    monomial triples). ``cyclic`` = ``{x-exponent k: 'q**k'}`` (the σ-eigenspectrum);
+    ``blocks`` = ``{block-label tuple: [[theta-arg exponent dict], …]}`` (the σ-invariant
+    p-character partition). The Python caller re-verifies against its pure read."""
+    if not has_native_carrier_spectrum():
+        return None
+    pref_num, pref_den, pref_exps = ratio_form["prefactor"]
+    if pref_den == 0:
+        raise ValueError("carrier_spectrum_c: the prefactor coefficient denominator "
+                         "must be nonzero")
+    num_monos = ratio_form["num"]
+    den_monos = ratio_form["den"]
+    n_num = len(num_monos)
+    n_den = len(den_monos)
+    monos = [(pref_num, pref_den, pref_exps)] + list(num_monos) + list(den_monos)
+    syms = set(_CS_FORCE_SYMS)
+    for _cn, _cd, exps in monos:
+        syms.update(s for s, _e in exps)
+    sym_list = sorted(syms)
+    idx = {s: i for i, s in enumerate(sym_list)}
+    n_syms = len(sym_list)
+
+    def _row(exps):
+        r = [0] * n_syms
+        for s, e in exps:
+            r[idx[s]] = e
+        return r
+
+    cl = 2
+    for cn, cd, _e in monos:
+        cl = max(cl, len(str(cn).lstrip("-")) // 9 + 2, len(str(cd)) // 9 + 2)
+    work_cap = cl + 16
+    ws_len = int(LIB.srmech_carrier_spectrum_ws_bound(
+        ctypes.c_size_t(n_syms), ctypes.c_size_t(n_num),
+        ctypes.c_size_t(n_den), ctypes.c_size_t(work_cap)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    n_mono = len(monos)
+    num_arr = (_SrmechBigint * max(n_mono, 1))()
+    den_arr = (_SrmechBigint * max(n_mono, 1))()
+    keep = []
+    exps_flat = []
+    for i, (cn, cd, exps) in enumerate(monos):
+        bn, kbn = _bigint_from_int(int(cn), work_cap)
+        bd, kbd = _bigint_from_int(int(cd), work_cap)
+        num_arr[i] = bn
+        den_arr[i] = bd
+        keep.append(kbn)
+        keep.append(kbd)
+        exps_flat.extend(_row(exps))
+    exps_c = (ctypes.c_int32 * max(len(exps_flat), 1))(*exps_flat)
+    n_thetas_total = n_num + n_den
+    cyclic_cap = n_syms + n_thetas_total + 8
+    block_cap_rows = n_thetas_total + 1
+    out_cyclic = (ctypes.c_int32 * max(cyclic_cap, 1))()
+    out_block = (ctypes.c_int32 * max(block_cap_rows * n_syms, 1))()
+    out_n_cyclic = ctypes.c_size_t(0)
+    out_n_thetas = ctypes.c_size_t(0)
+    has = ctypes.c_int(0)
+    rc = LIB.srmech_carrier_spectrum(
+        ctypes.c_size_t(n_syms),
+        ctypes.c_int(idx.get("x", -1)), ctypes.c_int(idx.get("p", -1)),
+        ctypes.c_int(idx.get("q", -1)), ctypes.c_int(idx.get("y", -1)),
+        ctypes.c_size_t(n_num), ctypes.c_size_t(n_den),
+        num_arr, den_arr, exps_c, ctypes.c_uint32(work_cap),
+        ctypes.byref(has),
+        out_cyclic, ctypes.c_size_t(cyclic_cap), ctypes.byref(out_n_cyclic),
+        out_block, ctypes.c_size_t(block_cap_rows), ctypes.byref(out_n_thetas),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_carrier_spectrum returned non-OK status {rc}")
+    if not has.value:
+        return None
+    ncy = out_n_cyclic.value
+    cyclic = {int(out_cyclic[i]): f"q**{int(out_cyclic[i])}" for i in range(ncy)}
+    # group the per-theta block rows by their (q-stripped) block label.
+    nth = out_n_thetas.value
+    blocks = {}
+    for r in range(nth):
+        row = out_block[r * n_syms:(r + 1) * n_syms]
+        label = tuple(sorted((sym_list[j], int(row[j]))
+                             for j in range(n_syms) if int(row[j]) != 0))
+        # the theta argument exponent map (the original, NOT the block label) — the input
+        # mono for this theta (num then den, in the input order).
+        cn, cd, exps = monos[1 + r]
+        arg_map = {s: e for s, e in exps}
+        blocks.setdefault(label, []).append([arg_map])
+    return cyclic, blocks
 
 
 # ----------------------------------------------------------------------
