@@ -683,10 +683,20 @@ class EllRatio:
 
 
 def elliptic_lagrange_basis(points: "List[EllMonomial]",
-                            multiplier: EllMonomial) -> "List[EllRatio]":
+                            multiplier: EllMonomial,
+                            var: str = _X) -> "List[EllRatio]":
     """The elliptic Lagrange interpolation basis of degree ``k = len(points)`` over the
-    space ``V_t = {f analytic on ℂ* : f(p·x) = t·x^{-k}·f(x)}`` of higher-order theta
-    functions.
+    space ``V_t = {f analytic on ℂ* : f(p·z) = t·z^{-k}·f(z)}`` of higher-order theta
+    functions in the variable ``z = var``.
+
+    ``var`` selects the interpolation variable (default ``_X``, the summation axis). It is
+    fully variable-agnostic: pass ``var=_Y`` to build the DUAL basis on the recurrence axis
+    ``y = qⁿ``. The elliptic Zeilberger certificate factors as ``R(x,y) = R_x(x)·R_y(y)``
+    (the order-0 keystone certificate's x-dependent thetas carry only ``{b,q}`` while its
+    x-free thetas carry only ``{a,y}`` — clean decoupling), with BOTH factors balanced
+    (elliptic in their own variable). So the y-side recurrence coefficients ``aⱼ(y)`` live
+    in a ``V_{t_y}`` spanned by ``elliptic_lagrange_basis(…, var=_Y)`` exactly as ``R_x``'s
+    numerator lives in ``V_{t_x}`` on x — the x/y operand DUALITY made constructive.
 
     Source (MPM-verified at build against the actual PDF): Hjalmar Rosengren, *Elliptic
     Hypergeometric Functions* (Lectures at OPSF-S6, arXiv:1608.06161v3 [math.CA]), §1.3
@@ -722,7 +732,7 @@ def elliptic_lagrange_basis(points: "List[EllMonomial]",
     k = len(pts)
     if k == 0:
         raise ValueError("elliptic_lagrange_basis: need at least one interpolation point")
-    x = EllMonomial.symbol(_X)
+    x = EllMonomial.symbol(var)                            # the interpolation axis (x or the y-dual)
     sign_k = EllMonomial.scalar(Q((-1) ** k, 1))           # (−1)^k as an exact Q monomial
     basis: "List[EllRatio]" = []
     for i in range(k):

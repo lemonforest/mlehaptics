@@ -17,9 +17,11 @@ import pytest
 
 from srmech.amsc.ellbase import (EllMonomial as M, Theta, EllRatio as R, _X, _P,
                                  elliptic_lagrange_basis)
+from srmech.amsc.thetasum import _Y
 from srmech.amsc.q import Q
 
 _x = M.symbol(_X)
+_y = M.symbol(_Y)
 
 
 def test_multiplier_is_exactly_t_x_minus_k():
@@ -87,3 +89,45 @@ def test_degree_one_basis():
 def test_empty_points_rejected():
     with pytest.raises(ValueError):
         elliptic_lagrange_basis([], M.symbol("t"))
+
+
+# ── the DUAL y-axis basis (var=_Y) — the operand x/y duality made constructive ──────
+
+def test_y_dual_basis_multiplier_and_balancing():
+    """``var=_Y`` builds the DUAL Lagrange basis on the recurrence axis ``y = qⁿ`` — the
+    same Cor 1.3.5 construction, one variable up. Every L_i must have multiplier EXACTLY
+    ``t·y^{-k}`` under ``y -> p·y`` and product-of-zeros ``(-1)^k·t``, with its thetas built
+    in ``_Y`` (NOT ``_X``). This is what lets the elliptic Zeilberger recurrence coefficients
+    ``aⱼ(y)`` be parametrized over a y-Lagrange basis, dual to the x-side certificate."""
+    u = [M.symbol("w1"), M.symbol("w2"), M.symbol("w3")]
+    t = M.symbol("t"); k = 3
+    target = t * M.symbol(_Y, -k)
+    sgn = M.scalar(Q((-1) ** k, 1))
+    basis = elliptic_lagrange_basis(u, t, var=_Y)
+    assert len(basis) == k
+    for L in basis:
+        assert len(L.num) == k and not L.den
+        pref = M.one(); prod = M.one()
+        for th in L.num:
+            assert th.arg.exp_of(_Y) != 0 and th.arg.exp_of(_X) == 0   # built in y, NOT x
+            c = _y * th.arg.inv()                                      # the pole c of theta(y/c)
+            pref = pref * (M.scalar(Q(-1, 1)) * c * M.symbol(_Y, -1))
+            prod = prod * c
+        assert pref == target                                         # multiplier t*y^{-k}
+        assert prod == sgn * t                                        # balancing (-1)^k * t
+
+
+def test_y_dual_basis_zero_placement():
+    """The y-dual basis interpolates on the y-axis: L_i(w_j) = 0 for j != i, != 0 at w_i —
+    exact via the carrier's ``eval_trunc`` over ``_Y`` (theta(1;p)=0 exactly)."""
+    wv = [Q(2, 1), Q(5, 1), Q(3, 1)]
+    u = [M.scalar(v) for v in wv]
+    t = M.scalar(Q(7, 1)); pval = Q(1, 7)
+    basis = elliptic_lagrange_basis(u, t, var=_Y)
+    for i, L in enumerate(basis):
+        for j, wjv in enumerate(wv):
+            val = L.eval_trunc({_Y: wjv, _P: pval}, 24)
+            if i == j:
+                assert val != Q(0, 1)
+            else:
+                assert val == Q(0, 1)
