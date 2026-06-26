@@ -144,6 +144,7 @@ static srmech_status_t elb_bind_persist(srmech_ell_ctx_t *c, elb_persist_t *p, s
 {
     srmech_status_t st;
     assert(c != NULL && p != NULL && k >= 1u);
+    assert(c->n_syms >= 1u && c->cap >= 1u);
     st = elb_bind_mono_arr(c, &p->pts, k);
     if (st == SRMECH_OK) { st = elb_bind_mono(c, &p->mult); }
     if (st == SRMECH_OK) { st = elb_bind_mono(c, &p->signk); }
@@ -157,6 +158,7 @@ static srmech_status_t elb_bind_work(srmech_ell_ctx_t *c, elb_work_t *w, size_t 
 {
     srmech_status_t st;
     assert(c != NULL && w != NULL && k >= 1u);
+    assert(c->n_syms >= 1u);
     st = elb_bind_mono(c, &w->prod);
     if (st == SRMECH_OK) { st = elb_bind_mono(c, &w->vi); }
     if (st == SRMECH_OK) { st = elb_bind_mono(c, &w->tmp); }
@@ -302,6 +304,7 @@ static srmech_status_t elb_one_element(srmech_ell_ctx_t *c, const elb_persist_t 
     size_t saved = c->pool_cur;
     srmech_status_t st;
     assert(c != NULL && p != NULL && i < k);
+    assert(out_n_num != NULL && out_n_den != NULL && row != NULL);
     st = elb_bind_work(c, &w, k);
     if (st != SRMECH_OK) { return st; }
     st = elb_prod_others(c, &w, p, k, i);
