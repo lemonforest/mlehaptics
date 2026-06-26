@@ -515,6 +515,21 @@ class EllRatio:
         """True iff the ratio is exactly ``1`` (unit prefactor, no thetas)."""
         return self._pref.is_unit and not self._num and not self._den
 
+    @property
+    def weight(self) -> Q:
+        """The modular WEIGHT of this term-ratio on the operand ladder. A BALANCED
+        theta-quotient (equal numerator/denominator theta count — the
+        very-well-poised / elliptic case :meth:`is_elliptic` gates on) is a genuine
+        elliptic function on ``ℂ*/⟨p⟩``, hence **weight 0** (the ladder before
+        :class:`srmech.amsc.unary_theta.UnaryTheta` is entirely weight-0). The
+        weight axis is the new grade the unary-theta carrier introduces: ``θ(z;p)``
+        carries weight ``1/2`` per factor, so a ratio with ``#num − #den`` net theta
+        factors has weight ``(#num − #den)/2``; a balanced ratio is weight 0.
+
+        Returns the exact :class:`~srmech.amsc.q.Q` net weight ``(len(num) −
+        len(den)) / 2`` (``Q(0)`` for the balanced / elliptic case)."""
+        return Q(len(self._num) - len(self._den), 2)
+
     # ── exact multiplicative algebra ─────────────────────────────────────────
     def __mul__(self, other) -> "EllRatio":
         if isinstance(other, EllRatio):

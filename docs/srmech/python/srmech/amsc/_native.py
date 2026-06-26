@@ -1904,6 +1904,33 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.c_void_p, ctypes.c_size_t,
         ]
         lib.srmech_poly_shift.restype = ctypes.c_int
+    # rc70: the EXACT-INTEGER UNARY THETA q-series C peer (srmech_unary_theta) —
+    # the first WEIGHT-GRADED carrier. Computes out[e]=Σ_{n:E(n)=e} χ(n)·n^j over
+    # caller-arena srmech_bigint (the same exact-integer substrate as poly; no
+    # int64 ceiling on the coefficient n^j). NEW symbols → hasattr-guarded;
+    # additive → EXPECTED_ABI_VERSION stays 3.
+    #   size_t srmech_unary_theta_ws_bound(uint32_t j, size_t coeff_limbs)
+    if hasattr(lib, "srmech_unary_theta_ws_bound"):
+        lib.srmech_unary_theta_ws_bound.argtypes = [
+            ctypes.c_uint32, ctypes.c_size_t]
+        lib.srmech_unary_theta_ws_bound.restype = ctypes.c_size_t
+    #   srmech_unary_theta_q_series(modulus, chi_table, j, a, b, D, support, N,
+    #                               out[], *out_len, ws, ws_len)
+    if hasattr(lib, "srmech_unary_theta_q_series"):
+        lib.srmech_unary_theta_q_series.argtypes = [
+            ctypes.c_uint32,                  # modulus
+            ctypes.POINTER(ctypes.c_int32),   # chi_table[modulus]
+            ctypes.c_uint32,                  # j
+            ctypes.c_int64,                   # a
+            ctypes.c_int64,                   # b
+            ctypes.c_uint32,                  # D
+            ctypes.c_int,                     # support (0/1/2)
+            ctypes.c_size_t,                  # N
+            ctypes.POINTER(_SrmechBigint),    # out[]
+            ctypes.POINTER(ctypes.c_size_t),  # *out_len
+            ctypes.c_void_p, ctypes.c_size_t, # ws, ws_len
+        ]
+        lib.srmech_unary_theta_q_series.restype = ctypes.c_int
     # rc54: the EXACT q-shift CARRIER C peer (srmech_qpoly_*) — the q-analog of
     # the poly carrier, the q-hypergeometric F929 reduction-row foundation. A
     # QPoly is a ROW of q-Poly cells over an x-window; the bridge flattens the
@@ -3026,6 +3053,91 @@ def poly_shift_c(p_coeffs, h):
     if rc != SRMECH_OK:
         raise RuntimeError(f"srmech_poly_shift returned non-OK status {rc}")
     return _poly_read_array(o_n, o_d, out_len.value)
+
+
+# ----------------------------------------------------------------------
+# rc70: the EXACT-INTEGER UNARY THETA q-series C peer (srmech_unary_theta) — the
+# first WEIGHT-GRADED carrier. The Python srmech.amsc.unary_theta.UnaryTheta
+# routes its q_series through this when has_native_unary_theta(); the pure-Python
+# body is the COMPLETE alternative (and the parity oracle) — both emit
+# byte-identical exact integer coefficients at any magnitude (n^j is full bignum,
+# no int64 ceiling).
+# ----------------------------------------------------------------------
+
+_SUPPORT_CODE = {"all": 0, "positive": 1, "nonneg": 2}
+
+
+def _int_isqrt(x: int) -> int:
+    """Integer floor-sqrt of a non-negative ``x`` (bisection, no float) — used
+    ONLY to over-bound the per-coefficient limb cap for the unary-theta marshal
+    (the marshalling layer stays float-free)."""
+    if x < 2:
+        return x if x >= 0 else 0
+    lo, hi = 0, x
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if mid * mid <= x:
+            lo = mid
+        else:
+            hi = mid - 1
+    return lo
+
+
+def has_native_unary_theta() -> bool:
+    """True iff the rc70 ``srmech_unary_theta_q_series`` peer + the
+    ``srmech_bigint`` decimal-marshal helpers are loaded + bound. False on a
+    no-C / pre-rc70 lib — the pure-Python ``srmech.amsc.unary_theta.UnaryTheta``
+    body is the complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (all(hasattr(LIB, s) for s in _POLY_SYMS)
+            and hasattr(LIB, "srmech_unary_theta_q_series")
+            and hasattr(LIB, "srmech_unary_theta_ws_bound"))
+
+
+def unary_theta_q_series_c(modulus, chi_table, j, a, b, D, support, N):
+    """Native exact-integer unary-theta q-series → a list of ``N + 1`` Python-int
+    coefficients (the series after the leading-power factor-out), or ``None`` if
+    the native symbols are absent. ``chi_table`` is a length-``modulus`` sequence
+    of ``χ(r) ∈ {−1, 0, 1}``; ``support`` is ``'all'`` / ``'positive'`` /
+    ``'nonneg'``."""
+    if not has_native_unary_theta():
+        return None
+    sup = _SUPPORT_CODE.get(support)
+    if sup is None:
+        raise ValueError(f"unary_theta_q_series_c: bad support {support!r}")
+    # per-coefficient limb cap: the largest coefficient is bounded by
+    # (#terms)·(nmax^j); size generously from N, j, a, D (9 dec digits ≈ 1 limb).
+    # nmax ~ √((lead+N·D)/a); over-estimate it with an INTEGER floor-sqrt (no
+    # float in the marshalling layer either). A coarse digit estimate is then
+    # j·(digits of nmax) + digits of the term count — pad hard.
+    bound = max(N, 1) * D + 4 * a
+    nmax_est = _int_isqrt(bound) + 4                 # integer over-bound on |n|
+    coeff_digits = j * (len(str(nmax_est)) + 1) + len(str(2 * nmax_est + 4)) + 4
+    out_cap = coeff_digits // 9 + 8
+    cl = out_cap
+    ws_len = int(LIB.srmech_unary_theta_ws_bound(
+        ctypes.c_uint32(int(j)), ctypes.c_size_t(cl)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    # the χ table as an int32 C array
+    tab = (ctypes.c_int32 * max(modulus, 1))()
+    for i in range(modulus):
+        tab[i] = int(chi_table[i])
+    # the out[] array of N+1 blank bigints, each cap out_cap
+    o_n, _o_d, ko = _poly_blank_array(N + 1, out_cap)
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_unary_theta_q_series(
+        ctypes.c_uint32(int(modulus)), tab, ctypes.c_uint32(int(j)),
+        ctypes.c_int64(int(a)), ctypes.c_int64(int(b)), ctypes.c_uint32(int(D)),
+        ctypes.c_int(int(sup)), ctypes.c_size_t(int(N)),
+        o_n, ctypes.byref(out_len),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (ko, tab)
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_unary_theta_q_series returned non-OK status {rc}")
+    return [_bigint_to_int(o_n[i]) for i in range(out_len.value)]
 
 
 def has_native_poly_gcd() -> bool:
