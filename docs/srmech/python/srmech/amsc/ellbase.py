@@ -727,7 +727,24 @@ def elliptic_lagrange_basis(points: "List[EllMonomial]",
     (the unknown elliptic certificate's numerator lives in such a ``V_t``). Returns the
     ``k`` basis :class:`EllRatio` theta-products (un-normalized; the ``c_i`` absorb the
     scale). Exact over the modified-theta algebra — no float, no ``abs()`` (sign is the
-    Class-K pin-slot), no ``math`` / numpy."""
+    Class-K pin-slot), no ``math`` / numpy.
+
+    DISPATCHES to the native ``srmech_elliptic_lagrange_basis`` C peer when it is
+    loaded (a 1:1 structural mirror of this exact construction — the C basis EQUALS
+    the Python basis byte-for-byte, so it is trusted unconditionally); otherwise the
+    pure-Python :func:`_elliptic_lagrange_basis_py` body builds it (it is the COMPLETE
+    alternative + the C peer's parity oracle)."""
+    c = _elliptic_lagrange_basis_c(points, multiplier, var)
+    if c is not None:
+        return c
+    return _elliptic_lagrange_basis_py(points, multiplier, var)
+
+
+def _elliptic_lagrange_basis_py(points: "List[EllMonomial]",
+                                multiplier: EllMonomial,
+                                var: str = _X) -> "List[EllRatio]":
+    """The COMPLETE pure-Python ``elliptic_lagrange_basis`` construction (the parity
+    oracle for the C peer): the ``k`` basis :class:`EllRatio` theta-products."""
     pts = list(points)
     k = len(pts)
     if k == 0:
@@ -744,3 +761,68 @@ def elliptic_lagrange_basis(points: "List[EllMonomial]",
         thetas = [Theta(x * u.inv()) for u in others] + [Theta(x * v_i.inv())]
         basis.append(EllRatio(num=thetas))
     return basis
+
+
+def _mono_to_form(m: EllMonomial, idx: "Mapping[str, int]", n_syms: int) -> "Tuple":
+    """Marshal an :class:`EllMonomial` to the C wire triple ``(coeff_num, coeff_den,
+    dense_exps_row)`` over the interned symbol table ``idx`` (a length-``n_syms`` int
+    row, the Python sorted-symbol-NAME order so the C dense vector reproduces
+    :meth:`EllMonomial._sort_key`)."""
+    row = [0] * n_syms
+    for s, e in m.exps.items():
+        row[idx[s]] = e
+    return (m.coeff.numerator, m.coeff.denominator, row)
+
+
+def _ellratio_from_form(form, sym_list: "List[str]") -> "EllRatio":
+    """Rebuild a canonical :class:`EllRatio` from the C bridge form (a dict with a
+    ``prefactor`` ``(coeff_num, coeff_den, exps_row)`` triple + ``num`` / ``den`` lists
+    of the SAME ``(coeff_num, coeff_den, exps_row)`` triples — the theta ARGUMENT
+    coefficient travels with each row, since the balancing arg ``z·v_i^{-1}`` carries a
+    non-unit Class-K sign). The C rows are ALREADY canonical (p-exponent 0, oriented,
+    cancelled, sorted), so :meth:`EllRatio._wrap` wraps them with NO re-canonicalization
+    — byte-exact to the Python carrier."""
+    n_syms = len(sym_list)
+
+    def _mono(triple) -> EllMonomial:
+        coeff_num, coeff_den, row = triple
+        exps = {sym_list[j]: int(row[j]) for j in range(n_syms) if row[j] != 0}
+        return EllMonomial(Q(int(coeff_num), int(coeff_den)), exps)
+
+    pref = _mono(form["prefactor"])
+    num = tuple(Theta(_mono(t)) for t in form["num"])
+    den = tuple(Theta(_mono(t)) for t in form["den"])
+    return EllRatio._wrap(pref, num, den)
+
+
+def _elliptic_lagrange_basis_c(points: "List[EllMonomial]",
+                               multiplier: EllMonomial,
+                               var: str = _X) -> "List[EllRatio] | None":
+    """Dispatch the basis construction to the native ``srmech_elliptic_lagrange_basis``
+    C peer → the ``k`` basis :class:`EllRatio`, or ``None`` when the native symbols are
+    absent (the caller falls to :func:`_elliptic_lagrange_basis_py`). The interned
+    symbol universe MUST include ``var`` AND ``p``: the C sets ``z = symbol(var)`` off
+    ``varsym`` and the :meth:`Theta.canonicalize` quasi-periodicity rewrite reads/writes
+    ``p`` off ``psym`` — without those slots the C would silently mis-build (mirrors the
+    same forcing in :meth:`EllRatio._is_elliptic_c`)."""
+    from . import _native as _nat
+    if not _nat.has_native_elliptic_lagrange_basis():
+        return None
+    pts = list(points)
+    k = len(pts)
+    if k == 0:
+        raise ValueError("elliptic_lagrange_basis: need at least one interpolation point")
+    syms: "set" = {var, _P}
+    for u in pts:
+        syms.update(u.exps.keys())
+    syms.update(multiplier.exps.keys())
+    sym_list = sorted(syms)
+    idx = {s: i for i, s in enumerate(sym_list)}
+    n_syms = len(sym_list)
+    point_monos = [_mono_to_form(u, idx, n_syms) for u in pts]
+    mult_mono = _mono_to_form(multiplier, idx, n_syms)
+    forms = _nat.elliptic_lagrange_basis_c(
+        n_syms, idx.get(var, -1), idx.get(_P, -1), k, point_monos, mult_mono)
+    if forms is None:
+        return None
+    return [_ellratio_from_form(f, sym_list) for f in forms]

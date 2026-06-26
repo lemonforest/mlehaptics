@@ -191,3 +191,116 @@ def test_has_native_ellratio_flag_present():
     """The ``has_native_ellratio`` probe exists + returns a bool (False on a pure /
     no-C build — the pure-Python body is then the complete decider)."""
     assert isinstance(_native.has_native_ellratio(), bool)
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# rc67 — the elliptic_lagrange_basis C-peer PARITY suite.
+#
+# srmech_elliptic_lagrange_basis is a 1:1 STRUCTURAL MIRROR of the pure-Python
+# srmech.amsc.ellbase.elliptic_lagrange_basis (the rc66 carrier op, shipped Python-
+# only; its C peer is owed by the everything-mirrors same-rc discipline). This suite
+# asserts the returned basis EllRatios are BYTE-EXACT EQUAL between the Python-only
+# path and the native path, for BOTH var=_X and var=_Y, across k ∈ {1, 2, 3} and
+# symbolic + specialized interpolation points. A divergence on ANY case is a BLOCKER.
+# ════════════════════════════════════════════════════════════════════════════════
+
+from srmech.amsc.ellbase import (                                    # noqa: E402
+    elliptic_lagrange_basis,
+    _elliptic_lagrange_basis_py,
+    _elliptic_lagrange_basis_c,
+)
+
+_HAS_ELB = _native.has_native_elliptic_lagrange_basis()
+_skip_elb = pytest.mark.skipif(
+    not _HAS_ELB, reason="native srmech_elliptic_lagrange_basis not loaded")
+
+
+def _assert_basis_parity(points, multiplier, var):
+    """The native basis EQUALS the Python-only basis byte-for-byte (same length, each
+    EllRatio == its peer via the exact carrier __eq__: same prefactor + num/den
+    multisets)."""
+    py = _elliptic_lagrange_basis_py(points, multiplier, var)
+    if not _HAS_ELB:
+        return
+    c = _elliptic_lagrange_basis_c(points, multiplier, var)
+    assert c is not None, "native peer present but returned None"
+    assert len(c) == len(py), f"basis length C={len(c)} PY={len(py)} (BLOCKER)"
+    for i, (cr, pr) in enumerate(zip(c, py)):
+        assert cr == pr, (
+            f"C/Python DIVERGENCE on basis element {i}: "
+            f"C(pref={cr.prefactor!r}, num={cr.num!r}, den={cr.den!r}) != "
+            f"PY(pref={pr.prefactor!r}, num={pr.num!r}, den={pr.den!r}) (BLOCKER)")
+
+
+# ── (a) symbolic points on the x-axis (the summation axis), k = 1, 2, 3 ─────────
+@_skip_elb
+def test_basis_symbolic_x_k1():
+    _assert_basis_parity([_A], _C, "x")
+
+
+@_skip_elb
+def test_basis_symbolic_x_k2():
+    _assert_basis_parity([_A, _B], _C, "x")
+
+
+@_skip_elb
+def test_basis_symbolic_x_k3():
+    _assert_basis_parity([_A, _B, M.symbol("d")], _C, "x")
+
+
+# ── (b) the DUAL y-axis (var=_Y), same k sweep ──────────────────────────────────
+@_skip_elb
+def test_basis_symbolic_y_k1():
+    _assert_basis_parity([_A], _C, "y")
+
+
+@_skip_elb
+def test_basis_symbolic_y_k2():
+    _assert_basis_parity([_A, _B], _C, "y")
+
+
+@_skip_elb
+def test_basis_symbolic_y_k3():
+    _assert_basis_parity([_A, _B, M.symbol("d")], _C, "y")
+
+
+# ── (c) specialized (q-power) points + a non-unit rational multiplier ───────────
+@_skip_elb
+def test_basis_qpower_points_x():
+    pts = [M.symbol("q", 0), M.symbol("q", 1), M.symbol("q", 2)]   # 1, q, q²
+    _assert_basis_parity(pts, M.symbol("a"), "x")
+
+
+@_skip_elb
+def test_basis_qpower_points_y():
+    pts = [M.symbol("q", 0), M.symbol("q", 1), M.symbol("q", 2)]
+    _assert_basis_parity(pts, M.symbol("a"), "y")
+
+
+@_skip_elb
+def test_basis_rational_multiplier():
+    # a multiplier with a non-trivial exact-ℚ coefficient (the v_i balancing point
+    # carries it through the (−1)^k·t/∏ division — the Class-K sign + ℚ arithmetic).
+    mult = M(Q(-3, 5), {"a": 1})
+    _assert_basis_parity([_A, _B], mult, "x")
+
+
+# ── (d) the public op dispatches to the C peer (not a silent fallback) ──────────
+@_skip_elb
+def test_public_basis_dispatches_to_native():
+    """``has_native_elliptic_lagrange_basis`` is True AND the public op (which routes
+    through the C peer) equals the pure-Python construction byte-for-byte."""
+    assert _native.has_native_elliptic_lagrange_basis() is True
+    pts = [_A, _B, _C]
+    got = elliptic_lagrange_basis(pts, M.symbol("d"), "x")
+    want = _elliptic_lagrange_basis_py(pts, M.symbol("d"), "x")
+    assert [g == w for g, w in zip(got, want)] == [True] * len(want)
+    # the native path actually decided it (not the pure fallback).
+    native = _elliptic_lagrange_basis_c(pts, M.symbol("d"), "x")
+    assert native is not None and all(n == w for n, w in zip(native, want))
+
+
+def test_has_native_elliptic_lagrange_basis_flag_present():
+    """The ``has_native_elliptic_lagrange_basis`` probe exists + returns a bool (False
+    on a pure / no-C build — the pure-Python body is then the complete builder)."""
+    assert isinstance(_native.has_native_elliptic_lagrange_basis(), bool)
