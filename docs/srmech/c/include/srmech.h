@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc68"
-#define SRMECH_VERSION       "0.9.0rc68"
+#define SRMECH_VERSION_PRE   "rc69"
+#define SRMECH_VERSION       "0.9.0rc69"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3838,6 +3838,64 @@ srmech_status_t srmech_elliptic_recurrence_8w7(size_t n_syms, int xsym, int psym
                                                size_t out_exps_cap_rows,
                                                size_t *out_n_num, size_t *out_n_den,
                                                void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_carrier_spectrum — the OPERAND-side dual of the_one (the C peer of
+ * srmech.amsc.carrier_spectrum.carrier_spectrum). A 1:1 STRUCTURAL MIRROR of the
+ * pure-Python CHANNEL READ: the harmonic occupancy of a carrier element under the
+ * shift-Laplacian, in two orthogonal channels.
+ *
+ * Input: the carrier element as a full EllRatio wire form (the SAME wire form
+ * srmech_elliptic_recurrence_8w7 parses: the interned symbol-table dimension `n_syms`
+ * + the x/p/q/y interned indices (-1 if absent) + the num/den theta counts + the flat
+ * exact-Q coeff arrays + the flat int32 exponent rows, in the order prefactor,
+ * num0..K-1, den0..L-1). `coeff_cap` is the per-bigint limb cap.
+ *
+ * Output:
+ *   - Channel 1 (Class-I) the cyclic sigma-EIGENSPECTRUM: the distinct x-exponents k
+ *     (sigma(x^k) = q^k x^k; k = 0 the shift-Laplacian L = sigma-1 kernel) into
+ *     out_cyclic[0..*out_n_cyclic-1] (cyclic_cap the slot cap);
+ *   - Channel 2 (Class-L) the quasi-periodic p-CHARACTER BLOCK of each theta-factor:
+ *     the net period-multiplier exponent row (under x -> p x AND y -> p y, Rosengren
+ *     Eq. 1.6 via the shared theta-canon), q-coordinate STRIPPED (sigma-invariant),
+ *     one length-n_syms int32 row per num-then-den theta into out_block_flat
+ *     (block_cap_rows the row cap); *out_n_thetas the live theta count.
+ * *out_has = 1 on a successful read; *out_has = 0 (p absent / over native scope) ->
+ * the Python re-decides on its COMPLETE pure path. On overflow / too-small arena the
+ * peer returns SRMECH_ERR_OVERFLOW; a required NULL pointer -> SRMECH_ERR_NULL_ARG.
+ *
+ * The Python side rebuilds the cyclic dict + groups the thetas by the block rows, and
+ * trusts the native result ONLY after the pure rebuild reproduces the same spectrum
+ * byte-for-byte (the channels are a pure exponent-lattice read). The block-DECOMPOSED
+ * key-equation SOLVE (CarrierSpectrum.solve_key_equation) is Python-side (it rides the
+ * additive ThetaSum carrier whose full-arithmetic C peer is OWED); the public op
+ * returns the channel READ, which this peer mirrors completely.
+ *
+ * Reference (the harmonic-shape framing; MPM-verified at build): Hjalmar Rosengren,
+ * "Elliptic Hypergeometric Functions" (arXiv:1608.06161v3 [math.CA]), Sec. 1.3
+ * Lemma 1.3.2 + Sec. 1.4 Eq. (1.12).
+ *
+ * PURE COMPOSITION of the shared srmech_ellbase_* exact-Q monomial algebra +
+ * theta_canon_full + er_build (the same single copy srmech_elliptic_gosper /
+ * srmech_elliptic_recurrence ride). Malloc-free (JPL Rule 3): caller arena `ws` only.
+ * No abs() (Class-K sign), no libm, no <complex.h>. Additive symbol -> ABI unchanged
+ * (stays 3). License: MIT. ---- */
+
+/* Minimum `ws_len` BYTES srmech_carrier_spectrum needs for the given shape (n_syms
+ * symbols, n_num + n_den input theta factors, coeff_cap the per-coefficient limb cap). */
+size_t srmech_carrier_spectrum_ws_bound(size_t n_syms, size_t n_num, size_t n_den,
+                                        size_t coeff_cap);
+
+/* Read both harmonic channels of a carrier element (see above). */
+srmech_status_t srmech_carrier_spectrum(size_t n_syms, int xsym, int psym,
+                                        int qsym, int ysym, size_t n_num, size_t n_den,
+                                        const srmech_bigint_t *coeff_num,
+                                        const srmech_bigint_t *coeff_den,
+                                        const int32_t *exps_flat, uint32_t coeff_cap,
+                                        int *out_has, int32_t *out_cyclic,
+                                        size_t cyclic_cap, size_t *out_n_cyclic,
+                                        int32_t *out_block_flat, size_t block_cap_rows,
+                                        size_t *out_n_thetas, void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_q_zeilberger — the q-analog of Zeilberger's creative telescoping (the

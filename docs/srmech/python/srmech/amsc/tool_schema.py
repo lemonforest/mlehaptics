@@ -3394,6 +3394,59 @@ def _register_primitive_class_tools() -> None:
                       "OPEN residue)"),
         ),
         # ────────────────────────────────────────────────────────────
+        # carrier_spectrum — the OPERAND-side dual of the_one. Reads a
+        # carrier element's harmonic occupancy under the shift-Laplacian
+        # (the Class-L eigenbasis of the carrier's shape) and exposes the
+        # block structure that makes the elliptic key-equation solve
+        # genuinely block-decomposed. 1:1 C peer srmech_carrier_spectrum.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.carrier_spectrum.carrier_spectrum",
+            owner="srmech", category="carrier_spectrum",
+            summary="The OPERAND-side dual of the_one (S(σ,θ) is the OPERATOR "
+                    "generator — its shape IS the A–N verbs; carrier_spectrum is "
+                    "the OPERAND object — its shape is the carrier's Class-L "
+                    "shift-Laplacian eigenbasis; operator↔operand = algebra↔module "
+                    "= field↔excitation). READS a carrier element (an EllRatio "
+                    "theta-quotient) in TWO orthogonal channels: Channel 1 (Class-"
+                    "I) cyclic σ-EIGENSPECTRUM — σ=qshift (x↦q·x) is DIAGONAL on "
+                    "monomials, σ(x^k)=q^k·x^k, so the x-exponents present are the "
+                    "σ-eigen-occupancy with eigenvalue q^k (k=0 the shift-Laplacian "
+                    "L=σ−1 kernel / DC mode; the x² very-well-poised DOUBLED-BEAT "
+                    "shows as the k=±2 entries); Channel 2 (Class-L) quasi-periodic "
+                    "p-CHARACTER BLOCKS — the σ-invariant net-period quasi-"
+                    "periodicity class (Rosengren Eq. 1.6, q-stripped) partitioning "
+                    "the theta-factors; σ PRESERVES the block (the channels are "
+                    "orthogonal). The block partition is the lever that makes the "
+                    "elliptic KEY EQUATION A·σ(Y)−B(x/q)·Y=RHS (Gasper–Schlosser, "
+                    "arXiv:math/0505215) solve genuinely BLOCK-DECOMPOSED — "
+                    "CarrierSpectrum.solve_key_equation groups the certificate "
+                    "basis by p-character block and solves each block as an "
+                    "INDEPENDENT small QMat system (block(A)==block(B(x/q)) → block-"
+                    "DIAGONAL), reproducing the dense QMat solve EXACTLY but as "
+                    "Σ_b(n_b×n_b) instead of one dense n×n — NOT brute force. Refs: "
+                    "Rosengren arXiv:1608.06161v3 §1.3 Lemma 1.3.2 (period-annulus "
+                    "degree bound) + §1.4 Eq. 1.12 (Weierstrass three-term). Returns "
+                    "{'cyclic': {x-exp k: 'q**k'}, 'blocks': {block: [theta-arg "
+                    "maps]}, 'n_blocks': …, 'spectrum': CarrierSpectrum}. 1:1 C peer "
+                    "srmech_carrier_spectrum mirrors the channel read + the block-"
+                    "grouped solve over the integer theta-exponent lattice (shared "
+                    "srmech_ellbase_* + srmech_qmat_rref); the Python trusts a "
+                    "native result ONLY after the pure rebuild reproduces the same "
+                    "spectrum (a miss → pure path). Exact bigint; no float, no abs() "
+                    "(Class-K sign), no numpy / math.",
+            parameters=(P("r", "EllRatio", True,
+                          "the carrier element to read — an EllRatio (a theta-"
+                          "quotient over an exact-ℚ monomial prefactor; an "
+                          "EllMonomial / Theta is lifted)"),),
+            returns=R("dict",
+                      "{'cyclic': {x-exponent k: 'q**k'} (the σ-eigenspectrum, "
+                      "Channel 1), 'blocks': {block label: [[theta-arg exponent "
+                      "map], …]} (the σ-invariant p-character partition, Channel 2), "
+                      "'n_blocks': int, 'spectrum': CarrierSpectrum (the live carrier "
+                      "for inspect / solve_key_equation)}"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # Foundational cross-domain cascade catalog (v0.4.3rc6).
         # The cascades recurring across every/most domains, promoted so a
         # named cascade is the default and a math-library call the exception.
