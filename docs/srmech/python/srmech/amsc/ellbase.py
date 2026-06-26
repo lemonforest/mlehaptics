@@ -61,7 +61,7 @@ from typing import Dict, Iterable, List, Mapping, Tuple
 
 from .q import Q
 
-__all__ = ["EllMonomial", "Theta", "EllRatio"]
+__all__ = ["EllMonomial", "Theta", "EllRatio", "elliptic_lagrange_basis"]
 
 _Q_ZERO = Q(0, 1)
 _Q_ONE = Q(1, 1)
@@ -677,3 +677,70 @@ class EllRatio:
                 raise ZeroDivisionError("EllRatio.eval_trunc: denominator theta is zero")
             acc = acc / d
         return acc
+
+
+# ── the degree-d elliptic Lagrange interpolation basis ──────────────────────────
+
+
+def elliptic_lagrange_basis(points: "List[EllMonomial]",
+                            multiplier: EllMonomial,
+                            var: str = _X) -> "List[EllRatio]":
+    """The elliptic Lagrange interpolation basis of degree ``k = len(points)`` over the
+    space ``V_t = {f analytic on ℂ* : f(p·z) = t·z^{-k}·f(z)}`` of higher-order theta
+    functions in the variable ``z = var``.
+
+    ``var`` selects the interpolation variable (default ``_X``, the summation axis). It is
+    fully variable-agnostic: pass ``var=_Y`` to build the DUAL basis on the recurrence axis
+    ``y = qⁿ``. The elliptic Zeilberger certificate factors as ``R(x,y) = R_x(x)·R_y(y)``
+    (the order-0 keystone certificate's x-dependent thetas carry only ``{b,q}`` while its
+    x-free thetas carry only ``{a,y}`` — clean decoupling), with BOTH factors balanced
+    (elliptic in their own variable). So the y-side recurrence coefficients ``aⱼ(y)`` live
+    in a ``V_{t_y}`` spanned by ``elliptic_lagrange_basis(…, var=_Y)`` exactly as ``R_x``'s
+    numerator lives in ``V_{t_x}`` on x — the x/y operand DUALITY made constructive.
+
+    Source (MPM-verified at build against the actual PDF): Hjalmar Rosengren, *Elliptic
+    Hypergeometric Functions* (Lectures at OPSF-S6, arXiv:1608.06161v3 [math.CA]), §1.3
+    **Corollary 1.3.5**: any analytic ``f`` on ``ℂ*`` with ``f(p·x) = t·x^{-k}·f(x)``
+    (``k ∈ ℤ``, ``t ∈ ℂ*``, ``0 < |p| < 1``) satisfies ``k ≥ 0`` and factors as
+    ``f(x) = C·θ(x/a₁, …, x/a_k; p)`` with ``(−1)^k·a₁···a_k = t``. The space ``V_t`` is
+    ``k``-dimensional; this returns the Lagrange basis at the ``k`` interpolation points
+    ``u₁, …, u_k`` (each an :class:`EllMonomial`), where the ``i``-th element places its
+    ``k`` zeros at ``{u_j : j ≠ i}`` plus the BALANCING point
+    ``v_i = (−1)^k·t / ∏_{j≠i} u_j`` (so the product of all ``k`` zeros equals
+    ``(−1)^k·t``, satisfying Cor. 1.3.5):
+
+        ``L_i(x) = θ(x/u₁, …, x̂/u_i, …, x/u_k, x/v_i; p)``     (omitting the ``i``-th).
+
+    By construction:
+
+      * **Lagrange interpolation** — ``L_i`` VANISHES at ``u_j`` for ``j ≠ i`` (it carries
+        the factor ``θ(x/u_j)``, zero at ``x = u_j`` since ``θ(1; p) = 0``) and is non-zero
+        at ``u_i`` (no ``θ(x/u_i)`` factor).
+      * **Multiplier EXACTLY ``t·x^{-k}``** — under ``x ↦ p·x`` each ``θ(x/c)`` picks up the
+        Class-K pin-slot prefactor ``θ(p·x/c) = −(c/x)·θ(x/c)`` (Eq. 1.5), so the product is
+        ``(−1)^k·(∏ of the k zeros)·x^{-k} = (−1)^k·(−1)^k·t·x^{-k} = t·x^{-k}`` — the SAME
+        multiplier for every ``i``.
+
+    The ``k`` elements are linearly independent and SPAN ``V_t``, so any ``f ∈ V_t`` is
+    ``Σ_i c_i·L_i`` with exact-``ℚ`` (or parameter-polynomial) coefficients ``c_i`` — the
+    linear ansatz that closes the degree-``d`` elliptic Gosper–Petkovšek certificate solve
+    (the unknown elliptic certificate's numerator lives in such a ``V_t``). Returns the
+    ``k`` basis :class:`EllRatio` theta-products (un-normalized; the ``c_i`` absorb the
+    scale). Exact over the modified-theta algebra — no float, no ``abs()`` (sign is the
+    Class-K pin-slot), no ``math`` / numpy."""
+    pts = list(points)
+    k = len(pts)
+    if k == 0:
+        raise ValueError("elliptic_lagrange_basis: need at least one interpolation point")
+    x = EllMonomial.symbol(var)                            # the interpolation axis (x or the y-dual)
+    sign_k = EllMonomial.scalar(Q((-1) ** k, 1))           # (−1)^k as an exact Q monomial
+    basis: "List[EllRatio]" = []
+    for i in range(k):
+        others = [pts[j] for j in range(k) if j != i]
+        prod_others = EllMonomial.one()
+        for u in others:
+            prod_others = prod_others * u
+        v_i = (sign_k * multiplier) * prod_others.inv()    # the balancing point
+        thetas = [Theta(x * u.inv()) for u in others] + [Theta(x * v_i.inv())]
+        basis.append(EllRatio(num=thetas))
+    return basis

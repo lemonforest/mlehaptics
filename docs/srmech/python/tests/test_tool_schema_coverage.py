@@ -73,6 +73,14 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # validate_mpr_record / write_ndjson helpers that wrap a registered entry.
     "srmech.amsc.format.sha256_hex",
     "srmech.amsc.format.sha256_raw",
+    # ellbase.elliptic_lagrange_basis (v0.9.0rc66) — the degree-d elliptic Lagrange
+    # interpolation basis, a CARRIER FOUNDATION peer of the EllMonomial / Theta /
+    # EllRatio carriers (which are classes, not walked here). Like those carriers it
+    # is exact-ℚ theta-product algebra, NOT a user-facing engine ToolEntry (the
+    # engine ops — elliptic_gosper etc. — ARE registered); exempt exactly like the
+    # other carrier-foundation surface. C peer owed (everything-mirrors); classified
+    # `bignum_reference` in rosetta_classification.ndjson.
+    "srmech.amsc.ellbase.elliptic_lagrange_basis",
     # cascade.* — back-compat aliases of canonical names already registered
     # (the precursor's call-site names; see srmech.amsc.cascade).
     "srmech.amsc.cascade.class_k_pin_slot_at_zero",  # = pin_slot_at_zero
