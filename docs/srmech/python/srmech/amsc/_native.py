@@ -3067,6 +3067,22 @@ def poly_shift_c(p_coeffs, h):
 _SUPPORT_CODE = {"all": 0, "positive": 1, "nonneg": 2}
 
 
+def _int_isqrt(x: int) -> int:
+    """Integer floor-sqrt of a non-negative ``x`` (bisection, no float) — used
+    ONLY to over-bound the per-coefficient limb cap for the unary-theta marshal
+    (the marshalling layer stays float-free)."""
+    if x < 2:
+        return x if x >= 0 else 0
+    lo, hi = 0, x
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if mid * mid <= x:
+            lo = mid
+        else:
+            hi = mid - 1
+    return lo
+
+
 def has_native_unary_theta() -> bool:
     """True iff the rc70 ``srmech_unary_theta_q_series`` peer + the
     ``srmech_bigint`` decimal-marshal helpers are loaded + bound. False on a
@@ -3092,9 +3108,11 @@ def unary_theta_q_series_c(modulus, chi_table, j, a, b, D, support, N):
         raise ValueError(f"unary_theta_q_series_c: bad support {support!r}")
     # per-coefficient limb cap: the largest coefficient is bounded by
     # (#terms)·(nmax^j); size generously from N, j, a, D (9 dec digits ≈ 1 limb).
-    # nmax ~ sqrt((lead+N·D)/a) ≤ sqrt(N·D + a·... ); a coarse digit estimate is
+    # nmax ~ √((lead+N·D)/a); over-estimate it with an INTEGER floor-sqrt (no
+    # float in the marshalling layer either). A coarse digit estimate is then
     # j·(digits of nmax) + digits of the term count — pad hard.
-    nmax_est = int((max(N, 1) * D + 4 * a) ** 0.5) + 4  # only sizing, not a value
+    bound = max(N, 1) * D + 4 * a
+    nmax_est = _int_isqrt(bound) + 4                 # integer over-bound on |n|
     coeff_digits = j * (len(str(nmax_est)) + 1) + len(str(2 * nmax_est + 4)) + 4
     out_cap = coeff_digits // 9 + 8
     cl = out_cap
