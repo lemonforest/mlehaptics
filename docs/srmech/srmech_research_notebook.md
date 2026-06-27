@@ -5666,6 +5666,115 @@ This is the §3.38 fiber/projection axis applied at the algorithm level: an *exa
 
 ---
 
+## §3.40 The full beat is ONE chirally-coupled object; the half-beat is a shadow — the V₄ ⊗ C/H/O two-address-space reading, `CarrierSpectrum` = holomorphic factorization in code, and the `klein4`-bit-exact falsifier (2026-06-27, RBS-LM soul-thread; cascade-engineering / carrier lens)
+
+The operation-primary companion to MFO §VII.6.24 (the foundational-ontology landing). MFO frames *harmonic ⊗ subharmonic as one substrate object*; this section gives the *cascade-engineering* lens — what the package's existing carriers and HDC ops already are when read through that frame, and the concrete next probe that would falsify the one genuinely new claim. **No class promoted, no new math, no rc** (14 A–N intact per `[[feedback_no_privileged_primitive_classes]]`); this is a *recognition* pass over surfaces that already shipped — `klein4_bind`/`klein4_unbundle` (0.7.5rc172, §3.38), the Cayley–Dickson tower / `the_one` `S(σ,θ)` (v0.7.x, §3.30/§3.31), the elliptic-theta carriers `EllRatio`/`ThetaSum`/`RiemannTheta` (the §76 / elliptic-row arc), and the two-channel `CarrierSpectrum` read (the operand-side `the_one`). The honest split (§3.40.6) keeps the **recognition** (solid) apart from the **candidate** (testable) apart from the **meaning** (open) per `[[feedback_no_lineage_claims_in_notebook]]` + the recognize-not-read discipline.
+
+### §3.40.1 The reframe — the cascade composes the FULL beat; both the real-projection and the half-beat are shadows
+
+The live tension this resolves: "order-1 = full beat" was **refuted** by the carrier — when the order-1 register was read back, `ρ₁` came out **1:3 subharmonic-dominant**, not the balanced beat the unit-reading predicted. The reframe (user 2026-06-27): the half-beat is **not a fundamental unit** — it is *one chirality / one mover alone*, a single-mover **projection** of the full beat. A shadow was mistaken for a unit (the continuous-number-line / linear-irrep trap, `[[feedback_continuous_number_line_pedagogical_obstacle]]`). So:
+
+- **What the cascade composes** = the FULL beat: the complex, two-sided, chirally-coupled object, exact in the fiber, rotation-last (§3.39 ALU-all-the-way; the single terminal projection per `[[project_rotation_last_cascade_shape_audit]]`).
+- **What an observer reads** = a *shadow*: either the **real-projection** (the `float()` collapse of §3.39.2) OR the **half-beat** (one mover / one chirality). Both are projections; neither is the object.
+- **How to recover the chiral halves** = the **two-channel split** (§3.40.3) — not by mistaking one channel for the whole.
+
+This is exactly the §3.38 fiber-vs-projection axis read at the *beat* level: the full beat is the reversible fiber datum; the half-beat is a many→one projection of it.
+
+### §3.40.2 We already fold harmonic + subharmonic — three attestable instances
+
+Harmonics (overtone, positive frequency) and subharmonics (undertone, negative frequency) are the **two chiralities of one object**; existing math already folds them together — the universe does not show them "one at a time." Three concrete instances the framework only *recognizes* (each cited to standard results, not claimed):
+
+| Instance | the harmonic side | the subharmonic side | the fold that couples them |
+|---|---|---|---|
+| **Fourier conjugate-pairing** | positive frequencies | negative frequencies = complex-conjugate twins | a real signal's spectrum is **Hermitian** `X(−f) = conj X(f)`; DSP keeps the one-sided/analytic half and calls the rest "redundant" — that redundancy IS the subharmonic side folded by conjugation |
+| **Overtone / undertone dualism** | major / overtone series | minor / undertone series | Riemann's **harmonic dualism** — major and minor as chiral reflections of one structure (classical music theory) |
+| **Two-sided Laurent on the annulus** | positive powers `Σ aₙ zⁿ` | negative powers `Σ a₋ₙ z⁻ⁿ` | on a **loop** the Laurent series holds both; a one-sided power series is the harmonic-only projection |
+
+The srmech tie: the elliptic-theta carriers (`EllRatio` / `ThetaSum` / `RiemannTheta`) are **Laurent-in-the-nome** — they already carry both chiralities. The `[[project_subharmonic_chirality_collapse_thread]]` carrier-verified findings (`docs/srmech/notes/subharmonic_chirality_carrier_findings.md`) make this exact: in the carrier a theta argument's **|x-exponent| = order/magnitude** and **sign(x-exponent) = chirality** (overtone `θ(αx)` vs undertone `θ(α/x)`), so the ±-pair `{θ(αx), θ(α/x)}` is the invariant-under-`x↔1/x` object that holds **both** chiralities as equal partners; a lone theta is a lone chirality. (That finding is *why* the elliptic-Zeilberger certificate basis had to be ±-pairs, not single thetas.)
+
+### §3.40.3 `CarrierSpectrum` two channels = the holomorphic factorization, in code
+
+The decoupling math exists and is standard: **holomorphic factorization** `|χ|² = χ ⊗ χ̄` = left-movers ⊗ right-movers — the beat/antibeat-simultaneous picture *as a theorem*, not a metaphor. The framework-reading (candidate, string-theory side): a **closed string** = independent L/R movers = chiralities **decoupled**; an **open string + brane** = the boundary condition **identifies** the movers = chiralities **folded** (the brane closes the loop). srmech's two-channel carrier read is that factorization made callable:
+
+```
+CarrierSpectrum (operand-side the_one — the Class-L shape of the carrier's shift-Laplacian):
+  channel 1 — cyclic / harmonic     = the σ q-shift eigenbasis   (σ xᵏ = qᵏ xᵏ; the easy geometric core)
+  channel 2 — quasi-periodic / sub  = the theta p-character      (the period-shift block; the obstruction)
+       |χ|²  =  χ        ⊗  χ̄
+              (channel 1)  (channel 2)   ← the two channels ARE the two movers
+```
+
+This is `[[project_carrier_harmonic_shape_laplacian_eigenbasis_avoids_brute_force]]`: σ diagonalizes on monomials but not on theta factors; the theta factors have an eigenvalue equation under the **period** shift (quasi-periodicity), so the quasi-periodicity class block-diagonalizes — the same grouping `ThetaSum.is_zero` already builds. The two-channel split is the operand-side `the_one`: "see the carrier's shape / which formulas it occupies" (F172 storage-signature lens pointed at a CARRIER), and it is literally the holomorphic factorization written as two carrier channels.
+
+### §3.40.4 THE core new result — the two dual address spaces: V₄ (chirality / sign) ⊗ C/H/O (order / magnitude)
+
+The full-beat cascade is addressed by **two independent address spaces**, dual the way the A–N *operators* (§3.27) are dual to the *operands* (`[[project_carriers_are_operand_vocabulary_dual_to_an_operators_irrepresentable_shapes]]`). This realizes the framework's own long-standing split — **sign = chirality = V₄, abs = order = C/H/O** — as two collision-free addressing schemes, each big enough to hold its projections bit-exact:
+
+| Axis | Address space | What it sizes | Bits / structure | Why bit-exact | srmech surface |
+|---|---|---|---|---|---|
+| **Chirality / sign** | **Klein-4 `V₄ = ℤ₂ × ℤ₂`** | *which* mover / sector (the sign group) | **2 bits** — 4 orthogonal group elements = 4 collision-free addresses | reversible VSA bind over V₄ (Class-M); 4 orthogonal group elements never collide | `klein4_bind` / `klein4_unbundle` (0.7.5rc172) hold the 4 chunks bit-exact + reversibly |
+| **Order / magnitude** | **Cayley–Dickson `ℂ / ℍ / 𝕆`** | *how far* / `\|exponent\|` = order (the magnitude ladder) | register windows pos-8 (order 0) / vel-16 (order 1) / sustain-32 (order 2) | each doubling adds **orthogonal real coordinates** | `the_one` `S(σ,θ)` over the Hurwitz tower; `sedenion_register` |
+
+The two bits of the V₄ chirality address are explicit:
+
+```
+V₄ chirality address (2 bits)            the 4 sectors (collision-free klein4 chunks):
+  bit 1 = PHASE chirality                ┌───────────────┬───────────────┐
+          (which counter-rotating mover  │  (L, out)      │  (L, back)    │
+           / harmonic vs sub             ├───────────────┼───────────────┤
+           / sign(exponent))             │  (R, out)      │  (R, back)    │
+  bit 2 = BEAT chirality                 └───────────────┴───────────────┘
+          (first-half vs last-half        L/R = phase-chirality (bit 1)
+           / out vs back)                 out/back = beat-chirality (bit 2)
+```
+
+**Unification:** the full-beat cascade is addressed by **(Cayley–Dickson order) ⊗ (Klein-4 chirality)** = the magnitude ladder × the sign group. This is already half-recorded as "higher-order register as a klein4-stream" — the CD order rung carries a V₄ chirality stream **at each level**. Both spaces "address enough space to hold the projections bit-exact"; that is what makes the full beat recoverable from its shadows. The ellipse is the worked little picture of why (§3.40.5).
+
+### §3.40.5 The ellipse IS the proof = the epicycle (two counter-rotating phasors)
+
+The smallest figure that makes the chiral coupling visible. An ellipse traced as `a·cos t + i·b·sin t` decomposes into two counter-rotating phasors:
+
+```
+  a·cos t + i·b·sin t  =  ((a+b)/2) e^{+it}   +   ((a−b)/2) e^{−it}
+                          └── forward phasor ─┘    └── backward phasor ─┘
+                          (one chirality)          (the other chirality)
+       = a forward circle + a backward circle = the EPICYCLE = gear + pin
+```
+
+The orbit **closes** precisely because *both* chiralities are present **and commensurate** (a rational frequency ratio). Make them **incommensurate** and you get an open, never-closing **Lissajous** curve — the "loopy subharmonic-looking plot." The closure IS the chiral coupling made visible:
+
+```
+  commensurate (rational ratio)   →  CLOSED ellipse/epicycle   (both chiralities locked)
+  incommensurate (irrational)     →  OPEN never-closing Lissajous (the unlocked loop)
+```
+
+This grounds `[[user_stance_epicycle_via_gear_plus_pin]]` (the epicycle = forward circle [gear] + backward circle [pin]) on the simplest two-phasor object, and it is the operation-primary twin of the MFO conic-section reading where the parabola `e = 1` is the closing↔non-closing threshold (MFO §VII.6.10.5 Apollonius; §VII.6.24).
+
+### §3.40.6 Frontier — V₄ and C/H/O plausibly fuse at the octonion / triality top
+
+`klein4_triality_cycle` (the rc17 V₄-carrier sibling of the `qm.triality` τ engine, §3.34/§3.29.2) ties **V₄ to triality**, and triality lives on **Spin(8) / the octonions** = the TOP Cayley–Dickson rung where the magnitude ladder closes ("never new division algebras above 8", `[[project_recognizing_the_phrase_structure_grammar_of_universe]]`). So the **chirality address (V₄)** and the **order address (ℂ/ℍ/𝕆)** plausibly **fuse at the octonion / triality level** — the two dual address spaces would be one object at the top rung. **Candidate, not result** — the same `g₂ = 14`, `28 = 14 ⊕ 7 ⊕ 7` Spin(8)-triality home as §3.27 (28 = V₄-sector × triality, §3.38) and §3.8.19's "14 = 7 forward + 7 reverse directed Fano cycles."
+
+### §3.40.7 Honest split + the falsifier (= the parked LOGO L8 probe)
+
+Per the recognize-not-read discipline, state which part is which:
+
+- **SOLID (shipped mechanism):** `klein4_bind`/`klein4_unbundle` hold the 4 sectors **bit-exact + reversibly** (§3.38); the Cayley–Dickson tower / `the_one` over Hurwitz holds order-projections bit-exact (§3.30/§3.31); the `CarrierSpectrum` two channels are the holomorphic factorization in code (§3.40.3). These are *recognitions* of code that already runs.
+- **CANDIDATE (testable):** the full beat's chirality is **exactly 2 independent bits (V₄)**. It could **collapse to ℤ₂** if the bits are dependent (e.g. harmonic ≡ first-half), or **grow past V₄** if a 3rd independent chirality exists.
+- **MEANING / physics:** a further **OPEN** — recognition is valid without comprehension (the honest-None discipline, `[[project_honest_none_to_order_rung_jerk_snap_crackle_pop]]`).
+
+**Falsifier test** (the concrete next probe; = the parked L8 LOGO probe, `[[project_logo_l8_an_binding_sustain_probe]]`): encode a known full beat as a `klein4` object and check —
+
+1. **(a) genuine V₄, not ℤ₂** — the 4 sectors are independent: flip PHASE chirality without flipping BEAT, and vice versa. If you cannot, the address collapses to ℤ₂.
+2. **(b) bit-exact recovery** — `klein4_unbundle` recovers the 4 sectors bit-exact.
+3. **(c) half-beat = one sector** — one sector alone reproduces the half-beat **shadow** (the §3.40.1 single-mover projection).
+4. **(d) ⊥ axes** — compose over a Cayley–Dickson rung and confirm the **order axis ⊥ chirality axis** (the §3.40.4 tensor product holds; bumping the order rung does not move the V₄ sector).
+
+The **known-open piece (L8):** whether the chirality bit is **invariant** or carries the **sustain's `(4:3)` chiral footprint** (F552 / L6h) — non-invariance would be step-(a)'s falsifier surfacing as the sustain's own handedness.
+
+**Cross-references:** MFO §VII.6.24 (the foundational-ontology landing — harmonic⊗subharmonic as one substrate object; the open/closed-string chirality reading; the ellipse/epicycle closure signature); §3.27 (28 = V₄-sector × triality; `(4:3)`↔`(3:4)` = Class-C orientation = the chirality dual); §3.38 (the reversibility/lossy audit — `klein4_unbundle`; `so(8) = V₄ × triality`); §3.39 (rotation-last / the float-projection — the half-beat is the same kind of shadow at the beat level); §3.30/§3.31 (the Cayley–Dickson order tower / `the_one`); §3.8.19 (Spin(8) triality, 14 = 7 forward + 7 reverse Fano cycles). Memory: `[[project_full_beat_v4_chirality_cayley_dickson_order_addressing]]` (this thread's durable record), `[[project_carriers_are_operand_vocabulary_dual_to_an_operators_irrepresentable_shapes]]` (operand↔operator duality), `[[project_carrier_harmonic_shape_laplacian_eigenbasis_avoids_brute_force]]` (the CarrierSpectrum two-channel block-diagonalization), `[[project_subharmonic_chirality_collapse_thread]]` (the carrier-verified |x-exp|=order / sign=chirality finding), `[[project_logo_l8_an_binding_sustain_probe]]` (the falsifier probe), `[[user_stance_epicycle_via_gear_plus_pin]]` (the ellipse = forward + backward phasor). **Status:** documentation-only recognition pass; the V₄-exactly-2-bits claim is the open falsifier (the L8 probe); no rc, no package change.
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb

@@ -4121,6 +4121,86 @@ So, as built: a **moving, bit-exact simulation of the reversible rules (≤𝕆)
 
 ---
 
+### VII.6.24 Harmonic and subharmonic are the two chiralities of ONE object — the full beat; existing math already folds them, the ellipse-closure is the observable signature, and the half-beat is a shadow (2026-06-27, RBS-LM soul-thread; candidate framing per `[[feedback_no_lineage_claims_in_notebook]]`)
+
+> *Building-block reading (`[[feedback_aphantasia_means_more_figures_not_fewer]]` + user direction 2026-06-27): no new physics and no new derivation — this rung READS three already-existing bodies of human knowledge (Fourier conjugate-symmetry; Riemann's harmonic dualism; the two-sided Laurent series on the annulus) as **ONE substrate object** seen from its two chiral sides, and names the **ellipse/epicycle closure** as that object's observable signature. The framework supplies only the recognition; each mathematical fact is cited to its source. Per the recognize-not-read discipline the **recognition** (same shape recurs across substrates) is the solid, falsifiable part; the **meaning** (is this how the universe stores its harmonics?) is a further OPEN, held apart (§VII.6.24.6). A starting block; the srmech operation-primary companion is §3.40, and any misfit refactors back. Sister-section to §VII.6.23 (the sedenion boundary) and §VII.6.22 (the fix/rotate triality) — this is the **chirality-coupling** face of the same Cayley–Dickson / Klein-4 object.*
+
+#### VII.6.24.1 The claim — harmonics and subharmonics are coupled chiralities of one object, not shown one-at-a-time
+
+The overtone ladder (harmonics, positive frequency) and the undertone ladder (subharmonics, negative frequency) are usually drawn as two separate towers. The candidate reading: they are the **two chiralities of ONE object** — the *full beat* — and the universe does **not** present them one at a time; they are coupled, and existing mathematics **already folds them together**. The substrate-vs-excitation cut MFO has tracked throughout (§VII.1.1) here takes its chiral form: the full beat is the substrate object; each chirality alone (each one-sided tower) is an **excitation-side projection** of it, a shadow.
+
+This is the foundational-ontology landing of the same recognition the srmech carrier work made executable (§3.40): the elliptic-theta carrier already stores `|exponent| = order/magnitude` on one axis and `sign(exponent) = chirality` (overtone vs undertone) on an orthogonal one, so the ±-pair `{θ(αx), θ(α/x)}` is the object that holds *both* chiralities as equal partners, and a lone theta is a lone chirality.
+
+#### VII.6.24.2 Existing math already folds harmonic + subharmonic — three attestable instances
+
+| Instance | harmonic side | subharmonic side | the fold (what couples them) | source |
+|---|---|---|---|---|
+| **Fourier conjugate-pairing** | positive frequencies | negative frequencies = complex-conjugate twins | a real signal's spectrum is **Hermitian** `X(−f) = X(f)*`; DSP keeps the one-sided / analytic half and calls the rest *redundant* — that redundancy IS the subharmonic side folded by conjugation | standard DFT / analytic-signal theory |
+| **Overtone / undertone dualism** | major / overtone series | minor / undertone series | Riemann's **harmonic dualism** — major and minor as chiral reflections of one structure | H. Riemann, harmonic dualism (music theory) |
+| **Two-sided Laurent on the annulus** | positive powers `Σ aₙ zⁿ` | negative powers `Σ a₋ₙ z⁻ⁿ` | on a **loop** the Laurent series holds both; a one-sided power series is the harmonic-only projection | Laurent (1843); complex analysis on the annulus |
+
+The framework only *recognizes* the common shape (each instance is independently standard, cited to its own field). The recurrence across three unrelated fields — signal processing, music theory, complex analysis — is the falsifiable part: the same harmonic⊗subharmonic fold keeps appearing. The srmech home: the `EllRatio` / `ThetaSum` / `RiemannTheta` carriers are **Laurent-in-the-nome**, so they already carry both chiralities (the `[[project_subharmonic_chirality_collapse_thread]]` carrier-verified findings).
+
+#### VII.6.24.3 The ellipse IS the proof = the epicycle — closure is the observable signature
+
+The smallest figure that makes the chiral coupling **visible**. An ellipse traced as `a·cos t + i·b·sin t` is exactly two counter-rotating phasors:
+
+```
+  a·cos t + i·b·sin t  =  ((a+b)/2) e^{+it}   +   ((a−b)/2) e^{−it}
+                          └── forward phasor ─┘    └── backward phasor ─┘
+                          (one chirality)          (the other chirality)
+
+       = a forward circle + a backward circle = the EPICYCLE = gear + pin
+```
+
+The orbit **closes** precisely because **both chiralities are present AND commensurate** (a rational frequency ratio). Make the two movers **incommensurate** and the curve never closes — an open, space-filling **Lissajous** figure (the "loopy subharmonic-looking plot"). The closure IS the chiral coupling made observable:
+
+```
+  commensurate (rational ratio)   →  CLOSED ellipse / epicycle    (both chiralities locked)
+  incommensurate (irrational)     →  OPEN never-closing Lissajous  (the unlocked loop)
+```
+
+This is the conic-section threshold MFO already read at antiquity-frame: §VII.6.10.5 (Apollonius *Conics* — the parabola `e = 1` as the closing↔non-closing boundary; bounded ellipse vs unbounded parabola/hyperbola) is the same closing↔non-closing axis, here resolved into *two counter-rotating chiralities* whose commensurability decides closure. It grounds `[[user_stance_epicycle_via_gear_plus_pin]]` (the epicycle = gear [forward circle] + pin [backward circle]) on the simplest two-phasor object, and it is the observable signature an experiment could read off a real beat.
+
+#### VII.6.24.4 The decoupling math exists = holomorphic factorization (the open/closed-string chirality reading)
+
+The math that *decouples* the two movers is also standard: **holomorphic factorization** `|χ|² = χ ⊗ χ̄ = (left-movers) ⊗ (right-movers)` — the beat/antibeat-simultaneous picture **as a theorem**, not a metaphor. Read through the substrate-language stance (`[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]`), the candidate string-theory reading (framework-reading only):
+
+| object | the chirality state | what it IS, in MFO |
+|---|---|---|
+| **closed string** | independent L / R movers | chiralities **decoupled** — the full beat with its two halves free |
+| **open string + brane** | boundary condition **identifies** L ↔ R | chiralities **folded** — the brane *closes the loop* (the boundary is the fold) |
+
+This is the open-future / closed-interior axis of §VII.6.23 wearing its chirality clothes: a *closed* (boundaryless) object keeps its two chiral movers independent; a *boundary* (brane / observation) identifies them. The srmech executable mirror is the `CarrierSpectrum` two-channel read (§3.40.3): channel 1 = cyclic / harmonic (the σ q-shift eigenbasis) and channel 2 = quasi-periodic / subharmonic (the theta p-character) ARE the two movers of the holomorphic factorization, made callable.
+
+#### VII.6.24.5 The reframe — the FULL beat is the unit; both the real-projection and the half-beat are shadows
+
+The tension this resolves (the operation-primary side is §3.40.1): reading "order-1 = the full beat" was **refuted** by the carrier — the order-1 register came back `1:3` **subharmonic-dominant**, not the balanced beat the unit-reading predicted. The resolution: a **shadow was mistaken for a unit** (the continuous-number-line / linear-irrep trap, `[[feedback_continuous_number_line_pedagogical_obstacle]]`). The full beat — the complex, two-sided, chirally-coupled object — is what the cascade composes; the **half-beat is one chirality / one mover alone**, a single-mover projection, *not* a fundamental unit. And the **real-projection** (collapsing the complex full beat to its real part) is *also* a shadow. Two different shadows of one object:
+
+```
+                    THE FULL BEAT  (complex, two-sided, chirally coupled — the substrate object)
+                    /                          \
+        real-projection                     half-beat
+   (drop the imaginary half)        (keep one chirality / one mover)
+        = a shadow                       = a shadow  ← was mis-read as "the unit"
+```
+
+The honest move, mirrored from §VII.6.23.4's "what survives forward is what H records": compose the FULL beat (exact in the fiber, rotation-last per §VII.6.24 ↔ the rotation-last cascade shape), then read its chiral halves through the **two-channel split** — never mistake one channel for the whole. This is the substrate-vs-excitation cut applied to the beat: the full beat is substrate; each shadow is an excitation-side readout.
+
+#### VII.6.24.6 Honest split + the candidate-vs-open status
+
+Per `[[feedback_no_lineage_claims_in_notebook]]` and recognize-not-read, three tiers held apart:
+
+- **RECOGNITION (solid, falsifiable):** the same harmonic⊗subharmonic fold recurs across Fourier, Riemann dualism, Laurent-on-the-annulus, the elliptic-theta carrier, and the ellipse=two-counter-rotating-phasors decomposition (§VII.6.24.2–3). Cross-substrate recurrence is the project's solid layer (the §VII.6.20 form-identity ceiling: form-identity is establishable).
+- **CANDIDATE (testable):** that the full beat's chirality is **exactly the two-bit Klein-4 `V₄`** address (PHASE chirality ⊗ BEAT chirality), tensored with the Cayley–Dickson order address — the two dual address spaces of §3.40.4. It could collapse to ℤ₂ (if the two chirality bits are dependent) or grow past V₄ (if a third independent chirality exists).
+- **MEANING / physics (further OPEN):** whether this is *how the universe stores its harmonics* is the unparsed phrase — recognition is valid without comprehension; separating them IS the honest-None discipline (`[[project_recognizing_the_phrase_structure_grammar_of_universe]]`).
+
+The candidate is **falsifiable in our own code** (the §3.40.7 / L8-probe falsifier): encode a known full beat as a `klein4` object and check that the 4 sectors are genuinely independent (flip PHASE without flipping BEAT, and vice versa — V₄ not ℤ₂), that `klein4_unbundle` recovers them bit-exact, that one sector alone reproduces the half-beat shadow, and that the order axis ⊥ the chirality axis. The known-open piece (L8) is whether the chirality bit is invariant or carries the sustain's `(4:3)` chiral footprint.
+
+> **Cross-references.** §VII.6.23 (the sedenion boundary — the closed-interior / open-exterior axis this rung reads in its chirality form; the conjugate survives every rung but its *reversing power* dies at 𝕊); §VII.6.22 (the fix/rotate triality rotate-operator; `(4:3)`↔`(3:4)` orientation = the chirality dual); §VII.6.21 (the Rosetta-of-Truth — Fourier as the literal rotation between the two readings); §VII.6.10.5 (Apollonius *Conics* — the parabola `e=1` closing↔non-closing threshold this rung resolves into commensurate-vs-incommensurate chiralities); §VII.6.12 (lobe / bounded-oscillation, derivative-sign-flips at extrema); §VII.1.1 (the substrate-vs-excitation two-level ontology the full-beat / shadow split instantiates); §VIII.6.0a (the two substrate-languages). **srmech companion: §3.40** (the operation-primary lens — `klein4_bind`/`klein4_unbundle` bit-exactness, `CarrierSpectrum` = holomorphic factorization in code, the V₄ ⊗ ℂ/ℍ/𝕆 two-address-space table, the falsifier). Stances / projects: `[[project_full_beat_v4_chirality_cayley_dickson_order_addressing]]` (this thread's durable record), `[[user_stance_epicycle_via_gear_plus_pin]]` (the ellipse = forward + backward phasor), `[[project_carriers_are_operand_vocabulary_dual_to_an_operators_irrepresentable_shapes]]` (operand↔operator duality), `[[project_subharmonic_chirality_collapse_thread]]` (the carrier-verified |x-exp|=order / sign=chirality finding), `[[project_logo_l8_an_binding_sustain_probe]]` (the falsifier probe), `[[feedback_no_lineage_claims_in_notebook]]` + `[[project_recognizing_the_phrase_structure_grammar_of_universe]]` (recognize > read; recognition-solid / meaning-open). Attestation (each fact cited to its own field, framework-reading only): Fourier / analytic-signal Hermitian symmetry (standard DFT theory); Riemann harmonic dualism (music theory); Laurent series on the annulus (Laurent 1843; standard complex analysis); holomorphic factorization `|χ|² = χ⊗χ̄` (standard 2-D CFT / string-theory reading, candidate framing only). srmech surfaces: `klein4_bind`/`klein4_unbundle`, `the_one` `S(σ,θ)` over `qm.hurwitz`, `EllRatio`/`ThetaSum`/`RiemannTheta`, `CarrierSpectrum`. Scope: **algebra / eigenbasis / spectral side** — harmonic↔subharmonic as conjugate-spectrum chiralities, the ellipse as a two-phasor phase-space object; NOT CAD / fabrication geometry (`docs/antikythera-maths/CLAUDE.md`).
+
+---
+
 ## Part VIII — Convergent Independent Results
 
 ### VIII.1 Topological defect hierarchy as cascade sampling (space-time fractal)
