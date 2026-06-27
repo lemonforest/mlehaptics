@@ -381,6 +381,54 @@ def _to_ellratio(value: Any, *, param: str = "") -> Any:
     return value
 
 
+def _to_mock_q_series(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value to a ``MockQSeries``-typed param (0.9.0rc71
+    ``harmonic_maass`` holomorphic mock part).
+
+    A ``MockQSeries`` is the holomorphic part ``f⁺`` of a harmonic Maass form (a
+    leading ``q``-power + a finite generating rule). The op
+    (:func:`srmech.amsc.harmonic_maass.harmonic_maass`) accepts the STRING
+    ``'eulerian_f'`` (Ramanujan's order-3 ``f(q)``, the #9 keystone) directly, so
+    for a JSON caller the natural minimal operand is that string — passed through.
+    A coefficient list (a JSON array of ``[num, den]`` pairs, or ints) builds a
+    closed-form ``qpoly`` mock part; a ``MockQSeries`` passes through (never a
+    float; a coefficient must be exact)."""
+    from srmech.amsc.harmonic_maass import MockQSeries  # exact carrier; lazy
+    if isinstance(value, MockQSeries):
+        return value
+    if isinstance(value, str):
+        return value                       # the op resolves 'eulerian_f' itself
+    if isinstance(value, (list, tuple)) and value:
+        coeffs = []
+        for c in value:
+            if isinstance(c, (list, tuple)) and len(c) == 2:
+                coeffs.append((int(c[0]), int(c[1])))
+            elif isinstance(c, int) and not isinstance(c, bool):
+                coeffs.append((c, 1))
+            else:
+                return value               # not a recognised coeff shape; pass on
+        return MockQSeries.from_qpoly(coeffs)
+    return value
+
+
+def _to_unary_theta(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value to a ``UnaryTheta``-typed param (0.9.0rc71
+    ``harmonic_maass`` shadow).
+
+    A ``UnaryTheta`` is the weight-``(2−k)`` shadow ``g = ξ_k(f)`` (rc70). The op
+    accepts a ``UnaryTheta`` (passes through). For a JSON caller the natural minimal
+    operand is the named shadow ``g₃`` — the string ``'g3'`` (or its character name
+    ``'minus12'``) builds ``unary_theta('minus12', 1, 1, 0, 24, support='positive')``
+    (Zagier, Astérisque 326, p. 150, the #9 mock-theta shadow). A
+    ``UnaryTheta`` passes through unchanged."""
+    from srmech.amsc.unary_theta import UnaryTheta, unary_theta  # exact carrier; lazy
+    if isinstance(value, UnaryTheta):
+        return value
+    if isinstance(value, str) and value in ("g3", "g_3", "minus12", "(-12/.)"):
+        return unary_theta("minus12", 1, 1, 0, 24, support="positive")
+    return value
+
+
 def _to_mat_or_vec(value: Any, *, param: str = "") -> Any:
     """Coerce a ``Mat | Vec`` (shape-polymorphic) param: a nested list rides as
     a 2-D matrix, a flat list as a 1-D vector — both pass through as the natural
@@ -720,6 +768,8 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "QPoly": _to_qpoly,        # 0.9.0rc55: exact-ℚ[q] q-shift carrier (q_gosper q-term ratios)
     "QBiPoly": _to_qbipoly,    # 0.9.0rc56: exact bivariate-ℚ[q] carrier (q_zeilberger ratios)
     "EllRatio": _to_ellratio,  # 0.9.0rc61: exact modified-theta-quotient carrier (elliptic_gosper term ratio)
+    "MockQSeries": _to_mock_q_series,  # 0.9.0rc71: harmonic_maass holomorphic mock part ('eulerian_f' / qpoly)
+    "UnaryTheta": _to_unary_theta,     # 0.9.0rc71: harmonic_maass shadow ('g3' → the weight-3/2 g₃)
     "Optional[Vec]": _to_vec,
     "Optional[HV]": _to_hv,
     "Mat | Vec": _to_mat_or_vec,   # shape-polymorphic 2-D-or-1-D operand
