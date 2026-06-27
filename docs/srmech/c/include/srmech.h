@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc70"
-#define SRMECH_VERSION       "0.9.0rc70"
+#define SRMECH_VERSION_PRE   "rc71"
+#define SRMECH_VERSION       "0.9.0rc71"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3295,6 +3295,42 @@ srmech_status_t srmech_unary_theta_q_series(
     uint32_t modulus, const int32_t *chi_table, uint32_t j,
     int64_t a, int64_t b, uint32_t D, int support, size_t N,
     srmech_bigint_t *out, size_t *out_len, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_harmonic_maass — the EXACT-INTEGER q-series of the HOLOMORPHIC mock part
+ * of a HARMONIC (weak) MAASS form (the C peer of
+ * srmech.amsc.harmonic_maass.HarmonicMaass / MockQSeries; the PAIR carrier that
+ * makes research item #9 a finite exact object). A harmonic Maass form f of
+ * weight k is determined by the pair (f+ holomorphic mock part, g = xi_k(f)
+ * shadow); the non-holomorphic completion f- is the Eichler integral of the
+ * shadow, recoverable not stored (Bruinier-Funke, arXiv:math/0212286v4, Prop.
+ * 3.2). The shadow q-series rides the EXISTING srmech_unary_theta peer; this op
+ * mirrors the genuinely-new HOLOMORPHIC computation — Ramanujan's order-3 mock
+ * theta (Zagier, Asterisque 326 (2009), p. 145, Eulerian series)
+ *     f(q) = SUM_{n>=0} q^{n^2} / PROD_{j=1}^n (1+q^j)^2 .
+ * Returns the EXACT INTEGER coefficients out[e] (e=0..N) of f(q) to depth N
+ * (leading power 0), byte-identical to the Python carrier (each out[e] a full
+ * srmech_bigint, no int64 ceiling). Built over exact integer power-series algebra
+ * (truncated product + integer-series reciprocal + q^{n^2} shift); the sign is
+ * the Class-K pin-slot (the reciprocal recurrence's subtraction), never abs().
+ *
+ * Carrier-internal (like srmech_poly / srmech_unary_theta): NOT a Rosetta ledger
+ * op; additive symbols -> ABI unchanged (stays 3). The working power-series cell
+ * banks + temps are carved from the caller arena `ws` (>=
+ * srmech_harmonic_maass_ws_bound). The out[] array is caller-owned (N+1
+ * srmech_bigint, each pre-bound to >= coeff_limbs limbs).
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES for srmech_harmonic_maass_hol_q_series (the prod/invp/
+ * factor power-series cell banks at `coeff_limbs` width + the mul/accumulate
+ * temps). */
+size_t srmech_harmonic_maass_ws_bound(size_t N, size_t coeff_limbs);
+
+/* The exact integer q-series of f(q) (the order-3 mock theta holomorphic part):
+ * out[e] (e=0..N) <- the coefficient of q^e, *out_len <- N+1.
+ * SRMECH_ERR_OVERFLOW if a coefficient or the arena is too small. */
+srmech_status_t srmech_harmonic_maass_hol_q_series(
+    size_t N, srmech_bigint_t *out, size_t *out_len, void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_tripoly — EXACT-RATIONAL TRIVARIATE polynomial over srmech_bigint (the

@@ -1931,6 +1931,27 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.c_void_p, ctypes.c_size_t, # ws, ws_len
         ]
         lib.srmech_unary_theta_q_series.restype = ctypes.c_int
+    # rc71: the EXACT-INTEGER HOLOMORPHIC mock-part q-series C peer
+    # (srmech_harmonic_maass) — the HarmonicMaass / MockQSeries PAIR carrier that
+    # makes research item #9 a finite exact object. Computes the order-3 mock theta
+    # f(q) = Σ q^{n²}/∏(1+qʲ)² integer q-series over caller-arena srmech_bigint
+    # (the same exact-integer substrate as poly / unary_theta; no int64 ceiling on
+    # the coefficient). NEW symbols → hasattr-guarded; additive →
+    # EXPECTED_ABI_VERSION stays 3.
+    #   size_t srmech_harmonic_maass_ws_bound(size_t N, size_t coeff_limbs)
+    if hasattr(lib, "srmech_harmonic_maass_ws_bound"):
+        lib.srmech_harmonic_maass_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_harmonic_maass_ws_bound.restype = ctypes.c_size_t
+    #   srmech_harmonic_maass_hol_q_series(N, out[], *out_len, ws, ws_len)
+    if hasattr(lib, "srmech_harmonic_maass_hol_q_series"):
+        lib.srmech_harmonic_maass_hol_q_series.argtypes = [
+            ctypes.c_size_t,                  # N
+            ctypes.POINTER(_SrmechBigint),    # out[]
+            ctypes.POINTER(ctypes.c_size_t),  # *out_len
+            ctypes.c_void_p, ctypes.c_size_t, # ws, ws_len
+        ]
+        lib.srmech_harmonic_maass_hol_q_series.restype = ctypes.c_int
     # rc54: the EXACT q-shift CARRIER C peer (srmech_qpoly_*) — the q-analog of
     # the poly carrier, the q-hypergeometric F929 reduction-row foundation. A
     # QPoly is a ROW of q-Poly cells over an x-window; the bridge flattens the
@@ -3137,6 +3158,57 @@ def unary_theta_q_series_c(modulus, chi_table, j, a, b, D, support, N):
     if rc != SRMECH_OK:
         raise RuntimeError(
             f"srmech_unary_theta_q_series returned non-OK status {rc}")
+    return [_bigint_to_int(o_n[i]) for i in range(out_len.value)]
+
+
+# ----------------------------------------------------------------------
+# rc71: the EXACT-INTEGER HOLOMORPHIC mock-part q-series C peer
+# (srmech_harmonic_maass) — the HarmonicMaass / MockQSeries PAIR carrier that
+# makes research item #9 a finite exact object. The Python
+# srmech.amsc.harmonic_maass.MockQSeries routes its Eulerian f(q) q_series through
+# this when has_native_harmonic_maass(); the pure-Python body is the COMPLETE
+# alternative (and the parity oracle) — both emit byte-identical exact integer
+# coefficients at any magnitude.
+# ----------------------------------------------------------------------
+
+
+def has_native_harmonic_maass() -> bool:
+    """True iff the rc71 ``srmech_harmonic_maass_hol_q_series`` peer + the
+    ``srmech_bigint`` decimal-marshal helpers are loaded + bound. False on a
+    no-C / pre-rc71 lib — the pure-Python ``srmech.amsc.harmonic_maass`` body is
+    the complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (all(hasattr(LIB, s) for s in _POLY_SYMS)
+            and hasattr(LIB, "srmech_harmonic_maass_hol_q_series")
+            and hasattr(LIB, "srmech_harmonic_maass_ws_bound"))
+
+
+def harmonic_maass_eulerian_c(N):
+    """Native exact-integer order-3 mock theta ``f(q) = Σ q^{n²}/∏(1+qʲ)²`` q-series
+    → a list of ``N + 1`` Python-int coefficients (leading power 0), or ``None`` if
+    the native symbols are absent."""
+    if not has_native_harmonic_maass():
+        return None
+    if not isinstance(N, int) or N < 0:
+        raise ValueError(f"harmonic_maass_eulerian_c: bad N {N!r}")
+    # per-coefficient limb cap: the f(q) coefficients grow sub-exponentially
+    # (partition-like); 9 dec digits ≈ 1 limb. Size generously from N.
+    coeff_digits = N + 16
+    out_cap = coeff_digits // 9 + 8
+    ws_len = int(LIB.srmech_harmonic_maass_ws_bound(
+        ctypes.c_size_t(int(N)), ctypes.c_size_t(out_cap)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    o_n, _o_d, ko = _poly_blank_array(N + 1, out_cap)
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_harmonic_maass_hol_q_series(
+        ctypes.c_size_t(int(N)), o_n, ctypes.byref(out_len),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = ko
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_harmonic_maass_hol_q_series returned non-OK status {rc}")
     return [_bigint_to_int(o_n[i]) for i in range(out_len.value)]
 
 

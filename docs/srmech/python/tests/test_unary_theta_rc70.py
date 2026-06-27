@@ -249,16 +249,17 @@ def test_unary_theta_tool_entry_registered():
     assert "srmech.amsc.unary_theta.unary_theta" in names
 
 
-def test_introspect_tools_total_is_339():
-    """The canonical shipped tool count after the rc70 ``unary_theta`` op (338 →
-    339). Counted over the SHIPPED surface only — other tests (e.g.
-    ``test_tool_schema.py``) imperatively ``register_tool`` throwaway ``test.*``
-    entries into the global schema singleton that they do not (cleanly) remove, so
-    the raw ``describe()`` total drifts up by those leaks depending on test order.
-    We exclude the ``test.``-namespaced injections (the shipped surface is what
-    this invariant is about)."""
+def test_introspect_tools_total_is_340():
+    """The canonical shipped tool count after the rc71 ``harmonic_maass`` op (339 →
+    340; the rc70 ``unary_theta`` op took it 338 → 339). Counted over the SHIPPED
+    surface only — other tests (e.g. ``test_tool_schema.py``) imperatively
+    ``register_tool`` throwaway ``test.*`` entries into the global schema singleton
+    that they do not (cleanly) remove, so the raw ``describe()`` total drifts up by
+    those leaks depending on test order. We exclude the ``test.``-namespaced
+    injections (the shipped surface is what this invariant is about)."""
     from srmech.amsc.tool_schema import get_tool_schema
     shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
-    assert len(shipped) == 339
+    assert len(shipped) == 340
     names = {t.name for t in shipped}
     assert "srmech.amsc.unary_theta.unary_theta" in names
+    assert "srmech.amsc.harmonic_maass.harmonic_maass" in names
