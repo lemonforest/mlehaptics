@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc71"
-#define SRMECH_VERSION       "0.9.0rc71"
+#define SRMECH_VERSION_PRE   "rc72"
+#define SRMECH_VERSION       "0.9.0rc72"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3331,6 +3331,40 @@ size_t srmech_harmonic_maass_ws_bound(size_t N, size_t coeff_limbs);
  * SRMECH_ERR_OVERFLOW if a coefficient or the arena is too small. */
 srmech_status_t srmech_harmonic_maass_hol_q_series(
     size_t N, srmech_bigint_t *out, size_t *out_len, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_riemann_theta — the EXACT-INTEGER (A, B, C) EXPONENT LATTICE of a
+ * GENUS-2 RIEMANN THETA-CONSTANT (the C peer of
+ * srmech.amsc.riemann_theta.RiemannTheta; the FIRST RUNG of the GENUS axis). The
+ * genus-2 theta-constant theta[ep'; e](0|Omega) (Grushevsky arXiv:1009.0369 eq.1;
+ * Eilers arXiv:1707.08855 eq.1.2; binary characteristic [ep1,ep2; e1,e2], bits in
+ * {0,1}) is a lattice sum over n in Z^2 of (-1)^{e.n} q1^{m1^2} q2^{m2^2}
+ * q12^{m1 m2}, m_i = n_i + ep'_i/2. Cleared to the quarter-nome base
+ * (Q1,Q2,Q12)=(q1,q2,q12)^{1/4} a term is Q1^A Q2^B Q12^C * (-1)^{e.n} with EXACT
+ * INTEGER exponents A=(2n1+ep1)^2, B=(2n2+ep2)^2, C=(2n1+ep1)(2n2+ep2) (C = the
+ * cross-term, the genus-2 denominator-4 clearing the genus-1 unary-theta never
+ * saw). The lower characteristic e gives the per-term sign (-1)^{e.n} (Class-K
+ * pin-slot, never abs). This op emits the lattice as a flat caller-owned int64
+ * array of [A,B,C,sign] QUADRUPLES (one per lattice point |n_i| <= box, row-major
+ * (n1,n2)); the genus-2 theta-CONSTANT coefficients are small +-1 lattice counts
+ * (int64-exact, no bignum), and the caller accumulates the quadruples into the
+ * canonical {(A,B,C):coeff} lattice (byte-identical to the Python carrier).
+ *
+ * Caller-owned out[] (like srmech_poly / srmech_unary_theta); no malloc. Additive
+ * symbols -> ABI unchanged (stays 3).
+ * ------------------------------------------------------------------ */
+
+/* The number of int64 a box needs: (2*box+1)^2 lattice points * 4 (A,B,C,sign). */
+size_t srmech_riemann_theta_count(uint32_t box);
+
+/* Emit the [A,B,C,sign] quadruple lattice for characteristic [ep1,ep2; e1,e2]
+ * (bits in {0,1}) over |n_i| <= box, into the caller out[] (out_cap int64);
+ * *out_len <- the number of int64 written (= srmech_riemann_theta_count).
+ * SRMECH_ERR_BAD_INPUT if any bit is not in {0,1}; SRMECH_ERR_OVERFLOW if out[]
+ * is too small. */
+srmech_status_t srmech_riemann_theta_lattice(
+    int ep1, int ep2, int e1, int e2, uint32_t box,
+    int64_t *out, size_t out_cap, size_t *out_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_tripoly — EXACT-RATIONAL TRIVARIATE polynomial over srmech_bigint (the

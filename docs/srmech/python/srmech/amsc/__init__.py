@@ -99,6 +99,13 @@ from .tripoly import TriPoly
 # Fundamental Theorem of Elliptic Functions). A carrier, not a ToolEntry, mirrors
 # EllRatio / QMat / Poly / TriPoly.
 from .thetasum import ThetaSum
+# rc72 — the exact genus-2 Riemann theta-CONSTANT carrier RiemannTheta, the FIRST
+# RUNG of the GENUS axis. The elliptic/theta carriers (EllRatio/ThetaSum/UnaryTheta)
+# all live on a genus-1 torus; RiemannTheta augments the ladder with a genus axis
+# (the exact-integer (A,B,C) exponent lattice over the quarter-nome base, the
+# cross-term C carrying the genus-2 denominator-4 clearing). A carrier, not a
+# ToolEntry, mirrors ThetaSum / EllRatio / QMat / Poly. C peer srmech_riemann_theta.
+from .riemann_theta import RiemannTheta
 # v0.3.0 — tool_schema introspection (Task #198) registers srmech's
 # own AMSC tools at import time. Profile-contributed tools register
 # later, at profile-activation time via profile_loader.
@@ -142,4 +149,5 @@ __all__ = [
     "Poly",
     "TriPoly",
     "ThetaSum",
+    "RiemannTheta",
 ]

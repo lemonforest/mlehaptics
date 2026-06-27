@@ -1952,6 +1952,26 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.c_void_p, ctypes.c_size_t, # ws, ws_len
         ]
         lib.srmech_harmonic_maass_hol_q_series.restype = ctypes.c_int
+    # rc72: the EXACT-INTEGER (A,B,C) EXPONENT LATTICE of a GENUS-2 RIEMANN
+    # THETA-CONSTANT C peer (srmech_riemann_theta) — the FIRST RUNG of the GENUS
+    # axis. Emits the [A,B,C,sign] quadruple lattice over a box (the genus-2
+    # cross-term denominator-4 clearing + the Class-K sign); plain int64 quadruples
+    # (the theta-constant coefficients are small +-1 lattice counts, no bignum). NEW
+    # symbols → hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 3.
+    #   size_t srmech_riemann_theta_count(uint32_t box)
+    if hasattr(lib, "srmech_riemann_theta_count"):
+        lib.srmech_riemann_theta_count.argtypes = [ctypes.c_uint32]
+        lib.srmech_riemann_theta_count.restype = ctypes.c_size_t
+    #   srmech_riemann_theta_lattice(ep1,ep2,e1,e2, box, out[], out_cap, *out_len)
+    if hasattr(lib, "srmech_riemann_theta_lattice"):
+        lib.srmech_riemann_theta_lattice.argtypes = [
+            ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,  # ep1,ep2,e1,e2
+            ctypes.c_uint32,                  # box
+            ctypes.POINTER(ctypes.c_int64),   # out[]
+            ctypes.c_size_t,                  # out_cap
+            ctypes.POINTER(ctypes.c_size_t),  # *out_len
+        ]
+        lib.srmech_riemann_theta_lattice.restype = ctypes.c_int
     # rc54: the EXACT q-shift CARRIER C peer (srmech_qpoly_*) — the q-analog of
     # the poly carrier, the q-hypergeometric F929 reduction-row foundation. A
     # QPoly is a ROW of q-Poly cells over an x-window; the bridge flattens the
@@ -3210,6 +3230,60 @@ def harmonic_maass_eulerian_c(N):
         raise RuntimeError(
             f"srmech_harmonic_maass_hol_q_series returned non-OK status {rc}")
     return [_bigint_to_int(o_n[i]) for i in range(out_len.value)]
+
+
+# ----------------------------------------------------------------------
+# rc72: the EXACT-INTEGER (A,B,C) EXPONENT LATTICE of a GENUS-2 RIEMANN
+# THETA-CONSTANT C peer (srmech_riemann_theta) — the FIRST RUNG of the GENUS axis.
+# The Python srmech.amsc.riemann_theta.RiemannTheta routes its .lattice() through
+# this when has_native_riemann_theta(); the pure-Python body is the COMPLETE
+# alternative (and the parity oracle) — both accumulate the [A,B,C,sign] quadruples
+# into the byte-identical canonical {(A,B,C): coeff} lattice.
+# ----------------------------------------------------------------------
+
+
+def has_native_riemann_theta() -> bool:
+    """True iff the rc72 ``srmech_riemann_theta_lattice`` peer + its count helper
+    are loaded + bound. False on a no-C / pre-rc72 lib — the pure-Python
+    ``srmech.amsc.riemann_theta.RiemannTheta`` body is the complete alternative (and
+    the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_riemann_theta_lattice")
+            and hasattr(LIB, "srmech_riemann_theta_count"))
+
+
+def riemann_theta_lattice_c(ep1, ep2, e1, e2, box):
+    """Native exact-integer genus-2 theta-constant exponent lattice → the canonical
+    ``{(A, B, C): coeff}`` dict (the accumulated ``[A, B, C, sign]`` quadruples over
+    the box ``|nᵢ| ≤ box``), or ``None`` if the native symbols are absent. The
+    accumulation merges duplicate ``(A, B, C)`` keys by summing the ``±1`` signs —
+    byte-identical to the pure-Python ``_lattice_py``. ``ep1, ep2, e1, e2`` are the
+    characteristic bits (each in ``{0, 1}``)."""
+    if not has_native_riemann_theta():
+        return None
+    if not isinstance(box, int) or box < 0:
+        raise ValueError(f"riemann_theta_lattice_c: bad box {box!r}")
+    need = int(LIB.srmech_riemann_theta_count(ctypes.c_uint32(int(box))))
+    out = (ctypes.c_int64 * max(need, 1))()
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_riemann_theta_lattice(
+        ctypes.c_int(int(ep1)), ctypes.c_int(int(ep2)),
+        ctypes.c_int(int(e1)), ctypes.c_int(int(e2)),
+        ctypes.c_uint32(int(box)), out, ctypes.c_size_t(need),
+        ctypes.byref(out_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_riemann_theta_lattice returned non-OK status {rc}")
+    lat = {}
+    n = int(out_len.value)
+    i = 0
+    while i < n:
+        key = (int(out[i]), int(out[i + 1]), int(out[i + 2]))
+        lat[key] = lat.get(key, 0) + int(out[i + 3])
+        i += 4
+    return {k: v for k, v in lat.items() if v != 0}
 
 
 def has_native_poly_gcd() -> bool:
