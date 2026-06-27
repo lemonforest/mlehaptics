@@ -3501,6 +3501,61 @@ def _register_primitive_class_tools() -> None:
                       ".leading_power() → the factored-out q-power)"),
         ),
         # ────────────────────────────────────────────────────────────
+        # rc71: the HARMONIC (weak) MAASS form PAIR carrier
+        # (srmech.amsc.harmonic_maass). A harmonic Maass form f of weight k is
+        # determined by the pair (f⁺ holomorphic mock part, g = ξ_k(f) shadow);
+        # the non-holomorphic completion f⁻ is the Eichler integral of the shadow,
+        # recoverable not stored (Bruinier–Funke Prop. 3.2). Closes research item
+        # #9: the harmonic-Maass non-holomorphic completion (the operand-side
+        # "irrepresentable" target) is now a finite exact PAIR. 1:1 C peer
+        # srmech_harmonic_maass (the holomorphic Eulerian f(q) q-series).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.harmonic_maass.harmonic_maass",
+            owner="srmech", category="harmonic_maass",
+            summary="Construct a HARMONIC (weak) MAASS form as the FINITE EXACT "
+                    "PAIR (hol holomorphic mock part, shadow g = ξ_k(f)) it is "
+                    "determined by — closing research item #9 (the harmonic-Maass "
+                    "non-holomorphic completion, the operand-side 'irrepresentable' "
+                    "target, becomes a finite exact PAIR). A harmonic Maass form "
+                    "f of weight k decomposes uniquely f = f⁺ + f⁻ (Bruinier–Funke, "
+                    "arXiv:math/0212286v4, p.9 eqs 3.2a/3.2b); the completion f⁻ is "
+                    "the EICHLER (period) integral of the shadow g = ξ_k(f) "
+                    "(Prop. 3.2 p.10: ξ_k : H_{k,L}→M^!_{2−k}, kernel = holomorphic "
+                    "forms), recoverable NOT stored — storing the shadow IS storing "
+                    "the completion (the honest treatment of a transcendental: no "
+                    "float, never numerically evaluated). The #9 KEYSTONE: "
+                    "Ramanujan's order-3 mock theta f(q) = Σ q^{n²}/∏(1+qʲ)² "
+                    "(Zagier, Astérisque 326 (2009) p.145) has shadow g₃ = "
+                    "Σ_{n≥1}(−12/n)·n·q^{n²/24} (weight 3/2, a rc70 UnaryTheta, "
+                    "p.150), so it is the pair (eulerian_f, g₃), weight 2−3/2 = 1/2 "
+                    "— ONE finite exact carrier. hol is a MockQSeries (a thin "
+                    "q-series carrier: leading q-power + a finite GENERATING RULE — "
+                    "'eulerian_f' for the keystone, or a closed-form 'qpoly') or the "
+                    "string 'eulerian_f'; shadow is the weight-(2−k) UnaryTheta. "
+                    ".weight = 2 − shadow.weight, .xi() returns the shadow (the hol "
+                    "part is in ξ's kernel), .hol_q_series(N) / .shadow_q_series(N) "
+                    "the exact coefficients. A mock part with NO finite rule is an "
+                    "honest OPEN (the carrier's named boundary). 1:1 C peer "
+                    "srmech_harmonic_maass computes the Eulerian f(q) integer "
+                    "q-series over caller-arena srmech_bigint (byte-identical to "
+                    "Python). Exact integers / exact-ℚ + exact-Q weight; no float, "
+                    "no abs() (the Class-K pin-slot carries any sign), no numpy / "
+                    "math.",
+            parameters=(P("hol", "MockQSeries", True,
+                          "the holomorphic mock part f⁺: a MockQSeries (leading "
+                          "q-power + a finite generating rule) or the string "
+                          "'eulerian_f' (Ramanujan's order-3 f(q), the #9 keystone)"),
+                        P("shadow", "UnaryTheta", True,
+                          "the shadow g = ξ_k(f): a weight-(2−k) UnaryTheta (e.g. "
+                          "unary_theta('minus12',1,1,0,24,support='positive') for "
+                          "g₃ at weight 3/2)")),
+            returns=R("HarmonicMaass",
+                      "the pair carrier (.weight = 2 − shadow.weight; .hol / "
+                      ".shadow; .xi() → the shadow; .hol_q_series(N) / "
+                      ".shadow_q_series(N) → exact coefficients)"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # Foundational cross-domain cascade catalog (v0.4.3rc6).
         # The cascades recurring across every/most domains, promoted so a
         # named cascade is the default and a math-library call the exception.
