@@ -197,6 +197,11 @@ _Mat2 = Tuple[Tuple[int, int], Tuple[int, int]]
 # an Sp(4, ℤ) element as the four 2×2 integer blocks (A, B, C, D)
 _Sp4 = Tuple[_Mat2, _Mat2, _Mat2, _Mat2]
 
+# a 3×3 integer matrix (a row-major tuple of 3-tuples) — the genus-3 building block
+_Mat3 = Tuple[Tuple[int, int, int], Tuple[int, int, int], Tuple[int, int, int]]
+# an Sp(6, ℤ) element as the four 3×3 integer blocks (A, B, C, D)
+_Sp6 = Tuple[_Mat3, _Mat3, _Mat3, _Mat3]
+
 
 def _native():
     """The native ``_native`` module IF the rc72 ``srmech_riemann_theta`` peer is
@@ -1808,6 +1813,555 @@ class RiemannThetaG3:
         genus-2 trivial null and on to θ₃). Among the 36 even nulls it is the
         distinguished one (Grushevsky / Igusa)."""
         return cls.theta_constant((0, 0, 0), (0, 0, 0))
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # rc77 (A): the genus-3 Sp(6, ℤ) TRANSFORMATION (the modular action on the
+    # genus-3 binary characteristic — the g=2→g=3 parametric extension of rc73's
+    # Sp(4, ℤ) action; DLMF §21.5.9 holds for GENERAL genus g with g×g blocks).
+    # ══════════════════════════════════════════════════════════════════════════
+
+    # ── exact 3×3 integer matrix algebra (no numpy; integer / mod-2 only) ───────
+    @staticmethod
+    def _m3_matvec(m: "_Mat3", v: "Tuple[int, int, int]") -> "List[int]":
+        """The exact integer matrix·vector ``M·v`` for a 3×3 ``M`` and a length-3
+        ``v`` (a bounded 3×3 multiply — JPL Rule 2). All-integer, no float."""
+        return [m[r][0] * v[0] + m[r][1] * v[1] + m[r][2] * v[2] for r in range(3)]
+
+    @staticmethod
+    def _m3_matmul(p: "_Mat3", q: "_Mat3") -> "_Mat3":
+        """The exact integer 3×3 matrix product ``P·Q``. All-integer, no float."""
+        return tuple(  # type: ignore[return-value]
+            tuple(p[i][0] * q[0][j] + p[i][1] * q[1][j] + p[i][2] * q[2][j]
+                  for j in range(3))
+            for i in range(3))
+
+    @staticmethod
+    def _m3_transpose(m: "_Mat3") -> "_Mat3":
+        """The exact 3×3 transpose ``Mᵀ``."""
+        return tuple(tuple(m[r][c] for r in range(3))  # type: ignore[return-value]
+                     for c in range(3))
+
+    @staticmethod
+    def _m3_add(p: "_Mat3", q: "_Mat3") -> "_Mat3":
+        """The exact 3×3 sum ``P + Q``."""
+        return tuple(tuple(p[i][j] + q[i][j] for j in range(3))  # type: ignore[return-value]
+                     for i in range(3))
+
+    @classmethod
+    def _m3_diag_of_prod(cls, p: "_Mat3", q: "_Mat3") -> "List[int]":
+        """``diag(P·Qᵀ)`` as a length-3 vector — the diagonal of ``P·Qᵀ`` (the
+        ``½diag[C·Dᵀ]`` / ``½diag[A·Bᵀ]`` terms of the Igusa genus-3 characteristic
+        transformation, returned UN-halved as the integer ``diag(P·Qᵀ)`` since the
+        doubled-half-integer characteristic absorbs the ½). Exact integer
+        (``diag(P·Qᵀ)_i = Σ_k P[i][k]·Q[i][k]`` — the row-row dot)."""
+        return [p[i][0] * q[i][0] + p[i][1] * q[i][1] + p[i][2] * q[i][2]
+                for i in range(3)]
+
+    @staticmethod
+    def _i3() -> "_Mat3":
+        """The 3×3 identity matrix (the genus-3 ``I``)."""
+        return ((1, 0, 0), (0, 1, 0), (0, 0, 1))
+
+    @staticmethod
+    def _z3() -> "_Mat3":
+        """The 3×3 zero matrix (the genus-3 ``0`` block)."""
+        return ((0, 0, 0), (0, 0, 0), (0, 0, 0))
+
+    # ── the standard Sp(6, ℤ) generators ───────────────────────────────────────
+    @classmethod
+    def sp6_translation(cls, b: "_Mat3") -> "_Sp6":
+        """The Sp(6, ℤ) TRANSLATION generator ``γ = [[I, B], [0, I]]`` for a SYMMETRIC
+        integer 3×3 ``B`` (the genus-3 ``Ω ↦ Ω+B`` shift — DLMF §21.5, the general-g
+        translation). ``B`` must be symmetric (else not symplectic) — rejected loudly
+        otherwise. Returned as the four 3×3 blocks ``(A, B, C, D) = (I, B, 0, I)``."""
+        b = cls._coerce_mat3(b, "B")
+        for i in range(3):
+            for j in range(i + 1, 3):
+                if b[i][j] != b[j][i]:
+                    raise ValueError(
+                        "the translation block B must be SYMMETRIC (Sp(6,ℤ) "
+                        f"condition); got B = {b!r} (B[{i}][{j}]={b[i][j]} ≠ "
+                        f"B[{j}][{i}]={b[j][i]})")
+        return (cls._i3(), b, cls._z3(), cls._i3())
+
+    @classmethod
+    def sp6_gl_twist(cls, a: "_Mat3") -> "_Sp6":
+        """The Sp(6, ℤ) GL-TWIST generator ``γ = [[A, 0], [0, (Aᵀ)⁻¹]]`` for
+        ``A ∈ GL(3, ℤ)`` (the genus-3 basis change ``θ(Az | A Ω Aᵀ)``). ``A`` must have
+        ``det A = ±1`` so ``(Aᵀ)⁻¹`` is integer — rejected loudly otherwise (an honest
+        boundary, not a fabricated reduction). Returned as ``(A, 0, 0, (Aᵀ)⁻¹)``."""
+        a = cls._coerce_mat3(a, "A")
+        det = cls._det3(a)
+        if det not in (1, -1):
+            raise ValueError(
+                f"the GL-twist block A must be in GL(3,ℤ) (det = ±1) so (Aᵀ)⁻¹ is "
+                f"integer; got A = {a!r} with det = {det} — an honest boundary, not "
+                "a fabricated reduction.")
+        a_inv = cls._inv3_unimodular(a, det)
+        d = cls._m3_transpose(a_inv)        # (Aᵀ)⁻¹ = (A⁻¹)ᵀ
+        return (a, cls._z3(), cls._z3(), d)
+
+    @classmethod
+    def sp6_inversion(cls) -> "_Sp6":
+        """The Sp(6, ℤ) INVERSION generator ``γ = [[0, −I], [I, 0]]`` (the genus-3
+        ``Ω ↦ −Ω⁻¹``; the ``J`` matrix). It carries the TRANSCENDENTAL automorphy
+        factor ``det(−iΩ)^{1/2}`` (off every decision path; :meth:`automorphy_factor`).
+        Returned as ``(0, −I, I, 0)``."""
+        neg_i = ((-1, 0, 0), (0, -1, 0), (0, 0, -1))
+        return (cls._z3(), neg_i, cls._i3(), cls._z3())
+
+    @staticmethod
+    def _det3(m: "_Mat3") -> int:
+        """The exact integer determinant of a 3×3 matrix (Sarrus / cofactor). No
+        float."""
+        return (m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
+                - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+                + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]))
+
+    @classmethod
+    def _inv3_unimodular(cls, m: "_Mat3", det: int) -> "_Mat3":
+        """The exact integer inverse ``M⁻¹ = (1/det)·adj(M)`` of a UNIMODULAR 3×3 ``M``
+        (``det = ±1`` so the adjugate divided by det is exact integer). The adjugate is
+        the transpose of the cofactor matrix. No float; the divisions are exact (det is
+        ±1, so this is a sign-multiply — Class-K, never an ALU abs())."""
+        # cofactor C[i][j] = (−1)^{i+j} · minor(i,j); adj = Cᵀ; M⁻¹ = adj / det
+        cof = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+        for i in range(3):
+            for j in range(3):
+                rows = [r for r in range(3) if r != i]
+                cols = [c for c in range(3) if c != j]
+                minor = (m[rows[0]][cols[0]] * m[rows[1]][cols[1]]
+                         - m[rows[0]][cols[1]] * m[rows[1]][cols[0]])
+                sign = 1 if (i + j) % 2 == 0 else -1     # Class-K, no abs()
+                cof[i][j] = sign * minor
+        # M⁻¹ = adj / det = (cofᵀ) · det   (det = ±1, so /det == ·det)
+        return tuple(tuple(cof[j][i] * det for j in range(3))  # type: ignore[return-value]
+                     for i in range(3))
+
+    @staticmethod
+    def _coerce_mat3(m: "_Mat3", name: str) -> "_Mat3":
+        """Coerce / validate a 3×3 integer matrix; reject a malformed shape loudly."""
+        if not (isinstance(m, (tuple, list)) and len(m) == 3
+                and all(isinstance(row, (tuple, list)) and len(row) == 3
+                        for row in m)):
+            raise ValueError(f"{name} must be a 3×3 integer matrix; got {m!r}")
+        return tuple(tuple(int(m[i][j]) for j in range(3))  # type: ignore[return-value]
+                     for i in range(3))
+
+    @classmethod
+    def _validate_gamma6(cls, gamma: "_Sp6") -> "_Sp6":
+        """Coerce / validate an ``Sp(6, ℤ)`` element ``(A, B, C, D)`` to a tuple of
+        four exact-integer 3×3 blocks; reject a malformed shape loudly."""
+        if not (isinstance(gamma, (tuple, list)) and len(gamma) == 4):
+            raise ValueError(
+                f"γ must be (A, B, C, D), four 3×3 integer matrices; got {gamma!r}")
+        return (cls._coerce_mat3(gamma[0], "A"), cls._coerce_mat3(gamma[1], "B"),
+                cls._coerce_mat3(gamma[2], "C"), cls._coerce_mat3(gamma[3], "D"))
+
+    @classmethod
+    def sp6_is_symplectic(cls, gamma: "_Sp6") -> bool:
+        """True iff ``γ = (A, B, C, D)`` (3×3 blocks) is genuinely symplectic —
+        ``γ·J·γᵀ = J`` with ``J = [[0, −I], [I, 0]]`` (the genus-3 symplectic form). The
+        exact integer block conditions are ``AᵀC = CᵀA`` (symmetric), ``BᵀD = DᵀB``
+        (symmetric), ``AᵀD − CᵀB = I``. A pure integer check (no float)."""
+        a, b, c, d = cls._validate_gamma6(gamma)
+        tr = cls._m3_transpose
+        mm = cls._m3_matmul
+        atc = mm(tr(a), c)
+        btd = mm(tr(b), d)
+        if atc != cls._m3_transpose(atc):                 # AᵀC symmetric
+            return False
+        if btd != cls._m3_transpose(btd):                 # BᵀD symmetric
+            return False
+        atd = mm(tr(a), d)
+        ctb = mm(tr(c), b)
+        diff = tuple(tuple(atd[i][j] - ctb[i][j] for j in range(3))
+                     for i in range(3))
+        return diff == cls._i3()                           # AᵀD − CᵀB = I
+
+    @classmethod
+    def sp6_compose(cls, g2: "_Sp6", g1: "_Sp6") -> "_Sp6":
+        """The Sp(6, ℤ) group law ``g2 · g1`` (the block matrix product) — exact
+        integer 3×3 block arithmetic. The characteristic action composes the SAME way
+        (``transform(g2·g1) == transform(g2) ∘ transform(g1)``; the gate)."""
+        a2, b2, c2, d2 = cls._validate_gamma6(g2)
+        a1, b1, c1, d1 = cls._validate_gamma6(g1)
+        mm, ad = cls._m3_matmul, cls._m3_add
+        a = ad(mm(a2, a1), mm(b2, c1))
+        b = ad(mm(a2, b1), mm(b2, d1))
+        c = ad(mm(c2, a1), mm(d2, c1))
+        d = ad(mm(c2, b1), mm(d2, d1))
+        return (a, b, c, d)
+
+    # ── the EXACT characteristic action + the κ 8th-root multiplier ─────────────
+    @classmethod
+    def _char_transform_int(cls, gamma: "_Sp6", ep_prime: "Tuple[int, int, int]",
+                            eps: "Tuple[int, int, int]"
+                            ) -> "Tuple[List[int], List[int]]":
+        """The Igusa / DLMF-21.5.9 characteristic action at genus 3, as INTEGER vectors
+        (the caller reduces mod 2 for the bit): ``ε' ↦ D·ε' − C·ε + diag(C·Dᵀ)`` and
+        ``ε ↦ −B·ε' + A·ε + diag(A·Bᵀ)`` (DLMF §21.5.9 holds for general genus g; here
+        3×3 blocks / 3-vectors). Exact integer 3×3 arithmetic, no float."""
+        a, b, c, d = cls._validate_gamma6(gamma)
+        d_epp = cls._m3_matvec(d, ep_prime)
+        c_eps = cls._m3_matvec(c, eps)
+        diag_cd = cls._m3_diag_of_prod(c, d)
+        new_epp = [d_epp[i] - c_eps[i] + diag_cd[i] for i in range(3)]
+        a_eps = cls._m3_matvec(a, eps)
+        b_epp = cls._m3_matvec(b, ep_prime)
+        diag_ab = cls._m3_diag_of_prod(a, b)
+        new_eps = [a_eps[i] - b_epp[i] + diag_ab[i] for i in range(3)]
+        return new_epp, new_eps
+
+    @staticmethod
+    def _dot3(u: "Tuple[int, int, int]", v: "Tuple[int, int, int]") -> int:
+        """The exact integer dot product ``u·v`` of two length-3 vectors."""
+        return u[0] * v[0] + u[1] * v[1] + u[2] * v[2]
+
+    @classmethod
+    def _kappa_exp8(cls, gamma: "_Sp6", ep_prime: "Tuple[int, int, int]",
+                    eps: "Tuple[int, int, int]") -> int:
+        """The EXACT 8th-root multiplier exponent ``k ∈ ℤ/8`` (the multiplier is
+        ``ζ₈^k = e^{2πik/8}``) — the genus-3 CHARACTERISTIC-DEPENDENT Igusa phase
+        ``φ_m(γ)`` of the theta-constant transformation. The Igusa φ_m is stated for
+        GENERAL genus g (a sum over ``k,l = 1..g``; the SAME expression at every g —
+        verified MPM):
+
+            φ_m(γ) = −½·ε'ᵀ·(B·Dᵀ)·ε' + εᵀ·(AᵀC)·ε − 2·ε'ᵀ·(BᵀC)·ε
+                     − diag(A·Bᵀ)ᵀ·(D·ε' − C·ε)
+
+        This returns the ``exp(2πi·φ_m)`` part — the piece EXACTLY computable on the
+        decision path: the phase is rational with denominator dividing 8, so ``8·φ_m``
+        is an EXACT integer → ``k = (8·φ_m) mod 8`` is exact (no float). The remaining
+        ``γ``-only factor ``κ₀(γ)`` (the Maslov / Weil cocycle 8th root) is BOUND to
+        the TRANSCENDENTAL automorphy factor ``det(C·Ω+D)^{1/2}`` (the branch of the
+        square root), so it is NOT placed on the decision path — carried SYMBOLICALLY
+        (:meth:`automorphy_factor`; the rc72 review lesson). The doubled-half
+        characteristic absorbs the ½'s; we carry ``8·φ_m`` as an integer throughout
+        (the g=2 ``RiemannTheta._kappa_exp8`` expression, parametrically extended to
+        3-vectors / 3×3 blocks):
+
+            8·φ_m = −4·ε'ᵀ(B·Dᵀ)ε' + 8·εᵀ(AᵀC)ε − 16·ε'ᵀ(BᵀC)ε
+                    − 8·diag(A·Bᵀ)ᵀ(D·ε' − C·ε)
+        """
+        a, b, c, d = cls._validate_gamma6(gamma)
+        epp = (int(ep_prime[0]), int(ep_prime[1]), int(ep_prime[2]))
+        eps = (int(eps[0]), int(eps[1]), int(eps[2]))
+        tr, mm = cls._m3_transpose, cls._m3_matmul
+        # term 1: −4·ε'ᵀ(B·Dᵀ)ε'   (the −½ becomes −4 after ×8)
+        bdt = mm(b, tr(d))
+        t1 = -4 * cls._dot3(epp, cls._m3_matvec(bdt, epp))
+        # term 2: +8·εᵀ(AᵀC)ε
+        atc = mm(tr(a), c)
+        t2 = 8 * cls._dot3(eps, cls._m3_matvec(atc, eps))
+        # term 3: −16·ε'ᵀ(BᵀC)ε
+        btc = mm(tr(b), c)
+        t3 = -16 * cls._dot3(epp, cls._m3_matvec(btc, eps))
+        # term 4: −8·diag(A·Bᵀ)ᵀ(D·ε' − C·ε)
+        diag_ab = cls._m3_diag_of_prod(a, b)
+        d_epp = cls._m3_matvec(d, epp)
+        c_eps = cls._m3_matvec(c, eps)
+        arg = [d_epp[i] - c_eps[i] for i in range(3)]
+        t4 = -8 * cls._dot3(tuple(diag_ab), tuple(arg))
+        eight_phi = t1 + t2 + t3 + t4
+        return eight_phi % 8                       # exact k ∈ {0,…,7}
+
+    def transform(self, gamma: "_Sp6") -> "Tuple[RiemannThetaG3, int]":
+        """The EXACT genus-3 Sp(6, ℤ) modular action on THIS theta-characteristic:
+        returns the transformed :class:`RiemannThetaG3` ``θ[γ·m]`` and the 8th-root
+        multiplier exponent ``k ∈ ℤ/8`` (the multiplier is ``ζ₈^k``). The characteristic
+        map (DLMF §21.5.9, general genus g; here 3×3 blocks) is bit-exact (integer /
+        mod-2); the multiplier rides the exact Igusa phase (:meth:`_kappa_exp8`). The
+        transcendental automorphy factor ``det(C·Ω+D)^{1/2}`` is NOT applied — it is
+        carried symbolically (:meth:`automorphy_factor`), off the decision path.
+
+        DISPATCHES the exact-integer characteristic + κ computation to the native
+        ``srmech_riemann_theta_g3_sp6_char`` C peer when loaded (a 1:1 mirror — the C
+        result EQUALS the Python result, trusted only on a native hit); else the pure
+        body (the COMPLETE alternative + the parity oracle). ``γ`` must be symplectic —
+        rejected loudly otherwise (an honest boundary). Parity (even ⇄ even,
+        odd ⇄ odd) is preserved by construction."""
+        if not self.sp6_is_symplectic(gamma):
+            raise ValueError(
+                "transform requires a symplectic γ (γ·J·γᵀ = J); the given (A,B,C,D) "
+                "is not in Sp(6,ℤ) — an honest boundary, not a fabricated reduction.")
+        nat = _native_g3()
+        if nat is not None and getattr(nat, "has_native_riemann_theta_g3_sp6",
+                                       lambda: False)():
+            try:
+                g = self._validate_gamma6(gamma)
+                got = nat.riemann_theta_g3_sp6_char_c(
+                    g, self._ep1, self._ep2, self._ep3,
+                    self._e1, self._e2, self._e3)
+                if got is not None:
+                    (n1, n2, n3, m1, m2, m3), kexp = got
+                    return RiemannThetaG3(n1, n2, n3, m1, m2, m3), kexp % 8
+            except (RuntimeError, OverflowError, ValueError):
+                pass                                  # fall to the pure path
+        new_epp, new_eps = self._char_transform_int(
+            gamma, (self._ep1, self._ep2, self._ep3),
+            (self._e1, self._e2, self._e3))
+        kexp = self._kappa_exp8(
+            gamma, (self._ep1, self._ep2, self._ep3),
+            (self._e1, self._e2, self._e3))
+        return (RiemannThetaG3(new_epp[0] % 2, new_epp[1] % 2, new_epp[2] % 2,
+                               new_eps[0] % 2, new_eps[1] % 2, new_eps[2] % 2),
+                kexp)
+
+    @staticmethod
+    def automorphy_factor(gamma: "_Sp6") -> str:
+        """The TRANSCENDENTAL automorphy factor ``det(C·Ω+D)^{1/2}`` of the Sp(6, ℤ)
+        action — returned as a SYMBOLIC string, NEVER numerically evaluated (it depends
+        on the transcendental period matrix ``Ω ∈ H₃`` and is a square root: not a
+        finite exact object, so it stays OFF every decision path; the rc72 review
+        lesson). The honest, exact part of the transformation is the characteristic map
+        + the κ 8th root (:meth:`transform`); this factor is the documented
+        not-evaluated companion."""
+        a, b, c, d = RiemannThetaG3._validate_gamma6(gamma)
+
+        def _rows(m: "_Mat3") -> str:
+            return "[" + ",".join(
+                "[" + ",".join(str(m[i][j]) for j in range(3)) + "]"
+                for i in range(3)) + "]"
+        return f"det({_rows(c)}·Ω + {_rows(d)})^(1/2)"
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # rc77 (B): the genus-3 ADDITION relation (genuine; distinct from rc75
+    # duplication — DLMF §21.6.8 at g=3, the two-argument theorem, sum over (ℤ/2)³).
+    # ══════════════════════════════════════════════════════════════════════════
+
+    @staticmethod
+    def _theta_omega_eighth(a1: int, a2: int, a3: int, e1: int, e2: int, e3: int,
+                            box: int) -> "Dict[_Sextuple, int]":
+        """The genus-3 theta-constant ``θ[(a₁,a₂,a₃); (e₁,e₂,e₃)](0 | Ω)`` in the COMMON
+        EIGHTH-nome base ``Q₈ = q^{1/8}`` (so it shares ONE integer lattice with the
+        ``2Ω`` thetas of the addition right side). With ``mᵢ = nᵢ + aᵢ/2`` the q exponent
+        ``mᵢ²`` rides ``Q₈^{8mᵢ²} = Q₈^{2(2nᵢ+aᵢ)²}``, the cross ``mᵢmⱼ`` rides
+        ``Q₈^{2(2nᵢ+aᵢ)(2nⱼ+aⱼ)}``:
+
+            Aᵢ = 2(2nᵢ+aᵢ)²,   C_ij = 2(2nᵢ+aᵢ)(2nⱼ+aⱼ)
+
+        sign ``(−1)^{e·n}`` is the Class-K pin-slot (explicit ±1 branch, never
+        ``abs()``). Exact integer, no float / numpy / ``math``. ``a₁, a₂, a₃`` are the
+        DOUBLED upper characteristic (the helper accepts any integer so the right
+        side's ``2r±(a∓b)`` cases work). DISPATCHES to the native
+        ``srmech_riemann_theta_g3_eighth_lattice`` (at Ω) when loaded — a 1:1
+        exact-integer mirror, trusted only on a native hit."""
+        nat = _native_g3()
+        if nat is not None and getattr(nat, "has_native_riemann_theta_g3_eighth",
+                                       lambda: False)():
+            try:
+                got = nat.riemann_theta_g3_eighth_lattice_c(
+                    a1, a2, a3, e1, e2, e3, False, box)
+                if got is not None:
+                    return got
+            except (RuntimeError, OverflowError, ValueError):
+                pass
+        out: Dict[_Sextuple, int] = {}
+        for n1 in range(-box, box + 1):
+            u1 = 2 * n1 + a1
+            for n2 in range(-box, box + 1):
+                u2 = 2 * n2 + a2
+                for n3 in range(-box, box + 1):
+                    u3 = 2 * n3 + a3
+                    key = (2 * u1 * u1, 2 * u2 * u2, 2 * u3 * u3,
+                           2 * u1 * u2, 2 * u1 * u3, 2 * u2 * u3)
+                    parity = (e1 * n1 + e2 * n2 + e3 * n3) % 2
+                    sign = 1 if parity == 0 else -1   # never abs(); explicit ±
+                    out[key] = out.get(key, 0) + sign
+        return {k: w for k, w in out.items() if w != 0}
+
+    @staticmethod
+    def _theta_two_omega_eighth(s1: int, s2: int, s3: int, e1: int, e2: int, e3: int,
+                                box: int) -> "Dict[_Sextuple, int]":
+        """The genus-3 theta-constant ``θ[(s₁/2,s₂/2,s₃/2); (e₁,e₂,e₃)](0 | 2Ω)`` in the
+        SAME EIGHTH-nome base. The constructive sum/difference re-indexing puts the
+        addition right side here: the eighth-nome exponent of ``θ`` at ``2Ω`` is
+        ``(4nᵢ+sᵢ)²`` (and cross ``(4nᵢ+sᵢ)(4nⱼ+sⱼ)``):
+
+            Aᵢ = (4nᵢ+sᵢ)²,   C_ij = (4nᵢ+sᵢ)(4nⱼ+sⱼ)
+
+        sign ``(−1)^{e·n}`` the Class-K pin-slot. ``s₁, s₂, s₃`` are the DOUBLED upper
+        characteristic of the ``2Ω`` theta (an integer; odd ⟺ a genuine half-integer
+        characteristic). Exact integer, no float. DISPATCHES to the native
+        ``srmech_riemann_theta_g3_eighth_lattice`` (at 2Ω) when loaded — a 1:1
+        exact-integer mirror, trusted only on a native hit."""
+        nat = _native_g3()
+        if nat is not None and getattr(nat, "has_native_riemann_theta_g3_eighth",
+                                       lambda: False)():
+            try:
+                got = nat.riemann_theta_g3_eighth_lattice_c(
+                    s1, s2, s3, e1, e2, e3, True, box)
+                if got is not None:
+                    return got
+            except (RuntimeError, OverflowError, ValueError):
+                pass
+        out: Dict[_Sextuple, int] = {}
+        for n1 in range(-box, box + 1):
+            u1 = 4 * n1 + s1
+            for n2 in range(-box, box + 1):
+                u2 = 4 * n2 + s2
+                for n3 in range(-box, box + 1):
+                    u3 = 4 * n3 + s3
+                    key = (u1 * u1, u2 * u2, u3 * u3,
+                           u1 * u2, u1 * u3, u2 * u3)
+                    parity = (e1 * n1 + e2 * n2 + e3 * n3) % 2
+                    sign = 1 if parity == 0 else -1
+                    out[key] = out.get(key, 0) + sign
+        return {k: w for k, w in out.items() if w != 0}
+
+    @staticmethod
+    def _square_lattice_pair(la: "Dict[_Sextuple, int]",
+                             lb: "Dict[_Sextuple, int]") -> "Dict[_Sextuple, int]":
+        """The exact-integer product ``la · lb`` of two genus-3
+        ``(A₁,A₂,A₃,C₁₂,C₁₃,C₂₃) → coeff`` lattices (a bounded convolution over the
+        exponent sextuples; JPL Rule 2). All-integer, no float."""
+        out: Dict[_Sextuple, int] = {}
+        items_a = list(la.items())
+        items_b = list(lb.items())
+        for k1, v1 in items_a:
+            for k2, v2 in items_b:
+                key = (k1[0] + k2[0], k1[1] + k2[1], k1[2] + k2[2],
+                       k1[3] + k2[3], k1[4] + k2[4], k1[5] + k2[5])
+                out[key] = out.get(key, 0) + v1 * v2
+        return {k: v for k, v in out.items() if v != 0}
+
+    @classmethod
+    def addition_lhs(cls, a: "Tuple[int, int, int]", b: "Tuple[int, int, int]",
+                     box: int) -> "Dict[_Sextuple, int]":
+        """The LEFT side of the genus-3 addition identity — the BILINEAR product of TWO
+        theta-nulls ``θ[a; 0](0|Ω) · θ[b; 0](0|Ω)`` (in the common eighth-nome base),
+        the exact-integer lattice convolution. ``a, b`` are the upper characteristics
+        (each in {0,1}³). When ``a ≠ b`` this is a product of two DISTINCT nulls — the
+        content rc75 duplication cannot produce. See :meth:`addition_holds`."""
+        la = cls._theta_omega_eighth(a[0], a[1], a[2], 0, 0, 0, box)
+        lb = cls._theta_omega_eighth(b[0], b[1], b[2], 0, 0, 0, box)
+        return cls._square_lattice_pair(la, lb)
+
+    @classmethod
+    def addition_rhs(cls, a: "Tuple[int, int, int]", b: "Tuple[int, int, int]",
+                     box: int) -> "Dict[_Sextuple, int]":
+        """The RIGHT side of the genus-3 addition identity (DLMF §21.6.8 at z=0, lower
+        chars 0, g=3 — sum over ``r ∈ (ℤ/2)³``, EIGHT terms)
+
+            Σ_{r ∈ (ℤ/2)³} θ[(2r+a+b)/2; 0](0|2Ω) · θ[(2r+a−b)/2; 0](0|2Ω)
+
+        (in the common eighth-nome base). Each summand is a product of two ``2Ω``
+        theta-nulls with the DISTINCT doubled characteristics ``2r+a+b`` vs ``2r+a−b``
+        — the genuinely-new content; the ``a = b`` collapse recovers rc75's duplication
+        ``Σ_r θ[r;0](2Ω)²``. See :meth:`addition_holds`."""
+        rhs: Dict[_Sextuple, int] = {}
+        for r1 in (0, 1):
+            for r2 in (0, 1):
+                for r3 in (0, 1):
+                    sp1 = 2 * r1 + a[0] + b[0]
+                    sp2 = 2 * r2 + a[1] + b[1]
+                    sp3 = 2 * r3 + a[2] + b[2]
+                    sm1 = 2 * r1 + a[0] - b[0]
+                    sm2 = 2 * r2 + a[1] - b[1]
+                    sm3 = 2 * r3 + a[2] - b[2]
+                    l1 = cls._theta_two_omega_eighth(sp1, sp2, sp3, 0, 0, 0, box)
+                    l2 = cls._theta_two_omega_eighth(sm1, sm2, sm3, 0, 0, 0, box)
+                    term = cls._square_lattice_pair(l1, l2)
+                    for k, v in term.items():
+                        rhs[k] = rhs.get(k, 0) + v
+        return {k: v for k, v in rhs.items() if v != 0}
+
+    @classmethod
+    def addition_holds(cls, box: int = 6) -> bool:
+        """The genus-3 ADDITION identity gate (the rc77 (B) build gate) — the GENUINE
+        two-argument genus-3 theta addition theorem (DLMF §21.6.8, the ``z₁ = z₂ = 0``,
+        lower-characteristics-0, ``g = 3`` specialization — the sum runs over
+        ``r ∈ (ℤ/2)³``, EIGHT terms),
+
+            θ[a; 0](0|Ω)·θ[b; 0](0|Ω)
+              = Σ_{r ∈ (ℤ/2)³} θ[(2r+a+b)/2; 0](0|2Ω)·θ[(2r+a−b)/2; 0](0|2Ω) ,
+
+        holds EXACTLY as a truncated exact-integer multivariate q-series, for ALL ``Ω``
+        (no transcendental evaluation, no float, no tolerance). The identity is proved
+        CONSTRUCTIVELY by the sum/difference re-indexing of the double lattice sum (see
+        :meth:`_theta_two_omega_eighth`); it is the genus-3 instance of the addition
+        theorem (DLMF §21.6.8 is stated for general genus g).
+
+        GENUINELY DISTINCT FROM rc75's DUPLICATION: duplication squares a SINGLE even
+        theta-null (``θ[0;0]² = Σ_c θ[c;0](2Ω)²``, 8 summands); this addition relation
+        is the BILINEAR product of TWO DIFFERENT nulls ``θ[a]·θ[b]`` (``a ≠ b``), and
+        the right side carries DISTINCT characteristics ``2r+a+b`` vs ``2r+a−b`` per
+        summand — content duplication alone never produces (it never holds a product of
+        two distinct nulls). The gate VERIFIES the non-trivial ``a ≠ b`` cases (and
+        :meth:`addition_is_distinct_from_duplication` confirms they differ from the
+        ``a = b`` duplication collapse), so it is the GENUINE addition theorem, not a
+        relabeled duplication.
+
+        Compares the two sides on the SAFE INNER REGION the box ``|nᵢ| ≤ box`` provably
+        resolves. The eighth-nome theta at Ω reaches exponent ``2·(2·box)²`` and at 2Ω
+        reaches ``(4·box)²``; a box-``box`` truncation fully resolves monomials with
+        ``Aᵢ, |C_ij| ≤ 2·box²`` (a conservative inner bound). Returns ``True`` iff every
+        checked ``(a, b)`` pair agrees exactly on the safe region, at least one genuine
+        ``a ≠ b`` pair is checked, and the safe region is non-trivially populated with a
+        genuine genus-3 cross-term (``C₁₃`` or ``C₂₃`` ≠ 0) monomial (so the genus-3
+        coupling is genuinely exercised, not just the genus-2 / genus-1 slice).
+
+        A CARRIER METHOD (the carrier's own build gate), not a public module-level op —
+        ``tools.total`` is UNCHANGED (the rc72/73/75 ``*_holds`` precedent)."""
+        if not isinstance(box, int) or box < 2:
+            raise ValueError(
+                f"box must be an int ≥ 2 for the genus-3 addition gate; got {box!r}")
+        safe = 2 * box * box
+        # the (a, b) pairs to verify: the duplication collapse (a==b) PLUS genuine
+        # distinct pairs (a != b) — the latter is what makes it the real addition; the
+        # distinct pairs are chosen to exercise the THREE genus-3 cross-terms.
+        pairs = [((0, 0, 0), (0, 0, 0)),                         # dup collapse
+                 ((1, 0, 0), (0, 0, 0)), ((0, 0, 1), (0, 0, 0)),  # genuine a ≠ b
+                 ((1, 0, 1), (0, 0, 0)), ((1, 1, 0), (0, 0, 1)),
+                 ((0, 1, 1), (1, 0, 0)), ((1, 1, 1), (0, 1, 1))]
+
+        def restrict(lat: "Dict[_Sextuple, int]") -> "Dict[_Sextuple, int]":
+            kept: Dict[_Sextuple, int] = {}
+            for k, v in lat.items():
+                a1, a2, a3, c12, c13, c23 = k
+                m12 = c12 if c12 >= 0 else -c12       # Class-K magnitude, no abs()
+                m13 = c13 if c13 >= 0 else -c13
+                m23 = c23 if c23 >= 0 else -c23
+                if (a1 <= safe and a2 <= safe and a3 <= safe
+                        and m12 <= safe and m13 <= safe and m23 <= safe):
+                    kept[k] = v
+            return kept
+
+        saw_genuine = False
+        saw_g3_cross = False
+        for (a, b) in pairs:
+            lhs = restrict(cls.addition_lhs(a, b, box))
+            rhs = restrict(cls.addition_rhs(a, b, box))
+            if lhs != rhs:
+                return False
+            if a != b:
+                saw_genuine = True
+            if any((c13 != 0 or c23 != 0)
+                   for (_a1, _a2, _a3, _c12, c13, c23) in lhs):
+                saw_g3_cross = True
+        return saw_genuine and saw_g3_cross
+
+    @classmethod
+    def addition_is_distinct_from_duplication(cls, box: int = 6) -> bool:
+        """PROVES the genus-3 addition relation is GENUINELY DISTINCT from the rc75
+        duplication: for a genuine ``a ≠ b`` pair the addition LEFT side ``θ[a]·θ[b]``
+        is a product of two DIFFERENT theta-nulls, which is NOT equal to ANY duplication
+        left side ``θ[c]²`` (a single even null squared). Returns ``True`` iff the
+        genuine addition LHS (``a=(1,0,0)``, ``b=(0,0,0)``) differs from every
+        ``θ[c;0]²`` over the eight even ``c ∈ {0,1}³`` (upper char ``c``, lower 0 — all
+        even) — the no-shell proof that it is not a relabeled duplication."""
+        if not isinstance(box, int) or box < 2:
+            raise ValueError(f"box must be an int ≥ 2; got {box!r}")
+        genuine = cls.addition_lhs((1, 0, 0), (0, 0, 0), box)   # θ[(1,0,0)]·θ[(0,0,0)]
+        for c1 in (0, 1):
+            for c2 in (0, 1):
+                for c3 in (0, 1):
+                    tc = cls._theta_omega_eighth(c1, c2, c3, 0, 0, 0, box)
+                    sq = cls._square_lattice_pair(tc, tc)        # θ[c;0]²
+                    if genuine == sq:
+                        return False                            # would be duplication
+        return True
 
     # ══════════════════════════════════════════════════════════════════════════
     # rc76: IGUSA'S χ₁₈ — the EXACT product of the 36 even theta-nulls (the genus-3
