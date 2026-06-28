@@ -2095,6 +2095,25 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_size_t),  # *out_len
         ]
         lib.srmech_riemann_theta_g3_eighth_lattice.restype = ctypes.c_int
+    # rc78: the genus-3 GÖPEL / FROBENIUS quadratic theta-null SYZYGY gate
+    # (srmech_riemann_theta_g3_goepel). Decides the 4-pair / 8-null same-Omega syzygy
+    # over the box-stable safe region; *out_holds <- LHS==RHS, *out_has_cross <- genuine
+    # genus-3 cross-term present. Caller-arena work[] (sized via the count helper). NEW
+    # symbols -> hasattr-guarded; additive -> EXPECTED_ABI_VERSION stays 3.
+    #   size_t srmech_riemann_theta_g3_goepel_count(uint32_t box)
+    if hasattr(lib, "srmech_riemann_theta_g3_goepel_count"):
+        lib.srmech_riemann_theta_g3_goepel_count.argtypes = [ctypes.c_uint32]
+        lib.srmech_riemann_theta_g3_goepel_count.restype = ctypes.c_size_t
+    #   srmech_riemann_theta_g3_goepel(box, work[], work_cap, *out_holds, *out_has_cross)
+    if hasattr(lib, "srmech_riemann_theta_g3_goepel"):
+        lib.srmech_riemann_theta_g3_goepel.argtypes = [
+            ctypes.c_uint32,                  # box
+            ctypes.POINTER(ctypes.c_int64),   # work[]
+            ctypes.c_size_t,                  # work_cap
+            ctypes.POINTER(ctypes.c_int),     # *out_holds
+            ctypes.POINTER(ctypes.c_int),     # *out_has_cross
+        ]
+        lib.srmech_riemann_theta_g3_goepel.restype = ctypes.c_int
     # rc54: the EXACT q-shift CARRIER C peer (srmech_qpoly_*) — the q-analog of
     # the poly carrier, the q-hypergeometric F929 reduction-row foundation. A
     # QPoly is a ROW of q-Poly cells over an x-window; the bridge flattens the
@@ -3749,6 +3768,50 @@ def riemann_theta_g3_eighth_lattice_c(s1, s2, s3, e1, e2, e3, at_two_omega, box)
         lat[key] = lat.get(key, 0) + int(out[i + 6])
         i += 7
     return {k: v for k, v in lat.items() if v != 0}
+
+
+# ----------------------------------------------------------------------
+# rc78: the genus-3 GÖPEL / FROBENIUS quadratic theta-null SYZYGY gate
+# (srmech_riemann_theta_g3_goepel). The Python RiemannThetaG3.goepel_holds routes
+# through this when has_native_riemann_theta_g3_goepel(); the pure-Python body is the
+# COMPLETE alternative (and the parity oracle) — both decide the same exact gate.
+# ----------------------------------------------------------------------
+
+
+def has_native_riemann_theta_g3_goepel() -> bool:
+    """True iff the rc78 ``srmech_riemann_theta_g3_goepel`` peer (the genus-3
+    Göpel/Frobenius quadratic theta-null syzygy gate) + its count helper are loaded +
+    bound. False on a no-C / pre-rc78 lib — the pure-Python
+    ``RiemannThetaG3.goepel_holds`` body is the complete alternative (and the parity
+    oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_riemann_theta_g3_goepel")
+            and hasattr(LIB, "srmech_riemann_theta_g3_goepel_count"))
+
+
+def riemann_theta_g3_goepel_c(box):
+    """Native genus-3 Göpel-syzygy gate decision → ``(holds, has_cross)`` (two bools) —
+    ``holds`` iff the 4-pair / 8-null syzygy ``θ²[a]θ²[b] = θ²[c]θ²[d] + θ²[e]θ²[f]
+    − θ²[g]θ²[h]`` holds EXACTLY on the box-stable safe region (LHS == RHS), and
+    ``has_cross`` iff a genuine genus-3 cross-term (C₁₃ or C₂₃ ≠ 0) populates that
+    region — or ``None`` if the native symbols are absent. Byte-identical decision to the
+    pure-Python ``RiemannThetaG3.goepel_holds`` body. ``box`` must be ≥ 3."""
+    if not has_native_riemann_theta_g3_goepel():
+        return None
+    if not isinstance(box, int) or box < 3:
+        raise ValueError(f"riemann_theta_g3_goepel_c: bad box {box!r}")
+    need = int(LIB.srmech_riemann_theta_g3_goepel_count(ctypes.c_uint32(int(box))))
+    work = (ctypes.c_int64 * max(need, 1))()
+    out_holds = ctypes.c_int(0)
+    out_has_cross = ctypes.c_int(0)
+    rc = LIB.srmech_riemann_theta_g3_goepel(
+        ctypes.c_uint32(int(box)), work, ctypes.c_size_t(need),
+        ctypes.byref(out_holds), ctypes.byref(out_has_cross))
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_riemann_theta_g3_goepel returned non-OK status {rc}")
+    return (bool(out_holds.value), bool(out_has_cross.value))
 
 
 def has_native_poly_gcd() -> bool:
