@@ -2038,6 +2038,26 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_size_t),  # *out_len
         ]
         lib.srmech_riemann_theta_g3_lattice.restype = ctypes.c_int
+    # rc76: IGUSA'S chi_18 — the EXACT product of the 36 even genus-3 theta-nulls
+    # (srmech_riemann_theta_g3_chi18). Emits the leading-part [A1,A2,A3,C12,C13,C23,
+    # coeff] septuples (the cusp-vanishing structure of the 36-even-null product) over a
+    # caller-arena work[] (sized via the count helper). int64-exact (max |coeff|=2^34, no
+    # bignum). NEW symbols -> hasattr-guarded; additive -> EXPECTED_ABI_VERSION stays 3.
+    #   size_t srmech_riemann_theta_g3_chi18_count(uint32_t box)
+    if hasattr(lib, "srmech_riemann_theta_g3_chi18_count"):
+        lib.srmech_riemann_theta_g3_chi18_count.argtypes = [ctypes.c_uint32]
+        lib.srmech_riemann_theta_g3_chi18_count.restype = ctypes.c_size_t
+    #   srmech_riemann_theta_g3_chi18(box, work[], work_cap, out[], out_cap, *out_len)
+    if hasattr(lib, "srmech_riemann_theta_g3_chi18"):
+        lib.srmech_riemann_theta_g3_chi18.argtypes = [
+            ctypes.c_uint32,                  # box
+            ctypes.POINTER(ctypes.c_int64),   # work[]
+            ctypes.c_size_t,                  # work_cap
+            ctypes.POINTER(ctypes.c_int64),   # out[]
+            ctypes.c_size_t,                  # out_cap
+            ctypes.POINTER(ctypes.c_size_t),  # *out_len
+        ]
+        lib.srmech_riemann_theta_g3_chi18.restype = ctypes.c_int
     # rc54: the EXACT q-shift CARRIER C peer (srmech_qpoly_*) — the q-analog of
     # the poly carrier, the q-hypergeometric F929 reduction-row foundation. A
     # QPoly is a ROW of q-Poly cells over an x-window; the bridge flattens the
@@ -3531,6 +3551,59 @@ def riemann_theta_g3_lattice_c(ep1, ep2, ep3, e1, e2, e3, box):
     if rc != SRMECH_OK:
         raise RuntimeError(
             f"srmech_riemann_theta_g3_lattice returned non-OK status {rc}")
+    lat = {}
+    n = int(out_len.value)
+    i = 0
+    while i < n:
+        key = (int(out[i]), int(out[i + 1]), int(out[i + 2]),
+               int(out[i + 3]), int(out[i + 4]), int(out[i + 5]))
+        lat[key] = lat.get(key, 0) + int(out[i + 6])
+        i += 7
+    return {k: v for k, v in lat.items() if v != 0}
+
+
+# ----------------------------------------------------------------------
+# rc76: IGUSA'S chi_18 — the EXACT product of the 36 even genus-3 theta-nulls
+# (srmech_riemann_theta_g3_chi18). The Python RiemannThetaG3.chi18_leading_part routes
+# through this when has_native_riemann_theta_g3_chi18(); the pure-Python body is the
+# COMPLETE alternative (and the parity oracle) — both emit the byte-identical canonical
+# {(A1,A2,A3,C12,C13,C23): coeff} leading-part lattice.
+# ----------------------------------------------------------------------
+
+
+def has_native_riemann_theta_g3_chi18() -> bool:
+    """True iff the rc76 ``srmech_riemann_theta_g3_chi18`` peer + its count helper are
+    loaded + bound. False on a no-C / pre-rc76 lib — the pure-Python
+    ``srmech.amsc.riemann_theta.RiemannThetaG3.chi18_leading_part`` body is the complete
+    alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_riemann_theta_g3_chi18")
+            and hasattr(LIB, "srmech_riemann_theta_g3_chi18_count"))
+
+
+def riemann_theta_g3_chi18_c(box):
+    """Native exact-integer Igusa χ₁₈ leading-part lattice → the canonical
+    ``{(A₁, A₂, A₃, C₁₂, C₁₃, C₂₃): coeff}`` dict (the leading-order homogeneous part of
+    the product of the 36 even genus-3 theta-nulls), or ``None`` if the native symbols
+    are absent. Byte-identical to the pure-Python ``_chi18_leading_part_py``. ``box`` is
+    for signature parity (must be ≥ 1; the leading part is box-independent)."""
+    if not has_native_riemann_theta_g3_chi18():
+        return None
+    if not isinstance(box, int) or box < 1:
+        raise ValueError(f"riemann_theta_g3_chi18_c: bad box {box!r}")
+    need = int(LIB.srmech_riemann_theta_g3_chi18_count(ctypes.c_uint32(int(box))))
+    work = (ctypes.c_int64 * max(need, 1))()
+    out_cap = need                                  # out[] sized like the work arena
+    out = (ctypes.c_int64 * max(out_cap, 1))()
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_riemann_theta_g3_chi18(
+        ctypes.c_uint32(int(box)), work, ctypes.c_size_t(need),
+        out, ctypes.c_size_t(out_cap), ctypes.byref(out_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_riemann_theta_g3_chi18 returned non-OK status {rc}")
     lat = {}
     n = int(out_len.value)
     i = 0

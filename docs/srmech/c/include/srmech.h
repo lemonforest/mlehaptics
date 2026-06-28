@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc75"
-#define SRMECH_VERSION       "0.9.0rc75"
+#define SRMECH_VERSION_PRE   "rc76"
+#define SRMECH_VERSION       "0.9.0rc76"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3455,6 +3455,32 @@ size_t srmech_riemann_theta_g3_count(uint32_t box);
  * too small. */
 srmech_status_t srmech_riemann_theta_g3_lattice(
     int ep1, int ep2, int ep3, int e1, int e2, int e3, uint32_t box,
+    int64_t *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * rc76: IGUSA'S chi_18 — the EXACT product of the 36 even genus-3 theta-nulls (the
+ * genus-3 hyperelliptic / vanishing-theta-null structure as an exact formal q-series).
+ * The C peer of srmech.amsc.riemann_theta.RiemannThetaG3.chi18_leading_part.
+ *
+ * chi_18 in S_18(Gamma_3) is the weight-18 degree-3 Siegel cusp form DEFINED AS THE
+ * PRODUCT OF ALL 36 EVEN THETA-CONSTANTS (each theta-null weight 1/2 -> 36*1/2 = 18;
+ * Bernatska-Kopeliovich arXiv:2306.14889 p.1; van der Geer SMF Degree 2&3 + Invariant
+ * Theory). Divisor = H_3 + 2D -> vanishes exactly on the genus-3 hyperelliptic locus.
+ * This op emits the EXACT LEADING-ORDER HOMOGENEOUS PART (the cusp-vanishing structure)
+ * as a flat int64 array of [A1,A2,A3,C12,C13,C23,coeff] septuples — NONZERO, at
+ * diagonal quarter-order 48 (= 12 in q_i). Caller-arena (one int64 work[] sized via
+ * the count helper) ping-ponged; no malloc. Additive symbols -> ABI stays 3. */
+
+/* The number of int64 the work arena needs (THREE buffers, box-independent). */
+size_t srmech_riemann_theta_g3_chi18_count(uint32_t box);
+
+/* Emit Igusa's chi_18 leading-part [A1,A2,A3,C12,C13,C23,coeff] septuples into out[]
+ * (out_cap int64); work[] is the caller arena (work_cap int64, >= the count helper);
+ * *out_len <- int64 written. box is for signature parity (must be >= 1).
+ * SRMECH_ERR_BAD_INPUT on box==0 / undersized work; SRMECH_ERR_OVERFLOW on undersized
+ * out[] or an over-cap accumulator. */
+srmech_status_t srmech_riemann_theta_g3_chi18(
+    uint32_t box, int64_t *work, size_t work_cap,
     int64_t *out, size_t out_cap, size_t *out_len);
 
 /* ------------------------------------------------------------------ *
