@@ -1060,3 +1060,240 @@ srmech_status_t srmech_riemann_theta_g3_eighth_lattice(
     *out_len = idx;
     return SRMECH_OK;
 }
+
+/* ------------------------------------------------------------------ *
+ * rc78: the genus-3 GÖPEL / FROBENIUS quadratic theta-null SYZYGY gate — the C peer
+ * of srmech.amsc.riemann_theta.RiemannThetaG3.goepel_holds.
+ *
+ * The genus-3 GÖPEL/FROBENIUS quadratic relation among the even theta-NULLS (the
+ * genus-3 analog of the genus-2 rc74 Göpel syzygy). It is a 4-PAIR / 8-NULL relation
+ * among SAME-Omega even theta-nulls (genus 2 is 3-pair / 6-null; the genus-2-style
+ * 6-null lift does NOT hold for genus 3 — exhaustively checked):
+ *
+ *   theta^2[a]theta^2[b] = theta^2[c]theta^2[d] + theta^2[e]theta^2[f] - theta^2[g]theta^2[h]
+ *
+ * with the eight even nulls (eps' ; eps, six bits each)
+ *   a=[000;001] b=[111;110] | c=[000;010] d=[111;101]
+ *   e=[001;000] f=[110;111] | g=[010;000] h=[101;111]
+ * all summing to the common GF(2) characteristic [1,1,1; 1,1,1] (a genus-3 Goepel /
+ * azygetic system). Glass, Compositio Math 40 (1980) §3 (type-(2) products-of-squares,
+ * coeffs +-1); Fiorentino-Salvati Manni SIGMA 16 (2020) 057 §1-2; Igusa Theta Functions
+ * (1972) §IV/V; van der Geer SMF Degree 2&3. Holds for ALL Omega.
+ *
+ * This peer DECIDES the gate: it accumulates the residual LHS - RHS, restricted to the
+ * box-stable safe inner region (each A_i, |C_ij| <= box^2), and returns *out_holds=1 iff
+ * the residual is EMPTY (the identity holds exactly) and *out_has_cross=1 iff the region
+ * is genuinely populated with a genus-3 cross-term (C13 or C23 != 0). Byte-identical to
+ * the pure-Python decision.
+ *
+ * SOUND PRE-RESTRICT (the perf key, mirrors the Python _diag_restrict): each squared
+ * null is built with its DIAGONAL exponents A_i <= box^2 only — sound because A_i are
+ * non-negative and ADD under the pair product, so any safe product monomial comes from
+ * factors each with A_i <= box^2. The pair convolution then keeps only safe-region
+ * (A and |C|) output monomials. The negative-C cross-terms are NOT pre-restricted (only
+ * the output is C-restricted) — exactly the Python order.
+ *
+ * Caller-arena / caller-owned: ONE int64 work[] (sized via the count helper) holds the
+ * two diag-square scratch buffers + the residual accumulator. No malloc. Additive
+ * symbols -> ABI unchanged (stays 3).
+ *
+ * JPL: Rule 1 (no goto/recursion) OK; Rule 2 (bounded loops — box, <=8 nulls, capped
+ * accumulators) OK; Rule 3 (no malloc) OK; Rule 4 (<=60 lines/fn) OK; Rule 5 (>=2
+ * asserts/fn) OK; Rule 7 (status propagated) OK; Rule 8 (no fn-like macros) OK.
+ * ------------------------------------------------------------------ */
+
+/* one Goepel lattice monomial = 7 int64: A1,A2,A3,C12,C13,C23,coeff */
+#define GOEPEL_SEPT 7
+
+/* The eight even-null characteristics (eps'1,eps'2,eps'3, eps1,eps2,eps3) of the
+ * canonical genus-3 Goepel quad, in pair order a,b,c,d,e,f,g,h. */
+static const int g3_goepel_chars[8][6] = {
+    {0, 0, 0, 0, 0, 1}, {1, 1, 1, 1, 1, 0},   /* a, b  (LHS, +) */
+    {0, 0, 0, 0, 1, 0}, {1, 1, 1, 1, 0, 1},   /* c, d  (RHS, +) */
+    {0, 0, 1, 0, 0, 0}, {1, 1, 0, 1, 1, 1},   /* e, f  (RHS, +) */
+    {0, 1, 0, 0, 0, 0}, {1, 0, 1, 1, 1, 1},   /* g, h  (RHS, -) */
+};
+
+/* The per-pair residual sign: residual = LHS - RHS = +ab - cd - ef + gh. Pair 0..3. */
+static const int g3_goepel_pair_sign[4] = {1, -1, -1, 1};
+
+/* The number of int64 the caller arena needs. THREE buffers: two diag-square scratch +
+ * one residual accumulator, each GOEPEL_CAP monomials * GOEPEL_SEPT int64. GOEPEL_CAP is
+ * sized to comfortably bound the diag-restricted square AND the safe-restricted residual
+ * for box up to ~5 (diag-square <= ~1187, residual <= ~60000 at box 5; box=3 the gate
+ * default is ~105 / ~204). A compiled-in safety ceiling, not a malloc. */
+#define GOEPEL_CAP 70000
+
+size_t srmech_riemann_theta_g3_goepel_count(uint32_t box)
+{
+    (void)box;                                      /* arena is box-independent (capped) */
+    assert(GOEPEL_SEPT == 7);
+    assert(GOEPEL_CAP >= 204u);
+    return (size_t)3u * (size_t)GOEPEL_CAP * (size_t)GOEPEL_SEPT;
+}
+
+/* Merge one monomial (key0..key5, coeff) into buf[0..*len) (in monomials), summing a
+ * duplicate key. SRMECH_ERR_OVERFLOW if a new key would exceed cap monomials. */
+static srmech_status_t goepel_accum(int64_t *buf, size_t *len, size_t cap,
+                                    const int64_t *key, int64_t coeff)
+{
+    size_t i, base;
+    assert(buf != NULL && len != NULL);
+    assert(key != NULL);
+    for (i = 0u; i < *len; ++i) {
+        base = i * (size_t)GOEPEL_SEPT;
+        if (buf[base + 0u] == key[0] && buf[base + 1u] == key[1]
+                && buf[base + 2u] == key[2] && buf[base + 3u] == key[3]
+                && buf[base + 4u] == key[4] && buf[base + 5u] == key[5]) {
+            buf[base + 6u] += coeff;                 /* merge duplicate key */
+            return SRMECH_OK;
+        }
+    }
+    if (*len >= cap) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    base = (*len) * (size_t)GOEPEL_SEPT;
+    buf[base + 0u] = key[0]; buf[base + 1u] = key[1]; buf[base + 2u] = key[2];
+    buf[base + 3u] = key[3]; buf[base + 4u] = key[4]; buf[base + 5u] = key[5];
+    buf[base + 6u] = coeff;
+    *len += 1u;
+    return SRMECH_OK;
+}
+
+/* Build one even null's DIAGONAL-RESTRICTED squared lattice into sq[]/(*slen): the
+ * self-convolution of theta[null](Omega) keeping ONLY monomials with each A_i <= bound
+ * (sound pre-restrict). The per-term sign is the Class-K pin-slot (-1)^{e.n} * (-1)^{e.m}. */
+static srmech_status_t goepel_diag_square(const int *ch, int64_t box, int64_t bound,
+                                          int64_t *sq, size_t *slen, size_t cap)
+{
+    int64_t n1, n2, n3, m1, m2, m3, un[3], um[3], key[6];
+    int64_t ep1 = ch[0], ep2 = ch[1], ep3 = ch[2], e1 = ch[3], e2 = ch[4], e3 = ch[5];
+    int sgn_n, sgn_m;
+    srmech_status_t st;
+    assert(sq != NULL && slen != NULL);
+    assert(box >= 0 && bound >= 0);
+    *slen = 0u;
+    for (n1 = -box; n1 <= box; ++n1) { un[0] = 2 * n1 + ep1;
+    for (n2 = -box; n2 <= box; ++n2) { un[1] = 2 * n2 + ep2;
+    for (n3 = -box; n3 <= box; ++n3) { un[2] = 2 * n3 + ep3;
+        sgn_n = rt3_term_sign(e1, e2, e3, n1, n2, n3);
+        for (m1 = -box; m1 <= box; ++m1) { um[0] = 2 * m1 + ep1;
+            key[0] = un[0] * un[0] + um[0] * um[0]; if (key[0] > bound) { continue; }
+        for (m2 = -box; m2 <= box; ++m2) { um[1] = 2 * m2 + ep2;
+            key[1] = un[1] * un[1] + um[1] * um[1]; if (key[1] > bound) { continue; }
+        for (m3 = -box; m3 <= box; ++m3) { um[2] = 2 * m3 + ep3;
+            key[2] = un[2] * un[2] + um[2] * um[2]; if (key[2] > bound) { continue; }
+            key[3] = un[0] * un[1] + um[0] * um[1];
+            key[4] = un[0] * un[2] + um[0] * um[2];
+            key[5] = un[1] * un[2] + um[1] * um[2];
+            sgn_m = rt3_term_sign(e1, e2, e3, m1, m2, m3);
+            st = goepel_accum(sq, slen, cap, key, (int64_t)(sgn_n * sgn_m));
+            if (st != SRMECH_OK) { return st; }
+        } } }
+    } } }
+    return SRMECH_OK;
+}
+
+/* Accumulate (sign) * [ theta^2[na] * theta^2[nb] restricted to the safe region ] into
+ * the residual res[]/(*rlen). sqa/sqb are the two diag-restricted squares; only output
+ * monomials with each A_i <= bound AND |C_ij| <= bound are accumulated (the final safe
+ * cut, mirroring Python). */
+static srmech_status_t goepel_pair_into_res(const int64_t *sqa, size_t alen,
+                                            const int64_t *sqb, size_t blen,
+                                            int sign, int64_t bound,
+                                            int64_t *res, size_t *rlen, size_t cap)
+{
+    size_t i, j, ia, ib;
+    int64_t key[6], m12, m13, m23;
+    srmech_status_t st;
+    assert(sqa != NULL && sqb != NULL);
+    assert(res != NULL && rlen != NULL);
+    for (i = 0u; i < alen; ++i) { ia = i * (size_t)GOEPEL_SEPT;
+        for (j = 0u; j < blen; ++j) { ib = j * (size_t)GOEPEL_SEPT;
+            key[0] = sqa[ia + 0u] + sqb[ib + 0u]; if (key[0] > bound) { continue; }
+            key[1] = sqa[ia + 1u] + sqb[ib + 1u]; if (key[1] > bound) { continue; }
+            key[2] = sqa[ia + 2u] + sqb[ib + 2u]; if (key[2] > bound) { continue; }
+            key[3] = sqa[ia + 3u] + sqb[ib + 3u];
+            m12 = (key[3] >= 0) ? key[3] : -key[3]; if (m12 > bound) { continue; }
+            key[4] = sqa[ia + 4u] + sqb[ib + 4u];
+            m13 = (key[4] >= 0) ? key[4] : -key[4]; if (m13 > bound) { continue; }
+            key[5] = sqa[ia + 5u] + sqb[ib + 5u];
+            m23 = (key[5] >= 0) ? key[5] : -key[5]; if (m23 > bound) { continue; }
+            st = goepel_accum(res, rlen, cap, key,
+                              (int64_t)sign * sqa[ia + 6u] * sqb[ib + 6u]);
+            if (st != SRMECH_OK) { return st; }
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* Scan the residual for a genuine genus-3 cross-term (C13 or C23 != 0 with nonzero
+ * coeff). Returns 1 if present, else 0. */
+static int goepel_res_has_cross(const int64_t *res, size_t rlen)
+{
+    size_t i, base;
+    int has = 0;
+    assert(res != NULL);
+    assert(rlen <= (size_t)GOEPEL_CAP);
+    for (i = 0u; i < rlen; ++i) {
+        base = i * (size_t)GOEPEL_SEPT;
+        if (res[base + 6u] != 0 && (res[base + 4u] != 0 || res[base + 5u] != 0)) {
+            has = 1;
+        }
+    }
+    return has;
+}
+
+/* DECIDE the genus-3 Goepel syzygy gate. work[] is the caller arena (work_cap int64, >=
+ * srmech_riemann_theta_g3_goepel_count(box)); *out_holds <- 1 iff LHS==RHS on the safe
+ * region (residual empty), *out_has_cross <- 1 iff a genuine genus-3 cross-term monomial
+ * (C13 or C23 != 0) is present in the LHS safe region. SRMECH_ERR_BAD_INPUT on box<3 /
+ * undersized work; SRMECH_ERR_OVERFLOW on an over-cap accumulator. */
+srmech_status_t srmech_riemann_theta_g3_goepel(
+    uint32_t box, int64_t *work, size_t work_cap,
+    int *out_holds, int *out_has_cross)
+{
+    int64_t *sqa, *sqb, *res, bnd;
+    size_t alen, blen, rlen, half, i, base;
+    int p, holds;
+    srmech_status_t st;
+    assert(work != NULL);
+    assert(out_holds != NULL && out_has_cross != NULL);
+    if (box < 3u || work_cap < srmech_riemann_theta_g3_goepel_count(box)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    half = (size_t)GOEPEL_CAP * (size_t)GOEPEL_SEPT;
+    sqa = work; sqb = work + half; res = work + 2u * half;
+    bnd = (int64_t)box * (int64_t)box;              /* the box-stable safe bound */
+    rlen = 0u;
+    for (p = 0; p < 4; ++p) {                        /* four pairs: ab cd ef gh */
+        st = goepel_diag_square(g3_goepel_chars[2 * p], (int64_t)box, bnd,
+                                sqa, &alen, (size_t)GOEPEL_CAP);
+        if (st != SRMECH_OK) { return st; }
+        st = goepel_diag_square(g3_goepel_chars[2 * p + 1], (int64_t)box, bnd,
+                                sqb, &blen, (size_t)GOEPEL_CAP);
+        if (st != SRMECH_OK) { return st; }
+        st = goepel_pair_into_res(sqa, alen, sqb, blen, g3_goepel_pair_sign[p], bnd,
+                                  res, &rlen, (size_t)GOEPEL_CAP);
+        if (st != SRMECH_OK) { return st; }
+    }
+    holds = 1;                                       /* residual must vanish (LHS==RHS) */
+    for (i = 0u; i < rlen; ++i) {
+        base = i * (size_t)GOEPEL_SEPT;
+        if (res[base + 6u] != 0) { holds = 0; }      /* nonzero coeff -> not exact */
+    }
+    /* cross-term presence: re-derive the LHS-only safe region (pair 0) and check C13/C23 */
+    st = goepel_diag_square(g3_goepel_chars[0], (int64_t)box, bnd,
+                            sqa, &alen, (size_t)GOEPEL_CAP);
+    if (st != SRMECH_OK) { return st; }
+    st = goepel_diag_square(g3_goepel_chars[1], (int64_t)box, bnd,
+                            sqb, &blen, (size_t)GOEPEL_CAP);
+    if (st != SRMECH_OK) { return st; }
+    rlen = 0u;
+    st = goepel_pair_into_res(sqa, alen, sqb, blen, 1, bnd,
+                              res, &rlen, (size_t)GOEPEL_CAP);
+    if (st != SRMECH_OK) { return st; }
+    *out_holds = holds;
+    *out_has_cross = goepel_res_has_cross(res, rlen);
+    return SRMECH_OK;
+}

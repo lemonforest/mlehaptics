@@ -1401,6 +1401,21 @@ def _native_g3_chi18():
     return nat if (probe is not None and probe()) else None
 
 
+def _native_g3_goepel():
+    """The native ``_native`` module IF the rc78 ``srmech_riemann_theta_g3_goepel`` peer
+    (the genus-3 Göpel/Frobenius quadratic theta-null syzygy gate) is present and bound,
+    else ``None`` — so the genus-3 carrier dispatches the EXACT-INTEGER Göpel-syzygy
+    equality decision (LHS == RHS on the safe region + a genuine genus-3 cross-term
+    present) to C when available and falls cleanly to the pure-Python body (the complete
+    alternative + the parity oracle). Imported lazily to avoid a bootstrap cycle."""
+    try:
+        from . import _native as nat
+    except ImportError:
+        return None
+    probe = getattr(nat, "has_native_riemann_theta_g3_goepel", None)
+    return nat if (probe is not None and probe()) else None
+
+
 class RiemannThetaG3:
     """A numpy-free EXACT genus-3 Riemann theta-CONSTANT
 
@@ -2563,3 +2578,277 @@ class RiemannThetaG3:
             "verdict here. (Schottky: genus 3 is STILL clean — dim M₃ = 6 = dim A₃, "
             "J₃ = A₃^ind; the Schottky frontier OPEN stays at g ≥ 4.)"
         )
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # rc78: the genus-3 GÖPEL / FROBENIUS quadratic theta-null SYZYGY (the genus-3
+    # analog of the rc74 genus-2 Göpel quadratic syzygy — completes the genus-3
+    # rung-set: carrier rc75 → χ₁₈ rc76 → transform+addition rc77 → syzygy rc78)
+    # ══════════════════════════════════════════════════════════════════════════
+
+    @staticmethod
+    def _g3_char_add_mod2(*chars: "Tuple[Tuple[int, int, int], Tuple[int, int, int]]"
+                          ) -> "Tuple[Tuple[int, int, int], Tuple[int, int, int]]":
+        """The exact GF(2) sum of genus-3 binary characteristics ``Σ [εᵢ] (mod 2)`` —
+        pure integer / mod-2 (the characteristic group is ``(ℤ/2)⁶``). The genus-3
+        analog of the genus-2 :meth:`RiemannTheta._char_add_mod2`. No float, no abs()
+        (the group is its own inverse so subtraction IS addition; no sign branch)."""
+        ep1 = ep2 = ep3 = e1 = e2 = e3 = 0
+        for (epp, eps) in chars:
+            ep1 += epp[0]
+            ep2 += epp[1]
+            ep3 += epp[2]
+            e1 += eps[0]
+            e2 += eps[1]
+            e3 += eps[2]
+        return ((ep1 % 2, ep2 % 2, ep3 % 2), (e1 % 2, e2 % 2, e3 % 2))
+
+    @classmethod
+    def goepel_syzygy_quad(cls) -> "Tuple[Tuple[..., ...], ...]":
+        """The canonical genus-3 GÖPEL / FROBENIUS quadratic syzygy among the even
+        theta-NULLS — FOUR PAIRS of even characteristics
+
+            ( θ²[a]θ²[b], θ²[c]θ²[d], θ²[e]θ²[f], θ²[g]θ²[h] )
+
+        satisfying the 4-term relation ``θ²[a]θ²[b] = θ²[c]θ²[d] + θ²[e]θ²[f]
+        − θ²[g]θ²[h]`` (see :meth:`goepel_holds`). Returned as a 4-tuple of pairs of
+        characteristics ``((a,b),(c,d),(e,f),(g,h))``.
+
+        THE GENUS-3 SHAPE IS GENUINELY DIFFERENT FROM GENUS 2. The rc74 genus-2 Göpel
+        syzygy is a 3-PAIR / 6-NULL relation (``θ²[a]θ²[b] = θ²[c]θ²[d] − θ²[e]θ²[f]``);
+        the genus-3 relation among the even theta-nulls is a **4-PAIR / 8-NULL** relation.
+        This is NOT a stylistic choice — the naive genus-2-style 3-pair / 6-null lift
+        does NOT hold for genus 3 (an EXHAUSTIVE search over all 63 GF(2)-sum classes ×
+        all 6-null common-sum triples finds NO 3-term genus-3 relation; the MINIMAL
+        common-sum relation among the genus-3 ``θ²[m]θ²[m+s]`` products is 4-term, the
+        nullspace's sparsest dependency). The extra term is the genuine genus-3 content
+        — the third lattice direction's cross-terms ``C₁₃, C₂₃`` couple in.
+
+        The eight characteristics are DISTINCT even theta-nulls; the four pairs share
+        ONE common GF(2) characteristic sum ``[1,1,1; 1,1,1]`` (the genus-3
+        Göpel-system / azygetic-configuration invariant — :meth:`goepel_is_syzygous`),
+        the structural fingerprint of the Frobenius/Göpel relation (the genus-3
+        specialization of the Riemann theta relation among theta squares — Glass, "Theta
+        constants of genus three", *Compositio Mathematica* 40 (1980), §3, the **type-(2)
+        "products of squares of theta constants"** degree-4 relations with coefficients
+        ±1; Fiorentino–Salvati Manni, "On Frobenius' Theta Formula", *SIGMA* 16 (2020)
+        057, §1–2 — the azygetic Göpel structure + the biquadratic Riemann relations
+        eq. 2.1/2.3; Igusa, *Theta Functions* (1972) §IV/V; van der Geer, *Siegel Modular
+        Forms of Degree Two and Three*). The canonical representative pairs
+
+            a=[000;001] b=[111;110] | c=[000;010] d=[111;101]
+            e=[001;000] f=[110;111] | g=[010;000] h=[101;111]
+
+        all sum to the common characteristic ``[1,1,1; 1,1,1]``."""
+        return (
+            (((0, 0, 0), (0, 0, 1)), ((1, 1, 1), (1, 1, 0))),   # a, b  (+)
+            (((0, 0, 0), (0, 1, 0)), ((1, 1, 1), (1, 0, 1))),   # c, d  (+)
+            (((0, 0, 1), (0, 0, 0)), ((1, 1, 0), (1, 1, 1))),   # e, f  (+)
+            (((0, 1, 0), (0, 0, 0)), ((1, 0, 1), (1, 1, 1))),   # g, h  (−)
+        )
+
+    @classmethod
+    def goepel_is_syzygous(cls) -> bool:
+        """True iff the canonical genus-3 Göpel quad is genuinely SYZYGOUS — the four
+        pairs all share ONE common GF(2) characteristic sum, and the eight even
+        theta-nulls are DISTINCT and all EVEN. This is the structural fingerprint that
+        the relation is a genus-3 Göpel/Frobenius syzygy (a genus-3 Göpel system), not
+        an accidental coincidence. Pure GF(2) algebra — exact, no float."""
+        quad = cls.goepel_syzygy_quad()
+        sums = [cls._g3_char_add_mod2(p[0], p[1]) for p in quad]
+        if not all(s == sums[0] for s in sums):
+            return False
+        involved = [c for p in quad for c in p]
+        if len(set(involved)) != 8:                    # eight DISTINCT nulls
+            return False
+        for (epp, eps) in involved:                    # all EVEN
+            if (epp[0] * eps[0] + epp[1] * eps[1] + epp[2] * eps[2]) % 2 != 0:
+                return False
+        return True
+
+    @staticmethod
+    def _diag_restrict(lat: "Dict[_Sextuple, int]", bound: int) -> "Dict[_Sextuple, int]":
+        """Keep ONLY the monomials whose DIAGONAL exponents ``A₁,A₂,A₃`` are each
+        ``≤ bound`` — an exact, SOUND pre-filter for the safe-region Göpel comparison.
+        Because the diagonal ``Aᵢ`` exponents are NON-NEGATIVE and ADD under the pair
+        product (``Aᵢ(a²·b²) = Aᵢ(a²) + Aᵢ(b²)``), any product monomial with final
+        ``Aᵢ ≤ bound`` can ONLY come from factors each with ``Aᵢ ≤ bound`` — so
+        pre-restricting each squared factor by its diagonal A leaves the
+        safe-region-restricted product BIT-IDENTICAL while skipping terms that can never
+        survive. The cross-terms ``C_ij`` are left untouched here (the final restrict
+        handles them). Exact integer, no float."""
+        return {k: v for k, v in lat.items()
+                if k[0] <= bound and k[1] <= bound and k[2] <= bound}
+
+    @classmethod
+    def _theta_null_g3_fourth_product(cls, pair, box: int) -> "Dict[_Sextuple, int]":
+        """The exact-integer genus-3 lattice of ``θ²[a]·θ²[b]`` (a product of the
+        SQUARES of two even genus-3 theta-nulls at the SAME Ω) for ``pair = (a, b)`` —
+        the 4-fold convolution of the two rc75 genus-3 theta-null lattices, in the
+        quarter-nome base, **pre-restricted on the diagonal A-exponents to the
+        box-stable safe bound ``box²``** (sound — see :meth:`_diag_restrict`; the result
+        is bit-identical to the unrestricted product after the final safe-region cut, but
+        the pre-filter keeps the pure-Python convolution tractable). All-integer, no
+        float (the per-term sign is the Class-K pin-slot baked into :meth:`lattice`)."""
+        a, b = pair
+        bound = box * box
+        la = cls.theta_constant(a[0], a[1]).lattice(box)
+        lb = cls.theta_constant(b[0], b[1]).lattice(box)
+        sa = cls._diag_restrict(cls._square_lattice(la), bound)
+        sb = cls._diag_restrict(cls._square_lattice(lb), bound)
+        return cls._square_lattice_pair(sa, sb)
+
+    @classmethod
+    def goepel_lhs(cls, box: int) -> "Dict[_Sextuple, int]":
+        """The LEFT side ``θ²[a]·θ²[b]`` of the canonical genus-3 Göpel syzygy (the
+        product of two SQUARED even genus-3 theta-nulls at the SAME Ω). See
+        :meth:`goepel_holds`."""
+        return cls._theta_null_g3_fourth_product(cls.goepel_syzygy_quad()[0], box)
+
+    @classmethod
+    def goepel_rhs(cls, box: int) -> "Dict[_Sextuple, int]":
+        """The RIGHT side ``θ²[c]·θ²[d] + θ²[e]·θ²[f] − θ²[g]·θ²[h]`` of the canonical
+        genus-3 Göpel syzygy (the exact-integer lattice combination of three products of
+        squared even genus-3 theta-nulls). The add/subtract is exact-integer coefficient
+        arithmetic (the Class-K sign lives inside each theta-null lattice already). See
+        :meth:`goepel_holds`."""
+        quad = cls.goepel_syzygy_quad()
+        cd = cls._theta_null_g3_fourth_product(quad[1], box)
+        ef = cls._theta_null_g3_fourth_product(quad[2], box)
+        gh = cls._theta_null_g3_fourth_product(quad[3], box)
+        out: Dict[_Sextuple, int] = dict(cd)
+        for k, v in ef.items():
+            out[k] = out.get(k, 0) + v
+        for k, v in gh.items():
+            out[k] = out.get(k, 0) - v
+        return {k: v for k, v in out.items() if v != 0}
+
+    @classmethod
+    def goepel_holds(cls, box: int = 3) -> bool:
+        """rc78's EXACT CORE — the genus-3 FROBENIUS / GÖPEL quadratic theta-null syzygy
+
+            θ²[a]·θ²[b]  =  θ²[c]·θ²[d]  +  θ²[e]·θ²[f]  −  θ²[g]·θ²[h]
+
+        holds EXACTLY as a truncated exact-integer multivariate q-series, for ALL ``Ω``
+        (the genus-3 specialization of the Riemann theta relation among theta squares —
+        Glass, *Compositio Mathematica* 40 (1980) §3, the type-(2) "products of squares
+        of theta constants" relations, coefficients ±1; Fiorentino–Salvati Manni, *SIGMA*
+        16 (2020) 057, §1–2; Igusa, *Theta Functions* (1972) §IV/V). No transcendental
+        evaluation, no float, no tolerance. It DISPATCHES the exact comparison to the
+        native ``srmech_riemann_theta_g3_goepel`` C peer when loaded (a 1:1 exact-integer
+        mirror, trusted only on a native hit); else the pure-Python body (the COMPLETE
+        alternative + the parity oracle).
+
+        GENUINELY NEW — DISTINCT FROM rc75 DUPLICATION, rc77 ADDITION, AND rc76 χ₁₈ (see
+        :meth:`goepel_is_distinct_from_duplication_addition_and_chi18` for the no-shell
+        proof). This is a relation among even theta-nulls all at the SAME Ω (no
+        Ω-doubling), whereas BOTH duplication (``θ[0;0]² = Σ_c θ[c;0](2Ω)²``) and
+        addition (``θ[a]θ[b] = Σ_r θ[…](2Ω)θ[…](2Ω)``) relate the nulls at Ω to nulls at
+        2Ω; and it is a POLYNOMIAL relation among a SUBSET (8) of the even nulls, NOT the
+        full 36-null χ₁₈ product.
+
+        THE GENUS-3 SHAPE: a 4-PAIR / 8-NULL relation (vs genus-2's 3-pair / 6-null) —
+        the genus-2-style 6-null lift does NOT hold for genus 3 (exhaustively checked),
+        so the 4-term form is the genuine MINIMAL genus-3 syzygy.
+
+        The two sides are compared on the SAFE INNER REGION the box ``|nᵢ| ≤ box``
+        provably resolves. A product of four genus-3 theta-null lattices has each
+        monomial's ``Aᵢ`` exponent a sum of squares ``(2nᵢ+ε'ᵢ)²``; a box-``box``
+        truncation OMITS only terms from a factor at ``|nᵢ| = box+1``, i.e.
+        ``≥ (2·box+1)²``, so monomials with each ``Aᵢ, |C_ij| ≤ box²`` (well below
+        ``(2·box+1)²``) are FULLY accumulated — an inner region empirically box-STABLE
+        (identical across box = 3, 4, 5). Returns ``True`` iff the two sides agree
+        exactly on that region, the quad is genuinely syzygous
+        (:meth:`goepel_is_syzygous`), and the region is non-trivially populated with a
+        genuine genus-3 cross-term (``C₁₃`` or ``C₂₃`` ≠ 0) monomial (so the genus-3
+        coupling is genuinely exercised — not the genus-2 / genus-1 slice).
+
+        A CARRIER METHOD (the carrier's own build gate), not a public module-level op —
+        ``tools.total`` is UNCHANGED (the rc72–rc77 ``*_holds`` precedent)."""
+        if not isinstance(box, int) or box < 3:
+            raise ValueError(
+                f"box must be an int ≥ 3 for the genus-3 Göpel gate (the inner region "
+                f"is box-stable from box=3); got {box!r}")
+        if not cls.goepel_is_syzygous():
+            return False
+        safe = box * box                               # the box-stable inner bound
+
+        def restrict(lat: "Dict[_Sextuple, int]") -> "Dict[_Sextuple, int]":
+            kept: Dict[_Sextuple, int] = {}
+            for k, v in lat.items():
+                a1, a2, a3, c12, c13, c23 = k
+                m12 = c12 if c12 >= 0 else -c12       # Class-K magnitude, no abs()
+                m13 = c13 if c13 >= 0 else -c13
+                m23 = c23 if c23 >= 0 else -c23
+                if (a1 <= safe and a2 <= safe and a3 <= safe
+                        and m12 <= safe and m13 <= safe and m23 <= safe):
+                    kept[k] = v
+            return kept
+
+        nat = _native_g3_goepel()
+        if nat is not None:
+            try:
+                got = nat.riemann_theta_g3_goepel_c(box)
+                if got is not None:
+                    holds, has_cross = got
+                    return bool(holds) and bool(has_cross)
+            except (RuntimeError, OverflowError, ValueError):
+                pass                                   # fall to the pure path
+
+        lhs = restrict(cls.goepel_lhs(box))
+        rhs = restrict(cls.goepel_rhs(box))
+        if lhs != rhs:
+            return False
+        return any((c13 != 0 or c23 != 0)              # genuine genus-3 cross-term
+                   for (_a1, _a2, _a3, _c12, c13, c23) in lhs)
+
+    @classmethod
+    def goepel_is_distinct_from_duplication_addition_and_chi18(
+            cls, box: int = 3) -> bool:
+        """THE rc78 NO-SHELL PROOF: the genus-3 Göpel syzygy is GENUINELY DISTINCT from
+        ALL THREE prior genus-3 relations — rc75 DUPLICATION, rc77 ADDITION, and rc76
+        χ₁₈.
+
+        STRUCTURAL: duplication and addition are Ω-vs-2Ω identities (their right sides
+        live at 2Ω, carried with DOUBLED exponents via :meth:`_double_exps` / the
+        eighth-nome-at-2Ω lattice). The Göpel syzygy is purely at Ω — every factor is a
+        theta-null at Ω, NO Ω-doubling. χ₁₈ is the PRODUCT of ALL 36 even nulls (a
+        weight-18 single object); the Göpel syzygy is a same-Ω POLYNOMIAL relation among
+        a SUBSET of 8 even nulls (degree-4 in θ per term), not the 36-null product.
+
+        EXACT (no-shell): (1) the Göpel LEFT side ``θ²[a]θ²[b]`` (a product of squares of
+        two DISTINCT even nulls at Ω, degree-4) is checked NOT EQUAL to the duplication
+        LHS ``θ[0;0]²`` (degree-2) NOR to ANY addition LHS ``θ[a]θ[b]`` (degree-2) on the
+        safe region — different total theta-degree. (2) The Göpel LHS uses exactly 2 of
+        the 8 syzygy nulls; the 8 syzygy nulls are a PROPER SUBSET of the 36 χ₁₈ factors
+        (``8 < 36``) and the Göpel relation is a same-Ω sum, not a product — so it is not
+        χ₁₈ nor any of its sub-structure. Returns ``True`` iff distinct from all three."""
+        if not isinstance(box, int) or box < 3:
+            raise ValueError(f"box must be an int ≥ 3; got {box!r}")
+        bound = box * box
+        goepel_lhs = cls._diag_restrict(cls.goepel_lhs(box), bound)  # deg-4, diag-bound
+        # vs duplication LHS θ[0;0]² (degree-2), same diagonal bound: must differ
+        if goepel_lhs == cls._diag_restrict(cls.duplication_lhs(box), bound):
+            return False
+        # vs every addition LHS θ[a]·θ[b] (degree-2), same diagonal bound: must differ
+        for a1 in (0, 1):
+            for a2 in (0, 1):
+                for a3 in (0, 1):
+                    for b1 in (0, 1):
+                        for b2 in (0, 1):
+                            for b3 in (0, 1):
+                                add_lhs = cls._diag_restrict(
+                                    cls.addition_lhs((a1, a2, a3), (b1, b2, b3), box),
+                                    bound)
+                                if goepel_lhs == add_lhs:
+                                    return False
+        # vs χ₁₈: the 8 syzygy nulls are a PROPER SUBSET of the 36 χ₁₈ factors, and the
+        # Göpel relation is a same-Ω SUM (not the 36-null product) — structural distinct.
+        syzygy_nulls = {c for p in cls.goepel_syzygy_quad() for c in p}
+        chi18_factors = {f.characteristic for f in cls.chi18_even_null_factors()}
+        if len(syzygy_nulls) != 8:
+            return False
+        if not syzygy_nulls.issubset(chi18_factors):
+            return False                                # nulls must be genuine even nulls
+        if len(chi18_factors) != 36 or len(syzygy_nulls) >= len(chi18_factors):
+            return False                                # proper subset (8 < 36)
+        return True

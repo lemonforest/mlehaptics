@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc77"
-#define SRMECH_VERSION       "0.9.0rc77"
+#define SRMECH_VERSION_PRE   "rc78"
+#define SRMECH_VERSION       "0.9.0rc78"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3519,6 +3519,35 @@ size_t srmech_riemann_theta_g3_eighth_count(uint32_t box);
 srmech_status_t srmech_riemann_theta_g3_eighth_lattice(
     int s1, int s2, int s3, int e1, int e2, int e3, int at_two_omega, uint32_t box,
     int64_t *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * rc78: the genus-3 GÖPEL / FROBENIUS quadratic theta-null SYZYGY gate — the C peer of
+ * srmech.amsc.riemann_theta.RiemannThetaG3.goepel_holds.
+ *
+ * The genus-3 GÖPEL/FROBENIUS quadratic relation among the even theta-NULLS (the
+ * genus-3 analog of the genus-2 rc74 Göpel syzygy) — a 4-PAIR / 8-NULL same-Omega
+ * relation `theta^2[a]theta^2[b] = theta^2[c]theta^2[d] + theta^2[e]theta^2[f]
+ * - theta^2[g]theta^2[h]` among the eight even nulls a=[000;001] b=[111;110]
+ * c=[000;010] d=[111;101] e=[001;000] f=[110;111] g=[010;000] h=[101;111], all summing
+ * to [1,1,1;1,1,1] (a genus-3 Goepel/azygetic system). The genus-2-style 6-null lift
+ * does NOT hold for g=3 (exhaustively checked) — the 4-term form is the genuine minimal
+ * genus-3 syzygy. Glass, Compositio Math 40 (1980) §3 (products-of-squares, coeffs +-1);
+ * Fiorentino-Salvati Manni SIGMA 16 (2020) 057; Igusa Theta Functions (1972) §IV/V; van
+ * der Geer SMF Degree 2&3. Holds for ALL Omega; decided EXACTLY on the box-stable safe
+ * inner region (each A_i, |C_ij| <= box^2). Caller-arena (one int64 work[] sized via the
+ * count helper); no malloc. Additive symbols -> ABI stays 3. */
+
+/* The number of int64 the caller work arena needs (THREE buffers, box-independent). */
+size_t srmech_riemann_theta_g3_goepel_count(uint32_t box);
+
+/* Decide the genus-3 Goepel syzygy gate over the box-stable safe region. work[] is the
+ * caller arena (work_cap int64, >= the count helper); *out_holds <- 1 iff LHS == RHS
+ * (residual empty), *out_has_cross <- 1 iff a genuine genus-3 cross-term (C13 or C23
+ * != 0) populates the LHS safe region. SRMECH_ERR_BAD_INPUT on box<3 / undersized work;
+ * SRMECH_ERR_OVERFLOW on an over-cap accumulator. */
+srmech_status_t srmech_riemann_theta_g3_goepel(
+    uint32_t box, int64_t *work, size_t work_cap,
+    int *out_holds, int *out_has_cross);
 
 /* ------------------------------------------------------------------ *
  * srmech_tripoly — EXACT-RATIONAL TRIVARIATE polynomial over srmech_bigint (the
