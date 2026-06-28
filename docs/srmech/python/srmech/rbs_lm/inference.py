@@ -28,8 +28,75 @@ from typing import List, Mapping, Sequence
 
 from srmech.amsc import hdc, rational
 from srmech.amsc.hv import HV
+from srmech.amsc.q import Q
 
 from . import substrate as cs
+
+
+# ── §78 / F945 attested coherence-floor constants (no-magic) ─────────────────
+# The noise floor is built from STRUCTURE, never a hardcoded decimal:
+#
+#   FLOOR_BASELINE_Q = Q(1, 4) — the random-Klein-4 match probability. A Klein-4
+#     coordinate is one of FOUR symbols {0, 1, 2, 3}; two independent random
+#     vectors agree at a position with probability exactly 1/4, so the
+#     fractional-agreement similarity of unrelated atoms sits at the EXACT
+#     rational Q(1, 4) (Class-A attestation to the 4-symbol alphabet — the same
+#     "0.25 chance level" the F945 probe reads for orthogonal atoms). NOT 0.25
+#     as a float; the exact rational on the decision path (F868 stay-rational).
+#
+#   FLOOR_BAND_Q = Q(9, 100) — a documented margin ABOVE chance below which a
+#     top-sim is treated as indistinguishable from noise. Provenance: the F945
+#     measured operating floor was 0.34 (== 0.25 + 0.09); the band is the
+#     empirical separation between the chance level (~0.25) and the lowest
+#     genuine recall the probe produced (a BRANCH hand read ~0.56, a clean
+#     single-next ~1.0), so 0.09 sits safely in the gap. Exposed as a parameter
+#     (``noise_band``) so a consumer can re-tune it; the default attests to the
+#     F945 measurement, not a buried constant.
+#
+#   NOISE_FLOOR_Q = FLOOR_BASELINE_Q + FLOOR_BAND_Q = Q(1, 4) + Q(9, 100)
+#     = Q(34, 100) = Q(17, 50) — the F945 ≈ 0.34 floor, now an exact rational
+#     reduced to its source (1/4 baseline + 9/100 band), de-magicked.
+#
+#   BRANCH_BAND_Q = Q(3, 25) (== 0.12) — the collapse-margin threshold below
+#     which two above-floor hands count as a genuine BRANCH (a tie, not a clean
+#     winner). Matches the F945 probe's ``m < 0.12`` branch test; exposed as the
+#     ``branch_band`` parameter.
+FLOOR_BASELINE_Q = Q(1, 4)
+FLOOR_BAND_Q = Q(9, 100)
+NOISE_FLOOR_Q = FLOOR_BASELINE_Q + FLOOR_BAND_Q  # Q(17, 50) == 0.34
+BRANCH_BAND_Q = Q(3, 25)                          # 0.12
+
+
+@dataclass(frozen=True)
+class CoherenceReadout:
+    """The native §78 / F945 collapse-margin + coherence-trichotomy readout.
+
+    Carries the RAW (pre-softmax) Class-M resonator signals so a consumer can
+    classify a recall step COHERENT / BRANCH / STOP without re-probing ``M``:
+
+    * ``candidates_topk`` / ``raw_sims_topk`` — the top-k atoms + their RAW
+      ``klein4_similarity`` scores (exact :class:`~srmech.amsc.q.Q`), sorted
+      descending by the exact rational (Class-K pin-slot compare — never a
+      ``float`` sort key on the decision path).
+    * ``noise_floor`` — the principled, attested floor (``Q(1, 4)`` chance
+      baseline + a documented band); see the module constants.
+    * ``collapse_margin`` = top₁ − top₂ (exact ``Q``); ``top1_floor_gap`` =
+      top₁ − floor (exact ``Q``). The RAW collapse-margin the softmax flattens.
+    * ``verdict`` ∈ {``'COHERENT'``, ``'BRANCH'``, ``'STOP'``}.
+    * ``branch_candidates`` — for a BRANCH verdict, the valid hands at/above the
+      floor (the set to sample among); empty otherwise.
+
+    Every field on the decision path is an exact ``Q`` (or an ``int``/``str``);
+    a decimal appears only when a consumer opts in via ``float(q)``.
+    """
+
+    verdict: str
+    candidates_topk: List[str]
+    raw_sims_topk: List["Q"]
+    collapse_margin: "Q"
+    top1_floor_gap: "Q"
+    noise_floor: "Q"
+    branch_candidates: List[str]
 
 
 def _softmax(x, t: float) -> List[float]:
@@ -196,6 +263,99 @@ class RBSLMInferenceSubstrate:
             p[best] = 1.0
             return candidates, p
         return candidates, _softmax(sims, T)
+
+    # ------------------------------------------------- coherence readout
+    def next_token_coherence(self, context: Sequence[str], *,
+                             branch_band: "Q | None" = None,
+                             noise_band: "Q | None" = None,
+                             noise_floor: "Q | None" = None,
+                             top_k: int | None = None) -> "CoherenceReadout":
+        """Return the §78 / F945 RAW collapse-margin + coherence trichotomy.
+
+        Reuses the SAME probe as :meth:`next_token_distribution` —
+        ``klein4_bind(M, encode_context(context[-k:]))`` over the same vocab atom
+        set — but exposes the **raw** Class-M sims as exact rationals
+        (``Q(klein4_match_count(probe, c), D)`` == ``klein4_similarity`` exactly;
+        the same integer match-count the hot-path float ``sim_k4_batch``
+        divides) **before** the softmax, so the collapse-margin is NOT flattened
+        (F944: the full-vocab softmax read 0.006 on a confidently-resolving step
+        → a false stop).
+
+        With the raw sims + a principled noise floor, a low margin splits THREE
+        ways (the F945 trichotomy):
+
+        * **COHERENT** — top₁ ≫ floor, margin high → emit the one next.
+        * **BRANCH**   — top₁ AND top₂ both ≥ floor, margin low → a legitimate
+          multi-next choice point; ``branch_candidates`` is the set of valid
+          hands at/above the floor (sample among them — NOT an error).
+        * **STOP**     — top₁ ≈ floor (below it) → incoherent/noise →
+          honest-stop.
+
+        Decision path is exact-``Q`` end to end: the sort/argmax is a Class-K
+        pin-slot compare on the exact rational (no ``float`` key, no ``abs()``,
+        no numpy, no ``math``); the floor/margin/gap compares stay rational and
+        collapse to a decimal only if a consumer calls ``float()`` on a field.
+
+        Parameters mirror the attested module constants and may be overridden:
+        ``noise_floor`` (default ``NOISE_FLOOR_Q`` = ``Q(1, 4)`` chance +
+        ``noise_band``), ``noise_band`` (default ``FLOOR_BAND_Q`` = ``Q(9,
+        100)``; ignored when ``noise_floor`` is passed directly),
+        ``branch_band`` (default ``BRANCH_BAND_Q`` = ``Q(3, 25)``), ``top_k``
+        (default: the full vocab)."""
+        if self.M is None:
+            raise RuntimeError("call .learn(stream) before inference")
+        bband = BRANCH_BAND_Q if branch_band is None else branch_band
+        if noise_floor is not None:
+            floor = noise_floor
+        else:
+            band = FLOOR_BAND_Q if noise_band is None else noise_band
+            floor = FLOOR_BASELINE_Q + band
+        if not self.vocab:
+            return CoherenceReadout(
+                verdict="STOP", candidates_topk=[], raw_sims_topk=[],
+                collapse_margin=Q(0, 1), top1_floor_gap=Q(0, 1) - floor,
+                noise_floor=floor, branch_candidates=[])
+
+        k = self.operating_k
+        probe = hdc.klein4_bind(self.M, self.ctx.encode_context(list(context[-k:])))
+        # The RAW, pre-softmax Class-M sims as EXACT rationals (F868 stay-
+        # rational): the integer match-count over ``D`` is exactly
+        # ``klein4_similarity``, kept as ``Q(count, D)`` so the floor/margin/gap
+        # compares never touch a float. (The hot autoregressive path uses the
+        # float ``sim_k4_batch`` for speed; this per-step coherence READOUT
+        # stays rational on the decision path — the F868 ranking key is the same
+        # integer match-count either way.)
+        D = len(probe)
+        sims = [Q(hdc.klein4_match_count(probe, c), D) for c in self.vocab_vecs]
+
+        # Rank by the exact-Q sim — Python's sort uses ONLY ``Q.__lt__`` (the
+        # exact integer cross-multiply, F868 mechanism #2 = Class-K pin-slot
+        # compare), so the key is the raw rational, NOT a float. ``reverse=True``
+        # gives descending order (the same argmax the greedy path takes).
+        order = sorted(range(len(sims)), key=lambda i: sims[i], reverse=True)
+        if top_k is None or top_k > len(order):
+            top_k = len(order)
+        top = order[:top_k]
+        cands_topk = [self.vocab[i] for i in top]
+        sims_topk = [sims[i] for i in top]
+
+        top1 = sims[order[0]]
+        top2 = sims[order[1]] if len(order) > 1 else Q(0, 1)
+        margin = top1 - top2
+        top1_gap = top1 - floor
+
+        # The trichotomy — all exact-Q compares (Class-K pin-slot):
+        verdict = "COHERENT"
+        branch_cands: List[str] = []
+        if top1 < floor:                                   # top₁ below floor → noise
+            verdict = "STOP"
+        elif top2 >= floor and margin < bband:             # both hands valid, tie → branch
+            verdict = "BRANCH"
+            branch_cands = [self.vocab[i] for i in order if sims[i] >= floor]
+        return CoherenceReadout(
+            verdict=verdict, candidates_topk=cands_topk, raw_sims_topk=sims_topk,
+            collapse_margin=margin, top1_floor_gap=top1_gap, noise_floor=floor,
+            branch_candidates=branch_cands)
 
     # ------------------------------------------------------------- infer
     def infer(self, prompt: Sequence[str], max_tokens: int | None = None,

@@ -23,7 +23,10 @@ from __future__ import annotations
 
 import pytest
 
+from srmech.amsc import hdc
+from srmech.amsc.q import Q
 from srmech.rbs_lm import (
+    CoherenceReadout,
     ContextSubstrate,
     RBSLMInferenceSubstrate,
     encode_bigram_l1,
@@ -32,6 +35,12 @@ from srmech.rbs_lm import (
     encode_word_k4,
     sim_k4_batch,
     token_seed,
+)
+from srmech.rbs_lm.inference import (
+    BRANCH_BAND_Q,
+    FLOOR_BAND_Q,
+    FLOOR_BASELINE_Q,
+    NOISE_FLOOR_Q,
 )
 
 # A small canonical D / hex_chars + instrument params (the same nested shape the
@@ -257,6 +266,161 @@ def test_describe_smoke():
     assert "RBSLMInferenceSubstrate" in text
     assert f"D={D}" in text
     assert "k=2" in text
+
+
+# --------------------------------------------- §78/F945 coherence readout
+# The collapse-margin + COHERENT/BRANCH/STOP trichotomy on RBSLMInferenceSubstrate.
+
+# F945 graph (the finding's own probe): a BRANCHES to b,c ; b,c merge at d ; d->e.
+# Routed by SOURCE into bounded tomes (community-tome routing, F778/F465 — the
+# finding's title), one M per source so the bidirectional bundle leak that a
+# single global M would have does not contaminate the per-source recall.
+_F945_VOCAB = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
+_F945_EDGES = [("a", "b"), ("a", "c"), ("b", "d"), ("c", "d"), ("d", "e")]
+_F945_PARAMS = {
+    "substrate": {"D": 8192, "token_seed_hex_chars": 16},
+    "inference": {"instrument": {
+        "operating_k": 1, "operating_temperature": 1.0,
+        "memory_capacity": 1000, "default_max_tokens": 8, "learn_seed": 1234}},
+}
+
+
+def _f945_tome(src_edges):
+    """One per-source tome substrate over the shared F945 vocab: M = bundle of
+    the source's out-edges, each stored the substrate way
+    (klein4_bind(encode_context([src]), enc(next)))."""
+    sub = RBSLMInferenceSubstrate.from_params(_F945_PARAMS)
+    sub.vocab = list(_F945_VOCAB)
+    sub.vocab_idx = {w: i for i, w in enumerate(_F945_VOCAB)}
+    sub.vocab_vecs = [sub.ctx.enc(w) for w in _F945_VOCAB]
+    assoc = [hdc.klein4_bind(sub.ctx.encode_context([p]), sub.ctx.enc(n))
+             for p, n in src_edges]
+    sub.M = sub.ctx.bundle_odd(assoc)
+    sub.n_learned = len(src_edges)
+    return sub
+
+
+def _by_source():
+    bysrc = {}
+    for p, n in _F945_EDGES:
+        bysrc.setdefault(p, []).append((p, n))
+    return bysrc
+
+
+def test_coherence_floor_is_attested_one_quarter_plus_band():
+    # No-magic: the floor is built from STRUCTURE, not a hardcoded 0.34.
+    # Baseline = the random-Klein-4 match probability = Q(1, 4) (4 symbols
+    # {0,1,2,3}); band = Q(9, 100) (the F945 measured 0.34 = 0.25 + 0.09).
+    assert FLOOR_BASELINE_Q == Q(1, 4)
+    assert FLOOR_BAND_Q == Q(9, 100)
+    assert NOISE_FLOOR_Q == Q(1, 4) + Q(9, 100)
+    assert NOISE_FLOOR_Q == Q(17, 50)          # exact-Q == 0.34, de-magicked
+    assert BRANCH_BAND_Q == Q(3, 25)           # 0.12, the F945 branch test
+    # It is an exact rational on the decision path, NOT a float.
+    assert isinstance(NOISE_FLOOR_Q, Q)
+
+
+def test_coherence_trichotomy_reproduces_f945_graph():
+    # GATE 1: recall a = BRANCH (top1 ~= top2, both >= floor, margin ~ 0, two
+    # valid hands b,c); recall b/c/d = COHERENT (margin high, one next); a
+    # pure-noise context = STOP (top1 below floor).
+    bysrc = _by_source()
+
+    # --- a : BRANCH (the legitimate multi-next choice point) ---
+    ra = _f945_tome(bysrc["a"]).next_token_coherence(["a"], top_k=3)
+    assert isinstance(ra, CoherenceReadout)
+    assert ra.verdict == "BRANCH"
+    # the two valid hands are exactly {b, c} (above the floor, sorted by sim)
+    assert set(ra.branch_candidates) == {"b", "c"}
+    # both branch hands sit at/above the floor; the margin is tiny (~0)
+    assert ra.raw_sims_topk[0] >= ra.noise_floor
+    assert ra.raw_sims_topk[1] >= ra.noise_floor
+    assert ra.collapse_margin < BRANCH_BAND_Q
+
+    # --- b, c, d : COHERENT (one clean next) ---
+    for src, nxt in (("b", "d"), ("c", "d"), ("d", "e")):
+        r = _f945_tome(bysrc[src]).next_token_coherence([src], top_k=3)
+        assert r.verdict == "COHERENT", (src, r.verdict)
+        assert r.candidates_topk[0] == nxt
+        # a COHERENT margin is high (well above the branch band) and the gap to
+        # the floor is positive (top1 well above noise).
+        assert r.collapse_margin > BRANCH_BAND_Q
+        assert r.top1_floor_gap > Q(0, 1)
+        assert not r.branch_candidates
+
+    # --- pure-noise context : STOP ---
+    rn = _f945_tome(bysrc["a"]).next_token_coherence(["zzznoise_unlearned"], top_k=3)
+    assert rn.verdict == "STOP"
+    assert rn.raw_sims_topk[0] < rn.noise_floor       # top1 below the floor
+    assert rn.top1_floor_gap < Q(0, 1)                # negative gap
+
+
+def test_coherence_raw_margin_is_not_softmax_flattened():
+    # GATE 2: on a confidently-resolving (COHERENT) step the RAW collapse-margin
+    # is LARGE, while the softmaxed next_token_distribution top1-top2 gap is
+    # flattened by the full-vocab softmax (the F944 false-stop the ask fixes).
+    sub = _f945_tome(_by_source()["d"])      # d -> e, a clean single-next
+    r = sub.next_token_coherence(["d"])
+    assert r.verdict == "COHERENT"
+    raw_margin = r.collapse_margin           # exact-Q, raw (pre-softmax)
+
+    # the softmaxed distribution's top1-top2 gap, on the SAME step
+    cands, probs = sub.next_token_distribution(["d"], temperature=1.0)
+    ps = sorted((float(p) for p in probs), reverse=True)
+    softmax_margin = ps[0] - ps[1]
+
+    # the raw margin (≈ 0.74) is strictly larger than the softmax-flattened one.
+    assert float(raw_margin) > softmax_margin
+
+
+def test_coherence_decision_path_is_exact_q():
+    # Every decision-path field is an exact Q (never a float), so a consumer can
+    # classify without a lossy decimal until it opts in via float().
+    r = _f945_tome(_by_source()["a"]).next_token_coherence(["a"], top_k=4)
+    assert isinstance(r.collapse_margin, Q)
+    assert isinstance(r.top1_floor_gap, Q)
+    assert isinstance(r.noise_floor, Q)
+    assert all(isinstance(s, Q) for s in r.raw_sims_topk)
+    # top-k is sorted descending by the exact rational (Class-K pin-slot order).
+    for i in range(len(r.raw_sims_topk) - 1):
+        assert r.raw_sims_topk[i] >= r.raw_sims_topk[i + 1]
+    assert len(r.candidates_topk) == 4
+
+
+def test_coherence_params_override_floor_and_band():
+    # The floor / band / branch-band are tunable; a raised floor turns a former
+    # BRANCH into a STOP (both hands now below it).
+    sub = _f945_tome(_by_source()["a"])
+    base = sub.next_token_coherence(["a"])
+    assert base.verdict == "BRANCH"
+    # raise the floor above the ~0.56 branch hands → STOP
+    raised = sub.next_token_coherence(["a"], noise_floor=Q(3, 5))   # 0.60
+    assert raised.verdict == "STOP"
+    assert raised.noise_floor == Q(3, 5)
+    # widening the branch band does not change a clean COHERENT step's verdict
+    cd = _f945_tome(_by_source()["d"]).next_token_coherence(["d"], branch_band=Q(1, 100))
+    assert cd.verdict == "COHERENT"
+
+
+def test_coherence_before_learn_raises():
+    sub = RBSLMInferenceSubstrate.from_params(PARAMS)
+    with pytest.raises(RuntimeError):
+        sub.next_token_coherence(["the", "cat"])
+
+
+def test_next_token_distribution_unchanged_by_coherence_addition():
+    # The coherence readout is non-breaking: next_token_distribution still
+    # returns (candidates, probs) with the full-vocab candidate set + a valid
+    # probability simplex, byte-for-byte unaffected by the new method.
+    sub = RBSLMInferenceSubstrate.from_params(PARAMS).learn(TINY_STREAM)
+    cands, probs = sub.next_token_distribution(["the", "cat"])
+    assert set(cands) == set(sub.vocab)
+    assert float(sum(probs)) == pytest.approx(1.0)
+    # calling the coherence readout does not mutate the substrate
+    _ = sub.next_token_coherence(["the", "cat"])
+    cands2, probs2 = sub.next_token_distribution(["the", "cat"])
+    assert cands2 == cands
+    assert [float(p) for p in probs2] == [float(p) for p in probs]
 
 
 # --------------------------------------------------------------- from_catalog
