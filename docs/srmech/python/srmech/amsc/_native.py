@@ -2038,6 +2038,28 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_size_t),  # *out_len
         ]
         lib.srmech_riemann_theta_g3_lattice.restype = ctypes.c_int
+    # rc80: the NEXT GENUS RUNG (the SCHOTTKY FRONTIER) — the GENUS-4 EXACT-INTEGER
+    # EXPONENT LATTICE C peer (srmech_riemann_theta_g4). Emits the
+    # [A1,A2,A3,A4,C12,C13,C14,C23,C24,C34,sign] 11-tuple lattice over a box (the genus-4
+    # SIX cross-terms, each a denominator-4 clearing + the Class-K sign); plain int64
+    # 11-tuples (the genus-4 theta-constant coefficients are small +-1 lattice counts, no
+    # bignum). NEW symbols → hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 3.
+    #   size_t srmech_riemann_theta_g4_count(uint32_t box)
+    if hasattr(lib, "srmech_riemann_theta_g4_count"):
+        lib.srmech_riemann_theta_g4_count.argtypes = [ctypes.c_uint32]
+        lib.srmech_riemann_theta_g4_count.restype = ctypes.c_size_t
+    #   srmech_riemann_theta_g4_lattice(ep1,ep2,ep3,ep4, e1,e2,e3,e4, box,
+    #                                   out[], out_cap, *out_len)
+    if hasattr(lib, "srmech_riemann_theta_g4_lattice"):
+        lib.srmech_riemann_theta_g4_lattice.argtypes = [
+            ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,  # ep1..ep4
+            ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,  # e1..e4
+            ctypes.c_uint32,                  # box
+            ctypes.POINTER(ctypes.c_int64),   # out[]
+            ctypes.c_size_t,                  # out_cap
+            ctypes.POINTER(ctypes.c_size_t),  # *out_len
+        ]
+        lib.srmech_riemann_theta_g4_lattice.restype = ctypes.c_int
     # rc76: IGUSA'S chi_18 — the EXACT product of the 36 even genus-3 theta-nulls
     # (srmech_riemann_theta_g3_chi18). Emits the leading-part [A1,A2,A3,C12,C13,C23,
     # coeff] septuples (the cusp-vanishing structure of the 36-even-null product) over a
@@ -3615,6 +3637,64 @@ def riemann_theta_g3_lattice_c(ep1, ep2, ep3, e1, e2, e3, box):
                int(out[i + 3]), int(out[i + 4]), int(out[i + 5]))
         lat[key] = lat.get(key, 0) + int(out[i + 6])
         i += 7
+    return {k: v for k, v in lat.items() if v != 0}
+
+
+# ----------------------------------------------------------------------
+# rc80: the NEXT GENUS RUNG (the SCHOTTKY FRONTIER) — the GENUS-4 EXACT-INTEGER EXPONENT
+# LATTICE (srmech_riemann_theta_g4). The Python RiemannThetaG4.lattice routes through
+# this when has_native_riemann_theta_g4(); the pure-Python body is the COMPLETE
+# alternative (and the parity oracle) — both emit the byte-identical canonical
+# {(A1,A2,A3,A4,C12,C13,C14,C23,C24,C34): coeff} lattice.
+# ----------------------------------------------------------------------
+
+
+def has_native_riemann_theta_g4() -> bool:
+    """True iff the rc80 ``srmech_riemann_theta_g4_lattice`` peer + its count helper are
+    loaded + bound. False on a no-C / pre-rc80 lib — the pure-Python
+    ``srmech.amsc.riemann_theta.RiemannThetaG4`` body is the complete alternative (and
+    the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_riemann_theta_g4_lattice")
+            and hasattr(LIB, "srmech_riemann_theta_g4_count"))
+
+
+def riemann_theta_g4_lattice_c(ep1, ep2, ep3, ep4, e1, e2, e3, e4, box):
+    """Native exact-integer genus-4 theta-constant exponent lattice → the canonical
+    ``{(A₁,A₂,A₃,A₄,C₁₂,C₁₃,C₁₄,C₂₃,C₂₄,C₃₄): coeff}`` dict (the accumulated
+    ``[A1,A2,A3,A4,C12,C13,C14,C23,C24,C34,sign]`` 11-tuples over the box ``|nᵢ| ≤ box``),
+    or ``None`` if the native symbols are absent. The accumulation merges duplicate
+    10-tuple keys by summing the ``±1`` signs — byte-identical to the pure-Python
+    ``_lattice_py``. ``ep1..ep4, e1..e4`` are the characteristic bits (each in
+    ``{0, 1}``)."""
+    if not has_native_riemann_theta_g4():
+        return None
+    if not isinstance(box, int) or box < 0:
+        raise ValueError(f"riemann_theta_g4_lattice_c: bad box {box!r}")
+    need = int(LIB.srmech_riemann_theta_g4_count(ctypes.c_uint32(int(box))))
+    out = (ctypes.c_int64 * max(need, 1))()
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_riemann_theta_g4_lattice(
+        ctypes.c_int(int(ep1)), ctypes.c_int(int(ep2)),
+        ctypes.c_int(int(ep3)), ctypes.c_int(int(ep4)),
+        ctypes.c_int(int(e1)), ctypes.c_int(int(e2)),
+        ctypes.c_int(int(e3)), ctypes.c_int(int(e4)),
+        ctypes.c_uint32(int(box)), out, ctypes.c_size_t(need),
+        ctypes.byref(out_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_riemann_theta_g4_lattice returned non-OK status {rc}")
+    lat = {}
+    n = int(out_len.value)
+    i = 0
+    while i < n:
+        key = (int(out[i]), int(out[i + 1]), int(out[i + 2]), int(out[i + 3]),
+               int(out[i + 4]), int(out[i + 5]), int(out[i + 6]),
+               int(out[i + 7]), int(out[i + 8]), int(out[i + 9]))
+        lat[key] = lat.get(key, 0) + int(out[i + 10])
+        i += 11
     return {k: v for k, v in lat.items() if v != 0}
 
 

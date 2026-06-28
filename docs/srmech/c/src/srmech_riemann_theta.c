@@ -87,6 +87,9 @@ static int64_t rt3_eight_phi(const int64_t *gamma,
                              const int64_t *epp, const int64_t *eps);
 static int rt3_eighth_sign(int64_t e1, int64_t e2, int64_t e3,
                            int64_t n1, int64_t n2, int64_t n3);
+/* rc80 helper (the genus-4 per-term Class-K sign) */
+static int rt4_term_sign(int64_t e1, int64_t e2, int64_t e3, int64_t e4,
+                         int64_t n1, int64_t n2, int64_t n3, int64_t n4);
 
 /* ---- characteristic-bit validation + the cleared exponents -------- */
 
@@ -1295,5 +1298,113 @@ srmech_status_t srmech_riemann_theta_g3_goepel(
     if (st != SRMECH_OK) { return st; }
     *out_holds = holds;
     *out_has_cross = goepel_res_has_cross(res, rlen);
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------ *
+ * rc80 (NEXT GENUS RUNG, the SCHOTTKY FRONTIER): the GENUS-4 EXACT-INTEGER EXPONENT
+ * LATTICE -- the C peer of srmech.amsc.riemann_theta.RiemannThetaG4, the genus-4
+ * analog of the rc75 genus-3 peer. The genus-4 theta-constant theta[ep'; e](0|Omega)
+ * (Grushevsky arXiv:1009.0369 eq.1, the g=4 specialization; binary characteristic
+ * [ep1,ep2,ep3,ep4; e1,e2,e3,e4], eight bits in {0,1}) is a lattice sum over n in Z^4
+ * of (-1)^{e.n} prod_i q_i^{m_i^2} prod_{i<j} q_ij^{m_i m_j}, m_i = n_i + ep'_i/2.
+ * Cleared to the quarter-nome base (Q_i,Q_ij)=(q_i,q_ij)^{1/4} a term is
+ *   Q1^A1 Q2^A2 Q3^A3 Q4^A4 Q12^C12 Q13^C13 Q14^C14 Q23^C23 Q24^C24 Q34^C34 *(-1)^{e.n}
+ * with EXACT INTEGER exponents A_i=(2n_i+ep_i)^2 and the SIX cross-terms
+ *   C_ij = (2n_i+ep_i)(2n_j+ep_j)   for the 6 pairs {12,13,14,23,24,34}
+ * (genus 2 had ONE cross-term, genus 3 THREE, genus 4 SIX -- the scaling difficulty).
+ * The lower characteristic e gives the per-term sign (-1)^{e.n} (Class-K pin-slot,
+ * never abs). This op emits the lattice as a flat caller-owned int64 array of
+ * [A1,A2,A3,A4,C12,C13,C14,C23,C24,C34,sign] 11-TUPLES (one per lattice point
+ * |n_i| <= box, row-major (n1,n2,n3,n4)); the genus-4 theta-CONSTANT coefficients are
+ * small +-1 lattice counts (int64-exact, no bignum), and the caller accumulates the
+ * 11-tuples into the canonical {(A1..A4,C12,C13,C14,C23,C24,C34):coeff} lattice
+ * (byte-identical to the Python carrier). Caller-owned out[]; no malloc. Additive
+ * symbol -> ABI unchanged (stays 3). NOTE: (2*box+1)^4 grows fast -- the caller keeps
+ * box small (2 or 3); the formal relations are box-stable. */
+
+/* one genus-4 lattice point emits 11 int64:
+ * A1,A2,A3,A4,C12,C13,C14,C23,C24,C34,sign */
+#define RT4_TUP 11
+
+/* The number of int64 a box needs for the genus-4 lattice: (2*box+1)^4 points,
+ * RT4_TUP int64 each. The caller sizes its out[] from this (no malloc here). */
+size_t srmech_riemann_theta_g4_count(uint32_t box)
+{
+    size_t side = (size_t)box * 2u + 1u;
+    assert(RT4_TUP == 11);
+    assert(side >= 1u);
+    return side * side * side * side * (size_t)RT4_TUP;
+}
+
+/* The per-term genus-4 sign (-1)^{e1 n1 + e2 n2 + e3 n3 + e4 n4}: Class-K pin-slot (a
+ * stored +1/-1 from an explicit parity branch), never an ALU abs(). */
+static int rt4_term_sign(int64_t e1, int64_t e2, int64_t e3, int64_t e4,
+                         int64_t n1, int64_t n2, int64_t n3, int64_t n4)
+{
+    int64_t parity = (e1 * n1 + e2 * n2 + e3 * n3 + e4 * n4) % 2;
+    assert((e1 == 0 || e1 == 1) && (e2 == 0 || e2 == 1));
+    assert((e3 == 0 || e3 == 1) && (e4 == 0 || e4 == 1));
+    if (parity < 0) {
+        parity += 2;                                /* floor-mod into {0,1} */
+    }
+    return (parity == 0) ? 1 : -1;                  /* Class-K +-1, no abs() */
+}
+
+/* Emit the genus-4 theta-constant exponent lattice for characteristic
+ * [ep1,ep2,ep3,ep4; e1,e2,e3,e4] (each bit in {0,1}) over the box |n_i| <= box, as a
+ * flat caller-owned int64 array of [A1,A2,A3,A4,C12,C13,C14,C23,C24,C34,sign] 11-tuples
+ * in row-major (n1,n2,n3,n4) order. *out_len <- the number of int64 written (= the g4
+ * count). SRMECH_ERR_BAD_INPUT if any characteristic bit is not in {0,1};
+ * SRMECH_ERR_OVERFLOW if the caller out[] (out_cap int64) is too small. */
+srmech_status_t srmech_riemann_theta_g4_lattice(
+    int ep1, int ep2, int ep3, int ep4,
+    int e1, int e2, int e3, int e4, uint32_t box,
+    int64_t *out, size_t out_cap, size_t *out_len)
+{
+    size_t need, idx;
+    int64_t n1, n2, n3, n4, lo, hi, u1, u2, u3, u4;
+    assert(out != NULL);
+    assert(out_len != NULL);
+    if (!rt_bit_ok(ep1) || !rt_bit_ok(ep2) || !rt_bit_ok(ep3) || !rt_bit_ok(ep4)
+            || !rt_bit_ok(e1) || !rt_bit_ok(e2) || !rt_bit_ok(e3)
+            || !rt_bit_ok(e4)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    need = srmech_riemann_theta_g4_count(box);
+    if (need > out_cap) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    idx = 0u;
+    lo = -(int64_t)box;
+    hi = (int64_t)box;
+    for (n1 = lo; n1 <= hi; ++n1) {
+        u1 = 2 * n1 + (int64_t)ep1;
+        for (n2 = lo; n2 <= hi; ++n2) {
+            u2 = 2 * n2 + (int64_t)ep2;
+            for (n3 = lo; n3 <= hi; ++n3) {
+                u3 = 2 * n3 + (int64_t)ep3;
+                for (n4 = lo; n4 <= hi; ++n4) {
+                    u4 = 2 * n4 + (int64_t)ep4;
+                    out[idx + 0u] = u1 * u1;            /* A1 */
+                    out[idx + 1u] = u2 * u2;            /* A2 */
+                    out[idx + 2u] = u3 * u3;            /* A3 */
+                    out[idx + 3u] = u4 * u4;            /* A4 */
+                    out[idx + 4u] = u1 * u2;            /* C12 */
+                    out[idx + 5u] = u1 * u3;            /* C13 */
+                    out[idx + 6u] = u1 * u4;            /* C14 */
+                    out[idx + 7u] = u2 * u3;            /* C23 */
+                    out[idx + 8u] = u2 * u4;            /* C24 */
+                    out[idx + 9u] = u3 * u4;            /* C34 */
+                    out[idx + 10u] = (int64_t)rt4_term_sign(
+                        (int64_t)e1, (int64_t)e2, (int64_t)e3, (int64_t)e4,
+                        n1, n2, n3, n4);
+                    idx += (size_t)RT4_TUP;
+                }
+            }
+        }
+    }
+    assert(idx == need);
+    *out_len = idx;
     return SRMECH_OK;
 }
