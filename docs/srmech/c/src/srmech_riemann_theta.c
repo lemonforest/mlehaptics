@@ -76,6 +76,17 @@ static int64_t rt_ptq(const int64_t *gamma, int pblk, int qblk, int i, int j);
 static int rt_is_symplectic(const int64_t *gamma);
 static int64_t rt_eight_phi(const int64_t *gamma,
                             int64_t ep1, int64_t ep2, int64_t e1, int64_t e2);
+/* rc77 helpers (the genus-3 Sp(6,Z) transformation; 3x3 blocks in a 36-int gamma) */
+static int64_t rt3_g(const int64_t *gamma, int blk, int r, int c);
+static int64_t rt3_matvec(const int64_t *gamma, int blk, const int64_t *v, int row);
+static int64_t rt3_diag_pqt(const int64_t *gamma, int pblk, int qblk, int row);
+static int64_t rt3_ptq(const int64_t *gamma, int pblk, int qblk, int i, int j);
+static int64_t rt3_pqt(const int64_t *gamma, int pblk, int qblk, int i, int j);
+static int rt3_is_symplectic(const int64_t *gamma);
+static int64_t rt3_eight_phi(const int64_t *gamma,
+                             const int64_t *epp, const int64_t *eps);
+static int rt3_eighth_sign(int64_t e1, int64_t e2, int64_t e3,
+                           int64_t n1, int64_t n2, int64_t n3);
 
 /* ---- characteristic-bit validation + the cleared exponents -------- */
 
@@ -791,5 +802,261 @@ srmech_status_t srmech_riemann_theta_g3_chi18(
     if (n > out_cap) { return SRMECH_ERR_OVERFLOW; }
     for (i = 0u; i < n; ++i) { out[i] = cur[i]; }   /* copy result to out[] */
     *out_len = n;
+    return SRMECH_OK;
+}
+
+/* ================================================================== *
+ *  rc77 (A): the genus-3 Sp(6,Z) characteristic TRANSFORMATION + kappa 8th root
+ * ================================================================== *
+ *
+ * The genus-3 modular group Sp(2g,Z)=Sp(6,Z) acts on the binary characteristic
+ * m=[ep'; ep] (six bits in {0,1}; ep' upper, ep lower, each a 3-vector) by the EXACT
+ * affine-linear map (Igusa, Theta Functions (1972) V.1; DLMF 21.5.9, stated for
+ * GENERAL genus g with g x g blocks -- here g=3, 3x3 blocks):
+ *   ep' |-> D ep' - C ep + diag(C D^T)
+ *   ep  |-> -B ep' + A ep + diag(A B^T)
+ * reduced mod 2 for the bit. The theta-constant picks up an 8th-root-of-unity
+ * multiplier; this peer returns the CHARACTERISTIC-DEPENDENT Igusa phase part
+ * exp(2 pi i phi_m) as the EXACT integer exponent k in Z/8 (rational phi_m, denom |
+ * 8, so 8*phi_m is an integer). The genus-g phi_m (a sum over k,l = 1..g; the same
+ * expression at every g) is
+ *   phi_m = -1/2 ep'^T (B D^T) ep' + ep^T (A^T C) ep - 2 ep'^T (B^T C) ep
+ *           - diag(A B^T)^T (D ep' - C ep)
+ * -> 8*phi_m = -4 ep'^T (B D^T) ep' + 8 ep^T (A^T C) ep - 16 ep'^T (B^T C) ep
+ *              - 8 diag(A B^T)^T (D ep' - C ep)
+ * (the g=2 expression of srmech_riemann_theta_sp4_char, parametrically extended to
+ * 3-vectors / 3x3 blocks). The remaining gamma-only kappa_0(gamma) (the Maslov/Weil
+ * cocycle 8th root) is BOUND to the TRANSCENDENTAL automorphy factor
+ * det(C Omega + D)^{1/2} and is NOT computed here -- off the decision path, carried
+ * symbolically. gamma is 36 int64 entries: the A,B,C,D 3x3 blocks, each row-major.
+ * All exact integer / mod-2; no float, no abs(). */
+
+/* index a 3x3 block (blk in {0:A,1:B,2:C,3:D}) entry (r,c) in the flat gamma[36] */
+static int64_t rt3_g(const int64_t *gamma, int blk, int r, int c)
+{
+    assert(gamma != NULL);
+    assert(blk >= 0 && blk < 4 && r >= 0 && r < 3 && c >= 0 && c < 3);
+    return gamma[(size_t)blk * 9u + (size_t)r * 3u + (size_t)c];
+}
+
+/* (M v)_row for a 3x3 block M of gamma and a length-3 vector v. */
+static int64_t rt3_matvec(const int64_t *gamma, int blk, const int64_t *v, int row)
+{
+    int c;
+    int64_t acc = 0;
+    assert(gamma != NULL && v != NULL);
+    assert(row >= 0 && row < 3);
+    for (c = 0; c < 3; ++c) { acc += rt3_g(gamma, blk, row, c) * v[c]; }
+    return acc;
+}
+
+/* diag(P Q^T)_row = sum_k P[row][k] Q[row][k]  (the row-row dot of two 3x3 blocks). */
+static int64_t rt3_diag_pqt(const int64_t *gamma, int pblk, int qblk, int row)
+{
+    int k;
+    int64_t acc = 0;
+    assert(gamma != NULL);
+    assert(row >= 0 && row < 3);
+    for (k = 0; k < 3; ++k) {
+        acc += rt3_g(gamma, pblk, row, k) * rt3_g(gamma, qblk, row, k);
+    }
+    return acc;
+}
+
+/* (P^T Q)[i][j] = sum_k P[k][i] Q[k][j]  -- one entry of a transposed-times block. */
+static int64_t rt3_ptq(const int64_t *gamma, int pblk, int qblk, int i, int j)
+{
+    int k;
+    int64_t acc = 0;
+    assert(gamma != NULL);
+    assert(i >= 0 && i < 3 && j >= 0 && j < 3);
+    for (k = 0; k < 3; ++k) {
+        acc += rt3_g(gamma, pblk, k, i) * rt3_g(gamma, qblk, k, j);
+    }
+    return acc;
+}
+
+/* (P Q^T)[i][j] = sum_k P[i][k] Q[j][k]  -- one entry of a block-times-transposed. */
+static int64_t rt3_pqt(const int64_t *gamma, int pblk, int qblk, int i, int j)
+{
+    int k;
+    int64_t acc = 0;
+    assert(gamma != NULL);
+    assert(i >= 0 && i < 3 && j >= 0 && j < 3);
+    for (k = 0; k < 3; ++k) {
+        acc += rt3_g(gamma, pblk, i, k) * rt3_g(gamma, qblk, j, k);
+    }
+    return acc;
+}
+
+/* The symplectic check gamma J gamma^T = J via the exact block conditions
+ * A^T C = C^T A (symmetric), B^T D = D^T B (symmetric), A^T D - C^T B = I (3x3).
+ * Returns 1 if symplectic, else 0. (blk 0=A,1=B,2=C,3=D.) */
+static int rt3_is_symplectic(const int64_t *gamma)
+{
+    int i, j, ok = 1;
+    assert(gamma != NULL);
+    for (i = 0; i < 3; ++i) {
+        for (j = 0; j < 3; ++j) {
+            /* A^T C symmetric, B^T D symmetric */
+            if (rt3_ptq(gamma, 0, 2, i, j) != rt3_ptq(gamma, 0, 2, j, i)) { ok = 0; }
+            if (rt3_ptq(gamma, 1, 3, i, j) != rt3_ptq(gamma, 1, 3, j, i)) { ok = 0; }
+            /* A^T D - C^T B == I */
+            if (rt3_ptq(gamma, 0, 3, i, j) - rt3_ptq(gamma, 2, 1, i, j)
+                    != ((i == j) ? 1 : 0)) { ok = 0; }
+        }
+    }
+    assert(ok == 0 || ok == 1);
+    return ok;
+}
+
+/* The exact 8*phi_m Igusa phase at genus 3 (an integer; the multiplier exponent is
+ * (8*phi_m) mod 8). epp = ep' = (ep1,ep2,ep3), eps = ep = (e1,e2,e3). */
+static int64_t rt3_eight_phi(const int64_t *gamma,
+                             const int64_t *epp, const int64_t *eps)
+{
+    int i, j;
+    int64_t t1 = 0, t2 = 0, t3 = 0, t4 = 0, depp[3], ceps[3], dab;
+    assert(gamma != NULL);
+    assert(epp != NULL && eps != NULL);
+    for (i = 0; i < 3; ++i) {
+        for (j = 0; j < 3; ++j) {
+            /* t1: -4 ep'^T (B D^T) ep'   ((BD^T)[i][j] = row-row dot of B,D) */
+            t1 += epp[i] * rt3_pqt(gamma, 1, 3, i, j) * epp[j];
+            t2 += eps[i] * rt3_ptq(gamma, 0, 2, i, j) * eps[j];   /* ep^T(A^TC)ep */
+            t3 += epp[i] * rt3_ptq(gamma, 1, 2, i, j) * eps[j];   /* ep'^T(B^TC)ep */
+        }
+    }
+    for (i = 0; i < 3; ++i) {
+        depp[i] = rt3_matvec(gamma, 3, epp, i);     /* (D ep')_i */
+        ceps[i] = rt3_matvec(gamma, 2, eps, i);     /* (C ep)_i */
+    }
+    for (i = 0; i < 3; ++i) {
+        dab = rt3_diag_pqt(gamma, 0, 1, i);          /* diag(A B^T)_i */
+        t4 += dab * (depp[i] - ceps[i]);
+    }
+    return -4 * t1 + 8 * t2 - 16 * t3 - 8 * t4;
+}
+
+/* The exact genus-3 Sp(6,Z) characteristic transformation + the kappa 8th-root
+ * exponent. gamma[36] = A,B,C,D 3x3 blocks (row-major). out_char[6] <-
+ * (ep1',ep2',ep3',e1',e2',e3') bits; *kexp <- the multiplier exponent k in {0..7}
+ * (multiplier = zeta_8^k). SRMECH_ERR_BAD_INPUT if a bit is invalid or gamma is not
+ * symplectic. */
+srmech_status_t srmech_riemann_theta_g3_sp6_char(
+    const int64_t *gamma, int ep1, int ep2, int ep3, int e1, int e2, int e3,
+    int *out_char, int *kexp)
+{
+    int i;
+    int64_t epp[3], eps[3], npp, nep, k8;
+    assert(gamma != NULL);
+    assert(out_char != NULL && kexp != NULL);
+    if (!rt_bit_ok(ep1) || !rt_bit_ok(ep2) || !rt_bit_ok(ep3)
+            || !rt_bit_ok(e1) || !rt_bit_ok(e2) || !rt_bit_ok(e3)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (!rt3_is_symplectic(gamma)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    epp[0] = ep1; epp[1] = ep2; epp[2] = ep3;
+    eps[0] = e1;  eps[1] = e2;  eps[2] = e3;
+    for (i = 0; i < 3; ++i) {
+        /* ep' |-> D ep' - C ep + diag(C D^T) */
+        npp = rt3_matvec(gamma, 3, epp, i) - rt3_matvec(gamma, 2, eps, i)
+            + rt3_diag_pqt(gamma, 2, 3, i);
+        /* ep  |-> -B ep' + A ep + diag(A B^T) */
+        nep = rt3_matvec(gamma, 0, eps, i) - rt3_matvec(gamma, 1, epp, i)
+            + rt3_diag_pqt(gamma, 0, 1, i);
+        out_char[i] = (int)(((npp % 2) + 2) % 2);
+        out_char[i + 3] = (int)(((nep % 2) + 2) % 2);
+    }
+    k8 = rt3_eight_phi(gamma, epp, eps);
+    *kexp = (int)(((k8 % 8) + 8) % 8);              /* floor-mod into {0..7} */
+    return SRMECH_OK;
+}
+
+/* ================================================================== *
+ *  rc77 (B): the genus-3 EIGHTH-nome lattice (the addition gate's convolution)
+ * ================================================================== *
+ *
+ * The genus-3 two-argument addition theorem (DLMF 21.6.8 at z1=z2=0, lower chars 0,
+ * the g=3 specialization -- the sum runs over nu in (Z/2)^3, EIGHT terms) is a
+ * lattice equality once theta at Omega AND at 2*Omega clear to ONE common eighth-nome
+ * base Q8 = q^{1/8}:
+ *   at Omega : A_i = 2(2 n_i + s_i)^2,  C_ij = 2(2 n_i + s_i)(2 n_j + s_j)
+ *   at 2Omega: A_i =  (4 n_i + s_i)^2,  C_ij =  (4 n_i + s_i)(4 n_j + s_j)
+ * s = (s1,s2,s3) = the DOUBLED upper characteristic (ANY int; the addition right side
+ * uses 2 r +- (a +- b)). sign = (-1)^{e.n} (Class-K). Emits the
+ * [A1,A2,A3,C12,C13,C23,sign] SEPTUPLE lattice (one per n in |n_i|<=box, row-major);
+ * the caller convolves the Omega-side product of two distinct nulls against the
+ * 2Omega-side eight-term sum. The genus-3 THREE cross-terms are all exercised. */
+
+/* The per-term genus-3 eighth-nome sign (-1)^{e.n}: Class-K pin-slot, never abs(). */
+static int rt3_eighth_sign(int64_t e1, int64_t e2, int64_t e3,
+                           int64_t n1, int64_t n2, int64_t n3)
+{
+    int64_t parity = (e1 * n1 + e2 * n2 + e3 * n3) % 2;
+    assert((e1 == 0 || e1 == 1) && (e2 == 0 || e2 == 1));
+    assert(e3 == 0 || e3 == 1);
+    if (parity < 0) {
+        parity += 2;                                /* floor-mod into {0,1} */
+    }
+    return (parity == 0) ? 1 : -1;                  /* Class-K +-1, no abs() */
+}
+
+/* The number of int64 the genus-3 eighth-nome lattice needs: (2*box+1)^3 points,
+ * RT3_SEPT int64 each (same shape as the g3 lattice). No malloc. */
+size_t srmech_riemann_theta_g3_eighth_count(uint32_t box)
+{
+    size_t side = (size_t)box * 2u + 1u;
+    assert(RT3_SEPT == 7);
+    assert(side >= 1u);
+    return side * side * side * (size_t)RT3_SEPT;
+}
+
+/* Emit the genus-3 eighth-nome [A1,A2,A3,C12,C13,C23,sign] septuple lattice for the
+ * DOUBLED upper characteristic s=(s1,s2,s3) and lower char (e1,e2,e3), at Omega
+ * (at_two_omega=0) or at 2Omega (at_two_omega=1), over |n_i|<=box, row-major.
+ * *out_len <- int64 written. SRMECH_ERR_BAD_INPUT if a lower-char bit is invalid;
+ * SRMECH_ERR_OVERFLOW if out[] is too small. */
+srmech_status_t srmech_riemann_theta_g3_eighth_lattice(
+    int s1, int s2, int s3, int e1, int e2, int e3, int at_two_omega, uint32_t box,
+    int64_t *out, size_t out_cap, size_t *out_len)
+{
+    size_t need, idx;
+    int64_t n1, n2, n3, lo, hi, u1, u2, u3, m;
+    assert(out != NULL);
+    assert(out_len != NULL);
+    if (!rt_bit_ok(e1) || !rt_bit_ok(e2) || !rt_bit_ok(e3)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    need = srmech_riemann_theta_g3_eighth_count(box);
+    if (need > out_cap) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    m = at_two_omega ? 1 : 2;                        /* Omega scales A,C by 2 */
+    idx = 0u;
+    lo = -(int64_t)box;
+    hi = (int64_t)box;
+    for (n1 = lo; n1 <= hi; ++n1) {
+        u1 = (at_two_omega ? 4 : 2) * n1 + (int64_t)s1;
+        for (n2 = lo; n2 <= hi; ++n2) {
+            u2 = (at_two_omega ? 4 : 2) * n2 + (int64_t)s2;
+            for (n3 = lo; n3 <= hi; ++n3) {
+                u3 = (at_two_omega ? 4 : 2) * n3 + (int64_t)s3;
+                out[idx + 0u] = m * u1 * u1;            /* A1 */
+                out[idx + 1u] = m * u2 * u2;            /* A2 */
+                out[idx + 2u] = m * u3 * u3;            /* A3 */
+                out[idx + 3u] = m * u1 * u2;            /* C12 */
+                out[idx + 4u] = m * u1 * u3;            /* C13 */
+                out[idx + 5u] = m * u2 * u3;            /* C23 */
+                out[idx + 6u] = (int64_t)rt3_eighth_sign(
+                    (int64_t)e1, (int64_t)e2, (int64_t)e3, n1, n2, n3);
+                idx += (size_t)RT3_SEPT;
+            }
+        }
+    }
+    assert(idx == need);
+    *out_len = idx;
     return SRMECH_OK;
 }

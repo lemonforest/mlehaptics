@@ -2058,6 +2058,43 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_size_t),  # *out_len
         ]
         lib.srmech_riemann_theta_g3_chi18.restype = ctypes.c_int
+    # rc77: the genus-3 Sp(6,Z) characteristic TRANSFORMATION + the genus-3 EIGHTH-nome
+    # lattice (the addition gate) — the g=2->g=3 parametric extension of the rc73 peers.
+    # Two additive C peers; NEW symbols → hasattr-guarded; additive → ABI stays 3.
+    #   srmech_riemann_theta_g3_sp6_char(gamma[36], ep1,ep2,ep3,e1,e2,e3,
+    #                                    out_char[6], *kexp)
+    #   gamma is the 36 int entries (A,B,C,D 3x3 blocks row-major); out_char is the 6
+    #   transformed bits (ep1',ep2',ep3',e1',e2',e3'); *kexp is the 8th-root exponent
+    #   k in Z/8. Returns SRMECH_ERR_BAD_INPUT if gamma is not symplectic.
+    if hasattr(lib, "srmech_riemann_theta_g3_sp6_char"):
+        lib.srmech_riemann_theta_g3_sp6_char.argtypes = [
+            ctypes.POINTER(ctypes.c_int64),   # gamma[36]
+            ctypes.c_int, ctypes.c_int, ctypes.c_int,  # ep1,ep2,ep3
+            ctypes.c_int, ctypes.c_int, ctypes.c_int,  # e1,e2,e3
+            ctypes.POINTER(ctypes.c_int),     # out_char[6]
+            ctypes.POINTER(ctypes.c_int),     # *kexp
+        ]
+        lib.srmech_riemann_theta_g3_sp6_char.restype = ctypes.c_int
+    #   size_t srmech_riemann_theta_g3_eighth_count(uint32_t box)
+    #   shape: (2*box+1)^3 points * 7 int64 [A1,A2,A3,C12,C13,C23,sign]
+    if hasattr(lib, "srmech_riemann_theta_g3_eighth_count"):
+        lib.srmech_riemann_theta_g3_eighth_count.argtypes = [ctypes.c_uint32]
+        lib.srmech_riemann_theta_g3_eighth_count.restype = ctypes.c_size_t
+    #   srmech_riemann_theta_g3_eighth_lattice(s1,s2,s3,e1,e2,e3, at_two_omega, box,
+    #                                          out[], out_cap, *out_len)
+    #   at_two_omega: 0 -> theta at Omega (A=2(2n+s)^2 ...); 1 -> at 2Omega
+    #   (A=(4n+s)^2 ...). s1,s2,s3 are the DOUBLED upper characteristic (any int).
+    if hasattr(lib, "srmech_riemann_theta_g3_eighth_lattice"):
+        lib.srmech_riemann_theta_g3_eighth_lattice.argtypes = [
+            ctypes.c_int, ctypes.c_int, ctypes.c_int,  # s1,s2,s3
+            ctypes.c_int, ctypes.c_int, ctypes.c_int,  # e1,e2,e3
+            ctypes.c_int,                     # at_two_omega (0/1)
+            ctypes.c_uint32,                  # box
+            ctypes.POINTER(ctypes.c_int64),   # out[]
+            ctypes.c_size_t,                  # out_cap
+            ctypes.POINTER(ctypes.c_size_t),  # *out_len
+        ]
+        lib.srmech_riemann_theta_g3_eighth_lattice.restype = ctypes.c_int
     # rc54: the EXACT q-shift CARRIER C peer (srmech_qpoly_*) — the q-analog of
     # the poly carrier, the q-hypergeometric F929 reduction-row foundation. A
     # QPoly is a ROW of q-Poly cells over an x-window; the bridge flattens the
@@ -3604,6 +3641,105 @@ def riemann_theta_g3_chi18_c(box):
     if rc != SRMECH_OK:
         raise RuntimeError(
             f"srmech_riemann_theta_g3_chi18 returned non-OK status {rc}")
+    lat = {}
+    n = int(out_len.value)
+    i = 0
+    while i < n:
+        key = (int(out[i]), int(out[i + 1]), int(out[i + 2]),
+               int(out[i + 3]), int(out[i + 4]), int(out[i + 5]))
+        lat[key] = lat.get(key, 0) + int(out[i + 6])
+        i += 7
+    return {k: v for k, v in lat.items() if v != 0}
+
+
+# ----------------------------------------------------------------------
+# rc77: the genus-3 Sp(6,Z) characteristic TRANSFORMATION + the genus-3 EIGHTH-nome
+# lattice (the addition gate) — the g=2->g=3 parametric extension of the rc73 peers.
+# The Python srmech.amsc.riemann_theta.RiemannThetaG3.{transform,addition_*} route
+# through these when the symbols are loaded; the pure-Python bodies are the COMPLETE
+# alternatives (and the parity oracles).
+# ----------------------------------------------------------------------
+
+
+def has_native_riemann_theta_g3_sp6() -> bool:
+    """True iff the rc77 ``srmech_riemann_theta_g3_sp6_char`` peer (the EXACT integer
+    Sp(6,Z) characteristic transformation + the κ 8th-root exponent) is loaded +
+    bound. False on a no-C / pre-rc77 lib — the pure-Python
+    ``RiemannThetaG3.transform`` body is the complete alternative (and the parity
+    oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return hasattr(LIB, "srmech_riemann_theta_g3_sp6_char")
+
+
+def has_native_riemann_theta_g3_eighth() -> bool:
+    """True iff the rc77 ``srmech_riemann_theta_g3_eighth_lattice`` peer (the COMMON
+    genus-3 eighth-nome lattice at Ω / 2Ω that the addition gate convolves) + its
+    count helper are loaded + bound. False on a no-C / pre-rc77 lib — the pure-Python
+    genus-3 addition body is the complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_riemann_theta_g3_eighth_lattice")
+            and hasattr(LIB, "srmech_riemann_theta_g3_eighth_count"))
+
+
+def riemann_theta_g3_sp6_char_c(gamma, ep1, ep2, ep3, e1, e2, e3):
+    """Native EXACT genus-3 Sp(6,Z) characteristic transformation: returns
+    ``((ep1', ep2', ep3', e1', e2', e3'), kexp)`` — the six transformed characteristic
+    bits and the 8th-root multiplier exponent ``kexp ∈ ℤ/8`` (the multiplier is
+    ``ζ₈^kexp``) — or ``None`` if the native symbol is absent. ``gamma`` is the
+    Sp(6,Z) element as four 3×3 integer blocks ``(A, B, C, D)``; the bridge flattens
+    it to the 36 int entries (A,B,C,D row-major). Byte-identical to the pure-Python
+    ``RiemannThetaG3._char_transform_int`` + ``_kappa_exp8``. Raises if gamma is not
+    symplectic (the C peer returns SRMECH_ERR_BAD_INPUT)."""
+    if not has_native_riemann_theta_g3_sp6():
+        return None
+    a, b, c, d = gamma
+    flat = (ctypes.c_int64 * 36)(
+        a[0][0], a[0][1], a[0][2], a[1][0], a[1][1], a[1][2],
+        a[2][0], a[2][1], a[2][2],
+        b[0][0], b[0][1], b[0][2], b[1][0], b[1][1], b[1][2],
+        b[2][0], b[2][1], b[2][2],
+        c[0][0], c[0][1], c[0][2], c[1][0], c[1][1], c[1][2],
+        c[2][0], c[2][1], c[2][2],
+        d[0][0], d[0][1], d[0][2], d[1][0], d[1][1], d[1][2],
+        d[2][0], d[2][1], d[2][2])
+    out_char = (ctypes.c_int * 6)()
+    kexp = ctypes.c_int(0)
+    rc = LIB.srmech_riemann_theta_g3_sp6_char(
+        flat, ctypes.c_int(int(ep1)), ctypes.c_int(int(ep2)), ctypes.c_int(int(ep3)),
+        ctypes.c_int(int(e1)), ctypes.c_int(int(e2)), ctypes.c_int(int(e3)),
+        out_char, ctypes.byref(kexp))
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_riemann_theta_g3_sp6_char returned non-OK status {rc}")
+    return ((int(out_char[0]), int(out_char[1]), int(out_char[2]),
+             int(out_char[3]), int(out_char[4]), int(out_char[5])),
+            int(kexp.value) % 8)
+
+
+def riemann_theta_g3_eighth_lattice_c(s1, s2, s3, e1, e2, e3, at_two_omega, box):
+    """Native eighth-nome genus-3 theta-constant lattice → the canonical
+    ``{(A₁, A₂, A₃, C₁₂, C₁₃, C₂₃): coeff}`` dict, or ``None`` if the native symbols
+    are absent. ``at_two_omega`` selects θ at Ω (0) or at 2Ω (1); ``s1, s2, s3`` are
+    the DOUBLED upper characteristic. Byte-identical to the pure-Python
+    ``RiemannThetaG3._theta_omega_eighth`` / ``_theta_two_omega_eighth``."""
+    if not has_native_riemann_theta_g3_eighth():
+        return None
+    if not isinstance(box, int) or box < 0:
+        raise ValueError(f"riemann_theta_g3_eighth_lattice_c: bad box {box!r}")
+    need = int(LIB.srmech_riemann_theta_g3_eighth_count(ctypes.c_uint32(int(box))))
+    out = (ctypes.c_int64 * max(need, 1))()
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_riemann_theta_g3_eighth_lattice(
+        ctypes.c_int(int(s1)), ctypes.c_int(int(s2)), ctypes.c_int(int(s3)),
+        ctypes.c_int(int(e1)), ctypes.c_int(int(e2)), ctypes.c_int(int(e3)),
+        ctypes.c_int(1 if at_two_omega else 0),
+        ctypes.c_uint32(int(box)), out, ctypes.c_size_t(need),
+        ctypes.byref(out_len))
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_riemann_theta_g3_eighth_lattice returned non-OK status {rc}")
     lat = {}
     n = int(out_len.value)
     i = 0

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc76"
-#define SRMECH_VERSION       "0.9.0rc76"
+#define SRMECH_VERSION_PRE   "rc77"
+#define SRMECH_VERSION       "0.9.0rc77"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3481,6 +3481,43 @@ size_t srmech_riemann_theta_g3_chi18_count(uint32_t box);
  * out[] or an over-cap accumulator. */
 srmech_status_t srmech_riemann_theta_g3_chi18(
     uint32_t box, int64_t *work, size_t work_cap,
+    int64_t *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * rc77: the genus-3 Sp(6,Z) modular TRANSFORMATION on the characteristics + the
+ * genus-3 two-argument ADDITION theorem (the g=2->g=3 parametric extension of the
+ * rc73 Sp(4,Z) transform + addition). The C peers of
+ * srmech.amsc.riemann_theta.RiemannThetaG3.{transform,addition_*}.
+ *
+ * (A) srmech_riemann_theta_g3_sp6_char -- the EXACT integer Sp(6,Z) characteristic
+ *     action ep' |-> D ep' - C ep + diag(C D^T), ep |-> -B ep' + A ep + diag(A B^T)
+ *     (DLMF 21.5.9, general genus g; here 3x3 blocks, gamma is 36 int64 A,B,C,D
+ *     row-major) + the EXACT 8th-root multiplier exponent k in Z/8 (the Igusa phase
+ *     8*phi_m; the transcendental det(C Om + D)^{1/2} is OFF the decision path).
+ * (B) srmech_riemann_theta_g3_eighth_lattice -- the COMMON eighth-nome genus-3
+ *     lattice at Omega / 2Omega that the addition gate (DLMF 21.6.8, g=3, sum over
+ *     nu in (Z/2)^3) convolves; [A1,A2,A3,C12,C13,C23,sign] septuples.
+ * Caller-owned out[]; no malloc. Additive symbols -> ABI unchanged (stays 3). */
+
+/* Emit the genus-3 Sp(6,Z) transformed characteristic + kappa exponent. gamma[36] =
+ * A,B,C,D 3x3 blocks (row-major); out_char[6] <- (ep1',ep2',ep3',e1',e2',e3') bits;
+ * *kexp <- k in {0..7} (multiplier = zeta_8^k). SRMECH_ERR_BAD_INPUT if a bit is
+ * invalid or gamma is not symplectic. */
+srmech_status_t srmech_riemann_theta_g3_sp6_char(
+    const int64_t *gamma, int ep1, int ep2, int ep3, int e1, int e2, int e3,
+    int *out_char, int *kexp);
+
+/* The number of int64 a box needs for the genus-3 eighth-nome lattice: (2*box+1)^3
+ * lattice points * 7 (A1,A2,A3,C12,C13,C23,sign). */
+size_t srmech_riemann_theta_g3_eighth_count(uint32_t box);
+
+/* Emit the genus-3 eighth-nome [A1,A2,A3,C12,C13,C23,sign] septuple lattice for the
+ * DOUBLED upper characteristic s=(s1,s2,s3) + lower char (e1,e2,e3), at Omega
+ * (at_two_omega=0: A=2(2n+s)^2 ...) or 2Omega (at_two_omega=1: A=(4n+s)^2 ...) over
+ * |n_i|<=box, row-major; *out_len <- int64 written. SRMECH_ERR_BAD_INPUT if a
+ * lower-char bit is invalid; SRMECH_ERR_OVERFLOW if out[] is too small. */
+srmech_status_t srmech_riemann_theta_g3_eighth_lattice(
+    int s1, int s2, int s3, int e1, int e2, int e3, int at_two_omega, uint32_t box,
     int64_t *out, size_t out_cap, size_t *out_len);
 
 /* ------------------------------------------------------------------ *
