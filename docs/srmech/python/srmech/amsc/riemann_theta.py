@@ -1382,6 +1382,20 @@ def _native_g3():
     return nat if (probe is not None and probe()) else None
 
 
+def _native_g3_chi18():
+    """The native ``_native`` module IF the rc76 ``srmech_riemann_theta_g3_chi18`` peer
+    (Igusa's χ₁₈ leading-part = product of the 36 even theta-nulls) is present and bound,
+    else ``None`` — so the genus-3 carrier dispatches the exact-integer χ₁₈ leading-part
+    lattice to C when available and falls cleanly to the pure-Python body (the complete
+    alternative + the parity oracle). Imported lazily to avoid a bootstrap cycle."""
+    try:
+        from . import _native as nat
+    except ImportError:
+        return None
+    probe = getattr(nat, "has_native_riemann_theta_g3_chi18", None)
+    return nat if (probe is not None and probe()) else None
+
+
 class RiemannThetaG3:
     """A numpy-free EXACT genus-3 Riemann theta-CONSTANT
 
@@ -1795,18 +1809,178 @@ class RiemannThetaG3:
         distinguished one (Grushevsky / Igusa)."""
         return cls.theta_constant((0, 0, 0), (0, 0, 0))
 
+    # ══════════════════════════════════════════════════════════════════════════
+    # rc76: IGUSA'S χ₁₈ — the EXACT product of the 36 even theta-nulls (the genus-3
+    # hyperelliptic / vanishing-theta-null structure as an exact FORMAL q-series)
+    # ══════════════════════════════════════════════════════════════════════════
+
+    @classmethod
+    def chi18_even_null_factors(cls) -> "List[RiemannThetaG3]":
+        """The 36 EVEN theta-nulls whose product is Igusa's χ₁₈ — exactly the 36 even
+        genus-3 theta-constants ``θ[ε](0|Ω)`` (:meth:`even_characteristics`). Igusa's
+        χ₁₈ ∈ S₁₈(Γ₃) is the scalar-valued Siegel cusp form of weight 18 and degree 3
+        DEFINED AS THE PRODUCT OF ALL 36 EVEN THETA-CONSTANTS (each θ-null a modular
+        form of weight ½, so 36·½ = 18; Bernatska–Kopeliovich, arXiv:2306.14889, p.1,
+        the genus-3 exact sequence ``0 → χ₁₈𝔄(Γ₃) → 𝔄(Γ₃) →^ρ 𝒮(2,8)`` with "χ₁₈ the
+        cusp form of weight 18, defined as the product of all even theta constants"; van
+        der Geer / Cléry–Faber, the degree-3 χ₁₈ as ∏₃₆ even theta-nulls). This returns
+        the EXACT factor list (each an even :class:`RiemannThetaG3`) — the operand-side
+        construction; the divisor of χ₁₈ is ``H₃ + 2D`` (H₃ the hyperelliptic locus, D
+        the divisor at infinity), so χ₁₈ vanishes EXACTLY on the genus-3 hyperelliptic
+        locus (the numerical vanishing-decision is the operand-side OPEN —
+        :meth:`hyperelliptic_locus_is_open`). A pure exact carrier object (no float)."""
+        return cls.even_characteristics()
+
+    @classmethod
+    def chi18_leading_order_quarter(cls) -> int:
+        """The EXACT leading (minimal) DIAGONAL q-order of χ₁₈ in the QUARTER-nome base
+        ``Qᵢ = qᵢ^{1/4}`` — the cusp-vanishing structure of the 36-even-null product.
+        Each even null θ[ε] has leading diagonal quarter-order
+        ``min Σᵢ (2nᵢ+ε'ᵢ)² = Σᵢ ε'ᵢ² = wt(ε')`` (achieved at ``n = 0``), the number of
+        set bits of the upper characteristic ε'. The product's leading diagonal order is
+        the SUM of the factors' leading orders (the leading-order coefficient is NONZERO
+        — verified in :meth:`chi18_leading_part`, so no cancellation drops the order).
+        Summed over the 36 even nulls (8 of wt 0, 12 of wt 1, 12 of wt 2, 4 of wt 3):
+        ``0·8 + 1·12 + 2·12 + 3·4 = 48`` quarter-nome units = ``48/4 = 12`` in the
+        diagonal nome ``qᵢ``. EXACT integer, derived from the enumeration (no float)."""
+        order = 0
+        for rt in cls.even_characteristics():
+            (ep1, ep2, ep3), _ = rt.characteristic
+            order += ep1 + ep2 + ep3              # wt(ε') = min diagonal quarter-order
+        return order
+
+    @classmethod
+    def chi18_leading_order_nome(cls) -> int:
+        """The EXACT leading diagonal q-order of χ₁₈ in the DIAGONAL nome ``qᵢ`` (=
+        ``Qᵢ^4``): :meth:`chi18_leading_order_quarter` ``// 4 = 48 // 4 = 12``. EXACT
+        integer (the quarter-order is divisible by 4 — all four ``n`` clearings keep the
+        quarter-order ≡ 0 mod 4 on the diagonal). No float."""
+        q = cls.chi18_leading_order_quarter()
+        if q % 4 != 0:                            # honest guard, never silently round
+            raise ValueError(
+                f"χ₁₈ leading quarter-order {q} is not divisible by 4 — the diagonal "
+                "nome order is not integral (would indicate a clearing bug, not a ship).")
+        return q // 4
+
+    @classmethod
+    def _chi18_leading_part_py(cls, box: int = 2) -> "Dict[_Sextuple, int]":
+        """The COMPLETE pure-Python χ₁₈ leading-order HOMOGENEOUS PART (the parity oracle
+        for the C peer): the exact-integer ``(A₁,A₂,A₃,C₁₂,C₁₃,C₂₃) → coeff`` lattice of
+        the 36-even-null product restricted to its minimal DIAGONAL order
+        (:meth:`chi18_leading_order_quarter`). Each factor is restricted to its own
+        leading diagonal slice (the monomials at ``Σ Aᵢ = wt(ε')``) and the 36 leading
+        slices are convolved exactly (a bounded sparse multivariate multiply; JPL Rule
+        2). The result is the exact leading part of χ₁₈ — NONZERO (so χ₁₈ ≠ 0 and its
+        leading order is exactly the sum). All-integer, no float / numpy / ``math`` /
+        ``abs()``."""
+        if not isinstance(box, int) or box < 1:
+            raise ValueError(f"box must be an int ≥ 1 for χ₁₈; got {box!r}")
+        prod: Dict[_Sextuple, int] = {(0, 0, 0, 0, 0, 0): 1}
+        for rt in cls.even_characteristics():
+            lat = rt.lattice(box)
+            # this factor's own leading diagonal slice (minimal Σ Aᵢ)
+            min_diag = min(k[0] + k[1] + k[2] for k in lat)
+            lead = {k: v for k, v in lat.items()
+                    if k[0] + k[1] + k[2] == min_diag}
+            nxt: Dict[_Sextuple, int] = {}
+            for k1, v1 in prod.items():
+                for k2, v2 in lead.items():
+                    key = (k1[0] + k2[0], k1[1] + k2[1], k1[2] + k2[2],
+                           k1[3] + k2[3], k1[4] + k2[4], k1[5] + k2[5])
+                    nxt[key] = nxt.get(key, 0) + v1 * v2
+            prod = {k: v for k, v in nxt.items() if v != 0}
+        return prod
+
+    @classmethod
+    def chi18_leading_part(cls, box: int = 2) -> "Dict[_Sextuple, int]":
+        """Igusa's χ₁₈ leading-order HOMOGENEOUS PART — the exact-integer
+        ``(A₁,A₂,A₃,C₁₂,C₁₃,C₂₃) → coeff`` lattice of the product of all 36 even
+        theta-nulls, restricted to the minimal diagonal q-order (the cusp-vanishing
+        structure). This is the EXACT, finite, load-bearing part of the χ₁₈ formal
+        q-series: it is NONZERO (so χ₁₈ ≢ 0), it lives at diagonal quarter-order
+        :meth:`chi18_leading_order_quarter` ``= 48`` (= 12 in qᵢ), and it is genuinely
+        the product of EXACTLY 36 even-null factors (:meth:`chi18_even_null_factors`).
+        DISPATCHES to the native ``srmech_riemann_theta_g3_chi18`` C peer when loaded (a
+        1:1 exact-integer mirror — the C lattice EQUALS the Python lattice, trusted only
+        on a native hit); else the pure-Python :meth:`_chi18_leading_part_py` body (the
+        COMPLETE alternative + the parity oracle). No float, no ``abs()`` (the per-term
+        ``(−1)^{ε·n}`` signs are the Class-K pin-slot inside each factor's lattice), no
+        numpy / ``math``.
+
+        MPM: Igusa χ₁₈ ∈ S₁₈(Γ₃), weight 18, degree 3, div = H₃ + 2D (Bernatska–
+        Kopeliovich arXiv:2306.14889 p.1; van der Geer SMF Degree 2&3 + Invariant
+        Theory). The NUMERICAL vanishing decision (is THIS Ω hyperelliptic) is a
+        transcendental point-evaluation → the operand-side OPEN
+        (:meth:`hyperelliptic_locus_is_open`); the carrier provides only the exact
+        FORMAL construction here, never a numerical hyperelliptic verdict."""
+        if not isinstance(box, int) or box < 1:
+            raise ValueError(f"box must be an int ≥ 1 for χ₁₈; got {box!r}")
+        nat = _native_g3_chi18()
+        if nat is not None:
+            try:
+                got = nat.riemann_theta_g3_chi18_c(box)
+                if got is not None:
+                    return got
+            except (RuntimeError, OverflowError, ValueError):
+                pass   # fall to the pure path
+        return cls._chi18_leading_part_py(box)
+
+    @classmethod
+    def chi18_is_nonzero(cls, box: int = 2) -> bool:
+        """PROVES Igusa's χ₁₈ is a NONZERO formal q-series — its leading-order part
+        (:meth:`chi18_leading_part`) is non-empty with at least one nonzero coefficient.
+        Because χ₁₈ = ∏₃₆ even theta-nulls and the leading-order coefficient does NOT
+        cancel, χ₁₈ ≢ 0 (a well-defined weight-18 cusp form, NOT the zero form). Returns
+        ``True``; exact-integer, no float."""
+        lead = cls.chi18_leading_part(box)
+        return bool(lead) and any(v != 0 for v in lead.values())
+
+    @classmethod
+    def chi18_leading_part_is_at_order_48(cls, box: int = 2) -> bool:
+        """PROVES the χ₁₈ leading part lives EXACTLY at diagonal quarter-order 48 (= 12
+        in qᵢ) — every monomial of :meth:`chi18_leading_part` has
+        ``A₁+A₂+A₃ == 48 == :meth:`chi18_leading_order_quarter```, and the part is
+        nonzero. The exact cusp-vanishing-order gate. Exact-integer, no float."""
+        target = cls.chi18_leading_order_quarter()
+        lead = cls.chi18_leading_part(box)
+        if not lead:
+            return False
+        return all(k[0] + k[1] + k[2] == target for k in lead)
+
+    @classmethod
+    def chi18_factor_count_is_36_even(cls) -> bool:
+        """PROVES χ₁₈ is the product of EXACTLY 36 factors, each a genuine even
+        theta-null — the combinatorics gate. Verifies ``len == 36`` and every factor
+        ``is_even`` and the singular even null (empty-set characteristic) is among them.
+        Exact, no float."""
+        factors = cls.chi18_even_null_factors()
+        if len(factors) != 36:
+            return False
+        if not all(f.is_even for f in factors):
+            return False
+        return cls.singular_even_null() in factors
+
     @staticmethod
     def hyperelliptic_locus_is_open() -> str:
-        """The DOCUMENTED operand-side OPEN (the genus-3 NEW structure; the full
-        numerical op is rc76, NOT this rung). Unlike genus 2 (where EVERY curve is
-        hyperelliptic), the GENERIC genus-3 curve is NON-hyperelliptic (a smooth plane
-        quartic); the HYPERELLIPTIC locus inside ``A₃`` is cut out by a VANISHING even
-        theta-null — an Igusa-type modular form vanishing on the hyperelliptic locus
-        (Poor [Poo96]; Grushevsky arXiv:1009.0369 Thm 3.9/5.2). DECIDING "is this Ω
-        hyperelliptic" is a POINT-EVALUATION of that theta-null at a transcendental
-        ``Ω ∈ H₃`` (only knowable to N digits = float on the decision path), which the
-        discipline forbids → it is NOT a finite exact (representable) carrier
-        operation. The carrier provides the FORMAL exact content (the genus-3 even-null
+        """The DOCUMENTED operand-side OPEN — the genus-3 vanishing-theta-null structure
+        is now NAMED EXPLICITLY as Igusa's **χ₁₈** (rc76). Unlike genus 2 (where EVERY
+        curve is hyperelliptic), the GENERIC genus-3 curve is NON-hyperelliptic (a smooth
+        plane quartic); the HYPERELLIPTIC locus inside ``A₃`` is cut out by the VANISHING
+        of **χ₁₈ = ∏ over the 36 even theta-nulls θ[ε](0|Ω)** — Igusa's weight-18 degree-3
+        Siegel cusp form whose divisor is ``H₃ + 2D`` (H₃ the hyperelliptic locus, D the
+        divisor at infinity); χ₁₈ vanishes EXACTLY on the genus-3 hyperelliptic locus
+        (Bernatska–Kopeliovich, arXiv:2306.14889, p.1 — the exact sequence
+        ``0 → χ₁₈𝔄(Γ₃) → 𝔄(Γ₃) →^ρ 𝒮(2,8)``, "χ₁₈ the cusp form of weight 18, defined
+        as the product of all even theta constants"; van der Geer, *SMF Degree 2&3 +
+        Invariant Theory*; classically Poor 1996, Grushevsky arXiv:1009.0369 Thm
+        3.9/5.2). rc76 BUILDS χ₁₈ as the exact FORMAL q-series (the product of the 36
+        even nulls — :meth:`chi18_leading_part` / :meth:`chi18_even_null_factors` /
+        :meth:`chi18_leading_order_quarter`). What STAYS OPEN is the NUMERICAL decision:
+        DECIDING "is THIS Ω hyperelliptic" is the POINT-EVALUATION ``χ₁₈(Ω) = 0`` at a
+        transcendental ``Ω ∈ H₃`` (only knowable to N digits = float on the decision
+        path), which the discipline forbids → NOT a finite exact (representable) carrier
+        operation. The carrier provides the exact FORM (the construction χ₁₈ = the
+        36-even-null product, its nonzero leading order, the genus-3 even-null
         enumeration :meth:`even_null_count`, the singular even null
         :meth:`singular_even_null`, the exact duplication relation
         :meth:`duplication_holds`) but REFUSES to fabricate a numerical hyperelliptic
@@ -1814,20 +1988,24 @@ class RiemannThetaG3:
         Returns the honest OPEN statement (a documentation string), never a verdict."""
         return (
             "OPEN (operand-side, transcendental period map): the numerical genus-3 "
-            "HYPERELLIPTIC-locus decision — evaluating the vanishing even theta-null "
-            "(the Igusa-type modular form that cuts out the hyperelliptic locus in A₃; "
-            "Poor 1996, Grushevsky arXiv:1009.0369 Thm 3.9/5.2) at a curve's "
-            "transcendental period matrix Ω ∈ H₃ and testing it against zero — is NOT "
-            "a finite exact carrier operation. The GENERIC genus-3 curve is "
-            "NON-hyperelliptic (a smooth plane quartic), unlike genus 2 where every "
-            "curve is hyperelliptic; the hyperelliptic locus is a positive-codimension "
-            "vanishing-null condition that needs the transcendental theta evaluation "
-            "at Ω (only knowable to N digits = float on the decision path), which the "
-            "discipline forbids. The carrier provides the FORMAL exact content (the "
-            "36-even / 28-odd null enumeration, the singular even null, the genus-3 "
-            "duplication relation, all exact for ALL Ω); the numerical "
-            "hyperelliptic-decision is the documented operand-side OPEN — the "
-            "framework refuses to fabricate a verdict here. (Schottky: genus 3 is "
-            "STILL clean — dim M₃ = 6 = dim A₃, J₃ = A₃^ind; the Schottky frontier "
-            "OPEN stays at g ≥ 4.)"
+            "HYPERELLIPTIC-locus decision — evaluating Igusa's χ₁₈ (the weight-18 "
+            "degree-3 Siegel cusp form χ₁₈ = ∏ over the 36 even theta-nulls θ[ε](0|Ω), "
+            "the modular form that cuts out the hyperelliptic locus in A₃, with divisor "
+            "χ₁₈ = H₃ + 2D; Bernatska–Kopeliovich arXiv:2306.14889 p.1, van der Geer "
+            "SMF Degree 2&3 + Invariant Theory, Poor 1996, Grushevsky arXiv:1009.0369 "
+            "Thm 3.9/5.2) at a curve's transcendental period matrix Ω ∈ H₃ and testing "
+            "χ₁₈(Ω) against zero — is NOT a finite exact carrier operation. The GENERIC "
+            "genus-3 curve is NON-hyperelliptic (a smooth plane quartic), unlike genus 2 "
+            "where every curve is hyperelliptic; the hyperelliptic locus is the "
+            "vanishing even theta-null condition χ₁₈ = 0 (one of the 36 even nulls "
+            "vanishes), which needs the transcendental "
+            "theta evaluation at Ω (only knowable to N digits = float on the decision "
+            "path), which the discipline forbids. The carrier BUILDS the FORMAL exact "
+            "content (χ₁₈ as the exact product of the 36 even nulls — its nonzero "
+            "leading q-order is 48 quarter-nome units = 12 in qᵢ; the 36-even / 28-odd "
+            "null enumeration; the singular even null; the genus-3 duplication relation, "
+            "all exact for ALL Ω); the numerical χ₁₈-vanishing / hyperelliptic decision "
+            "is the documented operand-side OPEN — the framework refuses to fabricate a "
+            "verdict here. (Schottky: genus 3 is STILL clean — dim M₃ = 6 = dim A₃, "
+            "J₃ = A₃^ind; the Schottky frontier OPEN stays at g ≥ 4.)"
         )

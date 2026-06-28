@@ -584,3 +584,212 @@ srmech_status_t srmech_riemann_theta_g3_lattice(
     *out_len = idx;
     return SRMECH_OK;
 }
+
+/* ------------------------------------------------------------------ *
+ * rc76: IGUSA'S chi_18 — the EXACT product of the 36 even genus-3 theta-nulls.
+ *
+ * chi_18 in S_18(Gamma_3) is the weight-18 degree-3 Siegel cusp form DEFINED AS THE
+ * PRODUCT OF ALL 36 EVEN THETA-CONSTANTS theta[eps](0|Omega) (each theta-null weight
+ * 1/2 -> 36*1/2 = 18; Bernatska-Kopeliovich arXiv:2306.14889 p.1, the exact sequence
+ * 0 -> chi_18 A(G3) -> A(G3) ->^rho S(2,8), "chi_18 the cusp form of weight 18,
+ * defined as the product of all even theta constants"; van der Geer SMF Degree 2&3 +
+ * Invariant Theory). Its divisor is H_3 + 2D (H_3 the hyperelliptic locus, D the
+ * divisor at infinity) -> chi_18 vanishes EXACTLY on the genus-3 hyperelliptic locus.
+ *
+ * This peer computes the EXACT LEADING-ORDER HOMOGENEOUS PART of chi_18 (the
+ * cusp-vanishing structure): each even null's leading diagonal slice is the minimal
+ * diagonal-order (A1+A2+A3 = wt(eps')) monomials, generated DIRECTLY from
+ *   n_i in {0}     if eps'_i == 0   (only n_i=0 gives A_i = 0),
+ *   n_i in {0,-1}  if eps'_i == 1   (both give A_i = 1),
+ * and the 36 leading slices are convolved into the canonical
+ * {(A1,A2,A3,C12,C13,C23): coeff} lattice -- the EXACT leading part, NONZERO, at
+ * diagonal quarter-order 48 (= 12 in q_i). Coefficients fit int64 (max |coeff| =
+ * 2^34, well within int64). Byte-identical to the pure-Python
+ * srmech.amsc.riemann_theta.RiemannThetaG3._chi18_leading_part_py.
+ *
+ * Caller-arena / caller-owned: the caller passes ONE int64 work arena (sized via
+ * srmech_riemann_theta_g3_chi18_count); the convolution ping-pongs two halves of it.
+ * No malloc. Additive symbols -> ABI unchanged (stays 3).
+ *
+ * JPL: Rule 1 (no goto/recursion) OK; Rule 2 (bounded loops, <=8 slice pts, 36 nulls,
+ * caps on accumulators) OK; Rule 3 (no malloc) OK; Rule 4 (<=60 lines/fn) OK; Rule 5
+ * (>=2 asserts/fn) OK; Rule 7 (status propagated) OK; Rule 8 (no fn-like macros) OK.
+ * ------------------------------------------------------------------ */
+
+/* one chi_18 lattice monomial = 7 int64: A1,A2,A3,C12,C13,C23,coeff */
+#define CHI18_SEPT 7
+/* a generous, fixed upper bound on the monomial count of any ping-pong buffer: the
+ * product of the 36 even-null leading slices peaks at 216 intermediate monomials and
+ * settles to 109; CHI18_CAP bounds BOTH buffers (the partial product never exceeds
+ * this) -- a compiled-in safety ceiling, not a malloc. */
+#define CHI18_CAP 512
+
+/* The number of int64 the caller arena needs: THREE buffers (two ping-pong + one
+ * per-null slice scratch), each CHI18_CAP monomials * CHI18_SEPT int64. box is accepted
+ * for signature parity with the Python carrier but does not change the leading part (the
+ * slice is box-independent for box >= 1); it is asserted >= 1 by the caller. */
+size_t srmech_riemann_theta_g3_chi18_count(uint32_t box)
+{
+    (void)box;                                      /* leading part is box-independent */
+    assert(CHI18_SEPT == 7);
+    assert(CHI18_CAP >= 109u);
+    return (size_t)3u * (size_t)CHI18_CAP * (size_t)CHI18_SEPT;
+}
+
+/* Accumulate one monomial (key0..key5, coeff) into the septuple buffer buf[0..*len),
+ * merging a duplicate key by summing coeffs. *len is in MONOMIALS (not int64).
+ * SRMECH_ERR_OVERFLOW if a new key would exceed cap monomials. */
+static srmech_status_t chi18_accum(int64_t *buf, size_t *len, size_t cap,
+                                   const int64_t *key, int64_t coeff)
+{
+    size_t i, base;
+    assert(buf != NULL);
+    assert(len != NULL && key != NULL);
+    for (i = 0u; i < *len; ++i) {
+        base = i * (size_t)CHI18_SEPT;
+        if (buf[base + 0u] == key[0] && buf[base + 1u] == key[1]
+                && buf[base + 2u] == key[2] && buf[base + 3u] == key[3]
+                && buf[base + 4u] == key[4] && buf[base + 5u] == key[5]) {
+            buf[base + 6u] += coeff;            /* merge duplicate key */
+            return SRMECH_OK;
+        }
+    }
+    if (*len >= cap) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    base = (*len) * (size_t)CHI18_SEPT;
+    buf[base + 0u] = key[0]; buf[base + 1u] = key[1]; buf[base + 2u] = key[2];
+    buf[base + 3u] = key[3]; buf[base + 4u] = key[4]; buf[base + 5u] = key[5];
+    buf[base + 6u] = coeff;
+    *len += 1u;
+    return SRMECH_OK;
+}
+
+/* The per-term genus-3 sign (-1)^{e.n}: Class-K pin-slot, never abs() (shared shape
+ * with rt3_term_sign but specialised to the small chi_18 leading-slice indices). */
+static int chi18_sign(int e1, int e2, int e3, int n1, int n2, int n3)
+{
+    int parity = (e1 * n1 + e2 * n2 + e3 * n3) % 2;
+    assert((e1 == 0 || e1 == 1) && (e2 == 0 || e2 == 1));
+    assert(e3 == 0 || e3 == 1);
+    if (parity < 0) {
+        parity += 2;                            /* floor-mod into {0,1} */
+    }
+    return (parity == 0) ? 1 : -1;              /* Class-K +-1, no abs() */
+}
+
+/* Build one even null's leading diagonal slice into slice[]/(*slen) (monomials).
+ * Enumerates n_i in {0} (ep_i=0) or {0,-1} (ep_i=1); each monomial is the minimal
+ * diagonal-order term. SRMECH_ERR_OVERFLOW only if cap is too small (never for a
+ * single slice: <= 8 raw points). */
+static srmech_status_t chi18_leading_slice(int ep1, int ep2, int ep3,
+                                           int e1, int e2, int e3,
+                                           int64_t *slice, size_t *slen, size_t cap)
+{
+    int i1, i2, i3, n1, n2, n3;
+    int64_t u1, u2, u3, key[6];
+    srmech_status_t st;
+    assert(slice != NULL && slen != NULL);
+    assert((ep1 == 0 || ep1 == 1) && (ep3 == 0 || ep3 == 1));
+    *slen = 0u;
+    for (i1 = 0; i1 <= ep1; ++i1) {            /* i1 in {0} or {0,1} -> n1 in {0,-1} */
+        n1 = -i1; u1 = 2 * (int64_t)n1 + (int64_t)ep1;
+        for (i2 = 0; i2 <= ep2; ++i2) {
+            n2 = -i2; u2 = 2 * (int64_t)n2 + (int64_t)ep2;
+            for (i3 = 0; i3 <= ep3; ++i3) {
+                n3 = -i3; u3 = 2 * (int64_t)n3 + (int64_t)ep3;
+                key[0] = u1 * u1; key[1] = u2 * u2; key[2] = u3 * u3;
+                key[3] = u1 * u2; key[4] = u1 * u3; key[5] = u2 * u3;
+                st = chi18_accum(slice, slen, cap, key,
+                                 (int64_t)chi18_sign(e1, e2, e3, n1, n2, n3));
+                if (st != SRMECH_OK) {
+                    return st;
+                }
+            }
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* Convolve src[]/(slen) (the running product) by one slice[]/(sllen) into dst[]/(*dlen),
+ * dropping zero-coeff merges at the end. dst must be a DIFFERENT buffer from src. */
+static srmech_status_t chi18_convolve(const int64_t *src, size_t slen,
+                                      const int64_t *slice, size_t sllen,
+                                      int64_t *dst, size_t *dlen, size_t cap)
+{
+    size_t i, j, a, b, w;
+    int64_t key[6];
+    srmech_status_t st;
+    assert(src != NULL && slice != NULL && dst != NULL);
+    assert(dlen != NULL);
+    *dlen = 0u;
+    for (i = 0u; i < slen; ++i) {
+        a = i * (size_t)CHI18_SEPT;
+        for (j = 0u; j < sllen; ++j) {
+            b = j * (size_t)CHI18_SEPT;
+            key[0] = src[a + 0u] + slice[b + 0u]; key[1] = src[a + 1u] + slice[b + 1u];
+            key[2] = src[a + 2u] + slice[b + 2u]; key[3] = src[a + 3u] + slice[b + 3u];
+            key[4] = src[a + 4u] + slice[b + 4u]; key[5] = src[a + 5u] + slice[b + 5u];
+            st = chi18_accum(dst, dlen, cap, key, src[a + 6u] * slice[b + 6u]);
+            if (st != SRMECH_OK) {
+                return st;
+            }
+        }
+    }
+    /* drop zero-coeff monomials (compact in place) */
+    w = 0u;
+    for (i = 0u; i < *dlen; ++i) {
+        a = i * (size_t)CHI18_SEPT;
+        if (dst[a + 6u] != 0) {
+            b = w * (size_t)CHI18_SEPT;
+            for (j = 0u; j < (size_t)CHI18_SEPT; ++j) { dst[b + j] = dst[a + j]; }
+            w += 1u;
+        }
+    }
+    *dlen = w;
+    return SRMECH_OK;
+}
+
+/* Emit Igusa's chi_18 leading-order homogeneous part as a flat caller-owned int64
+ * array of [A1,A2,A3,C12,C13,C23,coeff] septuples (one per nonzero leading monomial).
+ * work[] is the caller arena (work_cap int64, >= srmech_riemann_theta_g3_chi18_count);
+ * out[] receives the result (out_cap int64); *out_len <- int64 written. box is for
+ * signature parity (asserted >= 1). SRMECH_ERR_BAD_INPUT on box==0 / undersized work;
+ * overflow statuses on undersized buffers. */
+srmech_status_t srmech_riemann_theta_g3_chi18(
+    uint32_t box, int64_t *work, size_t work_cap,
+    int64_t *out, size_t out_cap, size_t *out_len)
+{
+    int64_t *cur, *nxt, *slice, *tmp;
+    size_t clen, nlen, sllen, half, i, n;
+    int ep1, ep2, ep3, e1, e2, e3;
+    srmech_status_t st;
+    assert(work != NULL && out != NULL);
+    assert(out_len != NULL);
+    if (box == 0u || work_cap < srmech_riemann_theta_g3_chi18_count(box)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    half = (size_t)CHI18_CAP * (size_t)CHI18_SEPT;  /* one buffer (int64) */
+    cur = work; nxt = work + half; slice = work + 2u * half;
+    clen = 1u;                                       /* running product starts at 1 */
+    for (i = 0u; i < (size_t)CHI18_SEPT; ++i) { cur[i] = 0; }
+    cur[6] = 1;                                      /* the empty monomial, coeff 1 */
+    /* multiply by each of the 36 even nulls (eps'.eps even), lexicographic order */
+    for (ep1 = 0; ep1 <= 1; ++ep1) { for (ep2 = 0; ep2 <= 1; ++ep2) {
+    for (ep3 = 0; ep3 <= 1; ++ep3) { for (e1 = 0; e1 <= 1; ++e1) {
+    for (e2 = 0; e2 <= 1; ++e2) { for (e3 = 0; e3 <= 1; ++e3) {
+        if ((ep1 * e1 + ep2 * e2 + ep3 * e3) % 2 != 0) { continue; }  /* even only */
+        st = chi18_leading_slice(ep1, ep2, ep3, e1, e2, e3,
+                                 slice, &sllen, (size_t)CHI18_CAP);
+        if (st != SRMECH_OK) { return st; }
+        st = chi18_convolve(cur, clen, slice, sllen, nxt, &nlen, (size_t)CHI18_CAP);
+        if (st != SRMECH_OK) { return st; }
+        tmp = cur; cur = nxt; nxt = tmp;            /* ping-pong */
+        clen = nlen;
+    } } } } } }
+    n = clen * (size_t)CHI18_SEPT;
+    if (n > out_cap) { return SRMECH_ERR_OVERFLOW; }
+    for (i = 0u; i < n; ++i) { out[i] = cur[i]; }   /* copy result to out[] */
+    *out_len = n;
+    return SRMECH_OK;
+}
