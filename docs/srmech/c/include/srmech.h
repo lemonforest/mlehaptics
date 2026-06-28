@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc72"
-#define SRMECH_VERSION       "0.9.0rc72"
+#define SRMECH_VERSION_PRE   "rc73"
+#define SRMECH_VERSION       "0.9.0rc73"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3364,6 +3364,43 @@ size_t srmech_riemann_theta_count(uint32_t box);
  * is too small. */
 srmech_status_t srmech_riemann_theta_lattice(
     int ep1, int ep2, int e1, int e2, uint32_t box,
+    int64_t *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * rc73 (SECOND GENUS RUNG): the Sp(4,Z) characteristic TRANSFORMATION + the
+ * EIGHTH-nome lattice (the addition gate). C peers of
+ * RiemannTheta.transform / .addition_holds.
+ *
+ * The genus-2 modular group Sp(2g,Z)=Sp(4,Z) acts on the binary characteristic
+ * m=[ep'; ep] by the EXACT affine-linear map (Igusa, Theta Functions (1972) V.1;
+ * DLMF 21.5.9): ep' |-> D ep' - C ep + diag(C D^T); ep |-> -B ep' + A ep +
+ * diag(A B^T) (mod 2 for the bit; parity even<->even/odd<->odd preserved). The
+ * theta-constant gains an 8th-root multiplier zeta_8^k carried as the EXACT integer
+ * exponent k in Z/8 from the Igusa phase phi_m (8*phi_m integer). The TRANSCENDENTAL
+ * det(C Omega+D)^{1/2} is NOT computed (off the decision path). All exact
+ * integer / mod-2; no float, no abs(). Additive symbols -> ABI unchanged (stays 3).
+ * ------------------------------------------------------------------ */
+
+/* Transform characteristic [ep1,ep2; e1,e2] (bits in {0,1}) under gamma[16] (the
+ * A,B,C,D 2x2 blocks, row-major). out_char[4] <- (ep1',ep2',e1',e2') bits;
+ * *kexp <- the multiplier exponent k in {0..7} (multiplier = zeta_8^k).
+ * SRMECH_ERR_BAD_INPUT if a bit is invalid or gamma is not symplectic. */
+srmech_status_t srmech_riemann_theta_sp4_char(
+    const int64_t *gamma, int ep1, int ep2, int e1, int e2,
+    int *out_char, int *kexp);
+
+/* The number of int64 a box needs for the eighth-nome lattice (same shape as the
+ * quarter-nome count: (2*box+1)^2 points * 4 [A,B,C,sign]). */
+size_t srmech_riemann_theta_eighth_count(uint32_t box);
+
+/* Emit the eighth-nome [A,B,C,sign] quadruple lattice over |n_i| <= box: the
+ * common base Q8=q^{1/8} so theta at Omega (at_two_omega=0: A=2(2n+s)^2 ...) and
+ * at 2*Omega (at_two_omega=1: A=(4n+s)^2 ...) share ONE integer lattice (the
+ * addition identity is a lattice equality). s1,s2 = DOUBLED upper characteristic
+ * (any int); e1,e2 in {0,1} the lower sign characteristic. SRMECH_ERR_BAD_INPUT if
+ * e-bit invalid; SRMECH_ERR_OVERFLOW if out[] too small. */
+srmech_status_t srmech_riemann_theta_eighth_lattice(
+    int s1, int s2, int e1, int e2, int at_two_omega, uint32_t box,
     int64_t *out, size_t out_cap, size_t *out_len);
 
 /* ------------------------------------------------------------------ *
