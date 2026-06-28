@@ -402,3 +402,80 @@ srmech_status_t srmech_riemann_theta_eighth_lattice(
     *out_len = idx;
     return SRMECH_OK;
 }
+
+/* ================================================================== *
+ *  rc74: the GENUS-AXIS CAPSTONE — the Eilers genus-2 ETA-MAP
+ * ================================================================== *
+ *
+ * The Eilers genus-2 eta-map (arXiv:1707.08855, eq 4.4): the (mod-2) characteristic
+ *   [eps(I)] = SUM_{k in I} [A_k] - [K_inf]   (mod 2)
+ * of a branch-point index set I (subset of {1..6}, e6 = inf). [A_k] are the
+ * Abelian-image characteristics (Eilers eq 4.2) and [K_inf] = [A_2]+[A_4]+[A_6]
+ * (eq 4.3, the vector of Riemann constants). Pure GF(2) linear algebra: each
+ * characteristic is a 4-bit vector (ep1,ep2,e1,e2), addition is XOR (mod 2), and
+ * subtraction == addition (the group (Z/2)^4 is its own inverse) so NO sign branch
+ * / NO abs() is needed. The single-index sets give the 6 ODD characteristics; the
+ * 10 pairs of finite indices {1..5} give the 10 EVEN theta-nulls. */
+
+/* [A_k] for k=1..6 (e6=inf), as the 4 bits (ep1,ep2,e1,e2) — Eilers eq (4.2). Row
+ * index is k-1; columns are ep1,ep2,e1,e2. */
+static const int RT_EILERS_A[6][4] = {
+    {1, 0, 0, 0},   /* [A_1] = ((1,0),(0,0)) */
+    {1, 0, 1, 0},   /* [A_2] = ((1,0),(1,0)) */
+    {0, 1, 1, 0},   /* [A_3] = ((0,1),(1,0)) */
+    {0, 1, 1, 1},   /* [A_4] = ((0,1),(1,1)) */
+    {0, 0, 1, 1},   /* [A_5] = ((0,0),(1,1)) */
+    {0, 0, 0, 0},   /* [A_6] = ((0,0),(0,0)) */
+};
+
+/* Accumulate [A_k] (1-based index k in {1..6}) into acc[4] (mod 2). Returns 1 on a
+ * valid index, 0 otherwise. */
+static int rt_eta_accumulate(int k, int *acc)
+{
+    int row;
+    int col;
+    assert(acc != NULL);
+    if (k < 1 || k > 6) {
+        return 0;
+    }
+    row = k - 1;
+    for (col = 0; col < 4; ++col) {
+        acc[col] = (acc[col] + RT_EILERS_A[row][col]) % 2;   /* GF(2) add (XOR) */
+    }
+    assert(acc[0] == 0 || acc[0] == 1);
+    assert(acc[3] == 0 || acc[3] == 1);
+    return 1;
+}
+
+/* The Eilers genus-2 eta-map: branch-point index set -> characteristic. indices[]
+ * holds n_idx 1-based branch-point indices (each in {1..6}); out_char[4] <-
+ * (ep1,ep2,e1,e2) the (mod-2) bits of [eps(I)] = SUM_{k in I} [A_k] - [K_inf].
+ * SRMECH_ERR_BAD_INPUT on a NULL pointer or an out-of-range index. */
+srmech_status_t srmech_riemann_theta_eta_char(
+    const int *indices, size_t n_idx, int *out_char)
+{
+    int acc[4] = {0, 0, 0, 0};
+    size_t i;
+    assert(out_char != NULL);
+    assert(indices != NULL || n_idx == 0u);
+    if (out_char == NULL) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (indices == NULL && n_idx != 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (i = 0u; i < n_idx; ++i) {
+        if (!rt_eta_accumulate(indices[i], acc)) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+    }
+    /* - [K_inf] = + [K_inf] (mod 2): [K_inf] = [A_2]+[A_4]+[A_6]. */
+    (void)rt_eta_accumulate(2, acc);
+    (void)rt_eta_accumulate(4, acc);
+    (void)rt_eta_accumulate(6, acc);
+    out_char[0] = acc[0];
+    out_char[1] = acc[1];
+    out_char[2] = acc[2];
+    out_char[3] = acc[3];
+    return SRMECH_OK;
+}

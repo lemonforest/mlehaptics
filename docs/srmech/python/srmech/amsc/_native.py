@@ -2006,6 +2006,16 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_size_t),  # *out_len
         ]
         lib.srmech_riemann_theta_eighth_lattice.restype = ctypes.c_int
+    # rc74: the GENUS-AXIS CAPSTONE — the Eilers genus-2 ETA-MAP (branch-point index
+    #   set -> characteristic; arXiv:1707.08855, eq 4.4). Pure GF(2) / mod-2 algebra.
+    #   srmech_riemann_theta_eta_char(indices[], n_idx, out_char[4])
+    if hasattr(lib, "srmech_riemann_theta_eta_char"):
+        lib.srmech_riemann_theta_eta_char.argtypes = [
+            ctypes.POINTER(ctypes.c_int),     # indices[]
+            ctypes.c_size_t,                  # n_idx
+            ctypes.POINTER(ctypes.c_int),     # out_char[4]
+        ]
+        lib.srmech_riemann_theta_eta_char.restype = ctypes.c_int
     # rc54: the EXACT q-shift CARRIER C peer (srmech_qpoly_*) — the q-analog of
     # the poly carrier, the q-hypergeometric F929 reduction-row foundation. A
     # QPoly is a ROW of q-Poly cells over an x-window; the bridge flattens the
@@ -3411,6 +3421,48 @@ def riemann_theta_eighth_lattice_c(s1, s2, e1, e2, at_two_omega, box):
         lat[key] = lat.get(key, 0) + int(out[i + 3])
         i += 4
     return {k: v for k, v in lat.items() if v != 0}
+
+
+# ----------------------------------------------------------------------
+# rc74: the GENUS-AXIS CAPSTONE — the Eilers genus-2 ETA-MAP (branch-point index
+# set → characteristic; arXiv:1707.08855, eq 4.4). The Python
+# srmech.amsc.riemann_theta.RiemannTheta routes .branch_set_characteristic()
+# through this when the symbol is loaded; the pure-Python body is the COMPLETE
+# alternative (and the parity oracle). Pure GF(2) / mod-2 algebra — exact integer.
+# ----------------------------------------------------------------------
+
+
+def has_native_riemann_theta_eta() -> bool:
+    """True iff the rc74 ``srmech_riemann_theta_eta_char`` peer (the EXACT GF(2)
+    Eilers genus-2 η-map: branch-point index set → characteristic) is loaded +
+    bound. False on a no-C / pre-rc74 lib — the pure-Python
+    ``RiemannTheta.branch_set_characteristic`` body is the complete alternative
+    (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return hasattr(LIB, "srmech_riemann_theta_eta_char")
+
+
+def riemann_theta_eta_char_c(indices):
+    """Native EXACT Eilers genus-2 η-map: a branch-point index tuple
+    ``indices ⊆ {1,…,6}`` → the ``((ε'₁, ε'₂), (ε₁, ε₂))`` (mod-2) characteristic of
+    ``[ε(I)] = Σ_{k∈I} [𝔄_k] − [K∞]`` (arXiv:1707.08855, eq 4.4), or ``None`` if the
+    native symbol is absent. Byte-identical to the pure-Python
+    ``RiemannTheta.branch_set_characteristic``. Raises if an index is out of
+    ``{1,…,6}`` (the C peer returns SRMECH_ERR_BAD_INPUT)."""
+    if not has_native_riemann_theta_eta():
+        return None
+    idx = tuple(int(i) for i in indices)
+    n = len(idx)
+    arr = (ctypes.c_int * max(n, 1))(*idx) if n else (ctypes.c_int * 1)()
+    out_char = (ctypes.c_int * 4)()
+    rc = LIB.srmech_riemann_theta_eta_char(
+        arr, ctypes.c_size_t(n), out_char)
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_riemann_theta_eta_char returned non-OK status {rc}")
+    return ((int(out_char[0]), int(out_char[1])),
+            (int(out_char[2]), int(out_char[3])))
 
 
 def has_native_poly_gcd() -> bool:

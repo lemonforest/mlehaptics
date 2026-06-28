@@ -950,3 +950,415 @@ class RiemannTheta:
                 if genuine == sq:
                     return False                          # would be a duplication
         return True
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # rc74: the GENUS-AXIS CAPSTONE — the Thomae / Rosenhain bridge
+    #   (A) the FROBENIUS / GÖPEL quadratic syzygy among the even theta-NULLS
+    #       (genuine NEW exact relation; distinct from duplication + addition),
+    #   (B) the SYMBOLIC Rosenhain λ-map (the 3 Rosenhain moduli as formal
+    #       theta-null RATIOS — NOT numerical values),
+    #   (C) the documented operand-side OPEN (numerical branch-point recovery
+    #       needs the transcendental period map).
+    # ══════════════════════════════════════════════════════════════════════════
+
+    # ── the Eilers genus-2 η-map: branch-point index set → characteristic ───────
+    #
+    # Eilers, "Rosenhain–Thomae Formulae for Higher Genera Hyperelliptic Curves"
+    # (arXiv:1707.08855), §4, eqs (4.2)–(4.4). For the genus-2 curve with branch
+    # points e₁ < … < e₅ < e₆ = ∞ in the homology basis of Fig. 1, the Abelian
+    # images carry the EXACT (mod-2) characteristics [𝔄_k] (eq 4.2), the vector of
+    # Riemann constants is [K∞] = [𝔄₂]+[𝔄₄]+[𝔄₆] (eq 4.3), and the characteristic
+    # of a branch-point index set I is
+    #
+    #     [ε(I)] = Σ_{k ∈ I} [𝔄_k] − [K∞]   (mod 2)        (eq 4.4)
+    #
+    # The 6 SINGLE indices give the 6 ODD characteristics (branch points ↔ odd
+    # chars); the 10 PAIRS of FINITE indices {1,…,5} give the 10 EVEN theta-nulls.
+    # All exact integer / mod-2 — no float, no abs() (Class-K is not even needed; the
+    # map is pure GF(2) linear algebra). The carrier verifies this assignment is
+    # internally consistent (10 even, 6 odd) at build time.
+
+    # [𝔄_k] for k = 1..6 (e₆ = ∞), as ((ε'₁,ε'₂),(ε₁,ε₂)) — Eilers eq (4.2)
+    _EILERS_A = {
+        1: ((1, 0), (0, 0)),
+        2: ((1, 0), (1, 0)),
+        3: ((0, 1), (1, 0)),
+        4: ((0, 1), (1, 1)),
+        5: ((0, 0), (1, 1)),
+        6: ((0, 0), (0, 0)),
+    }
+
+    @classmethod
+    def _char_add_mod2(cls, *chars: "Tuple[Tuple[int, int], Tuple[int, int]]"
+                       ) -> "Tuple[Tuple[int, int], Tuple[int, int]]":
+        """The exact GF(2) sum of binary characteristics ``Σ [εᵢ] (mod 2)`` — pure
+        integer / mod-2 (the characteristic group is (ℤ/2)⁴). No float, no abs()."""
+        ep1 = ep2 = e1 = e2 = 0
+        for (epp, eps) in chars:
+            ep1 += epp[0]
+            ep2 += epp[1]
+            e1 += eps[0]
+            e2 += eps[1]
+        return ((ep1 % 2, ep2 % 2), (e1 % 2, e2 % 2))
+
+    @classmethod
+    def riemann_constant(cls) -> "Tuple[Tuple[int, int], Tuple[int, int]]":
+        """The genus-2 vector of Riemann constants characteristic
+        ``[K∞] = [𝔄₂]+[𝔄₄]+[𝔄₆] (mod 2)`` in the Eilers Fig.-1 homology basis
+        (arXiv:1707.08855, eq 4.3) — an EXACT GF(2) characteristic ``((1,1),(0,1))``.
+        Used by the η-map :meth:`branch_set_characteristic`."""
+        return cls._char_add_mod2(cls._EILERS_A[2], cls._EILERS_A[4],
+                                  cls._EILERS_A[6])
+
+    @classmethod
+    def branch_set_characteristic(cls, indices: "Tuple[int, ...]"
+                                  ) -> "Tuple[Tuple[int, int], Tuple[int, int]]":
+        """The Eilers genus-2 η-map (arXiv:1707.08855, eq 4.4): the EXACT (mod-2)
+        characteristic ``[ε(I)] = Σ_{k∈I} [𝔄_k] − [K∞]`` of a branch-point index set
+        ``I ⊆ {1,…,6}`` (``e₆ = ∞``). A SINGLE index → an ODD characteristic (branch
+        points ↔ odd chars); a PAIR of finite indices ``{i,j} ⊂ {1,…,5}`` → an EVEN
+        theta-null. Pure GF(2) linear algebra — exact integer / mod-2, no float, no
+        abs(). Indices must lie in ``{1,…,6}`` (rejected loudly otherwise).
+
+        DISPATCHES to the native ``srmech_riemann_theta_eta_char`` C peer when loaded
+        (a 1:1 exact GF(2) mirror — the C characteristic EQUALS the Python one,
+        trusted only on a native hit); else the pure-Python body (the COMPLETE
+        alternative + the parity oracle)."""
+        idx = tuple(int(i) for i in indices)
+        for i in idx:
+            if i < 1 or i > 6:
+                raise ValueError(
+                    f"branch-point index {i} out of range {{1,…,6}} (e₆ = ∞); an "
+                    "honest boundary, not a fabricated reduction.")
+        nat = _native()
+        if nat is not None:
+            try:
+                got = nat.riemann_theta_eta_char_c(idx)
+                if got is not None:
+                    return got
+            except (RuntimeError, OverflowError, ValueError):
+                pass                                   # fall to the pure path
+        return cls._eta_char_py(idx)
+
+    @classmethod
+    def _eta_char_py(cls, idx: "Tuple[int, ...]"
+                     ) -> "Tuple[Tuple[int, int], Tuple[int, int]]":
+        """The COMPLETE pure-Python Eilers η-map (the parity oracle for the C peer):
+        ``[ε(I)] = Σ_{k∈I} [𝔄_k] − [K∞] (mod 2)``. ``− [K∞] (mod 2)`` equals
+        ``+ [K∞] (mod 2)`` — the GF(2) group ``(ℤ/2)⁴`` is its own inverse, so
+        subtraction IS addition (no sign / Class-K branch needed). Exact integer."""
+        terms = [cls._EILERS_A[i] for i in idx]
+        return cls._char_add_mod2(*(terms + [cls.riemann_constant()]))
+
+    # ── (A) the FROBENIUS / GÖPEL quadratic syzygy among the even theta-NULLS ────
+
+    @classmethod
+    def goepel_syzygy_triple(cls) -> "Tuple[Tuple[..., ...], ...]":
+        """The canonical genus-2 FROBENIUS / GÖPEL quadratic syzygy among the even
+        theta-NULLS — three PAIRS of even characteristics
+
+            ( θ²[a]θ²[b] ,  θ²[c]θ²[d] ,  θ²[e]θ²[f] )
+
+        satisfying ``θ²[a]θ²[b] = θ²[c]θ²[d] − θ²[e]θ²[f]`` (see :meth:`goepel_holds`).
+        Returned as a 3-tuple of pairs of characteristics ``((a,b),(c,d),(e,f))``.
+
+        The six characteristics are DISTINCT even theta-nulls; the three pairs share
+        ONE common GF(2) characteristic sum (the **Göpel-system / syzygy** invariant
+        — :meth:`goepel_is_syzygous`), which is the structural fingerprint of the
+        Riemann theta relation (the genus-2 specialization of the quartic Riemann
+        relation, DLMF §21.6, eq 21.6.6/21.6.7; Mumford, *Tata Lectures on Theta II*,
+        the genus-2 Göpel/Frobenius relations among even theta-nulls; Igusa, *Theta
+        Functions* (1972) §IV). The canonical representative pairs
+
+            a=[0,0;0,0]  b=[1,1;1,1] | c=[0,0;1,1]  d=[1,1;0,0] | e=[0,1;1,0]  f=[1,0;0,1]
+
+        all sum to the common characteristic ``[1,1;1,1]``."""
+        return (
+            (((0, 0), (0, 0)), ((1, 1), (1, 1))),
+            (((0, 0), (1, 1)), ((1, 1), (0, 0))),
+            (((0, 1), (1, 0)), ((1, 0), (0, 1))),
+        )
+
+    @classmethod
+    def goepel_is_syzygous(cls) -> bool:
+        """True iff the canonical Göpel triple is genuinely SYZYGOUS — the three
+        pairs all share ONE common GF(2) characteristic sum, and the six even
+        theta-nulls are DISTINCT and all EVEN. This is the structural fingerprint
+        that the relation is a genus-2 Göpel/Frobenius syzygy (a Göpel system), not
+        an accidental coincidence. Pure GF(2) algebra — exact, no float."""
+        triple = cls.goepel_syzygy_triple()
+        sums = [cls._char_add_mod2(p[0], p[1]) for p in triple]
+        if not (sums[0] == sums[1] == sums[2]):
+            return False
+        involved = [c for p in triple for c in p]
+        if len(set(involved)) != 6:                    # six DISTINCT nulls
+            return False
+        for (epp, eps) in involved:                    # all EVEN
+            if (epp[0] * eps[0] + epp[1] * eps[1]) % 2 != 0:
+                return False
+        return True
+
+    @classmethod
+    def _theta_null_fourth_product(cls, pair, box: int) -> "Dict[_Triple, int]":
+        """The exact-integer lattice of ``θ²[a]·θ²[b]`` (a product of the SQUARES of
+        two even theta-nulls at the SAME Ω) for ``pair = (a, b)`` — the 4-fold
+        convolution of the two rc72 theta-null lattices, in the quarter-nome base.
+        All-integer, no float (the per-term sign is already the Class-K pin-slot
+        baked into :meth:`lattice`)."""
+        a, b = pair
+        la = cls.theta_constant(a[0], a[1]).lattice(box)
+        lb = cls.theta_constant(b[0], b[1]).lattice(box)
+        sa = cls._square_lattice(la)
+        sb = cls._square_lattice(lb)
+        return cls._square_lattice_pair(sa, sb)
+
+    @classmethod
+    def goepel_lhs(cls, box: int) -> "Dict[_Triple, int]":
+        """The LEFT side ``θ²[a]·θ²[b]`` of the canonical Göpel syzygy (the product
+        of two SQUARED even theta-nulls at the SAME Ω). See :meth:`goepel_holds`."""
+        return cls._theta_null_fourth_product(cls.goepel_syzygy_triple()[0], box)
+
+    @classmethod
+    def goepel_rhs(cls, box: int) -> "Dict[_Triple, int]":
+        """The RIGHT side ``θ²[c]·θ²[d] − θ²[e]·θ²[f]`` of the canonical Göpel syzygy
+        (the exact-integer lattice difference of two products of squared even
+        theta-nulls). The subtraction is exact-integer coefficient subtraction (the
+        Class-K sign lives inside each theta-null lattice already). See
+        :meth:`goepel_holds`."""
+        triple = cls.goepel_syzygy_triple()
+        cd = cls._theta_null_fourth_product(triple[1], box)
+        ef = cls._theta_null_fourth_product(triple[2], box)
+        out: Dict[_Triple, int] = dict(cd)
+        for k, v in ef.items():
+            out[k] = out.get(k, 0) - v
+        return {k: v for k, v in out.items() if v != 0}
+
+    @classmethod
+    def goepel_holds(cls, box: int = 5) -> bool:
+        """rc74's EXACT CORE — the genus-2 FROBENIUS / GÖPEL quadratic theta-null
+        syzygy
+
+            θ²[a]·θ²[b]  =  θ²[c]·θ²[d]  −  θ²[e]·θ²[f]
+
+        holds EXACTLY as a truncated exact-integer multivariate q-series, for ALL
+        ``Ω`` (the genus-2 specialization of the quartic Riemann theta relation —
+        DLMF §21.6, eq 21.6.6/21.6.7; Mumford, *Tata Lectures on Theta II*, the
+        genus-2 Göpel/Frobenius relations; Igusa, *Theta Functions* (1972) §IV).
+        No transcendental evaluation, no float, no tolerance.
+
+        GENUINELY NEW — DISTINCT FROM rc72 DUPLICATION AND rc73 ADDITION: this is a
+        relation among even theta-nulls all at the SAME Ω (no Ω-doubling), whereas
+        BOTH duplication (``θ[0;0]² = Σ_c θ[c;0](2Ω)²``) and addition
+        (``θ[a]θ[b] = Σ_r θ[…](2Ω)θ[…](2Ω)``) relate the nulls at Ω to nulls at 2Ω.
+        See :meth:`goepel_is_distinct_from_duplication_and_addition` for the no-shell
+        proof.
+
+        The two sides are compared on the SAFE INNER REGION the box ``|nᵢ| ≤ box``
+        provably resolves. A product of four theta-null lattices has each monomial's
+        ``A``/``B`` exponent a sum of squares ``(2nᵢ+ε'ᵢ)²``; the smallest exponent a
+        box-``box`` truncation can OMIT comes from a factor at ``|nᵢ| = box+1``,
+        i.e. ``≥ (2·box+1)²``, so monomials with ``A, B, |C| ≤ box²`` (well below
+        ``(2·box+1)²``) are FULLY accumulated — an inner region empirically verified
+        box-STABLE (identical across box = 4, 5, 6). Returns ``True`` iff the two
+        sides agree exactly on that region, the triple is genuinely syzygous
+        (:meth:`goepel_is_syzygous`), and the region is non-trivially populated with
+        cross-term (``C ≠ 0``) monomials (so the genus-2 coupling is genuinely
+        exercised — this is not the genus-1 slice).
+
+        A CARRIER METHOD (the carrier's own build gate), not a public module-level op
+        — ``tools.total`` is UNCHANGED (the rc72 ``duplication_holds`` / rc73
+        ``addition_holds`` precedent)."""
+        if not isinstance(box, int) or box < 4:
+            raise ValueError(
+                f"box must be an int ≥ 4 for the Göpel gate (the inner region is "
+                f"box-stable from box=4); got {box!r}")
+        if not cls.goepel_is_syzygous():
+            return False
+        safe = box * box                               # the box-stable inner bound
+
+        def restrict(lat: "Dict[_Triple, int]") -> "Dict[_Triple, int]":
+            kept: Dict[_Triple, int] = {}
+            for (a, b, c), v in lat.items():
+                cmag = c if c >= 0 else -c             # Class-K magnitude, no abs()
+                if a <= safe and b <= safe and cmag <= safe:
+                    kept[(a, b, c)] = v
+            return kept
+
+        lhs = restrict(cls.goepel_lhs(box))
+        rhs = restrict(cls.goepel_rhs(box))
+        if lhs != rhs:
+            return False
+        return any(c != 0 for (_a, _b, c) in lhs)      # genuinely cross-term
+
+    @classmethod
+    def goepel_is_distinct_from_duplication_and_addition(
+            cls, box: int = 5) -> bool:
+        """THE rc74 NO-SHELL PROOF: the Göpel syzygy is GENUINELY DISTINCT from BOTH
+        rc72 duplication AND rc73 addition.
+
+        STRUCTURAL: duplication and addition are Ω-vs-2Ω identities (their right
+        sides live at 2Ω, carried in the quarter/eighth-nome with DOUBLED exponents
+        via :meth:`_double_exps` / the eighth-nome at-2Ω lattice). The Göpel syzygy
+        is purely at Ω — every factor is a theta-null at Ω, NO Ω-doubling appears.
+
+        EXACT: the proof here is no-shell — the Göpel LEFT side ``θ²[a]θ²[b]`` (a
+        product of squares of two DISTINCT even nulls at Ω) is checked NOT EQUAL to
+        either the duplication LHS ``θ[0;0]²`` re-shaped, or the addition LHS, on the
+        safe region. Concretely: the Göpel LHS is a DEGREE-4 monomial product
+        (four theta-nulls) whereas the addition LHS ``θ[a]θ[b]`` is DEGREE-2 (two
+        nulls) and the duplication LHS ``θ[0;0]²`` is DEGREE-2 — so the Göpel LHS
+        cannot equal either (different total theta-degree). We verify this exactly by
+        a lattice comparison: the Göpel LHS differs from the duplication LHS lattice
+        and from every checked addition LHS lattice. Returns ``True`` iff distinct
+        from both."""
+        if not isinstance(box, int) or box < 4:
+            raise ValueError(f"box must be an int ≥ 4; got {box!r}")
+        goepel_lhs = cls.goepel_lhs(box)               # degree-4 (four nulls)
+        # vs duplication LHS θ[0;0]² (degree-2): must differ
+        dup_lhs = cls.duplication_lhs(box)
+        if goepel_lhs == dup_lhs:
+            return False
+        # vs every addition LHS θ[a]·θ[b] (degree-2): must differ
+        for a1 in (0, 1):
+            for a2 in (0, 1):
+                for b1 in (0, 1):
+                    for b2 in (0, 1):
+                        add_lhs = cls.addition_lhs((a1, a2), (b1, b2), box)
+                        if goepel_lhs == add_lhs:
+                            return False
+        return True
+
+    # ── (B) the SYMBOLIC Rosenhain λ-map (formal theta-null ratios, NOT numbers) ─
+
+    @classmethod
+    def rosenhain_lambda_map(cls) -> "Dict[str, Dict[str, object]]":
+        """The genus-2 SYMBOLIC Rosenhain λ-map — the 3 Rosenhain moduli
+        ``(λ₁, λ₂, λ₃)`` of the curve ``y² = x(x−1)(x−λ₁)(x−λ₂)(x−λ₃)`` expressed as
+        FORMAL theta-null RATIOS (NOT numerical values).
+
+        Each Rosenhain modulus is a CROSS-RATIO of branch points (Eilers,
+        arXiv:1707.08855, Cor 2.4 eq 2.18; Rosenhain's modular representation, eqs
+        1.4–1.7): for the curve normalized with branch points ``{e₁,…,e₆}`` (here
+        ``e₁=0, e₂=1, e₆=∞`` and ``e₃,e₄,e₅`` the three moduli), the cross-ratio of
+        four branch points equals a ratio of squared even theta-NULLS
+
+            (e_l − e_m)/(e_k − e_m) = ± θ²[ε(k,S)]·θ²[ε(k,T)]
+                                        / ( θ²[ε(l,S)]·θ²[ε(l,T)] )
+
+        where ``S, T`` are disjoint index pairs, ``m`` the remaining index, and
+        ``ε(·)`` the η-map :meth:`branch_set_characteristic`. Each λ is represented
+        SYMBOLICALLY as a theta-null-ratio object — a dict with
+
+            ``num`` : the list of even-null characteristics in the NUMERATOR
+                      (the product of squared nulls θ²[·]θ²[·]),
+            ``den`` : the list of even-null characteristics in the DENOMINATOR,
+            ``branch_indices`` : the (k, l, m, S, T) branch-point index data,
+            ``cross_ratio`` : the symbolic cross-ratio string it equals.
+
+        This is a FORMAL exact-q-series-ratio DEFINITION (the numerator / denominator
+        are :meth:`lattice`-computable exact-integer products), NOT a number: turning
+        it into a NUMERICAL λ requires evaluating the theta-nulls at the curve's
+        TRANSCENDENTAL period matrix Ω — the documented operand-side OPEN
+        (:meth:`rosenhain_branch_point_recovery_is_open`). All characteristics here
+        are EVEN (verified by :meth:`rosenhain_lambda_map_is_well_formed`).
+
+        Branch-point labelling: ``e₁=0`` (idx 1), ``e₂=1`` (idx 2), ``e₃=λ₁`` (idx 3),
+        ``e₄=λ₂`` (idx 4), ``e₅=λ₃`` (idx 5), ``e₆=∞`` (idx 6). λᵢ = e_{i+2} is the
+        cross-ratio ``(e_{i+2} − e₁)/(e_{i+2} − e₆ … )`` made finite by the η-map;
+        we use the symmetric cross-ratio ``λᵢ = (e_{i+2} − 0)/( (e_{i+2}) ) ·`` … —
+        concretely the Eilers Cor 2.4 assignment with ``k = i+2``, ``l = 2`` (the
+        ``e₂=1`` normaliser), ``m = 1`` (the ``e₁=0`` normaliser), and ``S, T`` the
+        two disjoint pairs from the remaining finite indices.
+
+        DISCIPLINE: returns the SYMBOLIC ratio object; NEVER a numerical λ (the rc72
+        review lesson — the transcendental period map is not on any decision path)."""
+        lam: Dict[str, Dict[str, object]] = {}
+        # λᵢ = e_{i+2}; normalise with m=1 (e₁=0), l=2 (e₂=1); k=i+2. The remaining
+        # finite indices {3,4,5}\{k} ∪ {2}-ish split into the disjoint pairs S, T.
+        # Per Eilers Cor 2.4 (eq 2.18): the cross-ratio (e_l−e_m)/(e_k−e_m) equals
+        # θ²{k,S}θ²{k,T} / (θ²{l,S}θ²{l,T}) with S,T,k,l,m mutually disjoint, S∪T∪
+        # {k,l,m} ⊆ the finite branch indices. For g=2 the finite indices are
+        # {1,2,3,4,5}; S,T are the two leftover single indices (|S|=|T|=1).
+        for i, k in ((1, 3), (2, 4), (3, 5)):
+            l, m = 2, 1
+            rest = [j for j in (1, 2, 3, 4, 5) if j not in (k, l, m)]
+            # rest has exactly 2 entries → S, T (Eilers Cor 2.4: |S|=|T|=1)
+            s_idx, t_idx = rest[0], rest[1]
+            num = [cls.branch_set_characteristic((k, s_idx)),
+                   cls.branch_set_characteristic((k, t_idx))]
+            den = [cls.branch_set_characteristic((l, s_idx)),
+                   cls.branch_set_characteristic((l, t_idx))]
+            lam[f"lambda{i}"] = {
+                "num": num,                       # θ²[·]θ²[·] numerator chars
+                "den": den,                       # θ²[·]θ²[·] denominator chars
+                "branch_indices": {"k": k, "l": l, "m": m,
+                                   "S": s_idx, "T": t_idx},
+                "cross_ratio": f"(e{l} - e{m})/(e{k} - e{m})",
+            }
+        return lam
+
+    @classmethod
+    def rosenhain_lambda_map_is_well_formed(cls) -> bool:
+        """Verifies the SYMBOLIC Rosenhain λ-map is structurally correct (the exact,
+        formal part that IS checkable without the transcendental Ω):
+
+          * all numerator / denominator characteristics are EVEN theta-nulls (a
+            Rosenhain cross-ratio is a ratio of squared EVEN nulls — Eilers Cor 2.4);
+          * each λᵢ uses the correct η-map characteristics ``ε(k,S), ε(k,T)`` /
+            ``ε(l,S), ε(l,T)`` for its branch-index data (the assignment matches
+            :meth:`branch_set_characteristic` exactly — no fabricated characteristic);
+          * the three λᵢ use DISTINCT k indices (the three distinct moduli e₃,e₄,e₅).
+
+        Returns ``True`` iff well-formed. (This is the exact, formal consistency — it
+        does NOT evaluate any theta-null at a numerical Ω; see
+        :meth:`rosenhain_branch_point_recovery_is_open` for the OPEN.)"""
+        lam = cls.rosenhain_lambda_map()
+        if set(lam) != {"lambda1", "lambda2", "lambda3"}:
+            return False
+        ks = set()
+        for name, obj in lam.items():
+            bi = obj["branch_indices"]                 # type: ignore[index]
+            k, l = bi["k"], bi["l"]                     # type: ignore[index]
+            s_idx, t_idx = bi["S"], bi["T"]            # type: ignore[index]
+            ks.add(k)
+            # the characteristics must match the η-map exactly (no fabrication)
+            want_num = [cls.branch_set_characteristic((k, s_idx)),
+                        cls.branch_set_characteristic((k, t_idx))]
+            want_den = [cls.branch_set_characteristic((l, s_idx)),
+                        cls.branch_set_characteristic((l, t_idx))]
+            if obj["num"] != want_num or obj["den"] != want_den:  # type: ignore[index]
+                return False
+            # every characteristic in the ratio is an EVEN theta-null
+            for ch in want_num + want_den:
+                (epp, eps) = ch
+                if (epp[0] * eps[0] + epp[1] * eps[1]) % 2 != 0:
+                    return False
+        return len(ks) == 3                            # three distinct moduli
+
+    # ── (C) the documented operand-side OPEN ────────────────────────────────────
+
+    @staticmethod
+    def rosenhain_branch_point_recovery_is_open() -> str:
+        """The DOCUMENTED operand-side OPEN: recovering NUMERICAL branch points / a
+        numerical Rosenhain modulus λ from the theta-nulls at a curve's period matrix
+        Ω is NOT a finite exact (representable) operation — it needs the
+        TRANSCENDENTAL period map (the theta-nulls evaluated at the curve's Ω ∈ H₂,
+        which is transcendental and only knowable to N digits = float on the decision
+        path). The carrier therefore provides the SYMBOLIC λ-map (formal theta-null
+        ratios — :meth:`rosenhain_lambda_map`) and the FORMAL Göpel syzygy
+        (:meth:`goepel_holds`), both exact for ALL Ω, but REFUSES to fabricate a
+        numerical λ (the rc72 review lesson). Returns the honest OPEN statement (a
+        documentation string), never a number."""
+        return (
+            "OPEN (operand-side, transcendental period map): the numerical "
+            "branch-point / Rosenhain-λ recovery — evaluating the genus-2 even "
+            "theta-nulls at the curve's transcendental period matrix Ω ∈ H₂ and "
+            "reading off exact-ℚ branch points (Thomae's formula, Eilers Cor 2.4) "
+            "— is NOT a finite exact carrier operation. It requires the "
+            "transcendental theta evaluation at Ω (only knowable to N digits = "
+            "float on the decision path), which the discipline forbids. The carrier "
+            "provides the FORMAL exact content (the symbolic theta-null-ratio λ-map "
+            "+ the Frobenius/Göpel syzygy, both exact for ALL Ω); the numerical "
+            "λ-recovery is the documented operand-side OPEN — the framework refuses "
+            "to fabricate a number here."
+        )

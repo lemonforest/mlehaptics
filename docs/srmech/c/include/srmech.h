@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc73"
-#define SRMECH_VERSION       "0.9.0rc73"
+#define SRMECH_VERSION_PRE   "rc74"
+#define SRMECH_VERSION       "0.9.0rc74"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3402,6 +3402,27 @@ size_t srmech_riemann_theta_eighth_count(uint32_t box);
 srmech_status_t srmech_riemann_theta_eighth_lattice(
     int s1, int s2, int e1, int e2, int at_two_omega, uint32_t box,
     int64_t *out, size_t out_cap, size_t *out_len);
+
+/* rc74: the GENUS-AXIS CAPSTONE — the Thomae / Rosenhain bridge. The genuinely-new
+ * exact-integer content is the Eilers genus-2 ETA-MAP (arXiv:1707.08855, eq 4.4):
+ * the (mod-2) characteristic [eps(I)] = SUM_{k in I} [A_k] - [K_inf] of a
+ * branch-point index set I (subset of {1..6}, e6 = inf), where [A_k] are the Eilers
+ * eq.(4.2) Abelian-image characteristics and [K_inf] = [A_2]+[A_4]+[A_6] (eq 4.3,
+ * the vector of Riemann constants). This is the characteristic ASSIGNMENT behind
+ * BOTH the symbolic Rosenhain lambda-map (the moduli as theta-null ratios, Cor 2.4)
+ * AND the Frobenius/Goepel even-null syzygy. Pure GF(2) linear algebra: exact
+ * integer / mod-2, no float, no abs() (subtraction == addition in (Z/2)^4). The
+ * Goepel relation gate itself convolves srmech_riemann_theta_lattice outputs
+ * (caller bookkeeping, already C-backed), so the eta-map is rc74's new C kernel.
+ * Additive symbol -> SRMECH_ABI_VERSION unchanged (stays 3).
+ * ------------------------------------------------------------------ */
+
+/* The Eilers genus-2 eta-map: branch-point index set -> characteristic. indices[]
+ * holds n_idx branch-point indices (each in {1..6}); out_char[4] <- (ep1,ep2,e1,e2)
+ * the (mod-2) characteristic bits of [eps(I)]. SRMECH_ERR_BAD_INPUT if any index is
+ * out of {1..6} or out_char/indices is NULL. */
+srmech_status_t srmech_riemann_theta_eta_char(
+    const int *indices, size_t n_idx, int *out_char);
 
 /* ------------------------------------------------------------------ *
  * srmech_tripoly — EXACT-RATIONAL TRIVARIATE polynomial over srmech_bigint (the
