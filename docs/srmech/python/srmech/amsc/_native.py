@@ -2016,6 +2016,28 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_int),     # out_char[4]
         ]
         lib.srmech_riemann_theta_eta_char.restype = ctypes.c_int
+    # rc75: the NEXT GENUS RUNG — the GENUS-3 EXACT-INTEGER EXPONENT LATTICE C peer
+    # (srmech_riemann_theta_g3). Emits the [A1,A2,A3,C12,C13,C23,sign] septuple
+    # lattice over a box (the genus-3 THREE cross-terms, each a denominator-4
+    # clearing + the Class-K sign); plain int64 septuples (the genus-3 theta-constant
+    # coefficients are small +-1 lattice counts, no bignum). NEW symbols →
+    # hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 3.
+    #   size_t srmech_riemann_theta_g3_count(uint32_t box)
+    if hasattr(lib, "srmech_riemann_theta_g3_count"):
+        lib.srmech_riemann_theta_g3_count.argtypes = [ctypes.c_uint32]
+        lib.srmech_riemann_theta_g3_count.restype = ctypes.c_size_t
+    #   srmech_riemann_theta_g3_lattice(ep1,ep2,ep3,e1,e2,e3, box,
+    #                                   out[], out_cap, *out_len)
+    if hasattr(lib, "srmech_riemann_theta_g3_lattice"):
+        lib.srmech_riemann_theta_g3_lattice.argtypes = [
+            ctypes.c_int, ctypes.c_int, ctypes.c_int,  # ep1,ep2,ep3
+            ctypes.c_int, ctypes.c_int, ctypes.c_int,  # e1,e2,e3
+            ctypes.c_uint32,                  # box
+            ctypes.POINTER(ctypes.c_int64),   # out[]
+            ctypes.c_size_t,                  # out_cap
+            ctypes.POINTER(ctypes.c_size_t),  # *out_len
+        ]
+        lib.srmech_riemann_theta_g3_lattice.restype = ctypes.c_int
     # rc54: the EXACT q-shift CARRIER C peer (srmech_qpoly_*) — the q-analog of
     # the poly carrier, the q-hypergeometric F929 reduction-row foundation. A
     # QPoly is a ROW of q-Poly cells over an x-window; the bridge flattens the
@@ -3463,6 +3485,61 @@ def riemann_theta_eta_char_c(indices):
             f"srmech_riemann_theta_eta_char returned non-OK status {rc}")
     return ((int(out_char[0]), int(out_char[1])),
             (int(out_char[2]), int(out_char[3])))
+
+
+# ----------------------------------------------------------------------
+# rc75: the NEXT GENUS RUNG — the GENUS-3 EXACT-INTEGER EXPONENT LATTICE C peer
+# (srmech_riemann_theta_g3). The Python
+# srmech.amsc.riemann_theta.RiemannThetaG3 routes its .lattice() through this when
+# has_native_riemann_theta_g3(); the pure-Python body is the COMPLETE alternative
+# (and the parity oracle) — both accumulate the [A1,A2,A3,C12,C13,C23,sign] septuples
+# into the byte-identical canonical {(A1,A2,A3,C12,C13,C23): coeff} lattice.
+# ----------------------------------------------------------------------
+
+
+def has_native_riemann_theta_g3() -> bool:
+    """True iff the rc75 ``srmech_riemann_theta_g3_lattice`` peer + its count helper
+    are loaded + bound. False on a no-C / pre-rc75 lib — the pure-Python
+    ``srmech.amsc.riemann_theta.RiemannThetaG3`` body is the complete alternative (and
+    the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_riemann_theta_g3_lattice")
+            and hasattr(LIB, "srmech_riemann_theta_g3_count"))
+
+
+def riemann_theta_g3_lattice_c(ep1, ep2, ep3, e1, e2, e3, box):
+    """Native exact-integer genus-3 theta-constant exponent lattice → the canonical
+    ``{(A₁, A₂, A₃, C₁₂, C₁₃, C₂₃): coeff}`` dict (the accumulated
+    ``[A1,A2,A3,C12,C13,C23,sign]`` septuples over the box ``|nᵢ| ≤ box``), or ``None``
+    if the native symbols are absent. The accumulation merges duplicate sextuple keys
+    by summing the ``±1`` signs — byte-identical to the pure-Python ``_lattice_py``.
+    ``ep1, ep2, ep3, e1, e2, e3`` are the characteristic bits (each in ``{0, 1}``)."""
+    if not has_native_riemann_theta_g3():
+        return None
+    if not isinstance(box, int) or box < 0:
+        raise ValueError(f"riemann_theta_g3_lattice_c: bad box {box!r}")
+    need = int(LIB.srmech_riemann_theta_g3_count(ctypes.c_uint32(int(box))))
+    out = (ctypes.c_int64 * max(need, 1))()
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_riemann_theta_g3_lattice(
+        ctypes.c_int(int(ep1)), ctypes.c_int(int(ep2)), ctypes.c_int(int(ep3)),
+        ctypes.c_int(int(e1)), ctypes.c_int(int(e2)), ctypes.c_int(int(e3)),
+        ctypes.c_uint32(int(box)), out, ctypes.c_size_t(need),
+        ctypes.byref(out_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_riemann_theta_g3_lattice returned non-OK status {rc}")
+    lat = {}
+    n = int(out_len.value)
+    i = 0
+    while i < n:
+        key = (int(out[i]), int(out[i + 1]), int(out[i + 2]),
+               int(out[i + 3]), int(out[i + 4]), int(out[i + 5]))
+        lat[key] = lat.get(key, 0) + int(out[i + 6])
+        i += 7
+    return {k: v for k, v in lat.items() if v != 0}
 
 
 def has_native_poly_gcd() -> bool:

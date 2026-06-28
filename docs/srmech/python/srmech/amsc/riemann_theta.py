@@ -183,10 +183,14 @@ from typing import Dict, List, Tuple
 from .q import Q
 from .unary_theta import UnaryTheta, unary_theta
 
-__all__ = ["RiemannTheta"]
+__all__ = ["RiemannTheta", "RiemannThetaG3"]
 
 # the (A, B, C) integer exponent triple in the quarter-nome base
 _Triple = Tuple[int, int, int]
+
+# the genus-3 (A₁, A₂, A₃, C₁₂, C₁₃, C₂₃) integer exponent SEXTUPLE — 3 diagonal
+# nome exponents + the 3 cross-terms (vs genus-2's ONE cross-term); quarter-nome base
+_Sextuple = Tuple[int, int, int, int, int, int]
 
 # a 2×2 integer matrix (a row-major tuple of 2-tuples) — the genus-2 building block
 _Mat2 = Tuple[Tuple[int, int], Tuple[int, int]]
@@ -1361,4 +1365,469 @@ class RiemannTheta:
             "+ the Frobenius/Göpel syzygy, both exact for ALL Ω); the numerical "
             "λ-recovery is the documented operand-side OPEN — the framework refuses "
             "to fabricate a number here."
+        )
+
+
+def _native_g3():
+    """The native ``_native`` module IF the rc75 ``srmech_riemann_theta_g3`` peer is
+    present and bound, else ``None`` — so the genus-3 carrier dispatches the
+    exact-integer ``(A₁,A₂,A₃,C₁₂,C₁₃,C₂₃)`` sextuple lattice to C when available and
+    falls cleanly to the pure-Python body (the complete alternative + the parity
+    oracle). Imported lazily to avoid a bootstrap cycle."""
+    try:
+        from . import _native as nat
+    except ImportError:
+        return None
+    probe = getattr(nat, "has_native_riemann_theta_g3", None)
+    return nat if (probe is not None and probe()) else None
+
+
+class RiemannThetaG3:
+    """A numpy-free EXACT genus-3 Riemann theta-CONSTANT
+
+        θ[ε'; ε](0 | Ω) = Σ_{n ∈ ℤ³} (−1)^{ε·n} · Q₁^{A₁} Q₂^{A₂} Q₃^{A₃}
+                                       · Q₁₂^{C₁₂} Q₁₃^{C₁₃} Q₂₃^{C₂₃} ,
+        Aᵢ = (2nᵢ+ε'ᵢ)² ,   C_ij = (2nᵢ+ε'ᵢ)(2nⱼ+ε'ⱼ)   (THREE cross-terms, denom 4)
+
+    — the NEXT RUNG of the GENUS axis (genus 3; the genus-3 analog of the rc72
+    genus-2 :class:`RiemannTheta`). Immutable. Holds the binary characteristic
+    ``[ε'; ε]`` (six bits in ``{0,1}``; the doubled half-integer characteristic over
+    ``Ω ∈ H₃``, the genus-3 Siegel upper half space, ``Ω`` symmetric 3×3, dim
+    ``g(g+1)/2 = 6``).
+
+    THE OBJECT (Grushevsky, "The Schottky Problem", arXiv:1009.0369, eq. (1), the
+    Riemann theta on the Siegel space ``H_g``; the genus-3 specialization ``g = 3``).
+    There are **64 binary characteristics — 36 EVEN + 28 ODD** (Grushevsky p.: "there
+    are ``2^{g-1}(2^g+1)`` even theta constants" → ``g=3`` gives ``4·9 = 36`` even and
+    ``4·7 = 28`` odd; the empty-set even null ``[0,0,0;0,0,0]`` is the distinguished
+    singular one). A characteristic is even iff ``ε'·ε ≡ 0 (mod 2)``.
+
+    EXACT NOME-LATTICE REPRESENTATION (no float on the decision path). The carrier
+    represents the theta-CONSTANT (``z = 0``) as an EXACT INTEGER exponent lattice
+    over the nome alphabet (3 diagonal nomes + 3 cross-terms — vs genus-2's ONE
+    cross-term, **the hardest part of genus 3**)
+
+        q₁=e^{iπΩ₁₁}, q₂=e^{iπΩ₂₂}, q₃=e^{iπΩ₃₃} ,
+        q₁₂=e^{2iπΩ₁₂}, q₁₃=e^{2iπΩ₁₃}, q₂₃=e^{2iπΩ₂₃} ,
+
+    cleared to integer exponents in the QUARTER-nome base ``Qᵢ = qᵢ^{1/4}``,
+    ``Q_ij = q_ij^{1/4}``. With ``mᵢ = nᵢ + ½ε'ᵢ`` the quadratic form ``mᵀΩm`` over
+    ``iπ`` expands as ``Σᵢ mᵢ²Ωᵢᵢ + 2Σ_{i<j} mᵢmⱼΩᵢⱼ`` and clearing the half-integers
+    gives a term ``Π Qᵢ^{Aᵢ} · Π Q_ij^{C_ij} · (−1)^{ε·n}`` with EXACT INTEGER
+    exponents ``Aᵢ = (2nᵢ+ε'ᵢ)²`` and ``C_ij = (2nᵢ+ε'ᵢ)(2nⱼ+ε'ⱼ)``. Each cross-term
+    ``C_ij`` is a PRODUCT of two half-integers → a denominator-4 integer-lattice
+    clearing, now across THREE coupled pairs (the genuinely-new genus-3 content). The
+    lattice is truncated to a box ``|nᵢ| ≤ box`` → ``(2·box+1)³`` monomial terms; each
+    lattice coefficient is an exact INTEGER (a sum of ``±1`` lattice counts). The sign
+    ``(−1)^{ε·n}`` is the **Class-K** pin-slot (an explicit ``±1`` branch, never an ALU
+    ``abs()``).
+
+    THE BUILD GATES (the genus-3 analogs of rc72's genus-2 first rung):
+
+      * **collapse g3→g2 (primary):** :meth:`collapse_g2` of the trivial even
+        characteristic ``[0,0,0; 0,0,0]`` collapses EXACTLY to the rc72 genus-2
+        :class:`RiemannTheta` ``[0,0; 0,0]`` (set ``n₃ = 0``, ``q₃ = q₁₃ = q₂₃ = 1``,
+        ``ε'₃ = ε₃ = 0``) — bit-exact vs the existing rung; and the all-trivial chain
+        ``→`` genus-1 θ₃ (:meth:`collapse_g1_q_series`). A characteristic with a
+        NON-trivial 3rd component HONESTLY REFUSES to collapse (raises — the rc72
+        collapse pattern, an honest boundary, not a fabricated reduction). THE
+        foundation gate.
+
+      * **formal genus-3 theta-null identity (secondary):** the genus-3 Gauss /
+        duplication identity
+
+            θ[0;0](0 | Ω)²  =  Σ_{c ∈ (½ℤ³/ℤ³)} θ[c; 0](0 | 2Ω)²     (8 summands)
+
+        (Chai, "Riemann's theta formula" (2014), Thm 1.2 example (b), the
+        ``a = b = 0``, ``z = w = 0`` specialization of the generalized Riemann theta
+        identity, valid for ALL ``g`` — the ``2^{-g}`` sum over ``c ∈ 2^{-1}ℤ^g/ℤ^g``;
+        for ``g = 3`` the eight ``c ∈ {0,½}³``; classically Mumford, *Tata Lectures
+        on Theta I* (1983), the genus-g duplication). It holds for ALL ``Ω`` —
+        exactly checkable as a truncated exact-integer multivariate q-series, NO
+        transcendental evaluation. The eight ``θ[c; 0]`` include the (½,½,½) and mixed
+        characteristics with ``C₁₃ ≠ 0``/``C₂₃ ≠ 0``, so the identity genuinely
+        exercises ALL THREE cross-terms — it proves the carrier computes genuine
+        genus-3 theta-constants, not just the genus-2 / genus-1 slice. See
+        :meth:`duplication_lhs` / :meth:`duplication_rhs` / :meth:`duplication_holds`.
+
+    THE GENUS-3 NEW STRUCTURE (the honest boundary; the full op is rc76, NOT this
+    rung). Unlike genus 2 (where EVERY curve is hyperelliptic), the GENERIC genus-3
+    curve is NON-hyperelliptic (a smooth plane quartic); the HYPERELLIPTIC locus is
+    cut out by a VANISHING even theta-null (an Igusa-type modular form vanishing on
+    the hyperelliptic locus — Poor [Poo96], Grushevsky arXiv:1009.0369 Thm 3.9/5.2).
+    The numerical "is this Ω hyperelliptic" test is a POINT-EVALUATION of a theta-null
+    at a transcendental Ω → NOT a finite exact carrier op → the operand-side OPEN
+    (:meth:`hyperelliptic_locus_is_open` — the rc74
+    ``rosenhain_branch_point_recovery_is_open`` pattern).
+
+    THE REPRESENTABILITY BOUNDARY / SCHOTTKY. The carrier is REPRESENTABLE (a finite
+    exact decision): the canonical nome-monomial form + the finite Riemann relations,
+    box pinned by the polarization level. **Genus 3 is STILL CLEAN** for the Schottky
+    problem (``dim M₃ = 3g−3 = 6 = g(g+1)/2 = dim A₃``; ``J₃ = A₃^ind`` — every
+    indecomposable genus-3 ppav is a Jacobian, Grushevsky arXiv:1009.0369 p.: "the
+    dimensions coincide for ``g ≤ 3``, and in fact the Jacobian locus ``J_g`` is equal
+    to ``A_g^ind`` iff ``g ≤ 3``"). The Schottky FRONTIER OPEN stays at ``g ≥ 4``
+    (``g = 4`` is Schottky's case; ``g ≥ 5`` genuinely open).
+
+    Construct via :meth:`theta_constant` (the public entry). ``box`` (the lattice-box
+    truncation ``|nᵢ| ≤ box``) is the finite generating rule, pinned by the requested
+    truncation degree."""
+
+    __slots__ = ("_ep1", "_ep2", "_ep3", "_e1", "_e2", "_e3")
+
+    def __init__(self, ep1: int, ep2: int, ep3: int,
+                 e1: int, e2: int, e3: int) -> None:
+        self._ep1 = _bit("ε'₁", ep1)
+        self._ep2 = _bit("ε'₂", ep2)
+        self._ep3 = _bit("ε'₃", ep3)
+        self._e1 = _bit("ε₁", e1)
+        self._e2 = _bit("ε₂", e2)
+        self._e3 = _bit("ε₃", e3)
+
+    # ── construction ──────────────────────────────────────────────────────────
+    @classmethod
+    def theta_constant(cls, eps_prime: Tuple[int, int, int],
+                       eps: Tuple[int, int, int]) -> "RiemannThetaG3":
+        """The genus-3 theta-constant ``θ[ε'; ε](0 | Ω)`` for a binary characteristic
+        ``[ε'; ε]`` — ``eps_prime = (ε'₁, ε'₂, ε'₃)`` (the upper / lattice-shift
+        half-integer characteristic) and ``eps = (ε₁, ε₂, ε₃)`` (the lower / sign
+        characteristic), each entry in ``{0, 1}``. The trivial even characteristic is
+        ``theta_constant((0,0,0), (0,0,0))`` (= θ[0;0], the singular even null that
+        collapses to the genus-2 trivial null and on to θ₃)."""
+        return cls(eps_prime[0], eps_prime[1], eps_prime[2],
+                   eps[0], eps[1], eps[2])
+
+    @classmethod
+    def even_characteristics(cls) -> "List[RiemannThetaG3]":
+        """The 36 EVEN genus-3 theta-constants (the even theta-nulls): all 64 binary
+        characteristics ``[ε'; ε]`` with ``ε'·ε ≡ 0 (mod 2)`` (Grushevsky: ``2^{g-1}
+        (2^g+1) = 36`` even). The order is deterministic (lexicographic in
+        ``ε'₁ε'₂ε'₃ε₁ε₂ε₃``)."""
+        out: List[RiemannThetaG3] = []
+        for ep1 in (0, 1):
+            for ep2 in (0, 1):
+                for ep3 in (0, 1):
+                    for e1 in (0, 1):
+                        for e2 in (0, 1):
+                            for e3 in (0, 1):
+                                if (ep1 * e1 + ep2 * e2 + ep3 * e3) % 2 == 0:
+                                    out.append(cls(ep1, ep2, ep3, e1, e2, e3))
+        return out
+
+    # ── accessors ─────────────────────────────────────────────────────────────
+    @property
+    def characteristic(self) -> "Tuple[Tuple[int, int, int], Tuple[int, int, int]]":
+        """The binary characteristic ``((ε'₁, ε'₂, ε'₃), (ε₁, ε₂, ε₃))``."""
+        return ((self._ep1, self._ep2, self._ep3),
+                (self._e1, self._e2, self._e3))
+
+    @property
+    def is_even(self) -> bool:
+        """True iff the characteristic is EVEN (``ε'·ε ≡ 0 mod 2``) — i.e. an even
+        theta-null. 36 of the 64 are even."""
+        return (self._ep1 * self._e1 + self._ep2 * self._e2
+                + self._ep3 * self._e3) % 2 == 0
+
+    @property
+    def genus(self) -> int:
+        """The genus — 3 for this carrier (the next rung of the genus axis)."""
+        return 3
+
+    # ── the exact integer exponent lattice (the representable core) ────────────
+    def lattice(self, box: int) -> "Dict[_Sextuple, int]":
+        """The EXACT INTEGER exponent lattice ``{(A₁,A₂,A₃,C₁₂,C₁₃,C₂₃): coeff}`` of
+        the genus-3 theta-constant, truncated to the box ``|nᵢ| ≤ box`` — the carrier's
+        representable core. ``Aᵢ = (2nᵢ+ε'ᵢ)²`` are the diagonal integer exponents in
+        the quarter-nome base ``Qᵢ``; ``C_ij = (2nᵢ+ε'ᵢ)(2nⱼ+ε'ⱼ)`` are the THREE
+        cross-term exponents (each the genus-3 denominator-4 clearing of a half-integer
+        product); ``coeff`` is the exact integer ``Σ (−1)^{ε·n}`` over the ``n``
+        landing on that monomial. DISPATCHES to the native ``srmech_riemann_theta_g3``
+        C peer when loaded (a 1:1 exact-integer mirror — the C lattice EQUALS the
+        Python lattice, trusted only on a native hit); else the pure-Python
+        :meth:`_lattice_py` body (the COMPLETE alternative + the parity oracle). No
+        float, no ``abs()`` (the ``(−1)^{ε·n}`` sign is the Class-K pin-slot), no
+        numpy / ``math``."""
+        if not isinstance(box, int) or box < 0:
+            raise ValueError(f"box must be a non-negative int; got {box!r}")
+        nat = _native_g3()
+        if nat is not None:
+            try:
+                got = nat.riemann_theta_g3_lattice_c(
+                    self._ep1, self._ep2, self._ep3,
+                    self._e1, self._e2, self._e3, box)
+                if got is not None:
+                    return got
+            except (RuntimeError, OverflowError, ValueError):
+                pass   # fall to the pure path
+        return self._lattice_py(box)
+
+    def _lattice_py(self, box: int) -> "Dict[_Sextuple, int]":
+        """The COMPLETE pure-Python exponent lattice (the parity oracle for the C
+        peer): exact integer ``(A₁,A₂,A₃,C₁₂,C₁₃,C₂₃) → coeff`` over the box
+        ``|nᵢ| ≤ box``. Each cross-term ``C_ij = (2nᵢ+ε'ᵢ)(2nⱼ+ε'ⱼ)`` is the genus-3
+        denominator-4 clearing; the sign ``(−1)^{ε·n}`` is the Class-K pin-slot (an
+        explicit ``+1/−1`` branch, never an ALU ``abs()``). A bounded triple loop over
+        the box (JPL Rule 2)."""
+        ep1, ep2, ep3 = self._ep1, self._ep2, self._ep3
+        e1, e2, e3 = self._e1, self._e2, self._e3
+        out: Dict[_Sextuple, int] = {}
+        for n1 in range(-box, box + 1):
+            u1 = 2 * n1 + ep1
+            for n2 in range(-box, box + 1):
+                u2 = 2 * n2 + ep2
+                for n3 in range(-box, box + 1):
+                    u3 = 2 * n3 + ep3
+                    a1 = u1 * u1
+                    a2 = u2 * u2
+                    a3 = u3 * u3
+                    c12 = u1 * u2
+                    c13 = u1 * u3
+                    c23 = u2 * u3
+                    # the per-term sign (−1)^{ε·n}: Class-K pin-slot (a stored ±1)
+                    parity = (e1 * n1 + e2 * n2 + e3 * n3) % 2
+                    sign = 1 if parity == 0 else -1   # never abs(); explicit ± branch
+                    key = (a1, a2, a3, c12, c13, c23)
+                    out[key] = out.get(key, 0) + sign
+        return {k: v for k, v in out.items() if v != 0}
+
+    # ── the genus-2 collapse (the foundation gate) ────────────────────────────
+    def collapse_g2(self) -> "RiemannTheta":
+        """The genus-2 COLLAPSE (the primary foundation gate): set ``Ω₃₃ = Ω₁₃ =
+        Ω₂₃ = 0`` (⇒ ``q₃ = q₁₃ = q₂₃ = 1``) and ``n₃ = 0`` (drop the third lattice
+        direction). For the trivial even characteristic ``[0,0,0; 0,0,0]`` the
+        surviving slice is the genus-2 trivial theta-null, returned as the rc72
+        :class:`RiemannTheta` ``[0,0; 0,0]`` (so the collapse is BIT-EXACT vs the
+        existing rung — see the build gate; verify with
+        :meth:`collapse_g2_lattice_matches`). Only the trivial even characteristic
+        ``[0,0,0; 0,0,0]`` collapses to the plain genus-2 trivial null; any
+        characteristic with a NON-trivial 3rd component (``ε'₃`` or ``ε₃`` set) is
+        rejected — its genus-2 slice is a shifted/signed theta, not the plain rung (an
+        honest boundary, not a fabricated reduction — the rc72 collapse pattern)."""
+        if (self._ep1, self._ep2, self._ep3,
+                self._e1, self._e2, self._e3) != (0, 0, 0, 0, 0, 0):
+            raise ValueError(
+                "collapse_g2 is the genus-2 foundation gate: only the trivial even "
+                "characteristic [0,0,0; 0,0,0] collapses to the rc72 genus-2 trivial "
+                f"theta-null. The characteristic {self.characteristic} has a "
+                "non-trivial 3rd / signed component (a shifted/signed theta), not the "
+                "plain genus-2 rung — an honest boundary, not a fabricated reduction.")
+        return RiemannTheta(0, 0, 0, 0)
+
+    def collapse_g2_lattice_matches(self, box: int = 4) -> bool:
+        """PROVES the genus-2 collapse is GENUINE — it derives from the genus-3 lattice
+        itself, not a hardcoded return. The genus-2 degeneration ``q₃ → 0`` /
+        ``q₁₃, q₂₃ → 1`` keeps ONLY the ``n₃ = 0`` slice (for the trivial
+        characteristic ``A₃ = (2n₃)² = 0 ⟺ n₃ = 0``, and then ``C₁₃ = C₂₃ = 0``
+        automatically), so projecting the genus-3 trivial lattice onto its
+        ``A₃ = C₁₃ = C₂₃ = 0`` slice and reading ``(A₁, A₂, C₁₂)`` reproduces the rc72
+        genus-2 trivial lattice EXACTLY. Returns ``True`` iff bit-exact (the no-shell
+        collapse proof). Pure exact-integer comparison, no float."""
+        if not isinstance(box, int) or box < 0:
+            raise ValueError(f"box must be a non-negative int; got {box!r}")
+        if (self._ep1, self._ep2, self._ep3,
+                self._e1, self._e2, self._e3) != (0, 0, 0, 0, 0, 0):
+            raise ValueError(
+                "collapse_g2_lattice_matches is the trivial-null foundation gate; "
+                f"the characteristic {self.characteristic} does not collapse.")
+        g3 = self.lattice(box)
+        projected: Dict[_Triple, int] = {}
+        for (a1, a2, a3, c12, c13, c23), v in g3.items():
+            if a3 == 0 and c13 == 0 and c23 == 0:        # the n₃ = 0 slice
+                key = (a1, a2, c12)
+                projected[key] = projected.get(key, 0) + v
+        projected = {k: v for k, v in projected.items() if v != 0}
+        g2 = RiemannTheta(0, 0, 0, 0).lattice(box)
+        return projected == g2
+
+    def collapse_g1_q_series(self, N: int) -> "List[int]":
+        """The all-trivial genus-3 → genus-1 collapse's exact INTEGER q-series to order
+        ``N``: ``[1, 2, 0, 0, 2, …]`` = ``θ₃``. The chain is genus-3 → genus-2
+        (:meth:`collapse_g2`) → genus-1 (the rc72
+        :meth:`RiemannTheta.collapse_g1_q_series`); bit-exact vs the rc70 θ₃ rung. Only
+        the trivial even characteristic collapses the whole way (else
+        :meth:`collapse_g2` raises — the honest boundary)."""
+        return self.collapse_g2().collapse_g1_q_series(N)
+
+    # ── equality / repr ───────────────────────────────────────────────────────
+    def __eq__(self, other) -> bool:
+        if isinstance(other, RiemannThetaG3):
+            return ((self._ep1, self._ep2, self._ep3,
+                     self._e1, self._e2, self._e3)
+                    == (other._ep1, other._ep2, other._ep3,
+                        other._e1, other._e2, other._e3))
+        return NotImplemented
+
+    def __ne__(self, other):
+        r = self.__eq__(other)
+        return r if r is NotImplemented else (not r)
+
+    def __hash__(self) -> int:
+        return hash((self._ep1, self._ep2, self._ep3,
+                     self._e1, self._e2, self._e3))
+
+    def __repr__(self) -> str:
+        return (f"RiemannThetaG3(genus=3, "
+                f"eps_prime=({self._ep1},{self._ep2},{self._ep3}), "
+                f"eps=({self._e1},{self._e2},{self._e3}), even={self.is_even})")
+
+    # ── the formal genus-3 theta-null identity gate (Gauss duplication) ────────
+    @staticmethod
+    def _square_lattice(lat: "Dict[_Sextuple, int]") -> "Dict[_Sextuple, int]":
+        """The exact-integer square ``lat · lat`` of a genus-3
+        ``(A₁,A₂,A₃,C₁₂,C₁₃,C₂₃) → coeff`` lattice (a bounded convolution over the
+        exponent sextuples; JPL Rule 2). All-integer, no float."""
+        out: Dict[_Sextuple, int] = {}
+        items = list(lat.items())
+        for k1, v1 in items:
+            for k2, v2 in items:
+                key = (k1[0] + k2[0], k1[1] + k2[1], k1[2] + k2[2],
+                       k1[3] + k2[3], k1[4] + k2[4], k1[5] + k2[5])
+                out[key] = out.get(key, 0) + v1 * v2
+        return {k: v for k, v in out.items() if v != 0}
+
+    @staticmethod
+    def _double_exps(lat: "Dict[_Sextuple, int]") -> "Dict[_Sextuple, int]":
+        """Re-express a genus-3 lattice computed at ``2Ω`` in the ``Ω``-nome alphabet:
+        every quarter-nome exponent DOUBLES (``Qᵢ(2Ω) = Qᵢ(Ω)²``), so the whole
+        sextuple ``↦ 2·sextuple``. Exact integer relabel, no float."""
+        return {tuple(2 * x for x in k): v for k, v in lat.items()}  # type: ignore[misc]
+
+    @classmethod
+    def duplication_lhs(cls, box: int) -> "Dict[_Sextuple, int]":
+        """The LEFT side of the genus-3 Gauss/duplication theta-null identity
+        ``θ[0; 0](0 | Ω)²`` (in the ``Ω`` quarter-nome alphabet) — the exact-integer
+        square of the trivial even theta-constant's genus-3 lattice. See
+        :meth:`duplication_holds`."""
+        t000 = cls.theta_constant((0, 0, 0), (0, 0, 0)).lattice(box)
+        return cls._square_lattice(t000)
+
+    @classmethod
+    def duplication_rhs(cls, box: int) -> "Dict[_Sextuple, int]":
+        """The RIGHT side of the genus-3 Gauss/duplication theta-null identity
+        ``Σ_{c ∈ (½ℤ³/ℤ³)} θ[c; 0](0 | 2Ω)²`` (re-expressed in the ``Ω`` quarter-nome
+        alphabet via :meth:`_double_exps`, since each summand is at ``2Ω``). The EIGHT
+        ``c`` are the half-characteristics ``{0,1}³`` (upper char ``c``, lower char
+        ``0`` — all even). See :meth:`duplication_holds`."""
+        rhs: Dict[_Sextuple, int] = {}
+        for c1 in (0, 1):
+            for c2 in (0, 1):
+                for c3 in (0, 1):
+                    tc = cls.theta_constant((c1, c2, c3), (0, 0, 0)).lattice(box)
+                    tc2 = cls._double_exps(tc)         # the summand is at 2Ω
+                    sq = cls._square_lattice(tc2)
+                    for k, v in sq.items():
+                        rhs[k] = rhs.get(k, 0) + v
+        return {k: v for k, v in rhs.items() if v != 0}
+
+    @classmethod
+    def duplication_holds(cls, box: int = 4) -> bool:
+        """The FORMAL genus-3 theta-null identity gate (the secondary build gate): the
+        genus-3 Gauss / duplication identity
+
+            θ[0; 0](0 | Ω)²  =  Σ_{c ∈ (½ℤ³/ℤ³)} θ[c; 0](0 | 2Ω)²     (8 summands)
+
+        holds EXACTLY as a truncated exact-integer multivariate q-series, for ALL ``Ω``
+        (no transcendental evaluation). The ``a = b = 0``, ``z = w = 0``, ``g = 3``
+        specialization of the generalized Riemann theta identity (Chai, "Riemann's
+        theta formula" (2014), Thm 1.2 example (b) — the ``2^{-g}`` sum over
+        ``c ∈ 2^{-1}ℤ^g/ℤ^g``, here the eight ``c ∈ {0,½}³``; classically Mumford,
+        *Tata Lectures on Theta I* (1983), the genus-g duplication). This compares the
+        two sides on the SAFE INNER REGION the box ``|nᵢ| ≤ box`` provably resolves (a
+        box-``box`` theta omits only terms with a diagonal quarter-nome exponent
+        ``≥ 4(box+1)²``, so monomials with each ``Aᵢ, |C_ij| ≤ 4·box²`` are fully
+        accumulated). Because the eight ``θ[c; 0]`` include the (½,½,½) and mixed
+        characteristics with ``C₁₃ ≠ 0``/``C₂₃ ≠ 0``, the identity genuinely exercises
+        ALL THREE cross-terms — it proves the carrier computes genuine genus-3
+        theta-constants, not just the genus-2 / genus-1 slice. Returns ``True`` iff the
+        two sides agree exactly on the safe region (and the region is non-trivially
+        populated with a genuine genus-3 cross-term ``C₁₃`` or ``C₂₃`` monomial).
+
+        A CARRIER METHOD (the carrier's own build gate), not a public module-level op —
+        ``tools.total`` is unchanged (the rc72 ``duplication_holds`` precedent)."""
+        if not isinstance(box, int) or box < 2:
+            raise ValueError(
+                f"box must be an int ≥ 2 for the duplication gate; got {box!r}")
+        lhs = cls.duplication_lhs(box)
+        rhs = cls.duplication_rhs(box)
+        safe = 4 * box * box
+
+        def restrict(lat: "Dict[_Sextuple, int]") -> "Dict[_Sextuple, int]":
+            kept: Dict[_Sextuple, int] = {}
+            for k, v in lat.items():
+                a1, a2, a3, c12, c13, c23 = k
+                # Class-K magnitudes, no abs()
+                m12 = c12 if c12 >= 0 else -c12
+                m13 = c13 if c13 >= 0 else -c13
+                m23 = c23 if c23 >= 0 else -c23
+                if (a1 <= safe and a2 <= safe and a3 <= safe
+                        and m12 <= safe and m13 <= safe and m23 <= safe):
+                    kept[k] = v
+            return kept
+
+        lhs_s = restrict(lhs)
+        rhs_s = restrict(rhs)
+        if lhs_s != rhs_s:
+            return False
+        # the gate must genuinely touch a 3-way (genus-3) cross-term C₁₃ or C₂₃ —
+        # else only the genus-2 (C₁₂) slice would be exercised
+        has_g3_cross = any((c13 != 0 or c23 != 0)
+                           for (_a1, _a2, _a3, _c12, c13, c23) in lhs_s)
+        return has_g3_cross
+
+    # ── the documented operand-side OPEN (genus-3 new structure; full op = rc76) ─
+    @classmethod
+    def even_null_count(cls) -> "Tuple[int, int]":
+        """The genus-3 even / odd theta-null counts ``(36, 28)`` — DERIVED from the
+        enumeration (``2^{g-1}(2^g±1)`` for ``g = 3``: even ``4·9 = 36``, odd
+        ``4·7 = 28``; Grushevsky arXiv:1009.0369). The distinguished singular even
+        null is the empty-set characteristic ``[0,0,0; 0,0,0]`` (see
+        :meth:`singular_even_null`). Exact integer, no float."""
+        even = cls.even_characteristics()
+        n_even = len(even)
+        n_odd = 64 - n_even
+        return (n_even, n_odd)
+
+    @classmethod
+    def singular_even_null(cls) -> "RiemannThetaG3":
+        """The distinguished SINGULAR even theta-null — the empty-set characteristic
+        ``[0,0,0; 0,0,0]`` (the trivial even null, the one that collapses to the
+        genus-2 trivial null and on to θ₃). Among the 36 even nulls it is the
+        distinguished one (Grushevsky / Igusa)."""
+        return cls.theta_constant((0, 0, 0), (0, 0, 0))
+
+    @staticmethod
+    def hyperelliptic_locus_is_open() -> str:
+        """The DOCUMENTED operand-side OPEN (the genus-3 NEW structure; the full
+        numerical op is rc76, NOT this rung). Unlike genus 2 (where EVERY curve is
+        hyperelliptic), the GENERIC genus-3 curve is NON-hyperelliptic (a smooth plane
+        quartic); the HYPERELLIPTIC locus inside ``A₃`` is cut out by a VANISHING even
+        theta-null — an Igusa-type modular form vanishing on the hyperelliptic locus
+        (Poor [Poo96]; Grushevsky arXiv:1009.0369 Thm 3.9/5.2). DECIDING "is this Ω
+        hyperelliptic" is a POINT-EVALUATION of that theta-null at a transcendental
+        ``Ω ∈ H₃`` (only knowable to N digits = float on the decision path), which the
+        discipline forbids → it is NOT a finite exact (representable) carrier
+        operation. The carrier provides the FORMAL exact content (the genus-3 even-null
+        enumeration :meth:`even_null_count`, the singular even null
+        :meth:`singular_even_null`, the exact duplication relation
+        :meth:`duplication_holds`) but REFUSES to fabricate a numerical hyperelliptic
+        decision (the rc74 ``rosenhain_branch_point_recovery_is_open`` pattern).
+        Returns the honest OPEN statement (a documentation string), never a verdict."""
+        return (
+            "OPEN (operand-side, transcendental period map): the numerical genus-3 "
+            "HYPERELLIPTIC-locus decision — evaluating the vanishing even theta-null "
+            "(the Igusa-type modular form that cuts out the hyperelliptic locus in A₃; "
+            "Poor 1996, Grushevsky arXiv:1009.0369 Thm 3.9/5.2) at a curve's "
+            "transcendental period matrix Ω ∈ H₃ and testing it against zero — is NOT "
+            "a finite exact carrier operation. The GENERIC genus-3 curve is "
+            "NON-hyperelliptic (a smooth plane quartic), unlike genus 2 where every "
+            "curve is hyperelliptic; the hyperelliptic locus is a positive-codimension "
+            "vanishing-null condition that needs the transcendental theta evaluation "
+            "at Ω (only knowable to N digits = float on the decision path), which the "
+            "discipline forbids. The carrier provides the FORMAL exact content (the "
+            "36-even / 28-odd null enumeration, the singular even null, the genus-3 "
+            "duplication relation, all exact for ALL Ω); the numerical "
+            "hyperelliptic-decision is the documented operand-side OPEN — the "
+            "framework refuses to fabricate a verdict here. (Schottky: genus 3 is "
+            "STILL clean — dim M₃ = 6 = dim A₃, J₃ = A₃^ind; the Schottky frontier "
+            "OPEN stays at g ≥ 4.)"
         )
