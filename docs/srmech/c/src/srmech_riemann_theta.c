@@ -479,3 +479,108 @@ srmech_status_t srmech_riemann_theta_eta_char(
     out_char[3] = acc[3];
     return SRMECH_OK;
 }
+
+/* ================================================================== *
+ *  rc75: the GENUS-3 EXACT-INTEGER EXPONENT LATTICE (the next genus rung)
+ * ================================================================== *
+ *
+ * The genus-3 Riemann theta-constant with binary characteristic [ep'; e]
+ * (six bits in {0,1}; Grushevsky arXiv:1009.0369 eq.1, the genus-3 g=3
+ * specialization) is the lattice sum over n in Z^3 of
+ *   (-1)^{e.n} q1^{m1^2} q2^{m2^2} q3^{m3^2}
+ *            q12^{m1 m2} q13^{m1 m3} q23^{m2 m3},   m_i = n_i + ep'_i/2 ,
+ * with nome alphabet q_i=e^{i pi Om_ii}, q_ij=e^{2 i pi Om_ij}. Clearing the
+ * half-integers m_i into the QUARTER-nome base Q_i=q_i^{1/4}, Q_ij=q_ij^{1/4} a
+ * lattice term n=(n1,n2,n3) becomes
+ *   Q1^A1 Q2^A2 Q3^A3 Q12^C12 Q13^C13 Q23^C23 * (-1)^{e.n}
+ * with EXACT INTEGER exponents A_i=(2n_i+ep_i)^2 and the THREE cross-terms
+ *   C_ij = (2n_i+ep_i)(2n_j+ep_j)   (each a denominator-4 clearing of the m_i m_j
+ * product; the genus-2 peer had ONE cross-term, genus 3 has THREE -- the hardest
+ * part). The lower characteristic e gives the per-term sign (-1)^{e.n} -- the
+ * Class-K pin-slot (a stored +-1 from an explicit parity branch), never abs().
+ *
+ * This op emits the lattice as a flat caller-owned int64 array of SEXTUPLE+sign
+ * SEPTUPLES [A1,A2,A3,C12,C13,C23,sign] -- ONE septuple per lattice point n in the
+ * box |n_i| <= box, in row-major (n1,n2,n3) order. The genus-3 theta-CONSTANT
+ * coefficients are small integer lattice counts (each term contributes +-1), so
+ * int64 is exact with no ceiling (no bignum). The caller accumulates the septuples
+ * into the canonical {(A1,A2,A3,C12,C13,C23): coeff} dict -- byte-identical to the
+ * pure-Python srmech.amsc.riemann_theta.RiemannThetaG3._lattice_py.
+ *
+ * Caller-arena / caller-owned (like the genus-2 peer); no malloc. Additive symbol
+ * -> ABI unchanged (stays 3). */
+
+/* one genus-3 lattice point emits 7 int64: A1,A2,A3,C12,C13,C23,sign */
+#define RT3_SEPT 7
+
+/* The number of int64 a box needs for the genus-3 lattice: (2*box+1)^3 points,
+ * RT3_SEPT int64 each. The caller sizes its out[] from this (no malloc here). */
+size_t srmech_riemann_theta_g3_count(uint32_t box)
+{
+    size_t side = (size_t)box * 2u + 1u;
+    assert(RT3_SEPT == 7);
+    assert(side >= 1u);
+    return side * side * side * (size_t)RT3_SEPT;
+}
+
+/* The per-term genus-3 sign (-1)^{e1 n1 + e2 n2 + e3 n3}: Class-K pin-slot (a stored
+ * +1/-1 from an explicit parity branch), never an ALU abs(). */
+static int rt3_term_sign(int64_t e1, int64_t e2, int64_t e3,
+                         int64_t n1, int64_t n2, int64_t n3)
+{
+    int64_t parity = (e1 * n1 + e2 * n2 + e3 * n3) % 2;
+    assert((e1 == 0 || e1 == 1) && (e2 == 0 || e2 == 1));
+    assert(e3 == 0 || e3 == 1);
+    if (parity < 0) {
+        parity += 2;                                /* floor-mod into {0,1} */
+    }
+    return (parity == 0) ? 1 : -1;                  /* Class-K +-1, no abs() */
+}
+
+/* Emit the genus-3 theta-constant exponent lattice for characteristic
+ * [ep1,ep2,ep3; e1,e2,e3] (each bit in {0,1}) over the box |n_i| <= box, as a flat
+ * caller-owned int64 array of [A1,A2,A3,C12,C13,C23,sign] septuples in row-major
+ * (n1,n2,n3) order. *out_len <- the number of int64 written (= the g3 count).
+ * SRMECH_ERR_BAD_INPUT if any characteristic bit is not in {0,1}; SRMECH_ERR_OVERFLOW
+ * if the caller out[] (out_cap int64) is too small. */
+srmech_status_t srmech_riemann_theta_g3_lattice(
+    int ep1, int ep2, int ep3, int e1, int e2, int e3, uint32_t box,
+    int64_t *out, size_t out_cap, size_t *out_len)
+{
+    size_t need, idx;
+    int64_t n1, n2, n3, lo, hi, u1, u2, u3;
+    assert(out != NULL);
+    assert(out_len != NULL);
+    if (!rt_bit_ok(ep1) || !rt_bit_ok(ep2) || !rt_bit_ok(ep3)
+            || !rt_bit_ok(e1) || !rt_bit_ok(e2) || !rt_bit_ok(e3)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    need = srmech_riemann_theta_g3_count(box);
+    if (need > out_cap) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    idx = 0u;
+    lo = -(int64_t)box;
+    hi = (int64_t)box;
+    for (n1 = lo; n1 <= hi; ++n1) {
+        u1 = 2 * n1 + (int64_t)ep1;
+        for (n2 = lo; n2 <= hi; ++n2) {
+            u2 = 2 * n2 + (int64_t)ep2;
+            for (n3 = lo; n3 <= hi; ++n3) {
+                u3 = 2 * n3 + (int64_t)ep3;
+                out[idx + 0u] = u1 * u1;                /* A1 */
+                out[idx + 1u] = u2 * u2;                /* A2 */
+                out[idx + 2u] = u3 * u3;                /* A3 */
+                out[idx + 3u] = u1 * u2;                /* C12 */
+                out[idx + 4u] = u1 * u3;                /* C13 */
+                out[idx + 5u] = u2 * u3;                /* C23 */
+                out[idx + 6u] = (int64_t)rt3_term_sign(
+                    (int64_t)e1, (int64_t)e2, (int64_t)e3, n1, n2, n3);
+                idx += (size_t)RT3_SEPT;
+            }
+        }
+    }
+    assert(idx == need);
+    *out_len = idx;
+    return SRMECH_OK;
+}

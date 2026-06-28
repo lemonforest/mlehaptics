@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc74"
-#define SRMECH_VERSION       "0.9.0rc74"
+#define SRMECH_VERSION_PRE   "rc75"
+#define SRMECH_VERSION       "0.9.0rc75"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3423,6 +3423,39 @@ srmech_status_t srmech_riemann_theta_eighth_lattice(
  * out of {1..6} or out_char/indices is NULL. */
 srmech_status_t srmech_riemann_theta_eta_char(
     const int *indices, size_t n_idx, int *out_char);
+
+/* ------------------------------------------------------------------ *
+ * rc75 (NEXT GENUS RUNG): the GENUS-3 EXACT-INTEGER EXPONENT LATTICE — the C peer
+ * of srmech.amsc.riemann_theta.RiemannThetaG3, the genus-3 analog of the rc72
+ * genus-2 peer. The genus-3 theta-constant theta[ep'; e](0|Omega) (Grushevsky
+ * arXiv:1009.0369 eq.1, the g=3 specialization; binary characteristic
+ * [ep1,ep2,ep3; e1,e2,e3], six bits in {0,1}) is a lattice sum over n in Z^3 of
+ * (-1)^{e.n} q1^{m1^2} q2^{m2^2} q3^{m3^2} q12^{m1 m2} q13^{m1 m3} q23^{m2 m3},
+ * m_i = n_i + ep'_i/2. Cleared to the quarter-nome base (Q_i,Q_ij)=(q_i,q_ij)^{1/4}
+ * a term is Q1^A1 Q2^A2 Q3^A3 Q12^C12 Q13^C13 Q23^C23 * (-1)^{e.n} with EXACT INTEGER
+ * exponents A_i=(2n_i+ep_i)^2 and the THREE cross-terms C_ij=(2n_i+ep_i)(2n_j+ep_j)
+ * (genus 2 had ONE cross-term; genus 3 has THREE -- the hardest part). The lower
+ * characteristic e gives the per-term sign (-1)^{e.n} (Class-K pin-slot, never abs).
+ * This op emits the lattice as a flat caller-owned int64 array of
+ * [A1,A2,A3,C12,C13,C23,sign] SEPTUPLES (one per lattice point |n_i| <= box, row-major
+ * (n1,n2,n3)); the genus-3 theta-CONSTANT coefficients are small +-1 lattice counts
+ * (int64-exact, no bignum), and the caller accumulates the septuples into the
+ * canonical {(A1,A2,A3,C12,C13,C23):coeff} lattice (byte-identical to the Python
+ * carrier). Caller-owned out[]; no malloc. Additive symbol -> ABI unchanged (stays 3).
+ * ------------------------------------------------------------------ */
+
+/* The number of int64 a box needs: (2*box+1)^3 lattice points * 7
+ * (A1,A2,A3,C12,C13,C23,sign). */
+size_t srmech_riemann_theta_g3_count(uint32_t box);
+
+/* Emit the genus-3 [A1,A2,A3,C12,C13,C23,sign] septuple lattice for characteristic
+ * [ep1,ep2,ep3; e1,e2,e3] (bits in {0,1}) over |n_i| <= box, into the caller out[]
+ * (out_cap int64); *out_len <- the number of int64 written (= the g3 count).
+ * SRMECH_ERR_BAD_INPUT if any bit is not in {0,1}; SRMECH_ERR_OVERFLOW if out[] is
+ * too small. */
+srmech_status_t srmech_riemann_theta_g3_lattice(
+    int ep1, int ep2, int ep3, int e1, int e2, int e3, uint32_t box,
+    int64_t *out, size_t out_cap, size_t *out_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_tripoly — EXACT-RATIONAL TRIVARIATE polynomial over srmech_bigint (the
