@@ -175,6 +175,15 @@ RULE_5_EXEMPT_FUNCTIONS: set[str] = {
     # parser's toml_is_ws). See c/JPL_AUDIT.md.
     "json_is_ws",
     "json_is_digit",
+    # rc81 srmech_riemann_theta.c (the Schottky-form counter): pure value
+    # ops over a single scalar argument, no pointer/bounds invariant to
+    # assert (same kind as the exempt sha256 ror / toml char classifiers).
+    # rtsch_class_of maps a doubled inner product -> its class index 0..4
+    # (or -1); it already asserts RTSCH_NCLASS == 5. rtsch_ctz counts the
+    # trailing zeros of a nonzero uint64 (the lowest set-bit index); it
+    # already asserts x != 0u. See c/JPL_AUDIT.md.
+    "rtsch_class_of",
+    "rtsch_ctz",
 }
 
 # Maximum allowed function length (JPL Rule 4).

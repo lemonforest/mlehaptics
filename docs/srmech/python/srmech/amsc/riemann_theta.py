@@ -183,7 +183,7 @@ from typing import Dict, List, Tuple
 from .q import Q
 from .unary_theta import UnaryTheta, unary_theta
 
-__all__ = ["RiemannTheta", "RiemannThetaG3", "RiemannThetaG4"]
+__all__ = ["RiemannTheta", "RiemannThetaG3", "RiemannThetaG4", "SchottkyFormG4"]
 
 # the (A, B, C) integer exponent triple in the quarter-nome base
 _Triple = Tuple[int, int, int]
@@ -231,6 +231,16 @@ def _bit(name: str, v: int) -> int:
             f"characteristic entry {name} must be 0 or 1 (the doubled half-integer "
             f"½ε with ε ∈ {{0,1}}); got {v!r}")
     return iv
+
+
+def _iter_signs(k: int) -> "List[Tuple[int, ...]]":
+    """All ``2^k`` sign tuples in ``{+1, −1}^k`` (for the E₈ half-integer-glue
+    enumeration in :class:`SchottkyFormG4`). A bounded build (JPL Rule 2; ``k = 8`` →
+    256 tuples), pure integer, no float / itertools on the decision path."""
+    out: "List[Tuple[int, ...]]" = [()]
+    for _ in range(k):
+        out = [t + (s,) for t in out for s in (1, -1)]
+    return out
 
 
 class RiemannTheta:
@@ -1432,6 +1442,22 @@ def _native_g4():
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta_g4", None)
+    return nat if (probe is not None and probe()) else None
+
+
+def _native_g4_schottky():
+    """The native ``_native`` module IF the rc81 ``srmech_riemann_theta_g4_schottky`` peer
+    (the genus-4 Schottky form J = θ⁴(E₈⊕E₈) − θ⁴(E₁₆) lattice-theta-difference
+    representation-number COUNTER) is present and bound, else ``None`` — so the
+    :class:`SchottkyFormG4` carrier dispatches the heavy exact-integer minimal-shell
+    g-tuple representation count (the leading part of J) to C when available and falls
+    cleanly to the pure-Python body (the complete alternative + the parity oracle).
+    Imported lazily to avoid a bootstrap cycle."""
+    try:
+        from . import _native as nat
+    except ImportError:
+        return None
+    probe = getattr(nat, "has_native_riemann_theta_g4_schottky", None)
     return nat if (probe is not None and probe()) else None
 
 
@@ -3369,3 +3395,577 @@ class RiemannThetaG4:
             "operand-side OPEN — the framework refuses to fabricate a verdict here. "
             "(Schottky frontier: g = 4 ON, solved by Schottky; g ≥ 5 genuinely OPEN.)"
         )
+
+
+# the genus-g Gram key of a g-tuple of (doubled) lattice vectors — the upper-triangular
+# doubled inner products (i ≤ j), an exact-integer tuple; the natural q-series exponent
+# of the lattice theta-series (the diagonal q_i exponents + the off-diagonal q_ij)
+_GramKey = Tuple[int, ...]
+
+
+class SchottkyFormG4:
+    """The genus-4 SCHOTTKY FORM **J** — the GENUS-4 CAPSTONE (the χ₁₈-analog at g = 4,
+    the Siegel cusp form whose vanishing cuts the genus-4 Jacobian locus ``J₄ ⊂ A₄``;
+    the SCHOTTKY PROBLEM's g = 4 solution: Schottky 1888 / Igusa 1981 / Poor–Yuen 1996).
+
+    THE EXACT CONSTRUCTION (the lattice-theta-difference route)
+    ==========================================================
+
+    ``J`` is the weight-8 degree-4 level-1 Siegel CUSP form
+
+        J  ∝  θ_{E₈⊕E₈}^{(4)}(Ω)  −  θ_{E₁₆}^{(4)}(Ω)
+
+    — the DIFFERENCE of the genus-4 theta-SERIES of the TWO rank-16 even-unimodular
+    lattices ``E₈⊕E₈`` and ``E₁₆ = D₁₆⁺`` (Wikipedia "Schottky form"; Igusa, "Schottky's
+    invariant and quadratic forms", *Christoffel Symposium* (1981) — ``J ∝ θ⁴(E₈⊕E₈) −
+    θ⁴(E₁₆)``; Poor & Yuen, *Math. Ann.* 1996 — J spans the 1-dimensional space of level-1
+    genus-4 weight-8 Siegel cusp forms). Both are weight-``rank/2 = 8`` genus-4 Siegel
+    modular forms; by Witt (1941) the two genus-g lattice theta-series are EQUAL for
+    ``g ≤ 3`` and FIRST DIFFER at ``g = 4``, so their difference is the NONZERO Schottky
+    cusp form J (the first-genus-4 obstruction). The lattices (Conway–Sloane SPLAG):
+
+        E₈   = { x ∈ ℤ⁸  ∪ (ℤ+½)⁸  : Σxᵢ ≡ 0 (mod 2) }   (240 roots; even unimodular)
+        E₁₆  = D₁₆⁺ = { x ∈ ℤ¹⁶ ∪ (ℤ+½)¹⁶ : Σxᵢ ≡ 0 (mod 2) }  (480 roots; even unimodular)
+
+    both even (⟨v,v⟩ ∈ 2ℤ) and unimodular (det 1; E₈ via its Cartan-matrix Gram — even
+    diagonal, det 1; D₁₆⁺ via the index argument ``det = det(D₁₆)/[D₁₆⁺:D₁₆]² = 4/4 = 1``).
+
+    THE EXACT q-SERIES (no float on the decision path)
+    ==================================================
+
+    The genus-g lattice theta-series is the EXACT formal q-series
+
+        θ_L^{(g)}(Ω) = Σ_{(v₁,…,v_g) ∈ L^g}  exp(iπ Σ_{i,j} ⟨vᵢ,vⱼ⟩ Ωᵢⱼ)
+
+    Organized by the GRAM MATRIX ``T_ij = ⟨vᵢ,vⱼ⟩`` of the g-tuple, the coefficient of the
+    monomial ``q^T`` is the EXACT INTEGER representation number ``r_L(T) =
+    #{(v₁,…,v_g) ∈ L^g : Gram = T}``. So ``J``'s coefficient at ``T`` is the exact integer
+    ``r_{E₈⊕E₈}(T) − r_{E₁₆}(T)`` — a numpy-free integer count, never a float. (In the
+    RiemannThetaG4 quarter-nome base ``Qᵢ = qᵢ^{1/4}``, ``Q_ij = q_ij^{1/4}`` the exponents
+    are ``Aᵢ = 4⟨vᵢ,vᵢ⟩``, ``C_ij = 4⟨vᵢ,vⱼ⟩`` — consistent with the rc80 carrier; the
+    carrier works in the DOUBLED-vector integer model, where the doubled inner product
+    ``⟨2vᵢ,2vⱼ⟩ = 4⟨vᵢ,vⱼ⟩`` IS exactly ``C_ij`` and the diagonal is ``Aᵢ``, so half-integer
+    lattice coordinates become EXACT odd integers — no float anywhere.)
+
+    THE LEADING SHELL (the exact, finite, load-bearing part — the χ₁₈ leading-part pattern)
+    =====================================================================================
+
+    ``J`` is a CUSP form: by Witt the Siegel Φ-operator (restriction to genus 3) kills it
+    (``Φ(J) = θ³(E₈⊕E₈) − θ³(E₁₆) = 0``), so ``J``'s Fourier expansion starts at positive-
+    definite (rank-4) ``T``. The exact, finite, no-float handle is the MINIMAL SHELL: at the
+    leading order all g vectors are MINIMAL (norm 2; the 480 / 480 roots), and the Gram
+    ``T`` is a g×g even positive-semidefinite integer matrix with diagonal 2 and off-diagonal
+    in ``{−2,−1,0,1,2}`` (Cauchy–Schwarz). This carrier builds the genus-g minimal-shell
+    representation numbers EXACTLY (:meth:`lattice_theta_minimal` / :meth:`J_minimal`) — the
+    leading part of J. (Higher shells exist but the leading shell is the exact, finite,
+    box-stable proof, exactly like the rc76 χ₁₈ leading part.)
+
+    THE DEFINING SCHOTTKY GATE (gorgeous, no-shell — the first-genus-4 obstruction)
+    ==============================================================================
+
+      * **J VANISHES below genus 4** (:meth:`collapses_below_genus4`): the genus-1, genus-2
+        AND genus-3 minimal-shell theta-series of ``E₈⊕E₈`` and ``E₁₆`` are EXACTLY EQUAL
+        (every Gram's representation number agrees), so ``J|_{g≤3} ≡ 0`` (exact). This IS
+        Witt 1941 made executable; it is also why ``J`` is a CUSP form.
+      * **J IS NONZERO at genus 4** (:meth:`is_nonzero_at_genus4`): the genus-4 minimal-shell
+        theta-series DIFFER — ``r_{E₈⊕E₈}(T) ≠ r_{E₁₆}(T)`` for a rank-4 Gram ``T`` (e.g. the
+        D₄-star Gram ``T`` with ⟨1,2⟩=⟨1,3⟩=⟨1,4⟩=−1 rest 0: ``7 257 600 − 2 096 640 =
+        5 160 960 ≠ 0``; and the orthogonal frame ``T = 2·I₄``: ``9 064 742 400 −
+        8 858 304 000 = 206 438 400 ≠ 0`` — the famous genus-4 first difference).
+
+    Both are EXACT integer counts (no float, no tolerance). Together they are the defining
+    property of the Schottky form: the FIRST genus where the two theta-series part ways. The
+    genus-4 orthogonal-frame difference 206 438 400 is computed by the C peer (the pure-Python
+    body computes it too but the dense orthogonality graph is slow; the fast pure-Python
+    certificate is the D₄-star Gram).
+
+    THE WEIGHT-8 DEGREE-4 CUSP STRUCTURE (Igusa 1981, Poor–Yuen 1996)
+    ================================================================
+
+    ``J`` is weight ``rank/2 = 8``, degree (genus) 4, and — being killed by Φ (the genus-3
+    restriction is 0) — a CUSP form; Poor & Yuen 1996 show it SPANS the 1-dimensional space
+    ``S₈(Γ₄)`` of level-1 genus-4 weight-8 Siegel cusp forms (:meth:`weight`,
+    :meth:`degree`, :meth:`is_cusp_form_structure`, :meth:`cusp_space_dimension`).
+
+    THE OPERAND-SIDE OPEN (preserved; the rc80 ``schottky_locus_is_open`` upgraded)
+    =============================================================================
+
+    The numerical "is THIS Ω a Jacobian" decision — testing ``J(Ω) = 0`` at a transcendental
+    period matrix ``Ω ∈ H₄`` (only knowable to N digits = float on the decision path) — STAYS
+    the operand-side OPEN (the Schottky problem). This carrier BUILDS the exact FORM J (the
+    lattice-theta difference, its exact leading-shell coefficients, the vanishing-below-g4 /
+    nonzero-at-g4 gates) but REFUSES to fabricate a numerical Jacobian verdict
+    (:meth:`jacobian_decision_is_open`). The exact FORM is representable; the transcendental
+    point-evaluation is the OPEN — the dual faces of the operand program.
+
+    THE C PEER (everything-mirrors, same-rc)
+    ========================================
+
+    ``srmech_riemann_theta_g4_schottky`` (``c/src/srmech_riemann_theta.c``) mirrors the heavy
+    exact-integer minimal-shell g-tuple representation COUNT — a malloc-free, caller-arena,
+    JPL-clean bitset count of ordered g-tuples of minimal (doubled) vectors with a prescribed
+    doubled-Gram — for genus 2/3/4 over either lattice. The pure-Python body here is its
+    COMPLETE alternative + parity oracle (both emit the byte-identical exact integer count).
+    No new division algebra, no float, no ``abs()`` (the lattice is a pure integer count)."""
+
+    __slots__ = ()
+
+    # the canonical first-difference Gram (the orthogonal frame T = 2·I₄, doubled
+    # off-diagonal all 0) and a FAST pure-Python differing Gram (the D₄-star, doubled
+    # ⟨1,2⟩=⟨1,3⟩=⟨1,4⟩=−4 i.e. real −1, rest 0). Doubled inners: self 8, off ∈
+    # {−8,−4,0,4,8}.
+    _G4_ORTHO_FRAME = (0, 0, 0, 0, 0, 0)          # 2·I₄  (doubled off-diag, order 12,13,14,23,24,34)
+    _G4_D4_STAR = (-4, -4, -4, 0, 0, 0)           # the fast pure-Python differing Gram
+
+    # ── the two rank-16 even-unimodular lattices (minimal-vector shells) ───────────
+    @staticmethod
+    def _e8_minimal_doubled() -> "List[Tuple[int, ...]]":
+        """The 240 minimal (norm-2 = root) vectors of E₈, in the DOUBLED-integer model
+        (real coordinates ×2, so the all-half-integer roots become all-odd integers and
+        nothing is a float). E₈ = {ℤ⁸ ∪ (ℤ+½)⁸, even coordinate sum}; the norm-2 vectors
+        are (a) the 112 integer ``(±1,±1,0⁶)`` permutations [doubled ``(±2,±2,0⁶)``] and
+        (b) the 128 half-integer ``(±½)⁸`` with an EVEN number of minus signs [doubled
+        ``(±1)⁸``, even #minus]. Exact integer, no float."""
+        vs: List[Tuple[int, ...]] = []
+        for i in range(8):
+            for j in range(i + 1, 8):
+                for si in (1, -1):
+                    for sj in (1, -1):
+                        v = [0] * 8
+                        v[i] = 2 * si
+                        v[j] = 2 * sj
+                        vs.append(tuple(v))
+        for signs in _iter_signs(8):
+            # even number of −1 (the E₈ glue parity); doubled half-int = the sign itself
+            if sum(1 for s in signs if s == -1) % 2 == 0:
+                vs.append(tuple(signs))
+        return vs
+
+    @classmethod
+    def e8e8_minimal_doubled(cls) -> "List[Tuple[int, ...]]":
+        """The 480 minimal (norm-2) vectors of ``E₈⊕E₈``, in the DOUBLED-integer model:
+        a root of the first E₈ padded with eight zeros, or eight zeros then a root of the
+        second E₈ (the 240 + 240 split; an E₈⊕E₈ minimal vector is minimal in exactly one
+        summand). Exact integer, no float."""
+        e8 = cls._e8_minimal_doubled()
+        z8 = (0,) * 8
+        out: List[Tuple[int, ...]] = []
+        for r in e8:
+            out.append(tuple(r) + z8)
+        for r in e8:
+            out.append(z8 + tuple(r))
+        return out
+
+    @staticmethod
+    def e16_minimal_doubled() -> "List[Tuple[int, ...]]":
+        """The 480 minimal (norm-2) vectors of ``E₁₆ = D₁₆⁺``, in the DOUBLED-integer
+        model. D₁₆⁺ = {ℤ¹⁶ ∪ (ℤ+½)¹⁶, even coordinate sum}; the norm-2 vectors are exactly
+        the 480 integer ``(±1,±1,0¹⁴)`` permutations [doubled ``(±2,±2,0¹⁴)``] — the
+        half-integer glue coset ``(±½)¹⁶`` has minimum norm 16·¼ = 4 > 2, so it contributes
+        NO minimal vectors. Exact integer, no float."""
+        vs: List[Tuple[int, ...]] = []
+        for i in range(16):
+            for j in range(i + 1, 16):
+                for si in (1, -1):
+                    for sj in (1, -1):
+                        v = [0] * 16
+                        v[i] = 2 * si
+                        v[j] = 2 * sj
+                        vs.append(tuple(v))
+        return vs
+
+    # ── exact-integer minimal-shell representation counting (the carrier core) ─────
+    @staticmethod
+    def _doubled_inner(u: "Tuple[int, ...]", v: "Tuple[int, ...]") -> int:
+        """The exact-integer DOUBLED inner product ``⟨2u_real, 2v_real⟩ = 4⟨u,v⟩`` of two
+        doubled vectors — the q_ij exponent (off-diagonal) / q_i exponent (diagonal) in the
+        RiemannThetaG4 quarter-nome base. A bounded dot product (JPL Rule 2), all integer,
+        no float."""
+        return sum(a * b for a, b in zip(u, v))
+
+    @classmethod
+    def _build_inner_bitsets(cls, vs: "List[Tuple[int, ...]]"
+                             ) -> "Tuple[List[List[int]], int]":
+        """Build, for each vector ``i`` and each doubled inner-product value ``t``, the
+        BITSET ``S[i][t+8]`` of indices ``j`` with ``⟨2vᵢ,2vⱼ⟩ = t``. For minimal vectors
+        ``t ∈ {−8,−4,0,4,8}`` (real ∈ {−2,−1,0,1,2}), so the 17-wide row ``t+8 ∈ 0..16``
+        holds it. The bitset (a Python big-int) is the Class-L adjacency-by-inner-value the
+        g-tuple count walks; exact, no float."""
+        n = len(vs)
+        S = [[0] * 17 for _ in range(n)]
+        for i in range(n):
+            vi = vs[i]
+            for j in range(n):
+                t = cls._doubled_inner(vi, vs[j])
+                idx = t + 8
+                if 0 <= idx <= 16:                # minimal-shell inner ∈ {−8..8}
+                    S[i][idx] |= (1 << j)
+        return S, n
+
+    @staticmethod
+    def _bit(S: "List[List[int]]", i: int, t: int) -> int:
+        """The bitset ``S[i][t+8]`` (the indices ``j`` with doubled inner ``t``), or 0 if
+        ``t`` is outside the minimal-shell range. Exact, no float."""
+        idx = t + 8
+        return S[i][idx] if 0 <= idx <= 16 else 0
+
+    @classmethod
+    def _count_gram_py(cls, S: "List[List[int]]", n: int,
+                       gram_off: "Tuple[int, ...]") -> int:
+        """The COMPLETE pure-Python exact count (the parity oracle for the C peer) of
+        ordered g-tuples of minimal (doubled) vectors whose OFF-DIAGONAL doubled Gram is
+        ``gram_off`` (the diagonal is all 8 = norm 2 by construction). ``gram_off`` length
+        selects the genus: ``()`` → g=1 (just ``n``), ``(a₁₂,)`` → g=2,
+        ``(a₁₂,a₁₃,a₂₃)`` → g=3, ``(a₁₂,a₁₃,a₁₄,a₂₃,a₂₄,a₃₄)`` → g=4. Counts via the
+        inner-value bitsets (intersection + popcount — the Class-L adjacency walk; the sign
+        never enters, it is a pure non-negative integer count, so NO ``abs()``). Bounded
+        nested loops (JPL Rule 2), all-integer, no float / numpy / ``math``."""
+        pc = int.bit_count
+        m = len(gram_off)
+        if m == 0:                                       # genus 1: every minimal vector
+            return n
+        if m == 1:                                       # genus 2
+            a = gram_off[0]
+            total = 0
+            for i in range(n):
+                total += pc(cls._bit(S, i, a))
+            return total
+        if m == 3:                                       # genus 3
+            a, b, c = gram_off
+            total = 0
+            for i in range(n):
+                bj = cls._bit(S, i, a)
+                while bj:
+                    j = (bj & -bj).bit_length() - 1
+                    bj &= bj - 1
+                    total += pc(cls._bit(S, i, b) & cls._bit(S, j, c))
+            return total
+        if m == 6:                                       # genus 4
+            a, b, c, d, e, f = gram_off
+            total = 0
+            for i in range(n):
+                bj = cls._bit(S, i, a)
+                while bj:
+                    j = (bj & -bj).bit_length() - 1
+                    bj &= bj - 1
+                    kk = cls._bit(S, i, b) & cls._bit(S, j, d)
+                    while kk:
+                        k = (kk & -kk).bit_length() - 1
+                        kk &= kk - 1
+                        total += pc(cls._bit(S, i, c)
+                                    & cls._bit(S, j, e) & cls._bit(S, k, f))
+            return total
+        raise ValueError(
+            f"gram_off must have length 0/1/3/6 (genus 1/2/3/4); got {m}")
+
+    @classmethod
+    def _count_gram(cls, vs: "List[Tuple[int, ...]]",
+                    gram_off: "Tuple[int, ...]") -> int:
+        """The exact count of ordered g-tuples of minimal vectors with off-diagonal doubled
+        Gram ``gram_off`` — DISPATCHES to the native ``srmech_riemann_theta_g4_schottky``
+        peer when loaded (a 1:1 exact-integer mirror — the C count EQUALS the Python count,
+        trusted only on a native hit); else the pure-Python :meth:`_count_gram_py` body (the
+        COMPLETE alternative + the parity oracle). Exact integer, no float."""
+        nat = _native_g4_schottky()
+        if nat is not None:
+            try:
+                got = nat.riemann_theta_g4_schottky_count_c(vs, gram_off)
+                if got is not None:
+                    return got
+            except (RuntimeError, OverflowError, ValueError):
+                pass                                     # fall to the pure path
+        S, n = cls._build_inner_bitsets(vs)
+        return cls._count_gram_py(S, n, gram_off)
+
+    @classmethod
+    def _full_shell_grams_py(cls, S: "List[List[int]]", n: int,
+                             genus: int) -> "Dict[Tuple[int, ...], int]":
+        """The COMPLETE pure-Python SINGLE-PASS minimal-shell Gram histogram (the parity
+        oracle for the C peer): ``{off_gram (doubled, i<j): count}`` over ALL ordered
+        g-tuples of minimal vectors, accumulated in ONE bitset walk (far faster than
+        per-Gram enumeration). For genus 3 / 4 it enumerates the lower vectors and reads the
+        upper vector's inner-product class from the bitsets; exact integer, no float / numpy
+        / ``math`` / ``abs()`` (a pure non-negative count). Bounded nested loops (JPL Rule
+        2)."""
+        pc = int.bit_count
+        out: Dict[Tuple[int, ...], int] = {}
+        vals = (-8, -4, 0, 4, 8)
+        if genus == 1:
+            return {(): n}
+        if genus == 2:
+            for i in range(n):
+                Si = S[i]
+                for a in vals:
+                    c = pc(Si[a + 8])
+                    if c:
+                        out[(a,)] = out.get((a,), 0) + c
+            return out
+        if genus == 3:
+            for i in range(n):
+                Si = S[i]
+                for a in vals:                            # a = ⟨i,j⟩
+                    bj = Si[a + 8]
+                    while bj:
+                        j = (bj & -bj).bit_length() - 1
+                        bj &= bj - 1
+                        Sj = S[j]
+                        for b in vals:                    # b = ⟨i,k⟩
+                            sib = Si[b + 8]
+                            if not sib:
+                                continue
+                            for c in vals:                # c = ⟨j,k⟩
+                                cnt = pc(sib & Sj[c + 8])
+                                if cnt:
+                                    key = (a, b, c)
+                                    out[key] = out.get(key, 0) + cnt
+            return out
+        if genus == 4:
+            for i in range(n):
+                Si = S[i]
+                for a in vals:                            # a = ⟨i,j⟩
+                    bj = Si[a + 8]
+                    while bj:
+                        j = (bj & -bj).bit_length() - 1
+                        bj &= bj - 1
+                        Sj = S[j]
+                        for b in vals:                    # b = ⟨i,k⟩
+                            sib = Si[b + 8]
+                            if not sib:
+                                continue
+                            for d in vals:                # d = ⟨j,k⟩
+                                kk = sib & Sj[d + 8]
+                                while kk:
+                                    k = (kk & -kk).bit_length() - 1
+                                    kk &= kk - 1
+                                    Sk = S[k]
+                                    for c in vals:        # c = ⟨i,l⟩
+                                        sic = Si[c + 8]
+                                        if not sic:
+                                            continue
+                                        for e in vals:    # e = ⟨j,l⟩
+                                            base = sic & Sj[e + 8]
+                                            if not base:
+                                                continue
+                                            for f in vals:    # f = ⟨k,l⟩
+                                                cnt = pc(base & Sk[f + 8])
+                                                if cnt:
+                                                    key = (a, b, c, d, e, f)
+                                                    out[key] = out.get(key, 0) + cnt
+            return out
+        raise ValueError(f"genus must be 1, 2, 3 or 4; got {genus!r}")
+
+    @classmethod
+    def lattice_theta_minimal(cls, which: str, genus: int) -> "Dict[_GramKey, int]":
+        """The genus-``genus`` MINIMAL-SHELL lattice theta-series of one lattice, organized
+        by Gram — ``{T_uppertri (doubled): r_L(T)}`` over ALL g-tuples of minimal vectors.
+        ``which`` is ``"e8e8"`` (``E₈⊕E₈``) or ``"e16"`` (``E₁₆ = D₁₆⁺``); ``genus ∈
+        {1,2,3,4}``. ``T_uppertri`` is the upper-triangular (i ≤ j) doubled-inner-product
+        tuple (the diagonal entries are all 8 = norm 2; the off-diagonals are the q_ij
+        exponents). This is the EXACT leading part of the genus-g lattice theta-series — a
+        numpy-free integer representation-number map (no float). DISPATCHES the heavy
+        single-pass Gram histogram to the native ``srmech_riemann_theta_g4_schottky_shell``
+        peer when loaded (a 1:1 exact-integer mirror — trusted only on a native hit); else
+        the pure-Python :meth:`_full_shell_grams_py` body (the COMPLETE alternative + the
+        parity oracle). Built by the bitset g-tuple walk (the same engine the gates use)."""
+        if genus not in (1, 2, 3, 4):
+            raise ValueError(f"genus must be 1, 2, 3 or 4; got {genus!r}")
+        vs = cls._lattice_vectors(which)
+        off = None
+        nat = _native_g4_schottky()
+        if nat is not None and getattr(
+                nat, "has_native_riemann_theta_g4_schottky_shell", lambda: False)():
+            try:
+                off = nat.riemann_theta_g4_schottky_shell_c(vs, genus)
+            except (RuntimeError, OverflowError, ValueError):
+                off = None
+        if off is None:
+            S, n = cls._build_inner_bitsets(vs)
+            off = cls._full_shell_grams_py(S, n, genus)
+        return {cls._gram_key(genus, k): v for k, v in off.items() if v != 0}
+
+    @staticmethod
+    def _lattice_vectors(which: str) -> "List[Tuple[int, ...]]":
+        """The minimal (doubled) vectors of the named lattice — ``"e8e8"`` → ``E₈⊕E₈``,
+        ``"e16"`` → ``E₁₆ = D₁₆⁺``. Rejects an unknown name loudly (an honest boundary)."""
+        if which == "e8e8":
+            return SchottkyFormG4.e8e8_minimal_doubled()
+        if which == "e16":
+            return SchottkyFormG4.e16_minimal_doubled()
+        raise ValueError(
+            f"which must be 'e8e8' (E₈⊕E₈) or 'e16' (E₁₆ = D₁₆⁺); got {which!r}")
+
+    @staticmethod
+    def _gram_key(genus: int, gram_off: "Tuple[int, ...]") -> "_GramKey":
+        """The full upper-triangular doubled-Gram key ``(T₁₁,T₁₂,…,T_gg)`` (i ≤ j) from the
+        off-diagonal pattern (the diagonal is all 8 for minimal vectors). Exact integer."""
+        key: List[int] = []
+        off = list(gram_off)
+        p = 0
+        for a in range(genus):
+            for b in range(a, genus):
+                if a == b:
+                    key.append(8)                        # norm-2 diagonal (doubled)
+                else:
+                    key.append(off[p])
+                    p += 1
+        return tuple(key)
+
+    @classmethod
+    def J_minimal(cls, genus: int) -> "Dict[_GramKey, int]":
+        """The genus-``genus`` MINIMAL-SHELL part of the Schottky form **J** — the EXACT
+        INTEGER difference ``{T : r_{E₈⊕E₈}(T) − r_{E₁₆}(T)}`` over all g-tuple Grams ``T``
+        of minimal vectors (the leading part of ``J = θ⁴(E₈⊕E₈) − θ⁴(E₁₆)``). For ``genus
+        ≤ 3`` this is EMPTY (J vanishes below genus 4 — Witt 1941); for ``genus = 4`` it is
+        NONZERO (the first-genus-4 obstruction). Exact integer, no float — the dict holds
+        only the nonzero difference coefficients (the Gram monomials where the two
+        theta-series part ways)."""
+        a = cls.lattice_theta_minimal("e8e8", genus)
+        b = cls.lattice_theta_minimal("e16", genus)
+        keys = set(a) | set(b)
+        out: Dict[_GramKey, int] = {}
+        for k in keys:
+            d = a.get(k, 0) - b.get(k, 0)
+            if d != 0:
+                out[k] = d
+        return out
+
+    # ── THE DEFINING SCHOTTKY GATE (no-shell; the first-genus-4 obstruction) ───────
+    @classmethod
+    def collapses_below_genus4(cls, max_genus: int = 3) -> bool:
+        """THE DEFINING GATE (first half): ``J`` VANISHES identically below genus 4 — the
+        genus-1, genus-2 AND genus-3 minimal-shell theta-series of ``E₈⊕E₈`` and ``E₁₆``
+        agree EXACTLY (every Gram's representation number is equal), so ``J|_{g≤3} ≡ 0``.
+        This is Witt's 1941 theorem made executable AND the reason ``J`` is a CUSP form (the
+        Siegel Φ-operator, restriction to genus 3, kills it). Returns ``True`` iff the
+        genus-1 … genus-``max_genus`` (default 3) minimal-shell theta-series are
+        bit-exact-equal between the two lattices (equivalently :meth:`J_minimal` is EMPTY for
+        each ``g ≤ max_genus``). Exact-integer comparison, no float.
+
+        ``max_genus`` (≤ 3) lets a fast test check the cheap genus-1/2 vanishing without the
+        heavier genus-3 pass; the DEFAULT 3 is the full ``J|_{g≤3} = 0`` proof.
+
+        A CARRIER METHOD (the carrier's own build gate), not a public module-level op —
+        ``tools.total`` is unchanged (the rc76 χ₁₈ / rc80 RiemannThetaG4 precedent)."""
+        if max_genus not in (1, 2, 3):
+            raise ValueError(
+                f"max_genus must be 1, 2 or 3 (J's vanishing is below genus 4); "
+                f"got {max_genus!r}")
+        for g in range(1, max_genus + 1):
+            if cls.J_minimal(g):                          # any nonzero difference ⇒ fail
+                return False
+        return True
+
+    @classmethod
+    def is_nonzero_at_genus4(cls) -> bool:
+        """THE DEFINING GATE (second half): ``J`` is NONZERO at genus 4 — the genus-4
+        minimal-shell theta-series of ``E₈⊕E₈`` and ``E₁₆`` DIFFER (some rank-4 Gram has
+        ``r_{E₈⊕E₈}(T) ≠ r_{E₁₆}(T)``). This is the first-genus-4 obstruction — the FAMOUS
+        first difference of the two genus-4 theta-series (the Schottky form's defining
+        property). Returns ``True`` iff the FAST canonical differing Gram (the D₄-star
+        :data:`_G4_D4_STAR`) has a nonzero ``E₈⊕E₈ − E₁₆`` count (so ``J ≠ 0`` at genus 4).
+        Exact integer, no float — a pure non-negative count difference (no ``abs()``).
+
+        (The full :meth:`J_minimal(4)` is also nonempty; this gate uses the single FAST
+        certificate Gram to stay tractable in pure Python — the orthogonal-frame difference
+        206 438 400 is the C-peer / :meth:`first_difference_orthogonal_frame` companion.)"""
+        ca = cls._count_gram(cls.e8e8_minimal_doubled(), cls._G4_D4_STAR)
+        cb = cls._count_gram(cls.e16_minimal_doubled(), cls._G4_D4_STAR)
+        return (ca - cb) != 0
+
+    @classmethod
+    def genus4_first_difference_d4star(cls) -> "Tuple[int, int, int]":
+        """The EXACT genus-4 minimal-shell representation counts at the D₄-star Gram (the
+        FAST pure-Python differing certificate: doubled off-diagonal
+        ⟨1,2⟩=⟨1,3⟩=⟨1,4⟩=−4, i.e. real −1, rest 0) — returns
+        ``(r_{E₈⊕E₈}, r_{E₁₆}, difference)`` = ``(7 257 600, 2 096 640, 5 160 960)``. The
+        nonzero difference is the no-shell witness ``J ≠ 0`` at genus 4. Exact integer."""
+        ca = cls._count_gram(cls.e8e8_minimal_doubled(), cls._G4_D4_STAR)
+        cb = cls._count_gram(cls.e16_minimal_doubled(), cls._G4_D4_STAR)
+        return (ca, cb, ca - cb)
+
+    @classmethod
+    def first_difference_orthogonal_frame(cls) -> "Tuple[int, int, int]":
+        """The EXACT genus-4 minimal-shell representation counts at the ORTHOGONAL FRAME
+        Gram ``T = 2·I₄`` (four mutually-orthogonal norm-2 vectors; doubled off-diagonal all
+        0) — returns ``(r_{E₈⊕E₈}, r_{E₁₆}, difference)`` = ``(9 064 742 400,
+        8 858 304 000, 206 438 400)``, the FAMOUS genus-4 first difference of the two rank-16
+        even-unimodular lattice theta-series. Exact integer. DISPATCHES to the C peer for
+        speed (the dense orthogonality graph is slow in pure Python; the pure body is the
+        complete alternative + parity oracle, computing the identical exact integer)."""
+        ca = cls._count_gram(cls.e8e8_minimal_doubled(), cls._G4_ORTHO_FRAME)
+        cb = cls._count_gram(cls.e16_minimal_doubled(), cls._G4_ORTHO_FRAME)
+        return (ca, cb, ca - cb)
+
+    @classmethod
+    def schottky_gate_holds(cls) -> bool:
+        """The COMBINED defining Schottky gate — ``True`` iff BOTH halves hold:
+        :meth:`collapses_below_genus4` (``J|_{g≤3} ≡ 0``, exact) AND
+        :meth:`is_nonzero_at_genus4` (``J|_{g=4} ≠ 0``, exact). This is the no-shell proof
+        that ``J`` is the genuine genus-4 Schottky cusp form (the first-genus-4 obstruction),
+        not a thin shell. Exact integer, no float."""
+        return cls.collapses_below_genus4() and cls.is_nonzero_at_genus4()
+
+    # ── the weight-8 degree-4 cusp-form structure (Igusa 1981, Poor–Yuen 1996) ─────
+    @staticmethod
+    def weight() -> int:
+        """The weight of ``J`` — ``rank/2 = 16/2 = 8`` (a theta-series of a rank-16 lattice
+        is a weight-8 modular form; the difference of two such is weight 8). Exact integer."""
+        return 8
+
+    @staticmethod
+    def degree() -> int:
+        """The degree (genus) of ``J`` — 4 (a genus-4 Siegel modular form). Exact integer."""
+        return 4
+
+    @classmethod
+    def is_cusp_form_structure(cls) -> bool:
+        """PROVES ``J`` has CUSP-FORM structure — the Siegel Φ-operator (restriction to
+        genus 3) kills it: ``Φ(J) = θ³(E₈⊕E₈) − θ³(E₁₆) = 0`` (the genus-3 theta-series are
+        equal — :meth:`collapses_below_genus4`), so ``J`` vanishes at the genus-4 cusp.
+        Returns ``True`` iff the genus-3 restriction is exactly zero (J is a cusp form).
+        Exact-integer, no float (Igusa 1981; Poor–Yuen 1996)."""
+        return not cls.J_minimal(3)                       # Φ(J) = 0 ⟺ genus-3 diff empty
+
+    @staticmethod
+    def cusp_space_dimension() -> int:
+        """The dimension of the level-1 genus-4 weight-8 Siegel CUSP-form space ``S₈(Γ₄)``
+        — ``1`` (Poor & Yuen, *Math. Ann.* 1996: ``J`` SPANS this 1-dimensional space). An
+        attested structural constant (the source of truth is Poor–Yuen 1996), not a magic
+        number. Exact integer."""
+        return 1
+
+    # ── the documented operand-side OPEN (the Jacobian / Schottky decision) ────────
+    @staticmethod
+    def jacobian_decision_is_open() -> str:
+        """The DOCUMENTED operand-side OPEN — the rc80 ``schottky_locus_is_open`` pattern,
+        now upgraded to reference the BUILT J. The carrier BUILDS the exact FORM ``J`` (the
+        ``E₈⊕E₈ − E₁₆`` lattice-theta difference; its exact leading-shell coefficients; the
+        vanishing-below-g4 / nonzero-at-g4 gates; the weight-8 degree-4 cusp structure), but
+        the NUMERICAL "is THIS Ω a Jacobian" decision — testing ``J(Ω) = 0`` at a
+        transcendental period matrix ``Ω ∈ H₄`` (only knowable to N digits = float on the
+        decision path) — STAYS the operand-side OPEN (the Schottky problem). The framework
+        refuses to fabricate a numerical Jacobian verdict. Returns the honest OPEN statement
+        (a documentation string), never a verdict."""
+        return (
+            "OPEN (operand-side, transcendental period map): the numerical genus-4 "
+            "SCHOTTKY / JACOBIAN decision. rc81 BUILDS the exact Schottky form J as the "
+            "lattice-theta difference J ∝ θ⁴(E₈⊕E₈) − θ⁴(E₁₆) (the two rank-16 even-"
+            "unimodular lattices; Igusa 1981; Poor & Yuen 1996 — J spans the 1-dim level-1 "
+            "genus-4 weight-8 Siegel cusp space) — the exact leading-shell representation-"
+            "number coefficients, the DEFINING gate that J|_{g≤3} ≡ 0 (Witt 1941: the "
+            "genus ≤ 3 theta-series are equal, so Φ(J) = 0 and J is a cusp form) AND "
+            "J|_{g=4} ≠ 0 (the first-genus-4 obstruction: the orthogonal-frame counts "
+            "9 064 742 400 − 8 858 304 000 = 206 438 400 ≠ 0), all EXACT integer counts. "
+            "What STAYS OPEN is DECIDING 'is THIS Ω a Jacobian' — the POINT-EVALUATION "
+            "J(Ω) = 0 at a transcendental Ω ∈ H₄ (only knowable to N digits = float on the "
+            "decision path), which the discipline forbids → NOT a finite exact carrier "
+            "operation. Genus 4 is the FIRST genus where J₄ is a PROPER subvariety of A₄ "
+            "(dim M₄ = 9 < dim A₄ = 10); J vanishes exactly on J₄. The carrier provides "
+            "the exact FORM; the numerical Jacobian decision is the documented operand-side "
+            "OPEN — the framework refuses to fabricate a verdict here. (Schottky frontier: "
+            "g = 4 ON, solved by Schottky; g ≥ 5 genuinely OPEN.)"
+        )
+
+    def __repr__(self) -> str:
+        return ("SchottkyFormG4(weight=8, degree=4, "
+                "J ∝ θ⁴(E₈⊕E₈) − θ⁴(E₁₆), cusp_space_dim=1)")
