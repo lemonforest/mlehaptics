@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc81"
-#define SRMECH_VERSION       "0.9.0rc81"
+#define SRMECH_VERSION_PRE   "rc82"
+#define SRMECH_VERSION       "0.9.0rc82"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3294,6 +3294,38 @@ size_t srmech_unary_theta_ws_bound(uint32_t j, size_t coeff_limbs);
 srmech_status_t srmech_unary_theta_q_series(
     uint32_t modulus, const int32_t *chi_table, uint32_t j,
     int64_t a, int64_t b, uint32_t D, int support, size_t N,
+    srmech_bigint_t *out, size_t *out_len, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_eta_quotient — the EXACT-INTEGER q-series of a DEDEKIND-ETA QUOTIENT
+ * (the C peer of srmech.amsc.eta_quotient.EtaQuotient; a WEIGHT-axis operand
+ * carrier). Q(tau) = PROD_{d|N} eta(d tau)^{r_d} = q^{(SUM_d d r_d)/24} *
+ * PROD_d PROD_{m>=1}(1 - q^{dm})^{r_d}. This op returns the EXACT INTEGER
+ * coefficients out[e] (e = 0..n_terms-1) of the power series AFTER the leading
+ * fractional q-power factor-out — byte-identical to the Python carrier (the
+ * coefficients GROW, e.g. the Ramanujan tau, so out[e] is full srmech_bigint,
+ * no int64 ceiling). The product is built factor by factor: r_d>0 multiplies by
+ * (1-q^{dm}) (a backward subtract-shift), r_d<0 divides (a forward add-shift, the
+ * geometric expansion) — the Class-K sign branch chooses, never an ALU abs().
+ *
+ * Carrier-internal (like srmech_poly / srmech_unary_theta): NOT a Rosetta ledger
+ * op; additive symbols -> ABI unchanged (stays 3). The ONE scratch bigint is
+ * carved from the caller arena `ws` (>= srmech_eta_quotient_ws_bound); the out[]
+ * array is caller-owned (n_terms srmech_bigint, each pre-bound to >= coeff_limbs
+ * limbs). The Ligozat / order-at-cusp DECISION logic stays Python-only.
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES for srmech_eta_quotient_qseries (ONE scratch bigint at
+ * `coeff_limbs` width + slack; every step is a bigint add/sub on a copy). */
+size_t srmech_eta_quotient_ws_bound(size_t coeff_limbs);
+
+/* The exact integer q-series of PROD_d PROD_{m>=1}(1 - q^{dm})^{r_d}: out[e]
+ * (e = 0..n_terms-1) <- the coefficient of q^e, *out_len <- n_terms. ds[i]>=1 /
+ * rs[i]!=0 are the n_factors factors. SRMECH_ERR_BAD_INPUT on n_terms<1 /
+ * n_factors<1 / a bad d or r; SRMECH_ERR_OVERFLOW if a coefficient or the arena
+ * is too small. */
+srmech_status_t srmech_eta_quotient_qseries(
+    const int64_t *ds, const int64_t *rs, size_t n_factors, size_t n_terms,
     srmech_bigint_t *out, size_t *out_len, void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
