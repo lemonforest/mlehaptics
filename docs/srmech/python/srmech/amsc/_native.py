@@ -2060,6 +2060,48 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_size_t),  # *out_len
         ]
         lib.srmech_riemann_theta_g4_lattice.restype = ctypes.c_int
+    # rc81: the GENUS-4 CAPSTONE — the SCHOTTKY FORM J = theta^4(E8+E8) - theta^4(E16)
+    # representation-number COUNTER (srmech_riemann_theta_g4_schottky_count). Counts
+    # ordered g-tuples of minimal (doubled) lattice vectors with a prescribed off-diagonal
+    # doubled Gram (genus 1/2/3/4) over a caller bitset arena. NEW symbols →
+    # hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 3.
+    #   size_t srmech_riemann_theta_g4_schottky_arena(size_t n)
+    if hasattr(lib, "srmech_riemann_theta_g4_schottky_arena"):
+        lib.srmech_riemann_theta_g4_schottky_arena.argtypes = [ctypes.c_size_t]
+        lib.srmech_riemann_theta_g4_schottky_arena.restype = ctypes.c_size_t
+    #   srmech_riemann_theta_g4_schottky_count(vecs[], n, dim, genus, gram_off[],
+    #                                          arena[], arena_cap, *out_count)
+    if hasattr(lib, "srmech_riemann_theta_g4_schottky_count"):
+        lib.srmech_riemann_theta_g4_schottky_count.argtypes = [
+            ctypes.POINTER(ctypes.c_int64),   # vecs[] (n*dim, doubled)
+            ctypes.c_size_t,                  # n
+            ctypes.c_size_t,                  # dim
+            ctypes.c_int,                     # genus
+            ctypes.POINTER(ctypes.c_int64),   # gram_off[]
+            ctypes.POINTER(ctypes.c_uint64),  # arena[]
+            ctypes.c_size_t,                  # arena_cap
+            ctypes.POINTER(ctypes.c_int64),   # *out_count
+        ]
+        lib.srmech_riemann_theta_g4_schottky_count.restype = ctypes.c_int
+    #   size_t srmech_riemann_theta_g4_schottky_shell_count(int genus)
+    if hasattr(lib, "srmech_riemann_theta_g4_schottky_shell_count"):
+        lib.srmech_riemann_theta_g4_schottky_shell_count.argtypes = [ctypes.c_int]
+        lib.srmech_riemann_theta_g4_schottky_shell_count.restype = ctypes.c_size_t
+    #   srmech_riemann_theta_g4_schottky_shell(vecs[], n, dim, genus, arena[],
+    #                                          arena_cap, out[], out_cap, *out_len)
+    if hasattr(lib, "srmech_riemann_theta_g4_schottky_shell"):
+        lib.srmech_riemann_theta_g4_schottky_shell.argtypes = [
+            ctypes.POINTER(ctypes.c_int64),   # vecs[]
+            ctypes.c_size_t,                  # n
+            ctypes.c_size_t,                  # dim
+            ctypes.c_int,                     # genus
+            ctypes.POINTER(ctypes.c_uint64),  # arena[]
+            ctypes.c_size_t,                  # arena_cap
+            ctypes.POINTER(ctypes.c_int64),   # out[]
+            ctypes.c_size_t,                  # out_cap
+            ctypes.POINTER(ctypes.c_size_t),  # *out_len
+        ]
+        lib.srmech_riemann_theta_g4_schottky_shell.restype = ctypes.c_int
     # rc76: IGUSA'S chi_18 — the EXACT product of the 36 even genus-3 theta-nulls
     # (srmech_riemann_theta_g3_chi18). Emits the leading-part [A1,A2,A3,C12,C13,C23,
     # coeff] septuples (the cusp-vanishing structure of the 36-even-null product) over a
@@ -3696,6 +3738,125 @@ def riemann_theta_g4_lattice_c(ep1, ep2, ep3, ep4, e1, e2, e3, e4, box):
         lat[key] = lat.get(key, 0) + int(out[i + 10])
         i += 11
     return {k: v for k, v in lat.items() if v != 0}
+
+
+# ----------------------------------------------------------------------
+# rc81: the GENUS-4 CAPSTONE — the SCHOTTKY FORM J = theta^4(E8+E8) - theta^4(E16)
+# representation-number COUNTER (srmech_riemann_theta_g4_schottky_count). The Python
+# SchottkyFormG4._count_gram routes through this when has_native_riemann_theta_g4_schottky();
+# the pure-Python body is the COMPLETE alternative (and the parity oracle) — both emit the
+# byte-identical exact non-negative integer count of ordered g-tuples of minimal vectors
+# with the prescribed off-diagonal doubled Gram.
+# ----------------------------------------------------------------------
+
+
+def has_native_riemann_theta_g4_schottky() -> bool:
+    """True iff the rc81 ``srmech_riemann_theta_g4_schottky_count`` peer + its arena helper
+    are loaded + bound. False on a no-C / pre-rc81 lib — the pure-Python
+    ``srmech.amsc.riemann_theta.SchottkyFormG4._count_gram_py`` body is the complete
+    alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_riemann_theta_g4_schottky_count")
+            and hasattr(LIB, "srmech_riemann_theta_g4_schottky_arena"))
+
+
+def riemann_theta_g4_schottky_count_c(vecs, gram_off):
+    """Native exact-integer count of ordered g-tuples of minimal (doubled) lattice vectors
+    whose off-diagonal doubled Gram is ``gram_off`` (length 0/1/3/6 → genus 1/2/3/4), or
+    ``None`` if the native symbols are absent. ``vecs`` is the list of doubled-integer
+    minimal vectors (all the same length ``dim``); ``gram_off`` is the off-diagonal
+    doubled-Gram tuple. Byte-identical to the pure-Python ``_count_gram_py``. Returns an
+    exact non-negative ``int``."""
+    if not has_native_riemann_theta_g4_schottky():
+        return None
+    n = len(vecs)
+    if n == 0:
+        return 0
+    dim = len(vecs[0])
+    genus = {0: 1, 1: 2, 3: 3, 6: 4}.get(len(gram_off))
+    if genus is None:
+        raise ValueError(
+            f"riemann_theta_g4_schottky_count_c: gram_off length must be 0/1/3/6; "
+            f"got {len(gram_off)}")
+    flat = (ctypes.c_int64 * (n * dim))()
+    p = 0
+    for v in vecs:
+        if len(v) != dim:
+            raise ValueError("riemann_theta_g4_schottky_count_c: ragged vecs")
+        for x in v:
+            flat[p] = int(x)
+            p += 1
+    g_arr = (ctypes.c_int64 * max(len(gram_off), 1))()
+    for idx, x in enumerate(gram_off):
+        g_arr[idx] = int(x)
+    arena_n = int(LIB.srmech_riemann_theta_g4_schottky_arena(ctypes.c_size_t(n)))
+    arena = (ctypes.c_uint64 * max(arena_n, 1))()
+    out_count = ctypes.c_int64(0)
+    rc = LIB.srmech_riemann_theta_g4_schottky_count(
+        flat, ctypes.c_size_t(n), ctypes.c_size_t(dim), ctypes.c_int(genus),
+        g_arr, arena, ctypes.c_size_t(arena_n), ctypes.byref(out_count),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_riemann_theta_g4_schottky_count returned non-OK status {rc}")
+    return int(out_count.value)
+
+
+def has_native_riemann_theta_g4_schottky_shell() -> bool:
+    """True iff the rc81 ``srmech_riemann_theta_g4_schottky_shell`` peer + its size helper
+    are loaded + bound. False on a no-C / pre-rc81 lib — the pure-Python
+    ``srmech.amsc.riemann_theta.SchottkyFormG4._full_shell_grams_py`` body is the complete
+    alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_riemann_theta_g4_schottky_shell")
+            and hasattr(LIB, "srmech_riemann_theta_g4_schottky_shell_count"))
+
+
+def riemann_theta_g4_schottky_shell_c(vecs, genus):
+    """Native exact-integer FULL minimal-shell off-Gram histogram → the dict
+    ``{off_gram (doubled, i<j tuple): count}`` (only nonzero counts), or ``None`` if the
+    native symbols are absent. ``vecs`` is the doubled-integer minimal vectors; ``genus ∈
+    {1,2,3,4}``. Byte-identical to the pure-Python ``_full_shell_grams_py``."""
+    if not has_native_riemann_theta_g4_schottky_shell():
+        return None
+    if genus not in (1, 2, 3, 4):
+        raise ValueError(f"riemann_theta_g4_schottky_shell_c: bad genus {genus!r}")
+    n = len(vecs)
+    if n == 0:
+        return {}
+    dim = len(vecs[0])
+    noff = genus * (genus - 1) // 2
+    flat = (ctypes.c_int64 * (n * dim))()
+    p = 0
+    for v in vecs:
+        if len(v) != dim:
+            raise ValueError("riemann_theta_g4_schottky_shell_c: ragged vecs")
+        for x in v:
+            flat[p] = int(x)
+            p += 1
+    arena_n = int(LIB.srmech_riemann_theta_g4_schottky_arena(ctypes.c_size_t(n)))
+    arena = (ctypes.c_uint64 * max(arena_n, 1))()
+    out_cap = int(LIB.srmech_riemann_theta_g4_schottky_shell_count(ctypes.c_int(genus)))
+    out = (ctypes.c_int64 * max(out_cap, 1))()
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_riemann_theta_g4_schottky_shell(
+        flat, ctypes.c_size_t(n), ctypes.c_size_t(dim), ctypes.c_int(genus),
+        arena, ctypes.c_size_t(arena_n), out, ctypes.c_size_t(out_cap),
+        ctypes.byref(out_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_riemann_theta_g4_schottky_shell returned non-OK status {rc}")
+    res = {}
+    m = int(out_len.value)
+    i = 0
+    while i < m:
+        key = tuple(int(out[i + w]) for w in range(noff))
+        res[key] = int(out[i + noff])
+        i += noff + 1
+    return res
 
 
 # ----------------------------------------------------------------------

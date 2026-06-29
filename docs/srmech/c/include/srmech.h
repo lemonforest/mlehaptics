@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc80"
-#define SRMECH_VERSION       "0.9.0rc80"
+#define SRMECH_VERSION_PRE   "rc81"
+#define SRMECH_VERSION       "0.9.0rc81"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3493,6 +3493,58 @@ size_t srmech_riemann_theta_g4_count(uint32_t box);
 srmech_status_t srmech_riemann_theta_g4_lattice(
     int ep1, int ep2, int ep3, int ep4, int e1, int e2, int e3, int e4, uint32_t box,
     int64_t *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * rc81 (the GENUS-4 CAPSTONE): the SCHOTTKY FORM J = theta^4(E8+E8) - theta^4(E16)
+ * representation-number COUNTER -- the C peer of
+ * srmech.amsc.riemann_theta.SchottkyFormG4._count_gram_py.
+ *
+ * The Schottky form J (weight-8 degree-4 level-1 Siegel CUSP form whose vanishing cuts
+ * the genus-4 Jacobian locus = the Schottky problem's g=4 solution; Schottky 1888, Igusa
+ * 1981, Poor-Yuen 1996) is the difference of the genus-4 theta-SERIES of the two rank-16
+ * even-unimodular lattices E8+E8 and E16=D16+. Organized by the Gram matrix T of a g-tuple
+ * of lattice vectors, J's coefficient at T is the EXACT INTEGER representation-number
+ * difference r_{E8+E8}(T) - r_{E16}(T) (by Witt 1941 these EQUAL for g<=3 and FIRST DIFFER
+ * at g=4, so the difference is the nonzero Schottky cusp form). This op COUNTS r_L(T) over
+ * the MINIMAL shell (norm-2 vectors; the leading part of J) for one lattice. The vectors
+ * are passed DOUBLED (real coords *2 -> half-integer coords are exact odd ints, no float),
+ * so the doubled inner <2u,2v> = 4<u,v> IS the q_ij quarter-nome exponent (diagonal 8 =
+ * norm 2; off-diagonal in {-8,-4,0,4,8}). The count is a pure NON-NEGATIVE integer tally
+ * (no sign, NO abs()), walking the inner-value BITSET table (Class-L adjacency-by-inner-
+ * value). Caller arena (no malloc): srmech_riemann_theta_g4_schottky_arena(n) uint64.
+ * Additive symbols -> ABI stays 3.
+ * ------------------------------------------------------------------ */
+
+/* The uint64 the count op's caller arena needs: bitset table (n*5*ceil(n/64)) + one
+ * scratch bitset (ceil(n/64)). The Python marshaller sizes the arena from this. */
+size_t srmech_riemann_theta_g4_schottky_arena(size_t n);
+
+/* Count ordered g-tuples of minimal (doubled) vectors vecs[n*dim] whose OFF-DIAGONAL
+ * doubled Gram is gram_off[k], k = genus*(genus-1)/2 (genus in {1,2,3,4}; the diagonal is
+ * 8 = norm 2). *out_count <- the exact non-negative count. arena (arena_cap uint64) >=
+ * srmech_riemann_theta_g4_schottky_arena(n). SRMECH_ERR_BAD_INPUT: unsupported genus,
+ * n=0/dim=0, n > 1024, or an off-Gram value outside {-8,-4,0,4,8}; SRMECH_ERR_OVERFLOW:
+ * arena too small; SRMECH_ERR_NULL_ARG: NULL pointers. */
+srmech_status_t srmech_riemann_theta_g4_schottky_count(
+    const int64_t *vecs, size_t n, size_t dim, int genus,
+    const int64_t *gram_off, uint64_t *arena, size_t arena_cap,
+    int64_t *out_count);
+
+/* The int64 the shell op's out[] needs: at most 5^(genus*(genus-1)/2) rows, each
+ * (genus*(genus-1)/2 off-values + 1 count). genus in {1,2,3,4}. */
+size_t srmech_riemann_theta_g4_schottky_shell_count(int genus);
+
+/* The FULL minimal-shell off-Gram HISTOGRAM for one lattice: for every off-Gram pattern
+ * with a NONZERO count, emit the row [off_1..off_noff, count] (noff = genus*(genus-1)/2;
+ * off values the doubled inners in {-8,-4,0,4,8}) into out[] (out_cap int64); *out_len <-
+ * the number of int64 written. The bitset table is built ONCE; the patterns are walked
+ * mixed-radix over the 5 classes. arena per srmech_riemann_theta_g4_schottky_arena(n).
+ * Mirrors SchottkyFormG4._full_shell_grams_py. SRMECH_ERR_OVERFLOW if out[] (size via
+ * srmech_riemann_theta_g4_schottky_shell_count) is too small. */
+srmech_status_t srmech_riemann_theta_g4_schottky_shell(
+    const int64_t *vecs, size_t n, size_t dim, int genus,
+    uint64_t *arena, size_t arena_cap, int64_t *out, size_t out_cap,
+    size_t *out_len);
 
 /* ------------------------------------------------------------------ *
  * rc76: IGUSA'S chi_18 — the EXACT product of the 36 even genus-3 theta-nulls (the

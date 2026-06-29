@@ -1408,3 +1408,424 @@ srmech_status_t srmech_riemann_theta_g4_lattice(
     *out_len = idx;
     return SRMECH_OK;
 }
+
+/* ------------------------------------------------------------------ *
+ * rc81 (the GENUS-4 CAPSTONE): the SCHOTTKY FORM J = theta^4(E8+E8) - theta^4(E16)
+ * representation-number COUNTER -- the C peer of
+ * srmech.amsc.riemann_theta.SchottkyFormG4.{_count_gram_py, _full_shell_grams_py}.
+ *
+ * The Schottky form J (weight-8 degree-4 level-1 Siegel CUSP form; Schottky 1888,
+ * Igusa 1981, Poor-Yuen 1996) is the difference of the genus-4 theta-SERIES of the two
+ * rank-16 even-unimodular lattices E8+E8 and E16=D16+. Organized by the Gram matrix T of
+ * a g-tuple of lattice vectors, J's coefficient at T is the EXACT INTEGER representation-
+ * number difference r_{E8+E8}(T) - r_{E16}(T). This kernel COUNTS r_L(T) over the MINIMAL
+ * shell (norm-2 vectors; the leading part of J) for one lattice, given the lattice's
+ * minimal (doubled) vectors as a flat int64 array. In the doubled-integer model a real
+ * coordinate is *2, so a half-integer lattice coord is an EXACT odd integer and the
+ * doubled inner product <2u,2v> = 4<u,v> is exactly the q_ij quarter-nome exponent C_ij
+ * (diagonal 8 = norm 2). The off-diagonal doubled inners lie in {-8,-4,0,4,8} (real in
+ * {-2,-1,0,1,2}, Cauchy-Schwarz on norm-2 vectors) -> 5 value classes.
+ *
+ * The count is a pure NON-NEGATIVE INTEGER tally (no sign, so NO abs()). It walks the
+ * inner-value BITSET table S[i][class] (the indices j with <i,j> in that class) -- the
+ * Class-L adjacency-by-inner-value -- intersecting + popcounting per the Gram pattern,
+ * exactly mirroring the Python bitset walk. The table is the CALLER ARENA (no malloc):
+ * n * 5 * RTSCH_WORDS uint64 (RTSCH_WORDS = ceil(n/64)) + 2 scratch bitsets. Two ops:
+ *   srmech_riemann_theta_g4_schottky_count -- ONE prescribed off-Gram (genus 1/2/3/4);
+ *   srmech_riemann_theta_g4_schottky_shell -- the FULL single-pass off-Gram histogram
+ *     emitted as flat [off_1..off_k, count] rows (k = g(g-1)/2).
+ * Additive symbols -> ABI stays 3.
+ *
+ * JPL Power-of-Ten: Rule 1 (no goto/recursion: iterative flat helpers),
+ *   Rule 2 (bounded loops: n, the 5 classes, the word count), Rule 3 (no malloc:
+ *   caller arena), Rule 4 (<=60 lines/func), Rule 5 (>=2 asserts/fn), Rule 7
+ *   (status propagated), Rule 8 (no multi-line macros), Rule 10 (warnings clean).
+ * ------------------------------------------------------------------ */
+
+/* the 5 off-diagonal doubled inner-product value classes for the minimal shell */
+#define RTSCH_NCLASS 5
+/* max minimal vectors we size for: 480 (E8+E8 / D16+) -> 8 uint64 words; headroom 16 */
+#define RTSCH_MAX_WORDS 16
+
+/* forward declarations (Rule 1: no recursion). Single-line so the JPL Rule-4/5 scanner
+ * skips them as declarations (it skips only `;`-terminated lines). */
+static int rtsch_class_of(int64_t t);
+static int64_t rtsch_inner(const int64_t *vecs, size_t dim, size_t i, size_t j);
+static size_t rtsch_words(size_t n);
+static unsigned rtsch_ctz(uint64_t x);
+static void rtsch_build_table(const int64_t *v, size_t n, size_t d, uint64_t *t, size_t w);
+static int64_t rtsch_popcount_words(const uint64_t *w, size_t words);
+static const uint64_t *rtsch_row(const uint64_t *tbl, size_t i, int cls, size_t words);
+static int64_t rtsch_count_g2(const uint64_t *tbl, size_t n, size_t words, int c0);
+static int64_t rtsch_count_g3(const uint64_t *t, size_t n, size_t w, int a, int b, int c);
+static int64_t rtsch_count_g4(const uint64_t *t, size_t n, size_t w, int a, int b, int c, int d, int e, int f, uint64_t *s);
+static int64_t rtsch_class_val(int cls);
+static int64_t rtsch_shell_count_pat(const uint64_t *t, size_t n, size_t w, int g, const int *c, uint64_t *s);
+
+/* map a doubled off-diagonal inner product to its class index 0..4, or -1 if it is
+ * outside the minimal shell {-8,-4,0,4,8} (then the count is 0). */
+static int rtsch_class_of(int64_t t)
+{
+    assert(RTSCH_NCLASS == 5);
+    switch (t) {
+    case -8: return 0;
+    case -4: return 1;
+    case  0: return 2;
+    case  4: return 3;
+    case  8: return 4;
+    default: return -1;
+    }
+}
+
+/* the exact-integer DOUBLED inner product <2v_i, 2v_j> = 4<v_i, v_j> (the q_ij
+ * quarter-nome exponent). Bounded dot (Rule 2), no float, no abs(). */
+static int64_t rtsch_inner(const int64_t *vecs, size_t dim, size_t i, size_t j)
+{
+    size_t d;
+    int64_t acc = 0;
+    const int64_t *vi = vecs + i * dim;
+    const int64_t *vj = vecs + j * dim;
+    assert(vecs != NULL);
+    assert(dim > 0u);
+    for (d = 0u; d < dim; ++d) {
+        acc += vi[d] * vj[d];
+    }
+    return acc;
+}
+
+/* the number of uint64 words a bitset over n indices needs (ceil(n/64)). */
+static size_t rtsch_words(size_t n)
+{
+    assert(n > 0u);
+    assert(RTSCH_MAX_WORDS == 16);
+    return (n + 63u) / 64u;
+}
+
+/* the row of the bitset table for vector i, class cls (the indices j with <i,j> in
+ * that class). */
+static const uint64_t *rtsch_row(const uint64_t *tbl, size_t i, int cls, size_t words)
+{
+    assert(tbl != NULL);
+    assert(cls >= 0 && cls < RTSCH_NCLASS);
+    return tbl + (i * (size_t)RTSCH_NCLASS + (size_t)cls) * words;
+}
+
+/* build the inner-value bitset table tbl[(i*5 + cls)*words + w]. */
+static void rtsch_build_table(const int64_t *vecs, size_t n, size_t dim,
+                              uint64_t *tbl, size_t words)
+{
+    size_t i, j, idx, total;
+    int cls;
+    assert(tbl != NULL);
+    assert(words <= (size_t)RTSCH_MAX_WORDS);
+    total = n * (size_t)RTSCH_NCLASS * words;
+    for (idx = 0u; idx < total; ++idx) {
+        tbl[idx] = 0u;
+    }
+    for (i = 0u; i < n; ++i) {
+        for (j = 0u; j < n; ++j) {
+            cls = rtsch_class_of(rtsch_inner(vecs, dim, i, j));
+            if (cls >= 0) {
+                idx = (i * (size_t)RTSCH_NCLASS + (size_t)cls) * words + (j / 64u);
+                tbl[idx] |= ((uint64_t)1u << (j % 64u));
+            }
+        }
+    }
+}
+
+/* popcount over a multi-word bitset. Bounded (Rule 2), exact non-negative tally. */
+static int64_t rtsch_popcount_words(const uint64_t *w, size_t words)
+{
+    size_t k;
+    int64_t total = 0;
+    uint64_t x;
+    assert(w != NULL);
+    assert(words <= (size_t)RTSCH_MAX_WORDS);
+    for (k = 0u; k < words; ++k) {
+        x = w[k];
+        while (x != 0u) {
+            x &= (x - 1u);                       /* clear the lowest set bit */
+            ++total;
+        }
+    }
+    return total;
+}
+
+/* genus-2 count: sum_i popcount(S[i][c0]). */
+static int64_t rtsch_count_g2(const uint64_t *tbl, size_t n, size_t words, int c0)
+{
+    size_t i;
+    int64_t total = 0;
+    assert(tbl != NULL);
+    assert(c0 >= 0 && c0 < RTSCH_NCLASS);
+    for (i = 0u; i < n; ++i) {
+        total += rtsch_popcount_words(rtsch_row(tbl, i, c0, words), words);
+    }
+    return total;
+}
+
+/* genus-3 count: sum over (i, j in S[i][c0]) popcount(S[i][c1] & S[j][c2]). */
+static int64_t rtsch_count_g3(const uint64_t *tbl, size_t n, size_t words,
+                              int c0, int c1, int c2)
+{
+    size_t i, jw;
+    int64_t total = 0;
+    const uint64_t *Sic0, *Sic1, *Sjc2;
+    uint64_t bits;
+    assert(tbl != NULL);
+    assert(c0 >= 0 && c1 >= 0 && c2 >= 0);
+    for (i = 0u; i < n; ++i) {
+        Sic0 = rtsch_row(tbl, i, c0, words);
+        Sic1 = rtsch_row(tbl, i, c1, words);
+        for (jw = 0u; jw < words; ++jw) {
+            bits = Sic0[jw];
+            while (bits != 0u) {
+                size_t j = jw * 64u + (size_t)rtsch_ctz(bits);
+                size_t kw;
+                bits &= (bits - 1u);
+                Sjc2 = rtsch_row(tbl, j, c2, words);
+                for (kw = 0u; kw < words; ++kw) {
+                    uint64_t inter = Sic1[kw] & Sjc2[kw];
+                    while (inter != 0u) {
+                        inter &= (inter - 1u);
+                        ++total;
+                    }
+                }
+            }
+        }
+    }
+    return total;
+}
+
+/* genus-4 count: sum over (i, j in S[i][c0], k in S[i][c1] & S[j][c3])
+ *   popcount(S[i][c2] & S[j][c4] & S[k][c5]). scratch is one `words` bitset. */
+static int64_t rtsch_count_g4(const uint64_t *tbl, size_t n, size_t words,
+                              int c0, int c1, int c2, int c3, int c4, int c5,
+                              uint64_t *scratch)
+{
+    size_t i, jw, kw, w;
+    int64_t total = 0;
+    uint64_t jbits, kbits;
+    assert(tbl != NULL);
+    assert(scratch != NULL);
+    for (i = 0u; i < n; ++i) {
+        const uint64_t *Sic0 = rtsch_row(tbl, i, c0, words);
+        const uint64_t *Sic1 = rtsch_row(tbl, i, c1, words);
+        const uint64_t *Sic2 = rtsch_row(tbl, i, c2, words);
+        for (jw = 0u; jw < words; ++jw) {
+            jbits = Sic0[jw];
+            while (jbits != 0u) {
+                size_t j = jw * 64u + (size_t)rtsch_ctz(jbits);
+                const uint64_t *Sjc3 = rtsch_row(tbl, j, c3, words);
+                const uint64_t *Sjc4 = rtsch_row(tbl, j, c4, words);
+                jbits &= (jbits - 1u);
+                for (w = 0u; w < words; ++w) {
+                    scratch[w] = Sic1[w] & Sjc3[w];      /* k candidates */
+                }
+                for (kw = 0u; kw < words; ++kw) {
+                    kbits = scratch[kw];
+                    while (kbits != 0u) {
+                        size_t k = kw * 64u + (size_t)rtsch_ctz(kbits);
+                        const uint64_t *Skc5 = rtsch_row(tbl, k, c5, words);
+                        size_t lw;
+                        kbits &= (kbits - 1u);
+                        for (lw = 0u; lw < words; ++lw) {
+                            uint64_t lb = Sic2[lw] & Sjc4[lw] & Skc5[lw];
+                            while (lb != 0u) {
+                                lb &= (lb - 1u);
+                                ++total;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return total;
+}
+
+/* count-trailing-zeros of a nonzero uint64 (the lowest set-bit index). */
+static unsigned rtsch_ctz(uint64_t x)
+{
+    unsigned c = 0u;
+    assert(x != 0u);
+    while ((x & 1u) == 0u) {
+        x >>= 1;
+        ++c;
+    }
+    return c;
+}
+
+/* The caller-arena uint64 count the count/shell ops need: the bitset table
+ * (n*5*words) plus one scratch bitset (words). */
+size_t srmech_riemann_theta_g4_schottky_arena(size_t n)
+{
+    size_t words;
+    assert(RTSCH_NCLASS == 5);
+    assert(RTSCH_MAX_WORDS == 16);
+    if (n == 0u) {
+        return 1u;
+    }
+    words = (n + 63u) / 64u;
+    return n * (size_t)RTSCH_NCLASS * words + words;
+}
+
+/* Count ordered g-tuples of minimal (doubled) vectors vecs[n*dim] whose OFF-DIAGONAL
+ * doubled Gram is gram_off[k] (k = g(g-1)/2 for genus in {1,2,3,4}; the diagonal is 8 =
+ * norm 2). *out_count <- the exact non-negative count. arena (arena_cap uint64) is the
+ * caller bitset table + scratch (>= srmech_riemann_theta_g4_schottky_arena(n)).
+ * SRMECH_ERR_BAD_INPUT: unsupported genus, n=0/dim=0, or n > RTSCH_MAX_WORDS*64, or an
+ * off-Gram value outside {-8,-4,0,4,8}; SRMECH_ERR_OVERFLOW: arena too small;
+ * SRMECH_ERR_NULL_ARG: NULL pointers. */
+srmech_status_t srmech_riemann_theta_g4_schottky_count(
+    const int64_t *vecs, size_t n, size_t dim, int genus,
+    const int64_t *gram_off, uint64_t *arena, size_t arena_cap,
+    int64_t *out_count)
+{
+    size_t words;
+    int c[6];
+    int k, noff;
+    if (vecs == NULL || arena == NULL || out_count == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (genus < 1 || genus > 4 || n == 0u || dim == 0u
+            || n > (size_t)RTSCH_MAX_WORDS * 64u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    noff = genus * (genus - 1) / 2;
+    assert(noff >= 0 && noff <= 6);              /* g(g-1)/2 for g in {1..4} */
+    assert(genus >= 1 && genus <= 4);
+    if (noff > 0 && gram_off == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (arena_cap < srmech_riemann_theta_g4_schottky_arena(n)) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    for (k = 0; k < noff; ++k) {
+        c[k] = rtsch_class_of(gram_off[k]);
+        if (c[k] < 0) {                          /* off-shell value -> 0 reps */
+            *out_count = 0;
+            return SRMECH_ERR_BAD_INPUT;
+        }
+    }
+    words = rtsch_words(n);
+    rtsch_build_table(vecs, n, dim, arena, words);
+    if (genus == 1) {
+        *out_count = (int64_t)n;
+    } else if (genus == 2) {
+        *out_count = rtsch_count_g2(arena, n, words, c[0]);
+    } else if (genus == 3) {
+        *out_count = rtsch_count_g3(arena, n, words, c[0], c[1], c[2]);
+    } else {
+        *out_count = rtsch_count_g4(arena, n, words, c[0], c[1], c[2],
+                                    c[3], c[4], c[5],
+                                    arena + n * (size_t)RTSCH_NCLASS * words);
+    }
+    return SRMECH_OK;
+}
+
+/* The off-diagonal doubled value for class index 0..4 (the inverse of rtsch_class_of):
+ * {0:-8, 1:-4, 2:0, 3:4, 4:8}. */
+static int64_t rtsch_class_val(int cls)
+{
+    static const int64_t vals[RTSCH_NCLASS] = {-8, -4, 0, 4, 8};
+    assert(cls >= 0 && cls < RTSCH_NCLASS);
+    assert(RTSCH_NCLASS == 5);
+    return vals[cls];
+}
+
+/* Count for one class-pattern with the bitset table ALREADY built (the shell op's
+ * per-pattern step; reuses the genus counters; scratch is the genus-4 k-candidate
+ * bitset = the arena tail). genus in {1,2,3,4}. */
+static int64_t rtsch_shell_count_pat(const uint64_t *tbl, size_t n, size_t words,
+                                     int genus, const int *cls, uint64_t *scratch)
+{
+    assert(tbl != NULL);
+    assert(genus >= 1 && genus <= 4);
+    if (genus == 1) {
+        return (int64_t)n;
+    }
+    if (genus == 2) {
+        return rtsch_count_g2(tbl, n, words, cls[0]);
+    }
+    if (genus == 3) {
+        return rtsch_count_g3(tbl, n, words, cls[0], cls[1], cls[2]);
+    }
+    return rtsch_count_g4(tbl, n, words, cls[0], cls[1], cls[2], cls[3], cls[4],
+                          cls[5], scratch);
+}
+
+/* The number of int64 the shell op's out[] needs: at most 5^(genus*(genus-1)/2) rows,
+ * each (genus*(genus-1)/2 off-values + 1 count). genus in {1,2,3,4}. */
+size_t srmech_riemann_theta_g4_schottky_shell_count(int genus)
+{
+    size_t noff, rows, k;
+    assert(RTSCH_NCLASS == 5);
+    if (genus < 1 || genus > 4) {
+        return 0u;
+    }
+    noff = (size_t)(genus * (genus - 1) / 2);
+    assert(noff <= 6u);
+    rows = 1u;
+    for (k = 0u; k < noff; ++k) {
+        rows *= (size_t)RTSCH_NCLASS;
+    }
+    return rows * (noff + 1u);
+}
+
+/* The FULL minimal-shell off-Gram HISTOGRAM for one lattice: emit, for every off-Gram
+ * class-pattern with a NONZERO count, the row [off_1..off_noff, count] (off values the
+ * doubled inners in {-8,-4,0,4,8}). *out_len <- the number of int64 written. The pattern
+ * is enumerated by mixed-radix over the 5 classes; each count reuses the rtsch counters
+ * (the bitset table is built ONCE). arena per srmech_riemann_theta_g4_schottky_arena(n).
+ * Mirrors srmech.amsc.riemann_theta.SchottkyFormG4._full_shell_grams_py. */
+srmech_status_t srmech_riemann_theta_g4_schottky_shell(
+    const int64_t *vecs, size_t n, size_t dim, int genus,
+    uint64_t *arena, size_t arena_cap, int64_t *out, size_t out_cap,
+    size_t *out_len)
+{
+    size_t words, noff, total_pat, pat, w, idx;
+    int cls[6];
+    int64_t cnt;
+    if (vecs == NULL || arena == NULL || out == NULL || out_len == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (genus < 1 || genus > 4 || n == 0u || dim == 0u
+            || n > (size_t)RTSCH_MAX_WORDS * 64u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (arena_cap < srmech_riemann_theta_g4_schottky_arena(n)) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    assert(genus >= 1 && genus <= 4);
+    assert(out_cap > 0u);
+    words = rtsch_words(n);
+    rtsch_build_table(vecs, n, dim, arena, words);
+    noff = (size_t)(genus * (genus - 1) / 2);
+    total_pat = 1u;
+    for (w = 0u; w < noff; ++w) {
+        total_pat *= (size_t)RTSCH_NCLASS;
+    }
+    idx = 0u;
+    for (pat = 0u; pat < total_pat; ++pat) {
+        size_t t = pat;
+        for (w = 0u; w < noff; ++w) {
+            cls[w] = (int)(t % (size_t)RTSCH_NCLASS);
+            t /= (size_t)RTSCH_NCLASS;
+        }
+        cnt = rtsch_shell_count_pat(arena, n, words, genus, cls,
+                                    arena + n * (size_t)RTSCH_NCLASS * words);
+        if (cnt != 0) {
+            if (idx + noff + 1u > out_cap) {
+                return SRMECH_ERR_OVERFLOW;
+            }
+            for (w = 0u; w < noff; ++w) {
+                out[idx + w] = rtsch_class_val(cls[w]);
+            }
+            out[idx + noff] = cnt;
+            idx += noff + 1u;
+        }
+    }
+    *out_len = idx;
+    return SRMECH_OK;
+}
