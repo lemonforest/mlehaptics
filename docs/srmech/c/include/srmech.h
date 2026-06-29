@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc84"
-#define SRMECH_VERSION       "0.9.0rc84"
+#define SRMECH_VERSION_PRE   "rc85"
+#define SRMECH_VERSION       "0.9.0rc85"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3752,6 +3752,54 @@ size_t srmech_riemann_theta_g3_goepel_count(uint32_t box);
  * != 0) populates the LHS safe region. SRMECH_ERR_BAD_INPUT on box<3 / undersized work;
  * SRMECH_ERR_OVERFLOW on an over-cap accumulator. */
 srmech_status_t srmech_riemann_theta_g3_goepel(
+    uint32_t box, int64_t *work, size_t work_cap,
+    int *out_holds, int *out_has_cross);
+
+/* ------------------------------------------------------------------ *
+ * rc85: the genus-4 Sp(8,Z) modular TRANSFORMATION on the characteristics + the
+ * genus-4 two-argument ADDITION theorem + the genus-4 universal GOEPEL relation gate
+ * (the g=3->g=4 parametric extension of the rc77/rc78 genus-3 peers — closes the
+ * genus-ladder modular-action gap so the g1->g4 ladder is uniform). The C peers of
+ * srmech.amsc.riemann_theta.RiemannThetaG4.{transform, addition_*, goepel_holds}.
+ * DLMF 21.5.9 / 21.6.8 hold for general genus g; here 4x4 blocks / 4-vectors over an
+ * 8x8 symplectic gamma (64 int64 A,B,C,D row-major). Caller-owned out[] / caller arena;
+ * no malloc. Additive symbols -> ABI unchanged (stays 3). */
+
+/* Emit the genus-4 Sp(8,Z) transformed characteristic + kappa exponent. gamma[64] =
+ * A,B,C,D 4x4 blocks (row-major); out_char[8] <- (ep1'..ep4',e1'..e4') bits; *kexp <- k
+ * in {0..7} (multiplier = zeta_8^k). SRMECH_ERR_BAD_INPUT if a bit is invalid or gamma
+ * is not symplectic. */
+srmech_status_t srmech_riemann_theta_g4_sp8_char(
+    const int64_t *gamma, int ep1, int ep2, int ep3, int ep4,
+    int e1, int e2, int e3, int e4, int *out_char, int *kexp);
+
+/* The number of int64 a box needs for the genus-4 eighth-nome lattice: (2*box+1)^4
+ * lattice points * 11 (A1..A4,C12,C13,C14,C23,C24,C34,sign). */
+size_t srmech_riemann_theta_g4_eighth_count(uint32_t box);
+
+/* Emit the genus-4 eighth-nome [A1..A4,C12,C13,C14,C23,C24,C34,sign] 11-tuple lattice
+ * for the DOUBLED upper characteristic s=(s1..s4) + lower char (e1..e4), at Omega
+ * (at_two_omega=0: A=2(2n+s)^2 ...) or 2Omega (at_two_omega=1: A=(4n+s)^2 ...) over
+ * |n_i|<=box, row-major; *out_len <- int64 written. SRMECH_ERR_BAD_INPUT if a
+ * lower-char bit is invalid; SRMECH_ERR_OVERFLOW if out[] is too small. */
+srmech_status_t srmech_riemann_theta_g4_eighth_lattice(
+    int s1, int s2, int s3, int s4, int e1, int e2, int e3, int e4,
+    int at_two_omega, uint32_t box, int64_t *out, size_t out_cap, size_t *out_len);
+
+/* The number of int64 the caller work arena needs for the genus-4 Goepel gate (THREE
+ * buffers, box-independent / capped). */
+size_t srmech_riemann_theta_g4_goepel_count(uint32_t box);
+
+/* Decide the genus-4 universal Goepel relation gate over the box-stable safe region. An
+ * 8-PAIR / 16-NULL same-Omega relation Sum sign*theta^2[a]theta^2[b] == 0 among even
+ * theta-nulls all summing to [1,1,1,1;1,1,1,1] (the genus-4 instance of the goepel_holds
+ * surface g2/g3 expose; Glass Compositio Math 40 (1980); Fiorentino-Salvati Manni SIGMA
+ * 16 (2020) 057; Igusa Theta Functions (1972) SS IV/V). work[] is the caller arena
+ * (work_cap int64, >= the count helper); *out_holds <- 1 iff the relation holds (residual
+ * empty), *out_has_cross <- 1 iff a genuine genus-4 cross-term (C14, C24 or C34 != 0)
+ * populates the LHS safe region. SRMECH_ERR_BAD_INPUT on box<2 / undersized work;
+ * SRMECH_ERR_OVERFLOW on an over-cap accumulator. */
+srmech_status_t srmech_riemann_theta_g4_goepel(
     uint32_t box, int64_t *work, size_t work_cap,
     int *out_holds, int *out_has_cross);
 
