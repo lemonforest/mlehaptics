@@ -644,8 +644,7 @@ srmech_status_t srmech_modular_forms_ring_represent(
 {
     mfr_ctx_t c;
     uint16_t aexp[MFR_MAX_DIM], bexp[MFR_MAX_DIM];
-    srmech_bigint_t *e4n = NULL, *e4d = NULL, *e6n = NULL, *e6d = NULL;
-    srmech_bigint_t *col_n = NULL, *col_d = NULL;     /* NULL-init: MSVC /WX C4701/C4703 (out-params written through &ptr in carve helpers, which its flow-analysis can't see) */
+    srmech_bigint_t *e4n = NULL, *e4d = NULL, *e6n = NULL, *e6d = NULL, *col_n = NULL, *col_d = NULL;  /* NULL-init: MSVC /WX C4701/C4703 */
     uint32_t *base, cap;
     size_t words, cur = 0u, d, j;
     int sing = 0, ok = 0;
