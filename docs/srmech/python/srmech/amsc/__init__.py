@@ -106,6 +106,15 @@ from .thetasum import ThetaSum
 # cross-term C carrying the genus-2 denominator-4 clearing). A carrier, not a
 # ToolEntry, mirrors ThetaSum / EllRatio / QMat / Poly. C peer srmech_riemann_theta.
 from .riemann_theta import RiemannTheta
+# rc82 — the exact Dedekind-ETA-QUOTIENT carrier EtaQuotient, a WEIGHT-axis operand
+# carrier. Q(τ) = ∏_d η(dτ)^{r_d} as an EXACT q-series modular object: the integer
+# q-series + the half-integral weight are COMPUTED from the exponents exactly, and
+# modularity is DECIDED by the exact-integer Ligozat criterion (Ono Thm 1.64/1.65).
+# The operand-IRREPRESENTABLE boundary is the dual "is a given q-series an
+# eta-quotient?" (a proper subspace; no finite cutter) — dual of the Schottky
+# membership decision. A carrier, not a ToolEntry, mirrors UnaryTheta / RiemannTheta /
+# ThetaSum. C peer srmech_eta_quotient_qseries.
+from .eta_quotient import EtaQuotient
 # v0.3.0 — tool_schema introspection (Task #198) registers srmech's
 # own AMSC tools at import time. Profile-contributed tools register
 # later, at profile-activation time via profile_loader.
@@ -150,4 +159,5 @@ __all__ = [
     "TriPoly",
     "ThetaSum",
     "RiemannTheta",
+    "EtaQuotient",
 ]

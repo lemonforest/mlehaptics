@@ -1931,6 +1931,28 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.c_void_p, ctypes.c_size_t, # ws, ws_len
         ]
         lib.srmech_unary_theta_q_series.restype = ctypes.c_int
+    # rc82: the EXACT-INTEGER ETA-QUOTIENT q-series C peer (srmech_eta_quotient) —
+    # a WEIGHT-axis carrier. Computes the coefficients of ∏_d ∏_{m≥1}(1−q^{dm})^{r_d}
+    # over caller-arena srmech_bigint (the same exact-integer substrate as poly /
+    # unary_theta; no int64 ceiling — the coefficients grow, e.g. the Ramanujan τ).
+    # NEW symbols → hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 3.
+    #   size_t srmech_eta_quotient_ws_bound(size_t coeff_limbs)
+    if hasattr(lib, "srmech_eta_quotient_ws_bound"):
+        lib.srmech_eta_quotient_ws_bound.argtypes = [ctypes.c_size_t]
+        lib.srmech_eta_quotient_ws_bound.restype = ctypes.c_size_t
+    #   srmech_eta_quotient_qseries(ds[], rs[], n_factors, n_terms,
+    #                               out[], *out_len, ws, ws_len)
+    if hasattr(lib, "srmech_eta_quotient_qseries"):
+        lib.srmech_eta_quotient_qseries.argtypes = [
+            ctypes.POINTER(ctypes.c_int64),   # ds[n_factors]
+            ctypes.POINTER(ctypes.c_int64),   # rs[n_factors]
+            ctypes.c_size_t,                  # n_factors
+            ctypes.c_size_t,                  # n_terms
+            ctypes.POINTER(_SrmechBigint),    # out[]
+            ctypes.POINTER(ctypes.c_size_t),  # *out_len
+            ctypes.c_void_p, ctypes.c_size_t, # ws, ws_len
+        ]
+        lib.srmech_eta_quotient_qseries.restype = ctypes.c_int
     # rc71: the EXACT-INTEGER HOLOMORPHIC mock-part q-series C peer
     # (srmech_harmonic_maass) — the HarmonicMaass / MockQSeries PAIR carrier that
     # makes research item #9 a finite exact object. Computes the order-3 mock theta
@@ -3384,6 +3406,77 @@ def unary_theta_q_series_c(modulus, chi_table, j, a, b, D, support, N):
     if rc != SRMECH_OK:
         raise RuntimeError(
             f"srmech_unary_theta_q_series returned non-OK status {rc}")
+    return [_bigint_to_int(o_n[i]) for i in range(out_len.value)]
+
+
+# ----------------------------------------------------------------------
+# rc82: the EXACT-INTEGER ETA-QUOTIENT q-series C peer (srmech_eta_quotient) — a
+# WEIGHT-axis carrier. The Python srmech.amsc.eta_quotient.EtaQuotient routes its
+# q_series through this when has_native_eta_quotient(); the pure-Python body is
+# the COMPLETE alternative (and the parity oracle) — both emit byte-identical
+# exact integer coefficients at any magnitude (the coefficients grow, e.g. the
+# Ramanujan τ, with no int64 ceiling).
+# ----------------------------------------------------------------------
+
+
+def has_native_eta_quotient() -> bool:
+    """True iff the rc82 ``srmech_eta_quotient_qseries`` peer + the
+    ``srmech_bigint`` decimal-marshal helpers are loaded + bound. False on a
+    no-C / pre-rc82 lib — the pure-Python ``srmech.amsc.eta_quotient.EtaQuotient``
+    body is the complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (all(hasattr(LIB, s) for s in _POLY_SYMS)
+            and hasattr(LIB, "srmech_eta_quotient_qseries")
+            and hasattr(LIB, "srmech_eta_quotient_ws_bound"))
+
+
+def eta_quotient_qseries_c(ds, rs, n_terms):
+    """Native exact-integer eta-quotient q-series → a list of ``n_terms`` Python-int
+    coefficients of ``∏_d ∏_{m≥1} (1 − q^{dm})^{r_d}`` (the series after the
+    leading-power factor-out), or ``None`` if the native symbols are absent.
+    ``ds`` (each ``≥ 1``) / ``rs`` (each ``≠ 0``) are the parallel exponent-vector
+    factors ``{ds[i]: rs[i]}``."""
+    if not has_native_eta_quotient():
+        return None
+    if not isinstance(n_terms, int) or n_terms < 1:
+        raise ValueError(f"eta_quotient_qseries_c: bad n_terms {n_terms!r}")
+    nf = len(ds)
+    if nf < 1 or len(rs) != nf:
+        raise ValueError("eta_quotient_qseries_c: ds/rs must be equal-length, ≥ 1")
+    # per-coefficient limb cap: the coefficients can grow large (the q-series of a
+    # high-power eta-quotient). Over-bound from the partial-product envelope: each
+    # (1 ± q^e) multiply at worst doubles the magnitude of each coefficient, so the
+    # total positive exponent count Σ|r_d|·(#m terms ≈ n_terms/d) bounds the bit
+    # growth. Estimate generously in decimal digits → limbs (9 dec digits ≈ 1 limb).
+    total_pow = 0
+    for d, r in zip(ds, rs):
+        rmag = r if r >= 0 else -r          # Class-K magnitude, no abs()
+        m_terms = (n_terms - 1) // max(int(d), 1) + 1
+        total_pow += rmag * m_terms
+    # each factor can shift bits by ~log2(n_terms); pad hard (digits ≈ bits·0.302)
+    bit_est = total_pow * (len(bin(max(n_terms, 2))) - 2) + 64
+    coeff_digits = bit_est // 3 + 32         # bits → decimal digits (over-estimate)
+    out_cap = coeff_digits // 9 + 8
+    cl = out_cap
+    ws_len = int(LIB.srmech_eta_quotient_ws_bound(ctypes.c_size_t(cl)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    d_arr = (ctypes.c_int64 * max(nf, 1))()
+    r_arr = (ctypes.c_int64 * max(nf, 1))()
+    for i in range(nf):
+        d_arr[i] = int(ds[i])
+        r_arr[i] = int(rs[i])
+    o_n, _o_d, ko = _poly_blank_array(n_terms, out_cap)
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_eta_quotient_qseries(
+        d_arr, r_arr, ctypes.c_size_t(nf), ctypes.c_size_t(int(n_terms)),
+        o_n, ctypes.byref(out_len),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (ko, d_arr, r_arr)
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_eta_quotient_qseries returned non-OK status {rc}")
     return [_bigint_to_int(o_n[i]) for i in range(out_len.value)]
 
 
