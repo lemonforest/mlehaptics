@@ -81,6 +81,16 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # other carrier-foundation surface. C peer owed (everything-mirrors); classified
     # `bignum_reference` in rosetta_classification.ndjson.
     "srmech.amsc.ellbase.elliptic_lagrange_basis",
+    # eta_quotient.eta_quotient (v0.9.0rc82) — the public constructor of the
+    # WEIGHT-axis EtaQuotient CARRIER (Q(τ) = ∏_d η(dτ)^{r_d}), a peer of the
+    # UnaryTheta / RiemannTheta / EllRatio / ThetaSum carriers (which are classes,
+    # NOT walked here). It CONSTRUCTS the carrier (q-series + weight + the exact
+    # Ligozat modularity decision) — it is NOT a user-facing engine ToolEntry, so
+    # the carrier adds NO tool (tools.total stays 340), exactly like the
+    # elliptic_lagrange_basis carrier-foundation surface above. C peer
+    # srmech_eta_quotient_qseries; classified `c_dispatched` in
+    # rosetta_classification.ndjson.
+    "srmech.amsc.eta_quotient.eta_quotient",
     # cascade.* — back-compat aliases of canonical names already registered
     # (the precursor's call-site names; see srmech.amsc.cascade).
     "srmech.amsc.cascade.class_k_pin_slot_at_zero",  # = pin_slot_at_zero
