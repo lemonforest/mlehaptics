@@ -3010,6 +3010,61 @@ def _register_primitive_class_tools() -> None:
                       "the WZ equation), or None when the term is not WZ-summable"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The WEIGHT-axis modular-forms-ring reducer (rc84) — the level-1
+        # ℂ[E₄,E₆] MEMBERSHIP DECISION. The structure-theorem analog of the Σ-row
+        # gosper/zeilberger/wz_certificate reducers: a q-series → its UNIQUE exact-ℚ
+        # polynomial-in-(E₄,E₆) rep, or honest OPEN (None). Built on the rc83
+        # Eisenstein carrier + the rc40 QMat exact-ℚ Gauss-Jordan; 1:1 C peer
+        # srmech_modular_forms_ring_represent (dispatches to srmech_qmat_solve).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.modular_forms_ring.modular_forms_ring_represent",
+            owner="srmech", category="modular_forms_ring",
+            summary="The level-1 modular-forms-ring MEMBERSHIP DECISION — the "
+                    "structure theorem M_*(SL₂(ℤ)) = ℂ[E₄,E₆] made executable "
+                    "(Serre, *A Course in Arithmetic*, GTM 7 (1973), Ch. VII §3; "
+                    "Zagier, *Elliptic Modular Forms and Their Applications*, in "
+                    "*The 1-2-3 of Modular Forms*, Springer (2008), §2.2). The "
+                    "WEIGHT-axis REDUCER, the analog of the §76 Σ-row "
+                    "gosper/zeilberger/wz_certificate reducers (and the THIRD weight "
+                    "rung after the rc82 eta-quotient + rc83 Eisenstein carriers). "
+                    "Given an exact q-series (a list of exact-ℚ / int / (num,den) "
+                    "coefficients) claimed to be a weight-k level-1 modular form, "
+                    "SOLVES the exact-ℚ linear system Σ_{a,b} c_{a,b}·(E₄^a E₆^b)[n] "
+                    "= f[n] over the weight-k monomial basis {(a,b): 4a+6b=k} "
+                    "(built from the rc83 Eisenstein E₄/E₆ q-series + exact-ℚ "
+                    "truncated q-series multiply), VERIFIES the solution reproduces "
+                    "EVERY provided term, and returns the UNIQUE exact-ℚ polynomial "
+                    "rep {(a,b): Q} — or None when no representation exists (a "
+                    "non-modular series, or the honest LEVEL-axis OPEN of a "
+                    "genuinely higher-level Γ₀(N) form, N>1, which needs more "
+                    "generators). The construction/solve IS the decision "
+                    "(decompose-and-compute over the monomial basis via exact "
+                    "Gauss-Jordan, QMat — NOT a search). Level 1 is a "
+                    "representability CLOSURE (every in-ring form is representable); "
+                    "the OPEN is only the level axis. Keystones: Δ=(E₄³−E₆²)/1728 at "
+                    "weight 12 → {(3,0):1/1728,(0,2):−1/1728}; E₈ → {(2,0):1}; E₁₀ → "
+                    "{(1,1):1}; E₁₄ → {(2,1):1}. ≥ dim(k)+2 terms required. 1:1 C "
+                    "peer srmech_modular_forms_ring_represent (dispatches the square "
+                    "subsystem to srmech_qmat_solve; native when present, "
+                    "pure-Python the complete alternative + parity oracle). Exact "
+                    "bigint; no float, no abs() (Class-K sign), no numpy / math.",
+            parameters=(P("q_series", "list", True,
+                          "the q-series claimed to be a weight-k level-1 modular "
+                          "form — a list of exact-ℚ Q / int / (num, den) pairs "
+                          "(no float), ascending q-power; needs ≥ dim(k)+2 terms"),
+                        P("k", "int", True,
+                          "the (even) claimed weight — the grading of ℂ[E₄,E₆]"),
+                        P("n_terms", "int", False,
+                          "optional cap on the number of provided terms USED "
+                          "(default: all provided)")),
+            returns=R("dict | None",
+                      "{(a, b): Q} — the unique exact-ℚ polynomial-in-(E₄,E₆) "
+                      "representation (c_{a,b} = coefficient of E₄^a E₆^b), or None "
+                      "when the q-series is not a level-1 weight-k modular form "
+                      "(the honest membership/level OPEN)"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The MULTIVARIATE "sums of sums" row of the §76 telescope Σ-row prover —
         # the Apagodu–Zeilberger double-sum creative-telescoping recurrence-finder
         # (CLOSES the multivariate F929 reduction row). Generalizes zeilberger to a

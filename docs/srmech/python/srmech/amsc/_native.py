@@ -1976,6 +1976,39 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.c_void_p, ctypes.c_size_t, # ws, ws_len
         ]
         lib.srmech_eisenstein_qseries.restype = ctypes.c_int
+    # rc84: the level-1 ℂ[E₄,E₆] MODULAR-FORMS-RING membership-decision C peer
+    # (srmech_modular_forms_ring_represent) — the THIRD WEIGHT-axis rung (after rc82
+    # eta-quotient + rc83 Eisenstein). Builds the weight-k monomial-basis matrix from
+    # the E₄/E₆ q-series (rc83 srmech_eisenstein_qseries + an exact-ℚ truncated
+    # convolution), dispatches the square subsystem to the PUBLIC srmech_qmat_solve,
+    # VERIFIES all terms, returns the reduced (num, den) rep coeffs or a no-solution
+    # flag — all over caller-arena srmech_bigint (no int64 ceiling on a coeff like
+    # Δ's 1/1728). NEW symbols → hasattr-guarded; additive → EXPECTED_ABI_VERSION
+    # stays 3.
+    #   size_t srmech_modular_forms_ring_represent_ws_bound(cl, n_terms, k)
+    if hasattr(lib, "srmech_modular_forms_ring_represent_ws_bound"):
+        lib.srmech_modular_forms_ring_represent_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_modular_forms_ring_represent_ws_bound.restype = ctypes.c_size_t
+    #   size_t srmech_modular_forms_ring_entry_cap(cl, n_terms, k)
+    if hasattr(lib, "srmech_modular_forms_ring_entry_cap"):
+        lib.srmech_modular_forms_ring_entry_cap.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_modular_forms_ring_entry_cap.restype = ctypes.c_size_t
+    #   srmech_modular_forms_ring_represent(k, f_n[], f_d[], n_terms,
+    #                                       out_num[], out_den[], *out_has, ws, ws_len)
+    if hasattr(lib, "srmech_modular_forms_ring_represent"):
+        lib.srmech_modular_forms_ring_represent.argtypes = [
+            ctypes.c_size_t,                  # k
+            ctypes.POINTER(_SrmechBigint),    # f_n[]
+            ctypes.POINTER(_SrmechBigint),    # f_d[]
+            ctypes.c_size_t,                  # n_terms
+            ctypes.POINTER(_SrmechBigint),    # out_num[]
+            ctypes.POINTER(_SrmechBigint),    # out_den[]
+            ctypes.POINTER(ctypes.c_size_t),  # *out_has
+            ctypes.c_void_p, ctypes.c_size_t, # ws, ws_len
+        ]
+        lib.srmech_modular_forms_ring_represent.restype = ctypes.c_int
     # rc71: the EXACT-INTEGER HOLOMORPHIC mock-part q-series C peer
     # (srmech_harmonic_maass) — the HarmonicMaass / MockQSeries PAIR carrier that
     # makes research item #9 a finite exact object. Computes the order-3 mock theta
@@ -3564,6 +3597,84 @@ def eisenstein_qseries_c(k, n_terms):
         raise RuntimeError(
             f"srmech_eisenstein_qseries returned non-OK status {rc}")
     return _poly_read_array(o_n, o_d, out_len.value)
+
+
+# ----------------------------------------------------------------------
+# rc84: the level-1 ℂ[E₄,E₆] MODULAR-FORMS-RING membership-decision C peer
+# (srmech_modular_forms_ring_represent) — the THIRD WEIGHT-axis rung. The Python
+# srmech.amsc.modular_forms_ring.ModularFormsRing.represent routes its membership
+# solve through this when has_native_modular_forms_ring(); the pure-Python body is
+# the COMPLETE alternative (and the parity oracle) — both emit the byte-identical
+# reduced rep {(a,b): (num, den)} / None. Unlike the carrier q-series peers
+# (eisenstein / eta_quotient) this is a genuine REDUCER (a Rosetta ledger op,
+# c_dispatched). Additive symbol → EXPECTED_ABI_VERSION stays 3.
+# ----------------------------------------------------------------------
+
+_MFR_SYMS = (
+    "srmech_modular_forms_ring_represent_ws_bound",
+    "srmech_modular_forms_ring_entry_cap",
+    "srmech_bigint_from_dec",
+    "srmech_bigint_to_dec",
+    "srmech_bigint_to_dec_bound",
+)
+
+
+def has_native_modular_forms_ring() -> bool:
+    """True iff the rc84 ``srmech_modular_forms_ring_represent`` peer + its
+    ws/entry-cap sizers + the ``srmech_bigint`` decimal-marshal helpers are loaded
+    + bound (it composes the rc83 ``srmech_eisenstein`` + the rc40 ``srmech_qmat``
+    peers, both required). False on a no-C / pre-rc84 lib — the pure-Python
+    ``srmech.amsc.modular_forms_ring.ModularFormsRing.represent`` body is the
+    complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (all(hasattr(LIB, s) for s in _MFR_SYMS)
+            and hasattr(LIB, "srmech_modular_forms_ring_represent")
+            and has_native_eisenstein()
+            and has_native_qmat())
+
+
+def modular_forms_ring_represent_c(f_pairs, k):
+    """Native level-1 ℂ[E₄,E₆] membership decision → ``(has_solution, rep_pairs)``
+    where ``rep_pairs`` is the list of ``dim(k)`` reduced ``(num, den)`` rep
+    coefficients (monomial order — ascending ``a`` in ``E₄^a E₆^b``), or ``None``
+    if the native symbols are absent. ``f_pairs`` is the q-series as a list of
+    reduced ``(num, den)`` int pairs; ``k`` the (even) claimed weight. ``has_
+    solution`` False means the q-series is NOT a level-1 weight-``k`` modular form
+    within this carrier (the caller returns ``None``)."""
+    if not has_native_modular_forms_ring():
+        return None
+    if not isinstance(k, int) or k < 0:
+        raise ValueError(f"modular_forms_ring_represent_c: bad weight k {k!r}")
+    n_terms = len(f_pairs)
+    # dim M_k for even k≥0; 0 for odd k
+    d = 0 if (k % 2 != 0) else (k // 12 + (0 if k % 12 == 2 else 1))
+    # the entry-coefficient magnitude: the E₄/E₆ q-series coefficients grow ~n^{k-1}
+    # times a Bernoulli factor; the Cramer solve adds log-headroom. Over-bound from
+    # the bit envelope + the input coefficients.
+    cl = _qmat_coeff_limbs(f_pairs) if f_pairs else 1
+    kbits = (k + 1) * (len(bin(max(n_terms, 2))) - 2)   # ~ k·log2(n) per E coeff
+    cl = max(cl, kbits // 9 + 8)
+    out_cap = int(LIB.srmech_modular_forms_ring_entry_cap(
+        ctypes.c_size_t(cl), ctypes.c_size_t(n_terms), ctypes.c_size_t(int(k))))
+    ws_len = int(LIB.srmech_modular_forms_ring_represent_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_size_t(n_terms), ctypes.c_size_t(int(k))))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    f_n, f_d, kf = _qmat_make_array(f_pairs, out_cap)
+    o_n, o_d, ko = _qmat_blank_array(max(d, 1), out_cap)
+    has = ctypes.c_size_t(0)
+    rc = LIB.srmech_modular_forms_ring_represent(
+        ctypes.c_size_t(int(k)), f_n, f_d, ctypes.c_size_t(n_terms),
+        o_n, o_d, ctypes.byref(has),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = (kf, ko)
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_modular_forms_ring_represent returned non-OK status {rc}")
+    if not has.value:
+        return False, []
+    return True, _qmat_read_array(o_n, o_d, d)
 
 
 # ----------------------------------------------------------------------
