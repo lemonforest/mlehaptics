@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc82"
-#define SRMECH_VERSION       "0.9.0rc82"
+#define SRMECH_VERSION_PRE   "rc83"
+#define SRMECH_VERSION       "0.9.0rc83"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3327,6 +3327,43 @@ size_t srmech_eta_quotient_ws_bound(size_t coeff_limbs);
 srmech_status_t srmech_eta_quotient_qseries(
     const int64_t *ds, const int64_t *rs, size_t n_factors, size_t n_terms,
     srmech_bigint_t *out, size_t *out_len, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_eisenstein — the EXACT-RATIONAL q-series of a normalized EISENSTEIN
+ * SERIES E_k (the C peer of srmech.amsc.eisenstein.Eisenstein; the SECOND rung
+ * of the WEIGHT axis, after the rc82 eta-quotient). For even weight k >= 4,
+ *     E_k(tau) = 1 - (2k / B_k) * SUM_{n>=1} sigma_{k-1}(n) q^n,
+ * with B_k the k-th Bernoulli number (an EXACT RATIONAL: B_4=-1/30, B_6=1/42,
+ * B_12=-691/2730) and sigma_{k-1}(n) = SUM_{d|n} d^{k-1}. This op returns each
+ * coefficient as a REDUCED (num, den) pair of full srmech_bigint — byte-identical
+ * to the Python carrier (NO int64 ceiling; the genuine rational case k=12 ->
+ * 65520/691 IS covered, not just integer-coeff k). B_k is computed exact-Q by the
+ * standard recurrence over a caller-arena Bernoulli rational roster; sigma is
+ * exact-integer; the coefficient is pref*sigma reduced to lowest terms (the
+ * Class-N rational arithmetic of srmech_poly / srmech_rational). Only bigint
+ * add/sub/mul/divmod/gcd/pow — the sign is the Class-K pin-slot, never ALU abs().
+ *
+ * Carrier-internal (like srmech_poly / srmech_eta_quotient): NOT a Rosetta ledger
+ * op; additive symbols -> ABI unchanged (stays 3). The working carriers + the
+ * Bernoulli roster + the divmod/gcd/pow scratch are carved from the caller arena
+ * `ws` (>= srmech_eisenstein_ws_bound); the out_num[]/out_den[] arrays are
+ * caller-owned (n_terms srmech_bigint each, >= coeff_limbs limbs). The
+ * is_modular / quasimodular-boundary DECISION logic stays Python-only.
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES for srmech_eisenstein_qseries (the working carriers + the
+ * (k+1) Bernoulli rational roster headers+limbs + a divmod/gcd/pow scratch tail,
+ * all at `coeff_limbs` width). */
+size_t srmech_eisenstein_ws_bound(size_t coeff_limbs, size_t k);
+
+/* The exact-rational q-series of E_k = 1 - (2k/B_k) SUM sigma_{k-1}(n) q^n:
+ * out_num[e]/out_den[e] (e = 0..n_terms-1) <- the REDUCED coefficient of q^e
+ * (out_num[0]/out_den[0] = 1/1), *out_len <- n_terms. k must be EVEN >= 4.
+ * SRMECH_ERR_BAD_INPUT on n_terms<1 / k<4 / k odd / a NULL pointer;
+ * SRMECH_ERR_OVERFLOW if a coefficient or the arena is too small. */
+srmech_status_t srmech_eisenstein_qseries(
+    size_t k, size_t n_terms, srmech_bigint_t *out_num, srmech_bigint_t *out_den,
+    size_t *out_len, void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_harmonic_maass — the EXACT-INTEGER q-series of the HOLOMORPHIC mock part

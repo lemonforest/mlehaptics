@@ -454,3 +454,4 @@
 {"exposed_as": "srmech.amsc.unary_theta.unary_theta", "defined_at": "srmech.amsc.unary_theta.unary_theta", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.harmonic_maass.harmonic_maass", "defined_at": "srmech.amsc.harmonic_maass.harmonic_maass", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.eta_quotient.eta_quotient", "defined_at": "srmech.amsc.eta_quotient.eta_quotient", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.eisenstein.eisenstein", "defined_at": "srmech.amsc.eisenstein.eisenstein", "bucket": "c_dispatched"}

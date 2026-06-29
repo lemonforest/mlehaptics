@@ -115,6 +115,17 @@ from .riemann_theta import RiemannTheta
 # membership decision. A carrier, not a ToolEntry, mirrors UnaryTheta / RiemannTheta /
 # ThetaSum. C peer srmech_eta_quotient_qseries.
 from .eta_quotient import EtaQuotient
+# rc83 — the exact-RATIONAL EISENSTEIN-SERIES carrier Eisenstein, the SECOND rung
+# of the WEIGHT axis (after rc82 eta-quotient). E_k(τ) = 1 − (2k/B_k)·Σ σ_{k−1}(n) qⁿ
+# as an EXACT-Q q-series modular form: the rational q-series (e.g. E₁₂ has c₁ =
+# 65520/691) + the even integer weight are COMPUTED from k exactly (Bernoulli +
+# divisor power sum), NOT a solve. E₄/E₆ generate the level-1 ring ℂ[E₄,E₆]; the
+# cross-rung E₄³−E₆²=1728·η²⁴ ties the weight axis back to rc82. The
+# operand-IRREPRESENTABLE boundary is k=2 (QUASIMODULAR; the ring ℂ[E₂,E₄,E₆]) +
+# level>1 (E_{k,χ}) — dual of the eta-quotient-subspace / Schottky OPENs. A
+# carrier, not a ToolEntry, mirrors EtaQuotient / UnaryTheta / RiemannTheta /
+# ThetaSum. C peer srmech_eisenstein_qseries.
+from .eisenstein import Eisenstein
 # v0.3.0 — tool_schema introspection (Task #198) registers srmech's
 # own AMSC tools at import time. Profile-contributed tools register
 # later, at profile-activation time via profile_loader.
@@ -160,4 +171,5 @@ __all__ = [
     "ThetaSum",
     "RiemannTheta",
     "EtaQuotient",
+    "Eisenstein",
 ]

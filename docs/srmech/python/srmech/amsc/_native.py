@@ -1953,6 +1953,29 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.c_void_p, ctypes.c_size_t, # ws, ws_len
         ]
         lib.srmech_eta_quotient_qseries.restype = ctypes.c_int
+    # rc83: the EXACT-RATIONAL EISENSTEIN-SERIES q-series C peer (srmech_eisenstein)
+    # — the SECOND WEIGHT-axis carrier (after rc82 eta-quotient). Computes the
+    # reduced (num, den) coefficients of E_k = 1 − (2k/B_k)·Σ σ_{k−1}(n) qⁿ over
+    # caller-arena srmech_bigint (the same exact substrate as poly / eta_quotient;
+    # here carrying RATIONAL coeffs — e.g. E₁₂ has c₁ = 65520/691). NEW symbols →
+    # hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 3.
+    #   size_t srmech_eisenstein_ws_bound(size_t coeff_limbs, size_t k)
+    if hasattr(lib, "srmech_eisenstein_ws_bound"):
+        lib.srmech_eisenstein_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_eisenstein_ws_bound.restype = ctypes.c_size_t
+    #   srmech_eisenstein_qseries(k, n_terms, out_num[], out_den[],
+    #                             *out_len, ws, ws_len)
+    if hasattr(lib, "srmech_eisenstein_qseries"):
+        lib.srmech_eisenstein_qseries.argtypes = [
+            ctypes.c_size_t,                  # k
+            ctypes.c_size_t,                  # n_terms
+            ctypes.POINTER(_SrmechBigint),    # out_num[]
+            ctypes.POINTER(_SrmechBigint),    # out_den[]
+            ctypes.POINTER(ctypes.c_size_t),  # *out_len
+            ctypes.c_void_p, ctypes.c_size_t, # ws, ws_len
+        ]
+        lib.srmech_eisenstein_qseries.restype = ctypes.c_int
     # rc71: the EXACT-INTEGER HOLOMORPHIC mock-part q-series C peer
     # (srmech_harmonic_maass) — the HarmonicMaass / MockQSeries PAIR carrier that
     # makes research item #9 a finite exact object. Computes the order-3 mock theta
@@ -3478,6 +3501,69 @@ def eta_quotient_qseries_c(ds, rs, n_terms):
         raise RuntimeError(
             f"srmech_eta_quotient_qseries returned non-OK status {rc}")
     return [_bigint_to_int(o_n[i]) for i in range(out_len.value)]
+
+
+# ----------------------------------------------------------------------
+# rc83: the EXACT-RATIONAL EISENSTEIN-SERIES q-series C peer (srmech_eisenstein) —
+# the SECOND WEIGHT-axis carrier (after rc82 eta-quotient). The Python
+# srmech.amsc.eisenstein.Eisenstein routes its q_series through this when
+# has_native_eisenstein(); the pure-Python body is the COMPLETE alternative (and
+# the parity oracle) — both emit byte-identical REDUCED (num, den) coefficients at
+# any magnitude (the genuine rational case k=12 → 65520/691 is covered, NOT just
+# integer-coeff k).
+# ----------------------------------------------------------------------
+
+
+def has_native_eisenstein() -> bool:
+    """True iff the rc83 ``srmech_eisenstein_qseries`` peer + the ``srmech_bigint``
+    decimal-marshal helpers are loaded + bound. False on a no-C / pre-rc83 lib —
+    the pure-Python ``srmech.amsc.eisenstein.Eisenstein`` body is the complete
+    alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (all(hasattr(LIB, s) for s in _POLY_SYMS)
+            and hasattr(LIB, "srmech_eisenstein_qseries")
+            and hasattr(LIB, "srmech_eisenstein_ws_bound"))
+
+
+def eisenstein_qseries_c(k, n_terms):
+    """Native exact-rational Eisenstein q-series → a list of ``n_terms`` reduced
+    ``(num, den)`` Python-int coefficient pairs of
+    ``E_k = 1 − (2k/B_k)·Σ σ_{k−1}(n) qⁿ`` (``(1, 1)`` is the constant term), or
+    ``None`` if the native symbols are absent. ``k`` is an EVEN int ``≥ 4`` (the
+    Python carrier gates k=2 / odd / k<4 before reaching here)."""
+    if not has_native_eisenstein():
+        return None
+    if not isinstance(n_terms, int) or n_terms < 1:
+        raise ValueError(f"eisenstein_qseries_c: bad n_terms {n_terms!r}")
+    if not isinstance(k, int) or k < 4 or k % 2 != 0:
+        raise ValueError(f"eisenstein_qseries_c: bad weight k {k!r}")
+    # per-coefficient limb cap: the coefficient c_n = (−2k/B_k)·σ_{k−1}(n). The
+    # Bernoulli denominator (von Staudt–Clausen) and σ_{k−1}(n) (up to ~n·n^{k−1})
+    # set the magnitude; both grow with k and n. Over-bound from the bit envelope:
+    # σ_{k−1}(n) ≲ n^k, and the Bernoulli numerator/denominator grow like k!. Size
+    # from k·log2(k) + (k)·log2(n_terms) bits, padded hard. 9 dec digits ≈ 1 limb.
+    kbits = k * (len(bin(max(k, 2))) - 2)              # ~ k·log2(k) (Bernoulli)
+    nbits = k * (len(bin(max(n_terms, 2))) - 2)        # ~ k·log2(n)  (σ_{k-1})
+    bit_est = kbits + nbits + 256
+    coeff_digits = bit_est // 3 + 64                   # bits → decimal (over-est)
+    out_cap = coeff_digits // 9 + 16
+    cl = out_cap
+    ws_len = int(LIB.srmech_eisenstein_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_size_t(int(k))))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    o_n, o_d, ko = _poly_blank_array(n_terms, out_cap)
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_eisenstein_qseries(
+        ctypes.c_size_t(int(k)), ctypes.c_size_t(int(n_terms)),
+        o_n, o_d, ctypes.byref(out_len),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    _ = ko
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_eisenstein_qseries returned non-OK status {rc}")
+    return _poly_read_array(o_n, o_d, out_len.value)
 
 
 # ----------------------------------------------------------------------

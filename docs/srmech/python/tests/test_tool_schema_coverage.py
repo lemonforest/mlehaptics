@@ -91,6 +91,16 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # srmech_eta_quotient_qseries; classified `c_dispatched` in
     # rosetta_classification.ndjson.
     "srmech.amsc.eta_quotient.eta_quotient",
+    # eisenstein.eisenstein (v0.9.0rc83) — the public constructor of the SECOND
+    # WEIGHT-axis carrier Eisenstein (E_k(τ) = 1 − (2k/B_k)·Σ σ_{k−1}(n) qⁿ), a peer
+    # of the EtaQuotient / UnaryTheta / RiemannTheta / ThetaSum carriers (which are
+    # classes, NOT walked here). It CONSTRUCTS the carrier (exact-rational q-series +
+    # even integer weight, computed from Bernoulli + divisor power sum) — it is NOT a
+    # user-facing engine ToolEntry, so the carrier adds NO tool (tools.total stays
+    # 340), exactly like the eta_quotient / elliptic_lagrange_basis carrier surfaces
+    # above. C peer srmech_eisenstein_qseries; classified `c_dispatched` in
+    # rosetta_classification.ndjson.
+    "srmech.amsc.eisenstein.eisenstein",
     # cascade.* — back-compat aliases of canonical names already registered
     # (the precursor's call-site names; see srmech.amsc.cascade).
     "srmech.amsc.cascade.class_k_pin_slot_at_zero",  # = pin_slot_at_zero
