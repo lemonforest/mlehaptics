@@ -126,6 +126,25 @@ from .eta_quotient import EtaQuotient
 # carrier, not a ToolEntry, mirrors EtaQuotient / UnaryTheta / RiemannTheta /
 # ThetaSum. C peer srmech_eisenstein_qseries.
 from .eisenstein import Eisenstein
+# rc84 — the level-1 ℂ[E₄,E₆] MODULAR-FORMS-RING carrier ModularFormsRing (the
+# THIRD WEIGHT-axis rung, after rc82 eta-quotient + rc83 Eisenstein) + its exact
+# MEMBERSHIP DECISION. The structure theorem M_*(SL₂(ℤ)) = ℂ[E₄,E₆] made
+# executable: weight_monomials/dim are the graded basis; represent solves the
+# exact-ℚ system Σ c_{a,b}·(E₄^a E₆^b)[n] = f[n] over the monomial basis (rc83
+# Eisenstein + exact-ℚ q-series mul + QMat Gauss-Jordan) and VERIFIES all terms →
+# the unique closed-form rep {(a,b): Q} or None. Level-1 is a representability
+# CLOSURE (every in-ring form representable); the honest-OPEN is only the LEVEL
+# axis (N>1 needs more generators). represent IS a genuine REDUCER → a ToolEntry
+# (the WEIGHT-axis analog of the Σ-row gosper/zeilberger/wz_certificate), while
+# weight_monomials/dim and the carrier constructor are pure accessors (NOT
+# ToolEntries). C peer srmech_modular_forms_ring_represent (dispatches to the
+# existing srmech_qmat_solve).
+from .modular_forms_ring import (
+    ModularForm,
+    ModularFormsRing,
+    modular_forms_ring,
+    modular_forms_ring_represent,
+)
 # v0.3.0 — tool_schema introspection (Task #198) registers srmech's
 # own AMSC tools at import time. Profile-contributed tools register
 # later, at profile-activation time via profile_loader.
@@ -172,4 +191,8 @@ __all__ = [
     "RiemannTheta",
     "EtaQuotient",
     "Eisenstein",
+    "ModularFormsRing",
+    "ModularForm",
+    "modular_forms_ring",
+    "modular_forms_ring_represent",
 ]

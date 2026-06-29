@@ -101,6 +101,16 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # above. C peer srmech_eisenstein_qseries; classified `c_dispatched` in
     # rosetta_classification.ndjson.
     "srmech.amsc.eisenstein.eisenstein",
+    # modular_forms_ring.modular_forms_ring (v0.9.0rc84) — the public CONSTRUCTOR of
+    # the stateless level-1 ℂ[E₄,E₆] ModularFormsRing CARRIER (the THIRD WEIGHT-axis
+    # rung). It returns the carrier (whose weight_monomials/dim are pure accessors,
+    # NOT walked here as they are class methods); it is NOT a user-facing engine
+    # ToolEntry, exactly like the eta_quotient / eisenstein carrier constructors
+    # above. classified `non_compute` in rosetta_classification.ndjson. NOTE: the
+    # carrier's REDUCER, modular_forms_ring_represent, IS a registered ToolEntry (the
+    # WEIGHT-axis analog of the Σ-row gosper/zeilberger/wz_certificate reducers) —
+    # only the bare constructor is exempt.
+    "srmech.amsc.modular_forms_ring.modular_forms_ring",
     # cascade.* — back-compat aliases of canonical names already registered
     # (the precursor's call-site names; see srmech.amsc.cascade).
     "srmech.amsc.cascade.class_k_pin_slot_at_zero",  # = pin_slot_at_zero

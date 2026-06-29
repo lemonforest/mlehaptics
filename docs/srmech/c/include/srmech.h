@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc83"
-#define SRMECH_VERSION       "0.9.0rc83"
+#define SRMECH_VERSION_PRE   "rc84"
+#define SRMECH_VERSION       "0.9.0rc84"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3364,6 +3364,54 @@ size_t srmech_eisenstein_ws_bound(size_t coeff_limbs, size_t k);
 srmech_status_t srmech_eisenstein_qseries(
     size_t k, size_t n_terms, srmech_bigint_t *out_num, srmech_bigint_t *out_den,
     size_t *out_len, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_modular_forms_ring_represent — the EXACT-rational level-1 C[E4,E6]
+ * MODULAR-FORMS-RING MEMBERSHIP DECISION (the C peer of
+ * srmech.amsc.modular_forms_ring.ModularFormsRing.represent; the THIRD rung of the
+ * WEIGHT axis, after the rc82 eta-quotient + rc83 Eisenstein). The structure
+ * theorem M_*(SL2(Z)) = C[E4,E6] made executable: every level-1 weight-k modular
+ * form is a UNIQUE exact-Q polynomial in E4,E6. Given a claimed weight-k q-series
+ * f, this op enumerates the weight-k monomial basis {(a,b): 4a+6b=k}, builds each
+ * column E4^a E6^b (the rc83 srmech_eisenstein_qseries for E4/E6 + an exact-Q
+ * truncated convolution), solves the square leading-d-rows subsystem A x = b by
+ * dispatching to the PUBLIC srmech_qmat_solve (exact Gauss-Jordan over bignum-Q —
+ * reuse, not reimplement), VERIFIES the candidate reproduces EVERY provided term,
+ * and returns the reduced (num, den) rep coefficients with *out_has = 1, or
+ * *out_has = 0 (a non-modular series, or the honest LEVEL-axis OPEN of a
+ * higher-level form). REDUCER (unlike the carrier q-series peers): a Rosetta ledger
+ * op (c_dispatched). Additive symbols -> ABI unchanged (stays 3). The working
+ * carriers + the E4/E6 q-series + the monomial columns + the qmat marshalling are
+ * carved from the caller arena `ws` (>= srmech_modular_forms_ring_represent_ws_
+ * bound); out_num[]/out_den[] are caller-owned (>= mfr_dim(k) srmech_bigint each,
+ * >= srmech_modular_forms_ring_entry_cap limbs). Sign is the Class-K pin-slot,
+ * never ALU abs().
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES for srmech_modular_forms_ring_represent (the working
+ * carriers + the E4/E6 q-series rosters + the d monomial columns + the qmat
+ * marshalling + the qmat working arena, at `coeff_limbs` width over n_terms terms
+ * and a weight-k basis). */
+size_t srmech_modular_forms_ring_represent_ws_bound(size_t coeff_limbs,
+                                                    size_t n_terms, size_t k);
+
+/* The per-entry limb cap the caller must give each srmech_bigint in the OUTPUT rep
+ * arrays (so a reduced result entry never overflows its slot before the op's guard
+ * fires). */
+size_t srmech_modular_forms_ring_entry_cap(size_t coeff_limbs, size_t n_terms,
+                                           size_t k);
+
+/* The level-1 modular-forms-ring membership decision. k is the (even >= 0) claimed
+ * weight; f_n[i]/f_d[i] (i = 0..n_terms-1) the reduced claimed q-series. On a
+ * representable form: *out_has = 1 and out_num[j]/out_den[j] (j = 0..mfr_dim(k)-1)
+ * are the reduced rep coefficients of E4^a E6^b (monomial order, ascending a). On a
+ * non-form / higher-level form: *out_has = 0 (out_* unspecified).
+ * SRMECH_ERR_BAD_INPUT on n_terms < mfr_dim(k)+2 / a NULL pointer / mfr_dim(k) >
+ * the internal MFR_MAX_DIM; SRMECH_ERR_OVERFLOW on an arena shortfall. */
+srmech_status_t srmech_modular_forms_ring_represent(
+    size_t k, const srmech_bigint_t *f_n, const srmech_bigint_t *f_d,
+    size_t n_terms, srmech_bigint_t *out_num, srmech_bigint_t *out_den,
+    size_t *out_has, void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_harmonic_maass — the EXACT-INTEGER q-series of the HOLOMORPHIC mock part
