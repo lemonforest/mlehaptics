@@ -207,6 +207,12 @@ _Mat3 = Tuple[Tuple[int, int, int], Tuple[int, int, int], Tuple[int, int, int]]
 # an Sp(6, ℤ) element as the four 3×3 integer blocks (A, B, C, D)
 _Sp6 = Tuple[_Mat3, _Mat3, _Mat3, _Mat3]
 
+# a 4×4 integer matrix (a row-major tuple of 4-tuples) — the genus-4 building block
+_Mat4 = Tuple[Tuple[int, int, int, int], Tuple[int, int, int, int],
+              Tuple[int, int, int, int], Tuple[int, int, int, int]]
+# an Sp(8, ℤ) element as the four 4×4 integer blocks (A, B, C, D)
+_Sp8 = Tuple[_Mat4, _Mat4, _Mat4, _Mat4]
+
 
 def _native():
     """The native ``_native`` module IF the rc72 ``srmech_riemann_theta`` peer is
@@ -292,6 +298,15 @@ class RiemannTheta:
                         if (ep1 * e1 + ep2 * e2) % 2 == 0:   # even characteristic
                             out.append(cls(ep1, ep2, e1, e2))
         return out
+
+    @classmethod
+    def even_null_count(cls) -> "Tuple[int, int]":
+        """The genus-2 even / odd theta-null counts ``(10, 6)`` — DERIVED from the
+        enumeration (``2^{g-1}(2^g±1)`` for ``g = 2``: even ``2·5 = 10``, odd ``2·3 = 6``;
+        Eilers p. 2). Exposed for uniformity with the g3/g4 carriers' ``even_null_count``.
+        Exact integer, no float."""
+        n_even = len(cls.even_characteristics())
+        return (n_even, 16 - n_even)
 
     # ── accessors ─────────────────────────────────────────────────────────────
     @property
@@ -1458,6 +1473,36 @@ def _native_g4_schottky():
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta_g4_schottky", None)
+    return nat if (probe is not None and probe()) else None
+
+
+def _native_g4_sp8():
+    """The native ``_native`` module IF the rc85 ``srmech_riemann_theta_g4_sp8_char``
+    peer (the EXACT integer Sp(8,ℤ) characteristic transformation + the κ 8th-root
+    exponent) is present and bound, else ``None`` — so the genus-4 carrier dispatches
+    the exact-integer characteristic + κ computation to C when available and falls
+    cleanly to the pure-Python body (the complete alternative + the parity oracle).
+    Imported lazily to avoid a bootstrap cycle."""
+    try:
+        from . import _native as nat
+    except ImportError:
+        return None
+    probe = getattr(nat, "has_native_riemann_theta_g4_sp8", None)
+    return nat if (probe is not None and probe()) else None
+
+
+def _native_g4_goepel():
+    """The native ``_native`` module IF the rc85 ``srmech_riemann_theta_g4_goepel`` peer
+    (the genus-4 universal Göpel quadratic theta-null relation gate) is present and
+    bound, else ``None`` — so the genus-4 carrier dispatches the EXACT-INTEGER Göpel
+    equality decision (LHS == RHS on the safe region + a genuine genus-4 cross-term
+    present) to C when available and falls cleanly to the pure-Python body (the complete
+    alternative + the parity oracle). Imported lazily to avoid a bootstrap cycle."""
+    try:
+        from . import _native as nat
+    except ImportError:
+        return None
+    probe = getattr(nat, "has_native_riemann_theta_g4_goepel", None)
     return nat if (probe is not None and probe()) else None
 
 
@@ -3395,6 +3440,831 @@ class RiemannThetaG4:
             "operand-side OPEN — the framework refuses to fabricate a verdict here. "
             "(Schottky frontier: g = 4 ON, solved by Schottky; g ≥ 5 genuinely OPEN.)"
         )
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # rc85: the genus-4 Sp(8, ℤ) MODULAR ACTION KIT — the g=3→g=4 parametric
+    # extension of the rc77 genus-3 Sp(6, ℤ) kit (closes the genus-ladder gap so the
+    # g1→g4 modular-action ladder is uniform). DLMF §21.5.9 holds for GENERAL genus g;
+    # here 4×4 blocks / 4-vectors over an 8×8 symplectic γ.
+    # ══════════════════════════════════════════════════════════════════════════
+
+    # ── exact 4×4 integer matrix algebra (no numpy; integer / mod-2 only) ───────
+    @staticmethod
+    def _m4_matvec(m: "_Mat4", v: "Tuple[int, int, int, int]") -> "List[int]":
+        """The exact integer matrix·vector ``M·v`` for a 4×4 ``M`` and a length-4 ``v``
+        (a bounded 4×4 multiply — JPL Rule 2). All-integer, no float."""
+        return [m[r][0] * v[0] + m[r][1] * v[1] + m[r][2] * v[2] + m[r][3] * v[3]
+                for r in range(4)]
+
+    @staticmethod
+    def _m4_matmul(p: "_Mat4", q: "_Mat4") -> "_Mat4":
+        """The exact integer 4×4 matrix product ``P·Q``. All-integer, no float."""
+        return tuple(  # type: ignore[return-value]
+            tuple(p[i][0] * q[0][j] + p[i][1] * q[1][j]
+                  + p[i][2] * q[2][j] + p[i][3] * q[3][j]
+                  for j in range(4))
+            for i in range(4))
+
+    @staticmethod
+    def _m4_transpose(m: "_Mat4") -> "_Mat4":
+        """The exact 4×4 transpose ``Mᵀ``."""
+        return tuple(tuple(m[r][c] for r in range(4))  # type: ignore[return-value]
+                     for c in range(4))
+
+    @staticmethod
+    def _m4_add(p: "_Mat4", q: "_Mat4") -> "_Mat4":
+        """The exact 4×4 sum ``P + Q``."""
+        return tuple(tuple(p[i][j] + q[i][j] for j in range(4))  # type: ignore[return-value]
+                     for i in range(4))
+
+    @classmethod
+    def _m4_diag_of_prod(cls, p: "_Mat4", q: "_Mat4") -> "List[int]":
+        """``diag(P·Qᵀ)`` as a length-4 vector — the diagonal of ``P·Qᵀ`` (the
+        ``½diag[C·Dᵀ]`` / ``½diag[A·Bᵀ]`` terms of the Igusa genus-4 characteristic
+        transformation, returned UN-halved as the integer ``diag(P·Qᵀ)`` since the
+        doubled-half-integer characteristic absorbs the ½). Exact integer
+        (``diag(P·Qᵀ)_i = Σ_k P[i][k]·Q[i][k]`` — the row-row dot)."""
+        return [p[i][0] * q[i][0] + p[i][1] * q[i][1]
+                + p[i][2] * q[i][2] + p[i][3] * q[i][3]
+                for i in range(4)]
+
+    @staticmethod
+    def _i4() -> "_Mat4":
+        """The 4×4 identity matrix (the genus-4 ``I``)."""
+        return ((1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1))
+
+    @staticmethod
+    def _z4() -> "_Mat4":
+        """The 4×4 zero matrix (the genus-4 ``0`` block)."""
+        return ((0, 0, 0, 0), (0, 0, 0, 0), (0, 0, 0, 0), (0, 0, 0, 0))
+
+    # ── the standard Sp(8, ℤ) generators ───────────────────────────────────────
+    @classmethod
+    def sp8_translation(cls, b: "_Mat4") -> "_Sp8":
+        """The Sp(8, ℤ) TRANSLATION generator ``γ = [[I, B], [0, I]]`` for a SYMMETRIC
+        integer 4×4 ``B`` (the genus-4 ``Ω ↦ Ω+B`` shift — DLMF §21.5, the general-g
+        translation). ``B`` must be symmetric (else not symplectic) — rejected loudly
+        otherwise. Returned as the four 4×4 blocks ``(A, B, C, D) = (I, B, 0, I)``."""
+        b = cls._coerce_mat4(b, "B")
+        for i in range(4):
+            for j in range(i + 1, 4):
+                if b[i][j] != b[j][i]:
+                    raise ValueError(
+                        "the translation block B must be SYMMETRIC (Sp(8,ℤ) "
+                        f"condition); got B = {b!r} (B[{i}][{j}]={b[i][j]} ≠ "
+                        f"B[{j}][{i}]={b[j][i]})")
+        return (cls._i4(), b, cls._z4(), cls._i4())
+
+    @classmethod
+    def sp8_gl_twist(cls, a: "_Mat4") -> "_Sp8":
+        """The Sp(8, ℤ) GL-TWIST generator ``γ = [[A, 0], [0, (Aᵀ)⁻¹]]`` for
+        ``A ∈ GL(4, ℤ)`` (the genus-4 basis change ``θ(Az | A Ω Aᵀ)``). ``A`` must have
+        ``det A = ±1`` so ``(Aᵀ)⁻¹`` is integer — rejected loudly otherwise (an honest
+        boundary, not a fabricated reduction). Returned as ``(A, 0, 0, (Aᵀ)⁻¹)``."""
+        a = cls._coerce_mat4(a, "A")
+        det = cls._det4(a)
+        if det not in (1, -1):
+            raise ValueError(
+                f"the GL-twist block A must be in GL(4,ℤ) (det = ±1) so (Aᵀ)⁻¹ is "
+                f"integer; got A = {a!r} with det = {det} — an honest boundary, not "
+                "a fabricated reduction.")
+        a_inv = cls._inv4_unimodular(a, det)
+        d = cls._m4_transpose(a_inv)        # (Aᵀ)⁻¹ = (A⁻¹)ᵀ
+        return (a, cls._z4(), cls._z4(), d)
+
+    @classmethod
+    def sp8_inversion(cls) -> "_Sp8":
+        """The Sp(8, ℤ) INVERSION generator ``γ = [[0, −I], [I, 0]]`` (the genus-4
+        ``Ω ↦ −Ω⁻¹``; the ``J`` matrix). It carries the TRANSCENDENTAL automorphy
+        factor ``det(−iΩ)^{1/2}`` (off every decision path; :meth:`automorphy_factor`).
+        Returned as ``(0, −I, I, 0)``."""
+        neg_i = ((-1, 0, 0, 0), (0, -1, 0, 0), (0, 0, -1, 0), (0, 0, 0, -1))
+        return (cls._z4(), neg_i, cls._i4(), cls._z4())
+
+    @staticmethod
+    def _det4(m: "_Mat4") -> int:
+        """The exact integer determinant of a 4×4 matrix (Laplace cofactor expansion
+        along the first row over 3×3 minors). No float."""
+        def minor3(rows, cols):
+            r0, r1, r2 = rows
+            c0, c1, c2 = cols
+            return (m[r0][c0] * (m[r1][c1] * m[r2][c2] - m[r1][c2] * m[r2][c1])
+                    - m[r0][c1] * (m[r1][c0] * m[r2][c2] - m[r1][c2] * m[r2][c0])
+                    + m[r0][c2] * (m[r1][c0] * m[r2][c1] - m[r1][c1] * m[r2][c0]))
+        det = 0
+        for j in range(4):
+            cols = [c for c in range(4) if c != j]
+            sign = 1 if j % 2 == 0 else -1          # Class-K, no abs()
+            det += sign * m[0][j] * minor3((1, 2, 3), cols)
+        return det
+
+    @classmethod
+    def _inv4_unimodular(cls, m: "_Mat4", det: int) -> "_Mat4":
+        """The exact integer inverse ``M⁻¹ = (1/det)·adj(M)`` of a UNIMODULAR 4×4 ``M``
+        (``det = ±1`` so the adjugate divided by det is exact integer). The adjugate is
+        the transpose of the cofactor matrix. No float; the divisions are exact (det is
+        ±1, so this is a sign-multiply — Class-K, never an ALU abs())."""
+        cof = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
+        for i in range(4):
+            for j in range(4):
+                rows = [r for r in range(4) if r != i]
+                cols = [c for c in range(4) if c != j]
+                # the 3×3 minor of (i, j)
+                r0, r1, r2 = rows
+                c0, c1, c2 = cols
+                minor = (m[r0][c0] * (m[r1][c1] * m[r2][c2] - m[r1][c2] * m[r2][c1])
+                         - m[r0][c1] * (m[r1][c0] * m[r2][c2] - m[r1][c2] * m[r2][c0])
+                         + m[r0][c2] * (m[r1][c0] * m[r2][c1] - m[r1][c1] * m[r2][c0]))
+                sign = 1 if (i + j) % 2 == 0 else -1     # Class-K, no abs()
+                cof[i][j] = sign * minor
+        # M⁻¹ = adj / det = (cofᵀ) · det   (det = ±1, so /det == ·det)
+        return tuple(tuple(cof[j][i] * det for j in range(4))  # type: ignore[return-value]
+                     for i in range(4))
+
+    @staticmethod
+    def _coerce_mat4(m: "_Mat4", name: str) -> "_Mat4":
+        """Coerce / validate a 4×4 integer matrix; reject a malformed shape loudly."""
+        if not (isinstance(m, (tuple, list)) and len(m) == 4
+                and all(isinstance(row, (tuple, list)) and len(row) == 4
+                        for row in m)):
+            raise ValueError(f"{name} must be a 4×4 integer matrix; got {m!r}")
+        return tuple(tuple(int(m[i][j]) for j in range(4))  # type: ignore[return-value]
+                     for i in range(4))
+
+    @classmethod
+    def _validate_gamma8(cls, gamma: "_Sp8") -> "_Sp8":
+        """Coerce / validate an ``Sp(8, ℤ)`` element ``(A, B, C, D)`` to a tuple of four
+        exact-integer 4×4 blocks; reject a malformed shape loudly."""
+        if not (isinstance(gamma, (tuple, list)) and len(gamma) == 4):
+            raise ValueError(
+                f"γ must be (A, B, C, D), four 4×4 integer matrices; got {gamma!r}")
+        return (cls._coerce_mat4(gamma[0], "A"), cls._coerce_mat4(gamma[1], "B"),
+                cls._coerce_mat4(gamma[2], "C"), cls._coerce_mat4(gamma[3], "D"))
+
+    @classmethod
+    def sp8_is_symplectic(cls, gamma: "_Sp8") -> bool:
+        """True iff ``γ = (A, B, C, D)`` (4×4 blocks) is genuinely symplectic —
+        ``γ·J·γᵀ = J`` with ``J = [[0, −I], [I, 0]]`` (the genus-4 symplectic form). The
+        exact integer block conditions are ``AᵀC = CᵀA`` (symmetric), ``BᵀD = DᵀB``
+        (symmetric), ``AᵀD − CᵀB = I``. A pure integer check (no float)."""
+        a, b, c, d = cls._validate_gamma8(gamma)
+        tr = cls._m4_transpose
+        mm = cls._m4_matmul
+        atc = mm(tr(a), c)
+        btd = mm(tr(b), d)
+        if atc != cls._m4_transpose(atc):                 # AᵀC symmetric
+            return False
+        if btd != cls._m4_transpose(btd):                 # BᵀD symmetric
+            return False
+        atd = mm(tr(a), d)
+        ctb = mm(tr(c), b)
+        diff = tuple(tuple(atd[i][j] - ctb[i][j] for j in range(4))
+                     for i in range(4))
+        return diff == cls._i4()                           # AᵀD − CᵀB = I
+
+    @classmethod
+    def sp8_compose(cls, g2: "_Sp8", g1: "_Sp8") -> "_Sp8":
+        """The Sp(8, ℤ) group law ``g2 · g1`` (the block matrix product) — exact
+        integer 4×4 block arithmetic. The characteristic action composes the SAME way
+        (``transform(g2·g1) == transform(g2) ∘ transform(g1)``; the gate)."""
+        a2, b2, c2, d2 = cls._validate_gamma8(g2)
+        a1, b1, c1, d1 = cls._validate_gamma8(g1)
+        mm, ad = cls._m4_matmul, cls._m4_add
+        a = ad(mm(a2, a1), mm(b2, c1))
+        b = ad(mm(a2, b1), mm(b2, d1))
+        c = ad(mm(c2, a1), mm(d2, c1))
+        d = ad(mm(c2, b1), mm(d2, d1))
+        return (a, b, c, d)
+
+    # ── the EXACT characteristic action + the κ 8th-root multiplier ─────────────
+    @classmethod
+    def _char_transform_int(cls, gamma: "_Sp8",
+                            ep_prime: "Tuple[int, int, int, int]",
+                            eps: "Tuple[int, int, int, int]"
+                            ) -> "Tuple[List[int], List[int]]":
+        """The Igusa / DLMF-21.5.9 characteristic action at genus 4, as INTEGER vectors
+        (the caller reduces mod 2 for the bit): ``ε' ↦ D·ε' − C·ε + diag(C·Dᵀ)`` and
+        ``ε ↦ −B·ε' + A·ε + diag(A·Bᵀ)`` (DLMF §21.5.9 holds for general genus g; here
+        4×4 blocks / 4-vectors). Exact integer 4×4 arithmetic, no float."""
+        a, b, c, d = cls._validate_gamma8(gamma)
+        d_epp = cls._m4_matvec(d, ep_prime)
+        c_eps = cls._m4_matvec(c, eps)
+        diag_cd = cls._m4_diag_of_prod(c, d)
+        new_epp = [d_epp[i] - c_eps[i] + diag_cd[i] for i in range(4)]
+        a_eps = cls._m4_matvec(a, eps)
+        b_epp = cls._m4_matvec(b, ep_prime)
+        diag_ab = cls._m4_diag_of_prod(a, b)
+        new_eps = [a_eps[i] - b_epp[i] + diag_ab[i] for i in range(4)]
+        return new_epp, new_eps
+
+    @staticmethod
+    def _dot4(u: "Tuple[int, int, int, int]",
+              v: "Tuple[int, int, int, int]") -> int:
+        """The exact integer dot product ``u·v`` of two length-4 vectors."""
+        return u[0] * v[0] + u[1] * v[1] + u[2] * v[2] + u[3] * v[3]
+
+    @classmethod
+    def _kappa_exp8(cls, gamma: "_Sp8", ep_prime: "Tuple[int, int, int, int]",
+                    eps: "Tuple[int, int, int, int]") -> int:
+        """The EXACT 8th-root multiplier exponent ``k ∈ ℤ/8`` (the multiplier is
+        ``ζ₈^k = e^{2πik/8}``) — the genus-4 CHARACTERISTIC-DEPENDENT Igusa phase
+        ``φ_m(γ)`` of the theta-constant transformation. The Igusa φ_m is stated for
+        GENERAL genus g (a sum over ``k,l = 1..g``; the SAME expression at every g —
+        verified MPM, the g=2/g=3 ``_kappa_exp8`` parametrically extended to 4-vectors /
+        4×4 blocks):
+
+            8·φ_m = −4·ε'ᵀ(B·Dᵀ)ε' + 8·εᵀ(AᵀC)ε − 16·ε'ᵀ(BᵀC)ε
+                    − 8·diag(A·Bᵀ)ᵀ(D·ε' − C·ε)
+
+        This returns ``k = (8·φ_m) mod 8`` — the piece EXACTLY computable on the decision
+        path (the phase is rational with denominator dividing 8, so ``8·φ_m`` is an EXACT
+        integer; no float). The remaining ``γ``-only factor ``κ₀(γ)`` (the Maslov / Weil
+        cocycle 8th root) is BOUND to the TRANSCENDENTAL automorphy factor
+        ``det(C·Ω+D)^{1/2}`` (the branch of the square root), so it is NOT placed on the
+        decision path — carried SYMBOLICALLY (:meth:`automorphy_factor`)."""
+        a, b, c, d = cls._validate_gamma8(gamma)
+        epp = (int(ep_prime[0]), int(ep_prime[1]),
+               int(ep_prime[2]), int(ep_prime[3]))
+        eps = (int(eps[0]), int(eps[1]), int(eps[2]), int(eps[3]))
+        tr, mm = cls._m4_transpose, cls._m4_matmul
+        # term 1: −4·ε'ᵀ(B·Dᵀ)ε'   (the −½ becomes −4 after ×8)
+        bdt = mm(b, tr(d))
+        t1 = -4 * cls._dot4(epp, cls._m4_matvec(bdt, epp))
+        # term 2: +8·εᵀ(AᵀC)ε
+        atc = mm(tr(a), c)
+        t2 = 8 * cls._dot4(eps, cls._m4_matvec(atc, eps))
+        # term 3: −16·ε'ᵀ(BᵀC)ε
+        btc = mm(tr(b), c)
+        t3 = -16 * cls._dot4(epp, cls._m4_matvec(btc, eps))
+        # term 4: −8·diag(A·Bᵀ)ᵀ(D·ε' − C·ε)
+        diag_ab = cls._m4_diag_of_prod(a, b)
+        d_epp = cls._m4_matvec(d, epp)
+        c_eps = cls._m4_matvec(c, eps)
+        arg = [d_epp[i] - c_eps[i] for i in range(4)]
+        t4 = -8 * cls._dot4(tuple(diag_ab), tuple(arg))
+        eight_phi = t1 + t2 + t3 + t4
+        return eight_phi % 8                       # exact k ∈ {0,…,7}
+
+    def transform(self, gamma: "_Sp8") -> "Tuple[RiemannThetaG4, int]":
+        """The EXACT genus-4 Sp(8, ℤ) modular action on THIS theta-characteristic:
+        returns the transformed :class:`RiemannThetaG4` ``θ[γ·m]`` and the 8th-root
+        multiplier exponent ``k ∈ ℤ/8`` (the multiplier is ``ζ₈^k``). The characteristic
+        map (DLMF §21.5.9, general genus g; here 4×4 blocks) is bit-exact (integer /
+        mod-2); the multiplier rides the exact Igusa phase (:meth:`_kappa_exp8`). The
+        transcendental automorphy factor ``det(C·Ω+D)^{1/2}`` is NOT applied — it is
+        carried symbolically (:meth:`automorphy_factor`), off the decision path.
+
+        DISPATCHES the exact-integer characteristic + κ computation to the native
+        ``srmech_riemann_theta_g4_sp8_char`` C peer when loaded (a 1:1 mirror — the C
+        result EQUALS the Python result, trusted only on a native hit); else the pure
+        body (the COMPLETE alternative + the parity oracle). ``γ`` must be symplectic —
+        rejected loudly otherwise (an honest boundary). Parity (even ⇄ even, odd ⇄ odd)
+        is preserved by construction."""
+        if not self.sp8_is_symplectic(gamma):
+            raise ValueError(
+                "transform requires a symplectic γ (γ·J·γᵀ = J); the given (A,B,C,D) "
+                "is not in Sp(8,ℤ) — an honest boundary, not a fabricated reduction.")
+        nat = _native_g4_sp8()
+        if nat is not None and getattr(nat, "has_native_riemann_theta_g4_sp8",
+                                       lambda: False)():
+            try:
+                g = self._validate_gamma8(gamma)
+                got = nat.riemann_theta_g4_sp8_char_c(
+                    g, self._ep1, self._ep2, self._ep3, self._ep4,
+                    self._e1, self._e2, self._e3, self._e4)
+                if got is not None:
+                    (n1, n2, n3, n4, m1, m2, m3, m4), kexp = got
+                    return RiemannThetaG4(n1, n2, n3, n4, m1, m2, m3, m4), kexp % 8
+            except (RuntimeError, OverflowError, ValueError):
+                pass                                  # fall to the pure path
+        new_epp, new_eps = self._char_transform_int(
+            gamma, (self._ep1, self._ep2, self._ep3, self._ep4),
+            (self._e1, self._e2, self._e3, self._e4))
+        kexp = self._kappa_exp8(
+            gamma, (self._ep1, self._ep2, self._ep3, self._ep4),
+            (self._e1, self._e2, self._e3, self._e4))
+        return (RiemannThetaG4(new_epp[0] % 2, new_epp[1] % 2,
+                               new_epp[2] % 2, new_epp[3] % 2,
+                               new_eps[0] % 2, new_eps[1] % 2,
+                               new_eps[2] % 2, new_eps[3] % 2),
+                kexp)
+
+    @staticmethod
+    def automorphy_factor(gamma: "_Sp8") -> str:
+        """The TRANSCENDENTAL automorphy factor ``det(C·Ω+D)^{1/2}`` of the Sp(8, ℤ)
+        action — returned as a SYMBOLIC string, NEVER numerically evaluated (it depends
+        on the transcendental period matrix ``Ω ∈ H₄`` and is a square root: not a
+        finite exact object, so it stays OFF every decision path). The honest, exact
+        part of the transformation is the characteristic map + the κ 8th root
+        (:meth:`transform`); this factor is the documented not-evaluated companion."""
+        a, b, c, d = RiemannThetaG4._validate_gamma8(gamma)
+
+        def _rows(m: "_Mat4") -> str:
+            return "[" + ",".join(
+                "[" + ",".join(str(m[i][j]) for j in range(4)) + "]"
+                for i in range(4)) + "]"
+        return f"det({_rows(c)}·Ω + {_rows(d)})^(1/2)"
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # rc85: the genus-4 ADDITION relation (genuine; distinct from the genus-4
+    # duplication — DLMF §21.6.8 at g=4, the two-argument theorem, sum over (ℤ/2)⁴).
+    # The g=3→g=4 parametric extension of the rc77 genus-3 addition kit.
+    # ══════════════════════════════════════════════════════════════════════════
+
+    @staticmethod
+    def _theta_omega_eighth(a1: int, a2: int, a3: int, a4: int,
+                            e1: int, e2: int, e3: int, e4: int,
+                            box: int) -> "Dict[_Tentuple, int]":
+        """The genus-4 theta-constant ``θ[(a₁,a₂,a₃,a₄); (e₁,e₂,e₃,e₄)](0 | Ω)`` in the
+        COMMON EIGHTH-nome base ``Q₈ = q^{1/8}`` (so it shares ONE integer lattice with
+        the ``2Ω`` thetas of the addition right side). With ``mᵢ = nᵢ + aᵢ/2`` the q
+        exponent ``mᵢ²`` rides ``Q₈^{8mᵢ²} = Q₈^{2(2nᵢ+aᵢ)²}``, the cross ``mᵢmⱼ`` rides
+        ``Q₈^{2(2nᵢ+aᵢ)(2nⱼ+aⱼ)}``:
+
+            Aᵢ = 2(2nᵢ+aᵢ)²,   C_ij = 2(2nᵢ+aᵢ)(2nⱼ+aⱼ)
+
+        sign ``(−1)^{e·n}`` is the Class-K pin-slot (explicit ±1 branch, never
+        ``abs()``). Exact integer, no float / numpy / ``math``. ``a₁..a₄`` are the
+        DOUBLED upper characteristic (the helper accepts any integer so the right side's
+        ``2r±(a∓b)`` cases work). DISPATCHES to the native
+        ``srmech_riemann_theta_g4_eighth_lattice`` (at Ω) when loaded — a 1:1
+        exact-integer mirror, trusted only on a native hit."""
+        nat = _native_g4_sp8()
+        if nat is not None and getattr(nat, "has_native_riemann_theta_g4_eighth",
+                                       lambda: False)():
+            try:
+                got = nat.riemann_theta_g4_eighth_lattice_c(
+                    a1, a2, a3, a4, e1, e2, e3, e4, False, box)
+                if got is not None:
+                    return got
+            except (RuntimeError, OverflowError, ValueError):
+                pass
+        out: Dict[_Tentuple, int] = {}
+        for n1 in range(-box, box + 1):
+            u1 = 2 * n1 + a1
+            for n2 in range(-box, box + 1):
+                u2 = 2 * n2 + a2
+                for n3 in range(-box, box + 1):
+                    u3 = 2 * n3 + a3
+                    for n4 in range(-box, box + 1):
+                        u4 = 2 * n4 + a4
+                        key = (2 * u1 * u1, 2 * u2 * u2, 2 * u3 * u3, 2 * u4 * u4,
+                               2 * u1 * u2, 2 * u1 * u3, 2 * u1 * u4,
+                               2 * u2 * u3, 2 * u2 * u4, 2 * u3 * u4)
+                        parity = (e1 * n1 + e2 * n2 + e3 * n3 + e4 * n4) % 2
+                        sign = 1 if parity == 0 else -1   # never abs(); explicit ±
+                        out[key] = out.get(key, 0) + sign
+        return {k: w for k, w in out.items() if w != 0}
+
+    @staticmethod
+    def _theta_two_omega_eighth(s1: int, s2: int, s3: int, s4: int,
+                                e1: int, e2: int, e3: int, e4: int,
+                                box: int) -> "Dict[_Tentuple, int]":
+        """The genus-4 theta-constant ``θ[(s/2); (e)](0 | 2Ω)`` in the SAME EIGHTH-nome
+        base. The constructive sum/difference re-indexing puts the addition right side
+        here: the eighth-nome exponent of ``θ`` at ``2Ω`` is ``(4nᵢ+sᵢ)²`` (and cross
+        ``(4nᵢ+sᵢ)(4nⱼ+sⱼ)``):
+
+            Aᵢ = (4nᵢ+sᵢ)²,   C_ij = (4nᵢ+sᵢ)(4nⱼ+sⱼ)
+
+        sign ``(−1)^{e·n}`` the Class-K pin-slot. ``s₁..s₄`` are the DOUBLED upper
+        characteristic of the ``2Ω`` theta (an integer; odd ⟺ a genuine half-integer
+        characteristic). Exact integer, no float. DISPATCHES to the native
+        ``srmech_riemann_theta_g4_eighth_lattice`` (at 2Ω) when loaded — a 1:1
+        exact-integer mirror, trusted only on a native hit."""
+        nat = _native_g4_sp8()
+        if nat is not None and getattr(nat, "has_native_riemann_theta_g4_eighth",
+                                       lambda: False)():
+            try:
+                got = nat.riemann_theta_g4_eighth_lattice_c(
+                    s1, s2, s3, s4, e1, e2, e3, e4, True, box)
+                if got is not None:
+                    return got
+            except (RuntimeError, OverflowError, ValueError):
+                pass
+        out: Dict[_Tentuple, int] = {}
+        for n1 in range(-box, box + 1):
+            u1 = 4 * n1 + s1
+            for n2 in range(-box, box + 1):
+                u2 = 4 * n2 + s2
+                for n3 in range(-box, box + 1):
+                    u3 = 4 * n3 + s3
+                    for n4 in range(-box, box + 1):
+                        u4 = 4 * n4 + s4
+                        key = (u1 * u1, u2 * u2, u3 * u3, u4 * u4,
+                               u1 * u2, u1 * u3, u1 * u4,
+                               u2 * u3, u2 * u4, u3 * u4)
+                        parity = (e1 * n1 + e2 * n2 + e3 * n3 + e4 * n4) % 2
+                        sign = 1 if parity == 0 else -1
+                        out[key] = out.get(key, 0) + sign
+        return {k: w for k, w in out.items() if w != 0}
+
+    @staticmethod
+    def _square_lattice_pair(la: "Dict[_Tentuple, int]",
+                             lb: "Dict[_Tentuple, int]") -> "Dict[_Tentuple, int]":
+        """The exact-integer product ``la · lb`` of two genus-4 10-tuple lattices (a
+        bounded convolution over the exponent 10-tuples; JPL Rule 2). All-integer, no
+        float."""
+        out: Dict[_Tentuple, int] = {}
+        items_a = list(la.items())
+        items_b = list(lb.items())
+        for k1, v1 in items_a:
+            for k2, v2 in items_b:
+                key = tuple(k1[i] + k2[i] for i in range(10))
+                out[key] = out.get(key, 0) + v1 * v2  # type: ignore[index]
+        return {k: v for k, v in out.items() if v != 0}
+
+    @classmethod
+    def addition_lhs(cls, a: "Tuple[int, int, int, int]",
+                     b: "Tuple[int, int, int, int]",
+                     box: int) -> "Dict[_Tentuple, int]":
+        """The LEFT side of the genus-4 addition identity — the BILINEAR product of TWO
+        theta-nulls ``θ[a; 0](0|Ω) · θ[b; 0](0|Ω)`` (in the common eighth-nome base),
+        the exact-integer lattice convolution. ``a, b`` are the upper characteristics
+        (each in {0,1}⁴). When ``a ≠ b`` this is a product of two DISTINCT nulls — the
+        content duplication cannot produce. See :meth:`addition_holds`."""
+        la = cls._theta_omega_eighth(a[0], a[1], a[2], a[3], 0, 0, 0, 0, box)
+        lb = cls._theta_omega_eighth(b[0], b[1], b[2], b[3], 0, 0, 0, 0, box)
+        return cls._square_lattice_pair(la, lb)
+
+    @classmethod
+    def addition_rhs(cls, a: "Tuple[int, int, int, int]",
+                     b: "Tuple[int, int, int, int]",
+                     box: int) -> "Dict[_Tentuple, int]":
+        """The RIGHT side of the genus-4 addition identity (DLMF §21.6.8 at z=0, lower
+        chars 0, g=4 — sum over ``r ∈ (ℤ/2)⁴``, SIXTEEN terms)
+
+            Σ_{r ∈ (ℤ/2)⁴} θ[(2r+a+b)/2; 0](0|2Ω) · θ[(2r+a−b)/2; 0](0|2Ω)
+
+        (in the common eighth-nome base). Each summand is a product of two ``2Ω``
+        theta-nulls with the DISTINCT doubled characteristics ``2r+a+b`` vs ``2r+a−b``
+        — the genuinely-new content; the ``a = b`` collapse recovers the genus-4
+        duplication ``Σ_r θ[r;0](2Ω)²``. See :meth:`addition_holds`."""
+        rhs: Dict[_Tentuple, int] = {}
+        for r1 in (0, 1):
+            for r2 in (0, 1):
+                for r3 in (0, 1):
+                    for r4 in (0, 1):
+                        sp = (2 * r1 + a[0] + b[0], 2 * r2 + a[1] + b[1],
+                              2 * r3 + a[2] + b[2], 2 * r4 + a[3] + b[3])
+                        sm = (2 * r1 + a[0] - b[0], 2 * r2 + a[1] - b[1],
+                              2 * r3 + a[2] - b[2], 2 * r4 + a[3] - b[3])
+                        l1 = cls._theta_two_omega_eighth(
+                            sp[0], sp[1], sp[2], sp[3], 0, 0, 0, 0, box)
+                        l2 = cls._theta_two_omega_eighth(
+                            sm[0], sm[1], sm[2], sm[3], 0, 0, 0, 0, box)
+                        term = cls._square_lattice_pair(l1, l2)
+                        for k, v in term.items():
+                            rhs[k] = rhs.get(k, 0) + v
+        return {k: v for k, v in rhs.items() if v != 0}
+
+    @classmethod
+    def addition_holds(cls, box: int = 3) -> bool:
+        """The genus-4 ADDITION identity gate — the GENUINE two-argument genus-4 theta
+        addition theorem (DLMF §21.6.8, the ``z₁ = z₂ = 0``, lower-characteristics-0,
+        ``g = 4`` specialization — the sum runs over ``r ∈ (ℤ/2)⁴``, SIXTEEN terms),
+
+            θ[a; 0](0|Ω)·θ[b; 0](0|Ω)
+              = Σ_{r ∈ (ℤ/2)⁴} θ[(2r+a+b)/2; 0](0|2Ω)·θ[(2r+a−b)/2; 0](0|2Ω) ,
+
+        holds EXACTLY as a truncated exact-integer multivariate q-series, for ALL ``Ω``
+        (no transcendental evaluation, no float, no tolerance). The identity is proved
+        CONSTRUCTIVELY by the sum/difference re-indexing of the double lattice sum (see
+        :meth:`_theta_two_omega_eighth`); it is the genus-4 instance of the addition
+        theorem (DLMF §21.6.8 is stated for general genus g).
+
+        GENUINELY DISTINCT FROM the genus-4 DUPLICATION: duplication squares a SINGLE
+        even theta-null; this addition relation is the BILINEAR product of TWO DIFFERENT
+        nulls ``θ[a]·θ[b]`` (``a ≠ b``), and the right side carries DISTINCT
+        characteristics ``2r+a+b`` vs ``2r+a−b`` per summand (see
+        :meth:`addition_is_distinct_from_duplication`).
+
+        Compares the two sides on the SAFE INNER REGION the box ``|nᵢ| ≤ box`` provably
+        resolves (a conservative inner bound ``Aᵢ, |C_ij| ≤ 2·box²``). Returns ``True``
+        iff every checked ``(a, b)`` pair agrees exactly on the safe region, at least one
+        genuine ``a ≠ b`` pair is checked, and the safe region is non-trivially populated
+        with a genuine genus-4 cross-term (``C₁₄``/``C₂₄``/``C₃₄`` ≠ 0) monomial. NOTE:
+        the box is kept SMALL (default 3) because ``(2·box+1)⁴`` grows fast — the formal
+        identity is box-stable.
+
+        A CARRIER METHOD (the carrier's own build gate), not a public module-level op —
+        ``tools.total`` is UNCHANGED (the g2/g3 ``*_holds`` precedent)."""
+        if not isinstance(box, int) or box < 2:
+            raise ValueError(
+                f"box must be an int ≥ 2 for the genus-4 addition gate; got {box!r}")
+        safe = 2 * box * box
+        # the (a, b) pairs to verify: the duplication collapse (a==b) PLUS genuine
+        # distinct pairs (a != b) — the latter is what makes it the real addition; the
+        # distinct pairs are chosen to exercise the genus-4 cross-terms.
+        pairs = [((0, 0, 0, 0), (0, 0, 0, 0)),                       # dup collapse
+                 ((1, 0, 0, 0), (0, 0, 0, 0)), ((0, 0, 0, 1), (0, 0, 0, 0)),
+                 ((1, 0, 0, 1), (0, 0, 0, 0)), ((1, 1, 0, 0), (0, 0, 1, 1)),
+                 ((0, 0, 1, 1), (1, 1, 0, 0)), ((1, 1, 1, 1), (0, 0, 1, 1))]
+
+        def restrict(lat: "Dict[_Tentuple, int]") -> "Dict[_Tentuple, int]":
+            kept: Dict[_Tentuple, int] = {}
+            for k, v in lat.items():
+                a1, a2, a3, a4, c12, c13, c14, c23, c24, c34 = k
+                mags = [c if c >= 0 else -c       # Class-K magnitudes, no abs()
+                        for c in (c12, c13, c14, c23, c24, c34)]
+                if (a1 <= safe and a2 <= safe and a3 <= safe and a4 <= safe
+                        and all(m <= safe for m in mags)):
+                    kept[k] = v
+            return kept
+
+        saw_genuine = False
+        saw_g4_cross = False
+        for (a, b) in pairs:
+            lhs = restrict(cls.addition_lhs(a, b, box))
+            rhs = restrict(cls.addition_rhs(a, b, box))
+            if lhs != rhs:
+                return False
+            if a != b:
+                saw_genuine = True
+            if any((c14 != 0 or c24 != 0 or c34 != 0)
+                   for (_a1, _a2, _a3, _a4, _c12, _c13, c14, _c23, c24, c34) in lhs):
+                saw_g4_cross = True
+        return saw_genuine and saw_g4_cross
+
+    @classmethod
+    def addition_is_distinct_from_duplication(cls, box: int = 3) -> bool:
+        """PROVES the genus-4 addition relation is GENUINELY DISTINCT from the genus-4
+        duplication: for a genuine ``a ≠ b`` pair the addition LEFT side ``θ[a]·θ[b]``
+        is a product of two DIFFERENT theta-nulls, which is NOT equal to ANY duplication
+        left side ``θ[c]²`` (a single even null squared). Returns ``True`` iff the
+        genuine addition LHS (``a=(1,0,0,0)``, ``b=(0,0,0,0)``) differs from every
+        ``θ[c;0]²`` over the sixteen even ``c ∈ {0,1}⁴`` (upper char ``c``, lower 0 —
+        all even) — the no-shell proof that it is not a relabeled duplication."""
+        if not isinstance(box, int) or box < 2:
+            raise ValueError(f"box must be an int ≥ 2; got {box!r}")
+        genuine = cls.addition_lhs((1, 0, 0, 0), (0, 0, 0, 0), box)
+        for c1 in (0, 1):
+            for c2 in (0, 1):
+                for c3 in (0, 1):
+                    for c4 in (0, 1):
+                        tc = cls._theta_omega_eighth(
+                            c1, c2, c3, c4, 0, 0, 0, 0, box)
+                        sq = cls._square_lattice_pair(tc, tc)        # θ[c;0]²
+                        if genuine == sq:
+                            return False                            # = duplication
+        return True
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # rc85: the genus-4 universal GÖPEL quadratic theta-null relation gate — the
+    # g=3→g=4 parametric extension of the rc78 genus-3 goepel_holds capability. This
+    # is the UNIVERSAL Göpel relation (the same goepel_holds surface g2/g3 expose at
+    # g=4), NOT the g3-specific syzygy research.
+    # ══════════════════════════════════════════════════════════════════════════
+
+    @staticmethod
+    def _g4_char_add_mod2(
+            *chars: "Tuple[Tuple[int, int, int, int], Tuple[int, int, int, int]]"
+    ) -> "Tuple[Tuple[int, int, int, int], Tuple[int, int, int, int]]":
+        """The exact GF(2) sum of genus-4 binary characteristics ``Σ [εᵢ] (mod 2)`` —
+        pure integer / mod-2 (the characteristic group is ``(ℤ/2)⁸``). The genus-4
+        analog of the genus-3 :meth:`RiemannThetaG3._g3_char_add_mod2`. No float, no
+        abs() (the group is its own inverse so subtraction IS addition; no sign
+        branch)."""
+        ep = [0, 0, 0, 0]
+        e = [0, 0, 0, 0]
+        for (epp, eps) in chars:
+            for i in range(4):
+                ep[i] += epp[i]
+                e[i] += eps[i]
+        return (tuple(x % 2 for x in ep),  # type: ignore[return-value]
+                tuple(x % 2 for x in e))
+
+    # the canonical genus-4 Göpel relation — EIGHT signed pairs of even theta-nulls
+    # (the genus-4 minimal sparse same-Ω quadratic syzygy; ±1 signs). Each pair is
+    # ((a, b), sign): the relation is Σ sign·θ²[a]θ²[b] = 0. All sixteen even nulls
+    # share the common GF(2) sum [1,1,1,1; 1,1,1,1] (the Göpel / azygetic system). The
+    # ledger is the no-magic-numbers attestation: the pairs + signs are the EXACT
+    # nullspace-minimal dependency found over the [1,1,1,1;1,1,1,1] Göpel coset (a
+    # committed search; :meth:`goepel_holds` re-verifies it bit-exactly as a q-series).
+    _G4_GOEPEL_PAIRS = (
+        ((((0, 0, 0, 0), (0, 1, 0, 1)), ((1, 1, 1, 1), (1, 0, 1, 0))), +1),
+        ((((0, 0, 0, 0), (0, 1, 1, 0)), ((1, 1, 1, 1), (1, 0, 0, 1))), -1),
+        ((((0, 0, 0, 0), (1, 0, 0, 1)), ((1, 1, 1, 1), (0, 1, 1, 0))), +1),
+        ((((0, 0, 0, 0), (1, 0, 1, 0)), ((1, 1, 1, 1), (0, 1, 0, 1))), -1),
+        ((((0, 0, 0, 1), (0, 1, 0, 0)), ((1, 1, 1, 0), (1, 0, 1, 1))), -1),
+        ((((0, 0, 0, 1), (1, 0, 0, 0)), ((1, 1, 1, 0), (0, 1, 1, 1))), -1),
+        ((((0, 0, 1, 0), (0, 1, 0, 0)), ((1, 1, 0, 1), (1, 0, 1, 1))), +1),
+        ((((0, 0, 1, 0), (1, 0, 0, 0)), ((1, 1, 0, 1), (0, 1, 1, 1))), +1),
+    )
+
+    @classmethod
+    def goepel_syzygy_quad(cls) -> "Tuple[Tuple[..., ...], ...]":
+        """The canonical genus-4 GÖPEL quadratic relation among the even theta-NULLS —
+        EIGHT SIGNED PAIRS of even characteristics, each ``((a, b), sign)``, satisfying
+        the relation
+
+            Σᵢ signᵢ · θ²[aᵢ] · θ²[bᵢ]  =  0     (eight pairs, sixteen even nulls)
+
+        equivalently (collecting the +1 / −1 pairs) ``Σ_{+} θ²[a]θ²[b] = Σ_{−}
+        θ²[a]θ²[b]`` (see :meth:`goepel_lhs` / :meth:`goepel_rhs` / :meth:`goepel_holds`).
+        Returned as the 8-tuple of ``((a, b), sign)`` entries.
+
+        THE UNIVERSAL GÖPEL RELATION AT g = 4 — the genus-4 instance of the same
+        ``goepel_holds`` capability g2 (3-pair) / g3 (4-pair) expose: a same-Ω
+        polynomial (degree-4-in-θ) relation among even theta-nulls (the genus-g Riemann
+        theta relation among theta squares — Glass, "Theta constants of genus three",
+        *Compositio Math.* 40 (1980), the products-of-squares relations with coefficients
+        ±1; Fiorentino–Salvati Manni, "On Frobenius' Theta Formula", *SIGMA* 16 (2020)
+        057, the biquadratic Riemann relations; Igusa, *Theta Functions* (1972) §IV/V;
+        van der Geer, *Siegel Modular Forms of Degree Two and Three*). The genus-4 minimal
+        sparse dependency is an **8-PAIR / 16-NULL** relation (genus-2 is 3-pair / 6-null,
+        genus-3 is 4-pair / 8-null — the term-count grows with the genus). The sixteen
+        DISTINCT even nulls all share ONE common GF(2) characteristic sum
+        ``[1,1,1,1; 1,1,1,1]`` (the genus-4 Göpel / azygetic invariant —
+        :meth:`goepel_is_syzygous`); the pairs genuinely touch the genus-4 cross-terms
+        ``C₁₄``/``C₂₄``/``C₃₄``."""
+        return cls._G4_GOEPEL_PAIRS
+
+    @classmethod
+    def goepel_is_syzygous(cls) -> bool:
+        """True iff the canonical genus-4 Göpel relation is genuinely SYZYGOUS — the
+        eight pairs all share ONE common GF(2) characteristic sum, the sixteen even
+        theta-nulls are DISTINCT and all EVEN, and the signs are balanced (four +1, four
+        −1). This is the structural fingerprint that the relation is a genus-4 Göpel
+        system (an azygetic configuration), not an accidental coincidence. Pure GF(2)
+        algebra — exact, no float."""
+        pairs = cls.goepel_syzygy_quad()
+        sums = [cls._g4_char_add_mod2(pr[0], pr[1]) for (pr, _s) in pairs]
+        if not all(s == sums[0] for s in sums):
+            return False
+        involved = [c for (pr, _s) in pairs for c in pr]
+        if len(set(involved)) != 16:                   # sixteen DISTINCT nulls
+            return False
+        for (epp, eps) in involved:                    # all EVEN
+            if (epp[0] * eps[0] + epp[1] * eps[1]
+                    + epp[2] * eps[2] + epp[3] * eps[3]) % 2 != 0:
+                return False
+        signs = [s for (_pr, s) in pairs]
+        return signs.count(1) == 4 and signs.count(-1) == 4
+
+    @staticmethod
+    def _diag_restrict(lat: "Dict[_Tentuple, int]",
+                       bound: int) -> "Dict[_Tentuple, int]":
+        """Keep ONLY the monomials whose DIAGONAL exponents ``A₁..A₄`` are each
+        ``≤ bound`` — an exact, SOUND pre-filter for the safe-region Göpel comparison.
+        Because the diagonal ``Aᵢ`` exponents are NON-NEGATIVE and ADD under the pair
+        product, any product monomial with final ``Aᵢ ≤ bound`` can ONLY come from
+        factors each with ``Aᵢ ≤ bound`` — so pre-restricting each squared factor by its
+        diagonal A leaves the safe-region-restricted product BIT-IDENTICAL while skipping
+        terms that can never survive. The cross-terms ``C_ij`` are left untouched here
+        (the final restrict handles them). Exact integer, no float."""
+        return {k: v for k, v in lat.items()
+                if k[0] <= bound and k[1] <= bound
+                and k[2] <= bound and k[3] <= bound}
+
+    @classmethod
+    def _theta_null_g4_fourth_product(cls, pair, box: int) -> "Dict[_Tentuple, int]":
+        """The exact-integer genus-4 lattice of ``θ²[a]·θ²[b]`` (a product of the
+        SQUARES of two even genus-4 theta-nulls at the SAME Ω) for ``pair = (a, b)`` —
+        the 4-fold convolution of the two genus-4 theta-null lattices, in the
+        quarter-nome base, **pre-restricted on the diagonal A-exponents to the
+        box-stable safe bound ``box²``** (sound — see :meth:`_diag_restrict`; the result
+        is bit-identical to the unrestricted product after the final safe-region cut, but
+        the pre-filter keeps the pure-Python convolution tractable). All-integer, no
+        float (the per-term sign is the Class-K pin-slot baked into :meth:`lattice`)."""
+        a, b = pair
+        bound = box * box
+        la = cls.theta_constant(a[0], a[1]).lattice(box)
+        lb = cls.theta_constant(b[0], b[1]).lattice(box)
+        sa = cls._diag_restrict(cls._square_lattice(la), bound)
+        sb = cls._diag_restrict(cls._square_lattice(lb), bound)
+        return cls._square_lattice_pair(sa, sb)
+
+    @classmethod
+    def goepel_lhs(cls, box: int) -> "Dict[_Tentuple, int]":
+        """The LEFT side ``Σ_{+} θ²[a]·θ²[b]`` of the canonical genus-4 Göpel relation —
+        the exact-integer lattice sum of the FOUR ``+1``-signed products of two SQUARED
+        even genus-4 theta-nulls at the SAME Ω. See :meth:`goepel_holds`."""
+        out: Dict[_Tentuple, int] = {}
+        for (pr, sign) in cls.goepel_syzygy_quad():
+            if sign == 1:
+                for k, v in cls._theta_null_g4_fourth_product(pr, box).items():
+                    out[k] = out.get(k, 0) + v
+        return {k: v for k, v in out.items() if v != 0}
+
+    @classmethod
+    def goepel_rhs(cls, box: int) -> "Dict[_Tentuple, int]":
+        """The RIGHT side ``Σ_{−} θ²[a]·θ²[b]`` of the canonical genus-4 Göpel relation —
+        the exact-integer lattice sum of the FOUR ``−1``-signed products of two SQUARED
+        even genus-4 theta-nulls (collected with positive sign on this side, so the gate
+        compares ``goepel_lhs == goepel_rhs``). The Class-K sign lives inside each
+        theta-null lattice already. See :meth:`goepel_holds`."""
+        out: Dict[_Tentuple, int] = {}
+        for (pr, sign) in cls.goepel_syzygy_quad():
+            if sign == -1:
+                for k, v in cls._theta_null_g4_fourth_product(pr, box).items():
+                    out[k] = out.get(k, 0) + v
+        return {k: v for k, v in out.items() if v != 0}
+
+    @classmethod
+    def goepel_holds(cls, box: int = 3) -> bool:
+        """rc85's genus-4 universal GÖPEL quadratic theta-null relation gate
+
+            Σ_{+} θ²[a]·θ²[b]  =  Σ_{−} θ²[a]·θ²[b]     (eight signed pairs)
+
+        holds EXACTLY as a truncated exact-integer multivariate q-series, for ALL ``Ω``
+        (the genus-4 specialization of the Riemann theta relation among theta squares —
+        Glass, *Compositio Math.* 40 (1980); Fiorentino–Salvati Manni, *SIGMA* 16 (2020)
+        057; Igusa, *Theta Functions* (1972) §IV/V). No transcendental evaluation, no
+        float, no tolerance. It DISPATCHES the exact comparison to the native
+        ``srmech_riemann_theta_g4_goepel`` C peer when loaded (a 1:1 exact-integer
+        mirror, trusted only on a native hit); else the pure-Python body (the COMPLETE
+        alternative + the parity oracle).
+
+        THE UNIVERSAL GÖPEL CAPABILITY AT g = 4 — the same ``goepel_holds`` surface g2
+        (3-pair / 6-null) and g3 (4-pair / 8-null) expose, brought to g = 4 (an 8-pair /
+        16-null same-Ω relation; the genus-4 minimal sparse dependency is longer than the
+        genus-3 one). It is a relation among even theta-nulls all at the SAME Ω (no
+        Ω-doubling).
+
+        The two sides are compared on the SAFE INNER REGION the box ``|nᵢ| ≤ box``
+        provably resolves: a box-``box`` truncation OMITS only terms from a factor at
+        ``|nᵢ| = box+1`` (``≥ (2·box+1)²``), so monomials with each ``Aᵢ, |C_ij| ≤ box²``
+        are FULLY accumulated (an inner region box-STABLE). Returns ``True`` iff the two
+        sides agree exactly on that region, the quad is genuinely syzygous
+        (:meth:`goepel_is_syzygous`), and the region is non-trivially populated with a
+        genuine genus-4 cross-term (``C₁₄``/``C₂₄``/``C₃₄`` ≠ 0) monomial (so the genus-4
+        coupling is genuinely exercised — not the genus-3 slice). NOTE: the box is kept
+        SMALL (default 3) because ``(2·box+1)⁴`` grows fast.
+
+        A CARRIER METHOD (the carrier's own build gate), not a public module-level op —
+        ``tools.total`` is UNCHANGED (the g2/g3 ``*_holds`` precedent)."""
+        if not isinstance(box, int) or box < 2:
+            raise ValueError(
+                f"box must be an int ≥ 2 for the genus-4 Göpel gate; got {box!r}")
+        if not cls.goepel_is_syzygous():
+            return False
+        safe = box * box                               # the box-stable inner bound
+
+        def restrict(lat: "Dict[_Tentuple, int]") -> "Dict[_Tentuple, int]":
+            kept: Dict[_Tentuple, int] = {}
+            for k, v in lat.items():
+                a1, a2, a3, a4, c12, c13, c14, c23, c24, c34 = k
+                mags = [c if c >= 0 else -c       # Class-K magnitudes, no abs()
+                        for c in (c12, c13, c14, c23, c24, c34)]
+                if (a1 <= safe and a2 <= safe and a3 <= safe and a4 <= safe
+                        and all(m <= safe for m in mags)):
+                    kept[k] = v
+            return kept
+
+        nat = _native_g4_goepel()
+        if nat is not None:
+            try:
+                got = nat.riemann_theta_g4_goepel_c(box)
+                if got is not None:
+                    holds, has_cross = got
+                    return bool(holds) and bool(has_cross)
+            except (RuntimeError, OverflowError, ValueError):
+                pass                                   # fall to the pure path
+
+        lhs = restrict(cls.goepel_lhs(box))
+        rhs = restrict(cls.goepel_rhs(box))
+        if lhs != rhs:
+            return False
+        return any((c14 != 0 or c24 != 0 or c34 != 0)  # genuine genus-4 cross-term
+                   for (_a1, _a2, _a3, _a4, _c12, _c13, c14, _c23, c24, c34) in lhs)
+
+    @classmethod
+    def goepel_is_distinct_from_duplication_and_addition(cls, box: int = 3) -> bool:
+        """PROVES the genus-4 Göpel relation is GENUINELY DISTINCT from the genus-4
+        DUPLICATION and ADDITION relations. STRUCTURAL: duplication and addition are
+        Ω-vs-2Ω identities (their right sides live at 2Ω, carried with DOUBLED
+        exponents). The Göpel relation is purely at Ω — every factor is a theta-null at
+        Ω, NO Ω-doubling. EXACT (no-shell): the Göpel LEFT side ``Σ_{+} θ²[a]θ²[b]`` (a
+        sum of degree-4 products of squares of distinct even nulls at Ω) is checked NOT
+        EQUAL to the duplication LHS ``θ[0;0]²`` (degree-2) NOR to a REPRESENTATIVE set of
+        addition LHS ``θ[a]θ[b]`` (degree-2; including the (1,0,0,0) genuine pair and the
+        all-zeros duplication-collapse pair) on the diagonal-restricted region — a
+        different total theta-degree. Returns ``True`` iff distinct from both. The
+        addition comparison uses a bounded representative set (not all 256 pairs) — the
+        distinctness is by total theta-degree, so a representative is sound and keeps the
+        gate fast."""
+        if not isinstance(box, int) or box < 2:
+            raise ValueError(f"box must be an int ≥ 2; got {box!r}")
+        bound = box * box
+        goepel_lhs = cls._diag_restrict(cls.goepel_lhs(box), bound)
+        # vs duplication LHS θ[0;0]² (degree-2), same diagonal bound: must differ
+        if goepel_lhs == cls._diag_restrict(cls.duplication_lhs(box), bound):
+            return False
+        # vs a REPRESENTATIVE set of addition LHS θ[a]·θ[b] (degree-2): must differ. The
+        # distinctness is by total theta-degree (4 vs 2), so a bounded representative set
+        # is a sound no-shell witness (all-zeros, the (1,0,0,0) genuine pair, a 4-coord
+        # pair, and the Göpel quad's own first two nulls).
+        ga, gb = cls.goepel_syzygy_quad()[0][0]      # the first Göpel pair's upper chars
+        reps = [((0, 0, 0, 0), (0, 0, 0, 0)),
+                ((1, 0, 0, 0), (0, 0, 0, 0)),
+                ((1, 1, 1, 1), (0, 0, 0, 0)),
+                (ga[0], gb[0])]
+        for (a, b) in reps:
+            add_lhs = cls._diag_restrict(cls.addition_lhs(a, b, box), bound)
+            if goepel_lhs == add_lhs:
+                return False
+        return True
 
 
 # the genus-g Gram key of a g-tuple of (doubled) lattice vectors — the upper-triangular

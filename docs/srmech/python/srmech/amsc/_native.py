@@ -2256,6 +2256,56 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_int),     # *out_has_cross
         ]
         lib.srmech_riemann_theta_g3_goepel.restype = ctypes.c_int
+    # rc85: the genus-4 Sp(8,ℤ) characteristic TRANSFORMATION + the genus-4 EIGHTH-nome
+    # lattice (the addition gate) + the genus-4 Göpel relation gate — the g=3->g=4
+    # parametric extension of the rc77/rc78 genus-3 peers. NEW symbols → hasattr-guarded;
+    # additive → ABI stays 3.
+    #   srmech_riemann_theta_g4_sp8_char(gamma[64], ep1,ep2,ep3,ep4,e1,e2,e3,e4,
+    #                                    out_char[8], *kexp)
+    #   gamma is the 64 int entries (A,B,C,D 4x4 blocks row-major); out_char is the 8
+    #   transformed bits (ep1'..ep4',e1'..e4'); *kexp is the 8th-root exponent k in Z/8.
+    #   Returns SRMECH_ERR_BAD_INPUT if gamma is not symplectic.
+    if hasattr(lib, "srmech_riemann_theta_g4_sp8_char"):
+        lib.srmech_riemann_theta_g4_sp8_char.argtypes = [
+            ctypes.POINTER(ctypes.c_int64),   # gamma[64]
+            ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,  # ep1..ep4
+            ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,  # e1..e4
+            ctypes.POINTER(ctypes.c_int),     # out_char[8]
+            ctypes.POINTER(ctypes.c_int),     # *kexp
+        ]
+        lib.srmech_riemann_theta_g4_sp8_char.restype = ctypes.c_int
+    #   size_t srmech_riemann_theta_g4_eighth_count(uint32_t box)
+    #   shape: (2*box+1)^4 points * 11 int64 [A1..A4,C12,C13,C14,C23,C24,C34,sign]
+    if hasattr(lib, "srmech_riemann_theta_g4_eighth_count"):
+        lib.srmech_riemann_theta_g4_eighth_count.argtypes = [ctypes.c_uint32]
+        lib.srmech_riemann_theta_g4_eighth_count.restype = ctypes.c_size_t
+    #   srmech_riemann_theta_g4_eighth_lattice(s1..s4,e1..e4, at_two_omega, box,
+    #                                          out[], out_cap, *out_len)
+    if hasattr(lib, "srmech_riemann_theta_g4_eighth_lattice"):
+        lib.srmech_riemann_theta_g4_eighth_lattice.argtypes = [
+            ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,  # s1..s4
+            ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,  # e1..e4
+            ctypes.c_int,                     # at_two_omega (0/1)
+            ctypes.c_uint32,                  # box
+            ctypes.POINTER(ctypes.c_int64),   # out[]
+            ctypes.c_size_t,                  # out_cap
+            ctypes.POINTER(ctypes.c_size_t),  # *out_len
+        ]
+        lib.srmech_riemann_theta_g4_eighth_lattice.restype = ctypes.c_int
+    #   size_t srmech_riemann_theta_g4_goepel_count(uint32_t box)
+    if hasattr(lib, "srmech_riemann_theta_g4_goepel_count"):
+        lib.srmech_riemann_theta_g4_goepel_count.argtypes = [ctypes.c_uint32]
+        lib.srmech_riemann_theta_g4_goepel_count.restype = ctypes.c_size_t
+    #   srmech_riemann_theta_g4_goepel(box, work[], work_cap, *out_holds, *out_has_cross)
+    if hasattr(lib, "srmech_riemann_theta_g4_goepel"):
+        lib.srmech_riemann_theta_g4_goepel.argtypes = [
+            ctypes.c_uint32,                  # box
+            ctypes.POINTER(ctypes.c_int64),   # work[]
+            ctypes.c_size_t,                  # work_cap
+            ctypes.POINTER(ctypes.c_int),     # *out_holds
+            ctypes.POINTER(ctypes.c_int),     # *out_has_cross
+        ]
+        lib.srmech_riemann_theta_g4_goepel.restype = ctypes.c_int
     # rc54: the EXACT q-shift CARRIER C peer (srmech_qpoly_*) — the q-analog of
     # the poly carrier, the q-hypergeometric F929 reduction-row foundation. A
     # QPoly is a ROW of q-Poly cells over an x-window; the bridge flattens the
@@ -4342,6 +4392,145 @@ def riemann_theta_g3_goepel_c(box):
     if rc != SRMECH_OK:
         raise RuntimeError(
             f"srmech_riemann_theta_g3_goepel returned non-OK status {rc}")
+    return (bool(out_holds.value), bool(out_has_cross.value))
+
+
+# ----------------------------------------------------------------------
+# rc85: the genus-4 Sp(8,ℤ) characteristic TRANSFORMATION + the genus-4 EIGHTH-nome
+# lattice (the addition gate) + the genus-4 Göpel relation gate — the g=3->g=4
+# parametric extension of the rc77/rc78 genus-3 peers. The Python
+# srmech.amsc.riemann_theta.RiemannThetaG4.{transform,addition_*,goepel_holds} route
+# through these when the symbols are loaded; the pure-Python bodies are the COMPLETE
+# alternatives (and the parity oracles).
+# ----------------------------------------------------------------------
+
+
+def has_native_riemann_theta_g4_sp8() -> bool:
+    """True iff the rc85 ``srmech_riemann_theta_g4_sp8_char`` peer (the EXACT integer
+    Sp(8,ℤ) characteristic transformation + the κ 8th-root exponent) is loaded + bound.
+    False on a no-C / pre-rc85 lib — the pure-Python ``RiemannThetaG4.transform`` body
+    is the complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return hasattr(LIB, "srmech_riemann_theta_g4_sp8_char")
+
+
+def has_native_riemann_theta_g4_eighth() -> bool:
+    """True iff the rc85 ``srmech_riemann_theta_g4_eighth_lattice`` peer (the COMMON
+    genus-4 eighth-nome lattice at Ω / 2Ω that the addition gate convolves) + its count
+    helper are loaded + bound. False on a no-C / pre-rc85 lib — the pure-Python genus-4
+    addition body is the complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_riemann_theta_g4_eighth_lattice")
+            and hasattr(LIB, "srmech_riemann_theta_g4_eighth_count"))
+
+
+def riemann_theta_g4_sp8_char_c(gamma, ep1, ep2, ep3, ep4, e1, e2, e3, e4):
+    """Native EXACT genus-4 Sp(8,ℤ) characteristic transformation: returns
+    ``((ep1',ep2',ep3',ep4',e1',e2',e3',e4'), kexp)`` — the eight transformed
+    characteristic bits and the 8th-root multiplier exponent ``kexp ∈ ℤ/8`` (the
+    multiplier is ``ζ₈^kexp``) — or ``None`` if the native symbol is absent. ``gamma`` is
+    the Sp(8,ℤ) element as four 4×4 integer blocks ``(A, B, C, D)``; the bridge flattens
+    it to the 64 int entries (A,B,C,D row-major). Byte-identical to the pure-Python
+    ``RiemannThetaG4._char_transform_int`` + ``_kappa_exp8``. Raises if gamma is not
+    symplectic (the C peer returns SRMECH_ERR_BAD_INPUT)."""
+    if not has_native_riemann_theta_g4_sp8():
+        return None
+    a, b, c, d = gamma
+    flat = (ctypes.c_int64 * 64)()
+    idx = 0
+    for blk in (a, b, c, d):
+        for r in range(4):
+            for col in range(4):
+                flat[idx] = int(blk[r][col])
+                idx += 1
+    out_char = (ctypes.c_int * 8)()
+    kexp = ctypes.c_int(0)
+    rc = LIB.srmech_riemann_theta_g4_sp8_char(
+        flat,
+        ctypes.c_int(int(ep1)), ctypes.c_int(int(ep2)),
+        ctypes.c_int(int(ep3)), ctypes.c_int(int(ep4)),
+        ctypes.c_int(int(e1)), ctypes.c_int(int(e2)),
+        ctypes.c_int(int(e3)), ctypes.c_int(int(e4)),
+        out_char, ctypes.byref(kexp))
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_riemann_theta_g4_sp8_char returned non-OK status {rc}")
+    return ((int(out_char[0]), int(out_char[1]), int(out_char[2]), int(out_char[3]),
+             int(out_char[4]), int(out_char[5]), int(out_char[6]), int(out_char[7])),
+            int(kexp.value) % 8)
+
+
+def riemann_theta_g4_eighth_lattice_c(s1, s2, s3, s4, e1, e2, e3, e4,
+                                      at_two_omega, box):
+    """Native eighth-nome genus-4 theta-constant lattice → the canonical
+    ``{(A₁..A₄, C₁₂,C₁₃,C₁₄,C₂₃,C₂₄,C₃₄): coeff}`` dict, or ``None`` if the native
+    symbols are absent. ``at_two_omega`` selects θ at Ω (0) or at 2Ω (1); ``s1..s4`` are
+    the DOUBLED upper characteristic. Byte-identical to the pure-Python
+    ``RiemannThetaG4._theta_omega_eighth`` / ``_theta_two_omega_eighth``."""
+    if not has_native_riemann_theta_g4_eighth():
+        return None
+    if not isinstance(box, int) or box < 0:
+        raise ValueError(f"riemann_theta_g4_eighth_lattice_c: bad box {box!r}")
+    need = int(LIB.srmech_riemann_theta_g4_eighth_count(ctypes.c_uint32(int(box))))
+    out = (ctypes.c_int64 * max(need, 1))()
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_riemann_theta_g4_eighth_lattice(
+        ctypes.c_int(int(s1)), ctypes.c_int(int(s2)),
+        ctypes.c_int(int(s3)), ctypes.c_int(int(s4)),
+        ctypes.c_int(int(e1)), ctypes.c_int(int(e2)),
+        ctypes.c_int(int(e3)), ctypes.c_int(int(e4)),
+        ctypes.c_int(1 if at_two_omega else 0),
+        ctypes.c_uint32(int(box)), out, ctypes.c_size_t(need),
+        ctypes.byref(out_len))
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_riemann_theta_g4_eighth_lattice returned non-OK status {rc}")
+    lat = {}
+    n = int(out_len.value)
+    i = 0
+    while i < n:
+        key = (int(out[i]), int(out[i + 1]), int(out[i + 2]), int(out[i + 3]),
+               int(out[i + 4]), int(out[i + 5]), int(out[i + 6]),
+               int(out[i + 7]), int(out[i + 8]), int(out[i + 9]))
+        lat[key] = lat.get(key, 0) + int(out[i + 10])
+        i += 11
+    return {k: v for k, v in lat.items() if v != 0}
+
+
+def has_native_riemann_theta_g4_goepel() -> bool:
+    """True iff the rc85 ``srmech_riemann_theta_g4_goepel`` peer (the genus-4 universal
+    Göpel quadratic theta-null relation gate) + its count helper are loaded + bound.
+    False on a no-C / pre-rc85 lib — the pure-Python ``RiemannThetaG4.goepel_holds``
+    body is the complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_riemann_theta_g4_goepel")
+            and hasattr(LIB, "srmech_riemann_theta_g4_goepel_count"))
+
+
+def riemann_theta_g4_goepel_c(box):
+    """Native genus-4 Göpel-relation gate decision → ``(holds, has_cross)`` (two bools) —
+    ``holds`` iff the 8-pair / 16-null relation ``Σ_{+} θ²[a]θ²[b] = Σ_{−} θ²[a]θ²[b]``
+    holds EXACTLY on the box-stable safe region, and ``has_cross`` iff a genuine genus-4
+    cross-term (C₁₄, C₂₄ or C₃₄ ≠ 0) populates that region — or ``None`` if the native
+    symbols are absent. Byte-identical decision to the pure-Python
+    ``RiemannThetaG4.goepel_holds`` body. ``box`` must be ≥ 2."""
+    if not has_native_riemann_theta_g4_goepel():
+        return None
+    if not isinstance(box, int) or box < 2:
+        raise ValueError(f"riemann_theta_g4_goepel_c: bad box {box!r}")
+    need = int(LIB.srmech_riemann_theta_g4_goepel_count(ctypes.c_uint32(int(box))))
+    work = (ctypes.c_int64 * max(need, 1))()
+    out_holds = ctypes.c_int(0)
+    out_has_cross = ctypes.c_int(0)
+    rc = LIB.srmech_riemann_theta_g4_goepel(
+        ctypes.c_uint32(int(box)), work, ctypes.c_size_t(need),
+        ctypes.byref(out_holds), ctypes.byref(out_has_cross))
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_riemann_theta_g4_goepel returned non-OK status {rc}")
     return (bool(out_holds.value), bool(out_has_cross.value))
 
 

@@ -90,6 +90,15 @@ static int rt3_eighth_sign(int64_t e1, int64_t e2, int64_t e3,
 /* rc80 helper (the genus-4 per-term Class-K sign) */
 static int rt4_term_sign(int64_t e1, int64_t e2, int64_t e3, int64_t e4,
                          int64_t n1, int64_t n2, int64_t n3, int64_t n4);
+/* rc85 helpers (the genus-4 Sp(8,Z) transformation; 4x4 blocks in a 64-int gamma) */
+static int64_t rt4_g(const int64_t *gamma, int blk, int r, int c);
+static int64_t rt4_matvec(const int64_t *gamma, int blk, const int64_t *v, int row);
+static int64_t rt4_diag_pqt(const int64_t *gamma, int pblk, int qblk, int row);
+static int64_t rt4_ptq(const int64_t *gamma, int pblk, int qblk, int i, int j);
+static int64_t rt4_pqt(const int64_t *gamma, int pblk, int qblk, int i, int j);
+static int rt4_is_symplectic(const int64_t *gamma);
+static int64_t rt4_eight_phi(const int64_t *gamma,
+                             const int64_t *epp, const int64_t *eps);
 
 /* ---- characteristic-bit validation + the cleared exponents -------- */
 
@@ -1406,6 +1415,474 @@ srmech_status_t srmech_riemann_theta_g4_lattice(
     }
     assert(idx == need);
     *out_len = idx;
+    return SRMECH_OK;
+}
+
+/* ================================================================== *
+ *  rc85: the genus-4 Sp(8,Z) MODULAR ACTION KIT -- the C peers of
+ *  srmech.amsc.riemann_theta.RiemannThetaG4.{transform, goepel_holds} (the g=3->g=4
+ *  parametric extension of the rc77/rc78 genus-3 peers). gamma is the 64 int64 entries
+ *  (A,B,C,D 4x4 blocks row-major); 4-vectors over an 8x8 symplectic gamma. Caller-owned
+ *  out[] / caller arena; no malloc. Additive symbols -> ABI unchanged (stays 3).
+ * ================================================================== */
+
+/* gamma[64] = A,B,C,D 4x4 blocks row-major; one block entry M_blk[r][c]. */
+static int64_t rt4_g(const int64_t *gamma, int blk, int r, int c)
+{
+    assert(gamma != NULL);
+    assert(blk >= 0 && blk < 4 && r >= 0 && r < 4 && c >= 0 && c < 4);
+    return gamma[(size_t)blk * 16u + (size_t)r * 4u + (size_t)c];
+}
+
+/* (M v)_row for a 4x4 block M of gamma and a length-4 vector v. */
+static int64_t rt4_matvec(const int64_t *gamma, int blk, const int64_t *v, int row)
+{
+    int c;
+    int64_t acc = 0;
+    assert(gamma != NULL && v != NULL);
+    assert(row >= 0 && row < 4);
+    for (c = 0; c < 4; ++c) { acc += rt4_g(gamma, blk, row, c) * v[c]; }
+    return acc;
+}
+
+/* diag(P Q^T)_row = sum_k P[row][k] Q[row][k]  (the row-row dot of two 4x4 blocks). */
+static int64_t rt4_diag_pqt(const int64_t *gamma, int pblk, int qblk, int row)
+{
+    int k;
+    int64_t acc = 0;
+    assert(gamma != NULL);
+    assert(row >= 0 && row < 4);
+    for (k = 0; k < 4; ++k) {
+        acc += rt4_g(gamma, pblk, row, k) * rt4_g(gamma, qblk, row, k);
+    }
+    return acc;
+}
+
+/* (P^T Q)[i][j] = sum_k P[k][i] Q[k][j]  -- one entry of a transposed-times block. */
+static int64_t rt4_ptq(const int64_t *gamma, int pblk, int qblk, int i, int j)
+{
+    int k;
+    int64_t acc = 0;
+    assert(gamma != NULL);
+    assert(i >= 0 && i < 4 && j >= 0 && j < 4);
+    for (k = 0; k < 4; ++k) {
+        acc += rt4_g(gamma, pblk, k, i) * rt4_g(gamma, qblk, k, j);
+    }
+    return acc;
+}
+
+/* (P Q^T)[i][j] = sum_k P[i][k] Q[j][k]  -- one entry of a block-times-transposed. */
+static int64_t rt4_pqt(const int64_t *gamma, int pblk, int qblk, int i, int j)
+{
+    int k;
+    int64_t acc = 0;
+    assert(gamma != NULL);
+    assert(i >= 0 && i < 4 && j >= 0 && j < 4);
+    for (k = 0; k < 4; ++k) {
+        acc += rt4_g(gamma, pblk, i, k) * rt4_g(gamma, qblk, j, k);
+    }
+    return acc;
+}
+
+/* The symplectic check gamma J gamma^T = J via the exact block conditions
+ * A^T C = C^T A (symmetric), B^T D = D^T B (symmetric), A^T D - C^T B = I (4x4).
+ * Returns 1 if symplectic, else 0. (blk 0=A,1=B,2=C,3=D.) */
+static int rt4_is_symplectic(const int64_t *gamma)
+{
+    int i, j, ok = 1;
+    assert(gamma != NULL);
+    for (i = 0; i < 4; ++i) {
+        for (j = 0; j < 4; ++j) {
+            /* A^T C symmetric, B^T D symmetric */
+            if (rt4_ptq(gamma, 0, 2, i, j) != rt4_ptq(gamma, 0, 2, j, i)) { ok = 0; }
+            if (rt4_ptq(gamma, 1, 3, i, j) != rt4_ptq(gamma, 1, 3, j, i)) { ok = 0; }
+            /* A^T D - C^T B == I */
+            if (rt4_ptq(gamma, 0, 3, i, j) - rt4_ptq(gamma, 2, 1, i, j)
+                    != ((i == j) ? 1 : 0)) { ok = 0; }
+        }
+    }
+    assert(ok == 0 || ok == 1);
+    return ok;
+}
+
+/* The exact 8*phi_m Igusa phase at genus 4 (an integer; the multiplier exponent is
+ * (8*phi_m) mod 8). epp = ep' (4), eps = ep (4). The SAME expression as g2/g3 one
+ * genus up:
+ *   8*phi_m = -4 ep'^T(B D^T)ep' + 8 ep^T(A^TC)ep - 16 ep'^T(B^TC)ep
+ *             - 8 diag(A B^T)^T (D ep' - C ep). */
+static int64_t rt4_eight_phi(const int64_t *gamma,
+                             const int64_t *epp, const int64_t *eps)
+{
+    int i, j;
+    int64_t t1 = 0, t2 = 0, t3 = 0, t4 = 0, depp[4], ceps[4], dab;
+    assert(gamma != NULL);
+    assert(epp != NULL && eps != NULL);
+    for (i = 0; i < 4; ++i) {
+        for (j = 0; j < 4; ++j) {
+            t1 += epp[i] * rt4_pqt(gamma, 1, 3, i, j) * epp[j];  /* ep'^T(B D^T)ep' */
+            t2 += eps[i] * rt4_ptq(gamma, 0, 2, i, j) * eps[j];  /* ep^T(A^TC)ep */
+            t3 += epp[i] * rt4_ptq(gamma, 1, 2, i, j) * eps[j];  /* ep'^T(B^TC)ep */
+        }
+    }
+    for (i = 0; i < 4; ++i) {
+        depp[i] = rt4_matvec(gamma, 3, epp, i);     /* (D ep')_i */
+        ceps[i] = rt4_matvec(gamma, 2, eps, i);     /* (C ep)_i */
+    }
+    for (i = 0; i < 4; ++i) {
+        dab = rt4_diag_pqt(gamma, 0, 1, i);          /* diag(A B^T)_i */
+        t4 += dab * (depp[i] - ceps[i]);
+    }
+    return -4 * t1 + 8 * t2 - 16 * t3 - 8 * t4;
+}
+
+/* The exact genus-4 Sp(8,Z) characteristic transformation + the kappa 8th-root
+ * exponent. gamma[64] = A,B,C,D 4x4 blocks (row-major). out_char[8] <-
+ * (ep1',ep2',ep3',ep4',e1',e2',e3',e4') bits; *kexp <- the multiplier exponent k in
+ * {0..7} (multiplier = zeta_8^k). SRMECH_ERR_BAD_INPUT if a bit is invalid or gamma is
+ * not symplectic. */
+srmech_status_t srmech_riemann_theta_g4_sp8_char(
+    const int64_t *gamma, int ep1, int ep2, int ep3, int ep4,
+    int e1, int e2, int e3, int e4, int *out_char, int *kexp)
+{
+    int i;
+    int64_t epp[4], eps[4], npp, nep, k8;
+    assert(gamma != NULL);
+    assert(out_char != NULL && kexp != NULL);
+    if (!rt_bit_ok(ep1) || !rt_bit_ok(ep2) || !rt_bit_ok(ep3) || !rt_bit_ok(ep4)
+            || !rt_bit_ok(e1) || !rt_bit_ok(e2) || !rt_bit_ok(e3)
+            || !rt_bit_ok(e4)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (!rt4_is_symplectic(gamma)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    epp[0] = ep1; epp[1] = ep2; epp[2] = ep3; epp[3] = ep4;
+    eps[0] = e1;  eps[1] = e2;  eps[2] = e3;  eps[3] = e4;
+    for (i = 0; i < 4; ++i) {
+        /* ep' |-> D ep' - C ep + diag(C D^T) */
+        npp = rt4_matvec(gamma, 3, epp, i) - rt4_matvec(gamma, 2, eps, i)
+            + rt4_diag_pqt(gamma, 2, 3, i);
+        /* ep  |-> -B ep' + A ep + diag(A B^T) */
+        nep = rt4_matvec(gamma, 0, eps, i) - rt4_matvec(gamma, 1, epp, i)
+            + rt4_diag_pqt(gamma, 0, 1, i);
+        out_char[i] = (int)(((npp % 2) + 2) % 2);
+        out_char[i + 4] = (int)(((nep % 2) + 2) % 2);
+    }
+    k8 = rt4_eight_phi(gamma, epp, eps);
+    *kexp = (int)(((k8 % 8) + 8) % 8);              /* floor-mod into {0..7} */
+    return SRMECH_OK;
+}
+
+/* one genus-4 eighth-nome lattice point emits 11 int64:
+ * A1,A2,A3,A4,C12,C13,C14,C23,C24,C34,sign (same shape as the g4 quarter-nome lattice) */
+#define RT4_EIGHTH_TUP 11
+
+/* The per-term genus-4 eighth-nome sign (-1)^{e.n}: Class-K pin-slot, never abs(). */
+static int rt4_eighth_sign(int64_t e1, int64_t e2, int64_t e3, int64_t e4,
+                           int64_t n1, int64_t n2, int64_t n3, int64_t n4)
+{
+    int64_t parity = (e1 * n1 + e2 * n2 + e3 * n3 + e4 * n4) % 2;
+    assert((e1 == 0 || e1 == 1) && (e2 == 0 || e2 == 1));
+    assert((e3 == 0 || e3 == 1) && (e4 == 0 || e4 == 1));
+    if (parity < 0) {
+        parity += 2;                                /* floor-mod into {0,1} */
+    }
+    return (parity == 0) ? 1 : -1;                  /* Class-K +-1, no abs() */
+}
+
+/* The number of int64 the genus-4 eighth-nome lattice needs: (2*box+1)^4 points,
+ * RT4_EIGHTH_TUP int64 each. No malloc. */
+size_t srmech_riemann_theta_g4_eighth_count(uint32_t box)
+{
+    size_t side = (size_t)box * 2u + 1u;
+    assert(RT4_EIGHTH_TUP == 11);
+    assert(side >= 1u);
+    return side * side * side * side * (size_t)RT4_EIGHTH_TUP;
+}
+
+/* Emit the genus-4 eighth-nome [A1..A4,C12,C13,C14,C23,C24,C34,sign] 11-tuple lattice
+ * for the DOUBLED upper characteristic s=(s1..s4) + lower char (e1..e4), at Omega
+ * (at_two_omega=0: A=2(2n+s)^2 ...) or 2Omega (at_two_omega=1: A=(4n+s)^2 ...) over
+ * |n_i|<=box, row-major; *out_len <- int64 written. SRMECH_ERR_BAD_INPUT if a lower-char
+ * bit is invalid; SRMECH_ERR_OVERFLOW if out[] is too small. */
+srmech_status_t srmech_riemann_theta_g4_eighth_lattice(
+    int s1, int s2, int s3, int s4, int e1, int e2, int e3, int e4,
+    int at_two_omega, uint32_t box, int64_t *out, size_t out_cap, size_t *out_len)
+{
+    size_t need, idx;
+    int64_t n1, n2, n3, n4, lo, hi, u1, u2, u3, u4, m, step;
+    assert(out != NULL);
+    assert(out_len != NULL);
+    if (!rt_bit_ok(e1) || !rt_bit_ok(e2) || !rt_bit_ok(e3) || !rt_bit_ok(e4)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    need = srmech_riemann_theta_g4_eighth_count(box);
+    if (need > out_cap) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    m = at_two_omega ? 1 : 2;                        /* Omega scales A,C by 2 */
+    step = at_two_omega ? 4 : 2;
+    idx = 0u;
+    lo = -(int64_t)box;
+    hi = (int64_t)box;
+    for (n1 = lo; n1 <= hi; ++n1) { u1 = step * n1 + (int64_t)s1;
+    for (n2 = lo; n2 <= hi; ++n2) { u2 = step * n2 + (int64_t)s2;
+    for (n3 = lo; n3 <= hi; ++n3) { u3 = step * n3 + (int64_t)s3;
+    for (n4 = lo; n4 <= hi; ++n4) { u4 = step * n4 + (int64_t)s4;
+        out[idx + 0u] = m * u1 * u1;            /* A1 */
+        out[idx + 1u] = m * u2 * u2;            /* A2 */
+        out[idx + 2u] = m * u3 * u3;            /* A3 */
+        out[idx + 3u] = m * u4 * u4;            /* A4 */
+        out[idx + 4u] = m * u1 * u2;            /* C12 */
+        out[idx + 5u] = m * u1 * u3;            /* C13 */
+        out[idx + 6u] = m * u1 * u4;            /* C14 */
+        out[idx + 7u] = m * u2 * u3;            /* C23 */
+        out[idx + 8u] = m * u2 * u4;            /* C24 */
+        out[idx + 9u] = m * u3 * u4;            /* C34 */
+        out[idx + 10u] = (int64_t)rt4_eighth_sign(
+            (int64_t)e1, (int64_t)e2, (int64_t)e3, (int64_t)e4, n1, n2, n3, n4);
+        idx += (size_t)RT4_EIGHTH_TUP;
+    } } } }
+    assert(idx == need);
+    *out_len = idx;
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------ *
+ * rc85: the genus-4 GÖPEL universal quadratic theta-null relation gate -- the C peer of
+ * srmech.amsc.riemann_theta.RiemannThetaG4.goepel_holds. A 4-PAIR / 8-NULL same-Omega
+ * relation theta^2[a]theta^2[b] = theta^2[c]theta^2[d] + theta^2[e]theta^2[f]
+ * - theta^2[g]theta^2[h] among eight even nulls all summing to [1,1,1,1;1,1,1,1] (a
+ * genus-4 Goepel/azygetic system). The genus-4 instance of the same goepel_holds surface
+ * g2/g3 expose (the Riemann theta relation among theta squares -- Glass, Compositio Math
+ * 40 (1980); Fiorentino-Salvati Manni SIGMA 16 (2020) 057; Igusa Theta Functions (1972)
+ * SS IV/V; van der Geer SMF Degree 2&3). Holds for ALL Omega; decided EXACTLY on the
+ * box-stable safe inner region (each A_i, |C_ij| <= box^2). Caller arena (one int64
+ * work[] sized via the count helper); no malloc. Additive symbols -> ABI stays 3. ------ */
+
+/* one g4 Goepel lattice monomial = 11 int64: A1,A2,A3,A4,C12,C13,C14,C23,C24,C34,coeff */
+#define G4_GOEPEL_TUP 11
+
+/* The number of signed pairs in the genus-4 Goepel relation (an 8-PAIR / 16-NULL
+ * same-Omega relation; genus 2 is 3-pair, genus 3 is 4-pair). */
+#define G4_GOEPEL_NPAIR 8
+
+/* The sixteen even-null characteristics (ep'1..ep'4, e1..e4) of the canonical genus-4
+ * Goepel relation, in pair order (2 nulls per pair; all sum to [1,1,1,1;1,1,1,1]).
+ * Byte-identical to the Python RiemannThetaG4._G4_GOEPEL_PAIRS. */
+static const int g4_goepel_chars[16][8] = {
+    {0, 0, 0, 0, 0, 1, 0, 1}, {1, 1, 1, 1, 1, 0, 1, 0},   /* pair 0  (+) */
+    {0, 0, 0, 0, 0, 1, 1, 0}, {1, 1, 1, 1, 1, 0, 0, 1},   /* pair 1  (-) */
+    {0, 0, 0, 0, 1, 0, 0, 1}, {1, 1, 1, 1, 0, 1, 1, 0},   /* pair 2  (+) */
+    {0, 0, 0, 0, 1, 0, 1, 0}, {1, 1, 1, 1, 0, 1, 0, 1},   /* pair 3  (-) */
+    {0, 0, 0, 1, 0, 1, 0, 0}, {1, 1, 1, 0, 1, 0, 1, 1},   /* pair 4  (-) */
+    {0, 0, 0, 1, 1, 0, 0, 0}, {1, 1, 1, 0, 0, 1, 1, 1},   /* pair 5  (-) */
+    {0, 0, 1, 0, 0, 1, 0, 0}, {1, 1, 0, 1, 1, 0, 1, 1},   /* pair 6  (+) */
+    {0, 0, 1, 0, 1, 0, 0, 0}, {1, 1, 0, 1, 0, 1, 1, 1},   /* pair 7  (+) */
+};
+
+/* The per-pair residual sign (residual = Sum sign*pair == 0). Pair 0..7. */
+static const int g4_goepel_pair_sign[8] = {1, -1, 1, -1, -1, -1, 1, 1};
+
+/* A compiled-in safety ceiling for one accumulator (box up to ~4); not a malloc.
+ * box=3 default: diag-square ~ a few hundred, residual a few thousand. */
+#define G4_GOEPEL_CAP 200000
+
+/* The number of int64 the caller arena needs. THREE buffers: two diag-square scratch +
+ * one residual accumulator, each G4_GOEPEL_CAP monomials * G4_GOEPEL_TUP int64. */
+size_t srmech_riemann_theta_g4_goepel_count(uint32_t box)
+{
+    (void)box;                                      /* arena is box-independent (capped) */
+    assert(G4_GOEPEL_TUP == 11);
+    assert(G4_GOEPEL_CAP >= 1000u);
+    return (size_t)3u * (size_t)G4_GOEPEL_CAP * (size_t)G4_GOEPEL_TUP;
+}
+
+/* Merge one g4 monomial (key0..key9, coeff) into buf[0..*len) (in monomials), summing a
+ * duplicate key. SRMECH_ERR_OVERFLOW if a new key would exceed cap monomials. */
+static srmech_status_t g4_goepel_accum(int64_t *buf, size_t *len, size_t cap,
+                                       const int64_t *key, int64_t coeff)
+{
+    size_t i, base, t;
+    int same;
+    assert(buf != NULL && len != NULL);
+    assert(key != NULL);
+    for (i = 0u; i < *len; ++i) {
+        base = i * (size_t)G4_GOEPEL_TUP;
+        same = 1;
+        for (t = 0u; t < 10u; ++t) {
+            if (buf[base + t] != key[t]) { same = 0; }
+        }
+        if (same) {
+            buf[base + 10u] += coeff;                /* merge duplicate key */
+            return SRMECH_OK;
+        }
+    }
+    if (*len >= cap) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    base = (*len) * (size_t)G4_GOEPEL_TUP;
+    for (t = 0u; t < 10u; ++t) {
+        buf[base + t] = key[t];
+    }
+    buf[base + 10u] = coeff;
+    *len += 1u;
+    return SRMECH_OK;
+}
+
+/* Build one even null's DIAGONAL-RESTRICTED squared g4 lattice into sq[]/(*slen): the
+ * self-convolution of theta[null](Omega) keeping ONLY monomials with each A_i <= bound
+ * (sound pre-restrict). The per-term sign is (-1)^{e.n} * (-1)^{e.m} (Class-K). */
+static srmech_status_t g4_goepel_diag_square(const int *ch, int64_t box, int64_t bound,
+                                             int64_t *sq, size_t *slen, size_t cap)
+{
+    int64_t n[4], mm[4], un[4], um[4], key[10];
+    int64_t ep[4], e[4];
+    int sgn_n, sgn_m, d, ok;
+    srmech_status_t st;
+    assert(sq != NULL && slen != NULL);
+    assert(box >= 0 && bound >= 0);
+    for (d = 0; d < 4; ++d) { ep[d] = ch[d]; e[d] = ch[d + 4]; }
+    *slen = 0u;
+    for (n[0] = -box; n[0] <= box; ++n[0]) {
+    for (n[1] = -box; n[1] <= box; ++n[1]) {
+    for (n[2] = -box; n[2] <= box; ++n[2]) {
+    for (n[3] = -box; n[3] <= box; ++n[3]) {
+        for (d = 0; d < 4; ++d) { un[d] = 2 * n[d] + ep[d]; }
+        sgn_n = rt4_term_sign(e[0], e[1], e[2], e[3], n[0], n[1], n[2], n[3]);
+        for (mm[0] = -box; mm[0] <= box; ++mm[0]) {
+        for (mm[1] = -box; mm[1] <= box; ++mm[1]) {
+        for (mm[2] = -box; mm[2] <= box; ++mm[2]) {
+        for (mm[3] = -box; mm[3] <= box; ++mm[3]) {
+            for (d = 0; d < 4; ++d) { um[d] = 2 * mm[d] + ep[d]; }
+            ok = 1;
+            for (d = 0; d < 4; ++d) {
+                key[d] = un[d] * un[d] + um[d] * um[d];
+                if (key[d] > bound) { ok = 0; }
+            }
+            if (ok) {
+                key[4] = un[0] * un[1] + um[0] * um[1];   /* C12 */
+                key[5] = un[0] * un[2] + um[0] * um[2];   /* C13 */
+                key[6] = un[0] * un[3] + um[0] * um[3];   /* C14 */
+                key[7] = un[1] * un[2] + um[1] * um[2];   /* C23 */
+                key[8] = un[1] * un[3] + um[1] * um[3];   /* C24 */
+                key[9] = un[2] * un[3] + um[2] * um[3];   /* C34 */
+                sgn_m = rt4_term_sign(e[0], e[1], e[2], e[3],
+                                      mm[0], mm[1], mm[2], mm[3]);
+                st = g4_goepel_accum(sq, slen, cap, key, (int64_t)(sgn_n * sgn_m));
+                if (st != SRMECH_OK) { return st; }
+            }
+        } } } }
+    } } } }
+    return SRMECH_OK;
+}
+
+/* Accumulate (sign) * [ theta^2[na] * theta^2[nb] restricted to the safe region ] into
+ * the residual res[]/(*rlen). sqa/sqb are the two diag-restricted squares; only output
+ * monomials with each A_i <= bound AND |C_ij| <= bound are accumulated. */
+static srmech_status_t g4_goepel_pair_into_res(const int64_t *sqa, size_t alen,
+                                               const int64_t *sqb, size_t blen,
+                                               int sign, int64_t bound,
+                                               int64_t *res, size_t *rlen, size_t cap)
+{
+    size_t i, j, ia, ib, t;
+    int64_t key[10], m;
+    int ok;
+    srmech_status_t st;
+    assert(sqa != NULL && sqb != NULL);
+    assert(res != NULL && rlen != NULL);
+    for (i = 0u; i < alen; ++i) { ia = i * (size_t)G4_GOEPEL_TUP;
+        for (j = 0u; j < blen; ++j) { ib = j * (size_t)G4_GOEPEL_TUP;
+            ok = 1;
+            for (t = 0u; t < 4u; ++t) {
+                key[t] = sqa[ia + t] + sqb[ib + t];
+                if (key[t] > bound) { ok = 0; }
+            }
+            for (t = 4u; t < 10u; ++t) {
+                key[t] = sqa[ia + t] + sqb[ib + t];
+                m = (key[t] >= 0) ? key[t] : -key[t];     /* Class-K magnitude */
+                if (m > bound) { ok = 0; }
+            }
+            if (ok) {
+                st = g4_goepel_accum(res, rlen, cap, key,
+                                     (int64_t)sign * sqa[ia + 10u] * sqb[ib + 10u]);
+                if (st != SRMECH_OK) { return st; }
+            }
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* Scan the residual for a genuine genus-4 cross-term (C14, C24 or C34 != 0 with nonzero
+ * coeff). Returns 1 if present, else 0. */
+static int g4_goepel_res_has_cross(const int64_t *res, size_t rlen)
+{
+    size_t i, base;
+    int has = 0;
+    assert(res != NULL);
+    assert(rlen <= (size_t)G4_GOEPEL_CAP);
+    for (i = 0u; i < rlen; ++i) {
+        base = i * (size_t)G4_GOEPEL_TUP;
+        if (res[base + 10u] != 0
+                && (res[base + 6u] != 0 || res[base + 8u] != 0
+                    || res[base + 9u] != 0)) {       /* C14,C24,C34 */
+            has = 1;
+        }
+    }
+    return has;
+}
+
+/* DECIDE the genus-4 Goepel relation gate. work[] is the caller arena (work_cap int64,
+ * >= srmech_riemann_theta_g4_goepel_count(box)); *out_holds <- 1 iff LHS==RHS on the safe
+ * region (residual empty), *out_has_cross <- 1 iff a genuine genus-4 cross-term monomial
+ * (C14, C24 or C34 != 0) is present in the LHS safe region. SRMECH_ERR_BAD_INPUT on
+ * box<2 / undersized work; SRMECH_ERR_OVERFLOW on an over-cap accumulator. */
+srmech_status_t srmech_riemann_theta_g4_goepel(
+    uint32_t box, int64_t *work, size_t work_cap,
+    int *out_holds, int *out_has_cross)
+{
+    int64_t *sqa, *sqb, *res, bnd;
+    size_t alen, blen, rlen, half, i, base;
+    int p, holds;
+    srmech_status_t st;
+    assert(work != NULL);
+    assert(out_holds != NULL && out_has_cross != NULL);
+    if (box < 2u || work_cap < srmech_riemann_theta_g4_goepel_count(box)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    half = (size_t)G4_GOEPEL_CAP * (size_t)G4_GOEPEL_TUP;
+    sqa = work; sqb = work + half; res = work + 2u * half;
+    bnd = (int64_t)box * (int64_t)box;              /* the box-stable safe bound */
+    rlen = 0u;
+    for (p = 0; p < G4_GOEPEL_NPAIR; ++p) {          /* eight signed pairs */
+        st = g4_goepel_diag_square(g4_goepel_chars[2 * p], (int64_t)box, bnd,
+                                   sqa, &alen, (size_t)G4_GOEPEL_CAP);
+        if (st != SRMECH_OK) { return st; }
+        st = g4_goepel_diag_square(g4_goepel_chars[2 * p + 1], (int64_t)box, bnd,
+                                   sqb, &blen, (size_t)G4_GOEPEL_CAP);
+        if (st != SRMECH_OK) { return st; }
+        st = g4_goepel_pair_into_res(sqa, alen, sqb, blen, g4_goepel_pair_sign[p], bnd,
+                                     res, &rlen, (size_t)G4_GOEPEL_CAP);
+        if (st != SRMECH_OK) { return st; }
+    }
+    holds = 1;                                       /* residual must vanish (LHS==RHS) */
+    for (i = 0u; i < rlen; ++i) {
+        base = i * (size_t)G4_GOEPEL_TUP;
+        if (res[base + 10u] != 0) { holds = 0; }     /* nonzero coeff -> not exact */
+    }
+    /* cross-term presence: re-derive the LHS-only safe region (pair 0) and check C14/24/34 */
+    st = g4_goepel_diag_square(g4_goepel_chars[0], (int64_t)box, bnd,
+                               sqa, &alen, (size_t)G4_GOEPEL_CAP);
+    if (st != SRMECH_OK) { return st; }
+    st = g4_goepel_diag_square(g4_goepel_chars[1], (int64_t)box, bnd,
+                               sqb, &blen, (size_t)G4_GOEPEL_CAP);
+    if (st != SRMECH_OK) { return st; }
+    rlen = 0u;
+    st = g4_goepel_pair_into_res(sqa, alen, sqb, blen, 1, bnd,
+                                 res, &rlen, (size_t)G4_GOEPEL_CAP);
+    if (st != SRMECH_OK) { return st; }
+    *out_holds = holds;
+    *out_has_cross = g4_goepel_res_has_cross(res, rlen);
     return SRMECH_OK;
 }
 
