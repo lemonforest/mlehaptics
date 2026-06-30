@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc89"
-#define SRMECH_VERSION       "0.9.0rc89"
+#define SRMECH_VERSION_PRE   "rc90"
+#define SRMECH_VERSION       "0.9.0rc90"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4533,6 +4533,50 @@ srmech_status_t srmech_elliptic_recurrence_8w7(size_t n_syms, int xsym, int psym
                                                size_t out_exps_cap_rows,
                                                size_t *out_n_num, size_t *out_n_den,
                                                void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_elliptic_zeilberger — the ELLIPTIC Sigma-row CREATIVE-TELESCOPING op for the
+ * Frenkel-Turaev 8w7 summation (the C peer of
+ * srmech.amsc.elliptic_zeilberger.elliptic_zeilberger). The order-1 recurrence
+ * f(n+1) = rho(n)*f(n) PLUS an EXACT connection-coefficient certificate that PROVES it
+ * (the ThetaSum.is_zero decision, NOT rc68's 1e-9 numerical convergence gate).
+ *
+ * Input: the 8w7 term ratio r(x) = t(n+1)/t(n) (x = q^n) as the SAME full EllRatio wire
+ * form srmech_elliptic_recurrence_8w7 parses (n_syms + the x/p/q/y interned indices + the
+ * num/den theta counts + the flat exact-Q coeff arrays + the flat int32 exponent rows),
+ * PLUS the two extra interned indices nsym/ksym for the recurrence index symbols N = q^n,
+ * K = q^k the connection-coefficient certificate carries (force-interned by the caller;
+ * the input ratio's own monomials are zero in those two columns).
+ *
+ * Output: *out_has = 1 iff r is a canonical 8w7 (the SAME recognize-decompose pipeline
+ * srmech_elliptic_recurrence_8w7 runs) AND the connection-coefficient inductive-step
+ * certificate (Rosengren arXiv:1608.06161 Eq.(2.12)-(2.14) -> Eq.(1.12), the cleared
+ * +/- pair split) decides EXACTLY ZERO via the shared srmech_thetasum_is_zero kernel;
+ * else *out_has = 0 (out of class / cert did not close -> the Python re-decides on its
+ * complete pure path AND builds + re-verifies rho there). The C peer does NOT emit rho
+ * (the Python builds it; the peer's novelty is the EXACT certificate decision).
+ *
+ * PURE COMPOSITION of the shared srmech_ellbase_* exact-Q monomial algebra + er_build +
+ * srmech_thetasum_is_zero (the same single copies srmech_elliptic_recurrence /
+ * srmech_elliptic_gosper ride). Malloc-free (JPL Rule 3): caller arena `ws` only. The
+ * "magnitude 2 / magnitude 1" x-power test + the +/-1 prefactor sign are Class-K parity
+ * branches, never abs()/fabs(). Additive symbol -> ABI unchanged (stays 3). License: MIT. */
+
+/* Minimum `ws_len` BYTES srmech_elliptic_zeilberger needs for the given shape (n_syms
+ * symbols, n_num + n_den input theta factors, coeff_cap the per-coefficient significant-
+ * limb estimate). */
+size_t srmech_elliptic_zeilberger_ws_bound(size_t n_syms, size_t n_num, size_t n_den,
+                                           size_t coeff_cap);
+
+/* Decide the order-1 ₈ω₇ recurrence + its EXACT connection-coefficient certificate (see
+ * above). *out_has = 1 iff recognized AND the certificate is exactly zero. */
+srmech_status_t srmech_elliptic_zeilberger(size_t n_syms, int xsym, int psym, int qsym,
+                                           int ysym, int nsym, int ksym,
+                                           size_t n_num, size_t n_den,
+                                           const srmech_bigint_t *coeff_num,
+                                           const srmech_bigint_t *coeff_den,
+                                           const int32_t *exps_flat, uint32_t coeff_cap,
+                                           int *out_has, void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_carrier_spectrum — the OPERAND-side dual of the_one (the C peer of

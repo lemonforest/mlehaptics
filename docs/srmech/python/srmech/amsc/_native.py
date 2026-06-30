@@ -2814,6 +2814,38 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_elliptic_recurrence_8w7.restype = ctypes.c_int
 
+    # rc90: srmech_elliptic_zeilberger — the ELLIPTIC Σ-row CREATIVE-TELESCOPING op for
+    # the Frenkel–Turaev ₈ω₇ summation. The C peer of
+    # srmech.amsc.elliptic_zeilberger.elliptic_zeilberger. The term-ratio rides as the
+    # SAME full EllRatio wire form srmech_elliptic_recurrence_8w7 parses (the interned
+    # symbol-table dimension + the x/p/q/y interned indices + the num/den theta counts +
+    # the flat exact-Q coeff arrays + the flat int32 exponent rows), PLUS the two extra
+    # interned indices nsym/ksym for the certificate's recurrence index symbols N = qⁿ,
+    # K = qᵏ. The peer recognizes + decomposes the ₈ω₇, builds the connection-coefficient
+    # split certificate (Rosengren Eq. 2.12–2.14 → Eq. 1.12) and decides it ≡ 0 via the
+    # shared srmech_thetasum_is_zero kernel; *out_has comes back (1 iff recognized AND the
+    # certificate is exactly zero). No ρ emission (the Python builds + re-verifies ρ). NEW
+    # symbols -> hasattr-guarded; ABI stays 3.
+    #   size_t srmech_elliptic_zeilberger_ws_bound(n_syms, n_num, n_den, coeff_limbs)
+    if hasattr(lib, "srmech_elliptic_zeilberger_ws_bound"):
+        lib.srmech_elliptic_zeilberger_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_elliptic_zeilberger_ws_bound.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_elliptic_zeilberger"):
+        _ezbi = ctypes.POINTER(_SrmechBigint)
+        lib.srmech_elliptic_zeilberger.argtypes = [
+            ctypes.c_size_t,                     # n_syms
+            ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,  # xsym, psym, qsym, ysym
+            ctypes.c_int, ctypes.c_int,          # nsym, ksym (the cert's N = qⁿ, K = qᵏ)
+            ctypes.c_size_t, ctypes.c_size_t,    # n_num, n_den
+            _ezbi, _ezbi,                        # coeff_num, coeff_den (flat)
+            ctypes.POINTER(ctypes.c_int32),      # exps_flat
+            ctypes.c_uint32,                     # coeff_cap
+            ctypes.POINTER(ctypes.c_int),        # out_has
+            ctypes.c_void_p, ctypes.c_size_t,    # ws, ws_len
+        ]
+        lib.srmech_elliptic_zeilberger.restype = ctypes.c_int
+
     # rc69: srmech_carrier_spectrum — the OPERAND-side dual of the_one (the C peer of
     # srmech.amsc.carrier_spectrum.carrier_spectrum). The carrier element rides as the
     # SAME full EllRatio wire form srmech_elliptic_recurrence_8w7 parses (n_syms + the
@@ -6230,6 +6262,123 @@ def elliptic_recurrence_8w7_c(ratio_form):
         "den": [(1, 1, _exps_from_row(rows[1 + cnn + i])) for i in range(cnd)],
     }
     return True, rho_form
+
+
+# ----------------------------------------------------------------------
+# rc90: srmech_elliptic_zeilberger — the C peer of the ELLIPTIC Σ-row CREATIVE-
+# TELESCOPING op srmech.amsc.elliptic_zeilberger.elliptic_zeilberger for the Frenkel–
+# Turaev ₈ω₇ summation. The term-ratio marshals over the same wire convention as
+# elliptic_recurrence_8w7 (the interned symbol table + the x/p/q/y indices + the num/den
+# theta counts + the flat coeff arrays + the flat exps rows) PLUS the two extra interned
+# indices for the certificate's recurrence index symbols N = qⁿ, K = qᵏ (force-interned
+# here). The native peer recognizes + decomposes the ₈ω₇, builds the connection-
+# coefficient split certificate, and decides it ≡ 0 via the shared srmech_thetasum_is_zero
+# kernel; only the verdict (has) comes back. The Python dispatch trusts a has=1 ONLY after
+# the pure path agrees AND the certificate re-decides ≡ 0 in exact ℚ. A has=0 / error ->
+# Python pure path. NEW symbols -> hasattr-guarded; ABI stays 3.
+# ----------------------------------------------------------------------
+
+_ELLIPTIC_ZEILBERGER_SYMS = (
+    "srmech_elliptic_zeilberger_ws_bound",
+    "srmech_bigint_from_dec",
+    "srmech_bigint_to_dec",
+    "srmech_bigint_to_dec_bound",
+)
+
+# the symbols forced into the interned table even when the canonical form carries none:
+# x (the summation axis), p (the nome the theta-canon writes), q (the base; aq = a·q is
+# load-bearing in the decompose), y (the recurrence axis the free-param filter reads), and
+# N = qⁿ / K = qᵏ (the connection-coefficient certificate's own recurrence index symbols).
+_EZ_FORCE_SYMS = ("K", "N", "p", "q", "x", "y")
+
+
+def has_native_elliptic_zeilberger() -> bool:
+    """True iff the rc90 srmech_elliptic_zeilberger op + its ws sizer + the srmech_bigint
+    decimal-marshal helpers are loaded + bound. False on a no-C or pre-rc90 lib — the
+    pure-Python ``srmech.amsc.elliptic_zeilberger.elliptic_zeilberger`` body is the complete
+    alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _ELLIPTIC_ZEILBERGER_SYMS) and hasattr(
+        LIB, "srmech_elliptic_zeilberger"
+    )
+
+
+def elliptic_zeilberger_c(ratio_form):
+    """Native ₈ω₇ CREATIVE-TELESCOPING verdict for the term-ratio EllRatio ``ratio_form``
+    → ``(has, None)`` (``has`` True iff the native peer recognizes the ₈ω₇ AND the
+    connection-coefficient certificate decides ≡ 0), or ``None`` if the native symbols are
+    absent. ``ratio_form`` is the dict :func:`srmech.amsc.elliptic_recurrence._ratio_to_form`
+    emits (``prefactor`` = ``(coeff_num, coeff_den, [(sym, exp), …])``; ``num`` / ``den`` =
+    theta-argument monomial triples). The peer builds the certificate (the cleared ±-pair
+    split) over the additive theta carrier and routes the decision to srmech_thetasum_is_zero;
+    it does NOT emit ρ (the caller builds ρ + re-verifies the certificate in exact ℚ before
+    trusting a ``has`` True)."""
+    if not has_native_elliptic_zeilberger():
+        return None
+    pref_num, pref_den, pref_exps = ratio_form["prefactor"]
+    if pref_den == 0:
+        raise ValueError("elliptic_zeilberger_c: the prefactor coefficient "
+                         "denominator must be nonzero")
+    num_monos = ratio_form["num"]
+    den_monos = ratio_form["den"]
+    n_num = len(num_monos)
+    n_den = len(den_monos)
+    monos = [(pref_num, pref_den, pref_exps)] + list(num_monos) + list(den_monos)
+    # the interned symbol universe = every prefactor / theta-arg symbol + the forced
+    # x/p/q/y AND the certificate's own N = qⁿ, K = qᵏ.
+    syms = set(_EZ_FORCE_SYMS)
+    for _cn, _cd, exps in monos:
+        syms.update(s for s, _e in exps)
+    sym_list = sorted(syms)
+    idx = {s: i for i, s in enumerate(sym_list)}
+    n_syms = len(sym_list)
+
+    def _row(exps):
+        r = [0] * n_syms
+        for s, e in exps:
+            r[idx[s]] = e
+        return r
+
+    # per-coefficient limb estimate (9 decimal digits ~ 1 limb; pad).
+    cl = 2
+    for cn, cd, _e in monos:
+        cl = max(cl, len(str(cn).lstrip("-")) // 9 + 2, len(str(cd)) // 9 + 2)
+    work_cap = cl + 16
+    ws_len = int(LIB.srmech_elliptic_zeilberger_ws_bound(
+        ctypes.c_size_t(n_syms), ctypes.c_size_t(n_num),
+        ctypes.c_size_t(n_den), ctypes.c_size_t(work_cap)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    # the flat input wire: coeff arrays (in order prefactor, num0..K, den0..L) + exps rows.
+    n_mono = len(monos)
+    num_arr = (_SrmechBigint * max(n_mono, 1))()
+    den_arr = (_SrmechBigint * max(n_mono, 1))()
+    keep = []
+    exps_flat = []
+    for i, (cn, cd, exps) in enumerate(monos):
+        bn, kbn = _bigint_from_int(int(cn), work_cap)
+        bd, kbd = _bigint_from_int(int(cd), work_cap)
+        num_arr[i] = bn
+        den_arr[i] = bd
+        keep.append(kbn)
+        keep.append(kbd)
+        exps_flat.extend(_row(exps))
+    exps_c = (ctypes.c_int32 * max(len(exps_flat), 1))(*exps_flat)
+    has = ctypes.c_int(0)
+    rc = LIB.srmech_elliptic_zeilberger(
+        ctypes.c_size_t(n_syms),
+        ctypes.c_int(idx.get("x", -1)), ctypes.c_int(idx.get("p", -1)),
+        ctypes.c_int(idx.get("q", -1)), ctypes.c_int(idx.get("y", -1)),
+        ctypes.c_int(idx.get("N", -1)), ctypes.c_int(idx.get("K", -1)),
+        ctypes.c_size_t(n_num), ctypes.c_size_t(n_den),
+        num_arr, den_arr, exps_c, ctypes.c_uint32(work_cap),
+        ctypes.byref(has),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_elliptic_zeilberger returned non-OK status {rc}")
+    return bool(has.value), None
 
 
 # ----------------------------------------------------------------------
