@@ -3455,6 +3455,69 @@ def _register_primitive_class_tools() -> None:
                       "a canonical ₈ω₇ / the recurrence fails the gate"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The ELLIPTIC Σ-row CREATIVE-TELESCOPING op for the Frenkel–Turaev
+        # ₈ω₇ summation — the order-1 recurrence ρ(n) PLUS an EXACT connection-
+        # coefficient certificate that PROVES it (the ThetaSum.is_zero decision,
+        # NOT rc68's 1e-9 numerical convergence gate). The third elliptic Σ-row
+        # rung after elliptic_gosper (indefinite) + elliptic_recurrence_8w7
+        # (the order-1 finder). 1:1 C peer srmech_elliptic_zeilberger.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.elliptic_zeilberger.elliptic_zeilberger",
+            owner="srmech", category="elliptic_zeilberger",
+            summary="The ELLIPTIC Σ-row CREATIVE-TELESCOPING op for the Frenkel–"
+                    "Turaev ₈ω₇ summation — the order-1 recurrence f(n+1)=ρ(n)·"
+                    "f(n) PLUS an EXACT connection-coefficient certificate that "
+                    "PROVES it (Hjalmar Rosengren, 'Elliptic Hypergeometric "
+                    "Functions', arXiv:1608.06161v3 [math.CA] (2017), §2.3 Eqs. "
+                    "(2.12)–(2.14) — the connection-coefficient expansion + the "
+                    "elliptic binomial coefficient + the elliptic Pascal "
+                    "recurrence, which reduce to §1.4 Eq. (1.12), the Weierstrass "
+                    "three-term theta relation; the closed product form + ρ are "
+                    "Warnaar, Constr. Approx. 18 (2002) 479–502, Cor 2.2). The "
+                    "GENUINE elliptic analogue of zeilberger / q_zeilberger, the "
+                    "THIRD rung of the elliptic Σ-row after elliptic_gosper "
+                    "(indefinite) + elliptic_recurrence_8w7 (the order-1 finder, "
+                    "whose verification gate was a 1e-9 numerical convergence "
+                    "check). Where elliptic_recurrence_8w7 only checked ρ(n) "
+                    "numerically, this op REPLACES that gate with an EXACT proof: "
+                    "it RECOGNIZES the ₈ω₇ term ratio r(x)=t(n+1)/t(n) (x=qⁿ — an "
+                    "EllRatio), DECOMPOSES it into a + [b,c,d], CONSTRUCTS ρ "
+                    "(Warnaar Cor 2.2), and CERTIFIES the recurrence by deciding "
+                    "the connection-coefficient inductive-step identity ≡ 0 in the "
+                    "exact additive ThetaSum carrier (the cleared ±-pair split "
+                    "θ(bcN,(b/c)K²/N)·θ(aN·x^±) − θ(acN²/K,(a/c)K)·θ(bK·x^±) + "
+                    "(b/c)(K²/N)·θ(abNK,(a/b)N/K)·θ(cN/K·x^±) ≡ 0, N=qⁿ, K=qᵏ — "
+                    "every term two clean ±-pairs the ThetaSum.is_zero reduces). "
+                    "Returns {'order':1, 'coeffs':[-ρ,1], 'rho':ρ, 'certificate':"
+                    "{'kind':'connection_coefficient_split', 'exact':True, …}, "
+                    "'verified':True, …} (f(n+1)=ρ(n)·f(n) with the EXACT "
+                    "certificate) ONLY when r is a canonical ₈ω₇ AND the "
+                    "certificate decides ≡ 0; else None (the honest out-of-class "
+                    "residue / certificate-did-not-close). 1:1 C peer "
+                    "srmech_elliptic_zeilberger orchestrates the same recognize-"
+                    "decompose pipeline + builds the connection-coefficient split "
+                    "terms and decides them via the shared srmech_thetasum_is_zero "
+                    "kernel; the Python trusts a native has=1 ONLY after the pure "
+                    "path agrees AND the certificate re-decides ≡ 0 in exact ℚ. "
+                    "Exact over the modified-theta algebra (no float on the "
+                    "decision path), no abs() (Class-K sign), no numpy / math.",
+            parameters=(P("r", "EllRatio", True,
+                          "the ₈ω₇ summand's TERM RATIO t(n+1)/t(n)=r(x), x=qⁿ — an "
+                          "EllRatio (the very-well-poised theta-quotient over an "
+                          "exact-ℚ monomial prefactor; an EllMonomial / Theta is "
+                          "lifted)"),),
+            returns=R("dict | None",
+                      "{'order': 1, 'coeffs': [-ρ, 1], 'rho': EllRatio, "
+                      "'certificate': {'kind': 'connection_coefficient_split', "
+                      "'exact': True, …}, 'verified': True, 'prefactor': …, "
+                      "'num': [{sym: exp}, …], 'den': […]} — the order-1 recurrence "
+                      "f(n+1)=ρ(n)·f(n) PLUS the EXACT connection-coefficient "
+                      "certificate (decided ≡ 0 in the additive ThetaSum carrier), "
+                      "or None when r is not a canonical ₈ω₇ / the certificate fails "
+                      "to close"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The F929 OPEN/infer ROUTER — the meta-dispatcher that makes the
         # three shipped reduction-theory rows (cyclic / spectral / Σ) ONE
         # callable. Pure orchestration over the already-C-mirrored reducers
