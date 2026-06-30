@@ -1418,6 +1418,134 @@ srmech_status_t srmech_riemann_theta_g4_lattice(
     return SRMECH_OK;
 }
 
+/* ------------------------------------------------------------------ *
+ * rc86 (NEXT GENUS RUNG, PAST the SCHOTTKY FRONTIER): the GENUS-5 EXACT-INTEGER EXPONENT
+ * LATTICE -- the C peer of srmech.amsc.riemann_theta.RiemannThetaG5, the genus-5 analog
+ * of the rc80 genus-4 peer. The genus-5 theta-constant theta[ep'; e](0|Omega)
+ * (Grushevsky arXiv:1009.0369 eq.1, the g=5 specialization; binary characteristic
+ * [ep1..ep5; e1..e5], ten bits in {0,1}) is a lattice sum over n in Z^5 of
+ * (-1)^{e.n} prod_i q_i^{m_i^2} prod_{i<j} q_ij^{m_i m_j}, m_i = n_i + ep'_i/2.
+ * Cleared to the quarter-nome base (Q_i,Q_ij)=(q_i,q_ij)^{1/4} a term is
+ *   prod_i Q_i^{A_i} prod_{i<j} Q_ij^{C_ij} *(-1)^{e.n}
+ * with EXACT INTEGER exponents A_i=(2n_i+ep_i)^2 and the TEN cross-terms
+ *   C_ij = (2n_i+ep_i)(2n_j+ep_j)  for the 10 pairs {12,13,14,15,23,24,25,34,35,45}
+ * (genus 2 had ONE, genus 3 THREE, genus 4 SIX, genus 5 TEN -- the scaling difficulty).
+ * The lower characteristic e gives the per-term sign (-1)^{e.n} (Class-K pin-slot, never
+ * abs). This op emits the lattice as a flat caller-owned int64 array of
+ * [A1..A5,C12,C13,C14,C15,C23,C24,C25,C34,C35,C45,sign] 16-TUPLES (one per lattice point
+ * |n_i| <= box, row-major (n1,n2,n3,n4,n5)); the genus-5 theta-CONSTANT coefficients are
+ * small +-1 lattice counts (int64-exact, no bignum), and the caller accumulates the
+ * 16-tuples into the canonical 15-tuple:coeff lattice (byte-identical to the Python
+ * carrier). Caller-owned out[]; no malloc. Additive symbol -> ABI unchanged (stays 3).
+ * NOTE: (2*box+1)^5 grows FAST -- the caller keeps box small (1 or 2; box >= 3 is
+ * catastrophic); the formal relations are box-stable. The genuinely-OPEN genus-5 Schottky
+ * decision (NO single modular form cuts J_5: codim 3 in A_5, NOT a hypersurface) is
+ * DOCUMENTED in the Python carrier, NOT built here. */
+
+/* one genus-5 lattice point emits 16 int64:
+ * A1..A5, C12,C13,C14,C15,C23,C24,C25,C34,C35,C45, sign */
+#define RT5_TUP 16
+
+/* The number of int64 a box needs for the genus-5 lattice: (2*box+1)^5 points,
+ * RT5_TUP int64 each. The caller sizes its out[] from this (no malloc here). */
+size_t srmech_riemann_theta_g5_count(uint32_t box)
+{
+    size_t side = (size_t)box * 2u + 1u;
+    assert(RT5_TUP == 16);
+    assert(side >= 1u);
+    return side * side * side * side * side * (size_t)RT5_TUP;
+}
+
+/* The per-term genus-5 sign (-1)^{e1 n1 + ... + e5 n5}: Class-K pin-slot (a stored
+ * +1/-1 from an explicit parity branch), never an ALU abs(). e[5], n[5]. */
+static int rt5_term_sign(const int64_t *e, const int64_t *n)
+{
+    int64_t parity;
+    assert(e != NULL);
+    assert(n != NULL);
+    parity = (e[0] * n[0] + e[1] * n[1] + e[2] * n[2]
+              + e[3] * n[3] + e[4] * n[4]) % 2;
+    if (parity < 0) {
+        parity += 2;                                /* floor-mod into {0,1} */
+    }
+    return (parity == 0) ? 1 : -1;                  /* Class-K +-1, no abs() */
+}
+
+/* Write one genus-5 16-tuple [A1..A5, C12..C45, sign] from the cleared coords
+ * u[5] = 2 n_i + ep'_i and the per-term Class-K sign into out[idx .. idx+15]. */
+static void rt5_emit(int64_t *out, size_t idx, const int64_t *u, int sign)
+{
+    assert(out != NULL);
+    assert(u != NULL);
+    out[idx + 0u] = u[0] * u[0];        /* A1 */
+    out[idx + 1u] = u[1] * u[1];        /* A2 */
+    out[idx + 2u] = u[2] * u[2];        /* A3 */
+    out[idx + 3u] = u[3] * u[3];        /* A4 */
+    out[idx + 4u] = u[4] * u[4];        /* A5 */
+    out[idx + 5u] = u[0] * u[1];        /* C12 */
+    out[idx + 6u] = u[0] * u[2];        /* C13 */
+    out[idx + 7u] = u[0] * u[3];        /* C14 */
+    out[idx + 8u] = u[0] * u[4];        /* C15 */
+    out[idx + 9u] = u[1] * u[2];        /* C23 */
+    out[idx + 10u] = u[1] * u[3];       /* C24 */
+    out[idx + 11u] = u[1] * u[4];       /* C25 */
+    out[idx + 12u] = u[2] * u[3];       /* C34 */
+    out[idx + 13u] = u[2] * u[4];       /* C35 */
+    out[idx + 14u] = u[3] * u[4];       /* C45 */
+    out[idx + 15u] = (int64_t)sign;
+}
+
+/* Emit the genus-5 theta-constant exponent lattice for characteristic
+ * [ep1..ep5; e1..e5] (each bit in {0,1}) over the box |n_i| <= box, as a flat
+ * caller-owned int64 array of [A1..A5,C12,C13,C14,C15,C23,C24,C25,C34,C35,C45,sign]
+ * 16-tuples in row-major (n1,n2,n3,n4,n5) order. *out_len <- the number of int64 written
+ * (= the g5 count). SRMECH_ERR_BAD_INPUT if any characteristic bit is not in {0,1};
+ * SRMECH_ERR_OVERFLOW if the caller out[] (out_cap int64) is too small. */
+srmech_status_t srmech_riemann_theta_g5_lattice(
+    int ep1, int ep2, int ep3, int ep4, int ep5,
+    int e1, int e2, int e3, int e4, int e5, uint32_t box,
+    int64_t *out, size_t out_cap, size_t *out_len)
+{
+    size_t need, idx;
+    int64_t n1, n2, n3, n4, n5, lo, hi, u[5], nn[5];
+    const int64_t ev[5] = {(int64_t)e1, (int64_t)e2, (int64_t)e3,
+                           (int64_t)e4, (int64_t)e5};
+    assert(out != NULL);
+    assert(out_len != NULL);
+    if (!rt_bit_ok(ep1) || !rt_bit_ok(ep2) || !rt_bit_ok(ep3) || !rt_bit_ok(ep4)
+            || !rt_bit_ok(ep5) || !rt_bit_ok(e1) || !rt_bit_ok(e2)
+            || !rt_bit_ok(e3) || !rt_bit_ok(e4) || !rt_bit_ok(e5)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    need = srmech_riemann_theta_g5_count(box);
+    if (need > out_cap) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    idx = 0u;
+    lo = -(int64_t)box;
+    hi = (int64_t)box;
+    for (n1 = lo; n1 <= hi; ++n1) {
+        u[0] = 2 * n1 + (int64_t)ep1; nn[0] = n1;
+        for (n2 = lo; n2 <= hi; ++n2) {
+            u[1] = 2 * n2 + (int64_t)ep2; nn[1] = n2;
+            for (n3 = lo; n3 <= hi; ++n3) {
+                u[2] = 2 * n3 + (int64_t)ep3; nn[2] = n3;
+                for (n4 = lo; n4 <= hi; ++n4) {
+                    u[3] = 2 * n4 + (int64_t)ep4; nn[3] = n4;
+                    for (n5 = lo; n5 <= hi; ++n5) {
+                        u[4] = 2 * n5 + (int64_t)ep5; nn[4] = n5;
+                        rt5_emit(out, idx, u, rt5_term_sign(ev, nn));
+                        idx += (size_t)RT5_TUP;
+                    }
+                }
+            }
+        }
+    }
+    assert(idx == need);
+    *out_len = idx;
+    return SRMECH_OK;
+}
+
 /* ================================================================== *
  *  rc85: the genus-4 Sp(8,Z) MODULAR ACTION KIT -- the C peers of
  *  srmech.amsc.riemann_theta.RiemannThetaG4.{transform, goepel_holds} (the g=3->g=4

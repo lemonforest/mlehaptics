@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc85"
-#define SRMECH_VERSION       "0.9.0rc85"
+#define SRMECH_VERSION_PRE   "rc86"
+#define SRMECH_VERSION       "0.9.0rc86"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3609,6 +3609,40 @@ size_t srmech_riemann_theta_g4_count(uint32_t box);
  * is too small. */
 srmech_status_t srmech_riemann_theta_g4_lattice(
     int ep1, int ep2, int ep3, int ep4, int e1, int e2, int e3, int e4, uint32_t box,
+    int64_t *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * rc86 (NEXT GENUS RUNG, PAST the SCHOTTKY FRONTIER): the GENUS-5 EXACT-INTEGER EXPONENT
+ * LATTICE -- the C peer of srmech.amsc.riemann_theta.RiemannThetaG5, the genus-5 analog
+ * of the rc80 genus-4 peer. The genus-5 theta-constant theta[ep'; e](0|Omega) (binary
+ * characteristic [ep1..ep5; e1..e5], ten bits in {0,1}) is a lattice sum over n in Z^5;
+ * cleared to the quarter-nome base a term is prod_i Q_i^{A_i} prod_{i<j} Q_ij^{C_ij}
+ * *(-1)^{e.n} with A_i=(2n_i+ep_i)^2 and the TEN cross-terms C_ij=(2n_i+ep_i)(2n_j+ep_j)
+ * over the 10 pairs {12,13,14,15,23,24,25,34,35,45} (genus 4 had SIX -- the scaling
+ * difficulty). Emits the lattice as a flat caller-owned int64 array of
+ * [A1..A5,C12,C13,C14,C15,C23,C24,C25,C34,C35,C45,sign] 16-TUPLES (one per lattice point
+ * |n_i| <= box, row-major (n1,n2,n3,n4,n5)); the genus-5 theta-CONSTANT coefficients are
+ * small +-1 lattice counts (int64-exact, no bignum), and the caller accumulates the
+ * 16-tuples into the canonical {(A1..A5,C12..C45):coeff} lattice (byte-identical to the
+ * Python carrier). Caller-owned out[]; no malloc. Additive symbol -> ABI unchanged
+ * (stays 3). NOTE: (2*box+1)^5 grows FAST -- keep box small (1 or 2; box >= 3 is
+ * catastrophic); the formal relations are box-stable. The genuinely-OPEN genus-5 Schottky
+ * decision (NO single modular form cuts J_5: dim A_5 = 15, dim J_5 = 12, codim 3 -- NOT a
+ * hypersurface) is DOCUMENTED in the Python carrier, NOT built here.
+ * ------------------------------------------------------------------ */
+
+/* The number of int64 a box needs: (2*box+1)^5 lattice points * 16
+ * (A1..A5,C12,C13,C14,C15,C23,C24,C25,C34,C35,C45,sign). */
+size_t srmech_riemann_theta_g5_count(uint32_t box);
+
+/* Emit the genus-5 [A1..A5,C12,C13,C14,C15,C23,C24,C25,C34,C35,C45,sign] 16-tuple lattice
+ * for characteristic [ep1..ep5; e1..e5] (bits in {0,1}) over |n_i| <= box, into the caller
+ * out[] (out_cap int64); *out_len <- the number of int64 written (= the g5 count).
+ * SRMECH_ERR_BAD_INPUT if any bit is not in {0,1}; SRMECH_ERR_OVERFLOW if out[] is too
+ * small. */
+srmech_status_t srmech_riemann_theta_g5_lattice(
+    int ep1, int ep2, int ep3, int ep4, int ep5,
+    int e1, int e2, int e3, int e4, int e5, uint32_t box,
     int64_t *out, size_t out_cap, size_t *out_len);
 
 /* ------------------------------------------------------------------ *
