@@ -293,6 +293,89 @@ srmech_status_t srmech_riemann_theta_at(
 }
 
 /* ================================================================== *
+ *  rc88: srmech_riemann_theta_cyc_mul — exact Z[zeta_m] power-basis MULTIPLY
+ * ================================================================== *
+ *
+ * The genuinely-new exact-integer kernel behind the rc88 genus-axis Fay / Hirota
+ * bilinear VERIFIER (RiemannTheta.addition_holds_at / RiemannThetaG3.addition_holds_at,
+ * Riemann's theta addition formula in second-order thetas). theta_at (rc87) gives theta
+ * at a rational argument as a {key: Z[zeta_m] coeff} lattice; the verifier's BILINEAR
+ * product multiplies the cyclotomic COEFFICIENTS (this kernel) while convolving the
+ * integer exponent keys (caller bookkeeping in Python -- the rc73/rc74 addition/Goepel
+ * gate precedent). The product is
+ *   (sum_i a_i zeta^i)(sum_j b_j zeta^j) = sum_{i,j} a_i b_j zeta^{i+j},
+ * each zeta^{i+j} reduced to the power basis {1,zeta,...,zeta^{deg-1}} via the REUSED
+ * rc29 exact-DFT reduction table (table[(i+j) mod m], deg = phi(m)) -- byte-identical to
+ * the pure-Python _cyc_mul_py. Pure integer (no float, no abs, no malloc, no goto). The
+ * int64 fast path GUARDS the per-coefficient magnitude (a Class-K sign-branch range read,
+ * never abs); on a too-large coefficient it returns SRMECH_ERR_OVERFLOW so the caller
+ * falls to the pure-Python bignum body (the complete alternative). Additive symbol ->
+ * SRMECH_ABI_VERSION unchanged (stays 3). out[] MUST NOT alias a or b. */
+
+#define RT_CYC_MAXMAG ((int64_t)1 << 18)   /* per-coefficient int64 fast-path guard */
+#define RT_CYC_MAXDEG 16u                  /* power-basis degree guard (deg = phi(m)) */
+
+/* True (1) iff every one of n int64 entries lies in [-RT_CYC_MAXMAG, RT_CYC_MAXMAG]
+ * (a Class-K sign-branch range read, never abs). The guard keeps the multiply-accumulate
+ * (deg^2 terms of a three-factor product) provably inside int64. */
+static int rt_cyc_in_range(const int64_t *v, size_t n)
+{
+    size_t i;
+    assert(v != NULL);
+    assert(RT_CYC_MAXMAG > 0);
+    for (i = 0u; i < n; ++i) {
+        if (v[i] > RT_CYC_MAXMAG || v[i] < -RT_CYC_MAXMAG) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/* out[deg] <- a[deg] * b[deg] in Z[zeta_m], reduced via the m-row x deg-col table
+ * (table[j*deg + k] = coefficient k of zeta_m^j). Returns SRMECH_ERR_BAD_INPUT on a NULL
+ * pointer / bad deg / m < 2, SRMECH_ERR_OVERFLOW if a coefficient exceeds the int64
+ * fast-path guard (caller runs the pure bignum path), else SRMECH_OK. */
+srmech_status_t srmech_riemann_theta_cyc_mul(
+    const int64_t *a, const int64_t *b, uint32_t deg,
+    const int64_t *table, uint32_t m, int64_t *out)
+{
+    uint32_t i, j, k;
+    assert(out != NULL);
+    assert(a != NULL && b != NULL && table != NULL);
+    if (a == NULL || b == NULL || table == NULL || out == NULL) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (deg == 0u || deg > RT_CYC_MAXDEG || m < 2u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (!rt_cyc_in_range(a, (size_t)deg) || !rt_cyc_in_range(b, (size_t)deg) ||
+        !rt_cyc_in_range(table, (size_t)m * (size_t)deg)) {
+        return SRMECH_ERR_OVERFLOW;            /* caller falls to the pure bignum path */
+    }
+    for (k = 0u; k < deg; ++k) {
+        out[k] = 0;
+    }
+    for (i = 0u; i < deg; ++i) {
+        if (a[i] == 0) {
+            continue;
+        }
+        for (j = 0u; j < deg; ++j) {
+            int64_t c;
+            const int64_t *row;
+            if (b[j] == 0) {
+                continue;
+            }
+            c = a[i] * b[j];                   /* |c| <= MAXMAG^2 < 2^37 */
+            row = table + (size_t)((i + j) % m) * (size_t)deg;   /* Class-I cyclic index */
+            for (k = 0u; k < deg; ++k) {
+                out[k] += c * row[k];          /* |sum| <= deg^2 * MAXMAG^3 < 2^63 */
+            }
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* ================================================================== *
  *  rc73 (A): the Sp(4,Z) characteristic TRANSFORMATION + kappa 8th root
  * ================================================================== *
  *
