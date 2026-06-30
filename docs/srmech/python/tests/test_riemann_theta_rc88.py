@@ -12,7 +12,7 @@ the genus-g form θ(z+w)θ(z−w)=Σ_{ξ∈ℤ^g/2ℤ^g} Θ_ξ(z)Θ_ξ(w) over t
 Θ_ξ(z)=θ[ξ/2;0](2z|2Ω)) at the rational arguments x = x_num/z_den, y = y_num/z_den.
 
 A CARRIER verifier method (like ``addition_holds`` / ``goepel_holds``): NO ToolEntry →
-``tools.total`` stays 341.
+``tools.total`` stays 342.
 
 The no-shell gates (all exact):
 
@@ -28,7 +28,7 @@ The no-shell gates (all exact):
       verifies only the ABSTRACT theta-bilinear (Fay/Hirota-family) identity, NOT is-Jacobian
       / the curve-specific Fay trisecant (the Schottky operand-OPEN, genus ≥ 5).
   (4) Python == C byte-exact parity for ``srmech_riemann_theta_cyc_mul`` (guarded by native
-      skip) + end-to-end gate with the C path live; tools.total == 341; numpy/math/abs/float
+      skip) + end-to-end gate with the C path live; tools.total == 342; numpy/math/abs/float
       free.
 """
 from __future__ import annotations
@@ -170,7 +170,7 @@ def test_addition_holds_at_input_validation():
 
 # ── gate (4a): tools.total is UNCHANGED (a CARRIER verifier method, not a ToolEntry) ─
 def test_addition_holds_at_is_a_carrier_method_total_341():
-    assert introspect.describe()["tools"]["total"] == 341
+    assert introspect.describe()["tools"]["total"] == 342
 
 
 # ── gate (4b): Python == C byte-exact parity for the cyclotomic-multiply kernel ──────

@@ -111,6 +111,24 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # WEIGHT-axis analog of the Σ-row gosper/zeilberger/wz_certificate reducers) —
     # only the bare constructor is exempt.
     "srmech.amsc.modular_forms_ring.modular_forms_ring",
+    # quasimodular_forms_ring.quasimodular_forms_ring (v0.9.0rc89) — the public
+    # CONSTRUCTOR of the stateless level-1 ℂ[E₂,E₄,E₆] QuasiModularFormsRing CARRIER
+    # (the FOURTH WEIGHT-axis rung). It returns the carrier (whose weight_monomials/
+    # dim are pure accessors, NOT walked here as they are class methods); it is NOT a
+    # user-facing engine ToolEntry, exactly like the modular_forms_ring constructor
+    # above. classified `non_compute` in rosetta_classification.ndjson. NOTE: the
+    # carrier's REDUCER, quasimodular_forms_ring_represent, IS a registered ToolEntry
+    # (the WEIGHT-axis analog of the Σ-row reducers, one generator up from rc84) —
+    # only the bare constructor + the E₂ series fn are exempt.
+    "srmech.amsc.quasimodular_forms_ring.quasimodular_forms_ring",
+    # quasimodular_forms_ring.eisenstein_e2 (v0.9.0rc89) — the WEIGHT-2 QUASIMODULAR
+    # generator E₂ = 1 − 24·Σσ₁(n)qⁿ as an exact-ℚ q-series fn. A CARRIER-FOUNDATION
+    # surface (the E₂ series the quasimodular ring is built on; the rc83 Eisenstein
+    # carrier keeps its k≥4 contract and rejects k=2, so E₂ lives here) — NOT a
+    # user-facing engine ToolEntry, exempt exactly like the carrier q-series surfaces.
+    # C peer srmech_eisenstein_qseries (k=2 quasimodular branch); classified
+    # `c_dispatched` in rosetta_classification.ndjson.
+    "srmech.amsc.quasimodular_forms_ring.eisenstein_e2",
     # cascade.* — back-compat aliases of canonical names already registered
     # (the precursor's call-site names; see srmech.amsc.cascade).
     "srmech.amsc.cascade.class_k_pin_slot_at_zero",  # = pin_slot_at_zero

@@ -434,7 +434,7 @@ static srmech_status_t eis_prefactor(eis_ctx_t *c, size_t k,
 {
     srmech_status_t st;
     assert(c != NULL && bn_arr != NULL && bd_arr != NULL);
-    assert(k >= 4u);
+    assert(k >= 2u);   /* k=2 is the QUASIMODULAR E_2 branch (pref -4/B_2 = -24) */
     st = eis_bernoulli(c, (int64_t)k, bn_arr, bd_arr);
     if (st != SRMECH_OK) { return st; }
     st = srmech_bigint_set_i64(&c->t0, -2 * (int64_t)k);
@@ -476,9 +476,11 @@ static srmech_status_t eis_fill_coeffs(eis_ctx_t *c, size_t k, size_t n_terms,
 
 /* The exact-rational q-series of E_k = 1 - (2k/B_k) SUM sigma_{k-1}(n) q^n:
  * out_num[e]/out_den[e] (e = 0..n_terms-1) <- the REDUCED coefficient of q^e
- * (out_num[0]/out_den[0] = 1/1), *out_len <- n_terms. k must be even >= 4. The
- * out_num[]/out_den[] arrays are caller-owned (n_terms srmech_bigint each, each
- * pre-bound to >= coeff_limbs limbs). SRMECH_ERR_BAD_INPUT on n_terms<1 / k<4 /
+ * (out_num[0]/out_den[0] = 1/1), *out_len <- n_terms. k must be EVEN >= 2: k>=4 is
+ * the modular E_k; k=2 is the QUASIMODULAR E_2 = 1 - 24 SUM sigma_1(n) q^n branch
+ * (same formula, pref -4/B_2 = -24; the modularity DECISION stays Python-side).
+ * The out_num[]/out_den[] arrays are caller-owned (n_terms srmech_bigint each, each
+ * pre-bound to >= coeff_limbs limbs). SRMECH_ERR_BAD_INPUT on n_terms<1 / k<2 /
  * k odd / a NULL pointer; SRMECH_ERR_OVERFLOW if a coefficient (or the arena) is
  * too small. */
 srmech_status_t srmech_eisenstein_qseries(
@@ -495,7 +497,12 @@ srmech_status_t srmech_eisenstein_qseries(
     if (out_num == NULL || out_den == NULL || out_len == NULL || ws == NULL) {
         return SRMECH_ERR_BAD_INPUT;
     }
-    if (n_terms < 1u || k < 4u || (k % 2u) != 0u) {
+    /* k must be EVEN >= 2. k=2 is the QUASIMODULAR E_2 branch (the q-series is the
+     * SAME normalized-Eisenstein formula at k=2: pref -4/B_2 = -24; E_2 is the
+     * weight-2 quasimodular generator. The modular/quasimodular DECISION stays
+     * Python-side — the Eisenstein(k) carrier still rejects k=2; E_2 enters only
+     * through srmech.amsc.quasimodular_forms_ring). k=4,6,... are the modular E_k. */
+    if (n_terms < 1u || k < 2u || (k % 2u) != 0u) {
         return SRMECH_ERR_BAD_INPUT;
     }
     base = (uint32_t *)ws;
