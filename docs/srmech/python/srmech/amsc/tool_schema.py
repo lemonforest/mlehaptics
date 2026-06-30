@@ -3065,6 +3065,66 @@ def _register_primitive_class_tools() -> None:
                       "(the honest membership/level OPEN)"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The WEIGHT-axis QUASIMODULAR-forms-ring reducer (rc89) — the level-1
+        # ℂ[E₂,E₄,E₆] MEMBERSHIP DECISION, the rc84 ModularFormsRing pattern ONE
+        # generator up (adds E₂, the weight-2 quasimodular generator). The structure-
+        # theorem analog of the Σ-row gosper/zeilberger/wz_certificate reducers: a
+        # q-series → its UNIQUE exact-ℚ polynomial-in-(E₂,E₄,E₆) rep, or honest OPEN
+        # (None). Built on the rc83 Eisenstein E₄/E₆ + the new E₂ (eisenstein_e2) +
+        # the rc40 QMat exact-ℚ Gauss-Jordan; 1:1 C peer
+        # srmech_quasimodular_forms_ring_represent (dispatches to srmech_qmat_solve).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.quasimodular_forms_ring."
+                 "quasimodular_represent",
+            owner="srmech", category="quasimodular_forms_ring",
+            summary="The level-1 QUASIMODULAR-forms-ring MEMBERSHIP DECISION — the "
+                    "Kaneko–Zagier ring M̃_*(SL₂(ℤ)) = ℂ[E₂,E₄,E₆] made executable "
+                    "(Kaneko & Zagier, *The Moduli Space of Curves*, Progr. Math. "
+                    "129 (1995), pp. 165–172; Zagier, *Elliptic Modular Forms and "
+                    "Their Applications*, in *The 1-2-3 of Modular Forms*, Springer "
+                    "(2008), §5.3). The WEIGHT-axis REDUCER one generator up from the "
+                    "rc84 modular_forms_ring_represent (it ADDS E₂, the weight-2 "
+                    "quasimodular generator E₂ = 1 − 24·Σσ₁(n)qⁿ); the analog of the "
+                    "§76 Σ-row gosper/zeilberger/wz_certificate reducers. Given an "
+                    "exact q-series (a list of exact-ℚ / int / (num,den) "
+                    "coefficients) claimed to be a weight-k quasimodular form, SOLVES "
+                    "the exact-ℚ linear system Σ_{a,b,c} c_{a,b,c}·(E₂^a E₄^b E₆^c)[n] "
+                    "= f[n] over the weight-k monomial basis {(a,b,c): 2a+4b+6c=k} "
+                    "(built from the E₂/E₄/E₆ q-series + exact-ℚ truncated q-series "
+                    "multiply), VERIFIES the solution reproduces EVERY provided term, "
+                    "and returns the UNIQUE exact-ℚ polynomial rep {(a,b,c): Q} — or "
+                    "None when no representation exists. The construction/solve IS the "
+                    "decision (decompose-and-compute over the monomial basis via "
+                    "exact Gauss-Jordan, QMat — NOT a search). This ring genuinely "
+                    "EXTENDS the modular ℂ[E₄,E₆] (the a=0 subring): e.g. E₂² at "
+                    "weight 4 → {(2,0,0):1} here, but rc84 represent → None. "
+                    "KEYSTONES (Ramanujan's Serre-derivative identities, D=q·d/dq): "
+                    "DE₂=(E₂²−E₄)/12 @4 → {(2,0,0):1/12,(0,1,0):−1/12}; "
+                    "DE₄=(E₂E₄−E₆)/3 @6 → {(1,1,0):1/3,(0,0,1):−1/3}; "
+                    "DE₆=(E₂E₆−E₄²)/2 @8 → {(1,0,1):1/2,(0,2,0):−1/2}. The honest "
+                    "OPENs are the Jacobi-form (τ–z two-variable) + level (N>1) "
+                    "boundaries. ≥ dim(k)+2 terms required. 1:1 C peer "
+                    "srmech_quasimodular_forms_ring_represent (dispatches the square "
+                    "subsystem to srmech_qmat_solve; native when present, pure-Python "
+                    "the complete alternative + parity oracle). Exact bigint; no "
+                    "float, no abs() (Class-K sign), no numpy / math.",
+            parameters=(P("q_series", "list", True,
+                          "the q-series claimed to be a weight-k quasimodular form — "
+                          "a list of exact-ℚ Q / int / (num, den) pairs (no float), "
+                          "ascending q-power; needs ≥ dim(k)+2 terms"),
+                        P("k", "int", True,
+                          "the (even) claimed weight — the grading of ℂ[E₂,E₄,E₆]"),
+                        P("n_terms", "int", False,
+                          "optional cap on the number of provided terms USED "
+                          "(default: all provided)")),
+            returns=R("dict | None",
+                      "{(a, b, c): Q} — the unique exact-ℚ polynomial-in-(E₂,E₄,E₆) "
+                      "representation (c_{a,b,c} = coefficient of E₂^a E₄^b E₆^c, "
+                      "nonzero monomials only), or None when the q-series is not a "
+                      "level-1 weight-k quasimodular form (the honest membership OPEN)"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The MULTIVARIATE "sums of sums" row of the §76 telescope Σ-row prover —
         # the Apagodu–Zeilberger double-sum creative-telescoping recurrence-finder
         # (CLOSES the multivariate F929 reduction row). Generalizes zeilberger to a

@@ -16,8 +16,9 @@ The build gates (the no-shell proof; the construction IS the answer, no search):
   (f) Python==C parity on .represent for the keystones (guarded by the native-skip;
       do NOT trust the C — compare element-for-element);
   (g) the carrier source has no numpy / math / abs() (the ratchet);
-  (h) the REDUCER ``modular_forms_ring_represent`` IS a ToolEntry → tools.total 341;
-      the bare carrier constructor + weight_monomials/dim are NOT ToolEntries.
+  (h) the REDUCER ``modular_forms_ring_represent`` IS a ToolEntry → tools.total 342
+      (rc84 took it 340→341; rc89 quasimodular reducer → 342); the bare carrier
+      constructor + weight_monomials/dim are NOT ToolEntries.
 """
 from __future__ import annotations
 
@@ -275,15 +276,16 @@ def test_modular_forms_ring_source_is_numpy_math_abs_free():
     assert "float(" not in text                     # no float in the carrier body
 
 
-# ── gate (h): the REDUCER is a ToolEntry → tools.total 341; carrier accessors not
+# ── gate (h): the REDUCER is a ToolEntry → tools.total 342; carrier accessors not
 def test_represent_is_a_tool_entry_total_341():
     """``modular_forms_ring_represent`` is a genuine REDUCER (the WEIGHT-axis analog
     of the Σ-row gosper/zeilberger/wz_certificate) → it IS a registered ToolEntry,
-    taking the shipped tool count 340 → 341. The bare carrier constructor +
-    weight_monomials/dim are NOT ToolEntries."""
+    which took the shipped tool count 340 → 341 at rc84 (now 342 with the rc89
+    quasimodular reducer). The bare carrier constructor + weight_monomials/dim are
+    NOT ToolEntries."""
     from srmech.amsc.tool_schema import get_tool_schema
     shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
-    assert len(shipped) == 341
+    assert len(shipped) == 342
     names = {t.name for t in shipped}
     assert "srmech.amsc.modular_forms_ring.modular_forms_ring_represent" in names
     # the carrier constructor + the pure accessors are NOT ToolEntries

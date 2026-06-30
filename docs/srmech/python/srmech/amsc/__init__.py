@@ -145,6 +145,29 @@ from .modular_forms_ring import (
     modular_forms_ring,
     modular_forms_ring_represent,
 )
+# rc89 — the level-1 ℂ[E₂,E₄,E₆] QUASIMODULAR-FORMS-RING carrier
+# QuasiModularFormsRing (the FOURTH WEIGHT-axis rung, after rc82 eta-quotient + rc83
+# Eisenstein + rc84 ModularFormsRing) + its exact MEMBERSHIP DECISION + the E₂
+# generator. Kaneko–Zagier M̃_*(SL₂(ℤ)) = ℂ[E₂,E₄,E₆] made executable: eisenstein_e2
+# is the weight-2 quasimodular generator E₂ = 1 − 24·Σσ₁(n)qⁿ (rc83 Eisenstein keeps
+# its k≥4 contract, rejecting k=2 — E₂ is a separate quasimodular object);
+# weight_monomials/dim are the graded basis; represent solves the exact-ℚ system
+# Σ c_{a,b,c}·(E₂^a E₄^b E₆^c)[n] = f[n] over the monomial basis (rc83 E₄/E₆ +
+# eisenstein_e2 + exact-ℚ q-series mul + QMat Gauss-Jordan) and VERIFIES all terms →
+# the unique closed-form rep {(a,b,c): Q} or None. The KEYSTONES are Ramanujan's
+# Serre-derivative identities (DE₂=(E₂²−E₄)/12, DE₄=(E₂E₄−E₆)/3, DE₆=(E₂E₆−E₄²)/2);
+# the quasimodular ring genuinely EXTENDS the modular one (E₂²@4 → {(2,0,0):1} here,
+# but None in rc84 ℂ[E₄,E₆]). represent IS a genuine REDUCER → a ToolEntry (the
+# WEIGHT-axis analog of the Σ-row reducers); eisenstein_e2 + weight_monomials/dim +
+# the carrier constructor are pure accessors (NOT ToolEntries). C peer
+# srmech_quasimodular_forms_ring_represent (dispatches to srmech_qmat_solve).
+from .quasimodular_forms_ring import (
+    QuasiModularForm,
+    QuasiModularFormsRing,
+    eisenstein_e2,
+    quasimodular_forms_ring,
+    quasimodular_represent,
+)
 # v0.3.0 — tool_schema introspection (Task #198) registers srmech's
 # own AMSC tools at import time. Profile-contributed tools register
 # later, at profile-activation time via profile_loader.
@@ -195,4 +218,9 @@ __all__ = [
     "ModularForm",
     "modular_forms_ring",
     "modular_forms_ring_represent",
+    "QuasiModularFormsRing",
+    "QuasiModularForm",
+    "eisenstein_e2",
+    "quasimodular_forms_ring",
+    "quasimodular_represent",
 ]

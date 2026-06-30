@@ -13,7 +13,7 @@ The build gates (the no-shell proof; construction IS the answer, no search):
   (g) Python==C parity on ``.q_series`` for the keystones + a stress sweep
       (guarded by the native-availability skip; do NOT trust the C — compare);
   (h) the carrier source has no numpy / math / abs() (the ratchet);
-  (i) a CARRIER → it adds NO ToolEntry → ``tools.total`` stays 341.
+  (i) a CARRIER → it adds NO ToolEntry → ``tools.total`` stays 342.
 """
 from __future__ import annotations
 
@@ -213,10 +213,10 @@ def test_eisenstein_source_is_numpy_math_abs_free():
 # ── gate (i): a CARRIER — NO ToolEntry, tools.total UNCHANGED ─────────────────
 def test_eisenstein_is_a_carrier_no_tool_entry():
     """Eisenstein is a CARRIER (like Poly / EtaQuotient) → it registers NO
-    ToolEntry, so the shipped tool count is UNCHANGED at 341."""
+    ToolEntry, so the shipped tool count is UNCHANGED at 342."""
     from srmech.amsc.tool_schema import get_tool_schema
     shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
-    assert len(shipped) == 341
+    assert len(shipped) == 342
     names = {t.name for t in shipped}
     assert not any("eisenstein" in nm for nm in names)
 

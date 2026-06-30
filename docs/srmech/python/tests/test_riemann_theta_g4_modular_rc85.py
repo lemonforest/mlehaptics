@@ -4,7 +4,7 @@ transform / sp8 generators / automorphy / addition / Göpel. The g=3→g=4 param
 extension of the rc77/rc78 genus-3 work, on the rc80 ``RiemannThetaG4`` carrier.
 
 A pure CARRIER extension (like rc72/73/75/77/78): no public ToolEntry op, so
-``tools.total`` is UNCHANGED (stays 341) — these tests assert ONLY the carrier's own
+``tools.total`` is UNCHANGED (stays 342) — these tests assert ONLY the carrier's own
 new gates.
 
 The build gates (the no-shell proof):

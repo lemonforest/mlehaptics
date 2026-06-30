@@ -13,7 +13,7 @@ The build gates (the no-shell proof; construction IS the answer, no search):
   (e) Python==C parity on ``.q_series`` for both keystones + a broad stress sweep
       (guarded by the native-availability skip; do NOT trust the C — compare);
   (f) the carrier source has no numpy / math / abs() (the ratchet);
-  (g) the carrier adds NO ToolEntry → ``tools.total`` stays 341.
+  (g) the carrier adds NO ToolEntry → ``tools.total`` stays 342.
 """
 from __future__ import annotations
 
@@ -233,10 +233,10 @@ def test_eta_quotient_source_is_numpy_math_abs_free():
 # ── gate (g): a CARRIER — NO ToolEntry, tools.total UNCHANGED ─────────────────
 def test_eta_quotient_is_a_carrier_no_tool_entry():
     """EtaQuotient is a CARRIER (like Poly / RiemannTheta) → it registers NO
-    ToolEntry, so the shipped tool count is UNCHANGED at 341."""
+    ToolEntry, so the shipped tool count is UNCHANGED at 342."""
     from srmech.amsc.tool_schema import get_tool_schema
     shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
-    assert len(shipped) == 341
+    assert len(shipped) == 342
     names = {t.name for t in shipped}
     # no eta_quotient ToolEntry leaked in
     assert not any("eta_quotient" in nm for nm in names)
