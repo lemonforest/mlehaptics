@@ -183,7 +183,8 @@ from typing import Dict, List, Tuple
 from .q import Q
 from .unary_theta import UnaryTheta, unary_theta
 
-__all__ = ["RiemannTheta", "RiemannThetaG3", "RiemannThetaG4", "SchottkyFormG4"]
+__all__ = ["RiemannTheta", "RiemannThetaG3", "RiemannThetaG4", "SchottkyFormG4",
+           "RiemannThetaG5"]
 
 # the (A, B, C) integer exponent triple in the quarter-nome base
 _Triple = Tuple[int, int, int]
@@ -196,6 +197,12 @@ _Sextuple = Tuple[int, int, int, int, int, int]
 # diagonal nome exponents + the SIX cross-terms (vs genus-3's THREE cross-terms — the
 # genus-4 scaling difficulty; one per pair {12,13,14,23,24,34}); quarter-nome base
 _Tentuple = Tuple[int, int, int, int, int, int, int, int, int, int]
+
+# the genus-5 (A₁..A₅, C₁₂,C₁₃,C₁₄,C₁₅,C₂₃,C₂₄,C₂₅,C₃₄,C₃₅,C₄₅) integer exponent
+# 15-TUPLE — 5 diagonal nome exponents + the TEN cross-terms (vs genus-4's SIX; one per
+# pair {12,13,14,15,23,24,25,34,35,45}, the genus-5 scaling difficulty); quarter-nome base
+_Fifteentuple = Tuple[int, int, int, int, int,
+                      int, int, int, int, int, int, int, int, int, int]
 
 # a 2×2 integer matrix (a row-major tuple of 2-tuples) — the genus-2 building block
 _Mat2 = Tuple[Tuple[int, int], Tuple[int, int]]
@@ -1503,6 +1510,20 @@ def _native_g4_goepel():
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta_g4_goepel", None)
+    return nat if (probe is not None and probe()) else None
+
+
+def _native_g5():
+    """The native ``_native`` module IF the rc86 ``srmech_riemann_theta_g5`` peer is
+    present and bound, else ``None`` — so the genus-5 carrier dispatches the
+    exact-integer ``(A₁..A₅, C₁₂,C₁₃,C₁₄,C₁₅,C₂₃,C₂₄,C₂₅,C₃₄,C₃₅,C₄₅)`` 15-tuple lattice
+    to C when available and falls cleanly to the pure-Python body (the complete
+    alternative + the parity oracle). Imported lazily to avoid a bootstrap cycle."""
+    try:
+        from . import _native as nat
+    except ImportError:
+        return None
+    probe = getattr(nat, "has_native_riemann_theta_g5", None)
     return nat if (probe is not None and probe()) else None
 
 
@@ -4839,3 +4860,518 @@ class SchottkyFormG4:
     def __repr__(self) -> str:
         return ("SchottkyFormG4(weight=8, degree=4, "
                 "J ∝ θ⁴(E₈⊕E₈) − θ⁴(E₁₆), cusp_space_dim=1)")
+
+
+class RiemannThetaG5:
+    """A numpy-free EXACT genus-5 Riemann theta-CONSTANT
+
+        θ[ε'; ε](0 | Ω) = Σ_{n ∈ ℤ⁵} (−1)^{ε·n}
+                            · Q₁^{A₁} Q₂^{A₂} Q₃^{A₃} Q₄^{A₄} Q₅^{A₅}
+                            · Π_{i<j} Q_ij^{C_ij} ,
+        Aᵢ = (2nᵢ+ε'ᵢ)² ,   C_ij = (2nᵢ+ε'ᵢ)(2nⱼ+ε'ⱼ)   (TEN cross-terms, denom 4)
+
+    — the NEXT RUNG of the GENUS axis (genus 5; the genus-5 analog of the rc80 genus-4
+    :class:`RiemannThetaG4`), pushing the genus axis PAST the Schottky frontier into the
+    GENUINELY-OPEN regime. Immutable. Holds the binary characteristic ``[ε'; ε]`` (ten
+    bits in ``{0,1}``; the doubled half-integer characteristic over ``Ω ∈ H₅``, the
+    genus-5 Siegel upper half space, ``Ω`` symmetric 5×5, dim ``g(g+1)/2 = 15``).
+
+    THE OBJECT (Grushevsky, "The Schottky Problem", arXiv:1009.0369, eq. (1), the
+    Riemann theta on the Siegel space ``H_g``; the genus-5 specialization ``g = 5``).
+    There are **1024 binary characteristics — 528 EVEN + 496 ODD** (``2^{g-1}(2^g±1)``
+    for ``g = 5``: even ``16·33 = 528``, odd ``16·31 = 496``; ``528 + 496 = 1024 = 4^g``;
+    the empty-set even null ``[0,0,0,0,0;0,0,0,0,0]`` is the distinguished singular one). A
+    characteristic is even iff ``ε'·ε ≡ 0 (mod 2)``. The ``(528, 496)`` parity split is
+    the headline genus-5 invariant — PURE PARITY over the 1024 chars (cheap, NO lattice
+    sum; :meth:`even_null_count`).
+
+    EXACT NOME-LATTICE REPRESENTATION (no float on the decision path). The carrier
+    represents the theta-CONSTANT (``z = 0``) as an EXACT INTEGER exponent lattice over
+    the nome alphabet (5 diagonal nomes + **TEN cross-terms** — vs genus-4's SIX
+    cross-terms, **the genus-5 SCALING DIFFICULTY**)
+
+        qᵢ = e^{iπΩᵢᵢ} (i = 1..5) ,   q_ij = e^{2iπΩᵢⱼ} (the 10 pairs i<j) ,
+
+    cleared to integer exponents in the QUARTER-nome base ``Qᵢ = qᵢ^{1/4}``,
+    ``Q_ij = q_ij^{1/4}``. With ``mᵢ = nᵢ + ½ε'ᵢ`` the quadratic form ``mᵀΩm`` over
+    ``iπ`` expands as ``Σᵢ mᵢ²Ωᵢᵢ + 2Σ_{i<j} mᵢmⱼΩᵢⱼ`` and clearing the half-integers
+    gives a term ``Π Qᵢ^{Aᵢ} · Π Q_ij^{C_ij} · (−1)^{ε·n}`` with EXACT INTEGER
+    exponents ``Aᵢ = (2nᵢ+ε'ᵢ)²`` and ``C_ij = (2nᵢ+ε'ᵢ)(2nⱼ+ε'ⱼ)``. Each cross-term
+    ``C_ij`` is a PRODUCT of two half-integers → a denominator-4 integer-lattice
+    clearing, now across the TEN coupled pairs
+    ``{12,13,14,15,23,24,25,34,35,45}`` (the genuinely-new genus-5 content). The lattice
+    is truncated to a box ``|nᵢ| ≤ box`` → ``(2·box+1)⁵`` monomial terms — KEPT SMALL
+    (``box = 1`` or ``2``); ``(2N+1)⁵`` grows FAST (box 1 → 243, box 2 → 3125, box 3 →
+    16807 — **box ≥ 3 is catastrophic for the duplication square; use box ≤ 2**), but the
+    formal relations are box-stable. Each lattice coefficient is an exact INTEGER (a sum
+    of ``±1`` lattice counts). The sign ``(−1)^{ε·n}`` is the **Class-K** pin-slot (an
+    explicit ``±1`` branch, never an ALU ``abs()``).
+
+    THE BUILD GATES (the genus-5 analogs of rc80's genus-4 rung):
+
+      * **collapse g5→g4 (primary):** :meth:`collapse_g4` of the trivial even
+        characteristic ``[0,0,0,0,0; 0,0,0,0,0]`` collapses EXACTLY to the rc80 genus-4
+        :class:`RiemannThetaG4` ``[0,0,0,0; 0,0,0,0]`` (set ``n₅ = 0``,
+        ``q₅ = q₁₅ = q₂₅ = q₃₅ = q₄₅ = 1``, ``ε'₅ = ε₅ = 0``) — bit-exact vs the existing
+        rung; and the all-trivial chain ``→`` genus-4 → genus-3 → genus-2 → genus-1 θ₃
+        (:meth:`collapse_g1_q_series`, ``[1,2,0,0,2,…]``). A characteristic with a
+        NON-trivial 5th component HONESTLY REFUSES to collapse (raises — the rc80
+        ``collapse_g3`` pattern, an honest boundary, not a fabricated reduction). THE
+        foundation gate.
+
+      * **formal genus-5 theta-null identity (secondary):** the genus-5 Gauss /
+        duplication identity
+
+            θ[0;0](0 | Ω)²  =  Σ_{c ∈ (½ℤ⁵/ℤ⁵)} θ[c; 0](0 | 2Ω)²     (32 summands)
+
+        holds EXACTLY as a truncated exact-integer multivariate q-series, for ALL ``Ω``
+        (no transcendental evaluation). The ``z₁ = z₂ = 0``, all-zero-characteristic
+        specialization of the DLMF §21.6 addition formula with characteristics (DLMF
+        eq. 21.6.8, the ``2^{-g}`` sum over ``ν ∈ ℤ^g/2ℤ^g`` of theta products at
+        ``2Ω``; setting ``α=β=γ=δ=0`` and ``z₁=z₂=0`` collapses the two factors to one
+        square and the sum to the ``2^g`` half-characteristics ``c = ½ν``, ``ν ∈
+        {0,1}^g``; classically Mumford, *Tata Lectures on Theta I* (1983), the genus-g
+        duplication; Chai, "Riemann's theta formula" (2014), Thm 1.2 example (b)). For
+        ``g = 5`` the thirty-two ``c ∈ {0,½}⁵`` — the sum includes characteristics with
+        ``C₁₅ ≠ 0``/``C₂₅ ≠ 0``/``C₃₅ ≠ 0``/``C₄₅ ≠ 0``, so the identity genuinely
+        exercises ALL TEN cross-terms (the genuinely-new genus-5 content), not just the
+        genus-4 slice. The default box is ``1`` (``(2·box+1)⁵`` grows fast — the formal
+        identity is box-stable, and the safe inner region the box provably resolves is
+        non-empty with a genuine genus-5 cross-term already at box 1). See
+        :meth:`duplication_lhs` / :meth:`duplication_rhs` / :meth:`duplication_holds`.
+
+    THE SCHOTTKY FRONTIER PAST g = 4 — THE GENUINELY-OPEN REGIME (the documented
+    operand-side OPEN; there is NO rc81-style form to follow here, BECAUSE IT DOES NOT
+    EXIST). Genus 4 was special: the Jacobian locus ``J₄ ⊂ A₄`` is a HYPERSURFACE cut by
+    ONE weight-8 Schottky form ``J = θ⁴(E₈⊕E₈) − θ⁴(E₁₆)`` (the rc81
+    :class:`SchottkyFormG4` builds it exactly). **At genus 5 there is NO single modular
+    form known to cut ``J_g``**: ``dim A₅ = g(g+1)/2 = 15``, ``dim J₅ = dim M₅ = 3g−3 =
+    12``, so ``J₅`` has CODIMENSION ``15 − 12 = 3`` in ``A₅`` — it is NOT a hypersurface,
+    so it CANNOT be the zero locus of a single form. Only an over-inclusive SUPERSET (the
+    Andreotti–Mayer locus ``N_{g−4} = N₁ = {(A,Θ) : dim Sing Θ ≥ g−4 = 1}`` — of which
+    ``J₅`` is only an irreducible COMPONENT, so it carries EXTRA components; Andreotti–Mayer
+    1967, Grushevsky Def 5.3 / Thm 5.4 — and the Schottky–Jung locus, of which ``J₅`` is
+    again only an irreducible component, van Geemen 1984 / Donagi, Grushevsky Thm 4.4) plus
+    the non-effective analytic KP / Shiota (Novikov-conjecture) characterization (Shiota
+    1986, Grushevsky Thm 7.6 — still needs the KP parameters chosen, not a finite
+    modular-form zero-test). So the genus-5 rung is **carrier (FULLY
+    representable) + honest OPEN (the Jacobian-membership DECISION is operand-
+    irrepresentable for ``g ≥ 5``)** — the same shape as the rc80 genus-4 rung (carrier +
+    named OPEN), but here there is NO rc81-form to follow because the form DOES NOT EXIST.
+    That honest OPEN (:meth:`schottky_g5_decision_is_open`) is the DELIVERABLE, not a
+    deferred shell.
+
+    THE REPRESENTABILITY BOUNDARY. The carrier is REPRESENTABLE (a finite exact
+    decision): the canonical nome-monomial form + the finite Riemann relations, box pinned
+    by the polarization level. What STAYS OPEN — and is genuinely open in the mathematics,
+    not just in this carrier — is the genus-5 Schottky / Jacobian decision (no finite
+    exact cutter exists for ``g ≥ 5``): the operand-side OPEN this carrier names.
+
+    Construct via :meth:`theta_constant` (the public entry). ``box`` (the lattice-box
+    truncation ``|nᵢ| ≤ box``) is the finite generating rule — KEEP IT SMALL
+    (``(2·box+1)⁵`` grows fast; box ≤ 2)."""
+
+    __slots__ = ("_ep1", "_ep2", "_ep3", "_ep4", "_ep5",
+                 "_e1", "_e2", "_e3", "_e4", "_e5")
+
+    def __init__(self, ep1: int, ep2: int, ep3: int, ep4: int, ep5: int,
+                 e1: int, e2: int, e3: int, e4: int, e5: int) -> None:
+        self._ep1 = _bit("ε'₁", ep1)
+        self._ep2 = _bit("ε'₂", ep2)
+        self._ep3 = _bit("ε'₃", ep3)
+        self._ep4 = _bit("ε'₄", ep4)
+        self._ep5 = _bit("ε'₅", ep5)
+        self._e1 = _bit("ε₁", e1)
+        self._e2 = _bit("ε₂", e2)
+        self._e3 = _bit("ε₃", e3)
+        self._e4 = _bit("ε₄", e4)
+        self._e5 = _bit("ε₅", e5)
+
+    # ── construction ──────────────────────────────────────────────────────────
+    @classmethod
+    def theta_constant(cls, eps_prime: "Tuple[int, int, int, int, int]",
+                       eps: "Tuple[int, int, int, int, int]") -> "RiemannThetaG5":
+        """The genus-5 theta-constant ``θ[ε'; ε](0 | Ω)`` for a binary characteristic
+        ``[ε'; ε]`` — ``eps_prime = (ε'₁,…,ε'₅)`` (the upper / lattice-shift half-integer
+        characteristic) and ``eps = (ε₁,…,ε₅)`` (the lower / sign characteristic), each
+        entry in ``{0, 1}``. The trivial even characteristic is
+        ``theta_constant((0,0,0,0,0), (0,0,0,0,0))`` (= θ[0;0], the singular even null that
+        collapses to the genus-4 trivial null and on to θ₃)."""
+        return cls(eps_prime[0], eps_prime[1], eps_prime[2], eps_prime[3], eps_prime[4],
+                   eps[0], eps[1], eps[2], eps[3], eps[4])
+
+    @classmethod
+    def even_characteristics(cls) -> "List[RiemannThetaG5]":
+        """The 528 EVEN genus-5 theta-constants (the even theta-nulls): all 1024 binary
+        characteristics ``[ε'; ε]`` with ``ε'·ε ≡ 0 (mod 2)`` (``2^{g-1}(2^g+1) = 528``
+        even for ``g = 5``). The order is deterministic (lexicographic in
+        ``ε'₁ε'₂ε'₃ε'₄ε'₅ε₁ε₂ε₃ε₄ε₅``). A bounded build over the 1024 characteristics
+        (JPL Rule 2; pure parity, no lattice sum)."""
+        out: List[RiemannThetaG5] = []
+        for bits in range(1024):
+            ep = [(bits >> i) & 1 for i in range(5)]
+            e = [(bits >> (5 + i)) & 1 for i in range(5)]
+            if (ep[0] * e[0] + ep[1] * e[1] + ep[2] * e[2]
+                    + ep[3] * e[3] + ep[4] * e[4]) % 2 == 0:
+                out.append(cls(ep[0], ep[1], ep[2], ep[3], ep[4],
+                               e[0], e[1], e[2], e[3], e[4]))
+        return out
+
+    # ── accessors ─────────────────────────────────────────────────────────────
+    @property
+    def characteristic(self) -> ("Tuple[Tuple[int, int, int, int, int], "
+                                 "Tuple[int, int, int, int, int]]"):
+        """The binary characteristic ``((ε'₁,…,ε'₅), (ε₁,…,ε₅))``."""
+        return ((self._ep1, self._ep2, self._ep3, self._ep4, self._ep5),
+                (self._e1, self._e2, self._e3, self._e4, self._e5))
+
+    @property
+    def is_even(self) -> bool:
+        """True iff the characteristic is EVEN (``ε'·ε ≡ 0 mod 2``) — i.e. an even
+        theta-null. 528 of the 1024 are even."""
+        return (self._ep1 * self._e1 + self._ep2 * self._e2 + self._ep3 * self._e3
+                + self._ep4 * self._e4 + self._ep5 * self._e5) % 2 == 0
+
+    @property
+    def genus(self) -> int:
+        """The genus — 5 for this carrier (the genuinely-open Schottky-frontier rung of the
+        genus axis: J₅ has codimension 3 in A₅, NOT a hypersurface)."""
+        return 5
+
+    # ── the exact integer exponent lattice (the representable core) ────────────
+    def lattice(self, box: int) -> "Dict[_Fifteentuple, int]":
+        """The EXACT INTEGER exponent lattice
+        ``{(A₁..A₅,C₁₂,C₁₃,C₁₄,C₁₅,C₂₃,C₂₄,C₂₅,C₃₄,C₃₅,C₄₅): coeff}`` of the genus-5
+        theta-constant, truncated to the box ``|nᵢ| ≤ box`` — the carrier's representable
+        core. ``Aᵢ = (2nᵢ+ε'ᵢ)²`` are the diagonal integer exponents in the quarter-nome
+        base ``Qᵢ``; ``C_ij = (2nᵢ+ε'ᵢ)(2nⱼ+ε'ⱼ)`` are the TEN cross-term exponents (each
+        the genus-5 denominator-4 clearing of a half-integer product); ``coeff`` is the
+        exact integer ``Σ (−1)^{ε·n}`` over the ``n`` landing on that monomial. DISPATCHES
+        to the native ``srmech_riemann_theta_g5`` C peer when loaded (a 1:1 exact-integer
+        mirror — the C lattice EQUALS the Python lattice, trusted only on a native hit);
+        else the pure-Python :meth:`_lattice_py` body (the COMPLETE alternative + the
+        parity oracle). No float, no ``abs()`` (the ``(−1)^{ε·n}`` sign is the Class-K
+        pin-slot), no numpy / ``math``. NOTE: ``(2·box+1)⁵`` grows FAST — keep box ≤ 2."""
+        if not isinstance(box, int) or box < 0:
+            raise ValueError(f"box must be a non-negative int; got {box!r}")
+        nat = _native_g5()
+        if nat is not None:
+            try:
+                got = nat.riemann_theta_g5_lattice_c(
+                    self._ep1, self._ep2, self._ep3, self._ep4, self._ep5,
+                    self._e1, self._e2, self._e3, self._e4, self._e5, box)
+                if got is not None:
+                    return got
+            except (RuntimeError, OverflowError, ValueError):
+                pass   # fall to the pure path
+        return self._lattice_py(box)
+
+    def _lattice_py(self, box: int) -> "Dict[_Fifteentuple, int]":
+        """The COMPLETE pure-Python exponent lattice (the parity oracle for the C peer):
+        exact integer ``(A₁..A₅,C₁₂,C₁₃,C₁₄,C₁₅,C₂₃,C₂₄,C₂₅,C₃₄,C₃₅,C₄₅) → coeff`` over
+        the box ``|nᵢ| ≤ box``. Each cross-term ``C_ij = (2nᵢ+ε'ᵢ)(2nⱼ+ε'ⱼ)`` is the
+        genus-5 denominator-4 clearing (TEN of them); the sign ``(−1)^{ε·n}`` is the
+        Class-K pin-slot (an explicit ``+1/−1`` branch, never an ALU ``abs()``). A bounded
+        quintuple loop over the box (JPL Rule 2)."""
+        ep1, ep2, ep3, ep4, ep5 = (self._ep1, self._ep2, self._ep3,
+                                   self._ep4, self._ep5)
+        e1, e2, e3, e4, e5 = self._e1, self._e2, self._e3, self._e4, self._e5
+        out: Dict[_Fifteentuple, int] = {}
+        for n1 in range(-box, box + 1):
+            u1 = 2 * n1 + ep1
+            for n2 in range(-box, box + 1):
+                u2 = 2 * n2 + ep2
+                for n3 in range(-box, box + 1):
+                    u3 = 2 * n3 + ep3
+                    for n4 in range(-box, box + 1):
+                        u4 = 2 * n4 + ep4
+                        for n5 in range(-box, box + 1):
+                            u5 = 2 * n5 + ep5
+                            # the per-term sign (−1)^{ε·n}: Class-K pin-slot (a stored ±1)
+                            parity = (e1 * n1 + e2 * n2 + e3 * n3
+                                      + e4 * n4 + e5 * n5) % 2
+                            sign = 1 if parity == 0 else -1   # never abs(); explicit ±
+                            key = (u1 * u1, u2 * u2, u3 * u3, u4 * u4, u5 * u5,
+                                   u1 * u2, u1 * u3, u1 * u4, u1 * u5,
+                                   u2 * u3, u2 * u4, u2 * u5,
+                                   u3 * u4, u3 * u5, u4 * u5)
+                            out[key] = out.get(key, 0) + sign
+        return {k: v for k, v in out.items() if v != 0}
+
+    # ── the genus-4 collapse (the foundation gate) ─────────────────────────────
+    def collapse_g4(self) -> "RiemannThetaG4":
+        """The genus-4 COLLAPSE (the primary foundation gate): set ``Ω₅₅ = Ω₁₅ = Ω₂₅ =
+        Ω₃₅ = Ω₄₅ = 0`` (⇒ ``q₅ = q₁₅ = q₂₅ = q₃₅ = q₄₅ = 1``) and ``n₅ = 0`` (drop the
+        fifth lattice direction). For the trivial even characteristic
+        ``[0,0,0,0,0; 0,0,0,0,0]`` the surviving slice is the genus-4 trivial theta-null,
+        returned as the rc80 :class:`RiemannThetaG4` ``[0,0,0,0; 0,0,0,0]`` (so the
+        collapse is BIT-EXACT vs the existing rung — verify with
+        :meth:`collapse_g4_lattice_matches`). Only the trivial even characteristic
+        collapses to the plain genus-4 trivial null; any characteristic with a NON-trivial
+        5th component (``ε'₅`` or ``ε₅`` set) is rejected — its genus-4 slice is a
+        shifted/signed theta, not the plain rung (an honest boundary, not a fabricated
+        reduction — the rc80 collapse pattern)."""
+        if (self._ep1, self._ep2, self._ep3, self._ep4, self._ep5,
+                self._e1, self._e2, self._e3, self._e4, self._e5) != (
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0):
+            raise ValueError(
+                "collapse_g4 is the genus-4 foundation gate: only the trivial even "
+                "characteristic [0,0,0,0,0; 0,0,0,0,0] collapses to the rc80 genus-4 "
+                f"trivial theta-null. The characteristic {self.characteristic} has a "
+                "non-trivial 5th / signed component (a shifted/signed theta), not the "
+                "plain genus-4 rung — an honest boundary, not a fabricated reduction.")
+        return RiemannThetaG4(0, 0, 0, 0, 0, 0, 0, 0)
+
+    def collapse_g4_lattice_matches(self, box: int = 2) -> bool:
+        """PROVES the genus-4 collapse is GENUINE — it derives from the genus-5 lattice
+        itself, not a hardcoded return. The genus-4 degeneration ``q₅ → 0`` /
+        ``q₁₅, q₂₅, q₃₅, q₄₅ → 1`` keeps ONLY the ``n₅ = 0`` slice (for the trivial
+        characteristic ``A₅ = (2n₅)² = 0 ⟺ n₅ = 0``, and then
+        ``C₁₅ = C₂₅ = C₃₅ = C₄₅ = 0`` automatically), so projecting the genus-5 trivial
+        lattice onto its ``A₅ = C₁₅ = C₂₅ = C₃₅ = C₄₅ = 0`` slice and reading
+        ``(A₁,A₂,A₃,A₄,C₁₂,C₁₃,C₁₄,C₂₃,C₂₄,C₃₄)`` reproduces the rc80 genus-4 trivial
+        lattice EXACTLY. Returns ``True`` iff bit-exact (the no-shell collapse proof). Pure
+        exact-integer comparison, no float. Default box ``2`` (box ≤ 2 — the genus-5
+        scaling caution)."""
+        if not isinstance(box, int) or box < 0:
+            raise ValueError(f"box must be a non-negative int; got {box!r}")
+        if (self._ep1, self._ep2, self._ep3, self._ep4, self._ep5,
+                self._e1, self._e2, self._e3, self._e4, self._e5) != (
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0):
+            raise ValueError(
+                "collapse_g4_lattice_matches is the trivial-null foundation gate; "
+                f"the characteristic {self.characteristic} does not collapse.")
+        g5 = self.lattice(box)
+        projected: Dict[_Tentuple, int] = {}
+        for (a1, a2, a3, a4, a5, c12, c13, c14, c15,
+             c23, c24, c25, c34, c35, c45), v in g5.items():
+            if a5 == 0 and c15 == 0 and c25 == 0 and c35 == 0 and c45 == 0:
+                key = (a1, a2, a3, a4, c12, c13, c14, c23, c24, c34)
+                projected[key] = projected.get(key, 0) + v
+        projected = {k: v for k, v in projected.items() if v != 0}
+        g4 = RiemannThetaG4(0, 0, 0, 0, 0, 0, 0, 0).lattice(box)
+        return projected == g4
+
+    def collapse_g1_q_series(self, N: int) -> "List[int]":
+        """The all-trivial genus-5 → genus-1 collapse's exact INTEGER q-series to order
+        ``N``: ``[1, 2, 0, 0, 2, …]`` = ``θ₃``. The chain is genus-5 → genus-4
+        (:meth:`collapse_g4`) → genus-3 → genus-2 → genus-1 (the rc80
+        :meth:`RiemannThetaG4.collapse_g1_q_series`); bit-exact vs the rc70 θ₃ rung. Only
+        the trivial even characteristic collapses the whole way (else :meth:`collapse_g4`
+        raises — the honest boundary)."""
+        return self.collapse_g4().collapse_g1_q_series(N)
+
+    # ── equality / repr ───────────────────────────────────────────────────────
+    def _key(self) -> "Tuple[int, ...]":
+        return (self._ep1, self._ep2, self._ep3, self._ep4, self._ep5,
+                self._e1, self._e2, self._e3, self._e4, self._e5)
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, RiemannThetaG5):
+            return self._key() == other._key()
+        return NotImplemented
+
+    def __ne__(self, other):
+        r = self.__eq__(other)
+        return r if r is NotImplemented else (not r)
+
+    def __hash__(self) -> int:
+        return hash(self._key())
+
+    def __repr__(self) -> str:
+        return (f"RiemannThetaG5(genus=5, "
+                f"eps_prime=({self._ep1},{self._ep2},{self._ep3},"
+                f"{self._ep4},{self._ep5}), "
+                f"eps=({self._e1},{self._e2},{self._e3},{self._e4},{self._e5}), "
+                f"even={self.is_even})")
+
+    # ── the formal genus-5 theta-null identity gate (Gauss duplication) ────────
+    @staticmethod
+    def _square_lattice(lat: "Dict[_Fifteentuple, int]") -> "Dict[_Fifteentuple, int]":
+        """The exact-integer square ``lat · lat`` of a genus-5 15-tuple → coeff lattice (a
+        bounded convolution over the exponent 15-tuples; JPL Rule 2). All-integer, no
+        float. (At box ≤ 1 — the duplication default — the lattices are small; the genus-5
+        ``(2·box+1)⁵`` scaling is exactly why the duplication box is kept minimal.)"""
+        out: Dict[_Fifteentuple, int] = {}
+        items = list(lat.items())
+        for k1, v1 in items:
+            for k2, v2 in items:
+                key = (k1[0] + k2[0], k1[1] + k2[1], k1[2] + k2[2],
+                       k1[3] + k2[3], k1[4] + k2[4], k1[5] + k2[5],
+                       k1[6] + k2[6], k1[7] + k2[7], k1[8] + k2[8],
+                       k1[9] + k2[9], k1[10] + k2[10], k1[11] + k2[11],
+                       k1[12] + k2[12], k1[13] + k2[13], k1[14] + k2[14])
+                out[key] = out.get(key, 0) + v1 * v2
+        return {k: v for k, v in out.items() if v != 0}
+
+    @staticmethod
+    def _double_exps(lat: "Dict[_Fifteentuple, int]") -> "Dict[_Fifteentuple, int]":
+        """Re-express a genus-5 lattice computed at ``2Ω`` in the ``Ω``-nome alphabet:
+        every quarter-nome exponent DOUBLES (``Qᵢ(2Ω) = Qᵢ(Ω)²``), so the whole 15-tuple
+        ``↦ 2·15-tuple``. Exact integer relabel, no float."""
+        return {tuple(2 * x for x in k): v for k, v in lat.items()}  # type: ignore[misc]
+
+    @classmethod
+    def duplication_lhs(cls, box: int) -> "Dict[_Fifteentuple, int]":
+        """The LEFT side of the genus-5 Gauss/duplication theta-null identity
+        ``θ[0; 0](0 | Ω)²`` (in the ``Ω`` quarter-nome alphabet) — the exact-integer square
+        of the trivial even theta-constant's genus-5 lattice. See
+        :meth:`duplication_holds`."""
+        t0 = cls.theta_constant((0, 0, 0, 0, 0), (0, 0, 0, 0, 0)).lattice(box)
+        return cls._square_lattice(t0)
+
+    @classmethod
+    def duplication_rhs(cls, box: int) -> "Dict[_Fifteentuple, int]":
+        """The RIGHT side of the genus-5 Gauss/duplication theta-null identity
+        ``Σ_{c ∈ (½ℤ⁵/ℤ⁵)} θ[c; 0](0 | 2Ω)²`` (re-expressed in the ``Ω`` quarter-nome
+        alphabet via :meth:`_double_exps`, since each summand is at ``2Ω``). The THIRTY-TWO
+        ``c`` are the half-characteristics ``{0,1}⁵`` (upper char ``c``, lower char ``0``
+        — all even). See :meth:`duplication_holds`."""
+        rhs: Dict[_Fifteentuple, int] = {}
+        for bits in range(32):
+            c = ((bits >> 0) & 1, (bits >> 1) & 1, (bits >> 2) & 1,
+                 (bits >> 3) & 1, (bits >> 4) & 1)
+            tc = cls.theta_constant(c, (0, 0, 0, 0, 0)).lattice(box)
+            tc2 = cls._double_exps(tc)      # the summand is at 2Ω
+            sq = cls._square_lattice(tc2)
+            for k, v in sq.items():
+                rhs[k] = rhs.get(k, 0) + v
+        return {k: v for k, v in rhs.items() if v != 0}
+
+    @classmethod
+    def duplication_holds(cls, box: int = 1) -> bool:
+        """The FORMAL genus-5 theta-null identity gate (the secondary build gate): the
+        genus-5 Gauss / duplication identity
+
+            θ[0; 0](0 | Ω)²  =  Σ_{c ∈ (½ℤ⁵/ℤ⁵)} θ[c; 0](0 | 2Ω)²     (32 summands)
+
+        holds EXACTLY as a truncated exact-integer multivariate q-series, for ALL ``Ω``
+        (no transcendental evaluation). The ``z₁ = z₂ = 0``, all-zero-characteristic
+        specialization of the DLMF §21.6 addition formula with characteristics (DLMF
+        eq. 21.6.8 — the sum over ``ν ∈ ℤ^g/2ℤ^g`` of theta products at ``2Ω``; the
+        all-zero / ``z = 0`` specialization collapses the two factors to one square and
+        the sum to the ``2^g`` half-characteristics ``c = ½ν``, ``ν ∈ {0,1}^g``;
+        classically Mumford, *Tata Lectures on Theta I* (1983), the genus-g duplication;
+        Chai, "Riemann's theta formula" (2014), Thm 1.2 example (b)). This compares the
+        two sides on the SAFE INNER REGION the box ``|nᵢ| ≤ box`` provably resolves (a
+        box-``box`` theta omits only terms with a diagonal quarter-nome exponent
+        ``≥ (2·box+1)²``, so monomials with each ``Aᵢ, |C_ij| ≤ 4·box²`` are fully
+        accumulated; ``4·box² < (2·box+1)²`` always). Because the thirty-two ``θ[c; 0]``
+        include characteristics with ``C₁₅ ≠ 0``/``C₂₅ ≠ 0``/``C₃₅ ≠ 0``/``C₄₅ ≠ 0``, the
+        identity genuinely exercises ALL TEN cross-terms — it proves the carrier computes
+        genuine genus-5 theta-constants, not just the genus-4 slice. Returns ``True`` iff
+        the two sides agree exactly on the safe region (and the region is non-trivially
+        populated with a genuine genus-5 cross-term
+        ``C₁₅``/``C₂₅``/``C₃₅``/``C₄₅`` monomial).
+
+        A CARRIER METHOD (the carrier's own build gate), not a public module-level op —
+        ``tools.total`` is unchanged (the rc80 ``duplication_holds`` precedent). NOTE: the
+        box is kept MINIMAL (default 1) because ``(2·box+1)⁵`` grows fast — the formal
+        identity is box-stable; the safe region is non-empty with a genuine genus-5
+        cross-term already at box 1. Keep test boxes ≤ 2."""
+        if not isinstance(box, int) or box < 1:
+            raise ValueError(
+                f"box must be an int ≥ 1 for the duplication gate; got {box!r}")
+        lhs = cls.duplication_lhs(box)
+        rhs = cls.duplication_rhs(box)
+        safe = 4 * box * box
+
+        def restrict(lat: "Dict[_Fifteentuple, int]") -> "Dict[_Fifteentuple, int]":
+            kept: Dict[_Fifteentuple, int] = {}
+            for k, v in lat.items():
+                a1, a2, a3, a4, a5 = k[0], k[1], k[2], k[3], k[4]
+                # Class-K magnitudes, no abs()
+                mags = [c if c >= 0 else -c for c in k[5:]]
+                if (a1 <= safe and a2 <= safe and a3 <= safe and a4 <= safe
+                        and a5 <= safe and all(m <= safe for m in mags)):
+                    kept[k] = v
+            return kept
+
+        lhs_s = restrict(lhs)
+        rhs_s = restrict(rhs)
+        if lhs_s != rhs_s:
+            return False
+        # the gate must genuinely touch a genus-5 cross-term C₁₅/C₂₅/C₃₅/C₄₅ — else only the
+        # genus-4 slice would be exercised. Indices: C₁₅=8, C₂₅=11, C₃₅=13, C₄₅=14.
+        has_g5_cross = any(
+            (k[8] != 0 or k[11] != 0 or k[13] != 0 or k[14] != 0)
+            for k in lhs_s)
+        return has_g5_cross
+
+    # ── the genus-5 enumeration + the documented genuinely-OPEN Schottky frontier ──
+    @classmethod
+    def even_null_count(cls) -> "Tuple[int, int]":
+        """The genus-5 even / odd theta-null counts ``(528, 496)`` — DERIVED from the
+        enumeration (``2^{g-1}(2^g±1)`` for ``g = 5``: even ``16·33 = 528``, odd
+        ``16·31 = 496``; ``528 + 496 = 1024 = 4^g``; Grushevsky arXiv:1009.0369). The
+        HEADLINE genus-5 invariant — PURE PARITY over the 1024 chars (cheap, NO lattice
+        sum). The distinguished singular even null is the empty-set characteristic
+        ``[0,0,0,0,0; 0,0,0,0,0]`` (see :meth:`singular_even_null`). Exact integer, no
+        float."""
+        even = cls.even_characteristics()
+        n_even = len(even)
+        n_odd = 1024 - n_even
+        return (n_even, n_odd)
+
+    @classmethod
+    def singular_even_null(cls) -> "RiemannThetaG5":
+        """The distinguished SINGULAR even theta-null — the empty-set characteristic
+        ``[0,0,0,0,0; 0,0,0,0,0]`` (the trivial even null, the one that collapses to the
+        genus-4 trivial null and on to θ₃). Among the 528 even nulls it is the
+        distinguished one (Grushevsky / Igusa)."""
+        return cls.theta_constant((0, 0, 0, 0, 0), (0, 0, 0, 0, 0))
+
+    @staticmethod
+    def schottky_g5_decision_is_open() -> str:
+        """The DOCUMENTED operand-side OPEN — the GENUINELY-OPEN genus-5 Schottky decision.
+        Unlike genus 4 (where the Jacobian locus ``J₄ ⊂ A₄`` is a HYPERSURFACE cut by ONE
+        weight-8 Schottky form ``J = θ⁴(E₈⊕E₈) − θ⁴(E₁₆)`` — the rc81
+        :class:`SchottkyFormG4` builds it exactly), at genus 5 there is **NO single modular
+        form known to cut ``J_g``**: ``dim A₅ = g(g+1)/2 = 15``, ``dim J₅ = dim M₅ =
+        3g−3 = 12``, so ``J₅`` has CODIMENSION ``15 − 12 = 3`` in ``A₅`` — it is NOT a
+        hypersurface, so it CANNOT be the zero locus of a single form. Only an
+        over-inclusive SUPERSET (the Andreotti–Mayer locus ``N_{g−4} = N₁ = {dim Sing Θ ≥
+        g−4 = 1}`` — of which ``J₅`` is only an irreducible COMPONENT, Andreotti–Mayer 1967;
+        and the Schottky–Jung locus — of which ``J₅`` is again only an irreducible
+        component, van Geemen 1984 / Donagi — BOTH carrying EXTRA irreducible components
+        beyond ``J₅``) plus the non-effective analytic KP / Shiota (Novikov-conjecture)
+        characterization (Shiota 1986) exist. So the genus-5
+        Jacobian-membership DECISION is operand-IRREPRESENTABLE — there is no finite exact
+        cutter, NOT because the carrier is unbuilt, but because the mathematics has no such
+        form (this is a genuinely OPEN problem). The carrier BUILDS the exact genus-5
+        content (the 5-diagonal + TEN-cross-term exponent lattice for all 1024
+        characteristics; the g5→g4 collapse → genus-1 θ₃; the genus-5 duplication relation
+        exercising all ten cross-terms; the 528-even / 496-odd null enumeration; the
+        singular even null — all exact for ALL Ω) but REFUSES to fabricate a numerical
+        Jacobian decision (the rc76/rc80 honest-OPEN pattern, now on a genuinely open
+        problem). Returns the honest OPEN statement (a documentation string), never a
+        verdict. (Andreotti–Mayer 1967; Schottky–Jung / van Geemen 1984; Shiota 1986;
+        Grushevsky, "The Schottky Problem", arXiv:1009.0369.)"""
+        return (
+            "OPEN (operand-side, genuinely open in the mathematics — g ≥ 5): the genus-5 "
+            "SCHOTTKY / JACOBIAN decision is NOT a finite exact carrier operation, and "
+            "unlike genus 4 there is NO single modular form to evaluate because NONE IS "
+            "KNOWN TO EXIST. Genus 4 was special: the Jacobian locus J₄ ⊂ A₄ is a "
+            "HYPERSURFACE cut by ONE weight-8 Schottky form J = θ⁴(E₈⊕E₈) − θ⁴(E₁₆) "
+            "(Schottky 1888; Igusa 1981; Poor & Yuen 1996; the rc81 SchottkyFormG4 builds "
+            "it exactly). At genus 5: dim A₅ = g(g+1)/2 = 15, dim J₅ = dim M₅ = 3g−3 = 12, "
+            "so J₅ has CODIMENSION 15 − 12 = 3 in A₅ — it is NOT a hypersurface, so it "
+            "CANNOT be the zero locus of a single form. Only an over-inclusive SUPERSET "
+            "(the Andreotti–Mayer locus N_{g−4} = N₁ = {(A,Θ) : dim Sing Θ ≥ g−4 = 1} — of "
+            "which J₅ is only an irreducible COMPONENT, so it carries extra components, "
+            "Andreotti–Mayer 1967; and the Schottky–Jung locus — of which J₅ is again only "
+            "an irreducible component, van Geemen 1984 / Donagi — BOTH carrying extra "
+            "irreducible components beyond J₅) plus the non-effective analytic KP / Shiota "
+            "(Novikov-conjecture, Shiota 1986) characterization exist. The genus-5 "
+            "Jacobian-membership "
+            "DECISION is therefore operand-IRREPRESENTABLE: no finite exact cutter, NOT "
+            "because the carrier is unbuilt but because the mathematics has no such form "
+            "(a genuinely OPEN problem). rc86 BUILDS the exact genus-5 carrier content (the "
+            "5-diagonal + TEN-cross-term exponent lattice for all 1024 characteristics; the "
+            "g5→g4 collapse → genus-1 θ₃; the genus-5 duplication relation exercising all "
+            "ten cross-terms; the 528-even / 496-odd null enumeration; the singular even "
+            "null — all exact for ALL Ω) but REFUSES to fabricate a numerical Jacobian "
+            "verdict here. (Schottky frontier: g = 4 ON, solved by Schottky; g ≥ 5 "
+            "genuinely OPEN. Andreotti–Mayer 1967; Schottky–Jung / van Geemen 1984; "
+            "Shiota 1986; Grushevsky arXiv:1009.0369.)"
+        )
