@@ -138,7 +138,7 @@ __all__ = [
     "QuasiModularFormsRing",
     "QuasiModularForm",
     "quasimodular_forms_ring",
-    "quasimodular_forms_ring_represent",
+    "quasimodular_represent",
     "eisenstein_e2",
 ]
 
@@ -580,17 +580,19 @@ def quasimodular_forms_ring() -> QuasiModularFormsRing:
     (:meth:`~QuasiModularFormsRing.weight_monomials`), the graded dimension
     (:meth:`~QuasiModularFormsRing.dim`), and the exact membership decision
     (:meth:`~QuasiModularFormsRing.represent`). See the module docstring + the
-    :func:`quasimodular_forms_ring_represent` reducer for the Ramanujan-derivative
+    :func:`quasimodular_represent` reducer for the Ramanujan-derivative
     keystones."""
     return QuasiModularFormsRing()
 
 
-def quasimodular_forms_ring_represent(q_series, k: int, *,
-                                      n_terms: Optional[int] = None
-                                      ) -> Optional[Dict[Tuple[int, int, int], Q]]:
+def quasimodular_represent(q_series, k: int, *,
+                           n_terms: Optional[int] = None
+                           ) -> Optional[Dict[Tuple[int, int, int], Q]]:
     """The level-1 quasimodular-forms-ring MEMBERSHIP DECISION (the WEIGHT-axis
     REDUCER, the analog of the Σ-row gosper / zeilberger / wz_certificate reducers,
-    one generator up from the rc84 ``modular_forms_ring_represent``): given an exact
+    one generator up from the rc84 ``modular_forms_ring_represent``; named
+    ``quasimodular_represent`` — not ``quasimodular_forms_ring_represent`` — so the
+    Anthropic tool name stays within the 64-char grammar ceiling): given an exact
     q-series claimed to be a weight-``k`` quasimodular form, return its UNIQUE
     exact-ℚ polynomial representation ``{(a, b, c): c_{a,b,c}}`` in
     ``ℂ[E_2, E_4, E_6]`` — or ``None`` if it is NOT a weight-``k`` quasimodular form

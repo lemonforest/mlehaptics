@@ -21,7 +21,7 @@ The build gates (the no-shell proof; the construction IS the answer, no search):
   (f) Python==C parity on .represent for the keystones (guarded by the native-skip;
       do NOT trust the C — compare element-for-element);
   (g) the carrier source has no numpy / math / abs() (the ratchet);
-  (h) the REDUCER ``quasimodular_forms_ring_represent`` IS a ToolEntry → tools.total
+  (h) the REDUCER ``quasimodular_represent`` IS a ToolEntry → tools.total
       342; eisenstein_e2 + the bare constructor + weight_monomials/dim are NOT.
 """
 from __future__ import annotations
@@ -37,7 +37,7 @@ from srmech.amsc.quasimodular_forms_ring import (
     QuasiModularFormsRing,
     eisenstein_e2,
     quasimodular_forms_ring,
-    quasimodular_forms_ring_represent,
+    quasimodular_represent,
 )
 from srmech.amsc.modular_forms_ring import modular_forms_ring_represent
 from srmech.amsc.eisenstein import Eisenstein, eisenstein
@@ -131,19 +131,19 @@ def test_ramanujan_identities_hold_on_qseries():
 
 def test_keystone_DE2_through_represent():
     """D E₂ reduces over the ring to (E₂²−E₄)/12 → {(2,0,0):1/12, (0,1,0):−1/12}."""
-    rep = quasimodular_forms_ring_represent(_deriv(_e2()), 4)
+    rep = quasimodular_represent(_deriv(_e2()), 4)
     assert rep == {(2, 0, 0): Q(1, 12), (0, 1, 0): Q(-1, 12)}
 
 
 def test_keystone_DE4_through_represent():
     """D E₄ reduces over the ring to (E₂E₄−E₆)/3 → {(1,1,0):1/3, (0,0,1):−1/3}."""
-    rep = quasimodular_forms_ring_represent(_deriv(_e4()), 6)
+    rep = quasimodular_represent(_deriv(_e4()), 6)
     assert rep == {(1, 1, 0): Q(1, 3), (0, 0, 1): Q(-1, 3)}
 
 
 def test_keystone_DE6_through_represent():
     """D E₆ reduces over the ring to (E₂E₆−E₄²)/2 → {(1,0,1):1/2, (0,2,0):−1/2}."""
-    rep = quasimodular_forms_ring_represent(_deriv(_e6()), 8)
+    rep = quasimodular_represent(_deriv(_e6()), 8)
     assert rep == {(1, 0, 1): Q(1, 2), (0, 2, 0): Q(-1, 2)}
 
 
@@ -153,37 +153,37 @@ def test_E2_squared_extends_the_modular_ring():
     represent → {(2,0,0):1}, but rc84 modular represent → None. The proof that the
     quasimodular ring genuinely EXTENDS the modular one."""
     e2sq = _qmul(_e2(), _e2(), N)
-    assert quasimodular_forms_ring_represent(e2sq, 4) == {(2, 0, 0): Q(1, 1)}
+    assert quasimodular_represent(e2sq, 4) == {(2, 0, 0): Q(1, 1)}
     assert modular_forms_ring_represent(e2sq, 4) is None
     # E₂ itself @2 → {(1,0,0):1} (the weight-2 generator; modular M₂={0} → None there)
-    assert quasimodular_forms_ring_represent(_e2(), 2) == {(1, 0, 0): Q(1, 1)}
+    assert quasimodular_represent(_e2(), 2) == {(1, 0, 0): Q(1, 1)}
 
 
 def test_modular_forms_are_still_representable_here():
     """The modular ring is the a=0 subring: a modular form (E₄ @4) reduces here to
     the SAME E₄ monomial (0,1,0) — the quasimodular ring CONTAINS ℂ[E₄,E₆]."""
-    assert quasimodular_forms_ring_represent(_e4(), 4) == {(0, 1, 0): Q(1, 1)}
-    assert quasimodular_forms_ring_represent(_e6(), 6) == {(0, 0, 1): Q(1, 1)}
+    assert quasimodular_represent(_e4(), 4) == {(0, 1, 0): Q(1, 1)}
+    assert quasimodular_represent(_e6(), 6) == {(0, 0, 1): Q(1, 1)}
 
 
 # ── gate (e): the honest rejection (non-quasimodular → None) ──────────────────
 def test_non_quasimodular_series_rejected():
     series = [Q(1, 1), Q(1, 1)] + [Q(0, 1)] * 12
-    assert quasimodular_forms_ring_represent(series, 4) is None
+    assert quasimodular_represent(series, 4) is None
     garbage = [Q(1, 1), Q(7, 1), Q(-3, 1), Q(2, 1), Q(5, 1)] + [Q(0, 1)] * 9
-    assert quasimodular_forms_ring_represent(garbage, 6) is None
+    assert quasimodular_represent(garbage, 6) is None
 
 
 def test_zero_series_and_odd_weight():
     # the zero series at an odd weight (M̃_k = {0}) → the empty rep {}
-    assert quasimodular_forms_ring_represent([Q(0, 1)] * 6, 3) == {}
+    assert quasimodular_represent([Q(0, 1)] * 6, 3) == {}
     # a nonzero series at an odd weight → None (M̃_k = {0})
-    assert quasimodular_forms_ring_represent([Q(1, 1)] + [Q(0, 1)] * 5, 3) is None
+    assert quasimodular_represent([Q(1, 1)] + [Q(0, 1)] * 5, 3) is None
 
 
 def test_too_few_terms_raises():
     with pytest.raises(ValueError):
-        quasimodular_forms_ring_represent([Q(1, 1), Q(0, 1)], 6)   # need ≥ dim+2 = 5
+        quasimodular_represent([Q(1, 1), Q(0, 1)], 6)   # need ≥ dim+2 = 5
 
 
 # ── a genuine ℚ-combination (non-monomial quasimodular form) ──────────────────
@@ -195,7 +195,7 @@ def test_linear_combination_of_monomials():
     e2e4 = _qmul(e2, e4, N)
     f = [Q(2, 1) * a + Q(5, 1) * b - Q(3, 1) * c
          for a, b, c in zip(e2cubed, e2e4, e6)]
-    rep = quasimodular_forms_ring_represent(f, 6)
+    rep = quasimodular_represent(f, 6)
     assert rep == {(3, 0, 0): Q(2, 1), (1, 1, 0): Q(5, 1), (0, 0, 1): Q(-3, 1)}
 
 
@@ -313,7 +313,7 @@ def test_quasimodular_forms_ring_source_is_numpy_math_abs_free():
 
 # ── gate (h): the REDUCER is a ToolEntry → tools.total 342; accessors not ──────
 def test_represent_is_a_tool_entry_total_342():
-    """``quasimodular_forms_ring_represent`` is a genuine REDUCER (the WEIGHT-axis
+    """``quasimodular_represent`` is a genuine REDUCER (the WEIGHT-axis
     analog of the Σ-row reducers, one generator up from rc84) → it IS a registered
     ToolEntry, taking the shipped tool count 341 → 342. eisenstein_e2 + the bare
     constructor + weight_monomials/dim are NOT ToolEntries."""
@@ -321,7 +321,7 @@ def test_represent_is_a_tool_entry_total_342():
     shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
     assert len(shipped) == 342
     names = {t.name for t in shipped}
-    assert ("srmech.amsc.quasimodular_forms_ring.quasimodular_forms_ring_represent"
+    assert ("srmech.amsc.quasimodular_forms_ring.quasimodular_represent"
             in names)
     # the carrier constructor + E₂ fn + pure accessors are NOT ToolEntries
     assert ("srmech.amsc.quasimodular_forms_ring.quasimodular_forms_ring"
@@ -337,10 +337,10 @@ def test_exported_from_amsc():
         QuasiModularForm as ExportedForm,
         eisenstein_e2 as exported_e2,
         quasimodular_forms_ring as exported_ctor,
-        quasimodular_forms_ring_represent as exported_rep,
+        quasimodular_represent as exported_rep,
     )
     assert ExportedRing is QuasiModularFormsRing
     assert ExportedForm is QuasiModularForm
     assert exported_e2 is eisenstein_e2
     assert exported_ctor is quasimodular_forms_ring
-    assert exported_rep is quasimodular_forms_ring_represent
+    assert exported_rep is quasimodular_represent

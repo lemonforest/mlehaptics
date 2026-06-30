@@ -458,5 +458,5 @@
 {"exposed_as": "srmech.amsc.modular_forms_ring.modular_forms_ring", "defined_at": "srmech.amsc.modular_forms_ring.modular_forms_ring", "bucket": "non_compute"}
 {"exposed_as": "srmech.amsc.modular_forms_ring.modular_forms_ring_represent", "defined_at": "srmech.amsc.modular_forms_ring.modular_forms_ring_represent", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.quasimodular_forms_ring.quasimodular_forms_ring", "defined_at": "srmech.amsc.quasimodular_forms_ring.quasimodular_forms_ring", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.quasimodular_forms_ring.quasimodular_forms_ring_represent", "defined_at": "srmech.amsc.quasimodular_forms_ring.quasimodular_forms_ring_represent", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.quasimodular_forms_ring.quasimodular_represent", "defined_at": "srmech.amsc.quasimodular_forms_ring.quasimodular_represent", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.quasimodular_forms_ring.eisenstein_e2", "defined_at": "srmech.amsc.quasimodular_forms_ring.eisenstein_e2", "bucket": "c_dispatched"}

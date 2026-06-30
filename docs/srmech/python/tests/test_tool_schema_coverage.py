@@ -117,7 +117,7 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # dim are pure accessors, NOT walked here as they are class methods); it is NOT a
     # user-facing engine ToolEntry, exactly like the modular_forms_ring constructor
     # above. classified `non_compute` in rosetta_classification.ndjson. NOTE: the
-    # carrier's REDUCER, quasimodular_forms_ring_represent, IS a registered ToolEntry
+    # carrier's REDUCER, quasimodular_represent, IS a registered ToolEntry
     # (the WEIGHT-axis analog of the Σ-row reducers, one generator up from rc84) —
     # only the bare constructor + the E₂ series fn are exempt.
     "srmech.amsc.quasimodular_forms_ring.quasimodular_forms_ring",

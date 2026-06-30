@@ -3076,7 +3076,7 @@ def _register_primitive_class_tools() -> None:
         # ────────────────────────────────────────────────────────────
         ToolEntry(
             name="srmech.amsc.quasimodular_forms_ring."
-                 "quasimodular_forms_ring_represent",
+                 "quasimodular_represent",
             owner="srmech", category="quasimodular_forms_ring",
             summary="The level-1 QUASIMODULAR-forms-ring MEMBERSHIP DECISION — the "
                     "Kaneko–Zagier ring M̃_*(SL₂(ℤ)) = ℂ[E₂,E₄,E₆] made executable "

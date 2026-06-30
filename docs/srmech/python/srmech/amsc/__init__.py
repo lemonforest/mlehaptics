@@ -166,7 +166,7 @@ from .quasimodular_forms_ring import (
     QuasiModularFormsRing,
     eisenstein_e2,
     quasimodular_forms_ring,
-    quasimodular_forms_ring_represent,
+    quasimodular_represent,
 )
 # v0.3.0 — tool_schema introspection (Task #198) registers srmech's
 # own AMSC tools at import time. Profile-contributed tools register
@@ -222,5 +222,5 @@ __all__ = [
     "QuasiModularForm",
     "eisenstein_e2",
     "quasimodular_forms_ring",
-    "quasimodular_forms_ring_represent",
+    "quasimodular_represent",
 ]
