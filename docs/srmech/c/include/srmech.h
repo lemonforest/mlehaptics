@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc86"
-#define SRMECH_VERSION       "0.9.0rc86"
+#define SRMECH_VERSION_PRE   "rc87"
+#define SRMECH_VERSION       "0.9.0rc87"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3481,6 +3481,53 @@ size_t srmech_riemann_theta_count(uint32_t box);
  * is too small. */
 srmech_status_t srmech_riemann_theta_lattice(
     int ep1, int ep2, int e1, int e2, uint32_t box,
+    int64_t *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * rc87: EXACT theta evaluation at a RATIONAL argument (the genus-axis
+ * Fay-trisecant / KP-Hirota verifier FOUNDATION). C peers of
+ * RiemannTheta.theta_at (g2) + RiemannThetaG3.theta_at (g3).
+ *
+ * theta at a RATIONAL argument z = z_num/z_den (z_den even = 2N) is exactly
+ * representable: the extra Fourier factor exp(2 pi i (n+ep'/2).z) of each lattice
+ * point is a ROOT OF UNITY zeta_m^{e}, m = 2*z_den, e = SUM_i (2n_i+ep'_i) z_num_i --
+ * an exact element of the cyclotomic ring Z[zeta_m] (NO transcendental eval). These
+ * peers emit, per lattice point |n_i| <= box, the SAME (A,B,C[...]) quarter-nome
+ * exponents as the lattice peer PLUS the phase exponent e_mod = e mod m (in [0,m), a
+ * Class-I cyclic reduction) PLUS the Class-K sign (-1)^{e.n}: a [A,B,C,e_mod,sign]
+ * QUINTUPLE (g2) / [A1,A2,A3,C12,C13,C23,e_mod,sign] OCTUPLE (g3). The Python
+ * marshaller accumulates sign*zeta_m^{e_mod} into the canonical cyclotomic lattice by
+ * reusing the rc29 exact-DFT cyclotomic power basis (srmech.amsc.cascade.exact_dft) --
+ * byte-identical to the pure-Python theta_at. Caller-owned out[] (no malloc), like the
+ * lattice peer; all exact integer, no float, no abs(). Additive symbols -> ABI
+ * unchanged (stays 3).
+ * ------------------------------------------------------------------ */
+
+/* The number of int64 a box needs for the genus-2 theta_at lattice: (2*box+1)^2
+ * points * 5 [A,B,C,e_mod,sign]. */
+size_t srmech_riemann_theta_at_count(uint32_t box);
+
+/* Emit the genus-2 theta_at [A,B,C,e_mod,sign] quintuple lattice for characteristic
+ * [ep1,ep2; e1,e2] (bits in {0,1}) at rational z=(z1,z2)/z_den, m = 2*z_den (>= 2),
+ * over |n_i| <= box, into the caller out[] (out_cap int64); *out_len <- the number of
+ * int64 written (= srmech_riemann_theta_at_count). SRMECH_ERR_BAD_INPUT if a bit is
+ * not in {0,1} or m < 2; SRMECH_ERR_OVERFLOW if out[] is too small. */
+srmech_status_t srmech_riemann_theta_at(
+    int ep1, int ep2, int e1, int e2,
+    int64_t z1, int64_t z2, int64_t m, uint32_t box,
+    int64_t *out, size_t out_cap, size_t *out_len);
+
+/* The number of int64 a box needs for the genus-3 theta_at lattice: (2*box+1)^3
+ * points * 8 [A1,A2,A3,C12,C13,C23,e_mod,sign]. */
+size_t srmech_riemann_theta_g3_at_count(uint32_t box);
+
+/* Emit the genus-3 theta_at [A1,A2,A3,C12,C13,C23,e_mod,sign] octuple lattice for
+ * characteristic [ep1,ep2,ep3; e1,e2,e3] (bits in {0,1}) at rational
+ * z=(z1,z2,z3)/z_den, m = 2*z_den (>= 2), over |n_i| <= box. SRMECH_ERR_BAD_INPUT if a
+ * bit is not in {0,1} or m < 2; SRMECH_ERR_OVERFLOW if out[] is too small. */
+srmech_status_t srmech_riemann_theta_g3_at(
+    int ep1, int ep2, int ep3, int e1, int e2, int e3,
+    int64_t z1, int64_t z2, int64_t z3, int64_t m, uint32_t box,
     int64_t *out, size_t out_cap, size_t *out_len);
 
 /* ------------------------------------------------------------------ *

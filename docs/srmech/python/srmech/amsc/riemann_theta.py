@@ -256,6 +256,80 @@ def _iter_signs(k: int) -> "List[Tuple[int, ...]]":
     return out
 
 
+# ── rc87: EXACT theta evaluation at a RATIONAL argument (the genus-axis ──────────
+#          Fay-trisecant / KP-Hirota verifier FOUNDATION) ────────────────────────
+#
+# The genus carriers above hold the theta-CONSTANT θ[ε';ε](0|Ω) at argument z = 0, an
+# exact-INTEGER q-lattice. The genuine Fay / KP bilinear structure needs theta at a
+# GENERIC argument z, which the integer lattice cannot hold. rc87 supplies the missing
+# foundation: theta at a RATIONAL argument z = z_num/z_den, which IS exactly
+# representable because the extra Fourier factor of each lattice point n,
+#
+#     exp(2πi (n + ½ε')·z) = ζ^{Σᵢ (2nᵢ+ε'ᵢ)·z_numᵢ} ,   ζ = exp(2πi / m), m = 2·z_den ,
+#
+# is a ROOT OF UNITY ζ_m — an exact element of the cyclotomic ring ℤ[ζ_m]. We REUSE the
+# rc29 exact-DFT cyclotomic engine for that ring (do NOT reinvent roots of unity): its
+# ``_cyclotomic_reduction(m)`` gives the SAME power-basis representation the exact DFT
+# runs on (``table[j]`` = ζ_m^j as an integer vector in ``{1, ζ, …, ζ^{φ(m)-1}}``,
+# reduced by Φ_m). No transcendental evaluation, no float; the ``(−1)^{ε·n}`` sign stays
+# the Class-K pin-slot, the phase ζ_m^e is exact cyclotomic (Class-I cyclic exponent).
+
+
+def _cyclotomic_ring(m: int):
+    """The exact ``ℤ[ζ_m]`` cyclotomic-ring reduction table + degree ``φ(m)``, REUSED
+    from the rc29 exact-DFT engine
+    (:func:`srmech.amsc.cascade.exact_dft._cyclotomic_reduction`) — the SAME ring
+    representation the exact DFT runs on (``table[j]`` = ``ζ_m^j`` as an integer vector in
+    the power basis ``{1, ζ, …, ζ^{φ(m)-1}}``, reduced by the cyclotomic polynomial
+    ``Φ_m``). ``m ≥ 2``. Pure integer; no float, no hand-rolled root of unity."""
+    from .cascade.exact_dft import _cyclotomic_reduction
+    return _cyclotomic_reduction(m)
+
+
+def _theta_at_validate(z_num, z_den: int, box: int, g: int):
+    """Validate the :meth:`theta_at` arguments and return ``(z, m)``: the length-``g``
+    integer argument-numerator tuple ``z`` and the root-of-unity order ``m = 2·z_den``.
+    ``z_num`` is an integer tuple of length ``g``; ``z_den`` a POSITIVE int — an EVEN
+    ``z_den = 2N`` is the canonical half-period-capable form (``z_den = 2`` gives the
+    half-periods), but any positive ``z_den`` is accepted (``z_den = 1`` is the
+    integer-shift / ``z = 0`` case); ``box`` a non-negative int."""
+    if not isinstance(box, int) or box < 0:
+        raise ValueError(f"box must be a non-negative int; got {box!r}")
+    if not isinstance(z_den, int) or z_den < 1:
+        raise ValueError(
+            f"z_den must be a positive int (the even denominator 2N); got {z_den!r}")
+    z = tuple(int(x) for x in z_num)
+    if len(z) != g:
+        raise ValueError(
+            f"z_num must be a length-{g} integer tuple (genus {g}); got {z_num!r}")
+    return z, 2 * z_den
+
+
+def _accumulate_phase_lattice(terms, m: int) -> "Dict[Tuple[int, ...], Tuple[int, ...]]":
+    """Accumulate the EXACT cyclotomic ``{exponent-key: ℤ[ζ_m] coeff vector}`` lattice
+    from a stream of ``(key, e_mod, sign)`` terms — the SINGLE accumulation path shared
+    by :meth:`theta_at`'s pure-Python and native term producers (so the two are
+    byte-identical by construction; the C peer differs ONLY in computing the same
+    integer ``(key, e_mod, sign)`` per lattice point). Each term adds
+    ``sign · ζ_m^{e_mod}`` to ``out[key]`` — the Class-K ``±1`` sign times the exact
+    root-of-unity ``ζ_m^{e_mod}`` (looked up in the REUSED exact-DFT power basis,
+    :func:`_cyclotomic_ring`). Coefficients are integer vectors of length ``φ(m)``;
+    all-zero keys are dropped. Exact integer, no float, no ``abs()``."""
+    table, deg = _cyclotomic_ring(m)
+    out: "Dict[Tuple[int, ...], List[int]]" = {}
+    for key, e_mod, sign in terms:
+        vec = out.get(key)
+        if vec is None:
+            vec = [0] * deg
+            out[key] = vec
+        rootvec = table[e_mod]
+        for i in range(deg):
+            ti = rootvec[i]
+            if ti:
+                vec[i] += sign * ti            # Class-K ±1 times the exact ζ_m^{e_mod}
+    return {k: tuple(v) for k, v in out.items() if any(v)}
+
+
 class RiemannTheta:
     """A numpy-free EXACT genus-2 Riemann theta-CONSTANT
 
@@ -378,6 +452,77 @@ class RiemannTheta:
                 key = (a, b, c)
                 out[key] = out.get(key, 0) + sign
         return {k: v for k, v in out.items() if v != 0}
+
+    # ── rc87: EXACT theta evaluation at a RATIONAL argument (the FOUNDATION) ────
+    def theta_at(self, z_num: "Tuple[int, int]", z_den: int,
+                 box: int) -> "Dict[_Triple, Tuple[int, ...]]":
+        """The EXACT cyclotomic ``{(A, B, C): coeff}`` lattice of the genus-2 theta at a
+        RATIONAL argument ``z = z_num / z_den`` (``z_num`` an integer pair, ``z_den`` an
+        even ``2N``), truncated to the box ``|nᵢ| ≤ box`` — the genus-axis Fay-trisecant
+        / KP-Hirota FOUNDATION (the genuine generalization of :meth:`lattice`, which is
+        the ``z = 0`` theta-CONSTANT). ``(A, B, C)`` are the SAME quarter-nome integer
+        exponents as :meth:`lattice`; ``coeff`` is now an EXACT element of the cyclotomic
+        ring ``ℤ[ζ_m]`` (``m = 2·z_den``) — an integer vector of length ``φ(m)`` in the
+        power basis ``{1, ζ_m, …, ζ_m^{φ(m)-1}}`` — because the extra Fourier factor
+        ``exp(2πi (n+½ε')·z) = ζ_m^{Σᵢ (2nᵢ+ε'ᵢ) z_numᵢ}`` of each lattice point is a
+        ROOT OF UNITY (NO transcendental evaluation). The cyclotomic ring is REUSED from
+        the rc29 exact-DFT engine (:func:`_cyclotomic_ring`); the ``(−1)^{ε·n}`` sign is
+        the Class-K pin-slot, the phase ζ_m^e the Class-I cyclic exponent. No float, no
+        ``abs()``, no numpy.
+
+        BRIDGES (the no-shell proof that this GENUINELY generalizes the carrier):
+          * ``theta_at((0, 0), z_den, box)`` collapses BIT-EXACTLY to
+            :meth:`lattice` (every coeff is the integer value ``[c, 0, …, 0]``);
+          * at a half-period ``z = δ/2`` (``z_num`` a binary vector, ``z_den = 2``) it
+            reproduces the existing characteristic-shifted theta ``θ[ε'; ε⊕δ]`` up to the
+            exact global root-of-unity automorphy factor ``ζ_4^{ε'·δ}``;
+          * quasi-periodicity: shifting ``z`` by an integer lattice vector ``λ`` multiplies
+            every coeff by the exact sign ``(−1)^{ε'·λ}``.
+
+        DISPATCHES to the native ``srmech_riemann_theta_at`` C peer when loaded (a 1:1
+        exact-integer mirror that emits the SAME ``(key, e_mod, sign)`` per lattice point;
+        the cyclotomic accumulation is the shared :func:`_accumulate_phase_lattice`);
+        else the pure-Python :meth:`_theta_at_terms_py` body (the COMPLETE alternative +
+        the parity oracle). A CARRIER eval method (like :meth:`lattice`) — NOT a ToolEntry;
+        ``tools.total`` is UNCHANGED."""
+        z, m = _theta_at_validate(z_num, z_den, box, 2)
+        terms = None
+        nat = _native()
+        if nat is not None:
+            fn = getattr(nat, "riemann_theta_at_c", None)
+            if fn is not None:
+                try:
+                    terms = fn(self._ep1, self._ep2, self._e1, self._e2,
+                               z[0], z[1], m, box)
+                except (RuntimeError, OverflowError, ValueError):
+                    terms = None
+        if terms is None:
+            terms = self._theta_at_terms_py(z, m, box)
+        return _accumulate_phase_lattice(terms, m)
+
+    def _theta_at_terms_py(self, z: "Tuple[int, int]", m: int,
+                           box: int) -> "List[Tuple[_Triple, int, int]]":
+        """The COMPLETE pure-Python ``(key, e_mod, sign)`` term stream for
+        :meth:`theta_at` (the parity oracle for the C peer): per lattice point ``n`` in
+        the box ``|nᵢ| ≤ box``, the exponent key ``(A, B, C) = (u₁², u₂², u₁u₂)``
+        (``uᵢ = 2nᵢ+ε'ᵢ``, same as :meth:`lattice`), the phase exponent
+        ``e_mod = (u₁ z₁ + u₂ z₂) mod m`` (the root-of-unity exponent, reduced into
+        ``[0, m)`` — the Class-I cyclic reduction), and the Class-K sign
+        ``(−1)^{ε·n}`` (an explicit ``±1`` branch, never ``abs()``). A bounded double
+        loop (JPL Rule 2); exact integer, no float."""
+        ep1, ep2, e1, e2 = self._ep1, self._ep2, self._e1, self._e2
+        z1, z2 = z
+        terms: "List[Tuple[_Triple, int, int]]" = []
+        for n1 in range(-box, box + 1):
+            u1 = 2 * n1 + ep1
+            for n2 in range(-box, box + 1):
+                u2 = 2 * n2 + ep2
+                key = (u1 * u1, u2 * u2, u1 * u2)
+                e_mod = (u1 * z1 + u2 * z2) % m       # Class-I cyclic exponent in [0, m)
+                parity = (e1 * n1 + e2 * n2) % 2
+                sign = 1 if parity == 0 else -1       # Class-K ±1, never abs()
+                terms.append((key, e_mod, sign))
+        return terms
 
     # ── the genus-1 collapse (the foundation gate) ────────────────────────────
     def collapse_g1(self) -> UnaryTheta:
@@ -1734,6 +1879,71 @@ class RiemannThetaG3:
                     key = (a1, a2, a3, c12, c13, c23)
                     out[key] = out.get(key, 0) + sign
         return {k: v for k, v in out.items() if v != 0}
+
+    # ── rc87: EXACT theta evaluation at a RATIONAL argument (the FOUNDATION) ────
+    def theta_at(self, z_num: "Tuple[int, int, int]", z_den: int,
+                 box: int) -> "Dict[_Sextuple, Tuple[int, ...]]":
+        """The EXACT cyclotomic ``{(A₁,A₂,A₃,C₁₂,C₁₃,C₂₃): coeff}`` lattice of the
+        genus-3 theta at a RATIONAL argument ``z = z_num / z_den`` (``z_num`` an integer
+        triple, ``z_den`` an even ``2N``), truncated to the box ``|nᵢ| ≤ box`` — the
+        genus-3 analog of :meth:`RiemannTheta.theta_at` (the genus-axis Fay-trisecant /
+        KP-Hirota FOUNDATION; the genuine generalization of :meth:`lattice`, the ``z = 0``
+        theta-CONSTANT). The exponent keys are the SAME quarter-nome integers as
+        :meth:`lattice`; ``coeff`` is now an EXACT element of the cyclotomic ring
+        ``ℤ[ζ_m]`` (``m = 2·z_den``) — an integer vector of length ``φ(m)`` in the power
+        basis — because the extra Fourier factor
+        ``exp(2πi (n+½ε')·z) = ζ_m^{Σᵢ (2nᵢ+ε'ᵢ) z_numᵢ}`` is a ROOT OF UNITY (no
+        transcendental evaluation). The ring is REUSED from the rc29 exact-DFT engine
+        (:func:`_cyclotomic_ring`); the ``(−1)^{ε·n}`` sign is the Class-K pin-slot. No
+        float, no ``abs()``, no numpy.
+
+        Same BRIDGES as the genus-2 :meth:`RiemannTheta.theta_at` (``z = 0`` →
+        :meth:`lattice` bit-exact; half-period → characteristic-shift up to the global
+        ``ζ_4^{ε'·δ}`` automorphy; integer-shift quasi-periodicity ``(−1)^{ε'·λ}``).
+        DISPATCHES to the native ``srmech_riemann_theta_g3_at`` C peer when loaded; else
+        the pure-Python :meth:`_theta_at_terms_py`. A CARRIER eval method — NOT a
+        ToolEntry; ``tools.total`` is UNCHANGED."""
+        z, m = _theta_at_validate(z_num, z_den, box, 3)
+        terms = None
+        nat = _native_g3()
+        if nat is not None:
+            fn = getattr(nat, "riemann_theta_g3_at_c", None)
+            if fn is not None:
+                try:
+                    terms = fn(self._ep1, self._ep2, self._ep3,
+                               self._e1, self._e2, self._e3,
+                               z[0], z[1], z[2], m, box)
+                except (RuntimeError, OverflowError, ValueError):
+                    terms = None
+        if terms is None:
+            terms = self._theta_at_terms_py(z, m, box)
+        return _accumulate_phase_lattice(terms, m)
+
+    def _theta_at_terms_py(self, z: "Tuple[int, int, int]", m: int,
+                           box: int) -> "List[Tuple[_Sextuple, int, int]]":
+        """The COMPLETE pure-Python ``(key, e_mod, sign)`` term stream for the genus-3
+        :meth:`theta_at` (the parity oracle for the C peer): per lattice point ``n`` in
+        the box, the exponent key ``(A₁,A₂,A₃,C₁₂,C₁₃,C₂₃)`` (``uᵢ = 2nᵢ+ε'ᵢ``;
+        ``Aᵢ = uᵢ²``, ``C_ij = uᵢuⱼ`` — same as :meth:`lattice`), the phase exponent
+        ``e_mod = (Σᵢ uᵢ z_numᵢ) mod m`` (Class-I cyclic exponent in ``[0, m)``), and the
+        Class-K sign ``(−1)^{ε·n}`` (explicit ``±1``, never ``abs()``). A bounded triple
+        loop (JPL Rule 2); exact integer, no float."""
+        ep1, ep2, ep3 = self._ep1, self._ep2, self._ep3
+        e1, e2, e3 = self._e1, self._e2, self._e3
+        z1, z2, z3 = z
+        terms: "List[Tuple[_Sextuple, int, int]]" = []
+        for n1 in range(-box, box + 1):
+            u1 = 2 * n1 + ep1
+            for n2 in range(-box, box + 1):
+                u2 = 2 * n2 + ep2
+                for n3 in range(-box, box + 1):
+                    u3 = 2 * n3 + ep3
+                    key = (u1 * u1, u2 * u2, u3 * u3, u1 * u2, u1 * u3, u2 * u3)
+                    e_mod = (u1 * z1 + u2 * z2 + u3 * z3) % m   # Class-I, in [0, m)
+                    parity = (e1 * n1 + e2 * n2 + e3 * n3) % 2
+                    sign = 1 if parity == 0 else -1            # Class-K ±1, never abs()
+                    terms.append((key, e_mod, sign))
+        return terms
 
     # ── the genus-2 collapse (the foundation gate) ────────────────────────────
     def collapse_g2(self) -> "RiemannTheta":
