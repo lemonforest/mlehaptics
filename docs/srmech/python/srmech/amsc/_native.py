@@ -2160,6 +2160,43 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_size_t),  # *out_len
         ]
         lib.srmech_riemann_theta_g5_lattice.restype = ctypes.c_int
+    # rc87: EXACT theta evaluation at a RATIONAL argument (the genus-axis Fay-trisecant
+    # / KP-Hirota FOUNDATION). srmech_riemann_theta_at (g2) emits [A,B,C,e_mod,sign]
+    # quintuples; srmech_riemann_theta_g3_at (g3) emits the 8-tuple. NEW symbols →
+    # hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 3.
+    #   size_t srmech_riemann_theta_at_count(uint32_t box)
+    if hasattr(lib, "srmech_riemann_theta_at_count"):
+        lib.srmech_riemann_theta_at_count.argtypes = [ctypes.c_uint32]
+        lib.srmech_riemann_theta_at_count.restype = ctypes.c_size_t
+    #   srmech_riemann_theta_at(ep1,ep2,e1,e2, z1,z2,m, box, out[], out_cap, *out_len)
+    if hasattr(lib, "srmech_riemann_theta_at"):
+        lib.srmech_riemann_theta_at.argtypes = [
+            ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,   # ep1,ep2,e1,e2
+            ctypes.c_int64, ctypes.c_int64, ctypes.c_int64,           # z1, z2, m
+            ctypes.c_uint32,                  # box
+            ctypes.POINTER(ctypes.c_int64),   # out[]
+            ctypes.c_size_t,                  # out_cap
+            ctypes.POINTER(ctypes.c_size_t),  # *out_len
+        ]
+        lib.srmech_riemann_theta_at.restype = ctypes.c_int
+    #   size_t srmech_riemann_theta_g3_at_count(uint32_t box)
+    if hasattr(lib, "srmech_riemann_theta_g3_at_count"):
+        lib.srmech_riemann_theta_g3_at_count.argtypes = [ctypes.c_uint32]
+        lib.srmech_riemann_theta_g3_at_count.restype = ctypes.c_size_t
+    #   srmech_riemann_theta_g3_at(ep1,ep2,ep3,e1,e2,e3, z1,z2,z3,m, box, out[],
+    #                              out_cap, *out_len)
+    if hasattr(lib, "srmech_riemann_theta_g3_at"):
+        lib.srmech_riemann_theta_g3_at.argtypes = [
+            ctypes.c_int, ctypes.c_int, ctypes.c_int,                 # ep1,ep2,ep3
+            ctypes.c_int, ctypes.c_int, ctypes.c_int,                 # e1,e2,e3
+            ctypes.c_int64, ctypes.c_int64, ctypes.c_int64,           # z1,z2,z3
+            ctypes.c_int64,                   # m
+            ctypes.c_uint32,                  # box
+            ctypes.POINTER(ctypes.c_int64),   # out[]
+            ctypes.c_size_t,                  # out_cap
+            ctypes.POINTER(ctypes.c_size_t),  # *out_len
+        ]
+        lib.srmech_riemann_theta_g3_at.restype = ctypes.c_int
     # rc81: the GENUS-4 CAPSTONE — the SCHOTTKY FORM J = theta^4(E8+E8) - theta^4(E16)
     # representation-number COUNTER (srmech_riemann_theta_g4_schottky_count). Counts
     # ordered g-tuples of minimal (doubled) lattice vectors with a prescribed off-diagonal
@@ -4160,6 +4197,112 @@ def riemann_theta_g5_lattice_c(ep1, ep2, ep3, ep4, ep5, e1, e2, e3, e4, e5, box)
         lat[key] = lat.get(key, 0) + int(out[i + 15])
         i += 16
     return {k: v for k, v in lat.items() if v != 0}
+
+
+# ----------------------------------------------------------------------
+# rc87: EXACT theta evaluation at a RATIONAL argument (the genus-axis Fay-trisecant /
+# KP-Hirota FOUNDATION). The Python RiemannTheta.theta_at / RiemannThetaG3.theta_at
+# route through these when the symbols are loaded; the pure-Python bodies are the
+# COMPLETE alternatives (and the parity oracles). The C peer emits one
+# [A,B,C,e_mod,sign] (g2) / [A1,A2,A3,C12,C13,C23,e_mod,sign] (g3) per lattice point;
+# these marshallers parse the flat array into the shared (key, e_mod, sign) TERM stream
+# that the Python theta_at accumulates (via the reused exact-DFT cyclotomic ring) —
+# byte-identical to the pure-Python term stream.
+# ----------------------------------------------------------------------
+
+
+def has_native_riemann_theta_at() -> bool:
+    """True iff the rc87 ``srmech_riemann_theta_at`` peer + its count helper are loaded
+    + bound. False on a no-C / pre-rc87 lib — the pure-Python
+    ``srmech.amsc.riemann_theta.RiemannTheta.theta_at`` body is the complete
+    alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_riemann_theta_at")
+            and hasattr(LIB, "srmech_riemann_theta_at_count"))
+
+
+def riemann_theta_at_c(ep1, ep2, e1, e2, z1, z2, m, box):
+    """Native exact genus-2 theta_at term stream → a list of ``(key, e_mod, sign)``
+    tuples (``key = (A, B, C)``), or ``None`` if the native symbols are absent. The
+    Python ``RiemannTheta.theta_at`` accumulates these into the canonical cyclotomic
+    ``{(A, B, C): coeff}`` lattice (the same accumulation the pure path runs), so the
+    native and pure paths are byte-identical. ``z1, z2`` the argument numerator, ``m``
+    the root-of-unity order ``2·z_den``."""
+    if not has_native_riemann_theta_at():
+        return None
+    if not isinstance(box, int) or box < 0:
+        raise ValueError(f"riemann_theta_at_c: bad box {box!r}")
+    if not isinstance(m, int) or m < 2:
+        raise ValueError(f"riemann_theta_at_c: bad m {m!r}")
+    need = int(LIB.srmech_riemann_theta_at_count(ctypes.c_uint32(int(box))))
+    out = (ctypes.c_int64 * max(need, 1))()
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_riemann_theta_at(
+        ctypes.c_int(int(ep1)), ctypes.c_int(int(ep2)),
+        ctypes.c_int(int(e1)), ctypes.c_int(int(e2)),
+        ctypes.c_int64(int(z1)), ctypes.c_int64(int(z2)), ctypes.c_int64(int(m)),
+        ctypes.c_uint32(int(box)), out, ctypes.c_size_t(need),
+        ctypes.byref(out_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_riemann_theta_at returned non-OK status {rc}")
+    terms = []
+    n = int(out_len.value)
+    i = 0
+    while i < n:
+        key = (int(out[i]), int(out[i + 1]), int(out[i + 2]))
+        terms.append((key, int(out[i + 3]), int(out[i + 4])))
+        i += 5
+    return terms
+
+
+def has_native_riemann_theta_g3_at() -> bool:
+    """True iff the rc87 ``srmech_riemann_theta_g3_at`` peer + its count helper are
+    loaded + bound. False on a no-C / pre-rc87 lib — the pure-Python
+    ``srmech.amsc.riemann_theta.RiemannThetaG3.theta_at`` body is the complete
+    alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_riemann_theta_g3_at")
+            and hasattr(LIB, "srmech_riemann_theta_g3_at_count"))
+
+
+def riemann_theta_g3_at_c(ep1, ep2, ep3, e1, e2, e3, z1, z2, z3, m, box):
+    """Native exact genus-3 theta_at term stream → a list of ``(key, e_mod, sign)``
+    tuples (``key = (A₁,A₂,A₃,C₁₂,C₁₃,C₂₃)``), or ``None`` if the native symbols are
+    absent. The Python ``RiemannThetaG3.theta_at`` accumulates these into the canonical
+    cyclotomic lattice (the same accumulation the pure path runs), so the native and
+    pure paths are byte-identical. ``z1, z2, z3`` the argument numerator, ``m`` the
+    root-of-unity order ``2·z_den``."""
+    if not has_native_riemann_theta_g3_at():
+        return None
+    if not isinstance(box, int) or box < 0:
+        raise ValueError(f"riemann_theta_g3_at_c: bad box {box!r}")
+    if not isinstance(m, int) or m < 2:
+        raise ValueError(f"riemann_theta_g3_at_c: bad m {m!r}")
+    need = int(LIB.srmech_riemann_theta_g3_at_count(ctypes.c_uint32(int(box))))
+    out = (ctypes.c_int64 * max(need, 1))()
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_riemann_theta_g3_at(
+        ctypes.c_int(int(ep1)), ctypes.c_int(int(ep2)), ctypes.c_int(int(ep3)),
+        ctypes.c_int(int(e1)), ctypes.c_int(int(e2)), ctypes.c_int(int(e3)),
+        ctypes.c_int64(int(z1)), ctypes.c_int64(int(z2)), ctypes.c_int64(int(z3)),
+        ctypes.c_int64(int(m)),
+        ctypes.c_uint32(int(box)), out, ctypes.c_size_t(need),
+        ctypes.byref(out_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_riemann_theta_g3_at returned non-OK status {rc}")
+    terms = []
+    n = int(out_len.value)
+    i = 0
+    while i < n:
+        key = (int(out[i]), int(out[i + 1]), int(out[i + 2]),
+               int(out[i + 3]), int(out[i + 4]), int(out[i + 5]))
+        terms.append((key, int(out[i + 6]), int(out[i + 7])))
+        i += 8
+    return terms
 
 
 # ----------------------------------------------------------------------

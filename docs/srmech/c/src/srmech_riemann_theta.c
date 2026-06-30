@@ -199,6 +199,100 @@ srmech_status_t srmech_riemann_theta_lattice(
 }
 
 /* ================================================================== *
+ *  rc87: EXACT theta evaluation at a RATIONAL argument (the genus-axis
+ *  Fay-trisecant / KP-Hirota FOUNDATION). C peer of
+ *  srmech.amsc.riemann_theta.RiemannTheta.theta_at.
+ * ================================================================== *
+ *
+ * The genus-2 theta at a RATIONAL argument z = z_num/z_den (z_den even = 2N) is
+ * exactly representable: the extra Fourier factor of each lattice point n,
+ *   exp(2 pi i (n + ep'/2) . z) = zeta_m^{(2n1+ep1) z1 + (2n2+ep2) z2}, m = 2 z_den,
+ * is a ROOT OF UNITY in the cyclotomic ring Z[zeta_m] (NO transcendental eval). This
+ * peer mirrors the genuinely-new EXACT-INTEGER per-term content: the SAME (A,B,C)
+ * quarter-nome exponents as srmech_riemann_theta_lattice PLUS the phase exponent
+ * e_mod = ((2n1+ep1) z1 + (2n2+ep2) z2) mod m (the root-of-unity exponent, reduced
+ * into [0,m) -- a Class-I cyclic reduction) PLUS the Class-K sign (-1)^{e.n}. It emits
+ * one [A, B, C, e_mod, sign] QUINTUPLE per lattice point |n_i| <= box, row-major
+ * (n1,n2); the Python marshaller accumulates sign * zeta_m^{e_mod} into the canonical
+ * {(A,B,C): cyclotomic-coeff} lattice by looking each zeta_m^{e_mod} up in the REUSED
+ * exact-DFT cyclotomic power basis (srmech.amsc.cascade.exact_dft) -- byte-identical to
+ * the pure-Python theta_at. Caller-owned out[] (no malloc), like the lattice peer.
+ * Additive symbols -> ABI unchanged (stays 3). */
+
+/* one lattice point emits 5 int64: A, B, C, e_mod, sign */
+#define RT_AT_QUINT 5
+
+/* The root-of-unity exponent e = (u1 z1 + u2 z2) mod m, reduced into [0, m) (the
+ * Class-I cyclic reduction; a floor-mod, never abs). m = 2*z_den >= 2. */
+static int64_t rt_phase_mod(int64_t u1, int64_t u2, int64_t z1, int64_t z2, int64_t m)
+{
+    int64_t e = u1 * z1 + u2 * z2;
+    assert(m >= 2);
+    e %= m;
+    if (e < 0) {
+        e += m;                                     /* floor-mod into [0, m) */
+    }
+    assert(e >= 0 && e < m);
+    return e;
+}
+
+/* The number of int64 a box needs for the theta_at lattice: (2*box+1)^2 points,
+ * RT_AT_QUINT int64 each. The caller sizes its out[] from this (no malloc here). */
+size_t srmech_riemann_theta_at_count(uint32_t box)
+{
+    size_t side = (size_t)box * 2u + 1u;
+    assert(RT_AT_QUINT == 5);
+    assert(side >= 1u);
+    return side * side * (size_t)RT_AT_QUINT;
+}
+
+/* Emit the genus-2 theta_at phase lattice for characteristic [ep1,ep2; e1,e2] (each
+ * bit in {0,1}) at rational argument z=(z1,z2)/z_den, m = 2*z_den (>= 2), over the box
+ * |n_i| <= box, as a flat caller-owned int64 array of [A, B, C, e_mod, sign]
+ * quintuples in row-major (n1,n2) order. *out_len <- the number of int64 written
+ * (= srmech_riemann_theta_at_count). SRMECH_ERR_BAD_INPUT if a characteristic bit is
+ * not in {0,1} or m < 2; SRMECH_ERR_OVERFLOW if out[] is too small. */
+srmech_status_t srmech_riemann_theta_at(
+    int ep1, int ep2, int e1, int e2,
+    int64_t z1, int64_t z2, int64_t m, uint32_t box,
+    int64_t *out, size_t out_cap, size_t *out_len)
+{
+    size_t need, idx;
+    int64_t n1, n2, lo, hi, u1, u2;
+    assert(out != NULL);
+    assert(out_len != NULL);
+    if (!rt_bit_ok(ep1) || !rt_bit_ok(ep2) || !rt_bit_ok(e1) || !rt_bit_ok(e2)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (m < 2) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    need = srmech_riemann_theta_at_count(box);
+    if (need > out_cap) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    idx = 0u;
+    lo = -(int64_t)box;
+    hi = (int64_t)box;
+    for (n1 = lo; n1 <= hi; ++n1) {
+        u1 = 2 * n1 + (int64_t)ep1;
+        for (n2 = lo; n2 <= hi; ++n2) {
+            u2 = 2 * n2 + (int64_t)ep2;
+            out[idx + 0u] = u1 * u1;                                /* A */
+            out[idx + 1u] = u2 * u2;                                /* B */
+            out[idx + 2u] = u1 * u2;                                /* C */
+            out[idx + 3u] = rt_phase_mod(u1, u2, z1, z2, m);        /* e_mod in [0,m) */
+            out[idx + 4u] = (int64_t)rt_term_sign((int64_t)e1, (int64_t)e2,
+                                                  n1, n2);          /* Class-K sign */
+            idx += (size_t)RT_AT_QUINT;
+        }
+    }
+    assert(idx == need);
+    *out_len = idx;
+    return SRMECH_OK;
+}
+
+/* ================================================================== *
  *  rc73 (A): the Sp(4,Z) characteristic TRANSFORMATION + kappa 8th root
  * ================================================================== *
  *
@@ -600,6 +694,94 @@ srmech_status_t srmech_riemann_theta_g3_lattice(
                 out[idx + 6u] = (int64_t)rt3_term_sign(
                     (int64_t)e1, (int64_t)e2, (int64_t)e3, n1, n2, n3);
                 idx += (size_t)RT3_SEPT;
+            }
+        }
+    }
+    assert(idx == need);
+    *out_len = idx;
+    return SRMECH_OK;
+}
+
+/* ================================================================== *
+ *  rc87: GENUS-3 EXACT theta evaluation at a RATIONAL argument. C peer of
+ *  srmech.amsc.riemann_theta.RiemannThetaG3.theta_at (the genus-3 analog of
+ *  srmech_riemann_theta_at, ONE genus up).
+ * ================================================================== */
+
+/* one genus-3 lattice point emits 8 int64: A1, A2, A3, C12, C13, C23, e_mod, sign */
+#define RT3_AT_OCT 8
+
+/* The genus-3 root-of-unity exponent e = (u1 z1 + u2 z2 + u3 z3) mod m, reduced into
+ * [0, m) (the Class-I cyclic reduction; a floor-mod, never abs). m = 2*z_den >= 2. */
+static int64_t rt3_phase_mod(int64_t u1, int64_t u2, int64_t u3,
+                             int64_t z1, int64_t z2, int64_t z3, int64_t m)
+{
+    int64_t e = u1 * z1 + u2 * z2 + u3 * z3;
+    assert(m >= 2);
+    e %= m;
+    if (e < 0) {
+        e += m;                                     /* floor-mod into [0, m) */
+    }
+    assert(e >= 0 && e < m);
+    return e;
+}
+
+/* The number of int64 a box needs for the genus-3 theta_at lattice: (2*box+1)^3
+ * points, RT3_AT_OCT int64 each. The caller sizes its out[] from this (no malloc). */
+size_t srmech_riemann_theta_g3_at_count(uint32_t box)
+{
+    size_t side = (size_t)box * 2u + 1u;
+    assert(RT3_AT_OCT == 8);
+    assert(side >= 1u);
+    return side * side * side * (size_t)RT3_AT_OCT;
+}
+
+/* Emit the genus-3 theta_at phase lattice for characteristic [ep1,ep2,ep3; e1,e2,e3]
+ * (each bit in {0,1}) at rational argument z=(z1,z2,z3)/z_den, m = 2*z_den (>= 2), over
+ * the box |n_i| <= box, as a flat caller-owned int64 array of
+ * [A1, A2, A3, C12, C13, C23, e_mod, sign] octuples in row-major (n1,n2,n3) order.
+ * *out_len <- the number of int64 written (= srmech_riemann_theta_g3_at_count).
+ * SRMECH_ERR_BAD_INPUT if a characteristic bit is not in {0,1} or m < 2;
+ * SRMECH_ERR_OVERFLOW if out[] is too small. */
+srmech_status_t srmech_riemann_theta_g3_at(
+    int ep1, int ep2, int ep3, int e1, int e2, int e3,
+    int64_t z1, int64_t z2, int64_t z3, int64_t m, uint32_t box,
+    int64_t *out, size_t out_cap, size_t *out_len)
+{
+    size_t need, idx;
+    int64_t n1, n2, n3, lo, hi, u1, u2, u3;
+    assert(out != NULL);
+    assert(out_len != NULL);
+    if (!rt_bit_ok(ep1) || !rt_bit_ok(ep2) || !rt_bit_ok(ep3)
+            || !rt_bit_ok(e1) || !rt_bit_ok(e2) || !rt_bit_ok(e3)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (m < 2) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    need = srmech_riemann_theta_g3_at_count(box);
+    if (need > out_cap) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    idx = 0u;
+    lo = -(int64_t)box;
+    hi = (int64_t)box;
+    for (n1 = lo; n1 <= hi; ++n1) {
+        u1 = 2 * n1 + (int64_t)ep1;
+        for (n2 = lo; n2 <= hi; ++n2) {
+            u2 = 2 * n2 + (int64_t)ep2;
+            for (n3 = lo; n3 <= hi; ++n3) {
+                u3 = 2 * n3 + (int64_t)ep3;
+                out[idx + 0u] = u1 * u1;                            /* A1 */
+                out[idx + 1u] = u2 * u2;                            /* A2 */
+                out[idx + 2u] = u3 * u3;                            /* A3 */
+                out[idx + 3u] = u1 * u2;                            /* C12 */
+                out[idx + 4u] = u1 * u3;                            /* C13 */
+                out[idx + 5u] = u2 * u3;                            /* C23 */
+                out[idx + 6u] = rt3_phase_mod(u1, u2, u3, z1, z2, z3, m);
+                out[idx + 7u] = (int64_t)rt3_term_sign(
+                    (int64_t)e1, (int64_t)e2, (int64_t)e3, n1, n2, n3);
+                idx += (size_t)RT3_AT_OCT;
             }
         }
     }
