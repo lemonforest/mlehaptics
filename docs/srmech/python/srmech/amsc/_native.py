@@ -2197,6 +2197,20 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_size_t),  # *out_len
         ]
         lib.srmech_riemann_theta_g3_at.restype = ctypes.c_int
+    # rc88: srmech_riemann_theta_cyc_mul — the exact ℤ[ζ_m] power-basis multiply (the
+    # genus-axis Fay/Hirota bilinear verifier's only new exact-integer kernel). NEW symbol
+    # → hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 3.
+    #   srmech_riemann_theta_cyc_mul(a[deg], b[deg], deg, table[m*deg], m, out[deg])
+    if hasattr(lib, "srmech_riemann_theta_cyc_mul"):
+        lib.srmech_riemann_theta_cyc_mul.argtypes = [
+            ctypes.POINTER(ctypes.c_int64),   # a[deg]
+            ctypes.POINTER(ctypes.c_int64),   # b[deg]
+            ctypes.c_uint32,                  # deg
+            ctypes.POINTER(ctypes.c_int64),   # table[m*deg]
+            ctypes.c_uint32,                  # m
+            ctypes.POINTER(ctypes.c_int64),   # out[deg]
+        ]
+        lib.srmech_riemann_theta_cyc_mul.restype = ctypes.c_int
     # rc81: the GENUS-4 CAPSTONE — the SCHOTTKY FORM J = theta^4(E8+E8) - theta^4(E16)
     # representation-number COUNTER (srmech_riemann_theta_g4_schottky_count). Counts
     # ordered g-tuples of minimal (doubled) lattice vectors with a prescribed off-diagonal
@@ -4303,6 +4317,48 @@ def riemann_theta_g3_at_c(ep1, ep2, ep3, e1, e2, e3, z1, z2, z3, m, box):
         terms.append((key, int(out[i + 6]), int(out[i + 7])))
         i += 8
     return terms
+
+
+def has_native_riemann_theta_cyc_mul() -> bool:
+    """True iff the rc88 ``srmech_riemann_theta_cyc_mul`` peer is loaded + bound. False on
+    a no-C / pre-rc88 lib — the pure-Python ``srmech.amsc.riemann_theta._cyc_mul_py`` body
+    is the complete alternative (and the parity oracle + bignum fallback)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return hasattr(LIB, "srmech_riemann_theta_cyc_mul")
+
+
+def riemann_theta_cyc_mul_c(a, b, table, m):
+    """Native exact ``ℤ[ζ_m]`` power-basis product ``a · b`` → a length-``deg`` tuple, or
+    ``None`` if the native symbol is absent / the table shape is wrong / a coefficient
+    would exceed the int64 fast-path guard (the Python ``_cyc_mul_py`` body is the COMPLETE
+    bignum alternative + the parity oracle). ``a``, ``b`` are length-``deg`` integer coeff
+    vectors (``deg = φ(m)``); ``table`` the rc29 cyclotomic reduction table (``m`` rows ×
+    ``deg`` cols, ``table[j]`` = ``ζ_m^j`` in the power basis). Byte-identical to the pure
+    body on every native hit (the rc88 verifier's bilinear ring multiply)."""
+    if not has_native_riemann_theta_cyc_mul():
+        return None
+    deg = len(a)
+    if deg == 0 or len(b) != deg:
+        raise ValueError("riemann_theta_cyc_mul_c: a, b must be equal nonzero length")
+    if not isinstance(m, int) or m < 2:
+        raise ValueError(f"riemann_theta_cyc_mul_c: bad m {m!r}")
+    flat = []
+    for row in table:
+        flat.extend(int(x) for x in row)
+    if len(flat) != m * deg:
+        return None                       # table shape mismatch → pure path
+    c_a = (ctypes.c_int64 * deg)(*[int(x) for x in a])
+    c_b = (ctypes.c_int64 * deg)(*[int(x) for x in b])
+    c_t = (ctypes.c_int64 * (m * deg))(*flat)
+    c_out = (ctypes.c_int64 * deg)()
+    rc = LIB.srmech_riemann_theta_cyc_mul(
+        c_a, c_b, ctypes.c_uint32(deg), c_t, ctypes.c_uint32(int(m)), c_out)
+    if rc == SRMECH_ERR_OVERFLOW:
+        return None                       # exceeds int64 fast path → pure bignum path
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_riemann_theta_cyc_mul returned status {rc}")
+    return tuple(int(c_out[k]) for k in range(deg))
 
 
 # ----------------------------------------------------------------------

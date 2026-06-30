@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc87"
-#define SRMECH_VERSION       "0.9.0rc87"
+#define SRMECH_VERSION_PRE   "rc88"
+#define SRMECH_VERSION       "0.9.0rc88"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3529,6 +3529,28 @@ srmech_status_t srmech_riemann_theta_g3_at(
     int ep1, int ep2, int ep3, int e1, int e2, int e3,
     int64_t z1, int64_t z2, int64_t z3, int64_t m, uint32_t box,
     int64_t *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * rc88: srmech_riemann_theta_cyc_mul -- the EXACT Z[zeta_m] power-basis MULTIPLY, the
+ * genuinely-new exact-integer kernel behind the genus-axis Fay / Hirota bilinear
+ * VERIFIER (RiemannTheta.addition_holds_at / RiemannThetaG3.addition_holds_at: Riemann's
+ * theta ADDITION FORMULA in second-order theta functions -- Igusa, Theta Functions
+ * (1972) Ch. IV; Mumford, Tata Lectures on Theta I (1983) Ch. II). The rc87 theta_at
+ * gives theta at a rational argument as a {key: Z[zeta_m] coeff} lattice; the verifier's
+ * bilinear product multiplies the cyclotomic COEFFICIENTS (this kernel) and convolves the
+ * integer exponent keys (caller bookkeeping -- the rc73 addition / rc74 Goepel gate
+ * precedent). out[deg] <- a[deg]*b[deg] in Z[zeta_m]: (sum_i a_i z^i)(sum_j b_j z^j) =
+ * sum_ij a_i b_j z^{i+j}, each z^{i+j} reduced to the power basis via the REUSED rc29
+ * exact-DFT reduction table (table[j*deg + k] = coeff k of zeta_m^j, j in [0,m),
+ * deg = phi(m)); byte-identical to the pure-Python _cyc_mul_py. Pure integer (no float,
+ * no abs, no malloc, no goto); int64 fast path GUARDS per-coefficient magnitude (a
+ * Class-K sign-branch range read) -> SRMECH_ERR_OVERFLOW makes the caller run the pure
+ * bignum path. out[] MUST NOT alias a or b. SRMECH_ERR_BAD_INPUT on NULL / deg == 0 /
+ * deg > 16 / m < 2. Additive symbol -> SRMECH_ABI_VERSION unchanged (stays 3).
+ * ------------------------------------------------------------------ */
+srmech_status_t srmech_riemann_theta_cyc_mul(
+    const int64_t *a, const int64_t *b, uint32_t deg,
+    const int64_t *table, uint32_t m, int64_t *out);
 
 /* ------------------------------------------------------------------ *
  * rc73 (SECOND GENUS RUNG): the Sp(4,Z) characteristic TRANSFORMATION + the

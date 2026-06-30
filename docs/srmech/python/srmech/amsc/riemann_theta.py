@@ -330,6 +330,101 @@ def _accumulate_phase_lattice(terms, m: int) -> "Dict[Tuple[int, ...], Tuple[int
     return {k: tuple(v) for k, v in out.items() if any(v)}
 
 
+# ── rc88: the exact ℤ[ζ_m] cyclotomic-ring MULTIPLY + lattice product (the genuine ──
+#          Fay/Hirota bilinear VERIFIER's only genuinely-new exact-integer kernel) ───
+#
+# The rc87 theta_at gives theta at a rational argument as a {key: ℤ[ζ_m] coeff} lattice
+# (coeffs are integer vectors in the power basis {1, ζ_m, …, ζ_m^{φ(m)-1}}; the term
+# stream is C-backed by srmech_riemann_theta_at, the accumulation is Python). rc88's
+# verifier (addition_holds_at) needs the BILINEAR PRODUCT of two such lattices — which
+# multiplies the cyclotomic COEFFICIENTS (a ℤ[ζ_m] ring multiply, the genuinely-new
+# exact-integer compute) while convolving the integer exponent keys (caller bookkeeping,
+# the rc73 addition_holds / rc74 Göpel-gate precedent: the gate convolution rides the
+# C-backed kernels). The ring multiply is the only NEW C kernel (srmech_riemann_theta_
+# cyc_mul); everything else is exponent-add bookkeeping over the already-C-backed pieces.
+
+
+def _cyc_mul_py(a: "Tuple[int, ...]", b: "Tuple[int, ...]",
+                table: "Tuple[Tuple[int, ...], ...]", m: int) -> "Tuple[int, ...]":
+    """The COMPLETE pure-Python exact ``ℤ[ζ_m]`` power-basis product ``a · b`` (the
+    parity oracle + bignum fallback for the C peer): ``(Σᵢ aᵢ ζ^i)(Σⱼ bⱼ ζ^j) =
+    Σᵢⱼ aᵢbⱼ ζ^{i+j}``, each ``ζ^{i+j}`` reduced to the power basis via the REUSED
+    exact-DFT table (``table[(i+j) mod m]`` — ``ζ_m^m = 1``, the Class-I cyclic index).
+    A bounded ``deg × deg`` double loop (JPL Rule 2); exact integer, no float, no
+    ``abs()``. ``deg = len(a) = len(b) = φ(m)``."""
+    deg = len(a)
+    out = [0] * deg
+    for i in range(deg):
+        ai = a[i]
+        if not ai:
+            continue
+        for j in range(deg):
+            bj = b[j]
+            if not bj:
+                continue
+            row = table[(i + j) % m]           # ζ_m^{i+j} in the power basis (Class-I)
+            c = ai * bj
+            for k in range(deg):
+                rk = row[k]
+                if rk:
+                    out[k] += c * rk
+    return tuple(out)
+
+
+def _cyc_mul(a: "Tuple[int, ...]", b: "Tuple[int, ...]", m: int) -> "Tuple[int, ...]":
+    """Exact ``ℤ[ζ_m]`` product ``a · b``, DISPATCHED to the native
+    ``srmech_riemann_theta_cyc_mul`` C peer when loaded (a 1:1 exact-integer mirror —
+    the C result EQUALS the pure result, trusted only on a native hit; the C int64 fast
+    path returns ``None`` if a coefficient would exceed its guard, so the pure bignum
+    body is the complete fallback). Else the pure-Python :func:`_cyc_mul_py`."""
+    table, _deg = _cyclotomic_ring(m)
+    try:
+        from . import _native as nat
+        fn = getattr(nat, "riemann_theta_cyc_mul_c", None)
+        if fn is not None:
+            got = fn(a, b, table, m)
+            if got is not None:
+                return got
+    except (ImportError, RuntimeError, OverflowError, ValueError):
+        pass                                   # fall to the pure body
+    return _cyc_mul_py(a, b, table, m)
+
+
+def _cyc_lattice_product(la: "Dict[Tuple[int, ...], Tuple[int, ...]]",
+                         lb: "Dict[Tuple[int, ...], Tuple[int, ...]]",
+                         m: int) -> "Dict[Tuple[int, ...], Tuple[int, ...]]":
+    """The exact ``ℤ[ζ_m]`` product of two cyclotomic ``{exponent-key: coeff-vector}``
+    lattices: convolve the integer exponent keys (elementwise ADD — the quarter-nome
+    monomial product) and multiply the cyclotomic coefficients (:func:`_cyc_mul`). The
+    verifier's gate bookkeeping (the rc73/rc74 precedent), riding the C-backed ring
+    multiply. Genus-agnostic (the key is any-length integer tuple). Zero-vectors dropped.
+    Exact integer, no float, no ``abs()``."""
+    out: "Dict[Tuple[int, ...], List[int]]" = {}
+    for ka, va in la.items():
+        for kb, vb in lb.items():
+            key = tuple(x + y for x, y in zip(ka, kb))
+            prod = _cyc_mul(va, vb, m)
+            cur = out.get(key)
+            if cur is None:
+                out[key] = list(prod)
+            else:
+                for i in range(len(prod)):
+                    cur[i] += prod[i]
+    return {k: tuple(v) for k, v in out.items() if any(v)}
+
+
+def _restrict_diag(lat: "Dict[Tuple[int, ...], Tuple[int, ...]]", safe: int,
+                   ndiag: int) -> "Dict[Tuple[int, ...], Tuple[int, ...]]":
+    """Restrict a lattice to the SAFE INNER REGION a box truncation provably resolves:
+    keep only keys whose ``ndiag`` DIAGONAL exponents (``A₁ … A_g``, the squares
+    ``(2nᵢ+ε'ᵢ)²`` ≥ 0) are ``≤ safe``. Bounding the diagonal exponents alone forces
+    every contributing lattice index inside the box (so the monomial is fully
+    accumulated regardless of the cross-terms). No magnitude / ``abs()`` is needed (the
+    diagonal exponents are non-negative squares)."""
+    return {k: v for k, v in lat.items()
+            if all(k[i] <= safe for i in range(ndiag))}
+
+
 class RiemannTheta:
     """A numpy-free EXACT genus-2 Riemann theta-CONSTANT
 
@@ -1141,6 +1236,170 @@ class RiemannTheta:
                 if genuine == sq:
                     return False                          # would be a duplication
         return True
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # rc88: the GENUINE Fay / Hirota bilinear VERIFIER at GENERIC RATIONAL arguments
+    #   — Riemann's theta addition formula in terms of SECOND-ORDER theta functions:
+    #
+    #       θ[0;ε](x+y|Ω)·θ[0;ε](x−y|Ω)
+    #         = Σ_{α∈{0,1}^g} (−1)^{ε·α} · θ[α;0](2x|2Ω)·θ[α;0](2y|2Ω)
+    #
+    #   (Igusa, *Theta Functions* (1972), Ch. IV — theta constants & second-order theta
+    #   functions; Mumford, *Tata Lectures on Theta I* (1983), Ch. II, the addition
+    #   formula; the genus-g form θ(z+w)θ(z−w)=Σ_{ξ∈ℤ^g/2ℤ^g} Θ_ξ(z)Θ_ξ(w) over the
+    #   second-order thetas Θ_ξ(z)=θ[ξ/2;0](2z|2Ω)). VERIFIED bit-exactly against the
+    #   rc87 theta_at on this carrier before shipping (the ε=0 case is the classical
+    #   second-order addition formula; the (−1)^{ε·α} sign is the lower-char ε≠0 case).
+    #
+    #   This is the genuinely-new content the half-characteristic addition_holds /
+    #   goepel_holds CANNOT reach: it evaluates the bilinear identity at GENERIC rational
+    #   arguments x,y where theta_at lands in the cyclotomic ring ℤ[ζ_m] (m = 2·z_den) —
+    #   non-rational cyclotomic coefficients (e.g. z_den = 7 → φ(14) = 6) the integer
+    #   theta-NULL gates never see. The honest BOUNDARY: a nonzero UPPER characteristic
+    #   ε' would put the two-argument addition at Ω/2 (the carrier holds Ω and 2Ω, not
+    #   Ω/2) → rejected; the lower characteristic ε parametrizes the identity.
+    # ══════════════════════════════════════════════════════════════════════════
+
+    @staticmethod
+    def _double_cyc(lat: "Dict[_Triple, Tuple[int, ...]]"
+                    ) -> "Dict[_Triple, Tuple[int, ...]]":
+        """Re-express a CYCLOTOMIC theta_at lattice computed at the carrier's Ω as the
+        ``2Ω`` lattice in the Ω quarter-nome alphabet — the cyclotomic peer of
+        :meth:`_double_exps`: doubling every quarter-nome exponent ``(A,B,C)↦(2A,2B,2C)``
+        turns the monomial ``e^{iπ m²Ω}`` into ``e^{iπ m²(2Ω)}`` (the phase coeff is
+        untouched — the argument 2x phase is already carried). So
+        ``_double_cyc(θ[α;0].theta_at(2x))`` IS ``θ[α;0](2x|2Ω)`` in the common base."""
+        return {(2 * a, 2 * b, 2 * c): v for (a, b, c), v in lat.items()}
+
+    def _addition_at_eps(self) -> "Tuple[int, int]":
+        """The lower characteristic ``ε = (ε₁, ε₂)`` this carrier contributes to the
+        addition formula — and the guard that the UPPER characteristic ``ε'`` is trivial
+        (a nonzero ``ε'`` puts the two-argument addition at ``Ω/2``, not representable by
+        the carrier's ``Ω``/``2Ω`` lattices — an honest boundary, not a fabricated
+        reduction)."""
+        if (self._ep1, self._ep2) != (0, 0):
+            raise ValueError(
+                "addition_holds_at verifies the TWO-ARGUMENT theta addition formula "
+                f"θ[0;ε](x+y)·θ[0;ε](x−y) = Σ_α (−1)^{{ε·α}} θ[α;0](2x|2Ω)·θ[α;0](2y|2Ω); "
+                f"the carrier's UPPER characteristic ε' = {(self._ep1, self._ep2)} is "
+                "nonzero, which lands the two-argument identity at Ω/2 (the carrier holds "
+                "Ω and 2Ω, not Ω/2) — an honest boundary. Use a carrier with ε' = (0,0); "
+                "its LOWER characteristic ε parametrizes the identity.")
+        return (self._e1, self._e2)
+
+    def addition_at_lhs(self, x_num: "Tuple[int, int]", y_num: "Tuple[int, int]",
+                        z_den: int, box: int) -> "Dict[_Triple, Tuple[int, ...]]":
+        """The LEFT side ``θ[0;ε](x+y|Ω)·θ[0;ε](x−y|Ω)`` of the generic-argument addition
+        identity — the exact cyclotomic lattice product (``ℤ[ζ_m]``, ``m = 2·z_den``) of
+        the two theta-at-rational-argument lattices (rc87 :meth:`theta_at`), ``ε`` the
+        carrier's lower characteristic. ``x = x_num/z_den``, ``y = y_num/z_den``."""
+        e1, e2 = self._addition_at_eps()
+        m = 2 * z_den
+        th = RiemannTheta(0, 0, e1, e2)
+        xpy = (x_num[0] + y_num[0], x_num[1] + y_num[1])
+        xmy = (x_num[0] - y_num[0], x_num[1] - y_num[1])
+        l1 = th.theta_at(xpy, z_den, box)
+        l2 = th.theta_at(xmy, z_den, box)
+        return _cyc_lattice_product(l1, l2, m)
+
+    def addition_at_rhs(self, x_num: "Tuple[int, int]", y_num: "Tuple[int, int]",
+                        z_den: int, box: int) -> "Dict[_Triple, Tuple[int, ...]]":
+        """The RIGHT side ``Σ_{α∈{0,1}²} (−1)^{ε·α} θ[α;0](2x|2Ω)·θ[α;0](2y|2Ω)`` of the
+        generic-argument addition identity — the exact cyclotomic lattice over the FOUR
+        second-order theta-pairs. Each ``θ[α;0](2x|2Ω)`` is built from the rc87
+        :meth:`theta_at` at argument ``2x`` (numerator ``2·x_num``) re-expressed at ``2Ω``
+        via :meth:`_double_cyc`; the ``(−1)^{ε·α}`` sign is the Class-K pin-slot."""
+        e1, e2 = self._addition_at_eps()
+        m = 2 * z_den
+        x2 = (2 * x_num[0], 2 * x_num[1])
+        y2 = (2 * y_num[0], 2 * y_num[1])
+        rhs: "Dict[_Triple, List[int]]" = {}
+        for a1 in (0, 1):
+            for a2 in (0, 1):
+                th = RiemannTheta(a1, a2, 0, 0)
+                rx = self._double_cyc(th.theta_at(x2, z_den, box))
+                ry = self._double_cyc(th.theta_at(y2, z_den, box))
+                term = _cyc_lattice_product(rx, ry, m)
+                parity = (e1 * a1 + e2 * a2) % 2
+                sign = 1 if parity == 0 else -1      # Class-K ±1, never abs()
+                for k, v in term.items():
+                    cur = rhs.get(k)
+                    if cur is None:
+                        rhs[k] = [sign * c for c in v]
+                    else:
+                        for i in range(len(v)):
+                            cur[i] += sign * v[i]
+        return {k: tuple(v) for k, v in rhs.items() if any(v)}
+
+    def addition_holds_at(self, x_num: "Tuple[int, int]", y_num: "Tuple[int, int]",
+                          z_den: int, box: int) -> bool:
+        """The GENUINE genus-2 Fay / Hirota bilinear VERIFIER at GENERIC RATIONAL
+        arguments — Riemann's theta addition formula in terms of second-order thetas
+
+            θ[0;ε](x+y|Ω)·θ[0;ε](x−y|Ω)
+              = Σ_{α∈{0,1}²} (−1)^{ε·α} · θ[α;0](2x|2Ω)·θ[α;0](2y|2Ω)
+
+        holds EXACTLY (as a truncated exact-integer cyclotomic ``ℤ[ζ_m]`` q-series,
+        ``m = 2·z_den``, for ALL ``Ω``) at the rational arguments ``x = x_num/z_den``,
+        ``y = y_num/z_den`` — ``ε`` the carrier's lower characteristic (upper char ``ε'``
+        must be ``(0,0)``; see :meth:`_addition_at_eps`). Returns ``True`` iff the two
+        sides agree exactly on the SAFE INNER REGION the box ``|nᵢ| ≤ box`` provably
+        resolves (the diagonal exponents ``A, B ≤ 4·box²``), and that region is
+        non-trivially populated AND genuinely exercises the genus-2 cross-term
+        (``C ≠ 0``).
+
+        Igusa, *Theta Functions* (1972), Ch. IV (theta constants & second-order theta
+        functions); Mumford, *Tata Lectures on Theta I* (1983), Ch. II (the addition
+        formula). VERIFIED bit-exactly against rc87 :meth:`theta_at` before shipping.
+
+        NO-SHELL — the GENUINE generalization of :meth:`addition_holds` (which is the
+        half-period special case among CHARACTERISTICS; this verifies the identity at
+        GENERIC rational arguments where the coefficients are genuine cyclotomic integers
+        in ``ℤ[ζ_m]`` — the regime the integer theta-NULL gates cannot reach). It verifies
+        the ABSTRACT theta-bilinear (Fay/Hirota-family) identity; it does NOT decide
+        is-Jacobian / the curve-specific Fay trisecant (see :meth:`kp_bilinear_scope_note`).
+
+        A CARRIER METHOD (the carrier's own build gate), not a public module-level op —
+        ``tools.total`` is UNCHANGED (the :meth:`addition_holds` / :meth:`goepel_holds`
+        precedent)."""
+        if not isinstance(z_den, int) or z_den < 1:
+            raise ValueError(f"z_den must be a positive int; got {z_den!r}")
+        if not isinstance(box, int) or box < 1:
+            raise ValueError(f"box must be an int ≥ 1 for the addition-at gate; got {box!r}")
+        if len(tuple(x_num)) != 2 or len(tuple(y_num)) != 2:
+            raise ValueError("x_num, y_num must be length-2 integer tuples (genus 2)")
+        lhs = self.addition_at_lhs(x_num, y_num, z_den, box)
+        rhs = self.addition_at_rhs(x_num, y_num, z_den, box)
+        safe = 4 * box * box
+        lhs_s = _restrict_diag(lhs, safe, 2)
+        rhs_s = _restrict_diag(rhs, safe, 2)
+        if lhs_s != rhs_s:
+            return False
+        if not lhs_s:
+            return False                             # region must be populated
+        return any(k[2] != 0 for k in lhs_s)         # genuinely exercises the cross-term
+
+    @staticmethod
+    def kp_bilinear_scope_note() -> str:
+        """The HONEST SCOPE of :meth:`addition_holds_at` (mirrors the
+        ``schottky_*_is_open`` honesty pattern). It verifies the ABSTRACT theta-bilinear
+        (Fay/Hirota-family) identity — Riemann's addition formula in second-order thetas,
+        a genus-g SHADOW of the KP Hirota bilinear hierarchy — at generic rational
+        arguments. It DOES NOT decide is-Jacobian, nor verify the CURVE-SPECIFIC Fay
+        trisecant identity: that needs the prime form + actual curve points + the KP
+        τ-function solution, i.e. the Schottky problem (the operand-side OPEN, genuinely
+        open for genus ≥ 5). The abstract bilinear identity is REPRESENTABLE here (a finite
+        exact cyclotomic q-series equality); the is-Jacobian decision is NOT — it is the
+        named operand-side OPEN this carrier documents, never fabricated."""
+        return (
+            "addition_holds_at verifies the ABSTRACT Riemann theta addition formula "
+            "(θ(x+y)·θ(x−y) = Σ_α second-order-theta products) — a genus-g shadow of "
+            "the KP Hirota bilinear hierarchy — at generic rational arguments, EXACTLY "
+            "in ℤ[ζ_m]. It does NOT decide is-Jacobian nor the curve-specific Fay "
+            "trisecant identity (prime form + curve points + KP τ-solution = the "
+            "Schottky problem, the operand-side OPEN, genuinely open for genus ≥ 5). "
+            "REPRESENTABLE: the abstract bilinear identity. OPEN (not built): the "
+            "is-Jacobian / Fay-trisecant decision.")
 
     # ══════════════════════════════════════════════════════════════════════════
     # rc74: the GENUS-AXIS CAPSTONE — the Thomae / Rosenhain bridge
@@ -2698,6 +2957,120 @@ class RiemannThetaG3:
                     if genuine == sq:
                         return False                            # would be duplication
         return True
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # rc88: the GENUS-3 Fay / Hirota bilinear VERIFIER at GENERIC RATIONAL arguments —
+    #   Riemann's addition formula in second-order thetas, ONE genus up (8 α-terms):
+    #
+    #       θ[0;ε](x+y|Ω)·θ[0;ε](x−y|Ω)
+    #         = Σ_{α∈{0,1}³} (−1)^{ε·α} · θ[α;0](2x|2Ω)·θ[α;0](2y|2Ω)
+    #
+    #   Same source + verification as the genus-2 RiemannTheta.addition_holds_at (Igusa,
+    #   *Theta Functions* (1972), Ch. IV; Mumford, *Tata Lectures on Theta I*, Ch. II).
+    # ══════════════════════════════════════════════════════════════════════════
+
+    @staticmethod
+    def _double_cyc(lat: "Dict[_Sextuple, Tuple[int, ...]]"
+                    ) -> "Dict[_Sextuple, Tuple[int, ...]]":
+        """The genus-3 cyclotomic peer of :meth:`_double_exps` — re-express a
+        ``theta_at``-at-Ω lattice as the ``2Ω`` lattice in the Ω quarter-nome alphabet
+        (every quarter-nome exponent doubles; the phase coeff is untouched). So
+        ``_double_cyc(θ[α;0].theta_at(2x))`` IS ``θ[α;0](2x|2Ω)`` in the common base."""
+        return {tuple(2 * x for x in k): v for k, v in lat.items()}  # type: ignore[misc]
+
+    def _addition_at_eps(self) -> "Tuple[int, int, int]":
+        """The lower characteristic ``ε`` this genus-3 carrier contributes to the
+        addition formula — guarding that the UPPER characteristic ``ε'`` is trivial (a
+        nonzero ``ε'`` lands the two-argument addition at ``Ω/2``, not representable by
+        the carrier's ``Ω``/``2Ω`` lattices — an honest boundary)."""
+        if (self._ep1, self._ep2, self._ep3) != (0, 0, 0):
+            raise ValueError(
+                "addition_holds_at verifies θ[0;ε](x+y)·θ[0;ε](x−y) = Σ_α (−1)^{ε·α} "
+                "θ[α;0](2x|2Ω)·θ[α;0](2y|2Ω); the carrier's UPPER characteristic "
+                f"ε' = {(self._ep1, self._ep2, self._ep3)} is nonzero, which lands the "
+                "two-argument identity at Ω/2 (the carrier holds Ω and 2Ω, not Ω/2) — an "
+                "honest boundary. Use a carrier with ε' = (0,0,0); its LOWER "
+                "characteristic ε parametrizes the identity.")
+        return (self._e1, self._e2, self._e3)
+
+    def addition_at_lhs(self, x_num: "Tuple[int, int, int]",
+                        y_num: "Tuple[int, int, int]", z_den: int,
+                        box: int) -> "Dict[_Sextuple, Tuple[int, ...]]":
+        """The LEFT side ``θ[0;ε](x+y|Ω)·θ[0;ε](x−y|Ω)`` (the genus-3 exact cyclotomic
+        lattice product, ``m = 2·z_den``). See :meth:`addition_holds_at`."""
+        e1, e2, e3 = self._addition_at_eps()
+        m = 2 * z_den
+        th = RiemannThetaG3(0, 0, 0, e1, e2, e3)
+        xpy = tuple(x_num[i] + y_num[i] for i in range(3))
+        xmy = tuple(x_num[i] - y_num[i] for i in range(3))
+        l1 = th.theta_at(xpy, z_den, box)
+        l2 = th.theta_at(xmy, z_den, box)
+        return _cyc_lattice_product(l1, l2, m)
+
+    def addition_at_rhs(self, x_num: "Tuple[int, int, int]",
+                        y_num: "Tuple[int, int, int]", z_den: int,
+                        box: int) -> "Dict[_Sextuple, Tuple[int, ...]]":
+        """The RIGHT side ``Σ_{α∈{0,1}³} (−1)^{ε·α} θ[α;0](2x|2Ω)·θ[α;0](2y|2Ω)`` (the
+        EIGHT second-order theta-pairs; ``(−1)^{ε·α}`` the Class-K pin-slot). See
+        :meth:`addition_holds_at`."""
+        e1, e2, e3 = self._addition_at_eps()
+        m = 2 * z_den
+        x2 = tuple(2 * v for v in x_num)
+        y2 = tuple(2 * v for v in y_num)
+        rhs: "Dict[_Sextuple, List[int]]" = {}
+        for a1 in (0, 1):
+            for a2 in (0, 1):
+                for a3 in (0, 1):
+                    th = RiemannThetaG3(a1, a2, a3, 0, 0, 0)
+                    rx = self._double_cyc(th.theta_at(x2, z_den, box))
+                    ry = self._double_cyc(th.theta_at(y2, z_den, box))
+                    term = _cyc_lattice_product(rx, ry, m)
+                    parity = (e1 * a1 + e2 * a2 + e3 * a3) % 2
+                    sign = 1 if parity == 0 else -1      # Class-K ±1, never abs()
+                    for k, v in term.items():
+                        cur = rhs.get(k)
+                        if cur is None:
+                            rhs[k] = [sign * c for c in v]
+                        else:
+                            for i in range(len(v)):
+                                cur[i] += sign * v[i]
+        return {k: tuple(v) for k, v in rhs.items() if any(v)}
+
+    def addition_holds_at(self, x_num: "Tuple[int, int, int]",
+                          y_num: "Tuple[int, int, int]", z_den: int,
+                          box: int) -> bool:
+        """The GENUINE genus-3 Fay / Hirota bilinear VERIFIER at GENERIC RATIONAL
+        arguments — Riemann's theta addition formula in second-order thetas, ONE genus up
+
+            θ[0;ε](x+y|Ω)·θ[0;ε](x−y|Ω)
+              = Σ_{α∈{0,1}³} (−1)^{ε·α} · θ[α;0](2x|2Ω)·θ[α;0](2y|2Ω)
+
+        holds EXACTLY (truncated exact-integer cyclotomic ``ℤ[ζ_m]`` q-series,
+        ``m = 2·z_den``) at the rational arguments ``x = x_num/z_den``,
+        ``y = y_num/z_den`` (``ε`` the carrier's lower characteristic; upper char ``ε'``
+        must be ``(0,0,0)``). Returns ``True`` iff the two sides agree exactly on the
+        safe inner region (diagonal exponents ``A₁,A₂,A₃ ≤ 4·box²``), the region is
+        non-trivially populated, and it genuinely exercises a genus-3 cross-term
+        (``C_ij ≠ 0``). See the genus-2 :meth:`RiemannTheta.addition_holds_at` for the
+        source + the honest is-Jacobian-OPEN scope
+        (:meth:`RiemannTheta.kp_bilinear_scope_note`). A CARRIER METHOD —
+        ``tools.total`` is UNCHANGED."""
+        if not isinstance(z_den, int) or z_den < 1:
+            raise ValueError(f"z_den must be a positive int; got {z_den!r}")
+        if not isinstance(box, int) or box < 1:
+            raise ValueError(f"box must be an int ≥ 1 for the addition-at gate; got {box!r}")
+        if len(tuple(x_num)) != 3 or len(tuple(y_num)) != 3:
+            raise ValueError("x_num, y_num must be length-3 integer tuples (genus 3)")
+        lhs = self.addition_at_lhs(x_num, y_num, z_den, box)
+        rhs = self.addition_at_rhs(x_num, y_num, z_den, box)
+        safe = 4 * box * box
+        lhs_s = _restrict_diag(lhs, safe, 3)
+        rhs_s = _restrict_diag(rhs, safe, 3)
+        if lhs_s != rhs_s:
+            return False
+        if not lhs_s:
+            return False
+        return any((k[3] != 0 or k[4] != 0 or k[5] != 0) for k in lhs_s)
 
     # ══════════════════════════════════════════════════════════════════════════
     # rc76: IGUSA'S χ₁₈ — the EXACT product of the 36 even theta-nulls (the genus-3
