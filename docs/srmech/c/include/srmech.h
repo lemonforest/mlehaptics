@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc95"
-#define SRMECH_VERSION       "0.9.0rc95"
+#define SRMECH_VERSION_PRE   "rc96"
+#define SRMECH_VERSION       "0.9.0rc96"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4595,6 +4595,81 @@ srmech_status_t srmech_elliptic_partial_fraction(size_t n_syms, int psym, size_t
                                                  size_t out_exps_cap_rows,
                                                  size_t *out_n_num, size_t *out_n_den,
                                                  void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_multivariate_elliptic_jackson — the C peer of the EllRatio-carrier op
+ * srmech.amsc.multivariate_elliptic_jackson.multivariate_elliptic_jackson (rc96),
+ * the eq-5 Cn elliptic Jackson summation reducer (the CAPSTONE of the
+ * multivariable (root-system Cn) elliptic reduction row). A C-MIRROR PARITY
+ * build (NOT a new algorithm): it constructs the EXACT closed form the pure-
+ * Python op builds, byte-for-byte.
+ *
+ * For the parameters a, b, c, d and the base variables x, q (Rosengren, A
+ * multivariable elliptic summation formula, arXiv:math/0101073, Theorem 2.1,
+ * Eq. 5), the balanced Cn very-well-poised elliptic Jackson summation reduces
+ * to the theta-quotient product
+ *   (aq, aq/bc, aq/bd, aq/cd; q, x)_{N^n} / (aq/b, aq/c, aq/d, aq/bcd; q, x)_{N^n},
+ * with the vector elliptic Pochhammer
+ *   (u; q, x)_{N^n} = PROD_{j=1}^n PROD_{i=0}^{N-1} theta(u*x^{1-j}*q^i; p).
+ * This op CONSTRUCTS the right-hand side as one EllRatio: the unit prefactor,
+ * the numerator thetas (the vector Pochhammer of each of aq, aq/bc, aq/bd,
+ * aq/cd) and the denominator thetas (the vector Pochhammer of each of aq/b,
+ * aq/c, aq/d, aq/bcd); er_build (the EllRatio.__init__ mirror) folds each
+ * theta's canonicalize prefactor, cancels matching thetas, sorts the survivors.
+ * Pure composition of the shared srmech_ellbase_* monomial algebra + er_build.
+ *
+ * Wire form: the interned symbol-table dimension `n_syms`; `psym` the interned
+ * index of the nome p (-1 if absent); the positive ints `N` (partition ceiling)
+ * + `n` (rank); each of the 6 parameter monomials a/b/c/d/x/q as a
+ * (num, den) srmech_bigint pair + its flat int32[n_syms] exponent row.
+ * `coeff_cap` is the per-bigint limb cap.
+ *
+ * Output: the single closed-form EllRatio written flat as a ROW stream (the
+ * prefactor row, then `*out_n_num` num-theta rows, then `*out_n_den` den-theta
+ * rows), each row carrying its exact-Q coeff (out_coeff_num / out_coeff_den) AND
+ * its dense int32[n_syms] exponent row (out_exps_flat). `out_exps_cap_rows` is
+ * the row capacity; too small -> SRMECH_ERR_OVERFLOW. N == 0 or n == 0 ->
+ * SRMECH_ERR_NULL_ARG (Python raises ValueError); a required NULL pointer ->
+ * SRMECH_ERR_NULL_ARG; a too-small arena -> SRMECH_ERR_OVERFLOW.
+ *
+ * Sign travels in the Class-K coeff branch, never abs()/fabs(). Malloc-free
+ * (JPL Rule 3): caller arena `ws` only, sized to (N, n, n_syms) -- no compiled-in
+ * cap. Additive symbol -> ABI unchanged (stays 3). License: MIT. ---- */
+
+/* Minimum `ws_len` BYTES srmech_multivariate_elliptic_jackson needs for the given
+ * shape (n_syms symbols, N the partition ceiling, n the rank, coeff_limbs the
+ * per-coefficient significant-limb estimate). */
+size_t srmech_multivariate_elliptic_jackson_ws_bound(size_t n_syms, size_t N, size_t n,
+                                                     size_t coeff_limbs);
+
+/* Build the single balanced Cn elliptic Jackson summation EllRatio (see above). */
+srmech_status_t srmech_multivariate_elliptic_jackson(size_t n_syms, int psym, size_t N,
+                                                     size_t n,
+                                                     const srmech_bigint_t *a_num,
+                                                     const srmech_bigint_t *a_den,
+                                                     const int32_t *a_exps,
+                                                     const srmech_bigint_t *b_num,
+                                                     const srmech_bigint_t *b_den,
+                                                     const int32_t *b_exps,
+                                                     const srmech_bigint_t *c_num,
+                                                     const srmech_bigint_t *c_den,
+                                                     const int32_t *c_exps,
+                                                     const srmech_bigint_t *d_num,
+                                                     const srmech_bigint_t *d_den,
+                                                     const int32_t *d_exps,
+                                                     const srmech_bigint_t *x_num,
+                                                     const srmech_bigint_t *x_den,
+                                                     const int32_t *x_exps,
+                                                     const srmech_bigint_t *q_num,
+                                                     const srmech_bigint_t *q_den,
+                                                     const int32_t *q_exps,
+                                                     uint32_t coeff_cap,
+                                                     srmech_bigint_t *out_coeff_num,
+                                                     srmech_bigint_t *out_coeff_den,
+                                                     int32_t *out_exps_flat,
+                                                     size_t out_exps_cap_rows,
+                                                     size_t *out_n_num, size_t *out_n_den,
+                                                     void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_elliptic_recurrence_8w7 — the ELLIPTIC Sigma-row ORDER-1 RECURRENCE op for the
