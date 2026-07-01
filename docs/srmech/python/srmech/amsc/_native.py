@@ -2777,6 +2777,41 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_elliptic_lagrange_basis.restype = ctypes.c_int
 
+    # rc94: srmech_elliptic_cauchy_determinant — the C peer of the EllRatio-carrier op
+    # srmech.amsc.elliptic_determinant.elliptic_cauchy_determinant (Frobenius's elliptic
+    # Cauchy determinant, the foundation of the multivariable Cₙ elliptic reduction row).
+    # The parameter t + the n x-monomials + the n y-monomials ride as flat
+    # (coeff_num/coeff_den) srmech_bigint arrays + the flat int32 exponent rows; the single
+    # closed-form EllRatio comes back as the per-row prefactor/theta coeff arrays + the
+    # survivor theta counts + the flat canonical exponent rows. Shares the srmech_bigint
+    # decimal-marshal helpers (in _ELLRATIO_SYMS) with the ellratio / lagrange peers.
+    #   size_t srmech_elliptic_cauchy_determinant_ws_bound(n_syms, n, coeff_limbs)
+    if hasattr(lib, "srmech_elliptic_cauchy_determinant_ws_bound"):
+        lib.srmech_elliptic_cauchy_determinant_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_elliptic_cauchy_determinant_ws_bound.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_elliptic_cauchy_determinant"):
+        _ecdbi = ctypes.POINTER(_SrmechBigint)
+        lib.srmech_elliptic_cauchy_determinant.argtypes = [
+            ctypes.c_size_t,                     # n_syms
+            ctypes.c_int,                        # psym
+            ctypes.c_size_t,                     # n
+            _ecdbi, _ecdbi,                      # t_num, t_den
+            ctypes.POINTER(ctypes.c_int32),      # t_exps
+            _ecdbi, _ecdbi,                      # xs_num, xs_den (flat)
+            ctypes.POINTER(ctypes.c_int32),      # xs_exps_flat
+            _ecdbi, _ecdbi,                      # ys_num, ys_den (flat)
+            ctypes.POINTER(ctypes.c_int32),      # ys_exps_flat
+            ctypes.c_uint32,                     # coeff_cap
+            _ecdbi, _ecdbi,                      # out_coeff_num, out_coeff_den (per row)
+            ctypes.POINTER(ctypes.c_int32),      # out_exps_flat
+            ctypes.c_size_t,                     # out_exps_cap_rows
+            ctypes.POINTER(ctypes.c_size_t),     # out_n_num (1)
+            ctypes.POINTER(ctypes.c_size_t),     # out_n_den (1)
+            ctypes.c_void_p, ctypes.c_size_t,    # ws, ws_len
+        ]
+        lib.srmech_elliptic_cauchy_determinant.restype = ctypes.c_int
+
     # rc68: srmech_elliptic_recurrence_8w7 — the ELLIPTIC Σ-row ORDER-1 RECURRENCE op for
     # the Frenkel–Turaev ₈ω₇ summation. The C peer of
     # srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7. The term-ratio rides as the
@@ -6964,6 +6999,156 @@ def elliptic_lagrange_basis_c(n_syms, varsym, psym, k, point_monos, mult_mono):
             row += 1
         basis.append({"prefactor": pref, "num": num_rows, "den": den_rows})
     return basis
+
+
+# ----------------------------------------------------------------------
+# rc94: srmech_elliptic_cauchy_determinant — the C peer of the EllRatio-carrier op
+# srmech.amsc.elliptic_determinant.elliptic_cauchy_determinant (Frobenius's elliptic
+# Cauchy determinant; the foundation of the multivariable Cₙ elliptic reduction row). A
+# C-MIRROR PARITY build: the single closed-form EllRatio comes back byte-exact equal to the
+# pure-Python op. srmech.amsc.elliptic_determinant.elliptic_cauchy_determinant dispatches
+# through here when the peer is loaded; the pure-Python body is the complete alternative +
+# the parity oracle. Shares the srmech_bigint decimal-marshal helpers (in _ELLRATIO_SYMS)
+# with the ellratio / lagrange peers.
+# ----------------------------------------------------------------------
+
+
+def has_native_elliptic_cauchy_determinant() -> bool:
+    """True iff the rc94 srmech_elliptic_cauchy_determinant op + its ws sizer + the
+    srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
+    pre-rc94 lib — the pure-Python
+    ``srmech.amsc.elliptic_determinant.elliptic_cauchy_determinant`` body is the complete
+    alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _ELLRATIO_SYMS) and all(
+        hasattr(LIB, s) for s in (
+            "srmech_elliptic_cauchy_determinant",
+            "srmech_elliptic_cauchy_determinant_ws_bound",
+        )
+    )
+
+
+def elliptic_cauchy_determinant_c(n_syms, psym, n, t_mono, x_monos, y_monos):
+    """Native ``elliptic_cauchy_determinant`` for the parameter monomial ``t_mono`` + the
+    ``n`` x-monomials ``x_monos`` + the ``n`` y-monomials ``y_monos`` → the single
+    closed-form EllRatio bridge form (a dict ``{"prefactor": (coeff_num, coeff_den, exps),
+    "num": [...], "den": [...]}``), or ``None`` if the native symbols are absent.
+    ``n_syms`` is the interned symbol-table dimension; ``psym`` the interned index of the
+    nome ``p`` (-1 if absent); each mono is a ``(num, den, exps_row)`` triple (each
+    ``exps_row`` a length-``n_syms`` int list). The returned thetas are decoded against
+    ``sym_list`` by the caller. A non-OK C status raises ``RuntimeError``."""
+    if not has_native_elliptic_cauchy_determinant():
+        return None
+    if n == 0:
+        raise ValueError("elliptic_cauchy_determinant_c: need at least one variable")
+    if n_syms == 0:
+        # a pure-scalar table clamps to a single all-zero exponent slot (the C clamps
+        # n_syms -> 1) so every monomial reads a consistent dense row.
+        n_syms = 1
+        t_mono = (t_mono[0], t_mono[1], [0])
+        x_monos = [(num, den, [0]) for num, den, _e in x_monos]
+        y_monos = [(num, den, [0]) for num, den, _e in y_monos]
+    all_monos = [t_mono] + list(x_monos) + list(y_monos)
+    # per-coefficient limb estimate (9 decimal digits ~ 1 limb; pad). The theta
+    # canonicalization + product prefactors multiply coefficients, so size generously.
+    cl = 2
+    for num, den, _exps in all_monos:
+        cl = max(cl, len(str(num).lstrip("-")) // 9 + 2, len(str(den)) // 9 + 2)
+    out_cap = cl + 8
+    work_cap = cl + 8
+    ws_len = int(LIB.srmech_elliptic_cauchy_determinant_ws_bound(
+        ctypes.c_size_t(n_syms), ctypes.c_size_t(n), ctypes.c_size_t(work_cap)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    keep = []
+    # the parameter t.
+    t_num, t_den, t_exps = t_mono
+    if len(t_exps) != n_syms:
+        raise ValueError("elliptic_cauchy_determinant_c: t exps row length != n_syms")
+    tbn, ktbn = _bigint_from_int(int(t_num), work_cap)
+    tbd, ktbd = _bigint_from_int(int(t_den), work_cap)
+    keep.append(ktbn)
+    keep.append(ktbd)
+    t_exps_c = (ctypes.c_int32 * max(n_syms, 1))(*[int(e) for e in t_exps])
+    # the n flat x + y monomial inputs.
+    xs_num_arr = (_SrmechBigint * n)()
+    xs_den_arr = (_SrmechBigint * n)()
+    ys_num_arr = (_SrmechBigint * n)()
+    ys_den_arr = (_SrmechBigint * n)()
+    xs_exps_flat = []
+    ys_exps_flat = []
+    for i, (num, den, exps_row) in enumerate(x_monos):
+        if len(exps_row) != n_syms:
+            raise ValueError("elliptic_cauchy_determinant_c: x exps row length != n_syms")
+        bn, kbn = _bigint_from_int(int(num), work_cap)
+        bd, kbd = _bigint_from_int(int(den), work_cap)
+        xs_num_arr[i] = bn
+        xs_den_arr[i] = bd
+        keep.append(kbn)
+        keep.append(kbd)
+        xs_exps_flat.extend(int(e) for e in exps_row)
+    for i, (num, den, exps_row) in enumerate(y_monos):
+        if len(exps_row) != n_syms:
+            raise ValueError("elliptic_cauchy_determinant_c: y exps row length != n_syms")
+        bn, kbn = _bigint_from_int(int(num), work_cap)
+        bd, kbd = _bigint_from_int(int(den), work_cap)
+        ys_num_arr[i] = bn
+        ys_den_arr[i] = bd
+        keep.append(kbn)
+        keep.append(kbd)
+        ys_exps_flat.extend(int(e) for e in exps_row)
+    xs_exps_c = (ctypes.c_int32 * max(len(xs_exps_flat), 1))(*xs_exps_flat)
+    ys_exps_c = (ctypes.c_int32 * max(len(ys_exps_flat), 1))(*ys_exps_flat)
+    # the output ROW stream: a prefactor row + up to n*n num rows + up to n*n den rows
+    # (the theta counts shrink under cancellation; budget n*n each + slack). Every row
+    # carries its exact-Q coeff (out_cn / out_cd) + its dense exps row (out_exps).
+    nsq = n * n
+    out_cap_rows = 1 + 2 * nsq + 8
+    out_cn_arr = (_SrmechBigint * out_cap_rows)()
+    out_cd_arr = (_SrmechBigint * out_cap_rows)()
+    for r in range(out_cap_rows):
+        ocn, kocn = _bigint_from_int(0, out_cap)
+        ocd, kocd = _bigint_from_int(0, out_cap)
+        out_cn_arr[r] = ocn
+        out_cd_arr[r] = ocd
+        keep.append(kocn)
+        keep.append(kocd)
+    out_exps = (ctypes.c_int32 * max(out_cap_rows * n_syms, 1))()
+    out_nn = (ctypes.c_size_t * 1)()
+    out_nd = (ctypes.c_size_t * 1)()
+    rc = LIB.srmech_elliptic_cauchy_determinant(
+        ctypes.c_size_t(n_syms), ctypes.c_int(psym), ctypes.c_size_t(n),
+        ctypes.byref(tbn), ctypes.byref(tbd), t_exps_c,
+        xs_num_arr, xs_den_arr, xs_exps_c,
+        ys_num_arr, ys_den_arr, ys_exps_c,
+        ctypes.c_uint32(work_cap),
+        out_cn_arr, out_cd_arr, out_exps, ctypes.c_size_t(out_cap_rows),
+        out_nn, out_nd,
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_elliptic_cauchy_determinant returned non-OK status {rc}")
+
+    # rebuild the single EllRatio bridge form from the flat output ROW stream.
+    def _read_row(r):
+        return (_bigint_to_int(out_cn_arr[r]), _bigint_to_int(out_cd_arr[r]),
+                [int(out_exps[r * n_syms + j]) for j in range(n_syms)])
+
+    n_num = out_nn[0]
+    n_den = out_nd[0]
+    row = 0
+    pref = _read_row(row)
+    row += 1
+    num_rows = []
+    for _ in range(n_num):
+        num_rows.append(_read_row(row))
+        row += 1
+    den_rows = []
+    for _ in range(n_den):
+        den_rows.append(_read_row(row))
+        row += 1
+    return {"prefactor": pref, "num": num_rows, "den": den_rows}
 
 
 # ----------------------------------------------------------------------
