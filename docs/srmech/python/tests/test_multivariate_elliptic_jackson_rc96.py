@@ -13,7 +13,7 @@ import pytest
 
 from srmech.amsc.ellbase import EllMonomial as M
 from srmech.amsc.q import Q
-from srmech.amsc.multivariate_elliptic_jackson import multivariate_elliptic_jackson
+from srmech.amsc.elliptic_jackson import multivariate_elliptic_jackson
 
 _TRUNC = 24
 _P = Q(1, 19)

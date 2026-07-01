@@ -2849,7 +2849,7 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_elliptic_partial_fraction.restype = ctypes.c_int
 
     # rc96: srmech_multivariate_elliptic_jackson — the C peer of the EllRatio-carrier op
-    # srmech.amsc.multivariate_elliptic_jackson.multivariate_elliptic_jackson (the eq-5 Cₙ
+    # srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson (the eq-5 Cₙ
     # elliptic Jackson summation reducer, the capstone of the multivariable Cₙ elliptic
     # reduction row). The parameters a, b, c, d + the base variables x, q ride as
     # (coeff_num/coeff_den) srmech_bigint pairs + their flat int32 exponent rows; the two
@@ -7384,11 +7384,11 @@ def elliptic_partial_fraction_c(n_syms, psym, n, x_mono, z_monos, y_monos):
 
 # ----------------------------------------------------------------------
 # rc96: srmech_multivariate_elliptic_jackson — the C peer of the EllRatio-carrier op
-# srmech.amsc.multivariate_elliptic_jackson.multivariate_elliptic_jackson (the eq-5 Cₙ
+# srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson (the eq-5 Cₙ
 # elliptic Jackson summation reducer; the capstone of the multivariable Cₙ elliptic
 # reduction row). A C-MIRROR PARITY build: the single closed-form EllRatio comes back
 # byte-exact equal to the pure-Python op.
-# srmech.amsc.multivariate_elliptic_jackson.multivariate_elliptic_jackson dispatches through
+# srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson dispatches through
 # here when the peer is loaded (and trusts it only after it == the pure EllRatio); the
 # pure-Python body is the complete alternative + the parity oracle. Shares the srmech_bigint
 # decimal-marshal helpers (in _ELLRATIO_SYMS) with the ellratio / lagrange peers.
@@ -7399,7 +7399,7 @@ def has_native_multivariate_elliptic_jackson() -> bool:
     """True iff the rc96 srmech_multivariate_elliptic_jackson op + its ws sizer + the
     srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
     pre-rc96 lib — the pure-Python
-    ``srmech.amsc.multivariate_elliptic_jackson.multivariate_elliptic_jackson`` body is the
+    ``srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson`` body is the
     complete alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False

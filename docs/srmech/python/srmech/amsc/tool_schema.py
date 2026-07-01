@@ -3700,8 +3700,8 @@ def _register_primitive_class_tools() -> None:
         # srmech_multivariate_elliptic_jackson.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.multivariate_elliptic_jackson.multivariate_elliptic_jackson",
-            owner="srmech", category="multivariate_elliptic_jackson",
+            name="srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson",
+            owner="srmech", category="elliptic_jackson",
             summary="The MULTIVARIABLE ELLIPTIC JACKSON summation — the eq-5 Cₙ REDUCER, "
                     "the CAPSTONE of the multivariable (root-system Cₙ) elliptic reduction "
                     "row (Hjalmar Rosengren, 'A multivariable elliptic summation formula', "

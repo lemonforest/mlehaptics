@@ -1,4 +1,4 @@
-"""srmech.amsc.multivariate_elliptic_jackson — the eq-5 Cₙ REDUCER: the closed-form
+"""srmech.amsc.elliptic_jackson — the eq-5 Cₙ REDUCER: the closed-form
 evaluator for the multivariable (root-system Cₙ) elliptic Jackson summation.
 
 This is the capstone of the multivariable elliptic reduction row. Where the single-variable
