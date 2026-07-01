@@ -2718,6 +2718,34 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_thetasum_is_zero.restype = ctypes.c_int
 
+    # rc99: srmech_thetasum_is_zero_interpolation — the C peer of the ThetaSum
+    # STRUCTURAL ELLIPTIC-INTERPOLATION is_zero completion (the COMPLETE multi-
+    # variable elliptic decision; the pure-Python ThetaSum._is_zero_interpolation
+    # parity oracle). SAME wire form as srmech_thetasum_is_zero (n_syms + p/x/y
+    # indices + per-term theta counts + flat monomial coeff/exps). The ws sizer
+    # additionally takes max_abs_exp for degree-aware base-case band sizing.
+    #   size_t srmech_thetasum_is_zero_interpolation_ws_bound(
+    #       n_syms, n_terms, max_thetas, coeff_limbs, max_abs_exp)
+    if hasattr(lib, "srmech_thetasum_is_zero_interpolation_ws_bound"):
+        lib.srmech_thetasum_is_zero_interpolation_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t,
+            ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_thetasum_is_zero_interpolation_ws_bound.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_thetasum_is_zero_interpolation"):
+        _tbi2 = ctypes.POINTER(_SrmechBigint)
+        lib.srmech_thetasum_is_zero_interpolation.argtypes = [
+            ctypes.c_size_t,                     # n_syms
+            ctypes.c_int, ctypes.c_int, ctypes.c_int,  # xsym, ysym, psym
+            ctypes.c_size_t,                     # n_terms
+            ctypes.POINTER(ctypes.c_size_t),     # term_nthetas
+            _tbi2, _tbi2,                        # coeff_num, coeff_den (flat)
+            ctypes.POINTER(ctypes.c_int32),      # exps_flat
+            ctypes.c_uint32,                     # coeff_cap
+            ctypes.POINTER(ctypes.c_int),        # out_is_zero
+            ctypes.c_void_p, ctypes.c_size_t,    # ws, ws_len
+        ]
+        lib.srmech_thetasum_is_zero_interpolation.restype = ctypes.c_int
+
     # rc64: srmech_ellratio_is_elliptic — the C peer of the EllRatio carrier's
     # is_elliptic (the BALANCING / very-well-poised predicate = pshift() == self). The
     # canonical EllRatio rides as the interned symbol-table dimension + the x/p indices
@@ -6847,6 +6875,107 @@ def thetasum_is_zero_c(n_syms, xsym, ysym, psym, term_nthetas, monomials):
     )
     if rc != SRMECH_OK:
         raise RuntimeError(f"srmech_thetasum_is_zero returned non-OK status {rc}")
+    return bool(out_is_zero.value)
+
+
+# ----------------------------------------------------------------------
+# rc99: srmech_thetasum_is_zero_interpolation — the C peer of the ThetaSum
+# STRUCTURAL ELLIPTIC-INTERPOLATION is_zero completion (the COMPLETE multi-variable
+# elliptic decision). srmech.amsc.thetasum.ThetaSum._is_zero_interpolation is the
+# pure-Python parity oracle; the C verdict EQUALS it byte-for-byte (True AND False),
+# so the dispatched is_zero trusts a non-None C verdict directly. When the caller
+# arena / coefficient cap is outgrown the C peer returns SRMECH_ERR_OVERFLOW; the
+# Python marshaler catches it and returns None -> the caller falls to the pure
+# oracle (the C peer is the accelerator, the pure path the authority).
+# ----------------------------------------------------------------------
+
+_THETASUM_INTERP_SYMS = (
+    "srmech_thetasum_is_zero_interpolation_ws_bound",
+    "srmech_bigint_from_dec",
+    "srmech_bigint_to_dec",
+    "srmech_bigint_to_dec_bound",
+)
+
+
+def has_native_thetasum_interpolation() -> bool:
+    """True iff the rc99 srmech_thetasum_is_zero_interpolation op + its ws sizer +
+    the srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
+    pre-rc99 lib — the pure-Python ``ThetaSum._is_zero_interpolation`` body is then
+    the complete decider (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _THETASUM_INTERP_SYMS) and hasattr(
+        LIB, "srmech_thetasum_is_zero_interpolation"
+    )
+
+
+def thetasum_is_zero_interpolation_c(n_syms, xsym, ysym, psym, term_nthetas, monomials):
+    """Native COMPLETE structural-interpolation ThetaSum.is_zero decision → ``bool``
+    (trusted True AND False), or ``None`` if the native symbols are absent OR the C
+    peer declined (SRMECH_ERR_OVERFLOW — the caller then falls to the pure oracle).
+    ``monomials`` is the flat ``(num, den, exps_row)`` list in the order term0.pref,
+    term0.theta0..K, term1.pref, … (identical to :func:`thetasum_is_zero_c`)."""
+    if not has_native_thetasum_interpolation():
+        return None
+    n_terms = len(term_nthetas)
+    if n_terms == 0:
+        return True
+    max_thetas = max(term_nthetas) if term_nthetas else 0
+    # per-coefficient limb estimate + the largest |exponent| (degree-aware base band).
+    cl = 1
+    max_abs_exp = 1
+    for num, den, exps in monomials:
+        cl = max(cl, len(str(num).lstrip("-")) // 9 + 2, len(str(den)) // 9 + 2)
+        for e in exps:
+            ae = int(e)
+            ae = ae if ae >= 0 else -ae
+            if ae > max_abs_exp:
+                max_abs_exp = ae
+    # Headroom for INTERMEDIATE coefficient growth: the base-case q-expansion raises
+    # the substituted (prime-product) coefficients to powers and multiplies theta
+    # factors, so the working bigints outgrow the input's limb count. Scale generously
+    # (over-provisioning only costs arena; a genuine shortfall trips OVERFLOW -> the
+    # pure oracle decides). Distinct primes climb to 617 -> ~2 limbs each.
+    cl = cl * (max_thetas + 4) * (max_abs_exp + 2) + 16
+    out_cap = cl
+    ws_len = int(LIB.srmech_thetasum_is_zero_interpolation_ws_bound(
+        ctypes.c_size_t(n_syms), ctypes.c_size_t(n_terms),
+        ctypes.c_size_t(max_thetas), ctypes.c_size_t(cl),
+        ctypes.c_size_t(max_abs_exp)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    n_mono = len(monomials)
+    num_arr = (_SrmechBigint * max(n_mono, 1))()
+    den_arr = (_SrmechBigint * max(n_mono, 1))()
+    keep = []
+    exps_flat = []
+    for i, (num, den, exps_row) in enumerate(monomials):
+        bn, kbn = _bigint_from_int(int(num), out_cap)
+        bd, kbd = _bigint_from_int(int(den), out_cap)
+        num_arr[i] = bn
+        den_arr[i] = bd
+        keep.append(kbn)
+        keep.append(kbd)
+        if len(exps_row) != n_syms:
+            raise ValueError("thetasum_is_zero_interpolation_c: exps row length != n_syms")
+        exps_flat.extend(int(e) for e in exps_row)
+    exps_c = (ctypes.c_int32 * max(len(exps_flat), 1))(*exps_flat)
+    nthetas_c = (ctypes.c_size_t * n_terms)(*[int(t) for t in term_nthetas])
+    out_is_zero = ctypes.c_int(0)
+    rc = LIB.srmech_thetasum_is_zero_interpolation(
+        ctypes.c_size_t(n_syms),
+        ctypes.c_int(xsym), ctypes.c_int(ysym), ctypes.c_int(psym),
+        ctypes.c_size_t(n_terms), nthetas_c,
+        num_arr, den_arr, exps_c,
+        ctypes.c_uint32(out_cap), ctypes.byref(out_is_zero),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    if rc == SRMECH_ERR_OVERFLOW:
+        # The peer outgrew the provisioned arena / coeff cap — decline to the pure
+        # oracle rather than crash (a TOTAL-function dispatch, like thetasum_is_zero_c).
+        return None
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_thetasum_is_zero_interpolation returned non-OK status {rc}")
     return bool(out_is_zero.value)
 
 
