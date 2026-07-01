@@ -2848,6 +2848,44 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_elliptic_partial_fraction.restype = ctypes.c_int
 
+    # rc96: srmech_multivariate_elliptic_jackson — the C peer of the EllRatio-carrier op
+    # srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson (the eq-5 Cₙ
+    # elliptic Jackson summation reducer, the capstone of the multivariable Cₙ elliptic
+    # reduction row). The parameters a, b, c, d + the base variables x, q ride as
+    # (coeff_num/coeff_den) srmech_bigint pairs + their flat int32 exponent rows; the two
+    # positive ints N (partition ceiling) + n (rank) size the vector Pochhammer. The single
+    # closed-form EllRatio comes back as the per-row prefactor/theta coeff arrays + the
+    # survivor theta counts (out_n_num[1] / out_n_den[1]) + the flat canonical exponent rows.
+    # Mirrors rc94's single-EllRatio elliptic_cauchy_determinant wire form. Shares the
+    # srmech_bigint decimal-marshal helpers (in _ELLRATIO_SYMS) with the ellratio peers.
+    #   size_t srmech_multivariate_elliptic_jackson_ws_bound(n_syms, N, n, coeff_limbs)
+    if hasattr(lib, "srmech_multivariate_elliptic_jackson_ws_bound"):
+        lib.srmech_multivariate_elliptic_jackson_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_multivariate_elliptic_jackson_ws_bound.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_multivariate_elliptic_jackson"):
+        _mejbi = ctypes.POINTER(_SrmechBigint)
+        lib.srmech_multivariate_elliptic_jackson.argtypes = [
+            ctypes.c_size_t,                     # n_syms
+            ctypes.c_int,                        # psym
+            ctypes.c_size_t,                     # N (partition ceiling)
+            ctypes.c_size_t,                     # n (rank)
+            _mejbi, _mejbi, ctypes.POINTER(ctypes.c_int32),   # a_num, a_den, a_exps
+            _mejbi, _mejbi, ctypes.POINTER(ctypes.c_int32),   # b_num, b_den, b_exps
+            _mejbi, _mejbi, ctypes.POINTER(ctypes.c_int32),   # c_num, c_den, c_exps
+            _mejbi, _mejbi, ctypes.POINTER(ctypes.c_int32),   # d_num, d_den, d_exps
+            _mejbi, _mejbi, ctypes.POINTER(ctypes.c_int32),   # x_num, x_den, x_exps
+            _mejbi, _mejbi, ctypes.POINTER(ctypes.c_int32),   # q_num, q_den, q_exps
+            ctypes.c_uint32,                     # coeff_cap
+            _mejbi, _mejbi,                      # out_coeff_num, out_coeff_den (per row)
+            ctypes.POINTER(ctypes.c_int32),      # out_exps_flat
+            ctypes.c_size_t,                     # out_exps_cap_rows
+            ctypes.POINTER(ctypes.c_size_t),     # out_n_num (1)
+            ctypes.POINTER(ctypes.c_size_t),     # out_n_den (1)
+            ctypes.c_void_p, ctypes.c_size_t,    # ws, ws_len
+        ]
+        lib.srmech_multivariate_elliptic_jackson.restype = ctypes.c_int
+
     # rc68: srmech_elliptic_recurrence_8w7 — the ELLIPTIC Σ-row ORDER-1 RECURRENCE op for
     # the Frenkel–Turaev ₈ω₇ summation. The C peer of
     # srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7. The term-ratio rides as the
@@ -7342,6 +7380,138 @@ def elliptic_partial_fraction_c(n_syms, psym, n, x_mono, z_monos, y_monos):
             row += 1
         forms.append({"prefactor": pref, "num": num_rows, "den": den_rows})
     return forms
+
+
+# ----------------------------------------------------------------------
+# rc96: srmech_multivariate_elliptic_jackson — the C peer of the EllRatio-carrier op
+# srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson (the eq-5 Cₙ
+# elliptic Jackson summation reducer; the capstone of the multivariable Cₙ elliptic
+# reduction row). A C-MIRROR PARITY build: the single closed-form EllRatio comes back
+# byte-exact equal to the pure-Python op.
+# srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson dispatches through
+# here when the peer is loaded (and trusts it only after it == the pure EllRatio); the
+# pure-Python body is the complete alternative + the parity oracle. Shares the srmech_bigint
+# decimal-marshal helpers (in _ELLRATIO_SYMS) with the ellratio / lagrange peers.
+# ----------------------------------------------------------------------
+
+
+def has_native_multivariate_elliptic_jackson() -> bool:
+    """True iff the rc96 srmech_multivariate_elliptic_jackson op + its ws sizer + the
+    srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
+    pre-rc96 lib — the pure-Python
+    ``srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson`` body is the
+    complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _ELLRATIO_SYMS) and all(
+        hasattr(LIB, s) for s in (
+            "srmech_multivariate_elliptic_jackson",
+            "srmech_multivariate_elliptic_jackson_ws_bound",
+        )
+    )
+
+
+def multivariate_elliptic_jackson_c(n_syms, psym, N, n, a_mono, b_mono, c_mono, d_mono,
+                                    x_mono, q_mono):
+    """Native ``multivariate_elliptic_jackson`` for the parameter monomials ``a`` / ``b`` /
+    ``c`` / ``d`` + the base variables ``x`` / ``q`` + the positive ints ``N`` (partition
+    ceiling) / ``n`` (rank) → the single closed-form EllRatio bridge form (a dict
+    ``{"prefactor": (coeff_num, coeff_den, exps), "num": [...], "den": [...]}``), or ``None``
+    if the native symbols are absent. ``n_syms`` is the interned symbol-table dimension;
+    ``psym`` the interned index of the nome ``p`` (-1 if absent); each mono is a
+    ``(num, den, exps_row)`` triple (each ``exps_row`` a length-``n_syms`` int list). The
+    returned thetas are decoded against ``sym_list`` by the caller. A non-OK C status raises
+    ``RuntimeError``."""
+    if not has_native_multivariate_elliptic_jackson():
+        return None
+    if N < 1 or n < 1:
+        raise ValueError("multivariate_elliptic_jackson_c: N and n must be >= 1")
+    monos = [a_mono, b_mono, c_mono, d_mono, x_mono, q_mono]
+    if n_syms == 0:
+        # a pure-scalar table clamps to a single all-zero exponent slot (the C clamps
+        # n_syms -> 1) so every monomial reads a consistent dense row.
+        n_syms = 1
+        monos = [(m[0], m[1], [0]) for m in monos]
+    # per-coefficient limb estimate (9 decimal digits ~ 1 limb; pad). The theta
+    # canonicalization + product prefactors multiply coefficients, so size generously.
+    cl = 2
+    for num, den, _exps in monos:
+        cl = max(cl, len(str(num).lstrip("-")) // 9 + 2, len(str(den)) // 9 + 2)
+    out_cap = cl + 8
+    work_cap = cl + 8
+    ws_len = int(LIB.srmech_multivariate_elliptic_jackson_ws_bound(
+        ctypes.c_size_t(n_syms), ctypes.c_size_t(N), ctypes.c_size_t(n),
+        ctypes.c_size_t(work_cap)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    keep = []
+    # marshal the 6 input monomials into bigint pairs + int32 exponent rows.
+    bi_pairs = []
+    exps_cs = []
+    for (num, den, exps_row) in monos:
+        if len(exps_row) != n_syms:
+            raise ValueError(
+                "multivariate_elliptic_jackson_c: exps row length != n_syms")
+        bn, kbn = _bigint_from_int(int(num), work_cap)
+        bd, kbd = _bigint_from_int(int(den), work_cap)
+        keep.append(kbn)
+        keep.append(kbd)
+        bi_pairs.append((bn, bd))
+        exps_cs.append((ctypes.c_int32 * max(n_syms, 1))(*[int(e) for e in exps_row]))
+    # the output ROW stream: a prefactor row + up to 4*N*n num rows + up to 4*N*n den rows
+    # (the theta counts shrink under cancellation; budget 4*N*n each + slack). Every row
+    # carries its exact-Q coeff (out_cn / out_cd) + its dense exps row (out_exps).
+    ntheta = 4 * N * n
+    out_cap_rows = 1 + 2 * ntheta + 8
+    out_cn_arr = (_SrmechBigint * out_cap_rows)()
+    out_cd_arr = (_SrmechBigint * out_cap_rows)()
+    for r in range(out_cap_rows):
+        ocn, kocn = _bigint_from_int(0, out_cap)
+        ocd, kocd = _bigint_from_int(0, out_cap)
+        out_cn_arr[r] = ocn
+        out_cd_arr[r] = ocd
+        keep.append(kocn)
+        keep.append(kocd)
+    out_exps = (ctypes.c_int32 * max(out_cap_rows * n_syms, 1))()
+    out_nn = (ctypes.c_size_t * 1)()
+    out_nd = (ctypes.c_size_t * 1)()
+    (an, ad), (bbn, bbd), (ccn, ccd), (ddn, ddd), (xn, xd), (qn, qd) = bi_pairs
+    rc = LIB.srmech_multivariate_elliptic_jackson(
+        ctypes.c_size_t(n_syms), ctypes.c_int(psym),
+        ctypes.c_size_t(N), ctypes.c_size_t(n),
+        ctypes.byref(an), ctypes.byref(ad), exps_cs[0],
+        ctypes.byref(bbn), ctypes.byref(bbd), exps_cs[1],
+        ctypes.byref(ccn), ctypes.byref(ccd), exps_cs[2],
+        ctypes.byref(ddn), ctypes.byref(ddd), exps_cs[3],
+        ctypes.byref(xn), ctypes.byref(xd), exps_cs[4],
+        ctypes.byref(qn), ctypes.byref(qd), exps_cs[5],
+        ctypes.c_uint32(work_cap),
+        out_cn_arr, out_cd_arr, out_exps, ctypes.c_size_t(out_cap_rows),
+        out_nn, out_nd,
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_multivariate_elliptic_jackson returned non-OK status {rc}")
+
+    # rebuild the single EllRatio bridge form from the flat output ROW stream.
+    def _read_row(r):
+        return (_bigint_to_int(out_cn_arr[r]), _bigint_to_int(out_cd_arr[r]),
+                [int(out_exps[r * n_syms + j]) for j in range(n_syms)])
+
+    n_num = out_nn[0]
+    n_den = out_nd[0]
+    row = 0
+    pref = _read_row(row)
+    row += 1
+    num_rows = []
+    for _ in range(n_num):
+        num_rows.append(_read_row(row))
+        row += 1
+    den_rows = []
+    for _ in range(n_den):
+        den_rows.append(_read_row(row))
+        row += 1
+    return {"prefactor": pref, "num": num_rows, "den": den_rows}
 
 
 # ----------------------------------------------------------------------

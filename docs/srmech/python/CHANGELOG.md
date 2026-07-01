@@ -8,6 +8,23 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc96] - 2026-07-01
+
+**`multivariate_elliptic_jackson` — the eq-5 Cₙ REDUCER, the CAPSTONE of the multivariable root-system Cₙ elliptic reduction row.** rc94 shipped the FOUNDATION (the elliptic Cauchy / Frobenius determinant); rc95 shipped the ENGINE (the elliptic partial-fraction expansion). This rc ships the CAPSTONE they exist to build: the closed-form reducer for the balanced Cₙ very-well-poised elliptic Jackson summation. Where the single-variable ₈ω₇ elliptic Jackson summation reduces to a scalar theta-quotient (the Frenkel–Turaev sum), the Cₙ (root-system) elliptic Jackson summation reduces an n-FOLD sum over partitions to a theta-quotient PRODUCT. The op IS a new ToolEntry → **`tools.total` 346 → 347**. **ABI stays 3** (additive C symbol). Shipped CO-EQUAL Python + 1:1 native C peer in the SAME rc (the everything-mirrors / never-split discipline).
+
+**THE CLOSED FORM.** For the parameters `a, b, c, d` and the base variables `x, q` over the partitions `N ≥ λ₁ ≥ … ≥ λₙ ≥ 0` (Hjalmar Rosengren, *A multivariable elliptic summation formula*, arXiv:math/0101073 [math.CA], Theorem 2.1, Eq. 5):
+
+```
+Σ_{λ ∈ Λ_{nN}} [ Cₙ very-well-poised summand ]
+  = (aq, aq/bc, aq/bd, aq/cd; q, x)_{Nⁿ}
+    / (aq/b, aq/c, aq/d, aq/bcd; q, x)_{Nⁿ},
+  (u; q, x)_{Nⁿ} = ∏_{j=1}^n ∏_{i=0}^{N-1} θ(u·x^{1-j}·qⁱ; p).
+```
+
+`multivariate_elliptic_jackson(a, b, c, d, x, q, N, n)` CONSTRUCTS the right-hand side as a single canonical `EllRatio` (the unit prefactor, the vector-Pochhammer numerator thetas of each num base `aq, aq/bc, aq/bd, aq/cd`, the vector-Pochhammer denominator thetas of each den base `aq/b, aq/c, aq/d, aq/bcd`); the `EllRatio` constructor folds each theta's canonicalize prefactor, cancels matching thetas, and sorts the survivors. The remaining parameter `e` is fixed by the balancing `e = a²q^{N+1}/(bcd·x^{n-1})` (so the sum is balanced by construction). The `n=1` case is the Frenkel–Turaev ₈ω₇ sum; the induction on `N` runs through Warnaar's Lemma 2.2 + the elliptic partial-fraction expansion (rc95).
+
+**MPM-VERIFIED at build.** The closed form equals the actual n-fold Cₙ very-well-poised sum over partitions at `n=2` (`N=1,2`) + `n=3` (`N=1`) via an INDEPENDENT exact-ℚ theta oracle, plus Warnaar's Lemma 2.2 pinned in isolation (`test_multivariate_elliptic_jackson_rc96.py`). The 1:1 native C peer `srmech_multivariate_elliptic_jackson` builds the SAME `EllRatio` over the shared `srmech_ellbase_*` monomial algebra + `er_build` (mirrors rc94's single-EllRatio path); the native EllRatio is trusted ONLY after it is rebuilt and confirmed `==` the pure-Python EllRatio (the COMPLETE alternative + the parity oracle). Exact over the modified-theta algebra (no float), no `abs()` (Class-K sign), no numpy / `math`; C peer caller-arena / malloc-free / JPL-clean.
+
 ## [0.9.0rc95] - 2026-07-01
 
 **`elliptic_partial_fraction` — the ELLIPTIC PARTIAL-FRACTION expansion, the reduction ENGINE of the multivariable root-system Cₙ elliptic reduction row.** rc94 shipped the elliptic Cauchy / Frobenius DETERMINANT (the FOUNDATION of the Cₙ row); this rc ships the ENGINE it (and Warnaar's Lemma 2.2, and the Cₙ elliptic Jackson summation) is proved with. Where the single-variable ₈ω₇ reduces to the Weierstrass THREE-TERM relation (`ThetaSum.three_term`), the multivariable Cₙ objects all reduce to THIS partial-fraction expansion. The op IS a new ToolEntry → **`tools.total` 345 → 346**. **ABI stays 3** (additive C symbol). Shipped CO-EQUAL Python + 1:1 native C peer in the SAME rc (the everything-mirrors / never-split discipline).

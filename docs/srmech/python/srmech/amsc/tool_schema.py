@@ -3691,6 +3691,65 @@ def _register_primitive_class_tools() -> None:
                       "Raises ValueError if zs / ys are empty or unequal length"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The MULTIVARIABLE ELLIPTIC JACKSON summation — the CAPSTONE of
+        # the multivariable (root-system Cₙ) elliptic reduction row. The
+        # eq-5 Cₙ REDUCER: it CONSTRUCTS the closed-form theta-quotient
+        # PRODUCT the balanced Cₙ elliptic Jackson summation reduces to
+        # (Rosengren Thm 2.1, Eq 5) as a single EllRatio. Peer of rc94's
+        # single-EllRatio elliptic_cauchy_determinant. 1:1 C peer
+        # srmech_multivariate_elliptic_jackson.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson",
+            owner="srmech", category="elliptic_jackson",
+            summary="The MULTIVARIABLE ELLIPTIC JACKSON summation — the eq-5 Cₙ REDUCER, "
+                    "the CAPSTONE of the multivariable (root-system Cₙ) elliptic reduction "
+                    "row (Hjalmar Rosengren, 'A multivariable elliptic summation formula', "
+                    "arXiv:math/0101073 [math.CA], Theorem 2.1, Eq. 5). Where the single-"
+                    "variable ₈ω₇ elliptic Jackson summation reduces to a scalar theta-"
+                    "quotient (the Frenkel–Turaev sum), the balanced Cₙ very-well-poised "
+                    "elliptic Jackson summation reduces an n-FOLD sum over the partitions "
+                    "N ≥ λ₁ ≥ … ≥ λₙ ≥ 0 to a theta-quotient PRODUCT. For the parameters "
+                    "a, b, c, d and the base variables x, q it CONSTRUCTS the closed-form "
+                    "right-hand side (aq, aq/bc, aq/bd, aq/cd; q, x)_{Nⁿ} / "
+                    "(aq/b, aq/c, aq/d, aq/bcd; q, x)_{Nⁿ} — the vector elliptic Pochhammer "
+                    "(u; q, x)_{Nⁿ} = ∏_{j=1}^n ∏_{i=0}^{N-1} θ(u·x^{1-j}·qⁱ; p) — as a "
+                    "single EllRatio (the remaining parameter e is fixed by the balancing "
+                    "e = a²q^{N+1}/(bcd·x^{n-1}), so the sum is balanced by construction). "
+                    "The n=1 case is the Frenkel–Turaev ₈ω₇ sum; the induction on N runs "
+                    "through Warnaar's Lemma 2.2 + the elliptic partial-fraction expansion "
+                    "(elliptic_partial_fraction). Verified at build: the closed form equals "
+                    "the actual n-fold Cₙ sum at n=2 (N=1,2) + n=3 (N=1) via an independent "
+                    "exact-ℚ theta oracle. 1:1 C peer srmech_multivariate_elliptic_jackson "
+                    "constructs the SAME EllRatio over the shared srmech_ellbase_* monomial "
+                    "algebra + er_build (byte-exact to the Python carrier; the native "
+                    "EllRatio is trusted only after it == the pure EllRatio, which is the "
+                    "complete alternative + the parity oracle). Exact over the modified-"
+                    "theta algebra (no float), no abs() (Class-K sign), no numpy / math.",
+            parameters=(
+                P("a", "EllMonomial", True,
+                  "the parameter a of the balanced Cₙ elliptic Jackson summation (an "
+                  "EllMonomial over the exact-ℚ argument-lattice)"),
+                P("b", "EllMonomial", True, "the parameter b (an EllMonomial)"),
+                P("c", "EllMonomial", True, "the parameter c (an EllMonomial)"),
+                P("d", "EllMonomial", True, "the parameter d (an EllMonomial)"),
+                P("x", "EllMonomial", True,
+                  "the base variable x of the vector elliptic Pochhammer (an EllMonomial)"),
+                P("q", "EllMonomial", True,
+                  "the base q of the vector elliptic Pochhammer (an EllMonomial)"),
+                P("N", "int", True,
+                  "the partition ceiling N (a positive int; N ≥ λ₁ ≥ … ≥ λₙ ≥ 0)"),
+                P("n", "int", True,
+                  "the rank / number of variables n (a positive int)"),
+            ),
+            returns=R("EllRatio",
+                      "the exact closed-form theta-quotient product "
+                      "(aq, aq/bc, aq/bd, aq/cd; q, x)_{Nⁿ} / "
+                      "(aq/b, aq/c, aq/d, aq/bcd; q, x)_{Nⁿ} as a single canonical EllRatio "
+                      "(the balanced Cₙ elliptic Jackson summation, Rosengren Thm 2.1 Eq 5). "
+                      "Raises ValueError if N < 1 or n < 1"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The F929 OPEN/infer ROUTER — the meta-dispatcher that makes the
         # three shipped reduction-theory rows (cyclic / spectral / Σ) ONE
         # callable. Pure orchestration over the already-C-mirrored reducers
