@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc98"
-#define SRMECH_VERSION       "0.9.0rc98"
+#define SRMECH_VERSION_PRE   "rc99"
+#define SRMECH_VERSION       "0.9.0rc99"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4340,6 +4340,48 @@ srmech_status_t srmech_thetasum_is_zero(size_t n_syms, int xsym, int ysym, int p
                                         const int32_t *exps_flat,
                                         uint32_t coeff_cap, int *out_is_zero,
                                         void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_thetasum_is_zero_interpolation — the C peer of the ThetaSum
+ * STRUCTURAL ELLIPTIC-INTERPOLATION is_zero completion (the pure-Python
+ * srmech.amsc.thetasum._structural_is_zero / ThetaSum._is_zero_interpolation,
+ * rc98). Where srmech_thetasum_is_zero is the SOUND +/- -pair fast path
+ * (complete only for the single-variable class), THIS is the COMPLETE
+ * multi-variable elliptic decision: a 1:1 STRUCTURAL MIRROR whose verdict
+ * EQUALS the pure-Python _is_zero_interpolation verdict — True AND False —
+ * so the Python dispatch trusts it directly.
+ *
+ * The algorithm (Rosengren arXiv:1608.06161v3 Prop 1.6.1 / eq 1.22 + Cor
+ * 1.3.5): interpolate in ONE variable v at D_v+1 distinct points (a degree-D
+ * theta vanishing at D+1 points is == 0) — a lower-variable is_zero RECURSES,
+ * base = the single-variable degree-bound q-expansion. Nodes = the theta-FACTOR
+ * ZEROS (killing terms via theta(1)=0) augmented with GLOBALLY-DISTINCT PRIMES
+ * threaded through the recursion (so no two variables collide to a spurious
+ * theta(1) — load-bearing for soundness). Recursion -> an EXPLICIT arena-mark
+ * DFS (JPL Rule 1: no recursion). A too-small caller arena / coefficient cap ->
+ * SRMECH_ERR_OVERFLOW and the caller falls to the COMPLETE pure oracle.
+ *
+ * Wire form + args are IDENTICAL to srmech_thetasum_is_zero. Additive symbol ->
+ * ABI unchanged (stays 3). License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES srmech_thetasum_is_zero_interpolation needs for the
+ * given shape (n_syms symbols, n_terms terms, max_thetas the largest per-term
+ * theta count, coeff_limbs the per-coefficient limb estimate, max_abs_exp the
+ * largest |exponent| across the input — degree-aware base-case sizing). */
+size_t srmech_thetasum_is_zero_interpolation_ws_bound(size_t n_syms, size_t n_terms,
+                                                      size_t max_thetas,
+                                                      size_t coeff_limbs,
+                                                      size_t max_abs_exp);
+
+/* Decide whether the cleared ThetaSum numerator is identically zero by the exact
+ * structural elliptic interpolation (the COMPLETE multi-variable mirror).
+ * *out_is_zero = 1 iff == 0. Caller arena `ws`. n_terms == 0 -> == 0. A required
+ * NULL pointer -> SRMECH_ERR_NULL_ARG; a too-small arena -> SRMECH_ERR_OVERFLOW. */
+srmech_status_t srmech_thetasum_is_zero_interpolation(
+    size_t n_syms, int xsym, int ysym, int psym, size_t n_terms,
+    const size_t *term_nthetas, const srmech_bigint_t *coeff_num,
+    const srmech_bigint_t *coeff_den, const int32_t *exps_flat,
+    uint32_t coeff_cap, int *out_is_zero, void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_ellratio_is_elliptic — the C peer of the EllRatio carrier's is_elliptic

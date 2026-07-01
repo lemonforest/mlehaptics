@@ -728,12 +728,19 @@ class ThetaSum:
         alternative + the C peer's parity oracle)."""
         if not self._terms:
             return True
-        # The native ±-pair peer is SOUND (a ``True`` is a genuine proof) but not COMPLETE
-        # (its ``False`` only means "the ±-pair reduction did not prove it" — a shape
-        # outside the ₈ω₇ class). Trust a native ``True``; otherwise fall to the pure path,
-        # whose FAST ±-pair stage + structural-interpolation COMPLETION (:meth:`_is_zero_py`)
-        # is the complete decision. (A native ``srmech_thetasum_is_zero_interpolation`` peer
-        # is owed — the pure body is its parity oracle.)
+        # The COMPLETE structural-interpolation C peer (rc99,
+        # ``srmech_thetasum_is_zero_interpolation``) is a 1:1 mirror of the exact
+        # pure-Python :meth:`_is_zero_interpolation`, so its verdict is trusted
+        # DIRECTLY — True AND False. It returns ``None`` only when absent OR when it
+        # declines (SRMECH_ERR_OVERFLOW: the caller arena / coeff cap outgrown), in
+        # which case we fall through to the complete pure path below.
+        ci = self._is_zero_interpolation_c()
+        if ci is not None:
+            return ci
+        # No complete peer (or it declined): the native ±-pair peer is SOUND (a ``True``
+        # is a genuine proof) but not COMPLETE — trust a native ``True`` as a fast path,
+        # otherwise the pure :meth:`_is_zero_py` (FAST ±-pair stage + structural-
+        # interpolation COMPLETION) is the complete decision.
         if self._is_zero_c() is True:
             return True
         return self._is_zero_py()
@@ -836,6 +843,60 @@ class ThetaSum:
             # back to the COMPLETE pure-Python decision (:meth:`_is_zero_py`, the parity
             # oracle). This keeps ``is_zero`` a TOTAL function: a native size-guard trip
             # never crashes the decision, it degrades to the exact pure path.
+            return None
+
+    def _is_zero_c_marshal(self) -> "Tuple[int, int, int, int, List[int], List] | None":
+        """Marshal the cleared numerator terms into the interned-symbol wire form the
+        thetasum C peers consume — ``(n_syms, xsym, ysym, psym, term_nthetas,
+        monomials)`` — or ``None`` when the numerator is empty. The symbol universe is
+        every symbol on a prefactor or a theta argument, sorted by NAME so the C dense
+        exponent vector reproduces :meth:`~srmech.amsc.ellbase.EllMonomial._sort_key`."""
+        if not self._terms:
+            return None
+        syms: "set" = set()
+        for pref, thetas in self._terms:
+            syms.update(pref.exps.keys())
+            for t in thetas:
+                syms.update(t.arg.exps.keys())
+        sym_list = sorted(syms)
+        idx = {s: i for i, s in enumerate(sym_list)}
+        n_syms = len(sym_list)
+
+        def row(m: EllMonomial) -> "List[int]":
+            r = [0] * n_syms
+            for s, e in m.exps.items():
+                r[idx[s]] = e
+            return r
+
+        monomials: "List[Tuple[int, int, List[int]]]" = []
+        term_nthetas: "List[int]" = []
+        for pref, thetas in self._terms:
+            monomials.append((pref.coeff.numerator, pref.coeff.denominator, row(pref)))
+            for t in thetas:
+                a = t.arg
+                monomials.append((a.coeff.numerator, a.coeff.denominator, row(a)))
+            term_nthetas.append(len(thetas))
+        return (n_syms, idx.get(_X, -1), idx.get(_Y, -1), idx.get(_P, -1),
+                term_nthetas, monomials)
+
+    def _is_zero_interpolation_c(self) -> "bool | None":
+        """Dispatch the COMPLETE structural elliptic-interpolation ``is_zero`` decision
+        to the native ``srmech_thetasum_is_zero_interpolation`` C peer → the bool verdict
+        (trusted True AND False — a 1:1 mirror of :meth:`_is_zero_interpolation`), or
+        ``None`` when the native symbols are absent OR the peer declines (a
+        ``SRMECH_ERR_OVERFLOW`` size-guard trip → the caller falls to the complete pure
+        path). Keeps ``is_zero`` a TOTAL function: a native size-guard never crashes the
+        decision, it degrades to the exact pure oracle."""
+        if not _nat.has_native_thetasum_interpolation():
+            return None
+        marshalled = self._is_zero_c_marshal()
+        if marshalled is None:
+            return True
+        n_syms, xsym, ysym, psym, term_nthetas, monomials = marshalled
+        try:
+            return _nat.thetasum_is_zero_interpolation_c(
+                n_syms, xsym, ysym, psym, term_nthetas, monomials)
+        except (RuntimeError, OverflowError, ValueError):
             return None
 
     def __eq__(self, other) -> bool:

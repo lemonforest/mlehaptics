@@ -33,6 +33,7 @@ _Q = M.symbol("q")
 _Xi = _X.inv()
 
 _HAS_C = _native.has_native_thetasum()
+_HAS_INTERP = _native.has_native_thetasum_interpolation()
 _skip = pytest.mark.skipif(not _HAS_C,
                            reason="native srmech_thetasum_is_zero not loaded")
 
@@ -48,19 +49,27 @@ def _pmx(al):
 
 
 def _assert_parity(ts, expect):
-    """The SOUND-FAST-PATH contract (rc98). The pure-Python ``_is_zero_py`` is now the
-    COMPLETE decision (±-pair three-term FAST PATH + the structural elliptic-interpolation
-    COMPLETION for cross-variable shapes), so it EQUALS ``expect``. The native
-    ``srmech_thetasum_is_zero`` is the SOUND FAST-PATH: a native ``True`` is a genuine proof
-    of ``≡0`` (⟹ Python ``True``); a native ``False`` only means "the ±-pair reduction did
-    not prove it", and the Python interpolation completion decides. The dispatched
-    :attr:`ThetaSum.is_zero` (native-True else pure) therefore equals ``expect``. The BLOCKER
-    invariant is SOUNDNESS: the native peer NEVER false-accepts (never ``True`` when not
-    ``≡0``). (The full interpolation C peer ``srmech_thetasum_is_zero_interpolation`` is the
-    owed everything-mirrors backlog — cf. the rc42 zeilberger common-case-C precedent.)"""
+    """The rc99 parity contract. The pure-Python ``_is_zero_py`` is the COMPLETE decision
+    (±-pair three-term FAST PATH + the structural elliptic-interpolation COMPLETION for
+    cross-variable shapes), so it EQUALS ``expect``, and the dispatched
+    :attr:`ThetaSum.is_zero` does too.
+
+    Two native contracts, tightened by which peer is loaded:
+
+    * ``srmech_thetasum_is_zero_interpolation`` (rc99, COMPLETE) — FULL parity: a NON-None
+      verdict EQUALS ``expect`` (True AND False). A ``None`` is a legitimate
+      ``SRMECH_ERR_OVERFLOW`` decline (the pure oracle then decides), never a mismatch.
+    * ``srmech_thetasum_is_zero`` (rc63, the ±-pair SOUND FAST-PATH) — a native ``True`` is
+      a genuine proof of ``≡0`` (⟹ ``expect`` True); a native ``False`` only means "the
+      ±-pair reduction did not prove it". The BLOCKER invariant is SOUNDNESS: the ±-pair
+      peer NEVER false-accepts."""
     py = ts._is_zero_py()
     assert py is expect, f"Python is_zero mismatch: got {py}, expect {expect}"
     assert ts.is_zero is expect, f"dispatched is_zero mismatch: got {ts.is_zero}, expect {expect}"
+    if _HAS_INTERP:
+        ci = ts._is_zero_interpolation_c()
+        assert ci is None or ci is expect, (
+            f"interpolation C-peer DIVERGENCE: C={ci} expect={expect} (BLOCKER)")
     if _HAS_C:
         c = ts._is_zero_c()
         assert c is not None, "native peer present but returned None"
