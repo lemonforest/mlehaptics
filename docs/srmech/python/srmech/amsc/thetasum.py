@@ -171,6 +171,198 @@ _VERIFY_POINTS: Tuple[Dict[str, Q], ...] = (
 _VERIFY_TRUNC = 16
 
 
+# ── the STRUCTURAL elliptic-interpolation zero-test (the COMPLETE multi-variable elliptic
+# is_zero — Rosengren arXiv:1608.06161 Prop 1.6.1 / eq 1.22 + Cor 1.3.5). N (numerator) is a
+# theta section jointly in its symbols; N≡0 IFF, interpolating in ONE variable v at D_v+1
+# distinct points (a degree-D theta vanishing at D+1 points is ≡0), N vanishes at each — a
+# LOWER-variable is_zero → RECURSE, base = the single-variable degree-bound. Nodes = the
+# θ-FACTOR ZEROS (monomials in the remaining vars, killing terms via θ(1)=0) + augment
+# constants; SUBSTITUTING nodes (never MERGING ±-pairs) dissolves the √ the three-term stalls
+# on. Exact-ℚ, no q-grid; the pure-Python parity oracle for the owed native peer.
+#
+# The augment constants MUST be GLOBALLY DISTINCT PRIMES threaded through the recursion (not a
+# reused pool): substituting two variables to the SAME constant would make a cross-variable
+# factor θ(x_i/x_j) → θ(1)=0 a SPURIOUS zero, wrongly proving a non-zero product ≡0. With
+# distinct integer primes, θ(∏ pᵢ^{eᵢ}) = θ(1) IFF ∏ pᵢ^{eᵢ}=1 IFF every eᵢ=0 (unique
+# factorization; an integer is never a nome power p^k) — so the ONLY vanishings are genuine.
+_STRUCT_MARGIN = 3
+_STRUCT_PRIMES: "Tuple[int, ...]" = (
+    2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83,
+    89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179,
+    181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271, 277,
+    281, 283, 293, 307, 311, 313, 317, 331, 337, 347, 349, 353, 359, 367, 373, 379, 383, 389,
+    397, 401, 409, 419, 421, 431, 433, 439, 443, 449, 457, 461, 463, 467, 479, 487, 491, 499,
+    503, 509, 521, 523, 541, 547, 557, 563, 569, 571, 577, 587, 593, 599, 601, 607, 613, 617)
+
+
+def _struct_mono(coeff: Q, exps: "Dict[str, int]") -> EllMonomial:
+    m = EllMonomial(coeff)
+    for s, ee in exps.items():
+        bs = EllMonomial.symbol(s) if ee >= 0 else EllMonomial.symbol(s).inv()
+        for _ in range(ee if ee >= 0 else -ee):
+            m = m * bs
+    return m
+
+
+def _struct_subst(mono: EllMonomial, v: str, node: EllMonomial) -> EllMonomial:
+    """Substitute v -> node (a zero-MONOMIAL or a rational-CONSTANT EllMonomial) in mono."""
+    out = EllMonomial(mono.coeff)
+    for s, e in mono.exps.items():
+        base = (node if e >= 0 else node.inv()) if s == v else (
+            EllMonomial.symbol(s) if e >= 0 else EllMonomial.symbol(s).inv())
+        for _ in range(e if e >= 0 else -e):
+            out = out * base
+    return out
+
+
+def _struct_combine(terms: "List") -> "List":
+    """Canonicalize each term's thetas (theta(1)=0 kills it) + merge genuinely-identical terms
+    (same prefactor monomial AND theta multiset) by adding Q coeffs; drop zero."""
+    acc: "Dict" = {}
+    for pref, args in terms:
+        canon_args = []
+        dead = False
+        for a in args:
+            pr, canon = Theta(a).canonicalize()
+            pref = pref * pr
+            arg = canon.arg
+            if not arg.exps and arg.coeff == _Q_ONE:            # theta(1) = 0
+                dead = True
+                break
+            canon_args.append(arg)
+        if dead or pref.is_zero:
+            continue
+        canon_args.sort(key=lambda m: m._sort_key())
+        key = (tuple(sorted(pref.exps.items())), tuple(m._sort_key() for m in canon_args))
+        if key in acc:
+            acc[key] = (acc[key][0] + pref.coeff, dict(pref.exps), tuple(canon_args))
+        else:
+            acc[key] = (pref.coeff, dict(pref.exps), tuple(canon_args))
+    return [(_struct_mono(c, e), list(a)) for (c, e, a) in acc.values() if c != _Q_ZERO]
+
+
+def _struct_variables(terms: "List") -> "set":
+    s: "set" = set()
+    for pref, args in terms:
+        for a in args:
+            for sym in a.exps:
+                if sym != _P:
+                    s.add(sym)
+    return s
+
+
+def _struct_zero_nodes(terms: "List", v: str) -> "List[EllMonomial]":
+    """distinct zero-MONOMIAL nodes of the LINEAR (exp +/-1) v-thetas: theta(alpha*v^e)=0 at
+    v=(alpha without v)^(-1/e) — substituting kills that term (theta(1)=0)."""
+    seen: "Dict" = {}
+    for pref, args in terms:
+        for a in args:
+            e = a.exps.get(v, 0)
+            if e in (1, -1):
+                rest = EllMonomial(a.coeff)
+                for s, ee in a.exps.items():
+                    if s == v:
+                        continue
+                    bb = EllMonomial.symbol(s) if ee >= 0 else EllMonomial.symbol(s).inv()
+                    for _ in range(ee if ee >= 0 else -ee):
+                        rest = rest * bb
+                node = rest.inv() if e == 1 else rest
+                seen[(tuple(sorted(node.exps.items())), node.coeff)] = node
+    return list(seen.values())
+
+
+def _struct_pexp_mul(a: "Dict", b: "Dict", k: int) -> "Dict":
+    out: "Dict" = {}
+    for pa, la in a.items():
+        for pb, lb in b.items():
+            pk = pa + pb
+            if pk > k:
+                continue
+            dst = out.setdefault(pk, {})
+            for ka, va in la.items():
+                for kb, vb in lb.items():
+                    kk = ka + kb
+                    dst[kk] = dst.get(kk, _Q_ZERO) + va * vb
+    return out
+
+
+def _struct_theta_p(coeff: Q, e: int, k: int) -> "Dict":
+    """theta(coeff*w^e ; p) to p^k over the single kept var w -> {p_pow: {w-exp: Q}}."""
+    acc = {0: {0: _Q_ONE}}
+    ci = _Q_ONE / coeff
+    for j in range(0, k + 1):
+        f1 = {0: {0: _Q_ONE}}
+        d = f1.setdefault(j, {})
+        d[e] = d.get(e, _Q_ZERO) - coeff
+        acc = _struct_pexp_mul(acc, f1, k)
+        if j + 1 <= k:
+            f2 = {0: {0: _Q_ONE}}
+            d = f2.setdefault(j + 1, {})
+            d[-e] = d.get(-e, _Q_ZERO) - ci
+            acc = _struct_pexp_mul(acc, f2, k)
+    return acc
+
+
+def _struct_one_var(terms: "List", w: str) -> bool:
+    """single-variable base case: the degree-bound q-expansion in w (feasible — no grid; the
+    non-w symbols are all substituted to constants, so each theta arg is coeff*w^e)."""
+    degree = 0
+    for pref, args in terms:
+        degree = max(degree, sum(a.exps.get(w, 0) ** 2 for a in args))
+    k = max(degree - 1, 0) + _STRUCT_MARGIN
+    total: "Dict" = {}
+    for pref, args in terms:
+        term = {0: {pref.exps.get(w, 0): pref.coeff}}
+        for a in args:
+            term = _struct_pexp_mul(term, _struct_theta_p(a.coeff, a.exps.get(w, 0), k), k)
+        for pp, lp in term.items():
+            dst = total.setdefault(pp, {})
+            for kk, vv in lp.items():
+                dst[kk] = dst.get(kk, _Q_ZERO) + vv
+    for lp in total.values():
+        for vv in lp.values():
+            if vv != _Q_ZERO:
+                return False
+    return True
+
+
+def _structural_is_zero(terms: "List", offset: int = 0) -> bool:
+    """The structural elliptic-interpolation recursion. terms = [(EllMonomial prefactor,
+    list of theta-arg EllMonomials)]; ``offset`` = count of augment-primes already consumed by
+    ANCESTOR levels on this path (so every augment constant on a root->leaf path is a DISTINCT
+    prime — the guard against spurious ``θ(1)`` from constant collisions). Returns the exact
+    ``== 0`` verdict."""
+    terms = _struct_combine(terms)
+    if not terms:
+        return True
+    syms = _struct_variables(terms)
+    if len(syms) <= 1:
+        if not syms:
+            # no variables left: an empty sum already returned True above, so any term that
+            # SURVIVED _struct_combine is a non-cancelling residue (a nonzero constant /
+            # constant-arg theta) -> the sum is NOT identically zero.
+            return False
+        return _struct_one_var(terms, next(iter(syms)))
+
+    def _deg(v: str) -> int:
+        return max(sum(a.exps.get(v, 0) ** 2 for a in args) for (pref, args) in terms)
+
+    v = min(syms, key=lambda s: (_deg(s), s))              # smallest degree -> fewest nodes
+    d = _deg(v)
+    nodes = _struct_zero_nodes(terms, v)                   # zero-monomials (kill terms -> fast)
+    used = 0
+    npr = len(_STRUCT_PRIMES)
+    while len(nodes) < d + 1:                              # augment with GLOBALLY-DISTINCT primes
+        nodes.append(EllMonomial(Q(_STRUCT_PRIMES[(offset + used) % npr], 1)))
+        used += 1
+    child_offset = offset + used
+    for node in nodes[:d + 1]:
+        sub = [(_struct_subst(pref, v, node), [_struct_subst(a, v, node) for a in args])
+               for (pref, args) in terms]
+        if not _structural_is_zero(sub, child_offset):
+            return False
+    return True
+
 def _net_period_multiplier_exps(thetas: "Tuple[Theta, ...]") -> "Tuple[Tuple[str, int], ...]":
     """The QUASI-PERIODICITY CLASS key of a theta-product: the net multiplier monomial
     the product ``∏ θ(z_i; p)`` acquires under the period shifts ``x ↦ p·x`` AND
@@ -536,27 +728,69 @@ class ThetaSum:
         alternative + the C peer's parity oracle)."""
         if not self._terms:
             return True
-        c = self._is_zero_c()
-        if c is not None:
-            return c
+        # The native ±-pair peer is SOUND (a ``True`` is a genuine proof) but not COMPLETE
+        # (its ``False`` only means "the ±-pair reduction did not prove it" — a shape
+        # outside the ₈ω₇ class). Trust a native ``True``; otherwise fall to the pure path,
+        # whose FAST ±-pair stage + structural-interpolation COMPLETION (:meth:`_is_zero_py`)
+        # is the complete decision. (A native ``srmech_thetasum_is_zero_interpolation`` peer
+        # is owed — the pure body is its parity oracle.)
+        if self._is_zero_c() is True:
+            return True
         return self._is_zero_py()
 
     def _is_zero_py(self) -> bool:
         """The COMPLETE pure-Python ``is_zero`` decision (the parity oracle for the C
-        peer) — quasi-periodicity grouping + the exact Weierstrass three-term reduction.
-        See :meth:`is_zero` for the full algorithm + the MPM-verified theorems."""
+        peer). A TWO-STAGE decision: (FAST PATH) the quasi-periodicity grouping + exact
+        Weierstrass three-term reduction — COMPLETE for the single-variable (₈ω₇) class,
+        a proved ``≡0`` here is sound and returned immediately; (COMPLETION) when the
+        three-term reduction cannot prove ``≡0`` (a shape OUTSIDE the clean ``±``-pair
+        class — e.g. the cross-variable root-system Cₙ coupling ``θ(x_i/x_j)·θ(a x_i x_j)``
+        whose midpoint ``x_i√a`` is not a perfect square, so no pair forms), fall through
+        to the exact STRUCTURAL elliptic-interpolation zero-test
+        (:meth:`_is_zero_interpolation`) — complete for the full multi-variable elliptic
+        case. See :meth:`is_zero` for the theorems."""
         if not self._terms:
             return True
-        # (2) partition the numerator terms by quasi-periodicity class.
+        # FAST PATH — the ±-pair three-term reduction (complete for the ₈ω₇ class; a
+        # proved ≡0 is SOUND). Partition by quasi-periodicity class; a class it cannot
+        # reduce returns False, which here means ONLY "the fast path did not prove it".
         classes: "Dict[Tuple, List[_Term]]" = {}
         for pref, thetas in self._terms:
             key = _net_period_multiplier_exps(thetas)
             classes.setdefault(key, []).append((pref, thetas))
-        # (3) each class must independently reduce to the zero normal form.
-        for members in classes.values():
-            if not _class_is_zero(members):
-                return False
-        return True
+        if all(_class_is_zero(members) for members in classes.values()):
+            return True
+        # COMPLETION — the exact structural elliptic-interpolation zero-test decides
+        # the whole numerator, complete for any shape the ±-pair reduction cannot handle.
+        return self._is_zero_interpolation()
+
+    def _is_zero_interpolation(self) -> bool:
+        """The exact STRUCTURAL elliptic-interpolation zero-test — the COMPLETE
+        multi-variable elliptic decision (the completion of :meth:`is_zero` for shapes
+        outside the ``+/-``-pair class, e.g. the cross-variable root-system Cn coupling
+        ``theta(x_i/x_j) theta(a x_i x_j)`` whose ``sqrt(a)`` midpoint blocks the three-term
+        merge). By the elliptic Lagrange interpolation (Rosengren arXiv:1608.06161 Prop 1.6.1
+        / eq 1.22 + Cor 1.3.5): the numerator ``N`` is a theta section jointly in its symbols,
+        and ``N == 0`` IFF — interpolating in ONE variable ``v`` at ``D_v+1`` distinct points
+        (a degree-``D_v`` theta vanishing at ``D_v+1`` points is ``== 0``) — ``N`` vanishes at
+        each node, a LOWER-variable ``is_zero`` -> RECURSE, base = the single-variable
+        degree-bound q-expansion. The nodes are the theta-FACTOR ZEROS (monomials in the
+        remaining variables — substituting kills that term via ``theta(1)=0``) augmented with
+        rational constants; SUBSTITUTING nodes (never MERGING ``+/-``-pairs) dissolves the
+        ``sqrt`` obstruction the three-term reduction stalls on. Exact-Q, no q-grid, no float;
+        the pure-Python parity oracle for the owed native
+        ``srmech_thetasum_is_zero_interpolation`` peer (bignum, no Python recursion)."""
+        if not self._terms:
+            return True
+        import sys as _sys
+        _old = _sys.getrecursionlimit()
+        if _old < 100000:                                    # srmech's Q gcd recurses on big ints
+            _sys.setrecursionlimit(100000)
+        try:
+            term_list = [(pref, [t.arg for t in thetas]) for (pref, thetas) in self._terms]
+            return _structural_is_zero(term_list)
+        finally:
+            _sys.setrecursionlimit(_old)
 
     def _is_zero_c(self) -> "bool | None":
         """Dispatch the ``is_zero`` decision to the native ``srmech_thetasum_is_zero`` C

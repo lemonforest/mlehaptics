@@ -48,14 +48,23 @@ def _pmx(al):
 
 
 def _assert_parity(ts, expect):
-    """The C verdict EQUALS the Python verdict AND equals `expect`."""
+    """The SOUND-FAST-PATH contract (rc98). The pure-Python ``_is_zero_py`` is now the
+    COMPLETE decision (±-pair three-term FAST PATH + the structural elliptic-interpolation
+    COMPLETION for cross-variable shapes), so it EQUALS ``expect``. The native
+    ``srmech_thetasum_is_zero`` is the SOUND FAST-PATH: a native ``True`` is a genuine proof
+    of ``≡0`` (⟹ Python ``True``); a native ``False`` only means "the ±-pair reduction did
+    not prove it", and the Python interpolation completion decides. The dispatched
+    :attr:`ThetaSum.is_zero` (native-True else pure) therefore equals ``expect``. The BLOCKER
+    invariant is SOUNDNESS: the native peer NEVER false-accepts (never ``True`` when not
+    ``≡0``). (The full interpolation C peer ``srmech_thetasum_is_zero_interpolation`` is the
+    owed everything-mirrors backlog — cf. the rc42 zeilberger common-case-C precedent.)"""
     py = ts._is_zero_py()
     assert py is expect, f"Python is_zero mismatch: got {py}, expect {expect}"
+    assert ts.is_zero is expect, f"dispatched is_zero mismatch: got {ts.is_zero}, expect {expect}"
     if _HAS_C:
         c = ts._is_zero_c()
         assert c is not None, "native peer present but returned None"
-        assert c == py, f"C/Python DIVERGENCE: C={c} PY={py} (BLOCKER)"
-        assert c is expect
+        assert (c is not True) or (py is True), f"native FALSE-ACCEPT: C=True PY={py} (BLOCKER)"
 
 
 # ── (a) the GENUINE theta-telescoper keystone (the rc63 capability) ────────────
@@ -128,11 +137,15 @@ def test_zero_one_degenerate_parity():
     # an odd single theta is outside the clean ±-pair shape -> honest False.
     odd = ThetaSum(terms=((Q(1, 1), M.one(), (Theta(_A * _X),)),))
     _assert_parity(odd, False)
-    # a degenerate θ(1;p) factor in an even product (the unit-monomial argument).
+    # a degenerate θ(1;p)=0 factor makes the product ≡0; the COMPLETE Python decision proves
+    # it and the dispatched is_zero returns True. The ±-pair fast path may not reach the
+    # unit-monomial degenerate (a native False is fine) but must never FALSE-ACCEPT.
     deg = ThetaSum(terms=((Q(1, 1), M.one(),
                            (Theta(M.one()), Theta(_A * _X))),))
-    # decided by the same reduction in C + Python (whatever the verdict, it matches).
-    assert deg._is_zero_py() == (deg._is_zero_c() if _HAS_C else deg._is_zero_py())
+    assert deg._is_zero_py() is True
+    assert deg.is_zero is True
+    if _HAS_C:
+        assert (deg._is_zero_c() is not True) or (deg._is_zero_py() is True)
 
 
 def test_additive_algebra_parity():
@@ -217,9 +230,13 @@ def test_randomized_parity_fuzz():
                                   M.one(), tuple(facs)),))
         c = ts._is_zero_c()
         py = ts._is_zero_py()
-        if c != py:
+        # SOUND-FAST-PATH invariant (rc98): the native ±-pair peer may return ``False`` where
+        # the Python interpolation COMPLETION proves ``True`` (a cross-variable identity the
+        # ±-pair cannot reach) — that is expected, NOT a divergence. The BLOCKER is a native
+        # FALSE-ACCEPT: ``True`` when the complete decision is not ``True``.
+        if c is True and py is not True:
             mismatches += 1
-    assert mismatches == 0, f"{mismatches} C/Python parity divergences (BLOCKER)"
+    assert mismatches == 0, f"{mismatches} native FALSE-ACCEPTS (BLOCKER: unsound fast-path)"
 
 
 # ── the native peer is ACTUALLY dispatched (not a silent Python fallback) ───────
