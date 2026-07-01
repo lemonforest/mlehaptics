@@ -3518,6 +3518,70 @@ def _register_primitive_class_tools() -> None:
                       "to close"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The ELLIPTIC Σ-row IDENTITY-PROOF op for the Frenkel–Turaev ₈ω₇
+        # SUMMATION — proves Σ_k F(n,k) = cf(n) EXACTLY and returns the closed
+        # form cf(n). The CAPSTONE elliptic Σ-row rung after elliptic_gosper
+        # (indefinite), elliptic_recurrence_8w7 (the order-1 finder) +
+        # elliptic_zeilberger (the recurrence + EXACT certificate). Where
+        # elliptic_zeilberger proves the RECURRENCE, this proves the full
+        # SUMMATION (the elliptic analogue of wz_certificate). 1:1 C peer
+        # srmech_elliptic_wz_certificate (same certificate decision).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate",
+            owner="srmech", category="elliptic_wz_certificate",
+            summary="The ELLIPTIC Σ-row IDENTITY-PROOF op for the Frenkel–Turaev "
+                    "₈ω₇ SUMMATION — proves Σ_{k=0}^n F(n,k)=cf(n) EXACTLY and "
+                    "returns the closed form cf(n)=(aq, aq/bc, aq/bd, aq/cd; q,p)_n "
+                    "/ (aq/b, aq/c, aq/d, aq/bcd; q,p)_n (Hjalmar Rosengren, "
+                    "'Elliptic Hypergeometric Functions', arXiv:1608.06161v3 "
+                    "[math.CA] (2017), Thm 2.3.1; §2.3 Eqs. (2.12)–(2.15) reduce "
+                    "to §1.4 Eq. (1.12), the Weierstrass three-term theta relation; "
+                    "the closed product form is Warnaar, Constr. Approx. 18 (2002) "
+                    "479–502, Cor 2.2). The CAPSTONE rung of the elliptic Σ-row "
+                    "after elliptic_gosper (indefinite), elliptic_recurrence_8w7 "
+                    "(the order-1 finder) and elliptic_zeilberger (the recurrence + "
+                    "EXACT certificate) — the GENUINE elliptic analogue of "
+                    "wz_certificate (the §76 ordinary/q identity-proof rung). Where "
+                    "elliptic_zeilberger proves the RECURRENCE f(n+1)=ρ(n)·f(n), "
+                    "this op proves the full SUMMATION IDENTITY by connection-"
+                    "coefficient INDUCTION: the BASE CASE (the terminating "
+                    "(q^{-n})_k factor leaves only k=0, so Σ_{k=0}^0 F(0,k)=cf(0)=1) "
+                    "+ the EXACT inductive-step certificate (the SAME cleared "
+                    "connection-coefficient ±-pair split elliptic_zeilberger builds, "
+                    "decided ≡ 0 in the exact additive ThetaSum carrier via "
+                    "ThetaSum.is_zero — never a 1e-9 numerical witness). A literal "
+                    "Wilf–Zeilberger pair is provably dead for the elliptic case "
+                    "(the squared-lattice Gosper–Petkovšek certificate); the proof "
+                    "is the literature's connection-coefficient induction. Returns "
+                    "{'identity': '…', 'closed_form': {'num': [4 bases], 'den': "
+                    "[4 bases]}, 'certificate': {'method': "
+                    "'connection_coefficient_induction', 'exact': True, …}, "
+                    "'verified': True} ONLY when r is a canonical ₈ω₇ AND the "
+                    "certificate decides ≡ 0; else None (the honest out-of-class "
+                    "residue). 1:1 C peer srmech_elliptic_wz_certificate runs the "
+                    "same recognize-decompose pipeline + decides the certificate via "
+                    "the shared srmech_thetasum_is_zero kernel; the Python builds the "
+                    "closed-form endpoints on its side and trusts a native has=1 ONLY "
+                    "after the pure path agrees AND the certificate re-decides ≡ 0 in "
+                    "exact ℚ. Exact over the modified-theta algebra (no float on the "
+                    "decision path), no abs() (Class-K sign), no numpy / math.",
+            parameters=(P("r", "EllRatio", True,
+                          "the ₈ω₇ summand's TERM RATIO t(n+1)/t(n)=r(x), x=qⁿ — an "
+                          "EllRatio (the very-well-poised theta-quotient over an "
+                          "exact-ℚ monomial prefactor; an EllMonomial / Theta is "
+                          "lifted)"),),
+            returns=R("dict | None",
+                      "{'identity': str, 'closed_form': {'num': [{sym: exp}, …4], "
+                      "'den': [{sym: exp}, …4]}, 'certificate': {'method': "
+                      "'connection_coefficient_induction', 'base_case': '…', "
+                      "'inductive_step': '…', 'exact': True}, 'verified': True} — the "
+                      "closed form cf(n) = (aq, aq/bc, aq/bd, aq/cd; q,p)_n / "
+                      "(aq/b, aq/c, aq/d, aq/bcd; q,p)_n PLUS the EXACT connection-"
+                      "coefficient-induction proof of the summation identity, or None "
+                      "when r is not a canonical ₈ω₇ / the certificate fails to close"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The F929 OPEN/infer ROUTER — the meta-dispatcher that makes the
         # three shipped reduction-theory rows (cyclic / spectral / Σ) ONE
         # callable. Pure orchestration over the already-C-mirrored reducers
