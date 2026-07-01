@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc90"
-#define SRMECH_VERSION       "0.9.0rc90"
+#define SRMECH_VERSION_PRE   "rc91"
+#define SRMECH_VERSION       "0.9.0rc91"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4577,6 +4577,52 @@ srmech_status_t srmech_elliptic_zeilberger(size_t n_syms, int xsym, int psym, in
                                            const srmech_bigint_t *coeff_den,
                                            const int32_t *exps_flat, uint32_t coeff_cap,
                                            int *out_has, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_elliptic_wz_certificate — the ELLIPTIC Sigma-row IDENTITY-PROOF op for the
+ * Frenkel-Turaev 8w7 SUMMATION (the C peer of
+ * srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate). Where
+ * srmech_elliptic_zeilberger proves the order-1 RECURRENCE f(n+1) = rho(n)*f(n), this op
+ * proves the full SUMMATION IDENTITY sum_{k=0}^n F(n,k) = cf(n) -- the elliptic analogue
+ * of srmech_wz_certificate (the Sec.76 ordinary/q identity-proof rung). The DISTINCT
+ * OUTPUT is the closed form cf(n) = (aq, aq/bc, aq/bd, aq/cd; q,p)_n /
+ * (aq/b, aq/c, aq/d, aq/bcd; q,p)_n (Warnaar Cor 2.2 / Rosengren Thm 2.3.1); the Python
+ * builds those Pochhammer endpoints on its side (the analogue of "the Python builds rho"),
+ * so this C peer -- exactly as srmech_elliptic_zeilberger -- returns ONLY the verdict.
+ *
+ * Input: identical to srmech_elliptic_zeilberger (the 8w7 term ratio r(x) = t(n+1)/t(n)
+ * as the full EllRatio wire form + the nsym/ksym certificate index symbols N = q^n,
+ * K = q^k).
+ *
+ * Output: *out_has = 1 iff r is a canonical 8w7 (the SAME recognize-decompose pipeline)
+ * AND the connection-coefficient inductive-step certificate (Rosengren arXiv:1608.06161
+ * Eq.(2.12)-(2.14) -> Eq.(1.12), the cleared +/- pair split) decides EXACTLY ZERO via the
+ * shared srmech_thetasum_is_zero kernel; else *out_has = 0 (out of class / cert did not
+ * close -> the Python re-decides on its complete pure path AND builds + re-verifies the
+ * closed form there). The inductive step (the certificate) + the terminating base case
+ * C^0_0 = 1 are the complete exact proof of the summation identity.
+ *
+ * PURE COMPOSITION of the shared srmech_ellbase_* exact-Q monomial algebra + er_build +
+ * srmech_thetasum_is_zero (the same single copies srmech_elliptic_zeilberger /
+ * srmech_elliptic_gosper ride). Malloc-free (JPL Rule 3): caller arena `ws` only. The
+ * "magnitude 2 / magnitude 1" x-power test + the +/-1 prefactor sign are Class-K parity
+ * branches, never abs()/fabs(). Additive symbol -> ABI unchanged (stays 3). License: MIT. */
+
+/* Minimum `ws_len` BYTES srmech_elliptic_wz_certificate needs for the given shape (n_syms
+ * symbols, n_num + n_den input theta factors, coeff_cap the per-coefficient significant-
+ * limb estimate). */
+size_t srmech_elliptic_wz_certificate_ws_bound(size_t n_syms, size_t n_num, size_t n_den,
+                                               size_t coeff_cap);
+
+/* Decide the 8w7 SUMMATION identity via its EXACT connection-coefficient certificate (see
+ * above). *out_has = 1 iff recognized AND the certificate is exactly zero. */
+srmech_status_t srmech_elliptic_wz_certificate(size_t n_syms, int xsym, int psym, int qsym,
+                                               int ysym, int nsym, int ksym,
+                                               size_t n_num, size_t n_den,
+                                               const srmech_bigint_t *coeff_num,
+                                               const srmech_bigint_t *coeff_den,
+                                               const int32_t *exps_flat, uint32_t coeff_cap,
+                                               int *out_has, void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_carrier_spectrum — the OPERAND-side dual of the_one (the C peer of
