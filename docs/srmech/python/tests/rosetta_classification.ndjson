@@ -462,3 +462,4 @@
 {"exposed_as": "srmech.amsc.quasimodular_forms_ring.eisenstein_e2", "defined_at": "srmech.amsc.quasimodular_forms_ring.eisenstein_e2", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.elliptic_zeilberger.elliptic_zeilberger", "defined_at": "srmech.amsc.elliptic_zeilberger.elliptic_zeilberger", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate", "defined_at": "srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.elliptic_determinant.elliptic_cauchy_determinant", "defined_at": "srmech.amsc.elliptic_determinant.elliptic_cauchy_determinant", "bucket": "c_dispatched"}

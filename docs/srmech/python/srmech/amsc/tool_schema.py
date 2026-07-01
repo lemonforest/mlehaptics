@@ -3582,6 +3582,63 @@ def _register_primitive_class_tools() -> None:
                       "when r is not a canonical ₈ω₇ / the certificate fails to close"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The ELLIPTIC-DETERMINANT primitive — Frobenius's elliptic Cauchy
+        # determinant evaluation, the FOUNDATION of the multivariable (root-
+        # system Cₙ) elliptic reduction row. A CONSTRUCTIVE elliptic identity
+        # op (the peer of ThetaSum.three_term): it builds the exact closed
+        # form of det[θ(t·x_i·y_j)/θ(x_i·y_j)] as a single EllRatio. 1:1 C
+        # peer srmech_elliptic_cauchy_determinant.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.elliptic_determinant.elliptic_cauchy_determinant",
+            owner="srmech", category="elliptic_determinant",
+            summary="The ELLIPTIC-DETERMINANT primitive — Frobenius's elliptic Cauchy "
+                    "DETERMINANT evaluation, the exact closed form of "
+                    "det_{1≤i,j≤n}[θ(t·x_i·y_j; p)/θ(x_i·y_j; p)] as a single theta-"
+                    "quotient (Hjalmar Rosengren, 'Elliptic Hypergeometric Functions', "
+                    "arXiv:1608.06161v3 [math.CA] (2017), Exercise 1.6.6 — Frobenius's "
+                    "determinant evaluation, classically Frobenius 1882, proved via the "
+                    "elliptic partial-fraction expansion Eq. (1.22)). The FOUNDATION of "
+                    "the multivariable (root-system Cₙ) elliptic reduction row: where the "
+                    "single-variable ₈ω₇ reduces to the Weierstrass THREE-TERM relation "
+                    "(ThetaSum.three_term), the multivariable Cₙ objects reduce to the "
+                    "elliptic PARTIAL-FRACTION expansion + this DETERMINANT (a genuinely "
+                    "larger primitive; Warnaar's Cₙ elliptic Jackson summation rests on "
+                    "the same determinant family). For distinct x₁…xₙ, y₁…yₙ and a "
+                    "parameter t it CONSTRUCTS the exact closed form "
+                    "θ(t)^{n-1}·θ(t·∏x·∏y)·∏_{i<j}[x_j·y_j·θ(x_i/x_j)·θ(y_i/y_j)] / "
+                    "∏_{i,j}θ(x_i·y_j) as an EllRatio: the exact EllMonomial prefactor "
+                    "∏_{i<j} x_j·y_j, the numerator thetas (θ(t)×(n-1), θ(t·∏x·∏y), and "
+                    "θ(x_i/x_j), θ(y_i/y_j) for i<j) and the denominator thetas θ(x_i·y_j) "
+                    "for all i,j; the EllRatio constructor folds each theta's "
+                    "canonicalize prefactor, cancels matching thetas, sorts the "
+                    "survivors. A CONSTRUCTIVE elliptic identity op (the peer of "
+                    "ThetaSum.three_term). Verified at build: the constructed closed form "
+                    "equals the theta-matrix determinant at n=1..4 (exact-ℚ truncated-"
+                    "theta eval vs a Leibniz determinant of the same matrix). 1:1 C peer "
+                    "srmech_elliptic_cauchy_determinant constructs the SAME EllRatio over "
+                    "the shared srmech_ellbase_* monomial algebra + er_build (byte-exact "
+                    "to the Python carrier, trusted when loaded); the pure-Python body is "
+                    "the complete alternative + the parity oracle. Exact over the "
+                    "modified-theta algebra (no float), no abs() (Class-K sign), no numpy "
+                    "/ math.",
+            parameters=(
+                P("t", "EllMonomial", True,
+                  "the parameter t of the elliptic Cauchy determinant (an EllMonomial "
+                  "over the exact-ℚ argument-lattice)"),
+                P("xs", "Sequence[EllMonomial]", True,
+                  "the n distinct row variables x₁…xₙ (each an EllMonomial)"),
+                P("ys", "Sequence[EllMonomial]", True,
+                  "the n distinct column variables y₁…yₙ (each an EllMonomial); "
+                  "len(ys) must equal len(xs)"),
+            ),
+            returns=R("EllRatio",
+                      "the exact closed form θ(t)^{n-1}·θ(t·∏x·∏y)·∏_{i<j}[x_j·y_j·"
+                      "θ(x_i/x_j)·θ(y_i/y_j)] / ∏_{i,j}θ(x_i·y_j) as a single canonical "
+                      "EllRatio (the Frobenius elliptic Cauchy determinant). Raises "
+                      "ValueError if xs / ys are empty or unequal length"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The F929 OPEN/infer ROUTER — the meta-dispatcher that makes the
         # three shipped reduction-theory rows (cyclic / spectral / Σ) ONE
         # callable. Pure orchestration over the already-C-mirrored reducers

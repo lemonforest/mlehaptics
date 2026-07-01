@@ -8,6 +8,22 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc94] - 2026-07-01
+
+**`elliptic_cauchy_determinant` — the ELLIPTIC-DETERMINANT primitive (Frobenius's elliptic Cauchy determinant evaluation), the FOUNDATION of the multivariable root-system Cₙ elliptic reduction row.** The single-variable elliptic Σ-row is complete (`elliptic_gosper` rc65 → `elliptic_recurrence_8w7` rc68 → `elliptic_zeilberger` rc90 → `elliptic_wz_certificate` rc91, all auto-routed since rc92). The multivariable Cₙ row needs a genuinely larger primitive: where the single-variable ₈ω₇ reduces to the Weierstrass THREE-TERM relation (`ThetaSum.three_term`), the Cₙ objects reduce to the elliptic PARTIAL-FRACTION expansion + the elliptic Cauchy / Frobenius DETERMINANT. This rc ships that determinant as an exact constructive op. The op IS a new ToolEntry → **`tools.total` 344 → 345**. **ABI stays 3** (additive C symbol). Shipped CO-EQUAL Python + 1:1 native C peer in the SAME rc (the everything-mirrors / never-split discipline).
+
+**THE CLOSED FORM.** For distinct `x₁…xₙ`, `y₁…yₙ` and a parameter `t` (Hjalmar Rosengren, *Elliptic Hypergeometric Functions*, arXiv:1608.06161v3 [math.CA] (2017), Exercise 1.6.6 — Frobenius's determinant evaluation, classically Frobenius 1882, proved via the elliptic partial-fraction expansion Eq. (1.22)):
+
+```
+det_{1≤i,j≤n} [ θ(t·x_i·y_j; p) / θ(x_i·y_j; p) ]
+  = θ(t; p)^{n-1} · θ(t·x₁…xₙ·y₁…yₙ; p)
+    · ∏_{i<j} [ x_j·y_j · θ(x_i/x_j; p)·θ(y_i/y_j; p) ]  /  ∏_{i,j} θ(x_i·y_j; p).
+```
+
+`elliptic_cauchy_determinant(t, xs, ys)` CONSTRUCTS the right-hand side as a single canonical `EllRatio` (the exact `EllMonomial` prefactor `∏_{i<j} x_j·y_j`, the numerator thetas `θ(t)×(n-1)`, `θ(t·∏x·∏y)`, `θ(x_i/x_j)` + `θ(y_i/y_j)` for `i<j`, and the denominator thetas `θ(x_i·y_j)` for all `i,j`); the `EllRatio` constructor folds each theta's canonicalize prefactor, cancels matching thetas, and sorts the survivors. A CONSTRUCTIVE elliptic identity op (the peer of `ThetaSum.three_term`).
+
+**MPM-VERIFIED at build.** The constructed closed form equals the theta-matrix determinant at `n=1..4` — the carrier's own exact-ℚ truncated-theta eval of the closed form vs a Leibniz determinant of the same `θ(t·x_i·y_j)/θ(x_i·y_j)` matrix (`test_elliptic_determinant_rc94.py`). The 1:1 native C peer `srmech_elliptic_cauchy_determinant` constructs the SAME `EllRatio` over the shared `srmech_ellbase_*` monomial algebra + `er_build` (byte-exact to the Python carrier; the pure-Python body is the complete alternative + the parity oracle; the native path is confirmed equal to the pure construction at build). Exact over the modified-theta algebra (no float), no `abs()` (Class-K sign), no numpy / `math`; C peer caller-arena / malloc-free / JPL-clean.
+
 ## [0.9.0rc93] - 2026-07-01
 
 **Fix: `ThetaSum.is_zero` is now a TOTAL function — a native size-guard trip never crashes the decision.** Found while probing the multivariate Cₙ elliptic reduction row (Rosengren's Lemma 2.2): the `srmech_thetasum_is_zero` C peer returned non-OK `SRMECH_ERR_OVERFLOW` (status 4) on a large / multivariate cleared certificate, and `_is_zero_c` propagated it as a `RuntimeError` — crashing an otherwise-decidable `is_zero`. Root cause: the caller-arena's bigint limb bound was sized to the INPUT coefficients, but the Weierstrass three-term reduction (the rewrite + canonical-pair inversion prefactors) MULTIPLIES them, so the working bigints outgrow the input.

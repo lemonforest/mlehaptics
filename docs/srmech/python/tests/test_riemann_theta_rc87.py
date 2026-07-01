@@ -22,7 +22,7 @@ The no-shell gates (all exact):
   (3) **quasi-periodicity** — ``θ(z + λ)`` for an integer lattice vector λ multiplies every
       coeff by ``(−1)^{ε'·λ}`` (verified over a GENERIC rational z where the coeffs are
       genuinely non-real cyclotomic integers — theta_at spans BEYOND the half-char carriers).
-  (4) Python == C byte-exact parity (guarded by native skip); tools.total == 344; the new
+  (4) Python == C byte-exact parity (guarded by native skip); tools.total == 345; the new
       methods are numpy / math / abs() / float-free.
 """
 from __future__ import annotations
@@ -186,7 +186,7 @@ def test_generic_rational_z_is_genuinely_cyclotomic():
 
 # ── gate (4a): tools.total is UNCHANGED (a CARRIER method, not a ToolEntry) ────────
 def test_theta_at_is_a_carrier_method_total_341():
-    assert introspect.describe()["tools"]["total"] == 344
+    assert introspect.describe()["tools"]["total"] == 345
 
 
 # ── gate (4b): Python == C byte-exact parity (do NOT trust the C — compare) ────────
