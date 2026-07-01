@@ -167,8 +167,13 @@ _OPEN_HINTS: Dict[str, str] = {
     "sigma_multivar": "multivariate 'sums of sums' beyond the (n,j,k) Apagodu–"
                       "Zeilberger reach — a higher-arity TriPoly⁺ creative-"
                       "telescoping or a multibasic-q multisum reducer",
-    "sigma_q": "a q-hypergeometric sum beyond the q-Gosper / q-WZ reach — a "
-               "multibasic or elliptic-hypergeometric (₁₀E₉) reduction row",
+    "sigma_q": "a q-hypergeometric sum beyond the q-Gosper / q-WZ reach — the "
+               "elliptic-hypergeometric (₈ω₇ / ₁₀E₉) sub-row (now shipped) or a "
+               "multibasic q-multisum reducer",
+    "sigma_elliptic": "an elliptic-hypergeometric sum beyond the very-well-poised "
+                      "₈ω₇ / ₁₀E₉ Frenkel–Turaev reach — a multivariate elliptic "
+                      "(Aₙ / Cₙ root-system) multisum or a higher-genus theta "
+                      "reduction row",
     "spectral": "directed / signed (magnetic) Laplacian spectral row, or a "
                 "non-self-adjoint pencil generalized-eigenproblem reducer",
     "cyclic": "a higher Cayley–Dickson rung (sedenion S(σ,θ)) or a "
@@ -189,6 +194,10 @@ _SIGMA_GOSPER_KEYS = ("term_ratio_num", "term_ratio_den")
 _SIGMA_MULTIVAR_KEYS = ("rn_num", "rn_den", "rj_num", "rj_den", "rk_num", "rk_den")
 _SIGMA_Q_KEYS = ("qrn_num", "qrn_den", "qrk_num", "qrk_den")
 _SIGMA_Q_GOSPER_KEYS = ("q_term_ratio_num", "q_term_ratio_den")
+# the elliptic-hypergeometric Σ sub-row (₈ω₇ / ₁₀E₉). Its operand is the elliptic
+# term-ratio as an EllRatio carrier under a single distinct key (theta-quotients
+# have no simpler coefficient-list form) — never colliding with the other rows.
+_SIGMA_ELLIPTIC_KEYS = ("elliptic_term_ratio",)
 _SPECTRAL_KEYS = ("laplacian", "adjacency", "edges", "matrix")
 _CYCLIC_KEYS = ("sigma", "theta_num", "generator", "period")
 
@@ -207,6 +216,9 @@ def _detect_row(rel: Dict[str, Any]) -> Optional[str]:
             return "sigma_multivar"
         if t in ("sigma_q", "q", "q_sigma", "q_hypergeometric", "qsum"):
             return "sigma_q"
+        if t in ("sigma_elliptic", "elliptic", "8w7", "10e9",
+                 "elliptic_hypergeometric", "frenkel_turaev"):
+            return "sigma_elliptic"
         if t in ("sigma", "Σ", "telescope", "sum"):
             return "sigma"
         if t in ("spectral", "laplacian", "coupling"):
@@ -223,6 +235,8 @@ def _detect_row(rel: Dict[str, Any]) -> Optional[str]:
     if (all(k in rel for k in _SIGMA_Q_KEYS)
             or all(k in rel for k in _SIGMA_Q_GOSPER_KEYS)):
         return "sigma_q"
+    if all(k in rel for k in _SIGMA_ELLIPTIC_KEYS):
+        return "sigma_elliptic"
     if all(k in rel for k in _SIGMA_KEYS) or all(k in rel for k in _SIGMA_GOSPER_KEYS):
         return "sigma"
     if any(k in rel for k in _SPECTRAL_KEYS):
@@ -317,6 +331,25 @@ def _try_sigma_q(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             return _reduced("sigma_q", "q_gosper", r)
         return None
     return None
+
+
+def _try_sigma_elliptic(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """The elliptic-hypergeometric Σ sub-row — the Frenkel–Turaev ₈ω₇ / ₁₀E₉
+    very-well-poised summation (the TOP of the base-axis degeneration tower
+    ordinary → q → elliptic). The ₈ω₇ term-ratio (an ``EllRatio``) under
+    ``elliptic_term_ratio`` routes to ``elliptic_wz_certificate`` (the identity
+    PROOF; accepted ONLY when its own ``verified`` flag is True — the same
+    anti-hallucination gate as the ordinary / q ``wz_certificate``). The reduced
+    payload carries the closed form ``cf(n)``. Returns the reduced dict, or
+    ``None`` to fall through to OPEN."""
+    from . import elliptic_wz_certificate as _ewz  # lazy: avoids import cycle
+    cert = _ewz.elliptic_wz_certificate(rel["elliptic_term_ratio"])
+    # VERIFY: trust ONLY the reducer's own verification flag (anti-hallucination —
+    # the connection-coefficient induction certificate's ``verified`` is True only
+    # when the inductive-step ThetaSum.is_zero decided ≡0 exactly).
+    if cert is not None and cert.get("verified") is True:
+        return _reduced("sigma_elliptic", "elliptic_wz_certificate", cert)
+    return None  # not a canonical ₈ω₇ / not verified → honest OPEN
 
 
 def _try_spectral(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -459,6 +492,12 @@ def infer(relationship: Dict[str, Any]) -> Dict[str, Any]:
       :func:`~srmech.amsc.q_wz_certificate.q_wz_certificate` (accepted iff its
       ``verified`` flag is True); an indefinite QPoly q-term-ratio
       (``q_term_ratio_*``) routes to :func:`~srmech.amsc.q_gosper.q_gosper`.
+    * **Σ elliptic-hypergeometric** (``row="sigma_elliptic"``) — the top of the
+      base-axis tower (ordinary → q → elliptic). The Frenkel–Turaev ₈ω₇ / ₁₀E₉
+      term-ratio (an ``EllRatio`` under ``elliptic_term_ratio``) routes to
+      :func:`~srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate` (the
+      identity PROOF; accepted iff its ``verified`` flag is True, and the reduced
+      payload carries the closed form ``cf(n)``).
     * **spectral** (``row="spectral"`` / a graph payload) — an ``edges`` list
       (with optional ``weights`` + ``n``), an ``adjacency`` grid, or an explicit
       ``laplacian`` / ``matrix`` build a coupling Laplacian and route to
@@ -507,8 +546,8 @@ def infer(relationship: Dict[str, Any]) -> Dict[str, Any]:
     # reducer-internal contract error (a malformed payload) is caught and routed
     # to OPEN too — never a spurious ``reducible: True``.
     _TRY = {"sigma": _try_sigma, "sigma_multivar": _try_sigma_multivar,
-            "sigma_q": _try_sigma_q, "spectral": _try_spectral,
-            "cyclic": _try_cyclic}
+            "sigma_q": _try_sigma_q, "sigma_elliptic": _try_sigma_elliptic,
+            "spectral": _try_spectral, "cyclic": _try_cyclic}
     try:
         result = _TRY[row](relationship)
     except (ValueError, TypeError, IndexError, KeyError, ZeroDivisionError,
