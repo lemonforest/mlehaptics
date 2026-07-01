@@ -381,6 +381,42 @@ def _to_ellratio(value: Any, *, param: str = "") -> Any:
     return value
 
 
+def _to_ellmonomial(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value to an ``EllMonomial``-typed param (rc94
+    ``elliptic_cauchy_determinant`` variable / parameter).
+
+    An ``EllMonomial`` is a signed exact-``ℚ`` Laurent monomial ``c·∏ sym^e`` over the
+    modified-theta algebra. The op's variables (``t`` and the ``x_i`` / ``y_j``) are
+    SYMBOLS, so for a JSON caller the natural minimal operand is a **symbol NAME string**
+    (``"x0"``, ``"t"``, …) → :meth:`EllMonomial.symbol`. An ``EllMonomial`` passes through;
+    an int / ``(num, den)`` pair → the constant :meth:`EllMonomial.scalar` (never a float;
+    a coefficient must be exact)."""
+    from srmech.amsc.ellbase import EllMonomial  # exact carrier; lazy
+    from srmech.amsc.q import Q
+    if isinstance(value, EllMonomial):
+        return value
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return EllMonomial.symbol(value)
+    if isinstance(value, int):
+        return EllMonomial.scalar(Q(value, 1))
+    if (isinstance(value, (list, tuple)) and len(value) == 2
+            and isinstance(value[0], int) and isinstance(value[1], int)
+            and value[1] != 0):
+        return EllMonomial.scalar(Q(value[0], value[1]))
+    return value
+
+
+def _seq_ellmonomial(value: Any, *, param: str = "") -> Any:
+    """``Sequence[EllMonomial]`` -> list of ``EllMonomial`` (rc94
+    ``elliptic_cauchy_determinant`` ``xs`` / ``ys`` variable lists; each element via
+    :func:`_to_ellmonomial`, so a JSON list of symbol-name strings lifts elementwise)."""
+    if isinstance(value, (list, tuple)):
+        return [_to_ellmonomial(v, param=param) for v in value]
+    return value
+
+
 def _to_mock_q_series(value: Any, *, param: str = "") -> Any:
     """Coerce a JSON value to a ``MockQSeries``-typed param (0.9.0rc71
     ``harmonic_maass`` holomorphic mock part).
@@ -768,6 +804,8 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "QPoly": _to_qpoly,        # 0.9.0rc55: exact-ℚ[q] q-shift carrier (q_gosper q-term ratios)
     "QBiPoly": _to_qbipoly,    # 0.9.0rc56: exact bivariate-ℚ[q] carrier (q_zeilberger ratios)
     "EllRatio": _to_ellratio,  # 0.9.0rc61: exact modified-theta-quotient carrier (elliptic_gosper term ratio)
+    "EllMonomial": _to_ellmonomial,  # 0.9.0rc94: exact-ℚ Laurent monomial carrier (elliptic_cauchy_determinant variable / parameter)
+    "Sequence[EllMonomial]": _seq_ellmonomial,  # 0.9.0rc94: elliptic_cauchy_determinant xs / ys variable lists
     "MockQSeries": _to_mock_q_series,  # 0.9.0rc71: harmonic_maass holomorphic mock part ('eulerian_f' / qpoly)
     "UnaryTheta": _to_unary_theta,     # 0.9.0rc71: harmonic_maass shadow ('g3' → the weight-3/2 g₃)
     "Optional[Vec]": _to_vec,
