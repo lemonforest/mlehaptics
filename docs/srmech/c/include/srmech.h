@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc94"
-#define SRMECH_VERSION       "0.9.0rc94"
+#define SRMECH_VERSION_PRE   "rc95"
+#define SRMECH_VERSION       "0.9.0rc95"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4527,6 +4527,74 @@ srmech_status_t srmech_elliptic_cauchy_determinant(size_t n_syms, int psym, size
                                                    size_t out_exps_cap_rows,
                                                    size_t *out_n_num, size_t *out_n_den,
                                                    void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_elliptic_partial_fraction — the C peer of the ThetaSum-returning op
+ * srmech.amsc.elliptic_partial_fraction.elliptic_partial_fraction (rc95), the
+ * ELLIPTIC PARTIAL-FRACTION expansion (the reduction ENGINE of the multivariable
+ * Cn elliptic reduction row). A C-MIRROR PARITY build (NOT a new algorithm): it
+ * constructs the EXACT n theta-quotient TERMS the pure-Python op builds, byte-for-
+ * byte; the Python side SUMS them into the ThetaSum (there is NO ThetaSum-
+ * CONSTRUCTION C surface, so the peer returns the n EllRatio TERMS, exactly like
+ * srmech_elliptic_lagrange_basis returns its k basis EllRatios).
+ *
+ * For distinct z_1..z_n, y_1..y_n and the variable x (Rosengren,
+ * arXiv:1608.06161v3, Proposition 1.6.1 + Eq. 1.22):
+ *   PROD_{k=1}^n theta(x/z_k;p)/theta(x/y_k;p)
+ *     = 1/theta(Y/Z;p) * SUM_{j=1}^n
+ *         [PROD_k theta(y_j/z_k;p) / PROD_{k!=j} theta(y_j/y_k;p)]
+ *         * [theta(x*Y/(y_j*Z);p) / theta(x/y_j;p)],   Y=PROD y, Z=PROD z.
+ * Each summand j is an EllRatio (unit prefactor): num thetas theta(y_j/z_k) all k
+ * + theta(x*Y/(y_j*Z)) (n+1); den thetas theta(y_j/y_k) k!=j + theta(x/y_j) +
+ * theta(Y/Z) (n+1). er_build folds each theta's canonicalize prefactor, cancels
+ * matching thetas, sorts the survivors. Pure composition of the shared
+ * srmech_ellbase_* monomial algebra + er_build.
+ *
+ * Wire form (mirrors srmech_elliptic_lagrange_basis): the interned symbol-table
+ * dimension `n_syms`; `psym` the interned index of the nome p (-1 if absent);
+ * `n` the term count; the variable monomial `x_num` / `x_den` / `x_exps`; the
+ * flat z-monomial coeff arrays `zs_num` / `zs_den` (z0..z_{n-1}) + the flat int32
+ * exponent rows `zs_exps_flat` (int32[n_syms] per z); likewise the y's.
+ * `coeff_cap` is the per-bigint limb cap.
+ *
+ * Output: the n TERM EllRatios written out flat -- per term j, `out_n_num[j]` /
+ * `out_n_den[j]` the survivor theta counts, and the canonical rows appended (per
+ * term: its prefactor row, then its out_n_num[j] num rows, then its out_n_den[j]
+ * den rows; each row carries its exact-Q coeff AND its dense int32[n_syms]
+ * exponent row). `out_exps_cap_rows` is the row capacity; too small ->
+ * SRMECH_ERR_OVERFLOW. n == 0 -> SRMECH_ERR_NULL_ARG (Python raises ValueError);
+ * a required NULL pointer -> SRMECH_ERR_NULL_ARG; a too-small arena ->
+ * SRMECH_ERR_OVERFLOW.
+ *
+ * Sign travels in the Class-K coeff branch, never abs()/fabs(). Malloc-free
+ * (JPL Rule 3): caller arena `ws` only, sized to (n, n_syms) -- no compiled-in
+ * cap. Additive symbol -> ABI unchanged (stays 3). License: MIT. ---- */
+
+/* Minimum `ws_len` BYTES srmech_elliptic_partial_fraction needs for the given
+ * shape (n_syms symbols, n the term count, coeff_limbs the per-coefficient
+ * significant-limb estimate). */
+size_t srmech_elliptic_partial_fraction_ws_bound(size_t n_syms, size_t n,
+                                                 size_t coeff_limbs);
+
+/* Build the n Frobenius/Rosengren elliptic partial-fraction TERM EllRatios
+ * (see above); the Python side sums them into the returned ThetaSum. */
+srmech_status_t srmech_elliptic_partial_fraction(size_t n_syms, int psym, size_t n,
+                                                 const srmech_bigint_t *x_num,
+                                                 const srmech_bigint_t *x_den,
+                                                 const int32_t *x_exps,
+                                                 const srmech_bigint_t *zs_num,
+                                                 const srmech_bigint_t *zs_den,
+                                                 const int32_t *zs_exps_flat,
+                                                 const srmech_bigint_t *ys_num,
+                                                 const srmech_bigint_t *ys_den,
+                                                 const int32_t *ys_exps_flat,
+                                                 uint32_t coeff_cap,
+                                                 srmech_bigint_t *out_coeff_num,
+                                                 srmech_bigint_t *out_coeff_den,
+                                                 int32_t *out_exps_flat,
+                                                 size_t out_exps_cap_rows,
+                                                 size_t *out_n_num, size_t *out_n_den,
+                                                 void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_elliptic_recurrence_8w7 — the ELLIPTIC Sigma-row ORDER-1 RECURRENCE op for the
