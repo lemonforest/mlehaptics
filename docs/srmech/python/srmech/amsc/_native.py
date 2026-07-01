@@ -2812,6 +2812,42 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_elliptic_cauchy_determinant.restype = ctypes.c_int
 
+    # rc95: srmech_elliptic_partial_fraction — the C peer of the ThetaSum-returning op
+    # srmech.amsc.elliptic_partial_fraction.elliptic_partial_fraction (the elliptic
+    # partial-fraction expansion, the reduction engine of the multivariable Cₙ elliptic
+    # row). The variable x + the n z-monomials + the n y-monomials ride as flat
+    # (coeff_num/coeff_den) srmech_bigint arrays + the flat int32 exponent rows; the n
+    # TERM EllRatios come back as the per-row prefactor/theta coeff arrays + the per-term
+    # survivor theta counts (out_n_num[n] / out_n_den[n]) + the flat canonical exponent
+    # rows (the Python side sums the n forms into the ThetaSum). Shares the srmech_bigint
+    # decimal-marshal helpers (in _ELLRATIO_SYMS) with the ellratio / lagrange peers.
+    #   size_t srmech_elliptic_partial_fraction_ws_bound(n_syms, n, coeff_limbs)
+    if hasattr(lib, "srmech_elliptic_partial_fraction_ws_bound"):
+        lib.srmech_elliptic_partial_fraction_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_elliptic_partial_fraction_ws_bound.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_elliptic_partial_fraction"):
+        _epfbi = ctypes.POINTER(_SrmechBigint)
+        lib.srmech_elliptic_partial_fraction.argtypes = [
+            ctypes.c_size_t,                     # n_syms
+            ctypes.c_int,                        # psym
+            ctypes.c_size_t,                     # n
+            _epfbi, _epfbi,                      # x_num, x_den
+            ctypes.POINTER(ctypes.c_int32),      # x_exps
+            _epfbi, _epfbi,                      # zs_num, zs_den (flat)
+            ctypes.POINTER(ctypes.c_int32),      # zs_exps_flat
+            _epfbi, _epfbi,                      # ys_num, ys_den (flat)
+            ctypes.POINTER(ctypes.c_int32),      # ys_exps_flat
+            ctypes.c_uint32,                     # coeff_cap
+            _epfbi, _epfbi,                      # out_coeff_num, out_coeff_den (per row)
+            ctypes.POINTER(ctypes.c_int32),      # out_exps_flat
+            ctypes.c_size_t,                     # out_exps_cap_rows
+            ctypes.POINTER(ctypes.c_size_t),     # out_n_num (n)
+            ctypes.POINTER(ctypes.c_size_t),     # out_n_den (n)
+            ctypes.c_void_p, ctypes.c_size_t,    # ws, ws_len
+        ]
+        lib.srmech_elliptic_partial_fraction.restype = ctypes.c_int
+
     # rc68: srmech_elliptic_recurrence_8w7 — the ELLIPTIC Σ-row ORDER-1 RECURRENCE op for
     # the Frenkel–Turaev ₈ω₇ summation. The C peer of
     # srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7. The term-ratio rides as the
@@ -7149,6 +7185,163 @@ def elliptic_cauchy_determinant_c(n_syms, psym, n, t_mono, x_monos, y_monos):
         den_rows.append(_read_row(row))
         row += 1
     return {"prefactor": pref, "num": num_rows, "den": den_rows}
+
+
+# ----------------------------------------------------------------------
+# rc95: srmech_elliptic_partial_fraction — the C peer of the ThetaSum-returning op
+# srmech.amsc.elliptic_partial_fraction.elliptic_partial_fraction (the elliptic
+# partial-fraction expansion; the reduction engine of the multivariable Cₙ elliptic
+# reduction row). A C-MIRROR PARITY build: the n TERM EllRatios come back byte-exact
+# equal to the pure-Python op's terms, and the Python side sums them into the
+# ThetaSum. srmech.amsc.elliptic_partial_fraction.elliptic_partial_fraction dispatches
+# through here when the peer is loaded, trusting the native ThetaSum only after it
+# `==` the pure ThetaSum; the pure-Python body is the complete alternative + oracle.
+# Shares the srmech_bigint decimal-marshal helpers (in _ELLRATIO_SYMS) with the
+# ellratio / lagrange / cauchy-determinant peers.
+# ----------------------------------------------------------------------
+
+
+def has_native_elliptic_partial_fraction() -> bool:
+    """True iff the rc95 srmech_elliptic_partial_fraction op + its ws sizer + the
+    srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
+    pre-rc95 lib — the pure-Python
+    ``srmech.amsc.elliptic_partial_fraction.elliptic_partial_fraction`` body is the
+    complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _ELLRATIO_SYMS) and all(
+        hasattr(LIB, s) for s in (
+            "srmech_elliptic_partial_fraction",
+            "srmech_elliptic_partial_fraction_ws_bound",
+        )
+    )
+
+
+def elliptic_partial_fraction_c(n_syms, psym, n, x_mono, z_monos, y_monos):
+    """Native ``elliptic_partial_fraction`` for the variable monomial ``x_mono`` + the
+    ``n`` z-monomials ``z_monos`` + the ``n`` y-monomials ``y_monos`` → a list of ``n``
+    EllRatio TERM bridge forms (each a dict ``{"prefactor": (coeff_num, coeff_den,
+    exps), "num": [...], "den": [...]}``), or ``None`` if the native symbols are absent
+    (the caller sums the forms into a ThetaSum). ``n_syms`` is the interned symbol-table
+    dimension; ``psym`` the interned index of the nome ``p`` (-1 if absent); each mono is
+    a ``(num, den, exps_row)`` triple (each ``exps_row`` a length-``n_syms`` int list).
+    The returned thetas are decoded against ``sym_list`` by the caller. A non-OK C status
+    raises ``RuntimeError``."""
+    if not has_native_elliptic_partial_fraction():
+        return None
+    if n == 0:
+        raise ValueError("elliptic_partial_fraction_c: need at least one variable")
+    if n_syms == 0:
+        # a pure-scalar table clamps to a single all-zero exponent slot (the C clamps
+        # n_syms -> 1) so every monomial reads a consistent dense row.
+        n_syms = 1
+        x_mono = (x_mono[0], x_mono[1], [0])
+        z_monos = [(num, den, [0]) for num, den, _e in z_monos]
+        y_monos = [(num, den, [0]) for num, den, _e in y_monos]
+    all_monos = [x_mono] + list(z_monos) + list(y_monos)
+    # per-coefficient limb estimate (9 decimal digits ~ 1 limb; pad). The theta
+    # canonicalization + the Y/Z + x*Y/(y_j*Z) products multiply coefficients, so size
+    # generously.
+    cl = 2
+    for num, den, _exps in all_monos:
+        cl = max(cl, len(str(num).lstrip("-")) // 9 + 2, len(str(den)) // 9 + 2)
+    out_cap = cl + 8
+    work_cap = cl + 8
+    ws_len = int(LIB.srmech_elliptic_partial_fraction_ws_bound(
+        ctypes.c_size_t(n_syms), ctypes.c_size_t(n), ctypes.c_size_t(work_cap)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    keep = []
+    # the variable x.
+    x_num, x_den, x_exps = x_mono
+    if len(x_exps) != n_syms:
+        raise ValueError("elliptic_partial_fraction_c: x exps row length != n_syms")
+    xbn, kxbn = _bigint_from_int(int(x_num), work_cap)
+    xbd, kxbd = _bigint_from_int(int(x_den), work_cap)
+    keep.append(kxbn)
+    keep.append(kxbd)
+    x_exps_c = (ctypes.c_int32 * max(n_syms, 1))(*[int(e) for e in x_exps])
+    # the n flat z + y monomial inputs.
+    zs_num_arr = (_SrmechBigint * n)()
+    zs_den_arr = (_SrmechBigint * n)()
+    ys_num_arr = (_SrmechBigint * n)()
+    ys_den_arr = (_SrmechBigint * n)()
+    zs_exps_flat = []
+    ys_exps_flat = []
+    for i, (num, den, exps_row) in enumerate(z_monos):
+        if len(exps_row) != n_syms:
+            raise ValueError("elliptic_partial_fraction_c: z exps row length != n_syms")
+        bn, kbn = _bigint_from_int(int(num), work_cap)
+        bd, kbd = _bigint_from_int(int(den), work_cap)
+        zs_num_arr[i] = bn
+        zs_den_arr[i] = bd
+        keep.append(kbn)
+        keep.append(kbd)
+        zs_exps_flat.extend(int(e) for e in exps_row)
+    for i, (num, den, exps_row) in enumerate(y_monos):
+        if len(exps_row) != n_syms:
+            raise ValueError("elliptic_partial_fraction_c: y exps row length != n_syms")
+        bn, kbn = _bigint_from_int(int(num), work_cap)
+        bd, kbd = _bigint_from_int(int(den), work_cap)
+        ys_num_arr[i] = bn
+        ys_den_arr[i] = bd
+        keep.append(kbn)
+        keep.append(kbd)
+        ys_exps_flat.extend(int(e) for e in exps_row)
+    zs_exps_c = (ctypes.c_int32 * max(len(zs_exps_flat), 1))(*zs_exps_flat)
+    ys_exps_c = (ctypes.c_int32 * max(len(ys_exps_flat), 1))(*ys_exps_flat)
+    # the output ROW stream: per term j a prefactor row + up to n+1 num rows + up to
+    # n+1 den rows (the theta counts shrink under cancellation); budget n*(1+2*(n+1))
+    # rows + slack. Every row carries its exact-Q coeff (out_cn / out_cd) + its dense
+    # exps row (out_exps).
+    out_cap_rows = n * (1 + 2 * (n + 1)) + 8
+    out_cn_arr = (_SrmechBigint * out_cap_rows)()
+    out_cd_arr = (_SrmechBigint * out_cap_rows)()
+    for r in range(out_cap_rows):
+        ocn, kocn = _bigint_from_int(0, out_cap)
+        ocd, kocd = _bigint_from_int(0, out_cap)
+        out_cn_arr[r] = ocn
+        out_cd_arr[r] = ocd
+        keep.append(kocn)
+        keep.append(kocd)
+    out_exps = (ctypes.c_int32 * max(out_cap_rows * n_syms, 1))()
+    out_nn = (ctypes.c_size_t * n)()
+    out_nd = (ctypes.c_size_t * n)()
+    rc = LIB.srmech_elliptic_partial_fraction(
+        ctypes.c_size_t(n_syms), ctypes.c_int(psym), ctypes.c_size_t(n),
+        ctypes.byref(xbn), ctypes.byref(xbd), x_exps_c,
+        zs_num_arr, zs_den_arr, zs_exps_c,
+        ys_num_arr, ys_den_arr, ys_exps_c,
+        ctypes.c_uint32(work_cap),
+        out_cn_arr, out_cd_arr, out_exps, ctypes.c_size_t(out_cap_rows),
+        out_nn, out_nd,
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_elliptic_partial_fraction returned non-OK status {rc}")
+
+    # rebuild the n EllRatio TERM bridge forms from the flat output ROW stream.
+    def _read_row(r):
+        return (_bigint_to_int(out_cn_arr[r]), _bigint_to_int(out_cd_arr[r]),
+                [int(out_exps[r * n_syms + j]) for j in range(n_syms)])
+
+    forms = []
+    row = 0
+    for i in range(n):
+        nn = out_nn[i]
+        nd = out_nd[i]
+        pref = _read_row(row)
+        row += 1
+        num_rows = []
+        for _ in range(nn):
+            num_rows.append(_read_row(row))
+            row += 1
+        den_rows = []
+        for _ in range(nd):
+            den_rows.append(_read_row(row))
+            row += 1
+        forms.append({"prefactor": pref, "num": num_rows, "den": den_rows})
+    return forms
 
 
 # ----------------------------------------------------------------------

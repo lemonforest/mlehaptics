@@ -8,6 +8,23 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc95] - 2026-07-01
+
+**`elliptic_partial_fraction` — the ELLIPTIC PARTIAL-FRACTION expansion, the reduction ENGINE of the multivariable root-system Cₙ elliptic reduction row.** rc94 shipped the elliptic Cauchy / Frobenius DETERMINANT (the FOUNDATION of the Cₙ row); this rc ships the ENGINE it (and Warnaar's Lemma 2.2, and the Cₙ elliptic Jackson summation) is proved with. Where the single-variable ₈ω₇ reduces to the Weierstrass THREE-TERM relation (`ThetaSum.three_term`), the multivariable Cₙ objects all reduce to THIS partial-fraction expansion. The op IS a new ToolEntry → **`tools.total` 345 → 346**. **ABI stays 3** (additive C symbol). Shipped CO-EQUAL Python + 1:1 native C peer in the SAME rc (the everything-mirrors / never-split discipline).
+
+**THE EXPANSION.** For the variable `x` and distinct `z₁…zₙ`, `y₁…yₙ` (Hjalmar Rosengren, *Elliptic Hypergeometric Functions*, arXiv:1608.06161v3 [math.CA] (2017), Proposition 1.6.1 + Eq. (1.22)):
+
+```
+∏_{k=1}^n θ(x/z_k; p)/θ(x/y_k; p)
+  = 1/θ(Y/Z; p) · Σ_{j=1}^n
+      [ ∏_k θ(y_j/z_k; p) / ∏_{k≠j} θ(y_j/y_k; p) ]
+      · [ θ(x·Y/(y_j·Z); p) / θ(x/y_j; p) ],       Y = ∏y, Z = ∏z.
+```
+
+`elliptic_partial_fraction(x, zs, ys)` CONSTRUCTS the right-hand side as an exact `ThetaSum` — a SUM of `n` theta-quotient terms (each summand `j` an `EllRatio` with the unit prefactor, `n+1` numerator thetas + `n+1` denominator thetas incl. the load-bearing `1/θ(Y/Z)` factor — the `1/θ(t)` of the Prop. 1.6.1 interpolation with `t = Y/Z`). This is the FIRST `ThetaSum`-returning C dispatch.
+
+**MPM-VERIFIED at build.** The constructed sum equals the left-hand product `∏_k θ(x/z_k)/θ(x/y_k)` at `n=1..4` — the carrier's own exact-ℚ truncated-theta eval (`test_elliptic_partial_fraction_rc95.py`). The 1:1 native C peer `srmech_elliptic_partial_fraction` builds the SAME `n` `EllRatio` terms over the shared `srmech_ellbase_*` monomial algebra + `er_build` (there is no `ThetaSum`-CONSTRUCTION C surface, so — exactly like `srmech_elliptic_lagrange_basis` returns its `k` basis EllRatios — the peer returns the `n` term EllRatios and the Python side sums them via `ThetaSum.from_ellratio` + `+`, identically to the pure path). The native ThetaSum is trusted ONLY after it is rebuilt and confirmed `==` the pure-Python ThetaSum (the COMPLETE alternative + the parity oracle). Exact over the modified-theta algebra (no float), no `abs()` (Class-K sign), no numpy / `math`; C peer caller-arena / malloc-free / JPL-clean.
+
 ## [0.9.0rc94] - 2026-07-01
 
 **`elliptic_cauchy_determinant` — the ELLIPTIC-DETERMINANT primitive (Frobenius's elliptic Cauchy determinant evaluation), the FOUNDATION of the multivariable root-system Cₙ elliptic reduction row.** The single-variable elliptic Σ-row is complete (`elliptic_gosper` rc65 → `elliptic_recurrence_8w7` rc68 → `elliptic_zeilberger` rc90 → `elliptic_wz_certificate` rc91, all auto-routed since rc92). The multivariable Cₙ row needs a genuinely larger primitive: where the single-variable ₈ω₇ reduces to the Weierstrass THREE-TERM relation (`ThetaSum.three_term`), the Cₙ objects reduce to the elliptic PARTIAL-FRACTION expansion + the elliptic Cauchy / Frobenius DETERMINANT. This rc ships that determinant as an exact constructive op. The op IS a new ToolEntry → **`tools.total` 344 → 345**. **ABI stays 3** (additive C symbol). Shipped CO-EQUAL Python + 1:1 native C peer in the SAME rc (the everything-mirrors / never-split discipline).

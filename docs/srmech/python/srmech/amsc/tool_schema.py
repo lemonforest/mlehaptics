@@ -3639,6 +3639,58 @@ def _register_primitive_class_tools() -> None:
                       "ValueError if xs / ys are empty or unequal length"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The ELLIPTIC PARTIAL-FRACTION expansion — the reduction ENGINE of
+        # the multivariable (root-system Cₙ) elliptic reduction row (Rosengren
+        # Prop. 1.6.1 + Eq. 1.22). Where the single-variable ₈ω₇ reduces to the
+        # Weierstrass THREE-TERM relation, the Cₙ objects (the elliptic Cauchy
+        # determinant, Warnaar's Lemma 2.2, the Cₙ elliptic Jackson summation)
+        # all reduce to THIS. It CONSTRUCTS the partial-fraction SUM of the
+        # product ∏_k θ(x/z_k)/θ(x/y_k) as an exact ThetaSum (a SUM of n theta-
+        # quotient terms). 1:1 C peer srmech_elliptic_partial_fraction.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.elliptic_partial_fraction.elliptic_partial_fraction",
+            owner="srmech", category="elliptic_partial_fraction",
+            summary="The ELLIPTIC PARTIAL-FRACTION expansion — the reduction ENGINE of "
+                    "the multivariable (root-system Cₙ) elliptic reduction row (Hjalmar "
+                    "Rosengren, 'Elliptic Hypergeometric Functions', arXiv:1608.06161v3 "
+                    "[math.CA] (2017), Proposition 1.6.1 + Eq. (1.22)). Where the single-"
+                    "variable ₈ω₇ reduces to the Weierstrass THREE-TERM relation "
+                    "(ThetaSum.three_term), the multivariable Cₙ objects — the elliptic "
+                    "Cauchy / Frobenius determinant (elliptic_cauchy_determinant), "
+                    "Warnaar's Lemma 2.2, the Cₙ elliptic Jackson summation — all reduce "
+                    "to THIS. For the variable x and distinct z₁…zₙ, y₁…yₙ it CONSTRUCTS "
+                    "the partial-fraction expansion of the product ∏_k θ(x/z_k)/θ(x/y_k) "
+                    "as an exact ThetaSum (a SUM of n theta-quotient terms): "
+                    "1/θ(Y/Z)·Σ_j [∏_k θ(y_j/z_k) / ∏_{k≠j}θ(y_j/y_k)]·[θ(x·Y/(y_j·Z)) / "
+                    "θ(x/y_j)], with Y = ∏y and Z = ∏z (the 1/θ(Y/Z) factor is load-"
+                    "bearing — the 1/θ(t) of the Prop. 1.6.1 interpolation with t = Y/Z). "
+                    "Each summand j is an EllRatio; the returned ThetaSum is their exact "
+                    "carrier sum. Verified at build: the constructed sum equals the left-"
+                    "hand product at n=1..4 (exact-ℚ truncated-theta eval). 1:1 C peer "
+                    "srmech_elliptic_partial_fraction constructs the SAME n EllRatio terms "
+                    "over the shared srmech_ellbase_* monomial algebra + er_build (byte-"
+                    "exact to the Python carrier; the native ThetaSum is trusted only "
+                    "after it == the pure ThetaSum, which is the complete alternative + "
+                    "the parity oracle). Exact over the modified-theta algebra (no float), "
+                    "no abs() (Class-K sign), no numpy / math.",
+            parameters=(
+                P("x", "EllMonomial", True,
+                  "the variable x of the elliptic partial-fraction expansion (an "
+                  "EllMonomial over the exact-ℚ argument-lattice)"),
+                P("zs", "Sequence[EllMonomial]", True,
+                  "the n distinct numerator parameters z₁…zₙ (each an EllMonomial)"),
+                P("ys", "Sequence[EllMonomial]", True,
+                  "the n distinct denominator parameters y₁…yₙ (each an EllMonomial); "
+                  "len(ys) must equal len(zs)"),
+            ),
+            returns=R("ThetaSum",
+                      "the exact partial-fraction expansion 1/θ(Y/Z)·Σ_j [∏_k θ(y_j/z_k) "
+                      "/ ∏_{k≠j}θ(y_j/y_k)]·[θ(x·Y/(y_j·Z)) / θ(x/y_j)] as a ThetaSum (a "
+                      "sum of n theta-quotient terms), equal to ∏_k θ(x/z_k)/θ(x/y_k). "
+                      "Raises ValueError if zs / ys are empty or unequal length"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The F929 OPEN/infer ROUTER — the meta-dispatcher that makes the
         # three shipped reduction-theory rows (cyclic / spectral / Σ) ONE
         # callable. Pure orchestration over the already-C-mirrored reducers
