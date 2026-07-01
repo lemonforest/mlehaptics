@@ -171,9 +171,14 @@ _OPEN_HINTS: Dict[str, str] = {
                "elliptic-hypergeometric (₈ω₇ / ₁₀E₉) sub-row (now shipped) or a "
                "multibasic q-multisum reducer",
     "sigma_elliptic": "an elliptic-hypergeometric sum beyond the very-well-poised "
-                      "₈ω₇ / ₁₀E₉ Frenkel–Turaev reach — a multivariate elliptic "
-                      "(Aₙ / Cₙ root-system) multisum or a higher-genus theta "
-                      "reduction row",
+                      "₈ω₇ / ₁₀E₉ Frenkel–Turaev reach — the multivariate Cₙ elliptic "
+                      "Jackson row (now shipped — tag row='sigma_elliptic_multivar') or "
+                      "a higher-genus theta reduction row",
+    "sigma_elliptic_multivar": "a root-system elliptic multisum beyond the Cₙ elliptic "
+                      "Jackson reach — an Aₙ (or other root-system) elliptic multisum, a "
+                      "higher-genus theta multisum, or the multi-variable elliptic "
+                      "is_zero (the n-variable partial-fraction decision) for exact "
+                      "per-call proof of the reduction",
     "spectral": "directed / signed (magnetic) Laplacian spectral row, or a "
                 "non-self-adjoint pencil generalized-eigenproblem reducer",
     "cyclic": "a higher Cayley–Dickson rung (sedenion S(σ,θ)) or a "
@@ -198,6 +203,11 @@ _SIGMA_Q_GOSPER_KEYS = ("q_term_ratio_num", "q_term_ratio_den")
 # term-ratio as an EllRatio carrier under a single distinct key (theta-quotients
 # have no simpler coefficient-list form) — never colliding with the other rows.
 _SIGMA_ELLIPTIC_KEYS = ("elliptic_term_ratio",)
+# the multivariate (root-system Cₙ) elliptic Jackson Σ sub-row. Its operand is NOT a
+# single term-ratio but the eight balanced Cₙ VWP parameters (a,b,c,d,x,q + the partition
+# ceiling N + the rank n) — e is fixed by the balancing bcde·x^{n-1}=a²q^{N+1}. The full
+# 8-key set is distinctive (no other row carries all of a,b,c,d,x,q,N,n).
+_SIGMA_ELLIPTIC_MULTIVAR_KEYS = ("a", "b", "c", "d", "x", "q", "N", "n")
 _SPECTRAL_KEYS = ("laplacian", "adjacency", "edges", "matrix")
 _CYCLIC_KEYS = ("sigma", "theta_num", "generator", "period")
 
@@ -216,6 +226,9 @@ def _detect_row(rel: Dict[str, Any]) -> Optional[str]:
             return "sigma_multivar"
         if t in ("sigma_q", "q", "q_sigma", "q_hypergeometric", "qsum"):
             return "sigma_q"
+        if t in ("sigma_elliptic_multivar", "elliptic_multivar", "cn_jackson",
+                 "cn_elliptic_jackson", "multivariate_elliptic", "an_cn"):
+            return "sigma_elliptic_multivar"
         if t in ("sigma_elliptic", "elliptic", "8w7", "10e9",
                  "elliptic_hypergeometric", "frenkel_turaev"):
             return "sigma_elliptic"
@@ -235,6 +248,8 @@ def _detect_row(rel: Dict[str, Any]) -> Optional[str]:
     if (all(k in rel for k in _SIGMA_Q_KEYS)
             or all(k in rel for k in _SIGMA_Q_GOSPER_KEYS)):
         return "sigma_q"
+    if all(k in rel for k in _SIGMA_ELLIPTIC_MULTIVAR_KEYS):
+        return "sigma_elliptic_multivar"
     if all(k in rel for k in _SIGMA_ELLIPTIC_KEYS):
         return "sigma_elliptic"
     if all(k in rel for k in _SIGMA_KEYS) or all(k in rel for k in _SIGMA_GOSPER_KEYS):
@@ -350,6 +365,40 @@ def _try_sigma_elliptic(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if cert is not None and cert.get("verified") is True:
         return _reduced("sigma_elliptic", "elliptic_wz_certificate", cert)
     return None  # not a canonical ₈ω₇ / not verified → honest OPEN
+
+
+def _try_sigma_elliptic_multivar(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """The multivariate (root-system Cₙ) elliptic Jackson Σ sub-row — the capstone one
+    root-system rank above the ₈ω₇. The eight balanced Cₙ VWP parameters
+    ``a, b, c, d, x, q`` (:class:`EllMonomial` or a symbol-name string) + the partition
+    ceiling ``N`` + the rank ``n`` route to
+    :func:`~srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson`, which reduces the
+    n-fold Cₙ sum to its closed-form theta-quotient product (Rosengren Thm 2.1). This is a
+    CONSTRUCTIVE reduction (the ``resonant_spectrum`` precedent, NOT an ``is_zero`` proof):
+    the closed form is the MPM-verified Thm 2.1 RHS, gated per call on VALID Cₙ Jackson
+    parameters (``N ≥ 1``, ``n ≥ 1``, coercible ``EllMonomial`` params — the op raises
+    otherwise, routing to OPEN). The exact per-call PROOF of the reduction (symbolically
+    summing the n-fold sum + ``is_zero``-checking it == this closed form) needs the
+    multi-variable elliptic ``is_zero`` (the n-variable partial-fraction decision) — the
+    documented frontier named in the ``sigma_elliptic_multivar`` OPEN hint. Returns the
+    reduced dict, or ``None`` (a malformed payload → the caller routes to OPEN)."""
+    from . import elliptic_jackson as _ej  # lazy: avoids import cycle
+    from .ellbase import EllMonomial as _M
+
+    def _mono(v: Any) -> "Any":
+        if isinstance(v, _M):
+            return v
+        if isinstance(v, str):
+            return _M.symbol(v)             # the natural symbol-name operand
+        if isinstance(v, int):
+            from .q import Q
+            return _M.scalar(Q(v, 1))       # a constant parameter
+        raise TypeError("Cₙ Jackson parameter must be an EllMonomial / symbol name / int")
+
+    cf = _ej.multivariate_elliptic_jackson(
+        _mono(rel["a"]), _mono(rel["b"]), _mono(rel["c"]), _mono(rel["d"]),
+        _mono(rel["x"]), _mono(rel["q"]), int(rel["N"]), int(rel["n"]))
+    return _reduced("sigma_elliptic_multivar", "multivariate_elliptic_jackson", cf)
 
 
 def _try_spectral(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -498,6 +547,16 @@ def infer(relationship: Dict[str, Any]) -> Dict[str, Any]:
       :func:`~srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate` (the
       identity PROOF; accepted iff its ``verified`` flag is True, and the reduced
       payload carries the closed form ``cf(n)``).
+    * **Σ multivariate elliptic** (``row="sigma_elliptic_multivar"`` / the eight
+      ``a`` / ``b`` / ``c`` / ``d`` / ``x`` / ``q`` / ``N`` / ``n`` keys) — the
+      capstone one root-system rank above the ₈ω₇: the balanced Cₙ elliptic Jackson
+      summation routes to
+      :func:`~srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson`, which
+      CONSTRUCTS the closed-form theta-quotient product (Rosengren Thm 2.1). A
+      CONSTRUCTIVE reduction (the ``resonant_spectrum`` precedent) — the MPM-verified
+      Thm 2.1 RHS gated per call on valid Cₙ Jackson parameters; the exact per-call
+      ``is_zero`` proof of the reduction is the documented multi-variable-``is_zero``
+      frontier (see the ``sigma_elliptic_multivar`` OPEN hint).
     * **spectral** (``row="spectral"`` / a graph payload) — an ``edges`` list
       (with optional ``weights`` + ``n``), an ``adjacency`` grid, or an explicit
       ``laplacian`` / ``matrix`` build a coupling Laplacian and route to
@@ -547,6 +606,7 @@ def infer(relationship: Dict[str, Any]) -> Dict[str, Any]:
     # to OPEN too — never a spurious ``reducible: True``.
     _TRY = {"sigma": _try_sigma, "sigma_multivar": _try_sigma_multivar,
             "sigma_q": _try_sigma_q, "sigma_elliptic": _try_sigma_elliptic,
+            "sigma_elliptic_multivar": _try_sigma_elliptic_multivar,
             "spectral": _try_spectral, "cyclic": _try_cyclic}
     try:
         result = _TRY[row](relationship)
