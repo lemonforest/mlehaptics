@@ -6696,6 +6696,14 @@ def thetasum_is_zero_c(n_syms, xsym, ysym, psym, term_nthetas, monomials):
     cl = 1
     for num, den, _exps in monomials:
         cl = max(cl, len(str(num).lstrip("-")) // 9 + 2, len(str(den)) // 9 + 2)
+    # Headroom for INTERMEDIATE coefficient growth during the Weierstrass three-term
+    # reduction: the rewrite + the canonical-pair inversion prefactors MULTIPLY the input
+    # coefficients, so the working bigints outgrow the input's limb count. Without this
+    # the arena tripped SRMECH_ERR_OVERFLOW on large / multivariate cleared certificates
+    # (the C peer then falls back to the exact pure-Python path — this bump lets the
+    # native fast path handle them instead). Scale by the theta count (each pairing can
+    # compound a coefficient) with a constant floor; over-provisioning only costs arena.
+    cl = cl * (max_thetas + 4) + 8
     out_cap = cl
     ws_len = int(LIB.srmech_thetasum_ws_bound(
         ctypes.c_size_t(n_syms), ctypes.c_size_t(n_terms),

@@ -591,9 +591,18 @@ class ThetaSum:
                 a = t.arg
                 monomials.append((a.coeff.numerator, a.coeff.denominator, row(a)))
             term_nthetas.append(len(thetas))
-        return _nat.thetasum_is_zero_c(
-            n_syms, idx.get(_X, -1), idx.get(_Y, -1), idx.get(_P, -1),
-            term_nthetas, monomials)
+        try:
+            return _nat.thetasum_is_zero_c(
+                n_syms, idx.get(_X, -1), idx.get(_Y, -1), idx.get(_P, -1),
+                term_nthetas, monomials)
+        except (RuntimeError, OverflowError, ValueError):
+            # The native peer DECLINED (e.g. SRMECH_ERR_OVERFLOW when a large /
+            # multivariate cleared certificate outgrows the caller-arena's provisioned
+            # bounds). The C peer is an OPTIMIZATION, never the sole authority — fall
+            # back to the COMPLETE pure-Python decision (:meth:`_is_zero_py`, the parity
+            # oracle). This keeps ``is_zero`` a TOTAL function: a native size-guard trip
+            # never crashes the decision, it degrades to the exact pure path.
+            return None
 
     def __eq__(self, other) -> bool:
         if other is self:
