@@ -40,30 +40,78 @@ def _syms():
     return tuple(M.symbol(s) for s in ("a", "b", "c", "d", "x", "q"))
 
 
+def _available_ram_bytes():
+    """This runner's AVAILABLE physical RAM in bytes (stdlib-only), or ``None`` if it
+    cannot be determined. Linux: ``MemAvailable`` (the honest reclaimable number);
+    Windows: ``GlobalMemoryStatusEx.ullAvailPhys``; fallback: total physical via
+    ``os.sysconf`` (macOS has no MemAvailable analogue — total is the upper bound)."""
+    import sys
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            class _MSX(ctypes.Structure):
+                _fields_ = ([("dwLength", ctypes.c_uint32), ("dwMemoryLoad", ctypes.c_uint32)]
+                            + [(nm, ctypes.c_uint64) for nm in (
+                                "ullTotalPhys", "ullAvailPhys", "ullTotalPageFile",
+                                "ullAvailPageFile", "ullTotalVirtual", "ullAvailVirtual",
+                                "ullAvailExtendedVirtual")])
+            st = _MSX()
+            st.dwLength = ctypes.sizeof(_MSX)
+            if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(st)):
+                return int(st.ullAvailPhys)
+        except Exception:
+            pass
+    try:
+        with open("/proc/meminfo") as fh:
+            for line in fh:
+                if line.startswith("MemAvailable:"):
+                    return int(line.split()[1]) * 1024
+    except OSError:
+        pass
+    try:
+        import os
+        return int(os.sysconf("SC_PAGE_SIZE")) * int(os.sysconf("SC_PHYS_PAGES"))
+    except (ValueError, OSError, AttributeError):
+        return None
+
+
 def _verify_or_informed_skip(a, b, c, d, x, q, N, n):
-    """Run the ``(…, N, n)`` Cₙ verify and RETURN its dict. But if THIS runner cannot
-    ALLOCATE the estimated ``is_zero`` interpolation arena (a ``MemoryError`` from the ``ws``
-    bytearray — the hardest Frenkel–Turaev ₁₀E₉ residuals size to tens of GB, e.g. (n=1,N=3)
-    ≈ 19 GB, which small / low-overcommit cells like Windows py3.12 cannot hold), take a
-    TRANSPARENT INFORMED-SKIP whose reason EXPOSES the RAM cost via the
-    ``ThetaSum.is_zero_ws_estimate_bytes`` primitive.
+    """Run the ``(…, N, n)`` Cₙ verify and RETURN its dict — UNLESS this runner cannot
+    HOLD the arena the ``is_zero`` decision DECLARES it needs (via the
+    ``ThetaSum.is_zero_ws_estimate_bytes`` primitive; the hardest Frenkel–Turaev ₁₀E₉
+    residuals declare tens of GB, e.g. (n=1,N=3) ≈ 19 GB), in which case take a
+    TRANSPARENT INFORMED-SKIP whose reason EXPOSES the declared cost.
+
+    The skip is decided DETERMINISTICALLY UP FRONT — declared estimate vs the runner's
+    available RAM — because relying on ``MemoryError`` is platform-lottery: Windows
+    eager-commits (the allocation raises, catchable), but Linux/macOS OVERCOMMIT (the
+    allocation "succeeds" lazily and the OOM killer SIGKILLs mid-decision with nothing to
+    catch — the flaky ~8-min CI cancels). Surviving via sparse page-touch is luck, not
+    capacity. The ``except MemoryError`` stays as belt-and-braces for eager-commit hosts.
 
     This is **INFORM, don't LIMIT**: the op is NEVER capped (it runs + verifies the true
-    math on adequate-RAM cells — ubuntu/macos), and a SKIP is not a PASS (it renders as
-    SKIPPED with the RAM cost, the ``verified is True`` assertion is untouched). The runner
-    simply KNOWS what it can and cannot hold."""
+    math wherever the declared arena genuinely fits — a ≥19 GB host), and a SKIP is not a
+    PASS (it renders as SKIPPED with the RAM cost, the ``verified is True`` assertion is
+    untouched). The runner simply KNOWS what it can and cannot hold."""
     from srmech.amsc.elliptic_jackson import _cn_lhs_thetasum
     from srmech.amsc.thetasum import ThetaSum
     closed = multivariate_elliptic_jackson(a, b, c, d, x, q, N, n)      # cheap constructive
     residual = _cn_lhs_thetasum(a, b, c, d, x, q, N, n) - ThetaSum.from_ellratio(closed)
     est = residual.is_zero_ws_estimate_bytes() or 0
+    avail = _available_ram_bytes()
+    if est and avail is not None and est > avail:
+        pytest.skip(
+            f"is_zero (n={n},N={N}) verify declares ~{est / 1e9:.1f} GB ws; this runner has "
+            f"~{avail / 1e9:.1f} GB available — informed-skip via is_zero_ws_estimate_bytes "
+            f"(deterministic, not the OOM-killer lottery); the identity verifies wherever "
+            f"the declared arena fits")
     try:
         return multivariate_elliptic_jackson(a, b, c, d, x, q, N, n, verify=True)
     except MemoryError:
         pytest.skip(
             f"is_zero (n={n},N={N}) verify needs ~{est / 1e9:.1f} GB ws — this runner "
             f"cannot hold it (informed-skip via is_zero_ws_estimate_bytes; the identity is "
-            f"verified on adequate-RAM cells)")
+            f"verified wherever the declared arena fits)")
 
 
 # ── (0) back-compat: the plain call is UNCHANGED (returns the bare EllRatio) ─────────────
