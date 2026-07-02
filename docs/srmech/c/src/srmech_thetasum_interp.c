@@ -1030,13 +1030,21 @@ srmech_status_t srmech_thetasum_is_zero_interpolation(
 }
 
 /* The minimum `ws_len` BYTES srmech_thetasum_is_zero_interpolation needs for the
- * given shape. Conservative + degree-aware (max_abs_exp bounds the base-case band);
- * a shortfall on a pathological deep/wide input trips SRMECH_ERR_OVERFLOW and the
- * caller falls to the pure oracle. */
-size_t srmech_thetasum_is_zero_interpolation_ws_bound(size_t n_syms, size_t n_terms,
-                                                      size_t max_thetas,
-                                                      size_t coeff_limbs,
-                                                      size_t max_abs_exp)
+ * given shape (rc102 degree-aware sizer). `max_theta_sq_sum` is the base case's TRUE
+ * p-order band degree — `ti_deg` = the max over terms of SUM of squared THETA-argument
+ * exponents in a base variable (exactly what `ti_one_var` consumes: k = max(deg-1,0) +
+ * MARGIN). This is NOT `max_abs_exp` squared: a leaf with >=2 same-variable thetas has
+ * SUM(e^2) >> max(e^2) (the pre-rc102 max_abs_exp^2 UNDER-sized k -> SRMECH_ERR_OVERFLOW
+ * false-decline), and a canonicalized prefactor can carry a large single exponent that
+ * made max_abs_exp^2 OVER-size k. `max_abs_exp` (the largest |exponent| across ALL
+ * monomials incl. the prefactor) still bounds the w-band SPAN + prefactor offset. A
+ * shortfall on a pathological deep/wide input still trips SRMECH_ERR_OVERFLOW and the
+ * caller falls to the pure oracle. Additive symbol -> SRMECH_ABI_VERSION stays 3. */
+size_t srmech_thetasum_is_zero_interpolation_ws_bound2(size_t n_syms, size_t n_terms,
+                                                       size_t max_thetas,
+                                                       size_t coeff_limbs,
+                                                       size_t max_abs_exp,
+                                                       size_t max_theta_sq_sum)
 {
     size_t cap = (coeff_limbs < 4u) ? 4u : coeff_limbs;
     size_t ns = (n_syms == 0u) ? 1u : n_syms;
@@ -1046,8 +1054,10 @@ size_t srmech_thetasum_is_zero_interpolation_ws_bound(size_t n_syms, size_t n_te
     /* per-level term storage: two term arrays (combined + child-raw) + nodes. */
     size_t term_words = mono_words + (max_thetas + 1u) * mono_words + 32u;
     size_t level_words = 2u * nt * term_words + (max_thetas + 2u) * mono_words + 64u;
-    /* the base-case series: K1 x wb dense Q grid, three buffers. */
-    size_t k = max_abs_exp * max_abs_exp + (size_t)TI_STRUCT_MARGIN + 2u;
+    /* the base-case series: K1 x wb dense Q grid, three buffers. k mirrors ti_one_var:
+     * k = max(deg-1,0) + MARGIN <= max_theta_sq_sum + MARGIN; the +2 keeps it an UPPER
+     * bound (never under-provision). */
+    size_t k = max_theta_sq_sum + (size_t)TI_STRUCT_MARGIN + 2u;
     size_t wb = 2u * (k + 1u) * (max_thetas + 1u) * (max_abs_exp + 1u) + 4u;
     size_t base_words = 3u * (k + 1u) * wb * (2u * cap + 8u) + 256u;
     size_t scratch_words = cap * 16u + 512u;
@@ -1057,4 +1067,21 @@ size_t srmech_thetasum_is_zero_interpolation_ws_bound(size_t n_syms, size_t n_te
     assert(cap >= 4u);
     assert(total >= scratch_words);
     return total * sizeof(uint32_t);
+}
+
+/* Legacy 5-arg entry (pre-rc102). Reproduces the OLD sizing byte-for-byte by passing
+ * `max_abs_exp * max_abs_exp` as the base-case degree, so a stale ABI-3 caller / lib
+ * still links + behaves exactly as before. New callers use the degree-aware
+ * srmech_thetasum_is_zero_interpolation_ws_bound2 above (true ti_deg). Additive symbol
+ * set -> SRMECH_ABI_VERSION stays 3. */
+size_t srmech_thetasum_is_zero_interpolation_ws_bound(size_t n_syms, size_t n_terms,
+                                                      size_t max_thetas,
+                                                      size_t coeff_limbs,
+                                                      size_t max_abs_exp)
+{
+    size_t sq = max_abs_exp * max_abs_exp;
+    assert(max_abs_exp == 0u || sq / max_abs_exp == max_abs_exp);   /* no square overflow */
+    assert(sq >= max_abs_exp || max_abs_exp <= 1u);                 /* square monotone */
+    return srmech_thetasum_is_zero_interpolation_ws_bound2(
+        n_syms, n_terms, max_thetas, coeff_limbs, max_abs_exp, sq);
 }
