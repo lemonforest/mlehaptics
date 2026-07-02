@@ -35,6 +35,7 @@
 
 #include "srmech.h"
 #include "srmech_ellbase_internal.h"
+#include "srmech_platform.h"   /* PAL: srmech_plat_thread_* — the rc103 parallel peer */
 
 #include <assert.h>
 #include <stdint.h>
@@ -838,10 +839,14 @@ static srmech_status_t ti_expand(ti_ctx_t *c, ti_frame_t *fr, size_t max_thetas,
 }
 
 /* The DFS: N == 0 IFF every leaf of the interpolation tree is zero. Iterative,
- * arena-mark reclaimed (Rule 1: no recursion). Sets *out_is_zero. */
+ * arena-mark reclaimed (Rule 1: no recursion). Sets *out_is_zero. `start_offset`
+ * seeds frame 0's augment-prime offset (0 for a fresh root; the accumulated
+ * child-offset when the rc103 parallel peer resumes a REPLAYED subtree, so every
+ * augment prime on the whole root->leaf path stays globally distinct). */
 static srmech_status_t ti_decide(ti_ctx_t *c, ti_term_t *root, size_t n_root, int xsym,
-                                 int ysym, ti_frame_t *frames, size_t fcap,
-                                 size_t max_thetas, ti_scr_t *s, int *out_is_zero)
+                                 int ysym, int32_t start_offset, ti_frame_t *frames,
+                                 size_t fcap, size_t max_thetas, ti_scr_t *s,
+                                 int *out_is_zero)
 {
     long depth = 0;
     int is_leaf;
@@ -853,7 +858,7 @@ static srmech_status_t ti_decide(ti_ctx_t *c, ti_term_t *root, size_t n_root, in
     *out_is_zero = 1;
     frames[0].raw = root;
     frames[0].n_raw = n_root;
-    frames[0].offset = 0;
+    frames[0].offset = start_offset;
     frames[0].frame_mark = c->pool_cur;
     frames[0].state = 0;
     while (depth >= 0) {
@@ -1025,7 +1030,7 @@ srmech_status_t srmech_thetasum_is_zero_interpolation(
     scr.psym = psym;
     st = ti_parse(&c, terms, n_terms, term_nthetas, coeff_num, coeff_den, exps_flat);
     if (st != SRMECH_OK) { return st; }
-    return ti_decide(&c, terms, n_terms, xsym, ysym, frames, fcap, max_thetas, &scr,
+    return ti_decide(&c, terms, n_terms, xsym, ysym, 0, frames, fcap, max_thetas, &scr,
                      out_is_zero);
 }
 
@@ -1084,4 +1089,545 @@ size_t srmech_thetasum_is_zero_interpolation_ws_bound(size_t n_syms, size_t n_te
     assert(sq >= max_abs_exp || max_abs_exp <= 1u);                 /* square monotone */
     return srmech_thetasum_is_zero_interpolation_ws_bound2(
         n_syms, n_terms, max_thetas, coeff_limbs, max_abs_exp, sq);
+}
+
+/* ======================================================================== *
+ * rc103 — the CHIRALITY-PRESERVING native PARALLEL fan-out (the FIRST
+ * realization of the general parallel_independent_dispatch pattern).
+ *
+ * MODEL. Bounded-depth top-level fan-out: BFS-PEEL the top branching levels of
+ * the interpolation tree into a fixed array of independent SUB-PROBLEMS (each a
+ * root->node PATH), then run the EXISTING sequential ti_decide DFS on each task
+ * over a flat PAL worker pool (deeper recursion stays serial). AND-fold the
+ * per-task verdicts with a best-effort cancel flag (first False short-circuits,
+ * preserving the serial early-exit). Bit-identical serial fallback when the PAL
+ * has no threads OR n_workers <= 1.
+ *
+ * PATH REPLAY (why it is malloc-free + bit-identical). A task is a small integer
+ * PATH, not a stored copy of terms. A worker RE-DERIVES its sub-problem by
+ * replaying the path from the read-only wire input into its OWN arena slice —
+ * combine -> pick v (ti_pick_v) -> build the d+1 nodes (ti_build_nodes) -> subst
+ * (ti_subst_terms), the SAME deterministic functions the serial DFS uses, in the
+ * SAME order, threading the SAME augment-prime offset. So each leaf under a task
+ * is computed byte-for-byte as the serial DFS would compute it; the peel is a
+ * COMPLETE tree-frontier antichain (every branch expanded into ALL its children,
+ * leaves kept whole), so ANDing the per-task verdicts EQUALS the serial verdict —
+ * ORDER-FREE (the CHIRALITY contract: the ±-pair interpolation nodes are the two
+ * chiral halves; neither is privileged, the verdict is invariant to task /
+ * branch-node ordering). `task_order` (0 forward / 1 reverse) makes that testable.
+ *
+ * ARENA (the crux, F: DFS depth = PATH depth, not tree size). Only W (=workers)
+ * independent arena slices are needed, NOT one per task: worker w replays +
+ * decides one task at a time in slice w, then arena_init resets slice w for the
+ * next. Slices are DISJOINT contiguous sub-ranges of the caller `ws` (klein4's
+ * disjoint-slice race-freedom argument) — 0 cross-worker writes; the shared wire
+ * input is READ-ONLY. All fixed-size, no malloc (JPL Rule 3).
+ *
+ * The cancel flag is a best-effort `volatile int` (sticky 0->1). CORRECTNESS does
+ * NOT rely on it: the disjoint per-worker result slots + the thread JOIN barrier
+ * (klein4 model) are the real synchronisation; cancel only PRUNES work once the
+ * answer is already decided False, so a torn/stale read can at worst do a little
+ * extra work — never change the verdict.
+ *
+ * ABI: additive symbols only -> SRMECH_ABI_VERSION stays 3. License: MIT.
+ * ======================================================================== */
+
+#define TIP_MAX_WORKERS     32   /* worker/thread stack-array cap                */
+#define TIP_MAX_TASKS      256   /* task-frontier cap (control band is fixed)    */
+#define TIP_MAX_PEEL_DEPTH   8   /* max root->node path length peeled            */
+#define TIP_TARGET_MULT      2   /* aim for K*n_workers tasks (K=2): enough to  */
+                                 /* balance the pool while keeping the peel      */
+                                 /* SHALLOW — deeper peels redundantly re-combine */
+                                 /* shared path-prefixes (O(n_terms^2) each).    */
+
+/* One peeled sub-problem: a root->node path (nodes[0..len-1]) + a known-leaf
+ * flag (so the peel does not try to expand a leaf). len == 0 is the whole root. */
+typedef struct tip_task {
+    int32_t len;
+    int32_t terminal;
+    int32_t nodes[TIP_MAX_PEEL_DEPTH];
+} tip_task_t;
+
+/* The read-only shared wire bundle (parsed independently by each worker, exactly
+ * like klein4's shared read-only `in`). */
+typedef struct tip_wire {
+    size_t                 n_syms;
+    int                    xsym;
+    int                    ysym;
+    int                    psym;
+    size_t                 n_terms;
+    const size_t          *term_nthetas;
+    const srmech_bigint_t *coeff_num;
+    const srmech_bigint_t *coeff_den;
+    const int32_t         *exps_flat;
+    uint32_t               coeff_cap;
+    size_t                 max_thetas;
+} tip_wire_t;
+
+/* Fixed control-band bytes = the task-frontier double-buffer (two tip_task_t
+ * arrays), 8-aligned. Independent of n_workers. */
+static size_t tip_control_bytes(void)
+{
+    size_t raw = 2u * (size_t)TIP_MAX_TASKS * sizeof(tip_task_t);
+    assert(sizeof(tip_task_t) >= 8u);
+    assert(raw >= sizeof(tip_task_t));
+    return (raw + 7u) & ~(size_t)7u;
+}
+
+/* Parse the root terms ONCE into a dedicated SHARED region (its own ctx / pool),
+ * so every worker + the peel REPLAY from these read-only terms instead of
+ * re-parsing the whole wire per task (the O(n_terms*tasks) redundancy the fan-out
+ * must avoid). The region stays reserved for the whole run; the parsed terms are
+ * read-only during it (concurrent worker reads are race-free). */
+static srmech_status_t tip_parse_root(const tip_wire_t *w, void *region, size_t region_len,
+                                      ti_ctx_t *rc, ti_term_t **root)
+{
+    srmech_status_t st;
+    assert(w != NULL && rc != NULL && root != NULL);
+    assert(region != NULL || region_len == 0u);
+    rc->n_syms = (w->n_syms == 0u) ? 1u : w->n_syms;
+    rc->cap = (w->coeff_cap < 4u) ? 4u : w->coeff_cap;
+    st = ti_arena_init(rc, region, region_len);
+    if (st != SRMECH_OK) { return st; }
+    st = ti_bind_term_arr(rc, root, w->n_terms, w->max_thetas);
+    if (st != SRMECH_OK) { return st; }
+    return ti_parse(rc, *root, w->n_terms, w->term_nthetas, w->coeff_num, w->coeff_den,
+                    w->exps_flat);
+}
+
+/* Arena-init a WORKER `slice` + bind its scratch + frame array (NO parse — the
+ * worker replays from the SHARED root). The caller passes a ZEROED ctx. Each
+ * worker (and the serial peel scratch) owns its OWN disjoint slice. */
+static srmech_status_t tip_worker_setup(const tip_wire_t *w, void *slice, size_t slice_len,
+                                        ti_ctx_t *c, ti_scr_t *s, ti_frame_t **frames,
+                                        size_t *fcap)
+{
+    srmech_status_t st;
+    assert(w != NULL && c != NULL && s != NULL);
+    assert(frames != NULL && fcap != NULL);
+    c->n_syms = (w->n_syms == 0u) ? 1u : w->n_syms;
+    c->cap = (w->coeff_cap < 4u) ? 4u : w->coeff_cap;
+    *fcap = c->n_syms + 2u;
+    st = ti_arena_init(c, slice, slice_len);
+    if (st != SRMECH_OK) { return st; }
+    st = ti_bind_scr(c, s);
+    if (st == SRMECH_OK) { st = ti_bind_frames(c, frames, *fcap); }
+    if (st != SRMECH_OK) { return st; }
+    s->psym = w->psym;
+    return SRMECH_OK;
+}
+
+/* ONE peel/replay level: combine `cur`, pick the interpolation variable v, build
+ * the d+1 nodes (threading `*off`), substitute child `node_index` -> *out_next
+ * (term count unchanged). SRMECH_ERR_INTERNAL if `cur` is not a branch (<=1 var)
+ * or node_index is out of range — a malformed path (the caller declines). */
+static srmech_status_t tip_descend(ti_ctx_t *c, ti_scr_t *s, ti_term_t *cur,
+                                   size_t ncur, int32_t node_index, size_t max_thetas,
+                                   int32_t *off, ti_term_t **out_next, size_t *out_n)
+{
+    ti_term_t *comb;
+    size_t ncomb;
+    ti_mono_t *nodes;
+    int v;
+    int d;
+    int32_t used;
+    srmech_status_t st;
+    assert(c != NULL && s != NULL && off != NULL);
+    assert(out_next != NULL && out_n != NULL);
+    st = ti_combine(c, &comb, &ncomb, cur, ncur, max_thetas, s);
+    if (st != SRMECH_OK) { return st; }
+    if (ti_collect_vars(c, comb, ncomb, s) < 2u) { return SRMECH_ERR_INTERNAL; }
+    ti_pick_v(c, comb, ncomb, s, &v, &d);
+    st = ti_bind_mono_arr(c, &nodes, (size_t)d + 1u);
+    if (st != SRMECH_OK) { return st; }
+    st = ti_build_nodes(c, nodes, (size_t)d + 1u, comb, ncomb, v, *off, s, &used);
+    if (st != SRMECH_OK) { return st; }
+    *off += used;
+    if (node_index < 0 || node_index > d) { return SRMECH_ERR_INTERNAL; }
+    st = ti_subst_terms(c, out_next, comb, ncomb, v, &nodes[node_index], max_thetas, s);
+    if (st != SRMECH_OK) { return st; }
+    *out_n = ncomb;
+    return SRMECH_OK;
+}
+
+/* Replay a task PATH from `root`: descend one level per path step, accumulating
+ * the augment-prime offset. *out_cur / *out_n = the sub-problem raw terms at the
+ * path end; *out_off = the offset ti_decide must resume from. */
+static srmech_status_t tip_replay(ti_ctx_t *c, ti_scr_t *s, ti_term_t *root,
+                                  size_t n_root, const tip_task_t *task,
+                                  size_t max_thetas, ti_term_t **out_cur,
+                                  size_t *out_n, int32_t *out_off)
+{
+    ti_term_t *cur = root;
+    size_t ncur = n_root;
+    int32_t off = 0;
+    int32_t lvl;
+    srmech_status_t st;
+    assert(c != NULL && s != NULL && task != NULL);
+    assert(out_cur != NULL && out_n != NULL && out_off != NULL);
+    for (lvl = 0; lvl < task->len; lvl++) {
+        ti_term_t *nxt;
+        size_t nn;
+        st = tip_descend(c, s, cur, ncur, task->nodes[lvl], max_thetas, &off, &nxt, &nn);
+        if (st != SRMECH_OK) { return st; }
+        cur = nxt;
+        ncur = nn;
+    }
+    *out_cur = cur;
+    *out_n = ncur;
+    *out_off = off;
+    return SRMECH_OK;
+}
+
+/* Run ONE task to a verdict in `slice`: worker-setup -> replay the path from the
+ * SHARED root -> ti_decide the sub-DFS from the replayed frontier + resumed offset
+ * (bit-identical to the serial DFS at this path depth). `root` is the read-only
+ * shared parse; the worker only reads it (combine writes go to `slice`). */
+static srmech_status_t tip_run_subproblem(const tip_wire_t *w, ti_term_t *root,
+                                          size_t n_root, const tip_task_t *task,
+                                          void *slice, size_t slice_len, int *out_verdict)
+{
+    ti_ctx_t c;
+    ti_scr_t s;
+    ti_frame_t *frames;
+    size_t fcap;
+    ti_term_t *cur;
+    size_t ncur;
+    int32_t off;
+    srmech_status_t st;
+    assert(w != NULL && task != NULL && out_verdict != NULL);
+    assert(root != NULL || n_root == 0u);
+    memset(&c, 0, sizeof(c));
+    memset(&s, 0, sizeof(s));
+    st = tip_worker_setup(w, slice, slice_len, &c, &s, &frames, &fcap);
+    if (st != SRMECH_OK) { return st; }
+    st = tip_replay(&c, &s, root, n_root, task, w->max_thetas, &cur, &ncur, &off);
+    if (st != SRMECH_OK) { return st; }
+    return ti_decide(&c, cur, ncur, w->xsym, w->ysym, off, frames, fcap, w->max_thetas,
+                     &s, out_verdict);
+}
+
+/* Classify the node at a task PATH: *out_children = -1 iff it is a LEAF (empty /
+ * <=1 variable), else the branch child count d+1. Serial peel only; replays from
+ * the SHARED root in `slice` (reset each call). */
+static srmech_status_t tip_peel_count(const tip_wire_t *w, ti_term_t *root,
+                                      size_t n_root, const tip_task_t *task,
+                                      void *slice, size_t slice_len, int *out_children)
+{
+    ti_ctx_t c;
+    ti_scr_t s;
+    ti_frame_t *frames;
+    size_t fcap;
+    ti_term_t *cur;
+    ti_term_t *comb;
+    size_t ncur;
+    size_t ncomb;
+    int32_t off;
+    int v;
+    int d;
+    srmech_status_t st;
+    assert(w != NULL && task != NULL && out_children != NULL);
+    assert(root != NULL || n_root == 0u);
+    memset(&c, 0, sizeof(c));
+    memset(&s, 0, sizeof(s));
+    st = tip_worker_setup(w, slice, slice_len, &c, &s, &frames, &fcap);
+    if (st != SRMECH_OK) { return st; }
+    st = tip_replay(&c, &s, root, n_root, task, w->max_thetas, &cur, &ncur, &off);
+    if (st != SRMECH_OK) { return st; }
+    st = ti_combine(&c, &comb, &ncomb, cur, ncur, w->max_thetas, &s);
+    if (st != SRMECH_OK) { return st; }
+    if (ncomb == 0u || ti_collect_vars(&c, comb, ncomb, &s) < 2u) {
+        *out_children = -1;
+        return SRMECH_OK;
+    }
+    ti_pick_v(&c, comb, ncomb, &s, &v, &d);
+    *out_children = d + 1;
+    return SRMECH_OK;
+}
+
+/* One BFS peel level: expand each branch task in `in` into ALL its children (into
+ * `out`), keeping leaves + budget-blocked branches whole. *expanded = 1 iff any
+ * task was expanded; *ok = 0 on a peel error. Returns the new task count. */
+static size_t tip_peel_round(const tip_wire_t *w, ti_term_t *root, size_t n_root,
+                             void *slice, size_t slice_len,
+                             const tip_task_t *in, size_t n, tip_task_t *out,
+                             int *expanded, int *ok)
+{
+    size_t i;
+    size_t k = 0;
+    assert(w != NULL && in != NULL && out != NULL);
+    assert(expanded != NULL && ok != NULL);
+    for (i = 0; i < n; i++) {
+        int m;
+        srmech_status_t st;
+        if (in[i].terminal || in[i].len >= TIP_MAX_PEEL_DEPTH) { out[k++] = in[i]; continue; }
+        st = tip_peel_count(w, root, n_root, &in[i], slice, slice_len, &m);
+        if (st != SRMECH_OK) { *ok = 0; return k; }
+        if (m < 0) { out[k] = in[i]; out[k].terminal = 1; k++; continue; }
+        if (k + (size_t)m + (n - i - 1u) <= (size_t)TIP_MAX_TASKS) {
+            int j;
+            for (j = 0; j < m; j++) {
+                out[k] = in[i];
+                out[k].nodes[in[i].len] = j;
+                out[k].len = in[i].len + 1;
+                out[k].terminal = 0;
+                k++;
+            }
+            *expanded = 1;
+        } else {
+            out[k++] = in[i];
+        }
+    }
+    return k;
+}
+
+/* BFS-peel the interpolation tree into a task frontier (ping-ponging bufA/bufB;
+ * the final frontier is left in bufA). Expands until >= `target` tasks, or the
+ * depth / MAX_TASKS budget or a non-expanding round stops it. *ok = 0 on a peel
+ * error. Returns the task count. */
+static size_t tip_enumerate(const tip_wire_t *w, ti_term_t *root, size_t n_root,
+                            void *slice, size_t slice_len,
+                            size_t target, tip_task_t *bufA, tip_task_t *bufB, int *ok)
+{
+    size_t n = 1u;
+    int round;
+    assert(w != NULL && bufA != NULL && bufB != NULL);
+    assert(ok != NULL);
+    *ok = 1;
+    bufA[0].len = 0;
+    bufA[0].terminal = 0;
+    for (round = 0; round < TIP_MAX_PEEL_DEPTH; round++) {
+        size_t nn;
+        size_t i;
+        int expanded = 0;
+        if (n >= target) { break; }
+        nn = tip_peel_round(w, root, n_root, slice, slice_len, bufA, n, bufB, &expanded, ok);
+        if (!*ok) { return n; }
+        for (i = 0; i < nn; i++) { bufA[i] = bufB[i]; }
+        n = nn;
+        if (!expanded) { break; }
+    }
+    return n;
+}
+
+/* The exact SEQUENTIAL path over the WHOLE ws (parse root + ti_decide from offset
+ * 0) — bit-identical to srmech_thetasum_is_zero_interpolation. The thread-less /
+ * n_workers<=1 fallback (preserves the capability). */
+static srmech_status_t tip_serial(const tip_wire_t *w, void *ws, size_t ws_len,
+                                  int *out_is_zero)
+{
+    ti_ctx_t c;
+    ti_scr_t s;
+    ti_frame_t *frames;
+    size_t fcap;
+    ti_term_t *root;
+    srmech_status_t st;
+    assert(w != NULL && out_is_zero != NULL);
+    assert(ws != NULL || ws_len == 0u);
+    memset(&c, 0, sizeof(c));
+    memset(&s, 0, sizeof(s));
+    st = tip_worker_setup(w, ws, ws_len, &c, &s, &frames, &fcap);   /* one arena */
+    if (st != SRMECH_OK) { return st; }
+    st = ti_bind_term_arr(&c, &root, w->n_terms, w->max_thetas);
+    if (st != SRMECH_OK) { return st; }
+    st = ti_parse(&c, root, w->n_terms, w->term_nthetas, w->coeff_num, w->coeff_den,
+                  w->exps_flat);
+    if (st != SRMECH_OK) { return st; }
+    return ti_decide(&c, root, w->n_terms, w->xsym, w->ysym, 0, frames, fcap,
+                     w->max_thetas, &s, out_is_zero);
+}
+
+/* One worker's partition: process tasks {worker_id, +n_workers, ...} (through the
+ * task_order permutation), AND-folding into job->verdict; first False sets the
+ * cancel flag + stops; an error stops + is recorded (the fold declines). */
+typedef struct tip_job {
+    const tip_wire_t *w;
+    ti_term_t        *root;      /* SHARED read-only parsed root */
+    size_t            n_root;
+    const tip_task_t *tasks;
+    size_t            n_tasks;
+    uint32_t          worker_id;
+    uint32_t          n_workers;
+    uint32_t          task_order;
+    void             *slice;
+    size_t            slice_len;
+    volatile int     *cancel;
+    int               verdict;
+    srmech_status_t   status;
+} tip_job_t;
+
+static void tip_worker_run(tip_job_t *job)
+{
+    size_t t;
+    assert(job != NULL);
+    assert(job->tasks != NULL || job->n_tasks == 0u);
+    job->verdict = 1;
+    job->status = SRMECH_OK;
+    for (t = job->worker_id; t < job->n_tasks; t += job->n_workers) {
+        size_t idx = (job->task_order != 0u) ? (job->n_tasks - 1u - t) : t;
+        int v;
+        srmech_status_t st;
+        if (*job->cancel) { break; }
+        st = tip_run_subproblem(job->w, job->root, job->n_root, &job->tasks[idx],
+                                job->slice, job->slice_len, &v);
+        if (st != SRMECH_OK) { job->status = st; break; }
+        if (v == 0) { job->verdict = 0; *job->cancel = 1; break; }
+    }
+}
+
+/* PAL thread entry — a plain void(void*) job. */
+static void tip_worker_trampoline(void *arg)
+{
+    tip_job_t *job;
+    assert(arg != NULL);
+    job = (tip_job_t *)arg;
+    assert(job->w != NULL);
+    tip_worker_run(job);
+}
+
+/* Fold the finished worker jobs into the verdict: a definitive False (some worker
+ * proved a nonzero leaf) WINS over any error; else the first error declines; else
+ * all-True. Reads jobs only AFTER join (the happens-before barrier). */
+static srmech_status_t tip_fold(const tip_job_t *jobs, uint32_t nw, int *out_is_zero)
+{
+    uint32_t s;
+    srmech_status_t rc = SRMECH_OK;
+    assert(jobs != NULL && out_is_zero != NULL);
+    assert(nw >= 1u);
+    *out_is_zero = 1;
+    for (s = 0; s < nw; s++) {
+        if (jobs[s].verdict == 0) { *out_is_zero = 0; return SRMECH_OK; }
+    }
+    for (s = 0; s < nw; s++) {
+        if (jobs[s].status != SRMECH_OK) { rc = jobs[s].status; }
+    }
+    return rc;
+}
+
+/* Spawn nw workers over disjoint slices (spawn-failure runs that worker inline),
+ * join, fold. Job + handle arrays are fixed [TIP_MAX_WORKERS] stack arrays (JPL
+ * Rule 3: no malloc). `slice_len` is 8-aligned so every slice base is aligned. */
+static srmech_status_t tip_threaded(const tip_wire_t *w, ti_term_t *root, size_t n_root,
+                                    const tip_task_t *tasks,
+                                    size_t n_tasks, uint32_t nw, uint32_t task_order,
+                                    unsigned char *region, size_t region_len,
+                                    int *out_is_zero)
+{
+    tip_job_t            jobs[TIP_MAX_WORKERS];
+    srmech_plat_thread_t threads[TIP_MAX_WORKERS];
+    uint8_t              live[TIP_MAX_WORKERS] = { 0 };
+    volatile int         cancel = 0;
+    size_t               slice_len = (region_len / nw) & ~(size_t)7u;
+    uint32_t             s;
+    assert(w != NULL && tasks != NULL && out_is_zero != NULL);
+    assert(nw >= 1u && nw <= (uint32_t)TIP_MAX_WORKERS);
+    for (s = 0; s < nw; s++) {
+        jobs[s].w = w;               jobs[s].tasks = tasks;   jobs[s].n_tasks = n_tasks;
+        jobs[s].root = root;         jobs[s].n_root = n_root;
+        jobs[s].worker_id = s;       jobs[s].n_workers = nw;  jobs[s].task_order = task_order;
+        jobs[s].slice = region + (size_t)s * slice_len;       jobs[s].slice_len = slice_len;
+        jobs[s].cancel = &cancel;    jobs[s].verdict = 1;     jobs[s].status = SRMECH_ERR_INTERNAL;
+        if (srmech_plat_thread_spawn(tip_worker_trampoline, &jobs[s], &threads[s]) == SRMECH_OK) {
+            live[s] = 1u;
+        } else {
+            tip_worker_run(&jobs[s]);
+        }
+    }
+    for (s = 0; s < nw; s++) {
+        if (live[s]) { (void)srmech_plat_thread_join(&threads[s]); }
+    }
+    return tip_fold(jobs, nw, out_is_zero);
+}
+
+/* Minimum `ws_len` BYTES the parallel entry needs: a fixed control band (the task
+ * frontier) + ONE shared-root region + nw disjoint worker arena slices, each the
+ * ws_bound2 sizing plus a +50% replay margin (the peeled top levels are held
+ * simultaneously with the sub-DFS). A genuine shortfall still trips
+ * SRMECH_ERR_OVERFLOW -> the pure oracle. Additive symbol -> ABI stays 3. */
+size_t srmech_thetasum_is_zero_interpolation_parallel_ws_bound(
+    size_t n_syms, size_t n_terms, size_t max_thetas, size_t coeff_limbs,
+    size_t max_abs_exp, size_t max_theta_sq_sum, size_t n_workers)
+{
+    size_t nw = (n_workers < 1u) ? 1u
+              : (n_workers > (size_t)TIP_MAX_WORKERS ? (size_t)TIP_MAX_WORKERS : n_workers);
+    size_t slice = srmech_thetasum_is_zero_interpolation_ws_bound2(
+        n_syms, n_terms, max_thetas, coeff_limbs, max_abs_exp, max_theta_sq_sum);
+    size_t per = ((slice + slice / 2u + 4096u) + 7u) & ~(size_t)7u;
+    assert(nw >= 1u);
+    assert(per >= slice);
+    return tip_control_bytes() + per + nw * per;   /* +per = the shared-root region */
+}
+
+/* The threaded orchestration: carve `ws` into [control | shared-root | worker
+ * region], parse the root ONCE into the shared region, BFS-peel the task frontier
+ * (into the control-band double-buffer), then run the worker pool. Any layout /
+ * parse / peel shortfall falls to the exact serial path (never a wrong verdict).
+ * The worker + shared-root regions are an (nw+1)-way even split of what's left. */
+static srmech_status_t tip_dispatch(const tip_wire_t *w, uint32_t nw, uint32_t task_order,
+                                    void *ws, size_t ws_len, int *out_is_zero)
+{
+    ti_ctx_t root_ctx;
+    ti_term_t *root_terms;
+    unsigned char *base = (unsigned char *)ws;
+    tip_task_t *bufA = (tip_task_t *)ws;
+    size_t control = tip_control_bytes();
+    size_t region_len;
+    size_t unit;
+    size_t target;
+    size_t n_tasks;
+    int ok;
+    srmech_status_t st;
+    assert(w != NULL && out_is_zero != NULL);
+    assert(nw >= 2u && nw <= (uint32_t)TIP_MAX_WORKERS);
+    if (ws_len <= control) { return tip_serial(w, ws, ws_len, out_is_zero); }
+    region_len = ws_len - control;
+    unit = (region_len / ((size_t)nw + 1u)) & ~(size_t)7u;   /* [root | nw workers] */
+    if (unit == 0u) { return tip_serial(w, ws, ws_len, out_is_zero); }
+    memset(&root_ctx, 0, sizeof(root_ctx));
+    st = tip_parse_root(w, base + control, unit, &root_ctx, &root_terms);
+    if (st != SRMECH_OK) { return tip_serial(w, ws, ws_len, out_is_zero); }
+    target = (size_t)nw * (size_t)TIP_TARGET_MULT;
+    if (target > (size_t)TIP_MAX_TASKS) { target = (size_t)TIP_MAX_TASKS; }
+    n_tasks = tip_enumerate(w, root_terms, w->n_terms, base + control + unit,
+                            region_len - unit, target, bufA, bufA + TIP_MAX_TASKS, &ok);
+    if (!ok || n_tasks == 0u) { return tip_serial(w, ws, ws_len, out_is_zero); }
+    return tip_threaded(w, root_terms, w->n_terms, bufA, n_tasks, nw, task_order,
+                        base + control + unit, region_len - unit, out_is_zero);
+}
+
+/* Decide the cleared ThetaSum numerator's is_zero by the CHIRALITY-PRESERVING
+ * PARALLEL structural elliptic interpolation. Wire form + verdict are IDENTICAL
+ * to srmech_thetasum_is_zero_interpolation (the CARRIER contract: byte-for-byte
+ * the same exact-Q verdict). `n_workers` = the parallel width (clamped to
+ * [1, TIP_MAX_WORKERS]); `task_order` (0 forward / 1 reverse) exercises the
+ * order-invariance (CHIRALITY) contract. No threads OR n_workers <= 1 -> the exact
+ * serial path. Additive symbol -> ABI stays 3. */
+srmech_status_t srmech_thetasum_is_zero_interpolation_parallel(
+    size_t n_syms, int xsym, int ysym, int psym, size_t n_terms,
+    const size_t *term_nthetas, const srmech_bigint_t *coeff_num,
+    const srmech_bigint_t *coeff_den, const int32_t *exps_flat,
+    uint32_t coeff_cap, uint32_t n_workers, uint32_t task_order,
+    int *out_is_zero, void *ws, size_t ws_len)
+{
+    tip_wire_t w;
+    uint32_t nw;
+    assert(out_is_zero != NULL);
+    assert(term_nthetas != NULL || n_terms == 0u);
+    if (out_is_zero == NULL) { return SRMECH_ERR_NULL_ARG; }
+    *out_is_zero = 1;
+    if (n_terms == 0u) { return SRMECH_OK; }
+    if (term_nthetas == NULL || coeff_num == NULL || coeff_den == NULL
+            || exps_flat == NULL || ws == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    w.n_syms = n_syms;   w.xsym = xsym;   w.ysym = ysym;   w.psym = psym;
+    w.n_terms = n_terms; w.term_nthetas = term_nthetas;
+    w.coeff_num = coeff_num; w.coeff_den = coeff_den; w.exps_flat = exps_flat;
+    w.coeff_cap = coeff_cap; w.max_thetas = ti_max_thetas(term_nthetas, n_terms);
+    nw = (n_workers < 1u) ? 1u
+       : (n_workers > (uint32_t)TIP_MAX_WORKERS ? (uint32_t)TIP_MAX_WORKERS : n_workers);
+    if (!srmech_plat_has_threads() || nw == 1u) {
+        return tip_serial(&w, ws, ws_len, out_is_zero);
+    }
+    return tip_dispatch(&w, nw, task_order, ws, ws_len, out_is_zero);
 }
