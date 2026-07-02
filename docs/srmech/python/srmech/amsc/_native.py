@@ -7084,6 +7084,60 @@ def thetasum_is_zero_interpolation_c(n_syms, xsym, ysym, psym, term_nthetas, mon
     return bool(out_is_zero.value)
 
 
+def thetasum_is_zero_ws_estimate_bytes(
+        n_syms, xsym, ysym, psym, term_nthetas, monomials):
+    """The ESTIMATED sequential ``is_zero`` interpolation arena in BYTES for this cleared
+    ThetaSum numerator — the RAM the exact structural-interpolation decision WOULD
+    allocate — computed WITHOUT allocating it (reuses the rc102 degree-aware C sizer
+    ``srmech_thetasum_is_zero_interpolation_ws_bound2``; NO new C op). This is the
+    "inform, don't LIMIT" primitive: a memory-constrained / edge caller queries the cost
+    BEFORE calling ``is_zero`` on a heavy elliptic residual (the hardest Frenkel–Turaev
+    ₁₀E₉ cases reach tens of GB), so it KNOWS what is and is not holdable. It never caps
+    the op — the estimate only informs. Returns ``None`` on a pure / pre-rc102 build (no
+    native sizer); ``0`` for an empty numerator (trivially zero, no arena).
+
+    The sizing derivation is IDENTICAL to :func:`thetasum_is_zero_interpolation_c` (same
+    cl / max_abs_exp / max_theta_sq_sum), so the estimate equals what that peer allocates."""
+    if not has_native_thetasum_interpolation():
+        return None
+    _ws2 = getattr(LIB, "srmech_thetasum_is_zero_interpolation_ws_bound2", None)
+    if _ws2 is None:
+        return None
+    n_terms = len(term_nthetas)
+    if n_terms == 0:
+        return 0
+    max_thetas = max(term_nthetas) if term_nthetas else 0
+    cl = 1
+    max_abs_exp = 1
+    for num, den, exps in monomials:
+        cl = max(cl, len(str(num).lstrip("-")) // 9 + 2, len(str(den)) // 9 + 2)
+        for e in exps:
+            ae = int(e)
+            ae = ae if ae >= 0 else -ae
+            if ae > max_abs_exp:
+                max_abs_exp = ae
+    max_theta_sq_sum = 0
+    _mi = 0
+    for _nt in term_nthetas:
+        _mi += 1  # skip the term's prefactor monomial (ti_deg sums THETA args only)
+        _per_var = [0] * n_syms
+        for _ti in range(_nt):
+            _exps_row = monomials[_mi][2]
+            for _vi, _e in enumerate(_exps_row):
+                _ie = int(_e)
+                _per_var[_vi] += _ie * _ie
+            _mi += 1
+        if _per_var:
+            _m = max(_per_var)
+            if _m > max_theta_sq_sum:
+                max_theta_sq_sum = _m
+    cl = cl * (max_thetas + 4) * (max_abs_exp + 2) + 16
+    return int(_ws2(
+        ctypes.c_size_t(n_syms), ctypes.c_size_t(n_terms),
+        ctypes.c_size_t(max_thetas), ctypes.c_size_t(cl),
+        ctypes.c_size_t(max_abs_exp), ctypes.c_size_t(max_theta_sq_sum)))
+
+
 # ----------------------------------------------------------------------
 # rc103: srmech_thetasum_is_zero_interpolation_parallel — the CHIRALITY-PRESERVING
 # native parallel fan-out for the structural-interpolation is_zero (the FIRST

@@ -920,6 +920,25 @@ class ThetaSum:
         except (RuntimeError, OverflowError, ValueError):
             return None
 
+    def is_zero_ws_estimate_bytes(self) -> "int | None":
+        """The ESTIMATED memory (BYTES) the exact structural-interpolation :attr:`is_zero`
+        decision would allocate for this ThetaSum's cleared numerator — computed WITHOUT
+        allocating it (reuses the rc102 C sizer; no new C op). The **"inform, don't LIMIT"**
+        query: a memory-constrained / edge caller checks the cost BEFORE deciding a heavy
+        elliptic residual (the hardest Frenkel–Turaev ₁₀E₉ cases size to tens of GB), so it
+        KNOWS what is and is not holdable on its hardware. ``is_zero`` itself is NEVER capped
+        by this — it runs wherever the arena fits; the estimate only informs the caller.
+
+        Returns the byte estimate, ``0`` for a numerator that clears to trivially zero (no
+        arena), or ``None`` on a pure / pre-rc102 build (the native sizer is absent — the
+        cost cannot be estimated, and the complete pure oracle decides regardless)."""
+        marshalled = self._is_zero_c_marshal()
+        if marshalled is None:
+            return 0
+        n_syms, xsym, ysym, psym, term_nthetas, monomials = marshalled
+        return _nat.thetasum_is_zero_ws_estimate_bytes(
+            n_syms, xsym, ysym, psym, term_nthetas, monomials)
+
     def __eq__(self, other) -> bool:
         if other is self:
             return True
