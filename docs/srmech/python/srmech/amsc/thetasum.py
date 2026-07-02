@@ -733,8 +733,15 @@ class ThetaSum:
         # pure-Python :meth:`_is_zero_interpolation`, so its verdict is trusted
         # DIRECTLY — True AND False. It returns ``None`` only when absent OR when it
         # declines (SRMECH_ERR_OVERFLOW: the caller arena / coeff cap outgrown), in
-        # which case we fall through to the complete pure path below.
-        ci = self._is_zero_interpolation_c()
+        # which case we fall through to the complete pure path below. The rc103
+        # CHIRALITY-PRESERVING parallel peer is OPT-IN (env
+        # ``SRMECH_THETASUM_PARALLEL_ISZERO``): it returns the BYTE-FOR-BYTE same
+        # verdict as the sequential peer, so the default dispatch is correct either
+        # way (parallel → sequential → pure).
+        import os as _os
+        _par = _os.environ.get("SRMECH_THETASUM_PARALLEL_ISZERO", "") not in (
+            "", "0", "false", "False", "no", "off")
+        ci = self._is_zero_interpolation_c(parallel=_par)
         if ci is not None:
             return ci
         # No complete peer (or it declined): the native ±-pair peer is SOUND (a ``True``
@@ -879,20 +886,34 @@ class ThetaSum:
         return (n_syms, idx.get(_X, -1), idx.get(_Y, -1), idx.get(_P, -1),
                 term_nthetas, monomials)
 
-    def _is_zero_interpolation_c(self) -> "bool | None":
+    def _is_zero_interpolation_c(self, parallel: bool = False) -> "bool | None":
         """Dispatch the COMPLETE structural elliptic-interpolation ``is_zero`` decision
         to the native ``srmech_thetasum_is_zero_interpolation`` C peer → the bool verdict
         (trusted True AND False — a 1:1 mirror of :meth:`_is_zero_interpolation`), or
         ``None`` when the native symbols are absent OR the peer declines (a
         ``SRMECH_ERR_OVERFLOW`` size-guard trip → the caller falls to the complete pure
         path). Keeps ``is_zero`` a TOTAL function: a native size-guard never crashes the
-        decision, it degrades to the exact pure oracle."""
-        if not _nat.has_native_thetasum_interpolation():
-            return None
+        decision, it degrades to the exact pure oracle.
+
+        ``parallel=True`` opts in to the rc103 CHIRALITY-PRESERVING parallel peer
+        (``srmech_thetasum_is_zero_interpolation_parallel``) — an ACCELERATOR whose
+        verdict is BYTE-FOR-BYTE the sequential peer's; on a ``None`` (absent / decline)
+        it falls to the sequential peer, then the pure oracle. So the verdict is
+        identical whether or not the parallel peer is used."""
         marshalled = self._is_zero_c_marshal()
         if marshalled is None:
             return True
         n_syms, xsym, ysym, psym, term_nthetas, monomials = marshalled
+        if parallel and _nat.has_native_thetasum_interpolation_parallel():
+            try:
+                pv = _nat.thetasum_is_zero_interpolation_parallel_c(
+                    n_syms, xsym, ysym, psym, term_nthetas, monomials)
+            except (RuntimeError, OverflowError, ValueError):
+                pv = None
+            if pv is not None:
+                return pv
+        if not _nat.has_native_thetasum_interpolation():
+            return None
         try:
             return _nat.thetasum_is_zero_interpolation_c(
                 n_syms, xsym, ysym, psym, term_nthetas, monomials)

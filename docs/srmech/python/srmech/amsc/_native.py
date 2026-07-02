@@ -2757,6 +2757,37 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_thetasum_is_zero_interpolation.restype = ctypes.c_int
 
+    # rc103: srmech_thetasum_is_zero_interpolation_parallel — the CHIRALITY-
+    # PRESERVING native parallel fan-out (the first parallel_independent_dispatch
+    # realization). ACCELERATOR ONLY: the verdict is BYTE-FOR-BYTE the sequential
+    # interpolation verdict; Python stays the sequential oracle (GIL — no Python
+    # parallel peer). Same wire form as the sequential entry + n_workers + task_order.
+    #   size_t srmech_thetasum_is_zero_interpolation_parallel_ws_bound(
+    #       n_syms, n_terms, max_thetas, coeff_limbs, max_abs_exp,
+    #       max_theta_sq_sum, n_workers)
+    if hasattr(lib, "srmech_thetasum_is_zero_interpolation_parallel_ws_bound"):
+        lib.srmech_thetasum_is_zero_interpolation_parallel_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t,
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_thetasum_is_zero_interpolation_parallel_ws_bound.restype = (
+            ctypes.c_size_t)
+    if hasattr(lib, "srmech_thetasum_is_zero_interpolation_parallel"):
+        _tbi3 = ctypes.POINTER(_SrmechBigint)
+        lib.srmech_thetasum_is_zero_interpolation_parallel.argtypes = [
+            ctypes.c_size_t,                     # n_syms
+            ctypes.c_int, ctypes.c_int, ctypes.c_int,  # xsym, ysym, psym
+            ctypes.c_size_t,                     # n_terms
+            ctypes.POINTER(ctypes.c_size_t),     # term_nthetas
+            _tbi3, _tbi3,                        # coeff_num, coeff_den (flat)
+            ctypes.POINTER(ctypes.c_int32),      # exps_flat
+            ctypes.c_uint32,                     # coeff_cap
+            ctypes.c_uint32,                     # n_workers
+            ctypes.c_uint32,                     # task_order (0 fwd / 1 rev)
+            ctypes.POINTER(ctypes.c_int),        # out_is_zero
+            ctypes.c_void_p, ctypes.c_size_t,    # ws, ws_len
+        ]
+        lib.srmech_thetasum_is_zero_interpolation_parallel.restype = ctypes.c_int
+
     # rc64: srmech_ellratio_is_elliptic — the C peer of the EllRatio carrier's
     # is_elliptic (the BALANCING / very-well-poised predicate = pshift() == self). The
     # canonical EllRatio rides as the interned symbol-table dimension + the x/p indices
@@ -7018,6 +7049,122 @@ def thetasum_is_zero_interpolation_c(n_syms, xsym, ysym, psym, term_nthetas, mon
     if rc != SRMECH_OK:
         raise RuntimeError(
             f"srmech_thetasum_is_zero_interpolation returned non-OK status {rc}")
+    return bool(out_is_zero.value)
+
+
+# ----------------------------------------------------------------------
+# rc103: srmech_thetasum_is_zero_interpolation_parallel — the CHIRALITY-PRESERVING
+# native parallel fan-out for the structural-interpolation is_zero (the FIRST
+# parallel_independent_dispatch realization). ACCELERATOR ONLY: the verdict is
+# BYTE-FOR-BYTE the sequential interpolation verdict; Python stays the sequential
+# oracle (GIL — no Python parallel peer). Same wire form + sizing derivation as
+# thetasum_is_zero_interpolation_c; the per-worker arena slices are sized by the
+# SAME ws_bound2 shape args (rolled up by the parallel ws sizer).
+# ----------------------------------------------------------------------
+
+
+def has_native_thetasum_interpolation_parallel() -> bool:
+    """True iff the rc103 srmech_thetasum_is_zero_interpolation_parallel op + its ws
+    sizer + the srmech_bigint decimal-marshal helpers are loaded + bound. False on a
+    no-C or pre-rc103 lib — the sequential interpolation peer (and the pure oracle)
+    is then the decider."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (all(hasattr(LIB, s) for s in _THETASUM_INTERP_SYMS)
+            and hasattr(LIB, "srmech_thetasum_is_zero_interpolation_parallel")
+            and hasattr(LIB, "srmech_thetasum_is_zero_interpolation_parallel_ws_bound"))
+
+
+def thetasum_is_zero_interpolation_parallel_c(
+        n_syms, xsym, ysym, psym, term_nthetas, monomials,
+        n_workers=None, task_order=0):
+    """Native CHIRALITY-PRESERVING PARALLEL structural-interpolation ThetaSum.is_zero
+    decision → ``bool`` (BYTE-FOR-BYTE the sequential interpolation verdict, True AND
+    False), or ``None`` if the native symbols are absent OR the peer declined
+    (SRMECH_ERR_OVERFLOW → the caller falls to the sequential peer, then the pure
+    oracle). ACCELERATOR only; Python stays the sequential oracle. ``n_workers``
+    defaults to min(os.cpu_count(), 32); ``task_order`` (0 forward / 1 reverse)
+    exercises the fan-out ORDER-INVARIANCE — it never changes the verdict."""
+    if not has_native_thetasum_interpolation_parallel():
+        return None
+    n_terms = len(term_nthetas)
+    if n_terms == 0:
+        return True
+    if n_workers is None:
+        import os as _os
+        n_workers = min(_os.cpu_count() or 1, 32)
+    n_workers = max(1, min(int(n_workers), 32))
+    max_thetas = max(term_nthetas) if term_nthetas else 0
+    # sizing — IDENTICAL derivation to thetasum_is_zero_interpolation_c (each worker
+    # slice is the same ws_bound2 shape; the parallel sizer rolls up nw slices + the
+    # fixed control band).
+    cl = 1
+    max_abs_exp = 1
+    for num, den, exps in monomials:
+        cl = max(cl, len(str(num).lstrip("-")) // 9 + 2, len(str(den)) // 9 + 2)
+        for e in exps:
+            ae = int(e)
+            ae = ae if ae >= 0 else -ae
+            if ae > max_abs_exp:
+                max_abs_exp = ae
+    max_theta_sq_sum = 0
+    _mi = 0
+    for _nt in term_nthetas:
+        _mi += 1  # skip the term's prefactor monomial (ti_deg sums THETA args only)
+        _per_var = [0] * n_syms
+        for _ti in range(_nt):
+            _exps_row = monomials[_mi][2]
+            for _vi, _e in enumerate(_exps_row):
+                _ie = int(_e)
+                _per_var[_vi] += _ie * _ie
+            _mi += 1
+        if _per_var:
+            _m = max(_per_var)
+            if _m > max_theta_sq_sum:
+                max_theta_sq_sum = _m
+    cl = cl * (max_thetas + 4) * (max_abs_exp + 2) + 16
+    out_cap = cl
+    ws_len = int(LIB.srmech_thetasum_is_zero_interpolation_parallel_ws_bound(
+        ctypes.c_size_t(n_syms), ctypes.c_size_t(n_terms),
+        ctypes.c_size_t(max_thetas), ctypes.c_size_t(cl),
+        ctypes.c_size_t(max_abs_exp), ctypes.c_size_t(max_theta_sq_sum),
+        ctypes.c_size_t(n_workers)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    n_mono = len(monomials)
+    num_arr = (_SrmechBigint * max(n_mono, 1))()
+    den_arr = (_SrmechBigint * max(n_mono, 1))()
+    keep = []
+    exps_flat = []
+    for i, (num, den, exps_row) in enumerate(monomials):
+        bn, kbn = _bigint_from_int(int(num), out_cap)
+        bd, kbd = _bigint_from_int(int(den), out_cap)
+        num_arr[i] = bn
+        den_arr[i] = bd
+        keep.append(kbn)
+        keep.append(kbd)
+        if len(exps_row) != n_syms:
+            raise ValueError(
+                "thetasum_is_zero_interpolation_parallel_c: exps row length != n_syms")
+        exps_flat.extend(int(e) for e in exps_row)
+    exps_c = (ctypes.c_int32 * max(len(exps_flat), 1))(*exps_flat)
+    nthetas_c = (ctypes.c_size_t * n_terms)(*[int(t) for t in term_nthetas])
+    out_is_zero = ctypes.c_int(0)
+    rc = LIB.srmech_thetasum_is_zero_interpolation_parallel(
+        ctypes.c_size_t(n_syms),
+        ctypes.c_int(xsym), ctypes.c_int(ysym), ctypes.c_int(psym),
+        ctypes.c_size_t(n_terms), nthetas_c,
+        num_arr, den_arr, exps_c,
+        ctypes.c_uint32(out_cap),
+        ctypes.c_uint32(n_workers), ctypes.c_uint32(int(task_order)),
+        ctypes.byref(out_is_zero),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    if rc == SRMECH_ERR_OVERFLOW:
+        return None
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            "srmech_thetasum_is_zero_interpolation_parallel returned non-OK "
+            f"status {rc}")
     return bool(out_is_zero.value)
 
 

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc102"
-#define SRMECH_VERSION       "0.9.0rc102"
+#define SRMECH_VERSION_PRE   "rc103"
+#define SRMECH_VERSION       "0.9.0rc103"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4396,6 +4396,46 @@ srmech_status_t srmech_thetasum_is_zero_interpolation(
     const size_t *term_nthetas, const srmech_bigint_t *coeff_num,
     const srmech_bigint_t *coeff_den, const int32_t *exps_flat,
     uint32_t coeff_cap, int *out_is_zero, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_thetasum_is_zero_interpolation_parallel — the rc103 CHIRALITY-
+ * PRESERVING native PARALLEL fan-out for the structural elliptic-interpolation
+ * is_zero (the FIRST realization of the general parallel_independent_dispatch
+ * pattern). Peels the top branching levels of the interpolation tree into
+ * independent sub-problems, runs the EXISTING sequential ti_decide DFS on each
+ * over a PAL worker pool (deeper recursion stays serial), AND-folds with a
+ * best-effort cancel flag (first False short-circuits, preserving the serial
+ * early-exit); bit-identical serial fallback when the PAL has no threads OR
+ * n_workers <= 1.
+ *
+ * TWO first-class CONTRACTS: (1) CARRIER — the verdict is BYTE-FOR-BYTE the
+ * srmech_thetasum_is_zero_interpolation verdict (exact-Q, no float); (2)
+ * CHIRALITY — the fan-out is ORDER-FREE (the interpolation +/- -pairs are the two
+ * chiral halves): the verdict is invariant to the task enumeration/scheduling
+ * order, neither chirality privileged. `task_order` (0 forward / 1 reverse) exists
+ * to make the order-invariance contract testable. Does NOT lift the fundamental
+ * n=2/N=2 wall (the documented frontier). Additive symbol -> ABI stays 3. ---- */
+
+/* Minimum `ws_len` BYTES the parallel entry needs for the given shape + width:
+ * a fixed control band (the task frontier) + n_workers disjoint arena slices
+ * (each the ws_bound2 sizing + a replay margin). See the ws_bound2 doc for the
+ * degree-aware sizing args. Additive symbol -> SRMECH_ABI_VERSION stays 3. */
+size_t srmech_thetasum_is_zero_interpolation_parallel_ws_bound(
+    size_t n_syms, size_t n_terms, size_t max_thetas, size_t coeff_limbs,
+    size_t max_abs_exp, size_t max_theta_sq_sum, size_t n_workers);
+
+/* Decide the cleared ThetaSum numerator's is_zero by the CHIRALITY-PRESERVING
+ * PARALLEL structural elliptic interpolation. Wire form + verdict IDENTICAL to
+ * srmech_thetasum_is_zero_interpolation. `n_workers` = the parallel width (clamped
+ * to [1, 32]); `task_order` = 0 (forward) / 1 (reverse) task enumeration — the
+ * verdict is invariant either way. *out_is_zero = 1 iff == 0. Caller arena `ws`
+ * (size via ..._parallel_ws_bound). A too-small arena -> SRMECH_ERR_OVERFLOW. */
+srmech_status_t srmech_thetasum_is_zero_interpolation_parallel(
+    size_t n_syms, int xsym, int ysym, int psym, size_t n_terms,
+    const size_t *term_nthetas, const srmech_bigint_t *coeff_num,
+    const srmech_bigint_t *coeff_den, const int32_t *exps_flat,
+    uint32_t coeff_cap, uint32_t n_workers, uint32_t task_order,
+    int *out_is_zero, void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_ellratio_is_elliptic — the C peer of the EllRatio carrier's is_elliptic
