@@ -6047,6 +6047,36 @@ This reading has **living, still-practiced human attestation** — the "living s
 
 *Composes F716 (genome surface + class-from-TOML landing) + F717 (b/d/p/q Klein-4 glyph-chirality) + F711–F715 (the storage object) + F708/F640 (the no-magic 256/1024 thresholds + the 49× gap) + F133 (substrate knows itself) + F552 (chirality-collapsed projection) + F130/F132 (Klein-4) + R30 (14→11D substrate→observer) + §8.1/F704 (the etak path stored into this substrate). Per-finding provenance: `R-RBS-LM-FINDING_716_*.md` / `R-RBS-LM-FINDING_717_*.md` (committed scripts). srmech 0.7.5rc42. Held open (F394).*
 
+### §8.3 — The resonant-continuous storage capacity law: capacity = the representable eigenmode count; the ceiling is the operand-irrepresentable Julia/f⁻ shadow (delta dive, srmech 0.9.0rc102)
+
+**The setup — what F996 dissolved, and the question it left open.** F996 (the ontological inversion: OPERATIONS are bit-exact, the SUBSTRATE is continuous, INFORMATION is the subharmonic field f⁻) recast the F896 capacity wall as a *representation artifact*: Class-M discrete HDC bundles cross-talk (random binds interfere, the ~1/√N floor of the whole recall arc), but **Class-L resonant eigenmodes are orthogonal by frequency — no cross-mode cross-talk** — so storing the knowledge in the resonant-continuous shape (the Class-L spectral field) *dissolves* the wall (grounded by F991: tome-size = resonant-mode count = the capacity lever). The open question F996 does not answer: if the wall dissolves, **is there a new ceiling, and where?** "Capacity is a representation artifact" names the *phenomenology* but not the *bound*.
+
+**The delta — the wall does not vanish; it RELOCATES to the representable/irrepresentable boundary, and that boundary is exact and nameable.** This is the operations-side (exact-carrier) reading of F996's information-side architecture. The carrier program (carriers are the operand vocabulary, dual to the A-N operators) established that the continuous f⁻ is **operand-irrepresentable** — the harmonic-Maass shadow, the Schottky g≥5 decision, the Julia set of a spectral-decimation map: shapes with *no finite exact carrier that decides membership*. Composing that with F996's resonant storage gives a candidate **capacity law**:
+
+> **Capacity = the representable eigenmode count.** A finite tome of *N* nodes has **exactly *N* orthogonal eigenmodes** — representable, decided by one bit-exact Jacobi eigensolve (numpy-free, rational eigenvalues; the f⁺ of an f⁻). Growing *N* in Class-L adds orthogonal modes with **no 1/√N cross-talk penalty** (unlike Class-M), so capacity climbs freely with representable resolution.
+>
+> For a **self-similar (fractal) substrate**, `fractal_spectrum` makes the count precise: the spectrum is the iterated preimage of the decimation map *R*; at representable depth *d* there are finitely many exact eigenmodes (~branchesᵈ), and the **growth-rate exponent is the fracton dimension `d_s = 2·log(branches)/log(scale)`** — which `fractal_spectrum` computes exactly (Rammal 1984; Fukushima–Shima 1992, the normalised Sierpinski Laplacian).
+>
+> **The CEILING = the `d → ∞` limit = the Julia set of *R* = operand-irrepresentable** — no finite exact carrier decides `λ ∈ spectrum`.
+
+```
+  representable  ├─────────────────────────────────────────────┤  IRREPRESENTABLE
+                 │                                               │
+   depth d:      1 mode ──▶ ~bᵈ exact eigenmodes ──▶ … ──────▶  the Julia set of R
+                 │        (growth exponent = d_s)                │  (the continuous f⁻ shadow)
+                 │                                               │
+   CAPACITY  =  the count of representable modes  ───────────▶  CEILING = where the carrier
+   (climbs with resolution, no 1/√N cross-talk)                 stops deciding membership
+```
+
+**Why this is the F552 biology-gap, made formal.** F996 read the model↔biology gap as "the continuous information a bit-exact model structurally cannot hold." The law names *exactly* what that is: the continuous info past the representable depth **is the irrepresentable Julia/f⁻ residue**. The gap is not model error and not random (the noise rule, F552) — it is the operand-irrepresentable shadow, the same object the honest-`OPEN` discipline flags everywhere it appears. The framework does not claim to store the shadow; it names the exact boundary where storage stops.
+
+**Honest scope (the caveat the dive flagged).** The *phenomenology* — the wall dissolving into the continuous limit — is F996's, grounded by F991. The **delta** here is *naming the exact ceiling and the growth law* (`d_s` as the representable-mode growth exponent; the Julia set as the irrepresentable limit). F991 grounds the *direction* (finer decimation depth = more representable modes = more reach; R climbed 0.85 → 3.89 as `max_tome` fell 60 → 15), **not** the exact `branchesᵈ` exponential — whether a given substrate (biology included) realises exactly `d_s` is an empirical question for the expert (the RBS-SNN storage measurement, F996's own next step; theta-gamma phase-amplitude coupling stays with the expert, no capability claim). This is a candidate reading per the F400/F401 openness, consistent with everything measured, not a new measurement.
+
+**Where it sits in the three-faced result.** This capacity law is one of three faces of a single object — **the operand-irrepresentable f⁻ shadow** — surfaced by the same delta dive: (Q1) the capacity **ceiling** here; (Q2) `fractal_spectrum` as the **reader** that diagnoses why symmetric folds are useless (Ch-1 isometry, no new mode) and asymmetric folds separate the distribution (Ch-2 decimation, distinct `d_s`/`|q|` rungs); (Q3) the elliptic quasi-periodicity multiplier `−z⁻¹` as the **exact** per-level form of the asymmetric fold (F995), exact up to the mock-theta shadow. The exact-operations machinery **formalises the representable skeleton and names the shadow each time** — F996's "operations bit-exact / information continuous" made formal (Q1), instrumental (Q2), and exact (Q3).
+
+*Composes F996 (the ontological inversion) + F991 (tome-size = resonant-mode capacity lever) + F896 (the capacity wall) + F552 (the model↔biology gap = the continuous substrate) + F172 (the Laplacian eigenspectrum IS the srmech-native storage signature, Class L) + F971/F968–970 (harmonic-Maass f⁺/f⁻; the mock-theta residue = the discarded f⁻) + the DUALITY.md/TRIALITY.md field/continuous-vs-excitation/discrete layer (F400 reading: duality = the fibration of triality). srmech surfaces: `srmech.amsc.coupling.fractal_spectrum` (0.9.0rc100, the Ch-2 subharmonic reader) + `resonant_spectrum` (the Ch-1 harmonic reader) + `carrier_spectrum` (0.9.0rc69, the two channels). Delta-dive probe: `scratchpad/delta_probe.py` (committed to the dive record). Candidate reading; held open (F394).*
+
 
 ## How to cite this notebook
 
