@@ -52,11 +52,34 @@ formula," arXiv:math/0101073 [math.CA], Theorem 2.1 (Eq. 5) + Lemma 2.2.
 
 from __future__ import annotations
 
+import itertools
 from typing import List
 
 from .ellbase import EllMonomial, EllRatio, Theta
 
 __all__ = ["multivariate_elliptic_jackson"]
+
+# The per-call VERIFY feasibility cap — a TERM-COUNT cap on the n-fold Cₙ sum.
+# The symbolic proof builds the LHS as a sum over the ``C(N+n, n)`` partitions
+# ``Λ_{nN} = {N ≥ λ₁ ≥ … ≥ λₙ ≥ 0}`` and decides ``(LHS − RHS).is_zero`` via the
+# rc98/rc99 COMPLETE multi-variable elliptic decision. That decision is the exact
+# STRUCTURAL elliptic-interpolation recursion (Rosengren Prop 1.6.1) whose cost
+# grows super-exponentially with the residual's per-variable theta-degree — which
+# in turn grows with BOTH the rank ``n`` (cross-variable root-system coupling) and
+# the ceiling ``N`` (the λ-range → q/x powers). Empirically (measured against the
+# rc99 native interpolation peer AND the pure-Python oracle) the decision is fast
+# (< 0.5 s) for every ``(n, N)`` with ``C(N+n, n) ≤ 4`` — the set
+# ``{(1,1), (1,2), (1,3), (2,1), (3,1)}`` — and INFEASIBLE beyond it: the native
+# peer declines on ``SRMECH_ERR_OVERFLOW`` (a caller-arena / coefficient-cap trip;
+# a cap large enough to decide needs multi-GB workspace) and the pure oracle does
+# not finish in > 9 min (e.g. n=2/N=2 has a residual of interpolation-degree ~74
+# in q). So the honest per-call proof is capped at the measured frontier; a sum
+# above it returns ``verified=None`` ("not verified — sum too large to decide
+# in-budget"), NEVER hanging. The constructive closed form (the MPM-verified
+# Rosengren Thm 2.1 RHS, proven at build for the whole Theorem 2.1 family) is
+# returned either way — the ``None`` is an honest "per-call proof not attempted",
+# NOT a failure and NOT a claim the identity is false.
+_VERIFY_MAX_PARTITIONS: int = 4
 
 
 def _coerce_monomial(v, what: str) -> EllMonomial:
@@ -66,7 +89,8 @@ def _coerce_monomial(v, what: str) -> EllMonomial:
         f"multivariate_elliptic_jackson: {what} must be an EllMonomial; got {v!r}")
 
 
-def multivariate_elliptic_jackson(a, b, c, d, x, q, N: int, n: int) -> EllRatio:
+def multivariate_elliptic_jackson(a, b, c, d, x, q, N: int, n: int, *,
+                                  verify: bool = False):
     """Reduce the balanced Cₙ elliptic Jackson summation (Rosengren Thm 2.1, Eq 5) to its
     closed-form theta-quotient product, returned as an exact
     :class:`~srmech.amsc.ellbase.EllRatio`:
@@ -87,6 +111,28 @@ def multivariate_elliptic_jackson(a, b, c, d, x, q, N: int, n: int) -> EllRatio:
     rc94's ``srmech_elliptic_cauchy_determinant``); the native EllRatio is trusted ONLY after
     it is rebuilt and confirmed ``==`` the pure-Python EllRatio (which is the COMPLETE
     alternative + the C peer's parity oracle); otherwise the pure result is returned.
+
+    ``verify`` (default ``False`` — back-compat: the plain call returns the bare
+    :class:`EllRatio`). When ``True``, this becomes a VERIFIED reducer (rc101): it also
+    PROVES the reduction per call and returns a dict::
+
+        {"closed_form": <EllRatio>, "verified": True | False | None}
+
+    The proof is EXACT (not numeric): it builds the LHS n-fold Cₙ very-well-poised sum over
+    the partitions ``Λ_{nN}`` SYMBOLICALLY as a :class:`~srmech.amsc.thetasum.ThetaSum`,
+    subtracts this constructive closed form, and calls ``.is_zero`` — the rc98/rc99 COMPLETE
+    multi-variable elliptic decision (structural elliptic interpolation). ``verified`` is
+    ``True`` when the residual is provably ``≡ 0`` (the closed form EQUALS the sum), ``False``
+    if not (the check discriminates — a wrong/perturbed closed form is caught). It is
+    ``None`` — an HONEST "not verified: the sum is too large to decide in-budget", NOT a
+    failure and NOT a claim the identity is false — when the term-count of the n-fold sum
+    (``C(N+n, n)`` partitions) exceeds :data:`_VERIFY_MAX_PARTITIONS`, the measured
+    feasibility frontier of the ``is_zero`` decision (see that constant's note). The
+    constructive ``closed_form`` (the MPM-verified Thm 2.1 RHS) is returned in EVERY case, so
+    the ``None`` path never hangs and never withholds the reduction. This upgrades the Cₙ
+    reducer from CONSTRUCTIVE (rc96) to per-call VERIFIED using the rc98/rc99 complete
+    ``ThetaSum.is_zero`` — the F929 discipline (a reduction is claimed only when proven) made
+    executable one root-system rank above the ₈ω₇ ``elliptic_wz_certificate``.
     """
     aa = _coerce_monomial(a, "a")
     bb = _coerce_monomial(b, "b")
@@ -102,9 +148,113 @@ def multivariate_elliptic_jackson(a, b, c, d, x, q, N: int, n: int) -> EllRatio:
         raise ValueError(f"multivariate_elliptic_jackson: n must be >= 1; got {n}")
     pure = _multivariate_elliptic_jackson_py(aa, bb, cc, dd, xx, qq, N, n)
     native = _multivariate_elliptic_jackson_c(aa, bb, cc, dd, xx, qq, N, n)
-    if native is not None and native == pure:
-        return native
-    return pure
+    closed = native if (native is not None and native == pure) else pure
+    if not verify:
+        return closed
+    verified = _verify_cn_reduction(aa, bb, cc, dd, xx, qq, N, n, closed)
+    return {"closed_form": closed, "verified": verified}
+
+
+def _num_partitions(N: int, n: int) -> int:
+    """The exact number of partitions in ``Λ_{nN} = {N ≥ λ₁ ≥ … ≥ λₙ ≥ 0}`` — the
+    term-count of the n-fold Cₙ sum, ``C(N+n, n)``. Pure integer arithmetic (no float,
+    no ``math``): the multiplicative binomial, computed in exact ``int``."""
+    k = n if n <= N else N
+    num = 1
+    den = 1
+    for i in range(k):
+        num *= (N + n - i)
+        den *= (i + 1)
+    return num // den
+
+
+def _cn_lhs_thetasum(aa: EllMonomial, bb: EllMonomial, cc: EllMonomial, dd: EllMonomial,
+                     xx: EllMonomial, qq: EllMonomial, N: int, n: int):
+    """Build the LHS of Rosengren Thm 2.1 — the n-fold Cₙ very-well-poised elliptic sum over
+    the partitions ``Λ_{nN} = {N ≥ λ₁ ≥ … ≥ λₙ ≥ 0}`` — SYMBOLICALLY as an exact
+    :class:`~srmech.amsc.thetasum.ThetaSum` (the ADDITIVE theta carrier). This is the exact
+    symbolic twin of the NUMERIC ``_cn_sum`` oracle in
+    ``tests/test_multivariate_elliptic_jackson_rc96.py`` (same summand structure, built over
+    the modified-theta algebra instead of an ℚ eval): each theta-Pochhammer
+    ``(u; q, p)_k = ∏_{i=0}^{k-1} θ(u·qⁱ)`` is a PRODUCT of :class:`Theta` factors (not the
+    ``(1-u)…`` numeric form); ``_E(z) = θ(z)`` a single :class:`Theta`; the balancing
+    ``e = a²·q^{N+1}/(b·c·d·x^{n-1})`` an :class:`EllMonomial`; the per-term monomial
+    prefactor ``∏_i q^{λᵢ}·x^{2(i-1)λᵢ}`` folded into the :class:`EllRatio` prefactor (sign =
+    Class-K via the ``EllMonomial`` sign-branch, never ``abs()``). Each partition's summand is
+    an :class:`EllRatio` (theta-quotient); the partitions are summed into one ``ThetaSum``
+    over their common denominator. No float, no numpy, no ``abs()``."""
+    from .thetasum import ThetaSum
+
+    a, b, c, d, x, q = aa, bb, cc, dd, xx, qq
+    e = (a ** 2) * (q ** (N + 1)) * (b * c * d * (x ** (n - 1))).inv()
+
+    def poch_thetas(base: EllMonomial, k: int) -> "List[Theta]":
+        # the elliptic shifted factorial (u; q, p)_k = ∏_{i=0}^{k-1} θ(u·qⁱ)
+        return [Theta(base * (q ** i)) for i in range(k)]
+
+    def vpoch_thetas(u: EllMonomial, lam) -> "List[Theta]":
+        out: "List[Theta]" = []
+        for j in range(1, n + 1):
+            out.extend(poch_thetas(u * (x ** (1 - j)), lam[j - 1]))
+        return out
+
+    lhs = ThetaSum.zero()
+    for lam in itertools.product(range(N + 1), repeat=n):
+        if not all(lam[t] >= lam[t + 1] for t in range(n - 1)):
+            continue                                   # only N ≥ λ₁ ≥ … ≥ λₙ ≥ 0
+        pref = EllMonomial.one()
+        num: "List[Theta]" = []
+        den: "List[Theta]" = []
+        # diagonal (i) part
+        for i in range(1, n + 1):
+            li = lam[i - 1]
+            num.append(Theta(a * (x ** (2 * (1 - i))) * (q ** (2 * li))))
+            den.append(Theta(a * (x ** (2 * (1 - i)))))
+            pref = pref * (q ** li) * (x ** (2 * (i - 1) * li))
+        # off-diagonal (i<j) root-system coupling
+        for i in range(1, n + 1):
+            for j in range(i + 1, n + 1):
+                li, lj = lam[i - 1], lam[j - 1]
+                num.append(Theta((x ** (j - i)) * (q ** (li - lj))))
+                den.append(Theta(x ** (j - i)))
+                num.append(Theta(a * (x ** (2 - i - j)) * (q ** (li + lj))))
+                den.append(Theta(a * (x ** (2 - i - j))))
+                num.extend(poch_thetas(a * (x ** (3 - i - j)), li + lj))
+                num.extend(poch_thetas(x ** (j - i + 1), li - lj))
+                den.extend(poch_thetas(a * q * (x ** (1 - i - j)), li + lj))
+                den.extend(poch_thetas(q * (x ** (j - i - 1)), li - lj))
+        # the six very-well-poised vector theta-Pochhammer bases
+        num_bases = [a * (x ** (1 - n)), b, c, d, e, q ** (-N)]
+        den_bases = [q * (x ** (n - 1)), a * q * b.inv(), a * q * c.inv(),
+                     a * q * d.inv(), a * q * e.inv(), a * (q ** (N + 1))]
+        for u in num_bases:
+            num.extend(vpoch_thetas(u, lam))
+        for u in den_bases:
+            den.extend(vpoch_thetas(u, lam))
+        lhs = lhs + ThetaSum.from_ellratio(EllRatio(pref, num=num, den=den))
+    return lhs
+
+
+def _verify_cn_reduction(aa: EllMonomial, bb: EllMonomial, cc: EllMonomial, dd: EllMonomial,
+                         xx: EllMonomial, qq: EllMonomial, N: int, n: int,
+                         closed: EllRatio) -> "bool | None":
+    """PROVE that ``closed`` equals the n-fold Cₙ elliptic Jackson sum (Rosengren Thm 2.1),
+    EXACTLY: build the symbolic LHS (:func:`_cn_lhs_thetasum`), subtract
+    ``ThetaSum.from_ellratio(closed)``, and return ``(LHS − closed).is_zero`` — the rc98/rc99
+    COMPLETE multi-variable elliptic decision. Returns ``True`` (proved ``≡ 0``), ``False``
+    (the residual is provably non-zero — a wrong/perturbed ``closed`` is caught), or ``None``
+    when the sum's term-count ``C(N+n, n)`` exceeds :data:`_VERIFY_MAX_PARTITIONS` (the
+    measured feasibility frontier — see that constant). The cap is checked FIRST, before any
+    build or ``is_zero`` call, so the ``None`` path is instant and NEVER hangs.
+
+    ``closed`` is taken as an argument (not rebuilt) so the exact same verify machinery
+    the router surfaces can be exercised on a deliberately-perturbed closed form (→ ``False``).
+    """
+    if _num_partitions(N, n) > _VERIFY_MAX_PARTITIONS:
+        return None                                    # honest "too large to decide in-budget"
+    from .thetasum import ThetaSum
+    residual = _cn_lhs_thetasum(aa, bb, cc, dd, xx, qq, N, n) - ThetaSum.from_ellratio(closed)
+    return residual.is_zero
 
 
 def _multivariate_elliptic_jackson_py(aa: EllMonomial, bb: EllMonomial, cc: EllMonomial,

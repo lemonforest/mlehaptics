@@ -175,10 +175,12 @@ _OPEN_HINTS: Dict[str, str] = {
                       "Jackson row (now shipped — tag row='sigma_elliptic_multivar') or "
                       "a higher-genus theta reduction row",
     "sigma_elliptic_multivar": "a root-system elliptic multisum beyond the Cₙ elliptic "
-                      "Jackson reach — an Aₙ (or other root-system) elliptic multisum, a "
-                      "higher-genus theta multisum, or the multi-variable elliptic "
-                      "is_zero (the n-variable partial-fraction decision) for exact "
-                      "per-call proof of the reduction",
+                      "Jackson reach — an Aₙ (or other root-system) elliptic multisum or a "
+                      "higher-genus theta multisum. (The exact per-call PROOF of the Cₙ "
+                      "reduction now ships, rc101: the constructive closed form is verified "
+                      "via the rc98/rc99 complete multi-variable elliptic is_zero, up to a "
+                      "term-count feasibility cap; larger sums return the build-verified "
+                      "constructive form with verified=None.)",
     "spectral": "directed / signed (magnetic) Laplacian spectral row, or a "
                 "non-self-adjoint pencil generalized-eigenproblem reducer",
     "cyclic": "a higher Cayley–Dickson rung (sedenion S(σ,θ)) or a "
@@ -373,15 +375,20 @@ def _try_sigma_elliptic_multivar(rel: Dict[str, Any]) -> Optional[Dict[str, Any]
     ``a, b, c, d, x, q`` (:class:`EllMonomial` or a symbol-name string) + the partition
     ceiling ``N`` + the rank ``n`` route to
     :func:`~srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson`, which reduces the
-    n-fold Cₙ sum to its closed-form theta-quotient product (Rosengren Thm 2.1). This is a
-    CONSTRUCTIVE reduction (the ``resonant_spectrum`` precedent, NOT an ``is_zero`` proof):
-    the closed form is the MPM-verified Thm 2.1 RHS, gated per call on VALID Cₙ Jackson
-    parameters (``N ≥ 1``, ``n ≥ 1``, coercible ``EllMonomial`` params — the op raises
-    otherwise, routing to OPEN). The exact per-call PROOF of the reduction (symbolically
-    summing the n-fold sum + ``is_zero``-checking it == this closed form) needs the
-    multi-variable elliptic ``is_zero`` (the n-variable partial-fraction decision) — the
-    documented frontier named in the ``sigma_elliptic_multivar`` OPEN hint. Returns the
-    reduced dict, or ``None`` (a malformed payload → the caller routes to OPEN)."""
+    n-fold Cₙ sum to its closed-form theta-quotient product (Rosengren Thm 2.1).
+
+    rc101 — a CONSTRUCTIVE→VERIFIED reducer: the router calls the op's ``verify=True`` path,
+    which PROVES the reduction per call (builds the symbolic LHS n-fold sum and decides
+    ``(LHS − closed).is_zero`` via the rc98/rc99 COMPLETE multi-variable elliptic decision),
+    and SURFACES the ``verified`` status (``True`` / ``False`` / ``None``) in the returned
+    dict. A ``True`` is a genuine per-call proof; ``None`` is the HONEST "sum too large to
+    decide in-budget" (the term-count exceeded the op's feasibility cap — the closed form is
+    still the MPM-verified Thm 2.1 RHS, so the reduction stands, it just was not re-proven
+    per call). A ``False`` (the closed form provably does NOT equal the sum) is NOT a
+    reduction — it routes to OPEN. Malformed params (``N < 1`` / ``n < 1`` / non-coercible)
+    raise, and the caller routes to OPEN. The F929 anti-hallucination discipline: the router
+    never claims ``reducible: True`` without either a per-call proof (``verified=True``) or the
+    build-verified constructive closed form (``verified=None``)."""
     from . import elliptic_jackson as _ej  # lazy: avoids import cycle
     from .ellbase import EllMonomial as _M
 
@@ -395,10 +402,16 @@ def _try_sigma_elliptic_multivar(rel: Dict[str, Any]) -> Optional[Dict[str, Any]
             return _M.scalar(Q(v, 1))       # a constant parameter
         raise TypeError("Cₙ Jackson parameter must be an EllMonomial / symbol name / int")
 
-    cf = _ej.multivariate_elliptic_jackson(
+    result = _ej.multivariate_elliptic_jackson(
         _mono(rel["a"]), _mono(rel["b"]), _mono(rel["c"]), _mono(rel["d"]),
-        _mono(rel["x"]), _mono(rel["q"]), int(rel["N"]), int(rel["n"]))
-    return _reduced("sigma_elliptic_multivar", "multivariate_elliptic_jackson", cf)
+        _mono(rel["x"]), _mono(rel["q"]), int(rel["N"]), int(rel["n"]), verify=True)
+    cf = result["closed_form"]
+    verified = result["verified"]
+    if verified is False:
+        return None                         # provably NOT the sum → honest OPEN
+    reduced = _reduced("sigma_elliptic_multivar", "multivariate_elliptic_jackson", cf)
+    reduced["verified"] = verified          # surface the REAL status (True per-call proof,
+    return reduced                          # or None = build-verified constructive, unproven)
 
 
 def _try_spectral(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -551,12 +564,13 @@ def infer(relationship: Dict[str, Any]) -> Dict[str, Any]:
       ``a`` / ``b`` / ``c`` / ``d`` / ``x`` / ``q`` / ``N`` / ``n`` keys) — the
       capstone one root-system rank above the ₈ω₇: the balanced Cₙ elliptic Jackson
       summation routes to
-      :func:`~srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson`, which
-      CONSTRUCTS the closed-form theta-quotient product (Rosengren Thm 2.1). A
-      CONSTRUCTIVE reduction (the ``resonant_spectrum`` precedent) — the MPM-verified
-      Thm 2.1 RHS gated per call on valid Cₙ Jackson parameters; the exact per-call
-      ``is_zero`` proof of the reduction is the documented multi-variable-``is_zero``
-      frontier (see the ``sigma_elliptic_multivar`` OPEN hint).
+      :func:`~srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson` with
+      ``verify=True``, which CONSTRUCTS the closed-form theta-quotient product (Rosengren
+      Thm 2.1) AND (rc101) PROVES it per call — building the symbolic LHS n-fold sum and
+      deciding ``(LHS − closed).is_zero`` via the rc98/rc99 complete multi-variable elliptic
+      decision. The reduced dict SURFACES ``verified`` (``True`` = per-call proof, ``None`` =
+      build-verified constructive form beyond the feasibility cap); a ``False`` (closed form
+      provably ≠ the sum) routes to OPEN.
     * **spectral** (``row="spectral"`` / a graph payload) — an ``edges`` list
       (with optional ``weights`` + ``n``), an ``adjacency`` grid, or an explicit
       ``laplacian`` / ``matrix`` build a coupling Laplacian and route to
