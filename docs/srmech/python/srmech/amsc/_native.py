@@ -6951,6 +6951,38 @@ def has_native_thetasum_interpolation() -> bool:
     )
 
 
+# ── edge-device MEMORY budget for the PARALLEL is_zero C arena (rc103) ──────────
+# The rc103 PARALLEL is_zero peer sizes ONE contiguous ``ws`` arena at
+# ``(n_workers+1)·~1.5·ws_bound2`` — an accelerator whose fan-out multiplies the
+# base-case grid by the worker count, so a deep base band (θ(a·x⁴)·θ(a·x⁻⁴), a wide
+# product) reaches ~1 GB at high ``nw``. srmech targets microcontroller / edge
+# hosts, so this PRODUCTION default keeps the accelerator from grabbing gigs: the
+# marshaler CLAMPS ``n_workers`` down to fit the budget and, only if even a 2-worker
+# arena is over budget, DECLINES (returns ``None``) so the caller falls to the
+# untouched SEQUENTIAL peer (byte-identical verdict, a 1× arena). This is
+# PRODUCTION/edge behavior ONLY — the SEQUENTIAL peer is NOT budgeted here, and the
+# is_zero test-suites right-size their inputs to DECIDE within this budget (a test
+# never "passes" by declining). Default 256 MiB; a workstation WITH the RAM raises
+# it via ``SRMECH_ISZERO_WS_BUDGET_MB`` (megabytes).
+_ISZERO_WS_BUDGET_MB_DEFAULT = 256
+
+
+def _iszero_ws_budget_bytes() -> int:
+    """The PARALLEL is_zero C-arena memory budget in BYTES, read from
+    ``SRMECH_ISZERO_WS_BUDGET_MB`` (megabytes) at call time, defaulting to
+    :data:`_ISZERO_WS_BUDGET_MB_DEFAULT`. A malformed / non-positive value falls
+    back to the default (never crashes the total-function is_zero dispatch)."""
+    import os as _os
+    raw = _os.environ.get("SRMECH_ISZERO_WS_BUDGET_MB", "")
+    try:
+        mb = int(raw) if raw.strip() else _ISZERO_WS_BUDGET_MB_DEFAULT
+    except (TypeError, ValueError):
+        mb = _ISZERO_WS_BUDGET_MB_DEFAULT
+    if mb < 1:
+        mb = _ISZERO_WS_BUDGET_MB_DEFAULT
+    return mb * 1024 * 1024
+
+
 def thetasum_is_zero_interpolation_c(n_syms, xsym, ysym, psym, term_nthetas, monomials):
     """Native COMPLETE structural-interpolation ThetaSum.is_zero decision → ``bool``
     (trusted True AND False), or ``None`` if the native symbols are absent OR the C
@@ -7124,11 +7156,31 @@ def thetasum_is_zero_interpolation_parallel_c(
                 max_theta_sq_sum = _m
     cl = cl * (max_thetas + 4) * (max_abs_exp + 2) + 16
     out_cap = cl
-    ws_len = int(LIB.srmech_thetasum_is_zero_interpolation_parallel_ws_bound(
-        ctypes.c_size_t(n_syms), ctypes.c_size_t(n_terms),
-        ctypes.c_size_t(max_thetas), ctypes.c_size_t(cl),
-        ctypes.c_size_t(max_abs_exp), ctypes.c_size_t(max_theta_sq_sum),
-        ctypes.c_size_t(n_workers)))
+
+    # Edge-device MEMORY budget (PRODUCTION default; _iszero_ws_budget_bytes): the
+    # parallel arena grows like (nw+1)·1.5·ws_bound2, so clamp n_workers down until the
+    # buffer fits the budget (never below 2 — it must stay a genuine fan-out), and
+    # DECLINE (→ None → the caller falls to the UNTOUCHED sequential peer, byte-identical
+    # verdict, a 1× arena) if even a 2-worker arena is over budget. Deterministic in
+    # n_workers, so both task orders take the identical clamp/decline path (the
+    # order-invariance / CHIRALITY contract is preserved). This bounds the accelerator's
+    # footprint on a real edge host; the test-suites right-size their inputs to DECIDE
+    # within this budget, so it is never how a test "passes".
+    _budget = _iszero_ws_budget_bytes()
+
+    def _par_ws_len(_nw):
+        return int(LIB.srmech_thetasum_is_zero_interpolation_parallel_ws_bound(
+            ctypes.c_size_t(n_syms), ctypes.c_size_t(n_terms),
+            ctypes.c_size_t(max_thetas), ctypes.c_size_t(cl),
+            ctypes.c_size_t(max_abs_exp), ctypes.c_size_t(max_theta_sq_sum),
+            ctypes.c_size_t(_nw)))
+
+    ws_len = _par_ws_len(n_workers)
+    while n_workers > 2 and ws_len > _budget:
+        n_workers -= 1
+        ws_len = _par_ws_len(n_workers)
+    if ws_len > _budget:
+        return None   # 2-worker arena still over budget → sequential peer decides
     ws = (ctypes.c_uint8 * max(ws_len, 8))()
     n_mono = len(monomials)
     num_arr = (_SrmechBigint * max(n_mono, 1))()

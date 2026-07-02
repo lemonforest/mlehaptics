@@ -26,6 +26,8 @@ elliptic frontier); its value is the reusable, correctness-guaranteed pattern.
 When the native peer is absent every assertion is skipped (the sequential peer +
 pure oracle remain the deciders)."""
 
+import faulthandler
+import gc
 import os
 import random
 
@@ -44,6 +46,23 @@ _HAS_SEQ = _native.has_native_thetasum_interpolation()
 _skip = pytest.mark.skipif(
     not (_HAS_PAR and _HAS_SEQ),
     reason="native srmech_thetasum_is_zero_interpolation(_parallel) not loaded")
+
+
+# ── HARD per-test timeout (defensive) ───────────────────────────────────────────
+# The parallel peer is thread-based; a future deadlock would present as a STUCK job.
+# Arm a stdlib ``faulthandler`` watchdog per test: if any test runs past the deadline
+# it dumps ALL thread stacks and force-exits — a CLEAN, DIAGNOSED FAIL instead of a
+# job that hangs until the runner force-kills it. Generous (180 s) so a slow-but-
+# healthy CI runner never trips it (every right-sized test here is < 30 s even on a
+# 2-core cell); cross-platform (Windows / macOS / Linux). No new dep (not
+# pytest-timeout).
+@pytest.fixture(autouse=True)
+def _hard_timeout():
+    faulthandler.dump_traceback_later(180, exit=True)
+    try:
+        yield
+    finally:
+        faulthandler.cancel_dump_traceback_later()
 
 
 def _pm(u, v):
@@ -72,28 +91,35 @@ def _par(ts, n_workers, task_order=0):
         n_workers=n_workers, task_order=task_order)
 
 
-# workers spanning the serial fallback (1), typical (2, 3) and an odd partition
-# (5) that stresses the task-to-worker assignment (different widths permute the
-# static task partition — a strong schedule-invariance probe).
-_WIDTHS = (1, 2, 3, 5)
+# workers spanning the serial fallback (1), typical (2, 3), and 4. Capped at 4 for
+# MEMORY FRUGALITY: the parallel arena grows like (nw+1)·1.5·ws_bound2, so higher
+# widths on the heaviest fixtures would need >7 GB on a py3.10 CI runner. Every
+# fixture here is right-sized so its arena DECIDES within the edge budget at these
+# widths (the test asserts the real verdict — it never "passes" by declining).
+# Different widths still permute the static task partition (a schedule-invariance
+# probe); the odd width 3 exercises an uneven task-to-worker split.
+_WIDTHS = (1, 2, 3, 4)
 
 
 def _assert_carrier_and_chirality(ts, expect):
     """BOTH contracts on one input: CARRIER (parallel == sequential == expect,
     bit-identical at every width) + CHIRALITY (forward task order == reverse task
-    order == sequential — order-free). A ``None`` decline is only allowed if the
-    SEQUENTIAL peer also declines (never a silent divergence)."""
+    order — order-free). These fixtures are RIGHT-SIZED so the parallel peer DECIDES
+    within the edge memory budget at every tested width — so we assert it actually
+    decides (a ``None`` here would be the forbidden "pass by declining", not a
+    contract check)."""
     seq = _seq(ts)
-    assert seq is expect or seq is None, (
+    assert seq is expect, (
         f"sequential interpolation mismatch: got {seq}, expect {expect}")
     for nw in _WIDTHS:
         fwd = _par(ts, nw, task_order=0)
         rev = _par(ts, nw, task_order=1)
-        # CARRIER: a non-None parallel verdict EQUALS the sequential verdict.
-        assert fwd is None or fwd is seq, (
-            f"CARRIER divergence (nw={nw}, fwd): parallel={fwd} sequential={seq}")
-        assert rev is None or rev is seq, (
-            f"CARRIER divergence (nw={nw}, rev): parallel={rev} sequential={seq}")
+        # CARRIER: the parallel peer DECIDES (never None — the fixtures fit the budget)
+        # and its verdict is BIT-IDENTICAL to the sequential verdict at every width.
+        assert fwd is seq, (
+            f"CARRIER (nw={nw}, fwd): parallel {fwd} must DECIDE == sequential {seq}")
+        assert rev is seq, (
+            f"CARRIER (nw={nw}, rev): parallel {rev} must DECIDE == sequential {seq}")
         # CHIRALITY: forward and reverse task orders give the IDENTICAL verdict.
         assert fwd is rev, (
             f"CHIRALITY divergence (nw={nw}): task_order=0 gave {fwd}, "
@@ -201,14 +227,17 @@ def test_single_term_products_parallel():
 
 
 @_skip
-def test_rc102_even_theta_x4_parallel():
-    """The rc102 ``θ(a·x⁴)·θ(a·x⁻⁴)`` even-θ single-term case (a genuine False that
-    the rc102 ws_bound fix sized the base band for) — parallel keeps it False,
-    bit-identically, at every width + both task orders."""
-    x4 = ThetaSum(terms=((Q(1, 1), M.one(),
-                          (Theta(_A * _X * _X * _X * _X),
-                           Theta(_A * (_X * _X * _X * _X).inv()))),))
-    _assert_carrier_and_chirality(x4, False)
+def test_rc102_even_theta_deep_parallel():
+    """The rc102 even-θ ``θ(a·xᵏ)·θ(a·x⁻ᵏ)`` single-term case (a genuine False that the
+    rc102 ws_bound fix sized the base band for) — parallel keeps it False,
+    bit-identically, at every width + both task orders. Right-sized to k=3 (a deep
+    even-θ base band that DECIDES within the edge budget at nw ≤ 4); the full k=4
+    sequential-sizing regression is covered by ``test_thetasum_interpolation_rc98``/
+    ``_rc99`` (this parallel peer only needs a representative deep even-θ leaf)."""
+    x3 = ThetaSum(terms=((Q(1, 1), M.one(),
+                          (Theta(_A * _X * _X * _X),
+                           Theta(_A * (_X * _X * _X).inv()))),))
+    _assert_carrier_and_chirality(x3, False)
     _assert_carrier_and_chirality(
         ThetaSum(terms=((Q(1, 1), M.one(), _pm(_A, _X * _X)),)), False)  # even θ(a x²)
 
@@ -229,8 +258,8 @@ def test_serial_fallback_bit_identical():
         seq = _seq(ts)
         one = _par(ts, 1)
         assert seq is exp, f"sequential mismatch: {seq} != {exp}"
-        assert one is None or one is seq, (
-            f"serial fallback (nw=1) divergence: {one} != {seq}")
+        assert one is seq, (
+            f"serial fallback (nw=1) divergence: {one} != {seq} (must DECIDE, not decline)")
 
 
 # ── (3) the randomized CARRIER + CHIRALITY fuzz (≥300 decided cases) ─────────────
@@ -252,7 +281,12 @@ def test_randomized_parallel_carrier_chirality_fuzz():
     carrier_mism = 0
     chir_mism = 0
     decided = 0
-    for _ in range(340):
+    for _it in range(340):
+        # Frugality: reclaim the prior iterations' ws arenas + ThetaSums so the fuzz
+        # peak stays flat (each _par call can size up to the edge budget) rather than
+        # accumulating across 340 iterations.
+        if _it % 16 == 0:
+            gc.collect()
         var = rng.choice([_X, _Y])
         kind = rng.choice(["tt", "tt_sum", "broken", "rand", "tt_minus", "scaled"])
         if kind == "tt":
@@ -275,22 +309,28 @@ def test_randomized_parallel_carrier_chirality_fuzz():
             t = ThetaSum.three_term(rp(), rp(), rp(), x=var)
             ts = t.scalar_mul(3) - t - t - t
         else:
-            n = rng.choice([1, 2, 2, 4])
+            # ≤ 2 factors (memory frugality): every generated case DECIDES within the
+            # edge budget at nw ≤ 4 — the fuzz asserts the real carrier/chirality
+            # verdict, it does not "pass" by declining. (Wider products are the same
+            # structural shape; the arena, not the contract, is what shrinks.)
+            n = rng.choice([1, 2])
             facs = []
             for _i in range(n):
                 facs.extend(pmv(rp(), rng.choice([var, rp()])))
             ts = ThetaSum(terms=((Q(rng.randint(-3, 3) or 1, rng.randint(1, 3)),
                                   M.one(), tuple(facs)),))
         seq = _seq(ts)
-        nw = rng.choice([2, 3, 4, 5])
+        nw = rng.choice([2, 3, 4])
         fwd = _par(ts, nw, 0)
         rev = _par(ts, nw, 1)
-        if fwd is None and rev is None:
-            continue
+        # right-sized so the parallel peer always DECIDES — a None decline here would
+        # be the forbidden "pass by declining" (the arena would have exceeded budget).
+        assert fwd is not None and rev is not None, (
+            f"parallel DECLINED a fuzz case (iter {_it}, nw={nw}) — right-size it")
         decided += 1
-        if fwd is not None and seq is not None and fwd is not seq:
+        if seq is not None and fwd is not seq:
             carrier_mism += 1
-        if fwd is not None and rev is not None and fwd is not rev:
+        if fwd is not rev:
             chir_mism += 1
     assert carrier_mism == 0, f"{carrier_mism} CARRIER (parallel≠sequential) divergences"
     assert chir_mism == 0, f"{chir_mism} CHIRALITY (order-dependent) divergences"
@@ -346,7 +386,9 @@ def test_parallel_speedup_wide_deep():
     import time
 
     ts = _wide_deep_true_case()
-    nw = min(os.cpu_count() or 1, 8)
+    # Capped at 4 for memory frugality: wide_deep's arena at nw=4 (~0.2 GB) DECIDES
+    # within the edge budget, and 4 workers already demonstrate the fan-out speedup.
+    nw = min(os.cpu_count() or 1, 4)
     # warm (fault in the arena / JIT the marshal path) then time.
     seq0 = _seq(ts)
     t0 = time.perf_counter()
@@ -362,7 +404,7 @@ def test_parallel_speedup_wide_deep():
     # CHIRALITY: reverse task order agrees.
     assert par_rev is par, f"CHIRALITY divergence: fwd={par} rev={par_rev}"
     # SPEEDUP: measurably faster (>= 4 cores). Generous margin absorbs jitter; the
-    # observed win is ~1.9x at nw=4 / ~3.5x at nw=8 (see the rc103 CHANGELOG).
+    # observed win is ~1.9x at nw=4 (see the rc103 CHANGELOG).
     print(f"\nrc103 wide+deep is_zero speedup: seq={seq_t:.2f}s  "
           f"par(nw={nw})={par_t:.2f}s  speedup={seq_t / par_t:.2f}x")
     assert par_t < seq_t, (
