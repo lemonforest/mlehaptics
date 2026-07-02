@@ -20,9 +20,11 @@ def test_alias_prefix_cover():
 
 def test_codeswitch_merged_board():
     mix, conflicts = siona.merge_boards(siona.ENGLISH, siona.load_board(DESC))
-    # the attested homograph: save -> (remember | recall) conflict, DROPPED to grounding
-    assert conflicts == {"save": ("siona.memory.remember", "siona.memory.recall")}
+    # the attested homograph: save -> SUPERPOSED senses (F1018 wiring), rung-selected at dispatch
+    assert conflicts == {"save": (("english", "siona.memory.remember"),
+                                  ("bislama-udhr", "siona.memory.recall"))}
     assert "save" not in mix.verb_tools and "save" in mix.self_verbs
+    assert mix.homographs == conflicts and len(mix.parents) == 2
     s = siona.Session(board=mix)
     # mixed routing (bis operators + eng content and vice versa)
     assert s.route("wanem is the fiedler vector") == "define"
@@ -33,6 +35,6 @@ def test_codeswitch_merged_board():
     assert "wota i boela long 100 selsius" in s.mem[-1], s.mem[-1]
     _, _, out = s.turn("mekem the gcd blong 48 and 36")
     assert "gcd(48, 36) = 12" in out
-    # save-with-content: grounding (operands) decides -> remember
+    # save-with-content: the LANGUAGE VOTE dispatches the English sense deterministically now
     _, tag, _ = s.turn("siona save the note that chess is a game")
     assert tag == "siona.remember"

@@ -21,10 +21,10 @@ executes until the rc1 cut is declared ready** ("almost there or all the way the
 - [ ] paraphrase intent-frames per board (asks outside the declared frames fall to `continue`)
 - [x] name ALIAS/morphology — DONE by pre-measurement (F1017): PREFIX-COVER chosen (Gram unchanged 0.271, eval kept, alias 3/5); byteglyph vecs REJECTED read-independently (+0.130 cross-talk AND worse alias)
 - [x] code-switching (user question, F1017): merged bilingual board routes mixed input 5/5; the attested 'save' homograph drops to grounding (operators declared; colliding declarations -> operands decide); notes store UNDOCTORED (the len-1 tokenizer filter was an English-privilege artifact dropping Bislama 'i' — fixed)
-- [ ] rung-SUPERPOSED homographs in merge_boards (F1018: replace drop-to-grounding with superpose-and-select on the elliptic ladder + low-margin ask-fallback; 12/12 in the probe)
-- [ ] operator ACCRETION with guards (F1018: fixed role-frame, measured word->role maps; threshold k + consistency + un-accrete path) — also prospectively fills F1016's unattested slots by usage
+- [x] rung-SUPERPOSED homographs — DONE (F1020: merge_boards keeps senses; language-vote dispatch over parent operator vocabs; the elliptic-ladder HDC store remains the N-language scale path, probe-proven 12/12)
+- [x] operator ACCRETION with guards — DONE (F1020: k=3 unanimous, session-local learned_verbs, unlearn(); persistence-to-genome = PKG-3 scope)
 - [ ] byteglyph NOTE-encoding pre-measurement (cross-language content recall: 'luksave water' vs stored 'wota' — F1017's measured boundary; memory-note surface is smaller than the tool index, needs its own Gram cost measurement)
-- [ ] conflict-fallback policy for sparse-content homographs ('save wota' -> low-margin ask or configurable default)
+- [x] conflict-fallback policy — DONE (F1020: margin<1 -> ASK listing the senses; never guess)
 - [ ] magnetic-Laplacian operator-ROLE probe (F1019 next: interrogatives sentence-initial = directed-flux asymmetry; the naive undirected spectral shape NULLED at small scale)
 - [ ] ASL-LEX-attested sense-split map -> rung LABELS for F1018 superposed homographs (F608/F609 sense-determinative; check remember/save against the attested source, never training data)
 - [ ] structured operands (floats / Mat / Vec / HV / kwargs — F1009 scope was int/bytes/list)

@@ -139,9 +139,13 @@ def _register_self_tools():
 class Session:
     """A multi-turn grounded inference session (F1012): one loop, both surfaces, one memory."""
 
+    ACCRETE_K = 3  # accretion guard: k consistent, UNANIMOUS resolutions before a word earns its role
+
     def __init__(self, board: Board = ENGLISH, D=8192):
         self.board = board
         self.mem = []  # never compacted; grows for the life of the session
+        self.learned_verbs = {}   # ACCRETED word->tool (F1018: roles fixed, words evolve by usage)
+        self._verb_obs = {}       # accretion tallies: lead-word -> {tool: count}
         _register_self_tools()
         self.g = Grounding(D=D)
         self._impl = {
@@ -192,11 +196,40 @@ class Session:
     def _drive_self(self, u):
         b, ws = self.board, _toks(u)
         lead = ws[1] if ws and ws[0] == b.address and len(ws) > 1 else (ws[0] if ws else "")
-        if lead in b.verb_tools:
+        if b.homographs and lead in b.homographs:
+            # SUPERPOSED homograph (F1018): rung-select by the language vote over the parent boards'
+            # operator vocabularies; LOW MARGIN -> ASK, never guess (the conflict-fallback policy).
+            senses = b.homographs[lead]
+            votes = [sum(1 for w in ws if w != lead and w in parent.operator_vocab())
+                     for parent in b.parents]
+            best = max(range(len(votes)), key=lambda i: votes[i])
+            margin = votes[best] - max((v for i, v in enumerate(votes) if i != best), default=0)
+            if margin < 1:
+                opts = " | ".join("%s (%s)" % (t.split(".")[-1], bn) for bn, t in senses)
+                return lead, "'%s' is ambiguous here -- which sense: %s ?" % (lead, opts)
+            pick = senses[best][1]
+        elif lead in self.learned_verbs:
+            pick = self.learned_verbs[lead]        # ACCRETED verb = earned deterministic dispatch
+        elif lead in b.verb_tools:
             pick = b.verb_tools[lead]
         else:  # verb-less ask -> ground by meaning; interrogatives are intent-operators, stripped
             q = " ".join(w for w in ws if w != b.address and w not in b.interrogatives)
             pick = self.g.ground(q, 1, owner="siona")[0][1]
+            # ACCRETION (F1018, guarded): an unknown LEAD word tallies its meaning-resolved role; at
+            # ACCRETE_K consistent UNANIMOUS resolutions it earns deterministic dispatch. unlearn() reverses.
+            if (lead and lead not in b.self_verbs and lead not in b.interrogatives
+                    and lead != b.address and lead.isalpha()):
+                tally = self._verb_obs.setdefault(lead, {})
+                tally[pick] = tally.get(pick, 0) + 1
+                if len(tally) == 1 and tally[pick] >= self.ACCRETE_K:
+                    self.learned_verbs[lead] = pick
+        return self._finish_self(pick, u, ws, b)
+
+    def unlearn(self, verb):
+        self.learned_verbs.pop(verb, None)
+        self._verb_obs.pop(verb, None)
+
+    def _finish_self(self, pick, u, ws, b):
         if pick == "siona.memory.remember":
             # notes store UNDOCTORED (F982): raw whitespace words (NOT _toks -- its len>1 filter is an
             # English-privilege artifact that drops Bislama's predicate marker 'i', docf 31/31), minus
