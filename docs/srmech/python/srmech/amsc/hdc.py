@@ -951,6 +951,16 @@ def klein4_unbundle(bundle, key):
     return klein4_bind(bundle, key)
 
 
+def _klein4_is_vector_container(v) -> bool:
+    """True iff ``v`` is a Klein-4 **vector** container (an :class:`HV` /
+    ``bytes`` / ``bytearray`` / ``array`` / ``list`` / ``tuple``) rather than a
+    scalar element. Used to disambiguate the ``klein4_bundle([v1, v2, …])``
+    single-sequence call form from a bare one-vector-of-ints
+    ``klein4_bundle([0, 1, 2, 3])`` — the FIRST element decides (a vector
+    container ⇒ a sequence-of-vectors; a scalar ``int`` ⇒ one vector)."""
+    return isinstance(v, (HV, bytes, bytearray, array, list, tuple))
+
+
 def klein4_bundle(*vectors, sectors=None, parallel=None, mode="chunk"):
     """Klein-4 bundle: per-bit majority vote on each of the 2 bits
     independently. Accepts ANY number of vectors ``n >= 1`` (even OR odd —
@@ -958,6 +968,15 @@ def klein4_bundle(*vectors, sectors=None, parallel=None, mode="chunk"):
     is strictly greater than ``n // 2``, so an exact tie (``count == n/2``,
     possible only for even ``n``) deterministically resolves to 0 for that
     bit.
+
+    Both call forms are accepted (issue #1234 Item 4 / F1005 / UPSTREAM §82):
+    the varargs ``klein4_bundle(v1, v2, …)`` AND the ``bundle(Sequence)``-style
+    single list ``klein4_bundle([v1, v2, …])`` — so the natural :class:`HV`
+    output of :func:`klein4_random` / :func:`klein4_bind` can be bundled
+    directly, at parity with :func:`klein4_bind` / :func:`klein4_similarity`
+    (which already take HV wrappers), without ``.tolist()``-ing each element.
+    Each vector — HV or a plain uint8 sequence, mixed freely — rides the SAME
+    :func:`_as_klein4_buf` HV-coercion the bind/similarity ops use.
 
     The rc13 ``sectors=`` / ``parallel=`` / ``mode=`` flag fans the reduction
     across ≤4 concurrent lanes (default-ON at ≥4 cores). ``mode="chunk"``
@@ -968,7 +987,26 @@ def klein4_bundle(*vectors, sectors=None, parallel=None, mode="chunk"):
     """
     if len(vectors) == 0:
         raise ValueError("hdc.klein4_bundle: requires at least one vector")
+    # Accept the ``bundle(Sequence)``-style single-list call form
+    # ``klein4_bundle([v1, v2, …])`` alongside the varargs form. A lone
+    # ``list`` / ``tuple`` whose FIRST element is itself a vector container is
+    # unwrapped to the vectors sequence; a lone one-vector-of-ints
+    # (``[0, 1, 2, 3]`` — first element a scalar ``int``) stays ONE vector, so
+    # every pre-existing form is byte-for-byte unchanged (purely additive).
+    if (len(vectors) == 1 and isinstance(vectors[0], (list, tuple))
+            and len(vectors[0]) > 0 and _klein4_is_vector_container(vectors[0][0])):
+        vectors = tuple(vectors[0])
     arrs = [_as_klein4_buf(v, "klein4_bundle") for v in vectors]
+    # Equal-length check BEFORE any dispatch: the pure core raises this, but the
+    # native fast path marshals ctypes buffers where an OVERSIZED vector would be
+    # silently truncated (ctypes only errors on "too small") — pure and native
+    # must agree, so the mismatch is rejected here for both paths.
+    _n0 = len(arrs[0])
+    for _i, _a in enumerate(arrs):
+        if len(_a) != _n0:
+            raise ValueError(
+                f"hdc.klein4_bundle: vector {_i} has length {len(_a)}, expected {_n0}"
+            )
     if mode not in ("chunk", "chirality"):
         raise ValueError(
             f"klein4_bundle: mode must be 'chunk' or 'chirality'; got {mode!r}"
