@@ -25,6 +25,8 @@ executes until the rc1 cut is declared ready** ("almost there or all the way the
 - [ ] operator ACCRETION with guards (F1018: fixed role-frame, measured word->role maps; threshold k + consistency + un-accrete path) — also prospectively fills F1016's unattested slots by usage
 - [ ] byteglyph NOTE-encoding pre-measurement (cross-language content recall: 'luksave water' vs stored 'wota' — F1017's measured boundary; memory-note surface is smaller than the tool index, needs its own Gram cost measurement)
 - [ ] conflict-fallback policy for sparse-content homographs ('save wota' -> low-margin ask or configurable default)
+- [ ] magnetic-Laplacian operator-ROLE probe (F1019 next: interrogatives sentence-initial = directed-flux asymmetry; the naive undirected spectral shape NULLED at small scale)
+- [ ] ASL-LEX-attested sense-split map -> rung LABELS for F1018 superposed homographs (F608/F609 sense-determinative; check remember/save against the attested source, never training data)
 - [ ] structured operands (floats / Mat / Vec / HV / kwargs — F1009 scope was int/bytes/list)
 - [x] failed-run recovery — DONE (F1015: fit-positive candidates in order, attempts recorded)
 - [ ] kernel generality hand-off (multi-step / non-linear → srmech `dispatch.infer` axis)
