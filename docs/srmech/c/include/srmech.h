@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc101"
-#define SRMECH_VERSION       "0.9.0rc101"
+#define SRMECH_VERSION_PRE   "rc102"
+#define SRMECH_VERSION       "0.9.0rc102"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4364,10 +4364,24 @@ srmech_status_t srmech_thetasum_is_zero(size_t n_syms, int xsym, int ysym, int p
  * Wire form + args are IDENTICAL to srmech_thetasum_is_zero. Additive symbol ->
  * ABI unchanged (stays 3). License: MIT. ------- */
 
-/* Minimum `ws_len` BYTES srmech_thetasum_is_zero_interpolation needs for the
- * given shape (n_syms symbols, n_terms terms, max_thetas the largest per-term
- * theta count, coeff_limbs the per-coefficient limb estimate, max_abs_exp the
- * largest |exponent| across the input — degree-aware base-case sizing). */
+/* Minimum `ws_len` BYTES srmech_thetasum_is_zero_interpolation needs for the given
+ * shape. rc102 degree-aware sizer: `max_theta_sq_sum` is the base case's TRUE p-order
+ * band degree — `ti_deg` = the max over terms of SUM of squared THETA-argument
+ * exponents in a base variable (what ti_one_var actually consumes, k = max(deg-1,0) +
+ * MARGIN), NOT `max_abs_exp` squared. A leaf with >=2 same-variable thetas has
+ * SUM(e^2) >> max(e^2), so the pre-rc102 max_abs_exp^2 UNDER-sized k and the peer
+ * false-declined (SRMECH_ERR_OVERFLOW); `max_abs_exp` (largest |exponent| across ALL
+ * monomials incl. the prefactor) still bounds the w-band span + prefactor offset.
+ * Additive symbol -> SRMECH_ABI_VERSION stays 3. */
+size_t srmech_thetasum_is_zero_interpolation_ws_bound2(size_t n_syms, size_t n_terms,
+                                                       size_t max_thetas,
+                                                       size_t coeff_limbs,
+                                                       size_t max_abs_exp,
+                                                       size_t max_theta_sq_sum);
+
+/* Legacy 5-arg entry (pre-rc102). Reproduces the old sizing byte-for-byte (passes
+ * max_abs_exp^2 as the degree) so a stale ABI-3 caller / lib still links + behaves as
+ * before; new callers use srmech_thetasum_is_zero_interpolation_ws_bound2. */
 size_t srmech_thetasum_is_zero_interpolation_ws_bound(size_t n_syms, size_t n_terms,
                                                       size_t max_thetas,
                                                       size_t coeff_limbs,

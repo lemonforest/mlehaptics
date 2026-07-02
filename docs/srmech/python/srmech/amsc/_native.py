@@ -2731,6 +2731,17 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t,
             ctypes.c_size_t, ctypes.c_size_t]
         lib.srmech_thetasum_is_zero_interpolation_ws_bound.restype = ctypes.c_size_t
+    # rc102: the degree-aware sizer. Adds max_theta_sq_sum (the TRUE ti_deg base-case
+    # band degree = max over terms of SUM of squared THETA exponents in a base var) so
+    # the base case (>=2 same-var thetas: SUM(e^2) >> max(e^2)) is not UNDER-sized -> no
+    # SRMECH_ERR_OVERFLOW false-decline. Additive symbol -> EXPECTED_ABI_VERSION stays 3.
+    #   size_t srmech_thetasum_is_zero_interpolation_ws_bound2(
+    #       n_syms, n_terms, max_thetas, coeff_limbs, max_abs_exp, max_theta_sq_sum)
+    if hasattr(lib, "srmech_thetasum_is_zero_interpolation_ws_bound2"):
+        lib.srmech_thetasum_is_zero_interpolation_ws_bound2.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t,
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_thetasum_is_zero_interpolation_ws_bound2.restype = ctypes.c_size_t
     if hasattr(lib, "srmech_thetasum_is_zero_interpolation"):
         _tbi2 = ctypes.POINTER(_SrmechBigint)
         lib.srmech_thetasum_is_zero_interpolation.argtypes = [
@@ -6921,7 +6932,8 @@ def thetasum_is_zero_interpolation_c(n_syms, xsym, ysym, psym, term_nthetas, mon
     if n_terms == 0:
         return True
     max_thetas = max(term_nthetas) if term_nthetas else 0
-    # per-coefficient limb estimate + the largest |exponent| (degree-aware base band).
+    # per-coefficient limb estimate + the largest |exponent| (max_abs_exp bounds the
+    # w-band span + prefactor offset).
     cl = 1
     max_abs_exp = 1
     for num, den, exps in monomials:
@@ -6931,6 +6943,27 @@ def thetasum_is_zero_interpolation_c(n_syms, xsym, ysym, psym, term_nthetas, mon
             ae = ae if ae >= 0 else -ae
             if ae > max_abs_exp:
                 max_abs_exp = ae
+    # rc102: the TRUE base-case p-order band degree the C base case (ti_one_var) uses:
+    # ti_deg = max over terms of (max over variables of SUM over that term's THETA args
+    # of exp^2). A leaf with >=2 same-variable thetas has SUM(e^2) >> max(e^2), so the
+    # pre-rc102 max_abs_exp^2 UNDER-sized k -> OVERFLOW false-decline. Walk the flat
+    # monomial list by term (layout: term.pref, term.theta0..K-1, next term, ...),
+    # skipping the prefactor (ti_deg sums THETA args only, never the prefactor).
+    max_theta_sq_sum = 0
+    _mi = 0
+    for _nt in term_nthetas:
+        _mi += 1  # skip the term's prefactor monomial
+        _per_var = [0] * n_syms
+        for _ti in range(_nt):
+            _exps_row = monomials[_mi][2]
+            for _vi, _e in enumerate(_exps_row):
+                _ie = int(_e)
+                _per_var[_vi] += _ie * _ie
+            _mi += 1
+        if _per_var:
+            _m = max(_per_var)
+            if _m > max_theta_sq_sum:
+                max_theta_sq_sum = _m
     # Headroom for INTERMEDIATE coefficient growth: the base-case q-expansion raises
     # the substituted (prime-product) coefficients to powers and multiplies theta
     # factors, so the working bigints outgrow the input's limb count. Scale generously
@@ -6938,10 +6971,19 @@ def thetasum_is_zero_interpolation_c(n_syms, xsym, ysym, psym, term_nthetas, mon
     # pure oracle decides). Distinct primes climb to 617 -> ~2 limbs each.
     cl = cl * (max_thetas + 4) * (max_abs_exp + 2) + 16
     out_cap = cl
-    ws_len = int(LIB.srmech_thetasum_is_zero_interpolation_ws_bound(
-        ctypes.c_size_t(n_syms), ctypes.c_size_t(n_terms),
-        ctypes.c_size_t(max_thetas), ctypes.c_size_t(cl),
-        ctypes.c_size_t(max_abs_exp)))
+    _ws2 = getattr(LIB, "srmech_thetasum_is_zero_interpolation_ws_bound2", None)
+    if _ws2 is not None:
+        # rc102 degree-aware sizer (k from the TRUE ti_deg = max_theta_sq_sum).
+        ws_len = int(_ws2(
+            ctypes.c_size_t(n_syms), ctypes.c_size_t(n_terms),
+            ctypes.c_size_t(max_thetas), ctypes.c_size_t(cl),
+            ctypes.c_size_t(max_abs_exp), ctypes.c_size_t(max_theta_sq_sum)))
+    else:
+        # stale ABI-3 lib without the rc102 symbol: the legacy sizer (max_abs_exp^2).
+        ws_len = int(LIB.srmech_thetasum_is_zero_interpolation_ws_bound(
+            ctypes.c_size_t(n_syms), ctypes.c_size_t(n_terms),
+            ctypes.c_size_t(max_thetas), ctypes.c_size_t(cl),
+            ctypes.c_size_t(max_abs_exp)))
     ws = (ctypes.c_uint8 * max(ws_len, 8))()
     n_mono = len(monomials)
     num_arr = (_SrmechBigint * max(n_mono, 1))()
