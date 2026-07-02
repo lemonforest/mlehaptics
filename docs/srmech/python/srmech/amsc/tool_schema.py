@@ -2881,6 +2881,55 @@ def _register_primitive_class_tools() -> None:
                       "(n, edges, weights) for dense_laplacian"),
         ),
         # ────────────────────────────────────────────────────────────
+        # fractal_spectrum — the Ch-2 (quasi-periodic / fractal) DUAL of
+        # resonant_spectrum. Pure orchestration over already-C-backed ops
+        # (Poly.derivative/.eval + Class-N log/best_rational + the F974
+        # |q|-meter) — NO new numerical kernel, so it ships non_compute (the
+        # from_bodies / cooccurrence_edges precedent; no dedicated C peer).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.coupling.fractal_spectrum", owner="srmech",
+            category="coupling",
+            summary="Read a self-similar lattice's SPECTRAL-DECIMATION structure "
+                    "— the Ch-2 (quasi-periodic / fractal) DUAL of "
+                    "resonant_spectrum (F686 / F974). Where resonant_spectrum(L) "
+                    "reads a symmetric Laplacian's FLAT eigenspectrum (one "
+                    "eigensolve), fractal_spectrum(R, branches) reads the ITERATED "
+                    "PREIMAGE of the renormalization Poly R (the decimation map, "
+                    "R(0)=0), NOT a flat list. Grounded on the Sierpinski gasket: "
+                    "on the NORMALIZED Laplacian the decimation is exactly "
+                    "R(z)=z(5−4z) (measured — Rammal 1984 / Fukushima–Shima 1992, "
+                    "Potential Analysis 1 (1992) 1–35, OA-attested via "
+                    "arXiv:1505.05855). Returns the exact scale R'(0), the fracton "
+                    "(spectral) dimension d_s = 2·log(branches)/log(scale) as a "
+                    "Class-N best_rational anchor (2·log3/log5 ≈ 1.36521 for the "
+                    "gasket), the F974 bit-exact |q|-meter q_octaves_per_level = "
+                    "ceil(log2(scale)) (3 for the gasket), rung_class 'constant' "
+                    "(one R iterated = self-similar), log_period_over_2pi = "
+                    "1/log(scale) (the discrete-scale-invariance complex-dimension "
+                    "period; 1/ln5 ≈ 0.6213 for the gasket), and the honest "
+                    "spectrum_open — the full spectrum is the JULIA SET of R "
+                    "(operand-IRREPRESENTABLE OPEN; no finite exact carrier decides "
+                    "λ∈spectrum). Composes Poly.derivative/.eval (L) + log (N) + "
+                    "best_rational (N); PURE orchestration over already-C-backed "
+                    "ops → non_compute (no dedicated C peer; the from_bodies / "
+                    "cooccurrence_edges precedent). Exact-ℚ; numpy-free; no abs().",
+            parameters=(P("R", "Poly", True,
+                          "the spectral-decimation map — a degree≥2 Poly with "
+                          "R(0)=0 and R'(0)>1 (or an ascending-degree coefficient "
+                          "sequence coerced with Poly.from_coeffs)"),
+                        P("branches", "int", True,
+                          "the number of self-similar copies (≥2)"),
+                        P("log_terms", "int", False,
+                          "the Class-N log series-truncation depth; default 25")),
+            returns=R("dict", "{'decimation_map': Poly, 'scale': Q (R'(0)), "
+                              "'branches': int, 'self_similarity_dim': (num,den) "
+                              "d_s anchor, 'q_octaves_per_level': int (F974 "
+                              "|q|-meter), 'rung_class': 'constant', "
+                              "'log_period_over_2pi': (num,den), 'spectrum_open': "
+                              "str (the Julia-set operand-IRREPRESENTABLE OPEN)}"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The §76 "telescope" Σ-row closed-form prover (F929) — Gosper's
         # indefinite hypergeometric summation, the FIRST public op of the row.
         # Class-N rational arithmetic over the Class-J prime-field on the
