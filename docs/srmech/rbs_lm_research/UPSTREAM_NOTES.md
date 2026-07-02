@@ -2681,3 +2681,27 @@ bundling through `ContextSubstrate.bundle_odd(...)`, which accepts HVs (used acr
 findings). Low-severity (workaround exists) but a real ergonomic inconsistency — the three core
 klein4 ops should agree on their accepted carrier type. Surfaced building the F766 open-vocab
 definition dictionary (F1005 part B/C bundling).
+
+## §83 CONSOLIDATED ASK — filed as **#1234** (single upstream ask gathering all pending srmech items) (2026-07-02; F1006/F1007)
+
+Per user direction ("deliver a single upstream ask of all items, bx-5/6/7/etc and theta heat op"), the pending
+srmech asks are consolidated into one filed issue: **#1234**. Four items, all algebra/eigenbasis/spectral-side,
+all composable from shipped primitives (ergonomics + one honesty-driven encoding fix; no capability gap):
+
+1. **Hypercomplex fast transforms (QDFT/ODFT) + `qm.quaternion` + `exp(μθ) twiddle`** — re-raise of the now-CLOSED
+   **#863** (BX-5/6/7 still pending; `qm.quaternion` confirmed MISSING on 0.9.0rc97), PLUS the §81 refinement:
+   the RBS-LM *read* wants only a phase-coherent PEAK/matched-filter reduction, NOT the full transform (F1000
+   hypothesised amplification; F1001 refuted it; F1002 settled it read-independently). Keep transform (encode)
+   and peak-read (read) API-distinct.
+2. **`laplacian.heat_trace(L,t)` / `spectral_theta`** — NEW (F1007): the heat-trace Tr(e^{−tL})=Σe^{−tλ} IS the
+   theta function of the Laplacian; no such op exists (grep=NONE). Flux gives the mock-theta split (trace =
+   modular/flux-invariant; λ_min(Φ) = the shadow). Thin composite over jacobi/hermitian eigensolvers.
+3. **`magnetic_laplacian(..., charges=[...])` per-edge charge** — NEW (F1006/F1007): the CHIRAL Laplacian for
+   dual-sense. `signed_laplacian` (real ±1) annihilates is-a/is-not-a (0); the magnetic phase e^{±iq} keeps them
+   as conjugate overtone/undertone (2cos q + i(a−b)sin q). But `magnetic_laplacian` takes a SINGLE q — needs
+   per-edge charges to encode a mixed is-a(+q)/is-not-a(−q) graph.
+4. **`hdc.klein4_bundle` HV-wrapper parity** — was §82 (F1005): bundle rejects HV wrappers that bind/similarity
+   accept (workaround: `bundle_odd`).
+
+Supersedes the standalone §81 + §82 as the *filed* ask. Leaving #1234 OPEN — issue state is the maintainer's
+call per the create-don't-close discipline. #863 left CLOSED (not reopened); re-raised as Item 1 of #1234.
