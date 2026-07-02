@@ -274,8 +274,9 @@ class Session:
             q = " ".join(w for w in _toks(u) if not w.isdigit()
                          and w not in self.board.imperatives and w not in topname
                          and w not in ("of", "the", "and"))
+            qv = self._enc_note(q)
             note = max((m for m in self.mem if kw not in _toks(m)), default=None,
-                       key=lambda m: self.g.sim(self.g.enc_query(q), self.g.enc_query(m)))
+                       key=lambda m: self.g.sim(qv, self._enc_note(m)))
             if note:
                 mem_ints = [int(w) for w in _toks(note) if w.isdigit()]
                 ints = mem_ints[:1] + ints
@@ -370,11 +371,24 @@ class Session:
         self.mem.append(text)
         return "noted (%d items)" % len(self.mem)
 
+    def _enc_note(self, text):
+        # HYBRID note encoding (F1021 pre-measurement): token vecs + BYTEGLYPH vecs + order bigrams.
+        # Adopted by the pre-committed rule (Gram +0.029 <= +0.05 budget; cross-language 2/2 --
+        # 'water' finds the stored 'wota', 'education' finds 'edukesen'; controls unhurt).
+        # NOTE-recall only: grounding stays token-exact (byteglyph was REJECTED there, F1017).
+        ws = _toks(text)
+        parts = []
+        for w in ws:
+            parts.append(self.g.vec(w))
+            parts.append(self.g.cs.enc(w))
+        parts += self.g._bg(ws)
+        return self.g.cs.bundle_odd(parts or [self.g.vec("_")])
+
     def _recall(self, text):
         if not self.mem:
             return "(memory empty)"
-        return "recall: %s" % max(
-            self.mem, key=lambda m: self.g.sim(self.g.enc_query(text), self.g.enc_query(m)))
+        qv = self._enc_note(text)
+        return "recall: %s" % max(self.mem, key=lambda m: self.g.sim(qv, self._enc_note(m)))
 
     def _forget(self, text=""):
         return "forgot: %s" % (self.mem.pop() if self.mem else "(empty)")

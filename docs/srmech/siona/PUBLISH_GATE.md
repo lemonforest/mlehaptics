@@ -23,7 +23,7 @@ executes until the rc1 cut is declared ready** ("almost there or all the way the
 - [x] code-switching (user question, F1017): merged bilingual board routes mixed input 5/5; the attested 'save' homograph drops to grounding (operators declared; colliding declarations -> operands decide); notes store UNDOCTORED (the len-1 tokenizer filter was an English-privilege artifact dropping Bislama 'i' — fixed)
 - [x] rung-SUPERPOSED homographs — DONE (F1020: merge_boards keeps senses; language-vote dispatch over parent operator vocabs; the elliptic-ladder HDC store remains the N-language scale path, probe-proven 12/12)
 - [x] operator ACCRETION with guards — DONE (F1020: k=3 unanimous, session-local learned_verbs, unlearn(); persistence-to-genome = PKG-3 scope)
-- [ ] byteglyph NOTE-encoding pre-measurement (cross-language content recall: 'luksave water' vs stored 'wota' — F1017's measured boundary; memory-note surface is smaller than the tool index, needs its own Gram cost measurement)
+- [x] byteglyph NOTE-encoding — DONE by pre-measurement (F1021: HYBRID adopted, Gram +0.029 within budget, cross-language 2/2 — 'water' finds 'wota'; pure glyph failed the rule; grounding stays token-exact)
 - [x] conflict-fallback policy — DONE (F1020: margin<1 -> ASK listing the senses; never guess)
 - [ ] magnetic-Laplacian operator-ROLE probe (F1019 next: interrogatives sentence-initial = directed-flux asymmetry; the naive undirected spectral shape NULLED at small scale)
 - [ ] ASL-LEX-attested sense-split map -> rung LABELS for F1018 superposed homographs (F608/F609 sense-determinative; check remember/save against the attested source, never training data)

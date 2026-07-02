@@ -32,3 +32,14 @@ def test_accretion_with_guards():
     assert tag == "siona.remember"
     s.unlearn("stash")
     assert "stash" not in s.learned_verbs
+
+
+def test_cross_language_content_recall():
+    """The F1017 measured boundary, closed by the F1021 hybrid note encoding: an ENGLISH query
+    retrieves a BISLAMA note via the byteglyph spelling bridge (water~wota)."""
+    s = siona.Session()
+    s.mem.extend(["wota i boela long 100 selsius",
+                  "chess is a game of 64 squares",
+                  "the fiedler vector splits a graph"])
+    _, tag, out = s.turn("siona recall water boiling")
+    assert tag == "siona.recall" and "wota" in out, (tag, out)
