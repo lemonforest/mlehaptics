@@ -14,7 +14,7 @@ the living tradition — the content is held by the Ni-Vanuatu community; it is 
 """
 from dataclasses import dataclass
 
-__all__ = ["Board", "ENGLISH", "load_board"]
+__all__ = ["Board", "ENGLISH", "load_board", "merge_boards"]
 
 
 @dataclass(frozen=True)
@@ -54,6 +54,39 @@ ENGLISH = Board(
                      "define", "continue", "list", "help", "that", "your", "please"}),
     kernel_ops={"kernel": "kernel", "is": "is", "times": "times", "over": "over", "plus": "plus"},
 )
+
+
+def merge_boards(a, b, name=None):
+    """Merge two boards into a BILINGUAL (code-switching) profile — the union of the declared
+    operator classes. Returns ``(board, conflicts)``.
+
+    THE CONFLICT RULE (the framework's own principle extended to code-switching): when the two
+    boards map the SAME verb to DIFFERENT tools (e.g. English ``save``->remember vs Bislama
+    ``save``->recall, the attested homograph), the verb's dispatch is no longer deterministic —
+    it is DROPPED from ``verb_tools`` (but kept in ``self_verbs`` so it still routes
+    self-command) and falls through to grounding: **operators declared; when declarations
+    collide, operands decide** (selection by meaning on the siona surface).
+    """
+    conflicts = {}
+    vt = dict(a.verb_tools)
+    for k, v in b.verb_tools.items():
+        if k in vt and vt[k] != v:
+            conflicts[k] = (vt[k], v)
+            del vt[k]                      # ambiguous verb -> meaning decides (grounding)
+        elif k not in vt:
+            vt[k] = v
+    board = Board(
+        name=name or "%s+%s" % (a.name, b.name),
+        address=a.address,
+        define_frames=tuple(dict.fromkeys(a.define_frames + b.define_frames)),
+        self_verbs=a.self_verbs | b.self_verbs,
+        verb_tools=vt,
+        imperatives=a.imperatives | b.imperatives,
+        interrogatives=a.interrogatives | b.interrogatives,
+        strip=a.strip | b.strip,
+        kernel_ops=dict(a.kernel_ops),     # first board's kernel slots (documented choice)
+    )
+    return board, conflicts
 
 
 def load_board(path):

@@ -19,7 +19,12 @@ executes until the rc1 cut is declared ready** ("almost there or all the way the
 
 ## Hardening backlog (before declaring ready)
 - [ ] paraphrase intent-frames per board (asks outside the declared frames fall to `continue`)
-- [ ] name ALIAS/morphology in grounding ("cosine"->cos, "laplacians"->laplacian) — exact-token vectors are orthogonal to abbreviations; candidate fix: byte/glyph unigrams in Grounding.vec (spelling-similar soft match) — measure the cross-talk cost first (read-independent Gram before/after)
+- [x] name ALIAS/morphology — DONE by pre-measurement (F1017): PREFIX-COVER chosen (Gram unchanged 0.271, eval kept, alias 3/5); byteglyph vecs REJECTED read-independently (+0.130 cross-talk AND worse alias)
+- [x] code-switching (user question, F1017): merged bilingual board routes mixed input 5/5; the attested 'save' homograph drops to grounding (operators declared; colliding declarations -> operands decide); notes store UNDOCTORED (the len-1 tokenizer filter was an English-privilege artifact dropping Bislama 'i' — fixed)
+- [ ] rung-SUPERPOSED homographs in merge_boards (F1018: replace drop-to-grounding with superpose-and-select on the elliptic ladder + low-margin ask-fallback; 12/12 in the probe)
+- [ ] operator ACCRETION with guards (F1018: fixed role-frame, measured word->role maps; threshold k + consistency + un-accrete path) — also prospectively fills F1016's unattested slots by usage
+- [ ] byteglyph NOTE-encoding pre-measurement (cross-language content recall: 'luksave water' vs stored 'wota' — F1017's measured boundary; memory-note surface is smaller than the tool index, needs its own Gram cost measurement)
+- [ ] conflict-fallback policy for sparse-content homographs ('save wota' -> low-margin ask or configurable default)
 - [ ] structured operands (floats / Mat / Vec / HV / kwargs — F1009 scope was int/bytes/list)
 - [x] failed-run recovery — DONE (F1015: fit-positive candidates in order, attempts recorded)
 - [ ] kernel generality hand-off (multi-step / non-linear → srmech `dispatch.infer` axis)

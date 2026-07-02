@@ -10,8 +10,8 @@ Siona is the inference layer — a srmech PROFILE (`srmech.profiles` entry-point
 `srmech.profile("siona")` discovers + smoke-tests + activates it.
 """
 from .bridge import walk, recall            # noqa: F401
-from .boards import Board, ENGLISH, load_board  # noqa: F401
+from .boards import Board, ENGLISH, load_board, merge_boards  # noqa: F401
 from .infer import Session, Grounding       # noqa: F401
 
 __version__ = "0.1.0rc1"
-__all__ = ["walk", "recall", "Session", "Grounding", "Board", "ENGLISH", "load_board"]
+__all__ = ["walk", "recall", "Session", "Grounding", "Board", "ENGLISH", "load_board", "merge_boards"]

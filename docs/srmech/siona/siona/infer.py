@@ -95,11 +95,18 @@ class Grounding:
         # the WHOLE owner index (cheap set-ops; no tuned weights). 'klein 4 similarity' promotes
         # klein4_similarity even when the bundle-sim rank buried it.
         qt = set(_toks(u))
+        # coverage relation: exact token OR morphological PREFIX (suffixation: 'cosine' covers 'cos').
+        # Chosen by pre-measurement (F1017): prefix-cover keeps the index Gram unchanged (0.271) and
+        # the eval at 15/18 while recovering 3/5 alias cases; the byteglyph-vector alternative was
+        # REJECTED read-independently (+0.130 index-wide cross-talk AND worse alias, 1/5).
+        def covers(t):
+            return any(w == t or (len(t) >= 3 and w.startswith(t) and len(w) - len(t) <= 4)
+                       for w in qt)
         pool = [n for n in self._byname
                 if (owner is None or self.tools[n].owner == owner)
-                and self._nm[n] and set(self._nm[n]) <= qt]
+                and self._nm[n] and all(covers(t) for t in self._nm[n])]
         if pool:
-            n0 = max(pool, key=lambda n: len(self._nm[n]))
+            n0 = max(pool, key=lambda n: sum(len(t) for t in self._nm[n]))
             top = [(self.sim(q, self._byname[n0]), n0)] + [(s, n) for s, n in top if n != n0]
         return top[:k]
 
@@ -190,6 +197,14 @@ class Session:
         else:  # verb-less ask -> ground by meaning; interrogatives are intent-operators, stripped
             q = " ".join(w for w in ws if w != b.address and w not in b.interrogatives)
             pick = self.g.ground(q, 1, owner="siona")[0][1]
+        if pick == "siona.memory.remember":
+            # notes store UNDOCTORED (F982): raw whitespace words (NOT _toks -- its len>1 filter is an
+            # English-privilege artifact that drops Bislama's predicate marker 'i', docf 31/31), minus
+            # only the address + the dispatching verb. Reads de-lens; storage never does.
+            raw = [w.lower() for w in u.split() if w.lower() != b.address]
+            if raw and raw[0] in (b.self_verbs | set(b.verb_tools)):
+                raw = raw[1:]
+            return pick.split(".")[-1], self._impl[pick](" ".join(raw))
         return pick.split(".")[-1], self._impl[pick](self._rem(u))
 
     # ---- the drive loop (F1009 + F1012 cross-turn operand resolution) ----
