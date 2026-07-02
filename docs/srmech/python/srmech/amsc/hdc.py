@@ -997,6 +997,16 @@ def klein4_bundle(*vectors, sectors=None, parallel=None, mode="chunk"):
             and len(vectors[0]) > 0 and _klein4_is_vector_container(vectors[0][0])):
         vectors = tuple(vectors[0])
     arrs = [_as_klein4_buf(v, "klein4_bundle") for v in vectors]
+    # Equal-length check BEFORE any dispatch: the pure core raises this, but the
+    # native fast path marshals ctypes buffers where an OVERSIZED vector would be
+    # silently truncated (ctypes only errors on "too small") — pure and native
+    # must agree, so the mismatch is rejected here for both paths.
+    _n0 = len(arrs[0])
+    for _i, _a in enumerate(arrs):
+        if len(_a) != _n0:
+            raise ValueError(
+                f"hdc.klein4_bundle: vector {_i} has length {len(_a)}, expected {_n0}"
+            )
     if mode not in ("chunk", "chirality"):
         raise ValueError(
             f"klein4_bundle: mode must be 'chunk' or 'chirality'; got {mode!r}"

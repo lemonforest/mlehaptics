@@ -150,10 +150,20 @@ def test_regression_empty_and_error_paths():
 
 
 def test_regression_length_mismatch_still_raises():
-    """Unequal vector lengths in the list form raise the length-mismatch error."""
+    """Unequal vector lengths raise the length-mismatch error — BOTH directions +
+    both call forms. The oversized-second case is load-bearing: the native path's
+    ctypes marshaling only errors on a too-SMALL buffer, so without the explicit
+    pre-dispatch equal-length check an oversized vector was SILENTLY TRUNCATED
+    (pure raised, native didn't — caught on the native-path verify)."""
     with pytest.raises(ValueError):
         hdc.klein4_bundle([hdc.klein4_random(16, seed=1),
-                           hdc.klein4_random(32, seed=2)])
+                           hdc.klein4_random(32, seed=2)])   # oversized second
+    with pytest.raises(ValueError):
+        hdc.klein4_bundle([hdc.klein4_random(32, seed=1),
+                           hdc.klein4_random(16, seed=2)])   # undersized second
+    with pytest.raises(ValueError):
+        hdc.klein4_bundle(hdc.klein4_random(16, seed=1),
+                          hdc.klein4_random(32, seed=2))     # varargs form too
 
 
 def test_mode_validation_unchanged_on_list_form():
