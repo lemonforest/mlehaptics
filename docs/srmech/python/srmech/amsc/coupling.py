@@ -1,10 +1,27 @@
-"""Class K ∘ L — signed-sum coupling score + the resonant-spectrum closure.
+"""Class K ∘ L — signed-sum coupling score + the resonant-spectrum closure +
+the fractal-spectrum (self-similar) dual.
 
-Two coupling-cascade ops live here:
+Three coupling-cascade ops live here:
 
 ``signed_sum_squared(sources)``: per-element ``(Σ_sources (2·bit − 1))²`` — the
 Class-K bipolar sign-projection ∘ Class-L signed-magnitude-square (a *stack* of
 bit-arrays → a coupling-strength score).
+
+``fractal_spectrum(R, branches, *, log_terms)``: the **Ch-2 (quasi-periodic /
+fractal) DUAL** of ``resonant_spectrum``. Where ``resonant_spectrum(L)`` reads a
+symmetric Laplacian's FLAT eigenspectrum (one eigensolve), ``fractal_spectrum``
+reads a self-similar lattice's **SPECTRAL-DECIMATION** structure: the spectrum is
+the ITERATED PREIMAGE of the renormalization :class:`~srmech.amsc.poly.Poly`
+``R`` (the decimation map), NOT a flat list. Grounded on the Sierpinski gasket
+— on the NORMALIZED Laplacian the decimation is exactly ``R(z)=z(5−4z)``
+(measured; Rammal 1984 / Fukushima–Shima 1992). It reads the exact scale
+``R'(0)``, the fracton (spectral) dimension ``d_s = 2·log(branches)/log(scale)``
+(Class-N), the F974 bit-exact ``|q|``-meter octaves-per-level, and names the full
+spectrum (the Julia set of ``R``) the honest operand-IRREPRESENTABLE OPEN. Pure
+orchestration over already-C-backed ops (``Poly.derivative`` / ``.eval`` +
+Class-N ``log`` / ``best_rational``) — no new numerical kernel, so it ships
+**non_compute** (no dedicated C peer; the ``from_bodies`` / ``cooccurrence_edges``
+precedent).
 
 ``resonant_spectrum(L, *, orders, max_den)``: the **spectral row of the
 closure-dispatch** (UPSTREAM §75 / F928). It reads a real-symmetric coupling
@@ -50,6 +67,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Sequence, Tuple
 
+from .q import Q  # rc100: the exact-ℚ scalar carrier (fractal_spectrum scale / |q|-meter)
 from .vec import Vec  # rc129: the numpy-free 1-D carrier (restores .shape)
 
 
@@ -377,4 +395,148 @@ def from_bodies(
     return n, edges, weights
 
 
-__all__ = ["signed_sum_squared", "resonant_spectrum", "from_bodies"]
+# =====================================================================
+# §Ch-2 — the fractal-spectrum (self-similar / spectral-decimation) dual
+# of resonant_spectrum. Pure orchestration over already-C-backed ops (no
+# new numerical kernel) — ships non_compute (no dedicated C peer).
+# =====================================================================
+
+_FRACTAL_Q1 = Q(1, 1)
+_FRACTAL_Q2 = Q(2, 1)
+
+
+def _octaves(r: "Q") -> int:
+    """F974 bit-exact ``|q|``-meter: ``ceil(log2(1/r))`` = the number of halvings
+    of 1 until ``<= r``. Pure ``Q``-halving — no float, no ``abs()`` (the loop
+    bound is a Class-K comparison, never an ALU magnitude)."""
+    n = 0
+    x = _FRACTAL_Q1
+    while x > r:
+        x = x / _FRACTAL_Q2
+        n += 1
+    return n
+
+
+def fractal_spectrum(R, branches, *, log_terms: int = 25) -> Dict[str, object]:
+    """Read a self-similar lattice's spectral-decimation structure — the Ch-2
+    (quasi-periodic / fractal) DUAL of :func:`resonant_spectrum` (F686 / F974).
+
+    Where :func:`resonant_spectrum` reads a symmetric Laplacian's FLAT
+    eigenspectrum (one eigensolve), ``fractal_spectrum`` reads a self-similar
+    lattice's **SPECTRAL-DECIMATION** structure: the spectrum is the ITERATED
+    PREIMAGE of the renormalization map ``R`` (a decimation :class:`~srmech.amsc.poly.Poly`
+    with a fixed point at the trivial eigenvalue, ``R(0)=0``), NOT a flat list.
+
+    Grounded on the Sierpinski gasket: on the NORMALIZED Laplacian the decimation
+    is exactly ``R(z)=z(5−4z)`` (measured — Rammal 1984; Fukushima & Shima,
+    *Potential Analysis* 1 (1992) 1–35, OA-attested via the arXiv:1505.05855
+    restatement; the paywalled DOIs are motivation-only).
+
+    Args:
+        R: the spectral-decimation map — a :class:`~srmech.amsc.poly.Poly` (or an
+            ascending-degree coefficient sequence, coerced with
+            :meth:`~srmech.amsc.poly.Poly.from_coeffs`). Must be degree ``≥ 2``
+            with ``R(0) = 0`` and ``R'(0) > 1``.
+        branches: the number of self-similar copies (an int ``≥ 2``).
+        log_terms: the Class-N ``log`` series-truncation depth (default 25).
+
+    Returns:
+        A dict with:
+
+        * ``"decimation_map"`` — the exact renormalization ``Poly`` ``R``
+          (Class-L ↔ operand).
+        * ``"scale"`` — ``R'(0)``, the exact-``Q`` per-level eigenvalue-shrink
+          factor (the Laplacian scaling).
+        * ``"branches"`` — the self-similar copy count.
+        * ``"self_similarity_dim"`` — the fracton (spectral) dimension
+          ``d_s = 2·log(branches)/log(scale)`` as a Class-N ``best_rational``
+          ``(num, den)`` anchor (``2·log3/log5 ≈ 1.36521`` for the gasket).
+        * ``"q_octaves_per_level"`` — the F974 bit-exact ``|q|``-meter reading
+          ``ceil(log2(scale))`` (3 for the gasket).
+        * ``"rung_class"`` — ``"constant"``: ONE decimation ``R`` iterated is
+          memoryless-geometric (self-similar), a single ``|q|`` rung.
+        * ``"log_period_over_2pi"`` — the discrete-scale-invariance / complex-
+          dimension imaginary period ``2π/log(scale)`` divided by ``2π`` (i.e.
+          ``1/log(scale)``) as a ``best_rational`` ``(num, den)``
+          (``1/ln5 ≈ 0.6213`` for the gasket).
+        * ``"spectrum_open"`` — the honest OPEN: the full spectrum is the JULIA
+          SET of ``R`` (operand-IRREPRESENTABLE — no finite exact carrier decides
+          ``λ ∈ spectrum``).
+
+    Pure orchestration over SHIPPED, already-C-backed ops — ``Poly.derivative`` /
+    ``Poly.eval`` (Class-L, ``has_native_poly``), Class-N ``log`` /
+    ``best_rational`` (C-backed), and the F974 ``_octaves`` ``|q|``-meter — so it
+    adds NO new numerical kernel and ships **non_compute** (no dedicated C peer;
+    the ``from_bodies`` / ``cooccurrence_edges`` precedent — everything-mirrors is
+    satisfied because every underlying op is already C-mirrored). Exact-``Q``;
+    numpy-free; no ``abs()`` (the ``|q|``-meter is a Class-K comparison; ``log``
+    is the Class-N float-projection surface reading the bit pattern exactly).
+
+    Raises:
+        ValueError: ``R`` not a Poly / coercible sequence, ``R.degree < 2``,
+            ``R(0) ≠ 0``, ``R'(0) ≤ 1``, or ``branches < 2``.
+    """
+    from . import rational as _rational  # best_rational (N) + log (N; = calculus.log)
+    from .poly import Poly               # exact-ℚ decimation polynomial carrier (lazy)
+
+    # R may be a Poly OR an ascending-degree coefficient sequence — coerce the
+    # latter (the ToolEntry/MCP surface can hand a coeff list; the "Poly" coercer
+    # passes a list through, so the op coerces it here).
+    if not isinstance(R, Poly):
+        try:
+            R = Poly.from_coeffs(R)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "fractal_spectrum: R must be a Poly or an ascending-degree "
+                f"coefficient sequence; got {R!r}") from exc
+    if R.degree < 2:
+        raise ValueError("fractal_spectrum: R must be a degree>=2 decimation Poly")
+    if R.eval(0) != Q(0, 1):
+        raise ValueError(
+            "fractal_spectrum: R(0) must be 0 (fixed point at the trivial eigenvalue)")
+    if branches < 2:
+        raise ValueError("fractal_spectrum: branches must be >= 2")
+
+    # SCALE = R'(0) = the exact per-level eigenvalue-shrink factor (the Laplacian
+    # scaling) — the Class-L renormalization derivative at the trivial fixed point.
+    scale = R.derivative().eval(0)              # exact Q
+    if scale <= _FRACTAL_Q1:
+        raise ValueError(
+            "fractal_spectrum: R'(0) must be > 1 (contraction toward 0 under preimage)")
+    si = int(scale) if scale.denominator == 1 else None
+
+    # SELF-SIMILARITY (fracton / spectral) DIMENSION d_s = 2 log(branches)/log(scale).
+    lb = _rational.log(branches, terms=log_terms)
+    ls = _rational.log(
+        si if si is not None else float(scale.numerator) / scale.denominator,
+        terms=log_terms)
+    ds = (_FRACTAL_Q2 * lb) / ls                # Q ratio of the series-truncated logs
+    d_s = _rational.best_rational(ds.numerator, ds.denominator, 10 ** 9)
+
+    # F974 |q|-METER: octaves per level = ceil(log2(scale)); a SINGLE R iterated is
+    # memoryless-geometric -> a CONSTANT / one-|q| rung.
+    q_oct = _octaves(_FRACTAL_Q1 / scale)
+
+    # DISCRETE-SCALE-INVARIANCE / complex-dimension imaginary period = 2*pi / log(scale).
+    inv_ls = _FRACTAL_Q1 / ls
+    period_over_2pi = _rational.best_rational(
+        inv_ls.numerator, inv_ls.denominator, 10 ** 9)
+
+    return {
+        "decimation_map": R,                    # the exact renormalization Poly (Class-L↔operand)
+        "scale": scale,                         # R'(0), exact Q
+        "branches": branches,
+        "self_similarity_dim": d_s,             # (num, den) Class-N anchor of 2 log(b)/log(scale)
+        "q_octaves_per_level": q_oct,           # F974 |q|-meter reading of the scale
+        "rung_class": "constant",               # constant = self-similar (one |q| iterated)
+        "log_period_over_2pi": period_over_2pi,  # complex-dimension period / 2pi
+        "spectrum_open": (
+            "the full spectrum = the JULIA SET of the decimation map R "
+            "(operand-IRREPRESENTABLE: no finite exact carrier decides "
+            "lambda-in-spectrum). candidate next-theory: complex dynamics of "
+            "rational maps / spectral-decimation Julia-set theory"),
+    }
+
+
+__all__ = ["signed_sum_squared", "resonant_spectrum", "from_bodies",
+           "fractal_spectrum"]
