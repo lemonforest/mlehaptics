@@ -59,6 +59,7 @@ class Grounding:
         func = int(nt * 0.35)
         self._gate = lambda w: 1.0 if docf.get(w, 0) < func else func / docf[w]
         self._idx = [(n, self._enc_tool(n)) for n in self.tools]
+        self._byname = dict(self._idx)
 
     def vec(self, w):
         if w not in self._vec_cache:
@@ -88,7 +89,19 @@ class Grounding:
         q = self.enc_query(u)
         sc = ((self.sim(q, v), n) for n, v in self._idx
               if owner is None or self.tools[n].owner == owner)
-        return sorted(sc, reverse=True)[:k]
+        top = sorted(sc, reverse=True)[:k]
+        # within-family re-rank (the F1008 open lever): if any tool's FULL name-token set is
+        # contained in the query, promote the longest such name — rule-based exact coverage over
+        # the WHOLE owner index (cheap set-ops; no tuned weights). 'klein 4 similarity' promotes
+        # klein4_similarity even when the bundle-sim rank buried it.
+        qt = set(_toks(u))
+        pool = [n for n in self._byname
+                if (owner is None or self.tools[n].owner == owner)
+                and self._nm[n] and set(self._nm[n]) <= qt]
+        if pool:
+            n0 = max(pool, key=lambda n: len(self._nm[n]))
+            top = [(self.sim(q, self._byname[n0]), n0)] + [(s, n) for s, n in top if n != n0]
+        return top[:k]
 
 
 def _register_self_tools():
@@ -133,18 +146,21 @@ class Session:
 
     # ---- router (F1010: declared operators + operand shape; continue = the default) ----
     def _operands(self, u):
-        ints = [int(x) for x in re.findall(r"-?\d+", u)]
+        # floats parse as EXACT rational int-pairs (stay-rational; float() only at the call boundary)
+        fls = [(int(a + b), 10 ** len(b)) for a, b in re.findall(r"(-?\d+)\.(\d+)", u)]
+        u2 = re.sub(r"-?\d+\.\d+", " ", u)
+        ints = [int(x) for x in re.findall(r"-?\d+", u2)]
         m = re.search(r"(?:bytes|string|text)\s+[\"']?([a-z]{2,})[\"']?\s*$", u.lower())
-        return ints, (m.group(1).encode() if m else None)
+        return ints, fls, (m.group(1).encode() if m else None)
 
     def route(self, u):
         b, ws = self.board, _toks(u)
         if ws and (ws[0] == b.address or ws[0] in b.self_verbs):
             return "self-command"
-        ints, byts = self._operands(u)
-        if b.has_define(ws) and not (ints or byts):
+        ints, fls, byts = self._operands(u)
+        if b.has_define(ws) and not (ints or fls or byts):
             return "define"
-        if ints or byts:
+        if ints or fls or byts:
             return "tool-call"  # operand shape = strong evidence (F1009)
         if ws and ws[0] in b.imperatives:
             return "tool-call"
@@ -177,29 +193,33 @@ class Session:
         return pick.split(".")[-1], self._impl[pick](self._rem(u))
 
     # ---- the drive loop (F1009 + F1012 cross-turn operand resolution) ----
-    def _fit(self, t, ints, byts):
+    def _fit(self, t, ints, fls, byts):
         pt = lambda p: p.type.lower().strip()
         reqs = [p for p in t.parameters if p.required]
         if not reqs:
             return 0.0
         intp = sum(1 for p in reqs if pt(p) == "int")
+        fltp = sum(1 for p in reqs if pt(p) == "float")
         bytp = sum(1 for p in reqs if "bytes" in pt(p))
         listp = sum(1 for p in reqs if any(k in pt(p) for k in ("list", "sequence", "tuple")))
-        if len(reqs) - intp - bytp - listp:
+        if len(reqs) - intp - fltp - bytp - listp:
             return 0.0
         if bytp and byts is None:
+            return 0.0
+        if fltp > len(fls) + len(ints):  # a float slot may consume an int operand
             return 0.0
         if listp:
             return 0.4 if ints else 0.0
         if intp > len(ints):
             return 0.0
-        return 2.0 if (intp == len(ints) and (bytp > 0) == (byts is not None)) else 1.0
+        exact = (intp + fltp == len(ints) + len(fls)) and (bytp > 0) == (byts is not None)
+        return 2.0 if exact else 1.0
 
     def _drive_tool(self, u):
-        ints, byts = self._operands(u)
+        ints, fls, byts = self._operands(u)
         cands = [n for _, n in self.g.ground(u, 5, owner="srmech")]
         resolved = ""
-        if all(self._fit(self.g.tools[n], ints, byts) == 0.0 for n in cands) and self.mem:
+        if all(self._fit(self.g.tools[n], ints, fls, byts) == 0.0 for n in cands) and self.mem:
             # cross-turn operand resolution: the utterance under-supplies -> recall the referenced note
             kw = self.board.kernel_ops["kernel"]
             topname = self.g._nm[cands[0]]
@@ -212,37 +232,90 @@ class Session:
                 mem_ints = [int(w) for w in _toks(note) if w.isdigit()]
                 ints = mem_ints[:1] + ints
                 resolved = ' [operand %s resolved from: "%s"]' % (mem_ints[:1], note)
-        scored = sorted(((self._fit(self.g.tools[n], ints, byts), -cands.index(n), n)
+        scored = sorted(((self._fit(self.g.tools[n], ints, fls, byts), -cands.index(n), n)
                          for n in cands), reverse=True)
-        pick = scored[0][2] if scored[0][0] > 0 else cands[0]
-        parts = pick.split(".")
-        fn = None
+        ranked = [n for f, _, n in scored if f > 0] or cands[:1]
+        # FAILED-RUN RECOVERY (hardening ii): try fit-positive candidates in order; a raise moves to
+        # the next candidate; every attempt is recorded into working memory (nothing hidden).
+        attempts = []
+        for pick in ranked[:3]:
+            fn = self._resolve(pick)
+            ba = self._bind_args(pick, u, ints, fls, byts)
+            if fn is None or ba is None:
+                attempts.append("%s: unbindable" % pick.split(".")[-1])
+                continue
+            args, kw = ba
+            shown = "%s(%s)" % (pick.split(".")[-1], ", ".join(
+                [repr(a) if isinstance(a, bytes) else str(a) for a in args]
+                + ["%s=%s" % (k, v) for k, v in kw.items()]))
+            try:
+                res = fn(*args, **kw)
+            except Exception as e:
+                attempts.append("%s -> ERR %s" % (shown, e))
+                self.mem.append("attempt %s = ERR %s" % (shown, e))
+                continue
+            self.mem.append("%s = %s" % (shown, res))
+            note = " [recovered after: %s]" % "; ".join(attempts) if attempts else ""
+            return "%s = %s%s%s" % (shown, str(res)[:60], resolved, note)
+        return "(no runnable candidate; attempts: %s)" % ("; ".join(attempts) or "none")
+
+    def _resolve(self, dotted):
+        parts = dotted.split(".")
         for i in range(len(parts), 0, -1):
             try:
                 obj = importlib.import_module(".".join(parts[:i]))
                 for p in parts[i:]:
                     obj = getattr(obj, p)
-                fn = obj
-                break
+                return obj
             except (ImportError, AttributeError):
                 continue
-        args, ii = [], 0
+        return None
+
+    def _bind_args(self, pick, u, ints, fls, byts):
+        # NAMED operands: match the tool's OWN declared parameter names in the utterance,
+        # both orders ('terms 12' / '12 terms'). Schema-driven — no per-tool code.
+        named, ul = {}, u.lower()
+        for p in self.g.tools[pick].parameters:
+            nm = re.escape(p.name.lower())
+            m = (re.search(r"\b%s\s+(-?\d+(?:\.\d+)?)" % nm, ul)
+                 or re.search(r"(-?\d+(?:\.\d+)?)\s+%s\b" % nm, ul))
+            if m:
+                named[p.name] = m.group(1)
+        fq = list(fls)
+        args, kw, ii = [], {}, 0
         for p in self.g.tools[pick].parameters:
             tp = p.type.lower().strip()
-            if not p.required and ii >= len(ints):
+            if p.name in named:
+                v = named[p.name]
+                kw[p.name] = float(v) if tp == "float" else int(float(v))  # by NAME (keyword-only safe)
+                if "." in v and fq:
+                    fq.pop(0)
+                elif v.lstrip("-").isdigit() and int(v) in ints:
+                    ints = [x for x in ints if x != int(v)] or ints[1:]
+                continue
+            if not p.required and ii >= len(ints) and not fq:
                 break
             if "bytes" in tp:
+                if byts is None:
+                    return None
                 args.append(byts)
+            elif tp == "float":
+                if fq:
+                    num, den = fq.pop(0)
+                    args.append(float(num) / float(den))  # exact rational -> float at the CALL boundary only
+                elif ii < len(ints):
+                    args.append(float(ints[ii])); ii += 1
+                else:
+                    return None
             elif tp == "int":
+                if ii >= len(ints):
+                    return None
                 args.append(ints[ii]); ii += 1
             elif any(k in tp for k in ("list", "sequence", "tuple")):
                 args.append(ints[ii:]); ii = len(ints)
-        try:
-            res = fn(*args)
-        except Exception as e:  # captured into memory; recovery loop = hardening backlog
-            res = "ERR %s" % e
-        self.mem.append("%s%s = %s" % (pick.split(".")[-1], tuple(args), res))
-        return "%s%s = %s%s" % (pick.split(".")[-1], tuple(args), str(res)[:60], resolved)
+            elif p.required:
+                return None  # Mat/Vec/HV operands remain a gate item
+        return args, kw
 
     # ---- handlers ----
     def _remember(self, text):

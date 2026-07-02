@@ -48,8 +48,10 @@ ENGLISH = Board(
                            "enumerate", "build", "generate", "encode", "decode",
                            "measure", "verify", "hash"}),
     interrogatives=frozenset({"what", "who", "when", "where", "how", "why"}),
+    # NOTE: 'the' is NOT stripped — remembered notes store the FULL text (no doctoring the
+    # SSoT, F982; high-frequency tokens are the continuation walk's curvature, F849/F853).
     strip=frozenset({"siona", "remember", "recall", "forget", "ingest", "save", "show",
-                     "define", "continue", "list", "help", "that", "your", "please", "the"}),
+                     "define", "continue", "list", "help", "that", "your", "please"}),
     kernel_ops={"kernel": "kernel", "is": "is", "times": "times", "over": "over", "plus": "plus"},
 )
 

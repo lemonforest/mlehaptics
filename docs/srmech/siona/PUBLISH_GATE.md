@@ -19,6 +19,7 @@ executes until the rc1 cut is declared ready** ("almost there or all the way the
 
 ## Hardening backlog (before declaring ready)
 - [ ] paraphrase intent-frames per board (asks outside the declared frames fall to `continue`)
+- [ ] name ALIAS/morphology in grounding ("cosine"->cos, "laplacians"->laplacian) — exact-token vectors are orthogonal to abbreviations; candidate fix: byte/glyph unigrams in Grounding.vec (spelling-similar soft match) — measure the cross-talk cost first (read-independent Gram before/after)
 - [ ] structured operands (floats / Mat / Vec / HV / kwargs — F1009 scope was int/bytes/list)
 - [ ] failed-run → next-candidate recovery loop (ERR is already captured into memory)
 - [ ] kernel generality hand-off (multi-step / non-linear → srmech `dispatch.infer` axis)
