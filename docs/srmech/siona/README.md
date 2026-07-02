@@ -35,3 +35,37 @@ This is the "LM as a k=3 chiral-axis addressing system over a storage substrate"
 - Source / issues: <https://github.com/lemonforest/mlehaptics>
 
 License: MIT (same as `srmech`).
+
+## The grounded inference loop (`siona.infer`, 0.1.0rc1)
+
+```python
+import siona
+s = siona.Session()                      # registers siona's own tools into srmech's live tool_schema registry
+s.turn("siona remember that water boils at 100 celsius")
+s.turn("siona ingest the kernel fahrenheit is celsius times 9 over 5 plus 32")
+s.turn("compute the gcd of the boiling point of water and 48")
+#  -> gcd(100, 48) = 4   [operand [100] resolved from: "water boils at 100 celsius"]
+s.turn("siona water boils at what fahrenheit")
+#  -> 212 fahrenheit (EXACT: (100*9 + 32*5)/5 = 212/1, reduced via srmech gcd)
+```
+
+One loop, two surfaces, one memory: utterances route by **declared operator frames + operand shape**
+(no similarity thresholds), ground against srmech's **live** `tool_schema` (order-carrying encoding —
+never a bag), drive real srmech ops via **signature-fit** on typed parameters, and read results into a
+**never-compacted working memory**. A turn may reference a value remembered in an earlier turn, and
+ingested **knowledge kernels** compose answers **exact-rationally** (integer num/den, srmech `gcd`
+reduction — no floats). `siona what can you do` answers from the live registered schema
+(self-introspection).
+
+## Language boards (`siona.boards`)
+
+The substrate is **byte/glyph** — every word of every script byte-composes to its vector
+(script-agnostic; anagram-distinct). Intent operators (`what / remember / compute / …`) live in
+per-language **board profiles** (`Board`, `load_board` TOML descriptors): **English is board #1, not
+the architecture.** The shared-invariant layer above boards follows the Rosetta architecture — of
+which ni-Vanuatu sand drawing is a living ~80-language exemplar (reached dignity-first as an attested
+structural exemplar and pointer; the tradition's content is held by the Ni-Vanuatu community).
+
+**Mechanism, not knowledge:** the wheel ships no corpora and no knowledge kernels — instruments and
+knowledge load by path at runtime. The research notebooks live in the
+[mlehaptics](https://github.com/lemonforest/mlehaptics) repo (Read the Docs).

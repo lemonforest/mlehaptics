@@ -11,8 +11,10 @@ srmech_requires = ">=0.8.1"
 
 # Bridge surface — "name = module:callable"; the loader's smoke test imports each + checks it is callable.
 [profile.bridge]
-walk   = "siona.bridge:walk"
-recall = "siona.bridge:recall"
+walk    = "siona.bridge:walk"
+recall  = "siona.bridge:recall"
+session = "siona.infer:Session"
+board   = "siona.boards:ENGLISH"
 
 # [profile.native] intentionally omitted in rc1 — siona rides srmech's native Klein-4 for HDC; the de Bruijn
 # walk is pure-Python (exact). The C-native de Bruijn accelerator (F824) is a follow-on cibuildwheel rc.
