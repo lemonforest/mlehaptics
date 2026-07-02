@@ -2666,3 +2666,18 @@ The §78 ask is **shipped and verified live (rc79)** as a NEW method **`RBSLMInf
 **Ask (the #863 package op — BX-5/6/7):** a **full complex QDFT / hypercomplex-twiddle read** over a rung/mode ladder — `qdft(seq, *, twiddle=exp(μθ))` summing the per-rung responses with the `the_one`/`exp(μθ)` twiddle (not just the peak/max). The research-side prototype (F1000) uses only the *peak* (max-over-rungs); the **full complex QDFT** should **amplify** the elliptic advantage via *coherent phase combination* (the whole point of the twiddle), and is the natural home for: (a) the F1000 blind rung-selector, (b) the F999/#1232 elliptic-vs-independent code test in its proper read, (c) the resonant/phase-coherent read the F996–F998b substrate arc calls for. Realizing it cleanly needs the `exp(μθ)` hypercomplex twiddle helper (BX-7) + the `qm.quaternion` ergonomic module (BX-6) + the QDFT/ODFT TOML cascade (BX-5). Per `[[feedback_upstream_srmech_fixes_as_research_notes]]`, this stays the srmech/operations side; F1000 is its grounded use-case. Composes F1000/F999/F995/#1232 + the F996–F998b resonant-substrate arc.
 
 **Correction (F1001, 2026-07-02):** the expectation above — that the *full complex QDFT* would *amplify* the elliptic advantage — is **refuted for the single-rung fold**. Built the full complex QDFT (exact 6th-roots twiddle) and re-measured: full-QDFT 51%/49% < QDFT-peak 53%/58%, and the elliptic advantage *vanishes* under the full transform. Reason: the single-rung fold's target is a **spike**, for which the **peak / matched-filter** read is optimal (it rejects off-rung noise); the full QDFT coherently combines all rungs *including* the off-rung noise (Parseval: a spike's spectrum is flat → no coherent gain, forfeits the max's noise-rejection). So the RBS-LM read needs only the **peak/matched-filter reduction** (F1000, elliptic +6pp, already prototyped) — **not** the full complex QDFT. The full complex QDFT (#863) remains the right op for **spread-spectrum** reads (symbol spread across all rungs), a *different* encoding; it is not what the fold is. Net: #863 is still worth building for the general theta/QDFT arc, but the *RBS-LM rung-fold* does not need it — the peak read suffices.
+
+## §82 — `hdc.klein4_bundle` does NOT accept HV wrappers (API inconsistency vs bind/similarity) — F1005 (2026-07-02)
+
+`hdc.klein4_bind(a, b)` and `hdc.klein4_similarity(a, b)` accept **HV wrapper** objects
+(`type(hdc.klein4_random(...))`) directly. But `hdc.klein4_bundle([hv1, hv2, ...])` does
+**not** — it routes each element through `_as_klein4_buf`, which calls `int(x)` and raises
+`TypeError: int() argument must be ... not 'HV'` / `ValueError: klein-4 vector must be a 1-D
+sequence of ints`. So a list of HVs (the natural output of `klein4_random` / `klein4_bind`)
+cannot be bundled via `klein4_bundle` without first `.tolist()`-ing each — while the same HVs
+bind and compare fine. **Ask:** make `_as_klein4_buf` (and thus `klein4_bundle`) accept HV
+wrappers for parity with `klein4_bind`/`klein4_similarity`. **Workaround in use:** route list-
+bundling through `ContextSubstrate.bundle_odd(...)`, which accepts HVs (used across the RBS-LM
+findings). Low-severity (workaround exists) but a real ergonomic inconsistency — the three core
+klein4 ops should agree on their accepted carrier type. Surfaced building the F766 open-vocab
+definition dictionary (F1005 part B/C bundling).
