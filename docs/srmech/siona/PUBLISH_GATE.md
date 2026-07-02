@@ -21,13 +21,13 @@ executes until the rc1 cut is declared ready** ("almost there or all the way the
 - [ ] paraphrase intent-frames per board (asks outside the declared frames fall to `continue`)
 - [ ] name ALIAS/morphology in grounding ("cosine"->cos, "laplacians"->laplacian) — exact-token vectors are orthogonal to abbreviations; candidate fix: byte/glyph unigrams in Grounding.vec (spelling-similar soft match) — measure the cross-talk cost first (read-independent Gram before/after)
 - [ ] structured operands (floats / Mat / Vec / HV / kwargs — F1009 scope was int/bytes/list)
-- [ ] failed-run → next-candidate recovery loop (ERR is already captured into memory)
+- [x] failed-run recovery — DONE (F1015: fit-positive candidates in order, attempts recorded)
 - [ ] kernel generality hand-off (multi-step / non-linear → srmech `dispatch.infer` axis)
-- [ ] within-family disambiguation re-rank (bundle vs bundle_resolve; F1008's open lever)
-- [ ] bag-regression tests in `siona/tests/` (the F1004/F1008/F1010 incidents as fixtures)
-- [ ] UDHR parallel-invariant run (Bislama board vs English board — matching IR digest; public-domain text)
-- [ ] exercise the egyptian_tla board (local, 22k rows) — read-independent structural checks
-- [ ] operator-board swap test (a second-language TOML descriptor; router unchanged)
+- [x] within-family re-rank — DONE (F1015: whole-index name-coverage promotion)
+- [x] bag-regression tests — DONE (F1015: fixtures pinned, suite green)
+- [x] UDHR parallel-invariant run — DONE (F1015: 3–8× chance, zero dictionary; IR layer proven load-bearing)
+- [x] egyptian_tla board exercised — DONE (F1015: distinct .386 + deterministic)
+- [x] operator-board swap test — DONE (F1015 synthetic testlang full session; F1016 REAL Bislama board from UDHR-attested vocab, 2/2 tests)
 - [ ] `siona.infer` test suite green under the venv pytest
 - [ ] README + CHANGELOG final pass; version SSOT agreement (pyproject / __init__ / profile toml)
 

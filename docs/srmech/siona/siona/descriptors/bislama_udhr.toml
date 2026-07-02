@@ -1,0 +1,46 @@
+# BISLAMA board — authored ONLY from UDHR-attested vocabulary (dignity-first; citation discipline).
+#
+# ATTESTATION SOURCE: the Universal Declaration of Human Rights in Bislama, "Deklereisen Blong Raet
+# Blong Evri Man Mo Woman Raon Wol" (UDHR-in-Unicode data, eric-muller/udhr, public domain), with the
+# parallel ENGLISH UDHR articles as the gloss source (the Rosetta method attesting its own board).
+# Every operator token below is attested in that text; per-token attestation = (article, parallel gloss).
+# NO token comes from model training data.
+#
+# HONEST GAPS (slots the UDHR cannot attest — left empty or carried over, never invented):
+#   - a "remember/ingest" verb (e.g. tingbaot) is NOT attested in the UDHR text -> verb_tools has NO
+#     remember mapping; ingestion on this board waits for an attested conversational source.
+#   - arithmetic kernel words (times/over/plus) do not occur in a rights declaration -> kernel_ops
+#     carries the English slot-words, explicitly marked as an UNATTESTED carryover.
+#   - note the cross-board homograph: Bislama "save" = know (docf 16) — the same string the ENGLISH
+#     board maps to remember. Here it maps to recall (knowing = retrieval of the known).
+[board]
+name = "bislama-udhr"
+address = "siona"                      # the agent's name, not a language item
+# wanem = "what" — art 16 "nomata wanem reis" (parallel: "without any... race");
+#                  art 23 "jusum wanem wok hemi wantem" (parallel: "free choice of employment")
+define_frames = [["wanem"]]
+# soem    = show/manifest — art 18 "blong soem rilijen blong hem" (parallel: "freedom to manifest his religion")
+# luksave = recognize     — art  6 "narafala man i luksave hem"  (parallel: "right to recognition")
+# talem   = tell/express  — art 19 "talem tingting blong hem"    (parallel: "freedom of opinion and expression")
+# save    = know          — docf 16 (e.g. art 2)                 (parallel: know/can) -> recall
+self_verbs = ["soem", "luksave", "talem", "save"]
+# mekem = do/make — art 8 "Konstitusen o loa givim, oli mekem" (parallel: remedy/acts) ; jusum = choose — art 23
+imperatives = ["mekem", "jusum"]
+interrogatives = ["wanem"]
+# strip = the MEASURED function-word set (doc-freq over the 31 UDHR-bis sections, F768/F984 method):
+# i:31 blong:29 mo:27 long:27 we:25 ol:19 o:19 hemi:16 oli:13 se:11 olsem:12  (+ the address + mapped verbs)
+strip = ["siona", "soem", "luksave", "talem", "save", "i", "blong", "mo", "long", "we", "ol", "o", "hemi", "oli", "se", "olsem"]
+
+[board.verb_tools]
+soem    = "siona.memory.show"
+talem   = "siona.memory.show"
+luksave = "siona.memory.recall"
+save    = "siona.memory.recall"
+# (no remember mapping -- UNATTESTED; see the honest-gaps note above)
+
+[board.kernel_ops]     # UNATTESTED CARRYOVER: arithmetic words absent from the UDHR; English slot-words remain
+kernel = "kernel"
+is     = "is"
+times  = "times"
+over   = "over"
+plus   = "plus"
