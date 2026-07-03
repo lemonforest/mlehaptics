@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc104"
-#define SRMECH_VERSION       "0.9.0rc104"
+#define SRMECH_VERSION_PRE   "rc105"
+#define SRMECH_VERSION       "0.9.0rc105"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -865,6 +865,53 @@ srmech_status_t srmech_graph_normalized_laplacian(uint32_t        n,
                                                   const uint32_t *edges_v,
                                                   const double   *weights,
                                                   double         *out_matrix);
+
+/* 0.9.0rc105 (issue #1234 Item 3 / F1006 / F1007): magnetic (Hermitian)
+ * Laplacian of a DIRECTED graph — the standalone-C builder peer of the
+ * Python `laplacian.magnetic_laplacian` (the "tracked next voxel" of the
+ * rc26 directed/signed leg). Direction is encoded as a complex phase so
+ * the matrix stays Hermitian; the phase comes from the srmech Q61 trig
+ * cascade (srmech_cos_q61 / srmech_sin_q61 — NOT libm), byte-exact with
+ * the pure-Python Class-N cascade, and pi enters as 4*atan_q61(1) (the
+ * same derivation the Python module uses; no libm M_PI).
+ *
+ * out_matrix is 2*n*n doubles, row-major INTERLEAVED complex (re, im)
+ * pairs — the module's complex wire convention.
+ *
+ * TWO modes, selected by `charges`:
+ *   charges == NULL — scalar-q mode (the rc26 construction):
+ *       W[u,v] += w (directed);  A_s = (W + W^T)/2;
+ *       L[r,c] = -A_s[r,c] * exp(i * 2*pi*q * (W[r,c] - W[c,r])), r != c;
+ *       L[r,r] = sum_c A_s[r,c].
+ *     `q` is the flux in TURNS per unit net flow (q = 0.25 = quarter
+ *     turn per unit imbalance).
+ *   charges != NULL — per-edge CHIRAL mode (length n_edges, TURNS): the
+ *     dual-sense knowledge-graph encoding (F1007) — a real signed edge
+ *     pair (+w, -w) ANNIHILATES in the signed Laplacian, while the two
+ *     phase senses e^{+i 2*pi*c} / e^{-i 2*pi*c} are conjugate partners
+ *     that SURVIVE. Each edge k = (u, v, w, c) accumulates
+ *       L[u,v] += -(w/2) * exp(+i * 2*pi*c)
+ *       L[v,u] += -(w/2) * exp(-i * 2*pi*c)      (Hermitian by construction)
+ *       deg[u] += w/2;  deg[v] += w/2;  L[r,r] = deg[r]  (real diagonal).
+ *     The w/2 matches the scalar mode's (W + W^T)/2 magnitude scale;
+ *     (u, v, c) is equivalent to (v, u, -c). `q` is IGNORED in this mode
+ *     (the Python surface rejects passing both).
+ *
+ * No node cap and NO scratch: scalar mode stages W in the imaginary
+ * slots of the caller's own out_matrix (the imag half is rewritten by
+ * the final pass), so the bound is the caller's RAM (standalone-
+ * complete honor). An out-of-range edge endpoint -> SRMECH_ERR_BAD_INPUT;
+ * a phase angle with no Q61 form (non-finite / |ang| >= 2^55) ->
+ * SRMECH_ERR_BAD_INPUT (the Python peer raises identically).
+ * ABI-additive: a new symbol, so SRMECH_ABI_VERSION stays 3. */
+srmech_status_t srmech_graph_magnetic_laplacian(uint32_t        n,
+                                                uint32_t        n_edges,
+                                                const uint32_t *edges_u,
+                                                const uint32_t *edges_v,
+                                                const double   *weights,
+                                                double          q,
+                                                const double   *charges,
+                                                double         *out_matrix);
 
 /* §51 (issue #1097): the SPARSE / iterative normalized-cut Fiedler — the
  * n-unbounded peer of the dense eigensolver path. Power iteration on the

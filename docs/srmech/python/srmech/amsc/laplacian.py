@@ -2680,12 +2680,151 @@ def signed_laplacian(
     return Mat.from_rows(L, is_complex=False)
 
 
+# rc105 (#1234 Item 3): sentinel distinguishing "q not passed" from every
+# real value, so the q ⊕ charges mutual-exclusion contract can reject ANY
+# explicit q alongside charges while `q` unset stays byte-for-byte the
+# rc28 default (0.25).
+_MAGNETIC_Q_DEFAULT = 0.25
+_MAGNETIC_Q_UNSET = object()
+
+
+def _magnetic_laplacian_scalar_py(
+    n: int,
+    el: List[Tuple[int, int]],
+    wl: List[float],
+    q: float,
+) -> List[List[complex]]:
+    """The rc28 scalar-q construction (pure Python) — UNCHANGED math.
+
+    ``A_s = (W + Wᵀ)/2``; ``L[r,c] = −A_s[r,c]·exp(i·2π·q·(W[r,c]−W[c,r]))``;
+    diagonal = symmetrised degree. Split out of :func:`magnetic_laplacian`
+    verbatim (rc105) so the native dispatch has a pure twin to parity-test
+    against; every float op and accumulation order is byte-identical to rc104.
+    """
+    W = _directed_adjacency(n, [u for u, _ in el], [v for _, v in el], wl)
+    A_s = [[0.5 * (W[r][c] + W[c][r]) for c in range(n)] for r in range(n)]
+    # phase[r][c] = exp(i·2π·q·(W[r][c] − W[c][r])); 2π via the Class-N atan
+    # cascade (_PI = 4·atan(1); no stdlib math.pi).
+    two_pi_q = 2.0 * _PI * float(q)
+    L = [[0j] * n for _ in range(n)]
+    deg = [0.0] * n
+    for r in range(n):
+        for c in range(n):
+            deg[r] += A_s[r][c]
+            if c == r:
+                continue  # no self-phase; degree carries the diagonal
+            ang = two_pi_q * (W[r][c] - W[c][r])
+            phase = complex(_rcos(ang), _rsin(ang))
+            L[r][c] = -(A_s[r][c] * phase)
+    for r in range(n):
+        L[r][r] = complex(deg[r])
+    return L
+
+
+def _magnetic_laplacian_charges_py(
+    n: int,
+    el: List[Tuple[int, int]],
+    wl: List[float],
+    cl: List[float],
+) -> List[List[complex]]:
+    """Per-edge CHIRAL construction (pure Python) — rc105, F1006/F1007.
+
+    Each edge ``k = (u, v)`` with weight ``w`` and charge ``c`` (in TURNS,
+    the same unit as the scalar ``q``) accumulates the conjugate Hermitian
+    pair::
+
+        L[u, v] += −(w/2)·exp(+i·2π·c)
+        L[v, u] += −(w/2)·exp(−i·2π·c)
+        deg[u] += w/2;  deg[v] += w/2;   L[r, r] = deg[r]
+
+    Hermitian BY CONSTRUCTION (the two writes are exact conjugates); the
+    ``w/2`` matches the scalar mode's ``(W + Wᵀ)/2`` magnitude scale, and
+    ``(u, v, c)`` is equivalent to ``(v, u, −c)``. A dual-sense pair
+    ``(is-a: weight a, charge +q)`` + ``(is-not-a: weight b, charge −q)``
+    on the same ``(u, v)`` yields the off-diagonal
+    ``−[(a+b)/2·cos(2πq) + i·(a−b)/2·sin(2πq)]`` — the conjugate partners
+    SURVIVE (contrast :func:`signed_laplacian`, where ``+a`` and ``−b``
+    with ``a == b`` sum to zero and the relationship vanishes).
+    """
+    two_pi = 2.0 * _PI
+    L = [[0j] * n for _ in range(n)]
+    deg = [0.0] * n
+    for (u, v), w, ch in zip(el, wl, cl):
+        u = int(u)  # same endpoint coercion as _directed_adjacency /
+        v = int(v)  # the native uint32 marshal (float endpoints accepted)
+        hw = 0.5 * w
+        deg[u] += hw
+        deg[v] += hw
+        if u == v:
+            continue  # no self-phase; degree carries the diagonal
+        ang = two_pi * ch
+        re = float(_rcos(ang))
+        im = float(_rsin(ang))
+        L[u][v] += complex(-(hw * re), -(hw * im))
+        L[v][u] += complex(-(hw * re), hw * im)
+    for r in range(n):
+        L[r][r] = complex(deg[r])
+    return L
+
+
+def _magnetic_laplacian_native(
+    n: int,
+    el: List[Tuple[int, int]],
+    wl: List[float],
+    q: float,
+    cl: Optional[List[float]],
+) -> Optional[List[List[complex]]]:
+    """numpy-free native dispatch for :func:`magnetic_laplacian` (rc105).
+
+    Marshals the edge endpoints into ``(c_uint32 * n_edges)`` buffers +
+    weights (and per-edge charges, when given) into ``(c_double * n_edges)``
+    buffers and calls the standalone-C ``srmech_graph_magnetic_laplacian``
+    with a caller-allocated ``2*n*n``-double interleaved-complex output (no
+    scratch arena — the C peer stages W in the output's imaginary slots).
+    The C peer runs the SAME Q61 trig cascade the pure path runs, so the
+    result is bit-identical. Returns the nested ``list[list[complex]]``, or
+    ``None`` on any non-OK status / missing symbol (caller then uses the
+    pure-Python cascade)."""
+    if not (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_graph_magnetic_laplacian")
+    ):
+        return None
+    n_edges = len(el)
+    out = (ctypes.c_double * (2 * n * n))()
+    null_u = ctypes.cast(None, ctypes.POINTER(ctypes.c_uint32))
+    null_d = ctypes.cast(None, ctypes.POINTER(ctypes.c_double))
+    if n_edges:
+        eu = (ctypes.c_uint32 * n_edges)(*(int(u) for u, _ in el))
+        ev = (ctypes.c_uint32 * n_edges)(*(int(v) for _, v in el))
+        wbuf = (ctypes.c_double * n_edges)(*(float(w) for w in wl))
+    else:
+        eu = ev = null_u
+        wbuf = null_d
+    cbuf = null_d
+    if cl is not None and n_edges:
+        cbuf = (ctypes.c_double * n_edges)(*(float(c) for c in cl))
+    rc = _native.LIB.srmech_graph_magnetic_laplacian(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges), eu, ev, wbuf,
+        ctypes.c_double(float(q)), cbuf, out,
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [
+        [complex(out[2 * (r * n + c)], out[2 * (r * n + c) + 1])
+         for c in range(n)]
+        for r in range(n)
+    ]
+
+
 def magnetic_laplacian(
     n: int,
     edges: Iterable[Tuple[int, int]],
     weights: Optional[Iterable[float]] = None,
     *,
-    q: float = 0.25,
+    q: float = _MAGNETIC_Q_UNSET,  # type: ignore[assignment]  # sentinel; 0.25 when unset
+    charges: Optional[Iterable[float]] = None,
 ) -> "Mat":
     """Magnetic (Hermitian) Laplacian of a **directed** graph.
 
@@ -2709,35 +2848,67 @@ def magnetic_laplacian(
     attested citation belongs in the research notebook under the MPM
     discipline.
 
-    Numpy-free (rc129): the ``2π`` is stdlib ``math.pi`` (not ``np.pi``); the
-    per-element phase ``exp(i·2π·q·Θ)`` is the libm-free Class-N
-    ``cos``/``sin`` cascade. Returns an ``n×n`` Hermitian complex
+    **Per-edge charges (rc105; issue #1234 Item 3 / F1006 / F1007) — the
+    CHIRAL Laplacian for dual-sense knowledge graphs.** ``charges`` is an
+    optional iterable parallel to ``edges`` (validated
+    ``len(charges) == len(edges)``), each entry a per-edge charge in
+    **turns** (the same unit as ``q``). When given, each edge
+    ``k = (u, v, w, c)`` accumulates the conjugate Hermitian pair
+    ``L[u,v] += −(w/2)·e^{+i·2π·c}`` / ``L[v,u] += −(w/2)·e^{−i·2π·c}``
+    (``(u, v, c) ≡ (v, u, −c)``; the ``w/2`` matches the scalar mode's
+    ``(W + Wᵀ)/2`` magnitude scale), and the real diagonal carries the
+    magnitude degree ``Σ w/2``. WHY (F1006/F1007): the real
+    :func:`signed_laplacian` ANNIHILATES a dual-sense edge — "is-a" (+1)
+    and "is-not-a" (−1) sum to 0 and the relationship vanishes — while
+    the two phase senses ``e^{±i·2π·q}`` are conjugate partners that
+    SURVIVE: a dual-sense pair ``(a, +q)`` + ``(b, −q)`` reads
+    ``−[(a+b)/2·cos(2πq) + i·(a−b)/2·sin(2πq)]`` — the symmetric part in
+    the real cosine, the is-a/is-not-a IMBALANCE in the imaginary sine
+    residue (chiral flux, not cancellation).
+
+    **Contract: ``q`` and ``charges`` are mutually exclusive.** Passing
+    ``charges`` moves every edge's phase onto the edge itself, so a scalar
+    ``q`` has no role there — passing BOTH raises ``ValueError`` (silent
+    ignore would hide a modelling error). ``charges=None`` (default) is the
+    scalar-``q`` construction, byte-for-byte the rc28 behaviour
+    (``q`` unset → 0.25).
+
+    Numpy-free (rc129): the ``2π`` is the Class-N ``4·atan(1)`` cascade π
+    (no stdlib ``math.pi``, no ``np.pi``); the per-element phase is the
+    libm-free Class-N ``cos``/``sin`` cascade. Native (rc105): both modes
+    dispatch to the standalone-C ``srmech_graph_magnetic_laplacian`` (the
+    same Q61 trig cascade → bit-identical; pure Python is the complete
+    no-native alternative). Returns an ``n×n`` Hermitian complex
     :class:`~srmech.amsc.mat.Mat` (``.shape`` + ``m[i, j]``, NOT a bare
     ``list[list[complex]]``).
     """
-    if not isinstance(q, (int, float)):
-        raise TypeError(f"q must be a real number; got {type(q).__name__}")
+    if charges is not None:
+        if q is not _MAGNETIC_Q_UNSET:
+            raise ValueError(
+                "q and charges are mutually exclusive: per-edge charges carry "
+                "the phase themselves, so a scalar q has no role — pass one "
+                "or the other"
+            )
+        el, wl = _validate_edges_weights_py(n, edges, weights)
+        cl = [float(c) for c in charges]
+        if len(cl) != len(el):
+            raise ValueError(
+                f"charges length {len(cl)} != n_edges {len(el)}"
+            )
+        rows = _magnetic_laplacian_native(n, el, wl, 0.0, cl)
+        if rows is None:
+            rows = _magnetic_laplacian_charges_py(n, el, wl, cl)
+        return Mat.from_rows(rows, is_complex=True)
+    qv = _MAGNETIC_Q_DEFAULT if q is _MAGNETIC_Q_UNSET else q
+    if not isinstance(qv, (int, float)):
+        raise TypeError(f"q must be a real number; got {type(qv).__name__}")
     el, wl = _validate_edges_weights_py(n, edges, weights)
-    W = _directed_adjacency(n, [u for u, _ in el], [v for _, v in el], wl)
-    A_s = [[0.5 * (W[r][c] + W[c][r]) for c in range(n)] for r in range(n)]
-    # phase[r][c] = exp(i·2π·q·(W[r][c] − W[c][r])); 2π via the Class-N atan
-    # cascade (_PI = 4·atan(1); no stdlib math.pi).
-    two_pi_q = 2.0 * _PI * float(q)
-    L = [[0j] * n for _ in range(n)]
-    deg = [0.0] * n
-    for r in range(n):
-        for c in range(n):
-            deg[r] += A_s[r][c]
-            if c == r:
-                continue  # no self-phase; degree carries the diagonal
-            ang = two_pi_q * (W[r][c] - W[c][r])
-            phase = complex(_rcos(ang), _rsin(ang))
-            L[r][c] = -(A_s[r][c] * phase)
-    for r in range(n):
-        L[r][r] = complex(deg[r])
+    rows = _magnetic_laplacian_native(n, el, wl, float(qv), None)
+    if rows is None:
+        rows = _magnetic_laplacian_scalar_py(n, el, wl, float(qv))
     # Always complex layout (a Hermitian Laplacian is genuinely complex even
     # when q=0 collapses the imaginary part — pin the carrier dtype explicitly).
-    return Mat.from_rows(L, is_complex=True)
+    return Mat.from_rows(rows, is_complex=True)
 
 
 def fiedler_vector(matrix) -> "Vec":

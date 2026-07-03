@@ -966,13 +966,28 @@ def _register_primitive_class_tools() -> None:
                     "exp(i·2π·q·(W−Wᵀ)) so the graph stays Hermitian and "
                     "hermitian_eigendecompose diagonalises it; the complex "
                     "eigenpair is the directed-navigation signature. q=0 → "
-                    "real symmetrised Laplacian (undirected control).",
+                    "real symmetrised Laplacian (undirected control). "
+                    "rc105 (#1234 Item 3 / F1006 / F1007): per-edge charges= "
+                    "is the CHIRAL Laplacian for dual-sense knowledge graphs "
+                    "— edge (u,v,w,c) contributes the conjugate pair "
+                    "−(w/2)e^{±i·2π·c}, so an is-a/is-not-a pair (a,+q)+(b,−q) "
+                    "SURVIVES as −[(a+b)/2·cos2πq + i(a−b)/2·sin2πq] (the "
+                    "imbalance in the imaginary residue) instead of "
+                    "annihilating as in signed_laplacian. q and charges are "
+                    "mutually exclusive. Native standalone-C "
+                    "srmech_graph_magnetic_laplacian (both modes; Q61 trig "
+                    "cascade → bit-identical to the pure path).",
             parameters=(P("n", "int", True),
                         P("edges", "list[tuple[int, int]]", True,
                           "directed u → v"),
                         P("weights", "Optional[list[float]]", False),
                         P("q", "float", False,
-                          "flux in turns per unit net flow; default 0.25")),
+                          "flux in turns per unit net flow; default 0.25; "
+                          "mutually exclusive with charges"),
+                        P("charges", "Optional[list[float]]", False,
+                          "per-edge charge in turns, parallel to edges "
+                          "(len(charges) == len(edges)); (u,v,c) ≡ (v,u,−c); "
+                          "mutually exclusive with q")),
             returns=R("Mat", "n × n complex Hermitian matrix (numpy-free Mat)"),
         ),
         ToolEntry(
