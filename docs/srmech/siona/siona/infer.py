@@ -236,7 +236,30 @@ class Session:
             pick = b.verb_tools[lead]
         else:  # verb-less ask -> ground by meaning; interrogatives are intent-operators, stripped
             q = " ".join(w for w in ws if w != b.address and w not in b.interrogatives)
-            pick = self.g.ground(q, 1, owner="siona")[0][1]
+            hits = self.g.ground(q, 5, owner="siona")
+            if any(w in b.interrogatives for w in ws):
+                # A QUESTION IS A READ: never ground a wh-marked utterance to a write/act
+                # tool (caught live: 'april has how many days' -> remember stored the
+                # question as a fact; 'chess ... how many players' -> knowledge.load).
+                # And a question whose CONTENT words appear in a memory note is a CONTENT
+                # question -> recall (caught live: define/continue outranked recall on
+                # summary noise while the acquired note held the answer).
+                cov = lambda a, c: (a == c or (min(len(a), len(c)) >= 3
+                                    and (a.startswith(c) or c.startswith(a))
+                                    and len(a) - len(c) in range(-4, 5)))
+                content = [w for w in ws if w not in b.interrogatives
+                           and w != b.address and w not in b.strip]
+                if any(any(cov(w, m) for m in _toks(note))
+                       for note in self.mem for w in content):
+                    hits = [(1.0, "siona.read.answer")]  # answer derives when a kernel
+                                                          # composes; misses fall back to
+                                                          # the cited recall inside _answer
+                else:
+                    READS = ("siona.memory.recall", "siona.memory.show", "siona.read.",
+                             "siona.introspect.", "siona.dictionary.")
+                    hits = [h for h in hits
+                            if any(h[1] == r or h[1].startswith(r) for r in READS)]
+            pick = hits[0][1] if hits else "siona.memory.recall"
             # ACCRETION (F1018, guarded): an unknown LEAD word tallies its meaning-resolved role; at
             # ACCRETE_K consistent UNANIMOUS resolutions it earns deterministic dispatch. unlearn() reverses.
             if (lead and lead not in b.self_verbs and lead not in b.interrogatives
@@ -441,7 +464,15 @@ class Session:
         if not self.mem:
             return "(memory empty)"
         qv = self._enc_note(text)
-        return "recall: %s" % max(self.mem, key=lambda m: self.g.sim(qv, self._enc_note(m)))
+        best_i = max(range(len(self.mem)),
+                     key=lambda i: self.g.sim(qv, self._enc_note(self.mem[i])))
+        cite = ""
+        for a in self.attestations:            # an attested note answers WITH its provenance
+            if a.get("note_index") == best_i:
+                cite = " [attested: %s | sha256=%s]" % (
+                    a["rendering"]["cite_as"], a["attestation"]["response_sha256"][:12])
+                break
+        return "recall: %s%s" % (self.mem[best_i], cite)
 
 
 
@@ -497,23 +528,23 @@ class Session:
         qmark = next((w for w in ws if w in self.board.interrogatives), None)
         tgt = ws[ws.index(qmark) + 1] if qmark and ws.index(qmark) + 1 < len(ws) else None
         if not tgt:
-            return "(no asked unit)"
+            return self._recall(text)  # honest miss -> the cited content recall
         kern = next((k for k in (self._parse_kernel(m) for m in self.mem) if k and k[0] == tgt), None)
         if not kern:
-            return "(no kernel for %s)" % tgt
+            return self._recall(text)  # honest miss -> the cited content recall
         _, src, a, b, c = kern
         kw = self.board.kernel_ops["kernel"]
         facts = [m for m in self.mem if src in _toks(m) and kw not in _toks(m)
                  and any(w.isdigit() for w in _toks(m))]
         if not facts:
-            return "(no %s fact)" % src
+            return self._recall(text)  # honest miss -> the cited content recall
         q = " ".join(w for w in ws if w not in (qmark, tgt))
         fact = max(facts, key=lambda m: self.g.sim(self.g.enc_query(q), self.g.enc_query(m)))
         fws = _toks(fact)
         v = next((int(fws[i - 1]) for i, w in enumerate(fws)
                   if w == src and i > 0 and fws[i - 1].isdigit()), None)
         if v is None:
-            return "(no %s value in the fact)" % src
+            return self._recall(text)  # honest miss -> the cited content recall
         num, den = v * a + c * b, b                # EXACT rational; no floats mid-cascade
         g = cyclic.gcd(num, den)                   # srmech Class-I reduction
         num, den = num // g, den // g
