@@ -29,7 +29,9 @@ class Board:
     interrogatives: frozenset    # intent-operators stripped from GROUNDING queries (handlers still get them)
     strip: frozenset             # operator/filler tokens stripped from handler text arguments
     kernel_ops: dict             # declared linear-map kernel slots: keys kernel/is/times/over/plus -> board words
-    homographs: dict = None      # merged boards: verb -> ((board_name, tool), ...) -- SUPERPOSED senses (F1018)
+    homographs: dict = None
+    quantity_words: frozenset = frozenset()  # 'how MANY days' -- the unit follows the quantity word
+    numwords: frozenset = frozenset()        # closed number/ordinal vocabulary (attested per board)      # merged boards: verb -> ((board_name, tool), ...) -- SUPERPOSED senses (F1018)
     parents: tuple = ()          # merged boards: the parent boards; their operator vocabs drive the rung vote
     politeness: frozenset = frozenset()  # PARAPHRASE frames: politeness/hedge prefix tokens, stripped before routing
 
@@ -51,6 +53,12 @@ ENGLISH = Board(
     self_verbs=frozenset({"remember", "recall", "forget", "ingest", "save", "show",
                           "load", "acquire", "learn", "pack", "purge"}),
     politeness=frozenset({"please", "could", "would", "can", "you", "kindly", "hey"}),
+    quantity_words=frozenset({"many", "much"}),
+    numwords=frozenset({  # the English closed number/ordinal class (linguistic, not tuned)
+        "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+        "eleven", "twelve", "twenty", "thirty", "forty", "fifty", "hundred", "thousand",
+        "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth",
+        "ninth", "tenth", "eleventh", "twelfth"}),
     verb_tools={"remember": "siona.memory.remember", "ingest": "siona.memory.remember",
                 "save": "siona.memory.remember", "recall": "siona.memory.recall",
                 "forget": "siona.memory.forget", "show": "siona.memory.show",

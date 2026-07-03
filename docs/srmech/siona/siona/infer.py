@@ -460,9 +460,7 @@ class Session:
         parts += self.g._bg(ws)
         return self.g.cs.bundle_odd(parts or [self.g.vec("_")])
 
-    def _recall(self, text):
-        if not self.mem:
-            return "(memory empty)"
+    def _best_note(self, text):
         qv = self._enc_note(text)
         best_i = max(range(len(self.mem)),
                      key=lambda i: self.g.sim(qv, self._enc_note(self.mem[i])))
@@ -472,7 +470,49 @@ class Session:
                 cite = " [attested: %s | sha256=%s]" % (
                     a["rendering"]["cite_as"], a["attestation"]["response_sha256"][:12])
                 break
+        return best_i, cite
+
+    def _recall(self, text):
+        if not self.mem:
+            return "(memory empty)"
+        best_i, cite = self._best_note(text)
         return "recall: %s%s" % (self.mem[best_i], cite)
+
+    def _extract(self, text):
+        """The F774 closed-op SUB-NOTE EXTRACTION rung: the wh-frame declares the answer's
+        SHAPE (a number/ordinal + the asked unit); extraction is a Class-D pattern-match +
+        adjacency read over the best attested note -- never generation. Any miss falls to
+        the cited whole-note recall (the honest floor)."""
+        b = self.board
+        if not self.mem or not b.numwords:
+            return self._recall(text)
+        ws = _toks(text)
+        qmark = next((w for w in ws if w in b.interrogatives), None)
+        tgt = ws[ws.index(qmark) + 1] if qmark and ws.index(qmark) + 1 < len(ws) else None
+        if tgt in b.quantity_words:
+            i = ws.index(qmark) + 2
+            tgt = ws[i] if i < len(ws) else None
+        if not tgt:
+            return self._recall(text)
+        best_i, cite = self._best_note(text)
+        nt = _toks(self.mem[best_i])
+        cov = lambda a, c: (a == c or (min(len(a), len(c)) >= 3
+                            and (a.startswith(c) or c.startswith(a))
+                            and len(a) - len(c) in range(-4, 5)))
+        spans = []
+        for j, w in enumerate(nt):
+            if cov(w, tgt):
+                for k in (j - 1, j - 2):       # the modifier sits just before the unit
+                    if k >= 0 and (nt[k].isdigit() or nt[k] in b.numwords):
+                        spans.append((" ".join(nt[k:j + 1]),
+                                      " ".join(nt[max(0, k - 3):j + 3])))
+                        break
+        if not spans:
+            return self._recall(text)          # no answering span -> the honest whole-note floor
+        ans, ctx = spans[0]
+        more = " (+%d more span%s in the note)" % (len(spans) - 1,
+                "s" if len(spans) > 2 else "") if len(spans) > 1 else ""
+        return '%s%s -- extracted from: "...%s..."%s' % (ans, more, ctx, cite)
 
 
 
@@ -527,24 +567,27 @@ class Session:
         ws = _toks(text)
         qmark = next((w for w in ws if w in self.board.interrogatives), None)
         tgt = ws[ws.index(qmark) + 1] if qmark and ws.index(qmark) + 1 < len(ws) else None
+        if tgt in self.board.quantity_words:           # 'how MANY days' -> the unit is next
+            i = ws.index(qmark) + 2
+            tgt = ws[i] if i < len(ws) else None
         if not tgt:
-            return self._recall(text)  # honest miss -> the cited content recall
+            return self._extract(text)  # honest miss -> extraction tier -> cited recall
         kern = next((k for k in (self._parse_kernel(m) for m in self.mem) if k and k[0] == tgt), None)
         if not kern:
-            return self._recall(text)  # honest miss -> the cited content recall
+            return self._extract(text)  # honest miss -> extraction tier -> cited recall
         _, src, a, b, c = kern
         kw = self.board.kernel_ops["kernel"]
         facts = [m for m in self.mem if src in _toks(m) and kw not in _toks(m)
                  and any(w.isdigit() for w in _toks(m))]
         if not facts:
-            return self._recall(text)  # honest miss -> the cited content recall
+            return self._extract(text)  # honest miss -> extraction tier -> cited recall
         q = " ".join(w for w in ws if w not in (qmark, tgt))
         fact = max(facts, key=lambda m: self.g.sim(self.g.enc_query(q), self.g.enc_query(m)))
         fws = _toks(fact)
         v = next((int(fws[i - 1]) for i, w in enumerate(fws)
                   if w == src and i > 0 and fws[i - 1].isdigit()), None)
         if v is None:
-            return self._recall(text)  # honest miss -> the cited content recall
+            return self._extract(text)  # honest miss -> extraction tier -> cited recall
         num, den = v * a + c * b, b                # EXACT rational; no floats mid-cascade
         g = cyclic.gcd(num, den)                   # srmech Class-I reduction
         num, den = num // g, den // g
