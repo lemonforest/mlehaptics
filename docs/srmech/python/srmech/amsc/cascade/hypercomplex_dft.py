@@ -26,14 +26,23 @@ A quaternion FT's coefficient algebra **matches** the Klein-4 object's value
 algebra, so both chirality axes survive — exactly what an RBS-SNN Klein-4
 object needs and what the complex FFT cannot give.
 
-**These are COMPOSITES, not a new primitive class** — they compose the
-existing ``srmech.qm.octonion`` left/right-multiply atoms (the
+**These compose existing atoms — no new primitive class** (the
 non-commutativity of ``ℍ`` / ``𝕆`` is load-bearing: there are genuinely
 **left- / right- / two-sided** forms; the twiddle cannot be factored out the
-way the complex FFT does) with the scalar twiddle ``exp(μθ)=cos θ + μ·sin θ``.
-The 14-class A–N vocabulary is intact (``[[feedback_no_privileged_primitive_classes]]``).
-No ``abs()`` — the octonion norm/conjugate route through Class K+C, never an
-ALU absolute value.
+way the complex FFT does). The 14-class A–N vocabulary is intact
+(``[[feedback_no_privileged_primitive_classes]]``). No ``abs()`` — the
+norm/conjugate route through Class K+C, never an ALU absolute value.
+
+**GRADUATION SPLIT (0.9.0rc110; #1234 Item 1b, re-raise of #863):**
+
+- :func:`quaternion_dft` is **GRADUATED** — a first-class op over the rc109
+  ``srmech.qm.quaternion`` foundation (the 4×4 ``L_q``/``R_q`` operators +
+  ``quaternion_twiddle``, no longer the sliced 8×8 octonion embedding) with
+  the whole-transform C peer ``srmech_quaternion_dft`` (byte-exact composed
+  fallback).
+- :func:`octonion_dft` / :func:`hypercomplex_couple` remain the composite
+  tier over the ``srmech.qm.octonion`` left/right-multiply atoms; the ODFT's
+  own graduation is a separate later voxel.
 
 **Numpy-free (rc125, #564).** The whole module runs with **zero numpy** —
 the octonion samples / twiddles / accumulators are plain ``list[float]`` of
@@ -43,12 +52,11 @@ matvec rides a numpy-free :class:`Mat`-column ``mat_matmul`` (the pattern
 ``qm.single_particle`` used in rc117) — never numpy ``@`` / ``dense_matvec``.
 ``import srmech.amsc.cascade`` and every transform import + run numpy-absent.
 
-This is the **prototype tier** per #863: a composite over existing primitives.
-A graduation to a first-class C/Python primitive (a native ``srmech_*_dft``
-symbol like the existing ``fft``) is a separate, later voxel.
-
 Citations (verified PDFs —
-``docs/srmech/notes/qdft_odft_citation_verification_863.md``):
+``docs/srmech/notes/qdft_odft_citation_verification_863.md``; the QDFT anchor
+RE-verified first-hand at rc110 by PDF text extraction — title + authors +
+arXiv ID + the exponential-placement / one-sided-vs-two-sided convention
+discussion, §7):
 - QDFT: Sangwine, S. J. & Ell, T. A. (2012). *Complex and Hypercomplex
   Discrete Fourier Transforms Based on Matrix Exponential Form of Euler's
   Formula.* Appl. Math. Comput. 219(2):644–655. arXiv:1001.4379.
@@ -60,11 +68,13 @@ Citations (verified PDFs —
 """
 from __future__ import annotations
 
+import ctypes
 from typing import List, Sequence, Tuple
 
 # §22: scalar root + trig via the Class-N rational cascade, not libm; π from the
 # Archimedes pi_cascade (`[[feedback_continuous_number_line_pedagogical_obstacle]]`).
 from srmech.amsc import _native
+from srmech.amsc.mat import Mat as _Mat
 from srmech.amsc import rational as _rational
 from srmech.amsc.q import Q as _Q
 from srmech.amsc.rational import cos as _rcos
@@ -333,8 +343,8 @@ def _matvec8(op, v: Sequence[float]) -> List[float]:
     return [sum(rows[i][j] * v[j] for j in range(8)) for i in range(8)]
 
 
-def _dft_core(x, *, form, mu_axis, inverse, two_sided_right, bracketing, octonion):
-    """Shared (Q/O)DFT engine. Composes the qm.octonion left/right-mult atoms.
+def _dft_core(x, *, form, mu_axis, inverse, two_sided_right, bracketing):
+    """The ODFT engine. Composes the qm.octonion left/right-mult atoms.
 
     X[k] = scale · Σ_n  T( W(σ·2πkn/N) ) · x[n]
 
@@ -345,28 +355,20 @@ def _dft_core(x, *, form, mu_axis, inverse, two_sided_right, bracketing, octonio
 
     rc125 (numpy-free): the operators are the :class:`Mat` ``octonion_*_mult``
     now returns; the matvec is :func:`_matvec8` (pure Python); the accumulator
-    is a ``list[float]``.
+    is a ``list[float]``. rc110: the QUATERNION path graduated out of this
+    engine onto the rc109 qm.quaternion foundation (:func:`_qdft_composed` +
+    the ``srmech_quaternion_dft`` C peer); this core now serves the ODFT only.
     """
     from srmech.qm.octonion import octonion_left_mult, octonion_right_mult
 
-    mu = _resolve_mu(mu_axis, octonion=octonion)
+    mu = _resolve_mu(mu_axis, octonion=True)
     # Resolve the two-sided right axis once (defaults to the left axis).
-    mu_r = _resolve_mu(two_sided_right or mu_axis, octonion=octonion)
+    mu_r = _resolve_mu(two_sided_right or mu_axis, octonion=True)
 
     xs = [_as8(v) for v in x]
     n_pts = len(xs)
     if n_pts == 0:
         return []
-    if not octonion:
-        # ℍ-closure guard: a quaternion DFT requires quaternion samples
-        # (e4..e7 == 0); a non-zero octonion tail would silently leak.
-        for v in xs:
-            # presence test (any nonzero tail) — no magnitude / no abs() needed.
-            if any(v[i] != 0.0 for i in range(4, 8)):
-                raise ValueError(
-                    "quaternion_dft requires quaternion samples (components "
-                    "e4..e7 must be zero); use octonion_dft for full octonions"
-                )
 
     sigma = 1.0 if inverse else -1.0
     scale = (1.0 / n_pts) if inverse else 1.0
@@ -398,7 +400,156 @@ def _dft_core(x, *, form, mu_axis, inverse, two_sided_right, bracketing, octonio
                 term = _matvec8(octonion_right_mult(w), xs[n])  # x·W (right)
             acc = [acc[i] + term[i] for i in range(8)]
         acc = [a * scale for a in acc]
-        out.append(list(acc) if octonion else acc[:4])
+        out.append(list(acc))
+    return out
+
+
+# ────────────────────────────────────────────────────────────────────────
+# The GRADUATED quaternion DFT (0.9.0rc110; #1234 Item 1b, re-raise of
+# #863) — first-class over the rc109 qm.quaternion foundation (the 4×4
+# L_q/R_q operators + the exp(μθ) twiddle), with the whole-transform C
+# peer ``srmech_quaternion_dft`` and a byte-exact composed fallback.
+# ────────────────────────────────────────────────────────────────────────
+
+#: The quaternion carrier dimension (ℍ).
+_QDIM = 4
+
+#: ctypes double-pointer alias for the native QDFT marshalling (numpy-free).
+_C_DBLP = ctypes.POINTER(ctypes.c_double)
+
+#: The native uint32 length bound (the srmech_quaternion_twiddle contract).
+_QDFT_N_MAX = 2 ** 32
+
+
+def _as_quat4(v) -> List[float]:
+    """Coerce one QDFT sample to a plain 4-list (numpy-free).
+
+    Accepts a 4-component quaternion or the rc31 octonion-embedded 8-vector
+    form with ``e4..e7 == 0`` (a nonzero tail would silently leak ℍ, so it
+    raises — the same guard the composite tier enforced)."""
+    a = [float(c) for c in v]
+    n = len(a)
+    if n == 4:
+        return a
+    if n == 8:
+        # presence test (any nonzero tail) — no magnitude / no abs() needed.
+        if any(a[i] != 0.0 for i in range(4, 8)):
+            raise ValueError(
+                "quaternion_dft requires quaternion samples (components "
+                "e4..e7 must be zero); use octonion_dft for full octonions"
+            )
+        return a[:4]
+    raise ValueError(
+        f"hypercomplex sample must have 4 (quaternion) or 8 (octonion) "
+        f"components; got {n}"
+    )
+
+
+def _resolve_mu4_qdft(mu_axis) -> List[float]:
+    """Resolve the QDFT axis to a UNIT pure-imaginary 4-list ``μ̂`` — ONCE per
+    public call, so the native and composed paths consume the identical floats
+    (the rc109 one-resolution parity contract).
+
+    Keeps the full rc31/rc1 axis contract: named ``'i'``/``'j'``/``'k'``/
+    ``'ijk'``/``'diagonal'`` (for ℍ, ``'diagonal'`` IS ``'ijk'`` — the
+    equal-weight ``(i+j+k)/√3`` coupling axis, F436), a 4-sequence
+    pure-imaginary vector (normalised via the Class-N sqrt cascade), or an
+    ℍ-valued 8-sequence (``e4..e7 == 0``)."""
+    from srmech.qm import quaternion as _quat
+    if isinstance(mu_axis, str):
+        name = "ijk" if mu_axis == "diagonal" else mu_axis
+        if name in _quat._MU_AXES:
+            return list(_quat._MU_AXES[name])
+        raise ValueError(
+            f"mu_axis must be one of {sorted(_MU_AXES) + ['diagonal']}, or a "
+            f"unit pure-imaginary vector; got {mu_axis!r}"
+        )
+    v = [float(c) for c in mu_axis]
+    if len(v) == 8:
+        if any(v[i] != 0.0 for i in range(4, 8)):
+            raise ValueError(
+                "a quaternion mu_axis must lie in ℍ (components e4..e7 == 0); "
+                "use octonion_dft / a quaternion-scope coupler for an "
+                "octonion axis"
+            )
+        v = v[:4]
+    if len(v) != 4:
+        raise ValueError(
+            f"a general quaternion mu_axis must have 4 (or ℍ-valued 8) "
+            f"components; got {len(v)}"
+        )
+    if v[0] != 0.0:
+        raise ValueError("a general mu_axis must be pure-imaginary (e0 == 0)")
+    if v[1] == 0.0 and v[2] == 0.0 and v[3] == 0.0:
+        raise ValueError("mu_axis must be a non-zero pure-imaginary vector")
+    return _quat._resolve_mu4(v, "quaternion_dft")
+
+
+def _qdft_native_ready() -> bool:
+    """True iff the native lib is loaded AND exports ``srmech_quaternion_dft``
+    (hasattr-guarded for stale ABI-3 libs; numpy-free)."""
+    return bool(
+        _native.HAS_NATIVE and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_quaternion_dft")
+    )
+
+
+def _try_native_qdft(xs: List[List[float]], left: bool, inverse: bool,
+                     mu_hat: List[float]):
+    """Dispatch the WHOLE transform to the C peer ``srmech_quaternion_dft``
+    (one ctypes call; μ̂ already unit) — or ``None`` to signal the composed
+    fallback. Byte-exact with :func:`_qdft_composed` (tested)."""
+    n_pts = len(xs)
+    if not _qdft_native_ready() or n_pts >= _QDFT_N_MAX:
+        return None
+    In = ctypes.c_double * (n_pts * _QDIM)
+    Mu = ctypes.c_double * _QDIM
+    c_x = In(*(c for v in xs for c in v))
+    c_mu = Mu(*(float(c) for c in mu_hat))
+    c_out = In()
+    rc = _native.LIB.srmech_quaternion_dft(
+        ctypes.cast(c_x, _C_DBLP), ctypes.c_uint32(n_pts),
+        ctypes.c_int32(1 if left else 0), ctypes.c_int32(1 if inverse else 0),
+        ctypes.cast(c_mu, _C_DBLP), ctypes.c_size_t(_QDIM),
+        ctypes.cast(c_out, _C_DBLP),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [[float(c_out[i * _QDIM + c]) for c in range(_QDIM)]
+            for i in range(n_pts)]
+
+
+def _qdft_composed(xs: List[List[float]], left: bool, inverse: bool,
+                   mu_hat: List[float]) -> List[List[float]]:
+    """The composed QDFT path over the rc109 qm.quaternion foundation —
+    ``quaternion_twiddle`` (via the resolved-μ̂ core) + the 4×4
+    ``quaternion_left_mult``/``quaternion_right_mult`` operator matvec.
+
+    Float-op order MIRRORS the C peer exactly (twiddle → operator matrix →
+    row-dot left-to-right → accumulate over n → one final scale), so the two
+    paths are byte-exact — the parity contract, not a tolerance."""
+    from srmech.qm.quaternion import (
+        _twiddle_resolved,
+        quaternion_left_mult,
+        quaternion_right_mult,
+    )
+    n_pts = len(xs)
+    sigma = 1 if inverse else -1
+    scale = (1.0 / float(n_pts)) if inverse else 1.0
+    out: List[List[float]] = []
+    for k in range(n_pts):
+        acc = [0.0, 0.0, 0.0, 0.0]
+        for m in range(n_pts):
+            w = _twiddle_resolved(k, m, n_pts, sigma, mu_hat)
+            op = quaternion_left_mult(w) if left else quaternion_right_mult(w)
+            rows = op.tolist()
+            xm = xs[m]
+            for i in range(_QDIM):
+                t = 0.0
+                for c in range(_QDIM):
+                    t += rows[i][c] * xm[c]
+                acc[i] += t
+        out.append([acc[i] * scale for i in range(_QDIM)])
     return out
 
 
@@ -409,29 +560,63 @@ def quaternion_dft(
     mu_axis: str = "i",
     inverse: bool = False,
 ) -> List[List[float]]:
-    """Quaternion discrete Fourier transform (QDFT) — composite over qm.octonion.
+    """Quaternion discrete Fourier transform (QDFT) — the native transform for
+    a Klein-4 object, GRADUATED first-class (0.9.0rc110; #1234 Item 1b / #863).
 
-    The native transform for a Klein-4 object: its ``ℍ`` coefficient algebra
-    resolves **both** ``Z₂`` chirality axes the complex FFT collapses (F380).
+    A Klein-4 object has TWO ``Z₂`` chirality axes (Klein-4 = ``Q₈/{±1} ≅
+    Z₂×Z₂``, F380 / the in-repo R21 proof); the complex FFT first projects it
+    to ``ℂ``, collapsing one axis (the flat shadow). The QDFT's ``ℍ``
+    coefficient algebra MATCHES the object's value algebra, so BOTH axes
+    survive the round-trip.
+
+    **THE CONVENTION (the in-repo SSOT — rc109 ``qm.quaternion`` + R21).**
+    With ``W(θ) = exp(μθ) = cos θ·1 + sin θ·μ̂`` (``μ̂`` a unit pure imaginary,
+    ``μ̂² = −1``) and the FORWARD sign ``σ = −1``:
+
+        left  form:  X[k] = Σ_{n=0}^{N−1}  W(σ·2πkn/N) · x[n]   (twiddle LEFT)
+        right form:  X[k] = Σ_{n=0}^{N−1}  x[n] · W(σ·2πkn/N)   (twiddle RIGHT)
+
+    The INVERSE flips the sign (``σ = +1``) and scales by ``1/N``, keeping the
+    twiddle on the SAME side — each form is the exact inverse of its own
+    inverse-transform (the twiddle lives in the commutative ``ℝ[μ̂] ≅ ℂ``
+    subalgebra, so ``Σ_k W(μ·2πk(n−n′)/N) = N·δ``). The two forms are
+    GENUINELY different transforms (``ℍ`` non-commutative); they coincide
+    exactly when every sample lies in ``ℝ[μ̂]`` (the classic degeneracy).
+    Parseval (this convention, forward unscaled): ``Σ_k ‖X[k]‖² =
+    N·Σ_n ‖x[n]‖²`` for both one-sided forms. The left form is a RIGHT
+    ℍ-module map (``QDFT_left(x·q) = QDFT_left(x)·q``) and ℝ-linear; the
+    right form is the mirror (a LEFT ℍ-module map).
+
+    **API SPLIT (F1000→F1001; #1234 Item 1).** This FULL transform is the
+    SPREAD-SPECTRUM ENCODING / analysis surface — it computes the whole
+    length-``N`` spectrum. The READ path is deliberately a SEPARATE
+    lightweight op (``phase_coherent_peak`` — the next rc, 1-d): do NOT run
+    the full QDFT just to read one phase-coherent peak back out.
+
+    Composes the rc109 foundation: ``qm.quaternion.quaternion_twiddle``
+    (Class I ∘ N ∘ C — exact ``kn mod N``, π as the ``4·atan(1)`` cascade,
+    Q61 trig) + ``quaternion_left_mult`` / ``quaternion_right_mult`` (Class M).
+    Dispatches the whole transform to the same-rc C peer
+    ``srmech_quaternion_dft`` (O(N²) exact reference; an FFT factorisation is
+    honestly future work) — byte-exact composed fallback otherwise.
 
     Parameters
     ----------
-    x : sequence of quaternions
+    x : sequence of quaternions, or a real ``(N, 4)`` ``Mat``
         Each sample is a 4-component ``[q0, q1, q2, q3]`` (or an 8-component
-        octonion with ``e4..e7 == 0``). ``N = len(x)``.
+        octonion with ``e4..e7 == 0``). ``N = len(x)`` (any N ≥ 0, power of
+        two NOT required).
     form : {"left", "right"}
-        Left (``W·x``) or right (``x·W``) twiddle multiplication — the two
-        differ because ``ℍ`` is non-commutative. Both are invertible and
-        round-trip (the twiddle lives in the commutative ``ℝ[μ]≅ℂ`` subalgebra).
+        Which side the twiddle multiplies on (see THE CONVENTION above).
     mu_axis : {"i", "j", "k", "ijk", "diagonal"} or unit pure-imaginary vector
         The transform axis ``μ`` (``μ²=−1``). ``'diagonal'`` (= ``(i+j+k)/√3``
         here) **couples** all three axes into the real/anchor channel (F436); a
         single named axis only **carries** them. A general unit pure-imaginary
-        quaternion vector is also accepted (#908). See :func:`_resolve_mu`.
+        quaternion vector is also accepted (#908).
     inverse : bool
-        Inverse QDFT (conjugate twiddle + ``1/N`` scale). ``inverse(forward(x))``
-        recovers ``x`` exactly (to float round-off), including **all four**
-        components — i.e. both ``Z₂`` axes.
+        Inverse QDFT (``σ = +1`` twiddle + ``1/N`` scale, same side).
+        ``inverse(forward(x))`` recovers ``x`` exactly (to float round-off),
+        including **all four** components — i.e. both ``Z₂`` axes.
 
     Returns
     -------
@@ -440,14 +625,29 @@ def quaternion_dft(
 
     Class home: **M** (Clifford/HDC quaternion multiply) ∘ **C** (the
     orientation of the twiddle's ``±μ`` phase) ∘ **N** (the rational twiddle
-    angle ``kn/N``). Sangwine & Ell (2012), arXiv:1001.4379.
+    angle ``kn/N``) ∘ **I** (the cyclic ``kn mod N`` reduction). Sangwine &
+    Ell (2012), arXiv:1001.4379 (PDF-verified: the matrix-exponential
+    ``exp(μθ)`` Euler-form hypercomplex DFT framework + the
+    exponential-placement / one-sided-vs-two-sided distinction).
     """
     if form not in _FORMS:
         raise ValueError(f"form must be one of {_FORMS}; got {form!r}")
-    return _dft_core(
-        x, form=form, mu_axis=mu_axis, inverse=inverse,
-        two_sided_right=None, bracketing="left_associated", octonion=False,
-    )
+    if isinstance(x, _Mat):
+        if x.is_complex:
+            raise ValueError(
+                "quaternion_dft takes REAL quaternion components; got a "
+                "complex Mat"
+            )
+        x = x.tolist()
+    xs = [_as_quat4(v) for v in x]
+    mu_hat = _resolve_mu4_qdft(mu_axis)
+    if not xs:
+        return []
+    left = form == "left"
+    native = _try_native_qdft(xs, left, bool(inverse), mu_hat)
+    if native is not None:
+        return native
+    return _qdft_composed(xs, left, bool(inverse), mu_hat)
 
 
 def octonion_dft(
@@ -510,7 +710,7 @@ def octonion_dft(
         )
     return _dft_core(
         x, form=form, mu_axis=mu_axis, inverse=inverse,
-        two_sided_right=two_sided_right_axis, bracketing=bracketing, octonion=True,
+        two_sided_right=two_sided_right_axis, bracketing=bracketing,
     )
 
 

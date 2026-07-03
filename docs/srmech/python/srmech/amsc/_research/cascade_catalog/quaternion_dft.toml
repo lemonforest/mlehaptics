@@ -4,18 +4,21 @@
 # the complex FFT collapses one of its two Z2 chirality axes (the flat
 # shadow); the QDFT's ℍ coefficient algebra resolves BOTH.
 #
-# This is a COMPOSITE over the existing qm.octonion left/right-multiply atoms
-# (the "transform is a composite, the multiplies are the atoms" lean-ISA
-# split). It is the PROTOTYPE tier per #863 — a Python composite documented by
-# this descriptor; a graduation to a first-class native C primitive (a
-# srmech_quaternion_dft symbol like the existing fft) is a separate later voxel.
+# 0.9.0rc110 (#1234 Item 1b, re-raise of #863): GRADUATED. The op now stands
+# on the rc109 qm.quaternion foundation (the 4×4 L_q/R_q operators +
+# quaternion_twiddle — no longer the sliced 8×8 octonion embedding) and
+# dispatches the WHOLE transform to the same-rc first-class C peer
+# srmech_quaternion_dft (byte-exact composed fallback). This is the
+# SPREAD-SPECTRUM ENCODING / analysis transform (F1000→F1001 API split): the
+# READ path is a SEPARATE lightweight op (phase_coherent_peak — a later rc),
+# deliberately NOT this one.
 
 [cascade]
 name = "quaternion_dft"
-class_composition = "M ∘ C ∘ N"
+class_composition = "M ∘ C ∘ N ∘ I"
 # kind defaults to "stage": the piped value is the sequence of quaternion
 # samples x; returns the length-N quaternion spectrum X.
-purpose = "Quaternion discrete Fourier transform (QDFT) — the native transform for a Klein-4 object. Its ℍ coefficient algebra resolves BOTH Z₂ chirality axes the complex FFT collapses (F380). Selectable left/right form (ℍ is non-commutative). Composite over the qm.octonion multiply atoms; round-trips (inverse(forward(x))=x) recovering all four components."
+purpose = "Quaternion discrete Fourier transform (QDFT) — the native transform for a Klein-4 object. Its ℍ coefficient algebra resolves BOTH Z₂ chirality axes the complex FFT collapses (F380). Selectable left/right form (ℍ is non-commutative). GRADUATED first-class (rc110): composes the rc109 qm.quaternion twiddle + 4×4 L_q/R_q atoms with the whole-transform C peer srmech_quaternion_dft; round-trips (inverse(forward(x))=x) recovering all four components. The spread-spectrum ENCODING transform — the read path is the separate phase_coherent_peak op (later rc)."
 description = """
 The Klein-4 group IS the quaternion units modulo sign (F380):
 
@@ -35,55 +38,72 @@ algebra MATCHES the object's value algebra, so both axes survive.
     X[k] = Σ_n  exp(σ·μ·2πkn/N) · x[n]            (left form: twiddle on left)
     X[k] = Σ_n  x[n] · exp(σ·μ·2πkn/N)            (right form: twiddle on right)
 
-with σ = −1 (forward) / +1 (inverse), an inverse 1/N scale, and μ a unit
-pure-quaternion axis (μ²=−1). The left and right forms DIFFER because ℍ is
-non-commutative — the twiddle cannot be factored out the way the complex FFT
-does. The transform is invertible: the twiddle lives in the commutative
-subalgebra ℝ[μ]≅ℂ, so Σ_k exp(μ·2πk(n−n')/N) = N·δ and the inverse recovers
-x[n] exactly (to float round-off), INCLUDING all four components — i.e. both
-Z₂ axes, where a complex FFT keeps only one.
+with σ = −1 (forward) / +1 (inverse), an inverse 1/N scale (twiddle on the
+SAME side), and μ a unit pure-quaternion axis (μ²=−1). The left and right
+forms DIFFER because ℍ is non-commutative — the twiddle cannot be factored
+out the way the complex FFT does (they coincide exactly iff every sample lies
+in ℝ[μ], the classic degeneracy). Each form is invertible: the twiddle lives
+in the commutative subalgebra ℝ[μ]≅ℂ, so Σ_k exp(μ·2πk(n−n')/N) = N·δ and
+the inverse recovers x[n] exactly (to float round-off), INCLUDING all four
+components — i.e. both Z₂ axes, where a complex FFT keeps only one.
+Parseval (forward unscaled): Σ_k ‖X[k]‖² = N·Σ_n ‖x[n]‖², both forms.
 
-HONEST CASCADE SHAPE: Class M (Clifford / HDC quaternion multiply, via the
-qm.octonion left/right-mult atoms restricted to the ℍ subalgebra) ∘ Class C
-(the orientation of the twiddle's ±μ phase) ∘ Class N (the rational twiddle
-angle kn/N). NO new privileged primitive class; NO abs() (the octonion
-norm/conjugate route through Class K+C). The scalar twiddle uses float trig in
-the reference impl (like the existing complex fft); the substrate-native
-Class-N exact-rational twiddle (asymptotic_calculus.{cos,sin}_series_truncate)
-is the composable alternative.
+HONEST CASCADE SHAPE (rc110, the graduated form): Class M (Clifford / HDC
+quaternion multiply — the rc109 qm.quaternion 4×4 L_q/R_q operators) ∘
+Class C (the orientation of the twiddle's ±μ phase) ∘ Class N (the rational
+twiddle angle kn/N; π as the 4·atan(1) cascade; Q61 trig — never libm) ∘
+Class I (the exact cyclic kn mod N index reduction). NO new privileged
+primitive class; NO abs() (norms route through Class K+C). The exact-rational
+tier of the twiddle is qm.quaternion.quaternion_exp_series_truncate.
 
-SCIENTIFIC TIER (UPSTREAM §22): a qm-algebra transform — numpy is imported
-lazily on call, so `import srmech.amsc.cascade` stays numpy-free (the
-numpy-absent-safe core, v0.7.0rc30) while the transform uses numpy on call.
+API SPLIT (F1000→F1001): this FULL transform is the SPREAD-SPECTRUM
+ENCODING / analysis surface. The READ path is a SEPARATE lightweight op
+(phase_coherent_peak — a later rc); do not conflate them.
+
+numpy-FREE (rc125 #564): plain list[float] carriers + the numpy-free Mat
+operators; the whole module imports and runs numpy-absent.
 """
 
 [cascade.signature]
-input = "x: sequence of N quaternion samples, each [q0,q1,q2,q3] (or 8-vec octonion with e4..e7=0)"
+input = "x: sequence of N quaternion samples, each [q0,q1,q2,q3] (or 8-vec octonion with e4..e7=0), or a real (N,4) Mat"
 output = "list[list[float]] — N quaternions (4-component lists), the QDFT spectrum X"
-operation = "X[k] = Σ_n T(exp(σ·μ·2πkn/N)) · x[n]; T = octonion_left_mult (form='left') / octonion_right_mult (form='right')"
+operation = "X[k] = Σ_n T(exp(σ·μ·2πkn/N)) · x[n]; T = quaternion_left_mult (form='left', twiddle on the LEFT) / quaternion_right_mult (form='right', twiddle on the RIGHT); forward σ=−1, inverse σ=+1 + 1/N (same side)"
 forms = ["left", "right"]
-mu_axes = ["i", "j", "k", "ijk"]
-round_trip = "inverse(forward(x)) == x to float round-off (~1e-15), recovering all four components (both Z₂ axes)"
+mu_axes = ["i", "j", "k", "ijk", "diagonal"]
+round_trip = "inverse(forward(x)) == x to float round-off (~1e-15), recovering all four components (both Z₂ axes) — each form is the exact inverse of its own inverse-transform"
+parseval = "Σ_k ‖X[k]‖² = N·Σ_n ‖x[n]‖² (forward unscaled; both one-sided forms)"
 n0_maps_to = "[]"
 
+[cascade.native]
+c_symbol = "srmech_quaternion_dft"
+abi_version = 3
+abi_note = "rc110 adds srmech_quaternion_dft as a NEW exported symbol (additive) — ABI stays 3. The C peer runs the WHOLE O(N²) exact-reference transform over the rc109 symbols (srmech_quaternion_twiddle + srmech_quaternion_{left,right}_mult); an FFT factorisation is honest future work. Byte-exact with the Python composed path (identical float-op order — the parity contract, not a tolerance)."
+
 [cascade.composes]
-# The atoms this composite is built from (#863: "no capability gap").
-multiply_atom = "srmech.qm.octonion.octonion_left_mult / octonion_right_mult (restricted to the ℍ ⊂ 𝕆 subalgebra)"
-twiddle = "exp(μθ) = cos θ·1 + sin θ·μ (float trig; or the Class-N exact-rational asymptotic_calculus.{cos,sin}_series_truncate)"
-radix_split_atom = "srmech.amsc.primes.factor + srmech.amsc.cyclic (the algebra-agnostic Cooley-Tukey reindex — identical at every rung)"
+# The rc109 qm.quaternion foundation this graduated op stands on (#1234 Item 1a).
+multiply_atom = "srmech.qm.quaternion.quaternion_left_mult / quaternion_right_mult (the 4×4 L_q/R_q operators; C peers srmech_quaternion_{left,right}_mult)"
+twiddle = "srmech.qm.quaternion.quaternion_twiddle — exp(σ·μ·2πjk/N) with exact Class-I jk mod N + Class-N π/trig cascade (C peer srmech_quaternion_twiddle); exact-rational tier quaternion_exp_series_truncate"
+radix_split_atom = "srmech.amsc.primes.factor + srmech.amsc.cyclic (the algebra-agnostic Cooley-Tukey reindex — the future-work FFT factorisation rung)"
 
 [cascade.graduation]
-tier = "prototype (composite over existing primitives)"
-graduates_to = "a first-class native C/Python primitive (srmech_quaternion_dft) IF it earns attested status like the existing fft — a SEPARATE later voxel, not a prerequisite blocker"
+tier = "graduated (0.9.0rc110; #1234 Item 1b) — first-class native C/Python primitive"
+c_peer = "srmech_quaternion_dft (same-rc, everything-mirrors; byte-exact with the composed Python path)"
+read_path_split = "the FULL transform is the spread-spectrum ENCODING surface (F1000→F1001); the READ op (phase_coherent_peak) is a separate later voxel"
 
 [cascade.attestation]
 author = "Steven Kirkland"
 license = "MIT"
-parser_version = "srmech-cascade 0.7.0rc31"
+parser_version = "srmech-cascade 0.9.0rc110"
 # Citations VERIFIED via PDF extraction (MPM discipline;
 # docs/srmech/notes/qdft_odft_citation_verification_863.md). OA / attestable;
 # the paywalled IEEE TIP 2007 paper was EXCLUDED in favour of this OA arXiv
-# anchor by the same authors, per the paywalled-DOI rule.
+# anchor by the same authors, per the paywalled-DOI rule. RE-verified
+# first-hand at rc110 (PDF text extracted): title + authors + arXiv ID +
+# the exponential-placement / one-sided-vs-two-sided convention discussion
+# (§7 "Extension to two-sided DFTs"; "If the exponential were to be placed
+# on the right, ..."). The precise operational left/right convention lodged
+# above is the IN-REPO SSOT (rc109 qm.quaternion + the R21 proof), anchored
+# to this OA paper for the exp(μθ) matrix-exponential QDFT framework.
 literature = [
   "Sangwine, S. J. & Ell, T. A. (2012). Complex and Hypercomplex Discrete Fourier Transforms Based on Matrix Exponential Form of Euler's Formula. Appl. Math. Comput. 219(2):644-655. arXiv:1001.4379.",
 ]
@@ -91,5 +111,6 @@ canonical_landings = [
   "F380 — Klein-4 = quaternion-units-mod-sign (Q₈/{±1} ≅ Z₂×Z₂); the QDFT motivation",
   "F379 — FFT-ladder n:n−1 (1 anchor + (n−1) couplings); the coefficient-algebra ladder",
   "issue #863 — the native transform for a Klein-4 object, not its complex flat shadow",
+  "issue #1234 Item 1 — the rc109 foundation (1a) + this rc110 graduation (1b); the F1000→F1001 encode/read API split",
   "proof: docs/srmech/rbs_lm_research/R-RBS-LM-R21_klein4_is_quaternion_units_mod_sign.py",
 ]

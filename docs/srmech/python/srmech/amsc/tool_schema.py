@@ -4230,32 +4230,44 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[float]",
                       "length-n circular autocorrelation r; r[0] = Σ x² = energy"),
         ),
-        # Quaternion / octonion DFT composites (v0.7.0rc31; #863, F380) — the
-        # native transform for a Klein-4 object. COMPOSITES over qm.octonion
-        # left/right-mult atoms; scientific tier (§22: numpy on call).
+        # Quaternion / octonion DFTs (#863, F380) — the native transform for a
+        # Klein-4 object. quaternion_dft GRADUATED first-class at 0.9.0rc110
+        # (#1234 Item 1b): rc109 qm.quaternion foundation + the whole-transform
+        # C peer srmech_quaternion_dft. octonion_dft remains the composite tier
+        # over qm.octonion. Both numpy-free (rc125 #564).
         ToolEntry(
             name="srmech.amsc.cascade.quaternion_dft", owner="srmech",
             category="cascade",
             summary="QUATERNION discrete Fourier transform (QDFT) — the native "
-                    "transform for a Klein-4 object. A Klein-4 object has TWO Z₂ "
-                    "chirality axes (Klein-4 = Q₈/{±1} ≅ Z₂×Z₂, F380); a COMPLEX "
+                    "transform for a Klein-4 object, GRADUATED first-class "
+                    "(0.9.0rc110; #1234 Item 1b / #863). A Klein-4 object has TWO "
+                    "Z₂ chirality axes (Klein-4 = Q₈/{±1} ≅ Z₂×Z₂, F380); a COMPLEX "
                     "FFT first projects it to ℂ and collapses one axis (the flat "
                     "shadow). The QDFT's ℍ coefficient algebra MATCHES the object's "
-                    "value algebra, so BOTH axes survive. Composite over the "
-                    "qm.octonion left/right-mult atoms (the ℍ non-commutativity is "
-                    "load-bearing → genuine left/right forms; the twiddle "
-                    "exp(μθ)=cos θ+μ·sin θ cannot be factored out as in the complex "
-                    "FFT). X[k]=Σ_n exp(σ·μ·2πkn/N)·x[n]; inverse(forward(x))=x to "
-                    "float round-off, recovering ALL FOUR components. Class M (Clifford/"
-                    "HDC multiply) ∘ C (twiddle ±μ orientation) ∘ N (rational angle "
-                    "kn/N); no new primitive class, no abs(). Scientific tier "
-                    "(UPSTREAM §22): requires numpy on call. Sangwine & Ell (2012), "
-                    "arXiv:1001.4379." + PUBLISH_OPT_IN_NOTE,
+                    "value algebra, so BOTH axes survive. THE CONVENTION (forward "
+                    "σ=−1): left form X[k]=Σ_n exp(σ·μ·2πkn/N)·x[n] (twiddle LEFT); "
+                    "right form X[k]=Σ_n x[n]·exp(σ·μ·2πkn/N) (twiddle RIGHT) — "
+                    "genuinely different transforms (ℍ non-commutative; equal iff "
+                    "the signal lies in ℝ[μ]); inverse = σ=+1 + 1/N, same side; "
+                    "each form round-trips exactly, recovering ALL FOUR components. "
+                    "Parseval: Σ‖X‖²=N·Σ‖x‖². API SPLIT (F1000→F1001): this FULL "
+                    "transform is the SPREAD-SPECTRUM ENCODING/analysis surface; "
+                    "the READ path is the separate lightweight phase_coherent_peak "
+                    "op (later rc). Composes the rc109 qm.quaternion foundation "
+                    "(quaternion_twiddle + 4×4 L_q/R_q); dispatches the whole "
+                    "O(N²) exact-reference transform to the same-rc C peer "
+                    "srmech_quaternion_dft (byte-exact composed fallback; FFT "
+                    "factorisation is future work). Class M ∘ C ∘ N ∘ I; no new "
+                    "primitive class, no abs(); numpy-free. Sangwine & Ell (2012), "
+                    "arXiv:1001.4379 (PDF-verified)." + PUBLISH_OPT_IN_NOTE,
             parameters=(
                 P("x", "sequence", True,
-                  "N quaternion samples, each [q0,q1,q2,q3] (or 8-vec octonion with e4..e7=0)"),
+                  "N quaternion samples, each [q0,q1,q2,q3] (or 8-vec octonion "
+                  "with e4..e7=0), or a real (N,4) Mat"),
                 P("form", "str", False, "'left' (W·x) or 'right' (x·W); default 'left'"),
-                P("mu_axis", "str", False, "transform axis μ: 'i'|'j'|'k'|'ijk'; default 'i'"),
+                P("mu_axis", "str", False,
+                  "transform axis μ: 'i'|'j'|'k'|'ijk'|'diagonal' or a unit "
+                  "pure-imaginary 4-vector; default 'i'"),
                 P("inverse", "bool", False, "inverse QDFT (conjugate twiddle + 1/N); default False"),
             ),
             returns=R("list[list[float]]", "N quaternions (4-component lists)"),

@@ -567,6 +567,25 @@ def _try_native_twiddle(j: int, k: int, n_points: int, sigma: int,
     return [float(c_out[i]) for i in range(_DIM)]
 
 
+def _twiddle_resolved(j_red: int, k_red: int, n_points: int, sigma: int,
+                      mu_hat: List[float]) -> List[float]:
+    """The twiddle core over an ALREADY-RESOLVED unit ``μ̂`` and ALREADY-REDUCED
+    indices (``j_red``/``k_red`` < ``n_points``) — never re-normalises μ̂ (the
+    one-resolution parity contract). Shared by :func:`quaternion_twiddle` and
+    the rc110 ``cascade.quaternion_dft`` composed path so both consume the
+    identical floats the C peers see. Native ``srmech_quaternion_twiddle`` when
+    present; the pure mirror follows the C float-op order exactly."""
+    native = _try_native_twiddle(j_red, k_red, n_points, sigma, mu_hat)
+    if native is not None:
+        return native
+    # Pure mirror of the C peer — identical float-op order (parity contract).
+    r = (j_red * k_red) % n_points
+    two_pi = 2.0 * _PI
+    frac = float(r) / float(n_points)
+    theta = float(sigma) * two_pi * frac
+    return _exp_resolved(theta, mu_hat)
+
+
 def quaternion_twiddle(j: int, k: int, n_points: int, *,
                        mu="i", sigma: int = -1) -> List[float]:
     """The QDFT twiddle factor ``exp(σ·μ·2πjk/N)`` — the DFT-facing form of
@@ -614,15 +633,7 @@ def quaternion_twiddle(j: int, k: int, n_points: int, *,
     mu_hat = _resolve_mu4(mu, "quaternion_twiddle")
     j_red = j % n_points
     k_red = k % n_points
-    native = _try_native_twiddle(j_red, k_red, n_points, sigma, mu_hat)
-    if native is not None:
-        return native
-    # Pure mirror of the C peer — identical float-op order (parity contract).
-    r = (j_red * k_red) % n_points
-    two_pi = 2.0 * _PI
-    frac = float(r) / float(n_points)
-    theta = float(sigma) * two_pi * frac
-    return _exp_resolved(theta, mu_hat)
+    return _twiddle_resolved(j_red, k_red, n_points, sigma, mu_hat)
 
 
 __all__ = [
