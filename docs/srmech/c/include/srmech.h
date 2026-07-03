@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc107"
-#define SRMECH_VERSION       "0.9.0rc107"
+#define SRMECH_VERSION_PRE   "rc108"
+#define SRMECH_VERSION       "0.9.0rc108"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1227,6 +1227,87 @@ srmech_status_t srmech_resonant_spectrum(
     uint32_t      *out_res_count,
     double        *ws,
     size_t         ws_len);
+
+/* ------------------------------------------------------------------ *
+ * The spectral theta / heat trace (0.9.0rc108; issue #1234 Item 2 /
+ * F1007) — a Class-L COMPOSITE over the existing kernels
+ * (srmech_jacobi_eigvals / srmech_hermitian_eigendecompose_ws +
+ * srmech_exp + srmech_graph_magnetic_laplacian), the C twin of
+ * srmech.amsc.laplacian.heat_trace / .ground_state_flux_response.
+ * Theta(t) = Tr(e^{-tL}) = sum_k exp(-t*lambda_k) IS a theta function of
+ * the Laplacian (on a cycle, the Jacobi-theta family) — the
+ * read-independent spectral summary. F1007: under magnetic flux the FULL
+ * trace is flux-invariant (Poisson -> the modular/holomorphic part) while
+ * the flux shadow lives only in the ground state lambda_min(flux) — the
+ * companion srmech_ground_state_flux_response is that shadow reader. The
+ * exp is srmech_exp (the Q61 libm-free Class-N cascade) at the
+ * spectral-summary boundary — Theta is a float summary, never an exact
+ * decision. Standalone-complete: all scratch is bump-carved from the
+ * CALLER arena `ws` (no malloc). ABI-additive: new symbols, ABI stays 3.
+ * ------------------------------------------------------------------ */
+
+/* The caller arena size IN BYTES srmech_heat_trace needs for an n*n L —
+ * real (is_complex == 0): the in-place Jacobi work copy + eigvals;
+ * complex (is_complex != 0): the Hermitian eigensolve staging + eigvals.
+ * Size `ws_len` >= this. */
+size_t srmech_heat_trace_arena_bytes(uint32_t n, int is_complex);
+
+/* Theta(t_i) = sum_k exp(-t_i * lambda_k) for each of the n_t t-values,
+ * from ONE eigensolve of L. is_complex == 0: `L` is n*n row-major REAL
+ * symmetric (spectrum via srmech_jacobi_eigvals, sorted ascending);
+ * is_complex != 0: `L` is n*n row-major INTERLEAVED-complex (re, im)
+ * Hermitian (spectrum via srmech_hermitian_eigendecompose_ws, ascending;
+ * subject to the config-driven Hermitian node ceiling). Symmetry /
+ * Hermiticity is the caller's responsibility (the eigensolve ops'
+ * contract). out_theta receives n_t values. n == 0 writes Theta = 0 (the
+ * empty spectrum); n_t == 0 writes nothing. `ws` (ws_len bytes) sized
+ * from srmech_heat_trace_arena_bytes. Returns SRMECH_ERR_NULL_ARG for a
+ * NULL required pointer, SRMECH_ERR_OVERFLOW for a too-small arena / a
+ * non-convergent eigensolve. */
+srmech_status_t srmech_heat_trace(
+    uint32_t       n,
+    int            is_complex,
+    const double  *L,
+    uint32_t       n_t,
+    const double  *t_values,
+    double        *out_theta,
+    double        *ws,
+    size_t         ws_len);
+
+/* The caller arena size IN BYTES srmech_ground_state_flux_response needs
+ * for an n-node / n_edges-edge graph. Size `ws_len` >= this. */
+size_t srmech_ground_state_flux_response_arena_bytes(uint32_t n,
+                                                     uint32_t n_edges);
+
+/* lambda_min(flux_i) — the magnetic ground state as a function of flux
+ * (the F1007 shadow reader). For each of the n_flux flux values (in
+ * TURNS, the rc105 charge unit): every edge k gets charge
+ * flux * charge_pattern[k] (charge_pattern NULL -> the uniform 1/n_edges
+ * default, so a single cycle's total holonomy is `flux` turns), the
+ * magnetic Laplacian is built via srmech_graph_magnetic_laplacian
+ * (per-edge chiral mode; weights NULL -> 1.0 each), and
+ * out_lambda_min[i] receives its smallest eigenvalue. Integer flux is
+ * gauge-equivalent to flux = 0 (holonomy e^{i*2*pi*flux} = 1), so
+ * lambda_min is periodic in integer flux. n >= 1 (an empty graph has no
+ * ground state -> SRMECH_ERR_BAD_INPUT); n_flux == 0 writes nothing.
+ * `ws` (ws_len bytes) sized from
+ * srmech_ground_state_flux_response_arena_bytes. Returns
+ * SRMECH_ERR_NULL_ARG for a NULL required pointer, SRMECH_ERR_BAD_INPUT
+ * for an out-of-range edge endpoint / a phase with no Q61 form,
+ * SRMECH_ERR_OVERFLOW for a too-small arena / a non-convergent
+ * eigensolve. */
+srmech_status_t srmech_ground_state_flux_response(
+    uint32_t        n,
+    uint32_t        n_edges,
+    const uint32_t *edges_u,
+    const uint32_t *edges_v,
+    const double   *weights,
+    const double   *charge_pattern,
+    uint32_t        n_flux,
+    const double   *fluxes,
+    double         *out_lambda_min,
+    double         *ws,
+    size_t          ws_len);
 
 /* ------------------------------------------------------------------ *
  * Class J — prime-factorisation / period (Task #217 Phase C1 rc3)

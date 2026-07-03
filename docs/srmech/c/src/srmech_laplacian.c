@@ -570,9 +570,21 @@ static void srmech_hermitian_jacobi_rotate(uint32_t n, double *H,
         return;
     }
     double g_mag = lap_sqrt(g_mag_sq);
-    /* Phase factor e^(iθ) = γ/|γ| — pure algebra, no atan2. */
+    /* Phase factor — pure algebra, no atan2. rc108 FIX (found by the
+     * srmech_heat_trace parity gate): the update below applies
+     * H -> M H M^H with M = [[c, -s*e^(-i*phi_enc)], [s*e^(+i*phi_enc), c]]
+     * (phi_enc = the angle encoded by cosphi/sinphi). Zeroing H[p][q] =
+     * gamma = |gamma|*e^(i*phi) under THAT transform needs the CONJUGATE
+     * phase, e^(i*phi_enc) = conj(gamma)/|gamma| (then H'[p][q] =
+     * e^(i*phi)*[c*s*(a_pp - a_qq) + |gamma|*(c^2 - s^2)] — one common
+     * phase, killed by the real-tau rotation). The old non-conjugate
+     * phase left mixed e^(i*phi)/e^(-3i*phi) terms, so a GENERIC complex
+     * off-diagonal never annihilated: the sweep stalled and the kernel
+     * returned OVERFLOW (silently masked by the pure-Python fallback).
+     * Real input (g_im = 0) and the zero-diagonal pure-imaginary case
+     * (sigma_y) were the two coincidences that worked. */
     double cosphi = g_re / g_mag;
-    double sinphi = g_im / g_mag;
+    double sinphi = -(g_im / g_mag);
     /* Real symmetric reduction: tau = (a_qq − a_pp) / (2|γ|). */
     double tau = (a_qq - a_pp) / (2.0 * g_mag);
     double t;

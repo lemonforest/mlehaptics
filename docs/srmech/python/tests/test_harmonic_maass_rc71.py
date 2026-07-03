@@ -271,6 +271,6 @@ def test_introspect_tools_total_is_340_rc71():
     namespaced injections other tests leak), so the invariant is order-independent."""
     from srmech.amsc.tool_schema import get_tool_schema
     shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
-    assert len(shipped) == 348
+    assert len(shipped) == 350
     names = {t.name for t in shipped}
     assert "srmech.amsc.harmonic_maass.harmonic_maass" in names

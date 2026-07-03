@@ -200,6 +200,8 @@ __all__ = [
     "elementwise_transcendental",
     "elementwise_hypot",
     "elementwise_sqrt",
+    "heat_trace",
+    "ground_state_flux_response",
     "LAPLACIAN_OPS",
     "MAX_NATIVE_NODES",
     "MAX_NATIVE_HERMITIAN_NODES",
@@ -2911,6 +2913,287 @@ def magnetic_laplacian(
     return Mat.from_rows(rows, is_complex=True)
 
 
+# =====================================================================
+# rc108 (#1234 Item 2 / F1007) — the spectral theta / heat trace
+# Θ(t) = Tr(e^{−tL}) = Σₖ e^{−t·λₖ} + the ground-state flux reader.
+# =====================================================================
+
+
+def _finite_real(x: float) -> bool:
+    """True iff ``x`` is a finite float — ``x − x == 0`` (NaN fails ``x == x``;
+    ±Inf fails ``Inf − Inf == 0``). No ``math.isfinite`` import
+    (``[[feedback_missing_math_is_added_to_srmech_as_cascade_never_imported]]``)."""
+    return x == x and x - x == 0.0
+
+
+def _heat_trace_native(flat, n: int, is_complex: bool, t_list):
+    """numpy-free native dispatch for :func:`heat_trace` — marshals the flat
+    matrix buffer (real row-major, or interleaved-complex) + the t-values into
+    ctypes ``double`` buffers and calls the composite C peer
+    ``srmech_heat_trace`` with a caller arena sized from
+    ``srmech_heat_trace_arena_bytes``. Returns the ``list[float]`` Θ values, or
+    ``None`` on any missing symbol / non-OK status (caller then runs the
+    pure-Python complete alternative)."""
+    if not (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_heat_trace")
+        and hasattr(_native.LIB, "srmech_heat_trace_arena_bytes")
+    ):
+        return None
+    L_c = (ctypes.c_double * len(flat))(*flat)
+    n_t = len(t_list)
+    tb = (ctypes.c_double * n_t)(*t_list)
+    out = (ctypes.c_double * n_t)()
+    ws_bytes = _native.LIB.srmech_heat_trace_arena_bytes(
+        ctypes.c_uint32(n), ctypes.c_int(1 if is_complex else 0)
+    )
+    wsd = int(ws_bytes) // 8 + 16
+    ws = (ctypes.c_double * wsd)()
+    rc = _native.LIB.srmech_heat_trace(
+        ctypes.c_uint32(n), ctypes.c_int(1 if is_complex else 0), L_c,
+        ctypes.c_uint32(n_t), tb, out, ws, ctypes.c_size_t(wsd * 8),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [out[i] for i in range(n_t)]
+
+
+def _heat_trace_py(rows, is_complex: bool, t_list):
+    """The pure-Python complete alternative for :func:`heat_trace` — the ONE
+    eigensolve (:func:`jacobi_eigvals` real / :func:`hermitian_eigendecompose`
+    Hermitian, both srmech's own Class-L cascades) then
+    ``Θ(t) = Σₖ float(rational.exp(−t·λₖ))`` summed in ascending-λ order (the
+    Class-N Q61 exp cascade — the same cascade the C peer's ``srmech_exp``
+    runs, so the exp step matches value-for-value given the same spectrum)."""
+    if is_complex:
+        eigvals, _V = hermitian_eigendecompose(rows)
+        lam = [float(eigvals[i]) for i in range(eigvals.shape[0])]
+    else:
+        # A real-VALUED matrix may still carry complex-typed entries (a
+        # complex-layout Mat with imag == 0) — coerce to the real part
+        # before the real Jacobi (which floats every entry).
+        real_rows = [[float(x.real if isinstance(x, complex) else x)
+                      for x in r] for r in rows]
+        ev = jacobi_eigvals(real_rows)
+        lam = [float(ev[i]) for i in range(ev.shape[0])]
+    return [sum(float(_rexp(-(tv * lk))) for lk in lam) for tv in t_list]
+
+
+def heat_trace(L, t):
+    """The spectral theta / heat trace ``Θ(t) = Tr(e^{−tL}) = Σₖ e^{−t·λₖ}``
+    of a Laplacian (rc108; issue #1234 Item 2 / F1007).
+
+    The heat trace IS a theta function of the Laplacian — on a cycle graph it
+    is the Jacobi-θ family sum over the closed-form cyclic spectrum
+    ``λ_k = c·(1 − cos(2πk/n))`` — and it is the natural READ-INDEPENDENT
+    spectral summary (a function of the eigenvalue multiset only; no
+    eigenvector, no read basis). F1007: under magnetic flux the FULL trace is
+    flux-invariant (Poisson → the modular / holomorphic part) while the flux
+    shadow lives only in the ground state ``λ_min(Φ)`` — read that with the
+    companion :func:`ground_state_flux_response`.
+
+    Args:
+        L: an ``(n, n)`` Laplacian — real-symmetric OR complex-Hermitian
+            (:class:`~srmech.amsc.mat.Mat` / list-of-rows / ndarray-like).
+            Dispatches real → :func:`jacobi_eigvals`, complex →
+            :func:`hermitian_eigendecompose` (the same forms the eigensolve
+            ops accept; symmetry/Hermiticity is the caller's responsibility,
+            their contract).
+        t: a single diffusion time (a real scalar → returns a ``float``) OR a
+            sequence of times (→ returns a real
+            :class:`~srmech.amsc.vec.Vec`, one Θ per t). Multi-t is the cheap
+            generalization: ONE eigensolve serves every t. Each t must be a
+            finite real (the usual heat-trace domain is ``t ≥ 0``; a negative
+            t is accepted — Θ is a finite sum either way).
+
+    Returns:
+        ``Θ(t)`` — a ``float`` for scalar ``t``, a real ``Vec`` for a
+        sequence of t values. An empty ``L`` (n = 0) gives the empty-spectrum
+        trace ``Θ = 0.0``.
+
+    Exp convention (stated per the transcendental discipline): ``heat_trace``
+    is a float64-carrier Class-L composite like the existing eigensolve ops —
+    the eigensolve is the FPU float algorithm, and the exp is the Class-N Q61
+    cascade (:func:`srmech.amsc.rational.exp` pure / ``srmech_exp`` native —
+    libm-free) applied at the spectral-summary boundary. Θ is a spectral
+    SUMMARY, not an exact decision — no float transcendental sits on any
+    exact decision path.
+
+    Native (rc108): dispatches to the composite C peer ``srmech_heat_trace``
+    (ONE eigensolve — ``srmech_jacobi_eigvals`` real /
+    ``srmech_hermitian_eigendecompose_ws`` Hermitian — then ``srmech_exp``
+    per term, summed ascending); pure Python is the complete alternative.
+    numpy-free; no ``abs()``.
+
+    Raises:
+        ValueError: non-square ``L``, an empty / non-finite ``t``.
+    """
+    rows = _as_rows(L)
+    n = len(rows)
+    scalar_t = isinstance(t, (int, float)) and not isinstance(t, bool)
+    t_list = [float(t)] if scalar_t else [float(x) for x in t]
+    if not t_list:
+        raise ValueError("heat_trace: t must be a scalar or a NON-EMPTY sequence")
+    for tv in t_list:
+        if not _finite_real(tv):
+            raise ValueError(f"heat_trace: every t must be a finite real; got {tv!r}")
+    if n == 0:
+        # The empty spectrum: Θ(t) = Σ over nothing = 0.
+        return 0.0 if scalar_t else Vec.from_sequence([0.0] * len(t_list),
+                                                      is_complex=False)
+    is_complex = _has_complex(rows)
+    if is_complex:
+        flat = []
+        for r in rows:
+            for x in r:
+                z = complex(x)
+                flat.append(z.real)
+                flat.append(z.imag)
+    else:
+        flat = [float(x.real if isinstance(x, complex) else x)
+                for r in rows for x in r]
+    out = _heat_trace_native(flat, n, is_complex, t_list)
+    if out is None:
+        out = _heat_trace_py(rows, is_complex, t_list)
+    return out[0] if scalar_t else Vec.from_sequence(out, is_complex=False)
+
+
+def _ground_state_flux_response_native(n, el, wl, pattern, flux_list):
+    """numpy-free native dispatch for :func:`ground_state_flux_response` —
+    marshals the edge endpoints / weights / per-edge charge pattern / flux
+    values into ctypes buffers and calls the composite C peer
+    ``srmech_ground_state_flux_response`` (per flux: the rc105 chiral
+    magnetic build + the ONE Hermitian eigensolve → λ_min) with a caller
+    arena sized from ``srmech_ground_state_flux_response_arena_bytes``.
+    Returns the ``list[float]`` λ_min values, or ``None`` on any missing
+    symbol / non-OK status (caller then runs the pure-Python complete
+    alternative)."""
+    if not (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_ground_state_flux_response")
+        and hasattr(_native.LIB, "srmech_ground_state_flux_response_arena_bytes")
+    ):
+        return None
+    n_edges = len(el)
+    null_u = ctypes.cast(None, ctypes.POINTER(ctypes.c_uint32))
+    null_d = ctypes.cast(None, ctypes.POINTER(ctypes.c_double))
+    if n_edges:
+        eu = (ctypes.c_uint32 * n_edges)(*(int(u) for u, _ in el))
+        evb = (ctypes.c_uint32 * n_edges)(*(int(v) for _, v in el))
+        wbuf = (ctypes.c_double * n_edges)(*(float(x) for x in wl))
+        pbuf = (ctypes.c_double * n_edges)(*(float(p) for p in pattern))
+    else:
+        eu = evb = null_u
+        wbuf = pbuf = null_d
+    n_flux = len(flux_list)
+    fbuf = (ctypes.c_double * n_flux)(*flux_list)
+    out = (ctypes.c_double * n_flux)()
+    ws_bytes = _native.LIB.srmech_ground_state_flux_response_arena_bytes(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges)
+    )
+    wsd = int(ws_bytes) // 8 + 16
+    ws = (ctypes.c_double * wsd)()
+    rc = _native.LIB.srmech_ground_state_flux_response(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges), eu, evb, wbuf, pbuf,
+        ctypes.c_uint32(n_flux), fbuf, out, ws, ctypes.c_size_t(wsd * 8),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [out[i] for i in range(n_flux)]
+
+
+def ground_state_flux_response(
+    n: int,
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]] = None,
+    *,
+    fluxes,
+    charges: Optional[Iterable[float]] = None,
+):
+    """``λ_min(Φ)`` — the magnetic ground state as a function of flux: the
+    F1007 SHADOW reader (rc108; issue #1234 Item 2).
+
+    F1007's mock-theta split: the FULL heat trace ``Θ(t)`` of a magnetic
+    Laplacian is flux-invariant (Poisson → the modular / holomorphic part),
+    while the flux SHADOW lives only in the ground state — on a flux-threaded
+    cycle ``λ_min`` moves 0 → positive as Φ: 0 → 1/2 turn and is periodic in
+    integer flux (integer holonomy ``e^{i2πΦ} = 1`` is gauge-equivalent to
+    no flux). Overtone (trace) / undertone (ground state) = the holomorphic +
+    shadow split — the same asymmetric-beat family as the elliptic ``−z⁻¹``
+    arc (F999–F1002).
+
+    Args:
+        n: node count (``≥ 1`` — an empty graph has no ground state).
+        edges: the directed edge list ``(u, v)`` (the
+            :func:`magnetic_laplacian` convention).
+        weights: optional per-edge magnitudes (default 1.0 each).
+        fluxes: a single total flux Φ in TURNS (a real scalar → returns a
+            ``float``) OR a sequence of fluxes (→ returns a real
+            :class:`~srmech.amsc.vec.Vec`, one λ_min per Φ).
+        charges: optional per-edge charge PATTERN, parallel to ``edges``
+            (validated ``len(charges) == len(edges)``) — the rc105 chiral
+            surface, composable as-is: each edge ``k`` gets charge
+            ``Φ · charges[k]`` (turns). Default ``None`` = the UNIFORM
+            pattern ``1/n_edges`` per edge, so a single cycle's total
+            holonomy is exactly Φ turns (the F1007 convention).
+
+    Returns:
+        ``λ_min(Φ)`` — a ``float`` for scalar ``fluxes``, a real ``Vec`` for
+        a sequence.
+
+    The op composes SHIPPED ops only — :func:`magnetic_laplacian` with the
+    rc105 ``charges=`` (per flux: the scaled pattern) +
+    :func:`hermitian_eigendecompose` (ascending → ``eigvals[0]`` IS λ_min).
+    Native (rc108): the composite C peer
+    ``srmech_ground_state_flux_response`` runs the same
+    ``srmech_graph_magnetic_laplacian`` + ``srmech_hermitian_eigendecompose_ws``
+    kernels per flux; pure Python is the complete alternative. numpy-free;
+    no ``abs()``.
+
+    Raises:
+        ValueError: ``n < 1``, a bad edge/weight/charge (the
+            :func:`magnetic_laplacian` contracts), a charges-length mismatch,
+            or an empty / non-finite ``fluxes``.
+    """
+    if not isinstance(n, int) or n < 1:
+        raise ValueError(
+            f"ground_state_flux_response: n must be an int >= 1 (an empty "
+            f"graph has no ground state); got {n!r}")
+    el, wl = _validate_edges_weights_py(n, edges, weights)
+    n_edges = len(el)
+    if charges is not None:
+        pattern = [float(c) for c in charges]
+        if len(pattern) != n_edges:
+            raise ValueError(
+                f"ground_state_flux_response: charges length {len(pattern)} "
+                f"!= n_edges {n_edges}")
+    else:
+        # The uniform default: total holonomy around a single cycle = Φ turns.
+        pattern = [1.0 / n_edges] * n_edges if n_edges else []
+    scalar_f = isinstance(fluxes, (int, float)) and not isinstance(fluxes, bool)
+    flux_list = [float(fluxes)] if scalar_f else [float(x) for x in fluxes]
+    if not flux_list:
+        raise ValueError(
+            "ground_state_flux_response: fluxes must be a scalar or a "
+            "NON-EMPTY sequence")
+    for fv in flux_list:
+        if not _finite_real(fv):
+            raise ValueError(
+                f"ground_state_flux_response: every flux must be a finite "
+                f"real; got {fv!r}")
+    out = _ground_state_flux_response_native(n, el, wl, pattern, flux_list)
+    if out is None:
+        out = []
+        for phi in flux_list:
+            scaled = [phi * p for p in pattern]
+            Lm = magnetic_laplacian(n, el, wl, charges=scaled)
+            eigvals, _V = hermitian_eigendecompose(Lm)
+            out.append(float(eigvals[0]))
+    return out[0] if scalar_f else Vec.from_sequence(out, is_complex=False)
+
+
 def fiedler_vector(matrix) -> "Vec":
     """The Fiedler navigation embedding — eigenvector of ``λ₂``.
 
@@ -3640,6 +3923,8 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "elementwise_transcendental",
     "elementwise_hypot",
     "elementwise_sqrt",
+    "heat_trace",
+    "ground_state_flux_response",
     "dense_solve",
     "schur_complement",
     "dirichlet_to_neumann",

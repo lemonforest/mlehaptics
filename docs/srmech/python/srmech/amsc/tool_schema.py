@@ -990,6 +990,75 @@ def _register_primitive_class_tools() -> None:
                           "mutually exclusive with q")),
             returns=R("Mat", "n × n complex Hermitian matrix (numpy-free Mat)"),
         ),
+        # ────────────────────────────────────────────────────────────
+        # rc108 (#1234 Item 2 / F1007) — the spectral theta / heat trace
+        # + the ground-state flux reader, Class-L composites with the 1:1
+        # C peers srmech_heat_trace / srmech_ground_state_flux_response.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.laplacian.heat_trace", owner="srmech",
+            category="laplacian",
+            summary="The spectral theta / heat trace Θ(t) = Tr(e^{−tL}) = "
+                    "Σₖ e^{−t·λₖ} of a Laplacian — a theta function of L (on "
+                    "a cycle, the Jacobi-θ family) and the READ-INDEPENDENT "
+                    "spectral summary (eigenvalue multiset only; no read "
+                    "basis). Dispatches real-symmetric → jacobi_eigvals, "
+                    "complex-Hermitian → hermitian_eigendecompose; ONE "
+                    "eigensolve serves every t (pass a sequence of t values "
+                    "for the cheap multi-t read). The exp is the Class-N Q61 "
+                    "cascade (rational.exp / srmech_exp — libm-free) at the "
+                    "spectral-summary boundary; Θ is a float summary, never "
+                    "an exact decision. F1007: under magnetic flux the full "
+                    "trace is flux-invariant (Poisson → the modular/"
+                    "holomorphic part); the flux shadow lives only in the "
+                    "ground state — see ground_state_flux_response. 1:1 C "
+                    "peer srmech_heat_trace (native when present, pure-"
+                    "Python the complete alternative). numpy-free; no abs().",
+            parameters=(P("L", "Mat", True,
+                          "an n×n real-symmetric or complex-Hermitian "
+                          "Laplacian"),
+                        P("t", "float | Sequence[float]", True,
+                          "diffusion time(s); scalar → float, sequence → "
+                          "Vec (one eigensolve, many t)")),
+            returns=R("float | Vec", "Θ(t) — a float for scalar t, a real "
+                                     "Vec (one Θ per t) for a sequence"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.ground_state_flux_response",
+            owner="srmech",
+            category="laplacian",
+            summary="λ_min(Φ) — the magnetic ground state as a function of "
+                    "flux: the F1007 SHADOW reader. The full heat trace of a "
+                    "magnetic Laplacian is flux-invariant (the modular/"
+                    "holomorphic part); the flux shadow lives ONLY in the "
+                    "ground state (on a flux-threaded cycle λ_min moves 0 → "
+                    "positive as Φ: 0 → 1/2 turn; periodic in integer flux — "
+                    "integer holonomy is gauge-equivalent to none). Per flux "
+                    "Φ each edge k gets charge Φ·charges[k] (the rc105 "
+                    "chiral charges= pattern, composable as-is; default = "
+                    "uniform 1/n_edges so a single cycle's total holonomy is "
+                    "Φ turns), then magnetic_laplacian + "
+                    "hermitian_eigendecompose → λ_min. 1:1 C peer "
+                    "srmech_ground_state_flux_response (native when present, "
+                    "pure-Python the complete alternative). numpy-free; no "
+                    "abs().",
+            parameters=(P("n", "int", True, "node count (>= 1)"),
+                        P("edges", "list[tuple[int, int]]", True,
+                          "directed u → v (the magnetic_laplacian "
+                          "convention)"),
+                        P("weights", "Optional[list[float]]", False,
+                          "per-edge magnitudes; default 1.0 each"),
+                        P("fluxes", "float | Sequence[float]", True,
+                          "total flux value(s) in turns; scalar → float, "
+                          "sequence → Vec"),
+                        P("charges", "Optional[list[float]]", False,
+                          "per-edge charge PATTERN (turns), parallel to "
+                          "edges — scaled by each flux; default uniform "
+                          "1/n_edges")),
+            returns=R("float | Vec", "λ_min(Φ) — a float for scalar fluxes, "
+                                     "a real Vec (one λ_min per Φ) for a "
+                                     "sequence"),
+        ),
         ToolEntry(
             name="srmech.amsc.laplacian.fiedler_vector", owner="srmech",
             category="laplacian",

@@ -862,6 +862,10 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "iterable[int]": _identity,
     "sequence": _identity,
     "int | float | str | list | dict": _identity,
+    # 0.9.0rc108: laplacian.heat_trace `t` / laplacian.ground_state_flux_response
+    # `fluxes` — a scalar diffusion-time/flux OR a list of them; both forms are
+    # JSON-native (the op itself dispatches scalar → float, sequence → Vec).
+    "float | Sequence[float]": _identity,
     # ── opaque in-process handle types (cannot ride JSON; the schema
     #    renders them as objects and an in-process caller passes the real
     #    object through). Listed so the ratchet stays exhaustive. ──
