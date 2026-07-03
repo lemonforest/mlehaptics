@@ -846,6 +846,225 @@ def octonion_dft(
                           mu_hat, mu_r_hat)
 
 
+# ────────────────────────────────────────────────────────────────────────
+# The LIGHTWEIGHT matched-filter PEAK READ (0.9.0rc112; #1234 Item 1d, the
+# F1000→F1001→F1002 refinement) — the READ counterpart to the full
+# quaternion_dft / octonion_dft ENCODING transforms, kept API-DISTINCT.
+# ────────────────────────────────────────────────────────────────────────
+
+#: The native uint32 rung-count bound (the srmech_phase_coherent_peak contract).
+_PCP_N_MAX = 2 ** 32
+
+
+def _pcp_components(sample) -> List[float]:
+    """Coerce ONE per-rung sample to a plain real component vector
+    (numpy-free): a real scalar → ``[x]``; a complex scalar → ``[re, im]``;
+    a sequence → its floats (a complex entry expands to its ``re, im`` pair,
+    so a length-``d`` complex sequence becomes a ``2d`` real vector)."""
+    if isinstance(sample, bool):
+        return [float(sample)]
+    if isinstance(sample, (int, float)):
+        return [float(sample)]
+    if isinstance(sample, complex):
+        return [sample.real, sample.imag]
+    comps: List[float] = []
+    for c in sample:
+        if isinstance(c, complex):
+            comps.append(c.real)
+            comps.append(c.imag)
+        else:
+            comps.append(float(c))
+    return comps
+
+
+def _pcp_native_ready() -> bool:
+    """True iff the native lib is loaded AND exports
+    ``srmech_phase_coherent_peak`` (hasattr-guarded for stale ABI-3 libs;
+    numpy-free)."""
+    return bool(
+        _native.HAS_NATIVE and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_phase_coherent_peak")
+    )
+
+
+def _phase_coherent_peak_pure(vecs: List[List[float]],
+                              keyvecs) -> dict:
+    """The pure-Python matched-filter peak — the float-op order MIRRORS the C
+    peer exactly (per-rung energy accumulated i = 0..dim−1 left-to-right; the
+    argmax scanned r = 0..n−1 with a strict ``>`` so ties keep the lowest
+    index), so the two paths are byte-exact — the parity contract, not a
+    tolerance."""
+    n = len(vecs)
+    dim = len(vecs[0])
+    scores: List[float] = []
+    for r in range(n):
+        v = vecs[r]
+        if keyvecs is None:                       # identity matched filter
+            e = 0.0
+            for i in range(dim):
+                e += v[i] * v[i]                  # Class-K squared magnitude
+        else:                                     # explicit per-rung template
+            g = keyvecs[r]
+            c = 0.0
+            for i in range(dim):
+                c += g[i] * v[i]                  # matched-filter correlation
+            e = c * c
+        scores.append(e)
+    best_idx = 0
+    best_e = scores[0]
+    for r in range(1, n):
+        if scores[r] > best_e:                    # Class-K magnitude compare
+            best_e = scores[r]
+            best_idx = r
+    return {"rung_index": best_idx, "score": best_e, "scores": scores}
+
+
+def _try_native_phase_coherent_peak(vecs: List[List[float]], keyvecs,
+                                    dim: int):
+    """Dispatch the whole peak read to the C peer
+    ``srmech_phase_coherent_peak`` (one ctypes call) — or ``None`` to signal
+    the pure fallback. Byte-exact with :func:`_phase_coherent_peak_pure`."""
+    n = len(vecs)
+    if not _pcp_native_ready() or n >= _PCP_N_MAX:
+        return None
+    Buf = ctypes.c_double * (n * dim)
+    c_lad = Buf(*(c for v in vecs for c in v))
+    if keyvecs is None:
+        c_keys = ctypes.POINTER(ctypes.c_double)()          # NULL → identity
+    else:
+        c_keys_arr = Buf(*(c for g in keyvecs for c in g))  # kept alive below
+        c_keys = ctypes.cast(c_keys_arr, _C_DBLP)
+    c_scores = (ctypes.c_double * n)()
+    c_index = ctypes.c_uint32(0)
+    c_score = ctypes.c_double(0.0)
+    rc = _native.LIB.srmech_phase_coherent_peak(
+        ctypes.cast(c_lad, _C_DBLP), c_keys,
+        ctypes.c_uint32(n), ctypes.c_size_t(dim),
+        ctypes.byref(c_index), ctypes.byref(c_score),
+        ctypes.cast(c_scores, _C_DBLP),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return {"rung_index": int(c_index.value), "score": float(c_score.value),
+            "scores": [float(c_scores[r]) for r in range(n)]}
+
+
+def phase_coherent_peak(ladder: Sequence, *, keys: Sequence = None) -> dict:
+    """The LIGHTWEIGHT matched-filter PEAK READ over a rung/mode ladder — the
+    READ reduction for the RBS-LM fold, kept API-DISTINCT from the full
+    :func:`quaternion_dft` / :func:`octonion_dft` transforms (0.9.0rc112;
+    #1234 Item 1d, the F1000→F1001→F1002 refinement).
+
+    **THE READ-vs-ENCODE SPLIT (why this is its own op, NOT a kwarg on the
+    transforms — F1000 → F1001 → F1002).** The full :func:`quaternion_dft` /
+    :func:`octonion_dft` (rc110/rc111) are the SPREAD-SPECTRUM ENCODING /
+    analysis surface — they compute the whole length-``N`` spectrum. For the
+    RBS-LM READ, F1001 measured that the full complex QDFT is WORSE than the
+    peak read on the single-rung fold: the target's cross-rung response is a
+    SPIKE, so the PEAK (max phase-coherent energy over the rung ladder) is
+    the MATCHED FILTER — it *rejects* the off-rung noise — while the full
+    transform coherently combines ALL rungs *including* the off-rung noise (a
+    spike's spectrum is flat, so coherent combination gains nothing and
+    forfeits the max's noise-rejection). F1002 settled it read-
+    independently: the elliptic `−z⁻¹` code is circulant / generative but
+    recall-equivalent to independent keys — the transform's value is
+    GENERATIVE encoding, not read-amplification. So the READ path wants ONLY
+    this lightweight peak reduction. There is NO twiddle here — its absence
+    IS what distinguishes the read from the transform.
+
+    **THE COMPUTATION (matched filter over a rung ladder).** Given ``ladder``
+    = ``n_rungs`` per-rung samples along the rung/mode axis (each a real
+    scalar, a complex phase sample, or a quaternion / octonion / Klein-4
+    component vector — all the same dimension ``d``), the per-rung
+    **phase-coherent energy** is:
+
+    * ``keys is None`` (the identity matched filter — the F1001 read): ``E_r
+      = Σ_i ladder[r][i]²`` — the sample's own squared magnitude (Class-K).
+      The ladder already holds the per-rung responses; the peak is the
+      strongest-responding rung. For a real-similarity response ladder this
+      is exactly F1001's ``max``-over-rungs read (the spike's magnitude
+      dominates).
+    * ``keys`` given (an explicit expected per-rung pattern, e.g. the
+      ``−z⁻¹``/twiddle ladder): ``E_r = (Σ_i keys[r][i]·ladder[r][i])²`` —
+      the squared matched-filter correlation of the sample against its
+      per-rung template.
+
+    The PEAK is ``argmax_r E_r`` (ties → lowest index — a Class-K magnitude
+    comparison, never ``abs()``).
+
+    Parameters
+    ----------
+    ladder : sequence of per-rung samples, or a real ``(n_rungs, d)`` Mat
+        Each sample is a real scalar / complex scalar / real component vector
+        (the per-rung projection along the rung axis). All rungs must share
+        one dimension ``d``.
+    keys : sequence of per-rung templates (same shape as ``ladder``), optional
+        The matched-filter template — the expected per-rung phase pattern.
+        ``None`` (default) uses the identity filter (the ladder IS the
+        per-rung matched-filter output).
+
+    Returns
+    -------
+    dict
+        ``{"rung_index": r*, "score": E_{r*}, "scores": [E_0 … E_{n−1}]}`` —
+        the peak rung, its phase-coherent energy, and every rung's energy.
+        ``score`` is the squared magnitude (the comparison quantity — no
+        ``sqrt`` on the decision path, so the read is exact / libm-free).
+
+    Class home: **K** (the squared-magnitude phase-coherent energy + the
+    argmax magnitude comparison — the real pin-slot, never ``abs()``).
+    Dispatches the whole read to the same-rc C peer
+    ``srmech_phase_coherent_peak`` (byte-exact pure fallback otherwise).
+    #1234 Item 1d; the findings F999–F1002 are the in-repo SSOT (no external
+    citation)."""
+    if isinstance(ladder, _Mat):
+        if ladder.is_complex:
+            raise ValueError(
+                "phase_coherent_peak takes REAL ladder components; got a "
+                "complex Mat"
+            )
+        ladder = ladder.tolist()
+    vecs = [_pcp_components(s) for s in ladder]
+    if not vecs:
+        raise ValueError(
+            "phase_coherent_peak: ladder must have at least one rung sample"
+        )
+    dim = len(vecs[0])
+    if dim == 0:
+        raise ValueError("phase_coherent_peak: rung samples must be non-empty")
+    for v in vecs:
+        if len(v) != dim:
+            raise ValueError(
+                "phase_coherent_peak: every rung sample must have the same "
+                f"dimension ({dim})"
+            )
+    keyvecs = None
+    if keys is not None:
+        if isinstance(keys, _Mat):
+            if keys.is_complex:
+                raise ValueError(
+                    "phase_coherent_peak takes REAL key components; got a "
+                    "complex Mat"
+                )
+            keys = keys.tolist()
+        keyvecs = [_pcp_components(s) for s in keys]
+        if len(keyvecs) != len(vecs):
+            raise ValueError(
+                "phase_coherent_peak: keys must have one template per rung "
+                f"({len(vecs)}); got {len(keyvecs)}"
+            )
+        for g in keyvecs:
+            if len(g) != dim:
+                raise ValueError(
+                    "phase_coherent_peak: each key template must match the "
+                    f"sample dimension ({dim})"
+                )
+    native = _try_native_phase_coherent_peak(vecs, keyvecs, dim)
+    if native is not None:
+        return native
+    return _phase_coherent_peak_pure(vecs, keyvecs)
+
+
 def hypercomplex_couple(
     streams: Sequence,
     *,

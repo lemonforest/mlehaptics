@@ -4314,6 +4314,56 @@ def _register_primitive_class_tools() -> None:
             ),
             returns=R("list[list[float]]", "N octonions (8-component lists)"),
         ),
+        # The lightweight matched-filter PEAK READ (v0.9.0rc112; #1234 Item 1d,
+        # the F1000→F1001→F1002 refinement) — the READ counterpart to the full
+        # quaternion_dft / octonion_dft ENCODING transforms above, deliberately
+        # its OWN op (NOT a kwarg on the transforms). c_dispatched C peer.
+        ToolEntry(
+            name="srmech.amsc.cascade.phase_coherent_peak", owner="srmech",
+            category="cascade",
+            summary="The LIGHTWEIGHT matched-filter PEAK READ over a rung/mode "
+                    "ladder — the RBS-LM READ reduction, kept API-DISTINCT from "
+                    "the full quaternion_dft / octonion_dft ENCODING transforms "
+                    "(0.9.0rc112; #1234 Item 1d, the F1000→F1001→F1002 "
+                    "refinement). THE READ-vs-ENCODE SPLIT: the full transforms "
+                    "(rc110/rc111) are the spread-spectrum ENCODING surface (the "
+                    "whole length-N spectrum); for the RBS-LM single-rung fold "
+                    "F1001 measured the full complex QDFT WORSE than the peak — "
+                    "the target's cross-rung response is a SPIKE, so the PEAK "
+                    "(max phase-coherent energy over the rung ladder) IS the "
+                    "matched filter (rejects off-rung noise), while the full "
+                    "transform coherently combines ALL rungs incl. the off-rung "
+                    "noise (a spike's spectrum is flat → coherent combination "
+                    "gains nothing, forfeits the max's noise-rejection). F1002 "
+                    "settled it read-independently (elliptic −z⁻¹ is circulant/"
+                    "GENERATIVE but recall-equivalent to independent keys — the "
+                    "transform's value is encoding, not read-amplification). So "
+                    "the read wants ONLY this peak reduction; there is NO twiddle "
+                    "here — its absence IS what distinguishes the read from the "
+                    "transform. COMPUTATION: per-rung phase-coherent energy E_r = "
+                    "Σ_i ladder[r][i]² (keys=None, identity filter = the F1001 "
+                    "read) or (Σ_i keys[r][i]·ladder[r][i])² (explicit per-rung "
+                    "template); peak = argmax_r E_r (ties→lowest index). Class K "
+                    "(squared-magnitude energy + argmax magnitude comparison; no "
+                    "abs(), no libm); numpy-free; same-rc byte-exact C peer "
+                    "srmech_phase_coherent_peak. The findings F999–F1002 are the "
+                    "in-repo SSOT (no external citation)." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("ladder", "sequence", True,
+                  "n_rungs per-rung samples along the rung/mode axis (each a "
+                  "real scalar, complex scalar, or a quaternion/octonion/Klein-4 "
+                  "component vector — all the same dimension d), or a real "
+                  "(n_rungs, d) Mat"),
+                P("keys", "sequence", False,
+                  "optional matched-filter template — the expected per-rung "
+                  "phase pattern, one per rung (same shape as ladder); default "
+                  "None = the identity filter (the ladder IS the per-rung "
+                  "matched-filter output, the F1001 read)"),
+            ),
+            returns=R("dict",
+                      "{rung_index: peak rung, score: its phase-coherent energy "
+                      "(squared magnitude), scores: every rung's energy}"),
+        ),
         # Bidirectional (σ,θ,μ) hypercomplex coupler (v0.7.2rc1; #908, F436/F437).
         # Registered under its STABLE FLAT public name
         # ``srmech.amsc.cascade.hypercomplex_couple``; the submodule-dotted
