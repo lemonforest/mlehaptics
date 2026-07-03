@@ -547,7 +547,23 @@ class Session:
         if not self.mem:
             return "(memory empty)"
         best_i, cite = self._best_note(text)
-        return "recall: %s%s" % (self.mem[best_i], cite)
+        out = "recall: %s%s" % (self.mem[best_i], cite)
+        # THE CONFLICT SURFACE (F1028 §4 v1): a second note sharing >=2 content words whose
+        # attestation names a DIFFERENT source is a PARALLEL SENSE -- reported, never deleted
+        # (dual senses survive as structure, the F1006->F1007->rc105 chain at the source level).
+        srcs = {a.get("note_index"): a["attestation"].get("source_url", "")
+                for a in self.attestations if "attestation" in a}
+        s0 = srcs.get(best_i)
+        if s0:
+            qw = [w for w in _toks(text) if w not in self.board.strip
+                  and w not in self.board.interrogatives]
+            for j, note in enumerate(self.mem):
+                if j != best_i and srcs.get(j) and srcs[j] != s0:
+                    if sum(1 for w in set(qw) if w in _toks(note)) >= 2:
+                        jc = self._cite(j)
+                        out += "\n  PARALLEL SOURCE (differs): %s...%s" % (note[:100], jc)
+                        break
+        return out
 
     def _extract(self, text):
         """The F774 closed-op SUB-NOTE EXTRACTION rung: the wh-frame declares the answer's
@@ -780,6 +796,14 @@ class Session:
         from srmech.amsc.format import sha256_bytes
         with open(index, "rb") as f:
             self._instrument_hash = sha256_bytes(f.read())     # collector-descriptor hash, once per load
+        meta = path.replace("_instrument.ndjson", "_instrument.meta.json")  # per-instrument source
+        if os.path.isfile(meta):                                            # metadata (license,
+            import json as _json                                            # cite-as) -- an
+            self._instrument_meta = _json.load(open(meta))                  # instrument declares
+        else:                                                               # its OWN provenance
+            self._instrument_meta = {"license": "CC-BY-SA-4.0",
+                                     "cite_as": "Wikipedia contributors, %r, Simple English Wikipedia (CC-BY-SA)",
+                                     "name": "simplewiki"}
         self.instrument = (path, index)
         return "instrument loaded: %s (+ title index, sha256=%s). knowledge stays user-side; acquire <topic> to learn." % (
             os.path.basename(path), self._instrument_hash[:12])
@@ -820,7 +844,7 @@ class Session:
                 # require_per_row_source_doi=false (record-level parity asked in UPSTREAM #84)
                 "source_doi": "urn:siona:local-instrument:no-doi",
                 "source_url": "file://" + path,
-                "license": "CC-BY-SA-4.0",                     # Wikipedia-derived instrument
+                "license": self._instrument_meta["license"],
                 "retrieved_at": datetime.datetime.now(datetime.timezone.utc)
                                 .strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "response_sha256": sha256_bytes(raw),          # the EXACT record bytes (Class A)
@@ -830,8 +854,8 @@ class Session:
                 "collector_descriptor_hash": self._instrument_hash,
             },
             rendering={
-                "human_readable_name": "simplewiki lead: %s" % topic,
-                "cite_as": "Wikipedia contributors, %r, Simple English Wikipedia (CC-BY-SA)" % topic,
+                "human_readable_name": "%s: %s" % (self._instrument_meta["name"], topic),
+                "cite_as": self._instrument_meta["cite_as"] % topic,
                 "purpose": "knowledge note acquired into the siona session (attested per MPM)",
             })
         validate_mpr_record(mpr)                               # the REAL AMSC validation gate
