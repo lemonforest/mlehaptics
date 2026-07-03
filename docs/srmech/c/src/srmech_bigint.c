@@ -124,8 +124,14 @@ size_t srmech_bigint_shl_bound(size_t a_n, uint32_t bits)
 size_t srmech_bigint_pow_bound(size_t base_n, uint32_t exp)
 {
     size_t prod;
-    assert(base_n > 0u || exp == 0u);
-    assert((size_t)exp == exp);
+    assert((size_t)exp == exp);           /* exp representable as a size_t */
+    /* base^0 = 1 AND 0^{exp>0} = 0 both fit in a single limb. There is no
+     * precondition forbidding base_n == 0: 0^{exp>0} is a well-defined value
+     * (0) that srmech_bigint_pow_u32 computes correctly — e.g. the two-sided
+     * unary-theta n=0 term with j>=1. (The old assert(base_n > 0u || exp == 0u)
+     * was over-strict: it aborted this valid case in asserts-live builds while
+     * NDEBUG builds computed it correctly, so callers routed around it with a
+     * `q_limbs == 0u ? 1u : q_limbs` guard — see srmech_bigexp / srmech_jacobi.) */
     if (exp == 0u || base_n == 0u) {
         return 1u;
     }
@@ -133,6 +139,7 @@ size_t srmech_bigint_pow_bound(size_t base_n, uint32_t exp)
     if (prod / (size_t)exp != base_n || prod + 1u < prod) {
         return (size_t)-1; /* clamp: caller's cap check will reject */
     }
+    assert(prod + 1u > prod);             /* +1 no-wrap (guarded above): a valid limb count */
     return prod + 1u;
 }
 

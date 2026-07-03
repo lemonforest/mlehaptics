@@ -8,6 +8,22 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc118] - 2026-07-03
+
+**ROOT-FIX an over-strict assert in `srmech_bigint_pow_bound` that aborted `0^{exp>0}` in asserts-live builds (task #715).** `tools.total` stays **381**; ABI stays 3 (no surface change — a one-line C-assert correction); numpy stays absent; no `abs()`. **VERDICT (a): OVER-STRICT ASSERT, not a latent bug** — the math was always correct.
+
+**THE ABORT.** `tests/test_unary_theta_rc70.py::test_python_c_parity_stress_sweep` aborted (`Fatal Python error: Aborted`) on ANY asserts-live build (`gcc -O2 -std=c11` WITHOUT `-DNDEBUG`); CI's Release (`-DNDEBUG`) builds strip `assert()` and never saw it. The failing assert was `c/src/srmech_bigint.c:127`: `assert(base_n > 0u || exp == 0u);` in `srmech_bigint_pow_bound`. **Triggering input (deterministic):** the stress-sweep spec `unary_theta("trivial", j=1, a=1, b=0, D=1, support="all", N=40)` — `support="all"` includes **n=0**, and with `j≥1` the term is `χ(0)·0^j`, so the C peer asks `pow_bound` for the limb-bound of `0^1`.
+
+**WHY IT IS OVER-STRICT (case a).** `0^{exp>0} = 0` is a well-defined value the code ALREADY computes correctly: `pow_bound`'s own body returns `1u` for `base_n == 0` (line 129), and `srmech_bigint_pow_u32` square-and-multiplies `0^1 → 0` exactly. The `base_n > 0u || exp == 0u` precondition forbade the one valid case its own body handles. It mirrors the pure-Python oracle exactly (`chi * (0 ** j)`; Python `0**1 == 0`).
+
+**TRUST — was any shipped (NDEBUG) output ever WRONG? NO.** Under `-DNDEBUG` the assert is a no-op, so the correct `0^j → 0` path ran: the triggering input yields byte-identical C==Python coefficients (all-zero — the two-sided odd-`j` trivial theta cancels `n^1 + (-n)^1 = 0`, and the `n=0` term contributes `0`). No wrong math, no UB (the `0`-value carrier needs 0 limbs; `pow_bound`'s `1u` cap is ample). The bug was a **false abort in asserts-live builds only** — the shipped Release wheels were always correct.
+
+**THE FIX.** Replace the false precondition with the true one: `assert((size_t)exp == exp)` (representability — kept) + a postcondition `assert(prod + 1u > prod)` after the overflow guard (a valid, non-wrapping limb count). JPL Rule 5 (≥2 asserts) preserved; the `0^{exp>0}` and `x^0` cases flow through the existing `return 1u`. Root-fix in shared bigint infra → every `pow` caller benefits.
+
+**SIBLING AUDIT (the rc36 pow_u32 lesson — shared-infra bound bugs have siblings).** The over-strict pattern was UNIQUE to `srmech_bigint.c:127`. Its fingerprint was already visible in the callers: `srmech_bigexp.c:266` and `srmech_jacobi.c:337-339` pass `q_limbs == 0u ? 1u : q_limbs` to `pow_bound` — defensive guards that route AROUND the abort (now unnecessary, left in place as harmless; `pow_bound(0, exp)` returns the same `1u`). The runtime `pow_u32` callers are `srmech_eisenstein.c:344,353` (base is a divisor `d ≥ 1` / cofactor `n/d ≥ 1`, never 0 → safe today, now robust) and `srmech_unary_theta.c:230` (the trigger). No other `base>0 || exp==0`-shaped assert exists (the `apagodu_zeilberger` / `zeilberger` `total>0 || nrow==0` asserts are unrelated data-structure invariants).
+
+**GATES.** `test_unary_theta_rc70.py` green BOTH modes (18/18 asserts-live AND `-DNDEBUG`); the theta/bigint consumer suites (unary_theta, eta_quotient, eisenstein, qrow rc113, harmonic_maass, poly, jacobi, thetasum) green (182 passed); pedantic `-Wall -Wextra -Wpedantic -Werror` clean BOTH modes (the NDEBUG no-op assert leaves no unused variable); JPL audit green; full suite green both modes. 5 SSOT files rc117 → rc118.
+
 ## [0.9.0rc117] - 2026-07-03
 
 **OPERATORS⊗OPERANDS AS ONE ADDRESSABLE OBJECT — the op-carrying carrier (`srmech.amsc.op_provenance`; the capstone of the three-dive arc: dive #718 prototype → dive #719 duality archaeology → the joint review).** `tools.total` **376 → 381** (five genuinely new public ops); ABI stays 3 (additive C symbols only); numpy stays absent; no `abs()`; no raw `hashlib`.
