@@ -61,7 +61,8 @@ from typing import Dict, Iterable, List, Mapping, Tuple
 
 from .q import Q
 
-__all__ = ["EllMonomial", "Theta", "EllRatio", "elliptic_lagrange_basis"]
+__all__ = ["EllMonomial", "Theta", "EllRatio", "elliptic_lagrange_basis",
+           "half_shift_response", "chirality_parity", "beat_relation_residue"]
 
 _Q_ZERO = Q(0, 1)
 _Q_ONE = Q(1, 1)
@@ -674,6 +675,44 @@ class EllRatio:
             n_syms, idx.get(_X, -1), idx.get(_P, -1),
             len(self._num), len(self._den), monomials)
 
+    # ── the #712 half-period edge readers (Dzhanibekov harmonic⊗subharmonic) ──
+    def _negate_var(self, var: str) -> "EllRatio":
+        """The double-cover deck transformation ``var ↦ −var`` on the prefactor +
+        every theta argument: each monomial's Class-K coeff picks up
+        ``(−1)^{var-exponent}`` (a theta arg EVEN in ``var`` is invariant; an ODD-in-
+        ``var`` arg flips to ``θ(−z)``, a DIFFERENT canonical theta). Re-canonicalizes."""
+        def sm(m: EllMonomial) -> EllMonomial:
+            e = m.exp_of(var)
+            return EllMonomial(m.coeff * (Q(-1, 1) if (e % 2 != 0) else _Q_ONE), m.exps)
+        return EllRatio(sm(self._pref),
+                        [Theta(sm(t.arg)) for t in self._num],
+                        [Theta(sm(t.arg)) for t in self._den])
+
+    def _shift_var(self, base: str, var: str) -> "EllRatio":
+        """Substitute ``var ↦ base·var`` (``base`` = ``'p'`` for the period shift)
+        in the prefactor + every theta argument — the ``var``-generalized
+        :meth:`_shift` (``_shift(base)`` is ``_shift_var(base, _X)``); re-canonicalizes."""
+        def sm(m: EllMonomial) -> EllMonomial:
+            return m * EllMonomial.symbol(base, m.exp_of(var))
+        return EllRatio(sm(self._pref),
+                        [Theta(sm(t.arg)) for t in self._num],
+                        [Theta(sm(t.arg)) for t in self._den])
+
+    def half_shift_response(self, axis: str, var: "str | None" = None) -> EllMonomial:
+        """The exact monomial MULTIPLIER this carrier acquires under a HALF-period
+        translation along ``axis`` — see the module-level :func:`half_shift_response`."""
+        return half_shift_response(self, axis, var)
+
+    def chirality_parity(self, var: str = "w") -> str:
+        """``"even"`` (harmonic) / ``"odd"`` (subharmonic) — see the module-level
+        :func:`chirality_parity`."""
+        return chirality_parity(self, var)
+
+    def beat_relation_residue(self, var: str = _X) -> EllMonomial:
+        """The exact ``q²·p⁻¹`` beat-relation residue — see the module-level
+        :func:`beat_relation_residue`."""
+        return beat_relation_residue(self, var)
+
     # ── evaluation (the exact-ℚ cross-check oracle) ──────────────────────────
     def eval_trunc(self, values: "Mapping[str, object]", n_terms: int) -> Q:
         """Evaluate to a single exact ``Q``: ``prefactor(values)`` times the
@@ -841,3 +880,178 @@ def _elliptic_lagrange_basis_c(points: "List[EllMonomial]",
     if forms is None:
         return None
     return [_ellratio_from_form(f, sym_list) for f in forms]
+
+
+# ── the #712 Dzhanibekov half-period readers (harmonic⊗subharmonic cascade) ──────
+#
+# The torque-free (Dzhanibekov / tennis-racket) rotation's Jacobi sn/cn/dn map to
+# EllRatio theta quotients under the #712 bridge (w = e^{iζ}, x = w², carrier-p =
+# q_c²; DLMF 22.2/20.5). Its two-torus has TWO independent half-beats — the REAL 2K
+# axis and the NOME 2iK′ axis (DLMF 22.4). These three ops read the EXACT carrier
+# structure the #712 probes established:
+#   • ``half_shift_response`` — the exact edge MULTIPLIER under a half-period shift
+#     (real axis → the Class-K (−1)^{w-parity} sign; nome axis → the −x⁻¹-type
+#     Theta.canonicalize pshift prefactor). The EDGE-relationship read: exact even
+#     where the theta value is transcendental.
+#   • ``chirality_parity`` — ``"even"`` (harmonic; closes under one 2K half-beat, like
+#     dn) vs ``"odd"`` (subharmonic; needs 4K / the pair, like sn/cn).
+#   • ``beat_relation_residue`` — the ``q²·p⁻¹`` residue that recovers the beat
+#     relation ``p = q_c²`` (the harmonic torus is the SQUARE of the subharmonic one).
+# In-repo SSoT: the committed #712 probes (dzhan_q1…q5) — the exact-Q oracle these
+# ops reproduce. Carrier lineage: Gasper–Schlosser arXiv:math/0505215 / Rosengren
+# arXiv:1608.06161 (already pinned by the rc59–rc67 elliptic carrier build).
+
+_HALF_SHIFT_REAL_ALIASES = ("real", "2k")
+_HALF_SHIFT_NOME_ALIASES = ("nome", "2ik", "2ikprime", "2ikp", "2ikprim")
+
+
+def _normalize_half_axis(axis: str) -> str:
+    """Normalize a half-period axis label to ``"real"`` / ``"nome"``. Accepts the
+    #712-probe aliases (case-, whitespace-, and apostrophe-insensitive): the real 2K
+    axis → ``{"real", "2K"}``; the nome 2iK′ axis → ``{"nome", "2iK'", "2iKprime"}``."""
+    a = "".join(ch for ch in str(axis).strip().lower() if ch not in " _-'")
+    if a in _HALF_SHIFT_REAL_ALIASES:
+        return "real"
+    if a in _HALF_SHIFT_NOME_ALIASES:
+        return "nome"
+    raise ValueError(
+        f"half-shift axis {axis!r} not recognised; use 'real'/'2K' (the real 2K "
+        f"half-beat) or 'nome'/\"2iK'\" (the nome 2iK′ half-beat)")
+
+
+def _half_shift_response_py(ratio: EllRatio, a: str, var: str) -> EllMonomial:
+    """The COMPLETE pure-Python half_shift_response body (the parity oracle for the C
+    peer). ``a`` is the NORMALIZED axis (``"real"`` / ``"nome"``)."""
+    shifted = ratio._negate_var(var) if a == "real" else ratio._shift_var(_P, var)
+    d = shifted * ratio.inv()
+    if d.num or d.den:
+        raise ValueError(
+            f"half_shift_response: the ratio is not half-shift-covariant along the "
+            f"{a!r} axis in var {var!r} — {len(d.num)}+{len(d.den)} theta factor(s) "
+            f"remain, so the edge multiplier is not a bare monomial (a chirality-ODD "
+            f"theta under the real double-cover, or an unbalanced ratio)")
+    return d.prefactor
+
+
+def _half_shift_response_c(ratio: EllRatio, a: str, var: str) -> "EllMonomial | None":
+    """Dispatch half_shift_response to the native ``srmech_ellratio_half_shift_response``
+    C peer → the exact multiplier :class:`EllMonomial`, or ``None`` when the native
+    symbols are absent (the caller falls to :func:`_half_shift_response_py`). The
+    interned symbol universe MUST include ``var`` AND ``p`` (the shift + the theta-canon
+    read/write those slots — mirrors :meth:`EllRatio._is_elliptic_c`)."""
+    from . import _native as _nat
+    if not _nat.has_native_ellratio_half_shift():
+        return None
+    syms = {var, _P}
+    syms.update(ratio.prefactor.exps.keys())
+    for t in ratio.num:
+        syms.update(t.arg.exps.keys())
+    for t in ratio.den:
+        syms.update(t.arg.exps.keys())
+    sym_list = sorted(syms)
+    idx = {s: i for i, s in enumerate(sym_list)}
+    n_syms = len(sym_list)
+
+    def row(m: EllMonomial):
+        r = [0] * n_syms
+        for s, e in m.exps.items():
+            r[idx[s]] = e
+        return r
+
+    monomials = [(ratio.prefactor.coeff.numerator,
+                  ratio.prefactor.coeff.denominator, row(ratio.prefactor))]
+    for t in ratio.num:
+        monomials.append((t.arg.coeff.numerator, t.arg.coeff.denominator, row(t.arg)))
+    for t in ratio.den:
+        monomials.append((t.arg.coeff.numerator, t.arg.coeff.denominator, row(t.arg)))
+    axis_int = 0 if a == "real" else 1
+    got = _nat.ellratio_half_shift_response_c(
+        n_syms, idx[var], idx.get(_P, -1), axis_int,
+        len(ratio.num), len(ratio.den), monomials)
+    if got is None:
+        return None
+    is_bare, cnum, cden, exps = got
+    if not is_bare:
+        # The pure-Python body raises the SAME contract error (a non-bare response).
+        return _half_shift_response_py(ratio, a, var)
+    return EllMonomial(Q(cnum, cden),
+                       {sym_list[i]: exps[i] for i in range(n_syms) if exps[i] != 0})
+
+
+def half_shift_response(ratio: EllRatio, axis: str,
+                        var: "str | None" = None) -> EllMonomial:
+    """The exact monomial MULTIPLIER an :class:`EllRatio` carrier acquires under a
+    HALF-period translation along ``axis`` — the #712 Dzhanibekov half-beat edge read
+    (exact even where the theta value is transcendental; the full :meth:`EllRatio.pshift`
+    already exists, this is the HALF + reads ONLY the multiplier).
+
+    ``axis`` ∈ the real 2K axis (``"real"`` / ``"2K"``) or the nome 2iK′ axis
+    (``"nome"`` / ``"2iK'"``; case-/apostrophe-insensitive aliases, see
+    :func:`_normalize_half_axis`):
+
+    - **real 2K** — the double-cover deck transformation ``var ↦ −var`` (the physical
+      ``z ↦ z + 2K`` ⇔ ``w ↦ −w``); the multiplier is the pure **Class-K** sign
+      ``(−1)^{var-parity of the prefactor}`` (default ``var = "w"``, the subharmonic
+      half-variable). Bare (a pure sign) iff every theta argument is EVEN in ``var``.
+    - **nome 2iK′** — the carrier PERIOD shift ``var ↦ p·var`` (the physical
+      ``z ↦ z + 2iK'`` ⇔ ``x ↦ p·x``); the multiplier is the ``−x⁻¹``-type
+      :meth:`Theta.canonicalize` quasi-periodicity prefactor (default ``var = _X``,
+      the summation variable ``x``). Always bare (pshift maps each canonical theta to a
+      scalar multiple of itself).
+
+    Returns the exact multiplier as an :class:`EllMonomial` (the coefficient is a
+    Class-K ``±1``; the exponents are the ``p`` / ``x`` / ``q`` powers). Raises
+    ``ValueError`` when the ratio is not half-shift-covariant along ``axis``/``var``
+    (the multiplier is not a bare monomial — e.g. a chirality-ODD theta under the real
+    double-cover). Oracle: the #712 probe ``dzhan_q2`` (sn/cn/dn → real 2K: −1/−1/+1;
+    nome pshift theta-parts q/−q/−1). DISPATCHES to the native
+    ``srmech_ellratio_half_shift_response`` C peer when loaded (the C multiplier EQUALS
+    the pure-Python one byte-for-byte); else the complete pure-Python body decides.
+    Exact-ℚ theta algebra — no float, no ``abs()`` (sign is Class-K), no numpy / math."""
+    if not isinstance(ratio, EllRatio):
+        raise TypeError("half_shift_response: ratio must be an EllRatio")
+    a = _normalize_half_axis(axis)
+    if var is None:
+        var = "w" if a == "real" else _X
+    c = _half_shift_response_c(ratio, a, var)
+    if c is not None:
+        return c
+    return _half_shift_response_py(ratio, a, var)
+
+
+def chirality_parity(ratio: EllRatio, var: str = "w") -> str:
+    """The CHIRALITY parity of an :class:`EllRatio` theta-quotient carrier under the
+    #712 harmonic⊗subharmonic reading: ``"even"`` (a HARMONIC reader — it closes under
+    a SINGLE 2K half-beat, like ``dn``: real period 2K, chirality-even) vs ``"odd"``
+    (a SUBHARMONIC reader — it needs 4K / the PAIR, like ``sn`` / ``cn``: real period
+    4K, chirality-odd, half the harmonic frequency).
+
+    Read as the parity of the ``var``-exponent of the prefactor (default ``var = "w"``,
+    the subharmonic half-variable): EVEN ⇔ the real-2K :func:`half_shift_response` is
+    ``+1`` (boundary-blind — cannot see the Dzhanibekov flip); ODD ⇔ it is ``−1``
+    (holds the flip's ``−1``). A pure structural read (Class-K parity, no compute).
+    Oracle: the #712 probes ``dzhan_q3`` / ``dzhan_q4`` (sn/cn → odd, dn → even;
+    every quadratic/intensity observable sn²/cn²/sn·cn/… → even, boundary-blind)."""
+    if not isinstance(ratio, EllRatio):
+        raise TypeError("chirality_parity: ratio must be an EllRatio")
+    return "odd" if (ratio.prefactor.exp_of(var) % 2 != 0) else "even"
+
+
+def beat_relation_residue(ratio: EllRatio, var: str = _X) -> EllMonomial:
+    """The exact BEAT-RELATION residue of an :class:`EllRatio` written on the HARMONIC
+    (``x``) frame: the nome-axis (period-shift ``var ↦ p·var``) mismatch monomial that
+    RECOVERS the #712 beat relation ``p = q_c²`` (the harmonic torus nome is the SQUARE
+    of the subharmonic half-step). For the harmonic ``sn²`` object
+    ``x⁻¹·θ(x)²/θ(q·x)²`` the residue is exactly ``q²·p⁻¹`` — the coherence residue the
+    carrier surfaces unprompted (:meth:`EllRatio.is_elliptic` honestly declines it, and
+    the residue is unity ⇔ ``p = q²``).
+
+    Equivalent to :func:`half_shift_response`\\ ``(ratio, "nome", var)`` read as the
+    beat-relation constraint. Returns the residue as an exact :class:`EllMonomial`; it
+    evaluates to ``1`` exactly at the bridge point ``p = q_c²``. A pure structural read
+    (composes the carrier period-shift; no new compute). Oracle: the #712 probe
+    ``dzhan_q4`` (residue ``q²·p⁻¹``; closes at ``q=3/7, p=9/49``) + the ``dzhan_q1``
+    bridge (``p = q_c²``)."""
+    if not isinstance(ratio, EllRatio):
+        raise TypeError("beat_relation_residue: ratio must be an EllRatio")
+    return half_shift_response(ratio, "nome", var)

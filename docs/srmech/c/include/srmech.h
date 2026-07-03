@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc118"
-#define SRMECH_VERSION       "0.9.0rc118"
+#define SRMECH_VERSION_PRE   "rc119"
+#define SRMECH_VERSION       "0.9.0rc119"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4744,6 +4744,41 @@ srmech_status_t srmech_ellratio_is_elliptic(size_t n_syms, int xsym, int psym,
                                             const int32_t *exps_flat,
                                             uint32_t coeff_cap, int *out_is_elliptic,
                                             void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_ellratio_half_shift_response — the C peer of the EllRatio-carrier op
+ * srmech.amsc.ellbase.half_shift_response (rc119; the #712 Dzhanibekov reader). A
+ * C-MIRROR PARITY build: the multiplier EQUALS the pure-Python EllMonomial byte-
+ * for-byte. Reads the EXACT monomial multiplier the carrier acquires under a HALF-
+ * period translation of the torque-free torus (the harmonic⊗subharmonic cascade,
+ * DLMF 22.4). Two axes: `axis` = 0 is the REAL 2K half-beat (the double-cover deck
+ * transformation var -> -var: each canonical monomial's Class-K coeff picks up
+ * (-1)^{var-exponent} -- a pure sign, bare iff every theta arg is EVEN in var);
+ * `axis` = 1 is the NOME 2iK' half-beat (the carrier period shift var -> p*var, the
+ * -x^-1-type Theta.canonicalize quasi-periodicity prefactor). The multiplier is
+ * (shift(self) * self.inv()).prefactor; it is a BARE monomial iff the shifted
+ * theta-parts equal self's (they cancel against self.inv()) -- *out_is_bare reports
+ * it (0 -> the ratio is not half-shift-covariant along this axis/var, the boundary-
+ * blind #712 finding for a chirality-EVEN reader is *out_is_bare=1 with a +1 sign).
+ *
+ * Wire form (mirrors srmech_ellratio_is_elliptic): the interned symbol-table
+ * dimension `n_syms`; `varsym` / `psym` the interned indices of the shift variable
+ * (the subharmonic half-var w for the real axis; the summation var x for the nome
+ * axis) and the nome p (-1 if absent); `axis` the half-beat selector; the num / den
+ * theta counts; the flat monomial coeff arrays `coeff_num` / `coeff_den` (exact-Q
+ * num/den srmech_bigint, order prefactor, num0..K-1, den0..L-1) + the flat int32
+ * exponent rows `exps_flat`. `coeff_cap` the per-bigint limb cap. Output: the
+ * multiplier monomial's exact-Q coeff into `out_coeff_num` / `out_coeff_den` + its
+ * dense int32[n_syms] exps row into `out_exps`; *out_is_bare the covariance flag.
+ * Caller arena `ws` (size via srmech_ellratio_ws_bound, same shape).
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+srmech_status_t srmech_ellratio_half_shift_response(
+    size_t n_syms, int varsym, int psym, int axis, size_t n_num, size_t n_den,
+    const srmech_bigint_t *coeff_num, const srmech_bigint_t *coeff_den,
+    const int32_t *exps_flat, uint32_t coeff_cap, int *out_is_bare,
+    srmech_bigint_t *out_coeff_num, srmech_bigint_t *out_coeff_den,
+    int32_t *out_exps, void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_elliptic_lagrange_basis — the C peer of the EllRatio-carrier op

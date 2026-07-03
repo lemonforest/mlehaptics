@@ -4008,6 +4008,106 @@ def _register_primitive_class_tools() -> None:
                       "hypergeometric antidifference exists / r is unbalanced"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The #712 Dzhanibekov harmonic⊗subharmonic HALF-PERIOD readers on the
+        # EllRatio carrier (rc119): the torque-free (tennis-racket) rotation's
+        # Jacobi sn/cn/dn map to theta quotients (DLMF 22.2/22.4; bridge
+        # w=e^{iζ}, x=w², carrier-p=q_c²); its two-torus has TWO half-beats.
+        # half_shift_response is a C-dispatched compute op (srmech_ellratio_
+        # half_shift_response); chirality_parity + beat_relation_residue are
+        # thin structural readers (non_compute). In-repo SSoT: the #712 probes.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.ellbase.half_shift_response", owner="srmech",
+            category="ellbase",
+            summary="The exact monomial MULTIPLIER an EllRatio theta-quotient carrier "
+                    "acquires under a HALF-period translation of the torque-free "
+                    "(Dzhanibekov / tennis-racket) rotation torus (#712; DLMF 22.4). "
+                    "The Jacobi sn/cn/dn map to EllRatio theta quotients under the "
+                    "bridge w=e^{iζ}, x=w², carrier-p=q_c² (DLMF 22.2/20.5); the "
+                    "solution two-torus has TWO independent half-beats. axis 'real'/"
+                    "'2K' → the double-cover deck transformation var↦−var (z↦z+2K ⇔ "
+                    "w↦−w): the multiplier is the pure Class-K sign (−1)^{var-parity "
+                    "of the prefactor} (default var 'w', the subharmonic half-var); "
+                    "bare iff every theta arg is EVEN in var. axis 'nome'/\"2iK'\" → "
+                    "the carrier PERIOD shift var↦p·var (z↦z+2iK' ⇔ x↦p·x): the "
+                    "multiplier is the −x⁻¹-type Theta.canonicalize quasi-periodicity "
+                    "prefactor (default var 'x'). The EDGE-relationship read — exact "
+                    "even where the theta value is transcendental (the full pshift "
+                    "already exists; this is the HALF + reads only the multiplier). "
+                    "Reproduces the #712 probe dzhan_q2 (sn/cn/dn real-2K −1/−1/+1; "
+                    "nome pshift theta-parts q/−q/−1). 1:1 C peer srmech_ellratio_"
+                    "half_shift_response (the multiplier EQUALS the pure-Python "
+                    "EllMonomial byte-for-byte). Exact-ℚ theta algebra; no float, no "
+                    "abs() (sign is Class-K), no numpy / math.",
+            parameters=(
+                P("ratio", "EllRatio", True,
+                  "the theta-quotient carrier ∏θ(αx;p)/∏θ(βx;p) over an exact-ℚ "
+                  "monomial prefactor (an EllMonomial / Theta is lifted)"),
+                P("axis", "str", True,
+                  "the half-beat axis: 'real'/'2K' (the real 2K half-beat) or "
+                  "'nome'/\"2iK'\" (the nome 2iK′ half-beat); case-/apostrophe-"
+                  "insensitive"),
+                P("var", "str", False,
+                  "the shift variable (default 'w' for the real axis — the "
+                  "subharmonic half-variable; 'x' for the nome axis — the summation "
+                  "variable)"),
+            ),
+            returns=R("EllMonomial",
+                      "the exact edge multiplier as an EllMonomial (Class-K ±1 "
+                      "coefficient; p/x/q-power exponents); ValueError when the ratio "
+                      "is not half-shift-covariant along axis/var (the multiplier is "
+                      "not a bare monomial)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.ellbase.chirality_parity", owner="srmech",
+            category="ellbase",
+            summary="The CHIRALITY parity of an EllRatio theta-quotient carrier under "
+                    "the #712 harmonic⊗subharmonic reading: 'even' (a HARMONIC reader "
+                    "— closes under a SINGLE 2K half-beat, like dn: real period 2K) "
+                    "vs 'odd' (a SUBHARMONIC reader — needs 4K / the PAIR, like sn/cn: "
+                    "real period 4K, half the harmonic frequency). Read as the parity "
+                    "of the var-exponent of the prefactor (default var 'w'): EVEN ⇔ "
+                    "the real-2K half_shift_response is +1 (boundary-blind — cannot "
+                    "see the Dzhanibekov flip); ODD ⇔ it is −1 (holds the flip). A "
+                    "thin structural read (Class-K parity; non_compute). Reproduces "
+                    "the #712 probes dzhan_q3/q4 (sn/cn odd, dn even; every quadratic/"
+                    "intensity observable sn²/cn²/sn·cn/… even — boundary-blind).",
+            parameters=(
+                P("ratio", "EllRatio", True,
+                  "the theta-quotient carrier to classify"),
+                P("var", "str", False,
+                  "the subharmonic half-variable whose prefactor-exponent parity is "
+                  "the chirality (default 'w')"),
+            ),
+            returns=R("str",
+                      "'even' (harmonic; closes under one 2K half-beat) or 'odd' "
+                      "(subharmonic; needs 4K / the pair)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.ellbase.beat_relation_residue", owner="srmech",
+            category="ellbase",
+            summary="The exact BEAT-RELATION residue of an EllRatio written on the "
+                    "HARMONIC (x) frame: the nome-axis (period-shift var↦p·var) "
+                    "mismatch monomial that RECOVERS the #712 beat relation p=q_c² "
+                    "(the harmonic torus nome is the SQUARE of the subharmonic half-"
+                    "step). For the harmonic sn² object x⁻¹·θ(x)²/θ(q·x)² the residue "
+                    "is exactly q²·p⁻¹ — the coherence residue the carrier surfaces "
+                    "unprompted (is_elliptic honestly declines it; the residue is "
+                    "unity ⇔ p=q²). Equivalent to half_shift_response(ratio,'nome') "
+                    "read as the beat-relation constraint; a thin structural read "
+                    "(composes the carrier period-shift; non_compute). Reproduces the "
+                    "#712 probe dzhan_q4 (residue q²·p⁻¹; closes at q=3/7, p=9/49).",
+            parameters=(
+                P("ratio", "EllRatio", True,
+                  "the theta-quotient carrier (the harmonic-frame square, e.g. sn²)"),
+                P("var", "str", False,
+                  "the summation variable of the harmonic frame (default 'x')"),
+            ),
+            returns=R("EllMonomial",
+                      "the exact beat-relation residue as an EllMonomial (q²·p⁻¹ for "
+                      "the harmonic sn²; evaluates to 1 exactly at p=q_c²)"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The ELLIPTIC Σ-row ORDER-1 RECURRENCE op for the Frenkel–Turaev ₈ω₇
         # summation — a STRUCTURAL (beat-decomposition) finder that builds the
         # order-1 recurrence coefficient ρ(n) from the elementary symmetric

@@ -457,6 +457,9 @@
 {"exposed_as": "srmech.amsc.rational.rational_reconstruct", "defined_at": "srmech.amsc.rational.rational_reconstruct", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.elliptic_gosper.elliptic_gosper", "defined_at": "srmech.amsc.elliptic_gosper.elliptic_gosper", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.ellbase.elliptic_lagrange_basis", "defined_at": "srmech.amsc.ellbase.elliptic_lagrange_basis", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.ellbase.half_shift_response", "defined_at": "srmech.amsc.ellbase.half_shift_response", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.ellbase.chirality_parity", "defined_at": "srmech.amsc.ellbase.chirality_parity", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.ellbase.beat_relation_residue", "defined_at": "srmech.amsc.ellbase.beat_relation_residue", "bucket": "non_compute"}
 {"exposed_as": "srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7", "defined_at": "srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.carrier_spectrum.carrier_spectrum", "defined_at": "srmech.amsc.carrier_spectrum.carrier_spectrum", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.unary_theta.unary_theta", "defined_at": "srmech.amsc.unary_theta.unary_theta", "bucket": "c_dispatched"}

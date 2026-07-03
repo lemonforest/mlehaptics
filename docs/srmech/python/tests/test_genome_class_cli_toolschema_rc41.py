@@ -66,4 +66,4 @@ def test_introspect_tools_total_is_276():
     # F929 router: dispatch.infer ToolEntry (the OPEN/infer meta-dispatcher
     # over the cyclic/spectral/Σ reduction rows; non_compute orchestration,
     # no C peer) — 330→331.
-    assert introspect.describe()["tools"]["total"] == 381
+    assert introspect.describe()["tools"]["total"] == 384

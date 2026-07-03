@@ -1017,6 +1017,135 @@ srmech_status_t srmech_ellratio_is_elliptic(size_t n_syms, int xsym, int psym,
     return SRMECH_OK;
 }
 
+/* ---- the #712 half-period edge-multiplier reader (rc119) -------------------- *
+ *
+ * The C peer of EllRatio.half_shift_response: the exact monomial multiplier the
+ * carrier acquires under a HALF-period translation. Two axes (the Dzhanibekov
+ * torque-free torus's two half-beats, #712):
+ *   axis 0 (REAL 2K)  : the double-cover deck transformation var -> -var (each
+ *                       monomial's Class-K coeff picks up (-1)^{var-exponent});
+ *                       bare (a pure sign) iff every theta arg is EVEN in var.
+ *   axis 1 (NOME 2iK'): the carrier period shift var -> p*var (the -x^-1-type
+ *                       Theta.canonicalize quasi-periodicity prefactor); always
+ *                       bare (pshift maps each canonical theta to a scalar
+ *                       multiple of itself).
+ * The multiplier is (shift(self) * self.inv()).prefactor -- a bare monomial iff
+ * the shifted theta-parts equal self's (they cancel against self.inv()); *out_is_
+ * bare reports it (the boundary-blind #712 finding: a chirality-EVEN reader has
+ * even-in-var thetas -> real-axis-bare with a +1 sign). */
+
+/* Negate one canonical argument monomial's Class-K coeff by var-parity (var -> -var:
+ * a -> a with coeff *= (-1)^{a.exp_of(var)}). No abs (sign is the Class-K pin-slot). */
+static srmech_status_t er_negate_arg(srmech_ell_ctx_t *c, srmech_ell_mono_t *out,
+                                     const srmech_ell_mono_t *a, int varsym)
+{
+    int32_t ev;
+    srmech_status_t st;
+    assert(c != NULL && out != NULL && a != NULL);
+    assert(out->exps != NULL && a->exps != NULL);
+    st = srmech_ellbase_mono_copy(c, out, a);
+    if (st != SRMECH_OK) { return st; }
+    ev = (varsym >= 0) ? a->exps[varsym] : 0;
+    if ((ev % 2 != 0) && out->coeff.num.sign != 0) {
+        out->coeff.num.sign = -out->coeff.num.sign;      /* (-1)^{var-exp} Class-K */
+    }
+    return SRMECH_OK;
+}
+
+/* Compute shift_r = the canonical EllRatio of the REAL half-beat var -> -var (each
+ * monomial negated by var-parity), then er_build (mirrors er_compute_shift). */
+static srmech_status_t er_compute_negate(srmech_ell_ctx_t *c, er_work_t *w,
+                                         size_t n_num, size_t n_den, int varsym, int psym)
+{
+    size_t i;
+    srmech_status_t st;
+    assert(c != NULL && w != NULL);
+    assert(n_num <= w->cap_num && n_den <= w->cap_den);
+    st = er_negate_arg(c, &w->spref, &w->pref, varsym);
+    if (st != SRMECH_OK) { return st; }
+    for (i = 0; i < n_num; i++) {
+        st = er_negate_arg(c, &w->snum[i], &w->num[i], varsym);
+        if (st != SRMECH_OK) { return st; }
+    }
+    for (i = 0; i < n_den; i++) {
+        st = er_negate_arg(c, &w->sden[i], &w->den[i], varsym);
+        if (st != SRMECH_OK) { return st; }
+    }
+    return er_build(c, &w->shift_r, &w->spref, w->snum, n_num, w->sden, n_den, psym,
+                    &w->s, w->cn, w->cap_num, w->cd, w->cap_den);
+}
+
+/* Emit the edge multiplier = shift_r.pref / self_r.pref into the caller bigints +
+ * dense exps row; a non-bare response emits the unit monomial 1. pm[6]/pm[7] are
+ * free scratch (er_build's canon fold uses only pm[0..5]). */
+static srmech_status_t er_emit_multiplier(srmech_ell_ctx_t *c, er_work_t *w, int bare,
+                                          srmech_bigint_t *out_cn,
+                                          srmech_bigint_t *out_cd, int32_t *out_exps)
+{
+    srmech_status_t st;
+    srmech_ell_mono_t *mult = &w->s.pm[6];
+    srmech_ell_mono_t *binv = &w->s.pm[7];
+    assert(c != NULL && w != NULL && out_cn != NULL);
+    assert(out_cd != NULL && out_exps != NULL);
+    if (!bare) {
+        st = srmech_ellbase_mono_set_one(c, mult);
+    } else {
+        st = srmech_ellbase_mono_div(c, mult, &w->shift_r.pref, &w->self_r.pref,
+                                     binv, &w->s.g, &w->s.t0, &w->s.t1);
+    }
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_bigint_copy(out_cn, &mult->coeff.num);
+    if (st == SRMECH_OK) { st = srmech_bigint_copy(out_cd, &mult->coeff.den); }
+    if (st != SRMECH_OK) { return st; }
+    memcpy(out_exps, mult->exps, c->n_syms * sizeof(int32_t));
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_ellratio_half_shift_response(
+    size_t n_syms, int varsym, int psym, int axis, size_t n_num, size_t n_den,
+    const srmech_bigint_t *coeff_num, const srmech_bigint_t *coeff_den,
+    const int32_t *exps_flat, uint32_t coeff_cap, int *out_is_bare,
+    srmech_bigint_t *out_coeff_num, srmech_bigint_t *out_coeff_den,
+    int32_t *out_exps, void *ws, size_t ws_len)
+{
+    srmech_ell_ctx_t c = {0};
+    er_work_t w = {0};
+    srmech_status_t st;
+    int bare;
+    assert(out_is_bare != NULL && out_exps != NULL);
+    assert(out_coeff_num != NULL && out_coeff_den != NULL);
+    if (out_is_bare == NULL || out_coeff_num == NULL || out_coeff_den == NULL
+        || out_exps == NULL) { return SRMECH_ERR_NULL_ARG; }
+    *out_is_bare = 0;
+    if (coeff_num == NULL || coeff_den == NULL || exps_flat == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    c.n_syms = (n_syms == 0u) ? 1u : n_syms;
+    c.cap = (coeff_cap < 4u) ? 4u : coeff_cap;
+    w.cap_num = (n_num == 0u) ? 1u : n_num;
+    w.cap_den = (n_den == 0u) ? 1u : n_den;
+    st = er_arena_init(&c, ws, ws_len);
+    if (st == SRMECH_OK) { st = er_bind_work(&c, &w); }
+    if (st == SRMECH_OK) {
+        st = er_parse(&c, &w.pref, w.num, n_num, w.den, n_den, coeff_num, coeff_den,
+                      exps_flat);
+    }
+    if (st == SRMECH_OK) {
+        st = er_build(&c, &w.self_r, &w.pref, w.num, n_num, w.den, n_den, psym, &w.s,
+                      w.cn, w.cap_num, w.cd, w.cap_den);
+    }
+    if (st == SRMECH_OK) {
+        st = (axis == 0)
+             ? er_compute_negate(&c, &w, n_num, n_den, varsym, psym)
+             : er_compute_shift(&c, &w, n_num, n_den, varsym, psym);
+    }
+    if (st != SRMECH_OK) { return st; }
+    bare = er_args_eq(&c, w.self_r.num, w.self_r.n_num, w.shift_r.num, w.shift_r.n_num)
+        && er_args_eq(&c, w.self_r.den, w.self_r.n_den, w.shift_r.den, w.shift_r.n_den);
+    *out_is_bare = bare;
+    return er_emit_multiplier(&c, &w, bare, out_coeff_num, out_coeff_den, out_exps);
+}
+
 /* The minimum `ws_len` BYTES srmech_ellratio_is_elliptic needs for the given shape
  * (n_syms symbols, n_num numerator + n_den denominator theta factors, coeff_limbs the
  * per-coefficient significant-limb estimate). Sized to the inputs -- no compiled-in
