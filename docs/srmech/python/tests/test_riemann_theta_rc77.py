@@ -263,13 +263,19 @@ def test_addition_exercises_three_cross_terms():
 
 # ── gate (C): NO REGRESSION (rc72/73/74 genus-2 + rc75/76 genus-3 gates) ──────
 def test_no_regression_rc72_73_74_genus2_gates():
+    """CHEAP structural genus-2 no-regression only (rc106): collapse chain bit-exact
+    + symbolic Rosenhain map + enumeration parity. The dense g2 convolution gates
+    are deliberately NOT re-run here — each is covered by its home file's PRIMARY
+    gates in the SAME suite run (``duplication_holds(4/6/8)`` = rc72;
+    ``addition_holds(4/6/8)`` + ``addition_is_distinct(6/8)`` = rc73;
+    ``goepel_holds(4/5/6)`` + ``goepel_is_distinct(4/5)`` + Rosenhain = rc74) —
+    before rc106 this file re-ran ``duplication_holds(6)`` + ``addition_holds(6)``
+    + ``addition_is_distinct(6)`` + ``goepel_holds(5)`` identically (≈25 s of
+    literal duplicate convolution)."""
     g2 = RiemannTheta.theta_constant((0, 0), (0, 0))
-    assert g2.collapse_g1_q_series(20) == THETA3_Q20      # rc72 collapse
-    assert RiemannTheta.duplication_holds(6)              # rc72 duplication
-    assert RiemannTheta.addition_holds(6)                 # rc73 addition
-    assert RiemannTheta.addition_is_distinct_from_duplication(6)
-    assert RiemannTheta.goepel_holds(5)                   # rc74 Göpel
-    assert RiemannTheta.rosenhain_lambda_map_is_well_formed()
+    assert g2.collapse_g1_q_series(20) == THETA3_Q20      # rc72 collapse chain
+    assert RiemannTheta.rosenhain_lambda_map_is_well_formed()   # rc74 symbolic map
+    assert RiemannTheta.even_null_count() == (10, 6)      # enumeration parity
 
 
 def test_no_regression_rc73_genus2_transform_gate():
@@ -380,11 +386,18 @@ def test_gates_pass_through_native():
             assert 0 <= k < 8
 
 
-def test_pure_python_alone_passes_new_gates():
+def test_pure_python_alone_passes_new_gates(pure_riemann_theta):
     """The COMPLETE pure-Python body alone passes both new gates (so the carrier is
-    correct on a no-C host)."""
-    assert RiemannThetaG3.addition_holds(3)
-    assert RiemannThetaG3.addition_is_distinct_from_duplication(3)
+    correct on a no-C host) — the native path is FORCED OFF (rc106: every
+    ``has_native_riemann_theta*`` gate monkeypatched False + record-and-raise
+    sentinels; a native hit fails loudly. Before rc106 this test carried NO
+    monkeypatch — a duplicate of the primary gates with a misleading name). It runs
+    at the addition gate's own MINIMAL window (box 2 — the gate's validated minimum;
+    the primary gates above still run boxes 3/4 dispatched), so the pure run is
+    genuine AND cheap (≈1 s pure vs ≈13 s for the old box-3 re-run)."""
+    assert RiemannThetaG3.addition_holds(2)
+    assert RiemannThetaG3.addition_is_distinct_from_duplication(2)
+    assert pure_riemann_theta == []      # no native symbol was ever reached
 
 
 # ── gate (E): the carrier source is numpy / math / abs() free ────────────────

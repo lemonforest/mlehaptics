@@ -159,16 +159,20 @@ def test_hyperelliptic_locus_open_references_chi18_and_no_numerical_decision():
 
 # ── gate (4): NO REGRESSION — rc72/73/74 genus-2 + rc75 genus-3 gates ─────────
 def test_no_regression_rc72_73_74_genus2_gates():
-    """The χ₁₈ extension does not regress the genus-2 carrier — the rc72 collapse +
-    duplication, rc73 addition + Sp(4,ℤ), rc74 Göpel + Rosenhain gates still pass."""
+    """The χ₁₈ extension does not regress the genus-2 carrier — CHEAP structural
+    checks only (rc106): the collapse chain is bit-exact, the symbolic Rosenhain
+    λ-map is well-formed, and the even/odd enumeration parity holds. The dense g2
+    convolution gates are deliberately NOT re-run here — each is covered by its home
+    file's PRIMARY gates in the SAME suite run (``duplication_holds(4/6/8)`` = rc72;
+    ``addition_holds(4/6/8)`` + ``addition_is_distinct(6/8)`` = rc73;
+    ``goepel_holds(4/5/6)`` + ``goepel_is_distinct(4/5)`` + Rosenhain = rc74) —
+    before rc106 this file re-ran ``duplication_holds(6)`` + ``addition_holds(8)`` +
+    ``addition_is_distinct(8)`` + ``goepel_holds(5)`` + ``goepel_is_distinct(5)``
+    identically (≈35 s of literal duplicate convolution)."""
     g2 = RiemannTheta.theta_constant((0, 0), (0, 0))
-    assert g2.collapse_g1_q_series(20) == THETA3_Q20
-    assert RiemannTheta.duplication_holds(6)
-    assert RiemannTheta.addition_holds(8)
-    assert RiemannTheta.addition_is_distinct_from_duplication(8)
-    assert RiemannTheta.goepel_holds(5)
-    assert RiemannTheta.goepel_is_distinct_from_duplication_and_addition(5)
-    assert RiemannTheta.rosenhain_lambda_map_is_well_formed()
+    assert g2.collapse_g1_q_series(20) == THETA3_Q20      # rc72 collapse chain
+    assert RiemannTheta.rosenhain_lambda_map_is_well_formed()   # rc74 symbolic map
+    assert RiemannTheta.even_null_count() == (10, 6)      # enumeration parity
 
 
 def test_no_regression_rc75_genus3_gates():

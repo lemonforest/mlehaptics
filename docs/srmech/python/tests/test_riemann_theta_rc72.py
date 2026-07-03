@@ -203,12 +203,17 @@ def test_python_c_parity_gates_through_native():
     assert RiemannTheta.duplication_holds(6)
 
 
-def test_pure_python_oracle_alone_passes_gates():
+def test_pure_python_oracle_alone_passes_gates(pure_riemann_theta):
     """The COMPLETE pure-Python body alone passes both gates (so the carrier is
-    correct on a no-C host)."""
-    assert _t00()._lattice_py(3) == _t00()._lattice_py(3)
+    correct on a no-C host) — the native path is FORCED OFF (rc106: every
+    ``has_native_riemann_theta*`` gate monkeypatched False + record-and-raise
+    sentinels on the ``riemann_theta*_c`` bindings, so a native hit fails loudly;
+    before rc106 this test carried NO monkeypatch and simply re-ran the dispatched
+    path under a pure-sounding name)."""
+    assert _t00().lattice(3) == _t00()._lattice_py(3)   # dispatch fell to the oracle
     assert _t00().collapse_g1_q_series(20) == THETA3_Q20
     assert RiemannTheta.duplication_holds(6)
+    assert pure_riemann_theta == []      # no native symbol was ever reached
 
 
 # ── input validation ─────────────────────────────────────────────────────────

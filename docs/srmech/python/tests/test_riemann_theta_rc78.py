@@ -256,9 +256,16 @@ def test_goepel_g3_through_native():
     assert RiemannThetaG3.goepel_is_distinct_from_duplication_addition_and_chi18(3)
 
 
-def test_pure_python_alone_passes_new_gates():
+def test_pure_python_alone_passes_new_gates(pure_riemann_theta):
     """The COMPLETE pure-Python body alone passes the new gates (so the carrier is
-    correct on a no-C host) — the lhs/rhs builders never touch the native peer."""
+    correct on a no-C host) — the native path is FORCED OFF (rc106). The old
+    docstring claimed "the lhs/rhs builders never touch the native peer": true of
+    the Göpel DECISION peer (``srmech_riemann_theta_g3_goepel``), but the
+    underlying quarter-nome ``.lattice`` DID dispatch to
+    ``srmech_riemann_theta_g3`` on a native host — now every
+    ``has_native_riemann_theta*`` gate is monkeypatched False with record-and-raise
+    sentinels on the ``riemann_theta*_c`` bindings, so the whole path is provably
+    pure."""
     assert RiemannThetaG3.goepel_is_syzygous()
     box = 3
     safe = box * box
@@ -271,6 +278,7 @@ def test_pure_python_alone_passes_new_gates():
                 and (k[5] if k[5] >= 0 else -k[5]) <= safe}
 
     assert restrict(RiemannThetaG3.goepel_lhs(box)) == restrict(RiemannThetaG3.goepel_rhs(box))
+    assert pure_riemann_theta == []      # no native symbol was ever reached
 
 
 # ── gate (5): the carrier source is numpy / math / abs() / float free ─────────
