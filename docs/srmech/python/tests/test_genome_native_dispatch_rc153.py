@@ -235,7 +235,10 @@ def _big_label(i):
 
 def _big_spec(one):
     pool = [klein4_random(_BIG_DIM, seed=s) for s in range(8)]         # 8 distinct leaves
-    leaves_per = (16 * 1024 * 1024) // (_BIG_N_CHROM * _BIG_DIM) + 2   # body > 16 MiB
+    # §55/v3 (rc114): a data turn packs to 1 + ceil(_BIG_DIM/4) bytes on disk —
+    # size the leaf count so the PACKED body still exceeds the old 16 MiB cap.
+    packed_turn = 1 + (_BIG_DIM + 3) // 4
+    leaves_per = (16 * 1024 * 1024) // (_BIG_N_CHROM * packed_turn) + 2
     chroms = [(_big_label(i),
                [(_big_label(i)[0], [pool[(i + k) % 8] for k in range(leaves_per)])])
               for i in range(_BIG_N_CHROM)]

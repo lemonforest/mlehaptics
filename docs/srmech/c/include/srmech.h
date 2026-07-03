@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc113"
-#define SRMECH_VERSION       "0.9.0rc113"
+#define SRMECH_VERSION_PRE   "rc114"
+#define SRMECH_VERSION       "0.9.0rc114"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2513,7 +2513,11 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
  *                         byte_len, body_sha256, the_one hash+hex).
  *   <dir>/turns.bin       the append-only flat body: every strand
  *                         element (a telomere cap or a coupled turn)
- *                         is a FIXED-WIDTH leaf_dim-byte block. No
+ *                         is one SELF-DESCRIBING block whose FIRST byte
+ *                         keys its kind + width — a leaf_dim-byte cap,
+ *                         a §55/v3 BIT-PACKED data turn (1 +
+ *                         ceil(leaf_dim/4) bytes, 4 Klein-4 symbols per
+ *                         byte), or a legacy v2 leaf_dim-byte turn. No
  *                         length prefixes — chromosome boundaries live
  *                         in the manifest as byte_offset / byte_len.
  *
@@ -2523,7 +2527,7 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
  * the body bytes verbatim (no transformation). All hashing routes through
  * srmech_sha256_hex (Class A); bounding == integrity (every read re-hashes
  * the bytes it touched and compares the hex against the manifest — no abs,
- * no float). The §41 format version is 1.
+ * no float). The on-disk format version is SRMECH_GENOME_FORMAT_VERSION.
  *
  * File I/O is stdio (fopen / fread / fwrite / fseek); JPL Rule 3 bans
  * malloc, not file I/O. The caller arena `ws` backs ALL scratch (the body
@@ -2540,8 +2544,15 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
  * manifest-described boundaries; 2 (§44) == SELF-DESCRIBING fixed-width
  * strand: chromosome + gene boundaries are INLINE packed caps scanned-for in
  * the body (the strand is the SSoT; the manifest is a derived cache, every
- * field rebuildable by scanning the body). Mirrors GENOME_FORMAT_VERSION. */
-#define SRMECH_GENOME_FORMAT_VERSION 2
+ * field rebuildable by scanning the body); 3 (§55/rc114, issue #1245) ==
+ * BIT-PACKED data turns: a data turn is [SRMECH_GENOME_PACKED_TURN_MARKER] +
+ * ceil(leaf_dim/4) payload bytes (4 Klein-4 symbols per byte — the measured
+ * 4.03x byte-per-symbol bloat removed), while cap blocks keep their v2
+ * leaf_dim-byte inline layout. A block's FIRST byte keys its kind AND its
+ * width, so v2 / v3 / MIXED bodies read in the SAME walk (back-compat is
+ * structural, not a converter). n_turns counts strand BLOCKS; body_sha256
+ * stays the whole-turns.bin hash. Mirrors GENOME_FORMAT_VERSION. */
+#define SRMECH_GENOME_FORMAT_VERSION 3
 
 /* §44 inline cap markers — the FIRST byte of a fixed-width cap leaf. Both are
  * > 3 so a cap is told apart from a Klein-4 data turn (bytes 0..3) by its
@@ -2549,6 +2560,14 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
  * CHROM_CAP_MARKER / GENE_CAP_MARKER in srmech.amsc.genome. */
 #define SRMECH_GENOME_CHROM_CAP_MARKER 0x43u   /* 'C' — opens a chromosome */
 #define SRMECH_GENOME_GENE_CAP_MARKER  0x47u   /* 'G' — opens a gene */
+
+/* §55/v3 bit-packed data-turn marker — the FIRST byte of a packed turn block
+ * ([marker] + ceil(leaf_dim/4) payload bytes; symbol i lives in payload byte
+ * i/4 at bit shift 6 - 2*(i%4), first symbol in the HIGH lanes; a partial
+ * final byte's unused low lanes are zero). > 3 and distinct from both cap
+ * markers, so the strand stays self-describing. Mirrors PACKED_TURN_MARKER
+ * in srmech.amsc.genome. */
+#define SRMECH_GENOME_PACKED_TURN_MARKER 0x51u /* 'Q' — a quad-packed turn */
 
 /* Max label byte length (NUL-terminated) for one chromosome. This is a FORMAT
  * width (a label lives inline in a leaf_dim-byte cap block, like PATH_MAX), NOT
@@ -2565,9 +2584,10 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
  * CHROM/GENE cap), and whose byte_offset/byte_len span up to the next CHROM cap
  * (or EOF). The derived manifest is byte-identical to the Python genome_save's
  * (the strand is the SSoT; the manifest is a derived cache).
- *   body / body_len : the self-describing fixed-width body (CHROM/GENE caps +
- *                     coupled turns; n_turns = body_len / leaf_dim).
- *   leaf_dim        : the fixed block width in bytes (> 0, <= 256).
+ *   body / body_len : the self-describing body (CHROM/GENE caps + coupled
+ *                     turns — §55/v3: blocks are variable-width, keyed by
+ *                     their first byte; n_turns = the scanned BLOCK count).
+ *   leaf_dim        : the cap / in-memory leaf width in bytes (> 0, <= 256).
  *   the_one / the_one_len : the_one's single leaf_dim-byte block
  *                     (the_one_len MUST equal leaf_dim).
  *   ws / ws_len     : the caller arena for ALL scratch (the per-chromosome
@@ -2579,8 +2599,8 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
  * Error returns:
  *   SRMECH_ERR_NULL_ARG   — dir / body(when body_len>0) / the_one / ws NULL.
  *   SRMECH_ERR_BAD_INPUT   — leaf_dim == 0 / > 256, the_one_len != leaf_dim,
- *                           body_len not a whole multiple of leaf_dim, a turn
- *                           before the first CHROM cap, or a label too long.
+ *                           a truncated / unrecognised block, a turn before
+ *                           the first CHROM cap, or a label too long.
  *   SRMECH_ERR_IO          — fopen / fwrite failed.
  *   SRMECH_ERR_OVERFLOW    — the caller arena ws is too small for this genome.
  */
@@ -2680,8 +2700,9 @@ srmech_status_t srmech_genome_window(
  *                           the_one / ws is NULL.
  *   SRMECH_ERR_IO          — turns.bin / manifest.json I/O failed.
  *   SRMECH_ERR_OVERFLOW    — ws too small, or too many chromosomes.
- *   SRMECH_ERR_BAD_INPUT   — leaf_dim mismatch, label already present,
- *                           region_len not a whole multiple of leaf_dim,
+ *   SRMECH_ERR_BAD_INPUT   — leaf_dim mismatch, label already present, a
+ *                           truncated / unrecognised region block (§55/v3:
+ *                           blocks are variable-width, validated by the scan),
  *                           prior body bound failed, or malformed manifest.
  */
 srmech_status_t srmech_genome_append(

@@ -73,12 +73,14 @@ __all__ = [
     "GenomeBoundingError",
     "LEAF_CAP", "QUAD", "MOBIUS_CAP",
     "CHROM_CAP_MARKER", "GENE_CAP_MARKER", "GENE_FRAME_TAG",
+    "PACKED_TURN_MARKER",
 ]
 
-#: §44 (F733) — INLINE FIXED-WIDTH cap markers. The genome body is a uniformly
-#: fixed-width strand of ``leaf_dim``-byte blocks; a block's FIRST BYTE classifies
-#: it. A Klein-4 data turn only ever holds sector indices ``{0, 1, 2, 3}`` (``HV``
-#: sectors=4), so any first byte ``> 3`` is a CAP, scanned for (never a data turn).
+#: §44 (F733) — INLINE FIXED-WIDTH cap markers. The genome body is a strand of
+#: self-describing blocks; a block's FIRST BYTE classifies it (and, since
+#: §55/v3, keys its width). A Klein-4 data turn only ever holds sector indices
+#: ``{0, 1, 2, 3}`` (``HV`` sectors=4), so any first byte ``> 3`` is a MARKER —
+#: a CAP (below) or a §55/v3 packed turn — scanned for, never a raw symbol.
 #: Both caps carry their label INLINE (``[marker] + utf-8 label, NUL-padded to
 #: leaf_dim``) so the strand SELF-DESCRIBES — structure + labels recover by SCAN,
 #: no offset/label sidecar (biology has no offset table: scan TTAGGG repeats /
@@ -93,6 +95,18 @@ GENE_CAP_MARKER = 0x47
 #: Back-compat alias for the pre-§44 name (the §43 TLV tag value, now the gene cap
 #: marker). Deprecated; prefer :data:`GENE_CAP_MARKER`.
 GENE_FRAME_TAG = GENE_CAP_MARKER
+#: §55/rc114 (format v3) — the BIT-PACKED data-turn block marker. ``0x51`` =
+#: ASCII ``'Q'`` (Quad-packed). A v3 data turn is stored on disk as
+#: ``[0x51] + ceil(leaf_dim/4)`` payload bytes — **4 Klein-4 symbols per byte**
+#: ("the 2-bit lane IS the format", issue #1245 / F1036): symbol ``i`` lives in
+#: payload byte ``i // 4`` at bit shift ``6 - 2*(i % 4)`` (first symbol in the
+#: HIGH lanes; unused low lanes of a partial final byte are zero). The marker is
+#: ``> 3`` and distinct from both cap markers, so the strand stays
+#: SELF-DESCRIBING (§44): every block's first byte keys its kind AND its width —
+#: caps and legacy v2 byte-per-symbol turns (first byte ``0..3``) remain
+#: readable in the same walk, so old genomes and MIXED (old + appended) bodies
+#: read correctly with no migration.
+PACKED_TURN_MARKER = 0x51
 
 #: One dense block — a "tome". 256 = 2**8 (one byte of address); F708/F640.
 LEAF_CAP = 256
@@ -417,9 +431,13 @@ def partition(strand, the_one, labels=None):
 #                        leaf_count / byte_offset / byte_len, body_sha256). Read
 #                        the manifest WITHOUT touching the body (genome_catalog).
 #   path/turns.bin       the append-only flat body: every strand element (a cap
-#                        or a coupled turn) is a FIXED-WIDTH leaf_dim-byte block
-#                        (values 0..3). No length prefixes — chromosome
-#                        boundaries live in the manifest as byte_offset/byte_len.
+#                        or a coupled turn) is one self-describing block whose
+#                        FIRST byte keys its kind + width — a leaf_dim-byte cap,
+#                        a §55/v3 BIT-PACKED data turn (1 + ceil(leaf_dim/4)
+#                        bytes, 4 Klein-4 symbols per byte), or a legacy v2
+#                        leaf_dim-byte byte-per-symbol turn. No length prefixes —
+#                        chromosome boundaries live in the manifest as
+#                        byte_offset/byte_len (and rebuild by scan).
 #
 # Bounding == integrity: every read re-hashes the bytes it read (via
 # sha256_bytes) against the stored body / chromosome / cap hash; a mismatch is a
@@ -432,7 +450,15 @@ def partition(strand, the_one, labels=None):
 #: 2 (§44) == self-describing fixed-width strand: chromosome + gene boundaries are
 #: INLINE packed caps scanned-for in the body (the strand is the SSoT; the manifest
 #: is an optional derived ``.fai``-style cache, rebuildable by scanning the body).
-GENOME_FORMAT_VERSION = 2
+#: 3 (§55/rc114, issue #1245) == BIT-PACKED data turns: a data turn is written as
+#: ``[PACKED_TURN_MARKER] + ceil(leaf_dim/4)`` bytes (4 Klein-4 symbols per byte —
+#: the measured 4.03x byte-per-symbol bloat removed), while cap blocks keep their
+#: v2 ``leaf_dim``-byte inline layout. The strand stays self-describing (every
+#: block's FIRST byte keys kind + width), so the walk reads v2, v3, and MIXED
+#: bodies alike — back-compat is structural, not a converter. ``n_turns`` counts
+#: strand BLOCKS (== v2's ``body_len / leaf_dim`` on a v2 body); ``body_sha256``
+#: stays the whole-``turns.bin`` hash in v3 (unchanged semantics).
+GENOME_FORMAT_VERSION = 3
 
 #: The data_schema_id the genome manifest's MPRRecord carries (resolves to the
 #: genome-manifest data shape — format_version / leaf_dim / chromosomes / hashes).
@@ -513,6 +539,106 @@ def _block_is_cap(block: bytes) -> bool:
     return bool(block) and block[0] in (CHROM_CAP_MARKER, GENE_CAP_MARKER)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# §55/rc114 (format v3) — the bit-packed on-disk block layer. In MEMORY a data
+# turn stays one byte per Klein-4 symbol (the HV carrier, `_leaf_blocks` /
+# `_hv_from_block` unchanged); ON DISK a v3 data turn is
+# ``[PACKED_TURN_MARKER] + ceil(leaf_dim/4)`` bytes — 4 symbols per byte. Cap
+# blocks keep their v2 ``leaf_dim``-byte inline layout (their label capacity is
+# a format width, §44). The walker below reads v2 / v3 / MIXED bodies alike:
+# a block's FIRST byte keys both its kind and its width, so back-compat is a
+# property of the walk, not a converter.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _packed_payload_len(leaf_dim: int) -> int:
+    """Payload bytes of one v3 packed data turn: ``ceil(leaf_dim / 4)`` (pure
+    integer — 4 two-bit Klein-4 lanes per byte)."""
+    return (int(leaf_dim) + 3) // 4
+
+
+def _pack_turn_block(mem_block: bytes) -> bytes:
+    """One in-memory byte-per-symbol data turn → its v3 on-disk packed block
+    ``[PACKED_TURN_MARKER] + payload``. Symbol ``i`` → payload byte ``i // 4``,
+    shift ``6 - 2*(i % 4)`` (first symbol in the HIGH lanes); the unused low
+    lanes of a partial final byte are zero (canonical — the round-trip stays
+    byte-exact both ways). Raises ``ValueError`` on a non-Klein-4 symbol."""
+    out = bytearray(1 + _packed_payload_len(len(mem_block)))
+    out[0] = PACKED_TURN_MARKER
+    for i, sym in enumerate(mem_block):
+        if sym > 3:
+            raise ValueError(
+                f"genome v3 packing: data-turn symbol {sym} at position {i} is "
+                f"not a Klein-4 sector (0..3) — only Klein-4 turns bit-pack"
+            )
+        out[1 + (i >> 2)] |= sym << (6 - 2 * (i & 3))
+    return bytes(out)
+
+
+#: byte → its 4 unpacked Klein-4 symbols (high lanes first) — the v3 unpack table.
+_UNPACK_LANES = tuple(
+    bytes(((b >> 6) & 3, (b >> 4) & 3, (b >> 2) & 3, b & 3)) for b in range(256)
+)
+
+
+def _unpack_turn_payload(payload: bytes, leaf_dim: int) -> bytes:
+    """A v3 packed payload → the in-memory byte-per-symbol data turn (exact
+    inverse of :func:`_pack_turn_block`; the partial-final-byte tail truncates
+    to ``leaf_dim``)."""
+    return b"".join(_UNPACK_LANES[c] for c in payload)[:leaf_dim]
+
+
+def _disk_block(mem_block: bytes, leaf_dim: int) -> bytes:
+    """One in-memory ``leaf_dim``-byte block → its on-disk v3 form: caps pass
+    through verbatim (their inline-label layout is the §44 format), data turns
+    bit-pack (:func:`_pack_turn_block`)."""
+    if len(mem_block) != leaf_dim:
+        raise ValueError(
+            f"genome: leaf block width {len(mem_block)} != leaf_dim {leaf_dim} "
+            f"(every in-memory leaf is a fixed-width block)"
+        )
+    if _block_is_cap(mem_block):
+        return bytes(mem_block)
+    return _pack_turn_block(mem_block)
+
+
+def _walk_region_blocks(region: bytes, leaf_dim: int, *, context: str = "genome"):
+    """Walk a raw on-disk byte region block-by-block — the dual-format (v2 |
+    v3 | mixed) walker. Yields ``(raw_block, decoded_block)`` where ``raw_block``
+    is the on-disk bytes and ``decoded_block`` the in-memory byte-per-symbol
+    form (caps decode to themselves). A block's FIRST byte keys its kind + width:
+    ``CHROM_CAP_MARKER``/``GENE_CAP_MARKER`` → a ``leaf_dim``-byte cap;
+    ``PACKED_TURN_MARKER`` → a ``1 + ceil(leaf_dim/4)``-byte v3 packed turn;
+    ``0..3`` → a legacy v2 ``leaf_dim``-byte byte-per-symbol turn. Anything else
+    (or a block running past the region end) is a :class:`GenomeBoundingError`."""
+    plen = _packed_payload_len(leaf_dim)
+    k, n = 0, len(region)
+    while k < n:
+        kind = region[k]
+        if kind in (CHROM_CAP_MARKER, GENE_CAP_MARKER) or kind <= 3:
+            end = k + leaf_dim
+            if end > n:
+                raise GenomeBoundingError(
+                    f"{context}: truncated {leaf_dim}-byte block at offset {k} "
+                    f"(region ends at {n})"
+                )
+            blk = region[k:end]
+            yield blk, blk
+        elif kind == PACKED_TURN_MARKER:
+            end = k + 1 + plen
+            if end > n:
+                raise GenomeBoundingError(
+                    f"{context}: truncated packed turn at offset {k} "
+                    f"(needs {1 + plen} bytes, region ends at {n})"
+                )
+            yield region[k:end], _unpack_turn_payload(region[k + 1:end], leaf_dim)
+        else:
+            raise GenomeBoundingError(
+                f"{context}: unrecognised block kind byte {kind} at offset {k} "
+                f"(not a CHROM/GENE cap, a packed turn, or a Klein-4 symbol)"
+            )
+        k = end
+
+
 def _split_into_chromosomes(strand, labels=None) -> List[Tuple[str, list]]:
     """Walk a flat genome strand and split it into ``[(label, [cap, *blocks]), …]``
     by SCANNING its inline CHROM caps (§44), preserving strand order.
@@ -553,14 +679,17 @@ def _split_into_chromosomes(strand, labels=None) -> List[Tuple[str, list]]:
     return chroms
 
 
-def _build_manifest_data(leaf_dim, the_one_blocks, chrom_specs, body_bytes):
+def _build_manifest_data(leaf_dim, the_one_blocks, chrom_specs, body_bytes,
+                         n_turns):
     """Assemble the manifest ``data`` block — §44's optional DERIVED catalog.
 
     ``chrom_specs`` is a list of ``(label, cap_sha256, leaf_count, byte_offset,
     byte_len)`` tuples (byte_offset/byte_len index into ``turns.bin``;
     ``leaf_count`` counts DATA turns only, excluding the chromosome's CHROM cap and
     any intra-chromosome GENE caps). ``the_one_blocks`` is the single
-    ``leaf_dim``-byte block of the_one.
+    ``leaf_dim``-byte block of the_one. ``n_turns`` is the strand BLOCK count
+    (caps + data turns — §55/v3: blocks are variable-width on disk, so the count
+    is scanned, no longer ``body_len / leaf_dim``).
 
     §44: this manifest is a derived ``.fai``-style cache — every field is
     rebuildable by scanning the self-describing body (the strand is the SSoT).
@@ -569,7 +698,7 @@ def _build_manifest_data(leaf_dim, the_one_blocks, chrom_specs, body_bytes):
     return {
         "format_version": GENOME_FORMAT_VERSION,
         "leaf_dim": int(leaf_dim),
-        "n_turns": len(body_bytes) // int(leaf_dim) if leaf_dim else 0,
+        "n_turns": int(n_turns),
         "the_one": {
             "sha256": _sha256_bytes(the_one_blocks),
             "hex": the_one_blocks.hex(),
@@ -699,16 +828,15 @@ def genome_save(strand, path, the_one, labels=None) -> dict:
 
     body = bytearray()
     chrom_specs: List[Tuple[str, str, int, int, int]] = []
+    n_turns = 0
     for label, blocks in chroms:
         byte_offset = len(body)
         leaf_blocks = _leaf_blocks(blocks)
         for blk in leaf_blocks:
-            if len(blk) != leaf_dim:
-                raise ValueError(
-                    f"genome_save: leaf block width {len(blk)} != leaf_dim "
-                    f"{leaf_dim} (every leaf is a fixed-width block)"
-                )
-            body.extend(blk)
+            # §55/v3: caps stay leaf_dim-wide verbatim; data turns bit-pack
+            # (4 Klein-4 symbols per byte) — _disk_block validates the width.
+            body.extend(_disk_block(blk, leaf_dim))
+        n_turns += len(leaf_blocks)
         byte_len = len(body) - byte_offset
         cap_block = leaf_blocks[0]                # the CHROM cap leads the region
         cap_sha256 = _sha256_bytes(cap_block)
@@ -734,7 +862,8 @@ def genome_save(strand, path, the_one, labels=None) -> dict:
             _raise_native_genome(exc)
 
     (path / _BODY_NAME).write_bytes(body_bytes)
-    data = _build_manifest_data(leaf_dim, the_one_block, chrom_specs, body_bytes)
+    data = _build_manifest_data(leaf_dim, the_one_block, chrom_specs, body_bytes,
+                                n_turns)
     record = _manifest_record(data)
     _write_manifest(path, record)
     return data
@@ -753,29 +882,43 @@ def _rebuild_manifest_from_body(body_bytes, leaf_dim, the_one):
     what makes ``manifest.json`` a true optional ``.fai``-style cache (drop it, ship
     ``turns.bin`` alone, rebuild on load)."""
     leaf_dim = int(leaf_dim)
-    if leaf_dim <= 0 or len(body_bytes) % leaf_dim != 0:
+    if leaf_dim <= 0:
         raise GenomeBoundingError(
-            f"genome turns.bin length {len(body_bytes)} is not a whole multiple of "
-            f"leaf_dim {leaf_dim} — cannot scan the fixed-width strand (is the_one's "
-            f"width right?)"
+            f"genome rebuild-by-scan: leaf_dim {leaf_dim} is not a positive block "
+            f"width (is the_one's width right?)"
         )
-    strand = [
-        _hv_from_block(body_bytes[k:k + leaf_dim])
-        for k in range(0, len(body_bytes), leaf_dim)
-    ]
-    chroms = _split_into_chromosomes(strand)          # scans inline CHROM caps
+    if not body_bytes:
+        raise ValueError("genome persistence: empty strand has no chromosomes")
+    # §55/v3: walk the RAW on-disk bytes (v2 | v3 | mixed) — offsets, hashes and
+    # counts come from the stored blocks VERBATIM (a legacy byte-per-symbol turn
+    # is never re-encoded, so the rebuilt manifest matches the body as written).
     chrom_specs: List[Tuple[str, str, int, int, int]] = []
+    cur: Optional[list] = None      # [label, cap_sha256, leaf_count, offset, length]
+    n_turns = 0
     offset = 0
-    for label, blocks in chroms:
-        leaf_blocks = _leaf_blocks(blocks)
-        byte_len = sum(len(b) for b in leaf_blocks)
-        cap_sha256 = _sha256_bytes(leaf_blocks[0])
-        leaf_count = sum(1 for b in leaf_blocks if not _block_is_cap(b))
-        chrom_specs.append((label, cap_sha256, leaf_count, offset, byte_len))
-        offset += byte_len
+    for raw, decoded in _walk_region_blocks(
+            bytes(body_bytes), leaf_dim, context="genome rebuild-by-scan"):
+        n_turns += 1
+        if decoded[0] == CHROM_CAP_MARKER:
+            if cur is not None:
+                chrom_specs.append(tuple(cur))
+            label = decoded[1:].split(b"\x00", 1)[0].decode("utf-8")
+            cur = [label, _sha256_bytes(raw), 0, offset, 0]
+        elif cur is None:
+            raise ValueError(
+                "genome persistence: strand has turns before its first CHROM "
+                "cap — not a well-formed §44 genome strand"
+            )
+        elif decoded[0] != GENE_CAP_MARKER:
+            cur[2] += 1                       # a data turn (packed or legacy)
+        cur[4] += len(raw)
+        offset += len(raw)
+    if cur is not None:
+        chrom_specs.append(tuple(cur))
     one = the_one if isinstance(the_one, _HV) else _HV.from_sequence(the_one)
     the_one_block = _leaf_blocks([one])[0]
-    return _build_manifest_data(leaf_dim, the_one_block, chrom_specs, bytes(body_bytes))
+    return _build_manifest_data(leaf_dim, the_one_block, chrom_specs,
+                                bytes(body_bytes), n_turns)
 
 
 def _catalog_data(path, the_one=None) -> dict:
@@ -900,31 +1043,56 @@ def genome_load(path, *, labels=None, the_one=None):
                 body = _native.genome_load_c(
                     str(path), bytes(_leaf_blocks([the_one])[0]),
                     body_path.stat().st_size)
+                # §55/v3: decode the verified body with the dual-format walker
+                # (v2 byte-per-symbol | v3 bit-packed | mixed).
                 strand = [
-                    _hv_from_block(body[k:k + leaf_dim])
-                    for k in range(0, len(body), leaf_dim)
+                    _hv_from_block(decoded)
+                    for _raw, decoded in _walk_region_blocks(
+                        body, leaf_dim, context="genome_load")
                 ]
                 return strand, the_one, all_labels
             except _native.NativeGenomeError as exc:
                 _raise_native_genome(exc)
-        # Whole-genome streaming read: one fixed-width block at a time, hashing
-        # incrementally is not available via sha256_bytes (no streaming API), so
-        # we accumulate the body bytes we STREAM (block-by-block, never building
-        # an intermediate giant HV/strand object) and verify the whole-body hash.
+        # Whole-genome streaming read: one block at a time (§55/v3: the block's
+        # FIRST byte keys its kind + width — caps and legacy turns are leaf_dim
+        # bytes, packed turns 1 + ceil(leaf_dim/4)). Hashing incrementally is not
+        # available via sha256_bytes (no streaming API), so we accumulate the
+        # body bytes we STREAM (block-by-block, never building an intermediate
+        # giant HV/strand object) and verify the whole-body hash.
         strand: List[_HV] = []
         body_acc = bytearray()
+        plen = _packed_payload_len(leaf_dim)
         with body_path.open("rb") as f:
             while True:
-                block = f.read(leaf_dim)
-                if not block:
+                first = f.read(1)
+                if not first:
                     break
-                if len(block) != leaf_dim:
+                kind = first[0]
+                if kind in (CHROM_CAP_MARKER, GENE_CAP_MARKER) or kind <= 3:
+                    rest = f.read(leaf_dim - 1)
+                    if len(rest) != leaf_dim - 1:
+                        raise GenomeBoundingError(
+                            f"genome body truncated: trailing {1 + len(rest)} "
+                            f"bytes are not a whole leaf_dim={leaf_dim} block"
+                        )
+                    block = first + rest
+                    decoded = block
+                elif kind == PACKED_TURN_MARKER:
+                    payload = f.read(plen)
+                    if len(payload) != plen:
+                        raise GenomeBoundingError(
+                            f"genome body truncated: trailing {1 + len(payload)} "
+                            f"bytes are not a whole packed turn ({1 + plen} bytes)"
+                        )
+                    block = first + payload
+                    decoded = _unpack_turn_payload(payload, leaf_dim)
+                else:
                     raise GenomeBoundingError(
-                        f"genome body truncated: trailing {len(block)} bytes are "
-                        f"not a whole leaf_dim={leaf_dim} block"
+                        f"genome body: unrecognised block kind byte {kind} at "
+                        f"offset {len(body_acc)}"
                     )
                 body_acc.extend(block)
-                strand.append(_hv_from_block(block))
+                strand.append(_hv_from_block(decoded))
         _verify_body_hash(bytes(body_acc), data["body_sha256"])
         return strand, the_one, all_labels
 
@@ -955,8 +1123,11 @@ def genome_load(path, *, labels=None, the_one=None):
                     f"genome chromosome {entry['label']!r} cap integrity bound "
                     f"failed: region cap hashes differently from cap_sha256"
                 )
-            for k in range(0, len(region), leaf_dim):
-                out_strand.append(_hv_from_block(region[k:k + leaf_dim]))
+            out_strand.extend(
+                _hv_from_block(decoded)
+                for _raw, decoded in _walk_region_blocks(
+                    region, leaf_dim, context=f"genome_load({entry['label']!r})")
+            )
     return out_strand, the_one, [c["label"] for c in ordered]
 
 
@@ -982,10 +1153,12 @@ def _read_region(path, entry, leaf_dim) -> bytes:
 
 
 def _region_strand(region, leaf_dim) -> List["_HV"]:
-    """Reconstruct a region's full HV strand (every block — caps + data turns)."""
+    """Reconstruct a region's full HV strand (every block — caps + data turns).
+    §55/v3: decoded with the dual-format walker (v2 | v3 | mixed blocks)."""
     return [
-        _hv_from_block(region[k:k + leaf_dim])
-        for k in range(0, len(region), leaf_dim)
+        _hv_from_block(decoded)
+        for _raw, decoded in _walk_region_blocks(
+            region, leaf_dim, context="genome region")
     ]
 
 
@@ -1021,19 +1194,20 @@ def genome_window(path, label, *, the_one=None):
                 str(path), label, _the_one_bytes_or_empty(the_one),
                 (path / _BODY_NAME).stat().st_size)
             return [
-                _hv_from_block(region[k:k + leaf_dim])
-                for k in range(0, len(region), leaf_dim)
-                if not _block_is_cap(region[k:k + leaf_dim])
+                _hv_from_block(decoded)
+                for _raw, decoded in _walk_region_blocks(
+                    region, leaf_dim, context=f"genome_window({label!r})")
+                if not _block_is_cap(decoded)
             ]
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
     region = _read_region(path, by_label[label], leaf_dim)
     leaves: List[_HV] = []
-    for k in range(0, len(region), leaf_dim):
-        block = region[k:k + leaf_dim]
-        if _block_is_cap(block):                # skip CHROM lead cap + GENE caps
+    for _raw, decoded in _walk_region_blocks(
+            region, leaf_dim, context=f"genome_window({label!r})"):
+        if _block_is_cap(decoded):              # skip CHROM lead cap + GENE caps
             continue
-        leaves.append(_hv_from_block(block))
+        leaves.append(_hv_from_block(decoded))
     return leaves
 
 
@@ -1109,13 +1283,10 @@ def genome_append(path, label, leaves, the_one) -> dict:
 
     new_strand = chromosome(leaves, the_one, label=label)
     new_blocks = _leaf_blocks(new_strand)
-    for blk in new_blocks:
-        if len(blk) != leaf_dim:
-            raise ValueError(
-                f"genome_append: leaf block width {len(blk)} != leaf_dim "
-                f"{leaf_dim}"
-            )
-    appended = b"".join(new_blocks)
+    # §55/v3: the appended region is written in the packed on-disk form (caps
+    # verbatim, data turns bit-packed) — _disk_block validates each width. An
+    # append to a v2 genome yields a MIXED body, which the walker reads as-is.
+    appended = b"".join(_disk_block(blk, leaf_dim) for blk in new_blocks)
 
     # §49: native C append (the cap block + data turns appended append-only to
     # turns.bin + manifest re-derived, byte-identical); native is authoritative when present (no fallback).
@@ -1151,7 +1322,10 @@ def genome_append(path, label, leaves, the_one) -> dict:
     )
 
     one_block = bytes.fromhex(data["the_one"]["hex"])
-    new_data = _build_manifest_data(leaf_dim, one_block, chrom_specs, new_body)
+    # n_turns = strand BLOCK count: the prior count (v2's body/leaf_dim and
+    # v3's scan agree on a v2 body) + the appended chromosome's blocks.
+    new_data = _build_manifest_data(leaf_dim, one_block, chrom_specs, new_body,
+                                    int(data["n_turns"]) + len(new_blocks))
     record = _manifest_record(new_data)
     _write_manifest(path, record)
     return new_data
@@ -1260,7 +1434,11 @@ def genome_replace(path, label, leaves, the_one) -> dict:
             f"genome_replace: label {label!r} not in the genome "
             f"(have {list(by_label)!r})"
         )
-    new_region = b"".join(_leaf_blocks(chromosome(leaves, the_one, label=label)))
+    # §55/v3: the fresh region is written in the packed on-disk form.
+    new_region = b"".join(
+        _disk_block(blk, leaf_dim)
+        for blk in _leaf_blocks(chromosome(leaves, the_one, label=label))
+    )
     # §49/rc154: native C replace (splice old span out + fresh region in at the same
     # position + manifest re-derive, byte-identical); native is authoritative (no
     # fallback).
@@ -1492,13 +1670,11 @@ def genome_import(chr_path, dest, *, the_one=None) -> dict:
     leaf_dim = int(cdata["leaf_dim"])
     one = _hv_from_block(one_block)
     if not body_path.exists():
-        # SEED a fresh genome — the region IS the whole body (byte-for-byte).
+        # SEED a fresh genome — the region IS the whole body (byte-for-byte;
+        # §55/v3: written VERBATIM, so a legacy v2 .chr region seeds a legacy
+        # body — never re-encoded — exactly like the native C seed).
         dest.mkdir(parents=True, exist_ok=True)
-        strand = [
-            _hv_from_block(region[k:k + leaf_dim])
-            for k in range(0, len(region), leaf_dim)
-        ]
-        return genome_save(strand, dest, one)
+        return _write_body_and_manifest(dest, region, leaf_dim, one)
     # APPEND into the existing genome — same coupling invariant + fresh label.
     dest_data = _catalog_data(dest, the_one if the_one is not None else one)
     if int(dest_data["leaf_dim"]) != leaf_dim:

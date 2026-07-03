@@ -10,9 +10,13 @@
  *                         json.dumps(payload, sort_keys=True,
  *                         ensure_ascii=False).
  *   <dir>/turns.bin       the append-only flat body — every strand
- *                         element (a telomere cap or a coupled turn) is a
- *                         FIXED-WIDTH leaf_dim-byte block, verbatim (no
- *                         transformation, no length prefix).
+ *                         element (a telomere cap or a coupled turn) is
+ *                         one SELF-DESCRIBING block whose FIRST byte keys
+ *                         its kind + width: a leaf_dim-byte cap, a §55/v3
+ *                         BIT-PACKED data turn (1 + ceil(leaf_dim/4)
+ *                         bytes, 4 Klein-4 symbols per byte), or a legacy
+ *                         v2 leaf_dim-byte byte-per-symbol turn — verbatim
+ *                         (no transformation, no length prefix).
  *
  * Bounding == integrity: every read re-hashes (via srmech_sha256_hex) the
  * bytes it touched and compares the lowercase-hex digest against the
@@ -64,8 +68,9 @@
 /* The §41 manifest data_schema_id (== GENOME_MANIFEST_SCHEMA_ID). */
 #define SRMECH_GENOME_SCHEMA_ID "srmech://schema/genome_manifest/v1"
 
-/* The §41 parser_rule_hash pre-image (== f"genome_persistence/v1"). */
-#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v2"
+/* The §41 parser_rule_hash pre-image (== f"genome_persistence/v3" — tracks
+ * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _manifest_record). */
+#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v3"
 
 /* ------------------------------------------------------------------ *
  * Path + file helpers (stdio — Rule 3 allows file I/O, bans malloc).
@@ -222,7 +227,35 @@ typedef struct {
     uint32_t *leaf_count;                           /* [cap_chroms] DATA turns */
     uint32_t cap_chroms;                            /* arena-allocated capacity */
     uint32_t n_chroms;                              /* chromosomes found by scan */
+    uint32_t n_blocks;                              /* §55/v3: strand BLOCK count
+                                                     * (caps + turns) == n_turns */
 } genome_strings_t;
+
+/* §55/v3: byte length of the block starting at body[off], keyed by its FIRST
+ * byte — a leaf_dim-byte cap or legacy v2 turn, or a 1 + ceil(leaf_dim/4)-byte
+ * bit-packed turn. SRMECH_ERR_BAD_INPUT on an unrecognised kind byte or a block
+ * running past body_len (a truncated body). This is THE dual-format walker
+ * step (v2 | v3 | mixed bodies read in the same walk — back-compat). */
+static srmech_status_t genome_block_len(const unsigned char *body,
+                                        size_t body_len, size_t off,
+                                        uint32_t leaf_dim, size_t *blen)
+{
+    assert(body != NULL && blen != NULL);
+    assert(off < body_len && leaf_dim > 0u);
+    unsigned char kind = body[off];
+    size_t n;
+    if (kind == SRMECH_GENOME_CHROM_CAP_MARKER ||
+        kind == SRMECH_GENOME_GENE_CAP_MARKER || kind <= 3u) {
+        n = (size_t)leaf_dim;                       /* cap or legacy v2 turn */
+    } else if (kind == SRMECH_GENOME_PACKED_TURN_MARKER) {
+        n = 1u + ((size_t)leaf_dim + 3u) / 4u;      /* v3 bit-packed turn */
+    } else {
+        return SRMECH_ERR_BAD_INPUT;                /* unrecognised kind byte */
+    }
+    if (n > body_len - off) { return SRMECH_ERR_BAD_INPUT; }   /* truncated */
+    *blen = n;
+    return SRMECH_OK;
+}
 
 /* Lowercase-hex of leaf_dim bytes into `out` (>= 2*n + 1). No libm. */
 static srmech_status_t genome_hex(const unsigned char *data, size_t n,
@@ -288,7 +321,8 @@ static srmech_json_value_t *genome_build_data(srmech_json_builder_t *b,
         chrom_items[i] = genome_build_chrom(b, s, i);
     }
     srmech_json_value_t *arr = srmech_json_new_array(b, chrom_items, s->n_chroms);
-    int64_t n_turns = (int64_t)(body_len / (size_t)leaf_dim);
+    (void)body_len;                 /* §55/v3: n_turns is the scanned BLOCK count */
+    int64_t n_turns = (int64_t)s->n_blocks;
     const char *keys[6] = { "format_version", "leaf_dim", "n_turns",
                             "the_one", "body_sha256", "chromosomes" };
     srmech_json_value_t *vals[6];
@@ -438,26 +472,34 @@ static srmech_status_t genome_decode_label(const unsigned char *cap,
     return SRMECH_OK;
 }
 
-/* §44 COUNT: count the body's CHROM caps (a pre-scan, so the per-chromosome
- * arrays can be carved to EXACTLY that many — no compiled-in chromosome cap).
- * Validates the body is a whole multiple of leaf_dim. */
+/* §44 COUNT: walk the body's self-describing blocks (§55/v3 dual-format) and
+ * count its CHROM caps AND its total blocks (a pre-scan, so the per-chromosome
+ * arrays can be carved to EXACTLY that many — no compiled-in chromosome cap;
+ * the block count IS n_turns). Validates every block parses and fits. */
 static srmech_status_t genome_count_chroms(const unsigned char *body,
                                            size_t body_len, uint32_t leaf_dim,
-                                           uint32_t *out_n)
+                                           uint32_t *out_n, uint32_t *out_blocks)
 {
-    assert(out_n != NULL);
+    assert(out_n != NULL && out_blocks != NULL);
     assert(body != NULL || body_len == 0u);
-    if (leaf_dim == 0u || body_len % (size_t)leaf_dim != 0u) {
-        return SRMECH_ERR_BAD_INPUT;
-    }
+    if (leaf_dim == 0u) { return SRMECH_ERR_BAD_INPUT; }
     uint32_t n = 0u;
-    for (size_t off = 0u; off < body_len; off += leaf_dim) {
+    uint32_t blocks = 0u;
+    for (size_t off = 0u; off < body_len; ) {
+        size_t blen = 0u;
+        srmech_status_t st = genome_block_len(body, body_len, off, leaf_dim,
+                                              &blen);
+        if (st != SRMECH_OK) { return st; }
         if (body[off] == SRMECH_GENOME_CHROM_CAP_MARKER) {
             if (n == 0xFFFFFFFFu) { return SRMECH_ERR_OVERFLOW; }
             n++;
         }
+        if (blocks == 0xFFFFFFFFu) { return SRMECH_ERR_OVERFLOW; }
+        blocks++;
+        off += blen;
     }
     *out_n = n;
+    *out_blocks = blocks;
     return SRMECH_OK;
 }
 
@@ -483,37 +525,43 @@ static srmech_status_t genome_strings_alloc(genome_strings_t *s,
     return SRMECH_OK;
 }
 
-/* §44 SCAN: walk the self-describing body block-by-block and derive every
- * chromosome's (label, cap_sha256, leaf_count, byte_offset, byte_len) into the
- * string block — this IS the "manifest is a derived cache" claim in C. A CHROM
- * cap opens a chromosome (label read inline); each non-cap block is a data turn
- * (leaf_count++); GENE caps stay in the region (byte_len) but are not turns. */
+/* §44 SCAN: walk the self-describing body block-by-block (§55/v3 dual-format
+ * walker — caps and legacy turns are leaf_dim bytes, packed turns 1 +
+ * ceil(leaf_dim/4)) and derive every chromosome's (label, cap_sha256,
+ * leaf_count, byte_offset, byte_len) into the string block — this IS the
+ * "manifest is a derived cache" claim in C. A CHROM cap opens a chromosome
+ * (label read inline); each non-cap block is a data turn (leaf_count++); GENE
+ * caps stay in the region (byte_len) but are not turns. */
 static srmech_status_t genome_scan_chroms(genome_strings_t *s,
                                           const unsigned char *body,
                                           size_t body_len, uint32_t leaf_dim)
 {
     assert(s != NULL);
     assert(body != NULL || body_len == 0u);
-    if (body_len % (size_t)leaf_dim != 0u) { return SRMECH_ERR_BAD_INPUT; }
     s->n_chroms = 0u;
     int32_t cur = -1;
-    for (size_t off = 0u; off < body_len; off += leaf_dim) {
+    for (size_t off = 0u; off < body_len; ) {
+        size_t blen = 0u;
+        srmech_status_t st = genome_block_len(body, body_len, off, leaf_dim,
+                                              &blen);
+        if (st != SRMECH_OK) { return st; }
         if (body[off] == SRMECH_GENOME_CHROM_CAP_MARKER) {
             if (s->n_chroms >= s->cap_chroms) { return SRMECH_ERR_OVERFLOW; }
             cur = (int32_t)s->n_chroms;
             s->n_chroms++;
-            srmech_status_t st = srmech_sha256_hex(body + off, leaf_dim, s->cap_sha[cur]);
+            st = srmech_sha256_hex(body + off, leaf_dim, s->cap_sha[cur]);
             if (st != SRMECH_OK) { return st; }
             st = genome_decode_label(body + off, leaf_dim, s->label[cur]);
             if (st != SRMECH_OK) { return st; }
             s->byte_offset[cur] = (uint32_t)off;
-            s->byte_len[cur] = leaf_dim;
+            s->byte_len[cur] = 0u;                /* accumulated below */
             s->leaf_count[cur] = 0u;
         } else {
             if (cur < 0) { return SRMECH_ERR_BAD_INPUT; }   /* turn before 1st cap */
-            s->byte_len[cur] += leaf_dim;
             if (body[off] != SRMECH_GENOME_GENE_CAP_MARKER) { s->leaf_count[cur]++; }
         }
+        s->byte_len[cur] += (uint32_t)blen;
+        off += blen;
     }
     return SRMECH_OK;
 }
@@ -529,10 +577,13 @@ static srmech_status_t genome_fill_strings(genome_strings_t *s,
     assert(s != NULL && the_one != NULL);
     assert(a != NULL && leaf_dim > 0u);
     uint32_t n_chroms = 0u;                            /* count → carve arrays */
-    srmech_status_t st = genome_count_chroms(body, body_len, leaf_dim, &n_chroms);
+    uint32_t n_blocks = 0u;                            /* §55/v3: == n_turns */
+    srmech_status_t st = genome_count_chroms(body, body_len, leaf_dim,
+                                             &n_chroms, &n_blocks);
     if (st != SRMECH_OK) { return st; }
     st = genome_strings_alloc(s, a, n_chroms);
     if (st != SRMECH_OK) { return st; }
+    s->n_blocks = n_blocks;
     st = srmech_sha256_hex(body, body_len, s->body_sha);
     if (st != SRMECH_OK) { return st; }
     st = srmech_sha256_hex(the_one, leaf_dim, s->one_sha);
@@ -983,9 +1034,9 @@ srmech_status_t srmech_genome_append(const char *dir, const char *label,
         (region == NULL && region_len != 0u)) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (leaf_dim == 0u || the_one_len != (size_t)leaf_dim ||
-        region_len == 0u || region_len % (size_t)leaf_dim != 0u) {
-        return SRMECH_ERR_BAD_INPUT;
+    if (leaf_dim == 0u || the_one_len != (size_t)leaf_dim || region_len == 0u) {
+        return SRMECH_ERR_BAD_INPUT;   /* §55/v3: blocks are variable-width —
+                                        * the save's scan validates the region */
     }
     /* Carve the grown-body buffer (old body + region) from the arena FRONT; the
      * tail feeds obtain (manifest tree, consumed by grow) then save (its own
@@ -1098,9 +1149,9 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
         (region == NULL && region_len != 0u)) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (leaf_dim == 0u || the_one_len != (size_t)leaf_dim ||
-        region_len % (size_t)leaf_dim != 0u) {
-        return SRMECH_ERR_BAD_INPUT;
+    if (leaf_dim == 0u || the_one_len != (size_t)leaf_dim) {
+        return SRMECH_ERR_BAD_INPUT;   /* §55/v3: blocks are variable-width —
+                                        * the save's scan validates the region */
     }
     genome_arena_t a;
     genome_arena_init(&a, ws, ws_len);
@@ -1157,8 +1208,9 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
 
 /* The §43 .chr data_schema_id (== GENOME_CHR_SCHEMA_ID). */
 #define SRMECH_GENOME_CHR_SCHEMA_ID "srmech://schema/genome_chromosome/v1"
-/* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v2"). */
-#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v2"
+/* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v3" — tracks
+ * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _chr_record). */
+#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v3"
 /* The §43 rendering "purpose" — VERBATIM from genome.py _chr_record
  * (single-line #define; JPL Rule 8 forbids backslash line-continuation). */
 #define SRMECH_GENOME_CHR_PURPOSE "One self-contained, MPR-attested chromosome: its fixed-width region (CHROM cap + coupled turns) + the_one, re-importable self-verifying."

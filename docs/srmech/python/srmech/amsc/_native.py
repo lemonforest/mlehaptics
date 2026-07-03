@@ -9626,10 +9626,21 @@ def _genome_file_size(path: str) -> int:
 
 
 def _count_chrom_caps(body: bytes, leaf_dim: int) -> int:
-    """Number of §44 CHROM caps (first byte 0x43 at a leaf boundary) in ``body``."""
+    """Number of §44 CHROM caps (block first byte 0x43) in ``body`` — §55/v3:
+    walks the self-describing blocks (a cap or a legacy v2 byte-per-symbol turn
+    is ``leaf_dim`` bytes; a v3 bit-packed turn, first byte 0x51, is
+    ``1 + ceil(leaf_dim/4)`` bytes). Used ONLY to size the native arena; a
+    malformed body yields a best-effort count (the C op re-validates)."""
     if leaf_dim <= 0:
         return 0
-    return sum(1 for k in range(0, len(body), leaf_dim) if body[k] == 0x43)
+    n, k, size = 0, 0, len(body)
+    packed_len = 1 + (leaf_dim + 3) // 4
+    while k < size:
+        first = body[k]
+        if first == 0x43:
+            n += 1
+        k += packed_len if first == 0x51 else leaf_dim
+    return n
 
 
 def _genome_chrom_count(dir_: str, the_one: bytes = b"") -> int:

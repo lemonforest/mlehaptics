@@ -2114,13 +2114,14 @@ def _register_primitive_class_tools() -> None:
 
         # ────────────────────────────────────────────────────────────
         # Genome persistence — UPSTREAM §41. The helix grows ON DISK: a
-        # genome directory holds a fixed-width append-only body (turns.bin)
+        # genome directory holds a self-describing append-only body
+        # (turns.bin; §55/v3 bit-packs data turns 4 Klein-4 symbols/byte)
         # + an MPR-attested manifest catalog. Reads are paged + BOUNDED
         # (every read re-hashes the bytes it touched vs the manifest).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
             name="srmech.amsc.genome.genome_save", owner="srmech", category="genome",
-            summary="Persist a genome strand to a directory (UPSTREAM §41 / §44). SCANS the strand for its inline CHROM caps (§44 — the strand self-describes; chromosome labels are recovered inline), writes a SELF-DESCRIBING fixed-width body to path/turns.bin (every strand element is a leaf_dim-byte block — a CHROM/GENE cap or a coupled data turn — no length prefixes), and writes a DERIVED MPR-attested catalog to path/manifest.json (format_version, leaf_dim, n_turns, the_one hash+hex, body_sha256, and per-chromosome cap_sha256 / leaf_count / byte_offset / byte_len). The strand is the SSoT; the manifest is an optional .fai-style cache, rebuildable by scanning the body. Multi-gene chromosomes carry their gene boundaries INLINE as GENE caps (no gene-index sidecar). the_one (the held invariant) is content-addressed into the manifest so a load re-anchors without re-deriving it. Returns the manifest data dict. numpy-free; hashes via sha256_bytes.",
+            summary="Persist a genome strand to a directory (UPSTREAM §41 / §44 / §55). SCANS the strand for its inline CHROM caps (§44 — the strand self-describes; chromosome labels are recovered inline), writes a SELF-DESCRIBING body to path/turns.bin (§55/v3: each block's FIRST byte keys its kind + width — a leaf_dim-byte CHROM/GENE cap, or a BIT-PACKED data turn of 1+ceil(leaf_dim/4) bytes carrying 4 Klein-4 symbols per byte; legacy v2 byte-per-symbol turns stay readable in the same walk — no length prefixes), and writes a DERIVED MPR-attested catalog to path/manifest.json (format_version, leaf_dim, n_turns = strand block count, the_one hash+hex, body_sha256, and per-chromosome cap_sha256 / leaf_count / byte_offset / byte_len). The strand is the SSoT; the manifest is an optional .fai-style cache, rebuildable by scanning the body. Multi-gene chromosomes carry their gene boundaries INLINE as GENE caps (no gene-index sidecar). the_one (the held invariant) is content-addressed into the manifest so a load re-anchors without re-deriving it. Returns the manifest data dict. numpy-free; hashes via sha256_bytes.",
             parameters=(P("strand", "Sequence[HV]", True, "the flat genome strand to persist (from genome)"),
                         P("path", "str", True, "the genome DIRECTORY to write (created if absent; gets manifest.json + turns.bin)"),
                         P("the_one", "HV", True, "the held invariant every turn is coupled through (content-addressed into the manifest)"),
@@ -2142,7 +2143,7 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.genome.genome_append", owner="srmech", category="genome",
-            summary="Append ONE chromosome to an existing genome (UPSTREAM §41) — the helix grows. Packs leaves into a telomere-capped chromosome (coupled through the_one), appends its fixed-width blocks to the END of turns.bin (APPEND-ONLY — prior chromosomes' body bytes are never rewritten), and rewrites the manifest with the new chromosome entry plus a recomputed body_sha256 / n_turns. Every EXISTING chromosome's manifest entry (cap_sha256 / byte_offset / leaf_count / byte_len) stays byte-identical. Verifies the body it appends TO against body_sha256 first (never grows a corrupt body). Returns the updated manifest data dict. numpy-free.",
+            summary="Append ONE chromosome to an existing genome (UPSTREAM §41 / §55) — the helix grows. Packs leaves into a telomere-capped chromosome (coupled through the_one), appends its blocks to the END of turns.bin in the §55/v3 packed form (caps verbatim, data turns bit-packed 4 symbols/byte; APPEND-ONLY — prior chromosomes' body bytes are never rewritten, so appending to a v2 genome yields a MIXED body the walk reads as-is), and rewrites the manifest with the new chromosome entry plus a recomputed body_sha256 / n_turns. Every EXISTING chromosome's manifest entry (cap_sha256 / byte_offset / leaf_count / byte_len) stays byte-identical. Verifies the body it appends TO against body_sha256 first (never grows a corrupt body). Returns the updated manifest data dict. numpy-free.",
             parameters=(P("path", "str", True, "the genome directory written by genome_save"),
                         P("label", "str", True, "the new chromosome's label (must not already exist in the genome)"),
                         P("leaves", "Sequence[HV]", True, "the new kernel's Klein-4 leaf vectors"),
