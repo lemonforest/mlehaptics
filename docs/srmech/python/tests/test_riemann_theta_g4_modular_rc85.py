@@ -414,11 +414,41 @@ def test_gates_pass_through_native():
             assert 0 <= k < 8
 
 
-def test_pure_python_alone_passes_new_gates():
+def test_pure_python_alone_passes_new_gates(pure_riemann_theta):
     """The COMPLETE pure-Python body alone passes the new gates (so the carrier is
-    correct on a no-C host)."""
-    assert RiemannThetaG4.addition_holds(2)
+    correct on a no-C host) — the native path is FORCED OFF (rc106: every
+    ``has_native_riemann_theta*`` gate monkeypatched False + record-and-raise
+    sentinels on the ``riemann_theta*_c`` bindings; a native hit fails loudly).
+
+    What runs pure, and why this IS the honest full pure coverage:
+
+    - ``goepel_holds(2)`` runs the COMPLETE pure decision body at the shipped gate
+      box — the native ``srmech_riemann_theta_g4_goepel`` peer replaces the WHOLE
+      decision on a native host, so this is the one rc85 gate whose pure body a
+      native run never touches;
+    - the eighth-nome fallback builders (Ω and 2Ω) — the ONLY native-dispatched
+      component of the ADDITION gate — are proven against this file's independent
+      ``_pure_eighth`` oracle at the gate box, for characteristics spanning the
+      genus-4 cross-terms and both sign branches.
+
+    The pre-rc106 version re-ran ``addition_holds(2)`` + ``goepel_holds(2)`` with
+    NO monkeypatch (≈213 s that never left the dispatched path — the single
+    largest duplicate in the #707 family profile). The addition DECISION body
+    (convolution + safe-region compare) has NO native peer — it is one always-pure
+    body already executed by ``test_addition_identity_holds_exact`` — so re-running
+    it here proved nothing the primary gate + the pure-lattice oracle checks below
+    do not."""
+    # the complete pure Göpel decision body, at the shipped gate box
     assert RiemannThetaG4.goepel_holds(2)
+    # the pure eighth-nome fallback builders == the independent oracle (Ω + 2Ω)
+    for (a, e) in (((1, 0, 0, 1), (0, 0, 0, 0)),   # spans the 4th coord (C₁₄ ≠ 0)
+                   ((1, 1, 1, 1), (0, 0, 0, 0)),   # all six cross-terms odd
+                   ((0, 0, 0, 0), (1, 0, 0, 1))):  # non-trivial sign branch
+        got_omega = RiemannThetaG4._theta_omega_eighth(*a, *e, 2)
+        assert got_omega == _pure_eighth(*a, *e, False, 2), (a, e)
+        got_2omega = RiemannThetaG4._theta_two_omega_eighth(*a, *e, 2)
+        assert got_2omega == _pure_eighth(*a, *e, True, 2), (a, e)
+    assert pure_riemann_theta == []      # no native symbol was ever reached
 
 
 # ── gate (G): the carrier source is numpy / math / abs() free ────────────────

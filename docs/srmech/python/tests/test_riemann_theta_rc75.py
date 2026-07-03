@@ -195,25 +195,21 @@ def test_genus3_duplication_lhs_equals_rhs_on_safe_region():
 
 
 # ── gate (e): NO REGRESSION — the rc72/73/74 genus-2 gates still pass ─────────
-def test_no_regression_rc72_genus2_gates():
-    """The genus-3 extension does not regress the rc72 genus-2 carrier — the genus-2
-    collapse + duplication gates still pass exactly."""
+def test_no_regression_rc72_73_74_genus2_gates():
+    """The genus-3 extension does not regress the genus-2 carrier — CHEAP structural
+    checks only (rc106): the collapse chain is bit-exact, the symbolic Rosenhain
+    λ-map is well-formed, and the even/odd enumeration parity holds. The dense g2
+    convolution gates are deliberately NOT re-run here — each is covered by its home
+    file's PRIMARY gates in the SAME suite run (``duplication_holds(4/6/8)`` = rc72;
+    ``addition_holds(4/6/8)`` + ``addition_is_distinct(6/8)`` = rc73;
+    ``goepel_holds(4/5/6)`` + ``goepel_is_distinct(4/5)`` + Rosenhain = rc74) —
+    before rc106 this file re-ran ``duplication_holds(6)`` + ``addition_holds(8)`` +
+    ``addition_is_distinct(8)`` + ``goepel_holds(5)`` + ``goepel_is_distinct(5)``
+    identically (≈35 s of literal duplicate convolution)."""
     g2 = RiemannTheta.theta_constant((0, 0), (0, 0))
-    assert g2.collapse_g1_q_series(20) == THETA3_Q20
-    assert RiemannTheta.duplication_holds(6)
-
-
-def test_no_regression_rc73_genus2_gates():
-    """rc73 addition + Sp(4,ℤ) gates still pass exactly."""
-    assert RiemannTheta.addition_holds(8)
-    assert RiemannTheta.addition_is_distinct_from_duplication(8)
-
-
-def test_no_regression_rc74_genus2_gates():
-    """rc74 Göpel syzygy + Rosenhain λ-map gates still pass exactly."""
-    assert RiemannTheta.goepel_holds(5)
-    assert RiemannTheta.goepel_is_distinct_from_duplication_and_addition(5)
-    assert RiemannTheta.rosenhain_lambda_map_is_well_formed()
+    assert g2.collapse_g1_q_series(20) == THETA3_Q20      # rc72 collapse chain
+    assert RiemannTheta.rosenhain_lambda_map_is_well_formed()   # rc74 symbolic map
+    assert RiemannTheta.even_null_count() == (10, 6)      # enumeration parity
 
 
 # ── gate (f): Python==C parity on .lattice + the gates ───────────────────────
@@ -247,13 +243,16 @@ def test_python_c_parity_gates_through_native():
     assert RiemannThetaG3.duplication_holds(3)
 
 
-def test_pure_python_oracle_alone_passes_gates():
+def test_pure_python_oracle_alone_passes_gates(pure_riemann_theta):
     """The COMPLETE pure-Python body alone passes every gate (so the carrier is correct
-    on a no-C host)."""
-    assert _t000()._lattice_py(3) == _t000()._lattice_py(3)
+    on a no-C host) — the native path is FORCED OFF (rc106: before this the test
+    carried NO monkeypatch and re-ran the dispatched path under a pure-sounding
+    name). Same windows as before — they were already cheap pure."""
+    assert _t000().lattice(3) == _t000()._lattice_py(3)   # dispatch fell to the oracle
     assert _t000().collapse_g2_lattice_matches(4) is True
     assert _t000().collapse_g1_q_series(20) == THETA3_Q20
     assert RiemannThetaG3.duplication_holds(3)
+    assert pure_riemann_theta == []      # no native symbol was ever reached
 
 
 # ── gate (g): the documented honest boundary (non-hyperelliptic / Schottky) ──

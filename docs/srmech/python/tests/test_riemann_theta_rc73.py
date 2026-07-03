@@ -305,11 +305,14 @@ def test_gates_pass_through_native():
             assert 0 <= k < 8
 
 
-def test_pure_python_alone_passes_new_gates():
+def test_pure_python_alone_passes_new_gates(pure_riemann_theta):
     """The COMPLETE pure-Python body alone passes both new gates (so the carrier is
-    correct on a no-C host)."""
+    correct on a no-C host) — the native path is FORCED OFF (rc106: before this the
+    test carried NO monkeypatch and re-ran the dispatched path under a pure-sounding
+    name). Same windows as before — the g2 addition gate is cheap pure (≈1 s)."""
     assert RiemannTheta.addition_holds(6)
     assert RiemannTheta.addition_is_distinct_from_duplication(6)
+    assert pure_riemann_theta == []      # no native symbol was ever reached
 
 
 # ── gate (E): the carrier source is numpy / math / abs() free ────────────────

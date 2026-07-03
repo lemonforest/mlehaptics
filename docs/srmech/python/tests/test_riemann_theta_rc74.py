@@ -283,12 +283,21 @@ def test_lambda_map_and_goepel_through_native():
     assert RiemannTheta.goepel_is_distinct_from_duplication_and_addition(5)
 
 
-def test_pure_python_alone_passes_new_gates():
+def test_pure_python_alone_passes_new_gates(pure_riemann_theta):
     """The COMPLETE pure-Python body alone passes the new gates (so the carrier is
-    correct on a no-C host)."""
-    assert RiemannTheta.goepel_holds(5)
-    assert RiemannTheta.goepel_is_distinct_from_duplication_and_addition(5)
+    correct on a no-C host) — the native path is FORCED OFF (rc106: every
+    ``has_native_riemann_theta*`` gate monkeypatched False + record-and-raise
+    sentinels; a native hit fails loudly. Before rc106 this test carried NO
+    monkeypatch — on a native host it re-ran the dispatched path a second time
+    under a pure-sounding name; on a no-C host it duplicated the primary gates
+    byte-for-byte). It runs at the Göpel gate's own MINIMAL window (box 4 — the
+    gate's validated minimum; the primary gates above still run boxes 4/5/6
+    dispatched), so the pure run is genuine AND cheap (≈6 s pure vs ≈31 s for the
+    old box-5 re-run)."""
+    assert RiemannTheta.goepel_holds(4)
+    assert RiemannTheta.goepel_is_distinct_from_duplication_and_addition(4)
     assert RiemannTheta.rosenhain_lambda_map_is_well_formed()
+    assert pure_riemann_theta == []      # no native symbol was ever reached
 
 
 def test_eta_map_rejects_bad_index():

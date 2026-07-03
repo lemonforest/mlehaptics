@@ -268,13 +268,21 @@ def test_python_c_parity_gates_through_native():
     assert RiemannThetaG5.duplication_holds(1)
 
 
-def test_pure_python_oracle_alone_passes_gates():
+def test_pure_python_oracle_alone_passes_gates(pure_riemann_theta):
     """The COMPLETE pure-Python body alone passes every gate (so the carrier is correct
-    on a no-C host)."""
-    assert _t0()._lattice_py(2) == _t0()._lattice_py(2)
+    on a no-C host) — the native path is FORCED OFF (rc106: every
+    ``has_native_riemann_theta*`` gate monkeypatched False + record-and-raise
+    sentinels on the ``riemann_theta*_c`` bindings; a native hit fails loudly.
+    Before rc106 this test carried NO monkeypatch — on a native host it re-ran the
+    dispatched path a second time under a pure-sounding name; on a no-C host it
+    duplicated the primary gates byte-for-byte). Same windows as before — the
+    duplication gate at its validated minimum box 1 (THE g5 gate, kept complete
+    pure)."""
+    assert _t0().lattice(2) == _t0()._lattice_py(2)   # dispatch fell to the oracle
     assert _t0().collapse_g4_lattice_matches(2) is True
     assert _t0().collapse_g1_q_series(20) == THETA3_Q20
     assert RiemannThetaG5.duplication_holds(1)
+    assert pure_riemann_theta == []      # no native symbol was ever reached
 
 
 # ── gate (g): the documented GENUINELY-OPEN genus-5 Schottky frontier ─────────

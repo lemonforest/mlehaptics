@@ -133,6 +133,58 @@ def return_type_agrees(raw: Any, advertised: str):
             return True
     return False if any_assertable else None
 
+
+# ──────────────────────────────────────────────────────────────────────
+# rc106 — FORCED pure-Python riemann-theta path (the honest
+# "pure_python_alone" mechanism). Before rc106 the theta test files'
+# ``test_pure_python*alone*`` tests re-ran the DISPATCHED path under a
+# pure-sounding name (no monkeypatch — on a native host they exercised
+# the C peers again; on a no-C host they duplicated the primary gate
+# byte-for-byte). This helper makes the claim real: every
+# ``has_native_riemann_theta*`` availability gate is monkeypatched to
+# ``False`` (so every carrier dispatch falls to the COMPLETE pure body)
+# AND every ``riemann_theta*_c`` native binding is replaced by a sentinel
+# that RECORDS + RAISES — the proof the pure body alone ran is that the
+# test passes at all (a native hit would fail it loudly).
+# ──────────────────────────────────────────────────────────────────────
+
+def riemann_theta_force_pure(mp: "pytest.MonkeyPatch") -> List[str]:
+    """Monkeypatch (via ``mp``) the ENTIRE riemann-theta native surface OFF.
+
+    Returns the (initially empty) list the sentinel appends to — after the
+    pure-path work, assert it is still empty (``assert hits == []``)."""
+    from srmech.amsc import _native as _n
+
+    hits: List[str] = []
+
+    def _gate_off() -> bool:
+        return False
+
+    def _make_sentinel(symbol: str):
+        def _sentinel(*_a, **_k):
+            hits.append(symbol)
+            raise AssertionError(
+                f"native {symbol} was invoked on the FORCED pure riemann-theta "
+                f"path — the pure-python-alone claim would be false")
+        return _sentinel
+
+    for name in dir(_n):
+        if name.startswith("has_native_riemann_theta"):
+            mp.setattr(_n, name, _gate_off)
+        elif name.startswith("riemann_theta") and name.endswith("_c"):
+            mp.setattr(_n, name, _make_sentinel(name))
+    return hits
+
+
+@pytest.fixture
+def pure_riemann_theta(monkeypatch) -> List[str]:
+    """Function-scoped forced-pure riemann-theta path (see
+    :func:`riemann_theta_force_pure`). Yields the sentinel hit-list; the
+    teardown re-asserts no native symbol was ever reached."""
+    hits = riemann_theta_force_pure(monkeypatch)
+    yield hits
+    assert hits == [], f"native riemann-theta symbols invoked: {hits}"
+
 # Mirror of EarthRef SC's html_scraper descriptor — self-contained,
 # usable from tmp_path without touching any external catalog.
 _HTML_SCRAPER_DESCRIPTOR_TOML = """\

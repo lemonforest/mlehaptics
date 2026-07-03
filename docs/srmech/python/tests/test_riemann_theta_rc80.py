@@ -40,6 +40,16 @@ import tokenize
 
 import pytest
 
+# Ensure this tests/ directory is importable when the file is collected alone
+# (the test_immolation.py precedent — pytest's prepend import-mode does not add
+# a package dir with __init__.py, so guard for isolated collection).
+import os as _os
+import sys as _sys
+_TESTS_DIR = _os.path.dirname(_os.path.abspath(__file__))
+if _TESTS_DIR not in _sys.path:
+    _sys.path.insert(0, _TESTS_DIR)
+from conftest import riemann_theta_force_pure
+
 from srmech.amsc.riemann_theta import RiemannTheta, RiemannThetaG3, RiemannThetaG4
 from srmech.amsc import _native
 
@@ -51,6 +61,39 @@ def _t0() -> RiemannThetaG4:
 
 # the exact θ₃ target series (the rc70 anchor; the all-trivial collapse chain)
 THETA3_Q20 = [1, 2, 0, 0, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0]
+
+
+def _restrict_g4(lat, safe):
+    """The genus-4 duplication gate's safe-inner-region restriction — the SAME
+    predicate ``duplication_holds`` applies internally (every ``Aᵢ`` and ``|C_ij|``
+    ≤ ``safe``; Class-K magnitudes, no ``abs()``)."""
+    kept = {}
+    for k, v in lat.items():
+        a1, a2, a3, a4, c12, c13, c14, c23, c24, c34 = k
+        mags = [c if c >= 0 else -c
+                for c in (c12, c13, c14, c23, c24, c34)]
+        if (a1 <= safe and a2 <= safe and a3 <= safe and a4 <= safe
+                and all(m <= safe for m in mags)):
+            kept[k] = v
+    return kept
+
+
+@pytest.fixture(scope="module")
+def g4_dup_sides_pure():
+    """The genus-4 duplication sides at the gate box (2), convolved ONCE per module
+    on the FORCED-pure path (rc106) and shared by the safe-region test + the
+    pure-alone test — before rc106 the same dense convolution ran THREE times
+    across this file (the #707 profile finding). The lattice-source swap
+    (native → pure) costs no coverage: ``test_python_c_parity_all_characteristics``
+    proves native == pure for ALL 256 characteristics over boxes 0–3, and the
+    primary ``duplication_holds(2)`` gate keeps its own untouched dispatched
+    run."""
+    with pytest.MonkeyPatch.context() as mp:
+        hits = riemann_theta_force_pure(mp)
+        lhs = RiemannThetaG4.duplication_lhs(2)
+        rhs = RiemannThetaG4.duplication_rhs(2)
+    assert hits == []                    # no native symbol was ever reached
+    return lhs, rhs
 
 
 # ── gate (a): the GENUS axis (genus 4; 136 even + 120 odd) ────────────────────
@@ -177,27 +220,16 @@ def test_genus4_duplication_identity_holds_exact():
     assert RiemannThetaG4.duplication_holds(2)
 
 
-def test_genus4_duplication_lhs_equals_rhs_on_safe_region():
+def test_genus4_duplication_lhs_equals_rhs_on_safe_region(g4_dup_sides_pure):
     """The two sides of the genus-4 duplication identity are equal on the safe inner
     region, and the region is non-trivially populated with a genuine genus-4 cross-term
-    (C₁₄/C₂₄/C₃₄ ≠ 0) monomial (so the genuinely-new 4-way coupling is exercised)."""
+    (C₁₄/C₂₄/C₃₄ ≠ 0) monomial (so the genuinely-new 4-way coupling is exercised).
+    rc106: the sides come from the module's ONE forced-pure convolution (see
+    ``g4_dup_sides_pure``) instead of a second identical convolution."""
     box = 2
-    lhs = RiemannThetaG4.duplication_lhs(box)
-    rhs = RiemannThetaG4.duplication_rhs(box)
+    lhs, rhs = g4_dup_sides_pure
     safe = 4 * box * box
-
-    def restrict(lat):
-        kept = {}
-        for k, v in lat.items():
-            a1, a2, a3, a4, c12, c13, c14, c23, c24, c34 = k
-            mags = [c if c >= 0 else -c
-                    for c in (c12, c13, c14, c23, c24, c34)]
-            if (a1 <= safe and a2 <= safe and a3 <= safe and a4 <= safe
-                    and all(m <= safe for m in mags)):
-                kept[k] = v
-        return kept
-
-    L, R = restrict(lhs), restrict(rhs)
+    L, R = _restrict_g4(lhs, safe), _restrict_g4(rhs, safe)
     assert L == R
     # genuine genus-4 cross-term: C14 (idx 6) / C24 (idx 8) / C34 (idx 9)
     assert any(k[6] != 0 or k[8] != 0 or k[9] != 0 for k in L)
@@ -205,15 +237,20 @@ def test_genus4_duplication_lhs_equals_rhs_on_safe_region():
 
 # ── gate (e): NO REGRESSION — the genus-2 + genus-3 gates still pass ──────────
 def test_no_regression_rc72_73_74_genus2_gates():
-    """The genus-4 extension does not regress the genus-2 carrier — the rc72/73/74
-    genus-2 collapse + duplication + addition + Göpel gates still pass exactly."""
+    """The genus-4 extension does not regress the genus-2 carrier — CHEAP structural
+    checks only (rc106): the collapse chain is bit-exact, the symbolic Rosenhain
+    λ-map is well-formed, and the even/odd enumeration parity holds. The dense g2
+    convolution gates are deliberately NOT re-run here — each is covered by its home
+    file's PRIMARY gates in the SAME suite run (``duplication_holds(4/6/8)`` = rc72;
+    ``addition_holds(4/6/8)`` + ``addition_is_distinct(6/8)`` = rc73;
+    ``goepel_holds(4/5/6)`` + ``goepel_is_distinct(4/5)`` + Rosenhain = rc74) —
+    before rc106 this file re-ran ``duplication_holds(6)`` + ``addition_holds(8)`` +
+    ``addition_is_distinct(8)`` + ``goepel_holds(5)`` identically (≈28 s of literal
+    duplicate convolution)."""
     g2 = RiemannTheta.theta_constant((0, 0), (0, 0))
-    assert g2.collapse_g1_q_series(20) == THETA3_Q20
-    assert RiemannTheta.duplication_holds(6)
-    assert RiemannTheta.addition_holds(8)
-    assert RiemannTheta.addition_is_distinct_from_duplication(8)
-    assert RiemannTheta.goepel_holds(5)
-    assert RiemannTheta.rosenhain_lambda_map_is_well_formed()
+    assert g2.collapse_g1_q_series(20) == THETA3_Q20      # rc72 collapse chain
+    assert RiemannTheta.rosenhain_lambda_map_is_well_formed()   # rc74 symbolic map
+    assert RiemannTheta.even_null_count() == (10, 6)      # enumeration parity
 
 
 def test_no_regression_rc75_76_77_78_genus3_gates():
@@ -261,13 +298,24 @@ def test_python_c_parity_gates_through_native():
     assert RiemannThetaG4.duplication_holds(2)
 
 
-def test_pure_python_oracle_alone_passes_gates():
+def test_pure_python_oracle_alone_passes_gates(pure_riemann_theta, g4_dup_sides_pure):
     """The COMPLETE pure-Python body alone passes every gate (so the carrier is correct
-    on a no-C host)."""
-    assert _t0()._lattice_py(2) == _t0()._lattice_py(2)
+    on a no-C host) — the native path is FORCED OFF (rc106: before this the test
+    carried NO monkeypatch and re-ran the dispatched path — including a THIRD
+    identical convolution of the duplication sides — under a pure-sounding name).
+    The duplication gate's decision (safe-region equality at ``safe = 4·box²`` +
+    the genuine genus-4 cross-term — the IDENTICAL predicate ``duplication_holds(2)``
+    applies internally) is asserted on the module's forced-pure sides without
+    re-convolving them."""
+    assert _t0().lattice(2) == _t0()._lattice_py(2)   # dispatch fell to the oracle
     assert _t0().collapse_g3_lattice_matches(3) is True
     assert _t0().collapse_g1_q_series(20) == THETA3_Q20
-    assert RiemannThetaG4.duplication_holds(2)
+    lhs, rhs = g4_dup_sides_pure
+    safe = 4 * 2 * 2
+    L, R = _restrict_g4(lhs, safe), _restrict_g4(rhs, safe)
+    assert L == R
+    assert any(k[6] != 0 or k[8] != 0 or k[9] != 0 for k in L)
+    assert pure_riemann_theta == []      # no native symbol was ever reached
 
 
 # ── gate (g): the documented SCHOTTKY frontier ────────────────────────────────
