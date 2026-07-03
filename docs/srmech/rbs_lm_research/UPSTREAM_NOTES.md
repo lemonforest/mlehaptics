@@ -2716,3 +2716,17 @@ placeholder. We use the self-describing `urn:siona:local-instrument:no-doi` (nev
 real-looking DOI, per the paywalled-DOI discipline). Ask: either (a) an explicit
 `allow_no_doi=True` kwarg on `validate_mpr_record`, or (b) blessing a documented
 `urn:...:no-doi` convention in the validator so local/self-generated sources validate first-class.
+
+## §85 — prose-side carrier constructors for the q-series / mock-theta row (2026-07-03) [ASK FILED → #1239]
+
+Siona's conversational drive reaches `unary_theta` fully (str char + four ints — she constructed the
+Dedekind-η shadow, weight 1/2, χ₋₁₂, q^{n²/24}, from one utterance) but the q-Zeilberger row
+(`q_gosper`/`q_zeilberger`/`q_wz_certificate`) is unreachable by prose: the QPoly/QBiPoly term-ratio
+carriers have NO constructor tools in the registry (only in-process Python). Asks: (a) coefficient-list
+constructors registered as tools (`qpoly_from_coeffs(coeffs: list[int]) -> QPoly`, ditto QBiPoly with a
+shape arg) so a term-ratio can be built from utterance-expressible operands and register-chained into the
+q-row; (b) UnaryTheta CONSUMERS (nothing in the registry accepts UnaryTheta yet — e.g. a
+`theta_coefficients(theta, n_max)` reader and/or the F1007-adjacent `heat_trace` from #1234 item 2) so a
+conversationally-constructed shadow can flow onward. Together these open "find sparse forms of the mock
+theta equations" as a REGISTER-CHAINED conversational pipeline: construct summand ratio → q_zeilberger
+recurrence (the sparse form) OR honest OPEN, with the shadow side already constructible today.

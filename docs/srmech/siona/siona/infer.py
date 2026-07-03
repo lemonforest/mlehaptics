@@ -100,8 +100,9 @@ class Grounding:
         # the eval at 15/18 while recovering 3/5 alias cases; the byteglyph-vector alternative was
         # REJECTED read-independently (+0.130 index-wide cross-talk AND worse alias, 1/5).
         def covers(t):
-            return any(w == t or (len(t) >= 3 and w.startswith(t) and len(w) - len(t) <= 4)
-                       for w in qt)
+            return any(w == t or (len(t) >= 3 and w.startswith(t) and len(w) - len(t) <= 5)
+                       for w in qt)  # cap 5 measured 2026-07-03: recovers hypotenuse->hypot;
+                                     # cap-4 pool was empty, cap-5 pool exactly ['hypot']
         pool = [n for n in self._byname
                 if (owner is None or self.tools[n].owner == owner)
                 and self._nm[n] and all(covers(t) for t in self._nm[n])]
@@ -136,6 +137,7 @@ def _register_self_tools():
         T("siona.read.answer", "Answer a question from remembered knowledge: compose recalled facts with ingested unit-conversion kernels to derive the asked value exactly (celsius to fahrenheit and similar unit questions)."),
         T("siona.knowledge.load", "Load a knowledge instrument by path (an RBS-HDC NDJSON instrument with its title index). Knowledge is user-side data; the wheel ships mechanism only."),
         T("siona.knowledge.acquire", "Acquire a topic from the loaded instrument: look up the title, take the lead, store it as an ATTESTED note (source path + byte offset + sha256 of the record -- Class-A provenance)."),
+        T("siona.knowledge.study", "Study a topic from the loaded instrument: acquire the FULL bounded article body (up to 400 tokens) as one attested note, so formulas and their verification anchors coexist."),
         T("siona.knowledge.pack", "Pack the acquired attested notes into a persistent Laplacian-encoded store (co-occurrence -> normalized Laplacian -> eigenmodes) written to the given path and verified by reload."),
     ])
 
@@ -162,7 +164,7 @@ class Session:
             "siona.read.define": self._define, "siona.read.continue_text": self._continue,
             "siona.introspect.help": self._help, "siona.read.answer": self._answer,
             "siona.knowledge.load": self._k_load, "siona.knowledge.acquire": self._k_acquire,
-            "siona.knowledge.pack": self._k_pack,
+            "siona.knowledge.study": self._k_study, "siona.knowledge.pack": self._k_pack,
         }
 
     # ---- router (F1010: declared operators + operand shape; continue = the default) ----
@@ -277,7 +279,7 @@ class Session:
     def _finish_self(self, pick, u, ws, b):
         if pick.startswith("siona.knowledge."):
             raw = [w for w in u.split() if w.lower() != b.address]
-            if raw and raw[0].lower() in ("load", "acquire", "learn", "pack"):
+            if raw and raw[0].lower() in ("load", "acquire", "learn", "pack", "study"):
                 raw = raw[1:]
             return pick.split(".")[-1], self._impl[pick](" ".join(raw))
         if pick == "siona.memory.remember":
@@ -293,11 +295,37 @@ class Session:
     # ---- the drive loop (F1009 + F1012 cross-turn operand resolution) ----
     REF_WORDS = frozenset({"it", "its", "that", "result"})  # the RESULT REGISTER reference operators
 
-    def _fit(self, t, ints, fls, byts, edges=(), ref=None):
+    def _named_params(self, t, u):
+        """Utterance-named scalar params ('with 10 terms' / 'terms 10') -- shared by bind AND fit
+        (a named optional param CONSUMES an operand, so it counts in the exactness accounting)."""
+        named, ul = {}, u.lower()
+        for p in t.parameters:
+            if any(k in p.type.lower() for k in ("list", "tuple", "sequence", "bytes")):
+                continue  # named extraction is for SCALAR params only ('edges 0-1' must not match edges=0)
+            nm = re.escape(p.name.lower())
+            if p.type.lower().strip() == "str":
+                m = re.search(r"\b%s\s+([a-z][a-z0-9_]*)" % nm, ul)
+                if m:
+                    named[p.name] = m.group(1)
+                continue
+            m = (re.search(r"\b%s\s+(-?\d+(?:\.\d+)?)" % nm, ul)
+                 or re.search(r"(-?\d+(?:\.\d+)?)\s+%s\b" % nm, ul))
+            if m:
+                named[p.name] = m.group(1)
+        return named
+
+    def _fit(self, t, ints, fls, byts, edges=(), ref=None, u=""):
         pt = lambda p: p.type.lower().strip()
         reqs = [p for p in t.parameters if p.required]
         if not reqs:
             return 0.0
+        named = self._named_params(t, u) if u else {}
+        strp = [p for p in reqs if pt(p) == "str"]
+        if strp and not all(p.name in named for p in strp):
+            return 0.0                          # a required str param binds by NAME or not at all
+        reqs = [p for p in reqs if pt(p) != "str"]
+        if not reqs and strp:
+            return 2.0
         intp = sum(1 for p in reqs if pt(p) == "int")
         fltp = sum(1 for p in reqs if pt(p) == "float")
         bytp = sum(1 for p in reqs if "bytes" in pt(p))
@@ -320,7 +348,8 @@ class Session:
             return 0.4 if ints else 0.0
         if intp > len(ints):
             return 0.0
-        exact = (intp + fltp == len(ints) + len(fls)) and (bytp > 0) == (byts is not None)
+        named_n = len(named)
+        exact = (intp + fltp + named_n == len(ints) + len(fls)) and (bytp > 0) == (byts is not None)
         return 2.0 if exact else 1.0
 
     def _drive_tool(self, u):
@@ -330,7 +359,7 @@ class Session:
                and any(w in self.REF_WORDS for w in _toks(u)) else None)
         cands = [n for _, n in self.g.ground(u, 5, owner="srmech")]
         resolved = ""
-        if all(self._fit(self.g.tools[n], ints, fls, byts, edges, ref) == 0.0 for n in cands) and self.mem:
+        if all(self._fit(self.g.tools[n], ints, fls, byts, edges, ref, u) == 0.0 for n in cands) and self.mem:
             # cross-turn operand resolution: the utterance under-supplies -> recall the referenced note
             kw = self.board.kernel_ops["kernel"]
             topname = self.g._nm[cands[0]]
@@ -344,7 +373,7 @@ class Session:
                 mem_ints = [int(w) for w in _toks(note) if w.isdigit()]
                 ints = mem_ints[:1] + ints
                 resolved = ' [operand %s resolved from: "%s"]' % (mem_ints[:1], note)
-        scored = sorted(((self._fit(self.g.tools[n], ints, fls, byts, edges, ref), -cands.index(n), n)
+        scored = sorted(((self._fit(self.g.tools[n], ints, fls, byts, edges, ref, u), -cands.index(n), n)
                          for n in cands), reverse=True)
         ranked = [n for f, _, n in scored if f > 0] or cands[:1]
         # FAILED-RUN RECOVERY (hardening ii): try fit-positive candidates in order; a raise moves to
@@ -387,22 +416,15 @@ class Session:
     def _bind_args(self, pick, u, ints, fls, byts, edges=(), ref=None):
         # NAMED operands: match the tool's OWN declared parameter names in the utterance,
         # both orders ('terms 12' / '12 terms'). Schema-driven — no per-tool code.
-        named, ul = {}, u.lower()
-        for p in self.g.tools[pick].parameters:
-            if any(k in p.type.lower() for k in ("list", "tuple", "sequence", "bytes")):
-                continue  # named extraction is for SCALAR params only ('edges 0-1' must not match edges=0)
-            nm = re.escape(p.name.lower())
-            m = (re.search(r"\b%s\s+(-?\d+(?:\.\d+)?)" % nm, ul)
-                 or re.search(r"(-?\d+(?:\.\d+)?)\s+%s\b" % nm, ul))
-            if m:
-                named[p.name] = m.group(1)
+        named = self._named_params(self.g.tools[pick], u)
         fq = list(fls)
         args, kw, ii = [], {}, 0
         for p in self.g.tools[pick].parameters:
             tp = p.type.lower().strip()
             if p.name in named:
                 v = named[p.name]
-                kw[p.name] = float(v) if tp == "float" else int(float(v))  # by NAME (keyword-only safe)
+                kw[p.name] = (v if tp == "str"
+                              else float(v) if tp == "float" else int(float(v)))  # by NAME (kw-only safe)
                 if "." in v and fq:
                     fq.pop(0)
                 elif v.lstrip("-").isdigit() and int(v) in ints:
@@ -459,6 +481,55 @@ class Session:
                 parts.append(self.g.cs.enc(w))                        # spelling bridge unavailable)
         parts += self.g._bg(ws)
         return self.g.cs.bundle_odd(parts or [self.g.vec("_")])
+
+    def _cite(self, i):
+        for a in self.attestations:
+            if a.get("note_index") == i:
+                return " [attested: %s | sha256=%s]" % (
+                    a["rendering"]["cite_as"], a["attestation"]["response_sha256"][:12])
+        return ""
+
+    def _compare(self, text):
+        """MULTI-NOTE SYNTHESIS (the F774 compare op over attested notes): a comparative frame
+        names a unit and >=2 topics; each topic resolves to ITS note (attestation topic first --
+        month articles mention neighbor months, so token-presence alone mis-pairs), the unit's
+        value extracts per-note by the same adjacency read, and the verdict is an EXACT integer
+        compare. Misses fall to extraction -> recall."""
+        b = self.board
+        ws = _toks(text)
+        unit = next((ws[i + 1] for i, w in enumerate(ws)
+                     if w in b.comparison_words and i + 1 < len(ws)), None)
+        if not unit or not self.mem:
+            return self._extract(text)
+        cov = lambda a, c: (a == c or (min(len(a), len(c)) >= 3
+                            and (a.startswith(c) or c.startswith(a))
+                            and len(a) - len(c) in range(-4, 5)))
+        by_topic = {a["data"]["topic"]: a["note_index"] for a in self.attestations
+                    if "data" in a and "topic" in a.get("data", {})}
+        found = {}
+        for t in ws:
+            ni = by_topic.get(t)
+            if ni is None:                      # unattested notes: first-token identity only
+                ni = next((i for i, n in enumerate(self.mem)
+                           if _toks(n) and _toks(n)[0] == t), None)
+            if ni is None or t in found:
+                continue
+            nt = _toks(self.mem[ni])
+            for j, w in enumerate(nt):
+                if cov(w, unit):
+                    for k in (j - 1, j - 2):
+                        if k >= 0 and nt[k].isdigit():
+                            found[t] = (int(nt[k]), ni)
+                            break
+                    if t in found:
+                        break
+        if len(found) < 2:
+            return self._extract(text)
+        ranked = sorted(found.items(), key=lambda kv: -kv[1][0])
+        low_side = any(w in ("fewer", "less", "fewest", "shorter", "smaller") for w in ws)
+        winner = ranked[-1][0] if low_side else ranked[0][0]
+        parts = " vs ".join("%s: %d %s%s" % (t, v, unit, self._cite(ni)) for t, (v, ni) in ranked)
+        return "%s -- exact integer compare: %s" % (winner, parts)
 
     def _best_note(self, text):
         qv = self._enc_note(text)
@@ -562,9 +633,42 @@ class Session:
         except (ValueError, IndexError):
             return None
 
+    WIKI_KERNEL = re.compile(  # the attested conversion shape in RAW note text (markup-stripped
+        # simplewiki): '<tgtword> is <L1> <A> <B> x <L2> <K>' == TGT = A/B * (SRC - K).
+        # Single-letter units survive in raw notes (only _toks drops them).
+        r"\b([a-z]+) is ([a-z]) (\d+) (\d+) x ([a-z]) (\d+)\b")
+
+    def _wiki_kernel(self, tgt):
+        """Find an ATTESTED conversion kernel in acquired notes (preferred over session-ingested:
+        attestation beats hand-typed, MPM). Returns (a, b, c, src_word, note_i) for
+        TGT = (a*src + c*b)/b -- the exact-rational inversion of 'other = A/B*(TGT - K)' when the
+        asked target sits on the SRC side -- plus K self-VERIFIED against the note's own anchor."""
+        for i, note in enumerate(self.mem):
+            m = self.WIKI_KERNEL.search(note)
+            if not m:
+                continue
+            other, A, B, K = m.group(1), int(m.group(3)), int(m.group(4)), int(m.group(6))
+            topic = next((a["data"]["topic"] for a in self.attestations
+                          if a.get("note_index") == i and "data" in a), None)
+            if not topic:
+                continue
+            # self-verify K against the same note's anchor fact ('freezes at 32 f'): the offset
+            # constant must appear as an attested anchor value, else the parse is rejected.
+            if not re.search(r"\b%d %s\b" % (K, m.group(5)), note):
+                continue
+            if tgt.startswith(topic[:4]) or topic.startswith(tgt[:4]):
+                # asked the SRC side: invert other = A/B*(tgt - K)  ->  tgt = B/A*other + K
+                return B, A, K, other, i
+            if tgt.startswith(other[:4]) or other.startswith(tgt[:4]):
+                # asked the TGT side as written: tgt = A/B*src - A/B*K  (c*b form: -K*A over B)
+                return A, B, -K * A // B if (K * A) % B == 0 else None, topic, i
+        return None
+
     def _answer(self, text):
         from srmech.amsc import cyclic
         ws = _toks(text)
+        if any(w in self.board.comparison_words for w in ws):
+            return self._compare(text)          # multi-note synthesis (F774 compare op)
         qmark = next((w for w in ws if w in self.board.interrogatives), None)
         tgt = ws[ws.index(qmark) + 1] if qmark and ws.index(qmark) + 1 < len(ws) else None
         if tgt in self.board.quantity_words:           # 'how MANY days' -> the unit is next
@@ -572,10 +676,16 @@ class Session:
             tgt = ws[i] if i < len(ws) else None
         if not tgt:
             return self._extract(text)  # honest miss -> extraction tier -> cited recall
-        kern = next((k for k in (self._parse_kernel(m) for m in self.mem) if k and k[0] == tgt), None)
-        if not kern:
-            return self._extract(text)  # honest miss -> extraction tier -> cited recall
-        _, src, a, b, c = kern
+        wk = self._wiki_kernel(tgt)                    # attestation beats hand-typed (MPM)
+        if wk and wk[2] is not None:
+            a, b, c, src, kn_i = wk
+        else:
+            kern = next((k for k in (self._parse_kernel(m) for m in self.mem) if k and k[0] == tgt),
+                        None)
+            if not kern:
+                return self._extract(text)  # honest miss -> extraction tier -> cited recall
+            _, src, a, b, c = kern
+            kn_i = None
         kw = self.board.kernel_ops["kernel"]
         facts = [m for m in self.mem if src in _toks(m) and kw not in _toks(m)
                  and any(w.isdigit() for w in _toks(m))]
@@ -593,8 +703,14 @@ class Session:
         num, den = num // g, den // g
         shown = str(num) if den == 1 else "%d/%d" % (num, den)
         self.mem.append("%s %s = %s %s (derived from: %s)" % (fact.split()[0], tgt, shown, tgt, fact))
+        prov = ""
+        if kn_i is not None:                           # the kernel came from an ACQUIRED note
+            prov = " via the kernel acquired from the attested note%s" % self._cite(kn_i)
+            if den == 1 and re.search(r"\b%d [a-z]\b" % num, self.mem[kn_i]):
+                prov += "; independently CONFIRMED by the article's own anchor value %d" % num
         return ('%s %s (EXACT: (%d*%d + %d*%d)/%d = %d/%d, reduced via srmech gcd; '
-                'from the fact "%s" through the kernel)') % (shown, tgt, v, a, c, b, b, num, den, fact)
+                'from the fact "%s"%s)') % (shown, tgt, v, a, c, b, b, num, den, fact,
+                                            prov or " through the kernel")
 
     # ---- PERSISTENCE (the --persist context instrument; never-compacted, user-directed pruning only) ----
     STATE_FORMAT = "siona-session-state/1"
@@ -670,7 +786,11 @@ class Session:
 
     ACQUIRE_RULE = "lead = first 40 whitespace tokens of record['s'] at the indexed byte offset"
 
-    def _k_acquire(self, text):
+    def _k_study(self, text):
+        return self._k_acquire(text, window=400)   # full bounded body -- the kernel AND its
+                                                    # verification anchors coexist in one note
+
+    def _k_acquire(self, text, window=40):
         if not self.instrument:
             return "(no instrument loaded -- 'load <path>' first)"
         import json as _json
@@ -688,7 +808,7 @@ class Session:
             f.seek(off)
             raw = f.readline()
         rec = _json.loads(raw)
-        lead = " ".join(rec["s"].split()[:40])                 # the lead = the acquirable fact-size read
+        lead = " ".join(rec["s"].split()[:window])             # the lead = the acquirable read
         import srmech
         mpr = MPRRecord(
             mpr_version="1.0",
