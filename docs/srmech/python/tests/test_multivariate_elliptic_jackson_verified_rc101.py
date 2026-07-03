@@ -244,8 +244,8 @@ def test_router_malformed_params_route_to_open():
 
 
 # ── (5) scope — tools.total stays 362 (a flag + router gate, NOT a new ToolEntry) ───────
-def test_tools_total_stays_363():
-    assert introspect.describe()["tools"]["total"] == 363
+def test_tools_total_stays_367():
+    assert introspect.describe()["tools"]["total"] == 367
 
 
 # ── (6) the "inform, don't LIMIT" RAM-cost approximation (rc103 finisher) ───────────────

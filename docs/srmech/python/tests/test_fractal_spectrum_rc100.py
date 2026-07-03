@@ -24,7 +24,7 @@ Coverage:
       DIFFERENT fracton dimension d_s ≈ 2.9299, q_octaves 2;
   (c) a coefficient-sequence R is coerced (== the Poly path);
   (d) input validation (R(0)≠0 / degree<2 / scale≤1 / branches<2 reject);
-  (e) the op is REGISTERED (in the tool schema; tools.total == 363);
+  (e) the op is REGISTERED (in the tool schema; tools.total == 367);
   (f) the module source is numpy / math / abs()-free.
 """
 
@@ -147,7 +147,7 @@ def test_rejects_uncoercible_R():
 
 
 # ─────────────────────────────────────────────────────────────────────
-# (e) the op is REGISTERED (tool schema; tools.total == 363)
+# (e) the op is REGISTERED (tool schema; tools.total == 367)
 # ─────────────────────────────────────────────────────────────────────
 def test_registered_in_tool_schema():
     from srmech.amsc import tool_schema
@@ -164,10 +164,10 @@ def test_registered_in_tool_schema():
     assert ptypes["branches"] == "int"
 
 
-def test_tools_total_is_363():
+def test_tools_total_is_367():
     from srmech import introspect
 
-    assert introspect.describe()["tools"]["total"] == 363
+    assert introspect.describe()["tools"]["total"] == 367
 
 
 # ─────────────────────────────────────────────────────────────────────

@@ -3321,6 +3321,112 @@ def _register_primitive_class_tools() -> None:
                       "certificates, or None when none of order ≤ max_order"),
         ),
         # ────────────────────────────────────────────────────────────
+        # rc113 (#1239 / F1027 / UPSTREAM §85): the PROSE-SIDE carrier
+        # constructors. The conversational grounded-inference loop (siona)
+        # binds utterance-expressible operands (ints / floats / strs / bytes /
+        # edge-pairs) and chains RETURNED carriers via its result register —
+        # but nothing in the registry RETURNED a Poly / QPoly / QBiPoly, so
+        # the Σ-row + q-row engines were unreachable by prose. These three
+        # non_compute BUILDERS (the from_bodies / cooccurrence_edges
+        # precedent) close that gap: integer coefficient lists in → the exact
+        # carrier out, register-chainable into gosper / zeilberger /
+        # wz_certificate / q_gosper / q_zeilberger / q_wz_certificate.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.poly.poly_from_coeffs", owner="srmech",
+            category="poly",
+            summary="PROSE-SIDE carrier constructor (#1239 / F1027 / UPSTREAM "
+                    "§85): build the exact-ℚ polynomial carrier Poly from an "
+                    "ascending-degree list of INTEGER coefficients — coeffs[i] "
+                    "is the coefficient of k**i ([0, 1] is k; [1, 1] is 1+k). "
+                    "The utterance-expressible builder that makes the Σ-row "
+                    "engines' Poly term-ratio operands (gosper / zeilberger / "
+                    "wz_certificate) REGISTER-CHAINABLE from a conversational "
+                    "loop: before rc113 no registered tool RETURNED a Poly a "
+                    "result register could chain. Ints only — the exact-ℚ "
+                    "prose discipline (integers ARE exact; a float / bool / "
+                    "str coefficient is an honest TypeError; exact rationals "
+                    "enter via the in-process Poly.from_coeffs). A non_compute "
+                    "BUILDER (the coupling.from_bodies / text."
+                    "cooccurrence_edges precedent — it constructs an operand; "
+                    "every computation lives in the ops that consume it). "
+                    "numpy-free; no float; no abs().",
+            parameters=(P("coeffs", "list[int]", True,
+                          "ascending-degree integer coefficients "
+                          "(coeffs[i] is the coefficient of k**i)"),),
+            returns=R("Poly",
+                      "the exact-ℚ polynomial carrier (chainable into the "
+                      "gosper / zeilberger / wz_certificate Poly params)"),
+            smoke_test_hint={"coeffs": "[0, 1]"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.qpoly.qpoly_from_coeffs", owner="srmech",
+            category="qpoly",
+            summary="PROSE-SIDE carrier constructor (#1239 / F1027 / UPSTREAM "
+                    "§85): build the exact ℚ[q] q-shift carrier QPoly (Laurent "
+                    "in x=qᵏ) from an ascending-x list of INTEGER-LEAF cells — "
+                    "coeffs[i] is the ℚ[q] coefficient of x**(x_low+i), each "
+                    "cell an int (a constant-in-q coefficient) OR a list of "
+                    "ints (the ASCENDING-q-DEGREE coefficient: [0, 1] is q, "
+                    "[0, 2] is 2q, [0, 0, 1] is q²). Worked forms: the "
+                    "q-geometric ratio x = [0, 1]; the order-3 MOCK-THETA term "
+                    "ratio q·x²/(1+q·x)² = numerator [0, 0, [0, 1]] over "
+                    "denominator [1, [0, 2], [0, 0, 1]] — the operands that "
+                    "make 'find the sparse form of a mock theta equation' a "
+                    "register-chained pipeline into q_gosper. NOTE the prose "
+                    "grammar is deliberately UNAMBIGUOUS: a list cell is "
+                    "ALWAYS ascending-q ints (never the in-process carrier's "
+                    "(num, den) rational-pair reading); a float / bool / str "
+                    "leaf is an honest TypeError (integers ARE exact ℚ). "
+                    "x_low (optional, default 0) is the lowest x-exponent (a "
+                    "negative value = a genuine Laurent tail). A non_compute "
+                    "BUILDER (the from_bodies / cooccurrence_edges precedent). "
+                    "numpy-free; no float; no abs().",
+            parameters=(P("coeffs", "list", True,
+                          "ascending-x cells: each an int (constant in q) or "
+                          "an ascending-q-degree list of ints ([0, 1] = q)"),
+                        P("x_low", "int", False,
+                          "the lowest x-exponent (default 0; negative = "
+                          "Laurent tail)")),
+            returns=R("QPoly",
+                      "the exact ℚ[q] q-shift carrier (chainable into the "
+                      "q_gosper rn_num / rn_den params)"),
+            smoke_test_hint={"coeffs": "[0, 1]"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.qbipoly.qbipoly_from_coeffs", owner="srmech",
+            category="qbipoly",
+            summary="PROSE-SIDE carrier constructor (#1239 / F1027 / UPSTREAM "
+                    "§85): build the exact bivariate-q carrier QBiPoly (a "
+                    "polynomial in Y=qᵏ whose coefficients are QPoly in X=qⁿ) "
+                    "from a Y-ascending list of INTEGER-LEAF x-cell lists — "
+                    "coeffs[d] is the Y**d coefficient, itself an ascending-X "
+                    "list whose entries follow the qpoly_from_coeffs cell "
+                    "grammar (int = constant in q; list of ints = ascending-q "
+                    "degree, so [0, 1] is q — never a rational pair). Worked "
+                    "forms — the q-binomial-theorem term F(n,k)=[n,k]_q·"
+                    "q^{C(k,2)} (the rc56 keystone) written entirely with "
+                    "integer leaves: r_k num X−Y = [[0, 1], [-1]]; r_k den "
+                    "qY−1 = [[-1], [[0, 1]]]; r_n num (qX−1)·Y = [[0], [-1, "
+                    "[0, 1]]]; r_n den qX−Y = [[0, [0, 1]], [-1]] → "
+                    "q_zeilberger certifies the ORDER-1 recurrence (1+qⁿ)f(n)"
+                    "−f(n+1)=0. THE PIPELINE OPENER: before rc113 no "
+                    "registered tool RETURNED a QBiPoly, so the definite-q-sum "
+                    "engine (q_zeilberger / q_wz_certificate) was unreachable "
+                    "by prose. A non_compute BUILDER (the from_bodies / "
+                    "cooccurrence_edges precedent); a float / bool / str leaf "
+                    "is an honest TypeError (integers ARE exact ℚ). numpy-"
+                    "free; no float; no abs().",
+            parameters=(P("coeffs", "list[list[int]]", True,
+                          "Y-ascending list of x-cell lists; each x-entry an "
+                          "int (constant in q) or an ascending-q-degree list "
+                          "of ints ([0, 1] = q)"),),
+            returns=R("QBiPoly",
+                      "the exact bivariate-q carrier (chainable into the "
+                      "q_zeilberger / q_wz_certificate rn/rk params)"),
+            smoke_test_hint={"coeffs": "[[0, 1], [-1]]"},
+        ),
+        # ────────────────────────────────────────────────────────────
         # The q-HYPERGEOMETRIC row of the §76 telescope Σ-row prover (F929) —
         # q-Gosper, the FIRST public op of the q-row (the q-analog of gosper).
         # Decides q-Gosper-summability of a q-hypergeometric term over the rc54
@@ -4042,6 +4148,51 @@ def _register_primitive_class_tools() -> None:
                       "the weight-graded carrier (.weight = Q(1,2)+j; "
                       ".q_series(N) → exact integer coefficients; "
                       ".leading_power() → the factored-out q-power)"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # rc113 (#1239 / F1027 / UPSTREAM §85): theta_coefficients — the FIRST
+        # registered CONSUMER of the UnaryTheta carrier (a conversationally-
+        # built shadow was a dead end after display). COMPUTE, dispatched
+        # through the EXISTING rc70 1:1 C peer srmech_unary_theta (q_series
+        # routes to it) — no new C symbol; the mirror already ships.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.unary_theta.theta_coefficients",
+            owner="srmech", category="unary_theta",
+            summary="READ a UnaryTheta's exact integer q-expansion — the FIRST "
+                    "registered CONSUMER of the UnaryTheta carrier (#1239 / "
+                    "F1027 / UPSTREAM §85: before rc113 no tool ACCEPTED a "
+                    "UnaryTheta, so a conversationally-built shadow was a dead "
+                    "end after display). Returns [c_0, …, c_n_max] — the exact "
+                    "INTEGER coefficients after factoring out the leading "
+                    "q-power (exactly UnaryTheta.q_series): θ₃ → [1, 2, 0, 0, "
+                    "2, …]; the g₃ order-3 mock-theta shadow → the Zagier "
+                    "coefficients [1, −5, −7, 0, 0, 11, 0, 13, …] (Astérisque "
+                    "326 (2009), Exp. 986, p. 150 — the rc70 anchors, the SSOT "
+                    "citation). The q-SIDE coefficient read dual to the "
+                    "Laplacian-side theta trace (laplacian.heat_trace reads "
+                    "Tr e^{−tL}, the spectral theta; this reads the carrier's "
+                    "own q-series). COMPUTE, C-DISPATCHED through the EXISTING "
+                    "rc70 1:1 peer srmech_unary_theta (byte-identical exact-"
+                    "integer mirror over caller-arena srmech_bigint; a bare C "
+                    "host calls srmech_unary_theta directly) — no new C symbol "
+                    "needed, the mirror already ships. A JSON caller may pass "
+                    "theta='g3' (the named shadow — the MCP coercer builds "
+                    "it); an in-process / result-register caller chains the "
+                    "UnaryTheta returned by unary_theta. Exact bignum ints; "
+                    "no float, no abs() (the χ sign is the Class-K pin-slot), "
+                    "no numpy / math.",
+            parameters=(P("theta", "UnaryTheta", True,
+                          "the unary theta to read — a UnaryTheta chained "
+                          "from unary_theta's return, or the named shadow "
+                          "string 'g3'"),
+                        P("n_max", "int", True,
+                          "the highest q-power to read (inclusive, ≥ 0) — "
+                          "returns n_max+1 coefficients")),
+            returns=R("list[int]",
+                      "[c_0, …, c_n_max] exact integer coefficients after the "
+                      "leading-power factor-out"),
+            smoke_test_hint={"theta": "'g3'", "n_max": "7"},
         ),
         # ────────────────────────────────────────────────────────────
         # rc71: the HARMONIC (weak) MAASS form PAIR carrier

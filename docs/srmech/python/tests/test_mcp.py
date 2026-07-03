@@ -1774,6 +1774,16 @@ def _synth_value_for_type(type_string: str) -> Any:
         "tuple[Mat, ...]": [mat2, mat2],
         # rank-3 nested list (gauge structure constants f^abc); a minimal 1x1x1.
         "list[list[list[float]]]": [[[0.0]]],
+        # rc113 qbipoly_from_coeffs `coeffs` (also modular_linalg.gf_rref
+        # `rows`): a minimal Y-ascending list of integer x-cell lists — Y⁰ cell
+        # 1 + 2X, Y¹ cell 3 (a valid nonzero QBiPoly; the same shape is a valid
+        # 2-row GF matrix for gf_rref, whose non-prime synth `p` stays a
+        # tolerated domain error).
+        "list[list[int]]": [[1, 2], [3]],
+        # rc113 theta_coefficients `theta`: the named g₃ shadow — the MCP
+        # coercer builds unary_theta('minus12', 1, 1, 0, 24) from the string
+        # (also drives harmonic_maass's `shadow` with a genuine UnaryTheta).
+        "UnaryTheta": "g3",
         # legacy numpy-free wire-form keys (no param advertises them now).
         "Sequence[np.ndarray]": [vec, vec],
         "tuple[np.ndarray, ...]": [mat2, mat2],

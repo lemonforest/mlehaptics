@@ -57,7 +57,7 @@ from .poly import Poly
 from .q import Q
 from .qpoly import QPoly
 
-__all__ = ["QBiPoly"]
+__all__ = ["QBiPoly", "qbipoly_from_coeffs"]
 
 _POLY_ONE = Poly.one()
 
@@ -282,3 +282,55 @@ def _qb_pairs(b: "QBiPoly") -> "Tuple[List[int], List[List[List[Tuple[int, int]]
 def _qp_pairs_of(p: QPoly) -> "Tuple[int, List[List[Tuple[int, int]]]]":
     from .qpoly import _qp_pairs
     return _qp_pairs(p)
+
+
+# ── the PROSE-SIDE constructor (rc113; #1239 / F1027 / UPSTREAM §85) ──────────
+def qbipoly_from_coeffs(coeffs) -> QBiPoly:
+    """Build the exact bivariate-q carrier :class:`QBiPoly` from a
+    ``Y``-ascending list of INTEGER-LEAF x-cell lists — the PROSE-SIDE
+    constructor ToolEntry (rc113; issue #1239 / F1027 / UPSTREAM §85).
+    ``coeffs[d]`` is the ``Y**d`` coefficient (``Y = q**k``), itself an
+    **ascending-x** list (``X = q**n``) whose entries follow the
+    :func:`srmech.amsc.qpoly.qpoly_from_coeffs` cell grammar:
+
+    - an ``int`` — a constant-in-``q`` coefficient;
+    - a ``list`` of ints — the **ascending-q-degree** coefficient
+      (``[0, 1]`` is ``q``, never a rational pair — the unambiguous prose
+      grammar, deliberately UNLIKE the in-process carrier cell coercion).
+
+    Worked forms — the q-binomial-theorem term ``F(n,k) = [n,k]_q·q^{C(k,2)}``
+    (the rc56 acceptance keystone) written entirely with integer leaves:
+
+    - ``r_k`` numerator ``X − Y``:      ``[[0, 1], [-1]]``
+    - ``r_k`` denominator ``qY − 1``:   ``[[-1], [[0, 1]]]``
+    - ``r_n`` numerator ``(qX − 1)·Y``: ``[[0], [-1, [0, 1]]]``
+    - ``r_n`` denominator ``qX − Y``:   ``[[0, [0, 1]], [-1]]``
+
+    Why it exists: the conversational grounded-inference loop binds only
+    utterance-expressible operands and chains returned carriers via its result
+    register — and before rc113 no registered tool RETURNED a ``QBiPoly``, so
+    the definite-q-sum engine (``q_zeilberger`` / ``q_wz_certificate``) was
+    unreachable by prose. A **non_compute BUILDER** (the
+    ``coupling.from_bodies`` / ``text.cooccurrence_edges`` precedent): it
+    constructs an operand; every computation lives in the ops that consume it.
+    No float, no ``abs()``, no numpy / ``math``."""
+    from .qpoly import _prose_qcell
+    if isinstance(coeffs, tuple):
+        coeffs = list(coeffs)
+    if not isinstance(coeffs, list):
+        raise TypeError(
+            "qbipoly_from_coeffs: coeffs must be a Y-ascending list of "
+            f"x-cell lists; got {type(coeffs).__name__}")
+    cells: List[QPoly] = []
+    for d, ycell in enumerate(coeffs):
+        if isinstance(ycell, tuple):
+            ycell = list(ycell)
+        if not isinstance(ycell, list):
+            raise TypeError(
+                f"qbipoly_from_coeffs: Y-cell {d} must be an ascending-x list "
+                f"of integer cells (int, or ascending-q list of ints); got "
+                f"{type(ycell).__name__}")
+        cells.append(QPoly(
+            [_prose_qcell(e, where=f"qbipoly_from_coeffs (Y-cell {d})")
+             for e in ycell], 0))
+    return QBiPoly(cells)

@@ -66,7 +66,7 @@ from typing import Dict, List, Sequence, Tuple
 from .poly import Poly
 from .q import Q
 
-__all__ = ["QPoly"]
+__all__ = ["QPoly", "qpoly_from_coeffs"]
 
 _Q_ZERO = Q(0, 1)
 _Q_ONE = Q(1, 1)
@@ -570,3 +570,82 @@ def _qp_from_pairs(form) -> "QPoly":
     x_low, rows = form
     cells = [Poly.from_coeffs([Q(int(n), int(d)) for n, d in run]) for run in rows]
     return QPoly._make(cells, int(x_low))
+
+
+# ── the PROSE-SIDE constructor (rc113; #1239 / F1027 / UPSTREAM §85) ──────────
+def _prose_qcell(entry, *, where: str) -> Poly:
+    """One prose-side x-cell — an exact ``ℚ[q]`` coefficient from integer
+    leaves ONLY:
+
+    - an ``int`` → the constant coefficient (a degree-0 ``Poly`` in ``q``);
+    - a ``list`` / ``tuple`` of ints → the **ascending-q-degree** coefficient
+      ``[c0, c1, …] = c0 + c1·q + …`` (a ``Poly`` in ``q``).
+
+    UNLIKE the in-process :func:`_as_qcoeff` (where a 2-int list is a
+    ``(num, den)`` RATIONAL pair), a list here is ALWAYS the ascending-q form —
+    ``[0, 1]`` is ``q``, never ``0/1`` — so the prose contract is unambiguous
+    at every nesting depth. A ``bool`` / ``float`` / ``str`` leaf is an honest
+    ``TypeError`` (the exact-ℚ discipline; integers are exact)."""
+    if isinstance(entry, bool):
+        raise TypeError(
+            f"{where}: a bool is not a coefficient; use plain ints")
+    if isinstance(entry, int):
+        return Poly.from_coeffs([entry])
+    if isinstance(entry, (list, tuple)):
+        out = []
+        for v in entry:
+            if isinstance(v, bool) or not isinstance(v, int):
+                raise TypeError(
+                    f"{where}: an ascending-q coefficient list must hold plain "
+                    f"ints (the exact-ℚ prose contract — [0, 1] is q, never a "
+                    f"rational pair); got {v!r}")
+            out.append(v)
+        return Poly.from_coeffs(out)
+    raise TypeError(
+        f"{where}: each cell must be an int (a constant ℚ[q] coefficient) or "
+        f"an ascending-q-degree list of ints; got {type(entry).__name__}")
+
+
+def qpoly_from_coeffs(coeffs, x_low: int = 0) -> QPoly:
+    """Build the exact q-shift carrier :class:`QPoly` from an ascending-x list
+    of INTEGER-LEAF coefficient cells — the PROSE-SIDE constructor ToolEntry
+    (rc113; issue #1239 / F1027 / UPSTREAM §85). ``coeffs[i]`` is the ``ℚ[q]``
+    coefficient of ``x**(x_low + i)`` (``x = q**k``), where each cell is:
+
+    - an ``int`` — a constant-in-``q`` coefficient;
+    - a ``list`` of ints — the **ascending-q-degree** coefficient
+      (``[0, 1]`` is ``q``; ``[0, 2]`` is ``2q``; ``[0, 0, 1]`` is ``q²``).
+
+    Worked forms (the mock-theta / q-row operands the pipeline needs):
+
+    - the q-geometric ratio ``x``: ``qpoly_from_coeffs([0, 1])``;
+    - the order-3 mock-theta term ratio ``q·x² / (1+q·x)²``:
+      numerator ``qpoly_from_coeffs([0, 0, [0, 1]])``,
+      denominator ``qpoly_from_coeffs([1, [0, 2], [0, 0, 1]])``.
+
+    ``x_low`` (optional int, default 0) is the lowest x-exponent — a negative
+    value carries a genuine Laurent tail.
+
+    Why it exists: the conversational grounded-inference loop binds only
+    utterance-expressible operands and chains returned carriers via its result
+    register — and before rc113 no registered tool RETURNED a ``QPoly``, so
+    the q-row engine (``q_gosper`` / ``q_zeilberger`` / ``q_wz_certificate``)
+    was unreachable by prose. A **non_compute BUILDER** (the
+    ``coupling.from_bodies`` / ``text.cooccurrence_edges`` precedent).
+
+    NOTE the deliberate contrast with the in-process ``QPoly.from_coeffs``
+    cell coercion: there a 2-int list is a ``(num, den)`` rational pair; HERE a
+    list is ALWAYS ascending-q-degree ints (unambiguous prose grammar; exact
+    rationals enter via the in-process constructor). No float, no ``abs()``,
+    no numpy / ``math``."""
+    if isinstance(coeffs, tuple):
+        coeffs = list(coeffs)
+    if not isinstance(coeffs, list):
+        raise TypeError(
+            "qpoly_from_coeffs: coeffs must be an ascending-x list of integer "
+            f"cells (int, or ascending-q list of ints); got {type(coeffs).__name__}")
+    if isinstance(x_low, bool) or not isinstance(x_low, int):
+        raise TypeError(
+            f"qpoly_from_coeffs: x_low must be an int; got {x_low!r}")
+    cells = [_prose_qcell(e, where="qpoly_from_coeffs") for e in coeffs]
+    return QPoly(cells, x_low)
