@@ -42,7 +42,7 @@ The gates:
       keystone ΣC(n,k)=2ⁿ); a promoted Poly → zeilberger (the univariate-as-
       bivariate case); a genuinely-2-variable BiPoly project → the naming error;
   (6) the descriptor shape + self-consistency;
-  (7) registration: tools.total == 376, the nine ToolEntries present, all nine
+  (7) registration: tools.total == 381, the nine ToolEntries present, all nine
       Rosetta buckets non_compute;
   (8) numpy-free / math-free / abs()-free source hygiene of the touched modules.
 
@@ -371,7 +371,7 @@ def test_descriptor_shape_and_self_consistency():
 def test_tools_total_is_376():
     """rc116 ships 9 genuinely NEW public ops → +9 ToolEntries (367 → 376)."""
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 376
+    assert introspect.describe()["tools"]["total"] == 381
 
 
 def test_new_tool_entries_present_with_declared_types():

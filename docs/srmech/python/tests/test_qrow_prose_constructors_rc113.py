@@ -57,7 +57,7 @@ prose-reachability, mirroring how siona's loop invokes tools):
       computation of the Zagier g₃ coefficients and the θ₃ series;
   (6) theta_coefficients Python == C parity (native vs forced-pure;
       skip-clean when no native lib);
-  (7) registration: tools.total == 376, the four ToolEntries present with the
+  (7) registration: tools.total == 381, the four ToolEntries present with the
       declared param types + Rosetta buckets (3 × non_compute builders, the
       from_bodies / cooccurrence_edges precedent; theta_coefficients
       c_dispatched through the rc70 peer);
@@ -410,7 +410,7 @@ def test_tools_total_is_367():
     """rc113 ships 4 genuinely NEW public ops (3 builders + the theta reader)
     → +4 ToolEntries (363 → 367)."""
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 376
+    assert introspect.describe()["tools"]["total"] == 381
 
 
 def test_new_tool_entries_present_with_declared_types():

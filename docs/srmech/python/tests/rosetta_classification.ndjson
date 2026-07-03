@@ -494,3 +494,8 @@
 {"exposed_as": "srmech.amsc.carrier_ladder.carrier_ladder_descriptor", "defined_at": "srmech.amsc.carrier_ladder.carrier_ladder_descriptor", "bucket": "non_compute"}
 {"exposed_as": "srmech.amsc.cascade.cd_promote", "defined_at": "srmech.amsc.cascade.cayley_dickson.cd_promote", "bucket": "non_compute"}
 {"exposed_as": "srmech.amsc.cascade.cd_project", "defined_at": "srmech.amsc.cascade.cayley_dickson.cd_project", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.op_provenance.carry", "defined_at": "srmech.amsc.op_provenance.carry", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.op_provenance.op_provenance_hash", "defined_at": "srmech.amsc.op_provenance.op_provenance_hash", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.op_provenance.op_verdict", "defined_at": "srmech.amsc.op_provenance.op_verdict", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.op_provenance.family_verdict", "defined_at": "srmech.amsc.op_provenance.family_verdict", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.op_provenance.reproject", "defined_at": "srmech.amsc.op_provenance.reproject", "bucket": "non_compute"}
