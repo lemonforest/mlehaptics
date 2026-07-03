@@ -160,18 +160,23 @@ class Session:
         # floats parse as EXACT rational int-pairs (stay-rational; float() only at the call boundary)
         fls = [(int(a + b), 10 ** len(b)) for a, b in re.findall(r"(-?\d+)\.(\d+)", u)]
         u2 = re.sub(r"-?\d+\.\d+", " ", u)
-        ints = [int(x) for x in re.findall(r"-?\d+", u2)]
+        # EDGE-PAIR operands: 'a-b' spans become (a,b) tuples (graph ops); consumed before the int pool
+        edges = [(int(a), int(b)) for a, b in re.findall(r"\b(\d+)-(\d+)\b", u2)]
+        u3 = re.sub(r"\b\d+-\d+\b", " ", u2)
+        ints = [int(x) for x in re.findall(r"-?\d+", u3)]
         m = re.search(r"(?:bytes|string|text)\s+[\"']?([a-z]{2,})[\"']?\s*$", u.lower())
-        return ints, fls, (m.group(1).encode() if m else None)
+        return ints, fls, (m.group(1).encode() if m else None), edges
 
     def route(self, u):
         b, ws = self.board, _toks(u)
+        while ws and ws[0] in b.politeness and not (ws[0] == b.address or ws[0] in b.self_verbs):
+            ws = ws[1:]   # paraphrase frames: politeness prefixes are declared operators, consumed here
         if ws and (ws[0] == b.address or ws[0] in b.self_verbs):
             return "self-command"
-        ints, fls, byts = self._operands(u)
-        if b.has_define(ws) and not (ints or fls or byts):
+        ints, fls, byts, edges = self._operands(u)
+        if b.has_define(ws) and not (ints or fls or byts or edges):
             return "define"
-        if ints or fls or byts:
+        if ints or fls or byts or edges:
             return "tool-call"  # operand shape = strong evidence (F1009)
         if ws and ws[0] in b.imperatives:
             return "tool-call"
@@ -195,6 +200,8 @@ class Session:
 
     def _drive_self(self, u):
         b, ws = self.board, _toks(u)
+        while ws and ws[0] in b.politeness and not (ws[0] == b.address or ws[0] in b.self_verbs):
+            ws = ws[1:]
         lead = ws[1] if ws and ws[0] == b.address and len(ws) > 1 else (ws[0] if ws else "")
         if b.homographs and lead in b.homographs:
             # SUPERPOSED homograph (F1018): rung-select by the language vote over the parent boards'
@@ -241,7 +248,7 @@ class Session:
         return pick.split(".")[-1], self._impl[pick](self._rem(u))
 
     # ---- the drive loop (F1009 + F1012 cross-turn operand resolution) ----
-    def _fit(self, t, ints, fls, byts):
+    def _fit(self, t, ints, fls, byts, edges=()):
         pt = lambda p: p.type.lower().strip()
         reqs = [p for p in t.parameters if p.required]
         if not reqs:
@@ -257,6 +264,8 @@ class Session:
         if fltp > len(fls) + len(ints):  # a float slot may consume an int operand
             return 0.0
         if listp:
+            if edges:  # EDGE operands fill tuple-list params; a lone int param named n derives from edges
+                return 2.0
             return 0.4 if ints else 0.0
         if intp > len(ints):
             return 0.0
@@ -264,10 +273,10 @@ class Session:
         return 2.0 if exact else 1.0
 
     def _drive_tool(self, u):
-        ints, fls, byts = self._operands(u)
+        ints, fls, byts, edges = self._operands(u)
         cands = [n for _, n in self.g.ground(u, 5, owner="srmech")]
         resolved = ""
-        if all(self._fit(self.g.tools[n], ints, fls, byts) == 0.0 for n in cands) and self.mem:
+        if all(self._fit(self.g.tools[n], ints, fls, byts, edges) == 0.0 for n in cands) and self.mem:
             # cross-turn operand resolution: the utterance under-supplies -> recall the referenced note
             kw = self.board.kernel_ops["kernel"]
             topname = self.g._nm[cands[0]]
@@ -281,7 +290,7 @@ class Session:
                 mem_ints = [int(w) for w in _toks(note) if w.isdigit()]
                 ints = mem_ints[:1] + ints
                 resolved = ' [operand %s resolved from: "%s"]' % (mem_ints[:1], note)
-        scored = sorted(((self._fit(self.g.tools[n], ints, fls, byts), -cands.index(n), n)
+        scored = sorted(((self._fit(self.g.tools[n], ints, fls, byts, edges), -cands.index(n), n)
                          for n in cands), reverse=True)
         ranked = [n for f, _, n in scored if f > 0] or cands[:1]
         # FAILED-RUN RECOVERY (hardening ii): try fit-positive candidates in order; a raise moves to
@@ -289,7 +298,7 @@ class Session:
         attempts = []
         for pick in ranked[:3]:
             fn = self._resolve(pick)
-            ba = self._bind_args(pick, u, ints, fls, byts)
+            ba = self._bind_args(pick, u, ints, fls, byts, edges)
             if fn is None or ba is None:
                 attempts.append("%s: unbindable" % pick.split(".")[-1])
                 continue
@@ -320,11 +329,13 @@ class Session:
                 continue
         return None
 
-    def _bind_args(self, pick, u, ints, fls, byts):
+    def _bind_args(self, pick, u, ints, fls, byts, edges=()):
         # NAMED operands: match the tool's OWN declared parameter names in the utterance,
         # both orders ('terms 12' / '12 terms'). Schema-driven — no per-tool code.
         named, ul = {}, u.lower()
         for p in self.g.tools[pick].parameters:
+            if any(k in p.type.lower() for k in ("list", "tuple", "sequence", "bytes")):
+                continue  # named extraction is for SCALAR params only ('edges 0-1' must not match edges=0)
             nm = re.escape(p.name.lower())
             m = (re.search(r"\b%s\s+(-?\d+(?:\.\d+)?)" % nm, ul)
                  or re.search(r"(-?\d+(?:\.\d+)?)\s+%s\b" % nm, ul))
@@ -358,12 +369,18 @@ class Session:
                     return None
             elif tp == "int":
                 if ii >= len(ints):
+                    if p.name == "n" and edges:    # schema-driven: n derives from the edge operands
+                        args.append(max(max(a, b) for a, b in edges) + 1)
+                        continue
                     return None
                 args.append(ints[ii]); ii += 1
             elif any(k in tp for k in ("list", "sequence", "tuple")):
-                args.append(ints[ii:]); ii = len(ints)
+                if edges and "tuple" in tp:
+                    args.append(list(edges))       # EDGE-PAIR operands -> Iterable[Tuple[int,int]] params
+                else:
+                    args.append(ints[ii:]); ii = len(ints)
             elif p.required:
-                return None  # Mat/Vec/HV operands remain a gate item
+                return None  # Mat/Vec/HV CONSTRUCTION stays out of scope (utterances can't safely build carriers)
         return args, kw
 
     # ---- handlers ----

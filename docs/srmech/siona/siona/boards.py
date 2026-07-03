@@ -31,6 +31,7 @@ class Board:
     kernel_ops: dict             # declared linear-map kernel slots: keys kernel/is/times/over/plus -> board words
     homographs: dict = None      # merged boards: verb -> ((board_name, tool), ...) -- SUPERPOSED senses (F1018)
     parents: tuple = ()          # merged boards: the parent boards; their operator vocabs drive the rung vote
+    politeness: frozenset = frozenset()  # PARAPHRASE frames: politeness/hedge prefix tokens, stripped before routing
 
     def operator_vocab(self):
         # the board's declared operator surface -- drives the language-rung vote on merged boards (F1018)
@@ -48,6 +49,7 @@ ENGLISH = Board(
                    ("meaning", "of"), ("tell", "me", "about"), ("who", "is"),
                    ("who", "was"), ("explain",)),
     self_verbs=frozenset({"remember", "recall", "forget", "ingest", "save", "show"}),
+    politeness=frozenset({"please", "could", "would", "can", "you", "kindly", "hey"}),
     verb_tools={"remember": "siona.memory.remember", "ingest": "siona.memory.remember",
                 "save": "siona.memory.remember", "recall": "siona.memory.recall",
                 "forget": "siona.memory.forget", "show": "siona.memory.show"},
@@ -92,7 +94,7 @@ def merge_boards(a, b, name=None):
         interrogatives=a.interrogatives | b.interrogatives,
         strip=a.strip | b.strip,
         kernel_ops=dict(a.kernel_ops),     # first board's kernel slots (documented choice)
-        homographs=conflicts, parents=(a, b),
+        homographs=conflicts, parents=(a, b), politeness=a.politeness | b.politeness,
     )
     return board, conflicts
 
@@ -113,4 +115,5 @@ def load_board(path):
         self_verbs=frozenset(b["self_verbs"]), verb_tools=dict(b["verb_tools"]),
         imperatives=frozenset(b["imperatives"]), interrogatives=frozenset(b["interrogatives"]),
         strip=frozenset(b["strip"]), kernel_ops=dict(b["kernel_ops"]),
+        politeness=frozenset(b.get("politeness", ())),
     )
