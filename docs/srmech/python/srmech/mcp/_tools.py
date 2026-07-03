@@ -99,6 +99,10 @@ _TYPE_LEXICON: Dict[str, str] = {
     "list[tuple[bytes, bytes]]": "array",
     "list[tuple[bytes, int]]": "array",
     "list[tuple[int, int]]": "array",
+    # rc113: qbipoly_from_coeffs `coeffs` (a Y-ascending list of integer x-cell
+    # lists; also the rc44 gf_rref `rows` matrix, which previously degraded to
+    # the "string" fallback).
+    "list[list[int]]": "array",
     "Mapping[bytes, bytes]": "object",
     "dict": "object",
     "Optional[dict]": "object",
@@ -178,6 +182,9 @@ _ENCODING_HINT: Dict[str, str] = {
     ),
     "list[list[list[float]]]": (
         "rank-3 nested JSON array of real numbers"
+    ),
+    "list[list[int]]": (
+        "nested JSON array of integer lists (rows / coefficient cells)"
     ),
     "Sequence[bytes]": "array of base64-encoded byte strings",
     # legacy numpy-free wire-form keys (no param advertises them now).

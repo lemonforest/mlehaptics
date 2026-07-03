@@ -84,6 +84,20 @@ def _matches_token(raw: Any, token: str):
     # as a `Q`, not skipped (F868 stay-rational return-type discipline).
     if token.startswith("Complex128"):
         return isinstance(raw, Complex128)
+    # Exact polynomial carriers (rc113 — the q-row prose constructors RETURN
+    # these). QPoly / QBiPoly MUST be checked before the bare "Q" scalar token
+    # (the startswith prefix would otherwise mis-route them to the Q
+    # isinstance); Poly gets its own genuine check too (it was previously an
+    # unassertable None-skip).
+    if token.startswith("QBiPoly"):
+        from srmech.amsc.qbipoly import QBiPoly
+        return isinstance(raw, QBiPoly)
+    if token.startswith("QPoly"):
+        from srmech.amsc.qpoly import QPoly
+        return isinstance(raw, QPoly)
+    if token.startswith("Poly"):
+        from srmech.amsc.poly import Poly
+        return isinstance(raw, Poly)
     if token.startswith("Q"):
         return isinstance(raw, Q)
     if token.startswith("array"):

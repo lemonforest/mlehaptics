@@ -69,7 +69,7 @@ from typing import List, Sequence, Tuple
 
 from .q import Q
 
-__all__ = ["Poly"]
+__all__ = ["Poly", "poly_from_coeffs"]
 
 _Q_ZERO = Q(0, 1)
 _Q_ONE = Q(1, 1)
@@ -736,3 +736,48 @@ def _gcd_int(a: int, b: int) -> int:
     while b:
         a, b = b, a % b
     return a
+
+
+# ── the PROSE-SIDE constructor (rc113; #1239 / F1027 / UPSTREAM §85) ──────────
+def _prose_int(value, *, where: str) -> int:
+    """One prose-side integer coefficient: a plain ``int`` only (a ``bool`` /
+    ``float`` / ``str`` / anything else is an honest ``TypeError``). Utterance
+    leaves are integers — integers ARE exact ℚ, so the exact-carrier discipline
+    is kept without a rational-pair grammar at the prose boundary (exact
+    rationals enter via the in-process constructors)."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(
+            f"{where}: coefficients must be plain ints (the exact-ℚ prose "
+            f"contract; an exact rational enters via the in-process carrier "
+            f"constructor, a float never enters); got {value!r}")
+    return value
+
+
+def poly_from_coeffs(coeffs) -> Poly:
+    """Build the exact-ℚ polynomial carrier :class:`Poly` from an
+    ascending-degree list of INTEGER coefficients — the PROSE-SIDE constructor
+    ToolEntry (rc113; issue #1239 / F1027 / UPSTREAM §85). ``coeffs[i]`` is the
+    coefficient of ``k**i``: ``poly_from_coeffs([0, 1])`` is ``k``,
+    ``poly_from_coeffs([1, 1])`` is ``1 + k`` (the ordinary-row term-ratio
+    building blocks the ``gosper`` / ``zeilberger`` / ``wz_certificate`` ops
+    consume).
+
+    Why it exists: the conversational grounded-inference loop binds only
+    utterance-expressible operands (ints / floats / strs / bytes / edge-pairs)
+    plus carriers CHAINED from a result register — and before rc113 no
+    registered tool RETURNED a ``Poly``, so the Σ-row engines were unreachable
+    by prose. This is a **non_compute BUILDER** (the ``coupling.from_bodies`` /
+    ``text.cooccurrence_edges`` precedent): it constructs an operand; every
+    computation lives in the ops that consume it.
+
+    Ints only (a ``bool`` / ``float`` / ``str`` coefficient is an honest
+    ``TypeError`` — the exact-ℚ discipline; integers are exact). No float, no
+    ``abs()``, no numpy / ``math``."""
+    if isinstance(coeffs, tuple):
+        coeffs = list(coeffs)
+    if not isinstance(coeffs, list):
+        raise TypeError(
+            "poly_from_coeffs: coeffs must be an ascending-degree list of "
+            f"ints; got {type(coeffs).__name__}")
+    return Poly.from_coeffs(
+        [_prose_int(v, where="poly_from_coeffs") for v in coeffs])

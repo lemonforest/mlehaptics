@@ -71,7 +71,7 @@ from typing import Callable, Dict, List, Sequence, Tuple, Union
 
 from .q import Q
 
-__all__ = ["Character", "UnaryTheta", "unary_theta"]
+__all__ = ["Character", "UnaryTheta", "theta_coefficients", "unary_theta"]
 
 _Q_HALF = Q(1, 2)
 
@@ -523,3 +523,35 @@ def unary_theta(char: CharSpec, j: int, a: int, b: int, D: int,
     ``'nonneg'``. Exact integer q-series, exact-``Q`` weight; no float, no
     ``abs()``, no numpy / ``math``."""
     return UnaryTheta(char, j, a, b, D, support)
+
+
+def theta_coefficients(theta: UnaryTheta, n_max: int) -> List[int]:
+    """READ a :class:`UnaryTheta`'s exact integer q-expansion — the first
+    registered CONSUMER of the ``UnaryTheta`` carrier (rc113; issue #1239 /
+    F1027 / UPSTREAM §85: before this, a conversationally-built shadow was a
+    dead end after display). Returns the coefficient list ``[c_0, …, c_n_max]``
+    of the series AFTER factoring out the leading ``q``-power (exactly
+    :meth:`UnaryTheta.q_series`):
+
+    - θ₃ (``unary_theta('trivial', 0, 1, 0, 1, support='all')``) →
+      ``[1, 2, 0, 0, 2, …]``;
+    - the g₃ mock-theta shadow (``unary_theta('minus12', 1, 1, 0, 24)``) →
+      the Zagier coefficients ``[1, −5, −7, 0, 0, 11, 0, 13, …]``
+      (Astérisque 326 (2009), Exp. 986, p. 150).
+
+    COMPUTE, C-dispatched THROUGH THE EXISTING rc70 1:1 peer: the expansion is
+    :meth:`UnaryTheta.q_series`, which routes to the native
+    ``srmech_unary_theta`` C symbol when present (byte-identical exact-integer
+    mirror; a bare C host calls ``srmech_unary_theta`` directly) — no new C
+    symbol is needed because the mirror already ships 1:1. Exact ints (each a
+    ``Σ χ(n)·n^j`` bignum), the χ sign the Class-K pin-slot; no float, no
+    ``abs()``, no numpy / ``math``."""
+    if not isinstance(theta, UnaryTheta):
+        raise TypeError(
+            "theta_coefficients: theta must be a UnaryTheta (construct one "
+            f"with unary_theta(...) / the 'g3' named shadow); got "
+            f"{type(theta).__name__}")
+    if isinstance(n_max, bool) or not isinstance(n_max, int) or n_max < 0:
+        raise ValueError(
+            f"theta_coefficients: n_max must be a non-negative int; got {n_max!r}")
+    return theta.q_series(n_max)
