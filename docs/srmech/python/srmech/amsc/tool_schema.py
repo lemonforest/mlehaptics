@@ -5630,6 +5630,145 @@ def _register_qm_tools() -> None:
         ),
 
         # ────────────────────────────────────────────────────────────
+        # srmech.qm.quaternion — the QDFT/ODFT foundation (0.9.0rc109;
+        # #1234 Item 1a, re-raise of #863 BX-5/6/7; F380 / the R21 proof:
+        # Q₈/{±1} ≅ Z₂×Z₂ = Klein-4, so ℍ is a Klein-4 object's native
+        # coefficient algebra). ℍ = the dim-4 rung of the SAME Cayley-
+        # Dickson ladder as qm.octonion (the table IS the octonion table
+        # restricted to e0..e3 — tested). Same-rc C peers
+        # srmech_quaternion_{left_mult,right_mult,exp,twiddle}.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.qm.quaternion.quaternion_mult_table", owner="srmech",
+            category="qm.quaternion",
+            summary="The (4,4,4) int8 structure-constant tensor C of ℍ with "
+                    "e_i·e_j = Σ_k C[i,j,k] e_k (the SAME fixed Cayley-Dickson "
+                    "convention as qm.octonion, restricted to e0..e3; the "
+                    "signed units close into Q₈ and Q₈/{±1} is the Klein-4 XOR "
+                    "table — F380/R21). Class A. Baez (2002) §1.",
+            parameters=(),
+            returns=R("list[list[list[int]]]", "(4,4,4) int8 structure constants"),
+        ),
+        ToolEntry(
+            name="srmech.qm.quaternion.quaternion_table_attestation",
+            owner="srmech", category="qm.quaternion",
+            summary="MPR v1 self-attestation dict for the ℍ structure-constant "
+                    "table; response_sha256 content-addresses the 64 int8 table "
+                    "bytes via sha256_bytes (Class A). Baez (2002), "
+                    "arXiv:math/0105155 §1.",
+            parameters=(),
+            returns=R("dict", "MPR v1 attestation block"),
+        ),
+        ToolEntry(
+            name="srmech.qm.quaternion.quaternion_left_mult", owner="srmech",
+            category="qm.quaternion",
+            summary="Left-multiplication matrix L_q (x → q·x) as 4×4 real; "
+                    "L_{e_i} (i≥1) is antisymmetric; L(pq)=L(p)L(q) and "
+                    "L(p)R(q)=R(q)L(p) (the ℍ associativity witness). The "
+                    "basis-column sign structure IS the Klein-4 bridge (row "
+                    "index = i⊕j; Q₈/{±1}, F380). Class M (binding). Same-rc "
+                    "C peer srmech_quaternion_left_mult.",
+            parameters=(P("q", "HV", True, "4-vector quaternion"),),
+            returns=R("Mat", "4×4 L_q"),
+        ),
+        ToolEntry(
+            name="srmech.qm.quaternion.quaternion_right_mult", owner="srmech",
+            category="qm.quaternion",
+            summary="Right-multiplication matrix R_q (x → x·q) as 4×4 real; "
+                    "the ANTI-homomorphism R(pq)=R(q)R(p) (ℍ non-commutative "
+                    "⟹ L_q ≠ R_q — the genuinely distinct left/right QDFT "
+                    "forms stand on this). Class M (binding). Same-rc C peer "
+                    "srmech_quaternion_right_mult.",
+            parameters=(P("q", "HV", True, "4-vector quaternion"),),
+            returns=R("Mat", "4×4 R_q"),
+        ),
+        ToolEntry(
+            name="srmech.qm.quaternion.quaternion_conjugate", owner="srmech",
+            category="qm.quaternion",
+            summary="Quaternion conjugate conj(x) = (x_0, -x_1, -x_2, -x_3); "
+                    "for a unit twiddle it is the inverse (conj(exp(μθ)) = "
+                    "exp(−μθ) — the inverse-QDFT twiddle). Class C "
+                    "(orientation).",
+            parameters=(P("x", "HV", True, "4-vector"),),
+            returns=R("list[float]", "4-vector"),
+        ),
+        ToolEntry(
+            name="srmech.qm.quaternion.quaternion_norm", owner="srmech",
+            category="qm.quaternion",
+            summary="Quaternion norm √(Σ x_i²) via the scalar Class K pin-slot "
+                    "magnitude (cascade.magnitude) then sqrt — never abs(). "
+                    "Class K∘C.",
+            parameters=(P("x", "HV", True, "4-vector"),),
+            returns=R("float", "≥ 0; Class K+C, never abs()"),
+        ),
+        ToolEntry(
+            name="srmech.qm.quaternion.quaternion_exp", owner="srmech",
+            category="qm.quaternion",
+            summary="The quaternion Euler formula exp(μθ) = cos θ·1 + sin θ·μ̂ "
+                    "for a UNIT pure imaginary μ̂ (μ̂²=−1) — the QDFT twiddle at "
+                    "the float64 boundary. Lives in the commutative ℝ[μ̂] ≅ ℂ "
+                    "(why the one-sided QDFT inverts); ‖exp(μθ)‖=1; "
+                    "exp(μθ₁)exp(μθ₂)=exp(μ(θ₁+θ₂)); exp(μ2π/N)^N=1. Trig = "
+                    "the Q61 Class-N cascade projected once (no libm, no "
+                    "math.pi); exact tiers: quaternion_exp_series_truncate "
+                    "(rational) / cascade.hypercomplex_exp (Q61). Class N∘C∘M. "
+                    "Same-rc C peer srmech_quaternion_exp (byte-exact).",
+            parameters=(
+                P("theta", "float", True, "rotation angle θ (radians), finite"),
+                P("mu", "str", False,
+                  "axis μ̂: 'i'|'j'|'k'|'ijk' (named, exact) or a pure-imaginary "
+                  "4-vector (normalised via the Class-N sqrt cascade); default 'i'"),
+            ),
+            returns=R("list[float]",
+                      "unit quaternion [cos θ, sin θ·μ̂₁, sin θ·μ̂₂, sin θ·μ̂₃]"),
+        ),
+        ToolEntry(
+            name="srmech.qm.quaternion.quaternion_exp_series_truncate",
+            owner="srmech", category="qm.quaternion",
+            summary="EXACT-rational exp(e_axis·θ) for a RATIONAL angle θ=p/q — "
+                    "the series-truncate tier of the twiddle (the exactness "
+                    "convention's exact form). Composes the Class-N calculus "
+                    "series cos/sin_series_truncate (exact bignum (num,den) "
+                    "pairs) with an exactly-representable basis axis e_axis "
+                    "(axis ∈ {1,2,3} = i/j/k). π is NOT rational: a 2πjk/N "
+                    "angle enters only as a caller-chosen rational approximant "
+                    "(e.g. best_rational over the π cascade); the float64 "
+                    "projection is quaternion_twiddle. Class N "
+                    "(bignum_reference oracle of the Q61/float paths).",
+            parameters=(
+                P("theta_num", "int", True, "angle numerator p (radians p/q)"),
+                P("theta_den", "int", True, "angle denominator q (nonzero)"),
+                P("num_terms", "int", True, "Taylor terms N"),
+                P("axis", "int", False, "basis axis: 1 (i) | 2 (j) | 3 (k); default 1"),
+            ),
+            returns=R("tuple",
+                      "4 exact (num, den) pairs: cos at slot 0, sin at slot "
+                      "axis, (0,1) elsewhere"),
+        ),
+        ToolEntry(
+            name="srmech.qm.quaternion.quaternion_twiddle", owner="srmech",
+            category="qm.quaternion",
+            summary="The QDFT twiddle factor exp(σ·μ·2πjk/N) — the DFT-facing "
+                    "quaternion_exp. The index product is reduced in Z_N FIRST "
+                    "(Class I, exact), then π enters ONCE as the Class-N "
+                    "4·atan(1) cascade at the float64 boundary (never math.pi). "
+                    "σ=−1 (default) = forward DFT (matches cascade."
+                    "quaternion_dft); σ=+1 = inverse. Twiddle closure: "
+                    "exp(μ2π/N)^N = 1. Class I∘N∘C∘M. Same-rc C peer "
+                    "srmech_quaternion_twiddle (byte-exact).",
+            parameters=(
+                P("j", "int", True, "frequency index (non-negative)"),
+                P("k", "int", True, "sample index (non-negative)"),
+                P("n_points", "int", True, "DFT length N, 1 ≤ N < 2³²"),
+                P("mu", "str", False,
+                  "axis μ̂: 'i'|'j'|'k'|'ijk' or a pure-imaginary 4-vector; "
+                  "default 'i'"),
+                P("sigma", "int", False, "−1 forward (default) | +1 inverse"),
+            ),
+            returns=R("list[float]", "the unit-quaternion twiddle (4 components)"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
         # srmech.qm.hurwitz — the octonion-native matrix realisation of
         # "the One" S(σ,θ) (#887); the qm-tier Rosetta peer of the
         # numpy-free srmech.amsc.cascade.the_one. The Fano planes of each

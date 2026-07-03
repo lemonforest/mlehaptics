@@ -468,3 +468,12 @@
 {"exposed_as": "srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson", "defined_at": "srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.heat_trace", "defined_at": "srmech.amsc.laplacian.heat_trace", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.ground_state_flux_response", "defined_at": "srmech.amsc.laplacian.ground_state_flux_response", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.qm.quaternion.quaternion_mult_table", "defined_at": "srmech.qm.quaternion.quaternion_mult_table", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.quaternion.quaternion_table_attestation", "defined_at": "srmech.qm.quaternion.quaternion_table_attestation", "bucket": "non_compute"}
+{"exposed_as": "srmech.qm.quaternion.quaternion_left_mult", "defined_at": "srmech.qm.quaternion.quaternion_left_mult", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.qm.quaternion.quaternion_right_mult", "defined_at": "srmech.qm.quaternion.quaternion_right_mult", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.qm.quaternion.quaternion_conjugate", "defined_at": "srmech.qm.quaternion.quaternion_conjugate", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.quaternion.quaternion_norm", "defined_at": "srmech.qm.quaternion.quaternion_norm", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.quaternion.quaternion_exp", "defined_at": "srmech.qm.quaternion.quaternion_exp", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.qm.quaternion.quaternion_exp_series_truncate", "defined_at": "srmech.qm.quaternion.quaternion_exp_series_truncate", "bucket": "bignum_reference"}
+{"exposed_as": "srmech.qm.quaternion.quaternion_twiddle", "defined_at": "srmech.qm.quaternion.quaternion_twiddle", "bucket": "c_dispatched"}

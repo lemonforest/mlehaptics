@@ -39,6 +39,11 @@ Submodules:
   structure constants, Casimirs, Wilson-loop holonomy.
 - :mod:`srmech.qm.sm` — Electroweak unification, Higgs mechanism, Yukawa
   fermion masses, CKM matrix.
+- :mod:`srmech.qm.quaternion` — the QDFT/ODFT foundation (#1234 Item 1a /
+  #863, F380): the 4×4 ``L_q`` / ``R_q`` quaternion multiplication
+  operators (ℍ = the dim-4 Cayley-Dickson rung, so ``Q₈/{±1} ≅ Klein-4``)
+  + the hypercomplex ``exp(μθ)`` twiddle (Euler formula; series-truncate
+  exact tier + the float64 boundary) + the DFT twiddle ``exp(σμ2πjk/N)``.
 - :mod:`srmech.qm.octonion` — the MPR-attested Cayley-Dickson-from-H
   octonion multiplication table + ``L_a`` / ``R_a`` binders, conjugate,
   norm (Class K ∘ C, never ``abs()``).
@@ -85,6 +90,7 @@ __all__ = [
     "potentials",
     "propagators",
     "pseudo_hermitian",
+    "quaternion",
     "relativistic",
     "single_particle",
     "sm",
