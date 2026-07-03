@@ -4,7 +4,7 @@ profile_schema_version = "1.0"
 
 [profile]
 name            = "siona"
-version         = "0.1.0"
+version         = "0.1.0rc1"
 summary         = "Siona — grounded RBS-HDC recall instrument: de Bruijn fiber walk + full-body recall over a spectrally-encoded knowledge instrument, on srmech."
 package         = "siona"
 srmech_requires = ">=0.8.1"

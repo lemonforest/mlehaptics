@@ -15,7 +15,15 @@ executes until the rc1 cut is declared ready** ("almost there or all the way the
 4. **Release cut = its OWN PR** (never PR #687), then manual tag `siona-v0.1.0rc1` → TestPyPI
    (per `project_siona_package_takeover_unmirror` + `feedback_always_rc_first`). Clean
    `siona-v0.1.0` → PyPI is the human gate.
-5. **Clean-venv verification OUTSIDE the source tree** before any tag (namespace-shadowing gotcha).
+5. **Clean-venv verification OUTSIDE the source tree** — RUN (2026-07-03): wheel builds clean (all modules/descriptors/LICENSE/entry-points); imports from `/`; `Session()` constructs AND drives on production srmech 0.8.2 (gcd turn verified); byteglyph features FEATURE-DETECT and degrade gracefully on pre-0.9.0rc floors (cross-language recall test skips with reason). Re-run against the graduated srmech before the tag.
+
+## SEQUENCING DECISION (user, 2026-07-03) — rc1 WAITS for the srmech rcN run to conclude
+**siona does NOT base off TestPyPI srmech.** The byteglyph word encoder (and the exact-rational
+transcendental returns) live in the srmech 0.9.0rc series, not production 0.8.2. Per user direction:
+rc1 ships only after the srmech rcN run concludes and graduates to production PyPI; at the cut, bump
+`dependencies`/`srmech_requires` from `>=0.8.1` to the graduated version, re-run the clean-venv verify
+against it (expect full 17/17, no skips), then the release mechanics. The feature-detection stays
+(graceful floors are correct regardless).
 
 ## Hardening backlog (before declaring ready)
 - [x] paraphrase intent-frames — DONE (F1022: politeness prefixes = declared operators consumed before routing)
@@ -35,8 +43,8 @@ executes until the rc1 cut is declared ready** ("almost there or all the way the
 - [x] UDHR parallel-invariant run — DONE (F1015: 3–8× chance, zero dictionary; IR layer proven load-bearing)
 - [x] egyptian_tla board exercised — DONE (F1015: distinct .386 + deterministic)
 - [x] operator-board swap test — DONE (F1015 synthetic testlang full session; F1016 REAL Bislama board from UDHR-attested vocab, 2/2 tests)
-- [ ] `siona.infer` test suite green under the venv pytest
-- [ ] README + CHANGELOG final pass; version SSOT agreement (pyproject / __init__ / profile toml)
+- [x] test suite green under pytest — DONE (dev rc97: 17/17; clean venv on PRODUCTION srmech 0.8.2: 16 pass + 1 documented skip after byteglyph feature-detection)
+- [x] version SSOT — DONE (pyproject = __init__ = profile toml = 0.1.0rc1; the flagged mismatch fixed). README/CHANGELOG final pass at the cut.
 
 ## Standing constraints
 - TestPyPI-first, always; clean tag = human-only production gate.

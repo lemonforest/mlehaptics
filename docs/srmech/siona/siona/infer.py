@@ -394,10 +394,12 @@ class Session:
         # 'water' finds the stored 'wota', 'education' finds 'edukesen'; controls unhurt).
         # NOTE-recall only: grounding stays token-exact (byteglyph was REJECTED there, F1017).
         ws = _toks(text)
-        parts = []
-        for w in ws:
-            parts.append(self.g.vec(w))
-            parts.append(self.g.cs.enc(w))
+        glyph = getattr(self.g.cs, "enc_mode", None) == "byteglyph"  # feature-detect: byteglyph
+        parts = []                                                    # shipped in srmech 0.9.0rc28+;
+        for w in ws:                                                  # on older floors the hybrid
+            parts.append(self.g.vec(w))                               # degrades gracefully to
+            if glyph:                                                 # token-only (cross-language
+                parts.append(self.g.cs.enc(w))                        # spelling bridge unavailable)
         parts += self.g._bg(ws)
         return self.g.cs.bundle_odd(parts or [self.g.vec("_")])
 

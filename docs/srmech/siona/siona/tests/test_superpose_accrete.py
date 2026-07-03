@@ -37,7 +37,11 @@ def test_accretion_with_guards():
 def test_cross_language_content_recall():
     """The F1017 measured boundary, closed by the F1021 hybrid note encoding: an ENGLISH query
     retrieves a BISLAMA note via the byteglyph spelling bridge (water~wota)."""
+    import pytest
     s = siona.Session()
+    if getattr(s.g.cs, "enc_mode", None) != "byteglyph":
+        pytest.skip("srmech byteglyph encoder (0.9.0rc28+) not on this floor -- "
+                    "hybrid degrades to token-only (documented in PUBLISH_GATE)")
     s.mem.extend(["wota i boela long 100 selsius",
                   "chess is a game of 64 squares",
                   "the fiedler vector splits a graph"])
