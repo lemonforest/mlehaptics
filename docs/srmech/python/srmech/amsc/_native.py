@@ -2943,6 +2943,27 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.c_void_p, ctypes.c_size_t,    # ws, ws_len
         ]
         lib.srmech_ellratio_is_elliptic.restype = ctypes.c_int
+    # rc119: srmech_ellratio_half_shift_response — the C peer of the EllRatio carrier's
+    # half_shift_response (the #712 Dzhanibekov half-period edge-multiplier reader). Same
+    # canonical marshalling as is_elliptic + an axis selector (0=real var->-var, 1=nome
+    # var->p*var); the multiplier monomial (coeff_num/coeff_den + dense exps) + the
+    # bare-covariance flag come back.
+    if hasattr(lib, "srmech_ellratio_half_shift_response"):
+        _ebi2h = ctypes.POINTER(_SrmechBigint)
+        lib.srmech_ellratio_half_shift_response.argtypes = [
+            ctypes.c_size_t,                     # n_syms
+            ctypes.c_int, ctypes.c_int,          # varsym, psym
+            ctypes.c_int,                        # axis (0=real, 1=nome)
+            ctypes.c_size_t, ctypes.c_size_t,    # n_num, n_den
+            _ebi2h, _ebi2h,                      # coeff_num, coeff_den (flat)
+            ctypes.POINTER(ctypes.c_int32),      # exps_flat
+            ctypes.c_uint32,                     # coeff_cap
+            ctypes.POINTER(ctypes.c_int),        # out_is_bare
+            _ebi2h, _ebi2h,                      # out_coeff_num, out_coeff_den
+            ctypes.POINTER(ctypes.c_int32),      # out_exps
+            ctypes.c_void_p, ctypes.c_size_t,    # ws, ws_len
+        ]
+        lib.srmech_ellratio_half_shift_response.restype = ctypes.c_int
 
     # rc67: srmech_elliptic_lagrange_basis — the C peer of the EllRatio-carrier op
     # srmech.amsc.ellbase.elliptic_lagrange_basis (rc66, Python-only; C mirror owed
@@ -7549,6 +7570,86 @@ def ellratio_is_elliptic_c(n_syms, xsym, psym, n_num, n_den, monomials):
     if rc != SRMECH_OK:
         raise RuntimeError(f"srmech_ellratio_is_elliptic returned non-OK status {rc}")
     return bool(out_is_elliptic.value)
+
+
+# ----------------------------------------------------------------------
+# rc119: srmech_ellratio_half_shift_response — the C peer of the EllRatio carrier's
+# half_shift_response (the #712 Dzhanibekov half-period edge-multiplier reader). The
+# canonical EllRatio + the axis selector (0=real var->-var, 1=nome var->p*var) ride the
+# SAME wire form as is_elliptic; the exact multiplier monomial (coeff_num/coeff_den + the
+# dense exps row) + the bare-covariance flag come back. Shares the srmech_bigint decimal-
+# marshal helpers (in _ELLRATIO_SYMS) with the ellratio / lagrange peers.
+# ----------------------------------------------------------------------
+
+
+def has_native_ellratio_half_shift() -> bool:
+    """True iff the rc119 srmech_ellratio_half_shift_response op + its ws sizer + the
+    srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
+    pre-rc119 lib — the pure-Python ``srmech.amsc.ellbase.half_shift_response`` body is
+    the complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _ELLRATIO_SYMS) and hasattr(
+        LIB, "srmech_ellratio_half_shift_response"
+    )
+
+
+def ellratio_half_shift_response_c(n_syms, varsym, psym, axis, n_num, n_den, monomials):
+    """Native EllRatio.half_shift_response for a CANONICAL ratio → ``(is_bare, coeff_num,
+    coeff_den, exps_row)`` (the exact multiplier monomial), or ``None`` if the native
+    symbols are absent. ``n_syms`` the interned symbol-table dimension; ``varsym`` /
+    ``psym`` the interned indices of the shift variable / the nome ``p`` (-1 if absent);
+    ``axis`` 0 (real var→−var) or 1 (nome var→p·var); ``n_num`` / ``n_den`` the theta
+    counts; ``monomials`` the flat list of ``(num, den, exps_row)`` triples in the order
+    prefactor, num0..K-1, den0..L-1. A non-OK C status raises ``RuntimeError``."""
+    if not has_native_ellratio_half_shift():
+        return None
+    if n_syms == 0:
+        n_syms = 1
+        monomials = [(num, den, [0]) for num, den, _e in monomials]
+    cl = 1
+    for num, den, _exps in monomials:
+        cl = max(cl, len(str(num).lstrip("-")) // 9 + 2, len(str(den)) // 9 + 2)
+    out_cap = cl + 4
+    ws_len = int(LIB.srmech_ellratio_ws_bound(
+        ctypes.c_size_t(n_syms), ctypes.c_size_t(n_num),
+        ctypes.c_size_t(n_den), ctypes.c_size_t(cl)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    n_mono = len(monomials)
+    num_arr = (_SrmechBigint * max(n_mono, 1))()
+    den_arr = (_SrmechBigint * max(n_mono, 1))()
+    keep = []
+    exps_flat = []
+    for i, (num, den, exps_row) in enumerate(monomials):
+        bn, kbn = _bigint_from_int(int(num), out_cap)
+        bd, kbd = _bigint_from_int(int(den), out_cap)
+        num_arr[i] = bn
+        den_arr[i] = bd
+        keep.append(kbn)
+        keep.append(kbd)
+        if len(exps_row) != n_syms:
+            raise ValueError("ellratio_half_shift_response_c: exps row length != n_syms")
+        exps_flat.extend(int(e) for e in exps_row)
+    exps_c = (ctypes.c_int32 * max(len(exps_flat), 1))(*exps_flat)
+    out_bare = ctypes.c_int(0)
+    ocn, kocn = _bigint_from_int(0, out_cap)
+    ocd, kocd = _bigint_from_int(0, out_cap)
+    keep.append(kocn)
+    keep.append(kocd)
+    out_exps = (ctypes.c_int32 * max(n_syms, 1))()
+    rc = LIB.srmech_ellratio_half_shift_response(
+        ctypes.c_size_t(n_syms),
+        ctypes.c_int(varsym), ctypes.c_int(psym), ctypes.c_int(axis),
+        ctypes.c_size_t(n_num), ctypes.c_size_t(n_den),
+        num_arr, den_arr, exps_c, ctypes.c_uint32(out_cap),
+        ctypes.byref(out_bare), ctypes.byref(ocn), ctypes.byref(ocd), out_exps,
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_ellratio_half_shift_response returned non-OK status {rc}")
+    exps = [int(out_exps[j]) for j in range(n_syms)]
+    return (bool(out_bare.value), _bigint_to_int(ocn), _bigint_to_int(ocd), exps)
 
 
 # ----------------------------------------------------------------------

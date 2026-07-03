@@ -371,7 +371,7 @@ def test_descriptor_shape_and_self_consistency():
 def test_tools_total_is_376():
     """rc116 ships 9 genuinely NEW public ops → +9 ToolEntries (367 → 376)."""
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 381
+    assert introspect.describe()["tools"]["total"] == 384
 
 
 def test_new_tool_entries_present_with_declared_types():
