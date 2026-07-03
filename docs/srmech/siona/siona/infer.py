@@ -127,12 +127,16 @@ def _register_self_tools():
     ts.register_profile_tools("siona", [
         T("siona.memory.remember", "Remember a note: store the given text into siona's never-compacted working memory. Aliases: ingest, save, note this."),
         T("siona.memory.recall", "Recall from working memory: retrieve the stored note or driven result most similar to the query text."),
-        T("siona.memory.forget", "Forget the most recent note: pop the last item from siona's working memory."),
+        T("siona.memory.forget", "Forget: with no argument pop the last note; with a query, SURGICALLY graft out the best-matching note (user-directed removal; the MPR attestation trail re-indexes)."),
+        T("siona.memory.purge", "Purge ALL working-memory notes and their attestations on explicit request. Learned verbs stay (unlearn per verb)."),
         T("siona.memory.show", "Show the working memory: list every stored note and driven result in order."),
         T("siona.read.define", "Define a concept: depth-read the srmech tool catalog and return the best definition summary for the query."),
         T("siona.read.continue_text", "Continue a text prefix: substrate next-token read from siona's remembered content."),
         T("siona.introspect.help", "List siona's own commands: enumerate the siona tool schema from the live registry (self-introspection, Class H). Serves asks like: what can you do, what are you able to do, list your commands, help."),
         T("siona.read.answer", "Answer a question from remembered knowledge: compose recalled facts with ingested unit-conversion kernels to derive the asked value exactly (celsius to fahrenheit and similar unit questions)."),
+        T("siona.knowledge.load", "Load a knowledge instrument by path (an RBS-HDC NDJSON instrument with its title index). Knowledge is user-side data; the wheel ships mechanism only."),
+        T("siona.knowledge.acquire", "Acquire a topic from the loaded instrument: look up the title, take the lead, store it as an ATTESTED note (source path + byte offset + sha256 of the record -- Class-A provenance)."),
+        T("siona.knowledge.pack", "Pack the acquired attested notes into a persistent Laplacian-encoded store (co-occurrence -> normalized Laplacian -> eigenmodes) written to the given path and verified by reload."),
     ])
 
 
@@ -146,13 +150,19 @@ class Session:
         self.mem = []  # never compacted; grows for the life of the session
         self.learned_verbs = {}   # ACCRETED word->tool (F1018: roles fixed, words evolve by usage)
         self._verb_obs = {}       # accretion tallies: lead-word -> {tool: count}
+        self.last_result = None   # the RESULT REGISTER: the actual object a [srmech] turn returned (F1024)
+        self.instrument = None    # loaded knowledge instrument (path, index) -- mechanism-not-knowledge:
+        self.attestations = []    # knowledge loads by PATH; every acquired fact carries Class-A attestation
         _register_self_tools()
         self.g = Grounding(D=D)
         self._impl = {
             "siona.memory.remember": self._remember, "siona.memory.recall": self._recall,
             "siona.memory.forget": self._forget, "siona.memory.show": self._show,
+            "siona.memory.purge": self._purge,
             "siona.read.define": self._define, "siona.read.continue_text": self._continue,
             "siona.introspect.help": self._help, "siona.read.answer": self._answer,
+            "siona.knowledge.load": self._k_load, "siona.knowledge.acquire": self._k_acquire,
+            "siona.knowledge.pack": self._k_pack,
         }
 
     # ---- router (F1010: declared operators + operand shape; continue = the default) ----
@@ -242,6 +252,11 @@ class Session:
         self._verb_obs.pop(verb, None)
 
     def _finish_self(self, pick, u, ws, b):
+        if pick.startswith("siona.knowledge."):
+            raw = [w for w in u.split() if w.lower() != b.address]
+            if raw and raw[0].lower() in ("load", "acquire", "learn", "pack"):
+                raw = raw[1:]
+            return pick.split(".")[-1], self._impl[pick](" ".join(raw))
         if pick == "siona.memory.remember":
             # notes store UNDOCTORED (F982): raw whitespace words (NOT _toks -- its len>1 filter is an
             # English-privilege artifact that drops Bislama's predicate marker 'i', docf 31/31), minus
@@ -253,7 +268,9 @@ class Session:
         return pick.split(".")[-1], self._impl[pick](self._rem(u))
 
     # ---- the drive loop (F1009 + F1012 cross-turn operand resolution) ----
-    def _fit(self, t, ints, fls, byts, edges=()):
+    REF_WORDS = frozenset({"it", "its", "that", "result"})  # the RESULT REGISTER reference operators
+
+    def _fit(self, t, ints, fls, byts, edges=(), ref=None):
         pt = lambda p: p.type.lower().strip()
         reqs = [p for p in t.parameters if p.required]
         if not reqs:
@@ -262,8 +279,14 @@ class Session:
         fltp = sum(1 for p in reqs if pt(p) == "float")
         bytp = sum(1 for p in reqs if "bytes" in pt(p))
         listp = sum(1 for p in reqs if any(k in pt(p) for k in ("list", "sequence", "tuple")))
-        if len(reqs) - intp - fltp - bytp - listp:
+        refp = sum(1 for p in reqs if ref and ref.lower() in pt(p)
+                   and not any(k in pt(p) for k in ("list", "sequence", "tuple")))
+        if len(reqs) - intp - fltp - bytp - listp - refp:
             return 0.0
+        if refp:
+            # exactly ONE carrier slot: duplicating one register into several params is never the
+            # intent (caught live: eigenvalues-of-it bound M into pseudo_hermitian(M, M) -> True)
+            return 2.0 if refp == 1 else 0.0
         if bytp and byts is None:
             return 0.0
         if fltp > len(fls) + len(ints):  # a float slot may consume an int operand
@@ -279,9 +302,12 @@ class Session:
 
     def _drive_tool(self, u):
         ints, fls, byts, edges = self._operands(u)
+        ref = (type(self.last_result).__name__
+               if self.last_result is not None
+               and any(w in self.REF_WORDS for w in _toks(u)) else None)
         cands = [n for _, n in self.g.ground(u, 5, owner="srmech")]
         resolved = ""
-        if all(self._fit(self.g.tools[n], ints, fls, byts, edges) == 0.0 for n in cands) and self.mem:
+        if all(self._fit(self.g.tools[n], ints, fls, byts, edges, ref) == 0.0 for n in cands) and self.mem:
             # cross-turn operand resolution: the utterance under-supplies -> recall the referenced note
             kw = self.board.kernel_ops["kernel"]
             topname = self.g._nm[cands[0]]
@@ -295,7 +321,7 @@ class Session:
                 mem_ints = [int(w) for w in _toks(note) if w.isdigit()]
                 ints = mem_ints[:1] + ints
                 resolved = ' [operand %s resolved from: "%s"]' % (mem_ints[:1], note)
-        scored = sorted(((self._fit(self.g.tools[n], ints, fls, byts, edges), -cands.index(n), n)
+        scored = sorted(((self._fit(self.g.tools[n], ints, fls, byts, edges, ref), -cands.index(n), n)
                          for n in cands), reverse=True)
         ranked = [n for f, _, n in scored if f > 0] or cands[:1]
         # FAILED-RUN RECOVERY (hardening ii): try fit-positive candidates in order; a raise moves to
@@ -303,7 +329,7 @@ class Session:
         attempts = []
         for pick in ranked[:3]:
             fn = self._resolve(pick)
-            ba = self._bind_args(pick, u, ints, fls, byts, edges)
+            ba = self._bind_args(pick, u, ints, fls, byts, edges, ref)
             if fn is None or ba is None:
                 attempts.append("%s: unbindable" % pick.split(".")[-1])
                 continue
@@ -318,6 +344,7 @@ class Session:
                 self.mem.append("attempt %s = ERR %s" % (shown, e))
                 continue
             self.mem.append("%s = %s" % (shown, res))
+            self.last_result = res                 # the register holds the OBJECT for the next turn
             note = " [recovered after: %s]" % "; ".join(attempts) if attempts else ""
             return "%s = %s%s%s" % (shown, str(res)[:60], resolved, note)
         return "(no runnable candidate; attempts: %s)" % ("; ".join(attempts) or "none")
@@ -334,7 +361,7 @@ class Session:
                 continue
         return None
 
-    def _bind_args(self, pick, u, ints, fls, byts, edges=()):
+    def _bind_args(self, pick, u, ints, fls, byts, edges=(), ref=None):
         # NAMED operands: match the tool's OWN declared parameter names in the utterance,
         # both orders ('terms 12' / '12 terms'). Schema-driven — no per-tool code.
         named, ul = {}, u.lower()
@@ -384,6 +411,8 @@ class Session:
                     args.append(list(edges))       # EDGE-PAIR operands -> Iterable[Tuple[int,int]] params
                 else:
                     args.append(ints[ii:]); ii = len(ints)
+            elif ref and ref.lower() in tp:
+                args.append(self.last_result)      # the RESULT REGISTER fills the carrier-typed param
             elif p.required:
                 return None  # Mat/Vec/HV CONSTRUCTION stays out of scope (utterances can't safely build carriers)
         return args, kw
@@ -414,8 +443,7 @@ class Session:
         qv = self._enc_note(text)
         return "recall: %s" % max(self.mem, key=lambda m: self.g.sim(qv, self._enc_note(m)))
 
-    def _forget(self, text=""):
-        return "forgot: %s" % (self.mem.pop() if self.mem else "(empty)")
+
 
     def _show(self, text=""):
         return "memory (%d): %s" % (len(self.mem), " | ".join(self.mem))
@@ -493,3 +521,166 @@ class Session:
         self.mem.append("%s %s = %s %s (derived from: %s)" % (fact.split()[0], tgt, shown, tgt, fact))
         return ('%s %s (EXACT: (%d*%d + %d*%d)/%d = %d/%d, reduced via srmech gcd; '
                 'from the fact "%s" through the kernel)') % (shown, tgt, v, a, c, b, b, num, den, fact)
+
+    # ---- PERSISTENCE (the --persist context instrument; never-compacted, user-directed pruning only) ----
+    STATE_FORMAT = "siona-session-state/1"
+
+    def save_state(self, path):
+        import json as _json
+        with open(path, "w") as f:
+            _json.dump({"format": self.STATE_FORMAT, "mem": self.mem,
+                        "attestations": self.attestations, "learned_verbs": self.learned_verbs,
+                        "instrument": list(self.instrument) if self.instrument else None}, f)
+
+    def load_state(self, path):
+        import json as _json
+        import os
+        if not os.path.isfile(path):
+            return 0
+        st = _json.load(open(path))
+        if st.get("format") != self.STATE_FORMAT:
+            return 0
+        self.mem = st.get("mem", [])
+        self.attestations = st.get("attestations", [])
+        self.learned_verbs = st.get("learned_verbs", {})
+        inst = st.get("instrument")
+        if inst:
+            self._impl["siona.knowledge.load"](inst[0])
+        return len(self.mem)
+
+    def _forget(self, text=""):
+        # no arg: pop the last note. WITH an arg: SURGICAL GRAFT-OUT -- remove the best-matching
+        # note on explicit request (user-directed removal is sovereignty, NOT compaction; F811's
+        # never-compact ban is on AUTOMATIC truncation).
+        if not self.mem:
+            return "forgot: (empty)"
+        if not text.strip():
+            gone_i = len(self.mem) - 1
+        else:
+            qv = self._enc_note(text)
+            gone_i = max(range(len(self.mem)),
+                         key=lambda i: self.g.sim(qv, self._enc_note(self.mem[i])))
+        gone = self.mem.pop(gone_i)
+        kept = []
+        for a in self.attestations:                            # re-index the MPR trail
+            ni = a.get("note_index")
+            if ni == gone_i:
+                continue
+            if ni is not None and ni > gone_i:
+                a = dict(a); a["note_index"] = ni - 1
+            kept.append(a)
+        self.attestations = kept
+        return "grafted out: %s" % gone[:70]
+
+    def _purge(self, text=""):
+        n = len(self.mem)
+        self.mem = []
+        self.attestations = []
+        return "purged %d note(s) + their attestations (learned verbs kept; unlearn() per verb)" % n
+
+    # ---- the KNOWLEDGE loop (F1024): acquire -> ATTEST (AMSC MPR) -> pack (Laplacian store) ----
+    def _k_load(self, text):
+        import os
+        path = text.strip()
+        if not os.path.isfile(path):
+            return "(no instrument at %s)" % path
+        index = path.replace("_instrument.ndjson", "_index.json")
+        if not os.path.isfile(index):
+            return "(no title index at %s)" % index
+        from srmech.amsc.format import sha256_bytes
+        with open(index, "rb") as f:
+            self._instrument_hash = sha256_bytes(f.read())     # collector-descriptor hash, once per load
+        self.instrument = (path, index)
+        return "instrument loaded: %s (+ title index, sha256=%s). knowledge stays user-side; acquire <topic> to learn." % (
+            os.path.basename(path), self._instrument_hash[:12])
+
+    ACQUIRE_RULE = "lead = first 40 whitespace tokens of record['s'] at the indexed byte offset"
+
+    def _k_acquire(self, text):
+        if not self.instrument:
+            return "(no instrument loaded -- 'load <path>' first)"
+        import json as _json
+        import datetime
+        from dataclasses import asdict
+        from srmech.amsc.format import (MPRRecord, sha256_bytes,
+                                        validate_mpr_record)   # AMSC: the MPM crystallisation
+        from . import bridge
+        path, index = self.instrument
+        topic = text.strip().lower()
+        off = bridge._index(index).get(topic)
+        if off is None:
+            return "(topic %r not in the instrument)" % topic
+        with open(path, "rb") as f:
+            f.seek(off)
+            raw = f.readline()
+        rec = _json.loads(raw)
+        lead = " ".join(rec["s"].split()[:40])                 # the lead = the acquirable fact-size read
+        import srmech
+        mpr = MPRRecord(
+            mpr_version="1.0",
+            data={"topic": topic, "lead": lead, "byte_offset": off},
+            data_schema_id="siona://schema/acquired-lead/1",
+            attestation={
+                # a local instrument has no DOI; a SELF-DESCRIBING urn (never a fabricated
+                # real-looking DOI) -- srmech precedent: pi_digits' labeled placeholder +
+                # require_per_row_source_doi=false (record-level parity asked in UPSTREAM #84)
+                "source_doi": "urn:siona:local-instrument:no-doi",
+                "source_url": "file://" + path,
+                "license": "CC-BY-SA-4.0",                     # Wikipedia-derived instrument
+                "retrieved_at": datetime.datetime.now(datetime.timezone.utc)
+                                .strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "response_sha256": sha256_bytes(raw),          # the EXACT record bytes (Class A)
+                "parser_version": "srmech %s / siona" % srmech.__version__,
+                "parser_rule_hash": sha256_bytes(self.ACQUIRE_RULE.encode()),
+                "collector_descriptor_path": index,
+                "collector_descriptor_hash": self._instrument_hash,
+            },
+            rendering={
+                "human_readable_name": "simplewiki lead: %s" % topic,
+                "cite_as": "Wikipedia contributors, %r, Simple English Wikipedia (CC-BY-SA)" % topic,
+                "purpose": "knowledge note acquired into the siona session (attested per MPM)",
+            })
+        validate_mpr_record(mpr)                               # the REAL AMSC validation gate
+        self.mem.append(lead)                                  # acquired knowledge enters working memory
+        d = asdict(mpr)
+        d["note_index"] = len(self.mem) - 1
+        self.attestations.append(d)
+        return "acquired %r: \"%s...\" [MPR-ATTESTED sha256=%s offset=%d]" % (
+            topic, lead[:48], d["attestation"]["response_sha256"][:12], off)
+
+    def _k_pack(self, text):
+        if not self.attestations:
+            return "(nothing acquired to pack)"
+        import json as _json
+        from srmech.amsc import text as stext, laplacian as L
+        out = text.strip() or "siona_knowledge_pack.json"
+        notes = [self.mem[a["note_index"]] for a in self.attestations]
+        docs = [n.split() for n in notes]
+        n, edges, weights = stext.cooccurrence_edges(docs, window=2, vocab_size=64)
+        tf = {}
+        for d in docs:
+            for w in d:
+                tf[w] = tf.get(w, 0) + 1
+        vocab = [w for w, _ in sorted(tf.items(), key=lambda kv: (-kv[1], kv[0]))[:n]]
+        Ln = L.normalized_laplacian(n, edges, weights)
+        ev, V = L.mat_hermitian_eigendecompose(Ln)
+        raw = ev.tolist() if hasattr(ev, "tolist") else list(ev)
+        flat = ([raw[i][i] for i in range(len(raw))] if raw and isinstance(raw[0], list)
+                and len(raw) == len(raw[0]) else
+                [x for row in raw for x in row] if raw and isinstance(raw[0], list) else raw)
+        evl = [float(getattr(x, "real", x)) for x in flat]     # display/persistence boundary
+        Vl = V.tolist() if hasattr(V, "tolist") else V
+        order = sorted(range(n), key=lambda k: evl[k])
+        low = [k for k in order if evl[k] > 1e-9][:8]
+        store = {"format": "siona-laplacian-pack/1", "vocab": vocab,
+                 "eigvals": sorted(evl),
+                 "low_modes": [[float(getattr(Vl[i][k], "real", Vl[i][k])) for k in low]
+                               for i in range(n)],
+                 "notes": notes, "attestations": self.attestations}
+        with open(out, "w") as f:
+            _json.dump(store, f)
+        back = _json.load(open(out))                            # verify by reload
+        ok = (back["vocab"] == vocab and len(back["eigvals"]) == n
+              and len(back["attestations"]) == len(self.attestations))
+        return ("packed %d attested note(s) -> %s (Laplacian store: %d-word vocab, %d low modes, "
+                "%d eigvals; reload-verified=%s)") % (len(notes), out, n, len(low), n, ok)

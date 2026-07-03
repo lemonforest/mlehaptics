@@ -2705,3 +2705,14 @@ all composable from shipped primitives (ergonomics + one honesty-driven encoding
 
 Supersedes the standalone §81 + §82 as the *filed* ask. Leaving #1234 OPEN — issue state is the maintainer's
 call per the create-don't-close discipline. #863 left CLOSED (not reopened); re-raised as Item 1 of #1234.
+
+## §84 — `validate_mpr_record`: record-level DOI-exemption parity (2026-07-03)
+
+Descriptor-level parsing already supports `require_per_row_source_doi = false` (pi_digits,
+asymptotic_calculus — self-generated / local sources with no DOI). But `validate_mpr_record`
+on a SINGLE record demands a non-empty `attestation.source_doi` unconditionally, so a consumer
+attesting a local-file source (siona's `acquire` on a user-side instrument) must supply a
+placeholder. We use the self-describing `urn:siona:local-instrument:no-doi` (never a fabricated
+real-looking DOI, per the paywalled-DOI discipline). Ask: either (a) an explicit
+`allow_no_doi=True` kwarg on `validate_mpr_record`, or (b) blessing a documented
+`urn:...:no-doi` convention in the validator so local/self-generated sources validate first-class.

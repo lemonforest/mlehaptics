@@ -48,6 +48,14 @@ def main(argv=None):
     ap.add_argument("--board", default="english",
                     help="english | bislama | merged | path/to/board.toml (default: english)")
     ap.add_argument("--dim", type=int, default=8192, help="hypervector dimension D (default 8192)")
+    ap.add_argument("--load", metavar="INSTRUMENT",
+                    help="load a knowledge instrument at startup (an RBS-HDC NDJSON + its title index)")
+    ap.add_argument("--persist", metavar="STATE", nargs="?", const="",
+                    help="checkpoint the session context (never-compacted memory + MPR attestations + "
+                         "learned verbs) to this file after every turn (default: ~/.siona/state.json)")
+    ap.add_argument("--continue", dest="cont", action="store_true",
+                    help="resume the persisted context (from --persist's file or the default) and "
+                         "keep checkpointing -- restoring is EXPLICIT, never implicit")
     ap.add_argument("--version", action="store_true", help="print version and exit")
     args = ap.parse_args(argv)
 
@@ -62,6 +70,20 @@ def main(argv=None):
     session = siona.Session(board=board, D=args.dim)
     print("ready — %d tools grounded. every line is one turn; 'exit' or Ctrl-D to leave."
           % len(session.g.tools))
+    state = None
+    if args.persist is not None or args.cont:
+        state = args.persist or os.path.expanduser("~/.siona/state.json")
+        if args.cont:
+            n = session.load_state(state)
+            print("[continue] context restored: %d note(s) + attestations from %s" % (n, state)
+                  if n else "[continue] no prior context at %s -- starting fresh" % state)
+        elif os.path.isfile(state):
+            # --persist alone onto an EXISTING state would clobber someone's context: refuse.
+            print("state exists at %s -- use --continue to resume it, or --persist <new-path>" % state)
+            return 2
+        os.makedirs(os.path.dirname(state) or ".", exist_ok=True)
+    if args.load:
+        print("[siona.load] %s" % session._impl["siona.knowledge.load"](args.load))
 
     interactive = sys.stdin.isatty()
     while True:
@@ -82,6 +104,8 @@ def main(argv=None):
             print("[%s] %s" % (tag, out))
         except Exception as e:  # a turn must never kill the session
             print("[error] %s: %s" % (type(e).__name__, e))
+        if state:
+            session.save_state(state)  # crash-safe: every turn checkpoints the context
     return 0
 
 
