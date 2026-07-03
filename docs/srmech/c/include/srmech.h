@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc116"
-#define SRMECH_VERSION       "0.9.0rc116"
+#define SRMECH_VERSION_PRE   "rc117"
+#define SRMECH_VERSION       "0.9.0rc117"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2502,6 +2502,53 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
                                             const char **keys,
                                             srmech_json_value_t **vals,
                                             uint32_t n);
+
+/* ------------------------------------------------------------------
+ * Op-provenance canonical record hasher (0.9.0rc117; the op-carrying
+ * carrier, dives #718/#719) — the C peer of
+ * srmech.amsc.op_provenance.op_provenance_hash.
+ *
+ * digest = sha256( canonical_json( record MINUS "chain_sha256" ) )
+ *
+ * A Class-A composite over the JSON module above + srmech_sha256_hex:
+ * parse `record_len` JSON bytes at `record_json` (ANY formatting / key
+ * order), drop the top-level "chain_sha256" member (the record's cached
+ * self-hash — the pre-image never contains it), re-emit CANONICALLY
+ * (byte-identical to CPython json.dumps(obj, sort_keys=True,
+ * ensure_ascii=False)), and write the 64-hex SHA-256 (+ NUL) of those
+ * canonical bytes into `out_hex` (>= 65 bytes).
+ *
+ * FLOAT-FREE BY CONSTRUCTION: the op-provenance canonical image carries
+ * floats only as {"__float64__": "<float.hex>"} string tags. A raw JSON
+ * float (any number token containing '.', 'e', or 'E') is REJECTED with
+ * SRMECH_ERR_BAD_INPUT — C's %.17g double rendering is not byte-identical
+ * to Python repr(float), and a silent fork of the hash is exactly what
+ * this op exists to prevent. (The Python wrapper enforces the same
+ * rejection; the mirror agrees on the domain, not just the values.)
+ *
+ * `ws` is the caller arena for ALL scratch (parse tree + writer key-sort
+ * scratch + the canonical byte buffer) — bound by the caller's RAM, no
+ * compiled-in cap; size it with srmech_op_provenance_hash_arena_bytes.
+ * ABI-additive: new symbols only, SRMECH_ABI_VERSION stays 3.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — record_json / ws / out_hex is NULL.
+ *   SRMECH_ERR_BAD_INPUT — empty / malformed JSON, a raw float token,
+ *                          or a ws too small to seat the writer scratch.
+ *   SRMECH_ERR_OVERFLOW  — the arena cannot hold this record's tree /
+ *                          canonical bytes (size ws up and retry).
+ * ------------------------------------------------------------------ */
+srmech_status_t srmech_op_provenance_hash(const char *record_json,
+                                          size_t record_len,
+                                          void *ws, size_t ws_len,
+                                          char *out_hex);
+
+/* The arena byte count srmech_op_provenance_hash needs for a record of
+ * `record_len` JSON bytes — a static over-approximation of the parse
+ * tree + writer scratch + canonical output (each term traces to a real
+ * allocation; see srmech_op_provenance.c). Pure arithmetic (no I/O).
+ * Adding this symbol does NOT bump SRMECH_ABI_VERSION. */
+size_t srmech_op_provenance_hash_arena_bytes(size_t record_len);
 
 /* ------------------------------------------------------------------
  * §41 genome persistence — the C mirror of srmech.amsc.genome's

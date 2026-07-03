@@ -1787,6 +1787,32 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_json_write_ws.restype = ctypes.c_int
 
     # ------------------------------------------------------------------
+    # Class A — op-provenance canonical record hasher (0.9.0rc117; the
+    # op-carrying carrier, dives #718/#719). The C peer of
+    # srmech.amsc.op_provenance.op_provenance_hash:
+    # sha256(canonical_json(record MINUS "chain_sha256")) — a composite
+    # over srmech_json_parse / srmech_json_write_ws / srmech_sha256_hex.
+    # NEW symbols → hasattr-guarded (a stale ABI-3 lib keeps the rest of
+    # the native surface); additive → EXPECTED_ABI_VERSION stays 3.
+    #   int srmech_op_provenance_hash(const char *record_json,
+    #       size_t record_len, void *ws, size_t ws_len, char *out_hex)
+    if hasattr(lib, "srmech_op_provenance_hash"):
+        lib.srmech_op_provenance_hash.argtypes = [
+            ctypes.c_char_p,                    # record_json (raw JSON bytes)
+            ctypes.c_size_t,                    # record_len
+            ctypes.c_void_p,                    # ws (caller arena)
+            ctypes.c_size_t,                    # ws_len (arena bytes)
+            ctypes.c_char_p,                    # out_hex (>= 65 bytes)
+        ]
+        lib.srmech_op_provenance_hash.restype = ctypes.c_int
+    #   size_t srmech_op_provenance_hash_arena_bytes(size_t record_len)
+    if hasattr(lib, "srmech_op_provenance_hash_arena_bytes"):
+        lib.srmech_op_provenance_hash_arena_bytes.argtypes = [
+            ctypes.c_size_t,                    # record_len
+        ]
+        lib.srmech_op_provenance_hash_arena_bytes.restype = ctypes.c_size_t
+
+    # ------------------------------------------------------------------
     # Class N — ROTATION-LAST Chudnovsky π on srmech_bigint (0.9.0rc19).
     # The two srmech_pi_* symbols are the C-host peer of
     # srmech.amsc.rational.pi_chudnovsky_digits — exact bigint body, ONE

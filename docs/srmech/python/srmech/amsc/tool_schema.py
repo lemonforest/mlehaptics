@@ -3615,6 +3615,188 @@ def _register_primitive_class_tools() -> None:
                       "'project'}}}"),
         ),
         # ────────────────────────────────────────────────────────────
+        # rc117 (dives #718/#719): OPERATORS⊗OPERANDS as ONE addressable
+        # object — the op-carrying carrier (srmech.amsc.op_provenance).
+        # The value of an inexact-frontier op is a PROJECTION; the exact
+        # generating operation is the SSOT. carry() attaches the operation
+        # to the result over a name-keyed registry (the genome op-log /
+        # DSL run_toml_chain re-run-by-name model; existing signatures
+        # untouched); op_provenance_hash is the Class-A canonical hasher
+        # (C peer srmech_op_provenance_hash); op_verdict/family_verdict
+        # are the honest ONE-SIDED verdict pair (EQUAL/SAME_TARGET or
+        # UNKNOWN — never a false UNEQUAL: equality of programs is
+        # undecidable); reproject re-runs the carried operation at a
+        # different rung (the operation-as-SSOT win).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.op_provenance.carry", owner="srmech",
+            category="op_provenance",
+            summary="Run a registered value-inexact-frontier op AND attach "
+                    "its exact generating operation — the op-carrying "
+                    "carrier (rc117; dives #718/#719: the value is a "
+                    "PROJECTION, the operation is the SSOT). Returns "
+                    "{'value': the op's normal result, 'inputs': the "
+                    "canonicalised pinned inputs, 'provenance': the record "
+                    "{op, params, input_sha256, family, rung, leaves_exact, "
+                    "chain_sha256}}. The registry covers the rc117 frontier: "
+                    "the Class-N series_truncate family (sin/cos/exp/log1p/"
+                    "atan; INTERIOR Taylor towers, rung=num_terms) + "
+                    "best_rational (EDGE continued-fraction tower, rung="
+                    "max_denominator) + the Class-L float64 producers "
+                    "(jacobi_eigvals / symmetric_eigendecompose / "
+                    "hermitian_eigendecompose / heat_trace / "
+                    "resonant_spectrum; EDGE rotation-composition towers). "
+                    "family = (NAMED target_id, tower_kind) — the "
+                    "attestation-registry namespace: derived from exact "
+                    "inputs (e.g. 'sin(1/1)', 'eigvals(sha256:<hash>)') or "
+                    "caller-attested via family=; unnamed/float-leaf targets "
+                    "get family None (instance-only) with leaves_exact False "
+                    "recorded honestly. Param defaults are MATERIALISED so a "
+                    "default and an explicit-default call carry ONE address. "
+                    "Existing op signatures untouched (opt-in wrapper over a "
+                    "name-keyed registry — the genome op-log / DSL "
+                    "run_toml_chain model). numpy-free; no abs().",
+            parameters=(P("op", "str", True,
+                          "registered dotted op name (e.g. 'srmech.amsc."
+                          "rational.sin_series_truncate')"),
+                        P("inputs", "dict", True,
+                          "pinned operand inputs keyed by name (series ops: "
+                          "numerator/denominator; Class-L: matrix / L (+t))"),
+                        P("params", "dict", False,
+                          "op params (num_terms, tolerance, …); defaults "
+                          "materialised into the record"),
+                        P("family", "dict", False,
+                          "optional caller-attested family naming "
+                          "{'target_id': <named target>}; tower_kind is "
+                          "op-intrinsic and not overridable")),
+            returns=R("dict",
+                      "{'value': op result, 'inputs': canonicalised inputs, "
+                      "'provenance': {op, params, input_sha256, family, "
+                      "rung, leaves_exact, chain_sha256}}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.op_provenance.op_provenance_hash",
+            owner="srmech", category="op_provenance",
+            summary="The canonical op-provenance record hasher (Class A; "
+                    "rc117): SHA-256 of the record's MPRRecord-style "
+                    "canonical byte image json.dumps(record, sort_keys=True, "
+                    "ensure_ascii=False), EXCLUDING the record's own cached "
+                    "chain_sha256 field. This hash IS the operation address "
+                    "op_verdict compares: two records hash equal IFF their "
+                    "canonical images are byte-identical. The record must be "
+                    "float-free canonical JSON — floats ride as "
+                    "{'__float64__': float.hex(x)} exact-bit-pattern tags, "
+                    "ints beyond int64 as {'__bigint__': '<decimal>'} "
+                    "(carry() builds records in this form); raw floats are "
+                    "REJECTED, never silently forked (C %.17g doubles are "
+                    "not byte-identical to Python repr). 1:1 C peer "
+                    "srmech_op_provenance_hash (srmech_json_parse → "
+                    "canonical rewrite → srmech_sha256_hex; the IDENTICAL "
+                    "digest from ANY JSON formatting of the same record; "
+                    "native-authoritative when present, pure Python the "
+                    "complete alternative). No raw hashlib (routes "
+                    "sha256_bytes); numpy-free; no abs().",
+            parameters=(P("record", "dict", True,
+                          "the provenance record (float-free canonical "
+                          "JSON-shaped dict; a chain_sha256 field is "
+                          "ignored)"),),
+            returns=R("str", "the 64-hex SHA-256 of the canonical record "
+                             "image"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.op_provenance.op_verdict", owner="srmech",
+            category="op_provenance",
+            summary="The honest ONE-SIDED op-equality verdict (rc117; dive "
+                    "#718 — the load-bearing contract): 'EQUAL' when the two "
+                    "provenances' canonical chain hashes agree (recomputed, "
+                    "never trusting the cached field) — identical generating "
+                    "program + identical pinned inputs ⟹ the same ideal "
+                    "object BY CONSTRUCTION, sound even where the float "
+                    "readouts diverge in the last ulp (platform divergence "
+                    "is a projection artifact, not a different object; when "
+                    "leaves_exact is False the EQUAL means same-op-on-same-"
+                    "bit-pattern, stated in the records). 'UNKNOWN' "
+                    "otherwise — equality of programs is UNDECIDABLE, so a "
+                    "different chain proves nothing: an algebraically-equal "
+                    "but syntactically-different cascade, a different rung, "
+                    "or a coincidentally-equal value from a different op all "
+                    "stay UNKNOWN. NEVER a false 'UNEQUAL' and never a false "
+                    "EQUAL — this asymmetry IS the contract. Accepts bare "
+                    "records or full carry() results. numpy-free; no abs().",
+            parameters=(P("p1", "dict", True,
+                          "a provenance record or carry() result"),
+                        P("p2", "dict", True,
+                          "a provenance record or carry() result")),
+            returns=R("str", "'EQUAL' | 'UNKNOWN' (one-sided; never a "
+                             "false UNEQUAL)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.op_provenance.family_verdict", owner="srmech",
+            category="op_provenance",
+            summary="The honest ONE-SIDED family verdict (rc117; dive #719): "
+                    "'SAME_TARGET' when BOTH provenances carry a family (a "
+                    "NAMED/ATTESTED target — the attestation-registry "
+                    "namespace) and the full family addresses agree (same "
+                    "target_id AND same tower_kind) — every truncation rung "
+                    "of one target in one tower shares this address (the "
+                    "asymptote addressed by its generator: N truncations = "
+                    "1 family address + N instance addresses). 'UNKNOWN' "
+                    "otherwise — NEVER a false 'DIFFERENT'. The tower "
+                    "distinction is part of the address: the SAME named "
+                    "target approached by the interior (Taylor additive) and "
+                    "the edge (continued-fraction/rotation multiplicative) "
+                    "towers is two DIFFERENT families (the shared target "
+                    "stays visible by comparing target_id directly). Unnamed "
+                    "targets (family None — float-leaf inputs) are "
+                    "instance-only and always UNKNOWN here: family-equality "
+                    "is decidable exactly when targets are named. Accepts "
+                    "bare records or full carry() results. numpy-free; no "
+                    "abs().",
+            parameters=(P("p1", "dict", True,
+                          "a provenance record or carry() result"),
+                        P("p2", "dict", True,
+                          "a provenance record or carry() result")),
+            returns=R("str", "'SAME_TARGET' | 'UNKNOWN' (one-sided; never "
+                             "a false DIFFERENT)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.op_provenance.reproject", owner="srmech",
+            category="op_provenance",
+            summary="Re-run the carried operation at a (possibly different) "
+                    "rung — the value RE-COMPUTED from the operation-as-SSOT "
+                    "(rc117; dive #718: recompute the projection from the "
+                    "carried exact operation, e.g. a series_truncate carrier "
+                    "from N=3 to N=12 sharpening toward its named target). "
+                    "Takes a carry() result (which carries the pinned "
+                    "inputs) or a bare record + explicit inputs=; the "
+                    "supplied inputs are RE-VERIFIED against the record's "
+                    "input_sha256 before anything runs (the MPM "
+                    "re-verification: a provenance that can't be re-verified "
+                    "is broken). ONLY the op's declared rung (precision) "
+                    "params may be overridden — overriding a non-rung param "
+                    "would change the target (a different operation, not a "
+                    "re-projection); an empty override re-derives the "
+                    "carried value verbatim. The family address is "
+                    "PRESERVED (rung-independent by construction): "
+                    "family_verdict(carried, reprojected) == 'SAME_TARGET'. "
+                    "Returns a fresh {'value','inputs','provenance'} "
+                    "carry-result. Registry dispatch (the genome op-log / "
+                    "DSL run_toml_chain re-run-by-name model). numpy-free; "
+                    "no abs().",
+            parameters=(P("provenance", "dict", True,
+                          "a carry() result (carries inputs) or a bare "
+                          "provenance record"),
+                        P("overrides", "dict", False,
+                          "rung (precision) param overrides, e.g. "
+                          "{'num_terms': 12}"),
+                        P("inputs", "dict", False,
+                          "explicit pinned inputs when passing a bare "
+                          "record (re-verified against input_sha256)")),
+            returns=R("dict",
+                      "a fresh {'value', 'inputs', 'provenance'} "
+                      "carry-result at the new rung (same family)"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The q-HYPERGEOMETRIC row of the §76 telescope Σ-row prover (F929) —
         # q-Gosper, the FIRST public op of the q-row (the q-analog of gosper).
         # Decides q-Gosper-summability of a q-hypergeometric term over the rc54
