@@ -352,6 +352,34 @@ def _to_qbipoly(value: Any, *, param: str = "") -> Any:
     return value
 
 
+def _to_poly_or_bipoly(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value for a poly-ladder PROMOTE param (``Poly | BiPoly``;
+    rc116 ``carrier_ladder.poly_promote``). The op restructures an
+    ALREADY-BUILT ordinary-ladder carrier, so a ``Poly`` / ``BiPoly`` /
+    ``TriPoly`` passes straight through; a bare list is built into the lowest
+    rung (a ``Poly``) so a from-scratch caller can promote a coefficient list.
+    Never a float (a coefficient must be exact)."""
+    from srmech.amsc.poly import Poly
+    from srmech.amsc.zeilberger import BiPoly
+    from srmech.amsc.tripoly import TriPoly
+    if isinstance(value, (Poly, BiPoly, TriPoly)):
+        return value
+    return _to_poly(value, param=param)
+
+
+def _to_bipoly_or_tripoly(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value for a poly-ladder PROJECT param (``BiPoly |
+    TriPoly``; rc116 ``carrier_ladder.poly_project``). An already-built
+    ordinary-ladder carrier passes straight through; a bare nested list is
+    built into a ``BiPoly``. Never a float (a coefficient must be exact)."""
+    from srmech.amsc.poly import Poly
+    from srmech.amsc.zeilberger import BiPoly
+    from srmech.amsc.tripoly import TriPoly
+    if isinstance(value, (Poly, BiPoly, TriPoly)):
+        return value
+    return _to_bipoly(value, param=param)
+
+
 def _to_ellratio(value: Any, *, param: str = "") -> Any:
     """Coerce a JSON value to the natural form for an ``EllRatio``-typed param (rc61
     ``elliptic_gosper`` elliptic-hypergeometric term-ratio operand).
@@ -803,6 +831,12 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "TriPoly": _to_tripoly,    # 0.9.0rc53: exact-ℚ[n,j,k] trivariate carrier (apagodu_zeilberger ratios)
     "QPoly": _to_qpoly,        # 0.9.0rc55: exact-ℚ[q] q-shift carrier (q_gosper q-term ratios)
     "QBiPoly": _to_qbipoly,    # 0.9.0rc56: exact bivariate-ℚ[q] carrier (q_zeilberger ratios)
+    # 0.9.0rc116 (#1248 / F1038): the carrier-ladder promote/project inputs —
+    # a poly-ladder carrier passes through; a bare (nested) list builds the
+    # lowest rung. Return-side union types (Poly | BiPoly / QPoly …) need no
+    # coercer (only PARAM types are coerced).
+    "Poly | BiPoly": _to_poly_or_bipoly,
+    "BiPoly | TriPoly": _to_bipoly_or_tripoly,
     "EllRatio": _to_ellratio,  # 0.9.0rc61: exact modified-theta-quotient carrier (elliptic_gosper term ratio)
     "EllMonomial": _to_ellmonomial,  # 0.9.0rc94: exact-ℚ Laurent monomial carrier (elliptic_cauchy_determinant variable / parameter)
     "Sequence[EllMonomial]": _seq_ellmonomial,  # 0.9.0rc94: elliptic_cauchy_determinant xs / ys variable lists
@@ -829,6 +863,7 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "tuple[Mat, ...]": _tuple_mat,  # v0.7.5rc132: gauge generators / einsum operands
     "Sequence[tuple]": _seq_tuple,  # v0.7.5rc134: genome.chromosome(genes=[(label, leaves), ...])
     "list[list[list[float]]]": _identity,  # rank-3 nested list, JSON-native (gauge f^abc)
+    "list[list[list[int]]]": _identity,  # v0.9.0rc116: tripoly_from_coeffs `coeffs`, JSON-native
     "list[list[int]]": _identity,  # v0.9.0rc44: modular_linalg.gf_rref `rows` matrix, JSON-native
     # ── legacy numpy-free Sequence/tuple keys kept for wire-form tests ──
     "Sequence[np.ndarray]": _seq_ndarray,

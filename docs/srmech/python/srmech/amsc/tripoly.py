@@ -59,7 +59,7 @@ from .poly import Poly
 from .q import Q
 from .zeilberger import BiPoly
 
-__all__ = ["TriPoly"]
+__all__ = ["TriPoly", "tripoly_from_coeffs"]
 
 _Q_ZERO = Q(0, 1)
 _Q_ONE = Q(1, 1)
@@ -564,3 +564,63 @@ def _to_q(value):
         except (TypeError, ValueError, ZeroDivisionError):
             return None
     return None
+
+
+# ── the PROSE-SIDE constructor (rc116; #1248 / F1038; the ORPHAN FIX) ──────────
+def tripoly_from_coeffs(coeffs) -> "TriPoly":
+    """Build the exact-``ℚ[n,j,k]`` trivariate carrier :class:`TriPoly` from a
+    ``j``-ascending list of ``k``-ascending lists of INTEGER-LEAF
+    ``n``-coefficient lists — the PROSE-SIDE constructor ToolEntry (rc116;
+    issue #1248 / F1038). ``coeffs[dj]`` is the ``j**dj`` block (a
+    :class:`~srmech.amsc.zeilberger.BiPoly` in ``(n,k)``); ``coeffs[dj][dk]``
+    is that block's ``k**dk`` coefficient, an ascending-``n``-degree integer
+    list (a :class:`~srmech.amsc.poly.Poly` in ``n``). So
+    ``tripoly_from_coeffs([[[0, 1]], [[1]]])`` is ``n + j`` (``j**0`` block =
+    the BiPoly ``n``, ``j**1`` block = the BiPoly ``1``) — the multivariate
+    "sums-of-sums" term-ratio building blocks the ``apagodu_zeilberger`` op
+    consumes.
+
+    Why it exists: the ``tool_schema`` producer/consumer census (#1248) found
+    ``TriPoly`` an ORPHAN — CONSUMED by ``apagodu_zeilberger`` but never
+    PRODUCED from the registry, so the double-sum row could not be built by
+    prose. This closes that gap (the ``bipoly_from_coeffs`` grammar recursed
+    exactly one level — each ``j``-block follows the
+    :func:`srmech.amsc.zeilberger.bipoly_from_coeffs` cell grammar). A
+    **non_compute BUILDER** (the ``coupling.from_bodies`` /
+    ``text.cooccurrence_edges`` precedent): it constructs an operand; every
+    computation lives in the ops that consume it.
+
+    Ints only (a ``bool`` / ``float`` / ``str`` leaf is an honest
+    ``TypeError`` — the exact-``ℚ`` prose discipline; integers are exact). No
+    float, no ``abs()``, no numpy / ``math``."""
+    from .poly import _prose_int
+    if isinstance(coeffs, tuple):
+        coeffs = list(coeffs)
+    if not isinstance(coeffs, list):
+        raise TypeError(
+            "tripoly_from_coeffs: coeffs must be a j-ascending list of "
+            f"j-blocks (each a k-ascending list of n-lists); got "
+            f"{type(coeffs).__name__}")
+    blocks: List[BiPoly] = []
+    for dj, jblock in enumerate(coeffs):
+        if isinstance(jblock, tuple):
+            jblock = list(jblock)
+        if not isinstance(jblock, list):
+            raise TypeError(
+                f"tripoly_from_coeffs: j-block {dj} must be a k-ascending list "
+                f"of ascending-n integer lists (the BiPoly in (n,k) of j**{dj}); "
+                f"got {type(jblock).__name__}")
+        k_terms: List[Poly] = []
+        for dk, kcell in enumerate(jblock):
+            if isinstance(kcell, tuple):
+                kcell = list(kcell)
+            if not isinstance(kcell, list):
+                raise TypeError(
+                    f"tripoly_from_coeffs: (j-block {dj}, k-cell {dk}) must be an "
+                    f"ascending-n list of ints (the Poly-in-n coefficient of "
+                    f"j**{dj}·k**{dk}); got {type(kcell).__name__}")
+            k_terms.append(Poly.from_coeffs(
+                [_prose_int(v, where=f"tripoly_from_coeffs (j-block {dj}, k-cell {dk})")
+                 for v in kcell]))
+        blocks.append(BiPoly(k_terms))
+    return TriPoly(blocks)

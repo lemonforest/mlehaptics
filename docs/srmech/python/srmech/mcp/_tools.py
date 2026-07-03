@@ -122,6 +122,7 @@ _TYPE_LEXICON: Dict[str, str] = {
     "Sequence[HV]": "array",
     "tuple[Mat, ...]": "array",
     "list[list[list[float]]]": "array",
+    "list[list[list[int]]]": "array",  # rc116: tripoly_from_coeffs coeffs
     # legacy numpy-free wire-form keys (no param advertises them now; kept for
     # the round-trip / coercion tests).
     "tuple[np.ndarray, ...]": "array",

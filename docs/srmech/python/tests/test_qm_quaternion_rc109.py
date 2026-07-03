@@ -22,7 +22,7 @@ The consistency gates this rc must hold (the transforms stand on them):
       Taylor oracle; the unit property converges; the float tier agrees.
   (6) PARITY — native vs forced-pure byte-exact per op (the C peers are pure
       speedups, never divergences).
-  (7) REGISTRATION — 9 ToolEntries; tools.total == 367.
+  (7) REGISTRATION — 9 ToolEntries; tools.total == 376.
 
 numpy-free by construction (no numpy import, no ``np.``); the oracle for the
 series tier is stdlib ``fractions.Fraction``
@@ -480,7 +480,7 @@ def test_tools_total_is_367():
     """rc109 added the 9 qm.quaternion ToolEntries (350 → 359); the live
     pin tracks later rcs (rc111: +3 qm.octonion twiddle-family → 362)."""
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 367
+    assert introspect.describe()["tools"]["total"] == 376
 
 
 def test_quaternion_tool_entries_registered():
