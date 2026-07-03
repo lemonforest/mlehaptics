@@ -2,7 +2,10 @@
  * srmech_quaternion.c — C parity for srmech.qm.quaternion (0.9.0rc109;
  * issue #1234 Item 1a, re-raise of #863 BX-5/6/7): the 4x4 left/right
  * quaternion multiplication operators + the hypercomplex exp(mu*theta)
- * twiddle — the QDFT/ODFT foundation.
+ * twiddle — the QDFT/ODFT foundation. 0.9.0rc110 (#1234 Item 1b) adds
+ * srmech_quaternion_dft — the whole O(N^2) exact-reference QUATERNION
+ * DFT over that foundation (left/right form selectable; byte-exact with
+ * the Python composed path cascade.quaternion_dft).
  *
  * WHY (F380 / the in-repo R21 proof): the Klein-4 group IS the quaternion
  * units modulo sign (Q8/{+-1} ~= Z2xZ2), so a quaternion FT's coefficient
@@ -58,6 +61,17 @@
 #include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
+
+/* BYTE-EXACT parity contract: the pure-Python mirrors replicate this TU's
+ * float-op ORDER, so FMA contraction must be OFF — a fused multiply-add
+ * rounds once where mul+add round twice, diverging in the last ulp. GCC in
+ * strict -std=c11 mode already defaults to -ffp-contract=off; CLANG defaults
+ * to ON (the macOS arm64 CI cell diverged in the rc110 DFT accumulation
+ * loop), so the standard C11 pragma is applied for clang. MSVC /fp:precise
+ * does not contract. */
+#if defined(__clang__)
+#pragma STDC FP_CONTRACT OFF
+#endif
 
 /* The quaternion carrier dimension (H, the dim-4 Cayley-Dickson rung). */
 #define SRMECH_QUAT_DIM ((size_t)4)
@@ -205,4 +219,56 @@ srmech_status_t srmech_quaternion_twiddle(
     const double frac = (double)r / (double)n_points;
     const double theta = (double)sigma * two_pi * frac;
     return srmech_quaternion_exp(theta, mu, n, out);
+}
+
+srmech_status_t srmech_quaternion_dft(
+    const double *x, uint32_t n_points, int32_t left, int32_t inverse,
+    const double *mu, size_t n, double *out)
+{
+    if (x == NULL || mu == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n != SRMECH_QUAT_DIM || n_points == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if ((left != 0 && left != 1) || (inverse != 0 && inverse != 1)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    assert(x != NULL && out != NULL);
+    assert(n_points >= 1u);
+    /* Forward sign sigma = -1; the inverse conjugates (+1) and scales 1/N. */
+    const int32_t sigma = (inverse != 0) ? 1 : -1;
+    const double scale = (inverse != 0) ? (1.0 / (double)n_points) : 1.0;
+    for (uint32_t k = 0u; k < n_points; ++k) {
+        double acc[SRMECH_QUAT_DIM] = {0.0, 0.0, 0.0, 0.0};
+        for (uint32_t m = 0u; m < n_points; ++m) {
+            double w[SRMECH_QUAT_DIM];
+            double op[SRMECH_QUAT_DIM * SRMECH_QUAT_DIM];
+            srmech_status_t st = srmech_quaternion_twiddle(
+                k, m, n_points, sigma, mu, SRMECH_QUAT_DIM, w);
+            if (st != SRMECH_OK) {
+                return st;
+            }
+            st = (left != 0)
+                ? srmech_quaternion_left_mult(w, SRMECH_QUAT_DIM, op)
+                : srmech_quaternion_right_mult(w, SRMECH_QUAT_DIM, op);
+            if (st != SRMECH_OK) {
+                return st;
+            }
+            /* Row-dot left-to-right then accumulate over m — the float-op
+             * order IS the byte-exact parity contract with _qdft_composed. */
+            for (size_t i = 0; i < SRMECH_QUAT_DIM; ++i) {
+                double t = 0.0;
+                for (size_t c = 0; c < SRMECH_QUAT_DIM; ++c) {
+                    t += op[i * SRMECH_QUAT_DIM + c]
+                        * x[(size_t)m * SRMECH_QUAT_DIM + c];
+                }
+                acc[i] += t;
+            }
+        }
+        for (size_t i = 0; i < SRMECH_QUAT_DIM; ++i) {
+            out[(size_t)k * SRMECH_QUAT_DIM + i] = acc[i] * scale;
+        }
+    }
+    return SRMECH_OK;
 }

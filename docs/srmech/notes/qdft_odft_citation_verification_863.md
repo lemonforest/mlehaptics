@@ -49,3 +49,33 @@ equivalents per the paywalled-DOI rule
 - `octonion_dft.toml` → cite anchors (2)+(3); the **bracketing/association convention**
   is an explicit declared field (octonion non-associativity is a mathematical fact,
   F378 — the citations anchor the OFT *definition*, not the bracketing claim).
+
+## rc110 re-verification (2026-07-03; #1234 Item 1b — the QDFT graduation)
+
+Anchor (1) **re-verified FIRST-HAND** at the rc110 build (the issue-mandated
+MPM gate: verify-PDF before lodging). Method: fetched the OA arXiv PDF
+(`arxiv.org/pdf/1001.4379`, v3, 4 Jul 2011) and extracted its text
+(pypdf, 14 pages / ~41k chars); checked against the lodged citation:
+
+- **Title** — "Complex and Hypercomplex Discrete Fourier Transforms Based on
+  Matrix Exponential Form of Euler's Formula" ✓ (page 1).
+- **Authors** — Stephen J. Sangwine (Univ. of Essex) + Todd A. Ell ✓
+  (page-1 footnotes).
+- **arXiv ID / version** — `arXiv:1001.4379v3 [math.RA] 4 Jul 2011` ✓;
+  journal ref Appl. Math. Comput. 219(2):644–655 (2012) ✓ (abs page).
+- **The cited convention actually appears**: the exponential-PLACEMENT
+  distinction is discussed in the body ("If the exponential were to be
+  placed on the right, f and F would have to be transposed, …"), the
+  one-sided quaternion DFT is referenced against the authors' own 2007
+  paper ([16] §VI), and **§7 "Extension to two-sided DFTs"** covers the
+  two-sided form — i.e. the one-sided/left-right/two-sided landscape the
+  rc110 `quaternion_dft` documents is genuinely present in the verified
+  OA source.
+
+**Scope of the attribution (unchanged):** the paper anchors the `exp(μθ)`
+matrix-exponential Euler-form hypercomplex-DFT *framework* and the
+form-distinction *landscape*. The precise operational convention srmech
+ships (forward σ=−1; left form `X[k]=Σ_n W(σ2πkn/N)·x[n]`, right form
+`X[k]=Σ_n x[n]·W(σ2πkn/N)`; inverse σ=+1 + 1/N on the same side) is the
+IN-REPO SSOT — rc109 `qm.quaternion` + the R21 proof — not an external
+attribution. No new external citation was lodged at rc110.

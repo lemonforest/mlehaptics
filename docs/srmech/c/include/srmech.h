@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc109"
-#define SRMECH_VERSION       "0.9.0rc109"
+#define SRMECH_VERSION_PRE   "rc110"
+#define SRMECH_VERSION       "0.9.0rc110"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5801,6 +5801,28 @@ srmech_status_t srmech_quaternion_exp(
  * SRMECH_ERR_BAD_INPUT (n_points == 0, sigma not +-1, or exp errors). */
 srmech_status_t srmech_quaternion_twiddle(
     uint32_t j, uint32_t k, uint32_t n_points, int32_t sigma,
+    const double *mu, size_t n, double *out);
+
+/* The QUATERNION DISCRETE FOURIER TRANSFORM (0.9.0rc110; issue #1234
+ * Item 1b, re-raise of #863) — the whole O(N^2) exact-reference transform
+ * over the rc109 foundation (srmech_quaternion_twiddle + the left/right
+ * mult operators). WHY: Q8/{+-1} ~= Z2xZ2 = Klein-4 (F380), so the H
+ * coefficient algebra preserves BOTH Z2 chirality axes a complex FFT's
+ * C-projection collapses. THE CONVENTION (forward sign sigma = -1):
+ *   left  form (left == 1): X[k] = sum_m W(sigma*2*pi*k*m/N) . x[m]
+ *   right form (left == 0): X[k] = sum_m x[m] . W(sigma*2*pi*k*m/N)
+ * with W(theta) = exp(mu*theta); the INVERSE (inverse == 1) flips sigma
+ * to +1 and scales by 1/N on the SAME side — each form round-trips
+ * exactly. `x` is n_points*4 doubles (row-major quaternion samples);
+ * `mu` is a caller-provided UNIT pure-imaginary 4-vector (`n` must be 4;
+ * the srmech_quaternion_exp contract); `out` is n_points*4 doubles and
+ * MUST NOT alias `x`. This is the SPREAD-SPECTRUM ENCODING / analysis
+ * transform (the read path is the separate lightweight phase-coherent
+ * peak op — a later voxel); an FFT factorisation is future work.
+ * Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (n != 4,
+ * n_points == 0, left/inverse not 0/1, or twiddle errors). */
+srmech_status_t srmech_quaternion_dft(
+    const double *x, uint32_t n_points, int32_t left, int32_t inverse,
     const double *mu, size_t n, double *out);
 
 #ifdef __cplusplus

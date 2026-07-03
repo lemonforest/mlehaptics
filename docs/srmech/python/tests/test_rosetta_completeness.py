@@ -66,7 +66,11 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 # standalone-C srmech_hypercomplex_couple_q61 -> c_dispatched. This also empties
 # the transitive-standalone ratchet allowlist (the two sed_*_working edges).
 # python_only_irreducible 106 -> 105.
-CEIL_PYTHON_ONLY_IRREDUCIBLE = 105
+# rc110 (#1234 Item 1b / #863): cascade.quaternion_dft GRADUATED onto the rc109
+# qm.quaternion foundation and dispatches the whole transform to the new
+# standalone-C srmech_quaternion_dft (byte-exact composed fallback)
+# -> c_dispatched. python_only_irreducible 105 -> 104.
+CEIL_PYTHON_ONLY_IRREDUCIBLE = 104
 # rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
 # rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.
