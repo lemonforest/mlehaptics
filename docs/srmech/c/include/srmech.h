@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc106"
-#define SRMECH_VERSION       "0.9.0rc106"
+#define SRMECH_VERSION_PRE   "rc107"
+#define SRMECH_VERSION       "0.9.0rc107"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4007,6 +4007,59 @@ size_t srmech_riemann_theta_g4_goepel_count(uint32_t box);
 srmech_status_t srmech_riemann_theta_g4_goepel(
     uint32_t box, int64_t *work, size_t work_cap,
     int *out_holds, int *out_has_cross);
+
+/* ------------------------------------------------------------------ *
+ * rc107: the generic SPARSE SAFE-SUPPORT GATE DECISION kernel — the ONE C peer of
+ * ALL the genus-axis theta identity/distinctness gates (g in {2..5}: the
+ * duplication / addition / Goepel *_holds gates and the *_is_distinct_* gates of
+ * srmech.amsc.riemann_theta.{RiemannTheta, RiemannThetaG3, RiemannThetaG4,
+ * RiemannThetaG5} — the #707 dive's SAFE-REGION PUSH-DOWN, Deliverable B1).
+ *
+ * Every gate compares two signed sums of theta-lattice PRODUCTS only on the safe
+ * inner region {A_i <= safe, |C_ij| <= safe}. The diagonal exponents A_i are
+ * non-negative and ADD under the lattice convolution, so a product monomial inside
+ * the safe region can only come from factor monomials each with A_i <= safe — each
+ * factor is therefore enumerated DIRECTLY on its safe support {u : dc*u^2 <= safe}
+ * (the exact safe region of the INFINITE theta series; box-parameter-free) and the
+ * convolutions carry a diagonal-additivity guard. Bit-identical to the dense
+ * box-enumerate-then-restrict path on the compared region (measured x48..x6900).
+ *
+ * The gate ships its comparison list as an int32 SPEC (built by the Python side —
+ * the single SSOT of the pair/syzygy data), parsed sequentially:
+ *   per comparison: [n_lhs, n_rhs] then (n_lhs + n_rhs) products;
+ *   per product:    [sign(+-1), n_factors(2 or 4)] then n_factors factor specs;
+ *   per factor:     [dc, step, a[0..g-1], e[0..g-1]]   (2 + 2g int32)
+ * where a factor's terms are u_i = step*n_i + a_i with diagonal dc*u_i^2, cross
+ * dc*u_i*u_j and Class-K sign (-1)^{e.n}. Per comparison the kernel accumulates
+ * the LHS products into a hash-table residual (out_cross[c] <- 1 iff a surviving
+ * LHS monomial carries a genus-g cross-term C_{i,g} != 0), then subtracts the RHS
+ * products; out_equal[c] <- 1 iff the residual vanishes (LHS == RHS on the safe
+ * region). restrict_crosses=1 applies the full safe cut (A_i AND |C_ij| <= safe);
+ * 0 is the diagonal-only mode of the _diag_restrict-shaped distinctness gates.
+ *
+ * ONE call decides a WHOLE gate (no per-lattice marshaling — the rc106 finding
+ * that round-tripping the eighth-nome lattices through ctypes was a net slowdown).
+ * Caller-arena (one int64 work[] sized via the count helper — a main hash table +
+ * four aux tables, per-genus compiled caps); no malloc. Overflowing a cap returns
+ * SRMECH_ERR_OVERFLOW and the Python side falls to the pure sparse body. Additive
+ * symbols -> ABI unchanged (stays 3). */
+
+/* The number of int64 the caller work arena needs for genus g (2..5) — the main
+ * accumulator hash table + 2 factor + 2 intermediate aux tables, each slot
+ * [used, key(g + g(g-1)/2), coeff]. Box/safe-independent (per-genus compiled
+ * caps). Returns 0 for an out-of-range genus. */
+size_t srmech_riemann_theta_gate_count(uint32_t g);
+
+/* Decide n_comparisons gate comparisons over the safe region (see the block
+ * comment above for the spec wire format). out_equal[] / out_cross[] are
+ * caller-owned int32[n_comparisons]. SRMECH_ERR_BAD_INPUT on a malformed spec /
+ * out-of-range genus / negative safe / undersized work; SRMECH_ERR_OVERFLOW when
+ * a table cap is exceeded (the caller falls to the pure path). */
+srmech_status_t srmech_riemann_theta_gate_decide(
+    uint32_t g, int64_t safe, uint32_t restrict_crosses,
+    const int32_t *spec, size_t spec_len, uint32_t n_comparisons,
+    int64_t *work, size_t work_cap,
+    int32_t *out_equal, int32_t *out_cross);
 
 /* ------------------------------------------------------------------ *
  * srmech_tripoly — EXACT-RATIONAL TRIVARIATE polynomial over srmech_bigint (the

@@ -2430,6 +2430,31 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_int),     # *out_has_cross
         ]
         lib.srmech_riemann_theta_g4_goepel.restype = ctypes.c_int
+    # rc107: the generic SPARSE SAFE-SUPPORT GATE DECISION kernel — the ONE C peer
+    # of ALL the genus-axis theta identity/distinctness gates (g in {2..5}; the
+    # #707 SAFE-REGION PUSH-DOWN). ONE call decides a whole gate (no per-lattice
+    # dict marshaling — the rc106 marshaling finding). NEW symbols →
+    # hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 3.
+    #   size_t srmech_riemann_theta_gate_count(uint32_t g)
+    if hasattr(lib, "srmech_riemann_theta_gate_count"):
+        lib.srmech_riemann_theta_gate_count.argtypes = [ctypes.c_uint32]
+        lib.srmech_riemann_theta_gate_count.restype = ctypes.c_size_t
+    #   srmech_riemann_theta_gate_decide(g, safe, restrict_crosses, spec[],
+    #       spec_len, n_comparisons, work[], work_cap, out_equal[], out_cross[])
+    if hasattr(lib, "srmech_riemann_theta_gate_decide"):
+        lib.srmech_riemann_theta_gate_decide.argtypes = [
+            ctypes.c_uint32,                  # g (genus, 2..5)
+            ctypes.c_int64,                   # safe (the safe-region bound)
+            ctypes.c_uint32,                  # restrict_crosses (1 full / 0 diag)
+            ctypes.POINTER(ctypes.c_int32),   # spec[]
+            ctypes.c_size_t,                  # spec_len
+            ctypes.c_uint32,                  # n_comparisons
+            ctypes.POINTER(ctypes.c_int64),   # work[]
+            ctypes.c_size_t,                  # work_cap
+            ctypes.POINTER(ctypes.c_int32),   # out_equal[]
+            ctypes.POINTER(ctypes.c_int32),   # out_cross[]
+        ]
+        lib.srmech_riemann_theta_gate_decide.restype = ctypes.c_int
     # rc54: the EXACT q-shift CARRIER C peer (srmech_qpoly_*) — the q-analog of
     # the poly carrier, the q-hypergeometric F929 reduction-row foundation. A
     # QPoly is a ROW of q-Poly cells over an x-window; the bridge flattens the
@@ -5230,6 +5255,71 @@ def riemann_theta_g4_goepel_c(box):
         raise RuntimeError(
             f"srmech_riemann_theta_g4_goepel returned non-OK status {rc}")
     return (bool(out_holds.value), bool(out_has_cross.value))
+
+
+def has_native_riemann_theta_gate() -> bool:
+    """True iff the rc107 ``srmech_riemann_theta_gate_decide`` peer (the generic
+    SPARSE SAFE-SUPPORT gate decision kernel for ALL the genus-axis theta gates,
+    g ∈ {2..5}) + its count helper are loaded + bound. False on a no-C / pre-rc107
+    lib — the pure sparse gate bodies in ``srmech.amsc.riemann_theta`` are the
+    complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_riemann_theta_gate_decide")
+            and hasattr(LIB, "srmech_riemann_theta_gate_count"))
+
+
+def riemann_theta_gate_decide_c(g, safe, restrict_crosses, comparisons):
+    """Native generic theta-gate decision (the rc107 SAFE-REGION PUSH-DOWN) —
+    ONE C call decides a WHOLE gate's comparison list (no per-lattice dict
+    marshaling; only verdict ints cross the ctypes boundary — the rc106 finding).
+
+    ``comparisons`` is a list of ``(lhs_prods, rhs_prods)``; each product is
+    ``(sign, factors)`` with 2 or 4 factor specs ``(dc, step, avec, evec)`` (the
+    same spec structures the pure sparse bodies evaluate — one SSOT). Returns a
+    list of ``(equal, lhs_has_genus_cross)`` bool pairs, or ``None`` if the
+    native symbols are absent. Raises ``RuntimeError`` on a non-OK status (e.g.
+    a table-cap overflow — the caller falls to the pure sparse body)."""
+    if not has_native_riemann_theta_gate():
+        return None
+    if not isinstance(g, int) or g < 2 or g > 5:
+        raise ValueError(f"riemann_theta_gate_decide_c: bad genus {g!r}")
+    if not isinstance(safe, int) or safe < 0:
+        raise ValueError(f"riemann_theta_gate_decide_c: bad safe {safe!r}")
+    if not comparisons:
+        raise ValueError("riemann_theta_gate_decide_c: empty comparison list")
+    spec = []
+    for (lhs_prods, rhs_prods) in comparisons:
+        spec.append(len(lhs_prods))
+        spec.append(len(rhs_prods))
+        for (sign, factors) in list(lhs_prods) + list(rhs_prods):
+            spec.append(int(sign))
+            spec.append(len(factors))
+            for (dc, step, avec, evec) in factors:
+                if len(avec) != g or len(evec) != g:
+                    raise ValueError(
+                        "riemann_theta_gate_decide_c: factor char length != g")
+                spec.append(int(dc))
+                spec.append(int(step))
+                spec.extend(int(x) for x in avec)
+                spec.extend(int(x) for x in evec)
+    n_comp = len(comparisons)
+    spec_arr = (ctypes.c_int32 * len(spec))(*spec)
+    need = int(LIB.srmech_riemann_theta_gate_count(ctypes.c_uint32(g)))
+    if need == 0:
+        raise ValueError(f"riemann_theta_gate_decide_c: bad genus {g!r}")
+    work = (ctypes.c_int64 * need)()
+    out_equal = (ctypes.c_int32 * n_comp)()
+    out_cross = (ctypes.c_int32 * n_comp)()
+    rc = LIB.srmech_riemann_theta_gate_decide(
+        ctypes.c_uint32(g), ctypes.c_int64(safe),
+        ctypes.c_uint32(1 if restrict_crosses else 0),
+        spec_arr, ctypes.c_size_t(len(spec)), ctypes.c_uint32(n_comp),
+        work, ctypes.c_size_t(need), out_equal, out_cross)
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_riemann_theta_gate_decide returned non-OK status {rc}")
+    return [(bool(out_equal[i]), bool(out_cross[i])) for i in range(n_comp)]
 
 
 def has_native_poly_gcd() -> bool:
