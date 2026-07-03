@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc111"
-#define SRMECH_VERSION       "0.9.0rc111"
+#define SRMECH_VERSION_PRE   "rc112"
+#define SRMECH_VERSION       "0.9.0rc112"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5896,6 +5896,44 @@ srmech_status_t srmech_octonion_dft(
     const double *x, uint32_t n_points, int32_t form, int32_t bracketing,
     int32_t inverse, const double *mu, const double *mu_r, size_t n,
     double *out);
+
+/* ------------------------------------------------------------------ *
+ * srmech_phase_coherent — the LIGHTWEIGHT matched-filter PEAK READ over a
+ * rung/mode ladder (0.9.0rc112; issue #1234 Item 1d, the F1000->F1001->
+ * F1002 refinement). C peer of srmech.amsc.cascade.phase_coherent_peak.
+ * This is the READ counterpart to the full srmech_quaternion_dft /
+ * srmech_octonion_dft ENCODING transforms — kept API-DISTINCT from them.
+ *
+ * WHY A SEPARATE OP (F1001): for the RBS-LM single-rung fold the target's
+ * cross-rung response is a SPIKE, so the PEAK (max phase-coherent energy
+ * over the rung ladder) is the MATCHED FILTER (it rejects off-rung noise),
+ * whereas the full complex QDFT coherently combines ALL rungs — including
+ * the off-rung noise — and measured WORSE (a spike's spectrum is flat, so
+ * coherent combination gains nothing and forfeits the max's noise-
+ * rejection). F1002 settled it read-independently (the elliptic code's
+ * value is GENERATIVE encoding, not read-amplification). So the READ path
+ * wants ONLY this peak reduction, NOT the full transform. There is NO
+ * twiddle here — its absence IS what distinguishes the read from the
+ * transform. See srmech_phase_coherent.c.
+ * ------------------------------------------------------------------ */
+
+/* The matched-filter PEAK over a rung ladder. `ladder` is n_rungs*dim
+ * doubles (row-major: n_rungs per-rung samples, each a dim-component real
+ * vector — dim 1 for a scalar response, dim 2 for a complex (re,im) sample,
+ * dim 4/8 for a quaternion/octonion sample). Per-rung phase-coherent
+ * energy: with `keys` == NULL the identity filter E_r = sum_i ladder[r][i]^2
+ * (the sample's squared magnitude — the F1001 read); with `keys` != NULL
+ * (also n_rungs*dim) the explicit matched filter E_r = (sum_i keys[r][i]*
+ * ladder[r][i])^2. `*out_index` receives argmax_r E_r (ties -> lowest
+ * index), `*out_score` the peak energy E, and `out_scores` (if non-NULL,
+ * n_rungs doubles, MUST NOT alias the inputs) every E_r. A Class-K
+ * squared-magnitude / comparison cascade — no abs(), no libm, no malloc.
+ * Byte-exact with the pure-Python mirror (identical float-op order).
+ * Errors: SRMECH_ERR_NULL_ARG (ladder/out_index/out_score NULL);
+ * SRMECH_ERR_BAD_INPUT (n_rungs == 0 or dim == 0). */
+srmech_status_t srmech_phase_coherent_peak(
+    const double *ladder, const double *keys, uint32_t n_rungs, size_t dim,
+    uint32_t *out_index, double *out_score, double *out_scores);
 
 #ifdef __cplusplus
 }

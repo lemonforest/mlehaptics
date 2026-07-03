@@ -460,12 +460,12 @@ def test_descriptor_bracketing_block_is_the_attested_field():
 # (h) Registration / ledger
 # ────────────────────────────────────────────────────────────────────
 
-def test_tools_total_is_362():
+def test_tools_total_is_363():
     """rc111 adds the 3 qm.octonion twiddle-family ToolEntries (359 → 362);
     the octonion_dft ToolEntry pre-existed (v0.7.0rc31 — graduation updates
     the entry + its Rosetta bucket, it does not add a tool)."""
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 362
+    assert introspect.describe()["tools"]["total"] == 363
 
 
 def test_rosetta_buckets():

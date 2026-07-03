@@ -140,6 +140,7 @@ from .coupled import (
 from .hypercomplex_dft import (
     quaternion_dft,
     octonion_dft,
+    phase_coherent_peak,
     hypercomplex_couple,
     hypercomplex_exp,
 )
@@ -267,6 +268,9 @@ __all__ = [
     # Quaternion/octonion DFT composites (v0.7.0rc31; #863)
     "quaternion_dft",
     "octonion_dft",
+    # The lightweight matched-filter PEAK READ (v0.9.0rc112; #1234 Item 1d,
+    # F1000→F1001→F1002) — the READ counterpart to the full transforms above
+    "phase_coherent_peak",
     # Bidirectional (σ,θ,μ) hypercomplex coupler (v0.7.2rc1; #908, F436/F437)
     "hypercomplex_couple",
     # Literal exp(μθ) unit hypercomplex twiddle (v0.9.0rc10; F882, srmech #205)

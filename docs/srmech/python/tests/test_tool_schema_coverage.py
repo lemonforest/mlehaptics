@@ -168,6 +168,13 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # flat, exempt exactly like autocorrelation above.
     "srmech.amsc.cascade.hypercomplex_dft.quaternion_dft",
     "srmech.amsc.cascade.hypercomplex_dft.octonion_dft",
+    # cascade.hypercomplex_dft.phase_coherent_peak (v0.9.0rc112 / #1234 Item 1d).
+    # The lightweight matched-filter PEAK READ (the READ counterpart to the full
+    # DFT transforms). Registered under its STABLE flat public name
+    # ``srmech.amsc.cascade.phase_coherent_peak`` (which IS registered); the
+    # submodule-dotted name is the same object re-exported flat, exempt exactly
+    # like the quaternion_dft / octonion_dft peers above.
+    "srmech.amsc.cascade.hypercomplex_dft.phase_coherent_peak",
     # cascade.hypercomplex_dft.hypercomplex_couple (v0.7.2rc1 / #908). Registered
     # under its STABLE flat public name ``srmech.amsc.cascade.hypercomplex_couple``
     # (which IS registered); the submodule-dotted name is the same object
