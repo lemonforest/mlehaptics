@@ -579,6 +579,67 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_resonant_spectrum.restype = ctypes.c_int
 
+    # rc108 (#1234 Item 2 / F1007): the spectral theta / heat trace
+    # Θ(t) = Tr(e^{−tL}) = Σₖ e^{−t·λₖ} + the ground-state flux reader —
+    # Class-L composites over srmech_jacobi_eigvals /
+    # srmech_hermitian_eigendecompose_ws + srmech_exp +
+    # srmech_graph_magnetic_laplacian, the C twins of
+    # srmech.amsc.laplacian.heat_trace / .ground_state_flux_response.
+    # NEW symbols, hasattr-guarded (ABI stays 3) so a stale ABI-3 lib keeps
+    # the rest of the native surface and the pure-Python ops are the
+    # complete alternative.
+    #   size_t srmech_heat_trace_arena_bytes(uint32_t n, int is_complex)
+    if hasattr(lib, "srmech_heat_trace_arena_bytes"):
+        lib.srmech_heat_trace_arena_bytes.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_int,                       # is_complex (0/1)
+        ]
+        lib.srmech_heat_trace_arena_bytes.restype = ctypes.c_size_t
+    #   int srmech_heat_trace(uint32_t n, int is_complex, const double *L,
+    #       uint32_t n_t, const double *t_values, double *out_theta,
+    #       double *ws, size_t ws_len)
+    if hasattr(lib, "srmech_heat_trace"):
+        lib.srmech_heat_trace.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_int,                       # is_complex (0/1)
+            ctypes.POINTER(ctypes.c_double),    # L (n*n real | 2*n*n interleaved)
+            ctypes.c_uint32,                    # n_t
+            ctypes.POINTER(ctypes.c_double),    # t_values (n_t)
+            ctypes.POINTER(ctypes.c_double),    # out_theta (n_t)
+            ctypes.POINTER(ctypes.c_double),    # ws (caller arena)
+            ctypes.c_size_t,                    # ws_len (arena bytes)
+        ]
+        lib.srmech_heat_trace.restype = ctypes.c_int
+    #   size_t srmech_ground_state_flux_response_arena_bytes(uint32_t n,
+    #       uint32_t n_edges)
+    if hasattr(lib, "srmech_ground_state_flux_response_arena_bytes"):
+        lib.srmech_ground_state_flux_response_arena_bytes.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_uint32,                    # n_edges
+        ]
+        lib.srmech_ground_state_flux_response_arena_bytes.restype = (
+            ctypes.c_size_t)
+    #   int srmech_ground_state_flux_response(uint32_t n, uint32_t n_edges,
+    #       const uint32_t *edges_u, const uint32_t *edges_v,
+    #       const double *weights, const double *charge_pattern,
+    #       uint32_t n_flux, const double *fluxes, double *out_lambda_min,
+    #       double *ws, size_t ws_len)
+    if hasattr(lib, "srmech_ground_state_flux_response"):
+        lib.srmech_ground_state_flux_response.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_uint32,                    # n_edges
+            ctypes.POINTER(ctypes.c_uint32),    # edges_u (n_edges)
+            ctypes.POINTER(ctypes.c_uint32),    # edges_v (n_edges)
+            ctypes.POINTER(ctypes.c_double),    # weights (n_edges | NULL)
+            ctypes.POINTER(ctypes.c_double),    # charge_pattern (n_edges | NULL)
+            ctypes.c_uint32,                    # n_flux
+            ctypes.POINTER(ctypes.c_double),    # fluxes (n_flux)
+            ctypes.POINTER(ctypes.c_double),    # out_lambda_min (n_flux)
+            ctypes.POINTER(ctypes.c_double),    # ws (caller arena)
+            ctypes.c_size_t,                    # ws_len (arena bytes)
+        ]
+        lib.srmech_ground_state_flux_response.restype = ctypes.c_int
+
     # v0.7.2rc2 (#910 / §30; F442/F449): Hamming / GF(2) block-code family.
     # NEW symbols — hasattr-guarded so a stale lib (pre-rc2) keeps the rest of
     # the native surface. uint8 0/1 buffers; lean-ALU XOR (no float, no libm).

@@ -236,7 +236,7 @@ def test_eta_quotient_is_a_carrier_no_tool_entry():
     ToolEntry, so the shipped tool count is UNCHANGED at 342."""
     from srmech.amsc.tool_schema import get_tool_schema
     shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
-    assert len(shipped) == 348
+    assert len(shipped) == 350
     names = {t.name for t in shipped}
     # no eta_quotient ToolEntry leaked in
     assert not any("eta_quotient" in nm for nm in names)
