@@ -26,7 +26,7 @@ Covers:
       feeds heat_trace directly; an explicit uniform pattern reproduces the
       ground_state_flux_response default;
   (f) contracts (n < 1, charges-length mismatch, empty/non-finite t/fluxes,
-      non-square L) + registration (tool schema; tools.total == 367).
+      non-square L) + registration (tool schema; tools.total == 376).
 
 numpy-free; no ``abs()`` (Class-K sign-branch where a magnitude is read).
 """
@@ -402,4 +402,4 @@ def test_registered_in_tool_schema():
 def test_tools_total_is_367():
     from srmech import introspect
 
-    assert introspect.describe()["tools"]["total"] == 367
+    assert introspect.describe()["tools"]["total"] == 376

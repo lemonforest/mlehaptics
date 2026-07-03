@@ -3428,6 +3428,193 @@ def _register_primitive_class_tools() -> None:
             smoke_test_hint={"coeffs": "[[0, 1], [-1]]"},
         ),
         # ────────────────────────────────────────────────────────────
+        # rc116 (#1248 / F1038): the CARRIER CONVERSION LADDER — the ORPHAN
+        # FIX + the promote/project rungs. The tool_schema producer/consumer
+        # census found BiPoly (consumed by zeilberger + wz_certificate) and
+        # TriPoly (consumed by apagodu_zeilberger) ORPHANS — consumed, never
+        # PRODUCED from the registry (rc113 shipped only the q-side). These
+        # two non_compute BUILDERS close that gap so the classic non-q
+        # Zeilberger / WZ / Apagodu row is buildable by prose. Then the
+        # promote/project ops (variable ladder Poly↔BiPoly↔TriPoly +
+        # QPoly↔QBiPoly, plus the Hurwitz cd_promote/cd_project) let a driver
+        # auto-route a lower-rung carrier UP to a higher-rung consumer (a
+        # univariate IS trivially bivariate), and the ladder descriptor is the
+        # declarative coherency map that routing reads. All non_compute (pure
+        # carrier restructuring — trivial embed / drop; no numerical kernel;
+        # the from_bodies / cooccurrence_edges precedent).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.zeilberger.bipoly_from_coeffs", owner="srmech",
+            category="zeilberger",
+            summary="PROSE-SIDE carrier constructor (#1248 / F1038; the ORPHAN "
+                    "FIX): build the exact-ℚ[n,k] bivariate carrier BiPoly "
+                    "from a k-ascending list of INTEGER-LEAF n-coefficient "
+                    "lists — coeffs[d] is the k**d coefficient, itself an "
+                    "ascending-n integer list (a Poly in n). "
+                    "bipoly_from_coeffs([[1, 1], [-1]]) is (1+n)−k. Worked "
+                    "forms — the F(n,k)=C(n,k) term ratios (the rc42 keystone): "
+                    "r_n num n+1 = [[1, 1]]; r_n den (n+1)−k = [[1, 1], [-1]]; "
+                    "r_k num n−k = [[0, 1], [-1]]; r_k den k+1 = [[1], [1]] → "
+                    "zeilberger certifies f(n+1)−2f(n)=0 for ΣC(n,k)=2ⁿ. THE "
+                    "ORPHAN FIX: BiPoly was CONSUMED by zeilberger / "
+                    "wz_certificate but nothing in the registry RETURNED one "
+                    "(rc113 shipped only the q-side qbipoly_from_coeffs), so "
+                    "the classic non-q Zeilberger/WZ row was unreachable by "
+                    "prose. A non_compute BUILDER (the from_bodies / "
+                    "cooccurrence_edges precedent); ints only (a float / bool / "
+                    "str leaf is an honest TypeError). numpy-free; no float; no "
+                    "abs().",
+            parameters=(P("coeffs", "list[list[int]]", True,
+                          "k-ascending list of n-coefficient lists (coeffs[d] "
+                          "is the ascending-n Poly coefficient of k**d)"),),
+            returns=R("BiPoly",
+                      "the exact-ℚ[n,k] bivariate carrier (chainable into the "
+                      "zeilberger / wz_certificate rn/rk params)"),
+            smoke_test_hint={"coeffs": "[[1, 1], [-1]]"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.tripoly.tripoly_from_coeffs", owner="srmech",
+            category="tripoly",
+            summary="PROSE-SIDE carrier constructor (#1248 / F1038; the ORPHAN "
+                    "FIX): build the exact-ℚ[n,j,k] trivariate carrier TriPoly "
+                    "from a j-ascending list of k-ascending lists of "
+                    "INTEGER-LEAF n-coefficient lists — coeffs[dj] is the j**dj "
+                    "block (a BiPoly in (n,k)), coeffs[dj][dk] its k**dk "
+                    "coefficient (an ascending-n Poly-in-n int list). "
+                    "tripoly_from_coeffs([[[0, 1]], [[1]]]) is n+j. The "
+                    "bipoly_from_coeffs grammar recursed one level. THE ORPHAN "
+                    "FIX: TriPoly was CONSUMED by apagodu_zeilberger but never "
+                    "PRODUCED from the registry, so the multivariate "
+                    "sums-of-sums row was unreachable by prose. A non_compute "
+                    "BUILDER (the from_bodies / cooccurrence_edges precedent); "
+                    "ints only (a float / bool / str leaf is an honest "
+                    "TypeError). numpy-free; no float; no abs().",
+            parameters=(P("coeffs", "list[list[list[int]]]", True,
+                          "j-ascending list of j-blocks; each a k-ascending "
+                          "list of ascending-n integer lists (coeffs[dj][dk] is "
+                          "the Poly-in-n coefficient of j**dj·k**dk)"),),
+            returns=R("TriPoly",
+                      "the exact-ℚ[n,j,k] trivariate carrier (chainable into "
+                      "the apagodu_zeilberger rn/rj/rk params)"),
+            smoke_test_hint={"coeffs": "[[[0, 1]], [[1]]]"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.carrier_ladder.poly_promote", owner="srmech",
+            category="carrier_ladder",
+            summary="Promote an ordinary-ladder carrier UP the variable ladder "
+                    "Poly(k) → BiPoly(n,k) → TriPoly(n,j,k) by the TRIVIAL "
+                    "EMBEDDING (#1248 / F1038): add a degree-0 variable so the "
+                    "polynomial is unchanged as a function but gains a formal "
+                    "variable it does not depend on. n_vars is the target rung "
+                    "(1/2/3; default one rung up); must be ≥ the current rung. "
+                    "This is the 'a univariate IS trivially bivariate' fact "
+                    "that lets a Poly feed zeilberger — a driver auto-routes a "
+                    "lower-rung carrier UP to a higher-rung consumer. TOTAL "
+                    "(a no-op when n_vars equals the current rung); the inverse "
+                    "of poly_project (poly_project(poly_promote(x))==x EXACT). "
+                    "Pure carrier restructuring (re-wrap embed; no numerical "
+                    "kernel) → non_compute (the from_bodies / cooccurrence_edges "
+                    "precedent). Exact-ℚ; numpy-free; no float; no abs().",
+            parameters=(P("p", "Poly | BiPoly", True,
+                          "the carrier to promote (Poly rung 1 / BiPoly rung 2 "
+                          "/ TriPoly rung 3)"),
+                        P("n_vars", "int", False,
+                          "target rung 1/2/3 (default one rung up); must be ≥ "
+                          "the current rung")),
+            returns=R("BiPoly | TriPoly",
+                      "the promoted carrier one-or-more rungs up (or the input "
+                      "unchanged when n_vars == the current rung)"),
+            smoke_test_hint={"p": "srmech.amsc.poly.Poly.from_coeffs([1, 1])"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.carrier_ladder.poly_project", owner="srmech",
+            category="carrier_ladder",
+            summary="Project an ordinary-ladder carrier DOWN one rung TriPoly → "
+                    "BiPoly → Poly — the inverse of poly_promote (#1248 / "
+                    "F1038). Drops the highest-rung variable IFF the carrier is "
+                    "genuinely trivial in it (TriPoly drops j iff j_degree ≤ 0; "
+                    "BiPoly drops n iff every k-coefficient is constant in n). "
+                    "When the variable is genuinely PRESENT, raises a coherency "
+                    "error that NAMES it (the beat-relation diagnostic style; "
+                    "NEVER a silent truncation — the rc104 lesson). A rung-1 "
+                    "Poly has no higher variable to drop → error. "
+                    "poly_project(poly_promote(x))==x EXACT at every rung. Pure "
+                    "carrier restructuring (trivial-check + drop; no numerical "
+                    "kernel) → non_compute. Exact-ℚ; numpy-free; no float; no "
+                    "abs().",
+            parameters=(P("p", "BiPoly | TriPoly", True,
+                          "the carrier to project down one rung (BiPoly → Poly, "
+                          "or TriPoly → BiPoly)"),),
+            returns=R("Poly | BiPoly",
+                      "the projected carrier one rung down (raises a NAMING "
+                      "coherency error if the dropped variable is non-trivial)"),
+            smoke_test_hint={
+                "p": "srmech.amsc.zeilberger.BiPoly.from_k_poly("
+                     "srmech.amsc.poly.Poly.from_coeffs([1, 1]))"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.carrier_ladder.qpoly_promote", owner="srmech",
+            category="carrier_ladder",
+            summary="Promote a q-ladder carrier UP the variable ladder "
+                    "QPoly(x=qⁿ) → QBiPoly(X=qⁿ, Y=qᵏ) by the trivial embedding "
+                    "(#1248 / F1038) — the q-analog of poly_promote. Adds the "
+                    "degree-0 variable Y=qᵏ (a single Y**0 cell). n_vars is the "
+                    "target rung (1/2; default one rung up). TOTAL; the inverse "
+                    "of qpoly_project (qpoly_project(qpoly_promote(x))==x "
+                    "EXACT). Pure carrier restructuring → non_compute. Exact "
+                    "over ℚ[q]; numpy-free; no float; no abs().",
+            parameters=(P("p", "QPoly", True,
+                          "the QPoly (rung 1) to promote to QBiPoly (rung 2)"),
+                        P("n_vars", "int", False,
+                          "target rung 1/2 (default one rung up)")),
+            returns=R("QBiPoly",
+                      "the promoted q-carrier one rung up (or the input "
+                      "unchanged when n_vars == the current rung)"),
+            smoke_test_hint={"p": "srmech.amsc.qpoly.QPoly.from_coeffs([0, 1])"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.carrier_ladder.qpoly_project", owner="srmech",
+            category="carrier_ladder",
+            summary="Project a q-ladder carrier DOWN one rung QBiPoly → QPoly — "
+                    "the inverse of qpoly_promote (#1248 / F1038). Drops the "
+                    "variable Y=qᵏ IFF the QBiPoly is genuinely trivial in it "
+                    "(y_degree ≤ 0); returns that Y**0 cell (a QPoly in X=qⁿ). "
+                    "When Y is genuinely present, raises a coherency error that "
+                    "NAMES it (never a silent truncation). A rung-1 QPoly has no "
+                    "higher variable to drop → error. "
+                    "qpoly_project(qpoly_promote(x))==x EXACT. Pure carrier "
+                    "restructuring → non_compute. Exact over ℚ[q]; numpy-free; "
+                    "no float; no abs().",
+            parameters=(P("p", "QBiPoly", True,
+                          "the QBiPoly (rung 2) to project to QPoly (rung 1)"),),
+            returns=R("QPoly",
+                      "the projected q-carrier one rung down (raises a NAMING "
+                      "coherency error if the dropped variable Y is non-trivial)"),
+            smoke_test_hint={
+                "p": "srmech.amsc.qbipoly.QBiPoly.from_x_qpoly("
+                     "srmech.amsc.qpoly.QPoly.from_coeffs([0, 1]))"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.carrier_ladder.carrier_ladder_descriptor",
+            owner="srmech", category="carrier_ladder",
+            summary="The declarative CARRIER-LADDER coherency map (#1248 / "
+                    "F1038) — a small static descriptor a driver (siona's "
+                    "result register, F1024) reads to auto-route a lower-rung "
+                    "carrier UP to any consumer accepting a higher rung. "
+                    "Returns {'carriers': {<carrier>: {'ladder', 'rung'}}, "
+                    "'ladders': {<ladder>: {'rungs', 'adds_variable', "
+                    "'promote', 'project'}}}. Three ladders: 'variable' "
+                    "(Poly/BiPoly/TriPoly), 'variable_q' (QPoly/QBiPoly), and "
+                    "'cayley_dickson' (ℝ/ℂ/ℍ/𝕆/𝕊, keyed by dimension — the "
+                    "dim cd_promote takes). No compute (a fixed table) → "
+                    "non_compute. numpy-free; no float.",
+            parameters=(),
+            returns=R("dict",
+                      "{'carriers': {name: {'ladder', 'rung'}}, 'ladders': "
+                      "{name: {'rungs', 'adds_variable', 'promote', "
+                      "'project'}}}"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The q-HYPERGEOMETRIC row of the §76 telescope Σ-row prover (F929) —
         # q-Gosper, the FIRST public op of the q-row (the q-analog of gosper).
         # Decides q-Gosper-summability of a q-hypergeometric term over the rc54
@@ -4709,6 +4896,59 @@ def _register_primitive_class_tools() -> None:
                 P("j", "int", True, "second basis index in [0, dim)"),
             ),
             returns=R("tuple", "(index, sign) with index in [0, dim), sign in {+1,-1}"),
+        ),
+        # rc116 (#1248 / F1038): the Hurwitz rung of the CARRIER CONVERSION
+        # LADDER — promote / project between ℝ↪ℂ↪ℍ↪𝕆↪𝕊, the algebra-one-level-up
+        # analog of the srmech.amsc.carrier_ladder variable ladder. Pure
+        # carrier restructuring (zero-pad up / trivial-check + drop down; no
+        # numerical kernel) → non_compute.
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_promote", owner="srmech",
+            category="cascade",
+            summary="Promote a Cayley–Dickson element UP one-or-more rungs "
+                    "ℝ↪ℂ↪ℍ↪𝕆↪𝕊 by the trivial SUBALGEBRA EMBEDDING (#1248 / "
+                    "F1038): zero-pad the higher imaginary half, x ↦ (x, 0). "
+                    "dim is the target power-of-two dimension (≥ the element's "
+                    "dim). TOTAL (a no-op when dim == the element's dim). This "
+                    "is the SAME embedding the qm.octonion/quaternion "
+                    "restriction tests exercise (a quaternion q₄ sits in 𝕆 as "
+                    "q₄⊕0₄ under the shared cd_basis_product cocycle — ℍ is the "
+                    "top-4 of 𝕆). The inverse of cd_project: "
+                    "cd_project(cd_promote(x, 2·dim))==x EXACT. Pure carrier "
+                    "restructuring → non_compute. Exact-rational; no float; no "
+                    "abs()." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True, "a power-of-two-length element"),
+                P("dim", "int", True,
+                  "target power-of-two dimension (≥ the element's dim, ≤ 64)"),
+            ),
+            returns=R("tuple",
+                      "the element zero-padded up to dim, a tuple of exact "
+                      "Fractions"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_project", owner="srmech",
+            category="cascade",
+            summary="Project a Cayley–Dickson element DOWN one doubling "
+                    "(dim → dim/2) by REALIFYING IFF the higher "
+                    "(imaginary-doubling) half all vanish (#1248 / F1038) — the "
+                    "inverse of cd_promote. If the top half is zero, returns the "
+                    "bottom half (a complex (a,0) IS the real a); if a higher "
+                    "component is genuinely present, raises a coherency error "
+                    "NAMING that component (never a silent truncation — the "
+                    "rc104 lesson). A real (dim 1) element has no higher half → "
+                    "error. cd_project(cd_promote(x, 2·d))==x EXACT. Pure "
+                    "carrier restructuring → non_compute. Exact-rational (the "
+                    "vanishing test is a Fraction!=0 Class-K comparison); no "
+                    "float; no abs()." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True,
+                  "a power-of-two-length element (dim ≥ 2)"),
+            ),
+            returns=R("tuple",
+                      "the bottom half (the realified element), a tuple of "
+                      "exact Fractions; raises a NAMING coherency error if the "
+                      "higher half is non-zero"),
         ),
         ToolEntry(
             name="srmech.amsc.cascade.sedenion_zero_divisor_witness", owner="srmech",

@@ -8,6 +8,33 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc116] - 2026-07-03
+
+**The CARRIER CONVERSION LADDER — the orphan fix + promote/project rungs + the ladder descriptor (issue #1248, F1038).** `tools.total` **367 → 376** (nine genuinely new public ops); ABI stays 3 (no C — every op is `non_compute` carrier restructuring); numpy stays absent; no `abs()`; no float.
+
+**THE ORPHAN FIX.** The `tool_schema` producer/consumer census (measured on rc113) found two carriers ORPHANED — CONSUMED but never PRODUCED from the registry: `BiPoly` (consumed by `zeilberger` + `wz_certificate`) and `TriPoly` (consumed by `apagodu_zeilberger`). rc113 shipped only the q-side (`qbipoly_from_coeffs`), so the classic **non-q** Zeilberger / WZ / Apagodu row could not be built by prose. rc116 adds the missing constructors:
+
+- **`zeilberger.bipoly_from_coeffs(coeffs)`** — a `k`-ascending list of INTEGER-LEAF `n`-coefficient lists → the exact-ℚ[n,k] `BiPoly` (`[[1, 1], [-1]]` is `(1+n) − k`; the rc42 `F(n,k)=C(n,k)` term ratios `[[1, 1]] / [[1, 1], [-1]] / [[0, 1], [-1]] / [[1], [1]]` → `zeilberger` certifies `f(n+1)−2f(n)=0` for `ΣC(n,k)=2ⁿ`).
+- **`tripoly.tripoly_from_coeffs(coeffs)`** — the `bipoly_from_coeffs` grammar recursed one level (a `j`-ascending list of `k`-ascending lists of `n`-lists) → the exact-ℚ[n,j,k] `TriPoly` (`[[[0, 1]], [[1]]]` is `n + j`).
+
+Both mirror the rc113 `qbipoly_from_coeffs` shape exactly; ints only (a float / bool / str leaf is an honest `TypeError`); `non_compute` BUILDERS (the `coupling.from_bodies` / `text.cooccurrence_edges` precedent — they construct an operand; every computation lives in the ops that consume it).
+
+**THE VARIABLE LADDER — promote / project.** A univariate IS trivially bivariate, but no op crossed the rungs. rc116 adds them so a driver (siona's result register, F1024) can auto-route a lower-rung carrier UP to any higher-rung consumer:
+
+- **`carrier_ladder.poly_promote(p, n_vars)` / `poly_project(p)`** — `Poly(k) ↔ BiPoly(n,k) ↔ TriPoly(n,j,k)`.
+- **`carrier_ladder.qpoly_promote(p, n_vars)` / `qpoly_project(p)`** — `QPoly(x=qⁿ) ↔ QBiPoly(X=qⁿ, Y=qᵏ)`.
+
+**PROMOTE** is the trivial embedding — it adds a degree-0 variable (Poly↪BiPoly adds `n`, BiPoly↪TriPoly adds `j`, QPoly↪QBiPoly adds `Y`), so the polynomial is unchanged as a function; TOTAL (a no-op when the target rung equals the current). **PROJECT** drops the highest-rung variable IFF genuinely trivial (degree 0); when the variable is genuinely PRESENT it raises a **coherency error that NAMES the obstruction** (`'n' is the genuinely non-trivial variable`) — NEVER a silent truncation (the rc104 lesson; the beat-relation diagnostic style). **ROUND-TRIP LAW** (tested): `project(promote(x)) == x`, EXACT, at every rung.
+
+**THE HURWITZ LADDER — cd_promote / cd_project.** The same shape one level of algebra up, shipped next to the `cd_*` family:
+
+- **`cascade.cd_promote(x, dim)`** — zero-pad the higher imaginary half, `x ↦ (x, 0)`: ℝ↪ℂ↪ℍ↪𝕆↪𝕊. This is the SAME subalgebra embedding the qm.octonion/quaternion restriction tests exercise (a quaternion `q₄` sits in 𝕆 as `q₄ ⊕ 0₄` under the shared `cd_basis_product` cocycle — ℍ is the top-4 of 𝕆). A consistency test proves `cd_mult` on promoted quaternions matches `cd_promote` of the quaternion product, and `octonion_left/right_mult(cd_promote(q₄,8))` has `quaternion_left/right_mult(q₄)` as its top-left 4×4 block (the rc109 pattern).
+- **`cascade.cd_project(x)`** — realify DOWN one doubling IFF the higher half all vanish (a complex `(a,0)` IS the real `a`); else the coherency error NAMES the genuinely-present component. `cd_project(cd_promote(x, 2·d)) == x` EXACT.
+
+**THE LADDER DESCRIPTOR.** **`carrier_ladder.carrier_ladder_descriptor()`** — a small declarative coherency map: `{'carriers': {<carrier>: {'ladder', 'rung'}}, 'ladders': {<ladder>: {'rungs', 'adds_variable', 'promote', 'project'}}}` over the three ladders (`variable`, `variable_q`, `cayley_dickson`), so the routing driver reads which promote/project op to call to lift a carrier to a consumer's rung.
+
+**Scope.** All nine ops are `non_compute` — pure carrier restructuring (trivial embed / drop; no numerical kernel), so no C peer (the from_coeffs precedent) and ABI stays 3. MCP coercers added for the new param types (`list[list[list[int]]]`, `Poly | BiPoly`, `BiPoly | TriPoly`). Rosetta ledger +9 `non_compute` rows (debt ceilings unchanged). MPM: in-repo SSOT (the carriers' own conventions; Baez 2002 for the CD basis convention, already cited). Tests: +1 file (`test_carrier_ladder_rc116.py`, 24 tests — the constructor round-trips, the round-trip law at every rung of both variable ladders + the Hurwitz ladder, the naming coherency errors, the octonion/quaternion-convention consistency, the registry-driven capstone: registry-built BiPoly → zeilberger recurrence + promoted Poly → zeilberger + the naming error); the 25 `tools.total` pins 367 → 376. 5 SSOT files rc115 → rc116.
+
 ## [0.9.0rc115] - 2026-07-03
 
 **Genome O(1)-AMORTIZED append + non-quadratic `genome_pack` — the region-chain hash contract, format v4 (issue #1245 ask (b), UPSTREAM §56, the DIRECT follow-up to rc114's format v3).** `tools.total` stays **367** (no new public op — an append/pack algorithmic change + a manifest-versioned format); ABI stays 3 (additive/internal C only — no exported-symbol wire format changed; the on-disk FILE format is versioned in the manifest); numpy stays absent; no `abs()`; no float.

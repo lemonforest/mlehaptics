@@ -233,6 +233,90 @@ def is_division_algebra_dim(dim: int) -> bool:
 
 
 # ──────────────────────────────────────────────────────────────────────
+# The Hurwitz (Cayley–Dickson) conversion LADDER (rc116; #1248 / F1038):
+# promote / project between adjacent rungs ℝ ↪ ℂ ↪ ℍ ↪ 𝕆 ↪ 𝕊 …, the algebra-
+# one-level-up analog of the srmech.amsc.carrier_ladder variable ladder.
+#
+# PROMOTE is the SUBALGEBRA EMBEDDING — zero-pad the higher (imaginary-doubling)
+# half, so ``x ↦ (x, 0)``; the element is unchanged, it merely gains higher
+# components it does not use. This is exactly the embedding the qm.octonion /
+# qm.quaternion restriction tests exercise (a quaternion q₄ sits in 𝕆 as
+# ``q₄ ⊕ 0₄``, and octonion left/right-mult on it matches quaternion left/right-
+# mult on the top-left 4×4 block — ℍ IS the top-4 of 𝕆 under this SAME
+# cd_basis_product cocycle). PROJECT is its inverse — realify DOWN one doubling
+# IFF the higher half vanishes, else a coherency error NAMING the genuinely-
+# present higher component (never a silent truncation). ROUND-TRIP:
+# ``cd_project(cd_promote(x, 2·dim)) == x`` EXACT at every rung.
+# ──────────────────────────────────────────────────────────────────────
+
+def cd_promote(x: Sequence[Any], dim: int) -> Tuple[Fraction, ...]:
+    """Promote a Cayley–Dickson element UP to a higher rung by the trivial
+    SUBALGEBRA EMBEDDING (zero-pad the higher imaginary half) — TOTAL.
+
+    ``x`` is a power-of-two-length element (dim ``d``); ``dim`` is the TARGET
+    power-of-two dimension (``dim ≥ d``, ``dim ≤ CD_MAX_DIM``). Returns ``x``
+    with ``dim − d`` trailing zeros appended (the higher components all zero):
+    ``ℝ ↪ ℂ ↪ ℍ ↪ 𝕆 ↪ 𝕊``. When ``dim == d`` the element is returned
+    unchanged (promote is defined for every input). The element is unchanged as
+    a number — it merely gains higher components it does not use. Its inverse is
+    :func:`cd_project` (one doubling at a time), so
+    ``cd_project(cd_promote(x, 2·d)) == x`` EXACT.
+
+    Exact-rational; the padding is the exact ``Fraction(0)``. No float, no
+    ``abs()``, no numpy / ``math``."""
+    el = _as_elem(x)
+    d = len(el)
+    if not _is_pow2(dim) or dim > CD_MAX_DIM:
+        raise ValueError(
+            f"cd_promote: dim must be a power of two ≤ {CD_MAX_DIM}; got {dim}")
+    if dim < d:
+        raise ValueError(
+            f"cd_promote: target dim {dim} is below the element's dim {d}; "
+            f"promote only zero-pads UP the Cayley–Dickson ladder — use "
+            f"cd_project to descend")
+    if dim == d:
+        return el
+    return el + (Fraction(0),) * (dim - d)
+
+
+def cd_project(x: Sequence[Any]) -> Tuple[Fraction, ...]:
+    """Project a Cayley–Dickson element DOWN one doubling (dim ``d`` → ``d/2``)
+    by REALIFYING IFF the higher (imaginary-doubling) half all vanish — the
+    inverse of :func:`cd_promote`.
+
+    ``x`` is a power-of-two-length element (dim ``d ≥ 2``). If the top half
+    ``x[d/2:]`` is all zero, returns the bottom half ``x[:d/2]`` (the element
+    genuinely lives in the ``d/2`` subalgebra: e.g. a complex ``(a, 0)`` IS the
+    real ``a``). If any higher component is genuinely present, raises a
+    coherency ``ValueError`` NAMING the first such component (never a silent
+    truncation — the rc104 lesson; dropping a present component would change the
+    number). A real (dim 1) element has no higher half → ``ValueError``.
+
+    ``cd_project(cd_promote(x, 2·d)) == x`` EXACT (promote zero-pads exactly the
+    half this drops). Exact-rational; the vanishing test is a ``Fraction != 0``
+    Class-K comparison. No float, no ``abs()``, no numpy / ``math``."""
+    el = _as_elem(x)
+    d = len(el)
+    if d == 1:
+        raise ValueError(
+            "cd_project: a real (dim 1) element is already at the base rung ℝ; "
+            "there is no higher (imaginary-doubling) half to drop")
+    half = d >> 1
+    for i in range(half, d):
+        if el[i] != 0:                        # Class-K nonzero test; no abs()
+            lo_name = ALGEBRA_NAMES.get(half, f"(dim {half})")
+            hi_name = ALGEBRA_NAMES.get(d, f"(dim {d})")
+            raise ValueError(
+                f"cd_project: cannot realify {hi_name} → {lo_name} — the higher "
+                f"(imaginary-doubling) component e{i} = {el[i]} is genuinely "
+                f"present; dropping it would TRUNCATE the element, not project a "
+                f"trivial embedding. Component e{i} is the genuinely non-trivial "
+                f"coordinate. (Promote only zero-pads, so a promoted element's "
+                f"higher half is all zero.)")
+    return el[:half]
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Integer structural core — the basis-unit cocycle e_i·e_j = sign·e_{i⊕j}.
 # This is the Fano/structure content; the JPL-clean C peer computes the
 # identical (index, sign) by the same iterative doubling (no recursion).

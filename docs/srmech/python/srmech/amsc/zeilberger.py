@@ -66,7 +66,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 from .poly import Poly
 from .q import Q
 
-__all__ = ["zeilberger", "BiPoly"]
+__all__ = ["zeilberger", "BiPoly", "bipoly_from_coeffs"]
 
 _Q_ZERO = Q(0, 1)
 _Q_ONE = Q(1, 1)
@@ -633,3 +633,56 @@ def _homogeneous_kernel(QMat, rows, n_unknowns, a_block):
         if any(q != 0 for q in a_part):
             return a_part, vec[a_block:]
     return None
+
+
+# ── the PROSE-SIDE constructor (rc116; #1248 / F1038; the ORPHAN FIX) ──────────
+def bipoly_from_coeffs(coeffs) -> BiPoly:
+    """Build the exact-``ℚ[n,k]`` bivariate carrier :class:`BiPoly` from a
+    ``k``-ascending list of INTEGER-LEAF ``n``-coefficient lists — the
+    PROSE-SIDE constructor ToolEntry (rc116; issue #1248 / F1038).
+    ``coeffs[d]`` is the coefficient of ``k**d`` and is itself an
+    **ascending-``n``-degree** integer list (a :class:`~srmech.amsc.poly.Poly`
+    in ``n``): ``bipoly_from_coeffs([[1, 1], [-1]])`` is ``(1 + n) − k``
+    (``k**0`` coeff ``1 + n``, ``k**1`` coeff ``−1``) — the ordinary-row
+    term-ratio building blocks the ``zeilberger`` / ``wz_certificate`` ops
+    consume.
+
+    Worked forms — the ``F(n,k) = C(n,k)`` term ratios (the rc42 keystone),
+    written entirely with integer leaves:
+
+    - ``r_n`` numerator ``n + 1``:        ``[[1, 1]]``
+    - ``r_n`` denominator ``(n + 1) − k``: ``[[1, 1], [-1]]``
+    - ``r_k`` numerator ``n − k``:         ``[[0, 1], [-1]]``
+    - ``r_k`` denominator ``k + 1``:       ``[[1], [1]]``
+
+    Why it exists: the ``tool_schema`` producer/consumer census (#1248) found
+    ``BiPoly`` an ORPHAN — CONSUMED by ``zeilberger`` + ``wz_certificate`` but
+    never PRODUCED from the registry. rc113 shipped the q-side constructor
+    (``qbipoly_from_coeffs``) but NOT the ordinary-row one, so the classic
+    non-q Zeilberger / WZ row could not be built by prose. This closes that
+    gap. A **non_compute BUILDER** (the ``coupling.from_bodies`` /
+    ``text.cooccurrence_edges`` precedent): it constructs an operand; every
+    computation lives in the ops that consume it.
+
+    Ints only (a ``bool`` / ``float`` / ``str`` leaf is an honest
+    ``TypeError`` — the exact-``ℚ`` prose discipline; integers are exact). No
+    float, no ``abs()``, no numpy / ``math``."""
+    from .poly import _prose_int
+    if isinstance(coeffs, tuple):
+        coeffs = list(coeffs)
+    if not isinstance(coeffs, list):
+        raise TypeError(
+            "bipoly_from_coeffs: coeffs must be a k-ascending list of "
+            f"n-coefficient lists; got {type(coeffs).__name__}")
+    cells: List[Poly] = []
+    for d, kcell in enumerate(coeffs):
+        if isinstance(kcell, tuple):
+            kcell = list(kcell)
+        if not isinstance(kcell, list):
+            raise TypeError(
+                f"bipoly_from_coeffs: k-cell {d} must be an ascending-n list of "
+                f"ints (the Poly-in-n coefficient of k**{d}); got "
+                f"{type(kcell).__name__}")
+        cells.append(Poly.from_coeffs(
+            [_prose_int(v, where=f"bipoly_from_coeffs (k-cell {d})") for v in kcell]))
+    return BiPoly(cells)
