@@ -88,7 +88,11 @@ def test_remove_middle_is_pure_byte_splice():
 
         assert _read_body(d) == ra + rc, "turns.bin must be the survivor spans verbatim"
         assert [c["label"] for c in new["chromosomes"]] == ["alpha", "gamma"]
-        assert new["n_turns"] == saved["n_turns"] - by["beta"]["byte_len"] // DIM
+        # §55/v3: n_turns counts BLOCKS (variable-width on disk) — the excise
+        # removed exactly beta's span blocks (CHROM cap + GENE caps + data turns).
+        beta_blocks = sum(
+            1 for _ in G._walk_region_blocks(_span(body0, by["beta"]), DIM))
+        assert new["n_turns"] == saved["n_turns"] - beta_blocks
         # survivors reload byte-for-byte (relocation did not re-couple them)
         assert G.genome_window(d, "alpha") == wa_ref
         assert G.genome_window(d, "gamma") == wc_ref
@@ -202,7 +206,10 @@ def test_replace_is_pure_byte_splice_in_place():
         wa_ref, wc_ref = G.genome_window(d, "alpha"), G.genome_window(d, "gamma")
 
         new_leaves = [klein4_random(DIM, seed=s) for s in (20, 21, 22, 23)]
-        new_region = b"".join(G._leaf_blocks(G.chromosome(new_leaves, one, label="beta")))
+        # §55/v3: the fresh region lands on disk in the packed block form.
+        new_region = b"".join(
+            G._disk_block(blk, DIM)
+            for blk in G._leaf_blocks(G.chromosome(new_leaves, one, label="beta")))
 
         new = G.genome_replace(d, "beta", new_leaves, one)
 

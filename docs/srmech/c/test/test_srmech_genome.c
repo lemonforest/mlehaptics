@@ -607,6 +607,112 @@ int main(void)
         }
     }
 
+    /* §55/rc114 (issue #1245): format v3 — BIT-PACKED data turns + MIXED
+     * bodies. A packed turn is [0x51 'Q'] + ceil(leaf_dim/4) payload bytes
+     * (4 Klein-4 symbols per byte, first symbol in the HIGH lanes); caps stay
+     * leaf_dim-wide; legacy v2 byte-per-symbol turns remain readable in the
+     * SAME walk (back-compat is structural). */
+    {
+        const unsigned char PQ = (unsigned char)SRMECH_GENOME_PACKED_TURN_MARKER;
+        /* leaf_dim=4 -> packed turn = 1 + 1 = 2 bytes. Chrom 'P': cap + a
+         * packed turn (symbols 0,1,2,3 -> 0b00011011 = 0x1B); chrom 'L': cap
+         * + a LEGACY v2 turn (3,0,2,1). Mixed body: 4+2+4+4 = 14 B, 4 blocks. */
+        unsigned char mixed[14] = {
+            CC, (unsigned char)'P', 0u, 0u,
+            PQ, 0x1Bu,
+            CC, (unsigned char)'L', 0u, 0u,
+            3u, 0u, 2u, 1u,
+        };
+        const char *tb = getenv("TMPDIR");
+        if (tb == NULL) { tb = getenv("TMP"); }
+        if (tb == NULL) { tb = "/tmp"; }
+        char mix_dir[1024];
+        snprintf(mix_dir, sizeof(mix_dir), "%s/srmech_genome_v3mix", tb);
+        ensure_dir(mix_dir);
+        st = srmech_genome_save(mix_dir, mixed, sizeof(mixed), leaf_dim,
+                                the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_OK, "v3 save of a MIXED packed+legacy body OK");
+        {
+            srmech_json_value_t *man = NULL;
+            st = srmech_genome_catalog(mix_dir, NULL, 0u, g_ws, sizeof(g_ws), &man);
+            const srmech_json_value_t *data =
+                (st == SRMECH_OK) ? srmech_json_object_get(man, "data") : NULL;
+            const srmech_json_value_t *fv =
+                (data != NULL) ? srmech_json_object_get(data, "format_version") : NULL;
+            check_true(fv != NULL && fv->type == SRMECH_JSON_INT &&
+                       fv->u.i == SRMECH_GENOME_FORMAT_VERSION,
+                       "mixed-body manifest format_version == 3");
+            const srmech_json_value_t *nt =
+                (data != NULL) ? srmech_json_object_get(data, "n_turns") : NULL;
+            check_true(nt != NULL && nt->type == SRMECH_JSON_INT && nt->u.i == 4,
+                       "mixed-body n_turns == 4 BLOCKS (variable-width walk)");
+            const srmech_json_value_t *chr =
+                (data != NULL) ? srmech_json_object_get(data, "chromosomes") : NULL;
+            check_true(chr != NULL && chr->type == SRMECH_JSON_ARRAY &&
+                       chr->u.arr.n == 2u, "mixed-body has 2 chromosomes");
+            if (chr != NULL && chr->u.arr.n == 2u) {
+                const srmech_json_value_t *p0 = chr->u.arr.items[0];
+                const srmech_json_value_t *p_bl =
+                    srmech_json_object_get(p0, "byte_len");
+                const srmech_json_value_t *p_lc =
+                    srmech_json_object_get(p0, "leaf_count");
+                check_true(p_bl != NULL && p_bl->u.i == 6 &&
+                           p_lc != NULL && p_lc->u.i == 1,
+                           "packed chrom 'P': byte_len 6 (cap 4 + turn 2), leaf_count 1");
+                const srmech_json_value_t *l1 = chr->u.arr.items[1];
+                const srmech_json_value_t *l_bl =
+                    srmech_json_object_get(l1, "byte_len");
+                const srmech_json_value_t *l_off =
+                    srmech_json_object_get(l1, "byte_offset");
+                check_true(l_bl != NULL && l_bl->u.i == 8 &&
+                           l_off != NULL && l_off->u.i == 6,
+                           "legacy chrom 'L': byte_len 8 at offset 6");
+            }
+        }
+        {
+            unsigned char out[64];
+            size_t olen = 0u;
+            st = srmech_genome_load(mix_dir, out, sizeof(out), &olen,
+                                    NULL, 0u, g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_OK && olen == sizeof(mixed) &&
+                       memcmp(out, mixed, sizeof(mixed)) == 0,
+                       "mixed body loads verbatim (bounding passes)");
+            st = srmech_genome_window(mix_dir, "P", out, sizeof(out), &olen,
+                                      NULL, 0u, g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_OK && olen == 6u &&
+                       memcmp(out, mixed, 6u) == 0,
+                       "window('P') == the 6-byte packed region");
+        }
+        {
+            /* §44 held across the bump: manifest-less rebuild scans the MIXED
+             * body (the_one gives the width) — same n_turns/chromosomes. */
+            char man_path[1200];
+            snprintf(man_path, sizeof(man_path), "%s/manifest.json", mix_dir);
+            check_true(remove(man_path) == 0, "delete mixed manifest.json");
+            srmech_json_value_t *man = NULL;
+            st = srmech_genome_catalog(mix_dir, the_one, sizeof(the_one),
+                                       g_ws, sizeof(g_ws), &man);
+            const srmech_json_value_t *data =
+                (st == SRMECH_OK) ? srmech_json_object_get(man, "data") : NULL;
+            const srmech_json_value_t *nt =
+                (data != NULL) ? srmech_json_object_get(data, "n_turns") : NULL;
+            check_true(st == SRMECH_OK && nt != NULL && nt->u.i == 4,
+                       "manifest-less rebuild walks the mixed body (n_turns 4)");
+        }
+        {
+            /* An unrecognised block kind byte is rejected (a packed-format
+             * body with a corrupt kind byte cannot silently mis-parse). */
+            unsigned char bad[6] = { CC, (unsigned char)'X', 0u, 0u, 0x7Fu, 0u };
+            char bad_dir[1024];
+            snprintf(bad_dir, sizeof(bad_dir), "%s/srmech_genome_v3bad", tb);
+            ensure_dir(bad_dir);
+            st = srmech_genome_save(bad_dir, bad, sizeof(bad), leaf_dim,
+                                    the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_ERR_BAD_INPUT,
+                       "unrecognised block kind byte -> BAD_INPUT");
+        }
+    }
+
     printf("== %d passed, %d failed ==\n", g_passed, g_failed);
     return (g_failed == 0) ? 0 : 1;
 }
