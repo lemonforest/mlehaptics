@@ -8,8 +8,10 @@ clean `X.Y.Z` tags to **PyPI** (the human production gate). Each rcN ships via i
 **Breaking / identity:** `siona` stops being a co-name alias for `srmech` (releases ≤ 0.0.4 were a
 metadata-only mirror; srmech rc173 removed the in-wheel `import siona` alias) and becomes its **own
 package**: the grounded inference layer, a **srmech profile plugin** (`srmech.profiles` entry-point)
-on a lean `srmech>=0.8.1` dependency. The wheel ships **mechanism, not knowledge** — no corpora or
-knowledge kernels; instruments load by path (see `PKG1_DECISION.md`).
+on a lean `srmech>=0.8.1` dependency. The **wheel** stays lean — no corpora bundled inside it;
+instruments and knowledge load by path. Knowledge **kernels are distributed as attested companion
+artifacts** (CC-BY-SA-compliant by the MPR attestation each acquired fact carries — see
+`PKG1_DECISION.md`).
 
 ### Added
 - `siona.bridge` — the de Bruijn fiber walk + full-body recall (walk/recall/route/two_mode_recall);

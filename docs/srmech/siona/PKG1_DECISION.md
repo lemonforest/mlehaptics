@@ -10,7 +10,7 @@
 | `siona.infer` — the five rc1-gate capabilities (F1008–F1012): intent **route**, tool_schema **ground**, signature-fit **drive**, **self**-surface (8 tools + registration), **session** (never-compacted memory + ingested kernels + cross-turn operands) | enwiki/dblp/egyptian corpora |
 | `siona.boards` — the **language-board layer** (below) | any scraped cultural content (F649 dignity-first) |
 
-Knowledge kernels are **user-side data, loaded by path** — the wheel stays small, provenance stays with the data, and the mechanism/knowledge boundary is architectural, not incidental.
+Knowledge kernels are **loaded by path, not bundled in the wheel** — so the wheel stays small and the mechanism/knowledge boundary stays architectural. But the kernels themselves **are distributed** — as attested **companion data artifacts** (e.g. the sparse Laplacian-encoded smallwiki kernel, F1035). This is license-compliant *by construction*: a CC-BY-SA source (the Wikipedia dump) may be redistributed with attribution, and the **MPR attestation** each acquired fact carries (source, license, retrieval time, record SHA-256) **is** that attribution — dataset-level acknowledgement today, per-record when a citation needs it directly.
 
 ## The language-board layer (the ni-Vanuatu-lineage translation-kernel architecture)
 

@@ -70,3 +70,20 @@ def test_carrier_register_chain_rc113():
     s.turn("compute the unary theta with char minus12 j 0 a 1 b 0 d 24") # -> UnaryTheta in register
     _, tag, out = s.turn("compute the theta coefficients of it with n max 12")
     assert "theta_coefficients(UnaryTheta" in out and "[1, -1, -1" in out, out   # eta/Euler head
+
+
+def test_register_conversion_ladder_rc117():
+    """F1039: the register becomes a CONVERSION LADDER -- when a tool needs a higher-rung carrier
+    and the register holds a lower one on the same ladder, siona auto-PROMOTES via the srmech
+    carrier_ladder_descriptor (#1248). A Poly in hand reaches a BiPoly|TriPoly consumer."""
+    import importlib.util
+    if importlib.util.find_spec("srmech.amsc.carrier_ladder") is None:
+        import pytest
+        pytest.skip("carrier_ladder (srmech rc117+) not on this floor")
+    s = siona.Session()
+    s.turn("compute the poly from coeffs 1 2 3")                         # -> Poly in register (rung 1)
+    _, tag, out = s.turn("compute the poly promote of it")
+    assert "poly_promote(Poly" in out and "BiPoly" in out, out          # Poly -> BiPoly
+    s.turn("compute the poly from coeffs 1 2 3")
+    _, tag, out = s.turn("compute the poly project of it")              # projector wants BiPoly|TriPoly
+    assert "poly_project(BiPoly" in out, out                            # the Poly was auto-promoted UP

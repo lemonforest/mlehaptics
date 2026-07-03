@@ -295,6 +295,50 @@ class Session:
     # ---- the drive loop (F1009 + F1012 cross-turn operand resolution) ----
     REF_WORDS = frozenset({"it", "its", "that", "result"})  # the RESULT REGISTER reference operators
 
+    def _ladder(self):
+        if getattr(self, "_ladder_cache", None) is None:
+            try:
+                from srmech.amsc.carrier_ladder import carrier_ladder_descriptor
+                self._ladder_cache = carrier_ladder_descriptor()
+            except Exception:
+                self._ladder_cache = {"carriers": {}, "ladders": {}}
+        return self._ladder_cache
+
+    def _accepts(self, tp):
+        # the carrier type-names a param accepts (a union 'BiPoly | TriPoly' -> both); case-insensitive
+        # because _bind_args lowercases the param type but the descriptor keys are original-case
+        return [c for c in self._ladder().get("carriers", {}) if re.search(r"\b%s\b" % c, tp, re.I)]
+
+    def _promote_ref(self, tp):
+        """The register AS a conversion ladder (F1039): if a param accepts a carrier that the
+        register's carrier can be PROMOTED to (same ladder, higher rung), lift it and return the
+        promoted carrier; if it matches directly, return as-is; else None. Duality-guarded
+        projection is srmech's; siona only ever promotes UP (never guesses a downward realify)."""
+        obj = self.last_result
+        if obj is None:
+            return None
+        src = type(obj).__name__
+        if re.search(r"\b%s\b" % re.escape(src), tp, re.I):   # DIRECT match (any carrier,
+            return obj                                          # incl. non-ladder Mat/UnaryTheta/Vec/HV)
+        L = self._ladder()
+        cars, lads = L.get("carriers", {}), L.get("ladders", {})
+        want = self._accepts(tp)
+        if src not in cars:                  # not a ladder carrier and no direct match -> can't route
+            return None
+        my = cars[src]
+        for tgt in want:                     # a higher rung on the SAME ladder -> promote up
+            t = cars.get(tgt, {})
+            if t.get("ladder") == my["ladder"] and t["rung"] > my["rung"]:
+                import importlib
+                fq = lads[my["ladder"]]["promote"]
+                mod, fn = fq.rsplit(".", 1)
+                promote = getattr(importlib.import_module(mod), fn)
+                cur = obj
+                for _ in range(t["rung"] - my["rung"]):   # one rung per call
+                    cur = promote(cur)
+                return cur
+        return None
+
     def _named_params(self, t, u):
         """Utterance-named scalar params ('with 10 terms' / 'terms 10') -- shared by bind AND fit
         (a named optional param CONSUMES an operand, so it counts in the exactness accounting)."""
@@ -338,8 +382,15 @@ class Session:
         fltp = fltp + len(sun)  # the union's scalar alternative counts as a float slot
         listp = sum(1 for p in reqs if any(k in pt(p) for k in ("list", "sequence", "tuple"))
                     and not scalar_union(p))
-        refp = sum(1 for p in reqs if ref and ref.lower() in pt(p)
-                   and not any(k in pt(p) for k in ("list", "sequence", "tuple")))
+        def ref_fits(p):
+            t = pt(p)
+            if any(k in t for k in ("list", "sequence", "tuple")):
+                return False
+            if ref and ref.lower() in t:            # direct scalar-carrier-name match
+                return True
+            return bool(self._accepts(t)) and self.last_result is not None \
+                and self._promote_ref(t) is not None    # promotable via the ladder
+        refp = sum(1 for p in reqs if ref and ref_fits(p))
         if len(reqs) - intp - fltp - bytp - listp - refp:
             return 0.0
         if refp:
@@ -469,8 +520,11 @@ class Session:
                     args.append(list(edges))       # EDGE-PAIR operands -> Iterable[Tuple[int,int]] params
                 else:
                     args.append(ints[ii:]); ii = len(ints)
-            elif ref and ref.lower() in tp:
-                args.append(self.last_result)      # the RESULT REGISTER fills the carrier-typed param
+            elif ref and (ref.lower() in tp or self._accepts(tp)):
+                promoted = self._promote_ref(tp)   # the register AS a conversion ladder (auto-promote UP)
+                if promoted is None:
+                    return None
+                args.append(promoted)
             elif p.required:
                 return None  # Mat/Vec/HV CONSTRUCTION stays out of scope (utterances can't safely build carriers)
         return args, kw

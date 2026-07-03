@@ -96,6 +96,12 @@ the architecture.** The shared-invariant layer above boards follows the Rosetta 
 which ni-Vanuatu sand drawing is a living ~80-language exemplar (reached dignity-first as an attested
 structural exemplar and pointer; the tradition's content is held by the Ni-Vanuatu community).
 
-**Mechanism, not knowledge:** the wheel ships no corpora and no knowledge kernels — instruments and
-knowledge load by path at runtime. The research notebooks live in the
+**Lean wheel, distributed kernels.** The **wheel** stays pure mechanism — no corpora bundled inside
+it — so the install is small and knowledge loads by path at runtime. But knowledge **kernels are
+distributed**, as attested **companion data artifacts** alongside the package (e.g. the sparse
+Laplacian-encoded smallwiki kernel). Redistribution is license-compliant *by construction*: a
+CC-BY-SA source (the Wikipedia data dump) may be redistributed with attribution, and every acquired
+fact in a Siona kernel carries a **Mathematical Provenance Record** (MPR) — source URL, license,
+retrieval time, and the exact record's SHA-256 — which **is** that attribution, at dataset granularity
+today and per-record when a citation needs it directly. The research notebooks live in the
 [mlehaptics](https://github.com/lemonforest/mlehaptics) repo (Read the Docs).
