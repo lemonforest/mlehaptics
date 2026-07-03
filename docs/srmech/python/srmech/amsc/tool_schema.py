@@ -4276,25 +4276,39 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.cascade.octonion_dft", owner="srmech",
             category="cascade",
             summary="OCTONION discrete Fourier transform (ODFT) — the (8:7) rung "
-                    "above the QDFT. Composite over the qm.octonion left/right-mult "
-                    "atoms. Carries the F378 NON-ASSOCIATIVITY as an EXPLICIT declared "
-                    "field: the two-sided ODFT (W_l·x·W_r) is not unique, so "
-                    "`bracketing` ∈ {'left_associated','right_associated'} "
-                    "((W_l·x)·W_r vs W_l·(x·W_r)) MUST be stated — these differ for "
-                    "octonions. The one-sided forms ('left'/'right') round-trip "
-                    "(inverse(forward(x))=x); the two-sided form is forward-only "
-                    "(its inverse is open under non-associativity → raises). Class M "
-                    "(octonion multiply) ∘ C (twiddle orientation) ∘ N (rational "
-                    "angle); no new primitive class, no abs(). Scientific tier "
-                    "(UPSTREAM §22): requires numpy on call. Błaszczyk (2019), "
-                    "arXiv:1905.12631; origin Hahn & Snopek (2011), Bull. Polish "
+                    "above the QDFT, GRADUATED first-class (0.9.0rc111; #1234 "
+                    "Item 1c / #863) over the qm.octonion foundation "
+                    "(octonion_twiddle + 8×8 L_a/R_a atoms) with the "
+                    "whole-transform C peer srmech_octonion_dft (ALL THREE forms; "
+                    "byte-exact composed fallback). 𝕆 is NON-ASSOCIATIVE (F378) → "
+                    "the ODFT is NOT unique until its bracketing is DECLARED — an "
+                    "explicit ATTESTED field (octonion_dft.toml "
+                    "[cascade.bracketing]): per-summand-single-product; inverse = "
+                    "conjugate twiddle on the SAME declared side; two-sided "
+                    "association `bracketing` ∈ {'left_associated' (W_l·x)·W_r, "
+                    "'right_associated' W_l·(x·W_r)} — these DIFFER for distinct "
+                    "axes (load-bearing, tested). ALTERNATIVITY finding (Artin, "
+                    "verified): the one-sided round-trip lives in the 2-generator "
+                    "⟨μ, x⟩ and is EXACT; non-associativity bites only at ≥3 "
+                    "generators. One-sided forms round-trip; two-sided is "
+                    "forward-only (inverse raises). Class M∘C∘N∘I; numpy-free; "
+                    "no abs(). Błaszczyk (2019), arXiv:1905.12631 (PDF re-verified "
+                    "rc111 — its own Eq (2.8) declares 'multiplication … done from "
+                    "left to right'); origin Hahn & Snopek (2011), Bull. Polish "
                     "Acad. Sci. 59(2):167–181." + PUBLISH_OPT_IN_NOTE,
             parameters=(
-                P("x", "sequence", True, "N octonion samples, each 8-component [e0..e7]"),
+                P("x", "sequence", True,
+                  "N octonion samples, each 8-component [e0..e7] (4-component "
+                  "quaternions zero-extended), or a real (N, 8) Mat"),
                 P("form", "str", False, "'left'|'right'|'two_sided'; default 'left'"),
-                P("mu_axis", "str", False, "left/single axis μ: 'i'|'j'|'k'|'ijk'; default 'i'"),
+                P("mu_axis", "str", False,
+                  "left/single axis μ: 'i'|'j'|'k' (= 'e1'|'e2'|'e3') | 'e4'..'e7' "
+                  "| 'ijk' | 'diagonal', or a unit pure-imaginary 4-/8-vector; "
+                  "default 'i'"),
                 P("bracketing", "str", False,
-                  "two-sided association: 'left_associated'|'right_associated' (F378); default 'left_associated'"),
+                  "the DECLARED two-sided association: 'left_associated'|"
+                  "'right_associated' (F378; the attested field); default "
+                  "'left_associated'"),
                 P("two_sided_right_axis", "str", False, "right twiddle axis μ_r; default 'j'"),
                 P("inverse", "bool", False, "inverse ODFT (one-sided only); default False"),
             ),
@@ -5639,6 +5653,79 @@ def _register_qm_tools() -> None:
                     "Class K∘C. Baez (2002) §2.1.",
             parameters=(P("x", "HV", True, "8-vector"),),
             returns=R("float", "≥ 0; Class K+C, never abs()"),
+        ),
+        # The rc111 ODFT twiddle family (#1234 Item 1c, re-raise of #863) —
+        # the dim-8 mirror of the rc109 qm.quaternion foundation. Same-rc C
+        # peers srmech_octonion_{exp,twiddle}.
+        ToolEntry(
+            name="srmech.qm.octonion.octonion_exp", owner="srmech",
+            category="qm.octonion",
+            summary="The octonion Euler formula exp(μθ) = cos θ·1 + sin θ·μ̂ "
+                    "for a UNIT pure imaginary μ̂ (μ̂²=−1) — the ODFT twiddle at "
+                    "the float64 boundary (the dim-8 quaternion_exp mirror). "
+                    "Lives in the commutative ℝ[μ̂] ≅ ℂ; by Artin's theorem the "
+                    "2-generator ⟨μ̂, x⟩ associates, so the one-sided ODFT "
+                    "round-trip is exact despite 𝕆 non-associativity. "
+                    "‖exp(μθ)‖=1; exp(μθ₁)exp(μθ₂)=exp(μ(θ₁+θ₂)); "
+                    "exp(μ2π/N)^N=1. Trig = the Q61 Class-N cascade projected "
+                    "once (no libm, no math.pi); exact tiers: "
+                    "octonion_exp_series_truncate (rational) / "
+                    "cascade.hypercomplex_exp k_axes=7 (Q61). Class N∘C∘M. "
+                    "Same-rc C peer srmech_octonion_exp (byte-exact).",
+            parameters=(
+                P("theta", "float", True, "rotation angle θ (radians), finite"),
+                P("mu", "str", False,
+                  "axis μ̂: 'i'|'j'|'k' (= 'e1'|'e2'|'e3') | 'e4'..'e7' | 'ijk' "
+                  "| 'diagonal' (named, exact) or a pure-imaginary 4-/8-vector "
+                  "(normalised via the Class-N sqrt cascade); default 'i'"),
+            ),
+            returns=R("list[float]",
+                      "unit octonion [cos θ, sin θ·μ̂₁, …, sin θ·μ̂₇]"),
+        ),
+        ToolEntry(
+            name="srmech.qm.octonion.octonion_exp_series_truncate",
+            owner="srmech", category="qm.octonion",
+            summary="EXACT-rational exp(e_axis·θ) for a RATIONAL angle θ=p/q — "
+                    "the series-truncate tier of the ODFT twiddle (the dim-8 "
+                    "quaternion_exp_series_truncate mirror). Composes the "
+                    "Class-N calculus series cos/sin_series_truncate (exact "
+                    "bignum (num,den) pairs) with an exactly-representable "
+                    "basis axis e_axis (axis ∈ {1..7}). π is NOT rational: a "
+                    "2πjk/N angle enters only as a caller-chosen rational "
+                    "approximant (e.g. best_rational over the π cascade); the "
+                    "float64 projection is octonion_twiddle. Class N "
+                    "(bignum_reference oracle of the Q61/float paths).",
+            parameters=(
+                P("theta_num", "int", True, "angle numerator p (radians p/q)"),
+                P("theta_den", "int", True, "angle denominator q (nonzero)"),
+                P("num_terms", "int", True, "Taylor terms N"),
+                P("axis", "int", False, "basis axis e_axis, 1..7; default 1"),
+            ),
+            returns=R("tuple",
+                      "8 exact (num, den) pairs: cos at slot 0, sin at slot "
+                      "axis, (0,1) elsewhere"),
+        ),
+        ToolEntry(
+            name="srmech.qm.octonion.octonion_twiddle", owner="srmech",
+            category="qm.octonion",
+            summary="The ODFT twiddle factor exp(σ·μ·2πjk/N) — the DFT-facing "
+                    "octonion_exp (the dim-8 quaternion_twiddle mirror). The "
+                    "index product is reduced in Z_N FIRST (Class I, exact), "
+                    "then π enters ONCE as the Class-N 4·atan(1) cascade at the "
+                    "float64 boundary (never math.pi). σ=−1 (default) = forward "
+                    "DFT (matches cascade.octonion_dft); σ=+1 = inverse. "
+                    "Twiddle closure: exp(μ2π/N)^N = 1. Class I∘N∘C∘M. Same-rc "
+                    "C peer srmech_octonion_twiddle (byte-exact).",
+            parameters=(
+                P("j", "int", True, "frequency index (non-negative)"),
+                P("k", "int", True, "sample index (non-negative)"),
+                P("n_points", "int", True, "DFT length N, 1 ≤ N < 2³²"),
+                P("mu", "str", False,
+                  "axis μ̂: 'i'|'j'|'k' (= 'e1'|'e2'|'e3') | 'e4'..'e7' | 'ijk' "
+                  "| 'diagonal', or a pure-imaginary 4-/8-vector; default 'i'"),
+                P("sigma", "int", False, "−1 forward (default) | +1 inverse"),
+            ),
+            returns=R("list[float]", "the unit-octonion twiddle (8 components)"),
         ),
 
         # ────────────────────────────────────────────────────────────

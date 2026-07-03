@@ -1,18 +1,24 @@
 # Cascade catalog entry: octonion_dft
 # v0.7.0rc31 of the cascade-catalog — the OCTONION discrete Fourier transform
-# (ODFT), #863 / F378 / F380. The (8:7) rung above the QDFT. Composite over
-# the qm.octonion left/right-multiply atoms.
+# (ODFT), #863 / F378 / F380. The (8:7) rung above the QDFT.
+#
+# 0.9.0rc111 (#1234 Item 1c, re-raise of #863): GRADUATED. The op now stands
+# on the qm.octonion foundation (the 8×8 L_a/R_a operators + the rc111
+# octonion_twiddle) and dispatches the WHOLE transform — ALL THREE forms —
+# to the same-rc first-class C peer srmech_octonion_dft (byte-exact composed
+# fallback).
 #
 # The load-bearing honesty point: octonion multiplication is NON-ASSOCIATIVE
-# (F378), so the two-sided ODFT is NOT UNIQUE — it must DECLARE a bracketing /
-# association convention. Expressing it as a cascade is the right home: the
-# association order becomes an EXPLICIT, ATTESTED field in this descriptor
-# (the `bracketing` parameter), not a silent assumption.
+# (F378), so "the ODFT" is NOT UNIQUE until its bracketing / association
+# convention is DECLARED — a DIFFERENT bracketing is a DIFFERENT,
+# also-declarable transform. The [cascade.bracketing] block below is that
+# declaration made an EXPLICIT, ATTESTED field (the AMSC discipline applied
+# to a convention rather than a datum), not a silent assumption.
 
 [cascade]
 name = "octonion_dft"
-class_composition = "M ∘ C ∘ N"
-purpose = "Octonion discrete Fourier transform (ODFT) — the (8:7) FFT-ladder rung above the QDFT. Composite over the qm.octonion multiply atoms. Carries the F378 octonion NON-ASSOCIATIVITY as an EXPLICIT declared `bracketing` field: the two-sided form is not unique, so the association order ((W_l·x)·W_r vs W_l·(x·W_r)) must be stated. One-sided forms round-trip; the two-sided form is forward-only."
+class_composition = "M ∘ C ∘ N ∘ I"
+purpose = "Octonion discrete Fourier transform (ODFT) — the (8:7) FFT-ladder rung above the QDFT. GRADUATED first-class (rc111): composes the qm.octonion foundation (octonion_twiddle + 8×8 L_a/R_a atoms) with the whole-transform C peer srmech_octonion_dft (ALL THREE forms). Carries the F378 octonion NON-ASSOCIATIVITY as an EXPLICIT ATTESTED `bracketing` convention: the two-sided form is not unique, so the association order ((W_l·x)·W_r vs W_l·(x·W_r)) must be declared; the one-sided per-summand single product is unambiguous and its same-axis round-trip is EXACT by alternativity/Artin (verified). One-sided forms round-trip; the two-sided form is forward-only."
 description = """
 Up the (2:1) → (4:3) → (8:7) FFT ladder only the COEFFICIENT ALGEBRA changes;
 the cyclic "fast" structure is invariant (F379). The octonion rung carries TWO
@@ -22,74 +28,107 @@ honesty caveats that make it more than "wrap fft":
    complex FFT does, so there are genuinely left- / right- / two-sided forms —
    the cascade calls the explicit qm.octonion left/right multiply.
 
-2. NON-ASSOCIATIVITY (𝕆 ONLY, F378): the two-sided ODFT W_l·x·W_r is NOT
-   UNIQUE — (W_l·x)·W_r and W_l·(x·W_r) DIFFER for octonions. So the ODFT must
-   DECLARE a bracketing/association convention. This descriptor makes that the
-   explicit `bracketing` field — the concrete crystallisation of F378's
-   168/210 non-associative triples:
+2. NON-ASSOCIATIVITY (𝕆 ONLY, F378): "the ODFT" is NOT UNIQUE until its
+   bracketing convention is DECLARED. The two-sided ODFT W_l·x·W_r has a
+   3-factor association ambiguity — (W_l·x)·W_r and W_l·(x·W_r) DIFFER for
+   octonions — so the association order is the explicit `bracketing` field
+   (the concrete crystallisation of F378's 168/210 non-associative triples):
 
        bracketing = "left_associated"   →  (W_l · x) · W_r
        bracketing = "right_associated"  →  W_l · (x · W_r)
 
-   These are measurably different (the test pins a non-zero difference). For
-   the one-sided forms the field is recorded but trivial.
+   These are measurably different for DISTINCT left/right axes (tested: a
+   deliberate re-bracketing changes the spectrum — the field is load-bearing,
+   not decorative). For the one-sided forms the per-summand product is a
+   SINGLE W·x[m] (no association ambiguity) and the field is recorded but
+   trivial.
 
-    X[k] = Σ_n  exp(σ·μ·2πkn/N) · x[n]              (left)
-    X[k] = Σ_n  x[n] · exp(σ·μ·2πkn/N)              (right)
-    X[k] = Σ_n  W_l[k,n] · x[n] · W_r[k,n]          (two_sided; bracketing-keyed)
+    X[k] = Σ_m  exp(σ·μ·2πkm/N) · x[m]              (left)
+    X[k] = Σ_m  x[m] · exp(σ·μ·2πkm/N)              (right)
+    X[k] = Σ_m  bracket(W_l[k,m], x[m], W_r[k,m])   (two_sided; bracketing-keyed)
 
-The one-sided forms are invertible and round-trip (the one-sided twiddle lives
-in the commutative ℝ[μ]≅ℂ subalgebra). The two-sided form is FORWARD-ONLY here
-— its inverse is open under non-associativity, so an inverse two-sided call
-RAISES rather than fabricating an answer.
+THE ALTERNATIVITY FINDING (where non-associativity actually bites — verified
+empirically at rc111 over the attested structure-constant table): 𝕆 is
+ALTERNATIVE (a(ax) = (aa)x, (xa)a = x(aa)) and by Artin's theorem every
+subalgebra generated by TWO elements is associative. The whole one-sided
+round-trip composes twiddles on a SINGLE axis μ against one sample — it lives
+in the two-generator subalgebra ⟨μ, x[m]⟩, so W̄·(W·x) = (W̄·W)·x = x holds
+EXACTLY and inverse(forward(x)) == x to float round-off, the same guarantee
+ℍ gives the QDFT. Non-associativity bites only at ≥3 independent generators:
+the two-sided form with DISTINCT axes (⟨μ_l, μ_r, x⟩ — the bracketings
+diverge), and a twiddle associated through a PRODUCT of two samples
+(W·(x·y) ≠ (W·x)·y — ⟨μ, x, y⟩). With μ_l = μ_r the two-sided bracketings
+COINCIDE (⟨μ, x⟩ again — the Artin boundary demonstrated from both sides).
+The two-sided form is FORWARD-ONLY (its inverse is open under
+non-associativity, so an inverse two-sided call RAISES rather than
+fabricating an answer).
 
-HONEST CASCADE SHAPE: Class M (octonion multiply, via the qm.octonion
-left/right-mult atoms) ∘ Class C (twiddle ±μ orientation) ∘ Class N (rational
-angle kn/N). NO new privileged primitive class; NO abs() (the octonion
-norm/conjugate route through Class K+C). The octonion structure-constant table
-self-attests via qm.octonion.octonion_table_attestation().
+HONEST CASCADE SHAPE (rc111, the graduated form): Class M (octonion multiply,
+via the qm.octonion 8×8 L_a/R_a atoms) ∘ Class C (twiddle ±μ orientation) ∘
+Class N (rational angle km/N; π as the 4·atan(1) cascade; Q61 trig — never
+libm) ∘ Class I (the exact cyclic km mod N index reduction). NO new
+privileged primitive class; NO abs() (the octonion norm/conjugate route
+through Class K+C). The octonion structure-constant table self-attests via
+qm.octonion.octonion_table_attestation(); the exact-rational tier of the
+twiddle is qm.octonion.octonion_exp_series_truncate.
 
-SCIENTIFIC TIER (UPSTREAM §22): numpy is imported lazily on call, so
-`import srmech.amsc.cascade` stays numpy-free (the numpy-absent-safe core,
-v0.7.0rc30) while the transform uses numpy on call.
+numpy-FREE (rc125 #564): plain list[float] carriers + the numpy-free Mat
+operators; the whole module imports and runs numpy-absent.
 """
 
 [cascade.signature]
-input = "x: sequence of N octonion samples, each 8-component [e0..e7]"
+input = "x: sequence of N octonion samples, each 8-component [e0..e7] (4-component quaternions zero-extended into ℍ ⊂ 𝕆), or a real (N, 8) Mat"
 output = "list[list[float]] — N octonions (8-component lists), the ODFT spectrum X"
-operation = "X[k] = Σ_n T(W) · x[n] (one-sided) / Σ_n bracket(W_l, x[n], W_r) (two-sided)"
+operation = "X[k] = Σ_m W·x[m] (left) / Σ_m x[m]·W (right) / Σ_m bracket(W_l, x[m], W_r) (two_sided; bracketing-keyed), W = exp(σ·μ·2πkm/N); forward σ=−1, inverse σ=+1 + 1/N (same side, one-sided only)"
 forms = ["left", "right", "two_sided"]
 bracketings = ["left_associated", "right_associated"]
-mu_axes = ["i", "j", "k", "ijk"]
-round_trip = "one-sided forms: inverse(forward(x)) == x to float round-off; two_sided: forward-only (inverse RAISES — open under non-associativity)"
+mu_axes = ["i", "j", "k", "e1", "e2", "e3", "e4", "e5", "e6", "e7", "ijk", "diagonal"]
+round_trip = "one-sided forms: inverse(forward(x)) == x to float round-off — EXACT by alternativity/Artin (the ⟨μ, x⟩ two-generator subalgebra associates); two_sided: forward-only (inverse RAISES — open under non-associativity)"
 n0_maps_to = "[]"
 
 [cascade.bracketing]
-# The F378 non-associativity made an explicit attested field (the #863 DoD).
-why_declared = "octonion multiplication is non-associative (F378: 168 of 210 triples), so the two-sided ODFT W_l·x·W_r is not unique; the association order MUST be declared, not assumed."
+# THE ATTESTED CONVENTION (#1234 Item 1c / the #863 DoD): 𝕆 non-associative →
+# the transform is NOT unique without this declaration. A different
+# bracketing = a DIFFERENT, also-declarable transform.
+convention = "per-summand-single-product; the inverse applies the conjugate twiddle (σ flip) on the SAME declared side; the two-sided 3-factor association order is the explicit `bracketing` parameter"
+why_declared = "octonion multiplication is non-associative (F378: 168 of 210 basis triples), so the ODFT is not unique until its bracketing is declared: the two-sided W_l·x·W_r needs an association order, and any multi-factor composition (a twiddle associated through a product of samples) depends on it. The declaration is the honesty requirement specific to the octonion case."
 left_associated = "(W_l · x) · W_r"
 right_associated = "W_l · (x · W_r)"
 measurably_differ = true
+alternativity_note = "𝕆 is ALTERNATIVE (a(ax)=(aa)x, (xa)a=x(aa)); by Artin's theorem every 2-generated subalgebra is associative. Hence: the one-sided summand W·x[m] and its inverse composition W̄·(W·x) live in ⟨μ, x[m]⟩ and associate EXACTLY (the round-trip is exact despite non-associativity); the two-sided bracketings COINCIDE when μ_l = μ_r (⟨μ, x⟩) and DIVERGE for distinct axes (⟨μ_l, μ_r, x⟩ — three generators). Verified empirically at rc111 over the attested table (in-repo SSOT; no external attribution for the bracketing/alternativity claims)."
 one_sided_note = "for form='left'/'right' the field is recorded but trivial (a 2-factor product has no association ambiguity)."
 
+[cascade.native]
+c_symbol = "srmech_octonion_dft"
+abi_version = 3
+abi_note = "rc111 adds srmech_octonion_dft (+ srmech_octonion_exp / srmech_octonion_twiddle) as NEW exported symbols (additive) — ABI stays 3. The C peer runs the WHOLE O(N²) exact-reference transform, ALL THREE forms + the declared bracketing, over srmech_octonion_twiddle + the octonion loop operators srmech_loop_{left,right}_op_f64; an FFT factorisation is honest future work. Byte-exact with the Python composed path (identical float-op order incl. FP_CONTRACT OFF for clang — the parity contract, not a tolerance)."
+
 [cascade.composes]
-multiply_atom = "srmech.qm.octonion.octonion_left_mult / octonion_right_mult"
+# The qm.octonion foundation this graduated op stands on (#1234 Item 1c).
+multiply_atom = "srmech.qm.octonion.octonion_left_mult / octonion_right_mult (the 8×8 L_a/R_a operators; C peers srmech_loop_{left,right}_op_f64)"
+twiddle = "srmech.qm.octonion.octonion_twiddle — exp(σ·μ·2πjk/N) with exact Class-I jk mod N + Class-N π/trig cascade (C peer srmech_octonion_twiddle); exact-rational tier octonion_exp_series_truncate; exact-Q61 equal-weight tier cascade.hypercomplex_exp(k_axes=7)"
 norm_conjugate = "srmech.qm.octonion.octonion_norm / octonion_conjugate (Class K+C, never abs())"
-twiddle = "exp(μθ) = cos θ·1 + sin θ·μ (float trig; or the Class-N exact-rational asymptotic_calculus.{cos,sin}_series_truncate)"
-radix_split_atom = "srmech.amsc.primes.factor + srmech.amsc.cyclic (algebra-agnostic Cooley-Tukey reindex)"
+radix_split_atom = "srmech.amsc.primes.factor + srmech.amsc.cyclic (the algebra-agnostic Cooley-Tukey reindex — the future-work FFT factorisation rung)"
 
 [cascade.graduation]
-tier = "prototype (composite over existing primitives)"
-graduates_to = "a first-class native C/Python primitive (srmech_octonion_dft) IF it earns attested status — a SEPARATE later voxel, not a prerequisite blocker"
+tier = "graduated (0.9.0rc111; #1234 Item 1c) — first-class native C/Python primitive"
+c_peer = "srmech_octonion_dft (same-rc, everything-mirrors; ALL THREE forms; byte-exact with the composed Python path)"
 
 [cascade.attestation]
 author = "Steven Kirkland"
 license = "MIT"
-parser_version = "srmech-cascade 0.7.0rc31"
+parser_version = "srmech-cascade 0.9.0rc111"
 # Citations VERIFIED via PDF extraction (MPM discipline;
 # docs/srmech/notes/qdft_odft_citation_verification_863.md). OA / attestable;
 # the paywalled Elsevier Signal Processing 2017 paper was EXCLUDED in favour of
 # the same lead author's OA arXiv anchor, per the paywalled-DOI rule.
+# RE-verified first-hand at rc111 (the ODFT graduation's MPM gate): the OA
+# arXiv PDF of anchor (1) fetched + text-extracted — title + author + arXiv ID
+# confirmed, the Hahn–Snopek 2011 origin attribution confirmed in its body,
+# and the paper's OFT definition confirmed to state its exponential-placement
+# convention explicitly. The BRACKETING/ALTERNATIVITY statements lodged here
+# are the IN-REPO SSOT (the attested qm.octonion table + the rc111 empirical
+# verification), anchored to these OA papers for the OFT *definition* only.
 literature = [
   "Błaszczyk, Ł. (2019). A Generalization of the Octonion Fourier Transform to 3-D Octonion-Valued Signals — Properties and Possible Applications to 3-D LTI Partial Differential Systems. arXiv:1905.12631.",
   "Hahn, S. L. & Snopek, K. M. (2011). The unified theory of n-dimensional complex and hypercomplex analytic signals. Bull. Polish Acad. Sci. Tech. Sci. 59(2):167-181. [ODFT origin]",
@@ -99,4 +138,5 @@ canonical_landings = [
   "F379 — FFT-ladder n:n−1; the (8:7) octonion rung",
   "F380 — Klein-4 = quaternion-units-mod-sign; the QDFT/ODFT motivation",
   "issue #863 — the native transform for a Klein-4 object, not its complex flat shadow",
+  "issue #1234 Item 1c — the ODFT graduation with the bracketing convention as an explicit ATTESTED field",
 ]

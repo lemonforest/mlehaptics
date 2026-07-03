@@ -168,6 +168,9 @@
 {"exposed_as": "srmech.qm.octonion.octonion_left_mult", "defined_at": "srmech.qm.octonion.octonion_left_mult", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.octonion.octonion_mult_table", "defined_at": "srmech.qm.octonion.octonion_mult_table", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.octonion.octonion_norm", "defined_at": "srmech.qm.octonion.octonion_norm", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.octonion.octonion_exp", "defined_at": "srmech.qm.octonion.octonion_exp", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.qm.octonion.octonion_exp_series_truncate", "defined_at": "srmech.qm.octonion.octonion_exp_series_truncate", "bucket": "bignum_reference"}
+{"exposed_as": "srmech.qm.octonion.octonion_twiddle", "defined_at": "srmech.qm.octonion.octonion_twiddle", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.qm.octonion.octonion_right_mult", "defined_at": "srmech.qm.octonion.octonion_right_mult", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.potentials.harmonic_oscillator_ladder", "defined_at": "srmech.qm.potentials.harmonic_oscillator_ladder", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.potentials.hydrogen_radial", "defined_at": "srmech.qm.potentials.hydrogen_radial", "bucket": "composition_of_c"}
@@ -291,7 +294,7 @@
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.lstsq", "defined_at": "srmech.amsc.cascade.matrix_cascades.lstsq", "bucket": "python_only_irreducible"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.qr", "defined_at": "srmech.amsc.cascade.matrix_cascades.qr", "bucket": "python_only_irreducible"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.svd", "defined_at": "srmech.amsc.cascade.matrix_cascades.svd", "bucket": "python_only_irreducible"}
-{"exposed_as": "srmech.amsc.cascade.octonion_dft", "defined_at": "srmech.amsc.cascade.hypercomplex_dft.octonion_dft", "bucket": "python_only_irreducible"}
+{"exposed_as": "srmech.amsc.cascade.octonion_dft", "defined_at": "srmech.amsc.cascade.hypercomplex_dft.octonion_dft", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.quaternion_dft", "defined_at": "srmech.amsc.cascade.hypercomplex_dft.quaternion_dft", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.spectral_cascades.dft", "defined_at": "srmech.amsc.cascade.spectral_cascades.dft", "bucket": "python_only_irreducible"}
 {"exposed_as": "srmech.amsc.cascade.spectral_cascades.fft", "defined_at": "srmech.amsc.cascade.spectral_cascades.fft", "bucket": "python_only_irreducible"}
