@@ -57,3 +57,16 @@ def test_source_qualified_selection():
     assert "mechanical" in out and "alpha" in out, out
     _, _, out = s.turn("a widget is what")
     assert "PARALLEL SOURCE" in out, out                       # unqualified -> both surfaced
+
+
+def test_carrier_register_chain_rc113():
+    """F1038: the F1024 result-register generalizes from Mat to EVERY carrier -- rc113's new
+    carrier-consuming tools (heat_trace: Mat+scalar-union t; theta_coefficients: UnaryTheta+n)
+    chain from a prior build turn. The scalar-union 'float | Sequence[float]' binds SCALAR."""
+    s = siona.Session()
+    s.turn("compute the magnetic laplacian of the edges 0-1 1-2 2-0")   # -> Mat in register
+    _, tag, out = s.turn("compute the heat trace of it at 1")
+    assert "heat_trace(Mat" in out and ", 1.0)" in out, out              # scalar t, not [1]
+    s.turn("compute the unary theta with char minus12 j 0 a 1 b 0 d 24") # -> UnaryTheta in register
+    _, tag, out = s.turn("compute the theta coefficients of it with n max 12")
+    assert "theta_coefficients(UnaryTheta" in out and "[1, -1, -1" in out, out   # eta/Euler head

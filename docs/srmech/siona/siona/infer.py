@@ -329,7 +329,15 @@ class Session:
         intp = sum(1 for p in reqs if pt(p) == "int")
         fltp = sum(1 for p in reqs if pt(p) == "float")
         bytp = sum(1 for p in reqs if "bytes" in pt(p))
-        listp = sum(1 for p in reqs if any(k in pt(p) for k in ("list", "sequence", "tuple")))
+        def scalar_union(p):   # 'float | Sequence[float]' with a scalar operand available -> SCALAR
+            t = pt(p)
+            return ("|" in t and ("float" in t or "int" in t)
+                    and any(k in t for k in ("list", "sequence", "tuple"))
+                    and bool(fls or ints))
+        sun = [p for p in reqs if scalar_union(p)]
+        fltp = fltp + len(sun)  # the union's scalar alternative counts as a float slot
+        listp = sum(1 for p in reqs if any(k in pt(p) for k in ("list", "sequence", "tuple"))
+                    and not scalar_union(p))
         refp = sum(1 for p in reqs if ref and ref.lower() in pt(p)
                    and not any(k in pt(p) for k in ("list", "sequence", "tuple")))
         if len(reqs) - intp - fltp - bytp - listp - refp:
@@ -451,6 +459,11 @@ class Session:
                         continue
                     return None
                 args.append(ints[ii]); ii += 1
+            elif ("|" in tp and ("float" in tp or "int" in tp) and (fq or ii < len(ints))):
+                if fq:                             # scalar-union ('float | Sequence[float]') -> SCALAR
+                    num, den = fq.pop(0); args.append(float(num) / float(den))
+                else:
+                    args.append(float(ints[ii])); ii += 1
             elif any(k in tp for k in ("list", "sequence", "tuple")):
                 if edges and "tuple" in tp:
                     args.append(list(edges))       # EDGE-PAIR operands -> Iterable[Tuple[int,int]] params

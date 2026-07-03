@@ -2730,3 +2730,14 @@ q-row; (b) UnaryTheta CONSUMERS (nothing in the registry accepts UnaryTheta yet 
 conversationally-constructed shadow can flow onward. Together these open "find sparse forms of the mock
 theta equations" as a REGISTER-CHAINED conversational pipeline: construct summand ratio → q_zeilberger
 recurrence (the sparse form) OR honest OPEN, with the shadow side already constructible today.
+
+## §86 — the CARRIER CONVERSION LADDER [ASK FILED → #1248] (2026-07-03; F1038)
+
+The tool_schema producer/consumer census exposes a coherency gap: BiPoly (0 producers / 2 consumers) and
+TriPoly (0/1) are ORPHAN inputs — the plain non-q Zeilberger/WZ/Apagodu row can't be built. `bipoly_from_coeffs`
++ `tripoly_from_coeffs` MISSING (qbipoly exists). And no promote/project ops between carrier rungs. The
+carriers ARE Hurwitz/dimension-laddered objects — Poly(1)→BiPoly(2)→TriPoly(3); ℝ→ℂ→ℍ→𝕆→𝕊 (1:2:4:8:16 =
+the 2:4:8 structure) — so the conversion ladder is the embed(promote)/project between adjacent rungs
+(add/drop a trivial dimension; project refuses a non-trivial drop). Ask: (1) the two constructors; (2)
+poly_promote/project + cd_promote/project; (3) a per-carrier ladder+rung descriptor so Siona's register
+auto-routes a lower carrier UP to any higher-rung consumer — the translation layer made declarative.
