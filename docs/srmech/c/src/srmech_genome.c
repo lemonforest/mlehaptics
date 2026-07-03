@@ -68,9 +68,9 @@
 /* The §41 manifest data_schema_id (== GENOME_MANIFEST_SCHEMA_ID). */
 #define SRMECH_GENOME_SCHEMA_ID "srmech://schema/genome_manifest/v1"
 
-/* The §41 parser_rule_hash pre-image (== f"genome_persistence/v3" — tracks
+/* The §41 parser_rule_hash pre-image (== f"genome_persistence/v4" — tracks
  * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _manifest_record). */
-#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v3"
+#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v4"
 
 /* ------------------------------------------------------------------ *
  * Path + file helpers (stdio — Rule 3 allows file I/O, bans malloc).
@@ -225,6 +225,9 @@ typedef struct {
     uint32_t *byte_len;                             /* [cap_chroms] */
     char (*label)[SRMECH_GENOME_MAX_LABEL];         /* [cap_chroms] inline label */
     uint32_t *leaf_count;                           /* [cap_chroms] DATA turns */
+    char (*region_sha)[65];                         /* [cap_chroms] full-region
+                                                     * digest (v4 regions[] +
+                                                     * the body_sha256 chain) */
     uint32_t cap_chroms;                            /* arena-allocated capacity */
     uint32_t n_chroms;                              /* chromosomes found by scan */
     uint32_t n_blocks;                              /* §55/v3: strand BLOCK count
@@ -272,6 +275,60 @@ static srmech_status_t genome_hex(const unsigned char *data, size_t n,
     return SRMECH_OK;
 }
 
+/* Decode `n` bytes from the 2*n lowercase-hex chars at `hex` into `out`. The v4
+ * region-chain reverses genome_hex (the stored region/chain digests are hex; the
+ * chain folds the RAW 32-byte values). SRMECH_ERR_BAD_INPUT on a non-hex char.
+ * (A fixed-width digest decoder — distinct from the .chr's variable-length,
+ * cap-checked genome_unhex.) */
+static srmech_status_t genome_hex2bytes(const char *hex, size_t n,
+                                        unsigned char *out)
+{
+    assert(hex != NULL && out != NULL);
+    assert(n <= 32u);
+    for (size_t i = 0; i < 2u * n; i++) {
+        char c = hex[i];
+        int nib = (c >= '0' && c <= '9') ? (c - '0')
+                : (c >= 'a' && c <= 'f') ? (c - 'a' + 10) : -1;
+        if (nib < 0) { return SRMECH_ERR_BAD_INPUT; }
+        out[i >> 1] = (unsigned char)((i & 1u) ? (out[i >> 1] | nib)
+                                              : (nib << 4));
+    }
+    return SRMECH_OK;
+}
+
+/* One region-chain fold step Hk = sha256(Hk-1 || region_k): `chain_hex` (both in
+ * and out, >= 65 bytes) and `region_hex` are 64-char digests; the RAW 32-byte
+ * values are concatenated and re-hashed (== genome.py _chain_step). */
+static srmech_status_t genome_chain_fold(char *chain_hex, const char *region_hex)
+{
+    assert(chain_hex != NULL && region_hex != NULL);
+    assert(region_hex[0] != '\0');
+    unsigned char buf[64];
+    srmech_status_t st = genome_hex2bytes(chain_hex, 32u, buf);    /* Hk-1 raw */
+    if (st != SRMECH_OK) { return st; }
+    st = genome_hex2bytes(region_hex, 32u, buf + 32u);             /* region_k raw */
+    if (st != SRMECH_OK) { return st; }
+    return srmech_sha256_hex(buf, 64u, chain_hex);                 /* Hk */
+}
+
+/* v4 (rc115 #1245(b)): fold `n` per-chromosome region digests (hex, body order)
+ * into the whole-body body_sha256 CHAIN, seeded by H0 = sha256("") — O(1)-
+ * extendable, re-verifiable, §44-derivable. `chain_hex` (>= 65 bytes) receives
+ * the final head. Byte-identical to genome.py _region_chain. */
+static srmech_status_t genome_chain_regions(char (*region_sha)[65],
+                                            uint32_t n, char *chain_hex)
+{
+    assert(region_sha != NULL || n == 0u);
+    assert(chain_hex != NULL);
+    srmech_status_t st = srmech_sha256_hex((const uint8_t *)"", 0u, chain_hex);
+    if (st != SRMECH_OK) { return st; }
+    for (uint32_t i = 0; i < n; i++) {
+        st = genome_chain_fold(chain_hex, region_sha[i]);
+        if (st != SRMECH_OK) { return st; }
+    }
+    return SRMECH_OK;
+}
+
 /* Build the "the_one" sub-object {"sha256":..,"hex":..} from `s`. */
 static srmech_json_value_t *genome_build_the_one(srmech_json_builder_t *b,
                                                  const genome_strings_t *s)
@@ -306,11 +363,32 @@ static srmech_json_value_t *genome_build_chrom(srmech_json_builder_t *b,
     return srmech_json_new_object(b, keys, vals, 5u);
 }
 
+/* Build one region entry object (3 keys) from the scanned strings — v4
+ * (rc115 #1245(b)): {byte_offset, byte_len, sha256} where sha256 is the FULL
+ * region digest (the chromosome's .chr / AMSC provenance unit). */
+static srmech_json_value_t *genome_build_region(srmech_json_builder_t *b,
+                                                const genome_strings_t *s,
+                                                uint32_t idx)
+{
+    assert(b != NULL && s != NULL);
+    assert(idx < s->cap_chroms);
+    const char *keys[3] = { "byte_offset", "byte_len", "sha256" };
+    srmech_json_value_t *vals[3];
+    vals[0] = srmech_json_new_int(b, (int64_t)s->byte_offset[idx]);
+    vals[1] = srmech_json_new_int(b, (int64_t)s->byte_len[idx]);
+    vals[2] = srmech_json_new_string(b, s->region_sha[idx],
+                                     (uint32_t)strlen(s->region_sha[idx]));
+    return srmech_json_new_object(b, keys, vals, 3u);
+}
+
 /* Build the "data" block (format_version / leaf_dim / n_turns / the_one /
- * body_sha256 / chromosomes). */
+ * body_sha256 / regions / chromosomes). v4 (rc115 #1245(b)): body_sha256 is the
+ * region CHAIN (s->body_sha, folded in genome_fill_regions_chain) and `regions`
+ * is the per-chromosome integrity partition. */
 static srmech_json_value_t *genome_build_data(srmech_json_builder_t *b,
                                               const genome_strings_t *s,
                                               srmech_json_value_t **chrom_items,
+                                              srmech_json_value_t **region_items,
                                               uint32_t leaf_dim,
                                               size_t body_len)
 {
@@ -319,20 +397,23 @@ static srmech_json_value_t *genome_build_data(srmech_json_builder_t *b,
     assert(chrom_items != NULL || s->n_chroms == 0u);
     for (uint32_t i = 0; i < s->n_chroms; i++) {
         chrom_items[i] = genome_build_chrom(b, s, i);
+        region_items[i] = genome_build_region(b, s, i);
     }
     srmech_json_value_t *arr = srmech_json_new_array(b, chrom_items, s->n_chroms);
+    srmech_json_value_t *rarr = srmech_json_new_array(b, region_items, s->n_chroms);
     (void)body_len;                 /* §55/v3: n_turns is the scanned BLOCK count */
     int64_t n_turns = (int64_t)s->n_blocks;
-    const char *keys[6] = { "format_version", "leaf_dim", "n_turns",
-                            "the_one", "body_sha256", "chromosomes" };
-    srmech_json_value_t *vals[6];
+    const char *keys[7] = { "format_version", "leaf_dim", "n_turns",
+                            "the_one", "body_sha256", "regions", "chromosomes" };
+    srmech_json_value_t *vals[7];
     vals[0] = srmech_json_new_int(b, (int64_t)SRMECH_GENOME_FORMAT_VERSION);
     vals[1] = srmech_json_new_int(b, (int64_t)leaf_dim);
     vals[2] = srmech_json_new_int(b, n_turns);
     vals[3] = genome_build_the_one(b, s);
     vals[4] = srmech_json_new_string(b, s->body_sha, (uint32_t)strlen(s->body_sha));
-    vals[5] = arr;
-    return srmech_json_new_object(b, keys, vals, 6u);
+    vals[5] = rarr;
+    vals[6] = arr;
+    return srmech_json_new_object(b, keys, vals, 7u);
 }
 
 /* Build the "attestation" block (9 fields; constants VERBATIM from
@@ -408,10 +489,15 @@ static srmech_status_t genome_build_manifest_tree(const genome_strings_t *s,
     genome_arena_t a;
     genome_arena_init(&a, ws, ws_len);
     srmech_json_value_t **chrom_items = NULL;
+    srmech_json_value_t **region_items = NULL;
     if (s->n_chroms > 0u) {
         chrom_items = genome_arena_alloc(&a,
                                          (size_t)s->n_chroms * sizeof(*chrom_items));
-        if (chrom_items == NULL) { return SRMECH_ERR_OVERFLOW; }
+        region_items = genome_arena_alloc(&a,
+                                          (size_t)s->n_chroms * sizeof(*region_items));
+        if (chrom_items == NULL || region_items == NULL) {
+            return SRMECH_ERR_OVERFLOW;
+        }
     }
     void *jws = NULL;
     size_t jws_len = 0u;
@@ -423,7 +509,7 @@ static srmech_status_t genome_build_manifest_tree(const genome_strings_t *s,
                             "attestation", "rendering" };
     srmech_json_value_t *v[5];
     v[0] = srmech_json_new_string(&b, "1.0", 3u);
-    v[1] = genome_build_data(&b, s, chrom_items, leaf_dim, body_len);
+    v[1] = genome_build_data(&b, s, chrom_items, region_items, leaf_dim, body_len);
     v[2] = srmech_json_new_string(&b, SRMECH_GENOME_SCHEMA_ID,
                                   (uint32_t)strlen(SRMECH_GENOME_SCHEMA_ID));
     v[3] = genome_build_attest(&b, s);
@@ -516,8 +602,9 @@ static srmech_status_t genome_strings_alloc(genome_strings_t *s,
     s->byte_len = genome_arena_alloc(a, (size_t)n * sizeof(uint32_t));
     s->label = genome_arena_alloc(a, (size_t)n * SRMECH_GENOME_MAX_LABEL);
     s->leaf_count = genome_arena_alloc(a, (size_t)n * sizeof(uint32_t));
+    s->region_sha = genome_arena_alloc(a, (size_t)n * 65u);   /* v4 region digest */
     if (s->cap_sha == NULL || s->byte_offset == NULL || s->byte_len == NULL ||
-        s->label == NULL || s->leaf_count == NULL) {
+        s->label == NULL || s->leaf_count == NULL || s->region_sha == NULL) {
         return SRMECH_ERR_OVERFLOW;
     }
     s->cap_chroms = n;
@@ -566,6 +653,41 @@ static srmech_status_t genome_scan_chroms(genome_strings_t *s,
     return SRMECH_OK;
 }
 
+/* Fill the strings block's version + rule + descriptor constants (shared by
+ * genome_fill_strings and the O(1) append's rebuild-from-manifest). */
+static srmech_status_t genome_fill_constants(genome_strings_t *s)
+{
+    assert(s != NULL);
+    assert(sizeof(SRMECH_VERSION) > 0u);
+    srmech_status_t st = srmech_sha256_hex(
+        (const uint8_t *)SRMECH_GENOME_RULE_PREIMAGE,
+        strlen(SRMECH_GENOME_RULE_PREIMAGE), s->rule_hash);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_sha256_hex((const uint8_t *)SRMECH_GENOME_SCHEMA_ID,
+                           strlen(SRMECH_GENOME_SCHEMA_ID), s->descr_hash);
+    if (st != SRMECH_OK) { return st; }
+    memcpy(s->parser_version, "srmech ", 7u);
+    memcpy(s->parser_version + 7u, SRMECH_VERSION, sizeof(SRMECH_VERSION));
+    return SRMECH_OK;
+}
+
+/* v4 (rc115 #1245(b)): after the scan set every chromosome's byte span, hash
+ * each FULL region [byte_offset, byte_offset+byte_len) into s->region_sha[i]
+ * and fold them into the body_sha256 chain. The regions tile the body in order,
+ * so this is the §44-derivable whole-body integrity value. */
+static srmech_status_t genome_fill_regions_chain(genome_strings_t *s,
+                                                 const unsigned char *body)
+{
+    assert(s != NULL);
+    assert(body != NULL || s->n_chroms == 0u);
+    for (uint32_t i = 0; i < s->n_chroms; i++) {
+        srmech_status_t st = srmech_sha256_hex(body + s->byte_offset[i],
+                                               s->byte_len[i], s->region_sha[i]);
+        if (st != SRMECH_OK) { return st; }
+    }
+    return genome_chain_regions(s->region_sha, s->n_chroms, s->body_sha);
+}
+
 /* Fill the per-build string block from the body + the_one: the hashes, the
  * version string, and the §44 inline-cap chromosome scan. */
 static srmech_status_t genome_fill_strings(genome_strings_t *s,
@@ -584,20 +706,14 @@ static srmech_status_t genome_fill_strings(genome_strings_t *s,
     st = genome_strings_alloc(s, a, n_chroms);
     if (st != SRMECH_OK) { return st; }
     s->n_blocks = n_blocks;
-    st = srmech_sha256_hex(body, body_len, s->body_sha);
-    if (st != SRMECH_OK) { return st; }
     st = srmech_sha256_hex(the_one, leaf_dim, s->one_sha);
     if (st != SRMECH_OK) { return st; }
     genome_hex(the_one, leaf_dim, s->one_hex);
-    st = srmech_sha256_hex((const uint8_t *)SRMECH_GENOME_RULE_PREIMAGE,
-                           strlen(SRMECH_GENOME_RULE_PREIMAGE), s->rule_hash);
+    st = genome_fill_constants(s);                         /* rule/descr/version */
     if (st != SRMECH_OK) { return st; }
-    st = srmech_sha256_hex((const uint8_t *)SRMECH_GENOME_SCHEMA_ID,
-                           strlen(SRMECH_GENOME_SCHEMA_ID), s->descr_hash);
+    st = genome_scan_chroms(s, body, body_len, leaf_dim);  /* byte spans first */
     if (st != SRMECH_OK) { return st; }
-    memcpy(s->parser_version, "srmech ", 7u);
-    memcpy(s->parser_version + 7u, SRMECH_VERSION, sizeof(SRMECH_VERSION));
-    return genome_scan_chroms(s, body, body_len, leaf_dim);
+    return genome_fill_regions_chain(s, body);             /* v4 regions + chain */
 }
 
 /* ------------------------------------------------------------------ *
@@ -611,7 +727,9 @@ static size_t genome_manifest_cap(uint32_t n_chroms)
 {
     assert(n_chroms != 0xFFFFFFFFu);
     assert(SRMECH_GENOME_MAX_LABEL > 0u);
-    return (size_t)4096u + (size_t)n_chroms * (size_t)(SRMECH_GENOME_MAX_LABEL + 600u);
+    /* per chrom: the chromosome entry (label + 4 hashes/ints) AND the v4 region
+     * entry ({byte_offset, byte_len, sha256}) — the 800 slop covers both. */
+    return (size_t)4096u + (size_t)n_chroms * (size_t)(SRMECH_GENOME_MAX_LABEL + 800u);
 }
 
 /* Validate the SAVE args; returns SRMECH_OK or the matching error. §44: there
@@ -693,9 +811,11 @@ size_t srmech_genome_arena_bytes(size_t body_len, uint32_t n_chroms,
     assert(n_chroms != 0xFFFFFFFFu);
     assert(SRMECH_GENOME_MAX_LABEL > 0u);
     size_t per_chrom =
-        (size_t)(65u + 8u + 8u + SRMECH_GENOME_MAX_LABEL + 8u)  /* strings arrays */
-      + (size_t)(SRMECH_GENOME_MAX_LABEL + 600u)                /* manifest entry */
-      + 768u                                                    /* json nodes+ptrs+decoded */
+        (size_t)(65u + 65u + 8u + 8u + SRMECH_GENOME_MAX_LABEL + 8u) /* strings arrays
+                                                    * (+65 = the v4 region_sha) */
+      + (size_t)(SRMECH_GENOME_MAX_LABEL + 800u)                /* manifest chrom + region entry */
+      + 1152u                                                   /* json nodes+ptrs+decoded
+                                                    * (chrom subtree + v4 region subtree) */
       + 64u;                                                    /* per-chrom align pads */
     size_t bodies = 2u * body_len + region_len;     /* spliced/grown body + rebuild copy */
     size_t chr = 5u * region_len + 8192u;           /* region + 2*hex + 2*io + slop */
@@ -838,8 +958,68 @@ static int genome_str_eq(const srmech_json_value_t *v, const char *hex)
             memcmp(v->u.str.ptr, hex, hl) == 0) ? 1 : 0;
 }
 
+/* v4 (rc115 #1245(b)): re-fold the body_sha256 CHAIN from the manifest's
+ * chromosome byte spans (== the region partition) and compare to body_sha256 —
+ * the regions must tile [0, body_len) in order. `chain` (>= 65) is scratch. */
+static srmech_status_t genome_verify_body_chain(const unsigned char *body,
+    size_t body_len, const srmech_json_value_t *arr,
+    const srmech_json_value_t *bsha, char *chain)
+{
+    assert(body != NULL || body_len == 0u);
+    assert(arr != NULL && bsha != NULL && chain != NULL);
+    srmech_status_t st = srmech_sha256_hex((const uint8_t *)"", 0u, chain);
+    if (st != SRMECH_OK) { return st; }
+    size_t expect_off = 0u;
+    for (uint32_t i = 0; i < arr->u.arr.n; i++) {
+        const srmech_json_value_t *c = arr->u.arr.items[i];
+        const srmech_json_value_t *bo = srmech_json_object_get(c, "byte_offset");
+        const srmech_json_value_t *bl = srmech_json_object_get(c, "byte_len");
+        if (bo == NULL || bl == NULL || bo->type != SRMECH_JSON_INT ||
+            bl->type != SRMECH_JSON_INT) { return SRMECH_ERR_BAD_INPUT; }
+        size_t off = (size_t)bo->u.i, len = (size_t)bl->u.i;
+        if (off != expect_off || len > body_len - off) { return SRMECH_ERR_BAD_INPUT; }
+        char rh[65];
+        st = srmech_sha256_hex(body + off, len, rh);
+        if (st != SRMECH_OK) { return st; }
+        st = genome_chain_fold(chain, rh);
+        if (st != SRMECH_OK) { return st; }
+        expect_off = off + len;
+    }
+    if (expect_off != body_len) { return SRMECH_ERR_BAD_INPUT; }
+    return genome_str_eq(bsha, chain) ? SRMECH_OK : SRMECH_ERR_BAD_INPUT;
+}
+
+/* Whole-body integrity bound, format-aware (rc115 #1245(b)): v4 (a `regions`
+ * array present) re-folds the region chain from the chromosome byte spans; v2/v3
+ * (no `regions`) checks sha256(body) == body_sha256. The GenomeBoundingError
+ * analogue — SRMECH_ERR_BAD_INPUT on any mismatch. */
+static srmech_status_t genome_verify_body(const unsigned char *body,
+                                          size_t body_len,
+                                          const srmech_json_value_t *manifest)
+{
+    assert(body != NULL || body_len == 0u);
+    assert(manifest != NULL);
+    const srmech_json_value_t *bsha = genome_data_get(manifest, "body_sha256");
+    if (bsha == NULL || bsha->type != SRMECH_JSON_STRING) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    const srmech_json_value_t *regions = genome_data_get(manifest, "regions");
+    if (regions == NULL) {                          /* v2/v3 whole-body digest */
+        char got[65];
+        srmech_status_t st = srmech_sha256_hex(body, body_len, got);
+        if (st != SRMECH_OK) { return st; }
+        return genome_str_eq(bsha, got) ? SRMECH_OK : SRMECH_ERR_BAD_INPUT;
+    }
+    const srmech_json_value_t *arr = genome_data_get(manifest, "chromosomes");
+    if (arr == NULL || arr->type != SRMECH_JSON_ARRAY) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    char chain[65];
+    return genome_verify_body_chain(body, body_len, arr, bsha, chain);
+}
+
 /* ------------------------------------------------------------------ *
- * LOAD — read turns.bin, re-hash whole body vs manifest body_sha256.
+ * LOAD — read turns.bin, re-verify the whole body vs manifest body_sha256.
  * ------------------------------------------------------------------ */
 srmech_status_t srmech_genome_load(const char *dir, unsigned char *out,
                                    size_t out_cap, size_t *out_len,
@@ -856,19 +1036,14 @@ srmech_status_t srmech_genome_load(const char *dir, unsigned char *out,
     srmech_status_t st = genome_obtain_manifest(dir, the_one, the_one_len,
                                                 ws, ws_len, &manifest);
     if (st != SRMECH_OK) { return st; }
-    const srmech_json_value_t *bsha = genome_data_get(manifest, "body_sha256");
-    if (bsha == NULL || bsha->type != SRMECH_JSON_STRING) {
-        return SRMECH_ERR_BAD_INPUT;
-    }
     char body_path[SRMECH_GENOME_PATH_MAX];
     st = genome_join(dir, SRMECH_GENOME_BODY, body_path, sizeof(body_path));
     if (st != SRMECH_OK) { return st; }
     st = genome_read_file(body_path, out, out_cap, out_len);
     if (st != SRMECH_OK) { return st; }
-    char got[65];
-    st = srmech_sha256_hex(out, *out_len, got);
-    if (st != SRMECH_OK) { return st; }
-    return genome_str_eq(bsha, got) ? SRMECH_OK : SRMECH_ERR_BAD_INPUT;
+    /* rc115 (#1245(b)): re-verify the whole body against body_sha256 — the v4
+     * region chain (or the v2/v3 whole-body digest for a legacy genome). */
+    return genome_verify_body(out, *out_len, manifest);
 }
 
 /* ------------------------------------------------------------------ *
@@ -995,11 +1170,9 @@ static srmech_status_t genome_read_bound_body(const char *dir,
     if (st != SRMECH_OK) { return st; }
     st = genome_read_file(body_path, out, out_cap, len);
     if (st != SRMECH_OK) { return st; }
-    const srmech_json_value_t *bsha = genome_data_get(manifest, "body_sha256");
-    char got[65];
-    st = srmech_sha256_hex(out, *len, got);
-    if (st != SRMECH_OK) { return st; }
-    return genome_str_eq(bsha, got) ? SRMECH_OK : SRMECH_ERR_BAD_INPUT;
+    /* rc115 (#1245(b)): format-aware whole-body bound (v4 chain | v2/v3 digest) —
+     * never grow OR splice a corrupt body. */
+    return genome_verify_body(out, *len, manifest);
 }
 
 /* Read the existing body, bound-check it against the manifest body_sha256,
@@ -1022,6 +1195,247 @@ static srmech_status_t genome_grow_body(const char *dir,
     return SRMECH_OK;
 }
 
+/* Copy obj[key]'s string value into `out` (NUL-terminated; cap includes the
+ * NUL). SRMECH_ERR_BAD_INPUT if absent / not a string / too long. */
+static srmech_status_t genome_copy_jstr(const srmech_json_value_t *obj,
+                                        const char *key, char *out, size_t cap)
+{
+    assert(obj != NULL && key != NULL);
+    assert(out != NULL && cap > 0u);
+    const srmech_json_value_t *v = srmech_json_object_get(obj, key);
+    if (v == NULL || v->type != SRMECH_JSON_STRING ||
+        (size_t)v->u.str.len + 1u > cap) { return SRMECH_ERR_BAD_INPUT; }
+    memcpy(out, v->u.str.ptr, v->u.str.len);
+    out[v->u.str.len] = '\0';
+    return SRMECH_OK;
+}
+
+/* Read obj[key]'s non-negative int value into *out. */
+static srmech_status_t genome_read_ju32(const srmech_json_value_t *obj,
+                                        const char *key, uint32_t *out)
+{
+    assert(obj != NULL && key != NULL);
+    assert(out != NULL);
+    const srmech_json_value_t *v = srmech_json_object_get(obj, key);
+    if (v == NULL || v->type != SRMECH_JSON_INT || v->u.i < 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    *out = (uint32_t)v->u.i;
+    return SRMECH_OK;
+}
+
+/* Scan the ONE-chromosome append region (O(region_len)): require its first block
+ * to be a CHROM cap, hash the cap (first leaf_dim bytes) into `cap_sha` and the
+ * whole region into `region_sha`, and count DATA turns + total blocks. A second
+ * CHROM cap (a multi-chromosome region) is rejected. */
+static srmech_status_t genome_scan_region(const unsigned char *region,
+    size_t region_len, uint32_t leaf_dim, char *cap_sha, char *region_sha,
+    uint32_t *leaf_count, uint32_t *n_blocks)
+{
+    assert(region != NULL && cap_sha != NULL);
+    assert(region_sha != NULL && leaf_count != NULL && n_blocks != NULL);
+    if (region_len < (size_t)leaf_dim ||
+        region[0] != SRMECH_GENOME_CHROM_CAP_MARKER) {
+        return SRMECH_ERR_BAD_INPUT;      /* an append region opens with a CHROM cap */
+    }
+    srmech_status_t st = srmech_sha256_hex(region, leaf_dim, cap_sha);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_sha256_hex(region, region_len, region_sha);
+    if (st != SRMECH_OK) { return st; }
+    uint32_t lc = 0u, nb = 0u;
+    for (size_t off = 0u; off < region_len; ) {
+        size_t blen = 0u;
+        st = genome_block_len(region, region_len, off, leaf_dim, &blen);
+        if (st != SRMECH_OK) { return st; }
+        unsigned char kind = region[off];
+        if (off != 0u && kind == SRMECH_GENOME_CHROM_CAP_MARKER) {
+            return SRMECH_ERR_BAD_INPUT;  /* one append == ONE chromosome */
+        }
+        if (kind != SRMECH_GENOME_CHROM_CAP_MARKER &&
+            kind != SRMECH_GENOME_GENE_CAP_MARKER) { lc++; }
+        nb++;
+        off += blen;
+    }
+    *leaf_count = lc;
+    *n_blocks = nb;
+    return SRMECH_OK;
+}
+
+/* Copy the i-th existing chromosome (manifest chromosomes[i] + regions[i]) into
+ * the strings block — the O(1) append reuses the OLD entries verbatim. */
+static srmech_status_t genome_copy_chrom(genome_strings_t *s, uint32_t i,
+    const srmech_json_value_t *carr, const srmech_json_value_t *rarr)
+{
+    assert(s != NULL && carr != NULL && rarr != NULL);
+    assert(i < s->cap_chroms);
+    const srmech_json_value_t *c = carr->u.arr.items[i];
+    const srmech_json_value_t *r = rarr->u.arr.items[i];
+    srmech_status_t st = genome_copy_jstr(c, "label", s->label[i],
+                                          SRMECH_GENOME_MAX_LABEL);
+    if (st != SRMECH_OK) { return st; }
+    st = genome_copy_jstr(c, "cap_sha256", s->cap_sha[i], 65u);
+    if (st != SRMECH_OK) { return st; }
+    st = genome_copy_jstr(r, "sha256", s->region_sha[i], 65u);
+    if (st != SRMECH_OK) { return st; }
+    st = genome_read_ju32(c, "leaf_count", &s->leaf_count[i]);
+    if (st != SRMECH_OK) { return st; }
+    st = genome_read_ju32(c, "byte_offset", &s->byte_offset[i]);
+    if (st != SRMECH_OK) { return st; }
+    return genome_read_ju32(c, "byte_len", &s->byte_len[i]);
+}
+
+/* Fill the strings block from the OLD manifest tree + the new region — the O(1)
+ * append core (no whole-body read/hash/scan). `s`'s arrays are already carved to
+ * n_old+1. Sets every EXISTING entry (verbatim from the manifest), the NEW
+ * chromosome (index n_old, scanned from `region`), n_blocks, and EXTENDS the
+ * body_sha256 chain from its prior head. Returns the new label's dup status via
+ * genome_check_new_label. */
+static srmech_status_t genome_append_fill(genome_strings_t *s,
+    const srmech_json_value_t *manifest, uint32_t n_old, const char *label,
+    const unsigned char *region, size_t region_len, uint32_t leaf_dim,
+    size_t old_len)
+{
+    assert(s != NULL && manifest != NULL && label != NULL);
+    assert(region != NULL && strlen(label) + 1u <= SRMECH_GENOME_MAX_LABEL);
+    const srmech_json_value_t *carr = genome_data_get(manifest, "chromosomes");
+    const srmech_json_value_t *rarr = genome_data_get(manifest, "regions");
+    const srmech_json_value_t *dto = genome_data_get(manifest, "the_one");
+    const srmech_json_value_t *nt = genome_data_get(manifest, "n_turns");
+    const srmech_json_value_t *bsha = genome_data_get(manifest, "body_sha256");
+    if (carr == NULL || rarr == NULL || dto == NULL || nt == NULL ||
+        bsha == NULL || carr->type != SRMECH_JSON_ARRAY ||
+        rarr->type != SRMECH_JSON_ARRAY || nt->type != SRMECH_JSON_INT ||
+        bsha->type != SRMECH_JSON_STRING || carr->u.arr.n != n_old ||
+        rarr->u.arr.n != n_old) { return SRMECH_ERR_BAD_INPUT; }
+    srmech_status_t st = genome_copy_jstr(dto, "sha256", s->one_sha, 65u);
+    if (st != SRMECH_OK) { return st; }
+    st = genome_copy_jstr(dto, "hex", s->one_hex, 2u * 256u + 1u);
+    if (st != SRMECH_OK) { return st; }
+    if (bsha->u.str.len != 64u) { return SRMECH_ERR_BAD_INPUT; }
+    memcpy(s->body_sha, bsha->u.str.ptr, 64u);     /* prior chain head */
+    s->body_sha[64] = '\0';
+    st = genome_fill_constants(s);
+    if (st != SRMECH_OK) { return st; }
+    for (uint32_t i = 0; i < n_old; i++) {
+        const srmech_json_value_t *lv =
+            srmech_json_object_get(carr->u.arr.items[i], "label");
+        if (genome_str_eq(lv, label)) { return SRMECH_ERR_BAD_INPUT; }  /* dup */
+        st = genome_copy_chrom(s, i, carr, rarr);
+        if (st != SRMECH_OK) { return st; }
+    }
+    uint32_t new_lc = 0u, new_nb = 0u;
+    st = genome_scan_region(region, region_len, leaf_dim, s->cap_sha[n_old],
+                            s->region_sha[n_old], &new_lc, &new_nb);
+    if (st != SRMECH_OK) { return st; }
+    memcpy(s->label[n_old], label, strlen(label) + 1u);
+    s->leaf_count[n_old] = new_lc;
+    s->byte_offset[n_old] = (uint32_t)old_len;
+    s->byte_len[n_old] = (uint32_t)region_len;
+    s->n_chroms = n_old + 1u;
+    s->n_blocks = (uint32_t)nt->u.i + new_nb;
+    return genome_chain_fold(s->body_sha, s->region_sha[n_old]);  /* extend chain */
+}
+
+/* Portable byte-substring probe (MSVC has no memmem): 1 iff `needle` occurs in
+ * `hay`. Used only to sniff the v4 "regions" key in the manifest text. */
+static int genome_bytes_contains(const char *hay, size_t hay_len,
+                                 const char *needle, size_t needle_len)
+{
+    assert(hay != NULL || hay_len == 0u);
+    assert(needle != NULL && needle_len > 0u);
+    if (needle_len > hay_len) { return 0; }
+    for (size_t i = 0; i + needle_len <= hay_len; i++) {
+        if (memcmp(hay + i, needle, needle_len) == 0) { return 1; }
+    }
+    return 0;
+}
+
+/* The O(1) v4 fast path: parse the manifest ONCE, rebuild the manifest from its
+ * entries + the new region, tail-extend turns.bin, write the manifest. No
+ * whole-body read/hash/scan — bounded by the manifest + the new region. */
+static srmech_status_t genome_append_v4(const char *dir, const char *label,
+    const unsigned char *region, size_t region_len, uint32_t leaf_dim,
+    genome_arena_t *a, char *manbuf, size_t msz, size_t mlen, size_t old_len)
+{
+    assert(dir != NULL && label != NULL && a != NULL && manbuf != NULL);
+    assert(region != NULL && leaf_dim > 0u);
+    /* Parse workspace bound: the tree of a manifest of `msz` bytes sits in a few
+     * multiples of the source + a fixed base (the caller sizes the whole arena
+     * from srmech_genome_arena_bytes, generously). */
+    size_t pws_len = 4u * msz + 262144u;
+    void *pws = genome_arena_alloc(a, pws_len);
+    if (pws == NULL) { return SRMECH_ERR_OVERFLOW; }
+    srmech_json_value_t *manifest = NULL;
+    srmech_status_t st = srmech_json_parse(manbuf, mlen, pws, pws_len, &manifest);
+    if (st != SRMECH_OK) { return st; }
+    const srmech_json_value_t *ld = genome_data_get(manifest, "leaf_dim");
+    const srmech_json_value_t *carr = genome_data_get(manifest, "chromosomes");
+    if (ld == NULL || ld->type != SRMECH_JSON_INT ||
+        (uint32_t)ld->u.i != leaf_dim || carr == NULL ||
+        carr->type != SRMECH_JSON_ARRAY) { return SRMECH_ERR_BAD_INPUT; }
+    uint32_t n_old = carr->u.arr.n;
+    genome_strings_t s;
+    st = genome_strings_alloc(&s, a, n_old + 1u);
+    if (st != SRMECH_OK) { return st; }
+    st = genome_append_fill(&s, manifest, n_old, label, region, region_len,
+                            leaf_dim, old_len);
+    if (st != SRMECH_OK) { return st; }
+    size_t man_cap = genome_manifest_cap(s.n_chroms);
+    char *manifest_out = genome_arena_alloc(a, man_cap + 1u);
+    if (manifest_out == NULL) { return SRMECH_ERR_OVERFLOW; }
+    void *tws = NULL;
+    size_t tws_len = 0u;
+    genome_arena_tail(a, &tws, &tws_len);
+    size_t out_len = 0u;
+    st = genome_build_manifest(&s, leaf_dim, old_len + region_len, tws, tws_len,
+                               manifest_out, man_cap, &out_len);
+    if (st != SRMECH_OK) { return st; }
+    manifest_out[out_len] = '\n';
+    char body_path[SRMECH_GENOME_PATH_MAX];
+    char man_path[SRMECH_GENOME_PATH_MAX];
+    st = genome_join(dir, SRMECH_GENOME_BODY, body_path, sizeof(body_path));
+    if (st != SRMECH_OK) { return st; }
+    st = genome_join(dir, SRMECH_GENOME_MANIFEST, man_path, sizeof(man_path));
+    if (st != SRMECH_OK) { return st; }
+    st = genome_write_file(body_path, "ab", region, region_len);   /* tail-extend */
+    if (st != SRMECH_OK) { return st; }
+    return genome_write_file(man_path, "wb",
+                             (const unsigned char *)manifest_out, out_len + 1u);
+}
+
+/* v2/v3 (or manifest-less) MIGRATION: read the old body, append the region, and
+ * SAVE the grown body (a full rebuild → v4, once). The one-time cost of moving a
+ * legacy genome to the region-partitioned v4 format; subsequent appends are O(1).*/
+static srmech_status_t genome_append_migrate(const char *dir, const char *label,
+    const unsigned char *region, size_t region_len, uint32_t leaf_dim,
+    const unsigned char *the_one, size_t the_one_len, genome_arena_t *a)
+{
+    assert(dir != NULL && label != NULL && the_one != NULL && a != NULL);
+    assert(region != NULL || region_len == 0u);
+    size_t bcap = 0u;
+    srmech_status_t st = genome_body_size(dir, &bcap);
+    if (st != SRMECH_OK) { return st; }
+    bcap += region_len;
+    unsigned char *body = genome_arena_alloc(a, (bcap == 0u) ? 1u : bcap);
+    if (body == NULL) { return SRMECH_ERR_OVERFLOW; }
+    void *tws = NULL;
+    size_t tws_len = 0u;
+    genome_arena_tail(a, &tws, &tws_len);
+    srmech_json_value_t *manifest = NULL;
+    st = genome_obtain_manifest(dir, the_one, the_one_len, tws, tws_len, &manifest);
+    if (st != SRMECH_OK) { return st; }
+    const srmech_json_value_t *ld = genome_data_get(manifest, "leaf_dim");
+    if (ld == NULL || ld->type != SRMECH_JSON_INT ||
+        (uint32_t)ld->u.i != leaf_dim) { return SRMECH_ERR_BAD_INPUT; }
+    st = genome_check_new_label(manifest, label);
+    if (st != SRMECH_OK) { return st; }
+    size_t new_len = 0u;
+    st = genome_grow_body(dir, manifest, region, region_len, body, bcap, &new_len);
+    if (st != SRMECH_OK) { return st; }
+    return srmech_genome_save(dir, body, new_len, leaf_dim, the_one, the_one_len,
+                              tws, tws_len);
+}
+
 srmech_status_t srmech_genome_append(const char *dir, const char *label,
                                      const unsigned char *region,
                                      size_t region_len, uint32_t leaf_dim,
@@ -1034,46 +1448,44 @@ srmech_status_t srmech_genome_append(const char *dir, const char *label,
         (region == NULL && region_len != 0u)) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (leaf_dim == 0u || the_one_len != (size_t)leaf_dim || region_len == 0u) {
-        return SRMECH_ERR_BAD_INPUT;   /* §55/v3: blocks are variable-width —
-                                        * the save's scan validates the region */
+    if (leaf_dim == 0u || the_one_len != (size_t)leaf_dim || region_len == 0u ||
+        strlen(label) + 1u > SRMECH_GENOME_MAX_LABEL) {
+        return SRMECH_ERR_BAD_INPUT;
     }
-    /* Carve the grown-body buffer (old body + region) from the arena FRONT; the
-     * tail feeds obtain (manifest tree, consumed by grow) then save (its own
-     * scratch) — both run after body is filled, so the reuse is safe. */
     genome_arena_t a;
     genome_arena_init(&a, ws, ws_len);
-    size_t bcap = 0u;
-    srmech_status_t st = genome_body_size(dir, &bcap);
+    /* §56 (rc115 #1245(b)): read the OLD body size (cheap stat — we never read
+     * the body) + the manifest.json bytes. A v4 manifest (regions present) takes
+     * the O(1) tail-extend path; a legacy v2/v3 (or manifest-less) genome migrates
+     * once via a full rebuild. */
+    size_t old_len = 0u;
+    srmech_status_t st = genome_body_size(dir, &old_len);
     if (st != SRMECH_OK) { return st; }
-    bcap += region_len;
-    unsigned char *body = genome_arena_alloc(&a, (bcap == 0u) ? 1u : bcap);
-    if (body == NULL) { return SRMECH_ERR_OVERFLOW; }
-    void *tws = NULL;
-    size_t tws_len = 0u;
-    genome_arena_tail(&a, &tws, &tws_len);
-    /* §44: obtain the manifest — parsed if present, else rebuilt by scanning
-     * (the_one carries the leaf width), so an append works manifest-less too. */
-    srmech_json_value_t *manifest = NULL;
-    st = genome_obtain_manifest(dir, the_one, the_one_len, tws, tws_len,
-                                &manifest);
+    char man_path[SRMECH_GENOME_PATH_MAX];
+    st = genome_join(dir, SRMECH_GENOME_MANIFEST, man_path, sizeof(man_path));
     if (st != SRMECH_OK) { return st; }
-    const srmech_json_value_t *ld = genome_data_get(manifest, "leaf_dim");
-    if (ld == NULL || ld->type != SRMECH_JSON_INT ||
-        (uint32_t)ld->u.i != leaf_dim) { return SRMECH_ERR_BAD_INPUT; }
-    st = genome_check_new_label(manifest, label);          /* no dup labels */
+    size_t msz = 0u;
+    if (genome_file_size(man_path, &msz) != SRMECH_OK) {   /* manifest-less */
+        return genome_append_migrate(dir, label, region, region_len, leaf_dim,
+                                     the_one, the_one_len, &a);
+    }
+    char *manbuf = genome_arena_alloc(&a, msz + 1u);
+    if (manbuf == NULL) { return SRMECH_ERR_OVERFLOW; }
+    size_t mlen = 0u;
+    st = genome_read_file(man_path, (unsigned char *)manbuf, msz + 1u, &mlen);
     if (st != SRMECH_OK) { return st; }
-    size_t new_len = 0u;
-    st = genome_grow_body(dir, manifest, region, region_len, body, bcap,
-                          &new_len);
-    if (st != SRMECH_OK) { return st; }
-    /* §44: rewrite turns.bin (verbatim grown body) + a manifest DERIVED by
-     * scanning the grown body. The grown body is the prior bytes UNCHANGED +
-     * the appended region, so turns.bin is byte-identical to a true append and
-     * every prior chromosome entry re-derives byte-identically (same body
-     * bytes, order-stable inline-cap scan). */
-    return srmech_genome_save(dir, body, new_len, leaf_dim,
-                              the_one, the_one_len, tws, tws_len);
+    while (mlen > 0u && (manbuf[mlen - 1u] == '\n' || manbuf[mlen - 1u] == '\r')) {
+        mlen--;
+    }
+    /* A v4 manifest carries "regions"; a legacy one does not. Sniff cheaply by a
+     * substring probe on the canonical text (the key is always double-quoted). */
+    if (!genome_bytes_contains(manbuf, mlen, "\"regions\":", 10u)) {
+        genome_arena_init(&a, ws, ws_len);      /* migrate re-reads the body itself */
+        return genome_append_migrate(dir, label, region, region_len, leaf_dim,
+                                     the_one, the_one_len, &a);
+    }
+    return genome_append_v4(dir, label, region, region_len, leaf_dim, &a,
+                            manbuf, msz, mlen, old_len);
 }
 
 /* ------------------------------------------------------------------ *
@@ -1208,9 +1620,9 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
 
 /* The §43 .chr data_schema_id (== GENOME_CHR_SCHEMA_ID). */
 #define SRMECH_GENOME_CHR_SCHEMA_ID "srmech://schema/genome_chromosome/v1"
-/* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v3" — tracks
+/* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v4" — tracks
  * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _chr_record). */
-#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v3"
+#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v4"
 /* The §43 rendering "purpose" — VERBATIM from genome.py _chr_record
  * (single-line #define; JPL Rule 8 forbids backslash line-continuation). */
 #define SRMECH_GENOME_CHR_PURPOSE "One self-contained, MPR-attested chromosome: its fixed-width region (CHROM cap + coupled turns) + the_one, re-importable self-verifying."
@@ -1943,6 +2355,109 @@ static void genome_sort_by_label(char labels[][SRMECH_GENOME_MAX_LABEL],
     }
 }
 
+/* Read + verify one loose .chr and copy its region into `body` at *offset —
+ * the single-pass concat step (rc115 #1245(b)). The first bundle (is_first) sets
+ * the pack's the_one + leaf_dim; each later bundle must match them (one coupling
+ * invariant). *offset advances by the region length. */
+static srmech_status_t genome_pack_read_chr(const char *loose_dir,
+    const char *name, void *ws, size_t ws_len, unsigned char *body,
+    size_t body_cap, size_t *offset, unsigned char *pack_one,
+    size_t *pack_one_len, uint32_t *leaf_dim, int is_first)
+{
+    assert(loose_dir != NULL && name != NULL && body != NULL);
+    assert(offset != NULL && pack_one != NULL && leaf_dim != NULL);
+    char chr_path[SRMECH_GENOME_PATH_MAX];
+    srmech_status_t st = genome_join(loose_dir, name, chr_path, sizeof(chr_path));
+    if (st != SRMECH_OK) { return st; }
+    genome_arena_t a;
+    genome_arena_init(&a, ws, ws_len);
+    size_t fsz = 0u;
+    st = genome_file_size(chr_path, &fsz);
+    if (st != SRMECH_OK) { return st; }
+    char *io = genome_arena_alloc(&a, fsz + 1u);
+    if (io == NULL) { return SRMECH_ERR_OVERFLOW; }
+    size_t tlen = 0u;
+    st = genome_read_file(chr_path, (unsigned char *)io, fsz + 1u, &tlen);
+    if (st != SRMECH_OK) { return st; }
+    while (tlen > 0u && (io[tlen - 1u] == '\n' || io[tlen - 1u] == '\r')) { tlen--; }
+    void *pw = NULL;
+    size_t pl = 0u;
+    genome_arena_tail(&a, &pw, &pl);
+    srmech_json_value_t *rec = NULL;
+    st = srmech_json_parse(io, tlen, pw, pl, &rec);
+    if (st != SRMECH_OK) { return st; }
+    unsigned char oneblk[256];
+    size_t one_len = 0u, rlen = 0u;
+    uint32_t ld = 0u;
+    char label[SRMECH_GENOME_MAX_LABEL];
+    st = genome_chr_verify_extract(rec, body + *offset, body_cap - *offset, &rlen,
+                                   oneblk, &one_len, &ld, label, sizeof(label));
+    if (st != SRMECH_OK) { return st; }
+    if (is_first) {
+        *leaf_dim = ld;
+        *pack_one_len = one_len;
+        memcpy(pack_one, oneblk, one_len);
+    } else if (ld != *leaf_dim || one_len != *pack_one_len ||
+               memcmp(oneblk, pack_one, one_len) != 0) {
+        return SRMECH_ERR_BAD_INPUT;              /* different coupling invariant */
+    }
+    *offset += rlen;
+    return SRMECH_OK;
+}
+
+/* Sum the byte sizes of the `n` named .chr files (the concat body upper bound —
+ * every region is <= its .chr file). */
+static srmech_status_t genome_pack_total(const char *loose_dir,
+    char names[][SRMECH_GENOME_CHR_NAME_MAX], uint32_t n, size_t *out)
+{
+    assert(loose_dir != NULL && names != NULL);
+    assert(out != NULL && n != 0xFFFFFFFFu);
+    size_t total = 0u;
+    for (uint32_t i = 0; i < n; i++) {
+        char cp[SRMECH_GENOME_PATH_MAX];
+        srmech_status_t st = genome_join(loose_dir, names[i], cp, sizeof(cp));
+        if (st != SRMECH_OK) { return st; }
+        size_t fsz = 0u;
+        st = genome_file_size(cp, &fsz);
+        if (st != SRMECH_OK) { return st; }
+        total += fsz;
+    }
+    *out = total;
+    return SRMECH_OK;
+}
+
+/* Concat every sorted .chr region into ONE body buffer (canonical order) and
+ * SAVE the packed genome once — the single-pass compaction core (rc115 #1245(b)).
+ * `names` is already sorted by inner label + dedup-checked. */
+static srmech_status_t genome_pack_concat_save(const char *loose_dir,
+    const char *dest, char names[][SRMECH_GENOME_CHR_NAME_MAX], uint32_t n,
+    void *tw, size_t tl)
+{
+    assert(loose_dir != NULL && dest != NULL && names != NULL);
+    assert(tw != NULL && n != 0u);
+    size_t total = 0u;
+    srmech_status_t st = genome_pack_total(loose_dir, names, n, &total);
+    if (st != SRMECH_OK) { return st; }
+    genome_arena_t a2;
+    genome_arena_init(&a2, tw, tl);
+    unsigned char *body = genome_arena_alloc(&a2, (total == 0u) ? 1u : total);
+    if (body == NULL) { return SRMECH_ERR_OVERFLOW; }
+    void *scr = NULL;
+    size_t scrl = 0u;
+    genome_arena_tail(&a2, &scr, &scrl);      /* per-.chr scratch + the save */
+    unsigned char pack_one[256];
+    size_t pack_one_len = 0u, offset = 0u;
+    uint32_t leaf_dim = 0u;
+    for (uint32_t i = 0; i < n; i++) {
+        st = genome_pack_read_chr(loose_dir, names[i], scr, scrl, body, total,
+                                  &offset, pack_one, &pack_one_len, &leaf_dim,
+                                  (i == 0u));
+        if (st != SRMECH_OK) { return st; }
+    }
+    return srmech_genome_save(dest, body, offset, leaf_dim, pack_one,
+                              pack_one_len, scr, scrl);
+}
+
 srmech_status_t srmech_genome_pack(const char *loose_dir, const char *dest,
                                    const unsigned char *the_one,
                                    size_t the_one_len, void *ws, size_t ws_len)
@@ -1968,7 +2483,7 @@ srmech_status_t srmech_genome_pack(const char *loose_dir, const char *dest,
     if (names == NULL || labels == NULL) { return SRMECH_ERR_OVERFLOW; }
     void *tw = NULL;
     size_t tl = 0u;
-    genome_arena_tail(&a, &tw, &tl);          /* tail for peek + import */
+    genome_arena_tail(&a, &tw, &tl);          /* tail for peek + concat + save */
     uint32_t n = 0u;
     st = genome_list_chr(loose_dir, names, nfiles, &n);  /* fill names */
     if (st != SRMECH_OK) { return st; }
@@ -1981,12 +2496,8 @@ srmech_status_t srmech_genome_pack(const char *loose_dir, const char *dest,
         if (st != SRMECH_OK) { return st; }
     }
     genome_sort_by_label(labels, names, n);              /* canonical order */
-    for (uint32_t i = 0; i < n; i++) {                   /* import in order */
-        char chr_path[SRMECH_GENOME_PATH_MAX];
-        st = genome_join(loose_dir, names[i], chr_path, sizeof(chr_path));
-        if (st != SRMECH_OK) { return st; }
-        st = srmech_genome_import(chr_path, dest, the_one, the_one_len, tw, tl);
-        if (st != SRMECH_OK) { return st; }
+    for (uint32_t i = 1u; i < n; i++) {                  /* reject duplicate labels */
+        if (strcmp(labels[i], labels[i - 1u]) == 0) { return SRMECH_ERR_BAD_INPUT; }
     }
-    return SRMECH_OK;
+    return genome_pack_concat_save(loose_dir, dest, names, n, tw, tl);
 }

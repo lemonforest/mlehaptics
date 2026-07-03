@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc114"
-#define SRMECH_VERSION       "0.9.0rc114"
+#define SRMECH_VERSION_PRE   "rc115"
+#define SRMECH_VERSION       "0.9.0rc115"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2550,9 +2550,17 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
  * 4.03x byte-per-symbol bloat removed), while cap blocks keep their v2
  * leaf_dim-byte inline layout. A block's FIRST byte keys its kind AND its
  * width, so v2 / v3 / MIXED bodies read in the SAME walk (back-compat is
- * structural, not a converter). n_turns counts strand BLOCKS; body_sha256
- * stays the whole-turns.bin hash. Mirrors GENOME_FORMAT_VERSION. */
-#define SRMECH_GENOME_FORMAT_VERSION 3
+ * structural, not a converter). n_turns counts strand BLOCKS.
+ *
+ * v4 (rc115, #1245 ask (b)): the manifest carries a `regions` array — one
+ * {byte_offset, byte_len, sha256} entry per chromosome (the full-region digest,
+ * == the chromosome's .chr / AMSC provenance unit) — and body_sha256 becomes the
+ * REGION CHAIN Hn = sha256(Hn-1 || region_n_sha256) seeded by H0 = sha256("").
+ * The chain is O(1)-maintainable on append (extend the head) yet re-verifiable
+ * from the file (re-hash each region, re-fold) and body-derivable by a §44 scan
+ * (so a rebuild reproduces it byte-identically). v2/v3 manifests (no `regions`,
+ * whole-body body_sha256) stay READ-compatible. Mirrors GENOME_FORMAT_VERSION. */
+#define SRMECH_GENOME_FORMAT_VERSION 4
 
 /* §44 inline cap markers — the FIRST byte of a fixed-width cap leaf. Both are
  * > 3 so a cap is told apart from a Klein-4 data turn (bytes 0..3) by its
