@@ -458,7 +458,18 @@ def partition(strand, the_one, labels=None):
 #: bodies alike — back-compat is structural, not a converter. ``n_turns`` counts
 #: strand BLOCKS (== v2's ``body_len / leaf_dim`` on a v2 body); ``body_sha256``
 #: stays the whole-``turns.bin`` hash in v3 (unchanged semantics).
-GENOME_FORMAT_VERSION = 3
+GENOME_FORMAT_VERSION = 4
+
+#: rc115 (#1245 ask (b)) — the empty-body chain seed H₀ = sha256(b"") (a derived
+#: constant, not magic: THE well-known empty-string digest). The whole-body
+#: ``body_sha256`` of a v4 manifest is the REGION CHAIN Hₙ = sha256(Hₙ₋₁ ‖ regionₙ)
+#: folded over the per-chromosome region digests in body order — O(1)-maintainable
+#: on append (extend from the prior head) yet re-verifiable from the file (re-hash
+#: each region, re-fold). §44 stays intact: the chain is a pure function of the
+#: body + leaf_dim, so a rebuild-by-scan reproduces it byte-identically. See the
+#: manifest-format note in the CHANGELOG (rc115) for the (i)-lazy-vs-(ii)-chain
+#: rationale (we chose (ii): (i)'s staleness flag is NOT body-derivable → breaks §44).
+_EMPTY_SHA = _sha256_bytes(b"")
 
 #: The data_schema_id the genome manifest's MPRRecord carries (resolves to the
 #: genome-manifest data shape — format_version / leaf_dim / chromosomes / hashes).
@@ -556,22 +567,45 @@ def _packed_payload_len(leaf_dim: int) -> int:
     return (int(leaf_dim) + 3) // 4
 
 
+#: 4 Klein-4 symbols (the 4-byte group, each byte 0..3) → the packed byte
+#: (first symbol in the HIGH lanes). The 256-entry table lets :func:`_pack_turn_block`
+#: pack a group with ONE dict lookup instead of four per-symbol shifts — a measured
+#: ~4x on the 1,024x256 chromosome (rc115 #1245(b); the packer is on the append hot
+#: path). Byte-for-byte identical to the per-symbol form; a non-Klein-4 group is
+#: simply absent from the table (KeyError → the ValueError below).
+_PACK4 = {
+    bytes((a, b, c, d)): (a << 6) | (b << 4) | (c << 2) | d
+    for a in range(4) for b in range(4) for c in range(4) for d in range(4)
+}
+
+
 def _pack_turn_block(mem_block: bytes) -> bytes:
     """One in-memory byte-per-symbol data turn → its v3 on-disk packed block
     ``[PACKED_TURN_MARKER] + payload``. Symbol ``i`` → payload byte ``i // 4``,
     shift ``6 - 2*(i % 4)`` (first symbol in the HIGH lanes); the unused low
     lanes of a partial final byte are zero (canonical — the round-trip stays
-    byte-exact both ways). Raises ``ValueError`` on a non-Klein-4 symbol."""
-    out = bytearray(1 + _packed_payload_len(len(mem_block)))
-    out[0] = PACKED_TURN_MARKER
-    for i, sym in enumerate(mem_block):
-        if sym > 3:
-            raise ValueError(
-                f"genome v3 packing: data-turn symbol {sym} at position {i} is "
-                f"not a Klein-4 sector (0..3) — only Klein-4 turns bit-pack"
-            )
-        out[1 + (i >> 2)] |= sym << (6 - 2 * (i & 3))
-    return bytes(out)
+    byte-exact both ways). Raises ``ValueError`` on a non-Klein-4 symbol.
+
+    rc115 (#1245(b)): packs 4 symbols per :data:`_PACK4` lookup (the 2-bit lane
+    IS the format; the table is the per-group codec). A partial final group is
+    zero-padded to 4 before lookup — the unused low lanes stay zero (canonical)."""
+    n = len(mem_block)
+    pad = (-n) % 4
+    grp = mem_block + bytes(pad) if pad else mem_block
+    table = _PACK4
+    try:
+        return bytes([PACKED_TURN_MARKER]) + bytes(
+            [table[grp[i:i + 4]] for i in range(0, len(grp), 4)])
+    except KeyError:
+        # A symbol > 3 slipped into a group — report its exact position (the slow
+        # per-symbol scan runs only on the error path, never on the hot path).
+        for i, sym in enumerate(mem_block):
+            if sym > 3:
+                raise ValueError(
+                    f"genome v3 packing: data-turn symbol {sym} at position {i} "
+                    f"is not a Klein-4 sector (0..3) — only Klein-4 turns bit-pack"
+                ) from None
+        raise
 
 
 #: byte → its 4 unpacked Klein-4 symbols (high lanes first) — the v3 unpack table.
@@ -679,6 +713,25 @@ def _split_into_chromosomes(strand, labels=None) -> List[Tuple[str, list]]:
     return chroms
 
 
+def _chain_step(acc_hex: str, region_hex: str) -> str:
+    """One region-chain fold step Hₙ = sha256(Hₙ₋₁ ‖ regionₙ) — the whole-body
+    integrity value's O(1)-maintainable update. Both operands are 64-char hex
+    digests; the raw 32-byte values are concatenated (the spec's ``‖``) and
+    re-hashed (rc115 #1245(b))."""
+    return _sha256_bytes(bytes.fromhex(acc_hex) + bytes.fromhex(region_hex))
+
+
+def _region_chain(region_hexes) -> str:
+    """Fold the per-chromosome region digests (in body order) into the whole-body
+    ``body_sha256`` chain head, seeded by :data:`_EMPTY_SHA` (H₀ = sha256(b"")).
+    A genome with no regions hashes to the empty-body digest — the same value the
+    v2/v3 whole-body ``sha256`` gives for an empty body."""
+    acc = _EMPTY_SHA
+    for rh in region_hexes:
+        acc = _chain_step(acc, rh)
+    return acc
+
+
 def _build_manifest_data(leaf_dim, the_one_blocks, chrom_specs, body_bytes,
                          n_turns):
     """Assemble the manifest ``data`` block — §44's optional DERIVED catalog.
@@ -694,7 +747,20 @@ def _build_manifest_data(leaf_dim, the_one_blocks, chrom_specs, body_bytes,
     §44: this manifest is a derived ``.fai``-style cache — every field is
     rebuildable by scanning the self-describing body (the strand is the SSoT).
     The intra-chromosome gene structure lives INLINE in the body (GENE caps), NOT
-    here, so there is no gene-index sidecar."""
+    here, so there is no gene-index sidecar.
+
+    rc115 (#1245(b) — format v4): one ``regions`` entry per chromosome — its byte
+    span + ``sha256`` (the full-region digest, == the chromosome's ``.chr``/AMSC
+    provenance unit). ``body_sha256`` is the region CHAIN (:func:`_region_chain`),
+    NOT the whole-body digest, so an append maintains it in O(1) (extend the head)
+    while it stays re-verifiable from the file and body-derivable (§44)."""
+    regions = []
+    region_hexes = []
+    for (_label, _cap, _lc, byte_offset, byte_len) in chrom_specs:
+        off, ln = int(byte_offset), int(byte_len)
+        rh = _sha256_bytes(bytes(body_bytes[off:off + ln]))
+        region_hexes.append(rh)
+        regions.append({"byte_offset": off, "byte_len": ln, "sha256": rh})
     return {
         "format_version": GENOME_FORMAT_VERSION,
         "leaf_dim": int(leaf_dim),
@@ -703,7 +769,8 @@ def _build_manifest_data(leaf_dim, the_one_blocks, chrom_specs, body_bytes,
             "sha256": _sha256_bytes(the_one_blocks),
             "hex": the_one_blocks.hex(),
         },
-        "body_sha256": _sha256_bytes(body_bytes),
+        "body_sha256": _region_chain(region_hexes),
+        "regions": regions,
         "chromosomes": [
             {
                 "label": label,
@@ -972,15 +1039,66 @@ def genome_catalog(path, *, the_one=None) -> dict:
     return _catalog_data(path, the_one)
 
 
-def _verify_body_hash(body_bytes, expected_sha) -> None:
-    """Re-hash the whole body and raise :class:`GenomeBoundingError` on mismatch
-    (the whole-genome integrity bound)."""
-    got = _sha256_bytes(body_bytes)
-    if got != expected_sha:
+def _verify_body_integrity(body_bytes, data) -> None:
+    """Bound the WHOLE body against the manifest — the whole-genome integrity
+    bound, format-aware (rc115 #1245(b)).
+
+    v4 (a ``regions`` array present): re-hash EACH region's byte span against its
+    stored ``sha256``, confirm the regions TILE ``[0, len(body))`` contiguously (no
+    gap / overlap / trailing bytes), and re-fold the region digests into the
+    ``body_sha256`` CHAIN — a flipped / truncated / re-ordered byte fails one of
+    those checks. This is the O(1)-append hash contract's re-verification path: the
+    per-region digests ARE the provenance units, the chain is the whole-body head.
+
+    v2 / v3 (no ``regions``): the legacy whole-body ``sha256(body) == body_sha256``
+    check (back-compat — a pre-rc115 genome carries the whole-body digest)."""
+    regions = data.get("regions")
+    expected = data["body_sha256"]
+    if regions is None:                              # v2 / v3 whole-body digest
+        got = _sha256_bytes(bytes(body_bytes))
+        if got != expected:
+            raise GenomeBoundingError(
+                f"genome body integrity bound failed: turns.bin hashes to {got} "
+                f"but the manifest committed body_sha256={expected} (a flipped / "
+                f"truncated / re-ordered body byte)"
+            )
+        return
+    n = len(body_bytes)
+    expect_off = 0
+    region_hexes = []
+    for r in regions:
+        off, ln = int(r["byte_offset"]), int(r["byte_len"])
+        if off != expect_off:
+            raise GenomeBoundingError(
+                f"genome body integrity bound failed: region at byte_offset {off} "
+                f"does not tile the body (expected offset {expect_off} — a gap, "
+                f"overlap, or re-ordered region)"
+            )
+        seg = bytes(body_bytes[off:off + ln])
+        if len(seg) != ln:
+            raise GenomeBoundingError(
+                f"genome body integrity bound failed: region [{off}, {off + ln}) "
+                f"runs past the body end ({n} bytes) — a truncated body"
+            )
+        got = _sha256_bytes(seg)
+        if got != r["sha256"]:
+            raise GenomeBoundingError(
+                f"genome region integrity bound failed: region [{off}, {off + ln}) "
+                f"hashes to {got} but the manifest committed sha256={r['sha256']} "
+                f"(a flipped / re-ordered region byte)"
+            )
+        region_hexes.append(got)
+        expect_off = off + ln
+    if expect_off != n:
         raise GenomeBoundingError(
-            f"genome body integrity bound failed: turns.bin hashes to {got} but "
-            f"the manifest committed body_sha256={expected_sha} (a flipped / "
-            f"truncated / re-ordered body byte)"
+            f"genome body integrity bound failed: the regions tile {expect_off} "
+            f"bytes but turns.bin is {n} bytes (trailing un-attested bytes)"
+        )
+    got_chain = _region_chain(region_hexes)
+    if got_chain != expected:
+        raise GenomeBoundingError(
+            f"genome body integrity bound failed: the region chain folds to "
+            f"{got_chain} but the manifest committed body_sha256={expected}"
         )
 
 
@@ -1093,7 +1211,7 @@ def genome_load(path, *, labels=None, the_one=None):
                     )
                 body_acc.extend(block)
                 strand.append(_hv_from_block(decoded))
-        _verify_body_hash(bytes(body_acc), data["body_sha256"])
+        _verify_body_integrity(bytes(body_acc), data)
         return strand, the_one, all_labels
 
     # Subset paged read: seek to each requested chromosome's region.
@@ -1254,16 +1372,24 @@ def genome_genes(path, label, *, the_one=None):
 
 
 def genome_append(path, label, leaves, the_one) -> dict:
-    """Append ONE chromosome to an existing genome at ``path/`` — UPSTREAM §41.
-    The helix grows. Returns the updated manifest ``data`` dict.
+    """Append ONE chromosome to an existing genome at ``path/`` — UPSTREAM §41 /
+    §56 (rc115 #1245 ask (b)). The helix grows in O(1) amortised. Returns the
+    updated manifest ``data`` dict.
 
     Packs ``leaves`` (the new kernel's Klein-4 leaf vectors) into a
-    telomere-capped :func:`chromosome` (coupled through ``the_one``), appends its
-    fixed-width blocks to the END of ``path/turns.bin`` (append-only — prior
-    chromosomes' body bytes are NEVER rewritten), and rewrites the manifest with
-    the new chromosome entry + a recomputed ``body_sha256`` / ``n_turns``. Every
-    EXISTING chromosome's manifest entry (``cap_sha256`` / ``byte_offset`` /
-    ``leaf_count`` / ``byte_len``) stays byte-identical.
+    telomere-capped :func:`chromosome` (coupled through ``the_one``) and
+    TAIL-EXTENDS ``path/turns.bin`` with its fixed-width blocks — append-only,
+    prior body bytes are NEVER read, rewritten, or re-hashed. The manifest is
+    updated by APPENDING one chromosome entry + one region entry and extending the
+    ``body_sha256`` REGION CHAIN in O(1) from its prior head (rc115 #1245(b)) — no
+    whole-body re-hash, no whole-body re-scan. Every EXISTING chromosome / region
+    entry stays byte-identical; ``n_turns`` grows by the appended block count.
+
+    §56: the per-append cost is bounded by the NEW chromosome's own encoding +
+    the manifest rewrite (O(n_chromosomes) small JSON), NOT by the genome's total
+    size — so N appends are O(N) total, not O(N²) (F833 super-linear wall closed).
+    Appending to a legacy v2/v3 genome (no ``regions`` array) migrates it to v4 by
+    a one-time rebuild-by-scan of the grown body; subsequent appends are O(1).
     """
     path = Path(path)
     # §44: the_one (required here anyway) supplies the leaf width, so an append
@@ -1288,8 +1414,9 @@ def genome_append(path, label, leaves, the_one) -> dict:
     # append to a v2 genome yields a MIXED body, which the walker reads as-is.
     appended = b"".join(_disk_block(blk, leaf_dim) for blk in new_blocks)
 
-    # §49: native C append (the cap block + data turns appended append-only to
-    # turns.bin + manifest re-derived, byte-identical); native is authoritative when present (no fallback).
+    # §49/§56: native C append is AUTHORITATIVE when present — it tail-extends
+    # turns.bin + updates the manifest in O(1) (no whole-body rewrite / re-hash);
+    # native is authoritative when present (no fallback).
     if _native.has_native_genome():
         try:
             _native.genome_append_c(
@@ -1300,34 +1427,49 @@ def genome_append(path, label, leaves, the_one) -> dict:
             _raise_native_genome(exc)
 
     body_path = path / _BODY_NAME
-    existing_body = body_path.read_bytes()
-    # Integrity bound on what we are appending TO (never grow a corrupt body).
-    _verify_body_hash(existing_body, data["body_sha256"])
-    byte_offset = len(existing_body)
-
-    # Append-only: open in append-binary so prior bytes are untouched.
+    # §56: byte_offset is the CURRENT body size (a cheap stat) — we never read the
+    # prior body. Tail-extend append-only so prior bytes are untouched.
+    byte_offset = body_path.stat().st_size
     with body_path.open("ab") as f:
         f.write(appended)
-    new_body = existing_body + appended
 
-    # Existing chromosome specs carry through byte-identically.
-    chrom_specs: List[Tuple[str, str, int, int, int]] = [
-        (c["label"], c["cap_sha256"], int(c["leaf_count"]),
-         int(c["byte_offset"]), int(c["byte_len"]))
-        for c in data["chromosomes"]
-    ]
+    old_regions = data.get("regions")
+    if old_regions is None:
+        # Legacy v2/v3 genome (no region partition / whole-body body_sha256): a
+        # one-time migration to v4 by rebuilding-by-scan of the grown body (the
+        # only path that must touch the whole body — subsequent appends are O(1)).
+        grown = body_path.read_bytes()
+        new_data = _rebuild_manifest_from_body(grown, leaf_dim, the_one)
+        _write_manifest(path, _manifest_record(new_data))
+        return new_data
+
+    # v4 O(1) append: extend the chromosome / region lists + the chain head only —
+    # the existing entries carry through by REFERENCE (byte-identical), and the new
+    # region's digest folds onto the prior body_sha256 chain in O(1).
     cap_sha256 = _sha256_bytes(new_blocks[0])
-    chrom_specs.append(
-        (label, cap_sha256, len(new_blocks) - 1, byte_offset, len(appended))
-    )
-
-    one_block = bytes.fromhex(data["the_one"]["hex"])
-    # n_turns = strand BLOCK count: the prior count (v2's body/leaf_dim and
-    # v3's scan agree on a v2 body) + the appended chromosome's blocks.
-    new_data = _build_manifest_data(leaf_dim, one_block, chrom_specs, new_body,
-                                    int(data["n_turns"]) + len(new_blocks))
-    record = _manifest_record(new_data)
-    _write_manifest(path, record)
+    region_sha256 = _sha256_bytes(appended)
+    new_chrom = {
+        "label": label,
+        "cap_sha256": cap_sha256,
+        "leaf_count": len(new_blocks) - 1,
+        "byte_offset": byte_offset,
+        "byte_len": len(appended),
+    }
+    new_region = {
+        "byte_offset": byte_offset,
+        "byte_len": len(appended),
+        "sha256": region_sha256,
+    }
+    new_data = {
+        "format_version": GENOME_FORMAT_VERSION,
+        "leaf_dim": leaf_dim,
+        "n_turns": int(data["n_turns"]) + len(new_blocks),
+        "the_one": dict(data["the_one"]),
+        "body_sha256": _chain_step(data["body_sha256"], region_sha256),
+        "regions": list(old_regions) + [new_region],
+        "chromosomes": list(data["chromosomes"]) + [new_chrom],
+    }
+    _write_manifest(path, _manifest_record(new_data))
     return new_data
 
 
@@ -1399,9 +1541,9 @@ def genome_remove(path, label, *, the_one=None) -> dict:
     entry = by_label[label]
     off, byte_len = int(entry["byte_offset"]), int(entry["byte_len"])
     body = (path / _BODY_NAME).read_bytes()
-    _verify_body_hash(body, data["body_sha256"])         # integrity bound before edit
+    _verify_body_integrity(body, data)                   # integrity bound before edit
     new_body = body[:off] + body[off + byte_len:]        # splice the span out in place
-    return _write_body_and_manifest(path, new_body, leaf_dim, one)
+    return _write_body_and_manifest(path, new_body, leaf_dim, one)  # rebuild → v4 regions+chain
 
 
 def genome_replace(path, label, leaves, the_one) -> dict:
@@ -1453,7 +1595,7 @@ def genome_replace(path, label, leaves, the_one) -> dict:
     entry = by_label[label]
     off, byte_len = int(entry["byte_offset"]), int(entry["byte_len"])
     body = (path / _BODY_NAME).read_bytes()
-    _verify_body_hash(body, data["body_sha256"])         # integrity bound before edit
+    _verify_body_integrity(body, data)                   # integrity bound before edit
     new_body = body[:off] + new_region + body[off + byte_len:]
     return _write_body_and_manifest(path, new_body, leaf_dim, the_one)
 
@@ -1692,7 +1834,7 @@ def genome_import(chr_path, dest, *, the_one=None) -> dict:
             f"genome_import: chromosome {label!r} already exists in the dest genome"
         )
     dest_body = body_path.read_bytes()
-    _verify_body_hash(dest_body, dest_data["body_sha256"])   # bound before grow
+    _verify_body_integrity(dest_body, dest_data)             # bound before grow
     return _write_body_and_manifest(dest, dest_body + region, leaf_dim, one)
 
 
@@ -1811,12 +1953,60 @@ def genome_pack(loose_dir, dest, *, the_one=None) -> dict:
             _raise_native_genome(exc)                                       # real dest untouched
         finally:
             shutil.rmtree(scratch, ignore_errors=True)
-    # pure-Python alternative (no C, or an APPEND into an existing dest): import each
-    # bundle in canonical order; genome_import re-validates the dup-label / the_one bounds.
-    result = None
-    for _label, cf in keyed:
-        result = genome_import(cf, dest, the_one=the_one)
-    return result
+    # rc115 (#1245 ask (b)) — SINGLE-PASS compaction (pure-Python: no C, or an
+    # APPEND into an existing dest). Read every .chr region ONCE in canonical order,
+    # concatenate them (after any existing dest body), then write turns.bin + rebuild
+    # the manifest ONCE. O(total body) — NOT the old O(N²) of importing each bundle
+    # (which re-read + re-hashed the whole growing dest body per bundle).
+    body = bytearray()
+    one_block = None
+    leaf_dim = None
+    dest_labels: set = set()
+    if (dest / _BODY_NAME).exists():
+        # APPEND into an existing dest: seed the concatenation with its body and
+        # adopt its coupling invariant + leaf width (genome_import's bounds).
+        dest_data = _catalog_data(dest, the_one)
+        one_block = bytes.fromhex(dest_data["the_one"]["hex"])
+        leaf_dim = int(dest_data["leaf_dim"])
+        dest_labels = {c["label"] for c in dest_data["chromosomes"]}
+        body.extend((dest / _BODY_NAME).read_bytes())
+    for lbl, cf in keyed:
+        cdata = _read_chr(cf).data
+        region = bytes.fromhex(cdata["region"]["hex"])
+        cone = bytes.fromhex(cdata["the_one"]["hex"])
+        # self-verify the bundle: region + the_one hash against its own attestation.
+        if (_sha256_bytes(region) != cdata["region"]["sha256"] or
+                _read_chr(cf).attestation.get("response_sha256")
+                != cdata["region"]["sha256"]):
+            raise GenomeBoundingError(
+                f"genome_pack: chromosome {lbl!r} region integrity bound failed — "
+                f"the .chr does not hash to its attested response_sha256"
+            )
+        if _sha256_bytes(cone) != cdata["the_one"]["sha256"]:
+            raise GenomeBoundingError(
+                f"genome_pack: chromosome {lbl!r} the_one integrity bound failed"
+            )
+        if one_block is None:
+            one_block, leaf_dim = cone, int(cdata["leaf_dim"])
+        elif cone != one_block:
+            raise GenomeBoundingError(
+                f"genome_pack: chromosome {lbl!r} is coupled to a different the_one "
+                f"than the pack (all bundles must share one coupling invariant)"
+            )
+        elif int(cdata["leaf_dim"]) != leaf_dim:
+            raise GenomeBoundingError(
+                f"genome_pack: chromosome {lbl!r} leaf_dim {cdata['leaf_dim']} != "
+                f"pack leaf_dim {leaf_dim}"
+            )
+        if lbl in dest_labels:
+            raise ValueError(
+                f"genome_pack: chromosome {lbl!r} already exists in the dest genome"
+            )
+        dest_labels.add(lbl)
+        body.extend(region)
+    dest.mkdir(parents=True, exist_ok=True)
+    return _write_body_and_manifest(dest, bytes(body), leaf_dim,
+                                    _hv_from_block(one_block))
 
 
 #: §43 — the AMSC row schema id for a registered chromosome source. Each row is the

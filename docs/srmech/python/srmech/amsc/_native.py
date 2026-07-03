@@ -9778,10 +9778,27 @@ def genome_catalog_c(dir_: str, the_one: bytes) -> str:
 
 def genome_append_c(dir_: str, label: str, region: bytes, leaf_dim: int,
                     the_one: bytes) -> None:
-    """Native genome append — grow ``<dir>`` by one chromosome region."""
+    """Native genome append — grow ``<dir>`` by one chromosome region.
+
+    rc115 (#1245 ask (b)): a v4 genome (a ``regions`` array in the manifest) takes
+    the O(1) tail-extend path, so its arena is bounded by the MANIFEST + the new
+    region — NOT the whole body (the win). A legacy v2/v3 genome migrates once via a
+    full rebuild, which needs the whole body in the arena (a one-time cost)."""
+    man_path = os.path.join(dir_, "manifest.json")
+    man_sz = _genome_file_size(man_path)
+    try:
+        with open(man_path, "rb") as fh:
+            is_v4 = b'"regions":' in fh.read()
+    except OSError:
+        is_v4 = False
+    # O(1) fast path: manifest + parse-workspace + rebuilt manifest (all O(n_chroms));
+    # migration: + the whole body (once). Generous, manifest-scaled — not body-scaled.
+    body_hint = man_sz * 6 + 300000
+    if not is_v4:
+        body_hint += _turns_size(dir_)
     _require_genome()
     ws, ws_len = _genome_arena(
-        _turns_size(dir_), _genome_chrom_count(dir_, the_one) + 1, len(region))
+        body_hint, _genome_chrom_count(dir_, the_one) + 1, len(region))
     rc = LIB.srmech_genome_append(
         dir_.encode("utf-8"), label.encode("utf-8"), _u8(region),
         ctypes.c_size_t(len(region)), ctypes.c_uint32(leaf_dim),

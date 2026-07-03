@@ -107,8 +107,11 @@ def test_dod_1024x256_chromosome_writes_66kb(tmp_path):
     assert body_size == 256 + 1024 * (1 + 256 // 4) == 66816
     assert total < 70_000                    # "~66 KB" — vs 264,230 B at rc107
     assert 264_230 / total > 3.8             # the 4.03x bloat removed
-    assert man["format_version"] == 3
+    assert man["format_version"] == 4        # rc115 (#1245(b)): v4 carries regions
     assert man["n_turns"] == 1025            # blocks: 1 cap + 1024 turns
+    # rc115 (#1245(b)): one region entry per chromosome; body_sha256 is the chain
+    assert [r["byte_offset"] for r in man["regions"]] == [0]
+    assert man["regions"][0]["byte_len"] == body_size
 
     # round-trip EXACT: window + recall, leaf-for-leaf
     win = G.genome_window(p, "kernel")
@@ -235,7 +238,14 @@ def test_v2_fixture_manifestless_rebuild_reads(tmp_path):
     assert cat["n_turns"] == 13
     v2 = json.loads((_FIXTURE / "manifest.json").read_text(encoding="utf-8"))["data"]
     assert cat["chromosomes"] == v2["chromosomes"]
-    assert cat["body_sha256"] == v2["body_sha256"]
+    # rc115 (#1245(b)): the rebuild derives the CURRENT (v4) manifest — the
+    # structural chromosome fields are byte-identical to the stored v2 manifest's,
+    # but body_sha256 is now the region CHAIN (not the v2 whole-body digest), and a
+    # regions partition is derived (one per chromosome, tiling the body).
+    assert cat["format_version"] == 4
+    assert [(r["byte_offset"], r["byte_len"]) for r in cat["regions"]] == \
+        [(c["byte_offset"], c["byte_len"]) for c in v2["chromosomes"]]
+    assert cat["body_sha256"] != v2["body_sha256"]        # chain, not whole-body
     win = G.genome_window(d, "plain", the_one=one)
     alpha, _g1, _g2 = _v2_leaves()
     assert _as_lists([G.quad_turn(t, one) for t in win]) == _as_lists(alpha)
@@ -264,8 +274,9 @@ def test_v2_append_yields_mixed_body_reading_correctly(tmp_path):
     assert tail[_V2_DIM] == G.PACKED_TURN_MARKER          # first packed turn
     assert len(tail) == _V2_DIM + 3 * (1 + (_V2_DIM + 3) // 4)
 
-    # the manifest went v3; prior entries byte-identical; n_turns = blocks
-    assert man2["format_version"] == 3
+    # the manifest went v4 (rc115 #1245(b)); prior entries byte-identical; n_turns
+    # = blocks. Appending to a v2 genome migrates it to v4 (regions derived).
+    assert man2["format_version"] == 4
     assert man2["chromosomes"][:3] == man_before["chromosomes"]
     assert man2["n_turns"] == man_before["n_turns"] + 1 + 3
 
