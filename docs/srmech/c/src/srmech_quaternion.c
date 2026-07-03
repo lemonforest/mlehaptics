@@ -62,6 +62,17 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/* BYTE-EXACT parity contract: the pure-Python mirrors replicate this TU's
+ * float-op ORDER, so FMA contraction must be OFF — a fused multiply-add
+ * rounds once where mul+add round twice, diverging in the last ulp. GCC in
+ * strict -std=c11 mode already defaults to -ffp-contract=off; CLANG defaults
+ * to ON (the macOS arm64 CI cell diverged in the rc110 DFT accumulation
+ * loop), so the standard C11 pragma is applied for clang. MSVC /fp:precise
+ * does not contract. */
+#if defined(__clang__)
+#pragma STDC FP_CONTRACT OFF
+#endif
+
 /* The quaternion carrier dimension (H, the dim-4 Cayley-Dickson rung). */
 #define SRMECH_QUAT_DIM ((size_t)4)
 
