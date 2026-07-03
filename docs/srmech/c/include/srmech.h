@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc108"
-#define SRMECH_VERSION       "0.9.0rc108"
+#define SRMECH_VERSION_PRE   "rc109"
+#define SRMECH_VERSION       "0.9.0rc109"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5745,6 +5745,63 @@ srmech_status_t srmech_apagodu_zeilberger(
         srmech_bigint_t *cert_k_n, srmech_bigint_t *cert_k_d, size_t *cert_k_nlen,
         size_t *out_cert_k_jdeg, size_t *out_cert_k_kdeg,
         void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_quaternion — the 4x4 quaternion multiplication operators + the
+ * hypercomplex exp(mu*theta) twiddle (0.9.0rc109; issue #1234 Item 1a,
+ * re-raise of #863 BX-5/6/7). C peers of srmech.qm.quaternion — the
+ * QDFT/ODFT foundation. WHY: Q8/{+-1} ~= Z2xZ2 = Klein-4 (F380 / the
+ * in-repo R21 proof), so a quaternion FT's coefficient algebra (H)
+ * matches a Klein-4 object's value algebra; these peers let a C-only
+ * host build the 4x4 operator matrices + DFT twiddles without slicing
+ * the 8x8 octonion operators (srmech_loop_{left,right}_op_f64).
+ *
+ * Same fixed Cayley-Dickson convention as srmech_loopbind.c (H = the
+ * dim-4 rung of the same ladder, i.e. the octonion product restricted
+ * to the first 4 basis elements). No libm: the twiddle's cos/sin ride
+ * the Q61 cascade (srmech_{cos,sin}_q61) projected to double once, and
+ * pi enters as 4*atan_q61(1). No malloc; caller buffers; JPL-clean.
+ * Additive symbols -> SRMECH_ABI_VERSION stays 3. See srmech_quaternion.c.
+ * ------------------------------------------------------------------ */
+
+/* Left-multiplication operator matrix L_q: column k = q . e_k. `q` is 4
+ * doubles; `n` must be 4; `out` is 4*4 = 16 doubles, row-major,
+ * out[i*4 + k] = (q . e_k)_i. For a basis unit e_i (i >= 1) the matrix is
+ * antisymmetric. L is a homomorphism: L(pq) = L(p)L(q); it commutes with
+ * every right multiplication (the associativity witness H has, O lacks).
+ * Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (n != 4). */
+srmech_status_t srmech_quaternion_left_mult(
+    const double *q, size_t n, double *out);
+
+/* Right-multiplication operator matrix R_q: column k = e_k . q (the mirror
+ * ordering; R(pq) = R(q)R(p), the anti-homomorphism — H is non-commutative
+ * so L_q != R_q for generic q). Same buffer contract as left_mult. */
+srmech_status_t srmech_quaternion_right_mult(
+    const double *q, size_t n, double *out);
+
+/* The quaternion Euler twiddle exp(mu*theta) = cos(theta)*1 + sin(theta)*mu.
+ * `mu` is a caller-provided UNIT pure-imaginary 4-vector (mu[0] == 0.0;
+ * the same caller-normalises-mu contract as srmech_hypercomplex_couple_q61;
+ * normalise via srmech_rational_sqrt / srmech_sqrt_q61 on a C-only host).
+ * `n` must be 4; `out` receives [cos t, sin t * mu1, sin t * mu2,
+ * sin t * mu3] — a UNIT quaternion in the commutative subalgebra R[mu].
+ * cos/sin are the exact Q61 cascade projected to double ONCE (byte-exact
+ * with the pure-Python mirror). Errors: SRMECH_ERR_NULL_ARG;
+ * SRMECH_ERR_BAD_INPUT (n != 4, mu[0] != 0, zero axis, or theta with no
+ * Q61 form — non-finite / |theta| >= 2^55). */
+srmech_status_t srmech_quaternion_exp(
+    double theta, const double *mu, size_t n, double *out);
+
+/* The QDFT twiddle factor exp(sigma * mu * 2*pi*j*k/N): theta =
+ * sigma * 2*pi * ((j*k) mod n_points) / n_points with the index reduced
+ * exactly in uint64 (Class I) and pi = 4*atan_q61(1) (Class N; no libm
+ * M_PI), then srmech_quaternion_exp. sigma = -1 is the forward-DFT
+ * orientation, +1 the inverse. Same unit-mu contract as
+ * srmech_quaternion_exp. Errors: SRMECH_ERR_NULL_ARG;
+ * SRMECH_ERR_BAD_INPUT (n_points == 0, sigma not +-1, or exp errors). */
+srmech_status_t srmech_quaternion_twiddle(
+    uint32_t j, uint32_t k, uint32_t n_points, int32_t sigma,
+    const double *mu, size_t n, double *out);
 
 #ifdef __cplusplus
 }

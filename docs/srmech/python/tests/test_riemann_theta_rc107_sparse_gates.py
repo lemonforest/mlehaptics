@@ -529,6 +529,6 @@ def test_sparse_cross_slots_shape():
 
 
 def test_tools_total_unchanged():
-    """Gate internals, not new ops: tools.total stays 350."""
+    """Gate internals, not new ops: tools.total stays 359."""
     import srmech
-    assert srmech.describe()["tools"]["total"] == 350
+    assert srmech.describe()["tools"]["total"] == 359
