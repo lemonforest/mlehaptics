@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc110"
-#define SRMECH_VERSION       "0.9.0rc110"
+#define SRMECH_VERSION_PRE   "rc111"
+#define SRMECH_VERSION       "0.9.0rc111"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5824,6 +5824,78 @@ srmech_status_t srmech_quaternion_twiddle(
 srmech_status_t srmech_quaternion_dft(
     const double *x, uint32_t n_points, int32_t left, int32_t inverse,
     const double *mu, size_t n, double *out);
+
+/* ------------------------------------------------------------------ *
+ * srmech_octonion — the ODFT twiddle family + the whole-transform
+ * OCTONION DFT (0.9.0rc111; issue #1234 Item 1c, re-raise of #863).
+ * C peers of srmech.qm.octonion's rc111 twiddle family and the
+ * graduated cascade.octonion_dft. WHY THE BRACKETING IS AN ARGUMENT
+ * (F378): octonion multiplication is NON-ASSOCIATIVE, so "the ODFT" is
+ * not unique until its bracketing convention is DECLARED — a different
+ * bracketing is a DIFFERENT (also-declarable) transform. Declared
+ * convention (attested in octonion_dft.toml [cascade.bracketing]):
+ * per-summand-single-product; the inverse applies the conjugate twiddle
+ * (sigma flip) on the SAME declared side; the two-sided 3-factor
+ * association order is the explicit `bracketing` argument. O is
+ * ALTERNATIVE (Artin: 2-generated subalgebras associate), so the
+ * one-sided same-axis round-trip is EXACT; non-associativity bites at
+ * >= 3 independent generators only (two_sided with distinct axes; a
+ * twiddle associated through a product of samples) — verified from
+ * Python over the fixed table. No libm (Q61 trig; pi = 4*atan_q61(1));
+ * no malloc; caller buffers; JPL-clean. Additive symbols ->
+ * SRMECH_ABI_VERSION stays 3. See srmech_octonion.c.
+ * ------------------------------------------------------------------ */
+
+/* The octonion Euler twiddle exp(mu*theta) = cos(theta)*1 + sin(theta)*mu.
+ * `mu` is a caller-provided UNIT pure-imaginary 8-vector (mu[0] == 0.0;
+ * the same caller-normalises-mu contract as srmech_quaternion_exp).
+ * `n` must be 8; `out` receives [cos t, sin t * mu1, ..., sin t * mu7] —
+ * a UNIT octonion in the commutative subalgebra R[mu] (which is WHY the
+ * one-sided ODFT inverts). cos/sin are the exact Q61 cascade projected to
+ * double ONCE (byte-exact with the pure-Python mirror). Errors:
+ * SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (n != 8, mu[0] != 0, zero
+ * axis, or theta with no Q61 form — non-finite / |theta| >= 2^55). */
+srmech_status_t srmech_octonion_exp(
+    double theta, const double *mu, size_t n, double *out);
+
+/* The ODFT twiddle factor exp(sigma * mu * 2*pi*j*k/N): theta =
+ * sigma * 2*pi * ((j*k) mod n_points) / n_points with the index reduced
+ * exactly in uint64 (Class I) and pi = 4*atan_q61(1) (Class N; no libm
+ * M_PI), then srmech_octonion_exp. sigma = -1 is the forward-DFT
+ * orientation, +1 the inverse. Same unit-mu contract as
+ * srmech_octonion_exp. Errors: SRMECH_ERR_NULL_ARG;
+ * SRMECH_ERR_BAD_INPUT (n_points == 0, sigma not +-1, or exp errors). */
+srmech_status_t srmech_octonion_twiddle(
+    uint32_t j, uint32_t k, uint32_t n_points, int32_t sigma,
+    const double *mu, size_t n, double *out);
+
+/* The OCTONION DISCRETE FOURIER TRANSFORM (0.9.0rc111; issue #1234
+ * Item 1c, re-raise of #863) — the whole O(N^2) exact-reference ODFT
+ * over srmech_octonion_twiddle + the octonion loop operators
+ * (srmech_loop_{left,right}_op_f64), ALL THREE forms in one peer.
+ * THE DECLARED CONVENTION (forward sign sigma = -1; W = exp(mu*theta)):
+ *   form == 0 (left):      X[k] = sum_m W . x[m]        (ONE product)
+ *   form == 1 (right):     X[k] = sum_m x[m] . W        (ONE product)
+ *   form == 2 (two_sided): X[k] = sum_m bracket(W_l, x[m], W_r)
+ * with bracket keyed by `bracketing`: 0 = (W_l . x) . W_r
+ * (left_associated), 1 = W_l . (x . W_r) (right_associated) — the F378
+ * non-associativity made an explicit argument (the bracketings DIFFER
+ * for distinct axes; a different bracketing is a different transform).
+ * The INVERSE (inverse == 1; one-sided forms ONLY — two_sided is
+ * forward-only) flips sigma to +1 and scales by 1/N on the SAME side;
+ * the round-trip is EXACT by alternativity/Artin (see srmech_octonion.c).
+ * `x` is n_points*8 doubles (row-major octonion samples); `mu` (and
+ * `mu_r` for form == 2; ignored otherwise, may be NULL for one-sided)
+ * are caller-provided UNIT pure-imaginary 8-vectors (`n` must be 8);
+ * `out` is n_points*8 doubles and MUST NOT alias `x`. An FFT
+ * factorisation is future work. Errors: SRMECH_ERR_NULL_ARG (incl.
+ * mu_r == NULL with form == 2); SRMECH_ERR_BAD_INPUT (n != 8,
+ * n_points == 0, form/bracketing/inverse out of range, two_sided with
+ * inverse == 1, or twiddle errors). */
+srmech_status_t srmech_octonion_dft(
+    const double *x, uint32_t n_points, int32_t form, int32_t bracketing,
+    int32_t inverse, const double *mu, const double *mu_r, size_t n,
+    double *out);
 
 #ifdef __cplusplus
 }

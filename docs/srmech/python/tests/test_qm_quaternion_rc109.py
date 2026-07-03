@@ -22,7 +22,7 @@ The consistency gates this rc must hold (the transforms stand on them):
       Taylor oracle; the unit property converges; the float tier agrees.
   (6) PARITY — native vs forced-pure byte-exact per op (the C peers are pure
       speedups, never divergences).
-  (7) REGISTRATION — 9 ToolEntries; tools.total == 359.
+  (7) REGISTRATION — 9 ToolEntries; tools.total == 362.
 
 numpy-free by construction (no numpy import, no ``np.``); the oracle for the
 series tier is stdlib ``fractions.Fraction``
@@ -476,10 +476,11 @@ def test_twiddle_native_matches_pure_byte_for_byte(monkeypatch):
 # (7) Registration + attestation + carrier hygiene
 # ────────────────────────────────────────────────────────────────────
 
-def test_tools_total_is_359():
-    """rc109 adds the 9 qm.quaternion ToolEntries: 350 → 359."""
+def test_tools_total_is_362():
+    """rc109 added the 9 qm.quaternion ToolEntries (350 → 359); the live
+    pin tracks later rcs (rc111: +3 qm.octonion twiddle-family → 362)."""
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 359
+    assert introspect.describe()["tools"]["total"] == 362
 
 
 def test_quaternion_tool_entries_registered():

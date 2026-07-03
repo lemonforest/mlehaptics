@@ -70,7 +70,13 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 # qm.quaternion foundation and dispatches the whole transform to the new
 # standalone-C srmech_quaternion_dft (byte-exact composed fallback)
 # -> c_dispatched. python_only_irreducible 105 -> 104.
-CEIL_PYTHON_ONLY_IRREDUCIBLE = 104
+# rc111 (#1234 Item 1c / #863): cascade.octonion_dft GRADUATED onto the
+# qm.octonion foundation (the rc111 octonion_twiddle + the 8x8 loop operators)
+# and dispatches the whole transform — ALL THREE forms, with the DECLARED
+# bracketing as an explicit attested field — to the new standalone-C
+# srmech_octonion_dft (byte-exact composed fallback)
+# -> c_dispatched. python_only_irreducible 104 -> 103.
+CEIL_PYTHON_ONLY_IRREDUCIBLE = 103
 # rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
 # rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.

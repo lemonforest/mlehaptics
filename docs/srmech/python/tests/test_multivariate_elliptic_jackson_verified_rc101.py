@@ -243,9 +243,9 @@ def test_router_malformed_params_route_to_open():
     assert out["row"] is None
 
 
-# ── (5) scope — tools.total stays 359 (a flag + router gate, NOT a new ToolEntry) ───────
-def test_tools_total_stays_359():
-    assert introspect.describe()["tools"]["total"] == 359
+# ── (5) scope — tools.total stays 362 (a flag + router gate, NOT a new ToolEntry) ───────
+def test_tools_total_stays_362():
+    assert introspect.describe()["tools"]["total"] == 362
 
 
 # ── (6) the "inform, don't LIMIT" RAM-cost approximation (rc103 finisher) ───────────────
