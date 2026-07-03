@@ -155,6 +155,13 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # submodule-dotted name is the same object re-exported flat, exempt
     # exactly like cyclic_gcd / kuramoto_step above.
     "srmech.amsc.cascade.compose.autocorrelation",
+    # cascade.cayley_dickson.{cd_promote,cd_project} (rc116; #1248) — the
+    # Hurwitz-ladder carrier conversions, registered under their flat public
+    # names ``srmech.amsc.cascade.cd_promote`` / ``cd_project`` (which ARE
+    # registered); the submodule-dotted names are the same objects re-exported
+    # flat, exempt exactly like the atoms/compose entries above.
+    "srmech.amsc.cascade.cayley_dickson.cd_promote",
+    "srmech.amsc.cascade.cayley_dickson.cd_project",
     # cascade.compose.{signed_sum_squared,top_k_by_score} (v0.7.4rc2; PR #687
     # §1.2/§1.3). Registered under their flat ``srmech.amsc.cascade.*`` names
     # (which ARE registered); the submodule-dotted names are the same objects
