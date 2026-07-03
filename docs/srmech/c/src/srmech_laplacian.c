@@ -203,6 +203,205 @@ srmech_status_t srmech_graph_normalized_laplacian(uint32_t        n,
     return SRMECH_OK;
 }
 
+/* ------------------------------------------------------------------
+ * 0.9.0rc105 (issue #1234 Item 3 / F1006 / F1007): magnetic (Hermitian)
+ * Laplacian of a directed graph — the standalone-C builder peer of
+ * `laplacian.magnetic_laplacian`. See srmech.h for the two-mode wire
+ * contract (scalar-q vs per-edge charges). The trig is the srmech Q61
+ * cascade (srmech_cos_q61 / srmech_sin_q61), byte-exact with the pure-
+ * Python Class-N cascade the Python path runs; the Q61 -> double
+ * projection `(double)v / (double)SRMECH_Q61_ONE` is an exact power-of-
+ * two scale of the rounded int64, bit-identical to Python's
+ * `float(Q(v, 2**61))`. pi = 4 * atan_q61(1) — the SAME derivation the
+ * Python module-level `_PI` uses (no libm, no M_PI).
+ * ------------------------------------------------------------------ */
+
+/* Zero the 2*n*n interleaved output and accumulate the DIRECTED
+ * adjacency W[u,v] += w into the IMAGINARY slots (odd indices). Unlike
+ * the undirected builder this does NOT mirror the transpose — direction
+ * is preserved (W is generally asymmetric). The imag slots serve as the
+ * W staging area so the scalar mode needs NO scratch arena (the final
+ * imaginary pass rewrites them). */
+static srmech_status_t lap_mag_build_w(uint32_t n, uint32_t n_edges,
+                                       const uint32_t *eu, const uint32_t *ev,
+                                       const double *w, double *out)
+{
+    assert(out != NULL);
+    assert(n_edges == 0 || (eu != NULL && ev != NULL));
+    size_t cells = 2u * (size_t)n * (size_t)n;
+    for (size_t i = 0; i < cells; i++) {
+        out[i] = 0.0;
+    }
+    for (uint32_t e = 0; e < n_edges; e++) {
+        uint32_t uu = eu[e];
+        uint32_t vv = ev[e];
+        if (uu >= n || vv >= n) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        double we = (w != NULL) ? w[e] : 1.0;
+        out[2u * ((size_t)uu * n + vv) + 1u] += we;
+    }
+    return SRMECH_OK;
+}
+
+/* Scalar-q mode pass 1: REAL parts + the degree diagonal. Reads W from
+ * the intact imaginary slots; writes only real (even) slots. Mirrors the
+ * Python row-major accumulation order (deg_r sums A_s[r,c] for c
+ * ascending, INCLUDING c == r) so the float sums are bit-identical. */
+static srmech_status_t lap_mag_scalar_real(uint32_t n, double two_pi_q,
+                                           double *out)
+{
+    assert(out != NULL);
+    for (uint32_t r = 0; r < n; r++) {
+        double deg = 0.0;
+        for (uint32_t c = 0; c < n; c++) {
+            double wrc = out[2u * ((size_t)r * n + c) + 1u];
+            double wcr = out[2u * ((size_t)c * n + r) + 1u];
+            double a_s = 0.5 * (wrc + wcr);
+            deg += a_s;
+            if (c == r) {
+                continue;   /* no self-phase; degree carries the diagonal */
+            }
+            int64_t cv = 0;
+            srmech_status_t st = srmech_cos_q61(two_pi_q * (wrc - wcr), &cv);
+            if (st != SRMECH_OK) {
+                return st;
+            }
+            assert(cv >= -SRMECH_Q61_ONE && cv <= SRMECH_Q61_ONE);
+            out[2u * ((size_t)r * n + c)] =
+                -(a_s * ((double)cv / (double)SRMECH_Q61_ONE));
+        }
+        out[2u * ((size_t)r * n + r)] = deg;
+    }
+    return SRMECH_OK;
+}
+
+/* Scalar-q mode pass 2: IMAGINARY parts, pairwise (r < c). Each pair
+ * reads BOTH W values from the still-intact imaginary slots before
+ * overwriting them (the mirror cell's sine is computed independently,
+ * exactly as the Python per-cell loop does — no evenness assumption on
+ * the Q61 reduction). Diagonal imaginary = 0 (real degree). */
+static srmech_status_t lap_mag_scalar_imag(uint32_t n, double two_pi_q,
+                                           double *out)
+{
+    assert(out != NULL);
+    for (uint32_t r = 0; r < n; r++) {
+        for (uint32_t c = r + 1u; c < n; c++) {
+            size_t irc = 2u * ((size_t)r * n + c) + 1u;
+            size_t icr = 2u * ((size_t)c * n + r) + 1u;
+            double wrc = out[irc];
+            double wcr = out[icr];
+            double a_s = 0.5 * (wrc + wcr);
+            int64_t s_rc = 0;
+            int64_t s_cr = 0;
+            srmech_status_t st = srmech_sin_q61(two_pi_q * (wrc - wcr), &s_rc);
+            if (st != SRMECH_OK) {
+                return st;
+            }
+            st = srmech_sin_q61(two_pi_q * (wcr - wrc), &s_cr);
+            if (st != SRMECH_OK) {
+                return st;
+            }
+            assert(s_rc >= -SRMECH_Q61_ONE && s_rc <= SRMECH_Q61_ONE);
+            out[irc] = -(a_s * ((double)s_rc / (double)SRMECH_Q61_ONE));
+            out[icr] = -(a_s * ((double)s_cr / (double)SRMECH_Q61_ONE));
+        }
+        out[2u * ((size_t)r * n + r) + 1u] = 0.0;
+    }
+    return SRMECH_OK;
+}
+
+/* Per-edge CHIRAL mode (charges != NULL): each edge k = (u, v, w, c)
+ * accumulates the conjugate Hermitian pair -(w/2)*e^{+i 2*pi*c} at
+ * [u,v] and -(w/2)*e^{-i 2*pi*c} at [v,u]; the degree accumulates in
+ * the DIAGONAL REAL slot (never touched by the off-diagonal phases, so
+ * no scratch). Self-loops contribute w to the degree and no phase —
+ * matching the scalar mode's diagonal convention. */
+static srmech_status_t lap_mag_charges(uint32_t n, uint32_t n_edges,
+                                       const uint32_t *eu, const uint32_t *ev,
+                                       const double *w, const double *ch,
+                                       double two_pi, double *out)
+{
+    assert(out != NULL);
+    assert(n_edges == 0 || ch != NULL);
+    size_t cells = 2u * (size_t)n * (size_t)n;
+    for (size_t i = 0; i < cells; i++) {
+        out[i] = 0.0;
+    }
+    for (uint32_t e = 0; e < n_edges; e++) {
+        uint32_t uu = eu[e];
+        uint32_t vv = ev[e];
+        if (uu >= n || vv >= n) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        double we = (w != NULL) ? w[e] : 1.0;
+        double hw = 0.5 * we;
+        out[2u * ((size_t)uu * n + uu)] += hw;   /* deg[u] (diagonal real) */
+        out[2u * ((size_t)vv * n + vv)] += hw;   /* deg[v] */
+        if (uu == vv) {
+            continue;   /* no self-phase; degree carries the diagonal */
+        }
+        int64_t cv = 0;
+        int64_t sv = 0;
+        srmech_status_t st = srmech_cos_q61(two_pi * ch[e], &cv);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+        st = srmech_sin_q61(two_pi * ch[e], &sv);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+        double re = (double)cv / (double)SRMECH_Q61_ONE;
+        double im = (double)sv / (double)SRMECH_Q61_ONE;
+        out[2u * ((size_t)uu * n + vv)] += -(hw * re);
+        out[2u * ((size_t)uu * n + vv) + 1u] += -(hw * im);
+        out[2u * ((size_t)vv * n + uu)] += -(hw * re);
+        out[2u * ((size_t)vv * n + uu) + 1u] += hw * im;
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_graph_magnetic_laplacian(uint32_t        n,
+                                                uint32_t        n_edges,
+                                                const uint32_t *edges_u,
+                                                const uint32_t *edges_v,
+                                                const double   *weights,
+                                                double          q,
+                                                const double   *charges,
+                                                double         *out_matrix)
+{
+    assert(out_matrix != NULL);
+    if (out_matrix == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n_edges > 0 && (edges_u == NULL || edges_v == NULL)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    /* pi = 4 * atan_q61(1) — the exact derivation the Python module-level
+     * _PI uses (4 * float(Q(atan_q61(1), 2^61))); no libm M_PI. */
+    int64_t atan1 = 0;
+    srmech_status_t st = srmech_atan_q61(1.0, &atan1);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    double pi = 4.0 * ((double)atan1 / (double)SRMECH_Q61_ONE);
+    assert(pi > 3.0 && pi < 3.3);
+    if (charges != NULL) {
+        return lap_mag_charges(n, n_edges, edges_u, edges_v, weights,
+                               charges, 2.0 * pi, out_matrix);
+    }
+    st = lap_mag_build_w(n, n_edges, edges_u, edges_v, weights, out_matrix);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    double two_pi_q = 2.0 * pi * q;
+    st = lap_mag_scalar_real(n, two_pi_q, out_matrix);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    return lap_mag_scalar_imag(n, two_pi_q, out_matrix);
+}
+
 /* Helper: apply a single Givens rotation to symmetric `mat` at index
  * pair (p, q). Updates rows + columns p, q in place. Pi-free —
  * c, s computed algebraically from matrix entries (no trig). */

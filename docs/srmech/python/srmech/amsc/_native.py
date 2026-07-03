@@ -378,6 +378,24 @@ def _bind(lib: ctypes.CDLL) -> None:
     lib.srmech_graph_normalized_laplacian.argtypes = _GRAPH_BUILDER_ARGS
     lib.srmech_graph_normalized_laplacian.restype = ctypes.c_int
 
+    # 0.9.0rc105 (#1234 Item 3 / F1006 / F1007): magnetic (Hermitian)
+    # Laplacian builder — scalar-q AND per-edge-charges modes in one
+    # symbol (charges == NULL -> scalar). Output is 2*n*n interleaved
+    # (re, im) doubles. hasattr-guarded: an older lib simply lacks the
+    # symbol and the Python pure path runs (additive; ABI stays 3).
+    if hasattr(lib, "srmech_graph_magnetic_laplacian"):
+        lib.srmech_graph_magnetic_laplacian.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_uint32,                    # n_edges
+            ctypes.POINTER(ctypes.c_uint32),    # edges_u
+            ctypes.POINTER(ctypes.c_uint32),    # edges_v
+            ctypes.POINTER(ctypes.c_double),    # weights (or NULL)
+            ctypes.c_double,                    # q (turns; scalar mode)
+            ctypes.POINTER(ctypes.c_double),    # charges (or NULL; turns)
+            ctypes.POINTER(ctypes.c_double),    # out (2*n*n interleaved)
+        ]
+        lib.srmech_graph_magnetic_laplacian.restype = ctypes.c_int
+
     # int srmech_jacobi_eigvals(uint32_t n, double *matrix,
     #                           uint32_t max_sweeps, double tolerance,
     #                           double *out_eigvals)
