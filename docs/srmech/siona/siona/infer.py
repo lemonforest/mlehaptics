@@ -180,6 +180,11 @@ class Session:
             return "tool-call"  # operand shape = strong evidence (F1009)
         if ws and ws[0] in b.imperatives:
             return "tool-call"
+        if any(w in b.interrogatives for w in ws):
+            return "self-command"  # WH-IN-SITU: an interrogative anywhere marks a question
+                                   # ('water boils at what fahrenheit' -- the CLI's implicit address);
+                                   # grounding selects the read (answer/define/recall). Known caveat:
+                                   # relative-pronoun uses ('he knows what he wants') also match.
         return "continue"
 
     def turn(self, u):

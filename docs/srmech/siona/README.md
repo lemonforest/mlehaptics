@@ -44,7 +44,29 @@ This is the "LM as a k=3 chiral-axis addressing system over a storage substrate"
 
 License: MIT (same as `srmech`).
 
-## The grounded inference loop (`siona.infer`, 0.1.0rc1)
+## The interactive session (`siona` at your shell)
+
+```
+$ siona
+siona 0.1.0rc1 — board: english
+ready — 355 tools grounded. every line is one turn; 'exit' or Ctrl-D to leave.
+siona> remember that water boils at 100 celsius
+[siona.remember] noted (1 items)
+siona> compute the gcd of the boiling point of water and 48
+[srmech] gcd(100, 48) = 4 [operand [100] resolved from: "that water boils at 100 celsius"]
+siona> ingest the kernel fahrenheit is celsius times 9 over 5 plus 32
+[siona.remember] noted (2 items)
+siona> water boils at what fahrenheit
+[siona.answer] 212 fahrenheit (EXACT: (100*9 + 32*5)/5 = 212/1, reduced via srmech gcd)
+siona> siona what can you do
+[siona.help] my commands (8, from my live schema): remember, recall, forget, show, define, continue_text, help, answer
+```
+
+Every `[srmech]` line is a **real, natively-dispatched srmech operation** selected by grounding against the
+live `tool_schema` and executed — not a template. Boards: `--board english` (default) | `bislama` (the
+UDHR-attested board) | `merged` (bilingual code-switching) | any board TOML path.
+
+## The same loop as a library (`siona.infer`)
 
 ```python
 import siona

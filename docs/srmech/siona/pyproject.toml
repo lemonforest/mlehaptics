@@ -35,6 +35,9 @@ dependencies = ["srmech>=0.8.1"]
 
 # THE plugin hook: siona declares itself as a srmech profile (package-only entry-point form; the loader reads
 # siona/srmech_profile.toml via importlib.resources). `srmech.profile("siona")` discovers + smoke-tests + activates it.
+[project.scripts]
+siona = "siona.cli:main"
+
 [project.entry-points."srmech.profiles"]
 siona = "siona"
 
