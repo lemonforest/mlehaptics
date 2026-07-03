@@ -87,3 +87,22 @@ def test_register_conversion_ladder_rc117():
     s.turn("compute the poly from coeffs 1 2 3")
     _, tag, out = s.turn("compute the poly project of it")              # projector wants BiPoly|TriPoly
     assert "poly_project(BiPoly" in out, out                            # the Poly was auto-promoted UP
+
+
+def test_cd_ladder_auto_promote_rc117():
+    """F1040: the register auto-promotes on the CAYLEY-DICKSON ladder too -- a cd element
+    (rung = its length) is lifted UP to a Hurwitz consumer's rung (the algebra NAME is the rung:
+    octonion == dim 8). quaternion_exp -> a rung-4 quaternion -> octonion op promotes 4->8."""
+    import importlib.util
+    if importlib.util.find_spec("srmech.amsc.carrier_ladder") is None:
+        import pytest
+        pytest.skip("carrier_ladder (srmech rc117+) not on this floor")
+    s = siona.Session()
+    s.turn("compute the quaternion exp of 0.5")                          # -> rung-4 quaternion
+    _, tag, out = s.turn("compute the quaternion conjugate of it")
+    assert "quaternion_conjugate([" in out, out                         # same rung, direct bind
+    _, tag, out = s.turn("compute the quaternion exp of 0.5")
+    _, tag, out = s.turn("compute the octonion conjugate of it")
+    assert "octonion_conjugate([" in out, out                           # rung 4 AUTO-PROMOTED to 8
+    # a length-8 result proves the promotion (a bare quaternion would have errored or stayed len-4)
+    assert out.count("Fraction") >= 8 or out.count(",") >= 7, out

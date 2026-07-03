@@ -309,6 +309,46 @@ class Session:
         # because _bind_args lowercases the param type but the descriptor keys are original-case
         return [c for c in self._ladder().get("carriers", {}) if re.search(r"\b%s\b" % c, tp, re.I)]
 
+    CD_NAMES = {"real": 1, "complex": 2, "quaternion": 4, "octonion": 8, "sedenion": 16}
+
+    def _cd_rung(self, obj):
+        """The register's Cayley-Dickson rung = its LENGTH (R1/C2/H4/O8/S16), if it is a numeric
+        sequence of power-of-two length ≤ 16. Unlike the poly ladder (rung = type), the cd rung is
+        the dimension, so type(obj).__name__ ('tuple'/'list') carries no rung -- length does."""
+        if isinstance(obj, (list, tuple)) and 1 <= len(obj) <= 16 and (len(obj) & (len(obj) - 1)) == 0:
+            try:
+                for e in obj:
+                    complex(e)
+                return len(obj)
+            except (TypeError, ValueError):
+                return None
+        return None
+
+    def _cd_target(self, tool_name):
+        # the target Hurwitz rung declared by the op's ALGEBRA NAME (octonion == the dim-8 rung);
+        # the name IS the descriptor's R/C/H/O/S label, not a guess
+        low = tool_name.lower()
+        for k, d in self.CD_NAMES.items():
+            if k in low:
+                return d
+        return None
+
+    def _cd_promote_ref(self, tool_name):
+        """cd-ladder auto-promote (F1040): the register (a cd element) lifted to the op's rung via
+        srmech cd_promote (duality-guarded downward projection stays srmech's -- siona only UP).
+        Returns the (possibly promoted) sequence, or None if not a cd bind."""
+        obj = self.last_result
+        rung = self._cd_rung(obj)
+        if rung is None:
+            return None
+        tgt = self._cd_target(tool_name)
+        if tgt is None or tgt < rung:      # no cd op named, or would need a downgrade -> not our bind
+            return None
+        if tgt == rung:
+            return list(obj)               # dims already match -- bind as-is
+        from srmech.amsc.cascade import cd_promote    # rung -> tgt (one call handles multi-rung)
+        return list(cd_promote(list(obj), tgt))
+
     def _promote_ref(self, tp):
         """The register AS a conversion ladder (F1039): if a param accepts a carrier that the
         register's carrier can be PROMOTED to (same ladder, higher rung), lift it and return the
@@ -360,6 +400,7 @@ class Session:
 
     def _fit(self, t, ints, fls, byts, edges=(), ref=None, u=""):
         pt = lambda p: p.type.lower().strip()
+        t_name = getattr(t, "name", "")
         reqs = [p for p in t.parameters if p.required]
         if not reqs:
             return 0.0
@@ -382,14 +423,19 @@ class Session:
         fltp = fltp + len(sun)  # the union's scalar alternative counts as a float slot
         listp = sum(1 for p in reqs if any(k in pt(p) for k in ("list", "sequence", "tuple"))
                     and not scalar_union(p))
+        cd_bind = (ref and t_name and self._cd_rung(self.last_result) is not None
+                   and self._cd_target(t_name) is not None
+                   and any("hv" in pt(p) or any(k in pt(p) for k in ("sequence", "list")) for p in reqs))
         def ref_fits(p):
-            t = pt(p)
-            if any(k in t for k in ("list", "sequence", "tuple")):
+            tt = pt(p)
+            if cd_bind and ("hv" in tt or any(k in tt for k in ("sequence", "list"))):
+                return True                         # the cd element fills the Hurwitz operand
+            if any(k in tt for k in ("list", "sequence", "tuple")):
                 return False
-            if ref and ref.lower() in t:            # direct scalar-carrier-name match
+            if ref and ref.lower() in tt:           # direct scalar-carrier-name match
                 return True
-            return bool(self._accepts(t)) and self.last_result is not None \
-                and self._promote_ref(t) is not None    # promotable via the ladder
+            return bool(self._accepts(tt)) and self.last_result is not None \
+                and self._promote_ref(tt) is not None    # promotable via the poly ladder
         refp = sum(1 for p in reqs if ref and ref_fits(p))
         if len(reqs) - intp - fltp - bytp - listp - refp:
             return 0.0
@@ -520,6 +566,13 @@ class Session:
                     args.append(list(edges))       # EDGE-PAIR operands -> Iterable[Tuple[int,int]] params
                 else:
                     args.append(ints[ii:]); ii = len(ints)
+            elif (ref and ("hv" in tp or any(k in tp for k in ("sequence", "list")))
+                  and self._cd_rung(self.last_result) is not None
+                  and self._cd_target(pick) is not None):
+                seq = self._cd_promote_ref(pick)   # cd-ladder auto-promote UP to the op's Hurwitz rung
+                if seq is None:
+                    return None
+                args.append(seq)
             elif ref and (ref.lower() in tp or self._accepts(tp)):
                 promoted = self._promote_ref(tp)   # the register AS a conversion ladder (auto-promote UP)
                 if promoted is None:
