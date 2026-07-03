@@ -2699,3 +2699,482 @@ srmech_status_t srmech_riemann_theta_g4_schottky_shell(
     *out_len = idx;
     return SRMECH_OK;
 }
+
+/* ------------------------------------------------------------------ *
+ * rc107: the generic SPARSE SAFE-SUPPORT GATE DECISION kernel — the ONE C peer of
+ * ALL the genus-axis theta identity/distinctness gates (g in {2..5}) of
+ * srmech.amsc.riemann_theta (duplication_holds / addition_holds / goepel_holds +
+ * the *_is_distinct_* gates) — the #707 dive's SAFE-REGION PUSH-DOWN.
+ *
+ * The mathematics (the soundness argument, same as the shipped _diag_restrict):
+ * every gate compares two signed sums of theta-lattice PRODUCTS only on the safe
+ * inner region {A_i <= safe, |C_ij| <= safe}. The diagonal exponents A_i are
+ * non-negative squares and ADD under the lattice convolution, so a product
+ * monomial inside the safe region can only come from factor monomials each with
+ * A_i <= safe — each factor is therefore enumerated DIRECTLY on its safe support
+ * {u : dc*u^2 <= safe} (the exact safe region of the INFINITE theta series —
+ * box-parameter-free) and the convolutions carry a diagonal-additivity guard.
+ * The compared (restricted) lattices are BIT-IDENTICAL to the dense
+ * box-enumerate-then-restrict path (the rc107 bit-identity tests re-prove it).
+ *
+ * Wire format (int32 spec; the Python side is the SSOT of the pair/syzygy data):
+ *   per comparison: [n_lhs, n_rhs] then (n_lhs + n_rhs) products
+ *   per product:    [sign(+-1), n_factors(2 or 4)] then the factor specs
+ *   per factor:     [dc, step, a[0..g-1], e[0..g-1]]   (2 + 2g int32)
+ * A factor's terms are u_i = step*n_i + a_i with diagonal dc*u_i^2, cross
+ * dc*u_i*u_j, and the Class-K pin-slot sign (-1)^{e.n} (explicit +-1 branch,
+ * never an ALU abs()). Per comparison: accumulate LHS products (hash table)
+ * -> out_cross[c] (a surviving genus-g cross monomial C_{i,g} != 0), subtract
+ * RHS products -> out_equal[c] (residual vanishes <=> LHS == RHS as zero-dropped
+ * dicts). restrict_crosses=0 is the diagonal-only (_diag_restrict-shaped) mode
+ * of the distinctness gates.
+ *
+ * Caller-arena: ONE int64 work[] (sized via srmech_riemann_theta_gate_count)
+ * holding the MAIN accumulator hash table + four aux tables (2 factor + 2
+ * intermediate), each slot [used, key(n), coeff], n = g + g(g-1)/2. Per-genus
+ * compiled caps (the GOEPEL_CAP precedent); a cap overflow returns
+ * SRMECH_ERR_OVERFLOW (overflow-not-wrap) and the caller falls to the pure
+ * sparse body. No malloc. Additive symbols -> ABI unchanged (stays 3).
+ *
+ * JPL: Rule 1 (no goto/recursion) OK; Rule 2 (bounded loops — supports capped at
+ * RTGATE_SUP_MAX per coordinate, probes capped at the table size, spec parsing
+ * bounds-checked) OK; Rule 3 (no malloc) OK; Rule 4 (<=60 lines/fn) OK; Rule 5
+ * (>=2 asserts/fn) OK; Rule 7 (status propagated) OK; Rule 8 (no fn-like
+ * macros) OK.
+ * ------------------------------------------------------------------ */
+
+#define RTGATE_MAX_G 5u
+#define RTGATE_MAX_N 15u                /* g + g(g-1)/2 at g = 5 */
+#define RTGATE_AUX_SLOTS 8192u          /* factor/intermediate table slots (pow2) */
+#define RTGATE_SUP_MAX 256u             /* per-coordinate safe-support ceiling */
+#define RTGATE_MAX_PRODS 64u            /* per-side product ceiling (dup g5 = 32) */
+
+/* The MAIN accumulator hash-table slot count for genus g (powers of two; sized
+ * from the measured safe-region key counts at the shipped gate boxes with >2x
+ * headroom: g2 dup box8 = 4772, g3 dup box4 = 14833, g4 dup box2 = 3747 (box3 =
+ * 89109 exceeds the cap -> pure path), g5 dup box2 = 47254). */
+static size_t rtgate_main_slots(uint32_t g)
+{
+    assert(g >= 2u && g <= RTGATE_MAX_G);
+    assert((RTGATE_AUX_SLOTS & (RTGATE_AUX_SLOTS - 1u)) == 0u);
+    if (g == 2u) { return 32768u; }
+    if (g == 5u) { return 131072u; }
+    return 65536u;                      /* g3, g4 */
+}
+
+size_t srmech_riemann_theta_gate_count(uint32_t g)
+{
+    size_t n, stride;
+    assert(RTGATE_MAX_N == RTGATE_MAX_G + RTGATE_MAX_G * (RTGATE_MAX_G - 1u) / 2u);
+    assert(RTGATE_SUP_MAX >= 2u);
+    if (g < 2u || g > RTGATE_MAX_G) {
+        return 0u;
+    }
+    n = (size_t)g + (size_t)g * ((size_t)g - 1u) / 2u;
+    stride = n + 2u;                    /* [used, key(n), coeff] */
+    return (rtgate_main_slots(g) + 4u * (size_t)RTGATE_AUX_SLOTS) * stride;
+}
+
+/* FNV-1a over the n int64 key slots + a final avalanche — the hash-table index
+ * source. Deterministic; the table order never reaches the verdict (only the
+ * all-zero / cross-presence scans do). */
+static uint64_t rtgate_hash(const int64_t *key, size_t n)
+{
+    uint64_t h = 1469598103934665603ULL;
+    size_t i;
+    assert(key != NULL);
+    assert(n >= 3u && n <= (size_t)RTGATE_MAX_N);
+    for (i = 0u; i < n; ++i) {
+        h ^= (uint64_t)key[i];
+        h *= 1099511628211ULL;
+    }
+    h ^= h >> 29;
+    h *= 0xbf58476d1ce4e5b9ULL;
+    h ^= h >> 32;
+    return h;
+}
+
+/* Clear a table's used flags (key/coeff slots may stay stale — never read while
+ * unused). Bounded loop over the slots (JPL Rule 2). */
+static void rtgate_reset(int64_t *tab, size_t slots, size_t stride)
+{
+    size_t i;
+    assert(tab != NULL);
+    assert(slots > 0u && stride >= 5u && stride <= (size_t)RTGATE_MAX_N + 2u);
+    for (i = 0u; i < slots; ++i) {
+        tab[i * stride] = 0;
+    }
+}
+
+/* Merge one monomial (key, coeff) into a hash table (linear probing; load
+ * ceiling 1/2 -> SRMECH_ERR_OVERFLOW, overflow-not-wrap). */
+static srmech_status_t rtgate_accum(int64_t *tab, size_t slots, size_t n,
+                                    const int64_t *key, int64_t coeff,
+                                    size_t *count)
+{
+    size_t stride = n + 2u, probe, i;
+    uint64_t idx;
+    int64_t *slot;
+    int match;
+    assert(tab != NULL && key != NULL && count != NULL);
+    assert(slots >= 8u && (slots & (slots - 1u)) == 0u);
+    idx = rtgate_hash(key, n) & (uint64_t)(slots - 1u);
+    for (probe = 0u; probe < slots; ++probe) {
+        slot = tab + (size_t)((idx + (uint64_t)probe) & (uint64_t)(slots - 1u)) * stride;
+        if (slot[0] == 0) {
+            if ((*count + 1u) * 2u > slots) {
+                return SRMECH_ERR_OVERFLOW;   /* load ceiling — caller falls pure */
+            }
+            slot[0] = 1;
+            for (i = 0u; i < n; ++i) { slot[1u + i] = key[i]; }
+            slot[1u + n] = coeff;
+            *count += 1u;
+            return SRMECH_OK;
+        }
+        match = 1;
+        for (i = 0u; i < n; ++i) {
+            if (slot[1u + i] != key[i]) { match = 0; break; }
+        }
+        if (match == 1) {
+            slot[1u + n] += coeff;
+            return SRMECH_OK;
+        }
+    }
+    return SRMECH_ERR_OVERFLOW;               /* unreachable below the ceiling */
+}
+
+/* Exact integer floor square root (Newton, integer-only — no libm/float): the
+ * safe-support radius. */
+static int64_t rtgate_isqrt(int64_t v)
+{
+    int64_t x, y;
+    assert(v >= 0);
+    if (v == 0) { return 0; }
+    x = v;
+    y = (x + 1) / 2;
+    while (y < x) {
+        x = y;
+        y = (x + v / x) / 2;
+    }
+    assert(x >= 0 && x <= v && x * x <= v);
+    return x;
+}
+
+/* Build the per-coordinate SAFE SUPPORTS of one factor spec fs = [dc, step,
+ * a[0..g-1], e[0..g-1]]: su[i][] <- the u values with u = step*n + a_i and
+ * dc*u^2 <= safe; sn[i][] <- the matching n-PARITY bits (the Class-K sign
+ * source); ns[i] <- the count. The exact safe support of the INFINITE theta
+ * series — no box parameter. */
+static srmech_status_t rtgate_supports(uint32_t g, int64_t safe,
+                                       const int32_t *fs,
+                                       int32_t su[][RTGATE_SUP_MAX],
+                                       int32_t sn[][RTGATE_SUP_MAX],
+                                       size_t *ns)
+{
+    int64_t dc = (int64_t)fs[0], step = (int64_t)fs[1], umax, u, a, e;
+    size_t i, c;
+    assert(fs != NULL && ns != NULL);
+    assert(g >= 2u && g <= RTGATE_MAX_G);
+    if ((dc != 1 && dc != 2) || (step != 2 && step != 4) || safe < 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    umax = rtgate_isqrt(safe / dc);
+    for (i = 0u; i < (size_t)g; ++i) {
+        a = (int64_t)fs[2u + i];
+        e = (int64_t)fs[2u + (size_t)g + i];
+        if ((e != 0 && e != 1) || a < -16 || a > 16) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        c = 0u;
+        for (u = -umax; u <= umax; ++u) {
+            if ((u - a) % step != 0 || dc * u * u > safe) {
+                continue;
+            }
+            if (c >= (size_t)RTGATE_SUP_MAX) {
+                return SRMECH_ERR_BAD_INPUT;  /* support ceiling (safe too big) */
+            }
+            su[i][c] = (int32_t)u;
+            sn[i][c] = (int32_t)((((u - a) / step) % 2 + 2) % 2);
+            c += 1u;
+        }
+        ns[i] = c;
+    }
+    return SRMECH_OK;
+}
+
+/* Enumerate one sparse theta FACTOR into a (reset) hash table: a bounded
+ * odometer over the per-coordinate safe supports; per point the key
+ * (dc*u_i^2 .., dc*u_i*u_j ..) and the Class-K sign (-1)^{e.n}. */
+static srmech_status_t rtgate_factor(uint32_t g, int64_t safe, const int32_t *fs,
+                                     int64_t *tab, size_t slots, size_t *count)
+{
+    int32_t su[RTGATE_MAX_G][RTGATE_SUP_MAX];
+    int32_t sn[RTGATE_MAX_G][RTGATE_SUP_MAX];
+    size_t ns[RTGATE_MAX_G], i, j, k, idx, total, flat, rem;
+    size_t n = (size_t)g + (size_t)g * ((size_t)g - 1u) / 2u;
+    int64_t u[RTGATE_MAX_G], key[RTGATE_MAX_N], dc, par, coeff;
+    srmech_status_t st;
+    assert(tab != NULL && count != NULL);
+    assert(fs != NULL && g >= 2u && g <= RTGATE_MAX_G);
+    st = rtgate_supports(g, safe, fs, su, sn, ns);
+    if (st != SRMECH_OK) { return st; }
+    rtgate_reset(tab, slots, n + 2u);
+    *count = 0u;
+    dc = (int64_t)fs[0];
+    total = 1u;
+    for (i = 0u; i < (size_t)g; ++i) {
+        if (ns[i] == 0u) { return SRMECH_OK; }    /* empty support, empty factor */
+        total *= ns[i];
+    }
+    for (flat = 0u; flat < total; ++flat) {
+        rem = flat;
+        par = 0;
+        for (i = (size_t)g; i > 0u; --i) {
+            idx = rem % ns[i - 1u];
+            rem /= ns[i - 1u];
+            u[i - 1u] = (int64_t)su[i - 1u][idx];
+            par += (int64_t)fs[2u + (size_t)g + (i - 1u)] * (int64_t)sn[i - 1u][idx];
+        }
+        coeff = ((par % 2) == 0) ? 1 : -1;        /* Class-K pin-slot, never abs() */
+        k = 0u;
+        for (i = 0u; i < (size_t)g; ++i) { key[k] = dc * u[i] * u[i]; k += 1u; }
+        for (i = 0u; i < (size_t)g; ++i) {
+            for (j = i + 1u; j < (size_t)g; ++j) { key[k] = dc * u[i] * u[j]; k += 1u; }
+        }
+        st = rtgate_accum(tab, slots, n, key, coeff, count);
+        if (st != SRMECH_OK) { return st; }
+    }
+    return SRMECH_OK;
+}
+
+/* Guarded lattice convolution ta x tb -> out (+= sign * coeff products): the
+ * DIAGONAL-ADDITIVITY GUARD (each diagonal sum <= safe — sound: diagonals are
+ * non-negative and additive) always applies; final_crosses != 0 additionally
+ * applies the |C_ij| <= safe cut (the full safe region; a per-key filter, so
+ * applying it during accumulation == restricting afterwards). Zero-coefficient
+ * entries are skipped (they contribute nothing — the dicts' zero-drop). */
+static srmech_status_t rtgate_conv(uint32_t g, int64_t safe, int final_crosses,
+                                   int64_t sign, const int64_t *ta, size_t sa,
+                                   const int64_t *tb, size_t sb,
+                                   int64_t *out, size_t out_slots,
+                                   size_t *out_count)
+{
+    size_t n = (size_t)g + (size_t)g * ((size_t)g - 1u) / 2u;
+    size_t stride = n + 2u, ia, ib, i;
+    int64_t key[RTGATE_MAX_N], m;
+    const int64_t *ra, *rb;
+    int ok;
+    srmech_status_t st;
+    assert(ta != NULL && tb != NULL && out != NULL);
+    assert(out_count != NULL && (sign == 1 || sign == -1));
+    for (ia = 0u; ia < sa; ++ia) {
+        ra = ta + ia * stride;
+        if (ra[0] == 0 || ra[1u + n] == 0) { continue; }
+        for (ib = 0u; ib < sb; ++ib) {
+            rb = tb + ib * stride;
+            if (rb[0] == 0 || rb[1u + n] == 0) { continue; }
+            ok = 1;
+            for (i = 0u; i < (size_t)g; ++i) {
+                key[i] = ra[1u + i] + rb[1u + i];
+                if (key[i] > safe) { ok = 0; break; }
+            }
+            for (i = (size_t)g; ok == 1 && i < n; ++i) {
+                key[i] = ra[1u + i] + rb[1u + i];
+                if (final_crosses != 0) {
+                    m = (key[i] >= 0) ? key[i] : -key[i];  /* Class-K, no abs() */
+                    if (m > safe) { ok = 0; }
+                }
+            }
+            if (ok == 0) { continue; }
+            st = rtgate_accum(out, out_slots, n, key,
+                              sign * ra[1u + n] * rb[1u + n], out_count);
+            if (st != SRMECH_OK) { return st; }
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* Accumulate ONE product spec ps = [sign, nf, factors...] into the main table
+ * with overall sign (sign_mul * ps.sign). nf == 2: one guarded convolution;
+ * nf == 4 (the Goepel theta^2[a]*theta^2[b] shape): pair the squares first —
+ * intermediates carry the diagonal guard only (sound by additivity), the LAST
+ * convolution applies the requested final restriction. f1/f2/ta/tb are the aux
+ * tables (RTGATE_AUX_SLOTS each). */
+static srmech_status_t rtgate_product(uint32_t g, int64_t safe, int final_crosses,
+                                      int64_t sign_mul, const int32_t *ps,
+                                      int64_t *f1, int64_t *f2,
+                                      int64_t *ta, int64_t *tb,
+                                      int64_t *main_tab, size_t main_slots,
+                                      size_t *main_count)
+{
+    size_t n = (size_t)g + (size_t)g * ((size_t)g - 1u) / 2u;
+    size_t fstride = 2u + 2u * (size_t)g, c1, c2, ca, cb;
+    size_t aux = (size_t)RTGATE_AUX_SLOTS;
+    int64_t sign = (int64_t)ps[0];
+    int32_t nf = ps[1];
+    srmech_status_t st;
+    assert(ps != NULL && main_tab != NULL && main_count != NULL);
+    assert(f1 != NULL && f2 != NULL && ta != NULL && tb != NULL);
+    if ((sign != 1 && sign != -1) || (nf != 2 && nf != 4)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    sign = sign * sign_mul;
+    st = rtgate_factor(g, safe, ps + 2u, f1, aux, &c1);
+    if (st != SRMECH_OK) { return st; }
+    st = rtgate_factor(g, safe, ps + 2u + fstride, f2, aux, &c2);
+    if (st != SRMECH_OK) { return st; }
+    if (nf == 2) {
+        return rtgate_conv(g, safe, final_crosses, sign, f1, aux, f2, aux,
+                           main_tab, main_slots, main_count);
+    }
+    rtgate_reset(ta, aux, n + 2u);
+    ca = 0u;
+    st = rtgate_conv(g, safe, 0, 1, f1, aux, f2, aux, ta, aux, &ca);
+    if (st != SRMECH_OK) { return st; }
+    st = rtgate_factor(g, safe, ps + 2u + 2u * fstride, f1, aux, &c1);
+    if (st != SRMECH_OK) { return st; }
+    st = rtgate_factor(g, safe, ps + 2u + 3u * fstride, f2, aux, &c2);
+    if (st != SRMECH_OK) { return st; }
+    rtgate_reset(tb, aux, n + 2u);
+    cb = 0u;
+    st = rtgate_conv(g, safe, 0, 1, f1, aux, f2, aux, tb, aux, &cb);
+    if (st != SRMECH_OK) { return st; }
+    return rtgate_conv(g, safe, final_crosses, sign, ta, aux, tb, aux,
+                       main_tab, main_slots, main_count);
+}
+
+/* 1 iff a surviving (coeff != 0) monomial in the table carries a GENUS-g
+ * cross-term C_{i,g} != 0 (a pair slot whose second index is the last
+ * coordinate) — the per-gate "genuinely genus-g" cross check. */
+static int rtgate_scan_cross(uint32_t g, const int64_t *tab, size_t slots)
+{
+    size_t n = (size_t)g + (size_t)g * ((size_t)g - 1u) / 2u;
+    size_t stride = n + 2u, s, i, j, p;
+    int is_gc[RTGATE_MAX_N];
+    const int64_t *row;
+    int has = 0;
+    assert(tab != NULL);
+    assert(g >= 2u && g <= RTGATE_MAX_G);
+    p = (size_t)g;
+    for (i = 0u; i < (size_t)g; ++i) {
+        for (j = i + 1u; j < (size_t)g; ++j) {
+            is_gc[p] = (j == (size_t)g - 1u) ? 1 : 0;
+            p += 1u;
+        }
+    }
+    for (s = 0u; s < slots && has == 0; ++s) {
+        row = tab + s * stride;
+        if (row[0] == 0 || row[1u + n] == 0) { continue; }
+        for (i = (size_t)g; i < n; ++i) {
+            if (is_gc[i] == 1 && row[1u + i] != 0) { has = 1; break; }
+        }
+    }
+    return has;
+}
+
+/* 1 iff every used slot's coefficient is zero (the residual vanishes — the two
+ * zero-dropped sides are equal). */
+static int rtgate_scan_zero(uint32_t g, const int64_t *tab, size_t slots)
+{
+    size_t n = (size_t)g + (size_t)g * ((size_t)g - 1u) / 2u;
+    size_t stride = n + 2u, s;
+    assert(tab != NULL);
+    assert(g >= 2u && g <= RTGATE_MAX_G);
+    for (s = 0u; s < slots; ++s) {
+        if (tab[s * stride] != 0 && tab[s * stride + 1u + n] != 0) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/* Parse + accumulate ONE side (n_prods products) of a comparison from the spec
+ * at *pos (bounds-checked), with the side's overall sign_mul (+1 LHS / -1 RHS). */
+static srmech_status_t rtgate_side(uint32_t g, int64_t safe, int final_crosses,
+                                   int64_t sign_mul, const int32_t *spec,
+                                   size_t spec_len, size_t *pos, uint32_t n_prods,
+                                   int64_t *f1, int64_t *f2, int64_t *ta, int64_t *tb,
+                                   int64_t *main_tab, size_t main_slots,
+                                   size_t *main_count)
+{
+    size_t fstride = 2u + 2u * (size_t)g, need;
+    uint32_t p;
+    int32_t nf;
+    srmech_status_t st;
+    assert(spec != NULL && pos != NULL);
+    assert(main_tab != NULL && main_count != NULL);
+    if (n_prods == 0u || n_prods > RTGATE_MAX_PRODS) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (p = 0u; p < n_prods; ++p) {
+        if (*pos + 2u > spec_len) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        nf = spec[*pos + 1u];
+        if (nf != 2 && nf != 4) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        need = 2u + (size_t)nf * fstride;
+        if (*pos + need > spec_len) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        st = rtgate_product(g, safe, final_crosses, sign_mul, spec + *pos,
+                            f1, f2, ta, tb, main_tab, main_slots, main_count);
+        if (st != SRMECH_OK) { return st; }
+        *pos += need;
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_riemann_theta_gate_decide(
+    uint32_t g, int64_t safe, uint32_t restrict_crosses,
+    const int32_t *spec, size_t spec_len, uint32_t n_comparisons,
+    int64_t *work, size_t work_cap,
+    int32_t *out_equal, int32_t *out_cross)
+{
+    size_t n, stride, main_slots, aux, pos, main_count;
+    int64_t *main_tab, *f1, *f2, *ta, *tb;
+    uint32_t c, n_lhs, n_rhs;
+    int fc;
+    srmech_status_t st;
+    assert(out_equal != NULL && out_cross != NULL);
+    assert(work != NULL || work_cap == 0u);
+    if (g < 2u || g > RTGATE_MAX_G || safe < 0 || n_comparisons == 0u
+            || spec == NULL || work == NULL
+            || work_cap < srmech_riemann_theta_gate_count(g)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    n = (size_t)g + (size_t)g * ((size_t)g - 1u) / 2u;
+    stride = n + 2u;
+    main_slots = rtgate_main_slots(g);
+    aux = (size_t)RTGATE_AUX_SLOTS * stride;
+    main_tab = work;
+    f1 = work + main_slots * stride;
+    f2 = f1 + aux;
+    ta = f2 + aux;
+    tb = ta + aux;
+    fc = (restrict_crosses != 0u) ? 1 : 0;
+    pos = 0u;
+    for (c = 0u; c < n_comparisons; ++c) {
+        if (pos + 2u > spec_len) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        n_lhs = (uint32_t)spec[pos];
+        n_rhs = (uint32_t)spec[pos + 1u];
+        pos += 2u;
+        rtgate_reset(main_tab, main_slots, stride);
+        main_count = 0u;
+        st = rtgate_side(g, safe, fc, 1, spec, spec_len, &pos, n_lhs,
+                         f1, f2, ta, tb, main_tab, main_slots, &main_count);
+        if (st != SRMECH_OK) { return st; }
+        out_cross[c] = (int32_t)rtgate_scan_cross(g, main_tab, main_slots);
+        st = rtgate_side(g, safe, fc, -1, spec, spec_len, &pos, n_rhs,
+                         f1, f2, ta, tb, main_tab, main_slots, &main_count);
+        if (st != SRMECH_OK) { return st; }
+        out_equal[c] = (int32_t)rtgate_scan_zero(g, main_tab, main_slots);
+    }
+    if (pos != spec_len) {
+        return SRMECH_ERR_BAD_INPUT;      /* trailing garbage in the spec */
+    }
+    return SRMECH_OK;
+}

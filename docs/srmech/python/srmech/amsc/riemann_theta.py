@@ -425,6 +425,285 @@ def _restrict_diag(lat: "Dict[Tuple[int, ...], Tuple[int, ...]]", safe: int,
             if all(k[i] <= safe for i in range(ndiag))}
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# rc107: SAFE-REGION PUSH-DOWN — the sparse safe-support gate internals (the #707
+# dive's Deliverable B1). Every ``*_holds`` / ``*_is_distinct_*`` gate on the
+# genus-axis carriers compares the two sides of a theta identity ONLY on the safe
+# inner region {Aᵢ ≤ safe, |C_ij| ≤ safe}. The dense path enumerated the FULL
+# (2·box+1)^g factor boxes, convolved fully, THEN restricted. But the diagonal
+# exponents Aᵢ are NON-NEGATIVE and ADDITIVE under the lattice convolution (the
+# same soundness argument as the shipped ``_diag_restrict``), so a product
+# monomial inside the safe region can ONLY come from factor monomials each with
+# Aᵢ ≤ safe — and each factor can therefore be enumerated DIRECTLY on its safe
+# support {u : dc·u² ≤ safe}, the EXACT safe region of the INFINITE theta series
+# (box-parameter-free), and convolved with a diagonal-additivity guard. The
+# restricted result is BIT-IDENTICAL to the dense path (measured ×48 … ×6,900 on
+# the shipped gates; the no-shell bit-identity tests live in
+# ``tests/test_riemann_theta_rc107_sparse_gates.py``).
+#
+# The machinery is ONE generic mechanism over the g-generic key layout
+# ``(A₁ … A_g, C_ij i<j lex)``: a sparse safe-support FACTOR enumerator
+# (:func:`_sparse_factor`), a diagonal-guarded CONVOLUTION (:func:`_sparse_conv`),
+# a signed PRODUCT-SUM accumulator (:func:`_sparse_sum`), and a comparison DECIDER
+# (:func:`_sparse_decide`) that dispatches the WHOLE decision to the native
+# ``srmech_riemann_theta_gate_decide`` C peer when loaded (ONE call per gate — no
+# per-lattice dict marshaling; the rc106 finding that marshaling the eighth
+# lattices through ctypes was a net slowdown is exactly why), else runs the pure
+# body (the COMPLETE alternative + the parity oracle). Exact integer, no float,
+# no ``abs()`` (Class-K sign branches only), no numpy / ``math``.
+#
+# A factor spec is ``(dc, step, avec, evec)``: the factor's terms are
+# ``u_i = step·n_i + avec[i]`` with diagonal exponent ``dc·u_i²``, cross exponent
+# ``dc·u_i·u_j``, and Class-K sign ``(−1)^{evec·n}``:
+#   * quarter-nome theta at Ω:            dc=1, step=2, avec=ε′, evec=ε
+#   * quarter-nome theta at 2Ω (doubled): dc=2, step=2, avec=c,  evec=0
+#   * eighth-nome theta at Ω:             dc=2, step=2, avec=a,  evec=0
+#   * eighth-nome theta at 2Ω:            dc=1, step=4, avec=s,  evec=0
+# A product is ``(sign, factors)`` with 2 or 4 factors; a comparison is
+# ``(lhs_prods, rhs_prods)``; the decider returns per comparison
+# ``(equal, lhs_has_genus_cross)``.
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _sparse_pairs(g: int) -> "List[Tuple[int, int]]":
+    """The lex-ordered cross-term index pairs ``(i, j)``, ``i < j``, of the genus-g
+    key layout ``(A₁ … A_g, C_ij …)`` — g(g−1)/2 pairs."""
+    return [(i, j) for i in range(g) for j in range(i + 1, g)]
+
+
+def _sparse_cross_slots(g: int) -> "Tuple[int, ...]":
+    """The key slots of the GENUS-g cross-terms ``C_i,g`` (the pairs involving the
+    LAST coordinate) — the cross-terms whose presence proves the gate genuinely
+    exercises the genus-g coupling, not a lower-genus slice. For g=2 this is the
+    single cross slot; for g=3 the (C₁₃, C₂₃) slots; for g=4 (C₁₄, C₂₄, C₃₄); for
+    g=5 (C₁₅, C₂₅, C₃₅, C₄₅) — exactly the per-gate cross checks the dense bodies
+    used."""
+    return tuple(g + idx for idx, (_i, j) in enumerate(_sparse_pairs(g))
+                 if j == g - 1)
+
+
+def _sparse_isqrt(n: int) -> int:
+    """Exact integer floor square root (Newton, integer-only — no ``math``, no
+    float). The safe-support radius helper."""
+    if n < 0:
+        raise ValueError(f"_sparse_isqrt: negative {n!r}")
+    if n == 0:
+        return 0
+    x = n
+    y = (x + 1) // 2
+    while y < x:
+        x = y
+        y = (x + n // x) // 2
+    return x
+
+
+def _sparse_factor(g: int, safe: int, dc: int, step: int,
+                   avec: "Tuple[int, ...]", evec: "Tuple[int, ...]"
+                   ) -> "Dict[Tuple[int, ...], int]":
+    """The safe-support-restricted theta FACTOR lattice, enumerated SPARSELY: only
+    ``u_i = step·n_i + avec[i]`` with ``dc·u_i² ≤ safe`` (the exact safe support of
+    the INFINITE theta series — no box parameter), accumulating the Class-K sign
+    ``(−1)^{evec·n}`` (an explicit ±1 branch, never ``abs()``). Keys are the
+    g-generic ``(dc·u_i² …, dc·u_i·u_j …)`` layout. Exact integer; a bounded
+    odometer loop (JPL Rule 2 shape, mirrored by the C peer)."""
+    umax_sq = safe // dc
+    umax = _sparse_isqrt(umax_sq)
+    per_u: "List[List[int]]" = []
+    per_n: "List[List[int]]" = []
+    for a in avec:
+        us: "List[int]" = []
+        ns: "List[int]" = []
+        for u in range(-umax, umax + 1):
+            if (u - a) % step == 0 and dc * u * u <= safe:
+                us.append(u)
+                ns.append((u - a) // step)
+        per_u.append(us)
+        per_n.append(ns)
+    pr = _sparse_pairs(g)
+    out: "Dict[Tuple[int, ...], int]" = {}
+    sizes = [len(us) for us in per_u]
+    if any(s == 0 for s in sizes):
+        return out
+    total = 1
+    for s in sizes:
+        total *= s
+    for flat in range(total):
+        rem = flat
+        u = [0] * g
+        parity = 0
+        for i in range(g - 1, -1, -1):
+            idx = rem % sizes[i]
+            rem //= sizes[i]
+            u[i] = per_u[i][idx]
+            parity += evec[i] * per_n[i][idx]
+        sign = 1 if parity % 2 == 0 else -1          # Class-K pin-slot, never abs()
+        key = tuple([dc * u[i] * u[i] for i in range(g)]
+                    + [dc * u[i] * u[j] for (i, j) in pr])
+        out[key] = out.get(key, 0) + sign
+    return {k: v for k, v in out.items() if v != 0}
+
+
+def _sparse_conv(g: int, safe: int, la: "Dict[Tuple[int, ...], int]",
+                 lb: "Dict[Tuple[int, ...], int]",
+                 crosses: bool) -> "Dict[Tuple[int, ...], int]":
+    """The exact-integer lattice product ``la · lb`` with the DIAGONAL-ADDITIVITY
+    GUARD: pairs whose per-coordinate diagonal sums exceed ``safe`` are skipped
+    (SOUND — diagonals are non-negative and additive, so such pairs can never land
+    inside the safe region). With ``crosses=True`` the output is additionally
+    restricted to ``|C_ij| ≤ safe`` (the FINAL safe-region cut — a per-key filter,
+    so applying it during accumulation is identical to restricting afterwards);
+    with ``crosses=False`` only the diagonal guard applies (the ``_diag_restrict``
+    comparison mode of the distinctness gates). Class-K magnitudes, no ``abs()``."""
+    n = g + (g * (g - 1)) // 2
+    out: "Dict[Tuple[int, ...], int]" = {}
+    items_b = list(lb.items())
+    for k1, v1 in la.items():
+        for k2, v2 in items_b:
+            ok = True
+            for i in range(g):
+                if k1[i] + k2[i] > safe:
+                    ok = False
+                    break
+            if not ok:
+                continue
+            key = tuple(k1[i] + k2[i] for i in range(n))
+            if crosses:
+                for c in key[g:]:
+                    m = c if c >= 0 else -c          # Class-K magnitude, no abs()
+                    if m > safe:
+                        ok = False
+                        break
+                if not ok:
+                    continue
+            out[key] = out.get(key, 0) + v1 * v2
+    return {k: v for k, v in out.items() if v != 0}
+
+
+def _sparse_product(g: int, safe: int,
+                    factors: "Tuple[Tuple[int, int, Tuple[int, ...], Tuple[int, ...]], ...]",
+                    crosses: bool) -> "Dict[Tuple[int, ...], int]":
+    """One safe-region product of 2 or 4 sparse theta factors. A 2-factor product
+    is a single guarded convolution; a 4-factor product (the Göpel θ²[a]·θ²[b]
+    shape) pairs the squares first — intermediates carry the diagonal guard only
+    (sound by additivity; bit-identical to the unrestricted product after the
+    final cut), the LAST convolution applies the requested final restriction."""
+    lats = [_sparse_factor(g, safe, dc, step, avec, evec)
+            for (dc, step, avec, evec) in factors]
+    if len(lats) == 2:
+        return _sparse_conv(g, safe, lats[0], lats[1], crosses)
+    if len(lats) != 4:
+        raise ValueError(f"_sparse_product: 2 or 4 factors, got {len(lats)}")
+    ta = _sparse_conv(g, safe, lats[0], lats[1], False)
+    tb = _sparse_conv(g, safe, lats[2], lats[3], False)
+    return _sparse_conv(g, safe, ta, tb, crosses)
+
+
+def _sparse_sum(g: int, safe: int,
+                prods: "List[Tuple[int, tuple]]",
+                crosses: bool = True) -> "Dict[Tuple[int, ...], int]":
+    """The signed sum ``Σ sign·product`` of safe-region products (one gate SIDE) —
+    zero coefficients dropped (matching the dense bodies' zero-drop)."""
+    out: "Dict[Tuple[int, ...], int]" = {}
+    for (sign, factors) in prods:
+        for k, v in _sparse_product(g, safe, factors, crosses).items():
+            out[k] = out.get(k, 0) + sign * v
+    return {k: v for k, v in out.items() if v != 0}
+
+
+def _sparse_has_genus_cross(g: int, lat: "Dict[Tuple[int, ...], int]") -> bool:
+    """True iff the lattice genuinely touches a GENUS-g cross-term (a nonzero
+    ``C_i,g`` slot on a surviving monomial) — the per-gate cross check."""
+    slots = _sparse_cross_slots(g)
+    return any(any(k[s] != 0 for s in slots) for k in lat)
+
+
+def _native_gate():
+    """The native ``_native`` module IF the rc107 ``srmech_riemann_theta_gate_decide``
+    peer (the generic sparse safe-support gate decision kernel) is present and bound,
+    else ``None`` — so every genus-axis gate dispatches its WHOLE decision to C in ONE
+    call (no per-lattice dict marshaling) and falls cleanly to the pure sparse body
+    (the complete alternative + the parity oracle). Imported lazily to avoid a
+    bootstrap cycle."""
+    try:
+        from . import _native as nat
+    except ImportError:
+        return None
+    probe = getattr(nat, "has_native_riemann_theta_gate", None)
+    return nat if (probe is not None and probe()) else None
+
+
+def _sparse_decide(g: int, safe: int,
+                   comparisons: "List[Tuple[list, list]]",
+                   crosses: bool = True) -> "List[Tuple[bool, bool]]":
+    """DECIDE a list of gate comparisons ``(lhs_prods, rhs_prods)`` on the safe
+    region → per comparison ``(lhs == rhs, lhs_has_genus_cross)``. DISPATCHES the
+    whole list to the native ``srmech_riemann_theta_gate_decide`` C peer when
+    loaded (ONE ctypes call per gate; only verdict ints cross the boundary —
+    trusted only on a native hit); else the pure sparse body (the COMPLETE
+    alternative + the parity oracle)."""
+    nat = _native_gate()
+    if nat is not None:
+        try:
+            got = nat.riemann_theta_gate_decide_c(g, safe, crosses, comparisons)
+            if got is not None:
+                return got
+        except (RuntimeError, OverflowError, ValueError):
+            pass                                     # fall to the pure sparse path
+    out: "List[Tuple[bool, bool]]" = []
+    for (lhs_prods, rhs_prods) in comparisons:
+        lhs = _sparse_sum(g, safe, lhs_prods, crosses)
+        rhs = _sparse_sum(g, safe, rhs_prods, crosses)
+        out.append((lhs == rhs, _sparse_has_genus_cross(g, lhs)))
+    return out
+
+
+# ── the gate SPEC builders (the per-identity product shapes; genus-generic) ────
+
+def _spec_addition(g: int, a: "Tuple[int, ...]", b: "Tuple[int, ...]"
+                   ) -> "Tuple[list, list]":
+    """The genus-g ADDITION identity comparison (DLMF §21.6.8, z=0, lower chars 0):
+    LHS = θ[a;0](Ω)·θ[b;0](Ω) (eighth-nome), RHS = Σ_{r∈(ℤ/2)^g}
+    θ[(2r+a+b)/2;0](2Ω)·θ[(2r+a−b)/2;0](2Ω) (same eighth-nome base)."""
+    zero = tuple(0 for _ in range(g))
+    lhs = [(1, ((2, 2, tuple(a), zero), (2, 2, tuple(b), zero)))]
+    rhs = []
+    for bits in range(1 << g):
+        r = [(bits >> i) & 1 for i in range(g)]
+        sp = tuple(2 * r[i] + a[i] + b[i] for i in range(g))
+        sm = tuple(2 * r[i] + a[i] - b[i] for i in range(g))
+        rhs.append((1, ((1, 4, sp, zero), (1, 4, sm, zero))))
+    return lhs, rhs
+
+
+def _spec_duplication(g: int) -> "Tuple[list, list]":
+    """The genus-g Gauss/DUPLICATION identity comparison (quarter-nome): LHS =
+    θ[0;0](Ω)², RHS = Σ_{c∈{0,1}^g} θ[c;0](2Ω)² (each summand's exponents doubled
+    into the Ω alphabet — dc=2)."""
+    zero = tuple(0 for _ in range(g))
+    lhs = [(1, ((1, 2, zero, zero), (1, 2, zero, zero)))]
+    rhs = []
+    for bits in range(1 << g):
+        c = tuple((bits >> i) & 1 for i in range(g))
+        rhs.append((1, ((2, 2, c, zero), (2, 2, c, zero))))
+    return lhs, rhs
+
+
+def _spec_goepel_product(pair) -> "tuple":
+    """The Göpel θ²[a]·θ²[b] product shape (four quarter-nome factors at the SAME
+    Ω) for ``pair = (a, b)`` with ``a = (ε′, ε)`` characteristics."""
+    (aep, ae), (bep, be) = pair
+    fa = (1, 2, tuple(aep), tuple(ae))
+    fb = (1, 2, tuple(bep), tuple(be))
+    return (fa, fa, fb, fb)
+
+
+def _spec_null_square_omega(g: int, c: "Tuple[int, ...]") -> "tuple":
+    """The eighth-nome θ[c;0](Ω)² product shape (the duplication-collapse
+    comparator of the addition-distinctness gates)."""
+    zero = tuple(0 for _ in range(g))
+    fc = (2, 2, tuple(c), zero)
+    return (fc, fc)
+
+
 class RiemannTheta:
     """A numpy-free EXACT genus-2 Riemann theta-CONSTANT
 
@@ -734,29 +1013,24 @@ class RiemannTheta:
 
         A CARRIER METHOD (the carrier's own build gate), not a public module-level op —
         ``tools.total`` is unchanged (matches the rc69/70/71 carrier precedent, whose
-        identity / verification checks are carrier methods, not registered ops)."""
+        identity / verification checks are carrier methods, not registered ops).
+
+        rc107: the gate INTERNALS run the sparse SAFE-REGION PUSH-DOWN (each factor
+        enumerated directly on its safe support — see the module-level
+        :func:`_sparse_decide` machinery), bit-identical on the compared region to the
+        dense :meth:`duplication_lhs` / :meth:`duplication_rhs` path (the no-shell
+        bit-identity tests); the WHOLE decision dispatches to the native
+        ``srmech_riemann_theta_gate_decide`` peer in ONE call when loaded, else runs
+        the pure sparse body. The public ``duplication_lhs`` / ``duplication_rhs``
+        surfaces are UNCHANGED."""
         if not isinstance(box, int) or box < 2:
             raise ValueError(
                 f"box must be an int ≥ 2 for the duplication gate; got {box!r}")
-        lhs = cls.duplication_lhs(box)
-        rhs = cls.duplication_rhs(box)
         safe = 4 * box * box
-        babs = safe                                # |C| bound (Class-K magnitude)
-
-        def restrict(lat: "Dict[_Triple, int]") -> "Dict[_Triple, int]":
-            kept: Dict[_Triple, int] = {}
-            for (a, b, c), v in lat.items():
-                cmag = c if c >= 0 else -c         # Class-K magnitude, no abs()
-                if a <= safe and b <= safe and cmag <= babs:
-                    kept[(a, b, c)] = v
-            return kept
-
-        lhs_s = restrict(lhs)
-        rhs_s = restrict(rhs)
-        if lhs_s != rhs_s:
+        (equal, has_cross), = _sparse_decide(2, safe, [_spec_duplication(2)])
+        if not equal:
             return False
         # the gate must genuinely touch the cross-term (else only the genus-1 slice)
-        has_cross = any(c != 0 for (_a, _b, c) in lhs_s)
         return has_cross
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -1182,7 +1456,15 @@ class RiemannTheta:
         monomials (so the genus-2 coupling is genuinely exercised).
 
         A CARRIER METHOD (the carrier's own build gate), not a public module-level op
-        — ``tools.total`` is UNCHANGED (the rc72 ``duplication_holds`` precedent)."""
+        — ``tools.total`` is UNCHANGED (the rc72 ``duplication_holds`` precedent).
+
+        rc107: the gate INTERNALS run the sparse SAFE-REGION PUSH-DOWN (see
+        :func:`_sparse_decide`), bit-identical on the compared region to the dense
+        :meth:`addition_lhs` / :meth:`addition_rhs` path; the WHOLE decision
+        dispatches to the native ``srmech_riemann_theta_gate_decide`` peer in ONE
+        call when loaded (no per-lattice dict marshaling — the rc106 finding), else
+        runs the pure sparse body. The public ``addition_lhs`` / ``addition_rhs``
+        surfaces are UNCHANGED."""
         if not isinstance(box, int) or box < 2:
             raise ValueError(
                 f"box must be an int ≥ 2 for the addition gate; got {box!r}")
@@ -1196,25 +1478,15 @@ class RiemannTheta:
                  ((1, 0), (0, 0)), ((1, 1), (0, 0)),     # genuine a ≠ b
                  ((1, 0), (0, 1)), ((1, 1), (1, 0)),
                  ((0, 1), (1, 1))]
-
-        def restrict(lat: "Dict[_Triple, int]") -> "Dict[_Triple, int]":
-            kept: Dict[_Triple, int] = {}
-            for (aa, bb, cc), v in lat.items():
-                cmag = cc if cc >= 0 else -cc          # Class-K magnitude, no abs()
-                if aa <= safe and bb <= safe and cmag <= safe:
-                    kept[(aa, bb, cc)] = v
-            return kept
-
+        got = _sparse_decide(2, safe, [_spec_addition(2, a, b) for (a, b) in pairs])
         saw_genuine = False
         saw_cross = False
-        for (a, b) in pairs:
-            lhs = restrict(cls.addition_lhs(a, b, box))
-            rhs = restrict(cls.addition_rhs(a, b, box))
-            if lhs != rhs:
+        for (a, b), (equal, cross) in zip(pairs, got):
+            if not equal:
                 return False
             if a != b:
                 saw_genuine = True
-            if any(cc != 0 for (_a, _b, cc) in lhs):
+            if cross:
                 saw_cross = True
         return saw_genuine and saw_cross
 
@@ -1225,17 +1497,25 @@ class RiemannTheta:
         two DIFFERENT theta-nulls, which is NOT equal to ANY duplication left side
         ``θ[c]²`` (a single null squared). Returns ``True`` iff the genuine addition
         LHS (``a=(1,0)``, ``b=(0,0)``) differs from every ``θ[c;0]²`` over the four
-        even ``c`` — the no-shell proof that it is not a relabeled duplication."""
+        even ``c`` — the no-shell proof that it is not a relabeled duplication.
+
+        rc107: the comparisons run on the SAFE REGION ``A, B, |C| ≤ 2·box²`` via the
+        sparse push-down (:func:`_sparse_decide`) — the same comparison region as
+        :meth:`addition_holds` (a difference found on the region IS a difference of
+        the full lattices — the sound direction; the ≠-witness is verified to live
+        INSIDE the region by the rc107 bit-identity tests, so the verdict is
+        identical to the old full-lattice comparison at every shipped box)."""
         if not isinstance(box, int) or box < 2:
             raise ValueError(f"box must be an int ≥ 2; got {box!r}")
-        genuine = cls.addition_lhs((1, 0), (0, 0), box)   # θ[(1,0)]·θ[(0,0)]
+        safe = 2 * box * box
+        genuine = [(1, ((2, 2, (1, 0), (0, 0)), (2, 2, (0, 0), (0, 0))))]
+        comps = []
         for c1 in (0, 1):
             for c2 in (0, 1):
-                tc = cls._theta_omega_eighth(c1, c2, 0, 0, box)
-                sq = cls._square_lattice_pair(tc, tc)     # θ[c;0]²
-                if genuine == sq:
-                    return False                          # would be a duplication
-        return True
+                comps.append((genuine,
+                              [(1, _spec_null_square_omega(2, (c1, c2)))]))
+        got = _sparse_decide(2, safe, comps)
+        return not any(equal for (equal, _cross) in got)
 
     # ══════════════════════════════════════════════════════════════════════════
     # rc88: the GENUINE Fay / Hirota bilinear VERIFIER at GENERIC RATIONAL arguments
@@ -1617,7 +1897,16 @@ class RiemannTheta:
 
         A CARRIER METHOD (the carrier's own build gate), not a public module-level op
         — ``tools.total`` is UNCHANGED (the rc72 ``duplication_holds`` / rc73
-        ``addition_holds`` precedent)."""
+        ``addition_holds`` precedent).
+
+        rc107: the gate INTERNALS run the sparse SAFE-REGION PUSH-DOWN (see
+        :func:`_sparse_decide` — this was the g2 gate the #707 dive measured at
+        ×1,555–×2,964), bit-identical on the compared region to the dense
+        :meth:`goepel_lhs` / :meth:`goepel_rhs` path; the WHOLE decision dispatches
+        to the native ``srmech_riemann_theta_gate_decide`` peer in ONE call when
+        loaded (the g2 Göpel path had NO C mirror before rc107 — this closes it),
+        else runs the pure sparse body. The public ``goepel_lhs`` / ``goepel_rhs``
+        surfaces are UNCHANGED."""
         if not isinstance(box, int) or box < 4:
             raise ValueError(
                 f"box must be an int ≥ 4 for the Göpel gate (the inner region is "
@@ -1625,20 +1914,14 @@ class RiemannTheta:
         if not cls.goepel_is_syzygous():
             return False
         safe = box * box                               # the box-stable inner bound
-
-        def restrict(lat: "Dict[_Triple, int]") -> "Dict[_Triple, int]":
-            kept: Dict[_Triple, int] = {}
-            for (a, b, c), v in lat.items():
-                cmag = c if c >= 0 else -c             # Class-K magnitude, no abs()
-                if a <= safe and b <= safe and cmag <= safe:
-                    kept[(a, b, c)] = v
-            return kept
-
-        lhs = restrict(cls.goepel_lhs(box))
-        rhs = restrict(cls.goepel_rhs(box))
-        if lhs != rhs:
+        triple = cls.goepel_syzygy_triple()
+        lhs_prods = [(1, _spec_goepel_product(triple[0]))]
+        rhs_prods = [(1, _spec_goepel_product(triple[1])),
+                     (-1, _spec_goepel_product(triple[2]))]
+        (equal, has_cross), = _sparse_decide(2, safe, [(lhs_prods, rhs_prods)])
+        if not equal:
             return False
-        return any(c != 0 for (_a, _b, c) in lhs)      # genuinely cross-term
+        return has_cross                               # genuinely cross-term
 
     @classmethod
     def goepel_is_distinct_from_duplication_and_addition(
@@ -1660,23 +1943,32 @@ class RiemannTheta:
         cannot equal either (different total theta-degree). We verify this exactly by
         a lattice comparison: the Göpel LHS differs from the duplication LHS lattice
         and from every checked addition LHS lattice. Returns ``True`` iff distinct
-        from both."""
+        from both.
+
+        rc107: the comparisons run on the SAFE REGION ``A, B, |C| ≤ box²`` via the
+        sparse push-down (:func:`_sparse_decide`) — the same comparison region as
+        :meth:`goepel_holds` (a difference found on the region IS a difference of the
+        full lattices — the sound direction; the ≠-witness is verified to live INSIDE
+        the region by the rc107 bit-identity tests, so the verdict is identical to
+        the old full-lattice comparison at every shipped box)."""
         if not isinstance(box, int) or box < 4:
             raise ValueError(f"box must be an int ≥ 4; got {box!r}")
-        goepel_lhs = cls.goepel_lhs(box)               # degree-4 (four nulls)
-        # vs duplication LHS θ[0;0]² (degree-2): must differ
-        dup_lhs = cls.duplication_lhs(box)
-        if goepel_lhs == dup_lhs:
-            return False
-        # vs every addition LHS θ[a]·θ[b] (degree-2): must differ
+        safe = box * box
+        zero = (0, 0)
+        goepel_prods = [(1, _spec_goepel_product(cls.goepel_syzygy_triple()[0]))]
+        # vs duplication LHS θ[0;0]² (degree-2, quarter-nome): must differ
+        dup_prod = [(1, ((1, 2, zero, zero), (1, 2, zero, zero)))]
+        comps = [(goepel_prods, dup_prod)]
+        # vs every addition LHS θ[a]·θ[b] (degree-2, eighth-nome): must differ
         for a1 in (0, 1):
             for a2 in (0, 1):
                 for b1 in (0, 1):
                     for b2 in (0, 1):
-                        add_lhs = cls.addition_lhs((a1, a2), (b1, b2), box)
-                        if goepel_lhs == add_lhs:
-                            return False
-        return True
+                        comps.append((goepel_prods, [(1, (
+                            (2, 2, (a1, a2), zero),
+                            (2, 2, (b1, b2), zero)))]))
+        got = _sparse_decide(2, safe, comps)
+        return not any(equal for (equal, _cross) in got)
 
     # ── (B) the SYMBOLIC Rosenhain λ-map (formal theta-null ratios, NOT numbers) ─
 
@@ -2357,35 +2649,23 @@ class RiemannThetaG3:
         populated with a genuine genus-3 cross-term ``C₁₃`` or ``C₂₃`` monomial).
 
         A CARRIER METHOD (the carrier's own build gate), not a public module-level op —
-        ``tools.total`` is unchanged (the rc72 ``duplication_holds`` precedent)."""
+        ``tools.total`` is unchanged (the rc72 ``duplication_holds`` precedent).
+
+        rc107: the gate INTERNALS run the sparse SAFE-REGION PUSH-DOWN (see
+        :func:`_sparse_decide`), bit-identical on the compared region to the dense
+        :meth:`duplication_lhs` / :meth:`duplication_rhs` path; the WHOLE decision
+        dispatches to the native ``srmech_riemann_theta_gate_decide`` peer in ONE call
+        when loaded, else runs the pure sparse body. The public lhs/rhs surfaces are
+        UNCHANGED."""
         if not isinstance(box, int) or box < 2:
             raise ValueError(
                 f"box must be an int ≥ 2 for the duplication gate; got {box!r}")
-        lhs = cls.duplication_lhs(box)
-        rhs = cls.duplication_rhs(box)
         safe = 4 * box * box
-
-        def restrict(lat: "Dict[_Sextuple, int]") -> "Dict[_Sextuple, int]":
-            kept: Dict[_Sextuple, int] = {}
-            for k, v in lat.items():
-                a1, a2, a3, c12, c13, c23 = k
-                # Class-K magnitudes, no abs()
-                m12 = c12 if c12 >= 0 else -c12
-                m13 = c13 if c13 >= 0 else -c13
-                m23 = c23 if c23 >= 0 else -c23
-                if (a1 <= safe and a2 <= safe and a3 <= safe
-                        and m12 <= safe and m13 <= safe and m23 <= safe):
-                    kept[k] = v
-            return kept
-
-        lhs_s = restrict(lhs)
-        rhs_s = restrict(rhs)
-        if lhs_s != rhs_s:
+        (equal, has_g3_cross), = _sparse_decide(3, safe, [_spec_duplication(3)])
+        if not equal:
             return False
         # the gate must genuinely touch a 3-way (genus-3) cross-term C₁₃ or C₂₃ —
         # else only the genus-2 (C₁₂) slice would be exercised
-        has_g3_cross = any((c13 != 0 or c23 != 0)
-                           for (_a1, _a2, _a3, _c12, c13, c23) in lhs_s)
         return has_g3_cross
 
     # ── the documented operand-side OPEN (genus-3 new structure; full op = rc76) ─
@@ -2898,7 +3178,14 @@ class RiemannThetaG3:
         coupling is genuinely exercised, not just the genus-2 / genus-1 slice).
 
         A CARRIER METHOD (the carrier's own build gate), not a public module-level op —
-        ``tools.total`` is UNCHANGED (the rc72/73/75 ``*_holds`` precedent)."""
+        ``tools.total`` is UNCHANGED (the rc72/73/75 ``*_holds`` precedent).
+
+        rc107: the gate INTERNALS run the sparse SAFE-REGION PUSH-DOWN (see
+        :func:`_sparse_decide` — the #707 dive measured this gate at ×537),
+        bit-identical on the compared region to the dense :meth:`addition_lhs` /
+        :meth:`addition_rhs` path; the WHOLE decision dispatches to the native
+        ``srmech_riemann_theta_gate_decide`` peer in ONE call when loaded, else runs
+        the pure sparse body. The public lhs/rhs surfaces are UNCHANGED."""
         if not isinstance(box, int) or box < 2:
             raise ValueError(
                 f"box must be an int ≥ 2 for the genus-3 addition gate; got {box!r}")
@@ -2910,30 +3197,15 @@ class RiemannThetaG3:
                  ((1, 0, 0), (0, 0, 0)), ((0, 0, 1), (0, 0, 0)),  # genuine a ≠ b
                  ((1, 0, 1), (0, 0, 0)), ((1, 1, 0), (0, 0, 1)),
                  ((0, 1, 1), (1, 0, 0)), ((1, 1, 1), (0, 1, 1))]
-
-        def restrict(lat: "Dict[_Sextuple, int]") -> "Dict[_Sextuple, int]":
-            kept: Dict[_Sextuple, int] = {}
-            for k, v in lat.items():
-                a1, a2, a3, c12, c13, c23 = k
-                m12 = c12 if c12 >= 0 else -c12       # Class-K magnitude, no abs()
-                m13 = c13 if c13 >= 0 else -c13
-                m23 = c23 if c23 >= 0 else -c23
-                if (a1 <= safe and a2 <= safe and a3 <= safe
-                        and m12 <= safe and m13 <= safe and m23 <= safe):
-                    kept[k] = v
-            return kept
-
+        got = _sparse_decide(3, safe, [_spec_addition(3, a, b) for (a, b) in pairs])
         saw_genuine = False
         saw_g3_cross = False
-        for (a, b) in pairs:
-            lhs = restrict(cls.addition_lhs(a, b, box))
-            rhs = restrict(cls.addition_rhs(a, b, box))
-            if lhs != rhs:
+        for (a, b), (equal, cross) in zip(pairs, got):
+            if not equal:
                 return False
             if a != b:
                 saw_genuine = True
-            if any((c13 != 0 or c23 != 0)
-                   for (_a1, _a2, _a3, _c12, c13, c23) in lhs):
+            if cross:
                 saw_g3_cross = True
         return saw_genuine and saw_g3_cross
 
@@ -2945,18 +3217,26 @@ class RiemannThetaG3:
         left side ``θ[c]²`` (a single even null squared). Returns ``True`` iff the
         genuine addition LHS (``a=(1,0,0)``, ``b=(0,0,0)``) differs from every
         ``θ[c;0]²`` over the eight even ``c ∈ {0,1}³`` (upper char ``c``, lower 0 — all
-        even) — the no-shell proof that it is not a relabeled duplication."""
+        even) — the no-shell proof that it is not a relabeled duplication.
+
+        rc107: the comparisons run on the SAFE REGION ``Aᵢ, |C_ij| ≤ 2·box²`` via the
+        sparse push-down (:func:`_sparse_decide`) — the same comparison region as
+        :meth:`addition_holds` (the sound ≠ direction; the ≠-witness is verified to
+        live INSIDE the region by the rc107 bit-identity tests, so the verdict is
+        identical to the old full-lattice comparison at every shipped box)."""
         if not isinstance(box, int) or box < 2:
             raise ValueError(f"box must be an int ≥ 2; got {box!r}")
-        genuine = cls.addition_lhs((1, 0, 0), (0, 0, 0), box)   # θ[(1,0,0)]·θ[(0,0,0)]
+        safe = 2 * box * box
+        zero = (0, 0, 0)
+        genuine = [(1, ((2, 2, (1, 0, 0), zero), (2, 2, zero, zero)))]
+        comps = []
         for c1 in (0, 1):
             for c2 in (0, 1):
                 for c3 in (0, 1):
-                    tc = cls._theta_omega_eighth(c1, c2, c3, 0, 0, 0, box)
-                    sq = cls._square_lattice_pair(tc, tc)        # θ[c;0]²
-                    if genuine == sq:
-                        return False                            # would be duplication
-        return True
+                    comps.append((genuine, [(1, _spec_null_square_omega(
+                        3, (c1, c2, c3)))]))
+        got = _sparse_decide(3, safe, comps)
+        return not any(equal for (equal, _cross) in got)
 
     # ══════════════════════════════════════════════════════════════════════════
     # rc88: the GENUS-3 Fay / Hirota bilinear VERIFIER at GENERIC RATIONAL arguments —
@@ -3457,7 +3737,14 @@ class RiemannThetaG3:
         coupling is genuinely exercised — not the genus-2 / genus-1 slice).
 
         A CARRIER METHOD (the carrier's own build gate), not a public module-level op —
-        ``tools.total`` is UNCHANGED (the rc72–rc77 ``*_holds`` precedent)."""
+        ``tools.total`` is UNCHANGED (the rc72–rc77 ``*_holds`` precedent).
+
+        rc107: the gate INTERNALS run the sparse SAFE-REGION PUSH-DOWN (see
+        :func:`_sparse_decide`), bit-identical on the compared region to the dense
+        :meth:`goepel_lhs` / :meth:`goepel_rhs` path. The dispatch chain: the rc107
+        generic ``srmech_riemann_theta_gate_decide`` peer (ONE call, sparse) → the
+        rc78 whole-decision ``srmech_riemann_theta_g3_goepel`` peer (kept as the
+        attested fallback) → the pure sparse body."""
         if not isinstance(box, int) or box < 3:
             raise ValueError(
                 f"box must be an int ≥ 3 for the genus-3 Göpel gate (the inner region "
@@ -3465,18 +3752,21 @@ class RiemannThetaG3:
         if not cls.goepel_is_syzygous():
             return False
         safe = box * box                               # the box-stable inner bound
-
-        def restrict(lat: "Dict[_Sextuple, int]") -> "Dict[_Sextuple, int]":
-            kept: Dict[_Sextuple, int] = {}
-            for k, v in lat.items():
-                a1, a2, a3, c12, c13, c23 = k
-                m12 = c12 if c12 >= 0 else -c12       # Class-K magnitude, no abs()
-                m13 = c13 if c13 >= 0 else -c13
-                m23 = c23 if c23 >= 0 else -c23
-                if (a1 <= safe and a2 <= safe and a3 <= safe
-                        and m12 <= safe and m13 <= safe and m23 <= safe):
-                    kept[k] = v
-            return kept
+        quad = cls.goepel_syzygy_quad()
+        lhs_prods = [(1, _spec_goepel_product(quad[0]))]
+        rhs_prods = [(1, _spec_goepel_product(quad[1])),
+                     (1, _spec_goepel_product(quad[2])),
+                     (-1, _spec_goepel_product(quad[3]))]
+        nat = _native_gate()
+        if nat is not None:
+            try:
+                got = nat.riemann_theta_gate_decide_c(
+                    3, safe, True, [(lhs_prods, rhs_prods)])
+                if got is not None:
+                    (equal, has_cross), = got
+                    return bool(equal) and bool(has_cross)
+            except (RuntimeError, OverflowError, ValueError):
+                pass                                   # fall through the chain
 
         nat = _native_g3_goepel()
         if nat is not None:
@@ -3488,12 +3778,11 @@ class RiemannThetaG3:
             except (RuntimeError, OverflowError, ValueError):
                 pass                                   # fall to the pure path
 
-        lhs = restrict(cls.goepel_lhs(box))
-        rhs = restrict(cls.goepel_rhs(box))
+        lhs = _sparse_sum(3, safe, lhs_prods)
+        rhs = _sparse_sum(3, safe, rhs_prods)
         if lhs != rhs:
             return False
-        return any((c13 != 0 or c23 != 0)              # genuine genus-3 cross-term
-                   for (_a1, _a2, _a3, _c12, c13, c23) in lhs)
+        return _sparse_has_genus_cross(3, lhs)         # genuine genus-3 cross-term
 
     @classmethod
     def goepel_is_distinct_from_duplication_addition_and_chi18(
@@ -3515,14 +3804,19 @@ class RiemannThetaG3:
         safe region — different total theta-degree. (2) The Göpel LHS uses exactly 2 of
         the 8 syzygy nulls; the 8 syzygy nulls are a PROPER SUBSET of the 36 χ₁₈ factors
         (``8 < 36``) and the Göpel relation is a same-Ω sum, not a product — so it is not
-        χ₁₈ nor any of its sub-structure. Returns ``True`` iff distinct from all three."""
+        χ₁₈ nor any of its sub-structure. Returns ``True`` iff distinct from all three.
+
+        rc107: the diagonal-restricted lattice comparisons run via the sparse
+        push-down in its DIAG-ONLY mode (``crosses=False`` — exactly the
+        ``_diag_restrict`` comparison shape, bit-identical to the dense
+        diag-restricted lattices by the diagonal-additivity argument)."""
         if not isinstance(box, int) or box < 3:
             raise ValueError(f"box must be an int ≥ 3; got {box!r}")
         bound = box * box
-        goepel_lhs = cls._diag_restrict(cls.goepel_lhs(box), bound)  # deg-4, diag-bound
+        zero = (0, 0, 0)
+        goepel_prods = [(1, _spec_goepel_product(cls.goepel_syzygy_quad()[0]))]
         # vs duplication LHS θ[0;0]² (degree-2), same diagonal bound: must differ
-        if goepel_lhs == cls._diag_restrict(cls.duplication_lhs(box), bound):
-            return False
+        comps = [(goepel_prods, [(1, ((1, 2, zero, zero), (1, 2, zero, zero)))])]
         # vs every addition LHS θ[a]·θ[b] (degree-2), same diagonal bound: must differ
         for a1 in (0, 1):
             for a2 in (0, 1):
@@ -3530,11 +3824,12 @@ class RiemannThetaG3:
                     for b1 in (0, 1):
                         for b2 in (0, 1):
                             for b3 in (0, 1):
-                                add_lhs = cls._diag_restrict(
-                                    cls.addition_lhs((a1, a2, a3), (b1, b2, b3), box),
-                                    bound)
-                                if goepel_lhs == add_lhs:
-                                    return False
+                                comps.append((goepel_prods, [(1, (
+                                    (2, 2, (a1, a2, a3), zero),
+                                    (2, 2, (b1, b2, b3), zero)))]))
+        got = _sparse_decide(3, bound, comps, crosses=False)
+        if any(equal for (equal, _cross) in got):
+            return False
         # vs χ₁₈: the 8 syzygy nulls are a PROPER SUBSET of the 36 χ₁₈ factors, and the
         # Göpel relation is a same-Ω SUM (not the 36-null product) — structural distinct.
         syzygy_nulls = {c for p in cls.goepel_syzygy_quad() for c in p}
@@ -3943,35 +4238,23 @@ class RiemannThetaG4:
         A CARRIER METHOD (the carrier's own build gate), not a public module-level op —
         ``tools.total`` is unchanged (the rc75 ``duplication_holds`` precedent). NOTE: the
         box is kept SMALL (default 2) because ``(2·box+1)⁴`` grows fast — the formal
-        identity is box-stable."""
+        identity is box-stable.
+
+        rc107: the gate INTERNALS run the sparse SAFE-REGION PUSH-DOWN (see
+        :func:`_sparse_decide`), bit-identical on the compared region to the dense
+        :meth:`duplication_lhs` / :meth:`duplication_rhs` path; the WHOLE decision
+        dispatches to the native ``srmech_riemann_theta_gate_decide`` peer in ONE call
+        when loaded, else runs the pure sparse body. The public lhs/rhs surfaces are
+        UNCHANGED."""
         if not isinstance(box, int) or box < 2:
             raise ValueError(
                 f"box must be an int ≥ 2 for the duplication gate; got {box!r}")
-        lhs = cls.duplication_lhs(box)
-        rhs = cls.duplication_rhs(box)
         safe = 4 * box * box
-
-        def restrict(lat: "Dict[_Tentuple, int]") -> "Dict[_Tentuple, int]":
-            kept: Dict[_Tentuple, int] = {}
-            for k, v in lat.items():
-                a1, a2, a3, a4, c12, c13, c14, c23, c24, c34 = k
-                # Class-K magnitudes, no abs()
-                mags = [c if c >= 0 else -c
-                        for c in (c12, c13, c14, c23, c24, c34)]
-                if (a1 <= safe and a2 <= safe and a3 <= safe and a4 <= safe
-                        and all(m <= safe for m in mags)):
-                    kept[k] = v
-            return kept
-
-        lhs_s = restrict(lhs)
-        rhs_s = restrict(rhs)
-        if lhs_s != rhs_s:
+        (equal, has_g4_cross), = _sparse_decide(4, safe, [_spec_duplication(4)])
+        if not equal:
             return False
         # the gate must genuinely touch a genus-4 cross-term C₁₄/C₂₄/C₃₄ — else only the
         # genus-3 (C₁₂/C₁₃/C₂₃) slice would be exercised
-        has_g4_cross = any(
-            (c14 != 0 or c24 != 0 or c34 != 0)
-            for (_a1, _a2, _a3, _a4, _c12, _c13, c14, _c23, c24, c34) in lhs_s)
         return has_g4_cross
 
     # ── the genus-4 enumeration + the documented Schottky-frontier OPEN ────────
@@ -4552,7 +4835,15 @@ class RiemannThetaG4:
         identity is box-stable.
 
         A CARRIER METHOD (the carrier's own build gate), not a public module-level op —
-        ``tools.total`` is UNCHANGED (the g2/g3 ``*_holds`` precedent)."""
+        ``tools.total`` is UNCHANGED (the g2/g3 ``*_holds`` precedent).
+
+        rc107: the gate INTERNALS run the sparse SAFE-REGION PUSH-DOWN (see
+        :func:`_sparse_decide` — THE #707 headline: ×6,900 measured on this gate,
+        137.8 s → 0.020 s pure), bit-identical on the compared region to the dense
+        :meth:`addition_lhs` / :meth:`addition_rhs` path; the WHOLE decision
+        dispatches to the native ``srmech_riemann_theta_gate_decide`` peer in ONE
+        call when loaded, else runs the pure sparse body. The public lhs/rhs
+        surfaces are UNCHANGED."""
         if not isinstance(box, int) or box < 2:
             raise ValueError(
                 f"box must be an int ≥ 2 for the genus-4 addition gate; got {box!r}")
@@ -4564,29 +4855,15 @@ class RiemannThetaG4:
                  ((1, 0, 0, 0), (0, 0, 0, 0)), ((0, 0, 0, 1), (0, 0, 0, 0)),
                  ((1, 0, 0, 1), (0, 0, 0, 0)), ((1, 1, 0, 0), (0, 0, 1, 1)),
                  ((0, 0, 1, 1), (1, 1, 0, 0)), ((1, 1, 1, 1), (0, 0, 1, 1))]
-
-        def restrict(lat: "Dict[_Tentuple, int]") -> "Dict[_Tentuple, int]":
-            kept: Dict[_Tentuple, int] = {}
-            for k, v in lat.items():
-                a1, a2, a3, a4, c12, c13, c14, c23, c24, c34 = k
-                mags = [c if c >= 0 else -c       # Class-K magnitudes, no abs()
-                        for c in (c12, c13, c14, c23, c24, c34)]
-                if (a1 <= safe and a2 <= safe and a3 <= safe and a4 <= safe
-                        and all(m <= safe for m in mags)):
-                    kept[k] = v
-            return kept
-
+        got = _sparse_decide(4, safe, [_spec_addition(4, a, b) for (a, b) in pairs])
         saw_genuine = False
         saw_g4_cross = False
-        for (a, b) in pairs:
-            lhs = restrict(cls.addition_lhs(a, b, box))
-            rhs = restrict(cls.addition_rhs(a, b, box))
-            if lhs != rhs:
+        for (a, b), (equal, cross) in zip(pairs, got):
+            if not equal:
                 return False
             if a != b:
                 saw_genuine = True
-            if any((c14 != 0 or c24 != 0 or c34 != 0)
-                   for (_a1, _a2, _a3, _a4, _c12, _c13, c14, _c23, c24, c34) in lhs):
+            if cross:
                 saw_g4_cross = True
         return saw_genuine and saw_g4_cross
 
@@ -4598,20 +4875,25 @@ class RiemannThetaG4:
         left side ``θ[c]²`` (a single even null squared). Returns ``True`` iff the
         genuine addition LHS (``a=(1,0,0,0)``, ``b=(0,0,0,0)``) differs from every
         ``θ[c;0]²`` over the sixteen even ``c ∈ {0,1}⁴`` (upper char ``c``, lower 0 —
-        all even) — the no-shell proof that it is not a relabeled duplication."""
+        all even) — the no-shell proof that it is not a relabeled duplication.
+
+        rc107: the comparisons run on the SAFE REGION ``Aᵢ, |C_ij| ≤ 2·box²`` via the
+        sparse push-down (:func:`_sparse_decide` — the #707 dive measured this gate at
+        ×360) — the same comparison region as :meth:`addition_holds` (the sound ≠
+        direction; the ≠-witness is verified to live INSIDE the region by the rc107
+        bit-identity tests, so the verdict is identical to the old full-lattice
+        comparison at every shipped box)."""
         if not isinstance(box, int) or box < 2:
             raise ValueError(f"box must be an int ≥ 2; got {box!r}")
-        genuine = cls.addition_lhs((1, 0, 0, 0), (0, 0, 0, 0), box)
-        for c1 in (0, 1):
-            for c2 in (0, 1):
-                for c3 in (0, 1):
-                    for c4 in (0, 1):
-                        tc = cls._theta_omega_eighth(
-                            c1, c2, c3, c4, 0, 0, 0, 0, box)
-                        sq = cls._square_lattice_pair(tc, tc)        # θ[c;0]²
-                        if genuine == sq:
-                            return False                            # = duplication
-        return True
+        safe = 2 * box * box
+        zero = (0, 0, 0, 0)
+        genuine = [(1, ((2, 2, (1, 0, 0, 0), zero), (2, 2, zero, zero)))]
+        comps = []
+        for bits in range(16):
+            c = tuple((bits >> i) & 1 for i in range(4))
+            comps.append((genuine, [(1, _spec_null_square_omega(4, c))]))
+        got = _sparse_decide(4, safe, comps)
+        return not any(equal for (equal, _cross) in got)
 
     # ══════════════════════════════════════════════════════════════════════════
     # rc85: the genus-4 universal GÖPEL quadratic theta-null relation gate — the
@@ -4797,24 +5079,35 @@ class RiemannThetaG4:
         SMALL (default 3) because ``(2·box+1)⁴`` grows fast.
 
         A CARRIER METHOD (the carrier's own build gate), not a public module-level op —
-        ``tools.total`` is UNCHANGED (the g2/g3 ``*_holds`` precedent)."""
+        ``tools.total`` is UNCHANGED (the g2/g3 ``*_holds`` precedent).
+
+        rc107: the gate INTERNALS run the sparse SAFE-REGION PUSH-DOWN (see
+        :func:`_sparse_decide` — the #707 dive measured this gate at ×137),
+        bit-identical on the compared region to the dense :meth:`goepel_lhs` /
+        :meth:`goepel_rhs` path. The dispatch chain: the rc107 generic
+        ``srmech_riemann_theta_gate_decide`` peer (ONE call, sparse) → the rc85
+        whole-decision ``srmech_riemann_theta_g4_goepel`` peer (kept as the attested
+        fallback) → the pure sparse body."""
         if not isinstance(box, int) or box < 2:
             raise ValueError(
                 f"box must be an int ≥ 2 for the genus-4 Göpel gate; got {box!r}")
         if not cls.goepel_is_syzygous():
             return False
         safe = box * box                               # the box-stable inner bound
-
-        def restrict(lat: "Dict[_Tentuple, int]") -> "Dict[_Tentuple, int]":
-            kept: Dict[_Tentuple, int] = {}
-            for k, v in lat.items():
-                a1, a2, a3, a4, c12, c13, c14, c23, c24, c34 = k
-                mags = [c if c >= 0 else -c       # Class-K magnitudes, no abs()
-                        for c in (c12, c13, c14, c23, c24, c34)]
-                if (a1 <= safe and a2 <= safe and a3 <= safe and a4 <= safe
-                        and all(m <= safe for m in mags)):
-                    kept[k] = v
-            return kept
+        lhs_prods = [(1, _spec_goepel_product(pr))
+                     for (pr, sign) in cls.goepel_syzygy_quad() if sign == 1]
+        rhs_prods = [(1, _spec_goepel_product(pr))
+                     for (pr, sign) in cls.goepel_syzygy_quad() if sign == -1]
+        nat = _native_gate()
+        if nat is not None:
+            try:
+                got = nat.riemann_theta_gate_decide_c(
+                    4, safe, True, [(lhs_prods, rhs_prods)])
+                if got is not None:
+                    (equal, has_cross), = got
+                    return bool(equal) and bool(has_cross)
+            except (RuntimeError, OverflowError, ValueError):
+                pass                                   # fall through the chain
 
         nat = _native_g4_goepel()
         if nat is not None:
@@ -4826,12 +5119,11 @@ class RiemannThetaG4:
             except (RuntimeError, OverflowError, ValueError):
                 pass                                   # fall to the pure path
 
-        lhs = restrict(cls.goepel_lhs(box))
-        rhs = restrict(cls.goepel_rhs(box))
+        lhs = _sparse_sum(4, safe, lhs_prods)
+        rhs = _sparse_sum(4, safe, rhs_prods)
         if lhs != rhs:
             return False
-        return any((c14 != 0 or c24 != 0 or c34 != 0)  # genuine genus-4 cross-term
-                   for (_a1, _a2, _a3, _a4, _c12, _c13, c14, _c23, c24, c34) in lhs)
+        return _sparse_has_genus_cross(4, lhs)         # genuine genus-4 cross-term
 
     @classmethod
     def goepel_is_distinct_from_duplication_and_addition(cls, box: int = 3) -> bool:
@@ -4847,14 +5139,20 @@ class RiemannThetaG4:
         different total theta-degree. Returns ``True`` iff distinct from both. The
         addition comparison uses a bounded representative set (not all 256 pairs) — the
         distinctness is by total theta-degree, so a representative is sound and keeps the
-        gate fast."""
+        gate fast.
+
+        rc107: the diagonal-restricted lattice comparisons run via the sparse
+        push-down in its DIAG-ONLY mode (``crosses=False`` — exactly the
+        ``_diag_restrict`` comparison shape, bit-identical to the dense
+        diag-restricted lattices by the diagonal-additivity argument)."""
         if not isinstance(box, int) or box < 2:
             raise ValueError(f"box must be an int ≥ 2; got {box!r}")
         bound = box * box
-        goepel_lhs = cls._diag_restrict(cls.goepel_lhs(box), bound)
+        zero = (0, 0, 0, 0)
+        goepel_prods = [(1, _spec_goepel_product(pr))
+                        for (pr, sign) in cls.goepel_syzygy_quad() if sign == 1]
         # vs duplication LHS θ[0;0]² (degree-2), same diagonal bound: must differ
-        if goepel_lhs == cls._diag_restrict(cls.duplication_lhs(box), bound):
-            return False
+        comps = [(goepel_prods, [(1, ((1, 2, zero, zero), (1, 2, zero, zero)))])]
         # vs a REPRESENTATIVE set of addition LHS θ[a]·θ[b] (degree-2): must differ. The
         # distinctness is by total theta-degree (4 vs 2), so a bounded representative set
         # is a sound no-shell witness (all-zeros, the (1,0,0,0) genuine pair, a 4-coord
@@ -4865,10 +5163,10 @@ class RiemannThetaG4:
                 ((1, 1, 1, 1), (0, 0, 0, 0)),
                 (ga[0], gb[0])]
         for (a, b) in reps:
-            add_lhs = cls._diag_restrict(cls.addition_lhs(a, b, box), bound)
-            if goepel_lhs == add_lhs:
-                return False
-        return True
+            comps.append((goepel_prods, [(1, (
+                (2, 2, tuple(a), zero), (2, 2, tuple(b), zero)))]))
+        got = _sparse_decide(4, bound, comps, crosses=False)
+        return not any(equal for (equal, _cross) in got)
 
 
 # the genus-g Gram key of a g-tuple of (doubled) lattice vectors — the upper-triangular
@@ -5851,34 +6149,23 @@ class RiemannThetaG5:
         ``tools.total`` is unchanged (the rc80 ``duplication_holds`` precedent). NOTE: the
         box is kept MINIMAL (default 1) because ``(2·box+1)⁵`` grows fast — the formal
         identity is box-stable; the safe region is non-empty with a genuine genus-5
-        cross-term already at box 1. Keep test boxes ≤ 2."""
+        cross-term already at box 1. Keep test boxes ≤ 2.
+
+        rc107: the gate INTERNALS run the sparse SAFE-REGION PUSH-DOWN (see
+        :func:`_sparse_decide` — the #707 dive measured this gate at ×170),
+        bit-identical on the compared region to the dense :meth:`duplication_lhs` /
+        :meth:`duplication_rhs` path; the WHOLE decision dispatches to the native
+        ``srmech_riemann_theta_gate_decide`` peer in ONE call when loaded, else runs
+        the pure sparse body. The public lhs/rhs surfaces are UNCHANGED."""
         if not isinstance(box, int) or box < 1:
             raise ValueError(
                 f"box must be an int ≥ 1 for the duplication gate; got {box!r}")
-        lhs = cls.duplication_lhs(box)
-        rhs = cls.duplication_rhs(box)
         safe = 4 * box * box
-
-        def restrict(lat: "Dict[_Fifteentuple, int]") -> "Dict[_Fifteentuple, int]":
-            kept: Dict[_Fifteentuple, int] = {}
-            for k, v in lat.items():
-                a1, a2, a3, a4, a5 = k[0], k[1], k[2], k[3], k[4]
-                # Class-K magnitudes, no abs()
-                mags = [c if c >= 0 else -c for c in k[5:]]
-                if (a1 <= safe and a2 <= safe and a3 <= safe and a4 <= safe
-                        and a5 <= safe and all(m <= safe for m in mags)):
-                    kept[k] = v
-            return kept
-
-        lhs_s = restrict(lhs)
-        rhs_s = restrict(rhs)
-        if lhs_s != rhs_s:
+        (equal, has_g5_cross), = _sparse_decide(5, safe, [_spec_duplication(5)])
+        if not equal:
             return False
-        # the gate must genuinely touch a genus-5 cross-term C₁₅/C₂₅/C₃₅/C₄₅ — else only the
-        # genus-4 slice would be exercised. Indices: C₁₅=8, C₂₅=11, C₃₅=13, C₄₅=14.
-        has_g5_cross = any(
-            (k[8] != 0 or k[11] != 0 or k[13] != 0 or k[14] != 0)
-            for k in lhs_s)
+        # the gate must genuinely touch a genus-5 cross-term C₁₅/C₂₅/C₃₅/C₄₅ — else only
+        # the genus-4 slice would be exercised (slots 8/11/13/14 = the genus-5 crosses).
         return has_g5_cross
 
     # ── the genus-5 enumeration + the documented genuinely-OPEN Schottky frontier ──
