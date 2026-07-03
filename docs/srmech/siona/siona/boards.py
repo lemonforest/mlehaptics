@@ -32,7 +32,8 @@ class Board:
     homographs: dict = None
     quantity_words: frozenset = frozenset()  # 'how MANY days' -- the unit follows the quantity word
     numwords: frozenset = frozenset()        # closed number/ordinal vocabulary (attested per board)
-    comparison_words: frozenset = frozenset()  # 'which has MORE days' -- multi-note synthesis marker      # merged boards: verb -> ((board_name, tool), ...) -- SUPERPOSED senses (F1018)
+    comparison_words: frozenset = frozenset()  # 'which has MORE days' -- multi-note synthesis marker
+    source_markers: frozenset = frozenset()    # 'PER mfo ...' -- source-qualified sense selection      # merged boards: verb -> ((board_name, tool), ...) -- SUPERPOSED senses (F1018)
     parents: tuple = ()          # merged boards: the parent boards; their operator vocabs drive the rung vote
     politeness: frozenset = frozenset()  # PARAPHRASE frames: politeness/hedge prefix tokens, stripped before routing
 
@@ -57,6 +58,7 @@ ENGLISH = Board(
     quantity_words=frozenset({"many", "much"}),
     comparison_words=frozenset({"more", "fewer", "less", "most", "fewest",
                                 "longer", "shorter", "larger", "smaller", "bigger"}),
+    source_markers=frozenset({"per"}),
     numwords=frozenset({  # the English closed number/ordinal class (linguistic, not tuned)
         "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
         "eleven", "twelve", "twenty", "thirty", "forty", "fifty", "hundred", "thousand",

@@ -37,3 +37,23 @@ def test_synthesis_wiki_kernel_and_trig():
     assert "hypot" in out and "= 5" in out, out               # Class-N sqrt cascade, exact
     _, tag, out = s.turn("compute the sine of 1 with 10 terms")
     assert "sin(1.0, terms=10)" in out and "/" in out, out    # exact rational Q
+
+
+def test_source_qualified_selection():
+    """F1033: 'per <src>' selects the sense from that attested source; the unqualified ask
+    surfaces the PARALLEL SOURCE (conflicting senses superpose, neither deleted)."""
+    s = siona.Session()
+    s.mem.append("a widget is a small mechanical device with 3 parts")
+    s.attestations.append({"data": {"topic": "widget"}, "note_index": 0,
+                           "rendering": {"cite_as": "encyclopedia alpha, 'widget'"},
+                           "attestation": {"response_sha256": "a" * 64, "source_url": "file://alpha"}})
+    s.mem.append("a widget is not a device it is a 2 sided abstraction with 3 views")
+    s.attestations.append({"data": {"topic": "widget"}, "note_index": 1,
+                           "rendering": {"cite_as": "framework notes beta, 'widget'"},
+                           "attestation": {"response_sha256": "b" * 64, "source_url": "file://beta"}})
+    _, _, out = s.turn("per beta a widget is what")
+    assert "abstraction" in out and "beta" in out, out         # the qualified source wins
+    _, _, out = s.turn("per alpha a widget is what")
+    assert "mechanical" in out and "alpha" in out, out
+    _, _, out = s.turn("a widget is what")
+    assert "PARALLEL SOURCE" in out, out                       # unqualified -> both surfaced

@@ -543,9 +543,31 @@ class Session:
                 break
         return best_i, cite
 
+    def _source_filter(self, text):
+        """SOURCE-QUALIFIED selection: 'per <src>' restricts recall to notes whose attestation
+        names that source (cite_as substring, declared marker, no thresholds). Returns
+        (note-index set or None, the text with the qualifier consumed)."""
+        ws = text.split()
+        b = self.board
+        for i, w in enumerate(ws):
+            if w.lower() in b.source_markers and i + 1 < len(ws):
+                src = ws[i + 1].lower()
+                hits = {a["note_index"] for a in self.attestations
+                        if src in a.get("rendering", {}).get("cite_as", "").lower()}
+                if hits:
+                    rest = " ".join(ws[:i] + ws[i + 2:])
+                    return hits, rest
+                return None, text          # marker present, no attested source -> unfiltered
+        return None, text
+
     def _recall(self, text):
         if not self.mem:
             return "(memory empty)"
+        only, text = self._source_filter(text)
+        if only is not None:
+            qv = self._enc_note(text)
+            best_i = max(only, key=lambda i: self.g.sim(qv, self._enc_note(self.mem[i])))
+            return "recall: %s%s" % (self.mem[best_i], self._cite(best_i))
         best_i, cite = self._best_note(text)
         out = "recall: %s%s" % (self.mem[best_i], cite)
         # THE CONFLICT SURFACE (F1028 §4 v1): a second note sharing >=2 content words whose
