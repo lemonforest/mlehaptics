@@ -8,7 +8,7 @@ name = "siona"
 # `import siona` alias) and becomes its OWN real package — the grounded RBS-HDC inference layer, a srmech PROFILE
 # built ON lean srmech. TestPyPI rc first (its OWN PR; NOT via PR #687); a clean tag -> PyPI is the human gate.
 version = "0.1.0rc1"
-description = "Siona — a grounded, can't-hallucinate RBS-HDC instrument: storage + retrieval (k=3 chiral addressing) of spectrally-encoded knowledge, built on srmech (Stored-Relationship Mechanism)."
+description = "Siona — a grounded RBS-HDC instrument with a calibrated honest-STOP: storage + retrieval (k=3 chiral addressing) of spectrally-encoded knowledge, built on srmech (Stored-Relationship Mechanism). Emissions are reads of stored relationships; when uncertain it says so."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"

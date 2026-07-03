@@ -1,6 +1,14 @@
 # siona
 
-**Siona is a grounded, can't-hallucinate RBS-HDC instrument** — storage + retrieval (k=3 chiral *addressing*) of spectrally-encoded knowledge, built on **[`srmech`](https://pypi.org/project/srmech/)** (Stored-Relationship Mechanism) as its lean math core.
+**Siona is a grounded RBS-HDC instrument** — storage + retrieval (k=3 chiral *addressing*) of spectrally-encoded knowledge, built on **[`srmech`](https://pypi.org/project/srmech/)** (Stored-Relationship Mechanism) as its lean math core.
+
+> **On hallucination (the honest claim):** every Siona emission is a *read of stored relationships*, and
+> when the read is uncertain the cascade **says so** — a calibrated honest-STOP ("I'm not sure") instead of
+> a confident guess, and honest-OPEN instead of an invented answer (it reports its confidence, not a guess;
+> gaps → ask, not fabricate). This is a different failure class from current-generation LLM hallucination
+> (free-running confabulation from a generative sampler): Siona can still *err* — a translation kernel can
+> mis-ground, a homograph can select the wrong sense — but such errors are **traceable mis-reads of stored
+> content**, auditable back to the relationship that produced them, never fabrications from nothing.
 
 > **Un-mirror note (0.1.0rc1):** earlier `siona` releases (≤ 0.0.4) were a metadata-only *co-name alias* for `srmech` — `import siona` resolved to `import srmech`. That alias has been retired (srmech removed the in-wheel `siona` alias). **`siona` is now its own package**: the inference layer, not a second name for the math core. `srmech` remains the single source of truth for the 14-class A–N vocabulary, the Klein-4 HDC, and the native library; `siona` *depends on it* and adds the recall/inference surface on top.
 
