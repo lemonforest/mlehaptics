@@ -324,24 +324,35 @@ class Session:
                 return None
         return None
 
-    def _cd_target(self, tool_name):
-        # the target Hurwitz rung declared by the op's ALGEBRA NAME (octonion == the dim-8 rung);
-        # the name IS the descriptor's R/C/H/O/S label, not a guess
+    def _cd_target(self, tool_name, u=""):
+        # the target Hurwitz rung: an EXPLICIT algebra word or 'to N' in the utterance wins (the user's
+        # 'promote it to a sedenion' / 'to 16'), else the op's own ALGEBRA NAME (octonion == dim-8);
+        # both are the descriptor's R/C/H/O/S label, not a guess
+        toks = _toks(u)
+        for i, w in enumerate(toks):
+            if w in self.CD_NAMES:
+                return self.CD_NAMES[w]
+            if w == "to" and i + 1 < len(toks) and toks[i + 1].isdigit() \
+                    and int(toks[i + 1]) in (1, 2, 4, 8, 16):
+                return int(toks[i + 1])
         low = tool_name.lower()
         for k, d in self.CD_NAMES.items():
             if k in low:
                 return d
         return None
 
-    def _cd_promote_ref(self, tool_name):
-        """cd-ladder auto-promote (F1040): the register (a cd element) lifted to the op's rung via
-        srmech cd_promote (duality-guarded downward projection stays srmech's -- siona only UP).
-        Returns the (possibly promoted) sequence, or None if not a cd bind."""
+    def _cd_promote_ref(self, tool_name, u=""):
+        """cd-ladder auto-promote (F1040/F1041): the register (a cd element) lifted to the op's rung
+        via srmech cd_promote (duality-guarded downward projection stays srmech's -- siona only UP).
+        For cd_promote/cd_project ITSELF the register binds AS-IS (the op does the lift; the target
+        dim rides the utterance as a separate operand). Returns the sequence, or None if not a cd bind."""
         obj = self.last_result
         rung = self._cd_rung(obj)
         if rung is None:
             return None
-        tgt = self._cd_target(tool_name)
+        if tool_name.endswith("cd_promote") or tool_name.endswith("cd_project"):
+            return list(obj)               # x binds as-is; the op performs the conversion
+        tgt = self._cd_target(tool_name, u)
         if tgt is None or tgt < rung:      # no cd op named, or would need a downgrade -> not our bind
             return None
         if tgt == rung:
@@ -411,20 +422,9 @@ class Session:
         reqs = [p for p in reqs if pt(p) != "str"]
         if not reqs and strp:
             return 2.0
-        intp = sum(1 for p in reqs if pt(p) == "int")
-        fltp = sum(1 for p in reqs if pt(p) == "float")
-        bytp = sum(1 for p in reqs if "bytes" in pt(p))
-        def scalar_union(p):   # 'float | Sequence[float]' with a scalar operand available -> SCALAR
-            t = pt(p)
-            return ("|" in t and ("float" in t or "int" in t)
-                    and any(k in t for k in ("list", "sequence", "tuple"))
-                    and bool(fls or ints))
-        sun = [p for p in reqs if scalar_union(p)]
-        fltp = fltp + len(sun)  # the union's scalar alternative counts as a float slot
-        listp = sum(1 for p in reqs if any(k in pt(p) for k in ("list", "sequence", "tuple"))
-                    and not scalar_union(p))
         cd_bind = (ref and t_name and self._cd_rung(self.last_result) is not None
-                   and self._cd_target(t_name) is not None
+                   and (self._cd_target(t_name, u) is not None
+                        or t_name.endswith("cd_promote") or t_name.endswith("cd_project"))
                    and any("hv" in pt(p) or any(k in pt(p) for k in ("sequence", "list")) for p in reqs))
         def ref_fits(p):
             tt = pt(p)
@@ -436,8 +436,22 @@ class Session:
                 return True
             return bool(self._accepts(tt)) and self.last_result is not None \
                 and self._promote_ref(tt) is not None    # promotable via the poly ladder
-        refp = sum(1 for p in reqs if ref and ref_fits(p))
-        if len(reqs) - intp - fltp - bytp - listp - refp:
+        ref_ids = {id(p) for p in reqs if ref and ref_fits(p)}
+        refp = len(ref_ids)
+        rest = [p for p in reqs if id(p) not in ref_ids]   # a ref-fit param is FILLED by the register,
+        intp = sum(1 for p in rest if pt(p) == "int")      # so it is excluded from operand-type counts
+        fltp = sum(1 for p in rest if pt(p) == "float")
+        bytp = sum(1 for p in rest if "bytes" in pt(p))
+        def scalar_union(p):   # 'float | Sequence[float]' with a scalar operand available -> SCALAR
+            t = pt(p)
+            return ("|" in t and ("float" in t or "int" in t)
+                    and any(k in t for k in ("list", "sequence", "tuple"))
+                    and bool(fls or ints))
+        sun = [p for p in rest if scalar_union(p)]
+        fltp = fltp + len(sun)  # the union's scalar alternative counts as a float slot
+        listp = sum(1 for p in rest if any(k in pt(p) for k in ("list", "sequence", "tuple"))
+                    and not scalar_union(p))
+        if len(rest) - intp - fltp - bytp - listp:
             return 0.0
         if refp:
             # exactly ONE carrier slot: duplicating one register into several params is never the
@@ -554,6 +568,10 @@ class Session:
                     if p.name == "n" and edges:    # schema-driven: n derives from the edge operands
                         args.append(max(max(a, b) for a, b in edges) + 1)
                         continue
+                    if p.name == "dim" and pick.endswith("cd_promote"):   # 'to a sedenion' -> 16
+                        d = self._cd_target(pick, u)
+                        if d is not None:
+                            args.append(d); continue
                     return None
                 args.append(ints[ii]); ii += 1
             elif ("|" in tp and ("float" in tp or "int" in tp) and (fq or ii < len(ints))):
@@ -561,18 +579,19 @@ class Session:
                     num, den = fq.pop(0); args.append(float(num) / float(den))
                 else:
                     args.append(float(ints[ii])); ii += 1
+            elif (ref and ("hv" in tp or any(k in tp for k in ("sequence", "list")))
+                  and self._cd_rung(self.last_result) is not None
+                  and (self._cd_target(pick, u) is not None
+                       or pick.endswith("cd_promote") or pick.endswith("cd_project"))):
+                seq = self._cd_promote_ref(pick, u)  # cd-ladder auto-promote UP (BEFORE the int-list fill:
+                if seq is None:                       # a cd element in the register wins the sequence param)
+                    return None
+                args.append(seq)
             elif any(k in tp for k in ("list", "sequence", "tuple")):
                 if edges and "tuple" in tp:
                     args.append(list(edges))       # EDGE-PAIR operands -> Iterable[Tuple[int,int]] params
                 else:
                     args.append(ints[ii:]); ii = len(ints)
-            elif (ref and ("hv" in tp or any(k in tp for k in ("sequence", "list")))
-                  and self._cd_rung(self.last_result) is not None
-                  and self._cd_target(pick) is not None):
-                seq = self._cd_promote_ref(pick)   # cd-ladder auto-promote UP to the op's Hurwitz rung
-                if seq is None:
-                    return None
-                args.append(seq)
             elif ref and (ref.lower() in tp or self._accepts(tp)):
                 promoted = self._promote_ref(tp)   # the register AS a conversion ladder (auto-promote UP)
                 if promoted is None:

@@ -106,3 +106,20 @@ def test_cd_ladder_auto_promote_rc117():
     assert "octonion_conjugate([" in out, out                           # rung 4 AUTO-PROMOTED to 8
     # a length-8 result proves the promotion (a bare quaternion would have errored or stayed len-4)
     assert out.count("Fraction") >= 8 or out.count(",") >= 7, out
+
+
+def test_cd_explicit_dim_promotion_rc117():
+    """F1041: explicit-dim cd promotion -- 'promote it to a sedenion' / 'to N'. The register (a cd
+    element) binds to cd_promote's x AS-IS and the target dim rides the utterance (algebra word or
+    'to N'), not the op name. The _fit refactor: a ref-fit param is excluded from operand accounting."""
+    import importlib.util
+    if importlib.util.find_spec("srmech.amsc.carrier_ladder") is None:
+        import pytest
+        pytest.skip("carrier_ladder (srmech rc117+) not on this floor")
+    s = siona.Session()
+    s.turn("compute the quaternion exp of 0.5")                          # rung-4 quaternion in register
+    _, tag, out = s.turn("compute the cd promote of it to a sedenion")
+    assert "cd_promote([0.877" in out and ", 16)" in out, out            # register->x AS-IS, dim=16 from word
+    s.turn("compute the quaternion exp of 0.5")
+    _, tag, out = s.turn("compute the cd promote of it to 8")
+    assert "cd_promote([0.877" in out and ", 8)" in out, out             # dim=8 from 'to N'

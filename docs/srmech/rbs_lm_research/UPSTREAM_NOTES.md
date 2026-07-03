@@ -2741,3 +2741,16 @@ the 2:4:8 structure) — so the conversion ladder is the embed(promote)/project 
 (add/drop a trivial dimension; project refuses a non-trivial drop). Ask: (1) the two constructors; (2)
 poly_promote/project + cd_promote/project; (3) a per-carrier ladder+rung descriptor so Siona's register
 auto-routes a lower carrier UP to any higher-rung consumer — the translation layer made declarative.
+
+## §87 — machine-readable per-op CARRIER CONTRACT (the rung the op consumes/produces) [ASK FILED → #1254] (2026-07-03; F1041)
+
+Answering "why doesn't the DSL tell Siona how to do carrier routing": the DSL IS the SSoT for op CHAINING
+(`Chain`/`run_toml_chain`) and op COMPOSITION (`make_class`), and rc117's `carrier_ladder_descriptor()`
+declares the LADDER (rungs + promote/project ops). But the ONE thing still missing is machine-readable:
+the per-op CARRIER RUNG. `octonion_conjugate`'s param is `type=HV, summary='8-vector'` -- the "8" is PROSE,
+not a structured field; and the QM/Hurwitz ops have NO DSL descriptor (get_descriptor raises). So a driver
+cannot READ "this op consumes a dim-8 cd element" -- it must infer it from the op NAME (Siona hardcodes
+CD_NAMES octonion->8) or sniff the register length. ASK: a structured per-op carrier contract in the schema
+(ToolParameter gains `carrier` + `rung`, or the descriptor gains an ops->{consumes_rung, produces_rung,
+promotable} map) so the whole routing is DECLARATIVE and a driver reads it -- no CD_NAMES map, no length
+heuristic. THEN the DSL/schema is the SSoT for carrier routing exactly as it already is for chaining/compose.
