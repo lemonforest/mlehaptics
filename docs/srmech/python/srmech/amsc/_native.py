@@ -1776,6 +1776,18 @@ def _bind(lib: ctypes.CDLL) -> None:
         # pack(loose_dir, dest, the_one, the_one_len, ws, ws_len)
         lib.srmech_genome_pack.argtypes = [_CP, _CP, _U8, _SZ, _VP, _SZ]
         lib.srmech_genome_pack.restype = ctypes.c_int
+        # §127/rc127 (#726) — the active-telomere TICK (divide/gate): the operand
+        # (count) selects the operator. cap in, out_cap + senescent + count_after out.
+        # No arena (out_cap is caller-provided). NEW symbol → hasattr-guarded (a stale
+        # ABI-3 lib keeps the rest of the genome surface); additive → ABI stays 3.
+        #   int srmech_genome_telomere_tick(const unsigned char *cap, size_t leaf_dim,
+        #       unsigned char *out_cap, int *senescent, uint64_t *count_after)
+        if hasattr(lib, "srmech_genome_telomere_tick"):
+            lib.srmech_genome_telomere_tick.argtypes = [
+                _U8, _SZ, _U8,
+                ctypes.POINTER(ctypes.c_int),
+                ctypes.POINTER(ctypes.c_uint64)]
+            lib.srmech_genome_telomere_tick.restype = ctypes.c_int
         # json_write_ws(value, buf, buf_len, &out_len, ws, ws_len) — serialise
         # the catalog's tree; the writer's key-sort scratch is carved from the
         # caller arena `ws` (rc160: no compiled-in object-width cap). Size `ws`
@@ -9843,6 +9855,26 @@ def genome_save_c(dir_: str, body: bytes, leaf_dim: int, the_one: bytes) -> None
         ws, ctypes.c_size_t(ws_len))
     if rc != SRMECH_OK:
         raise NativeGenomeError("srmech_genome_save", rc)
+
+
+def genome_telomere_tick_c(cap: bytes, leaf_dim: int):
+    """Native §127 active-telomere tick — the divide/gate (the operand modulates the
+    operator). Returns ``(senescent: bool, count_after: int, new_cap: bytes)``:
+    ``senescent`` True iff the count was 0 (Hayflick refuse; ``new_cap`` == ``cap``),
+    else ``count_after`` == count-1 and ``new_cap`` is the decremented daughter cap.
+    Byte-identical to the pure Python ``telomere_tick``."""
+    _require_genome()
+    if not hasattr(LIB, "srmech_genome_telomere_tick"):
+        raise NativeGenomeError("srmech_genome_telomere_tick", SRMECH_ERR_NOT_IMPL)
+    out = (ctypes.c_uint8 * max(leaf_dim, 1))()
+    senescent = ctypes.c_int(0)
+    count_after = ctypes.c_uint64(0)
+    rc = LIB.srmech_genome_telomere_tick(
+        _u8(cap), ctypes.c_size_t(leaf_dim), out,
+        ctypes.byref(senescent), ctypes.byref(count_after))
+    if rc != SRMECH_OK:
+        raise NativeGenomeError("srmech_genome_telomere_tick", rc)
+    return bool(senescent.value), int(count_after.value), bytes(out[:leaf_dim])
 
 
 def genome_load_c(dir_: str, the_one: bytes, out_cap: int) -> bytes:

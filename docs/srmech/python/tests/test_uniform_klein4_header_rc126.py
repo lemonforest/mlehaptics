@@ -70,7 +70,7 @@ def test_v6_roundtrip_on_disk(tmp_path, D):
     one = G._default_the_one(256)
     p = tmp_path / f"k{D}"
     man = G.genome_save(strand, p, the_one=one)
-    assert man["format_version"] == 6                # the §89/v6 writer
+    assert man["format_version"] == 7                # the v7 writer (rc127 §127 stamps 7)
     assert G.kernel_unpack(p) == x                   # the_one from the manifest cache
 
 
