@@ -1788,6 +1788,18 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.POINTER(ctypes.c_int),
                 ctypes.POINTER(ctypes.c_uint64)]
             lib.srmech_genome_telomere_tick.restype = ctypes.c_int
+        # §128/rc128 (#728) — the per-gene EXPRESSION decision (the read-time filter): the
+        # operand (cell_state) selects the operator. cap in, expressed (+ mask) out. No arena
+        # (a per-cap decision). NEW symbol → hasattr-guarded (a stale ABI-3 lib keeps the rest
+        # of the genome surface); additive → ABI stays 3.
+        #   int srmech_genome_gene_express(const unsigned char *cap, size_t leaf_dim,
+        #       uint64_t cell_state, int *expressed, uint64_t *mask_out)
+        if hasattr(lib, "srmech_genome_gene_express"):
+            lib.srmech_genome_gene_express.argtypes = [
+                _U8, _SZ, ctypes.c_uint64,
+                ctypes.POINTER(ctypes.c_int),
+                ctypes.POINTER(ctypes.c_uint64)]
+            lib.srmech_genome_gene_express.restype = ctypes.c_int
         # json_write_ws(value, buf, buf_len, &out_len, ws, ws_len) — serialise
         # the catalog's tree; the writer's key-sort scratch is carved from the
         # caller arena `ws` (rc160: no compiled-in object-width cap). Size `ws`
@@ -9875,6 +9887,25 @@ def genome_telomere_tick_c(cap: bytes, leaf_dim: int):
     if rc != SRMECH_OK:
         raise NativeGenomeError("srmech_genome_telomere_tick", rc)
     return bool(senescent.value), int(count_after.value), bytes(out[:leaf_dim])
+
+
+def genome_gene_express_c(cap: bytes, leaf_dim: int, cell_state: int) -> bool:
+    """Native §128 per-gene expression decision — the read-time filter (the cell_state
+    operand modulates the operator). ``cap`` is a plain GENE (0x47) or regulatory-gene
+    (0x67) cap leaf; returns ``True`` iff the gene EXPRESSES under ``cell_state``: a plain
+    gene always expresses (mask 0), a regulatory gene expresses iff ``(cell_state & mask) ==
+    mask``. Byte-identical to the pure Python decision in ``genome._gene_expresses``."""
+    _require_genome()
+    if not hasattr(LIB, "srmech_genome_gene_express"):
+        raise NativeGenomeError("srmech_genome_gene_express", SRMECH_ERR_NOT_IMPL)
+    expressed = ctypes.c_int(0)
+    mask_out = ctypes.c_uint64(0)
+    rc = LIB.srmech_genome_gene_express(
+        _u8(cap), ctypes.c_size_t(leaf_dim), ctypes.c_uint64(cell_state),
+        ctypes.byref(expressed), ctypes.byref(mask_out))
+    if rc != SRMECH_OK:
+        raise NativeGenomeError("srmech_genome_gene_express", rc)
+    return bool(expressed.value)
 
 
 def genome_load_c(dir_: str, the_one: bytes, out_cap: int) -> bytes:

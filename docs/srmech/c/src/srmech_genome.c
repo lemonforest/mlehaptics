@@ -68,9 +68,9 @@
 /* The §41 manifest data_schema_id (== GENOME_MANIFEST_SCHEMA_ID). */
 #define SRMECH_GENOME_SCHEMA_ID "srmech://schema/genome_manifest/v1"
 
-/* The §41 parser_rule_hash pre-image (== f"genome_persistence/v7" — tracks
+/* The §41 parser_rule_hash pre-image (== f"genome_persistence/v8" — tracks
  * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _manifest_record). */
-#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v7"
+#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v8"
 
 /* ------------------------------------------------------------------ *
  * Path + file helpers (stdio — Rule 3 allows file I/O, bans malloc).
@@ -249,11 +249,12 @@ static srmech_status_t genome_block_len(const unsigned char *body,
     size_t n;
     if (kind == SRMECH_GENOME_CHROM_CAP_MARKER ||
         kind == SRMECH_GENOME_GENE_CAP_MARKER ||
+        kind == SRMECH_GENOME_REGULATORY_GENE_MARKER ||
         kind == SRMECH_GENOME_KERNEL_HEADER_MARKER ||
         kind == SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
         kind == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER || kind <= 3u) {
         n = (size_t)leaf_dim;   /* cap / §60 v5 header / §89 kernel telomere /
-                                 * §127 active telomere / v2 turn */
+                                 * §127 active telomere / §128 regulatory gene / v2 turn */
     } else if (kind == SRMECH_GENOME_PACKED_TURN_MARKER) {
         n = 1u + ((size_t)leaf_dim + 3u) / 4u;      /* v3 bit-packed turn */
     } else {
@@ -658,9 +659,11 @@ static srmech_status_t genome_scan_chroms(genome_strings_t *s,
             s->leaf_count[cur] = 0u;
         } else {
             if (cur < 0) { return SRMECH_ERR_BAD_INPUT; }   /* turn before 1st cap */
-            /* §60: a GENE cap or a v5 KERNEL HEADER (0x4B) is not a data turn. The
-             * §89 v6 Klein-4 header IS a coupled turn (counted). */
+            /* §60/§128: a GENE cap (plain 0x47 / regulatory 0x67) or a v5 KERNEL HEADER
+             * (0x4B) is not a data turn. The §89 v6 Klein-4 header IS a coupled turn
+             * (counted). */
             if (body[off] != SRMECH_GENOME_GENE_CAP_MARKER &&
+                body[off] != SRMECH_GENOME_REGULATORY_GENE_MARKER &&
                 body[off] != SRMECH_GENOME_KERNEL_HEADER_MARKER) {
                 s->leaf_count[cur]++;
             }
@@ -825,6 +828,47 @@ srmech_status_t srmech_genome_telomere_tick(
     }
     *senescent = 0;
     *count_after = after;
+    return SRMECH_OK;
+}
+
+/* §128/v8 (#728) — the per-gene EXPRESSION read-filter: the OPERAND (cell_state) selects the
+ * OPERATOR (express or not). A plain GENE cap (0x47) always expresses (mask 0); a REGULATORY
+ * GENE cap (0x67) expresses iff (cell_state & mask) == mask. NEVER mutates cap (a READ). */
+srmech_status_t srmech_genome_gene_express(
+    const unsigned char *cap, size_t leaf_dim, uint64_t cell_state,
+    int *expressed, uint64_t *mask_out)
+{
+    assert(cap != NULL || expressed == NULL);
+    assert(leaf_dim <= 256u);
+    if (cap == NULL || expressed == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (leaf_dim == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    unsigned char marker = cap[0];
+    if (marker == SRMECH_GENOME_GENE_CAP_MARKER) {
+        if (mask_out != NULL) { *mask_out = 0u; }
+        *expressed = 1;             /* unregulated gene == mask 0; (cell_state & 0) == 0 */
+        return SRMECH_OK;
+    }
+    if (marker != SRMECH_GENOME_REGULATORY_GENE_MARKER) {
+        return SRMECH_ERR_BAD_INPUT;                /* neither 0x47 nor 0x67 — not a gene */
+    }
+    /* a regulatory gene — read the uint64 big-endian MASK after the label's NUL terminator */
+    size_t i = 1u;                                  /* skip the 0x67 marker byte */
+    while (i < leaf_dim && cap[i] != 0u) { i++; }   /* find the label terminator */
+    if (i >= leaf_dim) { return SRMECH_ERR_BAD_INPUT; }        /* no label NUL */
+    if (i + 1u + SRMECH_GENOME_REGULATORY_MASK_BYTES > leaf_dim) {
+        return SRMECH_ERR_BAD_INPUT;                           /* mask field truncated */
+    }
+    uint64_t mask = 0u;
+    size_t base = i + 1u;
+    for (size_t k = 0u; k < SRMECH_GENOME_REGULATORY_MASK_BYTES; k++) {
+        mask = (mask << 8) | (uint64_t)cap[base + k];
+    }
+    if (mask_out != NULL) { *mask_out = mask; }
+    *expressed = ((cell_state & mask) == mask) ? 1 : 0;   /* Class-I bitwise; no abs */
     return SRMECH_OK;
 }
 
@@ -1333,13 +1377,14 @@ static srmech_status_t genome_scan_region(const unsigned char *region,
                           kind == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER)) {
             return SRMECH_ERR_BAD_INPUT;  /* one append == ONE chromosome */
         }
-        /* §60/§127: a GENE cap or a v5 KERNEL HEADER (0x4B) is not a data turn; the
-         * §89 kernel telomere / §127 active telomere opens the region (off==0). The
-         * §89 Klein-4 header IS a coupled turn (counted). */
+        /* §60/§127/§128: a GENE cap (plain 0x47 / regulatory 0x67) or a v5 KERNEL HEADER
+         * (0x4B) is not a data turn; the §89 kernel telomere / §127 active telomere opens
+         * the region (off==0). The §89 Klein-4 header IS a coupled turn (counted). */
         if (kind != SRMECH_GENOME_CHROM_CAP_MARKER &&
             kind != SRMECH_GENOME_KERNEL_TELOMERE_MARKER &&
             kind != SRMECH_GENOME_ACTIVE_TELOMERE_MARKER &&
             kind != SRMECH_GENOME_GENE_CAP_MARKER &&
+            kind != SRMECH_GENOME_REGULATORY_GENE_MARKER &&
             kind != SRMECH_GENOME_KERNEL_HEADER_MARKER) { lc++; }
         nb++;
         off += blen;
@@ -1708,9 +1753,9 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
 
 /* The §43 .chr data_schema_id (== GENOME_CHR_SCHEMA_ID). */
 #define SRMECH_GENOME_CHR_SCHEMA_ID "srmech://schema/genome_chromosome/v1"
-/* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v7" — tracks
+/* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v8" — tracks
  * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _chr_record). */
-#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v7"
+#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v8"
 /* The §43 rendering "purpose" — VERBATIM from genome.py _chr_record
  * (single-line #define; JPL Rule 8 forbids backslash line-continuation). */
 #define SRMECH_GENOME_CHR_PURPOSE "One self-contained, MPR-attested chromosome: its fixed-width region (CHROM cap + coupled turns) + the_one, re-importable self-verifying."

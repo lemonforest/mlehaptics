@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc127"
-#define SRMECH_VERSION       "0.9.0rc127"
+#define SRMECH_VERSION_PRE   "rc128"
+#define SRMECH_VERSION       "0.9.0rc128"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2634,7 +2634,20 @@ size_t srmech_op_provenance_hash_arena_bytes(size_t record_len);
  * never a converter. A plain-telomere (no 0x74) genome saved by the v7 writer is
  * byte-identical to v6 EXCEPT the format_version field. Mirrors GENOME_FORMAT_VERSION
  * in srmech.amsc.genome. */
-#define SRMECH_GENOME_FORMAT_VERSION 7
+/* v8 (§128/rc128, #728): the REGULATORY GENE. An intra-chromosome gene MAY be opened by a
+ * SRMECH_GENOME_REGULATORY_GENE_MARKER (0x67) cap carrying an exact regulatory MASK inline
+ * (the gene's "regulatory region / promoter" that srmech_genome_gene_express reads to gate
+ * which genes express under an applied cell_state — the op-carries-operand theorem one scale
+ * up from the v7 active telomere: the cell-state operand modulates the expression operator
+ * over MANY genes, #728). Unlike the v6/v7 chromosome-boundary caps, the 0x67 cap is an
+ * INTRA-chromosome gene delimiter (a gene-analog of the plain GENE cap 0x47); it is one more
+ * self-describing kind in the SAME walk (first byte keys it, label read UNIFORMLY, mask in
+ * the 8 bytes after the label NUL), so v2..v7 bodies read UNCHANGED (dual-read): back-compat
+ * is STRUCTURAL, never a converter. A plain-gene (no 0x67) genome saved by the v8 writer is
+ * byte-identical to v7 EXCEPT the format_version field, and every plain gene ALWAYS EXPRESSES
+ * (an unregulated gene == a regulatory gene with mask 0). Mirrors GENOME_FORMAT_VERSION in
+ * srmech.amsc.genome. */
+#define SRMECH_GENOME_FORMAT_VERSION 8
 
 /* §44 inline cap markers — the FIRST byte of a fixed-width cap leaf. Both are
  * > 3 so a cap is told apart from a Klein-4 data turn (bytes 0..3) by its
@@ -2686,6 +2699,23 @@ size_t srmech_op_provenance_hash_arena_bytes(size_t record_len);
  * the byte right after the inline label's NUL terminator. Mirrors
  * _ACTIVE_TELOMERE_COUNT_BYTES in srmech.amsc.genome. */
 #define SRMECH_GENOME_ACTIVE_TELOMERE_COUNT_BYTES 8u
+
+/* §128/v8 REGULATORY GENE marker (rc128, #728) — the FIRST byte of a fixed-width
+ * leaf_dim-byte cap leaf that opens an INTRA-chromosome gene (like the plain GENE cap) AND
+ * carries an exact non-negative regulatory MASK inline. Layout: [0x67] + utf-8 label + NUL +
+ * mask (uint64 big-endian) + NUL-pad to leaf_dim (the SAME field shape as the §127 active
+ * telomere, mask replacing count). The label decode is UNIFORM (bytes [1:] up to the first
+ * NUL — the same as every cap); the mask is read at the 8 bytes RIGHT AFTER that NUL. > 3 and
+ * distinct from every other marker (CHROM 0x43 / GENE 0x47 / v5 KERNEL 0x4B / PACKED 0x51 /
+ * KERNEL-telomere 0x6B / ACTIVE-telomere 0x74), so v2..v7 bodies read UNCHANGED — the walker
+ * gains ONE branch. srmech_genome_gene_express reads the mask to gate expression under a
+ * cell_state. Mirrors REGULATORY_GENE_MARKER in srmech.amsc.genome. */
+#define SRMECH_GENOME_REGULATORY_GENE_MARKER 0x67u /* 'g' — a §128 regulatory gene */
+
+/* §128/v8 regulatory-gene MASK field width — a uint64 (8 bytes, big-endian), read at the byte
+ * right after the inline label's NUL terminator (the SAME field shape as the §127 active
+ * telomere's count). Mirrors _REGULATORY_GENE_MASK_BYTES in srmech.amsc.genome. */
+#define SRMECH_GENOME_REGULATORY_MASK_BYTES 8u
 
 /* Max label byte length (NUL-terminated) for one chromosome. This is a FORMAT
  * width (a label lives inline in a leaf_dim-byte cap block, like PATH_MAX), NOT
@@ -3010,6 +3040,31 @@ srmech_status_t srmech_genome_pack(
 srmech_status_t srmech_genome_telomere_tick(
     const unsigned char *cap, size_t leaf_dim,
     unsigned char *out_cap, int *senescent, uint64_t *count_after);
+
+/* §128/v8 (#728) GENE EXPRESSION — the per-gene read-time FILTER whose OPERATOR behaviour
+ * (express or not) is SELECTED by its OPERAND (the cell_state). Read the regulatory MASK
+ * carried inline in a gene cap (`cap`, the first leaf_dim bytes) and decide:
+ *   plain GENE cap (cap[0] == 0x47, no mask) -> mask 0, *expressed = 1 (ALWAYS expresses;
+ *                    an unregulated gene == a regulatory gene with mask 0 — back-compat).
+ *   REGULATORY GENE cap (cap[0] == 0x67)     -> read the mask, *expressed = 1 iff
+ *                    (cell_state & mask) == mask (the cell-state has ALL of the gene's
+ *                    required regulatory conditions present), else 0.
+ * Byte-identical to the pure Python decision in srmech.amsc.genome._gene_expresses. The mask
+ * lives at the SRMECH_GENOME_REGULATORY_MASK_BYTES (8) bytes right after the label's NUL
+ * terminator, big-endian. No arena (a per-cap decision); malloc-free; no abs (a mask / a
+ * cell_state is never negated). NEVER MUTATES cap (a READ — biology does not rewrite DNA to
+ * regulate it).
+ *   cap / leaf_dim : the gene cap leaf (leaf_dim bytes; cap[0] == 0x47 or 0x67).
+ *   cell_state     : the exact non-negative cell-state bitmask (each set bit a condition).
+ *   expressed      : out — 1 iff the gene expresses under cell_state, else 0.
+ *   mask_out       : out — the gene's regulatory mask (0 for a plain gene); may be NULL.
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — cap / expressed is NULL.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0, cap[0] is neither 0x47 nor 0x67, no label NUL, or a
+ *                          truncated mask field (regulatory gene). */
+srmech_status_t srmech_genome_gene_express(
+    const unsigned char *cap, size_t leaf_dim, uint64_t cell_state,
+    int *expressed, uint64_t *mask_out);
 
 /* ------------------------------------------------------------------ *
  * TOML parser (malloc-free; caller arena)
