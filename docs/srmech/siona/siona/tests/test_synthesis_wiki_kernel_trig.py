@@ -145,3 +145,30 @@ def test_cd_rung_read_from_declared_contract_rc120():
     s.turn("compute the quaternion exp of 0.5")
     _, tag, out = s.turn("compute the octonion conjugate of it")
     assert "octonion_conjugate([" in out, out
+
+
+def test_genome_store_pack_load_instrument_rc123():
+    """F1045 (PKG-3): siona.genome_store packs the D=8192 Klein-4 instrument into a native srmech
+    genome via kernel_pack/unpack (§60, rc123+) -- dim-agnostic, exact round-trip, bit-packed ~2
+    bits/symbol. Replaces the loose NDJSON+index; the corrected SPARSE store (no dense blow-up)."""
+    import importlib.util, tempfile, os
+    if importlib.util.find_spec("srmech.amsc.genome") is None:
+        import pytest; pytest.skip("genome surface absent")
+    import srmech.amsc.genome as G
+    if not hasattr(G, "kernel_pack"):
+        import pytest; pytest.skip("kernel_pack (§60, rc123+) not on this floor")
+    from siona import genome_store as GS
+    s = siona.Session()
+    named = [(name.split(".")[-1], vec) for name, vec in s.g._idx[:12]]  # real grounding vectors
+    D = len(list(named[0][1]))
+    d = tempfile.mkdtemp(prefix="siona_gs_")
+    GS.pack_instrument(named, d)
+    back = GS.load_instrument(d)
+    assert len(back) == len(named)
+    for lab, vec in named:
+        assert back[lab] == list(vec), "kernel %s not recovered exactly" % lab   # EXACT, dim-agnostic
+    # single-label paging is exact too
+    assert GS.load_kernel(d, named[3][0]) == list(named[3][1])
+    # bit-packed on disk: << 1 byte/symbol (the corrected sparse store, not a dense blow-up)
+    sz = os.path.getsize(os.path.join(d, "turns.bin"))
+    assert sz < len(named) * D * 0.5, "not bit-packed: %d B for %d symbols" % (sz, len(named)*D)
