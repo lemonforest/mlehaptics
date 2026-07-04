@@ -1,12 +1,30 @@
 """srmech.amsc.op_provenance — OPERATORS⊗OPERANDS as ONE addressable object
 (rc117; the op-carrying carrier — dives #718 / #719 + the joint review).
 
-The value of an inexact-frontier op (a float64 eigensolve, a series-truncate
-readout) is a PROJECTION; the exact generating operation is the SSOT. This
-module attaches the operation to the result — the two truths (operand /
-operator, field / excitation) held in ONE addressable object — so that where
-value-exactness is lost (asymptotic limits, float projections, platform
-divergence), exactness stays ADDRESSABLE at the OPERATION level.
+The value of a lossy-projection-frontier op (a float64 eigensolve, a
+series-truncate readout, an HDC-superposition-collapse fold) is a PROJECTION;
+the exact generating operation is the SSOT. This module attaches the operation
+to the result — the two truths (operand / operator, field / excitation) held in
+ONE addressable object — so that where value-exactness is lost (asymptotic
+limits, float projections, HDC superposition-collapse, platform divergence),
+exactness stays ADDRESSABLE at the OPERATION level.
+
+Two DUAL faces of the lossy-projection frontier are addressed here (rc125 /
+task #723 widened the scope wording from "value-inexact frontier" to
+"lossy-projection"):
+
+* the **value-inexact** face — a float readout / a series truncation whose
+  exactness lives in the ASYMPTOTIC generator (a tower of truncations
+  converging to a limit): :func:`carry` runs the registered op + attaches the
+  (family, rung) address.
+* the **lossy-projection** face — an exact-in / exact-out op whose projection
+  (the Klein-4 superposition collapse of a ``fold_encode``) drops information
+  recoverable ONLY when the exact COMPLEMENT is carried alongside (the
+  field–excitation recoverability principle): :func:`lossy_projection_record`
+  addresses it with ``family=None`` / ``rung={}`` (NO asymptotic target, NO
+  precision rung — recovery is EXACT at any dim because the complement is
+  carried, not decoded) and the genuine non-asymptotic
+  ``projection_kind='hdc'`` kind (never a faked interior/edge tower_kind).
 
 The provenance RECORD (hashed via the MPRRecord-style canonical byte image,
 ``json.dumps(record, sort_keys=True, ensure_ascii=False)`` → Class-A
@@ -90,11 +108,20 @@ __all__ = [
     "op_verdict",
     "family_verdict",
     "reproject",
+    "lossy_projection_record",
 ]
 
-# The two tower kinds (the real two-valued choice from the mathematics).
+# The two ASYMPTOTIC tower kinds (the real two-valued choice from the
+# mathematics of a value-inexact op — a tower of truncations to a limit).
 _TOWER_INTERIOR = "interior"   # Taylor-type additive/smooth approach
 _TOWER_EDGE = "edge"           # CF-type multiplicative/reciprocal approach
+# The genuine NON-ASYMPTOTIC lossy-projection kind (rc125 / task #723): an
+# HDC-superposition-collapse (a fold_encode) is exact-in / exact-out with NO
+# tower and NO precision rung — recovery is EXACT at any dim BECAUSE the exact
+# complement is carried (not decoded). Recorded honestly rather than faked as
+# an interior/edge tower_kind this projection does not climb.
+_TOWER_HDC = "hdc"
+_LOSSY_PROJECTION_KINDS = (_TOWER_HDC,)
 
 # int64 domain of the C-side canonical writer (srmech_json INT is int64).
 _INT64_MIN = -(2 ** 63)
@@ -338,6 +365,104 @@ def op_provenance_hash(record: Dict[str, Any]) -> str:
 
 
 # ──────────────────────────────────────────────────────────────────────
+# lossy_projection_record — the LOSSY-PROJECTION face of the frontier
+# (rc125 / task #723). The DUAL of carry(): where carry() addresses a
+# VALUE-INEXACT op by its asymptotic (family, rung) tower, this addresses an
+# EXACT-in/EXACT-out projection (an HDC fold_encode) whose exactness lives in
+# the CARRIED complement — family=None, rung={}, projection_kind='hdc'.
+# ──────────────────────────────────────────────────────────────────────
+
+def lossy_projection_record(
+    op: str,
+    inputs: Dict[str, Any],
+    *,
+    projection_kind: str = _TOWER_HDC,
+) -> Dict[str, Any]:
+    """Build the exact op-address RECORD for a LOSSY-PROJECTION op whose
+    recovery is EXACT from its CARRIED complement (rc125 / task #723) — an
+    HDC-superposition-collapse ``fold_encode`` is the canonical case, the DUAL
+    face of the float/asymptotic-tower projections :func:`carry` addresses.
+
+    Where :func:`carry` addresses a VALUE-INEXACT op (a float readout / a series
+    truncation) whose exactness lives in the ASYMPTOTIC generator, a
+    lossy-PROJECTION op is exact-in / exact-out: its projection (the Klein-4
+    superposition collapse) drops information recoverable ONLY when the exact
+    complement is CARRIED alongside (the field–excitation recoverability
+    principle). So this record has:
+
+    * ``family: None`` — a superposition-collapse has NO asymptotic TARGET (it
+      is not a tower of truncations converging to a limit; there is nothing to
+      name as the target of an interior/edge tower).
+    * ``rung: {}`` — NO precision rung: recovery does not get "more accurate" at
+      a higher dim, it is EXACT at ANY dim because the complement is carried,
+      not decoded.
+    * ``projection_kind: 'hdc'`` — the genuine NON-ASYMPTOTIC projection kind
+      (:data:`_TOWER_HDC`), recorded honestly rather than faking an
+      interior/edge ``tower_kind`` this projection does not climb.
+
+    The record hashes (via :func:`op_provenance_hash`, the SAME rc117 canonical
+    machinery) to the projection's IDENTITY: two lossy projections with
+    byte-identical EXACT inputs share the address (an EQUAL identity), different
+    exact inputs give a different address. Because the inputs are EXACT, a
+    different address is a genuinely different object — so a NOT-EQUAL is
+    DECIDABLE here (unlike :func:`op_verdict`'s undecidable program-equality,
+    which only ever answers EQUAL/UNKNOWN). That presence-of-complement
+    decidability is the point: identity is decidable exactly when you hold the
+    complement.
+
+    Args:
+        op: the dotted op name being addressed (e.g.
+            ``"srmech.amsc.coupling.fold_encode"``).
+        inputs: the EXACT operand inputs keyed by name — canonicalised with the
+            rc117 float-free canon (``Q`` / int / rational leaves ride as exact
+            tags; a float leaf rides as its exact bit pattern and marks
+            ``leaves_exact: False``).
+        projection_kind: the non-asymptotic projection kind (default ``'hdc'``);
+            must be a recognised lossy-projection kind.
+
+    Returns:
+        The provenance record ``{op, params: {}, input_sha256, family: None,
+        rung: {}, projection_kind, leaves_exact, chain_sha256}``.
+
+    Raises:
+        ValueError: empty/non-str ``op``, non-dict ``inputs``, or an unknown
+            ``projection_kind``.
+    """
+    if not isinstance(op, str) or not op:
+        raise ValueError(
+            "lossy_projection_record: op must be a non-empty dotted op name")
+    if not isinstance(inputs, dict):
+        raise ValueError(
+            "lossy_projection_record: inputs must be a dict keyed by operand "
+            f"name; got {type(inputs).__name__}")
+    if projection_kind not in _LOSSY_PROJECTION_KINDS:
+        raise ValueError(
+            "lossy_projection_record: projection_kind must be one of "
+            f"{_LOSSY_PROJECTION_KINDS}; got {projection_kind!r}")
+    canon_inputs: Dict[str, Any] = {}
+    leaves_exact = True
+    for k in sorted(inputs):
+        c, e = _canon(inputs[k])
+        canon_inputs[k] = c
+        leaves_exact = leaves_exact and e
+    input_hashes = [
+        sha256_bytes(_canon_bytes([k, canon_inputs[k]]))
+        for k in sorted(canon_inputs)
+    ]
+    record: Dict[str, Any] = {
+        "op": op,
+        "params": {},
+        "input_sha256": input_hashes,
+        "family": None,               # no asymptotic target (not a tower)
+        "rung": {},                   # no precision rung (exact at any dim)
+        "projection_kind": projection_kind,  # the honest non-asymptotic kind
+        "leaves_exact": leaves_exact,
+    }
+    record["chain_sha256"] = op_provenance_hash(record)
+    return record
+
+
+# ──────────────────────────────────────────────────────────────────────
 # The op registry — the name-keyed re-runnable operations (the genome
 # op-log / DSL run_toml_chain model: re-run by name; only REGISTERED ops
 # carry + re-project — the registry IS the contract).
@@ -551,8 +676,10 @@ def _lookup(op: str) -> _OpSpec:
     spec = reg.get(op)
     if spec is None:
         raise ValueError(
-            f"op_provenance: unknown op {op!r} — the provenance registry "
-            "covers the rc117 value-inexact frontier only; registered ops: "
+            f"op_provenance: unknown op {op!r} — the carry() registry covers "
+            "the rc117 value-inexact (asymptotic-tower) frontier only; a "
+            "lossy-PROJECTION op (an exact-in/exact-out HDC fold) is addressed "
+            "by lossy_projection_record, not carry. registered ops: "
             + ", ".join(sorted(reg)))
     return spec
 
