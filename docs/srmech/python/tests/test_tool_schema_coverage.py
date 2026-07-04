@@ -218,6 +218,17 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # public, tested composition utility surfaced via srmech.amsc.compose, not
     # via MCP — exempt from tool-schema coverage on the callable-arg rationale.
     "srmech.amsc.compose.greedy_bipartite_alignment",
+    # coupling.fold_identity (0.9.0rc125 / task #723) — the RECOVERABLE-FOLD
+    # identity verdict (EQUAL / NOT_EQUAL / UNKNOWN). Both operands are
+    # in-process RecoverableFold pair CARRIERS (a lossy bundle dict + the exact
+    # seed Poly) that cannot be constructed from JSON, so it is NOT an MCP tool
+    # (no meaningful JSON grammar for a RecoverableFold param) — exempt on the
+    # SAME "cannot cross the JSON-RPC boundary" rationale as
+    # greedy_bipartite_alignment / one.to_scalar above. It is a public, tested
+    # verdict op reachable via Python (`non_compute` in the Rosetta ledger). The
+    # PAIR CONSTRUCTOR (fold_encode_recoverable) IS a registered ToolEntry;
+    # only the carrier-param verdict is exempt.
+    "srmech.amsc.coupling.fold_identity",
     # cascade.one.* — "the One" S(σ,θ) generator (#887). Registered under its
     # STABLE FLAT public name ``srmech.amsc.cascade.the_one`` (which IS
     # registered); ``one.the_one`` is the same object re-exported flat, and

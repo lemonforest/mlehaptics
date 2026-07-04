@@ -3127,6 +3127,54 @@ def _register_primitive_class_tools() -> None:
                       "'reason', 'spectrum_open'} with NO decimation Poly"),
         ),
         # ────────────────────────────────────────────────────────────
+        # rc125 (task #723): the RECOVERABLE FOLD as a HarmonicMaass-shaped
+        # PAIR carrier. rc124's fold_spectrum reads a LOSSY bundle by a
+        # similarity/cleanup pass (exact WHEN the fold has capacity, honest-
+        # unrecovered below the dim>=4·n_pairs floor). fold_encode_recoverable
+        # ATTACHES the exact complement (the generating decimation R) so a
+        # generated fold recovers EXACTLY at ANY dim — the field–excitation
+        # recoverability principle. The RecoverableFold pair MIRRORS
+        # HarmonicMaass(hol, shadow): lossy_bundle ↔ hol, exact_seed_R ↔ shadow
+        # ("storing R IS storing the recovery"). Pure orchestration + data over
+        # shipped ops → non_compute (no new C peer; the carrier is data).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.coupling.fold_encode_recoverable", owner="srmech",
+            category="coupling",
+            summary="Encode a spectral-decimation structure into a RECOVERABLE "
+                    "PAIR — the HarmonicMaass-shaped follow-on to fold_encode "
+                    "(rc125; task #723). Returns a RecoverableFold PAIR: the "
+                    "rc124 lossy Klein-4 fold store (.lossy_bundle ↔ "
+                    "HarmonicMaass.hol) AND the exact generating decimation R "
+                    "(.exact_seed_R ↔ HarmonicMaass.shadow). Because R is "
+                    "CARRIED, fold_spectrum on the pair recovers EXACTLY at ANY "
+                    "dim — INCLUDING dim < 4·n_pairs, where the rc124 bare read "
+                    "honestly fails (crosstalk overwhelms the lossy bundle). "
+                    "'Storing R IS storing the recovery' (the recoverability "
+                    "principle: a lossy projection is recoverable iff you attach "
+                    "the exact complement it dropped). rc124's bare fold_encode "
+                    "is UNCHANGED (still returns the bare fold-store dict); this "
+                    "is the additive recoverable path. Composes fold_encode + "
+                    "Poly; PURE orchestration + data → non_compute (no dedicated "
+                    "C peer; the carrier is data). numpy-free; no abs().",
+            parameters=(P("R", "Poly", True,
+                          "the spectral-decimation map — a degree>=2 Poly with "
+                          "R(0)=0 (or an ascending-degree coefficient sequence "
+                          "coerced with Poly.from_coeffs)"),
+                        P("branches", "int", True,
+                          "the number of self-similar copies (>=2)"),
+                        P("dim", "int", True,
+                          "the Klein-4 width D of the lossy bundle (>=1); "
+                          "recovery is exact at ANY dim (the seed is carried)"),
+                        P("seed", "int", False,
+                          "base seed for the deterministic role/value codes "
+                          "(default 0)")),
+            returns=R("RecoverableFold",
+                      "the pair carrier (.lossy_bundle ↔ hol / .exact_seed_R ↔ "
+                      "shadow / .has_seed / .branches / .dim / .complement() / "
+                      ".recover() / .identity()); read via fold_spectrum(pair)"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The §76 "telescope" Σ-row closed-form prover (F929) — Gosper's
         # indefinite hypergeometric summation, the FIRST public op of the row.
         # Class-N rational arithmetic over the Class-J prime-field on the
@@ -3915,6 +3963,49 @@ def _register_primitive_class_tools() -> None:
             returns=R("dict",
                       "a fresh {'value', 'inputs', 'provenance'} "
                       "carry-result at the new rung (same family)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.op_provenance.lossy_projection_record",
+            owner="srmech", category="op_provenance",
+            summary="Build the exact op-address RECORD for a LOSSY-PROJECTION op "
+                    "whose recovery is EXACT from its CARRIED complement (rc125; "
+                    "task #723) — the DUAL face of the float/asymptotic-tower "
+                    "projections carry() addresses. Where carry() addresses a "
+                    "VALUE-INEXACT op (a float readout / a series truncation) "
+                    "whose exactness lives in the ASYMPTOTIC generator, a "
+                    "lossy-PROJECTION op is exact-in/exact-out: its projection "
+                    "(the Klein-4 superposition collapse of a fold_encode) drops "
+                    "information recoverable ONLY when the exact complement is "
+                    "CARRIED alongside (the field–excitation recoverability "
+                    "principle). So this record has family=None (NO asymptotic "
+                    "target — not a tower converging to a limit), rung={} (NO "
+                    "precision rung — recovery is EXACT at ANY dim because the "
+                    "complement is carried, not decoded), and "
+                    "projection_kind='hdc' (the genuine NON-ASYMPTOTIC kind, "
+                    "recorded honestly rather than faking an interior/edge "
+                    "tower_kind). It hashes via the SAME rc117 op_provenance_hash "
+                    "canonical machinery to the projection's IDENTITY: two lossy "
+                    "projections with byte-identical EXACT inputs share the "
+                    "address (EQUAL), different exact inputs give a different "
+                    "address — and because the inputs are EXACT a different "
+                    "address is a genuinely different object, so NOT-EQUAL is "
+                    "DECIDABLE here (unlike op_verdict's undecidable "
+                    "program-equality, EQUAL/UNKNOWN only). The presence-of-"
+                    "complement decidability IS the point. Widens the "
+                    "op_provenance scope from 'value-inexact frontier' to "
+                    "'lossy-projection'. numpy-free; no abs(); no raw hashlib "
+                    "(routes sha256_bytes).",
+            parameters=(P("op", "str", True,
+                          "the dotted op name being addressed (e.g. "
+                          "'srmech.amsc.coupling.fold_encode')"),
+                        P("inputs", "dict", True,
+                          "the EXACT operand inputs keyed by name (canonicalised "
+                          "with the rc117 float-free canon; Q / int / rational "
+                          "leaves ride as exact tags)")),
+            returns=R("dict",
+                      "the record {op, params: {}, input_sha256, family: None, "
+                      "rung: {}, projection_kind: 'hdc', leaves_exact, "
+                      "chain_sha256}"),
         ),
         # ────────────────────────────────────────────────────────────
         # The q-HYPERGEOMETRIC row of the §76 telescope Σ-row prover (F929) —

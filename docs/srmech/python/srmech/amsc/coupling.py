@@ -787,14 +787,28 @@ def fold_spectrum(fold, *, log_terms: int = 25,
     Pure orchestration over shipped ops → **non_compute**. numpy-free; no
     ``abs()`` (the similarity/margin comparisons are exact-``Q`` Class-K reads).
 
+    A :class:`RecoverableFold` (rc125) is ALSO accepted: when it carries an
+    exact seed, this reads R EXACTLY from the carried complement (exact at ANY
+    dim, including below the rc124 capacity floor); when it is a bare/"found"
+    fold (no seed) this falls back to the rc124 similarity read on its bundle
+    (the honest ``unrecovered`` path preserved).
+
     Raises:
         ValueError: ``fold`` is not a fold-store dict / is missing required keys.
     """
+    # rc125: a RecoverableFold pair carrier reads through its own path — EXACT
+    # recovery from the carried complement, or the rc124 bare fallback.
+    if isinstance(fold, RecoverableFold):
+        return fold._read_spectrum(
+            log_terms=log_terms, margin_floor=margin_floor,
+            capacity_mult=capacity_mult)
+
     from . import hdc as _hdc                # klein4 bind / bundle / similarity
 
     if not isinstance(fold, dict):
         raise ValueError(
-            "fold_spectrum: fold must be a fold-store dict from fold_encode; "
+            "fold_spectrum: fold must be a fold-store dict from fold_encode "
+            "(or a RecoverableFold); "
             f"got {type(fold).__name__}")
     try:
         stored = fold["fold"]
@@ -915,5 +929,283 @@ def fold_spectrum(fold, *, log_terms: int = 25,
     return out
 
 
+# =====================================================================
+# §Ch-2c — RecoverableFold: the HarmonicMaass-shaped PAIR carrier that
+# makes a generated fold recover EXACTLY at ANY dim (task #723; the direct
+# follow-on to rc124). rc124's fold_spectrum reads a LOSSY bundle by a
+# similarity/cleanup pass — exact WHEN the fold has capacity, honest-
+# `unrecovered` below the dim>=4·n_pairs floor. rc125 makes recovery exact
+# at ANY dim by ATTACHING the exact complement (the generating decimation R),
+# following the field–excitation recoverability principle: a lossy projection
+# is recoverable iff you attach the exact complement it dropped.
+#
+# The shape MIRRORS srmech.amsc.harmonic_maass.HarmonicMaass(hol, shadow) —
+# the (holomorphic-part, shadow) pair where "storing the shadow IS storing the
+# completion" (the completion f⁻ is the Eichler integral of the stored shadow,
+# recoverable not stored). Here the pair is (lossy_bundle, exact_seed_R) where
+# "storing R IS storing the recovery":
+#   lossy_bundle  ↔ hol     — the PRIMARY / lossy projected part (the fold).
+#   exact_seed_R  ↔ shadow  — the EXACT COMPLEMENT whose presence makes the
+#                             pair fully recoverable/decidable (the decimation).
+# Pure orchestration + data over shipped ops (rc124 fold_encode/fold_spectrum
+# + rc117 op_provenance + Poly + fractal_spectrum) → NO new numerical kernel,
+# NO new C peer (the carrier is data). numpy-free; no abs().
+# =====================================================================
+
+class RecoverableFold:
+    """A generated HDC fold PAIRED with the exact complement that recovers it —
+    the RECOVERABILITY analogue of :class:`~srmech.amsc.harmonic_maass.HarmonicMaass`
+    ``(hol, shadow)`` (rc71; task #723). Immutable.
+
+    A rc124 :func:`fold_encode` bundle is a LOSSY Klein-4 superposition —
+    :func:`fold_spectrum` recovers it by a similarity/cleanup pass that is
+    exact only WHEN the fold has capacity (``dim >= 4·n_pairs``) and honestly
+    ``unrecovered`` below that floor. This pair makes recovery EXACT at ANY dim
+    by carrying the exact generating decimation ``R`` alongside the bundle — the
+    field–excitation recoverability principle: a lossy projection is recoverable
+    iff you attach the exact complement it dropped.
+
+    Mirrors ``HarmonicMaass(hol, shadow)``:
+
+    - :attr:`lossy_bundle` ↔ ``hol`` — the PRIMARY / lossy projected part (the
+      rc124 fold store dict).
+    - :attr:`exact_seed_R` ↔ ``shadow`` — the EXACT COMPLEMENT (the decimation
+      :class:`~srmech.amsc.poly.Poly`) whose presence makes the pair fully
+      recoverable/decidable. ``None`` for a bare/"found" fold (a real-corpus
+      ``cooccurrence_fold`` with no generator) — then recovery falls back to the
+      rc124 similarity read (honest ``unrecovered`` below the floor preserved).
+    - :meth:`complement` ↔ ``HarmonicMaass.xi()`` — returns the exact complement
+      (``R``); storing it IS storing the recovery (the pair's defining property).
+
+    Read it with :func:`fold_spectrum` (which dispatches on this type) or the
+    :meth:`recover` shortcut. Compare identity with :func:`fold_identity`."""
+
+    __slots__ = ("_lossy_bundle", "_exact_seed_R", "_branches", "_dim", "_seed")
+
+    def __init__(self, lossy_bundle, exact_seed_R, *, branches=None) -> None:
+        if not isinstance(lossy_bundle, dict):
+            raise TypeError(
+                "RecoverableFold(lossy_bundle, exact_seed_R): lossy_bundle must "
+                "be a fold-store dict from fold_encode; got "
+                f"{type(lossy_bundle).__name__}")
+        from .poly import Poly                # exact-ℚ decimation carrier (lazy)
+        if exact_seed_R is not None:
+            if not isinstance(exact_seed_R, Poly):
+                try:
+                    exact_seed_R = Poly.from_coeffs(exact_seed_R)
+                except (TypeError, ValueError) as exc:
+                    raise ValueError(
+                        "RecoverableFold: exact_seed_R must be a Poly (or an "
+                        "ascending-degree coefficient sequence), or None for a "
+                        "bare fold") from exc
+            if branches is None:
+                raise ValueError(
+                    "RecoverableFold: branches is required when an exact seed "
+                    "is carried (it is part of the recovered identity)")
+            branches = int(branches)
+            if branches < 2:
+                raise ValueError("RecoverableFold: branches must be >= 2")
+        self._lossy_bundle = lossy_bundle
+        self._exact_seed_R = exact_seed_R
+        self._branches = branches
+        self._dim = lossy_bundle.get("dim")
+        self._seed = lossy_bundle.get("seed", 0)
+
+    # ── accessors (the HarmonicMaass-shaped pair) ──────────────────────────────
+    @property
+    def lossy_bundle(self) -> Dict[str, object]:
+        """The rc124 lossy Klein-4 fold store (the PRIMARY projected part;
+        ↔ ``HarmonicMaass.hol``)."""
+        return self._lossy_bundle
+
+    @property
+    def exact_seed_R(self):
+        """The exact generating decimation :class:`~srmech.amsc.poly.Poly` ``R``
+        (the EXACT COMPLEMENT; ↔ ``HarmonicMaass.shadow``), or ``None`` for a
+        bare fold. Storing it IS storing the recovery."""
+        return self._exact_seed_R
+
+    @property
+    def has_seed(self) -> bool:
+        """True iff the exact complement is carried (recovery is EXACT at any
+        dim); False for a bare fold (recovery is the rc124 similarity read)."""
+        return self._exact_seed_R is not None
+
+    @property
+    def branches(self) -> Optional[int]:
+        """The self-similar copy count carried with the seed (``None`` for a
+        bare fold)."""
+        return self._branches
+
+    @property
+    def dim(self) -> Optional[int]:
+        """The Klein-4 width ``D`` of the stored lossy bundle."""
+        return self._dim
+
+    def complement(self):
+        """The exact complement ``R`` that recovers this fold (↔
+        ``HarmonicMaass.xi()`` returning the shadow). ``None`` for a bare fold."""
+        return self._exact_seed_R
+
+    # ── the reader (exact-from-seed, or the rc124 bare fallback) ───────────────
+    def recover(self, *, log_terms: int = 25, margin_floor=None,
+                capacity_mult=None) -> Dict[str, object]:
+        """Recover the spectral-decimation params — EXACT from the carried seed
+        (at ANY dim), or the rc124 similarity read for a bare fold. Equivalent
+        to ``fold_spectrum(self)``."""
+        return self._read_spectrum(
+            log_terms=log_terms, margin_floor=margin_floor,
+            capacity_mult=capacity_mult)
+
+    def _read_spectrum(self, *, log_terms: int = 25, margin_floor=None,
+                       capacity_mult=None) -> Dict[str, object]:
+        if self._exact_seed_R is None:
+            # Bare/"found" fold — fall back to the rc124 similarity/cleanup read
+            # on the stored bundle (honest ``unrecovered`` below the floor).
+            return fold_spectrum(
+                self._lossy_bundle, log_terms=log_terms,
+                margin_floor=margin_floor, capacity_mult=capacity_mult)
+        # EXACT recovery from the CARRIED complement — R is carried, not decoded,
+        # so this is exact at ANY dim (including dim < 4·n_pairs where the rc124
+        # similarity read honestly fails). Feed the SAME fractal_spectrum
+        # orchestration → the IDENTICAL spectral-decimation dict.
+        out = dict(fractal_spectrum(
+            self._exact_seed_R, self._branches, log_terms=log_terms))
+        out["verdict"] = "recovered"
+        out["op_provenance"] = "EQUAL"
+        out["recovery"] = "exact-seed"        # from the carried complement, NOT cleanup
+        out["fold_consistency"] = self._seed_consistency()  # Q; ==1 for a genuine pair
+        out["similarity"] = _FRACTAL_Q1       # exact recovery: perfect fidelity
+        out["confidence"] = _FRACTAL_Q1
+        out["identity"] = self.identity()
+        return out
+
+    def _seed_consistency(self) -> "Q":
+        """Re-encode the carried seed at the stored dim/seed and compare the
+        fold BIT-FOR-BIT to the stored lossy bundle — the integrity check that
+        the carried complement genuinely GENERATED this bundle (``Q``; ``==1``
+        for a pair built by :func:`fold_encode_recoverable`). The op_provenance
+        one-sided EQUAL self-check ONE level up: presence-of-complement makes it
+        decidable."""
+        from . import hdc as _hdc            # klein4_similarity (M)
+        stored = self._lossy_bundle.get("fold")
+        if stored is None or self._dim is None:
+            return Q(0, 1)
+        regen = fold_encode(
+            self._exact_seed_R, self._branches, dim=self._dim, seed=self._seed)
+        return _hdc.klein4_similarity(regen["fold"], stored)   # Q; ==1 iff identical
+
+    # ── the DECIDABLE identity (present-complement only) ───────────────────────
+    def identity(self) -> Optional[str]:
+        """The op_provenance chain-hash of this fold's EXACT recoverable content
+        (the decimation ``R`` coefficients + the branch count) via
+        :func:`srmech.amsc.op_provenance.lossy_projection_record` — the fold's
+        DECIDABLE identity when the complement is present, else ``None`` (you
+        cannot decide identity from a lossy bundle alone). dim/seed are NOT part
+        of the identity: two folds of the same ``(R, branches)`` at different
+        dims recover the SAME object and share this address."""
+        if self._exact_seed_R is None:
+            return None
+        from . import op_provenance as _op    # rc117 canonical machinery (lazy)
+        rec = _op.lossy_projection_record(
+            "srmech.amsc.coupling.fold_encode",
+            {"R": list(self._exact_seed_R.coeffs), "branches": int(self._branches)},
+        )
+        return rec["chain_sha256"]
+
+    def __repr__(self) -> str:
+        seed = "None" if self._exact_seed_R is None else \
+            f"Poly(deg={self._exact_seed_R.degree})"
+        return (f"RecoverableFold(dim={self._dim}, branches={self._branches}, "
+                f"exact_seed_R={seed})")
+
+
+def fold_encode_recoverable(R, branches, *, dim, seed=0) -> "RecoverableFold":
+    """Encode a spectral-decimation structure into a RECOVERABLE PAIR — the
+    HarmonicMaass-shaped follow-on to :func:`fold_encode` (task #723).
+
+    Produces a :class:`RecoverableFold` PAIR: the rc124 lossy Klein-4 fold store
+    (``.lossy_bundle`` ↔ ``HarmonicMaass.hol``) AND the exact generating
+    decimation ``R`` (``.exact_seed_R`` ↔ ``HarmonicMaass.shadow``). Because R
+    is CARRIED, :func:`fold_spectrum` on the pair recovers EXACTLY at ANY dim —
+    including ``dim < 4·n_pairs``, where the rc124 bare read honestly fails
+    (crosstalk overwhelms the lossy bundle). "Storing R IS storing the
+    recovery."
+
+    rc124's bare :func:`fold_encode` is UNCHANGED (it still returns the bare
+    fold-store dict); this is the additive recoverable path.
+
+    Args:
+        R: the spectral-decimation map — a :class:`~srmech.amsc.poly.Poly` (or an
+            ascending-degree coefficient sequence coerced with
+            :meth:`~srmech.amsc.poly.Poly.from_coeffs`). Degree ``>= 2``.
+        branches: the number of self-similar copies (an int ``>= 2``).
+        dim: the Klein-4 width ``D`` of the lossy bundle (``>= 1``). Recovery is
+            exact at ANY dim (the seed is carried); dim only affects the LOSSY
+            bundle's rc124 similarity read.
+        seed: base seed for the deterministic role / value codes (default 0).
+
+    Returns:
+        A :class:`RecoverableFold` pair ``(lossy_bundle, exact_seed_R=R)``.
+
+    Pure orchestration + data over shipped ops → NO new numerical kernel, NO new
+    C peer. numpy-free; no ``abs()``.
+
+    Raises:
+        ValueError: ``R`` not a Poly / coercible sequence, ``R.degree < 2``,
+            ``branches < 2``, or ``dim < 1`` (surfaced by :func:`fold_encode`).
+    """
+    from .poly import Poly                    # exact-ℚ decimation carrier (lazy)
+    if not isinstance(R, Poly):
+        try:
+            R = Poly.from_coeffs(R)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "fold_encode_recoverable: R must be a Poly or an ascending-"
+                f"degree coefficient sequence; got {R!r}") from exc
+    bundle = fold_encode(R, branches, dim=dim, seed=seed)   # rc124 lossy store
+    return RecoverableFold(bundle, R, branches=branches)
+
+
+def fold_identity(a, b) -> str:
+    """The RECOVERABLE-FOLD identity verdict — ``"EQUAL"`` / ``"NOT_EQUAL"`` /
+    ``"UNKNOWN"`` (task #723; the hybrid's second half).
+
+    Two :class:`RecoverableFold`\\ s are the SAME fold iff they recover the same
+    ``(R, branches)`` — decided via each fold's :meth:`RecoverableFold.identity`
+    (the op_provenance canonical-hash of the ``fold_encode`` op with ``R`` +
+    branches as the pinned EXACT inputs; rc117 machinery reused for
+    consistency):
+
+    * **EQUAL / NOT_EQUAL when BOTH carry the exact complement** — the identity
+      hashes are decidable because the inputs are EXACT: equal hash ⟹ EQUAL,
+      different hash ⟹ NOT_EQUAL (a genuinely different recoverable object).
+    * **UNKNOWN when EITHER fold lacks the complement** — you CANNOT decide
+      identity from a lossy bundle alone (the recoverability principle: identity
+      is decidable only when you hold the complement). NEVER a false
+      EQUAL/NOT_EQUAL from lossy bundles.
+
+    This IS :func:`srmech.amsc.op_provenance.op_verdict`'s EQUAL/UNKNOWN
+    one-sidedness — but here the one-sidedness comes from PRESENCE-vs-ABSENCE of
+    the complement, and the exactness of the carried complement is what upgrades
+    the EQUAL/UNKNOWN pair to the DECIDABLE EQUAL/NOT_EQUAL when both are
+    present (op_verdict cannot answer NOT_EQUAL because program-equality is
+    undecidable; here the operand IS exact, so inequality is decidable).
+
+    Raises:
+        ValueError: either operand is not a :class:`RecoverableFold`.
+    """
+    if not isinstance(a, RecoverableFold) or not isinstance(b, RecoverableFold):
+        raise ValueError(
+            "fold_identity: both operands must be RecoverableFold; got "
+            f"{type(a).__name__} and {type(b).__name__}")
+    ha, hb = a.identity(), b.identity()
+    if ha is None or hb is None:
+        # A lossy bundle with no complement carries no decidable identity.
+        return "UNKNOWN"
+    return "EQUAL" if ha == hb else "NOT_EQUAL"
+
+
 __all__ = ["signed_sum_squared", "resonant_spectrum", "from_bodies",
-           "fractal_spectrum", "fold_encode", "fold_spectrum"]
+           "fractal_spectrum", "fold_encode", "fold_spectrum",
+           "RecoverableFold", "fold_encode_recoverable", "fold_identity"]
