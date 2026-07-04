@@ -124,16 +124,24 @@ static srmech_status_t ts_bind_pair(ts_ctx_t *c, ts_pair_t *pr)
 
 
 /* The quasi-periodicity-class KEY of a theta-product: the net multiplier monomial
- * EXPONENT vector the product acquires under x->p*x AND y->p*y
- * (thetasum._net_period_multiplier_exps). For each sym in (x, y) and each theta arg
- * t: shifted = t * p^{exp_of(sym)}; canonicalize Theta(shifted); multiply its
- * prefactor into the net. The Python classifies by the prefactor's EXPONENT monomial
- * (coeff-blind). We reproduce the prefactor EXPONENT contribution exactly.
+ * EXPONENT vector the product acquires under x->p*x AND y->p*y, restricted to the
+ * SUMMATION-VARIABLE (x, y) coordinates (thetasum._quasi_period_class_key). For each
+ * sym in (x, y) and each theta arg t: shifted = t * p^{exp_of(sym)}; canonicalize
+ * Theta(shifted); multiply its prefactor into the net. The Python classifies by the
+ * prefactor's EXPONENT monomial (coeff-blind). We reproduce the prefactor EXPONENT
+ * contribution exactly, THEN drop every non-(x,y) coordinate.
  *
  * Python prefactor of theta(p^k z0):  (-1)^k p^{-k(k-1)/2} z0^{-k}  then (orientation)
  * an extra * (-1) * z0  when z0._sort_key() > z0inv._sort_key().  We accumulate the
  * EXPONENT vector of that prefactor into `net_exps` (coeff sign is independence-blind
- * and the Python key drops it). */
+ * and the Python key drops it).
+ *
+ * KEY HYGIENE (task #694 anomaly A-1): the nome p, the base q, and the elliptic
+ * parameters are UNITS in the coefficient field -- invertible, hence INDEPENDENCE-BLIND
+ * -- so their exponents must NOT split the quasi-periodicity class (the spurious
+ * p^{-k(k-1)/2} + parameter over-split). After accumulating, we ZERO every coordinate
+ * except xsym / ysym, so `net_exps` is the genuine (x, y) character -- byte-for-byte the
+ * Python thetasum._quasi_period_class_key. */
 static srmech_status_t ts_pref_exps_of_shift(ts_ctx_t *c, const ts_mono_t *targ,
                                              int sym, int psym, int32_t *net_exps,
                                              ts_mono_t *sh, ts_mono_t *z0,
@@ -147,6 +155,7 @@ static srmech_status_t ts_net_period_key(ts_ctx_t *c, const ts_mono_t *thetas,
 {
     size_t ti;
     int which;
+    int32_t i;
     int syms2[2];
     srmech_status_t st;
     assert(c != NULL && net_exps != NULL);
@@ -162,6 +171,11 @@ static srmech_status_t ts_net_period_key(ts_ctx_t *c, const ts_mono_t *thetas,
                                        sh, z0, z0inv, tmp);
             if (st != SRMECH_OK) { return st; }
         }
+    }
+    /* unit-strip: keep ONLY the (x, y) character (task #694 A-1) -- p / q / parameters are
+     * independence-blind units and must not split the class. Mirrors _quasi_period_class_key. */
+    for (i = 0; i < (int32_t)c->n_syms; i++) {
+        if (i != xsym && i != ysym) { net_exps[i] = 0; }
     }
     return SRMECH_OK;
 }
