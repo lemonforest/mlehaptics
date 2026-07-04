@@ -402,4 +402,4 @@ def test_registered_in_tool_schema():
 def test_tools_total_is_367():
     from srmech import introspect
 
-    assert introspect.describe()["tools"]["total"] == 386
+    assert introspect.describe()["tools"]["total"] == 388
