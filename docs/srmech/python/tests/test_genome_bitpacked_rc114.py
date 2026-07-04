@@ -107,7 +107,7 @@ def test_dod_1024x256_chromosome_writes_66kb(tmp_path):
     assert body_size == 256 + 1024 * (1 + 256 // 4) == 66816
     assert total < 70_000                    # "~66 KB" — vs 264,230 B at rc107
     assert 264_230 / total > 3.8             # the 4.03x bloat removed
-    assert man["format_version"] == 4        # rc115 (#1245(b)): v4 carries regions
+    assert man["format_version"] == 5        # rc121 (§60): v5 writer (v4 regions kept)
     assert man["n_turns"] == 1025            # blocks: 1 cap + 1024 turns
     # rc115 (#1245(b)): one region entry per chromosome; body_sha256 is the chain
     assert [r["byte_offset"] for r in man["regions"]] == [0]
@@ -242,7 +242,7 @@ def test_v2_fixture_manifestless_rebuild_reads(tmp_path):
     # structural chromosome fields are byte-identical to the stored v2 manifest's,
     # but body_sha256 is now the region CHAIN (not the v2 whole-body digest), and a
     # regions partition is derived (one per chromosome, tiling the body).
-    assert cat["format_version"] == 4
+    assert cat["format_version"] == 5        # rc121 (§60): rebuild derives the v5 writer
     assert [(r["byte_offset"], r["byte_len"]) for r in cat["regions"]] == \
         [(c["byte_offset"], c["byte_len"]) for c in v2["chromosomes"]]
     assert cat["body_sha256"] != v2["body_sha256"]        # chain, not whole-body
@@ -274,9 +274,9 @@ def test_v2_append_yields_mixed_body_reading_correctly(tmp_path):
     assert tail[_V2_DIM] == G.PACKED_TURN_MARKER          # first packed turn
     assert len(tail) == _V2_DIM + 3 * (1 + (_V2_DIM + 3) // 4)
 
-    # the manifest went v4 (rc115 #1245(b)); prior entries byte-identical; n_turns
-    # = blocks. Appending to a v2 genome migrates it to v4 (regions derived).
-    assert man2["format_version"] == 4
+    # the manifest went v5 (rc121 §60; prior entries byte-identical; n_turns
+    # = blocks). Appending to a v2 genome migrates it to the current writer (v5).
+    assert man2["format_version"] == 5
     assert man2["chromosomes"][:3] == man_before["chromosomes"]
     assert man2["n_turns"] == man_before["n_turns"] + 1 + 3
 
