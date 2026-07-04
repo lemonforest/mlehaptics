@@ -1549,10 +1549,43 @@ static srmech_status_t tip_threaded(const tip_wire_t *w, ti_term_t *root, size_t
     return tip_fold(jobs, nw, out_is_zero);
 }
 
+/* The BYTES tip_parse_root needs to parse the root terms ONCE into the read-only
+ * SHARED region: ti_arena_init + ti_bind_term_arr(n_terms) + ti_parse. This is a
+ * function of the WIRE shape (n_terms, max_thetas, n_syms, coeff cap) ONLY, NOT of
+ * the interpolation degree (max_abs_exp / max_theta_sq_sum) — the root parse never
+ * runs the DFS nor the base-case series, so it needs NONE of the `base_words` /
+ * `depth*level_words` arena a worker slice (ws_bound2) does. Sized generously (the
+ * parse is small vs a worker's DFS+base slice) and, crucially, computed by the SAME
+ * formula in the parallel ws sizer (which has the shape) AND in tip_dispatch (which
+ * reads it back off the wire `w`), so the two agree on the carve without tip_dispatch
+ * needing the degree params. PROVABLY < ws_bound2 (a strict subset of the serial
+ * arena: serial does this parse THEN the DFS), so it never exceeds a worker slice.
+ * rc123 (#706): the pre-rc123 layout gave the shared-root a FULL worker slice. */
+static size_t tip_root_parse_bytes(size_t n_syms, size_t n_terms, size_t max_thetas,
+                                   size_t coeff_limbs)
+{
+    size_t cap = (coeff_limbs < 4u) ? 4u : coeff_limbs;
+    size_t ns = (n_syms == 0u) ? 1u : n_syms;
+    size_t nt = (n_terms == 0u) ? 1u : n_terms;
+    size_t mono_words = 2u * cap + ns + 8u;
+    size_t term_struct = (sizeof(ti_term_t) + sizeof(uint32_t) - 1u) / sizeof(uint32_t);
+    /* per term: the ti_term_t slot + pref mono + (max_thetas) targ monos + their
+     * struct array + generous per-term slack. */
+    size_t per_term = term_struct + (max_thetas + 4u) * (mono_words + 16u) + 64u;
+    size_t scratch_words = cap * 16u + 512u;
+    size_t words = nt * per_term + scratch_words + 256u;
+    assert(cap >= 4u);
+    assert(words >= scratch_words);
+    return words * sizeof(uint32_t);
+}
+
 /* Minimum `ws_len` BYTES the parallel entry needs: a fixed control band (the task
- * frontier) + ONE shared-root region + nw disjoint worker arena slices, each the
- * ws_bound2 sizing plus a +50% replay margin (the peeled top levels are held
- * simultaneously with the sub-DFS). A genuine shortfall still trips
+ * frontier) + ONE parse-sized shared-root region + nw disjoint worker arena slices,
+ * each EXACTLY the ws_bound2 path sizing (rc123 #706: the pre-rc123 +50% replay
+ * margin is REMOVED — a worker's peak arena is replay(task_len levels) +
+ * sub-DFS(n_syms-task_len+2 levels) + base = the SAME full-path high-water the serial
+ * DFS reaches, provably <= ws_bound2, so ws_bound2 already bounds it; the peeled top
+ * levels ARE the path's top levels, not extra). A genuine shortfall still trips
  * SRMECH_ERR_OVERFLOW -> the pure oracle. Additive symbol -> ABI stays 3. */
 size_t srmech_thetasum_is_zero_interpolation_parallel_ws_bound(
     size_t n_syms, size_t n_terms, size_t max_thetas, size_t coeff_limbs,
@@ -1562,17 +1595,25 @@ size_t srmech_thetasum_is_zero_interpolation_parallel_ws_bound(
               : (n_workers > (size_t)TIP_MAX_WORKERS ? (size_t)TIP_MAX_WORKERS : n_workers);
     size_t slice = srmech_thetasum_is_zero_interpolation_ws_bound2(
         n_syms, n_terms, max_thetas, coeff_limbs, max_abs_exp, max_theta_sq_sum);
-    size_t per = ((slice + slice / 2u + 4096u) + 7u) & ~(size_t)7u;
+    size_t per = ((slice + 4096u) + 7u) & ~(size_t)7u;
+    size_t root = (tip_root_parse_bytes(n_syms, n_terms, max_thetas, coeff_limbs)
+                   + 7u) & ~(size_t)7u;
     assert(nw >= 1u);
     assert(per >= slice);
-    return tip_control_bytes() + per + nw * per;   /* +per = the shared-root region */
+    assert(root <= per);   /* parse is a strict subset of the serial arena < ws_bound2 */
+    return tip_control_bytes() + root + nw * per;   /* +root = the shared-root region */
 }
 
 /* The threaded orchestration: carve `ws` into [control | shared-root | worker
  * region], parse the root ONCE into the shared region, BFS-peel the task frontier
  * (into the control-band double-buffer), then run the worker pool. Any layout /
  * parse / peel shortfall falls to the exact serial path (never a wrong verdict).
- * The worker + shared-root regions are an (nw+1)-way even split of what's left. */
+ * rc123 (#706): the shared-root region is the parse-only tip_root_parse_bytes (NOT a
+ * full worker slice); the REST is split nw ways into worker slices, each the ws_bound2
+ * path bound. tip_root_parse_bytes is read off the wire `w` here so it matches the
+ * parallel ws sizer's carve EXACTLY (both use the same shape; the sizer laid out
+ * control + root + nw*per, so worker_region = ws_len - control - root == nw*per and
+ * each slice == per). */
 static srmech_status_t tip_dispatch(const tip_wire_t *w, uint32_t nw, uint32_t task_order,
                                     void *ws, size_t ws_len, int *out_is_zero)
 {
@@ -1582,6 +1623,8 @@ static srmech_status_t tip_dispatch(const tip_wire_t *w, uint32_t nw, uint32_t t
     tip_task_t *bufA = (tip_task_t *)ws;
     size_t control = tip_control_bytes();
     size_t region_len;
+    size_t root_bytes;
+    size_t worker_region;
     size_t unit;
     size_t target;
     size_t n_tasks;
@@ -1591,18 +1634,22 @@ static srmech_status_t tip_dispatch(const tip_wire_t *w, uint32_t nw, uint32_t t
     assert(nw >= 2u && nw <= (uint32_t)TIP_MAX_WORKERS);
     if (ws_len <= control) { return tip_serial(w, ws, ws_len, out_is_zero); }
     region_len = ws_len - control;
-    unit = (region_len / ((size_t)nw + 1u)) & ~(size_t)7u;   /* [root | nw workers] */
+    root_bytes = (tip_root_parse_bytes(w->n_syms, w->n_terms, w->max_thetas, w->coeff_cap)
+                  + 7u) & ~(size_t)7u;
+    if (root_bytes >= region_len) { return tip_serial(w, ws, ws_len, out_is_zero); }
+    worker_region = region_len - root_bytes;
+    unit = (worker_region / nw) & ~(size_t)7u;               /* per-worker path slice */
     if (unit == 0u) { return tip_serial(w, ws, ws_len, out_is_zero); }
     memset(&root_ctx, 0, sizeof(root_ctx));
-    st = tip_parse_root(w, base + control, unit, &root_ctx, &root_terms);
+    st = tip_parse_root(w, base + control, root_bytes, &root_ctx, &root_terms);
     if (st != SRMECH_OK) { return tip_serial(w, ws, ws_len, out_is_zero); }
     target = (size_t)nw * (size_t)TIP_TARGET_MULT;
     if (target > (size_t)TIP_MAX_TASKS) { target = (size_t)TIP_MAX_TASKS; }
-    n_tasks = tip_enumerate(w, root_terms, w->n_terms, base + control + unit,
-                            region_len - unit, target, bufA, bufA + TIP_MAX_TASKS, &ok);
+    n_tasks = tip_enumerate(w, root_terms, w->n_terms, base + control + root_bytes,
+                            worker_region, target, bufA, bufA + TIP_MAX_TASKS, &ok);
     if (!ok || n_tasks == 0u) { return tip_serial(w, ws, ws_len, out_is_zero); }
     return tip_threaded(w, root_terms, w->n_terms, bufA, n_tasks, nw, task_order,
-                        base + control + unit, region_len - unit, out_is_zero);
+                        base + control + root_bytes, worker_region, out_is_zero);
 }
 
 /* Decide the cleared ThetaSum numerator's is_zero by the CHIRALITY-PRESERVING
