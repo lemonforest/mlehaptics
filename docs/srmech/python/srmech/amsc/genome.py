@@ -74,9 +74,11 @@ __all__ = [
     "genome_register_attested",
     "kernel_pack", "kernel_unpack",
     "active_telomere", "telomere_tick",
+    "gene_express",
     "GenomeBoundingError",
     "LEAF_CAP", "QUAD", "MOBIUS_CAP",
     "CHROM_CAP_MARKER", "GENE_CAP_MARKER", "GENE_FRAME_TAG",
+    "REGULATORY_GENE_MARKER",
     "PACKED_TURN_MARKER", "KERNEL_HEADER_MARKER", "KERNEL_TELOMERE_MARKER",
     "ACTIVE_TELOMERE_MARKER", "ELEMENT_TYPE_KLEIN4",
     "TELOMERE_DIVIDED", "TELOMERE_SENESCENT",
@@ -192,6 +194,47 @@ ACTIVE_TELOMERE_MARKER = 0x74
 #: The active-telomere COUNT field width — a uint64 (8 bytes, big-endian). The count
 #: caps at 2**64-1, which dwarfs any Hayflick limit (human fibroblasts ~40-60 divides).
 _ACTIVE_TELOMERE_COUNT_BYTES = 8
+
+#: §128/rc128 (format v7 → v8, #728) — the REGULATORY GENE marker. ``0x67`` = ASCII
+#: ``'g'`` (a lower-case gene carrying a live regulatory region, mnemonically paired
+#: with the upper-case ``0x47`` ``'G'`` plain gene it extends — the same K/k, C/telomere
+#: lower-case-carries-state pairing rc126/rc127 used). A regulatory gene is an
+#: intra-chromosome gene boundary cap (a gene-analog, like the plain GENE cap ``0x47``)
+#: that ALSO carries an exact non-negative integer regulatory MASK INLINE in the strand
+#: — the gene's "regulatory region / promoter" (differential gene expression; Alberts et
+#: al., *Molecular Biology of the Cell* 4th ed., NCBI NBK26887 — "a cell can regulate the
+#: expression of each of its genes according to the needs of the moment"). This lifts the
+#: rc127 op⊗operand THEOREM one scale up: rc127's active telomere gates ONE divide/senesce
+#: BINARY by a carried COUNT; the regulatory gene gates a SELECTION over MANY genes by the
+#: applied CELL-STATE. :func:`gene_express` (the **op**) is MODULATED by the ``cell_state``
+#: (the **operand**): same chromosome, different cell_state → different expressed gene
+#: subset. That inequality IS the theorem (parallel to rc127's count-modulates-divide) —
+#: the SAME (operand, op) pattern as :func:`srmech.amsc.op_provenance.carry`
+#: ``(value, operation)`` and :class:`srmech.amsc.coupling.RecoverableFold`
+#: ``(lossy_bundle, exact_seed_R)``, now with a CELL-STATE operand + an EXPRESSION operator.
+#:
+#: Layout (a fixed-width ``leaf_dim``-byte ``sectors=256`` cap leaf; §44 inline; the SAME
+#: shape as the §127 active telomere, mask replacing count):
+#:   byte ``[0]``          marker ``0x67``
+#:   bytes ``[1:1+L]``     utf-8 gene label ``L`` bytes
+#:   byte ``[1+L]``        the label terminator ``0x00``
+#:   bytes ``[2+L:10+L]``  the MASK — uint64 BIG-ENDIAN (8 bytes; Class-I exact bitwise, NO
+#:                         float, NEVER ``abs()``) — read at the byte right AFTER the
+#:                         label's NUL, so :func:`_unpack_cap`'s label decode (bytes ``[1:]``
+#:                         up to the first NUL) is UNIFORM across cap kinds.
+#:   bytes ``[10+L:]``     NUL padding to ``leaf_dim``
+#: ``> 3`` and distinct from every other marker (CHROM ``0x43`` / GENE ``0x47`` / v5 KERNEL
+#: ``0x4B`` / PACKED ``0x51`` / KERNEL-telomere ``0x6B`` / ACTIVE-telomere ``0x74``), so the
+#: strand stays SELF-DESCRIBING (§44): v2..v7 bodies read UNCHANGED (dual-read — the walker
+#: gains ONE branch), and a chromosome self-describes its regulatory masks by bare-strand
+#: scan (no manifest). A PLAIN gene (``0x47``, no mask) is UNREGULATED = ALWAYS EXPRESSED —
+#: equivalently a regulatory gene with mask ``0`` (``(cell_state & 0) == 0`` is always true).
+REGULATORY_GENE_MARKER = 0x67
+
+#: The regulatory-gene MASK field width — a uint64 (8 bytes, big-endian), read at the byte
+#: right after the inline label's NUL terminator (the SAME field shape as the §127 active
+#: telomere's count). 64 exact bitwise cell-state conditions; Class-I integer, no float.
+_REGULATORY_GENE_MASK_BYTES = 8
 
 #: The two :func:`telomere_tick` verdicts (the honest-decline / inform-don't-crash
 #: pattern — a clean STATUS, never a crash). ``DIVIDED`` = the count was > 0, so the op
@@ -336,7 +379,8 @@ def _cap_kind(hv):
     active telomere ``0x74`` is a chromosome boundary cap carrying an inline count."""
     first = int(hv[0]) if len(hv) else -1
     return first if first in (
-        CHROM_CAP_MARKER, GENE_CAP_MARKER, KERNEL_HEADER_MARKER,
+        CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
+        KERNEL_HEADER_MARKER,
         KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER) else None
 
 
@@ -485,6 +529,61 @@ def _gene_cap(gene_label, dim):
     return _pack_cap(GENE_CAP_MARKER, gene_label, dim)
 
 
+def _pack_regulatory_gene(gene_label, mask, dim):
+    """A fixed-width ``dim``-byte REGULATORY GENE cap leaf (§128) — the op⊗operand gene.
+
+    ``[REGULATORY_GENE_MARKER] + utf-8 label + NUL + mask(uint64 big-endian)``, NUL-padded
+    to ``dim``. The **op** (a gene: it opens + delimits a gene inside a chromosome, like
+    :func:`_gene_cap`) and the **operand** (``mask`` — the exact regulatory region: which
+    cell-state conditions enable the gene) are FUSED in the ONE cap. Placing the mask right
+    AFTER the label's NUL terminator keeps the label decode UNIFORM (bytes ``[1:]`` up to the
+    first NUL — :func:`_unpack_cap` reads it with no regulatory-gene special-case). ``mask``
+    is a non-negative exact integer (Class-I bitwise; NO float; NEVER ``abs()`` — a mask is
+    never negated). Same width as any cap so the strand stays uniformly fixed-width. The SAME
+    field shape as :func:`_pack_active_telomere` (mask replacing count) one scale up (gene,
+    not chromosome). A plain gene (:func:`_gene_cap`, no mask) is the mask==0 always-express
+    case, so a regulatory gene is a strict, additive extension."""
+    if not isinstance(mask, int) or isinstance(mask, bool):
+        raise ValueError(
+            f"regulatory gene mask must be an exact int (Class-I bitwise); got {mask!r}")
+    if mask < 0:
+        raise ValueError(
+            f"regulatory gene mask must be non-negative (a bitmask is never signed; a mask "
+            f"is never negated, so never abs()); got {mask}")
+    if mask >= (1 << (8 * _REGULATORY_GENE_MASK_BYTES)):
+        raise ValueError(
+            f"regulatory gene mask {mask} exceeds the uint64 field "
+            f"[0, 2**{8 * _REGULATORY_GENE_MASK_BYTES})")
+    raw_label = gene_label.encode("utf-8") if isinstance(gene_label, str) else bytes(gene_label)
+    if b"\x00" in raw_label:
+        raise ValueError("regulatory gene label must not contain a NUL byte")
+    payload = (bytes([REGULATORY_GENE_MARKER]) + raw_label + b"\x00"
+               + int(mask).to_bytes(_REGULATORY_GENE_MASK_BYTES, "big"))
+    if len(payload) > dim:
+        raise ValueError(
+            f"regulatory gene label {gene_label!r} + mask field is {len(payload)} bytes; "
+            f"max {dim} at leaf_dim={dim} (label must fit dim - {2 + _REGULATORY_GENE_MASK_BYTES} bytes)")
+    block = payload + b"\x00" * (dim - len(payload))
+    return _HV.from_sequence(block, sectors=256)
+
+
+def _regulatory_gene_mask(hv):
+    """The exact non-negative regulatory MASK carried inline in a regulatory-gene cap
+    (§128) — read at the ``_REGULATORY_GENE_MASK_BYTES`` bytes RIGHT AFTER the label's NUL
+    terminator, big-endian. This is the OPERAND of the op⊗operand gene; the chromosome
+    SELF-DESCRIBES its regulatory masks by this bare-strand read (no manifest). Class-I
+    exact integer (never a float). A plain GENE cap (``0x47``, no mask field) reads as mask
+    ``0`` = unregulated = ALWAYS EXPRESSED (the additive back-compat case)."""
+    raw = hv.tobytes()
+    if raw[:1] != bytes([REGULATORY_GENE_MARKER]):
+        return 0                                       # a plain gene — unregulated (mask 0)
+    nul = raw.find(b"\x00", 1)                          # end of the inline label
+    if nul < 0 or nul + 1 + _REGULATORY_GENE_MASK_BYTES > len(raw):
+        raise ValueError(
+            "regulatory gene cap is malformed: no label NUL / mask field truncated")
+    return int.from_bytes(raw[nul + 1:nul + 1 + _REGULATORY_GENE_MASK_BYTES], "big")
+
+
 def _pack_active_telomere(label, count, dim):
     """A fixed-width ``dim``-byte ACTIVE TELOMERE cap leaf (§127) — the op⊗operand cap.
 
@@ -598,6 +697,16 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
     a scanned-for fixed-width cap, NOT a variable-length TLV frame (no offset
     sidecar — biology's nested inline framing).
 
+    **Regulatory genes (§128 / #728).** A gene MAY carry an inline regulatory MASK
+    (its "regulatory region / promoter") by passing a **3-tuple** ``(gene_label,
+    gene_leaves, mask)`` instead of the 2-tuple: it is opened by a
+    :func:`_pack_regulatory_gene` cap (marker ``0x67``) carrying an exact Class-I
+    integer ``mask`` INLINE. :func:`gene_express` reads that mask and includes the gene
+    IFF an applied ``cell_state`` satisfies it (``(cell_state & mask) == mask``) — same
+    DNA, different cell_state → different expressed subset (the op⊗operand theorem one
+    scale up from the rc127 active telomere). A 2-tuple gene is UNREGULATED = ALWAYS
+    EXPRESSED (mask 0), so mixing 2- and 3-tuple genes is additive + back-compatible.
+
     **Active telomere (§127 / #726).** Pass ``active_count=N`` (a non-negative int) to
     lead the (single-kernel) chromosome with an :func:`active_telomere` cap carrying an
     exact Hayflick counter INLINE instead of a plain :func:`telomere`. The chromosome
@@ -630,8 +739,17 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
     if genes is None:
         return [cap] + [quad_turn(leaf, the_one) for leaf in leaves]
     strand = [cap]
-    for gene_label, gene_leaves in genes:
-        strand.append(_gene_cap(gene_label, dim))
+    # §128: a gene MAY carry a regulatory MASK — pass a 3-tuple
+    # ``(gene_label, gene_leaves, mask)`` to open it with a REGULATORY GENE cap (0x67)
+    # instead of a plain GENE cap (0x47). A 2-tuple ``(gene_label, gene_leaves)`` is an
+    # UNREGULATED (always-expressed) gene, exactly as before (additive / back-compat).
+    for gene in genes:
+        if len(gene) == 3:
+            gene_label, gene_leaves, mask = gene
+            strand.append(_pack_regulatory_gene(gene_label, mask, dim))
+        else:
+            gene_label, gene_leaves = gene
+            strand.append(_gene_cap(gene_label, dim))
         strand.extend(quad_turn(leaf, the_one) for leaf in gene_leaves)
     return strand
 
@@ -681,7 +799,11 @@ def genes(strand, the_one):
     started = False
     for hv in strand:
         kind = _cap_kind(hv)
-        if kind == GENE_CAP_MARKER:
+        if kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER):
+            # §128: a plain GENE cap (0x47) OR a REGULATORY GENE cap (0x67) opens a gene;
+            # its label reads UNIFORMLY (the regulatory gene's mask sits AFTER the label
+            # NUL, so _unpack_cap reads the label with no special-case). genes() recovers
+            # ALL genes mask-agnostically (gene_express() applies the mask filter).
             if started:
                 out.append((cur_label, cur_leaves))
             _marker, cur_label = _unpack_cap(hv)
@@ -699,6 +821,91 @@ def genes(strand, the_one):
     if started:
         out.append((cur_label, cur_leaves))
     return out
+
+
+def gene_express(strand, the_one, cell_state):
+    """Cell-state-modulated gene expression — a READ-TIME FILTER (§128 / #728).
+
+    ``strand`` is a multi-gene chromosome (from ``chromosome(genes=…, the_one)`` /
+    :func:`genome` with regulatory genes). This op walks the genes and returns ONLY the
+    genes the applied ``cell_state`` EXPRESSES — the exact expression rule is::
+
+        a gene expresses  iff  (cell_state & gene_mask) == gene_mask
+
+    i.e. the gene expresses when the cell-state has ALL of the gene's required regulatory
+    conditions present (every set bit of the gene's inline mask). A PLAIN gene (a §44 GENE
+    cap ``0x47``, no mask) is UNREGULATED = mask ``0`` = ALWAYS EXPRESSED (``cell_state & 0
+    == 0`` for every ``cell_state``) — so old / plain-gene chromosomes always fully express
+    (back-compat). A REGULATORY gene (``0x67``) carries its mask INLINE and is gated.
+
+    THE op⊗operand THEOREM, one scale up from the rc127 active telomere: rc127 gated ONE
+    divide/senesce BINARY by a carried COUNT; here the ``gene_express`` **operator** is
+    MODULATED by the ``cell_state`` **operand** to gate a SELECTION over MANY genes — SAME
+    DNA, DIFFERENT ``cell_state`` → DIFFERENT expressed subset. That inequality IS the
+    theorem (the SAME (operand, op) pattern as :func:`srmech.amsc.op_provenance.carry` and
+    :class:`srmech.amsc.coupling.RecoverableFold`, now with a CELL-STATE operand + an
+    EXPRESSION operator).
+
+    ⚠️ This is a READ — it NEVER MUTATES THE STRAND (biology does NOT rewrite DNA to
+    regulate it; expression reads the regulatory region). The input ``strand`` is
+    byte-identical after this call. Returns the EXPRESSED subset as ``[(gene_label,
+    gene_leaves), …]`` (the same shape :func:`genes` returns, filtered) in strand order;
+    ``gene_leaves`` are uncoupled through ``the_one`` (the reversible :func:`quad_turn`).
+
+    ``cell_state`` is a non-negative exact integer (Class-I bitwise; each set bit a present
+    cell-state condition; no float, never ``abs()``). Native-dispatched (byte-identical C
+    peer ``srmech_genome_gene_express`` decides each gene's expression); pure Python is the
+    complete alternative. Attests differential gene expression as ONE facet (genes have
+    other regulation too): Alberts et al., *Molecular Biology of the Cell* 4th ed., NCBI
+    Bookshelf NBK26887.
+    """
+    if not isinstance(cell_state, int) or isinstance(cell_state, bool):
+        raise ValueError(
+            f"gene_express: cell_state must be an exact int (Class-I bitwise); got "
+            f"{cell_state!r}")
+    if cell_state < 0:
+        raise ValueError(
+            f"gene_express: cell_state must be non-negative (a bitmask is never signed; a "
+            f"cell-state is never negated, so never abs()); got {cell_state}")
+    out = []
+    cur_label = None
+    cur_leaves = []
+    cur_express = False
+    started = False
+    for hv in strand:
+        kind = _cap_kind(hv)
+        if kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER):
+            if started and cur_express:
+                out.append((cur_label, cur_leaves))
+            _marker, cur_label = _unpack_cap(hv)
+            cur_leaves = []
+            cur_express = _gene_expresses(hv, cell_state)
+            started = True
+        elif kind in (CHROM_CAP_MARKER, KERNEL_HEADER_MARKER,
+                      KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER):
+            continue                            # the chromosome telomere / a header —
+                                                # skip (not gene data)
+        elif not started:
+            continue                            # any leading cap before the first gene
+        else:
+            cur_leaves.append(quad_turn(hv, the_one))   # reversible uncouple
+    if started and cur_express:
+        out.append((cur_label, cur_leaves))
+    return out
+
+
+def _gene_expresses(cap, cell_state):
+    """Decide whether the gene opened by ``cap`` EXPRESSES under ``cell_state`` (§128) —
+    the per-gene read-time filter shared by :func:`gene_express`. A plain GENE cap (0x47,
+    no mask) always expresses (mask 0); a REGULATORY GENE cap (0x67) expresses IFF
+    ``(cell_state & mask) == mask``. Native-authoritative when present (byte-identical C
+    peer ``srmech_genome_gene_express``); the pure Class-I bitwise path is the complete
+    alternative. NO float, NEVER ``abs()``."""
+    native = _gene_express_native(cap, cell_state)
+    if native is not None:
+        return native
+    mask = _regulatory_gene_mask(cap)                  # 0 for a plain (unregulated) gene
+    return (cell_state & mask) == mask                 # Class-I bitwise; no float, no abs
 
 
 def genome(kernels=None, the_one=None, *, chromosomes=None):
@@ -776,9 +983,11 @@ def partition(strand, the_one, labels=None):
             # the active telomere's count sits AFTER that NUL, so the label is exact.
             _marker, current = _unpack_cap(hv)
             out[current] = []
-        elif kind in (GENE_CAP_MARKER, KERNEL_HEADER_MARKER):
-            continue                            # a gene delimiter / §60 v5 header
-                                                # — not data; flatten past it
+        elif kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
+                      KERNEL_HEADER_MARKER):
+            continue                            # a gene delimiter (§44 plain / §128
+                                                # regulatory) / §60 v5 header — not data;
+                                                # flatten past it
         elif current is not None:
             out[current].append(quad_turn(hv, the_one))   # reversible uncouple
     if labels is not None:
@@ -986,6 +1195,22 @@ def _telomere_tick_native(cap):
         return None
 
 
+def _gene_express_native(cap, cell_state):
+    """Native dispatch for the §128 per-gene expression decision (parity peer
+    ``srmech_genome_gene_express``): ``cap`` (a plain GENE / regulatory-gene ``HV``) +
+    ``cell_state`` → ``True``/``False`` (does the gene express?), or ``None`` on any missing
+    symbol / non-OK status (the caller runs the pure Class-I bitwise path). Native is
+    authoritative when present; the pure path is the complete alternative."""
+    from . import _native
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_genome_gene_express")):
+        return None
+    try:
+        return _native.genome_gene_express_c(cap.tobytes(), len(cap), cell_state)
+    except _native.NativeGenomeError:
+        return None
+
+
 def telomere_tick(strand):
     """The divide/gate op — the ACTIVE TELOMERE's count MODULATES the operator (§127/#726).
 
@@ -1123,7 +1348,21 @@ def telomere_tick(strand):
 #: STRUCTURAL, never a converter. A plain-telomere (no ``0x74``) genome saved by the v7
 #: writer is byte-identical to the v6 writer's EXCEPT the ``format_version`` field (the
 #: same version-stamp discipline every prior bump used — a v7 writer stamps 7).
-GENOME_FORMAT_VERSION = 7
+#: 8 (§128/rc128, #728) == the REGULATORY GENE: an intra-chromosome gene MAY be opened by a
+#: ``REGULATORY_GENE_MARKER`` (``0x67``) cap carrying an exact regulatory MASK inline (the
+#: gene's "regulatory region / promoter" that :func:`gene_express` reads to gate which genes
+#: express under an applied ``cell_state`` — the op⊗operand theorem one scale up from the v7
+#: active telomere: the cell-state operand modulates the expression operator over MANY
+#: genes, #728). Unlike the v6/v7 CHROMOSOME-boundary caps, the ``0x67`` cap is an
+#: INTRA-chromosome gene delimiter (a gene-analog of the plain GENE cap ``0x47``); it is one
+#: more self-describing kind in the SAME walk (its first byte keys it, its label read
+#: UNIFORMLY, its mask after the label NUL), so v2 / v3 / v4 / v5 / v6 / v7 bodies read
+#: UNCHANGED (dual-read — the walker gains ONE branch): back-compat is STRUCTURAL, never a
+#: converter. A plain-gene (no ``0x67``) genome saved by the v8 writer is byte-identical to
+#: the v7 writer's EXCEPT the ``format_version`` field (the same version-stamp discipline
+#: every prior new-block-kind bump used — a v8 writer stamps 8), and every plain gene ALWAYS
+#: EXPRESSES (an unregulated gene == a regulatory gene with mask 0).
+GENOME_FORMAT_VERSION = 8
 
 #: rc115 (#1245 ask (b)) — the empty-body chain seed H₀ = sha256(b"") (a derived
 #: constant, not magic: THE well-known empty-string digest). The whole-body
@@ -1207,7 +1446,8 @@ def _hv_from_block(block: bytes) -> _HV:
     self-describing-strand property."""
     first = block[0] if block else -1
     sectors = 256 if first in (
-        CHROM_CAP_MARKER, GENE_CAP_MARKER, KERNEL_HEADER_MARKER,
+        CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
+        KERNEL_HEADER_MARKER,
         KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER) else QUAD
     return _HV.from_sequence(block, sectors=sectors)
 
@@ -1220,9 +1460,13 @@ def _block_is_cap(block: bytes) -> bool:
     header is a coupled DATA turn (first byte ``0..3``), NOT a cap — it bit-packs and
     counts like content; the ``0x6B`` kernel telomere is the cap that flags it. §127:
     the ``0x74`` active telomere is a chromosome-boundary cap (like CHROM/kernel), so it
-    is stored VERBATIM and excluded from the data-turn count (its count is NOT a turn)."""
+    is stored VERBATIM and excluded from the data-turn count (its count is NOT a turn).
+    §128: the ``0x67`` regulatory gene is an intra-chromosome gene delimiter cap (like the
+    plain GENE cap), so it too is stored VERBATIM and excluded from the data-turn count (its
+    mask is NOT a turn)."""
     return bool(block) and block[0] in (
-        CHROM_CAP_MARKER, GENE_CAP_MARKER, KERNEL_HEADER_MARKER,
+        CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
+        KERNEL_HEADER_MARKER,
         KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER)
 
 
@@ -1325,7 +1569,7 @@ def _walk_region_blocks(region: bytes, leaf_dim: int, *, context: str = "genome"
     k, n = 0, len(region)
     while k < n:
         kind = region[k]
-        if kind in (CHROM_CAP_MARKER, GENE_CAP_MARKER,
+        if kind in (CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
                     KERNEL_HEADER_MARKER, KERNEL_TELOMERE_MARKER,
                     ACTIVE_TELOMERE_MARKER) or kind <= 3:
             end = k + leaf_dim
@@ -1659,10 +1903,13 @@ def _rebuild_manifest_from_body(body_bytes, leaf_dim, the_one):
                 "genome persistence: strand has turns before its first CHROM "
                 "cap — not a well-formed §44 genome strand"
             )
-        elif decoded[0] != GENE_CAP_MARKER and decoded[0] != KERNEL_HEADER_MARKER:
+        elif (decoded[0] != GENE_CAP_MARKER
+              and decoded[0] != REGULATORY_GENE_MARKER
+              and decoded[0] != KERNEL_HEADER_MARKER):
             cur[2] += 1                       # a data turn (packed or legacy); a GENE
-                                              # cap or §60 v5 header is not a turn (the
-                                              # §89 v6 Klein-4 header IS a coupled turn)
+                                              # cap (§44 plain / §128 regulatory) or §60
+                                              # v5 header is not a turn (the §89 v6
+                                              # Klein-4 header IS a coupled turn)
         cur[4] += len(raw)
         offset += len(raw)
     if cur is not None:
@@ -1871,7 +2118,7 @@ def genome_load(path, *, labels=None, the_one=None):
                 if not first:
                     break
                 kind = first[0]
-                if kind in (CHROM_CAP_MARKER, GENE_CAP_MARKER,
+                if kind in (CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
                             KERNEL_HEADER_MARKER, KERNEL_TELOMERE_MARKER,
                             ACTIVE_TELOMERE_MARKER) \
                         or kind <= 3:
@@ -2049,13 +2296,15 @@ def genome_genes(path, label, *, the_one=None):
     the_one = _resolve_the_one(data, the_one)
     region = _read_region(path, by_label[label], leaf_dim)
     region_strand = _region_strand(region, leaf_dim)
-    if not any(_cap_kind(hv) == GENE_CAP_MARKER for hv in region_strand):
+    if not any(_cap_kind(hv) in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER)
+               for hv in region_strand):
         raise ValueError(
             f"genome_genes: chromosome {label!r} has no inline GENE caps — it is a "
             f"single-kernel chromosome; use genome_window / partition"
         )
-    # §44: scan the inline gene structure — genes() skips the leading CHROM cap and
-    # splits on the GENE caps, uncoupling each data turn through the_one.
+    # §44/§128: scan the inline gene structure — genes() skips the leading CHROM cap and
+    # splits on the GENE caps (plain 0x47 / regulatory 0x67), uncoupling each data turn
+    # through the_one (use gene_express() to also apply the regulatory-mask filter).
     return genes(region_strand, the_one)
 
 
