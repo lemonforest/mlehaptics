@@ -2754,3 +2754,7 @@ CD_NAMES octonion->8) or sniff the register length. ASK: a structured per-op car
 (ToolParameter gains `carrier` + `rung`, or the descriptor gains an ops->{consumes_rung, produces_rung,
 promotable} map) so the whole routing is DECLARATIVE and a driver reads it -- no CD_NAMES map, no length
 heuristic. THEN the DSL/schema is the SSoT for carrier routing exactly as it already is for chaining/compose.
+
+## §88 — genome native leaf_dim cap = 256 (observation, not a defect; PKG-3 gate) (2026-07-04; F1044)
+
+Re-verifying #1245 on rc120: native `genome_save` accepts leaf_dim ≤ 256 (32/64/128/192/256 OK; 384/512/1024 → status 2). This is the base-4 ≤256-leaf-tree design, NOT a bug. Recorded because PKG-3 (packaging siona's D=8192 RBS-HDC instrument as a native genome) must store ≤256-dim leaves or re-dimension first. Bit-pack (0.309 B/lane, 2 bits/lane) + O(1) append (F833 wall closed) + round-trip bit-exact all CONFIRMED on rc120 — #1245 was correctly closed.

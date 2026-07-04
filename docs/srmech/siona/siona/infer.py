@@ -324,6 +324,22 @@ class Session:
                 return None
         return None
 
+    def _ops_contract(self):
+        """#1254 (rc120): the DECLARED per-op carrier contract -- ops[short] = {consumes/produces rung}.
+        This is what lets siona READ the rung instead of name-mapping 'octonion'->8."""
+        if getattr(self, "_ops_cache", None) is None:
+            try:
+                from srmech.amsc.carrier_ladder import carrier_ladder_descriptor
+                self._ops_cache = carrier_ladder_descriptor().get("ops", {})
+            except Exception:
+                self._ops_cache = {}
+        return self._ops_cache
+
+    def _op_consume_rung(self, tool_name):
+        # the consumer's fixed cd rung, READ from the contract (octonion_conjugate -> 8); None if 'any'/absent
+        c = self._ops_contract().get(tool_name.split(".")[-1], {}).get("consumes", {})
+        return c["rung"] if c.get("ladder") == "cayley_dickson" and isinstance(c.get("rung"), int) else None
+
     def _cd_target(self, tool_name, u=""):
         # the target Hurwitz rung: an EXPLICIT algebra word or 'to N' in the utterance wins (the user's
         # 'promote it to a sedenion' / 'to 16'), else the op's own ALGEBRA NAME (octonion == dim-8);
@@ -335,7 +351,10 @@ class Session:
             if w == "to" and i + 1 < len(toks) and toks[i + 1].isdigit() \
                     and int(toks[i + 1]) in (1, 2, 4, 8, 16):
                 return int(toks[i + 1])
-        low = tool_name.lower()
+        r = self._op_consume_rung(tool_name)    # #1254: READ the rung from the declared contract...
+        if r is not None:
+            return r
+        low = tool_name.lower()                  # ...name-map CD_NAMES only as the pre-rc120 fallback
         for k, d in self.CD_NAMES.items():
             if k in low:
                 return d

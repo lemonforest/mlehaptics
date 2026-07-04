@@ -123,3 +123,25 @@ def test_cd_explicit_dim_promotion_rc117():
     s.turn("compute the quaternion exp of 0.5")
     _, tag, out = s.turn("compute the cd promote of it to 8")
     assert "cd_promote([0.877" in out and ", 8)" in out, out             # dim=8 from 'to N'
+
+
+def test_cd_rung_read_from_declared_contract_rc120():
+    """F1043: #1254 delivered (rc120) -- the per-op carrier contract ships as
+    carrier_ladder_descriptor()['ops']. Siona READS the consumer's rung from it (octonion_conjugate
+    -> 8) instead of name-mapping 'octonion'->8. The name-map survives only as the pre-rc120 fallback."""
+    import importlib.util
+    if importlib.util.find_spec("srmech.amsc.carrier_ladder") is None:
+        import pytest
+        pytest.skip("carrier_ladder not on this floor")
+    from srmech.amsc.carrier_ladder import carrier_ladder_descriptor
+    if "ops" not in carrier_ladder_descriptor():
+        import pytest
+        pytest.skip("per-op contract (ops map, #1254/rc120) not on this floor")
+    s = siona.Session()
+    assert s._op_consume_rung("srmech.qm.octonion.octonion_conjugate") == 8   # READ, not name-mapped
+    assert s._op_consume_rung("srmech.qm.quaternion.quaternion_norm") == 4
+    assert s._op_consume_rung("srmech.amsc.cascade.cd_promote") is None       # 'any' -> not a fixed rung
+    # and the auto-promote still lands (4->8) driven by the contract-read rung
+    s.turn("compute the quaternion exp of 0.5")
+    _, tag, out = s.turn("compute the octonion conjugate of it")
+    assert "octonion_conjugate([" in out, out
