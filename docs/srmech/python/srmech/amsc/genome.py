@@ -234,7 +234,45 @@ REGULATORY_GENE_MARKER = 0x67
 #: The regulatory-gene MASK field width — a uint64 (8 bytes, big-endian), read at the byte
 #: right after the inline label's NUL terminator (the SAME field shape as the §127 active
 #: telomere's count). 64 exact bitwise cell-state conditions; Class-I integer, no float.
+#: §129/rc129 (#729) — a regulatory gene carries TWO consecutive uint64 mask fields
+#: (activator then repressor); rc128's SINGLE-mask cap is dual-read as ``activator=mask,
+#: repressor=0`` (see :data:`_REGULATORY_GENE_ROLES` below).
 _REGULATORY_GENE_MASK_BYTES = 8
+
+#: §129/rc129 (#729) — KLEIN-4 REGULATORY ROLES: each regulatory CONDITION (bit position)
+#: carries one of FOUR roles, the genome's NATIVE Klein-4 alphabet (element_type ``0 =
+#: klein4``, the 2-bit ``{0,1,2,3}`` symbol). A condition's role is a **Klein-4 sector**: the
+#: per-condition pair ``(act_bit, rep_bit)`` IS the 2-bit Klein-4 symbol (the two bit-planes
+#: are the two ``Z2`` factors of ``V = Z2 × Z2``)::
+#:
+#:   (act_bit, rep_bit)  Klein-4 symbol   role          expression constraint on this bit
+#:   ------------------  --------------   -----------   ------------------------------------
+#:        (0, 0)              0            don't-care    (no constraint)
+#:        (1, 0)              2            activator     the bit MUST be present in cell_state
+#:        (0, 1)              1            repressor     the bit MUST be absent from cell_state
+#:        (1, 1)              3            never         present AND absent → contradiction →
+#:                                                       the gene NEVER expresses (auto-silenced)
+#:
+#: ENCODING = TWO PARALLEL bitmasks ``(activator_mask, repressor_mask)`` — the two Klein-4
+#: bit-planes over the 64 conditions. rc128 shipped only the activator plane (a pure
+#: conjunctive AND-gate = all-ACTIVATOR); biology (the lac operon, Jacob & Monod 1961) also
+#: has REPRESSORS (require-absent), the second plane. The expression rule is exact Class-I
+#: bitwise (:func:`_gene_expresses`): a gene expresses iff ``(cell_state & activator_mask) ==
+#: activator_mask`` (all activators present) AND ``(cell_state & repressor_mask) == 0`` (no
+#: repressor present). A 'never' bit (set in BOTH masks) auto-silences: ``(cs & act) == act``
+#: needs it set while ``(cs & rep) == 0`` needs it clear → contradiction → never expresses.
+#: NO float, NEVER ``abs()`` (a mask is never negated).
+#:
+#: LAYOUT / DUAL-READ: the repressor mask occupies the 8 bytes that were NUL PADDING in a
+#: rc128 single-mask cap — so the second Klein-4 bit-plane was latent in the padding all
+#: along. The writer emits the 8-byte (activator-only) form when ``repressor == 0`` (the
+#: repressor 0 IS the padding), making an activator-only rc129 gene BYTE-IDENTICAL to a rc128
+#: gene; it emits the 16-byte (activator+repressor) form only when ``repressor != 0``. The
+#: reader reads the activator (8 bytes after the NUL, always present) and the repressor (the
+#: NEXT 8 bytes if the leaf has room, else 0) — so a rc128 single-mask cap and a plain gene
+#: read as ``repressor = 0`` (unregulated by repression). SAME marker ``0x67`` (an ADDITIVE
+#: extension of an existing block kind — NOT a new marker, so no genome-format bump).
+_REGULATORY_GENE_ROLES = ("dont-care", "repressor", "activator", "never")
 
 #: The two :func:`telomere_tick` verdicts (the honest-decline / inform-don't-crash
 #: pattern — a clean STATUS, never a crash). ``DIVIDED`` = the count was > 0, so the op
@@ -529,59 +567,100 @@ def _gene_cap(gene_label, dim):
     return _pack_cap(GENE_CAP_MARKER, gene_label, dim)
 
 
-def _pack_regulatory_gene(gene_label, mask, dim):
-    """A fixed-width ``dim``-byte REGULATORY GENE cap leaf (§128) — the op⊗operand gene.
-
-    ``[REGULATORY_GENE_MARKER] + utf-8 label + NUL + mask(uint64 big-endian)``, NUL-padded
-    to ``dim``. The **op** (a gene: it opens + delimits a gene inside a chromosome, like
-    :func:`_gene_cap`) and the **operand** (``mask`` — the exact regulatory region: which
-    cell-state conditions enable the gene) are FUSED in the ONE cap. Placing the mask right
-    AFTER the label's NUL terminator keeps the label decode UNIFORM (bytes ``[1:]`` up to the
-    first NUL — :func:`_unpack_cap` reads it with no regulatory-gene special-case). ``mask``
-    is a non-negative exact integer (Class-I bitwise; NO float; NEVER ``abs()`` — a mask is
-    never negated). Same width as any cap so the strand stays uniformly fixed-width. The SAME
-    field shape as :func:`_pack_active_telomere` (mask replacing count) one scale up (gene,
-    not chromosome). A plain gene (:func:`_gene_cap`, no mask) is the mask==0 always-express
-    case, so a regulatory gene is a strict, additive extension."""
+def _validate_regulatory_mask(mask, which):
+    """Validate one Class-I regulatory mask (activator or repressor) — a non-negative exact
+    int that fits the uint64 field. NO float; NEVER ``abs()`` (a mask is never negated)."""
     if not isinstance(mask, int) or isinstance(mask, bool):
         raise ValueError(
-            f"regulatory gene mask must be an exact int (Class-I bitwise); got {mask!r}")
+            f"regulatory gene {which} mask must be an exact int (Class-I bitwise); got {mask!r}")
     if mask < 0:
         raise ValueError(
-            f"regulatory gene mask must be non-negative (a bitmask is never signed; a mask "
-            f"is never negated, so never abs()); got {mask}")
+            f"regulatory gene {which} mask must be non-negative (a bitmask is never signed; a "
+            f"mask is never negated, so never abs()); got {mask}")
     if mask >= (1 << (8 * _REGULATORY_GENE_MASK_BYTES)):
         raise ValueError(
-            f"regulatory gene mask {mask} exceeds the uint64 field "
+            f"regulatory gene {which} mask {mask} exceeds the uint64 field "
             f"[0, 2**{8 * _REGULATORY_GENE_MASK_BYTES})")
+
+
+def _pack_regulatory_gene(gene_label, activator, dim, repressor=0):
+    """A fixed-width ``dim``-byte REGULATORY GENE cap leaf (§128/§129) — the op⊗operand gene.
+
+    ``[REGULATORY_GENE_MARKER] + utf-8 label + NUL + activator(uint64 BE) [+ repressor(uint64
+    BE)]``, NUL-padded to ``dim``. The **op** (a gene: it opens + delimits a gene inside a
+    chromosome, like :func:`_gene_cap`) and the **operand** (the regulatory region: which
+    cell-state conditions enable the gene, per-condition a KLEIN-4 role — see
+    :data:`_REGULATORY_GENE_ROLES`) are FUSED in the ONE cap. Placing the masks right AFTER
+    the label's NUL terminator keeps the label decode UNIFORM (bytes ``[1:]`` up to the first
+    NUL — :func:`_unpack_cap` reads it with no regulatory-gene special-case).
+
+    §129/rc129 (#729) TWO PARALLEL masks — the two Klein-4 bit-planes: ``activator`` (require
+    each set bit PRESENT) + ``repressor`` (require each set bit ABSENT). Both are non-negative
+    exact integers (Class-I bitwise; NO float; NEVER ``abs()``). DUAL-READ / BYTE-COMPAT: the
+    repressor lives in what was NUL padding, so when ``repressor == 0`` the writer emits the
+    rc128 8-byte (activator-only) form (the 0 repressor IS the padding) — an activator-only
+    rc129 gene is BYTE-IDENTICAL to a rc128 single-mask gene; only ``repressor != 0`` spends
+    the extra 8-byte field. A plain gene (:func:`_gene_cap`, no masks) is the
+    ``activator==0, repressor==0`` always-express case, so a regulatory gene is a strict,
+    additive extension. Same marker ``0x67`` (an additive extension of an existing block kind,
+    NOT a new marker)."""
+    _validate_regulatory_mask(activator, "activator")
+    _validate_regulatory_mask(repressor, "repressor")
     raw_label = gene_label.encode("utf-8") if isinstance(gene_label, str) else bytes(gene_label)
     if b"\x00" in raw_label:
         raise ValueError("regulatory gene label must not contain a NUL byte")
     payload = (bytes([REGULATORY_GENE_MARKER]) + raw_label + b"\x00"
-               + int(mask).to_bytes(_REGULATORY_GENE_MASK_BYTES, "big"))
+               + int(activator).to_bytes(_REGULATORY_GENE_MASK_BYTES, "big"))
+    # §129 DUAL-READ: repressor 0 == the NUL padding, so emit the rc128 8-byte form for an
+    # activator-only gene (byte-identical); spend the second 8-byte field only when needed.
+    if repressor != 0:
+        payload = payload + int(repressor).to_bytes(_REGULATORY_GENE_MASK_BYTES, "big")
     if len(payload) > dim:
+        fields = 2 if repressor != 0 else 1
         raise ValueError(
-            f"regulatory gene label {gene_label!r} + mask field is {len(payload)} bytes; "
-            f"max {dim} at leaf_dim={dim} (label must fit dim - {2 + _REGULATORY_GENE_MASK_BYTES} bytes)")
+            f"regulatory gene label {gene_label!r} + {fields}-mask field is {len(payload)} "
+            f"bytes; max {dim} at leaf_dim={dim} (label must fit dim - "
+            f"{2 + fields * _REGULATORY_GENE_MASK_BYTES} bytes)")
     block = payload + b"\x00" * (dim - len(payload))
     return _HV.from_sequence(block, sectors=256)
 
 
-def _regulatory_gene_mask(hv):
-    """The exact non-negative regulatory MASK carried inline in a regulatory-gene cap
-    (§128) — read at the ``_REGULATORY_GENE_MASK_BYTES`` bytes RIGHT AFTER the label's NUL
-    terminator, big-endian. This is the OPERAND of the op⊗operand gene; the chromosome
-    SELF-DESCRIBES its regulatory masks by this bare-strand read (no manifest). Class-I
-    exact integer (never a float). A plain GENE cap (``0x47``, no mask field) reads as mask
-    ``0`` = unregulated = ALWAYS EXPRESSED (the additive back-compat case)."""
+def _regulatory_gene_masks(hv):
+    """The exact non-negative ``(activator_mask, repressor_mask)`` pair carried inline in a
+    regulatory-gene cap (§128/§129) — the TWO Klein-4 bit-planes. The activator is read at the
+    ``_REGULATORY_GENE_MASK_BYTES`` bytes RIGHT AFTER the label's NUL terminator (big-endian,
+    always present); the repressor is read at the NEXT ``_REGULATORY_GENE_MASK_BYTES`` bytes IF
+    the leaf has room, else ``0`` (a rc128 single-mask cap / a short leaf carries NO repressor
+    field — DUAL-READ ``activator=mask, repressor=0``, since the repressor lives in what was
+    NUL padding). This is the OPERAND of the op⊗operand gene; the chromosome SELF-DESCRIBES
+    BOTH masks by this bare-strand read (no manifest). Class-I exact integers (never a float).
+    A plain GENE cap (``0x47``, no mask field) reads as ``(0, 0)`` = unregulated = ALWAYS
+    EXPRESSED (the additive back-compat case)."""
     raw = hv.tobytes()
     if raw[:1] != bytes([REGULATORY_GENE_MARKER]):
-        return 0                                       # a plain gene — unregulated (mask 0)
+        return (0, 0)                                  # a plain gene — unregulated
     nul = raw.find(b"\x00", 1)                          # end of the inline label
     if nul < 0 or nul + 1 + _REGULATORY_GENE_MASK_BYTES > len(raw):
         raise ValueError(
-            "regulatory gene cap is malformed: no label NUL / mask field truncated")
-    return int.from_bytes(raw[nul + 1:nul + 1 + _REGULATORY_GENE_MASK_BYTES], "big")
+            "regulatory gene cap is malformed: no label NUL / activator field truncated")
+    act_base = nul + 1
+    activator = int.from_bytes(raw[act_base:act_base + _REGULATORY_GENE_MASK_BYTES], "big")
+    rep_base = act_base + _REGULATORY_GENE_MASK_BYTES
+    # §129 DUAL-READ: the repressor field sits in what was NUL padding — present iff the leaf
+    # has room; absent (rc128 single-mask / short leaf) => repressor 0 (no repression).
+    if rep_base + _REGULATORY_GENE_MASK_BYTES <= len(raw):
+        repressor = int.from_bytes(raw[rep_base:rep_base + _REGULATORY_GENE_MASK_BYTES], "big")
+    else:
+        repressor = 0
+    return (activator, repressor)
+
+
+def _regulatory_gene_mask(hv):
+    """The exact non-negative ACTIVATOR mask of a regulatory-gene cap (§128 back-compat name)
+    — the first Klein-4 bit-plane, ``_regulatory_gene_masks(hv)[0]``. A plain GENE cap
+    (``0x47``, no mask) reads as ``0`` = unregulated = ALWAYS EXPRESSED. Prefer
+    :func:`_regulatory_gene_masks` for BOTH planes (§129 repressor)."""
+    return _regulatory_gene_masks(hv)[0]
 
 
 def _pack_active_telomere(label, count, dim):
@@ -697,15 +776,27 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
     a scanned-for fixed-width cap, NOT a variable-length TLV frame (no offset
     sidecar — biology's nested inline framing).
 
-    **Regulatory genes (§128 / #728).** A gene MAY carry an inline regulatory MASK
-    (its "regulatory region / promoter") by passing a **3-tuple** ``(gene_label,
-    gene_leaves, mask)`` instead of the 2-tuple: it is opened by a
-    :func:`_pack_regulatory_gene` cap (marker ``0x67``) carrying an exact Class-I
-    integer ``mask`` INLINE. :func:`gene_express` reads that mask and includes the gene
-    IFF an applied ``cell_state`` satisfies it (``(cell_state & mask) == mask``) — same
-    DNA, different cell_state → different expressed subset (the op⊗operand theorem one
-    scale up from the rc127 active telomere). A 2-tuple gene is UNREGULATED = ALWAYS
-    EXPRESSED (mask 0), so mixing 2- and 3-tuple genes is additive + back-compatible.
+    **Regulatory genes (§128 / #728; §129 / #729).** A gene MAY carry inline regulatory
+    MASK(s) (its "regulatory region / promoter") by passing a **3- or 4-tuple** instead of
+    the 2-tuple; it is opened by a :func:`_pack_regulatory_gene` cap (marker ``0x67``)
+    carrying exact Class-I integer mask(s) INLINE:
+
+    * **4-tuple** ``(gene_label, gene_leaves, activator_mask, repressor_mask)`` — §129 the
+      two KLEIN-4 bit-planes: ``activator_mask`` = conditions the cell_state must have
+      PRESENT, ``repressor_mask`` = conditions it must have ABSENT. Per condition the pair
+      ``(act_bit, rep_bit)`` is a Klein-4 role (don't-care / activator / repressor / never;
+      see :data:`_REGULATORY_GENE_ROLES`). The lac operon is the exemplar (expresses iff
+      lactose PRESENT and glucose ABSENT).
+    * **3-tuple** ``(gene_label, gene_leaves, activator_mask)`` — §128 activator-only
+      (``repressor_mask = 0``); a pure conjunctive AND-gate, BYTE-IDENTICAL to rc128.
+    * **2-tuple** ``(gene_label, gene_leaves)`` — UNREGULATED = ALWAYS EXPRESSED
+      (``activator = repressor = 0``).
+
+    :func:`gene_express` reads the mask(s) and includes the gene IFF an applied
+    ``cell_state`` satisfies BOTH ``(cell_state & activator) == activator`` AND
+    ``(cell_state & repressor) == 0`` — same DNA, different cell_state → different expressed
+    subset (the op⊗operand theorem one scale up from the rc127 active telomere). Mixing 2-,
+    3-, and 4-tuple genes is additive + back-compatible.
 
     **Active telomere (§127 / #726).** Pass ``active_count=N`` (a non-negative int) to
     lead the (single-kernel) chromosome with an :func:`active_telomere` cap carrying an
@@ -739,14 +830,21 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
     if genes is None:
         return [cap] + [quad_turn(leaf, the_one) for leaf in leaves]
     strand = [cap]
-    # §128: a gene MAY carry a regulatory MASK — pass a 3-tuple
-    # ``(gene_label, gene_leaves, mask)`` to open it with a REGULATORY GENE cap (0x67)
-    # instead of a plain GENE cap (0x47). A 2-tuple ``(gene_label, gene_leaves)`` is an
-    # UNREGULATED (always-expressed) gene, exactly as before (additive / back-compat).
+    # §128/§129: a gene MAY carry regulatory MASK(s) — open it with a REGULATORY GENE cap
+    # (0x67) instead of a plain GENE cap (0x47):
+    #   4-tuple ``(gene_label, gene_leaves, activator_mask, repressor_mask)`` — §129 the two
+    #     Klein-4 bit-planes (require-present + require-absent conditions);
+    #   3-tuple ``(gene_label, gene_leaves, activator_mask)`` — §128 activator-only (repressor
+    #     0); BYTE-IDENTICAL to rc128 (back-compat);
+    #   2-tuple ``(gene_label, gene_leaves)`` — an UNREGULATED (always-expressed) plain gene.
+    # Mixing arities is additive / back-compatible.
     for gene in genes:
-        if len(gene) == 3:
-            gene_label, gene_leaves, mask = gene
-            strand.append(_pack_regulatory_gene(gene_label, mask, dim))
+        if len(gene) == 4:
+            gene_label, gene_leaves, act_mask, rep_mask = gene
+            strand.append(_pack_regulatory_gene(gene_label, act_mask, dim, repressor=rep_mask))
+        elif len(gene) == 3:
+            gene_label, gene_leaves, act_mask = gene
+            strand.append(_pack_regulatory_gene(gene_label, act_mask, dim))   # repressor 0
         else:
             gene_label, gene_leaves = gene
             strand.append(_gene_cap(gene_label, dim))
@@ -828,15 +926,23 @@ def gene_express(strand, the_one, cell_state):
 
     ``strand`` is a multi-gene chromosome (from ``chromosome(genes=…, the_one)`` /
     :func:`genome` with regulatory genes). This op walks the genes and returns ONLY the
-    genes the applied ``cell_state`` EXPRESSES — the exact expression rule is::
+    genes the applied ``cell_state`` EXPRESSES — the exact expression rule (§129, the two
+    KLEIN-4 bit-planes) is::
 
-        a gene expresses  iff  (cell_state & gene_mask) == gene_mask
+        a gene expresses  iff  (cell_state & activator_mask) == activator_mask   # all activators PRESENT
+                          and  (cell_state & repressor_mask) == 0                # no repressor PRESENT
 
-    i.e. the gene expresses when the cell-state has ALL of the gene's required regulatory
-    conditions present (every set bit of the gene's inline mask). A PLAIN gene (a §44 GENE
-    cap ``0x47``, no mask) is UNREGULATED = mask ``0`` = ALWAYS EXPRESSED (``cell_state & 0
-    == 0`` for every ``cell_state``) — so old / plain-gene chromosomes always fully express
-    (back-compat). A REGULATORY gene (``0x67``) carries its mask INLINE and is gated.
+    i.e. the gene expresses when the cell-state has ALL of the gene's activator conditions
+    present AND NONE of its repressor conditions present. Per condition the ``(act_bit,
+    rep_bit)`` pair is a KLEIN-4 role — don't-care ``(0,0)`` / activator ``(1,0)`` / repressor
+    ``(0,1)`` / never ``(1,1)`` (a bit set in BOTH masks auto-silences the gene: present AND
+    absent is a contradiction). This is the genome's NATIVE Klein-4 alphabet applied to
+    regulation. The lac operon is the exemplar (activator = lactose-bit, repressor =
+    glucose-bit → expresses iff lactose present AND glucose absent). A PLAIN gene (a §44 GENE
+    cap ``0x47``, no masks) is UNREGULATED = ``(0, 0)`` = ALWAYS EXPRESSED — so old /
+    plain-gene chromosomes always fully express (back-compat). A rc128 single-mask regulatory
+    gene dual-reads as ``activator = mask, repressor = 0`` (a pure all-activator AND-gate,
+    identical behaviour). A REGULATORY gene (``0x67``) carries its mask(s) INLINE and is gated.
 
     THE op⊗operand THEOREM, one scale up from the rc127 active telomere: rc127 gated ONE
     divide/senesce BINARY by a carried COUNT; here the ``gene_express`` **operator** is
@@ -857,7 +963,8 @@ def gene_express(strand, the_one, cell_state):
     peer ``srmech_genome_gene_express`` decides each gene's expression); pure Python is the
     complete alternative. Attests differential gene expression as ONE facet (genes have
     other regulation too): Alberts et al., *Molecular Biology of the Cell* 4th ed., NCBI
-    Bookshelf NBK26887.
+    Bookshelf NBK26887; the activator/repressor (operon) model — Jacob F & Monod J (1961)
+    "Genetic regulatory mechanisms in the synthesis of proteins", *J Mol Biol* 3:318-356.
     """
     if not isinstance(cell_state, int) or isinstance(cell_state, bool):
         raise ValueError(
@@ -895,17 +1002,21 @@ def gene_express(strand, the_one, cell_state):
 
 
 def _gene_expresses(cap, cell_state):
-    """Decide whether the gene opened by ``cap`` EXPRESSES under ``cell_state`` (§128) —
-    the per-gene read-time filter shared by :func:`gene_express`. A plain GENE cap (0x47,
-    no mask) always expresses (mask 0); a REGULATORY GENE cap (0x67) expresses IFF
-    ``(cell_state & mask) == mask``. Native-authoritative when present (byte-identical C
-    peer ``srmech_genome_gene_express``); the pure Class-I bitwise path is the complete
+    """Decide whether the gene opened by ``cap`` EXPRESSES under ``cell_state`` (§128/§129) —
+    the per-gene read-time filter shared by :func:`gene_express`. A plain GENE cap (0x47, no
+    masks) always expresses ``(0, 0)``; a REGULATORY GENE cap (0x67) carries the two Klein-4
+    bit-planes ``(activator, repressor)`` and expresses IFF ``(cell_state & activator) ==
+    activator`` (ALL activators present) AND ``(cell_state & repressor) == 0`` (NO repressor
+    present). A 'never' bit (set in BOTH masks) auto-silences the gene (present AND absent =
+    contradiction). Native-authoritative when present (byte-identical C peer
+    ``srmech_genome_gene_express``); the pure Class-I bitwise path is the complete
     alternative. NO float, NEVER ``abs()``."""
     native = _gene_express_native(cap, cell_state)
     if native is not None:
         return native
-    mask = _regulatory_gene_mask(cap)                  # 0 for a plain (unregulated) gene
-    return (cell_state & mask) == mask                 # Class-I bitwise; no float, no abs
+    activator, repressor = _regulatory_gene_masks(cap)   # (0, 0) for a plain gene
+    return ((cell_state & activator) == activator        # ALL activators present
+            and (cell_state & repressor) == 0)           # NO repressor present; Class-I, no abs
 
 
 def genome(kernels=None, the_one=None, *, chromosomes=None):
