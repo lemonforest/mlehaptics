@@ -480,7 +480,7 @@ def test_tools_total_is_367():
     """rc109 added the 9 qm.quaternion ToolEntries (350 → 359); the live
     pin tracks later rcs (rc111: +3 qm.octonion twiddle-family → 362)."""
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 384
+    assert introspect.describe()["tools"]["total"] == 386
 
 
 def test_quaternion_tool_entries_registered():

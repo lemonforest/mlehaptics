@@ -70,10 +70,12 @@ __all__ = [
     "genome_export", "genome_import",
     "genome_explode", "genome_pack",
     "genome_register_attested",
+    "kernel_pack", "kernel_unpack",
     "GenomeBoundingError",
     "LEAF_CAP", "QUAD", "MOBIUS_CAP",
     "CHROM_CAP_MARKER", "GENE_CAP_MARKER", "GENE_FRAME_TAG",
-    "PACKED_TURN_MARKER",
+    "PACKED_TURN_MARKER", "KERNEL_HEADER_MARKER",
+    "ELEMENT_TYPE_KLEIN4",
 ]
 
 #: §44 (F733) — INLINE FIXED-WIDTH cap markers. The genome body is a strand of
@@ -107,6 +109,42 @@ GENE_FRAME_TAG = GENE_CAP_MARKER
 #: readable in the same walk, so old genomes and MIXED (old + appended) bodies
 #: read correctly with no migration.
 PACKED_TURN_MARKER = 0x51
+#: §60/rc121 (format v5, issue #1245 reopened) — the SIZE-AGNOSTIC KERNEL HEADER
+#: block marker. ``0x4B`` = ASCII ``'K'`` (Kernel). Written by :func:`kernel_pack`
+#: as the SECOND block of a kernel chromosome (right after its telomere CHROM cap):
+#: a fixed-width ``leaf_dim``-byte inline block that SELF-RECORDS the kernel's TRUE
+#: length ``D`` (the length before the final leaf's zero-padding), its
+#: ``element_type`` (a declared enum — ``klein4`` today), and its ``leaf_dim`` — so
+#: :func:`kernel_unpack` recovers the EXACT kernel of ANY dimension ``D`` with no
+#: caller-supplied length (W1 closed). ``> 3`` and distinct from every other marker
+#: (CHROM ``0x43`` / GENE ``0x47`` / PACKED ``0x51``), so the strand stays
+#: SELF-DESCRIBING (§44): the header lives IN THE STRAND (the SSoT), NOT only in the
+#: rebuildable manifest cache, so ``_rebuild_manifest_from_body`` reproduces the
+#: genome by body-scan without losing ``D``. A body with NO ``0x4B`` header reads as
+#: today (``element_type=klein4``, ``D = leaf_count × leaf_dim``) — every pre-rc121
+#: genome reads unchanged, NO migration (the rc114 dual-read pattern, one layer up).
+KERNEL_HEADER_MARKER = 0x4B
+
+#: Declared ``element_type`` enum for the §60 kernel header. ``0 = klein4`` (the
+#: genome-native 2-bit ``{0,1,2,3}`` symbol — siona's 8192-dim Klein-4 kernel). New
+#: element types slot in as fresh codes WITHOUT another format bump (that IS the
+#: size-agnostic discipline — the header carries the type, so the reader never
+#: assumes one). A header-less body defaults to :data:`ELEMENT_TYPE_KLEIN4`.
+ELEMENT_TYPE_KLEIN4 = 0
+_ELEMENT_TYPE_NAMES = {ELEMENT_TYPE_KLEIN4: "klein4"}
+_ELEMENT_TYPE_CODES = {name: code for code, name in _ELEMENT_TYPE_NAMES.items()}
+
+#: §60 kernel-header fixed prefix layout (bytes; NUL-padded to ``leaf_dim``):
+#:   ``[0]``      marker ``0x4B``
+#:   ``[1:9]``    true length ``D``  — uint64 BIG-ENDIAN (8 bytes; caps at 2**64-1,
+#:                which dwarfs any MB-scale kernel: 8192 needs 2 bytes, an F1035
+#:                ~1.37e7-symbol 3.43 MB kernel needs 4, 2**64-1 needs all 8)
+#:   ``[9:13]``   ``leaf_dim``       — uint32 BIG-ENDIAN (4 bytes; the block width)
+#:   ``[13]``     ``element_type``   — uint8 enum (:data:`ELEMENT_TYPE_KLEIN4` = 0)
+#: The prefix is 14 bytes, so ``leaf_dim`` must be ``>= 14`` (the default 256 and
+#: every DoD width satisfy it). Fixed-width + big-endian so the C mirror parses it
+#: with the same byte reads.
+_KERNEL_HEADER_PREFIX = 14
 
 #: One dense block — a "tome". 256 = 2**8 (one byte of address); F708/F640.
 LEAF_CAP = 256
@@ -195,11 +233,14 @@ def _pack_cap(marker, label, dim):
 
 
 def _cap_kind(hv):
-    """The cap marker (``CHROM_CAP_MARKER`` / ``GENE_CAP_MARKER``) of a strand
-    element, or ``None`` for a Klein-4 data turn (first byte ``0..3``) — the §44
-    scan classifier."""
+    """The marker byte (``CHROM_CAP_MARKER`` / ``GENE_CAP_MARKER`` /
+    ``KERNEL_HEADER_MARKER``) of a non-data strand element, or ``None`` for a
+    Klein-4 data turn (first byte ``0..3``) — the §44 scan classifier. §60/v5: the
+    kernel header ``0x4B`` joins the caps as a scanned-for, skipped-on-recall
+    marker block (it is metadata, not a coupled turn)."""
     first = int(hv[0]) if len(hv) else -1
-    return first if first in (CHROM_CAP_MARKER, GENE_CAP_MARKER) else None
+    return first if first in (
+        CHROM_CAP_MARKER, GENE_CAP_MARKER, KERNEL_HEADER_MARKER) else None
 
 
 def _unpack_cap(hv):
@@ -207,6 +248,41 @@ def _unpack_cap(hv):
     :func:`_pack_cap`; the label is bytes ``[1:]`` up to the first NUL."""
     raw = hv.tobytes()
     return raw[0], raw[1:].split(b"\x00", 1)[0].decode("utf-8")
+
+
+def _pack_kernel_header(true_len, leaf_dim, element_type, dim):
+    """A fixed-width ``dim``-byte §60 kernel-header block — the inverse of
+    :func:`_unpack_kernel_header`. Records the kernel's TRUE length ``true_len``,
+    its ``leaf_dim``, and its ``element_type`` (see the header layout note near
+    :data:`KERNEL_HEADER_MARKER`), NUL-padded to ``dim`` (== ``leaf_dim``, the
+    block width) so the strand stays uniformly fixed-width. ``dim`` must fit the
+    14-byte prefix. ``true_len`` is an unsigned 64-bit value."""
+    if dim < _KERNEL_HEADER_PREFIX:
+        raise ValueError(
+            f"kernel header needs leaf_dim >= {_KERNEL_HEADER_PREFIX}; got {dim} "
+            f"(the true-length + leaf_dim + element_type prefix does not fit)"
+        )
+    if true_len < 0 or true_len >= (1 << 64):
+        raise ValueError(
+            f"kernel header true_len {true_len} out of the uint64 range [0, 2**64)"
+        )
+    block = bytearray(dim)
+    block[0] = KERNEL_HEADER_MARKER
+    block[1:9] = int(true_len).to_bytes(8, "big")     # D — uint64 big-endian
+    block[9:13] = int(leaf_dim).to_bytes(4, "big")    # leaf_dim — uint32 big-endian
+    block[13] = int(element_type) & 0xFF              # element_type — uint8 enum
+    return _HV.from_sequence(bytes(block), sectors=256)
+
+
+def _unpack_kernel_header(hv):
+    """``(true_len, leaf_dim, element_type)`` from a §60 kernel-header block — the
+    inverse of :func:`_pack_kernel_header`. Reads the fixed-width big-endian fields
+    (the NUL padding after byte 13 is ignored)."""
+    raw = hv.tobytes()
+    true_len = int.from_bytes(raw[1:9], "big")
+    leaf_dim = int.from_bytes(raw[9:13], "big")
+    element_type = raw[13]
+    return true_len, leaf_dim, element_type
 
 
 def telomere(label, dim=64):
@@ -331,8 +407,9 @@ def genes(strand, the_one):
             _marker, cur_label = _unpack_cap(hv)
             cur_leaves = []
             started = True
-        elif kind == CHROM_CAP_MARKER:
-            continue                            # the chromosome telomere cap — skip
+        elif kind in (CHROM_CAP_MARKER, KERNEL_HEADER_MARKER):
+            continue                            # the chromosome telomere / §60 kernel
+                                                # header cap — skip (not gene data)
         elif not started:
             continue                            # any leading cap before the first gene
         else:
@@ -413,13 +490,152 @@ def partition(strand, the_one, labels=None):
         if kind == CHROM_CAP_MARKER:            # a telomere cap — start a new partition
             _marker, current = _unpack_cap(hv)
             out[current] = []
-        elif kind == GENE_CAP_MARKER:           # a gene delimiter — not data; flatten
-            continue
+        elif kind in (GENE_CAP_MARKER, KERNEL_HEADER_MARKER):
+            continue                            # a gene delimiter / §60 kernel header
+                                                # — not data; flatten past it
         elif current is not None:
             out[current].append(quad_turn(hv, the_one))   # reversible uncouple
     if labels is not None:
         return {label: out[label] for label in labels if label in out}
     return out
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# §60 (rc121, issue #1245 REOPENED) — the SIZE-AGNOSTIC KERNEL TRANSLATION LAYER.
+# Store / recall a flat Klein-4 kernel of ARBITRARY dimension D through the genome,
+# with D SELF-RECORDED in the strand (the §60 kernel header, marker 0x4B) so the
+# reconstruction is EXACT for any D with NO caller-supplied length — siona's
+# 8192-dim Klein-4 kernels, the 1000-symbol non-multiple case, and an MB-scale
+# kernel all round-trip through the ONE pack/unpack surface. The genome quad-strand
+# was ALREADY dimension-agnostic on storage/read (the LEAF_CAP=256 is planning-only,
+# never assumed on the read path); this closes the two remaining gaps: W1 (record
+# the TRUE length D self-describingly) and W2 (ship the chunk/reconstruct ops).
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _default_the_one(leaf_dim):
+    """The deterministic default coupling invariant a header-recorded ``leaf_dim``
+    reconstructs — an all-ones Klein-4 vector of width ``leaf_dim`` (sectors=4). So
+    :func:`kernel_unpack` can uncouple a :func:`kernel_pack` strand that used the
+    default ``the_one`` without the caller re-supplying it."""
+    return _HV.from_sequence([1] * int(leaf_dim), sectors=QUAD)
+
+
+def kernel_pack(data, *, leaf_dim=LEAF_CAP, label="kernel", the_one=None,
+                element_type="klein4"):
+    """Pack a flat Klein-4 kernel of ANY dimension into a self-describing strand (§60).
+
+    ``data`` is the flat kernel — a sequence of Klein-4 sector symbols ``{0,1,2,3}``
+    (an :class:`HV`, ``list[int]``, ``bytes``, …). It is chunked into ``leaf_dim``-wide
+    leaves (the final leaf zero-padded to ``leaf_dim``; the ``encode_shape`` ceil-
+    division criterion, generalised to ``leaf_dim``), coupled through ``the_one`` into
+    a telomere-capped :func:`chromosome`, and the §60 KERNEL HEADER (marker ``0x4B``)
+    is inserted right after the telomere to SELF-RECORD the kernel's TRUE length ``D``,
+    its ``element_type`` (``"klein4"`` today — the genome-native 2-bit symbol, so the
+    element codec is identity), and its ``leaf_dim``. Returns the flat strand
+    (``list`` of Klein-4 ``HV`` s): ``[telomere, kernel_header, turn0, turn1, …]``.
+
+    Recover the EXACT kernel — trimmed to the true ``D``, no external length needed —
+    with :func:`kernel_unpack`. Persist with ``genome_save(strand, path, the_one)``
+    and unpack from the directory with ``kernel_unpack(path, the_one)``.
+
+    The symbol range is validated UP FRONT: every symbol must be a Klein-4 sector
+    ``0..3`` (``HV.from_sequence(sectors=4)`` silently accepts ``>3`` in memory but the
+    disk packer would reject it later — this guard fails cleanly at the call site).
+
+    ``leaf_dim`` defaults to :data:`LEAF_CAP` (256, the tome width); it must be at
+    least :data:`_KERNEL_HEADER_PREFIX` so the header fits. ``the_one`` defaults to the
+    deterministic all-ones invariant (:func:`_default_the_one`) that
+    :func:`kernel_unpack` reconstructs from the header's ``leaf_dim``; pass a custom
+    ``the_one`` (width ``leaf_dim``) only if you pass the SAME one to unpack.
+    """
+    if element_type not in _ELEMENT_TYPE_CODES:
+        raise ValueError(
+            f"kernel_pack: unknown element_type {element_type!r}; declared types are "
+            f"{sorted(_ELEMENT_TYPE_CODES)} (element_type is a §60 header enum)"
+        )
+    et_code = _ELEMENT_TYPE_CODES[element_type]
+    if not isinstance(leaf_dim, int) or isinstance(leaf_dim, bool) \
+            or leaf_dim < _KERNEL_HEADER_PREFIX:
+        raise ValueError(
+            f"kernel_pack: leaf_dim must be an int >= {_KERNEL_HEADER_PREFIX} "
+            f"(so the §60 kernel header fits); got {leaf_dim!r}"
+        )
+    syms = [int(x) for x in data]
+    # THE SHARP-EDGE GUARD (§60): validate symbols in {0,1,2,3} UP FRONT — HV accepts
+    # >3 in memory but only Klein-4 turns bit-pack, so reject before packing.
+    for i, s in enumerate(syms):
+        if s < 0 or s > 3:
+            raise ValueError(
+                f"kernel_pack: symbol {s} at position {i} is not a Klein-4 sector "
+                f"(0..3) — element_type='klein4' packs only Klein-4 kernels"
+            )
+    D = len(syms)
+    if the_one is None:
+        the_one = _default_the_one(leaf_dim)
+    elif len(list(the_one)) != leaf_dim:
+        raise ValueError(
+            f"kernel_pack: the_one dim {len(list(the_one))} != leaf_dim {leaf_dim}"
+        )
+    # Chunk into leaf_dim-wide leaves (ceil(D/leaf_dim); final leaf zero-padded).
+    leaves = []
+    i = 0
+    while i < D:
+        block = syms[i:i + leaf_dim]
+        if len(block) < leaf_dim:
+            block = block + [0] * (leaf_dim - len(block))
+        leaves.append(_HV.from_sequence(block, sectors=QUAD))
+        i += leaf_dim
+    strand = chromosome(leaves, the_one, label=label)      # [telomere, *turns]
+    header = _pack_kernel_header(D, leaf_dim, et_code, leaf_dim)
+    return [strand[0], header] + strand[1:]                # header after the telomere
+
+
+def kernel_unpack(strand_or_path, the_one=None):
+    """Recover the EXACT flat Klein-4 kernel from a §60 strand or genome path (§60).
+
+    The inverse of :func:`kernel_pack`. ``strand_or_path`` is either the in-memory
+    strand :func:`kernel_pack` returned, or a genome DIRECTORY that a
+    ``genome_save`` of one wrote. Reads the §60 KERNEL HEADER (marker ``0x4B``) for the
+    TRUE length ``D``, recalls the coupled leaves (skipping every cap AND the header),
+    flattens them, and TRIMS to ``D`` — so the returned ``list[int]`` equals the exact
+    packed kernel of ANY dimension, with NO caller-supplied length (W1 closed).
+
+    ``the_one`` (the coupling invariant) is optional: for a genome PATH with a present
+    manifest it is resolved from the manifest cache; otherwise (an in-memory strand, or
+    a manifest-less directory) it defaults to the deterministic all-ones invariant
+    reconstructed from the header's recorded ``leaf_dim`` — matching
+    :func:`kernel_pack`'s default. Pass ``the_one`` explicitly if you packed with a
+    custom one.
+
+    BACK-COMPAT (§60 / the rc114 dual-read pattern): a strand / body with NO ``0x4B``
+    header (any pre-rc121 genome) is read as ``element_type=klein4`` with
+    ``D = leaf_count × leaf_dim`` — today's exact behaviour, no trim, no migration.
+    """
+    if isinstance(strand_or_path, (str, Path)):
+        strand, the_one, _labels = genome_load(strand_or_path, the_one=the_one)
+    else:
+        strand = list(strand_or_path)
+    # Find the §60 kernel header (if any); read the true length D from it.
+    header = next(
+        (hv for hv in strand if _cap_kind(hv) == KERNEL_HEADER_MARKER), None)
+    if the_one is None:
+        # In-memory strand (or manifest-less path already loaded): reconstruct the
+        # default coupling invariant from the header's leaf_dim, else the strand's.
+        if header is not None:
+            _d, hdr_leaf_dim, _et = _unpack_kernel_header(header)
+            the_one = _default_the_one(hdr_leaf_dim)
+        else:
+            width = next((len(hv) for hv in strand if _cap_kind(hv) is None), 0)
+            the_one = _default_the_one(width)
+    leaves = recall(strand, the_one)              # skips caps + the §60 header
+    flat = []
+    for lf in leaves:
+        flat.extend(int(x) for x in lf)
+    if header is None:
+        return flat                               # no header: full-dim (back-compat)
+    true_len, _leaf_dim, _element_type = _unpack_kernel_header(header)
+    return flat[:true_len]                        # trim to the TRUE length D (W1)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -458,7 +674,17 @@ def partition(strand, the_one, labels=None):
 #: bodies alike — back-compat is structural, not a converter. ``n_turns`` counts
 #: strand BLOCKS (== v2's ``body_len / leaf_dim`` on a v2 body); ``body_sha256``
 #: stays the whole-``turns.bin`` hash in v3 (unchanged semantics).
-GENOME_FORMAT_VERSION = 4
+#: 4 (§56/rc115) == the manifest carries a ``regions`` array + the region-chain
+#: ``body_sha256`` (O(1)-append integrity).
+#: 5 (§60/rc121, issue #1245 REOPENED) == the SIZE-AGNOSTIC KERNEL HEADER: a
+#: :func:`kernel_pack` strand may carry a ``KERNEL_HEADER_MARKER`` (``0x4B``) block
+#: SELF-RECORDING the kernel's true length ``D`` + ``element_type`` + ``leaf_dim`` (so
+#: an arbitrary-``D`` Klein-4 kernel reconstructs EXACTLY). The block is one more
+#: self-describing kind in the SAME walk (its first byte keys it), so v2 / v3 / v4
+#: bodies — and any v5 body with NO header — read UNCHANGED (a header-less body
+#: defaults to ``element_type=klein4``, ``D = leaf_count × leaf_dim``): back-compat
+#: is STRUCTURAL, not a converter (the rc114 dual-read pattern, one layer up).
+GENOME_FORMAT_VERSION = 5
 
 #: rc115 (#1245 ask (b)) — the empty-body chain seed H₀ = sha256(b"") (a derived
 #: constant, not magic: THE well-known empty-string digest). The whole-body
@@ -534,20 +760,25 @@ def _hv_from_block(block: bytes) -> _HV:
     block — the numpy-free inverse of :meth:`HV.tobytes`.
 
     §44: a block is one of two kinds, told apart by its FIRST byte. A CHROM/GENE
-    cap (first byte a marker ``> 3``) is a packed ``sectors=256`` cap leaf (matching
-    :func:`_pack_cap`, so it reconstructs byte-AND-sectors identical); every other
-    block is a Klein-4 data turn (``sectors=QUAD``, bytes ``0..3``). Reading the
-    first byte suffices because the marker bytes are out of the Klein-4 range —
-    that IS the self-describing-strand property."""
+    cap OR a §60 KERNEL HEADER (first byte a marker ``> 3``) is a packed
+    ``sectors=256`` inline block (matching :func:`_pack_cap` / :func:`_pack_kernel_header`,
+    so it reconstructs byte-AND-sectors identical); every other block is a Klein-4
+    data turn (``sectors=QUAD``, bytes ``0..3``). Reading the first byte suffices
+    because the marker bytes are out of the Klein-4 range — that IS the
+    self-describing-strand property."""
     first = block[0] if block else -1
-    sectors = 256 if first in (CHROM_CAP_MARKER, GENE_CAP_MARKER) else QUAD
+    sectors = 256 if first in (
+        CHROM_CAP_MARKER, GENE_CAP_MARKER, KERNEL_HEADER_MARKER) else QUAD
     return _HV.from_sequence(block, sectors=sectors)
 
 
 def _block_is_cap(block: bytes) -> bool:
-    """True if a ``leaf_dim``-byte block is a CHROM/GENE cap (first byte a marker
-    ``> 3``) rather than a Klein-4 data turn — §44's scan predicate over raw bytes."""
-    return bool(block) and block[0] in (CHROM_CAP_MARKER, GENE_CAP_MARKER)
+    """True if a ``leaf_dim``-byte block is a non-data MARKER block — a CHROM/GENE cap
+    or a §60 KERNEL HEADER (first byte ``> 3``) — rather than a Klein-4 data turn.
+    §44's scan predicate over raw bytes; §60 folds the ``0x4B`` header in so it is
+    stored VERBATIM (never bit-packed) and excluded from the data-turn count."""
+    return bool(block) and block[0] in (
+        CHROM_CAP_MARKER, GENE_CAP_MARKER, KERNEL_HEADER_MARKER)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -640,15 +871,17 @@ def _walk_region_blocks(region: bytes, leaf_dim: int, *, context: str = "genome"
     v3 | mixed) walker. Yields ``(raw_block, decoded_block)`` where ``raw_block``
     is the on-disk bytes and ``decoded_block`` the in-memory byte-per-symbol
     form (caps decode to themselves). A block's FIRST byte keys its kind + width:
-    ``CHROM_CAP_MARKER``/``GENE_CAP_MARKER`` → a ``leaf_dim``-byte cap;
-    ``PACKED_TURN_MARKER`` → a ``1 + ceil(leaf_dim/4)``-byte v3 packed turn;
-    ``0..3`` → a legacy v2 ``leaf_dim``-byte byte-per-symbol turn. Anything else
-    (or a block running past the region end) is a :class:`GenomeBoundingError`."""
+    ``CHROM_CAP_MARKER``/``GENE_CAP_MARKER``/``KERNEL_HEADER_MARKER`` (§60) → a
+    ``leaf_dim``-byte inline block; ``PACKED_TURN_MARKER`` → a
+    ``1 + ceil(leaf_dim/4)``-byte v3 packed turn; ``0..3`` → a legacy v2
+    ``leaf_dim``-byte byte-per-symbol turn. Anything else (or a block running past
+    the region end) is a :class:`GenomeBoundingError`."""
     plen = _packed_payload_len(leaf_dim)
     k, n = 0, len(region)
     while k < n:
         kind = region[k]
-        if kind in (CHROM_CAP_MARKER, GENE_CAP_MARKER) or kind <= 3:
+        if kind in (CHROM_CAP_MARKER, GENE_CAP_MARKER,
+                    KERNEL_HEADER_MARKER) or kind <= 3:
             end = k + leaf_dim
             if end > n:
                 raise GenomeBoundingError(
@@ -976,8 +1209,9 @@ def _rebuild_manifest_from_body(body_bytes, leaf_dim, the_one):
                 "genome persistence: strand has turns before its first CHROM "
                 "cap — not a well-formed §44 genome strand"
             )
-        elif decoded[0] != GENE_CAP_MARKER:
-            cur[2] += 1                       # a data turn (packed or legacy)
+        elif decoded[0] != GENE_CAP_MARKER and decoded[0] != KERNEL_HEADER_MARKER:
+            cur[2] += 1                       # a data turn (packed or legacy); a GENE
+                                              # cap or §60 kernel header is not a turn
         cur[4] += len(raw)
         offset += len(raw)
     if cur is not None:
@@ -1186,7 +1420,8 @@ def genome_load(path, *, labels=None, the_one=None):
                 if not first:
                     break
                 kind = first[0]
-                if kind in (CHROM_CAP_MARKER, GENE_CAP_MARKER) or kind <= 3:
+                if kind in (CHROM_CAP_MARKER, GENE_CAP_MARKER,
+                            KERNEL_HEADER_MARKER) or kind <= 3:
                     rest = f.read(leaf_dim - 1)
                     if len(rest) != leaf_dim - 1:
                         raise GenomeBoundingError(

@@ -2222,6 +2222,23 @@ def _register_primitive_class_tools() -> None:
                         P("source", "str", True, "the AMSC source identifier recorded for the registration (e.g. 'srmech.genome.<name>')")),
             returns=R("dict", "{ok, amsc_root, source, chromosomes, register} — the per-chromosome AMSC sources registered"),
         ),
+        ToolEntry(
+            name="srmech.amsc.genome.kernel_pack", owner="srmech", category="genome",
+            summary="Pack a flat Klein-4 kernel of ANY dimension D into a self-describing strand (UPSTREAM §60 / format v5 — issue #1245 REOPENED, the SIZE-AGNOSTIC KERNEL TRANSLATION LAYER). data is the flat kernel (a sequence of Klein-4 sector symbols {0,1,2,3} — an HV / list / bytes; siona's 8192-dim Klein-4 kernel is the driving case). It is chunked into leaf_dim-wide leaves (ceil(D/leaf_dim); the final leaf zero-padded — encode_shape's criterion generalised to leaf_dim), coupled through the_one into a telomere-capped chromosome, and a §60 KERNEL HEADER block (marker 0x4B, right after the telomere) SELF-RECORDS the kernel's TRUE length D, its element_type (declared enum; 'klein4' today), and its leaf_dim — so kernel_unpack recovers the EXACT kernel with NO caller-supplied length (D lives in the strand, the §44 SSoT — not only the rebuildable manifest cache). Symbols are validated {0,1,2,3} UP FRONT (HV accepts >3 in memory but only Klein-4 turns bit-pack). Returns the flat strand [telomere, kernel_header, turn0, ...]; persist with genome_save. leaf_dim defaults to 256 (>= 14 so the 14-byte header fits); the_one defaults to a deterministic all-ones invariant kernel_unpack reconstructs. numpy-free; no abs(); C peer via genome_save's srmech_genome_* walkers (the 0x4B block is one more self-describing kind).",
+            parameters=(P("data", "Sequence[int]", True, "the flat Klein-4 kernel — symbols {0,1,2,3} (HV / list / bytes) of any dimension D"),
+                        P("leaf_dim", "int", False, "keyword-only; the leaf (tome) width to chunk into (default 256; must be >= 14 so the §60 header fits)"),
+                        P("label", "str", False, "keyword-only; the chromosome label for the packed kernel (default 'kernel')"),
+                        P("the_one", "HV", False, "keyword-only; the coupling invariant (width leaf_dim; default the deterministic all-ones invariant kernel_unpack reconstructs)"),
+                        P("element_type", "str", False, "keyword-only; the declared element-type enum recorded in the header (default 'klein4' — the genome-native 2-bit symbol)")),
+            returns=R("list", "the flat self-describing strand [telomere, §60 kernel_header, coupled turns] — persist with genome_save, recover with kernel_unpack"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.kernel_unpack", owner="srmech", category="genome",
+            summary="Recover the EXACT flat Klein-4 kernel from a §60 strand or genome path (UPSTREAM §60 / format v5) — the inverse of kernel_pack. strand_or_path is either the in-memory strand kernel_pack returned, or a genome DIRECTORY a genome_save of one wrote. Reads the §60 KERNEL HEADER (marker 0x4B) for the TRUE length D, recalls the coupled leaves (skipping every cap AND the header), flattens them, and TRIMS to D — so the returned list[int] equals the exact packed kernel of ANY dimension, with NO caller-supplied length (W1 closed: a D=1000 kernel returns 1000 symbols, not the 1024 padded storage). the_one is optional: for a genome PATH with a present manifest it is resolved from the manifest cache; otherwise it defaults to the deterministic all-ones invariant reconstructed from the header's recorded leaf_dim (matching kernel_pack). BACK-COMPAT (the rc114 dual-read pattern): a strand / body with NO 0x4B header (any pre-rc121 genome) reads as element_type=klein4 with D = leaf_count * leaf_dim — no trim, no migration. numpy-free; no abs().",
+            parameters=(P("strand_or_path", "list|str", True, "the in-memory kernel_pack strand, OR a genome directory written by genome_save of one"),
+                        P("the_one", "HV", False, "the coupling invariant (optional; resolved from a present manifest, else reconstructed as the all-ones default from the header's leaf_dim)")),
+            returns=R("list", "the exact flat Klein-4 kernel (list[int] of the TRUE length D — trimmed of the final-leaf zero-padding)"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class K — equation-of-centre / pin-slot

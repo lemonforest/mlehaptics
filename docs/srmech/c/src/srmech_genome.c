@@ -68,9 +68,9 @@
 /* The §41 manifest data_schema_id (== GENOME_MANIFEST_SCHEMA_ID). */
 #define SRMECH_GENOME_SCHEMA_ID "srmech://schema/genome_manifest/v1"
 
-/* The §41 parser_rule_hash pre-image (== f"genome_persistence/v4" — tracks
+/* The §41 parser_rule_hash pre-image (== f"genome_persistence/v5" — tracks
  * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _manifest_record). */
-#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v4"
+#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v5"
 
 /* ------------------------------------------------------------------ *
  * Path + file helpers (stdio — Rule 3 allows file I/O, bans malloc).
@@ -248,8 +248,9 @@ static srmech_status_t genome_block_len(const unsigned char *body,
     unsigned char kind = body[off];
     size_t n;
     if (kind == SRMECH_GENOME_CHROM_CAP_MARKER ||
-        kind == SRMECH_GENOME_GENE_CAP_MARKER || kind <= 3u) {
-        n = (size_t)leaf_dim;                       /* cap or legacy v2 turn */
+        kind == SRMECH_GENOME_GENE_CAP_MARKER ||
+        kind == SRMECH_GENOME_KERNEL_HEADER_MARKER || kind <= 3u) {
+        n = (size_t)leaf_dim;         /* cap / §60 kernel header / legacy v2 turn */
     } else if (kind == SRMECH_GENOME_PACKED_TURN_MARKER) {
         n = 1u + ((size_t)leaf_dim + 3u) / 4u;      /* v3 bit-packed turn */
     } else {
@@ -645,7 +646,11 @@ static srmech_status_t genome_scan_chroms(genome_strings_t *s,
             s->leaf_count[cur] = 0u;
         } else {
             if (cur < 0) { return SRMECH_ERR_BAD_INPUT; }   /* turn before 1st cap */
-            if (body[off] != SRMECH_GENOME_GENE_CAP_MARKER) { s->leaf_count[cur]++; }
+            /* §60: a GENE cap or a KERNEL HEADER (0x4B) is not a data turn. */
+            if (body[off] != SRMECH_GENOME_GENE_CAP_MARKER &&
+                body[off] != SRMECH_GENOME_KERNEL_HEADER_MARKER) {
+                s->leaf_count[cur]++;
+            }
         }
         s->byte_len[cur] += (uint32_t)blen;
         off += blen;
@@ -1252,7 +1257,8 @@ static srmech_status_t genome_scan_region(const unsigned char *region,
             return SRMECH_ERR_BAD_INPUT;  /* one append == ONE chromosome */
         }
         if (kind != SRMECH_GENOME_CHROM_CAP_MARKER &&
-            kind != SRMECH_GENOME_GENE_CAP_MARKER) { lc++; }
+            kind != SRMECH_GENOME_GENE_CAP_MARKER &&
+            kind != SRMECH_GENOME_KERNEL_HEADER_MARKER) { lc++; }   /* §60 header ∉ turns */
         nb++;
         off += blen;
     }
@@ -1620,9 +1626,9 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
 
 /* The §43 .chr data_schema_id (== GENOME_CHR_SCHEMA_ID). */
 #define SRMECH_GENOME_CHR_SCHEMA_ID "srmech://schema/genome_chromosome/v1"
-/* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v4" — tracks
+/* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v5" — tracks
  * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _chr_record). */
-#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v4"
+#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v5"
 /* The §43 rendering "purpose" — VERBATIM from genome.py _chr_record
  * (single-line #define; JPL Rule 8 forbids backslash line-continuation). */
 #define SRMECH_GENOME_CHR_PURPOSE "One self-contained, MPR-attested chromosome: its fixed-width region (CHROM cap + coupled turns) + the_one, re-importable self-verifying."

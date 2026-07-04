@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc120"
-#define SRMECH_VERSION       "0.9.0rc120"
+#define SRMECH_VERSION_PRE   "rc121"
+#define SRMECH_VERSION       "0.9.0rc121"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2607,7 +2607,15 @@ size_t srmech_op_provenance_hash_arena_bytes(size_t record_len);
  * from the file (re-hash each region, re-fold) and body-derivable by a §44 scan
  * (so a rebuild reproduces it byte-identically). v2/v3 manifests (no `regions`,
  * whole-body body_sha256) stay READ-compatible. Mirrors GENOME_FORMAT_VERSION. */
-#define SRMECH_GENOME_FORMAT_VERSION 4
+/* v5 (§60/rc121, issue #1245 REOPENED): a kernel chromosome may carry a
+ * SRMECH_GENOME_KERNEL_HEADER_MARKER (0x4B) block SELF-RECORDING an
+ * arbitrary-dimension Klein-4 kernel's TRUE length + element_type + leaf_dim, so
+ * kernel_unpack reconstructs it EXACTLY with no caller length. The header is one
+ * more self-describing block kind in the SAME walk (first byte keys it), so v2 /
+ * v3 / v4 bodies — and any v5 body with NO header — read UNCHANGED (a header-less
+ * body defaults to element_type=klein4, D = leaf_count * leaf_dim): back-compat
+ * is STRUCTURAL, not a converter. */
+#define SRMECH_GENOME_FORMAT_VERSION 5
 
 /* §44 inline cap markers — the FIRST byte of a fixed-width cap leaf. Both are
  * > 3 so a cap is told apart from a Klein-4 data turn (bytes 0..3) by its
@@ -2623,6 +2631,15 @@ size_t srmech_op_provenance_hash_arena_bytes(size_t record_len);
  * markers, so the strand stays self-describing. Mirrors PACKED_TURN_MARKER
  * in srmech.amsc.genome. */
 #define SRMECH_GENOME_PACKED_TURN_MARKER 0x51u /* 'Q' — a quad-packed turn */
+
+/* §60/v5 SIZE-AGNOSTIC KERNEL HEADER marker — the FIRST byte of a fixed-width
+ * leaf_dim-byte inline block written by kernel_pack right after a kernel
+ * chromosome's telomere. It self-records the kernel's TRUE length D (bytes [1:9],
+ * uint64 big-endian), leaf_dim (bytes [9:13], uint32 big-endian) and element_type
+ * (byte [13], uint8 enum; 0 = klein4). > 3 and distinct from every other marker,
+ * so the strand stays self-describing; stored VERBATIM (never bit-packed) and NOT
+ * counted as a data turn. Mirrors KERNEL_HEADER_MARKER in srmech.amsc.genome. */
+#define SRMECH_GENOME_KERNEL_HEADER_MARKER 0x4Bu /* 'K' — a kernel header */
 
 /* Max label byte length (NUL-terminated) for one chromosome. This is a FORMAT
  * width (a label lives inline in a leaf_dim-byte cap block, like PATH_MAX), NOT
