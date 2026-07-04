@@ -424,7 +424,17 @@ static size_t ti_collect_vars(const ti_ctx_t *c, const ti_term_t *terms, size_t 
 }
 
 /* deg(v) = max over terms of SUM over theta args of (arg.exps[v])^2 (the elliptic
- * degree in v). Integer; mirrors _structural_is_zero's _deg. */
+ * degree in v). Integer; mirrors _structural_is_zero's _deg.
+ *
+ * SOUNDNESS (#693): the e*e (Sum e^2) weighting is REQUIRED, not slack -- it is the TRUE
+ * elliptic degree (quasi-period index = zeros per annulus) of a theta-product in v: under
+ * v -> p*v a factor theta(c*v^e;p) gains multiplier z0^{-e} = (c*v^e)^{-e}, whose v-exponent
+ * is -e^2. Tightening to Sum|e| was investigated and found UNSOUND: for |e|>=2, Sum|e| < Sum e^2
+ * under-provisions the node count / p-order band, so a genuinely NONZERO section can be FALSELY
+ * proved == 0 (a false theorem). Counterexample (single var, e=3): N(x) = 2*theta(2x^3)
+ * -27*theta(3x^3) +120*theta(4x^3) -250*theta(5x^3) +270*theta(6x^3) -147*theta(7x^3)
+ * +32*theta(8x^3) is nonzero (lowest coeff (p^6,x^-9) = -1/112) yet Sum|e| (k=5) misses p^6.
+ * Keep this the Python mirror byte-for-byte. See notes/thetasum_is_zero_degree_bound_693.md. */
 static int ti_deg(const ti_ctx_t *c, const ti_term_t *terms, size_t n, int v)
 {
     size_t ti;
