@@ -375,7 +375,7 @@ def test_unknown_op_raises_naming_the_registry():
 def test_tools_total_is_381():
     """rc117 ships 5 genuinely NEW public ops → +5 ToolEntries (376 → 381)."""
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 391
+    assert introspect.describe()["tools"]["total"] == 393
 
 
 def test_new_tool_entries_present_with_declared_types():

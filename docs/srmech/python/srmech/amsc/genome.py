@@ -73,11 +73,13 @@ __all__ = [
     "genome_explode", "genome_pack",
     "genome_register_attested",
     "kernel_pack", "kernel_unpack",
+    "active_telomere", "telomere_tick",
     "GenomeBoundingError",
     "LEAF_CAP", "QUAD", "MOBIUS_CAP",
     "CHROM_CAP_MARKER", "GENE_CAP_MARKER", "GENE_FRAME_TAG",
     "PACKED_TURN_MARKER", "KERNEL_HEADER_MARKER", "KERNEL_TELOMERE_MARKER",
-    "ELEMENT_TYPE_KLEIN4",
+    "ACTIVE_TELOMERE_MARKER", "ELEMENT_TYPE_KLEIN4",
+    "TELOMERE_DIVIDED", "TELOMERE_SENESCENT",
 ]
 
 #: §44 (F733) — INLINE FIXED-WIDTH cap markers. The genome body is a strand of
@@ -153,6 +155,51 @@ KERNEL_HEADER_MARKER = 0x4B
 #: UNCHANGED — the walker gains ONE branch (recognise ``0x6B`` as a chromosome-start
 #: cap), never a migration.
 KERNEL_TELOMERE_MARKER = 0x6B
+
+#: §127/rc127 (format v6 → v7, #726) — the ACTIVE TELOMERE marker. ``0x74`` = ASCII
+#: ``'t'`` (a lower-case telomere carrying a live counter). An active telomere is a
+#: chromosome-boundary cap (a telomere-analog, like CHROM ``0x43`` / KERNEL ``0x6B``)
+#: that ALSO carries an exact non-negative integer COUNT INLINE in the strand — the
+#: Hayflick descending replicative counter (Harley/Futcher/Greider 1990; Hayflick 1965).
+#: This turns the #726-lens "chromosome = op⊗operand" into a THEOREM: the cap is
+#: op⊗operand fused — the **op** is the gating rule (:func:`telomere_tick`'s
+#: proceed/senesce decision), the **operand** is the count — and the count MODULATES
+#: that op (count>0 → a divide proceeds + decrements; count==0 → honest senescence).
+#: It is the SAME (operand, op) pattern as :mod:`srmech.amsc.op_provenance` ``carry``
+#: (value, operation) and :class:`srmech.amsc.coupling.RecoverableFold`
+#: (lossy_bundle, exact_seed_R) — the proven op-carrying carrier — but with an ACTIVE
+#: op, which is precisely what makes the chromosome GENUINELY op⊗operand (in #726 the
+#: plain telomere was a PASSIVE op-slot: swapping it left the leaves unchanged).
+#:
+#: Layout (a fixed-width ``leaf_dim``-byte ``sectors=256`` cap leaf; §44 inline):
+#:   byte ``[0]``           marker ``0x74``
+#:   bytes ``[1:1+L]``      utf-8 label ``L`` bytes (NUL-terminated, like every cap)
+#:   byte ``[1+L]``         the label terminator ``0x00``
+#:   bytes ``[2+L:10+L]``   the COUNT — uint64 BIG-ENDIAN (8 bytes; Class-I/N exact
+#:                          integer, NO float, NO abs()) — read at the byte right AFTER
+#:                          the label's NUL, so :func:`_unpack_cap`'s label decode
+#:                          (bytes ``[1:]`` up to first NUL) is UNIFORM across cap kinds
+#:                          — no special label handling anywhere, only the count read is
+#:                          active-telomere-specific.
+#:   bytes ``[10+L:]``      NUL padding to ``leaf_dim``
+#: ``> 3`` and distinct from every other marker (CHROM ``0x43`` / GENE ``0x47`` / v5
+#: KERNEL ``0x4B`` / PACKED ``0x51`` / KERNEL-telomere ``0x6B``), so the strand stays
+#: SELF-DESCRIBING (§44): v2..v6 bodies read UNCHANGED (dual-read — the walker gains
+#: ONE branch), and a chromosome self-describes its CURRENT count by bare-strand scan
+#: (no manifest). The count byte-encoded in the cap payload (like the label).
+ACTIVE_TELOMERE_MARKER = 0x74
+
+#: The active-telomere COUNT field width — a uint64 (8 bytes, big-endian). The count
+#: caps at 2**64-1, which dwarfs any Hayflick limit (human fibroblasts ~40-60 divides).
+_ACTIVE_TELOMERE_COUNT_BYTES = 8
+
+#: The two :func:`telomere_tick` verdicts (the honest-decline / inform-don't-crash
+#: pattern — a clean STATUS, never a crash). ``DIVIDED`` = the count was > 0, so the op
+#: proceeded (decremented the count, returned the daughter strand); ``SENESCENT`` = the
+#: count was 0, so the op REFUSED (Hayflick senescence — no daughter). Same op call,
+#: operator behaviour selected by the operand: THE op⊗operand duality made testable.
+TELOMERE_DIVIDED = "divided"
+TELOMERE_SENESCENT = "senescent"
 
 #: Declared ``element_type`` enum for the §60 kernel header. ``0 = klein4`` (the
 #: genome-native 2-bit ``{0,1,2,3}`` symbol — siona's 8192-dim Klein-4 kernel). New
@@ -285,11 +332,12 @@ def _cap_kind(hv):
     classifier. §60/v5: the byte-TLV kernel header ``0x4B`` joins the caps as a
     scanned-for, skipped-on-recall marker block. §89/v6: the kernel telomere ``0x6B``
     is the KERNEL-chromosome boundary cap (like the CHROM cap, but flags the
-    chromosome as a kernel — the leaf after it is the Klein-4 header turn)."""
+    chromosome as a kernel — the leaf after it is the Klein-4 header turn). §127/v7: the
+    active telomere ``0x74`` is a chromosome boundary cap carrying an inline count."""
     first = int(hv[0]) if len(hv) else -1
     return first if first in (
         CHROM_CAP_MARKER, GENE_CAP_MARKER, KERNEL_HEADER_MARKER,
-        KERNEL_TELOMERE_MARKER) else None
+        KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER) else None
 
 
 def _unpack_cap(hv):
@@ -437,8 +485,93 @@ def _gene_cap(gene_label, dim):
     return _pack_cap(GENE_CAP_MARKER, gene_label, dim)
 
 
+def _pack_active_telomere(label, count, dim):
+    """A fixed-width ``dim``-byte ACTIVE TELOMERE cap leaf (§127) — the op⊗operand cap.
+
+    ``[ACTIVE_TELOMERE_MARKER] + utf-8 label + NUL + count(uint64 big-endian), NUL-
+    padded to ``dim``. The **op** (a telomere: it opens + governs a chromosome, like
+    :func:`telomere`) and the **operand** (``count`` — the exact Hayflick replicative
+    counter) are FUSED in the ONE cap. Placing the count right AFTER the label's NUL
+    terminator keeps the label decode UNIFORM (bytes ``[1:]`` up to the first NUL —
+    :func:`_unpack_cap` reads it with no active-telomere special-case). ``count`` is a
+    non-negative exact integer (Class-I/N; NO float; NEVER ``abs()`` — a plain count is
+    never negated). Same width as any cap so the strand stays uniformly fixed-width."""
+    if not isinstance(count, int) or isinstance(count, bool):
+        raise ValueError(
+            f"active telomere count must be an exact int (Class-I/N); got {count!r}")
+    if count < 0:
+        raise ValueError(
+            f"active telomere count must be non-negative (a Hayflick counter counts "
+            f"DOWN to 0 = senescence; it is never signed); got {count}")
+    if count >= (1 << (8 * _ACTIVE_TELOMERE_COUNT_BYTES)):
+        raise ValueError(
+            f"active telomere count {count} exceeds the uint64 field "
+            f"[0, 2**{8 * _ACTIVE_TELOMERE_COUNT_BYTES})")
+    raw_label = label.encode("utf-8") if isinstance(label, str) else bytes(label)
+    if b"\x00" in raw_label:
+        raise ValueError("active telomere label must not contain a NUL byte")
+    payload = (bytes([ACTIVE_TELOMERE_MARKER]) + raw_label + b"\x00"
+               + int(count).to_bytes(_ACTIVE_TELOMERE_COUNT_BYTES, "big"))
+    if len(payload) > dim:
+        raise ValueError(
+            f"active telomere label {label!r} + count field is {len(payload)} bytes; "
+            f"max {dim} at leaf_dim={dim} (label must fit dim - {2 + _ACTIVE_TELOMERE_COUNT_BYTES} bytes)")
+    block = payload + b"\x00" * (dim - len(payload))
+    return _HV.from_sequence(block, sectors=256)
+
+
+def _active_telomere_label(hv):
+    """The chromosome label of an active-telomere cap — bytes ``[1:]`` up to the first
+    NUL (UNIFORM with :func:`_unpack_cap`; the count sits AFTER that NUL)."""
+    raw = hv.tobytes()
+    return raw[1:].split(b"\x00", 1)[0].decode("utf-8")
+
+
+def _active_telomere_count(hv):
+    """The exact non-negative COUNT carried inline in an active-telomere cap (§127) —
+    read at the ``_ACTIVE_TELOMERE_COUNT_BYTES`` bytes RIGHT AFTER the label's NUL
+    terminator, big-endian. This is the OPERAND of the op⊗operand cap; the chromosome
+    SELF-DESCRIBES its current count by this bare-strand read (no manifest). Class-I/N
+    exact integer (never a float)."""
+    raw = hv.tobytes()
+    nul = raw.find(b"\x00", 1)                        # end of the inline label
+    if nul < 0 or nul + 1 + _ACTIVE_TELOMERE_COUNT_BYTES > len(raw):
+        raise ValueError(
+            "active telomere cap is malformed: no label NUL / count field truncated")
+    return int.from_bytes(raw[nul + 1:nul + 1 + _ACTIVE_TELOMERE_COUNT_BYTES], "big")
+
+
+def active_telomere(label, count, dim=64):
+    """The ACTIVE TELOMERE — a chromosome cap that carries a LIVE Hayflick counter (§127).
+
+    A telomere (:func:`telomere`) is biology's non-coding chromosome-end cap. The
+    ACTIVE telomere is that cap made op⊗operand: it still opens + governs a chromosome
+    (the **op** — a gating rule), but it also carries an exact non-negative integer
+    ``count`` INLINE in the strand (the **operand** — the Hayflick replicative counter,
+    Harley/Futcher/Greider 1990; Hayflick 1965). The count MODULATES a downstream op
+    (:func:`telomere_tick` — the divide/gate): count>0 → a divide proceeds + decrements
+    the count (the telomere shortens); count==0 → honest senescence (a clean refuse).
+    That is what makes the chromosome GENUINELY op⊗operand (a PASSIVE plain telomere is
+    an op-slot only — swapping it leaves the leaves unchanged, #726).
+
+    This is the SAME (operand, op) pattern as :func:`srmech.amsc.op_provenance.carry`
+    ``(value, operation)`` and :class:`srmech.amsc.coupling.RecoverableFold`
+    ``(lossy_bundle, exact_seed_R)`` — the proven op-carrying carrier — but with an
+    ACTIVE op (the count changes how the operator works), which is the theorem #726
+    asked for. It carries the DUALITY.md field/excitation duality LOCAL to the
+    chromosome: the WHAT (leaves) + the HOW (the gating count) held in ONE object.
+
+    ``count`` is an exact non-negative int (Class-I/N; no float; a count is never
+    negated, so never ``abs()``). ``dim`` is the leaf width (match the turns it caps;
+    :func:`chromosome` passes ``len(the_one)`` automatically). Same ``label`` + same
+    ``count`` → same cap. Recover the count from the bare strand with
+    :func:`_active_telomere_count`; tick it with :func:`telomere_tick`.
+    """
+    return _pack_active_telomere(label, count, dim)
+
+
 def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
-               kernel=False):
+               kernel=False, active_count=None):
     """Pack a kernel — or SEVERAL genes — into a telomere-capped strand (F713/F715/F730).
 
     **Single kernel (shipped F713/F715 behaviour, unchanged).** Pass ``leaves``
@@ -464,6 +597,13 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
     (the shared invariant every turn is coupled through). §44: the gene boundary is
     a scanned-for fixed-width cap, NOT a variable-length TLV frame (no offset
     sidecar — biology's nested inline framing).
+
+    **Active telomere (§127 / #726).** Pass ``active_count=N`` (a non-negative int) to
+    lead the (single-kernel) chromosome with an :func:`active_telomere` cap carrying an
+    exact Hayflick counter INLINE instead of a plain :func:`telomere`. The chromosome
+    is then GENUINELY op⊗operand — the telomere (op) governs whether the leaves may
+    divide, gated by the count (operand) via :func:`telomere_tick`. Mutually exclusive
+    with ``kernel``/``genes`` (a kernel/gene chromosome uses its own cap).
     """
     if the_one is None:
         raise ValueError("chromosome: the_one is required")
@@ -473,10 +613,20 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
         raise ValueError(
             "chromosome: kernel=True is a single-kernel form — pass leaves=, not genes="
         )
+    if active_count is not None and (kernel or genes is not None):
+        raise ValueError(
+            "chromosome: active_count= is a single-kernel telomere form — pass leaves=, "
+            "not genes=/kernel= (a kernel/gene chromosome uses its own boundary cap)"
+        )
     dim = len(list(the_one))
-    # §89/v6: a kernel chromosome opens with a KERNEL telomere (0x6B) so its first
-    # coupled turn is recognised as the uniformly-Klein-4 §89 header.
-    cap = _kernel_telomere(label, dim=dim) if kernel else telomere(label, dim=dim)
+    # §89/v6: a kernel chromosome opens with a KERNEL telomere (0x6B); §127: an
+    # active-telomere chromosome opens with an ACTIVE telomere (0x74) carrying its count.
+    if active_count is not None:
+        cap = _pack_active_telomere(label, active_count, dim)
+    elif kernel:
+        cap = _kernel_telomere(label, dim=dim)
+    else:
+        cap = telomere(label, dim=dim)
     if genes is None:
         return [cap] + [quad_turn(leaf, the_one) for leaf in leaves]
     strand = [cap]
@@ -538,10 +688,10 @@ def genes(strand, the_one):
             cur_leaves = []
             started = True
         elif kind in (CHROM_CAP_MARKER, KERNEL_HEADER_MARKER,
-                      KERNEL_TELOMERE_MARKER):
+                      KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER):
             continue                            # the chromosome telomere / §60 v5
-                                                # header / §89 kernel telomere — skip
-                                                # (not gene data)
+                                                # header / §89 kernel telomere / §127
+                                                # active telomere — skip (not gene data)
         elif not started:
             continue                            # any leading cap before the first gene
         else:
@@ -619,8 +769,11 @@ def partition(strand, the_one, labels=None):
     current = None
     for hv in strand:
         kind = _cap_kind(hv)
-        if kind in (CHROM_CAP_MARKER, KERNEL_TELOMERE_MARKER):
-            # a telomere cap (plain or §89 kernel) — start a new partition
+        if kind in (CHROM_CAP_MARKER, KERNEL_TELOMERE_MARKER,
+                    ACTIVE_TELOMERE_MARKER):
+            # a telomere cap (plain / §89 kernel / §127 active) — start a partition.
+            # _unpack_cap reads the label (bytes [1:] up to the first NUL) UNIFORMLY —
+            # the active telomere's count sits AFTER that NUL, so the label is exact.
             _marker, current = _unpack_cap(hv)
             out[current] = []
         elif kind in (GENE_CAP_MARKER, KERNEL_HEADER_MARKER):
@@ -810,6 +963,101 @@ def kernel_unpack(strand_or_path, the_one=None):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# §127 (rc127, #726) — the ACTIVE TELOMERE gate: operand(count) MODULATES operator.
+# telomere_tick reads the active telomere's count (operand) and its behaviour (the
+# operator) is SELECTED by that operand — count>0 proceeds + decrements (a divide),
+# count==0 refuses (Hayflick senescence). This is the theorem #726 asked for: the
+# chromosome is GENUINELY op⊗operand (not the passive op-slot the #726 probe found).
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _telomere_tick_native(cap):
+    """Native dispatch for the cap-tick (parity peer ``srmech_genome_telomere_tick``):
+    ``cap`` (an active-telomere ``HV``) → ``(senescent, count_after, new_cap_bytes)``,
+    or ``None`` on any missing symbol / non-OK status (the caller runs the pure path).
+    Native is authoritative when present; the pure path is the complete alternative."""
+    from . import _native
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_genome_telomere_tick")):
+        return None
+    try:
+        return _native.genome_telomere_tick_c(cap.tobytes(), len(cap))
+    except _native.NativeGenomeError:
+        return None
+
+
+def telomere_tick(strand):
+    """The divide/gate op — the ACTIVE TELOMERE's count MODULATES the operator (§127/#726).
+
+    ``strand`` is a chromosome strand that OPENS with an :func:`active_telomere` cap (a
+    ``0x74`` marker carrying an exact Hayflick count inline). This op reads that count
+    (the **operand**) and its behaviour (the **operator**) is SELECTED by it — the same
+    ``telomere_tick`` call proceeds or refuses depending ONLY on the operand:
+
+    * **count > 0 → DIVIDE.** Decrement the count by exactly 1 (the telomere SHORTENS),
+      and return the DAUGHTER strand — the same coupled leaves led by an active telomere
+      of count ``count - 1`` (the telomere GOVERNS the leaves without decoding them:
+      biology shortens the cap, it does not re-synthesise the genes). Status
+      :data:`TELOMERE_DIVIDED`.
+    * **count == 0 → SENESCENCE.** Refuse HONESTLY — no daughter (``daughter=None``) —
+      with status :data:`TELOMERE_SENESCENT` (the inform-don't-crash / honest-decline
+      pattern: a clean verdict, NEVER a crash). This is the Hayflick limit
+      (Hayflick & Moorhead 1961; Hayflick 1965) — a cell that has exhausted its
+      replicative counter stops dividing.
+
+    An active telomere of count ``N`` therefore allows EXACTLY ``N`` divides, then the
+    ``N+1``-th refuses. THE op⊗operand DUALITY, made testable: op = the gating rule
+    here, operand = the count, FUSED in the ONE cap — the SAME ``(operand, op)`` pattern
+    as :func:`srmech.amsc.op_provenance.carry` and
+    :class:`srmech.amsc.coupling.RecoverableFold`, but with an ACTIVE op (the operand
+    changes how the operator works), which is precisely why the chromosome is now a
+    GENUINE op⊗operand (in #726 a plain telomere was a passive op-slot).
+
+    Returns a status dict::
+
+        {"status": "divided"|"senescent", "label": <chromosome label>,
+         "count_before": N, "count_after": N-1 (divided) | 0 (senescent),
+         "daughter": <daughter strand> | None}
+
+    Needs NO ``the_one`` — the count lives in the cap, so the gate reads it from the
+    bare strand (§44 self-description). Native-dispatched (byte-identical C peer
+    ``srmech_genome_telomere_tick``); pure Python is the complete alternative. Raises
+    ``ValueError`` if ``strand`` does not open with an active telomere.
+    """
+    strand = list(strand)
+    if not strand:
+        raise ValueError("telomere_tick: empty strand has no telomere to tick")
+    cap = strand[0]
+    if _cap_kind(cap) != ACTIVE_TELOMERE_MARKER:
+        raise ValueError(
+            "telomere_tick: strand does not open with an active telomere (0x74) — "
+            "build one with chromosome(leaves, the_one, active_count=N)")
+    label = _active_telomere_label(cap)
+    dim = len(cap)
+    native = _telomere_tick_native(cap)
+    if native is not None:
+        senescent, count_after, new_cap_bytes = native
+        count_before = _active_telomere_count(cap)
+        if senescent:
+            return {"status": TELOMERE_SENESCENT, "label": label,
+                    "count_before": count_before, "count_after": count_before,
+                    "daughter": None}
+        daughter = [_hv_from_block(bytes(new_cap_bytes))] + strand[1:]
+        return {"status": TELOMERE_DIVIDED, "label": label,
+                "count_before": count_before, "count_after": count_after,
+                "daughter": daughter}
+    # pure path — the complete alternative when there is no C.
+    count = _active_telomere_count(cap)
+    if count == 0:
+        return {"status": TELOMERE_SENESCENT, "label": label,
+                "count_before": 0, "count_after": 0, "daughter": None}
+    daughter_cap = _pack_active_telomere(label, count - 1, dim)
+    return {"status": TELOMERE_DIVIDED, "label": label,
+            "count_before": count, "count_after": count - 1,
+            "daughter": [daughter_cap] + strand[1:]}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # UPSTREAM §41 — genome persistence (disk save / load / catalog / append /
 # window). The helix grows ON DISK: a genome directory is
 #
@@ -865,7 +1113,17 @@ def kernel_unpack(strand_or_path, the_one=None):
 #: v3 / v4 bodies — AND any v5 ``0x4B`` byte-TLV header — read UNCHANGED (dual-read):
 #: back-compat is STRUCTURAL, never a converter. Every genome_save stamps the current
 #: version (a v6 writer stamps 6 even for a non-kernel genome), as every prior bump.
-GENOME_FORMAT_VERSION = 6
+#: 7 (§127/rc127, #726) == the ACTIVE TELOMERE: a chromosome MAY open with an
+#: ``ACTIVE_TELOMERE_MARKER`` (``0x74``) cap carrying an exact Hayflick COUNT inline (a
+#: descending replicative counter that :func:`telomere_tick` reads to gate a divide —
+#: the op⊗operand cap that makes the chromosome a genuine op⊗operand theorem, #726). The
+#: ``0x74`` cap is one more self-describing kind in the SAME walk (its first byte keys
+#: it, its label read UNIFORMLY, its count after the label NUL), so v2 / v3 / v4 / v5 /
+#: v6 bodies read UNCHANGED (dual-read — the walker gains ONE branch): back-compat is
+#: STRUCTURAL, never a converter. A plain-telomere (no ``0x74``) genome saved by the v7
+#: writer is byte-identical to the v6 writer's EXCEPT the ``format_version`` field (the
+#: same version-stamp discipline every prior bump used — a v7 writer stamps 7).
+GENOME_FORMAT_VERSION = 7
 
 #: rc115 (#1245 ask (b)) — the empty-body chain seed H₀ = sha256(b"") (a derived
 #: constant, not magic: THE well-known empty-string digest). The whole-body
@@ -950,7 +1208,7 @@ def _hv_from_block(block: bytes) -> _HV:
     first = block[0] if block else -1
     sectors = 256 if first in (
         CHROM_CAP_MARKER, GENE_CAP_MARKER, KERNEL_HEADER_MARKER,
-        KERNEL_TELOMERE_MARKER) else QUAD
+        KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER) else QUAD
     return _HV.from_sequence(block, sectors=sectors)
 
 
@@ -960,10 +1218,12 @@ def _block_is_cap(block: bytes) -> bool:
     a Klein-4 data turn. §44's scan predicate over raw bytes; a cap is stored VERBATIM
     (never bit-packed) and excluded from the data-turn count. §89: the v6 Klein-4
     header is a coupled DATA turn (first byte ``0..3``), NOT a cap — it bit-packs and
-    counts like content; the ``0x6B`` kernel telomere is the cap that flags it."""
+    counts like content; the ``0x6B`` kernel telomere is the cap that flags it. §127:
+    the ``0x74`` active telomere is a chromosome-boundary cap (like CHROM/kernel), so it
+    is stored VERBATIM and excluded from the data-turn count (its count is NOT a turn)."""
     return bool(block) and block[0] in (
         CHROM_CAP_MARKER, GENE_CAP_MARKER, KERNEL_HEADER_MARKER,
-        KERNEL_TELOMERE_MARKER)
+        KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1066,7 +1326,8 @@ def _walk_region_blocks(region: bytes, leaf_dim: int, *, context: str = "genome"
     while k < n:
         kind = region[k]
         if kind in (CHROM_CAP_MARKER, GENE_CAP_MARKER,
-                    KERNEL_HEADER_MARKER, KERNEL_TELOMERE_MARKER) or kind <= 3:
+                    KERNEL_HEADER_MARKER, KERNEL_TELOMERE_MARKER,
+                    ACTIVE_TELOMERE_MARKER) or kind <= 3:
             end = k + leaf_dim
             if end > n:
                 raise GenomeBoundingError(
@@ -1108,7 +1369,8 @@ def _split_into_chromosomes(strand, labels=None) -> List[Tuple[str, list]]:
     current_label: Optional[str] = None
     current_blocks: Optional[list] = None
     for hv in strand:
-        if _cap_kind(hv) in (CHROM_CAP_MARKER, KERNEL_TELOMERE_MARKER):
+        if _cap_kind(hv) in (CHROM_CAP_MARKER, KERNEL_TELOMERE_MARKER,
+                             ACTIVE_TELOMERE_MARKER):
             if current_label is not None:
                 chroms.append((current_label, current_blocks))
             _marker, current_label = _unpack_cap(hv)
@@ -1384,9 +1646,12 @@ def _rebuild_manifest_from_body(body_bytes, leaf_dim, the_one):
     for raw, decoded in _walk_region_blocks(
             bytes(body_bytes), leaf_dim, context="genome rebuild-by-scan"):
         n_turns += 1
-        if decoded[0] in (CHROM_CAP_MARKER, KERNEL_TELOMERE_MARKER):
+        if decoded[0] in (CHROM_CAP_MARKER, KERNEL_TELOMERE_MARKER,
+                          ACTIVE_TELOMERE_MARKER):
             if cur is not None:
                 chrom_specs.append(tuple(cur))
+            # the label is bytes [1:] up to the first NUL — UNIFORM across all telomere
+            # kinds (the §127 active telomere's count sits AFTER that NUL).
             label = decoded[1:].split(b"\x00", 1)[0].decode("utf-8")
             cur = [label, _sha256_bytes(raw), 0, offset, 0]
         elif cur is None:
@@ -1607,7 +1872,8 @@ def genome_load(path, *, labels=None, the_one=None):
                     break
                 kind = first[0]
                 if kind in (CHROM_CAP_MARKER, GENE_CAP_MARKER,
-                            KERNEL_HEADER_MARKER, KERNEL_TELOMERE_MARKER) \
+                            KERNEL_HEADER_MARKER, KERNEL_TELOMERE_MARKER,
+                            ACTIVE_TELOMERE_MARKER) \
                         or kind <= 3:
                     rest = f.read(leaf_dim - 1)
                     if len(rest) != leaf_dim - 1:

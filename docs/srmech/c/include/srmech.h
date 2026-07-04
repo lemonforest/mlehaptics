@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc126"
-#define SRMECH_VERSION       "0.9.0rc126"
+#define SRMECH_VERSION_PRE   "rc127"
+#define SRMECH_VERSION       "0.9.0rc127"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2624,7 +2624,17 @@ size_t srmech_op_provenance_hash_arena_bytes(size_t record_len);
  * keys it), so v2 / v3 / v4 bodies — AND any v5 0x4B byte-TLV header — read
  * UNCHANGED (dual-read): back-compat is STRUCTURAL, never a converter. Mirrors
  * GENOME_FORMAT_VERSION in srmech.amsc.genome. */
-#define SRMECH_GENOME_FORMAT_VERSION 6
+/* v7 (§127/rc127, #726): the ACTIVE TELOMERE. A chromosome MAY open with a
+ * SRMECH_GENOME_ACTIVE_TELOMERE_MARKER (0x74) cap carrying an exact non-negative
+ * Hayflick COUNT inline (a descending replicative counter that srmech_genome_telomere_tick
+ * reads to gate a divide — the op-carries-operand cap making the chromosome a genuine
+ * op(x)operand). The 0x74 cap is one more self-describing kind in the SAME walk (first
+ * byte keys it, label read UNIFORMLY up to the first NUL, count in the 8 bytes after
+ * that NUL), so v2..v6 bodies read UNCHANGED (dual-read): back-compat is STRUCTURAL,
+ * never a converter. A plain-telomere (no 0x74) genome saved by the v7 writer is
+ * byte-identical to v6 EXCEPT the format_version field. Mirrors GENOME_FORMAT_VERSION
+ * in srmech.amsc.genome. */
+#define SRMECH_GENOME_FORMAT_VERSION 7
 
 /* §44 inline cap markers — the FIRST byte of a fixed-width cap leaf. Both are
  * > 3 so a cap is told apart from a Klein-4 data turn (bytes 0..3) by its
@@ -2661,6 +2671,21 @@ size_t srmech_op_provenance_hash_arena_bytes(size_t record_len);
  * 0x51), so the strand stays self-describing and v2..v5 bodies read UNCHANGED — the
  * walker gains ONE branch. Mirrors KERNEL_TELOMERE_MARKER in srmech.amsc.genome. */
 #define SRMECH_GENOME_KERNEL_TELOMERE_MARKER 0x6Bu /* 'k' — a §89 kernel telomere */
+
+/* §127/v7 ACTIVE TELOMERE marker (rc127, #726) — the FIRST byte of a fixed-width
+ * leaf_dim-byte cap leaf that opens a chromosome (like the CHROM cap) AND carries an
+ * exact non-negative COUNT inline. Layout: [0x74] + utf-8 label + NUL + count (uint64
+ * big-endian) + NUL-pad to leaf_dim. The label decode is UNIFORM (bytes [1:] up to the
+ * first NUL — the same as every cap); the count is read at the 8 bytes RIGHT AFTER that
+ * NUL. > 3 and distinct from every other marker (CHROM 0x43 / GENE 0x47 / v5 KERNEL 0x4B
+ * / PACKED 0x51 / KERNEL-telomere 0x6B), so v2..v6 bodies read UNCHANGED — the walker
+ * gains ONE branch. Mirrors ACTIVE_TELOMERE_MARKER in srmech.amsc.genome. */
+#define SRMECH_GENOME_ACTIVE_TELOMERE_MARKER 0x74u /* 't' — a §127 active telomere */
+
+/* §127/v7 active-telomere COUNT field width — a uint64 (8 bytes, big-endian), read at
+ * the byte right after the inline label's NUL terminator. Mirrors
+ * _ACTIVE_TELOMERE_COUNT_BYTES in srmech.amsc.genome. */
+#define SRMECH_GENOME_ACTIVE_TELOMERE_COUNT_BYTES 8u
 
 /* Max label byte length (NUL-terminated) for one chromosome. This is a FORMAT
  * width (a label lives inline in a leaf_dim-byte cap block, like PATH_MAX), NOT
@@ -2961,6 +2986,30 @@ srmech_status_t srmech_genome_pack(
     const char *loose_dir, const char *dest,
     const unsigned char *the_one, size_t the_one_len,
     void *ws, size_t ws_len);
+
+/* §127/v7 (#726) ACTIVE-TELOMERE TICK — the divide/gate op whose OPERATOR behaviour
+ * is SELECTED by its OPERAND (the count). Read the exact non-negative COUNT carried
+ * inline in an active-telomere cap (`cap`, the first leaf_dim bytes; marker 0x74) and
+ * decide:
+ *   count == 0 -> SENESCENCE: *senescent = 1, *count_after = 0, out_cap = cap verbatim
+ *                 (the honest refuse — no divide).
+ *   count  > 0 -> DIVIDE:     *senescent = 0, *count_after = count - 1, out_cap = cap
+ *                 with the count field decremented by exactly 1 (the daughter cap; the
+ *                 telomere shortens). Byte-identical to the Python telomere_tick.
+ * The count lives at the SRMECH_GENOME_ACTIVE_TELOMERE_COUNT_BYTES (8) bytes right
+ * after the label's NUL terminator, big-endian. No arena (out_cap is caller-provided,
+ * leaf_dim bytes); malloc-free; no abs (a count is never negated).
+ *   cap / leaf_dim : the active-telomere cap leaf (leaf_dim bytes; cap[0] == 0x74).
+ *   out_cap        : caller buffer >= leaf_dim bytes — the daughter (or verbatim) cap.
+ *   senescent      : out — 1 iff count was 0 (refuse), else 0.
+ *   count_after    : out — the decremented count (0 on senescence).
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — cap / out_cap / senescent / count_after is NULL.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0, cap[0] != 0x74, no label NUL, or a truncated
+ *                          count field. */
+srmech_status_t srmech_genome_telomere_tick(
+    const unsigned char *cap, size_t leaf_dim,
+    unsigned char *out_cap, int *senescent, uint64_t *count_after);
 
 /* ------------------------------------------------------------------ *
  * TOML parser (malloc-free; caller arena)

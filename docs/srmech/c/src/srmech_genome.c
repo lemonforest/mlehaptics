@@ -68,9 +68,9 @@
 /* The §41 manifest data_schema_id (== GENOME_MANIFEST_SCHEMA_ID). */
 #define SRMECH_GENOME_SCHEMA_ID "srmech://schema/genome_manifest/v1"
 
-/* The §41 parser_rule_hash pre-image (== f"genome_persistence/v6" — tracks
+/* The §41 parser_rule_hash pre-image (== f"genome_persistence/v7" — tracks
  * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _manifest_record). */
-#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v6"
+#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v7"
 
 /* ------------------------------------------------------------------ *
  * Path + file helpers (stdio — Rule 3 allows file I/O, bans malloc).
@@ -250,8 +250,10 @@ static srmech_status_t genome_block_len(const unsigned char *body,
     if (kind == SRMECH_GENOME_CHROM_CAP_MARKER ||
         kind == SRMECH_GENOME_GENE_CAP_MARKER ||
         kind == SRMECH_GENOME_KERNEL_HEADER_MARKER ||
-        kind == SRMECH_GENOME_KERNEL_TELOMERE_MARKER || kind <= 3u) {
-        n = (size_t)leaf_dim;   /* cap / §60 v5 header / §89 kernel telomere / v2 turn */
+        kind == SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
+        kind == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER || kind <= 3u) {
+        n = (size_t)leaf_dim;   /* cap / §60 v5 header / §89 kernel telomere /
+                                 * §127 active telomere / v2 turn */
     } else if (kind == SRMECH_GENOME_PACKED_TURN_MARKER) {
         n = 1u + ((size_t)leaf_dim + 3u) / 4u;      /* v3 bit-packed turn */
     } else {
@@ -578,9 +580,11 @@ static srmech_status_t genome_count_chroms(const unsigned char *body,
         srmech_status_t st = genome_block_len(body, body_len, off, leaf_dim,
                                               &blen);
         if (st != SRMECH_OK) { return st; }
-        /* §89: a CHROM cap OR a §89 kernel telomere opens a chromosome. */
+        /* §89/§127: a CHROM cap, a §89 kernel telomere, OR a §127 active telomere
+         * opens a chromosome. */
         if (body[off] == SRMECH_GENOME_CHROM_CAP_MARKER ||
-            body[off] == SRMECH_GENOME_KERNEL_TELOMERE_MARKER) {
+            body[off] == SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
+            body[off] == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER) {
             if (n == 0xFFFFFFFFu) { return SRMECH_ERR_OVERFLOW; }
             n++;
         }
@@ -636,9 +640,12 @@ static srmech_status_t genome_scan_chroms(genome_strings_t *s,
         srmech_status_t st = genome_block_len(body, body_len, off, leaf_dim,
                                               &blen);
         if (st != SRMECH_OK) { return st; }
-        /* §89: a CHROM cap OR a §89 kernel telomere (0x6B) opens a chromosome. */
+        /* §89/§127: a CHROM cap, a §89 kernel telomere (0x6B), OR a §127 active
+         * telomere (0x74) opens a chromosome. The label decode is UNIFORM (bytes [1:]
+         * up to the first NUL) — the active telomere's count sits AFTER that NUL. */
         if (body[off] == SRMECH_GENOME_CHROM_CAP_MARKER ||
-            body[off] == SRMECH_GENOME_KERNEL_TELOMERE_MARKER) {
+            body[off] == SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
+            body[off] == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER) {
             if (s->n_chroms >= s->cap_chroms) { return SRMECH_ERR_OVERFLOW; }
             cur = (int32_t)s->n_chroms;
             s->n_chroms++;
@@ -760,6 +767,64 @@ static srmech_status_t genome_save_validate(const char *dir,
     if (leaf_dim == 0u || the_one_len != (size_t)leaf_dim || leaf_dim > 256u) {
         return SRMECH_ERR_BAD_INPUT;
     }
+    return SRMECH_OK;
+}
+
+/* §127/v7 (#726) — the active-telomere COUNT field offset: the byte right after the
+ * inline label's NUL terminator. Returns the NUL index in *nul_off (BAD_INPUT if there
+ * is no label NUL within leaf_dim, or the 8-byte count would run past leaf_dim). This
+ * is the operand-read shared by srmech_genome_telomere_tick. */
+static srmech_status_t genome_active_count_offset(const unsigned char *cap,
+                                                  size_t leaf_dim, size_t *nul_off)
+{
+    assert(cap != NULL && nul_off != NULL);
+    assert(leaf_dim > 0u);
+    size_t i = 1u;                                  /* skip the 0x74 marker byte */
+    while (i < leaf_dim && cap[i] != 0u) { i++; }   /* find the label terminator */
+    if (i >= leaf_dim) { return SRMECH_ERR_BAD_INPUT; }        /* no label NUL */
+    if (i + 1u + SRMECH_GENOME_ACTIVE_TELOMERE_COUNT_BYTES > leaf_dim) {
+        return SRMECH_ERR_BAD_INPUT;                           /* count truncated */
+    }
+    *nul_off = i;
+    return SRMECH_OK;
+}
+
+/* §127/v7 (#726) — the divide/gate op: the OPERAND (count) selects the OPERATOR. */
+srmech_status_t srmech_genome_telomere_tick(
+    const unsigned char *cap, size_t leaf_dim,
+    unsigned char *out_cap, int *senescent, uint64_t *count_after)
+{
+    assert(cap != NULL || out_cap == NULL);
+    assert(leaf_dim <= 256u);
+    if (cap == NULL || out_cap == NULL || senescent == NULL || count_after == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (leaf_dim == 0u || cap[0] != SRMECH_GENOME_ACTIVE_TELOMERE_MARKER) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    size_t nul = 0u;
+    srmech_status_t st = genome_active_count_offset(cap, leaf_dim, &nul);
+    if (st != SRMECH_OK) { return st; }
+    /* read the uint64 big-endian count (the operand) at the bytes after the NUL */
+    uint64_t count = 0u;
+    size_t base = nul + 1u;
+    for (size_t k = 0u; k < SRMECH_GENOME_ACTIVE_TELOMERE_COUNT_BYTES; k++) {
+        count = (count << 8) | (uint64_t)cap[base + k];
+    }
+    memcpy(out_cap, cap, leaf_dim);                 /* daughter starts as a copy */
+    if (count == 0u) {
+        *senescent = 1;                             /* Hayflick senescence — refuse */
+        *count_after = 0u;                          /* count stays 0 (never negated) */
+        return SRMECH_OK;
+    }
+    uint64_t after = count - 1u;                    /* DIVIDE: decrement by exactly 1 */
+    for (size_t k = 0u; k < SRMECH_GENOME_ACTIVE_TELOMERE_COUNT_BYTES; k++) {
+        unsigned shift = (unsigned)(8u *
+            (SRMECH_GENOME_ACTIVE_TELOMERE_COUNT_BYTES - 1u - k));
+        out_cap[base + k] = (unsigned char)((after >> shift) & 0xFFu);
+    }
+    *senescent = 0;
+    *count_after = after;
     return SRMECH_OK;
 }
 
@@ -1245,11 +1310,12 @@ static srmech_status_t genome_scan_region(const unsigned char *region,
 {
     assert(region != NULL && cap_sha != NULL);
     assert(region_sha != NULL && leaf_count != NULL && n_blocks != NULL);
-    /* §89: an append region opens with a CHROM cap OR a §89 kernel telomere
-     * (genome_append_kernel appends a kernel chromosome). */
+    /* §89/§127: an append region opens with a CHROM cap, a §89 kernel telomere, OR a
+     * §127 active telomere (an appended active-telomere chromosome). */
     if (region_len < (size_t)leaf_dim ||
         (region[0] != SRMECH_GENOME_CHROM_CAP_MARKER &&
-         region[0] != SRMECH_GENOME_KERNEL_TELOMERE_MARKER)) {
+         region[0] != SRMECH_GENOME_KERNEL_TELOMERE_MARKER &&
+         region[0] != SRMECH_GENOME_ACTIVE_TELOMERE_MARKER)) {
         return SRMECH_ERR_BAD_INPUT;
     }
     srmech_status_t st = srmech_sha256_hex(region, leaf_dim, cap_sha);
@@ -1263,14 +1329,16 @@ static srmech_status_t genome_scan_region(const unsigned char *region,
         if (st != SRMECH_OK) { return st; }
         unsigned char kind = region[off];
         if (off != 0u && (kind == SRMECH_GENOME_CHROM_CAP_MARKER ||
-                          kind == SRMECH_GENOME_KERNEL_TELOMERE_MARKER)) {
+                          kind == SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
+                          kind == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER)) {
             return SRMECH_ERR_BAD_INPUT;  /* one append == ONE chromosome */
         }
-        /* §60: a GENE cap or a v5 KERNEL HEADER (0x4B) is not a data turn; the §89
-         * kernel telomere opens the region (off==0). The §89 Klein-4 header IS a
-         * coupled turn (counted). */
+        /* §60/§127: a GENE cap or a v5 KERNEL HEADER (0x4B) is not a data turn; the
+         * §89 kernel telomere / §127 active telomere opens the region (off==0). The
+         * §89 Klein-4 header IS a coupled turn (counted). */
         if (kind != SRMECH_GENOME_CHROM_CAP_MARKER &&
             kind != SRMECH_GENOME_KERNEL_TELOMERE_MARKER &&
+            kind != SRMECH_GENOME_ACTIVE_TELOMERE_MARKER &&
             kind != SRMECH_GENOME_GENE_CAP_MARKER &&
             kind != SRMECH_GENOME_KERNEL_HEADER_MARKER) { lc++; }
         nb++;
@@ -1640,9 +1708,9 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
 
 /* The §43 .chr data_schema_id (== GENOME_CHR_SCHEMA_ID). */
 #define SRMECH_GENOME_CHR_SCHEMA_ID "srmech://schema/genome_chromosome/v1"
-/* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v6" — tracks
+/* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v7" — tracks
  * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _chr_record). */
-#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v6"
+#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v7"
 /* The §43 rendering "purpose" — VERBATIM from genome.py _chr_record
  * (single-line #define; JPL Rule 8 forbids backslash line-continuation). */
 #define SRMECH_GENOME_CHR_PURPOSE "One self-contained, MPR-attested chromosome: its fixed-width region (CHROM cap + coupled turns) + the_one, re-importable self-verifying."

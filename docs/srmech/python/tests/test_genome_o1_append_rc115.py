@@ -53,14 +53,14 @@ def _as_lists(xs):
 # ── the v4 manifest shape + the region chain ────────────────────────────────
 
 def test_save_writes_v4_regions_and_chain(tmp_path):
-    """A fresh save writes format_version 5 (rc121 §60 writer) with a regions
-    array (one per chromosome, tiling the body) and body_sha256 = the region
-    chain (the §56/v4 regions machinery is unchanged under the v5 writer)."""
+    """A fresh save writes the current format_version (rc127 §127 v7 writer) with a
+    regions array (one per chromosome, tiling the body) and body_sha256 = the region
+    chain (the §56/v4 regions machinery is unchanged under the v7 writer)."""
     one = _one()
     strand = G.genome({"a": _leaves(5), "b": _leaves(3, base=10)}, one)
     man = G.genome_save(strand, tmp_path / "g", the_one=one)
 
-    assert man["format_version"] == 6
+    assert man["format_version"] == 7
     assert [r["byte_offset"] for r in man["regions"]] == \
         [c["byte_offset"] for c in man["chromosomes"]]
     # regions tile the body contiguously from 0
@@ -170,7 +170,7 @@ def test_pack_single_pass_roundtrip_exact(tmp_path):
     G.genome_save(G.genome(kernels, one), tmp_path / "g", the_one=one)
     G.genome_explode(tmp_path / "g", tmp_path / "loose", the_one=one)
     man = G.genome_pack(tmp_path / "loose", tmp_path / "packed", the_one=one)
-    assert man["format_version"] == 6
+    assert man["format_version"] == 7
     assert len(man["regions"]) == len(kernels)
     for label, leaves in kernels.items():
         win = G.genome_window(tmp_path / "packed", label, the_one=one)
