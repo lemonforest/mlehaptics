@@ -310,6 +310,8 @@
 {"exposed_as": "srmech.amsc.coupling.resonant_spectrum", "defined_at": "srmech.amsc.coupling.resonant_spectrum", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.coupling.from_bodies", "defined_at": "srmech.amsc.coupling.from_bodies", "bucket": "non_compute"}
 {"exposed_as": "srmech.amsc.coupling.fractal_spectrum", "defined_at": "srmech.amsc.coupling.fractal_spectrum", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.coupling.fold_encode", "defined_at": "srmech.amsc.coupling.fold_encode", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.coupling.fold_spectrum", "defined_at": "srmech.amsc.coupling.fold_spectrum", "bucket": "non_compute"}
 {"exposed_as": "srmech.amsc.gosper.gosper", "defined_at": "srmech.amsc.gosper.gosper", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.zeilberger.zeilberger", "defined_at": "srmech.amsc.zeilberger.zeilberger", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.wz_certificate.wz_certificate", "defined_at": "srmech.amsc.wz_certificate.wz_certificate", "bucket": "c_dispatched"}

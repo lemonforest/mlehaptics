@@ -538,5 +538,382 @@ def fractal_spectrum(R, branches, *, log_terms: int = 25) -> Dict[str, object]:
     }
 
 
+# =====================================================================
+# §Ch-2b — fold_encode / fold_spectrum: the BIDIRECTIONAL translation
+# between a stored HDC fold and a self-similar lattice's SPECTRAL-
+# DECIMATION structure (task #697; the "Q2 reader made LITERAL"). Where
+# fractal_spectrum(R, branches) reads the decimation from an EXPLICIT
+# Poly R, these two ops read/write the decimation through a STORED
+# Klein-4 HDC FOLD — a translation layer that runs BOTH directions.
+#
+# The two directions are ASYMMETRIC by the nature of HDC, and THAT
+# asymmetry is the design:
+#   fold_encode  (params -> fold): EXACT / total / deterministic. The
+#     decimation Poly R's coefficients + the branch count are role-filler
+#     bound into a single lossy Klein-4 bundle (the cooccurrence_fold
+#     store shape; F584/F758).
+#   fold_spectrum(fold -> params): a SIMILARITY / CLEANUP-MEMORY readout,
+#     NOT exact. The bundle is LOSSY BY DESIGN, so reading the decimation
+#     back is a cleanup-memory recovery — it returns the fractal_spectrum
+#     params PLUS an explicit similarity/confidence readout, and when the
+#     crosstalk overwhelms the signal it returns an HONEST "unrecovered"
+#     verdict, NEVER a silent wrong Poly.
+#
+# Pure orchestration over shipped, already-C-backed ops (klein4_random /
+# klein4_bind / klein4_bundle / klein4_match_count / klein4_similarity +
+# Poly.from_coeffs + fractal_spectrum's own helpers) — adds NO new
+# numerical kernel, so BOTH ship non_compute (the cooccurrence_fold /
+# from_bodies precedent; no dedicated C peer). numpy-free; no abs().
+# =====================================================================
+
+# The HDC bundle-capacity floor, as a multiple of the stored-pair count.
+# A role-filler bundle of ``k`` bound pairs resolves cleanly only when the
+# width ``D`` comfortably exceeds ``k`` — bundle capacity is LINEAR in the
+# stored-item count (Kanerva 2009, *Hyperdimensional Computing*, Cognitive
+# Computation 1, 139). Below ``D ~ 2k`` the fold is DEGENERATE: two
+# different value assignments can bundle to the SAME vector, a genuine
+# information-theoretic ambiguity no reader can resolve. ``4×`` is the
+# measured comfortable floor (it eliminates the sub-capacity silent
+# collisions across the degree-2..4 decimation Polys while passing every
+# high-dim recovery). NOT a magic number — the linear-capacity structure
+# constant with a measured safety multiple.
+_FOLD_CAPACITY_MULT = 4
+
+# The confident-cleanup separation floor: the winning value code must beat
+# the runner-up by at least this Klein-4 similarity margin. Baseline random
+# Klein-4 similarity is 1/4 (two independent {0,1} bits per coordinate), so
+# a 1/10 margin is a clear separation above chance crosstalk.
+_FOLD_MARGIN_FLOOR = Q(1, 10)
+
+#: The slot name carrying the branch count in a fold store.
+_FOLD_BRANCH_SLOT = "branches"
+
+
+def _fold_val_token(q: "Q") -> str:
+    """Canonical value-token string for an exact-``Q`` coefficient: ``'num/den'``
+    (``Q`` keeps ``den > 0``). The token is the cleanup-memory key — a value's
+    Klein-4 code is ``klein4_random`` keyed deterministically by this string, so
+    the SAME coefficient always maps to the SAME code (the recovery key)."""
+    return f"{q.numerator}/{q.denominator}"
+
+
+def _fold_parse_token(tok: str) -> "Q":
+    """Parse a ``'num/den'`` value-token back to an exact ``Q`` (the inverse of
+    :func:`_fold_val_token`)."""
+    num_s, den_s = tok.split("/")
+    return Q(int(num_s), int(den_s))
+
+
+def fold_encode(R, branches, *, dim, seed=0):
+    """Encode a spectral-decimation structure INTO a stored HDC fold — the
+    EXACT / total FORWARD direction of the #697 bidirectional translation.
+
+    This is the WRITE half of the "Q2 reader made LITERAL": the decimation map
+    ``R`` (a :class:`~srmech.amsc.poly.Poly`, ``R(0)=0``) and the branch count
+    are folded into a single Klein-4 bundle — a **role-filler record** in the
+    shape of :func:`srmech.amsc.hdc.cooccurrence_fold`'s holographic store. Each
+    coefficient slot ``c{i}`` (and the ``branches`` slot) gets a deterministic
+    **role** code (:func:`~srmech.amsc.hdc.klein4_random`, seeded by the slot
+    name); each distinct coefficient VALUE gets a deterministic **filler** code
+    (seeded by its ``'num/den'`` token). The fold is the
+    :func:`~srmech.amsc.hdc.klein4_bundle` superposition of the role⊗value binds
+    ``bind(role_slot, code_value)`` — one lossy Klein-4 hypervector holding the
+    whole decimation.
+
+    This direction is **EXACT and total**: given ``(R, branches, dim, seed)`` the
+    fold + codebooks are fully determined (bit-for-bit reproducible). The
+    LOSSINESS lives entirely in the READ (:func:`fold_spectrum`) — recovering
+    which slot holds which value from the superposition is a cleanup-memory
+    similarity read, NOT an exact inverse (the HDC asymmetry, F584).
+
+    Args:
+        R: the spectral-decimation map — a :class:`~srmech.amsc.poly.Poly` (or an
+            ascending-degree coefficient sequence coerced with
+            :meth:`~srmech.amsc.poly.Poly.from_coeffs`). Degree ``>= 2``.
+        branches: the number of self-similar copies (an int ``>= 2``).
+        dim: the Klein-4 width ``D`` of the fold (one uint8 per coordinate). For a
+            confident round-trip pick ``dim`` comfortably above
+            ``4·(degree + 2)`` (the HDC bundle-capacity floor); the gasket
+            (``R=z(5−4z)``, 4 bound pairs) round-trips reliably at ``dim >= 512``.
+        seed: base seed for the deterministic role / value codes (default 0).
+
+    Returns:
+        A fold store (JSON-native once its :class:`~srmech.amsc.hdc.HV` values are
+        serialised, exactly like :func:`~srmech.amsc.hdc.cooccurrence_fold`):
+
+        * ``"fold"`` — the single Klein-4 :class:`~srmech.amsc.hdc.HV` bundle
+          (the lossy superposition of every role⊗value bind).
+        * ``"roles"`` — ``{slot: HV}`` the deterministic per-slot role codes.
+        * ``"codes"`` — ``{value_token: HV}`` the value codebook (the cleanup
+          alphabet, mirroring cooccurrence_fold's ``codes``).
+        * ``"coeff_slots"`` — ``["c0", …, "c{degree}"]`` the coefficient slot
+          names in ascending degree.
+        * ``"branch_slot"`` — ``"branches"``.
+        * ``"slots"`` — the full ordered slot list (``coeff_slots + [branch_slot]``).
+        * ``"dim"`` — ``D``; ``"seed"`` — the base seed; ``"n_pairs"`` — the
+          number of bound pairs (``degree + 2``).
+
+    Pure orchestration over shipped Klein-4 ops → adds NO new numerical kernel,
+    ships **non_compute** (the cooccurrence_fold / from_bodies precedent).
+    numpy-free; no ``abs()``.
+
+    Raises:
+        ValueError: ``R`` not a Poly / coercible sequence, ``R.degree < 2``,
+            ``branches < 2``, or ``dim < 1``.
+    """
+    from . import hdc as _hdc                # klein4_random / bind / bundle (M)
+    from .poly import Poly                   # exact-ℚ decimation carrier (lazy)
+
+    if not isinstance(R, Poly):
+        try:
+            R = Poly.from_coeffs(R)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "fold_encode: R must be a Poly or an ascending-degree coefficient "
+                f"sequence; got {R!r}") from exc
+    if R.degree < 2:
+        raise ValueError("fold_encode: R must be a degree>=2 decimation Poly")
+    if branches < 2:
+        raise ValueError("fold_encode: branches must be >= 2")
+    if dim < 1:
+        raise ValueError("fold_encode: dim must be >= 1")
+
+    coeffs = R.coeffs
+    coeff_slots = [f"c{i}" for i in range(len(coeffs))]
+    slots = coeff_slots + [_FOLD_BRANCH_SLOT]
+
+    # Deterministic per-slot ROLE codes (the binding keys).
+    roles = {
+        s: _hdc.klein4_random(dim, seed=_hdc._cooc_token_seed("ROLE:" + s, seed))
+        for s in slots
+    }
+
+    # Deterministic per-value FILLER codes (the cleanup alphabet). A repeated
+    # coefficient value reuses its one code (so the codebook is value-keyed).
+    codes: Dict[str, object] = {}
+
+    def code_for(tok: str):
+        c = codes.get(tok)
+        if c is None:
+            c = _hdc.klein4_random(dim, seed=_hdc._cooc_token_seed("VAL:" + tok, seed))
+            codes[tok] = c
+        return c
+
+    # Fold = klein4_bundle of the role⊗value binds (Class-M superposition).
+    pairs = []
+    for i, c in enumerate(coeffs):
+        tok = _fold_val_token(c)
+        pairs.append(_hdc.klein4_bind(roles[coeff_slots[i]], code_for(tok)))
+    branch_tok = f"{int(branches)}/1"
+    pairs.append(_hdc.klein4_bind(roles[_FOLD_BRANCH_SLOT], code_for(branch_tok)))
+    fold = _hdc.klein4_bundle(pairs)
+
+    return {
+        "fold": fold,
+        "roles": roles,
+        "codes": codes,
+        "coeff_slots": coeff_slots,
+        "branch_slot": _FOLD_BRANCH_SLOT,
+        "slots": slots,
+        "dim": dim,
+        "seed": seed,
+        "n_pairs": len(slots),
+    }
+
+
+def fold_spectrum(fold, *, log_terms: int = 25,
+                  margin_floor=None, capacity_mult=None) -> Dict[str, object]:
+    """Read a stored HDC fold BACK to its spectral-decimation params — the
+    SIMILARITY / CLEANUP-MEMORY READ direction of the #697 bidirectional
+    translation (the "Q2 reader made LITERAL").
+
+    This is the READ half, and it is **NOT the exact inverse** of
+    :func:`fold_encode` — it CANNOT be, because the fold is a LOSSY Klein-4
+    superposition (F584). For each slot it binds the role back against the fold
+    (:func:`~srmech.amsc.hdc.klein4_unbundle` = self-inverse XOR) and cleans the
+    value-plus-crosstalk estimate up against the value codebook
+    (``argmax_token similarity(unbundle, codes[token])`` — the cooccurrence_fold
+    cleanup-memory pattern, ``klein4_similarity(bundles[a], codes[b])``). The
+    recovered tokens rebuild the decimation ``Poly`` and the branch count, and —
+    **where the recovery is confident** — feed the SAME orchestration as
+    :func:`fractal_spectrum`, producing the IDENTICAL spectral-decimation dict.
+
+    The honesty boundary is load-bearing — the read NEVER returns a wrong Poly
+    silently. A recovery is accepted (``verdict == "recovered"``) ONLY when all
+    three gates hold:
+
+    1. **Capacity** — ``dim >= capacity_mult · n_pairs`` (default ``4·n_pairs``).
+       Below the HDC bundle-capacity floor the fold is degenerate and two
+       assignments can collide to the same vector; the read refuses to claim.
+    2. **Separation** — every slot's winning value beats the runner-up by at
+       least ``margin_floor`` similarity (default ``1/10``; baseline chance is
+       ``1/4``). An ambiguous near-tie is not a recovery.
+    3. **Self-consistency** — re-bundling the recovered role⊗value binds
+       reproduces the stored fold **bit-for-bit** (``fold_consistency == 1``).
+       Because :func:`fold_encode` is EXACT, a fully-correct recovery reconstructs
+       the fold identically; any wrong slot perturbs the bundle. This is the
+       op_provenance one-sided honesty (``"EQUAL"`` = provably reproduces the
+       fold; ``"UNKNOWN"`` = cannot prove — NEVER a false claim).
+
+    When any gate fails the op returns the honest **unrecovered** verdict — the
+    similarity/confidence readout, the reason, and a ``spectrum_open``-style OPEN
+    message — WITHOUT a ``decimation_map`` / spectral params (the #717
+    honestly-inexact / carrier-ladder project-error discipline).
+
+    Args:
+        fold: a fold store from :func:`fold_encode` (or the JSON-serialised
+            equivalent — the Klein-4 values may be :class:`~srmech.amsc.hdc.HV`
+            OR plain uint8 lists; both ride the klein4 coercion).
+        log_terms: the Class-N ``log`` series-truncation depth forwarded to
+            :func:`fractal_spectrum` on a confident recovery (default 25).
+        margin_floor: override the separation gate (an exact ``Q`` / ``(num,den)``
+            / int; default ``_FOLD_MARGIN_FLOOR = 1/10``).
+        capacity_mult: override the capacity-floor multiple (default ``4``).
+
+    Returns:
+        On a confident recovery — the full :func:`fractal_spectrum` dict
+        (``decimation_map`` / ``scale`` / ``branches`` / ``self_similarity_dim`` /
+        ``q_octaves_per_level`` / ``rung_class`` / ``log_period_over_2pi`` /
+        ``spectrum_open``) PLUS: ``"verdict": "recovered"``, ``"op_provenance":
+        "EQUAL"``, ``"similarity"`` (the weakest slot's cleanup similarity, ``Q``),
+        ``"confidence"`` (the weakest slot's separation margin, ``Q``),
+        ``"fold_consistency"`` (the bit-identical-reconstruction similarity, ``Q``,
+        ``== 1``), and ``"per_slot"`` (``{slot: {value, similarity, margin}}``).
+
+        On an unrecovered read — ``{"verdict": "unrecovered", "op_provenance":
+        "UNKNOWN", "similarity", "confidence", "fold_consistency", "per_slot",
+        "reason", "spectrum_open"}`` and NO decimation Poly / spectral params.
+
+    Pure orchestration over shipped ops → **non_compute**. numpy-free; no
+    ``abs()`` (the similarity/margin comparisons are exact-``Q`` Class-K reads).
+
+    Raises:
+        ValueError: ``fold`` is not a fold-store dict / is missing required keys.
+    """
+    from . import hdc as _hdc                # klein4 bind / bundle / similarity
+
+    if not isinstance(fold, dict):
+        raise ValueError(
+            "fold_spectrum: fold must be a fold-store dict from fold_encode; "
+            f"got {type(fold).__name__}")
+    try:
+        stored = fold["fold"]
+        roles = fold["roles"]
+        codes = fold["codes"]
+        coeff_slots = list(fold["coeff_slots"])
+        branch_slot = fold["branch_slot"]
+    except (KeyError, TypeError) as exc:
+        raise ValueError(
+            "fold_spectrum: fold-store missing a required key "
+            "(fold / roles / codes / coeff_slots / branch_slot)") from exc
+    if not codes:
+        raise ValueError("fold_spectrum: fold-store has an empty value codebook")
+
+    slots = coeff_slots + [branch_slot]
+    n_pairs = len(slots)
+
+    cap_mult = _FOLD_CAPACITY_MULT if capacity_mult is None else int(capacity_mult)
+    if margin_floor is None:
+        marg_floor = _FOLD_MARGIN_FLOOR
+    elif isinstance(margin_floor, Q):
+        marg_floor = margin_floor
+    elif isinstance(margin_floor, tuple):
+        marg_floor = Q(margin_floor[0], margin_floor[1])
+    else:
+        marg_floor = Q(int(margin_floor), 1)
+
+    # The true width D = the stored fold's coordinate count (NOT the metadata,
+    # so a hand-built store still reads honestly). Every code must share it —
+    # klein4_match_count raises on a length mismatch, surfacing a corrupt store.
+    d = len(_hdc._as_klein4_buf(stored, "fold_spectrum.fold"))
+
+    # ── Per-slot cleanup-memory recovery ────────────────────────────────────
+    per_slot: Dict[str, object] = {}
+    recovered_tok: Dict[str, str] = {}
+    min_top: Optional[Q] = None
+    min_margin: Optional[Q] = None
+    for s in slots:
+        # Bind the role back against the fold = unbundle (self-inverse XOR) →
+        # the value-plus-crosstalk estimate; clean it up against the codebook.
+        probe = _hdc.klein4_bind(stored, roles[s])
+        ranked = sorted(
+            ((_hdc.klein4_match_count(probe, code), tok)
+             for tok, code in codes.items()),
+            key=lambda kv: kv[0], reverse=True)
+        top_count, top_tok = ranked[0]
+        second_count = ranked[1][0] if len(ranked) > 1 else 0
+        top_sim = Q(top_count, d)
+        margin = Q(top_count - second_count, d)
+        recovered_tok[s] = top_tok
+        per_slot[s] = {"value": top_tok, "similarity": top_sim, "margin": margin}
+        if min_top is None or top_sim < min_top:
+            min_top = top_sim
+        if min_margin is None or margin < min_margin:
+            min_margin = margin
+
+    # ── Holistic self-consistency: re-bundle the recovered binds and compare
+    # the reconstruction to the stored fold BIT-FOR-BIT. fold_encode is exact,
+    # so a fully-correct recovery reconstructs identically (consistency == 1).
+    recon = _hdc.klein4_bundle(
+        [_hdc.klein4_bind(roles[s], codes[recovered_tok[s]]) for s in slots])
+    consistency = _hdc.klein4_similarity(recon, stored)   # Q; == 1 iff identical
+
+    # ── The three-gate honesty verdict ──────────────────────────────────────
+    capacity_ok = d >= cap_mult * n_pairs
+    margin_ok = min_margin >= marg_floor
+    self_consistent = consistency == Q(1, 1)
+    recovered = capacity_ok and margin_ok and self_consistent
+
+    if not recovered:
+        reasons = []
+        if not capacity_ok:
+            reasons.append(
+                f"below HDC bundle-capacity floor (dim {d} < {cap_mult}*{n_pairs} "
+                f"= {cap_mult * n_pairs})")
+        if not margin_ok:
+            reasons.append(
+                f"cleanup separation below floor (min margin {float(min_margin):.4f}"
+                f" < {float(marg_floor):.4f})")
+        if not self_consistent:
+            reasons.append(
+                "recovered assignment does not reconstruct the fold bit-for-bit "
+                f"(consistency {float(consistency):.4f} < 1)")
+        return {
+            "verdict": "unrecovered",
+            "op_provenance": "UNKNOWN",
+            "similarity": min_top,
+            "confidence": min_margin,
+            "fold_consistency": consistency,
+            "per_slot": per_slot,
+            "reason": "; ".join(reasons),
+            "spectrum_open": (
+                "the stored fold's decimation is NOT recoverable at this "
+                "dim/seed — the Klein-4 superposition crosstalk overwhelmed the "
+                "signal (F584 lossy-by-design). Honestly UNKNOWN, NOT a wrong "
+                "Poly (#717 honestly-inexact). Re-encode at a higher dim (>= "
+                f"{cap_mult * n_pairs}) for a confident read."),
+        }
+
+    # ── Confident recovery: rebuild R + branches, run the SAME fractal_spectrum
+    # orchestration → the identical spectral-decimation dict. ────────────────
+    from .poly import Poly
+
+    coeffs = [_fold_parse_token(recovered_tok[s]) for s in coeff_slots]
+    R = Poly.from_coeffs(coeffs)
+    branch_q = _fold_parse_token(recovered_tok[branch_slot])
+    assert branch_q.denominator == 1, \
+        "fold_spectrum: recovered branch token must be an integer"
+    branches = int(branch_q.numerator)
+
+    out = dict(fractal_spectrum(R, branches, log_terms=log_terms))
+    out["verdict"] = "recovered"
+    out["op_provenance"] = "EQUAL"
+    out["similarity"] = min_top
+    out["confidence"] = min_margin
+    out["fold_consistency"] = consistency
+    out["per_slot"] = per_slot
+    return out
+
+
 __all__ = ["signed_sum_squared", "resonant_spectrum", "from_bodies",
-           "fractal_spectrum"]
+           "fractal_spectrum", "fold_encode", "fold_spectrum"]

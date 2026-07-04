@@ -3032,6 +3032,101 @@ def _register_primitive_class_tools() -> None:
                               "str (the Julia-set operand-IRREPRESENTABLE OPEN)}"),
         ),
         # ────────────────────────────────────────────────────────────
+        # fold_encode / fold_spectrum — the BIDIRECTIONAL translation
+        # between a stored HDC fold and a self-similar lattice's spectral-
+        # decimation structure (#697; the "Q2 reader made LITERAL"). Pure
+        # orchestration over shipped Klein-4 HDC + Poly + fractal_spectrum
+        # ops — NO new numerical kernel, so BOTH ship non_compute (the
+        # cooccurrence_fold / from_bodies precedent; no dedicated C peer).
+        # The two directions are ASYMMETRIC: EXACT encode / SIMILARITY read.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.coupling.fold_encode", owner="srmech",
+            category="coupling",
+            summary="Encode a spectral-decimation structure INTO a stored HDC "
+                    "fold — the EXACT / total FORWARD half of the #697 "
+                    "bidirectional translation (the 'Q2 reader made LITERAL'). "
+                    "Where fractal_spectrum(R, branches) reads the decimation "
+                    "from an EXPLICIT Poly R, fold_encode folds R's coefficients "
+                    "+ the branch count into a single lossy Klein-4 bundle — a "
+                    "role-filler record in the cooccurrence_fold store shape "
+                    "(F584/F758). Each coefficient slot c{i} (and 'branches') "
+                    "gets a deterministic klein4_random ROLE code; each distinct "
+                    "coefficient VALUE gets a deterministic FILLER code (keyed by "
+                    "its 'num/den' token); the fold is the klein4_bundle "
+                    "superposition of the role⊗value binds. EXACT + total + "
+                    "deterministic (seed-keyed) — the LOSSINESS lives entirely in "
+                    "the READ (fold_spectrum), the HDC asymmetry. Composes "
+                    "klein4_random/bind/bundle (M) + Poly.from_coeffs (L); PURE "
+                    "orchestration over already-C-backed ops → non_compute (the "
+                    "cooccurrence_fold / from_bodies precedent; no dedicated C "
+                    "peer). numpy-free; no abs().",
+            parameters=(P("R", "Poly", True,
+                          "the spectral-decimation map — a degree>=2 Poly with "
+                          "R(0)=0 (or an ascending-degree coefficient sequence "
+                          "coerced with Poly.from_coeffs)"),
+                        P("branches", "int", True,
+                          "the number of self-similar copies (>=2)"),
+                        P("dim", "int", True,
+                          "the Klein-4 width D of the fold (>=1; pick well above "
+                          "4*(degree+2) for a confident round-trip)"),
+                        P("seed", "int", False,
+                          "base seed for the deterministic role/value codes "
+                          "(default 0)")),
+            returns=R("dict",
+                      "{'fold': HV (the lossy Klein-4 bundle), 'roles': "
+                      "{slot: HV}, 'codes': {value_token: HV} (the cleanup "
+                      "alphabet), 'coeff_slots': [c0,…], 'branch_slot': "
+                      "'branches', 'slots': [...], 'dim': int, 'seed': int, "
+                      "'n_pairs': int}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.coupling.fold_spectrum", owner="srmech",
+            category="coupling",
+            summary="Read a stored HDC fold BACK to its spectral-decimation "
+                    "params — the SIMILARITY / CLEANUP-MEMORY READ half of the "
+                    "#697 bidirectional translation. NOT the exact inverse of "
+                    "fold_encode (the fold is a LOSSY Klein-4 superposition, "
+                    "F584): each slot binds the role back against the fold "
+                    "(klein4_unbundle = self-inverse XOR) and cleans the "
+                    "value-plus-crosstalk estimate up against the value codebook "
+                    "(argmax_token similarity(unbundle, codes[token]) — the "
+                    "cooccurrence_fold cleanup pattern). The recovered tokens "
+                    "rebuild R + branches and feed the SAME fractal_spectrum "
+                    "orchestration → the IDENTICAL decimation dict. The honesty "
+                    "boundary is load-bearing — NEVER a silent wrong Poly: a "
+                    "recovery is accepted ONLY when (1) dim>=capacity_mult*n_pairs "
+                    "(default 4*n_pairs, the HDC bundle-capacity floor), (2) every "
+                    "slot's winner beats the runner-up by >=margin_floor (default "
+                    "1/10; chance is 1/4), AND (3) re-bundling the recovered binds "
+                    "reproduces the fold BIT-FOR-BIT (fold_consistency==1, the "
+                    "op_provenance EQUAL self-check). Any gate failing → the honest "
+                    "'unrecovered' verdict (op_provenance UNKNOWN, #717 "
+                    "honestly-inexact) with NO decimation Poly. Composes "
+                    "klein4_bind/bundle/match_count/similarity (M) + Poly + "
+                    "fractal_spectrum; PURE orchestration → non_compute. "
+                    "numpy-free; no abs() (exact-Q Class-K similarity reads).",
+            parameters=(P("fold", "dict", True,
+                          "a fold store from fold_encode (the Klein-4 values may "
+                          "be HV or JSON-serialised uint8 lists)"),
+                        P("log_terms", "int", False,
+                          "the Class-N log series-truncation depth forwarded to "
+                          "fractal_spectrum on a confident recovery (default 25)"),
+                        P("margin_floor", "number", False,
+                          "override the separation gate (Q / (num,den) / int; "
+                          "default 1/10)"),
+                        P("capacity_mult", "int", False,
+                          "override the capacity-floor multiple (default 4)")),
+            returns=R("dict",
+                      "on recovery: the fractal_spectrum dict PLUS {'verdict': "
+                      "'recovered', 'op_provenance': 'EQUAL', 'similarity': Q, "
+                      "'confidence': Q, 'fold_consistency': Q (==1), 'per_slot': "
+                      "{slot: {value, similarity, margin}}}; on failure: "
+                      "{'verdict': 'unrecovered', 'op_provenance': 'UNKNOWN', "
+                      "'similarity', 'confidence', 'fold_consistency', 'per_slot', "
+                      "'reason', 'spectrum_open'} with NO decimation Poly"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The §76 "telescope" Σ-row closed-form prover (F929) — Gosper's
         # indefinite hypergeometric summation, the FIRST public op of the row.
         # Class-N rational arithmetic over the Class-J prime-field on the
