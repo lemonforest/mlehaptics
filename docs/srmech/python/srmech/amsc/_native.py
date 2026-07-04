@@ -7361,7 +7361,9 @@ def thetasum_is_zero_ws_estimate_bytes(
 # BYTE-FOR-BYTE the sequential interpolation verdict; Python stays the sequential
 # oracle (GIL — no Python parallel peer). Same wire form + sizing derivation as
 # thetasum_is_zero_interpolation_c; the per-worker arena slices are sized by the
-# SAME ws_bound2 shape args (rolled up by the parallel ws sizer).
+# SAME ws_bound2 shape args (rolled up by the parallel ws sizer — rc123 #706: each
+# slice is EXACTLY ws_bound2, the +50% replay margin removed; a worker's peak arena
+# is the same full-path high-water the serial DFS reaches, provably <= ws_bound2).
 # ----------------------------------------------------------------------
 
 
@@ -7398,8 +7400,11 @@ def thetasum_is_zero_interpolation_parallel_c(
     n_workers = max(1, min(int(n_workers), 32))
     max_thetas = max(term_nthetas) if term_nthetas else 0
     # sizing — IDENTICAL derivation to thetasum_is_zero_interpolation_c (each worker
-    # slice is the same ws_bound2 shape; the parallel sizer rolls up nw slices + the
-    # fixed control band).
+    # slice is the same ws_bound2 shape; the parallel sizer rolls up nw slices + a
+    # parse-only shared-root region + the fixed control band. rc123 #706: the sizer
+    # returns control + root_parse + nw*ws_bound2 — the pre-rc123 (nw+1)*1.5*ws_bound2
+    # over-provisioned the slices with a +50% replay margin AND gave the shared root a
+    # full worker slice).
     cl = 1
     max_abs_exp = 1
     for num, den, exps in monomials:
@@ -7428,7 +7433,8 @@ def thetasum_is_zero_interpolation_parallel_c(
     out_cap = cl
 
     # Edge-device MEMORY budget (PRODUCTION default; _iszero_ws_budget_bytes): the
-    # parallel arena grows like (nw+1)·1.5·ws_bound2, so clamp n_workers down until the
+    # parallel arena grows like control + root_parse + nw·ws_bound2 (rc123 #706; was
+    # (nw+1)·1.5·ws_bound2), so clamp n_workers down until the
     # buffer fits the budget (never below 2 — it must stay a genuine fan-out), and
     # DECLINE (→ None → the caller falls to the UNTOUCHED sequential peer, byte-identical
     # verdict, a 1× arena) if even a 2-worker arena is over budget. Deterministic in
