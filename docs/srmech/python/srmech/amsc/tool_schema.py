@@ -3598,21 +3598,29 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.carrier_ladder.carrier_ladder_descriptor",
             owner="srmech", category="carrier_ladder",
             summary="The declarative CARRIER-LADDER coherency map (#1248 / "
-                    "F1038) — a small static descriptor a driver (siona's "
-                    "result register, F1024) reads to auto-route a lower-rung "
-                    "carrier UP to any consumer accepting a higher rung. "
-                    "Returns {'carriers': {<carrier>: {'ladder', 'rung'}}, "
-                    "'ladders': {<ladder>: {'rungs', 'adds_variable', "
-                    "'promote', 'project'}}}. Three ladders: 'variable' "
-                    "(Poly/BiPoly/TriPoly), 'variable_q' (QPoly/QBiPoly), and "
-                    "'cayley_dickson' (ℝ/ℂ/ℍ/𝕆/𝕊, keyed by dimension — the "
-                    "dim cd_promote takes). No compute (a fixed table) → "
-                    "non_compute. numpy-free; no float.",
+                    "F1038; rc120 #1254 / F1041 adds the per-op contract) — a "
+                    "small static descriptor a driver (siona's result register, "
+                    "F1024) reads to auto-route a lower-rung carrier UP to any "
+                    "consumer accepting a higher rung, AND to read the exact "
+                    "rung each op consumes/produces. Returns {'carriers': "
+                    "{<carrier>: {'ladder', 'rung'}}, 'ladders': {<ladder>: "
+                    "{'rungs', 'adds_variable', 'promote', 'project'}}, 'ops': "
+                    "{<op-leaf>: {'tool', 'consumes', 'produces'}}}. Three "
+                    "ladders: 'variable' (Poly/BiPoly/TriPoly), 'variable_q' "
+                    "(QPoly/QBiPoly), and 'cayley_dickson' (ℝ/ℂ/ℍ/𝕆/𝕊, keyed by "
+                    "dimension — the dim cd_promote takes). The 'ops' map makes "
+                    "the per-op carrier RUNG machine-readable so a driver routes "
+                    "WITHOUT a name-map: ops['octonion_conjugate'] consumes "
+                    "cayley_dickson rung 8; ops['cd_promote'] consumes 'any' "
+                    "(variadic) and produces 'arg:dim' (rung-from-argument). Each "
+                    "int rung agrees with the ladders rungs table. No compute (a "
+                    "fixed table) → non_compute. numpy-free; no float.",
             parameters=(),
             returns=R("dict",
                       "{'carriers': {name: {'ladder', 'rung'}}, 'ladders': "
                       "{name: {'rungs', 'adds_variable', 'promote', "
-                      "'project'}}}"),
+                      "'project'}}, 'ops': {op-leaf: {'tool', 'consumes', "
+                      "'produces'}}}"),
         ),
         # ────────────────────────────────────────────────────────────
         # rc117 (dives #718/#719): OPERATORS⊗OPERANDS as ONE addressable

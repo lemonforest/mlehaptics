@@ -45,6 +45,21 @@ The **Hurwitz (Cayley–Dickson) ladder** ℝ↪ℂ↪ℍ↪𝕆↪𝕊 has the 
 level of algebra up; its promote / project ship next to the ``cd_*`` family as
 :func:`srmech.amsc.cascade.cd_promote` / :func:`srmech.amsc.cascade.cd_project`.
 :func:`carrier_ladder_descriptor` maps ALL THREE ladders.
+
+**The per-op CARRIER CONTRACT** (rc120; issue #1254 / F1041): the descriptor's
+``"ops"`` view makes the per-op carrier RUNG machine-readable — which rung each
+op CONSUMES and PRODUCES — so a driver (siona's result register, F1024) routes a
+carrier to a consumer WITHOUT a hardcoded op→rung name-map or a register-length
+heuristic. Before rc120 the operand dimension lived only in a param SUMMARY
+(``octonion_conjugate``'s "8" was PROSE), and ``qm.*`` / ``cd`` ops carried no
+DSL descriptor at all, so a driver had to INFER the rung from the op NAME. The
+``ops`` map closes that last hardcode: ``ops["octonion_conjugate"]["consumes"]``
+reads ``{"ladder": "cayley_dickson", "rung": 8}`` directly; ``ops["cd_promote"]``
+reads a ``"any"`` (variadic) consume and an ``"arg:dim"`` (rung-from-argument)
+produce. This makes the DSL/schema the SSoT for carrier ROUTING (the third leg
+alongside chaining ``dsl.Chain`` and composition ``dsl.make_class``). It is pure
+metadata — no op behaviour changes, no ABI impact, no new public callable
+(``carrier_ladder_descriptor`` gains a key; tools.total is unchanged).
 """
 
 from __future__ import annotations
@@ -240,6 +255,178 @@ def qpoly_project(p: Any) -> Any:
         f"{type(p).__name__}")
 
 
+# ── the per-op CARRIER CONTRACT map (rc120; #1254 / F1041) ────────────────────
+#
+# Machine-readable per-op carrier RUNG: which rung each op CONSUMES / PRODUCES,
+# so a driver routes a carrier to a consumer WITHOUT a hardcoded op→rung
+# name-map or a register-length heuristic. Extends the ladder descriptor from
+# "which ladders exist + their promote/project paths" to "which rung each op
+# sits at" — the per-op leg of the F1041 declarative-routing ask.
+#
+# Each entry is keyed by the op's BARE LEAF name and maps to
+#   {"tool": <full ToolEntry name>, "consumes": <slot>, "produces": <slot>}.
+# A SLOT is one of:
+#   * a LADDER slot     {"ladder": <ladder name>, "rung": <rung-value>}
+#   * a non-ladder slot {"ladder": None, "type": <typename>}  — a carrier OUTSIDE
+#                       the promote/project ladders (Mat / float / bool / list /
+#                       dict / scalars), routing-irrelevant but declared honestly.
+#
+# A rung-value is one of:
+#   * an int          a FIXED rung — a power-of-two dim {1,2,4,8,16} on
+#                     cayley_dickson; {1,2,3} on variable; {1,2} on variable_q.
+#   * "any"           VARIADIC — the op works at ANY rung of its ladder (the
+#                     consume side of promote / project / mult + the cd predicates).
+#   * "same"          (produce) the SAME rung it consumed — a ladder endomorphism
+#                     (cd_mult / cd_conjugate).
+#   * "arg:<param>"   (produce) the rung equals the int value of the call argument
+#                     <param> (cd_promote → "arg:dim"; {poly,qpoly}_promote →
+#                     "arg:n_vars").
+#   * "step_down"     (produce) one rung DOWN the ladder from the consumed rung,
+#                     per the ladder's sorted `rungs` values (cd_project halves
+#                     the dim; {poly,qpoly}_project drop one variable).
+#
+# SELF-CONSISTENCY: every INT rung an op references MUST appear in
+# carrier_ladder_descriptor()'s `ladders[<ladder>].rungs` values — a
+# cayley_dickson rung-8 op references the SAME 8 the octonion 'O' rung declares.
+# The rc120 test enforces this so the two surfaces cannot drift.
+
+# reusable non-ladder slots (produce/consume carriers off the ladders)
+_MAT = {"ladder": None, "type": "Mat"}
+_FLOAT = {"ladder": None, "type": "float"}
+_SCALARS = {"ladder": None, "type": "scalars"}
+
+
+def _cd(rung: Any) -> Dict[str, Any]:
+    """A Cayley–Dickson ladder slot at ``rung``."""
+    return {"ladder": "cayley_dickson", "rung": rung}
+
+
+def _var(rung: Any) -> Dict[str, Any]:
+    """An ordinary variable-ladder slot at ``rung``."""
+    return {"ladder": "variable", "rung": rung}
+
+
+def _varq(rung: Any) -> Dict[str, Any]:
+    """A q variable-ladder slot at ``rung``."""
+    return {"ladder": "variable_q", "rung": rung}
+
+
+_OP_CONTRACTS: Dict[str, Dict[str, Any]] = {
+    # ── Cayley–Dickson: qm.octonion (FIXED rung 8) ────────────────────────────
+    "octonion_conjugate": {
+        "tool": "srmech.qm.octonion.octonion_conjugate",
+        "consumes": _cd(8), "produces": _cd(8)},
+    "octonion_norm": {
+        "tool": "srmech.qm.octonion.octonion_norm",
+        "consumes": _cd(8), "produces": _FLOAT},
+    "octonion_left_mult": {
+        "tool": "srmech.qm.octonion.octonion_left_mult",
+        "consumes": _cd(8), "produces": _MAT},
+    "octonion_right_mult": {
+        "tool": "srmech.qm.octonion.octonion_right_mult",
+        "consumes": _cd(8), "produces": _MAT},
+    "octonion_exp": {
+        "tool": "srmech.qm.octonion.octonion_exp",
+        "consumes": _SCALARS, "produces": _cd(8)},
+    "octonion_exp_series_truncate": {
+        "tool": "srmech.qm.octonion.octonion_exp_series_truncate",
+        "consumes": _SCALARS, "produces": _cd(8)},
+    "octonion_twiddle": {
+        "tool": "srmech.qm.octonion.octonion_twiddle",
+        "consumes": _SCALARS, "produces": _cd(8)},
+    # ── Cayley–Dickson: qm.quaternion (FIXED rung 4) ──────────────────────────
+    "quaternion_conjugate": {
+        "tool": "srmech.qm.quaternion.quaternion_conjugate",
+        "consumes": _cd(4), "produces": _cd(4)},
+    "quaternion_norm": {
+        "tool": "srmech.qm.quaternion.quaternion_norm",
+        "consumes": _cd(4), "produces": _FLOAT},
+    "quaternion_left_mult": {
+        "tool": "srmech.qm.quaternion.quaternion_left_mult",
+        "consumes": _cd(4), "produces": _MAT},
+    "quaternion_right_mult": {
+        "tool": "srmech.qm.quaternion.quaternion_right_mult",
+        "consumes": _cd(4), "produces": _MAT},
+    "quaternion_exp": {
+        "tool": "srmech.qm.quaternion.quaternion_exp",
+        "consumes": _SCALARS, "produces": _cd(4)},
+    "quaternion_exp_series_truncate": {
+        "tool": "srmech.qm.quaternion.quaternion_exp_series_truncate",
+        "consumes": _SCALARS, "produces": _cd(4)},
+    "quaternion_twiddle": {
+        "tool": "srmech.qm.quaternion.quaternion_twiddle",
+        "consumes": _SCALARS, "produces": _cd(4)},
+    # ── Cayley–Dickson: generic cascade.cd_* (VARIADIC "any" rung) ────────────
+    "cd_mult": {
+        "tool": "srmech.amsc.cascade.cd_mult",
+        "consumes": _cd("any"), "produces": _cd("same")},
+    "cd_conjugate": {
+        "tool": "srmech.amsc.cascade.cd_conjugate",
+        "consumes": _cd("any"), "produces": _cd("same")},
+    "cd_norm_sq": {
+        "tool": "srmech.amsc.cascade.cd_norm_sq",
+        "consumes": _cd("any"), "produces": {"ladder": None, "type": "Fraction"}},
+    "left_mult_kernel": {
+        "tool": "srmech.amsc.cascade.left_mult_kernel",
+        "consumes": _cd("any"), "produces": {"ladder": None, "type": "list"}},
+    "left_mult_is_invertible": {
+        "tool": "srmech.amsc.cascade.left_mult_is_invertible",
+        "consumes": _cd("any"), "produces": {"ladder": None, "type": "bool"}},
+    # ── the Cayley–Dickson PROMOTE / PROJECT (variadic + rung-from-arg) ───────
+    "cd_promote": {
+        "tool": "srmech.amsc.cascade.cd_promote",
+        "consumes": _cd("any"), "produces": _cd("arg:dim")},
+    "cd_project": {
+        "tool": "srmech.amsc.cascade.cd_project",
+        "consumes": _cd("any"), "produces": _cd("step_down")},
+    # ── the ordinary variable ladder PROMOTE / PROJECT ────────────────────────
+    "poly_promote": {
+        "tool": "srmech.amsc.carrier_ladder.poly_promote",
+        "consumes": _var("any"), "produces": _var("arg:n_vars")},
+    "poly_project": {
+        "tool": "srmech.amsc.carrier_ladder.poly_project",
+        "consumes": _var("any"), "produces": _var("step_down")},
+    # ── the q variable ladder PROMOTE / PROJECT ───────────────────────────────
+    "qpoly_promote": {
+        "tool": "srmech.amsc.carrier_ladder.qpoly_promote",
+        "consumes": _varq("any"), "produces": _varq("arg:n_vars")},
+    "qpoly_project": {
+        "tool": "srmech.amsc.carrier_ladder.qpoly_project",
+        "consumes": _varq("any"), "produces": _varq("step_down")},
+    # ── the PROSE-SIDE constructors (produce a FIXED rung from raw ints) ──────
+    "bipoly_from_coeffs": {
+        "tool": "srmech.amsc.zeilberger.bipoly_from_coeffs",
+        "consumes": {"ladder": None, "type": "list[list[int]]"},
+        "produces": _var(2)},
+    "tripoly_from_coeffs": {
+        "tool": "srmech.amsc.tripoly.tripoly_from_coeffs",
+        "consumes": {"ladder": None, "type": "list[list[list[int]]]"},
+        "produces": _var(3)},
+    "qpoly_from_coeffs": {
+        "tool": "srmech.amsc.qpoly.qpoly_from_coeffs",
+        "consumes": {"ladder": None, "type": "list"},
+        "produces": _varq(1)},
+    "qbipoly_from_coeffs": {
+        "tool": "srmech.amsc.qbipoly.qbipoly_from_coeffs",
+        "consumes": {"ladder": None, "type": "list"},
+        "produces": _varq(2)},
+}
+
+
+def _op_contracts() -> Dict[str, Dict[str, Any]]:
+    """Fresh (mutation-safe) copies of :data:`_OP_CONTRACTS` for the descriptor's
+    ``"ops"`` view — the same rebuild-fresh-each-call discipline the rest of
+    :func:`carrier_ladder_descriptor` follows."""
+    return {
+        leaf: {
+            "tool": spec["tool"],
+            "consumes": dict(spec["consumes"]),
+            "produces": dict(spec["produces"]),
+        }
+        for leaf, spec in _OP_CONTRACTS.items()
+    }
+
+
 # ── the declarative coherency map (the driver's routing table) ────────────────
 
 def carrier_ladder_descriptor() -> Dict[str, Any]:
@@ -248,7 +435,7 @@ def carrier_ladder_descriptor() -> Dict[str, Any]:
     reads to auto-route a lower-rung carrier UP to any consumer that accepts a
     higher rung.
 
-    Returns a plain ``dict`` with two views:
+    Returns a plain ``dict`` with THREE views:
 
     - ``"carriers"``: for each carrier type name, ``{"ladder": <name>, "rung":
       <int>}`` — the required per-carrier shape (``Poly`` → ``{"ladder":
@@ -260,6 +447,16 @@ def carrier_ladder_descriptor() -> Dict[str, Any]:
       names to call. The three ladders are ``"variable"`` (Poly/BiPoly/TriPoly),
       ``"variable_q"`` (QPoly/QBiPoly), and ``"cayley_dickson"`` (ℝ/ℂ/ℍ/𝕆/𝕊,
       keyed by algebra dimension — the ``dim`` arg :func:`cd_promote` takes).
+    - ``"ops"`` (rc120; #1254 / F1041): the per-op CARRIER CONTRACT — for each
+      op leaf name, ``{"tool": <full ToolEntry name>, "consumes": <slot>,
+      "produces": <slot>}``. A slot is a LADDER slot ``{"ladder", "rung"}`` or a
+      non-ladder slot ``{"ladder": None, "type"}``. The rung is a fixed int, or
+      ``"any"`` (variadic), ``"same"`` (endomorphism), ``"arg:<param>"`` (from a
+      call argument), or ``"step_down"`` (one rung down). This lets a driver read
+      ``ops["octonion_conjugate"]["consumes"]["rung"] == 8`` and
+      ``ops["cd_promote"]["produces"]["rung"] == "arg:dim"`` DIRECTLY — no
+      op→rung name-map, no register-length heuristic. Every int rung agrees with
+      the ``ladders`` rungs table (a rung-8 op references the octonion ``'O'``).
 
     Pure data (a fixed table); ships **non_compute**. No float, no numpy /
     ``math``."""
@@ -296,4 +493,5 @@ def carrier_ladder_descriptor() -> Dict[str, Any]:
                 "project": "srmech.amsc.cascade.cd_project",
             },
         },
+        "ops": _op_contracts(),
     }
