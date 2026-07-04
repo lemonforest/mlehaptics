@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc129"
-#define SRMECH_VERSION       "0.9.0rc129"
+#define SRMECH_VERSION_PRE   "rc130"
+#define SRMECH_VERSION       "0.9.0rc130"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2645,9 +2645,12 @@ size_t srmech_op_provenance_hash_arena_bytes(size_t record_len);
  * the 8 bytes after the label NUL), so v2..v7 bodies read UNCHANGED (dual-read): back-compat
  * is STRUCTURAL, never a converter. A plain-gene (no 0x67) genome saved by the v8 writer is
  * byte-identical to v7 EXCEPT the format_version field, and every plain gene ALWAYS EXPRESSES
- * (an unregulated gene == a regulatory gene with mask 0). Mirrors GENOME_FORMAT_VERSION in
- * srmech.amsc.genome. */
-#define SRMECH_GENOME_FORMAT_VERSION 8
+ * (an unregulated gene == a regulatory gene with mask 0). §130/v9 (#730): the BOOLEAN GENE
+ * (marker 0x62) carrying arbitrary boolean logic (a DNF) is a NEW block KIND, so it bumps v8 ->
+ * v9 (the walker gains ONE branch; v2..v8 bodies read UNCHANGED; a plain/klein4-mask genome
+ * saved by the v9 writer is byte-identical to v8 EXCEPT the format_version field). Mirrors
+ * GENOME_FORMAT_VERSION in srmech.amsc.genome. */
+#define SRMECH_GENOME_FORMAT_VERSION 9
 
 /* §44 inline cap markers — the FIRST byte of a fixed-width cap leaf. Both are
  * > 3 so a cap is told apart from a Klein-4 data turn (bytes 0..3) by its
@@ -2719,6 +2722,40 @@ size_t srmech_op_provenance_hash_arena_bytes(size_t record_len);
  * activator=mask, repressor=0 (the repressor plane occupies what was NUL padding). Mirrors
  * _REGULATORY_GENE_MASK_BYTES in srmech.amsc.genome. */
 #define SRMECH_GENOME_REGULATORY_MASK_BYTES 8u
+
+/* §130/v9 BOOLEAN GENE marker (rc130, #730) — the FIRST byte of a fixed-width leaf_dim-byte cap
+ * leaf that opens an INTRA-chromosome gene (like the plain GENE cap / the §128 regulatory gene)
+ * AND carries ARBITRARY boolean regulatory logic inline as a DNF (disjunctive normal form). The
+ * GENERAL gate-type in the rc129 dispatch family: the §128/§129 klein4-mask gene (0x67) stays
+ * the fast common case; this 0x62 gene is the general escape hatch (E1 subset E2 — the
+ * klein4-mask (activator, repressor) two-mask IS a 1-term DNF). Layout: [0x62] + utf-8 label +
+ * NUL + gate_type(uint8) + n_terms(uint16 big-endian) + n_terms x (activator(uint64 BE) +
+ * repressor(uint64 BE)) + NUL-pad to leaf_dim. The label decode is UNIFORM (bytes [1:] up to the
+ * first NUL — the same as every cap); the gate_type + DNF are read at the bytes RIGHT AFTER that
+ * NUL. > 3 and distinct from every other marker (CHROM 0x43 / GENE 0x47 / v5 KERNEL 0x4B /
+ * PACKED 0x51 / KERNEL-telomere 0x6B / ACTIVE-telomere 0x74 / REGULATORY-gene 0x67), so v2..v8
+ * bodies read UNCHANGED — the walker gains ONE branch. A NEW marker byte = a new block KIND, so
+ * it bumps the genome format v8 -> v9 (like the 0x74 v6->v7 and 0x67 v7->v8 bumps; the read path
+ * is version-independent, so every pre-rc130 genome still reads identically).
+ * srmech_genome_gene_express evaluates the DNF (express iff ANY term matches) to gate expression
+ * under a cell_state. Mirrors BOOLEAN_GENE_MARKER in srmech.amsc.genome. */
+#define SRMECH_GENOME_BOOLEAN_GENE_MARKER 0x62u /* 'b' — a §130 boolean gene */
+
+/* §130/v9 REGULATORY GATE-TYPE enum (rc130, #730). A regulatory gene declares a gate_type;
+ * srmech_genome_gene_express dispatches on it. KLEIN4_MASK (0) = the §129 activator/repressor
+ * two-mask (the fast common case, carried by a 0x47/0x67 cap); BOOLEAN_DNF (1) = the §130 DNF
+ * (the general case, carried by a 0x62 cap). The gate_type is IMPLIED by the cap marker AND —
+ * for a 0x62 gene — stored EXPLICITLY as a uint8 in the cap so the bare strand self-describes it
+ * and the family stays extensible. Mirrors GATE_TYPE_* in srmech.amsc.genome. */
+#define SRMECH_GENOME_GATE_TYPE_KLEIN4_MASK 0u
+#define SRMECH_GENOME_GATE_TYPE_BOOLEAN_DNF 1u
+
+/* §130/v9 BOOLEAN GENE DNF wire widths (rc130, #730). The DNF term COUNT is a uint16 big-endian
+ * (2 bytes). Each DNF TERM is TWO consecutive uint64 big-endian masks — the (activator,
+ * repressor) AND-clause (16 bytes), the SAME (require-present, require-absent) pair the §129
+ * klein4-mask carries as its ONE clause. Mirror _BOOLEAN_GENE_* in srmech.amsc.genome. */
+#define SRMECH_GENOME_BOOLEAN_NTERMS_BYTES 2u
+#define SRMECH_GENOME_BOOLEAN_TERM_BYTES (2u * SRMECH_GENOME_REGULATORY_MASK_BYTES)
 
 /* Max label byte length (NUL-terminated) for one chromosome. This is a FORMAT
  * width (a label lives inline in a leaf_dim-byte cap block, like PATH_MAX), NOT
@@ -3060,16 +3097,21 @@ srmech_status_t srmech_genome_telomere_tick(
  * NUL terminator (big-endian, always present); the repressor at the NEXT 8 bytes IF the leaf
  * has room, else 0. §129 DUAL-READ: the repressor plane sits in what was NUL padding, so a
  * rc128 single-mask cap / a short leaf carries NO repressor field -> repressor 0 (identical
- * rc128 behaviour). No arena (a per-cap decision); malloc-free; no abs (a mask / a cell_state
- * is never negated). NEVER MUTATES cap (a READ — biology does not rewrite DNA to regulate it).
- *   cap / leaf_dim : the gene cap leaf (leaf_dim bytes; cap[0] == 0x47 or 0x67).
+ * rc128 behaviour). §130/v9 (#730): a BOOLEAN GENE cap (cap[0] == 0x62) carries the GENERAL
+ * gate-type — an arbitrary boolean function over the conditions in DNF (an OR of (activator,
+ * repressor) AND-clauses); *expressed = 1 iff ANY clause matches (E1 subset E2 — the klein4-mask
+ * two-mask is a 1-clause DNF; the empty DNF is FALSE = never). mask_out is 0 for a boolean gene
+ * (no single activator plane). No arena (a per-cap decision); malloc-free; no abs (a mask / a
+ * cell_state is never negated). NEVER MUTATES cap (a READ — biology does not rewrite DNA).
+ *   cap / leaf_dim : the gene cap leaf (leaf_dim bytes; cap[0] == 0x47, 0x67 or 0x62).
  *   cell_state     : the exact non-negative cell-state bitmask (each set bit a condition).
  *   expressed      : out — 1 iff the gene expresses under cell_state, else 0.
- *   mask_out       : out — the gene's ACTIVATOR mask (0 for a plain gene); may be NULL.
+ *   mask_out       : out — the gene's ACTIVATOR mask (0 for a plain / boolean gene); may be NULL.
  * Error returns:
  *   SRMECH_ERR_NULL_ARG  — cap / expressed is NULL.
- *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0, cap[0] is neither 0x47 nor 0x67, no label NUL, or a
- *                          truncated activator field (regulatory gene). */
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0, cap[0] is not 0x47 / 0x67 / 0x62, no label NUL, a
+ *                          truncated activator field (regulatory gene), or a truncated /
+ *                          unsupported-gate_type DNF header / term list (boolean gene). */
 srmech_status_t srmech_genome_gene_express(
     const unsigned char *cap, size_t leaf_dim, uint64_t cell_state,
     int *expressed, uint64_t *mask_out);

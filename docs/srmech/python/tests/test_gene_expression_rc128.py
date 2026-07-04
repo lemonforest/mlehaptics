@@ -171,7 +171,7 @@ def test_regulatory_genome_saves_pages_v8(tmp_path):
     strand = _cell_chromosome(one)
     p = tmp_path / "g"
     man = G.genome_save(strand, p, one)
-    assert man["format_version"] == 8
+    assert man["format_version"] == 9
     # genome_genes pages the region + recovers ALL genes (labels + leaves), mask-agnostic
     paged = G.genome_genes(p, "cell", the_one=one)
     assert [l for l, _ in paged] == ["housekeeping", "stress", "mitosis"]

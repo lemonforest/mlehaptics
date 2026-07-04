@@ -214,7 +214,7 @@ def test_active_telomere_genome_saves_partitions_v7(tmp_path):
     strand = plain + active
     p = tmp_path / "g"
     man = G.genome_save(strand, p, one)
-    assert man["format_version"] == 8                          # the v8 writer stamps 8 (rc128 §128)
+    assert man["format_version"] == 9                          # the v9 writer stamps 9 (rc130 §130)
     assert [c["label"] for c in man["chromosomes"]] == ["plainC", "activeC"]
     strand2, one2, _ = G.genome_load(p)
     parts = G.partition(strand2, one2)
@@ -232,7 +232,7 @@ def test_plain_genome_v7_body_has_no_active_marker(tmp_path):
     strand = G.genome({"a": _leaves(2), "b": _leaves(3)}, one)
     p = tmp_path / "g"
     man = G.genome_save(strand, p, one)
-    assert man["format_version"] == 8
+    assert man["format_version"] == 9
     for raw, _decoded in G._walk_region_blocks((p / "turns.bin").read_bytes(), 64,
                                                context="t"):
         assert raw[0] != G.ACTIVE_TELOMERE_MARKER              # no active telomere used

@@ -78,7 +78,8 @@ __all__ = [
     "GenomeBoundingError",
     "LEAF_CAP", "QUAD", "MOBIUS_CAP",
     "CHROM_CAP_MARKER", "GENE_CAP_MARKER", "GENE_FRAME_TAG",
-    "REGULATORY_GENE_MARKER",
+    "REGULATORY_GENE_MARKER", "BOOLEAN_GENE_MARKER",
+    "GATE_TYPE_KLEIN4_MASK", "GATE_TYPE_BOOLEAN_DNF",
     "PACKED_TURN_MARKER", "KERNEL_HEADER_MARKER", "KERNEL_TELOMERE_MARKER",
     "ACTIVE_TELOMERE_MARKER", "ELEMENT_TYPE_KLEIN4",
     "TELOMERE_DIVIDED", "TELOMERE_SENESCENT",
@@ -231,6 +232,52 @@ _ACTIVE_TELOMERE_COUNT_BYTES = 8
 #: equivalently a regulatory gene with mask ``0`` (``(cell_state & 0) == 0`` is always true).
 REGULATORY_GENE_MARKER = 0x67
 
+#: §130/rc130 (format v8 → v9, #730) — the BOOLEAN REGULATORY GENE marker. ``0x62`` = ASCII
+#: ``'b'`` (a lower-case boolean gene, mnemonically paired with the upper-case ``0x47`` ``'G'``
+#: plain gene + the ``0x67`` ``'g'`` Klein-4-mask regulatory gene it GENERALISES — the same
+#: lower-case-carries-state pairing rc126/rc127/rc128 used). A boolean gene is an
+#: intra-chromosome gene boundary cap (a gene-analog, like the plain GENE cap ``0x47`` and the
+#: Klein-4-mask regulatory gene ``0x67``) that carries ARBITRARY boolean regulatory logic over
+#: the condition bits — the GENERAL case biology's combinatorial cis-regulatory logic needs
+#: (multiple TFs integrated by AND/OR/NOT enhancer logic; Alberts et al., *Molecular Biology of
+#: the Cell* 4th ed., "How Genetic Switches Work", NCBI Bookshelf NBK26872). It is the
+#: GENERAL gate-type in the rc129 dispatch FAMILY: rc129's activator/repressor two-mask
+#: (``0x67``) stays the fast common case (``gate_type = klein4_mask``), and this ``0x62`` gene
+#: is the escape hatch (``gate_type = boolean``). E1 ⊂ E2: the ``0x67`` activator/repressor
+#: two-mask IS a 1-TERM DNF ``[(activator, repressor)]``, and this cap stores an OR of SEVERAL
+#: such terms (disjunctive normal form) — so E1 is the compact special case of E2's general
+#: disjunction.
+#:
+#: ENCODING = DNF (sum-of-products), exact Class-I bitwise (NO float, NEVER ``abs()``): a list
+#: of ``(require_present_mask, require_absent_mask)`` terms; the gene EXPRESSES iff ANY term
+#: matches — ``(cell_state & term.act) == term.act`` (all its present-conditions present) AND
+#: ``(cell_state & term.rep) == 0`` (none of its absent-conditions present). Each term IS an
+#: E1-style activator/repressor AND-clause, so E1 = a 1-term DNF; the empty DNF (0 terms) is the
+#: OR-identity FALSE = never expresses. DNF is functionally complete, so an arbitrary boolean
+#: function over the condition bits (AND / OR / NOT / XOR / any) is representable.
+#:
+#: Layout (a fixed-width ``leaf_dim``-byte ``sectors=256`` cap leaf; §44 inline; the gate_type
+#: + DNF term-list carried after the label NUL — the SAME uniform label decode as every cap):
+#:   byte ``[0]``           marker ``0x62``
+#:   bytes ``[1:1+L]``      utf-8 gene label ``L`` bytes
+#:   byte ``[1+L]``         the label terminator ``0x00``
+#:   byte ``[2+L]``         gate_type — uint8 (:data:`GATE_TYPE_BOOLEAN_DNF` = 1; the gene
+#:                          SELF-DESCRIBES its gate_type, keeping the family extensible)
+#:   bytes ``[3+L:5+L]``    n_terms — uint16 BIG-ENDIAN (the DNF term count)
+#:   then n_terms terms, each ``_BOOLEAN_GENE_TERM_BYTES`` (16) bytes:
+#:     activator (uint64 BE, 8 bytes) then repressor (uint64 BE, 8 bytes)
+#:   bytes ``[…]``          NUL padding to ``leaf_dim``
+#: ``> 3`` and distinct from every other marker (CHROM ``0x43`` / GENE ``0x47`` / v5 KERNEL
+#: ``0x4B`` / PACKED ``0x51`` / KERNEL-telomere ``0x6B`` / ACTIVE-telomere ``0x74`` /
+#: REGULATORY-gene ``0x67``), so the strand stays SELF-DESCRIBING (§44): v2..v8 bodies read
+#: UNCHANGED (dual-read — the walker gains ONE branch), and a chromosome self-describes its
+#: gate_type + DNF by bare-strand scan (no manifest). Unlike the rc129 ``0x67`` extension (which
+#: reused an existing marker, no format bump), this is a NEW block KIND (a new marker byte), so
+#: it bumps the genome format v8 → v9 — the same version-stamp discipline every prior new-marker
+#: bump used (rc127 ``0x74`` v6→v7, rc128 ``0x67`` v7→v8); the strand-walk read path is
+#: version-INDEPENDENT, so every pre-rc130 genome still reads identically.
+BOOLEAN_GENE_MARKER = 0x62
+
 #: The regulatory-gene MASK field width — a uint64 (8 bytes, big-endian), read at the byte
 #: right after the inline label's NUL terminator (the SAME field shape as the §127 active
 #: telomere's count). 64 exact bitwise cell-state conditions; Class-I integer, no float.
@@ -273,6 +320,33 @@ _REGULATORY_GENE_MASK_BYTES = 8
 #: read as ``repressor = 0`` (unregulated by repression). SAME marker ``0x67`` (an ADDITIVE
 #: extension of an existing block kind — NOT a new marker, so no genome-format bump).
 _REGULATORY_GENE_ROLES = ("dont-care", "repressor", "activator", "never")
+
+#: §130/rc130 (#730) — the REGULATORY GATE-TYPE dispatch family. A regulatory gene declares a
+#: ``gate_type``, and :func:`gene_express` dispatches on it. Two gate-types today:
+#:   * :data:`GATE_TYPE_KLEIN4_MASK` (``0``) — the rc129 E1 activator/repressor two-mask (the
+#:     DEFAULT / FAST common case): a gene expresses iff ``(cs & act) == act`` AND
+#:     ``(cs & rep) == 0``. Carried in a plain GENE cap (``0x47``, masks 0 = always) or a
+#:     Klein-4-mask regulatory gene cap (``0x67``). UNCHANGED — stays the compact fast path.
+#:   * :data:`GATE_TYPE_BOOLEAN_DNF` (``1``) — the rc130 E2 arbitrary boolean logic (the GENERAL
+#:     escape hatch): a DNF (OR-of-AND-clauses) over the condition bits, carried in a BOOLEAN
+#:     GENE cap (``0x62``). Each DNF term is an E1-style ``(act, rep)`` clause, so E1's two-mask
+#:     is exactly a 1-TERM DNF (E1 ⊂ E2). Represents any boolean function (AND / OR / NOT / XOR).
+#: The gate_type is IMPLIED by the cap marker (``0x47``/``0x67`` → klein4_mask; ``0x62`` →
+#: boolean_dnf) AND — for a ``0x62`` gene — stored EXPLICITLY as a byte in the cap, so the bare
+#: strand self-describes the gate_type and the family stays extensible (a future truth-table
+#: encoding slots in as ``0x62`` + a new gate_type value, no new marker).
+GATE_TYPE_KLEIN4_MASK = 0
+GATE_TYPE_BOOLEAN_DNF = 1
+_GATE_TYPE_NAMES = {GATE_TYPE_KLEIN4_MASK: "klein4_mask", GATE_TYPE_BOOLEAN_DNF: "boolean_dnf"}
+
+#: §130/rc130 (#730) — the BOOLEAN GENE DNF wire widths. The DNF term COUNT is a uint16
+#: big-endian (2 bytes; up to 65535 terms — a leaf_dim-bounded ceiling, plenty for the
+#: combinatorial cis-regulatory logic this models). Each DNF TERM is TWO consecutive uint64
+#: big-endian masks — the ``(activator, repressor)`` AND-clause (16 bytes), the SAME
+#: ``(require-present, require-absent)`` pair the rc129 klein4_mask carries as its ONE clause.
+#: Class-I exact integers (no float, never ``abs()``).
+_BOOLEAN_GENE_NTERMS_BYTES = 2
+_BOOLEAN_GENE_TERM_BYTES = 2 * _REGULATORY_GENE_MASK_BYTES
 
 #: The two :func:`telomere_tick` verdicts (the honest-decline / inform-don't-crash
 #: pattern — a clean STATUS, never a crash). ``DIVIDED`` = the count was > 0, so the op
@@ -418,6 +492,7 @@ def _cap_kind(hv):
     first = int(hv[0]) if len(hv) else -1
     return first if first in (
         CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
+        BOOLEAN_GENE_MARKER,
         KERNEL_HEADER_MARKER,
         KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER) else None
 
@@ -663,6 +738,125 @@ def _regulatory_gene_mask(hv):
     return _regulatory_gene_masks(hv)[0]
 
 
+def _validate_dnf_terms(dnf):
+    """Validate a DNF term list (§130) → a list of validated ``(activator, repressor)`` int
+    pairs. Each mask is a non-negative exact Class-I integer that fits the uint64 field (NO
+    float; NEVER ``abs()`` — a mask is never negated). An empty list is legal (the OR-identity
+    FALSE = never expresses)."""
+    terms = []
+    for i, term in enumerate(dnf):
+        if len(term) != 2:
+            raise ValueError(
+                f"boolean gene DNF term {i} must be a 2-tuple (activator, repressor); got {term!r}")
+        act, rep = term
+        _validate_regulatory_mask(act, f"DNF term {i} activator")
+        _validate_regulatory_mask(rep, f"DNF term {i} repressor")
+        terms.append((int(act), int(rep)))
+    return terms
+
+
+def _pack_boolean_gene(gene_label, dnf, dim, gate_type=GATE_TYPE_BOOLEAN_DNF):
+    """A fixed-width ``dim``-byte BOOLEAN GENE cap leaf (§130) — the GENERAL gate-type gene.
+
+    ``[BOOLEAN_GENE_MARKER] + utf-8 label + NUL + gate_type(uint8) + n_terms(uint16 BE) +
+    n_terms × (activator(uint64 BE) + repressor(uint64 BE))``, NUL-padded to ``dim``. The **op**
+    (a gene: it opens + delimits a gene, like :func:`_gene_cap`) and the **operand** (arbitrary
+    boolean regulatory logic over the condition bits, in DISJUNCTIVE NORMAL FORM — an OR of
+    ``(require-present, require-absent)`` AND-clauses) are FUSED in the ONE cap. Placing the
+    gate_type + DNF right AFTER the label's NUL keeps the label decode UNIFORM (bytes ``[1:]`` up
+    to the first NUL — :func:`_unpack_cap` reads it with no boolean-gene special-case).
+
+    Each DNF term IS an rc129-style activator/repressor AND-clause, so the rc129 klein4_mask
+    two-mask is exactly a 1-TERM DNF (E1 ⊂ E2). :func:`gene_express` reads the DNF and expresses
+    the gene IFF ANY term matches (``(cs & act) == act`` AND ``(cs & rep) == 0``). DNF is
+    functionally complete, so ANY boolean function over the conditions is representable
+    (AND / OR / NOT / XOR / any). All masks are non-negative exact integers (Class-I bitwise; NO
+    float; NEVER ``abs()``). Same marker ``0x62`` = a NEW block KIND (v8 → v9), distinct from the
+    ``0x67`` klein4_mask gene which stays the fast common case."""
+    if gate_type != GATE_TYPE_BOOLEAN_DNF:
+        raise ValueError(
+            f"boolean gene gate_type {gate_type} is not supported (only "
+            f"GATE_TYPE_BOOLEAN_DNF={GATE_TYPE_BOOLEAN_DNF} today)")
+    terms = _validate_dnf_terms(dnf)
+    if len(terms) >= (1 << (8 * _BOOLEAN_GENE_NTERMS_BYTES)):
+        raise ValueError(
+            f"boolean gene has {len(terms)} DNF terms; max "
+            f"{(1 << (8 * _BOOLEAN_GENE_NTERMS_BYTES)) - 1} (the uint16 term count)")
+    raw_label = gene_label.encode("utf-8") if isinstance(gene_label, str) else bytes(gene_label)
+    if b"\x00" in raw_label:
+        raise ValueError("boolean gene label must not contain a NUL byte")
+    payload = bytearray(bytes([BOOLEAN_GENE_MARKER]) + raw_label + b"\x00")
+    payload.append(gate_type & 0xFF)                                   # gate_type — uint8
+    payload += len(terms).to_bytes(_BOOLEAN_GENE_NTERMS_BYTES, "big")  # n_terms — uint16 BE
+    for act, rep in terms:
+        payload += int(act).to_bytes(_REGULATORY_GENE_MASK_BYTES, "big")
+        payload += int(rep).to_bytes(_REGULATORY_GENE_MASK_BYTES, "big")
+    if len(payload) > dim:
+        raise ValueError(
+            f"boolean gene label {gene_label!r} + {len(terms)}-term DNF is {len(payload)} "
+            f"bytes; max {dim} at leaf_dim={dim} (widen leaf_dim or reduce the DNF terms)")
+    block = bytes(payload) + b"\x00" * (dim - len(payload))
+    return _HV.from_sequence(block, sectors=256)
+
+
+def _boolean_gene_dnf(hv):
+    """``(gate_type, [(activator, repressor), …])`` carried inline in a BOOLEAN GENE cap (§130) —
+    the DNF operand of the op⊗operand gene. Reads the gate_type byte + the uint16 term count
+    right AFTER the label's NUL, then the ``n_terms`` ``(activator, repressor)`` uint64-BE pairs.
+    The chromosome SELF-DESCRIBES its gate_type + DNF by this bare-strand read (no manifest).
+    Class-I exact integers (never a float). Raises ``ValueError`` on a malformed / truncated
+    cap."""
+    raw = hv.tobytes()
+    if raw[:1] != bytes([BOOLEAN_GENE_MARKER]):
+        raise ValueError("not a boolean gene cap (first byte != BOOLEAN_GENE_MARKER)")
+    nul = raw.find(b"\x00", 1)                          # end of the inline label
+    if nul < 0 or nul + 1 + 1 + _BOOLEAN_GENE_NTERMS_BYTES > len(raw):
+        raise ValueError(
+            "boolean gene cap is malformed: no label NUL / gate_type+n_terms header truncated")
+    gate_type = raw[nul + 1]
+    if gate_type != GATE_TYPE_BOOLEAN_DNF:
+        raise ValueError(
+            f"boolean gene cap has unsupported gate_type {gate_type} "
+            f"(only GATE_TYPE_BOOLEAN_DNF={GATE_TYPE_BOOLEAN_DNF} today)")
+    nt_base = nul + 2
+    n_terms = int.from_bytes(raw[nt_base:nt_base + _BOOLEAN_GENE_NTERMS_BYTES], "big")
+    base = nt_base + _BOOLEAN_GENE_NTERMS_BYTES
+    if base + n_terms * _BOOLEAN_GENE_TERM_BYTES > len(raw):
+        raise ValueError("boolean gene cap is malformed: DNF term list truncated")
+    terms = []
+    for t in range(n_terms):
+        o = base + t * _BOOLEAN_GENE_TERM_BYTES
+        act = int.from_bytes(raw[o:o + _REGULATORY_GENE_MASK_BYTES], "big")
+        rep = int.from_bytes(
+            raw[o + _REGULATORY_GENE_MASK_BYTES:o + _BOOLEAN_GENE_TERM_BYTES], "big")
+        terms.append((act, rep))
+    return gate_type, terms
+
+
+def _dnf_expresses(dnf_terms, cell_state):
+    """Evaluate a DNF term list under ``cell_state`` (§130) — express iff ANY term matches:
+    ``(cell_state & act) == act`` (all present-conditions present) AND ``(cell_state & rep) == 0``
+    (no absent-condition present). The empty DNF (0 terms) is the OR-identity FALSE = never
+    expresses. Exact Class-I bitwise (no float, never ``abs()``)."""
+    for act, rep in dnf_terms:
+        if (cell_state & act) == act and (cell_state & rep) == 0:
+            return True
+    return False
+
+
+def _gene_gate_type(hv):
+    """The declared ``gate_type`` of a gene cap (§130 dispatch family): a plain GENE (``0x47``)
+    or a Klein-4-mask regulatory gene (``0x67``) is :data:`GATE_TYPE_KLEIN4_MASK` (the rc129 fast
+    path); a boolean gene (``0x62``) reads its :data:`GATE_TYPE_BOOLEAN_DNF` from the cap. Any
+    other block is not a gene → ``None``."""
+    kind = _cap_kind(hv)
+    if kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER):
+        return GATE_TYPE_KLEIN4_MASK
+    if kind == BOOLEAN_GENE_MARKER:
+        return _boolean_gene_dnf(hv)[0]
+    return None
+
+
 def _pack_active_telomere(label, count, dim):
     """A fixed-width ``dim``-byte ACTIVE TELOMERE cap leaf (§127) — the op⊗operand cap.
 
@@ -792,11 +986,20 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
     * **2-tuple** ``(gene_label, gene_leaves)`` — UNREGULATED = ALWAYS EXPRESSED
       (``activator = repressor = 0``).
 
-    :func:`gene_express` reads the mask(s) and includes the gene IFF an applied
-    ``cell_state`` satisfies BOTH ``(cell_state & activator) == activator`` AND
-    ``(cell_state & repressor) == 0`` — same DNA, different cell_state → different expressed
-    subset (the op⊗operand theorem one scale up from the rc127 active telomere). Mixing 2-,
-    3-, and 4-tuple genes is additive + back-compatible.
+    **Boolean genes (§130 / #730 — the GENERAL gate-type).** For ARBITRARY boolean logic over
+    the condition bits (AND / OR / NOT / XOR / any), pass a **3-tuple with a DICT spec**
+    ``(gene_label, gene_leaves, {"gate": "boolean", "dnf": [(act, rep), …]})``; it is opened by
+    a :func:`_pack_boolean_gene` cap (marker ``0x62``) carrying the gate_type + DNF INLINE. The
+    ``"dnf"`` is a disjunctive normal form — an OR of ``(require-present, require-absent)``
+    AND-clauses; the gene expresses iff ANY clause matches. Each clause IS an rc129
+    activator/repressor pair, so the klein4_mask 4-tuple above is exactly a 1-CLAUSE boolean
+    gene (**E1 ⊂ E2**); the ``0x67`` klein4_mask genes stay the compact FAST path, the ``0x62``
+    boolean gene is the general escape hatch.
+
+    :func:`gene_express` reads each gene's gate_type and includes the gene IFF the applied
+    ``cell_state`` satisfies it — same DNA, different cell_state → different expressed subset
+    (the op⊗operand theorem one scale up from the rc127 active telomere). Mixing 2-tuple,
+    3-tuple (int mask OR dict boolean spec), and 4-tuple genes is additive + back-compatible.
 
     **Active telomere (§127 / #726).** Pass ``active_count=N`` (a non-negative int) to
     lead the (single-kernel) chromosome with an :func:`active_telomere` cap carrying an
@@ -843,13 +1046,37 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
             gene_label, gene_leaves, act_mask, rep_mask = gene
             strand.append(_pack_regulatory_gene(gene_label, act_mask, dim, repressor=rep_mask))
         elif len(gene) == 3:
-            gene_label, gene_leaves, act_mask = gene
-            strand.append(_pack_regulatory_gene(gene_label, act_mask, dim))   # repressor 0
+            gene_label, gene_leaves, spec = gene
+            if isinstance(spec, dict):
+                # §130 the GENERAL gate-type: a dict spec {"gate": "boolean", "dnf": [...]}
+                # opens a BOOLEAN GENE cap (0x62) carrying arbitrary boolean logic (a DNF).
+                strand.append(_boolean_gene_cap_from_spec(gene_label, spec, dim))
+            else:
+                # §128 the FAST klein4_mask path: an int activator-only mask (repressor 0),
+                # BYTE-IDENTICAL to rc128 (the 0x67 gene stays the compact common case).
+                strand.append(_pack_regulatory_gene(gene_label, spec, dim))
         else:
             gene_label, gene_leaves = gene
             strand.append(_gene_cap(gene_label, dim))
         strand.extend(quad_turn(leaf, the_one) for leaf in gene_leaves)
     return strand
+
+
+def _boolean_gene_cap_from_spec(gene_label, spec, dim):
+    """Build a §130 BOOLEAN GENE cap from a dict gene-spec — the chromosome-builder adapter for
+    the GENERAL gate-type. ``spec`` is ``{"gate": "boolean", "dnf": [(act, rep), …]}`` (the
+    ``"gate"`` key declares the gate_type; ``"dnf"`` is the disjunctive-normal-form term list, an
+    OR of ``(require-present, require-absent)`` AND-clauses). Composes :func:`_pack_boolean_gene`."""
+    gate = spec.get("gate", "boolean")
+    if gate not in ("boolean", "boolean_dnf"):
+        raise ValueError(
+            f"boolean gene spec gate {gate!r} is not supported (only 'boolean' / 'boolean_dnf' "
+            f"today — the §130 GENERAL gate-type); the fast klein4_mask path uses an int mask")
+    if "dnf" not in spec:
+        raise ValueError(
+            "boolean gene spec must carry a 'dnf' term list [(activator, repressor), …] "
+            "(disjunctive normal form: an OR of require-present/require-absent AND-clauses)")
+    return _pack_boolean_gene(gene_label, spec["dnf"], dim)
 
 
 def recall(strand, the_one, telomere=None):
@@ -897,11 +1124,11 @@ def genes(strand, the_one):
     started = False
     for hv in strand:
         kind = _cap_kind(hv)
-        if kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER):
-            # §128: a plain GENE cap (0x47) OR a REGULATORY GENE cap (0x67) opens a gene;
-            # its label reads UNIFORMLY (the regulatory gene's mask sits AFTER the label
-            # NUL, so _unpack_cap reads the label with no special-case). genes() recovers
-            # ALL genes mask-agnostically (gene_express() applies the mask filter).
+        if kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER):
+            # §128/§130: a plain GENE cap (0x47), a REGULATORY GENE cap (0x67) OR a BOOLEAN GENE
+            # cap (0x62) opens a gene; its label reads UNIFORMLY (the mask(s) / gate_type + DNF
+            # sit AFTER the label NUL, so _unpack_cap reads the label with no special-case).
+            # genes() recovers ALL genes gate-agnostically (gene_express() applies the filter).
             if started:
                 out.append((cur_label, cur_leaves))
             _marker, cur_label = _unpack_cap(hv)
@@ -922,12 +1149,15 @@ def genes(strand, the_one):
 
 
 def gene_express(strand, the_one, cell_state):
-    """Cell-state-modulated gene expression — a READ-TIME FILTER (§128 / #728).
+    """Cell-state-modulated gene expression — a READ-TIME FILTER (§128 / #728; §130 / #730).
 
     ``strand`` is a multi-gene chromosome (from ``chromosome(genes=…, the_one)`` /
     :func:`genome` with regulatory genes). This op walks the genes and returns ONLY the
-    genes the applied ``cell_state`` EXPRESSES — the exact expression rule (§129, the two
-    KLEIN-4 bit-planes) is::
+    genes the applied ``cell_state`` EXPRESSES — dispatching on each gene's declared
+    **gate_type** (§130 the dispatch FAMILY):
+
+    * ``gate_type = klein4_mask`` (§129 E1 — the DEFAULT / FAST common case; a plain ``0x47``
+      gene or a Klein-4-mask ``0x67`` regulatory gene) — the exact two-KLEIN-4-bit-plane rule::
 
         a gene expresses  iff  (cell_state & activator_mask) == activator_mask   # all activators PRESENT
                           and  (cell_state & repressor_mask) == 0                # no repressor PRESENT
@@ -943,6 +1173,20 @@ def gene_express(strand, the_one, cell_state):
     plain-gene chromosomes always fully express (back-compat). A rc128 single-mask regulatory
     gene dual-reads as ``activator = mask, repressor = 0`` (a pure all-activator AND-gate,
     identical behaviour). A REGULATORY gene (``0x67``) carries its mask(s) INLINE and is gated.
+
+    * ``gate_type = boolean`` (§130 E2 — the GENERAL escape hatch; a ``0x62`` boolean gene) —
+      ARBITRARY boolean logic over the condition bits, encoded as a **DNF** (disjunctive normal
+      form): a list of ``(require-present, require-absent)`` AND-clauses; the gene expresses iff
+      ANY clause matches (``(cell_state & act) == act`` AND ``(cell_state & rep) == 0``). DNF is
+      functionally complete, so ANY boolean function is representable — AND (a 1-clause
+      ``[(a|b, 0)]``), OR (``[(a, 0), (b, 0)]``), NOT (``[(0, a)]``), XOR
+      (``[(a, b), (b, a)]``), … **E1 ⊂ E2**: the klein4_mask ``(activator, repressor)`` two-mask
+      IS exactly a 1-CLAUSE DNF, so E1 is the compact fast special case of E2's general
+      disjunction. The empty DNF (0 clauses) is the OR-identity FALSE = never expresses. This is
+      the GENERAL case biology's combinatorial cis-regulatory logic needs — a multi-input
+      enhancer integrating several TFs (Alberts et al., *MBoC* 4th ed., "How Genetic Switches
+      Work", NCBI Bookshelf NBK26872: the *Drosophila eve* gene is regulated by combinatorial
+      controls — a COMBINATION of gene regulatory proteins, not a single one, sets expression).
 
     THE op⊗operand THEOREM, one scale up from the rc127 active telomere: rc127 gated ONE
     divide/senesce BINARY by a carried COUNT; here the ``gene_express`` **operator** is
@@ -981,12 +1225,12 @@ def gene_express(strand, the_one, cell_state):
     started = False
     for hv in strand:
         kind = _cap_kind(hv)
-        if kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER):
+        if kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER):
             if started and cur_express:
                 out.append((cur_label, cur_leaves))
             _marker, cur_label = _unpack_cap(hv)
             cur_leaves = []
-            cur_express = _gene_expresses(hv, cell_state)
+            cur_express = _gene_expresses(hv, cell_state)   # §130 dispatch on gate_type
             started = True
         elif kind in (CHROM_CAP_MARKER, KERNEL_HEADER_MARKER,
                       KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER):
@@ -1002,18 +1246,26 @@ def gene_express(strand, the_one, cell_state):
 
 
 def _gene_expresses(cap, cell_state):
-    """Decide whether the gene opened by ``cap`` EXPRESSES under ``cell_state`` (§128/§129) —
-    the per-gene read-time filter shared by :func:`gene_express`. A plain GENE cap (0x47, no
-    masks) always expresses ``(0, 0)``; a REGULATORY GENE cap (0x67) carries the two Klein-4
-    bit-planes ``(activator, repressor)`` and expresses IFF ``(cell_state & activator) ==
-    activator`` (ALL activators present) AND ``(cell_state & repressor) == 0`` (NO repressor
-    present). A 'never' bit (set in BOTH masks) auto-silences the gene (present AND absent =
-    contradiction). Native-authoritative when present (byte-identical C peer
-    ``srmech_genome_gene_express``); the pure Class-I bitwise path is the complete
-    alternative. NO float, NEVER ``abs()``."""
+    """Decide whether the gene opened by ``cap`` EXPRESSES under ``cell_state`` (§128/§129/§130) —
+    the per-gene read-time filter shared by :func:`gene_express`, dispatching on the gate_type
+    (== the cap marker). A plain GENE cap (0x47, no masks) always expresses ``(0, 0)``; a
+    KLEIN-4-MASK regulatory gene (0x67) carries the two Klein-4 bit-planes ``(activator,
+    repressor)`` and expresses IFF ``(cell_state & activator) == activator`` (ALL activators
+    present) AND ``(cell_state & repressor) == 0`` (NO repressor present) — a 'never' bit (set in
+    BOTH masks) auto-silences (present AND absent = contradiction). §130: a BOOLEAN gene (0x62)
+    carries a DNF and expresses IFF ANY of its ``(act, rep)`` clauses matches (E1 ⊂ E2 — the
+    klein4_mask two-mask is a 1-clause DNF; the empty DNF is FALSE = never). Native-authoritative
+    when present (byte-identical C peer ``srmech_genome_gene_express``); the pure Class-I bitwise
+    path is the complete alternative. NO float, NEVER ``abs()``."""
     native = _gene_express_native(cap, cell_state)
     if native is not None:
         return native
+    # §130 GATE-TYPE DISPATCH (pure path): the BOOLEAN gene (0x62) evaluates a DNF (E2 — the
+    # general escape hatch); a plain (0x47) / Klein-4-mask (0x67) gene takes the rc129 fast path
+    # (E1 — the common case). Dispatch on the cap marker (== the declared gate_type).
+    if _cap_kind(cap) == BOOLEAN_GENE_MARKER:
+        _gate_type, dnf_terms = _boolean_gene_dnf(cap)
+        return _dnf_expresses(dnf_terms, cell_state)     # express iff ANY term matches
     activator, repressor = _regulatory_gene_masks(cap)   # (0, 0) for a plain gene
     return ((cell_state & activator) == activator        # ALL activators present
             and (cell_state & repressor) == 0)           # NO repressor present; Class-I, no abs
@@ -1094,11 +1346,11 @@ def partition(strand, the_one, labels=None):
             # the active telomere's count sits AFTER that NUL, so the label is exact.
             _marker, current = _unpack_cap(hv)
             out[current] = []
-        elif kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
+        elif kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
                       KERNEL_HEADER_MARKER):
             continue                            # a gene delimiter (§44 plain / §128
-                                                # regulatory) / §60 v5 header — not data;
-                                                # flatten past it
+                                                # regulatory / §130 boolean) / §60 v5 header —
+                                                # not data; flatten past it
         elif current is not None:
             out[current].append(quad_turn(hv, the_one))   # reversible uncouple
     if labels is not None:
@@ -1473,7 +1725,22 @@ def telomere_tick(strand):
 #: the v7 writer's EXCEPT the ``format_version`` field (the same version-stamp discipline
 #: every prior new-block-kind bump used — a v8 writer stamps 8), and every plain gene ALWAYS
 #: EXPRESSES (an unregulated gene == a regulatory gene with mask 0).
-GENOME_FORMAT_VERSION = 8
+#: 9 (§130/rc130, #730) == the BOOLEAN GENE: an intra-chromosome gene MAY be opened by a
+#: ``BOOLEAN_GENE_MARKER`` (``0x62``) cap carrying ARBITRARY boolean regulatory logic inline (a
+#: DNF — an OR of ``(require-present, require-absent)`` AND-clauses — that :func:`gene_express`
+#: evaluates to gate which genes express, the GENERAL case of the v8 klein4-mask gene; #730). It
+#: is the GENERAL gate-type in the rc129 dispatch FAMILY — the ``0x67`` klein4-mask gene stays
+#: the fast common case; the ``0x62`` boolean gene is the escape hatch (E1 ⊂ E2: the klein4-mask
+#: two-mask IS a 1-term DNF). Unlike the rc129 ``0x67`` extension (which reused an EXISTING
+#: marker → no bump), this is a NEW marker byte = a new block KIND, so it bumps v8 → v9 exactly
+#: as every prior new-marker bump did (rc127 ``0x74`` v6→v7, rc128 ``0x67`` v7→v8). The ``0x62``
+#: cap is one more self-describing kind in the SAME walk (its first byte keys it, its label read
+#: UNIFORMLY, its gate_type + DNF after the label NUL), so v2 / v3 / v4 / v5 / v6 / v7 / v8 bodies
+#: read UNCHANGED (dual-read — the walker gains ONE branch): back-compat is STRUCTURAL, never a
+#: converter. A plain / klein4-mask genome saved by the v9 writer is byte-identical to the v8
+#: writer's EXCEPT the ``format_version`` field (the same version-stamp discipline every prior
+#: new-block-kind bump used — a v9 writer stamps 9).
+GENOME_FORMAT_VERSION = 9
 
 #: rc115 (#1245 ask (b)) — the empty-body chain seed H₀ = sha256(b"") (a derived
 #: constant, not magic: THE well-known empty-string digest). The whole-body
@@ -1558,6 +1825,7 @@ def _hv_from_block(block: bytes) -> _HV:
     first = block[0] if block else -1
     sectors = 256 if first in (
         CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
+        BOOLEAN_GENE_MARKER,
         KERNEL_HEADER_MARKER,
         KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER) else QUAD
     return _HV.from_sequence(block, sectors=sectors)
@@ -1574,9 +1842,12 @@ def _block_is_cap(block: bytes) -> bool:
     is stored VERBATIM and excluded from the data-turn count (its count is NOT a turn).
     §128: the ``0x67`` regulatory gene is an intra-chromosome gene delimiter cap (like the
     plain GENE cap), so it too is stored VERBATIM and excluded from the data-turn count (its
-    mask is NOT a turn)."""
+    mask is NOT a turn). §130: the ``0x62`` boolean gene is likewise an intra-chromosome gene
+    delimiter cap (like the ``0x67`` regulatory gene), stored VERBATIM + excluded from the
+    data-turn count (its gate_type + DNF are NOT a turn)."""
     return bool(block) and block[0] in (
         CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
+        BOOLEAN_GENE_MARKER,
         KERNEL_HEADER_MARKER,
         KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER)
 
@@ -1681,7 +1952,7 @@ def _walk_region_blocks(region: bytes, leaf_dim: int, *, context: str = "genome"
     while k < n:
         kind = region[k]
         if kind in (CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
-                    KERNEL_HEADER_MARKER, KERNEL_TELOMERE_MARKER,
+                    BOOLEAN_GENE_MARKER, KERNEL_HEADER_MARKER, KERNEL_TELOMERE_MARKER,
                     ACTIVE_TELOMERE_MARKER) or kind <= 3:
             end = k + leaf_dim
             if end > n:
@@ -2016,11 +2287,12 @@ def _rebuild_manifest_from_body(body_bytes, leaf_dim, the_one):
             )
         elif (decoded[0] != GENE_CAP_MARKER
               and decoded[0] != REGULATORY_GENE_MARKER
+              and decoded[0] != BOOLEAN_GENE_MARKER
               and decoded[0] != KERNEL_HEADER_MARKER):
             cur[2] += 1                       # a data turn (packed or legacy); a GENE
-                                              # cap (§44 plain / §128 regulatory) or §60
-                                              # v5 header is not a turn (the §89 v6
-                                              # Klein-4 header IS a coupled turn)
+                                              # cap (§44 plain / §128 regulatory / §130
+                                              # boolean) or §60 v5 header is not a turn
+                                              # (the §89 v6 Klein-4 header IS a coupled turn)
         cur[4] += len(raw)
         offset += len(raw)
     if cur is not None:
@@ -2230,7 +2502,7 @@ def genome_load(path, *, labels=None, the_one=None):
                     break
                 kind = first[0]
                 if kind in (CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
-                            KERNEL_HEADER_MARKER, KERNEL_TELOMERE_MARKER,
+                            BOOLEAN_GENE_MARKER, KERNEL_HEADER_MARKER, KERNEL_TELOMERE_MARKER,
                             ACTIVE_TELOMERE_MARKER) \
                         or kind <= 3:
                     rest = f.read(leaf_dim - 1)
@@ -2407,7 +2679,7 @@ def genome_genes(path, label, *, the_one=None):
     the_one = _resolve_the_one(data, the_one)
     region = _read_region(path, by_label[label], leaf_dim)
     region_strand = _region_strand(region, leaf_dim)
-    if not any(_cap_kind(hv) in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER)
+    if not any(_cap_kind(hv) in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER)
                for hv in region_strand):
         raise ValueError(
             f"genome_genes: chromosome {label!r} has no inline GENE caps — it is a "
