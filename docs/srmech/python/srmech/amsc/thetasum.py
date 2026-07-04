@@ -308,6 +308,18 @@ def _struct_one_var(terms: "List", w: str) -> bool:
     non-w symbols are all substituted to constants, so each theta arg is coeff*w^e)."""
     degree = 0
     for pref, args in terms:
+        # Σe² (NOT Σ|e|) is REQUIRED for soundness — it is the TRUE elliptic degree (the
+        # quasi-periodicity index = zeros-per-annulus) of a theta-product in w. Under w↦p·w a
+        # factor θ(c·wᵉ;p) gains the multiplier θ(pᵉ·z₀)/θ(z₀) = (−1)ᵉ p^{−e(e−1)/2} z₀^{−e}
+        # (Rosengren Eq. 1.6, ellbase.Theta.canonicalize) with z₀=c·wᵉ, whose w-exponent is
+        # −e² — so a product's index (and its p-order band) is Σe², not Σ|e|. Since e²>|e| for
+        # |e|≥2, Σ|e| UNDER-provisions k and can miss a genuine nonzero coefficient above p^{Σ|e|}
+        # → a FALSE ZERO. #693 investigated the Σe²→Σ|e| tighten and found it UNSOUND; the
+        # discriminating witness (single variable, e=3 ⇒ Σ|e|=3, k_ABS=5 < true p-order 6 ≤
+        # k_SQ=11) is  N(x) = 2·θ(2x³) −27·θ(3x³) +120·θ(4x³) −250·θ(5x³) +270·θ(6x³) −147·θ(7x³)
+        # +32·θ(8x³)  (all ;p): EXACTLY nonzero (lowest coeff (p⁶,x⁻⁹)=−1/112; evaluates to a
+        # stable 0.180756 at p=½,x=¾), yet Σ|e| proves it ≡0. Σe² correctly returns False. See
+        # tests/test_thetasum_degree_bound_soundness_693.py and notes/thetasum_is_zero_degree_bound_693.md.
         degree = max(degree, sum(a.exps.get(w, 0) ** 2 for a in args))
     k = max(degree - 1, 0) + _STRUCT_MARGIN
     total: "Dict" = {}
@@ -345,6 +357,11 @@ def _structural_is_zero(terms: "List", offset: int = 0) -> bool:
         return _struct_one_var(terms, next(iter(syms)))
 
     def _deg(v: str) -> int:
+        # Σe² = the TRUE elliptic degree in v (quasi-period index / zeros per annulus); the
+        # interpolation substitutes d+1 = Σe²+1 nodes. This bound is SOUND-REQUIRED, not slack:
+        # Σ|e| under-counts the nodes whenever any |e|≥2 (a degree-Σe² section vanishing at only
+        # Σ|e|+1 < Σe²+1 nodes could be FALSELY proved ≡0). #693 confirmed Σ|e| is UNSOUND — see
+        # the counterexample in _struct_one_var above / notes/thetasum_is_zero_degree_bound_693.md.
         return max(sum(a.exps.get(v, 0) ** 2 for a in args) for (pref, args) in terms)
 
     v = min(syms, key=lambda s: (_deg(s), s))              # smallest degree -> fewest nodes
