@@ -172,3 +172,27 @@ def test_genome_store_pack_load_instrument_rc123():
     # bit-packed on disk: << 1 byte/symbol (the corrected sparse store, not a dense blow-up)
     sz = os.path.getsize(os.path.join(d, "turns.bin"))
     assert sz < len(named) * D * 0.5, "not bit-packed: %d B for %d symbols" % (sz, len(named)*D)
+
+
+def test_genome_store_add_kernel_o1_teach_rc123():
+    """F1046: O(1) incremental teach -- add_kernel appends ONE newly-taught kernel to an existing
+    genome (F1044 tail-extend; prior bytes untouched). Header-less append recovers the exact D via
+    kernel_unpack's §60 back-compat (D = n_leaves × leaf_dim; siona's D=8192 = 32×256, no padding)."""
+    import importlib.util, tempfile
+    if importlib.util.find_spec("srmech.amsc.genome") is None:
+        import pytest; pytest.skip("genome surface absent")
+    import srmech.amsc.genome as G
+    if not hasattr(G, "kernel_pack"):
+        import pytest; pytest.skip("kernel_pack (§60, rc123+) not on this floor")
+    from srmech.amsc import hdc
+    from siona import genome_store as GS
+    d = tempfile.mkdtemp(prefix="siona_teach_")
+    GS.pack_instrument([("seed", hdc.klein4_random(8192, seed=1))], d)
+    taught = hdc.klein4_random(8192, seed=99)
+    GS.add_kernel(d, "taught", taught)                       # O(1) append
+    assert GS.load_kernel(d, "taught") == list(taught)       # exact via back-compat trim
+    assert GS.load_kernel(d, "seed") == list(hdc.klein4_random(8192, seed=1))  # prior untouched
+    # a D not a multiple of leaf_dim must raise (needs the header / upstream kernel-append, §89)
+    import pytest
+    with pytest.raises(ValueError):
+        GS.add_kernel(d, "bad", hdc.klein4_random(8000, seed=7))  # 8000 % 256 != 0

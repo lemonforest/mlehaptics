@@ -62,3 +62,20 @@ def load_instrument(path, *, the_one=None):
         label = entry["label"] if isinstance(entry, dict) else entry
         out[label] = load_kernel(path, label, the_one=the_one)
     return out
+
+
+def add_kernel(path, label, hv, *, leaf_dim=LEAF_DIM, the_one=None):
+    """Append ONE newly-taught kernel to an existing genome in **O(1)** (F1044 — the helix tail-extends;
+    prior bytes are never re-read). The kernel's ``D`` must be a multiple of ``leaf_dim`` (siona's
+    D=8192 = 32×256): the raw leaves append header-less, and ``kernel_unpack`` recovers the exact D via
+    its §60 back-compat rule (``D = n_leaves × leaf_dim``, no padding). For a D that is NOT a multiple of
+    ``leaf_dim`` the self-describing header is required, and there is no public O(1) kernel-append yet
+    (UPSTREAM §89) — rebuild with :func:`pack_instrument` in that case. Recall via :func:`load_kernel`."""
+    one = _coupler(leaf_dim) if the_one is None else the_one
+    flat = list(hv)
+    if len(flat) % leaf_dim:
+        raise ValueError(
+            "add_kernel: D=%d is not a multiple of leaf_dim=%d — O(1) header-less append needs an "
+            "aligned D; use pack_instrument (or await the upstream kernel-append, §89)." % (len(flat), leaf_dim))
+    leaves = [flat[i:i + leaf_dim] for i in range(0, len(flat), leaf_dim)]
+    return _G.genome_append(str(path), label, leaves, one)
