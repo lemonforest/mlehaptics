@@ -641,7 +641,7 @@ int main(void)
                 (data != NULL) ? srmech_json_object_get(data, "format_version") : NULL;
             check_true(fv != NULL && fv->type == SRMECH_JSON_INT &&
                        fv->u.i == SRMECH_GENOME_FORMAT_VERSION,
-                       "mixed-body manifest format_version == 3");
+                       "mixed-body manifest format_version == the current writer");
             const srmech_json_value_t *nt =
                 (data != NULL) ? srmech_json_object_get(data, "n_turns") : NULL;
             check_true(nt != NULL && nt->type == SRMECH_JSON_INT && nt->u.i == 4,

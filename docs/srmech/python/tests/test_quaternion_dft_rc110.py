@@ -322,7 +322,7 @@ def test_tools_total_stays_367():
     """The quaternion_dft ToolEntry pre-existed (v0.7.0rc31) — graduation
     updates the entry + its Rosetta bucket, it does NOT add a tool."""
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 390
+    assert introspect.describe()["tools"]["total"] == 391
 
 
 def test_rosetta_bucket_is_c_dispatched():

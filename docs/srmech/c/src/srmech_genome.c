@@ -68,9 +68,9 @@
 /* The §41 manifest data_schema_id (== GENOME_MANIFEST_SCHEMA_ID). */
 #define SRMECH_GENOME_SCHEMA_ID "srmech://schema/genome_manifest/v1"
 
-/* The §41 parser_rule_hash pre-image (== f"genome_persistence/v5" — tracks
+/* The §41 parser_rule_hash pre-image (== f"genome_persistence/v6" — tracks
  * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _manifest_record). */
-#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v5"
+#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v6"
 
 /* ------------------------------------------------------------------ *
  * Path + file helpers (stdio — Rule 3 allows file I/O, bans malloc).
@@ -249,8 +249,9 @@ static srmech_status_t genome_block_len(const unsigned char *body,
     size_t n;
     if (kind == SRMECH_GENOME_CHROM_CAP_MARKER ||
         kind == SRMECH_GENOME_GENE_CAP_MARKER ||
-        kind == SRMECH_GENOME_KERNEL_HEADER_MARKER || kind <= 3u) {
-        n = (size_t)leaf_dim;         /* cap / §60 kernel header / legacy v2 turn */
+        kind == SRMECH_GENOME_KERNEL_HEADER_MARKER ||
+        kind == SRMECH_GENOME_KERNEL_TELOMERE_MARKER || kind <= 3u) {
+        n = (size_t)leaf_dim;   /* cap / §60 v5 header / §89 kernel telomere / v2 turn */
     } else if (kind == SRMECH_GENOME_PACKED_TURN_MARKER) {
         n = 1u + ((size_t)leaf_dim + 3u) / 4u;      /* v3 bit-packed turn */
     } else {
@@ -577,7 +578,9 @@ static srmech_status_t genome_count_chroms(const unsigned char *body,
         srmech_status_t st = genome_block_len(body, body_len, off, leaf_dim,
                                               &blen);
         if (st != SRMECH_OK) { return st; }
-        if (body[off] == SRMECH_GENOME_CHROM_CAP_MARKER) {
+        /* §89: a CHROM cap OR a §89 kernel telomere opens a chromosome. */
+        if (body[off] == SRMECH_GENOME_CHROM_CAP_MARKER ||
+            body[off] == SRMECH_GENOME_KERNEL_TELOMERE_MARKER) {
             if (n == 0xFFFFFFFFu) { return SRMECH_ERR_OVERFLOW; }
             n++;
         }
@@ -633,7 +636,9 @@ static srmech_status_t genome_scan_chroms(genome_strings_t *s,
         srmech_status_t st = genome_block_len(body, body_len, off, leaf_dim,
                                               &blen);
         if (st != SRMECH_OK) { return st; }
-        if (body[off] == SRMECH_GENOME_CHROM_CAP_MARKER) {
+        /* §89: a CHROM cap OR a §89 kernel telomere (0x6B) opens a chromosome. */
+        if (body[off] == SRMECH_GENOME_CHROM_CAP_MARKER ||
+            body[off] == SRMECH_GENOME_KERNEL_TELOMERE_MARKER) {
             if (s->n_chroms >= s->cap_chroms) { return SRMECH_ERR_OVERFLOW; }
             cur = (int32_t)s->n_chroms;
             s->n_chroms++;
@@ -646,7 +651,8 @@ static srmech_status_t genome_scan_chroms(genome_strings_t *s,
             s->leaf_count[cur] = 0u;
         } else {
             if (cur < 0) { return SRMECH_ERR_BAD_INPUT; }   /* turn before 1st cap */
-            /* §60: a GENE cap or a KERNEL HEADER (0x4B) is not a data turn. */
+            /* §60: a GENE cap or a v5 KERNEL HEADER (0x4B) is not a data turn. The
+             * §89 v6 Klein-4 header IS a coupled turn (counted). */
             if (body[off] != SRMECH_GENOME_GENE_CAP_MARKER &&
                 body[off] != SRMECH_GENOME_KERNEL_HEADER_MARKER) {
                 s->leaf_count[cur]++;
@@ -1239,9 +1245,12 @@ static srmech_status_t genome_scan_region(const unsigned char *region,
 {
     assert(region != NULL && cap_sha != NULL);
     assert(region_sha != NULL && leaf_count != NULL && n_blocks != NULL);
+    /* §89: an append region opens with a CHROM cap OR a §89 kernel telomere
+     * (genome_append_kernel appends a kernel chromosome). */
     if (region_len < (size_t)leaf_dim ||
-        region[0] != SRMECH_GENOME_CHROM_CAP_MARKER) {
-        return SRMECH_ERR_BAD_INPUT;      /* an append region opens with a CHROM cap */
+        (region[0] != SRMECH_GENOME_CHROM_CAP_MARKER &&
+         region[0] != SRMECH_GENOME_KERNEL_TELOMERE_MARKER)) {
+        return SRMECH_ERR_BAD_INPUT;
     }
     srmech_status_t st = srmech_sha256_hex(region, leaf_dim, cap_sha);
     if (st != SRMECH_OK) { return st; }
@@ -1253,12 +1262,17 @@ static srmech_status_t genome_scan_region(const unsigned char *region,
         st = genome_block_len(region, region_len, off, leaf_dim, &blen);
         if (st != SRMECH_OK) { return st; }
         unsigned char kind = region[off];
-        if (off != 0u && kind == SRMECH_GENOME_CHROM_CAP_MARKER) {
+        if (off != 0u && (kind == SRMECH_GENOME_CHROM_CAP_MARKER ||
+                          kind == SRMECH_GENOME_KERNEL_TELOMERE_MARKER)) {
             return SRMECH_ERR_BAD_INPUT;  /* one append == ONE chromosome */
         }
+        /* §60: a GENE cap or a v5 KERNEL HEADER (0x4B) is not a data turn; the §89
+         * kernel telomere opens the region (off==0). The §89 Klein-4 header IS a
+         * coupled turn (counted). */
         if (kind != SRMECH_GENOME_CHROM_CAP_MARKER &&
+            kind != SRMECH_GENOME_KERNEL_TELOMERE_MARKER &&
             kind != SRMECH_GENOME_GENE_CAP_MARKER &&
-            kind != SRMECH_GENOME_KERNEL_HEADER_MARKER) { lc++; }   /* §60 header ∉ turns */
+            kind != SRMECH_GENOME_KERNEL_HEADER_MARKER) { lc++; }
         nb++;
         off += blen;
     }
@@ -1626,9 +1640,9 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
 
 /* The §43 .chr data_schema_id (== GENOME_CHR_SCHEMA_ID). */
 #define SRMECH_GENOME_CHR_SCHEMA_ID "srmech://schema/genome_chromosome/v1"
-/* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v5" — tracks
+/* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v6" — tracks
  * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _chr_record). */
-#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v5"
+#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v6"
 /* The §43 rendering "purpose" — VERBATIM from genome.py _chr_record
  * (single-line #define; JPL Rule 8 forbids backslash line-continuation). */
 #define SRMECH_GENOME_CHR_PURPOSE "One self-contained, MPR-attested chromosome: its fixed-width region (CHROM cap + coupled turns) + the_one, re-importable self-verifying."

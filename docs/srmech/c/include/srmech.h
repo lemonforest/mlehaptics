@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc125"
-#define SRMECH_VERSION       "0.9.0rc125"
+#define SRMECH_VERSION_PRE   "rc126"
+#define SRMECH_VERSION       "0.9.0rc126"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2615,7 +2615,16 @@ size_t srmech_op_provenance_hash_arena_bytes(size_t record_len);
  * v3 / v4 bodies — and any v5 body with NO header — read UNCHANGED (a header-less
  * body defaults to element_type=klein4, D = leaf_count * leaf_dim): back-compat
  * is STRUCTURAL, not a converter. */
-#define SRMECH_GENOME_FORMAT_VERSION 5
+/* v6 (§89/rc126, issue #1261): the UNIFORMLY-KLEIN-4 kernel header. A kernel
+ * chromosome now opens with a SRMECH_GENOME_KERNEL_TELOMERE_MARKER (0x6B) cap and
+ * carries its header as a 100%-Klein-4 coupled LEAF (base-4-encoded D +
+ * element_type + leaf_dim) — the 0x4B byte-TLV residue is GONE, so the store is
+ * uniformly Klein-4 and the O(1) genome_append_kernel rides the plain coupled-turn
+ * append. The 0x6B cap is one more self-describing kind in the SAME walk (first byte
+ * keys it), so v2 / v3 / v4 bodies — AND any v5 0x4B byte-TLV header — read
+ * UNCHANGED (dual-read): back-compat is STRUCTURAL, never a converter. Mirrors
+ * GENOME_FORMAT_VERSION in srmech.amsc.genome. */
+#define SRMECH_GENOME_FORMAT_VERSION 6
 
 /* §44 inline cap markers — the FIRST byte of a fixed-width cap leaf. Both are
  * > 3 so a cap is told apart from a Klein-4 data turn (bytes 0..3) by its
@@ -2638,8 +2647,20 @@ size_t srmech_op_provenance_hash_arena_bytes(size_t record_len);
  * uint64 big-endian), leaf_dim (bytes [9:13], uint32 big-endian) and element_type
  * (byte [13], uint8 enum; 0 = klein4). > 3 and distinct from every other marker,
  * so the strand stays self-describing; stored VERBATIM (never bit-packed) and NOT
- * counted as a data turn. Mirrors KERNEL_HEADER_MARKER in srmech.amsc.genome. */
-#define SRMECH_GENOME_KERNEL_HEADER_MARKER 0x4Bu /* 'K' — a kernel header */
+ * counted as a data turn. Mirrors KERNEL_HEADER_MARKER in srmech.amsc.genome.
+ * §89/v6: READ-ONLY back-compat — kernel_pack no longer WRITES it. */
+#define SRMECH_GENOME_KERNEL_HEADER_MARKER 0x4Bu /* 'K' — a v5 kernel header */
+
+/* §89/v6 KERNEL TELOMERE marker (rc126, issue #1261) — the FIRST byte of a
+ * fixed-width leaf_dim-byte cap leaf that opens a KERNEL chromosome (like the CHROM
+ * cap, but flags the chromosome as a kernel: the coupled turn IMMEDIATELY after it
+ * is the uniformly-Klein-4 §89 header LEAF — base-4 D + element_type + leaf_dim). A
+ * reader recovers the true D by scanning for 0x6B and reading the next turn (the
+ * collision-FREE distinguisher — a framing marker, not in-band magic). > 3 and
+ * distinct from every other marker (CHROM 0x43 / GENE 0x47 / v5 KERNEL 0x4B / PACKED
+ * 0x51), so the strand stays self-describing and v2..v5 bodies read UNCHANGED — the
+ * walker gains ONE branch. Mirrors KERNEL_TELOMERE_MARKER in srmech.amsc.genome. */
+#define SRMECH_GENOME_KERNEL_TELOMERE_MARKER 0x6Bu /* 'k' — a §89 kernel telomere */
 
 /* Max label byte length (NUL-terminated) for one chromosome. This is a FORMAT
  * width (a label lives inline in a leaf_dim-byte cap block, like PATH_MAX), NOT
