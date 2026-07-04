@@ -831,9 +831,16 @@ srmech_status_t srmech_genome_telomere_tick(
     return SRMECH_OK;
 }
 
-/* §128/v8 (#728) — the per-gene EXPRESSION read-filter: the OPERAND (cell_state) selects the
- * OPERATOR (express or not). A plain GENE cap (0x47) always expresses (mask 0); a REGULATORY
- * GENE cap (0x67) expresses iff (cell_state & mask) == mask. NEVER mutates cap (a READ). */
+/* §128/v8 (#728) + §129 (#729) — the per-gene EXPRESSION read-filter: the OPERAND (cell_state)
+ * selects the OPERATOR (express or not). A plain GENE cap (0x47) always expresses (masks 0); a
+ * REGULATORY GENE cap (0x67) carries the TWO KLEIN-4 bit-planes (activator then repressor) and
+ * expresses iff (cell_state & activator) == activator (ALL activators PRESENT) AND
+ * (cell_state & repressor) == 0 (NO repressor PRESENT). Per condition (act_bit, rep_bit) is a
+ * Klein-4 role: (0,0) don't-care / (1,0) activator / (0,1) repressor / (1,1) never (present AND
+ * absent = contradiction -> auto-silenced). §129 DUAL-READ: the repressor field lives in what
+ * was NUL padding, so a rc128 single-mask cap / a short leaf carries NO repressor field ->
+ * repressor 0 (activator=mask, identical rc128 behaviour). mask_out reports the ACTIVATOR (the
+ * first plane). NEVER mutates cap (a READ). No abs (a mask / cell_state is never negated). */
 srmech_status_t srmech_genome_gene_express(
     const unsigned char *cap, size_t leaf_dim, uint64_t cell_state,
     int *expressed, uint64_t *mask_out)
@@ -849,26 +856,36 @@ srmech_status_t srmech_genome_gene_express(
     unsigned char marker = cap[0];
     if (marker == SRMECH_GENOME_GENE_CAP_MARKER) {
         if (mask_out != NULL) { *mask_out = 0u; }
-        *expressed = 1;             /* unregulated gene == mask 0; (cell_state & 0) == 0 */
+        *expressed = 1;             /* unregulated gene == masks 0; (cell_state & 0) == 0 */
         return SRMECH_OK;
     }
     if (marker != SRMECH_GENOME_REGULATORY_GENE_MARKER) {
         return SRMECH_ERR_BAD_INPUT;                /* neither 0x47 nor 0x67 — not a gene */
     }
-    /* a regulatory gene — read the uint64 big-endian MASK after the label's NUL terminator */
+    /* a regulatory gene — read the uint64 big-endian mask(s) after the label's NUL terminator */
     size_t i = 1u;                                  /* skip the 0x67 marker byte */
     while (i < leaf_dim && cap[i] != 0u) { i++; }   /* find the label terminator */
     if (i >= leaf_dim) { return SRMECH_ERR_BAD_INPUT; }        /* no label NUL */
-    if (i + 1u + SRMECH_GENOME_REGULATORY_MASK_BYTES > leaf_dim) {
-        return SRMECH_ERR_BAD_INPUT;                           /* mask field truncated */
+    size_t act_base = i + 1u;
+    if (act_base + SRMECH_GENOME_REGULATORY_MASK_BYTES > leaf_dim) {
+        return SRMECH_ERR_BAD_INPUT;                           /* activator field truncated */
     }
-    uint64_t mask = 0u;
-    size_t base = i + 1u;
+    uint64_t activator = 0u;
     for (size_t k = 0u; k < SRMECH_GENOME_REGULATORY_MASK_BYTES; k++) {
-        mask = (mask << 8) | (uint64_t)cap[base + k];
+        activator = (activator << 8) | (uint64_t)cap[act_base + k];
     }
-    if (mask_out != NULL) { *mask_out = mask; }
-    *expressed = ((cell_state & mask) == mask) ? 1 : 0;   /* Class-I bitwise; no abs */
+    /* §129: the repressor plane sits in what was NUL padding — present iff the leaf has room;
+     * absent (rc128 single-mask / short leaf) => repressor 0 (no repression). */
+    uint64_t repressor = 0u;
+    size_t rep_base = act_base + SRMECH_GENOME_REGULATORY_MASK_BYTES;
+    if (rep_base + SRMECH_GENOME_REGULATORY_MASK_BYTES <= leaf_dim) {
+        for (size_t k = 0u; k < SRMECH_GENOME_REGULATORY_MASK_BYTES; k++) {
+            repressor = (repressor << 8) | (uint64_t)cap[rep_base + k];
+        }
+    }
+    if (mask_out != NULL) { *mask_out = activator; }
+    *expressed = (((cell_state & activator) == activator)     /* ALL activators PRESENT */
+                 && ((cell_state & repressor) == 0u)) ? 1 : 0; /* NO repressor PRESENT; no abs */
     return SRMECH_OK;
 }
 

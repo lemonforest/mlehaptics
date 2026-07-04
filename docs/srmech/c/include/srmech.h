@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc128"
-#define SRMECH_VERSION       "0.9.0rc128"
+#define SRMECH_VERSION_PRE   "rc129"
+#define SRMECH_VERSION       "0.9.0rc129"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2714,7 +2714,10 @@ size_t srmech_op_provenance_hash_arena_bytes(size_t record_len);
 
 /* §128/v8 regulatory-gene MASK field width — a uint64 (8 bytes, big-endian), read at the byte
  * right after the inline label's NUL terminator (the SAME field shape as the §127 active
- * telomere's count). Mirrors _REGULATORY_GENE_MASK_BYTES in srmech.amsc.genome. */
+ * telomere's count). §129 (#729): a regulatory gene carries TWO consecutive such fields — the
+ * KLEIN-4 bit-planes (activator then repressor); rc128's single-mask cap is dual-read as
+ * activator=mask, repressor=0 (the repressor plane occupies what was NUL padding). Mirrors
+ * _REGULATORY_GENE_MASK_BYTES in srmech.amsc.genome. */
 #define SRMECH_GENOME_REGULATORY_MASK_BYTES 8u
 
 /* Max label byte length (NUL-terminated) for one chromosome. This is a FORMAT
@@ -3041,27 +3044,32 @@ srmech_status_t srmech_genome_telomere_tick(
     const unsigned char *cap, size_t leaf_dim,
     unsigned char *out_cap, int *senescent, uint64_t *count_after);
 
-/* §128/v8 (#728) GENE EXPRESSION — the per-gene read-time FILTER whose OPERATOR behaviour
- * (express or not) is SELECTED by its OPERAND (the cell_state). Read the regulatory MASK
- * carried inline in a gene cap (`cap`, the first leaf_dim bytes) and decide:
- *   plain GENE cap (cap[0] == 0x47, no mask) -> mask 0, *expressed = 1 (ALWAYS expresses;
- *                    an unregulated gene == a regulatory gene with mask 0 — back-compat).
- *   REGULATORY GENE cap (cap[0] == 0x67)     -> read the mask, *expressed = 1 iff
- *                    (cell_state & mask) == mask (the cell-state has ALL of the gene's
- *                    required regulatory conditions present), else 0.
- * Byte-identical to the pure Python decision in srmech.amsc.genome._gene_expresses. The mask
- * lives at the SRMECH_GENOME_REGULATORY_MASK_BYTES (8) bytes right after the label's NUL
- * terminator, big-endian. No arena (a per-cap decision); malloc-free; no abs (a mask / a
- * cell_state is never negated). NEVER MUTATES cap (a READ — biology does not rewrite DNA to
- * regulate it).
+/* §128/v8 (#728) + §129 (#729) GENE EXPRESSION — the per-gene read-time FILTER whose OPERATOR
+ * behaviour (express or not) is SELECTED by its OPERAND (the cell_state). Read the regulatory
+ * MASK(s) carried inline in a gene cap (`cap`, the first leaf_dim bytes) and decide:
+ *   plain GENE cap (cap[0] == 0x47, no masks) -> masks 0, *expressed = 1 (ALWAYS expresses;
+ *                    an unregulated gene == masks 0 — back-compat).
+ *   REGULATORY GENE cap (cap[0] == 0x67) -> read the TWO KLEIN-4 bit-planes (activator then
+ *                    repressor), *expressed = 1 iff (cell_state & activator) == activator (ALL
+ *                    activators PRESENT) AND (cell_state & repressor) == 0 (NO repressor
+ *                    PRESENT), else 0. Per condition (act_bit, rep_bit) is a Klein-4 role:
+ *                    (0,0) don't-care / (1,0) activator / (0,1) repressor / (1,1) never (a bit
+ *                    set in BOTH masks = present AND absent = contradiction -> auto-silenced).
+ * Byte-identical to the pure Python decision in srmech.amsc.genome._gene_expresses. The
+ * activator lives at the SRMECH_GENOME_REGULATORY_MASK_BYTES (8) bytes right after the label's
+ * NUL terminator (big-endian, always present); the repressor at the NEXT 8 bytes IF the leaf
+ * has room, else 0. §129 DUAL-READ: the repressor plane sits in what was NUL padding, so a
+ * rc128 single-mask cap / a short leaf carries NO repressor field -> repressor 0 (identical
+ * rc128 behaviour). No arena (a per-cap decision); malloc-free; no abs (a mask / a cell_state
+ * is never negated). NEVER MUTATES cap (a READ — biology does not rewrite DNA to regulate it).
  *   cap / leaf_dim : the gene cap leaf (leaf_dim bytes; cap[0] == 0x47 or 0x67).
  *   cell_state     : the exact non-negative cell-state bitmask (each set bit a condition).
  *   expressed      : out — 1 iff the gene expresses under cell_state, else 0.
- *   mask_out       : out — the gene's regulatory mask (0 for a plain gene); may be NULL.
+ *   mask_out       : out — the gene's ACTIVATOR mask (0 for a plain gene); may be NULL.
  * Error returns:
  *   SRMECH_ERR_NULL_ARG  — cap / expressed is NULL.
  *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0, cap[0] is neither 0x47 nor 0x67, no label NUL, or a
- *                          truncated mask field (regulatory gene). */
+ *                          truncated activator field (regulatory gene). */
 srmech_status_t srmech_genome_gene_express(
     const unsigned char *cap, size_t leaf_dim, uint64_t cell_state,
     int *expressed, uint64_t *mask_out);

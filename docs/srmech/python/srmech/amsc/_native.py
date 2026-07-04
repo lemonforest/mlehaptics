@@ -9890,11 +9890,14 @@ def genome_telomere_tick_c(cap: bytes, leaf_dim: int):
 
 
 def genome_gene_express_c(cap: bytes, leaf_dim: int, cell_state: int) -> bool:
-    """Native §128 per-gene expression decision — the read-time filter (the cell_state
+    """Native §128/§129 per-gene expression decision — the read-time filter (the cell_state
     operand modulates the operator). ``cap`` is a plain GENE (0x47) or regulatory-gene
     (0x67) cap leaf; returns ``True`` iff the gene EXPRESSES under ``cell_state``: a plain
-    gene always expresses (mask 0), a regulatory gene expresses iff ``(cell_state & mask) ==
-    mask``. Byte-identical to the pure Python decision in ``genome._gene_expresses``."""
+    gene always expresses (masks 0), a regulatory gene carries the TWO KLEIN-4 bit-planes
+    (activator then repressor) and expresses iff ``(cell_state & activator) == activator``
+    (ALL activators present) AND ``(cell_state & repressor) == 0`` (NO repressor present).
+    §129 dual-read: a rc128 single-mask cap reads as activator=mask, repressor=0. Byte-
+    identical to the pure Python decision in ``genome._gene_expresses``."""
     _require_genome()
     if not hasattr(LIB, "srmech_genome_gene_express"):
         raise NativeGenomeError("srmech_genome_gene_express", SRMECH_ERR_NOT_IMPL)
