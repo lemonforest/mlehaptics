@@ -400,8 +400,44 @@ def _net_period_multiplier_exps(thetas: "Tuple[Theta, ...]") -> "Tuple[Tuple[str
                 continue
             pref, _t0 = Theta(shifted_arg).canonicalize()
             net = net * pref
-    # classify by the exponent monomial only (the ℚ coefficient is independence-blind)
+    # classify by the exponent monomial only (the ℚ coefficient is independence-blind).
+    # NOTE: this returns the FULL multiplier monomial, INCLUDING the nome ``p`` (and, on a
+    # shifted carrier, the base ``q``) and any elliptic-parameter exponents. That full
+    # monomial is what :func:`~srmech.amsc.carrier_spectrum._block_of_thetas` needs — its
+    # ``p``-coordinate IS the Class-L *p-character* block label (carrier_spectrum strips only
+    # ``q``). The ``is_zero`` FAST-PATH bucketing must NOT split on those unit coordinates —
+    # it uses :func:`_quasi_period_class_key` (below), which keeps only the ``x``/``y``
+    # exponents. Keep this function's return the FULL monomial; do NOT unit-strip it here.
     return tuple(sorted(net.exps.items()))
+
+
+def _quasi_period_class_key(thetas: "Tuple[Theta, ...]"
+                            ) -> "Tuple[Tuple[str, int], ...]":
+    """The ``is_zero`` FAST-PATH quasi-periodicity-CLASS key: the net period-multiplier's
+    SUMMATION-VARIABLE (``x``, ``y``) exponents ONLY. It is :func:`_net_period_multiplier_exps`
+    with every UNIT-symbol exponent dropped.
+
+    Under the period shifts ``x ↦ p·x`` and ``y ↦ p·y`` a theta-product ``∏ θ(z_i; p)``
+    acquires the Rosengren Eq. 1.6 multiplier ``(−1)ᵏ·p^{−k(k−1)/2}·z₀⁻ᵏ``. The genuine
+    quasi-periodicity CHARACTER — the datum that decides linear (in)dependence over the
+    coefficient field — is how the multiplier scales in the period-lattice variables ``x``
+    and ``y``. Every OTHER symbol is a UNIT in that field and is therefore
+    INDEPENDENCE-BLIND: the nome ``p`` (its ``p^{−k(k−1)/2}`` power is invertible — the very
+    ``ℚ(q,p)`` scalar the docstring above calls independence-blind), the base ``q`` (a unit
+    that only appears after a :meth:`ThetaSum.shift_x` / :meth:`ThetaSum.shift_y`), and the
+    elliptic PARAMETERS ``a, b, c, …`` (constants w.r.t. the shift). Their exponents ride in
+    ``net.exps`` only as an artefact of the argument monomial, so including them SPLITS one
+    genuine character across buckets (task #694 anomaly A-1 — e.g. two reducible ±-pair
+    products of the SAME ``x``-character but different ``p``/parameter power land in different
+    buckets, so the fast-path three-term reduction never sees them together).
+
+    Dropping the unit exponents restores the genuine grouping. Keeping ONLY ``x``/``y`` is
+    the coarsest CORRECT partition (soundness is not at stake — the key is a fast-path
+    bucketing only; :func:`_class_is_zero` proves a bucket ``≡0`` EXACTLY and any miss defers
+    to the complete :meth:`ThetaSum._is_zero_interpolation`, so merging or splitting buckets
+    changes only the PATH, never the VERDICT). EXACT — integer exponents only, no float."""
+    return tuple((s, e) for (s, e) in _net_period_multiplier_exps(thetas)
+                 if s in (_X, _Y))
 
 
 def _canonical_theta_key(thetas: "Tuple[Theta, ...]"
@@ -787,7 +823,7 @@ class ThetaSum:
         # reduce returns False, which here means ONLY "the fast path did not prove it".
         classes: "Dict[Tuple, List[_Term]]" = {}
         for pref, thetas in self._terms:
-            key = _net_period_multiplier_exps(thetas)
+            key = _quasi_period_class_key(thetas)
             classes.setdefault(key, []).append((pref, thetas))
         if all(_class_is_zero(members) for members in classes.values()):
             return True
