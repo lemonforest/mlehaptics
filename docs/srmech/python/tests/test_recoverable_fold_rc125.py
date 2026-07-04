@@ -33,7 +33,7 @@ Coverage:
   (e) determinism — same (R, branches, dim, seed) → identical pair + identity;
   (f) the op_provenance registration — lossy_projection_record: family=None,
       rung={}, projection_kind='hdc', leaves_exact True; scope-widened;
-  (g) registration + counts — tools.total == 390, the two ToolEntries present,
+  (g) registration + counts — tools.total == 391, the two ToolEntries present,
       fold_identity is NOT a ToolEntry (carrier-param exempt), both rosetta
       rows non_compute, param types coercible;
   (h) discipline — the coupling / op_provenance sources stay abs()-free.
@@ -299,7 +299,7 @@ def test_lossy_projection_record_validates():
 # ─────────────────────────────────────────────────────────────────────
 def test_tools_total_is_390():
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 390
+    assert introspect.describe()["tools"]["total"] == 391
 
 
 def test_new_ops_registered_fold_identity_exempt():

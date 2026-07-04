@@ -450,6 +450,7 @@
 {"exposed_as": "srmech.amsc.genome.genome_register_attested", "defined_at": "srmech.amsc.genome.genome_register_attested", "bucket": "non_compute"}
 {"exposed_as": "srmech.amsc.genome.kernel_pack", "defined_at": "srmech.amsc.genome.kernel_pack", "bucket": "non_compute"}
 {"exposed_as": "srmech.amsc.genome.kernel_unpack", "defined_at": "srmech.amsc.genome.kernel_unpack", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.genome.genome_append_kernel", "defined_at": "srmech.amsc.genome.genome_append_kernel", "bucket": "non_compute"}
 {"exposed_as": "srmech.amsc.laplacian.mat_norm", "defined_at": "srmech.amsc.laplacian.mat_norm", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.mat_dot", "defined_at": "srmech.amsc.laplacian.mat_dot", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.mat_matvec", "defined_at": "srmech.amsc.laplacian.mat_matvec", "bucket": "composition_of_c"}

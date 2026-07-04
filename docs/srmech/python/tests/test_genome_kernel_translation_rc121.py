@@ -74,7 +74,7 @@ def test_roundtrip_exact_on_disk(tmp_path, D):
     one = G._default_the_one(256)
     p = tmp_path / f"k{D}"
     man = G.genome_save(strand, p, the_one=one)
-    assert man["format_version"] == 5           # the §60 writer
+    assert man["format_version"] == 6           # the §89/v6 writer
     back = G.kernel_unpack(p)                    # no the_one — from the manifest
     assert back == x
     assert len(back) == D
@@ -86,9 +86,11 @@ def test_non_multiple_needs_no_external_trim(tmp_path):
     the caller supplies nothing."""
     x = _kernel(1000)
     strand = G.kernel_pack(x)                    # leaf_dim 256 default
-    # storage is padded to a whole number of leaves ...
+    # §89/v6: recall returns [klein4_header, *content]; the CONTENT leaves are the
+    # padded storage (4 leaves x 256 = 1024, 24 pad symbols) — the header is leaves[0].
     leaves = G.recall(strand, G._default_the_one(256))
-    assert sum(len(l) for l in leaves) == 1024   # 4 leaves x 256, 24 pad symbols
+    content = leaves[1:]
+    assert sum(len(l) for l in content) == 1024  # 4 leaves x 256, 24 pad symbols
     # ... but unpack trims to the TRUE D with no external knowledge of 1000
     assert G.kernel_unpack(strand) == x
     assert len(G.kernel_unpack(strand)) == 1000
@@ -133,24 +135,31 @@ def test_kernel_header_layout():
         del strand
 
 
-def test_header_is_marker_block_not_a_data_turn(tmp_path):
-    """The 0x4B header is a scanned-for MARKER block: skipped by recall, excluded
-    from the manifest leaf_count, stored VERBATIM (never bit-packed)."""
+def test_header_is_klein4_leaf_after_kernel_telomere(tmp_path):
+    """§89/v6: a kernel chromosome opens with a KERNEL telomere (0x6B); the FIRST
+    coupled turn after it is the uniformly-Klein-4 header LEAF (a DATA turn — it
+    bit-packs + counts like content, NOT a verbatim byte-TLV marker block)."""
     x = _kernel(1000)
     strand = G.kernel_pack(x, label="siona")
     one = G._default_the_one(256)
-    # strand shape: [telomere, kernel_header, 4 coupled turns]
-    assert G._cap_kind(strand[0]) == G.CHROM_CAP_MARKER
-    assert G._cap_kind(strand[1]) == G.KERNEL_HEADER_MARKER
-    assert len(strand) == 2 + 4                           # 4 leaves for D=1000
+    # strand shape: [kernel_telomere, coupled_klein4_header, 4 coupled content turns]
+    assert G._cap_kind(strand[0]) == G.KERNEL_TELOMERE_MARKER
+    assert G._cap_kind(strand[1]) is None                 # the header is a coupled turn
+    assert len(strand) == 2 + 4                           # 4 content leaves for D=1000
+    # the uncoupled header leaf is 100 % Klein-4 and self-records D / leaf_dim / etype
+    hdr = G.recall(strand, one)[0]
+    assert set(int(s) for s in hdr) <= {0, 1, 2, 3}       # uniformly Klein-4
+    assert G._unpack_kernel_header_klein4(hdr) == (1000, 256, G.ELEMENT_TYPE_KLEIN4)
     p = tmp_path / "g"
     man = G.genome_save(strand, p, the_one=one)
-    # leaf_count counts DATA turns only — the header is NOT a turn
-    assert man["chromosomes"][0]["leaf_count"] == 4
+    # §89: leaf_count counts DATA turns — the v6 header IS a coupled turn (counted)
+    assert man["chromosomes"][0]["leaf_count"] == 1 + 4   # header + 4 content
     assert man["n_turns"] == 6                            # cap + header + 4 turns
-    # the header block is stored verbatim (leaf_dim bytes, first byte 0x4B)
+    # the kernel-telomere cap is stored verbatim (leaf_dim bytes, first byte 0x6B);
+    # the header turn right after it is bit-packed (marker 0x51 — uniformly Klein-4)
     body = (p / "turns.bin").read_bytes()
-    assert body[256] == G.KERNEL_HEADER_MARKER            # right after the 256-B cap
+    assert body[0] == G.KERNEL_TELOMERE_MARKER            # the 0x6B kernel telomere
+    assert body[256] == G.PACKED_TURN_MARKER             # the bit-packed header turn
 
 
 # ── (4) Python==C byte-identical on the kernel round-trip ─────────────────────

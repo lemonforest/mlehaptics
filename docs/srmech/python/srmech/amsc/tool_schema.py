@@ -2239,6 +2239,16 @@ def _register_primitive_class_tools() -> None:
                         P("the_one", "HV", False, "the coupling invariant (optional; resolved from a present manifest, else reconstructed as the all-ones default from the header's leaf_dim)")),
             returns=R("list", "the exact flat Klein-4 kernel (list[int] of the TRUE length D — trimmed of the final-leaf zero-padding)"),
         ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_append_kernel", owner="srmech", category="genome",
+            summary="Append a newly-taught kernel — WITH its §89 header — to a genome in O(1) AMORTISED (UPSTREAM §89 / format v6 — issue #1261, F1045/F1046). The uniformly-Klein-4 payoff. hv is the flat kernel (Klein-4 sector symbols {0,1,2,3} — an HV / list / bytes) of ANY dimension D; it is chunked into the genome's leaf_dim-wide leaves (final leaf zero-padded) LED by the UNIFORMLY-KLEIN-4 §89 header LEAF (base-4-encoded D + element_type + leaf_dim — _pack_kernel_header_klein4). Because that header is a 100%-Klein-4 leaf, [header, *content] is just a list of Klein-4 leaves — so this FALLS OUT of genome_append (kernel=True, a KERNEL telomere 0x6B opens the chromosome): the chromosome tail-extends turns.bin and folds one region onto the body_sha256 chain in O(1), no whole-body re-hash / re-scan. This is the deliverable a downstream 'teach a kernel -> append it' loop was about to hand-roll: before v6 the §60 0x4B byte-TLV header could NOT ride genome_append (unbinding it via klein4_bind failed 'must be in {0,1,2,3}'); v6 makes the header a Klein-4 leaf so appending a kernel WITH its header is native. Recover the EXACT kernel (trimmed to D) with kernel_unpack. the_one is optional when path has a manifest (resolved from the cache), required for a manifest-less genome (its length is the leaf width). Raises ValueError on a duplicate label or a non-Klein-4 symbol. numpy-free; no abs(); the C peer is genome_append's srmech_genome_append (the 0x6B kernel telomere is one more self-describing cap).",
+            parameters=(P("path", "str", True, "the genome directory written by genome_save (grown in O(1))"),
+                        P("label", "str", True, "the new kernel chromosome's label (must not already exist in the genome)"),
+                        P("hv", "Sequence[int]", True, "the flat Klein-4 kernel to append — symbols {0,1,2,3} (HV / list / bytes) of any dimension D"),
+                        P("element_type", "str", False, "keyword-only; the declared element-type enum recorded in the §89 header (default 'klein4')"),
+                        P("the_one", "HV", False, "keyword-only; the coupling invariant (optional when a manifest is present; its length is the leaf width for a manifest-less genome)")),
+            returns=R("dict", "the updated manifest data (with the appended kernel chromosome + region entry + O(1)-extended body_sha256 chain)"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class K — equation-of-centre / pin-slot
