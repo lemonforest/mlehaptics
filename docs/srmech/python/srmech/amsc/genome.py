@@ -78,8 +78,8 @@ __all__ = [
     "GenomeBoundingError",
     "LEAF_CAP", "QUAD", "MOBIUS_CAP",
     "CHROM_CAP_MARKER", "GENE_CAP_MARKER", "GENE_FRAME_TAG",
-    "REGULATORY_GENE_MARKER", "BOOLEAN_GENE_MARKER",
-    "GATE_TYPE_KLEIN4_MASK", "GATE_TYPE_BOOLEAN_DNF",
+    "REGULATORY_GENE_MARKER", "BOOLEAN_GENE_MARKER", "THRESHOLD_GENE_MARKER",
+    "GATE_TYPE_KLEIN4_MASK", "GATE_TYPE_BOOLEAN_DNF", "GATE_TYPE_THRESHOLD",
     "PACKED_TURN_MARKER", "KERNEL_HEADER_MARKER", "KERNEL_TELOMERE_MARKER",
     "ACTIVE_TELOMERE_MARKER", "ELEMENT_TYPE_KLEIN4",
     "TELOMERE_DIVIDED", "TELOMERE_SENESCENT",
@@ -278,6 +278,54 @@ REGULATORY_GENE_MARKER = 0x67
 #: version-INDEPENDENT, so every pre-rc130 genome still reads identically.
 BOOLEAN_GENE_MARKER = 0x62
 
+#: §131/rc131 (format v9 → v10, #731) — the THRESHOLD REGULATORY GENE marker. ``0x77`` = ASCII
+#: ``'w'`` (a lower-case **w**eighted gene, mnemonically paired with the upper-case ``0x47``
+#: ``'G'`` plain gene + the ``0x67`` ``'g'`` klein4-mask + the ``0x62`` ``'b'`` boolean genes it
+#: joins — the same lower-case-carries-state pairing rc126/rc127/rc128/rc130 used). A threshold
+#: gene is an intra-chromosome gene boundary cap (a gene-analog, like ``0x47`` / ``0x67`` /
+#: ``0x62``) that carries a LINEAR-THRESHOLD (perceptron) gate INLINE — a per-condition INTEGER
+#: WEIGHT vector + an INTEGER THRESHOLD. It is the THIRD gate-type in the rc129 dispatch FAMILY
+#: (E1 klein4_mask ``0x67`` / E2 boolean_dnf ``0x62`` / **E4 threshold** ``0x77``), and it is
+#: GENUINELY DISTINCT from E2: a linear-threshold function (e.g. MAJORITY-of-n, or a weighted
+#: morphogen dose-sum) needs an EXPONENTIALLY-LARGE DNF, so E4 captures COMPACTLY what E2's DNF
+#: cannot (linear-threshold functions ⊄ small-DNF). This is the "integrate many weighted inputs /
+#: morphogen-gradient threshold / additive cis-regulatory enhancer" model (Alberts et al.,
+#: *Molecular Biology of the Cell* 4th ed., "Drosophila and the Molecular Genetics of Pattern
+#: Formation", NCBI Bookshelf NBK26906: a morphogen — e.g. the Dorsal protein — "turns on or off
+#: the expression of different sets of genes depending on its concentration", switching distinct
+#: genes on at distinct THRESHOLD concentrations).
+#:
+#: ENCODING = weighted-sum / linear-threshold (a perceptron), exact Class-I/N SIGNED integers (NO
+#: float): a gene EXPRESSES iff ``Σᵢ (weightᵢ · bit_i(cell_state)) ≥ threshold`` — the exact
+#: integer sum of the weights of the PRESENT conditions, compared against the threshold. **SIGNED
+#: weights are allowed** (an inhibitory input — a repressive TF — is a NEGATIVE weight; real
+#: biology). The sum is an exact integer; the decision is the SIGN of ``(Σ − threshold)`` — a
+#: **Class-K sign-branch, NEVER ``abs()``** (abs-ing the sum would discard the sign and make an
+#: inhibitory weight meaningless). The boundary is INCLUSIVE (``Σ == threshold`` EXPRESSES;
+#: ``Σ == threshold − 1`` does NOT).
+#:
+#: Layout (a fixed-width ``leaf_dim``-byte ``sectors=256`` cap leaf; §44 inline; the gate_type +
+#: weights + threshold carried after the label NUL — the SAME uniform label decode as every cap):
+#:   byte ``[0]``           marker ``0x77``
+#:   bytes ``[1:1+L]``      utf-8 gene label ``L`` bytes
+#:   byte ``[1+L]``         the label terminator ``0x00``
+#:   byte ``[2+L]``         gate_type — uint8 (:data:`GATE_TYPE_THRESHOLD` = 2)
+#:   bytes ``[3+L:5+L]``    n_weights — uint16 BIG-ENDIAN (the weight-vector length)
+#:   bytes ``[5+L:13+L]``   threshold — **int64 BIG-ENDIAN (SIGNED two's-complement, 8 bytes)**
+#:   then n_weights weights, each ``_THRESHOLD_GENE_WEIGHT_BYTES`` (8) bytes:
+#:     weight (int64 BE, SIGNED two's-complement)
+#:   bytes ``[…]``          NUL padding to ``leaf_dim``
+#: ``> 3`` and distinct from every other marker (CHROM ``0x43`` / GENE ``0x47`` / v5 KERNEL
+#: ``0x4B`` / PACKED ``0x51`` / KERNEL-telomere ``0x6B`` / ACTIVE-telomere ``0x74`` /
+#: REGULATORY-gene ``0x67`` / BOOLEAN-gene ``0x62``), so the strand stays SELF-DESCRIBING (§44):
+#: v2..v9 bodies read UNCHANGED (dual-read — the walker gains ONE branch), and a chromosome
+#: self-describes its weights + threshold by bare-strand scan (no manifest). A NEW block KIND (a
+#: new marker byte), so it bumps the genome format v9 → v10 — the same version-stamp discipline
+#: every prior new-marker bump used (rc127 ``0x74`` v6→v7, rc128 ``0x67`` v7→v8, rc130 ``0x62``
+#: v8→v9); the strand-walk read path is version-INDEPENDENT, so every pre-rc131 genome still reads
+#: identically.
+THRESHOLD_GENE_MARKER = 0x77
+
 #: The regulatory-gene MASK field width — a uint64 (8 bytes, big-endian), read at the byte
 #: right after the inline label's NUL terminator (the SAME field shape as the §127 active
 #: telomere's count). 64 exact bitwise cell-state conditions; Class-I integer, no float.
@@ -335,9 +383,17 @@ _REGULATORY_GENE_ROLES = ("dont-care", "repressor", "activator", "never")
 #: boolean_dnf) AND — for a ``0x62`` gene — stored EXPLICITLY as a byte in the cap, so the bare
 #: strand self-describes the gate_type and the family stays extensible (a future truth-table
 #: encoding slots in as ``0x62`` + a new gate_type value, no new marker).
+#:   * :data:`GATE_TYPE_THRESHOLD` (``2``) — the rc131 E4 LINEAR-THRESHOLD gate (a perceptron):
+#:     a per-condition INTEGER weight vector + an INTEGER threshold, carried in a THRESHOLD GENE
+#:     cap (``0x77``). A gene expresses iff ``Σᵢ (weightᵢ · bit_i(cell_state)) ≥ threshold``.
+#:     SIGNED weights (inhibitory inputs) are allowed; the decision is the SIGN of ``(Σ −
+#:     threshold)`` (Class-K, never ``abs()``). GENUINELY DISTINCT from E2 (linear-threshold ⊄
+#:     small-DNF: MAJORITY-of-n needs an exponential DNF but a compact all-ones threshold gate).
 GATE_TYPE_KLEIN4_MASK = 0
 GATE_TYPE_BOOLEAN_DNF = 1
-_GATE_TYPE_NAMES = {GATE_TYPE_KLEIN4_MASK: "klein4_mask", GATE_TYPE_BOOLEAN_DNF: "boolean_dnf"}
+GATE_TYPE_THRESHOLD = 2
+_GATE_TYPE_NAMES = {GATE_TYPE_KLEIN4_MASK: "klein4_mask", GATE_TYPE_BOOLEAN_DNF: "boolean_dnf",
+                    GATE_TYPE_THRESHOLD: "threshold"}
 
 #: §130/rc130 (#730) — the BOOLEAN GENE DNF wire widths. The DNF term COUNT is a uint16
 #: big-endian (2 bytes; up to 65535 terms — a leaf_dim-bounded ceiling, plenty for the
@@ -347,6 +403,19 @@ _GATE_TYPE_NAMES = {GATE_TYPE_KLEIN4_MASK: "klein4_mask", GATE_TYPE_BOOLEAN_DNF:
 #: Class-I exact integers (no float, never ``abs()``).
 _BOOLEAN_GENE_NTERMS_BYTES = 2
 _BOOLEAN_GENE_TERM_BYTES = 2 * _REGULATORY_GENE_MASK_BYTES
+
+#: §131/rc131 (#731) — the THRESHOLD GENE wire widths. The weight-vector LENGTH is a uint16
+#: big-endian (2 bytes; up to 65535 weights — a leaf_dim-bounded ceiling; a weight at index i
+#: gates condition bit i of the cell_state). The THRESHOLD and each WEIGHT are **int64 big-endian
+#: SIGNED two's-complement** (8 bytes each; signed so an inhibitory / repressive input is a
+#: NEGATIVE weight — real biology). Class-I/N exact signed integers (no float; the SIGN is a
+#: Class-K pin-slot, never ``abs()``).
+_THRESHOLD_GENE_NWEIGHTS_BYTES = 2
+_THRESHOLD_GENE_THRESHOLD_BYTES = 8
+_THRESHOLD_GENE_WEIGHT_BYTES = 8
+#: The int64 two's-complement bound: a signed weight / threshold lives in [-2**63, 2**63).
+_THRESHOLD_I64_MIN = -(1 << 63)
+_THRESHOLD_I64_MAX = (1 << 63) - 1
 
 #: The two :func:`telomere_tick` verdicts (the honest-decline / inform-don't-crash
 #: pattern — a clean STATUS, never a crash). ``DIVIDED`` = the count was > 0, so the op
@@ -492,7 +561,7 @@ def _cap_kind(hv):
     first = int(hv[0]) if len(hv) else -1
     return first if first in (
         CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
-        BOOLEAN_GENE_MARKER,
+        BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER,
         KERNEL_HEADER_MARKER,
         KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER) else None
 
@@ -845,16 +914,135 @@ def _dnf_expresses(dnf_terms, cell_state):
 
 
 def _gene_gate_type(hv):
-    """The declared ``gate_type`` of a gene cap (§130 dispatch family): a plain GENE (``0x47``)
-    or a Klein-4-mask regulatory gene (``0x67``) is :data:`GATE_TYPE_KLEIN4_MASK` (the rc129 fast
-    path); a boolean gene (``0x62``) reads its :data:`GATE_TYPE_BOOLEAN_DNF` from the cap. Any
-    other block is not a gene → ``None``."""
+    """The declared ``gate_type`` of a gene cap (§130/§131 dispatch family): a plain GENE
+    (``0x47``) or a Klein-4-mask regulatory gene (``0x67``) is :data:`GATE_TYPE_KLEIN4_MASK` (the
+    rc129 fast path); a boolean gene (``0x62``) reads its :data:`GATE_TYPE_BOOLEAN_DNF` from the
+    cap; a threshold gene (``0x77``) reads its :data:`GATE_TYPE_THRESHOLD` from the cap. Any other
+    block is not a gene → ``None``."""
     kind = _cap_kind(hv)
     if kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER):
         return GATE_TYPE_KLEIN4_MASK
     if kind == BOOLEAN_GENE_MARKER:
         return _boolean_gene_dnf(hv)[0]
+    if kind == THRESHOLD_GENE_MARKER:
+        return _threshold_gene_spec(hv)[0]
     return None
+
+
+def _validate_threshold_i64(value, which):
+    """Validate one SIGNED Class-I/N threshold-gate integer (a weight or the threshold) — an
+    exact int that fits the int64 two's-complement field ``[-2**63, 2**63)``. NO float. SIGNED is
+    intended (an inhibitory weight is NEGATIVE — real biology); the SIGN is a Class-K pin-slot,
+    never ``abs()`` (abs-ing a weight would silently drop the inhibitory sense)."""
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(
+            f"threshold gene {which} must be an exact int (Class-I/N); got {value!r}")
+    if value < _THRESHOLD_I64_MIN or value > _THRESHOLD_I64_MAX:
+        raise ValueError(
+            f"threshold gene {which} {value} exceeds the SIGNED int64 field "
+            f"[-2**63, 2**63)")
+
+
+def _pack_threshold_gene(gene_label, weights, threshold, dim, gate_type=GATE_TYPE_THRESHOLD):
+    """A fixed-width ``dim``-byte THRESHOLD GENE cap leaf (§131) — the E4 linear-threshold gate.
+
+    ``[THRESHOLD_GENE_MARKER] + utf-8 label + NUL + gate_type(uint8) + n_weights(uint16 BE) +
+    threshold(int64 BE SIGNED) + n_weights × (weight(int64 BE SIGNED))``, NUL-padded to ``dim``.
+    The **op** (a gene: it opens + delimits a gene, like :func:`_gene_cap`) and the **operand** (a
+    LINEAR-THRESHOLD / perceptron gate over the condition bits — a signed integer weight per
+    condition + an integer threshold) are FUSED in the ONE cap. Placing the gate_type + weights +
+    threshold right AFTER the label's NUL keeps the label decode UNIFORM (bytes ``[1:]`` up to the
+    first NUL — :func:`_unpack_cap` reads it with no threshold-gene special-case).
+
+    :func:`gene_express` reads the vector + threshold and expresses the gene IFF
+    ``Σᵢ (weightᵢ · bit_i(cell_state)) ≥ threshold`` (the exact integer weighted sum of the
+    PRESENT conditions ≥ the threshold; the decision is the SIGN of ``Σ − threshold`` — Class-K,
+    never ``abs()``). Weights + threshold are SIGNED exact integers (Class-I/N; NO float; an
+    inhibitory input is a NEGATIVE weight). Same marker ``0x77`` = a NEW block KIND (v9 → v10),
+    distinct from the ``0x67`` klein4-mask / ``0x62`` boolean genes. This is GENUINELY DISTINCT
+    from E2's DNF — a linear-threshold function (MAJORITY-of-n, a weighted dose-sum) needs an
+    EXPONENTIALLY-large DNF, so E4 compactly captures what E2 cannot."""
+    if gate_type != GATE_TYPE_THRESHOLD:
+        raise ValueError(
+            f"threshold gene gate_type {gate_type} is not supported (only "
+            f"GATE_TYPE_THRESHOLD={GATE_TYPE_THRESHOLD} today)")
+    weights = list(weights)
+    if len(weights) >= (1 << (8 * _THRESHOLD_GENE_NWEIGHTS_BYTES)):
+        raise ValueError(
+            f"threshold gene has {len(weights)} weights; max "
+            f"{(1 << (8 * _THRESHOLD_GENE_NWEIGHTS_BYTES)) - 1} (the uint16 weight count)")
+    _validate_threshold_i64(threshold, "threshold")
+    for i, w in enumerate(weights):
+        _validate_threshold_i64(w, f"weight {i}")
+    raw_label = gene_label.encode("utf-8") if isinstance(gene_label, str) else bytes(gene_label)
+    if b"\x00" in raw_label:
+        raise ValueError("threshold gene label must not contain a NUL byte")
+    payload = bytearray(bytes([THRESHOLD_GENE_MARKER]) + raw_label + b"\x00")
+    payload.append(gate_type & 0xFF)                                        # gate_type — uint8
+    payload += len(weights).to_bytes(_THRESHOLD_GENE_NWEIGHTS_BYTES, "big")  # n_weights — uint16 BE
+    payload += int(threshold).to_bytes(_THRESHOLD_GENE_THRESHOLD_BYTES, "big", signed=True)
+    for w in weights:
+        payload += int(w).to_bytes(_THRESHOLD_GENE_WEIGHT_BYTES, "big", signed=True)
+    if len(payload) > dim:
+        raise ValueError(
+            f"threshold gene label {gene_label!r} + {len(weights)}-weight vector is "
+            f"{len(payload)} bytes; max {dim} at leaf_dim={dim} (widen leaf_dim or reduce the "
+            f"weight count)")
+    block = bytes(payload) + b"\x00" * (dim - len(payload))
+    return _HV.from_sequence(block, sectors=256)
+
+
+def _threshold_gene_spec(hv):
+    """``(gate_type, [weight, …], threshold)`` carried inline in a THRESHOLD GENE cap (§131) — the
+    perceptron operand of the op⊗operand gene. Reads the gate_type byte + the uint16 weight count
+    + the int64 SIGNED threshold right AFTER the label's NUL, then the ``n_weights`` int64 SIGNED
+    weights. The chromosome SELF-DESCRIBES its weights + threshold by this bare-strand read (no
+    manifest). Class-I/N exact SIGNED integers (never a float; the sign is meaningful, never
+    ``abs()``). Raises ``ValueError`` on a malformed / truncated cap."""
+    raw = hv.tobytes()
+    if raw[:1] != bytes([THRESHOLD_GENE_MARKER]):
+        raise ValueError("not a threshold gene cap (first byte != THRESHOLD_GENE_MARKER)")
+    nul = raw.find(b"\x00", 1)                          # end of the inline label
+    hdr = 1 + _THRESHOLD_GENE_NWEIGHTS_BYTES + _THRESHOLD_GENE_THRESHOLD_BYTES
+    if nul < 0 or nul + hdr > len(raw):
+        raise ValueError(
+            "threshold gene cap is malformed: no label NUL / gate_type+n_weights+threshold "
+            "header truncated")
+    gate_type = raw[nul + 1]
+    if gate_type != GATE_TYPE_THRESHOLD:
+        raise ValueError(
+            f"threshold gene cap has unsupported gate_type {gate_type} "
+            f"(only GATE_TYPE_THRESHOLD={GATE_TYPE_THRESHOLD} today)")
+    nw_base = nul + 2
+    n_weights = int.from_bytes(raw[nw_base:nw_base + _THRESHOLD_GENE_NWEIGHTS_BYTES], "big")
+    th_base = nw_base + _THRESHOLD_GENE_NWEIGHTS_BYTES
+    threshold = int.from_bytes(
+        raw[th_base:th_base + _THRESHOLD_GENE_THRESHOLD_BYTES], "big", signed=True)
+    base = th_base + _THRESHOLD_GENE_THRESHOLD_BYTES
+    if base + n_weights * _THRESHOLD_GENE_WEIGHT_BYTES > len(raw):
+        raise ValueError("threshold gene cap is malformed: weight vector truncated")
+    weights = []
+    for k in range(n_weights):
+        o = base + k * _THRESHOLD_GENE_WEIGHT_BYTES
+        weights.append(int.from_bytes(
+            raw[o:o + _THRESHOLD_GENE_WEIGHT_BYTES], "big", signed=True))
+    return gate_type, weights, threshold
+
+
+def _threshold_expresses(weights, threshold, cell_state):
+    """Evaluate a linear-threshold (perceptron) gate under ``cell_state`` (§131) — express iff
+    ``Σᵢ (weightᵢ · bit_i(cell_state)) ≥ threshold``. The exact SIGNED integer weighted sum over
+    the PRESENT conditions (bit ``i`` of ``cell_state``) is compared against the threshold; the
+    decision is the SIGN of ``(Σ − threshold)`` — a **Class-K sign-branch, NEVER ``abs()``**
+    (abs-ing the sum would discard the inhibitory sign). SIGNED weights (a repressive input is a
+    NEGATIVE weight). Exact Class-I/N integers (arbitrary precision; no float). The boundary is
+    INCLUSIVE (``Σ == threshold`` expresses)."""
+    total = 0
+    for i, w in enumerate(weights):
+        if (cell_state >> i) & 1:                        # bit_i(cell_state) — condition present
+            total += w                                   # exact signed accumulate (Class-I/N)
+    delta = total - threshold                            # Class-K pin-slot: the SIGN decides
+    return delta >= 0                                    # inclusive boundary; never abs()
 
 
 def _pack_active_telomere(label, count, dim):
@@ -1048,9 +1236,14 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
         elif len(gene) == 3:
             gene_label, gene_leaves, spec = gene
             if isinstance(spec, dict):
-                # §130 the GENERAL gate-type: a dict spec {"gate": "boolean", "dnf": [...]}
-                # opens a BOOLEAN GENE cap (0x62) carrying arbitrary boolean logic (a DNF).
-                strand.append(_boolean_gene_cap_from_spec(gene_label, spec, dim))
+                # §130/§131 the GENERAL gate-types (dict spec): {"gate": "threshold",
+                # "weights": [...], "threshold": θ} opens a THRESHOLD GENE cap (0x77, E4 the
+                # linear-threshold / perceptron gate); any other dict {"gate": "boolean",
+                # "dnf": [...]} opens a BOOLEAN GENE cap (0x62, E2 the DNF gate).
+                if spec.get("gate") in ("threshold", "linear_threshold"):
+                    strand.append(_threshold_gene_cap_from_spec(gene_label, spec, dim))
+                else:
+                    strand.append(_boolean_gene_cap_from_spec(gene_label, spec, dim))
             else:
                 # §128 the FAST klein4_mask path: an int activator-only mask (repressor 0),
                 # BYTE-IDENTICAL to rc128 (the 0x67 gene stays the compact common case).
@@ -1077,6 +1270,29 @@ def _boolean_gene_cap_from_spec(gene_label, spec, dim):
             "boolean gene spec must carry a 'dnf' term list [(activator, repressor), …] "
             "(disjunctive normal form: an OR of require-present/require-absent AND-clauses)")
     return _pack_boolean_gene(gene_label, spec["dnf"], dim)
+
+
+def _threshold_gene_cap_from_spec(gene_label, spec, dim):
+    """Build a §131 THRESHOLD GENE cap from a dict gene-spec — the chromosome-builder adapter for
+    the E4 linear-threshold gate. ``spec`` is ``{"gate": "threshold", "weights": [w0, w1, …],
+    "threshold": θ}`` (the ``"gate"`` key declares the gate_type; ``"weights"`` is the per-
+    condition SIGNED integer weight vector — weight ``i`` gates condition bit ``i``; ``"threshold"``
+    is the SIGNED integer θ). A gene expresses iff ``Σᵢ weightᵢ·bit_i(cell_state) ≥ θ``. Composes
+    :func:`_pack_threshold_gene`."""
+    gate = spec.get("gate", "threshold")
+    if gate not in ("threshold", "linear_threshold"):
+        raise ValueError(
+            f"threshold gene spec gate {gate!r} is not supported (only 'threshold' / "
+            f"'linear_threshold' today — the §131 E4 gate-type)")
+    if "weights" not in spec:
+        raise ValueError(
+            "threshold gene spec must carry a 'weights' vector [w0, w1, …] (a SIGNED integer "
+            "weight per condition bit; an inhibitory input is a NEGATIVE weight)")
+    if "threshold" not in spec:
+        raise ValueError(
+            "threshold gene spec must carry a 'threshold' (a SIGNED integer θ; the gene "
+            "expresses iff Σ weightᵢ·bit_i(cell_state) ≥ θ)")
+    return _pack_threshold_gene(gene_label, spec["weights"], spec["threshold"], dim)
 
 
 def recall(strand, the_one, telomere=None):
@@ -1124,11 +1340,13 @@ def genes(strand, the_one):
     started = False
     for hv in strand:
         kind = _cap_kind(hv)
-        if kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER):
-            # §128/§130: a plain GENE cap (0x47), a REGULATORY GENE cap (0x67) OR a BOOLEAN GENE
-            # cap (0x62) opens a gene; its label reads UNIFORMLY (the mask(s) / gate_type + DNF
-            # sit AFTER the label NUL, so _unpack_cap reads the label with no special-case).
-            # genes() recovers ALL genes gate-agnostically (gene_express() applies the filter).
+        if kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
+                    THRESHOLD_GENE_MARKER):
+            # §128/§130/§131: a plain GENE cap (0x47), a REGULATORY GENE cap (0x67), a BOOLEAN
+            # GENE cap (0x62) OR a THRESHOLD GENE cap (0x77) opens a gene; its label reads
+            # UNIFORMLY (the mask(s) / gate_type + DNF / weights sit AFTER the label NUL, so
+            # _unpack_cap reads the label with no special-case). genes() recovers ALL genes
+            # gate-agnostically (gene_express() applies the filter).
             if started:
                 out.append((cur_label, cur_leaves))
             _marker, cur_label = _unpack_cap(hv)
@@ -1188,6 +1406,20 @@ def gene_express(strand, the_one, cell_state):
       Work", NCBI Bookshelf NBK26872: the *Drosophila eve* gene is regulated by combinatorial
       controls — a COMBINATION of gene regulatory proteins, not a single one, sets expression).
 
+    * ``gate_type = threshold`` (§131 E4 — the LINEAR-THRESHOLD gate; a ``0x77`` threshold gene) —
+      a **perceptron**: a per-condition SIGNED integer WEIGHT vector + an integer THRESHOLD; the
+      gene expresses iff ``Σᵢ (weightᵢ · bit_i(cell_state)) ≥ threshold`` (the exact integer
+      weighted sum of the PRESENT conditions ≥ the threshold; the decision is the SIGN of
+      ``Σ − threshold`` — a Class-K sign-branch, NEVER ``abs()``). **SIGNED weights** allow an
+      inhibitory input (a repressive TF is a NEGATIVE weight). This is GENUINELY DISTINCT from E2:
+      a linear-threshold function (e.g. MAJORITY-of-n = all-ones weights with ``θ = ⌈n/2⌉``, or a
+      weighted morphogen dose-sum) needs an EXPONENTIALLY-large DNF, so E4 captures COMPACTLY what
+      E2's DNF cannot (linear-threshold functions ⊄ small-DNF). The morphogen-gradient threshold
+      model is the exemplar (Alberts et al., *MBoC* 4th ed., "Drosophila and the Molecular Genetics
+      of Pattern Formation", NCBI Bookshelf NBK26906: the Dorsal morphogen "turns on or off the
+      expression of different sets of genes depending on its concentration" — additive / threshold
+      enhancer integration).
+
     THE op⊗operand THEOREM, one scale up from the rc127 active telomere: rc127 gated ONE
     divide/senesce BINARY by a carried COUNT; here the ``gene_express`` **operator** is
     MODULATED by the ``cell_state`` **operand** to gate a SELECTION over MANY genes — SAME
@@ -1225,7 +1457,8 @@ def gene_express(strand, the_one, cell_state):
     started = False
     for hv in strand:
         kind = _cap_kind(hv)
-        if kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER):
+        if kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
+                    THRESHOLD_GENE_MARKER):
             if started and cur_express:
                 out.append((cur_label, cur_leaves))
             _marker, cur_label = _unpack_cap(hv)
@@ -1246,24 +1479,33 @@ def gene_express(strand, the_one, cell_state):
 
 
 def _gene_expresses(cap, cell_state):
-    """Decide whether the gene opened by ``cap`` EXPRESSES under ``cell_state`` (§128/§129/§130) —
-    the per-gene read-time filter shared by :func:`gene_express`, dispatching on the gate_type
-    (== the cap marker). A plain GENE cap (0x47, no masks) always expresses ``(0, 0)``; a
-    KLEIN-4-MASK regulatory gene (0x67) carries the two Klein-4 bit-planes ``(activator,
-    repressor)`` and expresses IFF ``(cell_state & activator) == activator`` (ALL activators
-    present) AND ``(cell_state & repressor) == 0`` (NO repressor present) — a 'never' bit (set in
-    BOTH masks) auto-silences (present AND absent = contradiction). §130: a BOOLEAN gene (0x62)
-    carries a DNF and expresses IFF ANY of its ``(act, rep)`` clauses matches (E1 ⊂ E2 — the
-    klein4_mask two-mask is a 1-clause DNF; the empty DNF is FALSE = never). Native-authoritative
-    when present (byte-identical C peer ``srmech_genome_gene_express``); the pure Class-I bitwise
-    path is the complete alternative. NO float, NEVER ``abs()``."""
+    """Decide whether the gene opened by ``cap`` EXPRESSES under ``cell_state``
+    (§128/§129/§130/§131) — the per-gene read-time filter shared by :func:`gene_express`,
+    dispatching on the gate_type (== the cap marker). A plain GENE cap (0x47, no masks) always
+    expresses ``(0, 0)``; a KLEIN-4-MASK regulatory gene (0x67) carries the two Klein-4 bit-planes
+    ``(activator, repressor)`` and expresses IFF ``(cell_state & activator) == activator`` (ALL
+    activators present) AND ``(cell_state & repressor) == 0`` (NO repressor present) — a 'never'
+    bit (set in BOTH masks) auto-silences (present AND absent = contradiction). §130: a BOOLEAN
+    gene (0x62) carries a DNF and expresses IFF ANY of its ``(act, rep)`` clauses matches (E1 ⊂ E2
+    — the klein4_mask two-mask is a 1-clause DNF; the empty DNF is FALSE = never). §131: a
+    THRESHOLD gene (0x77) carries a linear-threshold / perceptron gate (a SIGNED integer weight per
+    condition + a threshold) and expresses IFF ``Σᵢ weightᵢ·bit_i(cell_state) ≥ threshold`` (the
+    decision is the SIGN of ``Σ − threshold`` — Class-K, never ``abs()``; SIGNED weights allow an
+    inhibitory input). Native-authoritative when present (byte-identical C peer
+    ``srmech_genome_gene_express``); the pure Class-I/N integer path is the complete alternative.
+    NO float, NEVER ``abs()``."""
     native = _gene_express_native(cap, cell_state)
     if native is not None:
         return native
-    # §130 GATE-TYPE DISPATCH (pure path): the BOOLEAN gene (0x62) evaluates a DNF (E2 — the
-    # general escape hatch); a plain (0x47) / Klein-4-mask (0x67) gene takes the rc129 fast path
-    # (E1 — the common case). Dispatch on the cap marker (== the declared gate_type).
-    if _cap_kind(cap) == BOOLEAN_GENE_MARKER:
+    # §130/§131 GATE-TYPE DISPATCH (pure path): a THRESHOLD gene (0x77) evaluates a linear-
+    # threshold / perceptron gate (E4); a BOOLEAN gene (0x62) evaluates a DNF (E2 — the general
+    # escape hatch); a plain (0x47) / Klein-4-mask (0x67) gene takes the rc129 fast path (E1 — the
+    # common case). Dispatch on the cap marker (== the declared gate_type).
+    kind = _cap_kind(cap)
+    if kind == THRESHOLD_GENE_MARKER:
+        _gate_type, weights, threshold = _threshold_gene_spec(cap)
+        return _threshold_expresses(weights, threshold, cell_state)  # Σ w·bit ≥ θ (Class-K sign)
+    if kind == BOOLEAN_GENE_MARKER:
         _gate_type, dnf_terms = _boolean_gene_dnf(cap)
         return _dnf_expresses(dnf_terms, cell_state)     # express iff ANY term matches
     activator, repressor = _regulatory_gene_masks(cap)   # (0, 0) for a plain gene
@@ -1347,9 +1589,10 @@ def partition(strand, the_one, labels=None):
             _marker, current = _unpack_cap(hv)
             out[current] = []
         elif kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
-                      KERNEL_HEADER_MARKER):
+                      THRESHOLD_GENE_MARKER, KERNEL_HEADER_MARKER):
             continue                            # a gene delimiter (§44 plain / §128
-                                                # regulatory / §130 boolean) / §60 v5 header —
+                                                # regulatory / §130 boolean / §131 threshold) /
+                                                # §60 v5 header —
                                                 # not data; flatten past it
         elif current is not None:
             out[current].append(quad_turn(hv, the_one))   # reversible uncouple
@@ -1740,7 +1983,23 @@ def telomere_tick(strand):
 #: converter. A plain / klein4-mask genome saved by the v9 writer is byte-identical to the v8
 #: writer's EXCEPT the ``format_version`` field (the same version-stamp discipline every prior
 #: new-block-kind bump used — a v9 writer stamps 9).
-GENOME_FORMAT_VERSION = 9
+#: 10 (§131/rc131, #731) == the THRESHOLD GENE: an intra-chromosome gene MAY be opened by a
+#: ``THRESHOLD_GENE_MARKER`` (``0x77``) cap carrying a LINEAR-THRESHOLD (perceptron) gate inline —
+#: a per-condition SIGNED integer WEIGHT vector + an integer THRESHOLD that :func:`gene_express`
+#: evaluates as ``Σᵢ weightᵢ·bit_i(cell_state) ≥ threshold`` to gate which genes express (#731). It
+#: is the THIRD gate-type in the rc129 dispatch FAMILY (E1 klein4_mask ``0x67`` / E2 boolean_dnf
+#: ``0x62`` / E4 threshold ``0x77``) — GENUINELY DISTINCT from E2 (a linear-threshold function
+#: like MAJORITY-of-n needs an EXPONENTIAL DNF, so E4 captures compactly what E2's DNF cannot;
+#: linear-threshold ⊄ small-DNF). This is a NEW marker byte = a new block KIND, so it bumps
+#: v9 → v10 exactly as every prior new-marker bump did (rc127 ``0x74`` v6→v7, rc128 ``0x67``
+#: v7→v8, rc130 ``0x62`` v8→v9). The ``0x77`` cap is one more self-describing kind in the SAME
+#: walk (its first byte keys it, its label read UNIFORMLY, its gate_type + weights + threshold
+#: after the label NUL), so v2..v9 bodies read UNCHANGED (dual-read — the walker gains ONE
+#: branch): back-compat is STRUCTURAL, never a converter. A plain / klein4-mask / boolean genome
+#: saved by the v10 writer is byte-identical to the v9 writer's EXCEPT the ``format_version``
+#: field (the same version-stamp discipline every prior new-block-kind bump used — a v10 writer
+#: stamps 10).
+GENOME_FORMAT_VERSION = 10
 
 #: rc115 (#1245 ask (b)) — the empty-body chain seed H₀ = sha256(b"") (a derived
 #: constant, not magic: THE well-known empty-string digest). The whole-body
@@ -1825,7 +2084,7 @@ def _hv_from_block(block: bytes) -> _HV:
     first = block[0] if block else -1
     sectors = 256 if first in (
         CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
-        BOOLEAN_GENE_MARKER,
+        BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER,
         KERNEL_HEADER_MARKER,
         KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER) else QUAD
     return _HV.from_sequence(block, sectors=sectors)
@@ -1844,10 +2103,12 @@ def _block_is_cap(block: bytes) -> bool:
     plain GENE cap), so it too is stored VERBATIM and excluded from the data-turn count (its
     mask is NOT a turn). §130: the ``0x62`` boolean gene is likewise an intra-chromosome gene
     delimiter cap (like the ``0x67`` regulatory gene), stored VERBATIM + excluded from the
-    data-turn count (its gate_type + DNF are NOT a turn)."""
+    data-turn count (its gate_type + DNF are NOT a turn). §131: the ``0x77`` threshold gene is
+    likewise an intra-chromosome gene delimiter cap, stored VERBATIM + excluded from the data-turn
+    count (its gate_type + weights + threshold are NOT a turn)."""
     return bool(block) and block[0] in (
         CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
-        BOOLEAN_GENE_MARKER,
+        BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER,
         KERNEL_HEADER_MARKER,
         KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER)
 
@@ -1952,8 +2213,8 @@ def _walk_region_blocks(region: bytes, leaf_dim: int, *, context: str = "genome"
     while k < n:
         kind = region[k]
         if kind in (CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
-                    BOOLEAN_GENE_MARKER, KERNEL_HEADER_MARKER, KERNEL_TELOMERE_MARKER,
-                    ACTIVE_TELOMERE_MARKER) or kind <= 3:
+                    BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, KERNEL_HEADER_MARKER,
+                    KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER) or kind <= 3:
             end = k + leaf_dim
             if end > n:
                 raise GenomeBoundingError(
@@ -2288,10 +2549,12 @@ def _rebuild_manifest_from_body(body_bytes, leaf_dim, the_one):
         elif (decoded[0] != GENE_CAP_MARKER
               and decoded[0] != REGULATORY_GENE_MARKER
               and decoded[0] != BOOLEAN_GENE_MARKER
+              and decoded[0] != THRESHOLD_GENE_MARKER
               and decoded[0] != KERNEL_HEADER_MARKER):
             cur[2] += 1                       # a data turn (packed or legacy); a GENE
                                               # cap (§44 plain / §128 regulatory / §130
-                                              # boolean) or §60 v5 header is not a turn
+                                              # boolean / §131 threshold) or §60 v5 header
+                                              # is not a turn
                                               # (the §89 v6 Klein-4 header IS a coupled turn)
         cur[4] += len(raw)
         offset += len(raw)
@@ -2502,8 +2765,8 @@ def genome_load(path, *, labels=None, the_one=None):
                     break
                 kind = first[0]
                 if kind in (CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
-                            BOOLEAN_GENE_MARKER, KERNEL_HEADER_MARKER, KERNEL_TELOMERE_MARKER,
-                            ACTIVE_TELOMERE_MARKER) \
+                            BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, KERNEL_HEADER_MARKER,
+                            KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER) \
                         or kind <= 3:
                     rest = f.read(leaf_dim - 1)
                     if len(rest) != leaf_dim - 1:
@@ -2679,7 +2942,8 @@ def genome_genes(path, label, *, the_one=None):
     the_one = _resolve_the_one(data, the_one)
     region = _read_region(path, by_label[label], leaf_dim)
     region_strand = _region_strand(region, leaf_dim)
-    if not any(_cap_kind(hv) in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER)
+    if not any(_cap_kind(hv) in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
+                                 THRESHOLD_GENE_MARKER)
                for hv in region_strand):
         raise ValueError(
             f"genome_genes: chromosome {label!r} has no inline GENE caps — it is a "

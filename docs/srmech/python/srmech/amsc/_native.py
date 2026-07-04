@@ -9896,8 +9896,13 @@ def genome_gene_express_c(cap: bytes, leaf_dim: int, cell_state: int) -> bool:
     gene always expresses (masks 0), a regulatory gene carries the TWO KLEIN-4 bit-planes
     (activator then repressor) and expresses iff ``(cell_state & activator) == activator``
     (ALL activators present) AND ``(cell_state & repressor) == 0`` (NO repressor present).
-    §129 dual-read: a rc128 single-mask cap reads as activator=mask, repressor=0. Byte-
-    identical to the pure Python decision in ``genome._gene_expresses``."""
+    §129 dual-read: a rc128 single-mask cap reads as activator=mask, repressor=0. §130: a boolean
+    gene (0x62) carries a DNF and expresses iff ANY clause matches. §131: a threshold gene (0x77)
+    carries a linear-threshold / perceptron gate (a SIGNED int64 weight per condition + an int64
+    threshold) and expresses iff ``Σ weightᵢ·bit_i(cell_state) ≥ threshold`` (Class-K sign-branch;
+    on an int64-accumulate overflow the native raises ``NativeGenomeError`` so the caller falls to
+    the exact pure Python path). Byte-identical to the pure Python decision in
+    ``genome._gene_expresses``."""
     _require_genome()
     if not hasattr(LIB, "srmech_genome_gene_express"):
         raise NativeGenomeError("srmech_genome_gene_express", SRMECH_ERR_NOT_IMPL)

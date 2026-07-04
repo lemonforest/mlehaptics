@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc130"
-#define SRMECH_VERSION       "0.9.0rc130"
+#define SRMECH_VERSION_PRE   "rc131"
+#define SRMECH_VERSION       "0.9.0rc131"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2648,9 +2648,13 @@ size_t srmech_op_provenance_hash_arena_bytes(size_t record_len);
  * (an unregulated gene == a regulatory gene with mask 0). §130/v9 (#730): the BOOLEAN GENE
  * (marker 0x62) carrying arbitrary boolean logic (a DNF) is a NEW block KIND, so it bumps v8 ->
  * v9 (the walker gains ONE branch; v2..v8 bodies read UNCHANGED; a plain/klein4-mask genome
- * saved by the v9 writer is byte-identical to v8 EXCEPT the format_version field). Mirrors
+ * saved by the v9 writer is byte-identical to v8 EXCEPT the format_version field). §131/v10
+ * (#731): the THRESHOLD GENE (marker 0x77) carrying a linear-threshold / perceptron gate (a
+ * SIGNED integer weight vector + a threshold) is a NEW block KIND, so it bumps v9 -> v10 (the
+ * walker gains ONE branch; v2..v9 bodies read UNCHANGED; a plain/klein4-mask/boolean genome saved
+ * by the v10 writer is byte-identical to v9 EXCEPT the format_version field). Mirrors
  * GENOME_FORMAT_VERSION in srmech.amsc.genome. */
-#define SRMECH_GENOME_FORMAT_VERSION 9
+#define SRMECH_GENOME_FORMAT_VERSION 10
 
 /* §44 inline cap markers — the FIRST byte of a fixed-width cap leaf. Both are
  * > 3 so a cap is told apart from a Klein-4 data turn (bytes 0..3) by its
@@ -2756,6 +2760,38 @@ size_t srmech_op_provenance_hash_arena_bytes(size_t record_len);
  * klein4-mask carries as its ONE clause. Mirror _BOOLEAN_GENE_* in srmech.amsc.genome. */
 #define SRMECH_GENOME_BOOLEAN_NTERMS_BYTES 2u
 #define SRMECH_GENOME_BOOLEAN_TERM_BYTES (2u * SRMECH_GENOME_REGULATORY_MASK_BYTES)
+
+/* §131/v10 THRESHOLD GENE marker (rc131, #731) — the FIRST byte of a fixed-width leaf_dim-byte cap
+ * leaf that opens an INTRA-chromosome gene (like the plain GENE cap / the §128 regulatory gene /
+ * the §130 boolean gene) AND carries a LINEAR-THRESHOLD (perceptron) gate inline: a per-condition
+ * SIGNED integer WEIGHT vector + an integer THRESHOLD. The THIRD gate-type in the rc129 dispatch
+ * family (E1 klein4_mask 0x67 / E2 boolean_dnf 0x62 / E4 threshold 0x77). GENUINELY DISTINCT from
+ * E2: a linear-threshold function (MAJORITY-of-n, a weighted dose-sum) needs an EXPONENTIALLY-large
+ * DNF, so E4 captures COMPACTLY what E2 cannot (linear-threshold subset-not small-DNF). Layout:
+ * [0x77] + utf-8 label + NUL + gate_type(uint8) + n_weights(uint16 big-endian) +
+ * threshold(int64 BE SIGNED two's-complement) + n_weights x (weight(int64 BE SIGNED)) + NUL-pad to
+ * leaf_dim. The label decode is UNIFORM (bytes [1:] up to the first NUL); the gate_type + weights +
+ * threshold are read at the bytes RIGHT AFTER that NUL. > 3 and distinct from every other marker
+ * (CHROM 0x43 / GENE 0x47 / v5 KERNEL 0x4B / PACKED 0x51 / KERNEL-telomere 0x6B / ACTIVE-telomere
+ * 0x74 / REGULATORY-gene 0x67 / BOOLEAN-gene 0x62), so v2..v9 bodies read UNCHANGED — the walker
+ * gains ONE branch. A NEW marker byte = a new block KIND, so it bumps the genome format v9 -> v10.
+ * srmech_genome_gene_express evaluates the perceptron (express iff Sum weight_i * bit_i(cell_state)
+ * >= threshold; the decision is the SIGN of the sum minus threshold — Class-K, never abs). Mirrors
+ * THRESHOLD_GENE_MARKER in srmech.amsc.genome. */
+#define SRMECH_GENOME_THRESHOLD_GENE_MARKER 0x77u /* 'w' — a §131 threshold gene */
+
+/* §131/v10 REGULATORY GATE-TYPE enum extension (rc131, #731). THRESHOLD (2) = the §131 linear-
+ * threshold / perceptron gate (a SIGNED integer weight vector + a threshold, carried by a 0x77
+ * cap); srmech_genome_gene_express dispatches on the cap marker. Mirrors GATE_TYPE_THRESHOLD in
+ * srmech.amsc.genome. */
+#define SRMECH_GENOME_GATE_TYPE_THRESHOLD 2u
+
+/* §131/v10 THRESHOLD GENE wire widths (rc131, #731). The weight-vector LENGTH is a uint16
+ * big-endian (2 bytes; weight i gates condition bit i of the cell_state). The THRESHOLD and each
+ * WEIGHT are int64 big-endian SIGNED two's-complement (8 bytes each; SIGNED so an inhibitory /
+ * repressive input is a NEGATIVE weight). Mirror _THRESHOLD_GENE_* in srmech.amsc.genome. */
+#define SRMECH_GENOME_THRESHOLD_NWEIGHTS_BYTES 2u
+#define SRMECH_GENOME_THRESHOLD_VALUE_BYTES 8u
 
 /* Max label byte length (NUL-terminated) for one chromosome. This is a FORMAT
  * width (a label lives inline in a leaf_dim-byte cap block, like PATH_MAX), NOT
@@ -3101,17 +3137,27 @@ srmech_status_t srmech_genome_telomere_tick(
  * gate-type — an arbitrary boolean function over the conditions in DNF (an OR of (activator,
  * repressor) AND-clauses); *expressed = 1 iff ANY clause matches (E1 subset E2 — the klein4-mask
  * two-mask is a 1-clause DNF; the empty DNF is FALSE = never). mask_out is 0 for a boolean gene
- * (no single activator plane). No arena (a per-cap decision); malloc-free; no abs (a mask / a
- * cell_state is never negated). NEVER MUTATES cap (a READ — biology does not rewrite DNA).
- *   cap / leaf_dim : the gene cap leaf (leaf_dim bytes; cap[0] == 0x47, 0x67 or 0x62).
+ * (no single activator plane). §131/v10 (#731): a THRESHOLD GENE cap (cap[0] == 0x77) carries a
+ * LINEAR-THRESHOLD / perceptron gate — a per-condition SIGNED int64 WEIGHT vector + an int64
+ * THRESHOLD; *expressed = 1 iff Sum_i (weight_i * bit_i(cell_state)) >= threshold (the decision is
+ * the SIGN of the exact signed sum minus threshold — Class-K, never abs; SIGNED weights allow an
+ * inhibitory input). mask_out is 0 for a threshold gene. If the exact int64 accumulate would
+ * OVERFLOW, this returns SRMECH_ERR_OVERFLOW so the caller falls to the pure (arbitrary-precision)
+ * Python path — the native result, when produced, is byte-identical to Python. No arena (a per-cap
+ * decision); malloc-free; no abs. NEVER MUTATES cap (a READ — biology does not rewrite DNA).
+ *   cap / leaf_dim : the gene cap leaf (leaf_dim bytes; cap[0] == 0x47, 0x67, 0x62 or 0x77).
  *   cell_state     : the exact non-negative cell-state bitmask (each set bit a condition).
  *   expressed      : out — 1 iff the gene expresses under cell_state, else 0.
- *   mask_out       : out — the gene's ACTIVATOR mask (0 for a plain / boolean gene); may be NULL.
+ *   mask_out       : out — the gene's ACTIVATOR mask (0 for a plain / boolean / threshold gene);
+ *                    may be NULL.
  * Error returns:
  *   SRMECH_ERR_NULL_ARG  — cap / expressed is NULL.
- *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0, cap[0] is not 0x47 / 0x67 / 0x62, no label NUL, a
- *                          truncated activator field (regulatory gene), or a truncated /
- *                          unsupported-gate_type DNF header / term list (boolean gene). */
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0, cap[0] is not 0x47 / 0x67 / 0x62 / 0x77, no label NUL, a
+ *                          truncated activator field (regulatory gene), a truncated /
+ *                          unsupported-gate_type DNF header / term list (boolean gene), or a
+ *                          truncated / unsupported-gate_type threshold header / weight vector.
+ *   SRMECH_ERR_OVERFLOW  — the int64 weighted-sum accumulate would overflow (threshold gene) ->
+ *                          the caller uses the exact pure Python path. */
 srmech_status_t srmech_genome_gene_express(
     const unsigned char *cap, size_t leaf_dim, uint64_t cell_state,
     int *expressed, uint64_t *mask_out);

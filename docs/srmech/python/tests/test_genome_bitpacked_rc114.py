@@ -107,7 +107,7 @@ def test_dod_1024x256_chromosome_writes_66kb(tmp_path):
     assert body_size == 256 + 1024 * (1 + 256 // 4) == 66816
     assert total < 70_000                    # "~66 KB" — vs 264,230 B at rc107
     assert 264_230 / total > 3.8             # the 4.03x bloat removed
-    assert man["format_version"] == 9        # v9 writer (rc130 §130; a v9 writer stamps 9 even for a non-boolean genome)
+    assert man["format_version"] == 10        # v9 writer (rc130 §130; a v9 writer stamps 9 even for a non-boolean genome)
     assert man["n_turns"] == 1025            # blocks: 1 cap + 1024 turns
     # rc115 (#1245(b)): one region entry per chromosome; body_sha256 is the chain
     assert [r["byte_offset"] for r in man["regions"]] == [0]
@@ -242,7 +242,7 @@ def test_v2_fixture_manifestless_rebuild_reads(tmp_path):
     # structural chromosome fields are byte-identical to the stored v2 manifest's,
     # but body_sha256 is now the region CHAIN (not the v2 whole-body digest), and a
     # regions partition is derived (one per chromosome, tiling the body).
-    assert cat["format_version"] == 9        # rc130 §130: rebuild derives the v9 writer
+    assert cat["format_version"] == 10        # rc130 §130: rebuild derives the v9 writer
     assert [(r["byte_offset"], r["byte_len"]) for r in cat["regions"]] == \
         [(c["byte_offset"], c["byte_len"]) for c in v2["chromosomes"]]
     assert cat["body_sha256"] != v2["body_sha256"]        # chain, not whole-body
@@ -276,7 +276,7 @@ def test_v2_append_yields_mixed_body_reading_correctly(tmp_path):
 
     # the manifest went v5 (rc121 §60; prior entries byte-identical; n_turns
     # = blocks). Appending to a v2 genome migrates it to the current writer (v5).
-    assert man2["format_version"] == 9
+    assert man2["format_version"] == 10
     assert man2["chromosomes"][:3] == man_before["chromosomes"]
     assert man2["n_turns"] == man_before["n_turns"] + 1 + 3
 

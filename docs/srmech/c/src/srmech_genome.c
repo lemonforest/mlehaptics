@@ -68,9 +68,9 @@
 /* The §41 manifest data_schema_id (== GENOME_MANIFEST_SCHEMA_ID). */
 #define SRMECH_GENOME_SCHEMA_ID "srmech://schema/genome_manifest/v1"
 
-/* The §41 parser_rule_hash pre-image (== f"genome_persistence/v9" — tracks
- * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _manifest_record; §130/rc130 v8->v9). */
-#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v9"
+/* The §41 parser_rule_hash pre-image (== f"genome_persistence/v10" — tracks
+ * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _manifest_record; §131/rc131 v9->v10). */
+#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v10"
 
 /* ------------------------------------------------------------------ *
  * Path + file helpers (stdio — Rule 3 allows file I/O, bans malloc).
@@ -251,12 +251,13 @@ static srmech_status_t genome_block_len(const unsigned char *body,
         kind == SRMECH_GENOME_GENE_CAP_MARKER ||
         kind == SRMECH_GENOME_REGULATORY_GENE_MARKER ||
         kind == SRMECH_GENOME_BOOLEAN_GENE_MARKER ||
+        kind == SRMECH_GENOME_THRESHOLD_GENE_MARKER ||
         kind == SRMECH_GENOME_KERNEL_HEADER_MARKER ||
         kind == SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
         kind == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER || kind <= 3u) {
         n = (size_t)leaf_dim;   /* cap / §60 v5 header / §89 kernel telomere /
                                  * §127 active telomere / §128 regulatory gene /
-                                 * §130 boolean gene / v2 turn */
+                                 * §130 boolean gene / §131 threshold gene / v2 turn */
     } else if (kind == SRMECH_GENOME_PACKED_TURN_MARKER) {
         n = 1u + ((size_t)leaf_dim + 3u) / 4u;      /* v3 bit-packed turn */
     } else {
@@ -661,12 +662,13 @@ static srmech_status_t genome_scan_chroms(genome_strings_t *s,
             s->leaf_count[cur] = 0u;
         } else {
             if (cur < 0) { return SRMECH_ERR_BAD_INPUT; }   /* turn before 1st cap */
-            /* §60/§128/§130: a GENE cap (plain 0x47 / regulatory 0x67 / boolean 0x62) or a v5
-             * KERNEL HEADER (0x4B) is not a data turn. The §89 v6 Klein-4 header IS a coupled
-             * turn (counted). */
+            /* §60/§128/§130/§131: a GENE cap (plain 0x47 / regulatory 0x67 / boolean 0x62 /
+             * threshold 0x77) or a v5 KERNEL HEADER (0x4B) is not a data turn. The §89 v6 Klein-4
+             * header IS a coupled turn (counted). */
             if (body[off] != SRMECH_GENOME_GENE_CAP_MARKER &&
                 body[off] != SRMECH_GENOME_REGULATORY_GENE_MARKER &&
                 body[off] != SRMECH_GENOME_BOOLEAN_GENE_MARKER &&
+                body[off] != SRMECH_GENOME_THRESHOLD_GENE_MARKER &&
                 body[off] != SRMECH_GENOME_KERNEL_HEADER_MARKER) {
                 s->leaf_count[cur]++;
             }
@@ -885,6 +887,66 @@ static srmech_status_t genome_dnf_expresses(
     return SRMECH_OK;
 }
 
+/* §131/v10 (#731) — read one int64 BIG-ENDIAN SIGNED (two's-complement) value at
+ * cap[base..base+8). Bounds are checked by the caller (genome_threshold_expresses). The signed
+ * reconstruction is PORTABLE (no impl-defined uint->int narrowing): the high half is rebuilt via
+ * ~v (whose top bit is clear, so the int64 cast is defined). No abs (the sign is meaningful). */
+static int64_t genome_read_i64_be(const unsigned char *cap, size_t base)
+{
+    assert(cap != NULL);
+    assert(base < base + SRMECH_GENOME_THRESHOLD_VALUE_BYTES);   /* no wrap */
+    uint64_t v = 0u;
+    for (size_t k = 0u; k < SRMECH_GENOME_THRESHOLD_VALUE_BYTES; k++) {
+        v = (v << 8) | (uint64_t)cap[base + k];
+    }
+    if (v <= (uint64_t)INT64_MAX) { return (int64_t)v; }
+    return -(int64_t)(~v) - 1;                       /* two's-complement, portable */
+}
+
+/* §131/v10 (#731) — evaluate a THRESHOLD GENE (cap[0] == 0x77): a LINEAR-THRESHOLD (perceptron)
+ * gate over the condition bits — a per-condition SIGNED int64 WEIGHT vector + an int64 THRESHOLD.
+ * *expressed = 1 iff Sum_i (weight_i * bit_i(cell_state)) >= threshold — the exact int64 signed sum
+ * of the weights of the PRESENT conditions; the decision is the SIGN of (sum - threshold) compared
+ * DIRECTLY (total >= threshold, so the compare cannot overflow) — Class-K, never abs. SIGNED
+ * weights (an inhibitory input is negative). Layout after the label NUL: gate_type(uint8) +
+ * n_weights(uint16 BE) + threshold(int64 BE signed) + n_weights x weight(int64 BE signed). On an
+ * int64 accumulate OVERFLOW this returns SRMECH_ERR_OVERFLOW so the caller falls to the exact pure
+ * (bignum) Python path — the native result, when produced, is byte-identical to Python. No arena;
+ * malloc-free; no abs; NEVER mutates cap (a READ). */
+static srmech_status_t genome_threshold_expresses(
+    const unsigned char *cap, size_t leaf_dim, uint64_t cell_state, int *expressed)
+{
+    assert(cap != NULL && expressed != NULL);
+    assert(leaf_dim > 0u && leaf_dim <= 256u);
+    size_t i = 1u;                                  /* skip the 0x77 marker byte */
+    while (i < leaf_dim && cap[i] != 0u) { i++; }   /* find the label terminator */
+    if (i >= leaf_dim) { return SRMECH_ERR_BAD_INPUT; }         /* no label NUL */
+    size_t base = i + 1u;                           /* gate_type + n_weights + threshold header */
+    size_t hdr = 1u + SRMECH_GENOME_THRESHOLD_NWEIGHTS_BYTES + SRMECH_GENOME_THRESHOLD_VALUE_BYTES;
+    if (base + hdr > leaf_dim) { return SRMECH_ERR_BAD_INPUT; }  /* header truncated */
+    if (cap[base] != SRMECH_GENOME_GATE_TYPE_THRESHOLD) {
+        return SRMECH_ERR_BAD_INPUT;                            /* unsupported gate_type */
+    }
+    size_t nw_off = base + 1u;
+    uint32_t n_weights = ((uint32_t)cap[nw_off] << 8) | (uint32_t)cap[nw_off + 1u];
+    size_t th_off = nw_off + SRMECH_GENOME_THRESHOLD_NWEIGHTS_BYTES;
+    int64_t threshold = genome_read_i64_be(cap, th_off);
+    size_t w_off = th_off + SRMECH_GENOME_THRESHOLD_VALUE_BYTES;
+    if (w_off + (size_t)n_weights * SRMECH_GENOME_THRESHOLD_VALUE_BYTES > leaf_dim) {
+        return SRMECH_ERR_BAD_INPUT;                            /* weight vector truncated */
+    }
+    int64_t total = 0;
+    for (uint32_t t = 0u; t < n_weights && t < 64u; t++) {      /* bit_t == 0 for t >= 64 (uint64) */
+        if (((cell_state >> t) & 1u) == 0u) { continue; }      /* condition absent — weight skipped */
+        int64_t w = genome_read_i64_be(cap, w_off + (size_t)t * SRMECH_GENOME_THRESHOLD_VALUE_BYTES);
+        if ((w > 0 && total > INT64_MAX - w) ||                 /* defer to the exact pure path */
+            (w < 0 && total < INT64_MIN - w)) { return SRMECH_ERR_OVERFLOW; }
+        total += w;                                            /* exact int64 accumulate */
+    }
+    *expressed = (total >= threshold) ? 1 : 0;                 /* Class-K sign-branch; never abs */
+    return SRMECH_OK;
+}
+
 /* §128/v8 (#728) + §129 (#729) — the per-gene EXPRESSION read-filter: the OPERAND (cell_state)
  * selects the OPERATOR (express or not). A plain GENE cap (0x47) always expresses (masks 0); a
  * REGULATORY GENE cap (0x67) carries the TWO KLEIN-4 bit-planes (activator then repressor) and
@@ -922,8 +984,14 @@ srmech_status_t srmech_genome_gene_express(
         if (mask_out != NULL) { *mask_out = 0u; }
         return genome_dnf_expresses(cap, leaf_dim, cell_state, expressed);
     }
+    if (marker == SRMECH_GENOME_THRESHOLD_GENE_MARKER) {
+        /* §131 the LINEAR-THRESHOLD gate-type: evaluate the perceptron (express iff the SIGNED
+         * weighted sum >= threshold). No single activator plane, so mask_out is 0. */
+        if (mask_out != NULL) { *mask_out = 0u; }
+        return genome_threshold_expresses(cap, leaf_dim, cell_state, expressed);
+    }
     if (marker != SRMECH_GENOME_REGULATORY_GENE_MARKER) {
-        return SRMECH_ERR_BAD_INPUT;          /* not 0x47 / 0x62 / 0x67 — not a gene */
+        return SRMECH_ERR_BAD_INPUT;          /* not 0x47 / 0x62 / 0x67 / 0x77 — not a gene */
     }
     /* a regulatory gene — read the uint64 big-endian mask(s) after the label's NUL terminator */
     size_t i = 1u;                                  /* skip the 0x67 marker byte */
@@ -1457,15 +1525,17 @@ static srmech_status_t genome_scan_region(const unsigned char *region,
                           kind == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER)) {
             return SRMECH_ERR_BAD_INPUT;  /* one append == ONE chromosome */
         }
-        /* §60/§127/§128/§130: a GENE cap (plain 0x47 / regulatory 0x67 / boolean 0x62) or a v5
-         * KERNEL HEADER (0x4B) is not a data turn; the §89 kernel telomere / §127 active
-         * telomere opens the region (off==0). The §89 Klein-4 header IS a coupled turn. */
+        /* §60/§127/§128/§130/§131: a GENE cap (plain 0x47 / regulatory 0x67 / boolean 0x62 /
+         * threshold 0x77) or a v5 KERNEL HEADER (0x4B) is not a data turn; the §89 kernel
+         * telomere / §127 active telomere opens the region (off==0). The §89 Klein-4 header IS a
+         * coupled turn. */
         if (kind != SRMECH_GENOME_CHROM_CAP_MARKER &&
             kind != SRMECH_GENOME_KERNEL_TELOMERE_MARKER &&
             kind != SRMECH_GENOME_ACTIVE_TELOMERE_MARKER &&
             kind != SRMECH_GENOME_GENE_CAP_MARKER &&
             kind != SRMECH_GENOME_REGULATORY_GENE_MARKER &&
             kind != SRMECH_GENOME_BOOLEAN_GENE_MARKER &&
+            kind != SRMECH_GENOME_THRESHOLD_GENE_MARKER &&
             kind != SRMECH_GENOME_KERNEL_HEADER_MARKER) { lc++; }
         nb++;
         off += blen;
@@ -1834,9 +1904,9 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
 
 /* The §43 .chr data_schema_id (== GENOME_CHR_SCHEMA_ID). */
 #define SRMECH_GENOME_CHR_SCHEMA_ID "srmech://schema/genome_chromosome/v1"
-/* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v9" — tracks
- * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _chr_record; §130/rc130 v8->v9). */
-#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v9"
+/* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v10" — tracks
+ * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _chr_record; §131/rc131 v9->v10). */
+#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v10"
 /* The §43 rendering "purpose" — VERBATIM from genome.py _chr_record
  * (single-line #define; JPL Rule 8 forbids backslash line-continuation). */
 #define SRMECH_GENOME_CHR_PURPOSE "One self-contained, MPR-attested chromosome: its fixed-width region (CHROM cap + coupled turns) + the_one, re-importable self-verifying."
