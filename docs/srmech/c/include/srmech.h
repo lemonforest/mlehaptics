@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc140"
-#define SRMECH_VERSION       "0.9.0rc140"
+#define SRMECH_VERSION_PRE   "rc141"
+#define SRMECH_VERSION       "0.9.0rc141"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -6714,6 +6714,125 @@ srmech_status_t srmech_octonion_dft(
 srmech_status_t srmech_phase_coherent_peak(
     const double *ladder, const double *keys, uint32_t n_rungs, size_t dim,
     uint32_t *out_index, double *out_score, double *out_scores);
+
+/* ------------------------------------------------------------------ *
+ * Carriers-C (0.9.0rc141; Foundation F0) — the Mat/Vec CARRIER struct +
+ * ctor / accessor / elementwise / lifecycle API so a BARE C HOST can
+ * CONSTRUCT + HOLD + MANIPULATE a carrier with NO Python and feed its
+ * buffer straight to the compute kernels (srmech_dense_matmul_complex /
+ * srmech_svd_f64 / srmech_fft_c128 …) ZERO-COPY. The LAST C:Python
+ * parity-backfill foundation (everything-mirrors capstone).
+ *
+ * The struct is a VIEW over a CALLER-OWNED buffer (JPL Rule 3: no malloc,
+ * the same caller-arena discipline as srmech_bigint_t's `limbs`). Layout
+ * mirrors the Python Mat/Vec exactly: row-major, one double per real
+ * element / interleaved (re,im) per complex element (= C99
+ * `double _Complex`), so `buf` is byte-identical to the Python carrier's
+ * `array('d')` and feeds the interleaved-complex kernels no-copy.
+ *
+ * BYTE-IDENTICAL value ops: complex multiply is the naive CPython
+ * `_Py_c_prod` (ac-bd, ad+bc); add/sub componentwise. (Complex `/` is NOT
+ * in the C surface — CPython's Smith-scaled algorithm stays the pure-
+ * Python path.) NO abs(): conj/neg are Class-K sign flips. ABI-additive:
+ * new symbols only, SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+typedef struct srmech_mat {
+    double  *buf;        /* caller-owned; row-major; interleaved (re,im) if
+                            is_complex (2*rows*cols doubles) else rows*cols */
+    uint32_t rows;
+    uint32_t cols;
+    int      is_complex; /* 0 = real, 1 = complex (any nonzero -> complex) */
+} srmech_mat_t;
+
+typedef struct srmech_vec {
+    double  *buf;        /* caller-owned; interleaved (re,im) if is_complex
+                            (2*n doubles) else n */
+    uint32_t n;
+    int      is_complex; /* 0 = real, 1 = complex (any nonzero -> complex) */
+} srmech_vec_t;
+
+/* Backing-buffer length (in doubles) a caller must provide for the given
+ * shape + dtype: rows*cols (real) / 2*rows*cols (complex); n / 2*n. */
+size_t srmech_mat_buf_len(uint32_t rows, uint32_t cols, int is_complex);
+size_t srmech_vec_buf_len(uint32_t n, int is_complex);
+
+/* Construction. init: point the struct at `buf` (a view; is_complex is
+ * normalised to 0/1). zeros: init + clear the whole buffer to 0.
+ * SRMECH_ERR_NULL_ARG if the struct or buf pointer is NULL. */
+srmech_status_t srmech_mat_init(srmech_mat_t *m, double *buf,
+                                uint32_t rows, uint32_t cols, int is_complex);
+srmech_status_t srmech_vec_init(srmech_vec_t *v, double *buf,
+                                uint32_t n, int is_complex);
+srmech_status_t srmech_mat_zeros(srmech_mat_t *m, double *buf,
+                                 uint32_t rows, uint32_t cols, int is_complex);
+srmech_status_t srmech_vec_zeros(srmech_vec_t *v, double *buf,
+                                 uint32_t n, int is_complex);
+
+/* Element accessors. get writes *re_out (+ *im_out if non-NULL; 0 for a
+ * real carrier). set stores (re[, im]); a real carrier stores only re (as
+ * the Python carrier stores float(x.real)). SRMECH_ERR_BAD_INPUT on an
+ * out-of-range index. */
+srmech_status_t srmech_mat_get(const srmech_mat_t *m, uint32_t i, uint32_t j,
+                               double *re_out, double *im_out);
+srmech_status_t srmech_mat_set(srmech_mat_t *m, uint32_t i, uint32_t j,
+                               double re, double im);
+srmech_status_t srmech_vec_get(const srmech_vec_t *v, uint32_t i,
+                               double *re_out, double *im_out);
+srmech_status_t srmech_vec_set(srmech_vec_t *v, uint32_t i, double re, double im);
+
+/* Row / column views: copy row i / column j of `m` into `out` (a caller-
+ * provided Vec of length cols / rows and matching dtype). Mirrors the
+ * Python m[i] / m[:, j] -> Vec. */
+srmech_status_t srmech_mat_row(const srmech_mat_t *m, uint32_t i,
+                               srmech_vec_t *out);
+srmech_status_t srmech_mat_col(const srmech_mat_t *m, uint32_t j,
+                               srmech_vec_t *out);
+
+/* Elementwise binary (carrier op carrier; * is Hadamard, like the Python
+ * carrier). Same shape required; out->is_complex MUST equal a|b (the
+ * format-preserving rule) or SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_mat_add(const srmech_mat_t *a, const srmech_mat_t *b,
+                               srmech_mat_t *out);
+srmech_status_t srmech_mat_sub(const srmech_mat_t *a, const srmech_mat_t *b,
+                               srmech_mat_t *out);
+srmech_status_t srmech_mat_mul(const srmech_mat_t *a, const srmech_mat_t *b,
+                               srmech_mat_t *out);
+srmech_status_t srmech_vec_add(const srmech_vec_t *a, const srmech_vec_t *b,
+                               srmech_vec_t *out);
+srmech_status_t srmech_vec_sub(const srmech_vec_t *a, const srmech_vec_t *b,
+                               srmech_vec_t *out);
+srmech_status_t srmech_vec_mul(const srmech_vec_t *a, const srmech_vec_t *b,
+                               srmech_vec_t *out);
+
+/* Scalar broadcast (scale = elementwise * scalar; add_scalar = + scalar).
+ * out->is_complex MUST equal a|(s_im != 0) — a scalar with a nonzero
+ * imaginary part promotes, matching the Python rule. */
+srmech_status_t srmech_mat_scale(const srmech_mat_t *a, double s_re,
+                                 double s_im, srmech_mat_t *out);
+srmech_status_t srmech_mat_add_scalar(const srmech_mat_t *a, double s_re,
+                                      double s_im, srmech_mat_t *out);
+srmech_status_t srmech_vec_scale(const srmech_vec_t *a, double s_re,
+                                 double s_im, srmech_vec_t *out);
+srmech_status_t srmech_vec_add_scalar(const srmech_vec_t *a, double s_re,
+                                      double s_im, srmech_vec_t *out);
+
+/* Unary (dtype preserved). conj = Class-K sign flip on the imaginary slot
+ * (real -> copy); neg = sign flip on every slot; transpose swaps axes
+ * (out shape = cols x rows). */
+srmech_status_t srmech_mat_conj(const srmech_mat_t *a, srmech_mat_t *out);
+srmech_status_t srmech_mat_neg(const srmech_mat_t *a, srmech_mat_t *out);
+srmech_status_t srmech_mat_transpose(const srmech_mat_t *a, srmech_mat_t *out);
+srmech_status_t srmech_vec_conj(const srmech_vec_t *a, srmech_vec_t *out);
+srmech_status_t srmech_vec_neg(const srmech_vec_t *a, srmech_vec_t *out);
+
+/* Zero-copy kernel BRIDGE: complex carrier matmul out = a @ b, feeding the
+ * three carrier buffers straight to srmech_dense_matmul_complex (no copy).
+ * All three must be complex; a->cols == b->rows; out is a->rows x b->cols.
+ * (Real / SVD / FFT need no wrapper — the carrier buf IS the argument those
+ * kernels already take.) */
+srmech_status_t srmech_mat_matmul_c128(const srmech_mat_t *a,
+                                       const srmech_mat_t *b, srmech_mat_t *out);
 
 #ifdef __cplusplus
 }

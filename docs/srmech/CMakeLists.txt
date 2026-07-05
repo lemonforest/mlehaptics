@@ -135,6 +135,16 @@ if(SRMECH_SRCS)
         #   ./build/test_srmech_qmat_crt           (exit 0 = all pass)
         add_executable(test_srmech_qmat_crt c/test/test_srmech_qmat_crt.c)
         target_link_libraries(test_srmech_qmat_crt PRIVATE srmech ${SRMECH_MATH_LIB})
+
+        # rc141 Foundation F0 (carriers-C): the bare-C-HOST carrier smoke.
+        # Proves a C host with no Python builds + holds + manipulates a
+        # srmech_mat_t/srmech_vec_t (ctor/get-set/row-col/elementwise/scalar/
+        # conj/transpose) + feeds the buffer to srmech_dense_matmul_complex
+        # ZERO-COPY. Joins the warnings-as-errors gate (Release/NDEBUG strips
+        # assert). Run it:
+        #   ./build/test_srmech_carrier            (exit 0 = all pass)
+        add_executable(test_srmech_carrier c/test/test_srmech_carrier.c)
+        target_link_libraries(test_srmech_carrier PRIVATE srmech ${SRMECH_MATH_LIB})
     endif()
 else()
     # Phase B1 only: no .c files yet. Emit a status line so the
