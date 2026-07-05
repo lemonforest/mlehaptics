@@ -59,41 +59,35 @@ class Instrument:
         top = g[0][1].split(".")[-1]
         return self._pos.get(top)
 
-    def excite_propagate_harvest(self, query, *, grounder=None, t=0.4, top=8, mode="thermal"):
-        """One EPH read: EXCITE (seed at the query's landing) → PROPAGATE → HARVEST (rank by energy).
-        The propagator is chosen by ``mode`` — the same excite→propagate→harvest shape, two coherence regimes:
+    # thermal/coherent are NOT two families: ONE propagator e^{-zL} with z COMPLEX (the Wick rotation).
+    # z = t·(cf + i·sf) on the unit quarter-circle: (cf, sf) = (1, 0) real → THERMAL (decoherent diffusion),
+    # (0, 1) imaginary → COHERENT (unitary quantum walk), in between → PARTIAL coherence (a damped walk —
+    # the physically real regime; the chloroplast is NOT perfectly coherent). The i is the coherence DIAL
+    # (the field↔excitation duality axis, `[[user_stance_imaginary_does_not_mean_unreal]]` — a 90° rotation,
+    # a real direction), invisible in the substrate formula where z is simply complex.
+    _WICK = {"thermal": (1.0, 0.0), "coherent": (0.0, 1.0)}
 
-          * ``mode="thermal"`` (default) — the heat kernel ``e^{-tL}`` (DECOHERENT diffusion; the etak /
-            classical / observer-frame regime). Energy = ``u(t)_i``.
-          * ``mode="coherent"`` — the unitary ``e^{-itL}`` (COHERENT quantum walk; the chloroplast regime,
-            F1058 — explores paths in superposition). Energy = the probability ``|u(t)_i|²``.
-
-        Returns ``[(label, energy)]`` — the graded working set (energy = E3-graded relevance); head = the
-        reaction center. Both are ``harvest = Propagate · excite`` — the op⊗operand cascade (EPH)."""
+    def excite_propagate_harvest(self, query, *, grounder=None, t=0.4, top=8, mode="thermal", z=None):
+        """One EPH read: EXCITE (seed) → PROPAGATE (``e^{-zL}``, ONE complex-time propagator) → HARVEST
+        (rank by the Born-rule energy ``|u|²``). ``z`` = ``(cf, sf)`` the unit quarter-circle point (real vs
+        imaginary weight of the complex time) — or ``mode`` selects the endpoints (``"thermal"``=``(1,0)``,
+        ``"coherent"``=``(0,1)``). ``harvest = Propagate · excite`` (the op⊗operand cascade, EPH)."""
         s = query if isinstance(query, int) else self._seed(query, grounder)
         if s is None:
             return []
-        if mode == "coherent":
-            # u(t) = e^{-itL} u0 ; e^{-itλ} = cos(tλ) - i sin(tλ) (Class-N series). harvest = |amplitude|²
-            re = [0.0] * self.N; im = [0.0] * self.N
-            for k in range(self.N):
-                tl = int(round(t * self._lam[k] * 1000))
-                cn, cd = _C.cos_series_truncate(tl, 1000, 18); c = cn / cd
-                sn, sd = _C.sin_series_truncate(tl, 1000, 18); sv = sn / sd
-                csk = self._evecs[s, k]
-                for i in range(self.N):
-                    w = csk * self._evecs[i, k]
-                    re[i] += c * w; im[i] += -sv * w
-            u = [re[i] * re[i] + im[i] * im[i] for i in range(self.N)]   # Born-rule harvest (probability)
-        else:
-            # u(t) = e^{-tL} u0 ;  u(t)_i = Σ_k e^{-t λk} · evecs[s,k] · evecs[i,k]
-            u = [0.0] * self.N
-            for k in range(self.N):
-                num, den = _C.exp_series_truncate(-int(round(t * self._lam[k] * 1000)), 1000, 18)  # e^{-tλk}
-                e = num / den
-                csk = self._evecs[s, k]
-                for i in range(self.N):
-                    u[i] += e * csk * self._evecs[i, k]
+        cf, sf = z if z is not None else self._WICK.get(mode, (1.0, 0.0))
+        a, b = t * cf, t * sf                                  # z = a + i·b (a = decay rate, b = oscillation rate)
+        re = [0.0] * self.N; im = [0.0] * self.N
+        for k in range(self.N):
+            lam = self._lam[k]                                 # e^{-zλ} = e^{-aλ}·(cos bλ - i sin bλ)
+            dn, dd = _C.exp_series_truncate(-int(round(a * lam * 1000)), 1000, 18); dec = dn / dd
+            cn, cd = _C.cos_series_truncate(int(round(b * lam * 1000)), 1000, 18); c = cn / cd
+            sn, sd = _C.sin_series_truncate(int(round(b * lam * 1000)), 1000, 18); sv = sn / sd
+            csk = self._evecs[s, k]
+            for i in range(self.N):
+                w = csk * self._evecs[i, k]
+                re[i] += dec * c * w; im[i] += -dec * sv * w
+        u = [re[i] * re[i] + im[i] * im[i] for i in range(self.N)]   # Born-rule harvest |u|² (energy)
         order = sorted(range(self.N), key=lambda i: -u[i])
         return [(self.labels[i], u[i]) for i in order[:top] if u[i] > 0]
 
