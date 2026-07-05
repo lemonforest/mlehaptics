@@ -640,6 +640,36 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_ground_state_flux_response.restype = ctypes.c_int
 
+    # rc136 (siona gh#1274): the EPH complex-time Wick-rotation propagator
+    # harvest = e^{-zL}·u0 — a Class-L composite over
+    # srmech_hermitian_eigendecompose_ws + srmech_exp + srmech_cos +
+    # srmech_sin, the C twin of srmech.amsc.laplacian.propagate. NEW symbols,
+    # hasattr-guarded (ABI stays 3) so a stale ABI-3 lib keeps the rest of the
+    # native surface and the pure-Python op is the complete alternative.
+    #   size_t srmech_eph_propagate_arena_bytes(uint32_t n, int is_complex)
+    if hasattr(lib, "srmech_eph_propagate_arena_bytes"):
+        lib.srmech_eph_propagate_arena_bytes.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_int,                       # is_complex (0/1)
+        ]
+        lib.srmech_eph_propagate_arena_bytes.restype = ctypes.c_size_t
+    #   int srmech_eph_propagate(uint32_t n, int is_complex, const double *L,
+    #       const double *u0_interleaved, double z_re, double z_im,
+    #       double *out_harvest_interleaved, double *ws, size_t ws_len)
+    if hasattr(lib, "srmech_eph_propagate"):
+        lib.srmech_eph_propagate.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_int,                       # is_complex (0/1)
+            ctypes.POINTER(ctypes.c_double),    # L (n*n real | 2*n*n interleaved)
+            ctypes.POINTER(ctypes.c_double),    # u0 (2*n interleaved)
+            ctypes.c_double,                    # z_re
+            ctypes.c_double,                    # z_im
+            ctypes.POINTER(ctypes.c_double),    # out_harvest (2*n interleaved)
+            ctypes.POINTER(ctypes.c_double),    # ws (caller arena)
+            ctypes.c_size_t,                    # ws_len (arena bytes)
+        ]
+        lib.srmech_eph_propagate.restype = ctypes.c_int
+
     # v0.7.2rc2 (#910 / §30; F442/F449): Hamming / GF(2) block-code family.
     # NEW symbols — hasattr-guarded so a stale lib (pre-rc2) keeps the rest of
     # the native surface. uint8 0/1 buffers; lean-ALU XOR (no float, no libm).

@@ -179,4 +179,4 @@ def test_thetasum_is_a_carrier_no_tool_entry():
     TriPoly — it adds NO ToolEntry. (The running describe()['tools']['total'] is 338 after
     carrier_spectrum's public op landed in rc69; ThetaSum itself contributes nothing.)"""
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 401
+    assert introspect.describe()["tools"]["total"] == 403
