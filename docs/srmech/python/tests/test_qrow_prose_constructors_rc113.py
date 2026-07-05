@@ -410,7 +410,7 @@ def test_tools_total_is_367():
     """rc113 ships 4 genuinely NEW public ops (3 builders + the theta reader)
     → +4 ToolEntries (363 → 367)."""
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 395
+    assert introspect.describe()["tools"]["total"] == 397
 
 
 def test_new_tool_entries_present_with_declared_types():

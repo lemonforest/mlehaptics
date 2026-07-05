@@ -1119,6 +1119,356 @@ srmech_status_t srmech_genome_gene_express_levels(
     return SRMECH_OK;
 }
 
+/* ========================================================================== *
+ * §133/v11 (#733) — MODULATOR-RECOVERY: the INVERSE of gene_express. Given an
+ * OBSERVED expressed-label set (+ the strand's gene caps), recover the two-sided
+ * cell-state FLOOR every consistent cell_state must satisfy (M1), and forward-
+ * CHECK one candidate (M2). Under-determined -> a ONE-SIDED, SOUND floor (it
+ * never over-claims a bit); the exact cell_state is irrecoverable by
+ * construction (many states -> one expression) and naming that honestly IS the
+ * finding. The `body` here is the GENE-CAP SUBSET of the strand (each block
+ * leaf_dim bytes, first byte a gene marker) — the data turns do not gate
+ * expression, so the caller strips them, keeping the walk uniform-width.
+ * Class-I bitwise; no abs; a READ (never mutates the body).
+ * ========================================================================== */
+
+/* Is `label` (label_len bytes) present as a NUL-delimited token of `blob`
+ * (blob_len bytes; tokens are label\0label\0...)? Byte-exact match — the gene
+ * labels are UTF-8, so this mirrors Python's set membership. blob==NULL /
+ * blob_len==0 -> the empty set (0). No abs; a READ. */
+static int genome_blob_contains(
+    const unsigned char *blob, size_t blob_len,
+    const unsigned char *label, size_t label_len)
+{
+    assert(blob != NULL || blob_len == 0u);
+    assert(label != NULL || label_len == 0u);
+    size_t i = 0u;
+    while (i < blob_len) {
+        size_t j = i;
+        while (j < blob_len && blob[j] != 0u) { j++; }   /* token = blob[i..j) */
+        size_t tok_len = j - i;
+        if (tok_len == label_len &&
+            (label_len == 0u || memcmp(blob + i, label, label_len) == 0)) {
+            return 1;
+        }
+        i = j + 1u;                                      /* skip the NUL delimiter */
+    }
+    return 0;
+}
+
+/* The inline label of the gene cap at `cap[0..leaf_dim)` — cap[1..NUL). Sets
+ * *label_len and returns a pointer into `cap`; NULL on a missing NUL (a
+ * malformed gene). Mirrors _unpack_cap's label read. No abs; a READ. */
+static const unsigned char *genome_gene_label(
+    const unsigned char *cap, size_t leaf_dim, size_t *label_len)
+{
+    assert(cap != NULL && label_len != NULL);
+    assert(leaf_dim > 0u);
+    size_t i = 1u;
+    while (i < leaf_dim && cap[i] != 0u) { i++; }        /* find the label NUL */
+    if (i >= leaf_dim) { return NULL; }                  /* no label NUL */
+    *label_len = i - 1u;
+    return cap + 1u;
+}
+
+/* §128/§129 E1 — the (activator, repressor) Klein-4 bit-planes of a plain
+ * (0x47 -> (0,0)) / regulatory (0x67) gene cap. Mirrors _regulatory_gene_masks.
+ * No abs; a READ. */
+static srmech_status_t genome_regulatory_masks(
+    const unsigned char *cap, size_t leaf_dim, uint64_t *act, uint64_t *rep)
+{
+    assert(cap != NULL && act != NULL && rep != NULL);
+    assert(leaf_dim > 0u && leaf_dim <= 256u);
+    *act = 0u;
+    *rep = 0u;
+    if (cap[0] == SRMECH_GENOME_GENE_CAP_MARKER) { return SRMECH_OK; }  /* plain (0,0) */
+    size_t i = 1u;
+    while (i < leaf_dim && cap[i] != 0u) { i++; }
+    if (i >= leaf_dim) { return SRMECH_ERR_BAD_INPUT; }
+    size_t act_base = i + 1u;
+    if (act_base + SRMECH_GENOME_REGULATORY_MASK_BYTES > leaf_dim) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    *act = genome_read_u64_be(cap, act_base);
+    size_t rep_base = act_base + SRMECH_GENOME_REGULATORY_MASK_BYTES;
+    if (rep_base + SRMECH_GENOME_REGULATORY_MASK_BYTES <= leaf_dim) {   /* §129 dual-read */
+        *rep = genome_read_u64_be(cap, rep_base);
+    }
+    return SRMECH_OK;
+}
+
+/* §130 E2 — fold a BOOLEAN GENE's DNF (0x62): *ref = the OR over clauses of
+ * (act|rep) (bits the gene READS); *fon / *foff = the intersection-over-clauses
+ * activator / repressor (the bits EVERY clause requires present / absent — the
+ * SOUND floor an expressed E2 gene proves, since SOME clause matched). The empty
+ * DNF (0 clauses) proves NOTHING (fon=foff=0) — never over-claim. No abs; READ. */
+static srmech_status_t genome_dnf_fold(
+    const unsigned char *cap, size_t leaf_dim,
+    uint64_t *ref, uint64_t *fon, uint64_t *foff)
+{
+    assert(cap != NULL && ref != NULL);
+    assert(fon != NULL && foff != NULL);
+    *ref = 0u; *fon = 0u; *foff = 0u;
+    size_t i = 1u;
+    while (i < leaf_dim && cap[i] != 0u) { i++; }
+    if (i >= leaf_dim) { return SRMECH_ERR_BAD_INPUT; }
+    size_t base = i + 1u;
+    if (base + 1u + SRMECH_GENOME_BOOLEAN_NTERMS_BYTES > leaf_dim) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (cap[base] != SRMECH_GENOME_GATE_TYPE_BOOLEAN_DNF) { return SRMECH_ERR_BAD_INPUT; }
+    size_t nt_off = base + 1u;
+    uint32_t n_terms = ((uint32_t)cap[nt_off] << 8) | (uint32_t)cap[nt_off + 1u];
+    size_t terms_off = nt_off + SRMECH_GENOME_BOOLEAN_NTERMS_BYTES;
+    if (terms_off + (size_t)n_terms * SRMECH_GENOME_BOOLEAN_TERM_BYTES > leaf_dim) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    uint64_t inter_act = UINT64_MAX;
+    uint64_t inter_rep = UINT64_MAX;
+    for (uint32_t t = 0u; t < n_terms; t++) {
+        size_t o = terms_off + (size_t)t * SRMECH_GENOME_BOOLEAN_TERM_BYTES;
+        uint64_t a = genome_read_u64_be(cap, o);
+        uint64_t r = genome_read_u64_be(cap, o + SRMECH_GENOME_REGULATORY_MASK_BYTES);
+        *ref |= a | r;
+        inter_act &= a;
+        inter_rep &= r;
+    }
+    if (n_terms > 0u) { *fon = inter_act; *foff = inter_rep; }  /* empty DNF proves nothing */
+    return SRMECH_OK;
+}
+
+/* §131 E4 / §132 E3 — the condition bits a THRESHOLD (0x77) / GRADED (0x64) gene
+ * READS: the OR of (1 << t) for every NONZERO weight at index t < 64 (bit t of the
+ * uint64 cell_state; weights beyond 63 gate always-absent conditions -> not read).
+ * These gates give NO clean single-bit certainty, so they contribute to *ref only
+ * (no floor). `is_graded` selects the cap layout (a graded cap has an 8-byte
+ * denom before the weights). THRESHOLD + GRADED share the uint16 count / int64
+ * value widths. No abs; a READ. */
+static srmech_status_t genome_weighted_ref(
+    const unsigned char *cap, size_t leaf_dim, int is_graded, uint64_t *ref)
+{
+    assert(cap != NULL && ref != NULL);
+    assert(leaf_dim > 0u && leaf_dim <= 256u);
+    *ref = 0u;
+    size_t i = 1u;
+    while (i < leaf_dim && cap[i] != 0u) { i++; }
+    if (i >= leaf_dim) { return SRMECH_ERR_BAD_INPUT; }
+    size_t base = i + 1u;
+    size_t denom_bytes = is_graded ? (size_t)SRMECH_GENOME_GRADED_DENOM_BYTES : 0u;
+    size_t hdr = 1u + SRMECH_GENOME_THRESHOLD_NWEIGHTS_BYTES + denom_bytes;
+    if (base + hdr > leaf_dim) { return SRMECH_ERR_BAD_INPUT; }
+    unsigned char want = is_graded ? (unsigned char)SRMECH_GENOME_GATE_TYPE_GRADED
+                                   : (unsigned char)SRMECH_GENOME_GATE_TYPE_THRESHOLD;
+    if (cap[base] != want) { return SRMECH_ERR_BAD_INPUT; }
+    size_t nw_off = base + 1u;
+    uint32_t n_weights = ((uint32_t)cap[nw_off] << 8) | (uint32_t)cap[nw_off + 1u];
+    size_t w_off = nw_off + SRMECH_GENOME_THRESHOLD_NWEIGHTS_BYTES + denom_bytes;
+    if (w_off + (size_t)n_weights * SRMECH_GENOME_THRESHOLD_VALUE_BYTES > leaf_dim) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (uint32_t t = 0u; t < n_weights && t < 64u; t++) {
+        int64_t w = genome_read_i64_be(
+            cap, w_off + (size_t)t * SRMECH_GENOME_THRESHOLD_VALUE_BYTES);
+        if (w != 0) { *ref |= ((uint64_t)1u << t); }    /* a nonzero weight READS bit t */
+    }
+    return SRMECH_OK;
+}
+
+/* One gene cap's condition-bit contributions: *ref = the bits it READS; *fon /
+ * *foff = the bits an EXPRESSED instance PROVES on / off (the SOUND floor). The
+ * caller applies (*fon, *foff) iff the gene is expressed AND its label uniquely
+ * identifies it. No abs; a READ. */
+static srmech_status_t genome_gene_contribution(
+    const unsigned char *cap, size_t leaf_dim,
+    uint64_t *ref, uint64_t *fon, uint64_t *foff)
+{
+    assert(cap != NULL && ref != NULL);
+    assert(fon != NULL && foff != NULL);
+    *ref = 0u; *fon = 0u; *foff = 0u;
+    unsigned char m = cap[0];
+    if (m == SRMECH_GENOME_BOOLEAN_GENE_MARKER) {
+        return genome_dnf_fold(cap, leaf_dim, ref, fon, foff);   /* E2 intersection floor */
+    }
+    if (m == SRMECH_GENOME_THRESHOLD_GENE_MARKER) {
+        return genome_weighted_ref(cap, leaf_dim, 0, ref);       /* E4 — ref only */
+    }
+    if (m == SRMECH_GENOME_GRADED_GENE_MARKER) {
+        return genome_weighted_ref(cap, leaf_dim, 1, ref);       /* E3 — ref only */
+    }
+    uint64_t act = 0u, rep = 0u;                                 /* E1 (0x47 / 0x67) */
+    srmech_status_t st = genome_regulatory_masks(cap, leaf_dim, &act, &rep);
+    if (st != SRMECH_OK) { return st; }
+    *ref = act | rep;
+    *fon = act;                                                  /* activators certain ON */
+    *foff = rep;                                                 /* repressors certain OFF */
+    return SRMECH_OK;
+}
+
+/* Is the label at `self_off` UNIQUE among the body's gene caps (no OTHER cap
+ * shares it)? The SOUNDNESS guard: a label shared by >=2 genes cannot be
+ * attributed to a specific gene (the expressed SET collapses duplicates), so
+ * NEITHER contributes to the floor. No abs; a READ. */
+static int genome_label_unique(
+    const unsigned char *body, size_t body_len, size_t leaf_dim,
+    size_t self_off, const unsigned char *label, size_t label_len)
+{
+    assert(body != NULL && label != NULL);
+    assert(leaf_dim > 0u);
+    for (size_t o = 0u; o + leaf_dim <= body_len; o += leaf_dim) {
+        if (o == self_off) { continue; }
+        size_t other_len = 0u;
+        const unsigned char *other = genome_gene_label(body + o, leaf_dim, &other_len);
+        if (other == NULL) { continue; }
+        if (other_len == label_len &&
+            (label_len == 0u || memcmp(other, label, label_len) == 0)) {
+            return 0;                                            /* a duplicate — not unique */
+        }
+    }
+    return 1;
+}
+
+/* §133 M1 — recover the TWO-SIDED cell-state FLOOR from an OBSERVED expressed set.
+ * *certain_on  = bits every consistent cell_state MUST have SET (OR of expressed
+ *                E1 activators + expressed E2 intersection-over-clauses activators);
+ * *certain_off = bits every consistent state MUST have CLEAR (the repressor duals);
+ * *undetermined= the referenced condition bits (union any gene READS) minus the
+ *                pinned set; *verdict = EXACT (pinned covers all referenced) /
+ * PARTIAL (some pinned) / UNKNOWN (none pinned). E4/E3/un-expressed genes give NO
+ * clean single-bit certainty -> they add to *undetermined, never to the floor.
+ * SOUND: for every M2-consistent state, (state & *certain_on) == *certain_on AND
+ * (state & *certain_off) == 0. Byte-identical to _modulator_recover_pure. No abs;
+ * caller-arena-free; malloc-free; a READ. */
+srmech_status_t srmech_genome_modulator_recover(
+    const unsigned char *body, size_t body_len, size_t leaf_dim,
+    const unsigned char *expressed, size_t expressed_len,
+    uint64_t *certain_on, uint64_t *certain_off,
+    uint64_t *undetermined, int *verdict)
+{
+    assert(body != NULL || body_len == 0u);
+    assert(certain_on != NULL && certain_off != NULL);
+    if (body == NULL && body_len != 0u) { return SRMECH_ERR_NULL_ARG; }
+    if (certain_on == NULL || certain_off == NULL ||
+        undetermined == NULL || verdict == NULL) { return SRMECH_ERR_NULL_ARG; }
+    if (expressed == NULL && expressed_len != 0u) { return SRMECH_ERR_NULL_ARG; }
+    if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    if (body_len % leaf_dim != 0u) { return SRMECH_ERR_BAD_INPUT; }
+    uint64_t on = 0u, off = 0u, ref = 0u;
+    for (size_t o = 0u; o + leaf_dim <= body_len; o += leaf_dim) {
+        const unsigned char *cap = body + o;
+        uint64_t gref = 0u, gon = 0u, goff = 0u;
+        srmech_status_t st = genome_gene_contribution(cap, leaf_dim, &gref, &gon, &goff);
+        if (st != SRMECH_OK) { return st; }
+        ref |= gref;
+        size_t label_len = 0u;
+        const unsigned char *label = genome_gene_label(cap, leaf_dim, &label_len);
+        if (label == NULL) { return SRMECH_ERR_BAD_INPUT; }
+        if (genome_blob_contains(expressed, expressed_len, label, label_len) &&
+            genome_label_unique(body, body_len, leaf_dim, o, label, label_len)) {
+            on |= gon;                                           /* SOUND: proven bits only */
+            off |= goff;
+        }
+    }
+    uint64_t pinned = on | off;
+    *certain_on = on;
+    *certain_off = off;
+    *undetermined = ref & ~pinned;
+    *verdict = (pinned == 0u) ? SRMECH_GENOME_MODULATOR_UNKNOWN
+             : (((ref & ~pinned) == 0u) ? SRMECH_GENOME_MODULATOR_EXACT
+                                        : SRMECH_GENOME_MODULATOR_PARTIAL);
+    return SRMECH_OK;
+}
+
+/* §133 — does the gene opened by `cap` EXPRESS under `cs`? Uniform over EVERY gate
+ * kind (E1/E2/E4 binary AND E3 graded): a gene is "expressed" iff its LEVEL num > 0
+ * (the SAME rule gene_express uses — a graded gene's dose-response IS its gate, and a
+ * binary gene is the degenerate {0,1} level). So this routes through
+ * srmech_genome_gene_express_levels (which handles the 0x64 graded marker
+ * srmech_genome_gene_express does NOT). An int64 accumulate OVERFLOW propagates so the
+ * caller falls to the exact pure path. No abs; a READ. */
+static srmech_status_t genome_gene_is_expressed(
+    const unsigned char *cap, size_t leaf_dim, uint64_t cs, int *e)
+{
+    assert(cap != NULL && e != NULL);
+    assert(leaf_dim > 0u && leaf_dim <= 256u);
+    uint64_t num = 0u, den = 0u;
+    srmech_status_t st = srmech_genome_gene_express_levels(cap, leaf_dim, cs, &num, &den);
+    if (st != SRMECH_OK) { return st; }
+    *e = (num > 0u) ? 1 : 0;                        /* level > 0 IS the gate (all kinds) */
+    return SRMECH_OK;
+}
+
+/* §133 M2 helper — Check 2 of set equality: every EXPECTED token is the label of
+ * some gene that EXPRESSES under `cs`. Sets *ok = 0 on any uncovered token. No
+ * abs; a READ. */
+static srmech_status_t genome_modulator_expected_covered(
+    const unsigned char *body, size_t body_len, size_t leaf_dim,
+    const unsigned char *expected, size_t expected_len, uint64_t cs, int *ok)
+{
+    assert(body != NULL || body_len == 0u);
+    assert(ok != NULL && (expected != NULL || expected_len == 0u));
+    size_t i = 0u;
+    while (i < expected_len) {
+        size_t j = i;
+        while (j < expected_len && expected[j] != 0u) { j++; }  /* token = expected[i..j) */
+        size_t tok_len = j - i;
+        int found = 0;
+        for (size_t o = 0u; o + leaf_dim <= body_len && found == 0; o += leaf_dim) {
+            size_t ll = 0u;
+            const unsigned char *lab = genome_gene_label(body + o, leaf_dim, &ll);
+            if (lab == NULL) { continue; }
+            if (ll != tok_len ||
+                (tok_len != 0u && memcmp(lab, expected + i, tok_len) != 0)) { continue; }
+            int e = 0;
+            srmech_status_t st = genome_gene_is_expressed(body + o, leaf_dim, cs, &e);
+            if (st != SRMECH_OK) { return st; }
+            if (e) { found = 1; }
+        }
+        if (found == 0) { *ok = 0; }
+        i = j + 1u;
+    }
+    return SRMECH_OK;
+}
+
+/* §133 M2 — forward-CHECK one candidate: is set(gene_express(candidate) labels)
+ * == set(expected)? *consistent = 1 iff the two label sets are EQUAL (both-subset:
+ * every expressing gene's label is expected, AND every expected token is produced
+ * by some expressing gene — duplicate-insensitive). ONE-SIDED: CONSISTENT = "could
+ * be the state" (many may be), NEVER "it IS the state". Reuses the forward
+ * per-gene srmech_genome_gene_express (no new gate logic); an int64 threshold /
+ * graded OVERFLOW propagates so the caller falls to the exact pure path. Byte-
+ * identical to the pure Python set comparison. No abs; caller-arena-free;
+ * malloc-free; a READ. */
+srmech_status_t srmech_genome_modulator_consistent(
+    const unsigned char *body, size_t body_len, size_t leaf_dim,
+    const unsigned char *expected, size_t expected_len,
+    uint64_t candidate_cell_state, int *consistent)
+{
+    assert(body != NULL || body_len == 0u);
+    assert(consistent != NULL);
+    if (body == NULL && body_len != 0u) { return SRMECH_ERR_NULL_ARG; }
+    if (consistent == NULL) { return SRMECH_ERR_NULL_ARG; }
+    if (expected == NULL && expected_len != 0u) { return SRMECH_ERR_NULL_ARG; }
+    if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    if (body_len % leaf_dim != 0u) { return SRMECH_ERR_BAD_INPUT; }
+    int ok = 1;
+    for (size_t o = 0u; o + leaf_dim <= body_len; o += leaf_dim) {  /* Check 1 */
+        int e = 0;
+        srmech_status_t st = genome_gene_is_expressed(
+            body + o, leaf_dim, candidate_cell_state, &e);
+        if (st != SRMECH_OK) { return st; }             /* overflow -> pure path */
+        if (e == 0) { continue; }
+        size_t ll = 0u;
+        const unsigned char *lab = genome_gene_label(body + o, leaf_dim, &ll);
+        if (lab == NULL) { return SRMECH_ERR_BAD_INPUT; }
+        if (genome_blob_contains(expected, expected_len, lab, ll) == 0) { ok = 0; }
+    }
+    srmech_status_t st2 = genome_modulator_expected_covered(   /* Check 2 */
+        body, body_len, leaf_dim, expected, expected_len, candidate_cell_state, &ok);
+    if (st2 != SRMECH_OK) { return st2; }
+    *consistent = ok;
+    return SRMECH_OK;
+}
+
 srmech_status_t srmech_genome_save(
     const char *dir,
     const unsigned char *body, size_t body_len,

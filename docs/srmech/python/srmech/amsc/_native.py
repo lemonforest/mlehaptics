@@ -1812,6 +1812,31 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.POINTER(ctypes.c_uint64),
                 ctypes.POINTER(ctypes.c_uint64)]
             lib.srmech_genome_gene_express_levels.restype = ctypes.c_int
+        # §133/rc133 (#733) — MODULATOR-RECOVERY (the INVERSE of gene_express): M1 the
+        # two-sided cell-state FLOOR, M2 the candidate consistency verdict. Whole-strand
+        # (the GENE-CAP subset body), caller-arena-free. NEW symbols → hasattr-guarded (a
+        # stale ABI-3 lib keeps the rest of the genome surface); additive →
+        # EXPECTED_ABI_VERSION stays 3.
+        #   int srmech_genome_modulator_recover(const unsigned char *body, size_t body_len,
+        #       size_t leaf_dim, const unsigned char *expressed, size_t expressed_len,
+        #       uint64_t *certain_on, uint64_t *certain_off, uint64_t *undetermined,
+        #       int *verdict)
+        if hasattr(lib, "srmech_genome_modulator_recover"):
+            lib.srmech_genome_modulator_recover.argtypes = [
+                _U8, _SZ, _SZ, _U8, _SZ,
+                ctypes.POINTER(ctypes.c_uint64),
+                ctypes.POINTER(ctypes.c_uint64),
+                ctypes.POINTER(ctypes.c_uint64),
+                ctypes.POINTER(ctypes.c_int)]
+            lib.srmech_genome_modulator_recover.restype = ctypes.c_int
+        #   int srmech_genome_modulator_consistent(const unsigned char *body,
+        #       size_t body_len, size_t leaf_dim, const unsigned char *expected,
+        #       size_t expected_len, uint64_t candidate_cell_state, int *consistent)
+        if hasattr(lib, "srmech_genome_modulator_consistent"):
+            lib.srmech_genome_modulator_consistent.argtypes = [
+                _U8, _SZ, _SZ, _U8, _SZ, ctypes.c_uint64,
+                ctypes.POINTER(ctypes.c_int)]
+            lib.srmech_genome_modulator_consistent.restype = ctypes.c_int
         # json_write_ws(value, buf, buf_len, &out_len, ws, ws_len) — serialise
         # the catalog's tree; the writer's key-sort scratch is carved from the
         # caller arena `ws` (rc160: no compiled-in object-width cap). Size `ws`
@@ -9949,6 +9974,55 @@ def genome_gene_express_levels_c(cap: bytes, leaf_dim: int, cell_state: int):
     if rc != SRMECH_OK:
         raise NativeGenomeError("srmech_genome_gene_express_levels", rc)
     return (int(num.value), int(den.value))
+
+
+def genome_modulator_recover_c(body: bytes, leaf_dim: int, expressed: bytes):
+    """Native §133 M1 (the INVERSE of gene_express) — recover the TWO-SIDED cell-state
+    FLOOR from an OBSERVED expressed set. ``body`` is the GENE-CAP subset of the strand
+    (each gene cap ``leaf_dim`` bytes; the data turns don't gate expression, so the caller
+    strips them); ``expressed`` is the observed labels as NUL-delimited UTF-8 tokens
+    (``label\\x00label\\x00…``). Returns ``(certain_on, certain_off, undetermined,
+    verdict_code)`` — ``certain_on`` = bits every consistent cell_state MUST have set,
+    ``certain_off`` = bits it MUST have clear, ``undetermined`` = referenced-but-unpinned
+    bits, ``verdict_code`` in {0 UNKNOWN, 1 PARTIAL, 2 EXACT}. SOUND (never over-claims);
+    byte-identical to the pure Python ``genome._modulator_recover_pure``."""
+    _require_genome()
+    if not hasattr(LIB, "srmech_genome_modulator_recover"):
+        raise NativeGenomeError("srmech_genome_modulator_recover", SRMECH_ERR_NOT_IMPL)
+    on = ctypes.c_uint64(0)
+    off = ctypes.c_uint64(0)
+    und = ctypes.c_uint64(0)
+    verdict = ctypes.c_int(0)
+    rc = LIB.srmech_genome_modulator_recover(
+        _u8(body), ctypes.c_size_t(len(body)), ctypes.c_size_t(leaf_dim),
+        _u8(expressed), ctypes.c_size_t(len(expressed)),
+        ctypes.byref(on), ctypes.byref(off), ctypes.byref(und), ctypes.byref(verdict))
+    if rc != SRMECH_OK:
+        raise NativeGenomeError("srmech_genome_modulator_recover", rc)
+    return int(on.value), int(off.value), int(und.value), int(verdict.value)
+
+
+def genome_modulator_consistent_c(body: bytes, leaf_dim: int, expected: bytes,
+                                  candidate_cell_state: int) -> bool:
+    """Native §133 M2 — forward-CHECK one candidate: is ``set(gene_express(candidate)
+    labels) == set(expected)``? ``body`` is the GENE-CAP subset (as for
+    :func:`genome_modulator_recover_c`); ``expected`` is the observed labels as
+    NUL-delimited UTF-8 tokens. Returns ``True`` iff CONSISTENT (the two label sets are
+    equal). ONE-SIDED (CONSISTENT = "could be the state", never "IS the state"). On an
+    int64 threshold / graded accumulate OVERFLOW raises ``NativeGenomeError`` so the caller
+    falls to the exact pure Python path. Byte-identical to the pure Python set
+    comparison."""
+    _require_genome()
+    if not hasattr(LIB, "srmech_genome_modulator_consistent"):
+        raise NativeGenomeError("srmech_genome_modulator_consistent", SRMECH_ERR_NOT_IMPL)
+    consistent = ctypes.c_int(0)
+    rc = LIB.srmech_genome_modulator_consistent(
+        _u8(body), ctypes.c_size_t(len(body)), ctypes.c_size_t(leaf_dim),
+        _u8(expected), ctypes.c_size_t(len(expected)),
+        ctypes.c_uint64(candidate_cell_state), ctypes.byref(consistent))
+    if rc != SRMECH_OK:
+        raise NativeGenomeError("srmech_genome_modulator_consistent", rc)
+    return bool(consistent.value)
 
 
 def genome_load_c(dir_: str, the_one: bytes, out_cap: int) -> bytes:

@@ -77,6 +77,7 @@ __all__ = [
     "active_telomere", "telomere_tick",
     "gene_express",
     "gene_express_levels",
+    "modulator_recover", "modulator_consistent",
     "GenomeBoundingError",
     "LEAF_CAP", "QUAD", "MOBIUS_CAP",
     "CHROM_CAP_MARKER", "GENE_CAP_MARKER", "GENE_FRAME_TAG",
@@ -1852,6 +1853,276 @@ def _gene_expresses(cap, cell_state):
     activator, repressor = _regulatory_gene_masks(cap)   # (0, 0) for a plain gene
     return ((cell_state & activator) == activator        # ALL activators present
             and (cell_state & repressor) == 0)           # NO repressor present; Class-I, no abs
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# §133/rc133 (#733) — MODULATOR-RECOVERY (M1 + M2): the INVERSE of gene_express.
+# Given an OBSERVED expressed-label set (+ the strand's gene caps), recover the
+# two-sided cell-state FLOOR every consistent cell_state must satisfy (M1), and
+# forward-CHECK one candidate (M2). It is UNDER-DETERMINED (many cell_states ->
+# the SAME expressed subset), so the ONLY honest form is a ONE-SIDED verdict — the
+# op_verdict (rc117 op_provenance) EQUAL/UNKNOWN contract: recover the EXACT
+# complement we can PROVE, flag the rest UNKNOWN. The exact cell_state is
+# irrecoverable BY CONSTRUCTION; naming that honestly IS the finding (the same
+# recoverability discipline as op_provenance / RecoverableFold / the #725 null).
+# ─────────────────────────────────────────────────────────────────────────────
+
+#: The five INTRA-chromosome gene-cap markers (plain / klein4-mask / boolean /
+#: threshold / graded). A block whose first byte is one of these OPENS a gene the
+#: modulator ops read; every other block (CHROM cap, kernel header, coupled data
+#: turn, …) is skipped.
+_GENE_MARKERS = (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
+                 THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER)
+
+#: The §133 M1 verdict-code → string map (mirrors the C SRMECH_GENOME_MODULATOR_*
+#: codes). One-sided, like the rc117 op_verdict EQUAL/UNKNOWN contract.
+_MODULATOR_VERDICTS = {0: "UNKNOWN", 1: "PARTIAL", 2: "EXACT"}
+
+
+def _weighted_ref(weights):
+    """The condition bits a THRESHOLD (E4) / GRADED (E3) weight vector READS: the
+    OR of ``(1 << i)`` for every NONZERO weight at index ``i < 64`` (bit ``i`` of the
+    uint64 cell_state; a weight beyond index 63 gates an always-absent condition, so
+    it is not "read"). Class-I bitwise; never ``abs()`` — the weight's SIGN does not
+    matter to *which* bit it reads, only its being nonzero."""
+    r = 0
+    for i, w in enumerate(weights):
+        if w != 0 and i < 64:
+            r |= (1 << i)
+    return r
+
+
+def _gene_contribution(cap):
+    """One gene cap's ``(referenced, floor_on, floor_off)`` (§133) — the per-gene
+    read M1 folds. ``referenced`` = the condition bits this gene READS; ``floor_on`` /
+    ``floor_off`` = the bits an EXPRESSED instance PROVES on / off (the SOUND floor):
+
+    * E1 (plain ``0x47`` / klein4-mask ``0x67``) — ``referenced = activator | repressor``;
+      an expressed E1 gene proves ``floor_on = activator`` (all present) + ``floor_off =
+      repressor`` (all absent).
+    * E2 (boolean DNF ``0x62``) — ``referenced`` = OR over clauses of ``(act | rep)``; an
+      expressed E2 gene proves only the bits set in EVERY clause: ``floor_on`` = the
+      INTERSECTION-over-clauses activator, ``floor_off`` = the intersection-over-clauses
+      repressor (some clause matched, so those bits held whichever clause it was). The
+      empty DNF (never expresses) proves NOTHING.
+    * E4 (threshold ``0x77``) / E3 (graded ``0x64``) — ``referenced`` = the nonzero-weight
+      indices; NO clean single-bit certainty, so ``floor_on = floor_off = 0`` (that is
+      M3's job — do NOT over-claim). Byte-identical to the C ``genome_gene_contribution``.
+    Class-I bitwise; no float; never ``abs()``; a READ."""
+    kind = _cap_kind(cap)
+    if kind == BOOLEAN_GENE_MARKER:
+        _gate_type, terms = _boolean_gene_dnf(cap)
+        ref = 0
+        for act, rep in terms:
+            ref |= act | rep
+        if not terms:                                    # empty DNF — proves nothing
+            return ref, 0, 0
+        inter_act, inter_rep = terms[0]
+        for act, rep in terms[1:]:
+            inter_act &= act
+            inter_rep &= rep
+        return ref, inter_act, inter_rep
+    if kind == THRESHOLD_GENE_MARKER:
+        _gate_type, weights, _threshold = _threshold_gene_spec(cap)
+        return _weighted_ref(weights), 0, 0              # E4 — ref only
+    if kind == GRADED_GENE_MARKER:
+        _gate_type, weights, _denom = _graded_gene_spec(cap)
+        return _weighted_ref(weights), 0, 0              # E3 — ref only
+    activator, repressor = _regulatory_gene_masks(cap)   # E1 (0x47 / 0x67); (0,0) for plain
+    return activator | repressor, activator, repressor
+
+
+def _modulator_recover_pure(strand, labels):
+    """The pure Class-I path for :func:`modulator_recover` — recover the two-sided
+    floor by walking the strand's gene caps. A gene's floor is applied only when its
+    label is EXPRESSED (in ``labels``) AND UNIQUE among the strand's gene caps (a
+    duplicated label cannot be attributed to a specific gene — the expressed SET
+    collapses duplicates — so NEITHER contributes: SOUND). Byte-identical to the C
+    ``srmech_genome_modulator_recover``. No float; never ``abs()``; a READ."""
+    expressed_set = set(labels)
+    gene_caps = [hv for hv in strand if _cap_kind(hv) in _GENE_MARKERS]
+    cap_labels = [_unpack_cap(hv)[1] for hv in gene_caps]
+    on = off = ref = 0
+    for hv, lab in zip(gene_caps, cap_labels):
+        gref, gon, goff = _gene_contribution(hv)
+        ref |= gref                                      # every gene reads its bits
+        if lab in expressed_set and cap_labels.count(lab) == 1:
+            on |= gon                                    # SOUND: proven bits only
+            off |= goff
+    pinned = on | off
+    undetermined = ref & ~pinned                         # referenced bits not pinned
+    if pinned == 0:
+        verdict = "UNKNOWN"                              # nothing pinned
+    elif undetermined == 0:
+        verdict = "EXACT"                                # the floor pins every referenced bit
+    else:
+        verdict = "PARTIAL"
+    return {"certain_on": on, "certain_off": off,
+            "undetermined": undetermined, "verdict": verdict}
+
+
+def _modulator_labels(expressed_labels, fn):
+    """Coerce ``expressed_labels`` to a ``list[str]`` (the gene-label vocabulary) —
+    rejecting a bare ``str`` / ``bytes`` (a common footgun: a single label string is
+    NOT a label SET)."""
+    if isinstance(expressed_labels, (str, bytes)):
+        raise ValueError(
+            f"{fn}: expressed_labels must be a SEQUENCE of gene labels (e.g. a list "
+            f"of str), not a single {type(expressed_labels).__name__}")
+    return [str(label) for label in expressed_labels]
+
+
+def _modulator_gene_body(strand):
+    """The GENE-CAP subset of ``strand`` as one fixed-width byte body (each gene cap
+    ``leaf_dim`` bytes; the data turns do NOT gate expression, so they are stripped) —
+    the buffer the whole-strand C peers walk uniformly."""
+    return b"".join(hv.tobytes() for hv in strand if _cap_kind(hv) in _GENE_MARKERS)
+
+
+def _modulator_recover_native(strand, the_one, labels):
+    """Native dispatch for :func:`modulator_recover` (parity peer
+    ``srmech_genome_modulator_recover``): returns the floor dict, or ``None`` on any
+    missing symbol / non-OK status / a label carrying a NUL (the blob delimiter) — the
+    caller runs the pure path. Native is authoritative when present."""
+    from . import _native
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_genome_modulator_recover")):
+        return None
+    if any("\x00" in label for label in labels):
+        return None
+    blob = b"".join(label.encode("utf-8") + b"\x00" for label in dict.fromkeys(labels))
+    body = _modulator_gene_body(strand)
+    leaf_dim = len(list(the_one))
+    try:
+        on, off, und, verdict = _native.genome_modulator_recover_c(body, leaf_dim, blob)
+    except _native.NativeGenomeError:
+        return None
+    return {"certain_on": on, "certain_off": off, "undetermined": und,
+            "verdict": _MODULATOR_VERDICTS[verdict]}
+
+
+def _modulator_consistent_native(strand, the_one, labels, candidate):
+    """Native dispatch for :func:`modulator_consistent` (parity peer
+    ``srmech_genome_modulator_consistent``): returns ``"CONSISTENT"``/``"INCONSISTENT"``,
+    or ``None`` on any missing symbol / non-OK status (e.g. an int64 threshold-sum
+    OVERFLOW) / a candidate beyond the native uint64 domain / a NUL in a label — the
+    caller runs the pure path. Native is authoritative when present."""
+    from . import _native
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_genome_modulator_consistent")):
+        return None
+    if candidate < 0 or candidate >= (1 << 64):          # the native cell_state is uint64
+        return None
+    if any("\x00" in label for label in labels):
+        return None
+    blob = b"".join(label.encode("utf-8") + b"\x00" for label in dict.fromkeys(labels))
+    body = _modulator_gene_body(strand)
+    leaf_dim = len(list(the_one))
+    try:
+        consistent = _native.genome_modulator_consistent_c(body, leaf_dim, blob, candidate)
+    except _native.NativeGenomeError:
+        return None
+    return "CONSISTENT" if consistent else "INCONSISTENT"
+
+
+def modulator_recover(strand, the_one, expressed_labels):
+    """Recover the TWO-SIDED cell-state FLOOR from an OBSERVED expressed set — M1, the
+    INVERSE of :func:`gene_express` (§133 / #733).
+
+    :func:`gene_express` is the FORWARD map (cell_state → expressed genes). This is the
+    beginning of the INVERSE: GIVEN the observed ``expressed_labels`` (+ the strand's
+    gene regulatory specs), recover what EVERY cell_state that could have produced that
+    expression must look like. It is UNDER-DETERMINED (many cell_states → the same
+    expressed subset), so the exact cell_state is IRRECOVERABLE BY CONSTRUCTION — the
+    only honest form is the ONE-SIDED FLOOR, the same recoverability discipline as
+    :func:`srmech.amsc.op_provenance.op_provenance_hash`'s op_verdict EQUAL/UNKNOWN
+    contract, :class:`srmech.amsc.coupling.RecoverableFold`, and the #725 null:
+    **recover the EXACT complement we can PROVE, flag the rest UNKNOWN.**
+
+    The floor (sharpened by the rc129 activator/repressor two-mask):
+
+    * **certain_on** — the bits EVERY consistent cell_state MUST have SET. SOUND
+      contributors: each EXPRESSED **E1** gene (klein4-mask ``0x67`` / plain ``0x47``)
+      proves its activator bits are on → OR their activator masks. Each EXPRESSED **E2**
+      gene (boolean DNF ``0x62``) proves ≥ 1 clause matched → the bits set in EVERY
+      clause's activator (the INTERSECTION-over-clauses activator) are certain-on.
+    * **certain_off** — the bits every consistent state MUST have CLEAR: OR of expressed
+      E1 repressor masks + the intersection-over-clauses repressor of expressed E2 genes.
+    * **E4 threshold / E3 graded / UN-expressed genes contribute NOTHING** to the clean
+      floor (a failed threshold / an absent gene is a DISJUNCTION of conditions — no clean
+      single-bit certainty; that is M3's job). Do NOT over-claim from them.
+    * **undetermined** — the referenced condition bits (the union of bits ANY gene reads)
+      minus ``certain_on ∪ certain_off``.
+    * **verdict** — ``"EXACT"`` if ``certain_on ∪ certain_off`` covers ALL referenced bits
+      (the floor fully determines the state), ``"PARTIAL"`` if some bits are pinned,
+      ``"UNKNOWN"`` if none — mirroring op_verdict's one-sidedness (NEVER claim a bit's
+      value it can't prove).
+
+    **SOUNDNESS (the load-bearing contract):** for EVERY cell_state that
+    :func:`modulator_consistent` reports CONSISTENT with ``expressed_labels``,
+    ``(state & certain_on) == certain_on`` AND ``(state & certain_off) == 0``. A gene's
+    floor is applied only when its label is expressed AND UNIQUE among the strand's gene
+    caps (a duplicated label cannot be attributed → neither contributes). M1 NEVER
+    over-claims a bit.
+
+    ⚠️ A READ — never mutates the strand (the input is byte-identical after). ``the_one``
+    is the leaf-width anchor (M1 reads only the gene CAPS, which are not coupled).
+    ``expressed_labels`` is a sequence of gene-label strings. Returns
+    ``{"certain_on": int, "certain_off": int, "undetermined": int, "verdict": str}``
+    (all JSON-native). Native-dispatched (byte-identical C peer
+    ``srmech_genome_modulator_recover``); the pure Class-I path is the complete
+    alternative. Attests gene-regulatory-network (GRN) inference — reverse-engineering the
+    regulatory state from an expression pattern — as ONE FACET of a real
+    biological-computational problem (the inverse of expression; #728 discipline — NOT a
+    claim srmech reproduces it): Marbach D, Costello JC, Küffner R, et al., "Wisdom of
+    crowds for robust gene network inference", *Nature Methods* 9(8):796-804 (2012), DOI
+    10.1038/nmeth.2016 (OA: NIH PMC3512113) — the DREAM5 blind assessment of GRN-inference
+    methods."""
+    labels = _modulator_labels(expressed_labels, "modulator_recover")
+    native = _modulator_recover_native(strand, the_one, labels)
+    if native is not None:
+        return native
+    return _modulator_recover_pure(strand, labels)
+
+
+def modulator_consistent(strand, the_one, expressed_labels, candidate_cell_state):
+    """Forward-CHECK one candidate cell_state — M2, the consistency verdict (§133 / #733).
+
+    Is ``candidate_cell_state`` a cell_state that could have produced ``expressed_labels``?
+    Runs the FORWARD :func:`gene_express` on the candidate and compares the produced label
+    SET to the observed one::
+
+        set(labels of gene_express(strand, the_one, candidate)) == set(expressed_labels)
+
+    → ``"CONSISTENT"`` else ``"INCONSISTENT"``. **ONE-SIDED** (the op_verdict EQUAL/UNKNOWN
+    reuse): CONSISTENT means "could be the state" (MANY candidates may be — expression is
+    under-determined), NEVER "it IS the state". Reuses the forward :func:`gene_express`
+    (no new gate logic), so it dispatches on each gene's E1/E2/E4 gate-type exactly as the
+    forward map does. Pairs with :func:`modulator_recover`: M1's floor is SOUND precisely
+    because every state M2 calls CONSISTENT satisfies it.
+
+    ⚠️ A READ — never mutates the strand. ``candidate_cell_state`` is a non-negative exact
+    int (Class-I bitwise; each set bit a present condition; no float, never ``abs()``).
+    Native-dispatched (byte-identical C peer ``srmech_genome_modulator_consistent``); the
+    pure path (reusing :func:`gene_express`) is the complete alternative. Attests
+    GRN-inference / consistency-checking of a candidate regulatory state as ONE FACET (the
+    inverse of expression; #728 discipline — NOT a claim srmech reproduces it): Marbach et
+    al., *Nature Methods* 9(8):796-804 (2012), DOI 10.1038/nmeth.2016 (OA: NIH
+    PMC3512113)."""
+    if not isinstance(candidate_cell_state, int) or isinstance(candidate_cell_state, bool):
+        raise ValueError(
+            f"modulator_consistent: candidate_cell_state must be an exact int (Class-I "
+            f"bitwise); got {candidate_cell_state!r}")
+    if candidate_cell_state < 0:
+        raise ValueError(
+            f"modulator_consistent: candidate_cell_state must be non-negative (a bitmask "
+            f"is never signed, so never abs()); got {candidate_cell_state}")
+    labels = _modulator_labels(expressed_labels, "modulator_consistent")
+    native = _modulator_consistent_native(strand, the_one, labels, candidate_cell_state)
+    if native is not None:
+        return native
+    produced = {lab for lab, _leaves in gene_express(strand, the_one, candidate_cell_state)}
+    return "CONSISTENT" if produced == set(labels) else "INCONSISTENT"
 
 
 def genome(kernels=None, the_one=None, *, chromosomes=None):
