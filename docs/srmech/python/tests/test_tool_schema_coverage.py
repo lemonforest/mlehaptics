@@ -258,6 +258,15 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     "srmech.amsc.cascade.one.one_grammar_slots",
     "srmech.amsc.cascade.one.one_flat_rational",
     "srmech.amsc.cascade.one.one_matrix",
+    # cascade.one.winding_tower (v0.9.0rc137, gh#1276) — the divmod-recursive
+    # binary-tower chirality grading of a WHOLE winding ``w`` (the (ℤ/2)^d
+    # Cayley–Dickson doubling coordinate; the anti-collapse of ``w mod 2``). A
+    # structural exact-ℤ readout of the One's winding surface, reachable via
+    # Python (and the One winding readouts), NOT via the MCP tool list — exempt
+    # exactly like the ``one.to_scalar`` / ``one.one_*`` accessors above.
+    # Dispatches to the same-rc BYTE-IDENTICAL C peer ``srmech_winding_tower``
+    # (classified ``c_dispatched`` in the Rosetta ledger).
+    "srmech.amsc.cascade.one.winding_tower",
     # cascade.sedenion_register.sed_* (v0.7.5rc140, #564 / PR #687 §31 /
     # [[feedback_prefer_config_driven_toml_classes]]) — the flat cascade-op
     # adapter layer that the packaged ``sedenion_register.toml`` ([class]

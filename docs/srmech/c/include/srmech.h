@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc136"
-#define SRMECH_VERSION       "0.9.0rc136"
+#define SRMECH_VERSION_PRE   "rc137"
+#define SRMECH_VERSION       "0.9.0rc137"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -812,6 +812,46 @@ srmech_status_t srmech_mod_inv(uint64_t a, uint64_t n, uint64_t *out);
  * the residue class of value. Result is always in {0, 1, 2}; applying
  * it three times is the identity on each residue (period 3). */
 srmech_status_t srmech_three_cycle(uint64_t value, uint64_t *out);
+
+/* ------------------------------------------------------------------ *
+ * The One's WINDING surface (siona gh#1276; rc137) — exact INTEGER
+ * readouts of the winding triad the SO->Spin double cover carries.
+ * Independent of the S(sigma,theta) adjoint generator; every op is
+ * exact-integer -> BYTE-IDENTICAL to the Python (no float). ABI stays 3.
+ * ------------------------------------------------------------------ */
+
+/* The divmod-recursive binary TOWER of a WHOLE winding w — the (Z/2)^d
+ * hypercube / Cayley-Dickson doubling coordinate. Fills bits_out with the
+ * LSB-first bits of |w| (the Class-K magnitude; a retrograde winding negates,
+ * never abs()) and writes the count to *n_bits_out. This KEEPS the Z/2 grading
+ * (the anti-collapse of `w mod 2`: winding_tower(5)={1,0,1} is DISTINGUISHED
+ * from winding_tower(7)={1,1,1}). w == 0 -> empty tower (*n_bits_out = 0).
+ * Returns SRMECH_ERR_NULL_ARG (bits_out / n_bits_out NULL), SRMECH_ERR_BAD_INPUT
+ * (bits_cap < 0), SRMECH_ERR_OVERFLOW (bits_cap too small; |w| needs up to 64). */
+srmech_status_t srmech_winding_tower(int64_t w, uint8_t *bits_out,
+                                     int32_t bits_cap, int32_t *n_bits_out);
+
+/* The chirality READOUT via the winding's binary tower — sigma modulated by the
+ * parity of the FULL popcount over the triad's towers (every graded bit counts;
+ * NOT the bare low bit `w mod 2`). *out = sigma if the total popcount is even,
+ * -sigma if odd (so w=5/popcount-2 and w=7/popcount-3 are DISTINGUISHED). No
+ * abs(); *out in {+1,-1}. Returns SRMECH_ERR_NULL_ARG (out NULL),
+ * SRMECH_ERR_BAD_INPUT (sigma not in {+1,-1}). */
+srmech_status_t srmech_sigma_effective(int32_t sigma, int64_t w0, int64_t w1,
+                                       int64_t w2, int32_t *out);
+
+/* The double-cover sign (-1)^(w0+w1+w2) — the genuine Spin->SO 2:1 lift (ONE
+ * winding flips, TWO restore). *out in {+1,-1} = the parity of the winding sum.
+ * Returns SRMECH_ERR_NULL_ARG for out NULL. */
+srmech_status_t srmech_spinor_sign(int64_t w0, int64_t w1, int64_t w2,
+                                   int32_t *out);
+
+/* The per-metacycle-scale unwrapped-phase TURNS (2*pi*w_k + theta): the full
+ * integer turns a theta-only object folds away. Writes the winding triad to
+ * turns_out[0..2] (theta is a caller-carried pass-through rational).
+ * Returns SRMECH_ERR_NULL_ARG for turns_out NULL. */
+srmech_status_t srmech_unwrapped_phase(int64_t w0, int64_t w1, int64_t w2,
+                                       int64_t *turns_out);
 
 /* ------------------------------------------------------------------ *
  * Class L — graph Laplacian (Task #217 Phase C1)

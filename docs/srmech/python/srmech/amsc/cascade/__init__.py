@@ -166,6 +166,7 @@ from .one import (
     the_one,
     s_generator,
     to_scalar,
+    winding_tower,
 )
 # Cayley–Dickson open-exterior boundary-demonstrator (v0.7.3rc1; #915 / MFO
 # §VII.6.23). The deliberately NON-reversible object on the far side of the
@@ -281,12 +282,13 @@ __all__ = [
     "hamming_encode",
     "hamming_syndrome",
     "hamming_decode_correct",
-    # The One — S(σ,θ), the 1+3+7+3 = 14 generator (#887)
+    # The One — S(σ,θ,w), the 1+3+7+3 = 14 generator (#887; winding rc137 / gh#1276)
     "Block",
     "One",
     "the_one",
     "s_generator",
     "to_scalar",
+    "winding_tower",
     # Cayley–Dickson open-exterior demonstrator (v0.7.3rc1; #915 / MFO §VII.6.23)
     "CD_MAX_DIM",
     "CD_DIMS",
