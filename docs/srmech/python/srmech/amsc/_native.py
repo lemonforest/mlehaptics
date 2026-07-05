@@ -40,6 +40,7 @@ import ctypes
 import json
 import os
 import sys
+from array import array
 from pathlib import Path
 from typing import Optional
 
@@ -91,6 +92,29 @@ class _SrmechBigint(ctypes.Structure):
         ("n", ctypes.c_uint32),
         ("cap", ctypes.c_uint32),
         ("limbs", ctypes.POINTER(ctypes.c_uint32)),
+    ]
+
+
+# rc141 (Foundation F0, carriers-C): the C Mat/Vec carrier structs. Layout
+# MUST match c/include/srmech.h:
+#   srmech_mat_t { double *buf; uint32_t rows, cols; int is_complex }
+#   srmech_vec_t { double *buf; uint32_t n;          int is_complex }
+# The `buf` pointer aliases a Python array('d') ZERO-COPY (via a c_double
+# array made with .from_buffer over the carrier's contiguous buffer).
+class _SrmechMat(ctypes.Structure):
+    _fields_ = [
+        ("buf", ctypes.POINTER(ctypes.c_double)),
+        ("rows", ctypes.c_uint32),
+        ("cols", ctypes.c_uint32),
+        ("is_complex", ctypes.c_int),
+    ]
+
+
+class _SrmechVec(ctypes.Structure):
+    _fields_ = [
+        ("buf", ctypes.POINTER(ctypes.c_double)),
+        ("n", ctypes.c_uint32),
+        ("is_complex", ctypes.c_int),
     ]
 
 
@@ -3642,6 +3666,87 @@ def _bind(lib: ctypes.CDLL) -> None:
         )
         lib.srmech_q_wz_verify.restype = ctypes.c_int
 
+    # rc141 Foundation F0 (carriers-C): the Mat/Vec carrier struct API — a
+    # bare C host's ctor / accessor / elementwise / lifecycle vocabulary. NEW
+    # symbols, hasattr-guarded (ABI stays 3) so a stale ABI-3 lib keeps the
+    # rest of the native surface and the pure-Python carrier is the complete
+    # path. Sizing helpers return size_t (# of doubles). Every op returns
+    # srmech_status_t (c_int); the struct pointers are passed by reference.
+    _MATP = ctypes.POINTER(_SrmechMat)
+    _VECP = ctypes.POINTER(_SrmechVec)
+    _DP = ctypes.POINTER(ctypes.c_double)
+    if hasattr(lib, "srmech_mat_buf_len"):
+        lib.srmech_mat_buf_len.argtypes = [ctypes.c_uint32, ctypes.c_uint32,
+                                           ctypes.c_int]
+        lib.srmech_mat_buf_len.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_vec_buf_len"):
+        lib.srmech_vec_buf_len.argtypes = [ctypes.c_uint32, ctypes.c_int]
+        lib.srmech_vec_buf_len.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_mat_init"):
+        lib.srmech_mat_init.argtypes = [_MATP, _DP, ctypes.c_uint32,
+                                        ctypes.c_uint32, ctypes.c_int]
+        lib.srmech_mat_init.restype = ctypes.c_int
+    if hasattr(lib, "srmech_vec_init"):
+        lib.srmech_vec_init.argtypes = [_VECP, _DP, ctypes.c_uint32, ctypes.c_int]
+        lib.srmech_vec_init.restype = ctypes.c_int
+    if hasattr(lib, "srmech_mat_zeros"):
+        lib.srmech_mat_zeros.argtypes = [_MATP, _DP, ctypes.c_uint32,
+                                         ctypes.c_uint32, ctypes.c_int]
+        lib.srmech_mat_zeros.restype = ctypes.c_int
+    if hasattr(lib, "srmech_vec_zeros"):
+        lib.srmech_vec_zeros.argtypes = [_VECP, _DP, ctypes.c_uint32, ctypes.c_int]
+        lib.srmech_vec_zeros.restype = ctypes.c_int
+    if hasattr(lib, "srmech_mat_get"):
+        lib.srmech_mat_get.argtypes = [_MATP, ctypes.c_uint32, ctypes.c_uint32,
+                                       _DP, _DP]
+        lib.srmech_mat_get.restype = ctypes.c_int
+    if hasattr(lib, "srmech_mat_set"):
+        lib.srmech_mat_set.argtypes = [_MATP, ctypes.c_uint32, ctypes.c_uint32,
+                                       ctypes.c_double, ctypes.c_double]
+        lib.srmech_mat_set.restype = ctypes.c_int
+    if hasattr(lib, "srmech_vec_get"):
+        lib.srmech_vec_get.argtypes = [_VECP, ctypes.c_uint32, _DP, _DP]
+        lib.srmech_vec_get.restype = ctypes.c_int
+    if hasattr(lib, "srmech_vec_set"):
+        lib.srmech_vec_set.argtypes = [_VECP, ctypes.c_uint32,
+                                       ctypes.c_double, ctypes.c_double]
+        lib.srmech_vec_set.restype = ctypes.c_int
+    if hasattr(lib, "srmech_mat_row"):
+        lib.srmech_mat_row.argtypes = [_MATP, ctypes.c_uint32, _VECP]
+        lib.srmech_mat_row.restype = ctypes.c_int
+    if hasattr(lib, "srmech_mat_col"):
+        lib.srmech_mat_col.argtypes = [_MATP, ctypes.c_uint32, _VECP]
+        lib.srmech_mat_col.restype = ctypes.c_int
+    for _sym in ("srmech_mat_add", "srmech_mat_sub", "srmech_mat_mul"):
+        if hasattr(lib, _sym):
+            getattr(lib, _sym).argtypes = [_MATP, _MATP, _MATP]
+            getattr(lib, _sym).restype = ctypes.c_int
+    for _sym in ("srmech_vec_add", "srmech_vec_sub", "srmech_vec_mul"):
+        if hasattr(lib, _sym):
+            getattr(lib, _sym).argtypes = [_VECP, _VECP, _VECP]
+            getattr(lib, _sym).restype = ctypes.c_int
+    for _sym in ("srmech_mat_scale", "srmech_mat_add_scalar"):
+        if hasattr(lib, _sym):
+            getattr(lib, _sym).argtypes = [_MATP, ctypes.c_double,
+                                           ctypes.c_double, _MATP]
+            getattr(lib, _sym).restype = ctypes.c_int
+    for _sym in ("srmech_vec_scale", "srmech_vec_add_scalar"):
+        if hasattr(lib, _sym):
+            getattr(lib, _sym).argtypes = [_VECP, ctypes.c_double,
+                                           ctypes.c_double, _VECP]
+            getattr(lib, _sym).restype = ctypes.c_int
+    for _sym in ("srmech_mat_conj", "srmech_mat_neg", "srmech_mat_transpose"):
+        if hasattr(lib, _sym):
+            getattr(lib, _sym).argtypes = [_MATP, _MATP]
+            getattr(lib, _sym).restype = ctypes.c_int
+    for _sym in ("srmech_vec_conj", "srmech_vec_neg"):
+        if hasattr(lib, _sym):
+            getattr(lib, _sym).argtypes = [_VECP, _VECP]
+            getattr(lib, _sym).restype = ctypes.c_int
+    if hasattr(lib, "srmech_mat_matmul_c128"):
+        lib.srmech_mat_matmul_c128.argtypes = [_MATP, _MATP, _MATP]
+        lib.srmech_mat_matmul_c128.restype = ctypes.c_int
+
 
 _LIB_PATH: Optional[Path] = _find_library()
 LIB: Optional[ctypes.CDLL] = None
@@ -4093,6 +4198,245 @@ def svd_f64_c(rows):
     sigma = [s[j] for j in range(n)]
     vcols = [[v[i * n + j] for i in range(n)] for j in range(n)]
     return sigma, vcols
+
+
+# ----------------------------------------------------------------------
+# rc141 (Foundation F0, carriers-C): the Mat/Vec CARRIER struct API. A bare
+# C host builds + holds + manipulates a carrier via srmech_mat_*/srmech_vec_*
+# with no Python; these helpers let the Python carrier DISPATCH its whole-
+# buffer compute methods (conj/neg/transpose + elementwise add/sub/mul +
+# scalar scale/add_scalar) to the byte-identical C, and let the parity test
+# drive the C surface directly. Every call aliases the array('d') buffers
+# ZERO-COPY (ctypes .from_buffer), so the same buffers the compute kernels
+# already read feed the carrier ops too. Return None -> the pure-Python
+# carrier is the complete + byte-exact alternative.
+# ----------------------------------------------------------------------
+
+
+def has_native_carriers() -> bool:
+    """True iff the rc141 Mat/Vec carrier struct API (the ctor/accessor/
+    elementwise/lifecycle symbols) is loaded + bound. False on a no-C or
+    pre-rc141 lib — the pure-Python Mat/Vec carrier is the complete
+    alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_mat_add")
+            and hasattr(LIB, "srmech_vec_conj")
+            and hasattr(LIB, "srmech_mat_matmul_c128"))
+
+
+def _carrier_dp(buf):
+    """A zero-copy ``POINTER(c_double)`` aliasing the ``array('d')`` ``buf``.
+    Returns ``(ptr, keepalive)`` — the caller MUST keep ``keepalive`` (the
+    intermediate c_double array sharing ``buf``'s memory) referenced for the
+    duration of the C call so the view is not released."""
+    backing = (ctypes.c_double * len(buf)).from_buffer(buf)
+    return ctypes.cast(backing, ctypes.POINTER(ctypes.c_double)), backing
+
+
+def _zeros_d(n_doubles):
+    """A fresh ``array('d')`` of ``n_doubles`` zeros (numpy-free)."""
+    return array("d", bytes(8 * n_doubles))
+
+
+def mat_binary_c(a_buf, a_cplx, b_buf, b_cplx, rows, cols, kind):
+    """``a (op) b`` for two same-shape Mat buffers via the C carrier ops
+    (``kind`` in {"add","sub","mul"}; ``*`` is Hadamard). Returns
+    ``(out_array_d, out_is_complex)`` or ``None`` (native absent / empty /
+    non-OK). Byte-identical to the pure-Python Mat elementwise."""
+    sym = {"add": "srmech_mat_add", "sub": "srmech_mat_sub",
+           "mul": "srmech_mat_mul"}.get(kind)
+    if not has_native_carriers() or sym is None or not hasattr(LIB, sym):
+        return None
+    n = rows * cols
+    if n == 0:
+        return None
+    out_cplx = 1 if (a_cplx or b_cplx) else 0
+    out = _zeros_d(2 * n if out_cplx else n)
+    ap, ka = _carrier_dp(a_buf)
+    bp, kb = _carrier_dp(b_buf)
+    op, ko = _carrier_dp(out)
+    A = _SrmechMat(ap, rows, cols, 1 if a_cplx else 0)
+    B = _SrmechMat(bp, rows, cols, 1 if b_cplx else 0)
+    O = _SrmechMat(op, rows, cols, out_cplx)
+    rc = getattr(LIB, sym)(ctypes.byref(A), ctypes.byref(B), ctypes.byref(O))
+    del ka, kb, ko
+    return (out, out_cplx) if rc == SRMECH_OK else None
+
+
+def mat_scalar_c(a_buf, a_cplx, rows, cols, s_re, s_im, kind):
+    """``a (op) scalar`` for a Mat buffer (``kind`` "scale" = ``*``, "add" =
+    ``+``). Returns ``(out_array_d, out_is_complex)`` or ``None``."""
+    sym = {"scale": "srmech_mat_scale",
+           "add": "srmech_mat_add_scalar"}.get(kind)
+    if not has_native_carriers() or sym is None or not hasattr(LIB, sym):
+        return None
+    n = rows * cols
+    if n == 0:
+        return None
+    out_cplx = 1 if (a_cplx or s_im != 0.0) else 0
+    out = _zeros_d(2 * n if out_cplx else n)
+    ap, ka = _carrier_dp(a_buf)
+    op, ko = _carrier_dp(out)
+    A = _SrmechMat(ap, rows, cols, 1 if a_cplx else 0)
+    O = _SrmechMat(op, rows, cols, out_cplx)
+    rc = getattr(LIB, sym)(ctypes.byref(A), ctypes.c_double(s_re),
+                           ctypes.c_double(s_im), ctypes.byref(O))
+    del ka, ko
+    return (out, out_cplx) if rc == SRMECH_OK else None
+
+
+def mat_unary_c(a_buf, rows, cols, is_cplx, kind):
+    """``conj`` / ``neg`` / ``transpose`` of a Mat buffer via the C carrier
+    ops. Returns ``(out_array_d, out_rows, out_cols)`` or ``None`` (dtype
+    preserved; transpose swaps the shape)."""
+    sym = {"conj": "srmech_mat_conj", "neg": "srmech_mat_neg",
+           "transpose": "srmech_mat_transpose"}.get(kind)
+    if not has_native_carriers() or sym is None or not hasattr(LIB, sym):
+        return None
+    n = rows * cols
+    if n == 0:
+        return None
+    orows, ocols = (cols, rows) if kind == "transpose" else (rows, cols)
+    out = _zeros_d(2 * n if is_cplx else n)
+    ap, ka = _carrier_dp(a_buf)
+    op, ko = _carrier_dp(out)
+    A = _SrmechMat(ap, rows, cols, 1 if is_cplx else 0)
+    O = _SrmechMat(op, orows, ocols, 1 if is_cplx else 0)
+    rc = getattr(LIB, sym)(ctypes.byref(A), ctypes.byref(O))
+    del ka, ko
+    return (out, orows, ocols) if rc == SRMECH_OK else None
+
+
+def vec_binary_c(a_buf, a_cplx, b_buf, b_cplx, n, kind):
+    """``a (op) b`` for two same-length Vec buffers (``kind`` in
+    {"add","sub","mul"}). Returns ``(out_array_d, out_is_complex)`` or
+    ``None``."""
+    sym = {"add": "srmech_vec_add", "sub": "srmech_vec_sub",
+           "mul": "srmech_vec_mul"}.get(kind)
+    if not has_native_carriers() or sym is None or not hasattr(LIB, sym):
+        return None
+    if n == 0:
+        return None
+    out_cplx = 1 if (a_cplx or b_cplx) else 0
+    out = _zeros_d(2 * n if out_cplx else n)
+    ap, ka = _carrier_dp(a_buf)
+    bp, kb = _carrier_dp(b_buf)
+    op, ko = _carrier_dp(out)
+    A = _SrmechVec(ap, n, 1 if a_cplx else 0)
+    B = _SrmechVec(bp, n, 1 if b_cplx else 0)
+    O = _SrmechVec(op, n, out_cplx)
+    rc = getattr(LIB, sym)(ctypes.byref(A), ctypes.byref(B), ctypes.byref(O))
+    del ka, kb, ko
+    return (out, out_cplx) if rc == SRMECH_OK else None
+
+
+def vec_scalar_c(a_buf, a_cplx, n, s_re, s_im, kind):
+    """``a (op) scalar`` for a Vec buffer (``kind`` "scale" / "add"). Returns
+    ``(out_array_d, out_is_complex)`` or ``None``."""
+    sym = {"scale": "srmech_vec_scale",
+           "add": "srmech_vec_add_scalar"}.get(kind)
+    if not has_native_carriers() or sym is None or not hasattr(LIB, sym):
+        return None
+    if n == 0:
+        return None
+    out_cplx = 1 if (a_cplx or s_im != 0.0) else 0
+    out = _zeros_d(2 * n if out_cplx else n)
+    ap, ka = _carrier_dp(a_buf)
+    op, ko = _carrier_dp(out)
+    A = _SrmechVec(ap, n, 1 if a_cplx else 0)
+    O = _SrmechVec(op, n, out_cplx)
+    rc = getattr(LIB, sym)(ctypes.byref(A), ctypes.c_double(s_re),
+                           ctypes.c_double(s_im), ctypes.byref(O))
+    del ka, ko
+    return (out, out_cplx) if rc == SRMECH_OK else None
+
+
+def vec_unary_c(a_buf, n, is_cplx, kind):
+    """``conj`` / ``neg`` of a Vec buffer. Returns ``out_array_d`` or
+    ``None`` (dtype preserved)."""
+    sym = {"conj": "srmech_vec_conj", "neg": "srmech_vec_neg"}.get(kind)
+    if not has_native_carriers() or sym is None or not hasattr(LIB, sym):
+        return None
+    if n == 0:
+        return None
+    out = _zeros_d(2 * n if is_cplx else n)
+    ap, ka = _carrier_dp(a_buf)
+    op, ko = _carrier_dp(out)
+    A = _SrmechVec(ap, n, 1 if is_cplx else 0)
+    O = _SrmechVec(op, n, 1 if is_cplx else 0)
+    rc = getattr(LIB, sym)(ctypes.byref(A), ctypes.byref(O))
+    del ka, ko
+    return out if rc == SRMECH_OK else None
+
+
+def mat_matmul_c128_c(a_buf, b_buf, m, k, n):
+    """The zero-copy kernel BRIDGE: complex ``(m,k)@(k,n)`` carrier matmul via
+    ``srmech_mat_matmul_c128`` (which feeds the buffers straight to
+    ``srmech_dense_matmul_complex``). ``a_buf``/``b_buf`` are interleaved
+    complex ``array('d')``. Returns the interleaved-complex ``array('d')``
+    result (``2*m*n`` doubles) or ``None``."""
+    if not has_native_carriers() or not hasattr(LIB, "srmech_mat_matmul_c128"):
+        return None
+    if m == 0 or k == 0 or n == 0:
+        return None
+    out = _zeros_d(2 * m * n)
+    ap, ka = _carrier_dp(a_buf)
+    bp, kb = _carrier_dp(b_buf)
+    op, ko = _carrier_dp(out)
+    A = _SrmechMat(ap, m, k, 1)
+    B = _SrmechMat(bp, k, n, 1)
+    O = _SrmechMat(op, m, n, 1)
+    rc = LIB.srmech_mat_matmul_c128(ctypes.byref(A), ctypes.byref(B),
+                                    ctypes.byref(O))
+    del ka, kb, ko
+    return out if rc == SRMECH_OK else None
+
+
+def mat_buf_len_c(rows, cols, is_complex):
+    """The C ``srmech_mat_buf_len`` (# of doubles a caller must allocate), or
+    ``None`` if the symbol is absent. Used to prove the C sizing helper agrees
+    with the Python carrier's ``array('d')`` length."""
+    if not has_native_carriers() or not hasattr(LIB, "srmech_mat_buf_len"):
+        return None
+    return int(LIB.srmech_mat_buf_len(ctypes.c_uint32(rows),
+                                      ctypes.c_uint32(cols),
+                                      ctypes.c_int(1 if is_complex else 0)))
+
+
+def mat_roundtrip_c(rows_data, is_cplx):
+    """Build a Mat carrier in C from ``rows_data`` (nested Python numbers) via
+    ``srmech_mat_zeros`` + ``srmech_mat_set``, then read every element back via
+    ``srmech_mat_get`` — the ctor + get/set round-trip a bare C host performs.
+    Returns the flat ``array('d')`` buffer the C carrier holds (to compare
+    byte-for-byte with the Python ``Mat.from_rows(...).buffer``) or ``None``."""
+    if not has_native_carriers() or not hasattr(LIB, "srmech_mat_zeros"):
+        return None
+    rows = len(rows_data)
+    cols = len(rows_data[0]) if rows else 0
+    n = rows * cols
+    if n == 0:
+        return None
+    buf = _zeros_d(2 * n if is_cplx else n)
+    bp, kb = _carrier_dp(buf)
+    M = _SrmechMat()
+    rc = LIB.srmech_mat_zeros(ctypes.byref(M), bp, ctypes.c_uint32(rows),
+                              ctypes.c_uint32(cols),
+                              ctypes.c_int(1 if is_cplx else 0))
+    if rc != SRMECH_OK:
+        del kb
+        return None
+    for i in range(rows):
+        for j in range(cols):
+            z = complex(rows_data[i][j])
+            rc = LIB.srmech_mat_set(ctypes.byref(M), ctypes.c_uint32(i),
+                                    ctypes.c_uint32(j), ctypes.c_double(z.real),
+                                    ctypes.c_double(z.imag))
+            if rc != SRMECH_OK:
+                del kb
+                return None
+    del kb
+    return buf
 
 
 # ----------------------------------------------------------------------
