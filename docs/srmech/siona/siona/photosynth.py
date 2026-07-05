@@ -59,21 +59,41 @@ class Instrument:
         top = g[0][1].split(".")[-1]
         return self._pos.get(top)
 
-    def excite_propagate_harvest(self, query, *, grounder=None, t=0.4, top=8):
-        """One photosynthetic read: EXCITE (seed at the query's landing) → PROPAGATE (heat kernel e^{-tL},
-        powered by L) → HARVEST (rank by concentrated energy). Returns [(label, energy)] — the graded working
-        set, energy = the E3-graded relevance. The head is the reaction center (where the energy concentrates)."""
+    def excite_propagate_harvest(self, query, *, grounder=None, t=0.4, top=8, mode="thermal"):
+        """One EPH read: EXCITE (seed at the query's landing) → PROPAGATE → HARVEST (rank by energy).
+        The propagator is chosen by ``mode`` — the same excite→propagate→harvest shape, two coherence regimes:
+
+          * ``mode="thermal"`` (default) — the heat kernel ``e^{-tL}`` (DECOHERENT diffusion; the etak /
+            classical / observer-frame regime). Energy = ``u(t)_i``.
+          * ``mode="coherent"`` — the unitary ``e^{-itL}`` (COHERENT quantum walk; the chloroplast regime,
+            F1058 — explores paths in superposition). Energy = the probability ``|u(t)_i|²``.
+
+        Returns ``[(label, energy)]`` — the graded working set (energy = E3-graded relevance); head = the
+        reaction center. Both are ``harvest = Propagate · excite`` — the op⊗operand cascade (EPH)."""
         s = query if isinstance(query, int) else self._seed(query, grounder)
         if s is None:
             return []
-        # u(t) = e^{-tL} u0  with u0 = indicator(s);  u(t)_i = Σ_k e^{-t λk} · evecs[s,k] · evecs[i,k]
-        u = [0.0] * self.N
-        for k in range(self.N):
-            num, den = _C.exp_series_truncate(-int(round(t * self._lam[k] * 1000)), 1000, 18)  # e^{-tλk}, Class-N
-            e = num / den                                          # collapse to scalar at the read boundary
-            csk = self._evecs[s, k]
-            for i in range(self.N):
-                u[i] += e * csk * self._evecs[i, k]
+        if mode == "coherent":
+            # u(t) = e^{-itL} u0 ; e^{-itλ} = cos(tλ) - i sin(tλ) (Class-N series). harvest = |amplitude|²
+            re = [0.0] * self.N; im = [0.0] * self.N
+            for k in range(self.N):
+                tl = int(round(t * self._lam[k] * 1000))
+                cn, cd = _C.cos_series_truncate(tl, 1000, 18); c = cn / cd
+                sn, sd = _C.sin_series_truncate(tl, 1000, 18); sv = sn / sd
+                csk = self._evecs[s, k]
+                for i in range(self.N):
+                    w = csk * self._evecs[i, k]
+                    re[i] += c * w; im[i] += -sv * w
+            u = [re[i] * re[i] + im[i] * im[i] for i in range(self.N)]   # Born-rule harvest (probability)
+        else:
+            # u(t) = e^{-tL} u0 ;  u(t)_i = Σ_k e^{-t λk} · evecs[s,k] · evecs[i,k]
+            u = [0.0] * self.N
+            for k in range(self.N):
+                num, den = _C.exp_series_truncate(-int(round(t * self._lam[k] * 1000)), 1000, 18)  # e^{-tλk}
+                e = num / den
+                csk = self._evecs[s, k]
+                for i in range(self.N):
+                    u[i] += e * csk * self._evecs[i, k]
         order = sorted(range(self.N), key=lambda i: -u[i])
         return [(self.labels[i], u[i]) for i in order[:top] if u[i] > 0]
 
