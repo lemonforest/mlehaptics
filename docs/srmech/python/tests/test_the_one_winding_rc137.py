@@ -275,3 +275,73 @@ def test_repr_mentions_winding():
 def test_the_one_alias_carries_winding():
     from srmech.amsc.cascade import s_generator
     assert s_generator(+1, 1, 1, w=(3, 0, 0)).winding == (3, 0, 0)
+
+
+# ── Python == C BYTE-IDENTICAL — the same-rc winding C peer (gh#1276) ──────────
+#
+# Every winding op is exact-integer, so native == pure EXACTLY (byte-identical,
+# not a float tol — contrast rc136's numeric propagate). Toggle _native.HAS_NATIVE
+# to force each path and compare, the same discipline test_cyclic_parity uses.
+
+import random                                            # noqa: E402
+from srmech.amsc import _native                          # noqa: E402
+
+
+@pytest.mark.skipif(not _native.HAS_NATIVE, reason="native lib not loaded")
+def test_winding_tower_native_equals_pure_byte_identical():
+    from srmech.amsc.cascade import winding_tower as wt
+    rng = random.Random(20260705)
+    saved = _native.HAS_NATIVE
+    try:
+        samples = [0, 1, 2, 5, 7, 13, 223, 940, -5, -7, (1 << 62)]
+        samples += [rng.randrange(-(1 << 60), 1 << 60) for _ in range(60)]
+        for w in samples:
+            _native.HAS_NATIVE = True
+            native = wt(w)
+            _native.HAS_NATIVE = False
+            pure = wt(w)
+            assert native == pure, (w, native, pure)
+    finally:
+        _native.HAS_NATIVE = saved
+
+
+@pytest.mark.skipif(not _native.HAS_NATIVE, reason="native lib not loaded")
+def test_winding_readouts_native_equal_pure_byte_identical():
+    rng = random.Random(20260706)
+    saved = _native.HAS_NATIVE
+    try:
+        for _ in range(60):
+            sigma = rng.choice((+1, -1))
+            w = tuple(rng.randrange(-(1 << 60), 1 << 60) for _ in range(3))
+            tn = rng.randrange(-10, 10)
+            td = rng.randrange(1, 8)
+
+            _native.HAS_NATIVE = True
+            o_n = the_one(sigma, tn, td, w=w)
+            n_sig = o_n.sigma_effective()
+            n_spin = o_n.spinor_sign
+            n_tower = o_n.winding_tower()
+            n_phase = o_n.unwrapped_phase()
+
+            _native.HAS_NATIVE = False
+            o_p = the_one(sigma, tn, td, w=w)
+            assert o_p.sigma_effective() == n_sig, (sigma, w)
+            assert o_p.spinor_sign == n_spin, w
+            assert o_p.winding_tower() == n_tower, w
+            assert o_p.unwrapped_phase() == n_phase, w
+    finally:
+        _native.HAS_NATIVE = saved
+
+
+def test_winding_ops_match_independent_reference():
+    # Independent (bin()-based) reference — proves whichever path runs is correct,
+    # native or pure. winding_tower is LSB-first bits of |w|.
+    from srmech.amsc.cascade import winding_tower as wt
+    for w in (0, 1, 2, 5, 7, 13, 223, -7):
+        ref = tuple(int(b) for b in bin(w if w >= 0 else -w)[2:][::-1]) if w != 0 else ()
+        assert wt(w) == ref
+    # sigma_effective = σ·(−1)^(total popcount); spinor_sign = (−1)^Σw.
+    o = the_one(+1, 3, 4, w=(5, 7, 2))
+    popcount = bin(5).count("1") + bin(7).count("1") + bin(2).count("1")   # 2+3+1=6
+    assert o.sigma_effective() == (+1 if popcount % 2 == 0 else -1)
+    assert o.spinor_sign == (1 if (5 + 7 + 2) % 2 == 0 else -1)

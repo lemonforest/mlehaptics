@@ -357,6 +357,46 @@ def _bind(lib: ctypes.CDLL) -> None:
     lib.srmech_mod_inv.restype = ctypes.c_int
 
     # ------------------------------------------------------------------
+    # The One's WINDING surface (siona gh#1276; rc137) — exact INTEGER
+    # readouts of the winding triad the SO->Spin double cover carries.
+    # Additive symbols (ABI stays 3); all hasattr-guarded so a stale lib
+    # falls to the byte-identical pure-Python path.
+    # ------------------------------------------------------------------
+    if hasattr(lib, "srmech_winding_tower"):
+        # int srmech_winding_tower(int64_t w, uint8_t *bits_out,
+        #     int32_t bits_cap, int32_t *n_bits_out)
+        lib.srmech_winding_tower.argtypes = [
+            ctypes.c_int64,                     # w
+            ctypes.POINTER(ctypes.c_uint8),     # bits_out (LSB-first)
+            ctypes.c_int32,                     # bits_cap
+            ctypes.POINTER(ctypes.c_int32),     # n_bits_out
+        ]
+        lib.srmech_winding_tower.restype = ctypes.c_int
+    if hasattr(lib, "srmech_sigma_effective"):
+        # int srmech_sigma_effective(int32_t sigma, int64_t w0, w1, w2,
+        #     int32_t *out)
+        lib.srmech_sigma_effective.argtypes = [
+            ctypes.c_int32,                     # sigma (+1/-1)
+            ctypes.c_int64, ctypes.c_int64, ctypes.c_int64,  # w0, w1, w2
+            ctypes.POINTER(ctypes.c_int32),     # out (+1/-1)
+        ]
+        lib.srmech_sigma_effective.restype = ctypes.c_int
+    if hasattr(lib, "srmech_spinor_sign"):
+        # int srmech_spinor_sign(int64_t w0, w1, w2, int32_t *out)
+        lib.srmech_spinor_sign.argtypes = [
+            ctypes.c_int64, ctypes.c_int64, ctypes.c_int64,  # w0, w1, w2
+            ctypes.POINTER(ctypes.c_int32),     # out (+1/-1)
+        ]
+        lib.srmech_spinor_sign.restype = ctypes.c_int
+    if hasattr(lib, "srmech_unwrapped_phase"):
+        # int srmech_unwrapped_phase(int64_t w0, w1, w2, int64_t *turns_out)
+        lib.srmech_unwrapped_phase.argtypes = [
+            ctypes.c_int64, ctypes.c_int64, ctypes.c_int64,  # w0, w1, w2
+            ctypes.POINTER(ctypes.c_int64),     # turns_out[3]
+        ]
+        lib.srmech_unwrapped_phase.restype = ctypes.c_int
+
+    # ------------------------------------------------------------------
     # Class L — graph Laplacian (Task #217 Phase C1 rc2).
     # All three matrix builders share the
     # (n, n_edges, *u, *v, *w, *out) -> int shape.

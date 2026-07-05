@@ -214,6 +214,20 @@ def winding_tower(w: int) -> Tuple[int, ...]:
     """
     if not isinstance(w, int) or isinstance(w, bool):
         raise TypeError(f"winding_tower: w must be int; got {type(w).__name__}")
+    # Native peer (byte-identical exact-integer) when w fits the int64 surface.
+    nat = _winding_native()
+    if (nat is not None and hasattr(nat.LIB, "srmech_winding_tower")
+            and _WINDING_INT64_MIN <= w <= _WINDING_INT64_MAX):
+        import ctypes
+        bits_buf = (ctypes.c_uint8 * _WINDING_MAX_BITS)()
+        n_out = ctypes.c_int32(0)
+        rc = nat.LIB.srmech_winding_tower(
+            ctypes.c_int64(w), bits_buf,
+            ctypes.c_int32(_WINDING_MAX_BITS), ctypes.byref(n_out))
+        if rc != nat.SRMECH_OK:
+            raise RuntimeError(f"srmech_winding_tower returned status {rc}")
+        return tuple(int(bits_buf[i]) for i in range(n_out.value))
+    # Pure path (also the arbitrary-precision path for |w| > int64).
     # Class-K sign pin (no abs): split magnitude from orientation via a branch;
     # a retrograde winding negates (Class C), it does not abs().
     m = w if w >= 0 else -w
@@ -244,6 +258,39 @@ def _validate_winding(w) -> Tuple[int, int, int]:
                 f"{type(wk).__name__}")
         out.append(wk)
     return (out[0], out[1], out[2])
+
+
+# ── native dispatch for the winding ops (the same-rc C peer; gh#1276) ──
+#
+# The winding surface ships a BYTE-IDENTICAL C peer (srmech_winding.c): every
+# op here is exact-integer, so native == pure exactly (no float tol). The C
+# surface is int64-bounded; a winding outside int64 (or a stale/absent lib)
+# takes the complete pure-Python path (arbitrary-precision, the same value).
+
+#: int64 bounds — the native winding surface's representable domain.
+_WINDING_INT64_MIN: int = -(1 << 63)
+_WINDING_INT64_MAX: int = (1 << 63) - 1
+
+#: Max bits |w| needs (int64 magnitude ≤ 2⁶³ → ≤ 64 bits).
+_WINDING_MAX_BITS: int = 64
+
+
+def _winding_native():
+    """Return the loaded native ``_native`` module if usable, else ``None``.
+
+    Lazy import (keeps ``one.py``'s import graph unchanged + dodges any
+    amsc-package circular import); honours the ``HAS_NATIVE`` toggle the parity
+    tests flip.
+    """
+    from .. import _native
+    if _native.HAS_NATIVE and _native.LIB is not None:
+        return _native
+    return None
+
+
+def _triad_in_int64(w: Tuple[int, int, int]) -> bool:
+    """True iff every winding component fits the native int64 surface."""
+    return all(_WINDING_INT64_MIN <= wk <= _WINDING_INT64_MAX for wk in w)
 
 
 @dataclass(frozen=True)
@@ -444,8 +491,22 @@ class One:
         (``q → −q``), TWO restore it (``q → q``) — 2 windings = 1 identity cycle
         at 4π. This IS ℤ/2 on the *sign* (correct double-cover physics), while
         the winding itself is carried WHOLE in :attr:`winding` (no collapse).
+        Byte-identical native peer (``srmech_spinor_sign``) when the triad
+        fits int64.
         """
-        return 1 if _sum_triad(self.winding) % 2 == 0 else -1
+        w = self.winding
+        nat = _winding_native()
+        if (nat is not None and hasattr(nat.LIB, "srmech_spinor_sign")
+                and _triad_in_int64(w)):
+            import ctypes
+            out = ctypes.c_int32(0)
+            rc = nat.LIB.srmech_spinor_sign(
+                ctypes.c_int64(w[0]), ctypes.c_int64(w[1]),
+                ctypes.c_int64(w[2]), ctypes.byref(out))
+            if rc != nat.SRMECH_OK:
+                raise RuntimeError(f"srmech_spinor_sign returned status {rc}")
+            return int(out.value)
+        return 1 if _sum_triad(w) % 2 == 0 else -1
 
     def winding_tower(self) -> Tuple[Tuple[int, ...], Tuple[int, ...], Tuple[int, ...]]:
         """The per-component **divmod binary-tower** grading of the winding triad
@@ -468,9 +529,24 @@ class One:
         popcount over the whole tower DISTINGUISHES ``w = 5`` (popcount 2 → even)
         from ``w = 7`` (popcount 3 → odd). Returns ``±1`` (the Class-K sign, no
         ``abs()``). At ``w = (0,0,0)`` this is exactly ``σ`` (back-compat).
+        Byte-identical native peer (``srmech_sigma_effective``) when the triad
+        fits int64.
         """
+        w = self.winding
+        nat = _winding_native()
+        if (nat is not None and hasattr(nat.LIB, "srmech_sigma_effective")
+                and _triad_in_int64(w)):
+            import ctypes
+            out = ctypes.c_int32(0)
+            rc = nat.LIB.srmech_sigma_effective(
+                ctypes.c_int32(self.sigma), ctypes.c_int64(w[0]),
+                ctypes.c_int64(w[1]), ctypes.c_int64(w[2]), ctypes.byref(out))
+            if rc != nat.SRMECH_OK:
+                raise RuntimeError(
+                    f"srmech_sigma_effective returned status {rc}")
+            return int(out.value)
         total_bits = 0
-        for wk in self.winding:
+        for wk in w:
             total_bits += sum(winding_tower(wk))   # popcount over the whole tower
         # Class-K/C: σ · (−1)^popcount — tower-graded chirality, no bare `w % 2`.
         return self.sigma if total_bits % 2 == 0 else -self.sigma
@@ -502,15 +578,31 @@ class One:
         EXACTLY: ``angle_k = 2π·turns + θ`` (π stays a *cascade* — the residual
         θ is the exact ``(num, den)``, never a float). Reaches the N=2
         doubled-period / subharmonic (the spinor half-angle) — the EPH #1274
-        resolvent tie. Returns one JSON-native dict per B/H/N anchor.
+        resolvent tie. Returns one JSON-native dict per B/H/N anchor. The
+        integer TURNS come from the byte-identical native peer
+        (``srmech_unwrapped_phase``) when the triad fits int64.
         """
         tn, td = self.theta
+        w = self.winding
+        turns = w
+        nat = _winding_native()
+        if (nat is not None and hasattr(nat.LIB, "srmech_unwrapped_phase")
+                and _triad_in_int64(w)):
+            import ctypes
+            buf = (ctypes.c_int64 * 3)()
+            rc = nat.LIB.srmech_unwrapped_phase(
+                ctypes.c_int64(w[0]), ctypes.c_int64(w[1]),
+                ctypes.c_int64(w[2]), buf)
+            if rc != nat.SRMECH_OK:
+                raise RuntimeError(
+                    f"srmech_unwrapped_phase returned status {rc}")
+            turns = (int(buf[0]), int(buf[1]), int(buf[2]))
         out = []
-        for k, wk in enumerate(self.winding):
+        for k in range(3):
             out.append({
                 "anchor": GRAMMAR_SLOTS[k],          # B / H / N
                 "metacycle": METACYCLE_NAMES[k],     # saros / metonic / callippic
-                "turns": wk,                         # full 2π turns, WHOLE ℤ
+                "turns": turns[k],                   # full 2π turns, WHOLE ℤ
                 "theta_num": tn,
                 "theta_den": td,
             })
