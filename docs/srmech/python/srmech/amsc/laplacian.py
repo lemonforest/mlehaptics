@@ -111,6 +111,10 @@ from srmech.amsc.rational import sin as _rsin  # Class-N sin cascade, not libm
 from srmech.amsc.rational import log as _rlog  # Class-N log cascade, not libm
 from srmech.amsc.rational import atan2 as _ratan2  # Class-N atan2 cascade, not libm
 from srmech.amsc.rational import complex_exp as _rcomplex_exp  # Class-N e^z, not libm
+from srmech.amsc.rational import exp_series_truncate as _exp_series  # rc136 EPH: Class-N exp
+from srmech.amsc.rational import cos_series_truncate as _cos_series  # rc136 EPH: Class-N cos
+from srmech.amsc.rational import sin_series_truncate as _sin_series  # rc136 EPH: Class-N sin
+from srmech.amsc.rational import atan_series_truncate as _atan_series  # rc136 EPH: Machin-2π
 
 
 # 0.9.0rc7 (stay-rational, F868): ``rational.sqrt`` / ``rational.hypot`` now
@@ -202,6 +206,8 @@ __all__ = [
     "elementwise_sqrt",
     "heat_trace",
     "ground_state_flux_response",
+    "propagate",
+    "eph_harvest",
     "LAPLACIAN_OPS",
     "MAX_NATIVE_NODES",
     "MAX_NATIVE_HERMITIAN_NODES",
@@ -3194,6 +3200,351 @@ def ground_state_flux_response(
     return out[0] if scalar_f else Vec.from_sequence(out, is_complex=False)
 
 
+# =====================================================================
+# EPH — the complex-time Wick-rotation propagator (0.9.0rc136; siona
+# gh#1274). harvest = e^{-zL}·u0, the ONE propagator with the arg(z)
+# coherence dial + the MANDATORY 2π seam-fold + the Born-rule harvest.
+# =====================================================================
+#
+# EPH = harvest = Propagate·excite generalises the op⊗operand pattern to a
+# full retrieval / inference cascade — a propagator P = e^{-zL} (operator)
+# applied to an excitation u0 (operand) → the harvest H. The thermal e^{-tL}
+# and the coherent e^{-itL} are NOT two ops: they are the ONE complex-time
+# propagator e^{-zL} with z COMPLEX, the ``i`` being the WICK-ROTATION PHASE.
+# arg(z) is the coherence dial (z real → thermal/decoherent, z imaginary →
+# coherent/unitary, arg(z) between → partial coherence — the regime only the
+# unified form can name). RBS-SNN = EPH-with-a-synaptic-propagator (the
+# neuron is one propagator choice P = connectome/weight matrix); no
+# privileged instance.
+
+# The seam-fold's series depths. The oscillation (cos/sin) is folded to
+# |arg| ≤ π then evaluated — a Class-N Taylor of ≤ π converges to < 1e-16 by
+# ~15 terms; the exp damping is halved to |arg| ≤ 1/2 then squared back.
+_EPH_EXP_TERMS: int = 24
+_EPH_TRIG_TERMS: int = 18
+_EPH_ATAN_TERMS: int = 45          # 2π-via-Machin depth (≤ 1e-40 residual)
+_EPH_TWO_PI_DEN: int = 1 << 80     # 2π fixed-point denominator (~1e-24 grid)
+_EPH_FOLD_DEN: int = 1 << 44       # folded-angle series denominator (~6e-14)
+
+
+def _eph_round_div(num: int, den: int) -> int:
+    """Nearest integer to ``num/den`` (den > 0) — round-half-up, exact
+    integer arithmetic (the winding number of the 2π seam-fold)."""
+    q, r = divmod(num, den)            # den > 0 → r in [0, den)
+    if 2 * r >= den:
+        q += 1
+    return q
+
+
+def _eph_two_pi_rational() -> Tuple[int, int]:
+    """2π as a Class-N rational via the Machin identity
+    ``2π = 32·atan(1/5) − 8·atan(1/239)`` (each atan by the exact Class-N
+    :func:`atan_series_truncate`), quantised to the fixed denominator
+    :data:`_EPH_TWO_PI_DEN` (exact-integer rounding, no float). The residual
+    vs true 2π is ≤ the atan truncation (~1e-40) then the fixed-grid round
+    (~1e-24) — far below float64, so the winding fold is exact at any t·λ."""
+    a5 = _atan_series(1, 5, _EPH_ATAN_TERMS)       # ≈ atan(1/5)
+    a239 = _atan_series(1, 239, _EPH_ATAN_TERMS)   # ≈ atan(1/239)
+    # 32·a5 − 8·a239 over the common denominator a5.den·a239.den
+    num = 32 * a5[0] * a239[1] - 8 * a239[0] * a5[1]
+    den = a5[1] * a239[1]
+    return (_eph_round_div(num * _EPH_TWO_PI_DEN, den), _EPH_TWO_PI_DEN)
+
+
+#: 2π as a fixed-denominator exact-Machin rational — computed once (the seam
+#: anchor). Denominator :data:`_EPH_TWO_PI_DEN`; value ≈ 2π to ~1e-24.
+_EPH_TWO_PI: Tuple[int, int] = _eph_two_pi_rational()
+
+
+def _eph_exp_real(g: float) -> float:
+    """``exp(g)`` for any real ``g`` via the Class-N
+    :func:`exp_series_truncate` on a power-of-two-reduced argument
+    (``|g|/2^s ≤ 1/2``), squared back ``s`` times. The reduced argument is
+    the EXACT dyadic rational of the reduced float (``as_integer_ratio``);
+    the series is exact; only the final projection + squaring is float64
+    (the FPU last-mile). Robust for a strongly-damped mode (``exp(−44) →
+    ~7.6e-20``) without the raw series blowing up."""
+    if g == 0.0:
+        return 1.0
+    mag = g if g >= 0.0 else -g        # Class-K magnitude, never abs()
+    s = 0
+    r = mag
+    while r > 0.5:
+        r *= 0.5
+        s += 1
+    red = g / float(1 << s)            # signed reduced argument, |red| ≤ 1/2
+    rn, rd = float(red).as_integer_ratio()
+    en, ed = _exp_series(rn, rd, _EPH_EXP_TERMS)
+    e = en / ed                        # project to float (FPU last-mile)
+    for _ in range(s):
+        e = e * e
+    return e
+
+
+def _eph_cos_sin(theta: float) -> Tuple[float, float]:
+    """``(cos θ, sin θ)`` via the MANDATORY 2π seam-fold + the Class-N
+    :func:`cos_series_truncate` / :func:`sin_series_truncate`.
+
+    THE CORRECTNESS CRUX: the raw trig series BLOW UP past a convergence
+    radius (``cos_series_truncate(44, 1, N)`` is ~2.3e17, not ~1.0). Before
+    the series, argument-reduce (seam-fold) ``θ`` modulo 2π — the BEAT SEAM —
+    using the exact Machin-2π (:data:`_EPH_TWO_PI`): the winding
+    ``w = round(θ/2π)`` is stripped in exact rational arithmetic, leaving
+    ``|θ − w·2π| ≤ π`` where the bounded series is exact. This restores
+    exactness at ANY t·λ. (The fold discards ``w`` — folds to one seam side,
+    the epicycle harvest; carrying ``w`` to expose the metacycle harvest is a
+    separate rc, #1276.)"""
+    if theta == 0.0:
+        return (1.0, 0.0)
+    tn, td = float(theta).as_integer_ratio()   # EXACT dyadic rational of θ
+    pn, pd = _EPH_TWO_PI
+    # winding w = round(θ / 2π) = round((tn·pd) / (td·pn)); td > 0, pn > 0.
+    w = _eph_round_div(tn * pd, td * pn)
+    # folded = θ − w·2π = (tn·pd − w·pn·td) / (td·pd), exact; |folded| ≤ π.
+    fn = tn * pd - w * pn * td
+    fd = td * pd
+    # re-quantise the small folded angle to the fixed-grid denominator
+    # _EPH_FOLD_DEN (exact-integer rounding) so the bounded series stays fast.
+    qn = _eph_round_div(fn * _EPH_FOLD_DEN, fd)
+    c_n, c_d = _cos_series(qn, _EPH_FOLD_DEN, _EPH_TRIG_TERMS)
+    s_n, s_d = _sin_series(qn, _EPH_FOLD_DEN, _EPH_TRIG_TERMS)
+    return (c_n / c_d, s_n / s_d)
+
+
+def _eph_wick_factor(zr: float, zi: float, lam: float) -> complex:
+    """The per-mode complex scalar ``e^{-z·λ} = e^{-Re(z)·λ}·(cos(Im(z)·λ) −
+    i·sin(Im(z)·λ))`` — damping via :func:`_eph_exp_real` (Class-N exp),
+    oscillation via :func:`_eph_cos_sin` (Class-N trig + the 2π seam-fold)."""
+    e = _eph_exp_real(-(zr * lam))            # real damping
+    c, s = _eph_cos_sin(zi * lam)             # seam-folded oscillation
+    return complex(e * c, -(e * s))           # Class-C sign, never abs()
+
+
+def _eph_propagate_native(rows, u, zr: float, zi: float, is_complex: bool):
+    """numpy-free native dispatch for :func:`propagate` — marshals the flat
+    matrix + the interleaved u0 into ctypes buffers and calls the composite C
+    peer ``srmech_eph_propagate`` with a caller arena sized from
+    ``srmech_eph_propagate_arena_bytes``. Returns the ``list[complex]``
+    harvest, or ``None`` on any missing symbol / non-OK status (caller then
+    runs the pure-Python complete alternative)."""
+    if not (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_eph_propagate")
+        and hasattr(_native.LIB, "srmech_eph_propagate_arena_bytes")
+    ):
+        return None
+    n = len(rows)
+    if is_complex:
+        flat = []
+        for r in rows:
+            for x in r:
+                z = complex(x)
+                flat.append(z.real)
+                flat.append(z.imag)
+    else:
+        flat = [float(x.real if isinstance(x, complex) else x)
+                for r in rows for x in r]
+    L_c = (ctypes.c_double * len(flat))(*flat)
+    u_il = []
+    for x in u:
+        z = complex(x)
+        u_il.append(z.real)
+        u_il.append(z.imag)
+    u_c = (ctypes.c_double * (2 * n))(*u_il)
+    out = (ctypes.c_double * (2 * n))()
+    ws_bytes = _native.LIB.srmech_eph_propagate_arena_bytes(
+        ctypes.c_uint32(n), ctypes.c_int(1 if is_complex else 0)
+    )
+    wsd = int(ws_bytes) // 8 + 16
+    ws = (ctypes.c_double * wsd)()
+    rc = _native.LIB.srmech_eph_propagate(
+        ctypes.c_uint32(n), ctypes.c_int(1 if is_complex else 0), L_c, u_c,
+        ctypes.c_double(zr), ctypes.c_double(zi), out, ws,
+        ctypes.c_size_t(wsd * 8),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [complex(out[2 * i], out[2 * i + 1]) for i in range(n)]
+
+
+def _eph_propagate_py(rows, u, zr: float, zi: float, is_complex: bool):
+    """The pure-Python complete alternative for :func:`propagate` — the ONE
+    eigensolve (:func:`symmetric_eigendecompose` real /
+    :func:`hermitian_eigendecompose` complex, srmech's own Class-L cascades),
+    then per-mode scale by the seam-folded Class-N Wick factor and recombine.
+    harvest = V·diag(e^{-z·λ_k})·V^H·u0 (basis-invariant, so it matches the C
+    peer regardless of the eigenvector sign / degenerate basis)."""
+    n = len(rows)
+    if is_complex:
+        eigvals, V = hermitian_eigendecompose(rows)
+    else:
+        eigvals, V = symmetric_eigendecompose(rows)
+    Vl = V.tolist()                              # nested list, numpy-free
+    lam = [float(eigvals[k]) for k in range(n)]
+    factors = [_eph_wick_factor(zr, zi, lam[k]) for k in range(n)]
+    uc = [complex(x) for x in u]
+    # project + scale: c_k = (Σ_i conj(V[i,k])·u0[i]) · e^{-z·λ_k}
+    c = [0j] * n
+    for k in range(n):
+        acc = 0j
+        for i in range(n):
+            vik = Vl[i][k]
+            vik_c = vik.conjugate() if isinstance(vik, complex) else vik
+            acc += vik_c * uc[i]
+        c[k] = acc * factors[k]
+    # recombine: harvest_i = Σ_k V[i,k]·c_k
+    harvest = [0j] * n
+    for i in range(n):
+        acc = 0j
+        for k in range(n):
+            acc += Vl[i][k] * c[k]
+        harvest[i] = acc
+    return harvest
+
+
+def propagate(L, u0, z) -> "Vec":
+    """EPH — the complex-time Wick-rotation propagator ``harvest = e^{-zL}·u0``
+    (0.9.0rc136; siona gh#1274). The ONE propagator with the arg(z) coherence
+    dial + the mandatory 2π seam-fold.
+
+    EPH = harvest = Propagate·excite: a propagator ``P = e^{-zL}`` (operator)
+    applied to an excitation ``u0`` (operand) → the harvest ``H``. The thermal
+    ``e^{-tL}`` and the coherent ``e^{-itL}`` are NOT two ops — they are the
+    ONE complex-time propagator ``e^{-zL}`` with ``z`` COMPLEX, the ``i``
+    being the WICK-ROTATION PHASE. **arg(z) is the coherence dial:**
+
+    * ``z`` REAL → thermal diffusion (decoherent — real damping ``e^{-tλ}``);
+    * ``z`` IMAGINARY → coherent unitary quantum walk (‖harvest‖ = ‖u0‖
+      conserved, a phase rotation per mode);
+    * ``arg(z)`` BETWEEN → PARTIAL coherence (``z = t·e^{iφ}``, ``φ`` = the
+      dial ∈ ``[0, π/2]``) — the real chloroplast regime ONLY the unified
+      form can name (two separate thermal / coherent ops cannot express the
+      middle). RBS-SNN = EPH-with-a-synaptic-propagator (``P`` = connectome /
+      weight matrix); no privileged instance. Composes the framework's
+      Class-L Wick rotation (the signed-metric / Wick op = a Class-L
+      signed-Laplacian variant).
+
+    IMPL (eigenbasis, ``n ≤ 256`` native): ONE eigensolve
+    (:func:`symmetric_eigendecompose` real / :func:`hermitian_eigendecompose`
+    complex) → project ``c = V^H·u0`` → per-mode scale ``c_k·e^{-z·λ_k}`` →
+    recombine ``V·(scaled c)``. The per-mode scalar
+    ``e^{-zλ_k} = e^{-Re(z)·λ_k}·(cos(Im(z)·λ_k) − i·sin(Im(z)·λ_k))`` uses
+    the Class-N :func:`exp_series_truncate` (real damping) +
+    :func:`cos_series_truncate` / :func:`sin_series_truncate` (oscillation).
+
+    THE MANDATORY 2π SEAM-FOLD (the correctness crux): the raw trig series
+    BLOW UP past a convergence radius (``cos_series_truncate(44, 1, N)`` is
+    ~2.3e17, not ~1.0). ``propagate`` argument-reduces (seam-folds) the
+    oscillation argument ``Im(z)·λ_k`` modulo 2π — the beat seam — using the
+    exact Machin-2π (``2π = 32·atan(1/5) − 8·atan(1/239)``), so it is EXACT at
+    ANY t·λ. (The fold discards the winding ``w``; carrying it to expose the
+    metacycle harvest is a separate rc, #1276.)
+
+    Args:
+        L: an ``(n, n)`` real-symmetric OR complex-Hermitian Laplacian /
+            operator (:class:`~srmech.amsc.mat.Mat` / list-of-rows /
+            ndarray-like). Symmetry / Hermiticity is the caller's
+            responsibility (the eigensolve ops' contract).
+        u0: the excitation vector (length ``n``, real or complex;
+            :class:`~srmech.amsc.vec.Vec` / list). Content-neutral (Class-M
+            grounding) — the seed the propagator acts on.
+        z: the complex time ``z = Re(z) + i·Im(z)`` (a Python ``complex`` or a
+            ``[re, im]`` pair). ``arg(z)`` is the coherence dial; build the
+            partial regime as ``z = t·(cos φ + i·sin φ)``, ``φ ∈ [0, π/2]``.
+
+    Returns:
+        the harvest ``e^{-zL}·u0`` — a length-``n`` complex
+        :class:`~srmech.amsc.vec.Vec` (the coherent / partial part is
+        genuinely complex). An empty ``L`` (n = 0) gives the empty harvest.
+
+    Native (rc136): dispatches to the composite C peer ``srmech_eph_propagate``
+    (ONE ``srmech_hermitian_eigendecompose_ws`` + ``srmech_exp`` /
+    ``srmech_cos`` / ``srmech_sin`` per mode — the Q61 octant reduction is the
+    2π fold in the fixed-point basis); pure Python is the complete
+    alternative. The harvest is basis-invariant, so Python == C to the
+    eigensolve tolerance regardless of the eigenvector convention. numpy-free;
+    no ``abs()`` (Class-K magnitude / Class-C sign).
+
+    Raises:
+        ValueError: non-square ``L``, or ``len(u0) != n``.
+    """
+    rows = _as_rows(L)
+    n = len(rows)
+    for r in rows:
+        if len(r) != n:
+            raise ValueError(f"propagate: L must be square; got {n} rows")
+    z = complex(z)
+    u = _vec(u0)
+    if len(u) != n:
+        raise ValueError(
+            f"propagate: len(u0) ({len(u)}) must equal n ({n})"
+        )
+    if n == 0:
+        return Vec(array("d"), 0, is_complex=True)
+    is_complex = _has_complex(rows)
+    harvest = _eph_propagate_native(rows, u, z.real, z.imag, is_complex)
+    if harvest is None:
+        harvest = _eph_propagate_py(rows, u, z.real, z.imag, is_complex)
+    return Vec.from_sequence(harvest, is_complex=True)
+
+
+def eph_harvest(L, u0, z) -> dict:
+    """The EPH cascade read (0.9.0rc136; siona gh#1274) — excite → propagate →
+    Born-rule harvest-rank the reaction center.
+
+    A composition op: excite (seed ``u0`` — Class-M grounding, content-neutral)
+    → :func:`propagate` (``harvest = e^{-zL}·u0`` with the arg(z) coherence
+    dial) → the **Born-rule harvest** ``|harvest_i|²`` per node (the reaction-
+    center energy; energy = relevance) → rank the nodes by energy. The neuron
+    is one propagator choice (RBS-SNN); this is the generic retrieval /
+    inference cascade one layer up from :func:`propagate`.
+
+    Args:
+        L, u0, z: as :func:`propagate` (the operator, the excitation, the
+            complex time / coherence dial).
+
+    Returns:
+        a JSON-native dict:
+
+        * ``ranked_nodes`` — node indices sorted by Born energy DESCENDING
+          (the reaction-center ranking; energy = relevance);
+        * ``energies`` — ``|harvest_i|²`` per node in NODE order (the Born-rule
+          reaction-center energy; Class-K ``re² + im²``, no ``abs()``);
+        * ``reaction_center`` — the top-ranked node (highest energy), or
+          ``None`` for an empty ``L``;
+        * ``total_energy`` — ``Σ_i |harvest_i|²`` = the coherence budget
+          (conserved = ‖u0‖² in the coherent limit ``z`` imaginary; damped
+          below it in the thermal limit ``z`` real — the monotonic Wick dial);
+        * ``harvest_re`` / ``harvest_im`` — the raw complex harvest components.
+
+    Composes :func:`propagate` (c_dispatched) + the Born magnitude + rank — no
+    new C symbol. numpy-free; no ``abs()``.
+    """
+    harvest = propagate(L, u0, z)
+    n = harvest.shape[0]
+    energies = []
+    hre = []
+    him = []
+    total = 0.0
+    for i in range(n):
+        h = complex(harvest[i])
+        e = h.real * h.real + h.imag * h.imag     # Born |·|², Class-K squares
+        energies.append(e)
+        hre.append(h.real)
+        him.append(h.imag)
+        total += e
+    ranked = sorted(range(n), key=lambda i: energies[i], reverse=True)
+    return {
+        "ranked_nodes": ranked,
+        "energies": energies,
+        "reaction_center": ranked[0] if ranked else None,
+        "total_energy": total,
+        "harvest_re": hre,
+        "harvest_im": him,
+    }
+
+
 def fiedler_vector(matrix) -> "Vec":
     """The Fiedler navigation embedding — eigenvector of ``λ₂``.
 
@@ -3925,6 +4276,8 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "elementwise_sqrt",
     "heat_trace",
     "ground_state_flux_response",
+    "propagate",
+    "eph_harvest",
     "dense_solve",
     "schur_complement",
     "dirichlet_to_neumann",

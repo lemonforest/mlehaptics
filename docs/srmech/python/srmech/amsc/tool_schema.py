@@ -1059,6 +1059,82 @@ def _register_primitive_class_tools() -> None:
                                      "a real Vec (one λ_min per Φ) for a "
                                      "sequence"),
         ),
+        # ────────────────────────────────────────────────────────────
+        # rc136 (siona gh#1274) — EPH, the complex-time Wick-rotation
+        # propagator harvest = e^{-zL}·u0 + the EPH cascade read, Class-L
+        # composites with the 1:1 C peer srmech_eph_propagate.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.laplacian.propagate", owner="srmech",
+            category="laplacian",
+            summary="EPH — the complex-time Wick-rotation propagator "
+                    "harvest = e^{−zL}·u0 (siona gh#1274). The thermal "
+                    "e^{−tL} and coherent e^{−itL} are NOT two ops — they are "
+                    "the ONE complex-time propagator e^{−zL} with z COMPLEX, "
+                    "the `i` being the WICK-ROTATION PHASE. arg(z) is the "
+                    "coherence dial: z real → thermal diffusion (decoherent, "
+                    "real damping), z imaginary → coherent unitary quantum "
+                    "walk (‖harvest‖ = ‖u0‖ conserved), arg(z) BETWEEN → "
+                    "PARTIAL coherence (z = t·e^{iφ} — the regime only the "
+                    "unified form can name). RBS-SNN = EPH-with-a-synaptic-"
+                    "propagator (P = connectome/weight matrix); no privileged "
+                    "instance. ONE eigensolve → project c = V^H·u0 → per-mode "
+                    "scale c_k·e^{−z·λ_k} → recombine V·(scaled c). The "
+                    "per-mode scalar e^{−zλ_k} = e^{−Re(z)·λ_k}·(cos(Im(z)·"
+                    "λ_k) − i·sin(Im(z)·λ_k)) uses the Class-N exp/cos/sin "
+                    "series with the MANDATORY 2π SEAM-FOLD of the oscillation "
+                    "argument (Machin-2π = 32·atan(1/5) − 8·atan(1/239)) — "
+                    "the raw trig series blow up past a convergence radius; "
+                    "the fold keeps propagate EXACT at any t·λ. Composes the "
+                    "Class-L Wick rotation (signed-Laplacian variant). 1:1 C "
+                    "peer srmech_eph_propagate (native when present, pure-"
+                    "Python the complete alternative; harvest is basis-"
+                    "invariant → Python == C to the eigensolve tolerance). "
+                    "numpy-free; no abs() (Class-K magnitude / Class-C sign).",
+            parameters=(P("L", "Mat", True,
+                          "an n×n real-symmetric or complex-Hermitian "
+                          "Laplacian / operator"),
+                        P("u0", "Vec", True,
+                          "the excitation vector (length n, real or complex) "
+                          "— the seed the propagator acts on"),
+                        P("z", "complex", True,
+                          "the complex time z = Re(z) + i·Im(z); arg(z) is "
+                          "the coherence dial (real → thermal, imaginary → "
+                          "coherent, between → partial)")),
+            returns=R("Vec", "the harvest e^{−zL}·u0 — a length-n complex Vec "
+                             "(the coherent/partial part is genuinely "
+                             "complex)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.eph_harvest", owner="srmech",
+            category="laplacian",
+            summary="The EPH cascade read (siona gh#1274) — excite → "
+                    "propagate → Born-rule harvest-rank the reaction center. "
+                    "A composition op: excite (seed u0 — Class-M grounding, "
+                    "content-neutral) → propagate (harvest = e^{−zL}·u0 with "
+                    "the arg(z) coherence dial) → the Born-rule harvest "
+                    "|harvest_i|² per node (the reaction-center energy; energy "
+                    "= relevance) → rank the nodes by energy. Returns the "
+                    "ranked node indices + per-node energies + the reaction "
+                    "center + the total energy (= the coherence budget: "
+                    "conserved in the coherent limit, damped below it in the "
+                    "thermal limit — the monotonic Wick dial) + the raw "
+                    "complex harvest. The neuron is one propagator choice "
+                    "(RBS-SNN); this is the generic retrieval / inference "
+                    "cascade one layer up. Composes propagate (c_dispatched) "
+                    "+ the Born magnitude + rank — no new C symbol. numpy-"
+                    "free; no abs().",
+            parameters=(P("L", "Mat", True,
+                          "an n×n real-symmetric or complex-Hermitian "
+                          "Laplacian / operator"),
+                        P("u0", "Vec", True,
+                          "the excitation vector (length n, real or complex)"),
+                        P("z", "complex", True,
+                          "the complex time / coherence dial (as propagate)")),
+            returns=R("dict", "ranked_nodes / energies / reaction_center / "
+                              "total_energy / harvest_re / harvest_im "
+                              "(JSON-native)"),
+        ),
         ToolEntry(
             name="srmech.amsc.laplacian.fiedler_vector", owner="srmech",
             category="laplacian",

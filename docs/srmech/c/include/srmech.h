@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc135"
-#define SRMECH_VERSION       "0.9.0rc135"
+#define SRMECH_VERSION_PRE   "rc136"
+#define SRMECH_VERSION       "0.9.0rc136"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1308,6 +1308,70 @@ srmech_status_t srmech_ground_state_flux_response(
     double         *out_lambda_min,
     double         *ws,
     size_t          ws_len);
+
+/* ------------------------------------------------------------------ *
+ * EPH — the complex-time Wick-rotation propagator (0.9.0rc136; siona
+ * gh#1274) — a Class-L COMPOSITE over the existing kernels
+ * (srmech_hermitian_eigendecompose_ws + srmech_exp + srmech_cos +
+ * srmech_sin), the C twin of srmech.amsc.laplacian.propagate.
+ *
+ * EPH = harvest = Propagate · excite: a propagator P = e^{-zL}
+ * (operator) applied to an excitation u0 (operand) → the harvest H.
+ * The thermal e^{-tL} and the coherent e^{-itL} are NOT two ops — they
+ * are the ONE complex-time propagator e^{-zL} with z COMPLEX, the `i`
+ * being the WICK-ROTATION PHASE. arg(z) is the coherence dial:
+ * z REAL → thermal diffusion (decoherent, damping), z IMAGINARY →
+ * coherent unitary quantum walk (norm-preserving), arg(z) BETWEEN →
+ * partial coherence (the regime only the unified form can name). The
+ * neuron is one propagator choice (RBS-SNN = EPH-with-a-synaptic-
+ * propagator P = connectome/weight matrix); no privileged instance.
+ * Composes the framework's Class-L Wick rotation (the signed-metric /
+ * Wick op = a Class-L signed-Laplacian variant).
+ *
+ * harvest = e^{-zL}·u0 = V·diag(e^{-z·λ_k})·V^H·u0 from ONE
+ * eigensolve: the per-mode scalar e^{-zλ_k} = e^{-Re(z)·λ_k}·
+ * (cos(Im(z)·λ_k) − i·sin(Im(z)·λ_k)) uses srmech_exp (real damping,
+ * the Q61 libm-free Class-N cascade) + srmech_cos / srmech_sin
+ * (oscillation; their internal octant reduction IS the 2π argument
+ * fold in the Q61 basis — the algebraic twin of the Python op's
+ * explicit Machin-2π Class-N-series seam-fold, so both are correct at
+ * any t·λ). The harvest is basis-invariant (each eigenvector appears
+ * in both V and V^H), so it agrees with the Python op to the
+ * eigensolve tolerance regardless of the eigenvector sign / degenerate-
+ * subspace basis convention. Standalone-complete: all scratch is
+ * bump-carved from the CALLER arena `ws` (no malloc). ABI-additive:
+ * new symbols, so SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* The caller arena size IN BYTES srmech_eph_propagate needs for an n*n
+ * L (the interleaved Hermitian input + eigensolve workspace + the
+ * complex eigenvectors + the projected mode vector). Same arena for
+ * real and complex input (real L is lifted to interleaved (re, 0)).
+ * Size `ws_len` >= this. */
+size_t srmech_eph_propagate_arena_bytes(uint32_t n, int is_complex);
+
+/* harvest = e^{-zL}·u0 via the eigenbasis, from ONE eigensolve of L.
+ * is_complex == 0: `L` is n*n row-major REAL symmetric; is_complex != 0:
+ * `L` is n*n row-major INTERLEAVED-complex (re, im) Hermitian (subject
+ * to the config-driven Hermitian node ceiling). `u0` and `out_harvest`
+ * are each n INTERLEAVED-complex (re, im) pairs (a real excitation
+ * rides as (re, 0)). z = z_re + i·z_im is the complex time. n == 0
+ * writes nothing. `ws` (ws_len bytes) sized from
+ * srmech_eph_propagate_arena_bytes. Returns SRMECH_ERR_NULL_ARG for a
+ * NULL required pointer, SRMECH_ERR_OVERFLOW for a too-small arena / a
+ * non-convergent eigensolve, SRMECH_ERR_BAD_INPUT if an oscillation
+ * argument |Im(z)·λ_k| exceeds the srmech_cos/sin reduction bound
+ * (~2^55, far beyond any physical t·λ). */
+srmech_status_t srmech_eph_propagate(
+    uint32_t       n,
+    int            is_complex,
+    const double  *L,
+    const double  *u0_interleaved,
+    double         z_re,
+    double         z_im,
+    double        *out_harvest_interleaved,
+    double        *ws,
+    size_t         ws_len);
 
 /* ------------------------------------------------------------------ *
  * Class J — prime-factorisation / period (Task #217 Phase C1 rc3)

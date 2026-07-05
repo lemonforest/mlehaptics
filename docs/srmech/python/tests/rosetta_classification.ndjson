@@ -496,6 +496,8 @@
 {"exposed_as": "srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson", "defined_at": "srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.heat_trace", "defined_at": "srmech.amsc.laplacian.heat_trace", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.ground_state_flux_response", "defined_at": "srmech.amsc.laplacian.ground_state_flux_response", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.laplacian.propagate", "defined_at": "srmech.amsc.laplacian.propagate", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.laplacian.eph_harvest", "defined_at": "srmech.amsc.laplacian.eph_harvest", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_mult_table", "defined_at": "srmech.qm.quaternion.quaternion_mult_table", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_table_attestation", "defined_at": "srmech.qm.quaternion.quaternion_table_attestation", "bucket": "non_compute"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_left_mult", "defined_at": "srmech.qm.quaternion.quaternion_left_mult", "bucket": "c_dispatched"}
