@@ -78,6 +78,7 @@ __all__ = [
     "gene_express",
     "gene_express_levels",
     "modulator_recover", "modulator_consistent",
+    "modulator_constraint", "modulator_constraint_satisfies",
     "GenomeBoundingError",
     "LEAF_CAP", "QUAD", "MOBIUS_CAP",
     "CHROM_CAP_MARKER", "GENE_CAP_MARKER", "GENE_FRAME_TAG",
@@ -2123,6 +2124,548 @@ def modulator_consistent(strand, the_one, expressed_labels, candidate_cell_state
         return native
     produced = {lab for lab, _leaves in gene_express(strand, the_one, candidate_cell_state)}
     return "CONSISTENT" if produced == set(labels) else "INCONSISTENT"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# §133/rc134 (#733) — MODULATOR-CONSTRAINT (M3): the COMPLETE inverse of
+# gene_express. Where M1 (modulator_recover) gives the SOUND two-sided FLOOR
+# from the EXPRESSED genes and M2 (modulator_consistent) forward-CHECKS one
+# candidate, M3 returns the EXACT CONSTRAINT characterizing the WHOLE set of
+# cell-states consistent with an observed expression — as a COMPACT structured
+# constraint, NEVER an enumeration (the solution set can be exponential). It adds
+# what M1 left out: (a) the DISJUNCTIVE clauses from UN-expressed genes (an
+# un-expressed E1 gene proves "some activator absent OR some repressor present" =
+# a nand-clause; an un-expressed E2 gene ANDs one nand-clause per DNF term); (b)
+# the FULL expressed-E2 disjunction (M1 only took the sound clause-intersection);
+# (c) the general-gate inverse (E4 threshold -> a linear inequality; E3 graded ->
+# a level constraint). The exact cell_state is still NOT unique — but the
+# CONSTRAINT is the EXACT characterization of the consistent set, and the residual
+# multiplicity is the honest-irrecoverability (the op_verdict / #725 discipline).
+#
+# SOUND: every M2-consistent cell_state satisfies the constraint. COMPLETE
+# (satisfies <=> M2-consistent) for the BOOLEAN gate-types E1/E2 at ANY label
+# multiplicity AND for a UNIQUE-labelled single E4/E3 gene; SOUND-ONLY (an
+# over-approximation, HONESTLY FLAGGED in `sound_only_labels`) for an EXPRESSED
+# label that is a genuine CROSS-TYPE disjunction (a duplicated label whose genes
+# span boolean AND threshold/graded, or >= 2 threshold/graded genes) — that OR
+# has no exact flat-clause form, so its expressed requirement is DROPPED to stay
+# sound. Un-expressed labels are COMPLETE for every gate-type (a conjunction of
+# exact silence constraints). Class-I bitwise; Class-N for the level/inequality
+# integer sums; the inequality SENSE is a Class-K sign-branch (never abs()).
+# ─────────────────────────────────────────────────────────────────────────────
+
+#: The exact-satisfiability decision bound (M3). When the count of FREE (referenced
+#: but unpinned) condition bits is <= this, `satisfiable` is decided EXACTLY by a
+#: bounded search over those bits (an INTERNAL boolean decision — NEVER a returned
+#: enumeration; the returned constraint stays compact). Beyond it, `satisfiable`
+#: falls back to the SOUND contradiction-detectors (False is always a proof of
+#: unsatisfiability; True means "no contradiction proven" — always correct for a
+#: real, came-from-a-state expression).
+_MODULATOR_SAT_EXACT_BITS = 20
+
+
+def _popcount(x):
+    """The number of set bits of a non-negative int (Class-I bit tally; no float,
+    never ``abs()`` — a bitmask is unsigned)."""
+    return bin(x).count("1")
+
+
+def _gene_bool_terms(cap):
+    """The list of boolean AND-terms ``[(activator, repressor), …]`` the gene opened
+    by ``cap`` contributes (§133 M3). An E1 gene (plain ``0x47`` -> ``(0, 0)`` / klein4-
+    mask ``0x67``) is ONE term (its two Klein-4 bit-planes); an E2 boolean gene
+    (``0x62``) is its DNF term list (possibly empty = never expresses). A THRESHOLD
+    (``0x77``) / GRADED (``0x64``) gene contributes NO boolean term (``[]`` — it is a
+    linear-inequality / level constraint, not a mask-clause). Class-I bitwise; a READ."""
+    kind = _cap_kind(cap)
+    if kind == BOOLEAN_GENE_MARKER:
+        _gate_type, terms = _boolean_gene_dnf(cap)
+        return list(terms)
+    if kind in (THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER):
+        return []                                        # not a boolean mask-clause
+    return [_regulatory_gene_masks(cap)]                 # E1 (0x47 -> (0,0) / 0x67)
+
+
+def _label_has_nonbool(gene_caps, cap_labels, label):
+    """Does ``label`` open ANY THRESHOLD (``0x77``) / GRADED (``0x64``) gene cap in the
+    strand (§133 M3)? The soundness guard for the expressed-disjunction clause: a
+    label that mixes a boolean gene with a threshold/graded gene is a CROSS-TYPE OR
+    with no exact flat-clause form, so its boolean terms must NOT be forced (that
+    would reject a state that expresses the label via the threshold/graded branch).
+    Byte-identical to the C ``genome_label_has_nonbool``. Class-I; a READ."""
+    for hv, lab in zip(gene_caps, cap_labels):
+        if lab == label and _cap_kind(hv) in (THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER):
+            return True
+    return False
+
+
+def _modulator_constraint_bool_pure(strand, labels):
+    """The pure Class-I path for the BOOLEAN part of :func:`modulator_constraint`
+    (§133 M3) — the floor (from M1) + the disjunctive CLAUSES. Returns
+    ``(certain_on, certain_off, nand_list, or_list)``:
+
+    * ``certain_on`` / ``certain_off`` — M1's SOUND floor (reuses
+      :func:`_modulator_recover_pure`; the pinned bits from EXPRESSED UNIQUE E1/E2
+      genes).
+    * ``nand_list`` — ``[(any_absent, any_present), …]``, one per boolean AND-term of
+      each UN-expressed E1/E2 gene (in strand order, term order). Each means
+      "(some bit of any_absent is 0) OR (some bit of any_present is 1)" = the
+      NEGATION of that AND-term matching = the gene NOT expressing. ALL are ANDed
+      (an un-expressed gene must have EVERY clause fail).
+    * ``or_list`` — ``[[(present, absent), …], …]``, one per EXPRESSED **pure-boolean**
+      label with >= 2 boolean terms (in first-occurrence label order); the label
+      expresses iff >= 1 of its terms fully matches (all present-bits set AND all
+      absent-bits clear) — the FULL disjunction M1 only intersected. A pure-boolean
+      label with a SINGLE term is already pinned by the floor (no clause). A label
+      that ALSO opens a threshold/graded cap is a CROSS-TYPE OR (sound-only) — NO
+      or-clause is emitted for it (the :func:`_label_has_nonbool` guard).
+
+    Byte-identical to the C ``srmech_genome_modulator_constraint`` boolean emit
+    (the SAME strand walk + first-occurrence label order). No float; never
+    ``abs()``; a READ."""
+    expressed_set = set(labels)
+    gene_caps = [hv for hv in strand if _cap_kind(hv) in _GENE_MARKERS]
+    cap_labels = [_unpack_cap(hv)[1] for hv in gene_caps]
+    floor = _modulator_recover_pure(strand, labels)
+    on, off = floor["certain_on"], floor["certain_off"]
+    # nand clauses — every UN-expressed E1/E2 gene, in strand order, term order.
+    nand_list = []
+    for hv, lab in zip(gene_caps, cap_labels):
+        if lab in expressed_set:
+            continue
+        if _cap_kind(hv) in (THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER):
+            continue                                     # not boolean -> an inequality/level
+        for act, rep in _gene_bool_terms(hv):
+            nand_list.append((act, rep))                 # (some act absent) OR (some rep present)
+    # or clauses — each EXPRESSED pure-boolean label (>= 2 terms), first-occurrence order.
+    or_list = []
+    seen = set()
+    for hv, lab in zip(gene_caps, cap_labels):
+        if lab in seen:
+            continue
+        seen.add(lab)
+        if lab not in expressed_set:
+            continue
+        if _label_has_nonbool(gene_caps, cap_labels, lab):
+            continue                                     # CROSS-TYPE OR — sound-only, no clause
+        terms = []
+        for hv2, lab2 in zip(gene_caps, cap_labels):
+            if lab2 == lab:
+                terms.extend(_gene_bool_terms(hv2))
+        if len(terms) >= 2:
+            or_list.append(list(terms))                  # the FULL expressed disjunction
+    return on, off, nand_list, or_list
+
+
+def _serialize_bool_constraint(on, off, nand_list, or_list):
+    """Canonically serialize the boolean part of an M3 constraint to bytes (§133) —
+    the byte-form both the pure Python path and the C peer emit, so Python==C is a
+    byte-equality check. Layout (all big-endian, unsigned):
+
+    ``certain_on(u64) certain_off(u64) n_nand(u32) [any_absent(u64) any_present(u64)]*
+    n_or(u32) [n_terms(u32) [present(u64) absent(u64)]*]*``. Class-I; no float."""
+    out = bytearray()
+    out += int(on).to_bytes(8, "big")
+    out += int(off).to_bytes(8, "big")
+    out += len(nand_list).to_bytes(4, "big")
+    for a, p in nand_list:
+        out += int(a).to_bytes(8, "big")
+        out += int(p).to_bytes(8, "big")
+    out += len(or_list).to_bytes(4, "big")
+    for terms in or_list:
+        out += len(terms).to_bytes(4, "big")
+        for pr, ab in terms:
+            out += int(pr).to_bytes(8, "big")
+            out += int(ab).to_bytes(8, "big")
+    return bytes(out)
+
+
+def _deserialize_bool_constraint(buf):
+    """Parse the M3 boolean-constraint byte-form back to
+    ``(certain_on, certain_off, nand_list, or_list)`` — the inverse of
+    :func:`_serialize_bool_constraint` (used to lift the C peer's emitted bytes into
+    the Python structure). Raises ``ValueError`` on a truncated buffer."""
+    if len(buf) < 20:
+        raise ValueError("M3 boolean-constraint buffer truncated (header)")
+    on = int.from_bytes(buf[0:8], "big")
+    off = int.from_bytes(buf[8:16], "big")
+    n_nand = int.from_bytes(buf[16:20], "big")
+    pos = 20
+    nand_list = []
+    for _ in range(n_nand):
+        if pos + 16 > len(buf):
+            raise ValueError("M3 boolean-constraint buffer truncated (nand)")
+        a = int.from_bytes(buf[pos:pos + 8], "big")
+        p = int.from_bytes(buf[pos + 8:pos + 16], "big")
+        nand_list.append((a, p))
+        pos += 16
+    if pos + 4 > len(buf):
+        raise ValueError("M3 boolean-constraint buffer truncated (n_or)")
+    n_or = int.from_bytes(buf[pos:pos + 4], "big")
+    pos += 4
+    or_list = []
+    for _ in range(n_or):
+        if pos + 4 > len(buf):
+            raise ValueError("M3 boolean-constraint buffer truncated (or n_terms)")
+        n_terms = int.from_bytes(buf[pos:pos + 4], "big")
+        pos += 4
+        terms = []
+        for _t in range(n_terms):
+            if pos + 16 > len(buf):
+                raise ValueError("M3 boolean-constraint buffer truncated (or term)")
+            pr = int.from_bytes(buf[pos:pos + 8], "big")
+            ab = int.from_bytes(buf[pos + 8:pos + 16], "big")
+            terms.append((pr, ab))
+            pos += 16
+        or_list.append(terms)
+    return on, off, nand_list, or_list
+
+
+def _modulator_constraint_native(strand, the_one, labels):
+    """Native dispatch for the BOOLEAN part of :func:`modulator_constraint` (parity
+    peer ``srmech_genome_modulator_constraint``): returns the emitted
+    boolean-constraint bytes, or ``None`` on any missing symbol / non-OK status / a
+    label with a NUL — the caller runs the pure path. Native is authoritative when
+    present (the bytes are byte-identical to :func:`_serialize_bool_constraint` of the
+    pure result)."""
+    from . import _native
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_genome_modulator_constraint")):
+        return None
+    if any("\x00" in label for label in labels):
+        return None
+    blob = b"".join(label.encode("utf-8") + b"\x00" for label in dict.fromkeys(labels))
+    body = _modulator_gene_body(strand)
+    leaf_dim = len(list(the_one))
+    try:
+        return _native.genome_modulator_constraint_c(body, leaf_dim, blob)
+    except _native.NativeGenomeError:
+        return None
+
+
+def _satisfies_bool(on, off, clauses, cs):
+    """Does ``cs`` satisfy the BOOLEAN part of an M3 constraint (§133) — the floor pins
+    + every nand / or_terms clause (ALL ANDed)? Class-I bitwise; a READ; no abs."""
+    if (cs & on) != on:
+        return False                                     # a certain-on bit is clear
+    if (cs & off) != 0:
+        return False                                     # a certain-off bit is set
+    for cl in clauses:
+        if cl["kind"] == "nand":
+            a, p = cl["any_absent"], cl["any_present"]
+            if not ((cs & a) != a or (cs & p) != 0):     # the AND-term matched -> gene expressed
+                return False
+        else:                                            # or_terms — >= 1 term must fully match
+            if not any((cs & t["present"]) == t["present"] and (cs & t["absent"]) == 0
+                       for t in cl["terms"]):
+                return False
+    return True
+
+
+def _satisfies_full(constraint, cs):
+    """Does ``cs`` satisfy the WHOLE M3 constraint (§133) — the boolean part (floor +
+    clauses) AND every inequality (E4) AND every level (E3)? This is the runnable
+    predicate behind :func:`modulator_constraint_satisfies`; on the COMPLETE gate-types
+    it EQUALS ``modulator_consistent(...) == "CONSISTENT"`` exactly. The inequality /
+    level tests sum the SIGNED integer weights over the PRESENT condition bits (Class-N
+    exact) and branch on the SIGN of ``(sum - threshold)`` — a Class-K sign, never
+    ``abs()``."""
+    if not _satisfies_bool(constraint["certain_on"], constraint["certain_off"],
+                           constraint["clauses"], cs):
+        return False
+    for ineq in constraint["inequalities"]:
+        weights = ineq["weights"]
+        total = 0
+        for i, w in enumerate(weights):                  # Sum w_i * bit_i(cs), Class-N exact
+            if (cs >> i) & 1:
+                total += w
+        if ineq["sense"] == ">=":                        # E4 EXPRESSED: Sum >= threshold
+            if total < ineq["threshold"]:                # Class-K sign of (total - threshold)
+                return False
+        else:                                            # sense "<" — E4 UN-expressed: Sum < threshold
+            if total >= ineq["threshold"]:
+                return False
+    for lv in constraint["levels"]:
+        weights = lv["weights"]
+        total = 0
+        for i, w in enumerate(weights):                  # the graded dose Sum w_i * bit_i(cs)
+            if (cs >> i) & 1:
+                total += w
+        if lv["positive"]:                               # E3 EXPRESSED: level > 0 <=> dose >= 1
+            if total < 1:
+                return False
+        else:                                            # E3 UN-expressed: level == 0 <=> dose <= 0
+            if total > 0:
+                return False
+    return True
+
+
+def _modulator_satisfiable(on, off, clauses, inequalities, levels,
+                           expressed_set, cap_label_set, free, free_bits):
+    """Decide `satisfiable` for an M3 constraint (§133) — is there SOME cell_state that
+    satisfies it? Returns ``(bool, note)``. FALSE is always a PROOF of unsatisfiability
+    (the sound contradiction-detectors below never fire on a real, came-from-a-state
+    expression); when the count of FREE (referenced-but-unpinned) bits is within the
+    exact bound it is decided EXACTLY by an INTERNAL bounded search over those bits
+    (NEVER a returned enumeration — the returned constraint stays compact). Beyond the
+    bound, TRUE means "no contradiction proven" (correct for any real expression), and
+    the note says so. Class-I bitwise; no abs."""
+    # ---- sound contradiction detectors (FALSE is a proof) ----
+    if (on & off) != 0:
+        return False, "pin-contradiction (a condition bit is required both SET and CLEAR)"
+    for lab in expressed_set:
+        if lab not in cap_label_set:
+            return False, "an expected label has no gene in the strand (can never be produced)"
+    for cl in clauses:
+        if cl["kind"] == "or_terms" and len(cl["terms"]) == 0:
+            return False, "an expressed label has an empty disjunction (can never express)"
+        if cl["kind"] == "nand" and cl["any_absent"] == 0 and cl["any_present"] == 0:
+            return False, "an always-on gene is required silent (can never be un-expressed)"
+    # ---- exact bounded decision over the FREE referenced bits ----
+    if free_bits <= _MODULATOR_SAT_EXACT_BITS:
+        cst = {"certain_on": on, "certain_off": off, "clauses": clauses,
+               "inequalities": inequalities, "levels": levels}
+        positions = [i for i in range(free.bit_length()) if (free >> i) & 1]
+        for assign in range(1 << len(positions)):
+            cs = on
+            for k, pos in enumerate(positions):
+                if (assign >> k) & 1:
+                    cs |= (1 << pos)
+            if _satisfies_full(cst, cs):
+                return True, f"exact (a witness exists among the {free_bits} free referenced bit(s))"
+        return False, f"exact (no assignment of the {free_bits} free referenced bit(s) satisfies it)"
+    return (True, f"conservative ({free_bits} free bits exceed the exact-decision bound "
+                  f"{_MODULATOR_SAT_EXACT_BITS}; True = no contradiction proven, not a witness)")
+
+
+def modulator_constraint(strand, the_one, expressed_labels):
+    """The COMPLETE inverse of :func:`gene_express` — M3, the EXACT CONSTRAINT
+    characterizing the WHOLE set of cell-states consistent with an observed
+    expression (§133 / #733; the last rung of the E-M ladder).
+
+    M1 (:func:`modulator_recover`) gives the SOUND two-sided FLOOR from the EXPRESSED
+    genes; M2 (:func:`modulator_consistent`) forward-checks one candidate. **M3
+    returns the EXACT constraint** — a COMPACT structured object, NEVER an
+    enumeration (the consistent set can be exponential). It adds what M1 left out:
+
+    * **UN-expressed genes.** An un-expressed **E1** gene (activator ``a``, repressor
+      ``r``) PROVES ``(cs & a) != a`` OR ``(cs & r) != 0`` (some activator absent OR
+      some repressor present) — a DISJUNCTIVE ``nand`` clause. An un-expressed **E2**
+      gene ANDs one ``nand`` clause per DNF term (all clauses must fail).
+    * **The FULL expressed-E2 disjunction.** M1 only took the SOUND
+      intersection-over-clauses; M3 adds the exact ``or_terms`` disjunction (an
+      expressed label with >= 2 boolean terms expresses iff >= 1 term fully matches).
+    * **The general-gate inverse.** An EXPRESSED **E4** threshold gene ->
+      ``Sum wᵢ·bit_i(cs) >= θ`` (a linear inequality); UN-expressed -> ``Sum < θ``. An
+      **E3** graded gene EXPRESSED -> ``Sum wᵢ·bit_i(cs) >= 1`` (level > 0), UN-expressed
+      -> ``Sum <= 0`` (level 0). These are CONSTRAINT-SATISFACTION, not a mask-OR.
+
+    Returns a JSON-native ``dict``::
+
+        {"certain_on": int, "certain_off": int,          # M1's floor (the pinned bits)
+         "clauses": [{"kind": "nand", "any_absent": int, "any_present": int}
+                     | {"kind": "or_terms", "terms": [{"present": int, "absent": int}, …]}, …],
+         "inequalities": [{"weights": [int, …], "threshold": int, "sense": ">=" | "<"}, …],
+         "levels": [{"weights": [int, …], "denom": int, "positive": bool}, …],
+         "satisfiable": bool, "free_bits": int, "solution_note": str,
+         "sound_complete": bool, "sound_only_labels": [str, …]}
+
+    All ``clauses`` / ``inequalities`` / ``levels`` are ANDed (a conjunction); a
+    ``cs`` satisfies the constraint iff it satisfies EVERY one (run
+    :func:`modulator_constraint_satisfies` to check a candidate).
+
+    **SOUND** — every ``cs`` that :func:`modulator_consistent` reports CONSISTENT with
+    ``expressed_labels`` satisfies the returned constraint. **COMPLETE** (``satisfies``
+    <=> M2-CONSISTENT) for the **boolean** gate-types **E1/E2** at ANY label
+    multiplicity, and for a **unique single E4/E3** gene; **SOUND-ONLY** (an
+    over-approximation, HONESTLY reported in ``sound_only_labels`` with
+    ``sound_complete = False``) for an EXPRESSED label that is a genuine CROSS-TYPE
+    disjunction (a duplicated label spanning boolean AND threshold/graded, or >= 2
+    threshold/graded genes) — that OR has no exact flat-clause form, so its expressed
+    requirement is DROPPED to stay sound. UN-expressed labels are COMPLETE for EVERY
+    gate-type (a conjunction of exact silence constraints).
+
+    ``satisfiable`` is ``True`` iff SOME cell-state satisfies the constraint (a real,
+    came-from-a-state expression is always satisfiable; a hand-supplied inconsistent
+    expressed set — e.g. two genes that can't co-express — is ``False``): FALSE is
+    always a PROOF (the sound detectors), and within the free-bit bound it is decided
+    EXACTLY (see ``solution_note``). ``free_bits`` = the count of referenced-but-unpinned
+    condition bits; ``solution_note`` characterizes the solution-set SIZE HONESTLY and
+    NEVER enumerates it.
+
+    ⚠️ A READ — never mutates the strand (byte-identical after). ``the_one`` is the
+    leaf-width anchor (M3 reads only the gene CAPS). Native-dispatched: the C peer
+    ``srmech_genome_modulator_constraint`` emits the BOOLEAN part (floor + clauses)
+    byte-identically; the inequalities / levels / satisfiability are computed in the
+    exact pure Class-N/I path (the owed-C is the E4/E3 emit). Class-I bitwise; Class-N
+    for the integer sums; the inequality SENSE is a Class-K sign (never ``abs()``).
+    Attests gene-regulatory-network (GRN) inference — inferring the COMPLETE
+    regulatory-input constraint from an expression profile, a constraint-satisfaction
+    view of the inverse problem — as ONE FACET (#728 discipline, NOT a claim srmech
+    reproduces it): Marbach D, Costello JC, Küffner R, et al., "Wisdom of crowds for
+    robust gene network inference", *Nature Methods* 9(8):796-804 (2012), DOI
+    10.1038/nmeth.2016 (OA: NIH PMC3512113) — the DREAM5 blind assessment of
+    GRN-inference methods."""
+    labels = _modulator_labels(expressed_labels, "modulator_constraint")
+    expressed_set = set(labels)
+    # ---- boolean part (floor + clauses): native (byte-identical) or pure ----
+    native_bytes = _modulator_constraint_native(strand, the_one, labels)
+    if native_bytes is not None:
+        on, off, nand_list, or_list = _deserialize_bool_constraint(native_bytes)
+    else:
+        on, off, nand_list, or_list = _modulator_constraint_bool_pure(strand, labels)
+    clauses = []
+    for a, p in nand_list:
+        clauses.append({"kind": "nand", "any_absent": a, "any_present": p})
+    for terms in or_list:
+        clauses.append({"kind": "or_terms",
+                        "terms": [{"present": pr, "absent": ab} for pr, ab in terms]})
+    # ---- referenced bits + per-label gate-type families (for sound-only + E4/E3) ----
+    gene_caps = [hv for hv in strand if _cap_kind(hv) in _GENE_MARKERS]
+    cap_labels = [_unpack_cap(hv)[1] for hv in gene_caps]
+    referenced = 0
+    families = {}                                        # label -> [n_bool_terms, n_thr, n_grad]
+    for hv, lab in zip(gene_caps, cap_labels):
+        gref, _gon, _goff = _gene_contribution(hv)
+        referenced |= gref
+        fam = families.setdefault(lab, [0, 0, 0])
+        kind = _cap_kind(hv)
+        if kind == THRESHOLD_GENE_MARKER:
+            fam[1] += 1
+        elif kind == GRADED_GENE_MARKER:
+            fam[2] += 1
+        else:
+            fam[0] += len(_gene_bool_terms(hv))
+    # ---- inequalities (E4) + levels (E3), respecting the sound-only guard ----
+    inequalities = []
+    levels = []
+    for hv, lab in zip(gene_caps, cap_labels):
+        kind = _cap_kind(hv)
+        if kind == THRESHOLD_GENE_MARKER:
+            _gt, weights, threshold = _threshold_gene_spec(hv)
+            nb, nt, ng = families[lab]
+            if lab not in expressed_set:                 # UN-expressed: MANDATORY, complete
+                inequalities.append({"weights": list(weights), "threshold": threshold,
+                                     "sense": "<"})
+            elif nb == 0 and nt == 1 and ng == 0:        # EXPRESSED pure single threshold: complete
+                inequalities.append({"weights": list(weights), "threshold": threshold,
+                                     "sense": ">="})
+            # else EXPRESSED sound-only cross-type OR -> drop (flagged), stay sound
+        elif kind == GRADED_GENE_MARKER:
+            _gt, weights, _denom = _graded_gene_spec(hv)
+            nb, nt, ng = families[lab]
+            if lab not in expressed_set:                 # UN-expressed: MANDATORY, complete
+                levels.append({"weights": list(weights), "denom": _denom, "positive": False})
+            elif nb == 0 and nt == 0 and ng == 1:        # EXPRESSED pure single graded: complete
+                levels.append({"weights": list(weights), "denom": _denom, "positive": True})
+            # else EXPRESSED sound-only -> drop (flagged), stay sound
+    # ---- sound-only labels: EXPRESSED labels that are NOT a complete case ----
+    sound_only = []
+    for lab in dict.fromkeys(cap_labels):                # first-occurrence, de-duplicated
+        if lab not in expressed_set:
+            continue                                     # UN-expressed is always complete
+        nb, nt, ng = families[lab]
+        complete = ((nt == 0 and ng == 0)                # pure boolean (any multiplicity)
+                    or (nb == 0 and nt == 1 and ng == 0)  # a single threshold
+                    or (nb == 0 and nt == 0 and ng == 1))  # a single graded
+        if not complete:
+            sound_only.append(lab)
+    sound_complete = (len(sound_only) == 0)
+    # ---- size note (never enumerate) + satisfiability ----
+    pinned = on | off
+    free = referenced & ~pinned
+    free_bits = _popcount(free)
+    satisfiable, sat_note = _modulator_satisfiable(
+        on, off, clauses, inequalities, levels, expressed_set, set(cap_labels), free, free_bits)
+    n_nand = sum(1 for c in clauses if c["kind"] == "nand")
+    n_or = sum(1 for c in clauses if c["kind"] == "or_terms")
+    solution_note = (
+        f"solution set NOT enumerated (compact constraint returned): {free_bits} undetermined "
+        f"referenced bit(s) -> <= 2^{free_bits} expression-equivalence classes, cut by {n_nand} "
+        f"nand-clause(s) + {n_or} or-clause(s) + {len(inequalities)} inequality(ies) + "
+        f"{len(levels)} level(s); non-referenced bits are unconstrained (fully free). "
+        f"satisfiable: {sat_note}.")
+    return {"certain_on": on, "certain_off": off, "clauses": clauses,
+            "inequalities": inequalities, "levels": levels,
+            "satisfiable": satisfiable, "free_bits": free_bits,
+            "solution_note": solution_note,
+            "sound_complete": sound_complete, "sound_only_labels": sound_only}
+
+
+def _modulator_constraint_satisfies_native(constraint, candidate):
+    """Native dispatch for the BOOLEAN part of :func:`modulator_constraint_satisfies`
+    (parity peer ``srmech_genome_modulator_constraint_satisfies``): serialize the
+    constraint's floor + clauses, ask the C checker whether ``candidate`` satisfies the
+    boolean part; returns ``True``/``False`` or ``None`` on any missing symbol / non-OK
+    status / out-of-uint64-domain candidate — the caller runs the pure boolean check
+    (identical result)."""
+    from . import _native
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_genome_modulator_constraint_satisfies")):
+        return None
+    if candidate < 0 or candidate >= (1 << 64):
+        return None
+    nand_list = [(c["any_absent"], c["any_present"]) for c in constraint["clauses"]
+                 if c["kind"] == "nand"]
+    or_list = [[(t["present"], t["absent"]) for t in c["terms"]]
+               for c in constraint["clauses"] if c["kind"] == "or_terms"]
+    # any mask beyond the native uint64 field -> defer to the exact pure path
+    for a, p in nand_list:
+        if a >= (1 << 64) or p >= (1 << 64):
+            return None
+    for terms in or_list:
+        for pr, ab in terms:
+            if pr >= (1 << 64) or ab >= (1 << 64):
+                return None
+    if constraint["certain_on"] >= (1 << 64) or constraint["certain_off"] >= (1 << 64):
+        return None
+    buf = _serialize_bool_constraint(constraint["certain_on"], constraint["certain_off"],
+                                     nand_list, or_list)
+    try:
+        return _native.genome_modulator_constraint_satisfies_c(buf, candidate)
+    except _native.NativeGenomeError:
+        return None
+
+
+def modulator_constraint_satisfies(constraint, candidate_cell_state):
+    """Does ``candidate_cell_state`` satisfy an M3 ``constraint`` (§133 / #733)? — the
+    runnable checker that makes the SOUND-AND-COMPLETE claim TESTABLE. Evaluates the
+    whole constraint: the floor pins (``certain_on`` set, ``certain_off`` clear) AND
+    every ``nand`` / ``or_terms`` clause AND every inequality (E4) AND every level (E3),
+    ALL ANDed. On the COMPLETE gate-types this EQUALS
+    ``modulator_consistent(strand, the_one, expressed_labels, candidate) == "CONSISTENT"``
+    exactly; for a SOUND-ONLY (cross-type-OR) label it is a sound over-approximation
+    (True for every consistent state, possibly True for a few inconsistent ones — the
+    dropped disjunct).
+
+    ``constraint`` is the dict :func:`modulator_constraint` returned;
+    ``candidate_cell_state`` is a non-negative exact int (Class-I bitwise; no float,
+    never ``abs()``). Native-dispatched (the C peer
+    ``srmech_genome_modulator_constraint_satisfies`` checks the BOOLEAN part
+    byte-identically; the inequality / level checks are the exact pure Class-N path);
+    returns ``bool``. The inequality SENSE is a Class-K sign-branch, never ``abs()``."""
+    if not isinstance(candidate_cell_state, int) or isinstance(candidate_cell_state, bool):
+        raise ValueError(
+            f"modulator_constraint_satisfies: candidate_cell_state must be an exact int "
+            f"(Class-I bitwise); got {candidate_cell_state!r}")
+    if candidate_cell_state < 0:
+        raise ValueError(
+            f"modulator_constraint_satisfies: candidate_cell_state must be non-negative (a "
+            f"bitmask is never signed, so never abs()); got {candidate_cell_state}")
+    if not isinstance(constraint, dict):
+        raise ValueError(
+            f"modulator_constraint_satisfies: constraint must be the dict modulator_constraint "
+            f"returned; got {type(constraint).__name__}")
+    native_bool = _modulator_constraint_satisfies_native(constraint, candidate_cell_state)
+    if native_bool is not None:
+        # C decided the BOOLEAN part; AND the exact inequality / level checks (owed-C).
+        if not native_bool:
+            return False
+        return _satisfies_full({"certain_on": constraint["certain_on"],
+                                "certain_off": constraint["certain_off"],
+                                "clauses": [], "inequalities": constraint["inequalities"],
+                                "levels": constraint["levels"]}, candidate_cell_state)
+    return _satisfies_full(constraint, candidate_cell_state)
 
 
 def genome(kernels=None, the_one=None, *, chromosomes=None):

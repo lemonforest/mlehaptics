@@ -1837,6 +1837,21 @@ def _bind(lib: ctypes.CDLL) -> None:
                 _U8, _SZ, _SZ, _U8, _SZ, ctypes.c_uint64,
                 ctypes.POINTER(ctypes.c_int)]
             lib.srmech_genome_modulator_consistent.restype = ctypes.c_int
+        #   §133/rc134 M3 (additive → ABI stays 3):
+        #   int srmech_genome_modulator_constraint(const unsigned char *body,
+        #       size_t body_len, size_t leaf_dim, const unsigned char *expressed,
+        #       size_t expressed_len, unsigned char *out, size_t out_cap,
+        #       size_t *out_len)
+        if hasattr(lib, "srmech_genome_modulator_constraint"):
+            lib.srmech_genome_modulator_constraint.argtypes = [
+                _U8, _SZ, _SZ, _U8, _SZ, _U8, _SZ, _PSZ]
+            lib.srmech_genome_modulator_constraint.restype = ctypes.c_int
+        #   int srmech_genome_modulator_constraint_satisfies(const unsigned char *buf,
+        #       size_t buf_len, uint64_t candidate_cell_state, int *satisfied)
+        if hasattr(lib, "srmech_genome_modulator_constraint_satisfies"):
+            lib.srmech_genome_modulator_constraint_satisfies.argtypes = [
+                _U8, _SZ, ctypes.c_uint64, ctypes.POINTER(ctypes.c_int)]
+            lib.srmech_genome_modulator_constraint_satisfies.restype = ctypes.c_int
         # json_write_ws(value, buf, buf_len, &out_len, ws, ws_len) — serialise
         # the catalog's tree; the writer's key-sort scratch is carved from the
         # caller arena `ws` (rc160: no compiled-in object-width cap). Size `ws`
@@ -10023,6 +10038,52 @@ def genome_modulator_consistent_c(body: bytes, leaf_dim: int, expected: bytes,
     if rc != SRMECH_OK:
         raise NativeGenomeError("srmech_genome_modulator_consistent", rc)
     return bool(consistent.value)
+
+
+def genome_modulator_constraint_c(body: bytes, leaf_dim: int, expressed: bytes) -> bytes:
+    """Native §133 M3 — emit the BOOLEAN part (M1 floor + nand / or_terms CLAUSES) of
+    the EXACT constraint characterizing the WHOLE consistent-state set, into a caller
+    arena, in the canonical big-endian serialization. ``body`` is the GENE-CAP subset
+    (as for :func:`genome_modulator_recover_c`); ``expressed`` is the observed labels as
+    NUL-delimited UTF-8 tokens. Returns the emitted bytes (byte-identical to the pure
+    Python ``genome._serialize_bool_constraint`` of ``_modulator_constraint_bool_pure``).
+    The arena is sized to a safe upper bound (20 header + 16 bytes / term, doubled for
+    the nand + or emission, + slack). Raises ``NativeGenomeError`` on a non-OK status."""
+    _require_genome()
+    if not hasattr(LIB, "srmech_genome_modulator_constraint"):
+        raise NativeGenomeError("srmech_genome_modulator_constraint", SRMECH_ERR_NOT_IMPL)
+    # upper bound: every leaf could carry up to (leaf_dim/16) boolean terms; a term is
+    # 16 bytes and can appear in BOTH a nand emit and an or emit -> 2x; + header/slack.
+    n_caps = len(body) // leaf_dim if leaf_dim else 0
+    max_terms = (n_caps * (leaf_dim // 16 + 1))
+    cap = 20 + 8 * n_caps + 2 * (16 * max_terms + 4 * n_caps) + 64
+    out = (ctypes.c_uint8 * max(cap, 1))()
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_genome_modulator_constraint(
+        _u8(body), ctypes.c_size_t(len(body)), ctypes.c_size_t(leaf_dim),
+        _u8(expressed), ctypes.c_size_t(len(expressed)),
+        out, ctypes.c_size_t(cap), ctypes.byref(out_len))
+    if rc != SRMECH_OK:
+        raise NativeGenomeError("srmech_genome_modulator_constraint", rc)
+    return bytes(out[:out_len.value])
+
+
+def genome_modulator_constraint_satisfies_c(buf: bytes, candidate_cell_state: int) -> bool:
+    """Native §133 M3 — does ``candidate_cell_state`` satisfy the BOOLEAN part of an
+    emitted constraint ``buf`` (the :func:`genome_modulator_constraint_c` serialization)?
+    Returns ``True``/``False`` (byte-identical to the pure Python ``genome._satisfies_bool``).
+    The caller ANDs the exact E4/E3 inequality / level checks (the owed-C). Raises
+    ``NativeGenomeError`` on a non-OK status."""
+    _require_genome()
+    if not hasattr(LIB, "srmech_genome_modulator_constraint_satisfies"):
+        raise NativeGenomeError("srmech_genome_modulator_constraint_satisfies", SRMECH_ERR_NOT_IMPL)
+    satisfied = ctypes.c_int(0)
+    rc = LIB.srmech_genome_modulator_constraint_satisfies(
+        _u8(buf), ctypes.c_size_t(len(buf)),
+        ctypes.c_uint64(candidate_cell_state), ctypes.byref(satisfied))
+    if rc != SRMECH_OK:
+        raise NativeGenomeError("srmech_genome_modulator_constraint_satisfies", rc)
+    return bool(satisfied.value)
 
 
 def genome_load_c(dir_: str, the_one: bytes, out_cap: int) -> bytes:
