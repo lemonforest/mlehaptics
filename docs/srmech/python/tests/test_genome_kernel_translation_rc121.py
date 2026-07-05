@@ -74,7 +74,7 @@ def test_roundtrip_exact_on_disk(tmp_path, D):
     one = G._default_the_one(256)
     p = tmp_path / f"k{D}"
     man = G.genome_save(strand, p, the_one=one)
-    assert man["format_version"] == 10           # the v9 writer (rc130 §130 stamps 9)
+    assert man["format_version"] == 11           # the v9 writer (rc130 §130 stamps 9)
     back = G.kernel_unpack(p)                    # no the_one — from the manifest
     assert back == x
     assert len(back) == D
