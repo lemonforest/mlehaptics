@@ -153,6 +153,28 @@ def test_native_svd_rank_deficient():
     assert sigma[-1] < 1e-9, f"rank-deficient smallest σ not ~0: {sigma[-1]:.2e}"
 
 
+# ── CONVERGENCE REGRESSION (coordinator): rank-deficient matrices whose
+#    near-dependent columns fall into a geometric-shrink cycle. Before the
+#    Demmel–Veselić numerical-zero column floor, these HIT THE SWEEP CAP and
+#    returned NOT-CONVERGED (None) — a fatal gap on a python-free host (no
+#    fallback). They MUST now converge to a valid, reconstructing result. ──
+@_svd_only
+@pytest.mark.parametrize("name,A", [
+    ("row2=2*row1",  [[1.0, 2.0, 3.0], [2.0, 4.0, 6.0], [1.0, 1.0, 1.0]]),
+    ("zerorow+dep",  [[0.0, 0.0, 0.0], [1.0, 2.0, 3.0], [2.0, 4.0, 6.0]]),
+])
+def test_native_svd_convergence_regression(name, A):
+    """The two matrices that hit the cap before the numerical-zero floor —
+    must return a valid result (NOT None) + reconstruct to tol."""
+    res = _native.svd_f64_c(A)
+    assert res is not None, (
+        f"{name}: svd_f64_c returned None (hit the sweep cap) — the Demmel–"
+        f"Veselić numerical-zero column floor should converge this")
+    # _svd_check re-verifies reconstruction + orthogonality + descending + S²
+    sigma = _svd_check(3, 3, A)
+    assert sigma[-1] < 1e-9, f"{name}: rank-deficient smallest σ not ~0: {sigma[-1]:.2e}"
+
+
 @_svd_only
 def test_native_svd_near_degenerate():
     """THE WEAKEST-LINK STRESS: two nearly-equal singular values (5, 3.0000001,

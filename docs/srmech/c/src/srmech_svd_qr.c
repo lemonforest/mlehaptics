@@ -272,10 +272,15 @@ static void svd_rotate_cols(uint32_t rows, uint32_t ncols, double *M,
 }
 
 /* One full sweep over every column pair (i < j). Returns 1 if any pair was
- * rotated (NOT yet converged), 0 if every pair was already below tol (the
- * convergence signal). */
+ * rotated (NOT yet converged), 0 if every pair was already orthogonal to tol
+ * (the convergence signal). `floor` is the numerical-zero column-norm-squared
+ * threshold (Frobenius² × tiny): a column whose norm² has collapsed at/below
+ * `floor` is a numerical zero (a zero singular value) and is skipped — this is
+ * the Demmel–Veselić robustness that breaks the geometric-shrink cycle a
+ * near-dependent column falls into (its cosine stays ≈ 1 as its norm decays,
+ * so an absolute-relative test alone would keep rotating it forever). */
 static int svd_one_sweep(uint32_t m, uint32_t n, double *W, double *V,
-                         double tol)
+                         double tol, double zero_floor)
 {
     int rotated = 0;
     assert(W != NULL);
@@ -286,6 +291,9 @@ static int svd_one_sweep(uint32_t m, uint32_t n, double *W, double *V,
             double bb;
             double ab;
             svd_col_stats(m, n, W, i, j, &aa, &bb, &ab);
+            if (aa <= zero_floor || bb <= zero_floor) {
+                continue;                            /* numerical-zero column */
+            }
             double denom = sq_sqrt(aa * bb);
             double mag_ab = (ab < 0.0) ? -ab : ab;   /* Class-K, not fabs */
             if (denom <= 0.0 || mag_ab <= tol * denom) {
@@ -396,17 +404,25 @@ srmech_status_t srmech_svd_f64(uint32_t m, uint32_t n,
     }
     double *W = ws;
     double *V = ws + (size_t)m * n;
+    double frob2 = 0.0;
     for (size_t idx = 0; idx < (size_t)m * n; idx++) {
-        W[idx] = A_rowmajor[idx];
+        double v = A_rowmajor[idx];
+        W[idx] = v;
+        frob2 += v * v;                                /* Frobenius² = Σ σ²  */
     }
     for (uint32_t i = 0; i < n; i++) {
         for (uint32_t j = 0; j < n; j++) {
             V[(size_t)i * n + j] = (i == j) ? 1.0 : 0.0;
         }
     }
+    /* Numerical-zero column-norm² floor, relative to the Frobenius norm (which
+     * bounds σ_max²): a column whose norm² decays at/below this is a σ ≈ 0. The
+     * 1e-30 factor ≈ (1e-15)² floors σ < 1e-15·‖A‖_F (below round-off relative
+     * to σ_max — a true numerical zero) while preserving every genuine σ. */
+    double zero_floor = frob2 * 1e-30;
     int rotated = 1;
     for (uint32_t sweep = 0; sweep < SVD_MAX_SWEEPS && rotated != 0; sweep++) {
-        rotated = svd_one_sweep(m, n, W, V, 1e-14);
+        rotated = svd_one_sweep(m, n, W, V, 1e-14, zero_floor);
     }
     if (rotated != 0) {
         return SRMECH_ERR_OVERFLOW;   /* hit cap unconverged — NOT silent-wrong */
