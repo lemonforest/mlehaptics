@@ -45,6 +45,21 @@ def _pi() -> float:
     return _PI_FLOAT
 
 
+def _native_fft(samples: List[complex], inverse: bool) -> "List[complex] | None":
+    """The rc139 native numeric FFT fast path (srmech_fft_c128) for the FLOAT
+    branch of :func:`dft` / :func:`fft`, or ``None`` when the native lib is
+    absent (caller runs the pure ``cexp`` cascade). NOT taken for the
+    integer / Gaussian-integer power-of-two signals that :func:`_exact_transform`
+    already handled bit-exactly upstream — this is only the continuous (float)
+    substrate, where an FPU-tol numeric transform IS the value (radix-2 for a
+    power-of-two length, Bluestein chirp-z for arbitrary / prime length)."""
+    try:
+        from srmech.amsc import _native
+    except Exception:
+        return None
+    return _native.fft_c128_c(samples, inverse)
+
+
 def dft(x: Sequence[complex], *, inverse: bool = False) -> List[complex]:
     """Discrete Fourier transform via the Antikythera epicycle-sum.
 
@@ -64,6 +79,9 @@ def dft(x: Sequence[complex], *, inverse: bool = False) -> List[complex]:
     if exact is not None:
         return exact
     samples = [complex(v) for v in x]
+    native = _native_fft(samples, inverse)     # rc139 C fast path (float)
+    if native is not None:
+        return native
     n = len(samples)
     sign = 1.0 if inverse else -1.0
     two_pi = 2.0 * _pi()
@@ -136,6 +154,9 @@ def fft(x: Sequence[complex], *, inverse: bool = False) -> List[complex]:
     if exact is not None:
         return exact
     samples = [complex(v) for v in x]
+    native = _native_fft(samples, inverse)     # rc139 C fast path (float)
+    if native is not None:
+        return native
     if not _is_power_of_two(n):
         return dft(samples, inverse=inverse)  # full-coverage fallback (all N)
     sign = 1.0 if inverse else -1.0
