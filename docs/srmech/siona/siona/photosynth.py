@@ -28,6 +28,23 @@ from srmech import calculus as _C
 __all__ = ["Instrument", "from_session"]
 
 
+def _two_pi(terms=24):
+    """2π via Machin's formula — π/4 = 4·atan(1/5) − atan(1/239) — so the small-argument atan series
+    converge fast (an attested constant, not a magic number). This is the BEAT-SEAM period (F1064)."""
+    a5, b5 = _C.atan_series_truncate(1, 5, terms)
+    a239, b239 = _C.atan_series_truncate(1, 239, terms)
+    return 32 * (a5 / b5) - 8 * (a239 / b239)          # 2π = 8·(4·atan(1/5) − atan(1/239))
+
+
+_TWO_PI = _two_pi()
+
+
+def _seam(x):
+    """Fold an oscillation argument to [−π, π) at the resonance period 2π — the BEAT SEAM (F1064): without
+    it the truncated cos/sin Taylor series diverges for |x| past its radius; the fold makes it valid at any x."""
+    return x - round(x / _TWO_PI) * _TWO_PI
+
+
 class Instrument:
     """The knowledge genome's SPECTRAL power structure — the Laplacian eigenbasis of the kernel-similarity
     graph, precomputed once. ``excite_propagate_harvest`` then runs one query as a seed + heat-kernel read."""
@@ -67,22 +84,38 @@ class Instrument:
     # a real direction), invisible in the substrate formula where z is simply complex.
     _WICK = {"thermal": (1.0, 0.0), "coherent": (0.0, 1.0)}
 
-    def excite_propagate_harvest(self, query, *, grounder=None, t=0.4, top=8, mode="thermal", z=None):
+    @staticmethod
+    def _crank_cossin(one, terms=18):
+        """Extract the θ-crank (cos θ, sin θ) from a ``the_one`` instance — its epicycle phase (Class-K) —
+        so the propagator's complex-time direction e^{iφ} IS the_one's crank (F1063): φ = θ, and σ = the
+        time-direction. This closes the loop: the propagator is not isomorphic to the_one, it is MADE of it."""
+        thn, thd = one.theta
+        cn, cd = _C.cos_series_truncate(int(thn), int(thd), terms)
+        sn, sd = _C.sin_series_truncate(int(thn), int(thd), terms)
+        return cn / cd, sn / sd, getattr(one, "sigma", 1)
+
+    def excite_propagate_harvest(self, query, *, grounder=None, t=0.4, top=8, mode="thermal", z=None, crank=None):
         """One EPH read: EXCITE (seed) → PROPAGATE (``e^{-zL}``, ONE complex-time propagator) → HARVEST
-        (rank by the Born-rule energy ``|u|²``). ``z`` = ``(cf, sf)`` the unit quarter-circle point (real vs
-        imaginary weight of the complex time) — or ``mode`` selects the endpoints (``"thermal"``=``(1,0)``,
-        ``"coherent"``=``(0,1)``). ``harvest = Propagate · excite`` (the op⊗operand cascade, EPH)."""
+        (rank by the Born-rule energy ``|u|²``). The complex time ``z = σ·t·(cos θ + i sin θ)`` is set by
+        ``crank`` — a ``the_one(σ, θ)`` instance whose θ-crank IS the coherence direction and σ the time-
+        direction (F1063). Or by ``z=(cf, sf)`` directly, or ``mode`` (``"thermal"``=θ=0, ``"coherent"``=θ=π/2).
+        The oscillation argument is folded at the beat seam 2π (F1064) so the Taylor pieces stay valid.
+        ``harvest = Propagate · excite`` — the op⊗operand cascade, EPH."""
         s = query if isinstance(query, int) else self._seed(query, grounder)
         if s is None:
             return []
-        cf, sf = z if z is not None else self._WICK.get(mode, (1.0, 0.0))
-        a, b = t * cf, t * sf                                  # z = a + i·b (a = decay rate, b = oscillation rate)
+        if crank is not None:                                  # the_one IS the crank (F1063)
+            cf, sf, sigma = self._crank_cossin(crank)
+        else:
+            cf, sf = z if z is not None else self._WICK.get(mode, (1.0, 0.0)); sigma = 1
+        a, b = sigma * t * cf, sigma * t * sf                  # z = σ·t·(cf + i·sf) = the_one crank × scale
         re = [0.0] * self.N; im = [0.0] * self.N
         for k in range(self.N):
             lam = self._lam[k]                                 # e^{-zλ} = e^{-aλ}·(cos bλ - i sin bλ)
             dn, dd = _C.exp_series_truncate(-int(round(a * lam * 1000)), 1000, 18); dec = dn / dd
-            cn, cd = _C.cos_series_truncate(int(round(b * lam * 1000)), 1000, 18); c = cn / cd
-            sn, sd = _C.sin_series_truncate(int(round(b * lam * 1000)), 1000, 18); sv = sn / sd
+            arg = int(round(_seam(b * lam) * 1000))            # BEAT SEAM: fold bλ at 2π before the Taylor pieces
+            cn, cd = _C.cos_series_truncate(arg, 1000, 18); c = cn / cd
+            sn, sd = _C.sin_series_truncate(arg, 1000, 18); sv = sn / sd
             csk = self._evecs[s, k]
             for i in range(self.N):
                 w = csk * self._evecs[i, k]
