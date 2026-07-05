@@ -8,7 +8,7 @@ parity is the program's *form*, not a means to embedded — there are **no
 exemptions**.
 
 This file is the down-only **debt ledger** for that goal (like the C-transpile
-libm ratchet that went 23 → 0): the `python_only_irreducible` count only ever
+libm ratchet that went 23 → 0): the `python_only_debt` count only ever
 decreases. Each rc drives it down; a clean `v0.7.5` graduation waits until the
 debt is closed.
 
@@ -47,7 +47,7 @@ loop. CI's cross-OS matrix (Linux gcc / macOS clang / Windows MSVC) is the gate.
 3. **`composition_of_c`** — no single C twin, but the op is a pure composition
    of bucket-1 C kernels (e.g. a `qm.*` operator that is matmul ∘ eig ∘ kron).
    Closing it = expressing the composition in C (no new irreducible kernel).
-4. **`python_only_irreducible`** — **the debt.** An irreducible compute kernel
+4. **`python_only_debt`** — **the debt.** An irreducible compute kernel
    with no C twin and not yet a composition of C kernels (the bulk: the
    `qm.*` dense-linear-algebra layer + a few bignum-in-C gaps). **Drive to 0.**
 
@@ -96,7 +96,7 @@ by the `python/tests/test_rosetta_completeness.py` ratchet (regenerate via
 | `bignum_reference` | 22 | ➖ intentional exact-rational oracle tier (not debt) |
 | `non_compute` | 56 | ➖ IO / registry / schema / introspection (no kernel) |
 | **`c_exists_unbound`** | 23 → **5** | ❌ **DEBT (cheap):** a C twin exists, Python doesn't dispatch |
-| **`python_only_irreducible`** | **108** | ❌ **DEBT:** irreducible kernel, no C twin yet |
+| **`python_only_debt`** | **108** | ❌ **DEBT:** irreducible kernel, no C twin yet |
 
 **Total standalone-C debt = 131 → 113** (108 irreducible + 5 unbound). The
 ratchet's two ceilings start at the rc7 baseline and only move **down**:
@@ -113,7 +113,7 @@ remaining **5 are the Klein-4 family, gated on W5.**
 (`python/tests/test_numpy_math_ratchet.py`) keeps numpy a *carrier*, not a *math
 engine* — it greps the srmech source for numpy-math callsites (`np.linalg`/`np.fft`
 126 · `@`/`dot`/`einsum`/`kron`/… 185 · transcendental ufuncs 48) and pins each at
-a tight down-only ceiling. It is the same debt the 108 `python_only_irreducible`
+a tight down-only ceiling. It is the same debt the 108 `python_only_debt`
 cluster represents, seen at the source level: a new `np.linalg.solve` fails CI,
 and each migration to a cascade decrements both ledgers. (`lmmse` was decrement #1.)
 
@@ -159,7 +159,7 @@ decrements it).
 - **rc5 (done) — PAL stream/IPC + `srmech_bus.c` retrofit** (last raw-OS surface closed).
 - **rc6 (done) — W17 `coupled_wave` + W18 `multiplex_streams`** (active-arc named ops; `composition_of_c`, no new C debt).
 - **rc7 (done) — the Rosetta-completeness AUDIT + ratchet.** 348 ops
-  classified; `test_rosetta_completeness.py` pins `python_only_irreducible ≤ 108`
+  classified; `test_rosetta_completeness.py` pins `python_only_debt ≤ 108`
   and `c_exists_unbound ≤ 23`, both monotone-down, plus a live↔classified
   exact-match guard so every new op must be bucketed.
 - **rc8 (done, this) — cheap-win sweep #1: the SHA-256 mint cluster.** The 6
@@ -325,11 +325,11 @@ decrements it).
   movement, no Rosetta-bucket change**: the engine is a private module
   (`srmech.amsc.cascade.exact_dft._exact_transform` + helpers), adds no numpy and
   no public introspected callable, so all three numpy-math ceilings AND the
-  `python_only_irreducible` debt count are untouched. ABI 3.
+  `python_only_debt` debt count are untouched. ABI 3.
   **Follow-up C-twin candidate:** exposing the exact `ℤ[ζ_N]` spectrum as a
   *public* op (`exact_dft` / `exact_idft` / `lift`) should land **with** its
   native-C peer so it classifies `c_dispatched`, not Python-only debt — the
-  ratchet's exact-equality `python_only_irreducible` ceiling is precisely what
+  ratchet's exact-equality `python_only_debt` ceiling is precisely what
   blocks adding it Python-only. General-`N` (non-power-of-two) cyclotomic
   reduction is also a follow-up.
 - **rc29 (done) — the exact ℤ[ζ_N] spectrum goes public + gets its C twin.**
@@ -707,7 +707,7 @@ decrements it).
   polyphase ×2 / closed_form + path_b matched_filter). **numpy-math ratchet
   `matmul` 18 → 12.** NOT a public `srmech.amsc` op — it composes carrier
   arithmetic with no own C symbol, so a public peer would only add
-  `python_only_irreducible` debt (down-only ratchet forbids it without a C twin);
+  `python_only_debt` debt (down-only ratchet forbids it without a C twin);
   a future rc can promote it WITH a native C twin. `tools.total` stays 284; no
   rosetta/ToolEntry change. ABI 3. The remaining 12 matmul: matrix_cascades
   QR-internals (8) + ica_jade einsum (2) + laplacian Schur/dense_matvec (2). Next:
@@ -973,7 +973,7 @@ decrements it).
   np`; encode → `list[int]`, decode → list-of-rows. Differential-verified:
   encode argmin BIT-IDENTICAL to numpy over 200 random configs (0/1262
   mismatches); decode round-trips. RIPPLE: `idx.shape==(10,)` → `len`. Math ledger
-  UNTOUCHED; rosetta bucket `python_only_irreducible` stays. No new public op
+  UNTOUCHED; rosetta bucket `python_only_debt` stays. No new public op
   (tools.total 289); ABI 3; no C change. Remaining matrix-heavy: psk_qam (fsk-like
   constellation), mlse, mimo_svd (needs the `mat_svd` foundation), ica_jade
   (np.linalg.eigh = numpy-as-accuracy, likely stays gated).
@@ -1010,7 +1010,7 @@ decrements it).
   Differential-verified: modulate bit-faithful to `e^{i2πft}` (max-err ~1e-16),
   noiseless demod round-trips exactly, 0.01-noise sweep <0.1% symbol error.
   RIPPLE: `waveform.shape==(4*8,)` → `len`. Math ledger UNTOUCHED; rosetta bucket
-  stays `python_only_irreducible`. No new public op (tools.total 289); ABI 3; no
+  stays `python_only_debt`. No new public op (tools.total 289); ABI 3; no
   C change. Next: dct (+ jpeg consumer), then mat_svd for mimo_svd.
 - **rc102 (done, v0.7.5rc102) — FIFTH CONSUMER flip: `map_ml` numpy-FREE
   (`CEIL_NUMPY_CARRIER` 28 → 27).** Carrier-removal #564. Same real-solve family
@@ -1489,8 +1489,8 @@ decrements it).
   reconstruction, orthonormality) on degenerate cases (4-cycle / identity /
   block-degen), real V on both native + numpy-fallback paths. **numpy-math
   ratchet linalg_fft 28 → 25** (1 genuine call + 2 textual docstring mentions).
-  Rosetta: symmetric_eigendecompose python_only_irreducible → composition_of_c
-  (now composes c_dispatched hermitian), CEIL_PYTHON_ONLY_IRREDUCIBLE 108 → 107
+  Rosetta: symmetric_eigendecompose python_only_debt → composition_of_c
+  (now composes c_dispatched hermitian), CEIL_PYTHON_ONLY_DEBT 108 → 107
   (debt closed). Private helper ⟹ no ToolEntry gate (describe stays 285). ABI 3.
 - **rc66 (done, v0.7.5rc66) — complex inv → real 2n×2n block embedding of the
   native dense_solve (linalg_fft decrement; FIRST new-capability step past the
@@ -1585,10 +1585,10 @@ decrements it).
   array-aware (n-pad + axis) wrapper — next batch; then np.linalg.{svd,qr,eig,
   solve,inv} (~36 sites, mostly qm/so8.py).
 - **Next batches — migrate `@`-callsites onto `dense_matmul_complex`.** The 108
-  `python_only_irreducible` ARE the numpy-math ratchet's 359 callsites seen at the
+  `python_only_debt` ARE the numpy-math ratchet's 359 callsites seen at the
   op level; the QM / `matrix_cascades` `@` matmuls now have their kernel. Each
   migration decrements BOTH the ratchet's `matmul` ceiling AND moves a Rosetta op
-  `python_only_irreducible → composition_of_c`. After `matmul`: FFT/DFT,
+  `python_only_debt → composition_of_c`. After `matmul`: FFT/DFT,
   `eig`/`SVD`/`QR`/`lstsq`, `kron`, `einsum`. The 5 remaining `c_exists_unbound`
   stay the **Klein-4 family, gated on W5**.
 

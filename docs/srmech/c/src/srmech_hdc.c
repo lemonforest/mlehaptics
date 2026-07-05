@@ -730,7 +730,7 @@ srmech_status_t srmech_klein4_cooccurrence_fold(const uint8_t  *codes,
  * the seed's little-endian uint32 words, each draw = getrandbits(3)
  * (= genrand_uint32() >> 29) with rejection of values >= 4. This makes the §60
  * byte/glyph encoder — and its 256-byte vocab + position keys — fully native
- * (klein4_random was the last python_only_irreducible klein4 op). The seeding,
+ * (klein4_random was the last python_only_debt klein4 op). The seeding,
  * tempering, and rejection match CPython's _randommodule.c + random.py exactly
  * (proven byte-for-byte against random.Random in the Python parity test).
  *

@@ -162,7 +162,7 @@ _UFUNC = re.compile(
 # exact cascade and a correction to rc27's "round-off-faithful is fine" framing
 # for the integer case. It adds NO numpy, NO public surface (private engine
 # srmech.amsc.cascade.exact_dft), so all three ceilings (linalg_fft/matmul/ufunc)
-# AND the rosetta python_only_irreducible debt bucket are untouched. Exposing the
+# AND the rosetta python_only_debt debt bucket are untouched. Exposing the
 # exact ℤ[ζ_N] spectrum as a public op belongs with its C twin (a follow-up).
 #
 # rc34 resumes the matmul decrement by ROUTING distinct-op callsites onto the
@@ -259,7 +259,7 @@ _UFUNC = re.compile(
 # with NumPy's exact same-mode crop (floor for na>=nv, ceil for na<nv).
 # Value-faithful to NumPy across 15 length-combos × 3 dtypes × 3 modes.
 # NOT a public srmech.amsc op (it composes carrier arithmetic, no own C
-# symbol → would only add python_only_irreducible debt; a future rc can
+# symbol → would only add python_only_debt debt; a future rc can
 # promote it WITH a C twin). matmul 18 -> 12. The remaining 12 are the
 # matrix_cascades QR-internals (8) + ica_jade einsum hot loop (2) + laplacian
 # Schur/dense_matvec (2). Next: the QR shape-polymorphic pass, then linalg_fft.

@@ -4,7 +4,7 @@ The existing ``test_rosetta_completeness.py`` checks that every op is *classifie
 and that the two debt-bucket *counts* don't rise — but it NEVER walks the call
 graph. So a ``composition_of_c`` op (which claims "standalone-C-ready: I only
 compose ops that each reach C") could silently reach a ``bignum_reference`` /
-``python_only_irreducible`` leaf and the ratchet wouldn't notice. That blind spot
+``python_only_debt`` leaf and the ratchet wouldn't notice. That blind spot
 is exactly how ``sed_is_navigable`` shipped mislabeled (it reached the
 pure-Python ``left_mult_is_invertible``); see the rc12 SedenionRegister fix.
 
@@ -36,7 +36,7 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 # Buckets that are NOT standalone-C-ready (a composition_of_c op must not reach
 # one transitively).
 _NOT_READY = frozenset(
-    ("bignum_reference", "python_only_irreducible", "c_exists_unbound")
+    ("bignum_reference", "python_only_debt", "c_exists_unbound")
 )
 
 # ── DOWN-ONLY allowlist of acknowledged composition→non-ready debt ──────────
@@ -49,7 +49,7 @@ _ACKNOWLEDGED = {
     # `hypercomplex_couple` edges: the coupler was rewritten to the exact-Q61
     # octonion couple `_couple_q61` that dispatches to `srmech_hypercomplex_couple_q61`
     # and composes only c_dispatched primitives — so it is now `c_dispatched`,
-    # not `python_only_irreducible`, and the edges are no longer non-ready.)
+    # not `python_only_debt`, and the edges are no longer non-ready.)
     # (rc13 closed the exact_dft.lift → pi_cascade_digits edge by rerouting the
     # FPU-lift 2π to the c_dispatched `rational.atan`: 2π = 8·atan(1).)
 }

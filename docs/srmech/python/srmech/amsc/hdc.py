@@ -715,7 +715,7 @@ def klein4_random(D: int, rng=None, seed: "int | None" = None):
     rc6 (§60 / F864): the deterministic integer-``seed`` path dispatches to the
     standalone-C MT19937 ``srmech_klein4_random`` when native is present — a
     byte-for-byte reproduction of CPython's ``random.Random(seed).randrange(4)``
-    (the last ``python_only_irreducible`` klein4 op earns its C twin, so the §60
+    (the last ``python_only_debt`` klein4 op earns its C twin, so the §60
     byte/glyph encoder + the 256-byte vocab + position keys are now fully
     native). Pure-Python ``random.Random`` is the complete alternative for a
     no-C host / a caller-supplied ``rng`` / the urandom ``seed=None`` path.

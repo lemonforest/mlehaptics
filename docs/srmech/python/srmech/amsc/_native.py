@@ -2091,6 +2091,35 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_jacobi_sncndn.restype = ctypes.c_int
 
+    # rc138 (#743): the S(sigma, theta) ADJOINT generator C peer (srmech_the_one)
+    # — the FLAGSHIP C:Python-parity backfill. Composes srmech_cos/sin_series_
+    # truncate_big + the Fano block-tiling into the 14 exact adjoint rationals
+    # One.to_flat_rational returns (byte-identical at any magnitude). Same
+    # caller-arena srmech_bigint substrate as bigexp; out_num/out_den are arrays
+    # of 14 srmech_bigint. NEW symbols → hasattr-guarded; additive → ABI stays 3.
+    #   size_t srmech_the_one_ws_bound(size_t num_limbs, size_t den_limbs,
+    #       uint32_t num_terms)
+    if hasattr(lib, "srmech_the_one_ws_bound"):
+        lib.srmech_the_one_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_uint32,
+        ]
+        lib.srmech_the_one_ws_bound.restype = ctypes.c_size_t
+    #   srmech_status_t srmech_the_one(int32_t sigma, const srmech_bigint_t *theta_num,
+    #       const srmech_bigint_t *theta_den, uint32_t num_terms,
+    #       srmech_bigint_t *out_num, srmech_bigint_t *out_den, void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_the_one"):
+        lib.srmech_the_one.argtypes = [
+            ctypes.c_int32,                  # sigma
+            ctypes.POINTER(_SrmechBigint),   # theta_num
+            ctypes.POINTER(_SrmechBigint),   # theta_den
+            ctypes.c_uint32,                 # num_terms
+            ctypes.POINTER(_SrmechBigint),   # out_num[14]
+            ctypes.POINTER(_SrmechBigint),   # out_den[14]
+            ctypes.c_void_p,                 # ws
+            ctypes.c_size_t,                 # ws_len
+        ]
+        lib.srmech_the_one.restype = ctypes.c_int
+
     # rc38: the EXACT-RATIONAL polynomial carrier C peer (srmech_poly_*) — the
     # §76 telescope Sigma-row foundation. Each op takes parallel srmech_bigint
     # coefficient arrays (nums[]/dens[], ascending degree) + a caller arena, all
@@ -3847,6 +3876,85 @@ def jacobi_sncndn_c(numerator: int, denominator: int,
         (_bigint_to_int(cn_n), _bigint_to_int(cn_d)),
         (_bigint_to_int(dn_n), _bigint_to_int(dn_d)),
     )
+
+
+# ----------------------------------------------------------------------
+# rc138 (#743): the S(sigma, theta) ADJOINT generator C peer (srmech_the_one).
+# The Python srmech.amsc.cascade.one.the_one dispatches its exact-rational
+# ADJOINT (the 14 One.to_flat_rational entries) through this when
+# has_native_the_one(); the pure-Python bignum tiling is the COMPLETE
+# alternative (and the parity oracle) — both emit byte-identical exact (num, den)
+# at any magnitude. The marshalling builds theta as a srmech_bigint pair + 14
+# output srmech_bigint carriers over the decimal bridge (same pattern as
+# jacobi_sncndn_c), keeping every backing limb buffer alive for the call.
+# ----------------------------------------------------------------------
+
+_THE_ONE_DIM = 14
+
+
+def has_native_the_one() -> bool:
+    """True iff the rc138 srmech_the_one adjoint C peer + the srmech_bigint
+    decimal-marshal helpers are loaded + bound. False on a no-C or pre-rc138 lib
+    — the pure-Python adjoint tiling in ``srmech.amsc.cascade.one`` is the
+    complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_the_one")
+            and hasattr(LIB, "srmech_the_one_ws_bound")
+            and hasattr(LIB, "srmech_bigint_from_dec")
+            and hasattr(LIB, "srmech_bigint_to_dec")
+            and hasattr(LIB, "srmech_bigint_to_dec_bound"))
+
+
+def the_one_c(sigma: int, theta_num: int, theta_den: int,
+              num_terms: int) -> "list | None":
+    """Invoke ``srmech_the_one`` and return the 14 exact adjoint rationals
+    ``[(num, den), ...]`` (the ``One.to_flat_rational`` order), or ``None`` when
+    the native symbols are absent (caller falls through to the pure-Python bignum
+    oracle). Theta + the 14 output carriers + the arena are sized from the input
+    magnitudes + ``num_terms`` so the bignum path has NO ceiling (byte-identical
+    to ``srmech.amsc.cascade.one`` at any magnitude)."""
+    if not has_native_the_one():
+        return None
+    tn_digits = len(str(theta_num).lstrip("-"))
+    td_digits = len(str(theta_den))
+    num_limbs = max(tn_digits // 9 + 2, 2)
+    den_limbs = max(td_digits // 9 + 2, 2)
+    # Output carrier cap: hold the reduced cos/sin (bounded by q^(2N)·(2N)!) —
+    # generous (over-sizing is free; under-sizing → OVERFLOW).
+    out_cap = 32 * (num_terms + tn_digits + td_digits) + 128
+    ws_len = int(LIB.srmech_the_one_ws_bound(
+        ctypes.c_size_t(num_limbs), ctypes.c_size_t(den_limbs),
+        ctypes.c_uint32(num_terms),
+    ))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    tn, _t0 = _bigint_from_int(theta_num, out_cap)
+    td, _t1 = _bigint_from_int(theta_den, out_cap)
+    out_num = (_SrmechBigint * _THE_ONE_DIM)()
+    out_den = (_SrmechBigint * _THE_ONE_DIM)()
+    keep = []                                   # keep limb buffers alive
+    for i in range(_THE_ONE_DIM):
+        nb = (ctypes.c_uint32 * out_cap)()
+        db = (ctypes.c_uint32 * out_cap)()
+        keep.append(nb)
+        keep.append(db)
+        out_num[i].limbs = ctypes.cast(nb, ctypes.POINTER(ctypes.c_uint32))
+        out_num[i].cap = out_cap
+        out_num[i].n = 0
+        out_num[i].sign = 0
+        out_den[i].limbs = ctypes.cast(db, ctypes.POINTER(ctypes.c_uint32))
+        out_den[i].cap = out_cap
+        out_den[i].n = 0
+        out_den[i].sign = 0
+    rc = LIB.srmech_the_one(
+        ctypes.c_int32(sigma), ctypes.byref(tn), ctypes.byref(td),
+        ctypes.c_uint32(num_terms), out_num, out_den,
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_the_one returned non-OK status {rc}")
+    return [(_bigint_to_int(out_num[i]), _bigint_to_int(out_den[i]))
+            for i in range(_THE_ONE_DIM)]
 
 
 # ----------------------------------------------------------------------

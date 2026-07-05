@@ -147,7 +147,7 @@ def match(input_bytes: bytes,
 # already has its 1:1 C peer (srmech_resonant_spectrum / srmech_gosper /
 # srmech_zeilberger / srmech_wz_verify). So this op is **non_compute**
 # orchestration (the from_bodies / cooccurrence_edges precedent) — there is
-# no ``srmech_infer`` C symbol and the #928 python_only_irreducible debt
+# no ``srmech_infer`` C symbol and the #928 python_only_debt debt
 # ceiling is untouched.
 #
 # The OPEN residue is the POINT: it makes the no-magic-numbers /
