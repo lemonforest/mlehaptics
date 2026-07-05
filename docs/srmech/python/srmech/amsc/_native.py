@@ -1812,6 +1812,17 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.POINTER(ctypes.c_uint64),
                 ctypes.POINTER(ctypes.c_uint64)]
             lib.srmech_genome_gene_express_levels.restype = ctypes.c_int
+        # §134/rc135 (#1273) — the DEMAND-LOAD gene-expression PLAN: read ONLY each
+        # region's head gate cap via the manifest offset, emit the EXPRESSED regions'
+        # (label, byte_offset, byte_len). NEW symbol → hasattr-guarded (a stale lib
+        # keeps the rest of the genome surface); additive → EXPECTED_ABI_VERSION stays 3.
+        #   int srmech_genome_gene_express_plan(const char *dir, uint64_t cell_state,
+        #       const unsigned char *the_one, size_t the_one_len,
+        #       unsigned char *out, size_t out_cap, size_t *out_len, void *ws, size_t ws_len)
+        if hasattr(lib, "srmech_genome_gene_express_plan"):
+            lib.srmech_genome_gene_express_plan.argtypes = [
+                _CP, ctypes.c_uint64, _U8, _SZ, _U8, _SZ, _PSZ, _VP, _SZ]
+            lib.srmech_genome_gene_express_plan.restype = ctypes.c_int
         # §133/rc133 (#733) — MODULATOR-RECOVERY (the INVERSE of gene_express): M1 the
         # two-sided cell-state FLOOR, M2 the candidate consistency verdict. Whole-strand
         # (the GENE-CAP subset body), caller-arena-free. NEW symbols → hasattr-guarded (a
@@ -10117,6 +10128,53 @@ def genome_window_c(dir_: str, label: str, the_one: bytes, out_cap: int) -> byte
     if rc != SRMECH_OK:
         raise NativeGenomeError("srmech_genome_window", rc)
     return bytes(out[:out_len.value])
+
+
+def _decode_gene_express_plan(buf: bytes):
+    """Decode the §134 plan blob ``srmech_genome_gene_express_plan`` emits
+    (big-endian ``[u32 n]`` then per record ``[u32 label_len][label][u64 offset]
+    [u64 len]``) into ``[(label:str, byte_offset:int, byte_len:int), …]`` — the
+    exact shape the pure-Python ``gene_express_plan`` PATH variant returns."""
+    import struct
+    (n,) = struct.unpack_from(">I", buf, 0)
+    pos = 4
+    plan = []
+    for _ in range(n):
+        (ll,) = struct.unpack_from(">I", buf, pos)
+        pos += 4
+        label = buf[pos:pos + ll].decode("utf-8")
+        pos += ll
+        off, ln = struct.unpack_from(">QQ", buf, pos)
+        pos += 16
+        plan.append((label, int(off), int(ln)))
+    return plan
+
+
+def genome_gene_express_plan_c(dir_: str, cell_state: int, the_one: bytes):
+    """Native §134/rc135 (#1273) DEMAND-LOAD plan — for each chromosome in
+    ``<dir>``'s manifest, read ONLY the head gate cap via its byte_offset, evaluate
+    the gate under ``cell_state``, and return the EXPRESSED regions'
+    ``[(label, byte_offset, byte_len), …]`` (byte-identical to the pure-Python PATH
+    variant). Bounded I/O — the C never reads a region body, only one gate cap per
+    chromosome. Raises ``NativeGenomeError`` on a non-OK status."""
+    _require_genome()
+    if not hasattr(LIB, "srmech_genome_gene_express_plan"):
+        raise NativeGenomeError("srmech_genome_gene_express_plan", SRMECH_ERR_NOT_IMPL)
+    n_chroms = _genome_chrom_count(dir_, the_one)
+    ws, ws_len = _genome_arena(_turns_size(dir_), n_chroms)
+    # out cap: 4-byte header + per-expressed record (4 + label + 16); a label fits
+    # leaf_dim (<= 256), and at most every chromosome expresses.
+    out_cap = 4 + n_chroms * (4 + 256 + 16) + 64
+    out = (ctypes.c_uint8 * max(out_cap, 1))()
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_genome_gene_express_plan(
+        dir_.encode("utf-8"), ctypes.c_uint64(cell_state),
+        _u8(the_one), ctypes.c_size_t(len(the_one)),
+        out, ctypes.c_size_t(out_cap), ctypes.byref(out_len),
+        ws, ctypes.c_size_t(ws_len))
+    if rc != SRMECH_OK:
+        raise NativeGenomeError("srmech_genome_gene_express_plan", rc)
+    return _decode_gene_express_plan(bytes(out[:out_len.value]))
 
 
 def genome_catalog_c(dir_: str, the_one: bytes) -> str:

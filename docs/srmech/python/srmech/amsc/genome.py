@@ -69,6 +69,7 @@ __all__ = [
     "genome_save", "genome_load", "genome_catalog", "genome_append",
     "genome_append_kernel",
     "genome_window", "genome_genes",
+    "gene_express_plan", "genome_genes_expressed",
     "genome_remove", "genome_replace",
     "genome_export", "genome_import",
     "genome_explode", "genome_pack",
@@ -1696,8 +1697,11 @@ def gene_express(strand, the_one, cell_state):
     cell-state condition; no float, never ``abs()``). Native-dispatched (byte-identical C
     peer ``srmech_genome_gene_express`` decides each gene's expression); pure Python is the
     complete alternative. Attests differential gene expression as ONE facet (genes have
-    other regulation too): Alberts et al., *Molecular Biology of the Cell* 4th ed., NCBI
-    Bookshelf NBK26887; the activator/repressor (operon) model — Jacob F & Monod J (1961)
+    other regulation too): the CELL-TYPE-SELECTION facet — Alberts et al., *Molecular Biology
+    of the Cell* 4th ed., "How Genetic Switches Work", NCBI Bookshelf NBK26872 ("Different
+    selections of gene regulatory proteins are present in different cell types and thereby
+    direct the patterns of gene expression that give each cell type its unique
+    characteristics"); the activator/repressor (operon) model — Jacob F & Monod J (1961)
     "Genetic regulatory mechanisms in the synthesis of proteins", *J Mol Biol* 3:318-356.
     """
     if not isinstance(cell_state, int) or isinstance(cell_state, bool):
@@ -4147,6 +4151,208 @@ def genome_genes(path, label, *, the_one=None):
     # splits on the GENE caps (plain 0x47 / regulatory 0x67), uncoupling each data turn
     # through the_one (use gene_express() to also apply the regulatory-mask filter).
     return genes(region_strand, the_one)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# §134/rc135 (#1273, siona green-light) — DEMAND-LOADED gene expression: the two
+# ops that make the #736 probe SHIPPABLE (bounded RAM WITHOUT bounded availability
+# via demand-load). gene_express_plan computes the EXPRESSED set + on-disk byte
+# ranges WITHOUT touching content (an offset-only LOAD-PLAN); genome_genes_expressed
+# then SEEKS + loads + decodes ONLY the expressed byte-ranges → BYTE-IDENTICAL to the
+# expressed subset of a full genome_genes filtered by gene_express, WITHOUT loading
+# the unexpressed. The ops READ the existing rc115 v4 manifest offsets + the delivered
+# E1/E2/E4/E3 inline gates — NO format addition (v11 stays).
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _open_body_ro(body_path):
+    """Open a genome body (``turns.bin``) READ-ONLY — the single seam the §134
+    demand-load plan + partial-load reader page their bytes through, so a caller can
+    MEASURE bytes-touched (the bounded-I/O proof). Returns an open binary file the
+    caller ``with``-closes; NEVER writes (the ops are reads — the file is byte-identical
+    after)."""
+    return open(str(body_path), "rb")
+
+
+def _plan_validate_cell_state(op, cell_state):
+    """Shared cell_state guard for the §134 demand-load ops — a cell-state is a
+    non-negative Class-I bitmask (each set bit a present condition; no float, never
+    ``abs()`` — a bitmask is never negated)."""
+    if not isinstance(cell_state, int) or isinstance(cell_state, bool):
+        raise ValueError(
+            f"{op}: cell_state must be an exact int (Class-I bitwise); got "
+            f"{cell_state!r}")
+    if cell_state < 0:
+        raise ValueError(
+            f"{op}: cell_state must be non-negative (a bitmask is never signed; a "
+            f"cell-state is never negated, so never abs()); got {cell_state}")
+
+
+def _plan_close_gene(plan, pending, end_pos, cell_state):
+    """Close the STRAND-variant skeleton-scan's pending gene at ``end_pos`` — append
+    ``(label, byte_offset, byte_len)`` to ``plan`` iff the gene's cap EXPRESSES under
+    ``cell_state`` (the SAME §128/§130/§131 decision :func:`gene_express` uses; the gate
+    reads only the cap, never a decoded leaf)."""
+    lbl, cap_hv, gstart = pending
+    if _gene_expresses(cap_hv, cell_state):
+        plan.append((lbl, gstart, end_pos - gstart))
+
+
+def gene_express_plan(strand_or_path, the_one, cell_state):
+    """The offset-only LOAD-PLAN for demand-loaded gene expression — §134/rc135
+    (#1273, siona green-light; the #736 probe made shippable).
+
+    Computes the EXPRESSED set + each expressed unit's ON-DISK byte-range WITHOUT
+    reading content (never decodes a leaf) — the plan a partial-load reader
+    (:func:`genome_genes_expressed`) then seeks. Returns
+    ``[(label, byte_offset, byte_len), …]`` for the expressed genes / regions.
+
+    Two variants, dispatched on the input:
+
+    * **PATH variant (variant b — the PRIMARY demand-load case):** ``strand_or_path``
+      is a genome directory (with the rc115 v4 manifest). For each chromosome REGION the
+      plan seeks to the manifest ``byte_offset`` and reads ONLY the region's head GATE cap
+      (the SECOND block, one ``leaf_dim``-byte cap right after the CHROM cap), evaluates its
+      inline gate (E1 ``0x67`` / E2 ``0x62`` / E4 ``0x77`` / E3 ``0x64`` — the delivered
+      gates) against ``cell_state``, and includes the EXPRESSED regions'
+      ``(chromosome_label, byte_offset, byte_len)``. It MUST NOT read the region body —
+      bounded RAM AND bounded I/O (bytes-touched ≪ full body). A region with no head gene
+      cap (a single-kernel chromosome, ``byte_len < 2·leaf_dim``) is not a gated community
+      and is skipped. This is the siona community=chromosome layout: the per-chromosome
+      head gate IS the community gate. Mixed E1/E2/E4/E3 gate-types across chromosomes are
+      the delivered gates — the plan gates by the inline mask regardless of kind.
+    * **STRAND variant (variant a — the in-memory fallback):** ``strand_or_path`` is an
+      in-memory strand (a list of Klein-4 vectors). The plan SKELETON-SCANS it — walking
+      blocks, computing each block's ON-DISK byte span (a cap is ``leaf_dim`` bytes; a data
+      turn is the §55/v3 bit-packed ``1 + ceil(leaf_dim/4)`` bytes — the payload is SEEKED
+      PAST, never decoded), splitting on the inline GENE caps, and delimiting each EXPRESSED
+      gene's byte-range ``(gene_label, byte_offset, byte_len)`` (the gene cap + its data
+      turns, in the on-disk layout :func:`genome_save` would write). The expressed-label set
+      equals :func:`gene_express`'s on the same strand + cell_state.
+
+    ⚠️ A READ — the strand / file is byte-identical after this call. ``cell_state`` is a
+    non-negative exact int (Class-I bitwise; no float, never ``abs()``). The PATH variant
+    is native-dispatched (byte-identical C peer ``srmech_genome_gene_express_plan`` reads
+    only the head gate caps + emits the same offset plan); pure Python is the complete
+    alternative. NO format addition — the ops read the existing caps/manifest (v11 stays).
+    """
+    _plan_validate_cell_state("gene_express_plan", cell_state)
+    assert GENOME_FORMAT_VERSION == 11      # a READ of existing caps/manifest; no bump
+    if isinstance(strand_or_path, (str, Path)) or hasattr(strand_or_path, "__fspath__"):
+        return _gene_express_plan_path(Path(strand_or_path), the_one, cell_state)
+    return _gene_express_plan_strand(strand_or_path, the_one, cell_state)
+
+
+def _gene_express_plan_path(path, the_one, cell_state):
+    """PATH variant (b): the DEMAND-LOAD plan — read ONLY each region's head gate cap via
+    the manifest ``byte_offset`` (a seek); NEVER the region body (bounded I/O)."""
+    if _native.has_native_genome():
+        try:
+            return _native.genome_gene_express_plan_c(
+                str(path), cell_state, _the_one_bytes_or_empty(the_one))
+        except _native.NativeGenomeError as exc:
+            _raise_native_genome(exc)
+    data = _catalog_data(path, the_one)         # the manifest read — never opens turns.bin
+    leaf_dim = int(data["leaf_dim"])
+    plan = []
+    with _open_body_ro(path / _BODY_NAME) as f:
+        for c in data["chromosomes"]:
+            off, ln = int(c["byte_offset"]), int(c["byte_len"])
+            if ln < 2 * leaf_dim:               # no head GENE cap → not a gated community
+                continue
+            f.seek(off + leaf_dim)              # skip the CHROM cap → read ONLY the gate cap
+            gate_block = f.read(leaf_dim)
+            if (len(gate_block) < leaf_dim
+                    or gate_block[0] not in _GENE_MARKERS):
+                continue                        # the head block is not a gene cap
+            if _gene_expresses(_hv_from_block(gate_block), cell_state):
+                plan.append((c["label"], off, ln))
+    return plan
+
+
+def _gene_express_plan_strand(strand, the_one, cell_state):
+    """STRAND variant (a): the in-memory skeleton-scan — walk the strand's blocks
+    computing their ON-DISK byte spans, gate each gene by its cap, and delimit each
+    EXPRESSED gene's byte-range. Never decodes a data-turn payload (seeks past it)."""
+    leaf_dim = len(list(the_one))
+    turn_width = 1 + _packed_payload_len(leaf_dim)   # §55/v3 on-disk packed-turn width
+    plan = []
+    pos = 0
+    pending = None                              # (label, cap_hv, gene_byte_start)
+    for hv in strand:
+        kind = _cap_kind(hv)
+        if kind in _GENE_MARKERS:
+            if pending is not None:
+                _plan_close_gene(plan, pending, pos, cell_state)
+            _marker, lbl = _unpack_cap(hv)
+            pending = (lbl, hv, pos)            # the gene starts at its cap's byte offset
+            pos += leaf_dim
+        elif kind in (CHROM_CAP_MARKER, KERNEL_HEADER_MARKER,
+                      KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER):
+            if pending is not None:             # a chromosome boundary closes the gene
+                _plan_close_gene(plan, pending, pos, cell_state)
+                pending = None
+            pos += leaf_dim
+        else:
+            pos += turn_width                   # a data turn — SEEK PAST its packed payload
+    if pending is not None:
+        _plan_close_gene(plan, pending, pos, cell_state)
+    return plan
+
+
+def _plan_read_region(f, entry, leaf_dim):
+    """Seek + bounded read of ONE chromosome region from an ALREADY-OPEN body file (the
+    §134 partial-load reader's per-region page — RAM + I/O bounded by that one region),
+    the leading CHROM cap re-hashed against the manifest ``cap_sha256`` (the §45
+    :class:`GenomeBoundingError` bound). Reads only ``byte_len`` bytes from ``byte_offset``
+    — the unexpressed regions are never touched."""
+    off, ln = int(entry["byte_offset"]), int(entry["byte_len"])
+    f.seek(off)
+    region = f.read(ln)
+    if len(region) != ln:
+        raise GenomeBoundingError(
+            f"genome region {entry['label']!r} truncated "
+            f"({len(region)} of {ln} bytes)")
+    if _sha256_bytes(region[:leaf_dim]) != entry["cap_sha256"]:
+        raise GenomeBoundingError(
+            f"genome chromosome {entry['label']!r}: cap integrity bound failed")
+    return region
+
+
+def genome_genes_expressed(path, the_one, cell_state):
+    """The PARTIAL-LOAD reader for demand-loaded gene expression — §134/rc135 (#1273).
+
+    Uses :func:`gene_express_plan` (the PATH / variant-b plan) to SEEK + load + decode ONLY
+    the EXPRESSED chromosome regions, then filters each region's genes by
+    :func:`gene_express` — returning ``[(gene_label, gene_leaves), …]`` BYTE-IDENTICAL to
+    the expressed subset of a full ``gene_express`` over the whole genome, WITHOUT loading
+    the unexpressed regions (bounded RAM AND bounded I/O). In the siona community=chromosome
+    layout the per-chromosome head gate IS the community gate, so an unexpressed community
+    (head gate off) contributes no expressed gene — skipping its region is exact.
+
+    ⚠️ A READ — the file is byte-identical after this call (biology reads the regulatory
+    region, it does not rewrite the DNA). ``cell_state`` is a non-negative exact int (Class-I
+    bitwise; no float, never ``abs()``). The plan is native-dispatched (the C peer
+    ``srmech_genome_gene_express_plan``); the per-region load + :func:`gene_express` decode
+    are the exact pure path — the leaves are byte-identical whether the plan came from C or
+    Python. NO format addition (the reader reads the existing v4 manifest + caps; v11 stays).
+    """
+    _plan_validate_cell_state("genome_genes_expressed", cell_state)
+    assert GENOME_FORMAT_VERSION == 11      # a READ of existing caps/manifest; no bump
+    path = Path(path)
+    plan = _gene_express_plan_path(path, the_one, cell_state)   # the expressed communities
+    data = _catalog_data(path, the_one)
+    leaf_dim = int(data["leaf_dim"])
+    the_one_hv = _resolve_the_one(data, the_one)
+    by_label = {c["label"]: c for c in data["chromosomes"]}
+    out = []
+    with _open_body_ro(path / _BODY_NAME) as f:
+        for (chrom_label, _off, _ln) in plan:
+            region = _plan_read_region(f, by_label[chrom_label], leaf_dim)
+            region_strand = _region_strand(region, leaf_dim)
+            for gene in gene_express(region_strand, the_one_hv, cell_state):
+                out.append(gene)
+    return out
 
 
 def genome_append(path, label, leaves, the_one, *, kernel=False) -> dict:

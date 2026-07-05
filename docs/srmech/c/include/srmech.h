@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc134"
-#define SRMECH_VERSION       "0.9.0rc134"
+#define SRMECH_VERSION_PRE   "rc135"
+#define SRMECH_VERSION       "0.9.0rc135"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2946,6 +2946,36 @@ srmech_status_t srmech_genome_window(
     const char *dir, const char *label,
     unsigned char *out, size_t out_cap, size_t *out_len,
     const unsigned char *the_one, size_t the_one_len,
+    void *ws, size_t ws_len);
+
+/* §134/rc135 (#1273) GENE-EXPRESSION PLAN: the DEMAND-LOAD, offset-only load
+ * plan. For each chromosome in <dir>'s manifest, seek to its byte_offset and
+ * read ONLY the head GATE cap (the second block, at byte_offset + leaf_dim),
+ * evaluate its inline gate (E1 0x67 / E2 0x62 / E4 0x77 / E3 0x64) under
+ * cell_state, and emit the EXPRESSED regions into `out` (capacity out_cap
+ * bytes). NEVER reads a region body — bounded I/O (one leaf_dim-byte gate cap
+ * per chromosome). *out_len receives the emitted byte count. Emit format
+ * (big-endian): [u32 n] then per record [u32 label_len][label bytes]
+ * [u64 byte_offset][u64 byte_len]. Byte-identical to the pure-Python
+ * gene_express_plan PATH variant (the siona community=chromosome layout — the
+ * per-chromosome head gate IS the community gate). A READ (never mutates);
+ * malloc-free (the manifest parses in the caller arena `ws`; the gate cap is a
+ * fixed stack buffer). §44: when manifest.json is absent the offsets are
+ * rebuilt by scanning turns.bin, which needs `the_one` (the_one_len IS the leaf
+ * width); pass the_one=NULL,0 when a manifest is present. ABI-additive: a new
+ * symbol, so SRMECH_ABI_VERSION stays 3.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — dir / out / out_len / ws is NULL.
+ *   SRMECH_ERR_IO          — turns.bin I/O failed.
+ *   SRMECH_ERR_OVERFLOW    — ws too small for the manifest parse.
+ *   SRMECH_ERR_BAD_INPUT   — out too small for the plan, a malformed manifest,
+ *                           OR no manifest and no the_one.
+ */
+srmech_status_t srmech_genome_gene_express_plan(
+    const char *dir, uint64_t cell_state,
+    const unsigned char *the_one, size_t the_one_len,
+    unsigned char *out, size_t out_cap, size_t *out_len,
     void *ws, size_t ws_len);
 
 /* APPEND: append one chromosome's region (`region`, region_len bytes = the

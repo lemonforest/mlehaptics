@@ -229,7 +229,9 @@ def test_op_provenance_tie_documented():
     RecoverableFold, with a CELL-STATE operand + an EXPRESSION operator)."""
     assert "op_provenance" in G.gene_express.__doc__
     assert "RecoverableFold" in G.gene_express.__doc__
-    assert "NBK26887" in G.gene_express.__doc__                 # the Alberts attestation
+    # rc135 MPM fix: the cell-type-SELECTION facet cites NBK26872 ("How Genetic
+    # Switches Work"), not NBK26887 ("From DNA to RNA", the transcription facet).
+    assert "NBK26872" in G.gene_express.__doc__                 # the Alberts attestation
 
 
 # ── (8) Python==C byte-identical ──────────────────────────────────────────────

@@ -2197,6 +2197,122 @@ srmech_status_t srmech_genome_window(const char *dir, const char *label,
 }
 
 /* ------------------------------------------------------------------ *
+ * §134/rc135 (#1273) — the DEMAND-LOAD gene-expression PLAN. For each
+ * chromosome in the manifest, seek to its byte_offset and read ONLY the
+ * head GATE cap (the SECOND block, at byte_offset + leaf_dim), evaluate the
+ * gate under cell_state, and emit the EXPRESSED regions' (label, byte_offset,
+ * byte_len). NEVER reads a region body — bounded I/O (the plan touches only
+ * one leaf_dim-byte gate cap per chromosome). Emit format (big-endian):
+ *   [u32 n] then per record [u32 label_len][label bytes][u64 offset][u64 len]
+ * Byte-identical to the pure-Python gene_express_plan PATH variant. No abs
+ * (a mask / cell_state is never negated); a READ (never mutates); malloc-free
+ * (the manifest parses in the caller arena, the gate cap is a fixed stack
+ * buffer). This is the siona community=chromosome layout — the per-chromosome
+ * head gate IS the community gate.
+ * ------------------------------------------------------------------ */
+
+/* Read one chromosome's head GATE cap (the block at byte_offset + leaf_dim)
+ * into `gate` (>= leaf_dim), evaluate it under cell_state, and EMIT the record
+ * (label + byte_offset + byte_len) into out[*pos..] iff it EXPRESSES. A region
+ * with no full head gene cap (byte_len < 2*leaf_dim), or whose head block is
+ * not a GENE marker, is skipped (not a gated community; SRMECH_OK, no emit).
+ * *pos + *n advance on an emit. No abs; a READ. */
+static srmech_status_t genome_plan_emit_one(
+    const char *body_path, const srmech_json_value_t *entry,
+    uint32_t leaf_dim, uint64_t cell_state,
+    unsigned char *gate, unsigned char *out, size_t out_cap,
+    size_t *pos, uint32_t *n)
+{
+    assert(entry != NULL && gate != NULL && body_path != NULL);
+    assert(out != NULL && pos != NULL && n != NULL);
+    const srmech_json_value_t *bo = srmech_json_object_get(entry, "byte_offset");
+    const srmech_json_value_t *bl = srmech_json_object_get(entry, "byte_len");
+    const srmech_json_value_t *lv = srmech_json_object_get(entry, "label");
+    if (bo == NULL || bl == NULL || lv == NULL ||
+        bo->type != SRMECH_JSON_INT || bl->type != SRMECH_JSON_INT ||
+        lv->type != SRMECH_JSON_STRING) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    size_t off = (size_t)bo->u.i, len = (size_t)bl->u.i;
+    if (len < (size_t)2u * leaf_dim) { return SRMECH_OK; }   /* no head gene cap */
+    srmech_status_t st = genome_read_region(body_path, off + leaf_dim,
+                                            leaf_dim, gate, leaf_dim);
+    if (st != SRMECH_OK) { return st; }
+    unsigned char gm = gate[0];                             /* the head block kind */
+    int expressed = 0;
+    if (gm == SRMECH_GENOME_GRADED_GENE_MARKER) {
+        /* §132 E3: the graded gene's BINARY reading is level > 0 — srmech_genome_gene_express
+         * does NOT decide graded (the level op does), matching Python _gene_expresses. */
+        uint64_t num = 0u, den = 0u;
+        st = srmech_genome_gene_express_levels(gate, leaf_dim, cell_state, &num, &den);
+        if (st != SRMECH_OK) { return st; }
+        expressed = (num > 0u) ? 1 : 0;
+    } else if (gm == SRMECH_GENOME_GENE_CAP_MARKER ||
+               gm == SRMECH_GENOME_REGULATORY_GENE_MARKER ||
+               gm == SRMECH_GENOME_BOOLEAN_GENE_MARKER ||
+               gm == SRMECH_GENOME_THRESHOLD_GENE_MARKER) {
+        st = srmech_genome_gene_express(gate, leaf_dim, cell_state, &expressed, NULL);
+        if (st != SRMECH_OK) { return st; }
+    } else {
+        return SRMECH_OK;                                    /* head not a gene cap */
+    }
+    if (!expressed) { return SRMECH_OK; }
+    st = genome_emit_u32(out, out_cap, pos, lv->u.str.len);
+    if (st != SRMECH_OK) { return st; }
+    if (*pos + lv->u.str.len > out_cap) { return SRMECH_ERR_BAD_INPUT; }
+    memcpy(out + *pos, lv->u.str.ptr, lv->u.str.len);
+    *pos += lv->u.str.len;
+    st = genome_emit_u64(out, out_cap, pos, off);
+    if (st != SRMECH_OK) { return st; }
+    st = genome_emit_u64(out, out_cap, pos, len);
+    if (st != SRMECH_OK) { return st; }
+    (*n)++;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_genome_gene_express_plan(
+    const char *dir, uint64_t cell_state,
+    const unsigned char *the_one, size_t the_one_len,
+    unsigned char *out, size_t out_cap, size_t *out_len,
+    void *ws, size_t ws_len)
+{
+    assert(out_len != NULL);
+    assert(dir != NULL || out == NULL);
+    if (dir == NULL || out == NULL || out_len == NULL || ws == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (the_one == NULL && the_one_len != 0u) { return SRMECH_ERR_NULL_ARG; }
+    srmech_json_value_t *manifest = NULL;
+    srmech_status_t st = genome_obtain_manifest(dir, the_one, the_one_len,
+                                                ws, ws_len, &manifest);
+    if (st != SRMECH_OK) { return st; }
+    const srmech_json_value_t *ld = genome_data_get(manifest, "leaf_dim");
+    const srmech_json_value_t *arr = genome_data_get(manifest, "chromosomes");
+    if (ld == NULL || ld->type != SRMECH_JSON_INT ||
+        arr == NULL || arr->type != SRMECH_JSON_ARRAY) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (ld->u.i <= 0 || ld->u.i > 256) { return SRMECH_ERR_BAD_INPUT; }
+    uint32_t leaf_dim = (uint32_t)ld->u.i;
+    char body_path[SRMECH_GENOME_PATH_MAX];
+    st = genome_join(dir, SRMECH_GENOME_BODY, body_path, sizeof(body_path));
+    if (st != SRMECH_OK) { return st; }
+    unsigned char gate[256];                        /* leaf_dim <= 256; fixed stack cap */
+    size_t pos = 0u;
+    st = genome_emit_u32(out, out_cap, &pos, 0u);   /* reserve the record count */
+    if (st != SRMECH_OK) { return st; }
+    uint32_t n = 0u;
+    for (uint32_t i = 0; i < arr->u.arr.n; i++) {
+        st = genome_plan_emit_one(body_path, arr->u.arr.items[i], leaf_dim,
+                                  cell_state, gate, out, out_cap, &pos, &n);
+        if (st != SRMECH_OK) { return st; }
+    }
+    genome_poke_u32(out, 0u, n);                    /* backfill the count at offset 0 */
+    *out_len = pos;
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------ *
  * APPEND — append one chromosome region to turns.bin, rewrite manifest.
  *
  * The manifest is rebuilt from the WHOLE new body the same way SAVE
