@@ -221,6 +221,54 @@ srmech_status_t srmech_hdc_similarity(const uint8_t *a,
     return SRMECH_OK;
 }
 
+/* hdc_bundle_with_ties(vectors, n_vectors, n_bytes): bitwise majority across ANY
+ * number of BSC vectors, with the tie state surfaced explicitly (rbs_nn Note 1).
+ * Unlike srmech_hdc_bundle (odd-count only), this accepts ANY n_vectors:
+ *   - out_majority bit = 1 where STRICTLY more than half the inputs are set (a
+ *     tie -> 0; for odd n_vectors this byte equals srmech_hdc_bundle exactly);
+ *   - out_ties bit = 1 where the set / unset counts are EXACTLY equal (only
+ *     possible for even n_vectors), else 0.
+ * A tie is a Class-K event (the bundle accumulator crosses zero); counts only,
+ * no abs. No n_vectors cap -- bound is the caller's RAM. Additive symbol -- no
+ * ABI bump. */
+srmech_status_t srmech_hdc_bundle_with_ties(const uint8_t * const *vectors,
+                                            uint32_t                n_vectors,
+                                            uint32_t                n_bytes,
+                                            uint8_t                *out_majority,
+                                            uint8_t                *out_ties)
+{
+    assert(vectors != NULL && out_majority != NULL && out_ties != NULL);
+    assert(n_vectors > 0 && n_bytes > 0);
+    if (vectors == NULL || out_majority == NULL || out_ties == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n_vectors == 0 || n_bytes == 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (uint32_t byte_i = 0; byte_i < n_bytes; byte_i++) {
+        uint8_t maj = 0;
+        uint8_t tie = 0;
+        for (uint32_t bit = 0; bit < 8; bit++) {
+            uint32_t count = 0;
+            for (uint32_t v = 0; v < n_vectors; v++) {
+                if (vectors[v] == NULL) {
+                    return SRMECH_ERR_NULL_ARG;
+                }
+                count += (uint32_t)((vectors[v][byte_i] >> bit) & 1u);
+            }
+            uint32_t two = count * 2u;              /* strict-majority test */
+            if (two > n_vectors) {
+                maj = (uint8_t)(maj | (1u << bit));
+            } else if (two == n_vectors) {          /* exact tie: Class-K event */
+                tie = (uint8_t)(tie | (1u << bit));
+            }
+        }
+        out_majority[byte_i] = maj;
+        out_ties[byte_i] = tie;
+    }
+    return SRMECH_OK;
+}
+
 /* ------------------------------------------------------------------ *
  * Class M — polar {-1, 0, +1} variant (v0.4.3rc1)
  *
@@ -718,6 +766,250 @@ srmech_status_t srmech_klein4_cooccurrence_fold(const uint8_t  *codes,
                 acc, &codes[(size_t)tj * dim], dim);
             if (st != SRMECH_OK) { return st; }
         }
+    }
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------ *
+ * Class M — Klein-4 EXACT sector ops (v0.9.0rc142; BATCH B1)
+ *
+ * Seven byte-exact ops over the (F2)^2 Klein-4 carrier that compose /
+ * extend the srmech_klein4 foundation above. All integer / sector — no
+ * float, no abs (Class-K sign is a pin-slot, never abs()). Byte-identical
+ * to the pure-Python hdc.klein4_* ops. Additive symbols -> ABI stays 3.
+ * ------------------------------------------------------------------ */
+
+/* k4_argmax4(counts): the argmax over the 4 Klein-4 sector counts, ties broken
+ * toward the LOWEST sector index — the shared per-position majority read-out
+ * used by the holographic (blind) decode + the triality corrector. No abs. */
+static uint8_t srmech_k4_argmax4(const uint32_t counts[4])
+{
+    uint8_t  best = 0u;
+    uint32_t best_c;
+    assert(counts != NULL);
+    best_c = counts[0];
+    for (uint8_t s = 1u; s < 4u; s++) {
+        if (counts[s] > best_c) {   /* strict > keeps the lowest index on a tie */
+            best = s;
+            best_c = counts[s];
+        }
+    }
+    assert(best < 4u);
+    return best;
+}
+
+/* klein4_sector_flip(in, n, mask): XOR every element with a constant sector mask
+ * in {0,1,2,3} — the chirality flips: gamma5 = mask 2 (bit 1), iomega7 = mask 1
+ * (bit 0), CPT = mask 3 (both). out[i] = in[i] ^ mask. Class C axis flip; no
+ * abs. Out of {0,1,2,3} -> SRMECH_ERR_BAD_INPUT. Additive symbol — no ABI bump. */
+srmech_status_t srmech_klein4_sector_flip(const uint8_t *in,
+                                          uint32_t       n,
+                                          uint8_t        mask,
+                                          uint8_t       *out)
+{
+    assert(in != NULL && out != NULL);
+    assert(n > 0u);
+    if (in == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n == 0u || mask > 3u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        if (in[i] > 3u) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        out[i] = (uint8_t)(in[i] ^ mask);
+    }
+    return SRMECH_OK;
+}
+
+/* klein4_sector_count(in, n): per-sector occupancy [n0,n1,n2,n3] — the substrate
+ * attestation of the chirality-sector distribution. out_counts is 4 uint32
+ * (caller-owned). Class-K sector tally; no abs. Out of {0,1,2,3} ->
+ * SRMECH_ERR_BAD_INPUT. Additive symbol — no ABI bump. */
+srmech_status_t srmech_klein4_sector_count(const uint8_t *in,
+                                           uint32_t       n,
+                                           uint32_t      *out_counts)
+{
+    assert(in != NULL && out_counts != NULL);
+    assert(n > 0u);
+    if (in == NULL || out_counts == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    out_counts[0] = 0u; out_counts[1] = 0u;
+    out_counts[2] = 0u; out_counts[3] = 0u;
+    for (uint32_t i = 0; i < n; i++) {
+        if (in[i] > 3u) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        out_counts[in[i]] += 1u;
+    }
+    return SRMECH_OK;
+}
+
+/* klein4_holographic_encode(in, n, replicas): replicate the store into `replicas`
+ * copies (replica-major) — out is n*replicas bytes = the input repeated `replicas`
+ * times. Any one 1/replicas subregion reconstructs the whole (#797 op (a2),
+ * F353). replicas >= 2. Class M replication bind; no abs. Additive — no ABI
+ * bump. */
+srmech_status_t srmech_klein4_holographic_encode(const uint8_t *in,
+                                                 uint32_t       n,
+                                                 uint32_t       replicas,
+                                                 uint8_t       *out)
+{
+    assert(in != NULL && out != NULL);
+    assert(n > 0u && replicas >= 2u);
+    if (in == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n == 0u || replicas < 2u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (uint32_t r = 0; r < replicas; r++) {
+        for (uint32_t i = 0; i < n; i++) {
+            if (in[i] > 3u) {
+                return SRMECH_ERR_BAD_INPUT;
+            }
+            out[(size_t)r * n + i] = in[i];
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* klein4_holographic_decode(store, n, replicas, erased): reconstruct a Klein-4
+ * store from its holographic erasure encoding. D = n/replicas (block r is
+ * store[r*D : (r+1)*D], replica-major). Two modes:
+ *   - erased == NULL: BLIND per-position majority over the `replicas` copies
+ *     (ties -> lowest sector index; via srmech_k4_argmax4);
+ *   - erased != NULL: KNOWN-location erasure (a length-n mask, nonzero = erased):
+ *     per position the FIRST surviving replica — all-erased at a position ->
+ *     SRMECH_ERR_BAD_INPUT (unrecoverable, > (replicas-1)/replicas).
+ * out is D bytes. Class M ∘ Class C; no abs. n % replicas == 0, replicas >= 2.
+ * Additive symbol — no ABI bump. */
+srmech_status_t srmech_klein4_holographic_decode(const uint8_t *store,
+                                                 uint32_t       n,
+                                                 uint32_t       replicas,
+                                                 const uint8_t *erased,
+                                                 uint8_t       *out)
+{
+    assert(store != NULL && out != NULL);
+    assert(n > 0u && replicas >= 2u);
+    if (store == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n == 0u || replicas < 2u || (n % replicas) != 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    uint32_t D = n / replicas;
+    for (uint32_t i = 0; i < D; i++) {
+        if (erased == NULL) {                       /* blind majority */
+            uint32_t counts[4] = {0u, 0u, 0u, 0u};
+            for (uint32_t r = 0; r < replicas; r++) {
+                uint8_t e = store[(size_t)r * D + i];
+                if (e > 3u) {
+                    return SRMECH_ERR_BAD_INPUT;
+                }
+                counts[e] += 1u;
+            }
+            out[i] = srmech_k4_argmax4(counts);
+        } else {                                    /* first surviving replica */
+            uint32_t r;
+            for (r = 0; r < replicas; r++) {
+                if (erased[(size_t)r * D + i] == 0u) {
+                    out[i] = store[(size_t)r * D + i];
+                    break;
+                }
+            }
+            if (r == replicas) {
+                return SRMECH_ERR_BAD_INPUT;         /* all replicas erased */
+            }
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* klein4_triality_encode(in, n): encode the store as its order-3 triality orbit
+ * [v, T(v), T^2(v)] (orbit-major) — out is 3*n bytes (#797 op (a1); F359). T is
+ * srmech_klein4_triality_cycle (the order-3 S3 = Aut(V4) relabel); this COMPOSES
+ * it: out[0,n) = v, out[n,2n) = T(out[0,n)), out[2n,3n) = T(out[n,2n)). Class M
+ * orbit bind ∘ Class I order-3 cycle; no abs. Additive symbol — no ABI bump. */
+srmech_status_t srmech_klein4_triality_encode(const uint8_t *in,
+                                              uint32_t       n,
+                                              uint8_t       *out)
+{
+    srmech_status_t rc;
+    assert(in != NULL && out != NULL);
+    assert(n > 0u);
+    if (in == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        if (in[i] > 3u) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        out[i] = in[i];
+    }
+    rc = srmech_klein4_triality_cycle(out, n, 0, out + n);           /* T(v) */
+    if (rc != SRMECH_OK) {
+        return rc;
+    }
+    return srmech_klein4_triality_cycle(out + n, n, 0,
+                                        out + (size_t)2u * n);       /* T(T(v)) */
+}
+
+/* klein4_triality_correct(store, n, scratch): correct a Klein-4 store via the
+ * order-3 triality 2-of-3 majority (#797 op (a1)). D = n/3; the three orbit-
+ * blocks [b0,b1,b2] are brought to the common v-frame — b0, T^-1(b1),
+ * T^-2(b2) = T(b2) — and the per-position 2-of-3 majority (ties -> lowest sector,
+ * via srmech_k4_argmax4) recovers v, correcting one error. COMPOSES
+ * srmech_klein4_triality_cycle for the two inverse-frame relabels; `scratch` is
+ * 2*D caller-owned bytes (frame1 [0,D), frame2 [D,2D)). Class M ∘ Class C ∘
+ * Class C; no abs. n % 3 == 0. Additive symbol — no ABI bump. */
+srmech_status_t srmech_klein4_triality_correct(const uint8_t *store,
+                                               uint32_t       n,
+                                               uint8_t       *scratch,
+                                               uint8_t       *out)
+{
+    srmech_status_t rc;
+    uint32_t D;
+    uint8_t *frame1;
+    uint8_t *frame2;
+    assert(store != NULL && scratch != NULL && out != NULL);
+    assert(n > 0u && (n % 3u) == 0u);
+    if (store == NULL || scratch == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n == 0u || (n % 3u) != 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    D = n / 3u;
+    frame1 = scratch;
+    frame2 = scratch + D;
+    rc = srmech_klein4_triality_cycle(store + D, D, 1, frame1);      /* T^-1(b1) */
+    if (rc != SRMECH_OK) {
+        return rc;
+    }
+    rc = srmech_klein4_triality_cycle(store + (size_t)2u * D, D, 0, frame2); /* T(b2) */
+    if (rc != SRMECH_OK) {
+        return rc;
+    }
+    for (uint32_t i = 0; i < D; i++) {
+        uint32_t counts[4] = {0u, 0u, 0u, 0u};
+        uint8_t v0 = store[i];
+        if (v0 > 3u) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        counts[v0] += 1u;
+        counts[frame1[i]] += 1u;
+        counts[frame2[i]] += 1u;
+        out[i] = srmech_k4_argmax4(counts);
     }
     return SRMECH_OK;
 }
