@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc141"
-#define SRMECH_VERSION       "0.9.0rc141"
+#define SRMECH_VERSION_PRE   "rc142"
+#define SRMECH_VERSION       "0.9.0rc142"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2091,6 +2091,19 @@ srmech_status_t srmech_hdc_similarity(const uint8_t *a,
                                       uint32_t       n_bytes,
                                       double        *out);
 
+/* bundle_with_ties(vectors, n_vectors, n_bytes): bitwise majority across ANY
+ * number of BSC vectors, with the tie state surfaced. Unlike srmech_hdc_bundle
+ * (odd-count only), accepts any n_vectors: out_majority bit = 1 where strictly
+ * more than half the inputs are set (a tie -> 0; odd n_vectors == srmech_hdc_bundle
+ * exactly); out_ties bit = 1 where set / unset counts are exactly equal (even
+ * n_vectors only). A tie is a Class-K event; counts only, no abs. No n_vectors
+ * cap. Additive symbol — no ABI bump. */
+srmech_status_t srmech_hdc_bundle_with_ties(const uint8_t * const *vectors,
+                                            uint32_t                n_vectors,
+                                            uint32_t                n_bytes,
+                                            uint8_t                *out_majority,
+                                            uint8_t                *out_ties);
+
 /* ------------------------------------------------------------------ *
  * Class M — polar {-1, 0, +1} variant (v0.4.3rc1)
  *
@@ -2277,6 +2290,63 @@ srmech_status_t srmech_klein4_cooccurrence_fold(const uint8_t  *codes,
                                                 uint32_t        window,
                                                 size_t          dim,
                                                 uint32_t       *out_accs);
+
+/* ------------------------------------------------------------------ *
+ * Class M — Klein-4 EXACT sector ops (v0.9.0rc142; BATCH B1)
+ *
+ * Six byte-exact ops over the (F2)^2 Klein-4 carrier that compose / extend the
+ * srmech_klein4 foundation above. Integer / sector only — no float, no abs.
+ * Byte-identical to the pure-Python hdc.klein4_* ops. Additive symbols, so
+ * SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* klein4_sector_flip(in, n, mask): XOR every element with a constant sector mask
+ * in {0,1,2,3} — the chirality flips (gamma5 = mask 2, iomega7 = mask 1, CPT =
+ * mask 3). out[i] = in[i] ^ mask. Out of {0,1,2,3} -> SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_klein4_sector_flip(const uint8_t *in,
+                                          uint32_t       n,
+                                          uint8_t        mask,
+                                          uint8_t       *out);
+
+/* klein4_sector_count(in, n): per-sector occupancy [n0,n1,n2,n3] into the
+ * caller-owned 4-uint32 out_counts. Out of {0,1,2,3} -> SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_klein4_sector_count(const uint8_t *in,
+                                           uint32_t       n,
+                                           uint32_t      *out_counts);
+
+/* klein4_holographic_encode(in, n, replicas): replica-major replication — out is
+ * n*replicas bytes = the input repeated `replicas` times (#797 op (a2); F353).
+ * replicas >= 2. Out of {0,1,2,3} -> SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_klein4_holographic_encode(const uint8_t *in,
+                                                 uint32_t       n,
+                                                 uint32_t       replicas,
+                                                 uint8_t       *out);
+
+/* klein4_holographic_decode(store, n, replicas, erased): D = n/replicas. erased
+ * == NULL -> blind per-position majority (ties -> lowest sector); erased != NULL
+ * (length-n mask, nonzero = erased) -> first surviving replica per position
+ * (all-erased -> SRMECH_ERR_BAD_INPUT). out is D bytes. n % replicas == 0. */
+srmech_status_t srmech_klein4_holographic_decode(const uint8_t *store,
+                                                 uint32_t       n,
+                                                 uint32_t       replicas,
+                                                 const uint8_t *erased,
+                                                 uint8_t       *out);
+
+/* klein4_triality_encode(in, n): the order-3 triality orbit [v, T(v), T^2(v)]
+ * (orbit-major) — out is 3*n bytes (#797 op (a1); F359). Composes
+ * srmech_klein4_triality_cycle. Out of {0,1,2,3} -> SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_klein4_triality_encode(const uint8_t *in,
+                                              uint32_t       n,
+                                              uint8_t       *out);
+
+/* klein4_triality_correct(store, n, scratch): D = n/3; the 2-of-3 triality
+ * majority over [b0, T^-1(b1), T(b2)] (ties -> lowest sector), correcting one
+ * error (#797 op (a1)). Composes srmech_klein4_triality_cycle; `scratch` is 2*D
+ * caller-owned bytes. out is D bytes. n % 3 == 0. */
+srmech_status_t srmech_klein4_triality_correct(const uint8_t *store,
+                                               uint32_t       n,
+                                               uint8_t       *scratch,
+                                               uint8_t       *out);
 
 /* ------------------------------------------------------------------ *
  * srmech.bus — cross-process IPC C peer (v0.5.0rc2)

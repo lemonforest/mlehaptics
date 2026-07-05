@@ -101,7 +101,16 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 # ica_jade's dominant JADE Givens joint-diagonalisation is a pure-Python kernel
 # with no C twin — all three honestly stay python_only_debt.)
 # python_only_debt 93 -> 86.
-CEIL_PYTHON_ONLY_DEBT = 86
+# rc142 (BATCH B1 — hdc_klein4_exact, the FIRST compute batch): the 9 EXACT
+# klein4/hdc ops earn same-rc C twins over the srmech_hdc / srmech_klein4
+# foundation — hdc.bundle_with_ties -> srmech_hdc_bundle_with_ties;
+# klein4_chirality_flip_gamma5 / _omega7 / cpt_mirror -> srmech_klein4_sector_flip;
+# klein4_sector_count -> srmech_klein4_sector_count; klein4_holographic_encode /
+# _decode -> srmech_klein4_holographic_{encode,decode}; klein4_triality_encode /
+# _correct -> srmech_klein4_triality_{encode,correct} (both COMPOSING
+# srmech_klein4_triality_cycle in C). All byte-identical (integer/sector, no
+# float) -> c_dispatched. python_only_debt 86 -> 77.
+CEIL_PYTHON_ONLY_DEBT = 77
 # rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
 # rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.

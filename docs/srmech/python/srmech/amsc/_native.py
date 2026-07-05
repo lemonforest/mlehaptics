@@ -1296,6 +1296,20 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_hdc_hamming.restype = ctypes.c_int
 
+    # int srmech_hdc_bundle_with_ties(const uint8_t * const *vectors,
+    #     uint32_t n_vectors, uint32_t n_bytes, uint8_t *out_majority,
+    #     uint8_t *out_ties)  — BATCH B1 (rc142). NEW; own hasattr so a pre-rc142
+    # lib doesn't AttributeError here (the pure-Python fold is the complete alt).
+    if hasattr(lib, "srmech_hdc_bundle_with_ties"):
+        lib.srmech_hdc_bundle_with_ties.argtypes = [
+            ctypes.POINTER(ctypes.POINTER(ctypes.c_uint8)),
+            ctypes.c_uint32,
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.POINTER(ctypes.c_uint8),
+        ]
+        lib.srmech_hdc_bundle_with_ties.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Class M — polar {-1, 0, +1} variant (v0.4.3rc1). NEW symbols; guard
     # with hasattr so a stale lib built before these landed doesn't
@@ -1500,6 +1514,70 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.POINTER(ctypes.c_uint32),  # out_accs (n_codes*(1+2*dim))
             ]
             lib.srmech_klein4_cooccurrence_fold.restype = ctypes.c_int
+
+        # ---- BATCH B1 (rc142): EXACT klein4 sector ops. Each NEW symbol its own
+        # hasattr so a pre-rc142 klein4-capable lib doesn't AttributeError here;
+        # the pure-Python op is the complete (byte-identical) alternative. ----
+        # int srmech_klein4_sector_flip(const uint8_t *in, uint32_t n,
+        #                               uint8_t mask, uint8_t *out)
+        if hasattr(lib, "srmech_klein4_sector_flip"):
+            lib.srmech_klein4_sector_flip.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8),
+                ctypes.c_uint32,
+                ctypes.c_uint8,
+                ctypes.POINTER(ctypes.c_uint8),
+            ]
+            lib.srmech_klein4_sector_flip.restype = ctypes.c_int
+        # int srmech_klein4_sector_count(const uint8_t *in, uint32_t n,
+        #                                uint32_t *out_counts)
+        if hasattr(lib, "srmech_klein4_sector_count"):
+            lib.srmech_klein4_sector_count.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8),
+                ctypes.c_uint32,
+                ctypes.POINTER(ctypes.c_uint32),
+            ]
+            lib.srmech_klein4_sector_count.restype = ctypes.c_int
+        # int srmech_klein4_holographic_encode(const uint8_t *in, uint32_t n,
+        #                                      uint32_t replicas, uint8_t *out)
+        if hasattr(lib, "srmech_klein4_holographic_encode"):
+            lib.srmech_klein4_holographic_encode.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8),
+                ctypes.c_uint32,
+                ctypes.c_uint32,
+                ctypes.POINTER(ctypes.c_uint8),
+            ]
+            lib.srmech_klein4_holographic_encode.restype = ctypes.c_int
+        # int srmech_klein4_holographic_decode(const uint8_t *store, uint32_t n,
+        #     uint32_t replicas, const uint8_t *erased, uint8_t *out) — erased is
+        # NULL for the blind-majority mode.
+        if hasattr(lib, "srmech_klein4_holographic_decode"):
+            lib.srmech_klein4_holographic_decode.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8),
+                ctypes.c_uint32,
+                ctypes.c_uint32,
+                ctypes.POINTER(ctypes.c_uint8),
+                ctypes.POINTER(ctypes.c_uint8),
+            ]
+            lib.srmech_klein4_holographic_decode.restype = ctypes.c_int
+        # int srmech_klein4_triality_encode(const uint8_t *in, uint32_t n,
+        #                                   uint8_t *out)
+        if hasattr(lib, "srmech_klein4_triality_encode"):
+            lib.srmech_klein4_triality_encode.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8),
+                ctypes.c_uint32,
+                ctypes.POINTER(ctypes.c_uint8),
+            ]
+            lib.srmech_klein4_triality_encode.restype = ctypes.c_int
+        # int srmech_klein4_triality_correct(const uint8_t *store, uint32_t n,
+        #                                    uint8_t *scratch, uint8_t *out)
+        if hasattr(lib, "srmech_klein4_triality_correct"):
+            lib.srmech_klein4_triality_correct.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8),
+                ctypes.c_uint32,
+                ctypes.POINTER(ctypes.c_uint8),
+                ctypes.POINTER(ctypes.c_uint8),
+            ]
+            lib.srmech_klein4_triality_correct.restype = ctypes.c_int
         # srmech_status_t srmech_laplacian_fiedler_sparse(uint32_t n,
         #     uint32_t n_edges, const uint32_t *edge_u, const uint32_t *edge_v,
         #     const double *weights, uint32_t max_iters, double *out_vec,
@@ -9753,6 +9831,71 @@ def has_native_klein4_triality_cycle() -> bool:
     pure-Python relabel is the complete alternative."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_klein4_triality_cycle"))
+
+
+# ---------------------------------------------------------------------------
+# BATCH B1 (rc142): the 9 EXACT klein4/hdc ops earn their C twins. Each gate
+# guards its own srmech_* symbol; the pure-Python op is the complete (byte-
+# identical) alternative on a no-C / pre-rc142 lib.
+# ---------------------------------------------------------------------------
+
+
+def has_native_hdc_bundle_with_ties() -> bool:
+    """True iff the BSC ``srmech_hdc_bundle_with_ties`` (majority + tie surfaced,
+    any n_vectors) is loaded + bound (rc142). Gates :func:`srmech.amsc.hdc.
+    bundle_with_ties`; byte-identical to the pure fold. False on a no-C lib."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_hdc_bundle_with_ties"))
+
+
+def has_native_klein4_sector_flip() -> bool:
+    """True iff the Klein-4 ``srmech_klein4_sector_flip`` (XOR-const chirality
+    flip) is loaded + bound (rc142). Gates the dispatch in
+    :func:`~srmech.amsc.hdc.klein4_chirality_flip_gamma5` /
+    :func:`~srmech.amsc.hdc.klein4_chirality_flip_omega7` /
+    :func:`~srmech.amsc.hdc.klein4_cpt_mirror`. False on a no-C lib."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_klein4_sector_flip"))
+
+
+def has_native_klein4_sector_count() -> bool:
+    """True iff the Klein-4 ``srmech_klein4_sector_count`` (per-sector occupancy)
+    is loaded + bound (rc142). Gates :func:`~srmech.amsc.hdc.klein4_sector_count`.
+    False on a no-C lib — the pure tally is the complete alternative."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_klein4_sector_count"))
+
+
+def has_native_klein4_holographic_encode() -> bool:
+    """True iff ``srmech_klein4_holographic_encode`` (replica-major replication)
+    is loaded + bound (rc142). Gates :func:`~srmech.amsc.hdc.
+    klein4_holographic_encode`. False on a no-C lib."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_klein4_holographic_encode"))
+
+
+def has_native_klein4_holographic_decode() -> bool:
+    """True iff ``srmech_klein4_holographic_decode`` (blind majority + known-
+    erasure first-survivor) is loaded + bound (rc142). Gates
+    :func:`~srmech.amsc.hdc.klein4_holographic_decode`. False on a no-C lib."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_klein4_holographic_decode"))
+
+
+def has_native_klein4_triality_encode() -> bool:
+    """True iff ``srmech_klein4_triality_encode`` (the order-3 orbit [v,Tv,T²v],
+    composing the triality cycle) is loaded + bound (rc142). Gates
+    :func:`~srmech.amsc.hdc.klein4_triality_encode`. False on a no-C lib."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_klein4_triality_encode"))
+
+
+def has_native_klein4_triality_correct() -> bool:
+    """True iff ``srmech_klein4_triality_correct`` (the 2-of-3 triality majority,
+    composing the triality cycle) is loaded + bound (rc142). Gates
+    :func:`~srmech.amsc.hdc.klein4_triality_correct`. False on a no-C lib."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_klein4_triality_correct"))
 
 
 def has_native_fiedler_sparse() -> bool:
