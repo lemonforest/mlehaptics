@@ -4,7 +4,7 @@ The C-mirror goal: every public **compute** op in ``srmech`` should dispatch to
 a bit-exact C twin OR be a pure composition of such twins, so ``libsrmech`` runs
 standalone — on a full OS *or* a thread-less microcontroller — with no host
 Python. This test is the down-only debt ledger for that goal (cf. the C-transpile
-libm ratchet that went 23 -> 0): the ``python_only_irreducible`` and
+libm ratchet that went 23 -> 0): the ``python_only_debt`` and
 ``c_exists_unbound`` counts only ever DECREASE.
 
 How it works:
@@ -28,8 +28,14 @@ Buckets (see ROSETTA_LEDGER.md):
   c_dispatched           — routes to a srmech_* C symbol (standalone-ready)
   composition_of_c       — pure composition of c_dispatched ops (standalone-ready)
   c_exists_unbound       — DEBT (cheap): a C twin exists, Python doesn't dispatch
-  python_only_irreducible— DEBT: irreducible kernel, no C twin yet
-  bignum_reference       — intentional exact-rational arbitrary-precision oracle
+  python_only_debt       — DEBT: irreducible kernel, no C twin yet (renamed from
+                           python_only_irreducible at rc138 — the honest name for
+                           a monotone-decreasing OWED-C-mirror debt bucket)
+  bignum_reference       — intentional exact-rational arbitrary-precision oracle;
+                           MUST carry an explicit oracle_justification (or a
+                           c_companion c_dispatched path) so it cannot HIDE compute
+                           from the ratchet the way the_one did before rc138 gave
+                           it the srmech_the_one C peer + moved it to c_dispatched
   non_compute            — IO / registry / schema / introspection (no kernel)
 """
 from __future__ import annotations
@@ -57,26 +63,26 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 # LOWER these as ops gain C twins. NEVER raise them.
 # rc67: symmetric_eigendecompose stopped being Python-only-irreducible — it now
 # delegates to the c_dispatched hermitian_eigendecompose + phase-canon, so it
-# moved to composition_of_c. python_only_irreducible 108 -> 107.
+# moved to composition_of_c. python_only_debt 108 -> 107.
 # rc6 (0.9.0, §60 / F864): klein4_random earns its standalone-C MT19937 twin
 # srmech_klein4_random (byte-identical to random.Random(seed).randrange(4)) and
-# dispatches to it -> c_dispatched. python_only_irreducible 107 -> 106.
+# dispatches to it -> c_dispatched. python_only_debt 107 -> 106.
 # rc16 (0.9.0): hypercomplex_couple rewritten onto the exact-Q61 octonion couple
 # `_couple_q61` (cd_basis_product + Q61 fxmul) which dispatches to the new
 # standalone-C srmech_hypercomplex_couple_q61 -> c_dispatched. This also empties
 # the transitive-standalone ratchet allowlist (the two sed_*_working edges).
-# python_only_irreducible 106 -> 105.
+# python_only_debt 106 -> 105.
 # rc110 (#1234 Item 1b / #863): cascade.quaternion_dft GRADUATED onto the rc109
 # qm.quaternion foundation and dispatches the whole transform to the new
 # standalone-C srmech_quaternion_dft (byte-exact composed fallback)
-# -> c_dispatched. python_only_irreducible 105 -> 104.
+# -> c_dispatched. python_only_debt 105 -> 104.
 # rc111 (#1234 Item 1c / #863): cascade.octonion_dft GRADUATED onto the
 # qm.octonion foundation (the rc111 octonion_twiddle + the 8x8 loop operators)
 # and dispatches the whole transform — ALL THREE forms, with the DECLARED
 # bracketing as an explicit attested field — to the new standalone-C
 # srmech_octonion_dft (byte-exact composed fallback)
-# -> c_dispatched. python_only_irreducible 104 -> 103.
-CEIL_PYTHON_ONLY_IRREDUCIBLE = 103
+# -> c_dispatched. python_only_debt 104 -> 103.
+CEIL_PYTHON_ONLY_DEBT = 103
 # rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
 # rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.
@@ -102,10 +108,10 @@ CEIL_PYTHON_ONLY_IRREDUCIBLE = 103
 # unbound C twin — wire it, don't raise the ceiling.
 CEIL_C_EXISTS_UNBOUND = 0
 
-_DEBT_BUCKETS = ("python_only_irreducible", "c_exists_unbound")
+_DEBT_BUCKETS = ("python_only_debt", "c_exists_unbound")
 _ALL_BUCKETS = (
     "c_dispatched", "c_exists_unbound", "composition_of_c",
-    "python_only_irreducible", "bignum_reference", "non_compute",
+    "python_only_debt", "bignum_reference", "non_compute",
 )
 
 
@@ -193,7 +199,7 @@ def test_no_stale_classification():
 
 
 @pytest.mark.parametrize("bucket,ceiling", [
-    ("python_only_irreducible", CEIL_PYTHON_ONLY_IRREDUCIBLE),
+    ("python_only_debt", CEIL_PYTHON_ONLY_DEBT),
     ("c_exists_unbound", CEIL_C_EXISTS_UNBOUND),
 ])
 def test_debt_bucket_is_monotone_decreasing(bucket, ceiling):
@@ -215,4 +221,37 @@ def test_debt_bucket_is_monotone_decreasing(bucket, ceiling):
     assert count == ceiling, (
         f"{bucket} = {count} is BELOW its ceiling {ceiling} — debt was closed; "
         f"lower CEIL_{bucket.upper()} to {count} to lock the ratchet."
+    )
+
+
+def test_bignum_reference_rows_are_justified():
+    """Every ``bignum_reference`` row must EITHER carry an explicit
+    ``oracle_justification`` (why it is a genuine exact-rational / exact-integer
+    arbitrary-precision oracle, not hidden compute) OR name a companion
+    ``c_companion`` c_dispatched path that does the real work.
+
+    This closes the hiding-spot ``the_one`` used before rc138: an op that is
+    really a cascade of C-backed primitives can park in the non-debt
+    ``bignum_reference`` bucket and dodge the everything-mirrors ratchet. Now a
+    ``bignum_reference`` row must SAY why it belongs there (or point at its C
+    companion) — a compute op with a C peer belongs in ``c_dispatched`` instead
+    (as ``the_one`` / ``one_matrix`` / ``to_scalar`` now are, on srmech_the_one).
+    """
+    rows = [json.loads(l) for l in _FIXTURE.read_text(encoding="utf-8").splitlines()
+            if l.strip()]
+    unjustified = []
+    for r in rows:
+        if r.get("bucket") != "bignum_reference":
+            continue
+        just = r.get("oracle_justification")
+        companion = r.get("c_companion")
+        ok = (isinstance(just, str) and just.strip()) or \
+             (isinstance(companion, str) and companion.strip())
+        if not ok:
+            unjustified.append(r["defined_at"])
+    assert not unjustified, (
+        f"{len(unjustified)} bignum_reference row(s) HIDE compute from the ratchet "
+        f"— give each an oracle_justification (why it is a genuine exact oracle) or "
+        f"a c_companion c_dispatched path, or move it to c_dispatched if it has a C "
+        f"peer:\n  " + "\n  ".join(sorted(unjustified))
     )

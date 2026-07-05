@@ -240,9 +240,10 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # of the exact One: takes a structured ``One`` object (no MCP coercer for a
     # One param, so it cannot cross the JSON-RPC boundary) → NOT an MCP tool,
     # exempt on the callable/structured-arg rationale (like greedy_bipartite_
-    # alignment above). It is a public, tested ``bignum_reference``-tier exact-
-    # rational projection, reachable via Python AND dotted-path TOML-class
-    # binding (op = "srmech.amsc.cascade.to_scalar"), not via the MCP tool list.
+    # alignment above). It is a public, tested ``c_dispatched`` exact-rational
+    # projection (its cos comes from the rc138 srmech_the_one adjoint peer),
+    # reachable via Python AND dotted-path TOML-class binding
+    # (op = "srmech.amsc.cascade.to_scalar"), not via the MCP tool list.
     "srmech.amsc.cascade.one.to_scalar",
     # cascade.one.one_* (v0.7.5rc138, #564 / [[feedback_prefer_config_driven_toml_classes]])
     # — the flat cascade-op accessor layer that the packaged ``one.toml``

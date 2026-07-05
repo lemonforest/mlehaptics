@@ -38,7 +38,7 @@ The load-bearing gates this rc must hold:
       ``srmech.dsl`` and the op runs through a chain; the descriptor
       declares the C peer.
   (h) REGISTRATION — the ToolEntry pre-existed (v0.7.0rc31), so the
-      graduation changes its Rosetta BUCKET (python_only_irreducible →
+      graduation changes its Rosetta BUCKET (python_only_debt →
       c_dispatched), NOT the tool count: tools.total stays 362.
 
 numpy-free by construction (no numpy import, no ``np.``;

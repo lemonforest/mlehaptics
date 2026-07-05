@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc137"
-#define SRMECH_VERSION       "0.9.0rc137"
+#define SRMECH_VERSION_PRE   "rc138"
+#define SRMECH_VERSION       "0.9.0rc138"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3796,6 +3796,44 @@ srmech_status_t srmech_rational_pow_uint_big(const srmech_bigint_t *base_num,
                                              srmech_bigint_t *out_num,
                                              srmech_bigint_t *out_den,
                                              void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_the_one — the S(sigma, theta) ADJOINT generator (rc138; #743).
+ *
+ * The C peer for srmech.amsc.cascade.one.the_one's exact-rational ADJOINT
+ * (One.to_flat_rational — the w-INVARIANT 2pi-periodic base). COMPOSES the
+ * exact-rational bignum series srmech_cos/sin_series_truncate_big with the fixed
+ * Fano-plane block-tiling of the 1+3+7+3 = 14 Hurwitz ladder, producing the SAME
+ * 14 exact adjoint rationals (num, den) the Python builds — BYTE-IDENTICAL at ANY
+ * magnitude, over caller-arena srmech_bigint (NO float, NO libm, NO malloc). It
+ * is w-BLIND (the winding folds away in the adjoint base), the same as Python.
+ *
+ * sigma in {+1, -1} (the Class-K/C chirality; a sign is applied by negating the
+ * sign-magnitude numerator, never abs()). theta_den->sign must be > 0. num_terms
+ * <= 50 (the trig-series cap; matches the Python ValueError domain). out_num /
+ * out_den are caller-provided arrays of EXACTLY 14 srmech_bigint (order: [R.1, Im]
+ * per block, C then H then O). Each out is reduced with positive denominator.
+ * Bad sigma / theta_den <= 0 / num_terms > 50 -> SRMECH_ERR_BAD_INPUT; too-small
+ * out cap or arena ws (>= srmech_the_one_ws_bound) -> SRMECH_ERR_OVERFLOW.
+ *
+ * Carrier-internal (like srmech_bigexp): NOT a Rosetta ledger op of its own —
+ * it BACKS the existing the_one / one_matrix / to_scalar Python ops. Additive
+ * symbol -> SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES for theta rationals of the given limb sizes + N.
+ * 8-byte-aligned uint32 bump arena (4 cos/sin carriers + the series scratch). */
+size_t srmech_the_one_ws_bound(size_t num_limbs, size_t den_limbs,
+                               uint32_t num_terms);
+
+/* The 14 exact adjoint rationals of S(sigma, theta_num/theta_den) to N terms. */
+srmech_status_t srmech_the_one(int32_t sigma,
+                               const srmech_bigint_t *theta_num,
+                               const srmech_bigint_t *theta_den,
+                               uint32_t num_terms,
+                               srmech_bigint_t *out_num,
+                               srmech_bigint_t *out_den,
+                               void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_jacobi — BIGNUM-EXACT Jacobi elliptic sn/cn/dn Maclaurin truncation

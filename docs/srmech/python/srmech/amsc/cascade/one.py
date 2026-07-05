@@ -431,8 +431,14 @@ class One:
         """
         from srmech.amsc.mat import Mat
 
-        cn, cd = cos_series_truncate(self.theta[0], self.theta[1], self.terms)
-        sn, sd = sin_series_truncate(self.theta[0], self.theta[1], self.terms)
+        # cos θ / sin θ recovered from the stored ADJOINT (σ·cos at
+        # ``blocks[1].imag[0]``, σ·sin at ``blocks[1].imag[1]`` — the ℍ Fano
+        # plane (1,2,+1)); un-apply σ via the Class-K/C :func:`_chiral_scale`.
+        # Those blocks are the ``srmech_the_one`` output when HAS_NATIVE
+        # (c_dispatched; rc138 #743), the pure tiling otherwise — either way the
+        # SAME exact rational, so this matrix is native-derived + identical.
+        cn, cd = _chiral_scale(self.blocks[1].imag[0], self.sigma)
+        sn, sd = _chiral_scale(self.blocks[1].imag[1], self.sigma)
         cos_t = cn / cd
         sin_t = sn / sd
         s = float(self.sigma)
@@ -616,6 +622,84 @@ class One:
         )
 
 
+# ── the ADJOINT tiling — native (srmech_the_one) with a pure oracle (rc138) ──
+#
+# The 14 exact adjoint rationals (One.to_flat_rational order) are computed EITHER
+# by the C peer srmech_the_one (cos/sin_series_truncate_big + the Fano tiling in
+# one native call — the FLAGSHIP C:Python-parity backfill, #743) OR by the pure
+# tiling below (the COMPLETE alternative + parity oracle). Both are exact-rational
+# and BYTE-IDENTICAL. The adjoint is w-INVARIANT (the winding folds away here), so
+# neither path sees the winding — the C peer never receives it.
+
+
+def _the_one_native_flat(sigma: int, theta_num: int, theta_den: int,
+                         terms: int):
+    """The 14 native adjoint rationals via ``srmech_the_one``, or ``None`` when
+    the native peer is absent / ``HAS_NATIVE`` is off (→ the pure oracle).
+
+    Lazy import (keeps ``one.py``'s import graph unchanged + dodges any
+    amsc-package circular import); honours the ``HAS_NATIVE`` toggle the parity
+    tests flip (``the_one_c`` re-checks it via ``has_native_the_one``)."""
+    from .. import _native
+    fn = getattr(_native, "the_one_c", None)
+    if fn is None:
+        return None
+    return fn(sigma, theta_num, theta_den, terms)
+
+
+def _blocks_from_flat(flat) -> Tuple[Block, Block, Block]:
+    """Reshape the 14 exact adjoint rationals (the ``srmech_the_one`` output /
+    :meth:`One.to_flat_rational` order) into the three Hurwitz :class:`Block` s —
+    ``[ℝ·1, Im]`` per block, ℂ (2) then ℍ (4) then 𝕆 (8)."""
+    out = []
+    lo = 0
+    for idx, d in enumerate(IMAG_DIMS):          # d = 1, 3, 7
+        seg = flat[lo:lo + 1 + d]                # [real, *imag]
+        out.append(Block(
+            algebra=ALGEBRAS[idx],
+            n=idx + 1,
+            real=tuple(seg[0]),
+            imag=tuple(tuple(x) for x in seg[1:]),
+            an_imag_slots=AN_IMAG_SLOTS[idx],
+        ))
+        lo += 1 + d
+    return (out[0], out[1], out[2])
+
+
+def _adjoint_blocks_pure(sigma: int, theta_num: int, theta_den: int,
+                         terms: int) -> Tuple[Block, Block, Block]:
+    """The pure-Python exact-rational adjoint tiling — the COMPLETE alternative
+    to (and the parity oracle for) the ``srmech_the_one`` C peer.
+
+    ``e^{Î_n θ} = cos θ + Î_n sin θ`` (exact Class-N partials) tiled by the fixed
+    Fano-plane orientations; ``σ`` is the Class-K/C chirality. Byte-identical to
+    the native flat."""
+    cos_t = cos_series_truncate(theta_num, theta_den, terms)
+    sin_t = sin_series_truncate(theta_num, theta_den, terms)
+    blocks = []
+    for idx, d in enumerate(IMAG_DIMS):          # d = 1, 3, 7  (n = idx+1)
+        planes = FANO_PLANES[idx]
+        imag = [(0, 1)] * d
+        # The state is the seed e₁ (octonion index 1 → imag index 0) under
+        # σ·R_n(θ). e₁ lies in exactly one Fano plane (a=1) — or, for ℂ, it
+        # IS the rotation axis and is fixed (θ-inert; only σ).
+        host = next(((a, b, s) for (a, b, s) in planes if a == 1), None)
+        if host is None:
+            imag[0] = _chiral_scale((1, 1), sigma)          # ℂ: σ only
+        else:
+            _, b, s = host                                   # e₁ → cosθ e₁ + s·sinθ e_b
+            imag[0] = _chiral_scale(cos_t, sigma)            # σ cos θ on e₁
+            imag[b - 1] = _chiral_scale(sin_t, sigma * s)    # σ·s sin θ on e_b
+        blocks.append(Block(
+            algebra=ALGEBRAS[idx],
+            n=idx + 1,
+            real=(1, 1),
+            imag=tuple(imag),
+            an_imag_slots=AN_IMAG_SLOTS[idx],
+        ))
+    return (blocks[0], blocks[1], blocks[2])
+
+
 def the_one(sigma: int,
             theta_num: int,
             theta_den: int = 1,
@@ -679,17 +763,14 @@ def the_one(sigma: int,
         raise ValueError(f"theta_den must be positive; got {theta_den}")
     winding = _validate_winding(w)
 
-    # e^{Î_n θ} = cos θ + Î_n sin θ — exact-rational Class-N partials. This is
-    # the ADJOINT (full-angle, 2π-periodic) rotation → the w-INVARIANT base.
-    cos_t = cos_series_truncate(theta_num, theta_den, terms)
-    sin_t = sin_series_truncate(theta_num, theta_den, terms)
-
     # The SPINOR total space (half-angle, 4π-periodic): cos(θ/2) + Î sin(θ/2),
     # exact-rational via the SAME Class-N series at θ/2 (denominator doubled).
     # The winding lifts SO→Spin: ONE full winding multiplies the spinor by −1
     # (the (−1)^Σw double cover; 2 windings restore). σ is the imaginary
     # chirality. The adjoint (blocks / to_matrix) is this spinor's w-invariant
-    # SO projection q → R(q) = R(θ) — so it never sees the winding sign.
+    # SO projection q → R(q) = R(θ) — so it never sees the winding sign. The
+    # spinor is the SEPARATE winding surface (gh#1276), unaffected by the rc138
+    # adjoint C peer; it stays pure.
     half_cos = cos_series_truncate(theta_num, 2 * theta_den, terms)   # cos(θ/2)
     half_sin = sin_series_truncate(theta_num, 2 * theta_den, terms)   # sin(θ/2)
     dc_sign = 1 if _sum_triad(winding) % 2 == 0 else -1               # (−1)^Σw
@@ -698,33 +779,22 @@ def the_one(sigma: int,
         _chiral_scale(half_sin, sigma * dc_sign),    # σ·(−1)^Σw · sin(θ/2)
     )
 
-    blocks = []
-    for idx, d in enumerate(IMAG_DIMS):          # d = 1, 3, 7  (n = idx+1)
-        planes = FANO_PLANES[idx]
-        imag = [(0, 1)] * d
-        # The state is the seed e₁ (octonion index 1 → imag index 0) under
-        # σ·R_n(θ). e₁ lies in exactly one Fano plane (a=1) — or, for ℂ, it
-        # IS the rotation axis and is fixed (θ-inert; only σ).
-        host = next(((a, b, s) for (a, b, s) in planes if a == 1), None)
-        if host is None:
-            imag[0] = _chiral_scale((1, 1), sigma)          # ℂ: σ only
-        else:
-            _, b, s = host                                   # e₁ → cosθ e₁ + s·sinθ e_b
-            imag[0] = _chiral_scale(cos_t, sigma)            # σ cos θ on e₁
-            imag[b - 1] = _chiral_scale(sin_t, sigma * s)    # σ·s sin θ on e_b
-        blocks.append(Block(
-            algebra=ALGEBRAS[idx],
-            n=idx + 1,
-            real=(1, 1),
-            imag=tuple(imag),
-            an_imag_slots=AN_IMAG_SLOTS[idx],
-        ))
+    # The 14 exact ADJOINT rationals (e^{Î_n θ} = cos θ + Î_n sin θ tiled by the
+    # Fano planes — the w-INVARIANT 2π-periodic base). The C peer srmech_the_one
+    # composes cos/sin_series_truncate_big + the tiling in ONE call (rc138 #743),
+    # BYTE-IDENTICAL to the pure tiling + w-blind (never sees the winding).
+    # HAS_NATIVE off → the complete pure path (the parity oracle).
+    flat = _the_one_native_flat(sigma, theta_num, theta_den, terms)
+    if flat is not None:
+        blocks = _blocks_from_flat(flat)
+    else:
+        blocks = _adjoint_blocks_pure(sigma, theta_num, theta_den, terms)
 
     return One(
         sigma=sigma,
         theta=_reduce_rational(theta_num, theta_den),
         terms=terms,
-        blocks=(blocks[0], blocks[1], blocks[2]),
+        blocks=blocks,
         winding=winding,
         spinor=spinor,
     )
@@ -805,10 +875,13 @@ def to_scalar(one: "One",
                 acc_num * t_den + t_num * acc_den, acc_den * t_den)
         num, den = acc_num, acc_den
     elif mode == "trace":
-        # Tr G(σ,θ) = 3 + 3σ + 8σ·cos θ — the rotation character. cos θ is the
-        # SAME Class-N catalog primitive (trigonometry / asymptotic_calculus),
-        # so this scalar is correct iff that catalog cos is correct.
-        cn, cd = cos_series_truncate(one.theta[0], one.theta[1], one.terms)
+        # Tr G(σ,θ) = 3 + 3σ + 8σ·cos θ — the rotation character. cos θ is
+        # recovered from the stored ADJOINT (σ·cos at ``blocks[1].imag[0]``,
+        # the ℍ Fano plane; un-apply σ via the Class-K/C :func:`_chiral_scale`),
+        # so this scalar is c_dispatched exactly as :meth:`One.to_flat_rational`
+        # is (the ``srmech_the_one`` output when HAS_NATIVE; rc138 #743) — the
+        # SAME exact rational the pure Class-N cos would give.
+        cn, cd = _chiral_scale(one.blocks[1].imag[0], one.sigma)
         s = one.sigma
         num, den = _reduce_rational((3 + 3 * s) * cd + 8 * s * cn, cd)
     else:

@@ -1,7 +1,7 @@
 """§60 / F864 standalone-C MT19937 for ``klein4_random`` (0.9.0rc6).
 
 ``klein4_random``'s deterministic integer-seed path graduates from
-``python_only_irreducible`` to ``c_dispatched``: a native ``srmech_klein4_random``
+``python_only_debt`` to ``c_dispatched``: a native ``srmech_klein4_random``
 reproduces CPython ``random.Random(seed).randrange(4)`` BYTE-FOR-BYTE (MT19937
 seeded by ``init_by_array`` over the seed's little-endian uint32 words; each draw
 = ``getrandbits(3)`` with rejection of >= 4). With it the §60 byte/glyph encoder
