@@ -196,3 +196,20 @@ def test_genome_store_add_kernel_o1_teach_rc123():
     import pytest
     with pytest.raises(ValueError):
         GS.add_kernel(d, "bad", hdc.klein4_random(8000, seed=7))  # 8000 % 256 != 0
+
+
+def test_photosynth_excite_propagate_harvest_rc132():
+    """F1060: the excite->propagate->harvest inference mode (inference IS photosynthesis / synaptic).
+    A query EXCITES its landing kernel, the heat kernel e^{-tL} PROPAGATES (powered by L = the graph
+    Hamiltonian / the organelle), and the answer is HARVESTED at the reaction center (top energy)."""
+    from siona import photosynth as P
+    s = siona.Session()
+    inst = P.from_session(s, limit=60)
+    # the reaction center of a well-posed query is the query's own kernel; the harvest is energy-graded
+    harvest = inst.excite_propagate_harvest("normalized laplacian of a graph", grounder=s.g, t=0.4, top=6)
+    assert harvest, "empty harvest"
+    labels = [l for l, _ in harvest]
+    assert labels[0] == "normalized_laplacian", labels          # reaction center = the answer
+    assert harvest[0][1] > harvest[-1][1] > 0                    # graded (energy descending, positive)
+    # graph-aware: the harvest pulls in a RELATIONAL neighbor (another laplacian op), not just the seed
+    assert any("laplacian" in l for l in labels[1:]) or any("cut" in l or "adjacency" in l for l in labels[1:]), labels
