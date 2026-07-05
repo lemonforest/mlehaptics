@@ -52,6 +52,7 @@ from typing import Dict, List, Tuple
 # ``lstsq`` / ``eigvals`` delegate to ``mat_svd`` / ``mat_lstsq`` / ``mat_eigvals``;
 # ``qr`` is a list-based Householder; ``einsum`` is the nested-list
 # index-iteration definition. There is NO ``import numpy`` anywhere here.
+from srmech.amsc import _native as _native  # rc140: real QR/SVD C dispatch (F2)
 from srmech.amsc.mat import Mat as _Mat
 from srmech.amsc.vec import Vec as _Vec  # rc131: 1-D carrier for singular values / vector solutions / eigenvalues
 from srmech.amsc.laplacian import (
@@ -160,8 +161,22 @@ def qr(a, *, mode: str = "reduced") -> Tuple["_Mat", "_Mat"]:
     n = len(R[0]) if m else 0
     if any(len(r) != n for r in R):
         raise ValueError("qr: a must be a rectangular 2-D array-like")
-    Q = [[1 + 0j if i == j else 0j for j in range(m)] for i in range(m)]
     k = min(m, n)
+    # rc140 (Foundation F2): a REAL input dispatches to the native Householder
+    # ``srmech_qr_f64`` (direct, no iteration). ``qr_f64_c`` returns ``None`` on
+    # a no-C host → the pure list-Householder below runs (the complete
+    # alternative + parity oracle). Complex input stays on the list-Householder.
+    if not _input_is_complex(a) and m > 0 and n > 0:
+        native = _native.qr_f64_c([[R[i][j].real for j in range(n)]
+                                   for i in range(m)])
+        if native is not None:
+            Qf, Rf = native                       # Q (m,m) real, R (m,n) real
+            if mode == "reduced":
+                Qf = [[Qf[i][c] for c in range(k)] for i in range(m)]  # (m, k)
+                Rf = [Rf[i][:n] for i in range(k)]                     # (k, n)
+            return (_Mat.from_rows(Qf, is_complex=False),
+                    _Mat.from_rows(Rf, is_complex=False))
+    Q = [[1 + 0j if i == j else 0j for j in range(m)] for i in range(m)]
     for j in range(k):
         x = [R[i][j] for i in range(j, m)]            # column j, rows j..m-1
         normx = _norm2(x)
@@ -261,6 +276,44 @@ def svd(a, *, full_matrices: bool = False) -> Tuple["_Mat", "_Vec", "_Mat"]:
             _Mat.from_rows(Vh, is_complex=True))
 
 
+def _qr_lstsq_real(a_real, b_real):
+    """Real least-squares ``min‖A x − b‖`` via the native QR (Foundation F2).
+
+    ``a_real`` is ``(m, n)`` (``m ≥ n``), ``b_real`` is ``(m, w)`` — both nested
+    ``float`` lists. Returns the ``(n, w)`` solution as nested ``complex`` lists
+    (imag 0) so the caller's carrier-format assembly is unchanged, OR ``None``
+    when the native QR is absent OR ``R`` is rank-deficient (a zero diagonal
+    pivot) — the caller then falls back to the pure normal-equations solve.
+
+    Method (Golub & Van Loan §5.3.3): ``A = Q·R`` (reduced), then ``x`` solves
+    the upper-triangular ``R x = Qᵀ b`` by back-substitution — the **{QR}**
+    factorisation ∘ **Class M** (the ``Qᵀ b`` product) ∘ **Class I** (the
+    ordered triangular solve)."""
+    native = _native.qr_f64_c(a_real)
+    if native is None:
+        return None
+    Q, R = native                                      # Q (m, m), R (m, n) real
+    m = len(a_real)
+    n = len(a_real[0]) if m else 0
+    w = len(b_real[0]) if b_real else 0
+    # Reduced factors: thin Q (m, n) columns, R (n, n) upper-triangular block.
+    for i in range(n):
+        if R[i][i] == 0.0:
+            return None                                # rank-deficient → pure path
+    x_rows = [[0j] * w for _ in range(n)]
+    for c in range(w):
+        # y = Qᵀ b[:, c]  (length n) — Class M projection onto the thin Q columns.
+        y = [sum(Q[r][j] * b_real[r][c] for r in range(m)) for j in range(n)]
+        # Back-substitution R x = y (Class I: ordered triangular solve).
+        x = [0.0] * n
+        for i in range(n - 1, -1, -1):
+            acc = y[i] - sum(R[i][j] * x[j] for j in range(i + 1, n))
+            x[i] = acc / R[i][i]
+        for i in range(n):
+            x_rows[i][c] = complex(x[i])
+    return x_rows
+
+
 def lstsq(a, b):
     """Least-squares solution of ``A x = b`` (minimising ``‖A x − b‖``), numpy-free.
 
@@ -292,10 +345,24 @@ def lstsq(a, b):
     else:
         b_rows = [[complex(v) for v in r] for r in b_list]
     is_cx = _input_is_complex(a) or _input_is_complex(b)
-    A_mat = _Mat.from_rows(arows, is_complex=is_cx)
-    B_mat = _Mat.from_rows(b_rows, is_complex=is_cx)
-    X = _mat_lstsq(A_mat, B_mat)                        # Mat (n, w)
-    x_rows = [[complex(X[i, j]) for j in range(X.n_cols)] for i in range(X.n_rows)]
+    # rc140 (Foundation F2): the REAL overdetermined/square path routes through
+    # the native QR (``srmech_qr_f64``) — the numerically-preferred least-squares
+    # method (Golub & Van Loan §5.3.3: solve ``R x = Qᵀ b``, more stable than the
+    # normal equations, which square κ). A rank-deficient ``R`` (zero pivot) or a
+    # no-C host returns ``None`` from ``_qr_lstsq_real`` → the pure normal-
+    # equations ``mat_lstsq`` runs (the complete alternative + parity oracle).
+    x_rows = None
+    if not is_cx and m > 0 and n > 0:
+        x_rows = _qr_lstsq_real(
+            [[arows[i][j].real for j in range(n)] for i in range(m)],
+            [[b_rows[i][j].real for j in range(len(b_rows[0]))] for i in range(m)],
+        )
+    if x_rows is None:
+        A_mat = _Mat.from_rows(arows, is_complex=is_cx)
+        B_mat = _Mat.from_rows(b_rows, is_complex=is_cx)
+        X = _mat_lstsq(A_mat, B_mat)                    # Mat (n, w)
+        x_rows = [[complex(X[i, j]) for j in range(X.n_cols)]
+                  for i in range(X.n_rows)]
     real_out = (not _input_is_complex(a) and not _input_is_complex(b)
                 and _all_imag_zero(x_rows))
     # rc131 carrier-format law: 1-D solution → Vec, 2-D stack of solutions → Mat.

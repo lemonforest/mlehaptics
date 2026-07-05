@@ -2056,15 +2056,33 @@ def mat_svd(a: "Mat") -> Tuple["Mat", List[float], "Mat"]:
     if m == 0 or n == 0:
         raise ValueError(f"mat_svd: A must be a non-empty 2-D matrix; got {a.shape}")
 
-    # Right singular vectors = eigenvectors of the Hermitian PSD Gram AᴴA (n×n).
-    ah = a.conj().T                                   # Aᴴ (n, m) — Class-K conj ∘ T
-    aha = mat_matmul(ah, a)                           # (n, n) Hermitian PSD
-    evals, V = mat_hermitian_eigendecompose(aha)      # λ (n,1) ascending; V (n,n) unitary
-    lam = [float(evals[i, 0]) for i in range(n)]
-    order = sorted(range(n), key=lambda i: lam[i], reverse=True)   # descending λ → σ
-    # V columns reordered descending; vcols[j] is the j-th right singular vector.
-    vcols = [[V[i, order[j]] for i in range(n)] for j in range(n)]
-    sigma = [_fsqrt(lam[order[j]] if lam[order[j]] > 0.0 else 0.0) for j in range(n)]
+    # Descending singular values ``sigma`` (len n) + right singular vectors
+    # ``vcols[j]``. rc140 (Foundation F2): a REAL, tall/square (m>=n) input
+    # dispatches to the native one-sided-Jacobi ``srmech_svd_f64`` — a directly-
+    # computed SVD that does NOT square the condition number (contrast the Gram
+    # AᴴA eigen-route below). The native kernel returns a NOT-converged status
+    # on a (rare) sweep-cap miss, in which case ``svd_f64_c`` returns ``None``
+    # and we fall through to the pure Gram route (never a silent wrong answer).
+    sigma = None
+    vcols = None
+    if (not a.is_complex) and m >= n:
+        native = _native.svd_f64_c(
+            [[float(a[i, j]) for j in range(n)] for i in range(m)]
+        )
+        if native is not None:
+            sigma, vcols = native                     # sigma desc (n); vcols[j] (n)
+    if sigma is None:
+        # Gram-eigen route: right singular vectors = eigenvectors of the
+        # Hermitian PSD Gram AᴴA (n×n) — the COMPLETE alternative (complex input,
+        # m<n, no-C host, or a non-converged native sweep).
+        ah = a.conj().T                               # Aᴴ (n, m) — Class-K conj ∘ T
+        aha = mat_matmul(ah, a)                       # (n, n) Hermitian PSD
+        evals, V = mat_hermitian_eigendecompose(aha)  # λ (n,1) asc; V (n,n) unitary
+        lam = [float(evals[i, 0]) for i in range(n)]
+        order = sorted(range(n), key=lambda i: lam[i], reverse=True)  # desc λ → σ
+        vcols = [[V[i, order[j]] for i in range(n)] for j in range(n)]
+        sigma = [_fsqrt(lam[order[j]] if lam[order[j]] > 0.0 else 0.0)
+                 for j in range(n)]
     k = min(m, n)
     S = [sigma[j] for j in range(k)]
 

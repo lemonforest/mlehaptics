@@ -290,11 +290,11 @@
 {"exposed_as": "srmech.signal_processing.unlock_dispatch_table", "defined_at": "srmech.signal_processing.cascade_dispatcher.unlock_dispatch_table", "bucket": "non_compute"}
 {"exposed_as": "srmech.amsc.cascade.hypercomplex_couple", "defined_at": "srmech.amsc.cascade.hypercomplex_dft.hypercomplex_couple", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.hypercomplex_exp", "defined_at": "srmech.amsc.cascade.hypercomplex_dft.hypercomplex_exp", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.cascade.matrix_cascades.eigvals", "defined_at": "srmech.amsc.cascade.matrix_cascades.eigvals", "bucket": "python_only_debt"}
+{"exposed_as": "srmech.amsc.cascade.matrix_cascades.eigvals", "defined_at": "srmech.amsc.cascade.matrix_cascades.eigvals", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.einsum", "defined_at": "srmech.amsc.cascade.matrix_cascades.einsum", "bucket": "python_only_debt"}
-{"exposed_as": "srmech.amsc.cascade.matrix_cascades.lstsq", "defined_at": "srmech.amsc.cascade.matrix_cascades.lstsq", "bucket": "python_only_debt"}
-{"exposed_as": "srmech.amsc.cascade.matrix_cascades.qr", "defined_at": "srmech.amsc.cascade.matrix_cascades.qr", "bucket": "python_only_debt"}
-{"exposed_as": "srmech.amsc.cascade.matrix_cascades.svd", "defined_at": "srmech.amsc.cascade.matrix_cascades.svd", "bucket": "python_only_debt"}
+{"exposed_as": "srmech.amsc.cascade.matrix_cascades.lstsq", "defined_at": "srmech.amsc.cascade.matrix_cascades.lstsq", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.cascade.matrix_cascades.qr", "defined_at": "srmech.amsc.cascade.matrix_cascades.qr", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.cascade.matrix_cascades.svd", "defined_at": "srmech.amsc.cascade.matrix_cascades.svd", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.octonion_dft", "defined_at": "srmech.amsc.cascade.hypercomplex_dft.octonion_dft", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.phase_coherent_peak", "defined_at": "srmech.amsc.cascade.hypercomplex_dft.phase_coherent_peak", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.quaternion_dft", "defined_at": "srmech.amsc.cascade.hypercomplex_dft.quaternion_dft", "bucket": "c_dispatched"}
@@ -382,7 +382,7 @@
 {"exposed_as": "srmech.signal_processing.closed_form_ops.beamforming_fixed.op", "defined_at": "srmech.signal_processing.closed_form_ops.beamforming_fixed.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.cross_spectral.op", "defined_at": "srmech.signal_processing.closed_form_ops.cross_spectral.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.dct.op", "defined_at": "srmech.signal_processing.closed_form_ops.dct.op", "bucket": "python_only_debt"}
-{"exposed_as": "srmech.signal_processing.closed_form_ops.esprit.op", "defined_at": "srmech.signal_processing.closed_form_ops.esprit.op", "bucket": "python_only_debt"}
+{"exposed_as": "srmech.signal_processing.closed_form_ops.esprit.op", "defined_at": "srmech.signal_processing.closed_form_ops.esprit.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.farrow.op", "defined_at": "srmech.signal_processing.closed_form_ops.farrow.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.fft.op", "defined_at": "srmech.signal_processing.closed_form_ops.fft.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.fir.op", "defined_at": "srmech.signal_processing.closed_form_ops.fir.op", "bucket": "python_only_debt"}
@@ -393,9 +393,9 @@
 {"exposed_as": "srmech.signal_processing.closed_form_ops.iir.op", "defined_at": "srmech.signal_processing.closed_form_ops.iir.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.jpeg.op", "defined_at": "srmech.signal_processing.closed_form_ops.jpeg.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.lz77.op", "defined_at": "srmech.signal_processing.closed_form_ops.lz77.op", "bucket": "python_only_debt"}
-{"exposed_as": "srmech.signal_processing.closed_form_ops.map_ml.op", "defined_at": "srmech.signal_processing.closed_form_ops.map_ml.op", "bucket": "python_only_debt"}
+{"exposed_as": "srmech.signal_processing.closed_form_ops.map_ml.op", "defined_at": "srmech.signal_processing.closed_form_ops.map_ml.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.matched_filter.op", "defined_at": "srmech.signal_processing.closed_form_ops.matched_filter.op", "bucket": "python_only_debt"}
-{"exposed_as": "srmech.signal_processing.closed_form_ops.mimo_svd.op", "defined_at": "srmech.signal_processing.closed_form_ops.mimo_svd.op", "bucket": "python_only_debt"}
+{"exposed_as": "srmech.signal_processing.closed_form_ops.mimo_svd.op", "defined_at": "srmech.signal_processing.closed_form_ops.mimo_svd.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.mlse.op", "defined_at": "srmech.signal_processing.closed_form_ops.mlse.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.mlse.viterbi_op", "defined_at": "srmech.signal_processing.closed_form_ops.viterbi.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.multirate.op", "defined_at": "srmech.signal_processing.closed_form_ops.multirate.op", "bucket": "python_only_debt"}
