@@ -172,6 +172,80 @@ def _chiral_scale(r: Tuple[int, int], sigma: int) -> Tuple[int, int]:
     return _reduce_rational(-num, den)
 
 
+#: The identity spinor ``1 + Î·0`` (θ = 0, w = 0) — the default half-angle state.
+_IDENTITY_SPINOR: Tuple[Tuple[int, int], Tuple[int, int]] = ((1, 1), (0, 1))
+
+#: The default winding triad — the three metacycle dials filling the B/H/N
+#: ℝ·1 anchors, at rest (no winding).
+_ZERO_WINDING: Tuple[int, int, int] = (0, 0, 0)
+
+#: The Antikythera back-panel metacycle names for the three winding scales, in
+#: the fast→slow nesting order that fills the B/H/N grammar anchors (R31 confirmed
+#: these dials are the projection-enablers of the 1:3:7:3 substrate).
+METACYCLE_NAMES: Tuple[str, str, str] = ("saros", "metonic", "callippic")
+
+
+def winding_tower(w: int) -> Tuple[int, ...]:
+    """The **divmod-recursive binary tower** of a WHOLE winding ``w`` — the
+    ``(ℤ/2)^d`` hypercube / Cayley–Dickson doubling coordinate (the closed-form
+    chirality-grading readout that #1276 needs).
+
+    ``divmod(w, 2) = (carry, bit)`` keeps **BOTH** pieces — the ℤ/2 **GRADING**
+    (``bit`` = the chirality at this doubling level; ``carry`` = the retained
+    ``2q``, ``2q + bit = w``). RECURSE on the ``carry`` → the full binary
+    expansion, one σ-bit per level: ``w`` = the hypercube address, each
+    doubling ``(a, b)`` contributing a new chirality bit ``b`` (unbounded past
+    the Hurwitz ``n ≤ 3`` rung — the doubling continues where division fails).
+
+    This is the **anti-collapse** of the quotient map ``w mod 2`` (ℤ → ℤ/2),
+    which keeps only bit 0 and MELDS ``w = 5 ≡ w = 7 ≡ 1`` — re-introducing the
+    exact fold gh#1276 exists to avoid. The full tower **DISTINGUISHES**
+    ``winding_tower(5) == (1, 0, 1)`` from ``winding_tower(7) == (1, 1, 1)``
+    (the grading is KEPT, not thrown away).
+
+    Sign is a **Class-K pin** (a retrograde/negative winding is the Class-C
+    orientation reversal ``-w``, never an ALU ``abs()`` per
+    ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``); the tower is
+    over the magnitude, its orientation carried by the caller (σ /
+    :meth:`One.sigma_effective`). ``w = 0`` → the empty tower ``()``.
+
+    Bit order is LSB-first, so ``sum(bit << i for i, bit in enumerate(tower))``
+    reconstructs the magnitude exactly (lossless).
+    """
+    if not isinstance(w, int) or isinstance(w, bool):
+        raise TypeError(f"winding_tower: w must be int; got {type(w).__name__}")
+    # Class-K sign pin (no abs): split magnitude from orientation via a branch;
+    # a retrograde winding negates (Class C), it does not abs().
+    m = w if w >= 0 else -w
+    bits = []
+    while m > 0:
+        m, bit = divmod(m, 2)      # divmod keeps BOTH the carry AND the grading bit
+        bits.append(bit)
+    return tuple(bits)
+
+
+def _sum_triad(w: Tuple[int, int, int]) -> int:
+    """The whole-ℤ sum of the three winding components (never mod-collapsed)."""
+    return w[0] + w[1] + w[2]
+
+
+def _validate_winding(w) -> Tuple[int, int, int]:
+    """Coerce/validate the winding triad — exactly three whole ``int`` windings
+    (a full ℤ each; carried WHOLE, never ``% 2``)."""
+    if not isinstance(w, (tuple, list)) or len(w) != 3:
+        raise ValueError(
+            f"w (winding) must be a length-3 triad (w_saros, w_metonic, "
+            f"w_callippic); got {w!r}")
+    out = []
+    for i, wk in enumerate(w):
+        if not isinstance(wk, int) or isinstance(wk, bool):
+            raise TypeError(
+                f"w[{i}] (winding component) must be int; got "
+                f"{type(wk).__name__}")
+        out.append(wk)
+    return (out[0], out[1], out[2])
+
+
 @dataclass(frozen=True)
 class Block:
     """One Hurwitz block ``ℝ·1 ⊕ σ e^{Î_n θ} Im 𝔸_n`` of ``S(σ,θ)``.
@@ -235,6 +309,18 @@ class One:
     theta: Tuple[int, int]
     terms: int
     blocks: Tuple[Block, Block, Block]
+    #: The winding TRIAD ``(w_saros, w_metonic, w_callippic)`` — three whole-ℤ
+    #: metacycle windings filling the three ℝ·1 grammar anchors (B/H/N). Carried
+    #: WHOLE (never ``% 2``); the divmod binary-tower grading is read by
+    #: :meth:`winding_tower` / :meth:`sigma_effective` (gh#1276). Default: at rest.
+    winding: Tuple[int, int, int] = _ZERO_WINDING
+    #: The SPINOR (half-angle) total-space state ``(scalar, Î-coeff)`` =
+    #: ``((−1)^Σw·cos(θ/2), σ·(−1)^Σw·sin(θ/2))`` as exact rationals — the
+    #: genuine double-cover (4π-periodic) object the winding lifts SO→Spin into.
+    #: :meth:`to_flat_rational` / :meth:`to_matrix` are its w-INVARIANT adjoint
+    #: (SO) projection ``q → R(q)`` (the 2π-periodic base; the winding folds away
+    #: there, fiber-spatially-absent). Default: the identity spinor ``1 + Î·0``.
+    spinor: Tuple[Tuple[int, int], Tuple[int, int]] = _IDENTITY_SPINOR
 
     # ── invariants (documentary + checkable) ──────────────────────────
     @property
@@ -344,18 +430,106 @@ class One:
         """
         return to_scalar(self, mode=mode, index=index, as_float=as_float)
 
+    # ── the winding surface — read from the spinor total space (gh#1276) ──
+    #
+    # The adjoint base (:meth:`to_flat_rational` / :meth:`to_matrix`) is
+    # 2π-periodic → w-BLIND: it FOLDS the winding away. These readouts recover
+    # the metacycle-fold the base can't reach, from the spinor total space.
+
+    @property
+    def spinor_sign(self) -> int:
+        """The double-cover sign ``(−1)^Σw`` the spinor carries (Class-K ±1).
+
+        The genuine Spin→SO 2:1 lift: ONE full winding flips the spinor sign
+        (``q → −q``), TWO restore it (``q → q``) — 2 windings = 1 identity cycle
+        at 4π. This IS ℤ/2 on the *sign* (correct double-cover physics), while
+        the winding itself is carried WHOLE in :attr:`winding` (no collapse).
+        """
+        return 1 if _sum_triad(self.winding) % 2 == 0 else -1
+
+    def winding_tower(self) -> Tuple[Tuple[int, ...], Tuple[int, ...], Tuple[int, ...]]:
+        """The per-component **divmod binary-tower** grading of the winding triad
+        — ``(tower(w_saros), tower(w_metonic), tower(w_callippic))``.
+
+        Each tower is :func:`winding_tower` on a WHOLE component: the
+        ``(ℤ/2)^d`` hypercube / Cayley–Dickson doubling coordinate, the GRADING
+        kept (not the melding ``w mod 2``). ``w = (5, …)`` → ``(1, 0, 1)`` and
+        ``w = (7, …)`` → ``(1, 1, 1)`` are DISTINGUISHED.
+        """
+        return tuple(winding_tower(wk) for wk in self.winding)
+
+    def sigma_effective(self) -> int:
+        """The chirality READOUT via the winding's binary TOWER — **NOT** a bare
+        ``w mod 2``.
+
+        ``σ`` modulated by the parity of the FULL popcount across the triad's
+        towers (every graded bit counts), so it inherits the anti-collapse: the
+        quotient map ``w mod 2`` keeps only bit 0 (``5 ≡ 7 ≡ 1``), but the
+        popcount over the whole tower DISTINGUISHES ``w = 5`` (popcount 2 → even)
+        from ``w = 7`` (popcount 3 → odd). Returns ``±1`` (the Class-K sign, no
+        ``abs()``). At ``w = (0,0,0)`` this is exactly ``σ`` (back-compat).
+        """
+        total_bits = 0
+        for wk in self.winding:
+            total_bits += sum(winding_tower(wk))   # popcount over the whole tower
+        # Class-K/C: σ · (−1)^popcount — tower-graded chirality, no bare `w % 2`.
+        return self.sigma if total_bits % 2 == 0 else -self.sigma
+
+    def trace_spinor(self, *, as_float: bool = False):
+        """The half-angle **spinor character** ``2·(−1)^Σw·cos(θ/2)`` — the
+        double-cover read a full-angle (2π-periodic) object CAN'T show.
+
+        The full-angle rotation character (:meth:`to_scalar` ``mode="trace"``)
+        is ``3 + 3σ + 8σ·cos θ`` — 2π-periodic, so w-blind. The SU(2)-style
+        half-angle character ``2·cos(θ/2)`` is 4π-periodic: the winding lift
+        multiplies it by ``(−1)^Σw`` (flips at odd total winding, restores at
+        even). Exact ``(num, den)`` by default; ``as_float=True`` = the single
+        terminal cast (no numpy). The SAME Class-N ``cos_series_truncate`` the
+        ``calculus`` catalog validates (no forked trig path).
+        """
+        sc_num, sc_den = self.spinor[0]            # (−1)^Σw · cos(θ/2)
+        num, den = _reduce_rational(2 * sc_num, sc_den)
+        if as_float:
+            return num / den
+        return (num, den)
+
+    def unwrapped_phase(self):
+        """The per-metacycle-scale **LOSSLESS** unwrapped phase ``2π·w_k + θ`` —
+        the metacycle crank a θ-only object can't reach.
+
+        A θ-only object is 2π-periodic → it folds the winding away. Carrying
+        ``w`` keeps the full integer turns, so the total phase is reconstructable
+        EXACTLY: ``angle_k = 2π·turns + θ`` (π stays a *cascade* — the residual
+        θ is the exact ``(num, den)``, never a float). Reaches the N=2
+        doubled-period / subharmonic (the spinor half-angle) — the EPH #1274
+        resolvent tie. Returns one JSON-native dict per B/H/N anchor.
+        """
+        tn, td = self.theta
+        out = []
+        for k, wk in enumerate(self.winding):
+            out.append({
+                "anchor": GRAMMAR_SLOTS[k],          # B / H / N
+                "metacycle": METACYCLE_NAMES[k],     # saros / metonic / callippic
+                "turns": wk,                         # full 2π turns, WHOLE ℤ
+                "theta_num": tn,
+                "theta_den": td,
+            })
+        return out
+
     def __repr__(self) -> str:  # pragma: no cover - cosmetic
         return (
             f"One(sigma={self.sigma:+d}, theta={self.theta}, "
-            f"terms={self.terms}, dim={self.dim}, partition={self.partition})"
+            f"terms={self.terms}, dim={self.dim}, partition={self.partition}, "
+            f"winding={self.winding})"
         )
 
 
 def the_one(sigma: int,
             theta_num: int,
             theta_den: int = 1,
-            terms: int = DEFAULT_TERMS) -> One:
-    """Build **the One** — ``S(σ,θ)`` — exact-rational and numpy-free.
+            terms: int = DEFAULT_TERMS,
+            w: Tuple[int, int, int] = _ZERO_WINDING) -> One:
+    """Build **the One** — ``S(σ,θ,w)`` — exact-rational and numpy-free.
 
     Parameters
     ----------
@@ -369,12 +543,23 @@ def the_one(sigma: int,
     terms : int
         Class-N Taylor truncation depth for ``cos``/``sin`` (default
         :data:`DEFAULT_TERMS`; exact-rational at any depth).
+    w : tuple[int, int, int]
+        The **winding TRIAD** ``(w_saros, w_metonic, w_callippic)`` — three
+        whole-ℤ metacycle windings filling the three ℝ·1 grammar anchors
+        (B/H/N; the Antikythera back-panel dials). Default ``(0, 0, 0)``
+        (at rest → byte-identical to the pre-winding One). Lifts SO→Spin (the
+        double cover): the stored :attr:`One.spinor` is the half-angle
+        (4π-periodic) object, whose adjoint projection (:meth:`One.to_matrix` /
+        :meth:`One.to_flat_rational`) is the w-INVARIANT 2π-periodic base
+        (the winding folds away there — fiber-spatially-absent). Carried WHOLE
+        (never ``% 2``); its divmod binary-tower chirality is read by
+        :meth:`One.winding_tower` / :meth:`One.sigma_effective` (gh#1276).
 
     Returns
     -------
     One
         The structured generator: three :class:`Block` s tiling
-        ``1+3+7+3 = 14``.
+        ``1+3+7+3 = 14``, plus the winding triad + the spinor total-space state.
 
     Examples
     --------
@@ -389,6 +574,10 @@ def the_one(sigma: int,
     ((1, 1),)
     >>> the_one(-1, 99, 100).n1_is_sigma_only   # n=1 = σ at any θ
     True
+    >>> the_one(+1, 0, 1, w=(5, 0, 0)).winding_tower()[0]   # 5 = the graded tower
+    (1, 0, 1)
+    >>> the_one(+1, 0, 1, w=(1, 0, 0)).spinor_sign          # 1 winding flips
+    -1
     """
     if sigma != 1 and sigma != -1:
         raise ValueError(f"sigma (chirality) must be +1 or -1; got {sigma!r}")
@@ -396,10 +585,26 @@ def the_one(sigma: int,
         raise TypeError("theta_num and theta_den must be int")
     if theta_den <= 0:
         raise ValueError(f"theta_den must be positive; got {theta_den}")
+    winding = _validate_winding(w)
 
-    # e^{Î_n θ} = cos θ + Î_n sin θ — exact-rational Class-N partials.
+    # e^{Î_n θ} = cos θ + Î_n sin θ — exact-rational Class-N partials. This is
+    # the ADJOINT (full-angle, 2π-periodic) rotation → the w-INVARIANT base.
     cos_t = cos_series_truncate(theta_num, theta_den, terms)
     sin_t = sin_series_truncate(theta_num, theta_den, terms)
+
+    # The SPINOR total space (half-angle, 4π-periodic): cos(θ/2) + Î sin(θ/2),
+    # exact-rational via the SAME Class-N series at θ/2 (denominator doubled).
+    # The winding lifts SO→Spin: ONE full winding multiplies the spinor by −1
+    # (the (−1)^Σw double cover; 2 windings restore). σ is the imaginary
+    # chirality. The adjoint (blocks / to_matrix) is this spinor's w-invariant
+    # SO projection q → R(q) = R(θ) — so it never sees the winding sign.
+    half_cos = cos_series_truncate(theta_num, 2 * theta_den, terms)   # cos(θ/2)
+    half_sin = sin_series_truncate(theta_num, 2 * theta_den, terms)   # sin(θ/2)
+    dc_sign = 1 if _sum_triad(winding) % 2 == 0 else -1               # (−1)^Σw
+    spinor = (
+        _chiral_scale(half_cos, dc_sign),            # (−1)^Σw · cos(θ/2)
+        _chiral_scale(half_sin, sigma * dc_sign),    # σ·(−1)^Σw · sin(θ/2)
+    )
 
     blocks = []
     for idx, d in enumerate(IMAG_DIMS):          # d = 1, 3, 7  (n = idx+1)
@@ -428,6 +633,8 @@ def the_one(sigma: int,
         theta=_reduce_rational(theta_num, theta_den),
         terms=terms,
         blocks=(blocks[0], blocks[1], blocks[2]),
+        winding=winding,
+        spinor=spinor,
     )
 
 
@@ -585,11 +792,13 @@ __all__ = [
     "FANO_PLANES",
     "DIM",
     "DEFAULT_TERMS",
+    "METACYCLE_NAMES",
     "Block",
     "One",
     "the_one",
     "s_generator",
     "to_scalar",
+    "winding_tower",
     # flat cascade-op accessors — the one.toml ([class] One) binding surface
     "one_dim",
     "one_imag_dims",
