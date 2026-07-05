@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc132"
-#define SRMECH_VERSION       "0.9.0rc132"
+#define SRMECH_VERSION_PRE   "rc133"
+#define SRMECH_VERSION       "0.9.0rc133"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3231,6 +3231,66 @@ srmech_status_t srmech_genome_gene_express(
 srmech_status_t srmech_genome_gene_express_levels(
     const unsigned char *cap, size_t leaf_dim, uint64_t cell_state,
     uint64_t *num_out, uint64_t *den_out);
+
+/* §133/v11 (#733) MODULATOR-RECOVERY verdict codes — the *verdict out of
+ * srmech_genome_modulator_recover. Mirrors the one-sided op_verdict (rc117)
+ * EQUAL/UNKNOWN contract: UNKNOWN (none pinned) / PARTIAL (some pinned) / EXACT
+ * (the floor pins every referenced condition bit). */
+#define SRMECH_GENOME_MODULATOR_UNKNOWN 0
+#define SRMECH_GENOME_MODULATOR_PARTIAL 1
+#define SRMECH_GENOME_MODULATOR_EXACT   2
+
+/* §133/v11 (#733) M1 — the INVERSE of gene_express: recover the TWO-SIDED cell-
+ * state FLOOR from an OBSERVED expressed-label set. `body` is the GENE-CAP subset
+ * of the strand (each block leaf_dim bytes, first byte a gene marker
+ * 0x47/0x67/0x62/0x77/0x64 — the data turns do NOT gate expression, so the caller
+ * strips them). `expressed` is the observed labels as NUL-delimited UTF-8 tokens
+ * (label\0label\0...; expressed_len bytes; NULL,0 = the empty set). Outputs:
+ *   *certain_on  — bits every consistent cell_state MUST have SET (OR of each
+ *                  EXPRESSED E1 gene's activator mask + each EXPRESSED E2 gene's
+ *                  intersection-over-clauses activator).
+ *   *certain_off — bits every consistent state MUST have CLEAR (the repressor duals).
+ *   *undetermined— the referenced condition bits (union of bits ANY gene reads)
+ *                  minus (certain_on | certain_off).
+ *   *verdict     — SRMECH_GENOME_MODULATOR_{EXACT,PARTIAL,UNKNOWN}.
+ * E4 threshold / E3 graded / un-expressed genes give NO clean single-bit certainty
+ * -> they contribute to *undetermined, NEVER to the floor (SOUND, not over-claiming).
+ * A gene's floor is applied only when its label is expressed AND UNIQUE among the
+ * body's gene caps (a duplicated label cannot be attributed). SOUND: for every
+ * candidate the companion op reports CONSISTENT, (state & *certain_on) == *certain_on
+ * AND (state & *certain_off) == 0. Byte-identical to the pure Python
+ * srmech.amsc.genome._modulator_recover_pure. No arena; malloc-free; no abs; a READ.
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — body(when body_len>0) / expressed(when expressed_len>0) /
+ *                          any out pointer is NULL.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, body_len not a multiple of leaf_dim,
+ *                          or a malformed / truncated gene cap. */
+srmech_status_t srmech_genome_modulator_recover(
+    const unsigned char *body, size_t body_len, size_t leaf_dim,
+    const unsigned char *expressed, size_t expressed_len,
+    uint64_t *certain_on, uint64_t *certain_off,
+    uint64_t *undetermined, int *verdict);
+
+/* §133/v11 (#733) M2 — forward-CHECK one candidate cell_state: is
+ * set(gene_express(candidate) labels) == set(expected)? `body` is the GENE-CAP
+ * subset (as for srmech_genome_modulator_recover); `expected` is the observed
+ * labels as NUL-delimited UTF-8 tokens. *consistent = 1 iff the two label sets are
+ * EQUAL (both-subset: every EXPRESSING gene's label is expected AND every expected
+ * token is produced by some EXPRESSING gene). ONE-SIDED: CONSISTENT means "could be
+ * the state" (many candidates may be), NEVER "it IS the state". Reuses the forward
+ * per-gene srmech_genome_gene_express (no new gate logic). Byte-identical to the
+ * pure Python set comparison. No arena; malloc-free; no abs; a READ.
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — body(when body_len>0) / expected(when expected_len>0) /
+ *                          consistent is NULL.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, body_len not a multiple of leaf_dim,
+ *                          or a malformed gene cap.
+ *   SRMECH_ERR_OVERFLOW  — an int64 threshold / graded accumulate would overflow ->
+ *                          the caller uses the exact pure Python path. */
+srmech_status_t srmech_genome_modulator_consistent(
+    const unsigned char *body, size_t body_len, size_t leaf_dim,
+    const unsigned char *expected, size_t expected_len,
+    uint64_t candidate_cell_state, int *consistent);
 
 /* ------------------------------------------------------------------ *
  * TOML parser (malloc-free; caller arena)
