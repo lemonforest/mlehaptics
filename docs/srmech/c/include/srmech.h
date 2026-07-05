@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc133"
-#define SRMECH_VERSION       "0.9.0rc133"
+#define SRMECH_VERSION_PRE   "rc134"
+#define SRMECH_VERSION       "0.9.0rc134"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3291,6 +3291,52 @@ srmech_status_t srmech_genome_modulator_consistent(
     const unsigned char *body, size_t body_len, size_t leaf_dim,
     const unsigned char *expected, size_t expected_len,
     uint64_t candidate_cell_state, int *consistent);
+
+/* §133/v11 (#733) M3 — the COMPLETE inverse of gene_express: emit the BOOLEAN
+ * part (the M1 floor + the disjunctive CLAUSES) of the EXACT constraint
+ * characterizing the WHOLE set of cell-states consistent with an observed
+ * expression. `body` is the GENE-CAP subset (as for srmech_genome_modulator_
+ * recover); `expressed` is the observed labels as NUL-delimited UTF-8 tokens.
+ * The emitted `out` buffer (caller-arena; `out_cap` bytes; *out_len set to the
+ * used length) is the canonical big-endian serialization:
+ *   certain_on(u64) certain_off(u64)
+ *   n_nand(u32) [any_absent(u64) any_present(u64)]*n_nand
+ *   n_or(u32)   [n_terms(u32) [present(u64) absent(u64)]*n_terms]*n_or
+ * where certain_on/off is the M1 floor; each nand pair is one boolean AND-term
+ * of an UN-expressed E1/E2 gene (in body order, term order — "some activator
+ * absent OR some repressor present" = the gene NOT expressing, all ANDed); each
+ * or-clause is one EXPRESSED pure-boolean label with >= 2 boolean terms (in
+ * first-occurrence label order; a label that ALSO opens a threshold/graded cap is
+ * a CROSS-TYPE OR and emits NO or-clause). This is the BOOLEAN scope only — the
+ * E4 inequality / E3 level constraints + satisfiability are computed by the
+ * Python caller (the owed-C). Byte-identical to the pure Python
+ * srmech.amsc.genome._serialize_bool_constraint(_modulator_constraint_bool_pure).
+ * Caller-arena; malloc-free; no abs; a READ (never mutates the body).
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — body(when body_len>0) / expressed(when expressed_len>0)
+ *                          / out / out_len is NULL.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, body_len not a multiple of
+ *                          leaf_dim, a malformed gene cap, or out_cap too small. */
+srmech_status_t srmech_genome_modulator_constraint(
+    const unsigned char *body, size_t body_len, size_t leaf_dim,
+    const unsigned char *expressed, size_t expressed_len,
+    unsigned char *out, size_t out_cap, size_t *out_len);
+
+/* §133/v11 (#733) M3 — does `candidate` satisfy the BOOLEAN part of an emitted M3
+ * constraint? `buf` (buf_len bytes) is the canonical serialization
+ * srmech_genome_modulator_constraint emits. *satisfied = 1 iff
+ * (candidate & certain_on) == certain_on AND (candidate & certain_off) == 0 AND
+ * every nand pair holds ((candidate & any_absent) != any_absent OR
+ * (candidate & any_present) != 0) AND every or-clause has >= 1 term fully matching
+ * ((candidate & present) == present AND (candidate & absent) == 0). The BOOLEAN
+ * scope only — the caller ANDs the exact E4/E3 checks (the owed-C). Byte-identical
+ * to the pure Python srmech.amsc.genome._satisfies_bool. Malloc-free; no abs; READ.
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — buf(when buf_len>0) / satisfied is NULL.
+ *   SRMECH_ERR_BAD_INPUT  — a truncated / malformed buffer. */
+srmech_status_t srmech_genome_modulator_constraint_satisfies(
+    const unsigned char *buf, size_t buf_len,
+    uint64_t candidate_cell_state, int *satisfied);
 
 /* ------------------------------------------------------------------ *
  * TOML parser (malloc-free; caller arena)

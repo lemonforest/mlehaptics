@@ -216,7 +216,7 @@ def test_eisenstein_is_a_carrier_no_tool_entry():
     ToolEntry, so the shipped tool count is UNCHANGED at 342."""
     from srmech.amsc.tool_schema import get_tool_schema
     shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
-    assert len(shipped) == 397
+    assert len(shipped) == 399
     names = {t.name for t in shipped}
     assert not any("eisenstein" in nm for nm in names)
 

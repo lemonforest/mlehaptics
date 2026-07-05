@@ -1469,6 +1469,371 @@ srmech_status_t srmech_genome_modulator_consistent(
     return SRMECH_OK;
 }
 
+/* ==========================================================================
+ * §133/v11 (#733) — MODULATOR-CONSTRAINT (M3): the COMPLETE inverse of
+ * gene_express. Emit the BOOLEAN part (the M1 floor + the disjunctive nand /
+ * or_terms CLAUSES) of the EXACT constraint characterizing the WHOLE set of
+ * cell-states consistent with an observed expression, into a caller-arena
+ * buffer, in the canonical big-endian serialization (see srmech.h). The E4
+ * inequality / E3 level constraints + satisfiability are computed by the
+ * Python caller (the owed-C). Byte-identical to the pure Python
+ * srmech.amsc.genome._serialize_bool_constraint(_modulator_constraint_bool_pure).
+ * Caller-arena; malloc-free; no abs; a READ.
+ * ========================================================================== */
+
+/* Read a big-endian uint32 at buf[base..base+4). Bounds are checked by the
+ * caller (the satisfies parser). No abs; a READ. */
+static uint32_t genome_read_u32_be(const unsigned char *buf, size_t base)
+{
+    assert(buf != NULL);
+    assert(base < base + 4u);                        /* no wrap */
+    return ((uint32_t)buf[base] << 24) | ((uint32_t)buf[base + 1u] << 16)
+         | ((uint32_t)buf[base + 2u] << 8) | (uint32_t)buf[base + 3u];
+}
+
+/* Write uint64 v big-endian into out[*pos..*pos+8); caller-arena bounds-checked
+ * against out_cap; advances *pos. SRMECH_ERR_BAD_INPUT if it would overflow the
+ * caller's buffer. No abs. */
+static srmech_status_t genome_emit_u64(unsigned char *out, size_t out_cap,
+                                       size_t *pos, uint64_t v)
+{
+    assert(out != NULL && pos != NULL);
+    assert(out_cap >= *pos);
+    if (*pos + 8u > out_cap) { return SRMECH_ERR_BAD_INPUT; }
+    for (size_t k = 0u; k < 8u; k++) {
+        out[*pos + k] = (unsigned char)((v >> (8u * (7u - k))) & 0xFFu);
+    }
+    *pos += 8u;
+    return SRMECH_OK;
+}
+
+/* Write uint32 v big-endian into out[*pos..*pos+4); bounds-checked; advances
+ * *pos. No abs. */
+static srmech_status_t genome_emit_u32(unsigned char *out, size_t out_cap,
+                                       size_t *pos, uint32_t v)
+{
+    assert(out != NULL && pos != NULL);
+    assert(out_cap >= *pos);
+    if (*pos + 4u > out_cap) { return SRMECH_ERR_BAD_INPUT; }
+    for (size_t k = 0u; k < 4u; k++) {
+        out[*pos + k] = (unsigned char)((v >> (8u * (3u - k))) & 0xFFu);
+    }
+    *pos += 4u;
+    return SRMECH_OK;
+}
+
+/* Backfill a uint32 big-endian at a FIXED (already-reserved, in-bounds) offset. */
+static void genome_poke_u32(unsigned char *out, size_t at, uint32_t v)
+{
+    assert(out != NULL);
+    assert(at < at + 4u);                            /* no wrap */
+    for (size_t k = 0u; k < 4u; k++) {
+        out[at + k] = (unsigned char)((v >> (8u * (3u - k))) & 0xFFu);
+    }
+}
+
+/* Number of boolean AND-terms a gene cap contributes (§133 M3): E1 (0x47/0x67)
+ * -> 1; E2 (0x62) -> its DNF term count; threshold/graded -> 0. Byte-identical
+ * to Python _gene_bool_terms length. *n set; status. No abs; a READ. */
+static srmech_status_t genome_bool_nterms(const unsigned char *cap, size_t leaf_dim,
+                                          uint32_t *n)
+{
+    assert(cap != NULL && n != NULL);
+    assert(leaf_dim > 0u && leaf_dim <= 256u);
+    *n = 0u;
+    unsigned char m = cap[0];
+    if (m == SRMECH_GENOME_THRESHOLD_GENE_MARKER ||
+        m == SRMECH_GENOME_GRADED_GENE_MARKER) { return SRMECH_OK; }        /* not boolean */
+    if (m != SRMECH_GENOME_BOOLEAN_GENE_MARKER) { *n = 1u; return SRMECH_OK; }  /* E1 -> 1 */
+    size_t i = 1u;
+    while (i < leaf_dim && cap[i] != 0u) { i++; }
+    if (i >= leaf_dim) { return SRMECH_ERR_BAD_INPUT; }
+    size_t base = i + 1u;
+    if (base + 1u + SRMECH_GENOME_BOOLEAN_NTERMS_BYTES > leaf_dim) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (cap[base] != SRMECH_GENOME_GATE_TYPE_BOOLEAN_DNF) { return SRMECH_ERR_BAD_INPUT; }
+    size_t nt = base + 1u;
+    *n = ((uint32_t)cap[nt] << 8) | (uint32_t)cap[nt + 1u];
+    return SRMECH_OK;
+}
+
+/* Read boolean AND-term k of a gene cap into (*act,*rep) (§133 M3): E1 0x47 ->
+ * (0,0); E1 0x67 -> its (activator,repressor); E2 0x62 -> the k-th DNF (act,rep).
+ * Bounds mirror genome_dnf_fold. No abs; a READ. */
+static srmech_status_t genome_bool_term(const unsigned char *cap, size_t leaf_dim,
+                                        uint32_t k, uint64_t *act, uint64_t *rep)
+{
+    assert(cap != NULL && act != NULL && rep != NULL);
+    assert(leaf_dim > 0u && leaf_dim <= 256u);
+    *act = 0u; *rep = 0u;
+    if (cap[0] != SRMECH_GENOME_BOOLEAN_GENE_MARKER) {
+        return genome_regulatory_masks(cap, leaf_dim, act, rep);            /* E1; k == 0 */
+    }
+    size_t i = 1u;
+    while (i < leaf_dim && cap[i] != 0u) { i++; }
+    if (i >= leaf_dim) { return SRMECH_ERR_BAD_INPUT; }
+    size_t terms_off = i + 1u + 1u + SRMECH_GENOME_BOOLEAN_NTERMS_BYTES;
+    size_t o = terms_off + (size_t)k * SRMECH_GENOME_BOOLEAN_TERM_BYTES;
+    if (o + SRMECH_GENOME_BOOLEAN_TERM_BYTES > leaf_dim) { return SRMECH_ERR_BAD_INPUT; }
+    *act = genome_read_u64_be(cap, o);
+    *rep = genome_read_u64_be(cap, o + SRMECH_GENOME_REGULATORY_MASK_BYTES);
+    return SRMECH_OK;
+}
+
+/* Is the cap at `self_off` the FIRST cap in `body` carrying `label` (no earlier
+ * cap shares it)? The "one or-clause per label, first-occurrence order" guard. */
+static int genome_is_first_label(const unsigned char *body, size_t leaf_dim,
+                                 size_t self_off, const unsigned char *label,
+                                 size_t label_len)
+{
+    assert(body != NULL && label != NULL);
+    assert(leaf_dim > 0u);
+    for (size_t o = 0u; o < self_off; o += leaf_dim) {
+        size_t ol = 0u;
+        const unsigned char *ot = genome_gene_label(body + o, leaf_dim, &ol);
+        if (ot == NULL) { continue; }
+        if (ol == label_len && (label_len == 0u || memcmp(ot, label, label_len) == 0)) {
+            return 0;                                /* an earlier cap shares it */
+        }
+    }
+    return 1;
+}
+
+/* Does any cap carrying `label` open a THRESHOLD (0x77) / GRADED (0x64) gene?
+ * The cross-type-OR soundness guard: such a label's boolean terms must NOT be
+ * forced into an or-clause (it can express via the threshold/graded branch). */
+static int genome_label_has_nonbool(const unsigned char *body, size_t body_len,
+                                    size_t leaf_dim, const unsigned char *label,
+                                    size_t label_len)
+{
+    assert(body != NULL || body_len == 0u);
+    assert(label != NULL || label_len == 0u);
+    for (size_t o = 0u; o + leaf_dim <= body_len; o += leaf_dim) {
+        unsigned char m = body[o];
+        if (m != SRMECH_GENOME_THRESHOLD_GENE_MARKER &&
+            m != SRMECH_GENOME_GRADED_GENE_MARKER) { continue; }
+        size_t ol = 0u;
+        const unsigned char *ot = genome_gene_label(body + o, leaf_dim, &ol);
+        if (ot == NULL) { continue; }
+        if (ol == label_len && (label_len == 0u || memcmp(ot, label, label_len) == 0)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* Emit the nand clauses (§133 M3): for every UN-expressed E1/E2 gene cap (body
+ * order), one (any_absent=act, any_present=rep) pair per boolean AND-term. Sets
+ * *n_nand. Byte-identical to the pure Python nand walk. No abs; a READ. */
+static srmech_status_t genome_emit_nand(
+    const unsigned char *body, size_t body_len, size_t leaf_dim,
+    const unsigned char *expressed, size_t expressed_len,
+    unsigned char *out, size_t out_cap, size_t *pos, uint32_t *n_nand)
+{
+    assert(out != NULL && pos != NULL && n_nand != NULL);
+    assert(leaf_dim > 0u);
+    *n_nand = 0u;
+    for (size_t o = 0u; o + leaf_dim <= body_len; o += leaf_dim) {
+        const unsigned char *cap = body + o;
+        if (cap[0] == SRMECH_GENOME_THRESHOLD_GENE_MARKER ||
+            cap[0] == SRMECH_GENOME_GRADED_GENE_MARKER) { continue; }       /* an ineq / level */
+        size_t ll = 0u;
+        const unsigned char *lab = genome_gene_label(cap, leaf_dim, &ll);
+        if (lab == NULL) { return SRMECH_ERR_BAD_INPUT; }
+        if (genome_blob_contains(expressed, expressed_len, lab, ll)) { continue; }  /* expressed */
+        uint32_t nt = 0u;
+        srmech_status_t st = genome_bool_nterms(cap, leaf_dim, &nt);
+        if (st != SRMECH_OK) { return st; }
+        for (uint32_t k = 0u; k < nt; k++) {
+            uint64_t a = 0u, r = 0u;
+            st = genome_bool_term(cap, leaf_dim, k, &a, &r);
+            if (st != SRMECH_OK) { return st; }
+            st = genome_emit_u64(out, out_cap, pos, a);
+            if (st != SRMECH_OK) { return st; }
+            st = genome_emit_u64(out, out_cap, pos, r);
+            if (st != SRMECH_OK) { return st; }
+            (*n_nand)++;
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* Total boolean AND-terms across every cap in body carrying `label`. */
+static srmech_status_t genome_count_label_terms(
+    const unsigned char *body, size_t body_len, size_t leaf_dim,
+    const unsigned char *label, size_t label_len, uint32_t *total)
+{
+    assert(body != NULL || body_len == 0u);
+    assert(total != NULL);
+    *total = 0u;
+    for (size_t o = 0u; o + leaf_dim <= body_len; o += leaf_dim) {
+        size_t ll = 0u;
+        const unsigned char *lab = genome_gene_label(body + o, leaf_dim, &ll);
+        if (lab == NULL) { continue; }
+        if (ll != label_len || (label_len != 0u && memcmp(lab, label, label_len) != 0)) {
+            continue;
+        }
+        uint32_t nt = 0u;
+        srmech_status_t st = genome_bool_nterms(body + o, leaf_dim, &nt);
+        if (st != SRMECH_OK) { return st; }
+        *total += nt;
+    }
+    return SRMECH_OK;
+}
+
+/* Emit every boolean AND-term (present=act u64, absent=rep u64) across caps
+ * carrying `label`, in body order. Pairs with genome_count_label_terms. */
+static srmech_status_t genome_emit_label_terms(
+    const unsigned char *body, size_t body_len, size_t leaf_dim,
+    const unsigned char *label, size_t label_len,
+    unsigned char *out, size_t out_cap, size_t *pos)
+{
+    assert(body != NULL || body_len == 0u);
+    assert(out != NULL && pos != NULL);
+    for (size_t o = 0u; o + leaf_dim <= body_len; o += leaf_dim) {
+        size_t ll = 0u;
+        const unsigned char *lab = genome_gene_label(body + o, leaf_dim, &ll);
+        if (lab == NULL) { continue; }
+        if (ll != label_len || (label_len != 0u && memcmp(lab, label, label_len) != 0)) {
+            continue;
+        }
+        uint32_t nt = 0u;
+        srmech_status_t st = genome_bool_nterms(body + o, leaf_dim, &nt);
+        if (st != SRMECH_OK) { return st; }
+        for (uint32_t k = 0u; k < nt; k++) {
+            uint64_t a = 0u, r = 0u;
+            st = genome_bool_term(body + o, leaf_dim, k, &a, &r);
+            if (st != SRMECH_OK) { return st; }
+            st = genome_emit_u64(out, out_cap, pos, a);
+            if (st != SRMECH_OK) { return st; }
+            st = genome_emit_u64(out, out_cap, pos, r);
+            if (st != SRMECH_OK) { return st; }
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* Emit the or_terms clauses (§133 M3): for each EXPRESSED pure-boolean label
+ * (first-occurrence order, no threshold/graded cap) with >= 2 boolean terms, one
+ * (n_terms, [present, absent]*) clause. Sets *n_or. Byte-identical to Python.
+ * No abs; a READ. */
+static srmech_status_t genome_emit_or(
+    const unsigned char *body, size_t body_len, size_t leaf_dim,
+    const unsigned char *expressed, size_t expressed_len,
+    unsigned char *out, size_t out_cap, size_t *pos, uint32_t *n_or)
+{
+    assert(out != NULL && pos != NULL && n_or != NULL);
+    assert(leaf_dim > 0u);
+    *n_or = 0u;
+    for (size_t o = 0u; o + leaf_dim <= body_len; o += leaf_dim) {
+        size_t ll = 0u;
+        const unsigned char *lab = genome_gene_label(body + o, leaf_dim, &ll);
+        if (lab == NULL) { return SRMECH_ERR_BAD_INPUT; }
+        if (!genome_is_first_label(body, leaf_dim, o, lab, ll)) { continue; }
+        if (!genome_blob_contains(expressed, expressed_len, lab, ll)) { continue; }
+        if (genome_label_has_nonbool(body, body_len, leaf_dim, lab, ll)) { continue; }
+        uint32_t total = 0u;
+        srmech_status_t st = genome_count_label_terms(body, body_len, leaf_dim, lab, ll, &total);
+        if (st != SRMECH_OK) { return st; }
+        if (total < 2u) { continue; }                /* single term -> pinned by the floor */
+        st = genome_emit_u32(out, out_cap, pos, total);
+        if (st != SRMECH_OK) { return st; }
+        st = genome_emit_label_terms(body, body_len, leaf_dim, lab, ll, out, out_cap, pos);
+        if (st != SRMECH_OK) { return st; }
+        (*n_or)++;
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_genome_modulator_constraint(
+    const unsigned char *body, size_t body_len, size_t leaf_dim,
+    const unsigned char *expressed, size_t expressed_len,
+    unsigned char *out, size_t out_cap, size_t *out_len)
+{
+    assert(body != NULL || body_len == 0u);
+    assert(out != NULL && out_len != NULL);
+    if (body == NULL && body_len != 0u) { return SRMECH_ERR_NULL_ARG; }
+    if (out == NULL || out_len == NULL) { return SRMECH_ERR_NULL_ARG; }
+    if (expressed == NULL && expressed_len != 0u) { return SRMECH_ERR_NULL_ARG; }
+    if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    if (body_len % leaf_dim != 0u) { return SRMECH_ERR_BAD_INPUT; }
+    uint64_t on = 0u, off = 0u, und = 0u;
+    int verdict = 0;
+    srmech_status_t st = srmech_genome_modulator_recover(     /* the M1 floor */
+        body, body_len, leaf_dim, expressed, expressed_len, &on, &off, &und, &verdict);
+    if (st != SRMECH_OK) { return st; }
+    size_t pos = 0u;
+    st = genome_emit_u64(out, out_cap, &pos, on);
+    if (st != SRMECH_OK) { return st; }
+    st = genome_emit_u64(out, out_cap, &pos, off);
+    if (st != SRMECH_OK) { return st; }
+    size_t nand_at = pos;                                    /* reserve n_nand */
+    st = genome_emit_u32(out, out_cap, &pos, 0u);
+    if (st != SRMECH_OK) { return st; }
+    uint32_t n_nand = 0u;
+    st = genome_emit_nand(body, body_len, leaf_dim, expressed, expressed_len,
+                          out, out_cap, &pos, &n_nand);
+    if (st != SRMECH_OK) { return st; }
+    genome_poke_u32(out, nand_at, n_nand);
+    size_t or_at = pos;                                      /* reserve n_or */
+    st = genome_emit_u32(out, out_cap, &pos, 0u);
+    if (st != SRMECH_OK) { return st; }
+    uint32_t n_or = 0u;
+    st = genome_emit_or(body, body_len, leaf_dim, expressed, expressed_len,
+                        out, out_cap, &pos, &n_or);
+    if (st != SRMECH_OK) { return st; }
+    genome_poke_u32(out, or_at, n_or);
+    *out_len = pos;
+    return SRMECH_OK;
+}
+
+/* §133 M3 — check the BOOLEAN part of an emitted constraint against a candidate.
+ * *satisfied = 1 iff the floor pins + every nand / or_terms clause hold. Byte-
+ * identical to the pure Python _satisfies_bool. Malloc-free; no abs; a READ. */
+srmech_status_t srmech_genome_modulator_constraint_satisfies(
+    const unsigned char *buf, size_t buf_len,
+    uint64_t candidate_cell_state, int *satisfied)
+{
+    assert(buf != NULL || buf_len == 0u);
+    assert(satisfied != NULL);
+    if (satisfied == NULL) { return SRMECH_ERR_NULL_ARG; }
+    if (buf == NULL && buf_len != 0u) { return SRMECH_ERR_NULL_ARG; }
+    if (buf_len < 20u) { return SRMECH_ERR_BAD_INPUT; }
+    uint64_t cs = candidate_cell_state;
+    *satisfied = 0;
+    if ((cs & genome_read_u64_be(buf, 0u)) != genome_read_u64_be(buf, 0u)) { return SRMECH_OK; }
+    if ((cs & genome_read_u64_be(buf, 8u)) != 0u) { return SRMECH_OK; }
+    uint32_t n_nand = genome_read_u32_be(buf, 16u);
+    size_t pos = 20u;
+    for (uint32_t i = 0u; i < n_nand; i++) {
+        if (pos + 16u > buf_len) { return SRMECH_ERR_BAD_INPUT; }
+        uint64_t a = genome_read_u64_be(buf, pos);
+        uint64_t p = genome_read_u64_be(buf, pos + 8u);
+        pos += 16u;
+        if (!(((cs & a) != a) || ((cs & p) != 0u))) { return SRMECH_OK; }  /* term matched */
+    }
+    if (pos + 4u > buf_len) { return SRMECH_ERR_BAD_INPUT; }
+    uint32_t n_or = genome_read_u32_be(buf, pos);
+    pos += 4u;
+    for (uint32_t i = 0u; i < n_or; i++) {
+        if (pos + 4u > buf_len) { return SRMECH_ERR_BAD_INPUT; }
+        uint32_t nt = genome_read_u32_be(buf, pos);
+        pos += 4u;
+        int matched = 0;
+        for (uint32_t k = 0u; k < nt; k++) {
+            if (pos + 16u > buf_len) { return SRMECH_ERR_BAD_INPUT; }
+            uint64_t pr = genome_read_u64_be(buf, pos);
+            uint64_t ab = genome_read_u64_be(buf, pos + 8u);
+            pos += 16u;
+            if (((cs & pr) == pr) && ((cs & ab) == 0u)) { matched = 1; }
+        }
+        if (matched == 0) { return SRMECH_OK; }
+    }
+    *satisfied = 1;
+    return SRMECH_OK;
+}
+
 srmech_status_t srmech_genome_save(
     const char *dir,
     const unsigned char *body, size_t body_len,
