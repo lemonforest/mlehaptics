@@ -298,10 +298,10 @@
 {"exposed_as": "srmech.amsc.cascade.octonion_dft", "defined_at": "srmech.amsc.cascade.hypercomplex_dft.octonion_dft", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.phase_coherent_peak", "defined_at": "srmech.amsc.cascade.hypercomplex_dft.phase_coherent_peak", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.quaternion_dft", "defined_at": "srmech.amsc.cascade.hypercomplex_dft.quaternion_dft", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.cascade.spectral_cascades.dft", "defined_at": "srmech.amsc.cascade.spectral_cascades.dft", "bucket": "python_only_debt"}
-{"exposed_as": "srmech.amsc.cascade.spectral_cascades.fft", "defined_at": "srmech.amsc.cascade.spectral_cascades.fft", "bucket": "python_only_debt"}
-{"exposed_as": "srmech.amsc.cascade.spectral_cascades.idft", "defined_at": "srmech.amsc.cascade.spectral_cascades.idft", "bucket": "python_only_debt"}
-{"exposed_as": "srmech.amsc.cascade.spectral_cascades.ifft", "defined_at": "srmech.amsc.cascade.spectral_cascades.ifft", "bucket": "python_only_debt"}
+{"exposed_as": "srmech.amsc.cascade.spectral_cascades.dft", "defined_at": "srmech.amsc.cascade.spectral_cascades.dft", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.cascade.spectral_cascades.fft", "defined_at": "srmech.amsc.cascade.spectral_cascades.fft", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.cascade.spectral_cascades.idft", "defined_at": "srmech.amsc.cascade.spectral_cascades.idft", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.cascade.spectral_cascades.ifft", "defined_at": "srmech.amsc.cascade.spectral_cascades.ifft", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.spectral_cascades.kron", "defined_at": "srmech.amsc.cascade.spectral_cascades.kron", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.amsc.cascade.exact_dft.exact_dft", "defined_at": "srmech.amsc.cascade.exact_dft.exact_dft", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.exact_dft.exact_idft", "defined_at": "srmech.amsc.cascade.exact_dft.exact_idft", "bucket": "c_dispatched"}
@@ -384,12 +384,12 @@
 {"exposed_as": "srmech.signal_processing.closed_form_ops.dct.op", "defined_at": "srmech.signal_processing.closed_form_ops.dct.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.esprit.op", "defined_at": "srmech.signal_processing.closed_form_ops.esprit.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.farrow.op", "defined_at": "srmech.signal_processing.closed_form_ops.farrow.op", "bucket": "python_only_debt"}
-{"exposed_as": "srmech.signal_processing.closed_form_ops.fft.op", "defined_at": "srmech.signal_processing.closed_form_ops.fft.op", "bucket": "python_only_debt"}
+{"exposed_as": "srmech.signal_processing.closed_form_ops.fft.op", "defined_at": "srmech.signal_processing.closed_form_ops.fft.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.fir.op", "defined_at": "srmech.signal_processing.closed_form_ops.fir.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.fsk.op", "defined_at": "srmech.signal_processing.closed_form_ops.fsk.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.huffman.op", "defined_at": "srmech.signal_processing.closed_form_ops.huffman.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.ica_jade.op", "defined_at": "srmech.signal_processing.closed_form_ops.ica_jade.op", "bucket": "python_only_debt"}
-{"exposed_as": "srmech.signal_processing.closed_form_ops.ifft.op", "defined_at": "srmech.signal_processing.closed_form_ops.ifft.op", "bucket": "python_only_debt"}
+{"exposed_as": "srmech.signal_processing.closed_form_ops.ifft.op", "defined_at": "srmech.signal_processing.closed_form_ops.ifft.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.iir.op", "defined_at": "srmech.signal_processing.closed_form_ops.iir.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.jpeg.op", "defined_at": "srmech.signal_processing.closed_form_ops.jpeg.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.lz77.op", "defined_at": "srmech.signal_processing.closed_form_ops.lz77.op", "bucket": "python_only_debt"}
@@ -404,7 +404,7 @@
 {"exposed_as": "srmech.signal_processing.closed_form_ops.polyphase.decompose", "defined_at": "srmech.signal_processing.closed_form_ops.polyphase.decompose", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.polyphase.op", "defined_at": "srmech.signal_processing.closed_form_ops.polyphase.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.psk_qam.op", "defined_at": "srmech.signal_processing.closed_form_ops.psk_qam.op", "bucket": "python_only_debt"}
-{"exposed_as": "srmech.signal_processing.closed_form_ops.rfft.op", "defined_at": "srmech.signal_processing.closed_form_ops.rfft.op", "bucket": "python_only_debt"}
+{"exposed_as": "srmech.signal_processing.closed_form_ops.rfft.op", "defined_at": "srmech.signal_processing.closed_form_ops.rfft.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.rle.op", "defined_at": "srmech.signal_processing.closed_form_ops.rle.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.sign_quantise.op", "defined_at": "srmech.signal_processing.closed_form_ops.sign_quantise.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.sinc_interp.op", "defined_at": "srmech.signal_processing.closed_form_ops.sinc_interp.op", "bucket": "python_only_debt"}
@@ -414,10 +414,10 @@
 {"exposed_as": "srmech.signal_processing.closed_form_ops.vector_quantisation.op", "defined_at": "srmech.signal_processing.closed_form_ops.vector_quantisation.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.wavelet.op", "defined_at": "srmech.signal_processing.closed_form_ops.wavelet.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.wiener.op", "defined_at": "srmech.signal_processing.closed_form_ops.wiener.op", "bucket": "python_only_debt"}
-{"exposed_as": "srmech.signal_processing.path_b_ops.fft.op", "defined_at": "srmech.signal_processing.path_b_ops.fft.op", "bucket": "python_only_debt"}
-{"exposed_as": "srmech.signal_processing.path_b_ops.ifft.op", "defined_at": "srmech.signal_processing.path_b_ops.ifft.op", "bucket": "python_only_debt"}
+{"exposed_as": "srmech.signal_processing.path_b_ops.fft.op", "defined_at": "srmech.signal_processing.path_b_ops.fft.op", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.signal_processing.path_b_ops.ifft.op", "defined_at": "srmech.signal_processing.path_b_ops.ifft.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.path_b_ops.matched_filter.op", "defined_at": "srmech.signal_processing.path_b_ops.matched_filter.op", "bucket": "python_only_debt"}
-{"exposed_as": "srmech.signal_processing.path_b_ops.rfft.op", "defined_at": "srmech.signal_processing.path_b_ops.rfft.op", "bucket": "python_only_debt"}
+{"exposed_as": "srmech.signal_processing.path_b_ops.rfft.op", "defined_at": "srmech.signal_processing.path_b_ops.rfft.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.path_b_ops.sign_quantise.op", "defined_at": "srmech.signal_processing.path_b_ops.sign_quantise.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.path_b_ops.wiener.op", "defined_at": "srmech.signal_processing.path_b_ops.wiener.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.char_poly", "defined_at": "srmech.amsc.cascade.matrix_cascades.char_poly", "bucket": "bignum_reference", "oracle_justification": "Exact-symbolic arbitrary-precision linear algebra (characteristic polynomial / exact eigen-decomposition / Jordan form / integer polynomial factoring over Q) \u2014 the bignum reference oracle; no fixed-width C kernel (the exact-symbolic carrier IS the reference)."}

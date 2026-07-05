@@ -570,6 +570,31 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_exact_dft_i64.restype = ctypes.c_int
 
+    # 0.9.0rc139 (#743/#747 Foundation F1): the NUMERIC complex128 FFT / IFFT
+    # the signal_processing fft-family dispatches to. in/out are interleaved
+    # (re, im) length-2n double buffers; radix-2 for power-of-two n, Bluestein
+    # chirp-z for arbitrary / prime n; libm-free twiddles; 1/n on inverse.
+    # Caller-arena scratch sized by srmech_fft_c128_ws_bound(n) (BYTES). NEW
+    # symbols, hasattr-guarded (ABI stays 3) so a stale ABI-3 lib keeps the
+    # rest of the native surface and the pure-Python cascade is the complete
+    # path.
+    #   size_t srmech_fft_c128_ws_bound(size_t n)
+    if hasattr(lib, "srmech_fft_c128_ws_bound"):
+        lib.srmech_fft_c128_ws_bound.argtypes = [ctypes.c_size_t]
+        lib.srmech_fft_c128_ws_bound.restype = ctypes.c_size_t
+    #   int srmech_fft_c128(const double *in_il, size_t n, int inverse,
+    #       double *out_il, double *ws, size_t ws_len)
+    if hasattr(lib, "srmech_fft_c128"):
+        lib.srmech_fft_c128.argtypes = [
+            ctypes.POINTER(ctypes.c_double),    # in_interleaved (2n)
+            ctypes.c_size_t,                    # n
+            ctypes.c_int,                       # inverse (0/1)
+            ctypes.POINTER(ctypes.c_double),    # out_interleaved (2n)
+            ctypes.POINTER(ctypes.c_double),    # ws (caller arena)
+            ctypes.c_size_t,                    # ws_len (arena bytes)
+        ]
+        lib.srmech_fft_c128.restype = ctypes.c_int
+
     # int srmech_dense_matmul_complex(uint32_t m, uint32_t k, uint32_t n,
     #     const double *A_il, const double *B_il, double *out_il)
     # v0.7.5rc14 additive symbol (#928, matmul-kernel phase): the dense complex
@@ -3876,6 +3901,60 @@ def jacobi_sncndn_c(numerator: int, denominator: int,
         (_bigint_to_int(cn_n), _bigint_to_int(cn_d)),
         (_bigint_to_int(dn_n), _bigint_to_int(dn_d)),
     )
+
+
+# ----------------------------------------------------------------------
+# rc139 (#743/#747 Foundation F1): the NUMERIC complex128 FFT / IFFT C peer
+# (srmech_fft_c128). The Python signal_processing fft-family dispatches its
+# FLOAT path through this when has_native_fft_c128() (the exact-integer
+# exact_dft path still takes precedence for integer / Gaussian-integer
+# power-of-two signals — that stays byte-exact). FPU-tol numeric: the same
+# DFT values as the pure-Python spectral_cascades cascade to round-off; the
+# pure cascade is the COMPLETE alternative (and the parity oracle).
+# ----------------------------------------------------------------------
+
+
+def has_native_fft_c128() -> bool:
+    """True iff the rc139 numeric complex128 FFT C peer (``srmech_fft_c128`` +
+    ``srmech_fft_c128_ws_bound``) is loaded + bound. False on a no-C or
+    pre-rc139 lib — the pure-Python ``srmech.amsc.cascade.spectral_cascades``
+    cascade is the complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_fft_c128")
+            and hasattr(LIB, "srmech_fft_c128_ws_bound"))
+
+
+def fft_c128_c(seq, inverse: bool):
+    """Numeric complex128 FFT (``inverse=False``) / IFFT (``inverse=True``) of
+    the complex sequence ``seq`` via the native ``srmech_fft_c128``, returned as
+    a ``list[complex]`` — or ``None`` when the native symbols are absent (the
+    caller then runs the pure-Python spectral_cascades path). Radix-2 for a
+    power-of-two length, Bluestein chirp-z for arbitrary / prime length; the
+    single ``1/n`` scale is applied on the inverse. FPU-tol numeric (contrast
+    the exact-integer ``exact_dft``): the same DFT values as the pure cascade
+    to round-off. The caller arena is sized from ``srmech_fft_c128_ws_bound``."""
+    if not has_native_fft_c128():
+        return None
+    n = len(seq)
+    if n == 0:
+        return []
+    inbuf = (ctypes.c_double * (2 * n))()
+    outbuf = (ctypes.c_double * (2 * n))()
+    for i, z in enumerate(seq):
+        c = complex(z)
+        inbuf[2 * i] = c.real
+        inbuf[2 * i + 1] = c.imag
+    ws_len = int(LIB.srmech_fft_c128_ws_bound(ctypes.c_size_t(n)))
+    n_doubles = ws_len // ctypes.sizeof(ctypes.c_double) + 1
+    ws = (ctypes.c_double * n_doubles)()
+    rc = LIB.srmech_fft_c128(
+        inbuf, ctypes.c_size_t(n), ctypes.c_int(1 if inverse else 0),
+        outbuf, ws, ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        return None
+    return [complex(outbuf[2 * i], outbuf[2 * i + 1]) for i in range(n)]
 
 
 # ----------------------------------------------------------------------

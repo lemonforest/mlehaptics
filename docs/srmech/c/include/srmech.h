@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc138"
-#define SRMECH_VERSION       "0.9.0rc138"
+#define SRMECH_VERSION_PRE   "rc139"
+#define SRMECH_VERSION       "0.9.0rc139"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1218,6 +1218,33 @@ srmech_status_t srmech_exact_dft_i64(
     const int64_t  *im,
     int64_t        *out_re,
     int64_t        *out_im);
+
+/* Numeric complex128 FFT / IFFT (0.9.0rc139, #743/#747 Foundation F1) — the
+ * numeric twin of srmech.amsc.cascade.spectral_cascades.fft/ifft that the
+ * whole signal_processing fft-family dispatches to. In/out are INTERLEAVED
+ * (re, im) length-2n double buffers (the Complex128 / Vec carrier layout, so
+ * the dispatch is zero-copy). inverse != 0 applies the single 1/N scale
+ * (matching NumPy ifft + the pure-Python cascade addend-for-addend). n is
+ * arbitrary: a power-of-two n runs the iterative radix-2 Cooley-Tukey
+ * butterfly; any other (incl. PRIME) n runs Bluestein's chirp-z, so this is
+ * NOT power-of-2-only. NUMERIC (FPU-tol), not byte-exact — contrast the
+ * exact-integer srmech_exact_dft_i64. No libm: twiddle / chirp trig is the
+ * libm-free srmech_cos / srmech_sin. No abs (the FFT reads no magnitude).
+ * `out` MUST NOT alias `in` (else SRMECH_ERR_BAD_INPUT). All scratch is
+ * bump-carved from the CALLER arena `ws` (ws_len bytes; no malloc) — size it
+ * from srmech_fft_c128_ws_bound(n); an under-sized arena returns
+ * SRMECH_ERR_OVERFLOW. n == 0 writes nothing. The pure-Python cascade is the
+ * COMPLETE alternative for no-C hosts. ABI-additive: new symbols, so
+ * SRMECH_ABI_VERSION stays 3 (the Python ctypes shim hasattr-guards them). */
+size_t srmech_fft_c128_ws_bound(size_t n);
+
+srmech_status_t srmech_fft_c128(
+    const double  *in_interleaved,
+    size_t         n,
+    int            inverse,
+    double        *out_interleaved,
+    double        *ws,
+    size_t         ws_len);
 
 /* ------------------------------------------------------------------ *
  * The resonant-spectrum closure (§75 / F928) — a Class-L coupling
