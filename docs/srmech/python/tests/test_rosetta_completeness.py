@@ -89,7 +89,19 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 # them, and the closed_form_ops + path_b_ops fft/ifft/rfft (×6) funnel through
 # the spectral_cascades cascade -> composition_of_c (×8). (kron is NOT an FFT —
 # it stays python_only_debt.) python_only_debt 103 -> 93.
-CEIL_PYTHON_ONLY_DEBT = 93
+# rc140 (Foundation F2): the numeric-LA foundations srmech_qr_f64 (direct
+# Householder) + srmech_svd_f64 (one-sided-Jacobi, bounded-sweep convergence
+# contract) land, and the subspace / MIMO / LA family dispatches its REAL path
+# to them (complex stays on the already-C-backed Gram-eigen / list-Householder
+# pure route). matrix_cascades.{qr,lstsq} route real input to srmech_qr_f64 ->
+# c_dispatched (×2); matrix_cascades.{svd,eigvals} + closed_form_ops
+# {esprit,map_ml,mimo_svd} compose the (now-C-backed) mat_svd / mat_eigvals /
+# mat_hermitian_eigendecompose / mat_solve foundations -> composition_of_c (×5).
+# (einsum is a tensor contraction, not LA; beamforming_fixed is delay-and-sum;
+# ica_jade's dominant JADE Givens joint-diagonalisation is a pure-Python kernel
+# with no C twin — all three honestly stay python_only_debt.)
+# python_only_debt 93 -> 86.
+CEIL_PYTHON_ONLY_DEBT = 86
 # rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
 # rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.

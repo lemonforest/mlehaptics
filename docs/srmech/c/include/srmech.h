@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc139"
-#define SRMECH_VERSION       "0.9.0rc139"
+#define SRMECH_VERSION_PRE   "rc140"
+#define SRMECH_VERSION       "0.9.0rc140"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1245,6 +1245,62 @@ srmech_status_t srmech_fft_c128(
     double        *out_interleaved,
     double        *ws,
     size_t         ws_len);
+
+/* Numeric f64 QR + SVD (0.9.0rc140, Foundation F2) — the numeric-LA twins the
+ * subspace / MIMO / LA family (matrix_cascades.{qr,svd,lstsq} + the
+ * signal_processing subspace ops) dispatches its REAL path to (the complex
+ * path keeps its Gram-eigen / list-Householder pure route). NUMERIC (FPU-tol),
+ * NOT byte-exact. No libm (the only root is the Class-N srmech_rational_sqrt);
+ * no abs()/fabs() (every magnitude is a Class-K sign-branch). ABI-additive:
+ * new symbols, so SRMECH_ABI_VERSION stays 3 (the Python ctypes shim
+ * hasattr-guards them).
+ *
+ * srmech_qr_f64 — Householder QR A = Q*R, A m*n row-major, Q m*m orthogonal,
+ * R m*n upper-trapezoidal (both caller-allocated). DIRECT (no iteration): the
+ * product of min(m,n) reflectors H = I - beta*v*v^T; the phase
+ * alpha = -sign(x0)*||x|| is a Class-K pin-slot (a sign-BRANCH). The reflector
+ * vector v is bump-carved from the CALLER arena `ws` (>= srmech_qr_f64_ws_bound
+ * BYTES = m doubles); an under-sized arena returns SRMECH_ERR_OVERFLOW. m==0 or
+ * n==0 writes nothing. The pure-Python list-Householder is the COMPLETE
+ * alternative for no-C hosts. */
+size_t srmech_qr_f64_ws_bound(uint32_t m, uint32_t n);
+
+srmech_status_t srmech_qr_f64(uint32_t       m,
+                              uint32_t       n,
+                              const double  *A_rowmajor,
+                              double        *Q_out,
+                              double        *R_out,
+                              double        *ws,
+                              size_t         ws_len);
+
+/* srmech_svd_f64 — A = U*diag(S)*V^T (A m*n row-major, m>=n), via ONE-SIDED
+ * JACOBI (Hestenes): orthogonalise the columns of a working copy by column
+ * Jacobi rotations accumulated into V; the converged column norms are the
+ * singular values, U = W*diag(1/S). Outputs (all caller-allocated): U_out m*n
+ * (thin left singular vectors; a zero-singular-value column is left zero for
+ * the caller's orthonormal completion), S_out n (DESCENDING, >= 0), V_out n*n
+ * (right singular vectors as COLUMNS, descending). m<n returns
+ * SRMECH_ERR_BAD_INPUT — the Python peer transposes and swaps U/V.
+ *
+ * ITERATIVE -> the CONVERGENCE CONTRACT: an EXPLICIT sweep cap (JPL Rule 2
+ * bounded loop). A sweep that rotates NO pair (every off-diagonal below tol) is
+ * converged -> SRMECH_OK; hitting the cap with a rotation still pending returns
+ * SRMECH_ERR_OVERFLOW (a NOT-CONVERGED status, NEVER a silent wrong answer), so
+ * the Python dispatch falls back to the pure Gram-eigen SVD. The working copy
+ * W (m*n) + rotation accumulator V (n*n) are bump-carved from the CALLER arena
+ * `ws` (>= srmech_svd_f64_ws_bound BYTES); an under-sized arena returns
+ * SRMECH_ERR_OVERFLOW. The pure-Python Gram-eigen SVD is the COMPLETE
+ * alternative for no-C hosts. */
+size_t srmech_svd_f64_ws_bound(uint32_t m, uint32_t n);
+
+srmech_status_t srmech_svd_f64(uint32_t       m,
+                               uint32_t       n,
+                               const double  *A_rowmajor,
+                               double        *U_out,
+                               double        *S_out,
+                               double        *V_out,
+                               double        *ws,
+                               size_t         ws_len);
 
 /* ------------------------------------------------------------------ *
  * The resonant-spectrum closure (§75 / F928) — a Class-L coupling

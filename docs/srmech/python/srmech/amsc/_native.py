@@ -595,6 +595,47 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_fft_c128.restype = ctypes.c_int
 
+    # rc140 Foundation F2: the numeric f64 QR + SVD C peers (real). NEW symbols,
+    # hasattr-guarded (ABI stays 3) so a stale ABI-3 lib keeps the rest of the
+    # native surface and the pure-Python cascade is the complete path. Caller-
+    # arena scratch sized by the matching *_ws_bound (BYTES).
+    #   size_t srmech_qr_f64_ws_bound(uint32_t m, uint32_t n)
+    if hasattr(lib, "srmech_qr_f64_ws_bound"):
+        lib.srmech_qr_f64_ws_bound.argtypes = [ctypes.c_uint32, ctypes.c_uint32]
+        lib.srmech_qr_f64_ws_bound.restype = ctypes.c_size_t
+    #   int srmech_qr_f64(uint32_t m, uint32_t n, const double *A,
+    #       double *Q_out (m*m), double *R_out (m*n), double *ws, size_t ws_len)
+    if hasattr(lib, "srmech_qr_f64"):
+        lib.srmech_qr_f64.argtypes = [
+            ctypes.c_uint32,                    # m
+            ctypes.c_uint32,                    # n
+            ctypes.POINTER(ctypes.c_double),    # A_rowmajor (m*n)
+            ctypes.POINTER(ctypes.c_double),    # Q_out (m*m)
+            ctypes.POINTER(ctypes.c_double),    # R_out (m*n)
+            ctypes.POINTER(ctypes.c_double),    # ws (caller arena)
+            ctypes.c_size_t,                    # ws_len (arena bytes)
+        ]
+        lib.srmech_qr_f64.restype = ctypes.c_int
+    #   size_t srmech_svd_f64_ws_bound(uint32_t m, uint32_t n)
+    if hasattr(lib, "srmech_svd_f64_ws_bound"):
+        lib.srmech_svd_f64_ws_bound.argtypes = [ctypes.c_uint32, ctypes.c_uint32]
+        lib.srmech_svd_f64_ws_bound.restype = ctypes.c_size_t
+    #   int srmech_svd_f64(uint32_t m, uint32_t n, const double *A,
+    #       double *U_out (m*n), double *S_out (n), double *V_out (n*n),
+    #       double *ws, size_t ws_len)  — m>=n; NOT-converged -> OVERFLOW(4).
+    if hasattr(lib, "srmech_svd_f64"):
+        lib.srmech_svd_f64.argtypes = [
+            ctypes.c_uint32,                    # m
+            ctypes.c_uint32,                    # n
+            ctypes.POINTER(ctypes.c_double),    # A_rowmajor (m*n)
+            ctypes.POINTER(ctypes.c_double),    # U_out (m*n thin)
+            ctypes.POINTER(ctypes.c_double),    # S_out (n descending)
+            ctypes.POINTER(ctypes.c_double),    # V_out (n*n, cols = right sv)
+            ctypes.POINTER(ctypes.c_double),    # ws (caller arena)
+            ctypes.c_size_t,                    # ws_len (arena bytes)
+        ]
+        lib.srmech_svd_f64.restype = ctypes.c_int
+
     # int srmech_dense_matmul_complex(uint32_t m, uint32_t k, uint32_t n,
     #     const double *A_il, const double *B_il, double *out_il)
     # v0.7.5rc14 additive symbol (#928, matmul-kernel phase): the dense complex
@@ -3955,6 +3996,103 @@ def fft_c128_c(seq, inverse: bool):
     if rc != SRMECH_OK:
         return None
     return [complex(outbuf[2 * i], outbuf[2 * i + 1]) for i in range(n)]
+
+
+# ----------------------------------------------------------------------
+# rc140 (Foundation F2): the NUMERIC f64 QR + SVD C peers (srmech_qr_f64 /
+# srmech_svd_f64, real). The matrix_cascades.{qr,svd,lstsq} + the
+# signal_processing subspace ops dispatch their REAL path here; the pure-Python
+# Gram-eigen SVD / list-Householder QR is the COMPLETE alternative (and the
+# parity oracle) for complex inputs / no-C hosts / a NOT-converged SVD.
+# ----------------------------------------------------------------------
+
+
+def has_native_qr_f64() -> bool:
+    """True iff the rc140 real Householder-QR C peer (``srmech_qr_f64`` +
+    ``srmech_qr_f64_ws_bound``) is loaded + bound. False on a no-C or pre-rc140
+    lib — the pure-Python list-Householder is the complete alternative."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_qr_f64")
+            and hasattr(LIB, "srmech_qr_f64_ws_bound"))
+
+
+def has_native_svd_f64() -> bool:
+    """True iff the rc140 real one-sided-Jacobi SVD C peer (``srmech_svd_f64`` +
+    ``srmech_svd_f64_ws_bound``) is loaded + bound. False on a no-C or pre-rc140
+    lib — the pure-Python Gram-eigen SVD is the complete alternative."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_svd_f64")
+            and hasattr(LIB, "srmech_svd_f64_ws_bound"))
+
+
+def qr_f64_c(rows):
+    """Householder QR of the REAL ``(m, n)`` matrix ``rows`` (nested float
+    sequence) via the native ``srmech_qr_f64``. Returns ``(Q, R)`` as nested
+    ``list[list[float]]`` — ``Q`` complete ``(m, m)`` orthogonal, ``R``
+    ``(m, n)`` upper-trapezoidal — or ``None`` when the native symbols are
+    absent (the caller then runs the pure-Python list-Householder). Real f64
+    only; the caller keeps the complex list-Householder for complex input."""
+    if not has_native_qr_f64():
+        return None
+    m = len(rows)
+    n = len(rows[0]) if m else 0
+    if m == 0 or n == 0:
+        return None
+    a = (ctypes.c_double * (m * n))()
+    for i in range(m):
+        ri = rows[i]
+        for j in range(n):
+            a[i * n + j] = float(ri[j])
+    q = (ctypes.c_double * (m * m))()
+    r = (ctypes.c_double * (m * n))()
+    ws_len = int(LIB.srmech_qr_f64_ws_bound(ctypes.c_uint32(m), ctypes.c_uint32(n)))
+    ws = (ctypes.c_double * (ws_len // ctypes.sizeof(ctypes.c_double) + 1))()
+    rc = LIB.srmech_qr_f64(ctypes.c_uint32(m), ctypes.c_uint32(n), a, q, r,
+                           ws, ctypes.c_size_t(ws_len))
+    if rc != SRMECH_OK:
+        return None
+    Q = [[q[i * m + k] for k in range(m)] for i in range(m)]
+    R = [[r[i * n + j] for j in range(n)] for i in range(m)]
+    return Q, R
+
+
+def svd_f64_c(rows):
+    """Economy SVD of the REAL ``(m, n)`` matrix ``rows`` (``m >= n``) via the
+    native one-sided-Jacobi ``srmech_svd_f64``. Returns ``(sigma, vcols)`` where
+    ``sigma`` is the DESCENDING singular values (length ``n``) and ``vcols[j]``
+    is the ``j``-th right singular vector (length ``n``); the caller forms the
+    left singular vectors ``uⱼ = A·vⱼ/σⱼ`` + the orthonormal completion (the
+    same assembly the pure Gram-eigen path uses). Returns ``None`` when the
+    native symbols are absent, when ``m < n`` (the kernel's domain is tall /
+    square — the caller keeps the pure Gram route there), OR when the sweep did
+    NOT converge within the cap (status ``SRMECH_ERR_OVERFLOW``) — so the caller
+    falls back to the pure Gram-eigen SVD (NEVER a silent non-converged
+    result)."""
+    if not has_native_svd_f64():
+        return None
+    m = len(rows)
+    n = len(rows[0]) if m else 0
+    if m == 0 or n == 0 or m < n:
+        return None
+    a = (ctypes.c_double * (m * n))()
+    for i in range(m):
+        ri = rows[i]
+        for j in range(n):
+            a[i * n + j] = float(ri[j])
+    u = (ctypes.c_double * (m * n))()
+    s = (ctypes.c_double * n)()
+    v = (ctypes.c_double * (n * n))()
+    ws_len = int(LIB.srmech_svd_f64_ws_bound(ctypes.c_uint32(m), ctypes.c_uint32(n)))
+    ws = (ctypes.c_double * (ws_len // ctypes.sizeof(ctypes.c_double) + 1))()
+    rc = LIB.srmech_svd_f64(ctypes.c_uint32(m), ctypes.c_uint32(n), a, u, s, v,
+                            ws, ctypes.c_size_t(ws_len))
+    if rc != SRMECH_OK:
+        return None
+    sigma = [s[j] for j in range(n)]
+    vcols = [[v[i * n + j] for i in range(n)] for j in range(n)]
+    return sigma, vcols
 
 
 # ----------------------------------------------------------------------
