@@ -319,7 +319,7 @@ def test_represent_is_a_tool_entry_total_342():
     constructor + weight_monomials/dim are NOT ToolEntries."""
     from srmech.amsc.tool_schema import get_tool_schema
     shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
-    assert len(shipped) == 394
+    assert len(shipped) == 395
     names = {t.name for t in shipped}
     assert ("srmech.amsc.quasimodular_forms_ring.quasimodular_represent"
             in names)

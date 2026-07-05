@@ -326,7 +326,7 @@ def test_signed_weights_roundtrip_extremes():
 # ── (8) format v9 → v10; a v10 genome saves + pages; pre-rc131 reads identically ─
 
 def test_format_bumped_to_v10():
-    assert G.GENOME_FORMAT_VERSION == 10
+    assert G.GENOME_FORMAT_VERSION == 11       # rc132 §132 bumped v10->v11 (0x64 graded gene)
 
 
 def test_threshold_genome_saves_v10_and_pages_back(tmp_path):
@@ -338,7 +338,7 @@ def test_threshold_genome_saves_v10_and_pages_back(tmp_path):
     strand = G.chromosome(the_one=one, label="cell", genes=genes)
     p = tmp_path / "g"
     man = G.genome_save(strand, p, one)
-    assert man["format_version"] == 10                          # the v10 bump
+    assert man["format_version"] == 11                          # rc132 §132 bumped v10->v11; a v11 writer stamps 11
     paged = G.genome_genes(p, "cell", the_one=one)
     assert [l for l, _ in paged] == ["housekeeping", "maj"]     # gate-agnostic recovery
     s2, o2, _ = G.genome_load(p)

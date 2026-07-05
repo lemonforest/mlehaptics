@@ -60,7 +60,7 @@ def test_save_writes_v4_regions_and_chain(tmp_path):
     strand = G.genome({"a": _leaves(5), "b": _leaves(3, base=10)}, one)
     man = G.genome_save(strand, tmp_path / "g", the_one=one)
 
-    assert man["format_version"] == 10
+    assert man["format_version"] == 11
     assert [r["byte_offset"] for r in man["regions"]] == \
         [c["byte_offset"] for c in man["chromosomes"]]
     # regions tile the body contiguously from 0
@@ -170,7 +170,7 @@ def test_pack_single_pass_roundtrip_exact(tmp_path):
     G.genome_save(G.genome(kernels, one), tmp_path / "g", the_one=one)
     G.genome_explode(tmp_path / "g", tmp_path / "loose", the_one=one)
     man = G.genome_pack(tmp_path / "loose", tmp_path / "packed", the_one=one)
-    assert man["format_version"] == 10
+    assert man["format_version"] == 11
     assert len(man["regions"]) == len(kernels)
     for label, leaves in kernels.items():
         win = G.genome_window(tmp_path / "packed", label, the_one=one)

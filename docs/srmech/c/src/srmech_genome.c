@@ -68,9 +68,9 @@
 /* The §41 manifest data_schema_id (== GENOME_MANIFEST_SCHEMA_ID). */
 #define SRMECH_GENOME_SCHEMA_ID "srmech://schema/genome_manifest/v1"
 
-/* The §41 parser_rule_hash pre-image (== f"genome_persistence/v10" — tracks
- * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _manifest_record; §131/rc131 v9->v10). */
-#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v10"
+/* The §41 parser_rule_hash pre-image (== f"genome_persistence/v11" — tracks
+ * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _manifest_record; §132/rc132 v10->v11). */
+#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v11"
 
 /* ------------------------------------------------------------------ *
  * Path + file helpers (stdio — Rule 3 allows file I/O, bans malloc).
@@ -252,12 +252,14 @@ static srmech_status_t genome_block_len(const unsigned char *body,
         kind == SRMECH_GENOME_REGULATORY_GENE_MARKER ||
         kind == SRMECH_GENOME_BOOLEAN_GENE_MARKER ||
         kind == SRMECH_GENOME_THRESHOLD_GENE_MARKER ||
+        kind == SRMECH_GENOME_GRADED_GENE_MARKER ||
         kind == SRMECH_GENOME_KERNEL_HEADER_MARKER ||
         kind == SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
         kind == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER || kind <= 3u) {
         n = (size_t)leaf_dim;   /* cap / §60 v5 header / §89 kernel telomere /
                                  * §127 active telomere / §128 regulatory gene /
-                                 * §130 boolean gene / §131 threshold gene / v2 turn */
+                                 * §130 boolean gene / §131 threshold gene /
+                                 * §132 graded gene / v2 turn */
     } else if (kind == SRMECH_GENOME_PACKED_TURN_MARKER) {
         n = 1u + ((size_t)leaf_dim + 3u) / 4u;      /* v3 bit-packed turn */
     } else {
@@ -662,13 +664,14 @@ static srmech_status_t genome_scan_chroms(genome_strings_t *s,
             s->leaf_count[cur] = 0u;
         } else {
             if (cur < 0) { return SRMECH_ERR_BAD_INPUT; }   /* turn before 1st cap */
-            /* §60/§128/§130/§131: a GENE cap (plain 0x47 / regulatory 0x67 / boolean 0x62 /
-             * threshold 0x77) or a v5 KERNEL HEADER (0x4B) is not a data turn. The §89 v6 Klein-4
-             * header IS a coupled turn (counted). */
+            /* §60/§128/§130/§131/§132: a GENE cap (plain 0x47 / regulatory 0x67 / boolean 0x62 /
+             * threshold 0x77 / graded 0x64) or a v5 KERNEL HEADER (0x4B) is not a data turn. The
+             * §89 v6 Klein-4 header IS a coupled turn (counted). */
             if (body[off] != SRMECH_GENOME_GENE_CAP_MARKER &&
                 body[off] != SRMECH_GENOME_REGULATORY_GENE_MARKER &&
                 body[off] != SRMECH_GENOME_BOOLEAN_GENE_MARKER &&
                 body[off] != SRMECH_GENOME_THRESHOLD_GENE_MARKER &&
+                body[off] != SRMECH_GENOME_GRADED_GENE_MARKER &&
                 body[off] != SRMECH_GENOME_KERNEL_HEADER_MARKER) {
                 s->leaf_count[cur]++;
             }
@@ -1017,6 +1020,102 @@ srmech_status_t srmech_genome_gene_express(
     if (mask_out != NULL) { *mask_out = activator; }
     *expressed = (((cell_state & activator) == activator)     /* ALL activators PRESENT */
                  && ((cell_state & repressor) == 0u)) ? 1 : 0; /* NO repressor PRESENT; no abs */
+    return SRMECH_OK;
+}
+
+/* §132/v11 (#732) — CLAMP the raw dose `raw_num / denom` to [0, 1] and REDUCE, returning the
+ * exact-rational LEVEL as (num_out, den_out). `denom` is POSITIVE. The clamp is a Class-K
+ * sign-branch, NEVER abs: raw_num <= 0 -> (0, 1) (off); raw_num >= denom -> (1, 1) (full); else the
+ * in-range fraction reduced by the Class-I gcd (srmech_gcd; both parts positive, no abs). No arena;
+ * malloc-free. Byte-identical to genome._clamp_reduce_level in Python. */
+static srmech_status_t genome_clamp_reduce_level(
+    int64_t raw_num, uint64_t denom, uint64_t *num_out, uint64_t *den_out)
+{
+    assert(num_out != NULL && den_out != NULL);
+    assert(denom > 0u);
+    if (raw_num <= 0) {                              /* Class-K: sign of raw_num — off */
+        *num_out = 0u; *den_out = 1u;
+        return SRMECH_OK;
+    }
+    uint64_t num = (uint64_t)raw_num;               /* raw_num > 0, so the cast is defined */
+    if (num >= denom) {                             /* Class-K: sign of (raw_num - denom) — full */
+        *num_out = 1u; *den_out = 1u;
+        return SRMECH_OK;
+    }
+    uint64_t g = 0u;
+    srmech_status_t st = srmech_gcd(num, denom, &g); /* Class-I gcd (both positive; no abs) */
+    if (st != SRMECH_OK) { return st; }
+    assert(g > 0u);                                 /* 0 < num < denom, so gcd >= 1 */
+    *num_out = num / g;
+    *den_out = denom / g;
+    return SRMECH_OK;
+}
+
+/* §132/v11 (#732) — evaluate a GRADED GENE (cap[0] == 0x64): the ANALOG dose-response LEVEL. Read
+ * the SIGNED int64 LEVEL-WEIGHT vector + the POSITIVE uint64 DENOMINATOR after the label NUL; the
+ * level is Sum_i (level_weight_i * bit_i(cell_state)) / denom clamped to [0, 1] and gcd-reduced ->
+ * (num_out, den_out). Layout after the label NUL: gate_type(uint8) + n_weights(uint16 BE) +
+ * denom(uint64 BE POSITIVE) + n_weights x level_weight(int64 BE SIGNED). On an int64 dose
+ * accumulate OVERFLOW this returns SRMECH_ERR_OVERFLOW so the caller falls to the exact pure
+ * (bignum) Python path. No arena; malloc-free; no abs; NEVER mutates cap (a READ). */
+static srmech_status_t genome_graded_level(
+    const unsigned char *cap, size_t leaf_dim, uint64_t cell_state,
+    uint64_t *num_out, uint64_t *den_out)
+{
+    assert(cap != NULL && num_out != NULL && den_out != NULL);
+    assert(leaf_dim > 0u && leaf_dim <= 256u);
+    size_t i = 1u;                                  /* skip the 0x64 marker byte */
+    while (i < leaf_dim && cap[i] != 0u) { i++; }   /* find the label terminator */
+    if (i >= leaf_dim) { return SRMECH_ERR_BAD_INPUT; }        /* no label NUL */
+    size_t base = i + 1u;                           /* gate_type + n_weights + denom header */
+    size_t hdr = 1u + SRMECH_GENOME_GRADED_NWEIGHTS_BYTES + SRMECH_GENOME_GRADED_DENOM_BYTES;
+    if (base + hdr > leaf_dim) { return SRMECH_ERR_BAD_INPUT; }  /* header truncated */
+    if (cap[base] != SRMECH_GENOME_GATE_TYPE_GRADED) {
+        return SRMECH_ERR_BAD_INPUT;                            /* unsupported gate_type */
+    }
+    size_t nw_off = base + 1u;
+    uint32_t n_weights = ((uint32_t)cap[nw_off] << 8) | (uint32_t)cap[nw_off + 1u];
+    size_t dn_off = nw_off + SRMECH_GENOME_GRADED_NWEIGHTS_BYTES;
+    uint64_t denom = genome_read_u64_be(cap, dn_off);
+    if (denom == 0u) { return SRMECH_ERR_BAD_INPUT; }           /* a divisor is never zero */
+    size_t w_off = dn_off + SRMECH_GENOME_GRADED_DENOM_BYTES;
+    if (w_off + (size_t)n_weights * SRMECH_GENOME_GRADED_WEIGHT_BYTES > leaf_dim) {
+        return SRMECH_ERR_BAD_INPUT;                            /* weight vector truncated */
+    }
+    int64_t total = 0;
+    for (uint32_t t = 0u; t < n_weights && t < 64u; t++) {      /* bit_t == 0 for t >= 64 (uint64) */
+        if (((cell_state >> t) & 1u) == 0u) { continue; }      /* condition absent — weight skipped */
+        int64_t w = genome_read_i64_be(cap, w_off + (size_t)t * SRMECH_GENOME_GRADED_WEIGHT_BYTES);
+        if ((w > 0 && total > INT64_MAX - w) ||                 /* defer to the exact pure path */
+            (w < 0 && total < INT64_MIN - w)) { return SRMECH_ERR_OVERFLOW; }
+        total += w;                                            /* exact int64 signed dose accumulate */
+    }
+    return genome_clamp_reduce_level(total, denom, num_out, den_out);
+}
+
+srmech_status_t srmech_genome_gene_express_levels(
+    const unsigned char *cap, size_t leaf_dim, uint64_t cell_state,
+    uint64_t *num_out, uint64_t *den_out)
+{
+    assert(cap != NULL || num_out == NULL);
+    assert(leaf_dim <= 256u);
+    if (cap == NULL || num_out == NULL || den_out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (leaf_dim == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (cap[0] == SRMECH_GENOME_GRADED_GENE_MARKER) {
+        /* §132 the ORTHOGONAL analog LEVEL axis: the exact-rational dose-response. */
+        return genome_graded_level(cap, leaf_dim, cell_state, num_out, den_out);
+    }
+    /* a BINARY gene — the degenerate {0, 1} case: level 1 iff its E1/E2/E4 gate passes (the SAME
+     * decision as srmech_genome_gene_express), else 0. */
+    int expressed = 0;
+    srmech_status_t st = srmech_genome_gene_express(cap, leaf_dim, cell_state, &expressed, NULL);
+    if (st != SRMECH_OK) { return st; }
+    *num_out = expressed ? 1u : 0u;
+    *den_out = 1u;
     return SRMECH_OK;
 }
 
@@ -1525,10 +1624,10 @@ static srmech_status_t genome_scan_region(const unsigned char *region,
                           kind == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER)) {
             return SRMECH_ERR_BAD_INPUT;  /* one append == ONE chromosome */
         }
-        /* §60/§127/§128/§130/§131: a GENE cap (plain 0x47 / regulatory 0x67 / boolean 0x62 /
-         * threshold 0x77) or a v5 KERNEL HEADER (0x4B) is not a data turn; the §89 kernel
-         * telomere / §127 active telomere opens the region (off==0). The §89 Klein-4 header IS a
-         * coupled turn. */
+        /* §60/§127/§128/§130/§131/§132: a GENE cap (plain 0x47 / regulatory 0x67 / boolean 0x62 /
+         * threshold 0x77 / graded 0x64) or a v5 KERNEL HEADER (0x4B) is not a data turn; the §89
+         * kernel telomere / §127 active telomere opens the region (off==0). The §89 Klein-4 header
+         * IS a coupled turn. */
         if (kind != SRMECH_GENOME_CHROM_CAP_MARKER &&
             kind != SRMECH_GENOME_KERNEL_TELOMERE_MARKER &&
             kind != SRMECH_GENOME_ACTIVE_TELOMERE_MARKER &&
@@ -1536,6 +1635,7 @@ static srmech_status_t genome_scan_region(const unsigned char *region,
             kind != SRMECH_GENOME_REGULATORY_GENE_MARKER &&
             kind != SRMECH_GENOME_BOOLEAN_GENE_MARKER &&
             kind != SRMECH_GENOME_THRESHOLD_GENE_MARKER &&
+            kind != SRMECH_GENOME_GRADED_GENE_MARKER &&
             kind != SRMECH_GENOME_KERNEL_HEADER_MARKER) { lc++; }
         nb++;
         off += blen;
@@ -1904,9 +2004,9 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
 
 /* The §43 .chr data_schema_id (== GENOME_CHR_SCHEMA_ID). */
 #define SRMECH_GENOME_CHR_SCHEMA_ID "srmech://schema/genome_chromosome/v1"
-/* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v10" — tracks
- * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _chr_record; §131/rc131 v9->v10). */
-#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v10"
+/* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v11" — tracks
+ * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _chr_record; §132/rc132 v10->v11). */
+#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v11"
 /* The §43 rendering "purpose" — VERBATIM from genome.py _chr_record
  * (single-line #define; JPL Rule 8 forbids backslash line-continuation). */
 #define SRMECH_GENOME_CHR_PURPOSE "One self-contained, MPR-attested chromosome: its fixed-width region (CHROM cap + coupled turns) + the_one, re-importable self-verifying."

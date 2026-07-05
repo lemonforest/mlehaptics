@@ -1800,6 +1800,18 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.POINTER(ctypes.c_int),
                 ctypes.POINTER(ctypes.c_uint64)]
             lib.srmech_genome_gene_express.restype = ctypes.c_int
+        # §132/rc132 (#732) — the per-gene expression LEVEL (the E3 graded / analog axis): cap in,
+        # the reduced exact-rational level (num, den) out. No arena (a per-cap decision). NEW symbol
+        # → hasattr-guarded (a stale ABI-3 lib keeps the rest of the genome surface); additive →
+        # ABI stays 3.
+        #   int srmech_genome_gene_express_levels(const unsigned char *cap, size_t leaf_dim,
+        #       uint64_t cell_state, uint64_t *num_out, uint64_t *den_out)
+        if hasattr(lib, "srmech_genome_gene_express_levels"):
+            lib.srmech_genome_gene_express_levels.argtypes = [
+                _U8, _SZ, ctypes.c_uint64,
+                ctypes.POINTER(ctypes.c_uint64),
+                ctypes.POINTER(ctypes.c_uint64)]
+            lib.srmech_genome_gene_express_levels.restype = ctypes.c_int
         # json_write_ws(value, buf, buf_len, &out_len, ws, ws_len) — serialise
         # the catalog's tree; the writer's key-sort scratch is carved from the
         # caller arena `ws` (rc160: no compiled-in object-width cap). Size `ws`
@@ -9914,6 +9926,29 @@ def genome_gene_express_c(cap: bytes, leaf_dim: int, cell_state: int) -> bool:
     if rc != SRMECH_OK:
         raise NativeGenomeError("srmech_genome_gene_express", rc)
     return bool(expressed.value)
+
+
+def genome_gene_express_levels_c(cap: bytes, leaf_dim: int, cell_state: int):
+    """Native §132 per-gene expression LEVEL — the E3 graded / analog axis (the orthogonal
+    companion to :func:`genome_gene_express_c`). ``cap`` is any gene cap leaf (plain ``0x47`` /
+    regulatory ``0x67`` / boolean ``0x62`` / threshold ``0x77`` / graded ``0x64``); returns the
+    reduced exact-rational LEVEL as a ``(num, den)`` tuple of ints (``den >= 1``). A GRADED gene →
+    its clamped reduced dose-response ``Σᵢ level_weightᵢ·bit_i(cell_state) / denom`` in ``[0, 1]``
+    (Class-K clamp, Class-I gcd-reduce); a BINARY gene is the degenerate ``{0, 1}`` case →
+    ``(1, 1)`` iff its gate passes else ``(0, 1)``. On an int64 dose-accumulate overflow the native
+    raises ``NativeGenomeError`` so the caller falls to the exact pure Python (bignum) path.
+    Byte-identical to the pure Python decision in ``genome._gene_level``."""
+    _require_genome()
+    if not hasattr(LIB, "srmech_genome_gene_express_levels"):
+        raise NativeGenomeError("srmech_genome_gene_express_levels", SRMECH_ERR_NOT_IMPL)
+    num = ctypes.c_uint64(0)
+    den = ctypes.c_uint64(0)
+    rc = LIB.srmech_genome_gene_express_levels(
+        _u8(cap), ctypes.c_size_t(leaf_dim), ctypes.c_uint64(cell_state),
+        ctypes.byref(num), ctypes.byref(den))
+    if rc != SRMECH_OK:
+        raise NativeGenomeError("srmech_genome_gene_express_levels", rc)
+    return (int(num.value), int(den.value))
 
 
 def genome_load_c(dir_: str, the_one: bytes, out_cap: int) -> bytes:

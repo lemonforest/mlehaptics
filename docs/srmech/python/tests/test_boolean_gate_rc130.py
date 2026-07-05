@@ -251,7 +251,7 @@ def test_klein4_genes_report_klein4_gate_type():
 # ── (8) format v8 → v9; a v9 genome saves + pages; pre-rc130 reads identically ─
 
 def test_format_bumped_to_v9():
-    assert G.GENOME_FORMAT_VERSION == 10       # rc131 §131 bumped v9->v10 (0x77 threshold gene)
+    assert G.GENOME_FORMAT_VERSION == 11       # rc132 §132 bumped v10->v11 (0x64 graded gene)
 
 
 def test_boolean_genome_saves_v9_and_pages_back(tmp_path):
@@ -263,7 +263,7 @@ def test_boolean_genome_saves_v9_and_pages_back(tmp_path):
     strand = G.chromosome(the_one=one, label="cell", genes=genes)
     p = tmp_path / "g"
     man = G.genome_save(strand, p, one)
-    assert man["format_version"] == 10                         # rc131 bumped v9->v10; a v10 writer stamps 10
+    assert man["format_version"] == 11                         # rc132 bumped v10->v11; a v11 writer stamps 11
     paged = G.genome_genes(p, "cell", the_one=one)
     assert [l for l, _ in paged] == ["housekeeping", "xor_ab"]  # gate-agnostic recovery
     s2, o2, _ = G.genome_load(p)

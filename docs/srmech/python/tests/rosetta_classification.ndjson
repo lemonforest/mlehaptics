@@ -454,6 +454,7 @@
 {"exposed_as": "srmech.amsc.genome.active_telomere", "defined_at": "srmech.amsc.genome.active_telomere", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.telomere_tick", "defined_at": "srmech.amsc.genome.telomere_tick", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.genome.gene_express", "defined_at": "srmech.amsc.genome.gene_express", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.genome.gene_express_levels", "defined_at": "srmech.amsc.genome.gene_express_levels", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.mat_norm", "defined_at": "srmech.amsc.laplacian.mat_norm", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.mat_dot", "defined_at": "srmech.amsc.laplacian.mat_dot", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.mat_matvec", "defined_at": "srmech.amsc.laplacian.mat_matvec", "bucket": "composition_of_c"}

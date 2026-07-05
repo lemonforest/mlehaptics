@@ -50,6 +50,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from srmech.amsc import _native
+from srmech.amsc.cyclic import gcd as _gcd
 from srmech.amsc.format import MPRRecord as _MPRRecord
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.amsc.format import validate_mpr_record as _validate_mpr_record
@@ -75,11 +76,14 @@ __all__ = [
     "kernel_pack", "kernel_unpack",
     "active_telomere", "telomere_tick",
     "gene_express",
+    "gene_express_levels",
     "GenomeBoundingError",
     "LEAF_CAP", "QUAD", "MOBIUS_CAP",
     "CHROM_CAP_MARKER", "GENE_CAP_MARKER", "GENE_FRAME_TAG",
     "REGULATORY_GENE_MARKER", "BOOLEAN_GENE_MARKER", "THRESHOLD_GENE_MARKER",
+    "GRADED_GENE_MARKER",
     "GATE_TYPE_KLEIN4_MASK", "GATE_TYPE_BOOLEAN_DNF", "GATE_TYPE_THRESHOLD",
+    "GATE_TYPE_GRADED",
     "PACKED_TURN_MARKER", "KERNEL_HEADER_MARKER", "KERNEL_TELOMERE_MARKER",
     "ACTIVE_TELOMERE_MARKER", "ELEMENT_TYPE_KLEIN4",
     "TELOMERE_DIVIDED", "TELOMERE_SENESCENT",
@@ -326,6 +330,55 @@ BOOLEAN_GENE_MARKER = 0x62
 #: identically.
 THRESHOLD_GENE_MARKER = 0x77
 
+#: §132/rc132 (format v10 → v11, #732) — the GRADED (DOSE-RESPONSE) GENE marker. ``0x64`` = ASCII
+#: ``'d'`` (a lower-case **d**ose gene, mnemonically paired with the upper-case ``0x47`` ``'G'``
+#: plain gene + the ``0x67`` ``'g'`` klein4-mask / ``0x62`` ``'b'`` boolean / ``0x77`` ``'w'``
+#: threshold genes it joins — the same lower-case-carries-state pairing rc126..rc131 used). A
+#: graded gene is an intra-chromosome gene boundary cap (a gene-analog, like ``0x47`` / ``0x67`` /
+#: ``0x62`` / ``0x77``) that carries an ANALOG (dose-response) EXPRESSION LEVEL inline — a
+#: per-condition SIGNED integer LEVEL-WEIGHT vector + a POSITIVE integer DENOMINATOR. It is the
+#: **E3 GRADED LEVEL** rung — an ORTHOGONAL AXIS on top of the E1/E2/E4 gate-type family: the
+#: gate-types decide IF a gene expresses (a BINARY switch); E3 decides HOW MUCH — a quantitative
+#: (analog) output. Real biology is graded, not just on/off: the AMOUNT of transcription is tuned
+#: by the number/concentration of bound regulators (Alberts et al., *Molecular Biology of the
+#: Cell* 4th ed., "How Genetic Switches Work" → "Gene Activator Proteins Work Synergistically",
+#: NCBI Bookshelf NBK26872: multiple activators combine so the joint effect on the transcription
+#: RATE is "not merely the sum … but the product" — a graded, quantitative modulation of the
+#: expression LEVEL, not a binary switch).
+#:
+#: ENCODING = a rational dose-response, exact Class-N (NO float): the LEVEL is the reduced exact
+#: rational ``Σᵢ (level_weightᵢ · bit_i(cell_state)) / denom``, CLAMPED to ``[0, 1]`` by a Class-K
+#: sign-branch (the raw dose ``Σ`` — SIGNED, an inhibitory input is a NEGATIVE weight — over the
+#: positive ``denom``: ``Σ ≤ 0 → level 0``; ``Σ ≥ denom → level 1``; else the reduced
+#: ``Σ/denom`` in ``(0, 1)``). The fraction is reduced by the **Class-I gcd**. ``denom`` is the
+#: full-expression normalizer (the dose at which the gene is fully ON). A graded gene is
+#: "expressed" iff its LEVEL ``> 0`` (the dose-response IS the gate — dose 0 = off), so it also
+#: participates in the BINARY :func:`gene_express` (present iff level > 0). :func:`gene_express_levels`
+#: is the op that returns the exact-rational LEVEL per expressed gene.
+#:
+#: Layout (a fixed-width ``leaf_dim``-byte ``sectors=256`` cap leaf; §44 inline; the gate_type +
+#: n_weights + denom + weights carried after the label NUL — the SAME uniform label decode as
+#: every cap):
+#:   byte ``[0]``           marker ``0x64``
+#:   bytes ``[1:1+L]``      utf-8 gene label ``L`` bytes
+#:   byte ``[1+L]``         the label terminator ``0x00``
+#:   byte ``[2+L]``         gate_type — uint8 (:data:`GATE_TYPE_GRADED` = 3)
+#:   bytes ``[3+L:5+L]``    n_weights — uint16 BIG-ENDIAN (the level-weight-vector length)
+#:   bytes ``[5+L:13+L]``   denom — **uint64 BIG-ENDIAN (POSITIVE, ≥ 1; the full-ON dose)**
+#:   then n_weights weights, each ``_GRADED_GENE_WEIGHT_BYTES`` (8) bytes:
+#:     level_weight (int64 BE, SIGNED two's-complement)
+#:   bytes ``[…]``          NUL padding to ``leaf_dim``
+#: ``> 3`` and distinct from every other marker (CHROM ``0x43`` / GENE ``0x47`` / v5 KERNEL
+#: ``0x4B`` / PACKED ``0x51`` / KERNEL-telomere ``0x6B`` / ACTIVE-telomere ``0x74`` /
+#: REGULATORY-gene ``0x67`` / BOOLEAN-gene ``0x62`` / THRESHOLD-gene ``0x77``), so the strand
+#: stays SELF-DESCRIBING (§44): v2..v10 bodies read UNCHANGED (dual-read — the walker gains ONE
+#: branch), and a chromosome self-describes its level-weights + denom by bare-strand scan (no
+#: manifest). A NEW block KIND (a new marker byte), so it bumps the genome format v10 → v11 — the
+#: same version-stamp discipline every prior new-marker bump used (rc127 ``0x74`` v6→v7, rc128
+#: ``0x67`` v7→v8, rc130 ``0x62`` v8→v9, rc131 ``0x77`` v9→v10); the strand-walk read path is
+#: version-INDEPENDENT, so every pre-rc132 genome still reads identically.
+GRADED_GENE_MARKER = 0x64
+
 #: The regulatory-gene MASK field width — a uint64 (8 bytes, big-endian), read at the byte
 #: right after the inline label's NUL terminator (the SAME field shape as the §127 active
 #: telomere's count). 64 exact bitwise cell-state conditions; Class-I integer, no float.
@@ -389,11 +442,19 @@ _REGULATORY_GENE_ROLES = ("dont-care", "repressor", "activator", "never")
 #:     SIGNED weights (inhibitory inputs) are allowed; the decision is the SIGN of ``(Σ −
 #:     threshold)`` (Class-K, never ``abs()``). GENUINELY DISTINCT from E2 (linear-threshold ⊄
 #:     small-DNF: MAJORITY-of-n needs an exponential DNF but a compact all-ones threshold gate).
+#:   * :data:`GATE_TYPE_GRADED` (``3``) — the rc132 E3 GRADED / ANALOG LEVEL (a dose-response),
+#:     carried in a GRADED GENE cap (``0x64``). This is NOT a binary gate-type in the E1/E2/E4
+#:     "IF it expresses" family — it is the ORTHOGONAL "HOW MUCH" axis: a per-condition SIGNED
+#:     integer level-weight vector + a positive integer denominator whose LEVEL is the reduced
+#:     exact rational ``Σᵢ level_weightᵢ·bit_i(cell_state) / denom`` clamped to ``[0, 1]``. The
+#:     gate_type byte is carried in the cap for self-description / family-extensibility, exactly
+#:     like the boolean / threshold genes.
 GATE_TYPE_KLEIN4_MASK = 0
 GATE_TYPE_BOOLEAN_DNF = 1
 GATE_TYPE_THRESHOLD = 2
+GATE_TYPE_GRADED = 3
 _GATE_TYPE_NAMES = {GATE_TYPE_KLEIN4_MASK: "klein4_mask", GATE_TYPE_BOOLEAN_DNF: "boolean_dnf",
-                    GATE_TYPE_THRESHOLD: "threshold"}
+                    GATE_TYPE_THRESHOLD: "threshold", GATE_TYPE_GRADED: "graded"}
 
 #: §130/rc130 (#730) — the BOOLEAN GENE DNF wire widths. The DNF term COUNT is a uint16
 #: big-endian (2 bytes; up to 65535 terms — a leaf_dim-bounded ceiling, plenty for the
@@ -416,6 +477,19 @@ _THRESHOLD_GENE_WEIGHT_BYTES = 8
 #: The int64 two's-complement bound: a signed weight / threshold lives in [-2**63, 2**63).
 _THRESHOLD_I64_MIN = -(1 << 63)
 _THRESHOLD_I64_MAX = (1 << 63) - 1
+
+#: §132/rc132 (#732) — the GRADED (dose-response) GENE wire widths. The level-weight-vector LENGTH
+#: is a uint16 big-endian (2 bytes; a weight at index i doses condition bit i of the cell_state).
+#: The DENOMINATOR is a uint64 big-endian POSITIVE integer (8 bytes; the full-expression dose — a
+#: divisor is never negative, so it is UNSIGNED and validated ``≥ 1``, never ``abs()``). Each
+#: LEVEL-WEIGHT is an int64 big-endian SIGNED two's-complement (8 bytes; SIGNED so an inhibitory
+#: input REDUCES the dose — real biology). Class-N exact rational level; the SIGN of the raw dose
+#: is a Class-K pin-slot, never ``abs()``; the fraction is reduced by the Class-I gcd.
+_GRADED_GENE_NWEIGHTS_BYTES = 2
+_GRADED_GENE_DENOM_BYTES = 8
+_GRADED_GENE_WEIGHT_BYTES = 8
+#: The uint64 denominator bound: a positive divisor lives in [1, 2**64).
+_GRADED_U64_MAX = (1 << 64) - 1
 
 #: The two :func:`telomere_tick` verdicts (the honest-decline / inform-don't-crash
 #: pattern — a clean STATUS, never a crash). ``DIVIDED`` = the count was > 0, so the op
@@ -561,7 +635,7 @@ def _cap_kind(hv):
     first = int(hv[0]) if len(hv) else -1
     return first if first in (
         CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
-        BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER,
+        BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
         KERNEL_HEADER_MARKER,
         KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER) else None
 
@@ -926,6 +1000,8 @@ def _gene_gate_type(hv):
         return _boolean_gene_dnf(hv)[0]
     if kind == THRESHOLD_GENE_MARKER:
         return _threshold_gene_spec(hv)[0]
+    if kind == GRADED_GENE_MARKER:
+        return _graded_gene_spec(hv)[0]
     return None
 
 
@@ -1043,6 +1119,159 @@ def _threshold_expresses(weights, threshold, cell_state):
             total += w                                   # exact signed accumulate (Class-I/N)
     delta = total - threshold                            # Class-K pin-slot: the SIGN decides
     return delta >= 0                                    # inclusive boundary; never abs()
+
+
+def _validate_graded_denom(denom):
+    """Validate the graded-gene DENOMINATOR (§132) — a POSITIVE exact integer that fits the uint64
+    field ``[1, 2**64)``. A divisor is never negative (never ``abs()``); a zero denom is rejected
+    (division by zero). Class-N exact integer, NO float."""
+    if not isinstance(denom, int) or isinstance(denom, bool):
+        raise ValueError(
+            f"graded gene denom must be an exact int (Class-N); got {denom!r}")
+    if denom < 1:
+        raise ValueError(
+            f"graded gene denom must be POSITIVE (≥ 1 — the full-expression dose; a divisor is "
+            f"never zero or negative, so never abs()); got {denom}")
+    if denom > _GRADED_U64_MAX:
+        raise ValueError(
+            f"graded gene denom {denom} exceeds the uint64 field [1, 2**64)")
+
+
+def _pack_graded_gene(gene_label, weights, denom, dim, gate_type=GATE_TYPE_GRADED):
+    """A fixed-width ``dim``-byte GRADED (dose-response) GENE cap leaf (§132) — the E3 analog LEVEL.
+
+    ``[GRADED_GENE_MARKER] + utf-8 label + NUL + gate_type(uint8) + n_weights(uint16 BE) +
+    denom(uint64 BE POSITIVE) + n_weights × (level_weight(int64 BE SIGNED))``, NUL-padded to
+    ``dim``. The **op** (a gene: it opens + delimits a gene, like :func:`_gene_cap`) and the
+    **operand** (a dose-response / analog level over the condition bits — a signed integer
+    level-weight per condition + a positive denominator) are FUSED in the ONE cap. Placing the
+    gate_type + n_weights + denom + weights right AFTER the label's NUL keeps the label decode
+    UNIFORM (bytes ``[1:]`` up to the first NUL — :func:`_unpack_cap` reads it with no
+    graded-gene special-case).
+
+    :func:`gene_express_levels` reads the vector + denom and reports the gene's exact-rational
+    LEVEL ``Σᵢ (level_weightᵢ · bit_i(cell_state)) / denom`` clamped to ``[0, 1]`` (Class-N exact
+    rational; the raw dose SIGN is a Class-K pin-slot, never ``abs()``; the fraction reduced by the
+    Class-I gcd). ``denom`` is a POSITIVE exact integer (the full-ON dose); ``weights`` are SIGNED
+    exact integers (Class-N; NO float; an inhibitory input is a NEGATIVE weight). Same marker
+    ``0x64`` = a NEW block KIND (v10 → v11), distinct from the ``0x67`` / ``0x62`` / ``0x77``
+    binary gate genes — the level axis is ORTHOGONAL to the E1/E2/E4 IF-gate family."""
+    if gate_type != GATE_TYPE_GRADED:
+        raise ValueError(
+            f"graded gene gate_type {gate_type} is not supported (only "
+            f"GATE_TYPE_GRADED={GATE_TYPE_GRADED} today)")
+    weights = list(weights)
+    if len(weights) >= (1 << (8 * _GRADED_GENE_NWEIGHTS_BYTES)):
+        raise ValueError(
+            f"graded gene has {len(weights)} level-weights; max "
+            f"{(1 << (8 * _GRADED_GENE_NWEIGHTS_BYTES)) - 1} (the uint16 weight count)")
+    _validate_graded_denom(denom)
+    for i, w in enumerate(weights):
+        _validate_threshold_i64(w, f"level_weight {i}")   # SIGNED int64 level-weight (Class-N)
+    raw_label = gene_label.encode("utf-8") if isinstance(gene_label, str) else bytes(gene_label)
+    if b"\x00" in raw_label:
+        raise ValueError("graded gene label must not contain a NUL byte")
+    payload = bytearray(bytes([GRADED_GENE_MARKER]) + raw_label + b"\x00")
+    payload.append(gate_type & 0xFF)                                     # gate_type — uint8
+    payload += len(weights).to_bytes(_GRADED_GENE_NWEIGHTS_BYTES, "big")  # n_weights — uint16 BE
+    payload += int(denom).to_bytes(_GRADED_GENE_DENOM_BYTES, "big")       # denom — uint64 BE (>=1)
+    for w in weights:
+        payload += int(w).to_bytes(_GRADED_GENE_WEIGHT_BYTES, "big", signed=True)
+    if len(payload) > dim:
+        raise ValueError(
+            f"graded gene label {gene_label!r} + {len(weights)}-weight vector is "
+            f"{len(payload)} bytes; max {dim} at leaf_dim={dim} (widen leaf_dim or reduce the "
+            f"weight count)")
+    block = bytes(payload) + b"\x00" * (dim - len(payload))
+    return _HV.from_sequence(block, sectors=256)
+
+
+def _graded_gene_spec(hv):
+    """``(gate_type, [level_weight, …], denom)`` carried inline in a GRADED GENE cap (§132) — the
+    dose-response operand of the op⊗operand gene. Reads the gate_type byte + the uint16 weight count
+    + the uint64 POSITIVE denom right AFTER the label's NUL, then the ``n_weights`` int64 SIGNED
+    level-weights. The chromosome SELF-DESCRIBES its level-weights + denom by this bare-strand read
+    (no manifest). Class-N exact integers (never a float; the weight sign is meaningful, never
+    ``abs()``). Raises ``ValueError`` on a malformed / truncated cap."""
+    raw = hv.tobytes()
+    if raw[:1] != bytes([GRADED_GENE_MARKER]):
+        raise ValueError("not a graded gene cap (first byte != GRADED_GENE_MARKER)")
+    nul = raw.find(b"\x00", 1)                          # end of the inline label
+    hdr = 1 + _GRADED_GENE_NWEIGHTS_BYTES + _GRADED_GENE_DENOM_BYTES
+    if nul < 0 or nul + hdr > len(raw):
+        raise ValueError(
+            "graded gene cap is malformed: no label NUL / gate_type+n_weights+denom header "
+            "truncated")
+    gate_type = raw[nul + 1]
+    if gate_type != GATE_TYPE_GRADED:
+        raise ValueError(
+            f"graded gene cap has unsupported gate_type {gate_type} "
+            f"(only GATE_TYPE_GRADED={GATE_TYPE_GRADED} today)")
+    nw_base = nul + 2
+    n_weights = int.from_bytes(raw[nw_base:nw_base + _GRADED_GENE_NWEIGHTS_BYTES], "big")
+    dn_base = nw_base + _GRADED_GENE_NWEIGHTS_BYTES
+    denom = int.from_bytes(raw[dn_base:dn_base + _GRADED_GENE_DENOM_BYTES], "big")
+    if denom < 1:
+        raise ValueError("graded gene cap is malformed: denom must be POSITIVE (>= 1)")
+    base = dn_base + _GRADED_GENE_DENOM_BYTES
+    if base + n_weights * _GRADED_GENE_WEIGHT_BYTES > len(raw):
+        raise ValueError("graded gene cap is malformed: level-weight vector truncated")
+    weights = []
+    for k in range(n_weights):
+        o = base + k * _GRADED_GENE_WEIGHT_BYTES
+        weights.append(int.from_bytes(
+            raw[o:o + _GRADED_GENE_WEIGHT_BYTES], "big", signed=True))
+    return gate_type, weights, denom
+
+
+def _clamp_reduce_level(raw_num, denom):
+    """Clamp the raw dose ``raw_num / denom`` to ``[0, 1]`` and reduce (§132) — the exact-rational
+    LEVEL as a reduced ``(num, den)`` tuple. ``denom`` is POSITIVE; ``raw_num`` is the SIGNED exact
+    dose. The clamp is a **Class-K sign-branch, NEVER ``abs()``**: ``raw_num ≤ 0`` (sign of
+    ``raw_num``) → ``(0, 1)`` (off); ``raw_num ≥ denom`` (sign of ``raw_num − denom``) → ``(1, 1)``
+    (fully on); else the in-range fraction is reduced by the **Class-I gcd** (both parts positive,
+    so no ``abs()``). Class-N exact rational, NO float."""
+    if raw_num <= 0:                                     # Class-K: sign of raw_num — off
+        return (0, 1)
+    if raw_num >= denom:                                 # Class-K: sign of (raw_num - denom) — full
+        return (1, 1)
+    g = _gcd(raw_num, denom)                             # Class-I gcd (both positive; no abs)
+    return (raw_num // g, denom // g)
+
+
+def _graded_level(weights, denom, cell_state):
+    """Evaluate a graded / dose-response gate under ``cell_state`` (§132) — the exact-rational
+    LEVEL ``Σᵢ (level_weightᵢ · bit_i(cell_state)) / denom`` clamped to ``[0, 1]`` and reduced,
+    returned as a ``(num, den)`` tuple. The SIGNED integer weighted dose over the PRESENT
+    conditions (bit ``i`` of ``cell_state``) is the numerator; ``denom`` (POSITIVE) the full-ON
+    dose. Class-N exact rational (arbitrary precision; no float); the raw-dose SIGN is a Class-K
+    pin-slot (never ``abs()``); the fraction is Class-I gcd-reduced. Absent conditions contribute
+    0 (a gene with dose ≤ 0 is off = level ``(0, 1)``)."""
+    total = 0
+    for i, w in enumerate(weights):
+        if (cell_state >> i) & 1:                        # bit_i(cell_state) — condition present
+            total += w                                   # exact signed dose accumulate (Class-N)
+    return _clamp_reduce_level(total, denom)             # clamp [0,1] + gcd-reduce; never abs()
+
+
+def _gene_level(cap, cell_state):
+    """The exact-rational EXPRESSION LEVEL of the gene opened by ``cap`` under ``cell_state`` (§132)
+    — a reduced ``(num, den)`` tuple, the per-gene read shared by :func:`gene_express_levels`. A
+    GRADED gene (``0x64``) → its clamped reduced dose-response rational (:func:`_graded_level`). A
+    BINARY gene (plain ``0x47`` / klein4-mask ``0x67`` / boolean ``0x62`` / threshold ``0x77``) is
+    the DEGENERATE graded case with levels ``{0, 1}``: ``(1, 1)`` if its gate passes else
+    ``(0, 1)`` (reusing the §128/§130/§131 gate decision :func:`_gene_expresses`). So the LEVEL
+    axis composes with EVERY gate-type. Native-authoritative when present (byte-identical C peer
+    ``srmech_genome_gene_express_levels``); the pure Class-N/I integer path is the complete
+    alternative. NO float, NEVER ``abs()``."""
+    native = _gene_level_native(cap, cell_state)
+    if native is not None:
+        return native
+    if _cap_kind(cap) == GRADED_GENE_MARKER:
+        _gate_type, weights, denom = _graded_gene_spec(cap)
+        return _graded_level(weights, denom, cell_state)
+    # a BINARY gene — the degenerate {0, 1} graded case: level 1 iff its gate passes.
+    return (1, 1) if _gene_expresses(cap, cell_state) else (0, 1)
 
 
 def _pack_active_telomere(label, count, dim):
@@ -1236,11 +1465,15 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
         elif len(gene) == 3:
             gene_label, gene_leaves, spec = gene
             if isinstance(spec, dict):
-                # §130/§131 the GENERAL gate-types (dict spec): {"gate": "threshold",
-                # "weights": [...], "threshold": θ} opens a THRESHOLD GENE cap (0x77, E4 the
-                # linear-threshold / perceptron gate); any other dict {"gate": "boolean",
-                # "dnf": [...]} opens a BOOLEAN GENE cap (0x62, E2 the DNF gate).
-                if spec.get("gate") in ("threshold", "linear_threshold"):
+                # §130/§131/§132 the dict gate-forms: {"gate": "graded", "weights": [...],
+                # "denom": D} opens a GRADED GENE cap (0x64, E3 the analog dose-response LEVEL
+                # — the ORTHOGONAL axis); {"gate": "threshold", "weights": [...], "threshold":
+                # θ} opens a THRESHOLD GENE cap (0x77, E4 the linear-threshold / perceptron
+                # gate); any other dict {"gate": "boolean", "dnf": [...]} opens a BOOLEAN GENE
+                # cap (0x62, E2 the DNF gate).
+                if spec.get("gate") in ("graded", "dose", "level"):
+                    strand.append(_graded_gene_cap_from_spec(gene_label, spec, dim))
+                elif spec.get("gate") in ("threshold", "linear_threshold"):
                     strand.append(_threshold_gene_cap_from_spec(gene_label, spec, dim))
                 else:
                     strand.append(_boolean_gene_cap_from_spec(gene_label, spec, dim))
@@ -1295,6 +1528,29 @@ def _threshold_gene_cap_from_spec(gene_label, spec, dim):
     return _pack_threshold_gene(gene_label, spec["weights"], spec["threshold"], dim)
 
 
+def _graded_gene_cap_from_spec(gene_label, spec, dim):
+    """Build a §132 GRADED (dose-response) GENE cap from a dict gene-spec — the chromosome-builder
+    adapter for the E3 analog LEVEL. ``spec`` is ``{"gate": "graded", "weights": [w0, w1, …],
+    "denom": D}`` (the ``"gate"`` key declares the gate_type; ``"weights"`` is the per-condition
+    SIGNED integer level-weight vector — weight ``i`` doses condition bit ``i``; ``"denom"`` is the
+    POSITIVE integer full-expression normalizer). The LEVEL is the reduced exact rational
+    ``Σᵢ weightᵢ·bit_i(cell_state) / denom`` clamped to ``[0, 1]``. Composes :func:`_pack_graded_gene`."""
+    gate = spec.get("gate", "graded")
+    if gate not in ("graded", "dose", "level"):
+        raise ValueError(
+            f"graded gene spec gate {gate!r} is not supported (only 'graded' / 'dose' / "
+            f"'level' today — the §132 E3 analog-level axis)")
+    if "weights" not in spec:
+        raise ValueError(
+            "graded gene spec must carry a 'weights' vector [w0, w1, …] (a SIGNED integer "
+            "level-weight per condition bit; an inhibitory input is a NEGATIVE weight)")
+    if "denom" not in spec:
+        raise ValueError(
+            "graded gene spec must carry a 'denom' (a POSITIVE integer — the full-expression "
+            "dose; the LEVEL is Σ weightᵢ·bit_i(cell_state) / denom clamped to [0, 1])")
+    return _pack_graded_gene(gene_label, spec["weights"], spec["denom"], dim)
+
+
 def recall(strand, the_one, telomere=None):
     """Recover the kernel's leaves from a capped chromosome strand (F713/F715/§44).
 
@@ -1341,7 +1597,7 @@ def genes(strand, the_one):
     for hv in strand:
         kind = _cap_kind(hv)
         if kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
-                    THRESHOLD_GENE_MARKER):
+                    THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER):
             # §128/§130/§131: a plain GENE cap (0x47), a REGULATORY GENE cap (0x67), a BOOLEAN
             # GENE cap (0x62) OR a THRESHOLD GENE cap (0x77) opens a gene; its label reads
             # UNIFORMLY (the mask(s) / gate_type + DNF / weights sit AFTER the label NUL, so
@@ -1458,7 +1714,7 @@ def gene_express(strand, the_one, cell_state):
     for hv in strand:
         kind = _cap_kind(hv)
         if kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
-                    THRESHOLD_GENE_MARKER):
+                    THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER):
             if started and cur_express:
                 out.append((cur_label, cur_leaves))
             _marker, cur_label = _unpack_cap(hv)
@@ -1475,6 +1731,86 @@ def gene_express(strand, the_one, cell_state):
             cur_leaves.append(quad_turn(hv, the_one))   # reversible uncouple
     if started and cur_express:
         out.append((cur_label, cur_leaves))
+    return out
+
+
+def gene_express_levels(strand, the_one, cell_state):
+    """GRADED / ANALOG gene expression LEVEL — a READ-TIME FILTER (§132 / #732; the E3 rung).
+
+    The orthogonal companion to :func:`gene_express`. Where :func:`gene_express` decides *IF* each
+    gene expresses (a BINARY set — dispatching on each gene's E1/E2/E4 gate-type) and returns
+    ``[(gene_label, gene_leaves), …]``, this op returns each EXPRESSED gene WITH its exact-rational
+    expression **LEVEL** ``[(gene_label, gene_leaves, (num, den)), …]`` — *HOW MUCH* it expresses.
+    The two reads coexist: real biology is quantitative (analog), not just on/off.
+
+    The LEVEL axis is ORTHOGONAL to the gate-type family — it composes with EVERY gene kind:
+
+    * a **binary** gene (a plain ``0x47`` / klein4-mask ``0x67`` / boolean ``0x62`` / threshold
+      ``0x77`` gene) is the DEGENERATE graded case with levels ``{0, 1}``: it is included at LEVEL
+      **exact-rational 1** (``(1, 1)`` — fully on) iff its gate PASSES (the SAME §128/§130/§131
+      decision :func:`gene_express` uses), and ABSENT otherwise. So every gene :func:`gene_express`
+      returns appears here at level 1, and vice versa.
+    * a **graded** gene (a ``0x64`` gene, §132) carries a per-condition SIGNED integer LEVEL-WEIGHT
+      vector + a POSITIVE integer DENOMINATOR; its LEVEL is the reduced exact rational
+      ``Σᵢ (level_weightᵢ · bit_i(cell_state)) / denom`` CLAMPED to ``[0, 1]`` (a Class-K
+      sign-branch, never ``abs()``; the fraction reduced by the Class-I gcd). The dose-response IS
+      the gate: the gene is included iff its LEVEL ``> 0`` (a zero dose = off), else ABSENT.
+
+    THE THEOREM (the op⊗operand duality, refined to a QUANTITY): the ``cell_state`` **operand**
+    MODULATES the **level** the :func:`gene_express_levels` operator reports — SAME DNA, DIFFERENT
+    ``cell_state`` → DIFFERENT expression LEVELS (not just a different on/off subset). A morphogen
+    at a graded concentration drives a graded transcriptional output.
+
+    ⚠️ This is a READ — it NEVER MUTATES THE STRAND (the input ``strand`` is byte-identical after
+    this call; biology reads the regulatory region, it does not rewrite the DNA). Returns the
+    EXPRESSED subset ``[(gene_label, gene_leaves, (num, den)), …]`` in strand order, where
+    ``(num, den)`` is the reduced exact-rational level (a JSON-native 2-tuple of ints);
+    ``gene_leaves`` are uncoupled through ``the_one`` (the reversible :func:`quad_turn`).
+
+    ``cell_state`` is a non-negative exact integer (Class-I bitwise; each set bit a present
+    condition; no float, never ``abs()``). Native-dispatched (byte-identical C peer
+    ``srmech_genome_gene_express_levels`` computes each gene's exact-rational level); the pure
+    Class-N/I integer path is the complete alternative. Attests graded / dose-response gene
+    expression as ONE facet (genes have other regulation too): the amount of transcription is tuned
+    quantitatively by the bound regulators — Alberts, Johnson, Lewis, Raff, Roberts & Walter,
+    *Molecular Biology of the Cell* 4th ed. (Garland Science, 2002), "How Genetic Switches Work" →
+    "Gene Activator Proteins Work Synergistically", NCBI Bookshelf NBK26872 (the joint effect of
+    several activators on the transcription rate is "not merely the sum … but the product" — a
+    graded, analog modulation of the expression level, not a binary switch).
+    """
+    if not isinstance(cell_state, int) or isinstance(cell_state, bool):
+        raise ValueError(
+            f"gene_express_levels: cell_state must be an exact int (Class-I bitwise); got "
+            f"{cell_state!r}")
+    if cell_state < 0:
+        raise ValueError(
+            f"gene_express_levels: cell_state must be non-negative (a bitmask is never signed; a "
+            f"cell-state is never negated, so never abs()); got {cell_state}")
+    out = []
+    cur_label = None
+    cur_leaves = []
+    cur_level = (0, 1)
+    started = False
+    for hv in strand:
+        kind = _cap_kind(hv)
+        if kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
+                    THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER):
+            if started and cur_level[0] > 0:            # expressed iff level > 0
+                out.append((cur_label, cur_leaves, cur_level))
+            _marker, cur_label = _unpack_cap(hv)
+            cur_leaves = []
+            cur_level = _gene_level(hv, cell_state)     # §132 exact-rational (num, den)
+            started = True
+        elif kind in (CHROM_CAP_MARKER, KERNEL_HEADER_MARKER,
+                      KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER):
+            continue                            # the chromosome telomere / a header —
+                                                # skip (not gene data)
+        elif not started:
+            continue                            # any leading cap before the first gene
+        else:
+            cur_leaves.append(quad_turn(hv, the_one))   # reversible uncouple
+    if started and cur_level[0] > 0:
+        out.append((cur_label, cur_leaves, cur_level))
     return out
 
 
@@ -1502,6 +1838,11 @@ def _gene_expresses(cap, cell_state):
     # escape hatch); a plain (0x47) / Klein-4-mask (0x67) gene takes the rc129 fast path (E1 — the
     # common case). Dispatch on the cap marker (== the declared gate_type).
     kind = _cap_kind(cap)
+    if kind == GRADED_GENE_MARKER:
+        # §132 E3: a GRADED gene's BINARY reading is level > 0 (the dose-response IS the gate —
+        # a zero dose is off). The exact rational level is reported by gene_express_levels.
+        num, _den = _gene_level(cap, cell_state)
+        return num > 0
     if kind == THRESHOLD_GENE_MARKER:
         _gate_type, weights, threshold = _threshold_gene_spec(cap)
         return _threshold_expresses(weights, threshold, cell_state)  # Σ w·bit ≥ θ (Class-K sign)
@@ -1589,9 +1930,10 @@ def partition(strand, the_one, labels=None):
             _marker, current = _unpack_cap(hv)
             out[current] = []
         elif kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
-                      THRESHOLD_GENE_MARKER, KERNEL_HEADER_MARKER):
+                      THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER, KERNEL_HEADER_MARKER):
             continue                            # a gene delimiter (§44 plain / §128
-                                                # regulatory / §130 boolean / §131 threshold) /
+                                                # regulatory / §130 boolean / §131 threshold /
+                                                # §132 graded) /
                                                 # §60 v5 header —
                                                 # not data; flatten past it
         elif current is not None:
@@ -1817,6 +2159,24 @@ def _gene_express_native(cap, cell_state):
         return None
 
 
+def _gene_level_native(cap, cell_state):
+    """Native dispatch for the §132 per-gene expression LEVEL (parity peer
+    ``srmech_genome_gene_express_levels``): ``cap`` (a plain / regulatory / boolean / threshold /
+    graded gene ``HV``) + ``cell_state`` → the exact-rational ``(num, den)`` level (a binary gene
+    → ``(1, 1)`` if its gate passes else ``(0, 1)``; a graded gene → its clamped reduced
+    dose-response rational), or ``None`` on any missing symbol / non-OK status (e.g. an int64
+    dose-accumulate OVERFLOW → the caller runs the exact pure Class-N/I path). Native is
+    authoritative when present; the pure path is the complete alternative."""
+    from . import _native
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_genome_gene_express_levels")):
+        return None
+    try:
+        return _native.genome_gene_express_levels_c(cap.tobytes(), len(cap), cell_state)
+    except _native.NativeGenomeError:
+        return None
+
+
 def telomere_tick(strand):
     """The divide/gate op — the ACTIVE TELOMERE's count MODULATES the operator (§127/#726).
 
@@ -1999,7 +2359,22 @@ def telomere_tick(strand):
 #: saved by the v10 writer is byte-identical to the v9 writer's EXCEPT the ``format_version``
 #: field (the same version-stamp discipline every prior new-block-kind bump used — a v10 writer
 #: stamps 10).
-GENOME_FORMAT_VERSION = 10
+#: 11 (§132/rc132, #732) == the GRADED (dose-response) GENE: an intra-chromosome gene MAY be opened
+#: by a ``GRADED_GENE_MARKER`` (``0x64``) cap carrying an ANALOG (dose-response) EXPRESSION LEVEL
+#: inline — a per-condition SIGNED integer LEVEL-WEIGHT vector + a POSITIVE integer DENOMINATOR that
+#: :func:`gene_express_levels` evaluates as the reduced exact rational ``Σᵢ level_weightᵢ·bit_i(
+#: cell_state) / denom`` clamped to ``[0, 1]`` to report HOW MUCH each gene expresses (#732). It is
+#: the **E3 GRADED LEVEL** rung — an ORTHOGONAL AXIS on top of the E1/E2/E4 gate-type family (the
+#: gate-types decide IF; E3 decides HOW MUCH — analog output, real biology). This is a NEW marker
+#: byte = a new block KIND, so it bumps v10 → v11 exactly as every prior new-marker bump did (rc127
+#: ``0x74`` v6→v7, rc128 ``0x67`` v7→v8, rc130 ``0x62`` v8→v9, rc131 ``0x77`` v9→v10). The ``0x64``
+#: cap is one more self-describing kind in the SAME walk (its first byte keys it, its label read
+#: UNIFORMLY, its gate_type + n_weights + denom + weights after the label NUL), so v2..v10 bodies
+#: read UNCHANGED (dual-read — the walker gains ONE branch): back-compat is STRUCTURAL, never a
+#: converter. A plain / klein4-mask / boolean / threshold genome saved by the v11 writer is
+#: byte-identical to the v10 writer's EXCEPT the ``format_version`` field (the same version-stamp
+#: discipline every prior new-block-kind bump used — a v11 writer stamps 11).
+GENOME_FORMAT_VERSION = 11
 
 #: rc115 (#1245 ask (b)) — the empty-body chain seed H₀ = sha256(b"") (a derived
 #: constant, not magic: THE well-known empty-string digest). The whole-body
@@ -2084,7 +2459,7 @@ def _hv_from_block(block: bytes) -> _HV:
     first = block[0] if block else -1
     sectors = 256 if first in (
         CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
-        BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER,
+        BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
         KERNEL_HEADER_MARKER,
         KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER) else QUAD
     return _HV.from_sequence(block, sectors=sectors)
@@ -2105,10 +2480,12 @@ def _block_is_cap(block: bytes) -> bool:
     delimiter cap (like the ``0x67`` regulatory gene), stored VERBATIM + excluded from the
     data-turn count (its gate_type + DNF are NOT a turn). §131: the ``0x77`` threshold gene is
     likewise an intra-chromosome gene delimiter cap, stored VERBATIM + excluded from the data-turn
-    count (its gate_type + weights + threshold are NOT a turn)."""
+    count (its gate_type + weights + threshold are NOT a turn). §132: the ``0x64`` graded gene is
+    likewise an intra-chromosome gene delimiter cap, stored VERBATIM + excluded from the data-turn
+    count (its gate_type + level-weights + denom are NOT a turn)."""
     return bool(block) and block[0] in (
         CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
-        BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER,
+        BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
         KERNEL_HEADER_MARKER,
         KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER)
 
@@ -2213,7 +2590,8 @@ def _walk_region_blocks(region: bytes, leaf_dim: int, *, context: str = "genome"
     while k < n:
         kind = region[k]
         if kind in (CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
-                    BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, KERNEL_HEADER_MARKER,
+                    BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
+                    KERNEL_HEADER_MARKER,
                     KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER) or kind <= 3:
             end = k + leaf_dim
             if end > n:
@@ -2550,11 +2928,12 @@ def _rebuild_manifest_from_body(body_bytes, leaf_dim, the_one):
               and decoded[0] != REGULATORY_GENE_MARKER
               and decoded[0] != BOOLEAN_GENE_MARKER
               and decoded[0] != THRESHOLD_GENE_MARKER
+              and decoded[0] != GRADED_GENE_MARKER
               and decoded[0] != KERNEL_HEADER_MARKER):
             cur[2] += 1                       # a data turn (packed or legacy); a GENE
                                               # cap (§44 plain / §128 regulatory / §130
-                                              # boolean / §131 threshold) or §60 v5 header
-                                              # is not a turn
+                                              # boolean / §131 threshold / §132 graded) or
+                                              # §60 v5 header is not a turn
                                               # (the §89 v6 Klein-4 header IS a coupled turn)
         cur[4] += len(raw)
         offset += len(raw)
@@ -2765,7 +3144,8 @@ def genome_load(path, *, labels=None, the_one=None):
                     break
                 kind = first[0]
                 if kind in (CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
-                            BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, KERNEL_HEADER_MARKER,
+                            BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
+                            KERNEL_HEADER_MARKER,
                             KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER) \
                         or kind <= 3:
                     rest = f.read(leaf_dim - 1)
@@ -2943,7 +3323,7 @@ def genome_genes(path, label, *, the_one=None):
     region = _read_region(path, by_label[label], leaf_dim)
     region_strand = _region_strand(region, leaf_dim)
     if not any(_cap_kind(hv) in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
-                                 THRESHOLD_GENE_MARKER)
+                                 THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER)
                for hv in region_strand):
         raise ValueError(
             f"genome_genes: chromosome {label!r} has no inline GENE caps — it is a "

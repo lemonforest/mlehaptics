@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc131"
-#define SRMECH_VERSION       "0.9.0rc131"
+#define SRMECH_VERSION_PRE   "rc132"
+#define SRMECH_VERSION       "0.9.0rc132"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2652,9 +2652,13 @@ size_t srmech_op_provenance_hash_arena_bytes(size_t record_len);
  * (#731): the THRESHOLD GENE (marker 0x77) carrying a linear-threshold / perceptron gate (a
  * SIGNED integer weight vector + a threshold) is a NEW block KIND, so it bumps v9 -> v10 (the
  * walker gains ONE branch; v2..v9 bodies read UNCHANGED; a plain/klein4-mask/boolean genome saved
- * by the v10 writer is byte-identical to v9 EXCEPT the format_version field). Mirrors
- * GENOME_FORMAT_VERSION in srmech.amsc.genome. */
-#define SRMECH_GENOME_FORMAT_VERSION 10
+ * by the v10 writer is byte-identical to v9 EXCEPT the format_version field). §132/v11 (#732):
+ * the GRADED (dose-response) GENE (marker 0x64) carrying an ANALOG expression LEVEL (a SIGNED
+ * integer level-weight vector + a POSITIVE denominator) is a NEW block KIND, so it bumps v10 ->
+ * v11 (the walker gains ONE branch; v2..v10 bodies read UNCHANGED; a plain/klein4-mask/boolean/
+ * threshold genome saved by the v11 writer is byte-identical to v10 EXCEPT the format_version
+ * field). Mirrors GENOME_FORMAT_VERSION in srmech.amsc.genome. */
+#define SRMECH_GENOME_FORMAT_VERSION 11
 
 /* §44 inline cap markers — the FIRST byte of a fixed-width cap leaf. Both are
  * > 3 so a cap is told apart from a Klein-4 data turn (bytes 0..3) by its
@@ -2792,6 +2796,41 @@ size_t srmech_op_provenance_hash_arena_bytes(size_t record_len);
  * repressive input is a NEGATIVE weight). Mirror _THRESHOLD_GENE_* in srmech.amsc.genome. */
 #define SRMECH_GENOME_THRESHOLD_NWEIGHTS_BYTES 2u
 #define SRMECH_GENOME_THRESHOLD_VALUE_BYTES 8u
+
+/* §132/v11 GRADED (dose-response) GENE marker (rc132, #732) — the FIRST byte of a fixed-width
+ * leaf_dim-byte cap leaf that opens an INTRA-chromosome gene (like the plain GENE cap / the §128
+ * regulatory / §130 boolean / §131 threshold gene) AND carries an ANALOG (dose-response)
+ * EXPRESSION LEVEL inline: a per-condition SIGNED integer LEVEL-WEIGHT vector + a POSITIVE integer
+ * DENOMINATOR. It is the E3 GRADED LEVEL rung — an ORTHOGONAL AXIS on top of the E1/E2/E4 gate-type
+ * family: the gate-types decide IF a gene expresses (binary); E3 decides HOW MUCH (analog output,
+ * real biology). srmech_genome_gene_express_levels reports the LEVEL as the reduced exact rational
+ * Sum_i (level_weight_i * bit_i(cell_state)) / denom clamped to [0, 1] (a Class-K sign-branch,
+ * never abs; the fraction reduced by the Class-I gcd). Layout: [0x64] + utf-8 label + NUL +
+ * gate_type(uint8=3) + n_weights(uint16 big-endian) + denom(uint64 BE POSITIVE) + n_weights x
+ * (level_weight(int64 BE SIGNED)) + NUL-pad to leaf_dim. The label decode is UNIFORM (bytes [1:]
+ * up to the first NUL); the gate_type + n_weights + denom + weights are read at the bytes RIGHT
+ * AFTER that NUL. > 3 and distinct from every other marker (CHROM 0x43 / GENE 0x47 / v5 KERNEL
+ * 0x4B / PACKED 0x51 / KERNEL-telomere 0x6B / ACTIVE-telomere 0x74 / REGULATORY-gene 0x67 /
+ * BOOLEAN-gene 0x62 / THRESHOLD-gene 0x77), so v2..v10 bodies read UNCHANGED — the walker gains ONE
+ * branch. A NEW marker byte = a new block KIND, so it bumps the genome format v10 -> v11. Mirrors
+ * GRADED_GENE_MARKER in srmech.amsc.genome. */
+#define SRMECH_GENOME_GRADED_GENE_MARKER 0x64u /* 'd' — a §132 graded (dose) gene */
+
+/* §132/v11 GRADED GATE-TYPE (rc132, #732). GRADED (3) = the §132 analog dose-response LEVEL axis
+ * (a SIGNED integer level-weight vector + a POSITIVE denominator, carried by a 0x64 cap). NOT a
+ * binary gate-type in the E1/E2/E4 IF-family — the ORTHOGONAL HOW-MUCH axis; the gate_type is
+ * stored in the cap for self-description / extensibility. Mirrors GATE_TYPE_GRADED in
+ * srmech.amsc.genome. */
+#define SRMECH_GENOME_GATE_TYPE_GRADED 3u
+
+/* §132/v11 GRADED GENE wire widths (rc132, #732). The level-weight-vector LENGTH is a uint16
+ * big-endian (2 bytes; weight i doses condition bit i). The DENOMINATOR is a uint64 big-endian
+ * POSITIVE integer (8 bytes; the full-expression dose — a divisor is never negative, so UNSIGNED,
+ * never abs). Each LEVEL-WEIGHT is int64 big-endian SIGNED two's-complement (8 bytes; SIGNED so an
+ * inhibitory input REDUCES the dose). Mirror _GRADED_GENE_* in srmech.amsc.genome. */
+#define SRMECH_GENOME_GRADED_NWEIGHTS_BYTES 2u
+#define SRMECH_GENOME_GRADED_DENOM_BYTES 8u
+#define SRMECH_GENOME_GRADED_WEIGHT_BYTES 8u
 
 /* Max label byte length (NUL-terminated) for one chromosome. This is a FORMAT
  * width (a label lives inline in a leaf_dim-byte cap block, like PATH_MAX), NOT
@@ -3161,6 +3200,37 @@ srmech_status_t srmech_genome_telomere_tick(
 srmech_status_t srmech_genome_gene_express(
     const unsigned char *cap, size_t leaf_dim, uint64_t cell_state,
     int *expressed, uint64_t *mask_out);
+
+/* §132/v11 (#732) GRADED / ANALOG gene expression LEVEL — the ORTHOGONAL companion to
+ * srmech_genome_gene_express. Where gene_express decides IF each gene expresses (binary), this
+ * reports the exact-rational LEVEL — HOW MUCH — of the gene opened by `cap` under `cell_state`,
+ * as a reduced (num_out, den_out) pair (den_out >= 1). Dispatches on the cap marker:
+ *   GRADED GENE cap (cap[0] == 0x64) -> the ANALOG dose-response: read the SIGNED int64
+ *       LEVEL-WEIGHT vector + the POSITIVE uint64 DENOMINATOR after the label NUL; the level is
+ *       Sum_i (level_weight_i * bit_i(cell_state)) / denom CLAMPED to [0, 1] (Class-K sign-branch,
+ *       never abs) and reduced by the Class-I gcd (srmech_gcd). raw dose <= 0 -> (0, 1) (off);
+ *       raw dose >= denom -> (1, 1) (fully on); else the reduced in-range fraction.
+ *   a BINARY gene cap (cap[0] == 0x47 / 0x67 / 0x62 / 0x77) is the DEGENERATE {0, 1} case:
+ *       (1, 1) if its E1/E2/E4 gate PASSES (the SAME decision as srmech_genome_gene_express) else
+ *       (0, 1). So the level axis composes with EVERY gate-type.
+ * A gene is "expressed" iff num_out > 0 (the caller filters). Byte-identical to the pure Python
+ * decision in srmech.amsc.genome._gene_level. If the exact int64 dose accumulate would OVERFLOW,
+ * this returns SRMECH_ERR_OVERFLOW so the caller falls to the pure (arbitrary-precision) Python
+ * path. No arena (a per-cap decision); malloc-free; no abs. NEVER MUTATES cap (a READ).
+ *   cap / leaf_dim : the gene cap leaf (leaf_dim bytes; cap[0] in {0x47,0x67,0x62,0x77,0x64}).
+ *   cell_state     : the exact non-negative cell-state bitmask (each set bit a present condition).
+ *   num_out        : out — the reduced level numerator (>= 0).
+ *   den_out        : out — the reduced level denominator (>= 1).
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — cap / num_out / den_out is NULL.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0, cap[0] not a gene marker, no label NUL, a truncated /
+ *                          unsupported-gate_type / zero-denom graded header or weight vector, or a
+ *                          malformed binary gene (propagated from srmech_genome_gene_express).
+ *   SRMECH_ERR_OVERFLOW  — the int64 graded-dose accumulate would overflow -> the caller uses the
+ *                          exact pure Python path. */
+srmech_status_t srmech_genome_gene_express_levels(
+    const unsigned char *cap, size_t leaf_dim, uint64_t cell_state,
+    uint64_t *num_out, uint64_t *den_out);
 
 /* ------------------------------------------------------------------ *
  * TOML parser (malloc-free; caller arena)
