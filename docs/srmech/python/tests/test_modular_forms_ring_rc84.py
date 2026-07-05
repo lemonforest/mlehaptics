@@ -285,7 +285,7 @@ def test_represent_is_a_tool_entry_total_341():
     NOT ToolEntries."""
     from srmech.amsc.tool_schema import get_tool_schema
     shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
-    assert len(shipped) == 399
+    assert len(shipped) == 401
     names = {t.name for t in shipped}
     assert "srmech.amsc.modular_forms_ring.modular_forms_ring_represent" in names
     # the carrier constructor + the pure accessors are NOT ToolEntries

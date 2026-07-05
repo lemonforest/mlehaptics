@@ -455,6 +455,8 @@
 {"exposed_as": "srmech.amsc.genome.telomere_tick", "defined_at": "srmech.amsc.genome.telomere_tick", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.genome.gene_express", "defined_at": "srmech.amsc.genome.gene_express", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.genome.gene_express_levels", "defined_at": "srmech.amsc.genome.gene_express_levels", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.genome.gene_express_plan", "defined_at": "srmech.amsc.genome.gene_express_plan", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.genome.genome_genes_expressed", "defined_at": "srmech.amsc.genome.genome_genes_expressed", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.modulator_recover", "defined_at": "srmech.amsc.genome.modulator_recover", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.genome.modulator_consistent", "defined_at": "srmech.amsc.genome.modulator_consistent", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.genome.modulator_constraint", "defined_at": "srmech.amsc.genome.modulator_constraint", "bucket": "c_dispatched"}

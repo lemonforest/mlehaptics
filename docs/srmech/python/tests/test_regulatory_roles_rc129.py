@@ -306,7 +306,9 @@ def test_repressor_mask_must_be_nonnegative_int():
 def test_jacob_monod_attestation_documented():
     """The lac-operon / activator-repressor attestation is documented in gene_express."""
     assert "Jacob" in G.gene_express.__doc__ and "Monod" in G.gene_express.__doc__
-    assert "NBK26887" in G.gene_express.__doc__               # differential-expression facet
+    # rc135 MPM fix: the differential-expression / cell-type-selection facet cites
+    # NBK26872 ("How Genetic Switches Work"), not NBK26887 ("From DNA to RNA").
+    assert "NBK26872" in G.gene_express.__doc__               # differential-expression facet
 
 
 # ── (9) Python==C byte-identical ──────────────────────────────────────────────
