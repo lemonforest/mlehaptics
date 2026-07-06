@@ -8,6 +8,19 @@ The closed-form reference ships the Haar DWT (Class N dyadic decimation +
 Class L 2-point Laplacian per level) as the canonical Path A implementation;
 this is the simplest wavelet and a sufficient closed-form anchor.
 
+rc151 (BATCH B4d) classification: ``composition_of_c``.  Each level's Haar
+analysis filter-bank — ``approx[m] = (x[2m]+x[2m+1])/√2``,
+``detail[m] = (x[2m]−x[2m+1])/√2`` — is one banded matvec ``[approx; detail] =
+H·current`` (the ``n×n`` Haar analysis matrix: the top ``n/2`` rows the low-pass
+``(+c, +c)`` band, the bottom ``n/2`` the high-pass ``(+c, −c)`` band, ``c =
+1/√2``, decimation baked into the row stride).  It routes through the numpy-free
+carrier ``mat_matvec`` ∘ ``mat_matmul`` → the c_dispatched
+``srmech_dense_matmul_complex`` when the native lib is present, and falls back to
+``mat_matmul``'s complete numpy-free triple-loop cascade otherwise.  NUMERIC
+(within-tol, reldiff ≤ 1e-9, not byte-identical): the matmul may FMA-fuse ~1 ULP.
+The transform is orthonormal, so the analysis matrix's transpose is the exact
+synthesis (perfect-reconstruction) inverse — the value oracle.
+
 Path B dual in Phase 6 (multi-scale bundle).
 
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Haar (1910)
@@ -63,23 +76,40 @@ def op(signal, *, levels: int = 3, wavelet: str = "haar", D: int = 8192):
             f"phase-language."
         )
     # numpy-free list carrier (#564); the 1/sqrt(2) Class-N normaliser is the
-    # libm-free rational sqrt, and every band is an explicit elementwise
-    # Class-L 2-point (sum / difference) over the dyadic Class-N decimation.
+    # libm-free rational sqrt, and every level's analysis band is one banded
+    # matvec through the c_dispatched srmech_dense_matmul_complex.
     try:
         current = [float(x) for x in signal]
     except TypeError as exc:  # nested sequence -> not 1-D
         raise ValueError("wavelet expects a 1-D real signal") from exc
     inv_sqrt2 = 1.0 / float(_srn.sqrt(2.0))   # float scale for the recursive DWT
+    from srmech.amsc.laplacian import mat_matvec  # lazy: avoid import cycle
+
     details = []
     for _ in range(levels):
         n = len(current)
         if n < 2 or n % 2 != 0:
             # Pad to even length with one zero (Class-N dyadic alignment).
             current = current + [0.0] * (n % 2)
-        evens = current[0::2]
-        odds = current[1::2]
-        approx = [(e + o) * inv_sqrt2 for e, o in zip(evens, odds)]
-        detail = [(e - o) * inv_sqrt2 for e, o in zip(evens, odds)]
+            n = len(current)
+        half = n // 2
+        if half == 0:
+            # Fully decimated (empty / degenerate) — no band to compute.
+            details.append([])
+            current = []
+            continue
+        # Haar analysis matrix H (n×n): top half = low-pass (+c,+c) band, bottom
+        # half = high-pass (+c,-c) band, with the ×2 decimation as the row stride.
+        # [approx; detail] = H·current is ONE banded matvec (composition_of_c).
+        h_mat = [[0.0] * n for _ in range(n)]
+        for m in range(half):
+            h_mat[m][2 * m] = inv_sqrt2
+            h_mat[m][2 * m + 1] = inv_sqrt2
+            h_mat[half + m][2 * m] = inv_sqrt2
+            h_mat[half + m][2 * m + 1] = -inv_sqrt2
+        banded = list(mat_matvec(h_mat, current))
+        approx = banded[:half]
+        detail = banded[half:]
         details.append(detail)
         current = approx
     return current, details[::-1]

@@ -9,10 +9,20 @@ time-offsets via a sum of shifted sinc kernels.
 numpy-free (carrier-removal #564, rc93): the sinc kernel uses the substrate-
 native ``_sinc`` (sin(πx)/(πx), Class-N rational cascade over the **Class-N π
 cascade** ``_PI``, Spike #32; the x=0 removable singularity is a Class-K branch
-returning 1.0, no division, no ``abs()``). The complex Whittaker-Shannon matvec
-``out[q] = Σ_s sinc((t_q−t_s)/T)·y[s]`` is an inline nested sum over plain
-``list``s — NOT via ``dense_matvec_complex`` (which is numpy-carrier INTERNALLY,
-the rc70 "runnable ≠ loadable" trap). numpy is no longer imported.
+returning 1.0, no division, no ``abs()``). numpy is no longer imported.
+
+rc151 (BATCH B4d) classification: ``composition_of_c``.  The complex
+Whittaker-Shannon reconstruction is exactly the matvec ``out = S·y`` where the
+band-limit kernel matrix ``S[q][s] = sinc((t_q−t_s)/T)`` is a real Class-L
+low-pass operator — so it routes through the numpy-free carrier ``mat_matvec``
+∘ ``mat_matmul`` → the c_dispatched ``srmech_dense_matmul_complex`` when the
+native lib is present (the ``Mat`` buffer feeds the kernel zero-copy), and falls
+back to ``mat_matmul``'s complete numpy-free triple-loop cascade otherwise (NOT
+the rc70 ``dense_matvec_complex`` numpy-carrier trap — the ``Mat``/``Vec``
+carriers are numpy-free).  NUMERIC (within-tol, reldiff ≤ 1e-9, not
+byte-identical): the matmul float accumulation may FMA-fuse ~1 ULP on some
+platforms.  The identity oracle: ``target_indices == sample_indices`` gives
+``S = I`` (``sinc`` of nonzero integers is 0), so ``out == y`` exactly.
 
 Path B dual in Phase 6 (Path B band-limit bundle).
 
@@ -116,13 +126,18 @@ def op(signal, sample_indices, target_indices, *, D: int = 8192):
         t_q = [float(target_indices)]
     else:
         t_q = [float(v) for v in target_indices]
-    # Complex Whittaker-Shannon matvec: out[q] = Σ_s sinc((t_q−t_s)/T)·y[s].
-    out = []
-    for tq in t_q:
-        acc = 0j
-        for s in range(len(t_s)):
-            acc += _sinc((tq - t_s[s]) / T) * y[s]
-        out.append(acc)
+    if not t_s:
+        # No known samples -> every reconstruction is the empty band-limit sum.
+        out = [0j] * len(t_q)
+        return out[0] if tq_is_scalar else out
+    # Complex Whittaker-Shannon matvec out = S·y with the real band-limit kernel
+    # S[q][s] = sinc((t_q−t_s)/T) (composition_of_c, rc151 / B4d): mat_matvec
+    # rides mat_matmul → srmech_dense_matmul_complex when native, else the
+    # numpy-free triple-loop cascade. Within-tol (reldiff ≤ 1e-9), not byte-exact.
+    from srmech.amsc.laplacian import mat_matvec  # lazy: avoid import cycle
+
+    kernel = [[_sinc((tq - ts) / T) for ts in t_s] for tq in t_q]
+    out = list(mat_matvec(kernel, y))
     if tq_is_scalar:
         return out[0]
     return out
