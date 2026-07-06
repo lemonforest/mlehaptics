@@ -386,7 +386,7 @@
 {"exposed_as": "srmech.signal_processing.closed_form_ops.farrow.op", "defined_at": "srmech.signal_processing.closed_form_ops.farrow.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.fft.op", "defined_at": "srmech.signal_processing.closed_form_ops.fft.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.fir.op", "defined_at": "srmech.signal_processing.closed_form_ops.fir.op", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.signal_processing.closed_form_ops.fsk.op", "defined_at": "srmech.signal_processing.closed_form_ops.fsk.op", "bucket": "python_only_debt"}
+{"exposed_as": "srmech.signal_processing.closed_form_ops.fsk.op", "defined_at": "srmech.signal_processing.closed_form_ops.fsk.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.huffman.op", "defined_at": "srmech.signal_processing.closed_form_ops.huffman.op", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.ica_jade.op", "defined_at": "srmech.signal_processing.closed_form_ops.ica_jade.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.ifft.op", "defined_at": "srmech.signal_processing.closed_form_ops.ifft.op", "bucket": "composition_of_c"}
@@ -400,10 +400,10 @@
 {"exposed_as": "srmech.signal_processing.closed_form_ops.mlse.viterbi_op", "defined_at": "srmech.signal_processing.closed_form_ops.viterbi.op", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.multirate.op", "defined_at": "srmech.signal_processing.closed_form_ops.multirate.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.multitaper.op", "defined_at": "srmech.signal_processing.closed_form_ops.multitaper.op", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.signal_processing.closed_form_ops.ofdm.op", "defined_at": "srmech.signal_processing.closed_form_ops.ofdm.op", "bucket": "python_only_debt"}
+{"exposed_as": "srmech.signal_processing.closed_form_ops.ofdm.op", "defined_at": "srmech.signal_processing.closed_form_ops.ofdm.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.polyphase.decompose", "defined_at": "srmech.signal_processing.closed_form_ops.polyphase.decompose", "bucket": "non_compute"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.polyphase.op", "defined_at": "srmech.signal_processing.closed_form_ops.polyphase.op", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.signal_processing.closed_form_ops.psk_qam.op", "defined_at": "srmech.signal_processing.closed_form_ops.psk_qam.op", "bucket": "python_only_debt"}
+{"exposed_as": "srmech.signal_processing.closed_form_ops.psk_qam.op", "defined_at": "srmech.signal_processing.closed_form_ops.psk_qam.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.rfft.op", "defined_at": "srmech.signal_processing.closed_form_ops.rfft.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.rle.op", "defined_at": "srmech.signal_processing.closed_form_ops.rle.op", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.sign_quantise.op", "defined_at": "srmech.signal_processing.closed_form_ops.sign_quantise.op", "bucket": "c_dispatched"}

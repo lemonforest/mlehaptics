@@ -13,9 +13,17 @@ with rational frequency-ratio shifts.
 Carrier-removal #564 (rc103): numpy-FREE — the per-symbol tone phases
 ``e^{i·2π·f·t}`` route through the Class-N ``rational.cos`` / ``rational.sin``
 cascade over the substrate-native ``_PI`` source (``_exp_i``, native
-libm-free), and the demodulator correlator bank is a pure-Python complex
-matvec whose nearest-tone decision is ``argmax|corr|²`` (monotone in ``|corr|``,
-so no ``sqrt`` and no ``abs()``). No top-level ``import numpy``.
+libm-free), and the demodulator correlator bank's nearest-tone decision is
+``argmax|corr|²`` (monotone in ``|corr|``, so no ``sqrt`` and no ``abs()``).
+No top-level ``import numpy``.
+
+rc153 (BATCH B7) classification: ``composition_of_c``. Modulate is the
+C-backed ``rational.cos`` / ``rational.sin`` tone cascade. Demodulate's
+correlator-bank inner product ``corr_k = Σ_j tones[k][j]·conj(window[j])`` IS
+the matvec ``corr = Tones · conj(window)`` — routed through the c_dispatched
+``laplacian.mat_matvec`` ∘ ``mat_matmul`` (``srmech_dense_matmul_complex``)
+when the native lib is present, else its numpy-free pure fallback. NUMERIC
+within-tol (native == pure to reldiff ≤ 1e-9, NOT byte-identical).
 
 Path B dual in Phase 6 (Path B Class N rational frequency).
 
@@ -97,22 +105,36 @@ def op(
     t = [k / fs for k in range(n)]
 
     if demodulate:
+        # composition_of_c (rc153 / B7): the correlator-bank inner product
+        # corr_k = Σ_j tones[k][j]·conj(window[j]) IS the matvec
+        # ``corr = Tones · conj(window)`` (M×n complex matrix times a length-n
+        # vector) — route the accumulation through the c_dispatched
+        # laplacian.mat_matvec ∘ mat_matmul (srmech_dense_matmul_complex) when the
+        # native lib is present, else its numpy-free pure triple-loop fallback.
+        # The tone matrix rows are the byte-exact Class-N rational.cos/sin cascade
+        # (C-backed via _exp_i). Class-C conj is a carrier transform on the window
+        # (NOT an abs()); the argmax is a Class-K decision. NUMERIC within-tol
+        # (native == pure to reldiff ≤ 1e-9 — the complex matmul may FMA-fuse
+        # ~1 ULP, so NOT byte-identical).
+        from srmech.amsc.laplacian import mat_matvec  # lazy: avoid import cycle
+
         signal = [complex(z) for z in _as_list(symbols)]
         n_syms = len(signal) // n
-        # Class I: correlator bank over the M tones (M × n).
+        # Class I: correlator bank over the M tones (M × n) — the tone matrix.
         tones = [[_exp_i(2.0 * _PI * fk * tk) for tk in t] for fk in freqs]
         out: List[int] = []
         for i in range(n_syms):
             window = signal[i * n : (i + 1) * n]
-            # corr_k = Σ_j tones[k][j]·conj(window[j]); decide on argmax|corr|²
-            # (monotone in |corr| = hypot(re, im), so no sqrt / no abs()).
+            # Class-C conjugate carrier transform on the window (no abs()).
+            conj_window = [w.conjugate() for w in window]
+            corr = list(mat_matvec(tones, conj_window))
+            # Class-K decision: argmax|corr_k|² (monotone in |corr|, so no sqrt /
+            # no abs()); strict > keeps the first-maximum index.
             best_k = 0
             best_mag2 = -1.0
             for k in range(M):
-                c = 0j
-                for j in range(n):
-                    c += tones[k][j] * window[j].conjugate()
-                mag2 = c.real * c.real + c.imag * c.imag
+                ck = corr[k]
+                mag2 = ck.real * ck.real + ck.imag * ck.imag
                 if mag2 > best_mag2:
                     best_mag2 = mag2
                     best_k = k

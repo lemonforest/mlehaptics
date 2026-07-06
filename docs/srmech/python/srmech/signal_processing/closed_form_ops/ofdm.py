@@ -15,6 +15,13 @@ Carrier-free since v0.7.5rc84 (#564): plain Python ``list`` / ``list``-of-
 the per-subcarrier ``|H_k|`` equaliser guard uses the numpy-free Class-N
 ``rational.hypot`` and an explicit Class-K pin-slot sign-branch (no ``abs()``).
 
+rc153 (BATCH B7) classification: ``composition_of_c``. Modulate's IFFT and
+demodulate's FFT funnel through ``spectral_cascades.ifft`` / ``.fft`` → the
+c_dispatched numeric FFT foundation ``srmech_fft_c128`` (rc139); the
+per-subcarrier equaliser ``|H_k|`` rides the composition_of_c ``rational.hypot``
+and the cyclic-prefix / one-tap divide are numpy-free elementwise / integer
+glue. NUMERIC within-tol (native == pure to reldiff ≤ 1e-9, NOT byte-identical).
+
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Bingham
 (1990) + Cimini (1985) + Proakis & Salehi (2008, 5th ed.) §11.5.
 """

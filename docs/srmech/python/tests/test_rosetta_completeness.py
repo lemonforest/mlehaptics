@@ -298,7 +298,32 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 #     pseudo-Hermiticity; A(0)=A + Hermiticity; ρ(0)=ρ + trace) + the scalar/bool
 #     VALUE are asserted native==pure within-tol. NO new public op (tools.total
 #     stays 403); NO new C symbol (ABI stays 3). python_only_debt 25 -> 16.
-CEIL_PYTHON_ONLY_DEBT = 16
+# rc153 (BATCH B7 — modulation): the 3 NUMERIC signal-processing modulation ops
+# move python_only_debt -> composition_of_c with NO new C symbol (ABI stays 3).
+# Each COMPOSES an EXISTING C foundation (the SAME numeric-DSP contract as B4):
+#   • closed_form_ops.fsk -> composition_of_c: modulate is the C-backed Class-N
+#     rational.cos/sin tone cascade (via _exp_i); demodulate's correlator-bank
+#     inner product corr_k = Σ_j tones[k][j]·conj(window[j]) IS the matvec
+#     corr = Tones·conj(window), routed through the c_dispatched laplacian.
+#     mat_matvec ∘ mat_matmul (srmech_dense_matmul_complex) — the SAME Toeplitz-
+#     matvec-through-the-C-matmul pattern as the B4b matched_filter correlator.
+#     The argmax|corr_k|² is a Class-K decision (no abs()).
+#   • closed_form_ops.ofdm -> composition_of_c: modulate's IFFT + demodulate's
+#     FFT funnel through spectral_cascades.ifft/.fft -> the c_dispatched numeric
+#     FFT foundation srmech_fft_c128 (rc139); the per-subcarrier |H_k| equaliser
+#     rides the composition_of_c rational.hypot; the cyclic-prefix / one-tap
+#     divide are numpy-free elementwise / integer glue (the SAME pattern as the
+#     B4a stft / B4c wiener transform ops).
+#   • closed_form_ops.psk_qam -> composition_of_c: the constellation build IS the
+#     genuine float math — the PSK phases e^{i·2π·k/M} ride the c_dispatched
+#     rational.cos/sin and the QAM grid rides the c_dispatched rational.sqrt (√M);
+#     modulate is an integer index lookup, demodulate is a nearest-neighbour
+#     Class-K decision-region search over the numpy-free |received−const|² glue.
+# NUMERIC (float DSP): the parity contract is WITHIN-TOL native == pure (reldiff
+# ≤ 1e-9, differential — NOT byte-identical), the SAME classification as the F1
+# FFT / F2 SVD / B4 / B9 numeric batches. NO new public op (tools.total stays
+# 403); NO new C symbol (ABI stays 3). python_only_debt 16 -> 13.
+CEIL_PYTHON_ONLY_DEBT = 13
 # rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
 # rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.
@@ -323,6 +348,20 @@ CEIL_PYTHON_ONLY_DEBT = 16
 # to it. Keep this at 0; a regression means a Python-only op shipped with an
 # unbound C twin — wire it, don't raise the ceiling.
 CEIL_C_EXISTS_UNBOUND = 0
+
+# rc153 (user-directed 2026-07-06: "prevent import of python bignum like we
+# prevent numpy import — it's why we do big int without depends"): the
+# ``bignum_reference`` bucket (the Python-bignum exact-rational ORACLES without a
+# srmech_bigint-backed C twin) is now a DOWN-ONLY tracked debt, mirroring the
+# CEIL_NUMPY_CARRIER / CEIL_PYTHON_ONLY_DEBT ratchets. srmech ships its OWN
+# srmech_bigint in C (no Python-bignum dependency), so every exact-rational
+# oracle should eventually earn a srmech_bigint-backed C path (the Qalg-C
+# exact-algebra tail) and this count should walk to 0. The new ceiling LOCKS the
+# current 30 down-only (it may only SHRINK, NEVER grow). NOT touched this rc
+# (B7 is a NUMERIC batch — the 3 modulation ops move to composition_of_c, none
+# were bignum_reference); the ceiling just pins the 30 so no NEW Python-bignum
+# oracle can be added without a C twin.
+CEIL_BIGNUM_REFERENCE = 30
 
 _DEBT_BUCKETS = ("python_only_debt", "c_exists_unbound")
 _ALL_BUCKETS = (
@@ -437,6 +476,41 @@ def test_debt_bucket_is_monotone_decreasing(bucket, ceiling):
     assert count == ceiling, (
         f"{bucket} = {count} is BELOW its ceiling {ceiling} — debt was closed; "
         f"lower CEIL_{bucket.upper()} to {count} to lock the ratchet."
+    )
+
+
+def test_bignum_reference_is_monotone_decreasing():
+    """``bignum_reference`` (Python-bignum exact-rational oracle without a C twin)
+    is a DOWN-ONLY debt — it may only SHRINK as each oracle earns a
+    srmech_bigint-backed C path (the Qalg-C exact-algebra tail); it may NEVER
+    grow. srmech ships its own srmech_bigint in C (no dep) — this drives the
+    Python-bignum-ORACLE count to 0.
+
+    Mirrors ``test_debt_bucket_is_monotone_decreasing`` /
+    ``CEIL_NUMPY_CARRIER``: an OP-LEVEL ledger ratchet on the
+    ``bignum_reference`` bucket (user-directed 2026-07-06 — "prevent import of
+    python bignum like we prevent numpy import"). It is NOT a
+    ``from fractions import Fraction`` import ban: the exact-ℚ CARRIERS
+    (Poly / QMat / QPoly / Qalg / Qprime / TriPoly / EllBase) legitimately use
+    ``Fraction`` as their Python-side rep and already have srmech_bigint C peers —
+    this guards only the count of exact-rational ORACLE ops that have no C twin.
+    """
+    cls = _load_classification()
+    live = set(_live_ops())
+    count = sum(1 for da, b in cls.items()
+                if b == "bignum_reference" and da in live)
+    assert count <= CEIL_BIGNUM_REFERENCE, (
+        f"bignum_reference = {count} exceeds the down-only ceiling "
+        f"{CEIL_BIGNUM_REFERENCE}. A Python-bignum exact-rational oracle was "
+        f"added without a srmech_bigint-backed C twin: give it a C path, don't "
+        f"raise the ceiling."
+    )
+    # Tightness guard (as with the debt buckets): if the count dropped below the
+    # ceiling, the ceiling must be lowered to lock the win in.
+    assert count == CEIL_BIGNUM_REFERENCE, (
+        f"bignum_reference = {count} is BELOW its ceiling {CEIL_BIGNUM_REFERENCE} "
+        f"— an oracle earned a C path; lower CEIL_BIGNUM_REFERENCE to {count} to "
+        f"lock the ratchet."
     )
 
 
