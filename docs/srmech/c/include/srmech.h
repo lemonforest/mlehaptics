@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc142"
-#define SRMECH_VERSION       "0.9.0rc142"
+#define SRMECH_VERSION_PRE   "rc143"
+#define SRMECH_VERSION       "0.9.0rc143"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2347,6 +2347,59 @@ srmech_status_t srmech_klein4_triality_correct(const uint8_t *store,
                                                uint32_t       n,
                                                uint8_t       *scratch,
                                                uint8_t       *out);
+
+/* ------------------------------------------------------------------ *
+ * EXACT signal-processing coder / quantizer ops (v0.9.0rc143; BATCH B6a)
+ *
+ * Four byte-exact C twins for the five simpler sp_coder_dp ops (the two
+ * sign_quantise paths share srmech_sign_quantise). Integer / exact coders —
+ * no float tolerance, no libm, no abs (Class-K sign is a pin-slot boundary).
+ * Byte-identical to the pure-Python signal_processing kernels. Additive
+ * symbols, so SRMECH_ABI_VERSION stays 3. See c/src/srmech_coder.c.
+ * ------------------------------------------------------------------ */
+
+/* sign_quantise(in, n, threshold, dead_band): Class-K {-1,0,+1} threshold
+ * projection. dead_band <= 0 -> two-level (in >= threshold ? +1 : -1); dead_band
+ * > 0 -> three-level (+1 above threshold+dead_band, -1 below threshold-dead_band,
+ * 0 in the acceptance band). out is n int8 entries. No abs. */
+srmech_status_t srmech_sign_quantise(const double *in,
+                                     uint32_t      n,
+                                     double        threshold,
+                                     double        dead_band,
+                                     int8_t       *out);
+
+/* vector_quantise_encode(vectors[n_vec*dim], codebook[n_codes*dim], dim): for
+ * each input row, the index of the nearest codebook entry by SQUARED Euclidean
+ * distance (accumulated left-to-right -> bit-identical to the pure fold; ties
+ * -> lowest index via strict `<`). out_idx receives n_vec indices. No abs. */
+srmech_status_t srmech_vector_quantise_encode(const double *vectors,
+                                              uint32_t      n_vec,
+                                              const double *codebook,
+                                              uint32_t      n_codes,
+                                              uint32_t      dim,
+                                              uint32_t     *out_idx);
+
+/* rle_encode(data, n, max_run): run-length encode to (symbol, count) records;
+ * a run stops at a symbol change or at max_run. out_sym / out_count are caller
+ * arenas of >= n entries; out_npairs receives the record count. */
+srmech_status_t srmech_rle_encode(const uint8_t *data,
+                                  uint32_t       n,
+                                  uint32_t       max_run,
+                                  uint8_t       *out_sym,
+                                  uint32_t      *out_count,
+                                  uint32_t      *out_npairs);
+
+/* huffman_build_codes(data, n): build the canonical Huffman code table via the
+ * SAME deterministic (freq, counter) node ordering as the Python heapq tree.
+ * out_code_len[256] = per-symbol code length (0 = absent); out_code_str[256*256]
+ * holds each present symbol's '0'/'1' code at [sym*256 ..]; out_order[256] lists
+ * present symbols in the Python code-dict order (out_order_count of them). */
+srmech_status_t srmech_huffman_build_codes(const uint8_t *data,
+                                           uint32_t       n,
+                                           uint32_t      *out_code_len,
+                                           char          *out_code_str,
+                                           uint8_t       *out_order,
+                                           uint32_t      *out_order_count);
 
 /* ------------------------------------------------------------------ *
  * srmech.bus — cross-process IPC C peer (v0.5.0rc2)

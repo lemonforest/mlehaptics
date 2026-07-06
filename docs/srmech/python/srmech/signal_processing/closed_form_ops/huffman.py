@@ -16,8 +16,11 @@ Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Huffman
 
 from __future__ import annotations
 
+import ctypes
 import heapq
 from typing import Dict, List, Optional, Tuple
+
+from srmech.amsc import _native
 
 OPERATION_NAME = "huffman"
 CLASS_COMPOSITION = ("E", "B")
@@ -55,6 +58,35 @@ def _build_codes(freq: Dict[int, int]) -> Dict[int, str]:
         counter += 1
     _, _, final = heap[0]
     return final
+
+
+def _build_codes_native(data_bytes) -> "Optional[Dict[int, str]]":
+    """Native canonical Huffman code table (byte-identical to :func:`_build_codes`)
+    or ``None`` (rc143 §B6a). The C twin reproduces the exact (freq, counter) heap
+    node ordering, so each symbol's code AND the code-dict key order match the
+    pure heapq build."""
+    if not _native.has_native_huffman_build_codes():
+        return None
+    n = len(data_bytes)
+    cdata = ((ctypes.c_uint8 * n).from_buffer_copy(bytes(data_bytes))
+             if n else (ctypes.c_uint8 * 0)())
+    code_len = (ctypes.c_uint32 * 256)()
+    code_str = (ctypes.c_char * (256 * 256))()
+    order = (ctypes.c_uint8 * 256)()
+    order_count = ctypes.c_uint32(0)
+    rc = _native.LIB.srmech_huffman_build_codes(
+        cdata, ctypes.c_uint32(n), code_len,
+        ctypes.cast(code_str, ctypes.POINTER(ctypes.c_char)),
+        order, ctypes.byref(order_count))
+    if rc != _native.SRMECH_OK:
+        return None
+    table: Dict[int, str] = {}
+    for t in range(order_count.value):          # build in the Python dict order
+        s = int(order[t])
+        ln = int(code_len[s])
+        start = s * 256
+        table[s] = code_str[start:start + ln].decode("ascii")
+    return table
 
 
 def op(
@@ -107,9 +139,11 @@ def op(
     if isinstance(data, str):
         data = data.encode("utf-8")
     data_bytes = bytes(data)
-    freq: Dict[int, int] = {}
-    for b in data_bytes:
-        freq[b] = freq.get(b, 0) + 1
-    code_table = _build_codes(freq)
+    code_table = _build_codes_native(data_bytes)    # rc143 §B6a — byte-identical C
+    if code_table is None:
+        freq: Dict[int, int] = {}
+        for b in data_bytes:
+            freq[b] = freq.get(b, 0) + 1
+        code_table = _build_codes(freq)
     out = "".join(code_table[b] for b in data_bytes)
     return out, code_table
