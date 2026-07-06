@@ -257,3 +257,20 @@ def test_photosynth_personality_curvature_axis_rc135():
     explore = inst.path_emit(q, grounder=s.g, coherence=1.0, personality=-2.0)
     assert (neutral["temperament"], precise["temperament"], explore["temperament"]) == ("neutral", "precise", "exploratory")
     assert precise["path"] != neutral["path"] or explore["path"] != neutral["path"], "personality must tilt the walk"
+
+
+def test_story_character_archetype_roles_rc135():
+    """F1078: character archetypes (roles) fall out of the structural signature -- BETWEENNESS separates HUBS
+    (hero/shadow, high degree) from BRIDGES (mentor, high betweenness / low degree), which degree+curvature+span
+    cannot (heroes are high-span too)."""
+    from siona import story
+    nodes = ["Hero", "Ally1", "Ally2", "Mentor", "Sage", "Shadow", "Minion1", "Minion2", "Trickster"]
+    edges = [("Hero", "Ally1"), ("Hero", "Ally2"), ("Ally1", "Ally2"),
+             ("Hero", "Mentor"), ("Mentor", "Sage"),
+             ("Shadow", "Minion1"), ("Shadow", "Minion2"), ("Minion1", "Minion2"),
+             ("Hero", "Shadow"),
+             ("Trickster", "Hero"), ("Trickster", "Shadow"), ("Trickster", "Mentor")]
+    roles, sig = story.classify_story(nodes, edges)
+    assert roles["Hero"] == "protagonist-hub" and roles["Shadow"] == "antagonist-hub"
+    assert roles["Mentor"] == "bridge"
+    assert roles["Ally1"] == "support" and roles["Sage"] == "minor"
