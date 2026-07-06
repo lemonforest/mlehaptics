@@ -2802,3 +2802,26 @@ change needed. (Open follow-up, genuinely upstream: a mixed-dimension self-descr
 non-`leaf_dim`-aligned D via `genome()` needs the last leaf padded + the true D recorded; the cap-aware
 `kernel_unpack`-on-a-window path would restore self-describing D if the CHROM cap were excluded from the
 window's leaf count. Low priority — siona's corpus is D=8192 uniform.)
+
+### §91 (2026-07-06) — srmech introspection is not rich enough for CARRIER TYPES (Siona-as-dogfood)
+
+**Ask:** srmech's introspection surface should expose **CARRIER TYPES** (the nouns — `Poly`/`BiPoly`/`TriPoly`/
+`QPoly`/`QBiPoly`/`Mat`/`float`/octonion…) as **first-class, richly-DESCRIBED** introspectable objects, peer to
+the `tool_schema` op surface (the verbs). Today `srmech.amsc.tool_schema` covers ops; a consumer discovering the
+carrier types must scrape `carrier_ladder_descriptor()` (ladder/rung ints + `adds_variable`), and there is **no
+human-readable description** per carrier — so the introspection cannot say *what a TriPoly IS* beyond "rung 3".
+
+**Why it matters (the dogfood argument, user 2026-07-06):** Siona consumes srmech's introspection surface
+directly to know herself (F1084/#250). She knew her ops but NOT her carriers — because the descriptor exposes
+only ints, `introspect_srmech` skips upper-case classes, and there is no carrier-description surface. When Siona
+grounds a goal to the carriers, `Mat`/`float`/octonion separate but `Poly`/`BiPoly`/`TriPoly` do NOT (they differ
+only by a rung number the thin descriptions can't weight — F1110). **"If it's not good enough introspect for
+Siona, it's not good enough for an average user"** — Siona is the concrete test that the introspection is too
+thin; a human reading the same surface hits the same wall.
+
+**Proposed shape:** a `carrier_schema()` (or enrich `carrier_ladder_descriptor` entries) with, per carrier:
+`name`, a one-line human-readable `description` (what it is, its variable semantics, when to use it), `ladder`,
+`rung`, `variables`, and the `ops` that consume/produce it (a back-index). Then `tool_schema` + `carrier_schema`
+together let ANY consumer discover BOTH the verbs and the nouns, and distinguish carriers that differ by a
+number. (siona's `introspect_carriers` is a STOPGAP consuming the current descriptor; it should thin out to a
+pass-through once the rich surface ships.)

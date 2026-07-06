@@ -15,7 +15,7 @@ import importlib
 import inspect
 from srmech.amsc import hdc as _hdc
 
-__all__ = ["introspect_srmech", "Tooling", "SRMECH_MODULES", "TIERS"]
+__all__ = ["introspect_srmech", "introspect_carriers", "Tooling", "SRMECH_MODULES", "TIERS"]
 
 # The self-knowledge tiers, named in BOTH tongues — ancient AND modern, NEITHER privileged (F1089/F1090).
 # The dual name IS a two-word Rosetta / interlinear gloss: reading the pair cross-reads ancient↔modern without
@@ -58,6 +58,30 @@ def introspect_srmech(modules=None):
                 sig = "(...)"
             doc = (inspect.getdoc(obj) or "").split("\n")[0].strip()
             out["%s.%s" % (short, name)] = "%s%s :: %s" % (name, sig, doc)
+    return out
+
+
+def introspect_carriers():
+    """``{carrier_name: description}`` for every CARRIER TYPE — the NOUNS of the composition graph (F1110).
+    ``introspect_srmech`` SKIPS these: it filters upper-case class names, and the carriers (``Poly`` / ``BiPoly``
+    / ``TriPoly`` …) ARE classes — so Siona knew her ops (verbs) but NOT her types (nouns). Synthesised from
+    ``carrier_ladder_descriptor`` (F1038) so Siona KNOWS her carriers: name + variable-count + ladder/rung.
+    HONEST caveat (F1110): grounding separates the DISTINCT types (Mat / float / octonion) but not the
+    variable-COUNT (Poly vs BiPoly vs TriPoly differ only by a rung NUMBER surface-word grounding can't weight —
+    the structure-not-surface lesson of F1100); the number-sensitive typing lives in ``goal_typing`` (the cue)."""
+    import srmech.amsc.carrier_ladder as _cl
+    d = _cl.carrier_ladder_descriptor()
+    out = {}
+    for nm, c in d["carriers"].items():
+        lad = d["ladders"].get(c.get("ladder"), {})
+        n = c.get("rung") or 0
+        vs = [v for v in (lad.get("adds_variable", {}).get(str(i)) for i in range(1, n + 1)) if v]
+        q = "q-analog " if str(c.get("ladder", "")).endswith("_q") else ""
+        out[nm] = "%s: a %s%d-variable polynomial (rung %s of the %s ladder%s)" % (
+            nm, q, n, c.get("rung"), c.get("ladder"), ("; variables " + " ".join(vs)) if vs else "")
+    out.setdefault("cayley_dickson:8", "octonion: an 8-dimensional hypercomplex number (Cayley-Dickson rung 8)")
+    out.setdefault("float", "float: a scalar number — a magnitude, norm, or single value")
+    out.setdefault("Mat", "Mat: a matrix")
     return out
 
 
@@ -170,6 +194,9 @@ class Tooling:
         self.labels = list(self.kb)
         self._vecs = [grounder.enc_query(self.kb[l]) for l in self.labels]
         self.usage = mine_usage(self.labels, source_dirs) if mine else {}   # IMITATION: {label: [examples]}
+        self.carriers = introspect_carriers()                       # NOUNS: Siona's carrier TYPES (F1110) — the
+        self._clabels = list(self.carriers)                         # types introspect_srmech SKIPS (upper-case classes)
+        self._cvecs = [grounder.enc_query(self.carriers[c]) for c in self._clabels]
 
     def answer(self, query, k=3):
         """TOLD tier: ground a tooling question to the k nearest ops → ``[(label, description, similarity)]``."""
@@ -178,6 +205,16 @@ class Tooling:
             ((_hdc.klein4_similarity(qv, v).as_float(), l) for l, v in zip(self.labels, self._vecs)),
             reverse=True)
         return [(l, self.kb[l], round(s, 3)) for s, l in scored[:k]]
+
+    def carrier(self, query, k=2):
+        """Ground a goal to Siona's KNOWN carrier TYPES (F1110) — she knows her NOUNS now, not just her ops.
+        STOPGAP consuming ``carrier_ladder_descriptor``: coarse types (Mat / float / octonion) ground; the
+        variable-COUNT (Poly / BiPoly / TriPoly) does NOT (they differ only by a rung number the thin srmech
+        descriptions can't discriminate — UPSTREAM ask §91). The number-sensitive typing lives in ``goal_typing``."""
+        qv = self._g.enc_query(query)
+        scored = sorted(((_hdc.klein4_similarity(qv, v).as_float(), l)
+                         for l, v in zip(self._clabels, self._cvecs)), reverse=True)
+        return [(l, round(s, 3)) for s, l in scored[:k]]
 
     def _explain(self, line):
         """Describe a usage example (F1088): ast-parse it and return the ops appearing IN it with their told-
