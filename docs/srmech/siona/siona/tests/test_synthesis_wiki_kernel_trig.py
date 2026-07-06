@@ -298,3 +298,14 @@ def test_introspect_siona_knows_her_tooling_rc135():
     tool = I.Tooling(s.g)
     labels = [l for l, _, _ in tool.answer("how do I recall a kernel from a genome", k=3)]
     assert any(("partition" in l) or ("genome_load" in l) or ("recall" in l) for l in labels), labels
+
+
+def test_introspect_imitation_how_to_rc135():
+    """F1087 (#251): the IMITATION tier -- how_to mines real usage examples (learning by imitation) on top of
+    the told tier. A well-used op returns real call-site examples, not just its signature."""
+    from siona import introspect as I
+    s = siona.Session()
+    tool = I.Tooling(s.g)
+    assert sum(1 for l in tool.usage if tool.usage[l]) > 50, "mined examples for many ops"
+    lab, desc, ex = tool.how_to("compute the graph laplacian eigenvalues", k=1, n=3)[0]
+    assert ex and any("laplacian" in e for e in ex), (lab, ex)      # imitation SHOWS a working example
