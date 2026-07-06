@@ -486,3 +486,20 @@ def test_knowledge_genome_cache_rc135_1111():
         kb2 = KG.load_or_build(s.g, path)                    # second run: cached load
         assert all(kb1[l] == kb2[l] for l in kb1), "cache must be byte-exact across runs"
         assert all(len(v) == 8192 for v in kb2.values())
+
+
+def test_knowledge_genome_express_relevant_rc135_1112():
+    """F1112 (#256 part 2): gene_express the QUERY-RELEVANT subset -- a query routes to its MODULE(s) and only
+    those genes express (RAM-bounded demand-load), not all 256; expressed kernels are byte-exact 8192."""
+    import os
+    import tempfile
+    import siona
+    from siona import knowledge_genome as KG
+    s = siona.Session()
+    total = len(KG.stream_descriptions())
+    with tempfile.TemporaryDirectory() as d:
+        subset, mods = KG.express_relevant(s.g, os.path.join(d, "kgreg"), "recall a kernel from a genome", k_modules=1)
+        assert mods == ["genome"], mods
+        assert 0 < len(subset) < total, (len(subset), total)     # only the module subset, not all 256
+        assert any(l.startswith("genome.") for l in subset)      # the genome-module genes
+        assert all(len(v) == 8192 for v in subset.values())      # byte-exact kernels
