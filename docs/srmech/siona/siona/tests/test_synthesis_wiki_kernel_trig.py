@@ -328,3 +328,20 @@ def test_context_shape_op_operand_rc135():
     assert eff_teach > 0.55, eff_teach                          # THIS turn is verbose (operator applied)
     assert ctx.verbosity < 0.4, ctx.verbosity                   # but the running operand stayed concise (no flip)
     assert ctx.shape("and what is a fiedler vector") < 0.4      # next turn back to concise
+
+
+def test_genome_store_roundtrip_rc135_249():
+    """#249/F1094 CLOSED: genome_store packs via native genome() and recalls via partition -- BYTE-EXACT
+    round-trip at D=8192 (the rc135 v11 CHROM-cap 8192->8448 miscount is gone)."""
+    import os
+    import tempfile
+    import siona
+    from siona import genome_store as GS
+    s = siona.Session()
+    named = [("a", list(s.g.enc_query("alpha one two"))), ("b", list(s.g.enc_query("beta three four")))]
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "g")
+        GS.pack_instrument(named, path)
+        loaded = GS.load_instrument(path)
+        assert all(len(loaded[l]) == 8192 and loaded[l] == hv for l, hv in named), {l: len(loaded[l]) for l in loaded}
+        assert GS.load_kernel(path, "b") == dict(named)["b"]        # single-label demand-load path

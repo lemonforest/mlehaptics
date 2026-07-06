@@ -2789,3 +2789,16 @@ strip the CHROM/GATE caps — NOT `genome_window`+`kernel_unpack` (which sees th
 must be updated to the v11 format (chromosome() pack + recall() unpack). No srmech bug; our store lagged the
 format. The user's principle holds: the genome is uniform op(x)operand (kernel_pack = 34 symbols sparse); the
 caps are the chromosome/gate delimiters, and recall() is the cap-aware reader.
+
+### §90 UPDATE (2026-07-06) — RESOLVED in siona (not an upstream bug)
+
+The genome round-trip length regression (D=8192 → 8448) was NOT an srmech bug — it was siona's
+`genome_store` using the rc123-era `kernel_pack` pack + `genome_window`+`kernel_unpack` recall, which the
+rc135 v11 per-chromosome CHROM cap makes miscount (the cap leaf counts as data; both `kernel_unpack` AND
+`recall` include it). The srmech-native multi-kernel path round-trips BYTE-EXACT:
+`partition(genome({label: leaves}, one), one) == {label: leaves}` (proven, D=8192). `genome_store` was
+rewritten to pack via `genome()` and recall via `genome_load`+`partition` (F1094 / #249 CLOSED). No upstream
+change needed. (Open follow-up, genuinely upstream: a mixed-dimension self-describing recall — packing a
+non-`leaf_dim`-aligned D via `genome()` needs the last leaf padded + the true D recorded; the cap-aware
+`kernel_unpack`-on-a-window path would restore self-describing D if the CHROM cap were excluded from the
+window's leaf count. Low priority — siona's corpus is D=8192 uniform.)

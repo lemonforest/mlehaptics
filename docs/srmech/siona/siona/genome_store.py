@@ -1,26 +1,30 @@
-"""siona.genome_store — pack siona's Klein-4 instrument into a native srmech genome (PKG-3).
+"""siona.genome_store — pack siona's Klein-4 instrument into a native srmech genome (PKG-3 / #249).
 
 Replaces the loose NDJSON+title-index instrument with a single native srmech genome. Each named body
-(a tool vector, a stored-kernel article, an F1035 kernel) is a flat **Klein-4 hypervector** of ANY
-dimension — siona's is D=8192, ``element_type="klein4"`` → the *identity* codec (F1043 option 2:
-siona's kernel IS the 2-bit ``{0,1,2,3}`` symbol, so no element transcoding).
+(a tool vector, a stored-kernel article, an F1035 kernel) is a flat **Klein-4 hypervector** — siona's is
+D=8192 — chunked into ``leaf_dim``-wide leaves and packed as ONE telomere-capped chromosome of a native
+srmech ``genome()`` strand. Recall reads the strand back and splits it by inline CHROM cap via
+``partition`` — the byte-exact multi-kernel round-trip::
 
-The scaffolding rides srmech's §60 ``kernel_pack``/``kernel_unpack`` (rc123+, the dim-agnostic layer):
+    partition(genome({label: leaves}, one), one) == {label: leaves}
 
-  * ``kernel_pack`` chunks each D-vector into ``leaf_dim``-wide leaves (final zero-padded) + a §60
-    header (marker ``0x4B``) that SELF-RECORDS the true ``D``, ``element_type`` and ``leaf_dim``.
-  * the per-body strands CONCATENATE into ONE multi-chromosome genome with a title→byte-offset manifest.
-  * recall pages one chromosome by label (``genome_window``) and ``kernel_unpack`` self-trims to the
-    exact ``D`` — **no external length index needed** (W1 closed upstream), for a mixed-dimension corpus.
+**#249 fix (F1084/F1087/F1094).** The earlier store packed via ``kernel_pack`` and recalled via
+``genome_window`` + ``kernel_unpack`` — which the rc135 v11 format's per-chromosome CHROM cap made
+MISCOUNT (D=8192 came back 8448: the cap leaf counted as data, on BOTH ``kernel_unpack`` and ``recall``).
+The native ``genome()``/``partition`` path — the one Siona's own imitation tier SHOWED us (``siona.introspect``
+mined ``partition(genome({…}), one) == {…}`` from srmech's docstring) — round-trips BYTE-EXACT. Siona's
+D=8192 is a multiple of ``leaf_dim=256``, so the leaves flatten back to exactly D with NO trim; a non-aligned
+D raises (mixed-dimension self-describing recall awaits the upstream cap fix, UPSTREAM §90).
 
-This is the corrected sparse store: on disk each symbol is bit-packed to **2 bits** (F1044), so an
-N-body instrument costs ≈ ``sum(D_i) / 4`` bytes + caps — NOT the dense blow-up the earlier
-genome attempt hit. No numpy; no floats; Klein-4 end to end.
+Still the sparse store: on disk each symbol is bit-packed (F1044), so an N-body instrument costs
+≈ ``sum(D_i) / 4`` bytes + caps. And it stays demand-loadable — the point of F1094: disk weight climbs with
+the corpus, but working RAM need not, because ``partition`` can page a labelled subset. No numpy; no floats;
+Klein-4 end to end.
 """
 import srmech.amsc.genome as _G
 from srmech.amsc import hdc as _hdc
 
-__all__ = ["pack_instrument", "load_kernel", "load_instrument", "LEAF_DIM"]
+__all__ = ["pack_instrument", "load_kernel", "load_instrument", "add_kernel", "LEAF_DIM"]
 
 LEAF_DIM = 256          # srmech LEAF_CAP — the tome width each D-vector chunks into
 _COUPLER_SEED = 0       # siona's canonical coupling invariant (deterministic; recorded in the manifest)
@@ -32,36 +36,51 @@ def _coupler(leaf_dim=LEAF_DIM):
     return _hdc.klein4_random(leaf_dim, seed=_COUPLER_SEED)
 
 
-def pack_instrument(named_vectors, path, *, leaf_dim=LEAF_DIM, the_one=None):
-    """Pack an iterable of ``(label, klein4_HV)`` into ONE native genome directory at ``path``.
+def _leaves(hv, leaf_dim):
+    """Chunk a flat Klein-4 HV into ``leaf_dim``-wide leaves (the Class-A tome width). D must be aligned —
+    the native ``chromosome`` binds each full-width leaf through ``the_one`` (a short final leaf can't bind)."""
+    flat = [int(x) for x in hv]
+    if len(flat) % leaf_dim:
+        raise ValueError(
+            "genome_store: D=%d is not a multiple of leaf_dim=%d — the native genome()/partition round-trip "
+            "needs aligned leaves; mixed-D self-describing recall awaits the upstream cap fix (UPSTREAM §90)."
+            % (len(flat), leaf_dim))
+    return [flat[i:i + leaf_dim] for i in range(0, len(flat), leaf_dim)]
 
-    Each HV is a flat Klein-4 kernel of any dimension. Returns the srmech manifest ``dict``
-    (``chromosomes`` / ``body_sha256`` / ``leaf_dim`` / ``the_one`` …). Duplicate labels raise upstream.
+
+def _flatten(leaves):
+    """Concatenate a kernel's recovered leaves back to the flat D-vector (int Klein-4 symbols)."""
+    return [int(x) for leaf in leaves for x in leaf]
+
+
+def pack_instrument(named_vectors, path, *, leaf_dim=LEAF_DIM, the_one=None):
+    """Pack an iterable of ``(label, klein4_HV)`` into ONE native genome directory at ``path`` (#249).
+
+    Each HV is chunked into aligned leaves and becomes one chromosome of a native ``genome()`` strand.
+    Returns the srmech manifest ``dict``. Duplicate labels raise upstream; a non-aligned D raises here.
     """
     one = _coupler(leaf_dim) if the_one is None else the_one
-    items = list(named_vectors)
-    flat, labels = [], []
-    for label, hv in items:
-        flat += _G.kernel_pack(hv, leaf_dim=leaf_dim, label=label, the_one=one, element_type="klein4")
+    kernels, labels = {}, []
+    for label, hv in named_vectors:
+        kernels[label] = _leaves(hv, leaf_dim)
         labels.append(label)
-    return _G.genome_save(flat, str(path), one, labels)
-
-
-def load_kernel(path, label, *, the_one=None):
-    """Recall ONE kernel by label — the exact flat Klein-4 ``list[int]``, self-trimmed to its true D."""
-    one = _coupler() if the_one is None else the_one
-    window = _G.genome_window(str(path), label)
-    return list(_G.kernel_unpack(window, one))
+    strand = _G.genome(kernels, one)
+    return _G.genome_save(strand, str(path), one, labels)
 
 
 def load_instrument(path, *, the_one=None):
-    """Recall EVERY kernel — ``{label: flat Klein-4 list}`` — reading labels from the genome manifest."""
-    catalog = _G.genome_catalog(str(path))
-    out = {}
-    for entry in catalog.get("chromosomes", []):
-        label = entry["label"] if isinstance(entry, dict) else entry
-        out[label] = load_kernel(path, label, the_one=the_one)
-    return out
+    """Recall EVERY kernel — ``{label: flat Klein-4 list}`` — byte-exact via ``genome_load`` + ``partition`` (#249)."""
+    strand, one, labels = _G.genome_load(str(path))
+    parts = _G.partition(strand, one, labels)
+    return {label: _flatten(leaves) for label, leaves in parts.items()}
+
+
+def load_kernel(path, label, *, the_one=None):
+    """Recall ONE kernel by label — the exact flat Klein-4 ``list[int]`` (#249). ``partition``'s ``labels``
+    filter pages just this chromosome (the demand-load path — F1094: RAM tracks the expressed subset, not disk)."""
+    strand, one, _labels = _G.genome_load(str(path))
+    parts = _G.partition(strand, one, [label])
+    return _flatten(parts[label])
 
 
 def add_kernel(path, label, hv, *, leaf_dim=LEAF_DIM, the_one=None):
