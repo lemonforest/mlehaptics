@@ -215,22 +215,26 @@ class Session:
         return have and want
 
     def _compose(self, u):
-        """Compose an op-chain from an 'I have X … want Y' turn (F1115/#255): split the operand + goal clauses,
-        plan_nl, render the chain — or an honest OPEN / untyped. The chain RUNS via planner.run_goal with a value."""
+        """Compose (and RUN) an op-chain from an 'I have X … want Y' turn (F1115/F1116/#255): split the operand +
+        goal clauses, ``run_nl`` — RUN the chain if the operand VALUE is extractable, else PLAN it — and render the
+        result / chain, or an honest OPEN / untyped."""
         from siona import planner as _planner
         ul, cut, sep_len = u.lower(), len(u), 0
         for sep in (" want ", " need ", " give me ", " produce ", " into "):
             i = ul.find(sep)
             if 0 <= i < cut:
                 cut, sep_len = i, len(sep)
-        r = _planner.plan_nl(u[:cut], u[cut + sep_len:])
+        r = _planner.run_nl(u[:cut], u[cut + sep_len:])
         if r.get("untyped"):
             return ("compose: I could not type the %s — name a carrier "
                     "(polynomial / matrix / octonion / scalar)" % " and ".join(r["untyped"]))
         if r.get("open"):
-            return "compose: no known op-chain from %s to %s (honest OPEN)" % (r["operand_carrier"], r["goal_carrier"])
-        chain = " → ".join(c.split(".")[-1] for c in r["chain"]) or "identity (already that carrier)"
-        return "compose: %s → %s via %s" % (r["operand_carrier"], r["goal_carrier"], chain)
+            return "compose: no known op-chain from %s to %s (honest OPEN)" % (
+                r.get("operand_carrier") or r.get("start_carrier"), r.get("goal_carrier") or r.get("goal"))
+        chain = " → ".join(c.split(".")[-1] for c in r.get("chain", [])) or "identity (already that carrier)"
+        if r.get("ran"):
+            return "compose: %s → %s via %s = %s" % (r["operand_carrier"], r["carrier"], chain, str(r["value"])[:60])
+        return "compose: %s → %s via %s (name the values to run it)" % (r["operand_carrier"], r["goal_carrier"], chain)
 
     # ---- the LIVE context genome (F1097: express() in s.turn) ----
     _TEACH_BIT, _TERSE_BIT = 0b01, 0b10

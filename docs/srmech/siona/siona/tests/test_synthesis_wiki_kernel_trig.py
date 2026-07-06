@@ -544,3 +544,14 @@ def test_turn_compose_intent_rc135_1115():
     assert "OPEN" in s.turn("I have a matrix and want a polynomial")[2]
     assert "type the operand" in s.turn("I have something vague and want a scalar")[2]
     assert s.route("which has more days february or march") != "compose"      # specific: not stolen
+
+
+def test_planner_run_nl_value_rc135_1116():
+    """F1116 (#1/#255): run_nl extracts the operand VALUE and RUNS the chain -- 'the polynomial 1 2 3' +
+    'three-variable' -> Poly([1,2,3]) -> [poly_promote x2] -> a TriPoly result; no value -> plan only."""
+    from siona import planner as P
+    r = P.run_nl("I have the polynomial 1 2 3", "I want a three-variable form")
+    assert r["ran"] and r["carrier"] == "TriPoly", r
+    assert type(P.extract_value("the polynomial 1 2 3", "Poly")).__name__ == "Poly"
+    assert P.extract_value("the octonion 1 0 0 0 0 0 0 0", "cayley_dickson:8") == [1, 0, 0, 0, 0, 0, 0, 0]
+    assert P.run_nl("I have a two-variable polynomial", "I want a three-variable form").get("ran") is None

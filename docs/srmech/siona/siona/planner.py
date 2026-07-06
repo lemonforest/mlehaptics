@@ -20,7 +20,7 @@ import collections
 
 import srmech.amsc.carrier_ladder as _CL
 
-__all__ = ["plan", "run", "run_goal", "plan_nl", "carrier_graph"]
+__all__ = ["plan", "run", "run_goal", "plan_nl", "run_nl", "extract_value", "carrier_graph"]
 
 
 def _node(spec):
@@ -140,4 +140,39 @@ def plan_nl(operand_text, goal_text):
         return {"found": False, "untyped": untyped, "operand_carrier": sc, "goal_carrier": gc}
     out = plan(sc, gc)
     out["operand_carrier"], out["goal_carrier"] = sc, gc
+    return out
+
+
+def extract_value(operand_text, carrier):
+    """Parse the operand's actual VALUE from natural language for a CONSTRUCTIBLE carrier (#255/F1116): ``Poly``
+    (a coefficient list), ``float`` (a single number), octonion (8 numbers). Returns the value, or ``None`` when
+    no number is present or the carrier needs structured input (``BiPoly``/``TriPoly``/``Mat`` — honest None)."""
+    import re
+    toks = re.findall(r"-?\d+(?:\.\d+)?", operand_text)
+    if not toks:
+        return None
+    nums = [int(t) if "." not in t else float(t) for t in toks]
+    if carrier == "Poly":
+        import srmech.amsc.poly as _poly
+        return _poly.Poly(nums)
+    if carrier == "float":
+        return float(nums[0])
+    if carrier == "cayley_dickson:8":
+        return (nums + [0.0] * 8)[:8]
+    return None                                          # BiPoly/TriPoly/Mat need structured coeffs (honest None)
+
+
+def run_nl(operand_text, goal_text):
+    """Full natural-language PLAN + RUN (#255/F1116): type both ends; if the operand VALUE can be extracted,
+    RUN the chain (:func:`run_goal`) → result + provenance; else PLAN only (:func:`plan_nl`). Honest throughout —
+    OPEN when there is no route, untyped when an end can't be typed, plan-only when the value can't be extracted."""
+    from siona.operand_typing import operand_carrier
+    sc = operand_carrier(operand_text)
+    if sc is None:
+        return {"found": False, "untyped": ["operand"]}
+    val = extract_value(operand_text, sc)
+    if val is None:
+        return plan_nl(operand_text, goal_text)          # no extractable value → plan only
+    out = run_goal(val, goal_text, start_carrier=sc)     # value in hand → RUN the composition
+    out["operand_carrier"] = sc
     return out
