@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc148"
-#define SRMECH_VERSION       "0.9.0rc148"
+#define SRMECH_VERSION_PRE   "rc149"
+#define SRMECH_VERSION       "0.9.0rc149"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -758,6 +758,33 @@ srmech_status_t srmech_loop_runbind_hd_f64(
  * ------------------------------------------------------------------ */
 srmech_status_t srmech_autocorrelation_f64(
     const double *x, size_t n, double *out);
+
+/* ------------------------------------------------------------------ *
+ * NUMERIC IIR / recursive filter (BATCH B4b, 0.9.0rc149) — the sp_transform
+ * filter family's one genuinely-new numeric kernel.
+ *
+ * The direct-form-I difference equation
+ *   y[i] = ( Σ_{j} b[j]·x[i-j] − Σ_{k>=1} a[k]·y[i-k] ) / a[0]
+ * (x[i-j] / y[i-k] = 0 for negative index; zero initial rest). This is
+ * y = lfilter(b, a, x): the recursive IIR filter that backs both
+ * `closed_form_ops.iir` (biquad cascade = per-section) and
+ * `closed_form_ops.allpass` (mirrored (b,a)). An FIR filter is the a=[1] case.
+ *
+ * WHY A NEW SYMBOL: the feedback term reads y[i-k] — the output still being
+ * produced — so the recursion is inherently SEQUENTIAL and does NOT decompose
+ * into a matmul/FFT (contrast a feed-forward-only convolution, which the filter
+ * family routes through mat_matmul). NUMERIC (FPU-tol), NOT byte-exact — the
+ * Python parity contract is within-tol (reldiff ≤ 1e-9), matching the F1-FFT /
+ * F2-SVD numeric foundations. No libm, no abs. `out` (n doubles) MUST NOT alias
+ * `x`. Empty b/a -> SRMECH_ERR_NULL_ARG; a[0]==0 -> SRMECH_ERR_BAD_INPUT; n==0
+ * writes nothing. The pure-Python difference-equation reference is the COMPLETE
+ * alternative for no-C hosts. ABI-additive — SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+srmech_status_t srmech_iir_lfilter_f64(
+    const double *b, size_t nb,
+    const double *a, size_t na,
+    const double *x, size_t n,
+    double *out);
 
 /* ------------------------------------------------------------------ *
  * Class I — cyclic-group / modular arithmetic (Task #217 Phase C1)

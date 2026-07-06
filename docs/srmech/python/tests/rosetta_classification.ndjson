@@ -377,7 +377,7 @@
 {"exposed_as": "srmech.qm.triality.triality_automorphism", "defined_at": "srmech.qm.triality.triality_automorphism", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.triality.triality_companions", "defined_at": "srmech.qm.triality.triality_companions", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.triality.triality_swap", "defined_at": "srmech.qm.triality.triality_swap", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.signal_processing.closed_form_ops.allpass.op", "defined_at": "srmech.signal_processing.closed_form_ops.allpass.op", "bucket": "python_only_debt"}
+{"exposed_as": "srmech.signal_processing.closed_form_ops.allpass.op", "defined_at": "srmech.signal_processing.closed_form_ops.allpass.op", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.arithmetic_coding.op", "defined_at": "srmech.signal_processing.closed_form_ops.arithmetic_coding.op", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.beamforming_fixed.op", "defined_at": "srmech.signal_processing.closed_form_ops.beamforming_fixed.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.cross_spectral.op", "defined_at": "srmech.signal_processing.closed_form_ops.cross_spectral.op", "bucket": "composition_of_c"}
@@ -385,16 +385,16 @@
 {"exposed_as": "srmech.signal_processing.closed_form_ops.esprit.op", "defined_at": "srmech.signal_processing.closed_form_ops.esprit.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.farrow.op", "defined_at": "srmech.signal_processing.closed_form_ops.farrow.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.fft.op", "defined_at": "srmech.signal_processing.closed_form_ops.fft.op", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.signal_processing.closed_form_ops.fir.op", "defined_at": "srmech.signal_processing.closed_form_ops.fir.op", "bucket": "python_only_debt"}
+{"exposed_as": "srmech.signal_processing.closed_form_ops.fir.op", "defined_at": "srmech.signal_processing.closed_form_ops.fir.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.fsk.op", "defined_at": "srmech.signal_processing.closed_form_ops.fsk.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.huffman.op", "defined_at": "srmech.signal_processing.closed_form_ops.huffman.op", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.ica_jade.op", "defined_at": "srmech.signal_processing.closed_form_ops.ica_jade.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.ifft.op", "defined_at": "srmech.signal_processing.closed_form_ops.ifft.op", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.signal_processing.closed_form_ops.iir.op", "defined_at": "srmech.signal_processing.closed_form_ops.iir.op", "bucket": "python_only_debt"}
+{"exposed_as": "srmech.signal_processing.closed_form_ops.iir.op", "defined_at": "srmech.signal_processing.closed_form_ops.iir.op", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.jpeg.op", "defined_at": "srmech.signal_processing.closed_form_ops.jpeg.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.lz77.op", "defined_at": "srmech.signal_processing.closed_form_ops.lz77.op", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.map_ml.op", "defined_at": "srmech.signal_processing.closed_form_ops.map_ml.op", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.signal_processing.closed_form_ops.matched_filter.op", "defined_at": "srmech.signal_processing.closed_form_ops.matched_filter.op", "bucket": "python_only_debt"}
+{"exposed_as": "srmech.signal_processing.closed_form_ops.matched_filter.op", "defined_at": "srmech.signal_processing.closed_form_ops.matched_filter.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.mimo_svd.op", "defined_at": "srmech.signal_processing.closed_form_ops.mimo_svd.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.mlse.op", "defined_at": "srmech.signal_processing.closed_form_ops.mlse.op", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.mlse.viterbi_op", "defined_at": "srmech.signal_processing.closed_form_ops.viterbi.op", "bucket": "c_dispatched"}
@@ -416,7 +416,7 @@
 {"exposed_as": "srmech.signal_processing.closed_form_ops.wiener.op", "defined_at": "srmech.signal_processing.closed_form_ops.wiener.op", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.signal_processing.path_b_ops.fft.op", "defined_at": "srmech.signal_processing.path_b_ops.fft.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.path_b_ops.ifft.op", "defined_at": "srmech.signal_processing.path_b_ops.ifft.op", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.signal_processing.path_b_ops.matched_filter.op", "defined_at": "srmech.signal_processing.path_b_ops.matched_filter.op", "bucket": "python_only_debt"}
+{"exposed_as": "srmech.signal_processing.path_b_ops.matched_filter.op", "defined_at": "srmech.signal_processing.path_b_ops.matched_filter.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.path_b_ops.rfft.op", "defined_at": "srmech.signal_processing.path_b_ops.rfft.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.path_b_ops.sign_quantise.op", "defined_at": "srmech.signal_processing.path_b_ops.sign_quantise.op", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.signal_processing.path_b_ops.wiener.op", "defined_at": "srmech.signal_processing.path_b_ops.wiener.op", "bucket": "python_only_debt"}

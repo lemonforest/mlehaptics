@@ -20,11 +20,21 @@ convolution runs with no numpy present at all.
 
 These are signal_processing-internal helpers, **not** public
 ``srmech.amsc.*`` callables — they compose the existing carrier arithmetic
-rather than introducing a new attested cascade op.  A future rc may promote
-them to a public ``srmech.amsc.cascade`` op shipped together with a native C
-twin (so they classify ``c_dispatched`` rather than adding Python-only debt).
+rather than introducing a new attested cascade op.
 
-Both functions are value-faithful to their NumPy counterparts across every
+**rc149 (BATCH B4b) — the C-backed twins.**  :func:`convolve_matmul` /
+:func:`correlate_matmul` compute the SAME full convolution / cross-correlation
+by re-expressing the (feed-forward-only) linear convolution as a **Toeplitz
+matvec** ``M·b`` routed through the c_dispatched ``laplacian.mat_matvec`` ∘
+``mat_matmul`` (``srmech_dense_matmul_complex``).  The FIR / matched-filter ops
+dispatch to these when the native dense-matmul is present and fall back to the
+pure :func:`convolve` / :func:`correlate` otherwise — so those ops classify
+``composition_of_c``.  The mode-crop is SHARED (``_crop_convolve`` /
+``_crop_correlate``), so the matmul path is value-faithful to the pure path to
+FPU round-off (NUMERIC within-tol, reldiff ≤ 1e-9 — NOT byte-identical: the
+matmul float accumulation may FMA-fuse ~1 ULP on some platforms).
+
+Both pure functions are value-faithful to their NumPy counterparts across every
 length relationship, edge mode (``"full"`` / ``"same"`` / ``"valid"``), and
 dtype (real / complex / integer) — verified bit-for-bit in
 ``tests/test_dsp_convolution_cascade_rc58.py``.  They return a Python
@@ -34,7 +44,7 @@ their own (numpy-importing) boundary.
 
 from __future__ import annotations
 
-__all__ = ["convolve", "correlate"]
+__all__ = ["convolve", "correlate", "convolve_matmul", "correlate_matmul"]
 
 
 def _as_1d_list(x, name):
@@ -55,6 +65,41 @@ def _conj(x):
     ``.conjugate()``; for reals it returns the value unchanged.
     """
     return x.conjugate()
+
+
+def _crop_convolve(full, na, nb, mode):
+    """Crop a length-``na+nb-1`` full linear convolution to ``mode`` — the SHARED
+    NumPy-convolve mode-crop for both the pure and the matmul paths."""
+    if mode == "full":
+        return full
+    if mode == "same":
+        target = max(na, nb)
+        start = (len(full) - target) // 2
+        return full[start:start + target]
+    if mode == "valid":
+        target = max(na, nb) - min(na, nb) + 1
+        start = min(na, nb) - 1
+        return full[start:start + target]
+    raise ValueError("mode must be one of 'full', 'same', 'valid'")
+
+
+def _crop_correlate(full, na, nv, mode):
+    """Crop a length-``na+nv-1`` full cross-correlation to ``mode`` — the SHARED
+    NumPy-correlate mode-crop (the ``"same"`` centre swaps floor↔ceil across the
+    ``na >= nv`` boundary, the historical NumPy convention) for both paths."""
+    if mode == "full":
+        return full
+    if mode == "valid":
+        target = max(na, nv) - min(na, nv) + 1
+        start = min(na, nv) - 1
+        return full[start:start + target]
+    if mode == "same":
+        target = max(na, nv)
+        diff = len(full) - target
+        # Class K pin-slot at the centre: floor below the boundary, ceil above.
+        start = diff // 2 if na >= nv else (diff + 1) // 2
+        return full[start:start + target]
+    raise ValueError("mode must be one of 'full', 'same', 'valid'")
 
 
 def convolve(a, b, mode: str = "full"):
@@ -92,17 +137,7 @@ def convolve(a, b, mode: str = "full"):
         ai = a_lst[i]
         for j in range(nb):
             full[i + j] = full[i + j] + ai * b_lst[j]
-    if mode == "full":
-        return full
-    if mode == "same":
-        target = max(na, nb)
-        start = (len(full) - target) // 2
-        return full[start:start + target]
-    if mode == "valid":
-        target = max(na, nb) - min(na, nb) + 1
-        start = min(na, nb) - 1
-        return full[start:start + target]
-    raise ValueError("mode must be one of 'full', 'same', 'valid'")
+    return _crop_convolve(full, na, nb, mode)
 
 
 def correlate(a, v, mode: str = "valid"):
@@ -133,16 +168,57 @@ def correlate(a, v, mode: str = "valid"):
     nv = len(v_lst)
     v_rev_conj = [_conj(x) for x in v_lst][::-1]
     full = convolve(a_lst, v_rev_conj, "full")
-    if mode == "full":
-        return full
-    if mode == "valid":
-        target = max(na, nv) - min(na, nv) + 1
-        start = min(na, nv) - 1
-        return full[start:start + target]
-    if mode == "same":
-        target = max(na, nv)
-        diff = len(full) - target
-        # Class K pin-slot at the centre: floor below the boundary, ceil above.
-        start = diff // 2 if na >= nv else (diff + 1) // 2
-        return full[start:start + target]
-    raise ValueError("mode must be one of 'full', 'same', 'valid'")
+    return _crop_correlate(full, na, nv, mode)
+
+
+def _full_convolve_matmul(a_lst, b_lst):
+    """Full linear convolution ``full[i] = Σ_k a[i-k]·b[k]`` (length
+    ``na+nb-1``) as a **Toeplitz matvec** ``M·b`` routed through the C-backed
+    ``laplacian.mat_matvec`` ∘ ``mat_matmul`` (``srmech_dense_matmul_complex``
+    when the native lib is present, else a pure-Python triple loop).
+
+    ``M`` is the ``(na+nb-1) × nb`` convolution matrix ``M[i][k] = a[i-k]`` (0
+    off the band) — narrow when ``nb`` (the tap count) is small, so this is the
+    same ``O(na·nb)`` work as the direct sum with the multiply-add accumulation
+    done in C.  numpy-free; the Toeplitz build is a list-comprehension carrier.
+    """
+    na = len(a_lst)
+    nb = len(b_lst)
+    if na == 0 or nb == 0:
+        raise ValueError("convolve inputs cannot be empty")
+    rows = na + nb - 1
+    toeplitz = [
+        [(a_lst[i - k] if 0 <= i - k < na else 0) for k in range(nb)]
+        for i in range(rows)
+    ]
+    from srmech.amsc.laplacian import mat_matvec  # lazy: avoid import cycle
+
+    return list(mat_matvec(toeplitz, list(b_lst)))
+
+
+def convolve_matmul(a, b, mode: str = "full"):
+    """C-backed twin of :func:`convolve` — the full convolution is a Toeplitz
+    matvec through ``srmech_dense_matmul_complex`` (``composition_of_c``); the
+    ``mode`` crop is the SHARED :func:`_crop_convolve`.  Value-faithful to
+    :func:`convolve` to FPU round-off (NUMERIC within-tol, NOT byte-identical).
+    """
+    a_lst = _as_1d_list(a, "convolve")
+    b_lst = _as_1d_list(b, "convolve")
+    na = len(a_lst)
+    nb = len(b_lst)
+    full = _full_convolve_matmul(a_lst, b_lst)
+    return _crop_convolve(full, na, nb, mode)
+
+
+def correlate_matmul(a, v, mode: str = "valid"):
+    """C-backed twin of :func:`correlate` — ``correlate(a, v) =
+    convolve_matmul(a, conj(v)[::-1])`` with the SHARED :func:`_crop_correlate`.
+    Value-faithful to :func:`correlate` to FPU round-off (NUMERIC within-tol).
+    """
+    a_lst = _as_1d_list(a, "correlate")
+    v_lst = _as_1d_list(v, "correlate")
+    na = len(a_lst)
+    nv = len(v_lst)
+    v_rev_conj = [_conj(x) for x in v_lst][::-1]
+    full = _full_convolve_matmul(a_lst, v_rev_conj)
+    return _crop_correlate(full, na, nv, mode)

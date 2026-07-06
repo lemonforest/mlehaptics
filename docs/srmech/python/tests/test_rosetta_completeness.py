@@ -203,7 +203,23 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 # FFT / F2 SVD numeric foundations. The FFT-then-window / matmul accumulations
 # can FMA-fuse ~1 ULP on some platforms (macOS clang), so byte-identity is NOT
 # claimed; cross-platform CI is the arbiter. python_only_debt 44 -> 39.
-CEIL_PYTHON_ONLY_DEBT = 39
+# rc149 (BATCH B4b — sp_transform part 2, the filter family): the 5 NUMERIC DSP
+# filter ops move debt -> c_dispatched / composition_of_c. One genuinely-new C
+# symbol lands — srmech_iir_lfilter_f64 (the direct-form-I recursive IIR
+# difference equation; the feedback term reads the output still being produced,
+# so it is inherently SEQUENTIAL and does NOT decompose into a matmul/FFT):
+#   • iir / allpass -> c_dispatched: dispatch the recursion to
+#     srmech_iir_lfilter_f64 (allpass builds the mirrored (b,a) pair first; a
+#     biquad cascade dispatches per second-order section) -> c_dispatched (×2).
+#   • fir / closed_form_ops.matched_filter / path_b_ops.matched_filter ->
+#     composition_of_c: a (feed-forward-only) linear convolution / correlation
+#     re-expressed as a Toeplitz matvec through the c_dispatched
+#     srmech_dense_matmul_complex (via _dsp.convolve_matmul / correlate_matmul ->
+#     mat_matvec ∘ mat_matmul) -> composition_of_c (×3).
+# NUMERIC (float DSP): the parity contract is WITHIN-TOL native == pure (reldiff
+# ≤ 1e-9, differential — NOT byte-identical), the SAME classification as the F1
+# FFT / F2 SVD / B4a numeric batches. python_only_debt 39 -> 34.
+CEIL_PYTHON_ONLY_DEBT = 34
 # rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
 # rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.
