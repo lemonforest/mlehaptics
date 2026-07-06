@@ -175,6 +175,45 @@ class Instrument:
                 winding.append((w, rows))
         return {"phase": phase, "winding": winding}
 
+    @staticmethod
+    def _archetype(n):
+        """The verbosity ARCHETYPE that falls out of the emitted-path length (F1075) — none wrong by default,
+        context selects which to prefer: terse (an answer) → concise → balanced → descriptive → expansive."""
+        return ("terse" if n <= 1 else "concise" if n <= 3 else "balanced" if n <= 6
+                else "descriptive" if n <= 10 else "expansive")
+
+    def path_emit(self, query, *, grounder=None, t=20.0, coherence=1.0, max_steps=14, level_floor=0.03, breadth=None):
+        """Emit a coarse→fine PATH by walking the winding tower (F1074). ``coherence`` ∈ [0, 1] is the ONE KNOB:
+        it opens the tower (depth) AND sets ``breadth`` (per-level detail, ``1 + round(2·coherence)`` = 1 terse
+        → 3 expansive) unless ``breadth`` is given. At each scale level w (ascending = coarse→fine) take the
+        top-``breadth`` nodes, dedup, threshold by ``level_floor``. The verbosity ARCHETYPE (terse / concise /
+        balanced / descriptive / expansive) FALLS OUT of the configuration — none is wrong by default; context
+        selects which to prefer (F1075). knob 0 = thermal (one floor → a terse ANSWER); knob 1 = coherent (full
+        tower, wide → an expansive PATH). Returns
+        ``{"path": [labels coarse→fine], "archetype": name, "coherence": c, "levels_open": k, "breadth": b}``."""
+        if breadth is None:
+            breadth = 1 + int(round(2.0 * coherence))          # coherence drives per-level detail: 1 → 3
+        phi = coherence * (_TWO_PI / 4.0)                      # coherence ∈ [0,1] → the Wick angle φ ∈ [0, π/2]
+        cn, cd = _C.cos_series_truncate(int(round(phi * 1000)), 1000, 18); cf = cn / cd
+        sn, sd = _C.sin_series_truncate(int(round(phi * 1000)), 1000, 18); sf = sn / sd
+        two = self.excite_propagate_harvest_2axis(query, grounder=grounder, t=t, top=max(1, breadth), z=(cf, sf))
+        levels = two["winding"]                                # [(w, [(label, energy)])], w ascending = coarse→fine
+        if not levels:
+            return {"path": [], "archetype": "terse", "coherence": coherence, "levels_open": 0, "breadth": breadth}
+        maxe = max(rows[0][1] for _, rows in levels)
+        seq = []; seen = set()
+        for w, rows in levels:                                 # coarse → fine
+            for lab, e in rows[:breadth]:
+                if e < level_floor * maxe or lab in seen:
+                    continue
+                seen.add(lab); seq.append(lab)
+                if len(seq) >= max_steps:
+                    break
+            if len(seq) >= max_steps:
+                break
+        return {"path": seq, "archetype": self._archetype(len(seq)),
+                "coherence": coherence, "levels_open": len(levels), "breadth": breadth}
+
 
 def from_session(session, *, limit=200, knn=4):
     """Build an :class:`Instrument` from a live siona Session's grounding index (its named D-dim kernels)."""

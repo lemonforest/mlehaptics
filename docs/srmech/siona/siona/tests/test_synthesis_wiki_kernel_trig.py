@@ -229,3 +229,16 @@ def test_photosynth_two_axis_harvest_rc135():
     assert len(two["winding"]) >= 2, "winding axis must stratify into >=2 scale levels"
     ws = [w for w, _ in two["winding"]]
     assert ws == sorted(ws), "winding levels ascending"
+
+
+def test_photosynth_path_emit_archetype_knob_rc135():
+    """F1075: the coherence KNOB emits a coarse->fine path whose verbosity ARCHETYPE falls out of the
+    configuration -- terse at knob=0 (thermal, 1 floor), longer/richer at knob=1 (coherent, full tower)."""
+    from siona import photosynth as P
+    s = siona.Session()
+    inst = P.from_session(s, limit=70)
+    terse = inst.path_emit("normalized laplacian of a graph", grounder=s.g, t=20.0, coherence=0.0)
+    rich = inst.path_emit("normalized laplacian of a graph", grounder=s.g, t=20.0, coherence=1.0)
+    assert terse["archetype"] == "terse" and len(terse["path"]) == 1, terse
+    assert len(rich["path"]) > len(terse["path"]), (terse, rich)      # the knob spans terse -> rich
+    assert rich["breadth"] >= terse["breadth"] and rich["coherence"] == 1.0
