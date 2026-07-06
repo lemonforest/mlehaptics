@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc153"
-#define SRMECH_VERSION       "0.9.0rc153"
+#define SRMECH_VERSION_PRE   "rc154"
+#define SRMECH_VERSION       "0.9.0rc154"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2161,6 +2161,19 @@ srmech_status_t srmech_polar_bundle(const int8_t * const *vectors,
                                     uint32_t              n_vectors,
                                     uint32_t              n,
                                     int8_t               *out);
+
+/* polar_random(key, key_length, D): D draws of CPython random.Random(seed)
+ * .randrange(-1, 2), BYTE-IDENTICAL. `key` is the seed's little-endian uint32
+ * words (the Python wrapper splits the seed int; a C-only / MCU host passes its
+ * own entropy words). Fills `out` (int8) with D values in {-1, 0, +1} via
+ * MT19937 + getrandbits(2) rejection (_randbelow(3) — a DIFFERENT stream from
+ * klein4_random's _randbelow(4)). Standalone-complete: the 624-word state is
+ * stack-resident — no malloc, no compiled-in cap (bound is the caller's `out`).
+ * Additive symbol — no ABI bump. */
+srmech_status_t srmech_polar_random(const uint32_t *key,
+                                    size_t          key_length,
+                                    uint32_t        D,
+                                    int8_t         *out);
 
 /* polar_similarity(a, b, skip_zero): match-fraction in [0, 1].
  * skip_zero != 0 → fraction over positions where both a[i] != 0 and

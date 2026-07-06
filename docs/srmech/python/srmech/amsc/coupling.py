@@ -93,6 +93,14 @@ def signed_sum_squared(sources: Sequence) -> "Vec":
         ValueError: empty ``sources``, mismatched lengths, or values
             outside ``{0, 1}``.
     """
+    # rc154 (BATCH B10, ``composition_of_c``): this is a pure **Class-K** bipolar
+    # sign-projection (``2·bit − 1``) ∘ **Class-L** signed-magnitude-square
+    # composition over integer bit-stacks — NOT an irreducible Python kernel. It
+    # reaches no non-standalone-ready leaf (all integer arithmetic, no libm, no
+    # ``abs()``), so it is trivially C-portable / standalone-ready — the SAME
+    # classification as the ``cascade.compose.signed_sum_squared`` twin and the
+    # ``mat_dot`` pure-reduction. Value-verified against the exact reference; no
+    # new C symbol (the Class-K / Class-L primitives are the C-backed ones).
     if len(sources) == 0:
         raise ValueError(
             "coupling.signed_sum_squared: requires at least one source"

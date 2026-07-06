@@ -323,7 +323,33 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 # ≤ 1e-9, differential — NOT byte-identical), the SAME classification as the F1
 # FFT / F2 SVD / B4 / B9 numeric batches. NO new public op (tools.total stays
 # 403); NO new C symbol (ABI stays 3). python_only_debt 16 -> 13.
-CEIL_PYTHON_ONLY_DEBT = 13
+# rc154 (BATCH B10 — misc, the near-final compute batch): the 8 misc ops move
+# python_only_debt -> composition_of_c (×7) / c_dispatched (×1). Honest per-op
+# classification (EACH was a MIS-BUCKETED composition, not an irreducible kernel):
+#   • coupling.signed_sum_squared / harmonics.classify_chirality_harmonic /
+#     hdc.polar_similarity / compose.greedy_bipartite_alignment -> composition_of_c:
+#     pure Class-K/L/N/E primitive compositions (bipolar+square / inner-products+
+#     magnitude+ratio / skip+match-count / greedy-argmax) reaching NO non-standalone
+#     leaf, libm-free, no abs() — the SAME status as the mat_dot pure-reduction /
+#     cascade.compose.signed_sum_squared / top_k_by_score. Value-oracle verified.
+#   • hdc.polar_from_real -> composition_of_c: the whole encode IS the c_dispatched
+#     sign_quantise.op cascade (srmech_sign_quantise, rc143) — byte-identical.
+#   • hdc.polar_unbind -> composition_of_c: unbind == bind on the ±1 sub-alphabet,
+#     so it COMPOSES the c_dispatched polar_bind (srmech_polar_bind) — byte-identical.
+#   • laplacian.three_fold_eigvec_groups -> composition_of_c: composes the
+#     composition_of_c symmetric_eigendecompose (C Hermitian-eig) + c_dispatched
+#     srmech_three_fold_bands; eig-INVARIANT native==pure (non-unique basis — band
+#     SIZES + spans, not element-wise; the rc146/rc152 invariant precedent).
+#   • hdc.polar_random -> c_dispatched: a RANDOM op reaching Python-only
+#     random.Random has NO standalone-C path — it earns its OWN deterministic C RNG
+#     srmech_polar_random (MT19937 + _randbelow(3) via getrandbits(2) rejection,
+#     byte-identical to random.Random(seed).randrange(-1, 2); the polar sibling of
+#     §60 srmech_klein4_random) rather than a FALSE composition-of-c. ONE new C
+#     symbol; ABI stays 3 (additive). NO new public op (tools.total stays 403).
+# Remaining compute python_only_debt = 5 (the honestly-hard residue: einsum / kron
+# tensor contractions, ica_jade JADE Givens, jpeg float-DCT, beamforming_fixed
+# delay-and-sum). python_only_debt 13 -> 5.
+CEIL_PYTHON_ONLY_DEBT = 5
 # rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
 # rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.
