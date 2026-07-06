@@ -241,7 +241,32 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 # NUMERIC (float DSP): the parity contract is WITHIN-TOL native == pure (reldiff
 # ≤ 1e-9, differential — NOT byte-identical), the SAME classification as the F1
 # FFT / F2 SVD / B4a / B4b numeric batches. python_only_debt 34 -> 29.
-CEIL_PYTHON_ONLY_DEBT = 29
+# rc151 (BATCH B4d — sp_transform part 4, CLOSES B4: interpolators / wavelet /
+# spectral-subtraction): the last 4 NUMERIC sp_transform ops move debt ->
+# composition_of_c with NO new C symbol (ABI stays 3). Each composes an EXISTING
+# C foundation:
+#   • farrow.op -> composition_of_c: the poly-in-mu mixer collapses to one
+#     length-4 effective FIR h_eff[j]=Σ_k mu^k·C[k][j], and the Farrow output is
+#     the "valid" cross-correlation of the zero-padded signal with h_eff — a
+#     Toeplitz matvec through the c_dispatched srmech_dense_matmul_complex (via
+#     _dsp.correlate_matmul); mu=0 -> exact integer-delay passthrough.
+#   • sinc_interp.op -> composition_of_c: the Whittaker-Shannon reconstruction is
+#     the matvec out = S·y with the real band-limit kernel S[q][s]=sinc((t_q-t_s)/T)
+#     routed through mat_matvec -> srmech_dense_matmul_complex; target==sample ->
+#     S=I so out==y exactly.
+#   • wavelet.op -> composition_of_c: each Haar analysis level is one banded matvec
+#     [approx; detail]=H·current (low-pass +c,+c band over high-pass +c,-c band,
+#     c=1/√2, decimation baked into the row stride) through the same C matmul; the
+#     orthonormal transpose is the exact perfect-reconstruction inverse.
+#   • spectral_subtraction.op -> composition_of_c: the forward + inverse transform
+#     funnel through _sc.fft / _sc.ifft -> the c_dispatched numeric FFT foundation
+#     srmech_fft_c128 (rc139); the observed bin magnitude |X|²=re²+im² is the
+#     genuine Class-K pin-slot magnitude (NO abs() on a complex bin), the max(·)
+#     floor is Class-N, phase preserved via rational.atan2/cos/sin.
+# NUMERIC (float DSP): WITHIN-TOL native == pure (reldiff ≤ 1e-9, differential —
+# NOT byte-identical). BATCH B4 is COMPLETE (19 sp_transform ops rc148-151).
+# python_only_debt 29 -> 25.
+CEIL_PYTHON_ONLY_DEBT = 25
 # rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
 # rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.
