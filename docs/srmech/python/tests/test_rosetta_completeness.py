@@ -135,7 +135,28 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 # slots (from -1j / -1.0·0) — a byte-identity hazard with no standalone gain — so
 # the honest classification is composition_of_c (the fewest new C symbols: zero).
 # python_only_debt 68 -> 62.
-CEIL_PYTHON_ONLY_DEBT = 62
+# rc146 (BATCH B8b — qm_exact_assembly part 2): the 9 so(8)/octonion/triality ops
+# move to composition_of_c. Two honest sub-classes, BOTH standalone-C-reproducible
+# with NO new C symbol (ABI stays 3):
+#   • 6 BYTE-EXACT: so8_adjoint_basis / g2_subalgebra route their EXACT-INTEGER
+#     derivation matmuls through the c_dispatched laplacian.mat_matmul
+#     (srmech_dense_matmul_complex) — integer sums are order-independent in float64
+#     so native == forced-pure BYTE-FOR-BYTE. triality_swap / triality_automorphism
+#     / triality_companions / lean_isa_seventh_primitive compose mat_matmul +
+#     mat_norm over the exact-DYADIC-ℚ companion maps; the companion maps' exact-ℚ
+#     solve is standalone-reproducible via the c_dispatched srmech_qmat_rref
+#     (VERIFIED byte-identical to the fast pure-Fraction sparse solve — the Python
+#     keeps the sparse solve only for speed) — all byte-identical native==pure.
+#   • 3 FLOAT-COMPOSITION: so7_subalgebra / an_embedding /
+#     quaternion_subalgebra_stabilizer compose the C-backed mat_svd
+#     (srmech_svd_f64) ∘ mat_hermitian_eigendecompose ∘ mat_matmul ∘ kron — the
+#     SAME established composition_of_c pattern as the rc140 esprit / map_ml /
+#     mimo_svd float-SVD ops (the "matmul ∘ eig ∘ kron" ledger example); native
+#     agrees with forced-pure within the accepted ~1e-9 SVD/eig carrier shift
+#     (per [[feedback_cascade_svd_nullspace_accuracy_not_route_matrix_rank]]) and
+#     every span / dimension / closure invariant is preserved exactly.
+# python_only_debt 62 -> 53.
+CEIL_PYTHON_ONLY_DEBT = 53
 # rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
 # rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.
