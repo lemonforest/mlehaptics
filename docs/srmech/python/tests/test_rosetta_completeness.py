@@ -184,7 +184,26 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 #     unitarity invariant + (exp(iM) being basis-independent) the reconstructed
 #     holonomy within the accepted ~1e-9 carrier shift, NOT element-wise.
 # python_only_debt 53 -> 44. B8 (qm_exact_assembly, 24 ops over B8a/B8b/B8c) COMPLETE.
-CEIL_PYTHON_ONLY_DEBT = 44
+# rc148 (BATCH B4a — sp_transform part 1, the FFT-spectral family): the 5 NUMERIC
+# DSP transform ops move to composition_of_c with NO new C symbol (ABI stays 3).
+# Each COMPOSES the rc139 c_dispatched numeric FFT foundation srmech_fft_c128 (via
+# spectral_cascades.fft/_sc.fft) and/or the c_dispatched laplacian.mat_matmul
+# (srmech_dense_matmul_complex, via mat_matvec) plus the byte-exact Class-N
+# rational.{cos,sin,sqrt} integer-cascade C ports for the window/taper bases:
+#   • stft / spectrogram / cross_spectral / multitaper — each windowed/tapered
+#     frame's transform funnels through _sc.fft -> srmech_fft_c128 (the SAME
+#     composition_of_c pattern as the rc139 fft/ifft/rfft wrappers, one layer up
+#     with a Hann/cosine window + |z|²/cross-product/bundle-average elementwise
+#     glue — numpy-free list-comps, no abs()); spectrogram composes stft.
+#   • dct — the cosine-basis matvec M·x now rides mat_matvec ∘ mat_matmul ->
+#     srmech_dense_matmul_complex (the cosine basis is the C-backed rational.cos
+#     cascade); the 2·/DCT-III-first-term scaling is trivial glue.
+# NUMERIC (float DSP): the parity contract is WITHIN-TOL native==pure (reldiff
+# ≤ 1e-9, differential — NOT byte-identical), the SAME classification as the F1
+# FFT / F2 SVD numeric foundations. The FFT-then-window / matmul accumulations
+# can FMA-fuse ~1 ULP on some platforms (macOS clang), so byte-identity is NOT
+# claimed; cross-platform CI is the arbiter. python_only_debt 44 -> 39.
+CEIL_PYTHON_ONLY_DEBT = 39
 # rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
 # rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.

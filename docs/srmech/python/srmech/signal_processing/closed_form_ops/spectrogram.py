@@ -7,6 +7,12 @@ class; just a magnitude post-step on the STFT op.
 Path B dual in Phase 6 (Path B STFT followed by elementwise mag-squared on
 the bound-vector substrate).
 
+rc148 (B4a) classification: ``composition_of_c`` — composes the (now
+composition_of_c) :func:`stft.op` (which dispatches each frame's FFT to the
+c_dispatched ``srmech_fft_c128``) followed by a numpy-free ``|z|²=re²+im²``
+elementwise glue (no ``abs()``). NUMERIC (within-tol, not byte-identical):
+native == pure to reldiff ≤ 1e-9.
+
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Oppenheim &
 Schafer (2010, 3rd ed.) §10.4 (spectrogram as time-frequency energy density).
 """
