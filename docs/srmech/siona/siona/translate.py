@@ -70,11 +70,23 @@ def render(a, target_units, *, gate=None, target_vecs=None):
     return target_units[i], i, conf
 
 
-def translate(source_text, target_units, *, gate=None):
+def translate(source_text, target_units, *, gate=None, src_gate=None):
     """``b = B(A⁻¹(A(a)))`` (F1118): COMPREHEND the source to the invariant ``a``, then RENDER by the nearest
-    target unit. Returns ``(translation_b, index, confidence)``. Render = retrieval from the parallel corpus
-    (honest for a fixed bitext); the gate is shared across both sides so the same function-words drop."""
+    target unit. Returns ``(translation_b, index, confidence)``. Render = retrieval from the parallel corpus.
+
+    ``gate`` gates the TARGET side; ``src_gate`` gates the SOURCE. Pass a PER-LANGUAGE ``src_gate`` for a
+    cross-language pair (F1120): function-word-ness is per-language, so gating the source with the target's docf
+    leaves the source's own function-words in and drops the signal to chance (measured: shared-English gate 3%
+    top-1 vs per-side gate 10%). If ``src_gate`` is omitted it falls back to the target ``gate`` (correct only
+    for a same-language / monolingual retrieval).
+
+    CAVEAT (F1120): with the byte-glyph ``comprehend``, ``A⁻¹`` reaches only the BYTE substrate, so this
+    transcode conserves byte-shared genes (cognates/loanwords) and CHANGES meaning-shared-but-spelling-divergent
+    genes. For a NON-cognate pair (Gilgamesh, #246) byte-invariance is ~0 — a DEEPER knowledge ``A⁻¹`` is
+    required. The GENOME-transcode direction (pack each side as per-gene genes, translate gene-by-gene, read via
+    ``gene_express``) sidesteps the F871 bundle-saturation the article-level bundle hits."""
     g = gate if gate is not None else docf_gate(target_units)
+    sg = src_gate if src_gate is not None else g         # PER-LANGUAGE source gate for a cross-language pair
     tvecs = [comprehend(u, gate=g) for u in target_units]
-    a = comprehend(source_text, gate=g)              # A⁻¹ : source → knowledge a
+    a = comprehend(source_text, gate=sg)             # A⁻¹ : source → knowledge a (source-language gated)
     return render(a, target_units, target_vecs=tvecs)    # B  : a → nearest target surface b
