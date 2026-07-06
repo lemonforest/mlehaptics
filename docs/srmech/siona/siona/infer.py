@@ -192,6 +192,8 @@ class Session:
             return "self-command"
         if self._is_compose(u):                # F1115/#255: 'I have X … want Y' → compose an op-chain
             return "compose"
+        if self._is_asl(u):                    # F1125/#257: render the phrase to ASL escaped signs
+            return "asl"
         ints, fls, byts, edges = self._operands(u)
         if b.has_define(ws) and not (ints or fls or byts or edges):
             return "define"
@@ -236,6 +238,32 @@ class Session:
             return "compose: %s → %s via %s = %s" % (r["operand_carrier"], r["carrier"], chain, str(r["value"])[:60])
         return "compose: %s → %s via %s (name the values to run it)" % (r["operand_carrier"], r["goal_carrier"], chain)
 
+    # ---- the ASL output intent (F1125/#257: render a phrase to ASL escaped signs) ----
+    def _is_asl(self, u):
+        """Detect an ASL-output request — 'in ASL' / 'in sign language' / 'how do you sign X' / 'sign this' / 'ASL:'."""
+        ul = " %s " % u.lower()
+        if any(p in ul for p in (" in asl ", " in sign language ", " to asl ", " asl:", " sign language ",
+                                 " how do you sign ", " how do i sign ", " sign this ", " render in asl ",
+                                 " in asl?")):
+            return True
+        # a leading 'sign …' with a quoted phrase is an ASL request ('sign' alone is too ambiguous)
+        return u.lower().lstrip().startswith("sign ") and any(q in u for q in "\"“'‘")
+
+    def _asl_reply(self, u):
+        """Render the requested phrase to ASL escaped signs (F1125). Prefer a quoted phrase; else strip the
+        request frame. Siona's ASL output surface — the sense-determinative render (F608)."""
+        from . import asl
+        m = re.search(r'["“\'‘]([^"”\'’]+)["”\'’]', u)   # a quoted phrase is the payload
+        txt = m.group(1) if m else u
+        if not m:
+            for pat in (r"(?i)\bhow do (?:you|i) sign\b", r"(?i)\brender (?:in|as) asl\b",
+                        r"(?i)\bsign (?:this|the phrase|it)\b", r"(?i)\bto asl\b",
+                        r"(?i)\bin (?:asl|sign language)\b", r"(?i)\basl\s*:?", r"(?i)^\s*sign\b"):
+                txt = re.sub(pat, " ", txt)
+        txt = txt.strip(" :?.\"“”'‘’")
+        signs = asl.render(txt)
+        return "ASL: %s" % signs if signs else "(nothing to sign)"
+
     # ---- the LIVE context genome (F1097: express() in s.turn) ----
     _TEACH_BIT, _TERSE_BIT = 0b01, 0b10
 
@@ -269,6 +297,8 @@ class Session:
             return r, "siona.%s" % tool, out
         if r == "compose":
             return r, "siona.compose", self._compose(u)
+        if r == "asl":
+            return r, "siona.asl", self._asl_reply(u)
         if r == "tool-call":
             return r, "srmech", self._drive_tool(u)
         if r == "define":

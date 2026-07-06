@@ -555,3 +555,15 @@ def test_planner_run_nl_value_rc135_1116():
     assert type(P.extract_value("the polynomial 1 2 3", "Poly")).__name__ == "Poly"
     assert P.extract_value("the octonion 1 0 0 0 0 0 0 0", "cayley_dickson:8") == [1, 0, 0, 0, 0, 0, 0, 0]
     assert P.run_nl("I have a two-variable polynomial", "I want a three-variable form").get("ran") is None
+
+
+def test_turn_asl_intent_rc135_1125():
+    """F1125 (#257): s.turn routes an ASL-output request to the ASL intent -> Siona emits ASL escaped signs;
+    a non-ASL turn is not stolen."""
+    import siona
+    s = siona.Session()
+    intent, tag, out = s.turn('sign "the doctor helps the sick child"')
+    assert intent == "asl" and tag == "siona.asl", (intent, tag)
+    assert "DOCTOR" in out and "CHILD" in out and out.startswith("ASL:"), out
+    assert s.turn("how do you sign water")[0] == "asl"
+    assert s.route("remember that water boils") != "asl"          # specific: not stolen
