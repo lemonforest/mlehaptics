@@ -214,12 +214,22 @@ class Tooling:
                        for c in self._clabels]
         self.usage = mine_usage(self.labels, source_dirs) if mine else {}   # IMITATION: {label: [examples]}
 
-    def answer(self, query, k=3):
-        """TOLD tier: ground a tooling question to the k nearest ops → ``[(label, description, similarity)]``."""
+    def answer(self, query, k=3, *, route=True, k_modules=3):
+        """TOLD tier: ground a tooling question to the k nearest ops → ``[(label, description, similarity)]``.
+
+        With ``route=True`` (F1113/#256): ROUTE the query to its module(s) and EXPRESS + ground WITHIN that
+        subset — don't compare against all 256 (the demand-load, F1112). Falls back to the FULL set if the route
+        finds nothing (honest — never miss because a keyword route came up empty)."""
         qv = self._g.enc_query(query)
-        scored = sorted(
-            ((_hdc.klein4_similarity(qv, v).as_float(), l) for l, v in zip(self.labels, self._vecs)),
-            reverse=True)
+        idxs = range(len(self.labels))
+        if route:
+            from .knowledge_genome import _route_modules              # lazy (avoid the introspect↔kg import cycle)
+            mods = set(_route_modules(query, k_modules))
+            hit = [i for i, l in enumerate(self.labels) if l.split(".")[0] in mods]   # EXPRESS the module subset
+            if hit:
+                idxs = hit                                           # ...and ground WITHIN it
+        scored = sorted(((_hdc.klein4_similarity(qv, self._vecs[i]).as_float(), self.labels[i]) for i in idxs),
+                        reverse=True)
         return [(l, self.kb[l], round(s, 3)) for s, l in scored[:k]]
 
     def carrier(self, query, k=2):

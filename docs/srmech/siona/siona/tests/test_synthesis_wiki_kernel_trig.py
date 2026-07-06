@@ -503,3 +503,17 @@ def test_knowledge_genome_express_relevant_rc135_1112():
         assert 0 < len(subset) < total, (len(subset), total)     # only the module subset, not all 256
         assert any(l.startswith("genome.") for l in subset)      # the genome-module genes
         assert all(len(v) == 8192 for v in subset.values())      # byte-exact kernels
+
+
+def test_tooling_answer_routed_grounding_rc135_1113():
+    """F1113 (#256 last mile): Tooling.answer routes -> expresses -> grounds WITHIN the query-relevant module
+    subset (not all 248), improving precision by excluding cross-module distractors."""
+    import siona
+    from siona import introspect as I
+    from siona.knowledge_genome import _route_modules
+    s = siona.Session()
+    t = I.Tooling(s.g, mine=False)
+    assert _route_modules("recall a kernel from a genome", 3) == ["genome"]
+    assert t.answer("recall a kernel from a genome", route=True)[0][0].split(".")[-1] == "partition"
+    routed = t.answer("bind two hypervectors", route=True)[0][0]
+    assert routed.split(".")[0] == "hdc", routed            # grounded WITHIN the hdc module (excludes cd_add)
