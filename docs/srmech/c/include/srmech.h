@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc154"
-#define SRMECH_VERSION       "0.9.0rc154"
+#define SRMECH_VERSION_PRE   "rc155"
+#define SRMECH_VERSION       "0.9.0rc155"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1328,6 +1328,41 @@ srmech_status_t srmech_svd_f64(uint32_t       m,
                                double        *V_out,
                                double        *ws,
                                size_t         ws_len);
+
+/* srmech_jade_jointdiag — the JADE (Cardoso-Souloumiac 1993) Givens joint-
+ * diagonalisation sweep, the iterative kernel at the heart of ICA-JADE
+ * (0.9.0rc155, BATCH B-residue: the FINAL compute op -> python_only_debt=0).
+ * Given the fourth-order cumulant tensor `cum` (k*k*k*k row-major, MUTATED as
+ * the working buffer), drive its (i,j) slices toward joint diagonality by a
+ * data-dependent sequence of Givens rotations, accumulating them into the
+ * un-mixing rotation `v_out` (k*k row-major, initialised to I here). The
+ * per-(i,j) angle is theta = 0.25*atan2(2*C[i][j][i][j],
+ * C[i][i][i][i]-C[j][j][j][j]) (the simplified-JADE update), applied when
+ * |theta| >= tol; the first-axis tensor rotation is applied TWICE per Givens
+ * step (a preserved quirk of the reference). ITERATIVE -> an EXPLICIT sweep
+ * cap `max_iter` (JPL Rule 2 bounded loop); a sweep whose Σ|theta| < tol is
+ * converged and stops early (matching the Python reference, which never
+ * errors on non-convergence — it returns the current rotation).
+ *
+ * NUMERIC (FPU-tol), NOT byte-exact: the angle/twiddle are the libm-free
+ * Class-N cascades srmech_atan2 / srmech_cos / srmech_sin (the same the
+ * Python rational.{atan2,cos,sin} dispatch to); JADE's basis is
+ * permutation/sign/scale-ambiguous, so native and pure recover the same
+ * sources WITHIN-TOL, not byte-for-byte. No abs()/fabs() (Class-K sign
+ * branch). Scratch (G + V·G accumulator + rotated-cumulant ping-pong) is
+ * bump-carved from the CALLER arena `ws` (>= srmech_jade_jointdiag_ws_bound
+ * BYTES = (2*k² + k⁴) doubles); an under-sized arena returns
+ * SRMECH_ERR_OVERFLOW. The pure-Python sweep is the COMPLETE alternative for
+ * no-C hosts (and the parity oracle). Additive -> ABI stays 3. */
+size_t srmech_jade_jointdiag_ws_bound(uint32_t k);
+
+srmech_status_t srmech_jade_jointdiag(double   *cum,
+                                      uint32_t  k,
+                                      uint32_t  max_iter,
+                                      double    tol,
+                                      double   *v_out,
+                                      double   *ws,
+                                      size_t    ws_len);
 
 /* ------------------------------------------------------------------ *
  * The resonant-spectrum closure (§75 / F928) — a Class-L coupling

@@ -33,6 +33,7 @@ from __future__ import annotations
 
 from typing import List, Optional, Tuple
 
+from srmech.amsc import _native as _native
 from srmech.amsc import rational as _srn
 from srmech.amsc.laplacian import mat_hermitian_eigendecompose
 from srmech.amsc.mat import Mat
@@ -95,6 +96,51 @@ def _rotate_first_axis(
                     for m in range(k):
                         oajl[m] += g_ia * cijl[m]
     return out
+
+
+def _jade_sweep_pure(
+    cumulants: List[List[List[List[float]]]], k: int, max_iter: int, tol: float
+) -> List[List[float]]:
+    """Pure-Python JADE Givens joint-diagonalisation sweep — the COMPLETE
+    alternative to the native ``srmech_jade_jointdiag`` (and its parity oracle).
+    Drives the (i, j) cumulant slices toward joint diagonality, accumulating the
+    Givens rotations into ``V`` (k×k). Byte-for-byte the historic behaviour
+    (incl. the first-axis rotation applied TWICE per Givens step)."""
+    cum = cumulants
+    V = [[1.0 if a == b else 0.0 for b in range(k)] for a in range(k)]
+    for _it in range(max_iter):
+        off = 0.0
+        for i in range(k):
+            for j in range(i + 1, k):
+                # JADE simplified Givens: rotate to diagonalise the (i, j) slice.
+                num = 2.0 * cum[i][j][i][j]
+                den = cum[i][i][i][i] - cum[j][j][j][j]
+                # Class-K sign-branch (no abs()).
+                if _abs(num) + _abs(den) < 1e-15:
+                    continue
+                theta = 0.25 * _srn.atan2(num, den + 1e-15)
+                # Class-K sign-branch (no abs()).
+                if _abs(theta) < tol:
+                    continue
+                off += _abs(theta)
+                c, s = float(_srn.cos(theta)), float(_srn.sin(theta))  # float Givens
+                # Givens rotation G.
+                G = [[1.0 if a == b else 0.0 for b in range(k)] for a in range(k)]
+                G[i][i] = c
+                G[j][j] = c
+                G[i][j] = -s
+                G[j][i] = s
+                # Apply rotation to V and to the cumulant slices.
+                V = _matmul(V, G)
+                # Rotate cumulant tensor along the first axis, TWICE per Givens
+                # step (the original applied the same first-axis rotation twice;
+                # the alternate subscript sat behind an inert ``if False``), so
+                # the behaviour is preserved exactly — carrier-swap, not bugfix.
+                cum = _rotate_first_axis(cum, G, k)
+                cum = _rotate_first_axis(cum, G, k)
+        if off < tol:
+            break
+    return V
 
 
 def op(
@@ -191,40 +237,16 @@ def op(
                         v -= 1.0
                     cumulants[i][j][l][m] = v
 
-    # Joint diagonalisation via Givens sweeps.
-    V = [[1.0 if a == b else 0.0 for b in range(k)] for a in range(k)]
-    for _it in range(max_iter):
-        off = 0.0
-        for i in range(k):
-            for j in range(i + 1, k):
-                # JADE simplified Givens: rotate to diagonalise the (i, j) slice.
-                num = 2.0 * cumulants[i][j][i][j]
-                den = cumulants[i][i][i][i] - cumulants[j][j][j][j]
-                # Class-K sign-branch (no abs()).
-                if _abs(num) + _abs(den) < 1e-15:
-                    continue
-                theta = 0.25 * _srn.atan2(num, den + 1e-15)
-                # Class-K sign-branch (no abs()).
-                if _abs(theta) < tol:
-                    continue
-                off += _abs(theta)
-                c, s = float(_srn.cos(theta)), float(_srn.sin(theta))  # float Givens
-                # Givens rotation G.
-                G = [[1.0 if a == b else 0.0 for b in range(k)] for a in range(k)]
-                G[i][i] = c
-                G[j][j] = c
-                G[i][j] = -s
-                G[j][i] = s
-                # Apply rotation to V and to the cumulant slices.
-                V = _matmul(V, G)
-                # Rotate cumulant tensor along the first axis, TWICE per Givens
-                # step (the original applied the same first-axis rotation twice;
-                # the alternate subscript sat behind an inert ``if False``), so
-                # the behaviour is preserved exactly — carrier-swap, not bugfix.
-                cumulants = _rotate_first_axis(cumulants, G, k)
-                cumulants = _rotate_first_axis(cumulants, G, k)
-        if off < tol:
-            break
+    # Joint diagonalisation via Givens sweeps — rc155 (BATCH B-residue): the
+    # iterative cumulant-slice diagonalisation dispatches to the native
+    # ``srmech_jade_jointdiag`` C peer when present; the pure-Python sweep
+    # (:func:`_jade_sweep_pure`) is the COMPLETE alternative (and the parity
+    # oracle). JADE's rotation basis is permutation/sign/scale-ambiguous, so the
+    # two paths recover the same sources WITHIN-TOL (this makes ica_jade a
+    # ``c_dispatched`` op — the last compute python_only_debt → 0).
+    V = _native.jade_jointdiag_c(cumulants, k, max_iter, tol)
+    if V is None:
+        V = _jade_sweep_pure(cumulants, k, max_iter, tol)
 
     # ``W = Vᵀ · W_whiten`` (k×p); ``S = (W · Xᵀ)ᵀ`` (n×k).
     Vt = [[V[a][b] for a in range(k)] for b in range(k)]
