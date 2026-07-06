@@ -115,10 +115,22 @@ def op(
     """
     # Path B uses the same algebra as Path A. The form-function cross-
     # correlation identity per Spike #159 IS the FFT-convolution-theorem
-    # correlation that ``_dsp.correlate`` computes — ``sum_n a[n+k]·conj(v[n])``
-    # — which is numpy-free (#564): it coerces both inputs to 1-D lists
-    # (raising ValueError on a nested/2-D or empty input) and returns a list
-    # (the conjugate is the element's own ``.conjugate()``, no ``np.conj``).
+    # correlation that ``_dsp.correlate`` computes — ``sum_n a[n+k]·conj(v[n])``.
+    # composition_of_c (rc149 / B4b): when the native dense-matmul is present it
+    # routes through ``_dsp.correlate_matmul`` → a Toeplitz matvec through the
+    # c_dispatched ``srmech_dense_matmul_complex``; otherwise the complete
+    # numpy-free pure ``_dsp.correlate`` cascade. Both coerce to 1-D lists
+    # (ValueError on nested/2-D / empty input) and return a list (the conjugate
+    # is the element's own ``.conjugate()``, no ``np.conj``); the matmul path is
+    # within-tol (not byte-identical).
+    from srmech.amsc import _native
+
+    if (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_dense_matmul_complex")
+    ):
+        return _dsp.correlate_matmul(signal, template, mode=mode)
     return _dsp.correlate(signal, template, mode=mode)
 
 

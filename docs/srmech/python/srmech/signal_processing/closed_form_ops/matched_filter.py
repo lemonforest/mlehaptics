@@ -12,6 +12,13 @@ the time-shift where the template best aligns with the signal.
 Path B dual in Phase 4 (B-native A ∘ C ∘ M cross-correlation per Spike
 #176 anchor).
 
+rc149 (B4b) classification: ``composition_of_c``.  The cross-correlation is a
+full convolution with the reversed-conjugated template, so it routes through
+``_dsp.correlate_matmul`` → a Toeplitz matvec through the c_dispatched
+``srmech_dense_matmul_complex`` when the native lib is present, else the
+complete numpy-free pure ``_dsp.correlate`` cascade.  NUMERIC (within-tol, not
+byte-identical): reldiff ≤ 1e-9.
+
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: North
 (1943) + Turin (1960) + Proakis & Salehi (2008, 5th ed.).
 """
@@ -54,8 +61,20 @@ def op(signal, template, *, mode: str = "full", D: int = 8192):
         Cross-correlation array; the index of the maximum-magnitude entry
         is the most-likely template alignment. Numpy-free (#564).
     """
-    # _dsp.correlate computes sum_n a[n+k] * conj(v[n]) — exactly the
-    # matched-filter output. It is numpy-free: it coerces both inputs to 1-D
-    # lists (raising ValueError on a nested/2-D or empty input) and returns a
-    # list (the conjugate is the element's own .conjugate(), no np.conj).
+    # composition_of_c (rc149 / B4b): the cross-correlation sum_n a[n+k]·conj(v[n])
+    # IS a full convolution of the signal with the reversed-conjugated template,
+    # so when the native dense-matmul is present it routes through
+    # _dsp.correlate_matmul → a Toeplitz matvec through the c_dispatched
+    # srmech_dense_matmul_complex; otherwise the complete numpy-free pure
+    # _dsp.correlate cascade. Both coerce to 1-D lists (ValueError on nested/2-D
+    # / empty input) and return a list; the matmul path is within-tol (not
+    # byte-identical).
+    from srmech.amsc import _native
+
+    if (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_dense_matmul_complex")
+    ):
+        return _dsp.correlate_matmul(signal, template, mode=mode)
     return _dsp.correlate(signal, template, mode=mode)

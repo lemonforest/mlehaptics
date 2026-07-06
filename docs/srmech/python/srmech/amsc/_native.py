@@ -619,6 +619,26 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_fft_c128.restype = ctypes.c_int
 
+    # 0.9.0rc149 (BATCH B4b): the NUMERIC IIR / recursive filter kernel the
+    # sp_transform filter family (iir / allpass) dispatches its FLOAT path to.
+    # Direct-form-I difference equation over caller buffers; no scratch arena
+    # (reads x[] + out[]). NEW symbol, hasattr-guarded (ABI stays 3) so a stale
+    # ABI-3 lib keeps the rest of the native surface and the pure-Python
+    # difference-equation cascade is the complete path.
+    #   int srmech_iir_lfilter_f64(const double *b, size_t nb, const double *a,
+    #       size_t na, const double *x, size_t n, double *out)
+    if hasattr(lib, "srmech_iir_lfilter_f64"):
+        lib.srmech_iir_lfilter_f64.argtypes = [
+            ctypes.POINTER(ctypes.c_double),    # b (nb)
+            ctypes.c_size_t,                    # nb
+            ctypes.POINTER(ctypes.c_double),    # a (na)
+            ctypes.c_size_t,                    # na
+            ctypes.POINTER(ctypes.c_double),    # x (n)
+            ctypes.c_size_t,                    # n
+            ctypes.POINTER(ctypes.c_double),    # out (n)
+        ]
+        lib.srmech_iir_lfilter_f64.restype = ctypes.c_int
+
     # rc140 Foundation F2: the numeric f64 QR + SVD C peers (real). NEW symbols,
     # hasattr-guarded (ABI stays 3) so a stale ABI-3 lib keeps the rest of the
     # native surface and the pure-Python cascade is the complete path. Caller-
@@ -4322,6 +4342,63 @@ def fft_c128_c(seq, inverse: bool):
     if rc != SRMECH_OK:
         return None
     return [complex(outbuf[2 * i], outbuf[2 * i + 1]) for i in range(n)]
+
+
+# ----------------------------------------------------------------------
+# rc149 (BATCH B4b): the NUMERIC IIR / recursive filter C peer
+# (srmech_iir_lfilter_f64). The signal_processing filter family (iir / allpass)
+# dispatches its REAL path here; the pure-Python direct-form difference-equation
+# reference is the COMPLETE alternative (and the parity oracle) for no-C hosts.
+# NUMERIC (FPU-tol), NOT byte-exact — the same within-tol contract as the F1
+# FFT / F2 SVD numeric foundations.
+# ----------------------------------------------------------------------
+
+
+def has_native_iir_f64() -> bool:
+    """True iff the rc149 numeric IIR filter C peer (``srmech_iir_lfilter_f64``)
+    is loaded + bound. False on a no-C or pre-rc149 lib — the pure-Python
+    direct-form difference-equation cascade is the complete alternative (and the
+    parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return hasattr(LIB, "srmech_iir_lfilter_f64")
+
+
+def iir_lfilter_f64_c(b, a, x):
+    """Real direct-form-I IIR filter ``y = lfilter(b, a, x)`` via the native
+    ``srmech_iir_lfilter_f64`` — returned as ``list[float]`` — or ``None`` when
+    the native symbol is absent (the caller then runs the pure-Python
+    difference-equation path). NUMERIC (FPU-tol): the same filter output as the
+    pure cascade to round-off. ``b`` / ``a`` must be non-empty and ``a[0] != 0``;
+    a NULL/bad-input status returns ``None`` (caller falls back)."""
+    if not has_native_iir_f64():
+        return None
+    try:
+        b_list = [float(v) for v in b]
+        a_list = [float(v) for v in a]
+    except (TypeError, ValueError):
+        # complex / non-real coefficients: the C kernel is real-only, so hand
+        # back to the pure-Python path (which handles any numeric dtype).
+        return None
+    nb = len(b_list)
+    na = len(a_list)
+    if nb == 0 or na == 0 or a_list[0] == 0.0:
+        return None
+    x_list = [float(v) for v in x]
+    n = len(x_list)
+    bbuf = (ctypes.c_double * nb)(*b_list)
+    abuf = (ctypes.c_double * na)(*a_list)
+    xbuf = (ctypes.c_double * n)(*x_list) if n else (ctypes.c_double * 0)()
+    outbuf = (ctypes.c_double * n)() if n else (ctypes.c_double * 0)()
+    rc = LIB.srmech_iir_lfilter_f64(
+        bbuf, ctypes.c_size_t(nb),
+        abuf, ctypes.c_size_t(na),
+        xbuf, ctypes.c_size_t(n),
+        outbuf,
+    )
+    if rc != SRMECH_OK:
+        return None
+    return [outbuf[i] for i in range(n)]
 
 
 # ----------------------------------------------------------------------
