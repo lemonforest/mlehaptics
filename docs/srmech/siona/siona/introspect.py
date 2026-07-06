@@ -15,7 +15,19 @@ import importlib
 import inspect
 from srmech.amsc import hdc as _hdc
 
-__all__ = ["introspect_srmech", "Tooling", "SRMECH_MODULES"]
+__all__ = ["introspect_srmech", "Tooling", "SRMECH_MODULES", "TIERS"]
+
+# The self-knowledge tiers, named in BOTH tongues — ancient AND modern, NEITHER privileged (F1089/F1090).
+# The dual name IS a two-word Rosetta / interlinear gloss: reading the pair cross-reads ancient↔modern without
+# fully knowing either language — the way a logogram is understood across tongues without knowing them. An
+# "apprenticeship in design": the naming itself teaches the translation, and holds the duality without collapse.
+TIERS = {
+    "told":       {"ancient": "epistēmē",       "modern": "declarative",           "knows": "knowing-THAT — the signature"},
+    "shown":      {"ancient": "technē·mimēsis", "modern": "procedural",            "knows": "knowing-HOW — the working example"},
+    "understood": {"ancient": "phronēsis",      "modern": "articulated",           "knows": "knowing-WHY — the example + what/why"},
+    "rehearse":   {"ancient": "askēsis",        "modern": "proceduralization",     "knows": "a PROCESS (told→shown), NOT a tier"},
+    "coach":      {"ancient": "apprenticeship", "modern": "cognitive apprenticeship", "knows": "watch the learner rehearse + correct — the missing tier"},
+}
 
 SRMECH_MODULES = [
     "srmech.amsc.genome", "srmech.amsc.laplacian", "srmech.amsc.hdc", "srmech.amsc.cascade",
