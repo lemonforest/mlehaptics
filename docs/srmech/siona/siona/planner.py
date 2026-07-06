@@ -20,7 +20,7 @@ import collections
 
 import srmech.amsc.carrier_ladder as _CL
 
-__all__ = ["plan", "run", "run_goal", "carrier_graph"]
+__all__ = ["plan", "run", "run_goal", "plan_nl", "carrier_graph"]
 
 
 def _node(spec):
@@ -124,4 +124,20 @@ def run_goal(start_value, goal_text, *, start_carrier=None):
         return {"found": False, "untyped": True, "goal_text": goal_text}
     out = run(start_value, gc, start_carrier=start_carrier)
     out["goal_text"], out["goal_carrier"] = goal_text, gc
+    return out
+
+
+def plan_nl(operand_text, goal_text):
+    """Full natural-language PLAN (#255/F1114): TYPE the OPERAND ("I have X" → start carrier, ``operand_typing``)
+    and the GOAL ("want Y" → goal carrier, ``goal_typing``), then :func:`plan`. Returns the plan annotated with
+    both typed carriers — or an honest ``{"found": False, "untyped": [...]}`` when an end can't be typed. This
+    closes the "I have X and want Y → here is the composition" NL loop at the PLAN level (RUN needs the value)."""
+    from siona.goal_typing import goal_carrier
+    from siona.operand_typing import operand_carrier
+    sc, gc = operand_carrier(operand_text), goal_carrier(goal_text)
+    untyped = [w for w, v in (("operand", sc), ("goal", gc)) if v is None]
+    if untyped:
+        return {"found": False, "untyped": untyped, "operand_carrier": sc, "goal_carrier": gc}
+    out = plan(sc, gc)
+    out["operand_carrier"], out["goal_carrier"] = sc, gc
     return out

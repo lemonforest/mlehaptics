@@ -517,3 +517,17 @@ def test_tooling_answer_routed_grounding_rc135_1113():
     assert t.answer("recall a kernel from a genome", route=True)[0][0].split(".")[-1] == "partition"
     routed = t.answer("bind two hypervectors", route=True)[0][0]
     assert routed.split(".")[0] == "hdc", routed            # grounded WITHIN the hdc module (excludes cd_add)
+
+
+def test_planner_plan_nl_rc135_1114():
+    """F1114 (#255): plan_nl closes the full NL loop -- type the operand ('I have X') AND the goal ('want Y'),
+    then plan. 'two-variable' + 'three-variable' -> BiPoly->TriPoly [poly_promote]; no-route -> OPEN; vague -> untyped."""
+    from siona import planner as P
+    from siona.operand_typing import operand_carrier
+    assert operand_carrier("I've got a matrix") == "Mat"
+    assert operand_carrier("given an octonion") == "cayley_dickson:8"
+    r = P.plan_nl("I have a two-variable polynomial", "I want a three-variable form")
+    assert r["found"] and r["operand_carrier"] == "BiPoly" and r["goal_carrier"] == "TriPoly", r
+    assert [c.split(".")[-1] for c in r["chain"]] == ["poly_promote"], r
+    assert P.plan_nl("I have a matrix", "I want a polynomial").get("open") is True     # honest OPEN
+    assert P.plan_nl("I have something vague", "I want a scalar").get("untyped") == ["operand"]  # honest untyped
