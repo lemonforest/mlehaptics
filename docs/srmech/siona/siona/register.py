@@ -33,8 +33,8 @@ import re as _re
 from srmech.amsc import hdc as _hdc
 from srmech.amsc import laplacian as _L
 
-__all__ = ["classify", "classify_spectral", "coupling_coherence", "REGISTER_BITS",
-           "NARRATIVE", "ATTESTED", "FORMAL", "DISCRETE"]
+__all__ = ["classify", "classify_spectral", "classify_register", "coupling_coherence",
+           "REGISTER_BITS", "NARRATIVE", "ATTESTED", "FORMAL", "DISCRETE"]
 
 NARRATIVE, ATTESTED, FORMAL = 0b001, 0b010, 0b100
 #: the DISCRETE registers as gene_express cell_state activator masks (0x67 regulatory gene)
@@ -151,3 +151,43 @@ def classify_spectral(statement, web_texts, *, dual_floor=1e-3, balance_margin=0
                 "graded": round(min(narr, att) / max(narr, att), 2), "continuous": coh}
     return {"register": top[0], "emergent": False,
             "degree": round((top[1] - second) / (top[1] or 1.0), 2), "continuous": coh}
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# The composed classifier (F1103, #252 close) — ATTESTATION ANCHOR (primary, certain) → Class-L spectral
+# inference (k=2 comparison, F1100) → k=3 knowledge-kernel TIE-BREAK (F291/F334: k=2 detects, k=3 corrects).
+
+def _sharpest_kernel(statement, web_texts):
+    """The single knowledge kernel (one exemplar) that couples MOST SHARPLY to the statement — the k=3
+    tie-breaker (F291/F334, the user's '3rd knowledge kernel decides'). Returns ``(λ₂, register)``."""
+    best = (0.0, None)
+    for reg, texts in web_texts.items():
+        for t in texts:
+            c = coupling_coherence(statement, [t])       # single-exemplar coupling — the specific knowledge kernel
+            if c > best[0]:
+                best = (c, reg)
+    return best
+
+
+def classify_register(statement, web_texts, *, attestation=None, tie_band=0.15):
+    """The production register classify (F1103, #252) — three tiers, in order:
+
+      1. **ATTESTATION ANCHOR (primary, CERTAIN).** If ``attestation`` carries a known ``register`` (from its
+         source-TYPE — a novel → fiction, a reference → fact, a math text → math), that IS the register. No
+         inference, no degree — the register is just the attestation the framework already carries (MPM).
+      2. **Class-L spectral INFERENCE (the k=2 comparison, F1100).** Un-attested → couple the statement to each
+         register's web (Fiedler λ₂) and take the emergent base-2 argmax.
+      3. **k=3 knowledge-kernel TIE-BREAK (F291/F334).** A near-tie (``degree < tie_band``) is a k=2 ambiguity
+         that can only DETECT the conflict; the single SHARPEST knowledge kernel (k=3) breaks it and decides.
+
+    Register, not truth (F1098); low degree ⇒ honest 'undetermined', never asserted (F552)."""
+    if attestation and attestation.get("register") in DISCRETE:
+        return {"register": attestation["register"], "source": "attested", "degree": 1.0}   # certain
+    r = classify_spectral(statement, web_texts)
+    if r.get("emergent") or r["register"] == "undetermined":
+        return r
+    if r.get("degree", 1.0) < tie_band:                  # k=2 near-tie → the k=3 knowledge kernel decides
+        lam, reg = _sharpest_kernel(statement, web_texts)
+        if reg is not None:
+            return {**r, "register": reg, "tie_broken": True, "by_kernel": round(lam, 4)}
+    return r

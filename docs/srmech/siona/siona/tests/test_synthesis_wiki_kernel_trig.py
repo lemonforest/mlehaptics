@@ -417,3 +417,17 @@ def test_register_spectral_class_l_coupling_rc135_1100():
     assert R.classify_spectral("the moon gravity causes higher ocean tides", webs)["register"] == "fact"
     r = R.classify_spectral("the sine function has a cosine derivative", webs)
     assert r["register"] == "math" and r["continuous"]["math"] > 0     # emergent base-2 + continuous-form answer
+
+
+def test_register_classify_full_rc135_1103():
+    """F1103 (#252 close): classify_register composes the attestation ANCHOR (certain, primary) -> Class-L
+    spectral inference (F1100) -> k=3 knowledge-kernel tie-break (_sharpest_kernel; F291/F334)."""
+    from siona import register as R
+    webs = {"fiction": ["gandalf leads the fellowship through moria", "ahab hunts the white whale"],
+            "fact": ["the moon gravity causes ocean tides", "mitochondria produce cell energy"],
+            "math": ["the derivative of sine is cosine", "a prime has two divisors"]}
+    r = R.classify_register("literally anything here", webs, attestation={"register": "fiction"})
+    assert r == {"register": "fiction", "source": "attested", "degree": 1.0}   # 1. anchor certain, overrides inference
+    assert R.classify_register("gandalf fights the balrog in moria", webs)["register"] == "fiction"   # 2. spectral
+    lam, reg = R._sharpest_kernel("the derivative of sine equals cosine", webs)   # 3. the k=3 tie-breaker
+    assert reg == "math" and lam > 0, (lam, reg)
