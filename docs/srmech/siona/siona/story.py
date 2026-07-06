@@ -107,3 +107,20 @@ def classify_story(nodes, edges):
     nonhub_bet = sorted((betw[c] for c in nodes if sig[c]["degree"] < hub_deg), reverse=True)
     bet_floor = (nonhub_bet[0] * 0.5) if nonhub_bet else 1e9   # bridges = the high-betweenness non-hubs
     return {c: _role(sig[c], betw[c], majority, hub_deg, bet_floor) for c in nodes}, sig
+
+
+def sandroing_strokes(nodes, edges):
+    """Can this noun-graph be drawn as ONE sandroing? The ATTESTED rule (UNESCO 00073, Vanuatu sand drawings):
+    a unicursal line that STARTS AND ENDS AT THE SAME POINT and NEVER TAKES THE SAME PATH TWICE = an EULERIAN
+    CIRCUIT — exists iff the graph is connected and EVERY node has EVEN degree (Euler's theorem). This is the
+    precise, measurable answer to "can sandroing capture a story of multiple nouns" (F1080, refines F1079):
+    the minimum # of continuous strokes = ``max(1, odd_degree_count // 2)``. Returns
+    ``{"strokes": k, "odd_degree_nodes": [...], "one_sandroing": bool}`` — k=1 iff a single closed sandroing draws it."""
+    idx = {c: i for i, c in enumerate(nodes)}
+    deg = {c: 0 for c in nodes}
+    for a, b in edges:
+        if idx[a] != idx[b]:
+            deg[a] += 1; deg[b] += 1
+    odd = [c for c in nodes if deg[c] % 2 == 1]
+    strokes = max(1, len(odd) // 2)                            # k disjoint strokes cover k pairs of odd ends
+    return {"strokes": strokes, "odd_degree_nodes": odd, "one_sandroing": (len(odd) == 0)}

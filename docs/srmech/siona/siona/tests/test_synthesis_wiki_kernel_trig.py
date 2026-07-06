@@ -274,3 +274,14 @@ def test_story_character_archetype_roles_rc135():
     assert roles["Hero"] == "protagonist-hub" and roles["Shadow"] == "antagonist-hub"
     assert roles["Mentor"] == "bridge"
     assert roles["Ally1"] == "support" and roles["Sage"] == "minor"
+
+
+def test_story_sandroing_eulerian_rc135():
+    """F1080: the ATTESTED sandroing rule (UNESCO 00073 -- start=end, never repeat a path) = an EULERIAN
+    CIRCUIT: one continuous line iff all-even degree. Odd-degree nouns -> multiple strokes; an all-even ring
+    draws as one sandroing (the measurable answer to 'can sandroing capture multiple nouns')."""
+    from siona import story
+    ring = story.sandroing_strokes(["A", "B", "C", "D"], [("A", "B"), ("B", "C"), ("C", "D"), ("D", "A")])
+    assert ring["one_sandroing"] and ring["strokes"] == 1                 # all even -> one line
+    star = story.sandroing_strokes(["H", "a", "b", "c"], [("H", "a"), ("H", "b"), ("H", "c")])
+    assert not star["one_sandroing"] and star["strokes"] == 2             # 4 odd-degree nodes -> 2 strokes
