@@ -44,6 +44,15 @@ def _load(path=None):
     global _chord, _senses
     if _chord is not None:
         return
+    # 1) prefer the BUNDLED attested JSON subset (ships with the package → ASL works out-of-the-box)
+    jp = os.path.join(os.path.dirname(__file__), "asl_lex.json")
+    if path is None and os.path.exists(jp):
+        import json
+        b = json.load(open(jp, encoding="utf-8"))
+        _chord = {g: tuple(c) for g, c in b.get("signs", {}).items()}
+        _senses = {w: [(s, frozenset(m)) for s, m in cands] for w, cands in b.get("senses", {}).items()}
+        return
+    # 2) fallback: parse the external ASL-LEX CSV (the build-time source for the bundle)
     _chord, _senses = {}, {}
     p = path or _DEFAULT_LEX
     if not os.path.exists(p):
