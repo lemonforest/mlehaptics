@@ -266,7 +266,39 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 # NUMERIC (float DSP): WITHIN-TOL native == pure (reldiff ≤ 1e-9, differential —
 # NOT byte-identical). BATCH B4 is COMPLETE (19 sp_transform ops rc148-151).
 # python_only_debt 29 -> 25.
-CEIL_PYTHON_ONLY_DEBT = 25
+# rc152 (BATCH B9 — qm-numeric): the 9 NUMERIC qm ops (norms / eigenvalue-
+# invariants / time-evolution that produce floats) move python_only_debt ->
+# composition_of_c with NO new C symbol (ABI stays 3). Each is a pure composition
+# of the already-C-backed matrix algebra — the c_dispatched laplacian.mat_matmul
+# (srmech_dense_matmul_complex) + mat_hermitian_eigendecompose
+# (srmech_hermitian_eigendecompose_ws) + mat_solve (srmech_dense_solve_f64_ws) +
+# the composition_of_c mat_norm / mat_eigvals + the byte-exact Class-N rational.
+# {sqrt,cos,sin,cexp} integer-cascade C ports. Two honest parity sub-classes:
+#   • 1 BYTE-EXACT: bell.chsh_pauli_combination_norm — the primary CHSH identity
+#     ‖σ_x⊗σ_x + σ_z⊗σ_z‖ = 2 rides the EXACT-INTEGER eigenvalue cascade
+#     matrix_cascades.eigvals_exact (char-poly Faddeev-LeVerrier → Sturm →
+#     rational bisection, all Fraction/int — the bignum_reference oracle, itself
+#     standalone-ready) over the byte-exact integer Mat add, so the value is
+#     exactly 2.0 and native==pure is byte-identical AND platform-invariant.
+#   • 8 FLOAT / eig-INVARIANT (WITHIN-TOL native == pure, reldiff ≤ 1e-9): bell.
+#     chsh_operator_norm (‖B_CHSH‖ = 2√2 via the Jacobi max|λ|) / bell.verify_chsh
+#     (bool verdict + residuals) / gauge.casimir_eigenvalue (trace(T^aT^a)/dim =
+#     (N²−1)/(2N); the byte-exact casimir_operator matmul + a pure trace/divide) /
+#     pseudo_hermitian.construct_eta_from_eigendecomposition (the eigenvector null-
+#     space now routes through the C-backed Gram Hermitian-eigendecomposition —
+#     mat_matmul ∘ mat_hermitian_eigendecompose — the SAME SVD/Gram-eig null-space
+#     pattern as the rc146 so8 subalgebra builders, REPLACING the former hand-
+#     rolled float Gaussian-elimination RREF Python-only kernel) / is_pseudo_
+#     hermitian + pseudo_hermitian_eigenvalues_real (bool verdict + residual) /
+#     single_particle.heisenberg_evolve + liouville_evolve (A(t)=U†AU / ρ(t)=UρU†
+#     via mat_hermitian_eigendecompose ∘ rational.cexp ∘ mat_matmul). These bottom
+#     out in the non-unique Jacobi eigenBASIS and/or a multi-term complex matmul
+#     accumulation that can FMA-fuse ~1 ULP cross-platform (the rc147 ckm lesson),
+#     so byte-identity is NOT claimed; the physics INVARIANT (η Hermitian +
+#     pseudo-Hermiticity; A(0)=A + Hermiticity; ρ(0)=ρ + trace) + the scalar/bool
+#     VALUE are asserted native==pure within-tol. NO new public op (tools.total
+#     stays 403); NO new C symbol (ABI stays 3). python_only_debt 25 -> 16.
+CEIL_PYTHON_ONLY_DEBT = 16
 # rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
 # rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.

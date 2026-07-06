@@ -109,7 +109,6 @@ from __future__ import annotations
 from typing import Tuple
 
 from srmech.amsc.rational import sqrt as _rsqrt  # §22: scalar root via Class-N
-from srmech.amsc.cascade.matrix_cascades import eigvals_exact as _eigvals_exact
 from srmech.amsc.laplacian import mat_hermitian_eigendecompose
 from srmech.amsc.mat import Mat
 from srmech.qm.spin import pauli_matrices
@@ -287,19 +286,16 @@ def operator_norm(H) -> float:
 
 
 def chsh_pauli_combination_norm() -> float:
-    """Compute ``‖σ_x ⊗ σ_x + σ_z ⊗ σ_z‖``.
+    """Compute ``‖σ_x ⊗ σ_x + σ_z ⊗ σ_z‖`` (algebraically exactly ``2``).
 
-    Bit-exact algebraic identity: this equals **exactly** ``2``. The operator
-    has all-real INTEGER entries (σ_y is absent), so the spectrum ``{+2,0,0,−2}``
-    comes from the numpy-free EXACT eigenvalue cascade
-    (:func:`srmech.amsc.cascade.matrix_cascades.eigvals_exact` — char_poly
-    integer Faddeev-LeVerrier → Sturm isolation → rational bisection), giving a
-    residual of exactly ``0`` (not the ~1e-15 Jacobi floor). Max ``|λ|`` via
-    Class-K sign-branch (no abs())."""
-    M = chsh_pauli_combination()   # Mat; complex layout, real-integer entries
-    real_int = [[int(round(M[i, j].real)) for j in range(4)] for i in range(4)]
-    eigs = _eigvals_exact(real_int)
-    return max((e if e >= 0.0 else -e) for e in eigs)
+    Routed through the C-backed Hermitian eigendecomposition
+    (:func:`operator_norm` → ``mat_hermitian_eigendecompose``) so a bare-C host
+    reaches it via a STANDALONE-C leaf — the exact-integer ``eigvals_exact``
+    bignum oracle has no C twin, so composing it would violate the transitive-
+    standalone ratchet. The spectrum ``{+2,0,0,−2}`` gives the norm ``2`` to the
+    ~1e-15 Jacobi floor (within-tol NUMERIC, not byte-exact). Max ``|λ|`` via the
+    Class-K sign-branch inside ``operator_norm`` (no abs())."""
+    return operator_norm(chsh_pauli_combination())
 
 
 def chsh_operator_norm() -> float:
