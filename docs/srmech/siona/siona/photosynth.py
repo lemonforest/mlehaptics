@@ -62,6 +62,16 @@ class Instrument:
             for _, j in sorted(((sim(self._vecs[i], self._vecs[j]), j)
                                 for j in range(self.N) if j != i), reverse=True)[:knn]:
                 und[i].add(j); und[j].add(i)
+        # CURVATURE per node (clustering coefficient) — a content-agnostic STRUCTURAL field (F1077): high =
+        # tight / consensus-core (positive Ricci-like), low = bridging / boundary. Personality is a bias along it.
+        self._curv = []
+        for i in range(self.N):
+            nb = list(und[i])
+            if len(nb) < 2:
+                self._curv.append(0.0)
+            else:
+                links = sum(1 for a in range(len(nb)) for b in range(a + 1, len(nb)) if nb[b] in und[nb[a]])
+                self._curv.append(links / (len(nb) * (len(nb) - 1) / 2.0))
         edges = sorted({(min(i, j), max(i, j)) for i in und for j in und[i]})
         weights = [sim(self._vecs[a], self._vecs[b]) for a, b in edges]
         # Class-L: L = the graph Hamiltonian; its eigenbasis is the spectral power structure (the organelle)
@@ -182,24 +192,44 @@ class Instrument:
         return ("terse" if n <= 1 else "concise" if n <= 3 else "balanced" if n <= 6
                 else "descriptive" if n <= 10 else "expansive")
 
-    def path_emit(self, query, *, grounder=None, t=20.0, coherence=1.0, max_steps=14, level_floor=0.03, breadth=None):
-        """Emit a coarse→fine PATH by walking the winding tower (F1074). ``coherence`` ∈ [0, 1] is the ONE KNOB:
-        it opens the tower (depth) AND sets ``breadth`` (per-level detail, ``1 + round(2·coherence)`` = 1 terse
-        → 3 expansive) unless ``breadth`` is given. At each scale level w (ascending = coarse→fine) take the
-        top-``breadth`` nodes, dedup, threshold by ``level_floor``. The verbosity ARCHETYPE (terse / concise /
-        balanced / descriptive / expansive) FALLS OUT of the configuration — none is wrong by default; context
-        selects which to prefer (F1075). knob 0 = thermal (one floor → a terse ANSWER); knob 1 = coherent (full
-        tower, wide → an expansive PATH). Returns
-        ``{"path": [labels coarse→fine], "archetype": name, "coherence": c, "levels_open": k, "breadth": b}``."""
+    @staticmethod
+    def _temperament(p):
+        """The temperament that falls out of the personality (curvature-bias) value (F1077) — >0 = precise /
+        demanding (favors tight consensus-core nodes), <0 = exploratory / nurturing (favors bridging nodes)."""
+        return "precise" if p > 0.3 else "exploratory" if p < -0.3 else "neutral"
+
+    def path_emit(self, query, *, grounder=None, t=20.0, coherence=1.0, personality=0.0,
+                  max_steps=14, level_floor=0.03, breadth=None):
+        """Emit a coarse→fine PATH by walking the winding tower (F1074) — with TWO independent knobs:
+
+          * ``coherence`` ∈ [0, 1] — VERBOSITY (F1075): opens the tower depth AND sets ``breadth``
+            (``1 + round(2·coherence)``), so the archetype terse→concise→balanced→descriptive→expansive falls
+            out. knob 0 = thermal (a terse ANSWER); knob 1 = coherent (an expansive PATH).
+          * ``personality`` ∈ [−2, 2] — the CURVATURE-BIAS kernel (F1077): a SMALL, SEPARABLE, content-agnostic
+            field that reweights each node by ``(1 + curvature)^personality`` — >0 favors HIGH-curvature (tight /
+            consensus-core) nodes = PRECISE / demanding; <0 favors LOW-curvature (bridging) nodes = EXPLORATORY /
+            nurturing; 0 = neutral. It does NOT change WHICH knowledge is relevant (the query sets that), only the
+            temperament of the walk through it. The ``(coherence, personality)`` pair is a 2-axis archetype grid
+            (D&D-alignment-like). None is wrong by default; context selects (F1075). Returns
+            ``{"path", "archetype", "temperament", "coherence", "personality", "levels_open", "breadth"}``."""
         if breadth is None:
             breadth = 1 + int(round(2.0 * coherence))          # coherence drives per-level detail: 1 → 3
         phi = coherence * (_TWO_PI / 4.0)                      # coherence ∈ [0,1] → the Wick angle φ ∈ [0, π/2]
         cn, cd = _C.cos_series_truncate(int(round(phi * 1000)), 1000, 18); cf = cn / cd
         sn, sd = _C.sin_series_truncate(int(round(phi * 1000)), 1000, 18); sf = sn / sd
-        two = self.excite_propagate_harvest_2axis(query, grounder=grounder, t=t, top=max(1, breadth), z=(cf, sf))
+        two = self.excite_propagate_harvest_2axis(query, grounder=grounder, t=t, top=max(3, breadth + 2), z=(cf, sf))
         levels = two["winding"]                                # [(w, [(label, energy)])], w ascending = coarse→fine
+        empty = {"path": [], "archetype": "terse", "temperament": self._temperament(personality),
+                 "coherence": coherence, "personality": personality, "levels_open": 0, "breadth": breadth}
         if not levels:
-            return {"path": [], "archetype": "terse", "coherence": coherence, "levels_open": 0, "breadth": breadth}
+            return empty
+        if personality != 0.0:                                 # the personality kernel: bias along the curvature field
+            biased = []
+            for w, rows in levels:
+                rr = sorted(((e * (1.0 + self._curv[self._pos.get(lab, 0)]) ** personality, lab)
+                             for lab, e in rows), reverse=True)
+                biased.append((w, [(lab, en) for en, lab in rr]))
+            levels = biased
         maxe = max(rows[0][1] for _, rows in levels)
         seq = []; seen = set()
         for w, rows in levels:                                 # coarse → fine
@@ -211,8 +241,8 @@ class Instrument:
                     break
             if len(seq) >= max_steps:
                 break
-        return {"path": seq, "archetype": self._archetype(len(seq)),
-                "coherence": coherence, "levels_open": len(levels), "breadth": breadth}
+        return {"path": seq, "archetype": self._archetype(len(seq)), "temperament": self._temperament(personality),
+                "coherence": coherence, "personality": personality, "levels_open": len(levels), "breadth": breadth}
 
 
 def from_session(session, *, limit=200, knn=4):

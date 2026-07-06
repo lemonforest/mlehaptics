@@ -242,3 +242,18 @@ def test_photosynth_path_emit_archetype_knob_rc135():
     assert terse["archetype"] == "terse" and len(terse["path"]) == 1, terse
     assert len(rich["path"]) > len(terse["path"]), (terse, rich)      # the knob spans terse -> rich
     assert rich["breadth"] >= terse["breadth"] and rich["coherence"] == 1.0
+
+
+def test_photosynth_personality_curvature_axis_rc135():
+    """F1077: personality is a SEPARABLE curvature-bias kernel -- it tilts the walk (precise vs exploratory)
+    without changing which knowledge is relevant; the curvature field exists and varies."""
+    from siona import photosynth as P
+    s = siona.Session()
+    inst = P.from_session(s, limit=70)
+    assert min(inst._curv) < max(inst._curv), "curvature field must vary (not uniform)"
+    q = "the normalized laplacian of a graph"
+    neutral = inst.path_emit(q, grounder=s.g, coherence=1.0, personality=0.0)
+    precise = inst.path_emit(q, grounder=s.g, coherence=1.0, personality=2.0)
+    explore = inst.path_emit(q, grounder=s.g, coherence=1.0, personality=-2.0)
+    assert (neutral["temperament"], precise["temperament"], explore["temperament"]) == ("neutral", "precise", "exploratory")
+    assert precise["path"] != neutral["path"] or explore["path"] != neutral["path"], "personality must tilt the walk"
