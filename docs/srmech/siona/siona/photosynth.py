@@ -124,6 +124,57 @@ class Instrument:
         order = sorted(range(self.N), key=lambda i: -u[i])
         return [(self.labels[i], u[i]) for i in order[:top] if u[i] > 0]
 
+    def excite_propagate_harvest_2axis(self, query, *, grounder=None, t=0.4, top=8, crank=None, z=None, mode="coherent"):
+        """The TWO-AXIS harvest (F1066/F1069): carry the winding ``w`` WHOLE instead of folding it away, and
+        return BOTH addressable objects of the beat seam. The oscillation argument ``bλ`` DIVMODs at the seam
+        into ``(w = round(bλ/2π), θ = bλ − w·2π)`` — ``w`` (the metacycle winding) is KEPT, not collapsed:
+
+          * ``"phase"`` — the FAST / epicycle axis: the coherent total ``|Σ_w u^w|²``, the graded working set
+            (WHERE the energy lands; identical to :meth:`excite_propagate_harvest`).
+          * ``"winding"`` — the SLOW / metacycle axis: the answer STRATIFIED BY SCALE — each winding level
+            ``w`` = how many 2π turns a mode made = its tower / octave rung (F1069's chirality tower). Low ``w``
+            = coarse / global modes; higher ``w`` = finer / local. The scale decomposition the fold discarded.
+
+        Returns ``{"phase": [(label, energy)], "winding": [(w, [(label, energy)]), …]}``."""
+        s = query if isinstance(query, int) else self._seed(query, grounder)
+        if s is None:
+            return {"phase": [], "winding": []}
+        if crank is not None:
+            cf, sf, sigma = self._crank_cossin(crank)
+        else:
+            cf, sf = z if z is not None else self._WICK.get(mode, (0.0, 1.0)); sigma = 1
+        a, b = sigma * t * cf, sigma * t * sf
+        wre = {}; wim = {}                                     # winding level w -> per-node re/im (KEPT, not folded)
+        for k in range(self.N):
+            lam = self._lam[k]
+            full = b * lam
+            w = int(round(full / _TWO_PI))                     # the WINDING = divmod's quotient (kept whole, F1069)
+            arg = int(round((full - w * _TWO_PI) * 1000))      # the folded phase = divmod's remainder (the seam)
+            dn, dd = _C.exp_series_truncate(-int(round(a * lam * 1000)), 1000, 18); dec = dn / dd
+            cn, cd = _C.cos_series_truncate(arg, 1000, 18); c = cn / cd
+            sn, sd = _C.sin_series_truncate(arg, 1000, 18); sv = sn / sd
+            csk = self._evecs[s, k]
+            if w not in wre:
+                wre[w] = [0.0] * self.N; wim[w] = [0.0] * self.N
+            rw = wre[w]; iw = wim[w]
+            for i in range(self.N):
+                g = csk * self._evecs[i, k]
+                rw[i] += dec * c * g; iw[i] += -dec * sv * g
+        tot = [0.0] * self.N                                   # FAST axis: coherent total |Σ_w u^w|² (the epicycle)
+        for i in range(self.N):
+            re = sum(wre[w][i] for w in wre); im = sum(wim[w][i] for w in wim)
+            tot[i] = re * re + im * im
+        order = sorted(range(self.N), key=lambda i: -tot[i])
+        phase = [(self.labels[i], tot[i]) for i in order[:top] if tot[i] > 0]
+        winding = []                                           # SLOW axis: per scale-level w, the partial harvest
+        for w in sorted(wre):
+            uw = [wre[w][i] * wre[w][i] + wim[w][i] * wim[w][i] for i in range(self.N)]
+            ow = sorted(range(self.N), key=lambda i: -uw[i])
+            rows = [(self.labels[i], uw[i]) for i in ow[:top] if uw[i] > 1e-9]
+            if rows:
+                winding.append((w, rows))
+        return {"phase": phase, "winding": winding}
+
 
 def from_session(session, *, limit=200, knn=4):
     """Build an :class:`Instrument` from a live siona Session's grounding index (its named D-dim kernels)."""

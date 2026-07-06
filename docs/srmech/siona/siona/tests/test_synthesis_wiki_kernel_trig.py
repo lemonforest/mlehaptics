@@ -213,3 +213,19 @@ def test_photosynth_excite_propagate_harvest_rc132():
     assert harvest[0][1] > harvest[-1][1] > 0                    # graded (energy descending, positive)
     # graph-aware: the harvest pulls in a RELATIONAL neighbor (another laplacian op), not just the seed
     assert any("laplacian" in l for l in labels[1:]) or any("cut" in l or "adjacency" in l for l in labels[1:]), labels
+
+
+def test_photosynth_two_axis_harvest_rc135():
+    """F1066/F1069: the two-axis harvest carries the winding w WHOLE -- the PHASE axis == the single fold
+    (lossless regroup), and the WINDING axis stratifies the answer by scale (multiple ascending levels)."""
+    from siona import photosynth as P
+    from srmech.amsc.cascade import the_one
+    s = siona.Session()
+    inst = P.from_session(s, limit=70)
+    one = the_one(1, 11, 7, 24)  # coherent (θ≈π/2)
+    fold = inst.excite_propagate_harvest("normalized laplacian of a graph", grounder=s.g, t=25.0, top=5, crank=one)
+    two = inst.excite_propagate_harvest_2axis("normalized laplacian of a graph", grounder=s.g, t=25.0, top=5, crank=one)
+    assert [l for l, _ in fold] == [l for l, _ in two["phase"]], "phase axis must equal the single fold"
+    assert len(two["winding"]) >= 2, "winding axis must stratify into >=2 scale levels"
+    ws = [w for w, _ in two["winding"]]
+    assert ws == sorted(ws), "winding levels ascending"
