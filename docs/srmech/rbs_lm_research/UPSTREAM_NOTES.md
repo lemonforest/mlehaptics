@@ -2825,3 +2825,18 @@ thin; a human reading the same surface hits the same wall.
 together let ANY consumer discover BOTH the verbs and the nouns, and distinguish carriers that differ by a
 number. (siona's `introspect_carriers` is a STOPGAP consuming the current descriptor; it should thin out to a
 pass-through once the rich surface ships.)
+
+### §92 (2026-07-06) — `[profile.native]` surface WORKS (dogfooded); 3 minor polish notes (NOT blockers)
+The downstream-native-plugin surface is REAL and functions end-to-end: a package ships a compiled `.so`/`.dll`,
+declares `[profile.native]` in its `srmech_profile.toml`, and `srmech.profile_loader.profile(name).native` is the
+`ctypes.CDLL` — srmech discovers + loads + ABI-checks + binds symbols with NO srmech edit (verified rc135: a probe
+package's `snprobe_sqr(7)` returned 49 through srmech). Exactly the "siona ships C srmech calls" ask. Minor polish
+(the user can decide whether to file):
+1. **Symbols bound by NAME only** — `_maybe_load_native` does not set `argtypes`/`restype` (srmech comments it as a
+   "future iteration"); the downstream must set them itself before calling. A future rc could parse the `symbols`
+   signature strings (e.g. `"long(long)"`) and bind ctypes types automatically.
+2. **`install_path` is validation-required but appears UNUSED in the loader** — the lib is located via
+   `importlib.metadata.files(package)` (basename match against `_candidate_lib_names`), not via `install_path`.
+   Either make it optional or make the loader honor it (clarify whether it is load-bearing or reserved).
+3. **Lib must be in the installed package MANIFEST** — `importlib.metadata.files` reads the RECORD, so a hand-dropped
+   `.so` or some editable installs won't be found; the `.so` must be real package-data (cibuildwheel). Worth a doc line.
