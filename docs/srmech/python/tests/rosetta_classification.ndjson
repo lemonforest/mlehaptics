@@ -358,11 +358,11 @@
 {"exposed_as": "srmech.qm.pseudo_hermitian.construct_eta_from_eigendecomposition", "defined_at": "srmech.qm.pseudo_hermitian.construct_eta_from_eigendecomposition", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.qm.pseudo_hermitian.is_pseudo_hermitian", "defined_at": "srmech.qm.pseudo_hermitian.is_pseudo_hermitian", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.qm.pseudo_hermitian.pseudo_hermitian_eigenvalues_real", "defined_at": "srmech.qm.pseudo_hermitian.pseudo_hermitian_eigenvalues_real", "bucket": "python_only_debt"}
-{"exposed_as": "srmech.qm.relativistic.charge_conjugation_matrix", "defined_at": "srmech.qm.relativistic.charge_conjugation_matrix", "bucket": "python_only_debt"}
-{"exposed_as": "srmech.qm.relativistic.clifford_residuals", "defined_at": "srmech.qm.relativistic.clifford_residuals", "bucket": "python_only_debt"}
-{"exposed_as": "srmech.qm.relativistic.gamma_5", "defined_at": "srmech.qm.relativistic.gamma_5", "bucket": "python_only_debt"}
-{"exposed_as": "srmech.qm.relativistic.weyl_left_projector", "defined_at": "srmech.qm.relativistic.weyl_left_projector", "bucket": "python_only_debt"}
-{"exposed_as": "srmech.qm.relativistic.weyl_right_projector", "defined_at": "srmech.qm.relativistic.weyl_right_projector", "bucket": "python_only_debt"}
+{"exposed_as": "srmech.qm.relativistic.charge_conjugation_matrix", "defined_at": "srmech.qm.relativistic.charge_conjugation_matrix", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.relativistic.clifford_residuals", "defined_at": "srmech.qm.relativistic.clifford_residuals", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.relativistic.gamma_5", "defined_at": "srmech.qm.relativistic.gamma_5", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.relativistic.weyl_left_projector", "defined_at": "srmech.qm.relativistic.weyl_left_projector", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.relativistic.weyl_right_projector", "defined_at": "srmech.qm.relativistic.weyl_right_projector", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.single_particle.commutator", "defined_at": "srmech.qm.single_particle.commutator", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.qm.single_particle.heisenberg_evolve", "defined_at": "srmech.qm.single_particle.heisenberg_evolve", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.qm.single_particle.liouville_evolve", "defined_at": "srmech.qm.single_particle.liouville_evolve", "bucket": "python_only_debt"}
@@ -372,7 +372,7 @@
 {"exposed_as": "srmech.qm.so8.quaternion_subalgebra_stabilizer", "defined_at": "srmech.qm.so8.quaternion_subalgebra_stabilizer", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.qm.so8.so7_subalgebra", "defined_at": "srmech.qm.so8.so7_subalgebra", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.qm.so8.so8_adjoint_basis", "defined_at": "srmech.qm.so8.so8_adjoint_basis", "bucket": "python_only_debt"}
-{"exposed_as": "srmech.qm.spin.pauli_clifford_residuals", "defined_at": "srmech.qm.spin.pauli_clifford_residuals", "bucket": "python_only_debt"}
+{"exposed_as": "srmech.qm.spin.pauli_clifford_residuals", "defined_at": "srmech.qm.spin.pauli_clifford_residuals", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.triality.lean_isa_seventh_primitive", "defined_at": "srmech.qm.triality.lean_isa_seventh_primitive", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.qm.triality.triality_automorphism", "defined_at": "srmech.qm.triality.triality_automorphism", "bucket": "python_only_debt"}
 {"exposed_as": "srmech.qm.triality.triality_companions", "defined_at": "srmech.qm.triality.triality_companions", "bucket": "python_only_debt"}

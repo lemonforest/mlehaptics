@@ -117,7 +117,25 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 # srmech_vector_quantise_encode; rle.op -> srmech_rle_encode; huffman.op ->
 # srmech_huffman_build_codes. All integer/exact coders, byte-identical (no float
 # tolerance, no libm, no abs) -> c_dispatched. python_only_debt 77 -> 72.
-CEIL_PYTHON_ONLY_DEBT = 68
+# rc144 (BATCH B6b — sp_coder_dp part 2): arithmetic_coding / lz77 / viterbi /
+# mlse earn same-rc C twins -> c_dispatched (jpeg deferred as a float-DCT numeric
+# op). python_only_debt 72 -> 68.
+# rc145 (BATCH B8a — qm_exact_assembly part 1): the 6 EXACT relativistic/spin
+# Dirac-gamma / Clifford ops move to composition_of_c. Each is a pure composition
+# of the already-C-backed matrix algebra — the c_dispatched laplacian.mat_matmul
+# + the rc141 C carrier ops srmech_mat_scale/add/sub that back the Mat *,+,-
+# operators + the composition_of_c laplacian.mat_norm — over the
+# already-composition_of_c gamma/Pauli constant builders. gamma_5 = i·γ⁰γ¹γ²γ³;
+# weyl_left/right = (I∓γ₅)/2; charge_conjugation = i·γ²γ⁰; clifford_residuals /
+# pauli_clifford_residuals = anticommutator/commutator residual norms (exact-zero
+# when the algebra holds). Entries are Gaussian integers {0,±1,±i} so the native
+# path is BYTE-IDENTICAL to forced-pure (verified). NO new C symbol: the base
+# γ/Pauli constants are already composition_of_c (standalone-ready constant data),
+# and re-emitting them in C would only have to reproduce the Python literals' -0.0
+# slots (from -1j / -1.0·0) — a byte-identity hazard with no standalone gain — so
+# the honest classification is composition_of_c (the fewest new C symbols: zero).
+# python_only_debt 68 -> 62.
+CEIL_PYTHON_ONLY_DEBT = 62
 # rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
 # rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.

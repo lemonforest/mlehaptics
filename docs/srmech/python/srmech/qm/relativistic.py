@@ -61,19 +61,28 @@ def _eye4() -> "Mat":
 
 
 def _scale(s, m: "Mat") -> "Mat":
-    """``s · M`` (scalar × ``Mat``) as a new complex ``Mat`` (numpy-free)."""
-    rows = [[s * m[i, j] for j in range(m.n_cols)] for i in range(m.n_rows)]
-    return Mat.from_rows(rows, is_complex=True)
+    """``s · M`` (scalar × ``Mat``) via the :class:`Mat` carrier ``*`` — routes to
+    the native ``srmech_mat_scale`` C twin when present (rc141 carrier surface),
+    else the byte-identical pure-Python elementwise (the complete alternative).
+
+    Every ``_scale`` operand in this module is a **complex** ``Mat`` (γ-matrices,
+    the 4×4 identity, product chains), so the format-preserving carrier keeps the
+    complex layout — byte-identical to the prior force-complex helper (the rc145
+    B8a C-dispatch: γ₅ / projectors / charge-conjugation now run the scale in C on
+    the native path). No ``abs()`` — sign lives in the value (Class K)."""
+    return s * m
 
 
 def _mat_add(a: "Mat", b: "Mat") -> "Mat":
-    rows = [[a[i, j] + b[i, j] for j in range(a.n_cols)] for i in range(a.n_rows)]
-    return Mat.from_rows(rows, is_complex=True)
+    """``A + B`` via the carrier ``+`` — native ``srmech_mat_add`` C twin when
+    present, else the byte-identical pure-Python elementwise (rc145 B8a)."""
+    return a + b
 
 
 def _mat_sub(a: "Mat", b: "Mat") -> "Mat":
-    rows = [[a[i, j] - b[i, j] for j in range(a.n_cols)] for i in range(a.n_rows)]
-    return Mat.from_rows(rows, is_complex=True)
+    """``A − B`` via the carrier ``−`` — native ``srmech_mat_sub`` C twin when
+    present, else the byte-identical pure-Python elementwise (rc145 B8a)."""
+    return a - b
 
 
 def _block4(tl, tr, bl, br) -> "Mat":
