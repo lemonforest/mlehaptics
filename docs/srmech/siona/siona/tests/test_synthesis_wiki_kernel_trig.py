@@ -431,3 +431,15 @@ def test_register_classify_full_rc135_1103():
     assert R.classify_register("gandalf fights the balrog in moria", webs)["register"] == "fiction"   # 2. spectral
     lam, reg = R._sharpest_kernel("the derivative of sine equals cosine", webs)   # 3. the k=3 tie-breaker
     assert reg == "math" and lam > 0, (lam, reg)
+
+
+def test_planner_carrier_chain_rc135_1107():
+    """F1107 (#255): the novel-composition planner BFS's the carrier graph for an op-chain from start->goal
+    carrier -- or honest OPEN. The emitted chain IS the composition (a provenance-carrying carry-chain, F1106)."""
+    from siona import planner as P
+    r = P.plan("Poly", "TriPoly")
+    assert r["found"] and [c.split(".")[-1] for c in r["chain"]] == ["poly_promote", "poly_promote"], r
+    r = P.plan("cayley_dickson:8", "float")
+    assert r["found"] and r["chain"][0].endswith("octonion_norm"), r
+    r = P.plan("Poly", "float")
+    assert (not r["found"]) and r["open"], r        # honest OPEN, no hallucinated route (F929)
