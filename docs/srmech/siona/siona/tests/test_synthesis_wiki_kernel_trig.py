@@ -285,3 +285,16 @@ def test_story_sandroing_eulerian_rc135():
     assert ring["one_sandroing"] and ring["strokes"] == 1                 # all even -> one line
     star = story.sandroing_strokes(["H", "a", "b", "c"], [("H", "a"), ("H", "b"), ("H", "c")])
     assert not star["one_sandroing"] and star["strokes"] == 2             # 4 odd-degree nodes -> 2 strokes
+
+
+def test_introspect_siona_knows_her_tooling_rc135():
+    """F1085 (#250): Siona knows her OWN tooling -- a natural-language question about genome recall grounds to
+    the correct cap-aware ops (partition / genome_load / recall), from her own encoded knowledge of the LIVE
+    package. This is the ultimate dogfood: ask Siona, don't re-introspect (and never lag the format)."""
+    from siona import introspect as I
+    s = siona.Session()
+    kb = I.introspect_srmech()
+    assert len(kb) > 100, len(kb)                               # introspected the live package
+    tool = I.Tooling(s.g)
+    labels = [l for l, _, _ in tool.answer("how do I recall a kernel from a genome", k=3)]
+    assert any(("partition" in l) or ("genome_load" in l) or ("recall" in l) for l in labels), labels
