@@ -20,7 +20,7 @@ import collections
 
 import srmech.amsc.carrier_ladder as _CL
 
-__all__ = ["plan", "carrier_graph"]
+__all__ = ["plan", "run", "carrier_graph"]
 
 
 def _node(spec):
@@ -70,3 +70,44 @@ def plan(start, goal, *, max_hops=6):
                 seen.add(nxt)
                 q.append((nxt, chain + [op], path + [nxt]))
     return {"found": False, "open": True, "start": s, "goal": g}   # honest OPEN — no route, not a hallucination
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# The RUN-step (F1108, #255) — PLAN + EXECUTE: plan the op-chain, then thread the actual value through it,
+# attaching a provenance record per step. Most planner ops (promote/project/octonion/…) are NOT in the
+# op_provenance.carry registry (that covers only the asymptotic-tower frontier), so we attach our OWN lightweight
+# provenance — op address + input_sha256 (via the framework hash) + in/out carrier — which is still re-runnable
+# BY NAME (the F1106 language). Verified-or-honest-OPEN: no route → OPEN; a step that cannot execute → honest
+# "planned but not runnable", never a faked result.
+import importlib as _importlib
+
+from srmech.amsc.format import sha256_bytes as _sha256_bytes
+
+
+def _resolve(dotted):
+    mod, fn = dotted.rsplit(".", 1)
+    return getattr(_importlib.import_module(mod), fn)
+
+
+def run(start_value, goal, *, start_carrier=None):
+    """PLAN + RUN a novel composition (#255/F1108): plan the op-chain from ``start_value``'s carrier to ``goal``,
+    then EXECUTE it — resolve each op tool, thread the value through (output → next input), and attach a
+    provenance record per step. Returns ``{"found": True, "ran": True, "value": …, "carrier": …, "chain": […],
+    "steps": [{op, in, out, input_sha256}]}`` — the composition RUN with provenance — or an honest OPEN (no
+    route) / "planned-but-not-runnable" (a step could not execute). ``start_carrier`` defaults to the value's type."""
+    sc = start_carrier or type(start_value).__name__
+    p = plan(sc, goal)
+    if not p["found"]:
+        return {"found": False, "open": True, "start_carrier": sc, "goal": goal}
+    val, steps = start_value, []
+    for op in p["chain"]:
+        prev = type(val).__name__
+        in_sha = _sha256_bytes(repr(val).encode("utf-8"))         # framework hash (already hex), per discipline
+        try:
+            val = _resolve(op)(val)                               # thread: op applied to the running value
+        except Exception as exc:                                  # honest: planned but a step won't execute
+            return {"found": True, "ran": False, "failed_at": op, "error": str(exc)[:140],
+                    "chain": p["chain"], "steps": steps}
+        steps.append({"op": op, "in": prev, "out": type(val).__name__, "input_sha256": in_sha})
+    return {"found": True, "ran": True, "value": val, "carrier": type(val).__name__,
+            "chain": p["chain"], "steps": steps}

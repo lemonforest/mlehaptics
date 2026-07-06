@@ -443,3 +443,16 @@ def test_planner_carrier_chain_rc135_1107():
     assert r["found"] and r["chain"][0].endswith("octonion_norm"), r
     r = P.plan("Poly", "float")
     assert (not r["found"]) and r["open"], r        # honest OPEN, no hallucinated route (F929)
+
+
+def test_planner_run_rc135_1108():
+    """F1108 (#255): the run-step PLANS + EXECUTES a novel composition -- 'I have a Poly, want a TriPoly' plans
+    [poly_promote x2], RUNS it (threading the value), returns the TriPoly + a provenance record per step; a
+    no-route goal is honest OPEN."""
+    from siona import planner as P
+    import srmech.amsc.poly as poly
+    r = P.run(poly.Poly([1, 2, 3]), "TriPoly")
+    assert r["ran"] and r["carrier"] == "TriPoly", r
+    assert [s["op"].split(".")[-1] for s in r["steps"]] == ["poly_promote", "poly_promote"], r
+    assert all(len(s["input_sha256"]) == 64 for s in r["steps"]), r        # provenance: 64-hex sha per step
+    assert P.run(poly.Poly([1, 2]), "float").get("open") is True           # honest OPEN, no route
