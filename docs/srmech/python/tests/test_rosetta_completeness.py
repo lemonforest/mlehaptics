@@ -117,7 +117,7 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 # srmech_vector_quantise_encode; rle.op -> srmech_rle_encode; huffman.op ->
 # srmech_huffman_build_codes. All integer/exact coders, byte-identical (no float
 # tolerance, no libm, no abs) -> c_dispatched. python_only_debt 77 -> 72.
-CEIL_PYTHON_ONLY_DEBT = 72
+CEIL_PYTHON_ONLY_DEBT = 68
 # rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
 # rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.
