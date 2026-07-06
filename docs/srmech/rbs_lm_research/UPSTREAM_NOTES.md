@@ -2803,7 +2803,7 @@ non-`leaf_dim`-aligned D via `genome()` needs the last leaf padded + the true D 
 `kernel_unpack`-on-a-window path would restore self-describing D if the CHROM cap were excluded from the
 window's leaf count. Low priority — siona's corpus is D=8192 uniform.)
 
-### §91 (2026-07-06) — srmech introspection is not rich enough for CARRIER TYPES (Siona-as-dogfood)
+### §91 (2026-07-06) — srmech introspection is not rich enough for CARRIER TYPES (Siona-as-dogfood) — FILED as [mlehaptics#1293](https://github.com/lemonforest/mlehaptics/issues/1293)
 
 **Ask:** srmech's introspection surface should expose **CARRIER TYPES** (the nouns — `Poly`/`BiPoly`/`TriPoly`/
 `QPoly`/`QBiPoly`/`Mat`/`float`/octonion…) as **first-class, richly-DESCRIBED** introspectable objects, peer to
