@@ -28,9 +28,13 @@ low degree → flag, never assert (F552). Register, not truth: Siona reports an 
 
 srmech-native: Class-M ``klein4_similarity`` coupling; Class-I integer register bits. numpy-free.
 """
-from srmech.amsc import hdc as _hdc
+import re as _re
 
-__all__ = ["classify", "REGISTER_BITS", "NARRATIVE", "ATTESTED", "FORMAL", "DISCRETE"]
+from srmech.amsc import hdc as _hdc
+from srmech.amsc import laplacian as _L
+
+__all__ = ["classify", "classify_spectral", "coupling_coherence", "REGISTER_BITS",
+           "NARRATIVE", "ATTESTED", "FORMAL", "DISCRETE"]
 
 NARRATIVE, ATTESTED, FORMAL = 0b001, 0b010, 0b100
 #: the DISCRETE registers as gene_express cell_state activator masks (0x67 regulatory gene)
@@ -76,3 +80,74 @@ def classify(statement, webs, grounder, *, k=3, dual_floor=0.18, balance_margin=
     top, second = ranked[0], (ranked[1][1] if len(ranked) > 1 else 0.0)
     return {"register": top[0], "emergent": False, "degree": round((top[1] - second) / (top[1] or 1.0), 2),
             "coherence": coh}
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# The Class-L SPECTRAL coupling (F1100) — the CONTINUOUS-FORM measure the flat klein4_similarity coupling (F1099)
+# lacked. Per the user: the register is NOT an inherent label; it is a CONTINUOUS MATH SHAPE we choose to call
+# fact/fiction. Duality gives BOTH answers: the CONTINUOUS-FORM answer (this spectral coherence) AND the
+# BIT-EXACT op(x)operand answer (the emergent base-2 register). BASE-2 (the fact/fiction bit) is EMERGENT from
+# COMPARING TWO shapes (k=2) — it is not the substrate; confusing the universe with base-2 is the error. So
+# ``classify_spectral`` returns BOTH: the continuous λ₂ coherences AND the emergent discrete register.
+
+#: minimal function-word stoplist — common words bridge EVERY web (spurious coupling), so coupling must be by
+#: CONTENT (F1100). A first cut; the principled version routes through siona's measured aboutness-gate (F768).
+_STOP = frozenset(("the", "and", "for", "that", "with", "his", "her", "its", "into", "across", "can", "are",
+                   "was", "were", "has", "had", "his", "she", "him", "they", "them", "this", "these", "those",
+                   "from", "out", "off", "over", "under", "onto", "upon", "each", "any", "all", "but", "not"))
+
+
+def _words(text):
+    return [w for w in _re.split(r"[^a-z0-9]+", (text or "").lower()) if len(w) > 2 and w not in _STOP]
+
+
+def coupling_coherence(statement, web_texts):
+    """COUPLE the statement with a register's web into ONE co-occurrence graph and return the Class-L Laplacian
+    ALGEBRAIC CONNECTIVITY (the Fiedler value λ₂) — the CONTINUOUS measure of how cohesively they couple (F1100,
+    the user's 'couple for compare'; R-RBS-LM-250). A shared word is a shared NODE that bridges the statement's
+    sub-graph to the web's, so λ₂ rises when they cohere and stays near zero when they don't (F1098's
+    'not cohesive' flag, now continuous). numpy-free; Class-L ``dense_laplacian`` + ``symmetric_eigendecompose``."""
+    best = 0.0
+    stmt_words = _words(statement)
+    for wt in web_texts:                             # couple to EACH sentence separately — a multi-sentence web is
+        nodes, edges = {}, set()                     # disconnected (λ₂→0 for the whole); the best single coupling is the signal
+        nid = lambda w: nodes.setdefault(w, len(nodes))
+        for ws in (stmt_words, _words(wt)):
+            for a, b in zip(ws, ws[1:]):
+                if a != b:
+                    i, j = nid(a), nid(b)
+                    edges.add((min(i, j), max(i, j)))
+        n = len(nodes)
+        shared = set(stmt_words) & set(_words(wt))
+        if n < 3 or not edges or not shared:
+            continue                                 # no shared CONTENT word ⇒ no coupling (disconnected, λ₂=0)
+        evals, _ = _L.symmetric_eigendecompose(_L.dense_laplacian(n, sorted(edges), [1.0] * len(edges)))
+        ev = sorted(float(e) for e in evals)
+        best = max(best, ev[1] if len(ev) > 1 else 0.0)   # λ₂ — algebraic connectivity of this coupled pair
+    return round(best, 4)
+
+
+def classify_spectral(statement, web_texts, *, dual_floor=1e-3, balance_margin=0.15):
+    """Class-L SPECTRAL register classify (F1100) — returns BOTH answers, per attested duality:
+
+      * ``continuous`` — ``{register: λ₂}``: the CONTINUOUS-FORM coherence of coupling the statement to each
+        register's web (the substrate answer; the shape we CHOOSE to call fact/fiction — intent is not inherent).
+      * ``register`` — the EMERGENT base-2 answer: which web couples most coherently (a k=2 comparison over the
+        continuous shapes); PARABLE when the narrative-side and attested-side λ₂ are BOTH high and balanced (the
+        graded emergence). ``degree`` = the λ₂ margin (top vs second, relative) — low ⇒ honest 'undetermined'.
+
+    ``web_texts``: ``{register: [exemplar sentence, …]}``. Base-2 is emergent-from-comparison, never the substrate."""
+    coh = {reg: coupling_coherence(statement, texts) for reg, texts in web_texts.items()}
+    ranked = sorted(coh.items(), key=lambda kv: kv[1], reverse=True)
+    top, second = ranked[0], (ranked[1][1] if len(ranked) > 1 else 0.0)
+    narr = max((coh[r] for r in coh if DISCRETE.get(r, 0) & NARRATIVE), default=0.0)
+    att = max((coh[r] for r in coh if DISCRETE.get(r, 0) & ATTESTED), default=0.0)
+    hi = max(coh.values()) if coh else 0.0
+    if hi <= dual_floor:
+        return {"register": "undetermined", "continuous": coh, "emergent": False}
+    # PARABLE emergence: coheres to BOTH sides, balanced (relative gap small) — the graded truth-content
+    if narr > dual_floor and att > dual_floor and (max(narr, att) - min(narr, att)) / max(narr, att) < balance_margin:
+        return {"register": "parable", "emergent": True,
+                "graded": round(min(narr, att) / max(narr, att), 2), "continuous": coh}
+    return {"register": top[0], "emergent": False,
+            "degree": round((top[1] - second) / (top[1] or 1.0), 2), "continuous": coh}

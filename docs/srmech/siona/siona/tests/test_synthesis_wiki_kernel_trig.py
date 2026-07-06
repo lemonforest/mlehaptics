@@ -400,3 +400,20 @@ def test_register_vocab_and_honest_undetermined_rc135_1099():
             "math": [enc("a prime has two divisors"), enc("triangle angles sum to one eighty")]}
     r = R.classify("sound travels faster through water than air", webs, s.g)
     assert r["register"] == "undetermined" and r["spread"] < 0.05, r   # flat coupling -> honest don't-know
+
+
+def test_register_spectral_class_l_coupling_rc135_1100():
+    """F1100 (#252): the Class-L Fiedler coupling (per-sentence-max λ2, function words dropped) DISCRIMINATES
+    register where the flat klein4_similarity couldn't -- BOTH the continuous λ2 shape AND the emergent base-2
+    register (duality)."""
+    from siona import register as R
+    webs = {"fiction": ["gandalf the wizard leads the fellowship through moria",
+                        "captain ahab hunts the great white whale across the ocean"],
+            "fact": ["the moon gravity causes the ocean tides to rise",
+                     "water boils at one hundred degrees celsius"],
+            "math": ["the derivative of the sine function is the cosine function",
+                     "a prime number has exactly two divisors"]}
+    assert R.classify_spectral("gandalf fights the balrog in the deep mines", webs)["register"] == "fiction"
+    assert R.classify_spectral("the moon gravity causes higher ocean tides", webs)["register"] == "fact"
+    r = R.classify_spectral("the sine function has a cosine derivative", webs)
+    assert r["register"] == "math" and r["continuous"]["math"] > 0     # emergent base-2 + continuous-form answer
