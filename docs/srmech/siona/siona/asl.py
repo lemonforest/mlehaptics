@@ -115,13 +115,18 @@ def disambiguate(word, context=()):
         return None
     if len(cands) == 1:
         return cands[0]
+    lw = word.strip().lower()
+    from . import relate
+    if relate.have_graph():
+        # DEEPER-A⁻¹ (F1126/F1127): score each sense by its co-occurrence RELATEDNESS to the context. NOTE: this
+        # is confirmed for WORD/synonym relatedness (60% vs 31%), but a short (≤ few word) context is too thin to
+        # discriminate senses here — so it lands at the literal-overlap level; a full-sentence context is the fix.
+        return max(cands, key=lambda c: (relate.relatedness(c[1], context), c[0] == lw))
     ctx = {w.strip().lower() for w in context}
     ctx2 = set(ctx)
-    for w in ctx:                                            # 1-hop context expansion: the context words' own senses
+    for w in ctx:                                            # fallback (no graph): 1-hop literal sense expansion
         for _, ms in candidate_signs(w):
             ctx2 |= ms
-    lw = word.strip().lower()
-    # score = meaning-set∩context overlap; ties break to the sign whose gloss IS the word (the dominant sense)
     return max(cands, key=lambda c: (len(c[1] & ctx2), c[0] == lw))
 
 
