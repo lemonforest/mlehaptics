@@ -456,3 +456,16 @@ def test_planner_run_rc135_1108():
     assert [s["op"].split(".")[-1] for s in r["steps"]] == ["poly_promote", "poly_promote"], r
     assert all(len(s["input_sha256"]) == 64 for s in r["steps"]), r        # provenance: 64-hex sha per step
     assert P.run(poly.Poly([1, 2]), "float").get("open") is True           # honest OPEN, no route
+
+
+def test_planner_run_goal_nl_rc135_1109():
+    """F1109 (#255): the NL-goal end -- goal_typing.goal_carrier types an English goal to a carrier, and
+    planner.run_goal types-then-plans-then-runs. 'three-variable polynomial' + a Poly -> TriPoly; 'vague' -> untyped."""
+    from siona import planner as P, goal_typing as G
+    import srmech.amsc.poly as poly
+    assert G.goal_carrier("I want a three-variable polynomial") == "TriPoly"
+    assert G.goal_carrier("give me the scalar magnitude") == "float"
+    assert G.goal_carrier("something vague") is None                      # honest untyped
+    r = P.run_goal(poly.Poly([1, 2, 3]), "I want a three-variable polynomial")
+    assert r["ran"] and r["carrier"] == "TriPoly" and r["goal_carrier"] == "TriPoly", r
+    assert P.run_goal(poly.Poly([1]), "something vague").get("untyped") is True

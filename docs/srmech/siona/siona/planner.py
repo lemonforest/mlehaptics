@@ -20,7 +20,7 @@ import collections
 
 import srmech.amsc.carrier_ladder as _CL
 
-__all__ = ["plan", "run", "carrier_graph"]
+__all__ = ["plan", "run", "run_goal", "carrier_graph"]
 
 
 def _node(spec):
@@ -111,3 +111,17 @@ def run(start_value, goal, *, start_carrier=None):
         steps.append({"op": op, "in": prev, "out": type(val).__name__, "input_sha256": in_sha})
     return {"found": True, "ran": True, "value": val, "carrier": type(val).__name__,
             "chain": p["chain"], "steps": steps}
+
+
+def run_goal(start_value, goal_text, *, start_carrier=None):
+    """NL-goal → PLAN + RUN (#255/F1109): TYPE the natural-language ``goal_text`` to a carrier
+    (:func:`siona.goal_typing.goal_carrier`), then :func:`run`. Returns run()'s result annotated with
+    ``goal_text`` + ``goal_carrier`` — or ``{"found": False, "untyped": True}`` when the goal cannot be typed
+    (honest — no guess, F552). Closes the natural-language goal-end of #255."""
+    from siona.goal_typing import goal_carrier
+    gc = goal_carrier(goal_text)
+    if gc is None:
+        return {"found": False, "untyped": True, "goal_text": goal_text}
+    out = run(start_value, gc, start_carrier=start_carrier)
+    out["goal_text"], out["goal_carrier"] = goal_text, gc
+    return out
