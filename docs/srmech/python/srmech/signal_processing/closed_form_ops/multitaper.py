@@ -22,6 +22,15 @@ per-taper periodogram ``|F|²=real²+imag²`` (no ``abs()``) and the bundle aver
 are explicit elementwise list comprehensions; ``_sc.fft`` returns
 ``List[complex]`` numpy-absent.
 
+rc148 (B4a) classification: ``composition_of_c`` — each taper's periodogram
+``_sc.fft`` dispatches to the c_dispatched numeric FFT foundation
+``srmech_fft_c128`` (rc139); the numpy-free cosine-taper fallback uses the
+byte-exact Class-N ``rational.{sin,sqrt}`` cascades (C-backed) and the per-taper
+``|F|²=re²+im²`` + bundle average are numpy-free elementwise glue (no ``abs()``).
+(scipy ``dpss`` stays a LAZY external accelerator — numpy-absent it is never
+imported, and the fully-substrate cosine-taper path IS the op.) NUMERIC
+(within-tol, not byte-identical): native == pure to reldiff ≤ 1e-9.
+
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Slepian
 (1978) + Thomson (1982) + Percival & Walden (1993).
 """

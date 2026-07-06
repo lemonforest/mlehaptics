@@ -18,6 +18,14 @@ bit-faithful) fed to ``rational.cos`` via ``_ccos``. ``_sc.fft`` already returns
 ``List[complex]`` numpy-absent; per-frame ``signal·window`` is an explicit list
 comprehension.
 
+rc148 (B4a) classification: ``composition_of_c`` — each windowed frame's
+transform ``_sc.fft`` dispatches to the c_dispatched numeric FFT foundation
+``srmech_fft_c128`` (rc139); the Hann window is the byte-exact Class-N
+``rational.cos`` cascade (also C-backed) and the ``signal·window`` frame is a
+numpy-free elementwise glue list-comp. NUMERIC (within-tol, not byte-identical):
+native == pure to reldiff ≤ 1e-9 (the FFT path may FMA-fuse ~1 ULP on some
+platforms — the parity contract is differential, not byte-equality).
+
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Allen (1977)
 + Oppenheim & Schafer (2010, 3rd ed.) §10.3.
 """

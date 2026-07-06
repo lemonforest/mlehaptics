@@ -65,9 +65,28 @@ def _dct_matrix(n: int, dct_type: int = 2) -> List[List[float]]:
     raise ValueError(f"dct_type must be 2 or 3; got {dct_type}")
 
 
+def _matvec(m: List[List[float]], x) -> List[float]:
+    """The DCT basis matvec ``M · x`` routed through the C-backed carrier
+    (rc148, B4a): ``mat_matvec`` rides ``mat_matmul`` → the c_dispatched
+    ``srmech_dense_matmul_complex`` when the native lib is present, and falls
+    back to the numpy-free pure-Python triple loop otherwise — so the DCT is a
+    ``composition_of_c`` op (the cosine basis is the byte-exact Class-N
+    ``rational.cos`` cascade, itself C-backed; the matvec is the C dense-matmul).
+
+    NUMERIC, not byte-identical: the native matmul accumulates in a fixed order
+    that may FMA-fuse ~1 ULP away from the pure loop on some platforms, so the
+    parity contract is within-tol (reldiff ≤ 1e-9), NOT byte-equality. Returns
+    a plain ``list[float]`` (real basis · real signal → real coeffs; the
+    last-mile rotate to float for the downstream JPEG ``round`` quantiser).
+    """
+    from srmech.amsc.laplacian import mat_matvec
+
+    return [float(v) for v in mat_matvec(m, list(x))]
+
+
 def _transform(m: List[List[float]], x, n: int, dct_type: int) -> List[float]:
     """Apply the DCT basis to a length-``n`` vector, matching scipy's
-    ``norm=None`` scaling exactly.
+    ``norm=None`` scaling exactly, over the C-backed :func:`_matvec`.
 
     DCT-II: ``y_k = 2 * sum_j M[k][j] x_j`` (every term weight 2).
     DCT-III: ``y_k = x_0 + 2 * sum_{j>=1} M[k][j] x_j`` — the ``j == 0`` term
@@ -75,13 +94,17 @@ def _transform(m: List[List[float]], x, n: int, dct_type: int) -> List[float]:
     inverse of DCT-II up to the ``1/(2N)`` scaling. This is what the old
     ``scipy.fft.dct`` fast-path produced; the prior matrix fallback's blanket
     ``2.0 *`` was only reached when scipy was absent.
+
+    Both branches reuse the ONE full matvec ``raw_k = sum_j M[k][j] x_j``:
+    DCT-II is ``2·raw``; DCT-III is ``2·raw_k − M[k][0]·x_0`` (adding back the
+    weight-1 ``j == 0`` term, since a blanket ``2·raw`` over-counts it by
+    ``M[k][0]·x_0``; ``M[k][0] = cos(0) = 1`` for DCT-III).
     """
+    raw = _matvec(m, x)
     if dct_type == 3:
-        return [
-            x[0] * m[k][0] + 2.0 * sum(m[k][j] * x[j] for j in range(1, n))
-            for k in range(n)
-        ]
-    return [2.0 * sum(m[k][j] * x[j] for j in range(n)) for k in range(n)]
+        x0 = x[0]
+        return [2.0 * raw[k] - m[k][0] * x0 for k in range(n)]
+    return [2.0 * raw[k] for k in range(n)]
 
 
 def op(signal, *, dct_type: int = 2, axis: int = -1, D: int = 8192):
