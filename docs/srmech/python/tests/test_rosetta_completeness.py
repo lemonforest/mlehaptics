@@ -349,7 +349,45 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 # Remaining compute python_only_debt = 5 (the honestly-hard residue: einsum / kron
 # tensor contractions, ica_jade JADE Givens, jpeg float-DCT, beamforming_fixed
 # delay-and-sum). python_only_debt 13 -> 5.
-CEIL_PYTHON_ONLY_DEBT = 5
+# rc155 (BATCH B-residue — the COMPUTE python-free milestone): the FINAL 5 compute
+# ops close python_only_debt to 0. Honest per-op classification:
+#   • spectral_cascades.kron -> composition_of_c: A⊗B = the OUTER PRODUCT
+#     vec(A)·vec(B)ᵀ (a rank-1 matmul through the c_dispatched laplacian.mat_matmul
+#     / srmech_dense_matmul_complex) followed by a pure integer block RE-INDEX;
+#     an integer / Gaussian-integer input is BYTE-IDENTICAL to the pure element
+#     loop (single-term multiply per entry). Value-oracle verified.
+#   • matrix_cascades.einsum -> composition_of_c: a clean 2-operand contraction
+#     (matmul / matvec / dot / outer / rank-n) routes its Class-M sum-of-products
+#     bundle through the c_dispatched mat_matmul (_einsum_pair_via_matmul); the
+#     gather + output re-index are exact glue. Single-operand specs (trace /
+#     transpose) fall back to the general index-iteration, whose multiply-
+#     accumulate is primitive glue (the mat_dot reduction precedent) reaching no
+#     non-standalone leaf. WITHIN-TOL vs the explicit-sum oracle.
+#   • beamforming_fixed.op -> composition_of_c: the delay-and-sum output
+#     out[i]=Σ_m w[m]·sig[m][delay[m]+i] IS the matvec out = D·w over the
+#     delay-aligned window matrix D[i][m]=sig[m][delay[m]+i] (the time-shift is
+#     exact integer indexing), routed through the c_dispatched laplacian.mat_matvec
+#     ∘ mat_matmul. WITHIN-TOL vs the manual delay-sum oracle.
+#   • jpeg.op -> composition_of_c: the only float KERNEL is the block DCT-II /
+#     inverse DCT-III, which runs entirely through the already-composition_of_c
+#     dct.op (rc148: the cosine-basis matvec rides mat_matmul); the Wallace
+#     scaling, Class-K round-quantise, zigzag/block indexing and dequantise
+#     multiply are exact integer/float glue (the rc144 deferral was only because
+#     the DCT was not yet C-backed; rc148 closed that). Encode→decode round-trip
+#     ≈ input within quantisation error.
+#   • ica_jade.op -> c_dispatched: THE last real compute gap. Whitening (PCA eig)
+#     already composes the C mat_hermitian_eigendecompose and the cumulant assembly
+#     is a plain Class-M accumulate, but the JADE Givens JOINT-DIAGONALISATION is a
+#     genuinely-iterative data-dependent kernel — so it earns its OWN standalone-C
+#     symbol srmech_jade_jointdiag (the Givens sweep in C, composing the libm-free
+#     Class-N srmech_atan2 / srmech_cos / srmech_sin; caller-arena, JPL-clean,
+#     bounded max_iter, no abs/libm) rather than a false composition tag. JADE's
+#     basis is permutation/sign/scale-ambiguous, so native == pure WITHIN-TOL on
+#     the recovered separation (~5e-11 element-wise), NOT byte-for-byte. ONE new C
+#     symbol; ABI stays 3 (additive); NO new public op (tools.total stays 403).
+# THE MILESTONE: python_only_debt 5 -> 0 — the ENTIRE compute surface now runs on
+# a bare C host (dispatches to a srmech_* C twin OR is a pure composition of such).
+CEIL_PYTHON_ONLY_DEBT = 0
 # rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
 # rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.

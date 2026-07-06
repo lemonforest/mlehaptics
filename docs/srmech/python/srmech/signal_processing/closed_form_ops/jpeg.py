@@ -9,6 +9,18 @@ The closed-form reference ships the JPEG core algebra (block-wise DCT-II,
 uniform quantisation, zigzag/TLV packing) without entropy-coding (which is
 Huffman, the separate Phase 2 op). Decode reverses the chain.
 
+rc155 (BATCH B-residue): jpeg is a ``composition_of_c`` op — the only float
+KERNEL is the block DCT-II / inverse DCT-III, which runs entirely through the
+already-``composition_of_c`` :func:`srmech.signal_processing.closed_form_ops.dct.op`
+(rc148: the cosine-basis matvec rides ``mat_matmul`` /
+``srmech_dense_matmul_complex``). Everything wrapped around it — the Wallace
+quality scaling, the Class-K ``round(coeff/qt)`` quantise, the integer
+zigzag/block indexing, and the dequantise multiply — is exact integer / float
+glue reaching no non-standalone leaf (the deferral at rc144 was only because the
+DCT was not yet C-backed; rc148 closed that, and the sibling Huffman entropy
+coder is c_dispatched — ``srmech_huffman_build_codes`` — for the callers that add
+it). NUMERIC within-tol (the DCT basis is the Class-N ``rational.cos`` cascade).
+
 Carrier-removal #564 (rc111): numpy-FREE — the last clean DSP carrier flip.
 The block transform already runs numpy-free through :func:`dct.op` (rc104,
 returns a list-of-lists); jpeg now carries the 2-D image as nested Python

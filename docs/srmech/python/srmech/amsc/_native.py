@@ -680,6 +680,28 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_svd_f64.restype = ctypes.c_int
 
+    # rc155 (BATCH B-residue): the JADE joint-diagonalisation Givens sweep C
+    # peer (the last compute op → python_only_debt=0). NEW symbols, hasattr-
+    # guarded (ABI stays 3) so a stale ABI-3 lib keeps the rest of the surface.
+    #   size_t srmech_jade_jointdiag_ws_bound(uint32_t k)
+    if hasattr(lib, "srmech_jade_jointdiag_ws_bound"):
+        lib.srmech_jade_jointdiag_ws_bound.argtypes = [ctypes.c_uint32]
+        lib.srmech_jade_jointdiag_ws_bound.restype = ctypes.c_size_t
+    #   int srmech_jade_jointdiag(double *cum (k^4, mutated), uint32_t k,
+    #       uint32_t max_iter, double tol, double *v_out (k*k), double *ws,
+    #       size_t ws_len)
+    if hasattr(lib, "srmech_jade_jointdiag"):
+        lib.srmech_jade_jointdiag.argtypes = [
+            ctypes.POINTER(ctypes.c_double),    # cum (k^4 row-major, working buf)
+            ctypes.c_uint32,                    # k
+            ctypes.c_uint32,                    # max_iter
+            ctypes.c_double,                    # tol
+            ctypes.POINTER(ctypes.c_double),    # v_out (k*k row-major)
+            ctypes.POINTER(ctypes.c_double),    # ws (caller arena)
+            ctypes.c_size_t,                    # ws_len (arena bytes)
+        ]
+        lib.srmech_jade_jointdiag.restype = ctypes.c_int
+
     # int srmech_dense_matmul_complex(uint32_t m, uint32_t k, uint32_t n,
     #     const double *A_il, const double *B_il, double *out_il)
     # v0.7.5rc14 additive symbol (#928, matmul-kernel phase): the dense complex
@@ -4414,6 +4436,64 @@ def iir_lfilter_f64_c(b, a, x):
     if rc != SRMECH_OK:
         return None
     return [outbuf[i] for i in range(n)]
+
+
+# ----------------------------------------------------------------------
+# rc155 (BATCH B-residue): the JADE joint-diagonalisation Givens-sweep C peer
+# (srmech_jade_jointdiag). ica_jade dispatches its iterative cumulant-slice
+# joint-diagonalisation here; the pure-Python Givens sweep is the COMPLETE
+# alternative (and the parity oracle) for no-C hosts. NUMERIC (FPU-tol) — the
+# JADE basis is permutation/sign/scale-ambiguous, so native == pure WITHIN-TOL
+# on the recovered separation, NOT byte-for-byte.
+# ----------------------------------------------------------------------
+
+
+def has_native_jade_jointdiag() -> bool:
+    """True iff the rc155 JADE joint-diagonalisation C peer
+    (``srmech_jade_jointdiag``) is loaded + bound. False on a no-C or pre-rc155
+    lib — the pure-Python Givens sweep is the complete alternative (and the
+    parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return hasattr(LIB, "srmech_jade_jointdiag")
+
+
+def jade_jointdiag_c(cumulants, k, max_iter, tol):
+    """JADE Givens joint-diagonalisation via the native ``srmech_jade_jointdiag``
+    — returns the ``(k, k)`` rotation ``V`` as nested ``list[list[float]]`` — or
+    ``None`` when the native symbol is absent (the caller runs the pure-Python
+    sweep). ``cumulants`` is the ``k×k×k×k`` fourth-order cumulant tensor as
+    nested Python lists; it is flattened row-major and consumed as the working
+    buffer (the caller keeps its own copy). NUMERIC (FPU-tol)."""
+    if not has_native_jade_jointdiag():
+        return None
+    if k <= 0:
+        return []
+    k4 = k * k * k * k
+    kk = k * k
+    flat = [0.0] * k4
+    idx = 0
+    for i in range(k):
+        ci = cumulants[i]
+        for j in range(k):
+            cij = ci[j]
+            for ell in range(k):
+                cijl = cij[ell]
+                for mm in range(k):
+                    flat[idx] = float(cijl[mm])
+                    idx += 1
+    cbuf = (ctypes.c_double * k4)(*flat)
+    vbuf = (ctypes.c_double * kk)()
+    ws_bytes = int(LIB.srmech_jade_jointdiag_ws_bound(ctypes.c_uint32(k)))
+    ws_doubles = ws_bytes // ctypes.sizeof(ctypes.c_double)
+    wsbuf = (ctypes.c_double * ws_doubles)() if ws_doubles else (ctypes.c_double * 0)()
+    rc = LIB.srmech_jade_jointdiag(
+        cbuf, ctypes.c_uint32(k), ctypes.c_uint32(max_iter),
+        ctypes.c_double(tol), vbuf, wsbuf, ctypes.c_size_t(ws_bytes),
+    )
+    if rc != SRMECH_OK:
+        return None
+    return [[vbuf[a * k + b] for b in range(k)] for a in range(k)]
 
 
 # ----------------------------------------------------------------------

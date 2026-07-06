@@ -58,6 +58,7 @@ from srmech.amsc.vec import Vec as _Vec  # rc131: 1-D carrier for singular value
 from srmech.amsc.laplacian import (
     mat_eigvals as _mat_eigvals,
     mat_lstsq as _mat_lstsq,
+    mat_matmul as _mat_matmul,  # rc155: route the 2-operand contraction through C
     mat_svd as _mat_svd,
 )
 from srmech.amsc.rational import hypot as _rhypot
@@ -375,17 +376,95 @@ def lstsq(a, b):
     return _Mat.from_rows(rows_out, is_complex=not real_out)
 
 
+def _einsum_pair_via_matmul(labelsA, A, labelsB, B, outspec, sizes):
+    """rc155: the TWO-operand contraction ``einsum(labelsA,labelsB->outspec)``
+    re-expressed as a single dense matmul through the c_dispatched
+    :func:`srmech.amsc.laplacian.mat_matmul` (``srmech_dense_matmul_complex``),
+    or ``None`` when the spec is not a clean pairwise contraction (a diagonal /
+    single-operand sum / batch index → the caller falls back to the general
+    index-iteration).
+
+    A clean contraction separates the labels into ``free_A`` (once, only in A),
+    ``free_B`` (once, only in B) and ``contracted`` (twice, in BOTH, absent from
+    the output). Gathering A → ``(∏free_A, ∏contracted)`` and B →
+    ``(∏contracted, ∏free_B)`` makes the **Class-M sum-of-products bundle** the
+    matmul ``M_A · M_B``; the gather + the output re-index are exact glue. This
+    covers matmul / matvec / dot / outer / rank-n contraction — the common
+    einsum patterns — so the heavy contraction rides C, not Python."""
+    if len(set(labelsA)) != len(labelsA) or len(set(labelsB)) != len(labelsB):
+        return None                                   # a diagonal (repeated label)
+    counts: Dict[str, int] = {}
+    for lab in labelsA + labelsB:
+        counts[lab] = counts.get(lab, 0) + 1
+    if any(c > 2 for c in counts.values()):
+        return None
+    setA, setB = set(labelsA), set(labelsB)
+    contracted = [lab for lab in labelsA if lab in setB]
+    for lab in contracted:
+        if lab in outspec:
+            return None                               # a shared label in output = batch
+    free_A = [lab for lab in labelsA if lab not in setB]
+    free_B = [lab for lab in labelsB if lab not in setA]
+    for lab in free_A + free_B:
+        if lab not in outspec:
+            return None                               # a single-operand axis sum
+    if sorted(free_A + free_B) != sorted(outspec):
+        return None
+    posA = {lab: i for i, lab in enumerate(labelsA)}
+    posB = {lab: i for i, lab in enumerate(labelsB)}
+    fa_list = list(itertools.product(*[range(sizes[l]) for l in free_A])) or [()]
+    ct_list = list(itertools.product(*[range(sizes[l]) for l in contracted])) or [()]
+    fb_list = list(itertools.product(*[range(sizes[l]) for l in free_B])) or [()]
+
+    def _gather(op, pos, group1, vals1, group2, vals2):
+        idx = [0] * len(pos)
+        for lab, v in zip(group1, vals1):
+            idx[pos[lab]] = v
+        for lab, v in zip(group2, vals2):
+            idx[pos[lab]] = v
+        return _nd_get(op, tuple(idx))
+
+    is_cx = _input_is_complex(A) or _input_is_complex(B)
+    M_A = [[_gather(A, posA, free_A, fa, contracted, ct) for ct in ct_list]
+           for fa in fa_list]
+    M_B = [[_gather(B, posB, contracted, ct, free_B, fb) for fb in fb_list]
+           for ct in ct_list]
+    Cm = _mat_matmul(_Mat.from_rows(M_A, is_complex=is_cx),
+                     _Mat.from_rows(M_B, is_complex=is_cx)).tolist()
+    fa_index = {combo: i for i, combo in enumerate(fa_list)}
+    fb_index = {combo: i for i, combo in enumerate(fb_list)}
+    out_shape = tuple(sizes[lab] for lab in outspec)
+    out = _nd_zeros(out_shape)
+    for out_idx in (itertools.product(*[range(sizes[l]) for l in outspec]) or [()]):
+        vmap = dict(zip(outspec, out_idx))
+        a = fa_index[tuple(vmap[l] for l in free_A)]
+        b = fb_index[tuple(vmap[l] for l in free_B)]
+        if out_idx:
+            _nd_set(out, out_idx, Cm[a][b])
+        else:
+            out = Cm[a][b]                            # rank-0 scalar
+    return out
+
+
 def einsum(subscripts: str, *operands):
-    """Einstein-summation tensor contraction via the index-iteration definition
-    (numpy-free, nested-list operands).
+    """Einstein-summation tensor contraction (numpy-free, nested-list operands).
 
     **Class B/D** (the subscript string is a typed index-pattern spec) ∘
     **Class I** (iterate over every free + summed index tuple) ∘ **Class M**
     (the sum-of-products bundle). Handles any subscript string (``'ij,jk->ik'``
     matmul, ``'ii->'`` trace, ``'ij->ji'`` transpose, ``'i,i->'`` dot,
-    ``'i,j->ij'`` outer, arbitrary contractions), unoptimised. Implicit output
-    (no ``->``) follows numpy's rule: free labels (appearing once) in sorted
-    order.
+    ``'i,j->ij'`` outer, arbitrary contractions). Implicit output (no ``->``)
+    follows numpy's rule: free labels (appearing once) in sorted order.
+
+    rc155 (BATCH B-residue): a clean TWO-operand contraction routes its Class-M
+    sum-of-products bundle through the c_dispatched
+    :func:`srmech.amsc.laplacian.mat_matmul` (``srmech_dense_matmul_complex``,
+    via :func:`_einsum_pair_via_matmul`) — so matmul / matvec / dot / outer /
+    rank-n contraction ride the C matmul foundation (``composition_of_c``,
+    within-tol). Single-operand specs (trace / transpose) and diagonals /
+    batched / single-axis sums fall back to the general index-iteration
+    definition, whose Class-M multiply-accumulate is primitive glue (the
+    ``mat_dot`` reduction precedent) reaching no non-standalone leaf.
 
     Returns the numpy-free carrier matching the result rank (rc131): a 2-D result
     is a :class:`~srmech.amsc.mat.Mat`, a 1-D result is a
@@ -419,8 +498,24 @@ def einsum(subscripts: str, *operands):
         outspec = "".join(sorted(lab for lab in counts if counts[lab] == 1))
     summed = [lab for lab in sizes if lab not in outspec]
     out_shape = tuple(sizes[lab] for lab in outspec)
-    out = _nd_zeros(out_shape)
     any_cx = any(_input_is_complex(o) for o in operands)
+    # rc155: route a clean 2-operand contraction through the C matmul.
+    if len(ops) == 2:
+        fast = _einsum_pair_via_matmul(in_labels[0], ops[0], in_labels[1], ops[1],
+                                       outspec, sizes)
+        if fast is not None:
+            if not out_shape:                         # rank-0 scalar
+                sc = complex(fast)
+                return sc.real if (not any_cx and _all_imag_zero(sc)) else sc
+            real_fast = not any_cx and _all_imag_zero(fast)
+            res = _real_of(fast) if real_fast else fast
+            rank = len(out_shape)
+            if rank == 1:
+                return _Vec.from_sequence(res, is_complex=not real_fast)
+            if rank == 2:
+                return _Mat.from_rows(res, is_complex=not real_fast)
+            return res
+    out = _nd_zeros(out_shape)
     free_ranges = [range(sizes[lab]) for lab in outspec]
     sum_ranges = [range(sizes[lab]) for lab in summed]
 
