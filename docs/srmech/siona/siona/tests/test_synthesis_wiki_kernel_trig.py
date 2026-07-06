@@ -469,3 +469,20 @@ def test_planner_run_goal_nl_rc135_1109():
     r = P.run_goal(poly.Poly([1, 2, 3]), "I want a three-variable polynomial")
     assert r["ran"] and r["carrier"] == "TriPoly" and r["goal_carrier"] == "TriPoly", r
     assert P.run_goal(poly.Poly([1]), "something vague").get("untyped") is True
+
+
+def test_knowledge_genome_cache_rc135_1111():
+    """F1111 (user goal): the full introspect STREAM (ops + carriers) packs into a knowledge GENOME, cached
+    version-keyed -- load_or_build builds+caches on first run, then loads byte-exact (no re-encode)."""
+    import os
+    import tempfile
+    import siona
+    from siona import knowledge_genome as KG
+    s = siona.Session()
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "kg")
+        kb1 = KG.load_or_build(s.g, path)                    # first run: build + cache
+        assert len(kb1) > 200 and os.path.exists(path + ".srmech_version"), len(kb1)
+        kb2 = KG.load_or_build(s.g, path)                    # second run: cached load
+        assert all(kb1[l] == kb2[l] for l in kb1), "cache must be byte-exact across runs"
+        assert all(len(v) == 8192 for v in kb2.values())
