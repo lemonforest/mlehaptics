@@ -574,6 +574,13 @@ def greedy_bipartite_alignment(table_a, table_b, similarity_fn):
     :func:`srmech.amsc.hdc.similarity`); lives in the compose layer rather than
     a class module for that reason.
     """
+    # rc154 (BATCH B10, ``composition_of_c``): greedy argmax + used-set is a pure
+    # **Class-K** selection (the ``s > best_s`` pin-slot decision) over a
+    # caller-supplied ``similarity_fn`` — NOT an irreducible numeric kernel and NOT
+    # an A–N primitive. It reaches no non-standalone-ready srmech leaf (the
+    # similarity is the caller's; the control flow is standalone-trivial), the
+    # SAME status as ``cascade.compose.top_k_by_score`` (Class-E ∘ Class-K
+    # selection). Value-verified by a known-table alignment oracle; no new C symbol.
     if not callable(similarity_fn):
         raise TypeError("similarity_fn must be callable")
     a_rows = list(table_a)

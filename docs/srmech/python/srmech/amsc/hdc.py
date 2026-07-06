@@ -375,6 +375,27 @@ def _check_polar_pair(a, b, op: str):
     return a, b
 
 
+def _polar_random_native(D: int, seed: int):
+    """Native MT19937 draw of ``D`` polar codes in {-1, 0, +1} for an integer
+    ``seed`` — byte-identical to ``random.Random(seed)``'s ``randrange(-1, 2)``
+    stream — or ``None`` when the C symbol is absent / the call fails
+    (pure-Python is the COMPLETE alternative, not a rescue). The C seeds via
+    ``init_by_array`` over the seed's little-endian uint32 words; ``out`` is
+    ``D`` int8 values, each ``= -1 + _randbelow(3)`` (getrandbits(2) rejection —
+    a DIFFERENT stream from klein4's ``_randbelow(4)``). rc154 (BATCH B10)."""
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_polar_random")):
+        return None
+    words = _seed_to_le_words(seed)
+    key = (ctypes.c_uint32 * len(words))(*words)
+    out = (ctypes.c_int8 * D)()
+    rc = _native.LIB.srmech_polar_random(
+        key, len(words), ctypes.c_uint32(D), ctypes.cast(out, _I8P))
+    if rc != _native.SRMECH_OK:
+        return None
+    return array("b", out)
+
+
 def polar_random(D: int, rng=None, seed: "int | None" = None):
     """Random polar hypervector of dimension ``D`` with elements in {-1, 0, +1}.
 
@@ -392,6 +413,15 @@ def polar_random(D: int, rng=None, seed: "int | None" = None):
     Returns:
         An ``array('b')`` of length ``D`` with elements drawn uniformly from
         ``{-1, 0, +1}`` (rc125: numpy-free stdlib ``random``).
+
+    rc154 (BATCH B10): the deterministic integer-``seed`` path dispatches to the
+    standalone-C MT19937 ``srmech_polar_random`` when native is present — a
+    byte-for-byte reproduction of CPython's ``random.Random(seed).randrange(-1,
+    2)`` (the polar sibling of the §60 ``srmech_klein4_random`` — a random op
+    with NO C RNG twin cannot be standalone-C, so it earns its own deterministic
+    kernel rather than a false composition-of-c). Pure-Python ``random.Random``
+    is the complete alternative for a no-C host / a caller-supplied ``rng`` /
+    the urandom ``seed=None`` path.
     """
     if D <= 0:
         raise ValueError("hdc.polar_random: D must be positive")
@@ -399,6 +429,10 @@ def polar_random(D: int, rng=None, seed: "int | None" = None):
         # Back-compat numpy ``Generator`` path: the caller already holds numpy,
         # so this branch may use it (coerced to a stdlib int8 buffer).
         return array("b", (int(x) for x in rng.integers(-1, 2, size=D)))
+    if rng is None and isinstance(seed, int) and not isinstance(seed, bool):
+        buf = _polar_random_native(D, seed)
+        if buf is not None:
+            return buf
     r = rng if rng is not None else _random.Random(seed)
     return array("b", (r.randrange(-1, 2) for _ in range(D)))
 
@@ -442,9 +476,14 @@ def polar_unbind(c, a):
     the original is **not** recoverable (0 is destructive) — matching the
     dead-band semantics: anything bound through an uncertain position is gone.
 
-    rc125 (numpy-free): pure-Python int8 product over ``array('b')``."""
-    c, a = _check_polar_pair(c, a, "polar_unbind")
-    return array("b", (c[i] * a[i] for i in range(len(c))))
+    rc125 (numpy-free): pure-Python int8 product over ``array('b')``.
+
+    rc154 (BATCH B10): unbind IS the same element-wise sign-product as
+    :func:`polar_bind` on the ±1 sub-alphabet (``c[i]*a[i]``), so it COMPOSES the
+    c_dispatched :func:`polar_bind` — routing byte-identically to
+    ``srmech_polar_bind`` when native is present, with the pure-Python product as
+    the complete fallback (``composition_of_c``, no new C symbol)."""
+    return polar_bind(c, a)
 
 
 def polar_bundle(*vectors):
@@ -509,7 +548,15 @@ def polar_similarity(a, b, skip_zero: bool = True) -> "Q":
     with ``float(s)`` (the stay-rational discipline, F868,
     `[[feedback_stay_rational_collapse_only_at_display]]`).
 
-    rc125 (numpy-free): pure-Python counting over ``array('b')`` buffers."""
+    rc125 (numpy-free): pure-Python counting over ``array('b')`` buffers.
+
+    rc154 (BATCH B10, ``composition_of_c``): the exact ``Q(matches, denom)`` is a
+    **Class-K** skip-zero pin-slot ∘ integer **match-count** composition —
+    standalone-C-ready (a C host gets the display-collapse float directly from the
+    ``srmech_polar_similarity`` C peer; the test cross-checks
+    ``float(Q) == srmech_polar_similarity``). The exact-``Q`` path stays Python
+    (stay-rational, F868) — reconstructing ``Q`` from the C float would lose
+    exactness, so no float dispatch replaces the integer counting."""
     a, b = _check_polar_pair(a, b, "polar_similarity")
     n = len(a)
     if skip_zero:
@@ -546,7 +593,13 @@ def polar_from_real(arr, threshold: float = 0.0, dead_band: float = 0.0):
     ``sign_quantise``).
 
     rc125 (numpy-free): ``sign_quantise.op`` returns a numpy-free list (the
-    rc94 flip); it is collected into an ``array('b')`` (was an int8 ndarray)."""
+    rc94 flip); it is collected into an ``array('b')`` (was an int8 ndarray).
+
+    rc154 (BATCH B10, ``composition_of_c``): the whole real→polar encode IS the
+    ``sign_quantise.op`` cascade, which is ``c_dispatched`` (routes to
+    ``srmech_sign_quantise``, rc143) — so ``polar_from_real`` composes a C-backed
+    Class-K threshold projection (byte-identical native == pure; the int8
+    collection is trivial integer glue), no new C symbol."""
     from ..signal_processing.path_b_ops import sign_quantise
 
     out = sign_quantise.op(arr, threshold=threshold, dead_band=dead_band)

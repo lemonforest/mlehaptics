@@ -1173,3 +1173,46 @@ srmech_status_t srmech_klein4_random(const uint32_t *key,
     }
     return SRMECH_OK;
 }
+
+/* below3(): random._randbelow(3) = getrandbits(2) with rejection of >= 3. The
+ * top 2 bits give 0..3; reject 3 and redraw. Reject probability 1/4 per draw;
+ * the 64-try bound (JPL Rule 2) is unreachable in practice and keeps the
+ * consumed word-stream byte-identical to CPython (randrange(-1, 2) = -1 +
+ * _randbelow(3), a DIFFERENT stream from below4's _randbelow(4)). */
+static uint32_t srmech_mt_below3(srmech_mt_t *st)
+{
+    uint32_t tries;
+    assert(st != NULL);
+    assert(st->index <= SRMECH_MT_N);
+    for (tries = 0u; tries < 64u; tries++) {
+        uint32_t r = srmech_mt_genrand_uint32(st) >> 30;  /* getrandbits(2) */
+        if (r < 3u) {
+            return r;
+        }
+    }
+    return 0u;  /* unreachable; statically-bounded fallback for Rule 2 */
+}
+
+srmech_status_t srmech_polar_random(const uint32_t *key,
+                                    size_t          key_length,
+                                    uint32_t        D,
+                                    int8_t         *out)
+{
+    srmech_mt_t st;
+    uint32_t i;
+    assert(key != NULL && out != NULL);
+    assert(D > 0u && key_length > 0u);
+    if (key == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (D == 0u || key_length == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    srmech_mt_init_by_array(&st, key, key_length);
+    for (i = 0u; i < D; i++) {
+        /* {0,1,2} -> {-1,0,+1}: byte-identical to random.Random(seed)
+         * .randrange(-1, 2) = -1 + _randbelow(3). */
+        out[i] = (int8_t)((int32_t)srmech_mt_below3(&st) - 1);
+    }
+    return SRMECH_OK;
+}

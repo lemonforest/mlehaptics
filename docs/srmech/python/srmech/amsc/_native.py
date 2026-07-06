@@ -1379,6 +1379,21 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_polar_density.restype = ctypes.c_int
 
+    # rc154 (BATCH B10): int srmech_polar_random(const uint32_t *key,
+    #     size_t key_length, uint32_t D, int8_t *out) — MT19937 seeded by
+    #     init_by_array(key); each draw byte-identical to random.Random(seed)
+    #     .randrange(-1, 2) (= -1 + _randbelow(3) via getrandbits(2) rejection).
+    #     NEW in rc154 — guard with its own hasattr so a pre-rc154 lib (which has
+    #     srmech_polar_bind but not this) falls back to pure-Python cleanly.
+    if hasattr(lib, "srmech_polar_random"):
+        lib.srmech_polar_random.argtypes = [
+            ctypes.POINTER(ctypes.c_uint32),
+            ctypes.c_size_t,
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_int8),
+        ]
+        lib.srmech_polar_random.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Class M — Klein-4 {0,1,2,3} variant (v0.4.3rc2). NEW symbols;
     # hasattr-guarded (same rationale as the polar block above).

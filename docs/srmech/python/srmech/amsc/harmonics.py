@@ -133,6 +133,15 @@ def classify_chirality_harmonic(hv, dc_threshold: float = 0.5) -> int:
     provenance — the spectral generalisation of the surface-form token-name
     classifier (R-RBS-NN-14a).
     """
+    # rc154 (BATCH B10, ``composition_of_c``): the classifier is a pure
+    # composition of primitive-class ops over the vector — **Class-L** inner
+    # products (⟨x,x⟩, ⟨x,rev(x)⟩, ⟨x,roll(x)⟩), **Class-K** magnitude pin-slots
+    # (the explicit ``x if x >= 0 else -x`` L1 / DC branches — no ``abs()``, no
+    # ``sqrt(·²)`` stealth-abs), and **Class-N** exact ratios; the verdict is a
+    # discrete 1/2/3 label. libm-free float arithmetic reaching no non-standalone
+    # leaf → trivially C-portable / standalone-ready (the SAME status as the
+    # ``mat_dot`` pure-reduction). Value-verified by known-vector → known-sector
+    # oracles; no new C symbol.
     x = [float(v) for v in hv]
     if len(x) == 0:
         raise ValueError("classify_chirality_harmonic: empty vector")

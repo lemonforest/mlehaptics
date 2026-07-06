@@ -241,6 +241,15 @@ def three_fold_eigvec_groups(L) -> dict:
     ``(n, k)`` real :class:`~srmech.amsc.mat.Mat` of the eigenvector COLUMNS in
     that band (rc129; ``.shape`` + ``m[i, j]``, NOT a bare nested list); the
     chirality-aware companion to :func:`symmetric_eigendecompose`.
+
+    rc154 (BATCH B10, ``composition_of_c``): the op COMPOSES the
+    ``composition_of_c`` :func:`symmetric_eigendecompose` (which dispatches to the
+    C-backed Hermitian eigendecomposition) for the spectrum + the c_dispatched
+    ``srmech_three_fold_bands`` for the integer band split; the column-slice into
+    three ``Mat`` bands is exact integer glue. Parity is **eig-INVARIANT** (the
+    Jacobi eigenbasis is non-unique): native == pure agree on the band SIZES
+    (exact) and the per-band SPAN, not element-wise — the rc146 so7 / rc152
+    ``casimir_eigenvalue`` invariant precedent. No new C symbol.
     """
     _eigvals, V = symmetric_eigendecompose(L)  # V real Mat, columns = eigenvectors
     n_rows = V.n_rows
