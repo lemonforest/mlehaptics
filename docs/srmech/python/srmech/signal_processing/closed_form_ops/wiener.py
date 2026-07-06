@@ -13,6 +13,17 @@ Carrier-free since v0.7.5rc87 (#564): plain Python ``list`` carriers; ``_sc.fft`
 ``np.maximum(..., eps)`` floors and the Class-N rational gain are explicit
 elementwise list comprehensions, ``|X|² = X.real² + X.imag²`` (no ``abs()``).
 
+rc150 (B4c) classification: ``composition_of_c``.  The two heavy numeric kernels
+are the forward + inverse transform, and both funnel through ``_sc.fft`` /
+``_sc.ifft`` — which dispatch their FLOAT path to the c_dispatched numeric FFT
+foundation ``srmech_fft_c128`` (rc139) and fall back to the complete pure ``cexp``
+cascade when the native lib is absent (the SAME composition_of_c pattern as the
+rc139 fft/ifft wrappers + the B4a stft/cross_spectral windowed-transform ops).
+The per-bin power ``|X|²=re²+im²``, the Class-L eps-floor ``max(·, eps)`` and the
+Class-N rational MMSE gain ``S_xx/(S_xx+S_nn)`` are numpy-free elementwise glue
+(no ``abs()``).  NUMERIC (within-tol, not byte-identical): native == pure to
+reldiff ≤ 1e-9 (the FFT butterflies may FMA-fuse ~1 ULP on some platforms).
+
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Wiener
 (1949) + Kay (1993) §11 + Hayes (1996) §7.
 """
