@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc143"
-#define SRMECH_VERSION       "0.9.0rc143"
+#define SRMECH_VERSION_PRE   "rc144"
+#define SRMECH_VERSION       "0.9.0rc144"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2400,6 +2400,92 @@ srmech_status_t srmech_huffman_build_codes(const uint8_t *data,
                                            char          *out_code_str,
                                            uint8_t       *out_order,
                                            uint32_t      *out_order_count);
+
+/* ------------------------------------------------------------------ *
+ * sp_coder_dp part 2 — LZ77 / Viterbi / MLSE / arithmetic coder
+ * (v0.9.0rc144; BATCH B6b)
+ *
+ * The four harder sp_coder_dp ops. LZ77 + arithmetic-encode are exact integer /
+ * exact-rational (byte-identical); Viterbi + MLSE are float trellis DP made
+ * byte-identical by reproducing the EXACT float accumulation order + first-
+ * maximal argmax tie-break (deterministic double, no libm). jpeg is DEFERRED
+ * (its DCT basis is a float rational.cos cascade -> a numeric batch). Additive
+ * symbols, so SRMECH_ABI_VERSION stays 3. See c/src/srmech_coder.c.
+ * ------------------------------------------------------------------ */
+
+/* lz77_encode(data, n, window_size, lookahead_size): emit (offset, length,
+ * literal) tokens; longest match, ties keep the first ws (largest offset).
+ * out_literal[t] == -1 marks the Python `None` literal (match to end-of-input).
+ * out_* are caller arenas of >= n entries; *out_ntokens receives the count. */
+srmech_status_t srmech_lz77_encode(const uint8_t *data,
+                                   uint32_t       n,
+                                   uint32_t       window_size,
+                                   uint32_t       lookahead_size,
+                                   uint32_t      *out_offset,
+                                   uint32_t      *out_length,
+                                   int32_t       *out_literal,
+                                   uint32_t      *out_ntokens);
+
+/* viterbi(obs[T], A[n_states*n_states] row-major, B[n_states*n_obs], pi[
+ * n_states]): the log-domain trellis DP; ws_delta / ws_psi are caller scratch
+ * of T*n_states each; out_path receives the T-state Viterbi path (first-maximal
+ * argmax tie-break). Deterministic double, no libm, no abs. */
+srmech_status_t srmech_viterbi(const int32_t *obs,
+                               uint32_t       T,
+                               const double  *A,
+                               const double  *B,
+                               const double  *pi,
+                               uint32_t       n_states,
+                               uint32_t       n_obs,
+                               double        *ws_delta,
+                               int32_t       *ws_psi,
+                               int32_t       *out_path);
+
+/* mlse(obs(re,im)[T], taps(re,im)[L], alpha(re,im)[A]): MLSE over an ISI
+ * channel. L = memory+1 (tap count); n_states = A^memory (caller-computed);
+ * log_a / log_nstates are the Class-N rational-log constants (computed in
+ * Python, passed exact). dscratch carves A_log(n^2) | B_log(n*T) | pi(n) |
+ * delta(T*n); iscratch carves psi(T*n) | obs_idx(T); uscratch carves
+ * tup(memory) | ntup(memory). out_path receives the T input-symbol indices. */
+srmech_status_t srmech_mlse(const double  *obs_re,
+                            const double  *obs_im,
+                            uint32_t       T,
+                            const double  *taps_re,
+                            const double  *taps_im,
+                            uint32_t       L,
+                            const double  *alpha_re,
+                            const double  *alpha_im,
+                            uint32_t       A,
+                            uint32_t       n_states,
+                            double         log_a,
+                            double         log_nstates,
+                            double        *dscratch,
+                            int32_t       *iscratch,
+                            uint32_t      *uscratch,
+                            int32_t       *out_path);
+
+/* arithmetic_encode(clo[k], chi[k], n, total): exact-rational range-coder
+ * encode. clo[k] and chi[k] are the k-th symbol's cumulative bounds; total is
+ * the frequency sum. Carries a common denominator (total^k) so the whole loop
+ * is exact srmech_bigint integer + a single terminal gcd; the lo and hi num/den
+ * buffers receive the reduced-fraction decimals (NUL-terminated, each buffer
+ * of >= str_cap); ws is the caller uint32 arena. n >= 1. Byte-identical to the
+ * Python fractions.Fraction encode. */
+srmech_status_t srmech_arithmetic_encode(const uint32_t *clo,
+                                         const uint32_t *chi,
+                                         uint32_t        n,
+                                         uint64_t        total,
+                                         char           *lo_num,
+                                         char           *lo_den,
+                                         char           *hi_num,
+                                         char           *hi_den,
+                                         size_t          str_cap,
+                                         size_t         *lo_num_len,
+                                         size_t         *lo_den_len,
+                                         size_t         *hi_num_len,
+                                         size_t         *hi_den_len,
+                                         void           *ws,
+                                         size_t          ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech.bus — cross-process IPC C peer (v0.5.0rc2)

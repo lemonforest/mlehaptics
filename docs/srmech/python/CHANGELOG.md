@@ -10,6 +10,11 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+
+## [0.9.0rc144]
+
+**Batch B6b (sp_coder_dp part 2) — 4 harder coder/DP C peers (C:Python parity backfill).** Adds C peers for `arithmetic_coding` (integer range coder → `srmech_arithmetic_encode`), `lz77` (sliding-window match → `srmech_lz77_encode`), `viterbi` (log-prob trellis DP → `srmech_viterbi`), and `mlse` (channel-equalizer trellis → `srmech_mlse`). Each is byte-identical to its Python kernel (exact for the integer coders; deterministic-same-order for the float trellis DP — identical accumulation order + argmin tie-break). Dispatch is hasattr-guarded; the pure fallback stays byte-identical. **`jpeg` DEFERRED** — it is a float-DCT numeric op, not exact, so it belongs in a later differential-tested numeric batch, not this byte-identical one (honest classification, not forced into the exact batch). 4 rows `python_only_debt → c_dispatched`; `CEIL_PYTHON_ONLY_DEBT` 72 → 68; #928 ratchet green. ABI stays 3 (additive symbols). JPL-clean (≤60-line funcs, ≥2 asserts, no goto/malloc/abs/recursion/libm). numpy-absent.
+
 ## [0.9.0rc143] - 2026-07-06
 
 **BATCH B6a — `sp_coder_dp` part 1: 5 EXACT signal-processing coder / quantizer C peers (`tools.total` stays 403; ABI stays 3).** The compute batches continue dropping the `python_only_debt`: B6 = `sp_coder_dp` (10 exact coder/DP ops), split by complexity into two rcs. **B6a = the 5 simpler EXACT ops** — memoryless quantizers + run-length + Huffman — that had NO C peer. Byte-identical C: these are **integer / exact coders** (entropy codes, codebook lookup, run-length, threshold quantize), so there is **no float tolerance**, no libm, and **no `abs()`** (Class-K sign is a pin-slot boundary, never `abs()`). numpy stays absent. 5 SSOT files rc142 → rc143.

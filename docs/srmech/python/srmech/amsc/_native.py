@@ -1674,6 +1674,94 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_huffman_build_codes.restype = ctypes.c_int
 
     # ------------------------------------------------------------------
+    # BATCH B6b (rc144): the 4 harder sp_coder_dp C peers (LZ77 / Viterbi /
+    # MLSE / arithmetic-encode). Each NEW symbol its own hasattr so a pre-rc144
+    # lib doesn't AttributeError; the pure-Python op is the byte-identical
+    # alternative. jpeg is DEFERRED (float DCT -> numeric batch).
+    # ------------------------------------------------------------------
+    # int srmech_lz77_encode(const uint8_t *data, uint32_t n, uint32_t window,
+    #     uint32_t lookahead, uint32_t *out_offset, uint32_t *out_length,
+    #     int32_t *out_literal, uint32_t *out_ntokens)
+    if hasattr(lib, "srmech_lz77_encode"):
+        lib.srmech_lz77_encode.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.c_uint32,
+            ctypes.c_uint32,
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_uint32),
+            ctypes.POINTER(ctypes.c_uint32),
+            ctypes.POINTER(ctypes.c_int32),
+            ctypes.POINTER(ctypes.c_uint32),
+        ]
+        lib.srmech_lz77_encode.restype = ctypes.c_int
+    # int srmech_viterbi(const int32_t *obs, uint32_t T, const double *A,
+    #     const double *B, const double *pi, uint32_t n_states, uint32_t n_obs,
+    #     double *ws_delta, int32_t *ws_psi, int32_t *out_path)
+    if hasattr(lib, "srmech_viterbi"):
+        lib.srmech_viterbi.argtypes = [
+            ctypes.POINTER(ctypes.c_int32),
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.c_uint32,
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.POINTER(ctypes.c_int32),
+            ctypes.POINTER(ctypes.c_int32),
+        ]
+        lib.srmech_viterbi.restype = ctypes.c_int
+    # int srmech_mlse(const double *obs_re, const double *obs_im, uint32_t T,
+    #     const double *taps_re, const double *taps_im, uint32_t L,
+    #     const double *alpha_re, const double *alpha_im, uint32_t A,
+    #     uint32_t n_states, double log_a, double log_nstates,
+    #     double *dscratch, int32_t *iscratch, uint32_t *uscratch,
+    #     int32_t *out_path)
+    if hasattr(lib, "srmech_mlse"):
+        lib.srmech_mlse.argtypes = [
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.c_uint32,
+            ctypes.c_uint32,
+            ctypes.c_double,
+            ctypes.c_double,
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.POINTER(ctypes.c_int32),
+            ctypes.POINTER(ctypes.c_uint32),
+            ctypes.POINTER(ctypes.c_int32),
+        ]
+        lib.srmech_mlse.restype = ctypes.c_int
+    # int srmech_arithmetic_encode(const uint32_t *clo, const uint32_t *chi,
+    #     uint32_t n, uint64_t total, char *lo_num, char *lo_den, char *hi_num,
+    #     char *hi_den, size_t str_cap, size_t *lo_num_len, size_t *lo_den_len,
+    #     size_t *hi_num_len, size_t *hi_den_len, void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_arithmetic_encode"):
+        lib.srmech_arithmetic_encode.argtypes = [
+            ctypes.POINTER(ctypes.c_uint32),
+            ctypes.POINTER(ctypes.c_uint32),
+            ctypes.c_uint32,
+            ctypes.c_uint64,
+            ctypes.POINTER(ctypes.c_char),
+            ctypes.POINTER(ctypes.c_char),
+            ctypes.POINTER(ctypes.c_char),
+            ctypes.POINTER(ctypes.c_char),
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.c_void_p,
+            ctypes.c_size_t,
+        ]
+        lib.srmech_arithmetic_encode.restype = ctypes.c_int
+
+    # ------------------------------------------------------------------
     # Cascade catalog — v0.4.5rc1 C-parity + TOML retrofit.
     # Corrects the v0.4.3rc6 / v0.4.4rc1 carve-out that shipped cascade
     # ops Python-only. NEW symbols — guard with hasattr so a stale lib
@@ -9997,6 +10085,52 @@ def has_native_huffman_build_codes() -> bool:
     no-C lib."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_huffman_build_codes"))
+
+
+# ---------------------------------------------------------------------------
+# BATCH B6b (rc144): the 4 harder sp_coder_dp ops earn their C twins (LZ77 /
+# Viterbi / MLSE / arithmetic-encode). Each gate guards its own srmech_* symbol;
+# the pure-Python op is the byte-identical alternative on a no-C / pre-rc144 lib.
+# jpeg is DEFERRED (float DCT -> a numeric differential batch).
+# ---------------------------------------------------------------------------
+
+
+def has_native_lz77_encode() -> bool:
+    """True iff ``srmech_lz77_encode`` (sliding-window longest-match tokens;
+    ties -> first ws / largest offset) is loaded + bound (rc144). Gates the
+    encode path of :func:`srmech.signal_processing.closed_form_ops.lz77.op`.
+    False on a no-C lib — the pure run-scan is the byte-identical alternative."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_lz77_encode"))
+
+
+def has_native_viterbi() -> bool:
+    """True iff ``srmech_viterbi`` (log-domain trellis DP, first-maximal argmax
+    tie-break, deterministic double) is loaded + bound (rc144). Gates
+    :func:`srmech.signal_processing.closed_form_ops.viterbi.op`. False on a no-C
+    lib — the pure DP is the byte-identical alternative."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_viterbi"))
+
+
+def has_native_mlse() -> bool:
+    """True iff ``srmech_mlse`` (ISI-channel trellis build + the same Viterbi
+    DP; the Class-N rational-log constants are computed in Python and passed
+    exact) is loaded + bound (rc144). Gates
+    :func:`srmech.signal_processing.closed_form_ops.mlse.op`. False on a no-C
+    lib — the pure trellis DP is the byte-identical alternative."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_mlse"))
+
+
+def has_native_arithmetic_encode() -> bool:
+    """True iff ``srmech_arithmetic_encode`` (exact-rational range-coder encode
+    via a srmech_bigint common-denominator recurrence + single terminal gcd) is
+    loaded + bound (rc144). Gates the encode path of
+    :func:`srmech.signal_processing.closed_form_ops.arithmetic_coding.op`. False
+    on a no-C lib — the pure Fraction encode is the byte-identical alternative."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_arithmetic_encode"))
 
 
 def has_native_fiedler_sparse() -> bool:

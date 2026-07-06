@@ -17,7 +17,10 @@ Lempel (1977) IEEE T-IT.
 
 from __future__ import annotations
 
+import ctypes
 from typing import List, Optional, Tuple
+
+from srmech.amsc import _native
 
 OPERATION_NAME = "lz77"
 CLASS_COMPOSITION = ("A", "G", "B")
@@ -27,6 +30,35 @@ SSOT_CITATION = (
     "compression', IEEE Trans. Inf. Theory 23(3), 337-343. DOI 10.1109/"
     "TIT.1977.1055714 (Crossref)."
 )
+
+
+def _lz77_encode_native(data_bytes, window_size, lookahead_size):
+    """Native sliding-window encode → ``list[(offset, length, literal)]``
+    (byte-identical to the pure run-scan) or ``None`` (rc144 §B6b). Pure
+    integer; the longest-match search + tie-break (first ws / largest offset)
+    match the Python loop exactly. ``literal == -1`` from C maps to ``None``."""
+    if not _native.has_native_lz77_encode():
+        return None
+    n = len(data_bytes)
+    if n == 0:
+        return []
+    cdata = (ctypes.c_uint8 * n).from_buffer_copy(bytes(data_bytes))
+    out_off = (ctypes.c_uint32 * n)()
+    out_len = (ctypes.c_uint32 * n)()
+    out_lit = (ctypes.c_int32 * n)()
+    ntok = ctypes.c_uint32(0)
+    rc = _native.LIB.srmech_lz77_encode(
+        cdata, ctypes.c_uint32(n), ctypes.c_uint32(window_size),
+        ctypes.c_uint32(lookahead_size), out_off, out_len, out_lit,
+        ctypes.byref(ntok))
+    if rc != _native.SRMECH_OK:
+        return None
+    m = ntok.value
+    return [
+        (int(out_off[i]), int(out_len[i]),
+         None if out_lit[i] < 0 else int(out_lit[i]))
+        for i in range(m)
+    ]
 
 
 def op(
@@ -73,6 +105,9 @@ def op(
     if isinstance(data, str):
         data = data.encode("utf-8")
     data_bytes = bytes(data)
+    native = _lz77_encode_native(data_bytes, window_size, lookahead_size)  # rc144 §B6b
+    if native is not None:
+        return native
     tokens: List[Tuple[int, int, Optional[int]]] = []
     i = 0
     n = len(data_bytes)
