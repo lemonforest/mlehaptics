@@ -219,7 +219,29 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 # NUMERIC (float DSP): the parity contract is WITHIN-TOL native == pure (reldiff
 # ≤ 1e-9, differential — NOT byte-identical), the SAME classification as the F1
 # FFT / F2 SVD / B4a numeric batches. python_only_debt 39 -> 34.
-CEIL_PYTHON_ONLY_DEBT = 34
+# rc150 (BATCH B4c — sp_transform part 3, wiener / rate-conversion / polyphase):
+# the 5 NUMERIC DSP ops move debt -> composition_of_c (×4) / non_compute (×1)
+# with NO new C symbol (ABI stays 3). Each composes an EXISTING C foundation:
+#   • closed_form_ops.wiener / path_b_ops.wiener -> composition_of_c: the forward
+#     + inverse transform funnel through _sc.fft / _sc.ifft -> the c_dispatched
+#     numeric FFT foundation srmech_fft_c128 (rc139); the |X|² power, the Class-L
+#     eps-floor and the Class-N rational MMSE gain S_xx/(S_xx+S_nn) are numpy-free
+#     elementwise glue (the SAME composition_of_c pattern as the B4a stft /
+#     cross_spectral windowed-transform ops) (×2).
+#   • multirate.op -> composition_of_c: up-sample (zero-insertion) -> low-pass
+#     convolution -> decimate; the convolution rides a Toeplitz matvec through
+#     the c_dispatched srmech_dense_matmul_complex (via _dsp.convolve_matmul),
+#     the windowed-sinc taps are the byte-exact Class-N rational.sin/cos cascades.
+#   • polyphase.op -> composition_of_c: each polyphase component's convolution
+#     rides the same Toeplitz matvec (_dsp.convolve_matmul); the strided split /
+#     accumulate / interleave are exact integer glue.
+#   • polyphase.decompose -> non_compute: splitting a tap table into L phase
+#     branches E_k[n]=h[k+n·L] is a pure integer REINDEX (taps[k::L] + zero-pad),
+#     no float kernel to mirror in C — it honestly carries no owed-C debt.
+# NUMERIC (float DSP): the parity contract is WITHIN-TOL native == pure (reldiff
+# ≤ 1e-9, differential — NOT byte-identical), the SAME classification as the F1
+# FFT / F2 SVD / B4a / B4b numeric batches. python_only_debt 34 -> 29.
+CEIL_PYTHON_ONLY_DEBT = 29
 # rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
 # rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.

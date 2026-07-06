@@ -15,6 +15,19 @@ longer imported — the carrier is a Python ``list`` throughout. The x=0 sinc
 singularity is a Class-K removable branch (returns 1.0, no division), never an
 ``abs()``.
 
+rc150 (B4c) classification: ``composition_of_c``.  Rate conversion is
+up-sample (zero-insertion, exact) → **low-pass convolution** → decimate.  The
+one heavy numeric kernel is the convolution, which — when the native lib is
+present — re-expresses the (feed-forward-only) linear filter as a **Toeplitz
+matvec** routed through ``_dsp.convolve_matmul`` → ``laplacian.mat_matvec`` ∘
+``mat_matmul`` → the c_dispatched ``srmech_dense_matmul_complex``; otherwise the
+complete numpy-free pure ``_dsp.convolve`` cascade.  The default windowed-sinc
+taps are the byte-exact Class-N ``rational.sin`` / ``rational.cos`` integer
+cascades (C-backed); the zero-insertion / decimation / up-gain are exact
+integer glue.  NUMERIC (within-tol, not byte-identical): the matmul float
+accumulation may FMA-fuse ~1 ULP on some platforms, so the parity contract is
+differential (reldiff ≤ 1e-9), NOT byte-equality.
+
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Vaidyanathan
 (1993) *Multirate Systems and Filter Banks* §4.
 """
@@ -131,8 +144,23 @@ def op(
         filter_taps = [v / total for v in windowed]
     else:
         filter_taps = [float(v) for v in filter_taps]
-    # _dsp.convolve is numpy-free (returns a list).
-    filtered = _dsp.convolve(upsampled, filter_taps, mode="same")
+    # composition_of_c (rc150 / B4c): when the native dense-matmul is present the
+    # low-pass convolution rides a Toeplitz matvec through the c_dispatched
+    # srmech_dense_matmul_complex (_dsp.convolve_matmul); otherwise the complete
+    # numpy-free pure cascade. Both return a list; the matmul path is within-tol
+    # (not byte-identical).
+    from srmech.amsc import _native
+
+    _convolve = (
+        _dsp.convolve_matmul
+        if (
+            _native.HAS_NATIVE
+            and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_dense_matmul_complex")
+        )
+        else _dsp.convolve
+    )
+    filtered = _convolve(upsampled, filter_taps, mode="same")
     # Down-sample (Class N decimation), then apply the up-sampling gain.
     if down > 1:
         return [v * up for v in filtered[::down]]

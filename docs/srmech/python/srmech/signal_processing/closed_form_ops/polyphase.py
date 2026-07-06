@@ -16,6 +16,23 @@ strided polyphase split/interleave and the per-component accumulate are explicit
 index loops (Class-M elementwise adds); the ``[::L]`` strides are native list
 slices.
 
+rc150 (B4c) classification:
+  • :func:`op` — ``composition_of_c``.  The heavy numeric kernel is the
+    per-component convolution; when the native lib is present each
+    ``E_k * x_k`` re-expresses the (feed-forward-only) linear filter as a
+    **Toeplitz matvec** routed through ``_dsp.convolve_matmul`` →
+    ``laplacian.mat_matvec`` ∘ ``mat_matmul`` → the c_dispatched
+    ``srmech_dense_matmul_complex``; otherwise the complete numpy-free pure
+    ``_dsp.convolve`` cascade.  The strided split / accumulate / interleave are
+    exact integer-indexed glue.  NUMERIC (within-tol, not byte-identical):
+    reldiff ≤ 1e-9 (the matmul float accumulation may FMA-fuse ~1 ULP).
+  • :func:`decompose` — ``non_compute``.  Splitting a tap table into ``L``
+    phase branches ``E_k[n] = h[k + n·L]`` is a pure integer **reindex**
+    (``taps[k::L]`` list-slices + a zero-pad to a multiple of ``L``); there is
+    NO floating-point kernel — nothing to mirror in C — so it honestly carries
+    no owed-C debt (``h[k + n·L]`` is trivial pointer arithmetic on a C host,
+    not a numeric kernel).
+
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Vaidyanathan
 (1993) *Multirate Systems and Filter Banks* §4.3 + Bellanger (1976).
 """
@@ -86,6 +103,21 @@ def op(
     """
     sig = [float(v) for v in signal]
     components = decompose(filter_taps, L)
+    # composition_of_c (rc150 / B4c): route each per-component convolution through
+    # the c_dispatched srmech_dense_matmul_complex (Toeplitz matvec) when the
+    # native lib is present; else the complete numpy-free pure cascade. Within-tol
+    # (not byte-identical): the matmul float accumulation may FMA-fuse ~1 ULP.
+    from srmech.amsc import _native
+
+    _convolve = (
+        _dsp.convolve_matmul
+        if (
+            _native.HAS_NATIVE
+            and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_dense_matmul_complex")
+        )
+        else _dsp.convolve
+    )
     if mode == "decimation":
         # Decimation: each polyphase component filters a decimated version
         # of the input then we sum (Class-M accumulate into the shared buffer).
@@ -96,7 +128,7 @@ def op(
             x_k = sig[k::L] if k < len(sig) else []
             if len(x_k) == 0:
                 continue
-            filtered = _dsp.convolve(x_k, e_k, mode="full")
+            filtered = _convolve(x_k, e_k, mode="full")
             for i in range(len(filtered)):
                 out[i] += filtered[i]
         return out
@@ -104,7 +136,7 @@ def op(
         # Interpolation: filter each input through component then interleave.
         per_component = []
         for e_k in components:
-            filtered = _dsp.convolve(sig, e_k, mode="full")
+            filtered = _convolve(sig, e_k, mode="full")
             per_component.append(filtered)
         # Interleave outputs (strided write, Class-C reorientation).
         max_len = max(len(c) for c in per_component)
