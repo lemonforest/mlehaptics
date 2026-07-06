@@ -159,8 +159,10 @@ def _transpose(a: Sequence[Sequence[Number]]) -> List[List[Number]]:
 
 def _matmul(a: Sequence[Sequence[Number]], b: Sequence[Sequence[Number]]):
     """Nested-list matrix multiply ``A·B`` over real or complex elements
-    (numpy-free triple loop). Routes the well-shaped real/complex case through
-    the native :func:`mat_matmul` for the 8×8 / 28×28 hot paths."""
+    (numpy-free triple loop). The tiny-matrix orchestration hot loop (an_embedding
+    runs thousands of these) stays a local cascade for speed; the EXACT g2 / so8
+    derivation build routes its matmuls through the ``c_dispatched`` C kernel via
+    :func:`_matmul_c` (rc146, the ``composition_of_c`` graduation path)."""
     m = len(a)
     k = len(a[0]) if m else 0
     n = len(b[0]) if b else 0
@@ -176,6 +178,29 @@ def _matmul(a: Sequence[Sequence[Number]], b: Sequence[Sequence[Number]]):
             for j in range(n):
                 out[i][j] += ait * bt[j]
     return out
+
+
+def _matmul_c(a: Sequence[Sequence[Number]], b: Sequence[Sequence[Number]]):
+    """``A·B`` routed through the ``c_dispatched``
+    :func:`~srmech.amsc.laplacian.mat_matmul` (``srmech_dense_matmul_complex``) —
+    the compute step the EXACT g2 / so8 derivation cascade composes so the
+    integer generators are built of C kernels (rc146 ``composition_of_c``). The
+    ``g2`` / so8 derivations are EXACT-INTEGER ``{-1, 0, +1}`` combinations, whose
+    matmul sums are exact in float64 REGARDLESS of accumulation order, so the
+    native ``srmech_dense_matmul_complex`` result is BYTE-IDENTICAL to the pure
+    :func:`_matmul` fallback. Numpy-free."""
+    return mat_matmul(Mat.from_rows([list(r) for r in a]),
+                      Mat.from_rows([list(r) for r in b])).tolist()
+
+
+def _commutator_c(x, y):
+    """Matrix commutator ``[X, Y] = X Y − Y X`` with the two matmuls routed
+    through the C kernel (:func:`_matmul_c`) — the g2-derivation compose-of-C
+    building block (rc146). Byte-identical to :func:`_commutator` for the
+    EXACT-integer octonion L/R operators."""
+    xy = _matmul_c(x, y)
+    yx = _matmul_c(y, x)
+    return [[xy[i][j] - yx[i][j] for j in range(len(xy[0]))] for i in range(len(xy))]
 
 
 def _matvec(a: Sequence[Sequence[Number]], v: Sequence[Number]) -> List[Number]:
@@ -456,7 +481,11 @@ def _derivation(a: List[float], b: List[float]) -> List[List[float]]:
     lb = octonion_left_mult(b).tolist()
     ra = octonion_right_mult(a).tolist()
     rb = octonion_right_mult(b).tolist()
-    return _add(_add(_commutator(la, lb), _commutator(ra, rb)), _commutator(la, rb))
+    # rc146: the three commutators route their matmuls through the c_dispatched
+    # mat_matmul (_commutator_c) so the g2 derivation is BUILT of C kernels
+    # (composition_of_c). EXACT-integer entries ⇒ byte-identical to pure.
+    return _add(_add(_commutator_c(la, lb), _commutator_c(ra, rb)),
+                _commutator_c(la, rb))
 
 
 def _all_derivations() -> List[List[List[float]]]:

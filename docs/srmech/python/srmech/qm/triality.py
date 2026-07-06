@@ -232,6 +232,18 @@ def _exact_solve_normal_equations(g: List[List[int]], c: List[int],
     ridge), so the companion maps it returns are bit-identical on every
     platform. The system is consistent (``rhs ∈ range(A)``), so the free
     columns carry the gauge freedom and a residual-0 solution exists.
+
+    rc146 (BATCH B8b — ``composition_of_c`` standalone-C basis): this exact-ℚ
+    RREF-with-free-columns-pinned solve is standalone-reproducible in a bare-C
+    host by the ``c_dispatched`` :func:`srmech.amsc.qmat.QMat.rref`
+    (``srmech_qmat_rref``, the exact-ℚ RREF C peer) over the same augmented
+    ``[G | c]`` — VERIFIED to return BYTE-IDENTICAL companion maps to this
+    routine. This sparse-Fraction path is kept as the fast one (the dense
+    128-unknown ``srmech_qmat_rref`` is ~2 s vs this sparse solve's sub-second),
+    but the standalone-C mirror is real: the whole triality family
+    (``triality_swap`` / ``triality_automorphism`` / ``triality_companions`` /
+    ``lean_isa_seventh_primitive``) composes ``srmech_qmat_rref`` (companion
+    solve) ∘ ``mat_matmul`` ∘ ``mat_norm`` — no new C symbol, ABI unchanged.
     """
     rows = [[_Fraction(g[r][col]) for col in range(n)] + [_Fraction(c[r])]
             for r in range(n)]
