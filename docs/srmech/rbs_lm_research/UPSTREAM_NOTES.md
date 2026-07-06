@@ -2776,3 +2776,16 @@ Either way the O(1) `genome_append_kernel(path, label, hv)` we wanted is a *cons
 ## §90 — genome round-trip is NOT length-exact on rc135 (D=8192 → 8448, +1 leaf); dogfood-surfaced (F1083)
 
 **Regression from F1045 (rc123 round-tripped exact).** On srmech 0.9.0rc135, `siona.genome_store.pack_instrument([(label, hv)], path)` → `load_instrument(path)` returns a vector of length **8448**, not the input **8192** — for BOTH a real Siona grounding kernel (`s.g._idx[0][1]`, HV, 8192) AND an `s.g.enc_query(...)` vector (HV, 8192). 8448 = **33 × 256** vs 8192 = 32 × 256 — the round-trip adds exactly **one leaf (256)**. Hypothesis: the §60 `kernel_pack` **header leaf** is being counted as data by `kernel_unpack`'s back-compat rule `D = n_leaves × leaf_dim` (33 leaves read as data instead of the header's true D=8192). Effect: every downstream `klein4_similarity` / photosynth on a genome-loaded vector fails with a length mismatch (8192 vs 8448). **This blocks the "route the story through the genome" dogfood** (F1083) until fixed. FIX likely in srmech `kernel_pack`/`kernel_unpack` (§60) or `genome_store`'s use of it — needs a minimal repro filed as an srmech issue. Labels round-trip fine; only the vector LENGTH inflates. The Siona NL interface (`s.turn`) is unaffected and works (routes "gcd of 12 and 8" → the srmech gcd tool → correct answer).
+
+## §90 ROOT CAUSE (F1084): the CHROM cap, not srmech — our genome_store is rc123-era, the rc135 format is v11 (caps)
+
+Pinned: srmech `kernel_pack`→`kernel_unpack` round-trips EXACT (8192→8192). The +256 is OURS: `genome_store`
+(F1045, rc123) recalls via `genome_window`→`kernel_unpack`, but the rc135 **v11** genome format adds a
+**CHROM cap** (one `leaf_dim`=256 leaf) per chromosome + a **GATE cap** (the gene_express E1/E2/E4/E3 inline
+gate, rc132+). `genome_window` returns the chromosome INCLUDING the CHROM cap, so `kernel_unpack` counts the
+cap leaf as data → 8192+256 = **8448**. FIX (ours): recall via the cap-aware native path — `recall(strand,
+the_one)` (recovers a kernel's leaves from a capped chromosome strand) or `genome_load`/`genome_genes`, which
+strip the CHROM/GATE caps — NOT `genome_window`+`kernel_unpack` (which sees the caps as data). genome_store
+must be updated to the v11 format (chromosome() pack + recall() unpack). No srmech bug; our store lagged the
+format. The user's principle holds: the genome is uniform op(x)operand (kernel_pack = 34 symbols sparse); the
+caps are the chromosome/gate delimiters, and recall() is the cap-aware reader.
