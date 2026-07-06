@@ -1619,6 +1619,61 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_laplacian_fiedler_sparse_file.restype = ctypes.c_int
 
     # ------------------------------------------------------------------
+    # BATCH B6a (rc143): EXACT signal-processing coder / quantizer C peers.
+    # Each NEW symbol its own hasattr so a pre-rc143 lib doesn't AttributeError
+    # here; the pure-Python op is the complete (byte-identical) alternative.
+    # ------------------------------------------------------------------
+    # int srmech_sign_quantise(const double *in, uint32_t n, double threshold,
+    #                          double dead_band, int8_t *out)
+    if hasattr(lib, "srmech_sign_quantise"):
+        lib.srmech_sign_quantise.argtypes = [
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.c_uint32,
+            ctypes.c_double,
+            ctypes.c_double,
+            ctypes.POINTER(ctypes.c_int8),
+        ]
+        lib.srmech_sign_quantise.restype = ctypes.c_int
+    # int srmech_vector_quantise_encode(const double *vectors, uint32_t n_vec,
+    #     const double *codebook, uint32_t n_codes, uint32_t dim,
+    #     uint32_t *out_idx)
+    if hasattr(lib, "srmech_vector_quantise_encode"):
+        lib.srmech_vector_quantise_encode.argtypes = [
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.c_uint32,
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_uint32),
+        ]
+        lib.srmech_vector_quantise_encode.restype = ctypes.c_int
+    # int srmech_rle_encode(const uint8_t *data, uint32_t n, uint32_t max_run,
+    #     uint8_t *out_sym, uint32_t *out_count, uint32_t *out_npairs)
+    if hasattr(lib, "srmech_rle_encode"):
+        lib.srmech_rle_encode.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.c_uint32,
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.POINTER(ctypes.c_uint32),
+            ctypes.POINTER(ctypes.c_uint32),
+        ]
+        lib.srmech_rle_encode.restype = ctypes.c_int
+    # int srmech_huffman_build_codes(const uint8_t *data, uint32_t n,
+    #     uint32_t *out_code_len, char *out_code_str, uint8_t *out_order,
+    #     uint32_t *out_order_count)
+    if hasattr(lib, "srmech_huffman_build_codes"):
+        lib.srmech_huffman_build_codes.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_uint32),
+            ctypes.POINTER(ctypes.c_char),
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.POINTER(ctypes.c_uint32),
+        ]
+        lib.srmech_huffman_build_codes.restype = ctypes.c_int
+
+    # ------------------------------------------------------------------
     # Cascade catalog — v0.4.5rc1 C-parity + TOML retrofit.
     # Corrects the v0.4.3rc6 / v0.4.4rc1 carve-out that shipped cascade
     # ops Python-only. NEW symbols — guard with hasattr so a stale lib
@@ -9896,6 +9951,52 @@ def has_native_klein4_triality_correct() -> bool:
     :func:`~srmech.amsc.hdc.klein4_triality_correct`. False on a no-C lib."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_klein4_triality_correct"))
+
+
+# ---------------------------------------------------------------------------
+# BATCH B6a (rc143): the 5 EXACT sp_coder_dp ops earn their C twins (4 symbols;
+# the two sign_quantise paths share one). Each gate guards its own srmech_*
+# symbol; the pure-Python op is the complete (byte-identical) alternative on a
+# no-C / pre-rc143 lib.
+# ---------------------------------------------------------------------------
+
+
+def has_native_sign_quantise() -> bool:
+    """True iff the Class-K ``srmech_sign_quantise`` (threshold {-1,0,+1}
+    projection, optional dead-band) is loaded + bound (rc143). Gates BOTH
+    :func:`srmech.signal_processing.closed_form_ops.sign_quantise.op` and its
+    path_b twin. False on a no-C lib — the pure branch is byte-identical."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_sign_quantise"))
+
+
+def has_native_vector_quantise_encode() -> bool:
+    """True iff ``srmech_vector_quantise_encode`` (Class-K squared-distance
+    nearest-code argmin, ties -> lowest index) is loaded + bound (rc143). Gates
+    the encode path of
+    :func:`srmech.signal_processing.closed_form_ops.vector_quantisation.op`.
+    False on a no-C lib."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_vector_quantise_encode"))
+
+
+def has_native_rle_encode() -> bool:
+    """True iff ``srmech_rle_encode`` (run-length (symbol, count) records) is
+    loaded + bound (rc143). Gates the encode path of
+    :func:`srmech.signal_processing.closed_form_ops.rle.op`. False on a no-C
+    lib — the pure run-scan is the complete alternative."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_rle_encode"))
+
+
+def has_native_huffman_build_codes() -> bool:
+    """True iff ``srmech_huffman_build_codes`` (canonical prefix codes via the
+    deterministic (freq, counter) node ordering) is loaded + bound (rc143).
+    Gates the encode path of
+    :func:`srmech.signal_processing.closed_form_ops.huffman.op`. False on a
+    no-C lib."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_huffman_build_codes"))
 
 
 def has_native_fiedler_sparse() -> bool:

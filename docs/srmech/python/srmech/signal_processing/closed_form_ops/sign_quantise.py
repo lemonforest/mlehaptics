@@ -19,6 +19,10 @@ BER preservation result.
 
 from __future__ import annotations
 
+import ctypes
+
+from srmech.amsc import _native
+
 OPERATION_NAME = "sign_quantise"
 CLASS_COMPOSITION = ("K",)
 PERFORMANCE_HINT = "single-token-fast"
@@ -28,6 +32,25 @@ SSOT_CITATION = (
     "(Crossref). Spike #174 sign-quantise SHA-256 BER preservation at +20 dB "
     "SNR; srmech notebook §3.8.{spike_174_anchor}."
 )
+
+
+def _sign_quantise_native(arr, threshold, dead_band):
+    """Native Class-K {-1,0,+1} threshold projection over a float list →
+    ``list[int]`` (byte-identical to the pure branch) or ``None`` (rc143 §B6a).
+    The two sign_quantise paths (closed_form + path_b) share this one C twin."""
+    if not _native.has_native_sign_quantise():
+        return None
+    n = len(arr)
+    if n == 0:
+        return []
+    cin = (ctypes.c_double * n)(*arr)
+    out = (ctypes.c_int8 * n)()
+    rc = _native.LIB.srmech_sign_quantise(
+        cin, ctypes.c_uint32(n), ctypes.c_double(threshold),
+        ctypes.c_double(dead_band), out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return [int(out[i]) for i in range(n)]
 
 
 def op(signal, *, threshold: float = 0.0, dead_band: float = 0.0, D: int = 8192):
@@ -54,6 +77,9 @@ def op(signal, *, threshold: float = 0.0, dead_band: float = 0.0, D: int = 8192)
     # Carrier: a plain Python list of floats (numpy-free; iterating an
     # ndarray input yields scalars, so an array_like still works).
     arr = [float(x) for x in signal]
+    native = _sign_quantise_native(arr, float(threshold), float(dead_band))
+    if native is not None:                     # rc143 §B6a — byte-identical C
+        return native
     out = []
     if dead_band <= 0.0:
         # Class K pin-slot: the threshold IS the sign boundary (no abs()).

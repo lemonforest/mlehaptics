@@ -110,7 +110,14 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 # _correct -> srmech_klein4_triality_{encode,correct} (both COMPOSING
 # srmech_klein4_triality_cycle in C). All byte-identical (integer/sector, no
 # float) -> c_dispatched. python_only_debt 86 -> 77.
-CEIL_PYTHON_ONLY_DEBT = 77
+# rc143 (BATCH B6a — sp_coder_dp part 1): the 5 EXACT signal-processing coder /
+# quantizer ops earn same-rc C twins (4 symbols; the two sign_quantise paths
+# share srmech_sign_quantise) — closed_form_ops.sign_quantise.op + path_b_ops.
+# sign_quantise.op -> srmech_sign_quantise; vector_quantisation.op ->
+# srmech_vector_quantise_encode; rle.op -> srmech_rle_encode; huffman.op ->
+# srmech_huffman_build_codes. All integer/exact coders, byte-identical (no float
+# tolerance, no libm, no abs) -> c_dispatched. python_only_debt 77 -> 72.
+CEIL_PYTHON_ONLY_DEBT = 72
 # rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
 # rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.

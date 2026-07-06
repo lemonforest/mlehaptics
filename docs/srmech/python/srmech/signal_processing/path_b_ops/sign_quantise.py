@@ -39,7 +39,10 @@ Canonical SSoT
 
 from __future__ import annotations
 
+import ctypes
 from typing import List
+
+from srmech.amsc import _native
 
 OPERATION_NAME = "sign_quantise"
 CLASS_COMPOSITION = ("K", "M")
@@ -50,6 +53,25 @@ SSOT_CITATION = (
     "(Crossref). Spike #174 sign-quantise SHA-256 BER preservation at "
     "+20 dB SNR; structure-preserving denoising primitive (anchored)."
 )
+
+
+def _sign_quantise_native(arr, threshold, dead_band):
+    """Native Class-K {-1,0,+1} threshold projection → ``list[int]`` or ``None``
+    (rc143 §B6a). Byte-identical to the pure branch; shares the C twin
+    ``srmech_sign_quantise`` with the Path A op (output is algebra-identical)."""
+    if not _native.has_native_sign_quantise():
+        return None
+    n = len(arr)
+    if n == 0:
+        return []
+    cin = (ctypes.c_double * n)(*arr)
+    out = (ctypes.c_int8 * n)()
+    rc = _native.LIB.srmech_sign_quantise(
+        cin, ctypes.c_uint32(n), ctypes.c_double(threshold),
+        ctypes.c_double(dead_band), out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return [int(out[i]) for i in range(n)]
 
 
 def op(
@@ -95,6 +117,9 @@ def op(
     gone). The carrier is a plain Python ``list`` throughout.
     """
     arr = [float(v) for v in signal]
+    native = _sign_quantise_native(arr, float(threshold), float(dead_band))
+    if native is not None:                     # rc143 §B6a — shared C twin
+        return native
     if dead_band <= 0.0:
         # Class K threshold projection: pin-slot at decision boundary.
         return [1 if v >= threshold else -1 for v in arr]

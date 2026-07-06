@@ -15,7 +15,10 @@ Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Salomon
 
 from __future__ import annotations
 
+import ctypes
 from typing import List, Tuple
+
+from srmech.amsc import _native
 
 OPERATION_NAME = "rle"
 CLASS_COMPOSITION = ("B", "G")
@@ -25,6 +28,28 @@ SSOT_CITATION = (
     "Springer, §1.4 (run-length encoding). ITU-T T.4 (1980) fax-encoding "
     "standard — first widely-deployed RLE format."
 )
+
+
+def _rle_encode_native(data_bytes, max_run):
+    """Native run-length encode → ``list[(symbol, count)]`` (byte-identical to the
+    pure run-scan) or ``None`` (rc143 §B6a). Pure integer; run boundaries match
+    the Python loop exactly (symbol change or ``count == max_run``)."""
+    if not _native.has_native_rle_encode():
+        return None
+    n = len(data_bytes)
+    if n == 0:
+        return []
+    cdata = (ctypes.c_uint8 * n).from_buffer_copy(bytes(data_bytes))
+    out_sym = (ctypes.c_uint8 * n)()
+    out_count = (ctypes.c_uint32 * n)()
+    npairs = ctypes.c_uint32(0)
+    rc = _native.LIB.srmech_rle_encode(
+        cdata, ctypes.c_uint32(n), ctypes.c_uint32(max_run),
+        out_sym, out_count, ctypes.byref(npairs))
+    if rc != _native.SRMECH_OK:
+        return None
+    m = npairs.value
+    return [(int(out_sym[i]), int(out_count[i])) for i in range(m)]
 
 
 def op(data, *, decode: bool = False, max_run: int = 255, D: int = 8192):
@@ -54,6 +79,9 @@ def op(data, *, decode: bool = False, max_run: int = 255, D: int = 8192):
     if isinstance(data, str):
         data = data.encode("utf-8")
     data_bytes = bytes(data)
+    native = _rle_encode_native(data_bytes, max_run)   # rc143 §B6a
+    if native is not None:
+        return native
     out: List[Tuple[int, int]] = []
     i = 0
     n = len(data_bytes)
