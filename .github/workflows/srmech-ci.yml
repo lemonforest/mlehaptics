@@ -180,7 +180,7 @@ jobs:
           from srmech.qm import spin, bell, single_particle, relativistic, gauge, potentials
           assert type(spin.pauli_matrices()[0]).__name__ == 'Mat', 'spin not numpy-free'
           verified, primary, _ = bell.verify_chsh()
-          assert verified and primary == 0.0, (verified, primary)
+          assert verified and abs(primary) < 1e-13, (verified, primary)  # within-tol: chsh_pauli_combination_norm via C Hermitian eig (rc152), not exact-0
           # single_particle (rc117) is numpy-free: a tiny Hermitian Mat eigensolves
           # to a (n,1) real eigval Mat + complex unitary Mat, no numpy.
           from srmech.amsc.mat import Mat
