@@ -314,3 +314,17 @@ def test_introspect_imitation_how_to_rc135():
     # IMITATION WITH UNDERSTANDING -- the action + the composed ops described (what/why)
     _, _, exs2 = tool.how_to("compute the graph laplacian eigenvalues", k=1, n=3, understand=True)[0]
     assert exs2 and any(expl for _, expl in exs2), exs2
+
+
+def test_context_shape_op_operand_rc135():
+    """F1091: context is op(x)operand -- one 'help me understand' turn gets a locally-verbose answer (the
+    current-turn OPERATOR on the running OPERAND) WITHOUT flipping the persistent concise context; + accent-fold."""
+    from siona import context_shape as C
+    assert C.tier_of("phronesis") == C.tier_of("phronēmē".replace("m", "s"))  # accent-insensitive
+    assert C.tier_of("articulated")[0] == "understood" and C.tier_of("EPISTEME")[0] == "told"
+    ctx = C.ContextShape(verbosity=0.2)
+    ctx.shape("just the gcd"); ctx.shape("what is a laplacian")
+    eff_teach = ctx.shape("help me understand this better")
+    assert eff_teach > 0.55, eff_teach                          # THIS turn is verbose (operator applied)
+    assert ctx.verbosity < 0.4, ctx.verbosity                   # but the running operand stayed concise (no flip)
+    assert ctx.shape("and what is a fiedler vector") < 0.4      # next turn back to concise
