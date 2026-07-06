@@ -190,6 +190,8 @@ class Session:
             ws = ws[1:]   # paraphrase frames: politeness prefixes are declared operators, consumed here
         if ws and (ws[0] == b.address or ws[0] in b.self_verbs):
             return "self-command"
+        if self._is_compose(u):                # F1115/#255: 'I have X … want Y' → compose an op-chain
+            return "compose"
         ints, fls, byts, edges = self._operands(u)
         if b.has_define(ws) and not (ints or fls or byts or edges):
             return "define"
@@ -203,6 +205,32 @@ class Session:
                                    # grounding selects the read (answer/define/recall). Known caveat:
                                    # relative-pronoun uses ('he knows what he wants') also match.
         return "continue"
+
+    # ---- the COMPOSE intent (F1115/#255: 'I have X … want Y' → plan the op-chain) ----
+    def _is_compose(self, u):
+        """Detect a compose request: an 'I have X' operand clause AND a 'want Y' goal clause (F1115)."""
+        ul = " %s " % u.lower()
+        have = any(p in ul for p in (" i have ", " i've got ", " ive got ", " given ", " here is ", " with a ", " with an "))
+        want = any(p in ul for p in (" want ", " need ", " give me ", " produce ", " into a ", " into an "))
+        return have and want
+
+    def _compose(self, u):
+        """Compose an op-chain from an 'I have X … want Y' turn (F1115/#255): split the operand + goal clauses,
+        plan_nl, render the chain — or an honest OPEN / untyped. The chain RUNS via planner.run_goal with a value."""
+        from siona import planner as _planner
+        ul, cut, sep_len = u.lower(), len(u), 0
+        for sep in (" want ", " need ", " give me ", " produce ", " into "):
+            i = ul.find(sep)
+            if 0 <= i < cut:
+                cut, sep_len = i, len(sep)
+        r = _planner.plan_nl(u[:cut], u[cut + sep_len:])
+        if r.get("untyped"):
+            return ("compose: I could not type the %s — name a carrier "
+                    "(polynomial / matrix / octonion / scalar)" % " and ".join(r["untyped"]))
+        if r.get("open"):
+            return "compose: no known op-chain from %s to %s (honest OPEN)" % (r["operand_carrier"], r["goal_carrier"])
+        chain = " → ".join(c.split(".")[-1] for c in r["chain"]) or "identity (already that carrier)"
+        return "compose: %s → %s via %s" % (r["operand_carrier"], r["goal_carrier"], chain)
 
     # ---- the LIVE context genome (F1097: express() in s.turn) ----
     _TEACH_BIT, _TERSE_BIT = 0b01, 0b10
@@ -235,6 +263,8 @@ class Session:
         if r == "self-command":
             tool, out = self._drive_self(u)
             return r, "siona.%s" % tool, out
+        if r == "compose":
+            return r, "siona.compose", self._compose(u)
         if r == "tool-call":
             return r, "srmech", self._drive_tool(u)
         if r == "define":

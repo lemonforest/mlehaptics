@@ -531,3 +531,16 @@ def test_planner_plan_nl_rc135_1114():
     assert [c.split(".")[-1] for c in r["chain"]] == ["poly_promote"], r
     assert P.plan_nl("I have a matrix", "I want a polynomial").get("open") is True     # honest OPEN
     assert P.plan_nl("I have something vague", "I want a scalar").get("untyped") == ["operand"]  # honest untyped
+
+
+def test_turn_compose_intent_rc135_1115():
+    """F1115 (#2/#255): s.turn routes an 'I have X ... want Y' turn to the COMPOSE intent -> plans the op-chain
+    (or honest OPEN/untyped); a non-compose turn is NOT stolen."""
+    import siona
+    s = siona.Session()
+    intent, tag, out = s.turn("I have a two-variable polynomial and want a three-variable form")
+    assert intent == "compose" and tag == "siona.compose", (intent, tag)
+    assert "BiPoly" in out and "TriPoly" in out and "poly_promote" in out, out
+    assert "OPEN" in s.turn("I have a matrix and want a polynomial")[2]
+    assert "type the operand" in s.turn("I have something vague and want a scalar")[2]
+    assert s.route("which has more days february or march") != "compose"      # specific: not stolen
