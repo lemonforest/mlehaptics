@@ -109,7 +109,6 @@ from __future__ import annotations
 from typing import Tuple
 
 from srmech.amsc.rational import sqrt as _rsqrt  # §22: scalar root via Class-N
-from srmech.amsc.cascade.spectral_cascades import kron as _kron_cascade
 from srmech.amsc.cascade.matrix_cascades import eigvals_exact as _eigvals_exact
 from srmech.amsc.laplacian import mat_hermitian_eigendecompose
 from srmech.amsc.mat import Mat
@@ -148,16 +147,31 @@ Canonical SSoT: Bell (1964) *Physics* 1, 195; CHSH (1969) *PRL* 23, 880.
 def _kron(a, b):
     """Kronecker product ``a ⊗ b`` → a numpy-free list-of-rows.
 
-    The Class-I(mixed-radix index) ∘ M (element products) Kronecker cascade
-    (``spectral_cascades.kron``, pure-Python). Composes two single-qubit
-    operators (each a ``Mat`` or list-of-rows) into a two-qubit operator. Per
-    ``[[user_stance_1d_collapse_to_loe_identity_not_action]]`` this is the
-    substrate-coupling operation that uncompresses single-qubit Pauli LoE-
-    content into the bipartite operator space.
-    """
+    The Class-I(mixed-radix index) ∘ M (element products) Kronecker cascade.
+    Composes two single-qubit operators (each a ``Mat`` or list-of-rows) into a
+    two-qubit operator. Per ``[[user_stance_1d_collapse_to_loe_identity_not_action]]``
+    this is the substrate-coupling operation that uncompresses single-qubit Pauli
+    LoE-content into the bipartite operator space.
+
+    rc147 (BATCH B8c — ``composition_of_c``): this is a LOCAL private
+    index-addressing helper (inlined so the ``chsh`` ops compose ONLY the
+    ``c_dispatched`` matrix carrier ops + this Class-I mixed-radix helper — the
+    same ``composition_of_c`` shape as :func:`srmech.qm.so8.an_embedding`'s local
+    ``_kron`` — and NOT the public ``python_only_debt``
+    ``spectral_cascades.kron`` op). Pure index-addressing + Class-M products; a
+    bare-C host reproduces it trivially (no float reduction to reorder)."""
     al = a.tolist() if isinstance(a, Mat) else [list(r) for r in a]
     bl = b.tolist() if isinstance(b, Mat) else [list(r) for r in b]
-    return _kron_cascade(al, bl)
+    ma, na = len(al), (len(al[0]) if al else 0)
+    mb, nb = len(bl), (len(bl[0]) if bl else 0)
+    out = [[0 for _ in range(na * nb)] for _ in range(ma * mb)]
+    for i in range(ma):
+        for j in range(na):
+            aij = al[i][j]
+            for k in range(mb):
+                for ell in range(nb):
+                    out[i * mb + k][j * nb + ell] = aij * bl[k][ell]  # Class M
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -179,10 +193,13 @@ def chsh_pauli_combination() -> "Mat":
         (bit-exact representable in IEEE-754 binary64).
     """
     sigma_x, _sigma_y, sigma_z = pauli_matrices()
-    xx = _kron(sigma_x, sigma_x)
-    zz = _kron(sigma_z, sigma_z)
-    M = [[xx[i][j] + zz[i][j] for j in range(4)] for i in range(4)]
-    return Mat.from_rows(M, is_complex=True)
+    xx = Mat.from_rows(_kron(sigma_x, sigma_x), is_complex=True)
+    zz = Mat.from_rows(_kron(sigma_z, sigma_z), is_complex=True)
+    # rc147 (BATCH B8c): the tensor-sum ``σ_x⊗σ_x + σ_z⊗σ_z`` routes through the
+    # c_dispatched Mat ``+`` (``srmech_mat_add``) — composition_of_c. The entries
+    # are EXACT integers {0, ±1, ±2}, so the native carrier add is BYTE-IDENTICAL
+    # to the pure fallback (no float tolerance, no libm, no abs()).
+    return xx + zz
 
 
 # ---------------------------------------------------------------------------
@@ -217,19 +234,23 @@ def chsh_operator() -> "Mat":
         ``{+2√2, 0, 0, −2√2}`` modulo double-precision floor.
     """
     sigma_x, _sigma_y, sigma_z = pauli_matrices()
-    sxl, szl = sigma_x.tolist(), sigma_z.tolist()
     inv_sqrt2 = 1.0 / float(_rsqrt(2.0))
-    A0, A1 = szl, sxl
-    # Class-I π/4 rotation phase factor (1/√2) over the Class-M tensor binds;
-    # entrywise numpy-free list arithmetic (no numpy, no abs()).
-    B0 = [[inv_sqrt2 * (szl[i][j] + sxl[i][j]) for j in range(2)] for i in range(2)]
-    B1 = [[inv_sqrt2 * (szl[i][j] - sxl[i][j]) for j in range(2)] for i in range(2)]
-    t = [_kron(A0, B0), _kron(A0, B1), _kron(A1, B0), _kron(A1, B1)]
-    B_CHSH = [
-        [t[0][i][j] + t[1][i][j] + t[2][i][j] - t[3][i][j] for j in range(4)]
-        for i in range(4)
-    ]
-    return Mat.from_rows(B_CHSH, is_complex=True)
+    A0, A1 = sigma_z, sigma_x
+    # rc147 (BATCH B8c): Bob's settings B0 = (σ_z+σ_x)/√2, B1 = (σ_z−σ_x)/√2 —
+    # the Class-I π/4 phase factor (1/√2) over the c_dispatched Mat carrier ops
+    # (``srmech_mat_add``/``srmech_mat_sub`` + ``srmech_mat_scale``),
+    # composition_of_c. numpy-free, no abs().
+    B0 = (sigma_z + sigma_x) * inv_sqrt2
+    B1 = (sigma_z - sigma_x) * inv_sqrt2
+    t0 = Mat.from_rows(_kron(A0, B0), is_complex=True)
+    t1 = Mat.from_rows(_kron(A0, B1), is_complex=True)
+    t2 = Mat.from_rows(_kron(A1, B0), is_complex=True)
+    t3 = Mat.from_rows(_kron(A1, B1), is_complex=True)
+    # B_CHSH = t0 + t1 + t2 − t3 via the c_dispatched Mat add/sub carrier ops.
+    # The 1/√2 factor rides the Class-N rational.sqrt (byte-exact integer-cascade
+    # C port), and every carrier op is a byte-exact mirror, so native==pure is
+    # BYTE-IDENTICAL even though the entries are the irrational ±1/√2.
+    return t0 + t1 + t2 - t3
 
 
 # ---------------------------------------------------------------------------

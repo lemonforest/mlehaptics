@@ -156,7 +156,35 @@ _ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
 #     (per [[feedback_cascade_svd_nullspace_accuracy_not_route_matrix_rank]]) and
 #     every span / dimension / closure invariant is preserved exactly.
 # python_only_debt 62 -> 53.
-CEIL_PYTHON_ONLY_DEBT = 53
+# rc147 (BATCH B8c — qm_exact_assembly part 3, CLOSES B8): the 9 gauge/bell/sm/misc
+# ops move to composition_of_c with NO new C symbol (ABI stays 3). Every op is a
+# pure composition of the already-C-backed matrix algebra — the c_dispatched
+# laplacian.mat_matmul (srmech_dense_matmul_complex) + mat_hermitian_eigendecompose
+# + the rc141 C carrier ops srmech_mat_{add,sub,scale} (the Mat +,-,* operators) +
+# the composition_of_c laplacian.mat_norm + the byte-exact Class-N rational.{sqrt,
+# cos,sin,cexp} integer-cascade C ports. Two honest sub-classes (EMPIRICAL):
+#   • 7 BYTE-IDENTICAL: chsh_pauli_combination / chsh_operator / casimir_operator /
+#     lie_algebra_residual / harmonic_oscillator_hamiltonian /
+#     single_particle.commutator / ckm_unitarity_residual. The C matmul accumulates
+#     real/imag SEPARATELY over p=0..k-1 — bit-for-bit CPython's complex s+=a*b —
+#     and rational.{sqrt,cos,sin} are byte-exact cascade ports, so native==pure is
+#     BYTE-IDENTICAL even for the irrational-VALUED entries (σ_z⊗σ_z's 1/√2, λ⁸'s
+#     1/√3, the ladder √n, the CKM cos/sin). (Honest: ckm's residual VALUE is a
+#     small ~1e-16 float — unitarity to float precision, NOT exact-0 — but the
+#     native-vs-pure PARITY is byte-identical; lie_algebra_residual is exact-0.0
+#     when the algebra holds.) The two bell ops route their tensor-sum through the
+#     Mat +,-,* carrier ops + a LOCAL private kron (index-addressing, like
+#     so8.an_embedding's _kron) — NOT the public python_only_debt spectral_cascades
+#     .kron.
+#   • 2 FLOAT-COMPOSITION: gauge_path_segment / wilson_loop_from_segments build the
+#     Wilson holonomy exp(iM) = V·diag(e^{iλ})·Vᴴ through the C-backed
+#     mat_hermitian_eigendecompose ∘ rational.cexp ∘ mat_matmul — the SAME
+#     composition_of_c float-eigenbasis pattern as the rc146 so7 / an_embedding.
+#     The Jacobi basis is non-unique, so native agrees with forced-pure on the
+#     unitarity invariant + (exp(iM) being basis-independent) the reconstructed
+#     holonomy within the accepted ~1e-9 carrier shift, NOT element-wise.
+# python_only_debt 53 -> 44. B8 (qm_exact_assembly, 24 ops over B8a/B8b/B8c) COMPLETE.
+CEIL_PYTHON_ONLY_DEBT = 44
 # rc8: SHA-256 mint cluster (6 ops) routed off raw hashlib onto sha256_raw -> 17.
 # rc9: octonion left_mult/right_mult/conjugate (3) delegate to the C-backed
 # hdc.loop_* family -> moved c_exists_unbound -> composition_of_c -> 14.
