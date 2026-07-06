@@ -92,20 +92,25 @@ def translate(source_text, target_units, *, gate=None, src_gate=None):
     return render(a, target_units, target_vecs=tvecs)    # B  : a → nearest target surface b
 
 
-def mnn_invariant(src_vecs, tgt_vecs):
-    """DETECT transcode-coherency-loss MUTATIONS via mutual-nearest-neighbour round-trip (F1121): a source gene
+def mnn_invariant(src, tgt, *, sim=None):
+    """DETECT transcode-coherency-loss MUTATIONS via mutual-nearest-neighbour round-trip (F1121): a source item
     is INVARIANT iff it round-trips — its best target is the target whose best source is it (A→B→A returns) —
-    else it is a MUTATION (coherency-loss at this ``A⁻¹`` depth). Returns a bool list over ``src_vecs``
-    (``True`` = invariant / round-trips).
+    else it is a MUTATION (coherency-loss at this ``A⁻¹`` depth). Returns a bool list over ``src`` (``True`` =
+    invariant / round-trips).
+
+    ``sim(a, b)`` is the similarity between items; default is the byte-glyph Klein-4 vector sim (``src``/``tgt``
+    are vectors). Pass a WORD-based ``sim`` — e.g. ``siona.relate.related`` (the sparse CO-OCCURRENCE deeper-`A⁻¹`,
+    F1126) — with ``src``/``tgt`` as WORDS to run the detector over the RELATIONSHIP layer instead of bytes; this
+    LOWERS the mutation rate (synonyms round-trip via relatedness, F1129) — the deeper `A⁻¹` recovering the
+    coherency the shallow byte read lost.
 
     This is a GENUINE detector, not a hand-list: the round-trip is biology's proofreading move (check the
     complement) — the triality 2-of-3 EC (F826) lifted from the substrate to the COHERENCY. The MUTATION-RATE
-    (fraction ``False``) measures transcode fidelity at this comprehend depth; a DEEPER ``A⁻¹`` (knowledge, not
-    bytes) lowers it, so correction = re-read the flagged genes at the deeper coherency (targeted injection, not
-    a blanket rewrite). The flagged mutation is UNREAD at this coherency (chirality-locked), not lost — read all
-    the chiral coordinates (no information without value)."""
-    if not src_vecs or not tgt_vecs:
-        return [False] * len(src_vecs)
-    ab = [max(range(len(tgt_vecs)), key=lambda j: _sim(sv, tgt_vecs[j])) for sv in src_vecs]   # A → B
-    ba = [max(range(len(src_vecs)), key=lambda j: _sim(tv, src_vecs[j])) for tv in tgt_vecs]   # B → A
-    return [ba[ab[i]] == i for i in range(len(src_vecs))]                                       # mutual? (round-trip)
+    (fraction ``False``) measures transcode fidelity at this comprehend depth. The flagged mutation is UNREAD at
+    this coherency (chirality-locked), not lost — read all the chiral coordinates (no information without value)."""
+    s = sim if sim is not None else _sim
+    if not src or not tgt:
+        return [False] * len(src)
+    ab = [max(range(len(tgt)), key=lambda j: s(src[i], tgt[j])) for i in range(len(src))]   # A → B
+    ba = [max(range(len(src)), key=lambda i: s(tgt[j], src[i])) for j in range(len(tgt))]   # B → A
+    return [ba[ab[i]] == i for i in range(len(src))]                                        # mutual? (round-trip)
