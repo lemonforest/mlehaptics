@@ -365,3 +365,20 @@ def test_story_from_genome_gene_express_rc135_1095():
     assert set(love) == {"Carton", "Lucie", "Darnay"}, set(love)         # ...DIFFERENT story
     assert set(revo) == {"Darnay", "Manette", "Defarge"}, set(revo)
     assert love["Carton"] == K["Carton"] and revo["Defarge"] == K["Defarge"]   # expressed kernels byte-exact
+
+
+def test_express_mode_live_in_turn_rc135_1097():
+    """F1097: express() is LIVE in s.turn -- the op(x)operand context becomes a cell_state that gene-expresses
+    the reply MODE from the context genome (SAME genome, DIFFERENT cell_state -> DIFFERENT mode), and one
+    teach/terse turn does NOT flip the persistent context."""
+    import siona
+    s = siona.Session()
+    assert s.active_mode == ["balanced"]
+    s.turn("what is a normalized laplacian")
+    assert s.active_mode == ["balanced"], s.active_mode          # neutral -> balanced only
+    s.turn("help me understand this better please")
+    assert "teaching" in s.active_mode, s.active_mode            # TEACH cell_state -> teaching gene expressed
+    s.turn("just the gcd of 12 and 8")
+    assert "concise" in s.active_mode, s.active_mode             # TERSE cell_state -> concise gene expressed
+    s.turn("and the fiedler vector")
+    assert s.active_mode == ["balanced"], s.active_mode          # a single teach/terse turn did NOT flip context

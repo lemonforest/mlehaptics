@@ -18,6 +18,8 @@ import re
 import importlib
 
 from .boards import Board, ENGLISH
+from .context_shape import ContextShape as _ContextShape
+from . import genome_store as _gstore
 
 __all__ = ["Session", "Grounding"]
 
@@ -157,6 +159,9 @@ class Session:
         self.attestations = []    # knowledge loads by PATH; every acquired fact carries Class-A attestation
         _register_self_tools()
         self.g = Grounding(D=D)
+        self.ctx = _ContextShape()                # op(x)operand response-shape context (F1091)
+        self.active_mode = ["balanced"]           # reply mode EXPRESSED from the context genome (F1095/F1097)
+        self._build_context_genome()
         self._impl = {
             "siona.memory.remember": self._remember, "siona.memory.recall": self._recall,
             "siona.memory.forget": self._forget, "siona.memory.show": self._show,
@@ -199,8 +204,33 @@ class Session:
                                    # relative-pronoun uses ('he knows what he wants') also match.
         return "continue"
 
+    # ---- the LIVE context genome (F1097: express() in s.turn) ----
+    _TEACH_BIT, _TERSE_BIT = 0b01, 0b10
+
+    def _build_context_genome(self):
+        """Build the reply-MODE genome ONCE (F1095/F1097): 'balanced' always expresses; 'teaching' is gated by
+        the TEACH condition, 'concise' by TERSE. The conversation's op(x)operand verbosity (F1091) becomes the
+        epigenetic ``cell_state``, so ``gene_express`` selects the active reply mode LIVE in :meth:`turn` — the
+        same coherence knob (F1075) realized as genome expression (SAME genome, DIFFERENT cell_state → DIFFERENT mode)."""
+        genes = [
+            ("balanced", list(self.g.enc_query("balanced measured reply"))),
+            ("teaching", list(self.g.enc_query("verbose teaching explanation reasons why")), self._TEACH_BIT),
+            ("concise", list(self.g.enc_query("terse concise brief short answer")), self._TERSE_BIT),
+        ]
+        self._ctx_genome, self._ctx_one = _gstore.build_genome(genes)
+
+    def _express_mode(self, u):
+        """Derive the ``cell_state`` from the op(x)operand context and EXPRESS the active reply mode (F1097) —
+        the gene_express op⊗operand theorem, live: SAME genome, DIFFERENT cell_state → DIFFERENT expressed mode."""
+        eff = self.ctx.shape(u)                   # effective verbosity for THIS turn (running operand + operator)
+        cs = self._TEACH_BIT if eff > 0.6 else (self._TERSE_BIT if eff < 0.35 else 0)
+        self.active_mode = list(_gstore.express(self._ctx_genome, cs, the_one=self._ctx_one))
+        return self.active_mode
+
     def turn(self, u):
-        """Route + dispatch one utterance; returns (intent, tag, output)."""
+        """Route + dispatch one utterance; returns (intent, tag, output). The reply MODE is expressed LIVE from
+        the context genome per the turn's ``cell_state`` (F1097 — ``express()`` in ``s.turn``)."""
+        self._express_mode(u)                     # LIVE context genome: op(x)operand cell_state -> reply mode
         r = self.route(u)
         if r == "self-command":
             tool, out = self._drive_self(u)
