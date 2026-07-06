@@ -345,3 +345,23 @@ def test_genome_store_roundtrip_rc135_249():
         loaded = GS.load_instrument(path)
         assert all(len(loaded[l]) == 8192 and loaded[l] == hv for l, hv in named), {l: len(loaded[l]) for l in loaded}
         assert GS.load_kernel(path, "b") == dict(named)["b"]        # single-label demand-load path
+
+
+def test_story_from_genome_gene_express_rc135_1095():
+    """F1095: a story is the EXPRESSED subset of a genome (epigenetics), NOT the genome. ONE genome (all
+    characters) expresses DIFFERENT stories per cell_state; expressed kernels recover byte-exact."""
+    import siona
+    from siona import genome_store as GS
+    s = siona.Session()
+    K = {n: list(s.g.enc_query(n + " " + d)) for n, d in
+         [("Carton", "sacrifice love"), ("Lucie", "love golden thread"), ("Darnay", "both arcs"),
+          ("Manette", "bastille revolution"), ("Defarge", "revolution vengeance")]}
+    LOVE, REVOLUTION = 0b001, 0b010
+    genome, one = GS.build_genome([
+        ("Carton", K["Carton"], LOVE), ("Lucie", K["Lucie"], LOVE), ("Darnay", K["Darnay"]),
+        ("Manette", K["Manette"], REVOLUTION), ("Defarge", K["Defarge"], REVOLUTION)])
+    love = GS.express(genome, LOVE, the_one=one)                          # SAME genome...
+    revo = GS.express(genome, REVOLUTION, the_one=one)                    # ...DIFFERENT cell_state
+    assert set(love) == {"Carton", "Lucie", "Darnay"}, set(love)         # ...DIFFERENT story
+    assert set(revo) == {"Darnay", "Manette", "Defarge"}, set(revo)
+    assert love["Carton"] == K["Carton"] and revo["Defarge"] == K["Defarge"]   # expressed kernels byte-exact

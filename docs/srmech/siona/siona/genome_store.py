@@ -83,6 +83,26 @@ def load_kernel(path, label, *, the_one=None):
     return _flatten(parts[label])
 
 
+def build_genome(named_genes, *, leaf_dim=LEAF_DIM, the_one=None, label="genome"):
+    """Build a REGULATORY genome — the ALL-POSSIBLE-information object (F1095). Each ``gene`` is
+    ``(label, hv)`` (always expressed), ``(label, hv, activator_mask)``, or ``(label, hv, activator, repressor)``
+    — the activator/repressor masks are the epigenetic gates (Class-I bit conditions). Returns ``(strand, the_one)``;
+    the strand is a multi-gene chromosome. The genome is NOT the story — :func:`express` reads a story/context OUT
+    of it per ``cell_state`` (SAME genome, DIFFERENT cell_state → DIFFERENT expressed subset)."""
+    one = _coupler(leaf_dim) if the_one is None else the_one
+    genes = [((g[0], _leaves(g[1], leaf_dim)) + tuple(g[2:])) for g in named_genes]
+    return _G.chromosome(genes=genes, the_one=one, label=label), one
+
+
+def express(strand, cell_state, *, the_one):
+    """EXPRESS a story/context from the genome (F1095): ``gene_express`` returns only the genes the epigenetic
+    ``cell_state`` gates ON → ``{label: flat Klein-4 kernel}``. This is the op⊗operand theorem (the genome's own
+    docstring): SAME genome (all-possible), DIFFERENT ``cell_state`` (epigenetic context) → DIFFERENT expressed
+    subset (the STORY, or the active CONTEXT). A pure READ — the genome is never mutated. ``cell_state`` is a
+    non-negative int (each bit a present condition; Class-I integers, no float; sign stays Class-K)."""
+    return {lbl: _flatten(lv) for lbl, lv in _G.gene_express(strand, the_one, cell_state)}
+
+
 def add_kernel(path, label, hv, *, leaf_dim=LEAF_DIM, the_one=None):
     """Append ONE newly-taught kernel to an existing genome in **O(1)** (F1044 — the helix tail-extends;
     prior bytes are never re-read). The kernel's ``D`` must be a multiple of ``leaf_dim`` (siona's
