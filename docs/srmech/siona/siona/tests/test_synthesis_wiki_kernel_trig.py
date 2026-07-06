@@ -382,3 +382,21 @@ def test_express_mode_live_in_turn_rc135_1097():
     assert "concise" in s.active_mode, s.active_mode             # TERSE cell_state -> concise gene expressed
     s.turn("and the fiedler vector")
     assert s.active_mode == ["balanced"], s.active_mode          # a single teach/terse turn did NOT flip context
+
+
+def test_register_vocab_and_honest_undetermined_rc135_1099():
+    """F1099 (#252): the register VOCABULARY (fiction/fact/math discrete bits; parable = emergent graded) is
+    sound; the naive klein4_similarity coupling is FLAT (~0.26, spread ~0.02) so classify() honestly returns
+    'undetermined', not a forced parable false-positive (F552). Principled measure = Class-L shape (R-RBS-250)."""
+    import siona
+    from siona import register as R
+    assert R.DISCRETE["fiction"] == R.NARRATIVE
+    assert R.DISCRETE["fact"] == R.ATTESTED
+    assert R.DISCRETE["math"] == (R.ATTESTED | R.FORMAL)          # math = fact's register + FORMAL dress
+    s = siona.Session()
+    enc = lambda t: list(s.g.enc_query(t))
+    webs = {"fiction": [enc("gandalf leads the fellowship"), enc("ahab hunts the whale")],
+            "fact": [enc("water boils at one hundred celsius"), enc("mitochondria make energy")],
+            "math": [enc("a prime has two divisors"), enc("triangle angles sum to one eighty")]}
+    r = R.classify("sound travels faster through water than air", webs, s.g)
+    assert r["register"] == "undetermined" and r["spread"] < 0.05, r   # flat coupling -> honest don't-know
