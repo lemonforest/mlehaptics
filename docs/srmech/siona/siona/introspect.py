@@ -57,33 +57,92 @@ def _default_source_dirs():
     return [os.path.dirname(srmech.__file__), os.path.dirname(os.path.abspath(__file__))]
 
 
+def _srmech_bound_names(tree):
+    """Names bound from ``srmech.*`` imports (module aliases + directly-imported ops) — so an Attribute call
+    ``alias.op(...)`` counts only when ``alias`` is srmech, excluding homonym methods like ``str.partition`` (F1088)."""
+    import ast
+    names = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for n in node.names:
+                if n.name.startswith("srmech"):
+                    names.add(n.asname or n.name.split(".")[0])
+        elif isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("srmech"):
+            for n in node.names:
+                names.add(n.asname or n.name)
+    return names
+
+
 def mine_usage(op_labels, source_dirs=None, *, max_per_op=4):
-    """Learning by IMITATION (F1086): scan ``source_dirs`` for real call-sites of each op → ``{label:
-    [example_line, …]}``. These WORKING EXAMPLES are the how-to-USE (procedural) knowledge that the signature
-    (declarative, being-TOLD) omits. Cross-substrate imitation: Siona learns from the human-written examples."""
+    """Learning by IMITATION (F1086), via a PROPER code parse — Python ``ast`` (the code sublanguage; NOT a
+    regex — F1088): scan source for REAL srmech-op call-sites → ``{label: [example_line, …]}``. A bare
+    ``partition(...)`` (Name call) is the op; ``str.partition`` is an Attribute call on a non-srmech object
+    (excluded); prose/comments are not Call nodes (excluded). These human-written examples are the how-to-USE
+    knowledge the signature (being-TOLD) omits — cross-substrate imitation of the human demonstrator."""
+    import ast
     import os
-    import re
     short2full = {}
     for lab in op_labels:
         short2full.setdefault(lab.split(".")[-1], lab)              # first module wins on a name collision
     usage = {lab: [] for lab in op_labels}
-    call_re = re.compile(r"\b([a-z_][a-z0-9_]*)\s*\(")
     for d in (source_dirs or _default_source_dirs()):
         for root, _, files in os.walk(d):
             for fn in files:
                 if not fn.endswith(".py"):
                     continue
                 try:
-                    txt = open(os.path.join(root, fn), encoding="utf-8", errors="ignore").read()
+                    src = open(os.path.join(root, fn), encoding="utf-8", errors="ignore").read()
+                    tree = ast.parse(src)
                 except Exception:
                     continue
-                for ln in txt.split("\n"):
-                    s = ln.strip()
-                    if not (12 < len(s) < 180) or s.startswith(("def ", "#", "async def ")):
+                bound = _srmech_bound_names(tree)
+                lines = src.split("\n")
+                for node in ast.walk(tree):
+                    if not isinstance(node, ast.Call):
                         continue
-                    for name in set(call_re.findall(s)):
-                        full = short2full.get(name)
-                        if full and ("def " + name) not in s and s not in usage[full] and len(usage[full]) < max_per_op:
+                    f = node.func
+                    op = None
+                    if isinstance(f, ast.Name) and f.id in short2full:          # bare op call — unambiguous
+                        op = f.id
+                    elif (isinstance(f, ast.Attribute) and isinstance(f.value, ast.Name)
+                          and f.value.id in bound and f.attr in short2full):    # srmech-module.op — not a homonym
+                        op = f.attr
+                    if op:
+                        full = short2full[op]
+                        ln = lines[node.lineno - 1].strip() if 0 < node.lineno <= len(lines) else ""
+                        if 10 < len(ln) < 180 and ln not in usage[full] and len(usage[full]) < max_per_op:
+                            usage[full].append(ln)
+    # ALSO mine each op's DOCSTRING (the author's intended examples, e.g. `partition(genome({…}), one) == {…}`),
+    # ast-VALIDATED so real example lines survive and prose that merely names the op does not (F1088).
+    import inspect
+    import importlib
+    for modname in (SRMECH_MODULES):
+        try:
+            mod = importlib.import_module(modname)
+        except Exception:
+            continue
+        for name in dir(mod):
+            if name.startswith("_") or name[:1].isupper():
+                continue
+            obj = getattr(mod, name, None)
+            if not callable(obj):
+                continue
+            for raw in (inspect.getdoc(obj) or "").split("\n"):
+                s = raw.strip()
+                if s.startswith(">>>"):
+                    s = s[3:].strip()
+                if not (10 < len(s) < 180):
+                    continue
+                try:
+                    dtree = ast.parse(s)
+                except Exception:
+                    continue
+                for node in ast.walk(dtree):
+                    if isinstance(node, ast.Call):
+                        f = node.func
+                        onm = f.id if isinstance(f, ast.Name) else (f.attr if isinstance(f, ast.Attribute) else None)
+                        full = short2full.get(onm)
+                        if full and s not in usage[full] and len(usage[full]) < max_per_op:
                             usage[full].append(s)
     return usage
 
@@ -108,8 +167,41 @@ class Tooling:
             reverse=True)
         return [(l, self.kb[l], round(s, 3)) for s, l in scored[:k]]
 
-    def how_to(self, query, k=1, n=3):
-        """IMITATION tier (F1086): ground the query to the op (TOLD), then SHOW ``n`` real working examples
-        (IMITATION) of how it is actually called. Returns ``[(label, description, [usage_examples])]`` — the
-        runnable how-to, not just the signature. This is what the #249 genome bug needed: the composition, shown."""
-        return [(lab, desc, self.usage.get(lab, [])[:n]) for lab, desc, _ in self.answer(query, k=k)]
+    def _explain(self, line):
+        """Describe a usage example (F1088): ast-parse it and return the ops appearing IN it with their told-
+        descriptions — WHAT the things are and WHY they exist. So imitation carries UNDERSTANDING (the action,
+        the objects, the rationale), not just the surface keystrokes."""
+        import ast
+        found, seen = [], set()
+        try:
+            tree = ast.parse(line.strip())
+        except Exception:
+            return found
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                f = node.func
+                nm = f.id if isinstance(f, ast.Name) else (f.attr if isinstance(f, ast.Attribute) else None)
+                if nm and nm not in seen:
+                    full = next((l for l in self.labels if l.split(".")[-1] == nm), None)
+                    if full:
+                        seen.add(nm); found.append((full, self.kb[full]))
+        return found
+
+    def how_to(self, query, k=1, n=3, understand=False):
+        """The imitation tier — TWO distinct turn-types (F1088), selected by ``understand``:
+
+          * ``understand=False`` — **plain IMITATION**: just the ACTION (the runnable example). Copy the
+            pattern; for a fluent asker who wants the keystrokes, terse.
+          * ``understand=True``  — **IMITATION WITH UNDERSTANDING**: the action PLUS what the composed ops ARE
+            and WHY (each op's told-description). For a learner, a teaching mode, or when context warrants
+            verbose feedback.
+
+        They are separate on purpose; the CHOICE is DYNAMIC — a "super-teaching" Siona, or a shift in the
+        user's perspective, sets it (the same terse↔descriptive coherence knob as ``path_emit``, F1075). It is
+        fine to smoosh both in testing; keep them distinct in the interface. Returns
+        ``[(label, description, [(example, explanation_or_None)])]`` (``explanation`` is ``None`` in plain mode)."""
+        out = []
+        for lab, desc, _ in self.answer(query, k=k):
+            examples = [(e, (self._explain(e) if understand else None)) for e in self.usage.get(lab, [])[:n]]
+            out.append((lab, desc, examples))
+        return out

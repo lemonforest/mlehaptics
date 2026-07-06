@@ -301,11 +301,16 @@ def test_introspect_siona_knows_her_tooling_rc135():
 
 
 def test_introspect_imitation_how_to_rc135():
-    """F1087 (#251): the IMITATION tier -- how_to mines real usage examples (learning by imitation) on top of
-    the told tier. A well-used op returns real call-site examples, not just its signature."""
+    """F1087/F1088 (#251): the IMITATION tier via a PROPER ast parse (no regex noise), with TWO distinct
+    modes -- plain IMITATION (action only) and IMITATION WITH UNDERSTANDING (action + what/why)."""
     from siona import introspect as I
     s = siona.Session()
     tool = I.Tooling(s.g)
     assert sum(1 for l in tool.usage if tool.usage[l]) > 50, "mined examples for many ops"
-    lab, desc, ex = tool.how_to("compute the graph laplacian eigenvalues", k=1, n=3)[0]
-    assert ex and any("laplacian" in e for e in ex), (lab, ex)      # imitation SHOWS a working example
+    # plain IMITATION -- the action only (explanation None)
+    lab, desc, exs = tool.how_to("compute the graph laplacian eigenvalues", k=1, n=3, understand=False)[0]
+    assert exs and all(expl is None for _, expl in exs), exs
+    assert any("laplacian" in ex for ex, _ in exs), exs             # imitation SHOWS a working example
+    # IMITATION WITH UNDERSTANDING -- the action + the composed ops described (what/why)
+    _, _, exs2 = tool.how_to("compute the graph laplacian eigenvalues", k=1, n=3, understand=True)[0]
+    assert exs2 and any(expl for _, expl in exs2), exs2
