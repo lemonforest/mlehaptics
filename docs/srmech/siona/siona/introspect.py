@@ -183,20 +183,36 @@ def mine_usage(op_labels, source_dirs=None, *, max_per_op=4):
     return usage
 
 
+def _default_cache_path():
+    """Default on-disk cache for the knowledge genome (F1111/#256) — persists across runs under the user cache
+    dir (``$XDG_CACHE_HOME`` or ``~/.cache``), version-keyed so a srmech upgrade rebuilds it."""
+    import os
+    base = os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache")
+    return os.path.join(base, "siona", "knowledge_genome")
+
+
 class Tooling:
     """Siona's self-knowledge of her tooling — BOTH tiers (F1084/F1086): learning by being TOLD (op
     signature/docstring, ``answer``) AND learning by IMITATION (real usage examples, ``how_to``). Told is the
     index; imitation is the runnable. Both built from the LIVE package/source, so neither lags the format."""
 
-    def __init__(self, grounder, modules=None, *, mine=True, source_dirs=None):
+    def __init__(self, grounder, modules=None, *, mine=True, source_dirs=None, cache=True, cache_path=None):
         self._g = grounder
-        self.kb = introspect_srmech(modules)                        # TOLD: {label: description} — live, never stale
+        self.kb = introspect_srmech(modules)                        # TOLD descriptions (fast; for display + fallback)
         self.labels = list(self.kb)
-        self._vecs = [grounder.enc_query(self.kb[l]) for l in self.labels]
+        self.carriers = introspect_carriers()                       # NOUNS: carrier TYPES (F1110)
+        self._clabels = list(self.carriers)
+        kg = {}
+        if cache:                                                   # F1111/#256: LOAD the cached knowledge genome
+            try:                                                    # (the expensive enc_query happens once, then recall)
+                from . import knowledge_genome as _kgmod
+                kg = _kgmod.load_or_build(grounder, cache_path or _default_cache_path(), modules=modules)
+            except Exception:
+                kg = {}                                             # any cache issue → encode live (robust)
+        self._vecs = [kg.get(l) or list(grounder.enc_query(self.kb[l])) for l in self.labels]
+        self._cvecs = [kg.get("carrier." + c.replace(":", "_")) or list(grounder.enc_query(self.carriers[c]))
+                       for c in self._clabels]
         self.usage = mine_usage(self.labels, source_dirs) if mine else {}   # IMITATION: {label: [examples]}
-        self.carriers = introspect_carriers()                       # NOUNS: Siona's carrier TYPES (F1110) — the
-        self._clabels = list(self.carriers)                         # types introspect_srmech SKIPS (upper-case classes)
-        self._cvecs = [grounder.enc_query(self.carriers[c]) for c in self._clabels]
 
     def answer(self, query, k=3):
         """TOLD tier: ground a tooling question to the k nearest ops → ``[(label, description, similarity)]``."""
