@@ -478,9 +478,14 @@ def test_rosetta_buckets():
     ] == "c_dispatched"
     assert buckets["srmech.qm.octonion.octonion_exp"] == "c_dispatched"
     assert buckets["srmech.qm.octonion.octonion_twiddle"] == "c_dispatched"
+    # rc160 (Qalg TAIL Batch 4): octonion_exp_series_truncate LEFT
+    # bignum_reference — it only packs the already-c_dispatched
+    # rational.{cos,sin}_series_truncate into the Euler-formula 8-tuple, so it is
+    # a composition_of_c (the compute already reaches C; the parked-oracle label
+    # was the last thing to correct).
     assert buckets[
         "srmech.qm.octonion.octonion_exp_series_truncate"
-    ] == "bignum_reference"
+    ] == "composition_of_c"
 
 
 def test_octonion_twiddle_family_tool_entries_registered():

@@ -464,7 +464,21 @@ CEIL_C_EXISTS_UNBOUND = 0
 # at ANY magnitude. All 4 move bignum_reference -> c_dispatched. CEIL_BIGNUM_
 # REFERENCE 17 -> 13. (Next batch B4 = srmech_cd_mult + left_mult_matrix/kernel;
 # 13 -> 8.)
-CEIL_BIGNUM_REFERENCE = 13
+# rc160 (Qalg TAIL Batch 4): the Cayley-Dickson MULTIPLICATION core earns a C
+# path. The NEW C kernel srmech_cd_mult computes the arbitrary-rational CD product
+# ((x·y)_{i⊕j} += x_i·y_j·sign) by composing the srmech_cd_basis_product cocycle
+# with the SAME qmat exact-ℚ arithmetic the rc159 Qvec kernels use (in-TU, no
+# duplicated ℚ algebra) — so cd_mult moves bignum_reference -> c_dispatched. Its
+# two dependents ride the same C: left_mult_matrix (each column x·e_c is a cd_mult)
+# and left_mult_kernel (srmech_qmat_nullspace over left_mult_matrix) move
+# bignum_reference -> composition_of_c. And the two hypercomplex-exp Taylor oracles
+# octonion/quaternion.exp_series_truncate were only PARKED in bignum_reference: each
+# just packs the already-c_dispatched rational.{cos,sin}_series_truncate into the
+# Euler-formula 4-/8-tuple, so both move bignum_reference -> composition_of_c (no
+# new kernel). All 5 leave bignum_reference. CEIL_BIGNUM_REFERENCE 13 -> 8. (The
+# remaining 8 are the exact-symbolic LA + integer-poly-factor tail: char_poly /
+# eigvals / eigvec (×2) / eig / factor_integer_poly / jordan (×2).)
+CEIL_BIGNUM_REFERENCE = 8
 
 _DEBT_BUCKETS = ("python_only_debt", "c_exists_unbound")
 _ALL_BUCKETS = (

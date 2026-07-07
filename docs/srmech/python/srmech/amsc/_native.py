@@ -988,6 +988,20 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.c_void_p, ctypes.c_size_t,
         ]
         lib.srmech_cd_qnorm_sq.restype = ctypes.c_int
+    # Cayley-Dickson exact-ℚ PRODUCT (v0.9.0rc160; Qalg TAIL Batch 4) — the CD
+    # multiplication over ℚ, composing srmech_cd_basis_product + the qmat ℚ
+    # arithmetic. Backs cayley_dickson.cd_mult; hasattr-guarded (pre-rc160 lib).
+    #   int srmech_cd_mult(bigint *x_n, *x_d, *y_n, *y_d, int dim,
+    #       bigint *out_n, *out_d, void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_cd_mult"):
+        lib.srmech_cd_mult.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_int,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_cd_mult.restype = ctypes.c_int
 
     # Qi exact-complex (Gaussian-rational) carrier C-host peer (0.9.0rc15) —
     # carrier-internal (NOT a Rosetta op), four int64 limbs {re_num, re_den,
@@ -4547,6 +4561,46 @@ def cd_qnorm_sq_c(components) -> "tuple | None":
     if rc != SRMECH_OK:
         return None
     return (_bigint_to_int(o_num), _bigint_to_int(o_den))
+
+
+def has_native_cd_mult() -> bool:
+    """True iff the rc160 CD exact-ℚ PRODUCT kernel is loaded (plus the Qvec
+    sizing + srmech_bigint decimal-marshal helpers it shares). False on a no-C
+    or pre-rc160 lib — the pure-Python recursive ``_mult`` in
+    ``srmech.amsc.cascade.cayley_dickson`` is the complete, byte-identical
+    alternative (and the parity oracle)."""
+    return has_native_cd_qvec() and (
+        LIB is not None and hasattr(LIB, "srmech_cd_mult"))
+
+
+def cd_mult_c(x_components, y_components) -> "list | None":
+    """Native arbitrary-rational Cayley–Dickson product x·y → list of ``dim``
+    reduced ``(num, den)`` tuples, or None (no-C / pre-rc160 lib). Both are
+    same-length ``(num, den)`` sequences. Sized from the input limb count via
+    the shared Qvec sizing symbols (each output slot sums ``dim`` products — the
+    same accumulation profile as cd_norm_sq); a too-small arena → OVERFLOW →
+    None → the caller's pure-Fraction oracle."""
+    if not has_native_cd_mult():
+        return None
+    dim = len(x_components)
+    if dim != len(y_components):
+        return None
+    cl = max(_poly_coeff_limbs(x_components), _poly_coeff_limbs(y_components))
+    out_cap = int(LIB.srmech_cd_qvec_entry_cap(
+        ctypes.c_size_t(cl), ctypes.c_size_t(dim)))
+    ws_len = int(LIB.srmech_cd_qvec_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_size_t(dim)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    x_n, x_d, kx = _poly_make_array(x_components, out_cap)
+    y_n, y_d, ky = _poly_make_array(y_components, out_cap)
+    o_n, o_d, ko = _poly_blank_array(dim, out_cap)
+    rc = LIB.srmech_cd_mult(
+        x_n, x_d, y_n, y_d, int(dim), o_n, o_d,
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len))
+    _ = (kx, ky, ko)
+    if rc != SRMECH_OK:
+        return None
+    return _poly_read_array(o_n, o_d, dim)
 
 
 # ----------------------------------------------------------------------

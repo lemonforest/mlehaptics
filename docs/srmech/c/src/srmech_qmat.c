@@ -1103,3 +1103,92 @@ srmech_status_t srmech_cd_qnorm_sq(const srmech_bigint_t *x_n,
     if (st != SRMECH_OK) { return st; }
     return srmech_bigint_copy(out_den, &c.qa_d);
 }
+
+/* ==================================================================== *
+ * srmech_cd_mult — the arbitrary-rational Cayley-Dickson PRODUCT (the
+ * recursive-doubling multiplication) as ONE caller-arena C kernel
+ * (v0.9.0rc160; Qalg TAIL Batch 4). It COMPOSES the integer cocycle
+ * srmech_cd_basis_product (e_i·e_j = sign·e_{i⊕j}) with the SAME qmat
+ * exact-ℚ scalar arithmetic (qmat_q_mul / qmat_q_add / qmat_q_reduce)
+ * the rc159 Qvec kernels use — the ℚ arithmetic is NOT duplicated. The
+ * product is the bilinear form (x·y)_{i⊕j} = Σ_{i,j} x_i·y_j·sign(i,j),
+ * BYTE-IDENTICAL (reduced num/den) to Python's recursive _mult at ANY
+ * sedenion+ magnitude (bilinearity: the recursion and the cocycle-sum
+ * are the same rational, both reduced to canonical Fraction form).
+ * Rosetta peer of srmech.amsc.cascade.cayley_dickson.cd_mult; the 1-D
+ * accumulation profile (each output slot sums exactly `dim` products)
+ * matches srmech_cd_qnorm_sq, so it shares srmech_cd_qvec_ws_bound /
+ * srmech_cd_qvec_entry_cap sizing. JPL-clean: caller arena (no malloc),
+ * <=60-line funcs, >=2 asserts, no goto/recursion/abs/libm.
+ * ==================================================================== */
+
+/* One Cayley-Dickson bilinear term: acc += sign*(x_i * y_j), exact ℚ. qb =
+ * x_i*y_j (reduced); a Class-K numerator sign-flip when sign < 0 (never an ALU
+ * abs); then acc = acc + qb via the fa snapshot (qmat_q_add forbids the out
+ * carrier aliasing an input). Uses the ctx carriers qb / fa only. */
+static srmech_status_t cd_mult_accum(qmat_ctx_t *c, int sign,
+                                     const srmech_bigint_t *xn,
+                                     const srmech_bigint_t *xd,
+                                     const srmech_bigint_t *yn,
+                                     const srmech_bigint_t *yd,
+                                     srmech_bigint_t *acc_n,
+                                     srmech_bigint_t *acc_d)
+{
+    srmech_status_t st;
+    assert(c != NULL && acc_n != NULL && acc_d != NULL);
+    assert(sign == 1 || sign == -1);
+    st = qmat_q_mul(c, &c->qb_n, &c->qb_d, xn, xd, yn, yd);   /* qb = x_i*y_j */
+    if (st != SRMECH_OK) { return st; }
+    if (sign < 0 && c->qb_n.sign != 0) {
+        c->qb_n.sign = -c->qb_n.sign;                        /* Class-K; no abs */
+    }
+    st = qmat_q_add(c, &c->fa_n, &c->fa_d, acc_n, acc_d,
+                    &c->qb_n, &c->qb_d, 0);                  /* fa = acc + qb  */
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_bigint_copy(acc_n, &c->fa_n);                /* acc <- fa      */
+    if (st != SRMECH_OK) { return st; }
+    return srmech_bigint_copy(acc_d, &c->fa_d);
+}
+
+srmech_status_t srmech_cd_mult(const srmech_bigint_t *x_n,
+                               const srmech_bigint_t *x_d,
+                               const srmech_bigint_t *y_n,
+                               const srmech_bigint_t *y_d, int dim,
+                               srmech_bigint_t *out_n, srmech_bigint_t *out_d,
+                               void *ws, size_t ws_len)
+{
+    qmat_ctx_t c;
+    srmech_status_t st;
+    size_t clx, cly, cl, cap, k, d, ii, jj;
+    int idx, sgn;
+    assert(x_n != NULL && x_d != NULL && y_n != NULL && y_d != NULL);
+    assert(out_n != NULL && out_d != NULL);
+    if (x_n == NULL || x_d == NULL || y_n == NULL || y_d == NULL
+            || out_n == NULL || out_d == NULL) { return SRMECH_ERR_NULL_ARG; }
+    if (dim < 1 || dim > SRMECH_CD_MAX_DIM || (dim & (dim - 1)) != 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    d = (size_t)dim;
+    clx = qmat_max_coeff_limbs(x_n, x_d, d);
+    cly = qmat_max_coeff_limbs(y_n, y_d, d);
+    cl = (cly > clx) ? cly : clx;
+    cap = qmat_cap_for(cl, d + 3u);
+    st = qmat_ctx_init(&c, (uint32_t)cap, ws, ws_len);
+    if (st != SRMECH_OK) { return st; }
+    for (k = 0u; k < d; k++) {                        /* out[k] = 0/1 */
+        st = srmech_bigint_set_i64(&out_n[k], 0);
+        if (st != SRMECH_OK) { return st; }
+        st = srmech_bigint_set_i64(&out_d[k], 1);
+        if (st != SRMECH_OK) { return st; }
+    }
+    for (ii = 0u; ii < d; ii++) {                     /* (x·y)_{i⊕j} bilinear */
+        for (jj = 0u; jj < d; jj++) {
+            st = srmech_cd_basis_product(dim, (int)ii, (int)jj, &idx, &sgn);
+            if (st != SRMECH_OK) { return st; }
+            st = cd_mult_accum(&c, sgn, &x_n[ii], &x_d[ii], &y_n[jj], &y_d[jj],
+                               &out_n[(size_t)idx], &out_d[(size_t)idx]);
+            if (st != SRMECH_OK) { return st; }
+        }
+    }
+    return SRMECH_OK;
+}
