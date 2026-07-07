@@ -425,9 +425,9 @@
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.eigvec_exact", "defined_at": "srmech.amsc.cascade.matrix_cascades.eigvec_exact", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.eigvec_exact_float", "defined_at": "srmech.amsc.cascade.matrix_cascades.eigvec_exact_float", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.factor_integer_poly", "defined_at": "srmech.amsc.cascade.matrix_cascades.factor_integer_poly", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.cascade.matrix_cascades.eig_exact", "defined_at": "srmech.amsc.cascade.matrix_cascades.eig_exact", "bucket": "bignum_reference", "oracle_justification": "Exact-symbolic arbitrary-precision linear algebra (characteristic polynomial / exact eigen-decomposition / Jordan form / integer polynomial factoring over Q) \u2014 the bignum reference oracle; no fixed-width C kernel (the exact-symbolic carrier IS the reference)."}
+{"exposed_as": "srmech.amsc.cascade.matrix_cascades.eig_exact", "defined_at": "srmech.amsc.cascade.matrix_cascades.eig_exact", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.jordan_chains_exact", "defined_at": "srmech.amsc.cascade.matrix_cascades.jordan_chains_exact", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.cascade.matrix_cascades.jordan_form_exact", "defined_at": "srmech.amsc.cascade.matrix_cascades.jordan_form_exact", "bucket": "bignum_reference", "oracle_justification": "Exact-symbolic arbitrary-precision linear algebra (characteristic polynomial / exact eigen-decomposition / Jordan form / integer polynomial factoring over Q) \u2014 the bignum reference oracle; no fixed-width C kernel (the exact-symbolic carrier IS the reference)."}
+{"exposed_as": "srmech.amsc.cascade.matrix_cascades.jordan_form_exact", "defined_at": "srmech.amsc.cascade.matrix_cascades.jordan_form_exact", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.encode_shape", "defined_at": "srmech.amsc.genome.encode_shape", "bucket": "non_compute"}
 {"exposed_as": "srmech.amsc.genome.quad_turn", "defined_at": "srmech.amsc.genome.quad_turn", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.telomere", "defined_at": "srmech.amsc.genome.telomere", "bucket": "composition_of_c"}
