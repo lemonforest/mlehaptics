@@ -18,7 +18,7 @@ import json
 import os
 import re
 
-__all__ = ["load", "poles", "opposite", "have_axis", "build"]
+__all__ = ["load", "poles", "opposite", "have_axis", "build", "structural_poles", "graft"]
 
 _SRC = "/home/skirklan/corpora/conceptnet/conceptnet-assertions-5.7.0.csv.gz"
 _KEEP = frozenset(("/r/Antonym",))                          # the opponent / opposite-pole relation (DistinctFrom is too broad, F1137)
@@ -119,3 +119,29 @@ def structural_poles(words):
     k = min(range(n), key=lambda i: evals[i])                   # smallest eigenvalue = the balance partition
     g = [float(evecs[r][k]) for r in range(n)]
     return {field[i]: (0 if g[i] >= 0 else 1) for i in range(n)}
+
+
+def graft(words, *, apply=False):
+    """Chirality GRAFT (F1139): INFER new opponent edges for a field from :func:`structural_poles`, k=3-EC-gated —
+    the graft-as-GROWTH move (F1134: add a coherent DoF). A cross-pole pair is a NEW opponent iff all three
+    independent axes agree: STRUCTURAL (cross-pole in the signed-Laplacian partition) ∧ RELATIONAL (co-occurrence
+    related — same dimension, so an opponent relation is meaningful) ∧ NOT-SAME-POLE (they do NOT share an antonym
+    — the EC check that PRUNES a misplaced node, since a shared antonym means SAME pole). With ``apply=True`` the
+    inferred edges are ADDED to the in-memory opponent index so :func:`opposite` / ``sense`` / ``s.turn`` pick them
+    up — Siona LEARNS the opponents she lacked. Returns the new ``(a, b)`` edges (the pseudogene-pruned survivors)."""
+    from siona import relate as _rel
+    _rel.load()
+    pol = structural_poles(words)
+    field = list(pol)
+    new = []
+    for i, a in enumerate(field):
+        for b in field[i + 1:]:
+            if pol[a] != pol[b] and not opposite(a, b):                       # structural cross-pole, not yet known
+                if _rel.related(a, b) > 0.0 and not (poles(a) & poles(b)):    # k=3 EC gate: related ∧ not same-pole
+                    new.append((a, b))
+    if apply and new:
+        idx = load()
+        for a, b in new:
+            idx[a] = idx.get(a, frozenset()) | {b}
+            idx[b] = idx.get(b, frozenset()) | {a}
+    return new
