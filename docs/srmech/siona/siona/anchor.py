@@ -154,15 +154,23 @@ def _phrase_cycles(concepts):
     return cycles
 
 
-def render_repaired(concept_line):
-    """SCALE-STRATIFIED render (F1151): the NER / Class-L phrase-scale repair — split the line into phrase-cycles
-    (:func:`_phrase_cycles`, one per verb) and render EACH at its scale (:func:`render_fluent`), then join. Fixes
-    the veneer's 62% floor (F1150): a multi-verb line now gets PHRASE-scale repair instead of the op-scale
-    single-anchor that mangled it. NOTE (F1151): each phrase-cycle also carries a CHIRALITY (the verb's which-way,
-    Class-C) that the bit-exact silicon substrate FLATTENS (F552) — so on silicon the chiral repair is invoked
-    MANUALLY (here, per cycle), where in the substrate every cascade would run it automatically."""
+def render_repaired(concept_line, *, with_ec=False):
+    """SCALE-STRATIFIED render (F1151) + intrinsic G4 chirality-EC (F1154 — **op(x)operand(x)EC**: the error-
+    correction is the THIRD factor of the SAME transcription unit, not a downstream pass). Splits the line into
+    phrase-cycles (:func:`_phrase_cycles`, one per verb) and renders EACH at its scale (:func:`render_fluent`),
+    fixing the veneer's 62% floor (F1150). Each phrase-cycle carries a CHIRALITY (the verb's which-way, Class-C)
+    the bit-exact silicon substrate FLATTENS (F552).
+
+    ``with_ec=True`` runs the G4 chirality-EC (the metamer motif → selective Klein-4 fold, F1153) AS PART OF the
+    render and returns ``(text, ec)`` where ``ec = {word: Klein-4 sector}`` preserves the which-way at the metamer
+    loci — so a directional opposite is never collapsed. The EC RIDES WITH the render (one process emits operand +
+    EC), proving EC is intrinsic to the transcription, not bolted on."""
     cycles = _phrase_cycles(concept_line)
-    return ", ".join(render_fluent(cy) for cy in cycles) if cycles else ""
+    text = ", ".join(render_fluent(cy) for cy in cycles) if cycles else ""
+    if with_ec:
+        from siona import g4                                  # lazy: g4 imports anchor (avoid the import cycle)
+        return text, g4.g4_fold(concept_line)                # op(x)operand(x)EC — the EC emitted by the same pass
+    return text
 
 
 def transcription_errors(rendered, source_concepts):
