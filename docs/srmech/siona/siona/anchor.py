@@ -343,21 +343,22 @@ def express_story(glyph_lines, query, *, coupling=0.05):
     across the expressed set are the phase-coupling backbone). Returns the expressed genes ``[(line_idx,
     concepts)]`` in cycle order. Same `gene_express` PRINCIPLE (F256/F1097) as the knowledge genome, story-scoped;
     the render then reads THIS (genome → gene_express → read), not the closed full genome directly."""
-    from siona import relate as _rel
-    _rel.load()
-    genes = [[c for c in transcribe([gl])[0] if c] for gl in glyph_lines]      # store: per-line concept genes
-    qc = (concept(query)[0].split(",")[0].lower() if concept(query) else (query or "").strip().lower())
+    from siona import couple as _cp                                           # ROUTED THROUGH the one coupling op (F1164)
+    res = _cp.couple(glyph_lines)                                             # THE one signed Class-L operation; all below read its residue
+    word2code = {w: code for code, ws in res["communities"].items() for w in ws}   # residue: the community partition
+    spine = set(res["spine"])                                                 # residue: the recurring-concept spine (F1148, not a re-count)
+    genes = [[c for c in transcribe([gl])[0] if c] for gl in glyph_lines]     # store: per-line concept genes
 
-    def couples(g):                                                            # coupled to the query? (concurrent gate)
-        gl = [c.lower() for c in g]
-        return qc in gl or any(_rel.related(qc, c) > coupling for c in gl)
+    def _cw(g):                                                               # a gene's concept-words
+        return [w for c in g for w in c.replace("to ", "").lower().split()]
 
-    expressed = [(i, g) for i, g in enumerate(genes) if couples(g)]            # EXPRESS: the whole coupled subset at once
-    freq = {}
-    for _, g in expressed:                                                     # the recurring-concept spine (the_one)
-        for c in {x.lower() for x in g}:
-            freq[c] = freq.get(c, 0) + 1
-    return sorted(expressed, key=lambda it: -sum(freq.get(c.lower(), 0) for c in it[1]))   # CYCLE-READ order
+    qwords = set(_words((concept(query) or [""])[0])) or {(query or "").strip().lower()}
+    qcodes = {word2code[w] for w in qwords if w in word2code}                 # the query's COMMUNITY(s) = the coupled subset
+    if qcodes:                                                                # EXPRESS: the query's community (residue, not relate)
+        expressed = [(i, g) for i, g in enumerate(genes) if any(word2code.get(w) in qcodes for w in _cw(g))]
+    else:                                                                     # query absent from the graph → spine-overlap fallback
+        expressed = [(i, g) for i, g in enumerate(genes) if any(w in spine for w in _cw(g))]
+    return sorted(expressed, key=lambda it: -sum(1 for w in _cw(it[1]) if w in spine))   # CYCLE-READ = SPINE order (residue)
 
 
 def transcribe(glyph_lines, *, with_class=False):
