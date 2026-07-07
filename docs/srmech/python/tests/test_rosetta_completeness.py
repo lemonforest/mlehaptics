@@ -524,7 +524,22 @@ CEIL_C_EXISTS_UNBOUND = 0
 # moves bignum_reference -> c_dispatched. CEIL_BIGNUM_REFERENCE 4 -> 3. (The
 # remaining 3 are eig_exact / factor_integer_poly / jordan_form_exact; next batches
 # B8 factor_integer_poly (Zassenhaus), B9 eig_exact + jordan_form_exact capstones.)
-CEIL_BIGNUM_REFERENCE = 3
+# rc165 (Qalg TAIL Batch 8): factor_integer_poly — the exact IRREDUCIBLE factors of
+# an integer polynomial over ℚ (Zassenhaus) — earns a C path. The NEW C kernel
+# srmech_factor_squarefree_primitive factors a square-free primitive integer poly
+# into its irreducibles: 𝔽_p[x] Cantor–Zassenhaus (distinct-degree + equal-degree
+# split over a DETERMINISTIC xorshift64 rng that reproduces the Python rng stream
+# byte-for-byte) + quadratic Hensel lift to mod p^k >= 2·B+1 (B the Mignotte bound)
+# + subset recombination (exact ℤ trial-division), all over srmech_bigint. The
+# Zassenhaus core — the arbitrary-precision oracle that had no fixed-width C kernel —
+# now dispatches to C; the Yun square-free / content / sort orchestration stays in
+# the shared Python wrapper (its gcds are the already-C-backed srmech_poly_gcd /
+# srmech_bigint_gcd), so BOTH native and pure paths yield byte-identical factors +
+# multiplicities + order (the factorization is unique). factor_integer_poly moves
+# bignum_reference -> c_dispatched. CEIL_BIGNUM_REFERENCE 3 -> 2. (The remaining 2
+# are eig_exact / jordan_form_exact; next batch B9 = the eig_exact + jordan_form_exact
+# capstones -> CEIL_BIGNUM_REFERENCE 0.)
+CEIL_BIGNUM_REFERENCE = 2
 
 _DEBT_BUCKETS = ("python_only_debt", "c_exists_unbound")
 _ALL_BUCKETS = (

@@ -1138,6 +1138,31 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_jordan_chains.restype = ctypes.c_int
 
+    # Zassenhaus integer-polynomial factorization (v0.9.0rc165; Qalg TAIL Batch 8)
+    # — the exact irreducible factors of a SQUARE-FREE PRIMITIVE integer poly
+    # (𝔽_p[x] Cantor–Zassenhaus + Hensel lift + subset recombination), the C peer
+    # of the Zassenhaus core of factor_integer_poly. hasattr-guarded (pre-rc165).
+    #   size_t srmech_factor_squarefree_primitive_out_cap(size_t coeff_limbs, int deg)
+    #   size_t srmech_factor_squarefree_primitive_ws_bound(size_t coeff_limbs, int deg)
+    #   int srmech_factor_squarefree_primitive(bigint *coeffs, int ncoeff,
+    #       bigint *out_coeffs, int *out_degs, int *out_nfac, int *out_hit_cap,
+    #       void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_factor_squarefree_primitive"):
+        lib.srmech_factor_squarefree_primitive_out_cap.argtypes = [
+            ctypes.c_size_t, ctypes.c_int]
+        lib.srmech_factor_squarefree_primitive_out_cap.restype = ctypes.c_size_t
+        lib.srmech_factor_squarefree_primitive_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_int]
+        lib.srmech_factor_squarefree_primitive_ws_bound.restype = ctypes.c_size_t
+        lib.srmech_factor_squarefree_primitive.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.c_int,
+            ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+            ctypes.POINTER(ctypes.c_int),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_factor_squarefree_primitive.restype = ctypes.c_int
+
     # Qi exact-complex (Gaussian-rational) carrier C-host peer (0.9.0rc15) —
     # carrier-internal (NOT a Rosetta op), four int64 limbs {re_num, re_den,
     # im_num, im_den}. hasattr-guarded so a stale lib (pre-rc15) keeps the rest.
@@ -5077,6 +5102,77 @@ def jordan_chains_c(rows_ratio, m_int, lam_coords):
         vectors.append(vec)
     block_sizes = [int(out_bs[i]) for i in range(nch)]
     return vectors, block_sizes
+
+
+def has_native_factor_squarefree_primitive() -> bool:
+    """True iff the rc165 Zassenhaus integer-polynomial factorizer + the
+    srmech_bigint decimal-marshal helpers are loaded. False on a no-C / pre-rc165
+    lib — the pure-Python ``_factor_square_free_primitive`` in
+    ``srmech.amsc.cascade.matrix_cascades`` is the complete, byte-identical
+    alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_factor_squarefree_primitive")
+            and hasattr(LIB, "srmech_factor_squarefree_primitive_ws_bound")
+            and hasattr(LIB, "srmech_factor_squarefree_primitive_out_cap")
+            and hasattr(LIB, "srmech_bigint_from_dec")
+            and hasattr(LIB, "srmech_bigint_to_dec"))
+
+
+# The native path caps the degree well below the C guard: the arena scales as
+# ~deg^3, so a very high degree allocates a lot — an exact-symbolic factorization
+# is small in practice, and deg above the cap routes to the byte-identical pure
+# path (correct, just Python-arena-bounded).
+_FACTOR_NATIVE_MAX_DEG = 48
+
+
+def factor_squarefree_primitive_c(coeffs):
+    """Native Zassenhaus factorization of a SQUARE-FREE PRIMITIVE integer poly via
+    ``srmech_factor_squarefree_primitive``. ``coeffs`` is the integer coefficient
+    list low->high (positive lead, content 1, deg >= 1). Returns ``(factors,
+    hit_cap)`` where ``factors`` is a list of factor coefficient lists (each a
+    ``list[int]`` low->high, in the C peel order) and ``hit_cap`` is True iff the
+    recombination subset cap was hit — byte/structurally-identical to the pure
+    ``_factor_square_free_primitive`` (the factorization is unique; the caller
+    ``factor_integer_poly`` sorts the merged factors identically on both paths).
+    Returns ``None`` on a no-C / pre-rc165 lib, a degree above the native cap, an
+    arena OVERFLOW, or a degenerate input (the caller's pure oracle handles it)."""
+    if not has_native_factor_squarefree_primitive():
+        return None
+    ints = [int(c) for c in coeffs]
+    while len(ints) > 1 and ints[-1] == 0:
+        ints.pop()
+    deg = len(ints) - 1
+    if deg < 1 or deg > _FACTOR_NATIVE_MAX_DEG:
+        return None
+    cl = 1
+    for v in ints:
+        cl = max(cl, int(v).bit_length() // 32 + 4)
+    out_cap = int(LIB.srmech_factor_squarefree_primitive_out_cap(
+        ctypes.c_size_t(cl), ctypes.c_int(deg)))
+    ws_len = int(LIB.srmech_factor_squarefree_primitive_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_int(deg)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    in_arr, ka = _intvec_make_array(ints, out_cap)
+    out_arr, kb = _intvec_blank_array(2 * deg + 2, out_cap)
+    out_degs = (ctypes.c_int * max(deg + 1, 1))()
+    out_nfac = ctypes.c_int(0)
+    out_hit = ctypes.c_int(0)
+    rc = LIB.srmech_factor_squarefree_primitive(
+        in_arr, int(deg + 1), out_arr, out_degs, ctypes.byref(out_nfac),
+        ctypes.byref(out_hit),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len))
+    _ = (ka, kb)
+    if rc != SRMECH_OK:
+        return None
+    nfac = int(out_nfac.value)
+    factors = []
+    off = 0
+    for j in range(nfac):
+        fl = int(out_degs[j]) + 1
+        factors.append([_bigint_to_int(out_arr[off + i]) for i in range(fl)])
+        off += fl
+    return factors, bool(out_hit.value)
 
 
 def _intvec_make_array(values, cap):

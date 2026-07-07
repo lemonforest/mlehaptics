@@ -2449,6 +2449,20 @@ def _factor_square_free_primitive(f: List[int], *, subset_cap: int = 18
     if deg <= 1:
         return [f], False
 
+    # rc165 (Qalg TAIL Batch 8): the Zassenhaus core dispatches to
+    # srmech_factor_squarefree_primitive — the C kernel that runs the SAME
+    # pipeline (𝔽_p Cantor–Zassenhaus over the byte-identical xorshift64 rng +
+    # quadratic Hensel lift to mod p^k >= 2·B+1 + subset recombination), returning
+    # the irreducible ℤ factors. The pure body below stays the Pyodide / no-native
+    # fallback AND the parity oracle (the factorization is unique, so both paths
+    # yield the same factors; factor_integer_poly sorts the merged result
+    # identically). subset_cap != 18 (non-default) always routes to the pure body,
+    # which honours the explicit cap.
+    if subset_cap == 18 and _native.HAS_NATIVE:
+        native = _native.factor_squarefree_primitive_c(f)
+        if native is not None:
+            return native
+
     # 1. choose a prime p ∤ lead with f square-free mod p.
     from srmech.amsc.primes import is_prime
     lead = f[-1]

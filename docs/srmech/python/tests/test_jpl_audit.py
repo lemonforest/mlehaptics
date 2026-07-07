@@ -184,6 +184,13 @@ RULE_5_EXEMPT_FUNCTIONS: set[str] = {
     # already asserts x != 0u. See c/JPL_AUDIT.md.
     "rtsch_class_of",
     "rtsch_ctz",
+    # rc165 srmech_factor_poly.c: fac_is_prime is a pure value predicate over a
+    # single scalar (trial-division primality of n < 2^32) — it already asserts
+    # its domain bound n < 2^32 (the loop-safety invariant, so d*d cannot
+    # overflow); there is no pointer/bounds invariant for a second assert, and a
+    # tautology would be cargo-cult (same kind as the exempt sha256 ror / toml
+    # char classifiers). See c/JPL_AUDIT.md.
+    "fac_is_prime",
 }
 
 # Maximum allowed function length (JPL Rule 4).
