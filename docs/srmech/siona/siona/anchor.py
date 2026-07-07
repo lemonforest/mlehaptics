@@ -17,7 +17,7 @@ import json
 import os
 import re
 
-__all__ = ["load_anchor", "load_sux", "concept", "bridge_units", "bridge_disambiguated", "transcribe", "express_story", "have_anchor"]
+__all__ = ["load_anchor", "load_sux", "concept", "bridge_units", "bridge_disambiguated", "transcribe", "express_story", "render_fluent", "transcription_errors", "have_anchor"]
 
 _VYGUS = "/home/skirklan/corpora/egyptian_tla/vygus_dict_slice.jsonl"          # Egyptian (Vygus jsonl)
 _SUX = "/home/skirklan/corpora/etcsl/sux_gilgamesh_lemmatized.json"           # Sumerian (ETCSL Gilgameš, lemmatized)
@@ -103,20 +103,61 @@ def _rna(concepts):
     return (cs[:vi], cs[vi][3:], cs[vi + 1:])
 
 
+# ---- the surface VENEER (F1149): the separate lossy English-projection layer (F1128), kept distinct from substrate
+_IRREG = {"go": "went", "say": "said", "seek": "sought", "come": "came", "give": "gave", "take": "took",
+          "see": "saw", "make": "made", "stand": "stood", "strike": "struck", "fall": "fell", "hold": "held",
+          "bring": "brought", "speak": "spoke", "build": "built", "beat": "beat", "cut": "cut", "set": "set",
+          "put": "put", "run": "ran", "sit": "sat", "rise": "rose", "grow": "grew", "throw": "threw"}
+_FUNCTION = frozenset(("the of a an and to in on at for with by from as is are was were be has have "
+                       "his her its their my your our this that").split())
+
+
+def _past(v):
+    v = v.strip()
+    if v in _IRREG:
+        return _IRREG[v]
+    if v.endswith("e"):
+        return v + "d"
+    if len(v) > 1 and v.endswith("y") and v[-2] not in "aeiou":
+        return v[:-1] + "ied"
+    return v + "ed"
+
+
 def render_fluent(concept_line):
-    """RENDER a line's sparse op(x)operand concepts → a continuous English form (the TOWER EDGE / the flat→curved
-    Wick rotation, F1146), via the DNA→RNA→language path: (RNA/half-beat) :func:`_rna` couples the concepts into
-    a verb-anchored ordered form; (language) reorder verb-final→medial + minimal function-word glue. This is a
-    ROUGH v1 — the local-flat concepts are real; the global-curvature (fluent grammar) is the ongoing NLG. The
-    render does NOT invent content — only re-orders + glues what the genome stored (no magic-number prose)."""
+    """RENDER a line's sparse concepts → a continuous English form (the surface VENEER, F1149 — the SEPARATE lossy
+    English projection, F1128, NOT the substrate render). Via the DNA→RNA→language path: :func:`_rna` couples the
+    concepts (verb-anchored), then reorder verb-final→medial + conjugate (the ``_IRREG`` table) + a "the/of" glue.
+    Rough by design — the substrate coherence is the concurrent cycle-read (`express_story`); this is only the
+    human-readable veneer on top. Invents NO content — only re-orders, conjugates, and glues what was stored."""
     pre, verb, post = _rna(concept_line)
-    if verb is None:                                        # a noun phrase — Sumerian genitive chain ("of")
-        cs = pre
-        return " of ".join(cs) if 1 < len(cs) <= 3 else " ".join(cs)
-    subj = " ".join(pre)
-    v = verb + ("d" if verb.endswith("e") else "ed")        # narrative past (the story register)
-    obj = " ".join(post)
-    return " ".join(x for x in (subj, v, obj) if x)
+    if verb is None:                                        # noun phrase — Sumerian genitive chain
+        cs = [c for c in pre if c]
+        return ("the " + " of the ".join(cs)) if 1 < len(cs) <= 3 else " ".join(cs)
+    subj = ("the " + " of the ".join(pre)) if pre else ""
+    obj = ("the " + " ".join(post)) if post else ""
+    return " ".join(x for x in (subj, _past(verb), obj) if x)
+
+
+def transcription_errors(rendered, source_concepts):
+    """DETECT transcription errors via the T-vs-U / attestation WATERMARK (F1149). Biology detects C→U deamination
+    because DNA uses T: any U is un-belonging = an unambiguous error (uracil-DNA-glycosylase excises it). ANALOG:
+    every CONTENT token in a render must trace back to an ATTESTED stored concept (the "T" — the lemma/anchor); a
+    content token that does NOT (no lemma / not a source concept or its conjugation) is the "U" — a transcription
+    error. Function-word scaffold is exempt (the T-methyl backbone). Returns the un-attested (error) tokens."""
+    src = set()
+    for g in source_concepts:                              # the attested store: source concepts + their forms/glosses
+        for w in re.split(r"[ ,;/()]+", (g or "").lower()):
+            if len(w) >= 2:                                 # incl. short verbs (go/be) so their conjugations attest
+                src.add(w)
+                src.add(_past(w))
+    errs = []
+    for t in re.split(r"\s+", (rendered or "").strip()):
+        tl = t.lower().strip(".,;:")
+        if not tl or tl in _FUNCTION:                      # scaffold — the T-methyl backbone, exempt
+            continue
+        if tl not in src and (concept(tl) == []):          # content not traceable to an attested concept = U (error)
+            errs.append(t)
+    return errs
 
 
 def express_story(glyph_lines, query, *, coupling=0.05):
