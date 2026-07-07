@@ -92,6 +92,45 @@ static int64_t bi_to_i64(const srmech_bigint_t *b)
     return (b->sign < 0) ? -(int64_t)mag : (int64_t)mag;
 }
 
+/* rc169: gcd via the Lehmer fast path (large arena) AND the lean-Euclid
+ * fallback (a 6*m+20-word arena is < the Lehmer-engage threshold 6*(m+2)+16
+ * but >= the lean need 6*m+6 for m >= 3), then assert the two results are
+ * limb-for-limb identical. The gcd value is unique, so this pins byte-
+ * identity of the new algorithm against the pre-rc169 Euclid on a C host. */
+static void check_gcd_paths(const srmech_bigint_t *a, const srmech_bigint_t *b,
+                            srmech_bigint_t *o1, srmech_bigint_t *o2,
+                            uint32_t *arena, size_t arena_words,
+                            const char *desc)
+{
+    size_t m = (a->n > b->n) ? a->n : b->n;
+    size_t small = 6u * m + 20u;                    /* forces lean Euclid */
+    uint32_t i, same = 1u;
+    check_status(srmech_bigint_gcd(o1, a, b, arena, arena_words * 4u),
+                 SRMECH_OK, desc);
+    check_status(srmech_bigint_gcd(o2, a, b, arena, small * 4u),
+                 SRMECH_OK, desc);
+    if (o1->n != o2->n || o1->sign != o2->sign) { same = 0u; }
+    for (i = 0u; same && i < o1->n; i++) {
+        if (o1->limbs[i] != o2->limbs[i]) { same = 0u; }
+    }
+    check_i64((int64_t)same, 1, desc);
+}
+
+/* Fill (fa, fb) = (F(n), F(n-1)) by iterated add — the Euclid worst case
+ * (every partial quotient 1), where Lehmer batches the whole chain. n>=2. */
+static void build_fib(srmech_bigint_t *fa, srmech_bigint_t *fb,
+                      srmech_bigint_t *t, uint32_t n)
+{
+    uint32_t i;
+    srmech_bigint_set_i64(fb, 1);       /* F(1) */
+    srmech_bigint_set_i64(fa, 1);       /* F(2) */
+    for (i = 2u; i < n; i++) {
+        srmech_bigint_add(t, fa, fb);   /* F(i+1) = F(i) + F(i-1) */
+        srmech_bigint_copy(fb, fa);
+        srmech_bigint_copy(fa, t);
+    }
+}
+
 int main(void)
 {
     uint32_t ba[CAP], bb[CAP], bo[CAP], bq[CAP], br[CAP];
@@ -339,6 +378,58 @@ int main(void)
                             && ko1[KN] == 0xFFFFFFFEu
                             && ko1[2 * KN - 1] == 0xFFFFFFFFu), 1,
                   "kara (B^n-1)^2 closed form");
+    }
+
+    /* ---- rc169 Lehmer gcd: Lehmer path == lean-Euclid path, limb-for-
+     * limb, across structured + worst-case (Fibonacci-adjacent) shapes.
+     * gcd is unique, so limb-identity IS the byte-identity contract. ---- */
+    {
+        enum { GC = 96 };
+        static uint32_t xb_[GC], yb_[GC], tb_[GC], eb_[GC],
+            o1b_[GC], o2b_[GC], fab_[GC], fbb_[GC];
+        static uint32_t arena[4096];
+        srmech_bigint_t x = bi_make(xb_, GC), y = bi_make(yb_, GC);
+        srmech_bigint_t tt = bi_make(tb_, GC), ex = bi_make(eb_, GC);
+        srmech_bigint_t o1 = bi_make(o1b_, GC), o2 = bi_make(o2b_, GC);
+        srmech_bigint_t fa = bi_make(fab_, GC), fb = bi_make(fbb_, GC);
+        const char *bigx =
+            "31415926535897932384626433832795028841971693993751"
+            "05820974944592307816406286208998628034825342117067"
+            "98214808651328230664709384460955058223172535940812";
+        /* Fibonacci-adjacent: gcd(F(2000), F(1999)) = 1 (worst case). */
+        build_fib(&fa, &fb, &tt, 2000u);
+        check_gcd_paths(&fa, &fb, &o1, &o2, arena, 4096u,
+                        "gcd fib(2000,1999) paths");
+        check_i64((int64_t)(o1.n == 1u && o1.limbs[0] == 1u), 1, "gcd fib==1");
+        /* consecutive integers coprime: gcd(x, x+1) = 1. */
+        srmech_bigint_from_dec(&x, bigx, strlen(bigx));
+        srmech_bigint_set_i64(&tt, 1);
+        srmech_bigint_add(&y, &x, &tt);              /* y = x+1 */
+        check_gcd_paths(&x, &y, &o1, &o2, arena, 4096u, "gcd(x,x+1) paths");
+        check_i64((int64_t)(o1.n == 1u && o1.limbs[0] == 1u), 1, "gcd(x,x+1)==1");
+        /* one divides the other: gcd(x, 7x) = x. */
+        srmech_bigint_set_i64(&tt, 7);
+        srmech_bigint_mul(&y, &x, &tt);              /* y = 7x */
+        check_gcd_paths(&x, &y, &o1, &o2, arena, 4096u, "gcd(x,7x) paths");
+        check_i64((int64_t)(srmech_bigint_cmp(&o1, &x) == 0), 1, "gcd(x,7x)==x");
+        /* both even: gcd(2x, 2(x+1)) = 2 (no in-place mul: out distinct). */
+        srmech_bigint_set_i64(&tt, 2);
+        srmech_bigint_mul(&fa, &x, &tt);             /* fa = 2x */
+        srmech_bigint_set_i64(&ex, 1);
+        srmech_bigint_add(&fb, &x, &ex);             /* fb = x+1 */
+        srmech_bigint_mul(&y, &fb, &tt);             /* y = 2(x+1) */
+        check_gcd_paths(&fa, &y, &o1, &o2, arena, 4096u, "gcd(2x,2x+2) paths");
+        check_i64(bi_to_i64(&o1), 2, "gcd(2x,2x+2)==2");
+        /* powers of two: gcd(2^300, 2^180) = 2^180. */
+        srmech_bigint_set_i64(&x, 1);
+        srmech_bigint_shl_bits(&x, &x, 300);
+        srmech_bigint_set_i64(&y, 1);
+        srmech_bigint_shl_bits(&y, &y, 180);
+        srmech_bigint_set_i64(&ex, 1);
+        srmech_bigint_shl_bits(&ex, &ex, 180);       /* expected 2^180 */
+        check_gcd_paths(&x, &y, &o1, &o2, arena, 4096u, "gcd(2^300,2^180) paths");
+        check_i64((int64_t)(srmech_bigint_cmp(&o1, &ex) == 0), 1,
+                  "gcd(2^300,2^180)==2^180");
     }
 
     printf("test_srmech_bigint: %d passed, %d failed\n", g_passed, g_failed);
