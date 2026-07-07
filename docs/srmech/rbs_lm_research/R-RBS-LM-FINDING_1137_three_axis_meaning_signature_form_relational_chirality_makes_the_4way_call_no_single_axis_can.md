@@ -15,3 +15,14 @@ chirality tightened: /r/Antonym ONLY (16893 words, 19066 edges); /r/DistinctFrom
 
 ## Verdict / next
 **`siona.sense` fuses the three type-independent axes (FORM/RELATIONAL/CHIRALITY) into a 4-way meaning call — opposite/synonym/related/unrelated — that no single axis can make (15/16; the miss is ConceptNet data-noise). Chirality is checked first because it resolves the antonym metamer; the axis was tightened to /r/Antonym-only (DistinctFrom too broad). This LANDS the axes sub-arc: the three axes give full meaning-discrimination exactly as three cones give full colour, a real capability Siona lacked (opposite vs same). NEXT (open): (1) srmech-native chirality via the signed/magnetic Laplacian (structural opponent beyond the ConceptNet lookup); (2) the FORM axis's cognate role in the k=3 cross-lingual reconstruction (#246 Gilgamesh); (3) wire `sense.relationship` into `s.turn` (Siona answers "is X the same or opposite of Y?"). Read-independent + fused; srmech-native. Composes F1136/F1135/F1134/F1131.**
+
+## UPDATE (2026-07-07) — WIRED into `s.turn`: the `relate` intent
+`sense.relationship` is now a first-class Siona turn intent (`infer.py`): `_is_relate` detects a pairwise
+meaning-relation query — "is X the same/opposite of Y", "are X and Y related", "relationship between X and Y",
+"are X and Y opposites" — with exactly two content words, routes to `relate`, and `_relate_reply` answers via the
+3-axis classifier. VERIFIED end-to-end through `Session.turn`: "is hot the opposite of cold" → *hot and cold are
+opposites (a chirality flip)*; "is a car the same as an automobile" → *synonyms*; "what is the relationship
+between doctor and physician" → *synonyms*; "is a piano related to tax" → *unrelated*; "are big and small
+opposites" → *opposites*. Controls unaffected (define / asl / tool-call do not over-trigger). The one wrong answer
+("are fire and smoke related" → opposites) is the known ConceptNet spurious /r/Antonym edge (data-noise, F1137),
+not a routing bug. So Siona now natively answers OPPOSITE-vs-SAME — the capability the chirality axis added.

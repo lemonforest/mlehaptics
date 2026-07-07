@@ -194,6 +194,8 @@ class Session:
             return "compose"
         if self._is_asl(u):                    # F1125/#257: render the phrase to ASL escaped signs
             return "asl"
+        if self._is_relate(u):                 # F1137: 'is X the same/opposite of Y' → the 3-axis meaning call
+            return "relate"
         ints, fls, byts, edges = self._operands(u)
         if b.has_define(ws) and not (ints or fls or byts or edges):
             return "define"
@@ -264,6 +266,42 @@ class Session:
         signs = asl.render(txt)
         return "ASL: %s" % signs if signs else "(nothing to sign)"
 
+    # ---- the MEANING-RELATION intent (F1137: 'is X the same/opposite of Y' → the 3-axis meaning call) ----
+    _REL_FRAMES = (" same as ", " same thing as ", " same meaning ", " mean the same ", " opposite of ",
+                   " opposite to ", " the opposite ", " opposites ", " relationship between ", " related to ",
+                   " a synonym", " an antonym", " synonyms", " antonyms", " opposite ", " related ")
+    _REL_STRIP = frozenset(
+        "is are am be the a an of to as do does how what which mean means meaning same opposite opposites "
+        "relationship related relate between synonym synonyms antonym antonyms and or vs versus thing things "
+        "word words like similar different from it in".split())
+
+    def _is_relate(self, u):
+        """Detect a pairwise MEANING-RELATION query — 'is X the same/opposite of Y', 'are X and Y related',
+        'relationship between X and Y' — with exactly two content words to compare (F1137)."""
+        ul = " %s " % u.lower()
+        return any(f in ul for f in self._REL_FRAMES) and len(self._relate_words(u)) == 2
+
+    def _relate_words(self, u):
+        """The two content words to compare — everything that is not a relation-frame / stop / address word."""
+        return [w for w in _toks(u)
+                if w not in self._REL_STRIP and w not in self.board.strip and not w.isdigit()]
+
+    def _relate_reply(self, u):
+        """Answer a pairwise meaning-relation via the 3-axis classifier (F1137): opposite / synonym / related /
+        unrelated. The CHIRALITY axis (Class C) gives Siona the OPPOSITE-vs-SAME distinction the relational axes
+        collapse (the antonym metamer) — a capability she lacked."""
+        from siona import sense, relate as _r, conceptnet as _cn, chirality as _ch
+        _r.load(); _cn.load(); _ch.load()
+        ws = self._relate_words(u)
+        if len(ws) != 2:
+            return "relate: name exactly two words to compare"
+        a, b = ws
+        phr = {"opposite": "opposites (opposite poles — a chirality flip)",
+               "synonym": "synonyms — nearly the same meaning",
+               "related": "related",
+               "unrelated": "unrelated"}[sense.relationship(a, b)]
+        return "%s and %s are %s" % (a, b, phr)
+
     # ---- the LIVE context genome (F1097: express() in s.turn) ----
     _TEACH_BIT, _TERSE_BIT = 0b01, 0b10
 
@@ -299,6 +337,8 @@ class Session:
             return r, "siona.compose", self._compose(u)
         if r == "asl":
             return r, "siona.asl", self._asl_reply(u)
+        if r == "relate":
+            return r, "siona.sense", self._relate_reply(u)
         if r == "tool-call":
             return r, "srmech", self._drive_tool(u)
         if r == "define":
