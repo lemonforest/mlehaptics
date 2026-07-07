@@ -29,6 +29,19 @@ Everything stays exact: reduction rides the Class-N
 stdlib ``math``); arithmetic rides Class-N ``rational_add`` / ``rational_mul`` /
 ``rational_div``. ``(num, den)`` is always recoverable — ``q.numerator`` /
 ``q.denominator`` or unpacking ``num, den = q``.
+
+**Native dispatch (0.9.0rc167, #765 — self-hosting).** The Class-N ops beneath
+``Q`` are size-adaptive THREE-TIER: u64-fit operands ride the scalar C ops
+(``srmech_rational_*``); mid-size bignums ride CPython ``int`` (the complete
+fallback); at/above the measured ``rational._BIGQ_MIN_BITS`` threshold the
+WHOLE op (cross-multiplies + gcd-reduce + exact divisions) runs on srmech's
+OWN caller-arena C bignum via ``_native.bigq_add_c/bigq_mul_c/bigq_div_c/
+bigq_reduce_c`` (existing ``srmech_bigint_*`` symbols; one linear binary limb
+marshal in, one out — #770). So the Python side's big exact-ℚ arithmetic runs
+on the SAME substrate a bare-C host uses; CPython ``int`` is the demoted
+below-threshold / no-native alternative — byte-identical either way. The
+dispatch touches only the two scalar components; no carrier structure above
+``Q`` is affected (the sparse-tower guardrail).
 """
 
 from __future__ import annotations

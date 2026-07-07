@@ -37,7 +37,7 @@ multiplicative identity). Construction is via the Class-J
   :func:`srmech.amsc.cyclic.lcm` (Class I).
 * :meth:`similarity` — the EXACT shared-factor overlap: the cosine of the two
   exponent vectors, **squared**, as an exact :class:`~srmech.amsc.q.Q`
-  (``Fraction(dot², ‖a‖²·‖b‖²)``). 0 for a coprime pair (disjoint support).
+  (``Q(dot², ‖a‖²·‖b‖²)``). 0 for a coprime pair (disjoint support).
   Float only at the display boundary.
 * :meth:`period` [Class J period structure] — the multiplicative order
   ``ord_modulus(self.to_int())`` (smallest ``k > 0`` with ``nᵏ ≡ 1 mod m``),
@@ -60,7 +60,6 @@ Numbers*, §1.3 unique factorisation + §6.8 the order of ``a (mod m)``).
 
 from __future__ import annotations
 
-from fractions import Fraction
 from typing import Dict
 
 from . import cyclic as _cyclic
@@ -218,7 +217,7 @@ class Qprime:
     def similarity(self, other: "Qprime") -> Q:
         """The EXACT shared-factor overlap — the cosine of the two exponent
         vectors, **squared**, as an exact :class:`~srmech.amsc.q.Q`:
-        ``Fraction(dot², ‖a‖²·‖b‖²)``. The dot product / squared norms are over
+        ``Q(dot², ‖a‖²·‖b‖²)``. The dot product / squared norms are over
         the integer exponents, so the result is an exact rational; only at the
         display boundary (``float(...)``) does it become a decimal. A coprime
         pair (disjoint support ⇒ ``dot == 0``) is exactly ``Q(0)``; equal vectors
@@ -237,9 +236,11 @@ class Qprime:
             # An empty vector (Qprime(1)) has zero norm — the overlap with it is
             # undefined (0/0); define it as 0 (no shared multiplicative content).
             return Q(0, 1)
-        # cos² = dot² / (‖a‖²·‖b‖²) — exact rational via Fraction, then Q.
-        frac = Fraction(dot * dot, denom)
-        return Q(frac.numerator, frac.denominator)
+        # cos² = dot² / (‖a‖²·‖b‖²) — exact rational straight on the Q carrier
+        # (rc167 #765: no Fraction detour; Q's Class-N reduce IS the same
+        # lowest-terms/positive-den canonicalisation, and its big-component
+        # arithmetic dispatches to srmech's own C bignum). Byte-identical.
+        return Q(dot * dot, denom)
 
     # ── Class J period structure: the multiplicative order ───────────────────
     def period(self, modulus: int) -> int:

@@ -514,17 +514,59 @@ def exp_series_truncate(numerator: int,
 # ──────────────────────────────────────────────────────────────────────
 
 
+# 0.9.0rc167 (#765 foundation) — the size-adaptive big-ℚ dispatch threshold.
+# THREE-TIER dispatch for every exact-ℚ scalar op: (1) u64-fit operands ride
+# the scalar C ops (`srmech_rational_*`); (2) mid-size bignums stay on CPython
+# int (the FFI hop + marshal + C-vs-CPython gap costs more there); (3) at/
+# above this max-operand-bit-length threshold the WHOLE op (cross-muls +
+# gcd-reduce + exact divisions) runs on srmech's OWN C bignum via the
+# `_native.bigq_*_c` composites — the #765 self-hosting dispatch.
+#
+# Attested-to-measurement (Class B): WSL2 gcc -O2, Python 3.12, binary limb
+# marshal (#770) — BELOW 1024 bits the native composite LOSES (0.26–0.83× at
+# 256–512 bits: the C call + reduce overhead dominates); AT/ABOVE 1024 bits
+# it is measured COST-PARITY, not a speedup (1024: 1.02–1.26×; 2048–65536:
+# 0.59–1.24×, ~0.9× average — CPython int is itself a tuned C bignum with
+# Karatsuba multiply above ~2.5k bits, srmech_bigint multiplies schoolbook).
+# 1024 is the measured parity onset; the dispatch above it buys the #765
+# SELF-HOSTING architecture (Python's exact-ℚ big arithmetic on srmech's own
+# substrate — same discipline as the numpy removal) at ≈cost-neutral, NOT a
+# raw-speed win. Measured table: tests/test_q_native_dispatch_rc167.py +
+# CHANGELOG 0.9.0rc167. Known follow-up: a Karatsuba srmech_bigint_mul would
+# close the remaining huge-operand gap.
+_BIGQ_MIN_BITS: int = 1024
+
+
+def _bigq_max_bits(*values: int) -> int:
+    """The max magnitude bit-length across ``values`` — the size-adaptive
+    dispatch metric (Class-K sign via explicit branch, never ``abs()``)."""
+    m = 0
+    for v in values:
+        mag = v if v >= 0 else -v
+        b = mag.bit_length()
+        if b > m:
+            m = b
+    return m
+
+
 def _reduce_rational(num: int, den: int) -> Tuple[int, int]:
     """Reduce (num, den) to lowest terms with positive denominator.
 
     The GCD rides the Class-I :func:`srmech.amsc.cyclic.gcd` (srmech-native, no
     stdlib ``math.gcd``) — now uncapped, so the ~100-digit ``One``-scale
     numerators reduce exactly (native serves its uint64 domain, big-int Euclid
-    beyond)."""
+    beyond). 0.9.0rc167 (#765): at/above ``_BIGQ_MIN_BITS`` the whole reduce
+    (gcd + the two exact divisions) dispatches to srmech's own C bignum
+    (``_native.bigq_reduce_c``), byte-identical; CPython int remains the
+    complete below-threshold / no-native body."""
     if den == 0:
         raise ZeroDivisionError("rational denominator is zero")
     if num == 0:
         return (0, 1)
+    if _bigq_max_bits(num, den) >= _BIGQ_MIN_BITS:
+        out = _native.bigq_reduce_c(num, den)
+        if out is not None:
+            return out
     # Class-K magnitude via EXPLICIT sign-branches, never an ALU abs().
     num_mag = num if num >= 0 else -num
     den_mag = den if den >= 0 else -den
@@ -598,6 +640,11 @@ def rational_add(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
     out = _try_c_two_rationals("srmech_rational_add", (a_num, a_den), (b_num, b_den))
     if out is not None:
         return out
+    # rc167 (#765): HUGE operands run the whole add on srmech's C bignum.
+    if _bigq_max_bits(a_num, a_den, b_num, b_den) >= _BIGQ_MIN_BITS:
+        out = _native.bigq_add_c(a_num, a_den, b_num, b_den)
+        if out is not None:
+            return out
     return _reduce_rational(a_num * b_den + b_num * a_den, a_den * b_den)
 
 
@@ -620,6 +667,11 @@ def rational_mul(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
     out = _try_c_two_rationals("srmech_rational_mul", (a_num, a_den), (b_num, b_den))
     if out is not None:
         return out
+    # rc167 (#765): HUGE operands run the whole multiply on srmech's C bignum.
+    if _bigq_max_bits(a_num, a_den, b_num, b_den) >= _BIGQ_MIN_BITS:
+        out = _native.bigq_mul_c(a_num, a_den, b_num, b_den)
+        if out is not None:
+            return out
     return _reduce_rational(a_num * b_num, a_den * b_den)
 
 
@@ -644,6 +696,12 @@ def rational_div(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
     out = _try_c_two_rationals("srmech_rational_div", (a_num, a_den), (b_num, b_den))
     if out is not None:
         return out
+    # rc167 (#765): HUGE operands run the whole divide on srmech's C bignum
+    # (bigq_div_c sign-normalises den > 0 internally, same as the body below).
+    if _bigq_max_bits(a_num, a_den, b_num, b_den) >= _BIGQ_MIN_BITS:
+        out = _native.bigq_div_c(a_num, a_den, b_num, b_den)
+        if out is not None:
+            return out
     # Python bignum path: a/b = (a_num * b_den) / (a_den * b_num)
     num = a_num * b_den
     den = a_den * b_num
