@@ -18,7 +18,7 @@ import json
 import os
 import re
 
-__all__ = ["load_anchor", "load_sux", "concept", "determinative", "case", "bridge_units", "bridge_disambiguated", "transcribe", "express_story", "render_fluent", "render_repaired", "render_cased", "transcription_errors", "have_anchor"]
+__all__ = ["load_anchor", "load_sux", "concept", "determinative", "case", "verb_infixes", "verb_direction", "coupling_ec", "bridge_units", "bridge_disambiguated", "transcribe", "express_story", "render_fluent", "render_repaired", "render_cased", "transcription_errors", "have_anchor"]
 
 _VYGUS = "/home/skirklan/corpora/egyptian_tla/vygus_dict_slice.jsonl"          # Egyptian (Vygus jsonl)
 _SUX = "/home/skirklan/corpora/etcsl/sux_gilgamesh_lemmatized.json"           # Sumerian (ETCSL Gilgameš, lemmatized)
@@ -80,20 +80,61 @@ def determinative(raw_glyph):
 # (how each operand relates to the action) that LEMMATIZATION was DROPPING (kiš-ta → kiš, discarding -ta). Only
 # the high-precision, unambiguous enclitics (the bare -a/-e locative/ergative are too ambiguous → left unmarked).
 _CASE = {"ta": "from", "sze3": "to", "še3": "to", "ce3": "to", "ra": "to/for", "da": "with",
-         "ke4": "of", "ka": "of", "ak": "of", "gin7": "like", "gen7": "like", "bi": "its"}
+         "ke4": "of", "ka": "of", "ak": "of", "gin7": "like", "gen7": "like", "bi": "its", "a": "in"}   # -a locative (F1159)
+
+# canonical coupling roles shared by the operand CASE and the verbal INFIX (the two sides of the redundancy, F1158)
+_ROLE = {"from": "from", "to": "to", "to/for": "to", "in": "in", "with": "with"}
+# the verb's DIMENSIONAL INFIXES (F1159) — the operator-side re-encoding of the operand cases (cross-referencing)
+_INFIX = {"ta": "from", "ši": "to", "ci": "to", "sze": "to", "ni": "in", "da": "with"}
+# the verb's CONJUGATION PREFIX (F1159) — the deictic DIRECTION (a Class-C chirality on the operator: toward/away)
+_CONJ = {"mu": "toward", "im": "toward", "ba": "away", "bi2": "away", "al": "stative"}
 
 
 def case(surface):
     """Extract the Sumerian CASE enclitic (the postposition suffix) → the operand's RELATIONAL ROLE (F1157):
     ``from`` (-ta ablative) / ``to`` (-še₃ terminative, -ra dative) / ``of`` (-ke₄/-ak genitive) / ``with``
-    (-da comitative) / ``like`` (-gin₇ equative). A GLYPH-DERIVED, coherency-AGNOSTIC coupling tag — the
-    op(x)operand relationship structure — that LEMMATIZATION drops. Scans the hyphen morphemes from the end for
-    the last unambiguous enclitic; ``None`` if bare (or only the ambiguous -a/-e locative). This is the phrase
-    structure the render's SOV heuristic (F1150) was GUESSING — now read straight off the glyph."""
+    (-da comitative) / ``in`` (-a locative, F1159) / ``like`` (-gin₇ equative). A GLYPH-DERIVED, coherency-
+    AGNOSTIC coupling tag — the op(x)operand relationship structure — that LEMMATIZATION drops. Scans the hyphen
+    morphemes from the end for the last enclitic. The phrase structure the render SOV heuristic (F1150) GUESSED."""
     for suf in reversed(re.split(r"[-.]", _norm(surface))):
         if suf in _CASE:
             return _CASE[suf]
     return None
+
+
+def verb_infixes(glyph):
+    """The dimensional INFIXES in a Sumerian verbal chain (F1159) → the coupling roles the VERB re-encodes
+    (from/to/in/with) — the OPERATOR-side mirror of the operand cases (F1157/F1158). Sumerian cross-references its
+    arguments, so the verb re-states each operand's role; this reads those infixes straight off the verb glyph."""
+    return {_INFIX[m] for m in re.split(r"[-.]", _norm(glyph)) if m in _INFIX}
+
+
+def verb_direction(glyph):
+    """The Sumerian conjugation PREFIX (the FIRST morpheme) → the verb's deictic DIRECTION (F1159): mu-=ventive
+    (toward), ba-=middle (away), al-=stative — a Class-C CHIRALITY on the OPERATOR (the which-way of the action),
+    glyph-derived. ``None`` if the first morpheme is not a recognised conjugation prefix."""
+    first = re.split(r"[-.]", _norm(glyph))[0] if _norm(glyph) else ""
+    return _CONJ.get(first)
+
+
+def coupling_ec(raw_glyph_line):
+    """COUPLING-level error-correction (F1159) via the NATIVE case↔infix redundancy (F1158): Sumerian states each
+    operand's role TWICE — the operand's CASE enclitic AND the VERB's dimensional infix. So (a) RECOVER — a role
+    the verb encodes but no operand carries is a recoverable coupling (an illegible/dropped case); (b) DETECT — an
+    operand role the verb does NOT license (when the verb HAS infixes) is a MISMATCH = a coupling-level
+    transcription error (the F1149 attestation watermark, now at the COUPLING not the token). Returns a dict."""
+    vroles, oroles = set(), set()
+    for g in raw_glyph_line:
+        c = (concept(g) or [""])[0]
+        if c.startswith("to "):
+            vroles |= verb_infixes(g)
+        else:
+            cs = case(g)
+            if cs in _ROLE:
+                oroles.add(_ROLE[cs])
+    return {"verb_roles": sorted(vroles), "operand_roles": sorted(oroles),
+            "recovered": sorted(vroles - oroles),                       # verb-only role → a dropped case, recoverable
+            "mismatched": sorted(oroles - vroles) if vroles else []}    # operand role the verb doesn't license → error
 
 
 def load_anchor(path=None, kind=None):
@@ -246,16 +287,27 @@ def render_cased(raw_glyph_line):
     (`case`: from/to/of/with/like); the verb ("to X") is the predicate; a caseless non-verb is the subject
     (absolutive). Emits subject + verb + the case-marked obliques with their REAL prepositions — the op(x)operand
     coupling read straight off the glyphs, not invented. Pass RAW glyphs (the case lives in the suffix)."""
-    items = [(((concept(g) or [None])[0] or ""), case(g)) for g in raw_glyph_line]
-    items = [(c.split(",")[0], cs) for c, cs in items if c]
-    verb = next((c[3:] for c, cs in items if c.startswith("to ")), None)
-    subj = [c for c, cs in items if not cs and not c.startswith("to ")]
-    obl = [(c, cs) for c, cs in items if cs and not c.startswith("to ")]      # case-marked operands = obliques
+    items = []
+    for g in raw_glyph_line:
+        c = (concept(g) or [None])[0]
+        if c:
+            items.append((c.split(",")[0], case(g), _norm(g), verb_direction(g)))
+    verb = next(((c[3:], d) for c, cs, gn, d in items if c.startswith("to ")), None)
+    erg = [c for c, cs, gn, d in items if not cs and not c.startswith("to ") and re.search(r"(?:^|-)e\d*$", gn)]
+    abso = [c for c, cs, gn, d in items
+            if not cs and not c.startswith("to ") and not (re.search(r"(?:^|-)e\d*$", gn) and c in erg)]
+    obl = [(c, cs) for c, cs, gn, d in items if cs and not c.startswith("to ")]
+    subj = erg or abso[:1]                                                    # ergative = agent; else first absolutive
+    obj = abso if erg else abso[1:]                                           # with an agent, absolutives are objects
     parts = []
     if subj:
         parts.append(" ".join(subj))
     if verb:
-        parts.append(_past(verb))
+        v, d = verb
+        parts.append(("came" if d == "toward" else "went") if v in ("go", "come")   # direction picks came/went (F1159)
+                     else _past(v))
+    if obj:
+        parts.append(" ".join(obj))
     for c, cs in obl:
         parts.append("%s %s" % (cs, c))                                       # from Kiš / to Unug / of Kulaba / with X
     return " ".join(parts)
