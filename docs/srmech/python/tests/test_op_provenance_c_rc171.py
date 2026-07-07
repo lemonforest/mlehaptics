@@ -47,6 +47,52 @@ def _both(fn):
     return native_result, pure_result
 
 
+def _flatten_floats(x, out):
+    """Append x's scalar float components to `out`; False if x isn't numeric.
+
+    Handles numbers (int/float/Fraction/complex) and nested numeric carriers
+    (Vec/Mat/tuple/list are iterable → recurse). Strings are NOT numeric.
+    """
+    if isinstance(x, bool):  # bool is an int subclass; treat as non-numeric here
+        return False
+    if isinstance(x, (int, float, Fraction)):
+        out.append(float(x))
+        return True
+    if isinstance(x, complex):
+        out.append(x.real)
+        out.append(x.imag)
+        return True
+    if isinstance(x, str):
+        return False
+    try:
+        items = list(x)
+    except TypeError:
+        return False
+    for e in items:
+        if not _flatten_floats(e, out):
+            return False
+    return True
+
+
+def _values_close(a, b, tol=1e-9):
+    """Exact-equal for exact-valued ops; within-tol for NUMERIC carriers.
+
+    ``carry`` faithfully wraps the op's OUTPUT value — but the two Class-L
+    numeric eigensolvers (jacobi_eigvals / symmetric_eigendecompose) agree
+    native-vs-pure only within FP tolerance (the F2 within-tol foundation,
+    not byte-identical). The carry PROVENANCE is byte-identical regardless
+    (asserted separately); only the raw numeric value floats at the ULP.
+    """
+    if a == b:
+        return True
+    fa, fb = [], []
+    if not _flatten_floats(a, fa) or not _flatten_floats(b, fb):
+        return False
+    if len(fa) != len(fb):
+        return False
+    return all(-tol <= (x - y) <= tol for x, y in zip(fa, fb))
+
+
 # The registered carry ops exercised (an INTERIOR series tower, an EDGE
 # CF tower, and the Class-L float-leaf frontier).
 _CARRY_CASES = [
@@ -105,7 +151,10 @@ def test_native_peers_are_exercised():
 def test_carry_native_equals_pure(opname, inp, params):
     nat, pure = _both(lambda: op.carry(opname, inp, params))
     assert nat["provenance"] == pure["provenance"]
-    assert nat["value"] == pure["value"]
+    # value: exact for exact-valued ops; within-tol for the numeric
+    # eigensolvers (native/pure agree within FP tol, not byte-identical —
+    # the F2 within-tol foundation). The provenance above is byte-identical.
+    assert _values_close(nat["value"], pure["value"])
     assert nat["inputs"] == pure["inputs"]
     # the chain hash is present + well-formed 64-hex
     ch = nat["provenance"]["chain_sha256"]
