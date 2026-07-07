@@ -20,8 +20,9 @@ import re
 __all__ = ["load_anchor", "concept", "bridge_units", "bridge_disambiguated", "have_anchor"]
 
 _VYGUS = "/home/skirklan/corpora/egyptian_tla/vygus_dict_slice.jsonl"          # Egyptian (Vygus jsonl)
-_SUX = "/home/skirklan/corpora/etcsl/sux_gilgamesh_anchor.json"               # Sumerian (ETCSL Gilgameš json)
-_anchor = None       # transliteration → [English concept glosses]  (the ACTIVE anchor)
+_SUX = "/home/skirklan/corpora/etcsl/sux_gilgamesh_lemmatized.json"           # Sumerian (ETCSL Gilgameš, lemmatized)
+_anchor = None       # LEMMA → [English concept glosses]  (the ACTIVE anchor)
+_surf2lemma = None   # surface form → lemma (the lemmatization layer, F1144; None = no lemmatization)
 
 
 def _norm(t):
@@ -32,18 +33,22 @@ def load_anchor(path=None, kind=None):
     """Load a glyph→concept anchor ``{transliteration: [concepts]}``. ``kind='vygus'`` reads the Egyptian Vygus
     jsonl (default); ``kind='json'`` reads a ``{"anchor": {glyph: [glosses]}}`` file (the ETCSL Sumerian Gilgameš
     anchor). Auto-detected by extension. The last-loaded anchor is active; pass a ``path`` to switch languages."""
-    global _anchor
+    global _anchor, _surf2lemma
     if _anchor is not None and path is None:
         return _anchor
     _anchor = {}
+    _surf2lemma = None
     p = path or _VYGUS
     kind = kind or ("json" if p.endswith(".json") else "vygus")
     if not os.path.exists(p):
         return _anchor
-    if kind == "json":                                                        # ETCSL-style {"anchor": {...}}
+    if kind == "json":                                         # ETCSL {"anchor": {lemma:[gloss]}, "surf2lemma": {...}}
         d = json.load(open(p, encoding="utf-8"))
         for t, gs in d.get("anchor", {}).items():
             _anchor[_norm(t)] = list(gs)
+        s2l = d.get("surf2lemma")
+        if s2l:
+            _surf2lemma = {_norm(s): _norm(l) for s, l in s2l.items()}         # the lemmatization layer (F1144)
         return _anchor
     for line in open(p, encoding="utf-8"):                                     # Vygus jsonl
         try:
@@ -70,9 +75,13 @@ def have_anchor():
 
 def concept(glyph):
     """A source glyph / transliteration → its English CONCEPT gloss(es) (the FORM axis for a logographic
-    language). ``[]`` if the anchor has no entry — an honest coverage gap, not a guess."""
+    language). When a lemmatization layer is loaded (F1144), the inflected SURFACE form is mapped to its LEMMA
+    first (so ``bi2-in-dug4`` → lemma ``dug4`` → "to say"). ``[]`` if no entry — an honest gap, not a guess."""
     a = load_anchor()
-    return a.get(_norm(glyph), [])
+    n = _norm(glyph)
+    if _surf2lemma:
+        n = _surf2lemma.get(n, n)          # lemmatize surface → lemma before lookup (F1144)
+    return a.get(n, [])
 
 
 def bridge_units(units):
