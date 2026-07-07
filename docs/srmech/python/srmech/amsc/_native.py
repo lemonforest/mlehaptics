@@ -1023,6 +1023,66 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_faddeev_leverrier.restype = ctypes.c_int
 
+    # Sturm real-eigenvalue ISOLATION (v0.9.0rc162; Qalg TAIL Batch 6) — the exact
+    # ROOTS of the char-poly: char_poly -> Yun square-free -> Sturm sign-sequence
+    # isolation -> rational bisection, returning the real eigenvalues as exact
+    # isolating (lo, hi) rational intervals with multiplicity. Backs the real-root
+    # path of eigvals_exact; hasattr-guarded (pre-rc162 lib).
+    #   size_t srmech_sturm_isolate_entry_cap(size_t coeff_limbs,size_t n,uint32 bits)
+    #   size_t srmech_sturm_isolate_ws_bound (size_t coeff_limbs,size_t n,uint32 bits)
+    #   int srmech_sturm_isolate(bigint *cp, int n, uint32 bits,
+    #       bigint *lo_n, bigint *lo_d, bigint *hi_n, bigint *hi_d,
+    #       size_t *out_count, void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_sturm_isolate"):
+        lib.srmech_sturm_isolate_entry_cap.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_uint32]
+        lib.srmech_sturm_isolate_entry_cap.restype = ctypes.c_size_t
+        lib.srmech_sturm_isolate_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_uint32]
+        lib.srmech_sturm_isolate_ws_bound.restype = ctypes.c_size_t
+        lib.srmech_sturm_isolate.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.c_int, ctypes.c_uint32,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_sturm_isolate.restype = ctypes.c_int
+
+    # Argument-principle complex-root box certifier + full upper-half complex
+    # isolation (v0.9.0rc162; Qalg TAIL Batch 6) — backs the include_complex path
+    # of eigvals_exact. hasattr-guarded (pre-rc162 lib).
+    if hasattr(lib, "srmech_poly_root_box_certify"):
+        lib.srmech_poly_root_box_certify_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_poly_root_box_certify_ws_bound.restype = ctypes.c_size_t
+        lib.srmech_poly_root_box_certify.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_size_t,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_poly_root_box_certify.restype = ctypes.c_int
+    if hasattr(lib, "srmech_complex_isolate"):
+        lib.srmech_complex_isolate_entry_cap.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_uint32]
+        lib.srmech_complex_isolate_entry_cap.restype = ctypes.c_size_t
+        lib.srmech_complex_isolate_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_uint32]
+        lib.srmech_complex_isolate_ws_bound.restype = ctypes.c_size_t
+        lib.srmech_complex_isolate.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.c_int, ctypes.c_uint32,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_complex_isolate.restype = ctypes.c_int
+
     # Qi exact-complex (Gaussian-rational) carrier C-host peer (0.9.0rc15) —
     # carrier-internal (NOT a Rosetta op), four int64 limbs {re_num, re_den,
     # im_num, im_den}. hasattr-guarded so a stale lib (pre-rc15) keeps the rest.
@@ -4672,6 +4732,123 @@ def char_poly_int_c(rows) -> "list | None":
     if rc != SRMECH_OK:
         return None
     return [_bigint_to_int(c_arr[i]) for i in range(n + 1)]
+
+
+def has_native_sturm_isolate() -> bool:
+    """True iff the rc162 Sturm real-eigenvalue isolation kernel is loaded (plus
+    the srmech_bigint decimal-marshal helpers it shares). False on a no-C /
+    pre-rc162 lib — the pure-Python ``_square_free_factors`` + ``_isolate_real_roots``
+    in ``srmech.amsc.cascade.matrix_cascades`` are the complete, byte-identical
+    alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_sturm_isolate")
+            and hasattr(LIB, "srmech_sturm_isolate_ws_bound")
+            and hasattr(LIB, "srmech_sturm_isolate_entry_cap")
+            and hasattr(LIB, "srmech_bigint_from_dec")
+            and hasattr(LIB, "srmech_bigint_to_dec"))
+
+
+def sturm_isolate_c(cp, bits):
+    """Native exact real-eigenvalue isolation of the monic INTEGER characteristic
+    polynomial ``cp`` (HIGH->LOW ``[1, c1, …, cn]`` Python ints, from ``char_poly``)
+    via ``srmech_sturm_isolate`` — the real eigenvalues as exact isolating
+    ``(lo, hi)`` ``Fraction`` intervals WITH multiplicity, in per-square-free-factor
+    discovery order (the caller sorts by ``lo+hi``), or ``None`` (no-C / pre-rc162 /
+    n<1 / arena OVERFLOW -> the caller's pure ``_square_free_factors`` +
+    ``_isolate_real_roots`` oracle). BYTE-IDENTICAL to that oracle: the same monic
+    factors, the same Sturm chain, the same deterministic subdivision -> the same
+    reduced-``Fraction`` endpoints."""
+    from fractions import Fraction as _Fr
+    if not has_native_sturm_isolate():
+        return None
+    n = len(cp) - 1
+    if n < 1:
+        return None
+    cl = 1
+    for v in cp:
+        cl = max(cl, len(str(int(v)).lstrip("-")) // 9 + 2)
+    ub = ctypes.c_size_t(cl)
+    un = ctypes.c_size_t(n)
+    ubits = ctypes.c_uint32(int(bits))
+    entry_cap = int(LIB.srmech_sturm_isolate_entry_cap(ub, un, ubits))
+    ws_len = int(LIB.srmech_sturm_isolate_ws_bound(ub, un, ubits))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    cp_arr, kcp = _intvec_make_array([int(v) for v in cp], entry_cap)
+    lo_n, klon = _intvec_blank_array(n, entry_cap)
+    lo_d, klod = _intvec_blank_array(n, entry_cap)
+    hi_n, khin = _intvec_blank_array(n, entry_cap)
+    hi_d, khid = _intvec_blank_array(n, entry_cap)
+    count = ctypes.c_size_t(0)
+    rc = LIB.srmech_sturm_isolate(
+        cp_arr, int(n), ubits, lo_n, lo_d, hi_n, hi_d,
+        ctypes.byref(count),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len))
+    _ = (kcp, klon, klod, khin, khid)
+    if rc != SRMECH_OK:
+        return None
+    m = int(count.value)
+    return [(_Fr(_bigint_to_int(lo_n[i]), _bigint_to_int(lo_d[i])),
+             _Fr(_bigint_to_int(hi_n[i]), _bigint_to_int(hi_d[i])))
+            for i in range(m)]
+
+
+def has_native_complex_isolate() -> bool:
+    """True iff the rc162 complex-eigenvalue isolation kernel (argument-principle
+    box certifier + upper-half box subdivision) is loaded. False on a no-C /
+    pre-rc162 lib — the pure-Python ``_isolate_complex_roots_upper`` is the
+    complete, structurally-identical alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_complex_isolate")
+            and hasattr(LIB, "srmech_complex_isolate_ws_bound")
+            and hasattr(LIB, "srmech_complex_isolate_entry_cap")
+            and hasattr(LIB, "srmech_bigint_from_dec")
+            and hasattr(LIB, "srmech_bigint_to_dec"))
+
+
+def complex_isolate_c(cp, bits):
+    """Native exact complex-eigenvalue isolation of the monic INTEGER char-poly
+    ``cp`` (HIGH->LOW ints) via ``srmech_complex_isolate`` — the certified upper-half
+    box centers AND their conjugates as exact ``(re, im)`` ``Fraction`` pairs WITH
+    multiplicity, in per-square-free-factor emit order (the caller sorts by
+    ``(re, im)`` + projects to ``complex``), or ``None`` (no-C / pre-rc162 / n<1 /
+    arena OVERFLOW / a certifier degeneracy the jitter can't escape -> the caller's
+    pure ``_isolate_complex_roots_upper`` oracle). STRUCTURALLY-IDENTICAL to that
+    oracle: the same box subdivision, the same argument-principle counts, the same
+    refined-center Fractions."""
+    from fractions import Fraction as _Fr
+    if not has_native_complex_isolate():
+        return None
+    n = len(cp) - 1
+    if n < 1:
+        return None
+    cl = 1
+    for v in cp:
+        cl = max(cl, len(str(int(v)).lstrip("-")) // 9 + 2)
+    ub = ctypes.c_size_t(cl)
+    un = ctypes.c_size_t(n)
+    ubits = ctypes.c_uint32(int(bits))
+    entry_cap = int(LIB.srmech_complex_isolate_entry_cap(ub, un, ubits))
+    ws_len = int(LIB.srmech_complex_isolate_ws_bound(ub, un, ubits))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    cp_arr, kcp = _intvec_make_array([int(v) for v in cp], entry_cap)
+    re_n, k0 = _intvec_blank_array(n, entry_cap)
+    re_d, k1 = _intvec_blank_array(n, entry_cap)
+    im_n, k2 = _intvec_blank_array(n, entry_cap)
+    im_d, k3 = _intvec_blank_array(n, entry_cap)
+    count = ctypes.c_size_t(0)
+    rc = LIB.srmech_complex_isolate(
+        cp_arr, int(n), ubits, re_n, re_d, im_n, im_d,
+        ctypes.byref(count),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len))
+    _ = (kcp, k0, k1, k2, k3)
+    if rc != SRMECH_OK:
+        return None
+    m = int(count.value)
+    return [(_Fr(_bigint_to_int(re_n[i]), _bigint_to_int(re_d[i])),
+             _Fr(_bigint_to_int(im_n[i]), _bigint_to_int(im_d[i])))
+            for i in range(m)]
 
 
 def _intvec_make_array(values, cap):

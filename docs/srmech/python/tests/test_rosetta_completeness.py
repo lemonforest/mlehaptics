@@ -486,7 +486,20 @@ CEIL_C_EXISTS_UNBOUND = 0
 # bignum_reference -> c_dispatched. CEIL_BIGNUM_REFERENCE 8 -> 7. (The remaining 7
 # are eigvals_exact / eigvec (×2) / eig_exact / factor_integer_poly / jordan (×2);
 # next batch B6 = eigvals_exact via srmech_sturm_isolate, 7 -> 6.)
-CEIL_BIGNUM_REFERENCE = 7
+# rc162 (Qalg TAIL Batch 6): eigvals_exact — the exact ROOTS of the char-poly —
+# earns a C path, BOTH the real and the complex spectrum. Two NEW C kernels:
+# srmech_sturm_isolate (real: char_poly -> Yun square-free -> Sturm sign-sequence
+# isolation -> rational bisection -> exact isolating (lo,hi) intervals) and
+# srmech_complex_isolate (complex: pure rational-box subdivision over the upper
+# half-plane, each box certified by srmech_poly_root_box_certify — the exact
+# argument-principle winding in Fraction arithmetic — refined to 2^-bits). Both
+# compose the exact-Q srmech_poly_* kernels + scalar srmech_bigint arithmetic,
+# byte/structurally-identical to the pure _square_free_factors + _isolate_real_roots
+# + _isolate_complex_roots_upper. eigvals_exact moves bignum_reference ->
+# c_dispatched. CEIL_BIGNUM_REFERENCE 7 -> 6. (The remaining 6 are eigvec (×2) /
+# eig_exact / factor_integer_poly / jordan (×2); next batch B7 = the Qalg-field
+# jordan LA.)
+CEIL_BIGNUM_REFERENCE = 6
 
 _DEBT_BUCKETS = ("python_only_debt", "c_exists_unbound")
 _ALL_BUCKETS = (

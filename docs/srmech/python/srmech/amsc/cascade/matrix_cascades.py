@@ -1167,11 +1167,23 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False,
     """
     cp = char_poly(a)                                # monic, high→low
     p = [_FR(c) for c in reversed(cp)]               # low→high over ℚ
-    eigs: List[Tuple] = []
-    for factor, mult in _square_free_factors(p):
-        for (lo, hi) in _isolate_real_roots(factor, bits):
-            for _ in range(mult):
-                eigs.append((lo, hi))
+    # rc162 (Qalg TAIL Batch 6): the real-eigenvalue isolation dispatches to
+    # srmech_sturm_isolate — the C kernel that runs the SAME cascade (char_poly ->
+    # Yun square-free -> Sturm sign-sequence isolation -> rational bisection) over
+    # srmech_bigint + the exact-Q srmech_poly_* kernels, returning byte-identical
+    # isolating (lo, hi) Fraction intervals with multiplicity (per-factor discovery
+    # order). The pure _square_free_factors + _isolate_real_roots below stay the
+    # Pyodide / no-native fallback (and the parity oracle). The shared sort by
+    # lo+hi below fixes the global order identically on both paths.
+    native = _native.sturm_isolate_c(cp, bits) if _native.HAS_NATIVE else None
+    if native is not None:
+        eigs: List[Tuple] = native
+    else:
+        eigs = []
+        for factor, mult in _square_free_factors(p):
+            for (lo, hi) in _isolate_real_roots(factor, bits):
+                for _ in range(mult):
+                    eigs.append((lo, hi))
     eigs.sort(key=lambda iv: iv[0] + iv[1])
     # ``return_intervals`` yields the exact real isolating intervals; it applies to
     # the real spectrum only (a complex root is a box, not an interval), so it is
@@ -1190,48 +1202,58 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False,
         return real_out
     n_complex = n - n_real                            # comes in conjugate pairs
     want_upper = n_complex // 2
-    # MIRROR THE REAL PATH: isolate the complex roots PER SQUARE-FREE FACTOR.
-    # ``_square_free_factors(p)`` returns ``[(factor, mult)]`` where each ``factor``
-    # is SQUARE-FREE — so ALL its roots are SIMPLE. Box-subdivision can only ever
-    # separate SIMPLE roots (a coincident pair has count ≥ 2 in EVERY enclosing box,
-    # so the isolators would spin to their guards — the rc28 hang). Isolating the
-    # upper-half (im > 0) roots of each square-free factor therefore ALWAYS
-    # terminates; each isolated root is emitted ``mult`` times (and its conjugate
-    # ``mult`` times), exactly as the real path appends each simple real root
-    # ``mult`` times. There is NO float-QR candidate seeding on this path (rc28): the
-    # whole branch routes through the always-terminating per-factor
-    # ``_isolate_complex_roots_upper`` — pure exact subdivision, correctness- and
-    # termination-first (a candidate-seeded accelerator must never run on a
-    # non-square-free polynomial, where it would loop on a coincident pair).
-    certified: List[complex] = []
-    certified_upper = 0
-    for factor, mult in _square_free_factors(p):
-        deg = len(_poly_trim(factor)) - 1
-        if deg < 2:                                   # deg ≤ 1 → only a real root
-            continue
-        # this square-free factor's upper-half complex count =
-        # (deg − #real_roots) // 2 (real roots come in singles, complex in pairs).
-        n_real_factor = len(_isolate_real_roots(factor, bits))
-        want_upper_factor = (deg - n_real_factor) // 2
-        if want_upper_factor == 0:
-            continue
-        # factor is SQUARE-FREE → all roots simple → isolation ALWAYS terminates.
-        upper_roots = _isolate_complex_roots_upper(factor, want_upper_factor, bits)
-        if len(upper_roots) != want_upper_factor:
+    # rc162 (Qalg TAIL Batch 6): the complex isolation dispatches to
+    # srmech_complex_isolate — the C kernel that runs the SAME pure rational-box
+    # subdivision over the upper half-plane, each box CERTIFIED by the exact
+    # argument-principle count (srmech_poly_root_box_certify), refined to 2^-bits,
+    # returning the certified (re, im) box centers + conjugates with multiplicity.
+    # Structurally-identical to the pure loop below (the parity oracle + Pyodide /
+    # no-native fallback). The shared sort by (re, im) fixes the order on both paths.
+    native_c = _native.complex_isolate_c(cp, bits) if _native.HAS_NATIVE else None
+    if native_c is not None:
+        certified: List[complex] = [complex(float(re), float(im))
+                                    for (re, im) in native_c]
+    else:
+        # MIRROR THE REAL PATH: isolate the complex roots PER SQUARE-FREE FACTOR.
+        # ``_square_free_factors(p)`` returns ``[(factor, mult)]`` where each
+        # ``factor`` is SQUARE-FREE — so ALL its roots are SIMPLE. Box-subdivision
+        # can only ever separate SIMPLE roots (a coincident pair has count ≥ 2 in
+        # EVERY enclosing box, so the isolators would spin to their guards — the
+        # rc28 hang). Isolating the upper-half (im > 0) roots of each square-free
+        # factor therefore ALWAYS terminates; each isolated root is emitted
+        # ``mult`` times (and its conjugate ``mult`` times), exactly as the real
+        # path appends each simple real root ``mult`` times. NO float-QR seeding.
+        certified = []
+        certified_upper = 0
+        for factor, mult in _square_free_factors(p):
+            deg = len(_poly_trim(factor)) - 1
+            if deg < 2:                               # deg ≤ 1 → only a real root
+                continue
+            # this square-free factor's upper-half complex count =
+            # (deg − #real_roots) // 2 (real roots singles, complex in pairs).
+            n_real_factor = len(_isolate_real_roots(factor, bits))
+            want_upper_factor = (deg - n_real_factor) // 2
+            if want_upper_factor == 0:
+                continue
+            # factor SQUARE-FREE → all roots simple → isolation ALWAYS terminates.
+            upper_roots = _isolate_complex_roots_upper(factor, want_upper_factor,
+                                                       bits)
+            if len(upper_roots) != want_upper_factor:
+                raise ValueError(
+                    f"eigvals_exact: certified {len(upper_roots)} upper-half "
+                    f"complex roots of a square-free factor but expected "
+                    f"{want_upper_factor}")
+            for z in upper_roots:
+                for _ in range(mult):                 # mirror the real path's mult
+                    certified.append(complex(z.real, z.imag))
+                    certified.append(complex(z.real, -z.imag))   # conjugate
+                certified_upper += mult
+        # Reconcile the summed per-factor multiplicities with the char-poly count.
+        if certified_upper != want_upper:
             raise ValueError(
-                f"eigvals_exact: certified {len(upper_roots)} upper-half complex "
-                f"roots of a square-free factor but expected {want_upper_factor}")
-        for z in upper_roots:
-            for _ in range(mult):                     # mirror the real path's mult
-                certified.append(complex(z.real, z.imag))
-                certified.append(complex(z.real, -z.imag))   # conjugate (im < 0)
-            certified_upper += mult
-    # Reconcile the summed per-factor multiplicities with the char-poly count.
-    if certified_upper != want_upper:
-        raise ValueError(
-            f"eigvals_exact: certified {certified_upper} upper-half complex roots "
-            f"but the char-poly multiplicity expects {want_upper} "
-            f"(n={n}, real={n_real})")
+                f"eigvals_exact: certified {certified_upper} upper-half complex "
+                f"roots but the char-poly multiplicity expects {want_upper} "
+                f"(n={n}, real={n_real})")
     certified.sort(key=lambda z: (z.real, z.imag))
     return real_out + certified
 

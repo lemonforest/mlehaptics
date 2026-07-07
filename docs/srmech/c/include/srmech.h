@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc161"
-#define SRMECH_VERSION       "0.9.0rc161"
+#define SRMECH_VERSION_PRE   "rc162"
+#define SRMECH_VERSION       "0.9.0rc162"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -6769,6 +6769,86 @@ size_t srmech_faddeev_leverrier_ws_bound(size_t coeff_limbs, size_t n);
 srmech_status_t srmech_faddeev_leverrier(const srmech_bigint_t *a, int n,
                                          srmech_bigint_t *coeffs,
                                          void *ws, size_t ws_len);
+
+/* srmech_sturm_isolate — EXACT REAL-EIGENVALUE isolation (v0.9.0rc162; Qalg TAIL
+ * Batch 6). The exact ROOTS of the characteristic polynomial: eigenvalues are
+ * ALGEBRAIC numbers, so — kept in exact integer/rational arithmetic — they come
+ * out as exact isolating rational intervals with NO Wilkinson ill-conditioning.
+ * `cp` is the n+1 monic INTEGER char-poly coefficients HIGH->LOW (the
+ * srmech_faddeev_leverrier output; dens implied 1). The op composes the exact-Q
+ * srmech_poly_* kernels (gcd / divmod / eval) with scalar exact-Q srmech_bigint
+ * arithmetic:
+ *   char_poly -> Yun square-free factorisation (exact multiplicities) -> STURM
+ *   sign-sequence isolation (sign-variation count at rational boundaries) ->
+ *   rational BISECTION to width < 2^-bits.
+ * out_lo_n/out_lo_d, out_hi_n/out_hi_d receive the reduced-fraction (num, den)
+ * endpoints of the isolating intervals WITH multiplicity (each caller-owned,
+ * >= srmech_sturm_isolate_entry_cap limbs, >= n slots); *out_count <- the number
+ * of real eigenvalues (with multiplicity). The caller SORTS by lo+hi and projects
+ * to float (the single terminal rotation) exactly as the pure path does. Uses the
+ * caller arena `ws` (>= srmech_sturm_isolate_ws_bound); a too-small arena / entry
+ * cap / a subdivision beyond the bounded stack -> SRMECH_ERR_OVERFLOW (the caller
+ * falls back to the byte-identical pure Python — the parity oracle). n in
+ * [1, SRMECH_STURM_MAX_DIM]; n<1 or n>max -> SRMECH_ERR_BAD_INPUT. Rosetta peer of
+ * srmech.amsc.cascade.matrix_cascades.eigvals_exact (real-root path); attested by
+ * tests/test_qalg_eigvals_c_rc162.py. Additive symbol -> ABI unchanged (3). */
+#define SRMECH_STURM_MAX_DIM 256
+size_t srmech_sturm_isolate_entry_cap(size_t coeff_limbs, size_t n,
+                                      uint32_t bits);
+size_t srmech_sturm_isolate_ws_bound(size_t coeff_limbs, size_t n, uint32_t bits);
+srmech_status_t srmech_sturm_isolate(const srmech_bigint_t *cp, int n,
+                                     uint32_t bits,
+                                     srmech_bigint_t *out_lo_n,
+                                     srmech_bigint_t *out_lo_d,
+                                     srmech_bigint_t *out_hi_n,
+                                     srmech_bigint_t *out_hi_d,
+                                     size_t *out_count, void *ws, size_t ws_len);
+
+/* srmech_poly_root_box_certify — the exact ARGUMENT-PRINCIPLE root count of a
+ * polynomial `p` (np coefficients, low->high, over Q as num/den srmech_bigint
+ * pairs) STRICTLY inside the open rational box (x0,x1) x (y0,y1). The winding
+ * number of p around the box boundary (traversed CCW) = the enclosed root count,
+ * computed in EXACT Fraction arithmetic (Cauchy-index sum of the per-edge V/U
+ * sign-variation sequences — the same generalised-Sturm machinery as the real
+ * isolation). *out_count <- the count; *out_degenerate <- 1 when a corner/edge
+ * hits a root (winding half-integer / p vanishes on an edge — the caller nudges
+ * the corners), mirroring _count_roots_in_box's ValueError. Composes srmech_poly_*
+ * (edge substitution + generalised Sturm seq) + srmech_poly_eval over the caller
+ * arena `ws` (>= srmech_poly_root_box_certify_ws_bound). The certifier the complex
+ * eigenvalue isolation (eigvals_exact include_complex) composes. Additive symbol
+ * -> ABI unchanged (3). */
+size_t srmech_poly_root_box_certify_ws_bound(size_t coeff_limbs, size_t np);
+srmech_status_t srmech_poly_root_box_certify(
+        const srmech_bigint_t *p_num, const srmech_bigint_t *p_den, size_t np,
+        const srmech_bigint_t *x0n, const srmech_bigint_t *x0d,
+        const srmech_bigint_t *x1n, const srmech_bigint_t *x1d,
+        const srmech_bigint_t *y0n, const srmech_bigint_t *y0d,
+        const srmech_bigint_t *y1n, const srmech_bigint_t *y1d,
+        int *out_count, int *out_degenerate, void *ws, size_t ws_len);
+
+/* srmech_complex_isolate — the exact COMPLEX eigenvalues of the integer matrix
+ * whose monic INTEGER char-poly is `cp` (HIGH->LOW, n+1 coeffs). Composes the Yun
+ * square-free factorisation with PURE rational-box subdivision over the upper
+ * half-plane, each box CERTIFIED by srmech_poly_root_box_certify (the exact
+ * argument principle — no float in the count), refined to 2^-bits. out_re_n/out_re_d,
+ * out_im_n/out_im_d receive the reduced-fraction (re, im) box centers WITH
+ * multiplicity — each certified upper-half center AND its conjugate (im<0), in
+ * per-square-free-factor emit order (the caller sorts by (re, im) + projects to
+ * complex, exactly as the pure include_complex path does). *out_count <- the number
+ * of complex eigenvalues (= n - #real). Byte/structurally-identical to the pure
+ * _isolate_complex_roots_upper. Caller arena `ws` (>= srmech_complex_isolate_ws_bound);
+ * each output >= srmech_complex_isolate_entry_cap limbs, >= n slots. A too-small
+ * arena / a certifier degeneracy the jitter cannot escape -> SRMECH_ERR_OVERFLOW
+ * (the caller falls back to the byte-identical pure path). Additive symbol -> ABI 3. */
+size_t srmech_complex_isolate_entry_cap(size_t coeff_limbs, size_t n, uint32_t bits);
+size_t srmech_complex_isolate_ws_bound(size_t coeff_limbs, size_t n, uint32_t bits);
+srmech_status_t srmech_complex_isolate(const srmech_bigint_t *cp, int n,
+                                       uint32_t bits,
+                                       srmech_bigint_t *out_re_n,
+                                       srmech_bigint_t *out_re_d,
+                                       srmech_bigint_t *out_im_n,
+                                       srmech_bigint_t *out_im_d,
+                                       size_t *out_count, void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_gosper — Gosper's indefinite hypergeometric summation (the
