@@ -1371,6 +1371,54 @@ def _eigvec_exact_qalg(a, lam):
     return null_vectors, one, free_cols
 
 
+def _entry_ratio(v):
+    """A real integer/rational matrix entry as an exact ``(num, den)`` int pair,
+    or ``None`` if the entry is COMPLEX (the C eigvec path is real-ℚ only — the
+    caller then routes to the pure ``_eigvec_exact_qalg``, which raises the same
+    ValueError). Mirrors ``_eigvec_exact_qalg._q_entry``'s coercion."""
+    vr = v.real if hasattr(v, "real") else v
+    vi = v.imag if hasattr(v, "imag") else 0
+    if vi != 0:
+        return None
+    if hasattr(vr, "numerator") and hasattr(vr, "denominator"):
+        return (int(vr.numerator), int(vr.denominator))
+    if int(vr) == vr:
+        return (int(vr), 1)
+    fr = _FR(vr)
+    return (fr.numerator, fr.denominator)
+
+
+def _eigvec_exact_native(rows, lam):
+    """The rc163 native fast-path for :func:`eigvec_exact`: the exact null space of
+    ``A − λI`` over ℚ(λ) via ``srmech_eigvec_exact`` (the Qalg-field RREF in C),
+    reconstructed as a ``list[list[Qalg]]`` (one basis vector per free column, each
+    a list of ``n`` ``Qalg`` components carrying ``lam``'s ``m`` + ``root``).
+    Returns ``None`` — routing to the byte-identical pure ``_eigvec_exact_qalg`` —
+    on a no-C / pre-rc163 lib, a COMPLEX matrix entry, an arena OVERFLOW, or a
+    reducible ``m`` (all of which the pure oracle handles); returns ``[]`` when
+    ``A − λI`` is non-singular (λ not an eigenvalue)."""
+    from srmech.amsc.qalg import Qalg
+    if not _native.has_native_eigvec_exact():
+        return None
+    rows_ratio = []
+    for r in rows:
+        row = []
+        for v in r:
+            pr = _entry_ratio(v)
+            if pr is None:
+                return None                          # complex entry → pure path
+            row.append(pr)
+        rows_ratio.append(row)
+    m_int = [int(c) for c in lam.m]
+    lam_coords = [(int(c.numerator), int(c.denominator)) for c in lam.coords]
+    raw = _native.eigvec_exact_c(rows_ratio, m_int, lam_coords)
+    if raw is None:
+        return None
+    m = lam.m
+    root = lam.root
+    return [[Qalg(m, tuple(comp), root=root) for comp in vec] for vec in raw]
+
+
 def eigvec_exact(a, lam):
     """Exact EIGENVECTOR(S) of an integer/rational matrix via the null space of
     ``A − λI`` over the number field ℚ(λ) = ``Qalg`` (rotation-last rc-D).
@@ -1407,17 +1455,34 @@ def eigvec_exact(a, lam):
     null space) ∘ **Class N** (the exact ``Q`` field arithmetic) ∘ **Class K**
     (the sign in subtraction / negation — never an ALU ``abs``).
     """
-    from srmech.amsc.qalg import Qalg  # noqa: F401  (kept for the verify below)
+    from srmech.amsc.qalg import Qalg
 
-    null_vectors, _one_unused, free_cols = _eigvec_exact_qalg(a, lam)
-    if not free_cols:
+    if not isinstance(lam, Qalg):
+        raise TypeError(
+            "eigvec_exact: lam must be a Qalg eigenvalue (carrying its "
+            f"irreducible m + embedding root); got {type(lam).__name__}")
+    rows = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
+    n = len(rows)
+    if n == 0:
+        raise ValueError("eigvec_exact: a must be a non-empty square matrix")
+    if any(len(r) != n for r in rows):
+        raise ValueError(
+            f"eigvec_exact: a must be square 2-D; got {n}x{len(rows[0])}")
+
+    # rc163 (Qalg TAIL Batch 7a): the exact Qalg-field null space dispatches to
+    # srmech_eigvec_exact — the same RREF over ℚ(λ)=ℚ[x]/(m) built on the exact-Q
+    # srmech_poly_* kernels, returning the byte/structurally-identical basis (the
+    # RREF is canonical). The pure _eigvec_exact_qalg below stays the Pyodide /
+    # no-native fallback (and the parity oracle); it is also the arbiter of the
+    # reducible-m / non-eigenvalue error semantics.
+    null_vectors = _eigvec_exact_native(rows, lam)
+    if null_vectors is None:
+        null_vectors, _one_unused, _free_cols = _eigvec_exact_qalg(a, lam)
+    if not null_vectors:
         raise ValueError(
             "eigvec_exact: A − λI is non-singular (null space is trivial) — "
             "lam is not an eigenvalue of a (or its m does not match a's "
             "spectrum). The eigenvector null space is empty.")
-
-    rows = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
-    n = len(rows)
 
     def _verify(vec):
         """Assert ``A·vec == λ·vec`` exactly over Qalg, componentwise."""
@@ -1433,7 +1498,7 @@ def eigvec_exact(a, lam):
                 f"eigvec_exact: eigen-relation A·v == λ·v FAILED at component {i} "
                 f"({lhs!r} != {rhs!r}) — internal error")
 
-    if len(free_cols) == 1:
+    if len(null_vectors) == 1:
         v = null_vectors[0]
         _verify(v)
         return v

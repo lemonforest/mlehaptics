@@ -1083,6 +1083,32 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_complex_isolate.restype = ctypes.c_int
 
+    # Qalg number-field EIGENVECTORS (v0.9.0rc163; Qalg TAIL Batch 7a) — the exact
+    # null space of A − λI over ℚ(λ) = ℚ[x]/(m), read off the exact RREF. Backs
+    # eigvec_exact / eigvec_exact_float; hasattr-guarded (pre-rc163 lib).
+    #   size_t srmech_eigvec_exact_entry_cap(size_t coeff_limbs, int n, int deg)
+    #   size_t srmech_eigvec_exact_ws_bound (size_t coeff_limbs, int n, int deg)
+    #   int srmech_eigvec_exact(bigint *a_n, bigint *a_d, int n,
+    #       bigint *m, int deg, bigint *lam_n, bigint *lam_d,
+    #       bigint *out_n, bigint *out_d, int *out_k, void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_eigvec_exact"):
+        lib.srmech_eigvec_exact_entry_cap.argtypes = [
+            ctypes.c_size_t, ctypes.c_int, ctypes.c_int]
+        lib.srmech_eigvec_exact_entry_cap.restype = ctypes.c_size_t
+        lib.srmech_eigvec_exact_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_int, ctypes.c_int]
+        lib.srmech_eigvec_exact_ws_bound.restype = ctypes.c_size_t
+        lib.srmech_eigvec_exact.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_int,
+            ctypes.POINTER(_SrmechBigint), ctypes.c_int,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_int),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_eigvec_exact.restype = ctypes.c_int
+
     # Qi exact-complex (Gaussian-rational) carrier C-host peer (0.9.0rc15) —
     # carrier-internal (NOT a Rosetta op), four int64 limbs {re_num, re_den,
     # im_num, im_den}. hasattr-guarded so a stale lib (pre-rc15) keeps the rest.
@@ -4849,6 +4875,88 @@ def complex_isolate_c(cp, bits):
     return [(_Fr(_bigint_to_int(re_n[i]), _bigint_to_int(re_d[i])),
              _Fr(_bigint_to_int(im_n[i]), _bigint_to_int(im_d[i])))
             for i in range(m)]
+
+
+def has_native_eigvec_exact() -> bool:
+    """True iff the rc163 Qalg number-field eigenvector kernel + the srmech_bigint
+    decimal-marshal helpers are loaded. False on a no-C / pre-rc163 lib — the
+    pure-Python ``_eigvec_exact_qalg`` (Qalg-field Gaussian elimination) in
+    ``srmech.amsc.cascade.matrix_cascades`` is the complete, byte-identical
+    alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_eigvec_exact")
+            and hasattr(LIB, "srmech_eigvec_exact_ws_bound")
+            and hasattr(LIB, "srmech_eigvec_exact_entry_cap")
+            and hasattr(LIB, "srmech_bigint_from_dec")
+            and hasattr(LIB, "srmech_bigint_to_dec"))
+
+
+def eigvec_exact_c(rows_ratio, m_int, lam_coords):
+    """Native exact eigenvector null space of ``A − λI`` over ℚ(λ) via
+    ``srmech_eigvec_exact``. Inputs are already marshalled to exact rationals:
+
+      * ``rows_ratio`` — ``n`` rows, each ``n`` ``(num, den)`` integer pairs (the
+        matrix entries as exact ℚ);
+      * ``m_int``      — the ``deg+1`` monic INTEGER coefficients of λ's minimal
+        polynomial, low→high;
+      * ``lam_coords`` — λ's ``deg`` ``(num, den)`` ℚ(α) coordinates.
+
+    Returns the null-space basis as ``list[vector]`` where each ``vector`` is a
+    ``list`` of ``n`` components and each component is a ``list`` of ``deg``
+    ``(num, den)`` coordinate tuples — one basis vector per free column, in
+    ascending free-column order (byte/structurally-identical to the pure
+    ``_eigvec_exact_qalg``). Returns ``None`` on no-C / pre-rc163 lib / arena
+    OVERFLOW / reducible-m (the caller's pure oracle handles it), and an EMPTY
+    list when ``A − λI`` is non-singular (λ not an eigenvalue — the caller raises
+    the same ValueError)."""
+    if not has_native_eigvec_exact():
+        return None
+    n = len(rows_ratio)
+    deg = len(m_int) - 1
+    if n < 1 or deg < 1 or n > 256 or deg > 256:
+        return None
+    flat = [(int(num), int(den)) for row in rows_ratio for (num, den) in row]
+    if len(flat) != n * n:
+        return None
+    # coeff_limbs: a generous over-estimate of the largest input's limb count,
+    # so the C-internal cap (from actual magnitudes) never exceeds entry_cap.
+    cl = 1
+    for num, den in flat:
+        cl = max(cl, num.bit_length() // 32 + 4, den.bit_length() // 32 + 4)
+    for v in m_int:
+        cl = max(cl, int(v).bit_length() // 32 + 4)
+    for num, den in lam_coords:
+        cl = max(cl, int(num).bit_length() // 32 + 4, int(den).bit_length() // 32 + 4)
+    entry_cap = int(LIB.srmech_eigvec_exact_entry_cap(
+        ctypes.c_size_t(cl), ctypes.c_int(n), ctypes.c_int(deg)))
+    ws_len = int(LIB.srmech_eigvec_exact_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_int(n), ctypes.c_int(deg)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    a_n, a_d, ka = _poly_make_array(flat, entry_cap)
+    m_arr, km = _intvec_make_array([int(v) for v in m_int], entry_cap)
+    lam_n, lam_d, kl = _poly_make_array(
+        [(int(num), int(den)) for (num, den) in lam_coords], entry_cap)
+    out_n, out_d, ko = _poly_blank_array(n * n * deg, entry_cap)
+    out_k = ctypes.c_int(0)
+    rc = LIB.srmech_eigvec_exact(
+        a_n, a_d, int(n), m_arr, int(deg), lam_n, lam_d,
+        out_n, out_d, ctypes.byref(out_k),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len))
+    _ = (ka, km, kl, ko)
+    if rc != SRMECH_OK:
+        return None
+    k = int(out_k.value)
+    vectors = []
+    for v in range(k):
+        vec = []
+        for comp in range(n):
+            base = (v * n + comp) * deg
+            coords = [(_bigint_to_int(out_n[base + c]), _bigint_to_int(out_d[base + c]))
+                      for c in range(deg)]
+            vec.append(coords)
+        vectors.append(vec)
+    return vectors
 
 
 def _intvec_make_array(values, cap):

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc162"
-#define SRMECH_VERSION       "0.9.0rc162"
+#define SRMECH_VERSION_PRE   "rc163"
+#define SRMECH_VERSION       "0.9.0rc163"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -6849,6 +6849,40 @@ srmech_status_t srmech_complex_isolate(const srmech_bigint_t *cp, int n,
                                        srmech_bigint_t *out_im_n,
                                        srmech_bigint_t *out_im_d,
                                        size_t *out_count, void *ws, size_t ws_len);
+
+/* srmech_eigvec_exact — EXACT EIGENVECTORS over the number field ℚ(λ) = ℚ[x]/(m)
+ * (v0.9.0rc163; Qalg TAIL Batch 7a). An algebraic eigenvalue λ is a root of a
+ * monic IRREDUCIBLE integer polynomial m of degree deg, so ℚ(λ) is a FIELD; the
+ * eigenvector is the null space of M = A − λI over that field, read off the exact
+ * REDUCED ROW ECHELON form. The Qalg field arithmetic composes the exact-ℚ
+ * srmech_poly_* kernels: add/sub coefficientwise, mul = convolution then REDUCE
+ * mod m (srmech_poly_divmod remainder — the monic relation αⁿ = −Σ m[i]αⁱ),
+ * inverse = the extended Euclidean algorithm on b(x), m(x) in ℚ[x] (b⁻¹ = u/g mod
+ * m). Byte/structurally-identical to the pure _eigvec_exact_qalg (the RREF is
+ * canonical). Rosetta peer of matrix_cascades.eigvec_exact / eigvec_exact_float;
+ * attested by tests/test_qalg_eigvec_c_rc163.py.
+ *
+ * `a_n`/`a_d` are the n·n rational matrix entries (row-major, num/den, dens > 0
+ * reduced); `m` is the deg+1 monic INTEGER coefficients low->high (denominators
+ * implied 1); `lam_n`/`lam_d` are λ's deg ℚ(α) coordinates. out_n/out_d receive
+ * *out_k null-space basis vectors, each n components of deg coordinates, at
+ * out[((v·n + comp)·deg + coeff)] (the caller sizes them n·n·deg slots, each >=
+ * srmech_eigvec_exact_entry_cap limbs); *out_k is the null-space dimension (0 iff
+ * λ is not an eigenvalue — the caller then raises the same ValueError). Uses the
+ * caller arena `ws` (>= srmech_eigvec_exact_ws_bound). n/deg in [1,
+ * SRMECH_EIGVEC_MAX_DIM]; a non-monic / out-of-range / REDUCIBLE m (a zero-divisor
+ * pivot with no inverse) -> SRMECH_ERR_BAD_INPUT; a too-small arena / coordinate
+ * cap -> SRMECH_ERR_OVERFLOW (the caller falls back to the byte-identical pure
+ * path — the parity oracle). Additive symbols -> ABI unchanged (3). */
+#define SRMECH_EIGVEC_MAX_DIM 256
+size_t srmech_eigvec_exact_entry_cap(size_t coeff_limbs, int n, int deg);
+size_t srmech_eigvec_exact_ws_bound(size_t coeff_limbs, int n, int deg);
+srmech_status_t srmech_eigvec_exact(
+        const srmech_bigint_t *a_n, const srmech_bigint_t *a_d, int n,
+        const srmech_bigint_t *m, int deg,
+        const srmech_bigint_t *lam_n, const srmech_bigint_t *lam_d,
+        srmech_bigint_t *out_n, srmech_bigint_t *out_d, int *out_k,
+        void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_gosper — Gosper's indefinite hypergeometric summation (the
