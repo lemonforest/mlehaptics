@@ -333,7 +333,6 @@ typedef struct fac_ctx {
     srmech_bigint_t *bt;      /* general scalar temporaries bt[0..15]      */
     srmech_bigint_t *mod;     /* the Hensel modulus p^k                    */
     srmech_bigint_t *modhalf; /* mod >> 1 (the symmetric-rep pivot)        */
-    srmech_bigint_t *qsink;   /* fbi_mod quotient sink (NULL-q has a bug)   */
     srmech_bigint_t *m2;      /* the doubled modulus modn^2 (Hensel step)  */
     srmech_bigint_t *modn;    /* the running Hensel modulus (lift loop)     */
     srmech_bigint_t *pool;    /* FAC_BP_N poly buffers, each cw wide       */
@@ -365,16 +364,16 @@ static uint64_t *hp_buf(fac_ctx_t *c, int k)
     return c->hp + (size_t)k * (size_t)c->fw;
 }
 
-/* out = a (mod m), floor-reduced into [0, m). m > 0. A REAL quotient sink is
- * passed (not NULL) — srmech_bigint_divmod's NULL-q path sizes its throwaway
- * quotient at cap 0, which OVERFLOWs the floor-fixup q-=1 on a negative
- * dividend; a caller-owned sink avoids it. */
+/* out = a (mod m), floor-reduced into [0, m). m > 0. Calls the fixed
+ * srmech_bigint_divmod directly with q = NULL (the divmod now carves its
+ * own throwaway quotient off the arena — the old cap-0 NULL-sink bug that
+ * forced a caller-owned qsink workaround here is FIXED at the root). */
 static srmech_status_t fbi_mod(fac_ctx_t *c, srmech_bigint_t *out,
                                const srmech_bigint_t *a, const srmech_bigint_t *m)
 {
     assert(c != NULL && out != NULL);
     assert(m != NULL && m->sign > 0);
-    return srmech_bigint_divmod(c->qsink, out, a, m, c->bws, c->bws_len);
+    return srmech_bigint_divmod(NULL, out, a, m, c->bws, c->bws_len);
 }
 
 /* out = a * b ; out = a + b ; out = a - b ; out = a (exact ℤ). */
@@ -1299,7 +1298,20 @@ static srmech_status_t fac_peel(fac_ctx_t *c, int size,
 }
 
 /* The recombination driver: increasing subset sizes, exact ℤ trial-division,
- * subset-cap guard. Fills c->irr / c->irr_len / c->irr_n + *hit_cap. */
+ * subset-cap guard. Fills c->irr / c->irr_len / c->irr_n + *hit_cap.
+ * Only subsets with 2*size <= #remaining are enumerated (von zur Gathen &
+ * Gerhard, Modern Computer Algebra, ch. 15, the Zassenhaus factor-combination
+ * step): a true factor spanning MORE than half the modular factors has a
+ * cofactor spanning LESS than half that would already have been peeled at its
+ * own smaller size, so once the half bound is exhausted the leftover is
+ * irreducible — this halves the classic exponential enumeration (the pure
+ * Python path applies the same cutoff, so both paths stay byte-identical).
+ * HONEST LIMIT: the enumeration stays WORST-CASE EXPONENTIAL in the number of
+ * modular factors even with the cutoff (Swinnerton-Dyer inputs split into
+ * deg <= 2 factors mod every prime yet are irreducible over ℤ — measured SD5,
+ * deg 32: 39207 candidates post-cutoff vs 65539 pre). van Hoeij's LLL
+ * knapsack recombination (J. Number Theory 95(2), 2002) is the known real
+ * fix, deferred as a research arc. */
 static srmech_status_t fac_recombine(fac_ctx_t *c, int *hit_cap)
 {
     int lfw = c->deg + 1, size = 1, i, j, found, lquo, lprim, divides, lp;
@@ -1309,7 +1321,7 @@ static srmech_status_t fac_recombine(fac_ctx_t *c, int *hit_cap)
     st = bp_copy(bp_buf(c, 19), c->ip, c->deg + 1); if (st) { return st; }
     for (i = 0; i < c->mp_n; i++) { c->rem_idx[i] = i; }
     c->rem_n = c->mp_n; c->irr_n = 0; *hit_cap = 0;
-    while (c->rem_n > 0 && size <= c->rem_n) {
+    while (c->rem_n > 0 && 2 * size <= c->rem_n) {
         if (size > FAC_SUBSET_CAP) { *hit_cap = 1; break; }
         for (j = 0; j < size; j++) { c->combo[j] = j; }
         found = 0;
@@ -1461,7 +1473,6 @@ static int fac_carve_big(fac_ctx_t *c)
     c->bt = fac_carve_bigints(&c->ar, 16u, c->cap);
     c->mod = fac_carve_bigints(&c->ar, 1u, c->cap);
     c->modhalf = fac_carve_bigints(&c->ar, 1u, c->cap);
-    c->qsink = fac_carve_bigints(&c->ar, 1u, c->cap);
     c->m2 = fac_carve_bigints(&c->ar, 1u, c->cap);
     c->modn = fac_carve_bigints(&c->ar, 1u, c->cap);
     c->pool = fac_carve_bigints(&c->ar, (size_t)FAC_BP_N * cw, c->cap);
@@ -1558,4 +1569,567 @@ srmech_status_t srmech_factor_squarefree_primitive(
     }
     *out_nfac = c.irr_n;
     return SRMECH_OK;
+}
+
+/* ================================================================== *
+ *  srmech_factor_integer_poly — the FULL factor_integer_poly composite
+ *  (rc165 deferral 2, everything-mirrors): content + primitive part,
+ *  Yun square-free decomposition over exact ℚ (composing the
+ *  srmech_poly_gcd / srmech_poly_divmod / srmech_poly_sub kernels +
+ *  an exact-ℚ derivative), per square-free part the Zassenhaus core
+ *  srmech_factor_squarefree_primitive above, merge-identical factors,
+ *  and the (len, coeffs) sort — so a bare-C host factors an integer
+ *  polynomial into its irreducible (factor, multiplicity) list with
+ *  ONE call, byte-identical to the Python factor_integer_poly.
+ * ================================================================== */
+
+/* Q-poly slots (parallel num/den arrays, each cw coefficients wide). */
+#define FIQ_P  0   /* the primitive input over ℚ (dens 1)  */
+#define FIQ_DV 1   /* p'                                    */
+#define FIQ_A  2   /* Yun a = gcd(p, p')                    */
+#define FIQ_B  3   /* Yun b                                 */
+#define FIQ_C  4   /* Yun c                                 */
+#define FIQ_D  5   /* Yun d                                 */
+#define FIQ_G  6   /* Yun g = gcd(b, d)                     */
+#define FIQ_Q1 7   /* divmod quotient out                   */
+#define FIQ_R1 8   /* divmod remainder out                  */
+#define FIQ_T3 9   /* b' scratch                            */
+#define FIQ_NQ 10
+
+typedef struct fiq_ctx {
+    fac_arena_t ar;
+    int cw;                        /* deg + 1 coefficient slots            */
+    int deg;
+    uint32_t ccap;                 /* carrier limb cap (ℚ + ℤ coefficients) */
+    uint32_t scap;                 /* self-check accumulator limb cap       */
+    srmech_bigint_t *qn[FIQ_NQ];   /* Q-poly numerators                     */
+    srmech_bigint_t *qd[FIQ_NQ];   /* Q-poly denominators (> 0, reduced)    */
+    srmech_bigint_t *prim;         /* primitive part of the input (cw)      */
+    srmech_bigint_t *gint;         /* den-cleared Yun part (cw)             */
+    srmech_bigint_t *gprim;        /* its primitive part (cw)               */
+    srmech_bigint_t *stage;        /* factor-core out staging (2*cw + 2)    */
+    srmech_bigint_t *store;        /* merged factors (deg rows x cw)        */
+    srmech_bigint_t *sc0, *sc1;    /* self-check accumulators (cw, scap)    */
+    srmech_bigint_t *bt;           /* scalar temps bt[0..7]                 */
+    int *stage_degs, *flen, *fmult, *order;
+    int fcount, capped;
+    void *tail; size_t tail_len;   /* sub-arena: poly kernels + factor core */
+} fiq_ctx_t;
+
+/* Carrier limb cap: covers the Yun rational growth envelope AND the
+ * Zassenhaus-core factor-coefficient bound (fac_cap_for on a grown input). */
+static size_t fiq_cap_for(size_t cl, int deg)
+{
+    size_t c = (cl == 0u) ? 1u : cl;
+    size_t nt = (size_t)deg + 1u;
+    size_t q = 4u * c * nt + 64u;                     /* Yun rational envelope */
+    size_t o = fac_cap_for(4u * c + 8u, deg);         /* core-out envelope     */
+    size_t cap = ((q > o) ? q : o) + 32u;
+    assert(cap > q || cap > o);
+    assert(cap >= 96u);
+    return cap;
+}
+
+/* Trim a Q-poly numerator array to its canonical length (0 = the zero poly). */
+static int fiq_qtrim(const srmech_bigint_t *n, int len)
+{
+    assert(n != NULL || len == 0);
+    assert(len >= 0);
+    while (len > 0 && srmech_bigint_is_zero(&n[len - 1])) { len--; }
+    return len;
+}
+
+/* Reduce num/den to canonical lowest terms (den > 0; 0 -> 0/1). */
+static srmech_status_t fiq_reduce(fiq_ctx_t *c, srmech_bigint_t *num,
+                                  srmech_bigint_t *den)
+{
+    srmech_status_t st;
+    assert(c != NULL && num != NULL);
+    assert(den != NULL && den->sign > 0);
+    if (srmech_bigint_is_zero(num)) { return srmech_bigint_set_i64(den, 1); }
+    st = srmech_bigint_gcd(&c->bt[1], num, den, c->tail, c->tail_len);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_bigint_divmod(&c->bt[2], NULL, num, &c->bt[1],
+                              c->tail, c->tail_len);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_bigint_copy(num, &c->bt[2]);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_bigint_divmod(&c->bt[2], NULL, den, &c->bt[1],
+                              c->tail, c->tail_len);
+    if (st != SRMECH_OK) { return st; }
+    return srmech_bigint_copy(den, &c->bt[2]);
+}
+
+/* dst <- d/dx src over exact ℚ: dst[i] = src[i+1]*(i+1), reduced. */
+static srmech_status_t fiq_deriv(fiq_ctx_t *c, int src, int dst, size_t slen,
+                                 size_t *dlen)
+{
+    size_t i;
+    srmech_status_t st;
+    assert(c != NULL && dlen != NULL);
+    assert(src >= 0 && src < FIQ_NQ && dst >= 0 && dst < FIQ_NQ && src != dst);
+    if (slen <= 1u) { *dlen = 0u; return SRMECH_OK; }
+    for (i = 1u; i < slen; i++) {
+        st = srmech_bigint_set_i64(&c->bt[0], (int64_t)i);
+        if (st != SRMECH_OK) { return st; }
+        st = srmech_bigint_mul(&c->qn[dst][i - 1u], &c->qn[src][i], &c->bt[0]);
+        if (st != SRMECH_OK) { return st; }
+        st = srmech_bigint_copy(&c->qd[dst][i - 1u], &c->qd[src][i]);
+        if (st != SRMECH_OK) { return st; }
+        st = fiq_reduce(c, &c->qn[dst][i - 1u], &c->qd[dst][i - 1u]);
+        if (st != SRMECH_OK) { return st; }
+    }
+    *dlen = (size_t)fiq_qtrim(c->qn[dst], (int)slen - 1);
+    return SRMECH_OK;
+}
+
+/* dst <- src (Q-poly deep copy of len coefficients). */
+static srmech_status_t fiq_qcopy(fiq_ctx_t *c, int dst, int src, size_t len)
+{
+    size_t i;
+    srmech_status_t st;
+    assert(c != NULL);
+    assert(src >= 0 && src < FIQ_NQ && dst >= 0 && dst < FIQ_NQ && src != dst);
+    for (i = 0u; i < len; i++) {
+        st = srmech_bigint_copy(&c->qn[dst][i], &c->qn[src][i]);
+        if (st != SRMECH_OK) { return st; }
+        st = srmech_bigint_copy(&c->qd[dst][i], &c->qd[src][i]);
+        if (st != SRMECH_OK) { return st; }
+    }
+    return SRMECH_OK;
+}
+
+/* out <- the primitive part of the nonzero integer poly p (content 1,
+ * POSITIVE lead — the Class-K sign pin-slot; mirrors _ipoly_primitive). */
+static srmech_status_t fiq_prim_int(fiq_ctx_t *c, const srmech_bigint_t *p,
+                                    int len, srmech_bigint_t *out, int *olen)
+{
+    int i, neg;
+    srmech_status_t st;
+    assert(c != NULL && p != NULL);
+    assert(out != NULL && olen != NULL && len >= 1);
+    st = fbi_seti(&c->bt[5], 0);                       /* content accumulator */
+    if (st != SRMECH_OK) { return st; }
+    for (i = 0; i < len; i++) {
+        st = srmech_bigint_gcd(&c->bt[6], &c->bt[5], &p[i],
+                               c->tail, c->tail_len);
+        if (st != SRMECH_OK) { return st; }
+        st = fbi_copy(&c->bt[5], &c->bt[6]);
+        if (st != SRMECH_OK) { return st; }
+    }
+    neg = (p[len - 1].sign < 0);
+    for (i = 0; i < len; i++) {
+        st = srmech_bigint_divmod(&c->bt[6], NULL, &p[i], &c->bt[5],
+                                  c->tail, c->tail_len);
+        if (st != SRMECH_OK) { return st; }
+        if (neg) {
+            st = fbi_seti(&c->bt[7], 0);               if (st != SRMECH_OK) { return st; }
+            st = fbi_sub(&out[i], &c->bt[7], &c->bt[6]);
+        } else {
+            st = fbi_copy(&out[i], &c->bt[6]);
+        }
+        if (st != SRMECH_OK) { return st; }
+    }
+    *olen = bp_trim(out, len);
+    return SRMECH_OK;
+}
+
+/* gint <- the Yun part FIQ_G with denominators cleared (times den-lcm),
+ * trimmed; mirrors the den_lcm clearing in the Python wrapper. */
+static srmech_status_t fiq_clear_dens(fiq_ctx_t *c, size_t lg, int *lint)
+{
+    size_t i;
+    srmech_status_t st;
+    assert(c != NULL && lint != NULL);
+    assert(lg >= 1u);
+    st = fbi_seti(&c->bt[3], 1);                       /* den_lcm = 1 */
+    if (st != SRMECH_OK) { return st; }
+    for (i = 0u; i < lg; i++) {                        /* lcm(den_lcm, den_i) */
+        st = srmech_bigint_gcd(&c->bt[1], &c->bt[3], &c->qd[FIQ_G][i],
+                               c->tail, c->tail_len);
+        if (st != SRMECH_OK) { return st; }
+        st = fbi_mul(&c->bt[4], &c->bt[3], &c->qd[FIQ_G][i]);
+        if (st != SRMECH_OK) { return st; }
+        st = srmech_bigint_divmod(&c->bt[3], NULL, &c->bt[4], &c->bt[1],
+                                  c->tail, c->tail_len);
+        if (st != SRMECH_OK) { return st; }
+    }
+    for (i = 0u; i < lg; i++) {          /* gint_i = num_i * (den_lcm/den_i) */
+        st = srmech_bigint_divmod(&c->bt[4], NULL, &c->bt[3], &c->qd[FIQ_G][i],
+                                  c->tail, c->tail_len);
+        if (st != SRMECH_OK) { return st; }
+        st = fbi_mul(&c->gint[i], &c->qn[FIQ_G][i], &c->bt[4]);
+        if (st != SRMECH_OK) { return st; }
+    }
+    *lint = bp_trim(c->gint, (int)lg);
+    return SRMECH_OK;
+}
+
+/* (len, coeffs) order: shorter first, then coefficientwise low->high. */
+static int fiq_cmp_fac(const srmech_bigint_t *a, int la,
+                       const srmech_bigint_t *b, int lb)
+{
+    int i, cv;
+    assert(a != NULL);
+    assert(b != NULL);
+    if (la != lb) { return (la < lb) ? -1 : 1; }
+    for (i = 0; i < la; i++) {
+        cv = srmech_bigint_cmp(&a[i], &b[i]);
+        if (cv != 0) { return cv; }
+    }
+    return 0;
+}
+
+/* Merge a primitive positive-lead factor into the store (sum mults). */
+static srmech_status_t fiq_merge_add(fiq_ctx_t *c, const srmech_bigint_t *f,
+                                     int len, int mult)
+{
+    int j, i;
+    srmech_status_t st;
+    assert(c != NULL && f != NULL);
+    assert(len >= 1 && mult >= 1);
+    for (j = 0; j < c->fcount; j++) {
+        if (fiq_cmp_fac(c->store + (size_t)j * (size_t)c->cw, c->flen[j],
+                        f, len) == 0) {
+            c->fmult[j] += mult;
+            return SRMECH_OK;
+        }
+    }
+    if (c->fcount >= c->deg) { return SRMECH_ERR_OVERFLOW; }
+    for (i = 0; i < len; i++) {
+        st = fbi_copy(&c->store[(size_t)c->fcount * (size_t)c->cw + (size_t)i],
+                      &f[i]);
+        if (st != SRMECH_OK) { return st; }
+    }
+    c->flen[c->fcount] = len;
+    c->fmult[c->fcount] = mult;
+    c->fcount++;
+    return SRMECH_OK;
+}
+
+/* One Yun part (FIQ_G at multiplicity mult): clear dens -> primitive part ->
+ * Zassenhaus core -> merge each irreducible at mult. */
+static srmech_status_t fiq_process_part(fiq_ctx_t *c, size_t lg, int mult)
+{
+    int lint = 0, lprim = 0, nf = 0, hc = 0, j, off = 0;
+    srmech_status_t st;
+    assert(c != NULL);
+    assert(lg >= 2u && mult >= 1);
+    st = fiq_clear_dens(c, lg, &lint);                if (st != SRMECH_OK) { return st; }
+    st = fiq_prim_int(c, c->gint, lint, c->gprim, &lprim);
+    if (st != SRMECH_OK) { return st; }
+    if (lprim <= 1) { return SRMECH_OK; }              /* defensive: unit part */
+    st = srmech_factor_squarefree_primitive(c->gprim, lprim, c->stage,
+                                            c->stage_degs, &nf, &hc,
+                                            c->tail, c->tail_len);
+    if (st != SRMECH_OK) { return st; }
+    if (hc) { c->capped = 1; }
+    for (j = 0; j < nf; j++) {
+        st = fiq_merge_add(c, c->stage + off, c->stage_degs[j] + 1, mult);
+        if (st != SRMECH_OK) { return st; }
+        off += c->stage_degs[j] + 1;
+    }
+    return SRMECH_OK;
+}
+
+/* Yun setup: a = gcd(p, p'); b = p/a; c = p'/a; d = c - b'. */
+static srmech_status_t fiq_yun_setup(fiq_ctx_t *c, size_t lp, size_t *lb,
+                                     size_t *lc, size_t *ld)
+{
+    size_t la = 0u, lq = 0u, lr = 0u, dl = 0u;
+    srmech_status_t st;
+    assert(c != NULL);
+    assert(lp >= 2u && lb != NULL && lc != NULL && ld != NULL);
+    st = fiq_deriv(c, FIQ_P, FIQ_DV, lp, &dl);        if (st != SRMECH_OK) { return st; }
+    st = srmech_poly_gcd(c->qn[FIQ_P], c->qd[FIQ_P], lp,
+                         c->qn[FIQ_DV], c->qd[FIQ_DV], dl,
+                         c->qn[FIQ_A], c->qd[FIQ_A], &la,
+                         c->tail, c->tail_len);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_poly_divmod(c->qn[FIQ_P], c->qd[FIQ_P], lp,
+                            c->qn[FIQ_A], c->qd[FIQ_A], la,
+                            c->qn[FIQ_Q1], c->qd[FIQ_Q1], &lq,
+                            c->qn[FIQ_R1], c->qd[FIQ_R1], &lr,
+                            c->tail, c->tail_len);
+    if (st != SRMECH_OK) { return st; }
+    st = fiq_qcopy(c, FIQ_B, FIQ_Q1, lq);             if (st != SRMECH_OK) { return st; }
+    *lb = lq;
+    st = srmech_poly_divmod(c->qn[FIQ_DV], c->qd[FIQ_DV], dl,
+                            c->qn[FIQ_A], c->qd[FIQ_A], la,
+                            c->qn[FIQ_Q1], c->qd[FIQ_Q1], &lq,
+                            c->qn[FIQ_R1], c->qd[FIQ_R1], &lr,
+                            c->tail, c->tail_len);
+    if (st != SRMECH_OK) { return st; }
+    st = fiq_qcopy(c, FIQ_C, FIQ_Q1, lq);             if (st != SRMECH_OK) { return st; }
+    *lc = lq;
+    st = fiq_deriv(c, FIQ_B, FIQ_T3, *lb, &dl);       if (st != SRMECH_OK) { return st; }
+    return srmech_poly_sub(c->qn[FIQ_C], c->qd[FIQ_C], *lc,
+                           c->qn[FIQ_T3], c->qd[FIQ_T3], dl,
+                           c->qn[FIQ_D], c->qd[FIQ_D], ld,
+                           c->tail, c->tail_len);
+}
+
+/* One Yun loop step at multiplicity k: g = gcd(b, d); process g (deg >= 1);
+ * b <- b/g; c <- d/g; d <- c - b'. */
+static srmech_status_t fiq_yun_step(fiq_ctx_t *c, size_t *lb, size_t *lc,
+                                    size_t *ld, int k)
+{
+    size_t lg = 0u, lq = 0u, lr = 0u, dl = 0u;
+    srmech_status_t st;
+    assert(c != NULL);
+    assert(lb != NULL && *lb > 1u && k >= 1);
+    st = srmech_poly_gcd(c->qn[FIQ_B], c->qd[FIQ_B], *lb,
+                         c->qn[FIQ_D], c->qd[FIQ_D], *ld,
+                         c->qn[FIQ_G], c->qd[FIQ_G], &lg,
+                         c->tail, c->tail_len);
+    if (st != SRMECH_OK) { return st; }
+    if (lg > 1u) {
+        st = fiq_process_part(c, lg, k);
+        if (st != SRMECH_OK) { return st; }
+    }
+    st = srmech_poly_divmod(c->qn[FIQ_B], c->qd[FIQ_B], *lb,
+                            c->qn[FIQ_G], c->qd[FIQ_G], lg,
+                            c->qn[FIQ_Q1], c->qd[FIQ_Q1], &lq,
+                            c->qn[FIQ_R1], c->qd[FIQ_R1], &lr,
+                            c->tail, c->tail_len);
+    if (st != SRMECH_OK) { return st; }
+    st = fiq_qcopy(c, FIQ_B, FIQ_Q1, lq);             if (st != SRMECH_OK) { return st; }
+    *lb = lq;
+    st = srmech_poly_divmod(c->qn[FIQ_D], c->qd[FIQ_D], *ld,
+                            c->qn[FIQ_G], c->qd[FIQ_G], lg,
+                            c->qn[FIQ_Q1], c->qd[FIQ_Q1], &lq,
+                            c->qn[FIQ_R1], c->qd[FIQ_R1], &lr,
+                            c->tail, c->tail_len);
+    if (st != SRMECH_OK) { return st; }
+    st = fiq_qcopy(c, FIQ_C, FIQ_Q1, lq);             if (st != SRMECH_OK) { return st; }
+    *lc = lq;
+    st = fiq_deriv(c, FIQ_B, FIQ_T3, *lb, &dl);       if (st != SRMECH_OK) { return st; }
+    return srmech_poly_sub(c->qn[FIQ_C], c->qd[FIQ_C], *lc,
+                           c->qn[FIQ_T3], c->qd[FIQ_T3], dl,
+                           c->qn[FIQ_D], c->qd[FIQ_D], ld,
+                           c->tail, c->tail_len);
+}
+
+/* Sort the merged factors by (len, coeffs) — the Python sorted() order. */
+static void fiq_sort(fiq_ctx_t *c)
+{
+    int i, j, tmp;
+    assert(c != NULL);
+    assert(c->fcount >= 0);
+    for (i = 0; i < c->fcount; i++) { c->order[i] = i; }
+    for (i = 1; i < c->fcount; i++) {
+        tmp = c->order[i];
+        j = i - 1;
+        while (j >= 0 &&
+               fiq_cmp_fac(c->store + (size_t)c->order[j] * (size_t)c->cw,
+                           c->flen[c->order[j]],
+                           c->store + (size_t)tmp * (size_t)c->cw,
+                           c->flen[tmp]) > 0) {
+            c->order[j + 1] = c->order[j];
+            j--;
+        }
+        c->order[j + 1] = tmp;
+    }
+}
+
+/* out <- acc * f (exact-ℤ convolution); *lo <- trimmed length. */
+static srmech_status_t fiq_imul_into(fiq_ctx_t *c, const srmech_bigint_t *acc,
+                                     int la, const srmech_bigint_t *f, int lf,
+                                     srmech_bigint_t *out, int *lo)
+{
+    int n = la + lf - 1, i, j;
+    srmech_status_t st;
+    assert(c != NULL && acc != NULL && f != NULL);
+    assert(out != NULL && lo != NULL && n >= 1 && n <= c->cw);
+    for (i = 0; i < n; i++) {
+        st = fbi_seti(&out[i], 0);
+        if (st != SRMECH_OK) { return st; }
+    }
+    for (i = 0; i < la; i++) {
+        if (srmech_bigint_is_zero(&acc[i])) { continue; }
+        for (j = 0; j < lf; j++) {
+            st = fbi_mul(&c->bt[0], &acc[i], &f[j]);   if (st != SRMECH_OK) { return st; }
+            st = fbi_add(&c->bt[1], &out[i + j], &c->bt[0]);
+            if (st != SRMECH_OK) { return st; }
+            st = fbi_copy(&out[i + j], &c->bt[1]);     if (st != SRMECH_OK) { return st; }
+        }
+    }
+    *lo = bp_trim(out, n);
+    return SRMECH_OK;
+}
+
+/* Π factor^mult must reconstruct the primitive input EXACTLY (both sides are
+ * primitive with positive lead). A mismatch is an internal inconsistency ->
+ * SRMECH_ERR_OVERFLOW so the Python wrapper falls back to the pure oracle
+ * (never a silently wrong answer). Skipped when the subset cap was hit. */
+static srmech_status_t fiq_selfcheck(fiq_ctx_t *c, int lp)
+{
+    srmech_bigint_t *acc = c->sc0, *nxt = c->sc1, *swp;
+    int la = 1, lo = 0, idx, m, i;
+    srmech_status_t st;
+    assert(c != NULL);
+    assert(lp >= 1 && c->fcount >= 0);
+    st = fbi_seti(&acc[0], 1);
+    if (st != SRMECH_OK) { return st; }
+    for (idx = 0; idx < c->fcount; idx++) {
+        const srmech_bigint_t *f =
+            c->store + (size_t)c->order[idx] * (size_t)c->cw;
+        int lf = c->flen[c->order[idx]];
+        for (m = 0; m < c->fmult[c->order[idx]]; m++) {
+            st = fiq_imul_into(c, acc, la, f, lf, nxt, &lo);
+            if (st != SRMECH_OK) { return st; }
+            swp = acc; acc = nxt; nxt = swp;
+            la = lo;
+        }
+    }
+    if (la != lp) { return SRMECH_ERR_OVERFLOW; }
+    for (i = 0; i < lp; i++) {
+        if (srmech_bigint_cmp(&acc[i], &c->prim[i]) != 0) {
+            return SRMECH_ERR_OVERFLOW;
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* Carve the composite's carriers from ws. Returns 0 on exhaustion. */
+static int fiq_carve(fiq_ctx_t *c, void *ws, size_t ws_len, size_t cl, int deg)
+{
+    size_t cw, k;
+    assert(c != NULL);
+    assert(ws != NULL && deg >= 1);
+    c->deg = deg; c->cw = deg + 1; c->fcount = 0; c->capped = 0;
+    c->ccap = (uint32_t)fiq_cap_for(cl, deg);
+    c->scap = 2u * c->ccap + 16u;
+    c->ar.base = (unsigned char *)ws; c->ar.off = 0u; c->ar.cap = ws_len;
+    cw = (size_t)c->cw;
+    for (k = 0u; k < (size_t)FIQ_NQ; k++) {
+        c->qn[k] = fac_carve_bigints(&c->ar, cw, c->ccap);
+        c->qd[k] = fac_carve_bigints(&c->ar, cw, c->ccap);
+        if (c->qn[k] == NULL || c->qd[k] == NULL) { return 0; }
+    }
+    c->prim = fac_carve_bigints(&c->ar, cw, c->ccap);
+    c->gint = fac_carve_bigints(&c->ar, cw, c->ccap);
+    c->gprim = fac_carve_bigints(&c->ar, cw, c->ccap);
+    c->stage = fac_carve_bigints(&c->ar, 2u * cw + 2u, c->ccap);
+    c->store = fac_carve_bigints(&c->ar, (size_t)deg * cw, c->ccap);
+    c->sc0 = fac_carve_bigints(&c->ar, cw, c->scap);
+    c->sc1 = fac_carve_bigints(&c->ar, cw, c->scap);
+    c->bt = fac_carve_bigints(&c->ar, 8u, 2u * c->scap);
+    c->stage_degs = fac_carve_int(&c->ar, cw + 2u);
+    c->flen = fac_carve_int(&c->ar, (size_t)deg);
+    c->fmult = fac_carve_int(&c->ar, (size_t)deg);
+    c->order = fac_carve_int(&c->ar, (size_t)deg);
+    if (c->bt == NULL || c->store == NULL || c->order == NULL) { return 0; }
+    c->ar.off = (c->ar.off + 7u) & ~(size_t)7u;
+    if (c->ar.off >= ws_len) { return 0; }
+    c->tail = c->ar.base + c->ar.off;
+    c->tail_len = ws_len - c->ar.off;
+    return (c->tail_len >= 16384u);
+}
+
+/* Minimum out_coeffs cap (limbs) for each factor coefficient. */
+size_t srmech_factor_integer_poly_out_cap(size_t coeff_limbs, int deg)
+{
+    assert(deg >= 0);
+    assert((size_t)deg < (SIZE_MAX >> 8u));
+    return fiq_cap_for(coeff_limbs, deg);
+}
+
+/* Minimum ws_len BYTES for srmech_factor_integer_poly: the composite's own
+ * carriers + the deepest sub-call tail (the ℚ poly-gcd chain arena + the
+ * Zassenhaus-core arena + bigint scalar scratch). */
+size_t srmech_factor_integer_poly_ws_bound(size_t coeff_limbs, int deg)
+{
+    size_t cl = (coeff_limbs == 0u) ? 1u : coeff_limbs;
+    size_t cw = (size_t)deg + 1u;
+    size_t ccap = fiq_cap_for(cl, deg);
+    size_t scap = 2u * ccap + 16u;
+    size_t hdrw = (sizeof(srmech_bigint_t) + 3u) / 4u;
+    size_t cells_c = 20u * cw + 3u * cw + (2u * cw + 2u) + (size_t)deg * cw;
+    size_t big_words = cells_c * (hdrw + ccap + 2u)
+                     + 2u * cw * (hdrw + scap + 2u)
+                     + 8u * (hdrw + 2u * scap + 2u);
+    size_t int_words = 3u * (size_t)deg + cw + 32u;
+    size_t tail = srmech_poly_gcd_ws_bound(4u * cl + 8u, cw)
+                + srmech_factor_squarefree_primitive_ws_bound(4u * cl + 8u, deg)
+                + (64u * ccap + 8192u) * 4u;
+    assert(deg >= 0);
+    assert(big_words >= cells_c);
+    return (big_words + int_words) * 4u + tail + 8192u;
+}
+
+/* Emit the sorted (factor, multiplicity) list into the caller's out arrays. */
+static srmech_status_t fiq_emit(fiq_ctx_t *c, srmech_bigint_t *out_coeffs,
+                                int *out_degs, int *out_mults, int *out_nfac)
+{
+    int j, i, off = 0;
+    srmech_status_t st;
+    assert(c != NULL && out_coeffs != NULL);
+    assert(out_degs != NULL && out_mults != NULL && out_nfac != NULL);
+    for (j = 0; j < c->fcount; j++) {
+        int row = c->order[j], len = c->flen[row];
+        out_degs[j] = len - 1;
+        out_mults[j] = c->fmult[row];
+        for (i = 0; i < len; i++) {
+            st = fbi_copy(&out_coeffs[off],
+                          &c->store[(size_t)row * (size_t)c->cw + (size_t)i]);
+            if (st != SRMECH_OK) { return st; }
+            off++;
+        }
+    }
+    *out_nfac = c->fcount;
+    return SRMECH_OK;
+}
+
+/* Public: factor an integer polynomial (coeffs low->high) into its IRREDUCIBLE
+ * (factor, multiplicity) list over ℚ — the FULL factor_integer_poly composite
+ * as ONE C call. out_coeffs holds the factors' coefficients CONCATENATED
+ * low->high in the sorted (len, coeffs) order (>= 2*deg + 2 slots, each cap >=
+ * srmech_factor_integer_poly_out_cap); out_degs/out_mults are per-factor
+ * (>= deg slots). A nonzero CONSTANT input yields *out_nfac == 0. Returns
+ * SRMECH_ERR_BAD_INPUT on the zero polynomial, SRMECH_ERR_OVERFLOW on arena /
+ * degree overflow or an internal self-check mismatch (the Python wrapper then
+ * falls back to the byte-identical pure path). */
+srmech_status_t srmech_factor_integer_poly(
+    const srmech_bigint_t *coeffs, int ncoeff, srmech_bigint_t *out_coeffs,
+    int *out_degs, int *out_mults, int *out_nfac, int *out_capped,
+    void *ws, size_t ws_len)
+{
+    fiq_ctx_t c;
+    int deg, i, lp = 0, k;
+    size_t cl = 1u, lb = 0u, lc = 0u, ld = 0u;
+    srmech_status_t st;
+    assert(coeffs != NULL && out_coeffs != NULL && out_nfac != NULL);
+    assert(out_degs != NULL && out_mults != NULL && out_capped != NULL);
+    if (ncoeff < 1) { return SRMECH_ERR_BAD_INPUT; }
+    deg = bp_trim(coeffs, ncoeff) - 1;
+    if (deg == 0 && srmech_bigint_is_zero(&coeffs[0])) {
+        return SRMECH_ERR_BAD_INPUT;                   /* the zero polynomial */
+    }
+    *out_capped = 0;
+    if (deg == 0) { *out_nfac = 0; return SRMECH_OK; } /* nonzero constant */
+    if (deg > FAC_MAX_DEG) { return SRMECH_ERR_OVERFLOW; }
+    for (i = 0; i <= deg; i++) { if (coeffs[i].n > cl) { cl = coeffs[i].n; } }
+    if (!fiq_carve(&c, ws, ws_len, cl, deg)) { return SRMECH_ERR_OVERFLOW; }
+    st = fiq_prim_int(&c, coeffs, deg + 1, c.prim, &lp);
+    if (st != SRMECH_OK) { return st; }
+    for (i = 0; i < lp; i++) {                         /* prim -> FIQ_P (dens 1) */
+        st = fbi_copy(&c.qn[FIQ_P][i], &c.prim[i]);    if (st != SRMECH_OK) { return st; }
+        st = fbi_seti(&c.qd[FIQ_P][i], 1);             if (st != SRMECH_OK) { return st; }
+    }
+    st = fiq_yun_setup(&c, (size_t)lp, &lb, &lc, &ld);
+    if (st != SRMECH_OK) { return st; }
+    k = 1;
+    while (lb > 1u) {
+        st = fiq_yun_step(&c, &lb, &lc, &ld, k);
+        if (st != SRMECH_OK) { return st; }
+        k++;
+    }
+    fiq_sort(&c);
+    if (!c.capped) {
+        st = fiq_selfcheck(&c, lp);
+        if (st != SRMECH_OK) { return st; }
+    }
+    *out_capped = c.capped;
+    return fiq_emit(&c, out_coeffs, out_degs, out_mults, out_nfac);
 }

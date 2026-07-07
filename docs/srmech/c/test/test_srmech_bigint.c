@@ -151,6 +151,36 @@ int main(void)
     check_status(srmech_bigint_divmod(&q, &r, &a, &b, g_ws, sizeof(g_ws)),
                  SRMECH_ERR_BAD_INPUT, "div0");
 
+    /* NULL-sink regression (the fixed cap-0 throwaway bug): q == NULL with a
+     * NEGATIVE dividend must return the correct FLOORED remainder — the old
+     * path spuriously returned SRMECH_ERR_OVERFLOW because the floor fixup
+     * q -= 1 had no limb to write. Also pin q==NULL positive, r==NULL, and a
+     * multi-limb (Knuth-path) q==NULL case. */
+    srmech_bigint_set_i64(&a, -7);
+    srmech_bigint_set_i64(&b, 2);
+    check_status(srmech_bigint_divmod(NULL, &r, &a, &b, g_ws, sizeof(g_ws)),
+                 SRMECH_OK, "divmod qNULL st (-7 mod 2)");
+    check_i64(bi_to_i64(&r), 1, "divmod qNULL r (-7 mod 2)");
+    srmech_bigint_set_i64(&a, 7);
+    srmech_bigint_set_i64(&b, 3);
+    check_status(srmech_bigint_divmod(NULL, &r, &a, &b, g_ws, sizeof(g_ws)),
+                 SRMECH_OK, "divmod qNULL st (7 mod 3)");
+    check_i64(bi_to_i64(&r), 1, "divmod qNULL r (7 mod 3)");
+    srmech_bigint_set_i64(&a, -7);
+    srmech_bigint_set_i64(&b, 2);
+    check_status(srmech_bigint_divmod(&q, NULL, &a, &b, g_ws, sizeof(g_ws)),
+                 SRMECH_OK, "divmod rNULL st (-7 / 2)");
+    check_i64(bi_to_i64(&q), -4, "divmod rNULL q (-7 / 2 floor)");
+    {   /* multi-limb Knuth path with q == NULL: -(10^40 + 11) mod 10^20. */
+        const char *p40 = "-10000000000000000000000000000000000000011";
+        const char *p20 = "100000000000000000000";
+        srmech_bigint_from_dec(&a, p40, strlen(p40));
+        srmech_bigint_from_dec(&b, p20, strlen(p20));
+        check_status(srmech_bigint_divmod(NULL, &r, &a, &b, g_ws, sizeof(g_ws)),
+                     SRMECH_OK, "divmod qNULL st (big neg)");
+        check_dec(&r, "99999999999999999989", "divmod qNULL r (big neg floor)");
+    }
+
     /* shl / shr (floor for negatives). */
     srmech_bigint_set_i64(&a, 1);
     check_status(srmech_bigint_shl_bits(&o, &a, 100), SRMECH_OK, "shl st");

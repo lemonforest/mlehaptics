@@ -1163,6 +1163,30 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_factor_squarefree_primitive.restype = ctypes.c_int
 
+    # The FULL factor_integer_poly composite (rc165 deferral 2) — content + Yun
+    # square-free + per-part Zassenhaus core + merge + (len, coeffs) sort as ONE
+    # C call. hasattr-guarded (pre-completion rc165 libs keep the core-only path).
+    #   size_t srmech_factor_integer_poly_out_cap(size_t coeff_limbs, int deg)
+    #   size_t srmech_factor_integer_poly_ws_bound(size_t coeff_limbs, int deg)
+    #   int srmech_factor_integer_poly(bigint *coeffs, int ncoeff,
+    #       bigint *out_coeffs, int *out_degs, int *out_mults, int *out_nfac,
+    #       int *out_capped, void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_factor_integer_poly"):
+        lib.srmech_factor_integer_poly_out_cap.argtypes = [
+            ctypes.c_size_t, ctypes.c_int]
+        lib.srmech_factor_integer_poly_out_cap.restype = ctypes.c_size_t
+        lib.srmech_factor_integer_poly_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_int]
+        lib.srmech_factor_integer_poly_ws_bound.restype = ctypes.c_size_t
+        lib.srmech_factor_integer_poly.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.c_int,
+            ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+            ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_factor_integer_poly.restype = ctypes.c_int
+
     # Qi exact-complex (Gaussian-rational) carrier C-host peer (0.9.0rc15) —
     # carrier-internal (NOT a Rosetta op), four int64 limbs {re_num, re_den,
     # im_num, im_den}. hasattr-guarded so a stale lib (pre-rc15) keeps the rest.
@@ -5173,6 +5197,79 @@ def factor_squarefree_primitive_c(coeffs):
         factors.append([_bigint_to_int(out_arr[off + i]) for i in range(fl)])
         off += fl
     return factors, bool(out_hit.value)
+
+
+def has_native_factor_integer_poly() -> bool:
+    """True iff the FULL factor_integer_poly composite (rc165 deferral 2) + the
+    srmech_bigint decimal-marshal helpers are loaded. False on a no-C / core-only
+    rc165 lib — the Python orchestration in
+    ``srmech.amsc.cascade.matrix_cascades.factor_integer_poly`` is the complete,
+    byte-identical alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_factor_integer_poly")
+            and hasattr(LIB, "srmech_factor_integer_poly_ws_bound")
+            and hasattr(LIB, "srmech_factor_integer_poly_out_cap")
+            and hasattr(LIB, "srmech_bigint_from_dec")
+            and hasattr(LIB, "srmech_bigint_to_dec"))
+
+
+# The FULL-composite native path caps the degree below the core's cap (48): its
+# arena additionally carries the exact-ℚ Yun poly-gcd chain tail, which grows
+# ~cubically with the degree (≈16 MB at deg 32 vs ≈50 MB at deg 48). Between
+# this cap and the core cap the wrapper's Python orchestration still dispatches
+# the per-part CORE to C (the rc165 core ship); above both it is fully pure —
+# every path byte-identical.
+_FACTOR_FULL_NATIVE_MAX_DEG = 32
+
+
+def factor_integer_poly_c(coeffs):
+    """Native FULL factorization of an integer polynomial via
+    ``srmech_factor_integer_poly`` — content + Yun square-free + per-part
+    Zassenhaus + merge + (len, coeffs) sort as ONE C call. ``coeffs`` is the
+    integer coefficient list low->high (nonzero, deg >= 1). Returns the
+    ``[(factor_tuple, multiplicity)]`` list in the sorted order — byte-identical
+    to the pure ``factor_integer_poly`` body. Returns ``None`` on a no-C /
+    composite-less lib, a degree above the native cap, an arena OVERFLOW, or the
+    internal self-check mismatch (the caller's pure oracle handles it)."""
+    if not has_native_factor_integer_poly():
+        return None
+    ints = [int(c) for c in coeffs]
+    while len(ints) > 1 and ints[-1] == 0:
+        ints.pop()
+    deg = len(ints) - 1
+    if deg < 1 or deg > _FACTOR_FULL_NATIVE_MAX_DEG:
+        return None
+    cl = 1
+    for v in ints:
+        cl = max(cl, int(v).bit_length() // 32 + 4)
+    out_cap = int(LIB.srmech_factor_integer_poly_out_cap(
+        ctypes.c_size_t(cl), ctypes.c_int(deg)))
+    ws_len = int(LIB.srmech_factor_integer_poly_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_int(deg)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    in_arr, ka = _intvec_make_array(ints, out_cap)
+    out_arr, kb = _intvec_blank_array(2 * deg + 2, out_cap)
+    out_degs = (ctypes.c_int * max(deg + 1, 1))()
+    out_mults = (ctypes.c_int * max(deg + 1, 1))()
+    out_nfac = ctypes.c_int(0)
+    out_capped = ctypes.c_int(0)
+    rc = LIB.srmech_factor_integer_poly(
+        in_arr, int(deg + 1), out_arr, out_degs, out_mults,
+        ctypes.byref(out_nfac), ctypes.byref(out_capped),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len))
+    _ = (ka, kb)
+    if rc != SRMECH_OK:
+        return None
+    nfac = int(out_nfac.value)
+    result = []
+    off = 0
+    for j in range(nfac):
+        fl = int(out_degs[j]) + 1
+        fac = tuple(_bigint_to_int(out_arr[off + i]) for i in range(fl))
+        result.append((fac, int(out_mults[j])))
+        off += fl
+    return result
 
 
 def _intvec_make_array(values, cap):

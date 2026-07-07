@@ -14,18 +14,40 @@ the shared Python wrapper, so the native path is byte/structurally-identical to
 the pure ``_factor_square_free_primitive`` (the parity oracle) — the same factors,
 the same multiplicities, the same order.
 
+The rc165 completion adds the FULL composite ``srmech_factor_integer_poly``
+(everything-mirrors): content + Yun square-free (exact ℚ over the srmech_poly
+kernels) + per-part core + merge + (len, coeffs) sort as ONE C call, dispatched
+first (deg ≤ 32); the Python orchestration (which still dispatches the per-part
+core) covers the composite-cap → core-cap band, and the pure body remains the
+byte-identical oracle everywhere.
+
 This test pins:
-  1. the native ``srmech_factor_squarefree_primitive`` symbol is actually loaded
-     (so parity exercises C, not a silent pure fallback on BOTH sides);
+  1. the native ``srmech_factor_squarefree_primitive`` AND the FULL-composite
+     ``srmech_factor_integer_poly`` symbols are actually loaded (so parity
+     exercises C, not a silent pure fallback on BOTH sides);
   2. ``factor_integer_poly`` native == FORCED-PURE is BYTE/STRUCTURALLY-IDENTICAL
      — the same (factor, multiplicity) list — across the value oracles + a
-     400-case randomized product-of-irreducibles stress;
+     DETERMINISTIC all-pairs product-of-irreducibles sweep (198 cases) + linear
+     triples (reproducible by construction — this superseded the earlier
+     randomized stress);
   3. the value oracles — ``x²−1 → (x−1)(x+1)``; ``x²+1`` irreducible; ``x⁴−1``;
      cyclotomics ``Φ₈``/``Φ₁₂`` irreducible; multiplicities via Yun; multiply-back
      ``Π factorᵐᵘˡᵗ == input``;
   4. ``factor_integer_poly`` dispatches when native + falls back to the
-     byte-identical pure oracle (native OFF);
-  5. the Rosetta row: ``factor_integer_poly`` → ``c_dispatched``, and the
+     byte-identical pure oracle (native OFF); the FULL composite really handles
+     a factorization as a SINGLE C call;
+  5. the Zassenhaus recombination WALL, honestly (not hidden): the subset
+     recombination is WORST-CASE EXPONENTIAL in the number of modular factors
+     (the classic Zassenhaus weakness; van Hoeij's LLL knapsack recombination
+     is the known real fix, deferred as a research arc). Both paths apply the
+     classical ``2·size ≤ #remaining`` cutoff (von zur Gathen & Gerhard,
+     *Modern Computer Algebra*, ch. 15). Bounded representatives below:
+     Swinnerton-Dyer SD4 (deg 16 → 8 quadratics mod p → the full 167-candidate
+     no-peel enumeration; parity both paths) and SD5 (deg 32 → 16 quadratics
+     mod p → 39 207 candidates; measured ≈ 13 s pure / ≈ 4.7 s native
+     post-cutoff vs ≈ 24 s both pre-cutoff) on the dispatch path with the
+     honest CI-budget note;
+  6. the Rosetta row: ``factor_integer_poly`` → ``c_dispatched``, and the
      down-only ``CEIL_BIGNUM_REFERENCE`` ratchet is 2.
 
 Numpy-free (pure stdlib + srmech).
@@ -55,6 +77,29 @@ def test_native_factor_symbol_is_loaded():
     assert _native.has_native_factor_squarefree_primitive(), (
         "srmech_factor_squarefree_primitive not in the loaded lib — rebuild the "
         "native library so the rc165 Zassenhaus kernel is present")
+
+
+def test_full_composite_symbol_is_loaded():
+    """The FULL composite (content + Yun + core + merge + sort as ONE C call)
+    must be present — everything-mirrors: a bare-C host factors with one call."""
+    assert _native.has_native_factor_integer_poly(), (
+        "srmech_factor_integer_poly not in the loaded lib — rebuild the native "
+        "library so the rc165 FULL composite is present")
+
+
+def test_full_composite_is_a_single_c_call():
+    """factor_integer_poly_c (the ONE-call composite) itself handles a mixed
+    content + multiplicity + irreducible-quartic input and equals BOTH the
+    dispatching wrapper and the forced-pure oracle — proving the native path is
+    a SINGLE C call, not the Python orchestration composing per-part kernels."""
+    p = [4, 0, -8, 0, 4]                       # 4(x−1)²(x+1)²
+    direct = _native.factor_integer_poly_c(p)
+    assert direct is not None, "the composite returned None — not a single C call"
+    assert direct == factor_integer_poly(p) == _force(False, factor_integer_poly, p)
+    q = [-5, 1, -15, 3, -15, 3, -5, 1]         # (x²+1)³(x−5)
+    direct = _native.factor_integer_poly_c(q)
+    assert direct == [((-5, 1), 1), ((1, 0, 1), 3)]
+    assert direct == _force(False, factor_integer_poly, q)
 
 
 def _force(has_native, fn, *args, **kw):
@@ -176,16 +221,78 @@ def test_dispatch_and_fallback_agree():
     assert len(on) == 4  # (x−1)(x+1)(x²+1)(x⁴+1)
 
 
-def test_high_degree_routes_to_pure_but_agrees():
-    """A degree above the native cap routes to the byte-identical pure path; the
-    result is still correct (a big product of distinct linear factors)."""
+def test_high_degree_routes_past_composite_but_agrees():
+    """A degree above the FULL-composite native cap (32) routes to the Python
+    orchestration (which still dispatches the per-part core where it applies);
+    the result is byte-identical (a big product of distinct linear factors)."""
     p = [1]
-    for k in range(1, 30):   # (x−1)(x−2)…(x−29): deg 29 squarefree
+    for k in range(1, 36):   # (x−1)(x−2)…(x−35): deg 35 squarefree, > 32
         p = _ipoly_mul(p, [-k, 1])
+    assert _native.factor_integer_poly_c(p) is None  # composite declines > cap
     on = _force(True, factor_integer_poly, p)
     off = _force(False, factor_integer_poly, p)
     assert on == off
-    assert len(on) == 29 and all(m == 1 for _, m in on)
+    assert len(on) == 35 and all(m == 1 for _, m in on)
+
+
+# ── the Zassenhaus recombination wall, honestly (deferral 3) ────────────────
+def _sd_poly(surds):
+    """Swinnerton-Dyer: the minimal polynomial of Σ√dᵢ (coefficients low→high),
+    built exactly — p(x) ← p(x+√d)·p(x−√d) expanded over ℤ[√d] per new surd.
+    Irreducible over ℤ of degree 2^k, yet splits into factors of degree ≤ 2 mod
+    EVERY prime: the subset recombination must exhaust its enumeration before
+    concluding irreducibility — the textbook worst case."""
+    from math import comb
+    p = [-surds[0], 0, 1]
+    for d in surds[1:]:
+        n = len(p)
+        q = [(0, 0)] * n                       # coefficients a + b·√d
+        for i, pi in enumerate(p):
+            for j in range(i + 1):
+                k = i - j
+                a, b = (0, 0)
+                if k % 2 == 0:
+                    a = comb(i, j) * d ** (k // 2)
+                else:
+                    b = comb(i, j) * d ** ((k - 1) // 2)
+                qa, qb = q[j]
+                q[j] = (qa + pi * a, qb + pi * b)
+        r = [0] * (2 * (n - 1) + 1)
+        for i in range(n):
+            ai, bi = q[i]
+            for j in range(n):
+                aj, bj = q[j]
+                r[i + j] += ai * aj - d * bi * bj   # (a+b√d)(a−b√d) cross-terms
+        p = r
+    return p
+
+
+def test_zassenhaus_wall_sd4_parity_both_paths():
+    """SD4 = minpoly(√2+√3+√5+√7), deg 16 — splits into 8 quadratics mod the
+    chosen prime, so recombination runs its FULL no-peel enumeration
+    (167 candidates with the 2·size ≤ n cutoff; 259 pre-cutoff) and must
+    conclude irreducibility. Fast enough (≈50 ms) to run parity on BOTH paths."""
+    p = _sd_poly([2, 3, 5, 7])
+    on = _force(True, factor_integer_poly, p)
+    off = _force(False, factor_integer_poly, p)
+    assert on == off
+    assert len(on) == 1 and on[0][1] == 1 and len(on[0][0]) == 17  # irreducible
+
+
+def test_zassenhaus_wall_sd5_bounded_representative():
+    """SD5 = minpoly(√2+√3+√5+√7+√11), deg 32 — 16 quadratics mod the chosen
+    prime → 39 207 candidate subsets (Σ_{2s≤16} C(16,s); 65 539 before the
+    vzGG ch.-15 half-bound cutoff). THE HONEST WALL: classical Zassenhaus recombination is
+    worst-case EXPONENTIAL in the number of modular factors — measured here
+    ≈ 4.7 s native / ≈ 13 s pure post-cutoff (≈ 24 s both pre-cutoff); one more
+    surd (SD6, deg 64) squares the enumeration. van Hoeij's LLL knapsack
+    recombination is the known real fix — deferred as a research arc. This runs
+    the DISPATCH path only (the pure oracle is exercised on SD4 above and the
+    198-case sweep; both paths share the cutoff by construction) to keep the
+    honest representative inside the CI budget rather than hiding it."""
+    p = _sd_poly([2, 3, 5, 7, 11])
+    got = factor_integer_poly(p)
+    assert len(got) == 1 and got[0][1] == 1 and len(got[0][0]) == 33  # irreducible
 
 
 # ── the Rosetta ledger row ──────────────────────────────────────────────────

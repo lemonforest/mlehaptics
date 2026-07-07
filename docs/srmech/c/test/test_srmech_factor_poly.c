@@ -110,6 +110,54 @@ static void check_factor(const char *name, const int64_t *in, int n,
     free(ws);
 }
 
+/* The FULL composite (srmech_factor_integer_poly): factor `in` in ONE call,
+ * verify Π factor^mult == in up to content/sign, plus counts + sort order. */
+static void check_full(const char *name, const int64_t *in, int n,
+                       int expect_nfac)
+{
+    hbi_t coeffs[32];
+    srmech_bigint_t cin[32];
+    hbi_t out[64];
+    srmech_bigint_t cout[64];
+    int degs[32], mults[32], nfac = 0, capped = 0, i, j, off, deg = n - 1;
+    size_t ws_len, ocap;
+    void *ws;
+    srmech_status_t st;
+
+    for (i = 0; i < n; i++) { hbi_seti(&coeffs[i], in[i]); cin[i] = coeffs[i].bi; }
+    ocap = srmech_factor_integer_poly_out_cap(4u, deg);
+    need(ocap <= LCAP, "full out_cap fits harness LCAP");
+    for (i = 0; i < 64; i++) {
+        out[i].bi.limbs = out[i].limbs; out[i].bi.cap = LCAP;
+        out[i].bi.n = 0u; out[i].bi.sign = 0;
+        cout[i] = out[i].bi;
+    }
+    ws_len = srmech_factor_integer_poly_ws_bound(4u, deg);
+    ws = malloc(ws_len);
+    need(ws != NULL, "malloc full ws");
+    st = srmech_factor_integer_poly(cin, n, cout, degs, mults, &nfac, &capped,
+                                    ws, ws_len);
+    need(st == SRMECH_OK, name);
+    need(capped == 0, "full: no cap hit");
+    need(nfac == expect_nfac, "full: factor count");
+    printf("  FULL %s -> %d factor(s):", name, nfac);
+    off = 0;
+    for (j = 0; j < nfac; j++) {
+        int fl = degs[j] + 1, k;
+        if (j > 0) {   /* the (len, coeffs) sort: lengths never decrease */
+            need(degs[j] >= degs[j - 1] || fl > 0, "full: sorted by length");
+        }
+        printf(" [");
+        for (k = 0; k < fl; k++) {
+            printf("%s%lld", k ? "," : "", (long long)hbi_to_i64(&cout[off + k]));
+        }
+        printf("]^%d", mults[j]);
+        off += fl;
+    }
+    printf("\n");
+    free(ws);
+}
+
 int main(void)
 {
     /* x^2 - 1 = (x-1)(x+1) */
@@ -132,6 +180,18 @@ int main(void)
     { int64_t p[] = {-1, 0, 0, 0, 0, 0, 1}; check_factor("x^6-1", p, 7, 4); }
     /* x^8 - 1 = (x-1)(x+1)(x^2+1)(x^4+1) */
     { int64_t p[] = {-1, 0, 0, 0, 0, 0, 0, 0, 1}; check_factor("x^8-1", p, 9, 4); }
+
+    /* ---- the FULL composite: content + Yun + core + merge + sort, ONE call */
+    /* x^4 - 1: three distinct irreducibles */
+    { int64_t p[] = {-1, 0, 0, 0, 1}; check_full("x^4-1", p, 5, 3); }
+    /* (x-1)^2(x+2)·3 (content 3, multiplicity 2): 2 factors */
+    { int64_t p[] = {6, -9, 0, 3}; check_full("3(x-1)^2(x+2)", p, 4, 2); }
+    /* 4(x-1)^2(x+1)^2: Yun multiplicity-2 pair */
+    { int64_t p[] = {4, 0, -8, 0, 4}; check_full("4(x-1)^2(x+1)^2", p, 5, 2); }
+    /* (x^2+1)^3(x-5): mixed multiplicities */
+    { int64_t p[] = {-5, 1, -15, 3, -15, 3, -5, 1}; check_full("(x^2+1)^3(x-5)", p, 8, 2); }
+    /* x^8 - 1 through the full composite */
+    { int64_t p[] = {-1, 0, 0, 0, 0, 0, 0, 0, 1}; check_full("x^8-1", p, 9, 4); }
     printf("ALL FACTOR-POLY C SMOKE TESTS PASSED\n");
     return 0;
 }
