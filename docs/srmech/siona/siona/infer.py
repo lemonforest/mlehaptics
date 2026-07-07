@@ -196,6 +196,8 @@ class Session:
             return "asl"
         if self._is_relate(u):                 # F1137: 'is X the same/opposite of Y' → the 3-axis meaning call
             return "relate"
+        if self._is_gloss(u):                  # F1145/#246: 'what does X mean in Sumerian/Gilgameš' → the anchor
+            return "gloss"
         ints, fls, byts, edges = self._operands(u)
         if b.has_define(ws) and not (ints or fls or byts or edges):
             return "define"
@@ -302,6 +304,32 @@ class Session:
                "unrelated": "unrelated"}[sense.relationship(a, b)]
         return "%s and %s are %s" % (a, b, phr)
 
+    # ---- the ASK-ABOUT-GILGAMEŠ intent (F1145/#246: gloss a Sumerian word via the ETCSL anchor) ----
+    def _is_gloss(self, u):
+        """Detect a Sumerian/Gilgameš gloss request — 'what does X mean in Sumerian', 'X in Gilgameš',
+        'the Sumerian word X', 'gloss X in Sumerian' (scoped to a Sumerian marker so it does not over-trigger)."""
+        ul = " %s " % u.lower()
+        return any(p in ul for p in (" in sumerian", " in gilgame", " in sux ", " sumerian for ",
+                                     " sumerian word ", " gilgame", " sumerian gloss "))
+
+    def _gloss_reply(self, u):
+        """Answer 'what does <Sumerian word> mean' via the ETCSL Gilgameš glyph→concept anchor (F1142/F1144):
+        lemmatize the surface → look up the concept. Siona reading Sumerian, from the corpus we fetched + attested."""
+        from siona import anchor
+        anchor.load_sux()
+        m = re.search(r'["“\'‘]([^"”\'’]+)["”\'’]', u)                        # quoted glyph
+        if m:
+            g = m.group(1)
+        else:
+            m = (re.search(r'(?i)\b(?:word|for|does|gloss|translate)\s+([^\s?.,]+)', u)
+                 or re.search(r'(?i)([^\s?.,]+)\s+in\s+(?:sumerian|gilgame|sux)', u))
+            g = m.group(1) if m else ""
+        g = g.strip(" ?.,:\"'“”‘’")
+        cs = anchor.concept(g) if g else []
+        if cs:
+            return "%s (Sumerian) = %s" % (g, ", ".join(cs[:3]))
+        return "no gloss for '%s' in the Gilgameš anchor (ETCSL)" % g if g else "name a Sumerian word to gloss"
+
     # ---- the LIVE context genome (F1097: express() in s.turn) ----
     _TEACH_BIT, _TERSE_BIT = 0b01, 0b10
 
@@ -339,6 +367,8 @@ class Session:
             return r, "siona.asl", self._asl_reply(u)
         if r == "relate":
             return r, "siona.sense", self._relate_reply(u)
+        if r == "gloss":
+            return r, "siona.anchor", self._gloss_reply(u)
         if r == "tool-call":
             return r, "srmech", self._drive_tool(u)
         if r == "define":

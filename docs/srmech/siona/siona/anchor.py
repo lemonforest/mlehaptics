@@ -17,7 +17,7 @@ import json
 import os
 import re
 
-__all__ = ["load_anchor", "concept", "bridge_units", "bridge_disambiguated", "have_anchor"]
+__all__ = ["load_anchor", "load_sux", "concept", "bridge_units", "bridge_disambiguated", "transcribe", "have_anchor"]
 
 _VYGUS = "/home/skirklan/corpora/egyptian_tla/vygus_dict_slice.jsonl"          # Egyptian (Vygus jsonl)
 _SUX = "/home/skirklan/corpora/etcsl/sux_gilgamesh_lemmatized.json"           # Sumerian (ETCSL Gilgameš, lemmatized)
@@ -88,6 +88,15 @@ def bridge_units(units):
     """Bridge a sequence of source units → ``[(unit, [concepts])]`` — the glyph→concept FORM axis over a phrase.
     Units with no anchor entry carry ``[]`` (surfaced, not hidden — the coverage gap is the honest signal)."""
     return [(u, concept(u)) for u in units]
+
+
+def transcribe(glyph_lines):
+    """Orchestrate the glyph→concept bridge over a WHOLE text (F1145): each LINE (the phrase unit, F1143) →
+    its concept-gloss per glyph. This is the FRACTAL-TOWER orchestration (F1117) — NOT new architecture, just the
+    per-line bridge assembled line → passage → story. Returns ``[[gloss-or-None per glyph] per line]``; the
+    read-out / natural-language render is the caller's (write the full output to a scratch file while we test
+    which render works best). The line-level sparse concepts ARE the story genome expressed to language."""
+    return [[(concept(g)[0].split(",")[0] if concept(g) else None) for g in line] for line in glyph_lines]
 
 
 def _words(gloss):
