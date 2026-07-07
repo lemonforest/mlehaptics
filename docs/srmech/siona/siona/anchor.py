@@ -17,7 +17,7 @@ import json
 import os
 import re
 
-__all__ = ["load_anchor", "load_sux", "concept", "bridge_units", "bridge_disambiguated", "transcribe", "have_anchor"]
+__all__ = ["load_anchor", "load_sux", "concept", "bridge_units", "bridge_disambiguated", "transcribe", "express_story", "have_anchor"]
 
 _VYGUS = "/home/skirklan/corpora/egyptian_tla/vygus_dict_slice.jsonl"          # Egyptian (Vygus jsonl)
 _SUX = "/home/skirklan/corpora/etcsl/sux_gilgamesh_lemmatized.json"           # Sumerian (ETCSL Gilgameš, lemmatized)
@@ -117,6 +117,31 @@ def render_fluent(concept_line):
     v = verb + ("d" if verb.endswith("e") else "ed")        # narrative past (the story register)
     obj = " ".join(post)
     return " ".join(x for x in (subj, v, obj) if x)
+
+
+def express_story(glyph_lines, query, *, coupling=0.05):
+    """Route the render through gene_express (F1148 — the DNA→RNA half-beat, F1147), scoped to a story: the story
+    GENOME (each line's concepts a gene = the full-beat store) → EXPRESS the query-relevant subset (the half-beat
+    working copy) CONCURRENTLY — every coupled gene selected AT ONCE (a set op, not a linear scan, F1147
+    correction) — then a CYCLE-READ ordered by the recurring-concept spine (the_one: the concepts most shared
+    across the expressed set are the phase-coupling backbone). Returns the expressed genes ``[(line_idx,
+    concepts)]`` in cycle order. Same `gene_express` PRINCIPLE (F256/F1097) as the knowledge genome, story-scoped;
+    the render then reads THIS (genome → gene_express → read), not the closed full genome directly."""
+    from siona import relate as _rel
+    _rel.load()
+    genes = [[c for c in transcribe([gl])[0] if c] for gl in glyph_lines]      # store: per-line concept genes
+    qc = (concept(query)[0].split(",")[0].lower() if concept(query) else (query or "").strip().lower())
+
+    def couples(g):                                                            # coupled to the query? (concurrent gate)
+        gl = [c.lower() for c in g]
+        return qc in gl or any(_rel.related(qc, c) > coupling for c in gl)
+
+    expressed = [(i, g) for i, g in enumerate(genes) if couples(g)]            # EXPRESS: the whole coupled subset at once
+    freq = {}
+    for _, g in expressed:                                                     # the recurring-concept spine (the_one)
+        for c in {x.lower() for x in g}:
+            freq[c] = freq.get(c, 0) + 1
+    return sorted(expressed, key=lambda it: -sum(freq.get(c.lower(), 0) for c in it[1]))   # CYCLE-READ order
 
 
 def transcribe(glyph_lines):
