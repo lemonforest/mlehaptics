@@ -279,6 +279,68 @@ int main(void)
         check_dec(&po, e7_600, "pow(7,600) tight ws");
     }
 
+    /* ---- rc168 Karatsuba multiply: arena == NULL-ws == plain, limb-
+     * identical (the byte-identity contract on a C-only host). ---- */
+    {
+        enum { KN = 96 };                 /* > BI_KARA_CUTOFF: real split */
+        static uint32_t ka[KN], kb[KN], ko1[2 * KN + 2], ko2[2 * KN + 2],
+            ko3[2 * KN + 2];
+        static unsigned char kws[16384];  /* >= mul_ws_bound(96, 96) */
+        srmech_bigint_t xa = bi_make(ka, KN), xb = bi_make(kb, KN);
+        srmech_bigint_t o1 = bi_make(ko1, 2 * KN + 2);
+        srmech_bigint_t o2 = bi_make(ko2, 2 * KN + 2);
+        srmech_bigint_t o3 = bi_make(ko3, 2 * KN + 2);
+        uint64_t seed = 0x9E3779B97F4A7C15ull;
+        size_t wb = srmech_bigint_mul_ws_bound(KN, KN);
+        uint32_t i, same12 = 1, same13 = 1;
+        for (i = 0; i < KN; i++) {        /* deterministic xorshift limbs */
+            seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17;
+            ka[i] = (uint32_t)(seed >> 32);
+            seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17;
+            kb[i] = (uint32_t)(seed >> 32);
+        }
+        ka[KN - 1] |= 0x80000000u; kb[KN - 1] |= 0x80000000u;
+        xa.n = KN; xa.sign = -1;          /* signed cross-check too */
+        xb.n = KN; xb.sign = 1;
+        check_i64((int64_t)(wb > 0u && wb <= sizeof(kws)), 1,
+                  "kara ws bound sane");
+        check_status(srmech_bigint_mul_ws(&o1, &xa, &xb, kws, wb),
+                     SRMECH_OK, "kara mul_ws(arena) st");
+        check_status(srmech_bigint_mul_ws(&o2, &xa, &xb, NULL, 0),
+                     SRMECH_OK, "kara mul_ws(NULL=schoolbook) st");
+        check_status(srmech_bigint_mul(&o3, &xa, &xb),
+                     SRMECH_OK, "kara mul(plain) st");
+        if (o1.n != o2.n || o1.sign != o2.sign) { same12 = 0; }
+        if (o1.n != o3.n || o1.sign != o3.sign) { same13 = 0; }
+        for (i = 0; same12 && i < o1.n; i++) {
+            if (ko1[i] != ko2[i]) { same12 = 0; }
+        }
+        for (i = 0; same13 && i < o1.n; i++) {
+            if (ko1[i] != ko3[i]) { same13 = 0; }
+        }
+        check_i64((int64_t)same12, 1, "kara arena == schoolbook (limbs)");
+        check_i64((int64_t)same13, 1, "kara plain == arena (limbs)");
+        check_i64((int64_t)(o1.sign == -1), 1, "kara sign (-,+) -> -");
+        /* all-ones x all-ones: (B^n-1)^2 = B^2n - 2B^n + 1 (worst carry) */
+        for (i = 0; i < KN; i++) { ka[i] = 0xFFFFFFFFu; kb[i] = 0xFFFFFFFFu; }
+        xa.sign = 1; xb.sign = 1;
+        check_status(srmech_bigint_mul_ws(&o1, &xa, &xb, kws, wb),
+                     SRMECH_OK, "kara ones arena st");
+        check_status(srmech_bigint_mul_ws(&o2, &xa, &xb, NULL, 0),
+                     SRMECH_OK, "kara ones school st");
+        same12 = (o1.n == o2.n && o1.sign == o2.sign) ? 1u : 0u;
+        for (i = 0; same12 && i < o1.n; i++) {
+            if (ko1[i] != ko2[i]) { same12 = 0; }
+        }
+        check_i64((int64_t)same12, 1, "kara ones arena == schoolbook");
+        /* (B^n-1)^2 = B^n*(B^n-2) + 1: limb[0]=1, limbs[1..n-1]=0,
+         * limb[n]=B-2, limbs[n+1..2n-1]=B-1. */
+        check_i64((int64_t)(ko1[0] == 1u && ko1[KN - 1] == 0u
+                            && ko1[KN] == 0xFFFFFFFEu
+                            && ko1[2 * KN - 1] == 0xFFFFFFFFu), 1,
+                  "kara (B^n-1)^2 closed form");
+    }
+
     printf("test_srmech_bigint: %d passed, %d failed\n", g_passed, g_failed);
     return g_failed == 0 ? 0 : 1;
 }

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc167"
-#define SRMECH_VERSION       "0.9.0rc167"
+#define SRMECH_VERSION_PRE   "rc168"
+#define SRMECH_VERSION       "0.9.0rc168"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4037,6 +4037,7 @@ typedef struct srmech_bigint {
  * each operation's `out`. Each clamps/guards size_t overflow. */
 size_t srmech_bigint_add_bound(size_t a_n, size_t b_n);     /* max(a,b)+1     */
 size_t srmech_bigint_mul_bound(size_t a_n, size_t b_n);     /* a_n + b_n      */
+size_t srmech_bigint_mul_ws_bound(size_t a_n, size_t b_n);  /* Karatsuba BYTES*/
 size_t srmech_bigint_shl_bound(size_t a_n, uint32_t bits);  /* a + bits/32 +1 */
 size_t srmech_bigint_pow_bound(size_t base_n, uint32_t exp);/* base_n*exp + 1 */
 size_t srmech_bigint_pow_ws_bound(size_t base_n, uint32_t exp);/* pow ws BYTES */
@@ -4063,9 +4064,31 @@ srmech_status_t srmech_bigint_add(srmech_bigint_t *out, const srmech_bigint_t *a
 srmech_status_t srmech_bigint_sub(srmech_bigint_t *out, const srmech_bigint_t *a,
                                   const srmech_bigint_t *b);
 
-/* out = a * b (schoolbook). OVERFLOW if out->cap < mul_bound(a->n, b->n). */
+/* out = a * b. OVERFLOW if out->cap < mul_bound(a->n, b->n). Since
+ * 0.9.0rc168 the multiply is KARATSUBA above a measured limb crossover
+ * (schoolbook below): this no-arena entry runs the split over a bounded
+ * internal scratch region, degrading gracefully (fewer split levels →
+ * ultimately schoolbook) for very large operands. The product is
+ * byte-identical to schoolbook for every input — only the speed changes.
+ * out must NOT alias a or b (the multiply zeros/rebuilds out's limbs). */
 srmech_status_t srmech_bigint_mul(srmech_bigint_t *out, const srmech_bigint_t *a,
                                   const srmech_bigint_t *b);
+
+/* out = a * b over a CALLER scratch arena (the unbounded Karatsuba entry).
+ * Size ws via srmech_bigint_mul_ws_bound(a->n, b->n) — BYTES — for the
+ * full O(n^log2(3)) split at any operand size (the explicit split-frame
+ * stack + every level's sum/middle-term scratch live in ws; JPL Rule 1:
+ * no recursion — the schedule is an iterative frame machine; Rule 3: no
+ * malloc). A smaller/NULL ws is VALID and still returns the identical
+ * product (each split level that does not fit falls back to schoolbook,
+ * so ws only tunes speed, never the result). ws should be 8-byte aligned
+ * (the shared arena contract); a misaligned ws routes to schoolbook.
+ * OVERFLOW iff out->cap < mul_bound(a->n, b->n). out must NOT alias
+ * a, b, or ws. */
+srmech_status_t srmech_bigint_mul_ws(srmech_bigint_t *out,
+                                     const srmech_bigint_t *a,
+                                     const srmech_bigint_t *b,
+                                     void *ws, size_t ws_len);
 
 /* out = a << bits. OVERFLOW if out->cap < shl_bound(a->n, bits). */
 srmech_status_t srmech_bigint_shl_bits(srmech_bigint_t *out,

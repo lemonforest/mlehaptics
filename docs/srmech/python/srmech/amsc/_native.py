@@ -2502,6 +2502,25 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
             ctypes.c_void_p, ctypes.c_size_t]
         lib.srmech_bigint_divmod.restype = ctypes.c_int
+    # 0.9.0rc168 (#765 optimization): the KARATSUBA multiply over a caller
+    # scratch arena + its sizing bound. srmech_bigint_mul itself is now
+    # Karatsuba over a bounded internal arena (every consumer of the plain
+    # symbol above inherits the mid-size win); the _ws entry lets the
+    # Python big-ℚ dispatch hand a FULL-bound arena so huge products get
+    # the complete O(n^1.585) split. NEW symbols → hasattr-guarded;
+    # additive → EXPECTED_ABI_VERSION stays 3.
+    #   srmech_status_t srmech_bigint_mul_ws(bigint *out, const bigint *a,
+    #       const bigint *b, void *ws, size_t ws_len)  [ws=NULL: schoolbook]
+    #   size_t srmech_bigint_mul_ws_bound(size_t a_n, size_t b_n) [BYTES]
+    if hasattr(lib, "srmech_bigint_mul_ws"):
+        lib.srmech_bigint_mul_ws.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(_SrmechBigint), ctypes.c_void_p, ctypes.c_size_t]
+        lib.srmech_bigint_mul_ws.restype = ctypes.c_int
+    if hasattr(lib, "srmech_bigint_mul_ws_bound"):
+        lib.srmech_bigint_mul_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_bigint_mul_ws_bound.restype = ctypes.c_size_t
 
     # ------------------------------------------------------------------
     # v0.7.5rc153 (UPSTREAM §49): bind the 11 genome file-management C
@@ -5591,9 +5610,31 @@ def bigq_reduce_c(num: int, den: int) -> "tuple[int, int] | None":
 
 def _bigq_mul_into(a_bi, b_bi):
     """``a · b`` into a fresh right-sized srmech_bigint. Returns
-    ``(bigint, keepalive)`` or ``None`` on overflow."""
+    ``(bigint, keepalive)`` or ``None`` on overflow.
+
+    0.9.0rc168 (#765 optimization): when the rc168 Karatsuba arena entry
+    (``srmech_bigint_mul_ws`` + ``srmech_bigint_mul_ws_bound``) is present,
+    the multiply hands a FULL-bound scratch arena so huge products run the
+    complete O(n^1.585) split (the plain symbol's bounded internal arena
+    covers only the mid-size band). The product is byte-identical either
+    way — the arena tunes speed, never the result — so an older lib
+    without the symbols rides the plain entry unchanged."""
     cap = a_bi.n + b_bi.n + 2
     out_bi, keep = _bigq_zero(cap)
+    if (hasattr(LIB, "srmech_bigint_mul_ws")
+            and hasattr(LIB, "srmech_bigint_mul_ws_bound")):
+        wb = int(LIB.srmech_bigint_mul_ws_bound(a_bi.n, b_bi.n))
+        # A c_uint64 array keeps the arena 8-byte aligned (the contract);
+        # wb == 0 means below the Karatsuba crossover → schoolbook,
+        # no arena needed.
+        ws = (ctypes.c_uint64 * (wb // 8 + 1))() if wb else None
+        if not _bigq_check(
+                LIB.srmech_bigint_mul_ws(
+                    ctypes.byref(out_bi), ctypes.byref(a_bi),
+                    ctypes.byref(b_bi), ws, wb),
+                "srmech_bigint_mul_ws"):
+            return None
+        return out_bi, keep
     if not _bigq_check(
             LIB.srmech_bigint_mul(ctypes.byref(out_bi), ctypes.byref(a_bi),
                                   ctypes.byref(b_bi)),
