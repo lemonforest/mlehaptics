@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc163"
-#define SRMECH_VERSION       "0.9.0rc163"
+#define SRMECH_VERSION_PRE   "rc164"
+#define SRMECH_VERSION       "0.9.0rc164"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -6883,6 +6883,40 @@ srmech_status_t srmech_eigvec_exact(
         const srmech_bigint_t *lam_n, const srmech_bigint_t *lam_d,
         srmech_bigint_t *out_n, srmech_bigint_t *out_d, int *out_k,
         void *ws, size_t ws_len);
+
+/* srmech_jordan_chains — the exact JORDAN CHAINS (generalized eigenvectors) of
+ * an integer/rational matrix A for the algebraic eigenvalue λ over ℚ(λ) =
+ * ℚ[x]/(m) (v0.9.0rc164; Qalg TAIL Batch 7b). With N = A − λI (Qalg entries),
+ * the generalized eigenspace null(Nᵘ) has dim μ and N is nilpotent on it; the
+ * Jordan structure is read off the exact Qalg-RREF ranks r_k = rank(Nᵏ)
+ * (# blocks of size exactly k = r_{k-1} − 2·r_k + r_{k+1}) and the chains are
+ * built TOP-DOWN. COMPOSES the rc163 Qalg field (srmech_eigvec_exact's field
+ * arithmetic) plus the Qalg matrix MATMUL / RANK / nested NULLSPACE added here.
+ * Rosetta peer of matrix_cascades.jordan_chains_exact; attested by
+ * tests/test_qalg_jordan_c_rc164.py.
+ *
+ * `a_n`/`a_d` are the n·n rational matrix entries (row-major, num/den); `m` is
+ * the deg+1 monic INTEGER coefficients low->high; `lam_n`/`lam_d` are λ's deg
+ * ℚ(α) coordinates. out_n/out_d receive *out_total generalized eigenvectors
+ * (≤ n), each n components of deg coordinates, at out[((v·n + comp)·deg + coeff)]
+ * — the chains CONCATENATED in build order (block size p down to 1; each chain
+ * BOTTOM→TOP). out_block_sizes[0..*out_nchains) receive the chain lengths in the
+ * same order (Σ = *out_total). The caller sizes out_n/out_d n·n·deg slots (each
+ * >= srmech_jordan_chains_entry_cap limbs) and out_block_sizes n ints. Uses the
+ * caller arena `ws` (>= srmech_jordan_chains_ws_bound). n/deg in
+ * [1, SRMECH_JORDAN_MAX_DIM]; a non-monic / out-of-range / REDUCIBLE m ->
+ * SRMECH_ERR_BAD_INPUT; a too-small arena / cap -> SRMECH_ERR_OVERFLOW (the
+ * caller falls back to the byte-identical pure path). Additive symbols -> ABI
+ * unchanged (3). */
+#define SRMECH_JORDAN_MAX_DIM 64
+size_t srmech_jordan_chains_entry_cap(size_t coeff_limbs, int n, int deg);
+size_t srmech_jordan_chains_ws_bound(size_t coeff_limbs, int n, int deg);
+srmech_status_t srmech_jordan_chains(
+        const srmech_bigint_t *a_n, const srmech_bigint_t *a_d, int n,
+        const srmech_bigint_t *m, int deg,
+        const srmech_bigint_t *lam_n, const srmech_bigint_t *lam_d,
+        srmech_bigint_t *out_n, srmech_bigint_t *out_d, int *out_total,
+        int *out_block_sizes, int *out_nchains, void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_gosper — Gosper's indefinite hypergeometric summation (the

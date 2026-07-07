@@ -1109,6 +1109,35 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_eigvec_exact.restype = ctypes.c_int
 
+    # Qalg number-field JORDAN CHAINS (v0.9.0rc164; Qalg TAIL Batch 7b) — the
+    # exact generalized eigenvectors of A for λ over ℚ(λ), composing the rc163
+    # Qalg field (matmul for Nᵏ / rank / nested nullspace). Backs
+    # jordan_chains_exact; hasattr-guarded (pre-rc164 lib).
+    #   size_t srmech_jordan_chains_entry_cap(size_t coeff_limbs, int n, int deg)
+    #   size_t srmech_jordan_chains_ws_bound (size_t coeff_limbs, int n, int deg)
+    #   int srmech_jordan_chains(bigint *a_n, bigint *a_d, int n,
+    #       bigint *m, int deg, bigint *lam_n, bigint *lam_d,
+    #       bigint *out_n, bigint *out_d, int *out_total,
+    #       int *out_block_sizes, int *out_nchains, void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_jordan_chains"):
+        lib.srmech_jordan_chains_entry_cap.argtypes = [
+            ctypes.c_size_t, ctypes.c_int, ctypes.c_int]
+        lib.srmech_jordan_chains_entry_cap.restype = ctypes.c_size_t
+        lib.srmech_jordan_chains_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_int, ctypes.c_int]
+        lib.srmech_jordan_chains_ws_bound.restype = ctypes.c_size_t
+        lib.srmech_jordan_chains.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_int,
+            ctypes.POINTER(_SrmechBigint), ctypes.c_int,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(ctypes.c_int),
+            ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_jordan_chains.restype = ctypes.c_int
+
     # Qi exact-complex (Gaussian-rational) carrier C-host peer (0.9.0rc15) —
     # carrier-internal (NOT a Rosetta op), four int64 limbs {re_num, re_den,
     # im_num, im_den}. hasattr-guarded so a stale lib (pre-rc15) keeps the rest.
@@ -4957,6 +4986,97 @@ def eigvec_exact_c(rows_ratio, m_int, lam_coords):
             vec.append(coords)
         vectors.append(vec)
     return vectors
+
+
+def has_native_jordan_chains() -> bool:
+    """True iff the rc164 Qalg number-field Jordan-chain kernel + the
+    srmech_bigint decimal-marshal helpers are loaded. False on a no-C / pre-rc164
+    lib — the pure-Python ``_jordan_chains_build_pure`` in
+    ``srmech.amsc.cascade.matrix_cascades`` is the complete, byte-identical
+    alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_jordan_chains")
+            and hasattr(LIB, "srmech_jordan_chains_ws_bound")
+            and hasattr(LIB, "srmech_jordan_chains_entry_cap")
+            and hasattr(LIB, "srmech_bigint_from_dec")
+            and hasattr(LIB, "srmech_bigint_to_dec"))
+
+
+# The native path caps n well below SRMECH_JORDAN_MAX_DIM (64): a stored-powers
+# arena is ~(n+2)·n·n·deg field cells, so a large n allocates GBs — an
+# exact-symbolic DEFECTIVE matrix is small in practice, and n above the cap
+# routes to the byte-identical pure path (correct, just Python-arena-bounded).
+_JORDAN_NATIVE_MAX_N = 24
+
+
+def jordan_chains_c(rows_ratio, m_int, lam_coords):
+    """Native exact Jordan chains of ``A`` for the algebraic eigenvalue λ via
+    ``srmech_jordan_chains``. Inputs are already marshalled to exact rationals
+    (the same shape as :func:`eigvec_exact_c`):
+
+      * ``rows_ratio`` — ``n`` rows, each ``n`` ``(num, den)`` integer pairs;
+      * ``m_int``      — the ``deg+1`` monic INTEGER coefficients of λ's minimal
+        polynomial, low→high;
+      * ``lam_coords`` — λ's ``deg`` ``(num, den)`` ℚ(α) coordinates.
+
+    Returns ``(vectors, block_sizes)`` where ``vectors`` is the flat list of the
+    ``total`` generalized eigenvectors (each a ``list`` of ``n`` components, each
+    a ``list`` of ``deg`` ``(num, den)`` coordinate tuples) — the chains
+    CONCATENATED in build order (each chain BOTTOM→TOP) — and ``block_sizes`` is
+    the list of the chains' lengths (Σ = total). Returns ``None`` on no-C /
+    pre-rc164 lib / n above the native cap / arena OVERFLOW / reducible-m (the
+    caller's pure oracle handles it)."""
+    if not has_native_jordan_chains():
+        return None
+    n = len(rows_ratio)
+    deg = len(m_int) - 1
+    if n < 1 or deg < 1 or n > _JORDAN_NATIVE_MAX_N or deg > 256:
+        return None
+    flat = [(int(num), int(den)) for row in rows_ratio for (num, den) in row]
+    if len(flat) != n * n:
+        return None
+    cl = 1
+    for num, den in flat:
+        cl = max(cl, num.bit_length() // 32 + 4, den.bit_length() // 32 + 4)
+    for v in m_int:
+        cl = max(cl, int(v).bit_length() // 32 + 4)
+    for num, den in lam_coords:
+        cl = max(cl, int(num).bit_length() // 32 + 4, int(den).bit_length() // 32 + 4)
+    entry_cap = int(LIB.srmech_jordan_chains_entry_cap(
+        ctypes.c_size_t(cl), ctypes.c_int(n), ctypes.c_int(deg)))
+    ws_len = int(LIB.srmech_jordan_chains_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_int(n), ctypes.c_int(deg)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    a_n, a_d, ka = _poly_make_array(flat, entry_cap)
+    m_arr, km = _intvec_make_array([int(v) for v in m_int], entry_cap)
+    lam_n, lam_d, kl = _poly_make_array(
+        [(int(num), int(den)) for (num, den) in lam_coords], entry_cap)
+    out_n, out_d, ko = _poly_blank_array(n * n * deg, entry_cap)
+    out_total = ctypes.c_int(0)
+    out_nchains = ctypes.c_int(0)
+    out_bs = (ctypes.c_int * max(n, 1))()
+    rc = LIB.srmech_jordan_chains(
+        a_n, a_d, int(n), m_arr, int(deg), lam_n, lam_d,
+        out_n, out_d, ctypes.byref(out_total),
+        out_bs, ctypes.byref(out_nchains),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len))
+    _ = (ka, km, kl, ko)
+    if rc != SRMECH_OK:
+        return None
+    total = int(out_total.value)
+    nch = int(out_nchains.value)
+    vectors = []
+    for v in range(total):
+        vec = []
+        for comp in range(n):
+            base = (v * n + comp) * deg
+            coords = [(_bigint_to_int(out_n[base + c]), _bigint_to_int(out_d[base + c]))
+                      for c in range(deg)]
+            vec.append(coords)
+        vectors.append(vec)
+    block_sizes = [int(out_bs[i]) for i in range(nch)]
+    return vectors, block_sizes
 
 
 def _intvec_make_array(values, cap):

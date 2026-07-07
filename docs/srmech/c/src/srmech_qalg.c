@@ -89,9 +89,28 @@ typedef struct qalg_eng {
     srmech_bigint_t *fen, *fed;    /* elimination factor                  */
     srmech_bigint_t *pen, *ped;    /* elimination product                 */
     srmech_bigint_t *den_, *ded;   /* elimination difference              */
+    /* JORDAN-CHAIN matrix buffers (carved only by qalg_jordan_carve; the
+     * eigvec path leaves them NULL). All n·n·deg cells unless noted. */
+    int powcap;              /* stored-powers slot count (= n + 2)         */
+    int cn_cols;             /* column-rank scratch width (= 2n + 1)       */
+    srmech_bigint_t *Nn, *Nd;      /* base N = A − λI                      */
+    srmech_bigint_t *tn, *td;      /* matmul product / power accumulator   */
+    srmech_bigint_t *sn, *sd;      /* RREF scratch (destructible copy)     */
+    srmech_bigint_t *lon, *lod;    /* lower null basis (≤ n vecs of n·deg) */
+    srmech_bigint_t *can, *cad;    /* candidate null basis                 */
+    srmech_bigint_t *cn, *cd;      /* column-rank scratch (n·(2n+1)·deg)   */
+    srmech_bigint_t *pwn, *pwd;    /* powers[0..powcap-1] (powcap·n·n·deg) */
+    srmech_bigint_t *van, *vad;    /* matvec temp vector (n·deg)           */
+    srmech_bigint_t *jp0n, *jp0d;  /* field product temp (deg)             */
+    srmech_bigint_t *jp1n, *jp1d;  /* field add temp (deg)                 */
     void  *pws;              /* srmech_poly_* scratch arena               */
     size_t pws_len;          /* its length in BYTES                       */
 } qalg_eng_t;
+
+/* Jordan-chain dimension cap: an exact-symbolic DEFECTIVE matrix is small in
+ * practice; the Python wrapper caps the native path well below this and falls
+ * to the byte-identical pure path above it. */
+#define QALG_JORDAN_MAX_DIM 64
 
 /* ---- forward declarations (Rule 1: no recursion) ------------------- */
 
@@ -142,6 +161,89 @@ static srmech_status_t qalg_extract(qalg_eng_t *e, const int *row_perm,
                                     const int *is_pivot,
                                     srmech_bigint_t *out_n,
                                     srmech_bigint_t *out_d, int *out_k);
+/* ---- jordan-chain helpers (Qalg TAIL Batch 7b) --------------------- */
+static srmech_status_t qalg_field_add(qalg_eng_t *e, srmech_bigint_t *on,
+                                      srmech_bigint_t *od,
+                                      const srmech_bigint_t *an,
+                                      const srmech_bigint_t *ad,
+                                      const srmech_bigint_t *bn,
+                                      const srmech_bigint_t *bd);
+static srmech_status_t qalg_gmatmul(qalg_eng_t *e, srmech_bigint_t *on,
+                                    srmech_bigint_t *od,
+                                    const srmech_bigint_t *an,
+                                    const srmech_bigint_t *ad,
+                                    const srmech_bigint_t *bn,
+                                    const srmech_bigint_t *bd, int n);
+static srmech_status_t qalg_gmatvec(qalg_eng_t *e, srmech_bigint_t *on,
+                                    srmech_bigint_t *od,
+                                    const srmech_bigint_t *mn,
+                                    const srmech_bigint_t *md,
+                                    const srmech_bigint_t *vn,
+                                    const srmech_bigint_t *vd, int n);
+static srmech_status_t qalg_geliminate(qalg_eng_t *e, srmech_bigint_t *mn,
+                                       srmech_bigint_t *md, int nr, int nc,
+                                       const int *row_perm, int r, int c,
+                                       int pr);
+static srmech_status_t qalg_grref(qalg_eng_t *e, srmech_bigint_t *mn,
+                                  srmech_bigint_t *md, int nr, int nc,
+                                  int *row_perm, int *piv_row_of_col,
+                                  int *is_pivot, int *out_rank);
+static srmech_status_t qalg_gnullspace(qalg_eng_t *e, const srmech_bigint_t *mn,
+                                       const srmech_bigint_t *md, int n,
+                                       const int *rp, const int *pc,
+                                       const int *ip, srmech_bigint_t *out_n,
+                                       srmech_bigint_t *out_d, int *out_k);
+static srmech_status_t qalg_rank_of(qalg_eng_t *e, const srmech_bigint_t *mn,
+                                    const srmech_bigint_t *md, int n,
+                                    int *rank, int *rp, int *pc, int *ip);
+static srmech_status_t qalg_nullspace_of(qalg_eng_t *e,
+                                         const srmech_bigint_t *mn,
+                                         const srmech_bigint_t *md, int n,
+                                         srmech_bigint_t *out_n,
+                                         srmech_bigint_t *out_d, int *out_k,
+                                         int *rp, int *pc, int *ip);
+static srmech_status_t qalg_set_identity(qalg_eng_t *e, srmech_bigint_t *mn,
+                                         srmech_bigint_t *md, int n);
+static srmech_status_t qalg_fill_col(qalg_eng_t *e, int K, int col,
+                                     const srmech_bigint_t *vn,
+                                     const srmech_bigint_t *vd, int n);
+static srmech_status_t qalg_build_context(qalg_eng_t *e, int K, int lk,
+                                          const srmech_bigint_t *out_n,
+                                          const srmech_bigint_t *out_d, int vi,
+                                          const srmech_bigint_t *cvn,
+                                          const srmech_bigint_t *cvd, int n);
+static srmech_status_t qalg_col_rank(qalg_eng_t *e, int K, int *rank,
+                                     int *rp, int *pc, int *ip);
+static srmech_status_t qalg_cand_independent(qalg_eng_t *e,
+                                             const srmech_bigint_t *cvn,
+                                             const srmech_bigint_t *cvd, int lk,
+                                             const srmech_bigint_t *out_n,
+                                             const srmech_bigint_t *out_d,
+                                             int vi, int *out_indep,
+                                             int *rp, int *pc, int *ip);
+static srmech_status_t qalg_build_chain(qalg_eng_t *e, srmech_bigint_t *out_n,
+                                        srmech_bigint_t *out_d, int vi,
+                                        const srmech_bigint_t *candn,
+                                        const srmech_bigint_t *candd,
+                                        int s, int n);
+static srmech_status_t qalg_jordan_powers(qalg_eng_t *e, int *ranks, int *nul,
+                                          int *out_p, int *rp, int *pc,
+                                          int *ip);
+static void qalg_block_counts(const int *ranks, int p, int *nblocks);
+static srmech_status_t qalg_topdown_s(qalg_eng_t *e, int s, int need,
+                                      srmech_bigint_t *out_n,
+                                      srmech_bigint_t *out_d, int *out_bs,
+                                      int *vi, int *nc, int *rp, int *pc,
+                                      int *ip);
+static srmech_status_t qalg_jordan_carve(qalg_eng_t *e, void *ws,
+                                         size_t ws_len);
+static srmech_status_t qalg_jordan_prepare(qalg_eng_t *e,
+                                           const srmech_bigint_t *a_n,
+                                           const srmech_bigint_t *a_d, int n,
+                                           const srmech_bigint_t *m, int deg,
+                                           const srmech_bigint_t *lam_n,
+                                           const srmech_bigint_t *lam_d,
+                                           void *ws, size_t ws_len);
 
 /* ---- caller-arena carve -------------------------------------------- */
 
@@ -772,4 +874,706 @@ srmech_status_t srmech_eigvec_exact(
     if (st != SRMECH_OK) { return st; }
     return qalg_extract(&e, row_perm, piv_row_of_col, is_pivot,
                         out_n, out_d, out_k);
+}
+
+/* ==================================================================== *
+ * Qalg TAIL Batch 7b — the exact JORDAN CHAINS (generalized eigenvectors)
+ * of an integer/rational matrix for an eigenvalue λ, over ℚ(λ) = ℚ[x]/(m):
+ * the C peer of srmech.amsc.cascade.matrix_cascades.jordan_chains_exact.
+ *
+ * With N = A − λI (Qalg entries over ℚ(λ)), the generalized eigenspace
+ * null(Nᵘ) has dimension μ and N is nilpotent on it. The Jordan structure is
+ * read off the exact Qalg-RREF ranks r_k = rank(Nᵏ): # blocks of size exactly
+ * k = r_{k-1} − 2·r_k + r_{k+1}. The chains are built TOP-DOWN — for block size
+ * s from p (the smallest stabilising power) down to 1, pick a generalized
+ * eigenvector v in null(N^s) that is independent (over ℚ(λ)) of null(N^{s-1})
+ * ∪ the chains already chosen, and form the chain v, N·v, …, N^{s-1}·v (stored
+ * bottom→top). All arithmetic COMPOSES the rc163 Qalg field (qalg_field_mul /
+ * qalg_field_sub / qalg_field_inverse over the exact-ℚ srmech_poly_* kernels)
+ * — the added ops here are the Qalg matrix MATMUL (for Nᵏ), RANK, and nested
+ * NULLSPACE / column-rank. Byte/structurally-identical to the pure
+ * _jordan_chains_build_pure (the RREF is canonical + the selection
+ * deterministic). Additive symbols -> SRMECH_ABI_VERSION unchanged (stays 3).
+ * ==================================================================== */
+
+/* out = a + b coordinatewise (exact-ℚ). out a deg element; a, b deg elements. */
+static srmech_status_t qalg_field_add(qalg_eng_t *e, srmech_bigint_t *on,
+                                      srmech_bigint_t *od,
+                                      const srmech_bigint_t *an,
+                                      const srmech_bigint_t *ad,
+                                      const srmech_bigint_t *bn,
+                                      const srmech_bigint_t *bd)
+{
+    srmech_status_t st;
+    size_t slen = 0u;
+    int deg = e->deg;
+    assert(e != NULL && on != NULL && od != NULL);
+    assert(an != NULL && bn != NULL);
+    st = srmech_poly_add(an, ad, (size_t)deg, bn, bd, (size_t)deg,
+                         e->asn, e->asd, &slen, e->pws, e->pws_len);
+    if (st != SRMECH_OK) { return st; }
+    return qalg_pad_into(on, od, e->asn, e->asd, slen, deg);
+}
+
+/* out = A·B over ℚ(λ): out[i][j] = Σ_k A[i][k]·B[k][j]. out MUST NOT alias A/B
+ * (out is a distinct n·n·deg buffer). */
+static srmech_status_t qalg_gmatmul(qalg_eng_t *e, srmech_bigint_t *on,
+                                    srmech_bigint_t *od,
+                                    const srmech_bigint_t *an,
+                                    const srmech_bigint_t *ad,
+                                    const srmech_bigint_t *bn,
+                                    const srmech_bigint_t *bd, int n)
+{
+    int i, j, k, deg = e->deg;
+    size_t dg = (size_t)deg;
+    srmech_status_t st;
+    assert(e != NULL && on != NULL && an != NULL && bn != NULL);
+    assert(n >= 1 && deg >= 1);
+    for (i = 0; i < n; i++) {
+        for (j = 0; j < n; j++) {
+            size_t oo = ((size_t)i * (size_t)n + (size_t)j) * dg;
+            st = qalg_zero_elem(&on[oo], &od[oo], deg);
+            if (st != SRMECH_OK) { return st; }
+            for (k = 0; k < n; k++) {
+                size_t ao = ((size_t)i * (size_t)n + (size_t)k) * dg;
+                size_t bo = ((size_t)k * (size_t)n + (size_t)j) * dg;
+                if (qalg_is_zero_elem(&an[ao], deg)) { continue; }
+                if (qalg_is_zero_elem(&bn[bo], deg)) { continue; }
+                st = qalg_field_mul(e, e->jp0n, e->jp0d, &an[ao], &ad[ao],
+                                    &bn[bo], &bd[bo]);
+                if (st != SRMECH_OK) { return st; }
+                st = qalg_field_add(e, e->jp1n, e->jp1d, &on[oo], &od[oo],
+                                    e->jp0n, e->jp0d);
+                if (st != SRMECH_OK) { return st; }
+                st = qalg_copy_run(&on[oo], &od[oo], e->jp1n, e->jp1d, dg);
+                if (st != SRMECH_OK) { return st; }
+            }
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* out = M·v over ℚ(λ): out[i] = Σ_j M[i][j]·v[j]. out MUST NOT alias v (out is
+ * a distinct n·deg buffer). */
+static srmech_status_t qalg_gmatvec(qalg_eng_t *e, srmech_bigint_t *on,
+                                    srmech_bigint_t *od,
+                                    const srmech_bigint_t *mn,
+                                    const srmech_bigint_t *md,
+                                    const srmech_bigint_t *vn,
+                                    const srmech_bigint_t *vd, int n)
+{
+    int i, j, deg = e->deg;
+    size_t dg = (size_t)deg;
+    srmech_status_t st;
+    assert(e != NULL && on != NULL && mn != NULL && vn != NULL);
+    assert(n >= 1 && deg >= 1);
+    for (i = 0; i < n; i++) {
+        size_t oo = (size_t)i * dg;
+        st = qalg_zero_elem(&on[oo], &od[oo], deg);
+        if (st != SRMECH_OK) { return st; }
+        for (j = 0; j < n; j++) {
+            size_t mo = ((size_t)i * (size_t)n + (size_t)j) * dg;
+            size_t vo = (size_t)j * dg;
+            if (qalg_is_zero_elem(&mn[mo], deg)) { continue; }
+            if (qalg_is_zero_elem(&vn[vo], deg)) { continue; }
+            st = qalg_field_mul(e, e->jp0n, e->jp0d, &mn[mo], &md[mo],
+                                &vn[vo], &vd[vo]);
+            if (st != SRMECH_OK) { return st; }
+            st = qalg_field_add(e, e->jp1n, e->jp1d, &on[oo], &od[oo],
+                                e->jp0n, e->jp0d);
+            if (st != SRMECH_OK) { return st; }
+            st = qalg_copy_run(&on[oo], &od[oo], e->jp1n, e->jp1d, dg);
+            if (st != SRMECH_OK) { return st; }
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* Normalise pivot row `pr` (physical) by e->inv over nc cols, then clear column
+ * `c` from every other logical row. General (nr × nc) sibling of qalg_eliminate. */
+static srmech_status_t qalg_geliminate(qalg_eng_t *e, srmech_bigint_t *mn,
+                                       srmech_bigint_t *md, int nr, int nc,
+                                       const int *row_perm, int r, int c,
+                                       int pr)
+{
+    int j, rr;
+    size_t dg = (size_t)e->deg, po;
+    srmech_status_t st;
+    assert(e != NULL && mn != NULL && row_perm != NULL);
+    assert(r >= 0 && c >= 0 && pr >= 0);
+    for (j = 0; j < nc; j++) {
+        po = ((size_t)pr * (size_t)nc + (size_t)j) * dg;
+        st = qalg_field_mul(e, e->tmn, e->tmd, &mn[po], &md[po],
+                            e->invn, e->invd);
+        if (st != SRMECH_OK) { return st; }
+        st = qalg_copy_run(&mn[po], &md[po], e->tmn, e->tmd, dg);
+        if (st != SRMECH_OK) { return st; }
+    }
+    for (rr = 0; rr < nr; rr++) {
+        int prr = row_perm[rr];
+        size_t fo = ((size_t)prr * (size_t)nc + (size_t)c) * dg;
+        if (rr == r) { continue; }
+        if (qalg_is_zero_elem(&mn[fo], e->deg)) { continue; }
+        st = qalg_copy_run(e->fen, e->fed, &mn[fo], &md[fo], dg);
+        if (st != SRMECH_OK) { return st; }
+        for (j = 0; j < nc; j++) {
+            size_t ro = ((size_t)prr * (size_t)nc + (size_t)j) * dg;
+            po = ((size_t)pr * (size_t)nc + (size_t)j) * dg;
+            st = qalg_field_mul(e, e->pen, e->ped, e->fen, e->fed,
+                                &mn[po], &md[po]);
+            if (st != SRMECH_OK) { return st; }
+            st = qalg_field_sub(e, e->den_, e->ded, &mn[ro], &md[ro],
+                                e->pen, e->ped);
+            if (st != SRMECH_OK) { return st; }
+            st = qalg_copy_run(&mn[ro], &md[ro], e->den_, e->ded, dg);
+            if (st != SRMECH_OK) { return st; }
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* Exact reduced row echelon of an (nr × nc) Qalg matrix via a row permutation.
+ * Records piv_row_of_col[c] (LOGICAL pivot row) + is_pivot[c]; *out_rank = the
+ * pivot count. General sibling of qalg_rref (caller inits row_perm/piv/is_pivot). */
+static srmech_status_t qalg_grref(qalg_eng_t *e, srmech_bigint_t *mn,
+                                  srmech_bigint_t *md, int nr, int nc,
+                                  int *row_perm, int *piv_row_of_col,
+                                  int *is_pivot, int *out_rank)
+{
+    int r = 0, c, rr;
+    size_t dg = (size_t)e->deg;
+    srmech_status_t st;
+    assert(e != NULL && mn != NULL && row_perm != NULL);
+    assert(out_rank != NULL && nr >= 1);
+    for (c = 0; c < nc; c++) {
+        int piv = -1, tmp, pr;
+        size_t pco;
+        for (rr = r; rr < nr; rr++) {
+            size_t co = ((size_t)row_perm[rr] * (size_t)nc + (size_t)c) * dg;
+            if (!qalg_is_zero_elem(&mn[co], e->deg)) { piv = rr; break; }
+        }
+        if (piv < 0) { continue; }
+        tmp = row_perm[r]; row_perm[r] = row_perm[piv]; row_perm[piv] = tmp;
+        pr = row_perm[r];
+        pco = ((size_t)pr * (size_t)nc + (size_t)c) * dg;
+        st = qalg_field_inverse(e, e->invn, e->invd, &mn[pco], &md[pco]);
+        if (st != SRMECH_OK) { return st; }
+        st = qalg_geliminate(e, mn, md, nr, nc, row_perm, r, c, pr);
+        if (st != SRMECH_OK) { return st; }
+        piv_row_of_col[c] = r;
+        is_pivot[c] = 1;
+        r++;
+        if (r == nr) { break; }
+    }
+    *out_rank = r;
+    return SRMECH_OK;
+}
+
+/* Read the null-space basis of an n×n Qalg matrix off its RREF (`mn`/`md`, and
+ * the rp/pc/ip a preceding qalg_grref produced): each free column fc gives one
+ * vector (v[fc]=1, v[pivot col c] = −M[pivot row][fc], else 0). Byte-identical
+ * to qalg_extract (which is byte-identical to the pure _qalg_nullspace). */
+static srmech_status_t qalg_gnullspace(qalg_eng_t *e, const srmech_bigint_t *mn,
+                                       const srmech_bigint_t *md, int n,
+                                       const int *rp, const int *pc,
+                                       const int *ip, srmech_bigint_t *out_n,
+                                       srmech_bigint_t *out_d, int *out_k)
+{
+    int fc, c, comp, deg = e->deg, k = 0;
+    size_t dg = (size_t)deg;
+    srmech_status_t st;
+    assert(e != NULL && mn != NULL && out_n != NULL && out_k != NULL);
+    assert(rp != NULL && ip != NULL);
+    for (fc = 0; fc < n; fc++) {
+        srmech_bigint_t *vn, *vd;
+        if (ip[fc]) { continue; }
+        for (comp = 0; comp < n; comp++) {
+            size_t vo = ((size_t)k * (size_t)n + (size_t)comp) * dg;
+            st = qalg_zero_elem(&out_n[vo], &out_d[vo], deg);
+            if (st != SRMECH_OK) { return st; }
+        }
+        vn = &out_n[((size_t)k * (size_t)n + (size_t)fc) * dg];
+        vd = &out_d[((size_t)k * (size_t)n + (size_t)fc) * dg];
+        st = srmech_bigint_set_i64(&vn[0], 1); if (st != SRMECH_OK) { return st; }
+        st = srmech_bigint_set_i64(&vd[0], 1); if (st != SRMECH_OK) { return st; }
+        for (c = 0; c < n; c++) {
+            int pr, cc;
+            size_t fo, vco;
+            if (!ip[c]) { continue; }
+            pr = rp[pc[c]];
+            fo = ((size_t)pr * (size_t)n + (size_t)fc) * dg;
+            vco = ((size_t)k * (size_t)n + (size_t)c) * dg;
+            st = qalg_copy_run(&out_n[vco], &out_d[vco], &mn[fo], &md[fo], dg);
+            if (st != SRMECH_OK) { return st; }
+            for (cc = 0; cc < deg; cc++) {           /* negate: −M[pr][fc] */
+                srmech_bigint_t *t = &out_n[vco + (size_t)cc];
+                t->sign = (t->sign == 0) ? 0 : -t->sign;
+            }
+        }
+        k++;
+    }
+    *out_k = k;
+    return SRMECH_OK;
+}
+
+/* rank(M) for an n×n Qalg matrix M — RREF a scratch COPY (e->sn), count pivots. */
+static srmech_status_t qalg_rank_of(qalg_eng_t *e, const srmech_bigint_t *mn,
+                                    const srmech_bigint_t *md, int n,
+                                    int *rank, int *rp, int *pc, int *ip)
+{
+    size_t cells = (size_t)n * (size_t)n * (size_t)e->deg;
+    int i, rk = 0;
+    srmech_status_t st;
+    assert(e != NULL && rank != NULL && rp != NULL);
+    assert(n >= 1);
+    st = qalg_copy_run(e->sn, e->sd, mn, md, cells);
+    if (st != SRMECH_OK) { return st; }
+    for (i = 0; i < n; i++) { rp[i] = i; pc[i] = -1; ip[i] = 0; }
+    st = qalg_grref(e, e->sn, e->sd, n, n, rp, pc, ip, &rk);
+    if (st != SRMECH_OK) { return st; }
+    *rank = rk;
+    return SRMECH_OK;
+}
+
+/* null(M) basis for an n×n Qalg matrix M into out — RREF a scratch COPY, extract. */
+static srmech_status_t qalg_nullspace_of(qalg_eng_t *e,
+                                         const srmech_bigint_t *mn,
+                                         const srmech_bigint_t *md, int n,
+                                         srmech_bigint_t *out_n,
+                                         srmech_bigint_t *out_d, int *out_k,
+                                         int *rp, int *pc, int *ip)
+{
+    size_t cells = (size_t)n * (size_t)n * (size_t)e->deg;
+    int i, rk = 0;
+    srmech_status_t st;
+    assert(e != NULL && out_n != NULL && out_k != NULL);
+    assert(n >= 1);
+    st = qalg_copy_run(e->sn, e->sd, mn, md, cells);
+    if (st != SRMECH_OK) { return st; }
+    for (i = 0; i < n; i++) { rp[i] = i; pc[i] = -1; ip[i] = 0; }
+    st = qalg_grref(e, e->sn, e->sd, n, n, rp, pc, ip, &rk);
+    if (st != SRMECH_OK) { return st; }
+    return qalg_gnullspace(e, e->sn, e->sd, n, rp, pc, ip, out_n, out_d, out_k);
+}
+
+/* out = the n×n identity over ℚ(λ) (diagonal = the field element 1). */
+static srmech_status_t qalg_set_identity(qalg_eng_t *e, srmech_bigint_t *mn,
+                                         srmech_bigint_t *md, int n)
+{
+    int i, j, deg = e->deg;
+    size_t dg = (size_t)deg;
+    srmech_status_t st;
+    assert(e != NULL && mn != NULL);
+    assert(n >= 1 && deg >= 1);
+    for (i = 0; i < n; i++) {
+        for (j = 0; j < n; j++) {
+            size_t off = ((size_t)i * (size_t)n + (size_t)j) * dg;
+            st = qalg_zero_elem(&mn[off], &md[off], deg);
+            if (st != SRMECH_OK) { return st; }
+            if (i == j) {
+                st = srmech_bigint_set_i64(&mn[off], 1);
+                if (st != SRMECH_OK) { return st; }
+            }
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* Copy the column vector `v` (n components of deg coords) into column `col` of
+ * the n×K column-rank scratch matrix e->cn. */
+static srmech_status_t qalg_fill_col(qalg_eng_t *e, int K, int col,
+                                     const srmech_bigint_t *vn,
+                                     const srmech_bigint_t *vd, int n)
+{
+    int i, deg = e->deg;
+    size_t dg = (size_t)deg;
+    srmech_status_t st;
+    assert(e != NULL && vn != NULL);
+    assert(K >= 1 && col >= 0 && col < K);
+    for (i = 0; i < n; i++) {
+        size_t dst = ((size_t)i * (size_t)K + (size_t)col) * dg;
+        size_t src = (size_t)i * dg;
+        st = qalg_copy_run(&e->cn[dst], &e->cd[dst], &vn[src], &vd[src], dg);
+        if (st != SRMECH_OK) { return st; }
+    }
+    return SRMECH_OK;
+}
+
+/* Assemble the context column matrix e->cn (n × K): the lk lower-null vectors,
+ * then the vi already-chosen chain vectors (from out), then optionally cvn/cvd
+ * (the candidate). K = lk + vi + (cvn != NULL). */
+static srmech_status_t qalg_build_context(qalg_eng_t *e, int K, int lk,
+                                          const srmech_bigint_t *out_n,
+                                          const srmech_bigint_t *out_d, int vi,
+                                          const srmech_bigint_t *cvn,
+                                          const srmech_bigint_t *cvd, int n)
+{
+    int col = 0, j;
+    size_t vc = (size_t)n * (size_t)e->deg;
+    srmech_status_t st;
+    assert(e != NULL && K >= 0);
+    assert(lk >= 0 && vi >= 0);
+    for (j = 0; j < lk; j++) {
+        size_t lo = (size_t)j * vc;
+        st = qalg_fill_col(e, K, col, &e->lon[lo], &e->lod[lo], n);
+        if (st != SRMECH_OK) { return st; }
+        col++;
+    }
+    for (j = 0; j < vi; j++) {
+        size_t oo = (size_t)j * vc;
+        st = qalg_fill_col(e, K, col, &out_n[oo], &out_d[oo], n);
+        if (st != SRMECH_OK) { return st; }
+        col++;
+    }
+    if (cvn != NULL) {
+        st = qalg_fill_col(e, K, col, cvn, cvd, n);
+        if (st != SRMECH_OK) { return st; }
+        col++;
+    }
+    assert(col == K);
+    return SRMECH_OK;
+}
+
+/* rank of the K columns currently assembled in e->cn (n × K) — RREF it. */
+static srmech_status_t qalg_col_rank(qalg_eng_t *e, int K, int *rank,
+                                     int *rp, int *pc, int *ip)
+{
+    int i, rk = 0;
+    srmech_status_t st;
+    assert(e != NULL && rank != NULL);
+    assert(K >= 0);
+    if (K == 0) { *rank = 0; return SRMECH_OK; }
+    for (i = 0; i < e->n; i++) { rp[i] = i; }
+    for (i = 0; i < K; i++) { pc[i] = -1; ip[i] = 0; }
+    st = qalg_grref(e, e->cn, e->cd, e->n, K, rp, pc, ip, &rk);
+    if (st != SRMECH_OK) { return st; }
+    *rank = rk;
+    return SRMECH_OK;
+}
+
+/* 1 iff the candidate cvn/cvd is linearly INDEPENDENT (over ℚ(λ)) of the lk
+ * lower-null vectors ∪ the vi already-chosen chain vectors: column-rank rises. */
+static srmech_status_t qalg_cand_independent(qalg_eng_t *e,
+                                             const srmech_bigint_t *cvn,
+                                             const srmech_bigint_t *cvd, int lk,
+                                             const srmech_bigint_t *out_n,
+                                             const srmech_bigint_t *out_d,
+                                             int vi, int *out_indep,
+                                             int *rp, int *pc, int *ip)
+{
+    int n = e->n, r0 = 0, r1 = 0, base = lk + vi;
+    srmech_status_t st;
+    assert(e != NULL && out_indep != NULL);
+    assert(lk >= 0 && vi >= 0);
+    st = qalg_build_context(e, base, lk, out_n, out_d, vi, NULL, NULL, n);
+    if (st != SRMECH_OK) { return st; }
+    st = qalg_col_rank(e, base, &r0, rp, pc, ip);
+    if (st != SRMECH_OK) { return st; }
+    st = qalg_build_context(e, base + 1, lk, out_n, out_d, vi, cvn, cvd, n);
+    if (st != SRMECH_OK) { return st; }
+    st = qalg_col_rank(e, base + 1, &r1, rp, pc, ip);
+    if (st != SRMECH_OK) { return st; }
+    *out_indep = (r1 > r0) ? 1 : 0;
+    return SRMECH_OK;
+}
+
+/* Build the chain v, N·v, …, N^{s-1}·v from the top `cand`, stored BOTTOM→TOP
+ * into out[vi .. vi+s-1] (out[vi+s-1] = cand; out[vi] = N^{s-1}·cand). */
+static srmech_status_t qalg_build_chain(qalg_eng_t *e, srmech_bigint_t *out_n,
+                                        srmech_bigint_t *out_d, int vi,
+                                        const srmech_bigint_t *candn,
+                                        const srmech_bigint_t *candd,
+                                        int s, int n)
+{
+    int t;
+    size_t vc = (size_t)n * (size_t)e->deg;
+    size_t top = (size_t)(vi + s - 1) * vc;
+    srmech_status_t st;
+    assert(e != NULL && out_n != NULL && candn != NULL);
+    assert(s >= 1 && vi >= 0);
+    st = qalg_copy_run(&out_n[top], &out_d[top], candn, candd, vc);
+    if (st != SRMECH_OK) { return st; }
+    for (t = 1; t < s; t++) {
+        size_t dst = (size_t)(vi + s - 1 - t) * vc;
+        size_t src = (size_t)(vi + s - t) * vc;
+        st = qalg_gmatvec(e, e->van, e->vad, e->Nn, e->Nd,
+                          &out_n[src], &out_d[src], n);
+        if (st != SRMECH_OK) { return st; }
+        st = qalg_copy_run(&out_n[dst], &out_d[dst], e->van, e->vad, vc);
+        if (st != SRMECH_OK) { return st; }
+    }
+    return SRMECH_OK;
+}
+
+/* Phase 1: pw[0]=I; iterate pw[k+1]=pw[k]·N recording ranks[k+1]=rank(pw[k+1])
+ * until the rank stops dropping (ranks[idx]==ranks[idx-1]) or the safety index
+ * idx>n; *out_p = the stabilising power p (= len(ranks)-1 in the pure path). */
+static srmech_status_t qalg_jordan_powers(qalg_eng_t *e, int *ranks, int *nul,
+                                          int *out_p, int *rp, int *pc, int *ip)
+{
+    int n = e->n, kk = 0, rk = 0, idx;
+    size_t cells = (size_t)n * (size_t)n * (size_t)e->deg;
+    srmech_status_t st;
+    assert(e != NULL && ranks != NULL && out_p != NULL);
+    assert(n >= 1);
+    st = qalg_set_identity(e, e->pwn, e->pwd, n);
+    if (st != SRMECH_OK) { return st; }
+    ranks[0] = n; nul[0] = 0;
+    for (;;) {
+        size_t pko = (size_t)kk * cells;
+        size_t pk1 = (size_t)(kk + 1) * cells;
+        idx = kk + 1;
+        st = qalg_gmatmul(e, e->tn, e->td, &e->pwn[pko], &e->pwd[pko],
+                          e->Nn, e->Nd, n);
+        if (st != SRMECH_OK) { return st; }
+        st = qalg_rank_of(e, e->tn, e->td, n, &rk, rp, pc, ip);
+        if (st != SRMECH_OK) { return st; }
+        st = qalg_copy_run(&e->pwn[pk1], &e->pwd[pk1], e->tn, e->td, cells);
+        if (st != SRMECH_OK) { return st; }
+        ranks[idx] = rk; nul[idx] = n - rk;
+        if (rk == ranks[idx - 1]) { *out_p = idx; return SRMECH_OK; }
+        if (idx > n) { *out_p = idx; return SRMECH_OK; }
+        kk = idx;
+    }
+}
+
+/* # Jordan blocks of size EXACTLY k = r_{k-1} − 2·r_k + r_{k+1}, for k = 1..p
+ * (r_{p+1} := r_p — the pure path's ranks[-1] clamp). */
+static void qalg_block_counts(const int *ranks, int p, int *nblocks)
+{
+    int k;
+    assert(ranks != NULL && nblocks != NULL);
+    assert(p >= 0);
+    for (k = 1; k <= p; k++) {
+        int rm1 = ranks[k - 1], rk = ranks[k];
+        int rp1 = (k + 1 <= p) ? ranks[k + 1] : ranks[p];
+        nblocks[k] = rm1 - 2 * rk + rp1;
+    }
+}
+
+/* Process one block size s (need = # blocks of size exactly s): pick `need`
+ * independent tops from null(N^s) modulo null(N^{s-1}) ∪ the chosen chains,
+ * build each chain, append to out[*vi..] + record its length in out_bs. */
+static srmech_status_t qalg_topdown_s(qalg_eng_t *e, int s, int need,
+                                      srmech_bigint_t *out_n,
+                                      srmech_bigint_t *out_d, int *out_bs,
+                                      int *vi, int *nc, int *rp, int *pc,
+                                      int *ip)
+{
+    int lk = 0, ck = 0, ci, picked = 0, n = e->n;
+    size_t cells = (size_t)n * (size_t)n * (size_t)e->deg;
+    size_t vc = (size_t)n * (size_t)e->deg;
+    srmech_status_t st;
+    assert(e != NULL && out_n != NULL && vi != NULL && nc != NULL);
+    assert(s >= 1 && need >= 1);
+    if (s - 1 >= 1) {
+        size_t po = (size_t)(s - 1) * cells;
+        st = qalg_nullspace_of(e, &e->pwn[po], &e->pwd[po], n,
+                               e->lon, e->lod, &lk, rp, pc, ip);
+        if (st != SRMECH_OK) { return st; }
+    }
+    {
+        size_t po = (size_t)s * cells;
+        st = qalg_nullspace_of(e, &e->pwn[po], &e->pwd[po], n,
+                               e->can, e->cad, &ck, rp, pc, ip);
+        if (st != SRMECH_OK) { return st; }
+    }
+    for (ci = 0; ci < ck && picked < need; ci++) {
+        size_t co = (size_t)ci * vc;
+        int indep = 0;
+        st = qalg_cand_independent(e, &e->can[co], &e->cad[co], lk,
+                                   out_n, out_d, *vi, &indep, rp, pc, ip);
+        if (st != SRMECH_OK) { return st; }
+        if (!indep) { continue; }
+        st = qalg_build_chain(e, out_n, out_d, *vi, &e->can[co], &e->cad[co],
+                              s, n);
+        if (st != SRMECH_OK) { return st; }
+        out_bs[*nc] = s;
+        *vi += s;
+        *nc += 1;
+        picked++;
+    }
+    if (picked != need) { return SRMECH_ERR_BAD_INPUT; }
+    return SRMECH_OK;
+}
+
+/* Carve the jordan-chain matrix buffers from the caller arena, AFTER the shared
+ * qalg_eng_carve (field scratch + Mn); the poly-op tail e->pws shrinks to the
+ * remainder (still >= srmech_poly_ws_bound by the jordan ws bound's design). */
+static srmech_status_t qalg_jordan_carve(qalg_eng_t *e, void *ws, size_t ws_len)
+{
+    uint32_t *base;
+    size_t words, cur = 0u, dg, cells, colcols, powcells;
+    uint32_t cap;
+    int ok = 1;
+    srmech_status_t st = qalg_eng_carve(e, ws, ws_len);
+    assert(e != NULL);
+    assert(ws != NULL || ws_len == 0u);
+    if (st != SRMECH_OK) { return st; }
+    base = (uint32_t *)e->pws;
+    words = e->pws_len / sizeof(uint32_t);
+    dg = (size_t)e->deg; cap = e->cap;
+    cells = (size_t)e->n * (size_t)e->n * dg;
+    colcols = (size_t)e->cn_cols;
+    powcells = (size_t)e->powcap * cells;
+    e->Nn = qalg_carve(base, words, &cur, cells, cap, &ok);
+    e->Nd = qalg_carve(base, words, &cur, cells, cap, &ok);
+    e->tn = qalg_carve(base, words, &cur, cells, cap, &ok);
+    e->td = qalg_carve(base, words, &cur, cells, cap, &ok);
+    e->sn = qalg_carve(base, words, &cur, cells, cap, &ok);
+    e->sd = qalg_carve(base, words, &cur, cells, cap, &ok);
+    e->lon = qalg_carve(base, words, &cur, cells, cap, &ok);
+    e->lod = qalg_carve(base, words, &cur, cells, cap, &ok);
+    e->can = qalg_carve(base, words, &cur, cells, cap, &ok);
+    e->cad = qalg_carve(base, words, &cur, cells, cap, &ok);
+    e->cn = qalg_carve(base, words, &cur, (size_t)e->n * colcols * dg, cap, &ok);
+    e->cd = qalg_carve(base, words, &cur, (size_t)e->n * colcols * dg, cap, &ok);
+    e->pwn = qalg_carve(base, words, &cur, powcells, cap, &ok);
+    e->pwd = qalg_carve(base, words, &cur, powcells, cap, &ok);
+    e->van = qalg_carve(base, words, &cur, (size_t)e->n * dg, cap, &ok);
+    e->vad = qalg_carve(base, words, &cur, (size_t)e->n * dg, cap, &ok);
+    e->jp0n = qalg_carve(base, words, &cur, dg, cap, &ok);
+    e->jp0d = qalg_carve(base, words, &cur, dg, cap, &ok);
+    e->jp1n = qalg_carve(base, words, &cur, dg, cap, &ok);
+    e->jp1d = qalg_carve(base, words, &cur, dg, cap, &ok);
+    if (!ok) { return SRMECH_ERR_OVERFLOW; }
+    e->pws = (void *)(base + cur);
+    e->pws_len = (words - cur) * sizeof(uint32_t);
+    return SRMECH_OK;
+}
+
+/* ---- jordan public API --------------------------------------------- */
+
+/* Per-coefficient limb cap for the out_n / out_d chain-vector coordinates. */
+size_t srmech_jordan_chains_entry_cap(size_t coeff_limbs, int n, int deg)
+{
+    assert(n >= 0);
+    assert(deg >= 0);
+    if (n < 1 || deg < 1) { return 1u; }
+    return qalg_cap_for(coeff_limbs, n, deg);
+}
+
+/* Minimum ws_len BYTES for srmech_jordan_chains: the eigvec arena bound (field
+ * scratch + Mn + a poly tail) PLUS the jordan matrix buffers (N, matmul temp,
+ * RREF scratch, lower/cand null, column-rank scratch, the n+2 stored powers,
+ * matvec temp, field temps). */
+size_t srmech_jordan_chains_ws_bound(size_t coeff_limbs, int n, int deg)
+{
+    size_t base, cap, dg, cells, hdr, slots, powcap, colcols, extra;
+    assert(n >= 0);
+    assert(deg >= 0);
+    if (n < 1 || deg < 1) { return 64u; }
+    base = srmech_eigvec_exact_ws_bound(coeff_limbs, n, deg);
+    cap = qalg_cap_for(coeff_limbs, n, deg);
+    dg = (size_t)deg;
+    cells = (size_t)n * (size_t)n * dg;
+    powcap = (size_t)n + 2u;
+    colcols = 2u * (size_t)n + 1u;
+    hdr = (sizeof(srmech_bigint_t) + sizeof(uint32_t) - 1u) / sizeof(uint32_t);
+    /* 5 cell-pairs (N, t, s, lo, ca) + col scratch (2·n·colcols·dg) + powers
+     * (2·powcap·cells) + matvec (2·n·dg) + 2 field-temp pairs (4·dg). */
+    slots = 10u * cells + 2u * (size_t)n * colcols * dg + 2u * powcap * cells
+            + 2u * (size_t)n * dg + 4u * dg;
+    extra = slots * (hdr + cap);
+    return base + (extra + 64u) * sizeof(uint32_t);
+}
+
+/* The exact JORDAN CHAINS of the integer/rational matrix A (n·n, num/den) for
+ * the algebraic eigenvalue λ = Σ lam[i]·αⁱ (α a root of the monic irreducible
+ * integer m, deg+1 coeffs low->high). out_n/out_d receive *out_total generalized
+ * eigenvectors (≤ n), each n components of deg ℚ(λ) coordinates, at
+ * out[((v·n + comp)·deg + coeff)] — the chains CONCATENATED in build order
+ * (block size p down to 1; each chain BOTTOM→TOP). out_block_sizes[0..*out_nchains)
+ * receive the chain lengths in that same order (Σ = *out_total = μ). The caller
+ * sizes out_n/out_d n·n·deg slots (each >= srmech_jordan_chains_entry_cap limbs)
+ * and out_block_sizes n ints. n/deg in [1, QALG_JORDAN_MAX_DIM]; a non-monic /
+ * out-of-range / REDUCIBLE m -> SRMECH_ERR_BAD_INPUT; a too-small arena / cap ->
+ * SRMECH_ERR_OVERFLOW (the caller falls back to the byte-identical pure path).
+ * Byte/structurally-identical to matrix_cascades.jordan_chains_exact; attested by
+ * tests/test_qalg_jordan_c_rc164.py. Additive symbols -> ABI unchanged (3). */
+/* Engine init + caller-arena carve + load m/λ + build N = A − λI (into e->Nn).
+ * Split from srmech_jordan_chains to keep both functions <= 60 lines (Rule 4). */
+static srmech_status_t qalg_jordan_prepare(qalg_eng_t *e,
+                                           const srmech_bigint_t *a_n,
+                                           const srmech_bigint_t *a_d, int n,
+                                           const srmech_bigint_t *m, int deg,
+                                           const srmech_bigint_t *lam_n,
+                                           const srmech_bigint_t *lam_d,
+                                           void *ws, size_t ws_len)
+{
+    srmech_status_t st;
+    size_t cl, cm, cll, k, cells;
+    assert(e != NULL && a_n != NULL && m != NULL);
+    assert(lam_n != NULL && n >= 1 && deg >= 1);
+    cl = qalg_input_limbs(a_n, (size_t)n * (size_t)n);
+    cm = qalg_input_limbs(m, (size_t)(deg + 1));
+    if (cm > cl) { cl = cm; }
+    cll = qalg_input_limbs(lam_n, (size_t)deg);
+    if (cll > cl) { cl = cll; }
+    e->deg = deg; e->n = n;
+    e->cap = (uint32_t)qalg_cap_for(cl, n, deg);
+    e->sb = (size_t)(2 * deg + 2);
+    e->powcap = n + 2;
+    e->cn_cols = 2 * n + 1;
+    st = qalg_jordan_carve(e, ws, ws_len);
+    if (st != SRMECH_OK) { return st; }
+    for (k = 0u; k < (size_t)(deg + 1); k++) {
+        st = srmech_bigint_copy(&e->mn[k], &m[k]);
+        if (st != SRMECH_OK) { return st; }
+        st = srmech_bigint_set_i64(&e->md[k], 1);
+        if (st != SRMECH_OK) { return st; }
+    }
+    st = qalg_copy_run(e->lamn, e->lamd, lam_n, lam_d, (size_t)deg);
+    if (st != SRMECH_OK) { return st; }
+    st = qalg_build_matrix(e, a_n, a_d);             /* e->Mn = A − λI */
+    if (st != SRMECH_OK) { return st; }
+    cells = (size_t)n * (size_t)n * (size_t)deg;
+    return qalg_copy_run(e->Nn, e->Nd, e->Mn, e->Md, cells);   /* N = A − λI */
+}
+
+srmech_status_t srmech_jordan_chains(
+        const srmech_bigint_t *a_n, const srmech_bigint_t *a_d, int n,
+        const srmech_bigint_t *m, int deg,
+        const srmech_bigint_t *lam_n, const srmech_bigint_t *lam_d,
+        srmech_bigint_t *out_n, srmech_bigint_t *out_d, int *out_total,
+        int *out_block_sizes, int *out_nchains, void *ws, size_t ws_len)
+{
+    qalg_eng_t e;
+    srmech_status_t st;
+    int rp[QALG_JORDAN_MAX_DIM];
+    int pc[2 * QALG_JORDAN_MAX_DIM + 1];
+    int ip[2 * QALG_JORDAN_MAX_DIM + 1];
+    int ranks[QALG_JORDAN_MAX_DIM + 2];
+    int nul[QALG_JORDAN_MAX_DIM + 2];
+    int nblocks[QALG_JORDAN_MAX_DIM + 2];
+    int p = 0, vi = 0, nc = 0, s;
+    assert(out_total != NULL && out_nchains != NULL);
+    assert(a_n != NULL && m != NULL && lam_n != NULL);
+    if (a_n == NULL || a_d == NULL || m == NULL || lam_n == NULL
+        || lam_d == NULL || out_n == NULL || out_d == NULL
+        || out_total == NULL || out_block_sizes == NULL || out_nchains == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n < 1 || n > QALG_JORDAN_MAX_DIM || deg < 1
+        || deg > QALG_JORDAN_MAX_DIM) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (m[deg].sign != 1 || m[deg].n != 1u || m[deg].limbs[0] != 1u) {
+        return SRMECH_ERR_BAD_INPUT;                 /* m must be monic */
+    }
+    st = qalg_jordan_prepare(&e, a_n, a_d, n, m, deg, lam_n, lam_d, ws, ws_len);
+    if (st != SRMECH_OK) { return st; }
+    st = qalg_jordan_powers(&e, ranks, nul, &p, rp, pc, ip);
+    if (st != SRMECH_OK) { return st; }
+    qalg_block_counts(ranks, p, nblocks);
+    for (s = p; s >= 1; s--) {
+        int need = nblocks[s];
+        if (need == 0) { continue; }
+        st = qalg_topdown_s(&e, s, need, out_n, out_d, out_block_sizes,
+                            &vi, &nc, rp, pc, ip);
+        if (st != SRMECH_OK) { return st; }
+    }
+    *out_total = vi;
+    *out_nchains = nc;
+    return SRMECH_OK;
 }
