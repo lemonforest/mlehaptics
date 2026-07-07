@@ -90,6 +90,35 @@ def bridge_units(units):
     return [(u, concept(u)) for u in units]
 
 
+def _rna(concepts):
+    """DNA→RNA (F1146): the HALF-BEAT intermediate — couple the stored op(x)operand concepts into a transient
+    ORDERED form before rendering. Sumerian is verb-final (SOV): the verb ("to X") is the Class-A anchor; the
+    coupling groups [pre-verb operands] · VERB · [post-verb operands]. This is the step we were SKIPPING by going
+    genome→language directly (DNA→protein); it is where word-ORDER (the coupling) lives, separate from the final
+    continuous render. Returns ``(pre, verb_or_None, post)``."""
+    cs = [c for c in concepts if c]
+    vi = next((i for i in range(len(cs) - 1, -1, -1) if cs[i].startswith("to ")), None)  # verb-final: last "to X"
+    if vi is None:
+        return (cs, None, [])
+    return (cs[:vi], cs[vi][3:], cs[vi + 1:])
+
+
+def render_fluent(concept_line):
+    """RENDER a line's sparse op(x)operand concepts → a continuous English form (the TOWER EDGE / the flat→curved
+    Wick rotation, F1146), via the DNA→RNA→language path: (RNA/half-beat) :func:`_rna` couples the concepts into
+    a verb-anchored ordered form; (language) reorder verb-final→medial + minimal function-word glue. This is a
+    ROUGH v1 — the local-flat concepts are real; the global-curvature (fluent grammar) is the ongoing NLG. The
+    render does NOT invent content — only re-orders + glues what the genome stored (no magic-number prose)."""
+    pre, verb, post = _rna(concept_line)
+    if verb is None:                                        # a noun phrase — Sumerian genitive chain ("of")
+        cs = pre
+        return " of ".join(cs) if 1 < len(cs) <= 3 else " ".join(cs)
+    subj = " ".join(pre)
+    v = verb + ("d" if verb.endswith("e") else "ed")        # narrative past (the story register)
+    obj = " ".join(post)
+    return " ".join(x for x in (subj, v, obj) if x)
+
+
 def transcribe(glyph_lines):
     """Orchestrate the glyph→concept bridge over a WHOLE text (F1145): each LINE (the phrase unit, F1143) →
     its concept-gloss per glyph. This is the FRACTAL-TOWER orchestration (F1117) — NOT new architecture, just the
