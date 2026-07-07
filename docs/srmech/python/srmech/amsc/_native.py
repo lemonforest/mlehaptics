@@ -2466,6 +2466,42 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
             ctypes.c_void_p, ctypes.c_size_t]
         lib.srmech_bigint_isqrt.restype = ctypes.c_int
+    # 0.9.0rc167 (#765 foundation): bind the srmech_bigint ARITHMETIC core so
+    # the Python-side exact-ℚ scalar carrier (srmech.amsc.q.Q → rational_*)
+    # can run its BIG-operand num/den arithmetic on srmech's OWN C bignum
+    # (self-hosting: CPython int becomes the below-threshold / no-native
+    # fallback). All four are EXISTING C symbols (rc19+ bigint substrate) —
+    # binding is additive, EXPECTED_ABI_VERSION stays 3.
+    #   srmech_status_t srmech_bigint_add(bigint *out, const bigint *a,
+    #       const bigint *b)                                     [signed]
+    #   srmech_status_t srmech_bigint_mul(bigint *out, const bigint *a,
+    #       const bigint *b)                                     [signed]
+    #   srmech_status_t srmech_bigint_gcd(bigint *out, const bigint *a,
+    #       const bigint *b, void *ws, size_t ws_len)     [gcd(|a|,|b|)]
+    #   srmech_status_t srmech_bigint_divmod(bigint *q, bigint *r,
+    #       const bigint *a, const bigint *b, void *ws, size_t ws_len)
+    #       [Python FLOOR semantics; q or r may be NULL]
+    if hasattr(lib, "srmech_bigint_add"):
+        lib.srmech_bigint_add.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(_SrmechBigint)]
+        lib.srmech_bigint_add.restype = ctypes.c_int
+    if hasattr(lib, "srmech_bigint_mul"):
+        lib.srmech_bigint_mul.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(_SrmechBigint)]
+        lib.srmech_bigint_mul.restype = ctypes.c_int
+    if hasattr(lib, "srmech_bigint_gcd"):
+        lib.srmech_bigint_gcd.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(_SrmechBigint), ctypes.c_void_p, ctypes.c_size_t]
+        lib.srmech_bigint_gcd.restype = ctypes.c_int
+    if hasattr(lib, "srmech_bigint_divmod"):
+        lib.srmech_bigint_divmod.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_void_p, ctypes.c_size_t]
+        lib.srmech_bigint_divmod.restype = ctypes.c_int
 
     # ------------------------------------------------------------------
     # v0.7.5rc153 (UPSTREAM §49): bind the 11 genome file-management C
@@ -5329,59 +5365,64 @@ def has_native_bigexp() -> bool:
     )
 
 
-def _ensure_int_str_limit(decimal_digits: int) -> None:
-    """Ensure Python's int<->str conversion cap accommodates a
-    ``decimal_digits``-digit decimal marshal. Python 3.11+ (and 3.10.7+) cap
-    int<->str at 4300 digits by default — a DoS guard on UNTRUSTED conversions.
-    srmech marshals its OWN trusted, self-computed bignums (e.g. the ~6000-digit
-    pi_cascade isqrt radicand, or a high-``num_terms`` series accumulator), which
-    legitimately exceed that, so raise the cap (UPWARD only) when a decimal
-    round-trip needs it. No-op on interpreters without the cap."""
-    getter = getattr(sys, "get_int_max_str_digits", None)
-    if getter is None:
-        return
-    current = getter()
-    need = decimal_digits + 16
-    if current and need > current:
-        sys.set_int_max_str_digits(need)
+# 0.9.0rc167: `_ensure_int_str_limit` (the rc156 4300-digit int↔str cap raiser)
+# is GONE — the binary limb marshal below never converts int↔str, so the cap
+# no longer applies to the marshal path at all (the pure-Python decimal paths
+# in `rational.py` carry their own chunked 9-digit formatter, cap-safe).
 
 
 def _bigint_from_int(value: int, cap_limbs: int):
     """Build a ``_SrmechBigint`` carrying ``value`` over a fresh ``cap_limbs``
     limb buffer. Returns ``(bigint, limbs_buf)`` — the caller MUST keep
-    ``limbs_buf`` alive for the bigint's lifetime (ctypes won't)."""
+    ``limbs_buf`` alive for the bigint's lifetime (ctypes won't).
+
+    0.9.0rc167 (#770, the marshal decision): **binary limb marshal.** The
+    ``srmech_bigint`` wire format is base-2³² little-endian sign-magnitude —
+    i.e. the magnitude's little-endian BYTES, zero-padded to a 4-byte limb
+    boundary. Python's ``int.to_bytes(..., "little")`` emits exactly that
+    (binary→binary, LINEAR — CPython re-packs its 2³⁰-digit representation),
+    so the value is memmoved straight into the caller-owned limb buffer. This
+    replaces the decimal bridge (``srmech_bigint_from_dec``), which was
+    O(digits²) AND rode Python's 4300-digit int↔str DoS cap
+    (``_ensure_int_str_limit``): the binary marshal is linear and cap-free.
+    Measured round-trip (WSL2 gcc -O2, Python 3.12): 42× faster at 4096 bits,
+    446× at 16384 bits, 8559× at 110000 bits (~33k digits) — every existing
+    srmech_bigint consumer (bigexp series / isqrt / poly / qmat / the_one …)
+    inherits this at its marshal boundary.
+    The decimal C symbols stay exported (the C-host surface is unchanged);
+    only this Python-side marshal stops routing through them. Byte-identical
+    by construction (same integer value; NO leading-zero limbs — the top limb
+    covers the magnitude's top nonzero byte; ``sign == 0`` iff ``n == 0``)."""
     bi = _SrmechBigint()
     limbs = (ctypes.c_uint32 * cap_limbs)()
     bi.limbs = ctypes.cast(limbs, ctypes.POINTER(ctypes.c_uint32))
     bi.cap = cap_limbs
-    bi.n = 0
-    bi.sign = 0
-    _ensure_int_str_limit(value.bit_length() // 3 + 8)  # decimal digits ≈ bits·0.301
-    s = str(value).encode("ascii")
-    rc = LIB.srmech_bigint_from_dec(ctypes.byref(bi), s, len(s))
-    if rc != SRMECH_OK:
-        raise RuntimeError(f"srmech_bigint_from_dec returned non-OK status {rc}")
+    # Class-K sign pin-slot via explicit branch (never an ALU abs()).
+    if value == 0:
+        bi.n = 0
+        bi.sign = 0
+        return bi, limbs
+    mag = value if value > 0 else -value
+    n = (mag.bit_length() + 31) // 32          # minimal limb count
+    if n > cap_limbs:
+        raise RuntimeError(
+            f"_bigint_from_int: value needs {n} limbs > cap_limbs={cap_limbs}")
+    ctypes.memmove(limbs, mag.to_bytes(n * 4, "little"), n * 4)
+    bi.n = n
+    bi.sign = 1 if value > 0 else -1
     return bi, limbs
 
 
 def _bigint_to_int(bi) -> int:
-    """Read a ``_SrmechBigint`` back to a Python ``int`` via the decimal bridge."""
-    a_n = bi.n if bi.n else 1
-    cap = int(LIB.srmech_bigint_to_dec_bound(ctypes.c_size_t(a_n))) + 8
-    buf = ctypes.create_string_buffer(cap)
-    out_len = ctypes.c_size_t(0)
-    scratch_words = a_n * 12 + 64
-    scratch = (ctypes.c_uint8 * (scratch_words * 4))()
-    rc = LIB.srmech_bigint_to_dec(
-        ctypes.byref(bi), buf, ctypes.c_size_t(cap), ctypes.byref(out_len),
-        ctypes.cast(scratch, ctypes.c_void_p),
-        ctypes.c_size_t(scratch_words * 4),
-    )
-    if rc != SRMECH_OK:
-        raise RuntimeError(f"srmech_bigint_to_dec returned non-OK status {rc}")
-    dec = bytes(buf)[:out_len.value].decode("ascii")
-    _ensure_int_str_limit(len(dec))
-    return int(dec)
+    """Read a ``_SrmechBigint`` back to a Python ``int``.
+
+    0.9.0rc167 (#770): the inverse binary limb marshal — the significant limbs
+    are read as little-endian bytes into ``int.from_bytes`` (linear, cap-free;
+    replaces the O(digits²) decimal bridge). See :func:`_bigint_from_int`."""
+    if bi.n == 0 or bi.sign == 0:
+        return 0
+    mag = int.from_bytes(ctypes.string_at(bi.limbs, bi.n * 4), "little")
+    return mag if bi.sign > 0 else -mag
 
 
 def has_native_bigint_isqrt() -> bool:
@@ -5402,7 +5443,7 @@ def bigint_isqrt_c(n: int) -> int:
     """``floor(sqrt(n))`` for ``n >= 0`` via ``srmech_bigint_isqrt`` over a
     caller arena. Byte-identical to ``_py_isqrt`` (floor √ is the unique
     non-negative integer ``r`` with ``r² <= n < (r+1)²``). Marshals
-    ``n <-> srmech_bigint`` through the decimal bridge (like ``_bigexp_call``);
+    ``n <-> srmech_bigint`` through the rc167 binary limb marshal;
     the arena is sized generously off the radicand's limb count."""
     assert isinstance(n, int) and n >= 0, "bigint_isqrt_c requires n >= 0 int"
     a_limbs = max(n.bit_length() // 32 + 2, 2)
@@ -5419,6 +5460,247 @@ def bigint_isqrt_c(n: int) -> int:
     if rc != SRMECH_OK:
         raise RuntimeError(f"srmech_bigint_isqrt returned non-OK status {rc}")
     return _bigint_to_int(out_bi)
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# 0.9.0rc167 — #765 FOUNDATION: the big-ℚ srmech_bigint composites.
+#
+# The exact-ℚ scalar carrier (srmech.amsc.q.Q) rides the Class-N rational_*
+# ops; their BIG-operand branches (beyond the u64 scalar C fast path) ran on
+# CPython int — in particular the reduce-gcd rode cyclic.gcd's pure-Python
+# Euclid loop. These composites run the WHOLE big-ℚ op (cross-multiplies +
+# signed add + gcd-reduce + the two exact divisions) on srmech's OWN
+# caller-arena C bignum (`srmech_bigint_*`), marshalled in/out ONCE through
+# the linear binary limb marshal (#770). CPython int stays the complete
+# below-threshold / no-native fallback — the size-adaptive policy (WHEN to
+# dispatch) lives with the callers in `rational.py` / `cyclic.py`; the
+# mechanism (HOW) lives here.
+#
+# ⚠️ Sparse-tower guardrail: these operate on ℚ COMPONENTS (two scalar
+# bignums) only — no carrier structure enters or is densified here.
+#
+# Every helper returns None when the native surface is absent OR the arena
+# overflows (SRMECH_ERR_OVERFLOW) — the caller's pure-Python body is the
+# complete alternative, never an error path. Any other non-OK status raises.
+# ─────────────────────────────────────────────────────────────────────────
+
+_BIGQ_SYMS = ("srmech_bigint_add", "srmech_bigint_mul",
+              "srmech_bigint_gcd", "srmech_bigint_divmod")
+
+# Dispatch-proof counter: incremented once per SUCCESSFUL big-ℚ native op
+# (bigq_add_c / bigq_mul_c / bigq_div_c / bigq_reduce_c / bigint_gcd_c).
+# Tests assert this moves to prove the native path is genuinely exercised
+# (never a silent fallback).
+BIGQ_DISPATCH_COUNT: int = 0
+
+
+def has_native_bigq() -> bool:
+    """True iff the srmech_bigint arithmetic core (add/mul/gcd/divmod) is
+    loaded + bound — the gate for the rc167 big-ℚ native dispatch. False on a
+    no-C lib: the pure-Python int body in ``rational.py`` / ``cyclic.py`` is
+    the complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _BIGQ_SYMS)
+
+
+def _bigq_zero(cap_limbs: int):
+    """A fresh zero ``_SrmechBigint`` over ``cap_limbs`` caller-owned limbs.
+    Returns ``(bigint, limbs_keepalive)``."""
+    return _bigint_from_int(0, cap_limbs)
+
+
+def _bigq_limbs(value: int) -> int:
+    """Minimal limb count of ``value``'s magnitude (≥ 1)."""
+    mag = value if value >= 0 else -value       # Class-K sign branch
+    return max((mag.bit_length() + 31) // 32, 1)
+
+
+def _bigq_ws(words: int):
+    """A fresh uint32 bump arena of ``words`` words, as (buf, byte_len)."""
+    buf = (ctypes.c_uint32 * words)()
+    return buf, words * 4
+
+
+def _bigq_check(rc: int, symbol: str) -> bool:
+    """True on OK; False on OVERFLOW (caller falls back to pure Python);
+    raises on any other status."""
+    if rc == SRMECH_OK:
+        return True
+    if rc == SRMECH_ERR_OVERFLOW:
+        return False
+    raise RuntimeError(f"{symbol} returned non-OK status {rc}")
+
+
+def _bigq_reduce_inplace(num_bi, den_bi):
+    """Reduce the (num, den) srmech_bigint pair to lowest terms with positive
+    denominator, ON the C substrate: ``g = gcd(|num|, |den|)`` then the two
+    exact divisions (Python-FLOOR divmod with remainder 0 IS the exact signed
+    quotient — the floor fixup never triggers on r == 0). Returns the reduced
+    ``(num, den)`` as Python ints, or ``None`` on arena overflow."""
+    # Positive-denominator normalisation (Class-K pin-slot: an O(1) sign flip
+    # on the sign-magnitude carrier, never a bignum negation).
+    if den_bi.sign < 0:
+        den_bi.sign = 1
+        num_bi.sign = -num_bi.sign
+    if num_bi.n == 0:
+        return (0, 1)
+    m = max(num_bi.n, den_bi.n)
+    g_bi, _kg = _bigq_zero(m + 2)
+    ws, ws_len = _bigq_ws(8 * (m + 4) + 64)
+    if not _bigq_check(
+            LIB.srmech_bigint_gcd(ctypes.byref(g_bi), ctypes.byref(num_bi),
+                                  ctypes.byref(den_bi), ws, ws_len),
+            "srmech_bigint_gcd"):
+        return None
+    if g_bi.n == 1 and g_bi.limbs[0] == 1:      # already coprime
+        return (_bigint_to_int(num_bi), _bigint_to_int(den_bi))
+    qn_bi, _kqn = _bigq_zero(num_bi.n + 2)
+    qd_bi, _kqd = _bigq_zero(den_bi.n + 2)
+    if not _bigq_check(
+            LIB.srmech_bigint_divmod(ctypes.byref(qn_bi), None,
+                                     ctypes.byref(num_bi), ctypes.byref(g_bi),
+                                     ws, ws_len),
+            "srmech_bigint_divmod"):
+        return None
+    if not _bigq_check(
+            LIB.srmech_bigint_divmod(ctypes.byref(qd_bi), None,
+                                     ctypes.byref(den_bi), ctypes.byref(g_bi),
+                                     ws, ws_len),
+            "srmech_bigint_divmod"):
+        return None
+    return (_bigint_to_int(qn_bi), _bigint_to_int(qd_bi))
+
+
+def bigq_reduce_c(num: int, den: int) -> "tuple[int, int] | None":
+    """``_reduce_rational`` on the C bignum: reduce ``num/den`` to lowest terms
+    with positive denominator via ``srmech_bigint_gcd`` + two exact divisions.
+    ``None`` when native is absent / arena overflow (pure Python takes over).
+    Byte-identical to the pure body (same gcd, same exact quotients)."""
+    global BIGQ_DISPATCH_COUNT
+    if not has_native_bigq():
+        return None
+    assert den != 0, "bigq_reduce_c requires den != 0"
+    num_bi, _kn = _bigint_from_int(num, _bigq_limbs(num) + 1)
+    den_bi, _kd = _bigint_from_int(den, _bigq_limbs(den) + 1)
+    out = _bigq_reduce_inplace(num_bi, den_bi)
+    if out is not None:
+        BIGQ_DISPATCH_COUNT += 1
+    return out
+
+
+def _bigq_mul_into(a_bi, b_bi):
+    """``a · b`` into a fresh right-sized srmech_bigint. Returns
+    ``(bigint, keepalive)`` or ``None`` on overflow."""
+    cap = a_bi.n + b_bi.n + 2
+    out_bi, keep = _bigq_zero(cap)
+    if not _bigq_check(
+            LIB.srmech_bigint_mul(ctypes.byref(out_bi), ctypes.byref(a_bi),
+                                  ctypes.byref(b_bi)),
+            "srmech_bigint_mul"):
+        return None
+    return out_bi, keep
+
+
+def bigq_add_c(a_num: int, a_den: int, b_num: int,
+               b_den: int) -> "tuple[int, int] | None":
+    """The WHOLE big-ℚ add on srmech's C bignum:
+    ``(a_num·b_den + b_num·a_den) / (a_den·b_den)``, gcd-reduced — one linear
+    marshal in, one out; every cross-multiply, the signed add, the gcd and the
+    exact divisions run in C. ``None`` when native absent / arena overflow.
+    Denominators must be positive (the ``rational_*`` entry contract)."""
+    global BIGQ_DISPATCH_COUNT
+    if not has_native_bigq():
+        return None
+    an_bi, _k1 = _bigint_from_int(a_num, _bigq_limbs(a_num) + 1)
+    ad_bi, _k2 = _bigint_from_int(a_den, _bigq_limbs(a_den) + 1)
+    bn_bi, _k3 = _bigint_from_int(b_num, _bigq_limbs(b_num) + 1)
+    bd_bi, _k4 = _bigint_from_int(b_den, _bigq_limbs(b_den) + 1)
+    t1 = _bigq_mul_into(an_bi, bd_bi)           # a_num·b_den
+    t2 = _bigq_mul_into(bn_bi, ad_bi)           # b_num·a_den
+    dn = _bigq_mul_into(ad_bi, bd_bi)           # a_den·b_den (> 0)
+    if t1 is None or t2 is None or dn is None:
+        return None
+    num_bi, _kn = _bigq_zero(max(t1[0].n, t2[0].n) + 2)
+    if not _bigq_check(
+            LIB.srmech_bigint_add(ctypes.byref(num_bi), ctypes.byref(t1[0]),
+                                  ctypes.byref(t2[0])),
+            "srmech_bigint_add"):
+        return None
+    out = _bigq_reduce_inplace(num_bi, dn[0])
+    if out is not None:
+        BIGQ_DISPATCH_COUNT += 1
+    return out
+
+
+def bigq_mul_c(a_num: int, a_den: int, b_num: int,
+               b_den: int) -> "tuple[int, int] | None":
+    """The WHOLE big-ℚ multiply on srmech's C bignum:
+    ``(a_num·b_num) / (a_den·b_den)``, gcd-reduced. ``None`` when native
+    absent / arena overflow. Denominators must be positive."""
+    global BIGQ_DISPATCH_COUNT
+    if not has_native_bigq():
+        return None
+    an_bi, _k1 = _bigint_from_int(a_num, _bigq_limbs(a_num) + 1)
+    ad_bi, _k2 = _bigint_from_int(a_den, _bigq_limbs(a_den) + 1)
+    bn_bi, _k3 = _bigint_from_int(b_num, _bigq_limbs(b_num) + 1)
+    bd_bi, _k4 = _bigint_from_int(b_den, _bigq_limbs(b_den) + 1)
+    nm = _bigq_mul_into(an_bi, bn_bi)
+    dn = _bigq_mul_into(ad_bi, bd_bi)
+    if nm is None or dn is None:
+        return None
+    out = _bigq_reduce_inplace(nm[0], dn[0])
+    if out is not None:
+        BIGQ_DISPATCH_COUNT += 1
+    return out
+
+
+def bigq_div_c(a_num: int, a_den: int, b_num: int,
+               b_den: int) -> "tuple[int, int] | None":
+    """The WHOLE big-ℚ divide on srmech's C bignum:
+    ``(a_num·b_den) / (a_den·b_num)``, sign-normalised + gcd-reduced.
+    ``None`` when native absent / arena overflow. ``b_num`` must be nonzero
+    (the caller raises ZeroDivisionError first); denominators positive."""
+    global BIGQ_DISPATCH_COUNT
+    if not has_native_bigq():
+        return None
+    assert b_num != 0, "bigq_div_c requires b_num != 0"
+    an_bi, _k1 = _bigint_from_int(a_num, _bigq_limbs(a_num) + 1)
+    ad_bi, _k2 = _bigint_from_int(a_den, _bigq_limbs(a_den) + 1)
+    bn_bi, _k3 = _bigint_from_int(b_num, _bigq_limbs(b_num) + 1)
+    bd_bi, _k4 = _bigint_from_int(b_den, _bigq_limbs(b_den) + 1)
+    nm = _bigq_mul_into(an_bi, bd_bi)           # a_num·b_den
+    dn = _bigq_mul_into(ad_bi, bn_bi)           # a_den·b_num (sign of b_num)
+    if nm is None or dn is None:
+        return None
+    out = _bigq_reduce_inplace(nm[0], dn[0])    # sign-normalises den > 0
+    if out is not None:
+        BIGQ_DISPATCH_COUNT += 1
+    return out
+
+
+def bigint_gcd_c(a: int, b: int) -> "int | None":
+    """``gcd(a, b)`` for non-negative ints via ``srmech_bigint_gcd`` (the whole
+    Euclid loop in C — Knuth divmod per step, no per-iteration interpreter
+    overhead). ``None`` when native absent / arena overflow — the pure-Python
+    Euclid loop in ``cyclic.gcd`` is the complete alternative. Byte-identical
+    (gcd is unique)."""
+    global BIGQ_DISPATCH_COUNT
+    if not has_native_bigq():
+        return None
+    assert a >= 0 and b >= 0, "bigint_gcd_c requires non-negative ints"
+    a_bi, _ka = _bigint_from_int(a, _bigq_limbs(a) + 1)
+    b_bi, _kb = _bigint_from_int(b, _bigq_limbs(b) + 1)
+    m = max(a_bi.n, b_bi.n)
+    g_bi, _kg = _bigq_zero(m + 2)
+    ws, ws_len = _bigq_ws(8 * (m + 4) + 64)
+    if not _bigq_check(
+            LIB.srmech_bigint_gcd(ctypes.byref(g_bi), ctypes.byref(a_bi),
+                                  ctypes.byref(b_bi), ws, ws_len),
+            "srmech_bigint_gcd"):
+        return None
+    BIGQ_DISPATCH_COUNT += 1
+    return _bigint_to_int(g_bi)
 
 
 def _bigexp_call(symbol: str, numerator: int, denominator: int,
