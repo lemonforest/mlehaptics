@@ -440,6 +440,16 @@ def exp_series_truncate(numerator: int,
                 f"srmech_exp_series_truncate returned non-OK status {rc}"
             )
 
+    # Exact bignum C path (rc156, Qalg B1a): srmech_exp_series_truncate_big over
+    # caller-arena srmech_bigint composes mul/pow_u32/gcd/divmod for the SAME
+    # exact rational the Python bignum body computes — reduced to lowest terms
+    # with positive denominator, BYTE-IDENTICAL at ANY magnitude (no int64
+    # ceiling). A bare-C host reaches the full exp series with no Python bignum.
+    _c = _native._bigexp_call(
+        "srmech_exp_series_truncate_big", numerator, denominator, num_terms)
+    if _c is not None:
+        return _c
+
     # Bignum / pure-Python path. Arbitrary-precision int via Python builtin.
     # S_N = sum_{k=0..N} (p^k) / (q^k * k!)
     # Common-denominator accumulation: S_N = A_N / (q^N * N!)
@@ -761,6 +771,12 @@ def sin_series_truncate(numerator: int,
                          _TRIG_SERIES_MAX_TERMS, "sin_series_truncate")
     if numerator == 0:
         return (0, 1)
+    # Exact bignum C path (rc156, Qalg B1a): byte-identical (num, den) via
+    # srmech_sin_series_truncate_big over caller-arena srmech_bigint.
+    _c = _native._bigexp_call(
+        "srmech_sin_series_truncate_big", numerator, denominator, num_terms)
+    if _c is not None:
+        return _c
     # Bignum path: accumulate Σ_{k=0..N} (-1)^k * p^(2k+1) / (q^(2k+1) * (2k+1)!)
     num = 0
     den = 1
@@ -794,6 +810,12 @@ def cos_series_truncate(numerator: int,
                          _TRIG_SERIES_MAX_TERMS, "cos_series_truncate")
     if numerator == 0:
         return (1, 1)
+    # Exact bignum C path (rc156, Qalg B1a): byte-identical (num, den) via
+    # srmech_cos_series_truncate_big over caller-arena srmech_bigint.
+    _c = _native._bigexp_call(
+        "srmech_cos_series_truncate_big", numerator, denominator, num_terms)
+    if _c is not None:
+        return _c
     num = 0
     den = 1
     p, q = numerator, denominator
@@ -840,6 +862,13 @@ def log1p_series_truncate(numerator: int,
         )
     if numerator == 0 or num_terms == 0:
         return (0, 1)
+    # Exact bignum C path (rc156, Qalg B1a): byte-identical (num, den) via
+    # srmech_log1p_series_truncate_big over caller-arena srmech_bigint (the C
+    # peer enforces the SAME -1 < p/q <= 1 domain, unreached here after the guard).
+    _c = _native._bigexp_call(
+        "srmech_log1p_series_truncate_big", numerator, denominator, num_terms)
+    if _c is not None:
+        return _c
     num = 0
     den = 1
     p, q = numerator, denominator
@@ -884,6 +913,13 @@ def atan_series_truncate(numerator: int,
         )
     if numerator == 0:
         return (0, 1)
+    # Exact bignum C path (rc156, Qalg B1a): byte-identical (num, den) via
+    # srmech_atan_series_truncate_big over caller-arena srmech_bigint (the C peer
+    # enforces the SAME |p/q| <= 1 domain, unreached here after the guard).
+    _c = _native._bigexp_call(
+        "srmech_atan_series_truncate_big", numerator, denominator, num_terms)
+    if _c is not None:
+        return _c
     num = 0
     den = 1
     p, q = numerator, denominator
@@ -1940,6 +1976,13 @@ def _integer_sqrt(n: int) -> int:
     assert n >= 0, f"_integer_sqrt requires non-negative input; got {n}"
     if n < (1 << 128) and _native.has_native_isqrt():
         return _native.isqrt128_c(n)
+    # Bignum path (n >= 2**128): the caller-arena srmech_bigint integer-Newton
+    # floor-sqrt (rc156, Qalg B1a). floor(√n) is the UNIQUE r with r² <= n <
+    # (r+1)², so the C peer is byte-identical to _py_isqrt — a bare-C host reaches
+    # the precision rational.sqrt path (tsirelson 2√2, the π-cascade radicand)
+    # with no Python bignum.
+    if _native.has_native_bigint_isqrt():
+        return _native.bigint_isqrt_c(n)
     return _py_isqrt(n)
 
 
