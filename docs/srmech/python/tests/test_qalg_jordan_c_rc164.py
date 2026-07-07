@@ -188,9 +188,11 @@ def test_rosetta_row_is_c_dispatched():
 
 def test_bignum_reference_count_is_three():
     """rc164 drove the ledger's bignum_reference bucket 4 -> 3; rc165 then drove
-    it 3 -> 2 (factor_integer_poly earned a Zassenhaus C path), so only eig_exact
-    / jordan_form_exact remain (the B9 capstones)."""
+    it 3 -> 2 (factor_integer_poly earned a Zassenhaus C path); rc166 (the B9
+    CAPSTONE) drove it 2 -> 0 (eig_exact + jordan_form_exact are now
+    composition_of_c), so the bucket is EMPTY — the exact-algebra tail is
+    python-free."""
     cls = _classification()
     remaining = sorted(
         da.rsplit(".", 1)[-1] for da, b in cls.items() if b == "bignum_reference")
-    assert remaining == ["eig_exact", "jordan_form_exact"], remaining
+    assert remaining == [], remaining

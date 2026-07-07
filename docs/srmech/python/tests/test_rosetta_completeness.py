@@ -539,7 +539,24 @@ CEIL_C_EXISTS_UNBOUND = 0
 # bignum_reference -> c_dispatched. CEIL_BIGNUM_REFERENCE 3 -> 2. (The remaining 2
 # are eig_exact / jordan_form_exact; next batch B9 = the eig_exact + jordan_form_exact
 # capstones -> CEIL_BIGNUM_REFERENCE 0.)
-CEIL_BIGNUM_REFERENCE = 2
+# rc166 (Qalg TAIL Batch 9 — THE CAPSTONE, CLOSES the exact-algebra tail): the last
+# 2 oracles eig_exact + jordan_form_exact move bignum_reference -> composition_of_c.
+# With rc165 every COMPUTE dependency became C — char_poly (srmech_faddeev_leverrier),
+# factor_integer_poly (srmech_factor_integer_poly, Zassenhaus), eigvals_exact
+# (srmech_sturm_isolate / srmech_complex_isolate / srmech_poly_root_box_certify),
+# eigvec_exact (srmech_eigvec_exact over the ℚ(λ) field), jordan_chains_exact
+# (srmech_jordan_chains) — so the two CAPSTONES are now THIN Python orchestrations
+# that ONLY compose already-c_dispatched ops with trivial glue: char_poly -> factor
+# -> _roots_of_irreducible (eigvals_exact on the companion) -> per-root Qalg λ ->
+# eigvec_exact / jordan_chains_exact -> assemble the eigenpairs / build P (chain
+# columns) + J (block-diagonal Jordan) -> the ONE terminal Qalg->float/complex
+# rotation-last projection -> self-validate. There is NO irreducible compute kernel
+# left in the orchestration (the mat_dot / factor-Yun / esprit precedent — a bare-C
+# host orchestrates the C leaves the same way), so composition_of_c is the HONEST
+# classification (NO new C symbol; ABI stays 3). THE MILESTONE:
+# CEIL_BIGNUM_REFERENCE 2 -> 0 — the ENTIRE exact-algebra tail is now python-free
+# (every leaf a srmech_* C twin; the bignum_reference bucket is EMPTY).
+CEIL_BIGNUM_REFERENCE = 0
 
 _DEBT_BUCKETS = ("python_only_debt", "c_exists_unbound")
 _ALL_BUCKETS = (

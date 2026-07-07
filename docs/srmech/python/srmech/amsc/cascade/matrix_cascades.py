@@ -2727,6 +2727,16 @@ def eig_exact(a, *, bits: int = 64, project: bool = True):
     """
     from srmech.amsc.qalg import Qalg
 
+    # rc166 (Qalg TAIL Batch 9 — THE CAPSTONE): this turnkey eigensolver is a THIN
+    # orchestration of ops that are ALL c_dispatched now — char_poly
+    # (srmech_faddeev_leverrier) → factor_integer_poly (srmech_factor_integer_poly)
+    # → _roots_of_irreducible (eigvals_exact: srmech_sturm_isolate /
+    # srmech_complex_isolate) → eigvec_exact (srmech_eigvec_exact) →
+    # jordan_chains_exact (srmech_jordan_chains). The remaining glue (assemble the
+    # eigenpairs, sort, the ONE terminal Qalg→float/complex rotation-last projection,
+    # self-validate) reaches no non-standalone leaf, so eig_exact is composition_of_c
+    # — the exact-algebra tail runs on a bare C host with no Python (bignum_reference
+    # bucket EMPTY; CEIL_BIGNUM_REFERENCE 0).
     rows = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
     n = len(rows)
     if n == 0:
@@ -2997,6 +3007,14 @@ def jordan_form_exact(a, *, bits: int = 64, project: bool = True):
     """
     from srmech.amsc.qalg import Qalg
 
+    # rc166 (Qalg TAIL Batch 9 — THE CAPSTONE): the exact Jordan form chains the
+    # SAME c_dispatched pieces as eig_exact (char_poly → factor_integer_poly →
+    # _roots_of_irreducible → jordan_chains_exact — srmech_jordan_chains), then
+    # builds P (chain columns) + J (block-diagonal Jordan) by pure reindexing,
+    # projects rotation-last, and self-validates A·P == P·J exactly over Qalg (a
+    # mat_dot-style reduction). No irreducible compute kernel remains → this is
+    # composition_of_c (bignum_reference bucket EMPTY; CEIL_BIGNUM_REFERENCE 0 — the
+    # exact-algebra tail is python-free on a bare C host).
     rows = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
     n = len(rows)
     if n == 0:

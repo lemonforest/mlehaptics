@@ -308,9 +308,13 @@ def test_rosetta_row_is_c_dispatched():
 
 
 def test_ceiling_is_two():
+    # rc165 pinned CEIL_BIGNUM_REFERENCE at 2; rc166 (the B9 capstone) drove it to
+    # 0 (eig_exact + jordan_form_exact moved to composition_of_c — the exact-algebra
+    # tail is now python-free). The down-only ratchet only ever shrinks; assert the
+    # current (post-rc166) value.
     import importlib.util as _u
     path = Path(__file__).resolve().parent / "test_rosetta_completeness.py"
     spec = _u.spec_from_file_location("_rosetta_ceiling_probe", path)
     mod = _u.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    assert mod.CEIL_BIGNUM_REFERENCE == 2
+    assert mod.CEIL_BIGNUM_REFERENCE == 0
