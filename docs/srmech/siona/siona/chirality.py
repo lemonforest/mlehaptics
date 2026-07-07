@@ -21,7 +21,7 @@ import re
 __all__ = ["load", "poles", "opposite", "have_axis", "build"]
 
 _SRC = "/home/skirklan/corpora/conceptnet/conceptnet-assertions-5.7.0.csv.gz"
-_KEEP = frozenset(("/r/Antonym", "/r/DistinctFrom"))       # the opponent / opposite-pole relations
+_KEEP = frozenset(("/r/Antonym",))                          # the opponent / opposite-pole relation (DistinctFrom is too broad, F1137)
 _neigh = None       # word -> frozenset(opposite-pole words)
 
 
