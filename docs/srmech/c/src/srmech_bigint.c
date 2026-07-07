@@ -1227,11 +1227,48 @@ static srmech_status_t bi_floor_fixup(srmech_bigint_t *q, srmech_bigint_t *r,
     return SRMECH_OK;
 }
 
-/* ---- gcd ---------------------------------------------------------- */
+/* ---- gcd (Lehmer, 0.9.0rc169; lean-Euclid fallback for tight arenas)
+ *
+ * LEHMER'S ALGORITHM (Knuth TAOCP Vol 2 §4.5.2 Algorithm L; HAC 14.57).
+ * Plain Euclid runs a full-precision Knuth divmod EVERY step; Lehmer
+ * BATCHES a run of those steps by simulating single-digit Euclid on the
+ * two LEADING 30-bit "digits" of x, y (single/double-word int64 math),
+ * building a 2x2 cofactor matrix [[A,B],[C,D]], then applying it to the
+ * FULL bignums ONCE — (x, y) <- (A*x + B*y, C*x + D*y) — replacing ~30
+ * bits of divmods with 4 single-limb multiply-adds. Same O(n^2) class,
+ * a tiny constant (the constant-factor win the rc168 measurement named:
+ * the big-Q op was gcd-bound). 30-bit digits keep every inner product
+ * < 2^61, so int64 suffices (no __int128; JPL Rule 10). The gcd VALUE
+ * is unique, so this is BYTE-IDENTICAL to Euclid for every input.
+ *
+ * The signature + result are unchanged. The fused matrix-apply keeps the
+ * working set to 4 carriers — the SAME footprint as lean Euclid — so
+ * Lehmer engages whenever the arena meets srmech_bigint_gcd_ws_bound; a
+ * tighter arena (e.g. a carrier's scratch tail sized for the old Euclid)
+ * falls back to bi_gcd_euclid — the pre-rc169 body verbatim — so no
+ * existing caller can regress (it gets the identical gcd either way).
+ * ------------------------------------------------------------------ */
 
-srmech_status_t srmech_bigint_gcd(srmech_bigint_t *out, const srmech_bigint_t *a,
-                                  const srmech_bigint_t *b,
-                                  void *ws, size_t ws_len)
+/* Workspace BYTES the caller must give srmech_bigint_gcd for the Lehmer
+ * fast path (4 carriers of ~M+2 limbs + the divmod tail, M = max input
+ * limbs). Over-generous: a smaller arena still yields the identical gcd
+ * (the lean-Euclid fallback), so this bound is the "engage Lehmer"
+ * threshold, not a hard minimum. 8-byte-aligned uint32 bump arena. */
+size_t srmech_bigint_gcd_ws_bound(size_t a_n, size_t b_n)
+{
+    size_t m = (a_n > b_n) ? a_n : b_n;
+    size_t words = 8u * (m + 8u) + 64u;
+    assert(words > m);
+    assert(words > 64u);
+    return words * sizeof(uint32_t);
+}
+
+/* Lean Euclid — the pre-rc169 gcd body, verbatim. The proven byte-
+ * identical-to-Python fallback for arenas too small for Lehmer. */
+static srmech_status_t bi_gcd_euclid(srmech_bigint_t *out,
+                                     const srmech_bigint_t *a,
+                                     const srmech_bigint_t *b,
+                                     void *ws, size_t ws_len)
 {
     uint32_t *base = (uint32_t *)ws;
     size_t words = ws_len / sizeof(uint32_t), cur = 0u;
@@ -1261,6 +1298,210 @@ srmech_status_t srmech_bigint_gcd(srmech_bigint_t *out, const srmech_bigint_t *a
         guard++;
     }
     return bi_set_abs(out, &x);
+}
+
+#define BI_LEHMER_DIGIT_BITS 30u
+
+/* The 30-bit "digit" of |a| starting at bit `shift` — a's top 30 bits
+ * when shift = bitlen(a) - 30. Reads the 2-limb window straddling shift
+ * (30 + (shift%32) < 64, so two limbs always suffice). */
+static uint64_t bi_lehmer_digit(const srmech_bigint_t *a, uint32_t shift)
+{
+    uint32_t whole = shift / BI_BASE_BITS, sh = shift % BI_BASE_BITS;
+    uint64_t lo, hi, win;
+    assert(a != NULL);
+    assert(sh < BI_BASE_BITS);
+    lo = (whole < a->n) ? a->limbs[whole] : 0u;
+    hi = ((whole + 1u) < a->n) ? a->limbs[whole + 1u] : 0u;
+    win = (hi << BI_BASE_BITS) | lo;
+    return (win >> sh) & (((uint64_t)1u << BI_LEHMER_DIGIT_BITS) - 1u);
+}
+
+/* Simulate single-digit Euclid on the leading digits uh >= vh, filling
+ * co = {A, B, C, D}. 30-bit digits => |cofactors| <= 2^30 and every
+ * product q*C / q*vhat < 2^61 (int64-safe). The two-quotient test
+ * (q == q2) guarantees each emulated step matches the FULL-precision
+ * quotient; a break leaves a valid (possibly identity) matrix. Rule 2:
+ * bounded by a hard 64-step cap (a 30-bit digit resolves << 64 steps). */
+static void bi_lehmer_simulate(uint64_t uh, uint64_t vh, int64_t co[4])
+{
+    int64_t A = 1, B = 0, C = 0, D = 1;
+    int64_t uhat = (int64_t)uh, vhat = (int64_t)vh;
+    int steps = 0;
+    assert(co != NULL);
+    assert(uhat >= vhat);
+    while (steps < 64) {
+        int64_t vc = vhat + C, vd = vhat + D;
+        int64_t un = uhat + A, ub = uhat + B, q, q2, T;
+        if (vc <= 0 || vd <= 0 || un < 0 || ub < 0) { break; }
+        q = un / vc; q2 = ub / vd;
+        if (q != q2) { break; }
+        T = A - q * C; A = C; C = T;
+        T = B - q * D; B = D; D = T;
+        T = uhat - q * vhat; uhat = vhat; vhat = T;
+        steps++;
+    }
+    co[0] = A; co[1] = B; co[2] = C; co[3] = D;
+}
+
+/* dst = |m| * u, m one limb (< 2^30), u >= 0. dst->cap > u->n required. */
+static void bi_mul_1(srmech_bigint_t *dst, const srmech_bigint_t *u, uint32_t m)
+{
+    uint32_t i; uint64_t carry = 0u;
+    assert(dst != NULL && u != NULL);
+    assert(dst->cap > u->n);
+    for (i = 0u; i < u->n; i++) {
+        uint64_t t = (uint64_t)m * u->limbs[i] + carry;
+        dst->limbs[i] = (uint32_t)(t & 0xFFFFFFFFu);
+        carry = t >> BI_BASE_BITS;
+    }
+    dst->limbs[u->n] = (uint32_t)carry;
+    dst->n = u->n + 1u; dst->sign = 1;
+    bi_norm(dst);
+}
+
+/* dst = c0*u + c1*v (exact signed) in ONE mul + ONE fused submul pass —
+ * the Lehmer matrix-apply. c0, c1 have OPPOSITE signs (or one is zero;
+ * Knuth's invariant) and the combination is >= 0, so it is |pos|*posv -
+ * |neg|*negv with the positive term the larger: bi_mul_1 the positive
+ * term then bi_mulsub (the SAME proven single-limb submul the Knuth
+ * divisor uses) the negative, propagating the borrow through dst's high
+ * limbs. c0, c1 fit one limb (|.| <= 2^30). */
+static srmech_status_t bi_lehmer_combine(srmech_bigint_t *dst,
+                                         int64_t c0, const srmech_bigint_t *u,
+                                         int64_t c1, const srmech_bigint_t *v)
+{
+    const srmech_bigint_t *posv, *negv;
+    uint32_t pm, nm, i, ext, j; uint64_t borrow;
+    assert(dst != NULL && u != NULL && v != NULL);
+    assert(c0 == 0 || c1 == 0 || ((c0 > 0) != (c1 > 0)));  /* opposite signs */
+    if (c1 <= 0) { posv = u; pm = (uint32_t)c0; negv = v; nm = (uint32_t)(-c1); }
+    else { posv = v; pm = (uint32_t)c1; negv = u; nm = (uint32_t)(-c0); }
+    bi_mul_1(dst, posv, pm);                    /* dst = pm*posv  (>= 0) */
+    ext = negv->n + 1u;                         /* bi_mulsub touches limb negv->n */
+    if (dst->n < ext) {
+        if (ext > dst->cap) { return SRMECH_ERR_OVERFLOW; }
+        for (i = dst->n; i < ext; i++) { dst->limbs[i] = 0u; }
+        dst->n = ext;
+    }
+    if (nm != 0u) {
+        borrow = bi_mulsub(dst->limbs, negv->limbs, negv->n, nm);  /* dst -= nm*negv */
+        for (j = negv->n + 1u; borrow != 0u && j < dst->n; j++) {
+            uint64_t s = (uint64_t)dst->limbs[j] - borrow;
+            dst->limbs[j] = (uint32_t)(s & 0xFFFFFFFFu);
+            borrow = (s >> 63) & 1u;
+        }
+        assert(borrow == 0u);                   /* Lehmer combination is >= 0 */
+    }
+    dst->sign = 1;
+    bi_norm(dst);
+    return SRMECH_OK;
+}
+
+/* One plain Euclid reduce: rem = u mod v; u = v; v = rem. qx is the
+ * throwaway quotient carrier; tail is the Knuth divmod scratch. */
+static srmech_status_t bi_gcd_euclid_step(srmech_bigint_t *u,
+                                          srmech_bigint_t *v,
+                                          srmech_bigint_t *qx,
+                                          srmech_bigint_t *rem,
+                                          void *tail, size_t tail_len)
+{
+    srmech_status_t st;
+    assert(u != NULL && v != NULL && qx != NULL && rem != NULL);
+    assert(v->n != 0u);
+    st = bi_divmod_abs(qx, rem, u, v, tail, tail_len);   /* rem = u mod v */
+    if (st != SRMECH_OK) { return st; }
+    st = bi_set_abs(u, v);                               /* u = v */
+    if (st != SRMECH_OK) { return st; }
+    return bi_set_abs(v, rem);                           /* v = rem */
+}
+
+/* One Lehmer batch on (u, v), u >= v > 2 limbs: build the leading-digit
+ * cofactor matrix and either apply it (B != 0) or, when the leading digit
+ * gives no progress (B == 0), do one full divmod step. e0/e1 are the
+ * result carriers (matrix branch) / quotient+rem carriers (divmod
+ * branch); the fused apply needs no product scratch. */
+static srmech_status_t bi_lehmer_step(srmech_bigint_t *u, srmech_bigint_t *v,
+                                      srmech_bigint_t *e0, srmech_bigint_t *e1,
+                                      void *tail, size_t tail_len)
+{
+    uint32_t nb = bi_bitlen(u);
+    uint32_t shift = nb - BI_LEHMER_DIGIT_BITS;
+    uint64_t uh, vh; int64_t co[4]; srmech_status_t st;
+    assert(u != NULL && v != NULL);
+    assert(v->n > 2u && nb > 64u);
+    uh = bi_lehmer_digit(u, shift);
+    vh = bi_lehmer_digit(v, shift);
+    bi_lehmer_simulate(uh, vh, co);
+    if (co[1] == 0) {                     /* no leading-digit progress */
+        return bi_gcd_euclid_step(u, v, e0, e1, tail, tail_len);
+    }
+    st = bi_lehmer_combine(e0, co[0], u, co[1], v);   /* A*u + B*v */
+    if (st != SRMECH_OK) { return st; }
+    st = bi_lehmer_combine(e1, co[2], u, co[3], v);   /* C*u + D*v */
+    if (st != SRMECH_OK) { return st; }
+    if (bi_set_abs(u, e0) != SRMECH_OK) { return SRMECH_ERR_OVERFLOW; }
+    return bi_set_abs(v, e1);
+}
+
+/* Lehmer driver: 4 carriers (u, v, e0, e1) + the divmod tail — the same
+ * working-set footprint as lean Euclid (the fused apply removed the
+ * product scratch). */
+static srmech_status_t bi_gcd_lehmer(srmech_bigint_t *out,
+                                     const srmech_bigint_t *a,
+                                     const srmech_bigint_t *b,
+                                     void *ws, size_t ws_len)
+{
+    uint32_t *base = (uint32_t *)ws;
+    size_t words = ws_len / sizeof(uint32_t), cur = 0u;
+    size_t m = (a->n > b->n) ? a->n : b->n;
+    size_t cu = m + 1u, ce = m + 2u;
+    srmech_bigint_t u, v, e0, e1;
+    uint32_t *bu, *bv, *b0, *b1;
+    uint64_t guard = 0u;
+    void *tail; size_t tail_len; srmech_status_t st;
+    assert(out != NULL && a != NULL && b != NULL);
+    assert(out->limbs != NULL || out->cap == 0u);
+    bu = bi_ws_take(base, words, &cur, cu);
+    bv = bi_ws_take(base, words, &cur, cu);
+    b0 = bi_ws_take(base, words, &cur, ce);
+    b1 = bi_ws_take(base, words, &cur, ce);
+    if (bu == NULL || bv == NULL || b0 == NULL || b1 == NULL) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    u.limbs = bu; u.cap = (uint32_t)cu; v.limbs = bv; v.cap = (uint32_t)cu;
+    e0.limbs = b0; e0.cap = (uint32_t)ce; e1.limbs = b1; e1.cap = (uint32_t)ce;
+    tail = base + cur; tail_len = (words - cur) * sizeof(uint32_t);
+    if (bi_set_abs(&u, a) != SRMECH_OK || bi_set_abs(&v, b) != SRMECH_OK) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    if (bi_cmp_abs(&u, &v) < 0) { srmech_bigint_t s = u; u = v; v = s; }
+    while (v.n != 0u && guard < ((uint64_t)1u << 40)) {
+        guard++;
+        if (v.n <= 2u) {
+            st = bi_gcd_euclid_step(&u, &v, &e0, &e1, tail, tail_len);
+        } else {
+            st = bi_lehmer_step(&u, &v, &e0, &e1, tail, tail_len);
+        }
+        if (st != SRMECH_OK) { return st; }
+        if (bi_cmp_abs(&u, &v) < 0) { srmech_bigint_t s = u; u = v; v = s; }
+    }
+    return bi_set_abs(out, &u);
+}
+
+srmech_status_t srmech_bigint_gcd(srmech_bigint_t *out, const srmech_bigint_t *a,
+                                  const srmech_bigint_t *b,
+                                  void *ws, size_t ws_len)
+{
+    size_t words = ws_len / sizeof(uint32_t);
+    size_t m = (a->n > b->n) ? a->n : b->n;
+    size_t lehmer_min = 6u * (m + 2u) + 16u;   /* 4 carriers + divmod tail */
+    assert(out != NULL && a != NULL && b != NULL);
+    assert(out->limbs != NULL || out->cap == 0u);
+    if (words >= lehmer_min) {
+        return bi_gcd_lehmer(out, a, b, ws, ws_len);
+    }
+    return bi_gcd_euclid(out, a, b, ws, ws_len);
 }
 
 /* ---- pow ---------------------------------------------------------- */

@@ -2521,6 +2521,17 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_bigint_mul_ws_bound.argtypes = [
             ctypes.c_size_t, ctypes.c_size_t]
         lib.srmech_bigint_mul_ws_bound.restype = ctypes.c_size_t
+    # 0.9.0rc169 (#765 optimization): the LEHMER gcd's arena-sizing bound.
+    # srmech_bigint_gcd itself is now Lehmer's algorithm above this bound
+    # (a leading-digit cofactor matrix batching the Euclid steps), lean
+    # Euclid below it — byte-identical either way. The big-ℚ reduce hands
+    # a bound-sized arena so the huge gcd-reduce runs Lehmer. NEW symbol →
+    # hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 3.
+    #   size_t srmech_bigint_gcd_ws_bound(size_t a_n, size_t b_n) [BYTES]
+    if hasattr(lib, "srmech_bigint_gcd_ws_bound"):
+        lib.srmech_bigint_gcd_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_bigint_gcd_ws_bound.restype = ctypes.c_size_t
 
     # ------------------------------------------------------------------
     # v0.7.5rc153 (UPSTREAM §49): bind the 11 genome file-management C
@@ -5541,6 +5552,20 @@ def _bigq_ws(words: int):
     return buf, words * 4
 
 
+def _gcd_ws(a_n: int, b_n: int):
+    """A gcd caller arena sized to ENGAGE the rc169 Lehmer fast path (a
+    smaller arena still returns the identical gcd via lean Euclid — the
+    bound is the engage-threshold, so oversizing is free). Uses the C
+    ``srmech_bigint_gcd_ws_bound`` when present, else a generous formula
+    matching it. Returns ``(buf, byte_len)``."""
+    if hasattr(LIB, "srmech_bigint_gcd_ws_bound"):
+        wl = int(LIB.srmech_bigint_gcd_ws_bound(a_n, b_n))
+        buf = (ctypes.c_uint8 * wl)()
+        return buf, wl
+    m = a_n if a_n > b_n else b_n
+    return _bigq_ws(12 * (m + 8) + 128)
+
+
 def _bigq_check(rc: int, symbol: str) -> bool:
     """True on OK; False on OVERFLOW (caller falls back to pure Python);
     raises on any other status."""
@@ -5566,7 +5591,7 @@ def _bigq_reduce_inplace(num_bi, den_bi):
         return (0, 1)
     m = max(num_bi.n, den_bi.n)
     g_bi, _kg = _bigq_zero(m + 2)
-    ws, ws_len = _bigq_ws(8 * (m + 4) + 64)
+    ws, ws_len = _gcd_ws(num_bi.n, den_bi.n)   # rc169: engage the Lehmer gcd
     if not _bigq_check(
             LIB.srmech_bigint_gcd(ctypes.byref(g_bi), ctypes.byref(num_bi),
                                   ctypes.byref(den_bi), ws, ws_len),
@@ -5721,11 +5746,11 @@ def bigq_div_c(a_num: int, a_den: int, b_num: int,
 
 
 def bigint_gcd_c(a: int, b: int) -> "int | None":
-    """``gcd(a, b)`` for non-negative ints via ``srmech_bigint_gcd`` (the whole
-    Euclid loop in C — Knuth divmod per step, no per-iteration interpreter
-    overhead). ``None`` when native absent / arena overflow — the pure-Python
-    Euclid loop in ``cyclic.gcd`` is the complete alternative. Byte-identical
-    (gcd is unique)."""
+    """``gcd(a, b)`` for non-negative ints via ``srmech_bigint_gcd`` (rc169:
+    LEHMER's algorithm in C — a leading-digit cofactor matrix batching the
+    Euclid steps, no per-iteration interpreter overhead). ``None`` when native
+    absent / arena overflow — the pure-Python Euclid loop in ``cyclic.gcd`` is
+    the complete alternative. Byte-identical (gcd is unique)."""
     global BIGQ_DISPATCH_COUNT
     if not has_native_bigq():
         return None
@@ -5734,7 +5759,7 @@ def bigint_gcd_c(a: int, b: int) -> "int | None":
     b_bi, _kb = _bigint_from_int(b, _bigq_limbs(b) + 1)
     m = max(a_bi.n, b_bi.n)
     g_bi, _kg = _bigq_zero(m + 2)
-    ws, ws_len = _bigq_ws(8 * (m + 4) + 64)
+    ws, ws_len = _gcd_ws(a_bi.n, b_bi.n)       # rc169: engage the Lehmer gcd
     if not _bigq_check(
             LIB.srmech_bigint_gcd(ctypes.byref(g_bi), ctypes.byref(a_bi),
                                   ctypes.byref(b_bi), ws, ws_len),

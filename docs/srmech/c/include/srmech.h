@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc168"
-#define SRMECH_VERSION       "0.9.0rc168"
+#define SRMECH_VERSION_PRE   "rc169"
+#define SRMECH_VERSION       "0.9.0rc169"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4117,10 +4117,21 @@ srmech_status_t srmech_bigint_divmod(srmech_bigint_t *q, srmech_bigint_t *r,
 srmech_status_t srmech_bigint_isqrt(srmech_bigint_t *out, const srmech_bigint_t *a,
                                     void *ws, size_t ws_len);
 
-/* out = gcd(|a|, |b|) >= 0 (Euclid). Caller arena `ws`. */
+/* out = gcd(|a|, |b|) >= 0. Caller arena `ws`. 0.9.0rc169: LEHMER'S
+ * algorithm (Knuth TAOCP Vol 2 §4.5.2 Algorithm L) when `ws` meets
+ * srmech_bigint_gcd_ws_bound — the leading-30-bit-digit cofactor matrix
+ * batches ~30 bits of Euclid steps into 4 single-limb multiply-adds, a
+ * large constant-factor win over the per-step full-precision divmod; a
+ * tighter arena transparently falls back to lean Euclid. The gcd VALUE
+ * is unique, so byte-identical either way. */
 srmech_status_t srmech_bigint_gcd(srmech_bigint_t *out, const srmech_bigint_t *a,
                                   const srmech_bigint_t *b,
                                   void *ws, size_t ws_len);
+
+/* Workspace BYTES that engage the Lehmer fast path of srmech_bigint_gcd
+ * for `a_n`/`b_n`-limb inputs (a smaller arena still returns the identical
+ * gcd via the lean-Euclid fallback). 8-byte-aligned uint32 bump arena. */
+size_t srmech_bigint_gcd_ws_bound(size_t a_n, size_t b_n);
 
 /* out = base^exp (exp >= 0; exp == 0 -> 1). Binary exponentiation over
  * the caller arena `ws` (>= pow_ws_bound(base->n, exp) BYTES). OVERFLOW if
