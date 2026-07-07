@@ -435,7 +435,15 @@ CEIL_C_EXISTS_UNBOUND = 0
 # srmech_bigint_isqrt. All 6 move bignum_reference -> c_dispatched (NO new C
 # kernel — the kernels already existed; the batch is the Python wiring + the
 # srmech_bigint_isqrt ctypes binding). CEIL_BIGNUM_REFERENCE 30 -> 24.
-CEIL_BIGNUM_REFERENCE = 24
+# rc157 (Qalg TAIL Batch 1b): the π family earns a C path. The NEW C kernel
+# srmech_pi_archimedes runs the WHOLE Pfaff-Archimedes two-mean chiral-pair loop
+# (per-step harmonic-mean divmod + geometric-mean isqrt) on the caller-arena
+# srmech_bigint, so rational.pi_cascade_digits DISPATCHES to it (byte-identical
+# "3.<digits>" to the pure-Python oracle; cross-checked pi_chudnovsky == pi_cascade).
+# pi_cascade_digits moves bignum_reference -> c_dispatched, and its 2 signal_
+# processing wrappers (closed_form_ops / path_b_ops pi_cascade.op) -> composition_of_c.
+# CEIL_BIGNUM_REFERENCE 24 -> 21.
+CEIL_BIGNUM_REFERENCE = 21
 
 _DEBT_BUCKETS = ("python_only_debt", "c_exists_unbound")
 _ALL_BUCKETS = (

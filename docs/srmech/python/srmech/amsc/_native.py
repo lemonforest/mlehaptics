@@ -2372,6 +2372,28 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_pi_chudnovsky.restype = ctypes.c_int
 
+    # rc157 (Qalg TAIL Batch 1b): srmech.amsc.rational.pi_cascade_digits — the
+    # projects-EVERY-step Pfaff-Archimedes two-mean chiral pair, the WHOLE loop
+    # (harmonic-mean divmod + geometric-mean isqrt over caller-arena
+    # srmech_bigint) in C, byte-identical "3.<digits>" to the pure-Python oracle.
+    # The complement of srmech_pi_chudnovsky (rotation-last). NEW symbol →
+    # hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 3.
+    #   srmech_status_t srmech_pi_archimedes(uint32_t num_digits,
+    #       uint32_t max_cascade_depth, uint32_t precision_bits, char *out,
+    #       size_t out_cap, size_t *out_len, void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_pi_archimedes"):
+        lib.srmech_pi_archimedes.argtypes = [
+            ctypes.c_uint32,                    # num_digits
+            ctypes.c_uint32,                    # max_cascade_depth
+            ctypes.c_uint32,                    # precision_bits
+            ctypes.POINTER(ctypes.c_char),      # out
+            ctypes.c_size_t,                    # out_cap
+            ctypes.POINTER(ctypes.c_size_t),    # out_len
+            ctypes.c_void_p,                    # ws (caller arena)
+            ctypes.c_size_t,                    # ws_len (arena bytes)
+        ]
+        lib.srmech_pi_archimedes.restype = ctypes.c_int
+
     # rc35: BIGNUM-EXACT Class-N transcendental Taylor truncations on the
     # caller-arena srmech_bigint (the standalone-honor closure removing the
     # int64/Q61 ceiling the C peers had vs. the Python bignum path). The
@@ -4158,6 +4180,64 @@ def pi_chudnovsky_c(num_digits: int) -> "str | None":
     if rc != SRMECH_OK:
         raise RuntimeError(
             f"srmech_pi_chudnovsky returned non-OK status {rc}"
+        )
+    return bytes(out)[:out_len.value].decode("ascii")
+
+
+def has_native_pi_archimedes() -> bool:
+    """True iff the projects-every-step Pfaff-Archimedes π C symbol is loaded +
+    bound (0.9.0rc157+ lib): :func:`srmech.amsc.rational.pi_cascade_digits`
+    dispatches to the WHOLE two-mean chiral-pair loop in C. False on a no-C or
+    pre-rc157 lib — the pure-Python fixed-point body is the complete alternative
+    (and the parity oracle); the two paths emit byte-identical ``"3.<digits>"``."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_pi_archimedes"))
+
+
+def pi_archimedes_c(num_digits: int, max_cascade_depth: int,
+                    precision_bits: int) -> "str | None":
+    """Native Pfaff-Archimedes π → ``"3.<num_digits digits>"`` or None.
+
+    Runs the WHOLE chiral-pair cascade (per-step harmonic-mean ``divmod`` +
+    geometric-mean ``isqrt`` over the caller-arena ``srmech_bigint``) in C, so a
+    bare-C host reaches the digit stream with no Python and no O(digits²) per-
+    step decimal round-trip. Returns ``None`` when the native symbol is absent
+    (no-C / pre-rc157 lib) so the caller falls through to the pure-Python fixed-
+    point body. Byte-identical to that oracle (same integers, same Python-FLOOR
+    semantics, same ``max_cascade_depth`` / ``precision_bits``). A non-OK C
+    status raises :class:`RuntimeError`.
+
+    The arena is sized generously in Python (like ``bigint_isqrt_c``): the
+    largest carrier is 12·M² (~2·M limbs) with M = 2^``precision_bits``, plus the
+    10^``num_digits`` read-out limbs; too-small → ``SRMECH_ERR_OVERFLOW`` → the
+    complete pure fallback (never a wrong answer)."""
+    if not has_native_pi_archimedes():
+        return None
+    assert num_digits > 0, "pi_archimedes_c requires num_digits > 0"
+    assert max_cascade_depth > 0 and precision_bits > 0, "depth/precision > 0"
+    # Per-carrier limb cap + 9 carriers + divmod/isqrt scratch (mirrors the C
+    # arch_carrier_limbs layout; over-sizing the bump arena is free).
+    m_limbs = precision_bits // 32 + 2
+    d_limbs = num_digits // 9 + 2
+    cap = 2 * m_limbs + d_limbs + 32
+    ws_words = cap * 9 + 24 * m_limbs + 8 * d_limbs + 512
+    ws = (ctypes.c_uint8 * (ws_words * 4))()
+    out_cap = num_digits + 8                       # "3." + digits + NUL + slack
+    out = (ctypes.c_char * out_cap)()
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_pi_archimedes(
+        ctypes.c_uint32(num_digits),
+        ctypes.c_uint32(max_cascade_depth),
+        ctypes.c_uint32(precision_bits),
+        out,
+        ctypes.c_size_t(out_cap),
+        ctypes.byref(out_len),
+        ctypes.cast(ws, ctypes.c_void_p),
+        ctypes.c_size_t(ws_words * 4),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_pi_archimedes returned non-OK status {rc}"
         )
     return bytes(out)[:out_len.value].decode("ascii")
 
