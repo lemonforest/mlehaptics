@@ -17,7 +17,7 @@ import json
 import os
 import re
 
-__all__ = ["load_anchor", "load_sux", "concept", "bridge_units", "bridge_disambiguated", "transcribe", "express_story", "render_fluent", "transcription_errors", "have_anchor"]
+__all__ = ["load_anchor", "load_sux", "concept", "bridge_units", "bridge_disambiguated", "transcribe", "express_story", "render_fluent", "render_repaired", "transcription_errors", "have_anchor"]
 
 _VYGUS = "/home/skirklan/corpora/egyptian_tla/vygus_dict_slice.jsonl"          # Egyptian (Vygus jsonl)
 _SUX = "/home/skirklan/corpora/etcsl/sux_gilgamesh_lemmatized.json"           # Sumerian (ETCSL Gilgameš, lemmatized)
@@ -136,6 +136,33 @@ def render_fluent(concept_line):
     subj = ("the " + " of the ".join(pre)) if pre else ""
     obj = ("the " + " ".join(post)) if post else ""
     return " ".join(x for x in (subj, _past(verb), obj) if x)
+
+
+def _phrase_cycles(concepts):
+    """Split a line's concepts into PHRASE-CYCLES at each verb (Sumerian is verb-final): each verb closes a cycle
+    ``[operands… verb]``, so a MULTI-verb line is MULTIPLE phrase-cycles. This is the NER / Class-L phrase-scale
+    unit (F1151) — repairing each verb-cluster at ITS scale, not the op-scale single-anchor that dropped the
+    coupling (the F1150 62% floor). Returns a list of cycles."""
+    cycles, cur = [], []
+    for c in (x for x in concepts if x):
+        cur.append(c)
+        if c.startswith("to "):                            # a verb closes the phrase-cycle
+            cycles.append(cur)
+            cur = []
+    if cur:
+        cycles.append(cur)                                 # a trailing verbless operand tail
+    return cycles
+
+
+def render_repaired(concept_line):
+    """SCALE-STRATIFIED render (F1151): the NER / Class-L phrase-scale repair — split the line into phrase-cycles
+    (:func:`_phrase_cycles`, one per verb) and render EACH at its scale (:func:`render_fluent`), then join. Fixes
+    the veneer's 62% floor (F1150): a multi-verb line now gets PHRASE-scale repair instead of the op-scale
+    single-anchor that mangled it. NOTE (F1151): each phrase-cycle also carries a CHIRALITY (the verb's which-way,
+    Class-C) that the bit-exact silicon substrate FLATTENS (F552) — so on silicon the chiral repair is invoked
+    MANUALLY (here, per cycle), where in the substrate every cascade would run it automatically."""
+    cycles = _phrase_cycles(concept_line)
+    return ", ".join(render_fluent(cy) for cy in cycles) if cycles else ""
 
 
 def transcription_errors(rendered, source_concepts):
