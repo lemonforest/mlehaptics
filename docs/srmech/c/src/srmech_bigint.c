@@ -13,7 +13,13 @@
  *
  * The cascade composition (named A–N classes):
  *   - add / sub          : Class K sign pin-slot ∘ magnitude add/sub.
- *   - mul                : schoolbook bilinear bind (Class M shape).
+ *   - mul                : Karatsuba (rc168) above a measured crossover,
+ *                          schoolbook below — bilinear bind (Class M
+ *                          shape); the split is an ITERATIVE explicit
+ *                          frame machine (Rule 1: no recursion) over a
+ *                          caller arena (srmech_bigint_mul_ws) or the
+ *                          bounded internal region (srmech_bigint_mul);
+ *                          byte-identical to schoolbook for all inputs.
  *   - shl / shr          : Class K bit-boundary; shr is FLOOR (Python >>).
  *   - divmod             : Knuth Algorithm D (TAOCP Vol 2 §4.3.1) +
  *                          Python FLOOR sign-correction (0 <= r < |b|).
@@ -399,8 +405,72 @@ srmech_status_t srmech_bigint_sub(srmech_bigint_t *out, const srmech_bigint_t *a
 
 /* ---- multiply ----------------------------------------------------- */
 
-srmech_status_t srmech_bigint_mul(srmech_bigint_t *out, const srmech_bigint_t *a,
-                                  const srmech_bigint_t *b)
+/* Karatsuba tuning (0.9.0rc168). BI_KARA_CUTOFF: the measured smaller-
+ * operand limb count below which schoolbook wins (WSL2 gcc -O2 crossover
+ * measurement — see CHANGELOG 0.9.0rc168). BI_KARA_MAX_DEPTH: the split
+ * size follows m -> m/2 + 2 per level, so 40 levels cover any uint32
+ * limb count with slack (2^32 reaches < CUTOFF within 29). BI_MUL_LOCAL_
+ * WS_U64: the bounded internal arena (uint64 units → 8-byte aligned) the
+ * no-arena srmech_bigint_mul entry carries on its own frame — full
+ * Karatsuba for mid-size operands, graceful fewer-level splits above,
+ * with callers owning an arena getting the unbounded split via
+ * srmech_bigint_mul_ws. */
+#define BI_KARA_CUTOFF      24u
+#define BI_KARA_MAX_DEPTH   40u
+#define BI_MUL_LOCAL_WS_U64 1024u
+
+/* One explicit-schedule Karatsuba frame (JPL Rule 1: NO recursion — the
+ * divide-and-conquer runs on a manual frame stack). x/y are raw operand
+ * limb slices (xn >= yn after the push-time normalise; slices MAY carry
+ * leading-zero limbs), dst is the FULL xn+yn-limb product region (every
+ * limb written, leading zeros included), scr is this frame's scratch
+ * base inside the arena (children carve from scr + this frame's need). */
+typedef struct {
+    const uint32_t *x;
+    const uint32_t *y;
+    uint32_t *dst;
+    uint32_t *scr;
+    uint32_t xn;
+    uint32_t yn;
+    uint32_t phase;   /* 0 start; 1/2 children pending; 3 combine */
+} bi_kara_frame_t;
+
+/* Workspace BYTES for the FULL Karatsuba split of an a_n x b_n limb
+ * multiply via srmech_bigint_mul_ws: the explicit split-frame stack plus
+ * the per-level scratch sum along the deepest path. Exact per-level
+ * accounting (matching the engine's bi_kara_frame_need): a level whose
+ * larger operand is m limbs carves at most 2m+8 words (balanced split:
+ * 4*ceil(m/2)+4 <= 2m+6 for sx/sy/t; chunk split: <= m for the x1*y
+ * partial), and its largest child operand is at most m/2+2 limbs (the
+ * h+1 = ceil(m/2)+1 padded sums). Returns 0 when the smaller operand is
+ * below the crossover (schoolbook needs no scratch). A smaller arena
+ * still yields the identical product (fewer split levels) — this bound
+ * guarantees the full split. */
+size_t srmech_bigint_mul_ws_bound(size_t a_n, size_t b_n)
+{
+    size_t m = (a_n > b_n) ? a_n : b_n;
+    size_t small = (a_n > b_n) ? b_n : a_n;
+    size_t words = 0u, level = 0u;
+    assert(a_n <= 0xFFFFFFFFu && b_n <= 0xFFFFFFFFu);
+    if (small < BI_KARA_CUTOFF) {
+        return 0u;
+    }
+    while (m >= BI_KARA_CUTOFF && level < BI_KARA_MAX_DEPTH) {
+        words += 2u * m + 8u;
+        m = m / 2u + 2u;
+        level++;
+    }
+    assert(words >= 2u * BI_KARA_CUTOFF);      /* at least one level */
+    return BI_KARA_MAX_DEPTH * sizeof(bi_kara_frame_t)
+           + words * sizeof(uint32_t);
+}
+
+/* Schoolbook O(n*m) multiply (the pre-rc168 srmech_bigint_mul body, kept
+ * verbatim): the base case + the no/short-scratch fallback. The Karatsuba
+ * path must be BYTE-IDENTICAL to this for every input. */
+static srmech_status_t bi_mul_school(srmech_bigint_t *out,
+                                     const srmech_bigint_t *a,
+                                     const srmech_bigint_t *b)
 {
     uint32_t i, j, need = a->n + b->n;
     assert(out != NULL && a != NULL && b != NULL);
@@ -429,6 +499,316 @@ srmech_status_t srmech_bigint_mul(srmech_bigint_t *out, const srmech_bigint_t *a
     out->sign = a->sign * b->sign;
     bi_norm(out);
     return SRMECH_OK;
+}
+
+/* Raw-slice schoolbook: dst[0..xn+yn) = x * y, FULL length (leading
+ * zeros written). Operands may carry leading-zero limbs (padded sums). */
+static void bi_kara_school(const uint32_t *x, uint32_t xn,
+                           const uint32_t *y, uint32_t yn, uint32_t *dst)
+{
+    uint32_t i, j;
+    assert(x != NULL && y != NULL && dst != NULL);
+    assert(xn >= 1u && yn >= 1u);
+    for (i = 0u; i < xn + yn; i++) {
+        dst[i] = 0u;
+    }
+    for (i = 0u; i < xn; i++) {
+        uint64_t carry = 0u;
+        for (j = 0u; j < yn; j++) {
+            uint64_t t = (uint64_t)x[i] * y[j] + dst[i + j] + carry;
+            dst[i + j] = (uint32_t)(t & 0xFFFFFFFFu);
+            carry = t >> BI_BASE_BITS;
+        }
+        dst[i + yn] = (uint32_t)carry;
+    }
+}
+
+/* dst[0..dn) = a[0..an) + b[0..bn), full length, zero-padded above; the
+ * carry lands inside dn (contract: dn >= max(an, bn) + 1). */
+static void bi_kara_sum(uint32_t *dst, uint32_t dn, const uint32_t *a,
+                        uint32_t an, const uint32_t *b, uint32_t bn)
+{
+    uint32_t i;
+    uint64_t carry = 0u;
+    assert(dst != NULL && a != NULL && b != NULL);
+    assert(dn >= ((an > bn) ? an : bn) + 1u);
+    for (i = 0u; i < dn; i++) {
+        uint64_t av = (i < an) ? a[i] : 0u;
+        uint64_t bv = (i < bn) ? b[i] : 0u;
+        uint64_t t = av + bv + carry;
+        dst[i] = (uint32_t)(t & 0xFFFFFFFFu);
+        carry = t >> BI_BASE_BITS;
+    }
+    assert(carry == 0u);
+}
+
+/* t[0..tn) -= z[0..zn), full length (tn >= zn). The difference is the
+ * Karatsuba middle term, mathematically non-negative → final borrow 0. */
+static void bi_kara_sub(uint32_t *t, uint32_t tn, const uint32_t *z,
+                        uint32_t zn)
+{
+    uint32_t i;
+    uint64_t borrow = 0u;
+    assert(t != NULL && z != NULL);
+    assert(tn >= zn);
+    for (i = 0u; i < tn; i++) {
+        uint64_t zv = (i < zn) ? z[i] : 0u;
+        uint64_t d = (uint64_t)t[i] - zv - borrow;
+        t[i] = (uint32_t)(d & 0xFFFFFFFFu);
+        borrow = (d >> 63) & 1u;
+    }
+    assert(borrow == 0u);
+}
+
+/* dst[0..dn) += t[0..tn) (tn <= dn), carry rippled through dn. The sum
+ * stays inside the enclosing product region → final carry 0. */
+static void bi_kara_add_at(uint32_t *dst, uint32_t dn, const uint32_t *t,
+                           uint32_t tn)
+{
+    uint32_t i;
+    uint64_t carry = 0u;
+    assert(dst != NULL && t != NULL);
+    assert(tn <= dn);
+    for (i = 0u; i < dn && (i < tn || carry != 0u); i++) {
+        uint64_t tv = (i < tn) ? t[i] : 0u;
+        uint64_t s = (uint64_t)dst[i] + tv + carry;
+        dst[i] = (uint32_t)(s & 0xFFFFFFFFu);
+        carry = s >> BI_BASE_BITS;
+    }
+    assert(carry == 0u);
+}
+
+/* Scratch words THIS frame carves at its scr base (children start after).
+ * Balanced split (yn > h): sx (h+1) + sy (h+1) + t (2h+2) = 4h+4 words.
+ * Chunk split (yn <= h): the x1*y partial product, (xn-h)+yn words. */
+static size_t bi_kara_frame_need(uint32_t xn, uint32_t yn, uint32_t h)
+{
+    assert(xn >= yn && yn >= 1u);
+    assert(h >= 1u && h < xn);
+    if (yn <= h) {
+        return (size_t)(xn - h) + yn;
+    }
+    return 4u * (size_t)h + 4u;
+}
+
+/* 1 iff this frame must run schoolbook: below the measured Karatsuba
+ * crossover, at the frame-stack depth cap, or its scratch slice does not
+ * fit the arena (graceful degradation — the RESULT is identical). */
+static int bi_kara_is_leaf(const bi_kara_frame_t *f, const uint32_t *ws_end,
+                           uint32_t sp)
+{
+    uint32_t h;
+    size_t need, avail;
+    assert(f != NULL && ws_end != NULL);
+    assert(f->xn >= f->yn);
+    if (f->yn < BI_KARA_CUTOFF || sp >= BI_KARA_MAX_DEPTH) {
+        return 1;
+    }
+    h = (f->xn + 1u) / 2u;
+    need = bi_kara_frame_need(f->xn, f->yn, h);
+    avail = (f->scr <= ws_end) ? (size_t)(ws_end - f->scr) : 0u;
+    return (need > avail) ? 1 : 0;
+}
+
+/* Normalise a freshly built frame so x is the longer operand (multiply
+ * is commutative; the split logic requires xn >= yn). */
+static void bi_kara_norm_frame(bi_kara_frame_t *f)
+{
+    assert(f != NULL);
+    assert(f->xn >= 1u && f->yn >= 1u);
+    if (f->xn < f->yn) {
+        const uint32_t *tp = f->x;
+        uint32_t tn = f->xn;
+        f->x = f->y; f->xn = f->yn;
+        f->y = tp;   f->yn = tn;
+    }
+}
+
+/* Balanced step (yn > h, h = ceil(xn/2)): phase 0 preps sx = x0+x1 /
+ * sy = y0+y1 and spawns t = sx*sy; phase 1 spawns z0 = x0*y0 into dst
+ * low; phase 2 spawns z2 = x1*y1 into dst high; phase 3 combines
+ * z1 = t - z0 - z2 into dst at offset h. Returns 1 iff *child is to be
+ * pushed. z1 < B^(xn+1) <= B^(xn+yn-h), so the middle add never carries
+ * out of the product region. */
+static int bi_kara_step_bal(bi_kara_frame_t *f, bi_kara_frame_t *child)
+{
+    uint32_t h = (f->xn + 1u) / 2u;
+    uint32_t *sx = f->scr, *sy = f->scr + h + 1u, *t = f->scr + 2u * h + 2u;
+    uint32_t *sub = f->scr + 4u * h + 4u;
+    assert(f != NULL && child != NULL);
+    assert(f->yn > h && h >= 1u);
+    if (f->phase == 0u) {
+        bi_kara_sum(sx, h + 1u, f->x, h, f->x + h, f->xn - h);
+        bi_kara_sum(sy, h + 1u, f->y, h, f->y + h, f->yn - h);
+        child->x = sx; child->xn = h + 1u;
+        child->y = sy; child->yn = h + 1u;
+        child->dst = t; child->scr = sub;
+        f->phase = 1u;
+        return 1;
+    }
+    if (f->phase == 1u) {
+        child->x = f->x; child->xn = h;
+        child->y = f->y; child->yn = h;
+        child->dst = f->dst; child->scr = sub;
+        f->phase = 2u;
+        return 1;
+    }
+    if (f->phase == 2u) {
+        child->x = f->x + h; child->xn = f->xn - h;
+        child->y = f->y + h; child->yn = f->yn - h;
+        child->dst = f->dst + 2u * h; child->scr = sub;
+        f->phase = 3u;
+        return 1;
+    }
+    bi_kara_sub(t, 2u * h + 2u, f->dst, 2u * h);              /* t -= z0 */
+    bi_kara_sub(t, 2u * h + 2u, f->dst + 2u * h,
+                f->xn + f->yn - 2u * h);                      /* t -= z2 */
+    {
+        uint32_t avail = f->xn + f->yn - h;
+        uint32_t ta = (2u * h + 2u < avail) ? (2u * h + 2u) : avail;
+        uint32_t i;
+        for (i = ta; i < 2u * h + 2u; i++) {
+            assert(t[i] == 0u);           /* z1 fits xn+1 <= avail limbs */
+        }
+        bi_kara_add_at(f->dst + h, avail, t, ta);
+    }
+    return 0;
+}
+
+/* Chunk step (yn <= h = ceil(xn/2): x splits at h, y rides whole — the
+ * unbalanced schedule): phase 0 spawns x0*y into dst low; phase 1 zeros
+ * the dst tail and spawns x1*y into scr; phase 3 adds the scr partial
+ * into dst at offset h (x*y = x0*y + x1*y*B^h). Returns 1 iff *child is
+ * to be pushed. */
+static int bi_kara_step_chunk(bi_kara_frame_t *f, bi_kara_frame_t *child)
+{
+    uint32_t h = (f->xn + 1u) / 2u;
+    uint32_t pn = f->xn - h + f->yn;      /* x1*y partial length */
+    assert(f != NULL && child != NULL);
+    assert(f->yn <= h && h < f->xn);
+    if (f->phase == 0u) {
+        child->x = f->x; child->xn = h;
+        child->y = f->y; child->yn = f->yn;
+        child->dst = f->dst; child->scr = f->scr + pn;
+        f->phase = 1u;
+        return 1;
+    }
+    if (f->phase == 1u) {
+        uint32_t i;
+        for (i = h + f->yn; i < f->xn + f->yn; i++) {
+            f->dst[i] = 0u;               /* tail beyond the x0*y write */
+        }
+        child->x = f->x + h; child->xn = f->xn - h;
+        child->y = f->y;     child->yn = f->yn;
+        child->dst = f->scr; child->scr = f->scr + pn;
+        f->phase = 3u;
+        return 1;
+    }
+    bi_kara_add_at(f->dst + h, f->xn + f->yn - h, f->scr, pn);
+    return 0;
+}
+
+/* Run the explicit Karatsuba schedule from the pre-filled root frame
+ * st[0] (a frame array of BI_KARA_MAX_DEPTH; siblings run sequentially,
+ * so the live stack never exceeds the split depth). Every iteration
+ * either advances a frame's phase or pops it, so the loop terminates;
+ * the guard is the hard Rule-2 cap (overrun → caller re-runs schoolbook,
+ * result identical). */
+static srmech_status_t bi_kara_machine(bi_kara_frame_t *st,
+                                       const uint32_t *ws_end)
+{
+    uint32_t sp = 1u;
+    uint64_t guard = 0u;
+    assert(st != NULL && ws_end != NULL);
+    assert(st[0].xn >= st[0].yn && st[0].yn >= 1u);
+    while (sp > 0u) {
+        bi_kara_frame_t *f = &st[sp - 1u];
+        bi_kara_frame_t child;
+        int pushed;
+        if (guard >= ((uint64_t)1u << 40)) {
+            return SRMECH_ERR_OVERFLOW;
+        }
+        guard++;
+        if (f->phase == 0u && bi_kara_is_leaf(f, ws_end, sp)) {
+            bi_kara_school(f->x, f->xn, f->y, f->yn, f->dst);
+            sp--;
+            continue;
+        }
+        if (f->yn <= (f->xn + 1u) / 2u) {
+            pushed = bi_kara_step_chunk(f, &child);
+        } else {
+            pushed = bi_kara_step_bal(f, &child);
+        }
+        if (pushed) {
+            child.phase = 0u;
+            bi_kara_norm_frame(&child);
+            assert(sp < BI_KARA_MAX_DEPTH);
+            st[sp] = child;
+            sp++;
+        } else {
+            sp--;
+        }
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_bigint_mul_ws(srmech_bigint_t *out,
+                                     const srmech_bigint_t *a,
+                                     const srmech_bigint_t *b,
+                                     void *ws, size_t ws_len)
+{
+    uint32_t need = a->n + b->n;
+    size_t frame_bytes = BI_KARA_MAX_DEPTH * sizeof(bi_kara_frame_t);
+    uint32_t small = (a->n < b->n) ? a->n : b->n;
+    uint32_t big = (a->n < b->n) ? b->n : a->n;
+    assert(out != NULL && a != NULL && b != NULL);
+    assert(out->limbs != NULL || out->cap == 0u);
+    if (a->n == 0u || b->n == 0u) {
+        out->n = 0u; out->sign = 0;
+        return SRMECH_OK;
+    }
+    if (need > out->cap) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    if (small >= BI_KARA_CUTOFF && ws != NULL
+            && ((uintptr_t)ws % 8u) == 0u && ws_len >= frame_bytes
+            && (ws_len - frame_bytes) / sizeof(uint32_t)
+               >= 2u * (size_t)big + 8u) {
+        bi_kara_frame_t *st = (bi_kara_frame_t *)ws;
+        uint32_t *scr = (uint32_t *)(void *)((unsigned char *)ws
+                                             + frame_bytes);
+        const uint32_t *ws_end = scr + (ws_len - frame_bytes)
+                                       / sizeof(uint32_t);
+        st[0].x = a->limbs; st[0].xn = a->n;
+        st[0].y = b->limbs; st[0].yn = b->n;
+        st[0].dst = out->limbs; st[0].scr = scr; st[0].phase = 0u;
+        bi_kara_norm_frame(&st[0]);
+        if (bi_kara_machine(st, ws_end) == SRMECH_OK) {
+            out->n = need;
+            out->sign = a->sign * b->sign;
+            bi_norm(out);
+            return SRMECH_OK;
+        }
+    }
+    return bi_mul_school(out, a, b);
+}
+
+srmech_status_t srmech_bigint_mul(srmech_bigint_t *out, const srmech_bigint_t *a,
+                                  const srmech_bigint_t *b)
+{
+    /* Bounded internal arena (an automatic uint64 region — 8-byte
+     * aligned, no malloc, reentrant): full Karatsuba for mid-size
+     * operands, graceful fewer-level splits above, schoolbook for the
+     * small/huge tails. Callers owning an arena get the unbounded split
+     * via srmech_bigint_mul_ws; the product here is byte-identical. */
+    uint64_t ws_local[BI_MUL_LOCAL_WS_U64];
+    uint32_t small = (a->n < b->n) ? a->n : b->n;
+    assert(out != NULL && a != NULL && b != NULL);
+    assert(out->limbs != NULL || out->cap == 0u);
+    if (small < BI_KARA_CUTOFF) {
+        return bi_mul_school(out, a, b);
+    }
+    return srmech_bigint_mul_ws(out, a, b, ws_local, sizeof(ws_local));
 }
 
 /* ---- shifts ------------------------------------------------------- */

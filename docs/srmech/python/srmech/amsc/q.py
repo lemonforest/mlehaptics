@@ -300,6 +300,16 @@ class Q:
                 return Q.from_pair(_rational.rational_pow_uint((self._n, self._d), k))
             if self._n == 0:
                 raise ZeroDivisionError("Q: 0 cannot be raised to a negative power")
+            if self._n < 0:
+                # (a/b)^(-k) = (b/a)^k with a < 0: normalise the reciprocal's
+                # sign onto the NUMERATOR (b/a == (-b)/(-a)) so rational_pow_
+                # uint's positive-denominator contract holds; the sign then
+                # rides (-b)^k exactly as Fraction does (even k → +, odd → −).
+                # Pre-rc168 this branch passed (d, n) with n < 0 and raised
+                # ValueError("denominator must be positive") — the
+                # negative-base/negative-exponent bug.
+                return Q.from_pair(
+                    _rational.rational_pow_uint((-self._d, -self._n), -k))
             return Q.from_pair(_rational.rational_pow_uint((self._d, self._n), -k))
         base = self._n / self._d
         if isinstance(exp, complex):
