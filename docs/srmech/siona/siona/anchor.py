@@ -27,16 +27,36 @@ _surf2lemma = None   # surface form → lemma (the lemmatization layer, F1144; N
 
 
 def _norm(t):
-    return (t or "").strip().lstrip(".=").lower()
+    t = html.unescape(re.sub(r"<[^>]+>", "", t or ""))     # strip markup (KEEP content), unescape entities (F1155)
+    return t.strip().lstrip(".=").lower()                    # so concept() resolves a RAW glyph too (idempotent on clean)
 
 
 # Sumerian DETERMINATIVES (F1155): the script's OWN glyph-intrinsic semantic-class classifiers — a coherency-
 # AGNOSTIC type tag (divine / place / wood / stone …, NOT noun/verb), written INTO the glyph as a super/sub-script.
 # This is the genome-surface identifier that abstracts away POS. clean()/transcribe were STRIPPING these (a
 # no-doctoring-SSoT violation, F817) — they are FIBER, not noise.
-_DET_CLASS = {"d": "divine", "ki": "place", "ĝiš": "wood", "ﻟiš": "wood", "gish": "wood", "na4": "stone",
-              "gi": "reed", "lu2": "person", "lú": "person", "uruda": "copper", "tug2": "textile",
-              "dug": "vessel", "u2": "plant", "mušen": "bird", "ku6": "fish", "id2": "watercourse", "kuš": "leather"}
+_DET_CLASS = {"d": "divine", "diĝir": "divine", "ki": "place", "ĝiš": "wood", "gish": "wood", "ĝeš": "wood",
+              "na4": "stone", "gi": "reed", "lu2": "person", "lú": "person", "munus": "woman", "kur": "land",
+              "uruda": "copper", "urudu": "copper", "tug2": "textile", "gada": "linen", "zabar": "bronze",
+              "dug": "vessel", "u2": "plant", "šem": "aromatic", "mušen": "bird", "ku6": "fish", "id2":
+              "watercourse", "kuš": "leather", "ansze": "equid", "e2": "building", " nisi": "vegetable"}
+
+# class → English gloss keywords: lets the DETERMINATIVE disambiguate a polysemous glyph (F1156) by preferring the
+# anchor sense consistent with the script's own class tag (a place-classified glyph → the toponym sense, not a homophone).
+_CLASS_KEYWORDS = {
+    "divine": {"god", "goddess", "deity", "divine", "inana", "enlil", "an"},
+    "place": {"city", "town", "place", "land", "country", "region", "mountain", "temple"},
+    "person": {"man", "person", "king", "lord", "priest", "official", "servant", "smith"},
+    "woman": {"woman", "lady", "queen", "priestess", "female"},
+    "wood": {"wood", "tree", "wooden", "plough", "boat", "chair", "throne", "weapon"},
+    "stone": {"stone", "rock", "flint", "bead"},
+    "bird": {"bird", "eagle", "raven", "goose"},
+    "fish": {"fish", "carp"},
+    "plant": {"plant", "grass", "herb", "reed", "grain", "onion"},
+    "watercourse": {"river", "canal", "watercourse", "water", "stream"},
+    "copper": {"copper", "bronze", "metal", "tool", "axe"},
+    "land": {"land", "mountain", "country", "foreign"},
+}
 
 
 def determinative(raw_glyph):
@@ -49,8 +69,9 @@ def determinative(raw_glyph):
     out = []
     for d in re.findall(r"<sup>(.*?)</sup>", raw_glyph or ""):
         d = html.unescape(re.sub(r"<[^>]+>", "", d)).strip().lower()   # unescape HTML entities (ĝ = &#x011d;)
-        if d:
-            out.append(_DET_CLASS.get(d, d))
+        if not d or d in "?!*":                                        # skip ETCSL editorial markers (uncertainty), not classifiers
+            continue
+        out.append(_DET_CLASS.get(d, d))
     return out
 
 
@@ -245,13 +266,25 @@ def express_story(glyph_lines, query, *, coupling=0.05):
     return sorted(expressed, key=lambda it: -sum(freq.get(c.lower(), 0) for c in it[1]))   # CYCLE-READ order
 
 
-def transcribe(glyph_lines):
+def transcribe(glyph_lines, *, with_class=False):
     """Orchestrate the glyph→concept bridge over a WHOLE text (F1145): each LINE (the phrase unit, F1143) →
-    its concept-gloss per glyph. This is the FRACTAL-TOWER orchestration (F1117) — NOT new architecture, just the
-    per-line bridge assembled line → passage → story. Returns ``[[gloss-or-None per glyph] per line]``; the
-    read-out / natural-language render is the caller's (write the full output to a scratch file while we test
-    which render works best). The line-level sparse concepts ARE the story genome expressed to language."""
-    return [[(concept(g)[0].split(",")[0] if concept(g) else None) for g in line] for line in glyph_lines]
+    its concept-gloss per glyph. The FRACTAL-TOWER orchestration (F1117) — the per-line bridge assembled line →
+    passage → story. Returns ``[[gloss-or-None per glyph] per line]``.
+
+    ``with_class=True`` PRESERVES the DETERMINATIVE through the transcription (F1155/F1156 — stop stripping it):
+    returns ``[[(gloss, [class…]) per glyph] per line]`` where ``class`` is the glyph's coherency-agnostic
+    semantic-class tag (divine/place/wood…) — the genome-surface type the user asked for, carried WITH the concept.
+    Accepts RAW glyphs (markup intact): `_norm` strips the surface for the concept lookup while `determinative`
+    reads the raw `<sup>` for the class — so the determinative survives the pass instead of being doctored out."""
+    out = []
+    for line in glyph_lines:
+        row = []
+        for g in line:
+            gl = concept(g)
+            c = gl[0].split(",")[0] if gl else None
+            row.append((c, determinative(g)) if with_class else c)
+        out.append(row)
+    return out
 
 
 def _words(gloss):
@@ -259,10 +292,12 @@ def _words(gloss):
 
 
 def bridge_disambiguated(units):
-    """Glyph→concept WITH SENSE-SELECTION by context (F608/F1127 — the sense-determinative applied to the
-    cross-lingual bridge, reusing the RELATIONAL axis): for a polysemous glyph, pick the anchor gloss whose words
-    are most RELATED (`relate`) to the OTHER glyphs' concept words. Returns ``[(unit, best_gloss_or_None)]`` — the
-    same polysemy-resolution machinery ASL uses, now on the English concept side of the bridge."""
+    """Glyph→concept WITH SENSE-SELECTION (F608/F1127/F1156). Two-tier disambiguation: (1) the DETERMINATIVE FIRST
+    (F1156) — if a RAW glyph carries a class tag ({d}=divine, {ki}=place…), keep only the anchor senses consistent
+    with that class (`_CLASS_KEYWORDS`); this is the script's OWN disambiguator, resolving a homophone by its
+    written classifier before any statistics. (2) Then the RELATIONAL context tie-break — among the surviving
+    senses, pick the gloss most RELATED (`relate`) to the other glyphs' concept words. Returns
+    ``[(unit, best_gloss_or_None)]``."""
     from siona import relate as _rel
     _rel.load()
     cand = {u: concept(u) for u in units}
@@ -273,10 +308,16 @@ def bridge_disambiguated(units):
     out = []
     for u in units:
         cs = cand[u]
+        dets = determinative(u)                                       # the script's OWN class tag (F1156)
+        if dets and len(cs) > 1:                                      # DETERMINATIVE FIRST — filter senses by class
+            kw = set().union(*(_CLASS_KEYWORDS.get(d, set()) for d in dets))
+            match = [g for g in cs if set(_words(g)) & kw]
+            if match:
+                cs = match                                           # narrowed by the written classifier
         if not cs:
             out.append((u, None))
         elif len(cs) == 1:
             out.append((u, cs[0]))
         else:
-            out.append((u, max(cs, key=lambda g: _rel.relatedness(_words(g), ctx - set(_words(g))))))
+            out.append((u, max(cs, key=lambda g: _rel.relatedness(_words(g), ctx - set(_words(g))))))  # relate tie-break
     return out
