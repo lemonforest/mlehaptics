@@ -443,7 +443,18 @@ CEIL_C_EXISTS_UNBOUND = 0
 # pi_cascade_digits moves bignum_reference -> c_dispatched, and its 2 signal_
 # processing wrappers (closed_form_ops / path_b_ops pi_cascade.op) -> composition_of_c.
 # CEIL_BIGNUM_REFERENCE 24 -> 21.
-CEIL_BIGNUM_REFERENCE = 21
+# rc158 (Qalg TAIL Batch 2): the 4 Cayley-Dickson INTEGER-cocycle NAVIGATION ops
+# (cayley_dickson.{closure, left_orbit, min_generating_set,
+# sedenion_zero_divisor_witness}) earn a C path. They are INTEGER (signed basis
+# units +-e_i; NO bignum, NO new carrier) and COMPOSE the existing
+# srmech_cd_basis_product cocycle: new C kernels srmech_cd_{closure, left_orbit,
+# min_generating_set, zero_divisor_witness} (byte-identical native == pure incl.
+# set/list ordering). They were only PARKED in bignum_reference alongside the
+# arbitrary-precision cd_* QQ arithmetic; the integer navigation never needed
+# bignum. All 4 move bignum_reference -> c_dispatched. CEIL_BIGNUM_REFERENCE
+# 21 -> 17. (The 4 trivial cd_basis/conjugate/add/norm_sq QQ ops + the Qvec
+# carrier are the next batch B3, 17 -> 13.)
+CEIL_BIGNUM_REFERENCE = 17
 
 _DEBT_BUCKETS = ("python_only_debt", "c_exists_unbound")
 _ALL_BUCKETS = (
