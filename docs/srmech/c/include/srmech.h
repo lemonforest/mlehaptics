@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc164"
-#define SRMECH_VERSION       "0.9.0rc164"
+#define SRMECH_VERSION_PRE   "rc165"
+#define SRMECH_VERSION       "0.9.0rc165"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4079,7 +4079,11 @@ srmech_status_t srmech_bigint_shr_bits(srmech_bigint_t *out,
 
 /* q = floor(a / b), r = a - q*b (Python FLOOR semantics: 0 <= r < |b|
  * when b > 0). b != 0 else SRMECH_ERR_BAD_INPUT. q or r may be NULL to
- * skip that output. Uses Knuth Algorithm D in the caller arena `ws`. */
+ * skip that output — the skipped output's throwaway storage is carved off
+ * the front of `ws` (a->n + 2 limbs for q; max(a->n, b->n) + 2 for r), so
+ * the NULL contract holds for EVERY input including the negative-dividend
+ * floor fixup (pre-fix a cap-0 sink spuriously returned OVERFLOW there).
+ * Uses Knuth Algorithm D in the caller arena `ws`. */
 srmech_status_t srmech_bigint_divmod(srmech_bigint_t *q, srmech_bigint_t *r,
                                      const srmech_bigint_t *a,
                                      const srmech_bigint_t *b,
@@ -4518,6 +4522,73 @@ srmech_status_t srmech_poly_shift(const srmech_bigint_t *p_n,
                                   srmech_bigint_t *acc_n,
                                   srmech_bigint_t *acc_d, size_t *acc_len,
                                   void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_factor_squarefree_primitive — EXACT integer-polynomial factorization
+ * (Zassenhaus): the C peer of the Zassenhaus core of
+ * srmech.amsc.cascade.matrix_cascades.factor_integer_poly (Qalg TAIL Batch 8).
+ *
+ * Factors a SQUARE-FREE PRIMITIVE integer polynomial (coeffs low->high, content
+ * 1, POSITIVE leading coefficient, deg >= 1) into its irreducible ℤ factors:
+ * choose a prime p ∤ lead with the input square-free mod p; factor mod p in
+ * 𝔽_p[x] (distinct-degree then Cantor–Zassenhaus equal-degree, over a
+ * DETERMINISTIC xorshift64 rng that reproduces the Python rng stream
+ * byte-for-byte); Hensel-lift to mod p^k >= 2·B+1 (B the Mignotte bound); then
+ * recombine over increasing subset sizes (exact ℤ trial-division), guarded by a
+ * subset-size cap. Byte/structurally-identical to the pure
+ * _factor_square_free_primitive (the factorization is unique).
+ *
+ * coeffs / ncoeff : the input integer coefficients low->high (denominator 1).
+ * out_coeffs      : the irreducible factors' coefficients CONCATENATED low->high
+ *                   (>= 2*deg srmech_bigint slots, each cap >= the out_cap).
+ * out_degs        : out_degs[j] = degree of factor j (>= deg int slots).
+ * out_nfac        : *out_nfac <- the factor count.
+ * out_hit_cap     : *out_hit_cap <- 1 if the recombination subset cap was hit.
+ * ws, ws_len      : caller arena (>= srmech_factor_squarefree_primitive_ws_bound).
+ *
+ * Returns SRMECH_OK; SRMECH_ERR_OVERFLOW on arena/degree overflow (caller falls
+ * back to the pure path); SRMECH_ERR_BAD_INPUT on the zero polynomial or no good
+ * reduction prime below 100000.
+ *
+ * All exact srmech_bigint (NO malloc, JPL Rule 3). Additive symbols -> ABI 3. */
+size_t srmech_factor_squarefree_primitive_out_cap(size_t coeff_limbs, int deg);
+size_t srmech_factor_squarefree_primitive_ws_bound(size_t coeff_limbs, int deg);
+srmech_status_t srmech_factor_squarefree_primitive(
+    const srmech_bigint_t *coeffs, int ncoeff, srmech_bigint_t *out_coeffs,
+    int *out_degs, int *out_nfac, int *out_hit_cap, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_factor_integer_poly — the FULL factor_integer_poly composite (the
+ * everything-mirrors completion of the rc165 Zassenhaus core): content +
+ * primitive part, Yun square-free decomposition over exact ℚ (composed from
+ * srmech_poly_gcd / srmech_poly_divmod / srmech_poly_sub + an exact-ℚ
+ * derivative), per square-free part the Zassenhaus core
+ * srmech_factor_squarefree_primitive, merge-identical factors, and the
+ * (len, coeffs) sort — so a bare-C host factors an integer polynomial into
+ * its irreducible (factor, multiplicity) list with ONE call, byte-identical
+ * to the Python factor_integer_poly (same factors, multiplicities, ORDER).
+ *
+ * coeffs / ncoeff : the input integer coefficients low->high (denominator 1).
+ * out_coeffs      : the sorted factors' coefficients CONCATENATED low->high
+ *                   (>= 2*deg + 2 srmech_bigint slots, each cap >= the out_cap).
+ * out_degs        : out_degs[j] = degree of factor j (>= deg int slots).
+ * out_mults       : out_mults[j] = multiplicity of factor j (>= deg int slots).
+ * out_nfac        : *out_nfac <- the factor count (0 for a nonzero constant).
+ * out_capped      : *out_capped <- 1 if any part hit the recombination cap.
+ * ws, ws_len      : caller arena (>= srmech_factor_integer_poly_ws_bound).
+ *
+ * Returns SRMECH_OK; SRMECH_ERR_BAD_INPUT on the zero polynomial;
+ * SRMECH_ERR_OVERFLOW on arena/degree overflow OR an internal multiply-back
+ * self-check mismatch (the Python wrapper then falls back to the
+ * byte-identical pure path — never a silently wrong answer).
+ *
+ * All exact srmech_bigint (NO malloc, JPL Rule 3). Additive symbols -> ABI 3. */
+size_t srmech_factor_integer_poly_out_cap(size_t coeff_limbs, int deg);
+size_t srmech_factor_integer_poly_ws_bound(size_t coeff_limbs, int deg);
+srmech_status_t srmech_factor_integer_poly(
+    const srmech_bigint_t *coeffs, int ncoeff, srmech_bigint_t *out_coeffs,
+    int *out_degs, int *out_mults, int *out_nfac, int *out_capped,
+    void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_unary_theta — the EXACT-INTEGER q-series of a UNARY THETA SERIES (the

@@ -771,22 +771,55 @@ static srmech_status_t bi_divmod_abs(srmech_bigint_t *q, srmech_bigint_t *r,
     return bi_div_knuth(q, r, a, b, ws, ws_len);
 }
 
+/* Carve a REAL throwaway sink (cap limbs off the front of ws) for a NULL
+ * q/r output. The pre-fix path handed bi_divmod_abs a cap-0 carrier, which
+ * OVERFLOWed as soon as the skipped output needed >= 1 limb (any |a| >= |b|
+ * quotient write; every negative-dividend floor-fixup q -= 1 / r += b) —
+ * the rc165 fbi_mod workaround in srmech_factor_poly.c dated from that bug.
+ * A ws-carved sink makes the documented "q or r may be NULL" contract hold
+ * for EVERY input. */
+static srmech_status_t bi_carve_sink(srmech_bigint_t *d, uint32_t *base,
+                                     size_t words, size_t *cur, size_t cap)
+{
+    uint32_t *lb;
+    assert(d != NULL);
+    assert(cur != NULL && cap >= 1u);
+    if (base == NULL) { return SRMECH_ERR_OVERFLOW; }
+    lb = bi_ws_take(base, words, cur, cap);
+    if (lb == NULL) { return SRMECH_ERR_OVERFLOW; }
+    d->cap = (uint32_t)cap; d->limbs = lb; d->n = 0u; d->sign = 0;
+    return SRMECH_OK;
+}
+
 srmech_status_t srmech_bigint_divmod(srmech_bigint_t *q, srmech_bigint_t *r,
                                      const srmech_bigint_t *a,
                                      const srmech_bigint_t *b,
                                      void *ws, size_t ws_len)
 {
     srmech_status_t st;
-    srmech_bigint_t qd, rd; uint32_t qbuf[1], rbuf[1];
+    uint32_t *base = (uint32_t *)ws;
+    size_t words = ws_len / sizeof(uint32_t), cur = 0u;
+    srmech_bigint_t qd, rd;
     srmech_bigint_t *qp = q ? q : &qd, *rp = r ? r : &rd;
     assert(a != NULL && b != NULL);
     assert(qp != NULL && rp != NULL);
     if (b->sign == 0) { return SRMECH_ERR_BAD_INPUT; }
-    if (!q) { qd.cap = 0u; qd.limbs = qbuf; qd.n = 0u; qd.sign = 0; (void)qbuf; }
-    if (!r) { rd.cap = 0u; rd.limbs = rbuf; rd.n = 0u; rd.sign = 0; (void)rbuf; }
-    st = bi_divmod_abs(qp, rp, a, b, ws, ws_len);
-    if (st != SRMECH_OK) { return st; }
-    return bi_floor_fixup(qp, rp, a, b, ws, ws_len);
+    if (!q) {   /* quotient sink: <= a->n - b->n + 1 limbs; +1 for the q -= 1 */
+        st = bi_carve_sink(&qd, base, words, &cur, (size_t)a->n + 2u);
+        if (st != SRMECH_OK) { return st; }
+    }
+    if (!r) {   /* remainder sink: <= max(a->n, b->n) limbs; +1 for the r += b */
+        size_t rc = (size_t)((a->n > b->n) ? a->n : b->n) + 2u;
+        st = bi_carve_sink(&rd, base, words, &cur, rc);
+        if (st != SRMECH_OK) { return st; }
+    }
+    {
+        void *tail = (cur == 0u) ? ws : (void *)(base + cur);
+        size_t tail_len = (words - cur) * sizeof(uint32_t);
+        st = bi_divmod_abs(qp, rp, a, b, tail, tail_len);
+        if (st != SRMECH_OK) { return st; }
+        return bi_floor_fixup(qp, rp, a, b, tail, tail_len);
+    }
 }
 
 /* Python FLOOR sign-correction of a truncated (qp,rp). If signs of a,b

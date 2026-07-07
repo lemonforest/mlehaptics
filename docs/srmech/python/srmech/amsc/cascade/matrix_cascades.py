@@ -2449,6 +2449,20 @@ def _factor_square_free_primitive(f: List[int], *, subset_cap: int = 18
     if deg <= 1:
         return [f], False
 
+    # rc165 (Qalg TAIL Batch 8): the Zassenhaus core dispatches to
+    # srmech_factor_squarefree_primitive — the C kernel that runs the SAME
+    # pipeline (𝔽_p Cantor–Zassenhaus over the byte-identical xorshift64 rng +
+    # quadratic Hensel lift to mod p^k >= 2·B+1 + subset recombination), returning
+    # the irreducible ℤ factors. The pure body below stays the Pyodide / no-native
+    # fallback AND the parity oracle (the factorization is unique, so both paths
+    # yield the same factors; factor_integer_poly sorts the merged result
+    # identically). subset_cap != 18 (non-default) always routes to the pure body,
+    # which honours the explicit cap.
+    if subset_cap == 18 and _native.HAS_NATIVE:
+        native = _native.factor_squarefree_primitive_c(f)
+        if native is not None:
+            return native
+
     # 1. choose a prime p ∤ lead with f square-free mod p.
     from srmech.amsc.primes import is_prime
     lead = f[-1]
@@ -2494,13 +2508,25 @@ def _factor_square_free_primitive(f: List[int], *, subset_cap: int = 18
     lifted = [_trim_mod(g, m) for g in lifted]
 
     # 4. recombination: increasing subset sizes; trial-divide over ℤ.
+    # Only subsets with 2·size ≤ #remaining are enumerated (von zur Gathen &
+    # Gerhard, *Modern Computer Algebra*, ch. 15, the Zassenhaus factor-combination step): a true factor spanning
+    # MORE than half the modular factors has a cofactor spanning LESS than half
+    # that would already have been peeled at its own smaller size, so once the
+    # half bound is exhausted the leftover is irreducible — this halves the
+    # classic exponential enumeration. NOTE the enumeration stays WORST-CASE
+    # EXPONENTIAL in the number of modular factors even with the cutoff (the
+    # fundamental Zassenhaus recombination wall — measured: the Swinnerton-Dyer
+    # SD5 = minpoly(√2+√3+√5+√7+√11), deg 32, splits into 16 quadratics mod
+    # the chosen prime → 65,539 candidate subsets ≈ 24 s here pre-cutoff);
+    # van Hoeij's LLL knapsack recombination is the known real fix, deferred
+    # as a research arc. The C peer applies the SAME cutoff (byte-identity).
     remaining = list(range(len(lifted)))
     irreducibles: List[List[int]] = []
     f_work = list(f)
     lead_work = f_work[-1]
     size = 1
     hit_cap = False
-    while remaining and size <= len(remaining):
+    while remaining and 2 * size <= len(remaining):
         if size > subset_cap:
             hit_cap = True
             break
@@ -2578,6 +2604,20 @@ def factor_integer_poly(coeffs):
         raise ValueError("factor_integer_poly: the zero polynomial has no factorisation")
     if len(p) == 1:                                  # a nonzero constant — no factors
         return []
+
+    # rc165 (deferral 2, everything-mirrors): the FULL composite dispatches as
+    # ONE C call — srmech_factor_integer_poly runs the content + Yun square-free
+    # (exact ℚ over the srmech_poly kernels) + per-part Zassenhaus core + merge +
+    # (len, coeffs) sort entirely in C, byte-identical to the pure body below
+    # (which stays the Pyodide / no-native fallback AND the parity oracle; on an
+    # older lib or past the native degree cap the body still dispatches the
+    # per-part CORE to srmech_factor_squarefree_primitive as in the rc165 core
+    # ship).
+    if _native.HAS_NATIVE:
+        native = _native.factor_integer_poly_c(p)
+        if native is not None:
+            return native
+
     cont, prim = _ipoly_primitive(p)                 # content (signed) · primitive part
 
     # square-free decomposition over ℚ (Yun) → [(square_free_part, multiplicity)].
