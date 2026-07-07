@@ -17,9 +17,9 @@ coupling roles (so the graph carries the op(x)operand structure, not bare co-occ
   * ``coherence``    — λ₂ (algebraic connectivity) = the phase-locking of the WHOLE coupling
   * ``spine``         — the dominant eigenvector's largest-magnitude words = the recurring-concept spine
                         (F1148's render read-out, now a residue, not a step)
-  * ``communities`` / ``formulae`` — a Class-L sign-code (F1050 pattern) over several low nonzero eigenvectors
-                        = the strong-community word-groups = the recurring FORMULAE (F1160's of-cycle EC,
-                        now a residue, not a manual repeat-count)
+  * ``communities`` / ``formulae`` — a Class-L signed-partition sign-code (F1138 pattern) over several low
+                        nonzero eigenvectors = the strong-community word-groups = the recurring FORMULAE (F1160's
+                        of-cycle EC, now a residue, not a manual repeat-count)
   * ``render_order``  — the Fiedler vector's total order over the vocabulary = a residue-derived render sequence
   * ``coupling_edges``— the case/infix role that DERIVED each op(x)operand edge, kept as edge annotations so the
                         coupling structure stays visible in the one object (not hidden inside the matrix)
@@ -33,9 +33,16 @@ from siona import anchor
 
 __all__ = ["couple"]
 
-_CASE_WEIGHT_CONFIRMED = 0.35   # case role ECHOED by the verb's own infix (coupling_ec's "recovered" redundancy)
-_CASE_WEIGHT_ONLY = 0.20        # case role with no verb-infix counterpart (still a real op(x)operand coupling)
-_COOCCUR_WEIGHT = 1.0           # within-phrase co-occurrence — the dominant signal (repeats accumulate = weight)
+# Edge weight = the ATTESTATION COUNT of the coupling (F1159), NOT a tuned float — a coupling stated N times weighs
+# N (no-magic-numbers: the weight is attested to structure, class A). A within-phrase co-occurrence attests the
+# pair ONCE; the operand's CASE attests its role ONCE; a CONFIRMED coupling (case AND the verb's infix both state
+# it — the F1159 "stated twice") attests TWICE. Honest note: these attested integers reproduce the F1161 spine at
+# ~5/8 vs ~7/8 for an earlier hand-TUNED float set — the extra cleanliness of the tuned floats was observer-fitting,
+# and that 5/8-vs-7/8 gap is honest evidence this coupling-graph is a good FIRST collapse, not yet the fully-refined
+# shape (in the refined shape the clean partition would fall out of the attested weights for free, F1161).
+_COOCCUR_WEIGHT = 1             # one within-phrase co-occurrence = attested once (repeats accumulate as more edges)
+_CASE_WEIGHT_ONLY = 1          # the case states the operand's role once = attested once
+_CASE_WEIGHT_CONFIRMED = 2     # case AND verb-infix both state it (F1159 "stated twice") = attested twice
 
 
 def _tokwords(concept):
