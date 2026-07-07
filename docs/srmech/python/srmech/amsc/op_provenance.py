@@ -365,6 +365,163 @@ def op_provenance_hash(record: Dict[str, Any]) -> str:
 
 
 # ──────────────────────────────────────────────────────────────────────
+# rc171 — the VERDICT / RECORD / RE-VERIFY logic dispatches to C (the
+# ORCHESTRATION→C spine, batch 1). Each native peer COMPOSES the existing
+# kernels (srmech_op_provenance_hash / the srmech_json parser+writer /
+# srmech_sha256_hex); a bare-C host runs the whole op-provenance
+# verdict/carry surface with no json.dumps. Every dispatch is
+# hasattr-guarded (a stale ABI-3 lib keeps the COMPLETE pure path) and
+# returns ``None`` on any missing symbol / serialisation issue / non-OK
+# status so the caller runs the pure path (value-parity, never a rescue).
+# ──────────────────────────────────────────────────────────────────────
+
+def _native_lib(*symbols: str):
+    """Return the native LIB iff HAS_NATIVE and every named rc171 symbol is
+    bound (a stale ABI-3 lib missing them → ``None`` → pure path)."""
+    from . import _native
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    lib = _native.LIB
+    for sym in symbols:
+        if not hasattr(lib, sym):
+            return None
+    return lib
+
+
+def _dumps(obj: Any) -> Optional[bytes]:
+    """UTF-8 JSON bytes of a canonical record/inputs object, or ``None`` if it
+    is not JSON-serialisable (a malformed record → pure path handles it)."""
+    try:
+        return json.dumps(obj, ensure_ascii=False).encode("utf-8")
+    except (TypeError, ValueError):
+        return None
+
+
+def _verdict_native(r1: Dict[str, Any], r2: Dict[str, Any]) -> Optional[str]:
+    """Native ``op_verdict``: EQUAL/UNKNOWN over the canonical chain hashes."""
+    lib = _native_lib("srmech_op_verdict", "srmech_op_verdict_arena_bytes")
+    j1 = _dumps(r1)
+    j2 = _dumps(r2)
+    if lib is None or j1 is None or j2 is None:
+        return None
+    import ctypes
+    from . import _native
+    ws_bytes = int(lib.srmech_op_verdict_arena_bytes(
+        ctypes.c_size_t(len(j1)), ctypes.c_size_t(len(j2))))
+    ws = (ctypes.c_char * ws_bytes)()
+    out = ctypes.c_int()
+    rc = lib.srmech_op_verdict(
+        j1, ctypes.c_size_t(len(j1)), j2, ctypes.c_size_t(len(j2)),
+        ws, ctypes.c_size_t(ws_bytes), ctypes.byref(out))
+    if rc != _native.SRMECH_OK:
+        return None
+    return "EQUAL" if out.value else "UNKNOWN"
+
+
+def _family_verdict_native(r1: Dict[str, Any],
+                           r2: Dict[str, Any]) -> Optional[str]:
+    """Native ``family_verdict``: SAME_TARGET/UNKNOWN over the family address."""
+    lib = _native_lib("srmech_family_verdict",
+                      "srmech_family_verdict_arena_bytes")
+    j1 = _dumps(r1)
+    j2 = _dumps(r2)
+    if lib is None or j1 is None or j2 is None:
+        return None
+    import ctypes
+    from . import _native
+    ws_bytes = int(lib.srmech_family_verdict_arena_bytes(
+        ctypes.c_size_t(len(j1)), ctypes.c_size_t(len(j2))))
+    ws = (ctypes.c_char * ws_bytes)()
+    out = ctypes.c_int()
+    rc = lib.srmech_family_verdict(
+        j1, ctypes.c_size_t(len(j1)), j2, ctypes.c_size_t(len(j2)),
+        ws, ctypes.c_size_t(ws_bytes), ctypes.byref(out))
+    if rc != _native.SRMECH_OK:
+        return None
+    return "SAME_TARGET" if out.value else "UNKNOWN"
+
+
+def _carry_record_native(op: str, canon_inputs: Dict[str, Any],
+                         params_canon: Dict[str, Any],
+                         fam: Optional[Dict[str, str]],
+                         rung: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Native carry RECORD build (the provenance face of :func:`carry`)."""
+    lib = _native_lib("srmech_op_carry", "srmech_op_carry_arena_bytes")
+    ij = _dumps(canon_inputs)
+    pj = _dumps(params_canon)
+    fj = _dumps(fam)
+    rj = _dumps(rung)
+    if lib is None or ij is None or pj is None or fj is None or rj is None:
+        return None
+    import ctypes
+    from . import _native
+    ob = op.encode("utf-8")
+    ws_bytes = int(lib.srmech_op_carry_arena_bytes(
+        ctypes.c_size_t(len(ij)), ctypes.c_size_t(len(pj)),
+        ctypes.c_size_t(len(fj)), ctypes.c_size_t(len(rj))))
+    ws = (ctypes.c_char * ws_bytes)()
+    out = (ctypes.c_char * ws_bytes)()
+    out_len = ctypes.c_size_t()
+    rc = lib.srmech_op_carry(
+        ob, ctypes.c_size_t(len(ob)), ij, ctypes.c_size_t(len(ij)),
+        pj, ctypes.c_size_t(len(pj)), fj, ctypes.c_size_t(len(fj)),
+        rj, ctypes.c_size_t(len(rj)), ws, ctypes.c_size_t(ws_bytes),
+        out, ctypes.c_size_t(ws_bytes), ctypes.byref(out_len))
+    if rc != _native.SRMECH_OK:
+        return None
+    return json.loads(out.raw[:out_len.value].decode("utf-8"))
+
+
+def _lossy_record_native(op: str, canon_inputs: Dict[str, Any],
+                         projection_kind: str) -> Optional[Dict[str, Any]]:
+    """Native lossy-projection RECORD build."""
+    lib = _native_lib("srmech_lossy_projection_record",
+                      "srmech_lossy_projection_record_arena_bytes")
+    ij = _dumps(canon_inputs)
+    if lib is None or ij is None:
+        return None
+    import ctypes
+    from . import _native
+    ob = op.encode("utf-8")
+    pk = projection_kind.encode("utf-8")
+    ws_bytes = int(lib.srmech_lossy_projection_record_arena_bytes(
+        ctypes.c_size_t(len(ij))))
+    ws = (ctypes.c_char * ws_bytes)()
+    out = (ctypes.c_char * ws_bytes)()
+    out_len = ctypes.c_size_t()
+    rc = lib.srmech_lossy_projection_record(
+        ob, ctypes.c_size_t(len(ob)), ij, ctypes.c_size_t(len(ij)),
+        pk, ctypes.c_size_t(len(pk)), ws, ctypes.c_size_t(ws_bytes),
+        out, ctypes.c_size_t(ws_bytes), ctypes.byref(out_len))
+    if rc != _native.SRMECH_OK:
+        return None
+    return json.loads(out.raw[:out_len.value].decode("utf-8"))
+
+
+def _reproject_verify_native(record: Dict[str, Any],
+                             canon_inputs: Dict[str, Any]) -> Optional[bool]:
+    """Native reproject RE-VERIFY: do the canonical inputs re-hash to the
+    record's ``input_sha256``? (the MPM re-verification, the compute part)."""
+    lib = _native_lib("srmech_op_reproject", "srmech_op_reproject_arena_bytes")
+    rj = _dumps(record)
+    ij = _dumps(canon_inputs)
+    if lib is None or rj is None or ij is None:
+        return None
+    import ctypes
+    from . import _native
+    ws_bytes = int(lib.srmech_op_reproject_arena_bytes(
+        ctypes.c_size_t(len(rj)), ctypes.c_size_t(len(ij))))
+    ws = (ctypes.c_char * ws_bytes)()
+    out = ctypes.c_int()
+    rc = lib.srmech_op_reproject(
+        rj, ctypes.c_size_t(len(rj)), ij, ctypes.c_size_t(len(ij)),
+        ws, ctypes.c_size_t(ws_bytes), ctypes.byref(out))
+    if rc != _native.SRMECH_OK:
+        return None
+    return bool(out.value)
+
+
+# ──────────────────────────────────────────────────────────────────────
 # lossy_projection_record — the LOSSY-PROJECTION face of the frontier
 # (rc125 / task #723). The DUAL of carry(): where carry() addresses a
 # VALUE-INEXACT op by its asymptotic (family, rung) tower, this addresses an
@@ -445,6 +602,9 @@ def lossy_projection_record(
         c, e = _canon(inputs[k])
         canon_inputs[k] = c
         leaves_exact = leaves_exact and e
+    native = _lossy_record_native(op, canon_inputs, projection_kind)
+    if native is not None:
+        return native
     input_hashes = [
         sha256_bytes(_canon_bytes([k, canon_inputs[k]]))
         for k in sorted(canon_inputs)
@@ -782,15 +942,20 @@ def carry(
 
     params_canon, _ = _canon(merged)
     rung = {k: params_canon[k] for k in spec.rung_keys}
-    record: Dict[str, Any] = {
-        "op": op,
-        "params": params_canon,
-        "input_sha256": input_hashes,
-        "family": fam,
-        "rung": rung,
-        "leaves_exact": leaves_exact,
-    }
-    record["chain_sha256"] = op_provenance_hash(record)
+    native_record = _carry_record_native(op, canon_inputs, params_canon,
+                                          fam, rung)
+    if native_record is not None:
+        record: Dict[str, Any] = native_record
+    else:
+        record = {
+            "op": op,
+            "params": params_canon,
+            "input_sha256": input_hashes,
+            "family": fam,
+            "rung": rung,
+            "leaves_exact": leaves_exact,
+        }
+        record["chain_sha256"] = op_provenance_hash(record)
     value = spec.runner(inputs, merged)
     return {"value": value, "inputs": canon_inputs, "provenance": record}
 
@@ -842,6 +1007,9 @@ def op_verdict(p1: Any, p2: Any) -> str:
     """
     r1 = _as_record(p1, "p1")
     r2 = _as_record(p2, "p2")
+    native = _verdict_native(r1, r2)
+    if native is not None:
+        return native
     if op_provenance_hash(r1) == op_provenance_hash(r2):
         return "EQUAL"
     return "UNKNOWN"
@@ -870,6 +1038,9 @@ def family_verdict(p1: Any, p2: Any) -> str:
     """
     r1 = _as_record(p1, "p1")
     r2 = _as_record(p2, "p2")
+    native = _family_verdict_native(r1, r2)
+    if native is not None:
+        return native
     f1, f2 = r1.get("family"), r2.get("family")
     if (
         isinstance(f1, dict) and isinstance(f2, dict)
@@ -929,11 +1100,14 @@ def reproject(
     canon_inputs: Dict[str, Any] = {}
     for k in sorted(inputs):
         canon_inputs[k], _ = _canon(inputs[k])
-    rehashed = [
-        sha256_bytes(_canon_bytes([k, canon_inputs[k]]))
-        for k in sorted(canon_inputs)
-    ]
-    if rehashed != list(record["input_sha256"]):
+    ok = _reproject_verify_native(record, canon_inputs)
+    if ok is None:
+        rehashed = [
+            sha256_bytes(_canon_bytes([k, canon_inputs[k]]))
+            for k in sorted(canon_inputs)
+        ]
+        ok = (rehashed == list(record["input_sha256"]))
+    if not ok:
         raise ValueError(
             "reproject: the supplied inputs do NOT re-verify against the "
             "record's input_sha256 — a provenance that can't be re-verified "

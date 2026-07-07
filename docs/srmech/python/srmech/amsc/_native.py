@@ -2711,6 +2711,100 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_op_provenance_hash_arena_bytes.restype = ctypes.c_size_t
 
     # ------------------------------------------------------------------
+    # Op-provenance VERDICT / RECORD / RE-VERIFY logic (0.9.0rc171; the
+    # ORCHESTRATION→C spine, batch 1). The C peers backing the five
+    # srmech.amsc.op_provenance verdict/carry ops (op_verdict, family_verdict,
+    # carry-the-record, lossy_projection_record, reproject-the-re-verify) —
+    # each composes srmech_op_provenance_hash / the srmech_json parser+writer /
+    # srmech_sha256_hex. NEW symbols → hasattr-guarded (a stale ABI-3 lib keeps
+    # the rest of the native surface + falls to the pure path); additive →
+    # EXPECTED_ABI_VERSION stays 3.
+    #   int srmech_op_verdict(const char *r1, size_t l1, const char *r2,
+    #       size_t l2, void *ws, size_t ws_len, int *out_equal)
+    if hasattr(lib, "srmech_op_verdict"):
+        lib.srmech_op_verdict.argtypes = [
+            ctypes.c_char_p, ctypes.c_size_t,   # r1_json, r1_len
+            ctypes.c_char_p, ctypes.c_size_t,   # r2_json, r2_len
+            ctypes.c_void_p, ctypes.c_size_t,   # ws, ws_len
+            ctypes.POINTER(ctypes.c_int),       # out_equal
+        ]
+        lib.srmech_op_verdict.restype = ctypes.c_int
+    if hasattr(lib, "srmech_op_verdict_arena_bytes"):
+        lib.srmech_op_verdict_arena_bytes.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t,   # r1_len, r2_len
+        ]
+        lib.srmech_op_verdict_arena_bytes.restype = ctypes.c_size_t
+    #   int srmech_family_verdict(const char *r1, size_t l1, const char *r2,
+    #       size_t l2, void *ws, size_t ws_len, int *out_same)
+    if hasattr(lib, "srmech_family_verdict"):
+        lib.srmech_family_verdict.argtypes = [
+            ctypes.c_char_p, ctypes.c_size_t,   # r1_json, r1_len
+            ctypes.c_char_p, ctypes.c_size_t,   # r2_json, r2_len
+            ctypes.c_void_p, ctypes.c_size_t,   # ws, ws_len
+            ctypes.POINTER(ctypes.c_int),       # out_same
+        ]
+        lib.srmech_family_verdict.restype = ctypes.c_int
+    if hasattr(lib, "srmech_family_verdict_arena_bytes"):
+        lib.srmech_family_verdict_arena_bytes.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t,   # r1_len, r2_len
+        ]
+        lib.srmech_family_verdict_arena_bytes.restype = ctypes.c_size_t
+    #   int srmech_op_carry(op, op_len, inputs, inputs_len, params, params_len,
+    #       family, family_len, rung, rung_len, ws, ws_len, out, out_cap,
+    #       size_t *out_len)
+    if hasattr(lib, "srmech_op_carry"):
+        lib.srmech_op_carry.argtypes = [
+            ctypes.c_char_p, ctypes.c_size_t,   # op, op_len
+            ctypes.c_char_p, ctypes.c_size_t,   # inputs_json, inputs_len
+            ctypes.c_char_p, ctypes.c_size_t,   # params_json, params_len
+            ctypes.c_char_p, ctypes.c_size_t,   # family_json, family_len
+            ctypes.c_char_p, ctypes.c_size_t,   # rung_json, rung_len
+            ctypes.c_void_p, ctypes.c_size_t,   # ws, ws_len
+            ctypes.c_char_p, ctypes.c_size_t,   # out_json, out_cap
+            ctypes.POINTER(ctypes.c_size_t),    # out_len
+        ]
+        lib.srmech_op_carry.restype = ctypes.c_int
+    if hasattr(lib, "srmech_op_carry_arena_bytes"):
+        lib.srmech_op_carry_arena_bytes.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t,   # inputs_len, params_len
+            ctypes.c_size_t, ctypes.c_size_t,   # family_len, rung_len
+        ]
+        lib.srmech_op_carry_arena_bytes.restype = ctypes.c_size_t
+    #   int srmech_lossy_projection_record(op, op_len, inputs, inputs_len,
+    #       projection_kind, pk_len, ws, ws_len, out, out_cap, size_t *out_len)
+    if hasattr(lib, "srmech_lossy_projection_record"):
+        lib.srmech_lossy_projection_record.argtypes = [
+            ctypes.c_char_p, ctypes.c_size_t,   # op, op_len
+            ctypes.c_char_p, ctypes.c_size_t,   # inputs_json, inputs_len
+            ctypes.c_char_p, ctypes.c_size_t,   # projection_kind, pk_len
+            ctypes.c_void_p, ctypes.c_size_t,   # ws, ws_len
+            ctypes.c_char_p, ctypes.c_size_t,   # out_json, out_cap
+            ctypes.POINTER(ctypes.c_size_t),    # out_len
+        ]
+        lib.srmech_lossy_projection_record.restype = ctypes.c_int
+    if hasattr(lib, "srmech_lossy_projection_record_arena_bytes"):
+        lib.srmech_lossy_projection_record_arena_bytes.argtypes = [
+            ctypes.c_size_t,                    # inputs_len
+        ]
+        lib.srmech_lossy_projection_record_arena_bytes.restype = ctypes.c_size_t
+    #   int srmech_op_reproject(const char *record, size_t record_len,
+    #       const char *inputs, size_t inputs_len, void *ws, size_t ws_len,
+    #       int *out_ok)
+    if hasattr(lib, "srmech_op_reproject"):
+        lib.srmech_op_reproject.argtypes = [
+            ctypes.c_char_p, ctypes.c_size_t,   # record_json, record_len
+            ctypes.c_char_p, ctypes.c_size_t,   # inputs_json, inputs_len
+            ctypes.c_void_p, ctypes.c_size_t,   # ws, ws_len
+            ctypes.POINTER(ctypes.c_int),       # out_ok
+        ]
+        lib.srmech_op_reproject.restype = ctypes.c_int
+    if hasattr(lib, "srmech_op_reproject_arena_bytes"):
+        lib.srmech_op_reproject_arena_bytes.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t,   # record_len, inputs_len
+        ]
+        lib.srmech_op_reproject_arena_bytes.restype = ctypes.c_size_t
+
+    # ------------------------------------------------------------------
     # Class N — ROTATION-LAST Chudnovsky π on srmech_bigint (0.9.0rc19).
     # The two srmech_pi_* symbols are the C-host peer of
     # srmech.amsc.rational.pi_chudnovsky_digits — exact bigint body, ONE

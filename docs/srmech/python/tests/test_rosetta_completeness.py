@@ -587,16 +587,18 @@ CEIL_BIGNUM_REFERENCE = 0
 # The 114 non_compute rows carry a ``non_compute_kind`` sub-classification (see
 # rosetta_classification.ndjson + test_non_compute_ratchet_rc170.py), splitting
 # them into FOUR honest sub-buckets that sum to 114:
-#   owed_orchestration (20) — genuine control/dispatch LOGIC a bare-C host needs
-#                             (chain-runner, op-provenance verdicts, catalog
-#                             register/lookup/iter, the F929 infer router, the
-#                             MCP op-schema lookup). THIS ceiling. Owed-C: only
-#                             SHRINKS as each earns a C path (→ c_dispatched /
-#                             composition_of_c). NEVER grows.
-#   composes_c (65)         — thin: already composes existing C (json/toml/genome/
-#                             klein4/the_one/carriers) OR a pure accessor /
-#                             constructor / validator (hides no compute). Gets a
-#                             TRANSITIVE-REACHABILITY assert, not a ceiling.
+#   owed_orchestration (15) — genuine control/dispatch LOGIC a bare-C host needs
+#                             (chain-runner, catalog register/lookup/iter, the
+#                             F929 infer router, the MCP op-schema lookup). THIS
+#                             ceiling. Owed-C: only SHRINKS as each earns a C
+#                             path (→ c_dispatched / composition_of_c / composes_c).
+#                             NEVER grows. rc171: the 5 op-provenance verdict/carry
+#                             ops earned C peers → composes_c (20 → 15).
+#   composes_c (70)         — thin: already composes existing C (json/toml/genome/
+#                             klein4/the_one/carriers/op_provenance) OR a pure
+#                             accessor / constructor / validator (hides no
+#                             compute). Gets a TRANSITIVE-REACHABILITY assert,
+#                             not a ceiling.
 #   host_glue (2)           — filesystem / host I/O (descriptor FS discovery,
 #                             catalog-root FS registration). Tracked, no ceiling
 #                             this rc (annex decision pending).
@@ -609,7 +611,10 @@ CEIL_BIGNUM_REFERENCE = 0
 # LOWER this ceiling as each owed-orchestration op earns a C path (c_dispatched /
 # composition_of_c). NEVER raise it — a rising owed count means new control logic
 # was added Python-only, which is exactly the bare-C-host regression this drives.
-CEIL_NON_COMPUTE_OWED = 20
+# rc171: op_provenance verdict/carry earned C (the 5 op_provenance ops moved
+# owed_orchestration → composes_c via srmech_op_verdict/_family_verdict/_op_carry/
+# _lossy_projection_record/_op_reproject); 20 → 15.
+CEIL_NON_COMPUTE_OWED = 15
 
 # The PINNED dev-tooling allowlist — the exact ``non_compute_kind == "dev_tooling"``
 # set. A row here is JUSTIFIED as a genuine dev / LLM-affordance a bare-C host
