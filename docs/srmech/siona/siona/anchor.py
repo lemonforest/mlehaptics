@@ -13,11 +13,12 @@ perspective otherwise has signal.
 
 sparse (a lexicon dict), numpy-free. Attested to the Vygus 2018 Middle Egyptian dictionary (`vygus_dict_slice`).
 """
+import html
 import json
 import os
 import re
 
-__all__ = ["load_anchor", "load_sux", "concept", "bridge_units", "bridge_disambiguated", "transcribe", "express_story", "render_fluent", "render_repaired", "transcription_errors", "have_anchor"]
+__all__ = ["load_anchor", "load_sux", "concept", "determinative", "bridge_units", "bridge_disambiguated", "transcribe", "express_story", "render_fluent", "render_repaired", "transcription_errors", "have_anchor"]
 
 _VYGUS = "/home/skirklan/corpora/egyptian_tla/vygus_dict_slice.jsonl"          # Egyptian (Vygus jsonl)
 _SUX = "/home/skirklan/corpora/etcsl/sux_gilgamesh_lemmatized.json"           # Sumerian (ETCSL Gilgameš, lemmatized)
@@ -27,6 +28,30 @@ _surf2lemma = None   # surface form → lemma (the lemmatization layer, F1144; N
 
 def _norm(t):
     return (t or "").strip().lstrip(".=").lower()
+
+
+# Sumerian DETERMINATIVES (F1155): the script's OWN glyph-intrinsic semantic-class classifiers — a coherency-
+# AGNOSTIC type tag (divine / place / wood / stone …, NOT noun/verb), written INTO the glyph as a super/sub-script.
+# This is the genome-surface identifier that abstracts away POS. clean()/transcribe were STRIPPING these (a
+# no-doctoring-SSoT violation, F817) — they are FIBER, not noise.
+_DET_CLASS = {"d": "divine", "ki": "place", "ĝiš": "wood", "ﻟiš": "wood", "gish": "wood", "na4": "stone",
+              "gi": "reed", "lu2": "person", "lú": "person", "uruda": "copper", "tug2": "textile",
+              "dug": "vessel", "u2": "plant", "mušen": "bird", "ku6": "fish", "id2": "watercourse", "kuš": "leather"}
+
+
+def determinative(raw_glyph):
+    """Extract the Sumerian DETERMINATIVE(s) from a RAW glyph (F1155): the writing system's OWN semantic-class
+    classifier — written as a ``<sup>…</sup>`` super/sub-script ({d}=divine, {ki}=place, {ĝiš}=wood, {na4}=stone)
+    — a GLYPH-DERIVED, coherency-AGNOSTIC type tag (semantic CLASS, not noun/verb). This is the identifier the
+    genome surface carries instead of POS. Returns the class name(s) (mapped; the raw tag if unmapped), or ``[]``
+    for a bare glyph. NOTE: `clean()` / `transcribe` were STRIPPING these markers — a no-doctoring-SSoT violation
+    (F817); the determinative is FIBER, the script's own coherency tag, not noise to remove."""
+    out = []
+    for d in re.findall(r"<sup>(.*?)</sup>", raw_glyph or ""):
+        d = html.unescape(re.sub(r"<[^>]+>", "", d)).strip().lower()   # unescape HTML entities (ĝ = &#x011d;)
+        if d:
+            out.append(_DET_CLASS.get(d, d))
+    return out
 
 
 def load_anchor(path=None, kind=None):
