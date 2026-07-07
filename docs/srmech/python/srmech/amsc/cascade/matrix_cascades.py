@@ -689,6 +689,16 @@ def char_poly(a) -> List:
             break
     if real_integer:
         A = [[int(v.real) if hasattr(v, "real") else int(v) for v in r] for r in rows]
+        # rc161 (Qalg TAIL Batch 5): the integer char-poly dispatches to
+        # srmech_faddeev_leverrier — the C kernel that runs the exact-integer
+        # Faddeev–LeVerrier recursion (A·M matmul + trace + the exact /k divmod)
+        # over srmech_bigint. It is the SAME recursion as _char_poly_int below, so
+        # byte-identical integer coefficients; _char_poly_int stays the Pyodide /
+        # no-native fallback (and the parity oracle). This is the FOUNDATION of the
+        # exact-LA tail (eigvals_exact / eig_exact / jordan reduce to its roots).
+        native = _native.char_poly_int_c(A)
+        if native is not None:
+            return native
         return _char_poly_int(A, n)
     return _char_poly_float(rows, n)
 

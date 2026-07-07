@@ -1192,3 +1192,230 @@ srmech_status_t srmech_cd_mult(const srmech_bigint_t *x_n,
     }
     return SRMECH_OK;
 }
+
+/* ==================================================================== *
+ * srmech_faddeev_leverrier — the exact-INTEGER characteristic polynomial
+ * of an n×n INTEGER matrix via the Faddeev–LeVerrier recursion
+ * (v0.9.0rc161; Qalg TAIL Batch 5). This is the FOUNDATION of the
+ * exact-LA tail (eigvals_exact / eig_exact / jordan all reduce to the
+ * roots of this polynomial). Pure srmech_bigint INTEGER arithmetic — an
+ * integer matrix has integer char-poly coefficients, so there is NO ℚ
+ * carrier here (contrast srmech_cd_mult); it COMPOSES srmech_bigint
+ * mul/add (the A·M matmul + trace accumulate) with the exact srmech_bigint
+ * divmod (the c_k = -tr(A·M_k)/k step — the /k is EXACT, k | tr by the FL
+ * integer theorem, so divmod's FLOOR quotient IS the exact quotient and
+ * the remainder is zero). BYTE-IDENTICAL to Python's _char_poly_int. The
+ * working matrices M / AM grow to the determinant-Hadamard envelope B^n,
+ * so qmat_cap_for(cl, 2n+4) sizes every carrier from the input limb count.
+ * Reuses the qmat arena carve (qmat_take / qmat_bind / qmat_hdr_words) +
+ * the qmat_cap_for magnitude envelope IN-TU. JPL-clean: caller arena (no
+ * malloc), <=60-line funcs, >=2 asserts, no goto/recursion/abs/libm — the
+ * c_k negation is a Class-K numerator sign-flip.
+ * ==================================================================== */
+
+/* Scalar carriers for the integer FL recursion (all cap-limb, arena-bound). */
+typedef struct fl_ctx {
+    srmech_bigint_t prod;   /* A_it · M_tj matmul product term      */
+    srmech_bigint_t tr;     /* trace(A·M_k) accumulator             */
+    srmech_bigint_t q;      /* tr // k (the exact FL quotient)      */
+    srmech_bigint_t r;      /* tr %  k (the FL invariant: == 0)     */
+    srmech_bigint_t kbig;   /* the step divisor k                   */
+    srmech_bigint_t ck;     /* c_k = -(tr // k)                     */
+    void  *scratch;         /* divmod scratch arena tail            */
+    size_t scratch_len;     /* its length in BYTES                  */
+} fl_ctx_t;
+
+/* Largest significant-limb count over an integer bigint array (the cl input to
+ * qmat_cap_for). */
+static size_t fl_max_limbs(const srmech_bigint_t *a, size_t cnt)
+{
+    size_t k, cl = 1u;
+    assert(a != NULL || cnt == 0u);
+    for (k = 0u; k < cnt; k++) {
+        if (a[k].n > cl) { cl = a[k].n; }
+    }
+    assert(cl >= 1u);
+    return cl;
+}
+
+/* Carve the two working matrices M / AM (n·n cap-limb integer bigints each) +
+ * the fl_ctx scalar carriers from the arena; bind the divmod scratch tail. */
+static srmech_status_t fl_carve(fl_ctx_t *c, srmech_bigint_t **m,
+                                srmech_bigint_t **am, uint32_t *base,
+                                size_t words, size_t *cur, uint32_t cap,
+                                size_t n)
+{
+    size_t hw = qmat_hdr_words(), cells = n * n, k;
+    uint32_t *hm, *ha;
+    srmech_status_t st = SRMECH_OK;
+    assert(c != NULL && m != NULL && am != NULL && cur != NULL);
+    assert(cap > 0u && n >= 1u);
+    hm = qmat_take(base, words, cur, hw * cells);
+    ha = qmat_take(base, words, cur, hw * cells);
+    if (hm == NULL || ha == NULL) { return SRMECH_ERR_OVERFLOW; }
+    *m = (srmech_bigint_t *)(void *)hm;
+    *am = (srmech_bigint_t *)(void *)ha;
+    for (k = 0u; k < cells; k++) {
+        st |= qmat_bind(&(*m)[k], base, words, cur, cap);
+        st |= qmat_bind(&(*am)[k], base, words, cur, cap);
+    }
+    st |= qmat_bind(&c->prod, base, words, cur, cap);
+    st |= qmat_bind(&c->tr, base, words, cur, cap);
+    st |= qmat_bind(&c->q, base, words, cur, cap);
+    st |= qmat_bind(&c->r, base, words, cur, cap);
+    st |= qmat_bind(&c->kbig, base, words, cur, cap);
+    st |= qmat_bind(&c->ck, base, words, cur, cap);
+    if (st != SRMECH_OK) { return SRMECH_ERR_OVERFLOW; }
+    c->scratch = (void *)(base + *cur);
+    c->scratch_len = (words - *cur) * sizeof(uint32_t);
+    return SRMECH_OK;
+}
+
+/* AM <- A · M (integer matmul): AM[i][j] = Σ_t A[i][t]·M[t][j]. The product
+ * goes through the distinct c->prod carrier (bigint mul forbids out aliasing an
+ * input); the in-place accumulate add(dst,dst,prod) is alias-safe. */
+static srmech_status_t fl_matmul(fl_ctx_t *c, const srmech_bigint_t *a,
+                                 const srmech_bigint_t *m, srmech_bigint_t *am,
+                                 size_t n)
+{
+    size_t i, j, t;
+    srmech_status_t st;
+    assert(c != NULL && a != NULL && m != NULL && am != NULL);
+    assert(n >= 1u);
+    for (i = 0u; i < n; i++) {
+        for (j = 0u; j < n; j++) {
+            srmech_bigint_t *dst = &am[i * n + j];
+            st = srmech_bigint_set_i64(dst, 0);
+            if (st != SRMECH_OK) { return st; }
+            for (t = 0u; t < n; t++) {
+                st = srmech_bigint_mul(&c->prod, &a[i * n + t], &m[t * n + j]);
+                if (st != SRMECH_OK) { return st; }
+                st = srmech_bigint_add(dst, dst, &c->prod);
+                if (st != SRMECH_OK) { return st; }
+            }
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* c->ck = -(tr(AM) // k). The trace is an in-place accumulate; the // k is EXACT
+ * integer division (divmod's floor quotient == the exact quotient because k | tr,
+ * the FL invariant asserted on the zero remainder in checked builds); the
+ * negation is a Class-K numerator sign-flip (never an ALU abs). */
+static srmech_status_t fl_trace_ck(fl_ctx_t *c, const srmech_bigint_t *am,
+                                   size_t n, uint32_t k)
+{
+    size_t i;
+    srmech_status_t st;
+    assert(c != NULL && am != NULL);
+    assert(k >= 1u);
+    st = srmech_bigint_set_i64(&c->tr, 0);
+    if (st != SRMECH_OK) { return st; }
+    for (i = 0u; i < n; i++) {
+        st = srmech_bigint_add(&c->tr, &c->tr, &am[i * n + i]);
+        if (st != SRMECH_OK) { return st; }
+    }
+    st = srmech_bigint_set_i64(&c->kbig, (int64_t)k);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_bigint_divmod(&c->q, &c->r, &c->tr, &c->kbig,
+                              c->scratch, c->scratch_len);
+    if (st != SRMECH_OK) { return st; }
+    assert(srmech_bigint_is_zero(&c->r));   /* FL integer invariant: k | tr */
+    st = srmech_bigint_copy(&c->ck, &c->q);
+    if (st != SRMECH_OK) { return st; }
+    if (c->ck.sign != 0) { c->ck.sign = -c->ck.sign; }   /* ck = -(tr // k) */
+    return SRMECH_OK;
+}
+
+/* M <- AM + ck·I: diagonal add ck, off-diagonal copy. M and AM are distinct
+ * arrays, so the diagonal add's out never aliases an input. */
+static srmech_status_t fl_next_m(const srmech_bigint_t *am,
+                                 const srmech_bigint_t *ck, srmech_bigint_t *m,
+                                 size_t n)
+{
+    size_t i, j;
+    srmech_status_t st;
+    assert(am != NULL && ck != NULL && m != NULL);
+    assert(n >= 1u);
+    for (i = 0u; i < n; i++) {
+        for (j = 0u; j < n; j++) {
+            if (i == j) {
+                st = srmech_bigint_add(&m[i * n + j], &am[i * n + j], ck);
+            } else {
+                st = srmech_bigint_copy(&m[i * n + j], &am[i * n + j]);
+            }
+            if (st != SRMECH_OK) { return st; }
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* The per-entry limb cap every `coeffs` slot must carry: the determinant-
+ * Hadamard envelope B^n over span 2n (M/AM growth + the unreduced matmul
+ * product), reusing the qmat_cap_for magnitude envelope. */
+size_t srmech_faddeev_leverrier_entry_cap(size_t coeff_limbs, size_t n)
+{
+    size_t cl = (coeff_limbs == 0u) ? 1u : coeff_limbs;
+    size_t cap = qmat_cap_for(cl, 2u * n + 4u);
+    assert(cl >= 1u);
+    assert(cap >= cl);
+    return cap;
+}
+
+/* Bytes the caller hands srmech_faddeev_leverrier: the two n·n working matrices
+ * (M + AM, cap limbs each + header arrays), the six fl_ctx scalar carriers, and
+ * the gcd/divmod scratch tail (8·cap + 256 is safe). 8-byte-aligned uint32. */
+size_t srmech_faddeev_leverrier_ws_bound(size_t coeff_limbs, size_t n)
+{
+    size_t cap = srmech_faddeev_leverrier_entry_cap(coeff_limbs, n);
+    size_t hw = qmat_hdr_words();
+    size_t cells = 2u * n * n + 4u;               /* M + AM cells             */
+    size_t headers = hw * (cells + 2u);           /* the two header arrays    */
+    size_t cell_limbs = cells * cap;              /* num limb runs            */
+    size_t scalars = cap * 8u;                    /* 6 fl_ctx carriers + slack */
+    size_t scratch = cap * 8u + 256u;             /* divmod/gcd scratch tail  */
+    size_t words = headers + cell_limbs + scalars + scratch + 32u;
+    assert(cap >= 2u);
+    assert(words >= cell_limbs);
+    return words * sizeof(uint32_t);
+}
+
+srmech_status_t srmech_faddeev_leverrier(const srmech_bigint_t *a, int n_in,
+                                         srmech_bigint_t *coeffs,
+                                         void *ws, size_t ws_len)
+{
+    uint32_t *base = (uint32_t *)ws;
+    size_t words = ws_len / sizeof(uint32_t), cur = 0u, cl, n, i, k;
+    srmech_bigint_t *m = NULL, *am = NULL;
+    fl_ctx_t c;
+    srmech_status_t st;
+    uint32_t cap;
+    assert(a != NULL && coeffs != NULL);
+    assert(ws != NULL || ws_len == 0u);
+    if (a == NULL || coeffs == NULL) { return SRMECH_ERR_NULL_ARG; }
+    if (n_in < 1 || (size_t)n_in > SRMECH_FL_MAX_DIM) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    n = (size_t)n_in;
+    cl = fl_max_limbs(a, n * n);
+    cap = (uint32_t)qmat_cap_for(cl, 2u * n + 4u);
+    st = fl_carve(&c, &m, &am, base, words, &cur, cap, n);
+    if (st != SRMECH_OK) { return st; }
+    for (i = 0u; i < n * n; i++) {                 /* M_1 = I */
+        st = srmech_bigint_set_i64(&m[i], ((i / n) == (i % n)) ? 1 : 0);
+        if (st != SRMECH_OK) { return st; }
+    }
+    st = srmech_bigint_set_i64(&coeffs[0], 1);     /* monic leading coeff */
+    if (st != SRMECH_OK) { return st; }
+    for (k = 1u; k <= n; k++) {
+        st = fl_matmul(&c, a, m, am, n);           /* AM = A·M           */
+        if (st != SRMECH_OK) { return st; }
+        st = fl_trace_ck(&c, am, n, (uint32_t)k);  /* c.ck = -(tr(AM)/k) */
+        if (st != SRMECH_OK) { return st; }
+        st = srmech_bigint_copy(&coeffs[k], &c.ck);
+        if (st != SRMECH_OK) { return st; }
+        st = fl_next_m(am, &c.ck, m, n);           /* M = AM + ck·I      */
+        if (st != SRMECH_OK) { return st; }
+    }
+    return SRMECH_OK;
+}

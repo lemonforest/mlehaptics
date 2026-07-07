@@ -478,7 +478,15 @@ CEIL_C_EXISTS_UNBOUND = 0
 # new kernel). All 5 leave bignum_reference. CEIL_BIGNUM_REFERENCE 13 -> 8. (The
 # remaining 8 are the exact-symbolic LA + integer-poly-factor tail: char_poly /
 # eigvals / eigvec (×2) / eig / factor_integer_poly / jordan (×2).)
-CEIL_BIGNUM_REFERENCE = 8
+# rc161 (Qalg TAIL Batch 5): char_poly — the FOUNDATION of the exact-LA tail
+# (eigvals_exact / eig_exact / jordan all reduce to the roots of the char-poly) —
+# earns a C path. The NEW C kernel srmech_faddeev_leverrier runs the exact-INTEGER
+# Faddeev–LeVerrier recursion (A·M matmul + trace + the exact /k divmod) over
+# srmech_bigint, byte-identical to the pure _char_poly_int; char_poly moves
+# bignum_reference -> c_dispatched. CEIL_BIGNUM_REFERENCE 8 -> 7. (The remaining 7
+# are eigvals_exact / eigvec (×2) / eig_exact / factor_integer_poly / jordan (×2);
+# next batch B6 = eigvals_exact via srmech_sturm_isolate, 7 -> 6.)
+CEIL_BIGNUM_REFERENCE = 7
 
 _DEBT_BUCKETS = ("python_only_debt", "c_exists_unbound")
 _ALL_BUCKETS = (
