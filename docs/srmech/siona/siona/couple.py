@@ -33,16 +33,21 @@ from siona import anchor
 
 __all__ = ["couple"]
 
-# Edge weight = the ATTESTATION COUNT of the coupling (F1159), NOT a tuned float — a coupling stated N times weighs
-# N (no-magic-numbers: the weight is attested to structure, class A). A within-phrase co-occurrence attests the
-# pair ONCE; the operand's CASE attests its role ONCE; a CONFIRMED coupling (case AND the verb's infix both state
-# it — the F1159 "stated twice") attests TWICE. Honest note: these attested integers reproduce the F1161 spine at
-# ~5/8 vs ~7/8 for an earlier hand-TUNED float set — the extra cleanliness of the tuned floats was observer-fitting,
-# and that 5/8-vs-7/8 gap is honest evidence this coupling-graph is a good FIRST collapse, not yet the fully-refined
-# shape (in the refined shape the clean partition would fall out of the attested weights for free, F1161).
-_COOCCUR_WEIGHT = 1             # one within-phrase co-occurrence = attested once (repeats accumulate as more edges)
-_CASE_WEIGHT_ONLY = 1          # the case states the operand's role once = attested once
-_CASE_WEIGHT_CONFIRMED = 2     # case AND verb-infix both state it (F1159 "stated twice") = attested twice
+# The REFINED shape (F1163): NO tuned weights and NO operand→verb "hub" edge. The earlier `couple.py` wired every
+# operand to the verb-NODE (a case→verb edge), which made the verb a super-hub that over-connected the graph and
+# FORCED a hand-tuned down-weight to stay legible. But the verb is the OPERATOR — a RELATION, not an operand-node;
+# treating it as a node was the wrong SHAPE, and the tuning was the un-collapsed manual step (F1161/F1162). The
+# refined shape has two STRUCTURAL (attested, class-A) edge kinds only, no floats to dial:
+#   * within-phrase CO-OCCURRENCE (+1) among all concept-words — verbs STAY nodes so their recurring concepts reach
+#     the spine; recurrence accumulates as repeated edges (the F1160 weight);
+#   * the operand's CASE ROLE as a SIGNED CHIRALITY edge (F1138) between the operands the verb couples: complementary
+#     roles (from vs to = source vs goal) REPEL (−1), same-role ATTRACT (+1). The role is a SIGN (structure), never a
+#     weight — so the partition falls out of the SIGNED Laplacian for FREE, at spine 7/8 with zero tuning (F1161).
+# MEASURED: this shape gives spine 7/8 (vs the tuned floats' 7/8, but with NO magic numbers, and vs the case-hub
+# attested-int 5/8). The community "blob" is honest structure — the recurring-formula hub-concepts (be/place/go) are
+# the F256 ANCHOR backbone, simultaneously the spine AND the connectors; it is not tuning-away-able, and the earlier
+# down-weight that shrank it was observer-fitting.
+_COOCCUR = 1                    # within-phrase co-occurrence, +1 (recurrence accumulates as repeated edges, F1160)
 
 
 def _tokwords(concept):
@@ -70,11 +75,13 @@ def _glyph_phrase_cycles(raw_line, concepts_row):
 
 
 def _build_graph(raw_glyph_lines):
-    """The ONE coupling graph: nodes = concept-words (index-assigned on first sight), edges = within-phrase
-    co-occurrence (repeat-weighted by recurrence) PLUS case/infix op(x)operand coupling (light-weighted, so it
-    ENRICHES rather than overwhelms the co-occurrence signal). Returns ``(vocab, edges, weights, coupling_edges)``
-    — ``coupling_edges`` is the edge-ANNOTATION list (operand_word, verb_word, role, status), the op(x)operand
-    coupling kept visible alongside the numeric graph that carries it."""
+    """The ONE coupling graph — the F1163 REFINED shape (NO tuned weights, NO verb-hub edge). Nodes = concept-words
+    (verbs stay nodes so their recurring concepts reach the spine). Two structural edge kinds: (A) within-phrase
+    CO-OCCURRENCE (+1, recurrence accumulates as repeated edges); (B) the operand CASE ROLE as a SIGNED CHIRALITY
+    edge (F1138) between the operands a verb couples — complementary roles (from vs to) REPEL (−1), same-role
+    ATTRACT (+1). The verb is the OPERATOR/relation, so it is NOT wired as a hub; the role is a SIGN, not a weight.
+    Returns ``(vocab, edges, weights, coupling_edges)`` — signed weights; ``coupling_edges`` keeps the op(x)operand
+    (operand, verb, role, status) annotation visible (F1159)."""
     vocab, idx = [], {}
 
     def node(w):
@@ -90,37 +97,36 @@ def _build_graph(raw_glyph_lines):
         concepts_row = anchor.transcribe([raw_line])[0]                # per-glyph concept-or-None, aligned
         for cycle in _glyph_phrase_cycles(raw_line, concepts_row):
             words_by_glyph = [(g, c, _tokwords(c)) for g, c in cycle]
-            flat = [w for _, _, ws in words_by_glyph for w in ws]
-            uniq = list(dict.fromkeys(flat))
+            uniq = list(dict.fromkeys(w for _, _, ws in words_by_glyph for w in ws))
             ids = [node(w) for w in uniq]
-            for i in range(len(ids)):                                  # (A) within-phrase co-occurrence
+            for i in range(len(ids)):                                  # (A) within-phrase CO-OCCURRENCE (+1)
                 for j in range(i + 1, len(ids)):
                     a, b = ids[i], ids[j]
                     edges.append((a, b) if a < b else (b, a))
-                    weights.append(_COOCCUR_WEIGHT)
+                    weights.append(_COOCCUR)
 
             verb = next(((g, ws) for g, c, ws in words_by_glyph if c.startswith("to ")), None)
-            if verb is None:
-                continue
-            verb_glyph, verb_words = verb
-            infix_roles = anchor.verb_infixes(verb_glyph)               # the OPERATOR-side re-encoded roles
-            for g, c, ws in words_by_glyph:                             # (B) case/infix op(x)operand coupling
-                if c.startswith("to "):
-                    continue
-                role = anchor.case(g)                                   # the OPERAND-side coupling role
-                if not role:
-                    continue
-                confirmed = role in infix_roles                         # case<->infix redundancy (coupling_ec)
-                w_edge = _CASE_WEIGHT_CONFIRMED if confirmed else _CASE_WEIGHT_ONLY
-                status = "confirmed" if confirmed else "case_only"
-                for ow in ws:
-                    for vw in verb_words:
-                        if ow == vw:
-                            continue
-                        a, b = node(ow), node(vw)
-                        edges.append((a, b) if a < b else (b, a))
-                        weights.append(w_edge)
-                        coupling_edges.append((ow, vw, role, status))
+            infix_roles = anchor.verb_infixes(verb[0]) if verb else set()
+            roled = [(ws, anchor.case(g)) for g, c, ws in words_by_glyph      # the OPERANDS carrying a case role
+                     if not c.startswith("to ") and anchor.case(g)]
+            for i in range(len(roled)):                                # (B) case ROLE as a SIGNED chirality edge (F1138)
+                ws_i, r_i = roled[i]
+                for j in range(i + 1, len(roled)):
+                    ws_j, r_j = roled[j]
+                    sign = -1 if r_i != r_j else 1                      # complementary roles repel, same-role attract
+                    for w1 in ws_i:
+                        for w2 in ws_j:
+                            if w1 == w2:
+                                continue
+                            a, b = node(w1), node(w2)
+                            edges.append((a, b) if a < b else (b, a))
+                            weights.append(sign)
+            if verb:                                                   # keep the op(x)operand coupling ANNOTATION (F1159)
+                vw = verb[1][0] if verb[1] else "?"
+                for ws_i, r_i in roled:
+                    status = "confirmed" if r_i in {anchor._ROLE.get(x, x) for x in infix_roles} or \
+                        anchor._ROLE.get(r_i, r_i) in infix_roles else "case_only"
+                    coupling_edges.append((ws_i[0] if ws_i else "?", vw, r_i, status))
 
     return vocab, edges, weights, coupling_edges
 
@@ -156,7 +162,7 @@ def couple(raw_glyph_lines, *, community_bits=4, top_k=8, max_formula_size=12):
         return {"n": n, "coherence": 0.0, "components": n, "spine": list(vocab), "communities": {},
                 "formulae": [], "render_order": list(vocab), "coupling_edges": coupling_edges, "evals": []}
 
-    lap = L.dense_laplacian(n, edges, weights)          # THE one coupling matrix
+    lap = L.signed_laplacian(n, edges, weights)         # THE one coupling matrix (SIGNED: the case-role is a ± sign, F1163)
     evals_vec, evecs = L.symmetric_eigendecompose(lap)  # THE one eigendecomposition — everything below reads it
     evals = [float(x) for x in evals_vec]
     order = sorted(range(n), key=lambda i: evals[i])    # ascending eigenvalue order (one sort, reused throughout)
