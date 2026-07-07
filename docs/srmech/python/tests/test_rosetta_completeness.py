@@ -425,7 +425,17 @@ CEIL_C_EXISTS_UNBOUND = 0
 # (B7 is a NUMERIC batch — the 3 modulation ops move to composition_of_c, none
 # were bignum_reference); the ceiling just pins the 30 so no NEW Python-bignum
 # oracle can be added without a C twin.
-CEIL_BIGNUM_REFERENCE = 30
+# rc156 (Qalg TAIL Batch 1a): the 5 exact-Q Taylor oracles
+# rational.{exp,sin,cos,log1p,atan}_series_truncate now DISPATCH to the exact
+# caller-arena srmech_bigint C peers srmech_{exp,sin,cos,log1p,atan}_series_
+# truncate_big (byte-identical (num, den) at ANY magnitude; already shipped as
+# the srmech_the_one foundation, now wired to the Python ops), and
+# bell.tsirelson_bound (2*sqrt(2)) reaches C because rational.sqrt's precision
+# integer-sqrt path (_integer_sqrt for n >= 2^128) now dispatches to
+# srmech_bigint_isqrt. All 6 move bignum_reference -> c_dispatched (NO new C
+# kernel — the kernels already existed; the batch is the Python wiring + the
+# srmech_bigint_isqrt ctypes binding). CEIL_BIGNUM_REFERENCE 30 -> 24.
+CEIL_BIGNUM_REFERENCE = 24
 
 _DEBT_BUCKETS = ("python_only_debt", "c_exists_unbound")
 _ALL_BUCKETS = (

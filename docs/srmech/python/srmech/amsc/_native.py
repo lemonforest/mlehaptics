@@ -2159,6 +2159,16 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_isqrt.argtypes = [
             ctypes.c_uint64, ctypes.c_uint64, ctypes.POINTER(ctypes.c_uint64)]
         lib.srmech_isqrt.restype = ctypes.c_int
+    # 0.9.0rc156 (Qalg B1a): caller-arena srmech_bigint integer floor-sqrt for
+    # the n >= 2^128 precision path (rational.sqrt precision_bits: tsirelson 2√2,
+    # the π-cascade radicand). Additive symbol → EXPECTED_ABI_VERSION stays 3.
+    #   srmech_status_t srmech_bigint_isqrt(srmech_bigint_t *out,
+    #       const srmech_bigint_t *a, void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_bigint_isqrt"):
+        lib.srmech_bigint_isqrt.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_void_p, ctypes.c_size_t]
+        lib.srmech_bigint_isqrt.restype = ctypes.c_int
 
     # ------------------------------------------------------------------
     # v0.7.5rc153 (UPSTREAM §49): bind the 11 genome file-management C
@@ -4183,6 +4193,23 @@ def has_native_bigexp() -> bool:
     )
 
 
+def _ensure_int_str_limit(decimal_digits: int) -> None:
+    """Ensure Python's int<->str conversion cap accommodates a
+    ``decimal_digits``-digit decimal marshal. Python 3.11+ (and 3.10.7+) cap
+    int<->str at 4300 digits by default — a DoS guard on UNTRUSTED conversions.
+    srmech marshals its OWN trusted, self-computed bignums (e.g. the ~6000-digit
+    pi_cascade isqrt radicand, or a high-``num_terms`` series accumulator), which
+    legitimately exceed that, so raise the cap (UPWARD only) when a decimal
+    round-trip needs it. No-op on interpreters without the cap."""
+    getter = getattr(sys, "get_int_max_str_digits", None)
+    if getter is None:
+        return
+    current = getter()
+    need = decimal_digits + 16
+    if current and need > current:
+        sys.set_int_max_str_digits(need)
+
+
 def _bigint_from_int(value: int, cap_limbs: int):
     """Build a ``_SrmechBigint`` carrying ``value`` over a fresh ``cap_limbs``
     limb buffer. Returns ``(bigint, limbs_buf)`` — the caller MUST keep
@@ -4193,6 +4220,7 @@ def _bigint_from_int(value: int, cap_limbs: int):
     bi.cap = cap_limbs
     bi.n = 0
     bi.sign = 0
+    _ensure_int_str_limit(value.bit_length() // 3 + 8)  # decimal digits ≈ bits·0.301
     s = str(value).encode("ascii")
     rc = LIB.srmech_bigint_from_dec(ctypes.byref(bi), s, len(s))
     if rc != SRMECH_OK:
@@ -4215,7 +4243,46 @@ def _bigint_to_int(bi) -> int:
     )
     if rc != SRMECH_OK:
         raise RuntimeError(f"srmech_bigint_to_dec returned non-OK status {rc}")
-    return int(bytes(buf)[:out_len.value].decode("ascii"))
+    dec = bytes(buf)[:out_len.value].decode("ascii")
+    _ensure_int_str_limit(len(dec))
+    return int(dec)
+
+
+def has_native_bigint_isqrt() -> bool:
+    """True iff the caller-arena srmech_bigint integer floor-sqrt C peer +
+    the srmech_bigint decimal-marshal helpers are loaded + bound. False on a
+    no-C lib — the pure-Python integer-Newton ``_py_isqrt`` in
+    ``srmech.amsc.rational`` is the complete alternative (floor √ is the UNIQUE
+    non-negative integer root, so both give the SAME int, byte-identical)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_bigint_isqrt")
+            and hasattr(LIB, "srmech_bigint_from_dec")
+            and hasattr(LIB, "srmech_bigint_to_dec")
+            and hasattr(LIB, "srmech_bigint_to_dec_bound"))
+
+
+def bigint_isqrt_c(n: int) -> int:
+    """``floor(sqrt(n))`` for ``n >= 0`` via ``srmech_bigint_isqrt`` over a
+    caller arena. Byte-identical to ``_py_isqrt`` (floor √ is the unique
+    non-negative integer ``r`` with ``r² <= n < (r+1)²``). Marshals
+    ``n <-> srmech_bigint`` through the decimal bridge (like ``_bigexp_call``);
+    the arena is sized generously off the radicand's limb count."""
+    assert isinstance(n, int) and n >= 0, "bigint_isqrt_c requires n >= 0 int"
+    a_limbs = max(n.bit_length() // 32 + 2, 2)
+    # isqrt takes 3 carriers of (a_n + 2) words for x/q/s + Knuth divmod scratch;
+    # 12·(a_limbs+8)+256 words is a safe envelope (over-sizing the bump arena is
+    # free; too-small → SRMECH_ERR_OVERFLOW, which raises below).
+    ws_words = 12 * (a_limbs + 8) + 256
+    ws = (ctypes.c_uint8 * (ws_words * 4))()
+    a_bi, _al = _bigint_from_int(n, a_limbs + 4)
+    out_bi, _ol = _bigint_from_int(0, a_limbs + 4)
+    rc = LIB.srmech_bigint_isqrt(
+        ctypes.byref(out_bi), ctypes.byref(a_bi),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_words * 4))
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_bigint_isqrt returned non-OK status {rc}")
+    return _bigint_to_int(out_bi)
 
 
 def _bigexp_call(symbol: str, numerator: int, denominator: int,
