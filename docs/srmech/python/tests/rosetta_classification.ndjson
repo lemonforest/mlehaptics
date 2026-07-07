@@ -12,12 +12,12 @@
 {"exposed_as": "srmech.amsc.cascade.sedenion_zero_divisor_witness", "defined_at": "srmech.amsc.cascade.cayley_dickson.sedenion_zero_divisor_witness", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.the_one", "defined_at": "srmech.amsc.cascade.one.the_one", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.to_scalar", "defined_at": "srmech.amsc.cascade.one.to_scalar", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.cascade.one.one_dim", "defined_at": "srmech.amsc.cascade.one.one_dim", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.cascade.one.one_imag_dims", "defined_at": "srmech.amsc.cascade.one.one_imag_dims", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.cascade.one.one_partition", "defined_at": "srmech.amsc.cascade.one.one_partition", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.cascade.one.one_plane_counts", "defined_at": "srmech.amsc.cascade.one.one_plane_counts", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.cascade.one.one_grammar_slots", "defined_at": "srmech.amsc.cascade.one.one_grammar_slots", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.cascade.one.one_flat_rational", "defined_at": "srmech.amsc.cascade.one.one_flat_rational", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.cascade.one.one_dim", "defined_at": "srmech.amsc.cascade.one.one_dim", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.cascade.one.one_imag_dims", "defined_at": "srmech.amsc.cascade.one.one_imag_dims", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.cascade.one.one_partition", "defined_at": "srmech.amsc.cascade.one.one_partition", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.cascade.one.one_plane_counts", "defined_at": "srmech.amsc.cascade.one.one_plane_counts", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.cascade.one.one_grammar_slots", "defined_at": "srmech.amsc.cascade.one.one_grammar_slots", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.cascade.one.one_flat_rational", "defined_at": "srmech.amsc.cascade.one.one_flat_rational", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.cascade.one.one_matrix", "defined_at": "srmech.amsc.cascade.one.one_matrix", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.winding_tower", "defined_at": "srmech.amsc.cascade.one.winding_tower", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.rational.atan_series_truncate", "defined_at": "srmech.amsc.rational.atan_series_truncate", "bucket": "c_dispatched"}
@@ -79,14 +79,14 @@
 {"exposed_as": "srmech.amsc.kepler.equation_of_centre", "defined_at": "srmech.amsc.kepler.equation_of_centre", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.kepler.kepler_solve", "defined_at": "srmech.amsc.kepler.kepler_solve", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.kepler.pin_slot", "defined_at": "srmech.amsc.kepler.pin_slot", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.text.tokenize", "defined_at": "srmech.amsc.text.tokenize", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.text.cooccurrence_edges", "defined_at": "srmech.amsc.text.cooccurrence_edges", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.text.cooccurrence_topk", "defined_at": "srmech.amsc.text.cooccurrence_topk", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.text.tokenize", "defined_at": "srmech.amsc.text.tokenize", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.text.cooccurrence_edges", "defined_at": "srmech.amsc.text.cooccurrence_edges", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.text.cooccurrence_topk", "defined_at": "srmech.amsc.text.cooccurrence_topk", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.laplacian.dense_adjacency", "defined_at": "srmech.amsc.laplacian.dense_adjacency", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.dense_laplacian", "defined_at": "srmech.amsc.laplacian.dense_laplacian", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.fiedler_sparse", "defined_at": "srmech.amsc.laplacian.fiedler_sparse", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.normalized_cut_bisect", "defined_at": "srmech.amsc.laplacian.normalized_cut_bisect", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.laplacian.write_packed_graph", "defined_at": "srmech.amsc.laplacian.write_packed_graph", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.laplacian.write_packed_graph", "defined_at": "srmech.amsc.laplacian.write_packed_graph", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.laplacian.fiedler_sparse_file", "defined_at": "srmech.amsc.laplacian.fiedler_sparse_file", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.recursive_cut", "defined_at": "srmech.amsc.laplacian.recursive_cut", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.mat_matmul", "defined_at": "srmech.amsc.laplacian.mat_matmul", "bucket": "c_dispatched"}
@@ -131,7 +131,7 @@
 {"exposed_as": "srmech.amsc.sha256_raw", "defined_at": "srmech.amsc.format.sha256_raw", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.template.render", "defined_at": "srmech.amsc.template.render", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.tlv.tlv_pack", "defined_at": "srmech.amsc.tlv.tlv_pack", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.tlv.tlv_unpack", "defined_at": "srmech.amsc.tlv.tlv_unpack", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.tlv.tlv_unpack", "defined_at": "srmech.amsc.tlv.tlv_unpack", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.qm.bell.operator_norm", "defined_at": "srmech.qm.bell.operator_norm", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.hdc.klein4_bind", "defined_at": "srmech.amsc.hdc.klein4_bind", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.hdc.klein4_bundle", "defined_at": "srmech.amsc.hdc.klein4_bundle", "bucket": "c_dispatched"}
@@ -221,14 +221,14 @@
 {"exposed_as": "srmech.signal_processing.mint_vector", "defined_at": "srmech.signal_processing.rbs_hdc_instrument.mint_vector", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.path_b_ops.hdc_truncation.op", "defined_at": "srmech.signal_processing.path_b_ops.hdc_truncation.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.verify_rotation_class_n_cycle_order", "defined_at": "srmech.signal_processing.form_function_rotation.verify_rotation_class_n_cycle_order", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.attestation_audit", "defined_at": "srmech.amsc.catalog.attestation_audit", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.cascade.is_division_algebra_dim", "defined_at": "srmech.amsc.cascade.cayley_dickson.is_division_algebra_dim", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.cascade.sedenion_register", "defined_at": "srmech.amsc.cascade.sedenion_register.sedenion_register", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.attestation_audit", "defined_at": "srmech.amsc.catalog.attestation_audit", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.amsc.cascade.is_division_algebra_dim", "defined_at": "srmech.amsc.cascade.cayley_dickson.is_division_algebra_dim", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.cascade.sedenion_register", "defined_at": "srmech.amsc.cascade.sedenion_register.sedenion_register", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.cascade.sedenion_register.sed_write", "defined_at": "srmech.amsc.cascade.sedenion_register.sed_write", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.sedenion_register.sed_materialize", "defined_at": "srmech.amsc.cascade.sedenion_register.sed_materialize", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.sedenion_register.sed_read_unbind", "defined_at": "srmech.amsc.cascade.sedenion_register.sed_read_unbind", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.sedenion_register.sed_clean", "defined_at": "srmech.amsc.cascade.sedenion_register.sed_clean", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.cascade.sedenion_register.sed_slots", "defined_at": "srmech.amsc.cascade.sedenion_register.sed_slots", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.cascade.sedenion_register.sed_slots", "defined_at": "srmech.amsc.cascade.sedenion_register.sed_slots", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.cascade.sedenion_register.sed_couple_working", "defined_at": "srmech.amsc.cascade.sedenion_register.sed_couple_working", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.sedenion_register.sed_uncouple_working", "defined_at": "srmech.amsc.cascade.sedenion_register.sed_uncouple_working", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.sedenion_register.sed_carry", "defined_at": "srmech.amsc.cascade.sedenion_register.sed_carry", "bucket": "composition_of_c"}
@@ -236,58 +236,58 @@
 {"exposed_as": "srmech.amsc.cascade.sedenion_register.sed_navmap", "defined_at": "srmech.amsc.cascade.sedenion_register.sed_navmap", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.sedenion_register.sed_navigate", "defined_at": "srmech.amsc.cascade.sedenion_register.sed_navigate", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.sedenion_register.sed_is_navigable", "defined_at": "srmech.amsc.cascade.sedenion_register.sed_is_navigable", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.cascade.top_k_by_score", "defined_at": "srmech.amsc.cascade.compose.top_k_by_score", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.catalog.list_catalog_chains", "defined_at": "srmech.amsc.catalog.list_catalog_chains", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.catalog.run_catalog_chain", "defined_at": "srmech.amsc.catalog.run_catalog_chain", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.clear_local_kernel", "defined_at": "srmech.amsc.catalog.clear_local_kernel", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.compose.parse_catalog_chains", "defined_at": "srmech.amsc.compose.parse_catalog_chains", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.compose.parse_chain_spec", "defined_at": "srmech.amsc.compose.parse_chain_spec", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.compose.resolve_chain", "defined_at": "srmech.amsc.compose.resolve_chain", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.compose.run_chain", "defined_at": "srmech.amsc.compose.run_chain", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.discover_descriptors", "defined_at": "srmech.amsc.descriptor.discover_descriptors", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.gap_suggester.register_classifier", "defined_at": "srmech.amsc.gap_suggester.register_classifier", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.gap_suggester.register_probes", "defined_at": "srmech.amsc.gap_suggester.register_probes", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.gap_suggester.suggest_gap_collections", "defined_at": "srmech.amsc.gap_suggester.suggest_gap_collections", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.get_attested_dataset", "defined_at": "srmech.amsc.catalog.get_attested_dataset", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.get_attested_descriptor", "defined_at": "srmech.amsc.catalog.get_attested_descriptor", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.get_local_kernel_state", "defined_at": "srmech.amsc.catalog.get_local_kernel_state", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.harmonics.classify_harmonic", "defined_at": "srmech.amsc.harmonics.classify_harmonic", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.iter_attested_dataset", "defined_at": "srmech.amsc.catalog.iter_attested_dataset", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.list_attested_sources", "defined_at": "srmech.amsc.catalog.list_attested_sources", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.list_registered_roots", "defined_at": "srmech.amsc.catalog.list_registered_roots", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.load_descriptor", "defined_at": "srmech.amsc.descriptor.load_descriptor", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.register_attested_root", "defined_at": "srmech.amsc.catalog.register_attested_root", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.render_template", "defined_at": "srmech.amsc.descriptor.render_template", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.tool_schema.get_tool_schema", "defined_at": "srmech.amsc.tool_schema.get_tool_schema", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.tool_schema.load_extension_file", "defined_at": "srmech.amsc.tool_schema.load_extension_file", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.tool_schema.register_profile_tools", "defined_at": "srmech.amsc.tool_schema.register_profile_tools", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.tool_schema.register_tool", "defined_at": "srmech.amsc.tool_schema.register_tool", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.tool_schema.tool_schema_view", "defined_at": "srmech.amsc.tool_schema.tool_schema_view", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.tool_schema.unregister_profile_tools", "defined_at": "srmech.amsc.tool_schema.unregister_profile_tools", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.tool_schema.warmup_all", "defined_at": "srmech.amsc.tool_schema.warmup_all", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.use_local_kernel", "defined_at": "srmech.amsc.catalog.use_local_kernel", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.validate_mpr_record", "defined_at": "srmech.amsc.format.validate_mpr_record", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.write_ndjson", "defined_at": "srmech.amsc.format.write_ndjson", "bucket": "non_compute"}
-{"exposed_as": "srmech.qm.bell.classical_chsh_bound", "defined_at": "srmech.qm.bell.classical_chsh_bound", "bucket": "non_compute"}
-{"exposed_as": "srmech.qm.octonion.octonion_table_attestation", "defined_at": "srmech.qm.octonion.octonion_table_attestation", "bucket": "non_compute"}
-{"exposed_as": "srmech.signal_processing.begin_cascade", "defined_at": "srmech.signal_processing.cascade_dispatcher.begin_cascade", "bucket": "non_compute"}
-{"exposed_as": "srmech.signal_processing.cell_grid", "defined_at": "srmech.signal_processing.profiling.cell_grid", "bucket": "non_compute"}
-{"exposed_as": "srmech.signal_processing.clear_records", "defined_at": "srmech.signal_processing.profiling.clear_records", "bucket": "non_compute"}
-{"exposed_as": "srmech.signal_processing.clear_registry", "defined_at": "srmech.signal_processing.path_registry.clear_registry", "bucket": "non_compute"}
-{"exposed_as": "srmech.signal_processing.current_cascade", "defined_at": "srmech.signal_processing.cascade_dispatcher.current_cascade", "bucket": "non_compute"}
-{"exposed_as": "srmech.signal_processing.dispatch", "defined_at": "srmech.signal_processing.cascade_dispatcher.dispatch", "bucket": "non_compute"}
-{"exposed_as": "srmech.signal_processing.end_cascade", "defined_at": "srmech.signal_processing.cascade_dispatcher.end_cascade", "bucket": "non_compute"}
-{"exposed_as": "srmech.signal_processing.has_path", "defined_at": "srmech.signal_processing.path_registry.has_path", "bucket": "non_compute"}
-{"exposed_as": "srmech.signal_processing.is_dispatch_table_locked", "defined_at": "srmech.signal_processing.cascade_dispatcher.is_dispatch_table_locked", "bucket": "non_compute"}
-{"exposed_as": "srmech.signal_processing.iter_records", "defined_at": "srmech.signal_processing.profiling.iter_records", "bucket": "non_compute"}
-{"exposed_as": "srmech.signal_processing.lock_dispatch_table", "defined_at": "srmech.signal_processing.cascade_dispatcher.lock_dispatch_table", "bucket": "non_compute"}
-{"exposed_as": "srmech.signal_processing.lookup", "defined_at": "srmech.signal_processing.path_registry.lookup", "bucket": "non_compute"}
-{"exposed_as": "srmech.signal_processing.record_profile", "defined_at": "srmech.signal_processing.profiling.record_profile", "bucket": "non_compute"}
-{"exposed_as": "srmech.signal_processing.register", "defined_at": "srmech.signal_processing.path_registry.register", "bucket": "non_compute"}
-{"exposed_as": "srmech.signal_processing.path_registry.register_lazy_loader", "defined_at": "srmech.signal_processing.path_registry.register_lazy_loader", "bucket": "non_compute"}
-{"exposed_as": "srmech.signal_processing.registered_ops", "defined_at": "srmech.signal_processing.path_registry.registered_ops", "bucket": "non_compute"}
-{"exposed_as": "srmech.signal_processing.resolve_path", "defined_at": "srmech.signal_processing.cascade_dispatcher.resolve_path", "bucket": "non_compute"}
-{"exposed_as": "srmech.signal_processing.unlock_dispatch_table", "defined_at": "srmech.signal_processing.cascade_dispatcher.unlock_dispatch_table", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.cascade.top_k_by_score", "defined_at": "srmech.amsc.cascade.compose.top_k_by_score", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.catalog.list_catalog_chains", "defined_at": "srmech.amsc.catalog.list_catalog_chains", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.amsc.catalog.run_catalog_chain", "defined_at": "srmech.amsc.catalog.run_catalog_chain", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.amsc.clear_local_kernel", "defined_at": "srmech.amsc.catalog.clear_local_kernel", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.amsc.compose.parse_catalog_chains", "defined_at": "srmech.amsc.compose.parse_catalog_chains", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.amsc.compose.parse_chain_spec", "defined_at": "srmech.amsc.compose.parse_chain_spec", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.amsc.compose.resolve_chain", "defined_at": "srmech.amsc.compose.resolve_chain", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.amsc.compose.run_chain", "defined_at": "srmech.amsc.compose.run_chain", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.amsc.discover_descriptors", "defined_at": "srmech.amsc.descriptor.discover_descriptors", "bucket": "non_compute", "non_compute_kind": "host_glue"}
+{"exposed_as": "srmech.amsc.gap_suggester.register_classifier", "defined_at": "srmech.amsc.gap_suggester.register_classifier", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.amsc.gap_suggester.register_probes", "defined_at": "srmech.amsc.gap_suggester.register_probes", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.amsc.gap_suggester.suggest_gap_collections", "defined_at": "srmech.amsc.gap_suggester.suggest_gap_collections", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.amsc.get_attested_dataset", "defined_at": "srmech.amsc.catalog.get_attested_dataset", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.get_attested_descriptor", "defined_at": "srmech.amsc.catalog.get_attested_descriptor", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.get_local_kernel_state", "defined_at": "srmech.amsc.catalog.get_local_kernel_state", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.amsc.harmonics.classify_harmonic", "defined_at": "srmech.amsc.harmonics.classify_harmonic", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.iter_attested_dataset", "defined_at": "srmech.amsc.catalog.iter_attested_dataset", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.list_attested_sources", "defined_at": "srmech.amsc.catalog.list_attested_sources", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.amsc.list_registered_roots", "defined_at": "srmech.amsc.catalog.list_registered_roots", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.amsc.load_descriptor", "defined_at": "srmech.amsc.descriptor.load_descriptor", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.register_attested_root", "defined_at": "srmech.amsc.catalog.register_attested_root", "bucket": "non_compute", "non_compute_kind": "host_glue"}
+{"exposed_as": "srmech.amsc.render_template", "defined_at": "srmech.amsc.descriptor.render_template", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.tool_schema.get_tool_schema", "defined_at": "srmech.amsc.tool_schema.get_tool_schema", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.amsc.tool_schema.load_extension_file", "defined_at": "srmech.amsc.tool_schema.load_extension_file", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.amsc.tool_schema.register_profile_tools", "defined_at": "srmech.amsc.tool_schema.register_profile_tools", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.amsc.tool_schema.register_tool", "defined_at": "srmech.amsc.tool_schema.register_tool", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.amsc.tool_schema.tool_schema_view", "defined_at": "srmech.amsc.tool_schema.tool_schema_view", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.amsc.tool_schema.unregister_profile_tools", "defined_at": "srmech.amsc.tool_schema.unregister_profile_tools", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.amsc.tool_schema.warmup_all", "defined_at": "srmech.amsc.tool_schema.warmup_all", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.amsc.use_local_kernel", "defined_at": "srmech.amsc.catalog.use_local_kernel", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.amsc.validate_mpr_record", "defined_at": "srmech.amsc.format.validate_mpr_record", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.write_ndjson", "defined_at": "srmech.amsc.format.write_ndjson", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.qm.bell.classical_chsh_bound", "defined_at": "srmech.qm.bell.classical_chsh_bound", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.qm.octonion.octonion_table_attestation", "defined_at": "srmech.qm.octonion.octonion_table_attestation", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.signal_processing.begin_cascade", "defined_at": "srmech.signal_processing.cascade_dispatcher.begin_cascade", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.signal_processing.cell_grid", "defined_at": "srmech.signal_processing.profiling.cell_grid", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.signal_processing.clear_records", "defined_at": "srmech.signal_processing.profiling.clear_records", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.signal_processing.clear_registry", "defined_at": "srmech.signal_processing.path_registry.clear_registry", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.signal_processing.current_cascade", "defined_at": "srmech.signal_processing.cascade_dispatcher.current_cascade", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.signal_processing.dispatch", "defined_at": "srmech.signal_processing.cascade_dispatcher.dispatch", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.signal_processing.end_cascade", "defined_at": "srmech.signal_processing.cascade_dispatcher.end_cascade", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.signal_processing.has_path", "defined_at": "srmech.signal_processing.path_registry.has_path", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.signal_processing.is_dispatch_table_locked", "defined_at": "srmech.signal_processing.cascade_dispatcher.is_dispatch_table_locked", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.signal_processing.iter_records", "defined_at": "srmech.signal_processing.profiling.iter_records", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.signal_processing.lock_dispatch_table", "defined_at": "srmech.signal_processing.cascade_dispatcher.lock_dispatch_table", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.signal_processing.lookup", "defined_at": "srmech.signal_processing.path_registry.lookup", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.signal_processing.record_profile", "defined_at": "srmech.signal_processing.profiling.record_profile", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.signal_processing.register", "defined_at": "srmech.signal_processing.path_registry.register", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.signal_processing.path_registry.register_lazy_loader", "defined_at": "srmech.signal_processing.path_registry.register_lazy_loader", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.signal_processing.registered_ops", "defined_at": "srmech.signal_processing.path_registry.registered_ops", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.signal_processing.resolve_path", "defined_at": "srmech.signal_processing.cascade_dispatcher.resolve_path", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.signal_processing.unlock_dispatch_table", "defined_at": "srmech.signal_processing.cascade_dispatcher.unlock_dispatch_table", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.amsc.cascade.hypercomplex_couple", "defined_at": "srmech.amsc.cascade.hypercomplex_dft.hypercomplex_couple", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.hypercomplex_exp", "defined_at": "srmech.amsc.cascade.hypercomplex_dft.hypercomplex_exp", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.eigvals", "defined_at": "srmech.amsc.cascade.matrix_cascades.eigvals", "bucket": "composition_of_c"}
@@ -309,29 +309,29 @@
 {"exposed_as": "srmech.amsc.compose.greedy_bipartite_alignment", "defined_at": "srmech.amsc.compose.greedy_bipartite_alignment", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.coupling.signed_sum_squared", "defined_at": "srmech.amsc.coupling.signed_sum_squared", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.coupling.resonant_spectrum", "defined_at": "srmech.amsc.coupling.resonant_spectrum", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.coupling.from_bodies", "defined_at": "srmech.amsc.coupling.from_bodies", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.coupling.fractal_spectrum", "defined_at": "srmech.amsc.coupling.fractal_spectrum", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.coupling.fold_encode", "defined_at": "srmech.amsc.coupling.fold_encode", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.coupling.fold_spectrum", "defined_at": "srmech.amsc.coupling.fold_spectrum", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.coupling.fold_encode_recoverable", "defined_at": "srmech.amsc.coupling.fold_encode_recoverable", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.coupling.fold_identity", "defined_at": "srmech.amsc.coupling.fold_identity", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.coupling.from_bodies", "defined_at": "srmech.amsc.coupling.from_bodies", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.coupling.fractal_spectrum", "defined_at": "srmech.amsc.coupling.fractal_spectrum", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.coupling.fold_encode", "defined_at": "srmech.amsc.coupling.fold_encode", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.coupling.fold_spectrum", "defined_at": "srmech.amsc.coupling.fold_spectrum", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.coupling.fold_encode_recoverable", "defined_at": "srmech.amsc.coupling.fold_encode_recoverable", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.coupling.fold_identity", "defined_at": "srmech.amsc.coupling.fold_identity", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.gosper.gosper", "defined_at": "srmech.amsc.gosper.gosper", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.zeilberger.zeilberger", "defined_at": "srmech.amsc.zeilberger.zeilberger", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.wz_certificate.wz_certificate", "defined_at": "srmech.amsc.wz_certificate.wz_certificate", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.apagodu_zeilberger.apagodu_zeilberger", "defined_at": "srmech.amsc.apagodu_zeilberger.apagodu_zeilberger", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.poly.poly_from_coeffs", "defined_at": "srmech.amsc.poly.poly_from_coeffs", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.qpoly.qpoly_from_coeffs", "defined_at": "srmech.amsc.qpoly.qpoly_from_coeffs", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.qbipoly.qbipoly_from_coeffs", "defined_at": "srmech.amsc.qbipoly.qbipoly_from_coeffs", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.poly.poly_from_coeffs", "defined_at": "srmech.amsc.poly.poly_from_coeffs", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.qpoly.qpoly_from_coeffs", "defined_at": "srmech.amsc.qpoly.qpoly_from_coeffs", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.qbipoly.qbipoly_from_coeffs", "defined_at": "srmech.amsc.qbipoly.qbipoly_from_coeffs", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.q_gosper.q_gosper", "defined_at": "srmech.amsc.q_gosper.q_gosper", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.q_zeilberger.q_zeilberger", "defined_at": "srmech.amsc.q_zeilberger.q_zeilberger", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.q_wz_certificate.q_wz_certificate", "defined_at": "srmech.amsc.q_wz_certificate.q_wz_certificate", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.dispatch.infer", "defined_at": "srmech.amsc.dispatch.infer", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.dispatch.infer", "defined_at": "srmech.amsc.dispatch.infer", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
 {"exposed_as": "srmech.amsc.harmonics.classify_chirality_harmonic", "defined_at": "srmech.amsc.harmonics.classify_chirality_harmonic", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.hdc.bundle_with_ties", "defined_at": "srmech.amsc.hdc.bundle_with_ties", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.hdc.klein4_chirality_flip_gamma5", "defined_at": "srmech.amsc.hdc.klein4_chirality_flip_gamma5", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.hdc.klein4_chirality_flip_omega7", "defined_at": "srmech.amsc.hdc.klein4_chirality_flip_omega7", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.hdc.klein4_cpt_mirror", "defined_at": "srmech.amsc.hdc.klein4_cpt_mirror", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.hdc.klein4_project_axis", "defined_at": "srmech.amsc.hdc.klein4_project_axis", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.hdc.klein4_project_axis", "defined_at": "srmech.amsc.hdc.klein4_project_axis", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.hdc.klein4_holographic_decode", "defined_at": "srmech.amsc.hdc.klein4_holographic_decode", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.hdc.klein4_holographic_encode", "defined_at": "srmech.amsc.hdc.klein4_holographic_encode", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.hdc.klein4_random", "defined_at": "srmech.amsc.hdc.klein4_random", "bucket": "c_dispatched"}
@@ -401,7 +401,7 @@
 {"exposed_as": "srmech.signal_processing.closed_form_ops.multirate.op", "defined_at": "srmech.signal_processing.closed_form_ops.multirate.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.multitaper.op", "defined_at": "srmech.signal_processing.closed_form_ops.multitaper.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.ofdm.op", "defined_at": "srmech.signal_processing.closed_form_ops.ofdm.op", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.signal_processing.closed_form_ops.polyphase.decompose", "defined_at": "srmech.signal_processing.closed_form_ops.polyphase.decompose", "bucket": "non_compute"}
+{"exposed_as": "srmech.signal_processing.closed_form_ops.polyphase.decompose", "defined_at": "srmech.signal_processing.closed_form_ops.polyphase.decompose", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.polyphase.op", "defined_at": "srmech.signal_processing.closed_form_ops.polyphase.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.psk_qam.op", "defined_at": "srmech.signal_processing.closed_form_ops.psk_qam.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.rfft.op", "defined_at": "srmech.signal_processing.closed_form_ops.rfft.op", "bucket": "composition_of_c"}
@@ -428,7 +428,7 @@
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.eig_exact", "defined_at": "srmech.amsc.cascade.matrix_cascades.eig_exact", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.jordan_chains_exact", "defined_at": "srmech.amsc.cascade.matrix_cascades.jordan_chains_exact", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.jordan_form_exact", "defined_at": "srmech.amsc.cascade.matrix_cascades.jordan_form_exact", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.encode_shape", "defined_at": "srmech.amsc.genome.encode_shape", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.genome.encode_shape", "defined_at": "srmech.amsc.genome.encode_shape", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.genome.quad_turn", "defined_at": "srmech.amsc.genome.quad_turn", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.telomere", "defined_at": "srmech.amsc.genome.telomere", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.chromosome", "defined_at": "srmech.amsc.genome.chromosome", "bucket": "composition_of_c"}
@@ -436,22 +436,22 @@
 {"exposed_as": "srmech.amsc.genome.genes", "defined_at": "srmech.amsc.genome.genes", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.genome", "defined_at": "srmech.amsc.genome.genome", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.partition", "defined_at": "srmech.amsc.genome.partition", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.genome_save", "defined_at": "srmech.amsc.genome.genome_save", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.genome.genome_load", "defined_at": "srmech.amsc.genome.genome_load", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.genome.genome_catalog", "defined_at": "srmech.amsc.genome.genome_catalog", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.genome.genome_append", "defined_at": "srmech.amsc.genome.genome_append", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.genome.genome_window", "defined_at": "srmech.amsc.genome.genome_window", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.genome.genome_save", "defined_at": "srmech.amsc.genome.genome_save", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.genome_load", "defined_at": "srmech.amsc.genome.genome_load", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.genome_catalog", "defined_at": "srmech.amsc.genome.genome_catalog", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.genome_append", "defined_at": "srmech.amsc.genome.genome_append", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.genome_window", "defined_at": "srmech.amsc.genome.genome_window", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.genome.genome_genes", "defined_at": "srmech.amsc.genome.genome_genes", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.genome_remove", "defined_at": "srmech.amsc.genome.genome_remove", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.genome.genome_replace", "defined_at": "srmech.amsc.genome.genome_replace", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.genome.genome_export", "defined_at": "srmech.amsc.genome.genome_export", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.genome.genome_import", "defined_at": "srmech.amsc.genome.genome_import", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.genome.genome_explode", "defined_at": "srmech.amsc.genome.genome_explode", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.genome.genome_pack", "defined_at": "srmech.amsc.genome.genome_pack", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.genome.genome_register_attested", "defined_at": "srmech.amsc.genome.genome_register_attested", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.genome.kernel_pack", "defined_at": "srmech.amsc.genome.kernel_pack", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.genome.kernel_unpack", "defined_at": "srmech.amsc.genome.kernel_unpack", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.genome.genome_append_kernel", "defined_at": "srmech.amsc.genome.genome_append_kernel", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.genome.genome_remove", "defined_at": "srmech.amsc.genome.genome_remove", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.genome_replace", "defined_at": "srmech.amsc.genome.genome_replace", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.genome_export", "defined_at": "srmech.amsc.genome.genome_export", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.genome_import", "defined_at": "srmech.amsc.genome.genome_import", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.genome_explode", "defined_at": "srmech.amsc.genome.genome_explode", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.genome_pack", "defined_at": "srmech.amsc.genome.genome_pack", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.genome_register_attested", "defined_at": "srmech.amsc.genome.genome_register_attested", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.kernel_pack", "defined_at": "srmech.amsc.genome.kernel_pack", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.kernel_unpack", "defined_at": "srmech.amsc.genome.kernel_unpack", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.genome_append_kernel", "defined_at": "srmech.amsc.genome.genome_append_kernel", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.genome.active_telomere", "defined_at": "srmech.amsc.genome.active_telomere", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.telomere_tick", "defined_at": "srmech.amsc.genome.telomere_tick", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.genome.gene_express", "defined_at": "srmech.amsc.genome.gene_express", "bucket": "c_dispatched"}
@@ -476,8 +476,8 @@
 {"exposed_as": "srmech.amsc.elliptic_gosper.elliptic_gosper", "defined_at": "srmech.amsc.elliptic_gosper.elliptic_gosper", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.ellbase.elliptic_lagrange_basis", "defined_at": "srmech.amsc.ellbase.elliptic_lagrange_basis", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.ellbase.half_shift_response", "defined_at": "srmech.amsc.ellbase.half_shift_response", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.ellbase.chirality_parity", "defined_at": "srmech.amsc.ellbase.chirality_parity", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.ellbase.beat_relation_residue", "defined_at": "srmech.amsc.ellbase.beat_relation_residue", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.ellbase.chirality_parity", "defined_at": "srmech.amsc.ellbase.chirality_parity", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.ellbase.beat_relation_residue", "defined_at": "srmech.amsc.ellbase.beat_relation_residue", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7", "defined_at": "srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.carrier_spectrum.carrier_spectrum", "defined_at": "srmech.amsc.carrier_spectrum.carrier_spectrum", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.unary_theta.unary_theta", "defined_at": "srmech.amsc.unary_theta.unary_theta", "bucket": "c_dispatched"}
@@ -485,9 +485,9 @@
 {"exposed_as": "srmech.amsc.harmonic_maass.harmonic_maass", "defined_at": "srmech.amsc.harmonic_maass.harmonic_maass", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.eta_quotient.eta_quotient", "defined_at": "srmech.amsc.eta_quotient.eta_quotient", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.eisenstein.eisenstein", "defined_at": "srmech.amsc.eisenstein.eisenstein", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.modular_forms_ring.modular_forms_ring", "defined_at": "srmech.amsc.modular_forms_ring.modular_forms_ring", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.modular_forms_ring.modular_forms_ring", "defined_at": "srmech.amsc.modular_forms_ring.modular_forms_ring", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.modular_forms_ring.modular_forms_ring_represent", "defined_at": "srmech.amsc.modular_forms_ring.modular_forms_ring_represent", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.quasimodular_forms_ring.quasimodular_forms_ring", "defined_at": "srmech.amsc.quasimodular_forms_ring.quasimodular_forms_ring", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.quasimodular_forms_ring.quasimodular_forms_ring", "defined_at": "srmech.amsc.quasimodular_forms_ring.quasimodular_forms_ring", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.quasimodular_forms_ring.quasimodular_represent", "defined_at": "srmech.amsc.quasimodular_forms_ring.quasimodular_represent", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.quasimodular_forms_ring.eisenstein_e2", "defined_at": "srmech.amsc.quasimodular_forms_ring.eisenstein_e2", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.elliptic_zeilberger.elliptic_zeilberger", "defined_at": "srmech.amsc.elliptic_zeilberger.elliptic_zeilberger", "bucket": "c_dispatched"}
@@ -500,7 +500,7 @@
 {"exposed_as": "srmech.amsc.laplacian.propagate", "defined_at": "srmech.amsc.laplacian.propagate", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.eph_harvest", "defined_at": "srmech.amsc.laplacian.eph_harvest", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_mult_table", "defined_at": "srmech.qm.quaternion.quaternion_mult_table", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.qm.quaternion.quaternion_table_attestation", "defined_at": "srmech.qm.quaternion.quaternion_table_attestation", "bucket": "non_compute"}
+{"exposed_as": "srmech.qm.quaternion.quaternion_table_attestation", "defined_at": "srmech.qm.quaternion.quaternion_table_attestation", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_left_mult", "defined_at": "srmech.qm.quaternion.quaternion_left_mult", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_right_mult", "defined_at": "srmech.qm.quaternion.quaternion_right_mult", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_conjugate", "defined_at": "srmech.qm.quaternion.quaternion_conjugate", "bucket": "composition_of_c"}
@@ -508,18 +508,18 @@
 {"exposed_as": "srmech.qm.quaternion.quaternion_exp", "defined_at": "srmech.qm.quaternion.quaternion_exp", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_exp_series_truncate", "defined_at": "srmech.qm.quaternion.quaternion_exp_series_truncate", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_twiddle", "defined_at": "srmech.qm.quaternion.quaternion_twiddle", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.zeilberger.bipoly_from_coeffs", "defined_at": "srmech.amsc.zeilberger.bipoly_from_coeffs", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.tripoly.tripoly_from_coeffs", "defined_at": "srmech.amsc.tripoly.tripoly_from_coeffs", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.carrier_ladder.poly_promote", "defined_at": "srmech.amsc.carrier_ladder.poly_promote", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.carrier_ladder.poly_project", "defined_at": "srmech.amsc.carrier_ladder.poly_project", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.carrier_ladder.qpoly_promote", "defined_at": "srmech.amsc.carrier_ladder.qpoly_promote", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.carrier_ladder.qpoly_project", "defined_at": "srmech.amsc.carrier_ladder.qpoly_project", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.carrier_ladder.carrier_ladder_descriptor", "defined_at": "srmech.amsc.carrier_ladder.carrier_ladder_descriptor", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.cascade.cd_promote", "defined_at": "srmech.amsc.cascade.cayley_dickson.cd_promote", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.cascade.cd_project", "defined_at": "srmech.amsc.cascade.cayley_dickson.cd_project", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.op_provenance.carry", "defined_at": "srmech.amsc.op_provenance.carry", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.zeilberger.bipoly_from_coeffs", "defined_at": "srmech.amsc.zeilberger.bipoly_from_coeffs", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.tripoly.tripoly_from_coeffs", "defined_at": "srmech.amsc.tripoly.tripoly_from_coeffs", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.carrier_ladder.poly_promote", "defined_at": "srmech.amsc.carrier_ladder.poly_promote", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.carrier_ladder.poly_project", "defined_at": "srmech.amsc.carrier_ladder.poly_project", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.carrier_ladder.qpoly_promote", "defined_at": "srmech.amsc.carrier_ladder.qpoly_promote", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.carrier_ladder.qpoly_project", "defined_at": "srmech.amsc.carrier_ladder.qpoly_project", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.carrier_ladder.carrier_ladder_descriptor", "defined_at": "srmech.amsc.carrier_ladder.carrier_ladder_descriptor", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.amsc.cascade.cd_promote", "defined_at": "srmech.amsc.cascade.cayley_dickson.cd_promote", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.cascade.cd_project", "defined_at": "srmech.amsc.cascade.cayley_dickson.cd_project", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.op_provenance.carry", "defined_at": "srmech.amsc.op_provenance.carry", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
 {"exposed_as": "srmech.amsc.op_provenance.op_provenance_hash", "defined_at": "srmech.amsc.op_provenance.op_provenance_hash", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.op_provenance.op_verdict", "defined_at": "srmech.amsc.op_provenance.op_verdict", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.op_provenance.family_verdict", "defined_at": "srmech.amsc.op_provenance.family_verdict", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.op_provenance.reproject", "defined_at": "srmech.amsc.op_provenance.reproject", "bucket": "non_compute"}
-{"exposed_as": "srmech.amsc.op_provenance.lossy_projection_record", "defined_at": "srmech.amsc.op_provenance.lossy_projection_record", "bucket": "non_compute"}
+{"exposed_as": "srmech.amsc.op_provenance.op_verdict", "defined_at": "srmech.amsc.op_provenance.op_verdict", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.amsc.op_provenance.family_verdict", "defined_at": "srmech.amsc.op_provenance.family_verdict", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.amsc.op_provenance.reproject", "defined_at": "srmech.amsc.op_provenance.reproject", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.amsc.op_provenance.lossy_projection_record", "defined_at": "srmech.amsc.op_provenance.lossy_projection_record", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}

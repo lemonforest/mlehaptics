@@ -285,3 +285,174 @@ def attested_root_with_one_catalog(tmp_path: Path) -> Path:
     desc_path = catalog_dir / "descriptor.toml"
     desc_path.write_text(_HTML_SCRAPER_DESCRIPTOR_TOML, encoding="utf-8")
     return tmp_path
+
+
+# ──────────────────────────────────────────────────────────────────────
+# rc170 — SHARED Rosetta transitive call-graph walk (the "standalone-C
+# reachability" machinery). Lives here so BOTH the completeness ratchet
+# (test_rosetta_completeness.py, the rc170 non_compute composes_c assert)
+# and the transitive-standalone ratchet (test_rosetta_transitive_standalone.py)
+# can walk the SAME callee graph without a cross-test import (tests/ is a
+# package, so bare `import test_<sibling>` fails — `from conftest import` is
+# the project's proven shared-helper path, cf. return_type_agrees /
+# riemann_theta_force_pure above).
+#
+# The walk: from a function object, follow the srmech callables it references
+# (through its globals AND function-local imports, and through
+# `Class().method()` attribute calls), transitively, treating a
+# c_dispatched / composition_of_c / non_compute LEDGER op as a LEAF (C-backed
+# or validated-elsewhere — don't recurse into its fallback). Returns the set
+# of ledger `defined_at` keys reached. A composition/non_compute op that
+# reaches a NOT-READY leaf (python_only_debt / bignum_reference /
+# c_exists_unbound) is hiding a Python kernel it claims not to.
+# ──────────────────────────────────────────────────────────────────────
+
+import ast as _ast
+import importlib as _importlib
+import inspect as _inspect
+import json as _json
+import pkgutil as _pkgutil
+import textwrap as _textwrap
+
+_ROSETTA_FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
+_ROSETTA_ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
+
+# Buckets that are NOT standalone-C-ready.
+ROSETTA_NOT_READY = frozenset(
+    ("bignum_reference", "python_only_debt", "c_exists_unbound")
+)
+
+
+def _rosetta_iter_submodules(root_name):
+    root = _importlib.import_module(root_name)
+    yield root
+    if not hasattr(root, "__path__"):
+        return
+    for info in _pkgutil.walk_packages(root.__path__, root_name + "."):
+        name = info.name
+        tail = name.rsplit(".", 1)[-1]
+        if tail.startswith("_") and tail != "__init__":
+            continue
+        if any(p in name for p in ("._research", ".adapters", ".attested", "._native")):
+            continue
+        try:
+            yield _importlib.import_module(name)
+        except Exception:  # noqa: BLE001 — a module that won't import has no live ops
+            continue
+
+
+def rosetta_live_objects():
+    """Map canonical ``defined_at`` (``<module>.<qualname>``) -> the object."""
+    seen = {}
+    for root_name in _ROSETTA_ROOTS:
+        try:
+            _importlib.import_module(root_name)
+        except Exception:  # noqa: BLE001
+            continue
+        for mod in _rosetta_iter_submodules(root_name):
+            names = getattr(mod, "__all__", None)
+            if names is None:
+                names = [n for n in dir(mod) if not n.startswith("_")]
+            for n in names:
+                obj = getattr(mod, n, None)
+                if not callable(obj) or _inspect.isclass(obj):
+                    continue
+                objmod = getattr(obj, "__module__", "") or ""
+                if not objmod.startswith("srmech"):
+                    continue
+                qual = getattr(obj, "__qualname__", n)
+                seen.setdefault(f"{objmod}.{qual}", obj)
+    return seen
+
+
+def rosetta_load_classification():
+    rows = [_json.loads(l) for l in _ROSETTA_FIXTURE.read_text(encoding="utf-8").splitlines()
+            if l.strip()]
+    return {r["defined_at"]: r["bucket"] for r in rows}
+
+
+def _rosetta_key(obj):
+    m = getattr(obj, "__module__", "") or ""
+    return f"{m}.{getattr(obj, '__qualname__', '')}" if m.startswith("srmech") else None
+
+
+def _rosetta_names_in(code):
+    out = set(code.co_names)
+    for const in code.co_consts:
+        if _inspect.iscode(const):
+            out |= _rosetta_names_in(const)
+    return out
+
+
+def _rosetta_local_imports(fn):
+    out = {}
+    try:
+        src = _textwrap.dedent(_inspect.getsource(fn))
+        tree = _ast.parse(src)
+    except (OSError, TypeError, SyntaxError):
+        return out
+    pkg = (getattr(fn, "__module__", "") or "").rsplit(".", 1)[0]
+    for node in _ast.walk(tree):
+        if isinstance(node, _ast.ImportFrom):
+            base = node.module
+            if node.level:
+                parts = pkg.split(".")
+                base = ".".join(parts[: len(parts) - (node.level - 1)] or parts)
+                base = base + ("." + node.module if node.module else "")
+            for alias in node.names:
+                try:
+                    mod = _importlib.import_module(base)
+                    out[alias.asname or alias.name] = getattr(mod, alias.name)
+                except Exception:  # noqa: BLE001
+                    continue
+    return out
+
+
+def _rosetta_direct_callees(fn):
+    g = dict(getattr(fn, "__globals__", {}) or {})
+    g.update(_rosetta_local_imports(fn))
+    code = getattr(fn, "__code__", None)
+    if code is None:
+        return []
+    names = _rosetta_names_in(code)
+    out = []
+    classes = []
+    for name in names:
+        obj = g.get(name)
+        if obj is None:
+            continue
+        if _inspect.isclass(obj) and (getattr(obj, "__module__", "") or "").startswith("srmech"):
+            classes.append(obj)
+        elif callable(obj) and (getattr(obj, "__module__", "") or "").startswith("srmech"):
+            out.append(obj)
+    for cls in classes:
+        for name in names:
+            meth = getattr(cls, name, None)
+            if callable(meth) and (getattr(meth, "__module__", "") or "").startswith("srmech"):
+                out.append(meth)
+    return out
+
+
+def rosetta_reached_ledger_ops(start, cls):
+    """Set of ledger ``defined_at`` keys transitively reachable from ``start``
+    (a function object), recursing through non-ledger glue but treating a
+    ``c_dispatched`` / ``composition_of_c`` / ``non_compute`` ledger op as a
+    LEAF."""
+    reached = set()
+    seen_code = set()
+    queue = [start]
+    while queue:
+        fn = queue.pop()
+        code = getattr(fn, "__code__", None)
+        if code is None or id(code) in seen_code:
+            continue
+        seen_code.add(id(code))
+        for callee in _rosetta_direct_callees(fn):
+            k = _rosetta_key(callee)
+            if k is not None and k in cls:
+                reached.add(k)
+                if cls[k] in ("c_dispatched", "composition_of_c", "non_compute"):
+                    continue
+                continue
+            queue.append(callee)
+    return reached
