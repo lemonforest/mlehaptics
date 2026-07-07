@@ -18,7 +18,7 @@ import json
 import os
 import re
 
-__all__ = ["load_anchor", "load_sux", "concept", "determinative", "bridge_units", "bridge_disambiguated", "transcribe", "express_story", "render_fluent", "render_repaired", "transcription_errors", "have_anchor"]
+__all__ = ["load_anchor", "load_sux", "concept", "determinative", "case", "bridge_units", "bridge_disambiguated", "transcribe", "express_story", "render_fluent", "render_repaired", "transcription_errors", "have_anchor"]
 
 _VYGUS = "/home/skirklan/corpora/egyptian_tla/vygus_dict_slice.jsonl"          # Egyptian (Vygus jsonl)
 _SUX = "/home/skirklan/corpora/etcsl/sux_gilgamesh_lemmatized.json"           # Sumerian (ETCSL Gilgameš, lemmatized)
@@ -73,6 +73,27 @@ def determinative(raw_glyph):
             continue
         out.append(_DET_CLASS.get(d, d))
     return out
+
+
+# Sumerian CASE enclitics (F1157): the suffix that marks each operand's RELATIONAL ROLE — a glyph-derived,
+# coherency-AGNOSTIC coupling tag (from/to/of/with…, NOT noun/verb). This is the op(x)operand COUPLING structure
+# (how each operand relates to the action) that LEMMATIZATION was DROPPING (kiš-ta → kiš, discarding -ta). Only
+# the high-precision, unambiguous enclitics (the bare -a/-e locative/ergative are too ambiguous → left unmarked).
+_CASE = {"ta": "from", "sze3": "to", "še3": "to", "ce3": "to", "ra": "to/for", "da": "with",
+         "ke4": "of", "ka": "of", "ak": "of", "gin7": "like", "gen7": "like", "bi": "its"}
+
+
+def case(surface):
+    """Extract the Sumerian CASE enclitic (the postposition suffix) → the operand's RELATIONAL ROLE (F1157):
+    ``from`` (-ta ablative) / ``to`` (-še₃ terminative, -ra dative) / ``of`` (-ke₄/-ak genitive) / ``with``
+    (-da comitative) / ``like`` (-gin₇ equative). A GLYPH-DERIVED, coherency-AGNOSTIC coupling tag — the
+    op(x)operand relationship structure — that LEMMATIZATION drops. Scans the hyphen morphemes from the end for
+    the last unambiguous enclitic; ``None`` if bare (or only the ambiguous -a/-e locative). This is the phrase
+    structure the render's SOV heuristic (F1150) was GUESSING — now read straight off the glyph."""
+    for suf in reversed(re.split(r"[-.]", _norm(surface))):
+        if suf in _CASE:
+            return _CASE[suf]
+    return None
 
 
 def load_anchor(path=None, kind=None):
