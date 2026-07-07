@@ -84,3 +84,38 @@ def opposite(a, b):
     a = (a or "").strip().lower()
     b = (b or "").strip().lower()
     return 1.0 if (b in load().get(a, ()) or a in load().get(b, ())) else 0.0
+
+
+def structural_poles(words):
+    """srmech-NATIVE STRUCTURAL chirality (F1138): derive + PROPAGATE the opponent poles of a semantic FIELD via
+    the Class-L SIGNED Laplacian, instead of the per-pair :func:`opposite` edge lookup.
+
+    Build a signed graph over the field from its opponent structure ALONE — ANTONYM pairs are opposite-pole
+    (weight −1); words sharing a common antonym are same-pole (weight +1) — then read the smallest-eigenvalue
+    eigenvector of ``signed_laplacian`` (the least-frustrated 2-colouring). Returns ``{word: 0|1}`` (the two
+    poles); two words in DIFFERENT poles are opponents EVEN IF no direct antonym edge exists (propagation — the
+    signed Laplacian fills in opponents the lookup misses, verified by recovering hidden antonym edges).
+
+    Coverage/accuracy are bounded by the opponent-edge data (words with no antonym drop out; sparse/noisy edges
+    can misplace a node). The mechanism — structural derivation + propagation — is the point; Class-O dissolved
+    into Class-L as this signed variant."""
+    from srmech.amsc import laplacian as _L
+    field = [w for w in dict.fromkeys((x or "").strip().lower() for x in words) if poles(w)]
+    if len(field) < 3:
+        return {}
+    idx = {w: i for i, w in enumerate(field)}
+    n = len(field)
+    edges, weights = [], []
+    for i in range(n):
+        for j in range(i + 1, n):
+            a, b = field[i], field[j]
+            if b in poles(a) or a in poles(b):
+                edges.append((i, j)); weights.append(-1.0)      # antonym → opposite pole
+            elif poles(a) & poles(b):
+                edges.append((i, j)); weights.append(1.0)       # shared antonym → same pole
+    lap = _L.signed_laplacian(n, edges, weights)
+    evals_vec, evecs = _L.symmetric_eigendecompose(lap)         # evals + evecs from ONE decomp (consistent order)
+    evals = [float(x) for x in evals_vec]
+    k = min(range(n), key=lambda i: evals[i])                   # smallest eigenvalue = the balance partition
+    g = [float(evecs[r][k]) for r in range(n)]
+    return {field[i]: (0 if g[i] >= 0 else 1) for i in range(n)}
