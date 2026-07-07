@@ -1786,6 +1786,24 @@ def jordan_chains_exact(a, lam):
     """
     N, _A_q, n, one, zero = _qalg_matrix_of(a, lam)
 
+    # rc164 (Qalg TAIL Batch 7b): the Jordan chains dispatch to srmech_jordan_chains
+    # (the Qalg-field matmul/rank/nested-nullspace in C over the rc163 field),
+    # returning the byte/structurally-identical chains (the RREF is canonical + the
+    # top-down selection deterministic). The pure _jordan_chains_build_pure below
+    # stays the Pyodide / no-native fallback AND the parity oracle (and the arbiter
+    # of the reducible-m / n-above-native-cap semantics — a native None routes here).
+    native = _jordan_chains_native(a, lam)
+    if native is not None:
+        _jordan_verify_chains(N, n, zero, native, lam)
+        return native, [len(ch) for ch in native]
+    return _jordan_chains_build_pure(N, n, one, zero, lam)
+
+
+def _jordan_chains_build_pure(N, n, one, zero, lam):
+    """The byte-identical pure-Python Jordan-chain build (the Pyodide / no-native
+    fallback AND the parity oracle). ``N = A − λI`` over ``Qalg``; returns
+    ``(chains, block_sizes)`` — the same contract as :func:`jordan_chains_exact`.
+    All arithmetic is exact ``Qalg`` (matmul / rank / nested nullspace)."""
     # ── ranks r_k = rank(Nᵏ) for k = 0,1,… until null space stops growing ─────────
     # N⁰ = I (rank n, nullity 0). Accumulate powers exactly; stop at the smallest p
     # with rank(N^p) == rank(N^{p+1}) (the generalized eigenspace has stabilised).
@@ -1900,6 +1918,72 @@ def jordan_chains_exact(a, lam):
         f"jordan_chains_exact: chain lengths sum {sum(len(ch) for ch in chains)} "
         f"!= algebraic multiplicity {mu} — internal error")
     return chains, [len(ch) for ch in chains]
+
+
+def _jordan_verify_chains(N, n, zero, chains, lam):
+    """Exact ``Qalg`` verification of the chain relations for the NATIVE path
+    (the pure build verifies inline): for each chain (bottom→top) ``N·chain[0]
+    == 0`` and ``N·chain[i] == chain[i-1]``. An assert, not a float check."""
+    for chain in chains:
+        bottom = chain[0]
+        Nb = _qalg_matvec(N, bottom, n, zero)
+        for comp in Nb:
+            assert not comp, (
+                "jordan_chains_exact: chain bottom is not a geometric eigenvector "
+                f"((A−λI)·bottom != 0) for min_poly {lam.m!r} — native/pure "
+                "parity error")
+        for i in range(1, len(chain)):
+            Nv = _qalg_matvec(N, chain[i], n, zero)
+            for j in range(n):
+                assert Nv[j] == chain[i - 1][j], (
+                    "jordan_chains_exact: chain relation (A−λI)·chain[i] == "
+                    f"chain[i-1] FAILED at level {i}, component {j} for min_poly "
+                    f"{lam.m!r} — native/pure parity error")
+
+
+def _jordan_chains_native(a, lam):
+    """The rc164 native fast-path for :func:`jordan_chains_exact`: the exact Jordan
+    chains via ``srmech_jordan_chains`` (the Qalg-field matmul/rank/nested-nullspace
+    in C), reconstructed as the ``list[list[list[Qalg]]]`` chain structure (chains,
+    each a list of generalized eigenvectors bottom→top, each an ``n``-vector of
+    ``Qalg`` over ``lam``'s ``m`` + ``root``). Returns ``None`` — routing to the
+    byte-identical pure ``_jordan_chains_build_pure`` — on a no-C / pre-rc164 lib, a
+    COMPLEX matrix entry, ``n`` above the native cap, an arena OVERFLOW, or a
+    reducible ``m`` (all of which the pure oracle handles)."""
+    from srmech.amsc.qalg import Qalg
+    if not _native.has_native_jordan_chains():
+        return None
+    rows = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
+    n = len(rows)
+    if n == 0 or any(len(r) != n for r in rows):
+        return None
+    rows_ratio = []
+    for r in rows:
+        row = []
+        for v in r:
+            pr = _entry_ratio(v)
+            if pr is None:
+                return None                          # complex entry → pure path
+            row.append(pr)
+        rows_ratio.append(row)
+    m_int = [int(c) for c in lam.m]
+    lam_coords = [(int(c.numerator), int(c.denominator)) for c in lam.coords]
+    raw = _native.jordan_chains_c(rows_ratio, m_int, lam_coords)
+    if raw is None:
+        return None
+    vectors, block_sizes = raw
+    m = lam.m
+    root = lam.root
+    chains = []
+    idx = 0
+    for bs in block_sizes:
+        chain = []
+        for _ in range(bs):
+            vec = vectors[idx]
+            chain.append([Qalg(m, tuple(comp), root=root) for comp in vec])
+            idx += 1
+        chains.append(chain)
+    return chains
 
 
 # ── Part 1 — factor an integer polynomial into irreducibles over ℚ (Zassenhaus) ──

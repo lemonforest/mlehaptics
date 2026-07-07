@@ -513,7 +513,18 @@ CEIL_C_EXISTS_UNBOUND = 0
 # remaining 4 are eig_exact / factor_integer_poly / jordan_chains_exact /
 # jordan_form_exact; next batches B7b jordan_chains_exact via the Qalg carrier, B8
 # factor_integer_poly, B9 eig_exact + jordan_form_exact capstones.)
-CEIL_BIGNUM_REFERENCE = 4
+# rc164 (Qalg TAIL Batch 7b): jordan_chains_exact — the exact JORDAN CHAINS
+# (generalized eigenvectors) for a defective eigenvalue — earns a C path. The NEW
+# C kernel srmech_jordan_chains composes the rc163 Qalg number-field carrier: it
+# builds N = A − λI over ℚ(λ), computes the ranks of the matrix POWERS Nᵏ (a new
+# Qalg matrix MATMUL + RANK), reads the Jordan structure off the rank drops, and
+# builds the chains TOP-DOWN by nested NULLSPACE + column-rank independence — all
+# exact Qalg, byte/structurally-identical to the pure _jordan_chains_build_pure
+# (the RREF is canonical + the top-down selection deterministic). jordan_chains_exact
+# moves bignum_reference -> c_dispatched. CEIL_BIGNUM_REFERENCE 4 -> 3. (The
+# remaining 3 are eig_exact / factor_integer_poly / jordan_form_exact; next batches
+# B8 factor_integer_poly (Zassenhaus), B9 eig_exact + jordan_form_exact capstones.)
+CEIL_BIGNUM_REFERENCE = 3
 
 _DEBT_BUCKETS = ("python_only_debt", "c_exists_unbound")
 _ALL_BUCKETS = (
