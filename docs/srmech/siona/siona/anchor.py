@@ -18,7 +18,7 @@ import json
 import os
 import re
 
-__all__ = ["load_anchor", "load_sux", "concept", "determinative", "case", "bridge_units", "bridge_disambiguated", "transcribe", "express_story", "render_fluent", "render_repaired", "transcription_errors", "have_anchor"]
+__all__ = ["load_anchor", "load_sux", "concept", "determinative", "case", "bridge_units", "bridge_disambiguated", "transcribe", "express_story", "render_fluent", "render_repaired", "render_cased", "transcription_errors", "have_anchor"]
 
 _VYGUS = "/home/skirklan/corpora/egyptian_tla/vygus_dict_slice.jsonl"          # Egyptian (Vygus jsonl)
 _SUX = "/home/skirklan/corpora/etcsl/sux_gilgamesh_lemmatized.json"           # Sumerian (ETCSL Gilgameš, lemmatized)
@@ -238,6 +238,27 @@ def render_repaired(concept_line, *, with_ec=False):
         from siona import g4                                  # lazy: g4 imports anchor (avoid the import cycle)
         return text, g4.g4_fold(concept_line)                # op(x)operand(x)EC — the EC emitted by the same pass
     return text
+
+
+def render_cased(raw_glyph_line):
+    """RENDER using the CASE enclitics (F1158) for the REAL coupling — instead of GUESSING it (the F1150 SOV
+    heuristic + the veneer's invented "the/of" glue). Each operand carries its glyph-derived relational ROLE
+    (`case`: from/to/of/with/like); the verb ("to X") is the predicate; a caseless non-verb is the subject
+    (absolutive). Emits subject + verb + the case-marked obliques with their REAL prepositions — the op(x)operand
+    coupling read straight off the glyphs, not invented. Pass RAW glyphs (the case lives in the suffix)."""
+    items = [(((concept(g) or [None])[0] or ""), case(g)) for g in raw_glyph_line]
+    items = [(c.split(",")[0], cs) for c, cs in items if c]
+    verb = next((c[3:] for c, cs in items if c.startswith("to ")), None)
+    subj = [c for c, cs in items if not cs and not c.startswith("to ")]
+    obl = [(c, cs) for c, cs in items if cs and not c.startswith("to ")]      # case-marked operands = obliques
+    parts = []
+    if subj:
+        parts.append(" ".join(subj))
+    if verb:
+        parts.append(_past(verb))
+    for c, cs in obl:
+        parts.append("%s %s" % (cs, c))                                       # from Kiš / to Unug / of Kulaba / with X
+    return " ".join(parts)
 
 
 def transcription_errors(rendered, source_concepts):
