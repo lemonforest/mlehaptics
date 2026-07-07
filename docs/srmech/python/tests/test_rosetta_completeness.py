@@ -499,7 +499,21 @@ CEIL_C_EXISTS_UNBOUND = 0
 # c_dispatched. CEIL_BIGNUM_REFERENCE 7 -> 6. (The remaining 6 are eigvec (×2) /
 # eig_exact / factor_integer_poly / jordan (×2); next batch B7 = the Qalg-field
 # jordan LA.)
-CEIL_BIGNUM_REFERENCE = 6
+# rc163 (Qalg TAIL Batch 7a): eigvec_exact + eigvec_exact_float — the exact
+# EIGENVECTORS over the number field Q(lam)=Q[x]/(m) — earn a C path. The NEW C
+# kernel srmech_eigvec_exact builds M = A - lam*I with Qalg entries and runs exact
+# Gaussian elimination over the Q(lam) FIELD (the SECOND hard Qalg foundation: the
+# eigenvectors carry ALGEBRAIC-NUMBER, not plain-Q, coordinates). It COMPOSES the
+# exact-Q srmech_poly_* kernels — Qalg add/sub coefficientwise, mul = convolution
+# then REDUCE mod m (srmech_poly_divmod), inverse = the extended Euclidean
+# algorithm on Q[x] (b^-1 = u/g mod m) — reading the null-space basis off the
+# canonical RREF, byte/structurally-identical to the pure _eigvec_exact_qalg.
+# eigvec_exact_float is the terminal float read-out over the same exact body. Both
+# move bignum_reference -> c_dispatched. CEIL_BIGNUM_REFERENCE 6 -> 4. (The
+# remaining 4 are eig_exact / factor_integer_poly / jordan_chains_exact /
+# jordan_form_exact; next batches B7b jordan_chains_exact via the Qalg carrier, B8
+# factor_integer_poly, B9 eig_exact + jordan_form_exact capstones.)
+CEIL_BIGNUM_REFERENCE = 4
 
 _DEBT_BUCKETS = ("python_only_debt", "c_exists_unbound")
 _ALL_BUCKETS = (
