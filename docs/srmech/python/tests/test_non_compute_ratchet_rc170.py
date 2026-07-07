@@ -10,10 +10,11 @@ This rc splits the 114 ``non_compute`` rows into FOUR honest sub-buckets (the
 ``non_compute_kind`` field in ``rosetta_classification.ndjson``) and pins the
 split:
 
-  owed_orchestration (20) — genuine control/dispatch LOGIC a bare-C host needs;
+  owed_orchestration (15) — genuine control/dispatch LOGIC a bare-C host needs;
                             owed-C, DOWN-ONLY (CEIL_NON_COMPUTE_OWED, the phase
-                            driver, in test_rosetta_completeness.py).
-  composes_c        (65) — thin: composes existing C, or a pure accessor /
+                            driver, in test_rosetta_completeness.py). rc171: the
+                            5 op_provenance verdict/carry ops earned C → composes_c.
+  composes_c        (70) — thin: composes existing C, or a pure accessor /
                             constructor / validator; TRANSITIVE-REACHABILITY
                             assert (hides no Python kernel), not a ceiling.
   host_glue          (2) — filesystem / host I/O; tracked, no ceiling this rc.
@@ -53,9 +54,11 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # ratchet tests in test_rosetta_completeness.py (owed ceiling / composes_c
 # reachability / dev_tooling allowlist) enforce the semantics; this pins the
 # COUNTS so the split stays complete + tight.
+# rc171: the 5 op_provenance verdict/carry ops earned C peers → moved
+# owed_orchestration → composes_c (owed 20→15, composes_c 65→70; sum stays 114).
 _EXPECTED_SPLIT = {
-    "owed_orchestration": 20,
-    "composes_c": 65,
+    "owed_orchestration": 15,
+    "composes_c": 70,
     "host_glue": 2,
     "dev_tooling": 27,
 }

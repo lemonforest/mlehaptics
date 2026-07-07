@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc170"
-#define SRMECH_VERSION       "0.9.0rc170"
+#define SRMECH_VERSION_PRE   "rc171"
+#define SRMECH_VERSION       "0.9.0rc171"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3087,6 +3087,87 @@ srmech_status_t srmech_op_provenance_hash(const char *record_json,
  * allocation; see srmech_op_provenance.c). Pure arithmetic (no I/O).
  * Adding this symbol does NOT bump SRMECH_ABI_VERSION. */
 size_t srmech_op_provenance_hash_arena_bytes(size_t record_len);
+
+/* ------------------------------------------------------------------
+ * Op-provenance VERDICT / RECORD / RE-VERIFY logic (0.9.0rc171; the
+ * ORCHESTRATION→C spine, batch 1) — the C peers of the five
+ * srmech.amsc.op_provenance verdict/carry ops, so a bare-C host (no
+ * Python) builds + compares op-provenance records with no json.dumps.
+ * Each COMPOSES the existing kernels: the srmech_json parser / canonical
+ * writer / builder, srmech_sha256_hex (Class A), and
+ * srmech_op_provenance_hash (the rc117 canonical chain hasher) — no new
+ * parser, no new hash. The Python ops dispatch to these under HAS_NATIVE
+ * (hasattr-guarded; a stale lib falls back to the COMPLETE pure path).
+ *
+ * All records are FLOAT-FREE canonical JSON (floats ride as
+ * {"__float64__": "<hex>"} tags); a raw JSON float in any input is
+ * REJECTED with SRMECH_ERR_BAD_INPUT (same rejection as
+ * srmech_op_provenance_hash — the mirror agrees on the domain).
+ *
+ * ABI-additive: new symbols only, so SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* op_verdict: *out_equal = 1 ("EQUAL") iff the two records' rc117 canonical
+ * chain hashes agree (recomputed, never the cached field), else 0 ("UNKNOWN")
+ * — the honest one-sided verdict (never a false UNEQUAL). `ws` is scratch for
+ * hashing each record (reused); size it with srmech_op_verdict_arena_bytes.
+ * SRMECH_ERR_BAD_INPUT on a malformed record / a raw float. */
+srmech_status_t srmech_op_verdict(const char *r1_json, size_t r1_len,
+                                  const char *r2_json, size_t r2_len,
+                                  void *ws, size_t ws_len, int *out_equal);
+size_t srmech_op_verdict_arena_bytes(size_t r1_len, size_t r2_len);
+
+/* family_verdict: *out_same = 1 ("SAME_TARGET") iff BOTH records carry a
+ * "family" object with equal NON-EMPTY "target_id" AND equal "tower_kind"
+ * (both-absent tower_kind counts as equal), else 0 ("UNKNOWN"). Composes the
+ * srmech_json parser. Size `ws` with srmech_family_verdict_arena_bytes. */
+srmech_status_t srmech_family_verdict(const char *r1_json, size_t r1_len,
+                                      const char *r2_json, size_t r2_len,
+                                      void *ws, size_t ws_len, int *out_same);
+size_t srmech_family_verdict_arena_bytes(size_t r1_len, size_t r2_len);
+
+/* op_carry: build the CARRIED-op provenance RECORD (the provenance face of
+ * carry(); the numeric value is the runner's job) from the canonical inputs /
+ * params / family / rung JSON. Hashes the inputs into input_sha256 (sorted-key
+ * order), derives leaves_exact (no __float64__/__complex128__ tag), and
+ * appends chain_sha256 (== srmech_op_provenance_hash of the chain-less image).
+ * `family_json` is "null" or the family object JSON; `params_json` / `rung_json`
+ * are canonical objects. Writes canonical record JSON into out_json (out_cap
+ * bytes; *out_len set); a too-small out_json returns SRMECH_ERR_OVERFLOW.
+ * Size `ws` (and out_cap) with srmech_op_carry_arena_bytes. */
+srmech_status_t srmech_op_carry(const char *op, size_t op_len,
+                                const char *inputs_json, size_t inputs_len,
+                                const char *params_json, size_t params_len,
+                                const char *family_json, size_t family_len,
+                                const char *rung_json, size_t rung_len,
+                                void *ws, size_t ws_len,
+                                char *out_json, size_t out_cap,
+                                size_t *out_len);
+size_t srmech_op_carry_arena_bytes(size_t inputs_len, size_t params_len,
+                                   size_t family_len, size_t rung_len);
+
+/* lossy_projection_record: build the exact-in/exact-out LOSSY-PROJECTION
+ * record (rc125) from the canonical inputs — family=null, params={}, rung={},
+ * the given projection_kind string, the derived leaves_exact + chain hash.
+ * Writes canonical record JSON into out_json. Size `ws` (and out_cap) with
+ * srmech_lossy_projection_record_arena_bytes. */
+srmech_status_t srmech_lossy_projection_record(
+    const char *op, size_t op_len,
+    const char *inputs_json, size_t inputs_len,
+    const char *projection_kind, size_t pk_len,
+    void *ws, size_t ws_len,
+    char *out_json, size_t out_cap, size_t *out_len);
+size_t srmech_lossy_projection_record_arena_bytes(size_t inputs_len);
+
+/* op_reproject: the MPM re-verification — *out_ok = 1 iff the supplied
+ * canonical inputs re-hash (sorted-key order) to the record's input_sha256
+ * array element-for-element (and the counts match), else 0 (a provenance that
+ * can't be re-verified, or different inputs). Composes the srmech_json parser
+ * + srmech_sha256_hex. Size `ws` with srmech_op_reproject_arena_bytes. */
+srmech_status_t srmech_op_reproject(const char *record_json, size_t record_len,
+                                    const char *inputs_json, size_t inputs_len,
+                                    void *ws, size_t ws_len, int *out_ok);
+size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
 
 /* ------------------------------------------------------------------
  * §41 genome persistence — the C mirror of srmech.amsc.genome's
