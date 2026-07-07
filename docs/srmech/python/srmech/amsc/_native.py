@@ -1002,6 +1002,26 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.c_void_p, ctypes.c_size_t,
         ]
         lib.srmech_cd_mult.restype = ctypes.c_int
+    # Faddeev–LeVerrier exact-INTEGER characteristic polynomial (v0.9.0rc161; Qalg
+    # TAIL Batch 5) — the FOUNDATION of the exact-LA tail. Backs char_poly (integer
+    # matrix path); hasattr-guarded (pre-rc161 lib).
+    #   size_t srmech_faddeev_leverrier_entry_cap(size_t coeff_limbs, size_t n)
+    #   size_t srmech_faddeev_leverrier_ws_bound(size_t coeff_limbs, size_t n)
+    #   int srmech_faddeev_leverrier(bigint *a, int n, bigint *coeffs,
+    #       void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_faddeev_leverrier"):
+        lib.srmech_faddeev_leverrier_entry_cap.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_faddeev_leverrier_entry_cap.restype = ctypes.c_size_t
+        lib.srmech_faddeev_leverrier_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_faddeev_leverrier_ws_bound.restype = ctypes.c_size_t
+        lib.srmech_faddeev_leverrier.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.c_int,
+            ctypes.POINTER(_SrmechBigint),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_faddeev_leverrier.restype = ctypes.c_int
 
     # Qi exact-complex (Gaussian-rational) carrier C-host peer (0.9.0rc15) —
     # carrier-internal (NOT a Rosetta op), four int64 limbs {re_num, re_den,
@@ -4601,6 +4621,83 @@ def cd_mult_c(x_components, y_components) -> "list | None":
     if rc != SRMECH_OK:
         return None
     return _poly_read_array(o_n, o_d, dim)
+
+
+def has_native_char_poly() -> bool:
+    """True iff the rc161 Faddeev–LeVerrier exact-integer char-poly kernel is
+    loaded (plus the srmech_bigint decimal-marshal helpers it shares). False on a
+    no-C or pre-rc161 lib — the pure-Python ``_char_poly_int`` in
+    ``srmech.amsc.cascade.matrix_cascades`` is the complete, byte-identical
+    alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_faddeev_leverrier")
+            and hasattr(LIB, "srmech_faddeev_leverrier_ws_bound")
+            and hasattr(LIB, "srmech_faddeev_leverrier_entry_cap")
+            and hasattr(LIB, "srmech_bigint_from_dec")
+            and hasattr(LIB, "srmech_bigint_to_dec"))
+
+
+def char_poly_int_c(rows) -> "list | None":
+    """Native exact-INTEGER characteristic polynomial of the ``n×n`` integer matrix
+    ``rows`` (a list of ``n`` equal-length int rows) via ``srmech_faddeev_leverrier``
+    → the ``n+1`` monic coefficients HIGH→LOW ``[1, c1, …, cn]`` as Python ints, or
+    ``None`` (no-C / pre-rc161 lib / n<1 / arena OVERFLOW → the caller's pure
+    ``_char_poly_int`` oracle). BYTE-IDENTICAL to that oracle: the FL recursion is
+    exact integer arithmetic, so the same reduced coefficient integers."""
+    if not has_native_char_poly():
+        return None
+    n = len(rows)
+    if n < 1:
+        return None
+    flat = [int(v) for r in rows for v in r]
+    if len(flat) != n * n:
+        return None
+    # Per-entry limb cap (9 decimal digits ≈ 1 limb); the entry_cap sizes every
+    # carrier off the input magnitude + the B^n determinant-Hadamard growth.
+    cl = 1
+    for v in flat:
+        cl = max(cl, len(str(v).lstrip("-")) // 9 + 2)
+    out_cap = int(LIB.srmech_faddeev_leverrier_entry_cap(
+        ctypes.c_size_t(cl), ctypes.c_size_t(n)))
+    ws_len = int(LIB.srmech_faddeev_leverrier_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_size_t(n)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    a_arr, ka = _intvec_make_array(flat, out_cap)
+    c_arr, kc = _intvec_blank_array(n + 1, out_cap)
+    rc = LIB.srmech_faddeev_leverrier(
+        a_arr, int(n), c_arr,
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len))
+    _ = (ka, kc)
+    if rc != SRMECH_OK:
+        return None
+    return [_bigint_to_int(c_arr[i]) for i in range(n + 1)]
+
+
+def _intvec_make_array(values, cap):
+    """Build a ``_SrmechBigint`` array carrying the integer ``values`` (each over a
+    fresh ``cap``-limb buffer). Returns ``(arr, keepalive)`` — keep alive for the
+    call. The pure-integer sibling of :func:`_poly_make_array` (no denominators)."""
+    n = len(values)
+    arr = (_SrmechBigint * max(n, 1))()
+    keep = []
+    for i, v in enumerate(values):
+        bi, kb = _bigint_from_int(int(v), cap)
+        arr[i] = bi
+        keep.append(kb)
+    return arr, keep
+
+
+def _intvec_blank_array(n, cap):
+    """Build an ``n``-slot ``_SrmechBigint`` output array, each a fresh ``cap``-limb
+    zero. Returns ``(arr, keepalive)``."""
+    arr = (_SrmechBigint * max(n, 1))()
+    keep = []
+    for _i in range(n):
+        bi, kb = _bigint_from_int(0, cap)
+        arr[_i] = bi
+        keep.append(kb)
+    return arr, keep
 
 
 # ----------------------------------------------------------------------

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc160"
-#define SRMECH_VERSION       "0.9.0rc160"
+#define SRMECH_VERSION_PRE   "rc161"
+#define SRMECH_VERSION       "0.9.0rc161"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -6743,6 +6743,32 @@ srmech_status_t srmech_cd_mult(const srmech_bigint_t *x_n,
                                const srmech_bigint_t *y_d, int dim,
                                srmech_bigint_t *out_n, srmech_bigint_t *out_d,
                                void *ws, size_t ws_len);
+
+/* srmech_faddeev_leverrier — the exact-INTEGER characteristic polynomial of an
+ * n×n integer matrix via the Faddeev–LeVerrier recursion (v0.9.0rc161; Qalg TAIL
+ * Batch 5). It is the FOUNDATION of the exact-LA tail (eigvals_exact / eig_exact
+ * / jordan all reduce to the roots of this polynomial). Pure srmech_bigint
+ * INTEGER arithmetic (NOT ℚ — an integer matrix has integer char-poly coeffs):
+ *   M_1 = I ; c_1 = -tr(A) ;  for k in 1..n:  AM = A·M ;  c_k = -tr(AM)/k
+ *   (the /k is EXACT — tr(A·M_k) is divisible by k, the FL integer theorem) ;
+ *   M <- AM + c_k·I .
+ * Composes srmech_bigint mul/add (the A·M matmul + trace accumulate) with the
+ * exact srmech_bigint divmod (the /k step; floor == exact since k | tr). `a` is
+ * the row-major n×n input matrix (n·n integer bigints; dens implied 1). `coeffs`
+ * receives the n+1 monic coefficients HIGH→LOW: coeffs[0]=1, coeffs[k]=c_k, so
+ * det(xI−A)=Σ coeffs[k]·x^(n−k). Uses the caller arena `ws`
+ * (>= srmech_faddeev_leverrier_ws_bound); each `coeffs` entry must carry
+ * >= srmech_faddeev_leverrier_entry_cap limbs. A too-small arena / entry cap ->
+ * SRMECH_ERR_OVERFLOW (caller falls back to the byte-identical pure Python).
+ * n in [1, SRMECH_FL_MAX_DIM]; n<1 or n>max -> SRMECH_ERR_BAD_INPUT. Rosetta peer
+ * of srmech.amsc.cascade.matrix_cascades.char_poly (integer path); attested by
+ * tests/test_qalg_charpoly_c_rc161.py. Additive symbol -> ABI unchanged (3). */
+#define SRMECH_FL_MAX_DIM 256u
+size_t srmech_faddeev_leverrier_entry_cap(size_t coeff_limbs, size_t n);
+size_t srmech_faddeev_leverrier_ws_bound(size_t coeff_limbs, size_t n);
+srmech_status_t srmech_faddeev_leverrier(const srmech_bigint_t *a, int n,
+                                         srmech_bigint_t *coeffs,
+                                         void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_gosper — Gosper's indefinite hypergeometric summation (the
