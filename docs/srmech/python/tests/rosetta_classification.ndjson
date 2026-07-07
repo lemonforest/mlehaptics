@@ -25,12 +25,12 @@
 {"exposed_as": "srmech.amsc.rational.exp_series_truncate", "defined_at": "srmech.amsc.rational.exp_series_truncate", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.rational.jacobi_sncndn_series_truncate", "defined_at": "srmech.amsc.rational.jacobi_sncndn_series_truncate", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.rational.log1p_series_truncate", "defined_at": "srmech.amsc.rational.log1p_series_truncate", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.rational.pi_cascade_digits", "defined_at": "srmech.amsc.rational.pi_cascade_digits", "bucket": "bignum_reference", "oracle_justification": "Exact arbitrary-precision Class-N Taylor / pi cascade \u2014 the bignum reference oracle; both the int64/Q61 C fast-path and the exact srmech_*_series_truncate_big C peer are verified against this uncapped exact-rational Python."}
+{"exposed_as": "srmech.amsc.rational.pi_cascade_digits", "defined_at": "srmech.amsc.rational.pi_cascade_digits", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.rational.pi_chudnovsky_digits", "defined_at": "srmech.amsc.rational.pi_chudnovsky_digits", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.rational.sin_series_truncate", "defined_at": "srmech.amsc.rational.sin_series_truncate", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.qm.bell.tsirelson_bound", "defined_at": "srmech.qm.bell.tsirelson_bound", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.signal_processing.closed_form_ops.pi_cascade.op", "defined_at": "srmech.signal_processing.closed_form_ops.pi_cascade.op", "bucket": "bignum_reference", "oracle_justification": "Exact pi cascade signal-processing op wrapping rational.pi_cascade_digits \u2014 the bignum reference oracle."}
-{"exposed_as": "srmech.signal_processing.path_b_ops.pi_cascade.op", "defined_at": "srmech.signal_processing.path_b_ops.pi_cascade.op", "bucket": "bignum_reference", "oracle_justification": "Exact pi cascade signal-processing op wrapping rational.pi_cascade_digits \u2014 the bignum reference oracle."}
+{"exposed_as": "srmech.signal_processing.closed_form_ops.pi_cascade.op", "defined_at": "srmech.signal_processing.closed_form_ops.pi_cascade.op", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.signal_processing.path_b_ops.pi_cascade.op", "defined_at": "srmech.signal_processing.path_b_ops.pi_cascade.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.autocorrelation", "defined_at": "srmech.amsc.cascade.compose.autocorrelation", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.best_rational_signed", "defined_at": "srmech.amsc.cascade.compose.best_rational_signed", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.cd_basis_product", "defined_at": "srmech.amsc.cascade.cayley_dickson.cd_basis_product", "bucket": "c_dispatched"}

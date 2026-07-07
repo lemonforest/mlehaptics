@@ -2143,6 +2143,19 @@ def pi_cascade_digits(num_digits: int,
     if num_digits == 0:
         return "3."
 
+    # Native dispatch (rc157, Qalg TAIL Batch 1b): the C srmech_pi_archimedes
+    # runs the WHOLE two-mean chiral-pair loop on the caller-arena srmech_bigint
+    # — the per-step harmonic-mean divmod + geometric-mean isqrt — byte-identical
+    # to the pure-Python fixed-point body below (same resolved max_cascade_depth
+    # / precision_bits, same Python-FLOOR divmod/shr semantics). It marshals ONE
+    # final result (no per-step decimal round-trip), so a bare-C host reaches the
+    # digit stream with no Python. The pure-Python body is the complete fallback
+    # (no-C / Pyodide) AND the parity oracle the C path is checked against.
+    if _native.HAS_NATIVE:
+        r = _native.pi_archimedes_c(num_digits, max_cascade_depth, precision_bits)
+        if r is not None:
+            return r
+
     # Fixed-precision-integer two-mean chiral-pair bracket. We carry one
     # canonical scale factor M = 2^precision_bits throughout: every
     # quantity is an integer that, divided by M, gives the underlying

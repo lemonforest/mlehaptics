@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc156"
-#define SRMECH_VERSION       "0.9.0rc156"
+#define SRMECH_VERSION_PRE   "rc157"
+#define SRMECH_VERSION       "0.9.0rc157"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4077,6 +4077,35 @@ size_t srmech_pi_chudnovsky_ws_bound(uint32_t num_digits);
  * or ws → SRMECH_ERR_OVERFLOW. */
 srmech_status_t srmech_pi_chudnovsky(uint32_t num_digits, char *out,
                                      size_t out_cap, size_t *out_len,
+                                     void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_pi_archimedes — the projects-EVERY-step Pfaff-Archimedes pi
+ *
+ * The COMPLEMENT of srmech_pi_chudnovsky (rotation-last): Pfaff's 1800
+ * reformulation of Archimedes' polygon method as a two-mean chiral pair that
+ * brackets pi over a fixed-point unit M = 1 << precision_bits, projecting at
+ * EVERY step (one integer isqrt per iteration = the geometric mean):
+ *
+ *   b0 = 3*M ; a0 = isqrt(12*M*M) ;
+ *   a' = (2*a*b)//(a+b) [harmonic, dn] ; b' = isqrt(a'*b) [geometric, up] ;
+ *   pi ~ (a+b)//2 -> pi_int = (pi_scaled*10^D)//M -> "3." + D digits.
+ *
+ * The WHOLE loop runs in C (NO per-step decimal round-trip), so a bare C host
+ * computes pi with no Python. Byte-identical to the pure-Python
+ * pi_cascade_digits oracle (same fixed-point integers, same Python-FLOOR
+ * divmod/shr, same depth/precision). Early-exits at the exact a==b fixed point
+ * (a pure speedup, not a result change). All limb buffers + the divmod/isqrt
+ * scratch are carved from the caller arena `ws` (no malloc). num_digits == 0
+ * -> "3."; out_cap must be >= num_digits + 4. Too-small out_cap or ws, or a
+ * zero depth/precision, -> SRMECH_ERR_OVERFLOW / SRMECH_ERR_BAD_INPUT.
+ *
+ * Carrier-internal (like srmech_pi_chudnovsky): NOT a Rosetta ledger op.
+ * ABI-additive: a new symbol, so SRMECH_ABI_VERSION stays 3. */
+srmech_status_t srmech_pi_archimedes(uint32_t num_digits,
+                                     uint32_t max_cascade_depth,
+                                     uint32_t precision_bits,
+                                     char *out, size_t out_cap, size_t *out_len,
                                      void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
