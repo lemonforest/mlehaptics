@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc158"
-#define SRMECH_VERSION       "0.9.0rc158"
+#define SRMECH_VERSION_PRE   "rc159"
+#define SRMECH_VERSION       "0.9.0rc159"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -6641,6 +6641,91 @@ srmech_status_t srmech_qmat_rref_crt(const srmech_bigint_t *a_n,
                                      size_t n_cols, srmech_bigint_t *out_n,
                                      srmech_bigint_t *out_d, size_t *out_rank,
                                      size_t *pivot_cols, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_cd_qvec — the Cayley-Dickson EXACT-ℚ VECTOR carrier, the 1-D sibling
+ * of srmech_qmat (v0.9.0rc159; Qalg TAIL Batch 3). A dim-2^k Cayley-Dickson
+ * element is a ℚ-vector of `dim` components; each component is one exact
+ * rational num/den srmech_bigint pair (dens > 0, gcd(|num|, den) == 1; the
+ * zero component is 0/1) — the SAME reduced canonical form as Python's
+ * fractions.Fraction. A bare-C host CONSTRUCTS + HOLDS + MANIPULATES a CD
+ * ℚ-vector through these four kernels with no Python (the everything-mirrors
+ * discipline — the carrier is owed C too, not only the primitive kernels).
+ *
+ * They REUSE the qmat exact-ℚ scalar machinery (qmat_q_add / qmat_q_mul /
+ * qmat_q_reduce over srmech_bigint) in the SAME translation unit — the 1-D
+ * vector is a degenerate matrix, so the rational-limb arithmetic is not
+ * duplicated (the 1:1-mirror discipline forbids two copies of the same
+ * algebra). BYTE-IDENTICAL to Python's Fraction (num, den) at ANY magnitude
+ * (full bignum; no int64/Q61 ceiling). Rosetta peers of
+ * srmech.amsc.cascade.cayley_dickson.{cd_basis, cd_conjugate, cd_add,
+ * cd_norm_sq}, attested BYTE-IDENTICAL by tests/test_qalg_qvec_c_rc159.py.
+ *
+ *   cd_qbasis    : the unit vector e_i (1/1 at i, 0/1 elsewhere) — Class-A
+ *                  attested basis convention; no arithmetic.
+ *   cd_qconjugate: negate the IMAGINARY half (components 1..dim-1), keep
+ *                  component 0 — the Class-K sign-flip (never an ALU abs).
+ *   cd_qadd      : component-wise exact-ℚ sum (Class-M bilinear over ℚ).
+ *   cd_qnorm_sq  : Σ_i x_i² as one exact-ℚ scalar (Class-N rational anchor;
+ *                  x·x̄ = N(x)·1).
+ *
+ * STANDALONE-COMPLETE: the qadd / qnorm_sq working carriers + reduce scratch
+ * are carved from the caller arena `ws` (>= srmech_cd_qvec_ws_bound), so the
+ * bound is the caller's RAM; any residual overflow returns SRMECH_ERR_OVERFLOW
+ * (never a silent wrap), and the Python cd_* op falls back to its ceiling-free
+ * pure-Fraction oracle. qbasis / qconjugate need NO arena (bignum copy / set +
+ * a Class-K sign flip only). Out entry arrays are caller-owned + pre-sized:
+ * each srmech_bigint must carry >= srmech_cd_qvec_entry_cap limbs.
+ *
+ * Carrier-internal like srmech_qmat / srmech_poly (no ToolEntry of its own —
+ * the Python cd_* ops are the ledger surface). Additive symbols -> ABI
+ * unchanged (stays 3). See srmech_qmat.c. dim a power of two in
+ * [1, SRMECH_CD_MAX_DIM]; a bad dim / index -> SRMECH_ERR_BAD_INPUT.
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES the caller hands srmech_cd_qadd / srmech_cd_qnorm_sq
+ * for `dim` components of `coeff_limbs` significant limbs each. Covers the
+ * exact-ℚ scalar accumulator + reduce scratch (the norm_sq accumulator's
+ * denominator can grow to ~dim*coeff_limbs limbs; this dominates it). */
+size_t srmech_cd_qvec_ws_bound(size_t coeff_limbs, size_t dim);
+
+/* The per-entry limb cap the caller must give each srmech_bigint in the OUTPUT
+ * nums/dens arrays so a reduced result never overflows its slot before the op's
+ * guard fires. Use the SAME dim as the op's ws-bound. */
+size_t srmech_cd_qvec_entry_cap(size_t coeff_limbs, size_t dim);
+
+/* The unit basis element e_i of the dim-D algebra: out_n[c]/out_d[c] receive
+ * 1/1 at c == i and 0/1 elsewhere (caller sizes out arrays `dim` long). No
+ * arena. Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (bad dim / i). */
+srmech_status_t srmech_cd_qbasis(int dim, int i,
+                                 srmech_bigint_t *out_n, srmech_bigint_t *out_d);
+
+/* Cayley-Dickson conjugation: copy x, then negate the numerator sign of the
+ * imaginary components 1..dim-1 (Class-K; component 0 kept). out may not alias
+ * x. Reduced form is preserved (negation keeps gcd == 1). No arena. */
+srmech_status_t srmech_cd_qconjugate(const srmech_bigint_t *x_n,
+                                     const srmech_bigint_t *x_d, int dim,
+                                     srmech_bigint_t *out_n,
+                                     srmech_bigint_t *out_d);
+
+/* Component-wise exact-ℚ sum: out[c] = x[c] + y[c] (reduced). x, y, out are
+ * each `dim` components; out may not alias x or y. Uses the caller arena `ws`
+ * (>= srmech_cd_qvec_ws_bound). */
+srmech_status_t srmech_cd_qadd(const srmech_bigint_t *x_n,
+                               const srmech_bigint_t *x_d,
+                               const srmech_bigint_t *y_n,
+                               const srmech_bigint_t *y_d, int dim,
+                               srmech_bigint_t *out_n, srmech_bigint_t *out_d,
+                               void *ws, size_t ws_len);
+
+/* The squared norm N(x) = Σ_i x_i² as one reduced exact-ℚ scalar
+ * out_num/out_den. `dim` components; uses the caller arena `ws`
+ * (>= srmech_cd_qvec_ws_bound). */
+srmech_status_t srmech_cd_qnorm_sq(const srmech_bigint_t *x_n,
+                                   const srmech_bigint_t *x_d, int dim,
+                                   srmech_bigint_t *out_num,
+                                   srmech_bigint_t *out_den,
+                                   void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_gosper — Gosper's indefinite hypergeometric summation (the

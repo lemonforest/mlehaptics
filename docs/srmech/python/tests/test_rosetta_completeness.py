@@ -454,7 +454,17 @@ CEIL_C_EXISTS_UNBOUND = 0
 # bignum. All 4 move bignum_reference -> c_dispatched. CEIL_BIGNUM_REFERENCE
 # 21 -> 17. (The 4 trivial cd_basis/conjugate/add/norm_sq QQ ops + the Qvec
 # carrier are the next batch B3, 17 -> 13.)
-CEIL_BIGNUM_REFERENCE = 17
+# rc159 (Qalg TAIL Batch 3): the 4 TRIVIAL Cayley-Dickson EXACT-QQ arithmetic ops
+# (cayley_dickson.{cd_basis, cd_conjugate, cd_add, cd_norm_sq}) earn a C path via
+# a NEW srmech_cd_qvec exact-QQ VECTOR carrier (the 1-D sibling of srmech_qmat: a
+# CD element of dim 2^k is a QQ-vector of num/den srmech_bigint pairs). The four
+# C kernels srmech_cd_q{basis, conjugate, add, norm_sq} REUSE the qmat exact-QQ
+# scalar machinery (qmat_q_add/mul/reduce over srmech_bigint) in-TU (no duplicated
+# QQ arithmetic) — byte-identical reduced (num, den) to the pure Fraction oracle
+# at ANY magnitude. All 4 move bignum_reference -> c_dispatched. CEIL_BIGNUM_
+# REFERENCE 17 -> 13. (Next batch B4 = srmech_cd_mult + left_mult_matrix/kernel;
+# 13 -> 8.)
+CEIL_BIGNUM_REFERENCE = 13
 
 _DEBT_BUCKETS = ("python_only_debt", "c_exists_unbound")
 _ALL_BUCKETS = (

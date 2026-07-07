@@ -941,6 +941,54 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_cd_zero_divisor_witness.restype = ctypes.c_int
 
+    # Cayley-Dickson EXACT-ℚ VECTOR carrier (v0.9.0rc159; Qalg TAIL Batch 3) —
+    # the 1-D sibling of srmech_qmat; num/den srmech_bigint arrays. The four
+    # kernels back cayley_dickson.{cd_basis, cd_conjugate, cd_add, cd_norm_sq}.
+    # hasattr-guarded so a stale lib (pre-rc159) keeps the rest of the surface.
+    #   size_t srmech_cd_qvec_ws_bound(coeff_limbs, dim)
+    #   size_t srmech_cd_qvec_entry_cap(coeff_limbs, dim)
+    for _cdq_sz in ("srmech_cd_qvec_ws_bound", "srmech_cd_qvec_entry_cap"):
+        if hasattr(lib, _cdq_sz):
+            getattr(lib, _cdq_sz).argtypes = [ctypes.c_size_t, ctypes.c_size_t]
+            getattr(lib, _cdq_sz).restype = ctypes.c_size_t
+    #   int srmech_cd_qbasis(int dim, int i, bigint *out_n, bigint *out_d)
+    if hasattr(lib, "srmech_cd_qbasis"):
+        lib.srmech_cd_qbasis.argtypes = [
+            ctypes.c_int, ctypes.c_int,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+        ]
+        lib.srmech_cd_qbasis.restype = ctypes.c_int
+    #   int srmech_cd_qconjugate(bigint *x_n, bigint *x_d, int dim,
+    #       bigint *out_n, bigint *out_d)
+    if hasattr(lib, "srmech_cd_qconjugate"):
+        lib.srmech_cd_qconjugate.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_int,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+        ]
+        lib.srmech_cd_qconjugate.restype = ctypes.c_int
+    #   int srmech_cd_qadd(bigint *x_n, *x_d, *y_n, *y_d, int dim,
+    #       bigint *out_n, *out_d, void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_cd_qadd"):
+        lib.srmech_cd_qadd.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_int,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_cd_qadd.restype = ctypes.c_int
+    #   int srmech_cd_qnorm_sq(bigint *x_n, *x_d, int dim,
+    #       bigint *out_num, *out_den, void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_cd_qnorm_sq"):
+        lib.srmech_cd_qnorm_sq.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_int,
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_cd_qnorm_sq.restype = ctypes.c_int
+
     # Qi exact-complex (Gaussian-rational) carrier C-host peer (0.9.0rc15) —
     # carrier-internal (NOT a Rosetta op), four int64 limbs {re_num, re_den,
     # im_num, im_den}. hasattr-guarded so a stale lib (pre-rc15) keeps the rest.
@@ -4381,6 +4429,124 @@ def cd_zero_divisor_witness_c() -> "tuple | None":
         return None
     return (int(oi.value), int(oj.value), int(ok.value),
             int(ol.value), int(os_.value))
+
+
+# ----------------------------------------------------------------------
+# Cayley-Dickson EXACT-ℚ VECTOR carrier dispatch (v0.9.0rc159; Qalg TAIL
+# Batch 3). A CD element of dim 2^k is a ℚ-vector of `dim` (num, den)
+# components; the four kernels back cayley_dickson.{cd_basis, cd_conjugate,
+# cd_add, cd_norm_sq}. They REUSE the C-side qmat exact-ℚ scalar machinery
+# (the 1-D sibling of srmech_qmat) and the poly num/den array marshalers
+# (_poly_make_array / _poly_blank_array / _poly_read_array — the same
+# decimal-bridge pattern; resolved at call time). BYTE-IDENTICAL to Python's
+# Fraction (num, den) at any magnitude; None on a no-C / pre-rc159 lib → the
+# caller uses the pure-Fraction oracle.
+# ----------------------------------------------------------------------
+
+_CD_QVEC_SYMS = (
+    "srmech_cd_qbasis",
+    "srmech_cd_qconjugate",
+    "srmech_cd_qadd",
+    "srmech_cd_qnorm_sq",
+    "srmech_cd_qvec_ws_bound",
+    "srmech_cd_qvec_entry_cap",
+    "srmech_bigint_from_dec",
+    "srmech_bigint_to_dec",
+    "srmech_bigint_to_dec_bound",
+)
+
+
+def has_native_cd_qvec() -> bool:
+    """True iff the rc159 CD exact-ℚ vector kernels + the srmech_bigint
+    decimal-marshal helpers are loaded + bound. False on a no-C or pre-rc159
+    lib — the pure-Python Fraction body in
+    ``srmech.amsc.cascade.cayley_dickson`` is the complete alternative (and the
+    parity oracle); both emit byte-identical exact (num, den)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _CD_QVEC_SYMS)
+
+
+def cd_qbasis_c(dim: int, i: int) -> "list | None":
+    """Native unit basis vector e_i → list of ``dim`` reduced ``(num, den)``
+    tuples ([(0,1), …, (1,1) at i, …]), or None (no-C lib). No ℚ arithmetic —
+    a Class-A basis convention, so the tiny 2-limb carriers suffice."""
+    if not has_native_cd_qvec():
+        return None
+    o_n, o_d, ko = _poly_blank_array(dim, 2)          # 0/1 or 1/1 fit in 1 limb
+    rc = LIB.srmech_cd_qbasis(int(dim), int(i), o_n, o_d)
+    _ = ko
+    if rc != SRMECH_OK:
+        return None
+    return _poly_read_array(o_n, o_d, dim)
+
+
+def cd_qconjugate_c(components) -> "list | None":
+    """Native CD conjugation → list of ``dim`` reduced ``(num, den)`` tuples
+    (imaginary components 1..dim-1 negated, component 0 kept), or None (no-C
+    lib). ``components`` is a ``(num, den)`` sequence."""
+    if not has_native_cd_qvec():
+        return None
+    dim = len(components)
+    out_cap = _poly_coeff_limbs(components) + 2       # copy + Class-K sign flip
+    x_n, x_d, kx = _poly_make_array(components, out_cap)
+    o_n, o_d, ko = _poly_blank_array(dim, out_cap)
+    rc = LIB.srmech_cd_qconjugate(x_n, x_d, int(dim), o_n, o_d)
+    _ = (kx, ko)
+    if rc != SRMECH_OK:
+        return None
+    return _poly_read_array(o_n, o_d, dim)
+
+
+def cd_qadd_c(x_components, y_components) -> "list | None":
+    """Native component-wise exact-ℚ sum → list of ``dim`` reduced ``(num,
+    den)`` tuples, or None (no-C lib). Both are same-length ``(num, den)``
+    sequences. The out entry cap + caller arena are sized from the input limb
+    count via the C sizing symbols (generous; a too-small arena → OVERFLOW →
+    None → the caller's pure oracle)."""
+    if not has_native_cd_qvec():
+        return None
+    dim = len(x_components)
+    cl = max(_poly_coeff_limbs(x_components), _poly_coeff_limbs(y_components))
+    out_cap = int(LIB.srmech_cd_qvec_entry_cap(
+        ctypes.c_size_t(cl), ctypes.c_size_t(dim)))
+    ws_len = int(LIB.srmech_cd_qvec_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_size_t(dim)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    x_n, x_d, kx = _poly_make_array(x_components, out_cap)
+    y_n, y_d, ky = _poly_make_array(y_components, out_cap)
+    o_n, o_d, ko = _poly_blank_array(dim, out_cap)
+    rc = LIB.srmech_cd_qadd(
+        x_n, x_d, y_n, y_d, int(dim), o_n, o_d,
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len))
+    _ = (kx, ky, ko)
+    if rc != SRMECH_OK:
+        return None
+    return _poly_read_array(o_n, o_d, dim)
+
+
+def cd_qnorm_sq_c(components) -> "tuple | None":
+    """Native squared norm Σ x_i² → one reduced ``(num, den)`` tuple, or None
+    (no-C lib). ``components`` is a ``(num, den)`` sequence."""
+    if not has_native_cd_qvec():
+        return None
+    dim = len(components)
+    cl = _poly_coeff_limbs(components)
+    out_cap = int(LIB.srmech_cd_qvec_entry_cap(
+        ctypes.c_size_t(cl), ctypes.c_size_t(dim)))
+    ws_len = int(LIB.srmech_cd_qvec_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_size_t(dim)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    x_n, x_d, kx = _poly_make_array(components, out_cap)
+    o_num, kon = _bigint_from_int(0, out_cap)
+    o_den, kod = _bigint_from_int(1, out_cap)
+    rc = LIB.srmech_cd_qnorm_sq(
+        x_n, x_d, int(dim), ctypes.byref(o_num), ctypes.byref(o_den),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len))
+    _ = (kx, kon, kod)
+    if rc != SRMECH_OK:
+        return None
+    return (_bigint_to_int(o_num), _bigint_to_int(o_den))
 
 
 # ----------------------------------------------------------------------

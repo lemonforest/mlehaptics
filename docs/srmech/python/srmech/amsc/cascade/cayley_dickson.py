@@ -46,9 +46,16 @@ the construction needs only ``+``, ``−``, ``×`` and the Class-K sign-flip (ne
 **structural core** — the basis-unit cocycle ``e_i·e_j = ±e_{i⊕j}`` — is
 :func:`cd_basis_product`, attested bit-exact against the JPL-clean C peer
 ``srmech_cd_basis_product`` by ``tests/test_cascade_cayley_dickson_parity.py``
-(the Rosetta pair; the arbitrary-rational product stays Python by the same
-vendoring-scope decision that keeps TOML parsing in Python — there is no bignum
-rational in libsrmech).
+(the Rosetta pair). The exact-ℚ VECTOR ops :func:`cd_basis` / :func:`cd_conjugate`
+/ :func:`cd_add` / :func:`cd_norm_sq` also dispatch to JPL-clean C peers
+(``srmech_cd_q{basis,conjugate,add,norm_sq}`` — the ``srmech_cd_qvec`` exact-ℚ
+vector carrier, the 1-D sibling of ``srmech_qmat`` over the caller-arena
+``srmech_bigint``; rc159/Qalg Batch 3), byte-identical reduced ``(num, den)`` at
+any magnitude — so a bare-C host CONSTRUCTS + HOLDS + MANIPULATES a CD ℚ-vector
+with no Python (there IS a bignum rational in libsrmech now). The arbitrary-
+rational PRODUCT :func:`cd_mult` (the recursive doubling) is the remaining
+Python-only rung (its C peer is the next Qalg batch); the pure-Python bodies stay
+the Pyodide / no-native fallback + the byte-identical parity oracle throughout.
 
 **No new primitive class** — a composition of A–N: the doubling product is
 **Class M** (the bilinear bind) ∘ **Class C** (the conjugation-ordered cross
@@ -179,7 +186,14 @@ def cd_conjugate(a: Sequence[Any]) -> Tuple[Fraction, ...]:
     Defined at **every** rung (the chirality persists, §VII.6.23.3); ``x·x̄`` is
     always the real scalar ``N(x)·1``, even where the product loses its inverse.
     """
-    return _conj(_as_elem(a))
+    el = _as_elem(a)
+    # rc159: the imaginary-half sign-flip dispatches to srmech_cd_qconjugate
+    # (the exact-ℚ vector C peer). Byte-identical reduced (num, den) to the pure
+    # _conj below, which stays the Pyodide / no-native fallback.
+    native = _native.cd_qconjugate_c([(f.numerator, f.denominator) for f in el])
+    if native is not None:
+        return tuple(Fraction(n, d) for n, d in native)
+    return _conj(el)
 
 
 def cd_mult(a: Sequence[Any], b: Sequence[Any]) -> Tuple[Fraction, ...]:
@@ -199,6 +213,14 @@ def cd_add(a: Sequence[Any], b: Sequence[Any]) -> Tuple[Fraction, ...]:
     b = _as_elem(b)
     if len(a) != len(b):
         raise ValueError(f"cd_add: dimension mismatch {len(a)} vs {len(b)}")
+    # rc159: component-wise exact-ℚ addition dispatches to srmech_cd_qadd (the
+    # exact-ℚ vector C peer). Byte-identical reduced (num, den) to the pure
+    # Fraction sum below, which stays the Pyodide / no-native fallback.
+    native = _native.cd_qadd_c(
+        [(f.numerator, f.denominator) for f in a],
+        [(f.numerator, f.denominator) for f in b])
+    if native is not None:
+        return tuple(Fraction(n, d) for n, d in native)
     return tuple(p + q for p, q in zip(a, b))
 
 
@@ -209,6 +231,13 @@ def cd_norm_sq(a: Sequence[Any]) -> Fraction:
     identity ``N(x·y) = N(x)·N(y)`` holds for dims ≤ 8 and **fails** at 16.
     """
     a = _as_elem(a)
+    # rc159: the sum-of-squares Σ x_i² dispatches to srmech_cd_qnorm_sq (the
+    # exact-ℚ vector C peer). Byte-identical reduced (num, den) to the pure
+    # Fraction accumulate below, which stays the Pyodide / no-native fallback.
+    native = _native.cd_qnorm_sq_c([(f.numerator, f.denominator) for f in a])
+    if native is not None:
+        n, d = native
+        return Fraction(n, d)
     s = Fraction(0)
     for x in a:
         s += x * x
@@ -221,6 +250,12 @@ def cd_basis(dim: int, i: int) -> Tuple[Fraction, ...]:
         raise ValueError(f"dim must be a power of two ≤ {CD_MAX_DIM}; got {dim}")
     if not (0 <= i < dim):
         raise ValueError(f"basis index {i} out of range [0, {dim})")
+    # rc159: the unit basis vector dispatches to srmech_cd_qbasis (the exact-ℚ
+    # vector C peer). Byte-identical [(0,1), …, (1,1) at i, …] to the pure
+    # construction below, which stays the Pyodide / no-native fallback.
+    native = _native.cd_qbasis_c(dim, i)
+    if native is not None:
+        return tuple(Fraction(n, d) for n, d in native)
     e = [Fraction(0)] * dim
     e[i] = Fraction(1)
     return tuple(e)
