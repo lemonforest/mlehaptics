@@ -417,6 +417,12 @@ def left_orbit(dim: int,
     if not (0 <= start_idx < dim and 0 <= gen_idx < dim):
         raise ValueError(
             f"indices {start_idx}, {gen_idx} out of range [0, {dim})")
+    # rc158: the integer cycle dispatches to srmech_cd_left_orbit (composes the
+    # cocycle C peer). Byte-identical cycle order to the pure walk below, which
+    # remains the Pyodide / no-native fallback.
+    native = _native.cd_left_orbit_c(dim, start_idx, gen_idx)
+    if native is not None:
+        return native
     gen = (1, gen_idx)
     cur: Tuple[int, int] = (1, start_idx)
     orbit: List[Tuple[int, int]] = []
@@ -441,11 +447,19 @@ def closure(dim: int,
     """
     if not _is_pow2(dim) or dim > CD_MAX_DIM:
         raise ValueError(f"dim must be a power of two ≤ {CD_MAX_DIM}; got {dim}")
-    for g in generator_idxs:
+    gens = list(generator_idxs)
+    for g in gens:
         if not (0 <= g < dim):
             raise ValueError(f"generator index {g} out of range [0, {dim})")
+    # rc158: the integer sub-loop fixpoint dispatches to srmech_cd_closure
+    # (composes the cocycle C peer). The C set is element-identical to the pure
+    # fixpoint below (a set — order-independent), which stays the no-native
+    # fallback.
+    native = _native.cd_closure_c(dim, gens)
+    if native is not None:
+        return native
     elems: Set[Tuple[int, int]] = {(1, 0)}
-    elems.update((1, g) for g in generator_idxs)
+    elems.update((1, g) for g in gens)
     changed = True
     while changed:
         changed = False
@@ -476,6 +490,18 @@ def min_generating_set(dim: int,
         if not (0 <= u < dim):
             raise ValueError(f"unit index {u} out of range [0, {dim})")
     full = 2 * dim
+    # rc158: dispatch the subset search to srmech_cd_min_generating_set (which
+    # composes srmech_cd_closure). Returns k>0 (found), 0 (no spanning subset →
+    # the ValueError below), or None (no-native / bounded-search overflow → the
+    # complete pure oracle). Same minimal k as the pure loop (order-independent).
+    native = _native.cd_min_generating_set_c(dim, units)
+    if native is not None:
+        if native > 0:
+            return native
+        raise ValueError(
+            f"no subset of {units} generates the full loop of {full} signed "
+            f"units in dim {dim}"
+        )
     for k in range(1, len(units) + 1):
         for subset in combinations(units, k):
             if len(closure(dim, subset)) == full:
@@ -508,6 +534,30 @@ def _terms_to_elem(dim: int, terms) -> Tuple[Fraction, ...]:
     return tuple(e)
 
 
+def _build_zero_divisor_dict(i: int, j: int, k: int, l: int, s: int
+                             ) -> Dict[str, Any]:
+    """Assemble the witness dict from the found basis indices (shared by the
+    native + pure paths so both emit a byte-identical result)."""
+    dim = 16
+    terms_x = [(i, 1), (j, 1)]
+    terms_y = [(k, 1), (l, s)]
+    is_zero, prod = _basis_sum_terms_zero(dim, terms_x, terms_y)
+    assert is_zero, "witness (i,j,k,l,s) does not annihilate — broken convention"
+    x = _terms_to_elem(dim, terms_x)
+    y = _terms_to_elem(dim, terms_y)
+    return {
+        "dim": dim,
+        "x": x,
+        "y": y,
+        "x_form": f"e{i} + e{j}",
+        "y_form": f"e{k} {'+' if s > 0 else '-'} e{l}",
+        "x_norm_sq": cd_norm_sq(x),
+        "y_norm_sq": cd_norm_sq(y),
+        "product": tuple(Fraction(v) for v in prod),
+        "product_is_zero": True,
+    }
+
+
 def sedenion_zero_divisor_witness() -> Dict[str, Any]:
     """Exhibit a concrete sedenion (dim 16) zero divisor: ``x, y`` both nonzero
     with ``x·y = 0``. Found by searching basis-unit pairs with **our own**
@@ -518,6 +568,12 @@ def sedenion_zero_divisor_witness() -> Dict[str, Any]:
     product — the executable form of "zero divisors first appear at 16."
     """
     dim = 16
+    # rc158: dispatch the integer basis-pair search to srmech_cd_zero_divisor_
+    # witness (composes the cocycle C peer). It returns the SAME first witness
+    # (same nested search order) as the pure loop below — byte-identical dict.
+    native = _native.cd_zero_divisor_witness_c()
+    if native is not None:
+        return _build_zero_divisor_dict(*native)
     units = range(1, dim)                       # imaginary units e_1 … e_15
     for i in units:
         for j in range(i + 1, dim):
@@ -526,21 +582,10 @@ def sedenion_zero_divisor_witness() -> Dict[str, Any]:
                 for l in range(k + 1, dim):
                     for s in (1, -1):
                         terms_y = [(k, 1), (l, s)]
-                        is_zero, prod = _basis_sum_terms_zero(dim, terms_x, terms_y)
+                        is_zero, _prod = _basis_sum_terms_zero(
+                            dim, terms_x, terms_y)
                         if is_zero:
-                            x = _terms_to_elem(dim, terms_x)
-                            y = _terms_to_elem(dim, terms_y)
-                            return {
-                                "dim": dim,
-                                "x": x,
-                                "y": y,
-                                "x_form": f"e{i} + e{j}",
-                                "y_form": f"e{k} {'+' if s > 0 else '-'} e{l}",
-                                "x_norm_sq": cd_norm_sq(x),
-                                "y_norm_sq": cd_norm_sq(y),
-                                "product": tuple(Fraction(v) for v in prod),
-                                "product_is_zero": True,
-                            }
+                            return _build_zero_divisor_dict(i, j, k, l, s)
     raise RuntimeError(                         # unreachable: 𝕊 has zero divisors
         "no basis-pair zero divisor found in the sedenions — the convention is "
         "inconsistent with Cayley–Dickson (this should be impossible)"

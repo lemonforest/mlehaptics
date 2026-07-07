@@ -890,6 +890,57 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_cd_basis_product.restype = ctypes.c_int
 
+    # Cayley-Dickson loop NAVIGATION (v0.9.0rc158; Qalg TAIL Batch 2) — the
+    # INTEGER combinatorial layer COMPOSED over srmech_cd_basis_product. Each
+    # hasattr-guarded so a stale lib (pre-rc158) keeps the rest of the surface.
+    #   int srmech_cd_closure(int dim, const int *gen_idxs, size_t n_gens,
+    #       int *out_signs, int *out_indices, size_t out_cap, size_t *out_count)
+    if hasattr(lib, "srmech_cd_closure"):
+        lib.srmech_cd_closure.argtypes = [
+            ctypes.c_int,                       # dim
+            ctypes.POINTER(ctypes.c_int),       # gen_idxs
+            ctypes.c_size_t,                    # n_gens
+            ctypes.POINTER(ctypes.c_int),       # out_signs
+            ctypes.POINTER(ctypes.c_int),       # out_indices
+            ctypes.c_size_t,                    # out_cap
+            ctypes.POINTER(ctypes.c_size_t),    # out_count
+        ]
+        lib.srmech_cd_closure.restype = ctypes.c_int
+    #   int srmech_cd_left_orbit(int dim, int start_idx, int gen_idx,
+    #       int *out_signs, int *out_indices, size_t out_cap, size_t *out_count)
+    if hasattr(lib, "srmech_cd_left_orbit"):
+        lib.srmech_cd_left_orbit.argtypes = [
+            ctypes.c_int,                       # dim
+            ctypes.c_int,                       # start_idx
+            ctypes.c_int,                       # gen_idx
+            ctypes.POINTER(ctypes.c_int),       # out_signs
+            ctypes.POINTER(ctypes.c_int),       # out_indices
+            ctypes.c_size_t,                    # out_cap
+            ctypes.POINTER(ctypes.c_size_t),    # out_count
+        ]
+        lib.srmech_cd_left_orbit.restype = ctypes.c_int
+    #   int srmech_cd_min_generating_set(int dim, const int *unit_idxs,
+    #       size_t n_units, int *out_k)
+    if hasattr(lib, "srmech_cd_min_generating_set"):
+        lib.srmech_cd_min_generating_set.argtypes = [
+            ctypes.c_int,                       # dim
+            ctypes.POINTER(ctypes.c_int),       # unit_idxs
+            ctypes.c_size_t,                    # n_units
+            ctypes.POINTER(ctypes.c_int),       # out_k (0 = no spanning subset)
+        ]
+        lib.srmech_cd_min_generating_set.restype = ctypes.c_int
+    #   int srmech_cd_zero_divisor_witness(int *out_i, int *out_j,
+    #       int *out_k, int *out_l, int *out_s)
+    if hasattr(lib, "srmech_cd_zero_divisor_witness"):
+        lib.srmech_cd_zero_divisor_witness.argtypes = [
+            ctypes.POINTER(ctypes.c_int),       # out_i
+            ctypes.POINTER(ctypes.c_int),       # out_j
+            ctypes.POINTER(ctypes.c_int),       # out_k
+            ctypes.POINTER(ctypes.c_int),       # out_l
+            ctypes.POINTER(ctypes.c_int),       # out_s (+1 / -1)
+        ]
+        lib.srmech_cd_zero_divisor_witness.restype = ctypes.c_int
+
     # Qi exact-complex (Gaussian-rational) carrier C-host peer (0.9.0rc15) —
     # carrier-internal (NOT a Rosetta op), four int64 limbs {re_num, re_den,
     # im_num, im_den}. hasattr-guarded so a stale lib (pre-rc15) keeps the rest.
@@ -4240,6 +4291,96 @@ def pi_archimedes_c(num_digits: int, max_cascade_depth: int,
             f"srmech_pi_archimedes returned non-OK status {rc}"
         )
     return bytes(out)[:out_len.value].decode("ascii")
+
+
+# ----------------------------------------------------------------------
+# Cayley-Dickson loop NAVIGATION (v0.9.0rc158; Qalg TAIL Batch 2) — the INTEGER
+# combinatorial layer over srmech_cd_basis_product. Signed basis units
+# (sign, index); no bignum, no float. A bare-C host navigates the CD loop with
+# no Python via these four symbols. Each *_c helper returns None on a no-C /
+# pre-rc158 lib (or a bounded-search overflow) so the caller falls through to
+# the complete pure-Python oracle — the byte-identical parity twin.
+# ----------------------------------------------------------------------
+
+def has_native_cd_closure() -> bool:
+    """True iff the CD loop-navigation C symbols (rc158+) are loaded + bound."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_cd_closure")
+                and hasattr(LIB, "srmech_cd_left_orbit")
+                and hasattr(LIB, "srmech_cd_min_generating_set")
+                and hasattr(LIB, "srmech_cd_zero_divisor_witness"))
+
+
+def cd_closure_c(dim: int, gen_idxs: "list[int]") -> "set | None":
+    """Native sub-loop closure → a ``set`` of ``(sign, index)`` signed units, or
+    None (no-C lib). The C fixpoint composes ``srmech_cd_basis_product``; the set
+    it returns is element-identical to the pure-Python ``closure`` oracle."""
+    if not has_native_cd_closure():
+        return None
+    n = len(gen_idxs)
+    gens = (ctypes.c_int * n)(*gen_idxs) if n else (ctypes.c_int * 0)()
+    cap = 2 * dim
+    signs = (ctypes.c_int * cap)()
+    idxs = (ctypes.c_int * cap)()
+    count = ctypes.c_size_t(0)
+    rc = LIB.srmech_cd_closure(
+        int(dim), gens, ctypes.c_size_t(n), signs, idxs,
+        ctypes.c_size_t(cap), ctypes.byref(count))
+    if rc != SRMECH_OK:
+        return None
+    return {(int(signs[i]), int(idxs[i])) for i in range(count.value)}
+
+
+def cd_left_orbit_c(dim: int, start_idx: int, gen_idx: int) -> "list | None":
+    """Native left-multiplication orbit → a ``list`` of ``(sign, index)`` in
+    cycle order, or None (no-C lib). Byte-identical (same walk order) to the
+    pure-Python ``left_orbit`` oracle."""
+    if not has_native_cd_closure():
+        return None
+    cap = 2 * dim
+    signs = (ctypes.c_int * cap)()
+    idxs = (ctypes.c_int * cap)()
+    count = ctypes.c_size_t(0)
+    rc = LIB.srmech_cd_left_orbit(
+        int(dim), int(start_idx), int(gen_idx), signs, idxs,
+        ctypes.c_size_t(cap), ctypes.byref(count))
+    if rc != SRMECH_OK:
+        return None
+    return [(int(signs[i]), int(idxs[i])) for i in range(count.value)]
+
+
+def cd_min_generating_set_c(dim: int, units: "list[int]") -> "int | None":
+    """Native minimum spanning cardinality: ``k > 0`` (a k-subset spans), ``0``
+    (NO subset spans → the caller raises ValueError), or None (no-C lib OR the
+    bounded combinatorial search overflowed → the caller uses the pure oracle).
+    Composes ``srmech_cd_closure`` over each combination."""
+    if not has_native_cd_closure():
+        return None
+    n = len(units)
+    arr = (ctypes.c_int * n)(*units) if n else (ctypes.c_int * 0)()
+    out_k = ctypes.c_int(-1)
+    rc = LIB.srmech_cd_min_generating_set(
+        int(dim), arr, ctypes.c_size_t(n), ctypes.byref(out_k))
+    if rc != SRMECH_OK:                     # OVERFLOW / bad-input → pure oracle
+        return None
+    return int(out_k.value)
+
+
+def cd_zero_divisor_witness_c() -> "tuple | None":
+    """Native sedenion zero-divisor search → ``(i, j, k, l, s)`` (the first
+    witness ``(e_i + e_j)(e_k + s·e_l) = 0`` in the same nested order as the
+    Python oracle), or None (no-C lib). Composes ``srmech_cd_basis_product``."""
+    if not has_native_cd_closure():
+        return None
+    oi = ctypes.c_int(); oj = ctypes.c_int(); ok = ctypes.c_int()
+    ol = ctypes.c_int(); os_ = ctypes.c_int()
+    rc = LIB.srmech_cd_zero_divisor_witness(
+        ctypes.byref(oi), ctypes.byref(oj), ctypes.byref(ok),
+        ctypes.byref(ol), ctypes.byref(os_))
+    if rc != SRMECH_OK:
+        return None
+    return (int(oi.value), int(oj.value), int(ok.value),
+            int(ol.value), int(os_.value))
 
 
 # ----------------------------------------------------------------------
