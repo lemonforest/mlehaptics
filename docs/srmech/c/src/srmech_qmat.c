@@ -948,3 +948,158 @@ srmech_status_t srmech_qmat_nullspace(const srmech_bigint_t *a_n,
     *out_nfree = nfree;
     return SRMECH_OK;
 }
+
+/* ==================================================================== *
+ * srmech_cd_qvec — the Cayley-Dickson EXACT-ℚ VECTOR carrier, the 1-D
+ * sibling of the exact-ℚ matrix (v0.9.0rc159; Qalg TAIL Batch 3). A CD
+ * element of dim 2^k is a ℚ-vector of `dim` num/den srmech_bigint pairs.
+ * These four kernels REUSE the qmat exact-ℚ scalar machinery in this SAME
+ * translation unit (qmat_q_add / qmat_q_mul / qmat_q_reduce over the
+ * qmat_ctx_t roster + qmat_cap_for / qmat_max_coeff_limbs sizing) — the ℚ
+ * arithmetic is NOT duplicated (the 1:1-mirror discipline forbids two copies
+ * of one algebra). Byte-identical to Python's fractions.Fraction (num, den)
+ * at any magnitude. Rosetta peers of
+ * srmech.amsc.cascade.cayley_dickson.{cd_basis, cd_conjugate, cd_add,
+ * cd_norm_sq}. JPL-clean: caller arena (no malloc), <=60-line funcs, >=2
+ * asserts, no goto/recursion/abs/libm.
+ * ==================================================================== */
+
+/* dim is a power of two in [1, SRMECH_CD_MAX_DIM]; the check is inlined at each
+ * kernel (a trivial 1-line predicate — no helper, no function-like macro). */
+
+size_t srmech_cd_qvec_ws_bound(size_t coeff_limbs, size_t dim)
+{
+    assert(dim >= 1u);
+    assert(dim <= (size_t)SRMECH_CD_MAX_DIM);
+    /* One-row (n_rows == 1) matrix whose augmented width spans the dim
+     * components; qmat's ws-bound covers the QMAT_N_CARRIERS scalar carriers +
+     * the gcd/divmod scratch tail, which is all the ℚ-scalar path needs. */
+    return srmech_qmat_ws_bound(coeff_limbs, 1u, dim + 2u);
+}
+
+size_t srmech_cd_qvec_entry_cap(size_t coeff_limbs, size_t dim)
+{
+    assert(dim >= 1u);
+    assert(dim <= (size_t)SRMECH_CD_MAX_DIM);
+    return srmech_qmat_entry_cap(coeff_limbs, 1u, dim + 2u);
+}
+
+srmech_status_t srmech_cd_qbasis(int dim, int i, srmech_bigint_t *out_n,
+                                 srmech_bigint_t *out_d)
+{
+    int cix;
+    srmech_status_t st;
+    assert(out_n != NULL);
+    assert(out_d != NULL);
+    if (out_n == NULL || out_d == NULL) { return SRMECH_ERR_NULL_ARG; }
+    if (dim < 1 || dim > SRMECH_CD_MAX_DIM || (dim & (dim - 1)) != 0
+            || i < 0 || i >= dim) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (cix = 0; cix < dim; cix++) {                /* e_i: 1/1 at i, else 0/1 */
+        st = srmech_bigint_set_i64(&out_n[cix], (cix == i) ? 1 : 0);
+        if (st != SRMECH_OK) { return st; }
+        st = srmech_bigint_set_i64(&out_d[cix], 1);
+        if (st != SRMECH_OK) { return st; }
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_cd_qconjugate(const srmech_bigint_t *x_n,
+                                     const srmech_bigint_t *x_d, int dim,
+                                     srmech_bigint_t *out_n,
+                                     srmech_bigint_t *out_d)
+{
+    int cix;
+    srmech_status_t st;
+    assert(x_n != NULL && x_d != NULL);
+    assert(out_n != NULL && out_d != NULL);
+    if (x_n == NULL || x_d == NULL || out_n == NULL || out_d == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (dim < 1 || dim > SRMECH_CD_MAX_DIM || (dim & (dim - 1)) != 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (cix = 0; cix < dim; cix++) {
+        st = srmech_bigint_copy(&out_n[cix], &x_n[cix]);
+        if (st != SRMECH_OK) { return st; }
+        st = srmech_bigint_copy(&out_d[cix], &x_d[cix]);
+        if (st != SRMECH_OK) { return st; }
+        if (cix > 0 && out_n[cix].sign != 0) {       /* Class-K imaginary flip */
+            out_n[cix].sign = -out_n[cix].sign;      /* never an ALU abs */
+        }
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_cd_qadd(const srmech_bigint_t *x_n,
+                               const srmech_bigint_t *x_d,
+                               const srmech_bigint_t *y_n,
+                               const srmech_bigint_t *y_d, int dim,
+                               srmech_bigint_t *out_n, srmech_bigint_t *out_d,
+                               void *ws, size_t ws_len)
+{
+    qmat_ctx_t c;
+    srmech_status_t st;
+    size_t clx, cly, cl, cap, k, d;
+    assert(x_n != NULL && x_d != NULL && y_n != NULL && y_d != NULL);
+    assert(out_n != NULL && out_d != NULL);
+    if (out_n == NULL || out_d == NULL) { return SRMECH_ERR_NULL_ARG; }
+    if (dim < 1 || dim > SRMECH_CD_MAX_DIM || (dim & (dim - 1)) != 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    d = (size_t)dim;
+    clx = qmat_max_coeff_limbs(x_n, x_d, d);
+    cly = qmat_max_coeff_limbs(y_n, y_d, d);
+    cl = (cly > clx) ? cly : clx;
+    cap = qmat_cap_for(cl, d + 3u);
+    st = qmat_ctx_init(&c, (uint32_t)cap, ws, ws_len);
+    if (st != SRMECH_OK) { return st; }
+    for (k = 0u; k < d; k++) {                       /* out[k] = x[k] + y[k] */
+        st = qmat_q_add(&c, &out_n[k], &out_d[k], &x_n[k], &x_d[k],
+                        &y_n[k], &y_d[k], 0);
+        if (st != SRMECH_OK) { return st; }
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_cd_qnorm_sq(const srmech_bigint_t *x_n,
+                                   const srmech_bigint_t *x_d, int dim,
+                                   srmech_bigint_t *out_num,
+                                   srmech_bigint_t *out_den, void *ws,
+                                   size_t ws_len)
+{
+    qmat_ctx_t c;
+    srmech_status_t st;
+    size_t cl, cap, k, d;
+    assert(x_n != NULL && x_d != NULL);
+    assert(out_num != NULL && out_den != NULL);
+    if (out_num == NULL || out_den == NULL) { return SRMECH_ERR_NULL_ARG; }
+    if (dim < 1 || dim > SRMECH_CD_MAX_DIM || (dim & (dim - 1)) != 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    d = (size_t)dim;
+    cl = qmat_max_coeff_limbs(x_n, x_d, d);
+    cap = qmat_cap_for(cl, d + 3u);
+    st = qmat_ctx_init(&c, (uint32_t)cap, ws, ws_len);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_bigint_set_i64(&c.qa_n, 0);          /* accumulator = 0/1 */
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_bigint_set_i64(&c.qa_d, 1);
+    if (st != SRMECH_OK) { return st; }
+    for (k = 0u; k < d; k++) {
+        st = qmat_q_mul(&c, &c.qb_n, &c.qb_d, &x_n[k], &x_d[k],
+                        &x_n[k], &x_d[k]);            /* qb = x[k]^2 */
+        if (st != SRMECH_OK) { return st; }
+        st = qmat_q_add(&c, &c.fa_n, &c.fa_d, &c.qa_n, &c.qa_d,
+                        &c.qb_n, &c.qb_d, 0);         /* fa = acc + qb */
+        if (st != SRMECH_OK) { return st; }
+        st = srmech_bigint_copy(&c.qa_n, &c.fa_n);   /* acc <- fa */
+        if (st != SRMECH_OK) { return st; }
+        st = srmech_bigint_copy(&c.qa_d, &c.fa_d);
+        if (st != SRMECH_OK) { return st; }
+    }
+    st = srmech_bigint_copy(out_num, &c.qa_n);
+    if (st != SRMECH_OK) { return st; }
+    return srmech_bigint_copy(out_den, &c.qa_d);
+}
