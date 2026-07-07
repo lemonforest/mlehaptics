@@ -48,6 +48,24 @@ from pathlib import Path
 
 import pytest
 
+# rc170 — the SHARED Rosetta transitive call-graph walk (see conftest.py). The
+# non_compute ``composes_c`` sub-bucket reuses the SAME standalone-C reachability
+# machinery the transitive-standalone ratchet uses. `from conftest import` is the
+# project's proven shared-helper path — but pytest's prepend import-mode does not
+# add a package dir (tests/ has an __init__.py) to sys.path on isolated
+# collection, so guard the tests dir onto the path first (the test_immolation.py /
+# test_riemann_theta_rc80.py precedent).
+import os as _os  # noqa: E402
+import sys as _sys  # noqa: E402
+_TESTS_DIR = _os.path.dirname(_os.path.abspath(__file__))
+if _TESTS_DIR not in _sys.path:
+    _sys.path.insert(0, _TESTS_DIR)
+from conftest import (  # noqa: E402
+    ROSETTA_NOT_READY,
+    rosetta_live_objects,
+    rosetta_reached_ledger_ops,
+)
+
 # #564 (numpy out the door): the qm / signal_processing surfaces are numpy-free
 # now, and this audit walks them with stdlib importlib / inspect / pkgutil only
 # (a submodule that still fails to import is simply skipped by ``_iter_submodules``
@@ -558,6 +576,85 @@ CEIL_C_EXISTS_UNBOUND = 0
 # (every leaf a srmech_* C twin; the bignum_reference bucket is EMPTY).
 CEIL_BIGNUM_REFERENCE = 0
 
+# ── the ORCHESTRATION→C phase driver (rc170; §"non_compute sub-buckets") ──────
+# With the compute (CEIL_PYTHON_ONLY_DEBT=0), exact-algebra (CEIL_BIGNUM_
+# REFERENCE=0) and self-hosting (CEIL_C_EXISTS_UNBOUND=0) arcs all CLOSED, the
+# ``non_compute`` bucket (114 rows) is the last one with NO ceiling — the honest
+# next frontier. The phase goal: make a bare-C host (no Python) run the WHOLE
+# apparatus — dispatch, catalogs, IPC, the genome, the chain-runner — in C. This
+# ceiling drives it, exactly as CEIL_BIGNUM_REFERENCE drove the Qalg-C tail.
+#
+# The 114 non_compute rows carry a ``non_compute_kind`` sub-classification (see
+# rosetta_classification.ndjson + test_non_compute_ratchet_rc170.py), splitting
+# them into FOUR honest sub-buckets that sum to 114:
+#   owed_orchestration (20) — genuine control/dispatch LOGIC a bare-C host needs
+#                             (chain-runner, op-provenance verdicts, catalog
+#                             register/lookup/iter, the F929 infer router, the
+#                             MCP op-schema lookup). THIS ceiling. Owed-C: only
+#                             SHRINKS as each earns a C path (→ c_dispatched /
+#                             composition_of_c). NEVER grows.
+#   composes_c (65)         — thin: already composes existing C (json/toml/genome/
+#                             klein4/the_one/carriers) OR a pure accessor /
+#                             constructor / validator (hides no compute). Gets a
+#                             TRANSITIVE-REACHABILITY assert, not a ceiling.
+#   host_glue (2)           — filesystem / host I/O (descriptor FS discovery,
+#                             catalog-root FS registration). Tracked, no ceiling
+#                             this rc (annex decision pending).
+#   dev_tooling (27)        — a bare-C host does NOT need it (tool_schema register/
+#                             extension/warmup, gap_suggester, the sp mutable
+#                             plugin-registry / dispatch-lock / lazy-loader /
+#                             profiling, the carrier-ladder descriptor). PINNED
+#                             exempt allowlist — justified, never owed-C.
+#
+# LOWER this ceiling as each owed-orchestration op earns a C path (c_dispatched /
+# composition_of_c). NEVER raise it — a rising owed count means new control logic
+# was added Python-only, which is exactly the bare-C-host regression this drives.
+CEIL_NON_COMPUTE_OWED = 20
+
+# The PINNED dev-tooling allowlist — the exact ``non_compute_kind == "dev_tooling"``
+# set. A row here is JUSTIFIED as a genuine dev / LLM-affordance a bare-C host
+# never needs (the tool_schema *introspection registry*, the gap_suggester, the
+# signal_processing mutable plugin table / dispatch-lock / lazy-loader / profiling
+# surface, the carrier-ladder self-descriptor) — analogous to the bignum_reference
+# rows' oracle_justification. A NEW dev_tooling row must be added here DELIBERATELY
+# (with the same justification burden); a control-logic op does NOT belong here —
+# it is owed_orchestration and counts against CEIL_NON_COMPUTE_OWED instead.
+NON_COMPUTE_DEV_TOOLING_EXEMPT = frozenset({
+    "srmech.amsc.carrier_ladder.carrier_ladder_descriptor",
+    "srmech.amsc.gap_suggester.register_classifier",
+    "srmech.amsc.gap_suggester.register_probes",
+    "srmech.amsc.gap_suggester.suggest_gap_collections",
+    "srmech.amsc.tool_schema.load_extension_file",
+    "srmech.amsc.tool_schema.register_profile_tools",
+    "srmech.amsc.tool_schema.register_tool",
+    "srmech.amsc.tool_schema.unregister_profile_tools",
+    "srmech.amsc.tool_schema.warmup_all",
+    "srmech.signal_processing.cascade_dispatcher.begin_cascade",
+    "srmech.signal_processing.cascade_dispatcher.current_cascade",
+    "srmech.signal_processing.cascade_dispatcher.dispatch",
+    "srmech.signal_processing.cascade_dispatcher.end_cascade",
+    "srmech.signal_processing.cascade_dispatcher.is_dispatch_table_locked",
+    "srmech.signal_processing.cascade_dispatcher.lock_dispatch_table",
+    "srmech.signal_processing.cascade_dispatcher.resolve_path",
+    "srmech.signal_processing.cascade_dispatcher.unlock_dispatch_table",
+    "srmech.signal_processing.path_registry.clear_registry",
+    "srmech.signal_processing.path_registry.has_path",
+    "srmech.signal_processing.path_registry.lookup",
+    "srmech.signal_processing.path_registry.register",
+    "srmech.signal_processing.path_registry.register_lazy_loader",
+    "srmech.signal_processing.path_registry.registered_ops",
+    "srmech.signal_processing.profiling.cell_grid",
+    "srmech.signal_processing.profiling.clear_records",
+    "srmech.signal_processing.profiling.iter_records",
+    "srmech.signal_processing.profiling.record_profile",
+})
+
+# The four honest sub-buckets of the non_compute bucket. Every non_compute row
+# carries exactly one ``non_compute_kind`` in this set (see the rc170 ratchet).
+_NON_COMPUTE_KINDS = (
+    "owed_orchestration", "composes_c", "host_glue", "dev_tooling",
+)
+
 _DEBT_BUCKETS = ("python_only_debt", "c_exists_unbound")
 _ALL_BUCKETS = (
     "c_dispatched", "c_exists_unbound", "composition_of_c",
@@ -617,6 +714,16 @@ def _load_classification():
     rows = [json.loads(l) for l in _FIXTURE.read_text(encoding="utf-8").splitlines()
             if l.strip()]
     return {r["defined_at"]: r["bucket"] for r in rows}
+
+
+def _load_non_compute_kinds():
+    """Map ``defined_at`` -> ``non_compute_kind`` for every ``non_compute`` row
+    (the rc170 four-way sub-classification). Only non_compute rows carry the
+    field."""
+    rows = [json.loads(l) for l in _FIXTURE.read_text(encoding="utf-8").splitlines()
+            if l.strip()]
+    return {r["defined_at"]: r.get("non_compute_kind")
+            for r in rows if r.get("bucket") == "non_compute"}
 
 
 def test_every_bucket_value_is_known():
@@ -739,4 +846,109 @@ def test_bignum_reference_rows_are_justified():
         f"— give each an oracle_justification (why it is a genuine exact oracle) or "
         f"a c_companion c_dispatched path, or move it to c_dispatched if it has a C "
         f"peer:\n  " + "\n  ".join(sorted(unjustified))
+    )
+
+
+# ── rc170: the orchestration→C ratchet over the non_compute sub-buckets ───────
+
+def test_every_non_compute_row_has_a_valid_kind():
+    """Every ``non_compute`` row carries exactly one of the four honest
+    ``non_compute_kind`` values — a new non_compute op MUST be sub-classified
+    (this forces the owed-C-vs-dev-tooling decision, the way the top-level
+    bucket forces the C-mirror decision)."""
+    kinds = _load_non_compute_kinds()
+    bad = {da: k for da, k in kinds.items() if k not in _NON_COMPUTE_KINDS}
+    assert not bad, (
+        f"{len(bad)} non_compute row(s) have no / an unknown non_compute_kind "
+        f"(must be one of {_NON_COMPUTE_KINDS}):\n  "
+        + "\n  ".join(f"{da}: {k!r}" for da, k in sorted(bad.items()))
+    )
+
+
+def test_non_compute_owed_is_monotone_decreasing():
+    """``owed_orchestration`` (genuine control/dispatch logic a bare-C host needs)
+    is a DOWN-ONLY owed-C debt — the orchestration→C phase driver. It may only
+    SHRINK as each orchestration op earns a C path (c_dispatched /
+    composition_of_c); it may NEVER grow. A bare-C host (no Python) must run the
+    WHOLE apparatus — dispatch, catalogs, IPC, the genome, the chain-runner — in
+    C, and this ceiling drives that, exactly as CEIL_BIGNUM_REFERENCE drove the
+    Qalg-C exact-algebra tail. Each rc that moves an owed op to a C path lowers
+    the ceiling to lock the win in.
+    """
+    kinds = _load_non_compute_kinds()
+    live = set(rosetta_live_objects())
+    count = sum(1 for da, k in kinds.items()
+                if k == "owed_orchestration" and da in live)
+    assert count <= CEIL_NON_COMPUTE_OWED, (
+        f"owed_orchestration = {count} exceeds the down-only ceiling "
+        f"{CEIL_NON_COMPUTE_OWED}. New Python-only control logic a bare-C host "
+        f"needs was added: give it a C path (→ c_dispatched / composition_of_c), "
+        f"don't raise the ceiling."
+    )
+    # Tightness guard (as with the debt buckets): a drop must lower the ceiling.
+    assert count == CEIL_NON_COMPUTE_OWED, (
+        f"owed_orchestration = {count} is BELOW its ceiling "
+        f"{CEIL_NON_COMPUTE_OWED} — an orchestration op earned a C path; lower "
+        f"CEIL_NON_COMPUTE_OWED to {count} to lock the ratchet."
+    )
+
+
+def test_non_compute_composes_c_is_transitively_reachable():
+    """Every ``composes_c`` row hides NO Python compute kernel: walking its
+    TRANSITIVE callee graph reaches NO non-standalone-ready leaf (python_only_debt
+    / bignum_reference / c_exists_unbound). Reuses the SAME standalone-C
+    reachability walk as the transitive-standalone ratchet (conftest.py).
+
+    ``composes_c`` claims "thin": the op is either a pure composition of already-C
+    ops (json/toml/genome/klein4/the_one/carriers) OR a pure accessor / constructor
+    / validator. Both are only honest if the op cannot secretly reach a
+    Python-only kernel. (Today all three debt buckets are 0, so this is a
+    FORWARD-GUARD: it LOCKS the property so a future refactor cannot re-route a
+    composes_c op through a newly-added Python kernel without tripping here —
+    mirroring test_no_composition_reaches_nonstandalone_leaf, applied to the
+    non_compute composes_c sub-bucket.)
+    """
+    kinds = _load_non_compute_kinds()
+    cls = _load_classification()
+    objs = rosetta_live_objects()
+    violations = []
+    for da, k in kinds.items():
+        if k != "composes_c":
+            continue
+        fn = objs.get(da)
+        if fn is None:
+            continue
+        for leaf in rosetta_reached_ledger_ops(fn, cls):
+            if cls.get(leaf) in ROSETTA_NOT_READY:
+                violations.append(f"{da}  ->  {leaf}  ({cls[leaf]})")
+    assert not violations, (
+        "composes_c non_compute op(s) transitively reach a non-standalone-ready "
+        "leaf (a hidden Python kernel) — give the leaf a C path or reclassify the "
+        "row (owed_orchestration if it is genuine control logic):\n  "
+        + "\n  ".join(sorted(violations))
+    )
+
+
+def test_non_compute_dev_tooling_is_pinned():
+    """The live ``dev_tooling`` set is EXACTLY the pinned allowlist
+    ``NON_COMPUTE_DEV_TOOLING_EXEMPT``. A dev_tooling row is a justified dev /
+    LLM-affordance a bare-C host never needs (the introspection registry, the
+    gap_suggester, the sp mutable plugin table / dispatch-lock / lazy-loader /
+    profiling, the carrier-ladder self-descriptor). Adding a new dev_tooling row
+    requires DELIBERATELY extending the allowlist (the same justification burden
+    as a bignum_reference oracle_justification) — so control logic cannot quietly
+    escape the owed-C ceiling by being mislabeled dev_tooling.
+    """
+    kinds = _load_non_compute_kinds()
+    live = set(rosetta_live_objects())
+    live_dev = {da for da, k in kinds.items()
+                if k == "dev_tooling" and da in live}
+    missing = NON_COMPUTE_DEV_TOOLING_EXEMPT - live_dev
+    extra = live_dev - NON_COMPUTE_DEV_TOOLING_EXEMPT
+    assert not missing and not extra, (
+        "the live dev_tooling set does not match the pinned allowlist.\n"
+        f"  UNEXPECTED (in ledger, not allowlisted — JUSTIFY as dev-affordance "
+        f"or reclassify as owed_orchestration): {sorted(extra)}\n"
+        f"  STALE (allowlisted, no longer a live dev_tooling row — remove from "
+        f"the allowlist): {sorted(missing)}"
     )
