@@ -4,11 +4,11 @@
 {"exposed_as": "srmech.amsc.cascade.cd_add", "defined_at": "srmech.amsc.cascade.cayley_dickson.cd_add", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.cd_basis", "defined_at": "srmech.amsc.cascade.cayley_dickson.cd_basis", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.cd_conjugate", "defined_at": "srmech.amsc.cascade.cayley_dickson.cd_conjugate", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.cascade.cd_mult", "defined_at": "srmech.amsc.cascade.cayley_dickson.cd_mult", "bucket": "bignum_reference", "oracle_justification": "Exact arbitrary-precision Cayley-Dickson arithmetic over Z/Q \u2014 the bignum reference oracle (the srmech_cayley_dickson / srmech_cd_basis_product C fast-paths are verified against this uncapped exact-integer Python at arbitrary sedenion+ magnitude)."}
+{"exposed_as": "srmech.amsc.cascade.cd_mult", "defined_at": "srmech.amsc.cascade.cayley_dickson.cd_mult", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.cd_norm_sq", "defined_at": "srmech.amsc.cascade.cayley_dickson.cd_norm_sq", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.left_mult_is_invertible", "defined_at": "srmech.amsc.cascade.cayley_dickson.left_mult_is_invertible", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.cascade.left_mult_kernel", "defined_at": "srmech.amsc.cascade.cayley_dickson.left_mult_kernel", "bucket": "bignum_reference", "oracle_justification": "Exact arbitrary-precision Cayley-Dickson arithmetic over Z/Q \u2014 the bignum reference oracle (the srmech_cayley_dickson / srmech_cd_basis_product C fast-paths are verified against this uncapped exact-integer Python at arbitrary sedenion+ magnitude)."}
-{"exposed_as": "srmech.amsc.cascade.left_mult_matrix", "defined_at": "srmech.amsc.cascade.cayley_dickson.left_mult_matrix", "bucket": "bignum_reference", "oracle_justification": "Exact arbitrary-precision Cayley-Dickson arithmetic over Z/Q \u2014 the bignum reference oracle (the srmech_cayley_dickson / srmech_cd_basis_product C fast-paths are verified against this uncapped exact-integer Python at arbitrary sedenion+ magnitude)."}
+{"exposed_as": "srmech.amsc.cascade.left_mult_kernel", "defined_at": "srmech.amsc.cascade.cayley_dickson.left_mult_kernel", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.cascade.left_mult_matrix", "defined_at": "srmech.amsc.cascade.cayley_dickson.left_mult_matrix", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.sedenion_zero_divisor_witness", "defined_at": "srmech.amsc.cascade.cayley_dickson.sedenion_zero_divisor_witness", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.the_one", "defined_at": "srmech.amsc.cascade.one.the_one", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.to_scalar", "defined_at": "srmech.amsc.cascade.one.to_scalar", "bucket": "c_dispatched"}
@@ -170,7 +170,7 @@
 {"exposed_as": "srmech.qm.octonion.octonion_mult_table", "defined_at": "srmech.qm.octonion.octonion_mult_table", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.octonion.octonion_norm", "defined_at": "srmech.qm.octonion.octonion_norm", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.octonion.octonion_exp", "defined_at": "srmech.qm.octonion.octonion_exp", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.qm.octonion.octonion_exp_series_truncate", "defined_at": "srmech.qm.octonion.octonion_exp_series_truncate", "bucket": "bignum_reference", "oracle_justification": "Exact arbitrary-precision hypercomplex exp Taylor truncation over Q \u2014 the bignum reference oracle."}
+{"exposed_as": "srmech.qm.octonion.octonion_exp_series_truncate", "defined_at": "srmech.qm.octonion.octonion_exp_series_truncate", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.octonion.octonion_twiddle", "defined_at": "srmech.qm.octonion.octonion_twiddle", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.qm.octonion.octonion_right_mult", "defined_at": "srmech.qm.octonion.octonion_right_mult", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.potentials.harmonic_oscillator_ladder", "defined_at": "srmech.qm.potentials.harmonic_oscillator_ladder", "bucket": "composition_of_c"}
@@ -506,7 +506,7 @@
 {"exposed_as": "srmech.qm.quaternion.quaternion_conjugate", "defined_at": "srmech.qm.quaternion.quaternion_conjugate", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_norm", "defined_at": "srmech.qm.quaternion.quaternion_norm", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_exp", "defined_at": "srmech.qm.quaternion.quaternion_exp", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.qm.quaternion.quaternion_exp_series_truncate", "defined_at": "srmech.qm.quaternion.quaternion_exp_series_truncate", "bucket": "bignum_reference", "oracle_justification": "Exact arbitrary-precision hypercomplex exp Taylor truncation over Q \u2014 the bignum reference oracle."}
+{"exposed_as": "srmech.qm.quaternion.quaternion_exp_series_truncate", "defined_at": "srmech.qm.quaternion.quaternion_exp_series_truncate", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_twiddle", "defined_at": "srmech.qm.quaternion.quaternion_twiddle", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.zeilberger.bipoly_from_coeffs", "defined_at": "srmech.amsc.zeilberger.bipoly_from_coeffs", "bucket": "non_compute"}
 {"exposed_as": "srmech.amsc.tripoly.tripoly_from_coeffs", "defined_at": "srmech.amsc.tripoly.tripoly_from_coeffs", "bucket": "non_compute"}

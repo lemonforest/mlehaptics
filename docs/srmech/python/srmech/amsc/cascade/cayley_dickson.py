@@ -204,6 +204,16 @@ def cd_mult(a: Sequence[Any], b: Sequence[Any]) -> Tuple[Fraction, ...]:
         raise ValueError(
             f"cd_mult: operands must share dimension; got {len(a)} and {len(b)}"
         )
+    # rc160 (Qalg TAIL Batch 4): the arbitrary-rational CD product dispatches to
+    # srmech_cd_mult — the C kernel that composes the srmech_cd_basis_product
+    # cocycle with the qmat exact-ℚ arithmetic ((x·y)_{i⊕j} += x_i·y_j·sign). It
+    # is the BILINEAR form of the recursive _mult below, so byte-identical reduced
+    # (num, den) at any magnitude; _mult stays the Pyodide / no-native fallback.
+    native = _native.cd_mult_c(
+        [(f.numerator, f.denominator) for f in a],
+        [(f.numerator, f.denominator) for f in b])
+    if native is not None:
+        return tuple(Fraction(n, d) for n, d in native)
     return _mult(a, b)
 
 
@@ -629,10 +639,17 @@ def sedenion_zero_divisor_witness() -> Dict[str, Any]:
 
 def left_mult_matrix(x: Sequence[Any]) -> List[List[Fraction]]:
     """The ``n×n`` rational matrix of the linear map ``u ↦ x·u`` (column ``c`` is
-    ``x·e_c``), row-major."""
+    ``x·e_c``), row-major.
+
+    rc160 (Qalg TAIL Batch 4): each column ``x·e_c`` is a :func:`cd_mult` (the
+    C-dispatched CD product) over the C-dispatched :func:`cd_basis` unit vector —
+    so this is a ``composition_of_c`` (a Python loop over the C multiplication
+    building the matrix, the ``mat_dot`` precedent). Byte-identical to the pure
+    recursive doubling either way.
+    """
     x = _as_elem(x)
     n = len(x)
-    cols = [_mult(x, cd_basis(n, c)) for c in range(n)]
+    cols = [cd_mult(x, cd_basis(n, c)) for c in range(n)]
     return [[cols[c][r] for c in range(n)] for r in range(n)]
 
 
@@ -675,8 +692,24 @@ def _rational_nullspace(matrix: List[List[Fraction]]) -> List[Tuple[Fraction, ..
 def left_mult_kernel(x: Sequence[Any]) -> List[Tuple[Fraction, ...]]:
     """Kernel basis of ``u ↦ x·u``. **Nonempty ⟺ ``x`` is a left zero divisor ⟺
     multiply-by-``x`` has no inverse map** — the "no backward direction to point"
-    of §VII.6.23.4. Empty for every nonzero element of a division algebra (≤𝕆)."""
-    return _rational_nullspace(left_mult_matrix(x))
+    of §VII.6.23.4. Empty for every nonzero element of a division algebra (≤𝕆).
+
+    rc160 (Qalg TAIL Batch 4): the exact-ℚ nullspace of ``L(x)`` dispatches to
+    the C peer ``srmech_qmat_nullspace`` (the classical free-variable basis over
+    plain ℚ) — so this is a ``composition_of_c`` (``srmech_qmat_nullspace`` over
+    the C-composed :func:`left_mult_matrix`). The pure :func:`_rational_nullspace`
+    is the byte-identical fallback: both build the SAME classical free-variable
+    basis (leading-1 RREF, free variables set to a unit column), so the basis is
+    element-for-element identical.
+    """
+    mat = left_mult_matrix(x)
+    n = len(mat)
+    native = _native.qmat_nullspace_c(
+        [(mat[r][c].numerator, mat[r][c].denominator)
+         for r in range(n) for c in range(n)], n, n)
+    if native is not None:
+        return [tuple(Fraction(p[0], p[1]) for p in vec) for vec in native]
+    return _rational_nullspace(mat)
 
 
 def _native_is_invertible(el: Tuple[Fraction, ...]):

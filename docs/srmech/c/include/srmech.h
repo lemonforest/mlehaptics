@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc159"
-#define SRMECH_VERSION       "0.9.0rc159"
+#define SRMECH_VERSION_PRE   "rc160"
+#define SRMECH_VERSION       "0.9.0rc160"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -6726,6 +6726,23 @@ srmech_status_t srmech_cd_qnorm_sq(const srmech_bigint_t *x_n,
                                    srmech_bigint_t *out_num,
                                    srmech_bigint_t *out_den,
                                    void *ws, size_t ws_len);
+
+/* The arbitrary-rational Cayley-Dickson PRODUCT x·y (v0.9.0rc160; Qalg TAIL
+ * Batch 4). Composes the integer cocycle srmech_cd_basis_product with the same
+ * qmat exact-ℚ scalar arithmetic the Qvec kernels use: out[i⊕j] += x_i·y_j·
+ * sign(i,j) over all i, j (the bilinear form of the recursive doubling). x, y,
+ * out are each `dim` components; out may not alias x or y. Uses the caller arena
+ * `ws` (>= srmech_cd_qvec_ws_bound; each slot sums `dim` products — the same
+ * accumulation profile as srmech_cd_qnorm_sq). BYTE-IDENTICAL reduced (num, den)
+ * to Python's recursive cd_mult at any magnitude. Rosetta peer of
+ * srmech.amsc.cascade.cayley_dickson.cd_mult; attested by
+ * tests/test_qalg_cdmult_c_rc160.py. Additive symbol -> ABI unchanged (3). */
+srmech_status_t srmech_cd_mult(const srmech_bigint_t *x_n,
+                               const srmech_bigint_t *x_d,
+                               const srmech_bigint_t *y_n,
+                               const srmech_bigint_t *y_d, int dim,
+                               srmech_bigint_t *out_n, srmech_bigint_t *out_d,
+                               void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_gosper — Gosper's indefinite hypergeometric summation (the
