@@ -19,24 +19,33 @@ import re
 
 __all__ = ["load_anchor", "concept", "bridge_units", "bridge_disambiguated", "have_anchor"]
 
-_VYGUS = "/home/skirklan/corpora/egyptian_tla/vygus_dict_slice.jsonl"
-_anchor = None       # transliteration → [English concept glosses]
+_VYGUS = "/home/skirklan/corpora/egyptian_tla/vygus_dict_slice.jsonl"          # Egyptian (Vygus jsonl)
+_SUX = "/home/skirklan/corpora/etcsl/sux_gilgamesh_anchor.json"               # Sumerian (ETCSL Gilgameš json)
+_anchor = None       # transliteration → [English concept glosses]  (the ACTIVE anchor)
 
 
 def _norm(t):
     return (t or "").strip().lstrip(".=").lower()
 
 
-def load_anchor(path=None):
-    """Load the glyph→concept anchor ``{transliteration: [concepts]}`` (Egyptian Vygus). Cached."""
+def load_anchor(path=None, kind=None):
+    """Load a glyph→concept anchor ``{transliteration: [concepts]}``. ``kind='vygus'`` reads the Egyptian Vygus
+    jsonl (default); ``kind='json'`` reads a ``{"anchor": {glyph: [glosses]}}`` file (the ETCSL Sumerian Gilgameš
+    anchor). Auto-detected by extension. The last-loaded anchor is active; pass a ``path`` to switch languages."""
     global _anchor
-    if _anchor is not None:
+    if _anchor is not None and path is None:
         return _anchor
     _anchor = {}
     p = path or _VYGUS
+    kind = kind or ("json" if p.endswith(".json") else "vygus")
     if not os.path.exists(p):
         return _anchor
-    for line in open(p, encoding="utf-8"):
+    if kind == "json":                                                        # ETCSL-style {"anchor": {...}}
+        d = json.load(open(p, encoding="utf-8"))
+        for t, gs in d.get("anchor", {}).items():
+            _anchor[_norm(t)] = list(gs)
+        return _anchor
+    for line in open(p, encoding="utf-8"):                                     # Vygus jsonl
         try:
             r = json.loads(line)
         except Exception:
@@ -48,6 +57,11 @@ def load_anchor(path=None):
             if m not in _anchor[t]:
                 _anchor[t].append(m)
     return _anchor
+
+
+def load_sux(path=None):
+    """Load the ETCSL Sumerian Gilgameš glyph→concept anchor (3186 lemmas; #246). Switches the active anchor."""
+    return load_anchor(path or _SUX, kind="json")
 
 
 def have_anchor():
