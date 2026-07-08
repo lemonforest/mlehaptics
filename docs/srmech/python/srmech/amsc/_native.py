@@ -2805,6 +2805,87 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_op_reproject_arena_bytes.restype = ctypes.c_size_t
 
     # ------------------------------------------------------------------
+    # Catalog REGISTRY / KERNEL-STATE / AUDIT logic (0.9.0rc172; the
+    # ORCHESTRATION→C spine, batch 2). The C peers backing four
+    # srmech.amsc.catalog ops — each composes the srmech_json parser+writer+
+    # builder (+ srmech_sha256_hex for the kernel cache_hash). STATE is
+    # caller-owned (Python passes its module globals in per call). NEW
+    # symbols → hasattr-guarded (a stale ABI-3 lib keeps the rest of the
+    # native surface + falls to the pure path); additive →
+    # EXPECTED_ABI_VERSION stays 3.
+    #   int srmech_catalog_registered_roots(root_path, root_len, root_source,
+    #       root_source_len, ext_json, ext_len, ws, ws_len, out, out_cap,
+    #       size_t *out_len)
+    if hasattr(lib, "srmech_catalog_registered_roots"):
+        lib.srmech_catalog_registered_roots.argtypes = [
+            ctypes.c_char_p, ctypes.c_size_t,   # root_path, root_len
+            ctypes.c_char_p, ctypes.c_size_t,   # root_source, root_source_len
+            ctypes.c_char_p, ctypes.c_size_t,   # ext_json, ext_len
+            ctypes.c_void_p, ctypes.c_size_t,   # ws, ws_len
+            ctypes.c_char_p, ctypes.c_size_t,   # out, out_cap
+            ctypes.POINTER(ctypes.c_size_t),    # out_len
+        ]
+        lib.srmech_catalog_registered_roots.restype = ctypes.c_int
+    if hasattr(lib, "srmech_catalog_registered_roots_arena_bytes"):
+        lib.srmech_catalog_registered_roots_arena_bytes.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t,  # root/source/ext
+        ]
+        lib.srmech_catalog_registered_roots_arena_bytes.restype = ctypes.c_size_t
+    #   int srmech_catalog_local_kernel_state(active, path, path_len,
+    #       adapter_class, ac_len, per_source_json, per_source_len, ws, ws_len,
+    #       out, out_cap, size_t *out_len)
+    if hasattr(lib, "srmech_catalog_local_kernel_state"):
+        lib.srmech_catalog_local_kernel_state.argtypes = [
+            ctypes.c_int,                       # active
+            ctypes.c_char_p, ctypes.c_size_t,   # path, path_len (NULL -> null)
+            ctypes.c_char_p, ctypes.c_size_t,   # adapter_class, ac_len (NULL)
+            ctypes.c_char_p, ctypes.c_size_t,   # per_source_json, per_source_len
+            ctypes.c_void_p, ctypes.c_size_t,   # ws, ws_len
+            ctypes.c_char_p, ctypes.c_size_t,   # out, out_cap
+            ctypes.POINTER(ctypes.c_size_t),    # out_len
+        ]
+        lib.srmech_catalog_local_kernel_state.restype = ctypes.c_int
+    if hasattr(lib, "srmech_catalog_local_kernel_state_arena_bytes"):
+        lib.srmech_catalog_local_kernel_state_arena_bytes.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t,  # path/ac/per_src
+        ]
+        lib.srmech_catalog_local_kernel_state_arena_bytes.restype = \
+            ctypes.c_size_t
+    #   int srmech_catalog_use_local_kernel(clear, path, path_len,
+    #       adapter_class, ac_len, ws, ws_len, out, out_cap, size_t *out_len)
+    if hasattr(lib, "srmech_catalog_use_local_kernel"):
+        lib.srmech_catalog_use_local_kernel.argtypes = [
+            ctypes.c_int,                       # clear
+            ctypes.c_char_p, ctypes.c_size_t,   # path, path_len
+            ctypes.c_char_p, ctypes.c_size_t,   # adapter_class, ac_len (NULL)
+            ctypes.c_void_p, ctypes.c_size_t,   # ws, ws_len
+            ctypes.c_char_p, ctypes.c_size_t,   # out, out_cap
+            ctypes.POINTER(ctypes.c_size_t),    # out_len
+        ]
+        lib.srmech_catalog_use_local_kernel.restype = ctypes.c_int
+    if hasattr(lib, "srmech_catalog_use_local_kernel_arena_bytes"):
+        lib.srmech_catalog_use_local_kernel_arena_bytes.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t,   # path_len, ac_len
+        ]
+        lib.srmech_catalog_use_local_kernel_arena_bytes.restype = ctypes.c_size_t
+    #   int srmech_catalog_attestation_audit(source_key, source_key_len,
+    #       ndjson, ndjson_len, ws, ws_len, out, out_cap, size_t *out_len)
+    if hasattr(lib, "srmech_catalog_attestation_audit"):
+        lib.srmech_catalog_attestation_audit.argtypes = [
+            ctypes.c_char_p, ctypes.c_size_t,   # source_key, source_key_len
+            ctypes.c_char_p, ctypes.c_size_t,   # ndjson, ndjson_len
+            ctypes.c_void_p, ctypes.c_size_t,   # ws, ws_len
+            ctypes.c_char_p, ctypes.c_size_t,   # out, out_cap
+            ctypes.POINTER(ctypes.c_size_t),    # out_len
+        ]
+        lib.srmech_catalog_attestation_audit.restype = ctypes.c_int
+    if hasattr(lib, "srmech_catalog_attestation_audit_arena_bytes"):
+        lib.srmech_catalog_attestation_audit_arena_bytes.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t,   # ndjson_len, source_key_len
+        ]
+        lib.srmech_catalog_attestation_audit_arena_bytes.restype = ctypes.c_size_t
+
+    # ------------------------------------------------------------------
     # Class N — ROTATION-LAST Chudnovsky π on srmech_bigint (0.9.0rc19).
     # The two srmech_pi_* symbols are the C-host peer of
     # srmech.amsc.rational.pi_chudnovsky_digits — exact bigint body, ONE

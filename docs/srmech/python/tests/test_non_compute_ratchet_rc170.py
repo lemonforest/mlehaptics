@@ -10,11 +10,12 @@ This rc splits the 114 ``non_compute`` rows into FOUR honest sub-buckets (the
 ``non_compute_kind`` field in ``rosetta_classification.ndjson``) and pins the
 split:
 
-  owed_orchestration (15) — genuine control/dispatch LOGIC a bare-C host needs;
+  owed_orchestration  (9) — genuine control/dispatch LOGIC a bare-C host needs;
                             owed-C, DOWN-ONLY (CEIL_NON_COMPUTE_OWED, the phase
                             driver, in test_rosetta_completeness.py). rc171: the
                             5 op_provenance verdict/carry ops earned C → composes_c.
-  composes_c        (70) — thin: composes existing C, or a pure accessor /
+                            rc172: 6 catalog registry/kernel/audit ops → composes_c.
+  composes_c        (76) — thin: composes existing C, or a pure accessor /
                             constructor / validator; TRANSITIVE-REACHABILITY
                             assert (hides no Python kernel), not a ceiling.
   host_glue          (2) — filesystem / host I/O; tracked, no ceiling this rc.
@@ -56,9 +57,15 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # COUNTS so the split stays complete + tight.
 # rc171: the 5 op_provenance verdict/carry ops earned C peers → moved
 # owed_orchestration → composes_c (owed 20→15, composes_c 65→70; sum stays 114).
+# rc172: the catalog registry/kernel/audit batch — 6 catalog ops earned C
+# (list_registered_roots / get_local_kernel_state / use_local_kernel /
+# clear_local_kernel / attestation_audit → their srmech_catalog_* peers;
+# list_attested_sources classified composes_c directly, consistent with the
+# already-composes_c get_attested_dataset / get_attested_descriptor) → moved
+# owed_orchestration → composes_c (owed 15→9, composes_c 70→76; sum stays 114).
 _EXPECTED_SPLIT = {
-    "owed_orchestration": 15,
-    "composes_c": 70,
+    "owed_orchestration": 9,
+    "composes_c": 76,
     "host_glue": 2,
     "dev_tooling": 27,
 }

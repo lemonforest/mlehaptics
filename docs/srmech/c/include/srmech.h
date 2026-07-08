@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc171"
-#define SRMECH_VERSION       "0.9.0rc171"
+#define SRMECH_VERSION_PRE   "rc172"
+#define SRMECH_VERSION       "0.9.0rc172"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1755,6 +1755,85 @@ srmech_status_t srmech_catalog_lookup(const uint8_t  *key,
  * caller-owned with room for n uint32 entries; empty n writes nothing.
  * ABI-additive: a new symbol, so SRMECH_ABI_VERSION stays 3. */
 srmech_status_t srmech_reverse_order(uint32_t n, uint32_t *out_order);
+
+/* ------------------------------------------------------------------ *
+ * Catalog REGISTRY / KERNEL-STATE / AUDIT logic (0.9.0rc172; the
+ * ORCHESTRATION→C spine, batch 2). A bare-C host (no Python) runs the
+ * catalog registry/kernel/audit surface with these peers, each COMPOSING
+ * the existing kernels — the srmech_json parser / canonical writer /
+ * builder + srmech_sha256_hex (Class A) — and NO new parser, NO new hash.
+ * They back the Python ops
+ *   srmech.amsc.catalog.list_registered_roots  -> srmech_catalog_registered_roots
+ *   srmech.amsc.catalog.get_local_kernel_state  -> srmech_catalog_local_kernel_state
+ *   srmech.amsc.catalog.use_local_kernel        -> srmech_catalog_use_local_kernel
+ *     (clear_local_kernel dispatches through use_local_kernel(None))
+ *   srmech.amsc.catalog.attestation_audit       -> srmech_catalog_attestation_audit
+ *
+ * STATE MODEL (option a — caller-owned): the registry / kernel state is
+ * OWNED BY THE HOST and passed in per call (Python passes its module
+ * globals; a bare-C host passes its own struct's contents). No global
+ * mutable C state, no long-lived handle. All scratch is bump-carved from
+ * the caller arena `ws` (size it with the matching *_arena_bytes). Each
+ * peer writes canonical JSON (byte-identical to CPython json.dumps(obj,
+ * sort_keys=True, ensure_ascii=False)) into `out` (NO trailing NUL) and
+ * sets *out_len. Output is float-free by construction; a per-line NDJSON
+ * parse failure returns non-OK so the Python caller runs the COMPLETE
+ * pure path (value-parity, never a rescue). ABI-additive: new symbols,
+ * so SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* list_registered_roots: [{"path":<root>,"source":<root_source>}, ...] with
+ * the host's own attested root FIRST, then every external (path, source)
+ * pair from `ext_json` (a JSON array of two-string [path, source] arrays). */
+size_t srmech_catalog_registered_roots_arena_bytes(size_t root_len,
+                                                   size_t source_len,
+                                                   size_t ext_len);
+srmech_status_t srmech_catalog_registered_roots(
+    const char *root_path, size_t root_len,
+    const char *root_source, size_t root_source_len,
+    const char *ext_json, size_t ext_len,
+    void *ws, size_t ws_len,
+    char *out, size_t out_cap, size_t *out_len);
+
+/* get_local_kernel_state: {ok, active, path, adapter_class, n_overlay_sources,
+ * per_source, cache_hash} where cache_hash = sha256( "\n".join(
+ * f"{source_key}\t{overlay_sha256}") ) over the caller-provided per_source
+ * array (each entry an object with source_key/table/overlay_path/
+ * overlay_sha256 string fields — the FS-derived overlay set). `path` /
+ * `adapter_class` NULL -> JSON null. */
+size_t srmech_catalog_local_kernel_state_arena_bytes(size_t path_len,
+                                                     size_t ac_len,
+                                                     size_t per_source_len);
+srmech_status_t srmech_catalog_local_kernel_state(
+    int active, const char *path, size_t path_len,
+    const char *adapter_class, size_t ac_len,
+    const char *per_source_json, size_t per_source_len,
+    void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
+
+/* use_local_kernel / clear_local_kernel HAPPY-PATH response. `clear != 0`
+ * -> the T2-cleared response; else the success response for a validated,
+ * existing overlay dir (the caller does adapter_class validation + FS
+ * existence/dir checks + the Python-repr error responses). `path` is the
+ * resolved overlay path (success only); `adapter_class` NULL -> no scope. */
+size_t srmech_catalog_use_local_kernel_arena_bytes(size_t path_len,
+                                                   size_t ac_len);
+srmech_status_t srmech_catalog_use_local_kernel(
+    int clear, const char *path, size_t path_len,
+    const char *adapter_class, size_t ac_len,
+    void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
+
+/* attestation_audit: {ok, source_key, n_rows, rows:[...]}. Iterates the
+ * NDJSON file bytes (lstrip each line; skip empty / '#' comment lines),
+ * parses each row as JSON, and projects data_schema_id + attestation.
+ * {response_sha256, retrieved_at, parser_version, parser_rule_hash,
+ * collector_descriptor_hash} (each "" when absent). A per-line parse
+ * failure returns non-OK -> the caller runs the pure path. */
+size_t srmech_catalog_attestation_audit_arena_bytes(size_t ndjson_len,
+                                                    size_t source_key_len);
+srmech_status_t srmech_catalog_attestation_audit(
+    const char *source_key, size_t source_key_len,
+    const char *ndjson, size_t ndjson_len,
+    void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
 
 /* ------------------------------------------------------------------ *
  * Class F — substitution / templating (Task #217 Phase C1 rc5)

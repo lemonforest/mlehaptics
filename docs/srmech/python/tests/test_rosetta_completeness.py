@@ -587,14 +587,17 @@ CEIL_BIGNUM_REFERENCE = 0
 # The 114 non_compute rows carry a ``non_compute_kind`` sub-classification (see
 # rosetta_classification.ndjson + test_non_compute_ratchet_rc170.py), splitting
 # them into FOUR honest sub-buckets that sum to 114:
-#   owed_orchestration (15) — genuine control/dispatch LOGIC a bare-C host needs
-#                             (chain-runner, catalog register/lookup/iter, the
-#                             F929 infer router, the MCP op-schema lookup). THIS
+#   owed_orchestration  (9) — genuine control/dispatch LOGIC a bare-C host needs
+#                             (the amsc.compose chain-runner + its 2 catalog
+#                             dependents list_catalog_chains / run_catalog_chain,
+#                             the F929 infer router, the MCP op-schema lookup). THIS
 #                             ceiling. Owed-C: only SHRINKS as each earns a C
 #                             path (→ c_dispatched / composition_of_c / composes_c).
 #                             NEVER grows. rc171: the 5 op-provenance verdict/carry
-#                             ops earned C peers → composes_c (20 → 15).
-#   composes_c (70)         — thin: already composes existing C (json/toml/genome/
+#                             ops earned C peers → composes_c (20 → 15). rc172: the
+#                             6 catalog registry/kernel/audit ops earned C → composes_c
+#                             (15 → 9).
+#   composes_c (76)         — thin: already composes existing C (json/toml/genome/
 #                             klein4/the_one/carriers/op_provenance) OR a pure
 #                             accessor / constructor / validator (hides no
 #                             compute). Gets a TRANSITIVE-REACHABILITY assert,
@@ -614,7 +617,18 @@ CEIL_BIGNUM_REFERENCE = 0
 # rc171: op_provenance verdict/carry earned C (the 5 op_provenance ops moved
 # owed_orchestration → composes_c via srmech_op_verdict/_family_verdict/_op_carry/
 # _lossy_projection_record/_op_reproject); 20 → 15.
-CEIL_NON_COMPUTE_OWED = 15
+# rc172 (2026-07-07): the catalog registry/kernel/audit batch earned C — 6
+# catalog ops moved owed_orchestration → composes_c. Four earned dedicated C
+# peers (list_registered_roots → srmech_catalog_registered_roots;
+# get_local_kernel_state → srmech_catalog_local_kernel_state; use_local_kernel
+# + clear_local_kernel → srmech_catalog_use_local_kernel;
+# attestation_audit → srmech_catalog_attestation_audit) and list_attested_sources
+# is classified composes_c directly (thin compose over the descriptor parse +
+# a pure filter/sort/project, consistent with the already-composes_c
+# get_attested_dataset / get_attested_descriptor). The 2 chain-runner-dependent
+# catalog ops (list_catalog_chains / run_catalog_chain) stay owed — the
+# amsc.compose chain-runner is not in C yet (rc173+). 15 → 9.
+CEIL_NON_COMPUTE_OWED = 9
 
 # The PINNED dev-tooling allowlist — the exact ``non_compute_kind == "dev_tooling"``
 # set. A row here is JUSTIFIED as a genuine dev / LLM-affordance a bare-C host
