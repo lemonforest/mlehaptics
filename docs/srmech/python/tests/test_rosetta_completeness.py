@@ -599,18 +599,19 @@ CEIL_BIGNUM_REFERENCE = 0
 # test_annex_ratchet_rc177.py), splitting them into FOUR honest sub-buckets that
 # sum to 153 (rc177 annex extended the walk to bus/dsl: +10 owed / +3 composes_c
 # / +12 host_glue / +14 dev_tooling):
-#   owed_orchestration (12) — genuine control/dispatch LOGIC a bare-C host needs
+#   owed_orchestration (11) — genuine control/dispatch LOGIC a bare-C host needs
 #                             (the deferred tool_schema pair, + rc177 the bus
-#                             Bio-TOTP cipher stream kernel decode_splice/pipe and
-#                             the DSL chain / class interpreter chain /
+#                             pipe and the DSL chain / class interpreter chain /
 #                             run_toml_chain / lookup_cascade_op /
 #                             build_chain_from_{dict,toml,toml_str} / make_class /
-#                             run_class_method). THIS ceiling. Owed-C: only
+#                             run_class_method; rc178 decode_splice EARNED its C
+#                             peer → composes_c). THIS ceiling. Owed-C: only
 #                             SHRINKS as each earns a C path (→ c_dispatched /
 #                             composition_of_c / composes_c). NEVER grows.
-#   composes_c (86)         — thin: already composes existing C (json/toml/genome/
+#   composes_c (87)         — thin: already composes existing C (json/toml/genome/
 #                             klein4/the_one/carriers/op_provenance, + rc177 the 3
-#                             bus composes_c connect/serve/channel_id_from_name)
+#                             bus composes_c connect/serve/channel_id_from_name,
+#                             + rc178 the bus Bio-TOTP decode_splice cipher)
 #                             OR a pure accessor / constructor / validator (hides
 #                             no compute). Gets a TRANSITIVE-REACHABILITY assert,
 #                             not a ceiling.
@@ -702,7 +703,13 @@ CEIL_BIGNUM_REFERENCE = 0
 # own bridge) fall to pure via non-OK (the rc103 inform-don't-limit pattern) →
 # rc177+. owed 3 → 2 (the 2 remaining = the deferred tool_schema pair, host-glue
 # MCP server); composes_c 82 → 83.
-CEIL_NON_COMPUTE_OWED = 12
+# rc178 (2026-07-08): ANNEX Batch A part 1 — the bus Bio-TOTP wire cipher earned
+# its C peer (srmech_hmac_sha256 + srmech_bio_totp_derive_key / keystream_xor /
+# decode_splice, composing srmech_sha256 + srmech_json). decode_splice moved
+# owed_orchestration → composes_c (the DEFAULT stdlib HMAC-CTR path is now a thin
+# compose over existing C; the AES-128-CTR `[crypto]` extra stays Python by
+# design). owed 12 → 11; composes_c 86 → 87. CEIL_NON_COMPUTE_OWED 12 → 11.
+CEIL_NON_COMPUTE_OWED = 11
 
 # The PINNED dev-tooling allowlist — the exact ``non_compute_kind == "dev_tooling"``
 # set. A row here is JUSTIFIED as a genuine dev / LLM-affordance a bare-C host

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc177"
-#define SRMECH_VERSION       "0.9.0rc177"
+#define SRMECH_VERSION_PRE   "rc178"
+#define SRMECH_VERSION       "0.9.0rc178"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -177,6 +177,19 @@ srmech_status_t srmech_sha256_batch(const uint8_t *const *msgs,
 srmech_status_t srmech_sha256_shani(const uint8_t *data,
                                     size_t         len,
                                     uint8_t       *out_digest);
+
+/* rc178 (ANNEX Batch A): standard RFC 2104 HMAC-SHA-256 over the srmech
+ * SHA-256 compression. Writes the RAW 32-byte MAC of `msg[0..msg_len)` under
+ * `key[0..key_len)` into `out32` (must be 32 bytes, must NOT alias inputs).
+ * Byte-exact with Python hmac.new(key, msg, "sha256").digest() and the RFC
+ * 4231 vectors; block size 64, ipad/opad 0x36/0x5c, over-length key reduced
+ * with SHA-256 per the spec. A general primitive — the bus Bio-TOTP keystream
+ * composes it. Bounded stack only (no malloc); arbitrary key_len / msg_len. A
+ * NULL key/msg is allowed only with the matching length 0. New symbol only —
+ * SRMECH_ABI_VERSION stays 3. */
+srmech_status_t srmech_hmac_sha256(const uint8_t *key, size_t key_len,
+                                   const uint8_t *msg, size_t msg_len,
+                                   uint8_t       *out32);
 
 /* B4: NDJSON streaming line iterator. Caller provides a file path
  *     and a per-line callback; srmech_ndjson_iter walks the file
@@ -2911,6 +2924,73 @@ srmech_status_t srmech_bus_send_recv(
 
 /* Close the client + free its handle. After return, h is invalid. */
 srmech_status_t srmech_bus_client_close(srmech_bus_client_handle_t *h);
+
+/* ------------------------------------------------------------------ *
+ * srmech.bus — UTLP Bio-TOTP wire cipher C peer (0.9.0rc178; ANNEX
+ * Batch A part 1). A FAITHFUL BYTE-EXACT mirror of the already-shipped
+ * Python cipher `srmech/bus/_bio_totp.py` — the DEFAULT stdlib
+ * HMAC-SHA-256 counter-mode path only (the optional AES-128-CTR
+ * `[crypto]` extra stays Python, out of the bare-C-host default).
+ *
+ * Each op COMPOSES existing kernels (no new hash, no new parser):
+ * srmech_sha256_hex (key derive), srmech_hmac_sha256 (keystream),
+ * srmech_json_parse / srmech_json_object_get (binding check). The Python
+ * ops dispatch to these under HAS_NATIVE (ctypes, hasattr-guarded) and
+ * keep the COMPLETE pure path for a stale / no-C host (value-parity).
+ * Caller-arena / bounded-stack only (JPL Rule 3). New symbols only, so
+ * SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* Derive the 16-byte Bio-TOTP key for one time window:
+ *   out16 = sha256(dna || quantized_time_be8_signed)[0:16]
+ * where quantized_time = floor(time_ns / window_ns) (Python //, so a
+ * negative time_ns floors toward -inf) serialised as 8 big-endian
+ * two's-complement bytes. window_ns must be > 0. `dna` (dna_len bytes;
+ * NULL iff dna_len == 0) is capped at 256 bytes on the bounded stack —
+ * a longer dna returns SRMECH_ERR_OVERFLOW (the Python wrapper's pure
+ * path handles any length). Byte-exact with _bio_totp.derive_key. */
+srmech_status_t srmech_bio_totp_derive_key(const uint8_t *dna, size_t dna_len,
+                                           int64_t time_ns, int64_t window_ns,
+                                           uint8_t *out16);
+
+/* XOR `data[0..data_len)` with the HMAC-SHA-256 counter-mode keystream
+ * derived from (key16, nonce16), writing `data_len` bytes to `out`
+ * (encrypt and decrypt are the same operation). Keystream block i =
+ * HMAC(key16, nonce16 || i_be4), i = 0, 1, ...; the 32-byte blocks are
+ * concatenated and truncated to data_len. data_len == 0 is a no-op
+ * (`out` / `data` may be NULL then). Byte-exact with the stdlib
+ * HMAC-CTR branch of _bio_totp._stream_cipher. */
+srmech_status_t srmech_bio_totp_keystream_xor(const uint8_t *key16,
+                                              const uint8_t *nonce16,
+                                              const uint8_t *data,
+                                              size_t         data_len,
+                                              uint8_t       *out);
+
+/* Bytes of caller workspace srmech_bio_totp_decode_splice needs for the
+ * binding-check srmech_json parse of the recovered plaintext (bounded by
+ * the ciphertext length; a proven over-approximation). */
+size_t srmech_bio_totp_decode_splice_arena_bytes(size_t framed_len);
+
+/* Pure-function decode (mirrors _bio_totp.decode_splice): given a wire
+ * body `framed` = [nonce:16][ciphertext] and the `dna` secret, try the
+ * current time window then ±1 (deltas 0, -1, 1 in that order) for
+ * clock-skew tolerance; on the FIRST window whose decryption binds to the
+ * nonce under PERMISSIVE mode, write the plaintext to `out_plaintext`
+ * (capacity `out_cap` >= ciphertext length), set *out_len, *out_used_time
+ * = the candidate time that decoded, and *out_found = 1. If no window
+ * binds, *out_found = 0 (the Python caller raises BioTotpDecryptError).
+ * `now_ns` is the resolved current time (the Python side calls
+ * time.time_ns()); `window_ns` must be > 0. A frame shorter than 16 bytes
+ * returns SRMECH_ERR_BAD_INPUT (the format error). `ws` (size it with
+ * srmech_bio_totp_decode_splice_arena_bytes) backs the binding parse.
+ * Byte-exact plaintext + verdict with the pure decode_splice. */
+srmech_status_t srmech_bio_totp_decode_splice(
+    const uint8_t *framed, size_t framed_len,
+    const uint8_t *dna, size_t dna_len,
+    int64_t window_ns, int64_t now_ns,
+    void *ws, size_t ws_len,
+    uint8_t *out_plaintext, size_t out_cap, size_t *out_len,
+    int64_t *out_used_time, int *out_found);
 
 /* --------------------------------------------------------------------
  * Hamming / GF(2) linear block-code family (#910 / §30; F442/F449).

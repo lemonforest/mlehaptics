@@ -318,6 +318,74 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_sha256_shani.restype = ctypes.c_int
 
+    # rc178 (ANNEX Batch A): RFC 2104 HMAC-SHA-256 + the bus Bio-TOTP wire
+    # cipher C peer (srmech.bus._bio_totp dispatches to these). NEW symbols —
+    # hasattr-guarded so a stale ABI-3 lib keeps the COMPLETE pure path.
+    #   int srmech_hmac_sha256(const uint8_t *key, size_t key_len,
+    #                          const uint8_t *msg, size_t msg_len,
+    #                          uint8_t *out32)   /* 32 raw bytes */
+    if hasattr(lib, "srmech_hmac_sha256"):
+        lib.srmech_hmac_sha256.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_uint8),
+        ]
+        lib.srmech_hmac_sha256.restype = ctypes.c_int
+    #   int srmech_bio_totp_derive_key(const uint8_t *dna, size_t dna_len,
+    #                                  int64_t time_ns, int64_t window_ns,
+    #                                  uint8_t *out16)
+    if hasattr(lib, "srmech_bio_totp_derive_key"):
+        lib.srmech_bio_totp_derive_key.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.c_size_t,
+            ctypes.c_int64,
+            ctypes.c_int64,
+            ctypes.POINTER(ctypes.c_uint8),
+        ]
+        lib.srmech_bio_totp_derive_key.restype = ctypes.c_int
+    #   int srmech_bio_totp_keystream_xor(const uint8_t *key16,
+    #       const uint8_t *nonce16, const uint8_t *data, size_t data_len,
+    #       uint8_t *out)
+    if hasattr(lib, "srmech_bio_totp_keystream_xor"):
+        lib.srmech_bio_totp_keystream_xor.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_uint8),
+        ]
+        lib.srmech_bio_totp_keystream_xor.restype = ctypes.c_int
+    #   size_t srmech_bio_totp_decode_splice_arena_bytes(size_t framed_len)
+    if hasattr(lib, "srmech_bio_totp_decode_splice_arena_bytes"):
+        lib.srmech_bio_totp_decode_splice_arena_bytes.argtypes = [
+            ctypes.c_size_t,
+        ]
+        lib.srmech_bio_totp_decode_splice_arena_bytes.restype = ctypes.c_size_t
+    #   int srmech_bio_totp_decode_splice(const uint8_t *framed,
+    #       size_t framed_len, const uint8_t *dna, size_t dna_len,
+    #       int64_t window_ns, int64_t now_ns, void *ws, size_t ws_len,
+    #       uint8_t *out_plaintext, size_t out_cap, size_t *out_len,
+    #       int64_t *out_used_time, int *out_found)
+    if hasattr(lib, "srmech_bio_totp_decode_splice"):
+        lib.srmech_bio_totp_decode_splice.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.c_size_t,
+            ctypes.c_int64,
+            ctypes.c_int64,
+            ctypes.c_void_p,
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.POINTER(ctypes.c_int64),
+            ctypes.POINTER(ctypes.c_int),
+        ]
+        lib.srmech_bio_totp_decode_splice.restype = ctypes.c_int
+
     # v0.7.0rc18: SIMD HAL host-capability probe (exported via
     # WINDOWS_EXPORT_ALL_SYMBOLS). Lets native_status() / the parity test
     # see whether THIS run's host carries the SHA feature (so the SHA-NI
@@ -4774,6 +4842,119 @@ def sha256_hex_c(data: bytes) -> str:
             f"this should not happen for valid inputs"
         )
     return out.value.decode("ascii")
+
+
+# ----------------------------------------------------------------------
+# rc178 (ANNEX Batch A): RFC 2104 HMAC-SHA-256 + the bus Bio-TOTP wire
+# cipher. ``srmech.bus._bio_totp`` dispatches ``derive_key`` /
+# ``_stream_cipher`` (default HMAC-CTR path) / ``decode_splice`` through
+# these when ``has_native_bio_totp()``; each keeps the COMPLETE pure path
+# for a stale / no-C host. Byte-exact mirrors — parity IS the safety
+# property (a deviation would silently break the wire cipher).
+# ----------------------------------------------------------------------
+
+def has_native_bio_totp() -> bool:
+    """True iff the rc178 Bio-TOTP cipher C peer is loaded + bound."""
+    return bool(
+        HAS_NATIVE
+        and LIB is not None
+        and hasattr(LIB, "srmech_hmac_sha256")
+        and hasattr(LIB, "srmech_bio_totp_derive_key")
+        and hasattr(LIB, "srmech_bio_totp_keystream_xor")
+        and hasattr(LIB, "srmech_bio_totp_decode_splice")
+    )
+
+
+def _u8_ptr(data: bytes):
+    """A ``POINTER(c_uint8)`` over a fresh copy of ``data`` (or NULL for
+    empty), for a read-only C argument."""
+    if len(data) == 0:
+        return ctypes.cast(None, ctypes.POINTER(ctypes.c_uint8))
+    return (ctypes.c_uint8 * len(data)).from_buffer_copy(data)
+
+
+def hmac_sha256_c(key: bytes, msg: bytes) -> bytes:
+    """Native RFC 2104 HMAC-SHA-256 — RAW 32-byte MAC. Byte-exact with
+    ``hmac.new(key, msg, "sha256").digest()``. Requires the rc178 symbol."""
+    if not (HAS_NATIVE and LIB is not None
+            and hasattr(LIB, "srmech_hmac_sha256")):
+        raise RuntimeError(
+            "srmech_hmac_sha256 unavailable; use hmac.new(key, msg, 'sha256')"
+        )
+    out = (ctypes.c_uint8 * 32)()
+    rc = LIB.srmech_hmac_sha256(
+        _u8_ptr(bytes(key)), ctypes.c_size_t(len(key)),
+        _u8_ptr(bytes(msg)), ctypes.c_size_t(len(msg)),
+        out,
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_hmac_sha256 returned non-OK status {rc}")
+    return bytes(out)
+
+
+def bio_totp_derive_key_c(dna: bytes, time_ns: int, window_ns: int) -> bytes:
+    """Native Bio-TOTP key derive — 16 bytes. Byte-exact with
+    ``srmech.bus._bio_totp.derive_key``. Returns ``None`` on OVERFLOW
+    (dna longer than the native cap) so the caller runs the pure path."""
+    out = (ctypes.c_uint8 * 16)()
+    rc = LIB.srmech_bio_totp_derive_key(
+        _u8_ptr(bytes(dna)), ctypes.c_size_t(len(dna)),
+        ctypes.c_int64(int(time_ns)), ctypes.c_int64(int(window_ns)),
+        out,
+    )
+    if rc != SRMECH_OK:
+        return None
+    return bytes(out)
+
+
+def bio_totp_keystream_xor_c(key16: bytes, nonce16: bytes,
+                             data: bytes) -> bytes:
+    """Native Bio-TOTP HMAC-CTR keystream XOR (encrypt == decrypt).
+    Byte-exact with the stdlib branch of ``_bio_totp._stream_cipher``."""
+    n = len(data)
+    if n == 0:
+        return b""
+    out = (ctypes.c_uint8 * n)()
+    rc = LIB.srmech_bio_totp_keystream_xor(
+        _u8_ptr(bytes(key16)), _u8_ptr(bytes(nonce16)),
+        _u8_ptr(bytes(data)), ctypes.c_size_t(n), out,
+    )
+    if rc != SRMECH_OK:
+        return None
+    return bytes(out)
+
+
+def bio_totp_decode_splice_c(framed: bytes, dna: bytes,
+                             window_ns: int, now_ns: int):
+    """Native Bio-TOTP ``decode_splice``. Returns ``(plaintext, used_time)``
+    on success, the sentinel ``False`` when the native op ran but no window
+    bound (the caller raises BioTotpDecryptError), or ``None`` to fall to the
+    pure path (non-OK status / short frame). Byte-exact with the pure
+    ``decode_splice`` verdict + plaintext."""
+    body = bytes(framed)
+    if len(body) < 16:
+        return None                     # format error — caller handles
+    ct_len = len(body) - 16
+    ws_bytes = int(LIB.srmech_bio_totp_decode_splice_arena_bytes(
+        ctypes.c_size_t(len(body))))
+    ws = (ctypes.c_char * ws_bytes)()
+    out_pt = (ctypes.c_uint8 * (ct_len if ct_len > 0 else 1))()
+    out_len = ctypes.c_size_t(0)
+    out_used = ctypes.c_int64(0)
+    out_found = ctypes.c_int(0)
+    rc = LIB.srmech_bio_totp_decode_splice(
+        _u8_ptr(body), ctypes.c_size_t(len(body)),
+        _u8_ptr(bytes(dna)), ctypes.c_size_t(len(dna)),
+        ctypes.c_int64(int(window_ns)), ctypes.c_int64(int(now_ns)),
+        ws, ctypes.c_size_t(ws_bytes),
+        out_pt, ctypes.c_size_t(ct_len),
+        ctypes.byref(out_len), ctypes.byref(out_used), ctypes.byref(out_found),
+    )
+    if rc != SRMECH_OK:
+        return None
+    if not out_found.value:
+        return False
+    return bytes(out_pt[:out_len.value]), int(out_used.value)
 
 
 # ----------------------------------------------------------------------

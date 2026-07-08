@@ -525,7 +525,7 @@
 {"exposed_as": "srmech.amsc.op_provenance.lossy_projection_record", "defined_at": "srmech.amsc.op_provenance.lossy_projection_record", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.bus.channel_id_from_name", "defined_at": "srmech.bus._bio_totp.channel_id_from_name", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.bus.cipher_backend_name", "defined_at": "srmech.bus._bio_totp.cipher_backend_name", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
-{"exposed_as": "srmech.bus.decode_splice", "defined_at": "srmech.bus._bio_totp.decode_splice", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.bus.decode_splice", "defined_at": "srmech.bus._bio_totp.decode_splice", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.bus.connect", "defined_at": "srmech.bus._client.connect", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.bus.by_name", "defined_at": "srmech.bus._discovery.by_name", "bucket": "non_compute", "non_compute_kind": "host_glue"}
 {"exposed_as": "srmech.bus.list_endpoints", "defined_at": "srmech.bus._discovery.list_endpoints", "bucket": "non_compute", "non_compute_kind": "host_glue"}

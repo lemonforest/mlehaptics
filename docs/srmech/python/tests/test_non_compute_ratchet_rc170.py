@@ -11,12 +11,13 @@ This rc splits the ``non_compute`` rows into FOUR honest sub-buckets (the
 ``non_compute_kind`` field in ``rosetta_classification.ndjson``) and pins the
 split (rc177 annex counts):
 
-  owed_orchestration (12) — genuine control/dispatch LOGIC a bare-C host needs;
+  owed_orchestration (11) — genuine control/dispatch LOGIC a bare-C host needs;
                             owed-C, DOWN-ONLY (CEIL_NON_COMPUTE_OWED, the phase
                             driver, in test_rosetta_completeness.py). rc177 annex
                             +10: the bus Bio-TOTP cipher stream kernel + the DSL
-                            chain / class interpreter.
-  composes_c        (86) — thin: composes existing C, or a pure accessor /
+                            chain / class interpreter; rc178 −1: decode_splice
+                            earned its C peer.
+  composes_c        (87) — thin: composes existing C, or a pure accessor /
                             constructor / validator; TRANSITIVE-REACHABILITY
                             assert (hides no Python kernel), not a ceiling.
   host_glue         (14) — filesystem / host I/O; tracked, no ceiling.
@@ -104,9 +105,15 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # C, no compute-op change); CEIL_NON_COMPUTE_OWED 2 → 12; rc178+ build the annex
 # to C + drive the owed count back down. owed 2→12 / composes_c 83→86 /
 # host_glue 2→14 / dev_tooling 27→41; sum 114 → 153.
+# rc178 (2026-07-08): ANNEX Batch A part 1 — the bus Bio-TOTP wire cipher earned
+# its C peer (srmech_hmac_sha256 + srmech_bio_totp_derive_key / keystream_xor /
+# decode_splice). decode_splice moved owed_orchestration → composes_c (the DEFAULT
+# stdlib HMAC-CTR path is now a thin compose over srmech_sha256 + srmech_json; the
+# AES-128-CTR `[crypto]` extra stays Python). owed 12 → 11, composes_c 86 → 87;
+# sum stays 153. CEIL_NON_COMPUTE_OWED 12 → 11.
 _EXPECTED_SPLIT = {
-    "owed_orchestration": 12,
-    "composes_c": 86,
+    "owed_orchestration": 11,
+    "composes_c": 87,
     "host_glue": 14,
     "dev_tooling": 41,
 }

@@ -174,6 +174,59 @@ static void srmech_sha256_state_to_hex(const uint32_t state[8], char *out)
 }
 
 /* ------------------------------------------------------------------ *
+ * Apply the FIPS 180-4 §5.1.1 padding + length suffix to close a hash.
+ *
+ * `state` holds the running hash AFTER every full 64-byte block of the
+ * message has been compressed; `tail` is the final partial block
+ * (`tail_len` < 64 bytes; may be NULL iff tail_len == 0); `total_bytes`
+ * is the COMPLETE message length in bytes (drives the 64-bit big-endian
+ * length suffix). On return `state` holds the final digest words. Shared
+ * by srmech_sha256_hex + the HMAC construction so the padding logic
+ * lives in exactly one place.
+ * ------------------------------------------------------------------ */
+static void srmech_sha256_finalize(uint32_t state[8], const uint8_t *tail,
+                                   size_t tail_len, uint64_t total_bytes)
+{
+    assert(state != NULL);
+    assert(tail != NULL || tail_len == 0u);
+    assert(tail_len < 64u);
+
+    uint8_t buf[128];
+    /* Zero-init both blocks so the FIPS padding zeros are already in
+     * place; we just slot in the 0x80 byte + the length suffix. */
+    memset(buf, 0, sizeof(buf));
+    if (tail_len > 0u) {
+        memcpy(buf, tail, tail_len);
+    }
+    buf[tail_len] = 0x80u;
+    const size_t nb = (tail_len >= 56u) ? 2u : 1u;
+    const uint64_t bit_len = total_bytes * 8u;
+    const size_t off = (nb * 64u) - 8u;
+    for (size_t i = 0; i < 8u; i++) {
+        buf[off + i] = (uint8_t)(bit_len >> (56u - (8u * i)));
+    }
+    for (size_t i = 0; i < nb; i++) {
+        srmech_sha256_compress(state, buf + (i * 64u));
+    }
+}
+
+/* ------------------------------------------------------------------ *
+ * Serialise the 8 hash words as 32 big-endian bytes (the RAW digest).
+ * ------------------------------------------------------------------ */
+static void srmech_sha256_words_be(const uint32_t state[8], uint8_t out[32])
+{
+    assert(state != NULL);
+    assert(out != NULL);
+    for (size_t i = 0; i < 8u; i++) {
+        const uint32_t w = state[i];
+        out[(i * 4u) + 0u] = (uint8_t)(w >> 24);
+        out[(i * 4u) + 1u] = (uint8_t)(w >> 16);
+        out[(i * 4u) + 2u] = (uint8_t)(w >>  8);
+        out[(i * 4u) + 3u] = (uint8_t)(w      );
+    }
+}
+
+/* ------------------------------------------------------------------ *
  * Public entry — declared in srmech.h.
  *
  * One-shot SHA-256 over `data[0..data_len)`. Writes 64 lowercase hex
@@ -212,38 +265,99 @@ srmech_status_t srmech_sha256_hex(const uint8_t *data,
         srmech_sha256_compress(state, data + (i * 64u));
     }
 
-    /* Handle the tail + length-bit suffix. Worst case the tail
-     * spans two padded blocks (when remaining bytes >= 56). */
+    /* Handle the tail + length-bit suffix via the shared FIPS finalize
+     * (worst case the tail spans two padded blocks when remaining >= 56). */
     const size_t tail_len = data_len - (full_blocks * 64u);
-    assert(tail_len < 64u);
-
-    uint8_t tail_buf[128];
-    /* Zero-init both blocks so the FIPS padding zeros are already
-     * in place; we just slot in the 0x80 byte + length suffix. */
-    memset(tail_buf, 0, sizeof(tail_buf));
-    if (tail_len > 0u) {
-        memcpy(tail_buf, data + (full_blocks * 64u), tail_len);
-    }
-    tail_buf[tail_len] = 0x80u;  /* FIPS 180-4 §5.1.1 — bit 1 then zeros */
-
-    const size_t needs_two_blocks = (tail_len >= 56u) ? 1u : 0u;
-    const size_t pad_block_count = 1u + needs_two_blocks;
-    /* Length suffix in BIG-ENDIAN bits goes in the last 8 bytes. */
-    const uint64_t bit_len = (uint64_t)data_len * 8u;
-    const size_t suffix_off = (pad_block_count * 64u) - 8u;
-    tail_buf[suffix_off + 0u] = (uint8_t)(bit_len >> 56);
-    tail_buf[suffix_off + 1u] = (uint8_t)(bit_len >> 48);
-    tail_buf[suffix_off + 2u] = (uint8_t)(bit_len >> 40);
-    tail_buf[suffix_off + 3u] = (uint8_t)(bit_len >> 32);
-    tail_buf[suffix_off + 4u] = (uint8_t)(bit_len >> 24);
-    tail_buf[suffix_off + 5u] = (uint8_t)(bit_len >> 16);
-    tail_buf[suffix_off + 6u] = (uint8_t)(bit_len >>  8);
-    tail_buf[suffix_off + 7u] = (uint8_t)(bit_len      );
-
-    for (size_t i = 0; i < pad_block_count; i++) {
-        srmech_sha256_compress(state, tail_buf + (i * 64u));
-    }
+    srmech_sha256_finalize(state, data + (full_blocks * 64u), tail_len,
+                           (uint64_t)data_len);
 
     srmech_sha256_state_to_hex(state, out_hex);
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------ *
+ * One-shot RAW 32-byte SHA-256 digest of `data[0..len)`. Used inside the
+ * HMAC construction below to (a) compress an over-length key per RFC 2104
+ * and (b) reduce the inner/outer blocks. Byte-identical to the leading 32
+ * bytes decoded from srmech_sha256_hex — a raw view, not a new hash.
+ * ------------------------------------------------------------------ */
+static void srmech_sha256_raw(const uint8_t *data, size_t len, uint8_t out[32])
+{
+    assert(data != NULL || len == 0u);
+    assert(out != NULL);
+    uint32_t state[8];
+    memcpy(state, SRMECH_SHA256_H0, sizeof(state));
+    const size_t full = len / 64u;
+    for (size_t i = 0; i < full; i++) {
+        srmech_sha256_compress(state, data + (i * 64u));
+    }
+    srmech_sha256_finalize(state, data + (full * 64u), len - (full * 64u),
+                           (uint64_t)len);
+    srmech_sha256_words_be(state, out);
+}
+
+/* ------------------------------------------------------------------ *
+ * One HMAC "half": digest = sha256(pad_block(64) || data(data_len)),
+ * computed INCREMENTALLY (compress the 64-byte ipad/opad block first, then
+ * the message block-by-block) so NO key||msg concatenation buffer is needed
+ * and `data_len` may be arbitrarily long. `pad_block` is the ipad or opad.
+ * ------------------------------------------------------------------ */
+static void srmech_hmac_half(const uint8_t pad_block[64],
+                             const uint8_t *data, size_t data_len,
+                             uint8_t out[32])
+{
+    assert(pad_block != NULL);
+    assert(data != NULL || data_len == 0u);
+    uint32_t state[8];
+    memcpy(state, SRMECH_SHA256_H0, sizeof(state));
+    srmech_sha256_compress(state, pad_block);
+    const size_t full = data_len / 64u;
+    for (size_t i = 0; i < full; i++) {
+        srmech_sha256_compress(state, data + (i * 64u));
+    }
+    srmech_sha256_finalize(state, data + (full * 64u), data_len - (full * 64u),
+                           (uint64_t)(64u + data_len));
+    srmech_sha256_words_be(state, out);
+}
+
+/* ------------------------------------------------------------------ *
+ * Public entry — declared in srmech.h.
+ *
+ * Standard RFC 2104 HMAC-SHA-256 over the srmech SHA-256 compression: the
+ * RAW 32-byte MAC of `msg` under `key` is written to `out32`. Byte-exact
+ * with Python `hmac.new(key, msg, "sha256").digest()` and the RFC 4231
+ * test vectors. Block size B = 64; ipad/opad = 0x36/0x5c; an over-length
+ * key (> 64 bytes) is first reduced with SHA-256 per the spec. Bounded
+ * stack only (JPL Rule 3 — no malloc); arbitrary key_len / msg_len.
+ * ------------------------------------------------------------------ */
+srmech_status_t srmech_hmac_sha256(const uint8_t *key, size_t key_len,
+                                   const uint8_t *msg, size_t msg_len,
+                                   uint8_t *out32)
+{
+    if (out32 == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if ((key == NULL && key_len != 0u) || (msg == NULL && msg_len != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out32 != NULL);
+    assert(key != NULL || key_len == 0u);
+
+    uint8_t k0[64];
+    memset(k0, 0, sizeof(k0));
+    if (key_len > 64u) {
+        srmech_sha256_raw(key, key_len, k0);     /* K0 = H(key) || 0-pad */
+    } else if (key_len > 0u) {
+        memcpy(k0, key, key_len);                /* K0 = key   || 0-pad */
+    }
+    uint8_t ipad[64];
+    uint8_t opad[64];
+    for (size_t i = 0; i < 64u; i++) {
+        ipad[i] = (uint8_t)(k0[i] ^ 0x36u);
+        opad[i] = (uint8_t)(k0[i] ^ 0x5cu);
+    }
+    uint8_t inner[32];
+    srmech_hmac_half(ipad, msg, msg_len, inner);
+    srmech_hmac_half(opad, inner, 32u, out32);
     return SRMECH_OK;
 }
