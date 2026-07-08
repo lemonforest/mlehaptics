@@ -315,7 +315,13 @@ import pkgutil as _pkgutil
 import textwrap as _textwrap
 
 _ROSETTA_FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
-_ROSETTA_ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
+# rc177 annex: mirror the test_rosetta_completeness._ROOTS extension to bus/dsl so
+# the shared non_compute live-count walk (owed ceiling / composes_c reachability /
+# dev_tooling allowlist) sees the +39 bus/dsl rows as live.
+_ROSETTA_ROOTS = (
+    "srmech.amsc", "srmech.qm", "srmech.signal_processing",
+    "srmech.bus", "srmech.dsl",
+)
 
 # Buckets that are NOT standalone-C-ready.
 ROSETTA_NOT_READY = frozenset(

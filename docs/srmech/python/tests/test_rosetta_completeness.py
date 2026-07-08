@@ -75,7 +75,16 @@ from conftest import (  # noqa: E402
 _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 
 # Roots of the public COMPUTE surface (mirrors notes/_rosetta_inventory.py).
-_ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
+# rc177 (annex): extend the ledger walk to srmech.bus + srmech.dsl — a bare-C
+# host runs the WHOLE apparatus incl. the IPC bus + the cascade-chain / class
+# interpreter, so their public surface joins the everything-mirrors ledger (the
+# +39 rows: 18 bus + 21 dsl, all non_compute; rc178+ build them to C + drive the
+# owed count back down). The conftest _ROSETTA_ROOTS + the transitive-standalone
+# _ROOTS mirror this extension so all three walks agree on the live surface.
+_ROOTS = (
+    "srmech.amsc", "srmech.qm", "srmech.signal_processing",
+    "srmech.bus", "srmech.dsl",
+)
 
 # ----- the down-only debt ceilings (rc7 baseline; issue #928) -----------
 # LOWER these as ops gain C twins. NEVER raise them.
@@ -579,37 +588,44 @@ CEIL_BIGNUM_REFERENCE = 0
 # ── the ORCHESTRATION→C phase driver (rc170; §"non_compute sub-buckets") ──────
 # With the compute (CEIL_PYTHON_ONLY_DEBT=0), exact-algebra (CEIL_BIGNUM_
 # REFERENCE=0) and self-hosting (CEIL_C_EXISTS_UNBOUND=0) arcs all CLOSED, the
-# ``non_compute`` bucket (114 rows) is the last one with NO ceiling — the honest
-# next frontier. The phase goal: make a bare-C host (no Python) run the WHOLE
-# apparatus — dispatch, catalogs, IPC, the genome, the chain-runner — in C. This
-# ceiling drives it, exactly as CEIL_BIGNUM_REFERENCE drove the Qalg-C tail.
+# ``non_compute`` bucket (rc177 annex: 153 rows, after extending _ROOTS to
+# bus/dsl) is the last one with NO ceiling — the honest next frontier. The phase
+# goal: make a bare-C host (no Python) run the WHOLE apparatus — dispatch,
+# catalogs, IPC, the genome, the chain-runner — in C. This ceiling drives it,
+# exactly as CEIL_BIGNUM_REFERENCE drove the Qalg-C tail.
 #
-# The 114 non_compute rows carry a ``non_compute_kind`` sub-classification (see
-# rosetta_classification.ndjson + test_non_compute_ratchet_rc170.py), splitting
-# them into FOUR honest sub-buckets that sum to 114:
-#   owed_orchestration  (9) — genuine control/dispatch LOGIC a bare-C host needs
-#                             (the amsc.compose chain-runner + its 2 catalog
-#                             dependents list_catalog_chains / run_catalog_chain,
-#                             the F929 infer router, the MCP op-schema lookup). THIS
-#                             ceiling. Owed-C: only SHRINKS as each earns a C
-#                             path (→ c_dispatched / composition_of_c / composes_c).
-#                             NEVER grows. rc171: the 5 op-provenance verdict/carry
-#                             ops earned C peers → composes_c (20 → 15). rc172: the
-#                             6 catalog registry/kernel/audit ops earned C → composes_c
-#                             (15 → 9).
-#   composes_c (76)         — thin: already composes existing C (json/toml/genome/
-#                             klein4/the_one/carriers/op_provenance) OR a pure
-#                             accessor / constructor / validator (hides no
-#                             compute). Gets a TRANSITIVE-REACHABILITY assert,
+# The 153 non_compute rows carry a ``non_compute_kind`` sub-classification (see
+# rosetta_classification.ndjson + test_non_compute_ratchet_rc170.py +
+# test_annex_ratchet_rc177.py), splitting them into FOUR honest sub-buckets that
+# sum to 153 (rc177 annex extended the walk to bus/dsl: +10 owed / +3 composes_c
+# / +12 host_glue / +14 dev_tooling):
+#   owed_orchestration (12) — genuine control/dispatch LOGIC a bare-C host needs
+#                             (the deferred tool_schema pair, + rc177 the bus
+#                             Bio-TOTP cipher stream kernel decode_splice/pipe and
+#                             the DSL chain / class interpreter chain /
+#                             run_toml_chain / lookup_cascade_op /
+#                             build_chain_from_{dict,toml,toml_str} / make_class /
+#                             run_class_method). THIS ceiling. Owed-C: only
+#                             SHRINKS as each earns a C path (→ c_dispatched /
+#                             composition_of_c / composes_c). NEVER grows.
+#   composes_c (86)         — thin: already composes existing C (json/toml/genome/
+#                             klein4/the_one/carriers/op_provenance, + rc177 the 3
+#                             bus composes_c connect/serve/channel_id_from_name)
+#                             OR a pure accessor / constructor / validator (hides
+#                             no compute). Gets a TRANSITIVE-REACHABILITY assert,
 #                             not a ceiling.
-#   host_glue (2)           — filesystem / host I/O (descriptor FS discovery,
-#                             catalog-root FS registration). Tracked, no ceiling
-#                             this rc (annex decision pending).
-#   dev_tooling (27)        — a bare-C host does NOT need it (tool_schema register/
+#   host_glue (14)          — filesystem / host I/O (descriptor FS discovery,
+#                             catalog-root FS registration, + rc177 the bus
+#                             discovery/transport/registry-read + the DSL
+#                             catalog/class descriptor FS loaders). Tracked, no
+#                             ceiling.
+#   dev_tooling (41)        — a bare-C host does NOT need it (tool_schema register/
 #                             extension/warmup, gap_suggester, the sp mutable
 #                             plugin-registry / dispatch-lock / lazy-loader /
-#                             profiling, the carrier-ladder descriptor). PINNED
-#                             exempt allowlist — justified, never owed-C.
+#                             profiling, the carrier-ladder descriptor, + rc177 the
+#                             bus cipher-backend/secret-kwargs/asyncio-aio wrappers
+#                             and the DSL register/list introspection surface).
+#                             PINNED exempt allowlist — justified, never owed-C.
 #
 # LOWER this ceiling as each owed-orchestration op earns a C path (c_dispatched /
 # composition_of_c). NEVER raise it — a rising owed count means new control logic
@@ -665,6 +681,13 @@ CEIL_BIGNUM_REFERENCE = 0
 # one clean rc. So owed 5 → 3 (the 3 remaining = dispatch.infer [→ rc176] + the
 # deferred tool_schema pair [get_tool_schema / tool_schema_view → host-glue MCP
 # server]). composes_c 80 → 82.
+# rc177 annex (2026-07-08): extend _ROOTS to bus/dsl (+10 owed_orchestration —
+# the bus Bio-TOTP cipher stream kernel decode_splice + pipe, and the DSL
+# chain / class interpreter: chain / run_toml_chain / lookup_cascade_op /
+# build_chain_from_{dict,toml,toml_str} / make_class / run_class_method). A
+# bare-C host needs the IPC bus + the cascade-chain/class interpreter in C;
+# rc178+ (Batch A bus cipher → Batch B nested-carrier FFI DSL interp) drive the
+# owed count back down. CEIL_NON_COMPUTE_OWED 2 → 12.
 # rc176 (2026-07-08): dispatch.infer (the F929 router) earned a C peer —
 # srmech_infer (the ORCHESTRATION→C spine, batch 6; the CARRIER-FFI foundation).
 # The SMALLEST SOUND foundation this rc: the TWO exact-symbolic bignum-carrier
@@ -679,7 +702,7 @@ CEIL_BIGNUM_REFERENCE = 0
 # own bridge) fall to pure via non-OK (the rc103 inform-don't-limit pattern) →
 # rc177+. owed 3 → 2 (the 2 remaining = the deferred tool_schema pair, host-glue
 # MCP server); composes_c 82 → 83.
-CEIL_NON_COMPUTE_OWED = 2
+CEIL_NON_COMPUTE_OWED = 12
 
 # The PINNED dev-tooling allowlist — the exact ``non_compute_kind == "dev_tooling"``
 # set. A row here is JUSTIFIED as a genuine dev / LLM-affordance a bare-C host
@@ -717,6 +740,26 @@ NON_COMPUTE_DEV_TOOLING_EXEMPT = frozenset({
     "srmech.signal_processing.profiling.clear_records",
     "srmech.signal_processing.profiling.iter_records",
     "srmech.signal_processing.profiling.record_profile",
+    # rc177 annex (bus/dsl) — 14 dev / LLM / asyncio affordances a bare-C host
+    # never needs: the cipher backend-name probe + the bus secret-kwargs helper,
+    # the four asyncio ``bus.aio`` wrappers (asyncio is a host-runtime affordance,
+    # not standalone-C control logic), and the DSL registry/introspection surface
+    # (register a catalog/class dir, enumerate cascade-ops / classes / catalog-ops
+    # / ops, describe / list the class surface).
+    "srmech.bus._bio_totp.cipher_backend_name",
+    "srmech.bus._params.secret_kwargs",
+    "srmech.bus.aio.connect",
+    "srmech.bus.aio.list_endpoints",
+    "srmech.bus.aio.pipe",
+    "srmech.bus.aio.serve",
+    "srmech.dsl._catalog.list_cascade_ops",
+    "srmech.dsl._catalog.register_catalog_dir",
+    "srmech.dsl._class_catalog.list_classes",
+    "srmech.dsl._class_catalog.register_class_dir",
+    "srmech.dsl._class_surface.describe_class",
+    "srmech.dsl._class_surface.list_class_surface",
+    "srmech.dsl._tool_surface.list_catalog_ops",
+    "srmech.dsl._tool_surface.list_ops",
 })
 
 # The four honest sub-buckets of the non_compute bucket. Every non_compute row
