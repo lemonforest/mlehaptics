@@ -122,9 +122,15 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # + build_chain_from_dict stage-IR + LINEAR chain.run over the C-backed atoms).
 # lookup_cascade_op + build_chain_from_dict moved owed_orchestration → composes_c.
 # owed 10 → 8, composes_c 88 → 90; sum stays 153. CEIL_NON_COMPUTE_OWED 10 → 8.
+# rc182 (2026-07-08): ANNEX Batch B part 2 — the DSL chain interpreter is COMPLETE.
+# The loop/fold/reduce COMBINATORS completing srmech_dsl_chain_run + the TOML
+# front-end bridge srmech_dsl_toml_chain_to_json. chain (Chain.run) + run_toml_chain
+# + build_chain_from_toml + build_chain_from_toml_str moved owed_orchestration →
+# composes_c. owed 8 → 4, composes_c 90 → 94; sum stays 153. CEIL_NON_COMPUTE_OWED
+# 8 → 4 (the 4 left = 2 tool_schema + make_class + run_class_method).
 _EXPECTED_SPLIT = {
-    "owed_orchestration": 8,
-    "composes_c": 90,
+    "owed_orchestration": 4,
+    "composes_c": 94,
     "host_glue": 14,
     "dev_tooling": 41,
 }
