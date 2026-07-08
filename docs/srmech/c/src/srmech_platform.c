@@ -19,6 +19,7 @@
 #include <stdio.h>    /* snprintf (stream endpoint paths) */
 #include <stdlib.h>   /* getenv (POSIX socket path under $HOME) */
 #include <string.h>
+#include <time.h>     /* timespec_get / TIME_UTC (wall clock, rc179) */
 
 #if defined(_WIN32) || defined(_WIN64)
 #  define SRMECH_PLAT_THREADS_WIN 1
@@ -1030,3 +1031,25 @@ srmech_status_t srmech_plat_dir_close(srmech_plat_dir_t *dir)
 }
 
 #endif  /* SRMECH_PLAT_DIR_* */
+
+/* ================================================================== *
+ * WALL CLOCK (rc179) — ISO C11 timespec_get(TIME_UTC). One
+ * implementation for POSIX + Windows (no #ifdef); a clock-less libc
+ * (timespec_get returning 0) reports SRMECH_ERR_IO. Consumer: the bus
+ * Bio-TOTP encrypted transport, which rolls its key window on wall time.
+ * ================================================================== */
+
+srmech_status_t srmech_plat_now_ns(int64_t *out_ns)
+{
+    assert(out_ns != NULL);
+    if (out_ns == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    struct timespec ts;
+    if (timespec_get(&ts, TIME_UTC) != TIME_UTC) {
+        return SRMECH_ERR_IO;   /* no wall-clock backend on this target */
+    }
+    assert(ts.tv_nsec >= 0);
+    *out_ns = ((int64_t)ts.tv_sec * 1000000000LL) + (int64_t)ts.tv_nsec;
+    return SRMECH_OK;
+}

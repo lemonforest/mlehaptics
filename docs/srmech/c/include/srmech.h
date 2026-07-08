@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc178"
-#define SRMECH_VERSION       "0.9.0rc178"
+#define SRMECH_VERSION_PRE   "rc179"
+#define SRMECH_VERSION       "0.9.0rc179"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2882,6 +2882,33 @@ srmech_status_t srmech_bus_serve(
     void                             *user_data,
     srmech_bus_server_handle_t      **out_handle);
 
+/* Bio-TOTP ENCRYPTED server (rc179; ANNEX Batch A part 2). Same as
+ * srmech_bus_serve but every request/response payload is wrapped in the
+ * rc178 UTLP Bio-TOTP wire cipher (DEFAULT stdlib HMAC-SHA-256 counter-mode
+ * path — the AES-128-CTR `[crypto]` extra stays Python). So a bare-C host
+ * speaks the ENCRYPTED wire, not plaintext. Wire body = [nonce:16][ciphertext],
+ * TLV-framed; key rolls on the PAL wall clock over `window_ns` (a large
+ * window pins one key). `dna` (dna_len bytes, capped at 256; NULL iff
+ * dna_len == 0) is the shared secret; `sender_id`/`channel_id` seed the
+ * server's response nonces (each accepted connection gets a fresh packet_seq).
+ * ENCRYPT composes srmech_bio_totp_derive_key + _keystream_xor; DECRYPT
+ * composes srmech_bio_totp_decode_splice (permissive binding over the OPAQUE
+ * payload). Additive symbol → SRMECH_ABI_VERSION stays 3.
+ *
+ * Error returns: as srmech_bus_serve, plus SRMECH_ERR_BAD_INPUT (window_ns
+ * <= 0) / SRMECH_ERR_OVERFLOW (dna_len > 256) / SRMECH_ERR_IO (no wall
+ * clock). */
+srmech_status_t srmech_bus_serve_encrypted(
+    const char                       *name,
+    srmech_bus_handler_callback_t     handler,
+    void                             *user_data,
+    const uint8_t                    *dna,
+    size_t                            dna_len,
+    uint64_t                          sender_id,
+    uint32_t                          channel_id,
+    int64_t                           window_ns,
+    srmech_bus_server_handle_t      **out_handle);
+
 /* Accept one client + service its requests until peer-close.
  * BLOCKING. Caller-spinnable in a thread loop. Returns SRMECH_OK
  * after the client disconnects cleanly; SRMECH_ERR_IO on accept
@@ -2903,6 +2930,24 @@ srmech_status_t srmech_bus_server_stop(srmech_bus_server_handle_t *h);
  *                            running, permission, etc.). */
 srmech_status_t srmech_bus_connect(
     const char                       *name,
+    srmech_bus_client_handle_t      **out_handle);
+
+/* Bio-TOTP ENCRYPTED client (rc179). Same as srmech_bus_connect but the
+ * returned handle encrypts on srmech_bus_send_recv and decrypts the reply
+ * (see srmech_bus_serve_encrypted). `dna` + `window_ns` must match the
+ * server's; `sender_id`/`channel_id` seed this client's request nonces.
+ * srmech_bus_send_recv / srmech_bus_client_close are shared (they read the
+ * cipher state from the handle). Additive symbol → SRMECH_ABI_VERSION stays 3.
+ *
+ * Error returns: as srmech_bus_connect, plus SRMECH_ERR_BAD_INPUT (window_ns
+ * <= 0) / SRMECH_ERR_OVERFLOW (dna_len > 256). */
+srmech_status_t srmech_bus_connect_encrypted(
+    const char                       *name,
+    const uint8_t                    *dna,
+    size_t                            dna_len,
+    uint64_t                          sender_id,
+    uint32_t                          channel_id,
+    int64_t                           window_ns,
     srmech_bus_client_handle_t      **out_handle);
 
 /* Send one request + read its reply.
