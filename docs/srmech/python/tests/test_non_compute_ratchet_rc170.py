@@ -73,9 +73,17 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # series / Friedmann — end-to-end in C to byte-identical OUTPUT; the pure path
 # runs any out-of-table op / non-raise policy / @catalog ref) → moved
 # owed_orchestration → composes_c (owed 7→5, composes_c 78→80; sum stays 114).
+# rc175: the 2 catalog CHAIN-ORCHESTRATION dependents earned C peers
+# (list_catalog_chains → srmech_catalog_list_chains; run_catalog_chain →
+# srmech_catalog_run_chain, each composing the rc173 parse + rc174 chain-runner)
+# → moved owed_orchestration → composes_c (owed 5→3, composes_c 80→82; sum stays
+# 114). HONEST SPLIT: dispatch.infer (the F929 router) STAYS owed → rc176 (its
+# relationship payloads carry live non-JSON carriers — a multi-carrier FFI arc,
+# not one clean rc). The 3 remaining owed = dispatch.infer + the 2 tool_schema
+# rows (get_tool_schema / tool_schema_view → built with the host-glue MCP server).
 _EXPECTED_SPLIT = {
-    "owed_orchestration": 5,
-    "composes_c": 80,
+    "owed_orchestration": 3,
+    "composes_c": 82,
     "host_glue": 2,
     "dev_tooling": 27,
 }

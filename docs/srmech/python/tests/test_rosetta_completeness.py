@@ -653,7 +653,19 @@ CEIL_BIGNUM_REFERENCE = 0
 # policy / non-i64 input to the COMPLETE pure path (never a wrong answer). The 2
 # catalog dependents (list_catalog_chains / run_catalog_chain) become buildable
 # next (rc175: run_catalog_chain / list_catalog_chains / dispatch.infer). 7 → 5.
-CEIL_NON_COMPUTE_OWED = 5
+# rc175 (2026-07-07): the 2 catalog CHAIN-ORCHESTRATION dependents earned C —
+# list_catalog_chains → srmech_catalog_list_chains (parse+project the chain
+# summaries); run_catalog_chain → srmech_catalog_run_chain (find the named chain
+# in operator_chain + run it), each COMPOSING the rc173 parse + rc174 chain-
+# runner. HONEST SPLIT: dispatch.infer (the F929 router) STAYS owed → rc176. It
+# is not thin: its relationship payloads carry LIVE non-JSON carrier objects
+# (BiPoly / TriPoly / QPoly / QBiPoly / EllRatio / Mat / the One), and moving its
+# try-and-verify LOGIC to C needs a full multi-carrier FFI marshalling layer for
+# the 7 reducer families + closed_form return marshalling — a multi-rc arc, not
+# one clean rc. So owed 5 → 3 (the 3 remaining = dispatch.infer [→ rc176] + the
+# deferred tool_schema pair [get_tool_schema / tool_schema_view → host-glue MCP
+# server]). composes_c 80 → 82.
+CEIL_NON_COMPUTE_OWED = 3
 
 # The PINNED dev-tooling allowlist — the exact ``non_compute_kind == "dev_tooling"``
 # set. A row here is JUSTIFIED as a genuine dev / LLM-affordance a bare-C host

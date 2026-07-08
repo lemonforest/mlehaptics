@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc174"
-#define SRMECH_VERSION       "0.9.0rc174"
+#define SRMECH_VERSION_PRE   "rc175"
+#define SRMECH_VERSION       "0.9.0rc175"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1915,6 +1915,41 @@ srmech_status_t srmech_chain_catalog_parse(
 size_t srmech_chain_run_arena_bytes(size_t chain_len, size_t ctx_len);
 srmech_status_t srmech_chain_run(
     const char *chain_json, size_t chain_len,
+    const char *ctx_json, size_t ctx_len,
+    void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * amsc.catalog CHAIN ORCHESTRATION — list + run a catalog's named chains
+ * (0.9.0rc175; the ORCHESTRATION→C spine, batch 5). These COMPOSE the rc173
+ * chain parse (srmech_compose.c) + the rc174 chain-runner (srmech_compose_run.c)
+ * — NO new parser, NO new math. They back the Python ops
+ *   srmech.amsc.catalog.list_catalog_chains -> srmech_catalog_list_chains
+ *   srmech.amsc.catalog.run_catalog_chain   -> srmech_catalog_run_chain
+ *
+ * CONTRACT: input is JSON (the Python descriptor's [catalog] table, json.dumps'd
+ * as {chain_schema_version:1, operator_chain:[chain, ...]}). Any validation
+ * failure / unknown chain name / non-JSON input / out-of-table op → non-OK so
+ * the Python caller runs the COMPLETE pure path. Caller-arena `ws` (size with
+ * the matching *_arena_bytes). ABI-additive → SRMECH_ABI_VERSION stays 3.
+ *
+ * srmech_catalog_list_chains: emit the chain-summary array
+ *   [{classes:[class_id,...], n_steps, name, on_error, returns, summary}, ...]
+ * (canonical JSON, byte-identical to json.dumps(obj, sort_keys=True)); each
+ * chain is validated as in srmech_chain_spec_parse. */
+size_t srmech_catalog_list_chains_arena_bytes(size_t cat_len);
+srmech_status_t srmech_catalog_list_chains(
+    const char *cat_json, size_t cat_len,
+    void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
+
+/* srmech_catalog_run_chain: find the chain named [chain_name, name_len) in
+ * operator_chain and RUN it end-to-end (same bounded Class-N op set + value-
+ * descriptor OUTPUT contract as srmech_chain_run). ctx_json = {"row":.., "inputs"
+ * :..}. A chain not found / a non-table op / a non-i64 input / overflow → non-OK
+ * → the Python pure path (the not-found KeyError / the live-object-graph run). */
+size_t srmech_catalog_run_chain_arena_bytes(size_t cat_len, size_t ctx_len);
+srmech_status_t srmech_catalog_run_chain(
+    const char *cat_json, size_t cat_len,
+    const char *chain_name, size_t name_len,
     const char *ctx_json, size_t ctx_len,
     void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
 

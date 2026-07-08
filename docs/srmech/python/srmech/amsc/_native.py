@@ -2942,6 +2942,43 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_chain_run_arena_bytes.restype = ctypes.c_size_t
 
     # ------------------------------------------------------------------
+    # amsc.catalog CHAIN ORCHESTRATION — list + run a catalog's named chains
+    # (0.9.0rc175; the ORCHESTRATION→C spine, batch 5). Compose the rc173
+    # chain parse + the rc174 chain-runner. list emits the chain-summary array;
+    # run finds the named chain in operator_chain + runs it (value descriptor
+    # OUTPUT, same contract as srmech_chain_run). Non-OK → the Python pure path.
+    #   int srmech_catalog_list_chains(cat_json, cat_len, ws, ws_len,
+    #       out, out_cap, size_t *out_len)
+    #   int srmech_catalog_run_chain(cat_json, cat_len, chain_name, name_len,
+    #       ctx_json, ctx_len, ws, ws_len, out, out_cap, size_t *out_len)
+    # ------------------------------------------------------------------
+    if hasattr(lib, "srmech_catalog_list_chains"):
+        lib.srmech_catalog_list_chains.argtypes = [
+            ctypes.c_char_p, ctypes.c_size_t,   # cat_json, cat_len
+            ctypes.c_void_p, ctypes.c_size_t,   # ws, ws_len
+            ctypes.c_char_p, ctypes.c_size_t,   # out, out_cap
+            ctypes.POINTER(ctypes.c_size_t),    # out_len
+        ]
+        lib.srmech_catalog_list_chains.restype = ctypes.c_int
+    if hasattr(lib, "srmech_catalog_list_chains_arena_bytes"):
+        lib.srmech_catalog_list_chains_arena_bytes.argtypes = [ctypes.c_size_t]
+        lib.srmech_catalog_list_chains_arena_bytes.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_catalog_run_chain"):
+        lib.srmech_catalog_run_chain.argtypes = [
+            ctypes.c_char_p, ctypes.c_size_t,   # cat_json, cat_len
+            ctypes.c_char_p, ctypes.c_size_t,   # chain_name, name_len
+            ctypes.c_char_p, ctypes.c_size_t,   # ctx_json, ctx_len
+            ctypes.c_void_p, ctypes.c_size_t,   # ws, ws_len
+            ctypes.c_char_p, ctypes.c_size_t,   # out, out_cap
+            ctypes.POINTER(ctypes.c_size_t),    # out_len
+        ]
+        lib.srmech_catalog_run_chain.restype = ctypes.c_int
+    if hasattr(lib, "srmech_catalog_run_chain_arena_bytes"):
+        lib.srmech_catalog_run_chain_arena_bytes.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_catalog_run_chain_arena_bytes.restype = ctypes.c_size_t
+
+    # ------------------------------------------------------------------
     # Class N — ROTATION-LAST Chudnovsky π on srmech_bigint (0.9.0rc19).
     # The two srmech_pi_* symbols are the C-host peer of
     # srmech.amsc.rational.pi_chudnovsky_digits — exact bigint body, ONE
