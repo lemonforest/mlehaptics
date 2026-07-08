@@ -83,6 +83,46 @@ _RESERVED_STAGE_KEYS = frozenset({
 })
 
 
+def _toml_loads_native(spec: str) -> "Any":
+    """Parse a TOML chain spec via the C ``srmech_dsl_toml_chain_to_json`` bridge.
+
+    Returns the parsed dict (the ``build_chain_from_dict`` IR) when the native
+    lib is present AND the C ``srmech_toml`` parser accepts the document, else
+    ``None`` so :func:`build_chain_from_toml_str` falls back to the stdlib
+    ``tomllib`` parse (rc103 inform-don't-limit — the C parser is the DEFAULT
+    path, the pure parser the fallback; both yield the same dict / raise the same
+    ``TOMLDecodeError`` on genuine syntax errors). numpy-free, no import cost when
+    native is absent.
+    """
+    try:
+        from srmech.amsc import _native
+    except Exception:
+        return None
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    lib = _native.LIB
+    if not (hasattr(lib, "srmech_dsl_toml_chain_to_json")
+            and hasattr(lib, "srmech_dsl_toml_chain_to_json_arena_bytes")):
+        return None
+    import ctypes
+    import json
+    src = spec.encode("utf-8")
+    ws_bytes = int(lib.srmech_dsl_toml_chain_to_json_arena_bytes(len(src)))
+    ws = (ctypes.c_char * ws_bytes)()
+    out_cap = max(ws_bytes, 16384)
+    out = (ctypes.c_char * out_cap)()
+    out_len = ctypes.c_size_t()
+    rc = lib.srmech_dsl_toml_chain_to_json(
+        src, len(src), ws, ws_bytes, out, out_cap, ctypes.byref(out_len))
+    if rc != _native.SRMECH_OK:
+        return None
+    try:
+        data = json.loads(out.raw[:out_len.value].decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
 def load_chain_toml(path: Union[str, Path]) -> Dict[str, Any]:
     """Parse a TOML chain-spec file; return the raw parsed dict.
 
@@ -96,9 +136,15 @@ def load_chain_toml(path: Union[str, Path]) -> Dict[str, Any]:
 
 
 def build_chain_from_toml(path: Union[str, Path]) -> Chain:
-    """Load a TOML chain spec from disk and build the matching Chain."""
-    data = load_chain_toml(path)
-    return build_chain_from_dict(data)
+    """Load a TOML chain spec from disk and build the matching Chain.
+
+    The host reads the file bytes (unavoidable host I/O); the TOML PARSE then
+    routes through :func:`build_chain_from_toml_str` — the C
+    ``srmech_dsl_toml_chain_to_json`` bridge when native is present (rc182), the
+    stdlib ``tomllib`` otherwise.
+    """
+    spec = Path(path).read_text(encoding="utf-8")
+    return build_chain_from_toml_str(spec)
 
 
 def build_chain_from_toml_str(spec: str) -> Chain:
@@ -137,7 +183,13 @@ def build_chain_from_toml_str(spec: str) -> Chain:
             f"build_chain_from_toml_str: spec must be a str of TOML; "
             f"got {type(spec).__name__}"
         )
-    data = _toml.loads(spec)
+    # rc182: the TOML parse routes through the C srmech_toml parser (the
+    # build_chain_from_dict IR emitted as canonical JSON); a native-absent build
+    # or a C-parser decline falls back to the stdlib tomllib (same dict / same
+    # TOMLDecodeError on a genuine syntax error).
+    data = _toml_loads_native(spec)
+    if data is None:
+        data = _toml.loads(spec)
     return build_chain_from_dict(data)
 
 

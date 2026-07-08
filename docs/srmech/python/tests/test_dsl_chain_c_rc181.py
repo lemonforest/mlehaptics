@@ -209,17 +209,20 @@ def test_full_run_uses_native_and_matches_pure():
 
 
 @_needs_native
-def test_combinator_chain_defers_to_pure():
-    """A loop / fold / reduce / parallel combinator stage → _run_native miss →
-    the pure combinator path runs (rc182 adds the combinators to C)."""
+def test_loop_fold_reduce_now_nativize():
+    """rc182 INVERTED the rc181 deferral pin: loop / fold / reduce over C-backed
+    bodies now RUN in C (they no longer defer). The pure combinator path still
+    runs correctly and matches. (The parallel fan-out stays deferred — see
+    test_parallel_combinator_defers_to_pure.)"""
     looped = chain("loop").loop(3, chain("body").then("magnitude"))
-    assert looped._run_native(-2.0) is _NATIVE_MISS
-    # and the pure path still runs correctly (magnitude of a magnitude ...):
+    assert looped._run_native(-2.0) is not _NATIVE_MISS
     assert looped.run(-2.0) == pytest.approx(2.0)
     folded = chain("fold").fold(0, "cyclic_gcd")
-    assert folded._run_native([12, 18]) is _NATIVE_MISS
+    assert folded._run_native([12, 18]) is not _NATIVE_MISS
+    assert folded._run_native([12, 18]) == _pure(folded, [12, 18])
     reduced = chain("red").reduce("cyclic_gcd")
-    assert reduced._run_native([12, 18, 24]) is _NATIVE_MISS
+    assert reduced._run_native([12, 18, 24]) is not _NATIVE_MISS
+    assert reduced._run_native([12, 18, 24]) == _pure(reduced, [12, 18, 24])
 
 
 @_needs_native

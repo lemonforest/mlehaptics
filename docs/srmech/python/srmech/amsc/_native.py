@@ -3187,6 +3187,30 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_dsl_chain_run_arena_bytes.restype = ctypes.c_size_t
 
     # ------------------------------------------------------------------
+    # srmech_dsl_toml_chain_to_json — the TOML front-end bridge (0.9.0rc182;
+    # ANNEX Batch B pt2). The C peer for srmech.dsl.build_chain_from_toml_str: parse
+    # a TOML chain-spec via srmech_toml_parse, serialise the parsed table tree as
+    # canonical JSON = the build_chain_from_dict IR (byte-identical to
+    # json.dumps(sort_keys=True) for null/bool/int/string/object/array; DOUBLE
+    # best-effort %.17g). A syntax error / overflow → non-OK so the Python caller
+    # falls back to the stdlib tomllib parse (rc103 inform-don't-limit). hasattr-
+    # guarded so a stale ABI-4 lib keeps the pure TOML parse.
+    #   int srmech_dsl_toml_chain_to_json(toml_src, toml_len, ws, ws_len,
+    #       out, out_cap, size_t *out_len)
+    # ------------------------------------------------------------------
+    if hasattr(lib, "srmech_dsl_toml_chain_to_json"):
+        lib.srmech_dsl_toml_chain_to_json.argtypes = [
+            ctypes.c_char_p, ctypes.c_size_t,   # toml_src, toml_len
+            ctypes.c_void_p, ctypes.c_size_t,   # ws, ws_len
+            ctypes.c_char_p, ctypes.c_size_t,   # out, out_cap
+            ctypes.POINTER(ctypes.c_size_t),    # out_len
+        ]
+        lib.srmech_dsl_toml_chain_to_json.restype = ctypes.c_int
+    if hasattr(lib, "srmech_dsl_toml_chain_to_json_arena_bytes"):
+        lib.srmech_dsl_toml_chain_to_json_arena_bytes.argtypes = [ctypes.c_size_t]
+        lib.srmech_dsl_toml_chain_to_json_arena_bytes.restype = ctypes.c_size_t
+
+    # ------------------------------------------------------------------
     # srmech_infer — the F929 OPEN/infer ROUTER (0.9.0rc176; the
     # ORCHESTRATION→C spine, batch 6; the CARRIER-FFI foundation). The C peer of
     # srmech.amsc.dispatch.infer: parse a relationship JSON, detect the row from

@@ -728,7 +728,18 @@ CEIL_BIGNUM_REFERENCE = 0
 # 6 DSL rows completing chain.run / the TOML front-ends / make_class /
 # run_class_method (chain / run_toml_chain / build_chain_from_toml /
 # build_chain_from_toml_str → rc182; make_class / run_class_method → past Batch B).
-CEIL_NON_COMPUTE_OWED = 8
+# rc182 (2026-07-08): ANNEX Batch B part 2 — the DSL chain interpreter is COMPLETE.
+# The loop/fold/reduce COMBINATORS + the TOML front-ends earned C: srmech_dsl_chain_run
+# now runs the whole build_chain_from_dict grammar (loop = bounded sub-chain recurse,
+# fold/reduce = seeded/seedless binary-body fold — cyclic_gcd), and the new
+# srmech_dsl_toml_chain_to_json bridge parses a TOML chain-spec via srmech_toml. The 4
+# rows chain (Chain.run) / run_toml_chain / build_chain_from_toml / build_chain_from_toml_str
+# moved owed_orchestration → composes_c. owed 8 → 4; composes_c 90 → 94; sum stays 153.
+# CEIL_NON_COMPUTE_OWED 8 → 4. ABI stays 4 (additive symbols). The remaining 4 owed =
+# the tool_schema pair (get_tool_schema / tool_schema_view — host-glue MCP) + make_class /
+# run_class_method (HONEST-DEFERRED — leaf-op-blocked on the genome / sed_* domain-leaf
+# C backlog, past Batch B). `parallel` still defers to pure (host-thread fan-out).
+CEIL_NON_COMPUTE_OWED = 4
 
 # The PINNED dev-tooling allowlist — the exact ``non_compute_kind == "dev_tooling"``
 # set. A row here is JUSTIFIED as a genuine dev / LLM-affordance a bare-C host

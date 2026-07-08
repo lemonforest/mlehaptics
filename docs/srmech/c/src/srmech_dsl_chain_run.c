@@ -1,5 +1,5 @@
-/* srmech_dsl_chain_run.c — the srmech.dsl Chain LINEAR RUN-LOOP in C
- * (0.9.0rc181; ANNEX Batch B pt1; the F1 carrier-FFI FOUNDATION).
+/* srmech_dsl_chain_run.c — the srmech.dsl Chain RUN-LOOP in C
+ * (0.9.0rc182; ANNEX Batch B pt2; COMPLETES the DSL chain interpreter).
  *
  * The DSL `Chain.run` is a SIBLING interpreter to the amsc.compose chain-runner
  * (srmech_compose_run.c / srmech_chain_run) — it VALUE-THREADS: each stage's
@@ -7,16 +7,26 @@
  * compose runner resolves those; this one does not). It runs the LEAN cascade
  * ATOMS on f64/i64 carriers.
  *
- * This file ships srmech_dsl_chain_run — the LINEAR (`then`-only) run loop over a
- * BOUNDED leaf-dispatch table of the C-backed cascade atoms. It is a NEW symbol
- * reusing the srmech_compose_run.c SCAFFOLD IDIOMS (a forward-only bump arena, the
- * srmech_json parse/build, a small tagged-union value carrier, the rc103 defer-to
- * -pure gate) WITHOUT touching srmech_chain_run.
+ * rc181 (pt1) shipped the F1 carrier-FFI FOUNDATION: the tagged-union value
+ * carrier, the leaf-dispatch table of C-backed unary atoms, the
+ * build_chain_from_dict stage-IR parse, and the LINEAR (`then`-only) run. It
+ * reused the srmech_compose_run.c SCAFFOLD IDIOMS (a forward-only bump arena, the
+ * srmech_json parse/build, the rc103 defer-to-pure gate) WITHOUT touching
+ * srmech_chain_run.
  *
- *   chain_json  : {"chain":{"name":..},"stage":[{"op":..,<kwargs>..}, ...]} — the
- *                 build_chain_from_dict discriminator grammar. Only `op` (linear)
- *                 stages run here; a loop/fold/reduce/parallel discriminator → the
- *                 whole chain DEFERS to pure (rc182 adds the combinators).
+ * rc182 (pt2 — THIS ship) adds the LOOP / FOLD / REDUCE combinators (the whole
+ * chain interpreter, not just the linear spine) + the TOML front-end bridge
+ * srmech_dsl_toml_chain_to_json. `parallel_body` (the Klein-4 host-thread fan-out)
+ * still DEFERS to pure — a host-runtime affordance, not a C shell violation.
+ *
+ *   chain_json  : {"chain":{"name":..},"stage":[<stage>, ...]} — the
+ *                 build_chain_from_dict discriminator grammar. A stage is one of:
+ *                   {"op":..,<kwargs>..}                     — a linear atom
+ *                   {"loop_n":N,"sub_chain":[<stage>,..]}    — bounded loop
+ *                   {"fold_init":<scalar>,"fold_op":<op>}    — seeded fold
+ *                   {"reduce_op":<op>}                       — seedless reduce
+ *                 A `parallel_body` stage, a non-C leaf, or a non-C binary body
+ *                 → the whole chain DEFERS to pure (rc103 inform-don't-limit).
  *   input_json  : an F1 VALUE DESCRIPTOR for the seed value (see below).
  *   out         : the F1 VALUE DESCRIPTOR for the final value.
  *
@@ -43,9 +53,12 @@
  * next stage reads it); a too-small arena → SRMECH_ERR_OVERFLOW → pure.
  *
  * JPL Power-of-Ten: caller-arena only (no malloc), <=60-line functions, >=2
- * asserts/function, no goto, DEPTH-BOUNDED recursion (DV_MAX_DEPTH), no abs/libm.
- * Additive symbols → SRMECH_ABI_VERSION stays 4 (the ctypes shim hasattr-guards).
- */
+ * asserts/function, no goto, DEPTH-BOUNDED recursion (DV_MAX_DEPTH for the value
+ * carrier; DCR_MAX_SUBCHAIN_DEPTH for the loop sub-chain nesting), and BOUNDED
+ * iteration (DCR_MAX_LOOP_N loop count / DCR_MAX_SEQ fold-reduce sequence length,
+ * each an explicit compiled cap + assert; a data-dependent count past the cap
+ * defers cleanly to pure), no abs/libm. Additive symbols → SRMECH_ABI_VERSION
+ * stays 4 (the ctypes shim hasattr-guards). */
 
 #include <assert.h>
 #include <stddef.h>
@@ -546,13 +559,69 @@ static srmech_status_t dsl_leaf_dispatch(dcr_bump_t *b, const char *op, uint32_t
     if (opl == 15u && memcmp(op, "autocorrelation", 15u) == 0) {
         return leaf_autocorrelation(b, in, out);
     }
-    return SRMECH_ERR_NOT_IMPL;   /* non-C leaf (cyclic_gcd/chiral_dual/dft/...) -> pure */
+    return SRMECH_ERR_NOT_IMPL;   /* non-C UNARY leaf (chiral_dual/dft/...) -> pure */
 }
 
 /* ------------------------------------------------------------------
- * build_chain_from_dict-in-C: parse the stage array + thread the value. A
- * loop/fold/reduce/parallel discriminator, or a missing `op`, → SRMECH_ERR_NOT_IMPL
- * (defer to pure — rc182 adds the combinators).
+ * Combinator EXECUTION (rc182) — loop / fold / reduce over the F1 carrier. Each
+ * combinator BOUNDS its work: the loop count (DCR_MAX_LOOP_N) + fold/reduce
+ * sequence length (DCR_MAX_SEQ) are explicit compiled caps (JPL Rule 2 — a count
+ * past the cap defers cleanly to pure), and the loop sub-chain nesting is bounded
+ * by DCR_MAX_SUBCHAIN_DEPTH (JPL Rule 1 recursion guard).
+ * ------------------------------------------------------------------ */
+
+#define DCR_MAX_LOOP_N         (1u << 24)   /* bounded loop count               */
+#define DCR_MAX_SEQ            (1u << 24)   /* bounded fold/reduce sequence len  */
+#define DCR_MAX_SUBCHAIN_DEPTH 16u          /* bounded loop sub-chain nesting    */
+
+/* Build an F1 carrier from a RAW JSON scalar — fold_init lives inline in the
+ * stage dict as a plain JSON int/float/string (NOT an F1 {"k":..} descriptor).
+ * A bool / null / container → NULL (the caller defers the whole chain to pure). */
+static dv_value_t *dv_from_json_scalar(dcr_bump_t *b, const srmech_json_value_t *j)
+{
+    dv_value_t *out;
+    assert(b != NULL);
+    assert(b->cur <= b->end);
+    if (j == NULL) { return NULL; }
+    if (j->type == SRMECH_JSON_INT) { return dv_int(b, j->u.i); }
+    if (j->type == SRMECH_JSON_DOUBLE) { return dv_float(b, j->u.f); }
+    if (j->type == SRMECH_JSON_STRING) {
+        out = dv_new(b, DV_STR);
+        if (out == NULL) { return NULL; }
+        out->s = j->u.str.ptr; out->slen = j->u.str.len;
+        return out;
+    }
+    return NULL;                          /* bool / null / array / object -> pure */
+}
+
+/* The BINARY body dispatch (fold / reduce). cyclic_gcd is the C-backed binary op;
+ * both operands must be non-negative DV_INT (the uint64 gcd surface — matching
+ * the Python cascade.cyclic_gcd native-dispatch gate). Any other op / operand
+ * shape → SRMECH_ERR_NOT_IMPL → the whole chain defers to the pure runner. */
+static srmech_status_t dsl_binary_dispatch(dcr_bump_t *b, const char *op,
+                                           uint32_t opl, const dv_value_t *acc,
+                                           const dv_value_t *elem, dv_value_t **out)
+{
+    uint64_t g; srmech_status_t st;
+    assert(b != NULL && op != NULL && out != NULL);
+    assert(acc != NULL && elem != NULL);
+    if (!(opl == 10u && memcmp(op, "cyclic_gcd", 10u) == 0)) {
+        return SRMECH_ERR_NOT_IMPL;              /* only cyclic_gcd is C-binary   */
+    }
+    if (acc->kind != DV_INT || elem->kind != DV_INT) { return SRMECH_ERR_NOT_IMPL; }
+    if (acc->i < 0 || elem->i < 0) { return SRMECH_ERR_NOT_IMPL; }  /* uint64 only */
+    st = srmech_cascade_cyclic_gcd_u64((uint64_t)acc->i, (uint64_t)elem->i, &g);
+    if (st != SRMECH_OK) { return st; }
+    if (g > (uint64_t)INT64_MAX) { return SRMECH_ERR_NOT_IMPL; }    /* back to i64 */
+    *out = dv_int(b, (int64_t)g);
+    return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------
+ * build_chain_from_dict-in-C: parse the stage array + thread the value. A plain
+ * `op` stage runs the leaf-dispatch atom; a loop/fold/reduce discriminator runs
+ * the combinator; a `parallel_body` discriminator, a missing `op`, a non-C leaf,
+ * or a non-C binary body → SRMECH_ERR_NOT_IMPL (defer to pure).
  * ------------------------------------------------------------------ */
 
 /* 1 iff `stage` carries a combinator discriminator (loop/fold/reduce/parallel). */
@@ -569,17 +638,130 @@ static int dsl_stage_is_combinator(const srmech_json_value_t *stage)
     return 0;
 }
 
-static srmech_status_t dsl_run_stages(const srmech_json_value_t *chain,
-                                      dv_value_t *input, dcr_bump_t *b,
-                                      dv_value_t **final_out)
+/* Mutual recursion: the loop combinator re-enters the stage-runner for its
+ * sub-chain (depth-bounded by DCR_MAX_SUBCHAIN_DEPTH). Single-line `;` prototype
+ * (the named definition is below). */
+static srmech_status_t dsl_run_stage_array(const srmech_json_value_t *, dv_value_t *, dcr_bump_t *, uint32_t, dv_value_t **);
+
+/* loop {"loop_n":N,"sub_chain":[<stage>,..]} — value-thread the sub-chain N times
+ * (each iteration's output feeds the next). N is BOUNDED by DCR_MAX_LOOP_N; a
+ * larger / negative N, or a non-array sub_chain, → NOT_IMPL (defer to pure). */
+static srmech_status_t dsl_run_loop(const srmech_json_value_t *stage, dv_value_t *cur,
+                                    dcr_bump_t *b, uint32_t depth, dv_value_t **out)
 {
-    const srmech_json_value_t *stages = srmech_json_object_get(chain, "stage");
+    const srmech_json_value_t *ln = srmech_json_object_get(stage, "loop_n");
+    const srmech_json_value_t *sc = srmech_json_object_get(stage, "sub_chain");
+    dv_value_t *val = cur; int64_t i, n; srmech_status_t st;
+    assert(stage != NULL && b != NULL && out != NULL);
+    assert(cur != NULL);
+    if (ln == NULL || ln->type != SRMECH_JSON_INT) { return SRMECH_ERR_NOT_IMPL; }
+    if (sc == NULL || sc->type != SRMECH_JSON_ARRAY) { return SRMECH_ERR_NOT_IMPL; }
+    n = ln->u.i;
+    if (n < 0 || n > (int64_t)DCR_MAX_LOOP_N) { return SRMECH_ERR_NOT_IMPL; }
+    for (i = 0; i < n; i++) {
+        dv_value_t *nxt = NULL;
+        assert(i < (int64_t)DCR_MAX_LOOP_N);            /* JPL Rule 2 bound */
+        st = dsl_run_stage_array(sc, val, b, depth + 1u, &nxt);
+        if (st != SRMECH_OK) { return st; }
+        val = nxt;
+    }
+    *out = val;                                         /* loop_n == 0 -> input */
+    return SRMECH_OK;
+}
+
+/* fold {"fold_init":<scalar>,"fold_op":<op>} — acc = fold_init; for each element
+ * of the input LIST, acc = op(acc, elem). Empty list → acc = fold_init. */
+static srmech_status_t dsl_run_fold(const srmech_json_value_t *stage, dv_value_t *cur,
+                                    dcr_bump_t *b, dv_value_t **out)
+{
+    const srmech_json_value_t *fi = srmech_json_object_get(stage, "fold_init");
+    const srmech_json_value_t *fo = srmech_json_object_get(stage, "fold_op");
+    dv_value_t *acc; uint32_t i, n; srmech_status_t st;
+    assert(stage != NULL && b != NULL && out != NULL);
+    assert(cur != NULL);
+    if (fo == NULL || fo->type != SRMECH_JSON_STRING) { return SRMECH_ERR_NOT_IMPL; }
+    if (cur->kind != DV_LIST) { return SRMECH_ERR_NOT_IMPL; }   /* fold over a seq */
+    acc = dv_from_json_scalar(b, fi);
+    if (acc == NULL) { return SRMECH_ERR_NOT_IMPL; }            /* non-scalar seed */
+    n = cur->n;
+    if (n > (uint32_t)DCR_MAX_SEQ) { return SRMECH_ERR_NOT_IMPL; }
+    for (i = 0u; i < n; i++) {
+        dv_value_t *nxt = NULL;
+        assert(i < (uint32_t)DCR_MAX_SEQ);
+        st = dsl_binary_dispatch(b, fo->u.str.ptr, fo->u.str.len,
+                                 acc, cur->items[i], &nxt);
+        if (st != SRMECH_OK) { return st; }
+        acc = nxt;
+    }
+    *out = acc;
+    return SRMECH_OK;
+}
+
+/* reduce {"reduce_op":<op>} — acc = list[0]; fold op over the rest. An empty
+ * list → NOT_IMPL (the pure functools.reduce raises ValueError; defer to it). */
+static srmech_status_t dsl_run_reduce(const srmech_json_value_t *stage, dv_value_t *cur,
+                                      dcr_bump_t *b, dv_value_t **out)
+{
+    const srmech_json_value_t *ro = srmech_json_object_get(stage, "reduce_op");
+    dv_value_t *acc; uint32_t i, n; srmech_status_t st;
+    assert(stage != NULL && b != NULL && out != NULL);
+    assert(cur != NULL);
+    if (ro == NULL || ro->type != SRMECH_JSON_STRING) { return SRMECH_ERR_NOT_IMPL; }
+    if (cur->kind != DV_LIST || cur->n == 0u) { return SRMECH_ERR_NOT_IMPL; }
+    n = cur->n;
+    if (n > (uint32_t)DCR_MAX_SEQ) { return SRMECH_ERR_NOT_IMPL; }
+    acc = cur->items[0];
+    for (i = 1u; i < n; i++) {
+        dv_value_t *nxt = NULL;
+        assert(i < (uint32_t)DCR_MAX_SEQ);
+        st = dsl_binary_dispatch(b, ro->u.str.ptr, ro->u.str.len,
+                                 acc, cur->items[i], &nxt);
+        if (st != SRMECH_OK) { return st; }
+        acc = nxt;
+    }
+    *out = acc;
+    return SRMECH_OK;
+}
+
+/* Run ONE combinator stage. A `parallel_body` fan-out DEFERS to pure (host
+ * threads — inform-don't-limit, not a shell violation). */
+static srmech_status_t dsl_run_combinator(const srmech_json_value_t *stage,
+                                          dv_value_t *cur, dcr_bump_t *b,
+                                          uint32_t depth, dv_value_t **out)
+{
+    assert(stage != NULL && b != NULL && out != NULL);
+    assert(cur != NULL);
+    if (srmech_json_object_get(stage, "parallel_body") != NULL) {
+        return SRMECH_ERR_NOT_IMPL;                     /* host-thread fan-out */
+    }
+    if (srmech_json_object_get(stage, "loop_n") != NULL ||
+        srmech_json_object_get(stage, "sub_chain") != NULL) {
+        return dsl_run_loop(stage, cur, b, depth, out);
+    }
+    if (srmech_json_object_get(stage, "fold_init") != NULL ||
+        srmech_json_object_get(stage, "fold_op") != NULL) {
+        return dsl_run_fold(stage, cur, b, out);
+    }
+    if (srmech_json_object_get(stage, "reduce_op") != NULL) {
+        return dsl_run_reduce(stage, cur, b, out);
+    }
+    return SRMECH_ERR_NOT_IMPL;
+}
+
+/* Run a STAGE ARRAY (the top-level chain's `stage`, or a loop sub-chain), value-
+ * threading each stage's output into the next. Depth-bounded for the loop
+ * sub-chain recursion (DCR_MAX_SUBCHAIN_DEPTH). */
+static srmech_status_t dsl_run_stage_array(const srmech_json_value_t *stages,
+                                           dv_value_t *input, dcr_bump_t *b,
+                                           uint32_t depth, dv_value_t **final_out)
+{
     dv_value_t *cur = input; uint32_t i, ns; srmech_status_t st;
-    assert(chain != NULL && b != NULL && final_out != NULL);
+    assert(b != NULL && final_out != NULL);
     assert(input != NULL);
     if (stages == NULL || stages->type != SRMECH_JSON_ARRAY) {
         return SRMECH_ERR_BAD_INPUT;
     }
+    if (depth > DCR_MAX_SUBCHAIN_DEPTH) { return SRMECH_ERR_NOT_IMPL; }  /* nesting */
     ns = stages->u.arr.n;
     for (i = 0u; i < ns; i++) {
         const srmech_json_value_t *stage = stages->u.arr.items[i];
@@ -587,17 +769,31 @@ static srmech_status_t dsl_run_stages(const srmech_json_value_t *chain,
         if (stage == NULL || stage->type != SRMECH_JSON_OBJECT) {
             return SRMECH_ERR_BAD_INPUT;
         }
-        if (dsl_stage_is_combinator(stage)) { return SRMECH_ERR_NOT_IMPL; }
-        opn = srmech_json_object_get(stage, "op");
-        if (opn == NULL || opn->type != SRMECH_JSON_STRING) {
-            return SRMECH_ERR_NOT_IMPL;
+        if (dsl_stage_is_combinator(stage)) {
+            st = dsl_run_combinator(stage, cur, b, depth, &nxt);
+        } else {
+            opn = srmech_json_object_get(stage, "op");
+            if (opn == NULL || opn->type != SRMECH_JSON_STRING) {
+                return SRMECH_ERR_NOT_IMPL;
+            }
+            st = dsl_leaf_dispatch(b, opn->u.str.ptr, opn->u.str.len, stage, cur, &nxt);
         }
-        st = dsl_leaf_dispatch(b, opn->u.str.ptr, opn->u.str.len, stage, cur, &nxt);
         if (st != SRMECH_OK) { return st; }
         cur = nxt;
     }
     *final_out = cur;                 /* empty stage array -> input (identity chain) */
     return SRMECH_OK;
+}
+
+static srmech_status_t dsl_run_stages(const srmech_json_value_t *chain,
+                                      dv_value_t *input, dcr_bump_t *b,
+                                      dv_value_t **final_out)
+{
+    const srmech_json_value_t *stages;
+    assert(chain != NULL && b != NULL && final_out != NULL);
+    assert(input != NULL);
+    stages = srmech_json_object_get(chain, "stage");
+    return dsl_run_stage_array(stages, input, b, 0u, final_out);
 }
 
 /* ------------------------------------------------------------------
@@ -674,4 +870,135 @@ srmech_status_t srmech_dsl_chain_run(const char *chain_json, size_t chain_len,
     return dsl_run_and_write(chain, input_desc, &b,
                              16384u + 8u * (chain_len + input_len),
                              out, out_cap, out_len);
+}
+
+/* ------------------------------------------------------------------
+ * srmech_dsl_toml_chain_to_json — the rc182 TOML front-end bridge. Convert a
+ * parsed TOML tree into the equivalent canonical-JSON build_chain_from_dict IR:
+ * TABLE→object, ARRAY→array, INT→int, FLOAT→double, BOOL→bool, STRING→string.
+ * The item-pointer arrays for arrays/objects are carved from a transient
+ * `scratch` bump (new_array/new_object COPY them into the builder arena);
+ * TABLE keys are the parse arena's NUL-terminated key strings, passed straight
+ * to new_object (kept alive by the parse arena). Depth-bounded recursion.
+ * ------------------------------------------------------------------ */
+
+/* Single-line `;` prototype (the named definition is below). */
+static srmech_json_value_t *toml_to_json(srmech_json_builder_t *, const srmech_toml_value_t *, dcr_bump_t *, uint32_t);
+
+static srmech_json_value_t *toml_arr_to_json(srmech_json_builder_t *bd,
+                                             const srmech_toml_value_t *tv,
+                                             dcr_bump_t *scratch, uint32_t depth)
+{
+    srmech_json_value_t **kids; uint32_t i, n;
+    assert(bd != NULL && tv != NULL && scratch != NULL);
+    assert(tv->type == SRMECH_TOML_ARRAY);
+    n = tv->u.arr.n;
+    kids = (srmech_json_value_t **)dcr_carve(scratch, (size_t)n * sizeof(void *) + 1u);
+    if (kids == NULL) { return NULL; }
+    for (i = 0u; i < n; i++) {
+        kids[i] = toml_to_json(bd, tv->u.arr.items[i], scratch, depth + 1u);
+        if (kids[i] == NULL) { return NULL; }
+    }
+    return srmech_json_new_array(bd, kids, n);
+}
+
+static srmech_json_value_t *toml_tbl_to_json(srmech_json_builder_t *bd,
+                                             const srmech_toml_value_t *tv,
+                                             dcr_bump_t *scratch, uint32_t depth)
+{
+    srmech_json_value_t **vals; uint32_t i, n;
+    assert(bd != NULL && tv != NULL && scratch != NULL);
+    assert(tv->type == SRMECH_TOML_TABLE);
+    n = tv->u.tbl.n;
+    vals = (srmech_json_value_t **)dcr_carve(scratch, (size_t)n * sizeof(void *) + 1u);
+    if (vals == NULL) { return NULL; }
+    for (i = 0u; i < n; i++) {
+        vals[i] = toml_to_json(bd, tv->u.tbl.vals[i], scratch, depth + 1u);
+        if (vals[i] == NULL) { return NULL; }
+    }
+    return srmech_json_new_object(bd, tv->u.tbl.keys, vals, n);
+}
+
+static srmech_json_value_t *toml_to_json(srmech_json_builder_t *bd,
+                                         const srmech_toml_value_t *tv,
+                                         dcr_bump_t *scratch, uint32_t depth)
+{
+    assert(bd != NULL && scratch != NULL);
+    assert(depth <= (uint32_t)SRMECH_TOML_MAX_DEPTH + 1u);
+    if (tv == NULL || depth > (uint32_t)SRMECH_TOML_MAX_DEPTH) { return NULL; }
+    if (tv->type == SRMECH_TOML_STRING) {
+        return srmech_json_new_string(bd, tv->u.str.ptr, tv->u.str.len);
+    }
+    if (tv->type == SRMECH_TOML_INT) { return srmech_json_new_int(bd, tv->u.i); }
+    if (tv->type == SRMECH_TOML_FLOAT) { return srmech_json_new_double(bd, tv->u.f); }
+    if (tv->type == SRMECH_TOML_BOOL) { return srmech_json_new_bool(bd, tv->u.b); }
+    if (tv->type == SRMECH_TOML_ARRAY) {
+        return toml_arr_to_json(bd, tv, scratch, depth);
+    }
+    if (tv->type == SRMECH_TOML_TABLE) {
+        return toml_tbl_to_json(bd, tv, scratch, depth);
+    }
+    return NULL;
+}
+
+size_t srmech_dsl_toml_chain_to_json_arena_bytes(size_t toml_len)
+{
+    /* parse tree + json-mirror builder + pointer scratch + writer scratch, all
+     * scaling with the source size (the JSON mirror is ~1:1 in node count). */
+    assert(sizeof(srmech_toml_value_t) <= 256u);
+    assert(sizeof(srmech_json_value_t) <= 256u);
+    return 512u * toml_len + 262144u;
+}
+
+/* Convert a raw parse root to JSON in the builder + writer regions of `b`; kept
+ * < 60 lines (mirrors dsl_run_and_write's writer-tail layout). */
+static srmech_status_t toml_build_and_write(const srmech_toml_value_t *root,
+                                            dcr_bump_t *b, char *out,
+                                            size_t out_cap, size_t *out_len)
+{
+    dcr_bump_t scratch; srmech_json_builder_t bd; srmech_json_value_t *jroot;
+    unsigned char *ba, *wa; size_t rem, sc_len, bd_len, w_len, need;
+    srmech_status_t st;
+    assert(root != NULL && b != NULL && out_len != NULL);
+    assert(b->cur <= b->end);
+    rem = (size_t)(b->end - b->cur);
+    if (rem < 8192u) { return SRMECH_ERR_OVERFLOW; }
+    sc_len = rem / 4u; bd_len = rem / 2u;
+    scratch.cur = dcr_align(b->cur); scratch.end = scratch.cur + sc_len;
+    ba = dcr_align(scratch.end);
+    if (ba >= b->end || bd_len > (size_t)(b->end - ba)) { return SRMECH_ERR_OVERFLOW; }
+    st = srmech_json_builder_init(&bd, ba, bd_len);
+    if (st != SRMECH_OK) { return st; }
+    jroot = toml_to_json(&bd, root, &scratch, 0u);
+    if (jroot == NULL || bd.failed) { return SRMECH_ERR_OVERFLOW; }
+    wa = dcr_align(ba + bd_len);
+    if (wa >= b->end) { return SRMECH_ERR_OVERFLOW; }
+    w_len = (size_t)(b->end - wa);
+    need = srmech_json_write_arena_bytes(jroot);
+    if (need > w_len) { return SRMECH_ERR_OVERFLOW; }
+    return srmech_json_write_ws(jroot, out, out_cap, out_len, wa, need);
+}
+
+srmech_status_t srmech_dsl_toml_chain_to_json(const char *toml_src, size_t toml_len,
+                                              void *ws, size_t ws_len,
+                                              char *out, size_t out_cap,
+                                              size_t *out_len)
+{
+    dcr_bump_t b; srmech_toml_value_t *root = NULL; unsigned char *pa;
+    size_t pj; srmech_status_t st;
+    assert(out_len != NULL);
+    assert(toml_src != NULL || toml_len == 0u);
+    if (toml_src == NULL || ws == NULL || out == NULL || out_len == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    b.cur = (unsigned char *)ws; b.end = b.cur + ws_len;
+    pj = 256u * toml_len + 65536u;
+    pa = dcr_carve(&b, pj);
+    if (pa == NULL) { return SRMECH_ERR_OVERFLOW; }
+    st = srmech_toml_parse(toml_src, toml_len, pa, pj, &root);
+    if (st != SRMECH_OK) { return st; }
+    if (root == NULL || root->type != SRMECH_TOML_TABLE) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    return toml_build_and_write(root, &b, out, out_cap, out_len);
 }

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc181"
-#define SRMECH_VERSION       "0.9.0rc181"
+#define SRMECH_VERSION_PRE   "rc182"
+#define SRMECH_VERSION       "0.9.0rc182"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1999,15 +1999,44 @@ srmech_status_t srmech_catalog_run_chain(
  *
  * THE LEAF-DISPATCH TABLE: magnitude / reorient / pin_slot_at_zero /
  * best_rational_signed / chiral_flip / net_chirality / autocorrelation — the
- * C-backed unary value→value atoms. Any other op (cyclic_gcd / chiral_dual —
- * 2-ary / higher-order; kuramoto_step / quaternion_dft / octonion_dft — heavier
- * multi-array carriers) → non-OK → the COMPLETE pure path (rc103 inform-don't-
- * limit; never a wrong answer). ONE caller arena `ws` (size with
- * srmech_dsl_chain_run_arena_bytes). ABI-additive → SRMECH_ABI_VERSION stays 4. */
+ * C-backed unary value→value atoms. Any other unary op (chiral_dual;
+ * kuramoto_step / quaternion_dft / octonion_dft — heavier multi-array carriers)
+ * → non-OK → the COMPLETE pure path (rc103 inform-don't-limit; never a wrong
+ * answer). ONE caller arena `ws` (size with srmech_dsl_chain_run_arena_bytes).
+ *
+ * THE COMBINATORS (0.9.0rc182; ANNEX Batch B pt2 — completes the interpreter).
+ * The build_chain_from_dict discriminator grammar now RUNS in C:
+ *   * loop   {"loop_n":N,"sub_chain":[stage,..]} — value-thread the sub-chain
+ *            N times (recurse into the stage-runner; N + nesting depth BOUNDED
+ *            + asserted, JPL Rule 1/2 — a too-large N or too-deep nesting → pure).
+ *   * fold   {"fold_init":<scalar>,"fold_op":<op>} — acc = fold_init; for each
+ *            element of the input LIST, acc = fold_op(acc, elem) (a C-backed
+ *            BINARY op: cyclic_gcd). Empty list → acc = fold_init.
+ *   * reduce {"reduce_op":<op>} — acc = list[0]; fold the BINARY op over the
+ *            remaining elements. Empty list → non-OK (pure raises ValueError).
+ * `parallel_body` (the Klein-4 fan-out over host threads) still DEFERS to pure.
+ * A combinator whose body op is not a C leaf / binary kernel → non-OK → pure.
+ * ABI-additive → SRMECH_ABI_VERSION stays 4. */
 size_t srmech_dsl_chain_run_arena_bytes(size_t chain_len, size_t input_len);
 srmech_status_t srmech_dsl_chain_run(
     const char *chain_json, size_t chain_len,
     const char *input_json, size_t input_len,
+    void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
+
+/* srmech_dsl_toml_chain_to_json — the TOML front-end bridge (0.9.0rc182). Parse
+ * a TOML chain-spec document via srmech_toml_parse, then serialise the parsed
+ * table tree as canonical JSON (byte-identical to json.dumps(sort_keys=True) for
+ * null/bool/int/string/object/array; DOUBLE best-effort %.17g — WITHIN-TOL, the
+ * chain-spec grammar is float-rare). The output is the build_chain_from_dict IR
+ * the Python `build_chain_from_toml_str` feeds straight into the chain builder —
+ * so a C-only / MCU host reads a `[chain]` + `[[stage]]` TOML descriptor with no
+ * Python TOML hop. A syntax error / unsupported construct / arena overflow →
+ * non-OK, and the Python caller falls back to the stdlib tomllib parse (rc103
+ * inform-don't-limit — same value, same error). ONE caller arena `ws` (size with
+ * srmech_dsl_toml_chain_to_json_arena_bytes). ABI-additive → stays 4. */
+size_t srmech_dsl_toml_chain_to_json_arena_bytes(size_t toml_len);
+srmech_status_t srmech_dsl_toml_chain_to_json(
+    const char *toml_src, size_t toml_len,
     void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
 
 /* ------------------------------------------------------------------ *
