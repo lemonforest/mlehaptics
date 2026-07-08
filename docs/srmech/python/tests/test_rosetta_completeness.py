@@ -665,7 +665,21 @@ CEIL_BIGNUM_REFERENCE = 0
 # one clean rc. So owed 5 → 3 (the 3 remaining = dispatch.infer [→ rc176] + the
 # deferred tool_schema pair [get_tool_schema / tool_schema_view → host-glue MCP
 # server]). composes_c 80 → 82.
-CEIL_NON_COMPUTE_OWED = 3
+# rc176 (2026-07-08): dispatch.infer (the F929 router) earned a C peer —
+# srmech_infer (the ORCHESTRATION→C spine, batch 6; the CARRIER-FFI foundation).
+# The SMALLEST SOUND foundation this rc: the TWO exact-symbolic bignum-carrier
+# rows that share ONE carrier-FFI marshal (JSON with bignum-decimal-string
+# coefficients) — cyclic (the_one; n1_is_sigma_only verify) + sigma-gosper
+# (gosper; has-solution verify). srmech_infer parses the relationship JSON,
+# DETECTS the row from the marshalled operand structure, DISPATCHES the C reducer
+# + VERIFIES its own contract, and emits the DECISION; the Python caller
+# reconstructs the closed_form via the SAME reducer (native == pure, byte-
+# identical). The 5 heavier-carrier rows (definite-sum wz / spectral / multivar /
+# q / elliptic — live BiPoly/TriPoly/QBiPoly/EllRatio/Mat carriers needing their
+# own bridge) fall to pure via non-OK (the rc103 inform-don't-limit pattern) →
+# rc177+. owed 3 → 2 (the 2 remaining = the deferred tool_schema pair, host-glue
+# MCP server); composes_c 82 → 83.
+CEIL_NON_COMPUTE_OWED = 2
 
 # The PINNED dev-tooling allowlist — the exact ``non_compute_kind == "dev_tooling"``
 # set. A row here is JUSTIFIED as a genuine dev / LLM-affordance a bare-C host

@@ -23,6 +23,7 @@ API
 from __future__ import annotations
 
 import ctypes
+import json
 from typing import Any, Dict, Iterable, Optional, Tuple
 
 from . import _native
@@ -524,6 +525,71 @@ def _matrices_close(a, b, *, rel_tol: float = 1e-6) -> bool:
     return True
 
 
+# ── rc176: the srmech_infer C-router dispatch (the ORCHESTRATION→C spine) ─────
+# ``infer`` routes the two EXACT-SYMBOLIC bignum-carrier rows (cyclic /
+# sigma-gosper) through the ``srmech_infer`` C peer when it is loaded. The C peer
+# DETECTS + DISPATCHES + VERIFIES in C and returns the DECISION; the Python side
+# reconstructs the closed_form via the SAME reducer the C peer verified (so
+# native == pure, byte-identical). Every other row (the heavier wz / spectral /
+# multivariate / q / elliptic carriers → rc177+) is NOT marshalled, so the pure
+# body runs (the rc103 inform-don't-limit pattern). The C router NEVER returns a
+# false reducible — the honest OPEN residue is the no-hallucination discipline.
+
+_SIGMA_GOSPER_ROW_KEYS = ("term_ratio_num", "term_ratio_den")
+
+
+def _native_infer():
+    """The native ``_native`` module IF the rc176 ``srmech_infer`` peer is present
+    and bound, else ``None`` (so ``infer`` dispatches to C when available and falls
+    cleanly to the pure-Python body — the complete alternative + the parity
+    oracle). Honours the ``HAS_NATIVE`` toggle the parity tests flip."""
+    probe = getattr(_native, "has_native_infer", None)
+    return _native if (probe is not None and probe()) else None
+
+
+def _marshal_relationship(rel: Dict[str, Any]) -> Optional[Tuple[str, int]]:
+    """Marshal ``rel`` into ``(srmech_infer JSON, max_terms)`` IFF it is one of
+    the two rc176 clean carrier-FFI rows (cyclic / sigma-gosper); else ``None`` (a
+    heavier carrier deferred to rc177+ → the pure path). ``max_terms`` is the
+    largest operand's coefficient count (the arena sizer). Bignums ride as decimal
+    strings (the srmech_chain_run precedent). Reuses ``_detect_row`` for the
+    correct most-specific-first row priority so a heavier row never misroutes."""
+    row = _detect_row(rel)
+    if row == "cyclic":
+        sigma = int(rel.get("sigma", 1))
+        theta_num = int(rel.get("theta_num", rel.get("period", 0)))
+        theta_den = int(rel.get("theta_den", 1))
+        return (json.dumps({"row": "cyclic", "sigma": sigma,
+                            "theta_num": str(theta_num),
+                            "theta_den": str(theta_den)}), 1)
+    if row == "sigma" and all(k in rel for k in _SIGMA_GOSPER_ROW_KEYS):
+        from .poly import Poly
+
+        def _pairs(v: Any) -> "list":
+            p = v if isinstance(v, Poly) else Poly.from_coeffs(v)
+            return [[str(c.numerator), str(c.denominator)] for c in p.coeffs]
+
+        num, den = _pairs(rel["term_ratio_num"]), _pairs(rel["term_ratio_den"])
+        return (json.dumps({"row": "sigma", "term_ratio_num": num,
+                            "term_ratio_den": den}), max(len(num), len(den), 1))
+    return None
+
+
+def _finish_native(rel: Dict[str, Any], decision: Dict[str, Any]) -> Dict[str, Any]:
+    """Build the ``infer`` return dict from the C router's DECISION. On
+    ``reducible`` the closed_form OBJECT is materialised by re-running the SAME
+    verified reducer (``_try_cyclic`` / ``_try_sigma``) — byte-identical to the
+    pure path — so the C router acts as the routing brain a bare-C host uses while
+    Python reconstructs the object. A defensive disagreement (native said
+    reducible but the reducer rebuild returned None) routes to the honest OPEN."""
+    row = decision.get("row")
+    if decision.get("reducible") is True:
+        res = _try_cyclic(rel) if row == "cyclic" else _try_sigma(rel)
+        if res is not None:
+            return res
+    return _open(row, "not reducible in current vocabulary")
+
+
 def infer(relationship: Dict[str, Any]) -> Dict[str, Any]:
     """The F929 OPEN/infer router — the meta-dispatcher over srmech's three
     shipped closed-form reduction-theory rows (cyclic / spectral / Σ).
@@ -608,6 +674,25 @@ def infer(relationship: Dict[str, Any]) -> Dict[str, Any]:
         raise TypeError(
             f"infer expects a relationship descriptor dict; got "
             f"{type(relationship).__name__}")
+
+    # rc176: dispatch the two clean carrier-FFI rows through the srmech_infer C
+    # peer (detect + dispatch + verify in C); fall to the pure body on any
+    # non-marshallable row / C non-OK (inform-don't-limit; never a false result).
+    nat = _native_infer()
+    if nat is not None:
+        try:
+            marshalled = _marshal_relationship(relationship)
+        except (ValueError, TypeError, IndexError, KeyError, ZeroDivisionError,
+                OverflowError, RuntimeError):
+            marshalled = None
+        if marshalled is not None:
+            rel_json, max_terms = marshalled
+            try:
+                decision = nat.infer_c(rel_json, max_terms)
+            except (RuntimeError, OverflowError, ValueError):
+                decision = None
+            if decision is not None:
+                return _finish_native(relationship, decision)
 
     row = _detect_row(relationship)
     if row is None:

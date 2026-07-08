@@ -2979,6 +2979,30 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_catalog_run_chain_arena_bytes.restype = ctypes.c_size_t
 
     # ------------------------------------------------------------------
+    # srmech_infer — the F929 OPEN/infer ROUTER (0.9.0rc176; the
+    # ORCHESTRATION→C spine, batch 6; the CARRIER-FFI foundation). The C peer of
+    # srmech.amsc.dispatch.infer: parse a relationship JSON, detect the row from
+    # the marshalled operand (term_ratio_* → gosper; sigma → cyclic), dispatch +
+    # verify the C reducer (srmech_the_one / srmech_gosper), and emit the
+    # DECISION as a small JSON descriptor. Any other row / malformed operand /
+    # overflow → non-OK so the Python caller runs the COMPLETE pure infer.
+    #   int srmech_infer(rel_json, rel_len, ws, ws_len, out, out_cap,
+    #       size_t *out_len)
+    # ------------------------------------------------------------------
+    if hasattr(lib, "srmech_infer"):
+        lib.srmech_infer.argtypes = [
+            ctypes.c_char_p, ctypes.c_size_t,   # rel_json, rel_len
+            ctypes.c_void_p, ctypes.c_size_t,   # ws, ws_len
+            ctypes.c_char_p, ctypes.c_size_t,   # out, out_cap
+            ctypes.POINTER(ctypes.c_size_t),    # out_len
+        ]
+        lib.srmech_infer.restype = ctypes.c_int
+    if hasattr(lib, "srmech_infer_arena_bytes"):
+        lib.srmech_infer_arena_bytes.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_infer_arena_bytes.restype = ctypes.c_size_t
+
+    # ------------------------------------------------------------------
     # Class N — ROTATION-LAST Chudnovsky π on srmech_bigint (0.9.0rc19).
     # The two srmech_pi_* symbols are the C-host peer of
     # srmech.amsc.rational.pi_chudnovsky_digits — exact bigint body, ONE
@@ -9353,6 +9377,65 @@ def gosper_c(num_coeffs, den_coeffs):
     r_num = _qmat_read_array(rn_n, rn_d, lrn.value)
     r_den = _qmat_read_array(rd_n, rd_d, lrd.value)
     return True, r_num, r_den
+
+
+# ----------------------------------------------------------------------
+# rc176: srmech_infer — the F929 OPEN/infer ROUTER (the ORCHESTRATION→C spine,
+# batch 6; the CARRIER-FFI foundation). The Python srmech.amsc.dispatch.infer
+# marshals a clean-row relationship (cyclic / sigma-gosper) into JSON and routes
+# the DECISION through this; any other row / malformed operand / overflow falls to
+# the COMPLETE pure infer (the rc103 inform-don't-limit pattern). JSON in, a small
+# decision dict out — the SAME contract shape as srmech_chain_run.
+# ----------------------------------------------------------------------
+
+_INFER_SYMS = (
+    "srmech_infer",
+    "srmech_infer_arena_bytes",
+    "srmech_the_one",
+    "srmech_gosper",
+    "srmech_json_parse",
+    "srmech_bigint_from_dec",
+)
+
+
+def has_native_infer() -> bool:
+    """True iff the rc176 srmech_infer router + the reducers it composes
+    (srmech_the_one / srmech_gosper) + the srmech_json parser + the bigint decimal
+    marshal helper are loaded + bound. False on a no-C or pre-rc176 lib — the
+    pure-Python ``srmech.amsc.dispatch.infer`` body is the complete alternative
+    (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _INFER_SYMS)
+
+
+def infer_c(rel_json: str, max_terms: int = 4):
+    """Route a relationship JSON through ``srmech_infer`` → the decision dict
+    (``{"reducible": bool, "row": str, "reducer": str?}``) or ``None`` when the
+    native symbols are absent OR the C router returns non-OK (a row it does not
+    handle / a malformed operand / an arena overflow → the caller runs the pure
+    infer). ``rel_json`` is the ascii JSON the Python caller marshalled for one
+    of the rc176 clean rows (cyclic / sigma-gosper); ``max_terms`` is the largest
+    operand's coefficient count (the gosper degree — the arena grows
+    super-linearly in it, so it is sized on the ACTUAL count, not on bytes)."""
+    if not has_native_infer():
+        return None
+    payload = rel_json.encode("utf-8")
+    ws_bytes = int(LIB.srmech_infer_arena_bytes(
+        ctypes.c_size_t(len(payload)), ctypes.c_size_t(int(max_terms))))
+    ws = (ctypes.c_uint8 * max(ws_bytes, 8))()
+    out_cap = 256
+    out = (ctypes.c_char * out_cap)()
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_infer(
+        payload, ctypes.c_size_t(len(payload)),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_bytes),
+        out, ctypes.c_size_t(out_cap), ctypes.byref(out_len),
+    )
+    if rc != SRMECH_OK:
+        return None
+    import json as _json
+    return _json.loads(out.raw[:out_len.value].decode("utf-8"))
 
 
 # ----------------------------------------------------------------------

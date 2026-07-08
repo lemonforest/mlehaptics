@@ -267,19 +267,10 @@ def test_run_native_misses_non_raise_policy():
 
 
 # ---------------------------------------------------------------------
-# dispatch.infer — DEFERRED to rc176. Pin that it still works (pure) and has
-# NO C peer yet (the honest split, not a silent stub).
+# dispatch.infer — the router still routes every F929 row + the honest OPEN
+# residue (unchanged). Its C peer (srmech_infer, the 2 clean bignum-carrier
+# rows) landed in rc176; see test_infer_c_rc176.py for the native==pure proof.
 # ---------------------------------------------------------------------
-
-
-def test_infer_deferred_has_no_c_peer():
-    """The F929 infer router is deferred to rc176 — there is NO srmech_infer C
-    symbol (the deferral is real; infer stays pure orchestration this rc)."""
-    from srmech.amsc import _native
-    if _native.LIB is None:
-        pytest.skip("no native lib bound")
-    assert not hasattr(_native.LIB, "srmech_infer")
-    assert not hasattr(_native.LIB, "srmech_dispatch_infer")
 
 
 def test_infer_still_routes_each_row_and_open_unchanged():
