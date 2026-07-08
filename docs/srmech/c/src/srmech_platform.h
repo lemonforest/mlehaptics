@@ -261,4 +261,17 @@ srmech_status_t srmech_plat_rstream_read(srmech_plat_rstream_t *rs, void *buf,
 /* Close the handle (POSIX/Win fclose). Safe on a zero-initialised handle. */
 srmech_status_t srmech_plat_rstream_close(srmech_plat_rstream_t *rs);
 
+/* ================================================================== *
+ * WALL CLOCK (rc179) — nanoseconds since the Unix epoch, so the bus
+ * Bio-TOTP encrypted transport (srmech_bus.c) can roll its key window
+ * autonomously on a bare-C host (no Python time.time_ns()). Uses ISO
+ * C11 timespec_get(TIME_UTC), so ONE implementation serves POSIX +
+ * Windows with no #ifdef; a clock-less target returns SRMECH_ERR_IO.
+ * ================================================================== */
+
+/* Current wall-clock time in nanoseconds since 1970-01-01T00:00:00Z into
+ * *out_ns (matches Python time.time_ns() to the platform clock's resolution).
+ * SRMECH_ERR_NULL_ARG if out_ns is NULL; SRMECH_ERR_IO if no clock backend. */
+srmech_status_t srmech_plat_now_ns(int64_t *out_ns);
+
 #endif /* SRMECH_PLATFORM_H */

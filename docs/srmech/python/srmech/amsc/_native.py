@@ -2418,6 +2418,47 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_bus_client_close.argtypes = [ctypes.c_void_p]
         lib.srmech_bus_client_close.restype = ctypes.c_int
 
+    # rc179 (ANNEX Batch A part 2): the Bio-TOTP ENCRYPTED-transport server /
+    # client variants — a bare-C host speaks the encrypted wire. Additive
+    # symbols (ABI stays 3); hasattr-guarded like the req/rep core above. The
+    # standalone-C bus is not Python-dispatched (Python has its own asyncio /
+    # socket bus), so these bindings exist for symbol-parity checks + a future
+    # C-driver harness; no Python wrapper calls them.
+    if hasattr(lib, "srmech_bus_serve_encrypted"):
+        # srmech_status_t srmech_bus_serve_encrypted(
+        #     const char *name, srmech_bus_handler_callback_t handler,
+        #     void *user_data, const uint8_t *dna, size_t dna_len,
+        #     uint64_t sender_id, uint32_t channel_id, int64_t window_ns,
+        #     srmech_bus_server_handle_t **out_handle)
+        lib.srmech_bus_serve_encrypted.argtypes = [
+            ctypes.c_char_p,
+            BUS_HANDLER_CALLBACK,
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            ctypes.c_size_t,
+            ctypes.c_uint64,
+            ctypes.c_uint32,
+            ctypes.c_int64,
+            ctypes.POINTER(ctypes.c_void_p),
+        ]
+        lib.srmech_bus_serve_encrypted.restype = ctypes.c_int
+
+    if hasattr(lib, "srmech_bus_connect_encrypted"):
+        # srmech_status_t srmech_bus_connect_encrypted(
+        #     const char *name, const uint8_t *dna, size_t dna_len,
+        #     uint64_t sender_id, uint32_t channel_id, int64_t window_ns,
+        #     srmech_bus_client_handle_t **out_handle)
+        lib.srmech_bus_connect_encrypted.argtypes = [
+            ctypes.c_char_p,
+            ctypes.c_void_p,
+            ctypes.c_size_t,
+            ctypes.c_uint64,
+            ctypes.c_uint32,
+            ctypes.c_int64,
+            ctypes.POINTER(ctypes.c_void_p),
+        ]
+        lib.srmech_bus_connect_encrypted.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # v0.7.0rc16: C-transpile of the rc12 chiral primitives (Classes
     # I / D / G). NEW symbols — hasattr-guarded so a stale lib built
