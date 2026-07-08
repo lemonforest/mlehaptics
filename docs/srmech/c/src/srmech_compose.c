@@ -570,3 +570,165 @@ srmech_status_t srmech_chain_catalog_parse(
                            ait, items_bytes, asp, specs_bytes,
                            aws, wr_len, out, out_cap, out_len);
 }
+
+/* ------------------------------------------------------------------
+ * srmech_catalog_list_chains — list_catalog_chains: an object
+ * {chain_schema_version, operator_chain:[...]} -> a chain-summary array
+ * [{classes, n_steps, name, on_error, returns, summary}, ...] canonical JSON,
+ * or non-OK (0.9.0rc175; the ORCHESTRATION→C spine, batch 5).
+ *
+ * COMPOSES co_build_chain (the rc173 parse+validate) and PROJECTS each
+ * normalized spec to its summary: the per-step class_id sequence (``classes``),
+ * the step count (``n_steps``), plus name / on_error / returns / summary. A
+ * bare-C host lists a catalog's registered operator chains with this peer + the
+ * srmech_toml parser (Python passes the descriptor's [catalog] table json.dumps'd
+ * as {chain_schema_version, operator_chain}). Any validation failure or non-JSON
+ * input -> non-OK so the Python caller runs the COMPLETE pure path.
+ * ------------------------------------------------------------------ */
+
+/* Reuse a builder-owned OBJECT member node as a value (the summary references
+ * the spec's already-built string nodes; new_object copies the pointer + the
+ * write walk only reads it). De-const is safe: the node lives in the builder
+ * arena for the whole build->write and is never mutated. */
+static srmech_json_value_t *co_member(const srmech_json_value_t *obj,
+                                      const char *key)
+{
+    assert(obj != NULL);
+    assert(key != NULL);
+    return (srmech_json_value_t *)srmech_json_object_get(obj, key);
+}
+
+/* Validate + build one chain, then PROJECT it to the summary object
+ * {classes, n_steps, name, on_error, returns, summary}. Composes co_build_chain
+ * (full validation) + reads back the normalized spec's members. `items_ws` is
+ * reused for the classes pointer array AFTER co_build_chain (its steps array is
+ * already copied into the spec, so the region is free). */
+static srmech_status_t co_build_chain_summary(
+    srmech_json_builder_t *b, const srmech_json_value_t *chain,
+    const srmech_json_value_t **stack, size_t stack_cap,
+    unsigned char *items_ws, size_t items_ws_len,
+    srmech_json_value_t **out_node)
+{
+    assert(b != NULL);
+    assert(out_node != NULL);
+    srmech_json_value_t *spec = NULL;
+    srmech_status_t st = co_build_chain(b, chain, stack, stack_cap,
+                                        items_ws, items_ws_len, &spec);
+    if (st != SRMECH_OK) { return st; }
+    const srmech_json_value_t *steps = srmech_json_object_get(spec, "steps");
+    if (steps == NULL || steps->type != SRMECH_JSON_ARRAY) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    uint32_t ns = steps->u.arr.n;
+    unsigned char *ic = items_ws;
+    srmech_json_value_t **cls = (srmech_json_value_t **)co_carve(
+        &ic, items_ws + items_ws_len, (size_t)ns * sizeof(void *) + 1u);
+    if (cls == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (uint32_t i = 0u; i < ns; i++) {
+        cls[i] = co_member(steps->u.arr.items[i], "class_id");
+        if (cls[i] == NULL) { return SRMECH_ERR_BAD_INPUT; }
+    }
+    const char *keys[6] = {"classes", "n_steps", "name", "on_error",
+                           "returns", "summary"};
+    srmech_json_value_t *vals[6];
+    vals[0] = srmech_json_new_array(b, cls, ns);
+    vals[1] = srmech_json_new_int(b, (int64_t)ns);
+    vals[2] = co_member(spec, "name");
+    vals[3] = co_member(spec, "on_error");
+    vals[4] = co_member(spec, "returns");
+    vals[5] = co_member(spec, "summary");
+    if (vals[0] == NULL || vals[1] == NULL || vals[2] == NULL ||
+        vals[3] == NULL || vals[4] == NULL || vals[5] == NULL) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    *out_node = srmech_json_new_object(b, keys, vals, 6u);
+    return (*out_node == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+size_t srmech_catalog_list_chains_arena_bytes(size_t cat_len)
+{
+    assert(sizeof(srmech_json_value_t) <= 64u);
+    assert(sizeof(void *) <= 16u);
+    return srmech_chain_catalog_parse_arena_bytes(cat_len);
+}
+
+/* Version-check + per-chain summary + array assembly + write (kept out of the
+ * entry point so it stays under the JPL 60-line bound). */
+static srmech_status_t co_list_body(
+    const srmech_json_value_t *tree,
+    unsigned char *abd, size_t abd_len,
+    const srmech_json_value_t **stack, size_t stack_cap,
+    unsigned char *ait, size_t items_bytes,
+    unsigned char *asp, size_t specs_bytes,
+    unsigned char *aws, size_t wr_len,
+    char *out, size_t out_cap, size_t *out_len)
+{
+    assert(tree != NULL);
+    assert(out_len != NULL);
+    const srmech_json_value_t *chains =
+        srmech_json_object_get(tree, "operator_chain");
+    if (chains == NULL || chains->type != SRMECH_JSON_ARRAY) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    const srmech_json_value_t *ver =
+        srmech_json_object_get(tree, "chain_schema_version");
+    if (ver == NULL || ver->type != SRMECH_JSON_INT || ver->u.i != 1) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    srmech_json_builder_t b;
+    srmech_status_t st = srmech_json_builder_init(&b, abd, abd_len);
+    if (st != SRMECH_OK) { return st; }
+    uint32_t nc = chains->u.arr.n;
+    unsigned char *sc = asp;
+    srmech_json_value_t **specs = (srmech_json_value_t **)co_carve(
+        &sc, asp + specs_bytes, (size_t)nc * sizeof(void *) + 1u);
+    if (specs == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (uint32_t i = 0u; i < nc; i++) {
+        srmech_json_value_t *sm = NULL;
+        st = co_build_chain_summary(&b, chains->u.arr.items[i], stack, stack_cap,
+                                    ait, items_bytes, &sm);
+        if (st != SRMECH_OK) { return st; }
+        specs[i] = sm;
+    }
+    srmech_json_value_t *arr = srmech_json_new_array(&b, specs, nc);
+    if (arr == NULL || b.failed) { return SRMECH_ERR_OVERFLOW; }
+    return co_write_node(arr, aws, wr_len, out, out_cap, out_len);
+}
+
+srmech_status_t srmech_catalog_list_chains(
+    const char *cat_json, size_t cat_len,
+    void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len)
+{
+    assert(out_len != NULL);
+    assert(cat_json != NULL || cat_len == 0u);
+    if (cat_json == NULL || ws == NULL || out == NULL || out_len == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    unsigned char *cur = (unsigned char *)ws;
+    unsigned char *end = cur + ws_len;
+    size_t parse_len = 96u * cat_len + 16384u;
+    size_t stack_cap = 2u * cat_len + 512u;
+    size_t items_bytes = sizeof(void *) * (cat_len + 64u);
+    size_t specs_bytes = sizeof(void *) * (cat_len + 64u);
+    unsigned char *ain = co_carve(&cur, end, parse_len);
+    unsigned char *abd = co_carve(&cur, end, 96u * cat_len + 16384u);
+    unsigned char *ast = co_carve(&cur, end, sizeof(void *) * stack_cap);
+    unsigned char *ait = co_carve(&cur, end, items_bytes);
+    unsigned char *asp = co_carve(&cur, end, specs_bytes);
+    unsigned char *aws = co_align_ptr(cur);
+    if (aws > end) { return SRMECH_ERR_OVERFLOW; }
+    size_t wr_len = (size_t)(end - aws);
+    if (ain == NULL || abd == NULL || ast == NULL || ait == NULL ||
+        asp == NULL) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    srmech_json_value_t *tree = NULL;
+    srmech_status_t st = srmech_json_parse(cat_json, cat_len, ain, parse_len,
+                                           &tree);
+    if (st != SRMECH_OK) { return st; }
+    if (tree->type != SRMECH_JSON_OBJECT) { return SRMECH_ERR_BAD_INPUT; }
+    return co_list_body(tree, abd, 96u * cat_len + 16384u,
+                        (const srmech_json_value_t **)ast, stack_cap,
+                        ait, items_bytes, asp, specs_bytes,
+                        aws, wr_len, out, out_cap, out_len);
+}

@@ -732,14 +732,52 @@ static srmech_status_t cr_run_steps(const srmech_json_value_t *chain,
     return SRMECH_OK;
 }
 
+/* Run a validated chain node end-to-end + marshal the final value back as a
+ * canonical VALUE DESCRIPTOR written into `out`. Reserves a writer arena at the
+ * TAIL of the run bump `b` (builder half | write-scratch half); the run bump is
+ * the middle and ALSO backs the descriptor's decimal strings (they must outlive
+ * the write, so they cannot share the writer scratch new_string does not copy).
+ * Both writer bases are 8-byte aligned — the json builder + emit-frame stack
+ * require it (UBSAN-checked). `wsz` sizes the writer reserve. Shared by
+ * srmech_chain_run + srmech_catalog_run_chain (kept < 60 lines). */
+static srmech_status_t cr_run_and_write(const srmech_json_value_t *chain,
+                                        const srmech_json_value_t *ctx,
+                                        cr_bump_t *b, size_t wsz,
+                                        char *out, size_t out_cap,
+                                        size_t *out_len)
+{
+    cr_bump_t wb; cr_value_t *final_v = NULL; srmech_json_builder_t bd;
+    srmech_json_value_t *desc; unsigned char *tail_end, *wa; size_t region, half;
+    srmech_status_t st;
+    assert(chain != NULL && b != NULL && out_len != NULL);
+    assert(b->cur <= b->end);
+    tail_end = b->end;
+    if ((size_t)(b->end - b->cur) <= wsz + 4096u) { return SRMECH_ERR_OVERFLOW; }
+    b->end = tail_end - wsz;                    /* shrink run bump */
+    st = cr_run_steps(chain, ctx, b, &final_v);
+    if (st != SRMECH_OK) { return st; }
+    wa = cr_align(b->end);                      /* builder base, 8-aligned */
+    if (wa >= tail_end) { return SRMECH_ERR_OVERFLOW; }
+    region = (size_t)(tail_end - wa); half = region / 2u;
+    st = srmech_json_builder_init(&bd, wa, half);
+    if (st != SRMECH_OK) { return st; }
+    desc = cr_desc(&bd, final_v, b);            /* dec strings from run bump */
+    if (desc == NULL || bd.failed) { return SRMECH_ERR_OVERFLOW; }
+    wb.cur = cr_align(wa + half); wb.end = tail_end;   /* write scratch */
+    { size_t need = srmech_json_write_arena_bytes(desc);
+      if (wb.cur >= wb.end || need > (size_t)(wb.end - wb.cur)) {
+          return SRMECH_ERR_OVERFLOW;
+      }
+      return srmech_json_write_ws(desc, out, out_cap, out_len, wb.cur, need); }
+}
+
 srmech_status_t srmech_chain_run(const char *chain_json, size_t chain_len,
                                  const char *ctx_json, size_t ctx_len,
                                  void *ws, size_t ws_len,
                                  char *out, size_t out_cap, size_t *out_len)
 {
-    cr_bump_t b, wb; srmech_json_value_t *chain = NULL, *ctx = NULL;
-    cr_value_t *final_v = NULL; srmech_json_builder_t bd; srmech_json_value_t *desc;
-    srmech_status_t st; size_t pj, cj, wsz; unsigned char *pa, *ca, *wa;
+    cr_bump_t b; srmech_json_value_t *chain = NULL, *ctx = NULL;
+    srmech_status_t st; size_t pj, cj; unsigned char *pa, *ca;
     assert(out_len != NULL);
     assert(chain_json != NULL || chain_len == 0u);
     if (chain_json == NULL || ws == NULL || out == NULL || out_len == NULL) {
@@ -755,29 +793,91 @@ srmech_status_t srmech_chain_run(const char *chain_json, size_t chain_len,
         st = srmech_json_parse(ctx_json, ctx_len, ca, cj, &ctx);
         if (st != SRMECH_OK) { return st; }
     }
-    /* Reserve a writer arena at the tail (builder half | write-scratch half);
-     * the run bump `b` is the middle and ALSO backs the descriptor's decimal
-     * strings (they must outlive the write, so they cannot share the writer
-     * scratch new_string does not copy). Both writer bases are 8-byte aligned —
-     * the json builder + emit-frame stack require it (UBSAN-checked). */
-    { unsigned char *tail_end = b.end;
-      size_t region, half;
-      wsz = 16384u + 8u * (chain_len + ctx_len);
-      if ((size_t)(b.end - b.cur) <= wsz + 4096u) { return SRMECH_ERR_OVERFLOW; }
-      b.end = tail_end - wsz;                    /* shrink run bump */
-      st = cr_run_steps(chain, ctx, &b, &final_v);
-      if (st != SRMECH_OK) { return st; }
-      wa = cr_align(b.end);                      /* builder base, 8-aligned */
-      if (wa >= tail_end) { return SRMECH_ERR_OVERFLOW; }
-      region = (size_t)(tail_end - wa); half = region / 2u;
-      st = srmech_json_builder_init(&bd, wa, half);
-      if (st != SRMECH_OK) { return st; }
-      desc = cr_desc(&bd, final_v, &b);          /* dec strings from run bump */
-      if (desc == NULL || bd.failed) { return SRMECH_ERR_OVERFLOW; }
-      wb.cur = cr_align(wa + half); wb.end = tail_end;   /* write scratch */
-      { size_t need = srmech_json_write_arena_bytes(desc);
-        if (wb.cur >= wb.end || need > (size_t)(wb.end - wb.cur)) {
-            return SRMECH_ERR_OVERFLOW;
+    return cr_run_and_write(chain, ctx, &b, 16384u + 8u * (chain_len + ctx_len),
+                            out, out_cap, out_len);
+}
+
+/* ------------------------------------------------------------------
+ * srmech_catalog_run_chain — run_catalog_chain: resolve a catalog's NAMED
+ * operator chain + run it (0.9.0rc175; the ORCHESTRATION→C spine, batch 5).
+ * COMPOSES the rc173 catalog parse (find the chain by name in operator_chain)
+ * + the rc174 chain-runner (cr_run_and_write). A bare-C host runs a declared
+ * catalog chain by name with this one call. cat_json = {chain_schema_version,
+ * operator_chain:[...]} (the Python catalog's chains, json.dumps'd);
+ * chain_name = the chain's "name"; ctx_json = {"row":.., "inputs":..}. A chain
+ * not found / a non-table op / a non-i64 input / overflow -> non-OK so the
+ * Python caller runs the COMPLETE pure path (the not-found KeyError / the run
+ * over the live object graph). Same value-descriptor OUTPUT contract as
+ * srmech_chain_run.
+ * ------------------------------------------------------------------ */
+
+/* Linear scan operator_chain for the chain whose "name" equals [name,name_len).
+ * NULL if not found (the Python caller then raises KeyError on the pure path). */
+static const srmech_json_value_t *cr_find_named_chain(
+    const srmech_json_value_t *chains, const char *name, size_t name_len)
+{
+    uint32_t i;
+    assert(chains != NULL && name != NULL);
+    assert(chains->type == SRMECH_JSON_ARRAY);
+    for (i = 0u; i < chains->u.arr.n; i++) {
+        const srmech_json_value_t *ch = chains->u.arr.items[i];
+        const srmech_json_value_t *nm;
+        if (ch == NULL || ch->type != SRMECH_JSON_OBJECT) { continue; }
+        nm = srmech_json_object_get(ch, "name");
+        if (nm != NULL && nm->type == SRMECH_JSON_STRING &&
+            (size_t)nm->u.str.len == name_len &&
+            (name_len == 0u || memcmp(nm->u.str.ptr, name, name_len) == 0)) {
+            return ch;
         }
-        return srmech_json_write_ws(desc, out, out_cap, out_len, wb.cur, need); } }
+    }
+    return NULL;
+}
+
+size_t srmech_catalog_run_chain_arena_bytes(size_t cat_len, size_t ctx_len)
+{
+    size_t parse = 128u * cat_len + 128u * ctx_len + 65536u;
+    size_t run = 4096u * cat_len + (1u << 20);
+    size_t writer = 32768u + 16u * (cat_len + ctx_len);
+    assert(sizeof(srmech_bigint_t) <= 64u);
+    assert(sizeof(cr_value_t) <= 128u);
+    return parse + run + writer;
+}
+
+srmech_status_t srmech_catalog_run_chain(const char *cat_json, size_t cat_len,
+                                         const char *chain_name, size_t name_len,
+                                         const char *ctx_json, size_t ctx_len,
+                                         void *ws, size_t ws_len,
+                                         char *out, size_t out_cap,
+                                         size_t *out_len)
+{
+    cr_bump_t b; srmech_json_value_t *tree = NULL, *ctx = NULL;
+    const srmech_json_value_t *chains, *ver, *chain; srmech_status_t st;
+    size_t pj, cj; unsigned char *pa, *ca;
+    assert(out_len != NULL);
+    assert(cat_json != NULL || cat_len == 0u);
+    if (cat_json == NULL || chain_name == NULL || ws == NULL || out == NULL ||
+        out_len == NULL) { return SRMECH_ERR_NULL_ARG; }
+    b.cur = (unsigned char *)ws; b.end = b.cur + ws_len;
+    pj = 128u * cat_len + 32768u; cj = 128u * ctx_len + 16384u;
+    pa = cr_carve(&b, pj); ca = cr_carve(&b, cj);
+    if (pa == NULL || ca == NULL) { return SRMECH_ERR_OVERFLOW; }
+    st = srmech_json_parse(cat_json, cat_len, pa, pj, &tree);
+    if (st != SRMECH_OK) { return st; }
+    if (tree->type != SRMECH_JSON_OBJECT) { return SRMECH_ERR_BAD_INPUT; }
+    ver = srmech_json_object_get(tree, "chain_schema_version");
+    if (ver == NULL || ver->type != SRMECH_JSON_INT || ver->u.i != 1) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    chains = srmech_json_object_get(tree, "operator_chain");
+    if (chains == NULL || chains->type != SRMECH_JSON_ARRAY) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    chain = cr_find_named_chain(chains, chain_name, name_len);
+    if (chain == NULL) { return SRMECH_ERR_BAD_INPUT; }   /* -> pure KeyError */
+    if (ctx_json != NULL && ctx_len > 0u) {
+        st = srmech_json_parse(ctx_json, ctx_len, ca, cj, &ctx);
+        if (st != SRMECH_OK) { return st; }
+    }
+    return cr_run_and_write(chain, ctx, &b, 16384u + 8u * (cat_len + ctx_len),
+                            out, out_cap, out_len);
 }

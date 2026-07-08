@@ -1197,12 +1197,13 @@ def iter_attested_dataset(source_key: str) -> Iterator[MPRRecord]:
 # ──────────────────────────────────────────────────────────────────────
 
 
-def _load_catalog_chains(source_key: str) -> List[Any]:
-    """Parse all ``[[catalog.operator_chain]]`` entries from a descriptor.
+def _catalog_toml_dict(source_key: str) -> tuple[Descriptor, Dict[str, Any]]:
+    """Resolve a source's descriptor + read its parsed-TOML dict.
 
-    Returns a list of :class:`srmech.amsc.compose.ChainSpec`. Empty
-    list when the descriptor declares no chains. Raises
-    ``ChainSpecError`` on a malformed declaration.
+    Raises ``KeyError`` for an unknown ``source_key`` (before any read).
+    The descriptor discovery + FS read stay host-side (a bare-C host reads
+    the descriptor with the srmech_toml parser); the chain PARSE/RUN logic
+    dispatches to C from the callers below.
     """
     descriptors = _descriptors()
     if source_key not in descriptors:
@@ -1214,10 +1215,126 @@ def _load_catalog_chains(source_key: str) -> List[Any]:
     else:  # pragma: no cover
         import tomli as tomllib  # type: ignore
     raw = descriptor.path.read_bytes()
-    toml_dict = tomllib.loads(raw.decode("utf-8"))
+    return descriptor, tomllib.loads(raw.decode("utf-8"))
+
+
+def _load_catalog_chains(source_key: str) -> List[Any]:
+    """Parse all ``[[catalog.operator_chain]]`` entries from a descriptor.
+
+    Returns a list of :class:`srmech.amsc.compose.ChainSpec`. Empty
+    list when the descriptor declares no chains. Raises
+    ``ChainSpecError`` on a malformed declaration.
+    """
+    _descriptor, toml_dict = _catalog_toml_dict(source_key)
     # Lazy import to avoid circular bootstrap.
     from . import compose as _compose
     return _compose.parse_catalog_chains(toml_dict)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# rc175 — the catalog CHAIN ORCHESTRATION dispatches to C (the
+# ORCHESTRATION→C spine, batch 5). ``srmech_catalog_list_chains`` /
+# ``srmech_catalog_run_chain`` COMPOSE the rc173 chain PARSE + the rc174
+# chain-RUNNER over the catalog's ``operator_chain`` (json.dumps'd as
+# {chain_schema_version, operator_chain:[...]}). A bare-C host lists / runs a
+# catalog's declared chains with these peers + the srmech_toml parser. Every
+# dispatch is hasattr-guarded (a stale ABI-3 lib keeps the COMPLETE pure path)
+# and returns a MISS sentinel / ``None`` on any missing symbol / serialisation
+# issue / non-OK status so the caller runs the pure path (value-parity, never a
+# rescue). The chain-runner's rc103 inform-don't-limit contract is preserved:
+# any out-of-table op / non-i64 referenced input / @catalog ref → MISS → pure.
+# ──────────────────────────────────────────────────────────────────────
+
+_RUN_NATIVE_MISS = object()   # sentinel: C did NOT run the chain (distinct from a None result)
+
+
+def _list_catalog_chains_native(
+    source_key: str, toml_dict: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
+    """Native ``list_catalog_chains``: validate + project the catalog's chains in
+    C. ``None`` (→ pure path) on a missing symbol / non-JSON payload / any C-side
+    validation failure (the pure path raises the specific ChainSpecError)."""
+    catalog = toml_dict.get("catalog", {})
+    chains_raw = catalog.get("operator_chain", [])
+    if not chains_raw:
+        # Empty operator_chain: matches the pure short-circuit (n_chains 0), no
+        # C call needed (parse_catalog_chains returns [] before dispatch too).
+        return {"ok": True, "source_key": source_key, "n_chains": 0, "chains": []}
+    lib = _catalog_lib("srmech_catalog_list_chains",
+                       "srmech_catalog_list_chains_arena_bytes")
+    if lib is None:
+        return None
+    import ctypes
+    from . import _native
+    payload_obj = {
+        "chain_schema_version": catalog.get("chain_schema_version"),
+        "operator_chain": chains_raw,
+    }
+    try:
+        payload = json.dumps(payload_obj, ensure_ascii=False).encode("utf-8")
+    except (TypeError, ValueError):
+        return None
+    ws_bytes = int(lib.srmech_catalog_list_chains_arena_bytes(len(payload)))
+    ws = (ctypes.c_char * ws_bytes)()
+    out_cap = 2 * len(payload) + 8192
+    out = (ctypes.c_char * out_cap)()
+    out_len = ctypes.c_size_t()
+    rc = lib.srmech_catalog_list_chains(
+        payload, len(payload), ws, ws_bytes, out, out_cap,
+        ctypes.byref(out_len))
+    if rc != _native.SRMECH_OK:
+        return None
+    chains = json.loads(out.raw[:out_len.value].decode("utf-8"))
+    return {"ok": True, "source_key": source_key,
+            "n_chains": len(chains), "chains": chains}
+
+
+def _run_catalog_chain_native(
+    chains: List[Any], chain_name: str, spec: Any,
+    row: Optional[Dict[str, Any]], inputs: Dict[str, Any],
+) -> Any:
+    """Native ``run_catalog_chain``: find the named chain in ``operator_chain``
+    (serialised from the loaded ChainSpecs) + RUN it in C → the final value, or
+    ``_RUN_NATIVE_MISS`` (→ pure). Mirrors the rc174 chain-run eligibility
+    (all-Class-N, "raise"-policy, referenced ints fit int64); anything else →
+    MISS so the pure path runs the chain over the live object graph."""
+    from . import compose as _compose
+    if not (_compose._chain_c_eligible(spec)
+            and _compose._run_ints_fit_i64(spec, row, inputs or {})):
+        return _RUN_NATIVE_MISS
+    lib = _catalog_lib("srmech_catalog_run_chain",
+                       "srmech_catalog_run_chain_arena_bytes")
+    if lib is None:
+        return _RUN_NATIVE_MISS
+    import ctypes
+    from . import _native
+    # Serialise the WHOLE catalog's chains so the C find-by-name genuinely
+    # resolves the named chain among its peers (asymptotic_calculus has 5).
+    payload_obj = {
+        "chain_schema_version": 1,
+        "operator_chain": [_compose._spec_to_chain_dict(c) for c in chains],
+    }
+    ctx = {"row": row, "inputs": inputs or {}}
+    try:
+        cat_json = json.dumps(payload_obj, ensure_ascii=False).encode("utf-8")
+        ctx_json = json.dumps(ctx, ensure_ascii=False).encode("utf-8")
+        name_b = chain_name.encode("utf-8")
+    except (TypeError, ValueError):
+        return _RUN_NATIVE_MISS
+    ws_bytes = int(lib.srmech_catalog_run_chain_arena_bytes(
+        len(cat_json), len(ctx_json)))
+    ws = (ctypes.c_char * ws_bytes)()
+    out_cap = max(ws_bytes // 2, 16384)
+    out = (ctypes.c_char * out_cap)()
+    out_len = ctypes.c_size_t()
+    rc = lib.srmech_catalog_run_chain(
+        cat_json, len(cat_json), name_b, len(name_b),
+        ctx_json, len(ctx_json), ws, ws_bytes, out, out_cap,
+        ctypes.byref(out_len))
+    if rc != _native.SRMECH_OK:
+        return _RUN_NATIVE_MISS
+    desc = json.loads(out.raw[:out_len.value].decode("utf-8"))
+    return _compose._reconstruct_value(desc)
 
 
 def list_catalog_chains(source_key: str) -> Dict[str, Any]:
@@ -1241,13 +1358,18 @@ def list_catalog_chains(source_key: str) -> Dict[str, Any]:
         (``classes`` is the per-step class_id sequence).
     """
     try:
-        chains = _load_catalog_chains(source_key)
+        _descriptor, toml_dict = _catalog_toml_dict(source_key)
     except KeyError:
         return {
             "ok": False,
             "error": f"unknown source_key {source_key!r}",
             "available": sorted(_descriptors().keys()),
         }
+    native = _list_catalog_chains_native(source_key, toml_dict)
+    if native is not None:
+        return native
+    from . import compose as _compose
+    chains = _compose.parse_catalog_chains(toml_dict)
     return {
         "ok": True,
         "source_key": source_key,
@@ -1318,6 +1440,13 @@ def run_catalog_chain(
         # `row` binding exposes the row's MPR record's `data` block
         # plus the descriptor's rendering attestation for context.
         row = dict(rows[0].get("data", {}))
+    # rc175: dispatch the resolve-named-chain + run to the C orchestration peer
+    # (srmech_catalog_run_chain composes the rc173 parse + rc174 chain-runner).
+    # A MISS (out-of-table op / non-i64 input / stale lib) → the COMPLETE pure
+    # path, which runs the chain over the live object graph (value-parity).
+    native = _run_catalog_chain_native(chains, chain_name, spec, row, inputs or {})
+    if native is not _RUN_NATIVE_MISS:
+        return native
     from . import compose as _compose
     return _compose.run_chain(spec, row=row, inputs=inputs or {})
 
