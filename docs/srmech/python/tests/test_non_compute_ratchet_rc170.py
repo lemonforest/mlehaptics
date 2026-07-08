@@ -81,9 +81,19 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # relationship payloads carry live non-JSON carriers — a multi-carrier FFI arc,
 # not one clean rc). The 3 remaining owed = dispatch.infer + the 2 tool_schema
 # rows (get_tool_schema / tool_schema_view → built with the host-glue MCP server).
+# rc176: dispatch.infer earned a C peer — srmech_infer (the ORCHESTRATION→C
+# spine, batch 6; the CARRIER-FFI foundation). The smallest sound foundation:
+# the TWO exact-symbolic bignum-carrier rows sharing ONE carrier-FFI marshal
+# (cyclic → the_one; sigma-gosper → gosper). srmech_infer detects the row from
+# the marshalled operand, dispatches + verifies the C reducer, emits the DECISION
+# (the Python caller rebuilds closed_form via the same reducer; native == pure).
+# The 5 heavier-carrier rows (wz / spectral / multivar / q / elliptic) fall to
+# pure via non-OK (inform-don't-limit) → rc177+. → moved owed_orchestration →
+# composes_c (owed 3→2, composes_c 82→83; sum stays 114). The 2 remaining owed =
+# the tool_schema pair (get_tool_schema / tool_schema_view — host-glue MCP).
 _EXPECTED_SPLIT = {
-    "owed_orchestration": 3,
-    "composes_c": 82,
+    "owed_orchestration": 2,
+    "composes_c": 83,
     "host_glue": 2,
     "dev_tooling": 27,
 }

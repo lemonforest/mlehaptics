@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc175"
-#define SRMECH_VERSION       "0.9.0rc175"
+#define SRMECH_VERSION_PRE   "rc176"
+#define SRMECH_VERSION       "0.9.0rc176"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1952,6 +1952,45 @@ srmech_status_t srmech_catalog_run_chain(
     const char *chain_name, size_t name_len,
     const char *ctx_json, size_t ctx_len,
     void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_infer — the F929 OPEN/infer ROUTER (0.9.0rc176; the ORCHESTRATION->C
+ * spine, batch 6; the CARRIER-FFI foundation). The C peer of
+ * srmech.amsc.dispatch.infer — the META-dispatcher over srmech's shipped
+ * closed-form reduction-theory rows. Given a STORED RELATIONSHIP marshalled as
+ * JSON, DETECT which row its operand structure matches, DISPATCH the matching C
+ * reducer, VERIFY the reducer's OWN contract, and emit the DECISION as a small
+ * JSON descriptor the Python caller reconstructs (the closed_form OBJECT is
+ * rebuilt from the SAME reducer this op verified, so native == the pure infer).
+ *
+ * rc176 handles the two EXACT-SYMBOLIC bignum-carrier rows that share ONE
+ * carrier-FFI marshal (JSON with bignum-decimal-string coefficients):
+ *   * cyclic       (sigma / theta_num / theta_den)      -> srmech_the_one; the
+ *                  n1_is_sigma_only invariant (flat[1] == (sigma, 1)) is the
+ *                  reducer's own verification.
+ *   * sigma-gosper (term_ratio_num / term_ratio_den as ascending [num, den]
+ *                  rational coefficient lists) -> srmech_gosper; has == 1 is the
+ *                  verification (a hypergeometric antidifference exists).
+ *
+ * Output JSON (Python json.loads-able):
+ *   reducible: {"reducer":"the_one"|"gosper","reducible":true,"row":..,
+ *               "verified":true}
+ *   open     : {"reducible":false,"row":"cyclic"|"sigma"}   (Python builds the
+ *               candidate-next-theory hint from the row)
+ *
+ * rc103 inform-don't-limit: any OTHER row (wz / spectral / multivariate / q /
+ * elliptic — whose live carriers need their own bridge, rc177+), any malformed
+ * operand, or any arena overflow -> non-OK, and the Python caller runs the
+ * COMPLETE pure infer (NEVER a false reducible; the honest OPEN residue is the
+ * no-hallucination discipline in C). ONE caller arena `ws` (size with
+ * srmech_infer_arena_bytes(rel_len, max_terms) where max_terms is the largest
+ * operand's coefficient count — the gosper degree, 1 for cyclic — since the
+ * gosper ws grows super-linearly in the degree, not in rel_len); ABI-additive ->
+ * SRMECH_ABI_VERSION stays 3. */
+size_t srmech_infer_arena_bytes(size_t rel_len, size_t max_terms);
+srmech_status_t srmech_infer(const char *rel_json, size_t rel_len,
+                             void *ws, size_t ws_len,
+                             char *out, size_t out_cap, size_t *out_len);
 
 /* ------------------------------------------------------------------ *
  * Class F — substitution / templating (Task #217 Phase C1 rc5)
