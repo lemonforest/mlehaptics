@@ -544,7 +544,7 @@
 {"exposed_as": "srmech.dsl.get_descriptor", "defined_at": "srmech.dsl._catalog.get_descriptor", "bucket": "non_compute", "non_compute_kind": "host_glue"}
 {"exposed_as": "srmech.dsl.list_cascade_ops", "defined_at": "srmech.dsl._catalog.list_cascade_ops", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.dsl.load_catalog", "defined_at": "srmech.dsl._catalog.load_catalog", "bucket": "non_compute", "non_compute_kind": "host_glue"}
-{"exposed_as": "srmech.dsl.lookup_cascade_op", "defined_at": "srmech.dsl._catalog.lookup_cascade_op", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.dsl.lookup_cascade_op", "defined_at": "srmech.dsl._catalog.lookup_cascade_op", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.dsl.register_catalog_dir", "defined_at": "srmech.dsl._catalog.register_catalog_dir", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.dsl.chain", "defined_at": "srmech.dsl._chain.chain", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
 {"exposed_as": "srmech.dsl.get_class_descriptor", "defined_at": "srmech.dsl._class_catalog.get_class_descriptor", "bucket": "non_compute", "non_compute_kind": "host_glue"}
@@ -555,7 +555,7 @@
 {"exposed_as": "srmech.dsl.describe_class", "defined_at": "srmech.dsl._class_surface.describe_class", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.dsl.list_class_surface", "defined_at": "srmech.dsl._class_surface.list_class_surface", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.dsl.run_class_method", "defined_at": "srmech.dsl._class_surface.run_class_method", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
-{"exposed_as": "srmech.dsl.build_chain_from_dict", "defined_at": "srmech.dsl._toml_chain.build_chain_from_dict", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.dsl.build_chain_from_dict", "defined_at": "srmech.dsl._toml_chain.build_chain_from_dict", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.dsl.build_chain_from_toml", "defined_at": "srmech.dsl._toml_chain.build_chain_from_toml", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
 {"exposed_as": "srmech.dsl.build_chain_from_toml_str", "defined_at": "srmech.dsl._toml_chain.build_chain_from_toml_str", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
 {"exposed_as": "srmech.dsl.load_chain_toml", "defined_at": "srmech.dsl._toml_chain.load_chain_toml", "bucket": "non_compute", "non_compute_kind": "host_glue"}

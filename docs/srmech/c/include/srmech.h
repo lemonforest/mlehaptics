@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc180"
-#define SRMECH_VERSION       "0.9.0rc180"
+#define SRMECH_VERSION_PRE   "rc181"
+#define SRMECH_VERSION       "0.9.0rc181"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1972,6 +1972,42 @@ srmech_status_t srmech_catalog_run_chain(
     const char *cat_json, size_t cat_len,
     const char *chain_name, size_t name_len,
     const char *ctx_json, size_t ctx_len,
+    void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech.dsl Chain LINEAR RUN-LOOP — the F1 carrier-FFI FOUNDATION (0.9.0rc181;
+ * ANNEX Batch B pt1; srmech_dsl_chain_run.c). The C peer of srmech.dsl.Chain.run
+ * — a SIBLING interpreter to srmech_chain_run: it VALUE-THREADS (each stage's
+ * output feeds the next stage's input, NO @row/@input/@step refs) over the LEAN
+ * cascade ATOMS on f64/i64 carriers. Backs the DSL rows lookup_cascade_op (the
+ * leaf-dispatch table) + build_chain_from_dict (the stage-IR discriminator parse).
+ *
+ *   chain_json  : {"chain":{"name":..},"stage":[{"op":..,<kwargs>..},...]} — the
+ *                 build_chain_from_dict grammar. Only `op` (LINEAR) stages run
+ *                 here; a loop/fold/reduce/parallel discriminator → non-OK → the
+ *                 pure path (rc182 adds the combinators + the TOML front-ends).
+ *   input_json  : an F1 VALUE DESCRIPTOR for the seed value.
+ *   out         : the F1 VALUE DESCRIPTOR for the final value.
+ *
+ * THE F1 CARRIER (the shared carrier-FFI bedrock #796's F2/F3/F4 extend). Tagged
+ * union {NONE, INT (i64), FLOAT (f64), STR, LIST}; LIST carries an is_tuple bit
+ * (Python list vs tuple) + BOUNDED-depth children (JPL Rule 1 — the nesting
+ * recursion is depth-guarded + asserted, never unbounded). Marshalled as:
+ *   {"k":"n"} | {"k":"i","v":<int>} | {"k":"f","v":<num>} | {"k":"s","v":<str>} |
+ *   {"k":"l","v":[..]} (list) | {"k":"t","v":[..]} (tuple). FLOAT round-trips at
+ *   %.17g → the numeric atoms' parity is WITHIN-TOL, not byte-identical.
+ *
+ * THE LEAF-DISPATCH TABLE: magnitude / reorient / pin_slot_at_zero /
+ * best_rational_signed / chiral_flip / net_chirality / autocorrelation — the
+ * C-backed unary value→value atoms. Any other op (cyclic_gcd / chiral_dual —
+ * 2-ary / higher-order; kuramoto_step / quaternion_dft / octonion_dft — heavier
+ * multi-array carriers) → non-OK → the COMPLETE pure path (rc103 inform-don't-
+ * limit; never a wrong answer). ONE caller arena `ws` (size with
+ * srmech_dsl_chain_run_arena_bytes). ABI-additive → SRMECH_ABI_VERSION stays 4. */
+size_t srmech_dsl_chain_run_arena_bytes(size_t chain_len, size_t input_len);
+srmech_status_t srmech_dsl_chain_run(
+    const char *chain_json, size_t chain_len,
+    const char *input_json, size_t input_len,
     void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
 
 /* ------------------------------------------------------------------ *
