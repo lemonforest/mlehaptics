@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc173"
-#define SRMECH_VERSION       "0.9.0rc173"
+#define SRMECH_VERSION_PRE   "rc174"
+#define SRMECH_VERSION       "0.9.0rc174"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1880,6 +1880,42 @@ srmech_status_t srmech_chain_spec_parse(
 size_t srmech_chain_catalog_parse_arena_bytes(size_t cat_len);
 srmech_status_t srmech_chain_catalog_parse(
     const char *cat_json, size_t cat_len,
+    void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * amsc.compose LINEAR CHAIN-RUNNER — the RUN LOOP (0.9.0rc174; the
+ * ORCHESTRATION→C spine, batch 4; srmech_compose_run.c).
+ *
+ * srmech_chain_run RUNS a validated `[[catalog.operator_chain]]` end-to-end in
+ * C to BYTE-IDENTICAL OUTPUT, backing srmech.amsc.compose.run_chain /
+ * resolve_chain (whose Python closure over the live object graph is NOT
+ * mirrored — parity is on the final VALUE, not the closure).
+ *
+ *   chain_json : the FULL chain object {name,summary,returns,on_error?,steps:
+ *                [{class,op,args,on_error?}]} (json.dumps of the ChainSpec).
+ *   ctx_json   : {"row": <obj|null>, "inputs": <obj>} — the @row / @input
+ *                binding tables (may be NULL / "" if the chain refs neither).
+ *
+ * Each step's args are resolved (@row.<path> / @input.<path> /
+ * @step[N].output; @catalog is NOT supported here) and dispatched to a BOUNDED
+ * Class-N op set — pi_cascade_digits, {exp,sin,cos,log1p,atan}_series_truncate,
+ * rational_{add,mul,div,pow_uint} — over the EXISTING C kernels
+ * (srmech_pi_archimedes / srmech_*_series_truncate_big / srmech_rational_pow_
+ * uint_big + a bignum-ℚ add/mul/div composed from srmech_bigint). The final
+ * value is marshaled back as a canonical-JSON VALUE DESCRIPTOR
+ * ({"k":"s","v":"3.14"} | {"k":"q","n":"..","d":".."} | {"k":"i","v":".."} |
+ * {"k":"n"}; bignums as decimal strings) which the Python caller reconstructs.
+ *
+ * rc103 inform-don't-limit: ANY op outside the table, any @catalog ref, any
+ * non-"raise" error policy, any float / unsupported arg, or any domain error /
+ * overflow → non-OK, and the Python caller runs the COMPLETE pure path (never a
+ * wrong answer; the pure path raises the exact ChainSpecError / ValueError).
+ * ONE caller arena `ws`, bump-allocated forward (size it with
+ * srmech_chain_run_arena_bytes); ABI-additive → SRMECH_ABI_VERSION stays 3. */
+size_t srmech_chain_run_arena_bytes(size_t chain_len, size_t ctx_len);
+srmech_status_t srmech_chain_run(
+    const char *chain_json, size_t chain_len,
+    const char *ctx_json, size_t ctx_len,
     void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
 
 /* ------------------------------------------------------------------ *

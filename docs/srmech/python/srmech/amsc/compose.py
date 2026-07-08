@@ -557,6 +557,162 @@ def _resolve_args(
     return args
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Native RUN LOOP dispatch (0.9.0rc174; the ORCHESTRATION→C spine, batch 4).
+# ``srmech_chain_run`` runs a validated chain end-to-end in C to byte-identical
+# OUTPUT, for chains whose ops are ALL in the BOUNDED Class-N dispatch table —
+# the shipped apparatus: pi_cascade_digits / {exp,sin,cos,log1p,atan}_series_
+# truncate / rational_{add,mul,div,pow_uint}. The C peer does NOT mirror the
+# resolve_chain CLOSURE (a live-object-graph dispatch); parity is on the final
+# VALUE, marshaled back as a canonical value DESCRIPTOR ({"k":"s"/"q"/"i"/"n"/
+# "l", ...}; bignums as decimal strings). rc103 inform-don't-limit: any
+# out-of-table op, @catalog ref, non-"raise" policy, non-i64 input, or C-side
+# overflow → the sentinel _NATIVE_MISS so the COMPLETE pure path runs (never a
+# wrong answer; the pure path raises the exact ChainSpecError / ValueError).
+# ──────────────────────────────────────────────────────────────────────
+
+_NATIVE_MISS = object()   # sentinel: C did NOT run (distinct from a None result)
+
+# The op names the C dispatch table covers — ALL Class N (srmech.amsc.rational).
+_RUN_C_OPS = frozenset({
+    "pi_cascade_digits",
+    "exp_series_truncate", "sin_series_truncate", "cos_series_truncate",
+    "log1p_series_truncate", "atan_series_truncate",
+    "rational_pow_uint", "rational_add", "rational_mul", "rational_div",
+})
+
+_I64_MAX = (1 << 63) - 1
+_I64_MIN = -(1 << 63)
+
+
+def _i64(v: Any) -> bool:
+    """True iff ``v`` (if an int) fits the C JSON parser's int64 width."""
+    return (not isinstance(v, int)) or isinstance(v, bool) or (
+        _I64_MIN <= v <= _I64_MAX)
+
+
+def _run_ints_fit_i64(
+    spec: ChainSpec,
+    row: Optional[Dict[str, Any]],
+    inputs: Dict[str, Any],
+) -> bool:
+    """True iff every int the C run will read as int64 fits int64 — i.e. every
+    literal int in an arg AND every ``@row`` / ``@input`` reference that
+    resolves to an int. UNREFERENCED row fields (e.g. the bignum ``expected_*``
+    columns the chain never touches) are irrelevant. ``@step`` refs read prior
+    C-produced carriers (exact bignum, never an int64 JSON round-trip) and
+    ``@catalog`` already routes to pure, so neither is checked here."""
+    ok = True
+
+    def _walk(a: Any) -> None:
+        nonlocal ok
+        if isinstance(a, str) and a.startswith("@"):
+            m = _REFERENCE_PATTERN.match(a)
+            if m is not None and m.group(1) in ("row", "input"):
+                try:
+                    v = _resolve_reference(a, row=row, inputs=inputs,
+                                           step_outputs=[])
+                except Exception:  # noqa: BLE001 — unresolved → C defers to pure
+                    return
+                if not _i64(v):
+                    ok = False
+            return
+        if isinstance(a, bool):
+            return
+        if isinstance(a, int):
+            if not _i64(a):
+                ok = False
+        elif isinstance(a, dict):
+            for x in a.values():
+                _walk(x)
+        elif isinstance(a, (list, tuple)):
+            for x in a:
+                _walk(x)
+
+    for step in spec.steps:
+        _walk(step.args)
+    return ok
+
+
+def _chain_c_eligible(spec: ChainSpec) -> bool:
+    """True iff every step is a "raise"-policy, Class-N, in-table op — the
+    precondition for the C run loop (else the complete pure path runs)."""
+    if spec.on_error != "raise":
+        return False
+    for step in spec.steps:
+        if step.on_error not in (None, "raise"):
+            return False
+        if step.class_id != "N" or step.op not in _RUN_C_OPS:
+            return False
+    return True
+
+
+def _spec_to_chain_dict(spec: ChainSpec) -> Dict[str, Any]:
+    """Serialise a ChainSpec back to the chain-dict shape srmech_chain_run reads
+    (name / summary / returns / on_error / steps[{class, op, args}])."""
+    return {
+        "name": spec.name, "summary": spec.summary, "returns": spec.returns,
+        "on_error": spec.on_error,
+        "steps": [{"class": s.class_id, "op": s.op, "args": s.args}
+                  for s in spec.steps],
+    }
+
+
+def _reconstruct_value(desc: Dict[str, Any]) -> Any:
+    """Rebuild a Python value from the C value descriptor. Bignums arrive as
+    decimal strings (exact); a rational is a ``(num, den)`` tuple (matching the
+    Class-N ops' return type)."""
+    k = desc.get("k")
+    if k == "s":
+        return desc["v"]
+    if k == "q":
+        return (int(desc["n"]), int(desc["d"]))
+    if k == "i":
+        return int(desc["v"])
+    if k == "n":
+        return None
+    if k == "l":
+        return [_reconstruct_value(it) for it in desc["items"]]
+    raise ValueError(f"unknown chain-run value descriptor kind {k!r}")
+
+
+def _run_chain_native(
+    spec: ChainSpec,
+    row: Optional[Dict[str, Any]],
+    inputs: Dict[str, Any],
+) -> Any:
+    """Run the chain in C → the final value, or ``_NATIVE_MISS`` (→ pure)."""
+    if not _chain_c_eligible(spec):
+        return _NATIVE_MISS
+    lib = _compose_lib("srmech_chain_run", "srmech_chain_run_arena_bytes")
+    if lib is None:
+        return _NATIVE_MISS
+    from . import _native
+    import ctypes
+    if not _run_ints_fit_i64(spec, row, inputs or {}):
+        return _NATIVE_MISS
+    chain_dict = _spec_to_chain_dict(spec)
+    ctx = {"row": row, "inputs": inputs or {}}
+    try:
+        chain_json = json.dumps(chain_dict, ensure_ascii=False).encode("utf-8")
+        ctx_json = json.dumps(ctx, ensure_ascii=False).encode("utf-8")
+    except (TypeError, ValueError):
+        return _NATIVE_MISS
+    ws_bytes = int(lib.srmech_chain_run_arena_bytes(
+        len(chain_json), len(ctx_json)))
+    ws = (ctypes.c_char * ws_bytes)()
+    out_cap = max(ws_bytes // 2, 16384)
+    out = (ctypes.c_char * out_cap)()
+    out_len = ctypes.c_size_t()
+    rc = lib.srmech_chain_run(
+        chain_json, len(chain_json), ctx_json, len(ctx_json),
+        ws, ws_bytes, out, out_cap, ctypes.byref(out_len))
+    if rc != _native.SRMECH_OK:
+        return _NATIVE_MISS
+    desc = json.loads(out.raw[:out_len.value].decode("utf-8"))
+    return _reconstruct_value(desc)
+
+
 def resolve_chain(
     spec: ChainSpec,
     registry: Optional[Dict[str, str]] = None,
@@ -609,7 +765,15 @@ def _execute_resolved(
     row: Optional[Dict[str, Any]],
     inputs: Dict[str, Any],
 ) -> Any:
-    """Execute a resolved chain. Output of the final step is returned."""
+    """Execute a resolved chain. Output of the final step is returned.
+
+    A chain whose ops are ALL in the bounded Class-N C dispatch table runs
+    end-to-end in C to byte-identical OUTPUT (0.9.0rc174); any out-of-table op /
+    non-raise policy / non-i64 input / C overflow falls through to the pure
+    loop below (rc103 inform-don't-limit — never a wrong answer)."""
+    native = _run_chain_native(spec, row, inputs)
+    if native is not _NATIVE_MISS:
+        return native
     step_outputs: List[Any] = []
     final_output: Any = None
     for idx, (step, op_callable) in enumerate(resolved_ops):

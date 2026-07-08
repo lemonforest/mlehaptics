@@ -2918,6 +2918,30 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_chain_catalog_parse_arena_bytes.restype = ctypes.c_size_t
 
     # ------------------------------------------------------------------
+    # amsc.compose LINEAR CHAIN-RUNNER RUN LOOP (0.9.0rc174; the
+    # ORCHESTRATION→C spine, batch 4). Runs a validated chain end-to-end in C
+    # to byte-identical OUTPUT; marshals the final value back as a canonical
+    # value descriptor. chain_json = the full chain dict; ctx_json = {"row":..,
+    # "inputs":..}. Any out-of-table op / non-raise policy / overflow → non-OK
+    # so the Python caller runs the COMPLETE pure path.
+    #   int srmech_chain_run(chain_json, chain_len, ctx_json, ctx_len,
+    #       ws, ws_len, out, out_cap, size_t *out_len)
+    # ------------------------------------------------------------------
+    if hasattr(lib, "srmech_chain_run"):
+        lib.srmech_chain_run.argtypes = [
+            ctypes.c_char_p, ctypes.c_size_t,   # chain_json, chain_len
+            ctypes.c_char_p, ctypes.c_size_t,   # ctx_json, ctx_len
+            ctypes.c_void_p, ctypes.c_size_t,   # ws, ws_len
+            ctypes.c_char_p, ctypes.c_size_t,   # out, out_cap
+            ctypes.POINTER(ctypes.c_size_t),    # out_len
+        ]
+        lib.srmech_chain_run.restype = ctypes.c_int
+    if hasattr(lib, "srmech_chain_run_arena_bytes"):
+        lib.srmech_chain_run_arena_bytes.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_chain_run_arena_bytes.restype = ctypes.c_size_t
+
+    # ------------------------------------------------------------------
     # Class N — ROTATION-LAST Chudnovsky π on srmech_bigint (0.9.0rc19).
     # The two srmech_pi_* symbols are the C-host peer of
     # srmech.amsc.rational.pi_chudnovsky_digits — exact bigint body, ONE

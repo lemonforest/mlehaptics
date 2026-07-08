@@ -68,9 +68,14 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # srmech_chain_catalog_parse) → moved owed_orchestration → composes_c
 # (owed 9→7, composes_c 76→78; sum stays 114). resolve_chain / run_chain stay
 # owed (arbitrary-op FFI over the live object graph → rc174).
+# rc174: the amsc.compose chain-runner RUN LOOP — resolve_chain + run_chain
+# earned a C peer (srmech_chain_run runs the whole shipped apparatus — pi /
+# series / Friedmann — end-to-end in C to byte-identical OUTPUT; the pure path
+# runs any out-of-table op / non-raise policy / @catalog ref) → moved
+# owed_orchestration → composes_c (owed 7→5, composes_c 78→80; sum stays 114).
 _EXPECTED_SPLIT = {
-    "owed_orchestration": 7,
-    "composes_c": 78,
+    "owed_orchestration": 5,
+    "composes_c": 80,
     "host_glue": 2,
     "dev_tooling": 27,
 }

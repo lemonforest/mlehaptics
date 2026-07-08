@@ -639,7 +639,21 @@ CEIL_BIGNUM_REFERENCE = 0
 # bounded cascade atoms; confirmed run_chain invokes any of the 14 class
 # modules by name). The 2 catalog dependents (list_catalog_chains /
 # run_catalog_chain) also stay owed until the run loop lands. 9 → 7.
-CEIL_NON_COMPUTE_OWED = 7
+# rc174 (2026-07-07): the amsc.compose chain-runner RUN LOOP earned C — the
+# 2 run ops moved owed_orchestration → composes_c. srmech_chain_run RUNS a
+# validated chain end-to-end in C to byte-identical OUTPUT: it resolves each
+# step's @row/@input/@step[N] arg references + dispatches the BOUNDED Class-N
+# shipped-op set (pi_cascade_digits / {exp,sin,cos,log1p,atan}_series_truncate /
+# rational_{add,mul,div,pow_uint}) to the EXISTING C kernels (srmech_pi_
+# archimedes / srmech_*_series_truncate_big / srmech_rational_pow_uint_big + a
+# bignum-ℚ add/mul/div composed from srmech_bigint) + marshals the final value
+# back as a canonical descriptor. The WHOLE shipped apparatus (pi digits /
+# asymptotic-calculus series / Friedmann dark-fraction) genuinely runs in C;
+# rc103 inform-don't-limit routes any out-of-table op / @catalog ref / non-raise
+# policy / non-i64 input to the COMPLETE pure path (never a wrong answer). The 2
+# catalog dependents (list_catalog_chains / run_catalog_chain) become buildable
+# next (rc175: run_catalog_chain / list_catalog_chains / dispatch.infer). 7 → 5.
+CEIL_NON_COMPUTE_OWED = 5
 
 # The PINNED dev-tooling allowlist — the exact ``non_compute_kind == "dev_tooling"``
 # set. A row here is JUSTIFIED as a genuine dev / LLM-affordance a bare-C host
