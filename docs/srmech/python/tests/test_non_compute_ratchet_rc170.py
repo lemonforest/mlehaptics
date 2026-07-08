@@ -111,9 +111,15 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # stdlib HMAC-CTR path is now a thin compose over srmech_sha256 + srmech_json; the
 # AES-128-CTR `[crypto]` extra stays Python). owed 12 → 11, composes_c 86 → 87;
 # sum stays 153. CEIL_NON_COMPUTE_OWED 12 → 11.
+# rc180 (2026-07-08): ANNEX Batch A part 2b — the bus pub/sub earned its C peer
+# (PAL mutex + srmech_bus_broadcast / subscribe / pubsub_accept /
+# subscriber_count / pipe). The last owed bus row srmech.bus._pipe.pipe moved
+# owed_orchestration → composes_c (it now composes the C subscribe + forward).
+# BUS FULLY C. owed 11 → 10, composes_c 87 → 88; sum stays 153.
+# CEIL_NON_COMPUTE_OWED 11 → 10. ABI 3 → 4.
 _EXPECTED_SPLIT = {
-    "owed_orchestration": 11,
-    "composes_c": 87,
+    "owed_orchestration": 10,
+    "composes_c": 88,
     "host_glue": 14,
     "dev_tooling": 41,
 }

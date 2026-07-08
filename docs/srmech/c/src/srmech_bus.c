@@ -94,6 +94,20 @@ typedef struct srmech_bus_cipher {
 } srmech_bus_cipher_t;
 
 /* ------------------------------------------------------------------ *
+ * Pub/sub subscriber registry (rc180). One registered subscriber = its
+ * PAL connection + a per-subscriber send cipher (own packet_seq, so each
+ * subscriber's broadcast advances an INDEPENDENT nonce counter — mirrors
+ * the Python per-subscriber send_bio). The registry is a fixed array on the
+ * server handle (bounded; no per-broadcast heap growth), guarded by the PAL
+ * mutex. SRMECH_BUS_MAX_SUBSCRIBERS is public in srmech.h.
+ * ------------------------------------------------------------------ */
+typedef struct srmech_bus_subscriber {
+    srmech_plat_stream_conn_t conn;
+    srmech_bus_cipher_t       cipher;
+    int                       active;
+} srmech_bus_subscriber_t;
+
+/* ------------------------------------------------------------------ *
  * Opaque handle structs — the OS handle lives inside the PAL types.
  * ------------------------------------------------------------------ */
 
@@ -115,6 +129,14 @@ struct srmech_bus_server_handle {
     size_t                           wire_cap;
     uint8_t                         *decode_arena;  /* decode_splice bind arena */
     size_t                           decode_arena_cap;
+    /* rc180 pub/sub: bounded subscriber registry + its guard. Every accepted
+     * pub/sub connection is registered here; srmech_bus_broadcast fans a
+     * frame out to all active ones under sub_lock. The plaintext-only wire
+     * buffer for broadcast encryption is `wire_buf` above (allocated only on
+     * the encrypted path; serialised by sub_lock during fan-out). */
+    srmech_plat_mutex_t              sub_lock;
+    srmech_bus_subscriber_t          subscribers[SRMECH_BUS_MAX_SUBSCRIBERS];
+    size_t                           subscriber_count;
 };
 
 struct srmech_bus_client_handle {
@@ -361,6 +383,126 @@ static void srmech_bus__connection_loop(
 }
 
 /* ------------------------------------------------------------------ *
+ * Pub/sub broadcast fan-out (rc180). The subscriber registry is a fixed
+ * array on the server handle, guarded by h->sub_lock. Every function that
+ * touches subscribers[] / subscriber_count holds the mutex for its whole
+ * critical section — broadcasts serialise against each other AND against
+ * registration, so no data race + per-subscriber frame order is preserved.
+ * ------------------------------------------------------------------ */
+
+/* Register one accepted connection as a subscriber (under sub_lock). Takes
+ * ownership of `conn` (retained in the registry, or closed on overflow). */
+static srmech_status_t srmech_bus__register_subscriber(
+    srmech_bus_server_handle_t *h, srmech_plat_stream_conn_t *conn)
+{
+    assert(h != NULL);
+    assert(conn != NULL);
+    srmech_status_t rc = srmech_plat_mutex_lock(&h->sub_lock);
+    if (rc != SRMECH_OK) {
+        (void)srmech_plat_stream_conn_close(conn);
+        return rc;
+    }
+    if (h->subscriber_count >= SRMECH_BUS_MAX_SUBSCRIBERS) {
+        (void)srmech_plat_mutex_unlock(&h->sub_lock);
+        (void)srmech_plat_stream_conn_close(conn);
+        return SRMECH_ERR_OVERFLOW;
+    }
+    srmech_bus_subscriber_t *s = &h->subscribers[h->subscriber_count];
+    s->conn = *conn;
+    s->cipher = h->cipher;    /* copy config; own packet_seq (reset below) */
+    s->cipher.send_seq = 0u;
+    s->active = 1;
+    h->subscriber_count += 1u;
+    (void)srmech_plat_mutex_unlock(&h->sub_lock);
+    return SRMECH_OK;
+}
+
+/* Deliver `body` to ONE subscriber (plaintext or per-subscriber encrypted).
+ * Called under sub_lock; uses h->wire_buf as the encrypt scratch (serialised
+ * by the lock). Returns the write status (a failure drops the subscriber). */
+static srmech_status_t srmech_bus__deliver_one(
+    srmech_bus_server_handle_t *h, srmech_bus_subscriber_t *s,
+    const uint8_t *body, size_t body_len)
+{
+    assert(h != NULL);
+    assert(s != NULL);
+    if (!s->cipher.enabled) {
+        return srmech_bus__write_frame(&s->conn, body, body_len);
+    }
+    size_t wlen = 0;
+    srmech_status_t rc = srmech_bus__encrypt(
+        &s->cipher, body, body_len, h->wire_buf, h->wire_cap, &wlen);
+    if (rc != SRMECH_OK) {
+        return rc;
+    }
+    return srmech_bus__write_frame(&s->conn, h->wire_buf, wlen);
+}
+
+/* Fan `body` out to every active subscriber (under sub_lock). Subscribers
+ * whose delivery fails (peer closed / error) are closed + dropped by
+ * compacting the array in place — bounded, no growth. */
+static void srmech_bus__fanout_locked(
+    srmech_bus_server_handle_t *h, const uint8_t *body, size_t body_len)
+{
+    assert(h != NULL);
+    assert(h->subscriber_count <= SRMECH_BUS_MAX_SUBSCRIBERS);
+    size_t w = 0;   /* compaction write index (kept subscribers) */
+    for (size_t r = 0; r < h->subscriber_count; r++) {
+        srmech_bus_subscriber_t *s = &h->subscribers[r];
+        srmech_status_t rc = s->active
+            ? srmech_bus__deliver_one(h, s, body, body_len)
+            : SRMECH_ERR_IO;
+        if (rc == SRMECH_OK) {
+            if (w != r) {
+                h->subscribers[w] = *s;
+            }
+            w += 1u;
+        } else {
+            (void)srmech_plat_stream_conn_close(&s->conn);   /* drop */
+        }
+    }
+    h->subscriber_count = w;
+}
+
+/* Close every registered subscriber + clear the registry (under sub_lock).
+ * Called at teardown before the mutex is destroyed. */
+static void srmech_bus__close_all_subscribers(srmech_bus_server_handle_t *h)
+{
+    assert(h != NULL);
+    assert(h->subscriber_count <= SRMECH_BUS_MAX_SUBSCRIBERS);
+    if (srmech_plat_mutex_lock(&h->sub_lock) != SRMECH_OK) {
+        return;   /* teardown best-effort; the process is exiting anyway */
+    }
+    for (size_t i = 0; i < h->subscriber_count; i++) {
+        if (h->subscribers[i].active) {
+            (void)srmech_plat_stream_conn_close(&h->subscribers[i].conn);
+        }
+    }
+    h->subscriber_count = 0u;
+    (void)srmech_plat_mutex_unlock(&h->sub_lock);
+}
+
+/* Read one broadcast frame on a client (plaintext or decrypt). Client helper
+ * for srmech_bus_subscribe. */
+static srmech_status_t srmech_bus__recv_broadcast(
+    srmech_bus_client_handle_t *h, uint8_t *buf, size_t buf_cap, size_t *out_len)
+{
+    assert(h != NULL);
+    assert(out_len != NULL);
+    if (!h->cipher.enabled) {
+        return srmech_bus__read_frame(&h->plat, buf, buf_cap, out_len);
+    }
+    size_t wlen = 0;
+    srmech_status_t rc = srmech_bus__read_frame(
+        &h->plat, h->wire_buf, h->wire_cap, &wlen);
+    if (rc != SRMECH_OK) {
+        return rc;
+    }
+    return srmech_bus__decrypt(&h->cipher, h->wire_buf, wlen, h->decode_arena,
+                               h->decode_arena_cap, buf, buf_cap, out_len);
+}
+
+/* ------------------------------------------------------------------ *
  * Public API
  * ------------------------------------------------------------------ */
 
@@ -390,6 +532,15 @@ static srmech_bus_server_handle_t *srmech_bus__alloc_server_handle(
         free(h);
         return NULL;
     }
+    /* rc180: every server carries a ready pub/sub registry guard (the
+     * req/rep path just never touches it). Cold-path (JPL Rule 3). */
+    if (srmech_plat_mutex_init(&h->sub_lock) != SRMECH_OK) {
+        free(h->workspace);
+        free(h->response_buf);
+        free(h);
+        return NULL;
+    }
+    h->subscriber_count = 0u;
     return h;
 }
 
@@ -397,6 +548,7 @@ static void srmech_bus__free_server_handle(srmech_bus_server_handle_t *h)
 {
     assert(h != NULL);
     assert(h->workspace != NULL || h->response_buf != NULL);
+    (void)srmech_plat_mutex_destroy(&h->sub_lock);
     free(h->workspace);
     free(h->response_buf);
     free(h->wire_buf);       /* NULL on the plaintext path — free(NULL) is OK */
@@ -549,7 +701,9 @@ srmech_status_t srmech_bus_server_stop(srmech_bus_server_handle_t *h)
     assert(h != NULL);
     assert(h->workspace != NULL);
     h->stop_flag = 1;
-    (void)srmech_plat_stream_server_close(&h->plat);
+    (void)srmech_plat_stream_server_close(&h->plat);   /* unblocks any accept */
+    srmech_bus__close_all_subscribers(h);              /* rc180 pub/sub teardown */
+    (void)srmech_plat_mutex_destroy(&h->sub_lock);
     free(h->workspace);
     free(h->response_buf);
     free(h->wire_buf);       /* NULL on the plaintext path — free(NULL) is OK */
@@ -726,4 +880,136 @@ srmech_status_t srmech_bus_client_close(srmech_bus_client_handle_t *h)
     free(h->decode_arena);
     free(h);
     return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------ *
+ * Pub/sub public API (rc180; ANNEX Batch A part 2b — BUS FULLY C)
+ * ------------------------------------------------------------------ */
+
+srmech_status_t srmech_bus_pubsub_accept(srmech_bus_server_handle_t *h)
+{
+    if (h == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(h != NULL);
+    assert(h->workspace != NULL);
+    srmech_plat_stream_conn_t conn;
+    srmech_status_t rc = srmech_plat_stream_accept(&h->plat, &conn);
+    if (rc != SRMECH_OK) {
+        return rc;   /* server stopped / accept error */
+    }
+    return srmech_bus__register_subscriber(h, &conn);
+}
+
+srmech_status_t srmech_bus_broadcast(
+    srmech_bus_server_handle_t *h, const uint8_t *body, size_t body_len)
+{
+    if (h == NULL || (body == NULL && body_len != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(h != NULL);
+    assert(h->workspace != NULL);
+    if (body_len > UINT32_MAX) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    srmech_status_t rc = srmech_plat_mutex_lock(&h->sub_lock);
+    if (rc != SRMECH_OK) {
+        return rc;
+    }
+    srmech_bus__fanout_locked(h, body, body_len);
+    (void)srmech_plat_mutex_unlock(&h->sub_lock);
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_bus_subscriber_count(
+    srmech_bus_server_handle_t *h, size_t *out_count)
+{
+    if (h == NULL || out_count == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(h != NULL);
+    assert(out_count != NULL);
+    srmech_status_t rc = srmech_plat_mutex_lock(&h->sub_lock);
+    if (rc != SRMECH_OK) {
+        return rc;
+    }
+    *out_count = h->subscriber_count;
+    (void)srmech_plat_mutex_unlock(&h->sub_lock);
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_bus_subscribe(
+    srmech_bus_client_handle_t *h, uint8_t *buf, size_t buf_cap,
+    srmech_bus_subscriber_callback_t cb, void *user_data)
+{
+    if (h == NULL || buf == NULL || cb == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(h != NULL);
+    assert(cb != NULL);
+    for (;;) {
+        size_t event_len = 0;
+        srmech_status_t rc = srmech_bus__recv_broadcast(
+            h, buf, buf_cap, &event_len);
+        if (rc != SRMECH_OK) {
+            return SRMECH_OK;   /* clean end: server closed / EOF */
+        }
+        if (cb(buf, event_len, user_data) != SRMECH_OK) {
+            return SRMECH_OK;   /* client-initiated unsubscribe */
+        }
+    }
+}
+
+/* Pipe context: the sink handle a forwarded source event is written to. */
+typedef struct srmech_bus_pipe_ctx {
+    srmech_bus_client_handle_t *sink;
+} srmech_bus_pipe_ctx_t;
+
+/* subscribe callback: forward one source event (fire-and-forget) to the
+ * sink — encrypting if the sink handle is encrypted (mirrors the Python
+ * pipe's expect_reply=False forward). */
+static srmech_status_t srmech_bus__pipe_forward(
+    const uint8_t *event, size_t event_len, void *user_data)
+{
+    assert(event != NULL || event_len == 0u);
+    assert(user_data != NULL);
+    srmech_bus_client_handle_t *sink =
+        ((srmech_bus_pipe_ctx_t *)user_data)->sink;
+    if (!sink->cipher.enabled) {
+        return srmech_bus__write_frame(&sink->plat, event, event_len);
+    }
+    size_t wlen = 0;
+    srmech_status_t rc = srmech_bus__encrypt(
+        &sink->cipher, event, event_len, sink->wire_buf, sink->wire_cap, &wlen);
+    if (rc != SRMECH_OK) {
+        return rc;
+    }
+    return srmech_bus__write_frame(&sink->plat, sink->wire_buf, wlen);
+}
+
+srmech_status_t srmech_bus_pipe(
+    const char *source, const char *sink, uint8_t *buf, size_t buf_cap)
+{
+    if (source == NULL || sink == NULL || buf == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(source != NULL);
+    assert(sink != NULL);
+    srmech_bus_client_handle_t *src = NULL;
+    srmech_status_t rc = srmech_bus_connect(source, &src);
+    if (rc != SRMECH_OK) {
+        return rc;
+    }
+    srmech_bus_client_handle_t *snk = NULL;
+    rc = srmech_bus_connect(sink, &snk);
+    if (rc != SRMECH_OK) {
+        (void)srmech_bus_client_close(src);
+        return rc;
+    }
+    srmech_bus_pipe_ctx_t ctx;
+    ctx.sink = snk;
+    rc = srmech_bus_subscribe(src, buf, buf_cap, srmech_bus__pipe_forward, &ctx);
+    (void)srmech_bus_client_close(src);
+    (void)srmech_bus_client_close(snk);
+    return rc;
 }

@@ -55,7 +55,12 @@ from typing import Optional
 #        srmech_bus_handler_callback_t. Adding a typedef carries a
 #        wire-format implication for the Python ctypes shim
 #        (CFUNCTYPE construction), so ABI bumps.
-EXPECTED_ABI_VERSION: int = 3
+#   v4 — v0.9.0rc180: srmech.bus pub/sub C peer (broadcast / subscribe /
+#        pubsub_accept / subscriber_count / pipe); new function-pointer
+#        typedef srmech_bus_subscriber_callback_t (the pub/sub delivery
+#        callback). Same CFUNCTYPE wire-format convention as v2→v3, so
+#        ABI bumps (the plain additive functions alone would not).
+EXPECTED_ABI_VERSION: int = 4
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-
@@ -266,6 +271,23 @@ BUS_HANDLER_CALLBACK = ctypes.CFUNCTYPE(
     ctypes.c_size_t,                          # size_t request_len
     ctypes.c_void_p,                          # uint8_t *response
     ctypes.POINTER(ctypes.c_size_t),         # size_t *response_len_inout
+    ctypes.c_void_p,                          # void *user_data
+)
+
+
+# v0.9.0rc180: srmech.bus pub/sub subscriber-delivery callback ABI (v4).
+# Mirror of the C typedef in srmech.h:
+#
+#   typedef srmech_status_t (*srmech_bus_subscriber_callback_t)(
+#       const uint8_t *event, size_t event_len, void *user_data);
+#
+# srmech_bus_subscribe invokes this per received broadcast frame; a non-OK
+# return unsubscribes. Adding this typedef is what bumps ABI 3 → 4 (same
+# CFUNCTYPE wire-format convention as the v2→v3 handler-callback bump).
+BUS_SUBSCRIBER_CALLBACK = ctypes.CFUNCTYPE(
+    ctypes.c_int,                            # srmech_status_t return
+    ctypes.c_void_p,                          # const uint8_t *event
+    ctypes.c_size_t,                          # size_t event_len
     ctypes.c_void_p,                          # void *user_data
 )
 
@@ -2458,6 +2480,57 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_void_p),
         ]
         lib.srmech_bus_connect_encrypted.restype = ctypes.c_int
+
+    # v0.9.0rc180: srmech.bus pub/sub C peer (ANNEX Batch A pt2b — BUS FULLY
+    # C). broadcast / subscribe / pubsub_accept / subscriber_count / pipe +
+    # the new subscriber-delivery callback typedef (ABI 3 → 4). Additive
+    # symbols; hasattr-guarded like the req/rep + encrypted core above. The
+    # standalone-C bus is not Python-dispatched (Python has its own asyncio /
+    # socket bus), so these bindings exist for symbol-parity + a future C-host.
+    if hasattr(lib, "srmech_bus_pubsub_accept"):
+        # srmech_status_t srmech_bus_pubsub_accept(
+        #     srmech_bus_server_handle_t *h)
+        lib.srmech_bus_pubsub_accept.argtypes = [ctypes.c_void_p]
+        lib.srmech_bus_pubsub_accept.restype = ctypes.c_int
+    if hasattr(lib, "srmech_bus_broadcast"):
+        # srmech_status_t srmech_bus_broadcast(
+        #     srmech_bus_server_handle_t *h, const uint8_t *body, size_t len)
+        lib.srmech_bus_broadcast.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            ctypes.c_size_t,
+        ]
+        lib.srmech_bus_broadcast.restype = ctypes.c_int
+    if hasattr(lib, "srmech_bus_subscriber_count"):
+        # srmech_status_t srmech_bus_subscriber_count(
+        #     srmech_bus_server_handle_t *h, size_t *out_count)
+        lib.srmech_bus_subscriber_count.argtypes = [
+            ctypes.c_void_p,
+            ctypes.POINTER(ctypes.c_size_t),
+        ]
+        lib.srmech_bus_subscriber_count.restype = ctypes.c_int
+    if hasattr(lib, "srmech_bus_subscribe"):
+        # srmech_status_t srmech_bus_subscribe(
+        #     srmech_bus_client_handle_t *h, uint8_t *buf, size_t buf_cap,
+        #     srmech_bus_subscriber_callback_t cb, void *user_data)
+        lib.srmech_bus_subscribe.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            ctypes.c_size_t,
+            BUS_SUBSCRIBER_CALLBACK,
+            ctypes.c_void_p,
+        ]
+        lib.srmech_bus_subscribe.restype = ctypes.c_int
+    if hasattr(lib, "srmech_bus_pipe"):
+        # srmech_status_t srmech_bus_pipe(
+        #     const char *source, const char *sink, uint8_t *buf, size_t cap)
+        lib.srmech_bus_pipe.argtypes = [
+            ctypes.c_char_p,
+            ctypes.c_char_p,
+            ctypes.c_void_p,
+            ctypes.c_size_t,
+        ]
+        lib.srmech_bus_pipe.restype = ctypes.c_int
 
     # ------------------------------------------------------------------
     # v0.7.0rc16: C-transpile of the rc12 chiral primitives (Classes

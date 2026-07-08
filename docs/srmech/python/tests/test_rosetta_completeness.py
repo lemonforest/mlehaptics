@@ -709,7 +709,14 @@ CEIL_BIGNUM_REFERENCE = 0
 # owed_orchestration → composes_c (the DEFAULT stdlib HMAC-CTR path is now a thin
 # compose over existing C; the AES-128-CTR `[crypto]` extra stays Python by
 # design). owed 12 → 11; composes_c 86 → 87. CEIL_NON_COMPUTE_OWED 12 → 11.
-CEIL_NON_COMPUTE_OWED = 11
+# rc180 (2026-07-08): ANNEX Batch A part 2b — the bus pub/sub earned its C peer
+# (PAL mutex + srmech_bus_broadcast / subscribe / pubsub_accept /
+# subscriber_count / pipe, over srmech_bus_serve[_encrypted] / send_recv). The
+# last owed bus row srmech.bus._pipe.pipe moved owed_orchestration → composes_c
+# (it now composes the C subscribe + forward). BUS FULLY C. owed 11 → 10;
+# composes_c 87 → 88. CEIL_NON_COMPUTE_OWED 11 → 10. ABI 3 → 4 (the new
+# srmech_bus_subscriber_callback_t typedef).
+CEIL_NON_COMPUTE_OWED = 10
 
 # The PINNED dev-tooling allowlist — the exact ``non_compute_kind == "dev_tooling"``
 # set. A row here is JUSTIFIED as a genuine dev / LLM-affordance a bare-C host

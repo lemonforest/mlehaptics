@@ -69,6 +69,43 @@ srmech_status_t srmech_plat_thread_spawn(srmech_plat_thread_fn fn, void *arg,
 srmech_status_t srmech_plat_thread_join(srmech_plat_thread_t *handle);
 
 /* ================================================================== *
+ * MUTEX (rc180) — a lock so the bus pub/sub (srmech_bus.c) can guard its
+ * concurrent subscriber registry with NO `#ifdef _WIN32` in the caller.
+ * pthread_mutex on POSIX / CRITICAL_SECTION on Windows / a no-op on a
+ * thread-less target (the serial path needs no lock — the capability is
+ * preserved, like the thread surface above). The OS lock lives in the
+ * caller's storage (no heap), like the thread handle.
+ * ================================================================== */
+
+/* Max-aligned opaque storage for one OS mutex (POSIX pthread_mutex_t /
+ * Windows CRITICAL_SECTION). Sized for macOS's 64-byte pthread_mutex_t
+ * (glibc's is 40, Win CRITICAL_SECTION is 40); a _Static_assert in the .c
+ * checks the fit per platform. */
+#define SRMECH_PLAT_MUTEX_STORAGE 64
+typedef struct srmech_plat_mutex {
+    union {
+        void         *align_ptr;
+        long double   align_ld;
+        unsigned char bytes[SRMECH_PLAT_MUTEX_STORAGE];
+    } handle;
+    int initialized;   /* 1 between init and destroy; 0 otherwise */
+} srmech_plat_mutex_t;
+
+/* Initialise `m` for use. SRMECH_OK on success; SRMECH_ERR_INTERNAL if the
+ * OS lock cannot be created. On a thread-less target every op is a no-op
+ * success (the serial caller has no concurrency to guard). */
+srmech_status_t srmech_plat_mutex_init(srmech_plat_mutex_t *m);
+
+/* Acquire / release the lock. The caller inits the mutex once at setup;
+ * lock/unlock on a non-initialised mutex is a programming error (asserted). */
+srmech_status_t srmech_plat_mutex_lock(srmech_plat_mutex_t *m);
+srmech_status_t srmech_plat_mutex_unlock(srmech_plat_mutex_t *m);
+
+/* Destroy `m` (releases the OS lock). Safe on a zero-initialised handle
+ * (initialized == 0 → no-op), so teardown of a never-used mutex is clean. */
+srmech_status_t srmech_plat_mutex_destroy(srmech_plat_mutex_t *m);
+
+/* ================================================================== *
  * STREAM IPC (rc5) — the AF_UNIX-socket / named-pipe duality.
  *
  * The bus calls ONLY these primitives; the name -> OS-path mapping
