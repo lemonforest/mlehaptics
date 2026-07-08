@@ -83,15 +83,30 @@ def residue(topic, *, k=20, edge=0.04, spine_k=5, aspect_max=6):
     return {"topic": topic, "spine": spine, "aspects": aspects}
 
 
+def _oxford(words):
+    """Analytic RENDER glue (F1168): an Oxford-comma English list — the function-word structure ('and', commas)
+    that IS the grammar in an analytic language (vs a case suffix). Incremental, not full NLG."""
+    ws = list(words)
+    if not ws:
+        return ""
+    if len(ws) == 1:
+        return ws[0]
+    if len(ws) == 2:
+        return "%s and %s" % (ws[0], ws[1])
+    return "%s, and %s" % (", ".join(ws[:-1]), ws[-1])
+
+
 def describe(topic, **kw):
-    """A first structured (NOT yet fluent) description of ``topic`` from its relational residue (F1166): the SPINE
-    becomes the topic sentence, each ASPECT community a clause. The SELECTION is done (couple()'s residue on
-    analytic-language data); the fluent-sentence RENDER — the analytic order + function-word grammar — is the gap
-    this arc still explores. ``None`` if the topic has no usable neighbourhood."""
+    """A structured description of ``topic`` from its relational residue (F1166; render improved F1168): the SPINE
+    becomes the topic sentence, each ASPECT community a clause, joined with analytic function-word grammar
+    (Oxford-comma lists + varied predicates). The SELECTION is done (couple()'s residue on analytic-language data);
+    this render is INCREMENTAL — real fluent syntax (agreement, clause embedding) is still the arc's open gap.
+    ``None`` if the topic has no usable neighbourhood."""
     r = residue(topic, **kw)
     if not r:
         return None
-    out = ["%s is related to %s." % (topic.capitalize(), ", ".join(r["spine"]))]
-    for a in r["aspects"][:3]:
-        out.append("One aspect involves %s." % ", ".join(a[:5]))
+    out = ["%s is closely related to %s." % (topic.capitalize(), _oxford(r["spine"]))]
+    predicates = ("centres on", "also involves", "connects to")
+    for i, a in enumerate(r["aspects"][:3]):
+        out.append("It %s %s." % (predicates[i % len(predicates)], _oxford(a[:4])))
     return " ".join(out)

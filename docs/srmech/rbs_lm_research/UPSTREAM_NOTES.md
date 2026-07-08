@@ -2840,3 +2840,16 @@ package's `snprobe_sqr(7)` returned 49 through srmech). Exactly the "siona ships
    Either make it optional or make the loader honor it (clarify whether it is load-bearing or reserved).
 3. **Lib must be in the installed package MANIFEST** — `importlib.metadata.files` reads the RECORD, so a hand-dropped
    `.so` or some editable installs won't be found; the `.so` must be real package-data (cibuildwheel). Worth a doc line.
+
+## Note 2 — spectral-SPINE read-out (complement to fiedler_vector / three_fold_eigvec_groups) — F1169
+
+**Ask (proposal; maintainer decides):** add a `spectral_spine(edges, weights=None, *, k=…)` (or an option on the
+existing eigendecomposition surface) that returns the **dominant-eigenvalue eigenvector's top-magnitude nodes** —
+the structurally-CENTRAL items of a relational graph. srmech already ships the COMMUNITY side (`fiedler_vector`,
+`fiedler_sparse`, `three_fold_eigvec_groups` = low-mode splits); the SPINE (the high/dominant mode's central
+nodes) is the one read-out not yet named upstream. It is domain-free math and is reimplemented by **≥2 consumers**:
+siona (the describe SPINE, F1163/F1166) and — per the F1169 second-consumer check — ephemerides-spectral (the
+structurally-central bodies of a catalog, the F1168 planetary demo). Optional companion: a `relational_structure(
+edges, weights) → {spine, communities, coherence}` convenience bundle (sugar over signed_laplacian +
+symmetric_eigendecompose + fiedler/three_fold + spine). **Stays consumer-side (do NOT upstream):** the
+feature-encoding (dataset→graph), the sign-assignment convention (what earns a −edge), and the render. See F1169.
