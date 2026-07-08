@@ -117,9 +117,14 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # owed_orchestration → composes_c (it now composes the C subscribe + forward).
 # BUS FULLY C. owed 11 → 10, composes_c 87 → 88; sum stays 153.
 # CEIL_NON_COMPUTE_OWED 11 → 10. ABI 3 → 4.
+# rc181 (2026-07-08): ANNEX Batch B part 1 — the DSL chain interpreter FOUNDATION
+# earned its C peer (srmech_dsl_chain_run: the F1 carrier-FFI + leaf-dispatch table
+# + build_chain_from_dict stage-IR + LINEAR chain.run over the C-backed atoms).
+# lookup_cascade_op + build_chain_from_dict moved owed_orchestration → composes_c.
+# owed 10 → 8, composes_c 88 → 90; sum stays 153. CEIL_NON_COMPUTE_OWED 10 → 8.
 _EXPECTED_SPLIT = {
-    "owed_orchestration": 10,
-    "composes_c": 88,
+    "owed_orchestration": 8,
+    "composes_c": 90,
     "host_glue": 14,
     "dev_tooling": 41,
 }

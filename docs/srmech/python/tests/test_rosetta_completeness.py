@@ -716,7 +716,19 @@ CEIL_BIGNUM_REFERENCE = 0
 # (it now composes the C subscribe + forward). BUS FULLY C. owed 11 → 10;
 # composes_c 87 → 88. CEIL_NON_COMPUTE_OWED 11 → 10. ABI 3 → 4 (the new
 # srmech_bus_subscriber_callback_t typedef).
-CEIL_NON_COMPUTE_OWED = 10
+# rc181 (2026-07-08): ANNEX Batch B part 1 — the DSL chain interpreter FOUNDATION
+# earned its C peer (srmech_dsl_chain_run: the F1 carrier-FFI + the leaf-dispatch
+# table + the build_chain_from_dict stage-IR grammar + the LINEAR chain.run over
+# the C-backed cascade atoms). lookup_cascade_op (the leaf-dispatch table) +
+# build_chain_from_dict (the stage-IR parse) moved owed_orchestration → composes_c
+# (Chain.run now value-threads the F1 carrier through the C atoms; a combinator /
+# non-C leaf defers to pure). owed 10 → 8; composes_c 88 → 90; sum stays 153.
+# CEIL_NON_COMPUTE_OWED 10 → 8. ABI stays 4 (additive symbols). The remaining owed
+# = the tool_schema pair (get_tool_schema / tool_schema_view — host-glue MCP) + the
+# 6 DSL rows completing chain.run / the TOML front-ends / make_class /
+# run_class_method (chain / run_toml_chain / build_chain_from_toml /
+# build_chain_from_toml_str → rc182; make_class / run_class_method → past Batch B).
+CEIL_NON_COMPUTE_OWED = 8
 
 # The PINNED dev-tooling allowlist — the exact ``non_compute_kind == "dev_tooling"``
 # set. A row here is JUSTIFIED as a genuine dev / LLM-affordance a bare-C host

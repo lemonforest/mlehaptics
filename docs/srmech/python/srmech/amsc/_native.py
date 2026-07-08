@@ -3161,6 +3161,32 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_catalog_run_chain_arena_bytes.restype = ctypes.c_size_t
 
     # ------------------------------------------------------------------
+    # srmech.dsl Chain LINEAR RUN-LOOP — the F1 carrier-FFI FOUNDATION
+    # (0.9.0rc181; ANNEX Batch B pt1). The C peer of srmech.dsl.Chain.run: a
+    # value-threading LINEAR run over the C-backed cascade atoms (leaf-dispatch
+    # table) parsing the build_chain_from_dict stage grammar. chain_json = the
+    # {"chain":..,"stage":[..]} dict; input_json = the F1 value descriptor; out =
+    # the F1 value descriptor. A combinator / non-C leaf / unsupported carrier →
+    # non-OK so the Python caller runs the COMPLETE pure path. hasattr-guarded so
+    # a stale ABI-4 lib keeps the pure DSL runner.
+    #   int srmech_dsl_chain_run(chain_json, chain_len, input_json, input_len,
+    #       ws, ws_len, out, out_cap, size_t *out_len)
+    # ------------------------------------------------------------------
+    if hasattr(lib, "srmech_dsl_chain_run"):
+        lib.srmech_dsl_chain_run.argtypes = [
+            ctypes.c_char_p, ctypes.c_size_t,   # chain_json, chain_len
+            ctypes.c_char_p, ctypes.c_size_t,   # input_json, input_len
+            ctypes.c_void_p, ctypes.c_size_t,   # ws, ws_len
+            ctypes.c_char_p, ctypes.c_size_t,   # out, out_cap
+            ctypes.POINTER(ctypes.c_size_t),    # out_len
+        ]
+        lib.srmech_dsl_chain_run.restype = ctypes.c_int
+    if hasattr(lib, "srmech_dsl_chain_run_arena_bytes"):
+        lib.srmech_dsl_chain_run_arena_bytes.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_dsl_chain_run_arena_bytes.restype = ctypes.c_size_t
+
+    # ------------------------------------------------------------------
     # srmech_infer — the F929 OPEN/infer ROUTER (0.9.0rc176; the
     # ORCHESTRATION→C spine, batch 6; the CARRIER-FFI foundation). The C peer of
     # srmech.amsc.dispatch.infer: parse a relationship JSON, detect the row from
