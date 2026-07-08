@@ -2,26 +2,27 @@
 
 The compute (CEIL_PYTHON_ONLY_DEBT=0), exact-algebra (CEIL_BIGNUM_REFERENCE=0)
 and self-hosting (CEIL_C_EXISTS_UNBOUND=0) arcs are CLOSED. ``non_compute`` (the
-last un-ceilinged bucket, 114 rows) is the honest next frontier: making a bare-C
-host (no Python) run the WHOLE apparatus — dispatch, catalogs, IPC, the genome,
-the chain-runner — in C.
+last un-ceilinged bucket, rc177 annex: 153 rows after extending the ledger walk
+to srmech.bus + srmech.dsl) is the honest next frontier: making a bare-C host
+(no Python) run the WHOLE apparatus — dispatch, catalogs, IPC, the genome, the
+chain-runner, the DSL chain / class interpreter — in C.
 
-This rc splits the 114 ``non_compute`` rows into FOUR honest sub-buckets (the
+This rc splits the ``non_compute`` rows into FOUR honest sub-buckets (the
 ``non_compute_kind`` field in ``rosetta_classification.ndjson``) and pins the
-split:
+split (rc177 annex counts):
 
-  owed_orchestration  (9) — genuine control/dispatch LOGIC a bare-C host needs;
+  owed_orchestration (12) — genuine control/dispatch LOGIC a bare-C host needs;
                             owed-C, DOWN-ONLY (CEIL_NON_COMPUTE_OWED, the phase
-                            driver, in test_rosetta_completeness.py). rc171: the
-                            5 op_provenance verdict/carry ops earned C → composes_c.
-                            rc172: 6 catalog registry/kernel/audit ops → composes_c.
-  composes_c        (76) — thin: composes existing C, or a pure accessor /
+                            driver, in test_rosetta_completeness.py). rc177 annex
+                            +10: the bus Bio-TOTP cipher stream kernel + the DSL
+                            chain / class interpreter.
+  composes_c        (86) — thin: composes existing C, or a pure accessor /
                             constructor / validator; TRANSITIVE-REACHABILITY
                             assert (hides no Python kernel), not a ceiling.
-  host_glue          (2) — filesystem / host I/O; tracked, no ceiling this rc.
-  dev_tooling       (27) — a bare-C host never needs it; PINNED exempt allowlist.
+  host_glue         (14) — filesystem / host I/O; tracked, no ceiling.
+  dev_tooling       (41) — a bare-C host never needs it; PINNED exempt allowlist.
 
-This file proves the split is COMPLETE (sums to 114), DISJOINT, and TIGHT (the
+This file proves the split is COMPLETE (sums to 153), DISJOINT, and TIGHT (the
 live owed count == CEIL_NON_COMPUTE_OWED). numpy-free (stdlib json + the shared
 conftest live-op walk).
 """
@@ -91,13 +92,25 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # pure via non-OK (inform-don't-limit) → rc177+. → moved owed_orchestration →
 # composes_c (owed 3→2, composes_c 82→83; sum stays 114). The 2 remaining owed =
 # the tool_schema pair (get_tool_schema / tool_schema_view — host-glue MCP).
+# rc177 (2026-07-08): the ANNEX — extend the ledger walk (_ROOTS) to srmech.bus +
+# srmech.dsl (+39 rows: 18 bus + 21 dsl, all non_compute). The +39 split by kind:
+# +10 owed_orchestration (the bus Bio-TOTP cipher stream kernel decode_splice /
+# pipe + the DSL chain / class interpreter chain / run_toml_chain /
+# lookup_cascade_op / build_chain_from_{dict,toml,toml_str} / make_class /
+# run_class_method), +3 composes_c (bus connect / serve / channel_id_from_name),
+# +12 host_glue (bus discovery/transport/registry-read + DSL catalog/class
+# descriptor loaders), +14 dev_tooling (bus cipher-backend / secret-kwargs /
+# asyncio-aio wrappers + DSL register/list introspection). Test-infra ONLY (no
+# C, no compute-op change); CEIL_NON_COMPUTE_OWED 2 → 12; rc178+ build the annex
+# to C + drive the owed count back down. owed 2→12 / composes_c 83→86 /
+# host_glue 2→14 / dev_tooling 27→41; sum 114 → 153.
 _EXPECTED_SPLIT = {
-    "owed_orchestration": 2,
-    "composes_c": 83,
-    "host_glue": 2,
-    "dev_tooling": 27,
+    "owed_orchestration": 12,
+    "composes_c": 86,
+    "host_glue": 14,
+    "dev_tooling": 41,
 }
-_TOTAL_NON_COMPUTE = 114
+_TOTAL_NON_COMPUTE = 153
 
 
 def _rows():
@@ -110,8 +123,9 @@ def _non_compute_kind_counts() -> Counter:
                    if r.get("bucket") == "non_compute")
 
 
-def test_non_compute_total_is_114():
-    """The non_compute bucket is exactly 114 rows (the population this rc splits)."""
+def test_non_compute_total_is_153():
+    """The non_compute bucket is exactly 153 rows (rc177 annex population: the
+    original 114 + the 39 bus/dsl rows the extended _ROOTS surfaces)."""
     n = sum(1 for r in _rows() if r.get("bucket") == "non_compute")
     assert n == _TOTAL_NON_COMPUTE, (
         f"non_compute bucket has {n} rows, expected {_TOTAL_NON_COMPUTE} — the "

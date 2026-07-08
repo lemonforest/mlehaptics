@@ -31,7 +31,13 @@ from pathlib import Path
 import pytest
 
 _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
-_ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
+# rc177 annex: mirror the ledger-walk extension to bus/dsl (this ratchet only
+# iterates composition_of_c rows — all 39 bus/dsl rows are non_compute, so the
+# extension is a no-op for its assertion; kept for cross-walk consistency).
+_ROOTS = (
+    "srmech.amsc", "srmech.qm", "srmech.signal_processing",
+    "srmech.bus", "srmech.dsl",
+)
 
 # Buckets that are NOT standalone-C-ready (a composition_of_c op must not reach
 # one transitively).
