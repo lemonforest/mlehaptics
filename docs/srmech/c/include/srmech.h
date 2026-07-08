@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc179"
-#define SRMECH_VERSION       "0.9.0rc179"
+#define SRMECH_VERSION_PRE   "rc180"
+#define SRMECH_VERSION       "0.9.0rc180"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -84,8 +84,16 @@ extern "C" {
  *      wire-format implication for the Python ctypes shim
  *      (CFUNCTYPE construction), so ABI bumps even though no
  *      existing function signature changed.
+ * v4 — v0.9.0rc180: the srmech.bus pub/sub C peer (ANNEX Batch A pt2b —
+ *      BUS FULLY C). Adds the new function-pointer typedef
+ *      srmech_bus_subscriber_callback_t (the pub/sub client's
+ *      broadcast-delivery callback) alongside the broadcast /
+ *      subscribe / pubsub_accept / subscriber_count / pipe symbols.
+ *      Per the v2→v3 precedent, adding a callback typedef carries a
+ *      CFUNCTYPE wire-format implication, so ABI bumps (the plain
+ *      additive functions alone would not).
  */
-#define SRMECH_ABI_VERSION 3
+#define SRMECH_ABI_VERSION 4
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -2969,6 +2977,121 @@ srmech_status_t srmech_bus_send_recv(
 
 /* Close the client + free its handle. After return, h is invalid. */
 srmech_status_t srmech_bus_client_close(srmech_bus_client_handle_t *h);
+
+/* ------------------------------------------------------------------ *
+ * srmech.bus — pub/sub broadcast fan-out C peer (0.9.0rc180; ANNEX
+ * Batch A part 2b — BUS FULLY C). The last owed bus row (`pipe`) → C.
+ *
+ * Model (mirrors srmech.bus._server.Endpoint.broadcast + _client.Channel.
+ * subscribe + _pipe.pipe): a server handle (from srmech_bus_serve /
+ * _serve_encrypted — the SAME handle; every server now carries a ready PAL
+ * mutex + an empty subscriber registry) can act as a publisher. Every
+ * connection accepted via srmech_bus_pubsub_accept is REGISTERED as a
+ * subscriber in a BOUNDED registry (≤ SRMECH_BUS_MAX_SUBSCRIBERS), guarded
+ * by the PAL mutex. srmech_bus_broadcast fans one frame out to every active
+ * subscriber under the lock (serialised → per-subscriber frame order is
+ * preserved). On the encrypted path each subscriber has its OWN send cipher
+ * (independent packet_seq — mirrors the Python per-subscriber send_bio). A
+ * failed write DROPS that subscriber (peer closed = unsubscribe). The OS
+ * socket send buffer IS the bounded per-subscriber queue (no heap growth).
+ *
+ * Concurrency: srmech_bus_pubsub_accept (spin one per thread, JOIN before
+ * srmech_bus_server_stop — the rc179 accept model) + srmech_bus_broadcast +
+ * srmech_bus_subscriber_count all take the mutex; the registry is race-free.
+ * Teardown (srmech_bus_server_stop) closes every subscriber conn + destroys
+ * the mutex under the lock. On POSIX the fan-out + teardown are ASAN/UBSAN +
+ * ThreadSanitizer clean; closing a subscriber's server-side fd wakes its
+ * blocking read deterministically.
+ *
+ * PLATFORM SCOPE — POSIX-first (Windows is a follow-up). The Windows PAL
+ * transport is a NAMED PIPE whose instance is created lazily inside accept
+ * (POSIX listen pre-binds), and a synchronous ConnectNamedPipe is not reliably
+ * woken by CloseHandle from another thread — so a Windows pubsub_accept with no
+ * connected client can block indefinitely and teardown cannot deterministically
+ * wake it. The symbols BUILD on Windows, but a correct Windows pub/sub server
+ * (overlapped ConnectNamedPipe + a stop-event, or pre-created instances +
+ * a self-connect wake) needs Windows-CI verification and is a follow-up rc.
+ * The req/rep + encrypted transport (rc2 / rc179) are unaffected.
+ *
+ * ABI v4 (this rc): the new srmech_bus_subscriber_callback_t typedef carries
+ * a CFUNCTYPE wire-format implication (the v2→v3 handler-callback precedent),
+ * so ABI bumps; the broadcast / accept / count / pipe functions are additive.
+ * ------------------------------------------------------------------ */
+
+/* Pub/sub subscriber-delivery callback. srmech_bus_subscribe reads each
+ * broadcast frame (decrypting on the encrypted path) into the caller buffer,
+ * then invokes this callback with the plaintext event bytes. Returning
+ * SRMECH_OK keeps streaming; any non-OK return UNSUBSCRIBES (srmech_bus_
+ * subscribe returns cleanly). `user_data` is the opaque context pointer. */
+typedef srmech_status_t (*srmech_bus_subscriber_callback_t)(
+    const uint8_t *event,
+    size_t         event_len,
+    void          *user_data);
+
+/* Max concurrently-registered subscribers per server (bounded registry). */
+#define SRMECH_BUS_MAX_SUBSCRIBERS 64u
+
+/* Accept ONE client and register it as a subscriber (BLOCKING). Caller
+ * spins this in a thread loop (join before srmech_bus_server_stop). The
+ * accepted connection is retained in the registry (NOT closed on return);
+ * srmech_bus_broadcast writes to it; srmech_bus_server_stop closes it.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG — h is NULL.
+ *   SRMECH_ERR_OVERFLOW — the registry is full (SRMECH_BUS_MAX_SUBSCRIBERS).
+ *   SRMECH_ERR_IO       — accept failed (server stopped). */
+srmech_status_t srmech_bus_pubsub_accept(srmech_bus_server_handle_t *h);
+
+/* Broadcast `body` (length `body_len`) to every currently-registered
+ * subscriber, under the registry mutex. Per-subscriber write failure drops
+ * that subscriber (best-effort fan-out); returns SRMECH_OK after the pass.
+ * On an encrypted server the body is encrypted per-subscriber.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG — h is NULL (or body NULL with body_len != 0).
+ *   SRMECH_ERR_OVERFLOW — body_len > UINT32_MAX. */
+srmech_status_t srmech_bus_broadcast(
+    srmech_bus_server_handle_t *h,
+    const uint8_t              *body,
+    size_t                      body_len);
+
+/* Current registered-subscriber count into *out_count (mutex-guarded read —
+ * a subscribe/broadcast sync point for callers). */
+srmech_status_t srmech_bus_subscriber_count(
+    srmech_bus_server_handle_t *h,
+    size_t                     *out_count);
+
+/* Subscribe: stream broadcasts from a connected client handle (from
+ * srmech_bus_connect / _connect_encrypted). Loops reading frames (decrypting
+ * on the encrypted path) into the caller-owned `buf` (capacity `buf_cap`) and
+ * invoking `cb(event, event_len, user_data)` per frame. Returns SRMECH_OK on
+ * clean end (server closed the stream, or `cb` returned non-OK to unsubscribe).
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG — h, buf, or cb is NULL. */
+srmech_status_t srmech_bus_subscribe(
+    srmech_bus_client_handle_t       *h,
+    uint8_t                          *buf,
+    size_t                            buf_cap,
+    srmech_bus_subscriber_callback_t  cb,
+    void                             *user_data);
+
+/* Pipe: subscribe to `source` and forward every broadcast (fire-and-forget)
+ * to `sink` — the C composition mirroring srmech.bus._pipe.pipe (identity
+ * forward; the Python transform= / asyncio wrappers are Python-side
+ * affordances). Composes srmech_bus_connect (×2) + srmech_bus_subscribe +
+ * the frame writer. `buf` (capacity `buf_cap`) is the caller-owned per-event
+ * staging buffer. Blocks until `source` closes; returns SRMECH_OK on clean
+ * end.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG — source, sink, or buf is NULL.
+ *   plus any srmech_bus_connect error (source / sink not reachable). */
+srmech_status_t srmech_bus_pipe(
+    const char *source,
+    const char *sink,
+    uint8_t    *buf,
+    size_t      buf_cap);
 
 /* ------------------------------------------------------------------ *
  * srmech.bus — UTLP Bio-TOTP wire cipher C peer (0.9.0rc178; ANNEX

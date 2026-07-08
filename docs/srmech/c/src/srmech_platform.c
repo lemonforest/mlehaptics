@@ -172,6 +172,155 @@ srmech_status_t srmech_plat_thread_join(srmech_plat_thread_t *handle)
 #endif
 
 /* ================================================================== *
+ * MUTEX (rc180) — pthread_mutex (POSIX) / CRITICAL_SECTION (Windows) /
+ * no-op (thread-less). The OS lock lives IN the caller's storage (cast in
+ * place — never memcpy'd after init, since a live lock has identity), so
+ * the same address is always passed to lock/unlock (ThreadSanitizer tracks
+ * the lock by that stable pointer). No heap; JPL-clean.
+ * ================================================================== */
+
+#if defined(SRMECH_PLAT_THREADS_POSIX)
+_Static_assert(sizeof(pthread_mutex_t) <= SRMECH_PLAT_MUTEX_STORAGE,
+               "pthread_mutex_t does not fit srmech_plat_mutex handle storage");
+
+srmech_status_t srmech_plat_mutex_init(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(sizeof(pthread_mutex_t) <= sizeof m->handle.bytes);
+    if (m == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    pthread_mutex_t *mtx = (pthread_mutex_t *)(void *)m->handle.bytes;
+    if (pthread_mutex_init(mtx, NULL) != 0) {
+        m->initialized = 0;
+        return SRMECH_ERR_INTERNAL;
+    }
+    m->initialized = 1;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_mutex_lock(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(m->initialized == 1);
+    pthread_mutex_t *mtx = (pthread_mutex_t *)(void *)m->handle.bytes;
+    if (pthread_mutex_lock(mtx) != 0) {
+        return SRMECH_ERR_INTERNAL;
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_mutex_unlock(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(m->initialized == 1);
+    pthread_mutex_t *mtx = (pthread_mutex_t *)(void *)m->handle.bytes;
+    if (pthread_mutex_unlock(mtx) != 0) {
+        return SRMECH_ERR_INTERNAL;
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_mutex_destroy(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(m->initialized == 0 || m->initialized == 1);
+    if (m == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (m->initialized) {
+        pthread_mutex_t *mtx = (pthread_mutex_t *)(void *)m->handle.bytes;
+        (void)pthread_mutex_destroy(mtx);
+        m->initialized = 0;
+    }
+    return SRMECH_OK;
+}
+
+#elif defined(SRMECH_PLAT_THREADS_WIN)
+_Static_assert(sizeof(CRITICAL_SECTION) <= SRMECH_PLAT_MUTEX_STORAGE,
+               "CRITICAL_SECTION does not fit srmech_plat_mutex handle storage");
+
+srmech_status_t srmech_plat_mutex_init(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(sizeof(CRITICAL_SECTION) <= sizeof m->handle.bytes);
+    if (m == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    CRITICAL_SECTION *cs = (CRITICAL_SECTION *)(void *)m->handle.bytes;
+    InitializeCriticalSection(cs);
+    m->initialized = 1;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_mutex_lock(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(m->initialized == 1);
+    CRITICAL_SECTION *cs = (CRITICAL_SECTION *)(void *)m->handle.bytes;
+    EnterCriticalSection(cs);
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_mutex_unlock(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(m->initialized == 1);
+    CRITICAL_SECTION *cs = (CRITICAL_SECTION *)(void *)m->handle.bytes;
+    LeaveCriticalSection(cs);
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_mutex_destroy(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(m->initialized == 0 || m->initialized == 1);
+    if (m == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (m->initialized) {
+        CRITICAL_SECTION *cs = (CRITICAL_SECTION *)(void *)m->handle.bytes;
+        DeleteCriticalSection(cs);
+        m->initialized = 0;
+    }
+    return SRMECH_OK;
+}
+
+#else  /* thread-less target: the lock is a no-op (serial caller, no races) */
+
+srmech_status_t srmech_plat_mutex_init(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(srmech_plat_has_threads() == 0);
+    m->initialized = 1;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_mutex_lock(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(m->initialized == 1);
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_mutex_unlock(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(m->initialized == 1);
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_mutex_destroy(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(srmech_plat_has_threads() == 0);
+    m->initialized = 0;
+    return SRMECH_OK;
+}
+
+#endif
+
+/* ================================================================== *
  * STREAM IPC (rc5) — AF_UNIX socket (POSIX) / named pipe (Windows).
  *
  * The bus's 4-byte-length framing + handler dispatch are OS-agnostic

@@ -25,12 +25,13 @@ The full end-to-end C round-trip (serve_encrypted → thread accept_one →
 connect_encrypted → send_recv → echo) + ASAN/UBSAN leak/UB clean is proven by
 the ephemeral /tmp C driver at build time (see the rc179 CHANGELOG).
 
-SCOPE — the bus **pub/sub** (``pipe``) → C is DEFERRED to rc180 (an honest
-split, not a stub): it needs a new PAL mutex + a concurrent subscriber-registry
-broadcast fan-out + client ``subscribe`` streaming + the ``pipe`` composition
-under a no-data-races bar — too big for one clean rc alongside the cipher-wire.
-So ``srmech.bus._pipe.pipe`` stays ``owed_orchestration`` (CEIL_NON_COMPUTE_OWED
-stays 11) this rc; rc180 moves it → composes_c.
+SCOPE — the bus **pub/sub** (``pipe``) → C was DEFERRED from this rc to rc180
+(an honest split, not a stub) and SHIPPED there: a new PAL mutex + a concurrent
+subscriber-registry broadcast fan-out + client ``subscribe`` streaming + the
+``pipe`` composition under a no-data-races bar (ASAN/UBSAN + ThreadSanitizer
+clean). rc180 moved ``srmech.bus._pipe.pipe`` ``owed_orchestration`` →
+``composes_c`` (CEIL_NON_COMPUTE_OWED 11 → 10; BUS FULLY C) and bumped ABI
+3 → 4 (the new ``srmech_bus_subscriber_callback_t`` typedef).
 
 numpy-free (stdlib hmac / hashlib / json via the shared cipher).
 """
@@ -56,9 +57,11 @@ requires_native = pytest.mark.skipif(
 
 @requires_native
 def test_encrypted_bus_symbols_present():
-    """rc179 adds serve_encrypted + connect_encrypted (additive — ABI stays 3)."""
-    assert _native.NATIVE_ABI_VERSION == 3, (
-        f"ABI must stay 3 (additive symbols); got {_native.NATIVE_ABI_VERSION}"
+    """rc179 adds serve_encrypted + connect_encrypted. (rc180 bumped ABI 3 → 4
+    with the pub/sub subscriber-delivery callback typedef; these transport
+    symbols are unchanged.)"""
+    assert _native.NATIVE_ABI_VERSION == 4, (
+        f"ABI must be 4 after rc180; got {_native.NATIVE_ABI_VERSION}"
     )
     for sym in ("srmech_bus_serve_encrypted", "srmech_bus_connect_encrypted"):
         assert hasattr(_native.LIB, sym), f"native lib missing C symbol {sym}"
@@ -128,14 +131,15 @@ def test_wrong_dna_does_not_recover(monkeypatch):
     assert recovered != pt
 
 
-def test_pubsub_pipe_is_deferred_not_stubbed():
-    """SCOPE marker: the bus pub/sub (pipe) → C is DEFERRED to rc180 (honest
-    split). It is NOT stubbed in C this rc; srmech.bus.pipe stays a live pure
-    Python op (owed_orchestration in the ledger). This asserts the deferral is
-    the real state — pipe is callable + unchanged — not a broken half-ship."""
+def test_pubsub_pipe_landed_in_rc180():
+    """SCOPE marker (discharged): the bus pub/sub (pipe) → C DEFERRAL from rc179
+    was resolved in rc180 (not stubbed — the genuine PAL-mutex + subscriber-
+    registry fan-out + client subscribe + pipe composition). srmech.bus.pipe
+    stays a live callable Python op; the C pub/sub symbols now EXIST (the rc179
+    "not-yet" pin is inverted here)."""
     from srmech.bus import pipe
     assert callable(pipe)
-    # No srmech_bus_pipe / srmech_bus_broadcast C symbol yet (rc180).
+    # rc180: the pub/sub C symbols now exist (the deferral is discharged).
     if _NATIVE:
-        assert not hasattr(_native.LIB, "srmech_bus_broadcast")
-        assert not hasattr(_native.LIB, "srmech_bus_subscribe")
+        assert hasattr(_native.LIB, "srmech_bus_broadcast")
+        assert hasattr(_native.LIB, "srmech_bus_subscribe")

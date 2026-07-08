@@ -531,7 +531,7 @@
 {"exposed_as": "srmech.bus.list_endpoints", "defined_at": "srmech.bus._discovery.list_endpoints", "bucket": "non_compute", "non_compute_kind": "host_glue"}
 {"exposed_as": "srmech.bus.new_correlation_id", "defined_at": "srmech.bus._event.new_correlation_id", "bucket": "non_compute", "non_compute_kind": "host_glue"}
 {"exposed_as": "srmech.bus.secret_kwargs", "defined_at": "srmech.bus._params.secret_kwargs", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
-{"exposed_as": "srmech.bus.pipe", "defined_at": "srmech.bus._pipe.pipe", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.bus.pipe", "defined_at": "srmech.bus._pipe.pipe", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.bus.serve", "defined_at": "srmech.bus._server.serve", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.bus.bus_dir", "defined_at": "srmech.bus._transport.bus_dir", "bucket": "non_compute", "non_compute_kind": "host_glue"}
 {"exposed_as": "srmech.bus.is_posix_uds", "defined_at": "srmech.bus._transport.is_posix_uds", "bucket": "non_compute", "non_compute_kind": "host_glue"}
