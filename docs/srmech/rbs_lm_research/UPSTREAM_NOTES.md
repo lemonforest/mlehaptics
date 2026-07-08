@@ -2841,7 +2841,7 @@ package's `snprobe_sqr(7)` returned 49 through srmech). Exactly the "siona ships
 3. **Lib must be in the installed package MANIFEST** — `importlib.metadata.files` reads the RECORD, so a hand-dropped
    `.so` or some editable installs won't be found; the `.so` must be real package-data (cibuildwheel). Worth a doc line.
 
-## Note 2 — spectral-SPINE read-out (complement to fiedler_vector / three_fold_eigvec_groups) — F1169
+## Note 2 — spectral-SPINE read-out (complement to fiedler_vector / three_fold_eigvec_groups) — F1169 [FILED → #1324]
 
 **Ask (proposal; maintainer decides):** add a `spectral_spine(edges, weights=None, *, k=…)` (or an option on the
 existing eigendecomposition surface) that returns the **dominant-eigenvalue eigenvector's top-magnitude nodes** —
