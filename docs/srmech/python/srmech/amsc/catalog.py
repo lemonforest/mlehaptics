@@ -65,6 +65,161 @@ from .format import MPRRecord, read_ndjson
 
 
 # ──────────────────────────────────────────────────────────────────────
+# rc172 — the catalog REGISTRY / KERNEL-STATE / AUDIT logic dispatches to C
+# (the ORCHESTRATION→C spine, batch 2). Each native peer COMPOSES the
+# existing kernels (the srmech_json parser+writer+builder + srmech_sha256_hex
+# for the kernel cache_hash); a bare-C host runs the catalog registry/kernel/
+# audit surface with no json.dumps. STATE is caller-owned — Python passes its
+# module globals (registered roots / kernel path+class / the FS-derived
+# overlay set + NDJSON bytes) in per call. Every dispatch is hasattr-guarded
+# (a stale ABI-3 lib keeps the COMPLETE pure path) and returns ``None`` on any
+# missing symbol / serialisation issue / non-OK status so the caller runs the
+# pure path (value-parity, never a rescue).
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _catalog_lib(*symbols: str):
+    """Return the native LIB iff HAS_NATIVE and every named rc172 symbol is
+    bound (a stale ABI-3 lib missing them → ``None`` → pure path)."""
+    from . import _native
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    lib = _native.LIB
+    for sym in symbols:
+        if not hasattr(lib, sym):
+            return None
+    return lib
+
+
+def _opt_bytes(s: Optional[str]) -> Optional[bytes]:
+    """UTF-8 encode an optional string (``None`` → ``None`` → a C NULL)."""
+    return s.encode("utf-8") if s is not None else None
+
+
+def _registered_roots_native(
+    root_path: str, root_source: str, ext_pairs: List[List[str]]
+) -> Optional[List[Dict[str, str]]]:
+    """Native ``list_registered_roots``: build the [{path, source}, ...] array
+    (host root first, then the external pairs) in the C canonical writer."""
+    lib = _catalog_lib("srmech_catalog_registered_roots",
+                       "srmech_catalog_registered_roots_arena_bytes")
+    if lib is None:
+        return None
+    import ctypes
+    from . import _native
+    rp = root_path.encode("utf-8")
+    rs = root_source.encode("utf-8")
+    ext = json.dumps(ext_pairs, ensure_ascii=False).encode("utf-8")
+    ws_bytes = int(lib.srmech_catalog_registered_roots_arena_bytes(
+        len(rp), len(rs), len(ext)))
+    ws = (ctypes.c_char * ws_bytes)()
+    out_cap = 2 * len(ext) + len(rp) + len(rs) + 4096
+    out = (ctypes.c_char * out_cap)()
+    out_len = ctypes.c_size_t()
+    rc = lib.srmech_catalog_registered_roots(
+        rp, len(rp), rs, len(rs), ext, len(ext),
+        ws, ws_bytes, out, out_cap, ctypes.byref(out_len))
+    if rc != _native.SRMECH_OK:
+        return None
+    return json.loads(out.raw[:out_len.value].decode("utf-8"))
+
+
+def _local_kernel_state_native(
+    active: bool, path: Optional[str], adapter_class: Optional[str],
+    per_source: List[Dict[str, str]],
+) -> Optional[Dict[str, Any]]:
+    """Native ``get_local_kernel_state``: assemble the state envelope + the
+    Class-A cache_hash = sha256("\\n".join(f"{source_key}\\t{overlay_sha256}"))
+    over the caller-provided (FS-derived) per_source set."""
+    lib = _catalog_lib("srmech_catalog_local_kernel_state",
+                       "srmech_catalog_local_kernel_state_arena_bytes")
+    if lib is None:
+        return None
+    import ctypes
+    from . import _native
+    ps = json.dumps(per_source, ensure_ascii=False).encode("utf-8")
+    pb = _opt_bytes(path)
+    ab = _opt_bytes(adapter_class)
+    pl = len(pb) if pb is not None else 0
+    al = len(ab) if ab is not None else 0
+    ws_bytes = int(lib.srmech_catalog_local_kernel_state_arena_bytes(
+        pl, al, len(ps)))
+    ws = (ctypes.c_char * ws_bytes)()
+    out_cap = len(ps) + pl + al + 4096
+    out = (ctypes.c_char * out_cap)()
+    out_len = ctypes.c_size_t()
+    rc = lib.srmech_catalog_local_kernel_state(
+        1 if active else 0, pb, pl, ab, al, ps, len(ps),
+        ws, ws_bytes, out, out_cap, ctypes.byref(out_len))
+    if rc != _native.SRMECH_OK:
+        return None
+    return json.loads(out.raw[:out_len.value].decode("utf-8"))
+
+
+def _use_local_kernel_native(
+    *, clear: bool, resolved: Optional[str] = None,
+    adapter_class: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Native ``use_local_kernel`` / ``clear_local_kernel`` HAPPY-PATH response
+    (the clear response, or the success response for an already-validated
+    overlay). Error responses (invalid class / missing / not-a-dir) stay in
+    Python (their repr-formatted messages are host presentation)."""
+    lib = _catalog_lib("srmech_catalog_use_local_kernel",
+                       "srmech_catalog_use_local_kernel_arena_bytes")
+    if lib is None:
+        return None
+    import ctypes
+    from . import _native
+    pb = _opt_bytes(resolved)
+    ab = _opt_bytes(adapter_class)
+    pl = len(pb) if pb is not None else 0
+    al = len(ab) if ab is not None else 0
+    ws_bytes = int(lib.srmech_catalog_use_local_kernel_arena_bytes(pl, al))
+    ws = (ctypes.c_char * ws_bytes)()
+    out_cap = pl + al + 4096
+    out = (ctypes.c_char * out_cap)()
+    out_len = ctypes.c_size_t()
+    rc = lib.srmech_catalog_use_local_kernel(
+        1 if clear else 0, pb, pl, ab, al,
+        ws, ws_bytes, out, out_cap, ctypes.byref(out_len))
+    if rc != _native.SRMECH_OK:
+        return None
+    return json.loads(out.raw[:out_len.value].decode("utf-8"))
+
+
+def _attestation_audit_native(
+    source_key: str, ndjson: Path
+) -> Optional[Dict[str, Any]]:
+    """Native ``attestation_audit``: iterate the NDJSON bytes + project the
+    per-row attestation metadata (composes the srmech_json parser). Returns
+    ``None`` on any read / parse issue so the caller runs the pure path
+    (which raises MPRValidationError on a genuinely malformed line)."""
+    lib = _catalog_lib("srmech_catalog_attestation_audit",
+                       "srmech_catalog_attestation_audit_arena_bytes")
+    if lib is None:
+        return None
+    import ctypes
+    from . import _native
+    try:
+        nd = ndjson.read_bytes()
+    except OSError:
+        return None
+    sk = source_key.encode("utf-8")
+    ws_bytes = int(lib.srmech_catalog_attestation_audit_arena_bytes(
+        len(nd), len(sk)))
+    ws = (ctypes.c_char * ws_bytes)()
+    out_cap = 2 * len(nd) + 4096
+    out = (ctypes.c_char * out_cap)()
+    out_len = ctypes.c_size_t()
+    rc = lib.srmech_catalog_attestation_audit(
+        sk, len(sk), nd, len(nd), ws, ws_bytes, out, out_cap,
+        ctypes.byref(out_len))
+    if rc != _native.SRMECH_OK:
+        return None
+    return json.loads(out.raw[:out_len.value].decode("utf-8"))
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Discovery — cached at module load
 # ──────────────────────────────────────────────────────────────────────
 #
@@ -173,6 +328,11 @@ def list_registered_roots() -> List[Dict[str, str]]:
     registration order. Used by downstream consumers for diagnostic
     output and by tests for registration-order verification.
     """
+    ext_pairs = [[str(path), src] for path, src in _REGISTERED_ROOTS]
+    native = _registered_roots_native(
+        str(_attested_root()), "srmech.amsc", ext_pairs)
+    if native is not None:
+        return native
     rows: List[Dict[str, str]] = [
         {"path": str(_attested_root()), "source": "srmech.amsc"},
     ]
@@ -346,6 +506,9 @@ def use_local_kernel(
     if path is None:
         _LOCAL_KERNEL_PATH = None
         _LOCAL_KERNEL_ADAPTER_CLASS = None
+        native = _use_local_kernel_native(clear=True)
+        if native is not None:
+            return native
         return {
             "ok": True,
             "active": False,
@@ -373,6 +536,10 @@ def use_local_kernel(
         }
     _LOCAL_KERNEL_PATH = resolved
     _LOCAL_KERNEL_ADAPTER_CLASS = adapter_class
+    native = _use_local_kernel_native(
+        clear=False, resolved=str(resolved), adapter_class=adapter_class)
+    if native is not None:
+        return native
     scope_msg = (
         f" (scope: adapter_class={adapter_class!r})"
         if adapter_class else ""
@@ -415,6 +582,13 @@ def get_local_kernel_state() -> Dict[str, Any]:
             "overlay_sha256": _file_sha256(overlay),
         })
 
+    active = _LOCAL_KERNEL_PATH is not None
+    path_str = str(_LOCAL_KERNEL_PATH) if _LOCAL_KERNEL_PATH else None
+    native = _local_kernel_state_native(
+        active, path_str, _LOCAL_KERNEL_ADAPTER_CLASS, per_source)
+    if native is not None:
+        return native
+
     canonical = "\n".join(
         f"{e['source_key']}\t{e['overlay_sha256']}" for e in per_source
     )
@@ -423,8 +597,8 @@ def get_local_kernel_state() -> Dict[str, Any]:
 
     return {
         "ok": True,
-        "active": _LOCAL_KERNEL_PATH is not None,
-        "path": str(_LOCAL_KERNEL_PATH) if _LOCAL_KERNEL_PATH else None,
+        "active": active,
+        "path": path_str,
         "adapter_class": _LOCAL_KERNEL_ADAPTER_CLASS,
         "n_overlay_sources": len(per_source),
         "per_source": per_source,
@@ -969,6 +1143,10 @@ def attestation_audit(source_key: str) -> Dict[str, Any]:
             "rows": [],
             "note": "no committed NDJSON; first T1 collection pending",
         }
+
+    native = _attestation_audit_native(source_key, ndjson)
+    if native is not None:
+        return native
 
     rows: List[Dict[str, str]] = []
     for record in read_ndjson(ndjson):
