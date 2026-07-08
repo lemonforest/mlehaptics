@@ -2886,6 +2886,38 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_catalog_attestation_audit_arena_bytes.restype = ctypes.c_size_t
 
     # ------------------------------------------------------------------
+    # amsc.compose LINEAR CHAIN-RUNNER parse + validate (0.9.0rc173; the
+    # ORCHESTRATION→C spine, batch 3). Each takes JSON (the Python dict,
+    # json.dumps'd) + a caller arena, writes normalized-spec canonical JSON.
+    #   int srmech_chain_spec_parse(chain_json, chain_len, ws, ws_len,
+    #       out, out_cap, size_t *out_len)
+    #   int srmech_chain_catalog_parse(cat_json, cat_len, ws, ws_len,
+    #       out, out_cap, size_t *out_len)
+    # ------------------------------------------------------------------
+    if hasattr(lib, "srmech_chain_spec_parse"):
+        lib.srmech_chain_spec_parse.argtypes = [
+            ctypes.c_char_p, ctypes.c_size_t,   # chain_json, chain_len
+            ctypes.c_void_p, ctypes.c_size_t,   # ws, ws_len
+            ctypes.c_char_p, ctypes.c_size_t,   # out, out_cap
+            ctypes.POINTER(ctypes.c_size_t),    # out_len
+        ]
+        lib.srmech_chain_spec_parse.restype = ctypes.c_int
+    if hasattr(lib, "srmech_chain_spec_parse_arena_bytes"):
+        lib.srmech_chain_spec_parse_arena_bytes.argtypes = [ctypes.c_size_t]
+        lib.srmech_chain_spec_parse_arena_bytes.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_chain_catalog_parse"):
+        lib.srmech_chain_catalog_parse.argtypes = [
+            ctypes.c_char_p, ctypes.c_size_t,   # cat_json, cat_len
+            ctypes.c_void_p, ctypes.c_size_t,   # ws, ws_len
+            ctypes.c_char_p, ctypes.c_size_t,   # out, out_cap
+            ctypes.POINTER(ctypes.c_size_t),    # out_len
+        ]
+        lib.srmech_chain_catalog_parse.restype = ctypes.c_int
+    if hasattr(lib, "srmech_chain_catalog_parse_arena_bytes"):
+        lib.srmech_chain_catalog_parse_arena_bytes.argtypes = [ctypes.c_size_t]
+        lib.srmech_chain_catalog_parse_arena_bytes.restype = ctypes.c_size_t
+
+    # ------------------------------------------------------------------
     # Class N — ROTATION-LAST Chudnovsky π on srmech_bigint (0.9.0rc19).
     # The two srmech_pi_* symbols are the C-host peer of
     # srmech.amsc.rational.pi_chudnovsky_digits — exact bigint body, ONE

@@ -240,8 +240,8 @@
 {"exposed_as": "srmech.amsc.catalog.list_catalog_chains", "defined_at": "srmech.amsc.catalog.list_catalog_chains", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
 {"exposed_as": "srmech.amsc.catalog.run_catalog_chain", "defined_at": "srmech.amsc.catalog.run_catalog_chain", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
 {"exposed_as": "srmech.amsc.clear_local_kernel", "defined_at": "srmech.amsc.catalog.clear_local_kernel", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.compose.parse_catalog_chains", "defined_at": "srmech.amsc.compose.parse_catalog_chains", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
-{"exposed_as": "srmech.amsc.compose.parse_chain_spec", "defined_at": "srmech.amsc.compose.parse_chain_spec", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.amsc.compose.parse_catalog_chains", "defined_at": "srmech.amsc.compose.parse_catalog_chains", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.compose.parse_chain_spec", "defined_at": "srmech.amsc.compose.parse_chain_spec", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.compose.resolve_chain", "defined_at": "srmech.amsc.compose.resolve_chain", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
 {"exposed_as": "srmech.amsc.compose.run_chain", "defined_at": "srmech.amsc.compose.run_chain", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
 {"exposed_as": "srmech.amsc.discover_descriptors", "defined_at": "srmech.amsc.descriptor.discover_descriptors", "bucket": "non_compute", "non_compute_kind": "host_glue"}

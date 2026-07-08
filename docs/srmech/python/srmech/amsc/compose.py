@@ -69,6 +69,7 @@ References
 from __future__ import annotations
 
 import importlib
+import json
 import logging
 import re
 import warnings
@@ -197,6 +198,127 @@ def _walk_args(args: Any, fn: Callable[[str], None]) -> None:
     # Scalars + None: nothing to walk.
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Native PARSE + VALIDATE dispatch (0.9.0rc173; the ORCHESTRATION→C spine,
+# batch 3). ``srmech_chain_spec_parse`` / ``srmech_chain_catalog_parse``
+# validate a chain block (JSON) and return the normalized spec as canonical
+# JSON; the Python caller re-attaches each step's ``args`` from the ORIGINAL
+# dict so arg object identity/type is preserved. Any validation failure or
+# non-JSON input → the C peer returns non-OK → the COMPLETE pure path runs
+# (which raises the specific ``ChainSpecError``), never a rescue. Only the
+# PARSE half is in C: resolve_chain / run_chain invoke ARBITRARY srmech ops
+# over the live Python object graph — scoped rc174 (see srmech_compose.c).
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _compose_lib(*symbols: str):
+    """Return the native LIB iff HAS_NATIVE and every named rc173 symbol is
+    bound (a stale ABI-3 lib missing them → ``None`` → the pure path)."""
+    from . import _native
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    lib = _native.LIB
+    for sym in symbols:
+        if not hasattr(lib, sym):
+            return None
+    return lib
+
+
+def _chain_spec_from_native(
+    chain_dict: Dict[str, Any], native: Dict[str, Any]
+) -> ChainSpec:
+    """Rebuild a :class:`ChainSpec` from the C-validated normalized dict,
+    taking each step's ``args`` from the ORIGINAL ``chain_dict`` (so the arg
+    object identity + type are byte-identical to the pure path's
+    ``dict(raw_step["args"])``)."""
+    raw_steps = chain_dict["steps"]
+    steps = [
+        StepSpec(
+            class_id=s["class_id"], op=s["op"],
+            args=dict(raw_steps[i]["args"]), on_error=s["on_error"],
+        )
+        for i, s in enumerate(native["steps"])
+    ]
+    return ChainSpec(
+        name=native["name"], summary=native["summary"],
+        returns=native["returns"], steps=tuple(steps),
+        on_error=native["on_error"],
+    )
+
+
+def _call_compose_native(lib, arena_sym: str, call_sym: str,
+                         payload: bytes) -> Optional[str]:
+    """Run one caller-arena compose peer (arena-size → call → canonical JSON
+    string) or ``None`` on any non-OK status. Shared by both parse ops."""
+    import ctypes
+    from . import _native
+    ws_bytes = int(getattr(lib, arena_sym)(len(payload)))
+    ws = (ctypes.c_char * ws_bytes)()
+    out_cap = 2 * len(payload) + 8192
+    out = (ctypes.c_char * out_cap)()
+    out_len = ctypes.c_size_t()
+    rc = getattr(lib, call_sym)(
+        payload, len(payload), ws, ws_bytes, out, out_cap,
+        ctypes.byref(out_len))
+    if rc != _native.SRMECH_OK:
+        return None
+    return out.raw[:out_len.value].decode("utf-8")
+
+
+def _parse_chain_spec_native(
+    chain_dict: Dict[str, Any]
+) -> Optional[ChainSpec]:
+    """Native ``parse_chain_spec``: validate one chain block in C + rebuild
+    the ChainSpec. ``None`` (→ pure path) on a non-dict input, a non-JSON
+    payload, or any C-side validation failure."""
+    if not isinstance(chain_dict, dict):
+        return None
+    lib = _compose_lib("srmech_chain_spec_parse",
+                       "srmech_chain_spec_parse_arena_bytes")
+    if lib is None:
+        return None
+    try:
+        payload = json.dumps(chain_dict, ensure_ascii=False).encode("utf-8")
+    except (TypeError, ValueError):
+        return None
+    text = _call_compose_native(
+        lib, "srmech_chain_spec_parse_arena_bytes",
+        "srmech_chain_spec_parse", payload)
+    if text is None:
+        return None
+    return _chain_spec_from_native(chain_dict, json.loads(text))
+
+
+def _parse_catalog_chains_native(
+    catalog: Dict[str, Any], chains_raw: List[Any]
+) -> Optional[List[ChainSpec]]:
+    """Native ``parse_catalog_chains``: validate the schema version + every
+    chain in C. ``None`` (→ pure path) on a non-JSON payload or any C-side
+    validation failure (the pure path raises the specific ChainSpecError)."""
+    lib = _compose_lib("srmech_chain_catalog_parse",
+                       "srmech_chain_catalog_parse_arena_bytes")
+    if lib is None:
+        return None
+    payload_obj = {
+        "chain_schema_version": catalog.get("chain_schema_version"),
+        "operator_chain": chains_raw,
+    }
+    try:
+        payload = json.dumps(payload_obj, ensure_ascii=False).encode("utf-8")
+    except (TypeError, ValueError):
+        return None
+    text = _call_compose_native(
+        lib, "srmech_chain_catalog_parse_arena_bytes",
+        "srmech_chain_catalog_parse", payload)
+    if text is None:
+        return None
+    native_list = json.loads(text)
+    if len(native_list) != len(chains_raw):
+        return None
+    return [_chain_spec_from_native(chains_raw[i], native_list[i])
+            for i in range(len(native_list))]
+
+
 def parse_chain_spec(chain_dict: Dict[str, Any]) -> ChainSpec:
     """Parse and validate one ``[[catalog.operator_chain]]`` entry.
 
@@ -216,6 +338,9 @@ def parse_chain_spec(chain_dict: Dict[str, Any]) -> ChainSpec:
         On missing keys, unknown class identifiers, malformed
         reference syntax, or out-of-bounds step references.
     """
+    native = _parse_chain_spec_native(chain_dict)
+    if native is not None:
+        return native
     if not isinstance(chain_dict, dict):
         raise ChainSpecError(
             f"chain entry must be a dict; got {type(chain_dict).__name__}"
@@ -546,6 +671,9 @@ def parse_catalog_chains(
     chains_raw = catalog.get("operator_chain", [])
     if not chains_raw:
         return []
+    native = _parse_catalog_chains_native(catalog, chains_raw)
+    if native is not None:
+        return native
     schema_version = catalog.get("chain_schema_version")
     if schema_version is None:
         raise ChainSpecError(

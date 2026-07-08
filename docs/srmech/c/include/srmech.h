@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc172"
-#define SRMECH_VERSION       "0.9.0rc172"
+#define SRMECH_VERSION_PRE   "rc173"
+#define SRMECH_VERSION       "0.9.0rc173"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1833,6 +1833,53 @@ size_t srmech_catalog_attestation_audit_arena_bytes(size_t ndjson_len,
 srmech_status_t srmech_catalog_attestation_audit(
     const char *source_key, size_t source_key_len,
     const char *ndjson, size_t ndjson_len,
+    void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * amsc.compose LINEAR CHAIN-RUNNER — PARSE + VALIDATE (0.9.0rc173; the
+ * ORCHESTRATION→C spine, batch 3). A bare-C host parses + validates an
+ * operator-chain descriptor's `[[catalog.operator_chain]]` blocks with
+ * these peers, each COMPOSING the srmech_json parser / builder / canonical
+ * writer — NO new parser, NO new math. They back the Python ops
+ *   srmech.amsc.compose.parse_chain_spec     -> srmech_chain_spec_parse
+ *   srmech.amsc.compose.parse_catalog_chains -> srmech_chain_catalog_parse
+ *
+ * SCOPE (honest split): PARSE + VALIDATE only. The RUN loop (resolve_chain /
+ * run_chain) is NOT here — it dispatches ARBITRARY srmech ops (heterogeneous
+ * kwargs signatures) over the LIVE Python object graph (importlib + getattr +
+ * reference resolution against runtime step outputs) → it needs a bounded-op
+ * FFI + a uniform value carrier, scoped rc174. (Confirmed rc173: run_chain
+ * invokes ANY of the 14 class modules by name — sha256_bytes / mod_add /
+ * pi_cascade_digits / *_series_truncate — NOT the bounded cascade atoms.)
+ *
+ * CONTRACT: input is JSON (the Python dict, json.dumps'd). On success each
+ * peer writes the normalized spec(s) as canonical JSON (byte-identical to
+ * json.dumps(obj, sort_keys=True, ensure_ascii=False); NO trailing NUL) into
+ * `out` and sets *out_len. `args` are OMITTED — the Python caller re-attaches
+ * them from the ORIGINAL dict so arg object identity/type is preserved. On
+ * ANY validation failure or non-JSON input the peer returns non-OK so the
+ * caller runs the COMPLETE pure path (the ChainSpecError message is raised
+ * there). All scratch is caller-arena `ws` (size it with *_arena_bytes).
+ * ABI-additive: new symbols, so SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* parse_chain_spec: validate one chain block (JSON object with name / summary
+ * / returns / steps[{class,op,args,on_error?}] / on_error?) and emit the
+ * normalized {name, on_error, returns, steps:[{class_id, on_error, op}],
+ * summary}. Class ids A..N; on_error in {raise, warn_return_none, skip};
+ * every @<row|input|step|catalog>.<path> reference is grammar-checked and
+ * @step[N] is bounded to N < the step index. */
+size_t srmech_chain_spec_parse_arena_bytes(size_t chain_len);
+srmech_status_t srmech_chain_spec_parse(
+    const char *chain_json, size_t chain_len,
+    void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
+
+/* parse_catalog_chains: validate {chain_schema_version:1, operator_chain:[
+ * chain, ...]} and emit [spec, ...]. chain_schema_version MUST be int 1;
+ * each chain is validated as in srmech_chain_spec_parse. */
+size_t srmech_chain_catalog_parse_arena_bytes(size_t cat_len);
+srmech_status_t srmech_chain_catalog_parse(
+    const char *cat_json, size_t cat_len,
     void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
 
 /* ------------------------------------------------------------------ *

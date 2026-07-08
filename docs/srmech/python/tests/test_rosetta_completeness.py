@@ -628,7 +628,18 @@ CEIL_BIGNUM_REFERENCE = 0
 # get_attested_dataset / get_attested_descriptor). The 2 chain-runner-dependent
 # catalog ops (list_catalog_chains / run_catalog_chain) stay owed — the
 # amsc.compose chain-runner is not in C yet (rc173+). 15 → 9.
-CEIL_NON_COMPUTE_OWED = 9
+# rc173 (2026-07-07): the amsc.compose chain-runner PARSE half earned C — the
+# 2 parse ops moved owed_orchestration → composes_c (parse_chain_spec →
+# srmech_chain_spec_parse; parse_catalog_chains → srmech_chain_catalog_parse;
+# JSON-in / normalized-canonical-JSON-out, args re-attached from the original
+# dict). HONEST SPLIT: resolve_chain / run_chain STAY owed — they dispatch
+# ARBITRARY srmech ops (heterogeneous kwargs) over the LIVE Python object
+# graph (importlib + getattr + reference resolution against runtime step
+# outputs), a bounded-op FFI + uniform value carrier scoped rc174 (NOT the
+# bounded cascade atoms; confirmed run_chain invokes any of the 14 class
+# modules by name). The 2 catalog dependents (list_catalog_chains /
+# run_catalog_chain) also stay owed until the run loop lands. 9 → 7.
+CEIL_NON_COMPUTE_OWED = 7
 
 # The PINNED dev-tooling allowlist — the exact ``non_compute_kind == "dev_tooling"``
 # set. A row here is JUSTIFIED as a genuine dev / LLM-affordance a bare-C host
