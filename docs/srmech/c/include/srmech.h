@@ -2999,7 +2999,19 @@ srmech_status_t srmech_bus_client_close(srmech_bus_client_handle_t *h);
  * srmech_bus_server_stop — the rc179 accept model) + srmech_bus_broadcast +
  * srmech_bus_subscriber_count all take the mutex; the registry is race-free.
  * Teardown (srmech_bus_server_stop) closes every subscriber conn + destroys
- * the mutex under the lock.
+ * the mutex under the lock. On POSIX the fan-out + teardown are ASAN/UBSAN +
+ * ThreadSanitizer clean; closing a subscriber's server-side fd wakes its
+ * blocking read deterministically.
+ *
+ * PLATFORM SCOPE — POSIX-first (Windows is a follow-up). The Windows PAL
+ * transport is a NAMED PIPE whose instance is created lazily inside accept
+ * (POSIX listen pre-binds), and a synchronous ConnectNamedPipe is not reliably
+ * woken by CloseHandle from another thread — so a Windows pubsub_accept with no
+ * connected client can block indefinitely and teardown cannot deterministically
+ * wake it. The symbols BUILD on Windows, but a correct Windows pub/sub server
+ * (overlapped ConnectNamedPipe + a stop-event, or pre-created instances +
+ * a self-connect wake) needs Windows-CI verification and is a follow-up rc.
+ * The req/rep + encrypted transport (rc2 / rc179) are unaffected.
  *
  * ABI v4 (this rc): the new srmech_bus_subscriber_callback_t typedef carries
  * a CFUNCTYPE wire-format implication (the v2→v3 handler-callback precedent),

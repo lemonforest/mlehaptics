@@ -24,11 +24,26 @@ proving behavior parity with the Python ``broadcast`` / ``subscribe`` /
 ``pipe``. The full ASAN/UBSAN + ThreadSanitizer (NO DATA RACES) coverage is the
 ephemeral WSL /tmp C driver at build time (see the rc180 CHANGELOG).
 
+**Platform scope — pub/sub is POSIX-first (Windows is a follow-up).** The tests
+that DRIVE the C pub/sub server (``pubsub_accept`` / ``broadcast`` /
+``subscribe``) are POSIX-only. The Windows PAL transport is a NAMED PIPE whose
+instance is created lazily inside ``accept`` (POSIX ``listen`` pre-binds), and a
+synchronous ``ConnectNamedPipe`` is not reliably woken by ``CloseHandle`` from
+another thread — so on Windows a ``pubsub_accept`` with no connected client (or
+a client that raced ahead of the lazy instance) can block indefinitely, and
+teardown cannot deterministically wake it. A correct Windows pub/sub server
+(overlapped ``ConnectNamedPipe`` + a stop-event, or pre-created instances + a
+self-connect wake) needs Windows-CI verification and is a documented follow-up
+rc. Until then these tests SKIP on Windows (they never hang); the C symbols
+still build on Windows and ``pipe`` stays ``composes_c`` on the platforms where
+the server runs. The req/rep + encrypted transport (rc2 / rc179) are unaffected.
+
 numpy-free (ctypes + threading only).
 """
 from __future__ import annotations
 
 import ctypes
+import sys
 import threading
 import time
 import uuid
@@ -41,6 +56,15 @@ _NATIVE = _native.HAS_NATIVE
 
 requires_native = pytest.mark.skipif(
     not _NATIVE, reason="native bus C peer not loaded")
+
+# The pub/sub SERVER (pubsub_accept / broadcast / subscribe round-trips) is
+# POSIX-first — see the module docstring. Windows named-pipe accept/teardown is
+# a verified follow-up; these tests SKIP there rather than risk the hang.
+posix_only = pytest.mark.skipif(
+    sys.platform.startswith("win"),
+    reason="pub/sub C server is POSIX-first; Windows named-pipe accept/teardown "
+           "is a follow-up rc (rc180 does not drive the C bus on Windows)",
+)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -126,6 +150,7 @@ def _wait_count(lib, srv, target, *, timeout_s=5.0):
 
 
 @requires_native
+@posix_only
 def test_pubsub_broadcast_roundtrip():
     """Two subscribers BOTH receive every broadcast in order; a late subscriber
     misses the pre-subscribe message. Mirrors Python Endpoint.broadcast +
@@ -188,6 +213,7 @@ def test_pubsub_broadcast_roundtrip():
 
 
 @requires_native
+@posix_only
 def test_pubsub_unsubscribe_drops_subscriber():
     """After a subscriber unsubscribes (cb non-OK → closes), the next broadcast
     fails to write to it and the server DROPS it from the registry."""
@@ -230,3 +256,51 @@ def test_pubsub_unsubscribe_drops_subscriber():
         assert got == [b"m1"]  # no delivery after unsubscribe
     finally:
         assert lib.srmech_bus_server_stop(srv) == 0
+
+
+@requires_native
+@posix_only
+def test_server_stop_terminates_midrecv_subscriber():
+    """Teardown-terminates guard: a subscriber blocked MID-recv (no broadcast is
+    ever sent, and its callback never unsubscribes) must be woken by
+    ``server_stop`` closing its conn — ``server_stop`` returns PROMPTLY and the
+    subscriber's ``subscribe()`` returns. This is the POSIX analog of the
+    Windows-only teardown hang the C server must handle in the follow-up rc; on
+    POSIX, closing the server-side fd makes the client's blocking read return
+    EOF, so the wake is deterministic. The guard exercises that wake path on the
+    platform CI can run here (WSL couldn't surface the Windows divergence)."""
+    lib = _native.LIB
+    name = f"rc180pytest-{uuid.uuid4().hex[:10]}"
+    srv, _handler = _serve(lib, name)
+    returned = threading.Event()
+
+    def _cb(event_ptr, event_len, ud):
+        return 0  # never unsubscribe — only the server close can end the stream
+
+    cb = _native.BUS_SUBSCRIBER_CALLBACK(_cb)
+
+    def _run():
+        cli = ctypes.c_void_p()
+        if lib.srmech_bus_connect(name.encode(), ctypes.byref(cli)) != 0:
+            return
+        buf = (ctypes.c_ubyte * 4096)()
+        lib.srmech_bus_subscribe(cli, buf, 4096, cb, None)  # blocks in recv
+        lib.srmech_bus_client_close(cli)
+        returned.set()
+
+    th = threading.Thread(target=_run, daemon=True)
+    th.start()
+    assert lib.srmech_bus_pubsub_accept(srv) == 0
+    assert _wait_count(lib, srv, 1) == 1
+    # The subscriber is now blocked in recv (no broadcast was ever sent).
+    t0 = time.time()
+    rc = lib.srmech_bus_server_stop(srv)   # must close the sub conn → wake recv
+    dt = time.time() - t0
+    assert rc == 0
+    assert dt < 5.0, f"server_stop took {dt:.2f}s — teardown did not terminate"
+    # Closing the subscriber conn unblocks its read → subscribe() returns.
+    assert returned.wait(timeout=5.0), (
+        "mid-recv subscriber was not woken by server_stop teardown"
+    )
+    th.join(timeout=5.0)
+    assert not th.is_alive()
