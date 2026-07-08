@@ -38,8 +38,9 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # classification (defined_at -> non_compute_kind). These are the ACTUAL canonical
 # <module>.<qualname> keys the ledger walk emits (verified against the live walk).
 _ANNEX_ROWS = {
-    # owed_orchestration (10) — the bus cipher stream kernel + the DSL interpreter
-    "srmech.bus._bio_totp.decode_splice": "owed_orchestration",
+    # owed_orchestration (9) — the DSL interpreter + the bus pipe (rc178 moved
+    # the bus Bio-TOTP decode_splice cipher owed → composes_c: it earned its C
+    # peer srmech_bio_totp_decode_splice)
     "srmech.bus._pipe.pipe": "owed_orchestration",
     "srmech.dsl._chain.chain": "owed_orchestration",
     "srmech.dsl._tool_surface.run_toml_chain": "owed_orchestration",
@@ -49,8 +50,9 @@ _ANNEX_ROWS = {
     "srmech.dsl._toml_chain.build_chain_from_toml_str": "owed_orchestration",
     "srmech.dsl._class_catalog.make_class": "owed_orchestration",
     "srmech.dsl._class_surface.run_class_method": "owed_orchestration",
-    # composes_c (3) — compose existing C (sha256 / cipher backend), reach no
-    # non-standalone-ready leaf
+    # composes_c (4) — compose existing C (sha256 / json / cipher backend), reach
+    # no non-standalone-ready leaf
+    "srmech.bus._bio_totp.decode_splice": "composes_c",
     "srmech.bus._client.connect": "composes_c",
     "srmech.bus._server.serve": "composes_c",
     "srmech.bus._bio_totp.channel_id_from_name": "composes_c",
@@ -84,11 +86,13 @@ _ANNEX_ROWS = {
     "srmech.dsl._class_surface.list_class_surface": "dev_tooling",
 }
 
-# the +39 delta by kind (what the annex ADDS to the pre-rc177 split)
-_ANNEX_DELTA = {"owed_orchestration": 10, "composes_c": 3, "host_glue": 12,
+# the +39 delta by kind (what the annex ADDS to the pre-rc177 split; rc178 moved
+# 1 within-annex row owed → composes_c so the split is now 9/4/12/14)
+_ANNEX_DELTA = {"owed_orchestration": 9, "composes_c": 4, "host_glue": 12,
                 "dev_tooling": 14}
-# the FULL split after the annex (pre-rc177 2/83/2/27 + the delta)
-_FULL_SPLIT = {"owed_orchestration": 12, "composes_c": 86, "host_glue": 14,
+# the FULL split after the annex (pre-rc177 2/83/2/27 + the delta; rc178: owed
+# 12→11, composes_c 86→87 as decode_splice earned its C peer)
+_FULL_SPLIT = {"owed_orchestration": 11, "composes_c": 87, "host_glue": 14,
                "dev_tooling": 41}
 _TOTAL_NON_COMPUTE = 153
 
@@ -137,9 +141,9 @@ def test_annex_rows_are_live():
     )
 
 
-def test_annex_delta_is_39_split_10_3_12_14():
-    """The +39 annex rows split exactly 10 owed / 3 composes_c / 12 host_glue /
-    14 dev_tooling."""
+def test_annex_delta_is_39_split_9_4_12_14():
+    """The +39 annex rows split exactly 9 owed / 4 composes_c / 12 host_glue /
+    14 dev_tooling (rc178 moved decode_splice owed → composes_c)."""
     counts = Counter(_ANNEX_ROWS.values())
     assert dict(counts) == _ANNEX_DELTA, (
         f"annex +39 split drifted: got {dict(counts)}, expected {_ANNEX_DELTA}"
@@ -148,8 +152,8 @@ def test_annex_delta_is_39_split_10_3_12_14():
 
 
 def test_full_non_compute_split_sums_to_153():
-    """The full non_compute ledger split (pre-rc177 + the annex) is
-    12/86/14/41 = 153."""
+    """The full non_compute ledger split (pre-rc177 + the annex, after the rc178
+    decode_splice move) is 11/87/14/41 = 153."""
     counts = Counter(r["non_compute_kind"] for r in _rows()
                      if r.get("bucket") == "non_compute")
     assert dict(counts) == _FULL_SPLIT, (
@@ -159,11 +163,12 @@ def test_full_non_compute_split_sums_to_153():
     assert sum(counts.values()) == _TOTAL_NON_COMPUTE == sum(_FULL_SPLIT.values())
 
 
-def test_ceil_non_compute_owed_is_12():
-    """The phase-driver ceiling rose 2 → 12 for the annex (owed_orchestration now
-    12: the deferred tool_schema pair + the 10 bus/dsl orchestration ops)."""
-    assert CEIL_NON_COMPUTE_OWED == 12, (
-        f"CEIL_NON_COMPUTE_OWED must be 12 for the rc177 annex; got "
+def test_ceil_non_compute_owed_is_11():
+    """The phase-driver ceiling is 11 after rc178 (owed_orchestration: the
+    deferred tool_schema pair + 9 bus/dsl orchestration ops; decode_splice
+    earned its C peer in rc178 and left the owed bucket)."""
+    assert CEIL_NON_COMPUTE_OWED == 11, (
+        f"CEIL_NON_COMPUTE_OWED must be 11 after rc178; got "
         f"{CEIL_NON_COMPUTE_OWED}"
     )
 
