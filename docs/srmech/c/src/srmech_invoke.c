@@ -133,6 +133,16 @@ static srmech_mval_t *iv_bool(srmech_marshal_arena_t *a, int truth)
     return v;
 }
 
+/* A FLOAT leaf carrier (rc190 float-carrier results — Mat / Vec elements). */
+static srmech_mval_t *iv_float(srmech_marshal_arena_t *a, double x)
+{
+    srmech_mval_t *v = iv_new(a, SRMECH_MVAL_FLOAT);
+    assert(a != NULL);
+    assert(a->cur <= a->end);
+    if (v != NULL) { v->re = x; }
+    return v;
+}
+
 /* A STR node copying `len` bytes of `src` INTO the arena (persists). */
 static srmech_mval_t *iv_str_copy(srmech_marshal_arena_t *a,
                                   const char *src, uint32_t len)
@@ -263,6 +273,85 @@ static srmech_status_t iv_result_rat(srmech_marshal_arena_t *a, int64_t num,
     n0 = iv_int(a, num); n1 = iv_int(a, (int64_t)den);
     if (tup == NULL || n0 == NULL || n1 == NULL) { return SRMECH_ERR_OVERFLOW; }
     tup->items[0] = n0; tup->items[1] = n1; *out = tup;
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------
+ * rc190 float-carrier accessors — a real MAT carrier / an identity "Vec" LIST
+ * carrier -> the doubles the dense kernels read. Complex-via-JSON is NEVER a
+ * marshalled float carrier (coerce_param builds a real Mat / the plain list),
+ * so a non-real leaf -> 0 (defer to the pure complex path). NO abs/libm.
+ * ------------------------------------------------------------------ */
+
+/* A real MAT arg carrier -> (rows, cols, row-major real double buffer). */
+static int iv_arg_mat(const srmech_mval_t *v, uint32_t *rows, uint32_t *cols,
+                      const double **buf)
+{
+    assert(rows != NULL && cols != NULL && buf != NULL);
+    if (v == NULL || v->kind != SRMECH_MVAL_MAT) { return 0; }
+    assert(v->kind == SRMECH_MVAL_MAT);                 /* post-guard invariant */
+    *rows = v->n; *cols = (uint32_t)v->i;
+    *buf = (const double *)(const void *)v->b;
+    return 1;
+}
+
+/* A "Vec" identity LIST carrier -> a real double array (arena-carved) + length.
+ * 0 (defer) for a non-LIST or a non-real (int/float) leaf (a complex [re,im]
+ * leaf routes to the pure complex path). */
+static int iv_vec_reals(const srmech_mval_t *v, srmech_marshal_arena_t *a,
+                        const double **buf, uint32_t *len)
+{
+    uint32_t i, n; double *d;
+    assert(v != NULL && a != NULL);
+    assert(buf != NULL && len != NULL);
+    if (v->kind != SRMECH_MVAL_LIST) { return 0; }
+    n = v->n;
+    d = (double *)iv_carve(a, (size_t)(n ? n : 1u) * sizeof(double));
+    if (d == NULL) { return 0; }
+    for (i = 0u; i < n; i++) {
+        const srmech_mval_t *el = v->items[i];
+        if (el == NULL) { return 0; }
+        if (el->kind == SRMECH_MVAL_INT) { d[i] = (double)el->i; }
+        else if (el->kind == SRMECH_MVAL_FLOAT) { d[i] = el->re; }
+        else { return 0; }
+    }
+    *buf = d; *len = n;
+    return 1;
+}
+
+/* Interleave `n` real doubles as (re, 0.0) pairs into `dst` (2n doubles) — the
+ * exact (re, 0) fill the Python _mat_to_interleaved_cbuf does for a real Mat, so
+ * the shared complex kernel sees BIT-IDENTICAL input. */
+static void iv_interleave_real(const double *src, uint32_t n, double *dst)
+{
+    uint32_t i;
+    assert(src != NULL || n == 0u);
+    assert(dst != NULL || n == 0u);
+    for (i = 0u; i < n; i++) { dst[2u * i] = src[i]; dst[2u * i + 1u] = 0.0; }
+}
+
+/* Build an m×n real result (row-major reals `re`) -> a nested LIST-of-FLOAT
+ * carrier (the serialiser emits it as json.dumps default-form float rows). */
+static srmech_status_t iv_reals_to_rows(srmech_marshal_arena_t *a,
+                                        const double *re, uint32_t m, uint32_t n,
+                                        srmech_mval_t **out)
+{
+    srmech_mval_t *rows; uint32_t i, j;
+    assert(a != NULL && out != NULL);
+    assert(re != NULL || (size_t)m * n == 0u);
+    rows = iv_list(a, m, 0);
+    if (rows == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (i = 0u; i < m; i++) {
+        srmech_mval_t *row = iv_list(a, n, 0);
+        if (row == NULL) { return SRMECH_ERR_OVERFLOW; }
+        for (j = 0u; j < n; j++) {
+            srmech_mval_t *fv = iv_float(a, re[(size_t)i * n + j]);
+            if (fv == NULL) { return SRMECH_ERR_OVERFLOW; }
+            row->items[j] = fv;
+        }
+        rows->items[i] = row;
+    }
+    *out = rows;
     return SRMECH_OK;
 }
 
@@ -1041,6 +1130,119 @@ static srmech_status_t iv_shape_template_render(const srmech_tool_entry_t *e,
     return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
 }
 
+/* ==================================================================
+ * rc190 FLOAT-CARRIER BATCH — Mat/Vec c_dispatched tools. Each rides the SAME
+ * C kernel (or the SAME single-multiply) the pure invoke_tool path uses, so the
+ * result doubles are BIT-IDENTICAL and serialise (via srmech_double_repr) byte-
+ * identically to serialise_result(invoke_tool(...)). REAL inputs only — a
+ * complex-via-JSON operand / an empty / a dim-mismatch / a giant shape DEFERS
+ * (the pure path is the complete fallback, never a wrong answer).
+ * ================================================================== */
+
+/* dims beyond this defer to the (uncapped) pure path — keeps size arithmetic
+ * bounded and avoids pathological arena sizing; correctness is identical either
+ * way (the pure path dispatches the same native kernel). */
+#define IV_MAT_DIM_MAX 1024u
+
+/* Shape thunk: (Mat, Mat) -> Mat   laplacian.mat_matmul. Interleaves the two
+ * real operands (re,0) and rides srmech_dense_matmul_complex — the exact kernel
+ * the Python mat_matmul dispatches to — then takes the real parts. */
+static srmech_status_t iv_shape_mat_matmul(const srmech_tool_entry_t *e,
+                                           srmech_mval_t **argv, uint32_t argc,
+                                           srmech_marshal_arena_t *a,
+                                           srmech_mval_t **out)
+{
+    uint32_t m, k, n, k2, i; const double *pa, *pb; double *a_il, *b_il, *o_il;
+    srmech_status_t st;
+    assert(e != NULL && argv != NULL && a != NULL && out != NULL);
+    assert(argc >= 1u);
+    if (argc != 2u || strcmp(e->name, "srmech.amsc.laplacian.mat_matmul") != 0) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (!iv_arg_mat(argv[0], &m, &k, &pa) || !iv_arg_mat(argv[1], &k2, &n, &pb)) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (k != k2) { return SRMECH_ERR_NOT_IMPL; }         /* dim mismatch -> pure raises */
+    if (m == 0u || k == 0u || n == 0u) { return SRMECH_ERR_NOT_IMPL; }  /* empty -> pure */
+    if (m > IV_MAT_DIM_MAX || k > IV_MAT_DIM_MAX || n > IV_MAT_DIM_MAX) {
+        return SRMECH_ERR_NOT_IMPL;                       /* giant -> pure (uncapped) */
+    }
+    a_il = (double *)iv_carve(a, (size_t)2u * m * k * sizeof(double));
+    b_il = (double *)iv_carve(a, (size_t)2u * k * n * sizeof(double));
+    o_il = (double *)iv_carve(a, (size_t)2u * m * n * sizeof(double));
+    if (a_il == NULL || b_il == NULL || o_il == NULL) { return SRMECH_ERR_OVERFLOW; }
+    iv_interleave_real(pa, m * k, a_il);
+    iv_interleave_real(pb, k * n, b_il);
+    st = srmech_dense_matmul_complex(m, k, n, a_il, b_il, o_il);
+    if (st != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
+    for (i = 0u; i < m * n; i++) { o_il[i] = o_il[2u * i]; }  /* compact real parts */
+    return iv_reals_to_rows(a, o_il, m, n, out);
+}
+
+/* Shape thunk: (Mat, Vec) -> Vec   laplacian.mat_matvec. Rides the SAME kernel
+ * over a k×1 column (exactly the Python mat_matvec = mat_matmul(M, col)). */
+static srmech_status_t iv_shape_mat_matvec(const srmech_tool_entry_t *e,
+                                           srmech_mval_t **argv, uint32_t argc,
+                                           srmech_marshal_arena_t *a,
+                                           srmech_mval_t **out)
+{
+    uint32_t m, k, vn, i; const double *pm, *pv; double *m_il, *v_il, *o_il;
+    srmech_mval_t *vec; srmech_status_t st;
+    assert(e != NULL && argv != NULL && a != NULL && out != NULL);
+    assert(argc >= 1u);
+    if (argc != 2u || strcmp(e->name, "srmech.amsc.laplacian.mat_matvec") != 0) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (!iv_arg_mat(argv[0], &m, &k, &pm)) { return SRMECH_ERR_NOT_IMPL; }
+    if (!iv_vec_reals(argv[1], a, &pv, &vn)) { return SRMECH_ERR_NOT_IMPL; }
+    if (vn != k) { return SRMECH_ERR_NOT_IMPL; }         /* shape mismatch -> pure raises */
+    if (m == 0u || k == 0u) { return SRMECH_ERR_NOT_IMPL; }  /* empty -> pure */
+    if (m > IV_MAT_DIM_MAX || k > IV_MAT_DIM_MAX) { return SRMECH_ERR_NOT_IMPL; }
+    m_il = (double *)iv_carve(a, (size_t)2u * m * k * sizeof(double));
+    v_il = (double *)iv_carve(a, (size_t)2u * k * sizeof(double));
+    o_il = (double *)iv_carve(a, (size_t)2u * m * sizeof(double));
+    if (m_il == NULL || v_il == NULL || o_il == NULL) { return SRMECH_ERR_OVERFLOW; }
+    iv_interleave_real(pm, m * k, m_il);
+    iv_interleave_real(pv, k, v_il);
+    st = srmech_dense_matmul_complex(m, k, 1u, m_il, v_il, o_il);
+    if (st != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
+    vec = iv_list(a, m, 0);
+    if (vec == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (i = 0u; i < m; i++) {
+        srmech_mval_t *fv = iv_float(a, o_il[2u * i]);
+        if (fv == NULL) { return SRMECH_ERR_OVERFLOW; }
+        vec->items[i] = fv;
+    }
+    *out = vec;
+    return SRMECH_OK;
+}
+
+/* Shape thunk: (Vec, Vec) -> Mat   laplacian.mat_outer. out[i,j]=aᵢbⱼ — a lone
+ * IEEE multiply per element (no accumulation/FMA), so it is byte-exact to the
+ * pure real path float(aᵢ)*float(bⱼ) on every platform. */
+static srmech_status_t iv_shape_mat_outer(const srmech_tool_entry_t *e,
+                                          srmech_mval_t **argv, uint32_t argc,
+                                          srmech_marshal_arena_t *a,
+                                          srmech_mval_t **out)
+{
+    uint32_t an, bn, i, j; const double *pa, *pb; double *re;
+    assert(e != NULL && argv != NULL && a != NULL && out != NULL);
+    assert(argc >= 1u);
+    if (argc != 2u || strcmp(e->name, "srmech.amsc.laplacian.mat_outer") != 0) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (!iv_vec_reals(argv[0], a, &pa, &an)) { return SRMECH_ERR_NOT_IMPL; }
+    if (!iv_vec_reals(argv[1], a, &pb, &bn)) { return SRMECH_ERR_NOT_IMPL; }
+    if (an == 0u || bn == 0u) { return SRMECH_ERR_NOT_IMPL; }   /* empty -> pure */
+    if (an > IV_MAT_DIM_MAX || bn > IV_MAT_DIM_MAX) { return SRMECH_ERR_NOT_IMPL; }
+    re = (double *)iv_carve(a, (size_t)an * bn * sizeof(double));
+    if (re == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (i = 0u; i < an; i++) {
+        for (j = 0u; j < bn; j++) { re[(size_t)i * bn + j] = pa[i] * pb[j]; }
+    }
+    return iv_reals_to_rows(a, re, an, bn, out);
+}
+
 /* ------------------------------------------------------------------
  * The thunk VTABLE — tool name -> the signature-shape thunk. A name NOT here
  * has no C kernel this rc -> the caller defers to pure (inform-don't-limit).
@@ -1086,6 +1288,11 @@ static const iv_vtable_row_t IV_VTABLE[] = {
     { "srmech.amsc.dispatch.match",          iv_shape_dispatch_match },
     { "srmech.amsc.naming.lookup",           iv_shape_naming_lookup },
     { "srmech.amsc.template.render",         iv_shape_template_render },
+    /* rc190 FLOAT-CARRIER BATCH — Mat/Vec (real) via the dense kernel / a lone
+     * multiply; the result serialises repr-exact via srmech_double_repr. */
+    { "srmech.amsc.laplacian.mat_matmul",    iv_shape_mat_matmul },
+    { "srmech.amsc.laplacian.mat_matvec",    iv_shape_mat_matvec },
+    { "srmech.amsc.laplacian.mat_outer",     iv_shape_mat_outer },
 };
 
 static iv_thunk_t iv_vtable_lookup(const char *name)
@@ -1163,6 +1370,14 @@ static void iv_emit_node(iv_emit_t *e, const srmech_mval_t *v, uint32_t depth)
     assert(depth <= 2u);
     if (v == NULL || depth > 2u) { e->overflow = 1; return; }
     if (v->kind == SRMECH_MVAL_INT) { iv_emit_i64(e, v->i); return; }
+    if (v->kind == SRMECH_MVAL_FLOAT) {                  /* rc190 float-carrier leaf */
+        char rep[40]; size_t rl = 0u;
+        if (srmech_double_repr(v->re, rep, sizeof rep, &rl) != SRMECH_OK) {
+            e->overflow = 1; return;                     /* non-finite -> caller defers */
+        }
+        iv_raw(e, rep, rl);
+        return;
+    }
     if (v->kind == SRMECH_MVAL_BOOL) {
         if (v->i) { iv_raw(e, "true", 4u); } else { iv_raw(e, "false", 5u); }
         return;
