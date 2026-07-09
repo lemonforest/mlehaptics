@@ -158,9 +158,12 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # moved owed_orchestration → composes_c. owed 11 → 10; composes_c 107 → 108; sum stays
 # 177. CEIL_NON_COMPUTE_OWED 11 → 10. The 10 owed left = serve_http_sse + the 2 CLI
 # top-level dispatch ops + the 5 cli subcommand add_arguments + make_class/run_class_method.
+# rc193: the 7 CLI grammar rows (cli.main.{main,build_parser} + the 5 subcommand
+# add_arguments) earned their C peer (srmech_cli_parse + srmech_cli_dispatch) →
+# owed 10 → 3, composes_c 108 → 115; sum stays 177.
 _EXPECTED_SPLIT = {
-    "owed_orchestration": 10,
-    "composes_c": 108,
+    "owed_orchestration": 3,
+    "composes_c": 115,
     "host_glue": 15,
     "dev_tooling": 44,
 }

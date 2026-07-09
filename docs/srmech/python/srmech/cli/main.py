@@ -142,6 +142,87 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _dispatch(args: argparse.Namespace) -> int:
+    """Route a parsed namespace to its subcommand run body (the pure if-chain
+    both the native + argparse paths share). A ``None`` command (a bare
+    ``srmech``) prints the top-level help and returns 0."""
+    if args.command == "status":
+        return _status.run(args)
+    if args.command == "bus":
+        return _bus_cli.run(args)
+    if args.command == "dsl":
+        return _dsl_cli.run(args)
+    if args.command == "mcp":
+        return _mcp_cli.run(args)
+    if args.command == "class":
+        return _class_cli.run(args)
+    build_parser().print_help()
+    return 0
+
+
+# Map the C ``srmech_cli_dispatch`` route → the subcommand run body. Keyed by the
+# rc193 ``_native.CLI_ROUTE_*`` constants (resolved lazily so a pure host that
+# never imports _native still works).
+def _run_native_route(route: int, args: argparse.Namespace, _native) -> int:
+    if route == _native.CLI_ROUTE_STATUS:
+        return _status.run(args)
+    if route == _native.CLI_ROUTE_BUS:
+        return _bus_cli.run(args)
+    if route == _native.CLI_ROUTE_DSL:
+        return _dsl_cli.run(args)
+    if route == _native.CLI_ROUTE_MCP:
+        return _mcp_cli.run(args)
+    if route == _native.CLI_ROUTE_CLASS:
+        return _class_cli.run(args)
+    build_parser().print_help()          # CLI_ROUTE_HELP — a bare ``srmech``
+    return 0
+
+
+def _namespace_from_native(payload: bytes) -> argparse.Namespace:
+    """Reconstruct the argparse Namespace from the C parser's canonical JSON,
+    coercing the numeric-typed fields to match ``type=int`` / ``type=float``."""
+    import json
+
+    ns = json.loads(payload.decode("utf-8"))
+    for key in ("pid", "limit"):
+        if ns.get(key) is not None:
+            ns[key] = int(ns[key])
+    for key in ("poll_interval", "timeout"):
+        if ns.get(key) is not None:
+            ns[key] = float(ns[key])
+    return argparse.Namespace(**ns)
+
+
+def _native_dispatch(argv_list: List[str]) -> Optional[tuple]:
+    """Parse + route ``argv_list`` through the C ``srmech_cli_parse`` /
+    ``srmech_cli_dispatch`` (rc193 HOST-GLUE). Returns a 1-tuple ``(exit_code,)``
+    when the C parser handled a clean RUN invocation (committed — its run body's
+    result / exceptions are the answer), or ``None`` to DEFER to pure argparse
+    (help / version / an arg error / anything the bounded C grammar declines —
+    pure argparse then emits byte-identical help/version/error text + exit code).
+    """
+    try:
+        from srmech.amsc import _native
+    except Exception:  # pragma: no cover — _native always imports
+        return None
+    parsed = _native.cli_parse_c(argv_list)
+    if parsed is None:
+        return None
+    action, payload = parsed
+    if action != _native.CLI_ACTION_RUN:
+        return None                       # help / version / error → pure argparse
+    route = _native.cli_dispatch_c(payload)
+    if route is None:
+        return None
+    try:
+        args = _namespace_from_native(payload)
+    except Exception:                     # malformed payload → defer, never wrong
+        return None
+    # Committed to the native path: run the body + return its code (do NOT catch
+    # its exceptions / fall back — that would double-run a side-effecting body).
+    return (_run_native_route(route, args, _native),)
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     """Dispatch one CLI invocation.
 
@@ -155,21 +236,20 @@ def main(argv: Optional[List[str]] = None) -> int:
     -------
     int
         Exit code (0 = success).
+
+    rc193: the C ``srmech_cli_parse`` + ``srmech_cli_dispatch`` HOST-GLUE peer
+    parses + routes the subcommand grammar natively on the clean RUN path (a
+    bare-C host runs the whole console-script dispatch in C); help / version /
+    errors / anything the bounded parser declines fall through to pure argparse
+    below (byte-identical, hasattr-guarded so a stale / pure host stays pure).
     """
+    argv_list = list(sys.argv[1:] if argv is None else argv)
+    native = _native_dispatch(argv_list)
+    if native is not None:
+        return native[0]
     parser = build_parser()
     args = parser.parse_args(argv)
-    if args.command == "status":
-        return _status.run(args)
-    if args.command == "bus":
-        return _bus_cli.run(args)
-    if args.command == "dsl":
-        return _dsl_cli.run(args)
-    if args.command == "mcp":
-        return _mcp_cli.run(args)
-    if args.command == "class":
-        return _class_cli.run(args)
-    parser.print_help()
-    return 0
+    return _dispatch(args)
 
 
 if __name__ == "__main__":  # pragma: no cover — exercised via __main__.py
