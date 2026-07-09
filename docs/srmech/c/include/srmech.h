@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc190"
-#define SRMECH_VERSION       "0.9.0rc190"
+#define SRMECH_VERSION_PRE   "rc191"
+#define SRMECH_VERSION       "0.9.0rc191"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5214,6 +5214,75 @@ srmech_status_t srmech_bigint_from_dec(srmech_bigint_t *out, const char *s,
 srmech_status_t srmech_bigint_to_dec(const srmech_bigint_t *a, char *buf,
                                      size_t cap, size_t *out_len,
                                      void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_carrier_marshal — the NESTED exact-ℚ carrier OPERAND marshal
+ * (0.9.0rc191; the #796 LINCHPIN foundation). The bignum-safe reader that
+ * lowers the MCP nested-ℚ wire form of the §76 "telescope" reducer operands
+ * (the exact-ℚ carriers Poly / BiPoly) into arena-backed srmech_bigint
+ * coefficient arrays — extending the rc176 srmech_infer.c `inf_read_poly`
+ * pattern ONE nesting level per carrier, in a REUSABLE form the rc192
+ * srmech_infer.c wiring calls to dispatch the deferred exact #796 infer rows
+ * (sigma-definite / q / elliptic) for a bare-C host.
+ *
+ * NOT the rc188 invoke_tool VTABLE: the §76 reducer kernels need MB–GB caller
+ * workspaces (srmech_gosper ~9 MB, srmech_wz_verify ~32 MB, srmech_zeilberger
+ * ~470 MB), sized by srmech_infer_arena_bytes (~41 MB); the vtable arena
+ * (256*params_len + 65536 ~ 114 KB, JPL Rule 3 no-malloc) cannot host them, so
+ * a reducer's home is the srmech_infer.c DECISION path, not the vtable.
+ *
+ * WIRE FORM: a COEFFICIENT is a bare integer c (den 1) OR a [num,den] 2-list;
+ * each scalar is a JSON int64 OR a decimal STRING (the bignum transport, since
+ * srmech_json's strtoll clamps a >int64 literal). A Poly is an ascending-degree
+ * LIST of coefficients; a BiPoly is a k-ascending LIST of Poly-in-n, lowered to
+ * FLAT (k-then-n) num/den arrays + klen[] + the k-degree slot count kdeg. The
+ * reader lands the operand VERBATIM (no reduce/normalise); a malformed node ->
+ * SRMECH_ERR_BAD_INPUT (the Python caller runs the COMPLETE pure path).
+ * Additive symbols -> SRMECH_ABI_VERSION stays 4. ------- */
+
+/* Carrier kinds for srmech_carrier_marshal_roundtrip. */
+#define SRMECH_CARRIER_POLY    0   /* ascending-degree coefficient list        */
+#define SRMECH_CARRIER_BIPOLY  1   /* k-ascending list of Poly-in-n (flat+klen) */
+#define SRMECH_CARRIER_SCALAR  2   /* a single coefficient (EllRatio scalar)   */
+
+/* Minimum caller-arena BYTES for a `json_len`-byte carrier relationship. No
+ * malloc; the caller owns the arena. Too small -> SRMECH_ERR_OVERFLOW. */
+size_t srmech_carrier_marshal_arena_bytes(size_t json_len);
+
+/* Read a Poly wire node (an ascending-degree coefficient ARRAY) into parallel
+ * numerator / denominator bigint arrays of `cap` limbs each (carved off `a`).
+ * *out_len is the coefficient count. A non-array node / malformed coefficient
+ * -> SRMECH_ERR_BAD_INPUT; arena exhaustion -> SRMECH_ERR_OVERFLOW; a NULL
+ * param -> SRMECH_ERR_NULL_ARG. (Public: rc192 srmech_infer.c reuse.) */
+srmech_status_t srmech_carrier_read_poly(const srmech_json_value_t *node,
+                                         srmech_marshal_arena_t *a, uint32_t cap,
+                                         srmech_bigint_t **out_num,
+                                         srmech_bigint_t **out_den,
+                                         size_t *out_len);
+
+/* Read a BiPoly wire node (a k-ascending ARRAY of Poly-in-n coefficient
+ * arrays) into FLAT (k-then-n) numerator / denominator bigint arrays + the
+ * per-k length array *out_klen (length *out_kdeg). The flat length is the sum
+ * of the klen entries. Same error contract as srmech_carrier_read_poly. The
+ * exact encoding srmech_zeilberger / srmech_wz_verify consume. (Public.) */
+srmech_status_t srmech_carrier_read_bipoly(const srmech_json_value_t *node,
+                                           srmech_marshal_arena_t *a, uint32_t cap,
+                                           srmech_bigint_t **out_num,
+                                           srmech_bigint_t **out_den,
+                                           size_t **out_klen, size_t *out_kdeg);
+
+/* The round-trip PROVER: parse `json`, marshal the `kind` carrier, and
+ * re-serialise it to CANONICAL nested-ℚ JSON (each coefficient as [num,den]
+ * decimal, compact separators) into `out` (capacity `out_cap`; NO trailing
+ * NUL) with *out_len set. Proves the reader landed every (bignum) coefficient
+ * value + the nesting, byte-identical to the Python carrier's coefficient
+ * view, with a SMALL arena (srmech_carrier_marshal_arena_bytes). A malformed
+ * node / too-small out -> the matching error (the caller defers to pure). */
+srmech_status_t srmech_carrier_marshal_roundtrip(int kind, const char *json,
+                                                 size_t json_len,
+                                                 void *ws, size_t ws_len,
+                                                 char *out, size_t out_cap,
+                                                 size_t *out_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_pi — ROTATION-LAST Chudnovsky π (built on srmech_bigint)
