@@ -73,12 +73,20 @@ def _count_libm(path: pathlib.Path) -> int:
     return len(_CALL_RE.findall(src)) + len(_MPI_RE.findall(src))
 
 
+# Generated pure-DATA files (const tables, ZERO functions): any libm token
+# (``sin(``/``M_PI``/``sqrt(``) is baked tool-description TEXT inside a string
+# literal, not a call — ``_strip_c_comments`` does not strip string literals, so
+# the token-scan would false-positive. Excluded here, same rationale as the JPL
+# audit's ``GENERATED_DATA_FILES`` exemption (rc184: srmech_tool_registry.c).
+_GENERATED_DATA_FILES = {"srmech_tool_registry.c"}
+
+
 def _c_files():
     files = []
     for root in (_C_SRC, _C_INCLUDE):
         if root.is_dir():
             files += sorted(root.glob("*.c")) + sorted(root.glob("*.h"))
-    return files
+    return [p for p in files if p.name not in _GENERATED_DATA_FILES]
 
 
 @pytest.mark.skipif(not _C_SRC.is_dir(), reason="C source absent (installed wheel)")

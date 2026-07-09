@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc183"
-#define SRMECH_VERSION       "0.9.0rc183"
+#define SRMECH_VERSION_PRE   "rc184"
+#define SRMECH_VERSION       "0.9.0rc184"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3589,6 +3589,80 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
                                             const char **keys,
                                             srmech_json_value_t **vals,
                                             uint32_t n);
+
+/* ------------------------------------------------------------------
+ * Tool-schema registry (0.9.0rc184; the C MCP-server FOUNDATION GATE).
+ *
+ * The ~403-entry srmech.amsc.tool_schema `_REGISTRY` (every public
+ * callable surface: name / owner / category / summary / typed params /
+ * returns / mcp_callable) crystallised as a `const` data table so a
+ * bare-C host (no Python) can produce the tool registry DATA + the
+ * canonical `tool_schema_sha256` attestation with no interpreter.
+ *
+ * The table itself lives in the GENERATED translation unit
+ * `srmech_tool_registry.c` (regenerate with c/tools/gen_tool_registry.py);
+ * the accessors + the canonical serialiser live in srmech_tool_schema.c.
+ *
+ * srmech_tool_schema_to_json emits bytes BYTE-IDENTICAL to CPython
+ *   json.dumps(get_tool_schema().to_jsonable(),
+ *              sort_keys=True, separators=(",", ":"))
+ * (the DEFAULT ensure_ascii=True form the `_mcpb` tool_schema hash is
+ * taken over — non-ASCII escaped \uXXXX, astral as a UTF-16 surrogate
+ * pair, keys emitted in sorted order, compact separators). The
+ * documentation-hint fields `example` / `smoke_test_hint` carry an
+ * arbitrary-schema payload; the generator bakes each as its already-
+ * canonical compact JSON fragment (spliced raw), while the structured
+ * core is rebuilt field-by-field here. This byte-identity IS the
+ * hash-ratchet's contract: sha256(this) == the Python tool_schema_sha256.
+ *
+ * ABI-additive: new symbols + two structs, so SRMECH_ABI_VERSION stays 4.
+ * ------------------------------------------------------------------ */
+
+/* One typed parameter of a tool entry's call signature. All string
+ * pointers are NUL-terminated decoded UTF-8 (never escaped). */
+typedef struct {
+    const char *name;       /* parameter name                         */
+    const char *type;       /* free-form srmech type-string           */
+    int         required;   /* 0/1                                    */
+    const char *summary;    /* human hint ("" allowed, never NULL)    */
+} srmech_tool_param_t;
+
+/* One callable surface in the tool schema. Optional fields are NULL
+ * when absent (mirroring ToolEntry.to_jsonable's key omission). */
+typedef struct {
+    const char               *name;      /* full dotted identifier     */
+    const char               *owner;     /* "srmech" or a profile name */
+    const char               *category;
+    const char               *summary;
+    const srmech_tool_param_t *params;   /* NULL iff param_count == 0  */
+    uint32_t                  param_count;
+    const char               *returns_type;   /* NULL iff no `returns` */
+    const char               *returns_shape;  /* "" allowed; unused when returns_type==NULL */
+    int                       mcp_callable;    /* 0/1                  */
+    const char               *mcp_unavailable_reason; /* NULL when callable */
+    const char               *example_json;    /* pre-canonical compact-ASCII JSON fragment, or NULL */
+    const char               *smoke_json;      /* pre-canonical compact-ASCII JSON fragment, or NULL */
+} srmech_tool_entry_t;
+
+/* Number of registered tool entries in the const table. */
+size_t srmech_tool_registry_count(void);
+
+/* The entry at `index`, or NULL if `index` is out of range. */
+const srmech_tool_entry_t *srmech_tool_registry_get(size_t index);
+
+/* The entry whose `name` equals `name` (bounded linear scan), or NULL
+ * if there is no such entry. `name` must be NUL-terminated. */
+const srmech_tool_entry_t *srmech_tool_registry_find(const char *name);
+
+/* Serialise the whole registry as canonical JSON (see byte-identity
+ * contract above) into `buf` (capacity `buf_len`; NO trailing NUL) and
+ * set *out_len to the byte count. If `buf` is NULL this is a SIZE-QUERY
+ * (nothing written; *out_len receives the exact full length). A
+ * too-small non-NULL `buf` returns SRMECH_ERR_OVERFLOW. The srmech
+ * version field is injected from srmech_version() at call time (so a
+ * pure version bump needs no table regeneration). */
+srmech_status_t srmech_tool_schema_to_json(char *buf, size_t buf_len,
+                                           size_t *out_len);
 
 /* ------------------------------------------------------------------
  * Op-provenance canonical record hasher (0.9.0rc117; the op-carrying

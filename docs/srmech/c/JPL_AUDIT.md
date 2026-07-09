@@ -138,6 +138,17 @@ keeping the large (~1 MiB) buffers OFF the stack — `_Thread_local` /
 `__declspec(thread)` static storage is both Rule-3-clean and
 reentrant-across-threads. No malloc was introduced.
 
+**Generated pure-DATA translation units** (`GENERATED_DATA_FILES` in
+`tests/test_jpl_audit.py`; rc184: `srmech_tool_registry.c`) are excluded
+from the Rule 3 (and Rule 1) *string-content* regex scans. They contain
+ZERO executable code — only a `const srmech_tool_entry_t[]` table — but
+their string VALUES are the (English) ToolEntry summaries, which contain
+prose tokens like `free(` inside a data string. The regex cannot tell a
+data string from code, so it would mis-flag the prose. These files remain
+in-scope for the *function-scan* rules (Rule 4 / Rule 5), where they find
+ZERO functions — a guard that the file stays data-only. Regenerate with
+`c/tools/gen_tool_registry.py`.
+
 ✅ **Pass.**
 
 ---
