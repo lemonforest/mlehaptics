@@ -207,6 +207,33 @@ srmech_status_t srmech_sedenion_navigate(int j,
     return SRMECH_OK;
 }
 
+/* rc199 (make_class → C, leaf-batch 5/8): the `slots` accessor's canonical
+ * numeric reshape — validate + copy the register's occupied (slot, sign)
+ * skeleton (slot in [0,16), sign in {+1,-1}). The key strings pass through in
+ * the Python caller (a bare-C host holds them alongside). A record outside the
+ * domain returns SRMECH_ERR_BAD_INPUT and the Python caller runs the
+ * un-validated pure reshape (inform-don't-limit). count == 0 is a no-op. */
+srmech_status_t srmech_sed_slots(const int *in_slots, const int *in_signs,
+                                 size_t count, int *out_slots, int *out_signs)
+{
+    if (out_slots == NULL || out_signs == NULL ||
+        (count != 0u && (in_slots == NULL || in_signs == NULL))) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out_slots != NULL && out_signs != NULL);
+    assert(count == 0u || (in_slots != NULL && in_signs != NULL));
+    for (size_t m = 0; m < count; m++) {
+        int s = in_slots[m];
+        int g = in_signs[m];
+        if (s < 0 || s >= SRMECH_SEDENION_NUM_SLOTS || (g != 1 && g != -1)) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        out_slots[m] = s;
+        out_signs[m] = g;
+    }
+    return SRMECH_OK;
+}
+
 srmech_status_t srmech_sedenion_is_navigable(const int64_t *direction,
                                              size_t n, int *out_invertible)
 {
