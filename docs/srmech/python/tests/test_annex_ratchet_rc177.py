@@ -108,10 +108,14 @@ _ANNEX_DELTA = {"owed_orchestration": 2, "composes_c": 11, "host_glue": 12,
 # composes_c 87→88 as the bus pipe earned its C peer — BUS FULLY C; rc181: owed
 # 10→8, composes_c 88→90 as the DSL chain FOUNDATION earned its C peer; rc182: owed
 # 8→4, composes_c 90→94 as the combinators + TOML front-ends earned C — DSL CHAIN
-# interpreter COMPLETE)
-_FULL_SPLIT = {"owed_orchestration": 4, "composes_c": 94, "host_glue": 14,
-               "dev_tooling": 41}
-_TOTAL_NON_COMPUTE = 153
+# interpreter COMPLETE).
+# rc183 HOST-GLUE annex (living-pin bump — as rc177 bumped the rc170 pins): the
+# +24 mcp/cli/llm rows raise the FULL split to 15/103/15/44 = 177. The bus/dsl
+# _ANNEX_ROWS / _ANNEX_DELTA below stay unchanged (they are the rc177 bus/dsl annex
+# record); the mcp/cli/llm annex specifics are pinned in test_annex_ratchet_rc183.py.
+_FULL_SPLIT = {"owed_orchestration": 15, "composes_c": 103, "host_glue": 15,
+               "dev_tooling": 44}
+_TOTAL_NON_COMPUTE = 177
 
 
 def _rows():
@@ -173,9 +177,8 @@ def test_annex_delta_is_39_split_2_11_12_14():
 
 
 def test_full_non_compute_split_sums_to_153():
-    """The full non_compute ledger split (pre-rc177 + the annex, after the rc178
-    decode_splice + rc180 pipe + rc181 DSL-chain-FOUNDATION + rc182 combinators/TOML
-    moves) is 4/94/14/41 = 153."""
+    """The full non_compute ledger split — bus/dsl annex (rc177–182) + the rc183
+    mcp/cli/llm host-glue annex — is 15/103/15/44 = 177 (living-pin bump)."""
     counts = Counter(r["non_compute_kind"] for r in _rows()
                      if r.get("bucket") == "non_compute")
     assert dict(counts) == _FULL_SPLIT, (
@@ -185,15 +188,14 @@ def test_full_non_compute_split_sums_to_153():
     assert sum(counts.values()) == _TOTAL_NON_COMPUTE == sum(_FULL_SPLIT.values())
 
 
-def test_ceil_non_compute_owed_is_4():
-    """The phase-driver ceiling is 4 after rc182 (owed_orchestration: the deferred
-    tool_schema pair + make_class + run_class_method). rc182 completed the DSL CHAIN
-    interpreter — the loop/fold/reduce combinators + the TOML front-ends earned C —
-    so chain / run_toml_chain / build_chain_from_toml{,_str} left the owed bucket.
-    make_class / run_class_method stay HONEST-DEFERRED (genome / sed_* domain-leaf
-    C backlog, past Batch B)."""
-    assert CEIL_NON_COMPUTE_OWED == 4, (
-        f"CEIL_NON_COMPUTE_OWED must be 4 after rc182; got "
+def test_ceil_non_compute_owed_is_15():
+    """The phase-driver ceiling is 15 after the rc183 host-glue annex — the rc182
+    residue (the deferred tool_schema pair + make_class + run_class_method = 4) plus
+    the +11 mcp/cli host-glue owed rows (the 4 MCP tool-serving ops + cli.main.main /
+    build_parser + the 5 subcommand add_arguments). rc184+ build the MCP server + CLI
+    dispatch to C and drive the owed count back down."""
+    assert CEIL_NON_COMPUTE_OWED == 15, (
+        f"CEIL_NON_COMPUTE_OWED must be 15 after rc183; got "
         f"{CEIL_NON_COMPUTE_OWED}"
     )
 

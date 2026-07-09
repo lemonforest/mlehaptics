@@ -81,9 +81,19 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # +39 rows: 18 bus + 21 dsl, all non_compute; rc178+ build them to C + drive the
 # owed count back down). The conftest _ROSETTA_ROOTS + the transitive-standalone
 # _ROOTS mirror this extension so all three walks agree on the live surface.
+# rc183 (HOST-GLUE annex): extend the ledger walk to srmech.mcp + srmech.cli +
+# srmech.llm — a bare-C host also serves the MCP tool surface, runs the CLI
+# dispatch grammar, and (optionally) drives an LLM agent, so their public surface
+# joins the everything-mirrors ledger too (the +24 rows the walk yields: 4 mcp +
+# 17 cli + 3 llm, all non_compute; the 2 cli.klass re-exports resolve to the
+# already-classified srmech.dsl._class_surface.{describe_class,list_class_surface}
+# and do NOT count as new). rc184+ build them to C + drive the owed count back
+# down. The conftest _ROSETTA_ROOTS + the transitive-standalone _ROOTS mirror this
+# extension so all three walks agree on the live surface.
 _ROOTS = (
     "srmech.amsc", "srmech.qm", "srmech.signal_processing",
     "srmech.bus", "srmech.dsl",
+    "srmech.mcp", "srmech.cli", "srmech.llm",
 )
 
 # ----- the down-only debt ceilings (rc7 baseline; issue #928) -----------
@@ -739,7 +749,38 @@ CEIL_BIGNUM_REFERENCE = 0
 # the tool_schema pair (get_tool_schema / tool_schema_view — host-glue MCP) + make_class /
 # run_class_method (HONEST-DEFERRED — leaf-op-blocked on the genome / sed_* domain-leaf
 # C backlog, past Batch B). `parallel` still defers to pure (host-thread fan-out).
-CEIL_NON_COMPUTE_OWED = 4
+# rc183 (2026-07-08): the HOST-GLUE ANNEX — extend the ledger walk (_ROOTS) to
+# srmech.mcp + srmech.cli + srmech.llm (test-infra ONLY, NO C). The walk yields
+# +24 new rows (4 mcp + 17 cli + 3 llm; the 2 cli.klass re-exports resolve to the
+# already-classified srmech.dsl._class_surface pair, so they are NOT new), split by
+# kind +11 owed_orchestration / +9 composes_c / +1 host_glue / +3 dev_tooling:
+#   • owed_orchestration (+11) — the CLI/MCP control-grammar + dispatch a bare-C
+#     host reimplements: the 4 MCP tool-serving ops (mcp.invoke_tool /
+#     tool_entries_to_mcp_defs / serve_stdio / serve_http_sse), the 2 CLI top-level
+#     dispatch ops (cli.main.main / build_parser), and the 5 subcommand
+#     add_arguments (cli.{bus,dsl,mcp,klass,status}.add_arguments — the argparse
+#     grammar). The MCP OWED COUNT UNDERSTATES the real C surface: MCPServer /
+#     MCPError are CLASSES (skipped by the callable-non-class walk) and the
+#     _coercion JSON-Schema marshallers are PRIVATE (`_`-tailed submodule, skipped)
+#     — a genuine C MCP server needs those too; they surface as owed when built.
+#   • composes_c (+9) — the subcommand run/run_* bodies over already-C /
+#     non_compute leaves: cli.bus.{run,run_list,run_tap,run_pipe,run_send,run_serve}
+#     (over the now-fully-C bus), cli.dsl.run (over the C DSL chain interpreter),
+#     cli.mcp.run + cli.klass.run (thin dispatch onto the owed serve/class ops).
+#     Each passes the composes_c transitive-reachability assert (reaches no
+#     python_only_debt / bignum_reference / c_exists_unbound leaf — all three
+#     buckets are 0).
+#   • host_glue (+1) — cli.status.run reads ~/.srmech/*.ndjson (host FS) via
+#     srmech.introspect.
+#   • dev_tooling (+3) — the whole srmech.llm surface (anthropic_agent.
+#     _to_anthropic_name + anthropic_agent_cli.build_parser/main). A bare-C host
+#     does NOT need an Anthropic-SDK agent; classified dev_tooling as the
+#     HONEST-DEFAULT pending a user decision on whether to build a C agent (a
+#     separate C-HTTPS/TLS Messages-API arc) — REVERSIBLE to owed_orchestration if
+#     the user elects the C agent. Added to NON_COMPUTE_DEV_TOOLING_EXEMPT below.
+# CEIL_NON_COMPUTE_OWED 4 → 15 (4 existing + 11 host-glue owed). rc184+ build the
+# MCP server + CLI dispatch to C and drive the owed count back down.
+CEIL_NON_COMPUTE_OWED = 15
 
 # The PINNED dev-tooling allowlist — the exact ``non_compute_kind == "dev_tooling"``
 # set. A row here is JUSTIFIED as a genuine dev / LLM-affordance a bare-C host
@@ -797,6 +838,13 @@ NON_COMPUTE_DEV_TOOLING_EXEMPT = frozenset({
     "srmech.dsl._class_surface.list_class_surface",
     "srmech.dsl._tool_surface.list_catalog_ops",
     "srmech.dsl._tool_surface.list_ops",
+    # rc183 HOST-GLUE annex (srmech.llm) — 3 LLM-agent affordances a bare-C host
+    # never needs. HONEST-DEFAULT: classified dev_tooling pending a user decision
+    # on whether to build a C Anthropic agent (a separate C-HTTPS/TLS Messages-API
+    # arc); REVERSIBLE to owed_orchestration if the user elects the C agent.
+    "srmech.llm.anthropic_agent._to_anthropic_name",
+    "srmech.llm.anthropic_agent_cli.build_parser",
+    "srmech.llm.anthropic_agent_cli.main",
 })
 
 # The four honest sub-buckets of the non_compute bucket. Every non_compute row

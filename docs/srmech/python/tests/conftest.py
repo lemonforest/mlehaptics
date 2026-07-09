@@ -318,9 +318,12 @@ _ROSETTA_FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndj
 # rc177 annex: mirror the test_rosetta_completeness._ROOTS extension to bus/dsl so
 # the shared non_compute live-count walk (owed ceiling / composes_c reachability /
 # dev_tooling allowlist) sees the +39 bus/dsl rows as live.
+# rc183 HOST-GLUE annex: mirror the extension to mcp/cli/llm so the shared walk
+# sees the +24 mcp/cli/llm rows as live too.
 _ROSETTA_ROOTS = (
     "srmech.amsc", "srmech.qm", "srmech.signal_processing",
     "srmech.bus", "srmech.dsl",
+    "srmech.mcp", "srmech.cli", "srmech.llm",
 )
 
 # Buckets that are NOT standalone-C-ready.

@@ -128,13 +128,23 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # + build_chain_from_toml + build_chain_from_toml_str moved owed_orchestration →
 # composes_c. owed 8 → 4, composes_c 90 → 94; sum stays 153. CEIL_NON_COMPUTE_OWED
 # 8 → 4 (the 4 left = 2 tool_schema + make_class + run_class_method).
+# rc183 (2026-07-08): the HOST-GLUE ANNEX — extend the ledger walk (_ROOTS) to
+# srmech.mcp + srmech.cli + srmech.llm (+24 rows: 4 mcp + 17 cli + 3 llm). The +24
+# split by kind: +11 owed_orchestration (the 4 MCP tool-serving ops + cli.main.main
+# / build_parser + the 5 subcommand add_arguments), +9 composes_c (the cli.*.run /
+# run_* dispatch bodies over the C bus / C DSL chain / owed serve+class ops),
+# +1 host_glue (cli.status.run reads ~/.srmech FS), +3 dev_tooling (the srmech.llm
+# Anthropic-agent surface — HONEST-DEFAULT pending a C-agent decision). Test-infra
+# ONLY (no C, no compute-op change); CEIL_NON_COMPUTE_OWED 4 → 15; rc184+ build the
+# MCP server + CLI dispatch to C + drive the owed count back down. owed 4→15 /
+# composes_c 94→103 / host_glue 14→15 / dev_tooling 41→44; sum 153 → 177.
 _EXPECTED_SPLIT = {
-    "owed_orchestration": 4,
-    "composes_c": 94,
-    "host_glue": 14,
-    "dev_tooling": 41,
+    "owed_orchestration": 15,
+    "composes_c": 103,
+    "host_glue": 15,
+    "dev_tooling": 44,
 }
-_TOTAL_NON_COMPUTE = 153
+_TOTAL_NON_COMPUTE = 177
 
 
 def _rows():

@@ -34,9 +34,13 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # rc177 annex: mirror the ledger-walk extension to bus/dsl (this ratchet only
 # iterates composition_of_c rows — all 39 bus/dsl rows are non_compute, so the
 # extension is a no-op for its assertion; kept for cross-walk consistency).
+# rc183 HOST-GLUE annex: mirror the extension to mcp/cli/llm too (all +24 rows are
+# non_compute, so likewise a no-op for the composition_of_c assertion; kept for
+# cross-walk consistency).
 _ROOTS = (
     "srmech.amsc", "srmech.qm", "srmech.signal_processing",
     "srmech.bus", "srmech.dsl",
+    "srmech.mcp", "srmech.cli", "srmech.llm",
 )
 
 # Buckets that are NOT standalone-C-ready (a composition_of_c op must not reach
