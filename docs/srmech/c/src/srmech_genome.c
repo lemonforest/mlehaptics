@@ -734,6 +734,149 @@ srmech_status_t srmech_genome_recall(const unsigned char *strand,
     return SRMECH_OK;
 }
 
+/* rc198 (#887) make_class → C leaf-batch 4 — the genome MULTI-KERNEL + PARTITION
+ * in-memory leaves, COMPLETING the genome leaf-family in C. Both LOOP the rc197
+ * leaves (srmech_genome_chromosome to assemble, the recall re-bind to recover) and
+ * reuse the rc196 cap foundation (genome_pack_cap / genome_cap_kind /
+ * genome_decode_label) verbatim — so a bare-C host (and the rc201 object-model
+ * engine) assembles / splits a multi-kernel genome strand natively, BYTE-IDENTICAL
+ * to the Python. Additive symbols only → SRMECH_ABI_VERSION stays 4.
+ *
+ * GENOME — assemble `n_kernels` labelled kernels into ONE strand: each kernel
+ * becomes a CHROM-capped chromosome (via the rc197 srmech_genome_chromosome),
+ * concatenated in kernel order. Mirror srmech.amsc.genome.genome(kernels, the_one)
+ * for the plain (single-gene-per-chromosome) path — the §44 chromosomes= multi-gene
+ * form opens its own gene caps and stays in the pure Python.
+ *   labels / label_lens : the n_kernels raw UTF-8 labels CONCATENATED (`labels`),
+ *                         label_lens[k] the k-th label's byte length (its slice).
+ *   the_one / leaf_dim  : the shared Klein-4 invariant (leaf_dim bytes) + block width.
+ *   leaves / leaf_counts: the kernels' leaves CONCATENATED (each leaf_dim bytes),
+ *                         leaf_counts[k] the k-th kernel's leaf count.
+ *   n_kernels           : the kernel count (the label / leaf arrays may be NULL iff 0).
+ *   out / out_cap       : caller buffer; out_cap >= (n_kernels + Σ leaf_counts)*leaf_dim.
+ *   n_blocks_out        : out — the total strand block count written.
+ * Error returns mirror srmech_genome_chromosome (NULL_ARG / BAD_INPUT / OVERFLOW). */
+srmech_status_t srmech_genome_genome(const unsigned char *labels,
+                                     const size_t *label_lens,
+                                     const unsigned char *the_one,
+                                     uint32_t leaf_dim,
+                                     const unsigned char *leaves,
+                                     const size_t *leaf_counts,
+                                     size_t n_kernels,
+                                     unsigned char *out, size_t out_cap,
+                                     size_t *n_blocks_out)
+{
+    if (out == NULL || the_one == NULL || n_blocks_out == NULL ||
+        (n_kernels != 0u &&
+         (labels == NULL || label_lens == NULL || leaf_counts == NULL))) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL && the_one != NULL && n_blocks_out != NULL);
+    assert(n_kernels == 0u || (label_lens != NULL && leaf_counts != NULL));
+    if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    size_t label_off = 0u;    /* byte cursor into `labels` */
+    size_t leaf_off = 0u;     /* block cursor into `leaves` */
+    size_t out_off = 0u;      /* byte cursor into `out` (<= out_cap always) */
+    size_t blocks = 0u;
+    for (size_t k = 0; k < n_kernels; k++) {
+        size_t kn = leaf_counts[k];
+        const unsigned char *kleaves = leaves + leaf_off * (size_t)leaf_dim;
+        /* each kernel → a CHROM-capped chromosome via the rc197 peer (byte-exact). */
+        srmech_status_t st = srmech_genome_chromosome(
+            labels + label_off, label_lens[k], the_one, leaf_dim,
+            kleaves, kn, out + out_off, out_cap - out_off);
+        if (st != SRMECH_OK) { return st; }
+        size_t kblocks = kn + 1u;                     /* the CHROM cap + kn turns */
+        out_off += kblocks * (size_t)leaf_dim;
+        blocks += kblocks;
+        label_off += label_lens[k];
+        leaf_off += kn;
+    }
+    *n_blocks_out = blocks;
+    return SRMECH_OK;
+}
+
+/* PARTITION — recover every kernel from a multi-kernel strand (the inverse of
+ * srmech_genome_genome). Mirror srmech.amsc.genome.partition(strand, the_one): walk
+ * the strand's `n_blocks` fixed-width leaf_dim-byte blocks; a CHROM / kernel-telomere
+ * / active-telomere cap OPENS a partition (its label read INLINE by genome_decode_
+ * label); a gene / regulatory / boolean / threshold / graded / kernel-header cap is
+ * SKIPPED (a delimiter — the partition FLATTENS across genes); every data turn until
+ * the next opening cap is re-bound through `the_one` (the reversible Klein-4 bind) as
+ * that partition's leaf. The Python-side `labels=` FILTER + the dict overwrite-on-
+ * duplicate-label semantics are applied by the caller over these ordered partitions.
+ *   strand / n_blocks : the strand's n_blocks blocks, each leaf_dim bytes, contiguous.
+ *   leaf_dim          : the block width in bytes (> 0, <= 256) == len(the_one).
+ *   the_one           : the shared Klein-4 invariant (leaf_dim bytes).
+ *   out_leaves        : caller buffer for the recovered leaves (leaf_dim bytes each),
+ *                       in partition order; out_leaves_cap >= (data-turn count)*leaf_dim.
+ *   out_labels        : caller buffer for the partition labels, one leaf_dim-byte
+ *                       NUL-terminated slot each; out_labels_cap >= n_parts*leaf_dim.
+ *   part_leaf_counts  : caller buffer [counts_cap] — the per-partition leaf count.
+ *   n_parts_out       : out — the partition (opening-cap) count.
+ *   n_leaves_out      : out — the total recovered-leaf count.
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — any pointer arg NULL.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, an over-long label, or a data byte > 3.
+ *   SRMECH_ERR_OVERFLOW   — out_leaves / out_labels / part_leaf_counts too small. */
+srmech_status_t srmech_genome_partition(const unsigned char *strand,
+                                        size_t n_blocks, uint32_t leaf_dim,
+                                        const unsigned char *the_one,
+                                        unsigned char *out_leaves,
+                                        size_t out_leaves_cap,
+                                        unsigned char *out_labels,
+                                        size_t out_labels_cap,
+                                        uint32_t *part_leaf_counts,
+                                        size_t counts_cap,
+                                        size_t *n_parts_out,
+                                        size_t *n_leaves_out)
+{
+    if (strand == NULL || the_one == NULL || out_leaves == NULL ||
+        out_labels == NULL || part_leaf_counts == NULL ||
+        n_parts_out == NULL || n_leaves_out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(strand != NULL && the_one != NULL && out_leaves != NULL);
+    assert(part_leaf_counts != NULL && n_parts_out != NULL);
+    if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    size_t n_parts = 0u;
+    size_t n_leaves = 0u;
+    int have_current = 0;
+    for (size_t i = 0; i < n_blocks; i++) {
+        const unsigned char *block = strand + i * (size_t)leaf_dim;
+        int kind = genome_cap_kind(block, leaf_dim);
+        if (kind == (int)SRMECH_GENOME_CHROM_CAP_MARKER ||
+            kind == (int)SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
+            kind == (int)SRMECH_GENOME_ACTIVE_TELOMERE_MARKER) {
+            size_t loff = n_parts * (size_t)leaf_dim;
+            if (n_parts >= counts_cap || loff + (size_t)leaf_dim > out_labels_cap) {
+                return SRMECH_ERR_OVERFLOW;
+            }
+            srmech_status_t st = genome_decode_label(
+                block, leaf_dim, (char *)(out_labels + loff));
+            if (st != SRMECH_OK) { return st; }
+            part_leaf_counts[n_parts] = 0u;
+            n_parts++;
+            have_current = 1;
+        } else if (kind >= 0) {
+            continue;                          /* a gene / header cap — skip (flatten) */
+        } else if (have_current != 0) {
+            size_t doff = n_leaves * (size_t)leaf_dim;
+            if (doff + (size_t)leaf_dim > out_leaves_cap) {
+                return SRMECH_ERR_OVERFLOW;
+            }
+            srmech_status_t st = srmech_klein4_bind(block, the_one, leaf_dim,
+                                                    out_leaves + doff);
+            if (st != SRMECH_OK) { return st; }
+            part_leaf_counts[n_parts - 1u]++;
+            n_leaves++;
+        }
+    }
+    *n_parts_out = n_parts;
+    *n_leaves_out = n_leaves;
+    return SRMECH_OK;
+}
+
 /* §44 COUNT: walk the body's self-describing blocks (§55/v3 dual-format) and
  * count its CHROM caps AND its total blocks (a pre-scan, so the per-chromosome
  * arrays can be carved to EXACTLY that many — no compiled-in chromosome cap;

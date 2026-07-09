@@ -2751,6 +2751,23 @@ def genome(kernels=None, the_one=None, *, chromosomes=None):
         raise ValueError("genome: pass exactly one of kernels= or chromosomes=")
     if chromosomes is None:
         items = list(kernels.items()) if isinstance(kernels, dict) else list(kernels)
+        # rc198 (#887): DISPATCH the plain multi-kernel assemble to the
+        # srmech_genome_genome C peer when HAS_NATIVE — each kernel → a CHROM-capped
+        # chromosome (via the rc197 srmech_genome_chromosome), all concatenated in
+        # kernel order, BYTE-IDENTICAL to the pure loop (the numpy-free fallback +
+        # parity oracle). The §44 chromosomes= multi-gene form opens its own gene caps
+        # and stays pure (handled below). Any non-uniform / over-long-label kernel
+        # returns None and re-runs the pure path (which raises the exact ValueError).
+        dim = len(list(the_one))
+        per_kernel = [_leaf_blocks(list(leaves)) for _, leaves in items]
+        if dim > 0 and all(len(b) == dim for kb in per_kernel for b in kb):
+            native = _native.genome_genome_c(
+                [label for label, _ in items], _the_one_block_bytes(the_one),
+                b"".join(b"".join(kb) for kb in per_kernel),
+                [len(kb) for kb in per_kernel], dim)
+            if native is not None:
+                return [_hv_from_block(native[i * dim:(i + 1) * dim])
+                        for i in range(len(native) // dim)]
         strand = []
         for label, leaves in items:
             strand.extend(chromosome(leaves, the_one, label=label))
@@ -2783,6 +2800,31 @@ def partition(strand, the_one, labels=None):
     is accepted for back-compat: when given, it FILTERS the result to that subset
     (and orders it), so old call-sites that passed the full list still round-trip.
     """
+    # rc198 (#887): DISPATCH to the srmech_genome_partition C peer when HAS_NATIVE and
+    # the strand is uniform fixed-width leaf_dim blocks — byte-identical (open a
+    # partition per CHROM / kernel-telomere / active-telomere cap, skip gene / header
+    # caps, re-bind each data turn through the_one). The caller builds the
+    # {label: leaves} dict here (dict overwrite-on-duplicate-label, exactly like the
+    # pure walk's out[current] = []) + applies the labels= filter. The pure walk below
+    # is the numpy-free fallback + parity oracle (and any non-uniform strand).
+    dim = len(list(the_one))
+    blocks = _leaf_blocks(strand)
+    if dim > 0 and blocks and all(len(b) == dim for b in blocks):
+        native = _native.genome_partition_c(
+            b"".join(blocks), len(blocks), dim, _the_one_block_bytes(the_one))
+        if native is not None:
+            leaf_bytes, part_labels, part_counts = native
+            out = {}
+            i = 0
+            for label, count in zip(part_labels, part_counts):
+                out[label] = [
+                    _HV.from_sequence(leaf_bytes[(i + j) * dim:(i + j + 1) * dim],
+                                      sectors=QUAD)
+                    for j in range(count)]
+                i += count
+            if labels is not None:
+                return {label: out[label] for label in labels if label in out}
+            return out
     out = {}
     current = None
     for hv in strand:
