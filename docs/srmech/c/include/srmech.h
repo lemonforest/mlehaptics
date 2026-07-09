@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc191"
-#define SRMECH_VERSION       "0.9.0rc191"
+#define SRMECH_VERSION_PRE   "rc192"
+#define SRMECH_VERSION       "0.9.0rc192"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2058,22 +2058,35 @@ srmech_status_t srmech_dsl_toml_chain_to_json(
  *                  rational coefficient lists) -> srmech_gosper; has == 1 is the
  *                  verification (a hypergeometric antidifference exists).
  *
+ * rc192 (#796 payoff) ADDS the SIGMA-DEFINITE (wz_certificate) exact-Q row over
+ * the rc191 srmech_carrier_read_bipoly reader:
+ *   * sigma-wz      (rn_num / rn_den / rk_num / rk_den as the four (n,k) BiPoly
+ *                  term-ratios) -> FIND srmech_zeilberger @order-1 (accept only
+ *                  the WZ shape a0(n)+a1(n)=0, nonzero constants) + PROVE
+ *                  srmech_wz_verify on the 1/a1-rescaled certificate; reducible
+ *                  iff the WZ equation VERIFIES (the genuine identity proof — not
+ *                  the FIND alone). The reducer name is "wz_certificate".
+ *
  * Output JSON (Python json.loads-able):
- *   reducible: {"reducer":"the_one"|"gosper","reducible":true,"row":..,
- *               "verified":true}
+ *   reducible: {"reducer":"the_one"|"gosper"|"wz_certificate","reducible":true,
+ *               "row":..,"verified":true}
  *   open     : {"reducible":false,"row":"cyclic"|"sigma"}   (Python builds the
  *               candidate-next-theory hint from the row)
  *
- * rc103 inform-don't-limit: any OTHER row (wz / spectral / multivariate / q /
- * elliptic — whose live carriers need their own bridge, rc177+), any malformed
+ * rc103 inform-don't-limit: any OTHER row (spectral / multivariate / q /
+ * elliptic — whose live carriers need their own bridge, rc193+), any malformed
  * operand, or any arena overflow -> non-OK, and the Python caller runs the
  * COMPLETE pure infer (NEVER a false reducible; the honest OPEN residue is the
- * no-hallucination discipline in C). ONE caller arena `ws` (size with
- * srmech_infer_arena_bytes(rel_len, max_terms) where max_terms is the largest
- * operand's coefficient count — the gosper degree, 1 for cyclic — since the
- * gosper ws grows super-linearly in the degree, not in rel_len); ABI-additive ->
- * SRMECH_ABI_VERSION stays 3. */
+ * no-hallucination discipline in C). ONE caller arena `ws`. The cyclic / gosper
+ * rows size with srmech_infer_arena_bytes(rel_len, max_terms) (max_terms = the
+ * largest operand's coefficient count — the gosper degree, 1 for cyclic — since
+ * the gosper ws grows super-linearly in the degree, not in rel_len). The
+ * sigma-wz row sizes with srmech_infer_sigma_definite_arena_bytes (its own,
+ * zeilberger-scale sizer, so the cheap rows never pay the MB floor). Both are
+ * ABI-additive -> SRMECH_ABI_VERSION stays 4. */
 size_t srmech_infer_arena_bytes(size_t rel_len, size_t max_terms);
+size_t srmech_infer_sigma_definite_arena_bytes(size_t rel_len, size_t max_terms,
+                                               size_t coeff_limbs);
 srmech_status_t srmech_infer(const char *rel_json, size_t rel_len,
                              void *ws, size_t ws_len,
                              char *out, size_t out_cap, size_t *out_len);

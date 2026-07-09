@@ -17,11 +17,12 @@ This test pins THREE properties:
   (2) GENUINE ENGAGEMENT — for the built rows the C peer is really RUN (not
       silently skipped): ``infer_c`` returns the expected decision dict, never
       None. (Guards the rc174/rc175 silent-fall-to-pure false-green.)
-  (3) INFORM-DON'T-LIMIT — the 5 heavier-carrier rows (definite-sum wz /
-      spectral / multivariate / q / elliptic) are NOT marshalled to C (the
-      Python marshaller returns None), so the pure infer runs them; the C router
+  (3) INFORM-DON'T-LIMIT — the remaining heavier-carrier rows (spectral /
+      multivariate / q / elliptic) are NOT marshalled to C (the Python
+      marshaller returns None), so the pure infer runs them; the C router
       NEVER returns a false reducible (the honest OPEN residue is the
-      no-hallucination discipline in C).
+      no-hallucination discipline in C). (rc192 moved the definite-sum wz row
+      into C — its coverage is in tests/test_infer_payoff_c_rc192.py.)
 
 numpy-FREE and math-FREE (only srmech carriers + fractions + plain arithmetic).
 """
@@ -49,7 +50,10 @@ def _ratios_binomial():
     return {"rn_num": rn_num, "rn_den": rn_den, "rk_num": rk_num, "rk_den": rk_den}
 
 
-# the two BUILT clean rows (reducible + OPEN) + the OPEN/deferred/fall-to-pure set.
+# the BUILT clean rows (reducible + OPEN) + the OPEN/deferred/fall-to-pure set.
+# rc192 (#796 payoff): the sigma-DEFINITE wz_certificate row is now a C-built row
+# (was fall-to-pure at rc176) — Σ_k C(n,k)/2ⁿ = 1 reduces; the deeper coverage is
+# in tests/test_infer_payoff_c_rc192.py.
 _BUILT_CASES = {
     "cyclic_reducible": {"sigma": 1, "theta_num": 0, "theta_den": 1},
     "cyclic_neg_period": {"row": "cyclic", "sigma": -1, "period": 3},
@@ -58,10 +62,10 @@ _BUILT_CASES = {
                          "term_ratio_den": Poly.from_coeffs([0, 1])},
     "gosper_open": {"term_ratio_num": Poly.from_coeffs([0, 1]),
                     "term_ratio_den": Poly.from_coeffs([1, 1])},
+    "wz_definite": _ratios_binomial(),                       # → sigma-wz (rc192)
 }
 
 _FALL_TO_PURE_CASES = {
-    "wz_definite": _ratios_binomial(),                       # → sigma-wz (rc177+)
     "spectral_edges": {"edges": [(0, 1), (1, 2), (2, 3)], "n": 4},
     "spectral_tag": {"row": "spectral",
                      "adjacency": [[0, 1, 1], [1, 0, 1], [1, 1, 0]]},

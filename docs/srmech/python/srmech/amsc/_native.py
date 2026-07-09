@@ -3366,6 +3366,13 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_infer_arena_bytes.argtypes = [
             ctypes.c_size_t, ctypes.c_size_t]
         lib.srmech_infer_arena_bytes.restype = ctypes.c_size_t
+    # rc192 (#796 payoff): the SIGMA-DEFINITE (wz_certificate) row sizer — its own
+    # zeilberger-scale arena (rel_len, max k-degree, max coeff limbs) so the cheap
+    # cyclic / gosper rows never pay the MB floor.
+    if hasattr(lib, "srmech_infer_sigma_definite_arena_bytes"):
+        lib.srmech_infer_sigma_definite_arena_bytes.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_infer_sigma_definite_arena_bytes.restype = ctypes.c_size_t
 
     # ------------------------------------------------------------------
     # Class N — ROTATION-LAST Chudnovsky π on srmech_bigint (0.9.0rc19).
@@ -10297,20 +10304,77 @@ def has_native_infer() -> bool:
     return all(hasattr(LIB, s) for s in _INFER_SYMS)
 
 
+def has_native_sigma_definite() -> bool:
+    """True iff the rc192 SIGMA-DEFINITE (wz_certificate) infer row is available:
+    ``srmech_infer`` + its dedicated zeilberger-scale arena sizer + the
+    ``srmech_zeilberger`` / ``srmech_wz_verify`` reducers it composes are loaded +
+    bound. False on a pre-rc192 lib — the pure ``wz_certificate`` path is the
+    complete alternative (and the parity oracle)."""
+    if not has_native_infer():
+        return False
+    return (hasattr(LIB, "srmech_infer_sigma_definite_arena_bytes")
+            and hasattr(LIB, "srmech_zeilberger")
+            and hasattr(LIB, "srmech_wz_verify"))
+
+
+def _coeff_limbs_of(v) -> int:
+    """Significant 32-bit limb count of an exact-ℚ scalar (int OR decimal string) —
+    the C srmech_bigint ``.n`` for the same value. >= 1 (a zero has .n == 0, but the
+    max floors at 1)."""
+    iv = int(v)
+    iv = iv if iv >= 0 else -iv          # |v| by Class-K sign-branch (no abs())
+    return max(1, (iv.bit_length() + 31) // 32)
+
+
+def _wz_coeff_limbs(rel: dict) -> int:
+    """Max coefficient limb count over the four (n,k) BiPoly term-ratios — the
+    tight zeilberger ``cl`` the C path computes from the read operands (mirrors
+    srmech_infer.c inf_bipoly_max_limbs; sizes the ws to the ACTUAL coefficients,
+    never rel_len, which would over-size to GB). DEFENSIVE: a malformed operand
+    (a hand-crafted bad JSON) returns 1 — the C srmech_infer then DECLINES the
+    malformed node (BAD_INPUT → the pure carrier coercer), never a wrong read."""
+    m = 1
+    try:
+        for key in ("rn_num", "rn_den", "rk_num", "rk_den"):
+            for slot in rel.get(key, ()):
+                for c in slot:
+                    if isinstance(c, (list, tuple)):
+                        m = max(m, _coeff_limbs_of(c[0]), _coeff_limbs_of(c[1]))
+                    else:
+                        m = max(m, _coeff_limbs_of(c))
+    except (TypeError, ValueError, IndexError):
+        return 1
+    return m
+
+
 def infer_c(rel_json: str, max_terms: int = 4):
     """Route a relationship JSON through ``srmech_infer`` → the decision dict
     (``{"reducible": bool, "row": str, "reducer": str?}``) or ``None`` when the
     native symbols are absent OR the C router returns non-OK (a row it does not
     handle / a malformed operand / an arena overflow → the caller runs the pure
     infer). ``rel_json`` is the ascii JSON the Python caller marshalled for one
-    of the rc176 clean rows (cyclic / sigma-gosper); ``max_terms`` is the largest
-    operand's coefficient count (the gosper degree — the arena grows
-    super-linearly in it, so it is sized on the ACTUAL count, not on bytes)."""
+    of the C rows (cyclic / sigma-gosper — rc176; sigma-definite wz — rc192);
+    ``max_terms`` is the largest operand's coefficient / k-degree count (the arena
+    grows super-linearly in it, so it is sized on the ACTUAL count, not on bytes).
+    The SIGMA-DEFINITE (wz) row (``rn_num`` present) uses its own
+    zeilberger-scale sizer (``srmech_infer_sigma_definite_arena_bytes``) so the
+    cheap cyclic / gosper rows never pay the MB floor."""
     if not has_native_infer():
         return None
     payload = rel_json.encode("utf-8")
-    ws_bytes = int(LIB.srmech_infer_arena_bytes(
-        ctypes.c_size_t(len(payload)), ctypes.c_size_t(int(max_terms))))
+    import json as _json
+    try:
+        _rel = _json.loads(rel_json)
+    except (ValueError, TypeError):
+        _rel = None
+    if (isinstance(_rel, dict) and "rn_num" in _rel
+            and has_native_sigma_definite()):
+        ws_bytes = int(LIB.srmech_infer_sigma_definite_arena_bytes(
+            ctypes.c_size_t(len(payload)), ctypes.c_size_t(int(max_terms)),
+            ctypes.c_size_t(_wz_coeff_limbs(_rel))))
+    else:
+        ws_bytes = int(LIB.srmech_infer_arena_bytes(
+            ctypes.c_size_t(len(payload)), ctypes.c_size_t(int(max_terms))))
     ws = (ctypes.c_uint8 * max(ws_bytes, 8))()
     out_cap = 256
     out = (ctypes.c_char * out_cap)()
