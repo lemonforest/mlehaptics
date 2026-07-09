@@ -2967,6 +2967,24 @@ def _bind(lib: ctypes.CDLL) -> None:
                 _CP, _CP, _SZ, _VP, _SZ, _VP, _SZ, _PSZ]
             lib.srmech_mcp_marshal_roundtrip.restype = ctypes.c_int
 
+        # rc191 — the NESTED exact-ℚ carrier OPERAND marshal (the #796 linchpin
+        # foundation). The bignum-safe reader that lowers the MCP nested-ℚ wire
+        # form of the §76 telescope reducer operands (Poly / BiPoly) into
+        # arena-backed srmech_bigint coefficient arrays — the reusable form the
+        # rc192 srmech_infer.c wiring calls to dispatch the deferred exact #796
+        # infer rows for a bare-C host. The ctypes-drivable round-trip prover
+        # (nested-ℚ JSON in → canonical [num,den] JSON out) proves the reader
+        # landed every (bignum) coefficient + the nesting. New symbols →
+        # hasattr-guarded (a stale lib keeps the rest); additive → ABI stays 4.
+        #   srmech_carrier_marshal_roundtrip(kind, json, json_len, ws, ws_len,
+        #                                    out, out_cap, out_len)
+        if hasattr(lib, "srmech_carrier_marshal_roundtrip"):
+            lib.srmech_carrier_marshal_arena_bytes.argtypes = [_SZ]
+            lib.srmech_carrier_marshal_arena_bytes.restype = ctypes.c_size_t
+            lib.srmech_carrier_marshal_roundtrip.argtypes = [
+                ctypes.c_int, _CP, _SZ, _VP, _SZ, _VP, _SZ, _PSZ]
+            lib.srmech_carrier_marshal_roundtrip.restype = ctypes.c_int
+
         # rc188 — the tools/call DISPATCH SPINE (invoke_tool). New symbols →
         # hasattr-guarded (a stale rc187 lib keeps the rest + falls back to the
         # pure invoke_tool); additive → ABI stays 4.
@@ -5385,6 +5403,65 @@ def mcp_marshal_roundtrip_c(
     if rc != SRMECH_OK:
         return (rc, None)
     return (MARSHAL_OK, bytes(out[:got.value]))
+
+
+# ----------------------------------------------------------------------
+# rc191 — the NESTED exact-ℚ carrier OPERAND marshal (the #796 linchpin
+# foundation). ``carrier_marshal_roundtrip_c`` drives the C round-trip prover:
+# it parses the MCP nested-ℚ wire form of a §76 telescope reducer operand (a
+# Poly / BiPoly / scalar carrier), lowers it to arena-backed srmech_bigint
+# coefficient arrays via srmech_carrier_read_{poly,bipoly}, and re-serialises to
+# CANONICAL nested-ℚ JSON (each coefficient as [num,den] decimal). It proves the
+# reader landed every (bignum) coefficient VALUE + the nesting structure —
+# byte-identical to the Python carrier's own coefficient view. This is the
+# reusable marshal the rc192 srmech_infer.c wiring calls to dispatch the deferred
+# exact #796 infer rows (sigma-definite / q / elliptic) for a bare-C host. (NOT
+# the invoke_tool vtable: the reducer kernels need MB–GB caller arenas that only
+# the srmech_infer path sizes; see srmech_carrier_marshal.c.)
+# ----------------------------------------------------------------------
+
+# Carrier kinds (mirror SRMECH_CARRIER_* in srmech.h).
+CARRIER_POLY: int = 0
+CARRIER_BIPOLY: int = 1
+CARRIER_SCALAR: int = 2
+
+
+def has_native_carrier_marshal() -> bool:
+    """True iff the rc191 nested exact-ℚ carrier marshal C peer is loaded +
+    bound. False on a no-C or pre-rc191 lib — the pure carrier coercers
+    (srmech.mcp._coercion._to_poly / _to_bipoly) are the complete alternative."""
+    return bool(
+        HAS_NATIVE and LIB is not None
+        and hasattr(LIB, "srmech_carrier_marshal_roundtrip")
+    )
+
+
+def carrier_marshal_roundtrip_c(
+    kind: int, json_bytes: bytes
+) -> "tuple[int, bytes | None]":
+    """Round-trip one nested-ℚ carrier operand ``json_bytes`` (raw JSON bytes)
+    of ``kind`` (``CARRIER_POLY`` / ``CARRIER_BIPOLY`` / ``CARRIER_SCALAR``)
+    through the C ``srmech_carrier_marshal_roundtrip``: parse → srmech_bigint
+    coefficient arrays → re-serialise canonical [num,den] JSON. Returns
+    ``(status, out_bytes)`` where ``status`` is ``SRMECH_OK`` (0) on success (and
+    ``out_bytes`` is the canonical round-trip) or a non-zero srmech error
+    (``out_bytes`` ``None``) — a malformed operand routes the caller to the
+    complete pure path. Returns ``(-1, None)`` if the C peer is unavailable.
+    numpy-free."""
+    if not has_native_carrier_marshal():
+        return (-1, None)
+    ws_len = int(LIB.srmech_carrier_marshal_arena_bytes(len(json_bytes)))
+    ws = (ctypes.c_char * max(ws_len, 8))()
+    out_cap = 128 * len(json_bytes) + 8192
+    out = (ctypes.c_char * out_cap)()
+    got = ctypes.c_size_t(0)
+    rc = LIB.srmech_carrier_marshal_roundtrip(
+        int(kind), json_bytes, len(json_bytes),
+        ctypes.cast(ws, ctypes.c_void_p), ws_len,
+        ctypes.cast(out, ctypes.c_void_p), out_cap, ctypes.byref(got))
+    if rc != SRMECH_OK:
+        return (rc, None)
+    return (SRMECH_OK, bytes(out[:got.value]))
 
 
 # ----------------------------------------------------------------------
