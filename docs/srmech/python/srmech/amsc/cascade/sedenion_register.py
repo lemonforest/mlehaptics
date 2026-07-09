@@ -71,6 +71,7 @@ from .cayley_dickson import (
 )
 from .hamming import hamming_encode, hamming_decode_correct
 from . import chiral_flip
+from srmech.amsc import _native  # rc199: native srmech_sed* address-algebra dispatch
 
 #: The sedenion is the 16-slot address space (the open-exterior box, §VII.6.23).
 NUM_SLOTS = 16
@@ -349,9 +350,22 @@ def sed_clean(noisy, codebook):
 
 
 def sed_slots(slots):
-    """``slots``: a copy of the ``slot → (key, sign)`` assignment."""
-    return {int(k): (str(v[0]), int(v[1]))
-            for k, v in dict(slots or {}).items()}
+    """``slots``: a copy of the ``slot → (key, sign)`` assignment. rc199: the
+    numeric-skeleton reshape dispatches to the ``srmech_sed_slots`` C peer when
+    HAS_NATIVE (validated slot ∈ [0,16) / sign ∈ {±1}); the un-validated pure
+    reshape is the fallback + parity oracle (any out-of-domain slot / sign). The
+    slot int-keys ride the ``srmech_mval_t`` DICT as STR ``"0".."15"`` one layer
+    up; ``int(k)`` normalises them here before the C sees plain int arrays."""
+    d = {int(k): (str(v[0]), int(v[1]))
+         for k, v in dict(slots or {}).items()}
+    items = list(d.items())
+    native = _native.sed_slots_c([s for s, _ in items],
+                                 [sgn for _, (_k, sgn) in items])
+    if native is not None:
+        out_slots, out_signs = native
+        keys = [k for _, (k, _sgn) in items]
+        return {out_slots[m]: (keys[m], out_signs[m]) for m in range(len(items))}
+    return d
 
 
 def sed_couple_working(vals):
@@ -370,20 +384,46 @@ def sed_carry(overflow_bits, *, n: int = 3):
 
 
 def sed_correct(codeword):
-    """``correct``: locate + correct a single-bit error in an EC codeword."""
+    """``correct``: locate + correct a single-bit error in an EC codeword. rc199:
+    dispatches to the ``srmech_hamming_decode_correct`` C peer when HAS_NATIVE
+    (the whole locate + correct + extract in ONE C call); the pure
+    ``hamming_decode_correct`` is the fallback + parity oracle (and raises the
+    exact ``ValueError`` for a codeword whose length is not 2ⁿ−1)."""
+    native = _native.hamming_decode_correct_c(codeword)
+    if native is not None:
+        return native
     return SedenionRegister().correct(codeword)
 
 
 def sed_navmap(j):
-    """``navmap``: the signed pointer-advance permutation for ×e_j."""
+    """``navmap``: the signed pointer-advance permutation for ×e_j. rc199:
+    dispatches to the ``srmech_sedenion_navmap`` C peer when HAS_NATIVE; the pure
+    ``SedenionRegister.navmap`` (the ``cd_basis_product`` cocycle loop) is the
+    fallback + parity oracle (and raises for ``j`` outside [0,16)). Byte-
+    identical — a signed permutation of the 16 slots."""
+    native = _native.sedenion_navmap_c(j)
+    if native is not None:
+        return native
     return SedenionRegister().navmap(j)
 
 
 def sed_navigate(j, D, codebook, slots):
     """``navigate`` (returns="self"): walk the hyper-loop — right-multiply every
     slot name by ``e_j`` → a NEW register's ``{D, codebook, slots}`` state-dict
-    (shares the codebook; composes the Class-C signs)."""
-    out = _rehydrate(D, codebook, slots).navigate(j)
+    (shares the codebook; composes the Class-C signs). rc199: dispatches the slot
+    routing to the ``srmech_sedenion_navigate`` C peer when HAS_NATIVE; the pure
+    ``SedenionRegister.navigate`` is the fallback + parity oracle. ``D`` +
+    ``codebook`` pass through unchanged; only the slot names route."""
+    r = _rehydrate(D, codebook, slots)
+    items = sorted(r._slots.items())
+    native = _native.sedenion_navigate_c(
+        j, [s for s, _ in items], [sgn for _, (_k, sgn) in items])
+    if native is not None:
+        out_slots, out_signs = native
+        keys = [k for _, (k, _sgn) in items]
+        routed = {out_slots[m]: (keys[m], out_signs[m]) for m in range(len(items))}
+        return {"D": r.D, "codebook": dict(r.codebook), "slots": routed}
+    out = r.navigate(j)
     return {"D": out.D, "codebook": dict(out.codebook), "slots": dict(out._slots)}
 
 

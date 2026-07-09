@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc198"
-#define SRMECH_VERSION       "0.9.0rc198"
+#define SRMECH_VERSION_PRE   "rc199"
+#define SRMECH_VERSION       "0.9.0rc199"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3455,6 +3455,19 @@ srmech_status_t srmech_sedenion_navigate(int j, const int *in_slots,
  * the certainty prime table). */
 srmech_status_t srmech_sedenion_is_navigable(const int64_t *direction,
                                              size_t n, int *out_invertible);
+
+/* rc199 (make_class → C, leaf-batch 5/8; #887): the `slots` accessor's
+ * canonical numeric reshape. Validate + copy the register's occupied
+ * (slot, sign) skeleton — slot in [0,16), sign in {+1,-1} — into
+ * out_slots / out_signs (the make_class `slots` leaf's numeric core; the
+ * key strings pass through in the Python caller, and the slot int-keys
+ * ride the srmech_mval_t DICT as STR "0".."15" one layer up). count == 0
+ * is a no-op. Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (slot out
+ * of range or sign not +-1 -> the Python caller runs the un-validated pure
+ * reshape; inform-don't-limit). ABI-additive: a new symbol, no callback
+ * typedef, so SRMECH_ABI_VERSION stays 4. See srmech_sedenion.c. */
+srmech_status_t srmech_sed_slots(const int *in_slots, const int *in_signs,
+                                 size_t count, int *out_slots, int *out_signs);
 
 /* ------------------------------------------------------------------
  * JSON value-tree — parser + canonical writer (§41 genome-persistence

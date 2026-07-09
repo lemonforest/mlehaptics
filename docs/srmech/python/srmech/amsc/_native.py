@@ -1382,6 +1382,19 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_int),       # out_invertible (0/1)
         ]
         lib.srmech_sedenion_is_navigable.restype = ctypes.c_int
+    # rc199 (make_class → C, leaf-batch 5/8; #887): the sed_slots accessor's
+    # canonical numeric reshape (validate+copy the (slot, sign) skeleton).
+    #   int srmech_sed_slots(const int *in_slots, const int *in_signs,
+    #                        size_t count, int *out_slots, int *out_signs)
+    if hasattr(lib, "srmech_sed_slots"):
+        lib.srmech_sed_slots.argtypes = [
+            ctypes.POINTER(ctypes.c_int),       # in_slots
+            ctypes.POINTER(ctypes.c_int),       # in_signs (+1/-1)
+            ctypes.c_size_t,                    # count
+            ctypes.POINTER(ctypes.c_int),       # out_slots
+            ctypes.POINTER(ctypes.c_int),       # out_signs
+        ]
+        lib.srmech_sed_slots.restype = ctypes.c_int
 
     # ------------------------------------------------------------------
     # Class J — prime-factorisation / period (Task #217 Phase C1 rc3).
@@ -14020,6 +14033,135 @@ def hypercomplex_couple_q61_c(streams8, mu8, eff: float, form_is_left: bool):
     if rc != SRMECH_OK:
         raise ValueError(f"srmech_hypercomplex_couple_q61: status {rc}")
     return [out[i] for i in range(8)]
+
+
+# ── rc199 (make_class → C, leaf-batch 5/8; #887): the sedenion ADDRESS-ALGEBRA
+#    leaf peers. Thin marshalling over the shipped srmech_sedenion_* /
+#    srmech_hamming_* kernels + the one new srmech_sed_slots reshape, so the
+#    rc201 leaf-vtable dispatches each sedenion_register.sed_* address leaf to a
+#    single C symbol. Each returns None when the symbol is absent OR the input
+#    is out of the C domain — the Python caller then runs the exact pure path
+#    (the parity oracle; inform-don't-limit). The slot int-keys ride the
+#    srmech_mval_t DICT as STR "0".."15" one layer up; the caller int()s them
+#    before these helpers (the C sees plain int arrays). ──
+
+def has_native_sedenion_navmap() -> bool:
+    """True iff the rc12 srmech_sedenion_navmap C peer is loaded + bound."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_sedenion_navmap"))
+
+
+def sedenion_navmap_c(j: int):
+    """Native srmech_sedenion_navmap → ``{i: (dest, sign)}`` over the 16 slots
+    (``e_i·e_j = sign·e_{dest}``), or None when absent / ``j`` outside [0,16).
+    Byte-identical to ``SedenionRegister.navmap`` (a signed permutation)."""
+    if not has_native_sedenion_navmap():
+        return None
+    if not (0 <= j < 16):
+        return None
+    dest = (ctypes.c_int * 16)()
+    sign = (ctypes.c_int * 16)()
+    rc = LIB.srmech_sedenion_navmap(ctypes.c_int(j), dest, sign)
+    if rc != SRMECH_OK:
+        return None
+    return {i: (int(dest[i]), int(sign[i])) for i in range(16)}
+
+
+def has_native_sedenion_navigate() -> bool:
+    """True iff the rc12 srmech_sedenion_navigate C peer is loaded + bound."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_sedenion_navigate"))
+
+
+def sedenion_navigate_c(j: int, in_slots, in_signs):
+    """Native srmech_sedenion_navigate → ``(out_slots, out_signs)`` routing the
+    occupied (slot, sign) records through ×e_j (composing the Class-C signs), or
+    None when absent / ``j`` outside [0,16) / a record is out of domain. Byte-
+    identical to ``SedenionRegister.navigate`` slot routing."""
+    if not has_native_sedenion_navigate():
+        return None
+    if not (0 <= j < 16):
+        return None
+    cnt = len(in_slots)
+    for s, g in zip(in_slots, in_signs):
+        if not (0 <= s < 16) or g not in (1, -1):
+            return None
+    isl = (ctypes.c_int * cnt)(*in_slots)
+    isg = (ctypes.c_int * cnt)(*in_signs)
+    osl = (ctypes.c_int * cnt)()
+    osg = (ctypes.c_int * cnt)()
+    rc = LIB.srmech_sedenion_navigate(
+        ctypes.c_int(j), isl, isg, ctypes.c_size_t(cnt), osl, osg)
+    if rc != SRMECH_OK:
+        return None
+    return ([int(osl[m]) for m in range(cnt)], [int(osg[m]) for m in range(cnt)])
+
+
+def has_native_hamming_decode_correct() -> bool:
+    """True iff the srmech_hamming_decode_correct C peer is loaded + bound."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_hamming_decode_correct"))
+
+
+def hamming_decode_correct_c(codeword):
+    """Native srmech_hamming_decode_correct → ``{"data", "error_position",
+    "corrected_codeword"}`` for a 2ⁿ−1-bit codeword (locate + correct the single
+    error + extract the data payload in ONE C call), or None when absent / the
+    length is not 2ⁿ−1 in [3, 65535] / a bit is not 0-1. Byte-identical to
+    ``hamming_decode_correct`` — ``data`` + ``error_position`` come from C; the
+    ``corrected_codeword`` is reconstructed from the located position exactly as
+    the pure path does (the C peer returns data + position, not the codeword)."""
+    if not has_native_hamming_decode_correct():
+        return None
+    code = list(codeword)
+    length = len(code)
+    for b in code:
+        if b != 0 and b != 1:
+            return None
+    n = (length + 1).bit_length() - 1
+    if (1 << n) - 1 != length or n < 2 or n > 16:
+        return None
+    code_arr = (ctypes.c_uint8 * length)(*code)
+    out_data = (ctypes.c_uint8 * (length - n))()
+    out_pos = ctypes.c_int()
+    rc = LIB.srmech_hamming_decode_correct(
+        code_arr, ctypes.c_size_t(length), out_data, ctypes.byref(out_pos))
+    if rc != SRMECH_OK:
+        return None
+    pos = int(out_pos.value)
+    corrected = list(code)
+    if 1 <= pos <= length:
+        corrected[pos - 1] ^= 1        # the single located Class-K sign-flip
+    return {"data": [int(b) for b in out_data], "error_position": pos,
+            "corrected_codeword": corrected}
+
+
+def has_native_sed_slots() -> bool:
+    """True iff the rc199 srmech_sed_slots C peer is loaded + bound."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_sed_slots"))
+
+
+def sed_slots_c(in_slots, in_signs):
+    """Native srmech_sed_slots → ``(out_slots, out_signs)``: the canonical
+    validated reshape of the register's slot skeleton (slot in [0,16), sign in
+    {±1}), or None when absent / any record is out of that domain (the Python
+    caller then runs the un-validated pure reshape). Byte-identical to the
+    numeric core of ``sed_slots`` for every real register state."""
+    if not has_native_sed_slots():
+        return None
+    cnt = len(in_slots)
+    for s, g in zip(in_slots, in_signs):
+        if not (0 <= s < 16) or g not in (1, -1):
+            return None
+    isl = (ctypes.c_int * cnt)(*in_slots)
+    isg = (ctypes.c_int * cnt)(*in_signs)
+    osl = (ctypes.c_int * cnt)()
+    osg = (ctypes.c_int * cnt)()
+    rc = LIB.srmech_sed_slots(isl, isg, ctypes.c_size_t(cnt), osl, osg)
+    if rc != SRMECH_OK:
+        return None
+    return ([int(osl[m]) for m in range(cnt)], [int(osg[m]) for m in range(cnt)])
 
 
 def has_native_hypercomplex_exp() -> bool:
