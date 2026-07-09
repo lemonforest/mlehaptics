@@ -12,6 +12,17 @@
 
 #include "srmech.h"
 
+/* MSVC C4125 ("decimal digit terminates octal escape sequence") is a
+ * STYLE nag: the baked non-ASCII bytes are emitted as 3-digit octal
+ * escapes (\NNN) which the C standard caps at 3 digits, so a following
+ * decimal digit is unambiguous (gcc/clang stay silent). It fires only
+ * under MSVC /WX on this generated pure-DATA table. Suppress it locally
+ * (the compiled bytes are identical → the tool_schema_sha256 ratchet is
+ * unaffected). */
+#ifdef _MSC_VER
+#pragma warning(disable : 4125)
+#endif
+
 /* tool_schema_version (srmech.amsc.tool_schema.TOOL_SCHEMA_VERSION). */
 const char srmech_tool_schema_version_str[] = "1.0";
 
