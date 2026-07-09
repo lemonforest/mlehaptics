@@ -303,9 +303,11 @@ srmech_status_t srmech_mval_from_json(const srmech_json_value_t *j,
                                       srmech_marshal_arena_t *a,
                                       srmech_mval_t **out)
 {
-    assert(out != NULL);
-    assert(a != NULL || j == NULL);
+    /* Runtime-checked entry params return NULL_ARG BEFORE any assert fires —
+     * a contractually-handled NULL is not an invariant violation (rc715). */
     if (j == NULL || a == NULL || out == NULL) { return SRMECH_ERR_NULL_ARG; }
+    assert(a->cur <= a->end);                       /* genuine arena invariant */
+    assert(j->type >= SRMECH_JSON_NULL && j->type <= SRMECH_JSON_OBJECT);
     return mm_from_json(j, a, 0u, out);
 }
 
@@ -529,10 +531,13 @@ srmech_status_t srmech_mcp_serialise_result(const srmech_mval_t *v,
                                             size_t *out_len)
 {
     mm_emit_t e;
-    assert(out_len != NULL || v == NULL);
-    assert(buf != NULL || buf_len == 0u);
+    /* NULL_ARG returns BEFORE any assert — a runtime-checked NULL (the two-pass
+     * size-query passes buf==NULL; the caller may pass out_len==NULL) is
+     * contractually handled, not an invariant violation (rc715). */
     if (v == NULL || out_len == NULL) { return SRMECH_ERR_NULL_ARG; }
+    assert(v->kind >= SRMECH_MVAL_NONE && v->kind <= SRMECH_MVAL_DICT);
     e.buf = buf; e.cap = (buf == NULL) ? 0u : buf_len; e.used = 0u; e.overflow = 0;
+    assert(e.overflow == 0 && e.used == 0u);        /* sink starts empty/clean  */
     mm_serialise(&e, v, 0u);
     *out_len = e.used;
     return e.overflow ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
@@ -750,11 +755,13 @@ srmech_status_t srmech_mcp_marshal_arg(const char *type_string,
                                        srmech_mval_t **out)
 {
     mm_action_t act;
-    assert(out != NULL || v == NULL);
-    assert(a != NULL || v == NULL);
+    /* NULL_ARG returns BEFORE any assert — a runtime-checked NULL param is
+     * contractually handled, not an invariant violation (rc715). */
     if (type_string == NULL || v == NULL || a == NULL || out == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
+    assert(a->cur <= a->end);                       /* genuine arena invariant */
+    assert(v->kind >= SRMECH_MVAL_NONE && v->kind <= SRMECH_MVAL_DICT);
     if (v->kind == SRMECH_MVAL_NONE) { *out = (srmech_mval_t *)v; return SRMECH_OK; }
     act = mm_action_for(type_string);
     switch (act) {
@@ -794,11 +801,13 @@ srmech_status_t srmech_mcp_marshal_roundtrip(const char *type_string,
     srmech_marshal_arena_t a; srmech_json_value_t *jroot = NULL;
     srmech_mval_t *raw = NULL, *typed = NULL; unsigned char *parse_ws;
     size_t pj; srmech_status_t st;
-    assert(out_len != NULL);
-    assert(type_string != NULL || value_json == NULL);
+    /* NULL_ARG returns BEFORE any assert — the test drives out_len==NULL here,
+     * which is contractually handled, not an invariant violation (rc715). */
     if (type_string == NULL || value_json == NULL || ws == NULL ||
         out == NULL || out_len == NULL) { return SRMECH_ERR_NULL_ARG; }
+    assert(jroot == NULL && raw == NULL && typed == NULL);  /* clean pipeline start */
     srmech_marshal_arena_init(&a, ws, ws_len);
+    assert(a.cur <= a.end);                         /* genuine arena invariant */
     pj = 128u * value_len + 16384u;
     parse_ws = mm_carve(&a, pj);
     if (parse_ws == NULL) { return SRMECH_ERR_OVERFLOW; }

@@ -23,7 +23,19 @@ _Next development line: deferred-from-v0.4.6 introspection extensions (Tier 2 mm
 
 **Parity proof (the DoD — no dispatch yet).** For a representative set of bucket-(a) param types the C round-trip lands on the **SAME canonical JSON** as the pure Python `json.dumps(serialise_native(coerce_param(value, type)), separators=(",", ":"))` — verified byte-for-byte in `tests/test_mcp_marshal_c_rc187.py` across every coercer family (base64 decode/encode == Python base64 over lengths 0–19; `complex` `[re,im]` round-trips; non-ASCII strings `\uXXXX`-escape; `Mapping[bytes,bytes]` / bytes-int / bytes-bytes pair families; the identity passthroughs; null-for-any-type; NOT_IMPL for the float carriers/handles; BAD_INPUT for malformed base64/complex). Proves the carrier + marshal genuinely lower a JSON arg to a typed C value and back — the real foundation, not a stub.
 
-**Ledger — NO move (foundation rc).** No tool is dispatched this rc (the `invoke_tool` spine is rc188), so `non_compute` stays **177** = owed_orchestration **11** / composes_c **107** / host_glue **15** / dev_tooling **44**; `CEIL_NON_COMPUTE_OWED` **11**, `python_only_debt` / `bignum_reference` / `c_exists_unbound` all **0** — UNCHANGED (the `_coercion` marshallers are a PRIVATE `_`-tailed submodule, already understated in the ledger per the rc183 honest note). **NO ToolEntry change** → `tools.total` stays **403**; **ABI stays 4** (additive symbols + types, no wire change to an existing function). Both C modes clean under `-Werror -Wpedantic` (`-O2` + `-DNDEBUG`); ASAN/UBSAN clean over marshal_arg (each bucket-(a) family: scalar/bytes/complex/list/tuple/mapping/nested) + serialise_result round-trips + the size-query / overflow boundary + the base64 decode; JPL green; numpy-absent. 6 SSOT files rc186 → rc187. Next: the rc188 `invoke_tool` SPINE (registry_find → marshal → signature-shape-batched thunk table → serialise) discharging owed 11 → 10, then the float-carrier (rc190–191) + the #796 nested-exact linchpin (rc192–193) + the CLI.
+**NULL-arg discipline (rc715 pattern).** Every marshal ENTRY function
+(`srmech_mval_from_json`, `srmech_mcp_marshal_arg`, `srmech_mcp_serialise_result`,
+`srmech_mcp_marshal_roundtrip`) returns `SRMECH_ERR_NULL_ARG` on a
+contractually-NULL param BEFORE any `assert` runs — a runtime-checked NULL (e.g.
+a two-pass size-query `buf==NULL`, a caller's `out_len==NULL`) is a handled
+precondition, NOT an invariant violation, so no `assert(param != NULL)` guards a
+param the API gracefully errors on (the JPL Rule-5 pair is met with GENUINE
+invariants: arena consistency, kind-in-range, sink-starts-clean). Verified
+**asserts-LIVE** (`-O2`, no `-DNDEBUG`) — not only Release — so the graceful
+return is identical in both builds (an asserts-live abort here would be masked by
+the CI Release build).
+
+**Ledger — NO move (foundation rc).** No tool is dispatched this rc (the `invoke_tool` spine is rc188), so `non_compute` stays **177** = owed_orchestration **11** / composes_c **107** / host_glue **15** / dev_tooling **44**; `CEIL_NON_COMPUTE_OWED` **11**, `python_only_debt` / `bignum_reference` / `c_exists_unbound` all **0** — UNCHANGED (the `_coercion` marshallers are a PRIVATE `_`-tailed submodule, already understated in the ledger per the rc183 honest note). **NO ToolEntry change** → `tools.total` stays **403**; **ABI stays 4** (additive symbols + types, no wire change to an existing function). Both C modes clean under `-Werror -Wpedantic` (`-O2` + `-DNDEBUG`); ASAN/UBSAN clean (asserts-live) over marshal_arg (each bucket-(a) family: scalar/bytes/complex/list/tuple/mapping/nested) + serialise_result round-trips + the size-query / overflow boundary + the base64 decode + every entry-point NULL-arg graceful return; JPL green; numpy-absent. 6 SSOT files rc186 → rc187. Next: the rc188 `invoke_tool` SPINE (registry_find → marshal → signature-shape-batched thunk table → serialise) discharging owed 11 → 10, then the float-carrier (rc190–191) + the #796 nested-exact linchpin (rc192–193) + the CLI.
 
 ## [0.9.0rc186]
 
