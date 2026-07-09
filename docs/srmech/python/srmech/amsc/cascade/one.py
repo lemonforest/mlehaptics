@@ -483,6 +483,27 @@ class One:
         """
         return to_scalar(self, mode=mode, index=index, as_float=as_float)
 
+    def _to_jsonable(self) -> dict:
+        """The canonical JSON-native serialisation of the One's value-carrying
+        ADJOINT state — the DICT a bare-C host, the Python, and the rc201
+        object-model engine all agree on:
+        ``{"sigma": int, "theta": [num, den], "terms": int}``.
+
+        These three fields fully determine the ADJOINT: :attr:`blocks` are a pure
+        derivation of ``(sigma, theta, terms)`` via ``srmech_the_one`` (the
+        w-INVARIANT 2π base). So :func:`one_from_jsonable` round-trips this DICT
+        EXACTLY — same sigma/theta/terms/blocks, and ``srmech_the_one`` regenerates
+        the same 14 flat rationals. The :attr:`winding` triad + :attr:`spinor` are
+        the SEPARATE gh#1276 surface (their own ``srmech_winding_*`` C peers), and
+        every leaf op ``one.toml`` / ``hurwitz.toml`` bind is w-BLIND, so they are
+        NOT carried here — a wound One would need ``winding`` added to this DICT.
+        """
+        return {
+            "sigma": self.sigma,
+            "theta": [self.theta[0], self.theta[1]],
+            "terms": self.terms,
+        }
+
     # ── the winding surface — read from the spinor total space (gh#1276) ──
     #
     # The adjoint base (:meth:`to_flat_rational` / :meth:`to_matrix`) is
@@ -804,6 +825,37 @@ def the_one(sigma: int,
 s_generator = the_one
 
 
+def one_from_jsonable(d: dict) -> One:
+    """Reconstruct a :class:`One` from the canonical DICT :meth:`One._to_jsonable`
+    emits (``{"sigma": int, "theta": [num, den], "terms": int}``) — the bare-C-host
+    / rc201 object-model round-trip.
+
+    The ADJOINT (:attr:`One.blocks`) is regenerated via ``srmech_the_one`` from the
+    three fields, so the reconstructed One is IDENTICAL in sigma/theta/terms/blocks
+    (the winding defaults to rest ``(0,0,0)`` — the DICT carries only the w-INVARIANT
+    adjoint state; see :meth:`One._to_jsonable`). ``terms`` is optional (defaults to
+    :data:`DEFAULT_TERMS`)."""
+    theta = d["theta"]
+    return the_one(int(d["sigma"]), int(theta[0]), int(theta[1]),
+                   int(d.get("terms", DEFAULT_TERMS)))
+
+
+def _one_scalar_native(one: "One", mode: str, index):
+    """The exact scalar ``(num, den)`` via the rc195 ``srmech_one_scalar`` C peer,
+    or ``None`` when the native peer is absent / ``HAS_NATIVE`` is off (→ the pure
+    oracle in :func:`to_scalar`). The C peer regenerates the 14 flat rationals via
+    ``srmech_the_one`` then assembles the exact reduced rational — BYTE-IDENTICAL
+    to the pure path. Lazy import (keeps ``one.py``'s import graph unchanged +
+    honours the ``HAS_NATIVE`` toggle the parity tests flip via
+    ``one_scalar_c`` → ``has_native_one_scalar``)."""
+    from .. import _native
+    fn = getattr(_native, "one_scalar_c", None)
+    if fn is None:
+        return None
+    idx = index if mode == "component" else 0
+    return fn(one.sigma, one.theta[0], one.theta[1], one.terms, mode, idx)
+
+
 def to_scalar(one: "One",
               mode: str = "trace",
               index: int = None,
@@ -857,13 +909,25 @@ def to_scalar(one: "One",
     if not isinstance(one, One):
         raise TypeError(
             f"to_scalar expects a One; got {type(one).__name__}")
+    # ── validation — the SAME error contract for the native + pure paths ──
     if mode == "component":
         if index is None:
             raise ValueError("mode='component' requires index= (0..13)")
-        flat = one.to_flat_rational()
-        if not 0 <= index < len(flat):
+        if not 0 <= index < DIM:
             raise IndexError(
-                f"index {index} out of range 0..{len(flat) - 1}")
+                f"index {index} out of range 0..{DIM - 1}")
+    elif mode not in ("trace", "sqnorm"):
+        raise ValueError(
+            f"mode must be 'trace', 'sqnorm' or 'component'; got {mode!r}")
+    # ── native dispatch — the rc195 srmech_one_scalar C peer regenerates the flat
+    # via srmech_the_one then assembles the exact (num, den) IN C, BYTE-IDENTICAL
+    # to the pure path below (which is the complete alternative + the parity
+    # oracle when HAS_NATIVE is off). ──
+    nat = _one_scalar_native(one, mode, index)
+    if nat is not None:
+        num, den = nat
+    elif mode == "component":
+        flat = one.to_flat_rational()
         num, den = flat[index]
     elif mode == "sqnorm":
         # Σ (num/den)² — exact integer arithmetic; squaring is sign-free so no
@@ -874,7 +938,7 @@ def to_scalar(one: "One",
             acc_num, acc_den = _reduce_rational(
                 acc_num * t_den + t_num * acc_den, acc_den * t_den)
         num, den = acc_num, acc_den
-    elif mode == "trace":
+    else:  # trace
         # Tr G(σ,θ) = 3 + 3σ + 8σ·cos θ — the rotation character. cos θ is
         # recovered from the stored ADJOINT (σ·cos at ``blocks[1].imag[0]``,
         # the ℍ Fano plane; un-apply σ via the Class-K/C :func:`_chiral_scale`),
@@ -884,9 +948,6 @@ def to_scalar(one: "One",
         cn, cd = _chiral_scale(one.blocks[1].imag[0], one.sigma)
         s = one.sigma
         num, den = _reduce_rational((3 + 3 * s) * cd + 8 * s * cn, cd)
-    else:
-        raise ValueError(
-            f"mode must be 'trace', 'sqnorm' or 'component'; got {mode!r}")
     if as_float:
         return num / den          # the single terminal lossy cast (no numpy)
     # The exact scalar-rational carrier (F868 stay-rational): float never

@@ -3583,6 +3583,59 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_the_one.restype = ctypes.c_int
 
+    # rc195 (#887): the One-family COMPUTE leaf ops in C (the make_class → C arc).
+    # srmech_one_scalar (EXACT (num,den) trace/sqnorm/component) + srmech_one_matrix
+    # (the 14×14 float G, NUMERIC within-tol) COMPOSE srmech_the_one then assemble
+    # exactly like One.to_scalar / One.to_matrix, so a bare-C host runs the object
+    # model's scalar/matrix methods natively. NEW symbols → hasattr-guarded;
+    # additive → EXPECTED_ABI_VERSION stays 4.
+    #   size_t srmech_one_scalar_ws_bound(size_t num_limbs, size_t den_limbs,
+    #       uint32_t num_terms)
+    if hasattr(lib, "srmech_one_scalar_ws_bound"):
+        lib.srmech_one_scalar_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_uint32,
+        ]
+        lib.srmech_one_scalar_ws_bound.restype = ctypes.c_size_t
+    #   srmech_status_t srmech_one_scalar(int32_t sigma, const srmech_bigint_t *tn,
+    #       const srmech_bigint_t *td, uint32_t num_terms, int32_t mode, int32_t index,
+    #       srmech_bigint_t *out_num, srmech_bigint_t *out_den, void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_one_scalar"):
+        lib.srmech_one_scalar.argtypes = [
+            ctypes.c_int32,                  # sigma
+            ctypes.POINTER(_SrmechBigint),   # theta_num
+            ctypes.POINTER(_SrmechBigint),   # theta_den
+            ctypes.c_uint32,                 # num_terms
+            ctypes.c_int32,                  # mode (0=trace,1=sqnorm,2=component)
+            ctypes.c_int32,                  # index (component mode)
+            ctypes.POINTER(_SrmechBigint),   # out_num
+            ctypes.POINTER(_SrmechBigint),   # out_den
+            ctypes.c_void_p,                 # ws
+            ctypes.c_size_t,                 # ws_len
+        ]
+        lib.srmech_one_scalar.restype = ctypes.c_int
+    #   size_t srmech_one_matrix_ws_bound(size_t num_limbs, size_t den_limbs,
+    #       uint32_t num_terms)
+    if hasattr(lib, "srmech_one_matrix_ws_bound"):
+        lib.srmech_one_matrix_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_uint32,
+        ]
+        lib.srmech_one_matrix_ws_bound.restype = ctypes.c_size_t
+    #   srmech_status_t srmech_one_matrix(int32_t sigma, const srmech_bigint_t *tn,
+    #       const srmech_bigint_t *td, uint32_t num_terms, double *out,
+    #       size_t out_count, void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_one_matrix"):
+        lib.srmech_one_matrix.argtypes = [
+            ctypes.c_int32,                  # sigma
+            ctypes.POINTER(_SrmechBigint),   # theta_num
+            ctypes.POINTER(_SrmechBigint),   # theta_den
+            ctypes.c_uint32,                 # num_terms
+            ctypes.POINTER(ctypes.c_double), # out[196]
+            ctypes.c_size_t,                 # out_count
+            ctypes.c_void_p,                 # ws
+            ctypes.c_size_t,                 # ws_len
+        ]
+        lib.srmech_one_matrix.restype = ctypes.c_int
+
     # rc38: the EXACT-RATIONAL polynomial carrier C peer (srmech_poly_*) — the
     # §76 telescope Sigma-row foundation. Each op takes parallel srmech_bigint
     # coefficient arrays (nums[]/dens[], ascending degree) + a caller arena, all
@@ -7815,6 +7868,114 @@ def the_one_c(sigma: int, theta_num: int, theta_den: int,
         raise RuntimeError(f"srmech_the_one returned non-OK status {rc}")
     return [(_bigint_to_int(out_num[i]), _bigint_to_int(out_den[i]))
             for i in range(_THE_ONE_DIM)]
+
+
+# ----------------------------------------------------------------------
+# rc195 (#887): the One-family COMPUTE leaf ops (srmech_one_scalar /
+# srmech_one_matrix) — the first make_class → C leaf-batch. Both COMPOSE
+# srmech_the_one internally (regenerate the 14 exact adjoint rationals) then
+# assemble like One.to_scalar / One.to_matrix, so a bare-C host runs the object
+# model's scalar/matrix methods natively. one_scalar is EXACT (byte-identical);
+# one_matrix is NUMERIC (within-tol; the opt-in lossy float realisation). The
+# pure-Python One.to_scalar / One.to_matrix are the COMPLETE alternative (and the
+# parity oracle). Marshalling mirrors the_one_c (theta as a srmech_bigint pair +
+# arena/out carriers sized from the input magnitudes + num_terms).
+# ----------------------------------------------------------------------
+
+_ONE_SCALAR_MODES = {"trace": 0, "sqnorm": 1, "component": 2}
+
+
+def has_native_one_scalar() -> bool:
+    """True iff the rc195 srmech_one_scalar C peer + the srmech_the_one foundation
+    it composes are loaded + bound. False on a no-C or pre-rc195 lib — the pure
+    ``srmech.amsc.cascade.one.to_scalar`` body is the complete alternative (and the
+    parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_one_scalar")
+            and hasattr(LIB, "srmech_one_scalar_ws_bound")
+            and has_native_the_one())
+
+
+def has_native_one_matrix() -> bool:
+    """True iff the rc195 srmech_one_matrix C peer + the srmech_the_one foundation
+    it composes are loaded + bound. False on a no-C or pre-rc195 lib — the pure
+    ``One.to_matrix`` body is the complete alternative (and the within-tol
+    parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_one_matrix")
+            and hasattr(LIB, "srmech_one_matrix_ws_bound")
+            and has_native_the_one())
+
+
+def _one_theta_limbs(theta_num: int, theta_den: int):
+    """(num_limbs, den_limbs, out_cap) sized from the theta magnitudes — the same
+    generous envelope the_one_c uses for the reduced cos/sin carriers."""
+    tn_digits = len(str(theta_num).lstrip("-"))
+    td_digits = len(str(theta_den))
+    num_limbs = max(tn_digits // 9 + 2, 2)
+    den_limbs = max(td_digits // 9 + 2, 2)
+    out_cap = 32 * (24 + 9 * (num_limbs + den_limbs)) + 256
+    return num_limbs, den_limbs, out_cap
+
+
+def one_scalar_c(sigma: int, theta_num: int, theta_den: int, num_terms: int,
+                 mode: str, index: int) -> "tuple | None":
+    """Invoke ``srmech_one_scalar`` and return the reduced exact rational
+    ``(num, den)`` for the given ``mode`` (``"trace"`` / ``"sqnorm"`` /
+    ``"component"``; ``index`` used only for component), or ``None`` when the
+    native symbols are absent (caller falls through to the pure Python)."""
+    if not has_native_one_scalar():
+        return None
+    m = _ONE_SCALAR_MODES.get(mode)
+    if m is None:
+        return None
+    idx = index if (mode == "component") else 0
+    num_limbs, den_limbs, out_cap = _one_theta_limbs(theta_num, theta_den)
+    ws_len = int(LIB.srmech_one_scalar_ws_bound(
+        ctypes.c_size_t(num_limbs), ctypes.c_size_t(den_limbs),
+        ctypes.c_uint32(num_terms)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    tn, _t0 = _bigint_from_int(theta_num, out_cap)
+    td, _t1 = _bigint_from_int(theta_den, out_cap)
+    on, _o0 = _bigint_from_int(0, out_cap)
+    od, _o1 = _bigint_from_int(0, out_cap)
+    rc = LIB.srmech_one_scalar(
+        ctypes.c_int32(sigma), ctypes.byref(tn), ctypes.byref(td),
+        ctypes.c_uint32(num_terms), ctypes.c_int32(m), ctypes.c_int32(idx),
+        ctypes.byref(on), ctypes.byref(od),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len))
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_one_scalar returned non-OK status {rc}")
+    return (_bigint_to_int(on), _bigint_to_int(od))
+
+
+def one_matrix_c(sigma: int, theta_num: int, theta_den: int,
+                 num_terms: int) -> "list | None":
+    """Invoke ``srmech_one_matrix`` and return the 14×14 float operator as a list
+    of 14 row-lists (196 doubles, row-major), or ``None`` when the native symbols
+    are absent (caller falls through to the pure ``One.to_matrix``). NUMERIC —
+    within-tol (≤ 1e-12) to the pure Python, NOT byte-identical."""
+    if not has_native_one_matrix():
+        return None
+    num_limbs, den_limbs, out_cap = _one_theta_limbs(theta_num, theta_den)
+    ws_len = int(LIB.srmech_one_matrix_ws_bound(
+        ctypes.c_size_t(num_limbs), ctypes.c_size_t(den_limbs),
+        ctypes.c_uint32(num_terms)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    out = (ctypes.c_double * (_THE_ONE_DIM * _THE_ONE_DIM))()
+    tn, _t0 = _bigint_from_int(theta_num, out_cap)
+    td, _t1 = _bigint_from_int(theta_den, out_cap)
+    rc = LIB.srmech_one_matrix(
+        ctypes.c_int32(sigma), ctypes.byref(tn), ctypes.byref(td),
+        ctypes.c_uint32(num_terms), out,
+        ctypes.c_size_t(_THE_ONE_DIM * _THE_ONE_DIM),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len))
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_one_matrix returned non-OK status {rc}")
+    n = _THE_ONE_DIM
+    return [[out[r * n + c] for c in range(n)] for r in range(n)]
 
 
 # ----------------------------------------------------------------------
