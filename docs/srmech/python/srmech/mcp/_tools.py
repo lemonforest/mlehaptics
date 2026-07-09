@@ -342,14 +342,40 @@ def tool_entries_to_mcp_defs(
         Optional predicate ``str -> bool``. When supplied, only
         entries whose ``name`` passes the predicate are yielded.
         Used by the ``--filter`` CLI flag.
+
+    v0.9.0rc185 — the UNFILTERED advertised catalog (no ``name_filter``)
+    over an all-srmech registry is produced by the bare-C host op
+    ``srmech_tool_entries_to_mcp_defs`` and parsed back, byte-identical to
+    this pure projection. A ``name_filter``, any profile tool, a
+    stale/absent lib, or a non-OK C status falls back to the pure
+    per-entry path.
     """
     schema = get_tool_schema()
+    if name_filter is None and all(t.owner == "srmech" for t in schema.tools):
+        native = _native_mcp_defs()
+        if native is not None:
+            yield from native
+            return
     for entry in schema.tools:
         if not entry.mcp_callable:
             continue
         if name_filter is not None and not name_filter(entry.name):
             continue
         yield tool_entry_to_mcp_def(entry)
+
+
+def _native_mcp_defs() -> Optional[List[Dict[str, Any]]]:
+    """The rc185 C ``srmech_tool_entries_to_mcp_defs`` output parsed to a
+    list of MCP tool-def dicts, or ``None`` when the native peer is
+    unavailable / returns non-OK (caller uses the pure per-entry path)."""
+    try:
+        from ..amsc import _native
+    except Exception:  # pragma: no cover — defensive; _native always imports
+        return None
+    raw = _native.tool_entries_to_mcp_defs_c()
+    if raw is None:
+        return None
+    return json.loads(raw.decode("utf-8"))
 
 
 # ──────────────────────────────────────────────────────────────────────

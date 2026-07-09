@@ -138,9 +138,14 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # ONLY (no C, no compute-op change); CEIL_NON_COMPUTE_OWED 4 → 15; rc184+ build the
 # MCP server + CLI dispatch to C + drive the owed count back down. owed 4→15 /
 # composes_c 94→103 / host_glue 14→15 / dev_tooling 41→44; sum 153 → 177.
+# rc185 (2026-07-08): the tool_schema PROJECTION ops in C (srmech_get_tool_schema /
+# srmech_tool_schema_view / srmech_tool_entries_to_mcp_defs over the rc184 const
+# table). The 2 tool_schema rows (get_tool_schema / tool_schema_view) + the mcp row
+# (tool_entries_to_mcp_defs) moved owed_orchestration → composes_c. owed 15 → 12;
+# composes_c 103 → 106; sum stays 177. CEIL_NON_COMPUTE_OWED 15 → 12.
 _EXPECTED_SPLIT = {
-    "owed_orchestration": 15,
-    "composes_c": 103,
+    "owed_orchestration": 12,
+    "composes_c": 106,
     "host_glue": 15,
     "dev_tooling": 44,
 }

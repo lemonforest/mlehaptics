@@ -258,11 +258,11 @@
 {"exposed_as": "srmech.amsc.load_descriptor", "defined_at": "srmech.amsc.descriptor.load_descriptor", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.register_attested_root", "defined_at": "srmech.amsc.catalog.register_attested_root", "bucket": "non_compute", "non_compute_kind": "host_glue"}
 {"exposed_as": "srmech.amsc.render_template", "defined_at": "srmech.amsc.descriptor.render_template", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.tool_schema.get_tool_schema", "defined_at": "srmech.amsc.tool_schema.get_tool_schema", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.amsc.tool_schema.get_tool_schema", "defined_at": "srmech.amsc.tool_schema.get_tool_schema", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.tool_schema.load_extension_file", "defined_at": "srmech.amsc.tool_schema.load_extension_file", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.amsc.tool_schema.register_profile_tools", "defined_at": "srmech.amsc.tool_schema.register_profile_tools", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.amsc.tool_schema.register_tool", "defined_at": "srmech.amsc.tool_schema.register_tool", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
-{"exposed_as": "srmech.amsc.tool_schema.tool_schema_view", "defined_at": "srmech.amsc.tool_schema.tool_schema_view", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.amsc.tool_schema.tool_schema_view", "defined_at": "srmech.amsc.tool_schema.tool_schema_view", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.tool_schema.unregister_profile_tools", "defined_at": "srmech.amsc.tool_schema.unregister_profile_tools", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.amsc.tool_schema.warmup_all", "defined_at": "srmech.amsc.tool_schema.warmup_all", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.amsc.use_local_kernel", "defined_at": "srmech.amsc.catalog.use_local_kernel", "bucket": "non_compute", "non_compute_kind": "composes_c"}
@@ -563,7 +563,7 @@
 {"exposed_as": "srmech.dsl.list_ops", "defined_at": "srmech.dsl._tool_surface.list_ops", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.dsl.run_toml_chain", "defined_at": "srmech.dsl._tool_surface.run_toml_chain", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.mcp.invoke_tool", "defined_at": "srmech.mcp._tools.invoke_tool", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
-{"exposed_as": "srmech.mcp.tool_entries_to_mcp_defs", "defined_at": "srmech.mcp._tools.tool_entries_to_mcp_defs", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.mcp.tool_entries_to_mcp_defs", "defined_at": "srmech.mcp._tools.tool_entries_to_mcp_defs", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.mcp.serve_stdio", "defined_at": "srmech.mcp._stdio.serve_stdio", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
 {"exposed_as": "srmech.mcp.serve_http_sse", "defined_at": "srmech.mcp._sse.serve_http_sse", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
 {"exposed_as": "srmech.cli.main", "defined_at": "srmech.cli.main.main", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}

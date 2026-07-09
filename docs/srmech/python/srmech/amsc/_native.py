@@ -2914,6 +2914,23 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_tool_registry_find.restype = ctypes.POINTER(
                 _SrmechToolEntryC)
 
+        # rc185 — the tool-schema PROJECTION ops (the HOST-GLUE tier over
+        # the rc184 const table). Three C peers with the same two-pass
+        # (buf==NULL ⇒ size-query) contract as srmech_tool_schema_to_json.
+        # NEW symbols → hasattr-guarded (a stale rc184 lib keeps the rest of
+        # the surface + falls back to the pure path); additive → ABI stays 4.
+        #   srmech_status_t srmech_get_tool_schema(char *, size_t, size_t *)
+        #   srmech_status_t srmech_tool_schema_view(char *, size_t, size_t *)
+        #   srmech_status_t srmech_tool_entries_to_mcp_defs(char *, size_t,
+        #                                                   size_t *)
+        if hasattr(lib, "srmech_tool_schema_view"):
+            lib.srmech_get_tool_schema.argtypes = [_VP, _SZ, _PSZ]
+            lib.srmech_get_tool_schema.restype = ctypes.c_int
+            lib.srmech_tool_schema_view.argtypes = [_VP, _SZ, _PSZ]
+            lib.srmech_tool_schema_view.restype = ctypes.c_int
+            lib.srmech_tool_entries_to_mcp_defs.argtypes = [_VP, _SZ, _PSZ]
+            lib.srmech_tool_entries_to_mcp_defs.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Class A — op-provenance canonical record hasher (0.9.0rc117; the
     # op-carrying carrier, dives #718/#719). The C peer of
@@ -5097,6 +5114,67 @@ def tool_registry_find_name_c(name: str) -> "str | None":
     if not ptr:
         return None
     return ptr.contents.name.decode("utf-8")
+
+
+# ----------------------------------------------------------------------
+# rc185 — the tool-schema PROJECTION ops (the C MCP-server HOST-GLUE
+# tier). C peers of srmech.amsc.tool_schema.get_tool_schema /
+# .tool_schema_view + srmech.mcp.tool_entries_to_mcp_defs. Each is a
+# two-pass (NULL-buffer size query, then fill) projection over the rc184
+# const table; returns raw bytes or ``None`` (stale / no-C host → pure).
+# ----------------------------------------------------------------------
+
+def has_native_tool_schema_ops() -> bool:
+    """True iff the rc185 tool-schema projection C peers are loaded."""
+    return bool(
+        HAS_NATIVE and LIB is not None
+        and hasattr(LIB, "srmech_tool_schema_view")
+    )
+
+
+def _tool_schema_two_pass(fn) -> "bytes | None":
+    """Run a two-pass (size-query then fill) C serialiser ``fn`` with the
+    srmech_tool_schema_to_json contract. ``None`` on any non-OK status."""
+    if not has_native_tool_schema_ops():
+        return None
+    need = ctypes.c_size_t(0)
+    rc = fn(None, ctypes.c_size_t(0), ctypes.byref(need))
+    if rc != SRMECH_OK:
+        return None
+    size = need.value
+    raw = (ctypes.c_char * size)()
+    got = ctypes.c_size_t(0)
+    rc = fn(ctypes.cast(raw, ctypes.c_void_p), ctypes.c_size_t(size),
+            ctypes.byref(got))
+    if rc != SRMECH_OK:
+        return None
+    return bytes(raw[:got.value])
+
+
+def get_tool_schema_c() -> "bytes | None":
+    """The whole-schema JSON from the C const table (canonical sorted keys,
+    byte-identical to srmech_tool_schema_to_json). ``None`` if no rc185 C."""
+    if not has_native_tool_schema_ops():
+        return None
+    return _tool_schema_two_pass(LIB.srmech_get_tool_schema)
+
+
+def tool_schema_view_c() -> "bytes | None":
+    """The tool_schema_view() JSON from the C const table (same canonical
+    bytes as get_tool_schema_c; json-parses back equal to
+    get_tool_schema().to_jsonable()). ``None`` if no rc185 C."""
+    if not has_native_tool_schema_ops():
+        return None
+    return _tool_schema_two_pass(LIB.srmech_tool_schema_view)
+
+
+def tool_entries_to_mcp_defs_c() -> "bytes | None":
+    """The advertised MCP tool-definitions as a JSON array from the C const
+    table, byte-identical to json.dumps(list(tool_entries_to_mcp_defs()),
+    separators=(",", ":")). ``None`` if no rc185 C."""
+    if not has_native_tool_schema_ops():
+        return None
+    return _tool_schema_two_pass(LIB.srmech_tool_entries_to_mcp_defs)
 
 
 def sha256_hex_c(data: bytes) -> str:

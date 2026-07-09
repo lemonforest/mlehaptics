@@ -780,7 +780,23 @@ CEIL_BIGNUM_REFERENCE = 0
 #     the user elects the C agent. Added to NON_COMPUTE_DEV_TOOLING_EXEMPT below.
 # CEIL_NON_COMPUTE_OWED 4 → 15 (4 existing + 11 host-glue owed). rc184+ build the
 # MCP server + CLI dispatch to C and drive the owed count back down.
-CEIL_NON_COMPUTE_OWED = 15
+# rc184 (2026-07-08): the tool_schema DATA foundation — the 403-tool const registry
+# table + srmech_tool_schema_to_json (the canonical hash pre-image, sha256-ratcheted)
+# in C. No owed row moved (the accessors/serialiser are DATA, not the projection ops).
+# rc185 (2026-07-08): the tool_schema PROJECTION ops in C — srmech_get_tool_schema /
+# srmech_tool_schema_view (the whole-schema JSON; reuse the sorted canonical emitter)
+# + srmech_tool_entries_to_mcp_defs (the MCP tool-def array; a bounded static
+# type-lexicon + wire-hint table mirroring _TYPE_LEXICON / _ENCODING_HINT). The 2
+# tool_schema rows + the mcp tool_entries_to_mcp_defs row moved owed_orchestration →
+# composes_c: tool_schema_view + tool_entries_to_mcp_defs runtime-dispatch to their C
+# peers (byte-identical / value-identical); get_tool_schema stays a PURE constructor
+# (option (b) — dispatching its object build would make the rc184 hash-ratchet
+# circular) with its C peer proven equivalent by reconstruction in
+# test_tool_schema_ops_c_rc185.py. owed 15 → 12; composes_c 103 → 106; sum stays 177.
+# CEIL_NON_COMPUTE_OWED 15 → 12. ABI stays 4 (additive symbols). The 12 owed left =
+# the MCP JSON-RPC-stdio server LOOP + tool-call arg-marshalling + the 403-tool
+# dispatch tail + the CLI grammar (rc186+).
+CEIL_NON_COMPUTE_OWED = 12
 
 # The PINNED dev-tooling allowlist — the exact ``non_compute_kind == "dev_tooling"``
 # set. A row here is JUSTIFIED as a genuine dev / LLM-affordance a bare-C host
