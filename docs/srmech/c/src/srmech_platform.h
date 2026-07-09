@@ -311,4 +311,31 @@ srmech_status_t srmech_plat_rstream_close(srmech_plat_rstream_t *rs);
  * SRMECH_ERR_NULL_ARG if out_ns is NULL; SRMECH_ERR_IO if no clock backend. */
 srmech_status_t srmech_plat_now_ns(int64_t *out_ns);
 
+/* ================================================================== *
+ * STANDARD I/O (rc186) — blocking stdin read + stdout write, so the MCP
+ * JSON-RPC stdio loop (srmech_mcp.c) can serve a bare-C host with NO
+ * `#ifdef _WIN32` of its own. POSIX read(0,…)/write(1,…) / Windows
+ * ReadFile/WriteFile on GetStdHandle(STD_{INPUT,OUTPUT}_HANDLE). Here the
+ * peer is an anonymous pipe (parent → child stdin), NOT a socket — EOF (a
+ * closed pipe / 0-byte read) is the deterministic loop terminator, and a
+ * signal-interrupted read is retried (POSIX EINTR), so the loop MUST NOT
+ * hang. A bare-metal target with no stdio reports has_stdio() == 0 and the
+ * MCP loop returns SRMECH_ERR_IO (it feeds requests another way).
+ * ================================================================== */
+
+/* 1 iff a stdin/stdout backend is compiled in (POSIX / Windows); 0 on a
+ * bare-metal target with no standard streams. */
+int srmech_plat_has_stdio(void);
+
+/* Blocking read of up to `cap` bytes of stdin into `buf`; *out_n receives the
+ * count actually read. *out_n == 0 is END-OF-STREAM (a closed stdin pipe) —
+ * the deterministic terminator, NOT an error. A read error → SRMECH_ERR_IO;
+ * EINTR is retried internally. */
+srmech_status_t srmech_plat_stdin_read(unsigned char *buf, size_t cap,
+                                       size_t *out_n);
+
+/* Write exactly `n` bytes of `buf` to stdout, looping until complete (EINTR
+ * retried). A write error → SRMECH_ERR_IO. */
+srmech_status_t srmech_plat_stdout_write(const unsigned char *buf, size_t n);
+
 #endif /* SRMECH_PLATFORM_H */

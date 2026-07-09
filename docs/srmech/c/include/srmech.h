@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc185"
-#define SRMECH_VERSION       "0.9.0rc185"
+#define SRMECH_VERSION_PRE   "rc186"
+#define SRMECH_VERSION       "0.9.0rc186"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3714,6 +3714,93 @@ srmech_status_t srmech_tool_schema_view(char *buf, size_t buf_len,
  * ^[a-zA-Z0-9_.-]{1,64}$ (mirroring _sanitise_property_key). */
 srmech_status_t srmech_tool_entries_to_mcp_defs(char *buf, size_t buf_len,
                                                 size_t *out_len);
+
+/* ------------------------------------------------------------------
+ * MCP server CONTROL SPINE (0.9.0rc186; the HOST-GLUE JSON-RPC protocol +
+ * stdio read-loop). The C peers of srmech.mcp._server.MCPServer.handle +
+ * srmech.mcp._stdio.serve_stdio + srmech.mcp._server.build_attestation, so a
+ * bare-C host (no Python) serves the MCP lifecycle + discovery surfaces —
+ * initialize / notifications/initialized / tools/list / ping / shutdown —
+ * natively over stdin/stdout, with the MPR attestation preimage.
+ *
+ * The tools/call DISPATCH (invoke_tool: dotted-name resolution + the ~403-tool
+ * typed-argument marshalling) is the SEPARATE next arc (rc187+). srmech_mcp_handle
+ * routes tools/call to a "defer" signal (SRMECH_MCP_DEFER_CALL) when
+ * `defer_calls != 0` (the Python host then runs pure invoke_tool), OR — when
+ * `defer_calls == 0` (the bare-C serve_stdio loop, no Python) — emits an honest
+ * JSON-RPC error (inform-don't-limit). ABI-additive: SRMECH_ABI_VERSION stays 4.
+ * ------------------------------------------------------------------ */
+
+/* Advertised protocol version + default server name (mirror
+ * srmech.mcp._server.MCP_PROTOCOL_VERSION / MCP_SERVER_NAME). */
+#define SRMECH_MCP_PROTOCOL_VERSION "2024-11-05"
+#define SRMECH_MCP_SERVER_NAME      "srmech-mcp"
+
+/* srmech_mcp_handle out_kind: what the caller must do with the request. */
+#define SRMECH_MCP_RESPONSE     0   /* a JSON-RPC response was written to buf   */
+#define SRMECH_MCP_NO_RESPONSE  1   /* a notification — nothing to write        */
+#define SRMECH_MCP_DEFER_CALL   2   /* tools/call — caller runs invoke_tool     */
+
+/* Dispatch ONE JSON-RPC request (`req[0..req_len)`), writing the response into
+ * `buf` (capacity `buf_len`; NO trailing NUL) and setting *out_len + *out_kind.
+ * The request is parsed into the caller-supplied arena `ws` (length `ws_len`;
+ * the srmech_json bump-allocator convention). Two-pass: `buf == NULL` is a
+ * SIZE-QUERY (nothing written; *out_len ← the exact full byte count; *out_kind
+ * still set); a too-small non-NULL `buf` returns SRMECH_ERR_OVERFLOW.
+ *
+ * The response is BYTE-IDENTICAL to CPython
+ *   json.dumps(MCPServer(name="srmech-mcp").handle(req), separators=(",", ":"))
+ * for initialize / tools/list / ping / shutdown (insertion-order keys, default
+ * ensure_ascii=True escaping). tools/list embeds srmech_tool_entries_to_mcp_defs.
+ *
+ * out_kind:
+ *   SRMECH_MCP_RESPONSE    — *out_len bytes written (initialize / tools/list /
+ *                            ping / shutdown / a JSON-RPC error envelope).
+ *   SRMECH_MCP_NO_RESPONSE — a notification (notifications/initialized or an
+ *                            unknown notification); *out_len == 0, write nothing.
+ *   SRMECH_MCP_DEFER_CALL  — tools/call with `defer_calls != 0`; *out_len == 0,
+ *                            the caller runs invoke_tool + attaches attestation.
+ *
+ * `defer_calls == 0` makes tools/call an honest JSON-RPC error inline (the
+ * bare-C loop path, no Python fallback). Errors: SRMECH_ERR_NULL_ARG (out_len /
+ * out_kind NULL); SRMECH_ERR_OVERFLOW (buf too small / ws too small). A malformed
+ * request → a -32700 parse-error response with a null id (kind RESPONSE). */
+srmech_status_t srmech_mcp_handle(const char *req, size_t req_len,
+                                  void *ws, size_t ws_len,
+                                  char *buf, size_t buf_len,
+                                  size_t *out_len, int *out_kind,
+                                  int defer_calls);
+
+/* Build the MPR attestation object for one tools/call response into `buf`
+ * (two-pass: `buf == NULL` is a size-query). The `response_sha256` is
+ * srmech_sha256_hex over the exact preimage
+ *   tool_name "\x1f" "srmech <version>" "\x1f" result_text "\x1f" retrieved_at
+ * (byte-exact with srmech.mcp._server.build_attestation). The preimage is
+ * assembled in the caller arena `ws` (length `ws_len`; size it to
+ * len(tool_name)+len("srmech ")+len(version)+len(result_text)+len(retrieved_at)+3).
+ * On the size-query pass ws may be NULL (the digest is not needed to size the
+ * fixed-shape object). Emits, in insertion order,
+ *   {"mpr_version":"1.0","tool_name":..,"parser_version":"srmech <v>",
+ *    "retrieved_at":..,"response_sha256":"<64 hex>"}
+ * NUL-terminated arguments; NO trailing NUL on the output. */
+srmech_status_t srmech_mcp_build_attestation(const char *tool_name,
+        const char *result_text, const char *retrieved_at,
+        void *ws, size_t ws_len, char *buf, size_t buf_len, size_t *out_len);
+
+/* Run the stdio JSON-RPC read-frame → handle → write-frame loop (the bare-C
+ * host's `serve_stdio`): newline-delimited requests from stdin, newline-
+ * delimited responses to stdout, both via the PAL. Blocks until stdin EOF (a
+ * closed pipe), then returns SRMECH_OK — the deterministic terminator; it never
+ * hangs. tools/call is served with the honest bare-C error (defer_calls == 0,
+ * no Python invoke_tool). All three buffers are CALLER-supplied (no malloc):
+ * `line_buf` (capacity `line_cap`) assembles one request line, `ws` (`ws_len`)
+ * is srmech_mcp_handle's parse arena, `resp_buf` (`resp_cap`) holds one response
+ * (size it for the largest — tools/list is the whole advertised catalog). A
+ * response exceeding resp_cap is dropped (no partial write); an over-long
+ * request line is skipped. Returns SRMECH_ERR_IO on a stdio-less target. */
+srmech_status_t srmech_mcp_serve_stdio(char *line_buf, size_t line_cap,
+                                       void *ws, size_t ws_len,
+                                       char *resp_buf, size_t resp_cap);
 
 /* ------------------------------------------------------------------
  * Op-provenance canonical record hasher (0.9.0rc117; the op-carrying

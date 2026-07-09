@@ -50,6 +50,11 @@ MCP_SERVER_NAME: str = "srmech-mcp"
 """Default server name advertised in ``initialize.serverInfo``."""
 
 
+# Sentinel returned by ``MCPServer._native_dispatch`` meaning "the C peer did
+# not handle this request; take the pure Python dispatch path".
+_PURE_FALLBACK: Any = object()
+
+
 # JSON-RPC error codes per the JSON-RPC 2.0 spec + MCP additions.
 JSONRPC_PARSE_ERROR: int = -32700
 JSONRPC_INVALID_REQUEST: int = -32600
@@ -89,15 +94,22 @@ def build_attestation(
     *,
     tool_name: str,
     result_text: str,
+    retrieved_at: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build the MPR-style attestation block for one tool-call response.
 
     The ``response_sha256`` covers the canonicalised concatenation of
     tool name + parser version + result text + UTC timestamp so a
     consumer can recompute it from the JSON-RPC envelope alone.
+
+    ``retrieved_at`` defaults to the current UTC time; a caller (e.g. the
+    rc186 C-peer byte-parity test) may pin it to make the block
+    reproducible. The C peer ``srmech.amsc._native.mcp_build_attestation_c``
+    produces the byte-identical JSON for the same pinned timestamp.
     """
     parser_version = f"srmech {_srmech_version}"
-    retrieved_at = _iso_utc_now()
+    if retrieved_at is None:
+        retrieved_at = _iso_utc_now()
     canon = (
         f"{tool_name}\x1f{parser_version}\x1f{result_text}\x1f{retrieved_at}"
     ).encode("utf-8")
@@ -159,6 +171,18 @@ class MCPServer:
         assert isinstance(request, dict), \
             f"MCPServer.handle: expected dict, got {type(request).__name__}"
 
+        # rc186 — C control-spine fast-path. When this is the DEFAULT server
+        # (name ``srmech-mcp``, no filter, the stock invoke path) the
+        # lifecycle + discovery methods (initialize / notifications/initialized
+        # / tools/list / ping / shutdown / errors) route to the native
+        # ``srmech_mcp_handle`` — byte-identical to this pure dispatch. tools/call
+        # is EXCLUDED (it defers to pure ``invoke_tool`` + attestation below), so
+        # the (potentially large) tool arguments never hit the C parse arena. A
+        # stale/absent lib or any non-default server falls through to pure.
+        native = self._native_dispatch(request)
+        if native is not _PURE_FALLBACK:
+            return native
+
         # Notifications have no ``id`` field; per JSON-RPC 2.0, the
         # server MUST NOT respond to notifications.
         is_notification = "id" not in request
@@ -217,6 +241,47 @@ class MCPServer:
                 req_id, JSONRPC_INTERNAL_ERROR,
                 f"internal error: {type(exc).__name__}: {exc}",
             )
+
+    # ──────────────────────────────────────────────────────────────────
+    # Native (rc186) control-spine dispatch
+    # ──────────────────────────────────────────────────────────────────
+
+    def _native_dispatch(self, request: Dict[str, Any]) -> Any:
+        """Route the lifecycle + discovery methods to the C
+        ``srmech_mcp_handle`` when this is the DEFAULT server. Returns the
+        response dict / ``None`` (notification), or ``_PURE_FALLBACK`` to
+        signal the caller to take the pure Python path.
+
+        Eligibility (mirrors the ``tool_entries_to_mcp_defs`` native gate): the
+        stock server name, no ``--filter``, the stock invoke path. tools/call is
+        never routed here (it defers to pure ``invoke_tool`` + attestation), so
+        the C parse arena only ever sees small control messages.
+        """
+        method = request.get("method")
+        if not isinstance(method, str) or method == "tools/call":
+            return _PURE_FALLBACK
+        if (self.name != MCP_SERVER_NAME or self._filter is not None
+                or self._invoke is not invoke_tool):
+            return _PURE_FALLBACK
+        try:
+            from ..amsc import _native
+        except Exception:  # pragma: no cover — defensive; _native always imports
+            return _PURE_FALLBACK
+        result = _native.mcp_handle_c(
+            json.dumps(request, separators=(",", ":"), default=str).encode(
+                "utf-8"
+            )
+        )
+        if result is None:
+            return _PURE_FALLBACK
+        kind, resp = result
+        if kind == _native.MCP_KIND_NO_RESPONSE:
+            if method == "notifications/initialized":
+                self._initialized = True
+            return None
+        if kind == _native.MCP_KIND_RESPONSE and resp is not None:
+            return json.loads(resp.decode("utf-8"))
+        return _PURE_FALLBACK
 
     # ──────────────────────────────────────────────────────────────────
     # Per-method handlers

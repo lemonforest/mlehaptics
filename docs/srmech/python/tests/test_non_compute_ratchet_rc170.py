@@ -143,9 +143,17 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # table). The 2 tool_schema rows (get_tool_schema / tool_schema_view) + the mcp row
 # (tool_entries_to_mcp_defs) moved owed_orchestration → composes_c. owed 15 → 12;
 # composes_c 103 → 106; sum stays 177. CEIL_NON_COMPUTE_OWED 15 → 12.
+# rc186 (2026-07-08): the MCP-server CONTROL SPINE — the JSON-RPC protocol +
+# stdio LOOP in C (srmech_mcp_handle / srmech_mcp_serve_stdio / build_attestation
+# over the rc185 tool-defs projection). serve_stdio moved owed_orchestration →
+# composes_c: a bare-C host now serves initialize/tools-list/ping/shutdown natively
+# (its loop + framing genuinely run in C; tools/call routes to the still-owed
+# invoke_tool via inform-don't-limit). owed 12 → 11; composes_c 106 → 107; sum stays
+# 177. CEIL_NON_COMPUTE_OWED 12 → 11. The 11 owed left = invoke_tool + serve_http_sse
+# + the 2 CLI top-level dispatch ops + the 5 cli subcommand add_arguments + ... .
 _EXPECTED_SPLIT = {
-    "owed_orchestration": 12,
-    "composes_c": 106,
+    "owed_orchestration": 11,
+    "composes_c": 107,
     "host_glue": 15,
     "dev_tooling": 44,
 }
