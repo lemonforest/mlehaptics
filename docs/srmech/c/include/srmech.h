@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc195"
-#define SRMECH_VERSION       "0.9.0rc195"
+#define SRMECH_VERSION_PRE   "rc196"
+#define SRMECH_VERSION       "0.9.0rc196"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4572,6 +4572,53 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
  * width (a label lives inline in a leaf_dim-byte cap block, like PATH_MAX), NOT
  * a count cap — the number of chromosomes is bounded only by the caller arena. */
 #define SRMECH_GENOME_MAX_LABEL 256
+
+/* §44/F708 one dense block ("tome") = 256 = 2**8 (one byte of address). The
+ * encode-shape leaf capacity; mirrors LEAF_CAP in srmech.amsc.genome. */
+#define SRMECH_GENOME_LEAF_CAP 256u
+
+/* rc196 (#887) make_class → C leaf-batch 2 (the genome CAP FOUNDATION). The two
+ * smallest in-memory leaf ops of the genome [class] descriptor get their C peers
+ * so a bare-C host (and the rc201 object-model engine) runs them natively; the
+ * shared cap byte-TLV pack / kind / unpack helpers they rest on are the reusable
+ * foundation rc197 (chromosome/recall) + rc198 (genome/partition) build on.
+ * Additive symbols only → SRMECH_ABI_VERSION stays 4. */
+
+/* ENCODE_SHAPE — the pure-INTEGER genome shape planner (Class-I/N, no float). For
+ * a kernel of `n` elements it computes:
+ *   leaves = ceil(n / SRMECH_GENOME_LEAF_CAP)        (dense blocks; overflow-safe)
+ *   depth  = ceil(log4(leaves))                      (base-4 quad levels)
+ * BYTE-IDENTICAL to srmech.amsc.genome.encode_shape (which maps depth → shape
+ * "tome"/"mobius"/"quad_strand" and assembles the dict — that trivial labeling
+ * stays in the caller; the arithmetic is here). No arena, malloc-free, no abs.
+ *   n          : the kernel size (> 0). Fits a uint64; the Python wrapper routes
+ *                n == 0 / n >= 2**64 to the pure path (byte-identical).
+ *   leaves_out : out — ceil(n / 256) dense blocks (>= 1).
+ *   depth_out  : out — ceil(log4(leaves)) (0 → tome, 1 → mobius, >= 2 → strand).
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — leaves_out or depth_out is NULL.
+ *   SRMECH_ERR_BAD_INPUT  — n == 0 (a size is a positive int). */
+srmech_status_t srmech_genome_encode_shape(
+    uint64_t n, uint64_t *leaves_out, uint32_t *depth_out);
+
+/* TELOMERE — the chromosome boundary cap WRITER: a fixed-width `dim`-byte §44
+ * cap leaf `[SRMECH_GENOME_CHROM_CAP_MARKER] + label, NUL-padded to dim`. This is
+ * the first C cap-WRITER (the genome C surface until now only READ/scanned caps),
+ * so it also exposes the shared cap-pack framing rc197/rc198 reuse to build every
+ * chromosome / gene / kernel cap. BYTE-IDENTICAL to the bytes behind
+ * srmech.amsc.genome.telomere (which wraps them in an HV(sectors=256)). The label
+ * is raw bytes (the caller passes the already-UTF-8-encoded label); it must fit
+ * dim - 1 bytes (§44 inline: one marker byte + label + NUL padding). Caller-arena
+ * output (no malloc), no abs.
+ *   label / label_len : the cap label bytes (label may be NULL iff label_len 0).
+ *   dim               : the leaf width in bytes (> 0); the cap is exactly dim bytes.
+ *   out / out_cap     : caller buffer (out_cap >= dim) — receives the dim cap bytes.
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — out is NULL, or label is NULL with label_len > 0.
+ *   SRMECH_ERR_BAD_INPUT  — dim == 0, out_cap < dim, or label_len > dim - 1. */
+srmech_status_t srmech_genome_telomere(
+    const unsigned char *label, size_t label_len, uint32_t dim,
+    unsigned char *out, size_t out_cap);
 
 /* SAVE: write <dir>/turns.bin (= `body` verbatim, body_len bytes) and
  * <dir>/manifest.json (byte-identical to the Python genome_save manifest).

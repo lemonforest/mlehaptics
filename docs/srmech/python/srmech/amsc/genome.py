@@ -582,8 +582,16 @@ def encode_shape(n: int) -> Dict[str, object]:
     """
     if not isinstance(n, int) or n <= 0:
         raise ValueError(f"encode_shape: n must be a positive int; got {n!r}")
-    leaves = (n + LEAF_CAP - 1) // LEAF_CAP          # ceil(n / 256), pure integer
-    depth = _ceil_log4(leaves)
+    # rc196 (#887): DISPATCH the pure-integer arithmetic to the srmech_genome_
+    # encode_shape C peer when HAS_NATIVE (byte-identical (leaves, depth); the
+    # pure ceil-div + ceil_log4 below is the numpy-free fallback + parity oracle,
+    # and also handles n >= 2**64 which the uint64 C path routes back here).
+    native = _native.genome_encode_shape_c(n)
+    if native is not None:
+        leaves, depth = native
+    else:
+        leaves = (n + LEAF_CAP - 1) // LEAF_CAP      # ceil(n / 256), pure integer
+        depth = _ceil_log4(leaves)
     shape = "tome" if depth == 0 else "mobius" if depth == 1 else "quad_strand"
     return {"n": n, "shape": shape, "leaves": leaves, "depth": depth, "leaf_cap": LEAF_CAP}
 
@@ -761,6 +769,14 @@ def telomere(label, dim=64):
     which forced a label↔cap sidecar). Integrity (the old cap's one-way hash) moves
     to the optional derived manifest, not the body.
     """
+    # rc196 (#887): DISPATCH the cap byte-framing to the srmech_genome_telomere C
+    # peer when HAS_NATIVE (byte-identical bytes, then wrapped in the same
+    # HV(sectors=256)); the pure _pack_cap below is the numpy-free fallback +
+    # parity oracle, and raises the ValueError for an over-long label (the native
+    # wrapper returns None in that case so the exact error surfaces here).
+    native = _native.genome_telomere_c(label, dim)
+    if native is not None:
+        return _HV.from_sequence(native, sectors=256)
     return _pack_cap(CHROM_CAP_MARKER, label, dim)
 
 

@@ -234,6 +234,34 @@ typedef struct {
                                                      * (caps + turns) == n_turns */
 } genome_strings_t;
 
+/* §44 CAP-KIND classifier — the C mirror of srmech.amsc.genome._cap_kind. The
+ * FIRST byte of a `block` classifies it: return the marker byte (an int in
+ * [0, 255]) iff it is one of the nine §44/§60/§89/§127/§128/§130/§131/§132 cap
+ * markers (CHROM / GENE / REGULATORY / BOOLEAN / THRESHOLD / GRADED / KERNEL-
+ * header / KERNEL-telomere / ACTIVE-telomere), else -1 (a Klein-4 data turn
+ * 0..3, a v3 packed-turn marker 0x51, or an empty block). Shared cap-scan-skip
+ * foundation reused by genome_block_len (rc196) + rc197/rc198's chromosome /
+ * recall / genome / partition walks. A READ; no abs, no mutation. */
+static int genome_cap_kind(const unsigned char *block, size_t len)
+{
+    if (block == NULL || len == 0u) { return -1; }
+    assert(block != NULL);
+    assert(len > 0u);
+    unsigned char m = block[0];
+    if (m == SRMECH_GENOME_CHROM_CAP_MARKER ||
+        m == SRMECH_GENOME_GENE_CAP_MARKER ||
+        m == SRMECH_GENOME_REGULATORY_GENE_MARKER ||
+        m == SRMECH_GENOME_BOOLEAN_GENE_MARKER ||
+        m == SRMECH_GENOME_THRESHOLD_GENE_MARKER ||
+        m == SRMECH_GENOME_GRADED_GENE_MARKER ||
+        m == SRMECH_GENOME_KERNEL_HEADER_MARKER ||
+        m == SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
+        m == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER) {
+        return (int)m;
+    }
+    return -1;
+}
+
 /* §55/v3: byte length of the block starting at body[off], keyed by its FIRST
  * byte — a leaf_dim-byte cap or legacy v2 turn, or a 1 + ceil(leaf_dim/4)-byte
  * bit-packed turn. SRMECH_ERR_BAD_INPUT on an unrecognised kind byte or a block
@@ -247,15 +275,7 @@ static srmech_status_t genome_block_len(const unsigned char *body,
     assert(off < body_len && leaf_dim > 0u);
     unsigned char kind = body[off];
     size_t n;
-    if (kind == SRMECH_GENOME_CHROM_CAP_MARKER ||
-        kind == SRMECH_GENOME_GENE_CAP_MARKER ||
-        kind == SRMECH_GENOME_REGULATORY_GENE_MARKER ||
-        kind == SRMECH_GENOME_BOOLEAN_GENE_MARKER ||
-        kind == SRMECH_GENOME_THRESHOLD_GENE_MARKER ||
-        kind == SRMECH_GENOME_GRADED_GENE_MARKER ||
-        kind == SRMECH_GENOME_KERNEL_HEADER_MARKER ||
-        kind == SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
-        kind == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER || kind <= 3u) {
+    if (genome_cap_kind(&body[off], 1u) >= 0 || kind <= 3u) {
         n = (size_t)leaf_dim;   /* cap / §60 v5 header / §89 kernel telomere /
                                  * §127 active telomere / §128 regulatory gene /
                                  * §130 boolean gene / §131 threshold gene /
@@ -565,6 +585,73 @@ static srmech_status_t genome_decode_label(const unsigned char *cap,
     if (n + 1u > SRMECH_GENOME_MAX_LABEL) { return SRMECH_ERR_BAD_INPUT; }
     memcpy(out, cap + 1, n);
     out[n] = '\0';
+    return SRMECH_OK;
+}
+
+/* §44 CAP-PACK writer — the C mirror of srmech.amsc.genome._pack_cap. Build a
+ * fixed-width `dim`-byte cap leaf `[marker] + label, NUL-padded to dim` into
+ * `out` (capacity out_cap >= dim). `marker` (> 3) classifies the block; the
+ * label (raw bytes, already UTF-8) must fit dim - 1 bytes (one marker byte +
+ * label + NUL padding). The shared cap-WRITER foundation rc197/rc198 reuse to
+ * build every chromosome / gene / kernel cap. Caller-arena, no malloc, no abs.
+ * (genome_decode_label + block[0] is the READ inverse — together they are the
+ * C _pack_cap / _unpack_cap pair.) */
+static srmech_status_t genome_pack_cap(unsigned char marker,
+                                       const unsigned char *label,
+                                       size_t label_len, uint32_t dim,
+                                       unsigned char *out, size_t out_cap)
+{
+    if (out == NULL || (label == NULL && label_len != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL);
+    assert(label != NULL || label_len == 0u);
+    if (dim == 0u || (size_t)dim > out_cap) { return SRMECH_ERR_BAD_INPUT; }
+    if (label_len > (size_t)dim - 1u) { return SRMECH_ERR_BAD_INPUT; }
+    out[0] = marker;
+    if (label_len != 0u) { memcpy(out + 1, label, label_len); }
+    memset(out + 1u + label_len, 0, (size_t)dim - 1u - label_len);
+    return SRMECH_OK;
+}
+
+/* rc196 — the CHROM boundary cap writer (mirror srmech.amsc.genome.telomere):
+ * `[SRMECH_GENOME_CHROM_CAP_MARKER] + label, NUL-padded to dim`. Byte-identical
+ * to the bytes behind the Python telomere (which wraps them in HV(sectors=256)). */
+srmech_status_t srmech_genome_telomere(const unsigned char *label,
+                                       size_t label_len, uint32_t dim,
+                                       unsigned char *out, size_t out_cap)
+{
+    if (out == NULL || (label == NULL && label_len != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL);
+    assert(label != NULL || label_len == 0u);
+    return genome_pack_cap(SRMECH_GENOME_CHROM_CAP_MARKER, label, label_len,
+                           dim, out, out_cap);
+}
+
+/* rc196 — the pure-integer genome shape planner (mirror
+ * srmech.amsc.genome.encode_shape's arithmetic): leaves = ceil(n / 256),
+ * depth = ceil(log4(leaves)). Class-I/N integer only, no float, no abs. The
+ * Python maps depth → shape label + builds the dict; here we compute the two
+ * integers it needs (byte-identical). */
+srmech_status_t srmech_genome_encode_shape(uint64_t n, uint64_t *leaves_out,
+                                           uint32_t *depth_out)
+{
+    if (leaves_out == NULL || depth_out == NULL) { return SRMECH_ERR_NULL_ARG; }
+    assert(leaves_out != NULL);
+    assert(depth_out != NULL);
+    if (n == 0u) { return SRMECH_ERR_BAD_INPUT; }
+    /* leaves = ceil(n / 256) — split the divide so n + 255 cannot wrap uint64. */
+    uint64_t leaves = n / (uint64_t)SRMECH_GENOME_LEAF_CAP;
+    if (n % (uint64_t)SRMECH_GENOME_LEAF_CAP != 0u) { leaves += 1u; }
+    /* depth = smallest d >= 0 with QUAD**d >= leaves (QUAD = 4, the Klein-4
+     * order). power tops out at 4**28 = 2**56 < 2**64 for any uint64 leaves. */
+    uint32_t d = 0u;
+    uint64_t power = 1u;
+    while (power < leaves) { power *= 4u; d += 1u; }
+    *leaves_out = leaves;
+    *depth_out = d;
     return SRMECH_OK;
 }
 

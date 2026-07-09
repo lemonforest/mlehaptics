@@ -118,9 +118,13 @@ _ANNEX_DELTA = {"composes_c": 20, "host_glue": 1, "dev_tooling": 3}
 # rc188: invoke_tool earned C → owed 11→10, composes_c 107→108; rc193: the 7 CLI
 # grammar rows earned C → owed 10→3, composes_c 108→115; rc194: serve_http_sse
 # earned C → owed 3→2, composes_c 115→116; sum stays 177)
-_FULL_SPLIT = {"owed_orchestration": 2, "composes_c": 116, "host_glue": 15,
+# rc196 (make_class → C leaf-batch 2): genome.encode_shape left non_compute for
+# c_dispatched (its C peer srmech_genome_encode_shape) → composes_c 116 → 115;
+# non_compute total 177 → 176. (genome.telomere also earned a C peer but moved
+# composition_of_c → c_dispatched, not a non_compute row.)
+_FULL_SPLIT = {"owed_orchestration": 2, "composes_c": 115, "host_glue": 15,
                "dev_tooling": 44}
-_TOTAL_NON_COMPUTE = 177
+_TOTAL_NON_COMPUTE = 176
 _HOSTGLUE_ROOTS = ("srmech.mcp", "srmech.cli", "srmech.llm")
 
 
