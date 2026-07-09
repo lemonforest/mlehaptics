@@ -2952,6 +2952,26 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_mcp_serve_stdio.argtypes = [_VP, _SZ, _VP, _SZ, _VP, _SZ]
             lib.srmech_mcp_serve_stdio.restype = ctypes.c_int
 
+        # rc194 — the MCP HTTP+SSE transport (the HOST-GLUE cross-terminal server
+        # in C: a background accept thread over the rc194 TCP PAL, composing
+        # srmech_mcp_handle). Additive symbols + NO Python callback typedef (the
+        # server dispatches in C), so ABI stays 4. Handle-based serve/port/stop
+        # so a Python host can drive it (and the blocking serve-forever entry).
+        #   srmech_mcp_sse_serve(host, port, out_handle) -> handle
+        #   srmech_mcp_sse_port(handle) -> uint16
+        #   srmech_mcp_sse_stop(handle)
+        #   srmech_mcp_serve_http_sse(host, port)  [blocking; serve forever]
+        if hasattr(lib, "srmech_mcp_sse_serve"):
+            lib.srmech_mcp_sse_serve.argtypes = [
+                _CP, ctypes.c_uint16, ctypes.POINTER(ctypes.c_void_p)]
+            lib.srmech_mcp_sse_serve.restype = ctypes.c_int
+            lib.srmech_mcp_sse_port.argtypes = [ctypes.c_void_p]
+            lib.srmech_mcp_sse_port.restype = ctypes.c_uint16
+            lib.srmech_mcp_sse_stop.argtypes = [ctypes.c_void_p]
+            lib.srmech_mcp_sse_stop.restype = ctypes.c_int
+            lib.srmech_mcp_serve_http_sse.argtypes = [_CP, ctypes.c_uint16]
+            lib.srmech_mcp_serve_http_sse.restype = ctypes.c_int
+
         # rc193 — the CLI arg-GRAMMAR + dispatch (the HOST-GLUE console-script
         # parser). New symbols → hasattr-guarded (a stale lib keeps the rest of
         # the surface + falls back to the pure argparse main); additive → ABI
@@ -5372,6 +5392,63 @@ def mcp_build_attestation_c(
     if rc != SRMECH_OK:
         return None
     return bytes(raw[:got.value])
+
+
+# ----------------------------------------------------------------------
+# rc194 — the MCP HTTP+SSE transport (the HOST-GLUE cross-terminal server in
+# C). C peer of srmech.mcp._sse.serve_http_sse: a bare-C host serves MCP over
+# HTTP+Server-Sent-Events on a localhost TCP port (a background accept thread
+# over the rc194 TCP PAL, composing srmech_mcp_handle). Handle-based
+# serve/port/stop so a Python host can drive it; the blocking serve-forever
+# entry is the Python ``background=False`` native path. POSIX-first — serve
+# returns non-OK on a no-TCP host and the Python pure http.server runs.
+# ----------------------------------------------------------------------
+
+
+def has_native_mcp_sse() -> bool:
+    """True iff the rc194 MCP HTTP+SSE transport C peer is loaded + bound."""
+    return bool(
+        HAS_NATIVE and LIB is not None and hasattr(LIB, "srmech_mcp_sse_serve")
+    )
+
+
+def mcp_sse_serve_c(host: str, port: int) -> "tuple[int, int] | None":
+    """Start the C MCP HTTP+SSE server on ``host``:``port`` (port 0 =
+    kernel-assigned). Returns ``(handle_ptr, bound_port)`` on success (the
+    server runs on its own accept thread), or ``None`` when the C peer is
+    unavailable / a non-OK status (POSIX-first: a no-TCP host → the caller runs
+    the pure http.server). Stop it with :func:`mcp_sse_stop_c`. numpy-free."""
+    if not has_native_mcp_sse():
+        return None
+    handle = ctypes.c_void_p()
+    rc = LIB.srmech_mcp_sse_serve(
+        host.encode("utf-8"), ctypes.c_uint16(port & 0xFFFF),
+        ctypes.byref(handle))
+    if rc != SRMECH_OK or not handle.value:
+        return None
+    bound = int(LIB.srmech_mcp_sse_port(handle))
+    return (int(handle.value), bound)
+
+
+def mcp_sse_stop_c(handle_ptr: int) -> bool:
+    """Stop a running C MCP HTTP+SSE server (returned by :func:`mcp_sse_serve_c`):
+    close the listener, join both threads, close all sessions, free the handle.
+    No hang. Returns True on a clean stop."""
+    if not has_native_mcp_sse():
+        return False
+    rc = LIB.srmech_mcp_sse_stop(ctypes.c_void_p(handle_ptr))
+    return rc == SRMECH_OK
+
+
+def mcp_serve_http_sse_c(host: str, port: int) -> int:
+    """Blocking serve-forever entry (the Python ``background=False`` native
+    path / a bare-C host main): serve + join the accept thread. Returns the
+    srmech status (0 == clean stop; non-0 == a no-TCP host / bind error, so the
+    caller falls back to the pure http.server). Blocks until the server stops."""
+    if not has_native_mcp_sse():
+        return SRMECH_ERR_BAD_INPUT
+    return int(LIB.srmech_mcp_serve_http_sse(
+        host.encode("utf-8"), ctypes.c_uint16(port & 0xFFFF)))
 
 
 # ----------------------------------------------------------------------

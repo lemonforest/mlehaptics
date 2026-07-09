@@ -837,7 +837,27 @@ CEIL_BIGNUM_REFERENCE = 0
 # -- leaf-op-blocked on the genome / sed_* domain-leaf C backlog) + serve_http_sse
 # (OPTIONAL -- Claude Code uses stdio; a separate C-HTTPS/SSE arc). The HOST-GLUE phase
 # reaches its practical completion at CEIL 3.
-CEIL_NON_COMPUTE_OWED = 3
+# rc194 (2026-07-09): the MCP HTTP+SSE TRANSPORT in C -- srmech_mcp_serve_http_sse
+# (+ the handle-based srmech_mcp_sse_serve / _port / _stop) serves the whole
+# cross-terminal HTTP+Server-Sent-Events transport natively: a background accept
+# thread over the NEW rc194 TCP PAL (srmech_plat_tcp_listen/accept/read_some/
+# write_all/server_close + srmech_plat_sleep_ms) routes GET /sse (emit the endpoint
+# event, push JSON-RPC responses as message events) + POST /message?session= (202 +
+# the response over the matching SSE stream) + GET /healthz, composing the rc186
+# srmech_mcp_handle (defer_calls==0, like serve_stdio -- the transport is complete,
+# tools/call stays the rc188 invoke_tool concern). serve_http_sse moved
+# owed_orchestration -> composes_c (the C peer serves the whole transport; the pure
+# path keeps the full invoke_tool + flows the per-request lifecycle through the C
+# srmech_mcp_handle; the transitive walk reaches no NOT-READY leaf). owed 3 -> 2;
+# composes_c 115 -> 116; sum stays 177. CEIL_NON_COMPUTE_OWED 3 -> 2. ABI stays 4
+# (additive symbols; the server dispatches in C -- NO Python callback typedef).
+# NO-HANG teardown (the rc180 socket-teardown discipline): the poll-gated accept
+# loop + stop-flagged keepalive thread terminate within one tick on stop+listener-
+# close. POSIX-FIRST -- Windows Winsock (srmech_plat_has_tcp()==0) is a tracked
+# follow-up; on Windows the C server declines and a Python host runs the pure
+# http.server, and the SSE server-driving test is @posix_only (no CI hang). The 2
+# owed left = make_class / run_class_method (HONEST-DEFERRED -- the domain-leaf arc).
+CEIL_NON_COMPUTE_OWED = 2
 
 # The PINNED dev-tooling allowlist — the exact ``non_compute_kind == "dev_tooling"``
 # set. A row here is JUSTIFIED as a genuine dev / LLM-affordance a bare-C host

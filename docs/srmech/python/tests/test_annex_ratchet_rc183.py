@@ -51,26 +51,30 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # resolve to the already-classified srmech.dsl._class_surface pair and are NOT
 # here (they are rc177 dev_tooling rows, deduped by canonical key).
 _ANNEX_ROWS = {
-    # owed_orchestration (1) — the 1 remaining MCP tool-serving op (serve_http_sse).
+    # owed_orchestration (0) — NO owed MCP/CLI/LLM annex rows remain.
     # rc185 moved tool_entries_to_mcp_defs owed → composes_c (it earned its C
     # projection peer); rc186 moved serve_stdio owed → composes_c (the MCP JSON-RPC
     # protocol + stdio LOOP earned its C peer); rc188 moved invoke_tool owed →
     # composes_c (the tools/call DISPATCH SPINE srmech_invoke_tool earned its C peer);
     # rc193 moved the 7 CLI grammar rows (main / build_parser + the 5 add_arguments)
     # owed → composes_c (srmech_cli_parse + srmech_cli_dispatch reproduce + route the
-    # whole console-script grammar; a bare-C host parses + dispatches the subcommands).
-    "srmech.mcp._sse.serve_http_sse": "owed_orchestration",
-    # composes_c (19) — the mcp tool_entries_to_mcp_defs projection (rc185: earned
+    # whole console-script grammar; a bare-C host parses + dispatches the subcommands);
+    # rc194 moved serve_http_sse owed → composes_c (the MCP HTTP+SSE transport earned
+    # its C peer srmech_mcp_serve_http_sse over the new rc194 TCP PAL).
+    # composes_c (20) — the mcp tool_entries_to_mcp_defs projection (rc185: earned
     # its C peer srmech_tool_entries_to_mcp_defs) + serve_stdio (rc186: earned its C
     # peer srmech_mcp_serve_stdio — the loop + framing + initialize/tools-list/ping/
     # shutdown run in C) + invoke_tool (rc188: earned its C peer srmech_invoke_tool —
     # the tools/call DISPATCH SPINE) + the 7 CLI grammar rows (rc193: earned the C
     # peer srmech_cli_parse + srmech_cli_dispatch — main runtime-dispatches through
     # them; build_parser + the 5 add_arguments are the pure-fallback grammar SSoT whose
-    # C peer is proven equivalent by the behavior-parity test) + the subcommand
-    # run/run_* dispatch bodies over already-C / non_compute leaves (the fully-C bus,
-    # the C DSL chain, the owed serve/class ops); each reaches no python_only_debt /
-    # bignum_reference / c_exists_unbound leaf (all three are 0).
+    # C peer is proven equivalent by the behavior-parity test) + serve_http_sse
+    # (rc194: earned its C peer srmech_mcp_serve_http_sse — the whole HTTP+SSE
+    # transport in C over the new TCP PAL) + the subcommand run/run_* dispatch bodies
+    # over already-C / non_compute leaves (the fully-C bus, the C DSL chain, the owed
+    # class ops); each reaches no python_only_debt / bignum_reference /
+    # c_exists_unbound leaf (all three are 0).
+    "srmech.mcp._sse.serve_http_sse": "composes_c",
     "srmech.mcp._tools.tool_entries_to_mcp_defs": "composes_c",
     "srmech.mcp._tools.invoke_tool": "composes_c",
     "srmech.mcp._stdio.serve_stdio": "composes_c",
@@ -104,16 +108,17 @@ _ANNEX_ROWS = {
 # the +24 annex delta by kind (what the host-glue annex ADDS to the pre-rc183
 # split; rc185 moved tool_entries_to_mcp_defs owed → composes_c, rc186 moved
 # serve_stdio owed → composes_c, rc188 moved invoke_tool owed → composes_c, rc193
-# moved the 7 CLI grammar rows owed → composes_c, so the annex split is now
-# 1/19/1/3 — the rows are still rc183-introduced annex rows, just now C-backed)
-_ANNEX_DELTA = {"owed_orchestration": 1, "composes_c": 19, "host_glue": 1,
-                "dev_tooling": 3}
+# moved the 7 CLI grammar rows owed → composes_c, rc194 moved serve_http_sse owed →
+# composes_c, so the annex split is now 0/20/1/3 — the rows are still rc183-
+# introduced annex rows, just now all-C-backed)
+_ANNEX_DELTA = {"composes_c": 20, "host_glue": 1, "dev_tooling": 3}
 # the FULL split after the host-glue annex (post-rc182 4/94/14/41 + the +24 delta;
 # rc185 living-pin bump: the 3 tool_schema projection rows earned C → owed 15→12,
 # composes_c 103→106; rc186: serve_stdio earned C → owed 12→11, composes_c 106→107;
 # rc188: invoke_tool earned C → owed 11→10, composes_c 107→108; rc193: the 7 CLI
-# grammar rows earned C → owed 10→3, composes_c 108→115; sum stays 177)
-_FULL_SPLIT = {"owed_orchestration": 3, "composes_c": 115, "host_glue": 15,
+# grammar rows earned C → owed 10→3, composes_c 108→115; rc194: serve_http_sse
+# earned C → owed 3→2, composes_c 115→116; sum stays 177)
+_FULL_SPLIT = {"owed_orchestration": 2, "composes_c": 116, "host_glue": 15,
                "dev_tooling": 44}
 _TOTAL_NON_COMPUTE = 177
 _HOSTGLUE_ROOTS = ("srmech.mcp", "srmech.cli", "srmech.llm")
@@ -189,16 +194,15 @@ def test_full_non_compute_split_sums_to_177():
     assert sum(counts.values()) == _TOTAL_NON_COMPUTE == sum(_FULL_SPLIT.values())
 
 
-def test_ceil_non_compute_owed_is_3():
-    """The phase-driver ceiling is 3 after rc193 — the rc188 residue of 10 minus
-    the 7 CLI grammar rows that earned their C peer (srmech_cli_parse +
-    srmech_cli_dispatch reproduce + route the whole console-script grammar; a bare-C
-    host parses + dispatches the subcommands). The 3 owed left = make_class /
-    run_class_method (leaf-op-blocked on the genome / sed_* domain-leaf C backlog) +
-    serve_http_sse (OPTIONAL — Claude Code uses stdio). The HOST-GLUE phase reaches
-    its practical completion at CEIL 3."""
-    assert CEIL_NON_COMPUTE_OWED == 3, (
-        f"CEIL_NON_COMPUTE_OWED must be 3 after rc193; got "
+def test_ceil_non_compute_owed_is_2():
+    """The phase-driver ceiling is 2 after rc194 — the rc193 residue of 3 minus
+    serve_http_sse, which earned its C peer (the MCP HTTP+SSE transport in C over the
+    new rc194 TCP PAL, composing srmech_mcp_handle). The 2 owed left = make_class /
+    run_class_method (leaf-op-blocked on the genome / sed_* domain-leaf C backlog) —
+    the domain-leaf arc, scoped separately. The HOST-GLUE phase reaches its practical
+    completion at CEIL 2."""
+    assert CEIL_NON_COMPUTE_OWED == 2, (
+        f"CEIL_NON_COMPUTE_OWED must be 2 after rc194; got "
         f"{CEIL_NON_COMPUTE_OWED}"
     )
 
