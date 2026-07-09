@@ -161,9 +161,13 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # rc193: the 7 CLI grammar rows (cli.main.{main,build_parser} + the 5 subcommand
 # add_arguments) earned their C peer (srmech_cli_parse + srmech_cli_dispatch) →
 # owed 10 → 3, composes_c 108 → 115; sum stays 177.
+# rc194: the MCP HTTP+SSE transport earned its C peer (srmech_mcp_serve_http_sse +
+# the handle-based srmech_mcp_sse_serve/_port/_stop, over the new rc194 TCP PAL,
+# composing srmech_mcp_handle). serve_http_sse moved owed_orchestration →
+# composes_c → owed 3 → 2, composes_c 115 → 116; sum stays 177.
 _EXPECTED_SPLIT = {
-    "owed_orchestration": 3,
-    "composes_c": 115,
+    "owed_orchestration": 2,
+    "composes_c": 116,
     "host_glue": 15,
     "dev_tooling": 44,
 }

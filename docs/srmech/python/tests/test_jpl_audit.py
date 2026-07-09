@@ -99,6 +99,13 @@ RULE_3_COLD_PATH_FILES: set[str] = {
     # per-request worker (those reuse the workspace allocated at
     # serve-time).
     "srmech_bus.c",
+    # v0.9.0rc194: MCP HTTP+SSE C server. calloc + malloc in the cold-path
+    # sse_alloc_server (once per srmech_mcp_sse_serve — the accept-thread
+    # scratch buffers: reqbuf / ws / respbuf / framebuf); free in the cold-path
+    # sse_free_server (once per srmech_mcp_sse_stop / serve-forever teardown).
+    # NO allocation in the accept loop / per-connection handlers / SSE framing /
+    # the bounded session registry (those reuse the buffers allocated at serve).
+    "srmech_mcp_sse.c",
 }
 
 
@@ -154,6 +161,20 @@ RULE_5_EXEMPT_FUNCTIONS: set[str] = {
                                 # present?). No state to assert; the stdin_read
                                 # / stdout_write fns carry >=2 asserts. See
                                 # c/JPL_AUDIT.md.
+    "srmech_plat_has_tcp",      # PAL trivial accessor (rc194): returns a
+                                # compile-time 1/0 (is a TCP backend present?).
+                                # No state to assert; the tcp_listen / accept /
+                                # read_some / write_all fns carry >=2 asserts.
+                                # See c/JPL_AUDIT.md.
+    "srmech_plat_sleep_ms",     # PAL trivial OS-timer wrapper (rc194): the
+                                # POSIX (nanosleep) / Windows (Sleep) bodies
+                                # carry >=2 asserts; the bare-metal stub is a
+                                # 1-assert no-op (no pointer/bounds invariant, a
+                                # second would be a tautology). See c/JPL_AUDIT.md.
+    "srmech_mcp_sse_port",      # rc194: trivial const accessor returning the
+                                # handle's bound TCP port (NULL-graceful → 0);
+                                # no state to assert beyond the guard, like the
+                                # exempt srmech_version. See c/JPL_AUDIT.md.
     # sha256 inline helpers — 4-7 lines each, no anomalous conditions
     "srmech_ror32",
     "srmech_ch",

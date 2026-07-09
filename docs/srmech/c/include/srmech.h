@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc193"
-#define SRMECH_VERSION       "0.9.0rc193"
+#define SRMECH_VERSION_PRE   "rc194"
+#define SRMECH_VERSION       "0.9.0rc194"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3819,6 +3819,48 @@ srmech_status_t srmech_mcp_build_attestation(const char *tool_name,
 srmech_status_t srmech_mcp_serve_stdio(char *line_buf, size_t line_cap,
                                        void *ws, size_t ws_len,
                                        char *resp_buf, size_t resp_cap);
+
+/* ------------------------------------------------------------------
+ * MCP HTTP+SSE TRANSPORT (0.9.0rc194; the HOST-GLUE cross-terminal server).
+ *
+ * The C peer of srmech.mcp._sse.serve_http_sse: a bare-C host serves MCP over
+ * HTTP+Server-Sent-Events on a localhost TCP port. Composes srmech_mcp_handle
+ * (JSON-RPC dispatch, defer_calls==0 — like serve_stdio) + the rc194 TCP PAL.
+ * A background accept thread routes GET /sse (emit an `endpoint` event, then
+ * push JSON-RPC responses as `message` events) + POST /message?session=<id>
+ * (202 + the response rides the matching SSE stream) + GET /healthz; a second
+ * thread emits a 15s keepalive on idle sessions. See c/src/srmech_mcp_sse.c.
+ *
+ * NO-HANG teardown (the rc180 socket-teardown discipline): srmech_mcp_sse_stop
+ * sets the stop flag + closes the poll-gated TCP listener; both threads return
+ * within one tick + join. POSIX-FIRST — on a host where srmech_plat_has_tcp()
+ * is 0 (Windows Winsock follow-up / bare-metal) serve returns
+ * SRMECH_ERR_BAD_INPUT and a Python host runs the pure http.server.
+ *
+ * ABI-additive: new symbols, and the server dispatches in C (NO Python
+ * callback typedef), so SRMECH_ABI_VERSION stays 4. */
+
+/* Opaque handle to a running MCP HTTP+SSE server. */
+typedef struct srmech_mcp_sse_server srmech_mcp_sse_server_t;
+
+/* Bind `host`:`port` (host a dotted-quad, e.g. "127.0.0.1"; port 0 = kernel-
+ * assigned) + serve MCP over HTTP+SSE on a background accept thread. Returns
+ * immediately with *out_handle; read the bound port with srmech_mcp_sse_port.
+ * SRMECH_ERR_BAD_INPUT on a no-TCP host (POSIX-first). */
+srmech_status_t srmech_mcp_sse_serve(const char *host, uint16_t port,
+                                     srmech_mcp_sse_server_t **out_handle);
+
+/* The bound TCP port of a running server (0 on a NULL handle). */
+uint16_t srmech_mcp_sse_port(const srmech_mcp_sse_server_t *h);
+
+/* Stop the server: set the stop flag, close the listener (unblocks the accept
+ * poll), join both threads, close all sessions, free the handle. No hang. */
+srmech_status_t srmech_mcp_sse_stop(srmech_mcp_sse_server_t *h);
+
+/* Blocking "serve forever" (a bare-C host main / the Python background=False
+ * path): serve + join the accept thread. Returns only when the listener stops
+ * (e.g. a signalled process). Sole owner of the handle → no concurrent stop. */
+srmech_status_t srmech_mcp_serve_http_sse(const char *host, uint16_t port);
 
 /* ------------------------------------------------------------------
  * MCP tool-call MARSHALLING FOUNDATION (0.9.0rc187; the HOST-GLUE
