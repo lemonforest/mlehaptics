@@ -655,6 +655,85 @@ srmech_status_t srmech_genome_encode_shape(uint64_t n, uint64_t *leaves_out,
     return SRMECH_OK;
 }
 
+/* rc197 (#887) — the plain CHROMOSOME builder (mirror srmech.amsc.genome.chromosome's
+ * single-kernel plain path: no genes / kernel / active_count). Writes a leading CHROM
+ * telomere cap over `label` (reusing the rc196 genome_pack_cap), then each of the
+ * `n_leaves` leaves (each leaf_dim bytes, contiguous in `leaves`) coupled through
+ * `the_one` via srmech_klein4_bind — the reversible Klein-4 XOR that is quad_turn. The
+ * strand is (1 + n_leaves) leaf_dim-byte blocks in `out`. BYTE-IDENTICAL to the bytes
+ * behind the Python strand (recovered by srmech_genome_recall). The gene / kernel /
+ * active-telomere forms open their own boundary caps → stay in the pure Python.
+ * Caller-arena output (no malloc), no goto, no abs, no float. */
+srmech_status_t srmech_genome_chromosome(const unsigned char *label,
+                                         size_t label_len,
+                                         const unsigned char *the_one,
+                                         uint32_t leaf_dim,
+                                         const unsigned char *leaves,
+                                         size_t n_leaves,
+                                         unsigned char *out, size_t out_cap)
+{
+    if (out == NULL || the_one == NULL ||
+        (label == NULL && label_len != 0u) ||
+        (leaves == NULL && n_leaves != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL && the_one != NULL);
+    assert(leaves != NULL || n_leaves == 0u);
+    if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    /* strand = 1 cap + n_leaves turns, each leaf_dim bytes; check the fit without
+     * overflowing size_t (n_leaves is a caller count; leaf_dim <= 256). */
+    size_t max_blocks = out_cap / (size_t)leaf_dim;
+    if (n_leaves + 1u < n_leaves || n_leaves + 1u > max_blocks) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    /* [0] the CHROM telomere cap (the rc196 shared cap writer). */
+    srmech_status_t st = genome_pack_cap(SRMECH_GENOME_CHROM_CAP_MARKER, label,
+                                         label_len, leaf_dim, out, leaf_dim);
+    if (st != SRMECH_OK) { return st; }
+    /* [1..] each leaf coupled through the_one — the reversible Klein-4 bind. */
+    for (size_t i = 0; i < n_leaves; i++) {
+        st = srmech_klein4_bind(leaves + i * (size_t)leaf_dim, the_one,
+                                leaf_dim, out + (i + 1u) * (size_t)leaf_dim);
+        if (st != SRMECH_OK) { return st; }
+    }
+    return SRMECH_OK;
+}
+
+/* rc197 (#887) — the plain RECALL (mirror srmech.amsc.genome.recall): walk the strand's
+ * `n_blocks` fixed-width leaf_dim-byte blocks, SKIP every cap (genome_cap_kind >= 0 — the
+ * rc196 kind classifier), and re-bind each data turn through `the_one` via
+ * srmech_klein4_bind (quad_turn is its own inverse) to recover the original leaf. The
+ * recovered leaves are written contiguously to `out` (leaf_dim bytes each); *n_leaves_out
+ * gets their count. BYTE-IDENTICAL to recall (gate-agnostic: it flattens across every cap
+ * marker, exactly like the pure walk). No malloc, no goto, no abs, no float. */
+srmech_status_t srmech_genome_recall(const unsigned char *strand,
+                                     size_t n_blocks, uint32_t leaf_dim,
+                                     const unsigned char *the_one,
+                                     unsigned char *out, size_t out_cap,
+                                     size_t *n_leaves_out)
+{
+    if (strand == NULL || the_one == NULL || out == NULL ||
+        n_leaves_out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(strand != NULL && the_one != NULL);
+    assert(out != NULL && n_leaves_out != NULL);
+    if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    size_t count = 0u;
+    for (size_t i = 0; i < n_blocks; i++) {
+        const unsigned char *block = strand + i * (size_t)leaf_dim;
+        if (genome_cap_kind(block, leaf_dim) >= 0) { continue; }   /* skip caps */
+        size_t off = count * (size_t)leaf_dim;
+        if (off + (size_t)leaf_dim > out_cap) { return SRMECH_ERR_OVERFLOW; }
+        srmech_status_t st = srmech_klein4_bind(block, the_one, leaf_dim,
+                                                out + off);
+        if (st != SRMECH_OK) { return st; }
+        count++;
+    }
+    *n_leaves_out = count;
+    return SRMECH_OK;
+}
+
 /* §44 COUNT: walk the body's self-describing blocks (§55/v3 dual-format) and
  * count its CHROM caps AND its total blocks (a pre-scan, so the per-chromosome
  * arrays can be carved to EXACTLY that many — no compiled-in chromosome cap;

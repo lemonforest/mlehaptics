@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc196"
-#define SRMECH_VERSION       "0.9.0rc196"
+#define SRMECH_VERSION_PRE   "rc197"
+#define SRMECH_VERSION       "0.9.0rc197"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4619,6 +4619,58 @@ srmech_status_t srmech_genome_encode_shape(
 srmech_status_t srmech_genome_telomere(
     const unsigned char *label, size_t label_len, uint32_t dim,
     unsigned char *out, size_t out_cap);
+
+/* rc197 (#887) make_class → C leaf-batch 3 — the genome [class]'s CHROMOSOME +
+ * RECALL in-memory leaf ops (the plain single-kernel path the `add_chromosome` /
+ * `recall` methods bind). Both COMPOSE the rc196 cap foundation (genome_pack_cap /
+ * genome_cap_kind) + the Class-M srmech_klein4_bind (the reversible Klein-4 XOR
+ * `quad_turn`) — so a bare-C host (and the rc201 object-model engine) builds /
+ * reverses a chromosome strand natively, BYTE-IDENTICAL to the Python. The
+ * gene / kernel / active-telomere chromosome forms stay in the pure Python (they
+ * open their own boundary caps); rc197 covers exactly the plain path.
+ * Additive symbols only → SRMECH_ABI_VERSION stays 4. */
+
+/* CHROMOSOME — the plain single-kernel strand builder: a leading CHROM telomere
+ * cap over `label`, then each of the `n_leaves` leaves coupled through `the_one`.
+ * Every block is leaf_dim bytes; the output strand is (1 + n_leaves) * leaf_dim
+ * bytes. BYTE-IDENTICAL to srmech.amsc.genome.chromosome(leaves, the_one,
+ * label=…) for the plain path (recovered by srmech_genome_recall).
+ *   label / label_len : the CHROM cap label bytes (label may be NULL iff len 0);
+ *                       must fit leaf_dim - 1 bytes (§44 inline cap encoding).
+ *   the_one           : the shared Klein-4 invariant (leaf_dim bytes, {0,1,2,3}).
+ *   leaf_dim          : the block width in bytes (> 0, <= 256) == len(the_one).
+ *   leaves / n_leaves : the n_leaves leaves, each leaf_dim bytes, contiguous
+ *                       (leaves may be NULL iff n_leaves 0).
+ *   out / out_cap     : caller buffer; out_cap >= (1 + n_leaves) * leaf_dim.
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — out or the_one NULL, or a NULL buffer with a nonzero len.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, over-long label, or a leaf byte > 3.
+ *   SRMECH_ERR_OVERFLOW   — out_cap too small for the strand. */
+srmech_status_t srmech_genome_chromosome(
+    const unsigned char *label, size_t label_len,
+    const unsigned char *the_one, uint32_t leaf_dim,
+    const unsigned char *leaves, size_t n_leaves,
+    unsigned char *out, size_t out_cap);
+
+/* RECALL — recover a plain chromosome's leaves: walk the strand's `n_blocks`
+ * fixed-width leaf_dim-byte blocks, SKIP every cap (genome_cap_kind >= 0), and
+ * re-bind each data turn through `the_one` (the reversible Klein-4 bind is its
+ * own inverse) to recover the original leaf. BYTE-IDENTICAL to
+ * srmech.amsc.genome.recall (gate-agnostic — it flattens across any cap marker).
+ *   strand / n_blocks : the strand's n_blocks blocks, each leaf_dim bytes, contiguous.
+ *   leaf_dim          : the block width in bytes (> 0, <= 256) == len(the_one).
+ *   the_one           : the shared Klein-4 invariant (leaf_dim bytes, {0,1,2,3}).
+ *   out / out_cap     : caller buffer for the recovered leaves; out_cap >=
+ *                       (data-turn count) * leaf_dim (n_blocks * leaf_dim always fits).
+ *   n_leaves_out      : out — the recovered data-turn (leaf) count.
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — strand / the_one / out / n_leaves_out NULL.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, or a data-turn byte > 3.
+ *   SRMECH_ERR_OVERFLOW   — out_cap too small for the recovered leaves. */
+srmech_status_t srmech_genome_recall(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *the_one,
+    unsigned char *out, size_t out_cap, size_t *n_leaves_out);
 
 /* SAVE: write <dir>/turns.bin (= `body` verbatim, body_len bytes) and
  * <dir>/manifest.json (byte-identical to the Python genome_save manifest).
