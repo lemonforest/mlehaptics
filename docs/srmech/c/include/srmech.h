@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc186"
-#define SRMECH_VERSION       "0.9.0rc186"
+#define SRMECH_VERSION_PRE   "rc187"
+#define SRMECH_VERSION       "0.9.0rc187"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3801,6 +3801,148 @@ srmech_status_t srmech_mcp_build_attestation(const char *tool_name,
 srmech_status_t srmech_mcp_serve_stdio(char *line_buf, size_t line_cap,
                                        void *ws, size_t ws_len,
                                        char *resp_buf, size_t resp_cap);
+
+/* ------------------------------------------------------------------
+ * MCP tool-call MARSHALLING FOUNDATION (0.9.0rc187; the HOST-GLUE
+ * JSON-args↔typed-C-args value carrier). The shared bedrock the rc188+
+ * invoke_tool DISPATCH + the #796 nested-carrier marshal build on: it
+ * generalises the rc181 dsl_chain_run dv_value_t tagged union into a
+ * uniform marshalling carrier (`srmech_mval_t`) and mirrors the private
+ * Python srmech.mcp._coercion coerce_param / serialise_native for the
+ * bucket-(a) CLEAN families (scalar / str / list / bytes / complex).
+ *
+ * TWO-STAGE marshal (the MCP wire form is NOT self-describing — the param
+ * TYPE comes from the rc184 registry, not the value):
+ *   (1) srmech_mval_from_json : parse a JSON value tree -> a tagged carrier.
+ *   (2) srmech_mcp_marshal_arg : typed-lower keyed on the registry type
+ *       string (the INVERSE of rc185's MCP_TYPE_LEXICON) — base64 str ->
+ *       BYTES, [re,im] -> COMPLEX, list-of-those recursively, etc.
+ * srmech_mcp_serialise_result is the OUTBOUND inverse (typed carrier ->
+ * canonical JSON, BYTE-IDENTICAL to CPython json.dumps(x, separators=
+ * (",", ":")) — insertion-order keys, default ensure_ascii=True escaping,
+ * bytes -> base64, complex -> [re,im]).
+ *
+ * A type OUTSIDE bucket-(a) (Mat/Vec/HV/np.ndarray float carriers = rc190
+ * (c); the by-reference handle / operator_name = later; any unknown) ->
+ * srmech_mcp_marshal_arg returns SRMECH_ERR_NOT_IMPL and the caller DEFERS
+ * to the pure Python coerce_param (rc103 inform-don't-limit). A JSON null
+ * ALWAYS passes through (coerce_param's null-first rule) for any type.
+ *
+ * JPL-clean: caller-arena only (no malloc), depth-bounded recursion
+ * (SRMECH_MVAL_MAX_DEPTH), no goto/abs/libm. ABI-additive (new symbols +
+ * types, no wire change to an existing function) -> SRMECH_ABI_VERSION
+ * stays 4. NO Python dispatch is wired THIS rc (foundation only — the
+ * rc188 invoke_tool spine wires srmech_mcp.c tools/call to it).
+ * ------------------------------------------------------------------ */
+
+#define SRMECH_MVAL_MAX_DEPTH 6   /* bounded nesting (mirrors rc181 DV_MAX_DEPTH) */
+
+/* Discriminant of the uniform marshalling value carrier. NONE/INT/FLOAT/
+ * STR/LIST mirror the rc181 dv_value_t; BYTES (decoded byte buffer, base64
+ * on the wire) + COMPLEX (re,im f64 pair, [re,im] on the wire) are the new
+ * typed leaves; BOOL + DICT complete faithful JSON coverage (a bool arg, a
+ * dict/object result, the Mapping[bytes,bytes] object family). */
+typedef enum {
+    SRMECH_MVAL_NONE = 0,   /* JSON null                                 */
+    SRMECH_MVAL_BOOL,       /* JSON true / false  (i = 0/1)              */
+    SRMECH_MVAL_INT,        /* int64  (i)                                */
+    SRMECH_MVAL_FLOAT,      /* f64  (re)                                 */
+    SRMECH_MVAL_STR,        /* UTF-8 string  (s, slen) — length-delimited */
+    SRMECH_MVAL_BYTES,      /* decoded bytes  (b, blen) — base64 on wire */
+    SRMECH_MVAL_COMPLEX,    /* (re, im) f64 pair — [re,im] on wire       */
+    SRMECH_MVAL_LIST,       /* ordered children (items, n; is_tuple bit) */
+    SRMECH_MVAL_DICT        /* ordered key/value pairs (keys, items, n)  */
+} srmech_mval_kind_t;
+
+/* The uniform JSON-args<->typed-C-args value carrier. All pointer members
+ * alias a caller arena (see srmech_marshal_arena_t). LIST/DICT hold up to
+ * SRMECH_MVAL_MAX_DEPTH nesting. A DICT key node is a STR (an ordinary
+ * object key) or a BYTES (a Mapping[bytes,bytes] base64 key). */
+typedef struct srmech_mval srmech_mval_t;
+struct srmech_mval {
+    srmech_mval_kind_t   kind;
+    int64_t              i;         /* INT value; BOOL 0/1                */
+    double               re;        /* FLOAT value; COMPLEX real part     */
+    double               im;        /* COMPLEX imaginary part             */
+    const char          *s;         /* STR bytes (NOT NUL-guaranteed)     */
+    uint32_t             slen;      /* STR length                         */
+    const unsigned char *b;         /* BYTES buffer                       */
+    uint32_t             blen;      /* BYTES length                       */
+    srmech_mval_t      **items;     /* LIST children / DICT values        */
+    srmech_mval_t      **keys;      /* DICT keys (n of them)              */
+    uint32_t             n;         /* LIST / DICT length                 */
+    int                  is_tuple;  /* LIST: 1 => tuple, 0 => list        */
+};
+
+/* Forward-only bump arena backing every carrier node + decoded byte buffer.
+ * Caller stack-allocates it over a workspace, then hands it to the marshal
+ * ops; a request that does not fit yields SRMECH_ERR_OVERFLOW. */
+typedef struct { unsigned char *cur; unsigned char *end; } srmech_marshal_arena_t;
+
+/* Initialise `a` over the workspace `ws` (length `ws_len`). */
+void srmech_marshal_arena_init(srmech_marshal_arena_t *a,
+                               void *ws, size_t ws_len);
+
+/* STAGE 1 — mirror a parsed srmech_json value tree into a carrier tree
+ * (null->NONE, bool->BOOL, int->INT, double->FLOAT, string->STR,
+ * array->LIST(list), object->DICT with STR keys). Depth-bounded. NULL args
+ * -> SRMECH_ERR_NULL_ARG; over-deep / arena-exhausted -> the matching
+ * error; else *out is the root carrier. */
+srmech_status_t srmech_mval_from_json(const srmech_json_value_t *j,
+                                      srmech_marshal_arena_t *a,
+                                      srmech_mval_t **out);
+
+/* STAGE 2 — typed-lower one argument carrier `v` per the registry
+ * `type_string`. Bucket-(a) CLEAN: identity (int/float/bool/str/number/
+ * dict/list + Optional/nested/ChainSpec/callable/array-acc), bytes (base64
+ * str -> BYTES), complex (number|[re,im] -> COMPLEX), tuple[int,int],
+ * Sequence[bytes]/list[bytes], list[complex], list[list[complex]],
+ * Mapping[bytes,bytes], list[tuple[bytes,int]], list[tuple[bytes,bytes]].
+ * A JSON null passes through for ANY type. A type outside bucket-(a) ->
+ * SRMECH_ERR_NOT_IMPL (the caller defers to the pure coerce_param) — this
+ * INCLUDES pathlib.Path, whose str(Path) round-trip is OS-dependent ('/'
+ * vs Windows '\\') and so NOT a portable data marshal; a malformed wire
+ * value for the type (bad base64, a non-[re,im] complex) ->
+ * SRMECH_ERR_BAD_INPUT. On SRMECH_OK *out is the typed carrier (it MAY
+ * alias `v` for the identity families). */
+srmech_status_t srmech_mcp_marshal_arg(const char *type_string,
+                                       const srmech_mval_t *v,
+                                       srmech_marshal_arena_t *a,
+                                       srmech_mval_t **out);
+
+/* OUTBOUND — serialise a (typed) carrier as canonical JSON into `buf`
+ * (capacity `buf_len`; NO trailing NUL) and set *out_len. Two-pass:
+ * `buf == NULL` is a SIZE-QUERY (nothing written; *out_len <- exact byte
+ * count); a too-small non-NULL `buf` returns SRMECH_ERR_OVERFLOW (never
+ * writes past the buffer). BYTE-IDENTICAL to CPython json.dumps(x,
+ * separators=(",", ":")) (insertion-order keys, default ensure_ascii=True):
+ * bytes -> base64 string, complex -> [re,im], NONE -> null, BOOL ->
+ * true/false, tuple -> array. FLOAT/COMPLEX use the srmech_json %.17g(+".0")
+ * best-effort form (full repr-parity is the rc190 float-carrier's scope). */
+srmech_status_t srmech_mcp_serialise_result(const srmech_mval_t *v,
+                                            char *buf, size_t buf_len,
+                                            size_t *out_len);
+
+/* Workspace bytes srmech_mcp_marshal_roundtrip needs for a `value_len`-byte
+ * argument JSON (parse tree + carrier tree + decoded buffers). */
+size_t srmech_mcp_marshal_roundtrip_arena_bytes(size_t value_len);
+
+/* FOUNDATION ROUND-TRIP PROVER (the rc187 DoD surface, JSON in / JSON out —
+ * ctypes-drivable). Parse `value_json` (a single argument value, `value_len`
+ * bytes) into the caller arena `ws` (length `ws_len`; size with
+ * srmech_mcp_marshal_roundtrip_arena_bytes), STAGE-1 mirror it, STAGE-2
+ * marshal_arg it per `type_string`, then serialise the typed carrier into
+ * `out` (capacity `out_cap`; NO trailing NUL) and set *out_len. `out == NULL`
+ * is NOT a size-query here (pass a real buffer). A non-bucket-(a) type ->
+ * SRMECH_ERR_NOT_IMPL; a malformed value -> SRMECH_ERR_BAD_INPUT. This proves
+ * marshal_arg -> serialise_result round-trips to the SAME canonical JSON as
+ * the Python coerce_param -> serialise_native path. */
+srmech_status_t srmech_mcp_marshal_roundtrip(const char *type_string,
+                                             const char *value_json,
+                                             size_t value_len,
+                                             void *ws, size_t ws_len,
+                                             char *out, size_t out_cap,
+                                             size_t *out_len);
 
 /* ------------------------------------------------------------------
  * Op-provenance canonical record hasher (0.9.0rc117; the op-carrying
