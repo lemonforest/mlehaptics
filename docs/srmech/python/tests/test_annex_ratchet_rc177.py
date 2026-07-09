@@ -125,7 +125,11 @@ _ANNEX_DELTA = {"owed_orchestration": 2, "composes_c": 11, "host_glue": 12,
 # invoke_tool earned its C peer → owed 11→10, composes_c 107→108 (sum stays 177).
 # The bus/dsl _ANNEX_ROWS / _ANNEX_DELTA are untouched (rc188 moves no bus/dsl row;
 # the mcp invoke_tool row is pinned in test_annex_ratchet_rc183.py).
-_FULL_SPLIT = {"owed_orchestration": 10, "composes_c": 108, "host_glue": 15,
+# rc193 (living-pin bump): the 7 CLI grammar rows earned their C peer
+# (srmech_cli_parse + srmech_cli_dispatch) → owed 10→3, composes_c 108→115 (sum
+# stays 177). The bus/dsl _ANNEX_ROWS / _ANNEX_DELTA are untouched (rc193 moves no
+# bus/dsl row; the cli rows are pinned in test_annex_ratchet_rc183.py).
+_FULL_SPLIT = {"owed_orchestration": 3, "composes_c": 115, "host_glue": 15,
                "dev_tooling": 44}
 _TOTAL_NON_COMPUTE = 177
 
@@ -200,13 +204,14 @@ def test_full_non_compute_split_sums_to_153():
     assert sum(counts.values()) == _TOTAL_NON_COMPUTE == sum(_FULL_SPLIT.values())
 
 
-def test_ceil_non_compute_owed_is_10():
-    """The phase-driver ceiling is 10 after rc188 — the rc186 residue of 11 minus
-    the invoke_tool row that earned its C peer (the tools/call DISPATCH SPINE
-    srmech_invoke_tool; the MCP server routes a clean 20-tool batch through it).
-    rc189+ finish the batch + the CLI dispatch and drive the owed count down."""
-    assert CEIL_NON_COMPUTE_OWED == 10, (
-        f"CEIL_NON_COMPUTE_OWED must be 10 after rc188; got "
+def test_ceil_non_compute_owed_is_3():
+    """The phase-driver ceiling is 3 after rc193 — the rc188 residue of 10 minus
+    the 7 CLI grammar rows that earned their C peer (srmech_cli_parse +
+    srmech_cli_dispatch reproduce + route the whole console-script grammar). The 3
+    owed left = make_class / run_class_method (leaf-op-blocked) + serve_http_sse
+    (optional; Claude Code uses stdio)."""
+    assert CEIL_NON_COMPUTE_OWED == 3, (
+        f"CEIL_NON_COMPUTE_OWED must be 3 after rc193; got "
         f"{CEIL_NON_COMPUTE_OWED}"
     )
 

@@ -2952,6 +2952,22 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_mcp_serve_stdio.argtypes = [_VP, _SZ, _VP, _SZ, _VP, _SZ]
             lib.srmech_mcp_serve_stdio.restype = ctypes.c_int
 
+        # rc193 — the CLI arg-GRAMMAR + dispatch (the HOST-GLUE console-script
+        # parser). New symbols → hasattr-guarded (a stale lib keeps the rest of
+        # the surface + falls back to the pure argparse main); additive → ABI
+        # stays 4.
+        #   srmech_cli_parse(argc, argv, out, out_cap, out_len, out_action,
+        #                    out_exit)
+        #   srmech_cli_dispatch(parsed_json, len, out_route)
+        if hasattr(lib, "srmech_cli_parse"):
+            _PINT = ctypes.POINTER(ctypes.c_int)
+            lib.srmech_cli_parse.argtypes = [
+                ctypes.c_int, ctypes.POINTER(ctypes.c_char_p),
+                _CP, _SZ, _PSZ, _PINT, _PINT]
+            lib.srmech_cli_parse.restype = ctypes.c_int
+            lib.srmech_cli_dispatch.argtypes = [_CP, _SZ, _PINT]
+            lib.srmech_cli_dispatch.restype = ctypes.c_int
+
         # rc187 — the tool-call MARSHALLING FOUNDATION (the JSON-args↔typed-
         # C-args value carrier). The ctypes-drivable round-trip prover
         # (JSON in / JSON out) that composes stage-1 parse + marshal_arg +
@@ -5525,6 +5541,81 @@ def invoke_tool_c(
     if rc != SRMECH_OK or kind.value != INVOKE_DISPATCHED:
         return (False, None)
     return (True, bytes(out[:got.value]).decode("utf-8"))
+
+
+# ----------------------------------------------------------------------
+# rc193 (HOST-GLUE): the CLI arg-GRAMMAR + dispatch. ``srmech.cli.main.main``
+# runs the argv through the C ``srmech_cli_parse`` (the grammar for all five
+# subcommands) + ``srmech_cli_dispatch`` (the run-body routing) on the clean
+# RUN path, deferring help/version/errors + anything the bounded parser will
+# not risk to pure argparse (byte-identical, inform-don't-limit).
+# ----------------------------------------------------------------------
+
+# srmech_cli_parse out_action (mirror SRMECH_CLI_ACTION_* in srmech.h).
+CLI_ACTION_RUN: int = 0
+CLI_ACTION_HELP: int = 1
+CLI_ACTION_VERSION: int = 2
+CLI_ACTION_ERROR: int = 3
+
+# srmech_cli_dispatch out_route (mirror SRMECH_CLI_ROUTE_* in srmech.h).
+CLI_ROUTE_STATUS: int = 0
+CLI_ROUTE_BUS: int = 1
+CLI_ROUTE_DSL: int = 2
+CLI_ROUTE_MCP: int = 3
+CLI_ROUTE_CLASS: int = 4
+CLI_ROUTE_HELP: int = 5
+
+
+def has_native_cli() -> bool:
+    """True iff the rc193 CLI grammar + dispatch C peer is loaded + bound."""
+    return bool(
+        HAS_NATIVE and LIB is not None and hasattr(LIB, "srmech_cli_parse")
+    )
+
+
+def cli_parse_c(argv: "list[str]") -> "tuple[int, bytes] | None":
+    """Parse ``argv`` (the console-script arguments, prog EXCLUDED) through the
+    C ``srmech_cli_parse``. Returns ``(action, namespace_json)`` where ``action``
+    is one of ``CLI_ACTION_{RUN,HELP,VERSION,ERROR}`` and ``namespace_json`` is
+    the canonical parsed-namespace JSON (empty for non-RUN actions). Returns
+    ``None`` when the C peer is unavailable OR the bounded parser DEFERS
+    (``SRMECH_ERR_NOT_IMPL`` / overflow) — the caller runs pure argparse.
+    numpy-free; single-pass over a generously-sized buffer."""
+    if not has_native_cli():
+        return None
+    n = len(argv)
+    arr = (ctypes.c_char_p * (n if n > 0 else 1))()
+    for i, a in enumerate(argv):
+        arr[i] = a.encode("utf-8")
+    out_cap = 1 << 16
+    out = ctypes.create_string_buffer(out_cap)
+    got = ctypes.c_size_t(0)
+    action = ctypes.c_int(-1)
+    exit_code = ctypes.c_int(-1)
+    argv_p = ctypes.cast(arr, ctypes.POINTER(ctypes.c_char_p)) if n > 0 else None
+    rc = LIB.srmech_cli_parse(
+        n, argv_p, out, out_cap,
+        ctypes.byref(got), ctypes.byref(action), ctypes.byref(exit_code))
+    if rc != SRMECH_OK:
+        return None
+    if action.value == CLI_ACTION_RUN:
+        return (CLI_ACTION_RUN, bytes(out.raw[: got.value]))
+    return (action.value, b"")
+
+
+def cli_dispatch_c(namespace_json: bytes) -> "int | None":
+    """Route a parsed-namespace JSON (from :func:`cli_parse_c` on ACTION_RUN)
+    to its run-body target via the C ``srmech_cli_dispatch``. Returns one of
+    ``CLI_ROUTE_{STATUS,BUS,DSL,MCP,CLASS,HELP}``, or ``None`` when the C peer is
+    unavailable / the JSON carries no recognizable command."""
+    if not has_native_cli():
+        return None
+    route = ctypes.c_int(-1)
+    rc = LIB.srmech_cli_dispatch(
+        namespace_json, len(namespace_json), ctypes.byref(route))
+    if rc != SRMECH_OK:
+        return None
+    return route.value
 
 
 def sha256_hex_c(data: bytes) -> str:

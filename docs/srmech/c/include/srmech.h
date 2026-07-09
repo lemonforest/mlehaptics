@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc192"
-#define SRMECH_VERSION       "0.9.0rc192"
+#define SRMECH_VERSION_PRE   "rc193"
+#define SRMECH_VERSION       "0.9.0rc193"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4034,6 +4034,87 @@ srmech_status_t srmech_invoke_tool_json(const char *name,
 /* Workspace bytes srmech_invoke_tool needs for a `params_len`-byte argument
  * object (the parse tree + carrier tree + decoded byte buffers + result). */
 size_t srmech_invoke_tool_arena_bytes(size_t params_len);
+
+/* ------------------------------------------------------------------
+ * CLI arg-grammar + dispatch (0.9.0rc193; the HOST-GLUE console-script
+ * parser). The C peer of srmech.cli.main.{build_parser, main} + the five
+ * subcommand srmech.cli.{status,bus,dsl,mcp,klass}.add_arguments — a bare-C
+ * host (no Python) parses the `srmech` console-script grammar + routes each
+ * subcommand to its (C) run body (bus → srmech_bus_*, dsl → srmech_dsl_chain_run,
+ * mcp → srmech_mcp_*, class → the DSL class surface, status → host FS).
+ *
+ * GRAMMAR (mirrors build_parser + the five add_arguments EXACTLY):
+ *   status                       [--pid INT] [-f/--follow] [--json] [--poll-interval FLOAT]
+ *   bus {list,tap,pipe,send,serve}
+ *     list                       [--json] [--all]
+ *     tap NAME                    [--seed HEX] [--format {json,pretty}] [--filter TYPE] [--limit N]
+ *     pipe SRC DST                [--seed-src HEX] [--seed-dst HEX] [--transform PY]
+ *     send NAME [EVENT_JSON]      [--seed HEX] [--timeout FLOAT] [--stdin]
+ *     serve NAME                  [--echo] [--seed HEX] [--seed-mint] [--handler-module M:f]
+ *   dsl {run,ops,visualize}
+ *     run CHAIN.toml              [--input J] [--input-file P] [--output-file P]
+ *                                 [--ndjson-input] [--json]
+ *     ops                         [--json]
+ *     visualize CHAIN.toml        [--json]
+ *   mcp {emit-mcpb}
+ *     emit-mcpb                   [--out DIR] [--type {uv,python}] [--name N]
+ *                                 [--manifest-only] [--filter GLOB]
+ *   class {list,describe}
+ *     list
+ *     describe NAME
+ *
+ * BEHAVIOR-PARITY (NOT byte-identical help text — the documented split). For a
+ * VALID subcommand invocation srmech_cli_parse emits the parsed argparse
+ * namespace as canonical JSON (dest keys, defaults filled) into `out` and sets
+ * *out_action = SRMECH_CLI_ACTION_RUN; the caller reconstructs the Namespace +
+ * routes via srmech_cli_dispatch. -h/--help → SRMECH_CLI_ACTION_HELP (*out_exit
+ * 0); --version → SRMECH_CLI_ACTION_VERSION (0); a structural error (unknown
+ * subcommand, bad --choice, missing/extra positional, missing option value) →
+ * SRMECH_CLI_ACTION_ERROR (*out_exit 2). A grammar the bounded parser will not
+ * risk mis-handling (an option abbreviation, an inline `--`, an unusual numeric
+ * token, a value that itself looks like an option) → SRMECH_ERR_NOT_IMPL so a
+ * Python host DEFERS to pure argparse (inform-don't-limit; help/version/error
+ * text stays byte-identical because pure argparse emits it). numeric option
+ * tokens are validated: --pid/--limit lex as int64 (emitted as a JSON number);
+ * --poll-interval/--timeout lex as a float token (emitted as a JSON string the
+ * consumer float()s). Bounded: fixed subcommand table + fixed per-subcommand
+ * option table (JPL Rule 2). No workspace arena needed (argv is parsed in place;
+ * the canonical JSON is written straight to `out`).
+ *
+ * Returns:
+ *   SRMECH_OK            — *out_action set (RUN/HELP/VERSION/ERROR); on RUN the
+ *                          canonical JSON is `out[0..*out_len)`.
+ *   SRMECH_ERR_NULL_ARG  — out / out_action / out_exit / out_len NULL, or argv
+ *                          NULL with argc > 0.
+ *   SRMECH_ERR_OVERFLOW  — the canonical JSON exceeds out_cap (*out_len holds the
+ *                          needed length).
+ *   SRMECH_ERR_NOT_IMPL  — the bounded parser defers this grammar to pure argparse.
+ * ABI-additive: new symbols only, so SRMECH_ABI_VERSION stays 4. */
+#define SRMECH_CLI_ACTION_RUN     0  /* valid invocation; `out` = namespace JSON  */
+#define SRMECH_CLI_ACTION_HELP    1  /* -h/--help; defer to pure help (exit 0)     */
+#define SRMECH_CLI_ACTION_VERSION 2  /* --version; defer to pure version (exit 0)  */
+#define SRMECH_CLI_ACTION_ERROR   3  /* an argparse arg error (exit 2)             */
+
+srmech_status_t srmech_cli_parse(int argc, const char *const *argv,
+                                 char *out, size_t out_cap, size_t *out_len,
+                                 int *out_action, int *out_exit);
+
+/* Route a parsed CLI namespace (the canonical JSON srmech_cli_parse emitted on
+ * ACTION_RUN) to its run-body target: read the top-level "command" and set
+ * *out_route to the run body a bare-C main() invokes. A null / absent command
+ * (a bare `srmech`) → SRMECH_CLI_ROUTE_HELP (print top help). The subcommand run
+ * bodies are the composes_c cli.*.run over the already-C bus / dsl / mcp — this
+ * is the ROUTING, not a re-run of them. Returns SRMECH_ERR_NULL_ARG on a NULL
+ * arg, SRMECH_ERR_BAD_INPUT on JSON with no recognizable "command". */
+#define SRMECH_CLI_ROUTE_STATUS 0
+#define SRMECH_CLI_ROUTE_BUS    1
+#define SRMECH_CLI_ROUTE_DSL    2
+#define SRMECH_CLI_ROUTE_MCP    3
+#define SRMECH_CLI_ROUTE_CLASS  4
+#define SRMECH_CLI_ROUTE_HELP   5  /* command == null → print top help          */
+
+srmech_status_t srmech_cli_dispatch(const char *parsed_json, size_t len,
+                                    int *out_route);
 
 /* ------------------------------------------------------------------
  * Op-provenance canonical record hasher (0.9.0rc117; the op-carrying

@@ -819,7 +819,25 @@ CEIL_BIGNUM_REFERENCE = 0
 # leaf). owed 11 → 10; composes_c 107 → 108; sum stays 177. CEIL_NON_COMPUTE_OWED
 # 11 → 10. ABI stays 4 (additive symbols). The 10 owed left = serve_http_sse + the CLI
 # grammar (main/build_parser + 5 add_arguments) + make_class / run_class_method.
-CEIL_NON_COMPUTE_OWED = 10
+# rc193 (2026-07-09): the CLI arg-GRAMMAR + dispatch in C — the last big ledger-mover.
+# srmech_cli_parse reproduces the WHOLE `srmech` console-script grammar (all five
+# subcommands status/bus/dsl/mcp/class, each subcommand's flags/positionals/choices/
+# defaults) + srmech_cli_dispatch routes the parsed command to its (C) run body. The 7
+# CLI grammar rows moved owed_orchestration -> composes_c: cli.main.{main,build_parser}
+# (main runtime-dispatches through srmech_cli_parse/dispatch on the clean RUN path;
+# build_parser is the pure-fallback grammar SSoT whose C peer is proven equivalent by
+# the behavior-parity test -- the rc185 get_tool_schema "pure constructor with a proven-
+# equivalent C peer" precedent) + the five cli.{bus,dsl,mcp,klass,status}.add_arguments
+# (each subcommand's grammar is in the C parser). The subcommand run bodies (cli.*.run)
+# were ALREADY composes_c over the now-C bus/dsl/mcp; this rc builds the arg-GRAMMAR +
+# dispatch that routes to them. help/version/errors + anything the bounded parser
+# declines defer to pure argparse (byte-identical, inform-don't-limit). owed 10 -> 3;
+# composes_c 108 -> 115; sum stays 177. CEIL_NON_COMPUTE_OWED 10 -> 3. ABI stays 4
+# (additive symbols). The 3 owed left = make_class / run_class_method (HONEST-DEFERRED
+# -- leaf-op-blocked on the genome / sed_* domain-leaf C backlog) + serve_http_sse
+# (OPTIONAL -- Claude Code uses stdio; a separate C-HTTPS/SSE arc). The HOST-GLUE phase
+# reaches its practical completion at CEIL 3.
+CEIL_NON_COMPUTE_OWED = 3
 
 # The PINNED dev-tooling allowlist — the exact ``non_compute_kind == "dev_tooling"``
 # set. A row here is JUSTIFIED as a genuine dev / LLM-affordance a bare-C host
