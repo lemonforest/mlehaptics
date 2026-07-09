@@ -2952,6 +2952,21 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_mcp_serve_stdio.argtypes = [_VP, _SZ, _VP, _SZ, _VP, _SZ]
             lib.srmech_mcp_serve_stdio.restype = ctypes.c_int
 
+        # rc187 — the tool-call MARSHALLING FOUNDATION (the JSON-args↔typed-
+        # C-args value carrier). The ctypes-drivable round-trip prover
+        # (JSON in / JSON out) that composes stage-1 parse + marshal_arg +
+        # serialise_result; the carrier-typed marshal_arg / serialise_result
+        # themselves take an srmech_mval_t (a C-only surface the rc188
+        # invoke_tool spine + the C parity driver use directly). New symbol →
+        # hasattr-guarded (a stale rc186 lib keeps the rest + falls back to
+        # the pure coerce_param); additive → ABI stays 4.
+        #   srmech_mcp_marshal_roundtrip(type, value_json, value_len,
+        #                                ws, ws_len, out, out_cap, out_len)
+        if hasattr(lib, "srmech_mcp_marshal_roundtrip"):
+            lib.srmech_mcp_marshal_roundtrip.argtypes = [
+                _CP, _CP, _SZ, _VP, _SZ, _VP, _SZ, _PSZ]
+            lib.srmech_mcp_marshal_roundtrip.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Class A — op-provenance canonical record hasher (0.9.0rc117; the
     # op-carrying carrier, dives #718/#719). The C peer of
@@ -5298,6 +5313,60 @@ def mcp_build_attestation_c(
     if rc != SRMECH_OK:
         return None
     return bytes(raw[:got.value])
+
+
+# ----------------------------------------------------------------------
+# rc187 — the tool-call MARSHALLING FOUNDATION (the JSON-args↔typed-C-args
+# value carrier). ``marshal_roundtrip_c`` drives the C round-trip prover
+# (stage-1 parse → marshal_arg → serialise_result) for one argument value;
+# it proves the C carrier + marshal lower a JSON arg to a typed C value that
+# serialises back to the SAME canonical JSON as the pure Python
+# coerce_param → serialise_native path. The carrier-typed marshal_arg /
+# serialise_result are a C-only surface (rc188 invoke_tool + the C driver).
+# ----------------------------------------------------------------------
+
+# Error signals surfaced by the round-trip prover (mirror srmech.h).
+MARSHAL_OK: int = 0
+MARSHAL_NOT_IMPL: int = 5   # SRMECH_ERR_NOT_IMPL — not a bucket-(a) clean type
+MARSHAL_BAD_INPUT: int = 2  # SRMECH_ERR_BAD_INPUT — malformed wire value
+
+
+def has_native_mcp_marshal() -> bool:
+    """True iff the rc187 tool-call marshalling foundation C peer is loaded."""
+    return bool(
+        HAS_NATIVE and LIB is not None
+        and hasattr(LIB, "srmech_mcp_marshal_roundtrip")
+    )
+
+
+def mcp_marshal_roundtrip_c(
+    type_string: str, value_json: bytes
+) -> "tuple[int, bytes | None]":
+    """Round-trip one MCP argument ``value_json`` (raw JSON bytes) through the C
+    ``srmech_mcp_marshal_roundtrip`` for the declared ``type_string``: parse →
+    stage-1 carrier → typed marshal_arg → serialise_result. Returns
+    ``(status, out_bytes)`` where ``status`` is one of ``MARSHAL_OK`` /
+    ``MARSHAL_NOT_IMPL`` (not a bucket-(a) clean type; caller defers to the pure
+    coerce_param) / ``MARSHAL_BAD_INPUT`` (malformed wire value), and
+    ``out_bytes`` is the canonical-JSON round-trip (byte-identical to the Python
+    ``json.dumps(serialise_native(coerce_param(...)), separators=(",", ":"))``)
+    on ``MARSHAL_OK`` else ``None``. Returns ``(-1, None)`` if the C peer is
+    unavailable. numpy-free."""
+    if not has_native_mcp_marshal():
+        return (-1, None)
+    ts = type_string.encode("utf-8")
+    ws_len = 256 * len(value_json) + 65536
+    ws = (ctypes.c_char * ws_len)()
+    out_cap = 256 * len(value_json) + 4096
+    out = (ctypes.c_char * out_cap)()
+    got = ctypes.c_size_t(0)
+    rc = LIB.srmech_mcp_marshal_roundtrip(
+        ts, value_json, len(value_json),
+        ctypes.cast(ws, ctypes.c_void_p), ws_len,
+        ctypes.cast(out, ctypes.c_void_p), out_cap, ctypes.byref(got))
+    if rc != SRMECH_OK:
+        return (rc, None)
+    return (MARSHAL_OK, bytes(out[:got.value]))
 
 
 def sha256_hex_c(data: bytes) -> str:
