@@ -525,15 +525,19 @@ def _matrices_close(a, b, *, rel_tol: float = 1e-6) -> bool:
     return True
 
 
-# ── rc176: the srmech_infer C-router dispatch (the ORCHESTRATION→C spine) ─────
-# ``infer`` routes the two EXACT-SYMBOLIC bignum-carrier rows (cyclic /
-# sigma-gosper) through the ``srmech_infer`` C peer when it is loaded. The C peer
-# DETECTS + DISPATCHES + VERIFIES in C and returns the DECISION; the Python side
-# reconstructs the closed_form via the SAME reducer the C peer verified (so
-# native == pure, byte-identical). Every other row (the heavier wz / spectral /
-# multivariate / q / elliptic carriers → rc177+) is NOT marshalled, so the pure
-# body runs (the rc103 inform-don't-limit pattern). The C router NEVER returns a
-# false reducible — the honest OPEN residue is the no-hallucination discipline.
+# ── rc176/rc192: the srmech_infer C-router dispatch (the ORCHESTRATION→C spine) ─
+# ``infer`` routes the EXACT-SYMBOLIC bignum-carrier rows through the
+# ``srmech_infer`` C peer when it is loaded: cyclic / sigma-gosper (rc176) and the
+# sigma-DEFINITE wz_certificate row (rc192, the #796 payoff — the four (n,k)
+# BiPoly term-ratios → zeilberger @order-1 FIND + wz_verify PROVE in the
+# zeilberger-scale infer arena, over the rc191 srmech_carrier_read_bipoly reader).
+# The C peer DETECTS + DISPATCHES + VERIFIES in C and returns the DECISION; the
+# Python side reconstructs the closed_form via the SAME reducer the C peer
+# verified (so native == pure, byte-identical). The remaining heavier-carrier rows
+# (spectral / multivariate / q / elliptic → rc193+) are NOT marshalled, so the
+# pure body runs (the rc103 inform-don't-limit pattern). The C router NEVER
+# returns a false reducible — the honest OPEN residue is the no-hallucination
+# discipline.
 
 _SIGMA_GOSPER_ROW_KEYS = ("term_ratio_num", "term_ratio_den")
 
@@ -572,16 +576,37 @@ def _marshal_relationship(rel: Dict[str, Any]) -> Optional[Tuple[str, int]]:
         num, den = _pairs(rel["term_ratio_num"]), _pairs(rel["term_ratio_den"])
         return (json.dumps({"row": "sigma", "term_ratio_num": num,
                             "term_ratio_den": den}), max(len(num), len(den), 1))
+    # rc192 (#796 payoff): the SIGMA-DEFINITE (wz_certificate) row — the four
+    # (n,k) BiPoly term-ratios, marshalled as k-ascending lists of Poly-in-n
+    # coefficient lists (bignum-safe decimal strings). max_terms is the max
+    # k-degree (the zeilberger degree). The C router runs zeilberger @order-1 +
+    # wz_verify in its zeilberger-scale arena; _finish_native rebuilds via
+    # _try_sigma (which routes the 4-key case to wz_certificate).
+    if row == "sigma" and all(k in rel for k in _SIGMA_KEYS):
+        from .zeilberger import BiPoly
+
+        def _bp(v: Any) -> "list":
+            b = BiPoly.coerce(v)
+            return [[[str(c.numerator), str(c.denominator)] for c in kp.coeffs]
+                    for kp in b.terms]
+
+        rn_num, rn_den = _bp(rel["rn_num"]), _bp(rel["rn_den"])
+        rk_num, rk_den = _bp(rel["rk_num"]), _bp(rel["rk_den"])
+        deg = max(len(rn_num), len(rn_den), len(rk_num), len(rk_den), 1)
+        return (json.dumps({"row": "sigma", "rn_num": rn_num, "rn_den": rn_den,
+                            "rk_num": rk_num, "rk_den": rk_den}), deg)
     return None
 
 
 def _finish_native(rel: Dict[str, Any], decision: Dict[str, Any]) -> Dict[str, Any]:
     """Build the ``infer`` return dict from the C router's DECISION. On
     ``reducible`` the closed_form OBJECT is materialised by re-running the SAME
-    verified reducer (``_try_cyclic`` / ``_try_sigma``) — byte-identical to the
-    pure path — so the C router acts as the routing brain a bare-C host uses while
-    Python reconstructs the object. A defensive disagreement (native said
-    reducible but the reducer rebuild returned None) routes to the honest OPEN."""
+    verified reducer (``_try_cyclic`` for the cyclic row / ``_try_sigma`` for BOTH
+    the sigma-gosper indefinite AND the sigma-definite wz_certificate rows) —
+    byte-identical to the pure path — so the C router acts as the routing brain a
+    bare-C host uses while Python reconstructs the object. A defensive
+    disagreement (native said reducible but the reducer rebuild returned None)
+    routes to the honest OPEN."""
     row = decision.get("row")
     if decision.get("reducible") is True:
         res = _try_cyclic(rel) if row == "cyclic" else _try_sigma(rel)

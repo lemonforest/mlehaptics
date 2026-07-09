@@ -308,6 +308,250 @@ static srmech_status_t inf_gosper(const srmech_json_value_t *root, inf_bump_t *b
 }
 
 /* ------------------------------------------------------------------
+ * SIGMA-DEFINITE row (wz_certificate) — rc192, the #796 payoff. Consumes the
+ * rc191 PUBLIC srmech_carrier_read_bipoly reader for the four (n,k) BiPoly
+ * term-ratios, then reproduces srmech.amsc.wz_certificate.wz_certificate in C:
+ *   FIND  — srmech_zeilberger at max_order=1 (the forced f(n+1)-f(n)=0
+ *           recurrence); accept only its WZ shape a_0(n)+a_1(n)=0 with a_0,a_1
+ *           NONZERO constants in n.
+ *   PROVE — rescale the raw certificate by 1/a_1 (x_num = cert*(a1_den/a1_num),
+ *           sign-normalised to a positive denominator; x_den = rn_den) and run
+ *           srmech_wz_verify (the COMPLETE degree-bounded WZ-equation check).
+ * reducible iff the WZ equation VERIFIES — the genuine identity proof, not the
+ * FIND alone (the anti-shell discipline). All scratch/ws carves off the MB-scale
+ * infer arena (srmech_infer_sigma_definite_arena_bytes), NOT the vtable arena
+ * (the rc191 finding). Any arena / reducer non-OK -> the pure wz_certificate.
+ * ------------------------------------------------------------------ */
+
+/* A BiPoly operand read from the wire (flat k-then-n num/den + per-k klen). */
+typedef struct {
+    srmech_bigint_t *num;
+    srmech_bigint_t *den;
+    size_t          *klen;
+    size_t           kdeg;
+} inf_bipoly_t;
+
+/* The srmech_zeilberger output block (order-1 recurrence + raw certificate). */
+typedef struct {
+    srmech_bigint_t *coeff_n, *coeff_d; size_t *coeff_nlen;
+    srmech_bigint_t *cert_n,  *cert_d;  size_t *cert_klen; size_t cert_kdeg;
+    int has; size_t order; uint32_t out_cap;
+} inf_zeil_t;
+
+/* Bump-carve off the PUBLIC marshal arena (the rc191 srmech_carrier_read_bipoly
+ * arena type). NULL (no partial carve) if a request does not fit. */
+static unsigned char *inf_ma_carve(srmech_marshal_arena_t *a, size_t n)
+{
+    unsigned char *p;
+    assert(a != NULL);
+    assert(a->cur <= a->end);
+    p = inf_align(a->cur);
+    if (p > a->end || n > (size_t)(a->end - p)) { return NULL; }
+    a->cur = p + n;
+    return p;
+}
+
+/* Carve `count` zeroed srmech_bigint carriers of `cap` limbs each off `a`. */
+static srmech_bigint_t *inf_ma_bigints(srmech_marshal_arena_t *a,
+                                       size_t count, uint32_t cap)
+{
+    srmech_bigint_t *arr;
+    size_t i;
+    assert(a != NULL);
+    assert(cap > 0u && count > 0u);
+    arr = (srmech_bigint_t *)inf_ma_carve(a, count * sizeof(srmech_bigint_t));
+    if (arr == NULL) { return NULL; }
+    for (i = 0u; i < count; i++) {
+        uint32_t *limbs = (uint32_t *)inf_ma_carve(a, (size_t)cap * sizeof(uint32_t));
+        if (limbs == NULL) { return NULL; }
+        arr[i].sign = 0; arr[i].n = 0u; arr[i].cap = cap; arr[i].limbs = limbs;
+    }
+    return arr;
+}
+
+/* Read the BiPoly under `key` into `out` via the rc191 public reader. */
+static srmech_status_t inf_read_bipoly_key(const srmech_json_value_t *root,
+        srmech_marshal_arena_t *a, const char *key, uint32_t cap, inf_bipoly_t *out)
+{
+    const srmech_json_value_t *node;
+    assert(root != NULL && a != NULL && key != NULL && out != NULL);
+    assert(cap > 0u);
+    node = srmech_json_object_get(root, key);
+    if (node == NULL) { return SRMECH_ERR_BAD_INPUT; }
+    return srmech_carrier_read_bipoly(node, a, cap, &out->num, &out->den,
+                                      &out->klen, &out->kdeg);
+}
+
+/* Max significant 32-bit limb count over all input coefficients (num + den of
+ * all four ratios) — the tight zeilberger cl (never from rel_len, which would
+ * over-size the ws to GB). >= 1. */
+static uint32_t inf_bipoly_max_limbs(const inf_bipoly_t r[4])
+{
+    uint32_t m = 1u;
+    size_t b, t, tot, i;
+    assert(r != NULL);
+    assert(sizeof(uint32_t) == 4u);
+    for (b = 0u; b < 4u; b++) {
+        tot = 0u;
+        for (i = 0u; i < r[b].kdeg; i++) { tot += r[b].klen[i]; }
+        for (t = 0u; t < tot; t++) {
+            if (r[b].num[t].n > m) { m = r[b].num[t].n; }
+            if (r[b].den[t].n > m) { m = r[b].den[t].n; }
+        }
+    }
+    return m;
+}
+
+/* Allocate the zeilberger output block + ws and run srmech_zeilberger at
+ * max_order=1. Sets z->has / z->order / the coeff+cert pointers. */
+static srmech_status_t inf_wz_zeilberger(const inf_bipoly_t r[4],
+        srmech_marshal_arena_t *a, uint32_t cl, size_t deg, inf_zeil_t *z)
+{
+    size_t nbound, coeff_slots, cert_slots, wsb, ck = 0u;
+    unsigned char *ws;
+    uint32_t oc;
+    int has = 0; size_t order = 0u;
+    srmech_status_t st;
+    assert(r != NULL && a != NULL && z != NULL);
+    assert(cl > 0u && deg > 0u);
+    oc = (uint32_t)srmech_zeilberger_out_cap(cl, 1u, deg);
+    nbound = (deg + 2u) * 3u + 8u;                 /* (deg+2)*(order+2), order=1 */
+    coeff_slots = 2u * nbound + 8u;                /* (order+1)*nbound           */
+    cert_slots = nbound * nbound + 8u;
+    z->coeff_n = inf_ma_bigints(a, coeff_slots, oc);
+    z->coeff_d = inf_ma_bigints(a, coeff_slots, oc);
+    z->cert_n  = inf_ma_bigints(a, cert_slots, oc);
+    z->cert_d  = inf_ma_bigints(a, cert_slots, oc);
+    z->coeff_nlen = (size_t *)inf_ma_carve(a, 3u * sizeof(size_t));
+    z->cert_klen  = (size_t *)inf_ma_carve(a, (nbound + 2u) * sizeof(size_t));
+    wsb = srmech_zeilberger_ws_bound(cl, 1u, deg);
+    ws = inf_ma_carve(a, wsb);
+    if (z->coeff_n == NULL || z->coeff_d == NULL || z->cert_n == NULL ||
+        z->cert_d == NULL || z->coeff_nlen == NULL || z->cert_klen == NULL ||
+        ws == NULL) { return SRMECH_ERR_OVERFLOW; }
+    st = srmech_zeilberger(
+        r[0].num, r[0].den, r[0].klen, r[0].kdeg,
+        r[1].num, r[1].den, r[1].klen, r[1].kdeg,
+        r[2].num, r[2].den, r[2].klen, r[2].kdeg,
+        r[3].num, r[3].den, r[3].klen, r[3].kdeg,
+        1u, deg, &has, &order, z->coeff_n, z->coeff_d, z->coeff_nlen,
+        z->cert_n, z->cert_d, z->cert_klen, &ck, ws, wsb);
+    if (st != SRMECH_OK) { return st; }
+    z->has = has; z->order = order; z->cert_kdeg = ck; z->out_cap = oc;
+    return SRMECH_OK;
+}
+
+/* Sets *out_ok = 1 iff the order-1 recurrence is the WZ recurrence
+ * a_0(n) + a_1(n) = 0 with a_0, a_1 NONZERO constants in n (both klen == 1),
+ * returning a_1 = (num,den) at flat index 1. `cap` sizes the cleared-sum
+ * scratch (a0n*a1d + a1n*a0d == 0). */
+static srmech_status_t inf_wz_recurrence_ok(const inf_zeil_t *z,
+        srmech_marshal_arena_t *a, uint32_t cap,
+        const srmech_bigint_t **out_a1n, const srmech_bigint_t **out_a1d, int *out_ok)
+{
+    const srmech_bigint_t *a0n, *a0d, *a1n, *a1d;
+    srmech_bigint_t *t1, *t2, *t3;
+    srmech_status_t st;
+    assert(z != NULL && a != NULL && out_ok != NULL);
+    assert(out_a1n != NULL && out_a1d != NULL);
+    *out_ok = 0;
+    if (z->coeff_nlen[0] != 1u || z->coeff_nlen[1] != 1u) { return SRMECH_OK; }
+    a0n = &z->coeff_n[0]; a0d = &z->coeff_d[0];
+    a1n = &z->coeff_n[1]; a1d = &z->coeff_d[1];    /* offset = coeff_nlen[0] = 1 */
+    if (a0n->sign == 0 || a1n->sign == 0) { return SRMECH_OK; }
+    t1 = inf_ma_bigints(a, 1u, cap);
+    t2 = inf_ma_bigints(a, 1u, cap);
+    t3 = inf_ma_bigints(a, 1u, cap);
+    if (t1 == NULL || t2 == NULL || t3 == NULL) { return SRMECH_ERR_OVERFLOW; }
+    st = srmech_bigint_mul(t1, a0n, a1d);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_bigint_mul(t2, a1n, a0d);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_bigint_add(t3, t1, t2);
+    if (st != SRMECH_OK) { return st; }
+    if (srmech_bigint_is_zero(t3)) { *out_a1n = a1n; *out_a1d = a1d; *out_ok = 1; }
+    return SRMECH_OK;
+}
+
+/* Rescale the raw certificate by 1/a_1 (x_num[i] = cert_n[i]*a1d over
+ * cert_d[i]*a1n, sign-normalised to a positive denominator; unreduced is fine —
+ * srmech_wz_verify clears denominators) and PROVE the WZ equation with
+ * x_den = rn_den. Sets *out_equal. */
+static srmech_status_t inf_wz_prove(const inf_bipoly_t r[4], const inf_zeil_t *z,
+        const srmech_bigint_t *a1n, const srmech_bigint_t *a1d,
+        srmech_marshal_arena_t *a, uint32_t cl, size_t deg, int *out_equal)
+{
+    srmech_bigint_t *xn, *xd;
+    size_t total = 0u, alloc, i; uint32_t xcap; unsigned char *ws; size_t wsb;
+    int eq = 0; srmech_status_t st;
+    assert(r != NULL && z != NULL && a != NULL && out_equal != NULL);
+    assert(a1n != NULL && a1d != NULL);
+    for (i = 0u; i < z->cert_kdeg; i++) { total += z->cert_klen[i]; }
+    alloc = (total == 0u) ? 1u : total;
+    xcap = (uint32_t)srmech_bigint_mul_bound(z->out_cap, z->out_cap);
+    xn = inf_ma_bigints(a, alloc, xcap);
+    xd = inf_ma_bigints(a, alloc, xcap);
+    if (xn == NULL || xd == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (i = 0u; i < total; i++) {
+        st = srmech_bigint_mul(&xn[i], &z->cert_n[i], a1d);
+        if (st != SRMECH_OK) { return st; }
+        st = srmech_bigint_mul(&xd[i], &z->cert_d[i], a1n);
+        if (st != SRMECH_OK) { return st; }
+        if (xd[i].sign < 0) { xd[i].sign = -xd[i].sign; xn[i].sign = -xn[i].sign; }
+    }
+    wsb = srmech_wz_verify_ws_bound(cl, deg);
+    ws = inf_ma_carve(a, wsb);
+    if (ws == NULL) { return SRMECH_ERR_OVERFLOW; }
+    st = srmech_wz_verify(
+        r[0].num, r[0].den, r[0].klen, r[0].kdeg,
+        r[1].num, r[1].den, r[1].klen, r[1].kdeg,
+        r[2].num, r[2].den, r[2].klen, r[2].kdeg,
+        r[3].num, r[3].den, r[3].klen, r[3].kdeg,
+        xn, xd, z->cert_klen, z->cert_kdeg,
+        r[1].num, r[1].den, r[1].klen, r[1].kdeg,   /* x_den = rn_den */
+        &eq, ws, wsb);
+    if (st != SRMECH_OK) { return st; }
+    *out_equal = eq;
+    return SRMECH_OK;
+}
+
+/* The SIGMA-DEFINITE (wz_certificate) dispatch: read the four (n,k) BiPoly
+ * term-ratios, FIND the order-1 WZ recurrence via srmech_zeilberger, and PROVE
+ * the WZ equation via srmech_wz_verify. *out_reducible = 1 iff the identity
+ * verifies; a valid-but-not-WZ relationship sets 0 + returns OK (honest OPEN).
+ * Non-OK ONLY on arena / reducer failure (-> the pure wz_certificate). */
+static srmech_status_t inf_sigma_wz(const srmech_json_value_t *root,
+        srmech_marshal_arena_t *a, size_t rel_len, int *out_reducible)
+{
+    inf_bipoly_t r[4]; inf_zeil_t z;
+    const srmech_bigint_t *a1n = NULL, *a1d = NULL;
+    static const char *const keys[4] = {"rn_num", "rn_den", "rk_num", "rk_den"};
+    uint32_t cap, cl; size_t deg = 1u, i; int ok = 0, eq = 0; srmech_status_t st;
+    assert(root != NULL && a != NULL && out_reducible != NULL);
+    assert(rel_len > 0u);
+    *out_reducible = 0;
+    cap = (uint32_t)(srmech_bigint_from_dec_bound(rel_len) + 8u);
+    for (i = 0u; i < 4u; i++) {
+        st = inf_read_bipoly_key(root, a, keys[i], cap, &r[i]);
+        if (st != SRMECH_OK) { return st; }
+    }
+    if (r[1].kdeg == 0u || r[3].kdeg == 0u) { return SRMECH_ERR_BAD_INPUT; }
+    for (i = 0u; i < 4u; i++) { if (r[i].kdeg > deg) { deg = r[i].kdeg; } }
+    cl = inf_bipoly_max_limbs(r);
+    st = inf_wz_zeilberger(r, a, cl, deg, &z);
+    if (st != SRMECH_OK) { return st; }
+    if (!z.has || z.order != 1u) { return SRMECH_OK; }   /* not order-1 -> OPEN */
+    st = inf_wz_recurrence_ok(&z, a,
+            (uint32_t)srmech_bigint_mul_bound(z.out_cap, z.out_cap), &a1n, &a1d, &ok);
+    if (st != SRMECH_OK) { return st; }
+    if (!ok) { return SRMECH_OK; }                       /* not WZ recurrence -> OPEN */
+    st = inf_wz_prove(r, &z, a1n, a1d, a, cl, deg, &eq);
+    if (st != SRMECH_OK) { return st; }
+    *out_reducible = eq ? 1 : 0;
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------
  * Emit + top-level entry.
  * ------------------------------------------------------------------ */
 
@@ -353,6 +597,41 @@ size_t srmech_infer_arena_bytes(size_t rel_len, size_t max_terms)
     return parse + work + 65536u;
 }
 
+/* Minimum caller-arena BYTES for the SIGMA-DEFINITE (wz_certificate) row (rc192)
+ * over a `rel_len`-byte JSON whose four (n,k) BiPoly term-ratios carry a max
+ * k-degree `max_terms` and a max coefficient of `coeff_limbs` significant 32-bit
+ * limbs. The zeilberger creative-telescoping scratch dominates and grows in
+ * BOTH the degree AND the coefficient-limb count, so this is sized on the ACTUAL
+ * coefficient limbs (from the marshalled operand) — NOT on rel_len, which would
+ * over-size the ws to GB (the same "size on the real shape" contract as the
+ * gosper arena). A generous static over-approximation; too small -> OVERFLOW ->
+ * the pure wz_certificate. No malloc; the caller owns the arena. This is a
+ * SEPARATE sizer from srmech_infer_arena_bytes so the cheap cyclic / gosper rows
+ * never pay the MB-scale zeilberger floor. */
+size_t srmech_infer_sigma_definite_arena_bytes(size_t rel_len, size_t max_terms,
+                                               size_t coeff_limbs)
+{
+    size_t read_cap = srmech_bigint_from_dec_bound(rel_len) + 8u;
+    size_t cl = coeff_limbs < 1u ? 1u : coeff_limbs;
+    size_t deg = max_terms < 1u ? 1u : max_terms;
+    size_t oc = srmech_zeilberger_out_cap(cl, 1u, deg);
+    size_t z_ws = srmech_zeilberger_ws_bound(cl, 1u, deg);
+    size_t w_ws = srmech_wz_verify_ws_bound(cl, deg);
+    size_t nbound = (deg + 2u) * 3u + 8u;
+    size_t coeff_slots = 2u * nbound + 8u;
+    size_t cert_slots = nbound * nbound + 8u;
+    size_t bi = sizeof(srmech_bigint_t);
+    size_t parse = 160u * rel_len + 65536u;
+    size_t inputs = 8u * (rel_len + 8u) * (bi + read_cap * 4u);
+    size_t outputs = 2u * (coeff_slots + cert_slots) * (bi + oc * 4u);
+    size_t xcap = srmech_bigint_mul_bound(oc, oc);
+    size_t xnum = 2u * cert_slots * (bi + xcap * 4u);
+    size_t scratch = 8u * (bi + xcap * 4u);
+    assert(bi <= 64u);
+    assert(cl > 0u);
+    return parse + z_ws + w_ws + inputs + outputs + xnum + scratch + 262144u;
+}
+
 /* Route a stored relationship: parse JSON, detect the row from the marshalled
  * operand structure (term_ratio_* -> gosper; sigma -> cyclic), dispatch + verify
  * the C reducer, and emit the DECISION literal. Any other structure / malformed
@@ -363,7 +642,7 @@ srmech_status_t srmech_infer(const char *rel_json, size_t rel_len,
 {
     inf_bump_t b;
     srmech_json_value_t *root = NULL;
-    const srmech_json_value_t *g, *cyc;
+    const srmech_json_value_t *g, *cyc, *rn;
     unsigned char *pa;
     size_t pj;
     const char *lit;
@@ -383,9 +662,17 @@ srmech_status_t srmech_infer(const char *rel_json, size_t rel_len,
     if (root == NULL || root->type != SRMECH_JSON_OBJECT) {
         return SRMECH_ERR_BAD_INPUT;
     }
+    rn = srmech_json_object_get(root, "rn_num");
     g = srmech_json_object_get(root, "term_ratio_num");
     cyc = srmech_json_object_get(root, "sigma");
-    if (g != NULL) {
+    if (rn != NULL) {                       /* SIGMA-DEFINITE (wz) row — rc192   */
+        srmech_marshal_arena_t ma;
+        srmech_marshal_arena_init(&ma, b.cur, (size_t)(b.end - b.cur));
+        st = inf_sigma_wz(root, &ma, rel_len, &red);
+        lit = red
+            ? "{\"reducer\":\"wz_certificate\",\"reducible\":true,\"row\":\"sigma\",\"verified\":true}"
+            : "{\"reducible\":false,\"row\":\"sigma\"}";
+    } else if (g != NULL) {
         st = inf_gosper(root, &b, &red);
         lit = red
             ? "{\"reducer\":\"gosper\",\"reducible\":true,\"row\":\"sigma\",\"verified\":true}"
