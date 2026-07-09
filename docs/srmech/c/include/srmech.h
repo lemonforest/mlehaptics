@@ -3894,15 +3894,17 @@ srmech_status_t srmech_mval_from_json(const srmech_json_value_t *j,
 
 /* STAGE 2 — typed-lower one argument carrier `v` per the registry
  * `type_string`. Bucket-(a) CLEAN: identity (int/float/bool/str/number/
- * dict/list + Optional/nested/pathlib/ChainSpec/callable/array-acc),
- * bytes (base64 str -> BYTES), complex (number|[re,im] -> COMPLEX),
- * tuple[int,int], Sequence[bytes]/list[bytes], list[complex],
- * list[list[complex]], Mapping[bytes,bytes], list[tuple[bytes,int]],
- * list[tuple[bytes,bytes]]. A JSON null passes through for ANY type.
- * A type outside bucket-(a) -> SRMECH_ERR_NOT_IMPL (the caller defers to
- * the pure coerce_param); a malformed wire value for the type (bad base64,
- * a non-[re,im] complex) -> SRMECH_ERR_BAD_INPUT. On SRMECH_OK *out is the
- * typed carrier (it MAY alias `v` for the identity families). */
+ * dict/list + Optional/nested/ChainSpec/callable/array-acc), bytes (base64
+ * str -> BYTES), complex (number|[re,im] -> COMPLEX), tuple[int,int],
+ * Sequence[bytes]/list[bytes], list[complex], list[list[complex]],
+ * Mapping[bytes,bytes], list[tuple[bytes,int]], list[tuple[bytes,bytes]].
+ * A JSON null passes through for ANY type. A type outside bucket-(a) ->
+ * SRMECH_ERR_NOT_IMPL (the caller defers to the pure coerce_param) — this
+ * INCLUDES pathlib.Path, whose str(Path) round-trip is OS-dependent ('/'
+ * vs Windows '\\') and so NOT a portable data marshal; a malformed wire
+ * value for the type (bad base64, a non-[re,im] complex) ->
+ * SRMECH_ERR_BAD_INPUT. On SRMECH_OK *out is the typed carrier (it MAY
+ * alias `v` for the identity families). */
 srmech_status_t srmech_mcp_marshal_arg(const char *type_string,
                                        const srmech_mval_t *v,
                                        srmech_marshal_arena_t *a,

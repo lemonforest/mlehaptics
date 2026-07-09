@@ -73,7 +73,9 @@ _CLEAN_CASES = [
     ("Sequence[str]", ["a", "b"]),
     ("iterable[int]", [9, 8]), ("sequence", [1, "x", True]),
     ("list[tuple[int, int]]", [[1, 2], [3, 4]]),
-    ("pathlib.Path", "some/path"),     # str → Path → str
+    # NOTE: `pathlib.Path` is NOT here — its coerce->serialise round-trip is
+    # OS-dependent (str(WindowsPath) normalises '/'->'\\'), so it defers to pure
+    # (see test_pathlib_path_defers_os_dependent below).
     # ── transforming: bytes ──
     ("bytes", _B64_HI), ("bytes", _B64_EMPTY), ("bytes", _B64_RAW),
     ("Sequence[bytes]", [_B64_HI, _B64_YA]),
@@ -137,6 +139,24 @@ def test_base64_codec_matches_python_exactly() -> None:
         assert status == _native.MARSHAL_OK, n
         # round-trips to the SAME canonical base64 Python produces
         assert out == json.dumps(wire, separators=(",", ":")).encode("utf-8"), n
+
+
+@_needs_native
+def test_pathlib_path_defers_os_dependent() -> None:
+    """`pathlib.Path` is DEFERRED (NOT_IMPL), not C-marshalled: its coerce ->
+    serialise round-trip goes through an OS-aware Path object — Python's
+    str(Path("a/b")) is "a/b" on POSIX but "a\\b" on Windows (WindowsPath
+    normalises the separator). A portable C data-marshal cannot be byte-identical
+    on every OS, so path normalisation is left to the OS-correct pure coerce_param
+    (a bare-C host uses its own path convention). The C marshal returns NOT_IMPL
+    regardless of the wire value shape."""
+    for wire in (b'"some/path"', b'"a/b/c.txt"', b'"plain"'):
+        status, out = _native.mcp_marshal_roundtrip_c("pathlib.Path", wire)
+        assert status == _native.MARSHAL_NOT_IMPL, wire
+        assert out is None
+    # a null path still rides through (coerce_param's null-first rule)
+    assert _native.mcp_marshal_roundtrip_c("pathlib.Path", b"null") == (
+        _native.MARSHAL_OK, b"null")
 
 
 @_needs_native

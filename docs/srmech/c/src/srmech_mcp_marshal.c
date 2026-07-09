@@ -591,9 +591,16 @@ static const mm_type_rule_t MM_TYPE_RULES[] = {
     {"Sequence[str]", MM_ACT_IDENTITY}, {"list[list[list[float]]]", MM_ACT_IDENTITY},
     {"list[tuple[int, int]]", MM_ACT_IDENTITY},
     {"list[tuple[list[int], list[int]]]", MM_ACT_IDENTITY},
-    {"pathlib.Path", MM_ACT_IDENTITY}, {"ChainSpec", MM_ACT_IDENTITY},
+    {"ChainSpec", MM_ACT_IDENTITY},
     {"callable", MM_ACT_IDENTITY}, {"numpy.random.Generator", MM_ACT_IDENTITY},
     {"array('I')", MM_ACT_IDENTITY}, {"array('I')|None", MM_ACT_IDENTITY}
+    /* NOTE: `pathlib.Path` is DELIBERATELY absent -> MM_ACT_NOTIMPL (defer to
+     * pure). Its coerce->serialise round-trip goes through an OS-aware Path
+     * object (str(WindowsPath) normalises '/'->'\\' on Windows; PosixPath keeps
+     * '/'), so a portable C data-marshal CANNOT be byte-identical to Python on
+     * every OS. Path separator normalisation is a host-runtime/OS concern, not a
+     * platform-invariant bucket-(a) data type — the pure coerce_param does the
+     * OS-correct thing; a bare-C host uses its own path convention. */
 };
 
 static mm_action_t mm_action_for(const char *type)
