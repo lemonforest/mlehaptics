@@ -354,11 +354,54 @@ static int mcp_json_str_eq(const srmech_json_value_t *v, const char *lit)
     return memcmp(v->u.str.ptr, lit, n) == 0;
 }
 
+/* tools/call in-process dispatch (rc188): try the C invoke_tool SPINE over the
+ * parsed `params` (params.name + params.arguments). On success writes the result
+ * TEXT into the emitter buffer (offset 0; two-pass — e->buf NULL is a size-query),
+ * sets *out_kind = SRMECH_MCP_CALL_RESULT + *out_len, and returns 1; the caller
+ * wraps it in the content + attestation envelope with its own clock. Returns 0
+ * when the tool is not a clean batch-1 op / the name is missing or over-long /
+ * the invoke arena is too small — the caller then sets SRMECH_MCP_DEFER_CALL and
+ * the Python host runs the pure invoke_tool + attests (rc103 inform-don't-limit). */
+static int mcp_try_tools_call(const srmech_json_value_t *params,
+                              void *inv_ws, size_t inv_len, mcp_emit_t *e,
+                              size_t *out_len, int *out_kind)
+{
+    const srmech_json_value_t *nm, *args;
+    char name_buf[256];
+    size_t nlen;
+    int ik = SRMECH_INVOKE_DEFER;
+    srmech_status_t st;
+    assert(e != NULL);
+    assert(out_len != NULL && out_kind != NULL);
+    if (params == NULL || inv_ws == NULL || inv_len < 4096u) {
+        return 0;
+    }
+    nm = srmech_json_object_get(params, "name");
+    if (nm == NULL || nm->type != SRMECH_JSON_STRING) {
+        return 0;
+    }
+    nlen = (size_t)nm->u.str.len;
+    if (nlen == 0u || nlen + 1u > sizeof name_buf) {
+        return 0;   /* empty / over-long tool name -> pure */
+    }
+    memcpy(name_buf, nm->u.str.ptr, nlen);
+    name_buf[nlen] = '\0';
+    args = srmech_json_object_get(params, "arguments");
+    st = srmech_invoke_tool_json(name_buf, args, inv_ws, inv_len,
+                                 e->buf, e->cap, out_len, &ik);
+    if (st == SRMECH_OK && ik == SRMECH_INVOKE_DISPATCHED) {
+        *out_kind = SRMECH_MCP_CALL_RESULT;
+        return 1;
+    }
+    *out_len = 0u;
+    return 0;
+}
+
 /* Dispatch a validated (method is a string) request onto its builder. */
 static srmech_status_t mcp_dispatch_method(const srmech_json_value_t *method,
         const srmech_json_value_t *id, const srmech_json_value_t *params,
         int is_notif, mcp_emit_t *e, size_t *out_len, int *out_kind,
-        int defer_calls)
+        int defer_calls, void *inv_ws, size_t inv_len)
 {
     assert(method != NULL);
     assert(e != NULL);
@@ -376,6 +419,12 @@ static srmech_status_t mcp_dispatch_method(const srmech_json_value_t *method,
         mcp_build_result_empty(e, id);
     } else if (mcp_json_str_eq(method, "tools/call")) {
         if (defer_calls) {
+            /* rc188 — try the C invoke_tool SPINE first: a clean batch-1 tool
+             * RUNS in C (out_kind CALL_RESULT, buf = result text; the caller
+             * wraps + attests). Anything else -> DEFER_CALL (pure invoke_tool). */
+            if (mcp_try_tools_call(params, inv_ws, inv_len, e, out_len, out_kind)) {
+                return SRMECH_OK;
+            }
             *out_kind = SRMECH_MCP_DEFER_CALL;
             *out_len = 0u;
             return SRMECH_OK;
@@ -397,7 +446,8 @@ static srmech_status_t mcp_dispatch_method(const srmech_json_value_t *method,
 
 /* Validate the top-level request object, then dispatch. */
 static srmech_status_t mcp_dispatch_object(const srmech_json_value_t *root,
-        mcp_emit_t *e, size_t *out_len, int *out_kind, int defer_calls)
+        mcp_emit_t *e, size_t *out_len, int *out_kind, int defer_calls,
+        void *inv_ws, size_t inv_len)
 {
     const srmech_json_value_t *method;
     const srmech_json_value_t *id;
@@ -434,7 +484,7 @@ static srmech_status_t mcp_dispatch_object(const srmech_json_value_t *root,
         return e->overflow ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
     }
     return mcp_dispatch_method(method, id, params, is_notif, e,
-                               out_len, out_kind, defer_calls);
+                               out_len, out_kind, defer_calls, inv_ws, inv_len);
 }
 
 srmech_status_t srmech_mcp_handle(const char *req, size_t req_len,
@@ -446,6 +496,8 @@ srmech_status_t srmech_mcp_handle(const char *req, size_t req_len,
     mcp_emit_t e;
     srmech_json_value_t *root = NULL;
     srmech_status_t prc;
+    void *inv_ws;
+    size_t inv_len, parse_len;
     if (out_len == NULL || out_kind == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
@@ -455,14 +507,24 @@ srmech_status_t srmech_mcp_handle(const char *req, size_t req_len,
     e.cap = buf_len;
     e.used = 0u;
     e.overflow = 0;
-    prc = srmech_json_parse(req, req_len, ws, ws_len, &root);
+    /* rc188 — reserve the TAIL half of ws as the tools/call invoke marshal
+     * arena; the request parse tree lives in the FRONT half (the two never
+     * collide — the invoke reads params.arguments FROM the parse tree while
+     * marshalling INTO the reserved tail). Non-tools/call methods leave the
+     * tail unused. defer_calls == 0 (bare-C serve_stdio) never invokes, so the
+     * split is harmless there. */
+    inv_len = ws_len / 2u;
+    parse_len = ws_len - inv_len;
+    inv_ws = (unsigned char *)ws + parse_len;
+    prc = srmech_json_parse(req, req_len, ws, parse_len, &root);
     if (prc != SRMECH_OK || root == NULL || root->type != SRMECH_JSON_OBJECT) {
         mcp_build_error(&e, NULL, MCP_JSONRPC_PARSE_ERROR, "Parse error");
         *out_kind = SRMECH_MCP_RESPONSE;
         *out_len = e.used;
         return e.overflow ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
     }
-    return mcp_dispatch_object(root, &e, out_len, out_kind, defer_calls);
+    return mcp_dispatch_object(root, &e, out_len, out_kind, defer_calls,
+                              inv_ws, inv_len);
 }
 
 /* ------------------------------------------------------------------

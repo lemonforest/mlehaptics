@@ -121,7 +121,11 @@ _ANNEX_DELTA = {"owed_orchestration": 2, "composes_c": 11, "host_glue": 12,
 # LOOP in C) — serve_stdio earned its C peer → owed 12→11, composes_c 106→107 (sum
 # stays 177). The bus/dsl _ANNEX_ROWS / _ANNEX_DELTA are untouched (rc186 moves no
 # bus/dsl row; the mcp serve_stdio row is pinned in test_annex_ratchet_rc183.py).
-_FULL_SPLIT = {"owed_orchestration": 11, "composes_c": 107, "host_glue": 15,
+# rc188 (living-pin bump): the tools/call DISPATCH SPINE (srmech_invoke_tool) —
+# invoke_tool earned its C peer → owed 11→10, composes_c 107→108 (sum stays 177).
+# The bus/dsl _ANNEX_ROWS / _ANNEX_DELTA are untouched (rc188 moves no bus/dsl row;
+# the mcp invoke_tool row is pinned in test_annex_ratchet_rc183.py).
+_FULL_SPLIT = {"owed_orchestration": 10, "composes_c": 108, "host_glue": 15,
                "dev_tooling": 44}
 _TOTAL_NON_COMPUTE = 177
 
@@ -196,13 +200,13 @@ def test_full_non_compute_split_sums_to_153():
     assert sum(counts.values()) == _TOTAL_NON_COMPUTE == sum(_FULL_SPLIT.values())
 
 
-def test_ceil_non_compute_owed_is_11():
-    """The phase-driver ceiling is 11 after rc186 — the rc185 residue of 12 minus
-    the serve_stdio row that earned its C peer (the MCP JSON-RPC protocol + stdio
-    LOOP in C). rc187+ build the tools/call arg-marshalling + invoke_tool dispatch
-    + the CLI dispatch to C and drive the owed count down."""
-    assert CEIL_NON_COMPUTE_OWED == 11, (
-        f"CEIL_NON_COMPUTE_OWED must be 11 after rc186; got "
+def test_ceil_non_compute_owed_is_10():
+    """The phase-driver ceiling is 10 after rc188 — the rc186 residue of 11 minus
+    the invoke_tool row that earned its C peer (the tools/call DISPATCH SPINE
+    srmech_invoke_tool; the MCP server routes a clean 20-tool batch through it).
+    rc189+ finish the batch + the CLI dispatch and drive the owed count down."""
+    assert CEIL_NON_COMPUTE_OWED == 10, (
+        f"CEIL_NON_COMPUTE_OWED must be 10 after rc188; got "
         f"{CEIL_NON_COMPUTE_OWED}"
     )
 

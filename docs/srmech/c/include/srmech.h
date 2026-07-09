@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc187"
-#define SRMECH_VERSION       "0.9.0rc187"
+#define SRMECH_VERSION_PRE   "rc188"
+#define SRMECH_VERSION       "0.9.0rc188"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3740,6 +3740,11 @@ srmech_status_t srmech_tool_entries_to_mcp_defs(char *buf, size_t buf_len,
 #define SRMECH_MCP_RESPONSE     0   /* a JSON-RPC response was written to buf   */
 #define SRMECH_MCP_NO_RESPONSE  1   /* a notification — nothing to write        */
 #define SRMECH_MCP_DEFER_CALL   2   /* tools/call — caller runs invoke_tool     */
+#define SRMECH_MCP_CALL_RESULT  3   /* tools/call — the C invoke_tool spine RAN */
+                                    /*  the tool in C; buf holds the result     */
+                                    /*  TEXT (== serialise_result). The caller  */
+                                    /*  wraps it in the content + attestation   */
+                                    /*  envelope (its own clock). (rc188)        */
 
 /* Dispatch ONE JSON-RPC request (`req[0..req_len)`), writing the response into
  * `buf` (capacity `buf_len`; NO trailing NUL) and setting *out_len + *out_kind.
@@ -3943,6 +3948,59 @@ srmech_status_t srmech_mcp_marshal_roundtrip(const char *type_string,
                                              void *ws, size_t ws_len,
                                              char *out, size_t out_cap,
                                              size_t *out_len);
+
+/* ------------------------------------------------------------------
+ * MCP tools/call DISPATCH SPINE (0.9.0rc188; the HOST-GLUE invoke_tool that
+ * makes MCP `tools/call` genuinely RUN in C). The C peer of the compute half
+ * of srmech.mcp._tools.invoke_tool: registry_find (rc184) -> per-arg
+ * srmech_mcp_marshal_arg (rc187) -> a SIGNATURE-SHAPE-batched thunk table
+ * (tool name -> the bespoke C kernel) -> srmech_mcp_serialise_result (rc187).
+ *
+ * srmech_invoke_tool takes a dotted tool `name` + the tools/call `arguments`
+ * OBJECT as JSON (`params_json[0..params_len)`) and, for a CLEAN BATCH of
+ * c_dispatched tools, computes the result IN C and writes the result TEXT
+ * (byte-identical to the pure `serialise_result(invoke_tool(name, args))` —
+ * json.dumps(serialise_native(result)) with the json.dumps DEFAULT separators)
+ * into `buf`, setting *out_kind = SRMECH_INVOKE_DISPATCHED. The still-wide
+ * surface (383 tools with no single C kernel — nested / float-carrier / Mat /
+ * handle / any tool NOT in the thunk table, an unregistered name, an extra
+ * or malformed argument) sets *out_kind = SRMECH_INVOKE_DEFER (with *out_len
+ * = 0) and the caller runs the pure Python invoke_tool + attests (rc103
+ * inform-don't-limit — never a wrong answer).
+ *
+ * `ws` (length `ws_len`; size with srmech_invoke_tool_arena_bytes) is the
+ * caller arena for the argument PARSE tree + the marshalled carrier tree +
+ * decoded byte buffers + the result carrier. `buf` (capacity `buf_len`; NO
+ * trailing NUL) receives the result text; a too-small `buf` returns
+ * SRMECH_ERR_OVERFLOW (the caller then defers to pure). NULL `name` /
+ * `params_json` / `ws` / `buf` / `out_len` / `out_kind` -> SRMECH_ERR_NULL_ARG.
+ * JPL-clean (caller-arena, no malloc/goto/abs/libm, bounded). ABI-additive
+ * (SRMECH_ABI_VERSION stays 4). */
+
+/* srmech_invoke_tool out_kind: whether the C spine ran the tool. */
+#define SRMECH_INVOKE_DISPATCHED 0  /* buf holds the result text (native==pure) */
+#define SRMECH_INVOKE_DEFER      1  /* caller runs the pure invoke_tool + attest */
+
+srmech_status_t srmech_invoke_tool(const char *name,
+                                   const char *params_json, size_t params_len,
+                                   void *ws, size_t ws_len,
+                                   char *buf, size_t buf_len,
+                                   size_t *out_len, int *out_kind);
+
+/* The PARSED-args sibling — dispatch over an ALREADY-parsed `arguments` value
+ * node (the in-process srmech_mcp.c tools/call path: no re-serialise / double
+ * parse). `arguments` NULL or non-object -> SRMECH_INVOKE_DEFER. `ws` (length
+ * `ws_len`) backs the marshalled carriers + result; same out_kind / buf / error
+ * contract as srmech_invoke_tool. */
+srmech_status_t srmech_invoke_tool_json(const char *name,
+                                        const srmech_json_value_t *arguments,
+                                        void *ws, size_t ws_len,
+                                        char *buf, size_t buf_len,
+                                        size_t *out_len, int *out_kind);
+
+/* Workspace bytes srmech_invoke_tool needs for a `params_len`-byte argument
+ * object (the parse tree + carrier tree + decoded byte buffers + result). */
+size_t srmech_invoke_tool_arena_bytes(size_t params_len);
 
 /* ------------------------------------------------------------------
  * Op-provenance canonical record hasher (0.9.0rc117; the op-carrying

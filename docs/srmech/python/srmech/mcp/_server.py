@@ -283,6 +283,27 @@ class MCPServer:
             return json.loads(resp.decode("utf-8"))
         return _PURE_FALLBACK
 
+    def _native_call_text(
+        self, name: str, arguments: Dict[str, Any]
+    ) -> Optional[str]:
+        """The rc188 C invoke_tool spine result TEXT for a clean batch-1 tool,
+        or ``None`` to signal "take the pure invoke path".
+
+        Eligibility mirrors ``_native_dispatch``: the stock server name, no
+        ``--filter``, the stock invoke path (a bus-proxy / filtered server must
+        run its own invoke path). The C spine itself DEFERS (→ ``None``) for
+        every tool it cannot dispatch, so this is a fast-path, never a limit.
+        """
+        if (self.name != MCP_SERVER_NAME or self._filter is not None
+                or self._invoke is not invoke_tool):
+            return None
+        try:
+            from ..amsc import _native
+        except Exception:  # pragma: no cover — defensive; _native always imports
+            return None
+        dispatched, text = _native.invoke_tool_c(name, arguments)
+        return text if dispatched else None
+
     # ──────────────────────────────────────────────────────────────────
     # Per-method handlers
     # ──────────────────────────────────────────────────────────────────
@@ -335,21 +356,31 @@ class MCPServer:
                 "tools/call: 'arguments' must be an object",
                 code=JSONRPC_INVALID_PARAMS,
             )
-        try:
-            raw = self._invoke(name, arguments)
-        except MCPToolError as exc:
-            # Tool-not-found / can't-resolve — return as MCP error
-            # response, not as Python exception.
-            return self._call_error_response(name, str(exc))
-        except Exception as exc:
-            # Tool raised at runtime — wrap as isError MCP response
-            # (per spec, NOT a JSON-RPC error; tool errors are
-            # success-shaped with isError=true so the LLM can read
-            # them and retry).
-            return self._call_error_response(
-                name, f"{type(exc).__name__}: {exc}"
-            )
-        text = serialise_result(raw)
+        # rc188 — the C invoke_tool DISPATCH SPINE. On the DEFAULT server (stock
+        # name + no filter + the stock invoke path) a CLEAN batch-1 c_dispatched
+        # tool RUNS in C: srmech_invoke_tool returns the result TEXT byte-
+        # identical to the pure serialise_result(invoke_tool(...)). Anything the
+        # C can't handle (383 no-single-kernel tools, an extra / malformed arg,
+        # an unregistered name, a runtime error) DEFERS to the pure path below
+        # (rc103 inform-don't-limit — never a wrong answer). The attestation is
+        # built by Python over the SAME text either way, so native == pure.
+        text = self._native_call_text(name, arguments)
+        if text is None:
+            try:
+                raw = self._invoke(name, arguments)
+            except MCPToolError as exc:
+                # Tool-not-found / can't-resolve — return as MCP error
+                # response, not as Python exception.
+                return self._call_error_response(name, str(exc))
+            except Exception as exc:
+                # Tool raised at runtime — wrap as isError MCP response
+                # (per spec, NOT a JSON-RPC error; tool errors are
+                # success-shaped with isError=true so the LLM can read
+                # them and retry).
+                return self._call_error_response(
+                    name, f"{type(exc).__name__}: {exc}"
+                )
+            text = serialise_result(raw)
         return {
             "content": [{"type": "text", "text": text}],
             "isError": False,
