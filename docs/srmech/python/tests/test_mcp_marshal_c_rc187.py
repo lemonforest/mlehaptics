@@ -89,6 +89,15 @@ _CLEAN_CASES = [
     ("list[list[complex]]", [[[1, 2]], [[3, 4], [5, 6]]]),
     # ── tuple[int, int] ──
     ("tuple[int, int]", [3, 4]),
+    # ── rc190 float carriers ──
+    # "Mat" builds a real Mat (int/float leaves -> f64), so the roundtrip
+    # promotes ints to floats ([[1,2]] -> [[1.0,2.0]]); "Vec" is IDENTITY
+    # (coerce_param passes the flat list through, ints kept).
+    ("Mat", [[1, 2], [3, 4]]),
+    ("Mat", [[0.1, 0.2]]),
+    ("Mat", [[1.5, 2.5], [3.0, 100.0]]),
+    ("Vec", [1, 2, 3]),
+    ("Vec", [0.1, 0.2, 0.3]),
 ]
 
 
@@ -161,8 +170,11 @@ def test_pathlib_path_defers_os_dependent() -> None:
 
 @_needs_native
 def test_non_bucket_a_types_defer_not_impl() -> None:
-    """Float-array carriers + by-ref handles + unknown types → NOT_IMPL (defer)."""
-    for t in ("Mat", "Vec", "HV", "np.ndarray", "Sequence[np.ndarray]",
+    """Still-unmarshalled carriers + by-ref handles + unknown types → NOT_IMPL
+    (defer). rc190 now marshals ``Mat`` (real carrier) + ``Vec`` (identity), so
+    they are NO LONGER here — see the ``Mat`` / ``Vec`` cases in ``_CLEAN_CASES``.
+    ``HV`` (int/byte hypervector carrier) + ``np.ndarray`` (legacy) stay deferred."""
+    for t in ("HV", "np.ndarray", "Sequence[np.ndarray]",
               "SpectralHandle", "operator_name", "totally.unknown.type"):
         status, out = _native.mcp_marshal_roundtrip_c(t, b"[[1,2]]")
         assert status == _native.MARSHAL_NOT_IMPL, t

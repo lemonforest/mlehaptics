@@ -43,6 +43,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>   /* strtod / strtol — the shortest-repr round-trip (rc190) */
 #include <string.h>
 
 #include "srmech.h"
@@ -89,7 +90,7 @@ static srmech_mval_t *mm_new(srmech_marshal_arena_t *a, srmech_mval_kind_t kind)
 {
     srmech_mval_t *v;
     assert(a != NULL);
-    assert(kind >= SRMECH_MVAL_NONE && kind <= SRMECH_MVAL_DICT);
+    assert(kind >= SRMECH_MVAL_NONE && kind <= SRMECH_MVAL_MAT);
     v = (srmech_mval_t *)mm_carve(a, sizeof(srmech_mval_t));
     if (v == NULL) { return NULL; }
     v->kind = kind; v->i = 0; v->re = 0.0; v->im = 0.0;
@@ -165,6 +166,25 @@ static srmech_mval_t *mm_list(srmech_marshal_arena_t *a, uint32_t n, int is_tupl
     if (n > 0u) {
         v->items = (srmech_mval_t **)mm_carve(a, (size_t)n * sizeof(void *));
         if (v->items == NULL) { return NULL; }
+    }
+    return v;
+}
+
+/* A real MAT carrier (rc190): rows*cols row-major doubles carved into the arena.
+ * n=rows, i=cols, blen=#doubles, b aliases the (8-aligned) double buffer; the
+ * caller fills it via (double *)(void *)v->b. is_tuple=0 (real — matches the
+ * "Mat" coerce_param, which builds Mat.from_rows(is_complex=False)). */
+static srmech_mval_t *mm_mat(srmech_marshal_arena_t *a, uint32_t rows, uint32_t cols)
+{
+    srmech_mval_t *v = mm_new(a, SRMECH_MVAL_MAT);
+    size_t nd = (size_t)rows * cols;
+    assert(a != NULL);
+    assert(a->cur <= a->end);
+    if (v == NULL) { return NULL; }
+    v->n = rows; v->i = (int64_t)cols; v->is_tuple = 0; v->blen = (uint32_t)nd;
+    if (nd > 0u) {
+        v->b = mm_carve(a, nd * sizeof(double));         /* 8-aligned by mm_carve */
+        if (v->b == NULL) { return NULL; }
     }
     return v;
 }
@@ -312,6 +332,114 @@ srmech_status_t srmech_mval_from_json(const srmech_json_value_t *j,
 }
 
 /* ------------------------------------------------------------------
+ * SHORTEST double->repr formatter (rc190) — CPython repr(float)/json.dumps.
+ * ------------------------------------------------------------------ */
+
+/* Shortest %.*e (p=0..16) that strtod-round-trips `m` (m>0, finite). Fills the
+ * significant decimal digits into `digs` (>=18 chars) + *ndig, and the base-10
+ * exponent of the leading digit into *exp10. Returns SRMECH_ERR_BAD_INPUT if
+ * snprintf overruns (never for a finite m). glibc/msvc/macOS printf + strtod
+ * are correctly-rounded, so this yields the same digit string CPython's dtoa
+ * (mode 0) does on the same platform. */
+static srmech_status_t dr_shortest(double m, char *digs, int *ndig, int *exp10)
+{
+    char tmp[40]; int p, i, dn; long e;
+    assert(m > 0.0);
+    assert(digs != NULL && ndig != NULL && exp10 != NULL);
+    for (p = 0; p <= 16; p++) {
+        int nn = snprintf(tmp, sizeof tmp, "%.*e", p, m);
+        if (nn < 0 || (size_t)nn >= sizeof tmp) { return SRMECH_ERR_BAD_INPUT; }
+        if (strtod(tmp, NULL) == m) { break; }
+    }
+    if (p > 16) { p = 16; }                             /* 17 sig digits always round-trip */
+    dn = 0;
+    for (i = 0; tmp[i] != 'e' && tmp[i] != 'E' && tmp[i] != '\0'; i++) {
+        if (tmp[i] >= '0' && tmp[i] <= '9') { digs[dn++] = tmp[i]; }
+    }
+    if (tmp[i] != 'e' && tmp[i] != 'E') { return SRMECH_ERR_BAD_INPUT; }
+    e = strtol(tmp + i + 1, NULL, 10);
+    *ndig = dn; *exp10 = (int)e;
+    return SRMECH_OK;
+}
+
+/* Append `n` '0' chars into out at *pos (bounded by the ndig<=17 / decpt<=16
+ * fixed-format geometry — the caller sizes cap >= 32). */
+static void dr_zeros(char *out, size_t *pos, int n)
+{
+    int i;
+    assert(out != NULL && pos != NULL);
+    assert(n >= 0);
+    for (i = 0; i < n; i++) { out[(*pos)++] = '0'; }
+}
+
+/* Render the exponential form (use_exp): D[.DDDD]e{+-}XX (>=2 exponent digits). */
+static void dr_exp(char *out, size_t *pos, const char *digs, int ndig, int exp10)
+{
+    int i, ea; char es;
+    assert(out != NULL && pos != NULL && digs != NULL);
+    assert(ndig >= 1);
+    out[(*pos)++] = digs[0];
+    if (ndig > 1) {
+        out[(*pos)++] = '.';
+        for (i = 1; i < ndig; i++) { out[(*pos)++] = digs[i]; }
+    }
+    out[(*pos)++] = 'e';
+    es = (exp10 < 0) ? '-' : '+'; ea = (exp10 < 0) ? -exp10 : exp10;
+    out[(*pos)++] = es;
+    if (ea < 10) { out[(*pos)++] = '0'; out[(*pos)++] = (char)('0' + ea); }
+    else { char eb[8]; int en = snprintf(eb, sizeof eb, "%d", ea);
+           if (en > 0) { memcpy(out + *pos, eb, (size_t)en); *pos += (size_t)en; } }
+}
+
+/* Render the fixed form from digits + decimal-point position `decpt`. */
+static void dr_fixed(char *out, size_t *pos, const char *digs, int ndig, int decpt)
+{
+    int i;
+    assert(out != NULL && pos != NULL && digs != NULL);
+    assert(ndig >= 1);
+    if (decpt <= 0) {                                   /* 0.<zeros><digits> */
+        out[(*pos)++] = '0'; out[(*pos)++] = '.';
+        dr_zeros(out, pos, -decpt);
+        for (i = 0; i < ndig; i++) { out[(*pos)++] = digs[i]; }
+    } else if (decpt >= ndig) {                          /* <digits><zeros>.0 */
+        for (i = 0; i < ndig; i++) { out[(*pos)++] = digs[i]; }
+        dr_zeros(out, pos, decpt - ndig);
+        out[(*pos)++] = '.'; out[(*pos)++] = '0';
+    } else {                                             /* <digits>.<digits> */
+        for (i = 0; i < decpt; i++) { out[(*pos)++] = digs[i]; }
+        out[(*pos)++] = '.';
+        for (i = decpt; i < ndig; i++) { out[(*pos)++] = digs[i]; }
+    }
+}
+
+srmech_status_t srmech_double_repr(double v, char *out, size_t cap, size_t *out_len)
+{
+    char digs[20]; int ndig = 0, exp10 = 0, decpt; size_t pos = 0u;
+    uint64_t bits; int neg; double m; srmech_status_t st;
+    /* NULL/too-small buffer returns NULL_ARG BEFORE any assert (rc715). */
+    if (out == NULL || out_len == NULL || cap < 32u) { return SRMECH_ERR_NULL_ARG; }
+    if (v != v) { return SRMECH_ERR_BAD_INPUT; }        /* NaN -> defer */
+    if (v != 0.0 && v * 0.5 == v) { return SRMECH_ERR_BAD_INPUT; }  /* +-Inf -> defer */
+    memcpy(&bits, &v, sizeof bits);                     /* libm-free sign (incl. -0.0) */
+    neg = (int)(bits >> 63);
+    assert(cap >= 32u);
+    if (v == 0.0) {
+        const char *z = neg ? "-0.0" : "0.0";
+        memcpy(out, z, strlen(z) + 1u); *out_len = strlen(z); return SRMECH_OK;
+    }
+    m = neg ? -v : v;
+    st = dr_shortest(m, digs, &ndig, &exp10);
+    if (st != SRMECH_OK) { return st; }
+    decpt = exp10 + 1;
+    if (neg) { out[pos++] = '-'; }
+    if (decpt <= -4 || decpt > 16) { dr_exp(out, &pos, digs, ndig, exp10); }
+    else { dr_fixed(out, &pos, digs, ndig, decpt); }
+    assert(pos < cap);
+    out[pos] = '\0'; *out_len = pos;
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------
  * OUTBOUND serialiser — bounded emit sink, ensure_ascii=True, insertion
  * order (BYTE-IDENTICAL to json.dumps(x, separators=(",", ":"))).
  * ------------------------------------------------------------------ */
@@ -442,24 +570,45 @@ static void mm_emit_int(mm_emit_t *e, int64_t v)
     mm_raw(e, tmp, (size_t)n);
 }
 
-/* Emit a double best-effort (%.17g + ".0" if no '.'/'e'), mirroring
- * srmech_json.c json_write_double; full repr-parity is rc190's scope. */
+/* Emit a double as CPython repr(float)/json.dumps do — the SHORTEST round-trip
+ * decimal via srmech_double_repr (rc190 repr-parity). A non-finite double (never
+ * produced by the exact tools) falls back to the %.17g(+".0") best-effort form. */
 static void mm_emit_double(mm_emit_t *e, double v)
 {
-    char tmp[40]; int n, k, has_dot = 0;
+    char rep[40]; size_t rlen = 0u;
     assert(e != NULL);
-    assert(sizeof tmp >= 32u);
-    n = snprintf(tmp, sizeof tmp, "%.17g", v);
-    if (n < 0) { return; }
-    for (k = 0; k < n; k++) {
-        char c = tmp[k];
-        if (c == '.' || c == 'e' || c == 'E' || c == 'n' || c == 'i') { has_dot = 1; }
+    assert(sizeof rep >= 32u);
+    if (srmech_double_repr(v, rep, sizeof rep, &rlen) == SRMECH_OK) {
+        mm_raw(e, rep, rlen);
+    } else {
+        int n = snprintf(rep, sizeof rep, "%.17g", v);   /* NaN/Inf best-effort */
+        if (n > 0) { mm_raw(e, rep, (size_t)n); }
     }
-    mm_raw(e, tmp, (size_t)n);
-    if (!has_dot && n < (int)sizeof tmp - 2) { mm_raw(e, ".0", 2u); }
 }
 
 static void mm_serialise(mm_emit_t *e, const srmech_mval_t *v, uint32_t depth);
+
+/* A real MAT carrier -> a nested [[d,d,...],...] float array (compact, no space
+ * separator) — byte-identical to json.dumps(serialise_native(Mat), separators=
+ * (",",":")). Each double via mm_emit_double (the shortest-repr form). */
+static void mm_serialise_mat(mm_emit_t *e, const srmech_mval_t *v)
+{
+    uint32_t rows, cols, r, c; const double *d;
+    assert(e != NULL && v != NULL);
+    assert(v->kind == SRMECH_MVAL_MAT);
+    rows = v->n; cols = (uint32_t)v->i; d = (const double *)(const void *)v->b;
+    mm_raw(e, "[", 1u);
+    for (r = 0u; r < rows; r++) {
+        if (r > 0u) { mm_raw(e, ",", 1u); }
+        mm_raw(e, "[", 1u);
+        for (c = 0u; c < cols; c++) {
+            if (c > 0u) { mm_raw(e, ",", 1u); }
+            mm_emit_double(e, d[(size_t)r * cols + c]);
+        }
+        mm_raw(e, "]", 1u);
+    }
+    mm_raw(e, "]", 1u);
+}
 
 /* [re,im] for a COMPLEX; each part via mm_emit_double. */
 static void mm_serialise_complex(mm_emit_t *e, const srmech_mval_t *v)
@@ -522,6 +671,7 @@ static void mm_serialise(mm_emit_t *e, const srmech_mval_t *v, uint32_t depth)
     case SRMECH_MVAL_COMPLEX: mm_serialise_complex(e, v); break;
     case SRMECH_MVAL_LIST:    mm_serialise_list(e, v, depth); break;
     case SRMECH_MVAL_DICT:    mm_serialise_dict(e, v, depth); break;
+    case SRMECH_MVAL_MAT:     mm_serialise_mat(e, v); break;
     default:                  e->overflow = 1; break;
     }
 }
@@ -535,7 +685,7 @@ srmech_status_t srmech_mcp_serialise_result(const srmech_mval_t *v,
      * size-query passes buf==NULL; the caller may pass out_len==NULL) is
      * contractually handled, not an invariant violation (rc715). */
     if (v == NULL || out_len == NULL) { return SRMECH_ERR_NULL_ARG; }
-    assert(v->kind >= SRMECH_MVAL_NONE && v->kind <= SRMECH_MVAL_DICT);
+    assert(v->kind >= SRMECH_MVAL_NONE && v->kind <= SRMECH_MVAL_MAT);
     e.buf = buf; e.cap = (buf == NULL) ? 0u : buf_len; e.used = 0u; e.overflow = 0;
     assert(e.overflow == 0 && e.used == 0u);        /* sink starts empty/clean  */
     mm_serialise(&e, v, 0u);
@@ -558,7 +708,8 @@ typedef enum {
     MM_ACT_SEQ_SEQ_COMPLEX, /* LIST of LIST of complex                     */
     MM_ACT_MAP_BYTES_BYTES, /* DICT of base64 key/value -> BYTES/BYTES     */
     MM_ACT_PAIR_BYTES_INT,  /* LIST of [base64, int] pairs                 */
-    MM_ACT_PAIR_BYTES_BYTES /* LIST of [base64, base64] pairs              */
+    MM_ACT_PAIR_BYTES_BYTES,/* LIST of [base64, base64] pairs              */
+    MM_ACT_MAT              /* rc190: nested LIST of numbers -> real MAT    */
 } mm_action_t;
 
 typedef struct { const char *type; mm_action_t action; } mm_type_rule_t;
@@ -578,6 +729,12 @@ static const mm_type_rule_t MM_TYPE_RULES[] = {
     {"Mapping[bytes, bytes]", MM_ACT_MAP_BYTES_BYTES},
     {"list[tuple[bytes, int]]", MM_ACT_PAIR_BYTES_INT},
     {"list[tuple[bytes, bytes]]", MM_ACT_PAIR_BYTES_BYTES},
+    /* rc190 float carriers. "Mat" builds a real MAT carrier (coerce_param =
+     * Mat.from_rows(is_complex=False) — int/float leaves -> f64); "Vec" is
+     * IDENTITY (coerce_param(_to_vec) passes the flat list through unchanged,
+     * ints kept), the same passthrough shape as list[int]. */
+    {"Mat", MM_ACT_MAT},
+    {"Vec", MM_ACT_IDENTITY},
     /* JSON-native / passthrough families (coerce is _identity) */
     {"int", MM_ACT_IDENTITY}, {"Optional[int]", MM_ACT_IDENTITY},
     {"float", MM_ACT_IDENTITY}, {"Optional[float]", MM_ACT_IDENTITY},
@@ -756,6 +913,45 @@ static srmech_status_t mm_int_tuple(const srmech_mval_t *v, srmech_marshal_arena
     return SRMECH_OK;
 }
 
+/* "Mat": a rectangular nested LIST of plain numbers -> a real MAT carrier
+ * (int/float leaves -> f64; matches coerce_param -> Mat.from_rows(is_complex=
+ * False)). A non-LIST / non-rectangular / non-numeric leaf (e.g. a nested
+ * [re,im] complex leaf) -> BAD_INPUT so the caller DEFERS to the pure
+ * coerce_param (which builds the odd Mat / the op raises) — never a wrong
+ * answer. An empty Mat (rows==0 or cols==0) marshals to a 0-element MAT. */
+static srmech_status_t mm_mat_arg(const srmech_mval_t *v,
+                                  srmech_marshal_arena_t *a, srmech_mval_t **out)
+{
+    uint32_t rows, cols, r, c; srmech_mval_t *mat; double *d;
+    assert(v != NULL && a != NULL && out != NULL);
+    assert(a->cur <= a->end);
+    if (v->kind != SRMECH_MVAL_LIST) { return SRMECH_ERR_BAD_INPUT; }
+    rows = v->n; cols = 0u;
+    if (rows > 0u) {
+        const srmech_mval_t *r0 = v->items[0];
+        if (r0 == NULL || r0->kind != SRMECH_MVAL_LIST) { return SRMECH_ERR_BAD_INPUT; }
+        cols = r0->n;
+    }
+    mat = mm_mat(a, rows, cols);
+    if (mat == NULL) { return SRMECH_ERR_OVERFLOW; }
+    d = (double *)(void *)mat->b;                       /* NULL iff rows*cols==0 */
+    for (r = 0u; r < rows; r++) {
+        const srmech_mval_t *row = v->items[r];
+        if (row == NULL || row->kind != SRMECH_MVAL_LIST || row->n != cols) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        for (c = 0u; c < cols; c++) {
+            const srmech_mval_t *el = row->items[c];
+            if (el == NULL) { return SRMECH_ERR_BAD_INPUT; }
+            if (el->kind == SRMECH_MVAL_INT) { d[(size_t)r * cols + c] = (double)el->i; }
+            else if (el->kind == SRMECH_MVAL_FLOAT) { d[(size_t)r * cols + c] = el->re; }
+            else { return SRMECH_ERR_BAD_INPUT; }        /* bool/[re,im]/nested -> defer */
+        }
+    }
+    *out = mat;
+    return SRMECH_OK;
+}
+
 srmech_status_t srmech_mcp_marshal_arg(const char *type_string,
                                        const srmech_mval_t *v,
                                        srmech_marshal_arena_t *a,
@@ -768,7 +964,7 @@ srmech_status_t srmech_mcp_marshal_arg(const char *type_string,
         return SRMECH_ERR_NULL_ARG;
     }
     assert(a->cur <= a->end);                       /* genuine arena invariant */
-    assert(v->kind >= SRMECH_MVAL_NONE && v->kind <= SRMECH_MVAL_DICT);
+    assert(v->kind >= SRMECH_MVAL_NONE && v->kind <= SRMECH_MVAL_MAT);
     if (v->kind == SRMECH_MVAL_NONE) { *out = (srmech_mval_t *)v; return SRMECH_OK; }
     act = mm_action_for(type_string);
     switch (act) {
@@ -783,6 +979,7 @@ srmech_status_t srmech_mcp_marshal_arg(const char *type_string,
     case MM_ACT_MAP_BYTES_BYTES: return mm_map_map_bytes(v, a, out);
     case MM_ACT_PAIR_BYTES_INT:  return mm_map_pairs(v, a, 0, out);
     case MM_ACT_PAIR_BYTES_BYTES:return mm_map_pairs(v, a, 1, out);
+    case MM_ACT_MAT:             return mm_mat_arg(v, a, out);
     default:                     return SRMECH_ERR_NOT_IMPL;
     }
 }

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc189"
-#define SRMECH_VERSION       "0.9.0rc189"
+#define SRMECH_VERSION_PRE   "rc190"
+#define SRMECH_VERSION       "0.9.0rc190"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3856,7 +3856,13 @@ typedef enum {
     SRMECH_MVAL_BYTES,      /* decoded bytes  (b, blen) — base64 on wire */
     SRMECH_MVAL_COMPLEX,    /* (re, im) f64 pair — [re,im] on wire       */
     SRMECH_MVAL_LIST,       /* ordered children (items, n; is_tuple bit) */
-    SRMECH_MVAL_DICT        /* ordered key/value pairs (keys, items, n)  */
+    SRMECH_MVAL_DICT,       /* ordered key/value pairs (keys, items, n)  */
+    SRMECH_MVAL_MAT         /* rc190 real f64 Mat carrier — n=n_rows,     */
+                            /* i=n_cols, b=row-major double buffer, blen= */
+                            /* n_rows*n_cols doubles (is_tuple=0, real).  */
+                            /* Matches coerce_param("Mat")=Mat.from_rows( */
+                            /* is_complex=False); a genuine-complex Mat    */
+                            /* rides the by-reference handle path.        */
 } srmech_mval_kind_t;
 
 /* The uniform JSON-args<->typed-C-args value carrier. All pointer members
@@ -3922,11 +3928,25 @@ srmech_status_t srmech_mcp_marshal_arg(const char *type_string,
  * writes past the buffer). BYTE-IDENTICAL to CPython json.dumps(x,
  * separators=(",", ":")) (insertion-order keys, default ensure_ascii=True):
  * bytes -> base64 string, complex -> [re,im], NONE -> null, BOOL ->
- * true/false, tuple -> array. FLOAT/COMPLEX use the srmech_json %.17g(+".0")
- * best-effort form (full repr-parity is the rc190 float-carrier's scope). */
+ * true/false, tuple -> array. rc190: FLOAT/COMPLEX + the MAT carrier serialise
+ * each double via srmech_double_repr (the SHORTEST round-trip decimal, byte-
+ * identical to CPython repr(float)/json.dumps); a MAT -> a nested [[...]] float
+ * array (compact). A non-finite double is the pure path's job (defers). */
 srmech_status_t srmech_mcp_serialise_result(const srmech_mval_t *v,
                                             char *buf, size_t buf_len,
                                             size_t *out_len);
+
+/* rc190 — format a FINITE double as CPython repr(float)/json.dumps(float) does:
+ * the SHORTEST decimal that round-trips (David Gay 'r' mode), rendered fixed OR
+ * scientific per CPython's rule (scientific iff decpt<=-4 or decpt>16), with the
+ * integer-valued fixed form carrying a trailing ".0" (repr(5.0)=="5.0"). Writes
+ * a NUL-terminated string into `out` (cap >= 32) and sets *out_len (length
+ * excluding the NUL). Returns SRMECH_OK; SRMECH_ERR_NULL_ARG for a NULL/too-
+ * small buffer; SRMECH_ERR_BAD_INPUT for a non-finite v (NaN/Inf — the caller
+ * defers; these do not arise in the exact tools). libm-FREE: the only libc
+ * calls are snprintf("%.*e") + strtod (both stdio/stdlib, NOT libm). */
+srmech_status_t srmech_double_repr(double v, char *out, size_t cap,
+                                   size_t *out_len);
 
 /* Workspace bytes srmech_mcp_marshal_roundtrip needs for a `value_len`-byte
  * argument JSON (parse tree + carrier tree + decoded buffers). */

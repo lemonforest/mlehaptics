@@ -119,7 +119,7 @@ def test_batch_covers_twenty_distinct_tools() -> None:
 # complete fallback (never a wrong answer). Each pairs with the pure behaviour.
 _DEFER_CASES = [
     ("srmech.qm.bell.tsirelson_bound", {}),                  # float, no C kernel
-    ("srmech.amsc.laplacian.mat_matmul", {"a": [[1]], "b": [[1]]}),  # Mat carrier
+    ("srmech.amsc.laplacian.mat_eigvals", {"m": [[1, 0], [0, 2]]}),  # Mat carrier, no C thunk (rc190 dispatches mat_matmul/matvec/outer, not eigvals)
     ("no.such.tool", {"x": 1}),                              # unregistered
     ("srmech.amsc.cyclic.gcd", {"a": 12, "b": 8, "z": 1}),   # extra arg
     ("srmech.amsc.cyclic.gcd", {"a": 12}),                   # missing required arg
