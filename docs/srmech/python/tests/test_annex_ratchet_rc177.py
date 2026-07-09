@@ -113,7 +113,11 @@ _ANNEX_DELTA = {"owed_orchestration": 2, "composes_c": 11, "host_glue": 12,
 # +24 mcp/cli/llm rows raise the FULL split to 15/103/15/44 = 177. The bus/dsl
 # _ANNEX_ROWS / _ANNEX_DELTA below stay unchanged (they are the rc177 bus/dsl annex
 # record); the mcp/cli/llm annex specifics are pinned in test_annex_ratchet_rc183.py.
-_FULL_SPLIT = {"owed_orchestration": 15, "composes_c": 103, "host_glue": 15,
+# rc185 (living-pin bump): the 2 tool_schema rows + the mcp tool_entries_to_mcp_defs
+# row earned their C projection peers → owed 15→12, composes_c 103→106 (sum stays
+# 177). The bus/dsl _ANNEX_ROWS / _ANNEX_DELTA are untouched (rc185 moves no bus/dsl
+# row).
+_FULL_SPLIT = {"owed_orchestration": 12, "composes_c": 106, "host_glue": 15,
                "dev_tooling": 44}
 _TOTAL_NON_COMPUTE = 177
 
@@ -188,14 +192,13 @@ def test_full_non_compute_split_sums_to_153():
     assert sum(counts.values()) == _TOTAL_NON_COMPUTE == sum(_FULL_SPLIT.values())
 
 
-def test_ceil_non_compute_owed_is_15():
-    """The phase-driver ceiling is 15 after the rc183 host-glue annex — the rc182
-    residue (the deferred tool_schema pair + make_class + run_class_method = 4) plus
-    the +11 mcp/cli host-glue owed rows (the 4 MCP tool-serving ops + cli.main.main /
-    build_parser + the 5 subcommand add_arguments). rc184+ build the MCP server + CLI
-    dispatch to C and drive the owed count back down."""
-    assert CEIL_NON_COMPUTE_OWED == 15, (
-        f"CEIL_NON_COMPUTE_OWED must be 15 after rc183; got "
+def test_ceil_non_compute_owed_is_12():
+    """The phase-driver ceiling is 12 after rc185 — the rc183 residue of 15 minus
+    the 3 tool_schema projection rows (get_tool_schema / tool_schema_view /
+    tool_entries_to_mcp_defs) that earned their C peers in rc185. rc186+ build the
+    MCP JSON-RPC server LOOP + CLI dispatch to C and drive the owed count down."""
+    assert CEIL_NON_COMPUTE_OWED == 12, (
+        f"CEIL_NON_COMPUTE_OWED must be 12 after rc185; got "
         f"{CEIL_NON_COMPUTE_OWED}"
     )
 

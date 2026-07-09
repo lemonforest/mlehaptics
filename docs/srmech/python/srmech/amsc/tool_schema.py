@@ -361,7 +361,16 @@ def get_tool_schema() -> ToolSchema:
     """Return the full tool-schema view assembled from all registered
     entries. srmech's own tools are listed first (in registration
     order); profile-contributed tools follow, grouped by owner
-    (registration order within each profile)."""
+    (registration order within each profile).
+
+    Kept a PURE constructor over the live registry (v0.9.0rc185 dispatch
+    boundary, option (b)): this is the independent Python SSoT the rc184
+    hash-ratchet locks the C const table against, so it must NOT itself
+    route through the C table (that would make the ratchet circular). The
+    bare-C host peer ``srmech_get_tool_schema`` realises the SAME data —
+    proven equivalent by object reconstruction in
+    ``tests/test_tool_schema_ops_c_rc185.py``.
+    """
     from .. import __version__ as srmech_version
     srmech_tools = tuple(e for e in _REGISTRY.values() if e.owner == "srmech")
     profile_tools = tuple(e for e in _REGISTRY.values() if e.owner != "srmech")
@@ -375,8 +384,35 @@ def get_tool_schema() -> ToolSchema:
 def tool_schema_view() -> Dict[str, Any]:
     """Convenience: return :func:`get_tool_schema` rendered as a
     JSON-serialisable dict. Used by the eventual `srmech --tool-schema`
-    CLI invocation."""
+    CLI invocation.
+
+    v0.9.0rc185 — when no profile tools are registered (the C const table
+    IS the live srmech registry, locked by the rc184 hash-ratchet) and the
+    rc185 C peer is loaded, the view is produced by the bare-C host op
+    ``srmech_tool_schema_view`` and parsed back — VALUE-identical to the
+    pure ``get_tool_schema().to_jsonable()`` (dict equality is
+    order-insensitive; the native keys are in canonical/sorted order). Any
+    profile tool, a stale/absent lib, or a non-OK C status falls back to
+    the pure path.
+    """
+    if not any(e.owner != "srmech" for e in _REGISTRY.values()):
+        native = _native_tool_schema_view()
+        if native is not None:
+            return native
     return get_tool_schema().to_jsonable()
+
+
+def _native_tool_schema_view() -> Optional[Dict[str, Any]]:
+    """The rc185 C ``srmech_tool_schema_view`` output parsed to a dict, or
+    ``None`` when the native peer is unavailable / returns non-OK."""
+    try:
+        from . import _native
+    except Exception:  # pragma: no cover — defensive; _native always imports
+        return None
+    raw = _native.tool_schema_view_c()
+    if raw is None:
+        return None
+    return json.loads(raw.decode("utf-8"))
 
 
 # ──────────────────────────────────────────────────────────────────────

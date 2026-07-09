@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc184"
-#define SRMECH_VERSION       "0.9.0rc184"
+#define SRMECH_VERSION_PRE   "rc185"
+#define SRMECH_VERSION       "0.9.0rc185"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3663,6 +3663,57 @@ const srmech_tool_entry_t *srmech_tool_registry_find(const char *name);
  * pure version bump needs no table regeneration). */
 srmech_status_t srmech_tool_schema_to_json(char *buf, size_t buf_len,
                                            size_t *out_len);
+
+/* ------------------------------------------------------------------
+ * Tool-schema PROJECTION ops (0.9.0rc185; the HOST-GLUE tier over the
+ * rc184 const registry table). The C peers of
+ *   srmech.amsc.tool_schema.get_tool_schema  / .tool_schema_view
+ *   srmech.mcp.tool_entries_to_mcp_defs
+ * so a bare-C host produces the SAME projections a Python host does.
+ *
+ * All three share the two-pass buffer contract of
+ * srmech_tool_schema_to_json: `buf == NULL` is a SIZE-QUERY (nothing
+ * written; *out_len ← the exact full byte count), a too-small non-NULL
+ * `buf` returns SRMECH_ERR_OVERFLOW (never writes past the buffer),
+ * NO trailing NUL is emitted, and `out_len == NULL` → SRMECH_ERR_NULL_ARG.
+ * JPL-clean (no malloc, no goto, no libm, no abs). ABI-additive
+ * (SRMECH_ABI_VERSION stays 4).
+ *
+ * srmech_get_tool_schema / srmech_tool_schema_view emit the WHOLE schema as
+ * the canonical (sorted-key) JSON — the SAME bytes as srmech_tool_schema_to_json
+ * (reused per the rc185 brief). Python get_tool_schema() takes no filter and
+ * tool_schema_view() IS get_tool_schema().to_jsonable(), so both project the
+ * whole schema; the output json-parses back EQUAL to
+ * get_tool_schema().to_jsonable() (STRUCTURAL identity — dict equality is
+ * order-insensitive). Byte-identity is to the SORTED canonical form (the rc184
+ * hash pre-image), which is the only byte-stable whole-schema JSON the const
+ * table can produce: the opaque example/smoke_test_hint payloads are baked as
+ * sorted-canonical fragments in the table, so the insertion-order to_jsonable
+ * bytes are not reconstructible from it. All three names are provided for the
+ * 1:1 host surface.
+ */
+srmech_status_t srmech_get_tool_schema(char *buf, size_t buf_len,
+                                       size_t *out_len);
+srmech_status_t srmech_tool_schema_view(char *buf, size_t buf_len,
+                                        size_t *out_len);
+
+/* Emit the ADVERTISED MCP tool-definitions as a JSON array
+ *   [ {"name":..,"description":..,"inputSchema":{"type":"object",
+ *      "properties":{<param>:{"type":<json-type>,"description":..}, ...},
+ *      "required":[..]}}, ... ]
+ * — one object per registry entry with mcp_callable != 0, in table order,
+ * byte-identical to
+ *   json.dumps(list(srmech.mcp.tool_entries_to_mcp_defs()),
+ *              separators=(",", ":"))
+ * (insertion-order keys, default ensure_ascii=True). The srmech param
+ * type-string → JSON-schema type mapping + the per-type wire-encoding
+ * hint (appended to each property description) are a bounded static
+ * lexicon mirroring srmech.mcp._tools._TYPE_LEXICON / _ENCODING_HINT;
+ * an unknown type degrades to "string" with no hint (the Python SSoT
+ * default). Property keys are sanitised to the Anthropic/MCP grammar
+ * ^[a-zA-Z0-9_.-]{1,64}$ (mirroring _sanitise_property_key). */
+srmech_status_t srmech_tool_entries_to_mcp_defs(char *buf, size_t buf_len,
+                                                size_t *out_len);
 
 /* ------------------------------------------------------------------
  * Op-provenance canonical record hasher (0.9.0rc117; the op-carrying
