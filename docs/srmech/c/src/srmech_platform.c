@@ -13,6 +13,11 @@
  * License: MIT.
  */
 
+/* Declare nanosleep (POSIX.1b, _POSIX_C_SOURCE >= 199309L) under the strict
+ * -std=c11 the build uses (CMAKE_C_EXTENSIONS OFF). MUST precede all includes.
+ * Additive — the socket/pthread PAL code compiles unchanged. */
+#define _POSIX_C_SOURCE 200809L
+
 #include "srmech_platform.h"
 
 #include <assert.h>
