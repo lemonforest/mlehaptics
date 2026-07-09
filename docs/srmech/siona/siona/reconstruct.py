@@ -24,7 +24,7 @@ overlap is the attested edge); no Python magnitude builtin (nearest-in-embedding
 """
 from srmech.amsc import laplacian as L
 
-__all__ = ["group", "family", "reconstruct"]
+__all__ = ["group", "family", "reconstruct", "genre_template"]
 
 # no magic weights: the ONE edge kind is within-fragment content OVERLAP (Jaccard), an attested structural coupling —
 # the identical +v co-occurrence edge `couple._build_graph` uses, here between whole LINES instead of concept-words.
@@ -143,23 +143,53 @@ def _tally(seqs):
     return wc
 
 
-def reconstruct(damaged, pool, *, k=12, frac=0.34):
+def genre_template(lines, *, frac=0.06):
+    """The GENRE-TEMPLATE knowledge kernel (F1190): the lemmas a formulaic genre canonically carries = those present in
+    ≥ ``frac`` of ``lines`` (an attested corpus RATIO, not a magic number — a once-only OPERAND like a personal name can
+    never clear the fraction, so the ratio itself separates the recurring FRAME from the unique operand). This IS the
+    structure a formulaic text omits ON PURPOSE because it was implied — pass it to ``reconstruct(knowledge=…)`` to
+    restore the elided-because-canonical frame while leaving the unique operand to the corpus-parallel/expert (F282)."""
+    sigs = [_toks(x) for x in lines]
+    n = len(sigs)
+    wc = _tally(sigs)
+    return frozenset(w for w in wc if wc[w] >= frac * n)
+
+
+def reconstruct(damaged, pool, *, k=12, frac=0.34, knowledge=None, triggers=None):
     """The full group→align→majority-correct pipeline (F1178): find ``damaged``'s formula-family in ``pool`` (spectral,
     F1176), then recover its missing slots from the family CONSENSUS — a word carried by ≥ a threshold fraction of the
     family (the distance-k repetition code, F1177: k≥3 CORRECTS by majority, k=2 only DETECTS).
 
     ``damaged`` = the surviving words (token set or raw string); ``pool`` = the candidate parallels. ``k`` = family
     size; ``frac`` = consensus fraction (a slot is filled only when ≥ ``max(2, frac·k)`` family members agree — the
-    ≥2 floor is the k=2-detect / k≥3-correct boundary made explicit). Returns
-    ``{"family": [pool-index, …], "recovered": [word, …], "support": {word: count}}`` — ``recovered`` = the consensus
-    words NOT already present in ``damaged`` (the reconstructed slots), ordered by descending family support."""
+    ≥2 floor is the k=2-detect / k≥3-correct boundary made explicit).
+
+    ``knowledge`` (F1190, optional) — a GENRE-TEMPLATE kernel (see ``genre_template``): the canonical lemmas the text
+    elides because they were implied. When supplied AND its ``triggers`` fire, its frame lemmas are returned SEPARATELY
+    as ``implied`` (provenance kept distinct from the corpus ``recovered``, so a reader can accept the local-parallel and
+    genre-canonical proposals differently — the two are complementary EC sources, MEASURED disjoint: knowledge restores
+    frame, never operand, F1190). ``triggers`` — the implication signature (e.g. the offering-formula markers): the
+    knowledge fires only when the surviving context intersects ``triggers`` (fires unconditionally if ``triggers`` is
+    None); this is the "because of something implied" gate.
+
+    Returns ``{"family": […], "recovered": [word,…], "implied": [word,…], "support": {word: count}}`` — ``recovered`` =
+    the corpus-family consensus slots (unchanged from the no-knowledge path); ``implied`` = the genre-template frame
+    proposals not already in ``recovered`` or ``damaged`` (empty when ``knowledge`` is None), ordered by nothing beyond
+    input order (they are equal-provenance genre candidates)."""
     survive = _toks(damaged)
     fam = family(survive, pool, k=k)
     if not fam:
-        return {"family": [], "recovered": [], "support": {}}
-    fam_sigs = [_toks(pool[j]) for j in fam]
-    wc = _tally(fam_sigs)
-    thr = 2 if int(frac * len(fam)) < 2 else int(frac * len(fam))    # ≥2 floor = the k=2-detect / k≥3-correct boundary
-    support = {w: c for w, c in wc.items() if c >= thr and w not in survive}
-    recovered = sorted(support, key=lambda w: (-support[w], w))      # descending support, tie-broken deterministically
-    return {"family": fam, "recovered": recovered, "support": support}
+        support, recovered = {}, []
+    else:
+        fam_sigs = [_toks(pool[j]) for j in fam]
+        wc = _tally(fam_sigs)
+        thr = 2 if int(frac * len(fam)) < 2 else int(frac * len(fam))    # ≥2 floor = k=2-detect / k≥3-correct boundary
+        support = {w: c for w, c in wc.items() if c >= thr and w not in survive}
+        recovered = sorted(support, key=lambda w: (-support[w], w))      # descending support, deterministic tie-break
+    implied = []
+    if knowledge:                                                       # the genre-template kernel (F1190), provenance-kept
+        fired = (triggers is None) or bool(set(survive) & set(triggers))    # "because of something implied" gate
+        if fired:
+            already = set(recovered) | set(survive)
+            implied = [w for w in knowledge if w not in already]
+    return {"family": fam, "recovered": recovered, "implied": implied, "support": support}
